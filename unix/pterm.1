@@ -201,6 +201,22 @@ screen exactly the way they found it.
 This option should be set to either 0 or 1; the default is 0. When
 set to 1, it stops the server from remotely controlling the title of
 the \fIpterm\fP window.
+.IP "\fBpterm.NoRemoteQTitle\fP"
+This option should be set to either 0 or 1; the default is 1. When
+set to 1, it stops the server from remotely requesting the title of
+the \fIpterm\fP window.
+
+This feature is a \fBPOTENTIAL SECURITY HAZARD\fP. If a malicious
+application can write data to your terminal (for example, if you
+merely \fIcat\fP a file owned by someone else on the server
+machine), it can change your window title (unless you have disabled
+this using the \fBNoRemoteWinTitle\fP resource) and then use this
+service to have the new window title sent back to the server as if
+typed at the keyboard. This allows an attacker to fake keypresses
+and potentially cause your server-side applications to do things you
+didn't want. Therefore this feature is disabled by default, and we
+recommend you do not turn it on unless you \fBreally\fP know what
+you are doing.
 .IP "\fBpterm.NoDBackspace\fP"
 This option should be set to either 0 or 1; the default is 0. When
 set to 1, it disables the normal action of the Delete (^?) character
