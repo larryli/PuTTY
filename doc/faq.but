@@ -101,6 +101,41 @@ authentication, which is more flexible and more secure. See
 \k{pubkey} in the documentation for a full discussion of public key
 authentication.
 
+\S{faq-hostkeys} Is there an option to turn off the annoying host
+key prompts?
+
+No, there isn't. And there won't be. Even if you write it yourself
+and send us the patch, we won't accept it.
+
+Those annoying host key prompts are the \e{whole point} of SSH.
+Without them, all the cryptographic technology SSH uses to secure
+your session is doing nothing more than making an attacker's job
+slightly harder; instead of sitting between you and the server with
+a packet sniffer, the attacker must actually subvert a router and
+start modifying the packets going back and forth. But that's not all
+that much harder than just sniffing; and without host key checking,
+it will go completely undetected by client or server.
+
+Host key checking is your guarantee that the encryption you put on
+your data at the client end is the \e{same} encryption taken off the
+data at the server end; it's your guarantee that it hasn't been
+removed and replaced somewhere on the way. Host key checking makes
+the attacker's job \e{astronomically} hard, compared to packet
+sniffing, and even compared to subverting a router. Instead of
+applying a little intelligence and keeping an eye on Bugtraq, the
+attacker must now perform a brute-force attack against at least one
+military-strength cipher. That insignificant host key prompt really
+does make \e{that} much difference.
+
+If you're having a specific problem with host key checking - perhaps
+you want an automated batch job to make use of PSCP or Plink, and
+the interactive host key prompt is hanging the batch process - then
+the right way to fix it is to add the correct host key to the
+Registry in advance. That way, you retain the \e{important} feature
+of host key checking: the right key will be accepted and the wrong
+ones will not. Adding an option to turn host key checking off
+completely is the wrong solution and we will not do it.
+
 \S{faq-server} Will you write an SSH server for the PuTTY suite, to
 go with the client?
 
