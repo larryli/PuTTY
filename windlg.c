@@ -508,6 +508,8 @@ static int GeneralPanelProc (HWND hwnd, UINT msg,
     return 0;
 }
 
+static char savedsession[2048];
+
 static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     int i;
@@ -515,6 +517,7 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	SetDlgItemText (hwnd, IDC0_HOST, cfg.host);
+	SetDlgItemText (hwnd, IDC0_SESSEDIT, savedsession);
 	SetDlgItemInt (hwnd, IDC0_PORT, cfg.port, FALSE);
 	for (i = 0; i < nsessions; i++)
 	    SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_ADDSTRING,
@@ -571,9 +574,13 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 		cfg.warn_on_close = IsDlgButtonChecked (hwnd, IDC0_CLOSEWARN);
 	    break;
 	  case IDC0_SESSEDIT:
-	    if (HIWORD(wParam) == EN_CHANGE)
+	    if (HIWORD(wParam) == EN_CHANGE) {
 		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
+                GetDlgItemText (hwnd, IDC0_SESSEDIT,
+                                savedsession, sizeof(savedsession)-1);
+                savedsession[sizeof(savedsession)-1] = '\0';
+            }
 	    break;
 	  case IDC0_SESSSAVE:
 	    if (HIWORD(wParam) == BN_CLICKED ||
@@ -1528,6 +1535,7 @@ int do_config (void) {
     int ret;
 
     get_sesslist(TRUE);
+    savedsession[0] = '\0';
     ret = DialogBox (hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL, MainDlgProc);
     get_sesslist(FALSE);
 
