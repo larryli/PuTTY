@@ -968,6 +968,22 @@ indicate that PuTTY's doing anything wrong, and we don't need to hear
 about further occurrences.  See \k{errors-connaborted} for our current
 documentation of this error.
 
+\S{faq-rekey}{Question} My SSH-2 session \I{locking up, SSH-2
+sessions}locks up for a few seconds every so often.
+
+Recent versions of PuTTY automatically initiate \i{repeat key
+exchange} once per hour, to improve session security. If your client
+or server machine is slow, you may experience this as a delay of
+anything up to thirty seconds or so.
+
+These \I{delays, in SSH-2 sessions}delays are inconvenient, but they
+are there for your protection. If they really cause you a problem,
+you can choose to turn off periodic rekeying using the \q{Kex}
+configuration panel (see \k{config-ssh-kex}), but be aware that you
+will be sacrificing security for this. (Falling back to SSH-1 would
+also remove the delays, but would lose a \e{lot} more security
+still. We do not recommend it.)
+
 \H{faq-secure} Security questions
 
 \S{faq-publicpc}{Question} Is it safe for me to download PuTTY and
