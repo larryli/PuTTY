@@ -1334,9 +1334,7 @@ static void toremote(int argc, char *argv[])
 	    else
 		last = srcpath;
 	}
-printf("src=:%s:\nsrcpath=:%s:\nlast=:%s:\n", src, srcpath, last);
 	*last = '\0';
-printf("srcpath=:%s:\n", srcpath);
 
 	dir = FindFirstFile(src, &fdat);
 	if (dir == INVALID_HANDLE_VALUE) {
