@@ -225,7 +225,7 @@ void term_invalidate(void);
  * Exports from raw.c.
  */
 
-Backend raw_backend;
+extern Backend raw_backend;
 
 /*
  * Exports from telnet.c.
