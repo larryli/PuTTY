@@ -1,4 +1,7 @@
+/* Some compilers, like Borland, don't have winresrc.h */
+#ifndef NO_WINRESRC_H
 #include <winresrc.h>
+#endif
 
 /* Some systems don't define this, so I do it myself if necessary */
 #ifndef TCS_MULTILINE

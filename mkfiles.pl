@@ -108,7 +108,7 @@ select STDOUT; close OUT;
 ##-- Borland makefile
 open OUT, ">Makefile.bor"; select OUT;
 print
-"# Makefile for PuTTY under Borland C.\n";
+"# Makefile for PuTTY under Borland C++.\n";
 # bcc32 command line option is -D not /D
 ($_ = $store{"help"}) =~ s/=\/D/=-D/gs;
 print $_;
@@ -129,8 +129,8 @@ print
 ".c.obj:\n".
 "\tbcc32 \$(COMPAT) \$(FWHACK) \$(CFLAGS) /c \$*.c\n".
 ".rc.res:\n".
-"\tbrc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include \\\n".
-"\t\t-r -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
+"\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include \\\n".
+"\t\t-r -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
 "\n".
 "OBJ=obj\n".
 "RES=res\n".
@@ -142,17 +142,21 @@ print map { " $_.exe" } @projects;
 print "\n\n";
 foreach $p (@projects) {
   print $p, ".exe: ", &project($p), " $p.rsp\n";
-  $tw = $gui{$p} ? " -tW" : "";
-  print "\tbcc32$tw -e$p.exe \@$p.rsp\n";
-  print "\tbrc32 -fe$p.exe " . (join " ", &project("resources.$p")) . "\n\n";
+  $ap = $gui{$p} ? "" : " -ap";
+  print "\tilink32$ap -Gn -L\$(BCB)\\lib \@$p.rsp\n\n";
 }
 foreach $p (@projects) {
   print $p, ".rsp: \$(MAKEFILE)\n";
-  $arrow = ">";
-  foreach $i (&projlist("objects.$p")) {
-    print "\techo \$($i) $arrow $p.rsp\n";
-    $arrow = ">>";
+  $c0w = $gui{$p} ? "c0w32" : "c0x32";
+  print "\techo $c0w + > $p.rsp\n";
+  @objlines = &projlist("objects.$p");
+  for ($i=0; $i<=$#objlines; $i++) {
+    $plus = ($i < $#objlines ? " +" : "");
+    print "\techo \$($objlines[$i])$plus >> $p.rsp\n";
   }
+  print "\techo $p.exe >> $p.rsp\n";
+  print "\techo nul,cw32 import32, >> $p.rsp\n";
+  print "\techo " . (join " ", &project("resources.$p")) . " >> $p.rsp\n";
   print "\n";
 }
 print $store{"dependencies"};
@@ -168,7 +172,9 @@ print
 "\tdel *.res\n".
 "\tdel *.pch\n".
 "\tdel *.aps\n".
-"\tdel *.ilk\n".
+"\tdel *.il*\n".
 "\tdel *.pdb\n".
-"\tdel *.rsp\n";
+"\tdel *.rsp\n".
+"\tdel *.tds\n".
+"\tdel *.\$\$\$\$\$\$\n";
 select STDOUT; close OUT;
