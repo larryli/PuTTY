@@ -1570,15 +1570,15 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             of.lpstrFilter = "All Files\0*\0\0\0";
             of.lpstrCustomFilter = NULL;
             of.nFilterIndex = 1;
-            of.lpstrFile = filename; strcpy(filename, cfg.keyfile);
+            of.lpstrFile = filename; strcpy(filename, cfg.logfilename);
             of.nMaxFile = sizeof(filename);
             of.lpstrFileTitle = NULL;
             of.lpstrInitialDir = NULL;
             of.lpstrTitle = "Select session log file";
             of.Flags = 0;
             if (GetSaveFileName(&of)) {
-                strcpy(cfg.keyfile, filename);
-                SetDlgItemText (hwnd, IDC_LGFEDIT, cfg.keyfile);
+                strcpy(cfg.logfilename, filename);
+                SetDlgItemText (hwnd, IDC_LGFEDIT, cfg.logfilename);
             }
 	    break;
 	  case IDC_LSTATOFF:
