@@ -48,6 +48,7 @@ sshrsa.obj: sshrsa.c ssh.h
 sshsha.obj: sshsha.c ssh.h
 sshrand.obj: sshrand.c ssh.h
 version.obj: versionpseudotarget
+	cl $(FWHACK) $(VER) $(CFLAGS) /c version.c
 
 # Hack to force version.obj to be rebuilt always
 versionpseudotarget:
