@@ -214,6 +214,7 @@ typedef struct {
     void (*size) (void);
     void (*special) (Telnet_Special code);
     Socket(*socket) (void);
+    int (*exitcode) (void);
     int (*sendok) (void);
     int (*ldisc) (int);
     /*

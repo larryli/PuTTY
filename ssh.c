@@ -499,6 +499,7 @@ static int ssh_echoing, ssh_editing;
 
 static tree234 *ssh_channels;	       /* indexed by local id */
 static struct ssh_channel *mainchan;   /* primary session channel */
+static int ssh_exitcode = -1;
 
 static tree234 *ssh_rportfwds;
 
@@ -3110,6 +3111,11 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		/* may be from EXEC_SHELL on some servers
 		 * if no pty is available or in other odd cases. Ignore */
 	    } else if (pktin.type == SSH1_SMSG_EXIT_STATUS) {
+		char buf[100];
+		ssh_exitcode = GET_32BIT(pktin.body);
+		sprintf(buf, "Server sent command exit status %d",
+			ssh_exitcode);
+		logevent(buf);
 		send_packet(SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
                 /*
                  * In case `helpful' firewalls or proxies tack
@@ -5061,14 +5067,35 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		}
 
 		/*
-		 * We don't recognise any form of channel request,
-		 * so we now either ignore the request or respond
-		 * with CHANNEL_FAILURE, depending on want_reply.
+		 * Having got the channel number, we now look at
+		 * the request type string to see if it's something
+		 * we recognise.
 		 */
-		if (want_reply) {
-		    ssh2_pkt_init(SSH2_MSG_CHANNEL_FAILURE);
-		    ssh2_pkt_adduint32(c->remoteid);
-		    ssh2_pkt_send();
+		if (typelen == 11 && !memcmp(type, "exit-status", 11) &&
+		    c == mainchan) {
+		    /* We recognise "exit-status" on the primary channel. */
+		    char buf[100];
+		    ssh_exitcode = ssh2_pkt_getuint32();
+		    sprintf(buf, "Server sent command exit status %d",
+			    ssh_exitcode);
+		    logevent(buf);
+		    if (want_reply) {
+			ssh2_pkt_init(SSH2_MSG_CHANNEL_SUCCESS);
+			ssh2_pkt_adduint32(c->remoteid);
+			ssh2_pkt_send();
+		    }
+		} else {
+		    /*
+		     * This is a channel request we don't know
+		     * about, so we now either ignore the request
+		     * or respond with CHANNEL_FAILURE, depending
+		     * on want_reply.
+		     */
+		    if (want_reply) {
+			ssh2_pkt_init(SSH2_MSG_CHANNEL_FAILURE);
+			ssh2_pkt_adduint32(c->remoteid);
+			ssh2_pkt_send();
+		    }
 		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
@@ -5443,6 +5470,11 @@ static int ssh_ldisc(int option)
     return FALSE;
 }
 
+static int ssh_return_exitcode(void)
+{
+    return ssh_exitcode;
+}
+
 Backend ssh_backend = {
     ssh_init,
     ssh_send,
@@ -5450,6 +5482,7 @@ Backend ssh_backend = {
     ssh_size,
     ssh_special,
     ssh_socket,
+    ssh_return_exitcode,
     ssh_sendok,
     ssh_ldisc,
     ssh_unthrottle,

@@ -848,6 +848,12 @@ static int telnet_ldisc(int option)
     return FALSE;
 }
 
+static int telnet_exitcode(void)
+{
+    /* Telnet doesn't transmit exit codes back to the client */
+    return 0;
+}
+
 Backend telnet_backend = {
     telnet_init,
     telnet_send,
@@ -855,6 +861,7 @@ Backend telnet_backend = {
     telnet_size,
     telnet_special,
     telnet_socket,
+    telnet_exitcode,
     telnet_sendok,
     telnet_ldisc,
     telnet_unthrottle,

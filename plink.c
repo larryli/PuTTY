@@ -444,6 +444,7 @@ int main(int argc, char **argv)
     SOCKET *sklist;
     int skcount, sksize;
     int connopen;
+    int exitcode;
     char extra_portfwd[sizeof(cfg.portfwd)];
 
     ssh_get_line = get_line;
@@ -967,5 +968,10 @@ int main(int argc, char **argv)
 	    break;		       /* we closed the connection */
     }
     WSACleanup();
-    return 0;
+    exitcode = back->exitcode();
+    if (exitcode < 0) {
+	fprintf(stderr, "Remote process exit code unavailable\n");
+	exitcode = 1;		       /* this is an error condition */
+    }
+    return exitcode;
 }

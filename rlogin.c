@@ -217,6 +217,12 @@ static int rlogin_ldisc(int option)
     return 0;
 }
 
+static int rlogin_exitcode(void)
+{
+    /* If we ever implement RSH, we'll probably need to do this properly */
+    return 0;
+}
+
 Backend rlogin_backend = {
     rlogin_init,
     rlogin_send,
@@ -224,6 +230,7 @@ Backend rlogin_backend = {
     rlogin_size,
     rlogin_special,
     rlogin_socket,
+    rlogin_exitcode,
     rlogin_sendok,
     rlogin_ldisc,
     rlogin_unthrottle,

@@ -162,6 +162,12 @@ static int raw_ldisc(int option)
     return 0;
 }
 
+static int raw_exitcode(void)
+{
+    /* Exit codes are a meaningless concept in the Raw protocol */
+    return 0;
+}
+
 Backend raw_backend = {
     raw_init,
     raw_send,
@@ -169,6 +175,7 @@ Backend raw_backend = {
     raw_size,
     raw_special,
     raw_socket,
+    raw_exitcode,
     raw_sendok,
     raw_ldisc,
     raw_unthrottle,
