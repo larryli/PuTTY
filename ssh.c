@@ -3248,6 +3248,43 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     }
 
     /*
+     * Potentially enable agent forwarding.
+     */
+    if (cfg.agentfwd && agent_exists()) {
+        char proto[20], data[64];
+        logevent("Requesting OpenSSH-style agent forwarding");
+        x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
+        ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+        ssh2_pkt_adduint32(mainchan->remoteid);
+        ssh2_pkt_addstring("auth-agent-req@openssh.com");
+        ssh2_pkt_addbool(1);           /* want reply */
+        ssh2_pkt_send();
+
+        do {
+            crWaitUntilV(ispkt);
+            if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
+                c->v2.remwindow += ssh2_pkt_getuint32();
+            }
+        } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+
+        if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
+            if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
+                bombout(("Server got confused by agent forwarding request"));
+                crReturnV;
+            }
+            logevent("Agent forwarding refused");
+        } else {
+            logevent("Agent forwarding enabled");
+	    ssh_agentfwd_enabled = TRUE;
+        }
+    }
+
+    /*
      * Now allocate a pty for the session.
      */
     if (!cfg.nopty) {
@@ -3369,6 +3406,45 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                       case CHAN_X11:
                         x11_send(c->u.x11.s, data, length);
                         break;
+		      case CHAN_AGENT:
+                        while (length > 0) {
+                            if (c->u.a.lensofar < 4) {
+                                int l = min(4 - c->u.a.lensofar, length);
+                                memcpy(c->u.a.msglen + c->u.a.lensofar, data, l);
+                                data += l; length -= l; c->u.a.lensofar += l;
+                            }
+                            if (c->u.a.lensofar == 4) {
+                                c->u.a.totallen = 4 + GET_32BIT(c->u.a.msglen);
+                                c->u.a.message = smalloc(c->u.a.totallen);
+                                memcpy(c->u.a.message, c->u.a.msglen, 4);
+                            }
+                            if (c->u.a.lensofar >= 4 && length > 0) {
+                                int l = min(c->u.a.totallen - c->u.a.lensofar,
+					    length);
+                                memcpy(c->u.a.message + c->u.a.lensofar, data, l);
+                                data += l; length -= l; c->u.a.lensofar += l;
+                            }
+                            if (c->u.a.lensofar == c->u.a.totallen) {
+                                void *reply, *sentreply;
+                                int replylen;
+                                agent_query(c->u.a.message, c->u.a.totallen,
+                                            &reply, &replylen);
+                                if (reply)
+                                    sentreply = reply;
+                                else {
+                                    /* Fake SSH_AGENT_FAILURE. */
+                                    sentreply = "\0\0\0\1\5";
+                                    replylen = 5;
+                                }
+				ssh2_add_channel_data(c, sentreply, replylen);
+				try_send = TRUE;
+                                if (reply)
+                                    sfree(reply);
+                                sfree(c->u.a.message);
+                                c->u.a.lensofar = 0;
+                            }
+                        }
+                        break;
                     }
                     /*
                      * Enlarge the window again at the remote
@@ -3401,7 +3477,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                      */
                     x11_close(c->u.x11.s);
                     sshfwd_close(c);
-                }
+                } else if (c->type == CHAN_AGENT) {
+		    sshfwd_close(c);
+		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_CLOSE) {
                 unsigned i = ssh2_pkt_getuint32();
                 struct ssh_channel *c;
@@ -3420,6 +3498,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                   case CHAN_MAINSESSION:
                     break;             /* nothing to see here, move along */
                   case CHAN_X11:
+                    break;
+                  case CHAN_AGENT:
                     break;
                 }
                 del234(ssh_channels, c);
@@ -3464,6 +3544,14 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                         error = "Unable to open an X11 connection";
                     } else {
                         c->type = CHAN_X11;
+                    }
+                } else if (typelen == 22 &&
+			   !memcmp(type, "auth-agent@openssh.com", 3)) {
+                    if (!ssh_agentfwd_enabled)
+                        error = "Agent forwarding is not enabled";
+		    else {
+			c->type = CHAN_AGENT;   /* identify channel type */
+			c->u.a.lensofar = 0;
                     }
                 } else {
                     error = "Unsupported channel type requested";
