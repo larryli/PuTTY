@@ -900,7 +900,7 @@ static int beep_overload = 0;
 		}
 		seen_disp_event = TRUE;
 		break;
-	      case '\177': /* Destructive backspace 
+	      case '\177': /* Destructive backspace
 			      This does nothing on a real VT100 */
 	        compatibility(OTHER);
 		if (curs_x && !wrapnext) curs_x--;
@@ -913,7 +913,7 @@ static int beep_overload = 0;
 	else switch (termstate) {
 	  case TOPLEVEL:
 	  /* Only graphic characters get this far, ctrls are stripped above */
-	    if (wrapnext) {
+	    if (wrapnext && wrap) {
 		cpos[1] |= ATTR_WRAPPED;
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
@@ -959,7 +959,7 @@ static int beep_overload = 0;
 	    if (curs_x == cols) {
 		cpos--;
 		curs_x--;
-		wrapnext = wrap;
+		wrapnext = TRUE;
 	    }
 	    seen_disp_event = 1;
 	    break;
