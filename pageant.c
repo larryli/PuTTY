@@ -652,7 +652,7 @@ static void answer_msg(void *msg)
 	    char *comment;
             int commentlen;
 	    key = smalloc(sizeof(struct RSAKey));
-	    memset(key, 0, sizeof(key));
+	    memset(key, 0, sizeof(struct RSAKey));
 	    p += makekey(p, key, NULL, 1);
 	    p += makeprivate(p, key);
 	    p += ssh1_read_bignum(p, &key->iqmp);	/* p^-1 mod q */
