@@ -678,8 +678,10 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		    cl = malloc(16 + strlen(session)); /* 8, but play safe */
 		    if (!cl)
 			cl = NULL;     /* not a very important failure mode */
-		    sprintf(cl, "putty @%s", session);
-		    freecl = TRUE;
+		    else {
+			sprintf(cl, "putty @%s", session);
+			freecl = TRUE;
+		    }
 		} else
 		    cl = NULL;
 
