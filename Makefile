@@ -33,6 +33,17 @@
 #      Cygnus/mingw32, whose resource compiler may have less of a
 #      problem with it.
 #
+#  - XFLAGS=/DMALLOC_LOG
+#      Causes PuTTY to emit a file called putty_mem.log, logging every
+#      memory allocation and free, so you can track memory leaks.
+#
+#  - XFLAGS=/DMINEFIELD
+#      Causes PuTTY to use a custom memory allocator, similar in
+#      concept to Electric Fence, in place of regular malloc(). Wastes
+#      huge amounts of RAM, but should cause heap-corruption bugs to
+#      show up as GPFs at the point of failure rather than appearing
+#      later on as second-level damage.
+#
 ##--
 
 CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
@@ -45,7 +56,7 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 LFLAGS = /incremental:no
 
 .c.obj:
-	cl $(COMPAT) $(FWHACK) $(CFLAGS) /c $*.c
+	cl $(COMPAT) $(FWHACK) $(XFLAGS) $(CFLAGS) /c $*.c
 
 OBJ=obj
 RES=res
