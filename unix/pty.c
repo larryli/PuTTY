@@ -345,6 +345,7 @@ void pty_pre_init(void)
 	close(pipefd[0]);
 	pty_utmp_helper_pid = pid;
 	pty_utmp_helper_pipe = pipefd[1];
+	signal(SIGCHLD, sigchld_handler);
     }
 #endif
 
