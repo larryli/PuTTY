@@ -610,7 +610,7 @@ void zlib_compress_cleanup(void *handle)
  * length adjustment (which is only valid for packets < 65536
  * bytes, but that seems reasonable enough).
  */
-int zlib_disable_compression(void *handle)
+static int zlib_disable_compression(void *handle)
 {
     struct LZ77Context *ectx = (struct LZ77Context *)handle;
     struct Outbuf *out = (struct Outbuf *) ectx->userdata;
@@ -974,7 +974,7 @@ void zlib_decompress_cleanup(void *handle)
     sfree(dctx);
 }
 
-int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
+static int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
 		   struct zlib_table *tab)
 {
     unsigned long bits = *bitsp;
