@@ -110,15 +110,15 @@ for some FOO; you can make \fIpterm\fP look them up under another
 name, such as \fIxyz.FOO\fP, by specifying the command-line option
 "-name xyz".
 .IP "\fBpterm.CloseOnExit\fP"
-This option should be set to 0, 1 or 2; the default is 1. It
+This option should be set to 0, 1 or 2; the default is 2. It
 controls what \fIpterm\fP does when the process running inside it
-terminates. When set to 2, \fIpterm\fP will close its window as soon
-as the process inside it terminates. When set to 0, \fIpterm\fP will
-print the process's exit status, and the window will remain present
-until a key is pressed (allowing you to inspect the scrollback, and
-copy and paste text out of it).
+terminates. When set to 2 (the default), \fIpterm\fP will close its
+window as soon as the process inside it terminates. When set to 0,
+\fIpterm\fP will print the process's exit status, and the window
+will remain present until a key is pressed (allowing you to inspect
+the scrollback, and copy and paste text out of it).
 
-When this setting is set to 1 (the default), \fIpterm\fP will close
+When this setting is set to 1, \fIpterm\fP will close
 immediately if the process exits cleanly (with an exit status of
 zero), but the window will stay around if the process exits with a
 non-zero code or on a signal. This enables you to see what went

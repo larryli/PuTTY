@@ -349,7 +349,23 @@ void load_settings(char *section, int do_host, Config * cfg)
 	    break;
 	}
 
-    gppi(sesskey, "CloseOnExit", COE_NORMAL, &cfg->close_on_exit);
+    /*
+     * CloseOnExit defaults to closing only on a clean exit - but
+     * unfortunately not on Unix (pterm). On Unix, the exit code of
+     * a shell is the last exit code of one of its child processes,
+     * even if it's an interactive shell - so some pterms will
+     * close and some will not for no particularly good reason. The
+     * mode is still useful for specialist purposes (running a
+     * single command in its own pterm), but I don't think it's a
+     * sane default, unfortunately.
+     */
+    gppi(sesskey, "CloseOnExit",
+#ifdef _WINDOWS
+         COE_NORMAL,
+#else
+         COE_ALWAYS,
+#endif
+         &cfg->close_on_exit);
     gppi(sesskey, "WarnOnClose", 1, &cfg->warn_on_close);
     {
 	/* This is two values for backward compatibility with 0.50/0.51 */
