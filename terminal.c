@@ -1377,12 +1377,12 @@ void term_out(void)
 		     * Perform an actual beep if we're not overloaded.
 		     */
 		    if (!cfg.bellovl || !beep_overloaded) {
-			beep(cfg.beep);
 			if (cfg.beep == BELL_VISUAL) {
 			    in_vbell = TRUE;
 			    vbell_startpoint = ticks;
 			    term_update();
-			}
+			} else
+			    beep(cfg.beep);
 		    }
 		    disptop = 0;
 		}
@@ -2998,8 +2998,8 @@ void term_blink(int flg)
     now = GETTICKCOUNT();
     blink_diff = now - last_tblink;
 
-    /* Make sure the text blinks no more than 2Hz */
-    if (blink_diff < 0 || blink_diff > 450) {
+    /* Make sure the text blinks no more than 2Hz; we'll use 0.45 s period. */
+    if (blink_diff < 0 || blink_diff > (TICKSPERSEC * 9 / 20)) {
 	last_tblink = now;
 	tblinker = !tblinker;
     }
