@@ -3911,7 +3911,7 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 		    strcpy(saddr, sports);
 		n = 0;
 	    }
-	    if (n < 255) sports[n++] = *portfwd_strptr++;
+	    if (n < lenof(sports)-1) sports[n++] = *portfwd_strptr++;
 	}
 	sports[n] = 0;
 	if (type != 'D') {
@@ -3919,14 +3919,14 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 		portfwd_strptr++;
 	    n = 0;
 	    while (*portfwd_strptr && *portfwd_strptr != ':') {
-		if (n < 255) host[n++] = *portfwd_strptr++;
+		if (n < lenof(host)-1) host[n++] = *portfwd_strptr++;
 	    }
 	    host[n] = 0;
 	    if (*portfwd_strptr == ':')
 		portfwd_strptr++;
 	    n = 0;
 	    while (*portfwd_strptr) {
-		if (n < 255) dports[n++] = *portfwd_strptr++;
+		if (n < lenof(dports)-1) dports[n++] = *portfwd_strptr++;
 	    }
 	    dports[n] = 0;
 	    portfwd_strptr++;
