@@ -47,7 +47,8 @@ static char *savedhost;
 static enum {
     SSH_STATE_BEFORE_SIZE,
     SSH_STATE_INTERMED,
-    SSH_STATE_SESSION
+    SSH_STATE_SESSION,
+    SSH_STATE_CLOSED
 } ssh_state = SSH_STATE_BEFORE_SIZE;
 
 static int size_needed = FALSE;
@@ -478,7 +479,8 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 		    len = (len << 8) + pktin.body[i];
 		c_write(pktin.body+4, len);
 	    } else if (pktin.type == 1) {
-		/* SSH_MSG_DISCONNECT: do nothing */
+		/* SSH_MSG_DISCONNECT */
+                ssh_state = SSH_STATE_CLOSED;
 	    } else if (pktin.type == 14) {
 		/* SSH_MSG_SUCCESS: may be from EXEC_SHELL on some servers */
 	    } else if (pktin.type == 15) {
@@ -647,6 +649,7 @@ static int ssh_msg (WPARAM wParam, LPARAM lParam) {
 	return 1;
       case FD_CLOSE:
 	s = INVALID_SOCKET;
+        ssh_state = SSH_STATE_CLOSED;
 	return 0;
     }
     return 1;			       /* shouldn't happen, but WTF */
@@ -668,6 +671,7 @@ static void ssh_send (char *buf, int len) {
 static void ssh_size(void) {
     switch (ssh_state) {
       case SSH_STATE_BEFORE_SIZE:
+      case SSH_STATE_CLOSED:
 	break;			       /* do nothing */
       case SSH_STATE_INTERMED:
 	size_needed = TRUE;	       /* buffer for later */
