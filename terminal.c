@@ -62,6 +62,8 @@ const wchar_t sel_nl[] = SEL_NL;
 /*
  * Internal prototypes.
  */
+static unsigned long *resizeline(unsigned long *, int);
+static unsigned long *lineptr(Terminal *, int, int);
 static void do_paint(Terminal *, Context, int);
 static void erase_lots(Terminal *, int, int, int);
 static void swap_screen(Terminal *, int, int, int);
@@ -75,7 +77,7 @@ static void scroll_display(Terminal *, int, int, int);
 /*
  * Resize a line to make it `cols' columns wide.
  */
-unsigned long *resizeline(unsigned long *line, int cols)
+static unsigned long *resizeline(unsigned long *line, int cols)
 {
     int i, oldlen;
     unsigned long lineattrs;
@@ -102,7 +104,7 @@ unsigned long *resizeline(unsigned long *line, int cols)
  * whether the y coordinate is non-negative or negative
  * (respectively).
  */
-unsigned long *lineptr(Terminal *term, int y, int lineno)
+static unsigned long *lineptr(Terminal *term, int y, int lineno)
 {
     unsigned long *line, *newline;
     tree234 *whichtree;
