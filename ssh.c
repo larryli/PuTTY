@@ -2841,6 +2841,19 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		    pfd_confirm(c->u.pfd.s);
 		}
 
+	    } else if (pktin.type == SSH1_MSG_CHANNEL_OPEN_FAILURE) {
+		unsigned int remoteid = GET_32BIT(pktin.body);
+		unsigned int localid = GET_32BIT(pktin.body+4);
+		struct ssh_channel *c;
+
+		c = find234(ssh_channels, &remoteid, ssh_channelfind);
+		if (c && c->type == CHAN_SOCKDATA_DORMANT) {
+		    logevent("Forwarded connection refused by server");
+		    pfd_close(c->u.pfd.s);
+		    del234(ssh_channels, c);
+		    sfree(c);
+		}
+
 	    } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
 		       pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
 		/* Remote side closes a channel. */
@@ -4773,6 +4786,21 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c->v.v2.remmaxpkt = ssh2_pkt_getuint32();
 		bufchain_init(&c->v.v2.outbuffer);
 		pfd_confirm(c->u.pfd.s);
+	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN_FAILURE) {
+		unsigned i = ssh2_pkt_getuint32();
+		struct ssh_channel *c;
+		c = find234(ssh_channels, &i, ssh_channelfind);
+		if (!c)
+		    continue;	       /* nonexistent channel */
+		if (c->type != CHAN_SOCKDATA_DORMANT)
+		    continue;	       /* dunno why they're failing this */
+
+		logevent("Forwarded connection refused by server");
+
+		pfd_close(c->u.pfd.s);
+
+		del234(ssh_channels, c);
+		sfree(c);
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
 		int typelen;
