@@ -204,7 +204,7 @@ static int dss_verifysig(void *key, char *sig, int siglen,
      */
     if (siglen != 40) {                /* bug not present; read admin fields */
         getstring(&sig, &siglen, &p, &slen);
-        if (!p || memcmp(p, "ssh-dss", 7)) {
+        if (!p || slen != 7 || memcmp(p, "ssh-dss", 7)) {
             return 0;
         }
         sig += 4, siglen -= 4;             /* skip yet another length field */
