@@ -111,9 +111,11 @@ of the tag.
  - Build the .zip files.
     + The binary archive putty.zip just contains all the .exe files
       except PuTTYtel, and the .hlp and .cnt files.
-    + The source archive putty-src.zip is built by puttysnap.sh (my
-      cron script that also builds the nightly snapshot source
-      archive).
+    + The source archive putty-src.zip is fiddly to build, so it's
+      done by the shell script mksrcarc.sh. First check out the
+      release sources in a pristine directory (to avoid cluttering
+      the zip file with irrelevant stuff), then run mksrcarc.sh in
+      that directory.
     + The docs archive puttydoc.zip contains all the HTML files
       output from Halibut.
 
@@ -127,12 +129,6 @@ of the tag.
       snapshot keys. Having checked that, sign the Alpha binary
       zipfile with the snapshot keys too.
     + The source archive should be signed with the release keys.
-      This was the most fiddly bit of the last release I did: the
-      script that built the source archive was on ixion, so I had to
-      bring the archive back to my local machine, check everything
-      in it was untampered-with, and _then_ sign it. Perhaps next
-      time I should arrange that puttysnap.sh can run on my local
-      box; it'd be a lot easier.
     + Don't forget to sign with both DSA and RSA keys for absolutely
       everything.
 
