@@ -651,7 +651,7 @@ print "\n\n";
 foreach $p (&prognames("M")) {
   ($prog, $type) = split ",", $p;
 
-  print &splitline("$prog \xc4 $prog.68k $prog.cfm68k $prog.ppc",
+  print &splitline("$prog \xc4 $prog.68k $prog.ppc",
 		   undef, "\xb6"), "\n\n";
 
   $rsrc = &objects($p, "", "X.rsrc", undef);
