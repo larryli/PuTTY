@@ -291,8 +291,6 @@ int main(int argc, char **argv)
 		continue;
 	    } else if (!strcmp(p, "-batch")) {
 		console_batch_mode = 1;
-	    } else if (!strcmp(p, "-log")) {
-		logfile = "putty.log";
 	    }
 	} else if (*p) {
 	    if (!*cfg.host) {

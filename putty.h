@@ -132,7 +132,6 @@ GLOBAL unsigned char unitab_ctrl[256];
 #define LGTYP_ASCII 1		       /* logmode: pure ascii */
 #define LGTYP_DEBUG 2		       /* logmode: all chars of traffic */
 #define LGTYP_PACKETS 3		       /* logmode: SSH data packets */
-GLOBAL char *logfile;
 
 /*
  * Window handles for the dialog boxes that can be running during a
