@@ -3573,8 +3573,9 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    }
 	    tattr |= (tchar & CSET_MASK);
 	    tchar &= CHAR_MASK;
-	    if ((d[1] & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
-		    tattr |= ATTR_WIDE;
+	    if (j < term->cols-1 &&
+		(d[1] & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
+		tattr |= ATTR_WIDE;
 
 	    /* Video reversing things */
 	    if (term->selstate == DRAGGING || term->selstate == SELECTED) {
