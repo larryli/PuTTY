@@ -164,7 +164,7 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 	eta = size - done;
     else
 	eta = (unsigned long) ((size - done) / ratebs);
-    sprintf(etastr, "%02d:%02d:%02d",
+    sprintf(etastr, "%02ld:%02ld:%02ld",
 	    eta / 3600, (eta % 3600) / 60, eta % 60);
 
     pct = (int) (100.0 * (float) done / size);
@@ -457,7 +457,7 @@ static void sink(char *targ)
 	    ssh_send("", 1);
 	    return;
 	  case 'T':
-	    if (sscanf(buf, "T%d %*d %d %*d",
+	    if (sscanf(buf, "T%ld %*d %ld %*d",
 		       &mtime, &atime) == 2) {
 		settime = 1;
 		ssh_send("", 1);
@@ -471,7 +471,7 @@ static void sink(char *targ)
 	    bump("Protocol error: Expected control record");
 	}
 
-	if (sscanf(buf+1, "%u %u %[^\n]", &mode, &size, namebuf) != 3)
+	if (sscanf(buf+1, "%u %lu %[^\n]", &mode, &size, namebuf) != 3)
 	    bump("Protocol error: Illegal file descriptor format");
 	if (targisdir) {
 	    char t[2048];

@@ -3,6 +3,7 @@
 #include <winsock.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
@@ -150,7 +151,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	     */
 	    HANDLE filemap;
 	    Config *cp;
-	    if (sscanf(p+1, "%x", &filemap) == 1 &&
+	    if (sscanf(p+1, "%p", &filemap) == 1 &&
 		(cp = MapViewOfFile(filemap, FILE_MAP_READ,
 				    0, 0, sizeof(Config))) != NULL) {
 		cfg = *cp;
@@ -671,7 +672,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 			    UnmapViewOfFile(p);
 			}
 		    }
-		    sprintf(c, "putty &%08x", filemap);
+		    sprintf(c, "putty &%p", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
 		    char *session = sessions[(lParam - IDM_SAVED_MIN) / 16];

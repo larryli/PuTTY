@@ -304,7 +304,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "FontIsBold", 0, &cfg.fontisbold);
     gppi (sesskey, "FontCharSet", ANSI_CHARSET, &cfg.fontcharset);
     gppi (sesskey, "FontHeight", 10, &cfg.fontheight);
-    gppi (sesskey, "FontVTMode", VT_POORMAN, &cfg.vtmode);
+    gppi (sesskey, "FontVTMode", VT_POORMAN, (int *)&cfg.vtmode);
     gppi (sesskey, "TryPalette", 0, &cfg.try_palette);
     gppi (sesskey, "BoldAsColour", 1, &cfg.bold_colour);
     for (i=0; i<22; i++) {
@@ -316,10 +316,14 @@ static void load_settings (char *section, int do_host) {
 	    "85,255,255", "187,187,187", "255,255,255"
  	};
 	char buf[20], buf2[30];
+	int c0, c1, c2;
 	sprintf(buf, "Colour%d", i);
 	gpps (sesskey, buf, defaults[i], buf2, sizeof(buf2));
-	sscanf(buf2, "%d,%d,%d", &cfg.colours[i][0],
-	       &cfg.colours[i][1], &cfg.colours[i][2]);
+	if(sscanf(buf2, "%d,%d,%d", &c0, &c1, &c2) == 3) {
+	    cfg.colours[i][0] = c0;
+	    cfg.colours[i][1] = c1;
+	    cfg.colours[i][2] = c2;
+	}
     }
     gppi (sesskey, "MouseIsXterm", 0, &cfg.mouse_is_xterm);
     for (i=0; i<256; i+=32) {
@@ -1122,7 +1126,7 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
 		    i = (i < 3 ? i*2 : i == 3 ? 5 : i*2-2);
 		cc.lStructSize = sizeof(cc);
 		cc.hwndOwner = hwnd;
-		cc.hInstance = hinst;
+		cc.hInstance = (HWND)hinst;
 		cc.lpCustColors = custom;
 		cc.rgbResult = RGB (cfg.colours[i][0], cfg.colours[i][1],
 				    cfg.colours[i][2]);
