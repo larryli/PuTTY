@@ -205,11 +205,7 @@ unsigned long *lineptr(int y, int lineno) {
     line = index234(whichtree, treeindex);
 
     /* We assume that we don't screw up and retrieve something out of range. */
-if (line == NULL) {
-debug(("line=%d y=%d treeindex=%d\n", lineno, y, treeindex));
-debug(("screen:%d scrollback:%d\n", count234(screen), count234(scrollback)));
     assert(line != NULL);
-}
 
     if (line[0] != cols) {
 	/*
@@ -381,8 +377,6 @@ void term_size(int newrows, int newcols, int newsavelines) {
      *    away.
      */
     sblen = count234(scrollback);
-    debug(("resizing rows=%d sblen=%d newrows=%d newsb=%d\n",
-	   rows, sblen, newrows, newsavelines));
     if (newrows > rows) {
 	for (i = rows; i < newrows; i++) {
 	    if (sblen > 0) {
@@ -408,7 +402,6 @@ void term_size(int newrows, int newcols, int newsavelines) {
 	sblen--;
     }
     assert(count234(scrollback) <= newsavelines);
-    debug(("screen:%d scrollback:%d\n", count234(screen), count234(scrollback)));
     disptop = 0;
 
     newdisp = smalloc (newrows*(newcols+1)*TSIZE);
