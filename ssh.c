@@ -3121,7 +3121,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
-				   sport, ssh);
+				   sport, ssh, ssh->cfg.lport_acceptall);
 		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
 			      " forwarding to %s:%.*s%.*s%d%.*s",
 			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
@@ -5185,7 +5185,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
-				   sport, ssh);
+				   sport, ssh, ssh->cfg.lport_acceptall);
 		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
 			      " forwarding to %s:%.*s%.*s%d%.*s",
 			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,

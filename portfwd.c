@@ -204,7 +204,7 @@ static int pfd_accepting(Plug p, void *sock)
  sets up a listener on the local machine on (srcaddr:)port
  */
 char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
-		     void *backhandle)
+		     void *backhandle, int acceptall)
 {
     static struct plug_function_table fn_table = {
 	pfd_closing,
@@ -230,7 +230,7 @@ char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
     pr->waiting = NULL;
     pr->backhandle = backhandle;
 
-    pr->s = s = new_listener(srcaddr, port, (Plug) pr, !cfg.lport_acceptall);
+    pr->s = s = new_listener(srcaddr, port, (Plug) pr, !acceptall);
     if ((err = sk_socket_error(s)) != NULL) {
 	sfree(pr);
 	return err;

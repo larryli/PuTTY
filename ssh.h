@@ -258,7 +258,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 /* Exports from portfwd.c */
 extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
 extern char *pfd_addforward(char *desthost, int destport, char *srcaddr,
-			    int port, void *backhandle);
+			    int port, void *backhandle, int acceptall);
 extern void pfd_close(Socket s);
 extern int pfd_send(Socket s, char *data, int len);
 extern void pfd_confirm(Socket s);
