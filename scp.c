@@ -616,6 +616,7 @@ static void run_err(const char *fmt, ...)
     strcpy(str, "scp: ");
     vsprintf(str+strlen(str), fmt, ap);
     strcat(str, "\n");
+    back->send("\001", 1);	       /* scp protocol error prefix */
     back->send(str, strlen(str));
     tell_user(stderr, "%s",str);
     va_end(ap);
