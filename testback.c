@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.3 2002/11/23 19:58:55 ben Exp $ */
+/* $Id: testback.c,v 1.4 2002/11/23 20:40:22 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -86,12 +86,7 @@ static int null_send(void *handle, char *buf, int len) {
 
 static int loop_send(void *handle, char *buf, int len) {
     struct loop_state *st = handle;
-    int i;
 
-    fprintf(stderr, "%d chars: ", len);
-    for (i = 0; i < len; i++)
-	fprintf(stderr, " 0x%x", buf[i]);
-    fprintf(stderr, "\n");
     return from_backend(st->term, 0, buf, len);
 }
 
