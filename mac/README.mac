@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.14 2003/01/21 00:28:20 ben Exp $
+$Id: README.mac,v 1.15 2003/01/24 00:28:57 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -46,7 +46,6 @@ Runtime requirements:
  runs in the Classic environment in Mac OS X.
 
 Known bugs:
-
  * PowerPC and fat versions fail to start on systems without AppearanceLib (ie
    most System 7 ones).  The 68k version works fine. [MAYBE FIXED]
  * Display is far too slow.
@@ -55,9 +54,12 @@ Known bugs:
  * Compiling ssh.c using SC 8.8.4 with "-opt time" causes SSH1
    connections to fail with "Incorrect CRC received on packet".  Using
    "-opt none" works around this.
+ * When the last terminal window closes, the Edit menu doesn't get disabled
+   immediately, which it should.
 
 Unimplemented features (should be done before release):
  * TCP urgent data.
+ * Listening sockets.
  * Clipping host resize requests to screen size.
  * Changing font size in reponse to resize requests.
  * TEXT copy/paste.
