@@ -799,6 +799,7 @@ gint timer_func(gpointer data)
     }
 
     term_update();
+    term_blink(0);
     return TRUE;
 }
 
@@ -825,6 +826,7 @@ void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
     }
     if (ret > 0)
 	from_backend(0, buf, ret);
+    term_blink(1);
     term_out();
 }
 

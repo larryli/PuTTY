@@ -25,7 +25,7 @@ extern Backend pty_backend;
 unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define GETTICKCOUNT getticks
 #define TICKSPERSEC 1000000	       /* gettimeofday returns microseconds */
-#define CURSORBLINK  400000	       /* FIXME: need right way to do this */
+#define CURSORBLINK  450000	       /* no standard way to set this */
 
 #define WCHAR wchar_t
 #define BYTE unsigned char
