@@ -36,6 +36,11 @@ typedef struct terminal_tag Terminal;
  *
  * The LATTRs (line attributes) are an entirely disjoint space of
  * flags.
+ * 
+ * The DATTRs (display attributes) are internal to terminal.c (but
+ * defined here because their values have to match the others
+ * here); they reuse the TATTR_* space but are always masked off
+ * before sending to the front end.
  *
  * ATTR_INVALID is an illegal colour combination.
  */
@@ -45,6 +50,12 @@ typedef struct terminal_tag Terminal;
 #define TATTR_RIGHTCURS	    0x10000000UL      /* cursor-on-RHS */
 #define TATTR_COMBINING	    0x80000000UL      /* combining characters */
 
+#define DATTR_STARTRUN      0x80000000UL   /* start of redraw run */
+
+#define TDATTR_MASK         0xF0000000UL
+#define TATTR_MASK (TDATTR_MASK)
+#define DATTR_MASK (TDATTR_MASK)
+
 #define LATTR_NORM   0x00000000UL
 #define LATTR_WIDE   0x00000001UL
 #define LATTR_TOP    0x00000002UL
@@ -53,7 +64,7 @@ typedef struct terminal_tag Terminal;
 #define LATTR_WRAPPED 0x00000010UL
 #define LATTR_WRAPPED2 0x00000020UL
 
-#define ATTR_INVALID 0x03FFU
+#define ATTR_INVALID 0x03FFFFU
 
 /* Like Linux use the F000 page for direct to font. */
 #define CSET_OEMCP   0x0000F000UL      /* OEM Codepage DTF */

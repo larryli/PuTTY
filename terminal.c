@@ -271,7 +271,7 @@ static int termchars_equal_override(termchar *a, termchar *b,
     /* FULL-TERMCHAR */
     if (a->chr != bchr)
 	return FALSE;
-    if (a->attr != battr)
+    if ((a->attr &~ DATTR_MASK) != (battr &~ DATTR_MASK))
 	return FALSE;
     while (a->cc_next || b->cc_next) {
 	if (!a->cc_next || !b->cc_next)
@@ -4539,13 +4539,10 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     pos scrpos;
     wchar_t *ch;
     int chlen;
-    termchar cursor_background;
 #ifdef OPTIMISE_SCROLL
     struct scrollregion *sr;
 #endif /* OPTIMISE_SCROLL */
     termchar *newline;
-
-    cursor_background = term->basic_erase_char;
 
     chlen = 1024;
     ch = snewn(chlen, wchar_t);
@@ -4646,6 +4643,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	int start = 0;
 	int ccount = 0;
 	int last_run_dirty = 0;
+	int laststart, dirtyrect;
 	int *backward;
 
 	scrpos.y = i + term->disptop;
@@ -4727,22 +4725,15 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	     */
 	    if (tchar != term->disptext[i]->chars[j].chr ||
 		tattr != (term->disptext[i]->chars[j].attr &~
-			  ATTR_NARROW)) {
+			  (ATTR_NARROW | DATTR_MASK))) {
 		if ((tattr & ATTR_WIDE) == 0 && char_width(ctx, tchar) == 2)
 		    tattr |= ATTR_NARROW;
 	    } else if (term->disptext[i]->chars[j].attr & ATTR_NARROW)
 		tattr |= ATTR_NARROW;
 
-	    /* Cursor here ? Save the 'background' */
 	    if (i == our_curs_y && j == our_curs_x) {
-		/* FULL-TERMCHAR */
-		cursor_background.chr = tchar;
-		cursor_background.attr = tattr;
-		/* For once, this cc_next field is an absolute index in lchars */
-		if (d->cc_next)
-		    cursor_background.cc_next = d->cc_next + j;
-		else
-		    cursor_background.cc_next = 0;
+		tattr |= cursor;
+		term->curstype = cursor;
 		term->dispcursx = j;
 		term->dispcursy = i;
 	    }
@@ -4757,12 +4748,38 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	/*
 	 * Now loop over the line again, noting where things have
 	 * changed.
+	 * 
+	 * During this loop, we keep track of where we last saw
+	 * DATTR_STARTRUN. Any mismatch automatically invalidates
+	 * _all_ of the containing run that was last printed: that
+	 * is, any rectangle that was drawn in one go in the
+	 * previous update should be either left completely alone
+	 * or overwritten in its entirety. This, along with the
+	 * expectation that front ends clip all text runs to their
+	 * bounding rectangle, should solve any possible problems
+	 * with fonts that overflow their character cells.
 	 */
+	laststart = 0;
+	dirtyrect = FALSE;
 	for (j = 0; j < term->cols; j++) {
-	    if (term->disptext[i]->chars[j].chr != newline[j].chr ||
-		term->disptext[i]->chars[j].attr != newline[j].attr) {
-		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
+	    if (term->disptext[i]->chars[j].attr & DATTR_STARTRUN) {
+		laststart = j;
+		dirtyrect = FALSE;
 	    }
+
+	    if (term->disptext[i]->chars[j].chr != newline[j].chr ||
+		(term->disptext[i]->chars[j].attr &~ DATTR_MASK)
+		!= newline[j].attr) {
+		int k;
+
+		for (k = laststart; k < j; k++)
+		    term->disptext[i]->chars[k].attr |= ATTR_INVALID;
+
+		dirtyrect = TRUE;
+	    }
+
+	    if (dirtyrect)
+		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
 	}
 
 	/*
@@ -4805,7 +4822,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    if (!term->ucsdata->dbcs_screenfont && !dirty_line) {
 		if (term->disptext[i]->chars[j].chr == tchar &&
-		    term->disptext[i]->chars[j].attr == tattr)
+		    (term->disptext[i]->chars[j].attr &~ DATTR_MASK) == tattr)
 		    break_run = TRUE;
 		else if (!dirty_run && ccount == 1)
 		    break_run = TRUE;
@@ -4813,7 +4830,13 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    if (break_run) {
 		if ((dirty_run || last_run_dirty) && ccount > 0) {
-		    do_text(ctx, start, i, ch, ccount, attr, ldata->lattr);
+		    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
+			do_cursor(ctx, our_curs_x, i, ch, ccount, attr,
+				  ldata->lattr);
+		    else
+			do_text(ctx, start, i, ch, ccount, attr,
+				ldata->lattr);
+
 		    updated_line = 1;
 		}
 		start = j;
@@ -4873,6 +4896,8 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		copy_termchar(term->disptext[i], j, d);
 		term->disptext[i]->chars[j].chr = tchar;
 		term->disptext[i]->chars[j].attr = tattr;
+		if (start == j)
+		    term->disptext[i]->chars[j].attr |= DATTR_STARTRUN;
 	    }
 
 	    /* If it's a wide char step along to the next one. */
@@ -4892,52 +4917,14 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    }
 	}
 	if (dirty_run && ccount > 0) {
-	    do_text(ctx, start, i, ch, ccount, attr, ldata->lattr);
+	    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
+		do_cursor(ctx, our_curs_x, i, ch, ccount, attr,
+			  ldata->lattr);
+	    else
+		do_text(ctx, start, i, ch, ccount, attr,
+			ldata->lattr);
+
 	    updated_line = 1;
-	}
-
-	/* Cursor on this line ? (and changed) */
-	if (i == our_curs_y && (term->curstype != cursor || updated_line)) {
-	    ch[0] = (wchar_t) cursor_background.chr;
-	    attr = cursor_background.attr | cursor;
-	    ccount = 1;
-
-	    if (cursor_background.cc_next) {
-		termchar *dd = ldata->chars + cursor_background.cc_next;
-
-		while (1) {
-		    unsigned long schar;
-
-		    schar = dd->chr;
-		    switch (schar & CSET_MASK) {
-		      case CSET_ASCII:
-			schar = term->ucsdata->unitab_line[schar & 0xFF];
-			break;
-		      case CSET_LINEDRW:
-			schar = term->ucsdata->unitab_xterm[schar & 0xFF];
-			break;
-		      case CSET_SCOACS:
-			schar = term->ucsdata->unitab_scoacs[schar&0xFF];
-			break;
-		    }
-
-		    if (ccount >= chlen) {
-			chlen = ccount + 256;
-			ch = sresize(ch, chlen, wchar_t);
-		    }
-		    ch[ccount++] = (wchar_t) schar;
-
-		    if (dd->cc_next)
-			dd += dd->cc_next;
-		    else
-			break;
-		}
-
-		attr |= TATTR_COMBINING;
-	    }
-
-	    do_cursor(ctx, our_curs_x, i, ch, ccount, attr, ldata->lattr);
-	    term->curstype = cursor;
 	}
 
 	unlineptr(ldata);
