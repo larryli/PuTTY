@@ -125,6 +125,23 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 }
 
 /*
+ * Update the visible key list.
+ */
+void keylist_update(void) {
+    struct RSAKey *key;
+    enum234 e;
+
+    if (keylist) {
+        SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
+        for (key = first234(rsakeys, &e); key; key = next234(&e)) {
+            SendDlgItemMessage (keylist, 100, LB_ADDSTRING,
+                                0, (LPARAM) key->comment);
+        }
+        SendDlgItemMessage (keylist, 100, LB_SETCURSEL, (WPARAM) -1, 0);
+    }
+}
+
+/*
  * This function loads a key from a file and adds it.
  */
 void add_keyfile(char *filename) {
@@ -269,12 +286,35 @@ void answer_msg(void *msg) {
             memcpy(ret+5, response_md5, 16);
         }
         break;
-#if 0 /* FIXME: implement these */
       case SSH_AGENTC_ADD_RSA_IDENTITY:
         /*
          * Add to the list and return SSH_AGENT_SUCCESS, or
          * SSH_AGENT_FAILURE if the key was malformed.
          */
+        {
+            struct RSAKey *key;
+            char *comment;
+            key = malloc(sizeof(struct RSAKey));
+            memset(key, 0, sizeof(key));
+            p += makekey(p, key, NULL, 1);
+            p += makeprivate(p, key);
+            p += ssh1_read_bignum(p, NULL);    /* p^-1 mod q */
+            p += ssh1_read_bignum(p, NULL);    /* p */
+            p += ssh1_read_bignum(p, NULL);    /* q */
+            comment = malloc(GET_32BIT(p));
+            if (comment) {
+                memcpy(comment, p+4, GET_32BIT(p));
+                key->comment = comment;
+            }
+            PUT_32BIT(ret, 1);
+            ret[4] = SSH_AGENT_FAILURE;
+            if (add234(rsakeys, key) == key) {
+                keylist_update();
+                ret[4] = SSH_AGENT_SUCCESS;
+            } else {
+                freersakey(key);
+            }
+        }
         break;
       case SSH_AGENTC_REMOVE_RSA_IDENTITY:
         /*
@@ -282,8 +322,22 @@ void answer_msg(void *msg) {
          * perhaps SSH_AGENT_FAILURE if it wasn't in the list to
          * start with.
          */
+        {
+            struct RSAKey reqkey, *key;
+
+            p += makekey(p, &reqkey, NULL, 0);
+            key = find234(rsakeys, &reqkey, NULL);
+            freebn(reqkey.exponent);
+            freebn(reqkey.modulus);
+            PUT_32BIT(ret, 1);
+            ret[4] = SSH_AGENT_FAILURE;
+            if (key) {
+                del234(rsakeys, key);
+                keylist_update();
+                ret[4] = SSH_AGENT_SUCCESS;
+            }
+        }
         break;
-#endif
       default:
         failure:
         /*
@@ -377,13 +431,8 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 of.Flags = 0;
                 if (GetOpenFileName(&of)) {
                     add_keyfile(filename);
+                    keylist_update();
                 }
-                SendDlgItemMessage(hwnd, 100, LB_RESETCONTENT, 0, 0);
-                for (key = first234(rsakeys, &e); key; key = next234(&e)) {
-                    SendDlgItemMessage (hwnd, 100, LB_ADDSTRING,
-                                        0, (LPARAM) key->comment);
-                }
-		SendDlgItemMessage (hwnd, 100, LB_SETCURSEL, (WPARAM) -1, 0);
             }
             return 0;
           case 102:                    /* remove key */
