@@ -615,7 +615,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	char msg[1024], *title;
 	char *realhost;
 
-	error = back->init((void *)term, &backhandle,
+	error = back->init((void *)term, &backhandle, &cfg,
 			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
 	back->provide_logctx(backhandle, logctx);
 	if (error) {
@@ -1781,6 +1781,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		/* Pass new config data to the terminal */
 		term_reconfig(term, &cfg);
+
+		/* Pass new config data to the back end */
+		back->reconfig(back, &cfg);
 
 		/* Screen size changed ? */
 		if (cfg.height != prev_cfg.height ||

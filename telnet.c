@@ -217,6 +217,7 @@ typedef struct telnet_tag {
 	    SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
     } state;
 
+    Config cfg;
 } *Telnet;
 
 #define TELNET_MAX_BACKLOG 4096
@@ -386,13 +387,13 @@ static void process_subneg(Telnet telnet)
 	    b[1] = SB;
 	    b[2] = TELOPT_TSPEED;
 	    b[3] = TELQUAL_IS;
-	    strcpy((char *)(b + 4), cfg.termspeed);
-	    n = 4 + strlen(cfg.termspeed);
+	    strcpy((char *)(b + 4), telnet->cfg.termspeed);
+	    n = 4 + strlen(telnet->cfg.termspeed);
 	    b[n] = IAC;
 	    b[n + 1] = SE;
 	    telnet->bufsize = sk_write(telnet->s, (char *)b, n + 2);
 	    logevent(telnet->frontend, "server:\tSB TSPEED SEND");
-	    logbuf = dupprintf("client:\tSB TSPEED IS %s", cfg.termspeed);
+	    logbuf = dupprintf("client:\tSB TSPEED IS %s", telnet->cfg.termspeed);
 	    logevent(telnet->frontend, logbuf);
 	    sfree(logbuf);
 	} else
@@ -405,11 +406,11 @@ static void process_subneg(Telnet telnet)
 	    b[1] = SB;
 	    b[2] = TELOPT_TTYPE;
 	    b[3] = TELQUAL_IS;
-	    for (n = 0; cfg.termtype[n]; n++)
-		b[n + 4] = (cfg.termtype[n] >= 'a'
-			    && cfg.termtype[n] <=
-			    'z' ? cfg.termtype[n] + 'A' -
-			    'a' : cfg.termtype[n]);
+	    for (n = 0; telnet->cfg.termtype[n]; n++)
+		b[n + 4] = (telnet->cfg.termtype[n] >= 'a'
+			    && telnet->cfg.termtype[n] <=
+			    'z' ? telnet->cfg.termtype[n] + 'A' -
+			    'a' : telnet->cfg.termtype[n]);
 	    b[n + 4] = IAC;
 	    b[n + 5] = SE;
 	    telnet->bufsize = sk_write(telnet->s, (char *)b, n + 6);
@@ -432,7 +433,7 @@ static void process_subneg(Telnet telnet)
 	    logevent(telnet->frontend, logbuf);
 	    sfree(logbuf);
 	    if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
-		if (cfg.rfc_environ) {
+		if (telnet->cfg.rfc_environ) {
 		    value = RFC_VALUE;
 		    var = RFC_VAR;
 		} else {
@@ -465,7 +466,7 @@ static void process_subneg(Telnet telnet)
 	    b[2] = telnet->sb_opt;
 	    b[3] = TELQUAL_IS;
 	    n = 4;
-	    e = cfg.environmt;
+	    e = telnet->cfg.environmt;
 	    while (*e) {
 		b[n++] = var;
 		while (*e && *e != '\t')
@@ -477,14 +478,14 @@ static void process_subneg(Telnet telnet)
 		    b[n++] = *e++;
 		e++;
 	    }
-	    if (*cfg.username) {
+	    if (*telnet->cfg.username) {
 		b[n++] = var;
 		b[n++] = 'U';
 		b[n++] = 'S';
 		b[n++] = 'E';
 		b[n++] = 'R';
 		b[n++] = value;
-		e = cfg.username;
+		e = telnet->cfg.username;
 		while (*e)
 		    b[n++] = *e++;
 	    }
@@ -652,6 +653,7 @@ static void telnet_sent(Plug plug, int bufsize)
  * freed by the caller.
  */
 static char *telnet_init(void *frontend_handle, void **backend_handle,
+			 Config *cfg,
 			 char *host, int port, char **realhost, int nodelay)
 {
     static const struct plug_function_table fn_table = {
@@ -665,6 +667,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 
     telnet = smalloc(sizeof(*telnet));
     telnet->fn = &fn_table;
+    telnet->cfg = *cfg;		       /* STRUCTURE COPY */
     telnet->s = NULL;
     telnet->echoing = TRUE;
     telnet->editing = TRUE;
@@ -672,8 +675,8 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     telnet->sb_buf = NULL;
     telnet->sb_size = 0;
     telnet->frontend = frontend_handle;
-    telnet->term_width = cfg.width;
-    telnet->term_height = cfg.height;
+    telnet->term_width = telnet->cfg.width;
+    telnet->term_height = telnet->cfg.height;
     telnet->state = TOP_LEVEL;
     *backend_handle = telnet;
 
@@ -713,7 +716,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     /*
      * Initialise option states.
      */
-    if (cfg.passive_telnet) {
+    if (telnet->cfg.passive_telnet) {
 	const struct Opt *const *o;
 
 	for (o = opts; *o; o++)
@@ -735,6 +738,17 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     telnet->in_synch = FALSE;
 
     return NULL;
+}
+
+/*
+ * Reconfigure the Telnet backend. There's no immediate action
+ * necessary, in this backend: we just save the fresh config for
+ * any subsequent negotiations.
+ */
+static void telnet_reconfig(void *handle, Config *cfg)
+{
+    Telnet telnet = (Telnet) handle;
+    telnet->cfg = *cfg;		       /* STRUCTURE COPY */
 }
 
 /*
@@ -960,6 +974,7 @@ static int telnet_exitcode(void *handle)
 
 Backend telnet_backend = {
     telnet_init,
+    telnet_reconfig,
     telnet_send,
     telnet_sendbuffer,
     telnet_size,

@@ -184,8 +184,10 @@ enum {
 };
 
 struct backend_tag {
-    char *(*init) (void *frontend_handle, void **backend_handle,
+    char *(*init) (void *frontend_handle, void **backend_handle, Config *cfg,
 		   char *host, int port, char **realhost, int nodelay);
+    /* back->reconfig() passes in a replacement configuration. */
+    void (*reconfig) (void *handle, Config *cfg);
     /* back->send() returns the current amount of buffered data. */
     int (*send) (void *handle, char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */

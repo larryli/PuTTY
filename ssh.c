@@ -620,6 +620,14 @@ struct ssh_tag {
 
     void (*protocol) (Ssh ssh, unsigned char *in, int inlen, int ispkt);
     int (*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
+
+    /*
+     * We maintain a full _copy_ of a Config structure here, not
+     * merely a pointer to it. That way, when we're passed a new
+     * one for reconfiguration, we can check the differences and
+     * potentially reconfigure port forwardings etc in mid-session.
+     */
+    Config cfg;
 };
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -1711,8 +1719,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     ssh->remote_bugs = 0;
 
-    if (cfg.sshbug_ignore1 == BUG_ON ||
-	(cfg.sshbug_ignore1 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_ignore1 == BUG_ON ||
+	(ssh->cfg.sshbug_ignore1 == BUG_AUTO &&
 	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
 	  !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
 	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25")))) {
@@ -1725,8 +1733,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH1 ignore bug");
     }
 
-    if (cfg.sshbug_plainpw1 == BUG_ON ||
-	(cfg.sshbug_plainpw1 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_plainpw1 == BUG_ON ||
+	(ssh->cfg.sshbug_plainpw1 == BUG_AUTO &&
 	 (!strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions need a plain password sent; they can't
@@ -1737,8 +1745,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version needs a plain SSH1 password");
     }
 
-    if (cfg.sshbug_rsa1 == BUG_ON ||
-	(cfg.sshbug_rsa1 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_rsa1 == BUG_ON ||
+	(ssh->cfg.sshbug_rsa1 == BUG_AUTO &&
 	 (!strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions apparently have no clue whatever about
@@ -1749,8 +1757,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version can't handle RSA authentication");
     }
 
-    if (cfg.sshbug_hmac2 == BUG_ON ||
-	(cfg.sshbug_hmac2 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_hmac2 == BUG_ON ||
+	(ssh->cfg.sshbug_hmac2 == BUG_AUTO &&
 	 (wc_match("2.1.0*", imp) || wc_match("2.0.*", imp) ||
 	  wc_match("2.2.0*", imp) || wc_match("2.3.0*", imp) ||
 	  wc_match("2.1 *", imp)))) {
@@ -1761,8 +1769,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH2 HMAC bug");
     }
 
-    if (cfg.sshbug_derivekey2 == BUG_ON ||
-	(cfg.sshbug_derivekey2 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_derivekey2 == BUG_ON ||
+	(ssh->cfg.sshbug_derivekey2 == BUG_AUTO &&
 	 (wc_match("2.0.0*", imp) || wc_match("2.0.1[01]*", imp) ))) {
 	/*
 	 * These versions have the key-derivation bug (failing to
@@ -1773,8 +1781,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH2 key-derivation bug");
     }
 
-    if (cfg.sshbug_rsapad2 == BUG_ON ||
-	(cfg.sshbug_rsapad2 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_rsapad2 == BUG_ON ||
+	(ssh->cfg.sshbug_rsapad2 == BUG_AUTO &&
 	 (wc_match("OpenSSH_2.[5-9]*", imp) ||
 	  wc_match("OpenSSH_3.[0-2]*", imp)))) {
 	/*
@@ -1784,7 +1792,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH2 RSA padding bug");
     }
 
-    if (cfg.sshbug_dhgex2 == BUG_ON) {
+    if (ssh->cfg.sshbug_dhgex2 == BUG_ON) {
 	/*
 	 * User specified the SSH2 DH GEX bug.
 	 */
@@ -1871,16 +1879,16 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     /* Anything greater or equal to "1.99" means protocol 2 is supported. */
     s->proto2 = ssh_versioncmp(s->version, "1.99") >= 0;
 
-    if (cfg.sshprot == 0 && !s->proto1) {
+    if (ssh->cfg.sshprot == 0 && !s->proto1) {
 	bombout((ssh,"SSH protocol version 1 required by user but not provided by server"));
 	crReturn(0);
     }
-    if (cfg.sshprot == 3 && !s->proto2) {
+    if (ssh->cfg.sshprot == 3 && !s->proto2) {
 	bombout((ssh,"SSH protocol version 2 required by user but not provided by server"));
 	crReturn(0);
     }
 
-    if (s->proto2 && (cfg.sshprot >= 2 || !s->proto1)) {
+    if (s->proto2 && (ssh->cfg.sshprot >= 2 || !s->proto1)) {
 	/*
 	 * Use v2 protocol.
 	 */
@@ -2315,7 +2323,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	char *cipher_string = NULL;
 	int i;
 	for (i = 0; !cipher_chosen && i < CIPHER_MAX; i++) {
-	    int next_cipher = cfg.ssh_cipherlist[i];
+	    int next_cipher = ssh->cfg.ssh_cipherlist[i];
 	    if (next_cipher == CIPHER_WARN) {
 		/* If/when we choose a cipher, warn about it */
 		warn = 1;
@@ -2394,7 +2402,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
     fflush(stdout);
     {
-	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
+	if ((flags & FLAG_INTERACTIVE) && !*ssh->cfg.username) {
 	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
 				  s->username, sizeof(s->username), FALSE)) {
@@ -2421,7 +2429,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		c_write_str(ssh, "\r\n");
 	    }
 	} else {
-	    strncpy(s->username, cfg.username, sizeof(s->username));
+	    strncpy(s->username, ssh->cfg.username, sizeof(s->username));
 	    s->username[sizeof(s->username)-1] = '\0';
 	}
 
@@ -2447,9 +2455,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	s->tried_publickey = s->tried_agent = 0;
     }
     s->tis_auth_refused = s->ccard_auth_refused = 0;
-    /* Load the public half of cfg.keyfile so we notice if it's in Pageant */
-    if (*cfg.keyfile) {
-	if (!rsakey_pubblob(cfg.keyfile,
+    /* Load the public half of ssh->cfg.keyfile so we notice if it's in Pageant */
+    if (*ssh->cfg.keyfile) {
+	if (!rsakey_pubblob(ssh->cfg.keyfile,
 			    &s->publickey_blob, &s->publickey_bloblen))
 	    s->publickey_blob = NULL;
     } else
@@ -2577,10 +2585,10 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (s->authed)
 		break;
 	}
-	if (*cfg.keyfile && !s->tried_publickey)
+	if (*ssh->cfg.keyfile && !s->tried_publickey)
 	    s->pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
-	if (cfg.try_tis_auth &&
+	if (ssh->cfg.try_tis_auth &&
 	    (s->supported_auths_mask & (1 << SSH1_AUTH_TIS)) &&
 	    !s->tis_auth_refused) {
 	    s->pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
@@ -2607,7 +2615,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		s->prompt[(sizeof s->prompt) - 1] = '\0';
 	    }
 	}
-	if (cfg.try_tis_auth &&
+	if (ssh->cfg.try_tis_auth &&
 	    (s->supported_auths_mask & (1 << SSH1_AUTH_CCARD)) &&
 	    !s->ccard_auth_refused) {
 	    s->pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
@@ -2642,8 +2650,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    char msgbuf[256];
 	    if (flags & FLAG_VERBOSE)
 		c_write_str(ssh, "Trying public key authentication.\r\n");
-	    logeventf(ssh, "Trying public key \"%s\"", cfg.keyfile);
-	    type = key_type(cfg.keyfile);
+	    logeventf(ssh, "Trying public key \"%s\"", ssh->cfg.keyfile);
+	    type = key_type(ssh->cfg.keyfile);
 	    if (type != SSH_KEYTYPE_SSH1) {
 		sprintf(msgbuf, "Key is of wrong type (%s)",
 			key_type_to_str(type));
@@ -2653,7 +2661,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		s->tried_publickey = 1;
 		continue;
 	    }
-	    if (!rsakey_encrypted(cfg.keyfile, &comment)) {
+	    if (!rsakey_encrypted(ssh->cfg.keyfile, &comment)) {
 		if (flags & FLAG_VERBOSE)
 		    c_write_str(ssh, "No passphrase required.\r\n");
 		goto tryauth;
@@ -2709,10 +2717,10 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    s->tried_publickey = 1;
 	    
 	    {
-		int ret = loadrsakey(cfg.keyfile, &s->key, s->password);
+		int ret = loadrsakey(ssh->cfg.keyfile, &s->key, s->password);
 		if (ret == 0) {
 		    c_write_str(ssh, "Couldn't load private key from ");
-		    c_write_str(ssh, cfg.keyfile);
+		    c_write_str(ssh, ssh->cfg.keyfile);
 		    c_write_str(ssh, ".\r\n");
 		    continue;	       /* go and try password */
 		}
@@ -2996,7 +3004,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     if (ssh->state == SSH_STATE_CLOSED)
 	crReturnV;
 
-    if (cfg.agentfwd && agent_exists()) {
+    if (ssh->cfg.agentfwd && agent_exists()) {
 	logevent("Requesting agent forwarding");
 	send_packet(ssh, SSH1_CMSG_AGENT_REQUEST_FORWARDING, PKT_END);
 	do {
@@ -3014,16 +3022,16 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
     }
 
-    if (cfg.x11_forward) {
+    if (ssh->cfg.x11_forward) {
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
-				       data, sizeof(data), cfg.x11_auth);
-        x11_get_real_auth(ssh->x11auth, cfg.x11_display);
+				       data, sizeof(data), ssh->cfg.x11_auth);
+        x11_get_real_auth(ssh->x11auth, ssh->cfg.x11_display);
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, proto, PKT_STR, data,
-			PKT_INT, x11_get_screen_number(cfg.x11_display),
+			PKT_INT, x11_get_screen_number(ssh->cfg.x11_display),
 			PKT_END);
 	} else {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
@@ -3052,7 +3060,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
         /* Add port forwardings. */
-	ssh->portfwd_strptr = cfg.portfwd;
+	ssh->portfwd_strptr = ssh->cfg.portfwd;
 	while (*ssh->portfwd_strptr) {
 	    type = *ssh->portfwd_strptr++;
 	    saddr[0] = '\0';
@@ -3169,9 +3177,9 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
     }
 
-    if (!cfg.nopty) {
+    if (!ssh->cfg.nopty) {
 	send_packet(ssh, SSH1_CMSG_REQUEST_PTY,
-		    PKT_STR, cfg.termtype,
+		    PKT_STR, ssh->cfg.termtype,
 		    PKT_INT, ssh->term_height,
 		    PKT_INT, ssh->term_width,
 		    PKT_INT, 0, PKT_INT, 0, PKT_CHAR, 0, PKT_END);
@@ -3192,7 +3200,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh->editing = ssh->echoing = 1;
     }
 
-    if (cfg.compression) {
+    if (ssh->cfg.compression) {
 	send_packet(ssh, SSH1_CMSG_REQUEST_COMPRESSION, PKT_INT, 6, PKT_END);
 	do {
 	    crReturnV;
@@ -3220,10 +3228,10 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      * exists, we fall straight back to that.
      */
     {
-	char *cmd = cfg.remote_cmd_ptr;
+	char *cmd = ssh->cfg.remote_cmd_ptr;
 	
-	if (cfg.ssh_subsys && cfg.remote_cmd_ptr2) {
-	    cmd = cfg.remote_cmd_ptr2;
+	if (ssh->cfg.ssh_subsys && ssh->cfg.remote_cmd_ptr2) {
+	    cmd = ssh->cfg.remote_cmd_ptr2;
 	    ssh->fallback_cmd = TRUE;
 	}
 	if (*cmd)
@@ -3276,7 +3284,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    c = smalloc(sizeof(struct ssh_channel));
 		    c->ssh = ssh;
 
-		    if (x11_init(&c->u.x11.s, cfg.x11_display, c,
+		    if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
 				 ssh->x11auth, NULL, -1) != NULL) {
 			logevent("opening X11 forward connection failed");
 			sfree(c);
@@ -3669,12 +3677,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	 */
 	s->n_preferred_ciphers = 0;
 	for (i = 0; i < CIPHER_MAX; i++) {
-	    switch (cfg.ssh_cipherlist[i]) {
+	    switch (ssh->cfg.ssh_cipherlist[i]) {
 	      case CIPHER_BLOWFISH:
 		s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_blowfish;
 		break;
 	      case CIPHER_DES:
-		if (cfg.ssh2_des_cbc) {
+		if (ssh->cfg.ssh2_des_cbc) {
 		    s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_des;
 		}
 		break;
@@ -3698,7 +3706,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Set up preferred compression.
      */
-    if (cfg.compression)
+    if (ssh->cfg.compression)
 	s->preferred_comp = &ssh_zlib;
     else
 	s->preferred_comp = &ssh_comp_none;
@@ -4313,13 +4321,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	/*
 	 * Get a username.
 	 */
-	if (s->got_username && !cfg.change_username) {
+	if (s->got_username && !ssh->cfg.change_username) {
 	    /*
 	     * We got a username last time round this loop, and
 	     * with change_username turned off we don't try to get
 	     * it again.
 	     */
-	} else if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
+	} else if ((flags & FLAG_INTERACTIVE) && !*ssh->cfg.username) {
 	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
 				  s->username, sizeof(s->username), FALSE)) {
@@ -4347,7 +4355,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    s->username[strcspn(s->username, "\n\r")] = '\0';
 	} else {
 	    char *stuff;
-	    strncpy(s->username, cfg.username, sizeof(s->username));
+	    strncpy(s->username, ssh->cfg.username, sizeof(s->username));
 	    s->username[sizeof(s->username)-1] = '\0';
 	    if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
 		stuff = dupprintf("Using username \"%s\".\r\n", s->username);
@@ -4377,21 +4385,21 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	s->tried_agent = FALSE;
 	s->tried_keyb_inter = FALSE;
 	s->kbd_inter_running = FALSE;
-	/* Load the pub half of cfg.keyfile so we notice if it's in Pageant */
-	if (*cfg.keyfile) {
+	/* Load the pub half of ssh->cfg.keyfile so we notice if it's in Pageant */
+	if (*ssh->cfg.keyfile) {
 	    int keytype;
-	    logeventf(ssh, "Reading private key file \"%.150s\"", cfg.keyfile);
-	    keytype = key_type(cfg.keyfile);
+	    logeventf(ssh, "Reading private key file \"%.150s\"", ssh->cfg.keyfile);
+	    keytype = key_type(ssh->cfg.keyfile);
 	    if (keytype == SSH_KEYTYPE_SSH2) {
 		s->publickey_blob =
-		    ssh2_userkey_loadpub(cfg.keyfile, NULL,
+		    ssh2_userkey_loadpub(ssh->cfg.keyfile, NULL,
 					 &s->publickey_bloblen);
 	    } else {
 		char *msgbuf;
 		logeventf(ssh, "Unable to use this key file (%s)",
 			  key_type_to_str(keytype));
 		msgbuf = dupprintf("Unable to use key file \"%.150s\""
-				   " (%s)\r\n", cfg.keyfile,
+				   " (%s)\r\n", ssh->cfg.keyfile,
 				   key_type_to_str(keytype));
 		c_write_str(ssh, msgbuf);
 		sfree(msgbuf);
@@ -4507,7 +4515,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    in_commasep_string("publickey", methods, methlen);
 		s->can_passwd =
 		    in_commasep_string("password", methods, methlen);
-		s->can_keyb_inter = cfg.try_ki_auth &&
+		s->can_keyb_inter = ssh->cfg.try_ki_auth &&
 		    in_commasep_string("keyboard-interactive", methods, methlen);
 	    }
 
@@ -4682,7 +4690,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 * willing to accept it.
 		 */
 		pub_blob =
-		    (unsigned char *)ssh2_userkey_loadpub(cfg.keyfile,
+		    (unsigned char *)ssh2_userkey_loadpub(ssh->cfg.keyfile,
 							  &algorithm,
 							  &pub_blob_len);
 		if (pub_blob) {
@@ -4710,7 +4718,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * Actually attempt a serious authentication using
 		     * the key.
 		     */
-		    if (ssh2_userkey_encrypted(cfg.keyfile, &comment)) {
+		    if (ssh2_userkey_encrypted(ssh->cfg.keyfile, &comment)) {
 			sprintf(s->pwprompt,
 				"Passphrase for key \"%.100s\": ",
 				comment);
@@ -4862,7 +4870,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 */
 		struct ssh2_userkey *key;
 
-		key = ssh2_load_userkey(cfg.keyfile, s->password);
+		key = ssh2_load_userkey(ssh->cfg.keyfile, s->password);
 		if (key == SSH2_WRONG_PASSPHRASE || key == NULL) {
 		    if (key == SSH2_WRONG_PASSPHRASE) {
 			c_write_str(ssh, "Wrong passphrase\r\n");
@@ -5064,12 +5072,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Potentially enable X11 forwarding.
      */
-    if (cfg.x11_forward) {
+    if (ssh->cfg.x11_forward) {
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
-				       data, sizeof(data), cfg.x11_auth);
-        x11_get_real_auth(ssh->x11auth, cfg.x11_display);
+				       data, sizeof(data), ssh->cfg.x11_auth);
+        x11_get_real_auth(ssh->x11auth, ssh->cfg.x11_display);
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
 	ssh2_pkt_addstring(ssh, "x11-req");
@@ -5077,7 +5085,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh2_pkt_addbool(ssh, 0);	       /* many connections */
 	ssh2_pkt_addstring(ssh, proto);
 	ssh2_pkt_addstring(ssh, data);
-	ssh2_pkt_adduint32(ssh, x11_get_screen_number(cfg.x11_display));
+	ssh2_pkt_adduint32(ssh, x11_get_screen_number(ssh->cfg.x11_display));
 	ssh2_pkt_send(ssh);
 
 	do {
@@ -5116,7 +5124,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
         /* Add port forwardings. */
-	ssh->portfwd_strptr = cfg.portfwd;
+	ssh->portfwd_strptr = ssh->cfg.portfwd;
 	while (*ssh->portfwd_strptr) {
 	    type = *ssh->portfwd_strptr++;
 	    saddr[0] = '\0';
@@ -5214,7 +5222,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_addbool(ssh, 1);/* want reply */
 			if (*saddr)
 			    ssh2_pkt_addstring(ssh, saddr);
-			if (cfg.rport_acceptall)
+			if (ssh->cfg.rport_acceptall)
 			    ssh2_pkt_addstring(ssh, "0.0.0.0");
 			else
 			    ssh2_pkt_addstring(ssh, "127.0.0.1");
@@ -5253,7 +5261,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Potentially enable agent forwarding.
      */
-    if (cfg.agentfwd && agent_exists()) {
+    if (ssh->cfg.agentfwd && agent_exists()) {
 	logevent("Requesting OpenSSH-style agent forwarding");
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
@@ -5289,12 +5297,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Now allocate a pty for the session.
      */
-    if (!cfg.nopty) {
+    if (!ssh->cfg.nopty) {
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);	/* recipient channel */
 	ssh2_pkt_addstring(ssh, "pty-req");
 	ssh2_pkt_addbool(ssh, 1);	       /* want reply */
-	ssh2_pkt_addstring(ssh, cfg.termtype);
+	ssh2_pkt_addstring(ssh, ssh->cfg.termtype);
 	ssh2_pkt_adduint32(ssh, ssh->term_width);
 	ssh2_pkt_adduint32(ssh, ssh->term_height);
 	ssh2_pkt_adduint32(ssh, 0);	       /* pixel width */
@@ -5341,11 +5349,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	char *cmd;
 
 	if (ssh->fallback_cmd) {
-	    subsys = cfg.ssh_subsys2;
-	    cmd = cfg.remote_cmd_ptr2;
+	    subsys = ssh->cfg.ssh_subsys2;
+	    cmd = ssh->cfg.remote_cmd_ptr2;
 	} else {
-	    subsys = cfg.ssh_subsys;
-	    cmd = cfg.remote_cmd_ptr;
+	    subsys = ssh->cfg.ssh_subsys;
+	    cmd = ssh->cfg.remote_cmd_ptr;
 	}
 
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
@@ -5386,7 +5394,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	     * not, and if the fallback command exists, try falling
 	     * back to it before complaining.
 	     */
-	    if (!ssh->fallback_cmd && cfg.remote_cmd_ptr2 != NULL) {
+	    if (!ssh->fallback_cmd && ssh->cfg.remote_cmd_ptr2 != NULL) {
 		logevent("Primary command failed; attempting fallback");
 		ssh->fallback_cmd = TRUE;
 		continue;
@@ -5737,7 +5745,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 		    if (!ssh->X11_fwd_enabled)
 			error = "X11 forwarding is not enabled";
-		    else if (x11_init(&c->u.x11.s, cfg.x11_display, c,
+		    else if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
 				      ssh->x11auth, addrstr, port) != NULL) {
 			error = "Unable to open an X11 connection";
 		    } else {
@@ -5867,12 +5875,14 @@ static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
  * Returns an error message, or NULL on success.
  */
 static char *ssh_init(void *frontend_handle, void **backend_handle,
+		      Config *cfg,
 		      char *host, int port, char **realhost, int nodelay)
 {
     char *p;
     Ssh ssh;
 
     ssh = smalloc(sizeof(*ssh));
+    ssh->cfg = *cfg;		       /* STRUCTURE COPY */
     ssh->s = NULL;
     ssh->cipher = NULL;
     ssh->v1_cipher_ctx = NULL;
@@ -5933,8 +5943,8 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
 #endif
 
     ssh->frontend = frontend_handle;
-    ssh->term_width = cfg.width;
-    ssh->term_height = cfg.height;
+    ssh->term_width = ssh->cfg.width;
+    ssh->term_height = ssh->cfg.height;
 
     ssh->send_ok = 0;
     ssh->editing = 0;
@@ -5950,6 +5960,21 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
 	return p;
 
     return NULL;
+}
+
+/*
+ * Reconfigure the SSH backend.
+ * 
+ * Currently, this function does nothing very useful. In future,
+ * however, we could do some handy things with it. For example, we
+ * could make the port forwarding configurer active in the Change
+ * Settings box, and this routine could close down existing
+ * forwardings and open up new ones in response to changes.
+ */
+static void ssh_reconfig(void *handle, Config *cfg)
+{
+    Ssh ssh = (Ssh) handle;
+    ssh->cfg = *cfg;		       /* STRUCTURE COPY */
 }
 
 /*
@@ -6018,7 +6043,7 @@ static void ssh_size(void *handle, int width, int height)
 	ssh->size_needed = TRUE;       /* buffer for later */
 	break;
       case SSH_STATE_SESSION:
-	if (!cfg.nopty) {
+	if (!ssh->cfg.nopty) {
 	    if (ssh->version == 1) {
 		send_packet(ssh, SSH1_CMSG_WINDOW_SIZE,
 			    PKT_INT, ssh->term_height,
@@ -6209,6 +6234,7 @@ extern int ssh_fallback_cmd(void *handle)
 
 Backend ssh_backend = {
     ssh_init,
+    ssh_reconfig,
     ssh_send,
     ssh_sendbuffer,
     ssh_size,

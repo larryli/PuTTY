@@ -68,6 +68,7 @@ static void raw_sent(Plug plug, int bufsize)
  * freed by the caller.
  */
 static char *raw_init(void *frontend_handle, void **backend_handle,
+		      Config *cfg,
 		      char *host, int port, char **realhost, int nodelay)
 {
     static const struct plug_function_table fn_table = {
@@ -119,6 +120,13 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
     sk_addr_free(addr);
 
     return NULL;
+}
+
+/*
+ * Stub routine (we don't have any need to reconfigure this backend).
+ */
+static void raw_reconfig(void *handle, Config *cfg)
+{
 }
 
 /*
@@ -205,6 +213,7 @@ static int raw_exitcode(void *handle)
 
 Backend raw_backend = {
     raw_init,
+    raw_reconfig,
     raw_send,
     raw_sendbuffer,
     raw_size,

@@ -551,7 +551,7 @@ int main(int argc, char **argv)
 	/* nodelay is only useful if stdin is a terminal device */
 	int nodelay = cfg.tcp_nodelay && isatty(0);
 
-	error = back->init(NULL, &backhandle, cfg.host, cfg.port,
+	error = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port,
 			   &realhost, nodelay);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s\n", error);

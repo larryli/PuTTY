@@ -389,7 +389,7 @@ void pty_pre_init(void)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *pty_init(void *frontend, void **backend_handle,
+static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 		      char *host, int port, char **realhost, int nodelay)
 {
     int slavefd;
@@ -398,8 +398,8 @@ static char *pty_init(void *frontend, void **backend_handle,
     pty_frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
 
-    pty_term_width = cfg.width;
-    pty_term_height = cfg.height;
+    pty_term_width = cfg->width;
+    pty_term_height = cfg->height;
 
     if (pty_master_fd < 0)
 	pty_open_master();
@@ -411,7 +411,7 @@ static char *pty_init(void *frontend, void **backend_handle,
     {
 	struct termios attrs;
 	tcgetattr(pty_master_fd, &attrs);
-	attrs.c_cc[VERASE] = cfg.bksp_is_delete ? '\177' : '\010';
+	attrs.c_cc[VERASE] = cfg->bksp_is_delete ? '\177' : '\010';
 	tcsetattr(pty_master_fd, TCSANOW, &attrs);
     }
 
@@ -419,7 +419,7 @@ static char *pty_init(void *frontend, void **backend_handle,
      * Stamp utmp (that is, tell the utmp helper process to do so),
      * or not.
      */
-    if (!cfg.stamp_utmp)
+    if (!cfg->stamp_utmp)
 	close(pty_utmp_helper_pipe);   /* just let the child process die */
     else {
 	char *location = get_x_display(pty_frontend);
@@ -472,8 +472,8 @@ static char *pty_init(void *frontend, void **backend_handle,
 	for (i = 3; i < 1024; i++)
 	    close(i);
 	{
-	    char term_env_var[10 + sizeof(cfg.termtype)];
-	    sprintf(term_env_var, "TERM=%s", cfg.termtype);
+	    char term_env_var[10 + sizeof(cfg->termtype)];
+	    sprintf(term_env_var, "TERM=%s", cfg->termtype);
 	    putenv(term_env_var);
 	}
 	/*
@@ -488,7 +488,7 @@ static char *pty_init(void *frontend, void **backend_handle,
 	else {
 	    char *shell = getenv("SHELL");
 	    char *shellname;
-	    if (cfg.login_shell) {
+	    if (cfg->login_shell) {
 		char *p = strrchr(shell, '/');
 		shellname = smalloc(2+strlen(shell));
 		p = p ? p+1 : shell;
@@ -509,6 +509,13 @@ static char *pty_init(void *frontend, void **backend_handle,
     }      
 
     return NULL;
+}
+
+/*
+ * Stub routine (we don't have any need to reconfigure this backend).
+ */
+static void pty_reconfig(void *handle, Config *cfg)
+{
 }
 
 /*
@@ -617,6 +624,7 @@ static int pty_exitcode(void *handle)
 
 Backend pty_backend = {
     pty_init,
+    pty_reconfig,
     pty_send,
     pty_sendbuffer,
     pty_size,

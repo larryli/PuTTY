@@ -98,6 +98,7 @@ static void rlogin_sent(Plug plug, int bufsize)
  * freed by the caller.
  */
 static char *rlogin_init(void *frontend_handle, void **backend_handle,
+			 Config *cfg,
 			 char *host, int port, char **realhost, int nodelay)
 {
     static const struct plug_function_table fn_table = {
@@ -113,8 +114,8 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
     rlogin->fn = &fn_table;
     rlogin->s = NULL;
     rlogin->frontend = frontend_handle;
-    rlogin->term_width = cfg.width;
-    rlogin->term_height = cfg.height;
+    rlogin->term_width = cfg->width;
+    rlogin->term_height = cfg->height;
     *backend_handle = rlogin;
 
     /*
@@ -158,18 +159,28 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	char z = 0;
 	char *p;
 	sk_write(rlogin->s, &z, 1);
-	sk_write(rlogin->s, cfg.localusername, strlen(cfg.localusername));
+	sk_write(rlogin->s, cfg->localusername,
+		 strlen(cfg->localusername));
 	sk_write(rlogin->s, &z, 1);
-	sk_write(rlogin->s, cfg.username, strlen(cfg.username));
+	sk_write(rlogin->s, cfg->username,
+		 strlen(cfg->username));
 	sk_write(rlogin->s, &z, 1);
-	sk_write(rlogin->s, cfg.termtype, strlen(cfg.termtype));
+	sk_write(rlogin->s, cfg->termtype,
+		 strlen(cfg->termtype));
 	sk_write(rlogin->s, "/", 1);
-	for (p = cfg.termspeed; isdigit(*p); p++) continue;
-	sk_write(rlogin->s, cfg.termspeed, p - cfg.termspeed);
+	for (p = cfg->termspeed; isdigit(*p); p++) continue;
+	sk_write(rlogin->s, cfg->termspeed, p - cfg->termspeed);
 	rlogin->bufsize = sk_write(rlogin->s, &z, 1);
     }
 
     return NULL;
+}
+
+/*
+ * Stub routine (we don't have any need to reconfigure this backend).
+ */
+static void rlogin_reconfig(void *handle, Config *cfg)
+{
 }
 
 /*
@@ -270,6 +281,7 @@ static int rlogin_exitcode(void *handle)
 
 Backend rlogin_backend = {
     rlogin_init,
+    rlogin_reconfig,
     rlogin_send,
     rlogin_sendbuffer,
     rlogin_size,

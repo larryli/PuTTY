@@ -2411,7 +2411,8 @@ int main(int argc, char **argv)
     term_provide_logctx(inst->term, inst->logctx);
 
     inst->back = &pty_backend;
-    inst->back->init((void *)inst->term, &inst->backhandle, NULL, 0, NULL, 0);
+    inst->back->init((void *)inst->term, &inst->backhandle, &cfg,
+		     NULL, 0, NULL, 0);
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);

@@ -539,7 +539,7 @@ int main(int argc, char **argv)
 	int nodelay = cfg.tcp_nodelay &&
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
-	error = back->init(NULL, &backhandle, cfg.host, cfg.port,
+	error = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port,
 			   &realhost, nodelay);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
