@@ -53,6 +53,7 @@ static int null_ldisc(void *, int);
 static void null_provide_ldisc(void *, void *);
 static void null_provide_logctx(void *, void *);
 static void null_unthrottle(void *, int);
+static int null_cfg_info(void *);
 
 Backend null_backend = {
     null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
