@@ -2758,7 +2758,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 
-	if (cfg.funky_type == 5 && code >= 11 && code <= 34) {
+	if (cfg.funky_type == 5 &&     /* SCO function keys */
+	    code >= 11 && code <= 34) {
 	    char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
 	    int index = 0;
 	    switch (wParam) {
@@ -2778,6 +2779,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    if (keystate[VK_SHIFT] & 0x80) index += 12;
 	    if (keystate[VK_CONTROL] & 0x80) index += 24;
 	    p += sprintf((char *) p, "\x1B[%c", codes[index]);
+	    return p - output;
+	}
+	if (cfg.funky_type == 5 &&     /* SCO small keypad */
+	    code >= 1 && code <= 6) {
+	    char codes[] = "HL.FIG";
+	    if (code == 3) {
+		*p++ = '\x7F';
+	    } else {
+		p += sprintf((char *) p, "\x1B[%c", codes[code-1]);
+	    }
 	    return p - output;
 	}
 	if ((vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
