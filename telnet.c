@@ -410,7 +410,12 @@ static void do_telnet_read (char *buf, int len) {
 	    else if (c == WILL) telnet_state = SEENWILL;
 	    else if (c == WONT) telnet_state = SEENWONT;
 	    else if (c == SB) telnet_state = SEENSB;
-	    else telnet_state = TOPLEVEL;/* ignore _everything_ else! */
+	    else {
+		/* ignore (and print) everything else */
+		b[0] = c;
+		c_write(b,1);
+		telnet_state = TOPLEVEL;
+	    }
 	    break;
 	  case SEENWILL:
 	    proc_rec_opt (WILL, c);
