@@ -662,7 +662,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	    dlgret = DialogBoxParam(hinst,
 				    MAKEINTRESOURCE(210),
 				    NULL, PassphraseProc,
-				    (LPARAM) & pps);
+				    (LPARAM) &pps);
 	    if (!dlgret) {
 		ret = -2;
 		break;
