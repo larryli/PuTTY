@@ -1361,7 +1361,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     return cmd;
 }
 
-static void do_sftp_init(void)
+static int do_sftp_init(void)
 {
     /*
      * Do protocol initialisation. 
@@ -1369,7 +1369,7 @@ static void do_sftp_init(void)
     if (!fxp_init()) {
 	fprintf(stderr,
 		"Fatal: unable to initialise SFTP: %s\n", fxp_error());
-	return;
+	return 1;		       /* failure */
     }
 
     /*
@@ -1385,6 +1385,7 @@ static void do_sftp_init(void)
 	printf("Remote working directory is %s\n", homedir);
     }
     pwd = dupstr(homedir);
+    return 0;
 }
 
 void do_sftp(int mode, int modeflags, char *batchfile)
@@ -1847,7 +1848,8 @@ int main(int argc, char *argv[])
     if (userhost) {
 	if (psftp_connect(userhost, user, portnumber))
 	    return 1;
-	do_sftp_init();
+	if (do_sftp_init())
+	    return 1;
     } else {
 	printf("psftp: no hostname specified; use \"open host.name\""
 	    " to connect\n");
