@@ -41,6 +41,9 @@ The website:
 Before tagging a release
 ------------------------
 
+ - First of all, go through the source and remove anything tagged
+   with a comment containing the word XXX-REMOVE-BEFORE-RELEASE.
+
 For a long time we got away with never checking the current version
 number into CVS at all - all version numbers were passed into the
 build system on the compiler command line, and the _only_ place
@@ -81,6 +84,9 @@ The actual release procedure
 This is the procedure I (SGT) currently follow (or _should_ follow
 :-) when actually making a release, once I'm happy with the position
 of the tag.
+
+ - Double-check that we have removed anything tagged with a comment
+   containing the word XXX-REMOVE-BEFORE-RELEASE.
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
