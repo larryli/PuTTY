@@ -80,6 +80,8 @@ typedef struct Session {
     int			raw_mouse;
     UnicodeToTextInfo	uni_to_font;  /* Only one of uni_to_font and	 */
     charset_t		font_charset; /* font_charset is used at a time. */
+    int			hasfile;
+    FSSpec		savefile;
 } Session;
 
 extern Session *sesslist;

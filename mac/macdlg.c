@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.4 2003/01/18 20:09:21 ben Exp $ */
+/* $Id: macdlg.c,v 1.5 2003/01/18 20:52:59 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -35,6 +35,7 @@
 #include <StandardFile.h>
 #include <Windows.h>
 
+#include <assert.h>
 #include <string.h>
 
 #include "putty.h"
@@ -51,6 +52,7 @@ void mac_newsession(void)
     memset(s, 0, sizeof(*s));
     do_defaults(NULL, &s->cfg);
     s->back = &loop_backend;
+    s->hasfile = FALSE;
 
     s->settings_window = GetNewDialog(wSettings, NULL, (WindowPtr)-1);
 
@@ -75,6 +77,12 @@ void mac_opensession(void) {
     if (sesshandle == NULL) goto fail;
     load_open_settings(sesshandle, TRUE, &s->cfg);
     close_settings_r(sesshandle);
+    if (sfr.sfFlags & kIsStationery)
+	s->hasfile = FALSE;
+    else {
+	s->hasfile = TRUE;
+	s->savefile = sfr.sfFile;
+    }
 
     /*
      * Select protocol. This is farmed out into a table in a
@@ -99,9 +107,14 @@ void mac_opensession(void) {
 
 void mac_savesession(void)
 {
+    Session *s = (Session *)GetWRefCon(FrontWindow());
+    void *sesshandle;
 
-    /* Don't remember which file a session goes with yet, so... */
-    mac_savesessionas();
+    assert(s->hasfile);
+    sesshandle = open_settings_w_fsp(&s->savefile);
+    if (sesshandle == NULL) return; /* XXX report error */
+    save_open_settings(sesshandle, TRUE, &s->cfg);
+    close_settings_w(sesshandle);
 }
 
 void mac_savesessionas(void)
@@ -110,7 +123,8 @@ void mac_savesessionas(void)
     StandardFileReply sfr;
     void *sesshandle;
 
-    StandardPutFile("\pSave session as:", "\puntitled", &sfr);
+    StandardPutFile("\pSave session as:",
+		    s->hasfile ? s->savefile.name : "\puntitled", &sfr);
     if (!sfr.sfGood) return;
 
     if (!sfr.sfReplacing) {
@@ -121,6 +135,8 @@ void mac_savesessionas(void)
     if (sesshandle == NULL) return; /* XXX report error */
     save_open_settings(sesshandle, TRUE, &s->cfg);
     close_settings_w(sesshandle);
+    s->hasfile = TRUE;
+    s->savefile = sfr.sfFile;
 }
 
 void mac_activatedlg(WindowPtr window, EventRecord *event)
