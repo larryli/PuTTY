@@ -105,6 +105,8 @@ union macctrl {
     struct {
 	struct macctrl_generic generic;
 	ControlRef tbctrl;
+	ControlRef tbup;
+	ControlRef tbdown;
 	ListHandle list;
 	unsigned int nids;
 	int *ids;
@@ -161,6 +163,9 @@ static void macctrl_popup(struct macctrls *, WindowPtr,
 			  struct mac_layoutstate *, union control *);
 static void macctrl_groupbox(struct macctrls *, WindowPtr,
 			     struct mac_layoutstate *, union control *);
+static void draglist_up(union macctrl *, struct macctrls *);
+static void draglist_down(union macctrl *, struct macctrls *);
+
 #if !TARGET_API_MAC_CARBON
 static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16, ControlRef,
 					       ControlDefProcMessage, SInt32);
@@ -460,6 +465,10 @@ static void macctrl_hideshowpanel(struct macctrls *mcs, unsigned int panel,
 	    break;
 	  case MACCTRL_LISTBOX:
 	    hideshow(mc->listbox.tbctrl);
+	    if (mc->listbox.tbup != NULL)
+		hideshow(mc->listbox.tbup);
+	    if (mc->listbox.tbdown != NULL)
+		hideshow(mc->listbox.tbdown);
 	    /*
 	     * At least under Mac OS 8.1, hiding a list box
 	     * doesn't hide its scroll bars.
@@ -925,7 +934,7 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
 			    union control *ctrl)
 {
     union macctrl *mc = snew(union macctrl);
-    Rect bounds;
+    Rect bounds, upbounds, downbounds;
     Size olen;
 
     /* XXX Use label */
@@ -940,6 +949,16 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
     bounds.right = bounds.left + curstate->width;
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 16 * ctrl->listbox.height + 2;
+
+    if (ctrl->listbox.draglist) {
+	upbounds = downbounds = bounds;
+	upbounds.left = upbounds.right - 58;
+	upbounds.bottom = upbounds.top + 20;
+	downbounds.left = downbounds.right - 58;
+	downbounds.top = upbounds.bottom + 6;
+	downbounds.bottom = downbounds.top + 20;
+	bounds.right -= 64; /* enough for 6 px gap and a button */
+    }
 
     if (mac_gestalts.apprvers >= 0x100) {
 	InsetRect(&bounds, 3, 3);
@@ -972,6 +991,14 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
 	(*mc->listbox.list)->selFlags = lOnlyOne;
 #endif
     }
+
+    if (ctrl->listbox.draglist) {
+	mc->listbox.tbup = NewControl(window, &upbounds, "\pUp", FALSE, 0, 0, 1,
+				      pushButProc, (long)mc);
+	mc->listbox.tbdown = NewControl(window, &downbounds, "\pDown", FALSE, 0, 0, 1,
+				      pushButProc, (long)mc);
+    }
+
     add234(mcs->byctrl, mc);
     curstate->pos.v += 6 + 16 * ctrl->listbox.height + 2;
     mc->generic.next = mcs->panels[curstate->panelnum];
@@ -1254,6 +1281,10 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 		break;
 	      case MACCTRL_LISTBOX:
 		HiliteControl(mc->listbox.tbctrl, state);
+		if (mc->listbox.tbup != NULL)
+		    HiliteControl(mc->listbox.tbup, state);
+		if (mc->listbox.tbdown != NULL)
+		    HiliteControl(mc->listbox.tbdown, state);
 		break;
 	      case MACCTRL_POPUP:
 		HiliteControl(mc->popup.tbctrl, state);
@@ -1340,6 +1371,12 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 		    ctrlevent(mcs, mc, EVENT_SELCHANGE);
 		goto done;
 	    }
+	    if (mc->generic.type == MACCTRL_LISTBOX &&
+		control == mc->listbox.tbup)
+		draglist_up(mc, mcs);
+	    if (mc->generic.type == MACCTRL_LISTBOX &&
+		control == mc->listbox.tbdown)
+		draglist_down(mc, mcs);
 #endif
 	    trackresult = TrackControl(control, mouse, (ControlActionUPP)-1);
 	}
@@ -1374,6 +1411,11 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 	    }
 	    break;
 	  case MACCTRL_LISTBOX:
+	    if (control == mc->listbox.tbup)
+		draglist_up(mc, mcs);
+	    if (control == mc->listbox.tbdown)
+		draglist_down(mc, mcs);
+
 	    /* FIXME spot double-click */
 	    ctrlevent(mcs, mc, EVENT_SELCHANGE);
 	    break;
@@ -2106,6 +2148,73 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
     }
 }
 
+static void draglist_move(union macctrl *mc, struct macctrls *mcs,
+			  int direction)
+{
+    ListBounds bounds;
+    Cell cell = {0, 0};
+    char current[255];
+    char new[255];
+    short curlength = 255;
+    short newlength = 255;
+    int curid, newid;
+
+    int index = dlg_listbox_index(mc->generic.ctrl, mcs);
+
+#if TARGET_API_MAC_CARBON
+    GetListDataBounds(mc->listbox.list, &bounds);
+#else
+    bounds = (*mc->listbox.list)->dataBounds;
+#endif
+
+    if ((index < 0) ||
+	(index == 0 && direction < 0) ||
+	(index == bounds.bottom-1 && direction > 0)) {
+	SysBeep(30);
+	return;
+    }
+
+    /* Swap the contents of the selected and target list cells */
+
+    cell.v = index;
+    LGetCell(current, &curlength, cell, mc->listbox.list);
+    current[curlength] = '\0';
+    cell.v += direction;
+    LGetCell(new, &newlength, cell, mc->listbox.list);
+    new[newlength] = '\0';
+
+    cell.v = index;
+    LSetCell(new, newlength, cell, mc->listbox.list);
+    cell.v += direction;
+    LSetCell(current, curlength, cell, mc->listbox.list);
+
+    /* Move the selection to the target list cell */
+
+    cell.v = index;
+    LSetSelect(FALSE, cell, mc->listbox.list);
+    cell.v += direction;
+    LSetSelect(TRUE, cell, mc->listbox.list);
+    DrawOneControl(mc->listbox.tbctrl);
+
+    /* Swap the ids of the list cells */
+
+    curid = mc->listbox.ids[index];
+    newid = mc->listbox.ids[index + direction];
+    mc->listbox.ids[index] = newid;
+    mc->listbox.ids[index + direction] = curid;
+			    
+    ctrlevent(mcs, mc, EVENT_VALCHANGE);
+}
+
+static void draglist_up(union macctrl *mc, struct macctrls *mcs)
+{
+    draglist_move(mc, mcs, -1);
+}
+
+static void draglist_down(union macctrl *mc, struct macctrls *mcs)
+{
+    draglist_move(mc, mcs, +1);
+}
 
 /*
  * Text control
