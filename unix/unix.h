@@ -69,6 +69,9 @@ void uxsel_del(int fd);
 int select_result(int fd, int event);
 int first_fd(int *state, int *rwx);
 int next_fd(int *state, int *rwx);
+/* The following are expected to be provided _to_ uxsel.c by the frontend */
+int uxsel_input_add(int fd, int rwx);  /* returns an id */
+void uxsel_input_remove(int id);
 
 /* uxcfg.c */
 struct controlbox;

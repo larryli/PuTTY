@@ -788,9 +788,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    if (pending_netevent) {
 		enact_pending_netevent();
 
-		/* Force the cursor blink on */
-		term_blink(term, 1);
-
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		    continue;
 	    }

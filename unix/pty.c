@@ -13,6 +13,7 @@
 
 #define _XOPEN_SOURCE
 #define _XOPEN_SOURCE_EXTENDED
+#define _GNU_SOURCE
 #include <features.h>
 
 #include <stdio.h>
@@ -68,19 +69,23 @@
 #endif
 #endif
 
-int pty_master_fd;
+static Config pty_cfg;
+static int pty_master_fd;
 static void *pty_frontend;
 static char pty_name[FILENAME_MAX];
+static int pty_signal_pipe[2];
 static int pty_stamped_utmp = 0;
 static int pty_child_pid;
 static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
 static int pty_term_width, pty_term_height;
-static volatile sig_atomic_t pty_child_dead;
-static volatile int pty_exit_code;
+static int pty_child_dead, pty_finished;
+static int pty_exit_code;
 #ifndef OMIT_UTMP
 static struct utmp utmp_entry;
 #endif
 char **pty_argv;
+
+static void pty_close(void);
 
 static void setup_utmp(char *ttyname, char *location)
 {
@@ -164,18 +169,7 @@ static void cleanup_utmp(void)
 
 static void sigchld_handler(int signum)
 {
-    int save_errno = errno;
-    pid_t pid;
-    int status;
-
-    do {
-	pid = waitpid(-1, &status, WNOHANG);
-	if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
-	    pty_exit_code = status;
-	    pty_child_dead = TRUE;
-	}
-    } while(pid > 0);
-    errno = save_errno;
+    write(pty_signal_pipe[1], "x", 1);
 }
 
 static void fatal_sig_handler(int signum)
@@ -381,6 +375,107 @@ void pty_pre_init(void)
     }
 }
 
+int pty_select_result(int fd, int event)
+{
+    char buf[4096];
+    int ret;
+    int finished = FALSE;
+
+    if (fd == pty_master_fd && event == 1) {
+
+	ret = read(pty_master_fd, buf, sizeof(buf));
+
+	/*
+	 * Clean termination condition is that either ret == 0, or ret
+	 * < 0 and errno == EIO. Not sure why the latter, but it seems
+	 * to happen. Boo.
+	 */
+	if (ret == 0 || (ret < 0 && errno == EIO)) {
+	    /*
+	     * We assume a clean exit if the pty has closed but the
+	     * actual child process hasn't. The only way I can
+	     * imagine this happening is if it detaches itself from
+	     * the pty and goes daemonic - in which case the
+	     * expected usage model would precisely _not_ be for
+	     * the pterm window to hang around!
+	     */
+	    finished = TRUE;
+	    if (!pty_child_dead)
+		pty_exit_code = 0;
+	} else if (ret < 0) {
+	    perror("read pty master");
+	    exit(1);
+	} else if (ret > 0) {
+	    from_backend(pty_frontend, 0, buf, ret);
+	}
+    } else if (fd == pty_signal_pipe[0]) {
+	pid_t pid;
+	int status;
+	char c[1];
+
+	read(pty_signal_pipe[0], c, 1); /* ignore its value; it'll be `x' */
+
+	do {
+	    pid = waitpid(-1, &status, WNOHANG);
+	    if (pid == pty_child_pid &&
+		(WIFEXITED(status) || WIFSIGNALED(status))) {
+		/*
+		 * The primary child process died. We could keep
+		 * the terminal open for remaining subprocesses to
+		 * output to, but conventional wisdom seems to feel
+		 * that that's the Wrong Thing for an xterm-alike,
+		 * so we bail out now (though we don't necessarily
+		 * _close_ the window, depending on the state of
+		 * Close On Exit). This would be easy enough to
+		 * change or make configurable if necessary.
+		 */
+		pty_exit_code = status;
+		pty_child_dead = TRUE;
+		finished = TRUE;
+	    }
+	} while(pid > 0);
+    }
+
+    if (finished && !pty_finished) {
+	uxsel_del(pty_master_fd);
+	pty_close();
+	pty_master_fd = -1;
+
+	pty_finished = TRUE;
+
+	/*
+	 * This is a slight layering-violation sort of hack: only
+	 * if we're not closing on exit (COE is set to Never, or to
+	 * Only On Clean and it wasn't a clean exit) do we output a
+	 * `terminated' message.
+	 */
+	if (pty_cfg.close_on_exit == FORCE_OFF ||
+	    (pty_cfg.close_on_exit == AUTO && pty_exit_code != 0)) {
+	    char message[512];
+	    if (WIFEXITED(pty_exit_code))
+		sprintf(message, "\r\n[pterm: process terminated with exit"
+			" code %d]\r\n", WEXITSTATUS(pty_exit_code));
+	    else if (WIFSIGNALED(pty_exit_code))
+#ifdef HAVE_NO_STRSIGNAL
+		sprintf(message, "\r\n[pterm: process terminated on signal"
+			" %d]\r\n", WTERMSIG(pty_exit_code));
+#else
+		sprintf(message, "\r\n[pterm: process terminated on signal"
+			" %d (%.400s)]\r\n", WTERMSIG(pty_exit_code),
+			strsignal(WTERMSIG(pty_exit_code)));
+#endif
+	    from_backend(pty_frontend, 0, message, strlen(message));
+	}
+    }
+    return !finished;
+}
+
+static void pty_uxsel_setup(void)
+{
+    uxsel_set(pty_master_fd, 1, pty_select_result);
+    uxsel_set(pty_signal_pipe[0], 1, pty_select_result);
+}
+
 /*
  * Called to set up the pty.
  * 
@@ -399,6 +494,7 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     pty_frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
 
+    pty_cfg = *cfg;		       /* structure copy */
     pty_term_width = cfg->width;
     pty_term_height = cfg->height;
 
@@ -514,7 +610,14 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     } else {
 	pty_child_pid = pid;
 	pty_child_dead = FALSE;
+	pty_finished = FALSE;
     }      
+
+    if (pipe(pty_signal_pipe) < 0) {
+	perror("pipe");
+	exit(1);
+    }
+    pty_uxsel_setup();
 
     return NULL;
 }
@@ -554,7 +657,7 @@ static int pty_send(void *handle, char *buf, int len)
     return 0;
 }
 
-void pty_close(void)
+static void pty_close(void)
 {
     if (pty_master_fd >= 0) {
 	close(pty_master_fd);
@@ -632,7 +735,7 @@ static void pty_provide_logctx(void *handle, void *logctx)
 
 static int pty_exitcode(void *handle)
 {
-    if (!pty_child_dead)
+    if (!pty_finished)
 	return -1;		       /* not dead yet */
     else
 	return pty_exit_code;

@@ -237,6 +237,13 @@ void sigwinch(int signum)
 }
 
 /*
+ * In Plink our selects are synchronous, so these functions are
+ * empty stubs.
+ */
+int uxsel_input_add(int fd, int rwx) { return 0; }
+void uxsel_input_remove(int id) { }
+
+/*
  * Short description of parameters.
  */
 static void usage(void)

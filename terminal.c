@@ -418,6 +418,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->attr_mask = 0xffffffff;
     term->resize_fn = NULL;
     term->resize_ctx = NULL;
+    term->in_term_out = FALSE;
 
     return term;
 }
@@ -4714,6 +4715,13 @@ int from_backend(void *vterm, int is_stderr, const char *data, int len)
     assert(len > 0);
 
     bufchain_add(&term->inbuf, data, len);
+
+    if (!term->in_term_out) {
+	term->in_term_out = TRUE;
+	term_blink(term, 1);
+	term_out(term);
+	term->in_term_out = FALSE;
+    }
 
     /*
      * term_out() always completely empties inbuf. Therefore,

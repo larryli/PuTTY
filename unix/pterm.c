@@ -61,12 +61,13 @@ struct gui_data {
     int alt_digits;
     char wintitle[sizeof(((Config *)0)->wintitle)];
     char icontitle[sizeof(((Config *)0)->wintitle)];
-    int master_fd, master_func_id, exited;
+    int master_fd, master_func_id;
     void *ldisc;
     Backend *back;
     void *backhandle;
     Terminal *term;
     void *logctx;
+    int exited;
     struct unicode_data ucsdata;
     Config cfg;
 };
@@ -989,54 +990,6 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     return TRUE;
 }
 
-void done_with_pty(struct gui_data *inst)
-{
-    extern void pty_close(void);
-
-    if (inst->master_fd >= 0) {
-	pty_close();
-	inst->master_fd = -1;
-	gtk_input_remove(inst->master_func_id);
-    }
-
-    if (!inst->exited && inst->back->exitcode(inst->backhandle) >= 0) {
-	int exitcode = inst->back->exitcode(inst->backhandle);
-	int clean;
-
-	clean = WIFEXITED(exitcode) && (WEXITSTATUS(exitcode) == 0);
-
-	/*
-	 * Terminate now, if the Close On Exit setting is
-	 * appropriate.
-	 */
-	if (inst->cfg.close_on_exit == FORCE_ON ||
-	    (inst->cfg.close_on_exit == AUTO && clean))
-	    exit(0);
-
-	/*
-	 * Otherwise, output an indication that the session has
-	 * closed.
-	 */
-	{
-	    char message[512];
-	    if (WIFEXITED(exitcode))
-		sprintf(message, "\r\n[pterm: process terminated with exit"
-			" code %d]\r\n", WEXITSTATUS(exitcode));
-	    else if (WIFSIGNALED(exitcode))
-#ifdef HAVE_NO_STRSIGNAL
-		sprintf(message, "\r\n[pterm: process terminated on signal"
-			" %d]\r\n", WTERMSIG(exitcode));
-#else
-		sprintf(message, "\r\n[pterm: process terminated on signal"
-			" %d (%.400s)]\r\n", WTERMSIG(exitcode),
-			strsignal(WTERMSIG(exitcode)));
-#endif
-	    from_backend((void *)inst->term, 0, message, strlen(message));
-	}
-	inst->exited = 1;
-    }
-}
-
 void frontend_keypress(void *handle)
 {
     struct gui_data *inst = (struct gui_data *)handle;
@@ -1052,18 +1005,13 @@ void frontend_keypress(void *handle)
 gint timer_func(gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
+    int exitcode;
 
-    if (inst->back->exitcode(inst->backhandle) >= 0) {
-	/*
-	 * The primary child process died. We could keep the
-	 * terminal open for remaining subprocesses to output to,
-	 * but conventional wisdom seems to feel that that's the
-	 * Wrong Thing for an xterm-alike, so we bail out now
-	 * (though we don't necessarily _close_ the window,
-	 * depending on the state of Close On Exit). This would be
-	 * easy enough to change or make configurable if necessary.
-	 */
-	done_with_pty(inst);
+    if ((exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
+	inst->exited = TRUE;
+	if (inst->cfg.close_on_exit == FORCE_ON ||
+	    (inst->cfg.close_on_exit == AUTO && exitcode == 0))
+	    exit(0);		       /* just go. */
     }
 
     term_update(inst->term);
@@ -1071,28 +1019,12 @@ gint timer_func(gpointer data)
     return TRUE;
 }
 
-void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
+void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    char buf[4096];
-    int ret;
-
-    ret = read(sourcefd, buf, sizeof(buf));
-
-    /*
-     * Clean termination condition is that either ret == 0, or ret
-     * < 0 and errno == EIO. Not sure why the latter, but it seems
-     * to happen. Boo.
-     */
-    if (ret == 0 || (ret < 0 && errno == EIO)) {
-	done_with_pty(inst);
-    } else if (ret < 0) {
-	perror("read pty master");
-	exit(1);
-    } else if (ret > 0)
-	from_backend(inst->term, 0, buf, ret);
-    term_blink(inst->term, 1);
-    term_out(inst->term);
+    select_result(sourcefd,
+		  (condition == GDK_INPUT_READ ? 1 :
+		   condition == GDK_INPUT_WRITE ? 2 :
+		   condition == GDK_INPUT_EXCEPTION ? 4 : -1));
 }
 
 void destroy(GtkWidget *widget, gpointer data)
@@ -2275,9 +2207,20 @@ static int set_font_info(struct gui_data *inst, int fontid)
     return retval;
 }
 
+int uxsel_input_add(int fd, int rwx) {
+    int flags = 0;
+    if (rwx & 1) flags |= GDK_INPUT_READ;
+    if (rwx & 2) flags |= GDK_INPUT_WRITE;
+    if (rwx & 4) flags |= GDK_INPUT_EXCEPTION;
+    return gdk_input_add(fd, flags, fd_input_func, NULL);
+}
+
+void uxsel_input_remove(int id) {
+    gdk_input_remove(id);
+}
+
 int main(int argc, char **argv)
 {
-    extern int pty_master_fd;	       /* declared in pty.c */
     extern void pty_pre_init(void);    /* declared in pty.c */
     struct gui_data *inst;
     int font_charset;
@@ -2452,6 +2395,8 @@ int main(int argc, char **argv)
     inst->logctx = log_init(inst, &inst->cfg);
     term_provide_logctx(inst->term, inst->logctx);
 
+    uxsel_init();
+
     inst->back = &pty_backend;
     inst->back->init((void *)inst->term, &inst->backhandle, &inst->cfg,
 		     NULL, 0, NULL, 0);
@@ -2465,15 +2410,12 @@ int main(int argc, char **argv)
 	ldisc_create(&inst->cfg, inst->term, inst->back, inst->backhandle, inst);
     ldisc_send(inst->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
-    inst->master_fd = pty_master_fd;
-    inst->exited = FALSE;
-    inst->master_func_id = gdk_input_add(pty_master_fd, GDK_INPUT_READ,
-					 pty_input_func, inst);
-
     /* now we're reday to deal with the child exit handler being
      * called */
     block_signal(SIGCHLD, 0);
-    
+
+    inst->exited = FALSE;
+
     gtk_main();
 
     return 0;
