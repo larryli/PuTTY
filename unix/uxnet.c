@@ -948,6 +948,29 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
     return s->sending_oob;
 }
 
+static int sockaddr_is_loopback(struct sockaddr *sa)
+{
+    struct sockaddr_in *sin;
+#ifndef NO_IPV6
+    struct sockaddr_in6 *sin6;
+#endif
+
+    switch (sa->sa_family) {
+      case AF_INET:
+	sin = (struct sockaddr_in *)sa;
+	return ipv4_is_loopback(sin->sin_addr);
+#ifndef NO_IPV6
+      case AF_INET6:
+	sin6 = (struct sockaddr_in6 *)sa;
+	return IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr);
+#endif
+      case AF_LOCAL:
+	return TRUE;
+      default:
+	return FALSE;
+    }
+}
+
 static int net_select_result(int fd, int event)
 {
     int ret;
@@ -1009,17 +1032,22 @@ static int net_select_result(int fd, int event)
 	     * On a listening socket, the readability event means a
 	     * connection is ready to be accepted.
 	     */
-	    struct sockaddr_in isa;
-	    int addrlen = sizeof(struct sockaddr_in);
+#ifdef NO_IPV6
+	    struct sockaddr_in ss;
+#else
+	    struct sockaddr_storage ss;
+#endif
+	    socklen_t addrlen = sizeof(ss);
 	    int t;  /* socket of connection */
 
-	    memset(&isa, 0, sizeof(struct sockaddr_in));
-	    t = accept(s->s,(struct sockaddr *)&isa,(socklen_t *) &addrlen);
+	    memset(&ss, 0, addrlen);
+	    t = accept(s->s, (struct sockaddr *)&ss, &addrlen);
 	    if (t < 0) {
 		break;
 	    }
 
-	    if (s->localhost_only && !ipv4_is_loopback(isa.sin_addr)) {
+	    if (s->localhost_only &&
+		!sockaddr_is_loopback((struct sockaddr *)&ss)) {
 		close(t);	       /* someone let nonlocal through?! */
 	    } else if (plug_accepting(s->plug, t)) {
 		close(t);	       /* denied or error */
