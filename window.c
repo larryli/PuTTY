@@ -2029,7 +2029,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
             return -1;
 	}
 	if (left_alt && wParam == VK_SPACE && cfg.alt_space) {
-            
+            PostMessage(hwnd, WM_CHAR, ' ', 0);
             SendMessage (hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
             return -1;
 	}
@@ -2302,9 +2302,17 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
     }
 
-    /* This stops ALT press-release doing a 'COMMAND MENU' function */
-    if (!cfg.alt_only) {
-	if (message == WM_SYSKEYUP && wParam == VK_MENU) 
+    /* ALT alone may or may not want to bring up the System menu */
+    if (wParam == VK_MENU) {
+        if (cfg.alt_only) {
+            static int alt_state = 0;
+            if (message == WM_SYSKEYDOWN)
+                alt_state = 1;
+            else if (message == WM_SYSKEYUP && alt_state)
+                PostMessage(hwnd, WM_CHAR, ' ', 0);
+            if (message == WM_SYSKEYUP)
+                alt_state = 0;
+        } else
 	    return 0;
     }
 
