@@ -92,7 +92,7 @@ enum {
     B,
     S,
     WS,
-    ON,
+    ON
 };
 
 /* Shaping Types */
@@ -156,7 +156,7 @@ const shape_node shapetypes[] = {
     /* 647 */ {SD, 0xFEE9},
     /* 648 */ {SR, 0xFEED},
     /* 649 */ {SR, 0xFEEF}, /* SD */
-    /* 64A */ {SD, 0xFEF1},
+    /* 64A */ {SD, 0xFEF1}
 };
 
 /*
@@ -848,7 +848,7 @@ unsigned char getType(int ch)
         {0xe0020, 0xe007f, BN},
         {0xe0100, 0xe01ef, NSM},
         {0xf0000, 0xffffd, L},
-        {0x100000, 0x10fffd, L},
+        {0x100000, 0x10fffd, L}
     };
 
     int i, j, k;
