@@ -234,6 +234,29 @@ void fatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
+void modalfatalbox(char *fmt, ...)
+{
+    char str[0x100];		       /* Make the size big enough */
+    va_list ap;
+    va_start(ap, fmt);
+    strcpy(str, "Fatal: ");
+    vsprintf(str + strlen(str), fmt, ap);
+    va_end(ap);
+    strcat(str, "\n");
+    tell_str(stderr, str);
+    errs++;
+
+    if (gui_mode) {
+	unsigned int msg_id = WM_RET_ERR_CNT;
+	if (list)
+	    msg_id = WM_LS_RET_ERR_CNT;
+	while (!PostMessage
+	       ((HWND) atoi(gui_hwnd), msg_id, (WPARAM) errs,
+		0 /*lParam */ ))SleepEx(1000, TRUE);
+    }
+
+    cleanup_exit(1);
+}
 void connection_fatal(char *fmt, ...)
 {
     char str[0x100];		       /* Make the size big enough */

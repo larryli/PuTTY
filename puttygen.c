@@ -22,6 +22,22 @@ static int requested_help;
 
 static char *cmdline_keyfile = NULL;
 
+/*
+ * Print a modal (Really Bad) message box and perform a fatal exit.
+ */
+void modalfatalbox(char *fmt, ...)
+{
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    MessageBox(NULL, stuff, "PuTTYgen Fatal Error",
+	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    exit(1);
+}
+
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)
  */

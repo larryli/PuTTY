@@ -143,24 +143,23 @@ void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 void defuse_showwindow(void);
 int do_config(void);
 int do_reconfig(HWND);
-void do_defaults(char *, Config *);
-void logevent(char *);
 void showeventlog(HWND);
 void showabout(HWND);
-void verify_ssh_host_key(char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint);
-void askcipher(char *ciphername, int cs);
-int askappend(char *filename);
-void registry_cleanup(void);
 void force_normal(HWND hwnd);
-
-GLOBAL int nsessions;
-GLOBAL char **sessions;
 
 /*
  * Exports from sizetip.c.
  */
 void UpdateSizeTip(HWND src, int cx, int cy);
 void EnableSizeTip(int bEnable);
+
+/*
+ * Unicode and multi-byte character handling stuff.
+ */
+#define is_dbcs_leadbyte(cp, c) IsDBCSLeadByteEx(cp, c)
+#define mb_to_wc(cp, flags, mbstr, mblen, wcstr, wclen) \
+	MultiByteToWideChar(cp, flags, mbstr, mblen, wcstr, wclen)
+#define wc_to_mb(cp, flags, wcstr, wclen, mbstr, mblen, def, defused) \
+	WideCharToMultiByte(cp, flags, mbstr, mblen, wcstr, wclen, def,defused)
 
 #endif

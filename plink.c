@@ -29,6 +29,17 @@ void fatalbox(char *p, ...)
     WSACleanup();
     cleanup_exit(1);
 }
+void modalfatalbox(char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "FATAL ERROR: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    WSACleanup();
+    cleanup_exit(1);
+}
 void connection_fatal(char *p, ...)
 {
     va_list ap;

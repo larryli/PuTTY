@@ -5,20 +5,146 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <gtk/gtk.h>
+
+#define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
+#include "putty.h"
 
 #define CAT2(x,y) x ## y
 #define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
 
-#define lenof(x) (sizeof((x))/sizeof(*(x)))
+void ldisc_update(int echo, int edit)
+{
+    /*
+     * This is a stub in pterm. If I ever produce a Unix
+     * command-line ssh/telnet/rlogin client (i.e. a port of plink)
+     * then it will require some termios manoeuvring analogous to
+     * that in the Windows plink.c, but here it's meaningless.
+     */
+}
+
+int askappend(char *filename)
+{
+    /*
+     * FIXME: for the moment we just wipe the log file. Since I
+     * haven't yet enabled logging, this shouldn't matter yet!
+     */
+    return 2;
+}
+
+void logevent(char *string)
+{
+    /*
+     * FIXME: event log entries are currently ignored.
+     */
+}
+
+/*
+ * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
+ * into a cooked one (SELECT, EXTEND, PASTE).
+ * 
+ * In Unix, this is not configurable; the X button arrangement is
+ * rock-solid across all applications, everyone has a three-button
+ * mouse or a means of faking it, and there is no need to switch
+ * buttons around at all.
+ */
+Mouse_Button translate_button(Mouse_Button button)
+{
+    if (button == MBT_LEFT)
+	return MBT_SELECT;
+    if (button == MBT_MIDDLE)
+	return MBT_PASTE;
+    if (button == MBT_RIGHT)
+	return MBT_EXTEND;
+    return 0;			       /* shouldn't happen */
+}
+
+/*
+ * Minimise or restore the window in response to a server-side
+ * request.
+ */
+void set_iconic(int iconic)
+{
+    /* FIXME: currently ignored */
+}
+
+/*
+ * Move the window in response to a server-side request.
+ */
+void move_window(int x, int y)
+{
+    /* FIXME: currently ignored */
+}
+
+/*
+ * Move the window to the top or bottom of the z-order in response
+ * to a server-side request.
+ */
+void set_zorder(int top)
+{
+    /* FIXME: currently ignored */
+}
+
+/*
+ * Refresh the window in response to a server-side request.
+ */
+void refresh_window(void)
+{
+    /* FIXME: currently ignored */
+}
+
+/*
+ * Maximise or restore the window in response to a server-side
+ * request.
+ */
+void set_zoomed(int zoomed)
+{
+    /* FIXME: currently ignored */
+}
+
+/*
+ * Report whether the window is iconic, for terminal reports.
+ */
+int is_iconic(void)
+{
+    return 0;			       /* FIXME */
+}
+
+/*
+ * Report the window's position, for terminal reports.
+ */
+void get_window_pos(int *x, int *y)
+{
+    *x = 3; *y = 4;		       /* FIXME */
+}
+
+/*
+ * Report the window's pixel size, for terminal reports.
+ */
+void get_window_pixels(int *x, int *y)
+{
+    *x = 1; *y = 2;		       /* FIXME */
+}
+
+/*
+ * Return the window or icon title.
+ */
+char *get_window_title(int icon)
+{
+    return "FIXME: window title retrieval not yet implemented";
+}
 
 struct gui_data {
     GtkWidget *area;
     GdkFont *fonts[2];                 /* normal and bold (for now!) */
     GdkGC *black_gc, *white_gc;
 };
+
+static struct gui_data the_inst;
+static struct gui_data *inst = &the_inst;   /* so we always write `inst->' */
 
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
@@ -86,13 +212,17 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 
 gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    /* struct gui_data *inst = (struct gui_data *)data; */
 
     /*
-     * FIXME: pass the exposed rect to terminal.c which will call
-     * us back to do the actual painting.
+     * Pass the exposed rectangle to terminal.c, which will call us
+     * back to do the actual painting.
      */
-    return FALSE;
+    term_paint(NULL, 
+	       event->area.x / 9, event->area.y / 15,
+	       (event->area.x + event->area.width - 1) / 9,
+	       (event->area.y + event->area.height - 1) / 15);
+    return TRUE;
 }
 
 #define KEY_PRESSED(k) \
@@ -100,20 +230,23 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    /* struct gui_data *inst = (struct gui_data *)data; */
 
-    /*
-     * FIXME: all sorts of fun keyboard handling required here.
-     */
+    if (event->type == GDK_KEY_PRESS) {
+	char c[1];
+	c[0] = event->keyval;
+	ldisc_send(c, 1, 1);
+	term_out();
+    }
+
+    return TRUE;
 }
 
 gint timer_func(gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    /* struct gui_data *inst = (struct gui_data *)data; */
 
-    /*
-     * FIXME: we're bound to need this sooner or later!
-     */
+    term_update();
     return TRUE;
 }
 
@@ -127,15 +260,149 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
     /*
      * FIXME: need to faff with the cursor shape.
      */
+    return FALSE;
+}
+
+/*
+ * set or clear the "raw mouse message" mode
+ */
+void set_raw_mouse_mode(int activate)
+{
+    /* FIXME: currently ignored */
+}
+
+void request_resize(int w, int h)
+{
+    /* FIXME: currently ignored */
+}
+
+void palette_set(int n, int r, int g, int b)
+{
+    /* FIXME: currently ignored */
+}
+void palette_reset(void)
+{
+    /* FIXME: currently ignored */
+}
+
+void write_clip(wchar_t * data, int len, int must_deselect)
+{
+    /* FIXME: currently ignored */
+}
+
+void get_clip(wchar_t ** p, int *len)
+{
+    if (p) {
+	/* FIXME: currently nonfunctional */
+	*p = NULL;
+	*len = 0;
+    }
+}
+
+void set_title(char *title)
+{
+    /* FIXME: currently ignored */
+}
+
+void set_icon(char *title)
+{
+    /* FIXME: currently ignored */
+}
+
+void set_sbar(int total, int start, int page)
+{
+    /* FIXME: currently ignored */
+}
+
+void sys_cursor(int x, int y)
+{
+    /*
+     * This is meaningless under X.
+     */
+}
+
+void beep(int mode)
+{
+    gdk_beep();
+}
+
+int CharWidth(Context ctx, int uc)
+{
+    /*
+     * Under X, any fixed-width font really _is_ fixed-width.
+     * Double-width characters will be dealt with using a separate
+     * font. For the moment we can simply return 1.
+     */
+    return 1;
+}
+
+Context get_ctx(void)
+{
+    GdkGC *gc = gdk_gc_new(inst->area->window);
+    return gc;
+}
+
+void free_ctx(Context ctx)
+{
+    GdkGC *gc = (GdkGC *)ctx;
+    gdk_gc_unref(gc);
+}
+
+/*
+ * Draw a line of text in the window, at given character
+ * coordinates, in given attributes.
+ *
+ * We are allowed to fiddle with the contents of `text'.
+ */
+void do_text(Context ctx, int x, int y, char *text, int len,
+	     unsigned long attr, int lattr)
+{
+    GdkColor fg, bg;
+
+    GdkGC *gc = (GdkGC *)ctx;
+    fg.red = fg.green = fg.blue = 65535;
+    bg.red = bg.green = bg.blue = 65535;
+    gdk_gc_set_foreground(gc, &fg);
+    gdk_gc_set_background(gc, &bg);
+
+    gdk_draw_text(inst->area->window, inst->fonts[0], inst->white_gc,
+		  x*9, y*15 + inst->fonts[0]->ascent, text, len);
+}
+
+void do_cursor(Context ctx, int x, int y, char *text, int len,
+	       unsigned long attr, int lattr)
+{
+    /* FIXME: passive cursor NYI */
+    if (attr & TATTR_PASCURS) {
+	attr &= ~TATTR_PASCURS;
+	attr |= TATTR_ACTCURS;
+    }
+    do_text(ctx, x, y, text, len, attr, lattr);
+}
+
+void modalfatalbox(char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "FATAL ERROR: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
 }
 
 int main(int argc, char **argv)
 {
     GtkWidget *window;
-    struct gui_data the_inst;
-    struct gui_data *inst = &the_inst;   /* so we always write `inst->' */
 
     gtk_init(&argc, &argv);
+
+    do_defaults(NULL, &cfg);
+
+    init_ucs();
+
+    back = &pty_backend;
+    back->init(NULL, 0, NULL, 0);
 
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     inst->area = gtk_drawing_area_new();
@@ -166,6 +433,9 @@ int main(int argc, char **argv)
 
     gtk_widget_show(inst->area);
     gtk_widget_show(window);
+
+    term_init();
+    term_size(24, 80, 2000);
 
     gtk_main();
 

@@ -481,12 +481,12 @@ print
 "# TOOLPATH = /opt/gcc/bin\n".
 "CC = \$(TOOLPATH)cc\n".
 "\n".
-&splitline("CFLAGS = -Wall -O2 -I. -I.. `gtk-config --cflags`")."\n".
-"LDFLAGS = -s `gtk-config --libs`\n".
+&splitline("CFLAGS = -Wall -g -I. -I.. `gtk-config --cflags`")."\n".
+"LDFLAGS = `gtk-config --libs`\n".
 "\n".
 ".SUFFIXES:\n".
 "\n".
-"%.o: %.c\n".
+"%.o:\n".
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
 "\n";
 print &splitline("all:" . join "", map { " $_" } &prognames("X"));

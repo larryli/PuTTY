@@ -4202,6 +4202,22 @@ void fatalbox(char *fmt, ...)
 }
 
 /*
+ * Print a modal (Really Bad) message box and perform a fatal exit.
+ */
+void modalfatalbox(char *fmt, ...)
+{
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    MessageBox(hwnd, stuff, "PuTTY Fatal Error",
+	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    cleanup_exit(1);
+}
+
+/*
  * Manage window caption / taskbar flashing, if enabled.
  * 0 = stop, 1 = maintain, 2 = start
  */

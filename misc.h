@@ -54,10 +54,15 @@ void debug_memdump(void *buf, int len, int L);
 #define dmemdumpl(buf,len)
 #endif
 
-
 #ifndef lenof
 #define lenof(x) ( (sizeof((x))) / (sizeof(*(x))))
 #endif
 
+#ifndef min
+#define min(x,y) ( (x) < (y) ? (x) : (y) )
+#endif
+#ifndef max
+#define max(x,y) ( (x) < (y) ? (x) : (y) )
+#endif
 
 #endif

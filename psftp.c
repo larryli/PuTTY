@@ -1457,6 +1457,19 @@ void fatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
+void modalfatalbox(char *fmt, ...)
+{
+    char str[0x100];		       /* Make the size big enough */
+    va_list ap;
+    va_start(ap, fmt);
+    strcpy(str, "Fatal:");
+    vsprintf(str + strlen(str), fmt, ap);
+    va_end(ap);
+    strcat(str, "\n");
+    fputs(str, stderr);
+
+    cleanup_exit(1);
+}
 void connection_fatal(char *fmt, ...)
 {
     char str[0x100];		       /* Make the size big enough */

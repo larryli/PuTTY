@@ -132,4 +132,5 @@ puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand noise sshsha winstore misc winctrls sshrsa sshdss
          + sshpubk sshaes sshsh512 import winutils puttygen.res LIBS
 
-pterm    : [X] pterm terminal wcwidth unicode uxmisc
+pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc
+         + logging uxprint settings pty be_none uxstore

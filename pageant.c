@@ -59,6 +59,22 @@ static char *putty_path;
 #define PUTTY_DEFAULT     "Default%20Settings"
 static int initial_menuitems_count;
 
+/*
+ * Print a modal (Really Bad) message box and perform a fatal exit.
+ */
+void modalfatalbox(char *fmt, ...)
+{
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    MessageBox(main_hwnd, stuff, "Pageant Fatal Error",
+	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    exit(1);
+}
+
 /* Un-munge session names out of the registry. */
 static void unmungestr(char *in, char *out, int outlen)
 {

@@ -614,8 +614,7 @@ void lpage_send(int codepage, char *buf, int len, int interactive)
 	widesize = len * 2;
     }
 
-    wclen =
-	MultiByteToWideChar(codepage, 0, buf, len, widebuffer, widesize);
+    wclen = mb_to_wc(codepage, 0, buf, len, widebuffer, widesize);
     luni_send(widebuffer, wclen, interactive);
 }
 
@@ -653,8 +652,8 @@ void luni_send(wchar_t * widebuf, int len, int interactive)
 	}
     } else if (!uni_tbl) {
 	int rv;
-	rv = WideCharToMultiByte(line_codepage, 0, widebuf, len,
-				 linebuffer, linesize, NULL, NULL);
+	rv = wc_to_mb(line_codepage, 0, widebuf, len,
+		      linebuffer, linesize, NULL, NULL);
 	if (rv >= 0)
 	    p = linebuffer + rv;
 	else
@@ -1243,7 +1242,7 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype)
 	for (i = 0; i < max; i++) {
 	    tbuf[0] = i;
 
-	    if (MultiByteToWideChar(codepage, flg, tbuf, 1, unitab + i, 1)
+	    if (mb_to_wc(codepage, flg, tbuf, 1, unitab + i, 1)
 		!= 1)
 		unitab[i] = 0xFFFD;
 	}

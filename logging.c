@@ -1,5 +1,3 @@
-#include <windows.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -11,7 +9,6 @@
 
 /* log session to file stuff ... */
 static FILE *lgfp = NULL;
-static char timdatbuf[20];
 static char currlogfilename[FILENAME_MAX];
 
 static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm);
@@ -150,7 +147,6 @@ void logfclose(void)
 static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm) {
     char buf[10], *bufp;
     int size;
-    char *ds = d; /* save start pos. */
     int len = FILENAME_MAX-1;
 
     while (*s) {
@@ -159,6 +155,7 @@ static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm) {
 	if (*s == '&') {
 	    char c;
 	    s++;
+	    size = 0;
 	    if (*s) switch (c = *s++, tolower(c)) {
 	      case 'y':
 		size = strftime(buf, sizeof(buf), "%Y", tm);

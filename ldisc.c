@@ -5,7 +5,6 @@
  * depending on what's currently configured.
  */
 
-#include <windows.h>
 #include <stdio.h>
 #include <ctype.h>
 

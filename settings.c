@@ -2,7 +2,6 @@
  * settings.c: read and write saved sessions.
  */
 
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "putty.h"
@@ -464,8 +463,11 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "TermHeight", 24, &cfg->height);
     gpps(sesskey, "Font", "Courier New", cfg->font, sizeof(cfg->font));
     gppi(sesskey, "FontIsBold", 0, &cfg->fontisbold);
+#ifdef _WINDOWS
     gppi(sesskey, "FontCharSet", ANSI_CHARSET, &cfg->fontcharset);
+#endif
     gppi(sesskey, "FontHeight", 10, &cfg->fontheight);
+#ifdef _WINDOWS
     if (cfg->fontheight < 0) {
 	int oldh, newh;
 	HDC hdc = GetDC(NULL);
@@ -478,6 +480,7 @@ void load_settings(char *section, int do_host, Config * cfg)
 	    newh--;
 	cfg->fontheight = newh;
     }
+#endif
     gppi(sesskey, "FontVTMode", VT_UNICODE, (int *) &cfg->vtmode);
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);
     gppi(sesskey, "BoldAsColour", 1, &cfg->bold_colour);

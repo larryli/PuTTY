@@ -1,6 +1,6 @@
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <assert.h>
 #include "putty.h"
 
@@ -472,9 +472,7 @@ void *safemalloc(size_t size)
 #else
 	strcpy(str, "Out of memory!");
 #endif
-	MessageBox(NULL, str, "PuTTY Fatal Error",
-		   MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-	cleanup_exit(1);
+	modalfatalbox(str);
     }
 #ifdef MALLOC_LOG
     if (fp)
@@ -509,9 +507,7 @@ void *saferealloc(void *ptr, size_t size)
 #else
 	strcpy(str, "Out of memory!");
 #endif
-	MessageBox(NULL, str, "PuTTY Fatal Error",
-		   MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-	cleanup_exit(1);
+	modalfatalbox(str);
     }
 #ifdef MALLOC_LOG
     if (fp)

@@ -1042,6 +1042,9 @@ static void term_print_finish(void)
     int len, size;
     char c;
 
+    if (!printing && !only_printing)
+	return;			       /* we need do nothing */
+
     term_print_flush();
     while ((size = bufchain_size(&printer_buf)) > 0) {
 	bufchain_prefix(&printer_buf, &data, &len);
@@ -1072,6 +1075,7 @@ void term_out(void)
 
     unget = -1;
 
+    chars = NULL;		       /* placate compiler warnings */
     while (nchars > 0 || bufchain_size(&inbuf) > 0) {
 	if (unget == -1) {
 	    if (nchars == 0) {
@@ -3176,16 +3180,14 @@ static void clipme(pos top, pos bottom, int rect)
 		    unsigned char buf[4];
 		    WCHAR wbuf[4];
 		    int rv;
-		    if (IsDBCSLeadByteEx(font_codepage, (BYTE) c)) {
+		    if (is_dbcs_leadbyte(font_codepage, (BYTE) c)) {
 			buf[0] = c;
 			buf[1] = (unsigned char) ldata[top.x + 1];
-			rv = MultiByteToWideChar(font_codepage,
-						 0, buf, 2, wbuf, 4);
+			rv = mb_to_wc(font_codepage, 0, buf, 2, wbuf, 4);
 			top.x++;
 		    } else {
 			buf[0] = c;
-			rv = MultiByteToWideChar(font_codepage,
-						 0, buf, 1, wbuf, 4);
+			rv = mb_to_wc(font_codepage, 0, buf, 1, wbuf, 4);
 		    }
 
 		    if (rv > 0) {

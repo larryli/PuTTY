@@ -17,6 +17,7 @@
 #endif
 
 typedef struct config_tag Config;
+typedef struct backend_tag Backend;
 
 #include "puttyps.h"
 #include "network.h"
@@ -121,6 +122,9 @@ GLOBAL int big_cursor;
 GLOBAL char *help_path;
 GLOBAL int help_has_contents;
 
+GLOBAL int nsessions;
+GLOBAL char **sessions;
+
 GLOBAL int utf;
 GLOBAL int dbcs_screenfont;
 GLOBAL int font_codepage;
@@ -199,7 +203,7 @@ enum {
     COE_ALWAYS			       /* Always close the window */
 };
 
-typedef struct {
+struct backend_tag {
     char *(*init) (char *host, int port, char **realhost, int nodelay);
     /* back->send() returns the current amount of buffered data. */
     int (*send) (char *buf, int len);
@@ -217,7 +221,7 @@ typedef struct {
      */
     void (*unthrottle) (int);
     int default_port;
-} Backend;
+};
 
 GLOBAL Backend *back;
 
@@ -427,6 +431,7 @@ void set_raw_mouse_mode(int);
 Mouse_Button translate_button(Mouse_Button b);
 void connection_fatal(char *, ...);
 void fatalbox(char *, ...);
+void modalfatalbox(char *, ...);
 void beep(int);
 void begin_session(void);
 void sys_cursor(int x, int y);
@@ -460,6 +465,8 @@ void random_destroy_seed(void);
 void save_settings(char *section, int do_host, Config * cfg);
 void load_settings(char *section, int do_host, Config * cfg);
 void get_sesslist(int allocate);
+void do_defaults(char *, Config *);
+void registry_cleanup(void);
 
 /*
  * Exports from terminal.c.
@@ -587,6 +594,15 @@ int agent_exists(void);
 const char *wc_error(int value);
 int wc_match(const char *wildcard, const char *target);
 int wc_unescape(char *output, const char *wildcard);
+
+/*
+ * Exports from windlg.c
+ */
+void logevent(char *);
+void verify_ssh_host_key(char *host, int port, char *keytype,
+			 char *keystr, char *fingerprint);
+void askcipher(char *ciphername, int cs);
+int askappend(char *filename);
 
 /*
  * Exports from console.c (that aren't equivalents to things in
