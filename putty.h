@@ -503,6 +503,13 @@ void log_packet(void *logctx, int direction, int type,
 		char *texttype, void *data, int len);
 
 /*
+ * Exports from testback.c
+ */
+
+extern Backend null_backend;
+extern Backend loop_backend;
+
+/*
  * Exports from raw.c.
  */
 

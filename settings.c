@@ -484,6 +484,8 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "TermHeight", 24, &cfg->height);
 #ifdef _WINDOWS
     gpps(sesskey, "Font", "Courier New", cfg->font, sizeof(cfg->font));
+#elif defined(macintosh)
+    gpps(sesskey, "Font", "Monaco", cfg->font, sizeof(cfg->font));
 #else
     gpps(sesskey, "Font", "fixed", cfg->font, sizeof(cfg->font));
 #endif

@@ -6,6 +6,10 @@
 #include <windows.h>
 #include "winstuff.h"
 
+#elif defined(macintosh)
+
+#include "macstuff.h"
+
 #else
 
 #include "unix.h"
