@@ -303,3 +303,11 @@ int console_get_line(const char *prompt, char *str,
     }
     return 1;
 }
+
+void frontend_keypress(void)
+{
+    /*
+     * This is nothing but a stub, in console code.
+     */
+    return;
+}
