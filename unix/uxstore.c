@@ -156,7 +156,7 @@ void enum_settings_finish(void *handle)
 }
 
 enum {
-    INDEX_DIR, INDEX_HOSTKEYS
+    INDEX_DIR, INDEX_HOSTKEYS, INDEX_RANDSEED
 };
 
 static void make_filename(char *filename, int index)
@@ -169,6 +169,7 @@ static void make_filename(char *filename, int index)
     strncpy(filename + len,
 	    index == INDEX_DIR ? "/.putty" :
 	    index == INDEX_HOSTKEYS ? "/.putty/sshhostkeys" :
+	    index == INDEX_RANDSEED ? "/.putty/randomseed" :
 	    "/.putty/ERROR", FILENAME_MAX - len);
     filename[FILENAME_MAX-1] = '\0';
 }
@@ -297,10 +298,43 @@ void store_host_key(char *hostname, int port, char *keytype, char *key)
 
 void read_random_seed(noise_consumer_t consumer)
 {
+    int fd;
+    char fname[FILENAME_MAX];
+
+    make_filename(fname, INDEX_RANDSEED);
+    fd = open(fname, O_RDONLY);
+    if (fd) {
+	char buf[512];
+	int ret;
+	while ( (ret = read(fd, buf, sizeof(buf))) > 0)
+	    consumer(buf, ret);
+	close(fd);
+    }
 }
 
 void write_random_seed(void *data, int len)
 {
+    int fd;
+    char fname[FILENAME_MAX];
+
+    make_filename(fname, INDEX_RANDSEED);
+    fd = open(fname, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+    if (fd < 0) {
+	char dir[FILENAME_MAX];
+
+	make_filename(dir, INDEX_DIR);
+	mkdir(dir, 0700);
+	fd = open(fname, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+    }
+
+    while (len > 0) {
+	int ret = write(fd, data, len);
+	if (ret <= 0) break;
+	len -= ret;
+	data = (char *)data + len;
+    }
+
+    close(fd);
 }
 
 void cleanup_all(void)

@@ -7,58 +7,76 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 
 #include "putty.h"
 #include "ssh.h"
 #include "storage.h"
 
-/*
- * FIXME. This module currently depends critically on /dev/urandom,
- * because it has no fallback mechanism for doing anything else.
- */
-
-static void read_dev_urandom(char *buf, int len)
+static int read_dev_urandom(char *buf, int len)
 {
     int fd;
     int ngot, ret;
 
     fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0) {
-	perror("/dev/urandom: open");
-	exit(1);
-    }
+    if (fd < 0)
+	return 0;
 
     ngot = 0;
     while (ngot < len) {
 	ret = read(fd, buf+ngot, len-ngot);
 	if (ret < 0) {
-	    perror("/dev/urandom: read");
-	    exit(1);
+	    close(fd);
+	    return 0;
 	}
 	ngot += ret;
     }
+
+    return 1;
 }
 
 /*
- * This function is called once, at PuTTY startup. Currently it
- * will read 32 bytes out of /dev/urandom and seed the internal
- * generator with them.
+ * This function is called once, at PuTTY startup. It will do some
+ * slightly silly things such as fetching an entire process listing
+ * and scanning /tmp, load the saved random seed from disk, and
+ * also read 32 bytes out of /dev/urandom.
  */
 
 void noise_get_heavy(void (*func) (void *, int))
 {
-    char buf[32];
-    read_dev_urandom(buf, sizeof(buf));
-    func(buf, sizeof(buf));
+    char buf[512];
+    FILE *fp;
+    int ret;
+
+    if (read_dev_urandom(buf, 32))
+	func(buf, 32);
+
+    fp = popen("ps -axu 2>/dev/null", "r");
+    while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
+	func(buf, ret);
+    pclose(fp);
+
+    fp = popen("ls -al /tmp 2>/dev/null", "r");
+    while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
+	func(buf, ret);
+    pclose(fp);
+
+    read_random_seed(func);
 }
 
 void random_save_seed(void)
 {
-    /* Currently we do nothing here. FIXME? */
+    int len;
+    void *data;
+
+    if (random_active) {
+	random_get_savedata(&data, &len);
+	write_random_seed(data, len);
+    }
 }
 
 /*
- * This function is called every time the urandom pool needs
+ * This function is called every time the random pool needs
  * stirring, and will acquire the system time.
  */
 void noise_get_light(void (*func) (void *, int))
@@ -69,16 +87,28 @@ void noise_get_light(void (*func) (void *, int))
 }
 
 /*
- * This function is called on a timer, and it will just pull some
- * stuff out of /dev/urandom. FIXME: really I suspect we ought not
- * to deplete /dev/urandom like this. Better to grab something more
- * harmless.
+ * This function is called on a timer, and grabs as much changeable
+ * system data as it can quickly get its hands on.
  */
 void noise_regular(void)
 {
-    char buf[4];
-    read_dev_urandom(buf, sizeof(buf));
-    random_add_noise(buf, sizeof(buf));
+    int fd;
+    int ret;
+    char buf[512];
+    struct rusage rusage;
+
+    if ((fd = open("/proc/meminfo", O_RDONLY)) >= 0) {
+	while ( (ret = read(fd, buf, sizeof(buf))) > 0)
+	    random_add_noise(buf, ret);
+	close(fd);
+    }
+    if ((fd = open("/proc/stat", O_RDONLY)) >= 0) {
+	while ( (ret = read(fd, buf, sizeof(buf))) > 0)
+	    random_add_noise(buf, ret);
+	close(fd);
+    }
+    getrusage(RUSAGE_SELF, &rusage);
+    random_add_noise(&rusage, sizeof(rusage));
 }
 
 /*

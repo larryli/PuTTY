@@ -25,6 +25,10 @@ void cleanup_exit(int code)
      * Clean up.
      */
     sk_cleanup();
+
+    if (cfg.protocol == PROT_SSH)
+	random_save_seed();
+
     exit(code);
 }
 

@@ -584,5 +584,6 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Remote process exit code unavailable\n");
 	exitcode = 1;		       /* this is an error condition */
     }
-    return exitcode;
+    cleanup_exit(exitcode);
+    return exitcode;		       /* shouldn't happen, but placates gcc */
 }
