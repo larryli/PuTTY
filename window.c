@@ -174,14 +174,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	} else if (*p) {
 	    char *q = p;
             /*
-             * If the hostname starts with "telnet://", set the
+             * If the hostname starts with "telnet:", set the
              * protocol to Telnet and process the string as a
              * Telnet URL.
              */
-            if (!strncmp(q, "telnet://", 9)) {
+            if (!strncmp(q, "telnet:", 7)) {
                 char c;
 
-                q += 9;
+                q += 7;
+		if (q[0] == '/' && q[1] == '/')
+		    q += 2;
                 cfg.protocol = PROT_TELNET;
                 p = q;
                 while (*p && *p != ':' && *p != '/') p++;
