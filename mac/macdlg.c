@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.15 2003/03/21 00:24:17 ben Exp $ */
+/* $Id: macdlg.c,v 1.16 2003/03/25 23:18:59 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -78,6 +78,7 @@ void mac_newsession(void)
     wi->wtype = wSettings;
     wi->update = &macctrl_update;
     wi->click = &macctrl_click;
+    wi->key = &macctrl_key;
     wi->activate = &macctrl_activate;
     wi->adjustmenus = &macctrl_adjustmenus;
     wi->close = &mac_closedlg;

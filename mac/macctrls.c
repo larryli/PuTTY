@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.12 2003/03/24 22:46:11 ben Exp $ */
+/* $Id: macctrls.c,v 1.13 2003/03/25 23:18:59 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -53,6 +53,7 @@ union macctrl {
     struct macctrl_generic {
 	enum {
 	    MACCTRL_TEXT,
+	    MACCTRL_EDITBOX,
 	    MACCTRL_RADIO,
 	    MACCTRL_CHECKBOX,
 	    MACCTRL_BUTTON,
@@ -62,11 +63,17 @@ union macctrl {
 	union control *ctrl;
 	/* Next control in this panel */
 	union macctrl *next;
+	void *privdata;
+	int freeprivdata;
     } generic;
     struct {
 	struct macctrl_generic generic;
 	ControlRef tbctrl;
     } text;
+    struct {
+	struct macctrl_generic generic;
+	ControlRef tbctrl;
+    } editbox;
     struct {
 	struct macctrl_generic generic;
 	ControlRef *tbctrls;
@@ -109,6 +116,8 @@ static void macctrl_layoutset(struct mac_layoutstate *, struct controlset *,
 static void macctrl_switchtopanel(struct macctrls *, unsigned int);
 static void macctrl_text(struct macctrls *, WindowPtr,
 			 struct mac_layoutstate *, union control *);
+static void macctrl_editbox(struct macctrls *, WindowPtr,
+			    struct mac_layoutstate *, union control *);
 static void macctrl_radio(struct macctrls *, WindowPtr,
 			  struct mac_layoutstate *, union control *);
 static void macctrl_checkbox(struct macctrls *, WindowPtr,
@@ -200,6 +209,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     curstate.width = rect.right - rect.left - (13 * 2);
     if (mac_gestalts.apprvers >= 0x100)
 	CreateRootControl(window, &root);
+    mcs->window = window;
     mcs->byctrl = newtree234(macctrl_cmp_byctrl);
     /* Count the number of panels */
     mcs->npanels = 1;
@@ -218,7 +228,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 20);
+    macctrl_switchtopanel(mcs, 1);
 }
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -257,6 +267,9 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 	  case CTRL_TEXT:
 	    macctrl_text(mcs, window, curstate, ctrl);
 	    break;
+	  case CTRL_EDITBOX:
+	    macctrl_editbox(mcs, window, curstate, ctrl);
+	    break;
 	  case CTRL_RADIO:
 	    macctrl_radio(mcs, window, curstate, ctrl);
 	    break;
@@ -291,6 +304,9 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
 	      case MACCTRL_TEXT:
 		hideshow(mc->text.tbctrl);
 		break;
+	      case MACCTRL_EDITBOX:
+		hideshow(mc->editbox.tbctrl);
+		break;
 	      case MACCTRL_RADIO:
 		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
 		    hideshow(mc->radio.tbctrls[j]);
@@ -317,6 +333,7 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
     fprintf(stderr, "    label = %s\n", ctrl->text.label);
     mc->generic.type = MACCTRL_TEXT;
     mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
     bounds.left = curstate->pos.h;
     bounds.right = bounds.left + curstate->width;
     bounds.top = curstate->pos.v;
@@ -381,6 +398,39 @@ static pascal SInt32 macctrl_sys7_text_cdef(SInt16 variant, ControlRef control,
 }
 #endif
 
+static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
+			    struct mac_layoutstate *curstate,
+			    union control *ctrl)
+{
+    union macctrl *mc = smalloc(sizeof *mc);
+    Rect bounds;
+
+    fprintf(stderr, "    label = %s\n", ctrl->editbox.label);
+    fprintf(stderr, "    percentwidth = %d\n", ctrl->editbox.percentwidth);
+    if (ctrl->editbox.password) fprintf(stderr, "    password\n");
+    if (ctrl->editbox.has_list) fprintf(stderr, "    has list\n");
+    mc->generic.type = MACCTRL_EDITBOX;
+    mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
+    bounds.left = curstate->pos.h;
+    bounds.right = bounds.left + curstate->width;
+    bounds.top = curstate->pos.v + 2;
+    bounds.bottom = bounds.top + 18;
+    if (mac_gestalts.apprvers >= 0x100) {
+	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+				     ctrl->editbox.password ?
+				     kControlEditTextPasswordProc :
+				     kControlEditTextProc, (long)mc);
+	curstate->pos.v += 28;
+	add234(mcs->byctrl, mc);
+	mc->generic.next = mcs->panels[curstate->panelnum];
+	mcs->panels[curstate->panelnum] = mc;
+	ctrlevent(mcs, mc, EVENT_REFRESH);
+    } else {
+	/* Do a System 7 version */
+    }
+}
+
 static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
 			  union control *ctrl)
@@ -393,6 +443,7 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
     fprintf(stderr, "    label = %s\n", ctrl->radio.label);
     mc->generic.type = MACCTRL_RADIO;
     mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
     mc->radio.tbctrls =
 	smalloc(sizeof(*mc->radio.tbctrls) * ctrl->radio.nbuttons);
     colwidth = (curstate->width + 13) /	ctrl->radio.ncolumns;
@@ -429,6 +480,7 @@ static void macctrl_checkbox(struct macctrls *mcs, WindowPtr window,
     fprintf(stderr, "    label = %s\n", ctrl->checkbox.label);
     mc->generic.type = MACCTRL_CHECKBOX;
     mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
     bounds.left = curstate->pos.h;
     bounds.right = bounds.left + curstate->width;
     bounds.top = curstate->pos.v;
@@ -456,6 +508,7 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 	fprintf(stderr, "    is default\n");
     mc->generic.type = MACCTRL_BUTTON;
     mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
     bounds.left = curstate->pos.h;
     bounds.right = bounds.left + 100; /* XXX measure string */
     bounds.top = curstate->pos.v;
@@ -553,6 +606,7 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
 
     mc->generic.type = MACCTRL_POPUP;
     mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
     c2pstrcpy(title, ctrl->button.label);
 
     /* Find a spare menu ID and create the menu */
@@ -609,6 +663,9 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 	      case MACCTRL_TEXT:
 		HiliteControl(mc->text.tbctrl, state);
 		break;
+	      case MACCTRL_EDITBOX:
+		HiliteControl(mc->editbox.tbctrl, state);
+		break;
 	      case MACCTRL_RADIO:
 		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
 		    HiliteControl(mc->radio.tbctrls[j], state);
@@ -630,11 +687,12 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 {
     Point mouse;
     ControlHandle control;
-    int part;
+    int part, trackresult;
     GrafPtr saveport;
     union macctrl *mc;
     struct macctrls *mcs = mac_winctrls(window);
     int i;
+    UInt32 features;
 
     GetPort(&saveport);
     SetPort((GrafPtr)GetWindowPort(window));
@@ -642,13 +700,19 @@ void macctrl_click(WindowPtr window, EventRecord *event)
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
     if (control != NULL) {
+	if (mac_gestalts.apprvers >= 0x100) {
+	    if (GetControlFeatures(control, &features) == noErr &&
+		(features & kControlSupportsFocus) &&
+		(features & kControlGetsFocusOnClick))
+		SetKeyboardFocus(window, control, part);
+	    trackresult = HandleControlClick(control, mouse, event->modifiers,
+					     (ControlActionUPP)-1);
+	} else
+	    trackresult = TrackControl(control, mouse, (ControlActionUPP)-1);
 	mc = (union macctrl *)GetControlReference(control);
 	switch (mc->generic.type) {
-	  case MACCTRL_POPUP:
-	    TrackControl(control, mouse, (ControlActionUPP)-1);
-	    ctrlevent(mcs, mc, EVENT_SELCHANGE);
 	  case MACCTRL_RADIO:
-	    if (TrackControl(control, mouse, NULL) != 0) {
+	    if (trackresult != 0) {
 		for (i = 0; i < mc->generic.ctrl->radio.nbuttons; i++)
 		    if (mc->radio.tbctrls[i] == control)
 			SetControlValue(mc->radio.tbctrls[i],
@@ -660,18 +724,36 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 	    }
 	    break;
 	  case MACCTRL_CHECKBOX:
-	    if (TrackControl(control, mouse, NULL) != 0) {
+	    if (trackresult != 0) {
 		SetControlValue(control, !GetControlValue(control));
 		ctrlevent(mcs, mc, EVENT_VALCHANGE);
 	    }
 	    break;
 	  case MACCTRL_BUTTON:
-	    if (TrackControl(control, mouse, NULL) != 0)
+	    if (trackresult != 0)
 		ctrlevent(mcs, mc, EVENT_ACTION);
+	    break;
+	  case MACCTRL_POPUP:
+	    ctrlevent(mcs, mc, EVENT_SELCHANGE);
 	    break;
 	}
     }
     SetPort(saveport);
+}
+
+void macctrl_key(WindowPtr window, EventRecord *event)
+{
+    ControlRef control;
+    struct macctrls *mcs = mac_winctrls(window);
+    union macctrl *mc;
+
+    if (mac_gestalts.apprvers >= 0x100 &&
+	GetKeyboardFocus(window, &control) == noErr && control != NULL) {
+	HandleControlKey(control, (event->message & keyCodeMask) >> 8,
+			 event->message & charCodeMask, event->modifiers);
+	mc =  (union macctrl *)GetControlReference(control);
+	ctrlevent(mcs, mc, EVENT_VALCHANGE);
+    }
 }
 
 void macctrl_update(WindowPtr window)
@@ -737,6 +819,8 @@ void macctrl_close(WindowPtr window)
      * still holds a reference to it seems rude.
      */
     while ((mc = index234(mcs->byctrl, 0)) != NULL) {
+	if (mc->generic.privdata != NULL && mc->generic.freeprivdata)
+	    sfree(mc->generic.privdata);
 	switch (mc->generic.type) {
 	  case MACCTRL_POPUP:
 	    DisposeControl(mc->popup.tbctrl);
@@ -804,25 +888,44 @@ void dlg_end(void *dlg, int value)
 
 void dlg_refresh(union control *ctrl, void *dlg)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc;
 
+    if (ctrl == NULL)
+	return; /* FIXME */
+    mc = findbyctrl(mcs, ctrl);
+    assert(mc != NULL);
+    ctrlevent(mcs, mc, EVENT_REFRESH);
 };
 
 void *dlg_get_privdata(union control *ctrl, void *dlg)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
 
-    return NULL;
+    assert(mc != NULL);
+    return mc->generic.privdata;
 }
 
 void dlg_set_privdata(union control *ctrl, void *dlg, void *ptr)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
 
-    fatalbox("dlg_set_privdata");
+    assert(mc != NULL);
+    mc->generic.privdata = ptr;
+    mc->generic.freeprivdata = FALSE;
 }
 
 void *dlg_alloc_privdata(union control *ctrl, void *dlg, size_t size)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
 
-    fatalbox("dlg_alloc_privdata");
+    assert(mc != NULL);
+    mc->generic.privdata = smalloc(size);
+    mc->generic.freeprivdata = TRUE;
+    return mc->generic.privdata;
 }
 
 
@@ -895,12 +998,48 @@ int dlg_checkbox_get(union control *ctrl, void *dlg)
 
 void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    GrafPtr saveport;
 
+    assert(mc != NULL);
+    assert(mc->generic.type == MACCTRL_EDITBOX);
+    if (mac_gestalts.apprvers >= 0x100) {
+	SetControlData(mc->editbox.tbctrl, kControlEntireControl,
+		       ctrl->editbox.password ?
+		       kControlEditTextPasswordTag :
+		       kControlEditTextTextTag,
+		       strlen(text), text);
+	GetPort(&saveport);
+	SetPort((GrafPtr)(GetWindowPort(mcs->window)));
+	DrawOneControl(mc->editbox.tbctrl);
+	SetPort(saveport);
+    }
 };
 
 void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    Size olen;
 
+    assert(mc != NULL);
+    assert(mc->generic.type == MACCTRL_EDITBOX);
+    if (mac_gestalts.apprvers >= 0x100) {
+	if (GetControlData(mc->editbox.tbctrl, kControlEntireControl,
+			   ctrl->editbox.password ?
+			   kControlEditTextPasswordTag :
+			   kControlEditTextTextTag,
+			   length - 1, buffer, &olen) != noErr)
+	    olen = 0;
+	if (olen > length - 1)
+	    buffer[length - 1] = '\0';
+	else
+	    buffer[olen] = '\0';
+	buffer[olen] = '\0';
+    } else
+	buffer[0] = '\0';
+    fprintf(stderr, "dlg_editbox_get: %s\n", buffer);
 };
 
 
@@ -1057,8 +1196,7 @@ void dlg_text_set(union control *ctrl, void *dlg, char const *text)
     assert(mc != NULL);
     if (mac_gestalts.apprvers >= 0x100)
 	SetControlData(mc->text.tbctrl, kControlEntireControl,
-		       kControlStaticTextTextTag,
-		       strlen(ctrl->text.label), ctrl->text.label);
+		       kControlStaticTextTextTag, strlen(text), text);
     else {
 	c2pstrcpy(title, text);
 	SetControlTitle(mc->text.tbctrl, title);

@@ -70,6 +70,7 @@ typedef struct {
 union macctrl;
 
 struct macctrls {
+    WindowPtr		window;
     tree234		*byctrl;
     void		*data; /* private data for config box */
     unsigned int	npanels;
@@ -201,6 +202,7 @@ extern void macctrl_layoutbox(struct controlbox *, WindowPtr,
 			      struct macctrls *);
 extern void macctrl_activate(WindowPtr, EventRecord *);
 extern void macctrl_click(WindowPtr, EventRecord *);
+extern void macctrl_key(WindowPtr, EventRecord *);
 extern void macctrl_update(WindowPtr);
 extern void macctrl_adjustmenus(WindowPtr);
 extern void macctrl_close(WindowPtr);

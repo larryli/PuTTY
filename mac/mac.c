@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.55 2003/03/17 19:00:36 ben Exp $ */
+/* $Id: mac.c,v 1.56 2003/03/25 23:18:59 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -31,6 +31,7 @@
 #include <MacTypes.h>
 #include <AEDataModel.h>
 #include <AppleEvents.h>
+#include <Controls.h>
 #include <Quickdraw.h>
 #include <Fonts.h>
 #include <MacWindows.h>
@@ -269,6 +270,8 @@ static void mac_eventloop(void) {
 	sk_poll();
 	if (!gotevent)
 	    mac_pollterm();
+	if (mac_gestalts.apprvers >= 0x100 && mac_frontwindow() != NULL)
+	    IdleControls(mac_frontwindow());
     }
     DisposeRgn(cursrgn);
 }
