@@ -24,7 +24,7 @@ unsigned long parse_blocksize(const char *bs)
     char *suf;
     unsigned long r = strtoul(bs, &suf, 10);
     if (*suf != '\0') {
-	while (isspace(*suf)) suf++;
+	while (*suf && isspace((unsigned char)*suf)) suf++;
 	switch (*suf) {
 	  case 'k': case 'K':
 	    r *= 1024ul;
