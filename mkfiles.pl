@@ -255,6 +255,16 @@ sub progrealnames {
   return @ret;
 }
 
+sub manpages {
+  my ($types,$suffix) = @_;
+
+  # assume that all UNIX programs have a man page
+  if($suffix eq "1" && $types =~ /X/) {
+    return map("$_.1", &progrealnames($types));
+  }
+  return ();
+}
+
 # Now we're ready to output the actual Makefiles.
 
 ##-- CygWin makefile
@@ -504,6 +514,14 @@ print
 "\n".
 &splitline("CFLAGS = -Wall -g -I. -I.. `gtk-config --cflags`")."\n".
 "LDFLAGS = `gtk-config --libs`\n".
+"INSTALL=install\n",
+"INSTALL_PROGRAM=\$(INSTALL)\n",
+"INSTALL_DATA=\$(INSTALL)\n",
+"prefix=/usr/local\n",
+"exec_prefix=\$(prefix)\n",
+"bindir=\$(exec_prefix)/bin\n",
+"mandir=\$(prefix)/man\n",
+"man1dir=\$(mandir)/man1\n",
 "\n".
 ".SUFFIXES:\n".
 "\n".
@@ -529,5 +547,12 @@ print
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c ../version.c\n".
 "clean:\n".
 "\trm -f *.o". (join "", map { " $_" } &progrealnames("X")) . "\n".
+"\n",
+"install:\n",
+map("\t\$(INSTALL_PROGRAM) -m 755 $_ \$(bindir)/$_\n", &progrealnames("X")),
+map("\t\$(INSTALL_DATA) -m 644 $_ \$(man1dir)/$_\n", &manpages("X", "1")),
+"\n",
+"install-strip:\n",
+"\t\$(MAKE) install INSTALL_PROGRAM=\"\$(INSTALL_PROGRAM) -s\"\n",
 "\n";
 select STDOUT; close OUT;
