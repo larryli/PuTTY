@@ -1,0 +1,41 @@
+$Id: README.mac,v 1.1 2002/12/11 18:34:49 ben Exp $
+
+Information about PuTTY for the Mac OS
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Compiling it:
+
+ See ../README for generic information.
+
+ I compile PuTTY using MPW, with Universal Headers 3.4.2.  The
+ "mkputty.mpw" script does most of the work, but currently needs you
+ to run "Rez -append -o PuTTY mac_res.r {Includes}" to get the
+ resources compiled in.  The Makefile currently only generates a
+ Classic 68K application.  Other architectures will come later.
+
+Runtime requirements:
+
+ PuTTY should run on any Macintosh running System 7.0 or later.  The
+ Classic 68K build seems not to run under Mac OS X (even with
+ Classic.app).
+
+Known bugs:
+
+ * PowerPC and fat versions fail to start on systems without AppearanceLib (ie
+   most System 7 ones).  The 68k version works fine. [MAYBE FIXED]
+ * Display is far too slow.
+ * Real bold doesn't compensate for changing character widths without Color
+   QuickDraw. [MAYBE FIXED]
+ * sshsha.c and sshmd5.c cause a stack overflow in Apple's PowerPC C compiler 
+   unless optimisation is entirely disabled.
+
+Features we need (and aren't entirely obvious):
+
+ * Scroll-conflation -- scroll_display should change the in-memory
+   display and remember the scroll, then do_scroll should be called
+   only when scroll_display gets called for a different rectangle or
+   term_paint happens.
+
+Local Variables:
+mode: text
+End:
