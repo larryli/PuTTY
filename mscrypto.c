@@ -1,3 +1,4 @@
+#error "This file is no longer part of PuTTY, it will not compile."
 #define _WIN32_WINNT 0x0400
 #include <windows.h>
 #include <stdio.h>

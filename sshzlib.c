@@ -40,12 +40,12 @@
 #include <stdlib.h>
 #include <assert.h>
 
-/* FIXME */
-#include <windows.h>
-#include <stdio.h>
-#include "putty.h"
-
 #include "ssh.h"
+
+#ifndef FALSE
+#define FALSE 0
+#define TRUE (!FALSE)
+#endif
 
 /* ----------------------------------------------------------------------
  * Basic LZ77 code. This bit is designed modularly, so it could be

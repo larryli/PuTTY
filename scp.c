@@ -22,9 +22,6 @@
 #include <limits.h>
 #include <time.h>
 #include <assert.h>
-/* GUI Adaptation - Sept 2000 */
-#include <winuser.h>
-#include <winbase.h>
 
 #define PUTTY_DO_GLOBALS
 #include "putty.h"

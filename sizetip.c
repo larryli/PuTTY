@@ -1,8 +1,7 @@
 #include <windows.h>
-#include <winreg.h>
-#include <tchar.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <tchar.h>
 
 #include "putty.h"
 #include "winstuff.h"

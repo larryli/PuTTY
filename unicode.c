@@ -16,7 +16,7 @@ static void get_unitab(int codepage, wchar_t * unitab, int ftype);
 
 /* Character conversion arrays; they are usually taken from windows,
  * the xterm one has the four scanlines that have no unicode 2.0
- * equlivents mapped into the private area.
+ * equivalents mapped to their unicode 3.0 locations.
  */
 static char **uni_tbl;
 
@@ -267,7 +267,7 @@ void init_ucs_tables(void)
     int i, j;
     int used_dtf = 0;
     char tbuf[256];
-    int old_codepage = line_codepage;
+
     for (i = 0; i < 256; i++)
 	tbuf[i] = i;
 
