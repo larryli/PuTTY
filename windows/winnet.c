@@ -1516,9 +1516,12 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
     if (s->frozen == is_frozen)
 	return;
     s->frozen = is_frozen;
-    if (!is_frozen && s->frozen_readable) {
-	char c;
-	p_recv(s->s, &c, 1, MSG_PEEK);
+    if (!is_frozen) {
+	do_select(s->s, 1);
+	if (s->frozen_readable) {
+	    char c;
+	    p_recv(s->s, &c, 1, MSG_PEEK);
+	}
     }
     s->frozen_readable = 0;
 }
