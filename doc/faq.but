@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.64 2004/03/29 11:37:44 simon Exp $
+\versionid $Id: faq.but,v 1.65 2004/03/30 11:36:51 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -7,7 +7,7 @@ appendix in the manual.
 
 \H{faq-intro} Introduction
 
-\S{faq-what} What is PuTTY?
+\S{faq-what}{Question} What is PuTTY?
 
 PuTTY is a client program for the SSH, Telnet and Rlogin network
 protocols.
@@ -288,7 +288,9 @@ testing in this area would be very welcome!
 
 There is a port to the Mac OS in progress. It's just about usable, but
 has an awful lot of gaps and rough edges that will need cleaning up
-before release.
+before release (such as useful random numbers).
+
+A separate port to Mac OS X is also underway.
 
 \S{faq-epoc}{Question} Will there be a port to EPOC?
 
@@ -420,11 +422,6 @@ the middle button instead, but this is not the default because most
 Windows users don't have a middle button at all.
 
 You can also paste by pressing Shift-Ins.
-
-\S{faq-tunnels}{Question} How do I use X forwarding and port
-forwarding? I can't find the Tunnels panel.
-
-This is a new feature in version 0.52. You should upgrade.
 
 \S{faq-options}{Question} How do I use all PuTTY's features (public
 keys, proxying, cipher selection, etc.) in PSCP, PSFTP and Plink?
@@ -565,16 +562,6 @@ the
 \c http://www.microsoft.com/windows95/downloads/contents/wuadmintools/
 \c   s_wunetworkingtools/w95sockets2/
 
-\S{faq-rekey}{Question} My PuTTY sessions close after an hour and
-tell me \q{Server failed host key check}.
-
-This is a bug in all versions of PuTTY up to and including 0.51. SSH
-v2 servers from \cw{ssh.com} will require the key exchange to be
-repeated one hour after the start of the connection, and PuTTY will
-get this wrong.
-
-Upgrade to version 0.52 or better and the problem should go away.
-
 \S{faq-outofmem}{Question} After trying to establish an SSH 2
 connection, PuTTY says \q{Out of memory} and dies.
 
@@ -652,12 +639,6 @@ the terminal.
 
 In version 0.54, the behaviour has changed - changes to these
 settings take effect immediately.
-
-\S{faq-altgr}{Question} I can't type characters that require the
-AltGr key.
-
-In PuTTY version 0.51, the AltGr key was broken. Upgrade to version
-0.52 or better.
 
 \S{faq-idleout}{Question} My PuTTY sessions unexpectedly close after
 they are idle for a while.
