@@ -1214,8 +1214,17 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 			  unsigned short *lpString, UINT cbCount,
 			  CONST INT *lpDx, int opaque)
 {
-
+#ifdef __LCC__
+    /*
+     * The LCC include files apparently don't supply the
+     * GCP_RESULTSW type, but we can make do with GCP_RESULTS
+     * proper: the differences aren't important to us (the only
+     * variable-width string parameter is one we don't use anyway).
+     */
+    GCP_RESULTS gcpr;
+#else
     GCP_RESULTSW gcpr;
+#endif
     char *buffer = snewn(cbCount*2+2, char);
     char *classbuffer = snewn(cbCount, char);
     memset(&gcpr, 0, sizeof(gcpr));
