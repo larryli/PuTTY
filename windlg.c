@@ -1720,7 +1720,13 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    MyGetDlgItemInt(hwnd, IDC_SAVEEDIT, &cfg.savelines);
 		break;
 	      case IDC_CHOOSEFONT:
-		lf.lfHeight = cfg.fontheight;
+		{
+		    HDC hdc = GetDC(0);
+		    lf.lfHeight = -MulDiv(cfg.fontheight,
+					  GetDeviceCaps(hdc, LOGPIXELSY),
+					  72);
+		    ReleaseDC(0, hdc);
+		}
 		lf.lfWidth = lf.lfEscapement = lf.lfOrientation = 0;
 		lf.lfItalic = lf.lfUnderline = lf.lfStrikeOut = 0;
 		lf.lfWeight = (cfg.fontisbold ? FW_BOLD : 0);
