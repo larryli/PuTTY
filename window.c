@@ -1396,6 +1396,10 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 			TO_CHR_Y(Y_POS(lParam)));
 	}
 	return 0;
+      case WM_NCMOUSEMOVE:
+	show_mouseptr(1);
+        noise_ultralight(lParam);
+	return 0;
       case WM_IGNORE_CLIP:
 	ignore_clip = wParam;	       /* don't panic on DESTROYCLIPBOARD */
 	break;
