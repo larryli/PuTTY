@@ -1233,8 +1233,8 @@ void free_ctx(Context ctx)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text(Context ctx, int x, int y, char *text, int len,
-	     unsigned long attr, int lattr)
+void do_text_internal(Context ctx, int x, int y, char *text, int len,
+		      unsigned long attr, int lattr)
 {
     int nfg, nbg, t;
     GdkGC *gc = (GdkGC *)ctx;
@@ -1242,7 +1242,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     /*
      * NYI:
      *  - Unicode, code pages, and ATTR_WIDE for CJK support.
-     *  - cursor shapes other than block
      *  - shadow bolding
      */
 
@@ -1327,6 +1326,22 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 				len * inst->font_width, inst->font_height-i-1);
 	    }
 	}
+    }
+}
+
+void do_text(Context ctx, int x, int y, char *text, int len,
+	     unsigned long attr, int lattr)
+{
+    GdkGC *gc = (GdkGC *)ctx;
+
+    do_text_internal(ctx, x, y, text, len, attr, lattr);
+
+    if (lattr != LATTR_NORM) {
+	x *= 2;
+	if (x >= cols)
+	    return;
+	if (x + len*2 > cols)
+	    len = (cols-x)/2;	       /* trim to LH half */
 	len *= 2;
     }
 
@@ -1344,28 +1359,91 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     int passive;
     GdkGC *gc = (GdkGC *)ctx;
 
-    /*
-     * NYI: cursor shapes other than block
-     */
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
 	passive = 1;
     } else
 	passive = 0;
-    do_text(ctx, x, y, text, len, attr, lattr);
-    if (passive) {
-	gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
-	gdk_draw_rectangle(inst->pixmap, gc, 0,
-			   x*inst->font_width+cfg.window_border,
-			   y*inst->font_height+cfg.window_border,
-			   len*inst->font_width-1, inst->font_height-1);
-	gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-			x*inst->font_width+cfg.window_border,
-			y*inst->font_height+cfg.window_border,
-			x*inst->font_width+cfg.window_border,
-			y*inst->font_height+cfg.window_border,
-			len*inst->font_width, inst->font_height);
+    if ((attr & TATTR_ACTCURS) && cfg.cursor_type != 0) {
+	attr &= ~TATTR_ACTCURS;
     }
+    do_text_internal(ctx, x, y, text, len, attr, lattr);
+
+    if (lattr != LATTR_NORM) {
+	x *= 2;
+	if (x >= cols)
+	    return;
+	if (x + len*2 > cols)
+	    len = (cols-x)/2;	       /* trim to LH half */
+	len *= 2;
+    }
+
+    if (cfg.cursor_type == 0) {
+	/*
+	 * An active block cursor will already have been done by
+	 * the above do_text call, so we only need to do anything
+	 * if it's passive.
+	 */
+	if (passive) {
+	    gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
+	    gdk_draw_rectangle(inst->pixmap, gc, 0,
+			       x*inst->font_width+cfg.window_border,
+			       y*inst->font_height+cfg.window_border,
+			       len*inst->font_width-1, inst->font_height-1);
+	}
+    } else {
+	int uheight;
+	int startx, starty, dx, dy, length, i;
+
+	int char_width;
+
+	if ((attr & ATTR_WIDE) || lattr != LATTR_NORM)
+	    char_width = 2*inst->font_width;
+	else
+	    char_width = inst->font_width;
+
+	if (cfg.cursor_type == 1) {
+	    uheight = inst->fonts[0]->ascent + 1;
+	    if (uheight >= inst->font_height)
+		uheight = inst->font_height - 1;
+
+	    startx = x * inst->font_width + cfg.window_border;
+	    starty = y * inst->font_height + cfg.window_border + uheight;
+	    dx = 1;
+	    dy = 0;
+	    length = len * char_width;
+	} else {
+	    int xadjust = 0;
+	    if (attr & TATTR_RIGHTCURS)
+		xadjust = char_width - 1;
+	    startx = x * inst->font_width + cfg.window_border + xadjust;
+	    starty = y * inst->font_height + cfg.window_border;
+	    dx = 0;
+	    dy = 1;
+	    length = inst->font_height;
+	}
+
+	gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
+	if (passive) {
+	    for (i = 0; i < length; i++) {
+		if (i % 2 == 0) {
+		    gdk_draw_point(inst->pixmap, gc, startx, starty);
+		}
+		startx += dx;
+		starty += dy;
+	    }
+	} else {
+	    gdk_draw_line(inst->pixmap, gc, startx, starty,
+			  startx + (length-1) * dx, starty + (length-1) * dy);
+	}
+    }
+
+    gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
+		    x*inst->font_width+cfg.window_border,
+		    y*inst->font_height+cfg.window_border,
+		    x*inst->font_width+cfg.window_border,
+		    y*inst->font_height+cfg.window_border,
+		    len*inst->font_width, inst->font_height);
 }
 
 GdkCursor *make_mouse_ptr(int cursor_val)
