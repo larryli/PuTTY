@@ -1003,6 +1003,27 @@ static void toremote(int argc, char *argv[])
 	do {
 	    char *last;
 	    char namebuf[2048];
+	    /*
+	     * Ensure that . and .. are never matched by wildcards,
+	     * but only by deliberate action.
+	     */
+	    if (!strcmp(fdat.cFileName, ".") ||
+		!strcmp(fdat.cFileName, "..")) {
+		/*
+		 * Find*File has returned a special dir. We require
+		 * that _either_ `src' ends in a backslash followed
+		 * by that string, _or_ `src' is precisely that
+		 * string.
+		 */
+		int len = strlen(src), dlen = strlen(fdat.cFileName);
+		if (len == dlen && !strcmp(src, fdat.cFileName)) {
+		    /* ok */;
+		} else if (len > dlen+1 && src[len-dlen-1] == '\\' &&
+			   !strcmp(src+len-dlen, fdat.cFileName)) {
+		    /* ok */;
+		} else
+		    continue;	       /* ignore this one */
+	    }
 	    if (strlen(src) + strlen(fdat.cFileName) >=
 		sizeof(namebuf)) {
 		tell_user(stderr, "%s: Name too long", src);
