@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.12 2003/01/20 01:07:13 ben Exp $
+$Id: README.mac,v 1.13 2003/01/20 22:55:54 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -57,7 +57,6 @@ Known bugs:
    "-opt none" works around this.
 
 Unimplemented features (should be done before release):
-
  * TCP urgent data.
  * Clipping host resize requests to screen size.
  * Changing font size in reponse to resize requests.
@@ -70,6 +69,9 @@ Unimplemented features (should be done before release):
  * Private key files.
  * Pageant and PuTTYgen.
  * Apple Events.
+ * Warn-on-close.
+ * Close-on-exit.
+ * Warn-on-quit.
 
 Wishlist (after release):
  * SFTP client (GUI?)
