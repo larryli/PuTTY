@@ -1,5 +1,5 @@
 /************************************************************************
- * $Id: minibidi.h,v 1.1 2004/05/22 10:36:50 simon Exp $
+ * $Id$
  *
  * ------------
  * Description:
@@ -14,10 +14,9 @@
  * -----------------
  * Revision Details:    (Updated by Revision Control System)
  * -----------------
- *  $Date: 2004/05/22 10:36:50 $
- *  $Author: simon $
- *  $Revision: 1.1 $
- *  $Source: /u1/simon/svn-migration/cvs/putty/minibidi.h,v $
+ *  $Date$
+ *  $Author$
+ *  $Revision$
  *
  * (www.arabeyes.org - under MIT license)
  *

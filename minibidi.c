@@ -17,7 +17,6 @@
  *  $Date$
  *  $Author$
  *  $Revision$
- *  $Source: /u1/simon/svn-migration/cvs/putty/minibidi.c,v $
  *
  * (www.arabeyes.org - under MIT license)
  *
