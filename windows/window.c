@@ -437,22 +437,41 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		    i++;	       /* skip next argument */
 		} else if (ret == 1) {
 		    continue;	       /* nothing further needs doing */
-		} else if (!strcmp(p, "-cleanup")) {
+		} else if (!strcmp(p, "-cleanup") ||
+			   !strcmp(p, "-cleanup-during-uninstall")) {
 		    /*
 		     * `putty -cleanup'. Remove all registry
 		     * entries associated with PuTTY, and also find
 		     * and delete the random seed file.
 		     */
 		    char *s1, *s2;
-		    s1 = dupprintf("This procedure will remove ALL Registry\n"
-				   "entries associated with %s, and will\n"
-				   "also remove the random seed file.\n"
-				   "\n"
-				   "THIS PROCESS WILL DESTROY YOUR SAVED\n"
-				   "SESSIONS. Are you really sure you want\n"
-				   "to continue?", appname);
-		    s2 = dupprintf("%s Warning", appname);
-		    if (message_box(s1, s2, MB_YESNO | MB_ICONWARNING,
+		    /* Are we being invoked from an uninstaller? */
+		    if (!strcmp(p, "-cleanup-during-uninstall")) {
+			s1 = dupprintf("Remove saved sessions and random seed file?\n"
+				       "\n"
+				       "If you hit Yes, ALL Registry entries associated\n"
+				       "with %s will be removed, as well as the\n"
+				       "random seed file. THIS PROCESS WILL\n"
+				       "DESTROY YOUR SAVED SESSIONS.\n"
+				       "(This only affects the currently logged-in user.)\n"
+				       "\n"
+				       "If you hit No, uninstallation will proceed, but\n"
+				       "saved sessions etc will be left on the machine.",
+				       appname);
+			s2 = dupprintf("%s Uninstallation", appname);
+		    } else {
+			s1 = dupprintf("This procedure will remove ALL Registry entries\n"
+				       "associated with %s, and will also remove\n"
+				       "the random seed file. (This only affects the\n"
+				       "currently logged-in user.)\n"
+				       "\n"
+				       "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
+				       "Are you really sure you want to continue?",
+				       appname);
+			s2 = dupprintf("%s Warning", appname);
+		    }
+		    if (message_box(s1, s2,
+				    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
 				    HELPCTXID(option_cleanup)) == IDYES) {
 			cleanup_all();
 		    }
