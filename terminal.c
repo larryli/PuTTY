@@ -2882,6 +2882,7 @@ static void term_out(Terminal *term)
 			    else if (term->curs.y < term->rows - 1)
 				term->curs.y++;
 			    term->curs.x = 0;
+			    cline = scrlineptr(term->curs.y);
 			    /* Now we must check_boundary again, of course. */
 			    check_boundary(term, term->curs.x, term->curs.y);
 			    check_boundary(term, term->curs.x+2, term->curs.y);
