@@ -1,5 +1,5 @@
 /*
- * PLink - a command-line (stdin/stdout) variant of PuTTY.
+ * PLink - a Windows command-line (stdin/stdout) variant of PuTTY.
  */
 
 #include <stdio.h>

@@ -1,5 +1,5 @@
 /*
- * winmisc.c: miscellaneous Windows-specific things.
+ * winmisc.c: miscellaneous Windows-specific things
  */
 
 #include <stdio.h>

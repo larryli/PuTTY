@@ -1,5 +1,5 @@
 /*
- * PuTTY key generation front end.
+ * PuTTY key generation front end (Windows).
  */
 
 #include <time.h>

@@ -1,5 +1,5 @@
 /*
- * psftp.c: front end for PSFTP.
+ * psftp.c: (platform-independent) front end for PSFTP.
  */
 
 #include <stdio.h>
