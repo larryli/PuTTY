@@ -1352,7 +1352,7 @@ void beep(void *frontend, int mode)
 	gdk_beep();
 }
 
-int CharWidth(Context ctx, int uc)
+int char_width(Context ctx, int uc)
 {
     /*
      * Under X, any fixed-width font really _is_ fixed-width.

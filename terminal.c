@@ -2983,7 +2983,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	     */
 	    if ((tchar | tattr) != (term->disptext[idx]& ~ATTR_NARROW)) {
 		if ((tattr & ATTR_WIDE) == 0 && 
-		    CharWidth(ctx, (tchar | tattr) & 0xFFFF) == 2)
+		    char_width(ctx, (tchar | tattr) & 0xFFFF) == 2)
 		    tattr |= ATTR_NARROW;
 	    } else if (term->disptext[idx]&ATTR_NARROW)
 		tattr |= ATTR_NARROW;

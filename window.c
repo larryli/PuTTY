@@ -2997,7 +2997,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 
 /* This function gets the actual width of a character in the normal font.
  */
-int CharWidth(Context ctx, int uc) {
+int char_width(Context ctx, int uc) {
     HDC hdc = ctx;
     int ibuf = 0;
 
