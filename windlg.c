@@ -175,6 +175,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
+	  case IDCANCEL:
 	    EndDialog(hwnd, 1);
 	    return 0;
 	}
@@ -208,7 +209,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	  case IDA_LICENCE:
 	    EnableWindow(hwnd, 0);
 	    DialogBox(hinst, MAKEINTRESOURCE(IDD_LICENCEBOX),
-		      NULL, LicenceProc);
+		      hwnd, LicenceProc);
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
 	    return 0;

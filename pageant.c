@@ -197,6 +197,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
+	  case IDCANCEL:
 	    EndDialog(hwnd, 1);
 	    return 0;
 	}
@@ -221,6 +222,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
+	  case IDCANCEL:
 	    aboutbox = NULL;
 	    DestroyWindow(hwnd);
 	    return 0;
