@@ -2759,10 +2759,22 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    if (xkey) {
 		if (vt52_mode)
 		    p += sprintf((char *) p, "\x1B%c", xkey);
-		else if (app_cursor_keys && !cfg.no_applic_c)
-		    p += sprintf((char *) p, "\x1BO%c", xkey);
-		else
-		    p += sprintf((char *) p, "\x1B[%c", xkey);
+		else {
+		    int app_flg = (app_cursor_keys && !cfg.no_applic_c);
+		    /* VT100 & VT102 manuals both state the app cursor keys
+		     * only work if the app keypad is on.
+		     */
+		    if (!app_keypad_keys)
+			app_flg = 0;
+		    /* Useful mapping of Ctrl-arrows */
+		    if (shift_state == 2)
+			app_flg = !app_flg;
+
+		    if (app_flg)
+			p += sprintf((char *) p, "\x1BO%c", xkey);
+		    else
+			p += sprintf((char *) p, "\x1B[%c", xkey);
+		}
 		return p - output;
 	    }
 	}
