@@ -205,7 +205,7 @@ static int paste_len, paste_pos, paste_hold;
  */
 static void do_paint(Context, int);
 static void erase_lots(int, int, int);
-static void swap_screen(int);
+static void swap_screen(int, int, int);
 static void update_sbar(void);
 static void deselect(void);
 static void term_print_finish(void);
@@ -312,9 +312,9 @@ static void power_on(void)
 	    wordness[i] = cfg.wordness[i];
     }
     if (screen) {
-	swap_screen(1);
+	swap_screen(1, FALSE, FALSE);
 	erase_lots(FALSE, TRUE, TRUE);
-	swap_screen(0);
+	swap_screen(0, FALSE, FALSE);
 	erase_lots(FALSE, TRUE, TRUE);
     }
 }
@@ -393,7 +393,7 @@ void term_pwron(void)
 void term_reconfig(void)
 {
     if (cfg.no_alt_screen)
-	swap_screen(0);
+	swap_screen(0, FALSE, FALSE);
     if (cfg.no_mouse_rep) {
 	xterm_mouse = 0;
 	set_raw_mouse_mode(0);
@@ -454,7 +454,7 @@ void term_size(int newrows, int newcols, int newsavelines)
 	return;			       /* nothing to do */
 
     deselect();
-    swap_screen(0);
+    swap_screen(0, FALSE, FALSE);
 
     alt_t = marg_t = 0;
     alt_b = marg_b = newrows - 1;
@@ -557,7 +557,7 @@ void term_size(int newrows, int newcols, int newsavelines)
     savelines = newsavelines;
     fix_cpos;
 
-    swap_screen(save_alt_which);
+    swap_screen(save_alt_which, FALSE, FALSE);
 
     update_sbar();
     term_update();
@@ -565,56 +565,76 @@ void term_size(int newrows, int newcols, int newsavelines)
 }
 
 /*
- * Swap screens.
+ * Swap screens. If `reset' is TRUE and we have been asked to
+ * switch to the alternate screen, we must bring most of its
+ * configuration from the main screen and erase the contents of the
+ * alternate screen completely. (This is even true if we're already
+ * on it! Blame xterm.)
  */
-static void swap_screen(int which)
+static void swap_screen(int which, int reset, int keep_cur_pos)
 {
     int t;
     tree234 *ttr;
 
-    if (which == alt_which)
-	return;
+    if (!which)
+	reset = FALSE;		       /* do no weird resetting if which==0 */
 
-    alt_which = which;
+    if (which != alt_which) {
+	alt_which = which;
 
-    ttr = alt_screen;
-    alt_screen = screen;
-    screen = ttr;
-    t = curs.x;
-    curs.x = alt_x;
-    alt_x = t;
-    t = curs.y;
-    curs.y = alt_y;
-    alt_y = t;
-    t = marg_t;
-    marg_t = alt_t;
-    alt_t = t;
-    t = marg_b;
-    marg_b = alt_b;
-    alt_b = t;
-    t = dec_om;
-    dec_om = alt_om;
-    alt_om = t;
-    t = wrap;
-    wrap = alt_wrap;
-    alt_wrap = t;
-    t = wrapnext;
-    wrapnext = alt_wnext;
-    alt_wnext = t;
-    t = insert;
-    insert = alt_ins;
-    alt_ins = t;
-    t = cset;
-    cset = alt_cset;
-    alt_cset = t;
-    t = utf;
-    utf = alt_utf;
-    alt_utf = t;
-    t = sco_acs;
-    sco_acs = alt_sco_acs;
-    alt_sco_acs = t;
+	ttr = alt_screen;
+	alt_screen = screen;
+	screen = ttr;
+	t = curs.x;
+	if (!reset && !keep_cur_pos)
+	    curs.x = alt_x;
+	alt_x = t;
+	t = curs.y;
+	if (!reset && !keep_cur_pos)
+	    curs.y = alt_y;
+	alt_y = t;
+	t = marg_t;
+	if (!reset) marg_t = alt_t;
+	alt_t = t;
+	t = marg_b;
+	if (!reset) marg_b = alt_b;
+	alt_b = t;
+	t = dec_om;
+	if (!reset) dec_om = alt_om;
+	alt_om = t;
+	t = wrap;
+	if (!reset) wrap = alt_wrap;
+	alt_wrap = t;
+	t = wrapnext;
+	if (!reset) wrapnext = alt_wnext;
+	alt_wnext = t;
+	t = insert;
+	if (!reset) insert = alt_ins;
+	alt_ins = t;
+	t = cset;
+	if (!reset) cset = alt_cset;
+	alt_cset = t;
+	t = utf;
+	if (!reset) utf = alt_utf;
+	alt_utf = t;
+	t = sco_acs;
+	if (!reset) sco_acs = alt_sco_acs;
+	alt_sco_acs = t;
+    }
 
-    fix_cpos;
+    if (reset && screen) {
+	/*
+	 * Yes, this _is_ supposed to honour background-colour-erase.
+	 */
+	erase_lots(FALSE, TRUE, TRUE);
+    }
+
+    /*
+     * This might not be possible if we're called during
+     * initialisation.
+     */
+    if (screen)
+	fix_cpos;
 }
 
 /*
@@ -988,7 +1008,7 @@ static void toggle_mode(int mode, int query, int state)
 	  case 47:		       /* alternate screen */
 	    compatibility(OTHER);
 	    deselect();
-	    swap_screen(cfg.no_alt_screen ? 0 : state);
+	    swap_screen(cfg.no_alt_screen ? 0 : state, FALSE, FALSE);
 	    disptop = 0;
 	    break;
 	  case 1000:		       /* xterm mouse 1 */
@@ -998,6 +1018,27 @@ static void toggle_mode(int mode, int query, int state)
 	  case 1002:		       /* xterm mouse 2 */
 	    xterm_mouse = state ? 2 : 0;
 	    set_raw_mouse_mode(state);
+	    break;
+	  case 1047:                   /* alternate screen */
+	    compatibility(OTHER);
+	    deselect();
+	    swap_screen(cfg.no_alt_screen ? 0 : state, TRUE, TRUE);
+	    disptop = 0;
+	    break;
+	  case 1048:                   /* save/restore cursor */
+	    save_cursor(state);
+	    if (!state) seen_disp_event = TRUE;
+	    break;
+	  case 1049:                   /* cursor & alternate screen */
+	    if (state)
+		save_cursor(state);
+	    if (!state) seen_disp_event = TRUE;
+	    compatibility(OTHER);
+	    deselect();
+	    swap_screen(cfg.no_alt_screen ? 0 : state, TRUE, FALSE);
+	    if (!state)
+		save_cursor(state);
+	    disptop = 0;
 	    break;
     } else
 	switch (mode) {
