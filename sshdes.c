@@ -1,8 +1,4 @@
 #include <assert.h>
-#include <stdio.h> /* FIXME */
-#include <stdarg.h> /* FIXME */
-#include <windows.h> /* FIXME */
-#include "putty.h" /* FIXME */
 #include "ssh.h"
 
 

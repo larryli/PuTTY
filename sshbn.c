@@ -6,11 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stdio.h> /* FIXME */
-#include <stdarg.h> /* FIXME */
-#include <windows.h> /* FIXME */
-#include "putty.h" /* FIXME */
-
 #include "ssh.h"
 
 unsigned short bnZero[1] = { 0 };
