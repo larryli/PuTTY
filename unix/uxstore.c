@@ -6,9 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <gtk/gtk.h>
-#include <gdk/gdkx.h>
-#include <X11/Xlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
@@ -45,8 +46,6 @@ void close_settings_w(void *handle)
  * override those. This isn't optimal, but it's the best I can
  * immediately work out.
  */
-
-static Display *display;
 
 struct xrm_string {
     char *key;
@@ -104,17 +103,13 @@ char *get_setting(char *key)
 	if (ret)
 	    return ret->value;
     }
-    return XGetDefault(display, app_name, key);
+    return x_get_default(key);
 }
 
 void *open_settings_r(char *sessionname)
 {
     static int thing_to_return_an_arbitrary_non_null_pointer_to;
-    display = GDK_DISPLAY();
-    if (!display)
-	return NULL;
-    else
-	return &thing_to_return_an_arbitrary_non_null_pointer_to;
+    return &thing_to_return_an_arbitrary_non_null_pointer_to;
 }
 
 char *read_setting_s(void *handle, char *key, char *buffer, int buflen)
@@ -160,13 +155,144 @@ void enum_settings_finish(void *handle)
 {
 }
 
+enum {
+    INDEX_DIR, INDEX_HOSTKEYS
+};
+
+static void make_filename(char *filename, int index)
+{
+    char *home;
+    int len;
+    home = getenv("HOME");
+    strncpy(filename, home, FILENAME_MAX);
+    len = strlen(filename);
+    strncpy(filename + len,
+	    index == INDEX_DIR ? "/.putty" :
+	    index == INDEX_HOSTKEYS ? "/.putty/sshhostkeys" :
+	    "/.putty/ERROR", FILENAME_MAX - len);
+    filename[FILENAME_MAX-1] = '\0';
+}
+
+/*
+ * Read an entire line of text from a file. Return a buffer
+ * malloced to be as big as necessary (caller must free).
+ */
+static char *fgetline(FILE *fp)
+{
+    char *ret = smalloc(512);
+    int size = 512, len = 0;
+    while (fgets(ret + len, size - len, fp)) {
+	len += strlen(ret + len);
+	if (ret[len-1] == '\n')
+	    break;		       /* got a newline, we're done */
+	size = len + 512;
+	ret = srealloc(ret, size);
+    }
+    if (len == 0) {		       /* first fgets returned NULL */
+	sfree(ret);
+	return NULL;
+    }
+    ret[len] = '\0';
+    return ret;
+}
+
+/*
+ * Lines in the host keys file are of the form
+ * 
+ *   type@port:hostname keydata
+ * 
+ * e.g.
+ * 
+ *   rsa@22:foovax.example.org 0x23,0x293487364395345345....2343
+ */
 int verify_host_key(char *hostname, int port, char *keytype, char *key)
 {
-    return 1;			       /* key does not exist in registry */
+    FILE *fp;
+    char filename[FILENAME_MAX];
+    char *line;
+    int ret;
+
+    make_filename(filename, INDEX_HOSTKEYS);
+    fp = fopen(filename, "r");
+    if (!fp)
+	return 1;		       /* key does not exist */
+
+    ret = 1;
+    while ( (line = fgetline(fp)) ) {
+	int i;
+	char *p = line;
+	char porttext[20];
+
+	line[strcspn(line, "\n")] = '\0';   /* strip trailing newline */
+
+	i = strlen(keytype);
+	if (strncmp(p, keytype, i))
+	    goto done;
+	p += i;
+
+	if (*p != '@')
+	    goto done;
+	p++;
+
+	sprintf(porttext, "%d", port);
+	i = strlen(porttext);
+	if (strncmp(p, porttext, i))
+	    goto done;
+	p += i;
+
+	if (*p != ':')
+	    goto done;
+	p++;
+
+	i = strlen(hostname);
+	if (strncmp(p, hostname, i))
+	    goto done;
+	p += i;
+
+	if (*p != ' ')
+	    goto done;
+	p++;
+
+	/*
+	 * Found the key. Now just work out whether it's the right
+	 * one or not.
+	 */
+	if (!strcmp(p, key))
+	    ret = 0;		       /* key matched OK */
+	else
+	    ret = 2;		       /* key mismatch */
+
+	done:
+	sfree(line);
+	if (ret != 1)
+	    break;
+    }
+
+    return ret;
 }
 
 void store_host_key(char *hostname, int port, char *keytype, char *key)
 {
+    FILE *fp;
+    int fd;
+    char filename[FILENAME_MAX];
+
+    make_filename(filename, INDEX_HOSTKEYS);
+    fd = open(filename, O_CREAT | O_APPEND | O_RDWR, 0600);
+    if (fd < 0) {
+	char dir[FILENAME_MAX];
+
+	make_filename(dir, INDEX_DIR);
+	mkdir(dir, 0700);
+	fd = open(filename, O_CREAT | O_APPEND | O_RDWR, 0600);
+    }
+    if (fd < 0) {
+	perror(filename);
+	exit(1);
+    }
+    fp = fdopen(fd, "a");
+    fprintf(fp, "%s@%d:%s %s\n", keytype, port, hostname, key);
+    fclose(fp);
 }
 
 void read_random_seed(noise_consumer_t consumer)

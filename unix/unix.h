@@ -35,10 +35,15 @@ char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
 
 /* Things uxstore.c needs from pterm.c */
-char *app_name;			       /* for doing resource lookups */
+char *x_get_default(char *key);
 
 /* Things uxstore.c provides to pterm.c */
 void provide_xrm_string(char *string);
+
+/* Things uxnet.c provides to the front end */
+int select_result(int fd, int event);
+int first_socket(int *state, int *rwx);
+int next_socket(int *state, int *rwx);
 
 #define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
 

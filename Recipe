@@ -96,16 +96,19 @@ GUITERM  = window windlg winctrls terminal sizetip wcwidth unicode ldiscucs
 NONSSH   = telnet raw rlogin ldisc
 
 # SSH back end (putty, plink, pscp, psftp).
-SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf noise
-         + sshdh sshcrcda sshpubk pageantc sshzlib sshdss x11fwd portfwd
+SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
+         + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh512 sshbn
+WINSSH   = SSH noise pageantc
+UXSSH    = SSH uxnoise uxagentc
 
 # SFTP implementation (pscp, psftp).
 SFTP     = sftp int64 logging
 
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
-MISC     = misc version winstore settings tree234 winnet proxy cmdline
+WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
+UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline
 
 # Standard libraries, and the same with WinSocks 1 and 2.
 LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib
@@ -118,11 +121,12 @@ LIBS2    = LIBS ws2_32.lib
 # keywords [G] for Windows GUI app, [C] for Console app, [X] for
 # X/GTK Unix app.
 
-putty    : [G] GUITERM NONSSH SSH be_all MISC win_res.res LIBS1
-puttytel : [G] GUITERM NONSSH be_nossh MISC win_res.res LIBS1
-plink    : [C] plink console NONSSH SSH be_all logging MISC plink.res LIBS2
-pscp     : [C] scp console SSH be_none SFTP wildcard MISC scp.res LIBS1
-psftp    : [C] psftp console SSH be_none SFTP MISC scp.res LIBS1
+putty    : [G] GUITERM NONSSH WINSSH be_all WINMISC win_res.res LIBS1
+puttytel : [G] GUITERM NONSSH be_nossh WINMISC win_res.res LIBS1
+plink    : [C] plink console NONSSH WINSSH be_all logging WINMISC
+         + plink.res LIBS2
+pscp     : [C] scp console WINSSH be_none SFTP wildcard WINMISC scp.res LIBS1
+psftp    : [C] psftp console WINSSH be_none SFTP WINMISC scp.res LIBS1
 
 pageant  : [G] pageant sshrsa sshpubk sshdes sshbn sshmd5 version tree234
          + misc sshaes sshsha pageantc sshdss sshsh512 winutils
@@ -134,3 +138,5 @@ puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
          + logging uxprint settings pty be_none uxstore
+
+plink    : [X] uxplink uxcons NONSSH UXSSH be_all logging UXMISC

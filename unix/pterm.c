@@ -16,10 +16,11 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <gdk/gdkx.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
@@ -67,6 +68,13 @@ struct draw_ctx {
 };
 
 static int send_raw_mouse;
+
+static char *app_name = "pterm";
+
+char *x_get_default(char *key)
+{
+    return XGetDefault(GDK_DISPLAY(), app_name, key);
+}
 
 void ldisc_update(void *frontend, int echo, int edit)
 {
@@ -1725,8 +1733,6 @@ char *get_x_display(void *frontend)
 {
     return gdk_get_display();
 }
-
-char *app_name = "pterm";
 
 static void help(FILE *fp) {
     if(fprintf(fp,
