@@ -21,6 +21,8 @@
 #include "network.h"
 #include "tree234.h"
 
+#define ipv4_is_loopback(addr) (inet_netof(addr) == IN_LOOPBACKNET)
+
 struct Socket_tag {
     struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
@@ -474,7 +476,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(int port, Plug plug, int local_host_only)
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 {
     static struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -534,6 +536,8 @@ Socket sk_newlistener(int port, Plug plug, int local_host_only)
     if (addr->family == AF_INET6) {
 	memset(&a6, 0, sizeof(a6));
 	a6.sin6_family = AF_INET6;
+	/* FIXME: srcaddr is ignored for IPv6, because I (SGT) don't
+	 * know how to do it. :-) */
 	if (local_host_only)
 	    a6.sin6_addr = in6addr_loopback;
 	else
@@ -542,11 +546,32 @@ Socket sk_newlistener(int port, Plug plug, int local_host_only)
     } else
 #endif
     {
+	int got_addr = 0;
 	a.sin_family = AF_INET;
-	if (local_host_only)
-	    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	else
-	    a.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	/*
+	 * Bind to source address. First try an explicitly
+	 * specified one...
+	 */
+	if (srcaddr) {
+	    a.sin_addr.s_addr = inet_addr(srcaddr);
+	    if (a.sin_addr.s_addr != INADDR_NONE) {
+		/* Override localhost_only with specified listen addr. */
+		ret->localhost_only = ipv4_is_loopback(a.sin_addr);
+		got_addr = 1;
+	    }
+	}
+
+	/*
+	 * ... and failing that, go with one of the standard ones.
+	 */
+	if (!got_addr) {
+	    if (local_host_only)
+		a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	    else
+		a.sin_addr.s_addr = htonl(INADDR_ANY);
+	}
+
 	a.sin_port = htons((short)port);
     }
 #ifdef IPV6
@@ -763,8 +788,7 @@ int select_result(int fd, int event)
 		break;
 	    }
 
-	    if (s->localhost_only &&
-		ntohl(isa.sin_addr.s_addr) != INADDR_LOOPBACK) {
+	    if (s->localhost_only && !ipv4_is_loopback(isa.sin_addr)) {
 		close(t);	       /* someone let nonlocal through?! */
 	    } else if (plug_accepting(s->plug, (void*)t)) {
 		close(t);	       /* denied or error */

@@ -404,13 +404,13 @@ Socket new_connection(SockAddr addr, char *hostname,
     return sk_new(addr, port, privport, oobinline, nodelay, plug);
 }
 
-Socket new_listener(int port, Plug plug, int local_host_only)
+Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only)
 {
     /* TODO: SOCKS (and potentially others) support inbound
      * TODO: connections via the proxy. support them.
      */
 
-    return sk_newlistener(port, plug, local_host_only);
+    return sk_newlistener(srcaddr, port, plug, local_host_only);
 }
 
 /* ----------------------------------------------------------------------

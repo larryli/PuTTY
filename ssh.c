@@ -299,8 +299,8 @@ extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 
 extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
-extern char *pfd_addforward(char *desthost, int destport, int port,
-			    void *backhandle);
+extern char *pfd_addforward(char *desthost, int destport, char *srcaddr,
+			    int port, void *backhandle);
 extern void pfd_close(Socket s);
 extern int pfd_send(Socket s, char *data, int len);
 extern void pfd_confirm(Socket s);
@@ -3071,28 +3071,46 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	char type;
 	int n;
 	int sport,dport,sserv,dserv;
-	char sports[256], dports[256], host[256];
+	char sports[256], dports[256], saddr[256], host[256];
 
 	ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
         /* Add port forwardings. */
 	ssh->portfwd_strptr = cfg.portfwd;
 	while (*ssh->portfwd_strptr) {
 	    type = *ssh->portfwd_strptr++;
+	    saddr[0] = '\0';
 	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != '\t')
-		sports[n++] = *ssh->portfwd_strptr++;
+	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != '\t') {
+		if (*ssh->portfwd_strptr == ':') {
+		    /*
+		     * We've seen a colon in the middle of the
+		     * source port number. This means that
+		     * everything we've seen until now is the
+		     * source _address_, so we'll move it into
+		     * saddr and start sports from the beginning
+		     * again.
+		     */
+		    ssh->portfwd_strptr++;
+		    sports[n] = '\0';
+		    strcpy(saddr, sports);
+		    n = 0;
+		}
+		if (n < 255) sports[n++] = *ssh->portfwd_strptr++;
+	    }
 	    sports[n] = 0;
 	    if (*ssh->portfwd_strptr == '\t')
 		ssh->portfwd_strptr++;
 	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':')
-		host[n++] = *ssh->portfwd_strptr++;
+	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
+		if (n < 255) host[n++] = *ssh->portfwd_strptr++;
+	    }
 	    host[n] = 0;
 	    if (*ssh->portfwd_strptr == ':')
 		ssh->portfwd_strptr++;
 	    n = 0;
-	    while (*ssh->portfwd_strptr)
-		dports[n++] = *ssh->portfwd_strptr++;
+	    while (*ssh->portfwd_strptr) {
+		if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
+	    }
 	    dports[n] = 0;
 	    ssh->portfwd_strptr++;
 	    dport = atoi(dports);
@@ -3117,9 +3135,12 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		if (type == 'L') {
-		    pfd_addforward(host, dport, sport, ssh);
-		    logeventf(ssh, "Local port %.*s%.*s%d%.*s forwarding to"
-			      " %s:%.*s%.*s%d%.*s",
+		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
+				   sport, ssh);
+		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
+			      " forwarding to %s:%.*s%.*s%d%.*s",
+			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+			      (int)(*saddr?1:0), ":",
 			      (int)(sserv ? strlen(sports) : 0), sports,
 			      sserv, "(", sport, sserv, ")",
 			      host,
@@ -3130,6 +3151,11 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    pf = smalloc(sizeof(*pf));
 		    strcpy(pf->dhost, host);
 		    pf->dport = dport;
+		    if (saddr) {
+			logeventf(ssh,
+				  "SSH1 cannot handle source address spec \"%s:%d\"; ignoring",
+				  saddr, sport);
+		    }
 		    if (add234(ssh->rportfwds, pf) != pf) {
 			logeventf(ssh, 
 				  "Duplicate remote port forwarding to %s:%d",
@@ -5102,28 +5128,46 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	char type;
 	int n;
 	int sport,dport,sserv,dserv;
-	char sports[256], dports[256], host[256];
+	char sports[256], dports[256], saddr[256], host[256];
 
 	ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
         /* Add port forwardings. */
 	ssh->portfwd_strptr = cfg.portfwd;
 	while (*ssh->portfwd_strptr) {
 	    type = *ssh->portfwd_strptr++;
+	    saddr[0] = '\0';
 	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != '\t')
-		sports[n++] = *ssh->portfwd_strptr++;
+	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != '\t') {
+		if (*ssh->portfwd_strptr == ':') {
+		    /*
+		     * We've seen a colon in the middle of the
+		     * source port number. This means that
+		     * everything we've seen until now is the
+		     * source _address_, so we'll move it into
+		     * saddr and start sports from the beginning
+		     * again.
+		     */
+		    ssh->portfwd_strptr++;
+		    sports[n] = '\0';
+		    strcpy(saddr, sports);
+		    n = 0;
+		}
+		if (n < 255) sports[n++] = *ssh->portfwd_strptr++;
+	    }
 	    sports[n] = 0;
 	    if (*ssh->portfwd_strptr == '\t')
 		ssh->portfwd_strptr++;
 	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':')
-		host[n++] = *ssh->portfwd_strptr++;
+	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
+		if (n < 255) host[n++] = *ssh->portfwd_strptr++;
+	    }
 	    host[n] = 0;
 	    if (*ssh->portfwd_strptr == ':')
 		ssh->portfwd_strptr++;
 	    n = 0;
-	    while (*ssh->portfwd_strptr)
-		dports[n++] = *ssh->portfwd_strptr++;
+	    while (*ssh->portfwd_strptr) {
+		if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
+	    }
 	    dports[n] = 0;
 	    ssh->portfwd_strptr++;
 	    dport = atoi(dports);
@@ -5148,9 +5192,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		if (type == 'L') {
-		    pfd_addforward(host, dport, sport, ssh);
-		    logeventf(ssh, "Local port %.*s%.*s%d%.*s forwarding to"
-			      " %s:%.*s%.*s%d%.*s",
+		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
+				   sport, ssh);
+		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
+			      " forwarding to %s:%.*s%.*s%d%.*s",
+			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+			      (int)(*saddr?1:0), ":",
 			      (int)(sserv ? strlen(sports) : 0), sports,
 			      sserv, "(", sport, sserv, ")",
 			      host,
@@ -5167,8 +5214,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				  " to %s:%d", host, dport);
 			sfree(pf);
 		    } else {
-			logeventf(ssh, "Requesting remote port %.*s%.*s%d%.*s"
+			logeventf(ssh, "Requesting remote port "
+				  "%.*s%.*s%.*s%.*s%d%.*s"
 				  " forward to %s:%.*s%.*s%d%.*s",
+				  (int)(*saddr?strlen(saddr):0),
+				  *saddr?saddr:NULL,
+				  (int)(*saddr?1:0), ":",
 				  (int)(sserv ? strlen(sports) : 0), sports,
 				  sserv, "(", sport, sserv, ")",
 				  host,
@@ -5177,6 +5228,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_init(ssh, SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring(ssh, "tcpip-forward");
 			ssh2_pkt_addbool(ssh, 1);/* want reply */
+			if (*saddr)
+			    ssh2_pkt_addstring(ssh, saddr);
 			if (cfg.rport_acceptall)
 			    ssh2_pkt_addstring(ssh, "0.0.0.0");
 			else

@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.8 2002/09/11 17:30:36 jacob Exp $
+\versionid $Id: using.but,v 1.9 2002/12/18 11:39:25 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -254,7 +254,8 @@ to a port on a remote server, you need to:
 
 \b Choose a port number on your local machine where PuTTY should
 listen for incoming connections. There are likely to be plenty of
-unused port numbers above 3000.
+unused port numbers above 3000. (You can also use a local loopback
+address here; see \k{config-ssh-portfwd} for more details.)
 
 \b Now, before you start your SSH connection, go to the Tunnels
 panel (see \k{config-ssh-portfwd}). Make sure the \q{Local} radio

@@ -67,7 +67,7 @@ struct plug_function_table {
 Socket new_connection(SockAddr addr, char *hostname,
 		      int port, int privport,
 		      int oobinline, int nodelay, Plug plug);
-Socket new_listener(int port, Plug plug, int local_host_only);
+Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only);
 
 /* socket functions */
 
@@ -84,7 +84,7 @@ void sk_addr_free(SockAddr addr);
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug p);
 
-Socket sk_newlistener(int port, Plug plug, int local_host_only);
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only);
 
 Socket sk_register(void *sock, Plug plug);
 

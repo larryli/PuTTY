@@ -160,7 +160,7 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	cfg.username[sizeof(cfg.username) - 1] = '\0';
     }
     if ((!strcmp(p, "-L") || !strcmp(p, "-R"))) {
-	char *fwd, *ptr, *q;
+	char *fwd, *ptr, *q, *qq;
 	int i=0;
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
@@ -180,8 +180,23 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	    return ret;
 	}
 	strncpy(ptr+1, fwd, sizeof(cfg.portfwd) - i);
-	q = strchr(ptr, ':');
-	if (q) *q = '\t';      /* replace first : with \t */
+	/*
+	 * We expect _at least_ two colons in this string. The
+	 * possible formats are `sourceport:desthost:destport', or
+	 * `sourceip:sourceport:desthost:destport' if you're
+	 * specifying a particular loopback address. We need to
+	 * replace the one between source and dest with a \t; this
+	 * means we must find the second-to-last colon in the
+	 * string.
+	 */
+	q = qq = strchr(ptr, ':');
+	while (qq) {
+	    char *qqq = strchr(qq+1, ':');
+	    if (qqq)
+		q = qq;
+	    qq = qqq;
+	}
+	if (q) *q = '\t';	       /* replace second-last colon with \t */
 	cfg.portfwd[sizeof(cfg.portfwd) - 1] = '\0';
 	cfg.portfwd[sizeof(cfg.portfwd) - 2] = '\0';
 	ptr[strlen(ptr)+1] = '\000';    /* append two '\000' */
