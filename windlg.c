@@ -1047,9 +1047,6 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_HOST, cfg.host);
     SetDlgItemText (hwnd, IDC_SESSEDIT, savedsession);
     SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
-    for (i = 0; i < nsessions; i++)
-	SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
-			    0, (LPARAM) (sessions[i]));
     CheckRadioButton (hwnd, IDC_PROTRAW, IDC_PROTSSH,
 		      cfg.protocol==PROT_SSH ? IDC_PROTSSH :
 		      cfg.protocol==PROT_TELNET ? IDC_PROTTELNET : IDC_PROTRAW );
@@ -1585,6 +1582,9 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	}
 
 	init_dlg_ctrls(hwnd);
+        for (i = 0; i < nsessions; i++)
+            SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
+                                0, (LPARAM) (sessions[i]));
 
         /*
          * Hide all the controls to start with.
