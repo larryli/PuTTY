@@ -588,10 +588,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     memset(&ucsdata, 0, sizeof(ucsdata));
 
-    term = term_init(&cfg, &ucsdata, NULL);
-    logctx = log_init(NULL, &cfg);
-    term_provide_logctx(term, logctx);
-
     cfgtopalette();
 
     /*
@@ -605,9 +601,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     font_height = 20;
     extra_width = 25;
     extra_height = 28;
-    term_size(term, cfg.height, cfg.width, cfg.savelines);
-    guess_width = extra_width + font_width * term->cols;
-    guess_height = extra_height + font_height * term->rows;
+    guess_width = extra_width + font_width * cfg.width;
+    guess_height = extra_height + font_height * cfg.height;
     {
 	RECT r;
 		get_fullscreen_rect(&r);
@@ -633,6 +628,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			      guess_width, guess_height,
 			      NULL, NULL, inst, NULL);
     }
+
+    /*
+     * Initialise the terminal. (We have to do this _after_
+     * creating the window, since the terminal is the first thing
+     * which will call schedule_timer(), which will in turn call
+     * timer_change_notify() which will expect hwnd to exist.
+     */
+    term = term_init(&cfg, &ucsdata, NULL);
+    logctx = log_init(NULL, &cfg);
+    term_provide_logctx(term, logctx);
+    term_size(term, cfg.height, cfg.width, cfg.savelines);
 
     /*
      * Initialise the fonts, simultaneously correcting the guesses
