@@ -3401,11 +3401,19 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     }
 
     if (!ssh->cfg.nopty) {
+	/* Unpick the terminal-speed string. */
+	/* XXX perhaps we should allow no speeds to be sent. */
+	int ospeed = 38400, ispeed = 38400; /* last-resort defaults */
+	sscanf(ssh->cfg.termspeed, "%d,%d", &ospeed, &ispeed);
+	/* Send the pty request. */
 	send_packet(ssh, SSH1_CMSG_REQUEST_PTY,
 		    PKT_STR, ssh->cfg.termtype,
 		    PKT_INT, ssh->term_height,
 		    PKT_INT, ssh->term_width,
-		    PKT_INT, 0, PKT_INT, 0, PKT_CHAR, 0, PKT_END);
+		    PKT_INT, 0, PKT_INT, 0, /* width,height in pixels */
+		    PKT_CHAR, 192, PKT_INT, ispeed, /* TTY_OP_ISPEED */
+		    PKT_CHAR, 193, PKT_INT, ospeed, /* TTY_OP_OSPEED */
+		    PKT_CHAR, 0, PKT_END);
 	ssh->state = SSH_STATE_INTERMED;
 	do {
 	    crReturnV;
@@ -3418,7 +3426,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    c_write_str(ssh, "Server refused to allocate pty\r\n");
 	    ssh->editing = ssh->echoing = 1;
 	}
-	logevent("Allocated pty");
+	logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
+		  ospeed, ispeed);
     } else {
 	ssh->editing = ssh->echoing = 1;
     }
@@ -5583,6 +5592,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      * Now allocate a pty for the session.
      */
     if (!ssh->cfg.nopty) {
+	/* Unpick the terminal-speed string. */
+	/* XXX perhaps we should allow no speeds to be sent. */
+	int ospeed = 38400, ispeed = 38400; /* last-resort defaults */
+	sscanf(ssh->cfg.termspeed, "%d,%d", &ospeed, &ispeed);
+	/* Build the pty request. */
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);	/* recipient channel */
 	ssh2_pkt_addstring(ssh, "pty-req");
@@ -5593,7 +5607,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh2_pkt_adduint32(ssh, 0);	       /* pixel width */
 	ssh2_pkt_adduint32(ssh, 0);	       /* pixel height */
 	ssh2_pkt_addstring_start(ssh);
-	ssh2_pkt_addstring_data(ssh, "\0", 1);	/* TTY_OP_END, no special options */
+	ssh2_pkt_addbyte(ssh, 128);	       /* TTY_OP_ISPEED */
+	ssh2_pkt_adduint32(ssh, ispeed);
+	ssh2_pkt_addbyte(ssh, 129);	       /* TTY_OP_OSPEED */
+	ssh2_pkt_adduint32(ssh, ospeed);
+	ssh2_pkt_addstring_data(ssh, "\0", 1); /* TTY_OP_END */
 	ssh2_pkt_send(ssh);
 	ssh->state = SSH_STATE_INTERMED;
 
@@ -5618,7 +5636,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    c_write_str(ssh, "Server refused to allocate pty\r\n");
 	    ssh->editing = ssh->echoing = 1;
 	} else {
-	    logevent("Allocated pty");
+	    logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
+		      ospeed, ispeed);
 	}
     } else {
 	ssh->editing = ssh->echoing = 1;

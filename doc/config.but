@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.76 2004/03/05 19:01:45 jacob Exp $
+\versionid $Id: config.but,v 1.77 2004/04/24 20:05:03 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1380,6 +1380,30 @@ If you're not sure whether a problem is due to the terminal type
 setting or not, you probably need to consult the manual for your
 application or your server.
 
+\S{config-termspeed} \q{Terminal speeds}
+
+\cfg{winhelp-topic}{connection.termspeed}
+
+The Telnet, Rlogin, and SSH protocols allow the client to specify
+terminal speeds to the server.
+
+This parameter does \e{not} affect the actual speed of the connection,
+which is always \q{as fast as possible}; it is just a hint that is
+sometimes used by server software to modify its behaviour. For
+instance, if a slow speed is indicated, the server may switch to a
+less bandwidth-hungry display mode.
+
+The value is usually meaningless in a network environment, but
+PuTTY lets you configure it, in case you find the server is reacting
+badly to the default value.
+
+The format is a pair of numbers separated by a comma, for instance,
+\c{38400,38400}. The first number represents the output speed
+(\e{from} the server), and the second is the input speed (\e{to} the
+server). (Only the first is used in the Rlogin protocol.)
+
+This option has no effect on Raw connections.
+
 \S{config-username} \q{Auto-login username}
 
 \cfg{winhelp-topic}{connection.username}
@@ -1615,20 +1639,11 @@ configuration fields will be ignored.
 The Telnet panel allows you to configure options that only apply to
 Telnet sessions.
 
-\S{config-termspeed} \q{Terminal-speed string}
-
-\cfg{winhelp-topic}{telnet.termspeed}
-
-Telnet allows the client to send a text string that describes the
-terminal speed. PuTTY lets you configure this, in case you find the
-server is reacting badly to the default value. (I'm not aware of any
-servers that do have a problem with it.)
-
 \S{config-environ} Setting environment variables on the server
 
 \cfg{winhelp-topic}{telnet.environ}
 
-The Telnet protocol also provides a means for the client to pass
+The Telnet protocol provides a means for the client to pass
 environment variables to the server. Many Telnet servers have
 stopped supporting this feature due to security flaws, but PuTTY
 still supports it for the benefit of any servers which have found
@@ -1719,15 +1734,6 @@ turning this option off to see if it helps.
 
 The Rlogin panel allows you to configure options that only apply to
 Rlogin sessions.
-
-\S{config-rlogin-termspeed} \q{Terminal-speed string}
-
-\cfg{winhelp-topic}{rlogin.termspeed}
-
-Like Telnet, Rlogin allows the client to send a text string that
-describes the terminal speed. PuTTY lets you configure this, in case
-you find the server is reacting badly to the default value. (I'm not
-aware of any servers that do have a problem with it.)
 
 \S{config-rlogin-localuser} \q{Local username}
 
