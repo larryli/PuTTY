@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.21 2002/12/09 22:49:56 ben Exp $ */
+/* $Id: macterm.c,v 1.22 2002/12/09 23:26:52 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -219,6 +219,7 @@ static void mac_adjustsize(Session *s, int newrows, int newcols) {
     MoveControl(s->scrollbar, winwidth - 15, -1);
     SizeControl(s->scrollbar, 16, winheight - 13);
     ShowControl(s->scrollbar);
+    mac_drawgrowicon(s);
 }
 
 static void mac_initpalette(Session *s) {
