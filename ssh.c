@@ -525,6 +525,7 @@ static void ssh2_set_window(struct ssh_channel *c, unsigned newwin);
 static int ssh_sendbuffer(void *handle);
 static void ssh_do_close(Ssh ssh);
 static unsigned long ssh_pkt_getuint32(Ssh ssh);
+static int ssh2_pkt_getbool(Ssh ssh);
 static void ssh_pkt_getstring(Ssh ssh, char **p, int *length);
 
 struct rdpkt1_state_tag {
@@ -1198,7 +1199,10 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	    /* log the debug message */
 	    char *buf, *msg;
 	    int msglen;
+	    int always_display;
 
+	    /* XXX maybe we should actually take notice of this */
+            always_display = ssh2_pkt_getbool(ssh);
             ssh_pkt_getstring(ssh, &msg, &msglen);
 
             buf = dupprintf("Remote debug message: %.*s", msglen, msg);
