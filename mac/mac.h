@@ -73,6 +73,7 @@ struct macctrls {
     tree234		*byctrl;
     void		*data; /* private data for config box */
     unsigned int	npanels;
+    unsigned int	curpanel;
     union macctrl	**panels; /* lists of controls by panel */
 };    
 

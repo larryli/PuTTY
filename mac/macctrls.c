@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.10 2003/03/24 21:55:51 ben Exp $ */
+/* $Id: macctrls.c,v 1.11 2003/03/24 22:41:38 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -218,7 +218,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 2);
+    macctrl_switchtopanel(mcs, 20);
 }
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -279,36 +279,31 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
     unsigned int i, j;
     union macctrl *mc;
 
+#define hideshow(c) do {						\
+    if (i == which) ShowControl(c); else HideControl(c);		\
+} while (0)
+
+    mcs->curpanel = which;
     /* Panel 0 is special and always visible. */
     for (i = 1; i < mcs->npanels; i++)
 	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next)
 	    switch (mc->generic.type) {
 	      case MACCTRL_TEXT:
-		if (i == which)
-		    ShowControl(mc->text.tbctrl);
-		else
-		    HideControl(mc->text.tbctrl);
+		hideshow(mc->text.tbctrl);
 		break;
 	      case MACCTRL_RADIO:
 		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
-		    if (i == which)
-			ShowControl(mc->radio.tbctrls[j]);
-		    else
-			HideControl(mc->radio.tbctrls[j]);
+		    hideshow(mc->radio.tbctrls[j]);
 		break;
 	      case MACCTRL_CHECKBOX:
-		if (i == which)
-		    ShowControl(mc->checkbox.tbctrl);
-		else
-		    HideControl(mc->checkbox.tbctrl);
+		hideshow(mc->checkbox.tbctrl);
 		break;
 	      case MACCTRL_BUTTON:
-		if (i == which)
-		    ShowControl(mc->button.tbctrl);
-		else
-		    HideControl(mc->button.tbctrl);
+		hideshow(mc->button.tbctrl);
 		break;
-
+	      case MACCTRL_POPUP:
+		hideshow(mc->popup.tbctrl);
+		break;
 	    }
 }
 
@@ -541,7 +536,7 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
     Rect bounds;
     Str255 title;
     unsigned int labelwidth;
-    static int nextmenuid;
+    static int nextmenuid = MENU_MIN;
     int menuid;
     MenuRef menu;
 
@@ -593,9 +588,15 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
 
 void macctrl_activate(WindowPtr window, EventRecord *event)
 {
+    struct macctrls *mcs = mac_winctrls(window);
     Boolean active = (event->modifiers & activeFlag) != 0;
     GrafPtr saveport;
+    int i, j;
+    ControlPartCode state;
+    union macctrl *mc;
+#if 0
     ControlRef root;
+#endif
 
     GetPort(&saveport);
     SetPort((GrafPtr)GetWindowPort(window));
@@ -604,14 +605,35 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 				 kThemeBrushModelessDialogBackgroundActive :
 				 kThemeBrushModelessDialogBackgroundInactive,
 				 TRUE);
+#if 0
 	GetRootControl(window, &root);
 	if (active)
 	    ActivateControl(root);
 	else
 	    DeactivateControl(root);
-    } else {
-	/* (De)activate controls one at a time */
+#endif
     }
+    state = active ? kControlNoPart : kControlInactivePart;
+    for (i = 0; i <= mcs->curpanel; i += mcs->curpanel)
+	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next)
+	    switch (mc->generic.type) {
+	      case MACCTRL_TEXT:
+		HiliteControl(mc->text.tbctrl, state);
+		break;
+	      case MACCTRL_RADIO:
+		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
+		    HiliteControl(mc->radio.tbctrls[j], state);
+		break;
+	      case MACCTRL_CHECKBOX:
+		HiliteControl(mc->checkbox.tbctrl, state);
+		break;
+	      case MACCTRL_BUTTON:
+		HiliteControl(mc->button.tbctrl, state);
+		break;
+	      case MACCTRL_POPUP:
+		HiliteControl(mc->popup.tbctrl, state);
+		break;
+	    }
     SetPort(saveport);
 }
 
