@@ -7258,9 +7258,9 @@ static void ssh_free(void *handle)
     if (ssh->s)
 	ssh_do_close(ssh);
     expire_timer_context(ssh);
-    sfree(ssh);
     if (ssh->pinger)
 	pinger_free(ssh->pinger);
+    sfree(ssh);
 
     random_unref();
 }
