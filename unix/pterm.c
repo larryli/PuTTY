@@ -710,6 +710,19 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 gint timer_func(gpointer data)
 {
     /* struct gui_data *inst = (struct gui_data *)data; */
+    extern int pty_child_is_dead();  /* declared in pty.c */
+
+    if (pty_child_is_dead()) {
+	/*
+	 * The primary child process died. We could keep the
+	 * terminal open for remaining subprocesses to output to,
+	 * but conventional wisdom seems to feel that that's the
+	 * Wrong Thing for an xterm-alike, so we bail out now. This
+	 * would be easy enough to change or make configurable if
+	 * necessary.
+	 */
+	exit(0);
+    }
 
     term_update();
     return TRUE;

@@ -6,8 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/ioctl.h>
 
 #include "putty.h"
@@ -20,9 +23,25 @@
 #endif
 
 int pty_master_fd;
+static int pty_child_pid;
+static sig_atomic_t pty_child_dead;
 char **pty_argv;
 
+int pty_child_is_dead(void)
+{
+    return pty_child_dead;
+}
+
 static void pty_size(void);
+
+static void sigchld_handler(int signum)
+{
+    pid_t pid;
+    int status;
+    pid = waitpid(-1, &status, WNOHANG);
+    if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status)))
+	pty_child_dead = TRUE;	
+}
 
 /*
  * Called to set up the pty.
@@ -113,6 +132,9 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	exit(127);
     } else {
 	close(slavefd);
+	pty_child_pid = pid;
+	pty_child_dead = FALSE;
+	signal(SIGCHLD, sigchld_handler);
     }
 
     return NULL;
