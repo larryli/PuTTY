@@ -452,6 +452,9 @@ int main(int argc, char **argv)
 	    } else if (!strcmp(p, "-telnet")) {
 		default_protocol = cfg.protocol = PROT_TELNET;
 		default_port = cfg.port = 23;
+	    } else if (!strcmp(p, "-rlogin")) {
+		default_protocol = cfg.protocol = PROT_RLOGIN;
+		default_port = cfg.port = 513;
 	    } else if (!strcmp(p, "-raw")) {
 		default_protocol = cfg.protocol = PROT_RAW;
 	    } else if (!strcmp(p, "-v")) {
