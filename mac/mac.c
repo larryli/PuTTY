@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.58 2003/05/10 11:40:18 ben Exp $ */
+/* $Id: mac.c,v 1.59 2003/05/10 12:27:38 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -672,18 +672,11 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 
 /* Temporary null routines for testing. */
 
-/*
- * FIXME: verify_ssh_host_key() should be passed a frontend handle,
- * but backends have to have a terminal handle instead, because they
- * pass it to from_backend(), so we accept a terminal handle here as
- * well, and hope no-one tries to call us with sensible arguments.
- */
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
     Str255 stuff;
-    Terminal *term = frontend;
-    Session *s = term->frontend;
+    Session *s = frontend;
 
     /*
      * This function is horribly wrong.  For one thing, the alert
@@ -692,9 +685,9 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
      * should use the Notification Manager to wake up the user.  In
      * any case, we shouldn't hold up processing of other connections'
      * data just because this one's waiting for the user.  It should
-     * also handle a host key cache, of course, and see the note above
-     * about the "frontend" argument and the one below about closing
-     * the connection.  All in all, a bit of a mess really.
+     * also handle a host key cache, of course, and see the note below
+     * about closing the connection.  All in all, a bit of a mess
+     * really.
      */
 
     stuff[0] = sprintf((char *)(&stuff[1]),
