@@ -71,6 +71,7 @@ union macctrl;
 
 struct macctrls {
     WindowPtr		window;
+    void		(*end)(WindowPtr, int);
     tree234		*byctrl;
     void		*data; /* private data for config box */
     unsigned int	npanels;

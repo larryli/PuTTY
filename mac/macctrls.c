@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.24 2003/04/03 23:18:06 ben Exp $ */
+/* $Id: macctrls.c,v 1.25 2003/04/05 15:01:16 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -1092,7 +1092,10 @@ void dlg_error_msg(void *dlg, char *msg)
 
 void dlg_end(void *dlg, int value)
 {
+    struct macctrls *mcs = dlg;
 
+    if (mcs->end != NULL)
+	(*mcs->end)(mcs->window, value);
 };
 
 void dlg_refresh(union control *ctrl, void *dlg)

@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.17 2003/03/29 23:07:55 ben Exp $ */
+/* $Id: macdlg.c,v 1.18 2003/04/05 15:01:16 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -47,6 +47,7 @@
 #include "storage.h"
 
 static void mac_closedlg(WindowPtr);
+static void mac_enddlg(WindowPtr, int);
 
 void mac_newsession(void)
 {
@@ -69,6 +70,7 @@ void mac_newsession(void)
     setup_config_box(s->ctrlbox, &sesslist, FALSE, 0);
 
     s->settings_ctrls.data = &s->cfg;
+    s->settings_ctrls.end = &mac_enddlg;
     macctrl_layoutbox(s->ctrlbox, s->settings_window, &s->settings_ctrls);
 
     wi = snew(WinInfo);
@@ -96,6 +98,17 @@ static void mac_closedlg(WindowPtr window)
 	sfree(s);
 }
 
+static void mac_enddlg(WindowPtr window, int value)
+{
+    Session *s = mac_windowsession(window);
+
+    if (value == 0)
+	mac_closedlg(window);
+    else {
+	mac_startsession(s);
+	mac_closedlg(window);
+    }
+}
 
 void mac_dupsession(void)
 {
