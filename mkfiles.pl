@@ -671,21 +671,21 @@ foreach $p (&prognames("M")) {
   print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_68K} " .
                    $objstr . " {Libs_68K}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
+  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.cfm68k.o", "", undef);
   print &splitline("$prog.cfm68k \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
   print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_CFM68K} " .
                    $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
+  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.ppc.o", "", undef);
   print &splitline("$prog.ppc \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
   print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
                    $objstr . " {Libs_PPC}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
+  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
 }
 foreach $d (&deps("", "X.rsrc", "::", ":")) {
   next unless $d->{obj};
