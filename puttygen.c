@@ -857,7 +857,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
-		       "&Conversions");
+		       "Con&versions");
 	    state->cvtmenu = menu1;
 
 	    menu1 = CreateMenu();
@@ -900,7 +900,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			"&Public key for pasting into authorized_keys file:",
 			IDC_PKSTATIC, IDC_KEYDISPLAY, 5);
 	    SendDlgItemMessage(hwnd, IDC_KEYDISPLAY, EM_SETREADONLY, 1, 0);
-	    staticedit(&cp, "Key fingerprint:", IDC_FPSTATIC,
+	    staticedit(&cp, "Key f&ingerprint:", IDC_FPSTATIC,
 		       IDC_FINGERPRINT, 75);
 	    SendDlgItemMessage(hwnd, IDC_FINGERPRINT, EM_SETREADONLY, 1,
 			       0);
