@@ -210,7 +210,7 @@ pseudo-terminal at the server end.
 
 \dt \cw{\-1}, \cw{\-2}
 
-\dd Select SSH protocol v1 or v2.
+\dd Select SSH protocol version 1 or 2.
 
 \dt \cw{\-i} \e{keyfile}
 
