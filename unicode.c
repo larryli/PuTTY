@@ -393,6 +393,13 @@ void init_ucs_tables(void)
 	link_font(unitab_xterm, unitab_oemcp, ATTR_OEMCP);
     }
 
+    if (dbcs_screenfont && font_codepage != line_codepage) {
+	/* F***ing Microsoft fonts, Japanese and Korean codepage fonts
+	 * have a currency symbol at 0x5C but their unicode value is 
+	 * still given as U+005C not the correct U+00A5. */
+	unitab_line['\\'] = ATTR_OEMCP + '\\';
+    }
+
     /* Last chance, if !unicode then try poorman links. */
     if (cfg.vtmode != VT_UNICODE) {
 	static char poorman_scoacs[] = 
@@ -537,7 +544,7 @@ int check_compose(int first, int second)
 	0x43, 0x2f, 0x00a2}, {
 	0x43, 0x7c, 0x00a2}, {
 	0x4c, 0x2d, 0x00a3}, {
-	0x4c, 0x3d, 0x00a3}, {
+	0x4c, 0x3d, 0x20a4}, {
 	0x58, 0x4f, 0x00a4}, {
 	0x58, 0x30, 0x00a4}, {
 	0x59, 0x2d, 0x00a5}, {

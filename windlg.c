@@ -355,6 +355,7 @@ enum { IDCX_ABOUT =
     IDC_COLSSTATIC,
     IDC_COLSEDIT,
     IDC_LOCKSIZE,
+    IDC_LOCKFONT,
     IDC_SCROLLBAR,
     IDC_CLOSEWARN,
     IDC_SAVESTATIC,
@@ -387,6 +388,8 @@ enum { IDCX_ABOUT =
     IDC_WINNAME,
     IDC_HIDEMOUSE,
     IDC_SUNKENEDGE,
+    IDC_WINBSTATIC,
+    IDC_WINBEDIT,
     appearancepanelend,
 
     connectionpanelstart,
@@ -662,12 +665,14 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_WINNAME, cfg.win_name_always);
     CheckDlgButton(hwnd, IDC_HIDEMOUSE, cfg.hide_mouseptr);
     CheckDlgButton(hwnd, IDC_SUNKENEDGE, cfg.sunken_edge);
+    SetDlgItemInt(hwnd, IDC_WINBEDIT, cfg.window_border, FALSE);
     CheckRadioButton(hwnd, IDC_CURBLOCK, IDC_CURVERT,
 		     cfg.cursor_type == 0 ? IDC_CURBLOCK :
 		     cfg.cursor_type == 1 ? IDC_CURUNDER : IDC_CURVERT);
     CheckDlgButton(hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton(hwnd, IDC_SCROLLBAR, cfg.scrollbar);
     CheckDlgButton(hwnd, IDC_LOCKSIZE, cfg.locksize);
+    CheckDlgButton(hwnd, IDC_LOCKFONT, cfg.lockfont);
     CheckRadioButton(hwnd, IDC_COEALWAYS, IDC_COENORMAL,
 		     cfg.close_on_exit == COE_NORMAL ? IDC_COENORMAL :
 		     cfg.close_on_exit ==
@@ -1037,7 +1042,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	multiedit(&cp,
 		  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
 		  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50, NULL);
-	checkbox(&cp, "Lock window size against resi&zing", IDC_LOCKSIZE);
+	checkbox(&cp, "Lock terminal size against resi&zing", IDC_LOCKSIZE);
+	checkbox(&cp, "Lock font size against resi&zing", IDC_LOCKFONT);
 	endbox(&cp);
 	beginbox(&cp, "Control the scrollback in the window",
 		 IDC_BOX_WINDOW2);
@@ -1062,8 +1068,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	/* The Appearance panel. Accelerators used: [acgo] luvb h ti p s */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
-	bartitle(&cp, "Options controlling PuTTY's appearance",
-		 IDC_TITLE_APPEARANCE);
+	/* bartitle(&cp, "Options controlling PuTTY's appearance",
+		 IDC_TITLE_APPEARANCE); */
 	beginbox(&cp, "Adjust the use of the cursor", IDC_BOX_APPEARANCE1);
 	radioline(&cp, "Cursor appearance:", IDC_CURSORSTATIC, 3,
 		  "B&lock", IDC_CURBLOCK,
@@ -1089,6 +1095,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	beginbox(&cp, "Adjust the window border", IDC_BOX_APPEARANCE5);
 	checkbox(&cp, "&Sunken-edge border (slightly thicker)",
 		 IDC_SUNKENEDGE);
+	staticedit(&cp, "Gap between text and window edge",
+		   IDC_WINBSTATIC, IDC_WINBEDIT, 20);
 	endbox(&cp);
     }
 
@@ -2058,6 +2066,13 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			cfg.sunken_edge =
 			IsDlgButtonChecked(hwnd, IDC_SUNKENEDGE);
 		break;
+	      case IDC_WINBEDIT:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    MyGetDlgItemInt(hwnd, IDC_WINBEDIT,
+				    &cfg.window_border);
+		if (cfg.window_border > 32)
+		    cfg.window_border = 32;
+		break;
 	      case IDC_CURBLOCK:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
@@ -2090,6 +2105,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.locksize =
 			IsDlgButtonChecked(hwnd, IDC_LOCKSIZE);
+		break;
+	      case IDC_LOCKFONT:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.lockfont =
+			IsDlgButtonChecked(hwnd, IDC_LOCKFONT);
 		break;
 	      case IDC_WINEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)

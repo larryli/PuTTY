@@ -497,6 +497,7 @@ void term_size(int newrows, int newcols, int newsavelines)
 
     update_sbar();
     term_update();
+    back->size();
 }
 
 /*
@@ -851,7 +852,7 @@ static void toggle_mode(int mode, int query, int state)
 	    break;
 	  case 3:		       /* 80/132 columns */
 	    deselect();
-	    request_resize(state ? 132 : 80, rows, 1);
+	    request_resize(state ? 132 : 80, rows);
 	    reset_132 = state;
 	    break;
 	  case 5:		       /* reverse video */
@@ -1339,12 +1340,18 @@ void term_out(void)
 			width = wcwidth((wchar_t) c);
 		    switch (width) {
 		      case 2:
-			if (curs.x + 1 != cols) {
-			    *cpos++ = c | ATTR_WIDE | curr_attr;
-			    *cpos++ = UCSWIDE | curr_attr;
-			    curs.x++;
-			    break;
+			*cpos++ = c | curr_attr;
+			if (++curs.x == cols) {
+			    *cpos |= LATTR_WRAPPED;
+			    if (curs.y == marg_b)
+				scroll(marg_t, marg_b, 1, TRUE);
+			    else if (curs.y < rows - 1)
+				curs.y++;
+			    curs.x = 0;
+			    fix_cpos;
 			}
+			*cpos++ = UCSWIDE | curr_attr;
+			break;
 		      case 1:
 			*cpos++ = c | curr_attr;
 			break;
@@ -1461,7 +1468,7 @@ void term_out(void)
 		    compatibility(VT100);
 		    power_on();
 		    if (reset_132) {
-			request_resize(80, rows, 1);
+			request_resize(80, rows);
 			reset_132 = 0;
 		    }
 		    fix_cpos;
@@ -1906,7 +1913,7 @@ void term_out(void)
 			compatibility(VT340TEXT);
 			if (esc_nargs <= 1
 			    && (esc_args[0] < 1 || esc_args[0] >= 24)) {
-			    request_resize(cols, def(esc_args[0], 24), 0);
+			    request_resize(cols, def(esc_args[0], 24));
 			    deselect();
 			}
 			break;
@@ -1932,9 +1939,7 @@ void term_out(void)
 			 */
 			compatibility(VT420);
 			if (esc_nargs == 1 && esc_args[0] > 0) {
-			    request_resize(cols,
-					   def(esc_args[0], cfg.height),
-					   0);
+			    request_resize(cols, def(esc_args[0], cfg.height));
 			    deselect();
 			}
 			break;
@@ -1945,8 +1950,7 @@ void term_out(void)
 			 */
 			compatibility(VT340TEXT);
 			if (esc_nargs <= 1) {
-			    request_resize(def(esc_args[0], cfg.width),
-					   rows, 0);
+			    request_resize(def(esc_args[0], cfg.width), rows);
 			    deselect();
 			}
 			break;
@@ -2074,9 +2078,9 @@ void term_out(void)
 			 */
 			if (!has_compat(VT420) && has_compat(VT100)) {
 			    if (reset_132)
-				request_resize(132, 24, 1);
+				request_resize(132, 24);
 			    else
-				request_resize(80, 24, 1);
+				request_resize(80, 24);
 			}
 #endif
 			break;
@@ -2531,9 +2535,10 @@ static void do_paint(Context ctx, int may_optimise)
     if (dispcurs && (curstype != cursor ||
 		     dispcurs !=
 		     disptext + our_curs_y * (cols + 1) + curs.x)) {
-	if (dispcurs > disptext && (dispcurs[-1] & ATTR_WIDE))
+	if (dispcurs > disptext && 
+		(*dispcurs & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
 	    dispcurs[-1] |= ATTR_INVALID;
-	if ((*dispcurs & ATTR_WIDE))
+	if ( (dispcurs[1] & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
 	    dispcurs[1] |= ATTR_INVALID;
 	*dispcurs |= ATTR_INVALID;
 	curstype = 0;
@@ -2580,6 +2585,8 @@ static void do_paint(Context ctx, int may_optimise)
 	    }
 	    tattr |= (tchar & CSET_MASK);
 	    tchar &= CHAR_MASK;
+	    if ((d[1] & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
+		    tattr |= ATTR_WIDE;
 
 	    /* Video reversing things */
 	    tattr = (tattr ^ rv
@@ -2595,6 +2602,17 @@ static void do_paint(Context ctx, int may_optimise)
 		}
 		tattr &= ~ATTR_BLINK;
 	    }
+
+	    /*
+	     * Check the font we'll _probably_ be using to see if 
+	     * the character is wide when we don't want it to be.
+	     */
+	    if ((tchar | tattr) != (disptext[idx]& ~ATTR_NARROW)) {
+		if ((tattr & ATTR_WIDE) == 0 && 
+		    CharWidth(ctx, (tchar | tattr) & 0xFFFF) == 2)
+		    tattr |= ATTR_NARROW;
+	    } else if (disptext[idx]&ATTR_NARROW)
+		tattr |= ATTR_NARROW;
 
 	    /* Cursor here ? Save the 'background' */
 	    if (i == our_curs_y && j == curs.x) {
@@ -2716,14 +2734,14 @@ void term_invalidate(void)
 /*
  * Paint the window in response to a WM_PAINT message.
  */
-void term_paint(Context ctx, int l, int t, int r, int b)
+void term_paint(Context ctx, int left, int top, int right, int bottom)
 {
-    int i, j, left, top, right, bottom;
+    int i, j;
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (right >= cols) right = cols-1;
+    if (bottom >= rows) bottom = rows-1;
 
-    left = l / font_width;
-    right = (r - 1) / font_width;
-    top = t / font_height;
-    bottom = (b - 1) / font_height;
     for (i = top; i <= bottom && i < rows; i++) {
 	if ((disptext[i * (cols + 1) + cols] & LATTR_MODE) == LATTR_NORM)
 	    for (j = left; j <= right && j < cols; j++)
@@ -2736,8 +2754,9 @@ void term_paint(Context ctx, int l, int t, int r, int b)
     /* This should happen soon enough, also for some reason it sometimes 
      * fails to actually do anything when re-sizing ... painting the wrong
      * window perhaps ?
-     do_paint (ctx, FALSE);
      */
+    if (alt_pressed)
+        do_paint (ctx, FALSE);
 }
 
 /*
@@ -2986,6 +3005,12 @@ static int wordtype(int uc)
 	uc = unitab_oemcp[uc & 0xFF];
 	break;
     }
+
+    /* For DBCS font's I can't do anything usefull. Even this will sometimes
+     * fail as there's such a thing as a double width space. :-(
+     */
+    if (dbcs_screenfont && font_codepage == line_codepage)
+	return (uc != ' ');
 
     if (uc < 0x80)
 	return wordness[uc];

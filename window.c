@@ -49,7 +49,6 @@
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x2000
 
-#define WM_IGNORE_SIZE (WM_XUSER + 1)
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
 
 /* Needed for Chinese support and apparently not always defined. */
@@ -67,11 +66,18 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			unsigned char *output);
 static void cfgtopalette(void);
 static void init_palette(void);
-static void init_fonts(int);
+static void init_fonts(int, int);
 static void another_font(int);
 static void deinit_fonts(void);
 
+/* Window layout information */
+static void reset_window(int);
 static int full_screen = 0, extra_width, extra_height;
+static int font_width, font_height, font_dualwidth;
+static int offset_width, offset_height;
+static int was_zoomed = 0;
+static int prev_rows, prev_cols;
+  
 static LONG old_wind_style;
 static WINDOWPLACEMENT old_wind_placement;
 
@@ -91,14 +97,13 @@ static time_t last_movement = 0;
 #define FONT_WIDE	0x04
 #define FONT_HIGH	0x08
 #define FONT_NARROW	0x10
+
 #define FONT_OEM 	0x20
 #define FONT_OEMBOLD 	0x21
 #define FONT_OEMUND 	0x22
 #define FONT_OEMBOLDUND 0x23
-#define FONT_MSGOTHIC 	0x40
-#define FONT_MINGLIU 	0x60
-#define FONT_GULIMCHE 	0x80
-#define FONT_MAXNO 	0x8F
+
+#define FONT_MAXNO 	0x2F
 #define FONT_SHIFT	5
 static HFONT fonts[FONT_MAXNO];
 static int fontflag[FONT_MAXNO];
@@ -381,7 +386,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	wndclass.hInstance = inst;
 	wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
 	wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
-	wndclass.hbrBackground = GetStockObject(BLACK_BRUSH);
+	wndclass.hbrBackground = NULL;
 	wndclass.lpszMenuName = NULL;
 	wndclass.lpszClassName = appname;
 
@@ -424,7 +429,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	int exwinmode = 0;
 	if (!cfg.scrollbar)
 	    winmode &= ~(WS_VSCROLL);
-	if (cfg.locksize)
+	if (cfg.locksize && cfg.lockfont)
 	    winmode &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
 	if (cfg.alwaysontop)
 	    exwinmode |= WS_EX_TOPMOST;
@@ -440,9 +445,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Initialise the fonts, simultaneously correcting the guesses
      * for font_{width,height}.
      */
-    bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
-    und_mode = UND_FONT;
-    init_fonts(0);
+    init_fonts(0,0);
 
     /*
      * Correct the guesses for extra_{width,height}.
@@ -451,8 +454,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	RECT cr, wr;
 	GetWindowRect(hwnd, &wr);
 	GetClientRect(hwnd, &cr);
-	extra_width = wr.right - wr.left - cr.right + cr.left;
-	extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
+	offset_width = offset_height = cfg.window_border;
+	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
+	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
     }
 
     /*
@@ -461,7 +465,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     guess_width = extra_width + font_width * cols;
     guess_height = extra_height + font_height * rows;
-    SendMessage(hwnd, WM_IGNORE_SIZE, 0, 0);
     SetWindowPos(hwnd, NULL, 0, 0, guess_width, guess_height,
 		 SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
 
@@ -866,7 +869,7 @@ static void init_palette(void)
  *   ordinary one (manual underlining by means of line drawing can
  *   be done in a pinch).
  */
-static void init_fonts(int pick_width)
+static void init_fonts(int pick_width, int pick_height)
 {
     TEXTMETRIC tm;
     CPINFO cpinfo;
@@ -878,6 +881,9 @@ static void init_fonts(int pick_width)
     for (i = 0; i < FONT_MAXNO; i++)
 	fonts[i] = NULL;
 
+    bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
+    und_mode = UND_FONT;
+
     if (cfg.fontisbold) {
 	fw_dontcare = FW_BOLD;
 	fw_bold = FW_HEAVY;
@@ -888,10 +894,14 @@ static void init_fonts(int pick_width)
 
     hdc = GetDC(hwnd);
 
-    font_height = cfg.fontheight;
-    if (font_height > 0) {
-	font_height =
-	    -MulDiv(font_height, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+    if (pick_height)
+	font_height = pick_height;
+    else {
+	font_height = cfg.fontheight;
+	if (font_height > 0) {
+	    font_height =
+		-MulDiv(font_height, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+	}
     }
     font_width = pick_width;
 
@@ -905,8 +915,17 @@ static void init_fonts(int pick_width)
 
     SelectObject(hdc, fonts[FONT_NORMAL]);
     GetTextMetrics(hdc, &tm);
-    font_height = tm.tmHeight;
-    font_width = tm.tmAveCharWidth;
+
+    if (pick_width == 0 || pick_height == 0) {
+	font_height = tm.tmHeight;
+	font_width = tm.tmAveCharWidth;
+    }
+    font_dualwidth = (tm.tmAveCharWidth != tm.tmMaxCharWidth);
+
+#ifdef RDB_DEBUG_PATCH
+    debug(23, "Primary font H=%d, AW=%d, MW=%d",
+	    tm.tmHeight, tm.tmAveCharWidth, tm.tmMaxCharWidth);
+#endif
 
     {
 	CHARSETINFO info;
@@ -1046,7 +1065,7 @@ static void another_font(int fontno)
     if (fontno & FONT_WIDE)
 	x *= 2;
     if (fontno & FONT_NARROW)
-	x /= 2;
+	x = (x+1)/2;
     if (fontno & FONT_OEM)
 	c = OEM_CHARSET;
     if (fontno & FONT_BOLD)
@@ -1074,25 +1093,21 @@ static void deinit_fonts(void)
     }
 }
 
-void request_resize(int w, int h, int refont)
+void request_resize(int w, int h)
 {
     int width, height;
 
     /* If the window is maximized supress resizing attempts */
-    if (IsZoomed(hwnd))
-	return;
+    if (IsZoomed(hwnd)) {
+	if (cfg.lockfont)
+	    return;
+    }
 
-    if (refont && w != cols && (cols == 80 || cols == 132)) {
-	/* If font width too big for screen should we shrink the font more ? */
-	if (w == 132)
-	    font_width = ((font_width * cols + w / 2) / w);
-	else
-	    font_width = 0;
-	deinit_fonts();
-	bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
-	und_mode = UND_FONT;
-	init_fonts(font_width);
-    } else {
+    if (cfg.lockfont && cfg.locksize) return;
+    if (h == rows && w == cols) return;
+
+    /* Sanity checks ... */
+    {
 	static int first_time = 1;
 	static RECT ss;
 
@@ -1107,26 +1122,212 @@ void request_resize(int w, int h, int refont)
 	    }
 	  case 0:
 	    /* Make sure the values are sane */
-	    width = (ss.right - ss.left - extra_width) / font_width;
-	    height = (ss.bottom - ss.top - extra_height) / font_height;
+	    width = (ss.right - ss.left - extra_width) / 4;
+	    height = (ss.bottom - ss.top - extra_height) / 6;
 
-	    if (w > width)
-		w = width;
-	    if (h > height)
-		h = height;
+	    if (w > width || h > height)
+		return;
 	    if (w < 15)
 		w = 15;
 	    if (h < 1)
-		w = 1;
+		h = 1;
 	}
     }
 
-    width = extra_width + font_width * w;
-    height = extra_height + font_height * h;
+    term_size(h, w, cfg.savelines);
 
-    SetWindowPos(hwnd, NULL, 0, 0, width, height,
-		 SWP_NOACTIVATE | SWP_NOCOPYBITS |
-		 SWP_NOMOVE | SWP_NOZORDER);
+    if (cfg.lockfont) {
+	width = extra_width + font_width * w;
+	height = extra_height + font_height * h;
+
+	SetWindowPos(hwnd, NULL, 0, 0, width, height,
+	    SWP_NOACTIVATE | SWP_NOCOPYBITS |
+	    SWP_NOMOVE | SWP_NOZORDER);
+    } else
+	reset_window(0);
+
+    InvalidateRect(hwnd, NULL, TRUE);
+}
+
+static void reset_window(int reinit) {
+    /*
+     * This function decides how to resize or redraw when the 
+     * user changes something. 
+     *
+     * This function doesn't like to change the terminal size but if the
+     * font size is locked that may be it's only soluion.
+     */
+    int win_width, win_height;
+    RECT cr, wr;
+
+#ifdef RDB_DEBUG_PATCH
+    debug((27, "reset_window()"));
+#endif
+
+    /* Current window sizes ... */
+    GetWindowRect(hwnd, &wr);
+    GetClientRect(hwnd, &cr);
+
+    win_width  = cr.right - cr.left;
+    win_height = cr.bottom - cr.top;
+
+    /* Are we being forced to reload the fonts ? */
+    if (reinit>1) {
+#ifdef RDB_DEBUG_PATCH
+	debug((27, "reset_window() -- Forced deinit"));
+#endif
+	deinit_fonts();
+	init_fonts(0,0);
+    }
+
+    /* Oh, looks like we're minimised */
+    if (win_width == 0 || win_height == 0)
+	return;
+
+    /* Is the window out of position ? */
+    if ( !reinit && 
+	    (offset_width != (win_width-font_width*cols)/2 ||
+	     offset_height != (win_height-font_height*rows)/2) ){
+	offset_width = (win_width-font_width*cols)/2;
+	offset_height = (win_height-font_height*rows)/2;
+	InvalidateRect(hwnd, NULL, TRUE);
+#ifdef RDB_DEBUG_PATCH
+	debug((27, "reset_window() -> Reposition terminal"));
+#endif
+    }
+
+    if (IsZoomed(hwnd)) {
+	/* We're fullscreen, this means we must not change the size of
+	 * the window so it's the font size or the terminal itself.
+	 */
+
+	extra_width = wr.right - wr.left - cr.right + cr.left;
+	extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
+
+	if (!cfg.lockfont) {
+	    if (  font_width != win_width/cols || 
+		  font_height != win_height/rows) {
+		deinit_fonts();
+		init_fonts(win_width/cols, win_height/rows);
+		offset_width = (win_width-font_width*cols)/2;
+		offset_height = (win_height-font_height*rows)/2;
+		InvalidateRect(hwnd, NULL, TRUE);
+#ifdef RDB_DEBUG_PATCH
+		debug((25, "reset_window() -> Z font resize to (%d, %d)",
+			font_width, font_height));
+#endif
+	    }
+	} else {
+	    if (  font_width != win_width/cols || 
+		  font_height != win_height/rows) {
+		/* Our only choice at this point is to change the 
+		 * size of the terminal; Oh well.
+		 */
+		term_size( win_height/font_height, win_width/font_width,
+			   cfg.savelines);
+		offset_width = (win_width-font_width*cols)/2;
+		offset_height = (win_height-font_height*rows)/2;
+		InvalidateRect(hwnd, NULL, TRUE);
+#ifdef RDB_DEBUG_PATCH
+		debug((27, "reset_window() -> Zoomed term_size"));
+#endif
+	    }
+	}
+	return;
+    }
+
+    /* Hmm, a force re-init means we should ignore the current window
+     * so we resize to the default font size.
+     */
+    if (reinit>0) {
+#ifdef RDB_DEBUG_PATCH
+	debug((27, "reset_window() -> Forced re-init"));
+#endif
+
+	offset_width = offset_height = cfg.window_border;
+	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
+	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
+
+	if (win_width != font_width*cols + offset_width*2 ||
+	    win_height != font_height*rows + offset_height*2) {
+
+	    /* If this is too large windows will resize it to the maximum
+	     * allowed window size, we will then be back in here and resize
+	     * the font or terminal to fit.
+	     */
+	    SetWindowPos(hwnd, NULL, 0, 0, 
+		         font_width*cols + extra_width, 
+			 font_height*rows + extra_height,
+			 SWP_NOMOVE | SWP_NOZORDER);
+	}
+	return;
+    }
+
+    /* Okay the user doesn't want us to change the font so we try the 
+     * window. But that may be too big for the screen which forces us
+     * to change the terminal.
+     */
+    if ((cfg.lockfont && reinit==0) || reinit>0) {
+	offset_width = offset_height = cfg.window_border;
+	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
+	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
+
+	if (win_width != font_width*cols + offset_width*2 ||
+	    win_height != font_height*rows + offset_height*2) {
+
+	    static RECT ss;
+	    int width, height;
+
+	    GetClientRect(GetDesktopWindow(), &ss);
+	    width = (ss.right - ss.left - extra_width) / font_width;
+	    height = (ss.bottom - ss.top - extra_height) / font_height;
+
+	    /* Grrr too big */
+	    if ( rows > height || cols > width ) {
+		if ( height > rows ) height = rows;
+		if ( width > cols )  width = cols;
+		term_size(height, width, cfg.savelines);
+#ifdef RDB_DEBUG_PATCH
+		debug((27, "reset_window() -> term resize to (%d,%d)",
+			   height, width));
+#endif
+	    }
+	    
+	    SetWindowPos(hwnd, NULL, 0, 0, 
+		         font_width*cols + extra_width, 
+			 font_height*rows + extra_height,
+			 SWP_NOMOVE | SWP_NOZORDER);
+
+	    InvalidateRect(hwnd, NULL, TRUE);
+#ifdef RDB_DEBUG_PATCH
+	    debug((27, "reset_window() -> window resize to (%d,%d)",
+			font_width*cols + extra_width,
+			font_height*rows + extra_height));
+#endif
+	}
+	return;
+    }
+
+    /* We're allowed to or must change the font but do we want to ?  */
+
+    if (font_width != (win_width-cfg.window_border*2)/cols || 
+	font_height != (win_height-cfg.window_border*2)/rows) {
+
+	deinit_fonts();
+	init_fonts((win_width-cfg.window_border*2)/cols, 
+		   (win_height-cfg.window_border*2)/rows);
+	offset_width = (win_width-font_width*cols)/2;
+	offset_height = (win_height-font_height*rows)/2;
+
+	extra_width = wr.right - wr.left - cr.right + cr.left +offset_width*2;
+	extra_height = wr.bottom - wr.top - cr.bottom + cr.top+offset_height*2;
+
+	InvalidateRect(hwnd, NULL, TRUE);
+#ifdef RDB_DEBUG_PATCH
+	debug((25, "reset_window() -> font resize to (%d,%d)", 
+		   font_width, font_height));
+#endif
+    }
 }
 
 static void click(Mouse_Button b, int x, int y, int shift, int ctrl)
@@ -1183,12 +1384,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
     HDC hdc;
-    static int ignore_size = FALSE;
     static int ignore_clip = FALSE;
-    static int just_reconfigged = FALSE;
     static int resizing = FALSE;
     static int need_backend_resize = FALSE;
-    static int defered_resize = FALSE;
 
     switch (message) {
       case WM_TIMER:
@@ -1298,33 +1496,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_RECONF:
 	    {
-		int prev_alwaysontop = cfg.alwaysontop;
-		int prev_sunken_edge = cfg.sunken_edge;
-		char oldlogfile[FILENAME_MAX];
-		int oldlogtype;
-		int need_setwpos = FALSE;
-		int old_fwidth, old_fheight;
+		Config prev_cfg;
+		int init_lvl = 1;
 
-		strcpy(oldlogfile, cfg.logfilename);
-		oldlogtype = cfg.logtype;
-		old_fwidth = font_width;
-		old_fheight = font_height;
 		GetWindowText(hwnd, cfg.wintitle, sizeof(cfg.wintitle));
+		prev_cfg = cfg;
 
 		if (!do_reconfig(hwnd))
 		    break;
 
-		if (strcmp(oldlogfile, cfg.logfilename) ||
-		    oldlogtype != cfg.logtype) {
+		if (strcmp(prev_cfg.logfilename, cfg.logfilename) ||
+		    prev_cfg.logtype != cfg.logtype) {
 		    logfclose();       /* reset logging */
 		    logfopen();
 		}
 
-		just_reconfigged = TRUE;
-		deinit_fonts();
-		bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
-		und_mode = UND_FONT;
-		init_fonts(0);
 		sfree(logpal);
 		/*
 		 * Flush the line discipline's edit buffer in the
@@ -1338,6 +1524,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		cfgtopalette();
 		init_palette();
 
+		/* Screen size changed ? */
+		if (cfg.height != prev_cfg.height ||
+		    cfg.width != prev_cfg.width ||
+		    cfg.savelines != prev_cfg.savelines ||
+		    cfg.locksize )
+		    term_size(cfg.height, cfg.width, cfg.savelines);
+
 		/* Enable or disable the scroll bar, etc */
 		{
 		    LONG nflg, flag = GetWindowLong(hwnd, GWL_STYLE);
@@ -1345,7 +1538,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			GetWindowLong(hwnd, GWL_EXSTYLE);
 
 		    nexflag = exflag;
-		    if (cfg.alwaysontop != prev_alwaysontop) {
+		    if (cfg.alwaysontop != prev_cfg.alwaysontop) {
 			if (cfg.alwaysontop) {
 			    nexflag |= WS_EX_TOPMOST;
 			    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
@@ -1366,84 +1559,51 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			nflg |= WS_VSCROLL;
 		    else
 			nflg &= ~WS_VSCROLL;
-		    if (cfg.locksize)
+		    if (cfg.locksize && cfg.lockfont)
 			nflg &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
 		    else
 			nflg |= (WS_THICKFRAME | WS_MAXIMIZEBOX);
 
 		    if (nflg != flag || nexflag != exflag) {
-			RECT cr, wr;
-
 			if (nflg != flag)
 			    SetWindowLong(hwnd, GWL_STYLE, nflg);
 			if (nexflag != exflag)
 			    SetWindowLong(hwnd, GWL_EXSTYLE, nexflag);
 
-			SendMessage(hwnd, WM_IGNORE_SIZE, 0, 0);
-
 			SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
 				     SWP_NOACTIVATE | SWP_NOCOPYBITS |
-				     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
-				     | SWP_FRAMECHANGED);
+				     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+				     SWP_FRAMECHANGED);
 
-			GetWindowRect(hwnd, &wr);
-			GetClientRect(hwnd, &cr);
-			extra_width =
-			    wr.right - wr.left - cr.right + cr.left;
-			extra_height =
-			    wr.bottom - wr.top - cr.bottom + cr.top;
-			need_setwpos = TRUE;
+			init_lvl = 2;
 		    }
 		}
 
-		if (cfg.height != rows ||
-		    cfg.width != cols ||
-		    old_fwidth != font_width ||
-		    old_fheight != font_height ||
-		    cfg.savelines != savelines ||
-		    cfg.sunken_edge != prev_sunken_edge)
-			need_setwpos = TRUE;
-
-		if (IsZoomed(hwnd)) {
-		    int w, h;
-		    RECT cr;
-		    if (need_setwpos)
-			defered_resize = TRUE;
-
-		    GetClientRect(hwnd, &cr);
-		    w = cr.right - cr.left;
-		    h = cr.bottom - cr.top;
-		    w = w / font_width;
-		    if (w < 1)
-			w = 1;
-		    h = h / font_height;
-		    if (h < 1)
-			h = 1;
-
-		    term_size(h, w, cfg.savelines);
-		    InvalidateRect(hwnd, NULL, TRUE);
-		    back->size();
-		} else {
-		    term_size(cfg.height, cfg.width, cfg.savelines);
-		    InvalidateRect(hwnd, NULL, TRUE);
-		    if (need_setwpos) {
-			SetWindowPos(hwnd, NULL, 0, 0,
-				     extra_width + font_width * cfg.width,
-				     extra_height +
-				     font_height * cfg.height,
-				     SWP_NOACTIVATE | SWP_NOCOPYBITS |
-				     SWP_NOMOVE | SWP_NOZORDER);
-		    }
-		}
 		/* Oops */
-		if (cfg.locksize && IsZoomed(hwnd))
+		if (cfg.locksize && cfg.lockfont && IsZoomed(hwnd)) {
 		    force_normal(hwnd);
+		    init_lvl = 2;
+		}
+
 		set_title(cfg.wintitle);
 		if (IsIconic(hwnd)) {
 		    SetWindowText(hwnd,
 				  cfg.win_name_always ? window_name :
 				  icon_name);
 		}
+
+		if (strcmp(cfg.font, prev_cfg.font) != 0 ||
+		    strcmp(cfg.line_codepage, prev_cfg.line_codepage) != 0 ||
+		    cfg.fontisbold != prev_cfg.fontisbold ||
+		    cfg.fontheight != prev_cfg.fontheight ||
+		    cfg.fontcharset != prev_cfg.fontcharset ||
+		    cfg.vtmode != prev_cfg.vtmode ||
+		    cfg.bold_colour != prev_cfg.bold_colour ||
+		    (cfg.lockfont && !prev_cfg.lockfont))
+		    init_lvl = 2;
+
+		InvalidateRect(hwnd, NULL, TRUE);
+		reset_window(init_lvl);
 	    }
 	    break;
 	  case IDM_COPYALL:
@@ -1518,8 +1678,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #define X_POS(l) ((int)(short)LOWORD(l))
 #define Y_POS(l) ((int)(short)HIWORD(l))
 
-#define TO_CHR_X(x) (((x)<0 ? (x)-font_width+1 : (x)) / font_width)
-#define TO_CHR_Y(y) (((y)<0 ? (y)-font_height+1: (y)) / font_height)
+#define TO_CHR_X(x) ((((x)<0 ? (x)-font_width+1 : (x))-offset_width) / font_width)
+#define TO_CHR_Y(y) ((((y)<0 ? (y)-font_height+1: (y))-offset_height) / font_height)
 #define WHEEL_DELTA 120
       case WM_MOUSEWHEEL:
 	{
@@ -1651,8 +1811,42 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		SelectPalette(hdc, pal, TRUE);
 		RealizePalette(hdc);
 	    }
-	    term_paint(hdc, p.rcPaint.left, p.rcPaint.top,
-		       p.rcPaint.right, p.rcPaint.bottom);
+	    term_paint(hdc, 
+		       (p.rcPaint.left-offset_width)/font_width,
+		       (p.rcPaint.top-offset_height)/font_height,
+		       (p.rcPaint.right-offset_width-1)/font_width,
+		       (p.rcPaint.bottom-offset_height-1)/font_height);
+
+	    if (p.fErase ||
+	        p.rcPaint.left  < offset_width  ||
+		p.rcPaint.top   < offset_height ||
+		p.rcPaint.right >= offset_width + font_width*cols ||
+		p.rcPaint.bottom>= offset_height + font_height*rows)
+	    {
+		HBRUSH fillcolour, oldbrush;
+		HPEN   edge, oldpen;
+		fillcolour = CreateSolidBrush (
+				    colours[(ATTR_DEFBG>>ATTR_BGSHIFT)*2]);
+		oldbrush = SelectObject(hdc, fillcolour);
+		edge = CreatePen(PS_SOLID, 0, 
+				    colours[(ATTR_DEFBG>>ATTR_BGSHIFT)*2]);
+		oldpen = SelectObject(hdc, edge);
+
+		ExcludeClipRect(hdc, 
+			offset_width, offset_height,
+			offset_width+font_width*cols,
+			offset_height+font_height*rows);
+
+		Rectangle(hdc, p.rcPaint.left, p.rcPaint.top, 
+			  p.rcPaint.right, p.rcPaint.bottom);
+
+		// SelectClipRgn(hdc, NULL);
+
+		SelectObject(hdc, oldbrush);
+		DeleteObject(fillcolour);
+		SelectObject(hdc, oldpen);
+		DeleteObject(edge);
+	    }
 	    SelectObject(hdc, GetStockObject(SYSTEM_FONT));
 	    SelectObject(hdc, GetStockObject(WHITE_PEN));
 	    EndPaint(hwnd, &p);
@@ -1691,10 +1885,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	term_out();
 	term_update();
 	break;
-      case WM_IGNORE_SIZE:
-	ignore_size = TRUE;	       /* don't panic on next WM_SIZE msg */
-	break;
       case WM_ENTERSIZEMOVE:
+#ifdef RDB_DEBUG_PATCH
+	debug((27, "WM_ENTERSIZEMOVE"));
+#endif
 	EnableSizeTip(1);
 	resizing = TRUE;
 	need_backend_resize = FALSE;
@@ -1702,13 +1896,39 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_EXITSIZEMOVE:
 	EnableSizeTip(0);
 	resizing = FALSE;
-	if (need_backend_resize)
-	    back->size();
+#ifdef RDB_DEBUG_PATCH
+	debug((27, "WM_EXITSIZEMOVE"));
+#endif
+	if (need_backend_resize) {
+	    term_size(cfg.height, cfg.width, cfg.savelines);
+	    InvalidateRect(hwnd, NULL, TRUE);
+	}
 	break;
       case WM_SIZING:
-	{
+	/*
+	 * This does two jobs:
+	 * 1) Keep the sizetip uptodate
+	 * 2) Make sure the window size is _stepped_ in units of the font size.
+	 */
+	if (!cfg.locksize && !alt_pressed) {
 	    int width, height, w, h, ew, eh;
 	    LPRECT r = (LPRECT) lParam;
+
+	    if ( !need_backend_resize && 
+		    (cfg.height != rows || cfg.width != cols )) {
+		/* 
+		 * Great! It seems the host has been changing the terminal
+		 * size, well the user is now grabbing so this is probably
+		 * the least confusing solution in the long run even though
+		 * it a is suprise. Unfortunatly the only way to prevent 
+		 * this seems to be to let the host change the window size 
+		 * and as that's a user option we're still right back here.
+		 */
+		term_size(cfg.height, cfg.width, cfg.savelines);
+		reset_window(2);
+		InvalidateRect(hwnd, NULL, TRUE);
+		need_backend_resize = TRUE;
+	    }
 
 	    width = r->right - r->left - extra_width;
 	    height = r->bottom - r->top - extra_height;
@@ -1739,9 +1959,49 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		return 1;
 	    else
 		return 0;
+	} else {
+	    int width, height, w, h, rv = 0;
+	    int ex_width = extra_width + (cfg.window_border - offset_width) * 2;
+	    int ex_height = extra_height + (cfg.window_border - offset_height) * 2;
+	    LPRECT r = (LPRECT) lParam;
+
+	    width = r->right - r->left - ex_width;
+	    height = r->bottom - r->top - ex_height;
+
+	    w = (width + cols/2)/cols;
+	    h = (height + rows/2)/rows;
+	    if ( r->right != r->left + w*cols + ex_width) 
+		rv = 1;
+
+	    if (wParam == WMSZ_LEFT ||
+		wParam == WMSZ_BOTTOMLEFT || wParam == WMSZ_TOPLEFT)
+		r->left = r->right - w*cols - ex_width;
+	    else
+		r->right = r->left + w*cols + ex_width;
+
+	    if (r->bottom != r->top + h*rows + ex_height)
+		rv = 1;
+
+	    if (wParam == WMSZ_TOP ||
+		wParam == WMSZ_TOPRIGHT || wParam == WMSZ_TOPLEFT)
+		r->top = r->bottom - h*rows - ex_height;
+	    else
+		r->bottom = r->top + h*rows + ex_height;
+
+	    return rv;
 	}
+	break;
 	/* break;  (never reached) */
       case WM_SIZE:
+#ifdef RDB_DEBUG_PATCH
+	debug((27, "WM_SIZE %s (%d,%d)",
+		(wParam == SIZE_MINIMIZED) ? "SIZE_MINIMIZED":
+		(wParam == SIZE_MAXIMIZED) ? "SIZE_MAXIMIZED":
+		(wParam == SIZE_RESTORED && resizing) ? "to":
+		(wParam == SIZE_RESTORED) ? "SIZE_RESTORED":
+		"...",
+	    LOWORD(lParam), HIWORD(lParam)));
+#endif
 	if (wParam == SIZE_MINIMIZED) {
 	    SetWindowText(hwnd,
 			  cfg.win_name_always ? window_name : icon_name);
@@ -1749,59 +2009,65 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
-	if (!ignore_size) {
+
+	if (cfg.lockfont && cfg.locksize) {
+	    /* A resize, well it better be a minimize. */
+	    reset_window(-1);
+	} else {
+
 	    int width, height, w, h;
-#if 0				       /* we have fixed this using WM_SIZING now */
-	    int ew, eh;
-#endif
 
 	    width = LOWORD(lParam);
 	    height = HIWORD(lParam);
-	    w = width / font_width;
-	    if (w < 1)
-		w = 1;
-	    h = height / font_height;
-	    if (h < 1)
-		h = 1;
-#if 0				       /* we have fixed this using WM_SIZING now */
-	    ew = width - w * font_width;
-	    eh = height - h * font_height;
-	    if (ew != 0 || eh != 0) {
-		RECT r;
-		GetWindowRect(hwnd, &r);
-		SendMessage(hwnd, WM_IGNORE_SIZE, 0, 0);
-		SetWindowPos(hwnd, NULL, 0, 0,
-			     r.right - r.left - ew, r.bottom - r.top - eh,
-			     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOZORDER);
-	    }
-#endif
-	    if (w != cols || h != rows || just_reconfigged) {
-		term_invalidate();
-		term_size(h, w, cfg.savelines);
-		/*
-		 * Don't call back->size in mid-resize. (To prevent
-		 * massive numbers of resize events getting sent
-		 * down the connection during an NT opaque drag.)
+
+	    if (!resizing) {
+		if (wParam == SIZE_MAXIMIZED) {
+		    was_zoomed = 1;
+		    prev_rows = rows;
+		    prev_cols = cols;
+		    if (cfg.lockfont) {
+			w = width / font_width;
+			if (w < 1) w = 1;
+			h = height / font_height;
+			if (h < 1) h = 1;
+
+			term_size(h, w, cfg.savelines);
+		    }
+		    reset_window(0);
+		} else if (wParam == SIZE_RESTORED && was_zoomed) {
+		    was_zoomed = 0;
+		    if (cfg.lockfont)
+			term_size(prev_rows, prev_cols, cfg.savelines);
+		    reset_window(0);
+		}
+		/* This is an unexpected resize, these will normally happen
+		 * if the window is too large. Probably either the user
+		 * selected a huge font or the screen size has changed.
+		 *
+		 * This is also called with minimize.
 		 */
-		if (!resizing)
-		    back->size();
-		else {
+		else reset_window(-1);
+	    }
+
+	    /*
+	     * Don't call back->size in mid-resize. (To prevent
+	     * massive numbers of resize events getting sent
+	     * down the connection during an NT opaque drag.)
+	     */
+	    if (resizing) {
+		if (!cfg.locksize && !alt_pressed) {
 		    need_backend_resize = TRUE;
+		    w = (width-cfg.window_border*2) / font_width;
+		    if (w < 1) w = 1;
+		    h = (height-cfg.window_border*2) / font_height;
+		    if (h < 1) h = 1;
+
 		    cfg.height = h;
 		    cfg.width = w;
-		}
-		just_reconfigged = FALSE;
+	        } else 
+		    reset_window(0);
 	    }
 	}
-	if (wParam == SIZE_RESTORED && defered_resize) {
-	    defered_resize = FALSE;
-	    SetWindowPos(hwnd, NULL, 0, 0,
-			 extra_width + font_width * cfg.width,
-			 extra_height + font_height * cfg.height,
-			 SWP_NOACTIVATE | SWP_NOCOPYBITS |
-			 SWP_NOMOVE | SWP_NOZORDER);
-	}
-	ignore_size = FALSE;
 	return 0;
       case WM_VSCROLL:
 	switch (LOWORD(wParam)) {
@@ -1986,7 +2252,8 @@ void sys_cursor(int x, int y)
 
     if (!has_focus) return;
     
-    SetCaretPos(x * font_width, y * font_height);
+    SetCaretPos(x * font_width + offset_width,
+		y * font_height + offset_height);
 
     /* IMM calls on Win98 and beyond only */
     if(osVersion.dwPlatformId == VER_PLATFORM_WIN32s) return; /* 3.11 */
@@ -2037,8 +2304,14 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    IpDx[i] = char_width;
     }
 
+    /* Only want the left half of double width lines */
+    if (lattr != LATTR_NORM && x*2 >= cols)
+	return;
+
     x *= fnt_width;
     y *= font_height;
+    x += offset_width;
+    y += offset_height;
 
     if ((attr & TATTR_ACTCURS) && (cfg.cursor_type == 0 || big_cursor)) {
 	attr &= ATTR_CUR_AND | (bold_mode != BOLD_COLOURS ? ATTR_BOLD : 0);
@@ -2060,11 +2333,12 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    nfont |= FONT_WIDE + FONT_HIGH;
 	    break;
 	}
+    if (attr & ATTR_NARROW)
+	nfont |= FONT_NARROW;
 
     /* Special hack for the VT100 linedraw glyphs. */
     if ((attr & CSET_MASK) == 0x2300) {
-	if (!dbcs_screenfont &&
-	    text[0] >= (char) 0xBA && text[0] <= (char) 0xBD) {
+	if (text[0] >= (char) 0xBA && text[0] <= (char) 0xBD) {
 	    switch ((unsigned char) (text[0])) {
 	      case 0xBA:
 		text_adjust = -2 * font_height / 5;
@@ -2095,7 +2369,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     if (DIRECT_CHAR(attr)) {
 	attr &= ~CSET_MASK;
 	attr |= 0xFF00;
-	memset(text, 0xFF, len);
+	memset(text, 0xFD, len);
     }
 
     /* OEM CP */
@@ -2139,33 +2413,52 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     line_box.right = x + char_width * len;
     line_box.bottom = y + font_height;
 
+    /* Only want the left half of double width lines */
+    if (line_box.right > font_width*cols+offset_width)
+	line_box.right = font_width*cols+offset_width;
+
     /* We're using a private area for direct to font. (512 chars.) */
     if (dbcs_screenfont && (attr & CSET_MASK) == ATTR_ACP) {
 	/* Ho Hum, dbcs fonts are a PITA! */
 	/* To display on W9x I have to convert to UCS */
 	static wchar_t *uni_buf = 0;
 	static int uni_len = 0;
-	int nlen;
+	int nlen, mptr;
 	if (len > uni_len) {
 	    sfree(uni_buf);
 	    uni_buf = smalloc((uni_len = len) * sizeof(wchar_t));
 	}
-	nlen = MultiByteToWideChar(font_codepage, MB_USEGLYPHCHARS,
-				   text, len, uni_buf, uni_len);
 
+	for(nlen = mptr = 0; mptr<len; mptr++) {
+	    uni_buf[nlen] = 0xFFFD;
+	    if (IsDBCSLeadByteEx(font_codepage, (BYTE) text[mptr])) {
+		IpDx[nlen] += char_width;
+	        MultiByteToWideChar(font_codepage, MB_USEGLYPHCHARS,
+				   text+mptr, 2, uni_buf+nlen, 1);
+		mptr++;
+	    }
+	    else
+	    {
+	        MultiByteToWideChar(font_codepage, MB_USEGLYPHCHARS,
+				   text+mptr, 1, uni_buf+nlen, 1);
+	    }
+	    nlen++;
+	}
 	if (nlen <= 0)
 	    return;		       /* Eeek! */
 
 	ExtTextOutW(hdc, x,
 		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		    ETO_CLIPPED | ETO_OPAQUE, &line_box, uni_buf, nlen, 0);
+		    ETO_CLIPPED | ETO_OPAQUE, &line_box, uni_buf, nlen, IpDx);
 	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
 	    SetBkMode(hdc, TRANSPARENT);
 	    ExtTextOutW(hdc, x - 1,
 			y - font_height * (lattr ==
 					   LATTR_BOT) + text_adjust,
-			ETO_CLIPPED, &line_box, uni_buf, nlen, 0);
+			ETO_CLIPPED, &line_box, uni_buf, nlen, IpDx);
 	}
+
+	IpDx[0] = -1;
     } else if (DIRECT_FONT(attr)) {
 	ExtTextOut(hdc, x,
 		   y - font_height * (lattr == LATTR_BOT) + text_adjust,
@@ -2203,7 +2496,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 		    ETO_CLIPPED | ETO_OPAQUE, &line_box, wbuf, len, IpDx);
 
 	/* And the shadow bold hack. */
-	if (bold_mode == BOLD_SHADOW) {
+	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
 	    SetBkMode(hdc, TRANSPARENT);
 	    ExtTextOutW(hdc, x - 1,
 			y - font_height * (lattr ==
@@ -2250,6 +2543,8 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	char_width *= 2;
     x *= fnt_width;
     y *= font_height;
+    x += offset_width;
+    y += offset_height;
 
     if ((attr & TATTR_PASCURS) && (ctype == 0 || big_cursor)) {
 	POINT pts[5];
@@ -2298,6 +2593,67 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	    }
 	}
     }
+}
+
+/* This function gets the actual width of a character in the normal font.
+ */
+int CharWidth(Context ctx, int uc) {
+    HDC hdc = ctx;
+    int ibuf = 0;
+
+    /* If the font max is the same as the font ave width then this
+     * function is a no-op.
+     */
+    if (!font_dualwidth) return 1;
+
+    switch (uc & CSET_MASK) {
+      case ATTR_ASCII:
+	uc = unitab_line[uc & 0xFF];
+	break;
+      case ATTR_LINEDRW:
+	uc = unitab_xterm[uc & 0xFF];
+	break;
+      case ATTR_SCOACS:
+	uc = unitab_scoacs[uc & 0xFF];
+	break;
+    }
+    if (DIRECT_FONT(uc)) {
+	if (dbcs_screenfont) return 1;
+
+	/* Speedup, I know of no font where ascii is the wrong width */
+	if ((uc&CHAR_MASK) >= ' ' && (uc&CHAR_MASK)<= '~') 
+	    return 1;
+
+	if ( (uc & CSET_MASK) == ATTR_ACP ) {
+	    SelectObject(hdc, fonts[FONT_NORMAL]);
+	} else if ( (uc & CSET_MASK) == ATTR_OEMCP ) {
+	    another_font(FONT_OEM);
+	    if (!fonts[FONT_OEM]) return 0;
+
+	    SelectObject(hdc, fonts[FONT_OEM]);
+	} else
+	    return 0;
+
+	if ( GetCharWidth32(hdc, uc&CHAR_MASK, uc&CHAR_MASK, &ibuf) != 1 && 
+	     GetCharWidth(hdc, uc&CHAR_MASK, uc&CHAR_MASK, &ibuf) != 1)
+	    return 0;
+    } else {
+	/* Speedup, I know of no font where ascii is the wrong width */
+	if (uc >= ' ' && uc <= '~') return 1;
+
+	SelectObject(hdc, fonts[FONT_NORMAL]);
+	if ( GetCharWidth32W(hdc, uc, uc, &ibuf) == 1 )
+	    /* Okay that one worked */ ;
+	else if ( GetCharWidthW(hdc, uc, uc, &ibuf) == 1 )
+	    /* This should work on 9x too, but it's "less accurate" */ ;
+	else
+	    return 0;
+    }
+
+    ibuf += font_width / 2 -1;
+    ibuf /= font_width;
+
+    return ibuf;
 }
 
 /*
@@ -2438,6 +2794,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    left_alt = 0;
 	}
     }
+
+    alt_pressed = (left_alt && key_down);
 
     scan = (HIWORD(lParam) & (KF_UP | KF_EXTENDED | 0xFF));
     shift_state = ((keystate[VK_SHIFT] & 0x80) != 0)
@@ -3324,10 +3682,10 @@ void optimised_move(int to, int from, int lines)
     min = (to < from ? to : from);
     max = to + from - min;
 
-    r.left = 0;
-    r.right = cols * font_width;
-    r.top = min * font_height;
-    r.bottom = (max + lines) * font_height;
+    r.left = offset_width;
+    r.right = offset_width + cols * font_width;
+    r.top = offset_height + min * font_height;
+    r.bottom = offset_height + (max + lines) * font_height;
     ScrollWindow(hwnd, 0, (to - from) * font_height, &r, &r);
 }
 #endif

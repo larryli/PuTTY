@@ -66,6 +66,7 @@
 #define UCSERR	     (ATTR_LINEDRW|'a')	/* UCS Format error character. */
 #define UCSWIDE	     0x303F
 
+#define ATTR_NARROW  0x20000000UL
 #define ATTR_WIDE    0x10000000UL
 #define ATTR_BOLD    0x01000000UL
 #define ATTR_UNDER   0x02000000UL
@@ -92,8 +93,6 @@ typedef HDC Context;
 
 GLOBAL int rows, cols, savelines;
 
-GLOBAL int font_width, font_height;
-
 #define INBUF_SIZE 2048
 GLOBAL unsigned char inbuf[INBUF_SIZE];
 GLOBAL int inbuf_head;
@@ -113,6 +112,7 @@ GLOBAL int repeat_off, cr_lf_return;
 
 GLOBAL int seen_key_event;
 GLOBAL int seen_disp_event;
+GLOBAL int alt_pressed;
 
 GLOBAL int session_closed;
 
@@ -313,6 +313,7 @@ typedef struct {
     char bell_wavefile[FILENAME_MAX];
     int scrollbar;
     int locksize;
+    int lockfont;
     int bce;
     int blinktext;
     int win_name_always;
@@ -326,6 +327,7 @@ typedef struct {
     int logxfovr;
     int hide_mouseptr;
     int sunken_edge;
+    int window_border;
     char answerback[256];
     /* Colour options */
     int try_palette;
@@ -386,9 +388,10 @@ struct RSAKey;			       /* be a little careful of scope */
 /*
  * Exports from window.c.
  */
-void request_resize(int, int, int);
+void request_resize(int, int);
 void do_text(Context, int, int, char *, int, unsigned long, int);
 void do_cursor(Context, int, int, char *, int, unsigned long, int);
+int CharWidth(Context ctx, int uc);
 void set_title(char *);
 void set_icon(char *);
 void set_sbar(int, int, int);

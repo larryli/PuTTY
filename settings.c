@@ -201,6 +201,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "FullScreenOnAltEnter", cfg->fullscreenonaltenter);
     write_setting_i(sesskey, "HideMousePtr", cfg->hide_mouseptr);
     write_setting_i(sesskey, "SunkenEdge", cfg->sunken_edge);
+    write_setting_i(sesskey, "WindowBorder", cfg->window_border);
     write_setting_i(sesskey, "CurType", cfg->cursor_type);
     write_setting_i(sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i(sesskey, "Beep", cfg->beep);
@@ -251,6 +252,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "ScrollOnKey", cfg->scroll_on_key);
     write_setting_i(sesskey, "ScrollOnDisp", cfg->scroll_on_disp);
     write_setting_i(sesskey, "LockSize", cfg->locksize);
+    write_setting_i(sesskey, "LockFont", cfg->lockfont);
     write_setting_i(sesskey, "BCE", cfg->bce);
     write_setting_i(sesskey, "BlinkText", cfg->blinktext);
     write_setting_i(sesskey, "X11Forward", cfg->x11_forward);
@@ -378,6 +380,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "FullScreenOnAltEnter", 0, &cfg->fullscreenonaltenter);
     gppi(sesskey, "HideMousePtr", 0, &cfg->hide_mouseptr);
     gppi(sesskey, "SunkenEdge", 0, &cfg->sunken_edge);
+    gppi(sesskey, "WindowBorder", 1, &cfg->window_border);
     gppi(sesskey, "CurType", 0, &cfg->cursor_type);
     gppi(sesskey, "BlinkCur", 0, &cfg->blink_cur);
     /* pedantic compiler tells me I can't use &cfg->beep as an int * :-) */
@@ -397,7 +400,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gpps(sesskey, "WinTitle", "", cfg->wintitle, sizeof(cfg->wintitle));
     gppi(sesskey, "TermWidth", 80, &cfg->width);
     gppi(sesskey, "TermHeight", 24, &cfg->height);
-    gpps(sesskey, "Font", "Courier", cfg->font, sizeof(cfg->font));
+    gpps(sesskey, "Font", "Courier New", cfg->font, sizeof(cfg->font));
     gppi(sesskey, "FontIsBold", 0, &cfg->fontisbold);
     gppi(sesskey, "FontCharSet", ANSI_CHARSET, &cfg->fontcharset);
     gppi(sesskey, "FontHeight", 10, &cfg->fontheight);
@@ -413,7 +416,7 @@ void load_settings(char *section, int do_host, Config * cfg)
 	    newh--;
 	cfg->fontheight = newh;
     }
-    gppi(sesskey, "FontVTMode", VT_OEMANSI, (int *) &cfg->vtmode);
+    gppi(sesskey, "FontVTMode", VT_UNICODE, (int *) &cfg->vtmode);
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);
     gppi(sesskey, "BoldAsColour", 1, &cfg->bold_colour);
     for (i = 0; i < 22; i++) {
@@ -472,6 +475,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
     gppi(sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
     gppi(sesskey, "LockSize", 0, &cfg->locksize);
+    gppi(sesskey, "LockFont", cfg->locksize, &cfg->lockfont);
     gppi(sesskey, "BCE", 0, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
