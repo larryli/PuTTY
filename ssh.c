@@ -114,6 +114,12 @@ static void ssh_gotdata(unsigned char *data, int datalen) {
 	    data++, datalen--;
 	}
 
+#ifdef FWHACK
+        if (len == 0x52656d6f) {       /* "Remo"te server has closed ... */
+            len = 0x300;               /* big enough to carry to end */
+        }
+#endif
+
 	pad = 8 - (len%8);
 
 	biglen = len + pad;

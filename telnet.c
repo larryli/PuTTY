@@ -350,7 +350,7 @@ static void process_subneg (void) {
 	    b[0] = IAC; b[1] = SB; b[2] = sb_opt;
 	    b[3] = TELQUAL_IS;
 	    n = 4;
-	    e = cfg.environ;
+          e = cfg.environmt;
 	    while (*e) {
 		b[n++] = var;
 		while (*e && *e != '\t') b[n++] = *e++;

@@ -1254,8 +1254,8 @@ void term_paint (Context ctx, int l, int t, int r, int b) {
     right = (r - 1) / font_width;
     top = t / font_height;
     bottom = (b - 1) / font_height;
-    for (i = top; i <= bottom; i++)
-	for (j = left; j <= right; j++)
+    for (i = top; i <= bottom && j<rows ; i++)
+      for (j = left; j <= right && j<cols ; j++)
 	    disptext[i*(cols+1)+j] = ATTR_INVALID;
 
     do_paint (ctx, FALSE);
@@ -1339,7 +1339,14 @@ static void sel_spread (void) {
 }
 
 void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
-    unsigned long *selpoint = disptop + y * (cols+1) + x;
+    unsigned long *selpoint;
+    
+    if (y<0) y = 0;
+    if (y>=rows) y = rows-1;
+    if (x<0) x = 0;
+    if (x>=cols) x = cols-1;
+
+    selpoint = disptop + y * (cols+1) + x;
 
     if (b == MB_SELECT && a == MA_CLICK) {
 	deselect();

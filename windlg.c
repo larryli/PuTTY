@@ -134,9 +134,9 @@ static void save_settings (char *section, int do_host) {
     wpps (sesskey, "TerminalType", cfg.termtype);
     wpps (sesskey, "TerminalSpeed", cfg.termspeed);
     {
-	char buf[2*sizeof(cfg.environ)], *p, *q;
+      char buf[2*sizeof(cfg.environmt)], *p, *q;
 	p = buf;
-	q = cfg.environ;
+      q = cfg.environmt;
 	while (*q) {
 	    while (*q) {
 		int c = *q++;
@@ -245,10 +245,10 @@ static void load_settings (char *section, int do_host) {
     gpps (sesskey, "TerminalSpeed", "38400,38400", cfg.termspeed,
 	  sizeof(cfg.termspeed));
     {
-	char buf[2*sizeof(cfg.environ)], *p, *q;
+      char buf[2*sizeof(cfg.environmt)], *p, *q;
 	gpps (sesskey, "Environment", "", buf, sizeof(buf));
 	p = buf;
-	q = cfg.environ;
+      q = cfg.environmt;
 	while (*p) {
 	    while (*p && *p != ',') {
 		int c = *p++;
@@ -712,7 +712,7 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 	SetDlgItemText (hwnd, IDC3_TSEDIT, cfg.termspeed);
 	SetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username);
 	{
-	    char *p = cfg.environ;
+          char *p = cfg.environmt;
 	    while (*p) {
 		SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_ADDSTRING, 0,
 				    (LPARAM) p);
@@ -746,7 +746,7 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 	  case IDC3_ENVADD:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		char str[sizeof(cfg.environ)];
+              char str[sizeof(cfg.environmt)];
 		char *p;
 		GetDlgItemText (hwnd, IDC3_VAREDIT, str, sizeof(str)-1);
 		if (!*str) {
@@ -760,12 +760,12 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 		    MessageBeep(0);
 		    break;
 		}
-		p = cfg.environ;
+              p = cfg.environmt;
 		while (*p) {
 		    while (*p) p++;
 		    p++;
 		}
-		if ((p-cfg.environ) + strlen(str) + 2 < sizeof(cfg.environ)) {
+              if ((p-cfg.environmt) + strlen(str) + 2 < sizeof(cfg.environmt)) {
 		    strcpy (p, str);
 		    p[strlen(str)+1] = '\0';
 		    SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_ADDSTRING,
@@ -790,7 +790,7 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 
 	        SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_DELETESTRING,
 				    i, 0);
-		p = cfg.environ;
+              p = cfg.environmt;
 		while (i > 0) {
 		    if (!*p)
 			goto disaster;

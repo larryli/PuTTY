@@ -17,10 +17,15 @@ information.
 */
 
 /*
- * $Id: sshdes.c,v 1.1 1999/01/08 13:02:12 simon Exp $
+ * $Id: sshdes.c,v 1.2 1999/01/08 13:10:15 simon Exp $
  * $Log: sshdes.c,v $
- * Revision 1.1  1999/01/08 13:02:12  simon
- * Initial checkin: beta 0.43
+ * Revision 1.2  1999/01/08 13:10:15  simon
+ * John Sullivan's patches plus more fixes:
+ *   - Stop using the identifier `environ' as some platforms make it a macro
+ *   - Fix silly error box at end of connection in FWHACK mode
+ *   - Fix GPF on maximise-then-restore
+ *   - Use SetCapture to allow drag-selecting outside the window
+ *   - Correctly update window title when iconic and in win_name_always mode
  *
  * Revision 1.1.1.1  1996/02/18 21:38:11  ylo
  * 	Imported ssh-1.2.13.
@@ -111,10 +116,15 @@ cryptography and data security, including the following:
 */
 
 /*
- * $Id: sshdes.c,v 1.1 1999/01/08 13:02:12 simon Exp $
+ * $Id: sshdes.c,v 1.2 1999/01/08 13:10:15 simon Exp $
  * $Log: sshdes.c,v $
- * Revision 1.1  1999/01/08 13:02:12  simon
- * Initial checkin: beta 0.43
+ * Revision 1.2  1999/01/08 13:10:15  simon
+ * John Sullivan's patches plus more fixes:
+ *   - Stop using the identifier `environ' as some platforms make it a macro
+ *   - Fix silly error box at end of connection in FWHACK mode
+ *   - Fix GPF on maximise-then-restore
+ *   - Use SetCapture to allow drag-selecting outside the window
+ *   - Correctly update window title when iconic and in win_name_always mode
  *
  * Revision 1.1.1.1  1996/02/18 21:38:11  ylo
  * 	Imported ssh-1.2.13.

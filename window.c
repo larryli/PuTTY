@@ -698,33 +698,43 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    break;
 	}
 	break;
+
+#define X_POS(l) ((int)(short)LOWORD(l))
+#define Y_POS(l) ((int)(short)HIWORD(l))
+
       case WM_LBUTTONDOWN:
-	click (MB_SELECT, LOWORD(lParam) / font_width,
-	       HIWORD(lParam) / font_height);
+        SetCapture(hwnd);
+	click (MB_SELECT, X_POS(lParam) / font_width,
+	       Y_POS(lParam) / font_height);
 	return 0;
       case WM_LBUTTONUP:
-	term_mouse (MB_SELECT, MA_RELEASE, LOWORD(lParam) / font_width,
-		    HIWORD(lParam) / font_height);
+	term_mouse (MB_SELECT, MA_RELEASE, X_POS(lParam) / font_width,
+		    Y_POS(lParam) / font_height);
+        ReleaseCapture();
 	return 0;
       case WM_MBUTTONDOWN:
+        SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
-	       LOWORD(lParam) / font_width,
-	       HIWORD(lParam) / font_height);
+	       X_POS(lParam) / font_width,
+	       Y_POS(lParam) / font_height);
 	return 0;
       case WM_MBUTTONUP:
 	term_mouse (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
-		    MA_RELEASE, LOWORD(lParam) / font_width,
-		    HIWORD(lParam) / font_height);
+		    MA_RELEASE, X_POS(lParam) / font_width,
+		    Y_POS(lParam) / font_height);
 	return 0;
+        ReleaseCapture();
       case WM_RBUTTONDOWN:
+        SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
-	       LOWORD(lParam) / font_width,
-	       HIWORD(lParam) / font_height);
+	       X_POS(lParam) / font_width,
+	       Y_POS(lParam) / font_height);
 	return 0;
       case WM_RBUTTONUP:
 	term_mouse (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
-		    MA_RELEASE, LOWORD(lParam) / font_width,
-		    HIWORD(lParam) / font_height);
+		    MA_RELEASE, X_POS(lParam) / font_width,
+		    Y_POS(lParam) / font_height);
+        ReleaseCapture();
 	return 0;
       case WM_MOUSEMOVE:
 	/*
@@ -742,8 +752,8 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		b = cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND;
 	    else
 		b = cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE;
-	    term_mouse (b, MA_DRAG, LOWORD(lParam) / font_width,
-			HIWORD(lParam) / font_height);
+	    term_mouse (b, MA_DRAG, X_POS(lParam) / font_width,
+			Y_POS(lParam) / font_height);
 	}
 	lastbtn = MB_NOTHING;
 	lastact = MA_NOTHING;
@@ -1315,7 +1325,7 @@ void set_title (char *title) {
     sfree (window_name);
     window_name = smalloc(1+strlen(title));
     strcpy (window_name, title);
-    if (!IsIconic(hwnd))
+    if (cfg.win_name_always || !IsIconic(hwnd))
 	SetWindowText (hwnd, title);
 }
 
@@ -1323,7 +1333,7 @@ void set_icon (char *title) {
     sfree (icon_name);
     icon_name = smalloc(1+strlen(title));
     strcpy (icon_name, title);
-    if (IsIconic(hwnd))
+    if (!cfg.win_name_always && IsIconic(hwnd))
 	SetWindowText (hwnd, title);
 }
 

@@ -1,3 +1,5 @@
+#include <string.h>
+
 struct RSAKey {
     int bits;
     int bytes;

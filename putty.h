@@ -98,7 +98,7 @@ typedef struct {
     /* Telnet options */
     char termtype[32];
     char termspeed[32];
-    char environ[1024];		       /* VAR\tvalue\0VAR\tvalue\0\0 */
+    char environmt[1024];                    /* VAR\tvalue\0VAR\tvalue\0\0 */
     char username[32];
     int rfc_environ;
     /* Keyboard options */
