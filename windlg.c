@@ -13,6 +13,7 @@
 
 #include <commctrl.h>
 #include <commdlg.h>
+#include <shellapi.h>
 
 #ifdef MSVC4
 #define TVINSERTSTRUCT  TV_INSERTSTRUCT

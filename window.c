@@ -110,7 +110,6 @@ static struct unicode_data ucsdata;
 static int session_closed;
 
 static const struct telnet_special *specials;
-static int specials_menu_position;
 
 static struct {
     HMENU menu;
@@ -4601,7 +4600,7 @@ char *get_window_title(void *frontend, int icon)
 /*
  * See if we're in full-screen mode.
  */
-int is_full_screen()
+static int is_full_screen()
 {
     if (!IsZoomed(hwnd))
 	return FALSE;
@@ -4640,7 +4639,7 @@ static int get_fullscreen_rect(RECT * ss)
  * Go full-screen. This should only be called when we are already
  * maximised.
  */
-void make_full_screen()
+static void make_full_screen()
 {
     DWORD style;
 	RECT ss;
@@ -4674,7 +4673,7 @@ void make_full_screen()
 /*
  * Clear the full-screen attributes.
  */
-void clear_full_screen()
+static void clear_full_screen()
 {
     DWORD oldstyle, style;
 
@@ -4704,7 +4703,7 @@ void clear_full_screen()
 /*
  * Toggle full-screen mode.
  */
-void flip_full_screen()
+static void flip_full_screen()
 {
     if (is_full_screen()) {
 	ShowWindow(hwnd, SW_RESTORE);

@@ -1,4 +1,8 @@
 /* Some compilers, like Borland, don't have winresrc.h */
+#ifdef __LCC__ 
+#include <win.h>
+#else
+
 #ifndef NO_WINRESRC_H
 #ifndef MSVC4
 #include <winresrc.h>
@@ -6,6 +10,8 @@
 #include <winres.h>
 #endif
 #endif
+
+#endif /* end #ifdef __LCC__
 
 /* Some systems don't define this, so I do it myself if necessary */
 #ifndef RT_MANIFEST
