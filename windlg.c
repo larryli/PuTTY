@@ -189,6 +189,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_PROTSTATIC,
     IDC_PROTRAW,
     IDC_PROTTELNET,
+    IDC_PROTRLOGIN,
     IDC_PROTSSH,
     IDC_SESSSTATIC,
     IDC_SESSEDIT,
@@ -317,6 +318,16 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_EMRFC,
     telnetpanelend,
 
+    rloginpanelstart,
+    IDC_TITLE_RLOGIN,
+    IDC_BOX_RLOGIN1, IDC_BOXT_RLOGIN1,
+    IDC_BOX_RLOGIN2, IDC_BOXT_RLOGIN2,
+    IDC_R_TSSTATIC,
+    IDC_R_TSEDIT,
+    IDC_RLLUSERSTATIC,
+    IDC_RLLUSEREDIT,
+    rloginpanelend,
+
     sshpanelstart,
     IDC_TITLE_SSH,
     IDC_BOX_SSH1, IDC_BOXT_SSH1,
@@ -433,7 +444,8 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
     CheckRadioButton (hwnd, IDC_PROTRAW, IDC_PROTSSH,
 		      cfg.protocol==PROT_SSH ? IDC_PROTSSH :
-		      cfg.protocol==PROT_TELNET ? IDC_PROTTELNET : IDC_PROTRAW );
+		      cfg.protocol==PROT_TELNET ? IDC_PROTTELNET :
+                      cfg.protocol==PROT_RLOGIN ? IDC_PROTRLOGIN : IDC_PROTRAW );
     SetDlgItemInt (hwnd, IDC_PINGEDIT, cfg.ping_interval, FALSE);
 
     CheckRadioButton (hwnd, IDC_DEL008, IDC_DEL127,
@@ -487,6 +499,8 @@ static void init_dlg_ctrls(HWND hwnd) {
 
     SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
     SetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed);
+    SetDlgItemText (hwnd, IDC_R_TSEDIT, cfg.termspeed);
+    SetDlgItemText (hwnd, IDC_RLLUSEREDIT, cfg.localusername);
     SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
     SetDlgItemText (hwnd, IDC_LGFEDIT, cfg.logfilename);
     CheckRadioButton(hwnd, IDC_LSTATOFF, IDC_LSTATRAW,
@@ -693,13 +707,15 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			  "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
 		if (backends[2].backend == NULL) {
 		    /* this is PuTTYtel, so only two protocols available */
-		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
-			      "&Raw", IDC_PROTRAW,
-			      "&Telnet", IDC_PROTTELNET, NULL);
-		} else {
-		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
+		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
 			      "&Raw", IDC_PROTRAW,
 			      "&Telnet", IDC_PROTTELNET,
+			      "R&login", IDC_PROTRLOGIN, NULL);
+		} else {
+		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
+			      "&Raw", IDC_PROTRAW,
+			      "&Telnet", IDC_PROTTELNET,
+			      "R&login", IDC_PROTRLOGIN,
 #ifdef FWHACK
 			      "SS&H/hack",
 #else
@@ -993,6 +1009,23 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    }
 	}
 
+
+	/* The Rlogin Panel */
+	{
+	    struct ctlpos cp;
+	    ctlposinit(&cp, hwnd, 80, 3, 13);
+	    if (dlgtype == 0) {
+                bartitle(&cp, "Options controlling Rlogin connections", IDC_TITLE_RLOGIN);
+                beginbox(&cp, "Data to send to the server",
+                         IDC_BOX_RLOGIN1, IDC_BOXT_RLOGIN1);
+		staticedit(&cp, "Terminal-&speed string", IDC_R_TSSTATIC, IDC_R_TSEDIT, 50);
+		staticedit(&cp, "&Local username:", IDC_RLLUSERSTATIC, IDC_RLLUSEREDIT, 50);
+                endbox(&cp);
+
+                treeview_insert(&tvfaff, 1, "Rlogin");
+	    }
+	}
+
 	/* The SSH panel. Accelerators used: [acgo] rmakwp123bd */
         if (backends[2].backend != NULL) {
 	    struct ctlpos cp;
@@ -1095,6 +1128,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		hide(hwnd, FALSE, connectionpanelstart, connectionpanelend);
 	    if (!strcmp(buffer, "Telnet"))
 		hide(hwnd, FALSE, telnetpanelstart, telnetpanelend);
+	    if (!strcmp(buffer, "Rlogin"))
+		hide(hwnd, FALSE, rloginpanelstart, rloginpanelend);
 	    if (!strcmp(buffer, "SSH"))
 		hide(hwnd, FALSE, sshpanelstart, sshpanelend);
 	    if (!strcmp(buffer, "Selection"))
@@ -1123,16 +1158,19 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    EndDialog (hwnd, 0);
 	    return 0;
 	  case IDC_PROTTELNET:
+	  case IDC_PROTRLOGIN:
 	  case IDC_PROTSSH:
 	  case IDC_PROTRAW:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int i = IsDlgButtonChecked (hwnd, IDC_PROTSSH);
 		int j = IsDlgButtonChecked (hwnd, IDC_PROTTELNET);
-		cfg.protocol = i ? PROT_SSH : j ? PROT_TELNET : PROT_RAW ;
-		if ((cfg.protocol == PROT_SSH && cfg.port == 23) ||
-		    (cfg.protocol == PROT_TELNET && cfg.port == 22)) {
-		    cfg.port = i ? 22 : 23;
+		int k = IsDlgButtonChecked (hwnd, IDC_PROTRLOGIN);
+		cfg.protocol = i ? PROT_SSH : j ? PROT_TELNET : k ? PROT_RLOGIN : PROT_RAW ;
+		if ((cfg.protocol == PROT_SSH && cfg.port != 22) ||
+		    (cfg.protocol == PROT_TELNET && cfg.port != 23) ||
+		    (cfg.protocol == PROT_RLOGIN && cfg.port != 513)) {
+		    cfg.port = i ? 22 : j ? 23 : 513;
 		    SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
 		}
 	    }
@@ -1517,14 +1555,20 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    }
 	    break;
 	  case IDC_TSEDIT:
+	  case IDC_R_TSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed,
+		GetDlgItemText (hwnd, LOWORD(wParam), cfg.termspeed,
 				sizeof(cfg.termspeed)-1);
 	    break;
 	  case IDC_LOGEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
 		GetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username,
 				sizeof(cfg.username)-1);
+	    break;
+	  case IDC_RLLUSEREDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+		GetDlgItemText (hwnd, IDC_RLLUSEREDIT, cfg.localusername,
+				sizeof(cfg.localusername)-1);
 	    break;
 	  case IDC_EMBSD:
 	  case IDC_EMRFC:

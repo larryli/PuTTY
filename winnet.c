@@ -288,7 +288,7 @@ void sk_addr_free(SockAddr addr) {
     sfree(addr);
 }
 
-Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
+Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver) {
     SOCKET s;
 #ifdef IPV6
     SOCKADDR_IN6 a6;
@@ -298,6 +298,7 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     char *errstr;
     Socket ret;
     extern char *do_select(SOCKET skt, int startup);
+    short localport;
 
     /*
      * Create Socket structure.
@@ -325,28 +326,56 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     /*
      * Bind to local address.
      */
-#ifdef IPV6
-    if (addr->family == AF_INET6)
-    {
-	memset(&a6,0,sizeof(a6));
-	a6.sin6_family	= AF_INET6;
-	/*a6.sin6_addr	= in6addr_any;*/			/* == 0 */
-	a6.sin6_port	= htons(0);
-    }
+    if (privport)
+        localport = 1023;              /* count from 1023 downwards */
     else
-    {
-#endif
-	a.sin_family = AF_INET;
-	a.sin_addr.s_addr = htonl(INADDR_ANY);
-	a.sin_port = htons(0);
+        localport = 0;                 /* just use port 0 (ie winsock picks) */
+
+    /* Loop round trying to bind */
+    while (1) {
+        int retcode;
+
 #ifdef IPV6
-    }
-    if (bind (s, (addr->family == AF_INET6) ? (struct sockaddr *)&a6 : (struct sockaddr *)&a, (addr->family == AF_INET6) ? sizeof(a6) : sizeof(a)) == SOCKET_ERROR)
-#else
-	if (bind (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR)
+        if (addr->family == AF_INET6)
+        {
+            memset(&a6,0,sizeof(a6));
+            a6.sin6_family	= AF_INET6;
+            /*a6.sin6_addr	= in6addr_any;*/  /* == 0 */
+            a6.sin6_port	= htons(localport);
+        }
+        else
+        {
 #endif
+            a.sin_family = AF_INET;
+            a.sin_addr.s_addr = htonl(INADDR_ANY);
+            a.sin_port = htons(localport);
+#ifdef IPV6
+        }
+        retcode = bind (s, (addr->family == AF_INET6 ?
+                            (struct sockaddr *)&a6 :
+                            (struct sockaddr *)&a),
+                        (addr->family == AF_INET6 ? sizeof(a6) : sizeof(a)));
+#else
+        retcode = bind (s, (struct sockaddr *)&a, sizeof(a));
+#endif
+        if (retcode != SOCKET_ERROR) {
+            err = 0;
+            break;                     /* done */
+        } else {
+            err = WSAGetLastError();
+            if (err != WSAEADDRINUSE)  /* failed, for a bad reason */
+                break;
+        }
+
+        if (localport == 0)
+            break;                     /* we're only looping once */
+        localport--;
+        if (localport == 0)
+            break;                     /* we might have got to the end */
+    }
+
+    if (err)
     {
-	err = WSAGetLastError();
 	ret->error = winsock_error_string(err);
 	return ret;
     }

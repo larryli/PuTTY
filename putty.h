@@ -137,7 +137,7 @@ typedef struct {
     /* Basic options */
     char host[512];
     int port;
-    enum { PROT_RAW, PROT_TELNET, PROT_SSH } protocol;
+    enum { PROT_RAW, PROT_TELNET, PROT_RLOGIN, PROT_SSH } protocol;
     int close_on_exit;
     int warn_on_close;
     int ping_interval;                 /* in seconds */
@@ -156,6 +156,7 @@ typedef struct {
     char termspeed[32];
     char environmt[1024];                    /* VAR\tvalue\0VAR\tvalue\0\0 */
     char username[32];
+    char localusername[32];
     int rfc_environ;
     /* Keyboard options */
     int bksp_is_delete;
@@ -332,6 +333,12 @@ void term_copyall(void);
  */
 
 extern Backend raw_backend;
+
+/*
+ * Exports from rlogin.c.
+ */
+
+extern Backend rlogin_backend;
 
 /*
  * Exports from telnet.c.

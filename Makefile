@@ -65,7 +65,7 @@ RES=res
 GOBJS1 = window.$(OBJ) windlg.$(OBJ) winctrls.$(OBJ) terminal.$(OBJ)
 GOBJS2 = xlat.$(OBJ) sizetip.$(OBJ)
 ##-- objects putty puttytel plink
-LOBJS1 = telnet.$(OBJ) raw.$(OBJ) ldisc.$(OBJ) winnet.$(OBJ)
+LOBJS1 = telnet.$(OBJ) raw.$(OBJ) rlogin.$(OBJ) ldisc.$(OBJ) winnet.$(OBJ)
 ##-- objects putty plink
 POBJS = be_all.$(OBJ)
 ##-- objects puttytel
@@ -224,6 +224,7 @@ terminal.$(OBJ): terminal.c putty.h puttymem.h network.h
 sizetip.$(OBJ): sizetip.c putty.h puttymem.h network.h winstuff.h
 telnet.$(OBJ): telnet.c putty.h puttymem.h network.h
 raw.$(OBJ): raw.c putty.h puttymem.h network.h
+rlogin.$(OBJ): rlogin.c putty.h puttymem.h network.h
 xlat.$(OBJ): xlat.c putty.h puttymem.h network.h
 ldisc.$(OBJ): ldisc.c putty.h puttymem.h network.h
 misc.$(OBJ): misc.c putty.h puttymem.h network.h

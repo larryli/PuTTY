@@ -68,6 +68,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
 	write_setting_s (sesskey, "Environment", buf);
     }
     write_setting_s (sesskey, "UserName", cfg->username);
+    write_setting_s (sesskey, "LocalUserName", cfg->localusername);
     write_setting_i (sesskey, "NoPTY", cfg->nopty);
     write_setting_i (sesskey, "Compression", cfg->compression);
     write_setting_i (sesskey, "AgentFwd", cfg->agentfwd);
@@ -199,6 +200,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
 	*q = '\0';
     }
     gpps (sesskey, "UserName", "", cfg->username, sizeof(cfg->username));
+    gpps (sesskey, "LocalUserName", "", cfg->localusername, sizeof(cfg->localusername));
     gppi (sesskey, "NoPTY", 0, &cfg->nopty);
     gppi (sesskey, "Compression", 0, &cfg->compression);
     gppi (sesskey, "AgentFwd", 0, &cfg->agentfwd);

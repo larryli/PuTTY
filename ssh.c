@@ -1184,7 +1184,7 @@ static char *connect_to_host(char *host, int port, char **realhost)
     /*
      * Open socket.
      */
-    s = sk_new(addr, port, ssh_receive);
+    s = sk_new(addr, port, 0, ssh_receive);
     if ( (err = sk_socket_error(s)) )
 	return err;
 
