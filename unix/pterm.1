@@ -9,108 +9,108 @@ pterm \- yet another X terminal emulator
 the terminal emulation engine in the Windows SSH client PuTTY.
 .SH OPTIONS
 The command-line options supported by \fIpterm\fP are:
-.IP "\fB-e\fP \fIcommand\fP [ \fIarguments\fP ]"
+.IP "\fB\-e\fP \fIcommand\fP [ \fIarguments\fP ]"
 Specify a command to be executed in the new terminal. Everything on
 the command line after this option will be passed straight to the
 \fIexecvp\fP system call; so if you need the command to redirect its
 input or output, you will have to use \fIsh\fP:
 
-pterm -e sh -c 'mycommand < inputfile'
-.IP "\fB--display\fP \fIdisplay-name\fP"
+pterm \-e sh \-c 'mycommand < inputfile'
+.IP "\fB\-\-display\fP \fIdisplay\-name\fP"
 Specify the X display on which to open \fIpterm\fP. (Note this
 option has a double minus sign, even though none of the others do.
 This is because this option is supplied automatically by GTK.
 Sorry.)
-.IP "\fB-name\fP \fIfont-name\fP"
+.IP "\fB\-name\fP \fIfont-name\fP"
 Specify the name under which \fIpterm\fP looks up X resources.
 Normally it will look them up as (for example) \fBpterm.Font\fP. If
-you specify "-name xyz", it will look them up as \fBxyz.Font\fP
+you specify "\-name xyz", it will look them up as \fBxyz.Font\fP
 instead. This allows you to set up several different sets of
 defaults and choose between them.
-.IP "\fB-fn\fP \fIfont-name\fP"
+.IP "\fB\-fn\fP \fIfont-name\fP"
 Specify the font to use for normal text displayed in the terminal.
-.IP "\fB-fb\fP \fIfont-name\fP"
+.IP "\fB\-fb\fP \fIfont-name\fP"
 Specify the font to use for bold text displayed in the terminal. If
 the \fIBoldAsColour\fP resource is set to 1 (the default), bold text
 will be displayed in different colours instead of a different font,
 so this option will be ignored. If \fIBoldAsColour\fP is set to 0
 and you do not specify a bold font, \fIpterm\fP will overprint the
 normal font to make it look bolder.
-.IP "\fB-geometry\fP \fIwidth\fPx\fIheight\fP"
+.IP "\fB\-geometry\fP \fIwidth\fPx\fIheight\fP"
 Specify the size of the terminal, in rows and columns of text.
 Unfortunately \fIpterm\fP does not currently support specifying the
 initial position of the window.
-.IP "\fB-sl\fP \fIlines\fP"
+.IP "\fB\-sl\fP \fIlines\fP"
 Specify the number of lines of scrollback to save off the top of the
 terminal.
-.IP "\fB-fg\fP \fIcolour\fP"
+.IP "\fB\-fg\fP \fIcolour\fP"
 Specify the foreground colour to use for normal text.
-.IP "\fB-bg\fP \fIcolour\fP"
+.IP "\fB\-bg\fP \fIcolour\fP"
 Specify the background colour to use for normal text.
-.IP "\fB-bfg\fP \fIcolour\fP"
+.IP "\fB\-bfg\fP \fIcolour\fP"
 Specify the foreground colour to use for bold text, if the
 \fIBoldAsColour\fP resource is set to 1 (the default).
-.IP "\fB-bbg\fP \fIcolour\fP"
+.IP "\fB\-bbg\fP \fIcolour\fP"
 Specify the foreground colour to use for bold reverse-video text, if
 the \fIBoldAsColour\fP resource is set to 1 (the default). (This
 colour is best thought of as the bold version of the background
 colour; so it only appears when text is displayed \fIin\fP the
 background colour.)
-.IP "\fB-cfg\fP \fIcolour\fP"
+.IP "\fB\-cfg\fP \fIcolour\fP"
 Specify the foreground colour to use for text covered by the cursor.
-.IP "\fB-cbg\fP \fIcolour\fP"
+.IP "\fB\-cbg\fP \fIcolour\fP"
 Specify the background colour to use for text covered by the cursor.
 In other words, this is the main colour of the cursor.
-.IP "\fB-T\fP \fItitle\fP"
+.IP "\fB\-T\fP \fItitle\fP"
 Specify the initial title of the terminal window. (This can be
 changed under control of the server.)
-.IP "\fB-ut-\fP or \fB+ut\fP"
+.IP "\fB\-ut\-\fP or \fB+ut\fP"
 Tells \fIpterm\fP not to record your login in the \fIutmp\fP,
 \fIwtmp\fP and \fIlastlog\fP system log files; so you will not show
 up on \fIfinger\fP or \fIwho\fP listings, for example.
-.IP "\fB-ut\fP"
+.IP "\fB\-ut\fP"
 Tells \fIpterm\fP to record your login in \fIutmp\fP, \fIwtmp\fP and
-\fIlastlog\fP: this is the opposite of \fI-ut-\fP. This is the
+\fIlastlog\fP: this is the opposite of \fI\-ut\-\fP. This is the
 default option: you will probably only need to specify it explicitly
 if you have changed the default using the \fIStampUtmp\fP resource.
-.IP "\fB-ls-\fP or \fB+ls\fP"
+.IP "\fB\-ls\-\fP or \fB+ls\fP"
 Tells \fIpterm\fP not to execute your shell as a login shell.
-.IP "\fB-ls\fP"
+.IP "\fB\-ls\fP"
 Tells \fIpterm\fP to execute your shell as a login shell: this is
-the opposite of \fI-ls-\fP. This is the default option: you will
+the opposite of \fI\-ls\-\fP. This is the default option: you will
 probably only need to specify it explicitly if you have changed the
 default using the \fILoginShell\fP resource.
-.IP "\fB-sb-\fP or \fB+sb\fP"
+.IP "\fB\-sb\-\fP or \fB+sb\fP"
 Tells \fIpterm\fP not to display a scroll bar.
-.IP "\fB-sb\fP"
+.IP "\fB\-sb\fP"
 Tells \fIpterm\fP to display a scroll bar: this is the opposite of
-\fI-sb-\fP. This is the default option: you will probably only need
+\fI\-sb\-\fP. This is the default option: you will probably only need
 to specify it explicitly if you have changed the default using the
 \fIScrollBar\fP resource.
-.IP "\fB-log\fP \fIfilename\fP"
+.IP "\fB\-log\fP \fIfilename\fP"
 This option makes \fIpterm\fP log all the terminal output to a file
 as well as displaying it in the terminal.
-.IP "\fB-nethack\fP"
+.IP "\fB\-nethack\fP"
 Tells \fIpterm\fP to enable NetHack keypad mode, in which the
 numeric keypad generates the NetHack "hjklyubn" direction keys. This
 enables you to play NetHack with the numeric keypad without having
 to use the NetHack "number_pad" option (which requires you to press
 "n" before any repeat count). So you can move with the numeric
 keypad, and enter repeat counts with the normal number keys.
-.IP "\fB-xrm\fP \fIresource-string\fP"
+.IP "\fB\-xrm\fP \fIresource-string\fP"
 This option specifies an X resource string. Useful for setting
 resources which do not have their own command-line options. For
 example:
 
-pterm -xrm 'ScrollbarOnLeft: 1'
-.IP "\fB-help\fP, \fB--help\fP"
+pterm \-xrm 'ScrollbarOnLeft: 1'
+.IP "\fB\-help\fP, \fB\-\-help\fP"
 Display a message summarizing the available options
 .SH X RESOURCES
 \fIpterm\fP can be more completely configured by means of X
 resources. All of these resources are of the form \fIpterm.FOO\fP
 for some FOO; you can make \fIpterm\fP look them up under another
 name, such as \fIxyz.FOO\fP, by specifying the command-line option
-"-name xyz".
+"\-name xyz".
 .IP "\fBpterm.CloseOnExit\fP"
 This option should be set to 0, 1 or 2; the default is 2. It
 controls what \fIpterm\fP does when the process running inside it
@@ -144,7 +144,7 @@ the more usual ones generated by other emulators.
 This option can be set to any number between 0 and 5 inclusive; the
 default is 0. The modes vary the control sequences sent by the
 function keys; for more complete documentation, it is probably
-simplest to try each option in "pterm -e cat", and press the keys to
+simplest to try each option in "pterm \-e cat", and press the keys to
 see what they generate.
 .IP "\fBpterm.NoApplicationKeys\fP"
 This option should be set to either 0 or 1; the default is 0. When
@@ -196,7 +196,7 @@ is the normal one.
 .IP "\fBpterm.NetHackKeypad\fP"
 This option should be set to either 0 or 1; the default is 0. When
 set to 1, the numeric keypad operates in NetHack mode. This is
-equivalent to the \fI-nethack\fP command-line option.
+equivalent to the \fI\-nethack\fP command-line option.
 .IP "\fBpterm.Answerback\fP"
 This option controls the string which the terminal sends in response
 to receiving the ^E character ("tell me about yourself"). By default
@@ -257,7 +257,7 @@ example) set it to 1000000 for one second. The default is 5000000
 .IP "\fBpterm.ScrollbackLines\fP"
 This option specifies how many lines of scrollback to save above the
 visible terminal screen. The default is 200. This resource is
-equivalent to the \fI-sl\fP command-line option.
+equivalent to the \fI\-sl\fP command-line option.
 .IP "\fBpterm.DECOriginMode\fP"
 This option should be set to either 0 or 1; the default is 0. It
 specifies the default state of DEC Origin Mode. (If you don't know
@@ -273,33 +273,33 @@ This option should be set to either 0 or 1; the default is 0. When
 set to 1, the terminal will return the cursor to the left side of
 the screen when it receives a line feed character.
 .IP "\fBpterm.WinTitle\fP"
-This resource is the same as the \fI-T\fP command-line option: it
+This resource is the same as the \fI\-T\fP command-line option: it
 controls the initial title of the window. The default is "pterm".
 .IP "\fBpterm.TermWidth\fP"
-This resource is the same as the width part of the \fI-geometry\fP
+This resource is the same as the width part of the \fI\-geometry\fP
 command-line option: it controls the number of columns of text in
 the window. The default is 80.
 .IP "\fBpterm.TermHeight\fP"
-This resource is the same as the width part of the \fI-geometry\fP
+This resource is the same as the width part of the \fI\-geometry\fP
 command-line option: it controls the number of columns of text in
 the window. The defaults is 24.
 .IP "\fBpterm.Font\fP"
-This resource is the same as the \fI-fn\fP command-line option: it
+This resource is the same as the \fI\-fn\fP command-line option: it
 controls the font used to display normal text. The default is
 "fixed".
 .IP "\fBpterm.BoldFont\fP"
-This resource is the same as the \fI-fb\fP command-line option: it
+This resource is the same as the \fI\-fb\fP command-line option: it
 controls the font used to display bold text when \fIBoldAsColour\fP
 is turned off. The default is unset (the font will be bolded by
 printing it twice at a one-pixel offset).
 .IP "\fBpterm.ShadowBoldOffset\fP"
-This resource can be set to an integer; the default is -1. It
+This resource can be set to an integer; the default is \-1. It
 specifies the offset at which text is overprinted when using "shadow
 bold" mode. The default (1) means that the text will be printed in
 the normal place, and also one character to the right; this seems to
 work well for most X bitmap fonts, which have a blank line of pixels
 down the right-hand side. For some fonts, you may need to set this to
--1, so that the text is overprinted one pixel to the left; for
+\-1, so that the text is overprinted one pixel to the left; for
 really large fonts, you may want to set it higher than 1 (in one
 direction or the other).
 .IP "\fBpterm.BoldAsColour\fP"
@@ -314,11 +314,11 @@ decimal numbers giving red, green and blue values: so that black is
 "0,0,0", white is "255,255,255", red is "255,0,0" and so on.
 
 Colours 0 and 1 specify the foreground colour and its bold
-equivalent (the \fI-fg\fP and \fI-bfg\fP command-line options).
+equivalent (the \fI\-fg\fP and \fI\-bfg\fP command-line options).
 Colours 2 and 3 specify the background colour and its bold
-equivalent (the \fI-bg\fP and \fI-bbg\fP command-line options).
+equivalent (the \fI\-bg\fP and \fI\-bbg\fP command-line options).
 Colours 4 and 5 specify the text and block colours used for the
-cursor (the \fI-cfg\fP and \fI-cbg\fP command-line options). Each
+cursor (the \fI\-cfg\fP and \fI\-cbg\fP command-line options). Each
 even number from 6 to 20 inclusive specifies the colour to be used
 for one of the ANSI primary colour specifications (black, red,
 green, yellow, blue, magenta, cyan, white, in that order); the odd
@@ -367,11 +367,11 @@ This option is unset by default. If you set it, then
 server-controlled printing is enabled: the server can send control
 sequences to request data to be sent to a printer. That data will be
 piped into the command you specify here; so you might want to set it
-to "lpr", for example, or "lpr -Pmyprinter".
+to "lpr", for example, or "lpr \-Pmyprinter".
 .IP "\fBpterm.ScrollBar\fP"
 This option should be set to either 0 or 1; the default is 1. When
 set to 0, the scrollbar is hidden (although Shift-PageUp and
-Shift-PageDown still work). This is the same as the \fI-sb\fP
+Shift-PageDown still work). This is the same as the \fI\-sb\fP
 command-line option.
 .IP "\fBpterm.ScrollbarOnLeft\fP"
 This option should be set to either 0 or 1; the default is 0. When
@@ -398,12 +398,12 @@ distracting approach of making the text's background colour bold.
 .IP "\fBpterm.StampUtmp\fP"
 This option should be set to either 0 or 1; the default is 1. When
 set to 1, \fIpterm\fP will log the login in the various system log
-files. This resource is equivalent to the \fI-ut\fP command-line
+files. This resource is equivalent to the \fI\-ut\fP command-line
 option.
 .IP "\fBpterm.LoginShell\fP"
 This option should be set to either 0 or 1; the default is 1. When
 set to 1, \fIpterm\fP will execute your shell as a login shell. This
-resource is equivalent to the \fI-ls\fP command-line option.
+resource is equivalent to the \fI\-ls\fP command-line option.
 .SH BUGS
 Most of the X resources have silly names. (Historical reasons from
 PuTTY, mostly.)
