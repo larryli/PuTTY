@@ -41,14 +41,6 @@ static Config cfg;
  */
 
 /*
- * Determine whether a string is entirely composed of dots.
- */
-static int is_dots(char *str)
-{
-    return str[strspn(str, ".")] == '\0';
-}
-
-/*
  * Attempt to canonify a pathname starting from the pwd. If
  * canonification fails, at least fall back to returning a _valid_
  * pathname (though it may be ugly, eg /home/simon/../foobar).
@@ -291,10 +283,19 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
 		    ournames = sresize(ournames, namesize, struct fxp_name *);
 		}
 		for (i = 0; i < names->nnames; i++)
-		    if (!is_dots(names->names[i].filename) &&
+		    if (strcmp(names->names[i].filename, ".") &&
+			strcmp(names->names[i].filename, "..") &&
 			(!wildcard || wc_match(wildcard,
-					       names->names[i].filename)))
-			ournames[nnames++] = fxp_dup_name(&names->names[i]);
+					       names->names[i].filename))) {
+			if (!vet_filename(names->names[i].filename)) {
+			    printf("ignoring potentially dangerous server-"
+				   "supplied filename '%s'\n",
+				   names->names[i].filename);
+			} else {
+			    ournames[nnames++] =
+				fxp_dup_name(&names->names[i]);
+			}
+		    }
 		fxp_free_names(names);
 	    }
 	    sftp_register(req = fxp_close_send(dirhandle));

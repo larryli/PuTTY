@@ -341,6 +341,17 @@ void finish_wildcard_matching(WildcardMatcher *dir) {
     sfree(dir);
 }
 
+int vet_filename(char *name)
+{
+    if (strchr(name, '/'))
+	return FALSE;
+
+    if (name[0] == '.' && (!name[1] || (name[1] == '.' && !name[2])))
+	return FALSE;
+
+    return TRUE;
+}
+
 int create_directory(char *name)
 {
     return mkdir(name, 0777) == 0;

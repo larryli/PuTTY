@@ -150,6 +150,16 @@ char *wildcard_get_filename(WildcardMatcher *dir);
 void finish_wildcard_matching(WildcardMatcher *dir);
 
 /*
+ * Vet a filename returned from the remote host, to ensure it isn't
+ * in some way malicious. The idea is that this function is applied
+ * to filenames returned from FXP_READDIR, which means we can panic
+ * if we see _anything_ resembling a directory separator.
+ * 
+ * Returns TRUE if the filename is kosher, FALSE if dangerous.
+ */
+int vet_filename(char *name);
+
+/*
  * Create a directory. Returns 0 on error, !=0 on success.
  */
 int create_directory(char *name);

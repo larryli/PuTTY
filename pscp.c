@@ -687,7 +687,6 @@ void scp_sftp_listdir(char *dirname)
 
 	    for (i = 0; i < names->nnames; i++)
 		ournames[nnames++] = names->names[i];
-
 	    names->nnames = 0;	       /* prevent free_names */
 	    fxp_free_names(names);
 	}
@@ -1289,8 +1288,21 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		    namesize += names->nnames + 128;
 		    ournames = sresize(ournames, namesize, struct fxp_name);
 		}
-		for (i = 0; i < names->nnames; i++)
-		    ournames[nnames++] = names->names[i];
+		for (i = 0; i < names->nnames; i++) {
+		    if (!strcmp(names->names[i].filename, ".") ||
+			!strcmp(names->names[i].filename, "..")) {
+			/*
+			 * . and .. are normal consequences of
+			 * reading a directory, and aren't worth
+			 * complaining about.
+			 */
+		    } else if (!vet_filename(names->names[i].filename)) {
+			tell_user(stderr, "ignoring potentially dangerous server-"
+				  "supplied filename '%s'\n",
+				  names->names[i].filename);
+		    } else
+			ournames[nnames++] = names->names[i];
+		}
 		names->nnames = 0;	       /* prevent free_names */
 		fxp_free_names(names);
 	    }

@@ -445,6 +445,17 @@ void finish_wildcard_matching(WildcardMatcher *dir)
     sfree(dir);
 }
 
+int vet_filename(char *name)
+{
+    if (strchr(name, '/') || strchr(name, '\\') || strchr(name, ':'))
+	return FALSE;
+
+    if (!name[strspn(name, ".")])      /* entirely composed of dots */
+	return FALSE;
+
+    return TRUE;
+}
+
 int create_directory(char *name)
 {
     return CreateDirectory(name, NULL) != 0;
