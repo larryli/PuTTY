@@ -39,19 +39,27 @@ struct Socket_tag {
 typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
+    int resolved;
     OSStatus error;
-    DNSAddress address;
+    InetHostInfo hostinfo;
+    char hostname[512];
 };
 
 /* Globals */
 
 static struct {
     Actual_Socket socklist;
+    InetSvcRef inetsvc;
 } ot;
 
 OSErr ot_init(void)
 {
-    return InitOpenTransport();
+    OSStatus err;
+
+    err = InitOpenTransport();
+    if (err != kOTNoError) return err;
+    ot.inetsvc = OTOpenInternetServices(kDefaultInternetServicesPath, 0, &err);
+    return err;
 }
 
 void ot_cleanup(void)
@@ -69,14 +77,17 @@ void ot_cleanup(void)
 SockAddr ot_namelookup(char *host, char **canonicalname)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    char *realhost;
     
-    ret->error = kOTNoError;
-    OTInitDNSAddress(&(ret->address), host);
-  
-    /* for now we'll pretend canonicalname is always just host */
+    ret->error = OTInetStringToAddress(ot.inetsvc, host, &ret->hostinfo);
+    ret->resolved = TRUE;
 
-    *canonicalname = smalloc(1+strlen(host));
-    strcpy(*canonicalname, host);
+    if (ret->error == kOTNoError)
+	realhost = ret->hostinfo.name;
+    else
+	realhost = "";
+    *canonicalname = smalloc(1+strlen(realhost));
+    strcpy(*canonicalname, realhost);
     return ret;
 }
 
@@ -84,14 +95,24 @@ SockAddr ot_nonamelookup(char *host)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     
-    OTInitDNSAddress(&(ret->address), host);
-  
+    ret->resolved = FALSE;
+    ret->error = kOTNoError;
+    ret->hostname[0] = '\0';
+    strncat(ret->hostname, host, lenof(ret->hostname) - 1);
     return ret;
 }
 
 void ot_getaddr(SockAddr addr, char *buf, int buflen)
 {
-    strncpy(buf, (addr->address).fName, buflen);
+    char mybuf[16];
+
+    buf[0] = '\0';
+    if (addr->resolved) {
+	/* XXX only return first address */
+	OTInetHostToString(addr->hostinfo.addrs[0], mybuf);
+	strncat(buf, mybuf, buflen - 1);
+    } else
+	strncat(buf, addr->hostname, buflen - 1);
 }
 
 /* I think "local" here really means "loopback" */
@@ -104,19 +125,28 @@ int ot_hostname_is_local(char *name)
 
 int ot_address_is_local(SockAddr addr)
 {
+    int i;
 
-    /* FIXME */
+    if (addr->resolved)
+	for (i = 0; i < kMaxHostAddrs; i++)
+	    if (addr->hostinfo.addrs[i] & 0xff000000 == 0x7f000000)
+		return TRUE;
     return FALSE;
 }
 
 int ot_addrtype(SockAddr addr)
 {
-    return ADDRTYPE_IPV4;
+
+    if (addr->resolved)
+	return ADDRTYPE_IPV4;
+    return ADDRTYPE_NAME;
 }
 
 void ot_addrcopy(SockAddr addr, char *buf)
 {
-  
+
+    /* XXX only return first address */
+    memcpy(buf, &addr->hostinfo.addrs[0], 4);
 }
 
 void ot_addr_free(SockAddr addr)
@@ -214,6 +244,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     Actual_Socket ret;
     EndpointRef ep;
     OSStatus err;
+    InetAddress dest;
     TCall connectCall;
 
     ret = smalloc(sizeof(struct Socket_tag));
@@ -262,11 +293,12 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
      * Connect to remote address.
      */
 
-    /* FIXME: bolt the port onto the end */
+    /* XXX Try non-primary addresses */
+    OTInitInetAddress(&dest, port, addr->hostinfo.addrs[0]);
 
     memset(&connectCall, 0, sizeof(TCall));
-    connectCall.addr.buf = (UInt8 *) &(addr->address);
-    connectCall.addr.len = sizeof(DNSAddress);
+    connectCall.addr.buf = (UInt8 *) &dest;
+    connectCall.addr.len = sizeof(dest);
 
     err = OTConnect(ep, &connectCall, nil);
   
