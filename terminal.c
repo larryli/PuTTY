@@ -2014,8 +2014,9 @@ void term_out(void)
 				break;
 			      case 3:
 				if (esc_nargs >= 3) {
-				    move_window(def(esc_args[1], 0),
-						def(esc_args[2], 0));
+				    if (!cfg.no_remote_resize)
+					move_window(def(esc_args[1], 0),
+						    def(esc_args[2], 0));
 				}
 				break;
 			      case 4:
