@@ -507,8 +507,8 @@ static void init_fonts(void) {
 		           CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, \
 			   FIXED_PITCH | FF_DONTCARE, cfg.font)
     if (cfg.vtmode != VT_OEMONLY) {
-	f(FONT_NORMAL, ANSI_CHARSET, fw_dontcare, FALSE);
-	f(FONT_UNDERLINE, ANSI_CHARSET, fw_dontcare, TRUE);
+	f(FONT_NORMAL, cfg.fontcharset, fw_dontcare, FALSE);
+	f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
     }
     if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_OEMONLY) {
 	f(FONT_OEM, OEM_CHARSET, fw_dontcare, FALSE);
@@ -516,8 +516,8 @@ static void init_fonts(void) {
     }
     if (bold_mode == BOLD_FONT) {
 	if (cfg.vtmode != VT_OEMONLY) {
-	    f(FONT_BOLD, ANSI_CHARSET, fw_bold, FALSE);
-	    f(FONT_BOLDUND, ANSI_CHARSET, fw_bold, TRUE);
+	    f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
+	    f(FONT_BOLDUND, cfg.fontcharset, fw_bold, TRUE);
 	}
 	if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_OEMONLY) {
 	    f(FONT_OEMBOLD, OEM_CHARSET, fw_bold, FALSE);
@@ -1053,7 +1053,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	 * we're ready to cope.
 	 */
 	{
-	    char c = wParam;
+	    char c = xlat_kbd2tty((unsigned char)wParam);
 	    back->send (&c, 1);
 	}
 	return 0;
@@ -1341,10 +1341,20 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
      */
     if (ret) {
 	WORD chr;
-	int r = ToAscii (wParam, (lParam >> 16) & 0xFF,
-			 keystate, &chr, 0);
+	int r;
+	BOOL capsOn=keystate[VK_CAPITAL] !=0;
+
+	/* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
+	if(cfg.xlat_capslockcyr)
+	    keystate[VK_CAPITAL] = 0;
+
+	r = ToAscii (wParam, (lParam >> 16) & 0xFF,
+		     keystate, &chr, 0);
+
+	if(capsOn)
+	    chr = xlat_latkbd2win((unsigned char)(chr & 0xFF));
 	if (r == 1) {
-	    *p++ = chr & 0xFF;
+	    *p++ = xlat_kbd2tty((unsigned char)(chr & 0xFF));
 	    return p - output;
 	}
     }

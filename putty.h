@@ -123,6 +123,7 @@ typedef struct {
     char font[64];
     int fontisbold;
     int fontheight;
+    int fontcharset;
     VT_Mode vtmode;
     /* Colour options */
     int try_palette;
@@ -131,6 +132,9 @@ typedef struct {
     /* Selection options */
     int mouse_is_xterm;
     short wordness[256];
+    /* russian language translation */
+    int xlat_enablekoiwin;
+    int xlat_capslockcyr;
 } Config;
 
 /*
@@ -257,6 +261,13 @@ void safefree(void *);
  * Exports from version.c.
  */
 extern char ver[];
+
+/*
+ * Exports from xlat.c.
+ */
+unsigned char xlat_kbd2tty(unsigned char c);
+unsigned char xlat_tty2scr(unsigned char c);
+unsigned char xlat_latkbd2win(unsigned char c);
 
 /*
  * A debug system.

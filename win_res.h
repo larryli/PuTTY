@@ -11,6 +11,7 @@
 #define IDD_PANEL35      107
 #define IDD_PANEL4       108
 #define IDD_PANEL5       109
+#define IDD_PANEL6       114
 #define IDD_LOGBOX       110
 #define IDD_ABOUTBOX     111
 #define IDD_RECONF       112
@@ -123,5 +124,8 @@
 #define IDC5_GVALUE     1009
 #define IDC5_BVALUE     1010
 #define IDC5_CHANGE     1011
+
+#define IDC6_ENABLEKOIWINXLAT    1001
+#define IDC6_CAPSLOCKCYR         1002
 
 #endif

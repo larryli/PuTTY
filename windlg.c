@@ -9,9 +9,9 @@
 #include "putty.h"
 #include "win_res.h"
 
-#define NPANELS 7
-#define MAIN_NPANELS 7
-#define RECONF_NPANELS 4
+#define NPANELS 8
+#define MAIN_NPANELS 8
+#define RECONF_NPANELS 5
 
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
@@ -161,6 +161,7 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "TermHeight", cfg.height);
     wpps (sesskey, "Font", cfg.font);
     wppi (sesskey, "FontIsBold", cfg.fontisbold);
+    wppi (sesskey, "FontCharSet", cfg.fontcharset);
     wppi (sesskey, "FontHeight", cfg.fontheight);
     wppi (sesskey, "FontVTMode", cfg.vtmode);
     wppi (sesskey, "TryPalette", cfg.try_palette);
@@ -184,6 +185,8 @@ static void save_settings (char *section, int do_host) {
 	}
 	wpps (sesskey, buf, buf2);
     }
+    wppi (sesskey, "KoiWinXlat", cfg.xlat_enablekoiwin);
+    wppi (sesskey, "CapsLockCyr", cfg.xlat_capslockcyr);
 
     RegCloseKey(sesskey);
 }
@@ -287,6 +290,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "TermHeight", 24, &cfg.height);
     gpps (sesskey, "Font", "Courier", cfg.font, sizeof(cfg.font));
     gppi (sesskey, "FontIsBold", 0, &cfg.fontisbold);
+    gppi (sesskey, "FontCharSet", ANSI_CHARSET, &cfg.fontcharset);
     gppi (sesskey, "FontHeight", 10, &cfg.fontheight);
     gppi (sesskey, "FontVTMode", VT_POORMAN, &cfg.vtmode);
     gppi (sesskey, "TryPalette", 0, &cfg.try_palette);
@@ -329,6 +333,9 @@ static void load_settings (char *section, int do_host) {
 	    cfg.wordness[j] = atoi(q);
 	}
     }
+    gppi (sesskey, "KoiWinXlat", 0, &cfg.xlat_enablekoiwin);
+    gppi (sesskey, "CapsLockCyr", 0, &cfg.xlat_capslockcyr);
+
     RegCloseKey(sesskey);
 }
 
@@ -721,7 +728,7 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 	    lf.lfWidth = lf.lfEscapement = lf.lfOrientation = 0;
 	    lf.lfItalic = lf.lfUnderline = lf.lfStrikeOut = 0;
 	    lf.lfWeight = (cfg.fontisbold ? FW_BOLD : 0);
-	    lf.lfCharSet = ANSI_CHARSET;
+	    lf.lfCharSet = cfg.fontcharset;
 	    lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
 	    lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
 	    lf.lfQuality = DEFAULT_QUALITY;
@@ -739,6 +746,7 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 		strncpy (cfg.font, lf.lfFaceName, sizeof(cfg.font)-1);
 		cfg.font[sizeof(cfg.font)-1] = '\0';
 		cfg.fontisbold = (lf.lfWeight == FW_BOLD);
+		cfg.fontcharset = lf.lfCharSet;
 		cfg.fontheight = lf.lfHeight;
 		fmtfont (fontstatic);
 		SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
@@ -1098,9 +1106,36 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
     return GeneralPanelProc (hwnd, msg, wParam, lParam);
 }
 
+static int CALLBACK LanguageProc (HWND hwnd, UINT msg,
+				  WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+      case WM_INITDIALOG:
+	CheckDlgButton (hwnd, IDC6_ENABLEKOIWINXLAT, cfg.xlat_enablekoiwin);
+	CheckDlgButton (hwnd, IDC6_CAPSLOCKCYR, cfg.xlat_capslockcyr);
+      case WM_COMMAND:
+	switch (LOWORD(wParam)) {
+	  case IDC6_ENABLEKOIWINXLAT:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		cfg.xlat_enablekoiwin =
+		    IsDlgButtonChecked (hwnd, IDC6_ENABLEKOIWINXLAT);
+	    }
+	    break;
+	  case IDC6_CAPSLOCKCYR:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		cfg.xlat_capslockcyr =
+		    IsDlgButtonChecked (hwnd, IDC6_CAPSLOCKCYR);
+	    }
+	    break;
+	}
+    }
+    return GeneralPanelProc (hwnd, msg, wParam, lParam);
+}
+
 static DLGPROC panelproc[NPANELS] = {
     ConnectionProc, KeyboardProc, TerminalProc,
-    TelnetProc, SshProc, SelectionProc, ColourProc
+    TelnetProc, SshProc, SelectionProc, ColourProc, LanguageProc
 };
 static char *panelids[NPANELS] = {
     MAKEINTRESOURCE(IDD_PANEL0),
@@ -1109,14 +1144,17 @@ static char *panelids[NPANELS] = {
     MAKEINTRESOURCE(IDD_PANEL3),
     MAKEINTRESOURCE(IDD_PANEL35),
     MAKEINTRESOURCE(IDD_PANEL4),
-    MAKEINTRESOURCE(IDD_PANEL5)
-};
-static char *names[NPANELS] = {
-    "Connection", "Keyboard", "Terminal", "Telnet", "SSH", "Selection", "Colours"
+    MAKEINTRESOURCE(IDD_PANEL5),
+    MAKEINTRESOURCE(IDD_PANEL6)
 };
 
-static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6 };
-static int reconfp[RECONF_NPANELS] = { 1, 2, 5, 6 };
+static char *names[NPANELS] = {
+    "Connection", "Keyboard", "Terminal", "Telnet",
+    "SSH", "Selection", "Colours", "Language"
+};
+
+static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6, 7};
+static int reconfp[RECONF_NPANELS] = { 1, 2, 5, 6, 7};
 
 static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam,

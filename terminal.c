@@ -665,7 +665,7 @@ void term_out(void) {
 		    if (insert)
 			insch (1);
 		    check_selection (cpos, cpos+1);
-		    *cpos++ = c | curr_attr | 
+		    *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
 			(c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
 		    curs_x++;
 		    if (curs_x == cols) {
@@ -1436,7 +1436,17 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 		       !(p <= data+len-sizeof(sel_nl) &&
 			 !memcmp(p, sel_nl, sizeof(sel_nl))))
 		    p++;
-		back->send (q, p-q);
+
+		{
+		    int i;
+		    unsigned char c;
+		    for(i=0;i<p-q;i++)
+		    {
+			c=xlat_kbd2tty(q[i]);
+			back->send(&c,1);
+		    }
+		}
+
 		if (p <= data+len-sizeof(sel_nl) &&
 		    !memcmp(p, sel_nl, sizeof(sel_nl))) {
 		    back->send ("\r", 1);
