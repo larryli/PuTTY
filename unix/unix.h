@@ -1,6 +1,8 @@
 #ifndef PUTTY_UNIX_H
 #define PUTTY_UNIX_H
 
+#include "charset.h"
+
 typedef void *Context;                 /* FIXME: probably needs changing */
 
 extern Backend pty_backend;
@@ -47,7 +49,16 @@ int select_result(int fd, int event);
 int first_socket(int *state, int *rwx);
 int next_socket(int *state, int *rwx);
 
-#define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
+/*
+ * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
+ * which causes mb_to_wc and wc_to_mb to call _libc_ rather than
+ * libcharset. That way, we can interface the various charsets
+ * supported by libcharset with the one supported by mbstowcs and
+ * wcstombs (which will be the character set in which stuff read
+ * from the command line or config files is assumed to be encoded).
+ */
+#define DEFAULT_CODEPAGE 0xFFFF
+#define CP_UTF8 CS_UTF8		       /* from libcharset */
 
 #define strnicmp strncasecmp
 #define stricmp strcasecmp

@@ -90,6 +90,20 @@ to specify it explicitly if you have changed the default using the
 .IP "\fB\-log\fP \fIfilename\fP"
 This option makes \fIpterm\fP log all the terminal output to a file
 as well as displaying it in the terminal.
+.IP "\fB\-cs\fP \fIcharset\fP"
+This option specifies the character set in which \fIpterm\fP should
+assume the session is operating. This character set will be used to
+interpret all the data received from the session, and all input you
+type or paste into \fIpterm\fP will be converted into this character
+set before being sent to the session.
+
+Any character set name which is valid in a MIME header (and
+supported by \fIpterm\fP) should be valid here (examples are
+"ISO-8859-1", "windows-1252" or "UTF-8"). Also, any character
+encoding which is valid in an X logical font description should be
+valid ("ibm-cp437", for example).
+
+Character set names are case-insensitive.
 .IP "\fB\-nethack\fP"
 Tells \fIpterm\fP to enable NetHack keypad mode, in which the
 numeric keypad generates the NetHack "hjklyubn" direction keys. This
@@ -385,6 +399,14 @@ reset to the very bottom.
 This option should be set to either 0 or 1; the default is 1. When
 set to 1, any activity in the display causes the position of the
 scrollback to be reset to the very bottom.
+.IP "\fBpterm.LineCodePage\fP"
+This option specifies the character set to be used for the session.
+This is the same as the \fI\-cs\fP command-line option.
+.IP "\fBpterm.NoRemoteCharset\fP"
+This option disables the terminal's ability to change its character
+set when it receives escape sequences telling it to. You might need
+to do this to interoperate with programs which incorrectly change
+the character set to something they think is sensible.
 .IP "\fBpterm.BCE\fP"
 This option should be set to either 0 or 1; the default is 1. When
 set to 1, the various control sequences that erase parts of the
