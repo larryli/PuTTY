@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.8 2003/01/14 19:09:24 ben Exp $ */
+/* $Id: macstore.c,v 1.9 2003/01/18 12:03:28 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -390,12 +390,16 @@ void read_random_seed(noise_consumer_t consumer)
     FSClose(refnum);
 }
 
+/*
+ * We don't bother with the usual FSpExchangeFiles dance here because
+ * it doesn't really matter if the old random seed gets lost.
+ */
 void write_random_seed(void *data, int len)
 {
-    short puttyVRefNum, tmpVRefNum;
-    long puttyDirID, tmpDirID;
+    short puttyVRefNum;
+    long puttyDirID;
     OSErr error;
-    FSSpec dstfile, tmpfile;
+    FSSpec dstfile;
     short refnum;
     long count = len;
 
@@ -404,36 +408,16 @@ void write_random_seed(void *data, int len)
 
     error = FSMakeFSSpec(puttyVRefNum, puttyDirID, "\pPuTTY Random Seed",
 			 &dstfile);
-    if (error != noErr && error != fnfErr) return;
-
-    /* Create a temporary file to save to first. */
-    error = FindFolder(puttyVRefNum, kTemporaryFolderType, kCreateFolder,
-		       &tmpVRefNum, &tmpDirID);
-    if (error != noErr) return;
-    error = FSMakeFSSpec(tmpVRefNum, tmpDirID, "\pPuTTY Random Seed",
-			 &tmpfile);
-    if (error != noErr && error != fnfErr) return;
-    if (error == noErr) {
-	error = FSpDelete(&tmpfile);
-	if (error != noErr) return;
-    }
-    error = FSpCreate(&tmpfile, PUTTY_CREATOR, SEED_TYPE, smRoman);
+    if (error == fnfErr)
+	error = FSpCreate(&dstfile, PUTTY_CREATOR, SEED_TYPE, smRoman);
     if (error != noErr) return;
 
-    if (FSpOpenDF(&tmpfile, fsWrPerm, &refnum) != noErr) goto fail;
+    if (FSpOpenDF(&dstfile, fsWrPerm, &refnum) != noErr) return;
 
-    if (FSWrite(refnum, &count, data) != noErr) goto fail2;
-    if (FSClose(refnum) != noErr) goto fail;
+    FSWrite(refnum, &count, data);
 
-    if (FSpExchangeFiles(&tmpfile, &dstfile) != noErr) goto fail;
-    if (FSpDelete(&tmpfile) != noErr) return;
-
-    return;
-    
-  fail2:
     FSClose(refnum);
-  fail:
-    FSpDelete(&tmpfile);
+    return;
 }
 
 /*
