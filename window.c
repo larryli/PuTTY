@@ -1169,6 +1169,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
           case IDM_RECONF:
             {
                 int prev_alwaysontop = cfg.alwaysontop;
+		int need_setwpos = FALSE;
+		cfg.width = cols;
+		cfg.height = rows;
                 if (!do_reconfig(hwnd))
                     break;
                 just_reconfigged = TRUE;
@@ -1231,6 +1234,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                             SetWindowLong(hwnd, GWL_EXSTYLE, nexflag);
 
                         SendMessage (hwnd, WM_IGNORE_SIZE, 0, 0);
+
                         SetWindowPos(hwnd, NULL, 0,0,0,0,
                                      SWP_NOACTIVATE|SWP_NOCOPYBITS|
                                      SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|
@@ -1243,13 +1247,20 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                     }
                 }
 
+		if (cfg.height != rows ||
+		    cfg.width != cols ||
+		    cfg.savelines != savelines)
+		    need_setwpos = TRUE;
                 term_size(cfg.height, cfg.width, cfg.savelines);
                 InvalidateRect(hwnd, NULL, TRUE);
-                SetWindowPos (hwnd, NULL, 0, 0,
-                              extra_width + font_width * cfg.width,
-                              extra_height + font_height * cfg.height,
-                              SWP_NOACTIVATE | SWP_NOCOPYBITS |
-                              SWP_NOMOVE | SWP_NOZORDER);
+                if (need_setwpos) {
+		    force_normal(hwnd);
+		    SetWindowPos (hwnd, NULL, 0, 0,
+				  extra_width + font_width * cfg.width,
+				  extra_height + font_height * cfg.height,
+				  SWP_NOACTIVATE | SWP_NOCOPYBITS |
+				  SWP_NOMOVE | SWP_NOZORDER);
+		}
                 if (IsIconic(hwnd)) {
                     SetWindowText (hwnd,
                                    cfg.win_name_always ? window_name : icon_name);

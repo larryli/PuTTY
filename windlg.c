@@ -17,7 +17,7 @@ static HWND logbox = NULL, abtbox = NULL;
 
 static int readytogo;
 
-static void force_normal(HWND hwnd)
+void force_normal(HWND hwnd)
 {
     static int recurse = 0;
 
@@ -27,7 +27,7 @@ static void force_normal(HWND hwnd)
     recurse = 1;
 
     wp.length = sizeof(wp);
-    if (GetWindowPlacement(hwnd, &wp))
+    if (GetWindowPlacement(hwnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED)
     {
 	wp.showCmd = SW_SHOWNORMAL;
 	SetWindowPlacement(hwnd, &wp);
@@ -1787,8 +1787,6 @@ int do_reconfig (HWND hwnd) {
     ret = DialogBox (hinst, MAKEINTRESOURCE(IDD_RECONF), hwnd, ReconfDlgProc);
     if (!ret)
 	cfg = backup_cfg;	       /* structure copy */
-    else
-        force_normal(hwnd);
 
     return ret;
 }

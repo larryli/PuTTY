@@ -284,6 +284,7 @@ void showabout (HWND);
 void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint);
 void registry_cleanup(void);
+void force_normal(HWND hwnd);
 
 GLOBAL int nsessions;
 GLOBAL char **sessions;
