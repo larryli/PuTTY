@@ -2464,6 +2464,8 @@ void term_out(Terminal *term)
 	    term->wrapnext = FALSE;
 	    /* destructive backspace might be disabled */
 	    if (!term->cfg.no_dbackspace) {
+		check_boundary(term, term->curs.x, term->curs.y);
+		check_boundary(term, term->curs.x+1, term->curs.y);
 		copy_termchar(scrlineptr(term->curs.y),
 			      term->curs.x, &term->erase_char);
 	    }
