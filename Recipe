@@ -19,11 +19,13 @@
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile mpw mac/Makefile.mpw
+!makefile osx macosx/Makefile
 # Source directories.
 !srcdir charset/
 !srcdir windows/
 !srcdir unix/
 !srcdir mac/
+!srcdir macosx/
 
 # Help text added to the top of each Makefile, with /D converted
 # into -D as appropriate for the particular Makefile.
@@ -174,6 +176,9 @@ install:
 install-strip:
 	$(MAKE) install INSTALL_PROGRAM="$(INSTALL_PROGRAM) -s"
 !end
+!begin osx
+CFLAGS += -DMACOSX
+!end
 
 # ------------------------------------------------------------
 # Definitions of object groups. A group name, followed by an =,
@@ -190,8 +195,9 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
          + winutils wincfg
 
 # Same thing on Unix.
-UXTERM   = TERMINAL gtkwin gtkdlg gtkcols gtkpanel gtkcfg uxcfg uxucs uxprint
-         + xkeysym timing
+UXTERM   = TERMINAL uxcfg uxucs uxprint timing
+GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkcols gtkpanel xkeysym
+OSXTERM  = UXTERM osxwin osxdlg osxctrls
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc pinger
@@ -212,6 +218,7 @@ SFTP     = sftp int64 logging
 MISC     = timing misc version settings tree234 proxy
 WINMISC  = MISC winstore winnet cmdline windefs winmisc pproxy wintime
 UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time
+OSXMISC  = MISC uxstore uxsel osxsel uxnet uxmisc uxproxy time
 MACMISC  = MISC macstore macnet mtcpnet otnet macmisc macabout pproxy
 
 # Character set library, for use in pterm.
@@ -251,11 +258,11 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshpubk sshaes sshsh512 import winutils puttygen.res tree234
 	 + notiming LIBS wintime
 
-pterm    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
+pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time
-putty    : [X] UXTERM uxmisc misc ldisc settings uxsel BE_ALL uxstore
+putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
-puttytel : [X] UXTERM uxmisc misc ldisc settings uxsel BE_NOSSH
+puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC
 
 plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC uxsignal ux_x11
@@ -277,3 +284,6 @@ PuTTYtel : [M] terminal wcwidth ldiscucs logging BE_NOSSH mac macdlg
 PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
          + sshaes sshsh512 import macpgen.rsrc macpgkey macabout
+
+PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET BE_ALL NONSSH UXSSH
+         + ux_x11 uxpty uxsignal testback

@@ -1,0 +1,78 @@
+This directory contains a Mac OS X port of PuTTY/pterm, running as a
+native Aqua GUI application.
+
+THIS PORT IS CURRENTLY UNFINISHED AND EXPERIMENTAL. You are welcome
+to use it, but don't be surprised at unexpected behaviour. I'm not
+kidding.
+
+In particular, I have not yet decided where OS X PuTTY should store
+its configuration data. Options include storing it in ~/.putty to be
+compatible with Unix PuTTY, storing it wherever is compatible with
+Mac Classic PuTTY, storing it in a natively OS X location, or
+sorting out the `config-locations' wishlist item and doing all
+three. Therefore, if you start using this port and create a whole
+load of saved sessions, you should not be surprised if a future
+version of the port decides to look somewhere completely different
+for the data and therefore loses them all. If that happens, don't
+say you weren't warned!
+
+Even more importantly, the alert box that confirms host keys is not
+yet implemented, and the application will bomb out and exit if it
+should be needed. This means you cannot make an SSH connection to a
+new host using the GUI PuTTY in this port: you must first run
+`plink' (which should be exactly identical to the version in the
+Unix port) and tell it to confirm the host key.
+
+Other ways in which the port is currently unfinished include:
+
+ - terminal display is horribly slow
+
+ - fatal errors are currently output via printf, which is obviously
+   wrong for a GUI application
+
+ - fonts aren't configurable
+
+ - several features are unimplemented in the terminal display:
+   underlining, non-solid-block cursors, double-width and
+   double-height line attributes, bold as font rather than as
+   colour, wide (CJK) characters, combining characters.
+
+ - there's no scrollbar
+
+ - terminal window resizing isn't implemented yet
+
+ - proper window placement (cascading down and right from the
+   starting position, plus remembering previous window positions per
+   the Apple HIG) is not implemented
+
+ - close-on-exit isn't implemented
+
+ - warn-on-close isn't implemented
+
+ - SessionWindow's dealloc method does nothing yet, so leaks memory
+
+ - use of Alt+numberpad to enter arbitrary numeric character codes
+   is not yet supported
+
+ - cut and paste isn't supported
+
+ - there's no Meta key yet. (I think it will have to be Command
+   rather than Option since the latter is necessary to send some
+   characters, including the rather important # on Apple UK
+   keyboards; but trapping Command-<key> and sending it to the
+   window rather than the application menu requires me to make a
+   positive effort of some sort and I haven't got round to it yet.)
+
+ - there's no specials menu
+
+ - currently no support for server-side window management requests
+   (i.e. escape sequences to minimise or maximise the window,
+   request or change its position and size, change its title etc)
+
+ - window title is currently fixed
+
+ - no Event Log
+
+ - no mid-session Change Settings
+
+ - no icon (surprisingly important in an OS X app!)
