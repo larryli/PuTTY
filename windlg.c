@@ -402,6 +402,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     translationpanelend,
 
     tunnelspanelstart,
+    IDC_TITLE_TUNNELS,
     IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS,
     IDC_X11_FORWARD,
     IDC_X11_DISPSTATIC,
@@ -1080,18 +1081,20 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	}
         /* The Tunnels panel. Accelerators used: [acgo] ex */
         {
-	    struct ctlpos tp;
-	    ctlposinit(&tp, hwnd, 80, 3, 13);
+	    struct ctlpos cp;
+	    ctlposinit(&cp, hwnd, 80, 3, 13);
 	    if (dlgtype == 0) {
-	      beginbox(&tp, "X11 forwarding options",
-		       IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS);
-	      checkbox(&tp, "&Enable X11 forwarding",
-		       IDC_X11_FORWARD);
-	      multiedit(&tp, "&X display location", IDC_X11_DISPSTATIC,
-			IDC_X11_DISPLAY, 50, NULL);
-	      endbox(&tp);
-	      
-	      treeview_insert(&tvfaff, 2, "Tunnels");
+                bartitle(&cp, "Options controlling SSH tunnelling",
+                         IDC_TITLE_TUNNELS);
+                beginbox(&cp, "X11 forwarding options",
+                         IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS);
+                checkbox(&cp, "&Enable X11 forwarding",
+                         IDC_X11_FORWARD);
+                multiedit(&cp, "&X display location", IDC_X11_DISPSTATIC,
+                          IDC_X11_DISPLAY, 50, NULL);
+                endbox(&cp);
+
+                treeview_insert(&tvfaff, 2, "Tunnels");
 	    }
         }
 
