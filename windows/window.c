@@ -1296,23 +1296,10 @@ static void init_fonts(int pick_width, int pick_height)
 
     f(FONT_NORMAL, cfg.font.charset, fw_dontcare, FALSE);
 
-    lfont.lfHeight = font_height;
-    lfont.lfWidth = font_width;
-    lfont.lfEscapement = 0;
-    lfont.lfOrientation  = 0;
-    lfont.lfWeight  = fw_dontcare;
-    lfont.lfItalic = FALSE;
-    lfont.lfUnderline = FALSE;
-    lfont.lfStrikeOut = FALSE;
-    lfont.lfCharSet = cfg.font.charset;
-    lfont.lfOutPrecision = OUT_DEFAULT_PRECIS;
-    lfont.lfClipPrecision = CLIP_DEFAULT_PRECIS;
-    lfont.lfQuality = DEFAULT_QUALITY;
-    lfont.lfPitchAndFamily = FIXED_PITCH | FF_DONTCARE;
-    strncpy(lfont.lfFaceName, cfg.font.name, LF_FACESIZE);
-
     SelectObject(hdc, fonts[FONT_NORMAL]);
     GetTextMetrics(hdc, &tm);
+
+    GetObject(fonts[FONT_NORMAL], sizeof(LOGFONT), &lfont);
 
     if (pick_width == 0 || pick_height == 0) {
 	font_height = tm.tmHeight;
@@ -2788,12 +2775,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	set_input_locale((HKL)lParam);
 	sys_cursor_update();
 	break;
-      case WM_IME_NOTIFY:
-	if(wParam == IMN_SETOPENSTATUS) {
+      case WM_IME_STARTCOMPOSITION:
+	{
 	    HIMC hImc = ImmGetContext(hwnd);
 	    ImmSetCompositionFont(hImc, &lfont);
 	    ImmReleaseContext(hwnd, hImc);
-	    return 0;
 	}
 	break;
       case WM_IME_COMPOSITION:
