@@ -199,6 +199,14 @@ static void sha1_sckey(unsigned char *key) {
     sha1_key(&sha1_sc_mac_s1, &sha1_sc_mac_s2, key, 20);
 }
 
+static void sha1_cskey_buggy(unsigned char *key) {
+    sha1_key(&sha1_cs_mac_s1, &sha1_cs_mac_s2, key, 16);
+}
+
+static void sha1_sckey_buggy(unsigned char *key) {
+    sha1_key(&sha1_sc_mac_s1, &sha1_sc_mac_s2, key, 16);
+}
+
 static void sha1_do_hmac(SHA_State *s1, SHA_State *s2,
                          unsigned char *blk, int len, unsigned long seq,
                          unsigned char *hmac) {
@@ -231,6 +239,14 @@ static int sha1_verify(unsigned char *blk, int len, unsigned long seq) {
 
 struct ssh_mac ssh_sha1 = {
     sha1_cskey, sha1_sckey,
+    sha1_generate,
+    sha1_verify,
+    "hmac-sha1",
+    20
+};
+
+struct ssh_mac ssh_sha1_buggy = {
+    sha1_cskey_buggy, sha1_sckey_buggy,
     sha1_generate,
     sha1_verify,
     "hmac-sha1",

@@ -147,6 +147,7 @@ typedef struct {
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
     char keyfile[FILENAME_MAX];
     int sshprot;                       /* use v1 or v2 when both available */
+    int buggymac;                      /* MAC bug commmercial <=v2.3.x SSH2 */
     int try_tis_auth;
     /* Telnet options */
     char termtype[32];

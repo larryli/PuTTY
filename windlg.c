@@ -945,6 +945,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_CIPHER3DES,
     IDC_CIPHERBLOWF,
     IDC_CIPHERDES,
+    IDC_BUGGYMAC,
     IDC_AUTHTIS,
     IDC_PKSTATIC,
     IDC_PKEDIT,
@@ -1109,6 +1110,7 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
     SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
     CheckDlgButton (hwnd, IDC_NOPTY, cfg.nopty);
+    CheckDlgButton (hwnd, IDC_BUGGYMAC, cfg.buggymac);
     CheckDlgButton (hwnd, IDC_AGENTFWD, cfg.agentfwd);
     CheckRadioButton (hwnd, IDC_CIPHER3DES, IDC_CIPHERDES,
 		      cfg.cipher == CIPHER_BLOWFISH ? IDC_CIPHERBLOWF :
@@ -1575,6 +1577,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			  "&3DES", IDC_CIPHER3DES,
 			  "&Blowfish", IDC_CIPHERBLOWF,
 			  "&DES", IDC_CIPHERDES, NULL);
+		checkbox(&cp, "Imitate SSH 2 MAC bug in commercial <= v2.3.x",
+                         IDC_BUGGYMAC);
                 endbox(&cp);
 
                 treeview_insert(&tvfaff, 1, "SSH");
@@ -2058,6 +2062,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.nopty = IsDlgButtonChecked (hwnd, IDC_NOPTY);
+	    break;
+	  case IDC_BUGGYMAC:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.buggymac = IsDlgButtonChecked (hwnd, IDC_BUGGYMAC);
 	    break;
 	  case IDC_AGENTFWD:
 	    if (HIWORD(wParam) == BN_CLICKED ||
