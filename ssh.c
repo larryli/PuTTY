@@ -95,6 +95,8 @@
 #define SSH2_MSG_USERAUTH_BANNER                  53	/* 0x35 */
 #define SSH2_MSG_USERAUTH_PK_OK                   60	/* 0x3c */
 #define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ        60	/* 0x3c */
+#define SSH2_MSG_USERAUTH_INFO_REQUEST            60	/* 0x3c */
+#define SSH2_MSG_USERAUTH_INFO_RESPONSE           61	/* 0x3d */
 #define SSH2_MSG_GLOBAL_REQUEST                   80	/* 0x50 */
 #define SSH2_MSG_REQUEST_SUCCESS                  81	/* 0x51 */
 #define SSH2_MSG_REQUEST_FAILURE                  82	/* 0x52 */
@@ -3268,18 +3270,21 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 {
     static enum {
 	AUTH_INVALID, AUTH_PUBLICKEY_AGENT, AUTH_PUBLICKEY_FILE,
-	AUTH_PASSWORD
+	AUTH_PASSWORD,
+        AUTH_KEYBOARD_INTERACTIVE
     } method;
     static enum {
 	AUTH_TYPE_NONE,
 	AUTH_TYPE_PUBLICKEY,
 	AUTH_TYPE_PUBLICKEY_OFFER_LOUD,
 	AUTH_TYPE_PUBLICKEY_OFFER_QUIET,
-	AUTH_TYPE_PASSWORD
+	AUTH_TYPE_PASSWORD,
+	AUTH_TYPE_KEYBOARD_INTERACTIVE
     } type;
-    static int gotit, need_pw, can_pubkey, can_passwd;
-    static int tried_pubkey_config, tried_agent;
+    static int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
+    static int tried_pubkey_config, tried_agent, tried_keyb_inter;
     static int we_are_in;
+    static int num_prompts, echo;
     static char username[100];
     static char pwprompt[200];
     static char password[100];
@@ -3507,9 +3512,57 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    in_commasep_string("publickey", methods, methlen);
 		can_passwd =
 		    in_commasep_string("password", methods, methlen);
+		can_passwd =
+		    in_commasep_string("password", methods, methlen);
+		can_keyb_inter = 
+		    in_commasep_string("keyboard-interactive", methods, methlen);
 	    }
 
 	    method = 0;
+
+	    if (!method && can_keyb_inter && !tried_keyb_inter) {
+		method = AUTH_KEYBOARD_INTERACTIVE;
+		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		tried_keyb_inter = TRUE;
+
+		ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		ssh2_pkt_addstring(username);
+		ssh2_pkt_addstring("ssh-connection");	/* service requested */
+		ssh2_pkt_addstring("keyboard-interactive");	/* method */
+		ssh2_pkt_addstring(""); /* lang */
+		ssh2_pkt_addstring("");
+		ssh2_pkt_send();
+
+		crWaitUntilV(ispkt);
+		if (pktin.type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
+		    if (pktin.type == SSH2_MSG_USERAUTH_FAILURE)
+			gotit = TRUE;
+		    logevent("Keyboard-interactive authentication refused");
+		    type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		    continue;
+		}
+
+		/* We've got packet with that "interactive" info
+		   dump banners, and set its prompt as ours */
+		{
+		    char *name, *inst, *lang, *prompt;
+		    int name_len, inst_len, lang_len, prompt_len;
+		    ssh2_pkt_getstring(&name, &name_len);
+		    ssh2_pkt_getstring(&inst, &inst_len);
+		    ssh2_pkt_getstring(&lang, &lang_len);
+		    if (name_len > 0)
+			c_write_untrusted(name, name_len);
+		    if (inst_len > 0)
+			c_write_untrusted(inst, inst_len);
+		    num_prompts = ssh2_pkt_getuint32();
+
+		    ssh2_pkt_getstring(&prompt, &prompt_len);
+		    strncpy(pwprompt, prompt, sizeof(pwprompt));
+		    need_pw = TRUE;
+
+		    echo = ssh2_pkt_getbool();
+		}
+	    }
 
 	    if (!method && can_pubkey && agent_exists() && !tried_agent) {
 		/*
@@ -3735,7 +3788,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    static int pos = 0;
 		    static char c;
 
-		    c_write_str(pwprompt);
+		    c_write_untrusted(pwprompt, strlen(pwprompt));
 		    ssh_send_ok = 1;
 
 		    pos = 0;
@@ -3896,6 +3949,13 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		ssh_pkt_defersend();
 		logevent("Sent password");
 		type = AUTH_TYPE_PASSWORD;
+	    } else if (method == AUTH_KEYBOARD_INTERACTIVE) {
+                ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
+                ssh2_pkt_adduint32(num_prompts);
+                ssh2_pkt_addstring(password);
+                memset(password, 0, sizeof(password));
+                ssh2_pkt_send();
+		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 	    } else {
 		c_write_str
 		    ("No supported authentication methods left to try!\r\n");
