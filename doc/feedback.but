@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.17 2004/03/31 12:50:17 simon Exp $
+\versionid $Id: feedback.but,v 1.18 2004/08/18 10:24:40 jacob Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -357,16 +357,17 @@ All mirrors of the PuTTY web site are welcome. Please don't bother
 asking us for permission before setting up a mirror. You already
 have permission. We are always happy to have more mirrors.
 
-If you mail us \e{after} you have set up the mirror, and remember to
-let us know which country your mirror is in, then we'll add it to
-the
+If you mail us \e{after} you have set up the mirror and checked that
+it works, and remember to let us know which country your mirror is in,
+then we'll add it to the
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html}{Mirrors
 page} on the PuTTY website.
 
 If you have technical questions about the process of mirroring, then
-you might want to mail us before setting up the mirror; but if you
-just want to ask for permission, you don't need to. You already have
-permission.
+you might want to mail us before setting up the mirror (see also the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html#guidelines}{guidelines on the Mirrors page});
+but if you just want to ask for permission, you don't need to. You
+already have permission.
 
 \H{feedback-compliments} Praise and compliments
 
