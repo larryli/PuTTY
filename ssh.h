@@ -123,22 +123,26 @@ void SHA512_Final(SHA512_State * s, unsigned char *output);
 void SHA512_Simple(const void *p, int len, unsigned char *output);
 
 struct ssh_cipher {
-    void (*sesskey) (unsigned char *key);	/* for ssh 1 */
-    void (*encrypt) (unsigned char *blk, int len);
-    void (*decrypt) (unsigned char *blk, int len);
+    void *(*make_context)(void);
+    void (*free_context)(void *);
+    void (*sesskey) (void *, unsigned char *key);	/* for ssh 1 */
+    void (*encrypt) (void *, unsigned char *blk, int len);
+    void (*decrypt) (void *, unsigned char *blk, int len);
     int blksize;
+    char *text_name;
 };
 
 struct ssh2_cipher {
-    void (*setcsiv) (unsigned char *key);	/* for ssh 2 */
-    void (*setcskey) (unsigned char *key);	/* for ssh 2 */
-    void (*setsciv) (unsigned char *key);	/* for ssh 2 */
-    void (*setsckey) (unsigned char *key);	/* for ssh 2 */
-    void (*encrypt) (unsigned char *blk, int len);
-    void (*decrypt) (unsigned char *blk, int len);
+    void *(*make_context)(void);
+    void (*free_context)(void *);
+    void (*setiv) (void *, unsigned char *key);	/* for ssh 2 */
+    void (*setkey) (void *, unsigned char *key);/* for ssh 2 */
+    void (*encrypt) (void *, unsigned char *blk, int len);
+    void (*decrypt) (void *, unsigned char *blk, int len);
     char *name;
     int blksize;
     int keylen;
+    char *text_name;
 };
 
 struct ssh2_ciphers {

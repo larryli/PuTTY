@@ -550,7 +550,9 @@ struct ssh_tag {
     int X11_fwd_enabled;
     int remote_bugs;
     const struct ssh_cipher *cipher;
+    void *v1_cipher_ctx;
     const struct ssh2_cipher *cscipher, *sccipher;
+    void *cs_cipher_ctx, *sc_cipher_ctx;
     const struct ssh_mac *csmac, *scmac;
     const struct ssh_compress *cscomp, *sccomp;
     const struct ssh_kex *kex;
@@ -803,7 +805,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     }
 
     if (ssh->cipher)
-	ssh->cipher->decrypt(ssh->pktin.data, st->biglen);
+	ssh->cipher->decrypt(ssh->v1_cipher_ctx, ssh->pktin.data, st->biglen);
 
     st->realcrc = crc32(ssh->pktin.data, st->biglen - 4);
     st->gotcrc = GET_32BIT(ssh->pktin.data + st->biglen - 4);
@@ -917,7 +919,8 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     }
 
     if (ssh->sccipher)
-	ssh->sccipher->decrypt(ssh->pktin.data, st->cipherblk);
+	ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
+			       ssh->pktin.data, st->cipherblk);
 
     /*
      * Now get the length and padding figures.
@@ -968,7 +971,8 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     }
     /* Decrypt everything _except_ the MAC. */
     if (ssh->sccipher)
-	ssh->sccipher->decrypt(ssh->pktin.data + st->cipherblk,
+	ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
+			       ssh->pktin.data + st->cipherblk,
 			       st->packetlen - st->cipherblk);
 
     /*
@@ -1172,7 +1176,7 @@ static int s_wrpkt_prepare(Ssh ssh)
     PUT_32BIT(ssh->pktout.data, len);
 
     if (ssh->cipher)
-	ssh->cipher->encrypt(ssh->pktout.data + 4, biglen);
+	ssh->cipher->encrypt(ssh->v1_cipher_ctx, ssh->pktout.data + 4, biglen);
 
     return biglen + 4;
 }
@@ -1469,7 +1473,8 @@ static int ssh2_pkt_construct(Ssh ssh)
     ssh->v2_outgoing_sequence++;       /* whether or not we MACed */
 
     if (ssh->cscipher)
-	ssh->cscipher->encrypt(ssh->pktout.data, ssh->pktout.length + padding);
+	ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
+			       ssh->pktout.data, ssh->pktout.length + padding);
 
     /* Ready-to-send packet starts at ssh->pktout.data. We return length. */
     return ssh->pktout.length + padding + maclen;
@@ -2353,7 +2358,13 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     ssh->cipher = (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
 		   s->cipher_type == SSH_CIPHER_DES ? &ssh_des :
 		   &ssh_3des);
-    ssh->cipher->sesskey(ssh->session_key);
+    ssh->v1_cipher_ctx = ssh->cipher->make_context();
+    ssh->cipher->sesskey(ssh->v1_cipher_ctx, ssh->session_key);
+    {
+	char buf[256];
+	sprintf(buf, "Initialised %.200s encryption", ssh->cipher->text_name);
+	logevent(buf);
+    }
 
     crWaitUntil(ispkt);
 
@@ -4016,8 +4027,14 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Create and initialise session keys.
      */
+    if (ssh->cs_cipher_ctx)
+	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
     ssh->cscipher = s->cscipher_tobe;
+    ssh->cs_cipher_ctx = ssh->cscipher->make_context();
+    if (ssh->sc_cipher_ctx)
+	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
     ssh->sccipher = s->sccipher_tobe;
+    ssh->sc_cipher_ctx = ssh->sccipher->make_context();
     ssh->csmac = s->csmac_tobe;
     ssh->scmac = s->scmac_tobe;
     ssh->cscomp = s->cscomp_tobe;
@@ -4034,18 +4051,28 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    memcpy(ssh->v2_session_id, s->exchange_hash,
 		   sizeof(s->exchange_hash));
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'C',keyspace);
-	ssh->cscipher->setcskey(keyspace);
+	ssh->cscipher->setkey(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'D',keyspace);
-	ssh->sccipher->setsckey(keyspace);
+	ssh->sccipher->setkey(ssh->sc_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'A',keyspace);
-	ssh->cscipher->setcsiv(keyspace);
+	ssh->cscipher->setiv(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'B',keyspace);
-	ssh->sccipher->setsciv(keyspace);
+	ssh->sccipher->setiv(ssh->sc_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'E',keyspace);
 	ssh->csmac->setcskey(keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'F',keyspace);
 	ssh->scmac->setsckey(keyspace);
     }
+    {
+	char buf[256];
+	sprintf(buf, "Initialised %.200s client->server encryption",
+		ssh->cscipher->text_name);
+	logevent(buf);
+	sprintf(buf, "Initialised %.200s server->client encryption",
+		ssh->sccipher->text_name);
+	logevent(buf);
+    }
+
 
     /*
      * If this is the first key exchange phase, we must pass the
@@ -5752,8 +5779,11 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh = smalloc(sizeof(*ssh));
     ssh->s = NULL;
     ssh->cipher = NULL;
+    ssh->v1_cipher_ctx = NULL;
     ssh->cscipher = NULL;
+    ssh->cs_cipher_ctx = NULL;
     ssh->sccipher = NULL;
+    ssh->sc_cipher_ctx = NULL;
     ssh->csmac = NULL;
     ssh->scmac = NULL;
     ssh->cscomp = NULL;
