@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.4 2002/04/27 16:20:16 simon Exp $
+\versionid $Id: feedback.but,v 1.5 2002/06/08 09:00:00 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -27,39 +27,62 @@ recommend you do so. In particular, support requests
 \W{news:comp.security.ssh}\c{comp.security.ssh} or passed to a local
 expert if possible.
 
-The PuTTY contact email address is a mailing list. For this reason,
-e-mails larger than 40Kb will be held for inspection by the list
-administrator, and will not be allowed through unless they really
-appear to be worth their large size. Therefore:
+The PuTTY contact email address is a private mailing list containing
+four or five core developers. Don't be put off by it being a mailing
+list: if you need to send confidential data as part of a bug report,
+you can trust the people on the list to respect that confidence.
+Also, the archives aren't publicly available, so you shouldn't be
+letting yourself in for any spam by sending us mail.
 
-\b Don't send your bug report as a Word document. Word documents are
-roughly fifty times larger than writing the same report in plain
-text. In addition, most of the PuTTY team read their e-mail on Unix
-machines, so copying the attachment to a Windows box to run Word is
-very inconvenient. Not only that, but several of us don't even
-\e{have} a copy of Word!
+\S{feedback-largefiles} Sending large attachments
 
-\b Don't mail large screen shots without checking with us first.
+Since the PuTTY contact address is a mailing list, e-mails larger
+than 40Kb will be held for inspection by the list administrator, and
+will not be allowed through unless they really appear to be worth
+their large size.
+
+If you are considering sending any kind of large data file to the
+PuTTY team, it's almost always a bad idea, or at the very least it
+would be better to ask us first whether we actually need the file.
+Alternatively, you could put the file on a web site and just send us
+the URL; that way, we don't have to download it unless we decide we
+actually need it, and only one of us needs to download it instead of
+it being automatically copied to all the developers.
+
+Some people like to send mail in MS Word format. Please \e{don't}
+send us bug reports, or any other mail, as a Word document. Word
+documents are roughly fifty times larger than writing the same
+report in plain text. In addition, most of the PuTTY team read their
+e-mail on Unix machines, so copying the file to a Windows box to run
+Word is very inconvenient. Not only that, but several of us don't
+even \e{have} a copy of Word!
+
+Some people like to send us screen shots when demonstrating a
+problem. Please don't do this without checking with us first - we
+almost never actually need the information in the screen shot.
 Sending a screen shot of an error box is almost certainly
 unnecessary when you could just tell us in plain text what the error
-was. Sending a full-screen shot is sometimes useful, but it's
-probably still wise to check with us before sending it.
+was. Sending a full-screen shot is \e{occasionally} useful, but it's
+probably still wise to check whether we need it before sending it.
 
-\b If you want to send us a screen shot, or any other kind of large
-data file, it is much more convenient for us if you can put the file
-on a web site and send us the URL. That way (a) we don't have to
-download it at all if it doesn't look necessary; and (b) only one
-member of the team needs to download it, instead of it being
-automatically sent to everyone on the mailing list.
-
-\b If you \e{must} mail a screen shot, don't send it as a \cw{.BMP}
+If you \e{must} mail a screen shot, don't send it as a \cw{.BMP}
 file. \cw{BMP}s have no compression and they are \e{much} larger
 than other image formats such as PNG, TIFF and GIF. Convert the file
 to a properly compressed image format before sending it.
 
-(Note that although the PuTTY contact address is a mailing list, the
-archives aren't publicly available, so you shouldn't be letting
-yourself in for any spam by sending us mail.)
+Please don't mail us executables, at all. For security reasons, it
+would be really unwise of us to run executables we receive from
+unknown people by e-mail, so there's no point sending them to us. At
+some point, indeed, we hope to block all incoming e-mail containing
+executables, as a defence against the vast numbers of e-mail viruses
+we receive every day.
+
+If you have made a tiny modification to the PuTTY code, please send
+us a \e{patch} to the source code if possible, rather than sending
+us a huge \cw{.ZIP} file containing the complete sources plus your
+modification. If you've only changed 10 lines, we'd prefer to
+receive a mail that's 30 lines long than one containing multiple
+megabytes of data we already have.
 
 \H{feedback-bugs} Reporting bugs
 
