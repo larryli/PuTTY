@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.5 2002/11/20 00:33:44 ben Exp $ */
+/* $Id: macterm.c,v 1.6 2002/11/23 13:16:36 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1203,8 +1203,6 @@ static void real_palette_set(Session *s, int n, int r, int g, int b)
     col.red   = r * 0x0101;
     col.green = g * 0x0101;
     col.blue  = b * 0x0101;
-    fprintf(stderr, "p%d <- (0x%x, 0x%x, 0x%x)\n", n, col.red, col.green,
-	    col.blue);
     SetEntryColor(s->palette, n, &col);
 }
 
