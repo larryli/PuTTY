@@ -2709,7 +2709,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		int bufsize =
 		    from_backend(pktin.type == SSH1_SMSG_STDERR_DATA,
 				 pktin.body + 4, len);
-		if (bufsize > SSH1_BUFFER_LIMIT) {
+		if (!ssh1_stdout_throttling && bufsize > SSH1_BUFFER_LIMIT) {
 		    ssh1_stdout_throttling = 1;
 		    ssh1_throttle(+1);
 		}
@@ -2955,7 +2955,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			bufsize = 0;   /* agent channels never back up */
 			break;
 		    }
-		    if (bufsize > SSH1_BUFFER_LIMIT) {
+		    if (!c->v.v1.throttling && bufsize > SSH1_BUFFER_LIMIT) {
 			c->v.v1.throttling = 1;
 			ssh1_throttle(+1);
 		    }
@@ -5113,7 +5113,7 @@ void *new_sock_channel(Socket s)
 void ssh_unthrottle(int bufsize)
 {
     if (ssh_version == 1) {
-	if (bufsize < SSH1_BUFFER_LIMIT) {
+	if (ssh1_stdout_throttling && bufsize < SSH1_BUFFER_LIMIT) {
 	    ssh1_stdout_throttling = 0;
 	    ssh1_throttle(-1);
 	}
