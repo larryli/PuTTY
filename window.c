@@ -128,7 +128,7 @@ static char *window_name, *icon_name;
 
 static int compose_state = 0;
 
-static OSVERSIONINFOEX osVersion;
+static OSVERSIONINFO osVersion;
 
 /* Dummy routine, only required in plink. */
 void ldisc_update(int echo, int edit)
@@ -170,15 +170,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     {
 	ZeroMemory(&osVersion, sizeof(osVersion));
-	osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-	if(!GetVersionEx ((OSVERSIONINFO *) &osVersion)) {
-	// If OSVERSIONINFOEX doesn't work, try OSVERSIONINFO.
-
 	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-	if (!GetVersionEx ( (OSVERSIONINFO *) &osVersion))
-	    return FALSE;
-	}
+	if (!GetVersionEx ( (OSVERSIONINFO *) &osVersion)) {
+            MessageBox(NULL, "Windows refuses to report a version",
+                       "PuTTY Fatal Error", MB_OK | MB_ICONEXCLAMATION);
+	    return 1;
+        }
     }
 
     /*
