@@ -2475,7 +2475,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * Terminate.
 		     */
 		    logevent("No username provided. Abandoning session.");
-		    ssh->state = SSH_STATE_CLOSED;
+                    ssh_closing((Plug)ssh, NULL, 0, 0);
 		    crReturn(1);
 		}
 	    } else {
@@ -2753,7 +2753,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			    PKT_END);
 		logevent("Unable to authenticate");
 		connection_fatal(ssh->frontend, "Unable to authenticate");
-		ssh->state = SSH_STATE_CLOSED;
+                ssh_closing((Plug)ssh, NULL, 0, 0);
 		crReturn(1);
 	    }
 	} else {
@@ -3331,7 +3331,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh1_throttle(ssh, +1);
 		}
 	    } else if (ssh->pktin.type == SSH1_MSG_DISCONNECT) {
-		ssh->state = SSH_STATE_CLOSED;
+                ssh_closing((Plug)ssh, NULL, 0, 0);
 		logevent("Received disconnect request");
 		crReturnV;
 	    } else if (ssh->pktin.type == SSH1_SMSG_X11_OPEN) {
@@ -3623,7 +3623,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
                  * encrypted packet, we close the session once
                  * we've sent EXIT_CONFIRMATION.
                  */
-                ssh->state = SSH_STATE_CLOSED;
+                ssh_closing((Plug)ssh, NULL, 0, 0);
                 crReturnV;
 	    } else {
 		bombout(("Strange packet received: type %d", ssh->pktin.type));
@@ -4403,7 +4403,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * Terminate.
 		     */
 		    logevent("No username provided. Abandoning session.");
-		    ssh->state = SSH_STATE_CLOSED;
+                    ssh_closing((Plug)ssh, NULL, 0, 0);
 		    crReturnV;
 		}
 	    } else {
@@ -4917,7 +4917,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			logevent("Unable to authenticate");
 			connection_fatal(ssh->frontend,
 					 "Unable to authenticate");
-			ssh->state = SSH_STATE_CLOSED;
+                        ssh_closing((Plug)ssh, NULL, 0, 0);
 			crReturnV;
 		    }
 		} else {
@@ -5106,7 +5106,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				   " methods available");
 		ssh2_pkt_addstring(ssh, "en");	/* language tag */
 		ssh2_pkt_send(ssh);
-		ssh->state = SSH_STATE_CLOSED;
+                ssh_closing((Plug)ssh, NULL, 0, 0);
 		crReturnV;
 	    }
 	}
@@ -5653,6 +5653,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 * See if that was the last channel left open.
 		 */
 		if (count234(ssh->channels) == 0) {
+		    logevent("All channels closed. Disconnecting");
 #if 0
                     /*
                      * We used to send SSH_MSG_DISCONNECT here,
@@ -5665,14 +5666,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
                      * this is more polite than sending a
                      * DISCONNECT. So now we don't.
                      */
-		    logevent("All channels closed. Disconnecting");
 		    ssh2_pkt_init(ssh, SSH2_MSG_DISCONNECT);
 		    ssh2_pkt_adduint32(ssh, SSH2_DISCONNECT_BY_APPLICATION);
 		    ssh2_pkt_addstring(ssh, "All open channels closed");
 		    ssh2_pkt_addstring(ssh, "en");	/* language tag */
 		    ssh2_pkt_send(ssh);
 #endif
-		    ssh->state = SSH_STATE_CLOSED;
+                    ssh_closing((Plug)ssh, NULL, 0, 0);
 		    crReturnV;
 		}
 		continue;	       /* remote sends close; ignore (FIXME) */
@@ -5750,7 +5750,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addstring(ssh, "en");	/* language tag */
 		    ssh2_pkt_send(ssh);
 		    connection_fatal(ssh->frontend, "%s", buf);
-		    ssh->state = SSH_STATE_CLOSED;
+                    ssh_closing((Plug)ssh, NULL, 0, 0);
 		    crReturnV;
 		}
 
@@ -6365,7 +6365,10 @@ static void ssh_provide_logctx(void *handle, void *logctx)
 static int ssh_return_exitcode(void *handle)
 {
     Ssh ssh = (Ssh) handle;
-    return ssh->exitcode;
+    if (ssh->s != NULL)
+        return -1;
+    else
+        return (ssh->exitcode >= 0 ? ssh->exitcode : 0);
 }
 
 /*
