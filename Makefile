@@ -87,6 +87,7 @@ OBJS4 = x11fwd.$(OBJ) sshaes.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ) sshaes.$(OBJ)
+PAGE3 = sshsha.$(OBJ)
 ##-- objects puttygen
 GEN1 = puttygen.$(OBJ) sshrsag.$(OBJ) sshprime.$(OBJ) sshdes.$(OBJ)
 GEN2 = sshbn.$(OBJ) sshmd5.$(OBJ) version.$(OBJ) sshrand.$(OBJ) noise.$(OBJ)
@@ -130,7 +131,7 @@ putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(O
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(MOBJ2) $(PRESRC) puttytel.rsp
 	link $(LFLAGS) -out:puttytel.exe -map:puttytel.map @puttytel.rsp
 
-pageant.exe: $(PAGE1) $(PAGE2) $(PAGERC) pageant.rsp
+pageant.exe: $(PAGE1) $(PAGE2) $(PAGE3) $(PAGERC) pageant.rsp
 	link $(LFLAGS) -out:pageant.exe -map:pageant.map @pageant.rsp
 
 puttygen.exe: $(GEN1) $(GEN2) $(GEN3) $(GEN4) $(GENRC) puttygen.rsp
@@ -179,6 +180,7 @@ pageant.rsp: makefile
 	echo /nologo /subsystem:windows > pageant.rsp
 	echo $(PAGE1) >> pageant.rsp
 	echo $(PAGE2) >> pageant.rsp
+	echo $(PAGE3) >> pageant.rsp
 	echo $(PAGERC) >> pageant.rsp
 	echo $(LIBS1) >> pageant.rsp
 	echo $(LIBS2) >> pageant.rsp
