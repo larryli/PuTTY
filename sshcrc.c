@@ -69,7 +69,7 @@
 
 #include <stdlib.h>
 
-#include "ssh.c"
+#include "ssh.h"
 
 /* ----------------------------------------------------------------------
  * Multi-function module. Can be compiled three ways.
