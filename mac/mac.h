@@ -59,6 +59,12 @@ typedef struct Session {
     int			font_ascent;
     int			font_leading;
     int			font_boldadjust;
+    Point		font_stdnumer;
+    Point		font_stddenom;
+    Point		font_widenumer;
+    Point		font_widedenom;
+    Point		font_bignumer;
+    Point		font_bigdenom;
     WindowPtr		window;
     WindowPtr		settings_window;
     PaletteHandle	palette;

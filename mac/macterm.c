@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.46 2003/01/14 15:24:51 ben Exp $ */
+/* $Id: macterm.c,v 1.47 2003/01/14 18:43:26 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -195,6 +195,44 @@ void mac_startsession(Session *s)
     sesslist = s;
 }
 
+/*
+ * Try to work out a horizontal scaling factor for the current font
+ * that will give a chracter width of wantwidth.  Return it in numer
+ * and denom (suitable for passing to StdText()).
+ */
+static void mac_workoutfontscale(Session *s, int wantwidth,
+				 Point *numerp, Point *denomp)
+{
+    Point numer, denom, tmpnumer, tmpdenom;
+    int gotwidth, i;
+    const char text = 'W';
+    FontInfo fi;
+
+    fprintf(stderr, "want width = %d\n", wantwidth);
+    numer.v = denom.v = 1; /* always */
+    numer.h = denom.h = 1;
+    for (i = 0; i < 3; i++) {
+	fprintf(stderr, "Trying %d:%d\n", numer.h, denom.h);
+	tmpnumer = numer;
+	tmpdenom = denom;
+	if (s->window->grafProcs != NULL)
+	    gotwidth = InvokeQDTxMeasUPP(1, &text, &tmpnumer, &tmpdenom, &fi,
+					 s->window->grafProcs->txMeasProc);
+	else
+	    gotwidth = StdTxMeas(1, &text, &tmpnumer, &tmpdenom, &fi);
+	/* The result of StdTxMeas must be scaled by the factors it returns. */
+	gotwidth = FixRound(FixMul(gotwidth << 16,
+				   FixRatio(tmpnumer.h, tmpdenom.h)));
+	fprintf(stderr, "width = %d\n", gotwidth);
+	if (gotwidth == wantwidth)
+	    break;
+	numer.h *= wantwidth;
+	denom.h *= gotwidth;
+    }
+    *numerp = numer;
+    *denomp = denom;
+}
+
 static UnicodeToTextFallbackUPP uni_to_font_fallback_upp;
 
 static void mac_initfont(Session *s) {
@@ -214,6 +252,14 @@ static void mac_initfont(Session *s) {
     s->font_ascent = fi.ascent;
     s->font_leading = fi.leading;
     s->font_height = s->font_ascent + fi.descent + s->font_leading;
+    mac_workoutfontscale(s, s->font_width,
+			 &s->font_stdnumer, &s->font_stddenom);
+    mac_workoutfontscale(s, s->font_width * 2,
+			 &s->font_widenumer, &s->font_widedenom);
+    TextSize(s->cfg.fontheight * 2);
+    mac_workoutfontscale(s, s->font_width * 2,
+			 &s->font_bignumer, &s->font_bigdenom);
+    TextSize(s->cfg.fontheight);
     if (!s->cfg.bold_colour) {
 	TextFace(bold);
 	s->font_boldadjust = s->font_width - CharWidth('W');
@@ -958,23 +1004,29 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     Session *s = ctx;
     int style = 0;
     struct do_text_args a;
-    RgnHandle textrgn;
+    RgnHandle textrgn, saveclip;
     char mactextbuf[1024];
     UniChar unitextbuf[1024];
     wchar_t *unitextptr;
-    int i;
+    int i, fontwidth;
     ByteCount iread, olen;
     OSStatus err;
 
     assert(len <= 1024);
 
     SetPort(s->window);
-    
+
+    fontwidth = s->font_width;
+    if ((lattr & LATTR_MODE) != LATTR_NORM)
+	fontwidth *= 2;
+
     /* First check this text is relevant */
     a.textrect.top = y * s->font_height;
     a.textrect.bottom = (y + 1) * s->font_height;
-    a.textrect.left = x * s->font_width;
-    a.textrect.right = (x + len) * s->font_width;
+    a.textrect.left = x * fontwidth;
+    a.textrect.right = (x + len) * fontwidth;
+    if (a.textrect.right > s->term->cols * s->font_width)
+	a.textrect.right = s->term->cols * s->font_width;
     if (!RectInRgn(&a.textrect, s->window->visRgn))
 	return;
 
@@ -1002,7 +1054,24 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.len = olen;
     a.attr = attr;
     a.lattr = lattr;
-    a.numer.h = a.numer.v = a.denom.h = a.denom.v = 1;
+    switch (lattr & LATTR_MODE) {
+      case LATTR_NORM:
+	TextSize(s->cfg.fontheight);
+	a.numer = s->font_stdnumer;
+	a.denom = s->font_stddenom;
+	break;
+      case LATTR_WIDE:
+	TextSize(s->cfg.fontheight);
+	a.numer = s->font_widenumer;
+	a.denom = s->font_widedenom;
+	break;
+      case LATTR_TOP:
+      case LATTR_BOT:
+	TextSize(s->cfg.fontheight * 2);
+	a.numer = s->font_bignumer;
+	a.denom = s->font_bigdenom;
+	break;
+    }
     SetPort(s->window);
     TextFont(s->fontnum);
     if (s->cfg.fontisbold || (attr & ATTR_BOLD) && !s->cfg.bold_colour)
@@ -1010,7 +1079,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     if (attr & ATTR_UNDER)
 	style |= underline;
     TextFace(style);
-    TextSize(s->cfg.fontheight);
     TextMode(srcOr);
     if (HAVE_COLOR_QD())
 	if (style & bold) {
@@ -1020,12 +1088,17 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    SpaceExtra(0);
 	    CharExtra(0);
 	}
+    saveclip = NewRgn();
+    GetClip(saveclip);
+    ClipRect(&a.textrect);
     textrgn = NewRgn();
     RectRgn(textrgn, &a.textrect);
     if (HAVE_COLOR_QD())
 	DeviceLoop(textrgn, &do_text_for_device_upp, (long)&a, 0);
     else
 	do_text_for_device(1, 0, NULL, (long)&a);
+    SetClip(saveclip);
+    DisposeRgn(saveclip);
     DisposeRgn(textrgn);
     /* Tell the window manager about it in case this isn't an update */
     ValidRect(&a.textrect);
@@ -1081,7 +1154,19 @@ static pascal void do_text_for_device(short depth, short devflags,
     }
 
     EraseRect(&a->textrect);
-    MoveTo(a->textrect.left, a->textrect.top + a->s->font_ascent);
+    switch (a->lattr & LATTR_MODE) {
+      case LATTR_NORM:
+      case LATTR_WIDE:
+	MoveTo(a->textrect.left, a->textrect.top + a->s->font_ascent);
+	break;
+      case LATTR_TOP:
+	MoveTo(a->textrect.left, a->textrect.top + a->s->font_ascent * 2);
+	break;
+      case LATTR_BOT:
+	MoveTo(a->textrect.left,
+	       a->textrect.top - a->s->font_height + a->s->font_ascent * 2);
+	break;
+    }
     /* FIXME: Sort out bold width adjustments on Original QuickDraw. */
     if (a->s->window->grafProcs != NULL)
 	InvokeQDTextUPP(a->len, a->text, a->numer, a->denom,
