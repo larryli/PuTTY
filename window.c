@@ -4433,7 +4433,7 @@ void beep(void *frontend, int mode)
     } else if (mode == BELL_WAVEFILE) {
 	if (!PlaySound(cfg.bell_wavefile.path, NULL,
 		       SND_ASYNC | SND_FILENAME)) {
-	    char buf[sizeof(cfg.bell_wavefile) + 80];
+	    char buf[sizeof(cfg.bell_wavefile.path) + 80];
 	    char otherbuf[100];
 	    sprintf(buf, "Unable to play sound file\n%s\n"
 		    "Using default sound instead", cfg.bell_wavefile.path);
