@@ -1484,6 +1484,9 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	    TVITEM item;
 	    int j;
 	    char buffer[64];
+ 
+ 	    SendMessage (hwnd, WM_SETREDRAW, FALSE, 0);
+ 
 	    item.hItem = i;
 	    item.pszText = buffer;
 	    item.cchTextMax = sizeof(buffer);
@@ -1528,6 +1531,9 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, translationpanelstart);
 
 	    init_dlg_ctrls(hwnd, FALSE);
+ 
+	    SendMessage (hwnd, WM_SETREDRAW, TRUE, 0);
+ 	    InvalidateRect (hwnd, NULL, TRUE);
 
 	    SetFocus(((LPNMHDR) lParam)->hwndFrom);	/* ensure focus stays */
 	    return 0;
