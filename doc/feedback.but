@@ -1,0 +1,281 @@
+\versionid $Id: feedback.but,v 1.1 2001/12/16 14:56:02 simon Exp $
+
+\A{feedback} Feedback and bug reporting
+
+This section describes what to do if you want to contact the PuTTY
+development team.
+
+\K{feedback-general} gives some general guidelines for sending any
+kind of e-mail to the development team. Following sections give more
+specific guidelines for particular types of e-mail, such as bug
+reports and feature requests.
+
+\H{feedback-general} General guidelines
+
+The PuTTY development team gets a \e{lot} of mail. If you can
+possibly solve your own problem by reading the manual, reading the
+FAQ, reading the web site, asking a fellow user, perhaps posting on
+the newsgroup \W{news:comp.security.ssh}\c{comp.security.ssh}, or
+some other means, then it would make our lives much easier.
+
+If the volume of e-mail really gets on top of us and we can't find
+time to answer it all, then the first e-mails we discard will be the
+ones from people who don't look as if they have made a reasonable
+effort to solve their own problems. This is not intended to cause
+offence; it's occasionally a necessary response to a serious
+problem. We get a \e{lot} of e-mail. Really.
+
+Also, the PuTTY contact email address is a mailing list. For this
+reason, e-mails larger than 40Kb will be held for inspection by the
+list administrator, and will not be allowed through unless they
+really appear to be worth their large size. Therefore:
+
+\b Don't send your bug report as a Word document. Word documents are
+roughly fifty times larger than writing the same report in plain
+text. In addition, most of the PuTTY team read their e-mail on Unix
+machines, so copying the attachment to a Windows box to run Word is
+very inconvenient. Not only that, but several of us don't even
+\e{have} a copy of Word!
+
+\b Don't mail large screen shots without checking with us first.
+Sending a screen shot of an error box is almost certainly
+unnecessary when you could just tell us in plain text what the error
+was. Sending a full-screen shot is sometimes useful, but it's
+probably still wise to check with us before sending it.
+
+\b If you want to send us a screen shot, or any other kind of large
+data file, it is much more convenient for us if you can put the file
+on a web site and send us the URL. That way (a) we don't have to
+download it at all if it doesn't look necessary; and (b) only one
+member of the team needs to download it, instead of it being
+automatically sent to everyone on the mailing list.
+
+\b If you \e{must} mail a screen shot, don't send it as a \cw{.BMP}
+file. \cw{BMP}s have no compression and they are \e{much} larger
+than other image formats such as PNG, TIFF and GIF. Convert the file
+to a properly compressed image format before sending it.
+
+\H{feedback-bugs} Reporting bugs
+
+If you think you have found a bug in PuTTY, your first steps should
+be:
+
+\b Check the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist.html}{Wishlist
+page} on the PuTTY website, and see if we already know about the
+problem. If we do, it is almost certainly not necessary to mail us
+about it, unless you think you have extra information that might be
+helpful to us in fixing it. (Of course, if we actually \e{need}
+specific extra information about a particular bug, the Wishlist page
+will say so.)
+
+\b Check the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html}{Change
+Log} on the PuTTY website, and see if we have already fixed the bug
+in the development snapshots.
+
+\b Check the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/faq.html}{FAQ}
+on the PuTTY website (also provided as \k{faq} in the manual), and
+see if it answers your question. The FAQ lists the most common
+things which people think are bugs, but which aren't bugs.
+
+\b Download the latest development snapshot and see if the problem
+still happens with that. This really is worth doing. As a general
+rule we aren't very interested in bugs that appear in the release
+version but not in the development version, because that usually
+means they are bugs we have \e{already fixed}. On the other hand, if
+you can find a bug in the development version that doesn't appear in
+the release, that's likely to be a new bug we've introduced since
+the release and we're definitely interested in it.
+
+If none of those options solved your problem, and you still need to
+report a bug to us, it is useful if you include some general
+information:
+
+\b Tell us what version of PuTTY you are running. To find this out,
+use the "About PuTTY" option from the System menu. Please \e{do not}
+just tell us \q{I'm running the latest version}; e-mail can be
+delayed and it may not be obvious which version was the latest at
+the time you sent the message. 
+
+\b Tell us what version of what OS you are running PuTTY on.
+
+\b Tell us what protocol you are connecting with: SSH, Telnet,
+Rlogin or Raw mode.
+
+\b Tell us what kind of server you are connecting to; what OS, and
+if possible what SSH server (if you're using SSH). You can get some
+of this information from the PuTTY Event Log (see \k{using-eventlog}
+in the manual).
+
+\b Send us the contents of the PuTTY Event Log, unless you
+have a specific reason not to (for example, if it contains
+confidential information that you think we should be able to solve
+your problem without needing to know).
+
+\b Try to give us as much information as you can to help us
+see the problem for ourselves. If possible, give us a step-by-step
+sequence of \e{precise} instructions for reproducing the fault.
+
+\b Don't just tell us that PuTTY \q{does the wrong thing}; tell us
+exactly and precisely what it did, and also tell us exactly and
+precisely what you think it should have done instead. Some people
+tell us PuTTY does the wrong thing, and it turns out that it was
+doing the right thing and their expectations were wrong. Help to
+avoid this problem by telling us exactly what you think it should
+have done, and exactly what it did do.
+
+\b If you think you can, you're welcome to try to fix the problem
+yourself. A patch to the code which fixes a bug is an excellent
+addition to a bug report. However, a patch is never a \e{substitute}
+for a good bug report; if your patch is wrong or inappropriate, and
+you haven't supplied us with full information about the actual bug,
+then we won't be able to find a better solution.
+
+\b
+\W{http://www.chiark.greenend.org.uk/~sgtatham/bugs.html}\cw{http://www.chiark.greenend.org.uk/~sgtatham/bugs.html}
+is an article on how to report bugs effectively in general. If your
+bug report is \e{particularly} unclear, we may ask you to go away,
+read this article, and then report the bug again.
+
+\H{feedback-features} Requesting extra features 
+
+If you want to request a new feature in PuTTY, the very first things
+you should do are:
+
+\b Check the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist.html}{Wishlist
+page} on the PuTTY website, and see if your feature is already on
+the list. If it is, it probably won't achieve very much to repeat
+the request. (But see \k{feedback-feature-priority} if you want to
+persuade us to give your particular feature higher priority.)
+
+\b Check the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html}{Change
+Log} on the PuTTY website, and see if we have already added your
+feature in the development snapshots. If it isn't clear, download
+the latest development snapshot and see if the feature is present.
+If it is, then it will also be in the next release and there is no
+need to mail us at all.
+
+If you can't find your feature in either the development snapshots
+\e{or} the Wishlist, then you probably do need to submit a feature
+request. Since the PuTTY authors are very busy, it helps if you try
+to do some of the work for us:
+
+\b Do as much of the design as you can. Think about \q{corner
+cases}; think about how your feature interacts with other existing
+features. Think about the user interface; if you can't come up with
+a simple and intuitive interface to your feature, you shouldn't be
+surprised if we can't either. Always imagine whether it's possible
+for there to be more than one, or less than one, of something you'd
+assumed there would be one of. (For example, if you were to want
+PuTTY to put an icon in the System tray rather than the Taskbar, you
+should think about what happens if there's more than one PuTTY
+active; how would the user tell which was which?)
+
+\b If you can program, it may be worth offering to write the feature
+yourself and send us a patch. However, it is likely to be helpful
+if you confer with us first; there may be design issues you haven't
+thought of, or we may be about to make big changes to the code which
+your patch would clash with, or something. If you check with the
+maintainers first, there is a better chance of your code actually
+being usable.
+
+\H{feedback-feature-priority} Requesting features that have already
+been requested
+
+If a feature is already listed on the Wishlist, then it usually
+means we would like to add it to PuTTY at some point. However, this
+may not be in the near future. If there's a feature on the Wishlist
+which you would like to see in the \e{near} future, there are
+several things you can do to try to increase its priority level:
+
+\b Mail us and vote for it. (Be sure to mention that you've seen it
+on the Wishlist, or we might think you haven't even \e{read} the
+Wishlist). This probably won't have very \e{much} effect; if a huge
+number of people vote for something then it may make a difference,
+but one or two extra votes for a particular feature are unlikely to
+change our priority list immediately. Also, don't expect a reply.
+
+\b Offer us money if we do the work sooner rather than later. This
+sometimes works, but not always. The PuTTY team all have full-time
+jobs and we're doing all of this work in our free time; we may
+sometimes be willing to give up some more of our free time in
+exchange for some money, but if you try to bribe us for a \e{big}
+feature it's entirely possible that we simply won't have the time to
+spare - whether you pay us or not. (Also, we don't accept bribes to
+add \e{bad} features to the Wishlist, because our desire to provide
+high-quality software to the users comes first.)
+
+\b Offer to help us write the code. This is probably the \e{only}
+way to get a feature implemented quickly, if it's a big one that we
+don't have time to do ourselves.
+
+\H{feedback-webadmin} Web server administration
+
+If the PuTTY web site is down (Connection Timed Out), please don't
+bother mailing us to tell us about it. Most of us read our e-mail on
+the same machines that host the web site, so if those machines are
+down then we will notice \e{before} we read our e-mail. So there's
+no point telling us our servers are down.
+
+Of course, if the web site has some other error (Connection Refused,
+404 Not Found, 403 Forbidden, or something else) then we might
+\e{not} have noticed and it might still be worth telling us about it.
+
+\H{feedback-permission} Asking permission for things
+
+PuTTY is distributed under the MIT Licence (see \k{licence} for
+details). This means you can do almost \e{anything} you like with
+our software, our source code, and our documentation. The only
+things you aren't allowed to do are to remove our copyright notices
+or the licence text itself, or to hold us legally responsible if
+something goes wrong.
+
+So if you want permission to include PuTTY on a magazine cover disk,
+or as part of a collection of useful software on a CD or a web site,
+then \e{permission is already granted}. You don't have to mail us
+and ask. Just go ahead and do it. We don't mind.
+
+If you want to use parts of the PuTTY source code in another
+program, then it might be worth mailing us to talk about technical
+details, but if all you want is to ask permission then you don't
+need to bother. You already have permission.
+
+\H{feedback-mirrors} Mirroring the PuTTY web site
+
+All mirrors of the PuTTY web site are welcome. Please don't bother
+asking us for permission before setting up a mirror. You already
+have permission. We are always happy to have more mirrors.
+
+If you mail us \e{after} you have set up the mirror, and remember to
+let us know which country your mirror is in, then we'll add it to
+the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html}{Mirrors
+page} on the PuTTY website.
+
+If you have technical questions about the process of mirroring, then
+you might want to mail us before setting up the mirror; but if you
+just want to ask for permission, you don't need to. You already have
+permission.
+
+\H{feedback-compliments} Praise and compliments
+
+One of the most rewarding things about maintaining free software is
+getting e-mails that just say \q{thanks}. We are always happy to
+receive e-mails of this type.
+
+Regrettably we don't have time to answer them all in person. If you
+mail us a compliment and don't receive a reply, \e{please} don't
+think we've ignored you. We did receive it and we were happy about
+it; we just didn't have time to tell you so personally.
+
+To everyone who's ever sent us praise and compliments, in the past
+and the future: \e{you're welcome}!
+
+\H{feedback-address} E-mail address
+
+The actual address to mail is
+\cw{<\W{mailto:putty@projects.tartarus.org}{putty@projects.tartarus.org}>}.
