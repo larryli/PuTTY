@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.37 2002/11/02 16:27:17 simon Exp $
+\versionid $Id: faq.but,v 1.38 2002/11/21 00:15:52 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -29,7 +29,9 @@ it probably \e{hasn't} been implemented.
 Yes. SSH v2 support has been available in PuTTY since version 0.50.
 However, currently the \e{default} SSH protocol is v1; to select SSH
 v2 if your server supports both, go to the SSH panel and change the
-\e{Preferred SSH protocol version} option.
+\e{Preferred SSH protocol version} option. (The factory default will
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/ssh2-default.html}{change to v2}
+in the next full release.)
 
 Public key authentication (both RSA and DSA) in SSH v2 is new in
 version 0.52.
