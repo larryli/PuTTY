@@ -373,6 +373,7 @@ void del234(tree234 *t, void *e) {
 		    sub->kids[1] = sub->kids[0];
 		    sub->elems[0] = n->elems[ki-1];
 		    sub->kids[0] = sib->kids[lastelem+1];
+		    if (sub->kids[0]) sub->kids[0]->parent = sub;
 		    n->elems[ki-1] = sib->elems[lastelem];
 		    sib->kids[lastelem+1] = NULL;
 		    sib->elems[lastelem] = NULL;
@@ -392,6 +393,7 @@ void del234(tree234 *t, void *e) {
 		    int j;
 		    sub->elems[1] = n->elems[ki];
 		    sub->kids[2] = sib->kids[0];
+		    if (sub->kids[2]) sub->kids[2]->parent = sub;
 		    n->elems[ki] = sib->elems[0];
 		    sib->kids[0] = sib->kids[1];
 		    for (j = 0; j < 2 && sib->elems[j+1]; j++) {
@@ -434,8 +436,10 @@ void del234(tree234 *t, void *e) {
 		    sub->kids[2] = sub->kids[0];
 		    sub->elems[1] = n->elems[ki];
 		    sub->kids[1] = sib->kids[1];
+		    if (sub->kids[1]) sub->kids[1]->parent = sub;
 		    sub->elems[0] = sib->elems[0];
 		    sub->kids[0] = sib->kids[0];
+		    if (sub->kids[0]) sub->kids[0]->parent = sub;
 
 		    sfree(sib);
 
@@ -550,8 +554,10 @@ void del234(tree234 *t, void *e) {
 	    LOG(("  case 2c\n"));
 	    a->elems[1] = n->elems[ei];
 	    a->kids[2] = b->kids[0];
+	    if (a->kids[2]) a->kids[2]->parent = a;
 	    a->elems[2] = b->elems[0];
 	    a->kids[3] = b->kids[1];
+	    if (a->kids[3]) a->kids[3]->parent = a;
 	    sfree(b);
 	    /*
 	     * That's built the big node in a, and destroyed b. Now
