@@ -247,7 +247,7 @@ of \c{su} do it automatically.
 abort}
 
 This is a generic error produced by the Windows network code when it
-decides that your network connection is dead. For example, it might
+kills an established connection for some reason. For example, it might
 happen if you pull the network cable out of the back of an
 Ethernet-connected computer, or if Windows has any other similar
 reason to believe the entire network has become unreachable.
