@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.38 2002/11/21 00:15:52 jacob Exp $
+\versionid $Id: faq.but,v 1.39 2002/11/22 00:07:31 ben Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -164,7 +164,7 @@ happens.
 \H{faq-ports} Ports to other operating systems
 
 The eventual goal is for PuTTY to be a multi-platform program, able
-to run on at least Windows, MacOS and Unix.
+to run on at least Windows, Mac OS and Unix.
 
 Porting will become easier once PuTTY has a generalised porting
 layer, drawing a clear line between platform-dependent and
@@ -177,8 +177,9 @@ be working so far.
 
 Currently, release versions of PuTTY only run on full Win32 systems.
 This includes Windows 95, 98, and ME, and it includes Windows NT,
-Windows 2000 and Windows XP. In the development code, a partial port
-to Unix is under way (see \k{faq-unix}).
+Windows 2000 and Windows XP. In the development code, partial ports
+to Unix (see \k{faq-unix}) and the Mac OS (see \k{faq-mac-port}).
+are under way.
 
 Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}),
 and it does not quite run on the Win32s environment under Windows
@@ -232,10 +233,9 @@ testing in this area would be very welcome!
 
 \S{faq-mac-port}{Question} Will there be a port to the Mac?
 
-A Mac port was started once and is half-finished, but development
-has been static for some time and the main PuTTY code has moved on,
-so it's not clear how quickly development would resume even if
-developer effort were available.
+Eventually.  The terminal emulation code has been ported, as has the
+saved-settings infrastructure, but networking and a configuration GUI
+still need to be done before the port will be of any use.
 
 \S{faq-epoc}{Question} Will there be a port to EPOC?
 
