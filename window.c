@@ -25,7 +25,7 @@
 /* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
  * wParam are used by Windows, and should be masked off, so we shouldn't
  * attempt to store information in them. Hence all these identifiers have
- * the low 4 bits clear. */
+ * the low 4 bits clear. Also, identifiers should < 0xF000. */
 
 #define IDM_SHOWLOG   0x0010
 #define IDM_NEWSESS   0x0020
@@ -41,17 +41,14 @@
 #define IDM_FULLSCREEN	0x0180
 #define IDM_PASTE     0x0190
 
-#define IDM_SESSLGP   0x0250	       /* log type printable */
-#define IDM_SESSLGA   0x0260	       /* log type all chars */
-#define IDM_SESSLGE   0x0270	       /* log end */
-
 #define IDM_SPECIAL_MIN 0x0400
 #define IDM_SPECIAL_MAX 0x0800
 
 #define IDM_SAVED_MIN 0x1000
-#define IDM_SAVED_MAX 0x2000
+#define IDM_SAVED_MAX 0x5000
+#define MENU_SAVED_STEP 16
 /* Maximum number of sessions on saved-session submenu */
-#define MENU_SAVED_MAX (IDM_SAVED_MAX-IDM_SAVED_MIN)
+#define MENU_SAVED_MAX ((IDM_SAVED_MAX-IDM_SAVED_MIN) / MENU_SAVED_STEP)
 
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
 #define WM_FULLSCR_ON_MAX (WM_XUSER + 3)
@@ -720,7 +717,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	     i < ((sesslist.nsessions <= MENU_SAVED_MAX+1) ? sesslist.nsessions
 							   : MENU_SAVED_MAX+1);
 	     i++)
-	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + i-1,
+	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
 		       sesslist.sessions[i]);
 
 	for (j = 0; j < lenof(popup_menus); j++) {
@@ -1892,7 +1889,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    sprintf(c, "putty &%p", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
-		    unsigned int sessno = lParam - IDM_SAVED_MIN + 1;
+		    unsigned int sessno = ((lParam - IDM_SAVED_MIN)
+					   / MENU_SAVED_STEP) + 1;
 		    if (sessno < sesslist.nsessions) {
 			char *session = sesslist.sessions[sessno];
 			/* XXX spaces? quotes? "-load"? */
