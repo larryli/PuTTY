@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.18 2003/03/24 10:49:01 simon Exp $
+\versionid $Id: plink.but,v 1.19 2003/08/29 19:06:22 jacob Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -43,7 +43,7 @@ use Plink:
 
 \c Z:\sysosd>plink
 \c PuTTY Link: command-line connection utility
-\c Release 0.53
+\c Unidentified build, Aug 29 2003 19:49:05
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
@@ -57,6 +57,7 @@ use Plink:
 \c   -batch    disable all interactive prompts
 \c The following options only apply to SSH connections:
 \c   -pw passw login with specified password
+\c   -D listen-port   Dynamic SOCKS-based port forwarding
 \c   -L listen-port:host:port   Forward local port to remote address
 \c   -R listen-port:host:port   Forward remote port to local address
 \c   -X -x     enable / disable X11 forwarding
@@ -65,6 +66,7 @@ use Plink:
 \c   -1 -2     force use of particular protocol version
 \c   -C        enable compression
 \c   -i key    private key file for authentication
+\c   -s        remote command is an SSH subsystem (SSH-2 only)
 
 Once this works, you are ready to use Plink.
 
@@ -185,8 +187,12 @@ Plink accepts all the general command line options supported by the
 PuTTY tools. See \k{using-general-opts} for a description of these
 options.
 
-In addition to this, Plink accepts one other option: the \c{-batch}
-option. If you use the \c{-batch} option, Plink will never give an
+Plink also supports some of its own options. The following sections
+describe Plink's specific command-line options.
+
+\S2{plink-option-batch} \c{-batch}: disable all interactive prompts
+
+If you use the \c{-batch} option, Plink will never give an
 interactive prompt while establishing the connection. If the
 server's host key is invalid, for example (see \k{gs-hostkey}), then
 the connection will simply be abandoned instead of asking you what
@@ -195,6 +201,14 @@ to do next.
 This may help Plink's behaviour when it is used in automated
 scripts: using \c{-batch}, if something goes wrong at connection
 time, the batch job will fail rather than hang.
+
+\S2{plink-option-s} \c{-s}: remote command is SSH subsystem
+
+If you specify the \c{-s} option, Plink passes the specified command
+as the name of an SSH \q{subsystem} rather than an ordinary command
+line.
+
+(This option is only meaningful with the SSH-2 protocol.)
 
 \H{plink-batch} Using Plink in \i{batch files} and \i{scripts}
 
