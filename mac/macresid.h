@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.4 2003/01/18 16:10:21 ben Exp $ */
+/* $Id: macresid.h,v 1.5 2003/01/18 17:14:34 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -24,7 +24,9 @@
 #define iNew		1
 #define iOpen		2
 #define iClose		3
-#define iQuit		5
+#define iSave		4
+#define iSaveAs		5
+#define iQuit		7
 /* Edit menu */
 #define iUndo		1
 #define iCut		3
