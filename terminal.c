@@ -2001,7 +2001,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 		}
 		q = lineend + 1;       /* start of next line */
 	    }
-	    write_clip (selspace, p - selspace);
+	    write_clip (selspace, p - selspace, FALSE);
 	    selstate = SELECTED;
 	} else
 	    selstate = NO_SELECTION;

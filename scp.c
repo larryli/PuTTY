@@ -77,7 +77,7 @@ static void gui_update_stats(char *name, unsigned long size, int percentage, tim
  * (should) never get called.
  */
 void begin_session(void) { }
-void write_clip (void *data, int len) { }
+void write_clip (void *data, int len, int must_deselect) { }
 void term_deselect(void) { }
 
 /* GUI Adaptation - Sept 2000 */

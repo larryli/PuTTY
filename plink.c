@@ -38,7 +38,7 @@ static char *password = NULL;
 /*
  * Stubs for linking with other modules.
  */
-void write_clip (void *data, int len) { }
+void write_clip (void *data, int len, int must_deselect) { }
 void term_deselect(void) { }
 
 HANDLE outhandle;
@@ -112,7 +112,7 @@ static int get_password(const char *prompt, char *str, int maxlen)
     return 1;
 }
 
-int WINAPI stdin_read_thread(void *param) {
+static int WINAPI stdin_read_thread(void *param) {
     struct input_data *idata = (struct input_data *)param;
     HANDLE inhandle;
 

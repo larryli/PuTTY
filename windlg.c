@@ -354,6 +354,11 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
                     char *clipdata;
                     static unsigned char sel_nl[] = SEL_NL;
 
+                    if (count == 0) {  /* can't copy zero stuff */
+                        MessageBeep(0);
+                        break;
+                    }
+
                     size = 0;
                     for (i = 0; i < count; i++)
                         size += strlen(events[selitems[i]]) + sizeof(sel_nl);
@@ -369,11 +374,14 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
                             memcpy(p, sel_nl, sizeof(sel_nl));
                             p += sizeof(sel_nl);
                         }
-                        write_clip(clipdata, size);
-                        term_deselect();
+                        write_clip(clipdata, size, TRUE);
                         free(clipdata);
                     }
                     free(selitems);
+
+                    for (i = 0; i < nevents; i++)
+                        SendDlgItemMessage(hwnd, IDN_LIST, LB_SETSEL,
+                                           FALSE, i);
                 }
             }
             return 0;

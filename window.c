@@ -2242,7 +2242,7 @@ void palette_reset (void) {
     }
 }
 
-void write_clip (void *data, int len) {
+void write_clip (void *data, int len, int must_deselect) {
     HGLOBAL clipdata;
     void *lock;
 
@@ -2256,14 +2256,18 @@ void write_clip (void *data, int len) {
     ((unsigned char *) lock) [len] = 0;
     GlobalUnlock (clipdata);
 
-    SendMessage (hwnd, WM_IGNORE_CLIP, TRUE, 0);
+    if (!must_deselect)
+        SendMessage (hwnd, WM_IGNORE_CLIP, TRUE, 0);
+
     if (OpenClipboard (hwnd)) {
 	EmptyClipboard();
 	SetClipboardData (CF_TEXT, clipdata);
 	CloseClipboard();
     } else
 	GlobalFree (clipdata);
-    SendMessage (hwnd, WM_IGNORE_CLIP, FALSE, 0);
+
+    if (!must_deselect)
+        SendMessage (hwnd, WM_IGNORE_CLIP, FALSE, 0);
 }
 
 void get_clip (void **p, int *len) {

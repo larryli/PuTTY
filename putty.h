@@ -244,7 +244,7 @@ Context get_ctx(void);
 void free_ctx (Context);
 void palette_set (int, int, int, int);
 void palette_reset (void);
-void write_clip (void *, int);
+void write_clip (void *, int, int);
 void get_clip (void **, int *);
 void optimised_move (int, int, int);
 void connection_fatal(char *, ...);
