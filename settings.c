@@ -534,6 +534,10 @@ static int sessioncmp(const void *av, const void *bv)
 	return -1;		       /* a comes first */
     if (!strcmp(b, "Default Settings"))
 	return +1;		       /* b comes first */
+    /*
+     * FIXME: perhaps we should ignore the first & in determining
+     * sort order.
+     */
     return strcmp(a, b);	       /* otherwise, compare normally */
 }
 
