@@ -1,7 +1,7 @@
 /*
- * Linking module for PSCP: list no available backends. This is
- * only present to satisfy linker requirements. I should really
- * untangle the whole lot a bit better.
+ * Linking module for PSCP: list the available backends, but
+ * without accompanying function suites. Used only for name
+ * lookups.
  */
 
 #include <windows.h>
@@ -9,5 +9,7 @@
 #include "putty.h"
 
 struct backend_list backends[] = {
-    {0, NULL}
+    {PROT_SSH, "ssh", NULL},
+    {PROT_TELNET, "telnet", NULL},
+    {PROT_RAW, "raw", NULL},
 };
