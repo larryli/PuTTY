@@ -3,15 +3,16 @@
 
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 
-/*
- * Global variables. Most modules declare these `extern', but
- * window.c will do `#define PUTTY_DO_GLOBALS' before including this
- * module, and so will get them properly defined.
- */
-#ifdef PUTTY_DO_GLOBALS
-#define GLOBAL
-#else
-#define GLOBAL extern
+#ifdef macintosh
+#include <MacTypes.h>
+typedef UInt32 DWORD;
+#endif /* macintosh */
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
 #endif
 
 #define ATTR_ACTCURS 0x80000000UL      /* active cursor (block) */
@@ -39,8 +40,24 @@
 #define ATTR_MASK    0xFFFFFF00UL
 #define CHAR_MASK    0x000000FFUL
 
+#ifdef macintosh
+typedef void *Context; /* Temporarily until I work out what it should really be */
+#else /* not macintosh */
 typedef HDC Context;
+#endif /* not macintosh */
+
 #define SEL_NL { 13, 10 }
+
+/*
+ * Global variables. Most modules declare these `extern', but
+ * window.c will do `#define PUTTY_DO_GLOBALS' before including this
+ * module, and so will get them properly defined.
+ */
+#ifdef PUTTY_DO_GLOBALS
+#define GLOBAL
+#else
+#define GLOBAL extern
+#endif
 
 GLOBAL int rows, cols, savelines;
 
@@ -80,8 +97,13 @@ typedef enum {
 } VT_Mode;
 
 typedef struct {
+#ifdef macintosh
+	char *(*init) (char *host, int port, char **realhost);
+	int (*msg)(void);
+#else /* not macintosh */
     char *(*init) (HWND hwnd, char *host, int port, char **realhost);
     int (*msg) (WPARAM wParam, LPARAM lParam);
+#endif /* not macintosh */
     void (*send) (char *buf, int len);
     void (*size) (void);
     void (*special) (Telnet_Special code);
@@ -146,7 +168,7 @@ void palette_reset (void);
 void write_clip (void *, int);
 void get_clip (void **, int *);
 void optimised_move (int, int, int);
-void fatalbox (char *, ...);
+void fatalbox (const char *, ...);
 void beep (void);
 #define OPTIMISE_IS_SCROLL 1
 
@@ -158,6 +180,7 @@ void noise_get_light(void (*func) (void *, int));
 void noise_ultralight(DWORD data);
 void random_save_seed(void);
 
+#ifndef macintosh
 /*
  * Exports from windlg.c.
  */
@@ -168,6 +191,7 @@ void lognegot (char *);
 void shownegot (HWND);
 void showabout (HWND);
 void verify_ssh_host_key(char *host, struct RSAKey *key);
+#endif
 
 /*
  * Exports from terminal.c.
