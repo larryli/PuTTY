@@ -93,7 +93,8 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "AltSpace", cfg->alt_space);
     write_setting_i (sesskey, "AltOnly", cfg->alt_only);
     write_setting_i (sesskey, "ComposeKey", cfg->compose_key);
-    write_setting_i (sesskey, "LdiscTerm", cfg->ldisc_term);
+    write_setting_i (sesskey, "LocalEcho", cfg->localecho);
+    write_setting_i (sesskey, "LocalEdit", cfg->localedit);
     write_setting_i (sesskey, "AlwaysOnTop", cfg->alwaysontop);
     write_setting_i (sesskey, "HideMousePtr", cfg->hide_mouseptr);
     write_setting_i (sesskey, "CurType", cfg->cursor_type);
@@ -237,7 +238,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "AltSpace", 0, &cfg->alt_space);
     gppi (sesskey, "AltOnly", 0, &cfg->alt_only);
     gppi (sesskey, "ComposeKey", 0, &cfg->compose_key);
-    gppi (sesskey, "LdiscTerm", 0, &cfg->ldisc_term);
+    gppi (sesskey, "LocalEcho", LD_BACKEND, &cfg->localecho);
+    gppi (sesskey, "LocalEdit", LD_BACKEND, &cfg->localedit);
     gppi (sesskey, "AlwaysOnTop", 0, &cfg->alwaysontop);
     gppi (sesskey, "HideMousePtr", 0, &cfg->hide_mouseptr);
     gppi (sesskey, "CurType", 0, &cfg->cursor_type);

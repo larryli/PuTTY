@@ -102,8 +102,6 @@ static char *rlogin_init (char *host, int port, char **realhost) {
         sk_write(s, &z, 1);
     }
 
-    begin_session();
-
     return NULL;
 }
 
@@ -142,6 +140,10 @@ static Socket rlogin_socket(void) { return s; }
 
 static int rlogin_sendok(void) { return 1; }
 
+static int rlogin_ldisc(int option) {
+    return 0;
+}
+
 Backend rlogin_backend = {
     rlogin_init,
     rlogin_send,
@@ -149,5 +151,6 @@ Backend rlogin_backend = {
     rlogin_special,
     rlogin_socket,
     rlogin_sendok,
+    rlogin_ldisc,
     1
 };

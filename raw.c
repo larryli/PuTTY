@@ -70,11 +70,6 @@ static char *raw_init (char *host, int port, char **realhost) {
 
     sk_addr_free(addr);
 
-    /*
-     * We have no pre-session phase.
-     */
-    begin_session();
-
     return NULL;
 }
 
@@ -109,6 +104,12 @@ static Socket raw_socket(void) { return s; }
 
 static int raw_sendok(void) { return 1; }
 
+static int raw_ldisc(int option) {
+    if (option == LD_EDIT || option == LD_ECHO)
+        return 1;
+    return 0;
+}
+
 Backend raw_backend = {
     raw_init,
     raw_send,
@@ -116,5 +117,6 @@ Backend raw_backend = {
     raw_special,
     raw_socket,
     raw_sendok,
+    raw_ldisc,
     1
 };

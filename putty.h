@@ -115,6 +115,21 @@ typedef enum {
     VT_XWINDOWS, VT_OEMANSI, VT_OEMONLY, VT_POORMAN
 } VT_Mode;
 
+enum {
+    /*
+     * Line discipline option states: off, on, up to the backend.
+     */
+    LD_YES, LD_NO, LD_BACKEND
+};
+
+enum {
+    /*
+     * Line discipline options which the backend might try to control.
+     */
+    LD_EDIT,                           /* local line editing */
+    LD_ECHO                            /* local echo */
+};
+
 typedef struct {
     char *(*init) (char *host, int port, char **realhost);
     void (*send) (char *buf, int len);
@@ -122,6 +137,7 @@ typedef struct {
     void (*special) (Telnet_Special code);
     Socket (*socket) (void);
     int (*sendok) (void);
+    int (*ldisc) (int);
     int default_port;
 } Backend;
 
@@ -132,12 +148,6 @@ extern struct backend_list {
     char *name;
     Backend *backend;
 } backends[];
-
-typedef struct {
-    void (*send) (char *buf, int len);
-} Ldisc;
-
-GLOBAL Ldisc *ldisc;
 
 typedef struct {
     /* Basic options */
@@ -176,7 +186,8 @@ typedef struct {
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
     int alt_only;		       /* is it special? */
-    int ldisc_term;
+    int localecho;
+    int localedit;
     int alwaysontop;
     int scroll_on_key;
     int scroll_on_disp;
@@ -333,6 +344,7 @@ void term_invalidate(void);
 void term_blink(int set_cursor);
 void term_paste(void);
 void term_nopaste(void);
+int telnet_ldisc(int option);
 void from_backend(int is_stderr, char *data, int len);
 void logfopen (void); 
 void logfclose (void);
@@ -367,7 +379,7 @@ extern Backend ssh_backend;
  * Exports from ldisc.c.
  */
 
-extern Ldisc ldisc_term, ldisc_simple;
+extern void ldisc_send(char *buf, int len);
 
 /*
  * Exports from sshrand.c.

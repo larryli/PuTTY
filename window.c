@@ -101,13 +101,10 @@ static Mouse_Button lastbtn;
 
 static char *window_name, *icon_name;
 
-static Ldisc *real_ldisc;
-
 static int compose_state = 0;
 
-void begin_session(void) {
-    ldisc = real_ldisc;
-}
+/* Dummy routine, only required in plink. */
+void ldisc_update(int echo, int edit) {}
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     static char appname[] = "PuTTY";
@@ -317,11 +314,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         WSACleanup();
         return 1;
     }
-
-    real_ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
-    /* To start with, we use the simple line discipline, so we can
-     * type passwords etc without fear of them being echoed... */
-    ldisc = &ldisc_simple;
 
     if (!prev) {
 	wndclass.style         = 0;
@@ -1220,11 +1212,10 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                 init_fonts(0);
                 sfree(logpal);
                 /*
-                 * Telnet will change local echo -> remote if the
-                 * remote asks.
+                 * Flush the line discipline's edit buffer in the
+                 * case where local editing has just been disabled.
                  */
-                if (cfg.protocol != PROT_TELNET)
-                    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
+                ldisc_send(NULL, 0);
                 if (pal)
                     DeleteObject(pal);
                 logpal = NULL;
@@ -1615,7 +1606,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		len = TranslateKey (message, wParam, lParam, buf);
 		if (len == -1)
 		    return DefWindowProc (hwnd, message, wParam, lParam);
-		ldisc->send (buf, len);
+		ldisc_send (buf, len);
 
                 if (len > 0)
                     show_mouseptr(0);
@@ -1628,7 +1619,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
-	    ldisc->send (buf, 2);
+	    ldisc_send (buf, 2);
 	}
       case WM_CHAR:
       case WM_SYSCHAR:
@@ -1640,7 +1631,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	 */
 	{
 	    char c = xlat_kbd2tty((unsigned char)wParam);
-	    ldisc->send (&c, 1);
+	    ldisc_send (&c, 1);
 	}
 	return 0;
     }

@@ -272,6 +272,7 @@ int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
 static char *savedhost;
 static int savedport;
 static int ssh_send_ok;
+static int ssh_echoing, ssh_editing;
 
 static tree234 *ssh_channels;           /* indexed by local id */
 static struct ssh_channel *mainchan;   /* primary session channel */
@@ -1840,8 +1841,11 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             crReturnV;
         } else if (pktin.type == SSH1_SMSG_FAILURE) {
             c_write("Server refused to allocate pty\r\n", 32);
+            ssh_editing = ssh_echoing = 1;
         }
 	logevent("Allocated pty");
+    } else {
+        ssh_editing = ssh_echoing = 1;
     }
 
     if (cfg.compression) {
@@ -1871,9 +1875,9 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
     if (eof_needed)
         ssh_special(TS_EOF);
 
+    ldisc_send(NULL, 0);               /* cause ldisc to notice changes */
     ssh_send_ok = 1;
     ssh_channels = newtree234(ssh_channelcmp);
-    begin_session();
     while (1) {
 	crReturnV;
 	if (ispkt) {
@@ -2743,9 +2747,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 crReturnV;
             }
             c_write("Server refused to allocate pty\r\n", 32);
+            ssh_editing = ssh_echoing = 1;
         } else {
             logevent("Allocated pty");
         }
+    } else {
+        ssh_editing = ssh_echoing = 1;
     }
 
     /*
@@ -2793,8 +2800,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * Transfer data!
      */
+    ldisc_send(NULL, 0);               /* cause ldisc to notice changes */
     ssh_send_ok = 1;
-    begin_session();
     while (1) {
         static int try_send;
 	crReturnV;
@@ -3005,6 +3012,8 @@ static char *ssh_init (char *host, int port, char **realhost) {
 #endif
 
     ssh_send_ok = 0;
+    ssh_editing = 0;
+    ssh_echoing = 0;
 
     p = connect_to_host(host, port, realhost);
     if (p != NULL)
@@ -3100,6 +3109,12 @@ static Socket ssh_socket(void) { return s; }
 
 static int ssh_sendok(void) { return ssh_send_ok; }
 
+static int ssh_ldisc(int option) {
+    if (option == LD_ECHO) return ssh_echoing;
+    if (option == LD_EDIT) return ssh_editing;
+    return FALSE;
+}
+
 Backend ssh_backend = {
     ssh_init,
     ssh_send,
@@ -3107,5 +3122,6 @@ Backend ssh_backend = {
     ssh_special,
     ssh_socket,
     ssh_sendok,
+    ssh_ldisc,
     22
 };

@@ -132,6 +132,8 @@ static struct Opt *opts[] = {
     &o_we_sga, &o_they_sga, NULL
 };
 
+static int echoing = TRUE, editing = TRUE;
+
 static int in_synch;
 static int sb_opt, sb_len;
 static char *sb_buf = NULL;
@@ -170,8 +172,11 @@ static void deactivate_option (struct Opt *o) {
  * Generate side effects of enabling or disabling an option.
  */
 static void option_side_effects(struct Opt *o, int enabled) {
-    if (o->option == TELOPT_ECHO && cfg.ldisc_term)
-	ldisc = enabled ? &ldisc_simple : &ldisc_term;
+    if (o->option == TELOPT_ECHO && o->send == DO)
+        echoing = !enabled;
+    else if (o->option = TELOPT_SGA && o->send == DO)
+        editing = !enabled;
+    ldisc_send(NULL, 0);               /* cause ldisc to notice the change */
 }
 
 static void activate_option (struct Opt *o) {
@@ -509,15 +514,6 @@ static char *telnet_init (char *host, int port, char **realhost) {
     /*
      * Initialise option states.
      */
-    if( cfg.ldisc_term )
-    {
-	struct Opt **o;
-
-	for (o = opts; *o; o++)
-	    if ((*o)->state == REQUESTED)
-		(*o)->state = INACTIVE;
-    }
-    else
     {
 	struct Opt **o;
 
@@ -530,11 +526,6 @@ static char *telnet_init (char *host, int port, char **realhost) {
      * Set up SYNCH state.
      */
     in_synch = FALSE;
-
-    /*
-     * We have no pre-session phase.
-     */
-    begin_session();
 
     return NULL;
 }
@@ -638,6 +629,12 @@ static Socket telnet_socket(void) { return s; }
 
 static int telnet_sendok(void) { return 1; }
 
+static int telnet_ldisc(int option) {
+    if (option == LD_ECHO) return echoing;
+    if (option == LD_EDIT) return editing;
+    return FALSE;
+}
+
 Backend telnet_backend = {
     telnet_init,
     telnet_send,
@@ -645,5 +642,6 @@ Backend telnet_backend = {
     telnet_special,
     telnet_socket,
     telnet_sendok,
+    telnet_ldisc,
     23
 };

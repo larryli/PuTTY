@@ -119,17 +119,10 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
     }
 }
 
-HANDLE outhandle, errhandle;
+HANDLE inhandle, outhandle, errhandle;
 DWORD orig_console_mode;
 
 WSAEVENT netevent;
-
-void begin_session(void) {
-    if (!cfg.ldisc_term)
-        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
-    else
-        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), orig_console_mode);
-}
 
 void from_backend(int is_stderr, char *data, int len) {
     int pos;
@@ -142,6 +135,23 @@ void from_backend(int is_stderr, char *data, int len) {
             return;                    /* give up in panic */
         pos += ret;
     }
+}
+
+int term_ldisc(int mode) { return FALSE; }
+void ldisc_update(int echo, int edit) {
+    /* Update stdin read mode to reflect changes in line discipline. */
+    DWORD mode;
+
+    mode = ENABLE_PROCESSED_INPUT;
+    if (echo)
+        mode = mode | ENABLE_ECHO_INPUT;
+    else
+        mode = mode &~ ENABLE_ECHO_INPUT;
+    if (edit)
+        mode = mode | ENABLE_LINE_INPUT;
+    else
+        mode = mode &~ ENABLE_LINE_INPUT;
+    SetConsoleMode(inhandle, mode);
 }
 
 struct input_data {
@@ -403,7 +413,6 @@ int main(int argc, char **argv) {
                     len2 = strlen(cp); len -= len2; cp += len2;
                 }
                 cfg.nopty = TRUE;      /* command => no terminal */
-                cfg.ldisc_term = TRUE; /* use stdin like a line buffer */
                 break;                 /* done with cmdline */
             }
 	}
@@ -475,10 +484,11 @@ int main(int argc, char **argv) {
 
     stdinevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &orig_console_mode);
-    SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
+    inhandle = GetStdHandle(STD_INPUT_HANDLE);
     outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
     errhandle = GetStdHandle(STD_ERROR_HANDLE);
+    GetConsoleMode(inhandle, &orig_console_mode);
+    SetConsoleMode(inhandle, ENABLE_PROCESSED_INPUT);
 
     /*
      * Turn off ECHO and LINE input modes. We don't care if this

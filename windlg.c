@@ -200,6 +200,17 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_CLOSEEXIT,
     sessionpanelend,
 
+    loggingpanelstart,
+    IDC_BOX_LOGGING1,
+    IDC_LSTATSTATIC,
+    IDC_LSTATOFF,
+    IDC_LSTATASCII,
+    IDC_LSTATRAW,
+    IDC_LGFSTATIC,
+    IDC_LGFEDIT,
+    IDC_LGFBUTTON,
+    loggingpanelend,
+
     keyboardpanelstart,
     IDC_TITLE_KEYBOARD,
     IDC_BOX_KEYBOARD1,
@@ -238,14 +249,14 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BEEP,
     IDC_BCE,
     IDC_BLINKTEXT,
-    IDC_LDISCTERM,
-    IDC_LSTATSTATIC,
-    IDC_LSTATOFF,
-    IDC_LSTATASCII,
-    IDC_LSTATRAW,
-    IDC_LGFSTATIC,
-    IDC_LGFEDIT,
-    IDC_LGFBUTTON,
+    IDC_ECHOSTATIC,
+    IDC_ECHOBACKEND,
+    IDC_ECHOYES,
+    IDC_ECHONO,
+    IDC_EDITSTATIC,
+    IDC_EDITBACKEND,
+    IDC_EDITYES,
+    IDC_EDITNO,
     terminalpanelend,
 
     windowpanelstart,
@@ -489,7 +500,12 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_ALTSPACE, cfg.alt_space);
     CheckDlgButton (hwnd, IDC_ALTONLY, cfg.alt_only);
     CheckDlgButton (hwnd, IDC_COMPOSEKEY, cfg.compose_key);
-    CheckDlgButton (hwnd, IDC_LDISCTERM, cfg.ldisc_term);
+    CheckRadioButton (hwnd, IDC_ECHOBACKEND, IDC_ECHONO,
+		      cfg.localecho == LD_BACKEND ? IDC_ECHOBACKEND:
+                      cfg.localecho == LD_YES ? IDC_ECHOYES : IDC_ECHONO);
+    CheckRadioButton (hwnd, IDC_EDITBACKEND, IDC_EDITNO,
+		      cfg.localedit == LD_BACKEND ? IDC_EDITBACKEND:
+                      cfg.localedit == LD_YES ? IDC_EDITYES : IDC_EDITNO);
     CheckDlgButton (hwnd, IDC_ALWAYSONTOP, cfg.alwaysontop);
     CheckDlgButton (hwnd, IDC_SCROLLKEY, cfg.scroll_on_key);
     CheckDlgButton (hwnd, IDC_SCROLLDISP, cfg.scroll_on_disp);
@@ -681,8 +697,26 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         endbox(&cp);
     }
 
+    if (panel == loggingpanelstart) {
+        /* The Logging panel. Accelerators used: [acgo] lpt */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling session logging",
+                 IDC_TITLE_TERMINAL);
+        beginbox(&cp, NULL, IDC_BOX_LOGGING1);
+        radiobig(&cp,
+                 "Session logging:", IDC_LSTATSTATIC,
+                 "Logging &turned off completely", IDC_LSTATOFF,
+                 "Log &printable output only", IDC_LSTATASCII,
+                 "&Log all session output", IDC_LSTATRAW, NULL);
+        editbutton(&cp, "Log &file name:",
+                   IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
+                   IDC_LGFBUTTON);
+        endbox(&cp);
+    }
+
     if (panel == terminalpanelstart) {
-        /* The Terminal panel. Accelerators used: [acgo] &dflbenuw */
+        /* The Terminal panel. Accelerators used: [acgo] &dflbentuw */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the terminal emulation",
@@ -695,19 +729,18 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         checkbox(&cp, "&Beep enabled", IDC_BEEP);
         checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
         checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
-        checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
         endbox(&cp);
 
-        beginbox(&cp, "Control session logging",
+        beginbox(&cp, "Line discipline options",
                  IDC_BOX_TERMINAL2);
-        radiobig(&cp,
-                 "Session logging:", IDC_LSTATSTATIC,
-                 "Logging turned &off completely", IDC_LSTATOFF,
-                 "Log printable output only", IDC_LSTATASCII,
-                 "Log all session output", IDC_LSTATRAW, NULL);
-        editbutton(&cp, "Log &file name:",
-                   IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
-                   IDC_LGFBUTTON);
+        radioline(&cp, "Local echo:", IDC_ECHOSTATIC, 3,
+                  "A&uto", IDC_ECHOBACKEND,
+                  "Force on", IDC_ECHOYES,
+                  "Force off", IDC_ECHONO, NULL);
+        radioline(&cp, "Local line editing:", IDC_EDITSTATIC, 3,
+                  "Au&to", IDC_EDITBACKEND,
+                  "Force on", IDC_EDITYES,
+                  "Force off", IDC_EDITNO, NULL);
         endbox(&cp);
     }
 
@@ -1081,6 +1114,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	 * Set up the tree view contents.
 	 */
         hsession = treeview_insert(&tvfaff, 0, "Session");
+        treeview_insert(&tvfaff, 1, "Logging");
         treeview_insert(&tvfaff, 0, "Terminal");
         treeview_insert(&tvfaff, 1, "Keyboard");
         treeview_insert(&tvfaff, 0, "Window");
@@ -1144,6 +1178,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             }
 	    if (!strcmp(buffer, "Session"))
 		create_controls(hwnd, dlgtype, sessionpanelstart);
+	    if (!strcmp(buffer, "Logging"))
+		create_controls(hwnd, dlgtype, loggingpanelstart);
 	    if (!strcmp(buffer, "Keyboard"))
 		create_controls(hwnd, dlgtype, keyboardpanelstart);
 	    if (!strcmp(buffer, "Terminal"))
@@ -1398,10 +1434,25 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.alt_only = IsDlgButtonChecked (hwnd, IDC_ALTONLY);
 	    break;
-	  case IDC_LDISCTERM:
+	  case IDC_ECHOBACKEND:
+	  case IDC_ECHOYES:
+	  case IDC_ECHONO:
 	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.ldisc_term = IsDlgButtonChecked (hwnd, IDC_LDISCTERM);
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (LOWORD(wParam)==IDC_ECHOBACKEND) cfg.localecho=LD_BACKEND;
+		if (LOWORD(wParam)==IDC_ECHOYES) cfg.localecho=LD_YES;
+		if (LOWORD(wParam)==IDC_ECHONO) cfg.localecho=LD_NO;
+            }
+	    break;
+	  case IDC_EDITBACKEND:
+	  case IDC_EDITYES:
+	  case IDC_EDITNO:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (LOWORD(wParam)==IDC_EDITBACKEND) cfg.localedit=LD_BACKEND;
+		if (LOWORD(wParam)==IDC_EDITYES) cfg.localedit=LD_YES;
+		if (LOWORD(wParam)==IDC_EDITNO) cfg.localedit=LD_NO;
+            }
 	    break;
           case IDC_ALWAYSONTOP:
 	    if (HIWORD(wParam) == BN_CLICKED ||

@@ -78,6 +78,8 @@ static int use_bce;		       /* Use Background coloured erase */
 static int blinker;		       /* When blinking is the cursor on ? */
 static int tblinker;		       /* When the blinking text is on */
 static int blink_is_real;	       /* Actually blink blinking text */
+static int term_echoing;               /* Does terminal want local echo? */
+static int term_editing;               /* Does terminal want local edit? */
 
 static unsigned long cset_attr[2];
 
@@ -183,6 +185,8 @@ static void power_on(void) {
     rvideo = 0;
     cursor_on = 1;
     save_attr = curr_attr = ATTR_DEFAULT;
+    term_editing = term_echoing = FALSE;
+    ldisc_send(NULL, 0);               /* cause ldisc to notice changes */
     app_cursor_keys = cfg.app_cursor;
     app_keypad_keys = cfg.app_keypad;
     use_bce = cfg.bce;
@@ -707,6 +711,10 @@ static void toggle_mode (int mode, int query, int state) {
       case 8:			       /* auto key repeat */
 	repeat_off = !state;
 	break;
+      case 10:			       /* set local edit mode */
+        term_editing = state;
+        ldisc_send(NULL, 0);           /* cause ldisc to notice changes */
+	break;
       case 25:			       /* enable/disable cursor */
 	compatibility2(OTHER,VT220);
 	cursor_on = state;
@@ -724,16 +732,8 @@ static void toggle_mode (int mode, int query, int state) {
 	insert = state;
 	break;
       case 12:			       /* set echo mode */
-	/* 
-	 * This may be very good in smcup and rmcup (or smkx & rmkx) if you
-	 * have a long RTT and the telnet client/daemon doesn't understand
-	 * linemode.
-	 *
-	 * DONT send TS_RECHO/TS_LECHO; the telnet daemon tries to fix the
-	 * tty and _really_ confuses some programs.
-	 */
-	compatibility2(OTHER,VT220);
-        ldisc = (state? &ldisc_simple : &ldisc_term);
+        term_echoing = !state;
+        ldisc_send(NULL, 0);           /* cause ldisc to notice changes */
 	break;
       case 20:			       /* Return sends ... */
 	cr_lf_return = state;
@@ -804,7 +804,7 @@ static int beep_overload = 0;
 		 * An xterm returns "xterm" (5 characters)
 		 */
 	        compatibility(OTHER);
-		ldisc->send ("PuTTY", 5);
+		ldisc_send ("PuTTY", 5);
 		break;
 	      case '\007':
 		beep_count++; 
@@ -1056,7 +1056,7 @@ static int beep_overload = 0;
 		break;
 	      case 'Z':		       /* terminal type query */
 	        compatibility(VT100);
-		ldisc->send (id_string, strlen(id_string));
+		ldisc_send (id_string, strlen(id_string));
 		break;
 	      case 'c':		       /* restore power-on settings */
 	        compatibility(VT100);
@@ -1199,16 +1199,16 @@ static int beep_overload = 0;
 	      case 'c':		       /* terminal type query */
 	        compatibility(VT100);
 		/* This is the response for a VT102 */
-		ldisc->send (id_string, strlen(id_string));
+		ldisc_send (id_string, strlen(id_string));
 		break;
 	      case 'n':		       /* cursor position query */
 		if (esc_args[0] == 6) {
 		    char buf[32];
 		    sprintf (buf, "\033[%d;%dR", curs_y + 1, curs_x + 1);
-		    ldisc->send (buf, strlen(buf));
+		    ldisc_send (buf, strlen(buf));
 		}
 		else if (esc_args[0] == 5) {
-		    ldisc->send ("\033[0n", 4);
+		    ldisc_send ("\033[0n", 4);
 		}
 		break;
 	      case 'h':		       /* toggle modes to high */
@@ -1420,7 +1420,7 @@ static int beep_overload = 0;
 		    if (i == 0 || i == 1) {
 			strcpy (buf, "\033[2;1;1;112;112;1;0x");
 			buf[2] += i;
-			ldisc->send (buf, 20);
+			ldisc_send (buf, 20);
 		    }
 		}
 		break;
@@ -1692,7 +1692,7 @@ static int beep_overload = 0;
 	        termstate = VT52_Y1;
 		break;
 	      case 'Z':
-		ldisc->send ("\033/Z", 3);
+		ldisc_send ("\033/Z", 3);
 		break;
 	      case '=':
 	        app_keypad_keys = TRUE;
@@ -2162,7 +2162,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 
 	    /* Assume a small paste will be OK in one go. */
 	    if (paste_len<256) {
-	        ldisc->send (paste_buffer, paste_len);
+	        ldisc_send (paste_buffer, paste_len);
 	        if (paste_buffer) sfree(paste_buffer);
 		paste_buffer = 0;
 	        paste_pos = paste_hold = paste_len = 0;
@@ -2203,7 +2203,7 @@ void term_paste() {
 	    if (paste_buffer[paste_pos + n++] == '\r')
 		break;
 	}
-	ldisc->send (paste_buffer+paste_pos, n);
+	ldisc_send (paste_buffer+paste_pos, n);
 	paste_pos += n;
 
 	if (paste_pos < paste_len) {
@@ -2224,6 +2224,12 @@ static void deselect (void) {
 void term_deselect (void) {
     deselect();
     term_update();
+}
+
+int term_ldisc(int option) {
+    if (option == LD_ECHO) return term_echoing;
+    if (option == LD_EDIT) return term_editing;
+    return FALSE;
 }
 
 /*
