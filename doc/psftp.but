@@ -291,6 +291,26 @@ have to use the \c{--} special argument, which stops \c{put} from
 interpreting anything as a switch after it. For example, \cq{put --
 -silly-name-}.)
 
+\S{psftp-cmd-mgetput} The \c{mget} and \c{mput} commands: fetch or
+send multiple files
+
+\c{mget} works almost exactly like \c{get}, except that it allows
+you to specify more than one file to fetch at once. You can do this
+in two ways:
+
+\b by giving two or more explicit file names (\cq{mget file1.txt
+file2.txt})
+
+\b by using a wildcard (\cq{mget *.txt}).
+
+Every argument to \c{mget} is treated as the name of a file to fetch
+(unlike \c{get}, which will interpret at most one argument like
+that, and a second argument will be treated as an alternative name
+under which to store the retrieved file), or a wildcard expression
+matching more than one file.
+
+\c{mput} is similar to \c{put}, with the same differences.
+
 \S{psftp-cmd-regetput} The \c{reget} and \c{reput} commands:
 resuming file transfers
 

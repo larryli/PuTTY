@@ -12,6 +12,7 @@
 #include <utime.h>
 #include <errno.h>
 #include <assert.h>
+#include <glob.h>
 
 #include "putty.h"
 #include "psftp.h"
@@ -285,30 +286,60 @@ void close_directory(DirHandle *dir)
 
 int test_wildcard(char *name, int cmdline)
 {
-    /*
-     * On Unix, we currently don't support local wildcards at all.
-     * We will have to do so (FIXME) once PSFTP starts implementing
-     * mput, but until then we can assume `cmdline' is always set.
-     */
     struct stat statbuf;
 
-    assert(cmdline);
-    if (stat(name, &statbuf) < 0)
-	return WCTYPE_NONEXISTENT;
-    else
+    if (stat(name, &statbuf) == 0) {
 	return WCTYPE_FILENAME;
+    } else if (cmdline) {
+	/*
+	 * On Unix, we never need to parse wildcards coming from
+	 * the command line, because the shell will have expanded
+	 * them into a filename list already.
+	 */
+	return WCTYPE_NONEXISTENT;
+    } else {
+	glob_t globbed;
+	int ret = WCTYPE_NONEXISTENT;
+
+	if (glob(name, GLOB_ERR, NULL, &globbed) == 0) {
+	    if (globbed.gl_pathc > 0)
+		ret = WCTYPE_WILDCARD;
+	    globfree(&globbed);
+	}
+
+	return ret;
+    }
 }
 
 /*
- * Actually return matching file names for a local wildcard. FIXME:
- * we currently don't support this at all.
+ * Actually return matching file names for a local wildcard.
  */
 struct WildcardMatcher {
-    int x;
+    glob_t globbed;
+    int i;
 };
-WildcardMatcher *begin_wildcard_matching(char *name) { return NULL; }
-char *wildcard_get_filename(WildcardMatcher *dir) { return NULL; }
-void finish_wildcard_matching(WildcardMatcher *dir) {}
+WildcardMatcher *begin_wildcard_matching(char *name) {
+    WildcardMatcher *ret = snew(WildcardMatcher);
+
+    if (glob(name, 0, NULL, &ret->globbed) < 0) {
+	sfree(ret);
+	return NULL;
+    }
+
+    ret->i = 0;
+
+    return ret;
+}
+char *wildcard_get_filename(WildcardMatcher *dir) {
+    if (dir->i < dir->globbed.gl_pathc) {
+	return dupstr(dir->globbed.gl_pathv[dir->i++]);
+    } else
+	return NULL;
+}
+void finish_wildcard_matching(WildcardMatcher *dir) {
+    globfree(&dir->globbed);
+    sfree(dir);
+}
 
 int create_directory(char *name)
 {

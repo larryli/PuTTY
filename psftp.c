@@ -200,7 +200,8 @@ static int bare_name_compare(const void *av, const void *bv)
 /* ----------------------------------------------------------------------
  * The meat of the `get' and `put' commands.
  */
-int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
+int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
+		  char *wildcard)
 {
     struct fxp_handle *fh;
     struct sftp_packet *pktin;
@@ -215,17 +216,22 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
      * (If we're not in recursive mode, we need not even check: the
      * subsequent FXP_OPEN will return a usable error message.)
      */
-    if (recurse) {
+    if (wildcard || recurse) {
 	struct fxp_attrs attrs;
 	int result;
 
-	sftp_register(req = fxp_stat_send(fname));
-	rreq = sftp_find_request(pktin = sftp_recv());
-	assert(rreq == req);
-	result = fxp_stat_recv(pktin, rreq, &attrs);
-	if (result &&
-	    (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
-	    (attrs.permissions & 0040000)) {
+	if (!wildcard) {
+	    sftp_register(req = fxp_stat_send(fname));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    result = fxp_stat_recv(pktin, rreq, &attrs);
+	} else
+	    result = 0;		       /* placate optimisers */
+
+	if (wildcard ||
+	    (result &&
+	     (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
+	     (attrs.permissions & 0040000))) {
 
 	    struct fxp_handle *dirhandle;
 	    int nnames, namesize;
@@ -235,9 +241,11 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 
 	    /*
 	     * First, attempt to create the destination directory,
-	     * unless it already exists.
+	     * unless it already exists (or this is a wildcard
+	     * run).
 	     */
-	    if (file_type(outfname) != FILE_TYPE_DIRECTORY &&
+	    if (!wildcard &&
+		file_type(outfname) != FILE_TYPE_DIRECTORY &&
 		!create_directory(outfname)) {
 		printf("%s: Cannot create directory\n", outfname);
 		return 0;
@@ -283,7 +291,9 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		    ournames = sresize(ournames, namesize, struct fxp_name *);
 		}
 		for (i = 0; i < names->nnames; i++)
-		    if (!is_dots(names->names[i].filename))
+		    if (!is_dots(names->names[i].filename) &&
+			(!wildcard || wc_match(wildcard,
+					       names->names[i].filename)))
 			ournames[nnames++] = fxp_dup_name(&names->names[i]);
 		fxp_free_names(names);
 	    }
@@ -291,6 +301,14 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 	    rreq = sftp_find_request(pktin = sftp_recv());
 	    assert(rreq == req);
 	    fxp_close_recv(pktin, rreq);
+
+	    /*
+	     * A polite warning if nothing at all matched the
+	     * wildcard.
+	     */
+	    if (wildcard && !nnames) {
+		printf("%s: nothing matched\n", wildcard);
+	    }
 
 	    /*
 	     * Sort the names into a clear order. This ought to
@@ -313,7 +331,11 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 	    while (i < nnames) {
 		char *nextoutfname;
 		int ret;
-		nextoutfname = dir_file_cat(outfname, ournames[i]->filename);
+		if (outfname)
+		    nextoutfname = dir_file_cat(outfname,
+						ournames[i]->filename);
+		else
+		    nextoutfname = dupstr(ournames[i]->filename);
 		ret = (file_type(nextoutfname) == FILE_TYPE_NONEXISTENT);
 		sfree(nextoutfname);
 		if (ret)
@@ -334,8 +356,13 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		int ret;
 		
 		nextfname = dupcat(fname, "/", ournames[i]->filename, NULL);
-		nextoutfname = dir_file_cat(outfname, ournames[i]->filename);
-		ret = sftp_get_file(nextfname, nextoutfname, recurse, restart);
+		if (outfname)
+		    nextoutfname = dir_file_cat(outfname,
+						ournames[i]->filename);
+		else
+		    nextoutfname = dupstr(ournames[i]->filename);
+		ret = sftp_get_file(nextfname, nextoutfname,
+				    recurse, restart, NULL);
 		restart = FALSE;       /* after first partial file, do full */
 		sfree(nextoutfname);
 		sfree(nextfname);
@@ -453,7 +480,8 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     return ret;
 }
 
-int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
+int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
+		  char *wildcard)
 {
     struct fxp_handle *fh;
     struct fxp_xfer *xfer;
@@ -468,7 +496,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
      * (If we're not in recursive mode, we need not even check: the
      * subsequent fopen will return an error message.)
      */
-    if (recurse && file_type(fname) == FILE_TYPE_DIRECTORY) {
+    if (wildcard || (recurse && file_type(fname) == FILE_TYPE_DIRECTORY)) {
 	struct fxp_attrs attrs;
 	int result;
 	int nnames, namesize;
@@ -476,46 +504,73 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	DirHandle *dh;
 	int i;
 
-	/*
-	 * First, attempt to create the destination directory,
-	 * unless it already exists.
-	 */
-	sftp_register(req = fxp_stat_send(outfname));
-	rreq = sftp_find_request(pktin = sftp_recv());
-	assert(rreq == req);
-	result = fxp_stat_recv(pktin, rreq, &attrs);
-	if (!result ||
-	    !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
-	    !(attrs.permissions & 0040000)) {
-	    sftp_register(req = fxp_mkdir_send(outfname));
+	if (!wildcard) {
+	    /*
+	     * First, attempt to create the destination directory,
+	     * unless it already exists.
+	     */
+	    sftp_register(req = fxp_stat_send(outfname));
 	    rreq = sftp_find_request(pktin = sftp_recv());
 	    assert(rreq == req);
-	    result = fxp_mkdir_recv(pktin, rreq);
+	    result = fxp_stat_recv(pktin, rreq, &attrs);
+	    if (!result ||
+		!(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
+		!(attrs.permissions & 0040000)) {
+		sftp_register(req = fxp_mkdir_send(outfname));
+		rreq = sftp_find_request(pktin = sftp_recv());
+		assert(rreq == req);
+		result = fxp_mkdir_recv(pktin, rreq);
 
-	    if (!result) {
-		printf("%s: create directory: %s\n", outfname, fxp_error());
-		return 0;
+		if (!result) {
+		    printf("%s: create directory: %s\n",
+			   outfname, fxp_error());
+		    return 0;
+		}
 	    }
 	}
 
 	/*
 	 * Now get the list of filenames in the local directory.
 	 */
-	dh = open_directory(fname);
-	if (!dh) {
-	    printf("%s: unable to open directory\n", fname);
-	    return 0;
-	}
 	nnames = namesize = 0;
 	ournames = NULL;
-	while ((name = read_filename(dh)) != NULL) {
-	    if (nnames >= namesize) {
-		namesize += 128;
-		ournames = sresize(ournames, namesize, char *);
+	if (wildcard) {
+	    WildcardMatcher *wcm;
+
+	    wcm = begin_wildcard_matching(wildcard);
+	    if (wcm) {
+		while ((name = wildcard_get_filename(wcm)) != NULL) {
+		    if (nnames >= namesize) {
+			namesize += 128;
+			ournames = sresize(ournames, namesize, char *);
+		    }
+		    ournames[nnames++] = name;
+		}
+		finish_wildcard_matching(wcm);
 	    }
-	    ournames[nnames++] = name;
+	} else {
+	    dh = open_directory(fname);
+	    if (!dh) {
+		printf("%s: unable to open directory\n", fname);
+		return 0;
+	    }
+	    while ((name = read_filename(dh)) != NULL) {
+		if (nnames >= namesize) {
+		    namesize += 128;
+		    ournames = sresize(ournames, namesize, char *);
+		}
+		ournames[nnames++] = name;
+	    }
+	    close_directory(dh);
 	}
-	close_directory(dh);
+
+	/*
+	 * A polite warning if nothing at all matched the
+	 * wildcard.
+	 */
+	if (wildcard && !nnames) {
+	    printf("%s: nothing matched\n", wildcard);
+	}
 
 	/*
 	 * Sort the names into a clear order. This ought to make
@@ -559,9 +614,13 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	    char *nextfname, *nextoutfname;
 	    int ret;
 
-	    nextfname = dir_file_cat(fname, ournames[i]);
+	    if (fname)
+		nextfname = dir_file_cat(fname, ournames[i]);
+	    else
+		nextfname = dupstr(ournames[i]);
 	    nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
-	    ret = sftp_put_file(nextfname, nextoutfname, recurse, restart);
+	    ret = sftp_put_file(nextfname, nextoutfname,
+				recurse, restart, NULL);
 	    restart = FALSE;	       /* after first partial file, do full */
 	    sfree(nextoutfname);
 	    sfree(nextfname);
@@ -870,14 +929,17 @@ int sftp_cmd_pwd(struct sftp_command *cmd)
 }
 
 /*
- * Get a file and save it at the local end. We have two very
- * similar commands here: `get' and `reget', which differ in that
- * `reget' checks for the existence of the destination file and
- * starts from where a previous aborted transfer left off.
+ * Get a file and save it at the local end. We have three very
+ * similar commands here. The basic one is `get'; `reget' differs
+ * in that it checks for the existence of the destination file and
+ * starts from where a previous aborted transfer left off; `mget'
+ * differs in that it interprets all its arguments as files to
+ * transfer (never as a different local name for a remote file) and
+ * can handle wildcards.
  */
-int sftp_general_get(struct sftp_command *cmd, int restart)
+int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 {
-    char *fname, *origfname, *outfname;
+    char *fname, *unwcfname, *origfname, *outfname;
     int i, ret;
     int recurse = FALSE;
 
@@ -906,38 +968,62 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
 	return 0;
     }
 
-    origfname = cmd->words[i++];
-    fname = canonify(origfname);
-    if (!fname) {
-	printf("%s: %s\n", origfname, fxp_error());
-	return 0;
-    }
+    do {
+	unwcfname = NULL;
+	origfname = cmd->words[i++];
 
-    outfname = (i >= cmd->nwords ?
-		stripslashes(origfname, 0) : cmd->words[i++]);
+	if (multiple &&
+	    !wc_unescape(unwcfname = snewn(strlen(origfname)+1, char),
+			 origfname)) {
+	    ret = sftp_get_file(pwd, NULL, recurse, restart, origfname);
+	} else {
+	    fname = canonify(origfname);
+	    if (!fname) {
+		printf("%s: %s\n", origfname, fxp_error());
+		sfree(unwcfname);
+		return 0;
+	    }
 
-    ret = sftp_get_file(fname, outfname, recurse, restart);
+	    if (!multiple && i < cmd->nwords)
+		outfname = cmd->words[i++];
+	    else
+		outfname = stripslashes(origfname, 1);
 
-    sfree(fname);
+	    ret = sftp_get_file(fname, outfname, recurse, restart, NULL);
+
+	    sfree(fname);
+	}
+	sfree(unwcfname);
+	if (!ret)
+	    return ret;
+
+    } while (multiple && i < cmd->nwords);
 
     return ret;
 }
 int sftp_cmd_get(struct sftp_command *cmd)
 {
-    return sftp_general_get(cmd, 0);
+    return sftp_general_get(cmd, 0, 0);
+}
+int sftp_cmd_mget(struct sftp_command *cmd)
+{
+    return sftp_general_get(cmd, 0, 1);
 }
 int sftp_cmd_reget(struct sftp_command *cmd)
 {
-    return sftp_general_get(cmd, 1);
+    return sftp_general_get(cmd, 1, 0);
 }
 
 /*
- * Send a file and store it at the remote end. We have two very
- * similar commands here: `put' and `reput', which differ in that
- * `reput' checks for the existence of the destination file and
- * starts from where a previous aborted transfer left off.
+ * Send a file and store it at the remote end. We have three very
+ * similar commands here. The basic one is `put'; `reput' differs
+ * in that it checks for the existence of the destination file and
+ * starts from where a previous aborted transfer left off; `mput'
+ * differs in that it interprets all its arguments as files to
+ * transfer (never as a different remote name for a local file) and
+ * can handle wildcards.
  */
-int sftp_general_put(struct sftp_command *cmd, int restart)
+int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 {
     char *fname, *origoutfname, *outfname;
     int i, ret;
@@ -968,28 +1054,43 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
 	return 0;
     }
 
-    fname = cmd->words[i++];
-    origoutfname = (i >= cmd->nwords ?
-		    stripslashes(fname, 1) : cmd->words[i++]);
-    outfname = canonify(origoutfname);
-    if (!outfname) {
-	printf("%s: %s\n", origoutfname, fxp_error());
-	return 0;
-    }
+    do {
+	fname = cmd->words[i++];
 
-    ret = sftp_put_file(fname, outfname, recurse, restart);
+	if (multiple && test_wildcard(fname, FALSE) == WCTYPE_WILDCARD) {
+	    ret = sftp_put_file(NULL, pwd, recurse, restart, fname);
+	} else {
+	    if (!multiple && i < cmd->nwords)
+		origoutfname = cmd->words[i++];
+	    else
+		origoutfname = stripslashes(fname, 1);
 
-    sfree(outfname);
+	    outfname = canonify(origoutfname);
+	    if (!outfname) {
+		printf("%s: %s\n", origoutfname, fxp_error());
+		return 0;
+	    }
+	    ret = sftp_put_file(fname, outfname, recurse, restart, NULL);
+	    sfree(outfname);
+	}
+	if (!ret)
+	    return ret;
+
+    } while (multiple && i < cmd->nwords);
 
     return ret;
 }
 int sftp_cmd_put(struct sftp_command *cmd)
 {
-    return sftp_general_put(cmd, 0);
+    return sftp_general_put(cmd, 0, 0);
+}
+int sftp_cmd_mput(struct sftp_command *cmd)
+{
+    return sftp_general_put(cmd, 0, 1);
 }
 int sftp_cmd_reput(struct sftp_command *cmd)
 {
-    return sftp_general_put(cmd, 1);
+    return sftp_general_put(cmd, 1, 0);
 }
 
 int sftp_cmd_mkdir(struct sftp_command *cmd)
@@ -1557,10 +1658,26 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_ls
     },
     {
+	"mget", TRUE, "download multiple files at once",
+	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
+	    "  Downloads many files from the server, storing each one under\n"
+	    "  the same name it has on the server side. You can use wildcards\n"
+	    "  such as \"*.c\" to specify lots of files at once.\n",
+	    sftp_cmd_mget
+    },
+    {
 	"mkdir", TRUE, "create a directory on the remote server",
 	    " <directory-name>\n"
 	    "  Creates a directory with the given name on the server.\n",
 	    sftp_cmd_mkdir
+    },
+    {
+	"mput", TRUE, "upload multiple files at once",
+	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
+	    "  Uploads many files to the server, storing each one under the\n"
+	    "  same name it has on the client side. You can use wildcards\n"
+	    "  such as \"*.c\" to specify lots of files at once.\n",
+	    sftp_cmd_mput
     },
     {
 	"mv", TRUE, "move or rename a file on the remote server",
