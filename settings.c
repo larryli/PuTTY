@@ -362,7 +362,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     /* proxy settings */
     gpps(sesskey, "ProxyExcludeList", "", cfg->proxy_exclude_list,
 	 sizeof(cfg->proxy_exclude_list));
-    gppi(sesskey, "ProxyType", PROXY_NONE, &cfg->proxy_type);
+    gppi(sesskey, "ProxyType", PROXY_NONE, &i); cfg->proxy_type = i;
     gpps(sesskey, "ProxyHost", "proxy", cfg->proxy_host,
 	 sizeof(cfg->proxy_host));
     gppi(sesskey, "ProxyPort", 80, &cfg->proxy_port);
@@ -548,7 +548,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ScrollBarFullScreen", 0, &cfg->scrollbar_in_fullscreen);
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
     gppi(sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
-    gppi(sesskey, "LockSize", 0, &cfg->resize_action);
+    gppi(sesskey, "LockSize", 0, &i); cfg->resize_action = i;
     gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
@@ -577,21 +577,21 @@ void load_settings(char *section, int do_host, Config * cfg)
 	}
 	*q = '\0';
     }
-    gppi(sesskey, "BugIgnore1", BUG_AUTO, &cfg->sshbug_ignore1);
-    gppi(sesskey, "BugPlainPW1", BUG_AUTO, &cfg->sshbug_plainpw1);
-    gppi(sesskey, "BugRSA1", BUG_AUTO, &cfg->sshbug_rsa1);
+    gppi(sesskey, "BugIgnore1", BUG_AUTO, &i); cfg->sshbug_ignore1 = i;
+    gppi(sesskey, "BugPlainPW1", BUG_AUTO, &i); cfg->sshbug_plainpw1 = i;
+    gppi(sesskey, "BugRSA1", BUG_AUTO, &i); cfg->sshbug_rsa1 = i;
     {
 	int i;
-	gppi(sesskey, "BugHMAC2", BUG_AUTO, &cfg->sshbug_hmac2);
+	gppi(sesskey, "BugHMAC2", BUG_AUTO, &i); cfg->sshbug_hmac2 = i;
 	if (cfg->sshbug_hmac2 == BUG_AUTO) {
 	    gppi(sesskey, "BuggyMAC", 0, &i);
 	    if (i == 1)
 		cfg->sshbug_hmac2 = BUG_ON;
 	}
     }
-    gppi(sesskey, "BugDeriveKey2", BUG_AUTO, &cfg->sshbug_derivekey2);
-    gppi(sesskey, "BugRSAPad2", BUG_AUTO, &cfg->sshbug_rsapad2);
-    gppi(sesskey, "BugDHGEx2", BUG_AUTO, &cfg->sshbug_dhgex2);
+    gppi(sesskey, "BugDeriveKey2", BUG_AUTO, &i); cfg->sshbug_derivekey2 = i;
+    gppi(sesskey, "BugRSAPad2", BUG_AUTO, &i); cfg->sshbug_rsapad2 = i;
+    gppi(sesskey, "BugDHGEx2", BUG_AUTO, &i); cfg->sshbug_dhgex2 = i;
 
     close_settings_r(sesskey);
 }
