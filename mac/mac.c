@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.27 2003/01/12 16:11:27 ben Exp $ */
+/* $Id: mac.c,v 1.28 2003/01/14 19:09:24 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -702,7 +702,7 @@ void old_keyfile_warning(void)
 
 }
 
-char *platform_default_s(char *name)
+char *platform_default_s(char const *name)
 {
     long smfs;
     Str255 pname;
@@ -724,7 +724,7 @@ char *platform_default_s(char *name)
     return NULL;
 }
 
-int platform_default_i(char *name, int def)
+int platform_default_i(char const *name, int def)
 {
     long smfs;
 

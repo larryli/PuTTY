@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.7 2003/01/08 22:46:12 ben Exp $ */
+/* $Id: macstore.c,v 1.8 2003/01/14 19:09:24 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -101,7 +101,7 @@ struct write_settings {
     FSSpec dstfile;
 };
 
-void *open_settings_w(char *sessionname) {
+void *open_settings_w(char const *sessionname) {
     short sessVRefNum, tmpVRefNum;
     long sessDirID, tmpDirID;
     OSErr error;
@@ -144,7 +144,7 @@ void *open_settings_w(char *sessionname) {
     fatalbox("Failed to open session for write (%d)", error);
 }
 
-void write_setting_s(void *handle, char *key, char *value) {
+void write_setting_s(void *handle, char const *key, char const *value) {
     int fd = *(int *)handle;
     Handle h;
     int id;
@@ -166,7 +166,7 @@ void write_setting_s(void *handle, char *key, char *value) {
 	fatalbox("Failed to add resource %s (%d)", key, ResError());
 }
 
-void write_setting_i(void *handle, char *key, int value) {
+void write_setting_i(void *handle, char const *key, int value) {
     int fd = *(int *)handle;
     Handle h;
     int id;
@@ -208,7 +208,7 @@ void close_settings_w(void *handle) {
     safefree(handle);
 }
 
-void *open_settings_r(char *sessionname)
+void *open_settings_r(char const *sessionname)
 {
     short sessVRefNum;
     long sessDirID;
@@ -244,7 +244,7 @@ void *open_settings_r_fsp(FSSpec *sessfile)
     return NULL;
 }
 
-char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
+char *read_setting_s(void *handle, char const *key, char *buffer, int buflen) {
     int fd;
     Handle h;
     size_t len;
@@ -269,7 +269,7 @@ char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
     return NULL;
 }
 
-int read_setting_i(void *handle, char *key, int defvalue) {
+int read_setting_i(void *handle, char const *key, int defvalue) {
     int fd;
     Handle h;
     int value;
@@ -300,7 +300,7 @@ void close_settings_r(void *handle) {
     safefree(handle);
 }
 
-void del_settings(char *sessionname) {
+void del_settings(char const *sessionname) {
     OSErr error;
     FSSpec sessfile;
     short sessVRefNum;
