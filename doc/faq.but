@@ -101,6 +101,21 @@ authentication, which is more flexible and more secure. See
 \k{pubkey} in the documentation for a full discussion of public key
 authentication.
 
+\S{faq-server} Will you write an SSH server for the PuTTY suite, to
+go with the client?
+
+No. The only reason we might want to would be if we could easily
+re-use existing code and significantly cut down the effort. We don't
+believe this is the case; there just isn't enough common ground
+between an SSH client and server to make it worthwhile.
+
+If someone else wants to use bits of PuTTY in the process of writing
+a Windows SSH server, they'd be perfectly welcome to of course, but
+I really can't see it being a lot less effort for us to do that than
+it would be for us to write a server from the ground up. We don't
+have time, and we don't have motivation. The code is available if
+anyone else wants to try it.
+
 \H{faq-ports} Ports to other operating systems
 
 The eventual goal is for PuTTY to be a multi-platform program, able
