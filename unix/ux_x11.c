@@ -4,7 +4,9 @@
 
 #include <ctype.h>
 #include <unistd.h>
+#include <assert.h>
 #include "putty.h"
+#include "ssh.h"
 
 void platform_get_x11_auth(char *display, int *protocol,
                            unsigned char *data, int *datalen)
@@ -15,15 +17,19 @@ void platform_get_x11_auth(char *display, int *protocol,
     char *localbuf;
     int proto = -1;
 
+    display = x11_display(display);
     /*
      * Normally we should run `xauth list DISPLAYNAME'. However,
      * there's an oddity when the display is local: the display
      * `localhost:0' (or `:0') should become just `:0'.
      */
-    if (!strncmp(display, "localhost:", 10))
-	command = dupprintf("xauth list %s 2>/dev/null", display+9);
+    if (!strncmp(display, "localhost:", 10)
+	|| !strncmp(display, "unix:", 5))
+	command = dupprintf("xauth list %s 2>/dev/null",
+			    strchr(display, ':'));
     else
 	command = dupprintf("xauth list %s 2>/dev/null", display);
+    sfree(display);
     fp = popen(command, "r");
     sfree(command);
 
@@ -113,3 +119,5 @@ void platform_get_x11_auth(char *display, int *protocol,
     pclose(fp);
     sfree(localbuf);
 }
+
+const char platform_x11_best_transport[] = "unix";

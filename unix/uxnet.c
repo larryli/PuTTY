@@ -15,11 +15,16 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
+#include <sys/un.h>
 
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 #include "tree234.h"
+
+#ifndef X11_UNIX_PATH
+# define X11_UNIX_PATH "/tmp/.X11-unix/X"
+#endif
 
 #define ipv4_is_loopback(addr) (inet_netof(addr) == IN_LOOPBACKNET)
 
@@ -380,10 +385,12 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     struct sockaddr_in6 a6;
 #endif
     struct sockaddr_in a;
+    struct sockaddr_un au;
+    const struct sockaddr *sa;
     int err;
     Actual_Socket ret;
     short localport;
-    int fl;
+    int fl, salen;
 
     /*
      * Create Socket structure.
@@ -439,77 +446,98 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 #ifdef IPV6
     memset(&a6,'\0',sizeof(struct sockaddr_in6));
 #endif
-    /* Loop round trying to bind */
-    while (1) {
-	int retcode;
+
+    /* We don't try to bind to a local address for UNIX domain sockets.  (Why
+     * do we bother doing the bind when localport == 0 anyway?) */
+    if(addr->family != AF_UNIX) {
+	/* Loop round trying to bind */
+	while (1) {
+	    int retcode;
 
 #ifdef IPV6
-	if (addr->family == AF_INET6) {
-	    /* XXX use getaddrinfo to get a local address? */
-	    a6.sin6_family = AF_INET6;
-	    a6.sin6_addr = in6addr_any;
-	    a6.sin6_port = htons(localport);
-	    retcode = bind(s, (struct sockaddr *) &a6, sizeof(a6));
-	} else
+	    if (addr->family == AF_INET6) {
+		/* XXX use getaddrinfo to get a local address? */
+		a6.sin6_family = AF_INET6;
+		a6.sin6_addr = in6addr_any;
+		a6.sin6_port = htons(localport);
+		retcode = bind(s, (struct sockaddr *) &a6, sizeof(a6));
+	    } else
 #endif
-	{
-	    assert(addr->family == AF_INET);
-	    a.sin_family = AF_INET;
-	    a.sin_addr.s_addr = htonl(INADDR_ANY);
-	    a.sin_port = htons(localport);
-	    retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
+	    {
+		assert(addr->family == AF_INET);
+		a.sin_family = AF_INET;
+		a.sin_addr.s_addr = htonl(INADDR_ANY);
+		a.sin_port = htons(localport);
+		retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
+	    }
+	    if (retcode >= 0) {
+		err = 0;
+		break;		       /* done */
+	    } else {
+		err = errno;
+		if (err != EADDRINUSE) /* failed, for a bad reason */
+		  break;
+	    }
+	    
+	    if (localport == 0)
+	      break;		       /* we're only looping once */
+	    localport--;
+	    if (localport == 0)
+	      break;		       /* we might have got to the end */
 	}
-	if (retcode >= 0) {
-	    err = 0;
-	    break;		       /* done */
-	} else {
-	    err = errno;
-	    if (err != EADDRINUSE)     /* failed, for a bad reason */
-		break;
+	
+	if (err) {
+	    ret->error = error_string(err);
+	    return (Socket) ret;
 	}
-
-	if (localport == 0)
-	    break;		       /* we're only looping once */
-	localport--;
-	if (localport == 0)
-	    break;		       /* we might have got to the end */
-    }
-
-    if (err) {
-	ret->error = error_string(err);
-	return (Socket) ret;
     }
 
     /*
      * Connect to remote address.
      */
+    switch(addr->family) {
 #ifdef IPV6
-    /* XXX would be better to have got getaddrinfo() to fill in the port. */
-    if (addr->family == AF_INET)
+      case AF_INET:
+	/* XXX would be better to have got getaddrinfo() to fill in the port. */
 	((struct sockaddr_in *)addr->ai->ai_addr)->sin_port =
 	    htons(port);
-    else {
-	assert(addr->family == AF_INET6);
+	sa = (const struct sockaddr *)addr->ai->ai_addr;
+	salen = addr->ai->ai_addrlen;
+	break;
+      case AF_INET6:
 	((struct sockaddr_in *)addr->ai->ai_addr)->sin_port =
 	    htons(port);
-    }
+	sa = (const struct sockaddr *)addr->ai->ai_addr;
+	salen = addr->ai->ai_addrlen;
+	break;
 #else
-    a.sin_family = AF_INET;
-    a.sin_addr.s_addr = htonl(addr->address);
-    a.sin_port = htons((short) port);
+      case AF_INET:
+	a.sin_family = AF_INET;
+	a.sin_addr.s_addr = htonl(addr->address);
+	a.sin_port = htons((short) port);
+	sa = (const struct sockaddr *)&a;
+	salen = sizeof a;
+	break;
 #endif
+      case AF_UNIX:
+	assert(port == 0);	/* to catch confused people */
+	assert(strlen(addr->hostname) < sizeof au.sun_path);
+	memset(&au, 0, sizeof au);
+	au.sun_family = AF_UNIX;
+	strcpy(au.sun_path, addr->hostname);
+	sa = (const struct sockaddr *)&au;
+	salen = sizeof au;
+	break;
+
+      default:
+	assert(0 && "unknown address family");
+    }
 
     fl = fcntl(s, F_GETFL);
     if (fl != -1)
 	fcntl(s, F_SETFL, fl | O_NONBLOCK);
 
-    if ((
-#ifdef IPV6
-	    connect(s, addr->ai->ai_addr, addr->ai->ai_addrlen)
-#else
-	    connect(s, (struct sockaddr *) &a, sizeof(a))
-#endif
-	) < 0) {
+    if ((connect(s, sa, salen)) < 0) {
 	if ( errno != EINPROGRESS ) {
 	    ret->error = error_string(errno);
 	    return (Socket) ret;
@@ -688,19 +716,28 @@ int sk_getxdmdata(void *sock, unsigned long *ip, int *port)
     if (s->fn != &tcp_fn_table)
 	return 0;		       /* failure */
 
-    /*
-     * If we ever implement connecting to a local X server through
-     * a Unix socket, we return 0xFFFFFFFF for the IP address and
-     * our current pid for the port. Bizarre, but such is life.
-     */
-
     addrlen = sizeof(addr);
-    if (getsockname(s->s, (struct sockaddr *)&addr, &addrlen) < 0 ||
-	addr.sin_family != AF_INET)
+    if (getsockname(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
 	return 0;
+    switch(addr.sin_family) {
+      case AF_INET:
+	*ip = ntohl(addr.sin_addr.s_addr);
+	*port = ntohs(addr.sin_port);
+	break;
+      case AF_UNIX:
+	/*
+	 * For a Unix socket, we return 0xFFFFFFFF for the IP address and
+	 * our current pid for the port. Bizarre, but such is life.
+	 */
+	*ip = ntohl(0xFFFFFFFF);
+	*port = getpid();
+	break;
 
-    *ip = ntohl(addr.sin_addr.s_addr);
-    *port = ntohs(addr.sin_port);
+	/* XXX IPV6 */
+
+      default:
+	return 0;
+    }
 
     return 1;
 }
@@ -1061,4 +1098,22 @@ int net_service_lookup(char *service)
 	return ntohs(se->s_port);
     else
 	return 0;
+}
+
+SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname)
+{
+    SockAddr ret = snew(struct SockAddr_tag);
+    int n;
+
+    memset(ret, 0, sizeof *ret);
+    ret->family = AF_UNIX;
+    n = snprintf(ret->hostname, sizeof ret->hostname,
+		 "%s%d", X11_UNIX_PATH, displaynum);
+    if(n < 0)
+	ret->error = "snprintf failed";
+    else if(n >= sizeof ret->hostname)
+	ret->error = "X11 UNIX name too long";
+    else
+	*canonicalname = dupstr(ret->hostname);
+    return ret;
 }

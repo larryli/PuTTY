@@ -611,7 +611,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
-    gpps(sesskey, "X11Display", "localhost:0", cfg->x11_display,
+    gpps(sesskey, "X11Display", "", cfg->x11_display,
 	 sizeof(cfg->x11_display));
     gppi(sesskey, "X11AuthType", X11_MIT, &cfg->x11_auth);
 

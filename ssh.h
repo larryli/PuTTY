@@ -281,10 +281,15 @@ extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 extern int x11_get_screen_number(char *display);
 void x11_get_real_auth(void *authv, char *display);
+char *x11_display(const char *display);
 
-/* Platfdorm-dependent X11 function */
+/* Platform-dependent X11 functions */
 extern void platform_get_x11_auth(char *display, int *proto,
                                   unsigned char *data, int *datalen);
+extern const char platform_x11_best_transport[];
+/* best X11 hostname for this platform if none specified */
+SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname);
+/* make up a SockAddr naming the address for displaynum */
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);

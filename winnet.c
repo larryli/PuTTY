@@ -1357,3 +1357,11 @@ int net_service_lookup(char *service)
     else
 	return 0;
 }
+
+SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname)
+{
+    SockAddr ret = snew(struct SockAddr_tag);
+    memset(ret, 0, sizeof(struct SockAddr_tag));
+    ret->error = "unix sockets not supported on this platform";
+    return ret;
+}
