@@ -714,7 +714,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		 * in xterm function key mode we change which two...
 		 */
 	      case GDK_KP_Add:
-		if (inst->cfg.funky_type == 2) {
+		if (inst->cfg.funky_type == FUNKY_XTERM) {
 		    if (event->state & GDK_SHIFT_MASK)
 			xkey = 'l';
 		    else
@@ -844,7 +844,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		break;
 	    }
 	    /* Reorder edit keys to physical order */
-	    if (inst->cfg.funky_type == 3 && code <= 6)
+	    if (inst->cfg.funky_type == FUNKY_VT400 && code <= 6)
 		code = "\0\2\1\4\5\3\6"[code];
 
 	    if (inst->term->vt52_mode && code > 0 && code <= 6) {
@@ -853,7 +853,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		goto done;
 	    }
 
-	    if (inst->cfg.funky_type == 5 &&     /* SCO function keys */
+	    if (inst->cfg.funky_type == FUNKY_SCO &&     /* SCO function keys */
 		code >= 11 && code <= 34) {
 		char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
 		int index = 0;
@@ -877,7 +877,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
-	    if (inst->cfg.funky_type == 5 &&     /* SCO small keypad */
+	    if (inst->cfg.funky_type == FUNKY_SCO &&     /* SCO small keypad */
 		code >= 1 && code <= 6) {
 		char codes[] = "HL.FIG";
 		if (code == 3) {
@@ -889,7 +889,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
-	    if ((inst->term->vt52_mode || inst->cfg.funky_type == 4) &&
+	    if ((inst->term->vt52_mode || inst->cfg.funky_type == FUNKY_VT100P) &&
 		code >= 11 && code <= 24) {
 		int offt = 0;
 		if (code > 15)
@@ -905,12 +905,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
-	    if (inst->cfg.funky_type == 1 && code >= 11 && code <= 15) {
+	    if (inst->cfg.funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
 		end = 1 + sprintf(output+1, "\x1B[[%c", code + 'A' - 11);
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
-	    if (inst->cfg.funky_type == 2 && code >= 11 && code <= 14) {
+	    if (inst->cfg.funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
 		if (inst->term->vt52_mode)
 		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
 		else

@@ -3383,8 +3383,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 
 	/* Nastyness with NUMLock - Shift-NUMLock is left alone though */
-	if ((cfg.funky_type == 3 ||
-	     (cfg.funky_type <= 1 && term->app_keypad_keys &&
+	if ((cfg.funky_type == FUNKY_VT400 ||
+	     (cfg.funky_type <= FUNKY_LINUX && term->app_keypad_keys &&
 	      !cfg.no_applic_k))
 	    && wParam == VK_NUMLOCK && !(keystate[VK_SHIFT] & 0x80)) {
 
@@ -3450,8 +3450,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
     /* Sanitize the number pad if not using a PC NumPad */
     if (left_alt || (term->app_keypad_keys && !cfg.no_applic_k
-		     && cfg.funky_type != 2)
-	|| cfg.funky_type == 3 || cfg.nethack_keypad || compose_state) {
+		     && cfg.funky_type != FUNKY_XTERM)
+	|| cfg.funky_type == FUNKY_VT400 || cfg.nethack_keypad || compose_state) {
 	if ((HIWORD(lParam) & KF_EXTENDED) == 0) {
 	    int nParam = 0;
 	    switch (wParam) {
@@ -3580,8 +3580,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (!left_alt) {
 	    int xkey = 0;
 
-	    if (cfg.funky_type == 3 ||
-		(cfg.funky_type <= 1 &&
+	    if (cfg.funky_type == FUNKY_VT400 ||
+		(cfg.funky_type <= FUNKY_LINUX &&
 		 term->app_keypad_keys && !cfg.no_applic_k)) switch (wParam) {
 		  case VK_EXECUTE:
 		    xkey = 'P';
@@ -3633,7 +3633,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    xkey = 'n';
 		    break;
 		  case VK_ADD:
-		    if (cfg.funky_type == 2) {
+		    if (cfg.funky_type == FUNKY_XTERM) {
 			if (shift_state)
 			    xkey = 'l';
 			else
@@ -3645,15 +3645,15 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    break;
 
 		  case VK_DIVIDE:
-		    if (cfg.funky_type == 2)
+		    if (cfg.funky_type == FUNKY_XTERM)
 			xkey = 'o';
 		    break;
 		  case VK_MULTIPLY:
-		    if (cfg.funky_type == 2)
+		    if (cfg.funky_type == FUNKY_XTERM)
 			xkey = 'j';
 		    break;
 		  case VK_SUBTRACT:
-		    if (cfg.funky_type == 2)
+		    if (cfg.funky_type == FUNKY_XTERM)
 			xkey = 'm';
 		    break;
 
@@ -3825,7 +3825,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    break;
 	}
 	/* Reorder edit keys to physical order */
-	if (cfg.funky_type == 3 && code <= 6)
+	if (cfg.funky_type == FUNKY_VT400 && code <= 6)
 	    code = "\0\2\1\4\5\3\6"[code];
 
 	if (term->vt52_mode && code > 0 && code <= 6) {
@@ -3833,7 +3833,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 
-	if (cfg.funky_type == 5 &&     /* SCO function keys */
+	if (cfg.funky_type == FUNKY_SCO &&     /* SCO function keys */
 	    code >= 11 && code <= 34) {
 	    char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
 	    int index = 0;
@@ -3856,7 +3856,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    p += sprintf((char *) p, "\x1B[%c", codes[index]);
 	    return p - output;
 	}
-	if (cfg.funky_type == 5 &&     /* SCO small keypad */
+	if (cfg.funky_type == FUNKY_SCO &&     /* SCO small keypad */
 	    code >= 1 && code <= 6) {
 	    char codes[] = "HL.FIG";
 	    if (code == 3) {
@@ -3866,7 +3866,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    }
 	    return p - output;
 	}
-	if ((term->vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
+	if ((term->vt52_mode || cfg.funky_type == FUNKY_VT100P) && code >= 11 && code <= 24) {
 	    int offt = 0;
 	    if (code > 15)
 		offt++;
@@ -3879,11 +3879,11 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    sprintf((char *) p, "\x1BO%c", code + 'P' - 11 - offt);
 	    return p - output;
 	}
-	if (cfg.funky_type == 1 && code >= 11 && code <= 15) {
+	if (cfg.funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
 	    p += sprintf((char *) p, "\x1B[[%c", code + 'A' - 11);
 	    return p - output;
 	}
-	if (cfg.funky_type == 2 && code >= 11 && code <= 14) {
+	if (cfg.funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
 	    if (term->vt52_mode)
 		p += sprintf((char *) p, "\x1B%c", code + 'P' - 11);
 	    else
