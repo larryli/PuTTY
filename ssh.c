@@ -824,7 +824,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->realcrc = crc32(ssh->pktin.data, st->biglen - 4);
     st->gotcrc = GET_32BIT(ssh->pktin.data + st->biglen - 4);
     if (st->gotcrc != st->realcrc) {
-	bombout((ssh,"Incorrect CRC received on packet"));
+	bombout((ssh,"Incorrect CRC received on packet: wanted 0x%08x, got 0x%08x", st->realcrc, st->gotcrc));
 	crReturn(0);
     }
 
@@ -5903,6 +5903,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->sccomp = NULL;
     ssh->sc_comp_ctx = NULL;
     ssh->kex = NULL;
+    ssh->kex_ctx = NULL;
     ssh->hostkey = NULL;
     ssh->exitcode = -1;
     ssh->state = SSH_STATE_PREPACKET;
