@@ -311,7 +311,7 @@ print
 "# RCINC = --include-dir c:\\cygwin\\include\\\n".
 "\n".
 &splitline("CFLAGS = -mno-cygwin -Wall -O2 -D_WINDOWS -DDEBUG -DWIN32S_COMPAT".
-  " -DNO_SECURITY -D_NO_OLDNAMES -DNO_MULTIMON -I.")."\n".
+  " -D_NO_OLDNAMES -DNO_MULTIMON -I.")."\n".
 "LDFLAGS = -mno-cygwin -s\n".
 &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1".
   " --define WINVER=0x0400 --define MINGW32_FIX=1")."\n".

@@ -42,10 +42,6 @@
 #      will run fine on Win95-series OSes where there is no access
 #      control anyway).
 #
-#      Note that this definition is always enabled in the Cygwin
-#      build, since at the time of writing this <aclapi.h> is known
-#      not to be available in Cygwin.
-#
 #  - COMPAT=/DNO_MULTIMON
 #      Disables PuTTY's use of <multimon.h>, which is not available
 #      with some development environments. This means that PuTTY's
