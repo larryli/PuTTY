@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.25 2004/07/25 12:12:53 jacob Exp $
+\versionid $Id: using.but,v 1.26 2004/07/30 09:38:37 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -93,9 +93,9 @@ value using the configuration box; see \k{config-scrollback}.
 \S{using-sysmenu} The \i{System menu}
 
 If you click the left mouse button on the icon in the top left
-corner of PuTTY's window, or click the right mouse button on the
-title bar, you will see the standard Windows system menu containing
-items like Minimise, Move, Size and Close.
+corner of PuTTY's terminal window, or click the right mouse button
+on the title bar, you will see the standard Windows system menu
+containing items like Minimise, Move, Size and Close.
 
 PuTTY's system menu contains extra program features in addition to
 the Windows standard options. These extra menu commands are
