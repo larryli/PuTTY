@@ -16,7 +16,6 @@
     (cp)[3] = (unsigned char)(value); }
 
 #if 0
-#define DEBUG_DSS
 /*
  * Condition this section in for debugging of DSS.
  */
@@ -34,6 +33,7 @@ static void diagbn(char *prefix, Bignum md) {
 
     if (prefix) putchar('\n');
 }
+#define DEBUG_DSS
 #else
 #define diagbn(x,y)
 #endif
@@ -188,9 +188,9 @@ static char *dss_fingerprint(void) {
 
 static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     char *p;
-    int i, slen;
+    int slen;
     char hash[20];
-    Bignum qm2, r, s, w, i1, i2, i3, u1, u2, sha, v;
+    Bignum r, s, w, i1, i2, i3, u1, u2, sha, v;
     int ret;
 
     if (!dss_p)
@@ -237,13 +237,7 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     /*
      * Step 1. w <- s^-1 mod q.
      */
-    w = newbn(dss_q[0]);
-    qm2 = copybn(dss_q);
-    decbn(qm2); decbn(qm2);
-    diagbn("qm2=", qm2);
-    /* Now qm2 is q-2, and by Fermat's Little Theorem, s^qm2 == s^-1 (mod q).
-     * This is a silly way to do it; may fix it later. */
-    modpow(s, qm2, dss_q, w);
+    w = modinv(s, dss_q);
     diagbn("w=", w);
 
     /*
@@ -284,16 +278,9 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
      * Step 5. v should now be equal to r.
      */
 
-    ret = 1;
-    for (i = 1; i <= v[0] || i <= r[0]; i++) {
-        if ((i > v[0] && r[i] != 0) ||
-            (i > r[0] && v[i] != 0) ||
-            (i <= v[0] && i <= r[0] && r[i] != v[i]))
-            ret = 0;
-    }
+    ret = !bignum_cmp(v, r);
 
     freebn(w);
-    freebn(qm2);
     freebn(sha);
     freebn(i1);
     freebn(i2);
