@@ -713,8 +713,10 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
         hints.ai_next = NULL;
         sprintf(portstr, "%d", port);
         retcode = getaddrinfo(srcaddr, portstr, &hints, &ai);
-        addr = ai->ai_addr;
-        addrlen = ai->ai_addrlen;
+	if (retcode = 0) {
+	    addr = ai->ai_addr;
+	    addrlen = ai->ai_addrlen;
+	}
 #else
         memset(&a,'\0',sizeof(struct sockaddr_in));
         a.sin_family = AF_INET;
