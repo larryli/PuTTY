@@ -35,6 +35,7 @@
 #include <Navigation.h>
 #include <Resources.h>
 #include <StandardFile.h>
+#include <TextUtils.h>
 #include <Windows.h>
 
 #include <assert.h>
@@ -54,6 +55,7 @@ void mac_newsession(void)
     Session *s;
     WinInfo *wi;
     static struct sesslist sesslist;
+    Str255 mactitle;
 
     s = snew(Session);
     memset(s, 0, sizeof(*s));
@@ -85,6 +87,8 @@ void mac_newsession(void)
     wi->adjustmenus = &macctrl_adjustmenus;
     wi->close = &mac_closedlg;
     SetWRefCon(s->settings_window, (long)wi);
+    c2pstrcpy(mactitle, "PuTTY Configuration");
+    SetWTitle(s->settings_window, mactitle);
     ShowWindow(s->settings_window);
 }
 
