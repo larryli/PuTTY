@@ -1,4 +1,4 @@
-\versionid $Id: psftp.but,v 1.4 2001/12/31 16:15:19 simon Exp $
+\versionid $Id: psftp.but,v 1.5 2002/08/07 19:20:06 simon Exp $
 
 \C{psftp} Using PSFTP to transfer files securely
 
@@ -49,45 +49,13 @@ any server:
 At this point you can type \c{open server.example.com} or \c{open
 fred@server.example.com} to start a session.
 
-The following sections describe PSFTP's command-line options.
+PSFTP accepts all the general command line options supported by the
+PuTTY tools, except the ones which make no sense in a file transfer
+utility. See \k{using-general-opts} for a description of these
+options. (The ones not supported by PSFTP are clearly marked.)
 
-\S{psftp-option-l} \c{-l}: specify a user name
-
-The \c{-l} option is an alternative way to specify the user name to
-log in as, on the command line. Instead of typing \c{psftp
-user@host}, you can also type \c{psftp host -l user}.
-
-This option does not work in the \c{open} command once PSFTP has
-started.
-
-\S{psftp-option-P} \c{-P}: specify a port number
-
-If the \c{host} you specify is a saved session, PSFTP uses any port
-number specified in that saved session.  If not, PSFTP uses the
-default SSH port, 22.  The \c{-P} option allows you specify the port
-number to connect to for PSFTP's SSH connection.
-
-\S{psftp-option-v}\c{-v}: show verbose messages
-
-The \c{-v} option to PSFTP makes it print verbose information about
-the establishing of the SSH connection. The information displayed is
-equivalent to what is shown in the PuTTY Event Log
-(\k{using-eventlog}).
-
-This information may be useful for debugging problems with PSFTP.
-
-\S{psftp-option-pw} \c{-pw}: specify a password
-
-If a password is required to connect to the \c{host}, PSFTP will
-interactively prompt you for it.  However, this may not always be
-appropriate.  If you are running PSFTP as part of some automated
-job, it will not be possible to enter a password by hand.  The
-\c{-pw} option to PSFTP lets you specify the password to use on the
-command line.
-
-Since specifying passwords in scripts is a bad idea for security
-reasons, you might want instead to consider using public-key
-authentication; see \k{psftp-pubkey}.
+PSFTP also supports some of its own options. The following sections
+describe PSFTP's specific command-line options.
 
 \S{psftp-option-b} \c{-b}: specify a file containing batch commands
 

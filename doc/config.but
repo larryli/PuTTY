@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.34 2002/05/30 12:41:07 jacob Exp $
+\versionid $Id: config.but,v 1.35 2002/08/07 19:20:06 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1660,8 +1660,9 @@ version 1 or version 2. \#{FIXME: say something about this elsewhere?}
 PuTTY will attempt to use protocol 1 if the server you connect to
 does not offer protocol 2, and vice versa.
 
-If you select \q{2 only} here, PuTTY will only connect if the server
-you connect to offers SSH protocol version 2.
+If you select \q{1 only} or \q{2 only} here, PuTTY will only connect
+if the server you connect to offers the SSH protocol version you
+have specified.
 
 \S{config-ssh-macbug} \q{Imitate SSH 2 MAC bug}
 

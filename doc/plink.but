@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.15 2002/03/05 20:39:27 simon Exp $
+\versionid $Id: plink.but,v 1.16 2002/08/07 19:20:06 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -151,72 +151,14 @@ details:
 Then you can set up other programs to run this Plink command and
 talk to it as if it were a process on the server machine.
 
-You may also find it useful to use the \c{-batch} command-line
-option; see \k{plink-usage-options-batch}.
+\S{plink-options} Plink command line options
 
-\S{plink-usage-options} Options
+Plink accepts all the general command line options supported by the
+PuTTY tools. See \k{using-general-opts} for a description of these
+options.
 
-This section describes the command line options that Plink accepts.
-
-\S2{plink-usage-options-v}\c{-v} show verbose messages
-
-By default, Plink only displays any password prompts and the output of
-the remote command.  The \c{-v} option makes it print extra
-information about the connection being made, for example:
-
-\c Server version: SSH-1.5-OpenSSH-1.2.3
-\c We claim version: SSH-1.5-PuTTY
-\c Using SSH protocol version 1
-\c Received public keys
-\c Host key fingerprint is:
-\c       1023 e3:65:44:44:bd:b1:04:59:bc:e2:3d:a1:4d:09:ce:99
-\c Encrypted session key
-\c Using 3DES encryption
-\c Trying to enable encryption...
-\c Successfully started encryption
-\c Sent username "fred".
-\c Sent username "fred"
-\c fred@example.com's password:
-
-This information can be useful for diagnosing problems.
-
-\S2{plink-usage-options-ssh} Protocol selection options
-
-Plink is most useful when using the SSH protocol. However, it allows
-you to interface to all the protocols supported by PuTTY. You can
-specify the option \c{-ssh} on the command line to select the SSH
-protocol; you can also specify \c{-telnet}, \c{-rlogin} or \c{-raw}
-to select other protocols.
-
-\S2{plink-usage-options-P}\c{-P port} connect to specified port
-
-If your server machine is running its SSH service on a port other
-than the standard one, you can specify an alternative port number to
-connect to using the \c{-P} option, like this:
-
-\c plink -ssh login.example.com -P 5022
-
-\S2{plink-usage-options-pw}\c{-pw passw} login with specified password
-
-A simple way to automate a remote login is to supply your password
-on the Plink command line. This is \e{not recommended} for reasons
-of security. If you possibly can, we recommend you set up public-key
-authentication instead. See \k{pubkey} for details.
-
-Note that the \c{-pw} option only works when you are using the SSH
-protocol. Due to fundamental limitations of Telnet and Rlogin, these
-protocols do not support automated password authentication.
-
-\S2{plink-usage-options-user}\c{-l username} login with specified
-username
-
-As described in \k{plink-usage-batch}, you can specify the user name
-to log in as on the remote server using the \c{-l} option. For
-example, \c{plink login.example.com -l fred}.
-
-\S2{plink-usage-options-batch}\c{-batch} avoid interactive prompts
-
-If you use the \c{-batch} option, Plink will never give an
+In addition to this, Plink accepts one other option: the \c{-batch}
+option. If you use the \c{-batch} option, Plink will never give an
 interactive prompt while establishing the connection. If the
 server's host key is invalid, for example (see \k{gs-hostkey}), then
 the connection will simply be abandoned instead of asking you what
@@ -225,40 +167,6 @@ to do next.
 This may help Plink's behaviour when it is used in automated
 scripts: using \c{-batch}, if something goes wrong at connection
 time, the batch job will fail rather than hang.
-
-\S2{plink-usage-options-cmdfile} \c{-m filename} read command from a
-file
-
-If the command you want to run on the remote server is particularly
-large, you can read it from a file using the \c{-m} option, instead
-of putting it directly on Plink's command line. On most Unix
-systems, you can even put multiple lines in this file and execute
-more than one command in sequence, or a whole shell script.
-
-\S2{plink-usage-options-portfwd} \c{-L} and \c{-R} set up port
-forwarding
-
-Plink allows you to use port forwarding just as PuTTY does; if you
-have set up a PuTTY saved session that specifies port forwardings,
-and you connect to that session using Plink, then the same port
-forwardings will be set up.
-
-For convenience, Plink also offers the option to set up port
-forwarding on the command line. The command-line options work just
-like the ones in Unix \c{ssh} programs.
-
-To forward a local port (say 5110) to a remote destination (say
-\cw{popserver.example.com} port 110), you can write:
-
-\c plink mysession -L 5110:popserver.example.com:110
-
-And to forward a remote port to a local destination, just use the
-\c{-R} option instead of \c{-L}:
-
-\c plink mysession -R 5023:mytelnetserver.myhouse.org:23
-
-For general information on port forwarding, see
-\k{using-port-forwarding}.
 
 \H{plink-batch} Using Plink in \i{batch files} and \i{scripts}
 

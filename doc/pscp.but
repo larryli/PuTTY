@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.20 2001/12/31 16:15:19 simon Exp $
+\versionid $Id: pscp.but,v 1.21 2002/08/07 19:20:06 simon Exp $
 
 \#FIXME: Need examples
 
@@ -164,6 +164,14 @@ directory on the remote server.
 
 \S{pscp-usage-options} Options
 
+PSCP accepts all the general command line options supported by the
+PuTTY tools, except the ones which make no sense in a file transfer
+utility. See \k{using-general-opts} for a description of these
+options. (The ones not supported by PSCP are clearly marked.)
+
+PSCP also supports some of its own options. The following sections
+describe PSCP's specific command-line options.
+
 These are the command line options that PSCP accepts.
 
 \S2{pscp-usage-options-p}\c{-p} preserve file attributes
@@ -193,42 +201,6 @@ copy will be skipped, as will their contents.  The \c{-r} option tells
 PSCP to descend into any directories you specify, and to copy them and 
 their contents.  This allows you to use PSCP to transfer whole
 directory structures between machines.
-
-\S2{pscp-usage-options-v}\c{-v} show \i{verbose} messages
-
-The \c{-v} option to PSCP makes it print extra information about the
-file transfer.  For example:
-
-\c Logging in as "fred".
-\c fred@example.com's password:
-\c Sending command: scp -v -f mibs.tar
-\c Connected to example.com
-\c Sending file modes: C0644 1320960 mibs.tar
-\c mibs.tar                  |       1290 kB |  67.9 kB/s | ETA: 00:00:00 | 100%
-\c Remote exit status 0
-\c Closing connection
-
-This information may be useful for debugging problems with PSCP.
-
-\S2{pscp-usage-options-P}\c{-P port} connect to specified \i{port}
-
-If the \c{host} you specify is a saved session, PSCP uses any port
-number specified in that saved session.  If not, PSCP uses the default
-SSH port, 22.  The \c{-P} option allows you specify the port number to 
-connect to for PSCP's SSH connection.
-
-\S2{pscp-usage-options-pw}\c{-pw passw} login with specified \i{password}
-
-If a password is required to connect to the \c{host}, PSCP will
-interactively prompt you for it.  However, this may not always be
-appropriate.  If you are running PSCP as part of some automated job,
-it will not be possible to enter a password by hand.  The \c{-pw}
-option to PSCP lets you specify the password to use on the command
-line.
-
-Since specifying passwords in scripts is a bad idea for security
-reasons, you might want instead to consider using public-key
-authentication; see \k{pscp-pubkey}.
 
 \S2{pscp-usage-options-batch}\c{-batch} avoid interactive prompts
 

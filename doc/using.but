@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.6 2002/04/18 20:45:01 jacob Exp $
+\versionid $Id: using.but,v 1.7 2002/08/07 19:20:06 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -337,25 +337,25 @@ you simply select the fourth protocol name, \q{Raw}, from the
 \k{config-hostname}.) You can then enter a host name and a port
 number, and make the connection.
 
-\H{putty-cmdline} The PuTTY command line
+\H{using-cmdline} The PuTTY command line
 
 PuTTY can be made to do various things without user intervention by
 supplying command-line arguments (e.g., from a command prompt window,
 or a Windows shortcut).
 
-\S{putty-cmdline-session} Starting a session from the command line
+\S{using-cmdline-session} Starting a session from the command line
 
 These options allow you to bypass the configuration window and launch
 straight into a session.
 
-To start a connection to \c{host}:
+To start a connection to a server called \c{host}:
 
-\c putty.exe [-ssh] [user@]host[:port]
+\c putty.exe [-ssh | -telnet | -rlogin | -raw] [user@]host[:port]
 
 If this syntax is used, settings are taken from the Default Settings
-(see \k{config-saving}); \c{user} and \c{port} override these settings
-if supplied. Also, \c{-ssh} overrides the default protocol, if
-specified.
+(see \k{config-saving}); \c{user} and \c{port} override these
+settings if supplied. Also, you can specify a protocol, which will
+override the default protocol (see \k{using-cmdline-protocol}).
 
 For telnet sessions, the following alternative syntax is supported
 (this makes PuTTY suitable for use as a URL handler for telnet URLs in
@@ -364,12 +364,223 @@ web browsers):
 \c putty.exe telnet://host[:port]/
 
 In order to start an existing saved session called \c{sessionname},
-use the following syntax:
+use the \c{-load} option (described in \k{using-cmdline-load}).
 
-\c putty.exe @sessionname
+\c putty.exe -load "session name"
 
-\S{putty-cleanup} \c{-cleanup}
+\S{using-cleanup} \c{-cleanup}
 
 If invoked with the \c{-cleanup} option, rather than running as
 normal, PuTTY will remove its registry entries and random seed file
 from the local machine (after confirming with the user).
+
+\S{using-general-opts} Standard command-line options
+
+PuTTY and its associated tools support a range of command-line
+options, most of which are consistent across all the tools. This
+section lists the available options in all tools. Options which are
+specific to a particular tool are covered in the chapter about that
+tool.
+
+\S2{using-cmdline-load} \c{-load}: load a saved session
+
+The \c{-load} option causes PuTTY to load configuration details out
+of a saved session. If these details include a host name, then this
+option is all you need to make PuTTY start a session (although Plink
+still requires an explicitly specified host name).
+
+You need double quotes around the session name if it contains spaces.
+
+If you want to create a Windows shortcut to start a PuTTY saved
+session, this is the option you should use: your shortcut should
+call something like
+
+\c d:\path\to\putty.exe -load "my session"
+
+(Note that PuTTY itself supports an alternative form of this option,
+for backwards compatibility. If you execute \c{putty @sessionname}
+it will have the same effect as \c{putty -load "sessionname"}. With
+the \c{@} form, no double quotes are required, and the \c{@} sign
+must be the very first thing on the command line. This form of the
+option is deprecated.)
+
+\S2{using-cmdline-protocol} Selecting a protocol: \c{-ssh},
+\c{-telnet}, \c{-rlogin}, \c{-raw}
+
+To choose which protocol you want to connect with, you can use one
+of these options:
+
+\b \c{-ssh} selects the SSH protocol.
+
+\b \c{-telnet} selects the Telnet protocol.
+
+\b \c{-rlogin} selects the Rlogin protocol.
+
+\b \c{-raw} selects the raw protocol.
+
+These options are not available in the file transfer tools PSCP and
+PSFTP (which only work with the SSH protocol).
+
+These options are equivalent to the protocol selection buttons in
+the Session panel of the PuTTY configuration box (see
+\k{config-hostname}).
+
+\S2{using-cmdline-v} \c{-v}: increase verbosity
+
+Most of the PuTTY tools can be made to tell you more about what they
+are doing by supplying the \c{-v} option. If you are having trouble
+when making a connection, or you're simply curious, you can turn
+this switch on and hope to find out more about what is happening.
+
+\S2{using-cmdline-l} \c{-l}: specify a login name
+
+You can specify the user name to log in as on the remote server
+using the \c{-l} option. For example, \c{plink login.example.com -l
+fred}.
+
+These options are equivalent to the username selection box in the
+Connection panel of the PuTTY configuration box (see
+\k{config-username}).
+
+\S2{using-cmdline-portfwd} \c{-L} and \c{-R}: set up port forwardings
+
+As well as setting up port forwardings in the PuTTY configuration
+(see \k{config-ssh-portfwd}), you can also set up forwardings on the
+command line. The command-line options work just like the ones in
+Unix \c{ssh} programs.
+
+To forward a local port (say 5110) to a remote destination (say
+\cw{popserver.example.com} port 110), you can write something like
+one of these:
+
+\c putty -L 5110:popserver.example.com:110 -load mysession
+\c plink mysession -L 5110:popserver.example.com:110
+
+And to forward a remote port to a local destination, just use the
+\c{-R} option instead of \c{-L}:
+
+\c putty -R 5023:mytelnetserver.myhouse.org:23 -load mysession
+\c plink mysession -R 5023:mytelnetserver.myhouse.org:23
+
+For general information on port forwarding, see
+\k{using-port-forwarding}.
+
+These options are not available in the file transfer tools PSCP and
+PSFTP.
+
+\S2{using-cmdline-m} \c{-m}: read a remote command or script from a
+file
+
+The \c{-m} option performs a similar function to the \q{Remote
+command} box in the SSH panel of the PuTTY configuration box (see
+\k{config-command}). However, the \c{-m} option expects to be given
+a file name, and it will read a command from that file. On most Unix
+systems, you can even put multiple lines in this file and execute
+more than one command in sequence, or a whole shell script.
+
+This option is not available in the file transfer tools PSCP and
+PSFTP.
+
+\S2{using-cmdline-p} \c{-p} or \c{-P}: specify a port number
+
+The \c{-p} option (you can also write it as \c{-P}) is used to
+specify the port number to connect to. If you have a Telnet server
+running on port 9696 of a machine instead of port 23, for example:
+
+\c putty -telnet -p 9696 host.name
+\c plink -telnet -p 9696 host.name
+
+(Note that this option is more useful in Plink than in PuTTY,
+because in PuTTY you can write \c{putty -telnet host.name 9696} in
+any case.)
+
+These options are equivalent to the protocol selection buttons in
+the Session panel of the PuTTY configuration box (see
+\k{config-hostname}).
+
+\S2{using-cmdline-pw} \c{-pw}: specify a password
+
+A simple way to automate a remote login is to supply your password
+on the command line. This is \e{not recommended} for reasons of
+security. If you possibly can, we recommend you set up public-key
+authentication instead. See \k{pubkey} for details.
+
+Note that the \c{-pw} option only works when you are using the SSH
+protocol. Due to fundamental limitations of Telnet and Rlogin, these
+protocols do not support automated password authentication.
+
+\S2{using-cmdline-agent} \c{-A} and \c{-a}: control agent forwarding
+
+The \c{-A} option turns on SSH agent forwarding, and \c{-a} turns it
+off. These options are only meaningful if you are using SSH.
+
+See \k{pageant} for general information on Pageant, and
+\k{pageant-forward} for information on agent forwarding. Note that
+there is a security risk involved with enabling this option; see
+\k{pageant-security} for details.
+
+These options are equivalent to the agent forwarding checkbox in the
+Auth panel of the PuTTY configuration box (see \k{config-ssh-agentfwd}).
+
+These options are not available in the file transfer tools PSCP and
+PSFTP.
+
+\S2{using-cmdline-x11} \c{-X} and \c{-x}: control X11 forwarding
+
+The \c{-X} option turns on X11 forwarding in SSH, and \c{-x} turns
+it off. These options are only meaningful if you are using SSH.
+
+For information on X11 forwarding, see \k{using-x-forwarding}.
+
+These options are equivalent to the X11 forwarding checkbox in the
+Tunnels panel of the PuTTY configuration box (see
+\k{config-ssh-x11}).
+
+These options are not available in the file transfer tools PSCP and
+PSFTP.
+
+\S2{using-cmdline-pty} \c{-t} and \c{-T}: control pseudo-terminal
+allocation
+
+The \c{-t} option ensures PuTTY attempts to allocate a
+pseudo-terminal at the server, and \c{-T} stops it from allocating
+one. These options are only meaningful if you are using SSH.
+
+These options are equivalent to the \q{Don't allocate a
+pseudo-terminal} checkbox in the SSH panel of the PuTTY
+configuration box (see \k{config-ssh-pty}).
+
+These options are not available in the file transfer tools PSCP and
+PSFTP.
+
+\S2{using-cmdline-compress} \c{-C}: enable compression
+
+The \c{-C} option enables compression of the data sent across the
+network. This option is only meaningful if you are using SSH.
+
+This option is equivalent to the \q{Enable compression} checkbox in
+the SSH panel of the PuTTY configuration box (see
+\k{config-ssh-comp}).
+
+\S2{using-cmdline-sshprot} \c{-1} and \c{-2}: specify an SSH protocol
+version
+
+The \c{-1} and \c{-2} options force PuTTY to use version 1 or
+version 2 of the SSH protocol. These options are only meaningful if
+you are using SSH.
+
+These options are equivalent to selecting your preferred SSH
+protocol version as \q{1 only} or \q{2 only} in the SSH panel of the
+PuTTY configuration box (see \k{config-ssh-prot}).
+
+\S2{using-cmdline-identity} \c{-i}: specify an SSH private key
+
+The \c{-i} option allows you to specify the name of a private key
+file which PuTTY will use to authenticate with the server. This
+option is only meaningful if you are using SSH.
+
+For general information on public-key authentication, see \k{pubkey}.
+
+This option is equivalent to the \q{Private key file for
+authentication} box in the Auth panel of the PuTTY configuration box
+(see \k{config-ssh-privkey}).
