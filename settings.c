@@ -291,7 +291,6 @@ void load_settings(char *section, int do_host, Config * cfg)
     cfg->remote_cmd_ptr2 = NULL;
 
     gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
-    gppi(sesskey, "PortNumber", default_port, &cfg->port);
     gpps(sesskey, "LogFileName", "putty.log",
 	 cfg->logfilename, sizeof(cfg->logfilename));
     gppi(sesskey, "LogType", 0, &cfg->logtype);
@@ -299,9 +298,11 @@ void load_settings(char *section, int do_host, Config * cfg)
 
     gpps(sesskey, "Protocol", "default", prot, 10);
     cfg->protocol = default_protocol;
+    cfg->port = default_port;
     for (i = 0; backends[i].name != NULL; i++)
 	if (!strcmp(prot, backends[i].name)) {
 	    cfg->protocol = backends[i].protocol;
+	    gppi(sesskey, "PortNumber", default_port, &cfg->port);
 	    break;
 	}
 
