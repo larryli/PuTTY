@@ -2,7 +2,9 @@ This is the README for the source archive of PuTTY, a free Win32
 Telnet and SSH client.
 
 If you want to rebuild PuTTY from source, we provide a variety of
-Makefiles and equivalents:
+Makefiles and equivalents.
+
+For building on Windows:
 
  - Makefile.vc is for command-line builds on MS Visual C++ systems.
    Type `nmake -f Makefile.vc' to build all the PuTTY binaries.
@@ -33,6 +35,16 @@ Makefiles and equivalents:
 
  - Makefile.lcc is for lcc-win32. Type `make -f Makefile.lcc'. (You
    will probably need to specify COMPAT=-DNO_MULTIMON.)
+
+For building on Unix:
+
+ - unix/Makefile.gtk is for Unix and GTK. If you don't have GTK, you
+   should still be able to build the command-line utilities (PSCP,
+   PSFTP, Plink, PuTTYgen) using this makefile. The makefile expects
+   you to change into the `unix' subdirectory, then run `make -f
+   Makefile.gtk'. Note that Unix PuTTY has mostly only been tested
+   on Linux so far; portability problems such as BSD-style ptys or
+   different header file requirements are expected.
 
 All of the Makefiles are generated automatically from the file
 `Recipe' by the Perl script `mkfiles.pl'. Additions and corrections
