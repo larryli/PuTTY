@@ -124,8 +124,10 @@ void noise_get_light(void (*func) (void *, int)) {
     GetSystemTimeAdjustment(&adjust[0], &adjust[1], &rubbish);
     func(&adjust, sizeof(adjust));
 
+#ifndef WIN32S_COMPAT
     if (GetSystemPowerStatus(&pwrstat))
 	func(&pwrstat, sizeof(pwrstat));
+#endif
 }
 
 /*

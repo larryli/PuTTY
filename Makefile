@@ -5,15 +5,18 @@
 # `VER=/DRELEASE=0.43' to get version numbering; otherwise you'll
 # get `Unidentified build'.
 
+# COMPAT=/DWIN32S_COMPAT will produce a binary that works (minimally)
+# with Win32s
+
 CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 
 .c.obj:
-	cl $(FWHACK) $(CFLAGS) /c $*.c
+	cl $(COMPAT) $(FWHACK) $(CFLAGS) /c $*.c
 
 PUTTYOBJS = window.obj windlg.obj terminal.obj telnet.obj raw.obj
 OBJS1 = misc.obj noise.obj
 OBJS2 = ssh.obj sshcrc.obj sshdes.obj sshmd5.obj sshrsa.obj sshrand.obj
-OBJS3 = sshsha.obj sshblowf.obj version.obj sizetip.c
+OBJS3 = sshsha.obj sshblowf.obj version.obj sizetip.obj
 RESRC = win_res.res
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
