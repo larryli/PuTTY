@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.63 2003/02/01 15:44:08 ben Exp $ */
+/* $Id: macterm.c,v 1.64 2003/02/04 00:01:33 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -689,7 +689,10 @@ void mac_keyterm(WindowPtr window, EventRecord *event) {
     Session *s = (Session *)GetWRefCon(window);
     Key_Sym keysym = PK_NULL;
     unsigned int mods = 0, flags = PKF_NUMLOCK;
-    wchar_t utxt[1];
+    UniChar utxt[1];
+    char txt[1];
+    size_t len = 0;
+    ScriptCode key_script;
 
     ObscureCursor();
 
@@ -774,9 +777,52 @@ void mac_keyterm(WindowPtr window, EventRecord *event) {
       case 0x7E: keysym = PK_UP; break;
     }
 
-    /* XXX Map from key script to Unicode. */
-    utxt[0] = event->message & charCodeMask;
-    term_key(s->term, keysym, utxt, 1, mods, flags);
+    /* Map from key script to Unicode. */
+    txt[0] = event->message & charCodeMask;
+    key_script = GetScriptManagerVariable(smKeyScript);
+
+    if (mac_gestalts.encvvers != 0) {
+	static TextToUnicodeInfo key_to_uni = NULL;
+	static ScriptCode key_to_uni_script;
+	TextEncoding enc;
+	ByteCount iread, olen;
+	OSErr err;
+
+	if (key_to_uni != NULL && key_to_uni_script != key_script)
+	    DisposeTextToUnicodeInfo(&key_to_uni);
+        if (key_to_uni == NULL || key_to_uni_script != key_script) {
+	    if (UpgradeScriptInfoToTextEncoding(key_script,
+						kTextLanguageDontCare,
+						kTextRegionDontCare, NULL,
+						&enc) == noErr &&
+		CreateTextToUnicodeInfoByEncoding(enc, &key_to_uni) == noErr)
+		key_to_uni_script = key_script;
+	    else
+		key_to_uni = NULL;
+	}
+	if (key_to_uni != NULL) {
+	    err = ConvertFromTextToUnicode(key_to_uni, 1, txt,
+					   (kUnicodeKeepInfoMask |
+					    kUnicodeStringUnterminatedMask),
+					   0, NULL, NULL, NULL,
+					   sizeof(utxt), &iread, &olen, utxt);
+	    if (err == noErr)
+		len = olen / sizeof(*utxt);
+	}
+    } else {
+	int charset;
+	char *tptr = txt;
+	int tlen = 1;
+
+	charset = charset_from_macenc(key_script,
+				      GetScriptManagerVariable(smRegionCode),
+				      mac_gestalts.sysvers, NULL);
+	if (charset != CS_NONE) {
+	    len = charset_to_unicode(&tptr, &tlen, utxt, sizeof(utxt), charset,
+				     NULL, NULL, 0);
+	}
+    }
+    term_key(s->term, keysym, utxt, len, mods, flags);
 }
 
 void request_paste(void *frontend)
