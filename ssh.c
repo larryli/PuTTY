@@ -4732,7 +4732,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 
     /*
      * We've sent client NEWKEYS, so create and initialise
-     * client-to-servere session keys.
+     * client-to-server session keys.
      */
     if (ssh->cs_cipher_ctx)
 	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
