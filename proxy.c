@@ -314,6 +314,12 @@ Socket new_connection(SockAddr addr, char *hostname,
 	ret->remote_addr = addr;
 	ret->remote_port = port;
 
+	/* XXX review these initialisations, and initialise other fields
+	 * in Proxy_Socket structure */
+	ret->error = NULL;
+	ret->pending_flush = 0;
+	ret->freeze = 0;
+
 	bufchain_init(&ret->pending_input_data);
 	bufchain_init(&ret->pending_output_data);
 	bufchain_init(&ret->pending_oob_output_data);
