@@ -19,4 +19,7 @@ fi
 
 # Now we can assume we're in the main PuTTY source dir.
 find . -name .svn -prune -o -name '*.[chr]' -exec $SETFILE -t TEXT {} \;
-$SETFILE -t TEXT mac/mkputty.mpw
+
+# CR-ise mkputty.mpw and set the new version to TEXT.
+tr '\n' '\r' < mac/mkputty.mpw > mac/mk.mpw
+$SETFILE -t TEXT mac/mk.mpw
