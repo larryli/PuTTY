@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.36 2003/04/14 22:55:12 ben Exp $ */
+/* $Id: macctrls.c,v 1.37 2003/04/14 23:25:04 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -260,7 +260,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     curstate.width = 160;
     panellist.listbox.type = CTRL_LISTBOX;
     panellist.listbox.handler = &panellist_handler;
-    panellist.listbox.height = 15;
+    panellist.listbox.height = 20;
     panellist.listbox.percentwidth = 100;
     macctrl_listbox(mcs, window, &curstate, &panellist);
 
@@ -624,6 +624,7 @@ static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
 		FrameRect(&rect);
 		InsetRect(&rect, 3, 3);
 	    }
+	    EraseRect(&rect);
 	    (*(TEHandle)(*control)->contrlData)->viewRect = rect;
 	    TEUpdate(&rect, (TEHandle)(*control)->contrlData);
 	}
@@ -870,7 +871,7 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
     bounds.left = curstate->pos.h;
     bounds.right = bounds.left + curstate->width;
     bounds.top = curstate->pos.v;
-    bounds.bottom = bounds.top + 20 * ctrl->listbox.height;
+    bounds.bottom = bounds.top + 16 * ctrl->listbox.height + 2;
 
     if (mac_gestalts.apprvers >= 0x100) {
 	InsetRect(&bounds, 3, 3);
