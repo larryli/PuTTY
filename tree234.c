@@ -39,8 +39,7 @@
 #ifdef TEST
 #define LOG(x) (printf x)
 #else
-// FIXME
-#define LOG(x) (dprintf x)
+#define LOG(x)
 #endif
 
 typedef struct node234_Tag node234;

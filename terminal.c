@@ -350,9 +350,6 @@ void term_size(int newrows, int newcols, int newsavelines) {
     alt_t = marg_t = 0;
     alt_b = marg_b = newrows - 1;
 
-    debug(("term_size, old r,c,s (%d,%d,%d), new rcs (%d,%d,%d)\n",
-           rows, cols, savelines, newrows, newcols, newsavelines));
-
     if (rows == -1) {
 	scrollback = newtree234(NULL);
 	screen = newtree234(NULL);
@@ -380,32 +377,22 @@ void term_size(int newrows, int newcols, int newsavelines) {
      *    away.
      */
     sblen = count234(scrollback);
-    debug(("newrows=%d rows=%d sblen=%d\n", newrows, rows, sblen));
-    if (newrows > rows) {
-	for (i = rows; i < newrows; i++) {
-            debug(("increase screen: i=%d\n", i));
-	    if (sblen > 0) {
-                debug(("sblen=%d so use line from scrollback\n", sblen));
-		line = delpos234(scrollback, --sblen);
-	    } else {
-                debug(("sblen=%d so make up a new line\n", sblen));
-		line = smalloc(TSIZE * (newcols+2));
-		line[0] = newcols;
-		for (j = 0; j <= newcols; j++)
-		    line[j+1] = ERASE_CHAR;
-	    }
-            debug(("got new screen line %p\n", line));
-	    addpos234(screen, line, 0);
-	}
-    } else if (newrows < rows) {
-	for (i = newrows; i < rows; i++) {
-            debug(("decrease screen: i=%d\n", i));
-	    line = delpos234(screen, 0);
-            debug(("taken out line %p, count is now %d\n",
-                   line, count234(screen)));
-	    addpos234(scrollback, line, sblen++);
-            debug(("added to scrollback, sblen is now %d\n", sblen));
-	}
+    /* Do this loop to expand the screen if newrows > rows */
+    for (i = rows; i < newrows; i++) {
+        if (sblen > 0) {
+            line = delpos234(scrollback, --sblen);
+        } else {
+            line = smalloc(TSIZE * (newcols+2));
+            line[0] = newcols;
+            for (j = 0; j <= newcols; j++)
+                line[j+1] = ERASE_CHAR;
+        }
+        addpos234(screen, line, 0);
+    }
+    /* Do this loop to shrink the screen if newrows < rows */
+    for (i = newrows; i < rows; i++) {
+        line = delpos234(screen, 0);
+        addpos234(scrollback, line, sblen++);
     }
     assert(count234(screen) == newrows);
     while (sblen > newsavelines) {
