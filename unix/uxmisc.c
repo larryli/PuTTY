@@ -4,21 +4,27 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <pwd.h>
 
 #include "putty.h"
 
+/*
+ * We want to use milliseconds rather than microseconds or nanoseconds,
+ * because we need a decent number of them to fit into a 32-bit
+ * word so it can be used for keepalives.
+ */
 unsigned long getticks(void)
 {
     struct timeval tv;
+#ifdef CLOCK_MONOTONIC
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+	    return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+#endif
     gettimeofday(&tv, NULL);
-    /*
-     * We want to use milliseconds rather than microseconds,
-     * because we need a decent number of them to fit into a 32-bit
-     * word so it can be used for keepalives.
-     */
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
