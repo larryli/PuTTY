@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.67 2004/03/31 12:50:17 simon Exp $
+\versionid $Id: faq.but,v 1.68 2004/04/28 17:16:32 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -265,7 +265,7 @@ clearly be a useful thing, so in the long term I hope it can be
 brought up to release quality.
 
 There's also a third-party port at
-\W{http://pocketputty.aleq.cz/}\c{http://pocketputty.aleq.cz/}.
+\W{http://pocketputty.duxy.net/}\c{http://pocketputty.duxy.net/}.
 
 \S{faq-win31}{Question} Is there a port to Windows 3.1?
 
