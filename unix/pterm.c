@@ -1581,36 +1581,47 @@ char *get_x_display(void)
     return gdk_get_display();
 }
 
-int main(int argc, char **argv)
+char *app_name = "pterm";
+
+int do_cmdline(int argc, char **argv, int do_everything)
 {
-    extern int pty_master_fd;	       /* declared in pty.c */
-    extern char **pty_argv;	       /* declared in pty.c */
-    extern void pty_pre_init(void);    /* declared in pty.c */
     int err = 0;
+    extern char **pty_argv;	       /* declared in pty.c */
 
-    pty_pre_init();
+    /*
+     * Macros to make argument handling easier.
+     */
+#define EXPECTS_ARG do { \
+    if (--argc <= 0) { \
+	err = 1; \
+	fprintf(stderr, "pterm: %s expects an argument\n", p); \
+    } else \
+	val = *++argv; \
+} while (0)
+#define SECOND_PASS_ONLY do { \
+    if (!do_everything) continue; \
+} while (0)
 
-    gtk_init(&argc, &argv);
-
-    do_defaults(NULL, &cfg);
-
+    char *val;
     while (--argc > 0) {
 	char *p = *++argv;
 	if (!strcmp(p, "-fn")) {
-	    if (--argc > 0) {
-		strncpy(cfg.font, *++argv, sizeof(cfg.font));
-		cfg.font[sizeof(cfg.font)-1] = '\0';
-	    } else
-		err = 1, fprintf(stderr, "pterm: -fn expects an argument\n");
-	}
-	if (!strcmp(p, "-fb")) {
-	    if (--argc > 0) {
-		strncpy(cfg.boldfont, *++argv, sizeof(cfg.boldfont));
-		cfg.boldfont[sizeof(cfg.boldfont)-1] = '\0';
-	    } else
-		err = 1, fprintf(stderr, "pterm: -fb expects an argument\n");
-	}
-	if (!strcmp(p, "-e")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    strncpy(cfg.font, val, sizeof(cfg.font));
+	    cfg.font[sizeof(cfg.font)-1] = '\0';
+
+	} else if (!strcmp(p, "-fb")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    strncpy(cfg.boldfont, val, sizeof(cfg.boldfont));
+	    cfg.boldfont[sizeof(cfg.boldfont)-1] = '\0';
+
+	} else if (!strcmp(p, "-e")) {
+	    /* This option swallows all further arguments. */
+	    if (!do_everything)
+		break;
+
 	    if (--argc > 0) {
 		int i;
 		pty_argv = smalloc((argc+1) * sizeof(char *));
@@ -1621,38 +1632,63 @@ int main(int argc, char **argv)
 		break;		       /* finished command-line processing */
 	    } else
 		err = 1, fprintf(stderr, "pterm: -e expects an argument\n");
-	}
-	if (!strcmp(p, "-T")) {
-	    if (--argc > 0) {
-		strncpy(cfg.wintitle, *++argv, sizeof(cfg.wintitle));
-		cfg.wintitle[sizeof(cfg.wintitle)-1] = '\0';
-	    } else
-		err = 1, fprintf(stderr, "pterm: -T expects an argument\n");
-	}
-	if (!strcmp(p, "-log")) {
-	    if (--argc > 0) {
-		strncpy(cfg.logfilename, *++argv, sizeof(cfg.logfilename));
-		cfg.logfilename[sizeof(cfg.logfilename)-1] = '\0';
-		cfg.logtype = LGTYP_DEBUG;
-	    } else
-		err = 1, fprintf(stderr, "pterm: -log expects an argument\n");
-	}
-	if (!strcmp(p, "-hide")) {
+
+	} else if (!strcmp(p, "-T")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    strncpy(cfg.wintitle, val, sizeof(cfg.wintitle));
+	    cfg.wintitle[sizeof(cfg.wintitle)-1] = '\0';
+
+	} else if (!strcmp(p, "-log")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    strncpy(cfg.logfilename, val, sizeof(cfg.logfilename));
+	    cfg.logfilename[sizeof(cfg.logfilename)-1] = '\0';
+	    cfg.logtype = LGTYP_DEBUG;
+
+	} else if (!strcmp(p, "-hide")) {
+	    SECOND_PASS_ONLY;
 	    cfg.hide_mouseptr = 1;
-	}
-	if (!strcmp(p, "-ut-")) {
+
+	} else if (!strcmp(p, "-ut-")) {
+	    SECOND_PASS_ONLY;
 	    cfg.stamp_utmp = 0;
-	}
-	if (!strcmp(p, "-ls-")) {
+
+	} else if (!strcmp(p, "-ls-")) {
+	    SECOND_PASS_ONLY;
 	    cfg.login_shell = 0;
-	}
-	if (!strcmp(p, "-nethack")) {
+
+	} else if (!strcmp(p, "-nethack")) {
+	    SECOND_PASS_ONLY;
 	    cfg.nethack_keypad = 1;
-	}
-	if (!strcmp(p, "-sb-")) {
+
+	} else if (!strcmp(p, "-sb-")) {
+	    SECOND_PASS_ONLY;
 	    cfg.scrollbar = 0;
+
+	} else if (!strcmp(p, "-name")) {
+	    EXPECTS_ARG;
+	    app_name = val;
 	}
     }
+
+    return err;
+}
+
+int main(int argc, char **argv)
+{
+    extern int pty_master_fd;	       /* declared in pty.c */
+    extern void pty_pre_init(void);    /* declared in pty.c */
+
+    pty_pre_init();
+
+    gtk_init(&argc, &argv);
+
+    if (do_cmdline(argc, argv, 0))     /* pre-defaults pass to get -class */
+	exit(1);
+    do_defaults(NULL, &cfg);
+    if (do_cmdline(argc, argv, 1))     /* post-defaults, do everything */
+	exit(1);
 
     inst->fonts[0] = gdk_font_load(cfg.font);
     if (!inst->fonts[0]) {

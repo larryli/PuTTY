@@ -41,6 +41,9 @@ void init_ucs(void);
 char *get_x_display(void);
 int font_dimension(int which);	       /* 0 for width, 1 for height */
 
+/* Things uxstore.c needs from pterm.c */
+char *app_name;			       /* for doing resource lookups */
+
 #define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
 
 #endif
