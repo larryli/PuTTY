@@ -270,7 +270,7 @@ void mactcp_shutdown(void)
 
 static ResultUPP mactcp_lookupdone_upp;
 
-SockAddr sk_namelookup(char *host, char **canonicalname)
+SockAddr mactcp_namelookup(char *host, char **canonicalname)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     OSErr err;
@@ -308,7 +308,7 @@ static pascal void mactcp_lookupdone(struct hostInfo *hi, char *cookie)
     *donep = TRUE;
 }
 
-SockAddr sk_nonamelookup(char *host)
+SockAddr mactcp_nonamelookup(char *host)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
 
@@ -319,7 +319,7 @@ SockAddr sk_nonamelookup(char *host)
     return ret;
 }
 
-void sk_getaddr(SockAddr addr, char *buf, int buflen)
+void mactcp_getaddr(SockAddr addr, char *buf, int buflen)
 {
     char mybuf[16];
     OSErr err;
@@ -338,13 +338,13 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 
 /* I think "local" here really means "loopback" */
 
-int sk_hostname_is_local(char *name)
+int mactcp_hostname_is_local(char *name)
 {
 
     return !strcmp(name, "localhost");
 }
 
-int sk_address_is_local(SockAddr addr)
+int mactcp_address_is_local(SockAddr addr)
 {
     int i;
 
@@ -355,7 +355,7 @@ int sk_address_is_local(SockAddr addr)
     return FALSE;
 }
 
-int sk_addrtype(SockAddr addr)
+int mactcp_addrtype(SockAddr addr)
 {
 
     if (addr->resolved)
@@ -363,14 +363,14 @@ int sk_addrtype(SockAddr addr)
     return ADDRTYPE_NAME;
 }
 
-void sk_addrcopy(SockAddr addr, char *buf)
+void mactcp_addrcopy(SockAddr addr, char *buf)
 {
 
     /* XXX only return first address */
     memcpy(buf, &addr->hostinfo.addr[0], 4);
 }
 
-void sk_addr_free(SockAddr addr)
+void mactcp_addr_free(SockAddr addr)
 {
 
     sfree(addr);
@@ -389,18 +389,18 @@ static Plug mactcp_plug(Socket sock, Plug p)
 static void mactcp_flush(Socket s)
 {
 
-    fatalbox("sk_tcp_flush");
+    fatalbox("mactcp_flush");
 }
 
-Socket sk_register(void *sock, Plug plug)
+Socket mactcp_register(void *sock, Plug plug)
 {
 
-    fatalbox("sk_register");
+    fatalbox("mactcp_register");
 }
 
 static TCPNotifyUPP mactcp_asr_upp;
 
-Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
+Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug plug)
 {
     static struct socket_function_table fn_table = {
@@ -510,10 +510,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket)ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
+Socket mactcp_newlistener(char *srcaddr, int port, Plug plug,
+			  int local_host_only)
 {
 
-    fatalbox("sk_newlistener");
+    fatalbox("mactcp_newlistener");
 }
 
 static void mactcp_close(Socket sock)
@@ -674,11 +675,11 @@ static void *mactcp_get_private_ptr(Socket sock)
 }
 
 /*
- * Special error values are returned from sk_namelookup and sk_new
- * if there's a problem. These functions extract an error message,
- * or return NULL if there's no problem.
+ * Special error values are returned from mactcp_namelookup and
+ * mactcp_new if there's a problem. These functions extract an error
+ * message, or return NULL if there's no problem.
  */
-char *sk_addr_error(SockAddr addr)
+char *mactcp_addr_error(SockAddr addr)
 {
     static char buf[64];
 

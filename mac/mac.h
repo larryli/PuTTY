@@ -23,6 +23,7 @@ struct mac_gestalts {
     long windattr;
     long encvvers; /* TEC version (from TECGetInfo()) */
     long uncvattr; /* Unicode Converter attributes (frem TECGetInfo()) */
+    long mtcpvers;
 };
 
 extern struct mac_gestalts mac_gestalts;
@@ -95,6 +96,18 @@ extern void init_ucs(void);
 extern OSErr mactcp_init(void);
 extern void mactcp_shutdown(void);
 extern void mactcp_poll(void);
+extern SockAddr mactcp_namelookup(char *, char **);
+extern SockAddr mactcp_nonamelookup(char *);
+extern void mactcp_getaddr(SockAddr, char *, int);
+extern int mactcp_hostname_is_local(char *);
+extern int mactcp_address_is_local(SockAddr);
+extern int mactcp_addrtype(SockAddr);
+extern void mactcp_addrcopy(SockAddr, char *);
+extern void mactcp_addr_free(SockAddr);
+extern Socket mactcp_register(void *, Plug);
+extern Socket mactcp_new(SockAddr addr, int, int, int, int, Plug);
+extern Socket mactcp_newlistener(char *, int, Plug, int);
+extern char *mactcp_addr_error(SockAddr);
 
 #endif
 

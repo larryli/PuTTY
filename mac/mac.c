@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.23 2003/01/10 18:33:35 simon Exp $ */
+/* $Id: mac.c,v 1.24 2003/01/11 19:43:59 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -169,8 +169,13 @@ static void mac_startup(void) {
 	mac_gestalts.uncvattr = (*ti)->tecUnicodeConverterFeatures;
 	DisposeHandle((Handle)ti);
     }
-
-    mactcp_init();
+    /* MacTCP? */
+    if (Gestalt(FOUR_CHAR_CODE('mtcp'), &mac_gestalts.mtcpvers) != noErr)
+	mac_gestalts.mtcpvers = 0;
+    if (mac_gestalts.mtcpvers > 0) {
+	if (mactcp_init() != noErr)
+	    mac_gestalts.mtcpvers = 0;
+    }
 
     /* We've been tested with the Appearance Manager */
     if (mac_gestalts.apprvers != 0)
@@ -225,7 +230,8 @@ static void mac_eventloop(void) {
 	mac_adjustcursor(cursrgn);
 	if (gotevent)
 	    mac_event(&event);
-	mactcp_poll();
+	if (mac_gestalts.mtcpvers != 0)
+	    mactcp_poll();
 	mac_pollterm();
     }
     DisposeRgn(cursrgn);
@@ -617,7 +623,8 @@ void cleanup_exit(int status)
     if (mac_gestalts.encvvers != 0)
 	TerminateUnicodeConverter();
 #endif
-    mactcp_shutdown();
+    if (mac_gestalts.mtcpvers != 0)
+	mactcp_shutdown();
     exit(status);
 }
 
