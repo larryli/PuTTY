@@ -8,6 +8,8 @@
 #include "putty.h"
 #include "storage.h"
 
+static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
+
 static char seedpath[2*MAX_PATH+10] = "\0";
 
 static char hex[16] = "0123456789ABCDEF";
@@ -30,7 +32,7 @@ static void mungestr(char *in, char *out) {
     return;
 }
 
-static void unmungestr(char *in, char *out) {
+static void unmungestr(char *in, char *out, int outlen) {
     while (*in) {
 	if (*in == '%' && in[1] && in[2]) {
 	    int i, j;
@@ -39,28 +41,164 @@ static void unmungestr(char *in, char *out) {
 	    j = in[2] - '0'; j -= (j > 9 ? 7 : 0);
 
 	    *out++ = (i<<4) + j;
+            if (!--outlen) return;
 	    in += 3;
-	} else
+	} else {
 	    *out++ = *in++;
+            if (!--outlen) return;
+        }
     }
     *out = '\0';
     return;
 }
 
-void *open_settings_w(char *sessionname);
-void write_setting_s(void *handle, char *key, char *value);
-void write_setting_i(void *handle, char *key, int value);
-void *close_settings_w(void *handle);
+void *open_settings_w(char *sessionname) {
+    HKEY subkey1, sesskey;
+    int ret;
+    char *p;
 
-void *open_settings_r(char *sessionname);
-char *read_setting_s(void *handle, char *key, char *buffer, int buflen);
-int read_setting_i(void *handle, char *key, int defvalue);
-void *close_settings_r(void *handle);
+    p = malloc(3*strlen(sessionname)+1);
+    mungestr(sessionname, p);
+    
+    ret = RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1);
+    if (ret != ERROR_SUCCESS) {
+        free(p);
+        return NULL;
+    }
+    ret = RegCreateKey(subkey1, p, &sesskey);
+    free(p);
+    RegCloseKey(subkey1);
+    if (ret != ERROR_SUCCESS)
+        return NULL;
+    return (void *)sesskey;
+}
+
+void write_setting_s(void *handle, char *key, char *value) {
+    if (handle)
+        RegSetValueEx((HKEY)handle, key, 0, REG_SZ, value, 1+strlen(value));
+}
+
+void write_setting_i(void *handle, char *key, int value) {
+    if (handle)
+        RegSetValueEx((HKEY)handle, key, 0, REG_DWORD,
+                      (CONST BYTE *)&value, sizeof(value));
+}
+
+void close_settings_w(void *handle) {
+    RegCloseKey((HKEY)handle);
+}
+
+void *open_settings_r(char *sessionname) {
+    HKEY subkey1, sesskey;
+    char *p;
+
+    p = malloc(3*strlen(sessionname)+1);
+    mungestr(sessionname, p);
+
+    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS) {
+	sesskey = NULL;
+    } else {
+	if (RegOpenKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
+	    sesskey = NULL;
+	}
+	RegCloseKey(subkey1);
+    }
+
+    free(p);
+
+    return (void *)sesskey;
+}
+
+char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
+    DWORD type, size;
+    size = buflen;
+
+    if (!handle ||
+        RegQueryValueEx((HKEY)handle, key, 0,
+                        &type, buffer, &size) != ERROR_SUCCESS ||
+	type != REG_SZ)
+        return NULL;
+    else
+        return buffer;
+}
+
+int read_setting_i(void *handle, char *key, int defvalue) {
+    DWORD type, val, size;
+    size = sizeof(val);
+
+    if (!handle ||
+	RegQueryValueEx((HKEY)handle, key, 0, &type,
+			(BYTE *)&val, &size) != ERROR_SUCCESS ||
+	size != sizeof(val) || type != REG_DWORD)
+	return defvalue;
+    else
+	return val;
+}
+
+void close_settings_r(void *handle) {
+    RegCloseKey((HKEY)handle);
+}
+
+void del_settings (char *sessionname) {
+    HKEY subkey1;
+    char *p;
+
+    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS)
+	return;
+
+    p = malloc(3*strlen(sessionname)+1);
+    mungestr(sessionname, p);
+    RegDeleteKey(subkey1, p);
+    free(p);
+
+    RegCloseKey(subkey1);
+}
 
 static void hostkey_regname(char *buffer, char *hostname, char *keytype) {
     strcpy(buffer, keytype);
     strcat(buffer, "@");
     mungestr(hostname, buffer + strlen(buffer));
+}
+
+struct enumsettings {
+    HKEY key;
+    int i;
+};
+
+void *enum_settings_start(void) {
+    struct enumsettings *ret;
+    HKEY key;
+
+    if (RegCreateKey(HKEY_CURRENT_USER, puttystr, &key) != ERROR_SUCCESS)
+        return NULL;
+
+    ret = malloc(sizeof(*ret));
+    if (ret) {
+        ret->key = key;
+        ret->i = 0;
+    }
+
+    return ret;
+}
+
+char *enum_settings_next(void *handle, char *buffer, int buflen) {
+    struct enumsettings *e = (struct enumsettings *)handle;
+    char *otherbuf;
+    otherbuf = malloc(3*buflen);
+    if (otherbuf && RegEnumKey(e->key, e->i++, otherbuf,
+                               3*buflen) == ERROR_SUCCESS) {
+        unmungestr(otherbuf, buffer, buflen);
+        free(otherbuf);
+        return buffer;
+    } else
+        return NULL;
+
+}
+
+void enum_settings_finish(void *handle) {
+    struct enumsettings *e = (struct enumsettings *)handle;
+    RegCloseKey(e->key);
+    free(e);
 }
 
 int verify_host_key(char *hostname, char *keytype, char *key) {
@@ -243,7 +381,7 @@ void read_random_seed(noise_consumer_t consumer) {
     }
 }
 
-void write_random_seed(void *data, size_t len) {
+void write_random_seed(void *data, int len) {
     HANDLE seedf;
 
     if (!seedpath[0])

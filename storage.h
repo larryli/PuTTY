@@ -25,7 +25,7 @@
 void *open_settings_w(char *sessionname);
 void write_setting_s(void *handle, char *key, char *value);
 void write_setting_i(void *handle, char *key, int value);
-void *close_settings_w(void *handle);
+void close_settings_w(void *handle);
 
 /*
  * Read a saved session. The caller is expected to call
@@ -44,7 +44,19 @@ void *close_settings_w(void *handle);
 void *open_settings_r(char *sessionname);
 char *read_setting_s(void *handle, char *key, char *buffer, int buflen);
 int read_setting_i(void *handle, char *key, int defvalue);
-void *close_settings_r(void *handle);
+void close_settings_r(void *handle);
+
+/*
+ * Delete a whole saved session.
+ */
+void del_settings(char *sessionname);
+
+/*
+ * Enumerate all saved sessions.
+ */
+void *enum_settings_start(void);
+char *enum_settings_next(void *handle, char *buffer, int buflen);
+void enum_settings_finish(void *handle);
 
 /* ----------------------------------------------------------------------
  * Functions to access PuTTY's host key database.
@@ -67,7 +79,7 @@ void store_host_key(char *hostname, char *keytype, char *key);
  * Functions to access PuTTY's random number seed file.
  */
 
-typedef void (*noise_consumer_t)(void *data, size_t len);
+typedef void (*noise_consumer_t)(void *data, int len);
 
 /*
  * Read PuTTY's random seed file and pass its contents to a noise
@@ -78,7 +90,7 @@ void read_random_seed(noise_consumer_t consumer);
 /*
  * Write PuTTY's random seed file from a given chunk of noise.
  */
-void write_random_seed(void *data, size_t len);
+void write_random_seed(void *data, int len);
 
 /* ----------------------------------------------------------------------
  * Cleanup function: remove all of PuTTY's persistent state.

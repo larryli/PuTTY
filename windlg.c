@@ -20,83 +20,20 @@
 #define MAIN_NPANELS 8
 #define RECONF_NPANELS 5
 
-static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
-
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
 static HWND logbox = NULL, abtbox = NULL;
 
-static char hex[16] = "0123456789ABCDEF";
-
-static void mungestr(char *in, char *out) {
-    int candot = 0;
-
-    while (*in) {
-	if (*in == ' ' || *in == '\\' || *in == '*' || *in == '?' ||
-	    *in == '%' || *in < ' ' || *in > '~' || (*in == '.' && !candot)) {
-	    *out++ = '%';
-	    *out++ = hex[((unsigned char)*in) >> 4];
-	    *out++ = hex[((unsigned char)*in) & 15];
-	} else
-	    *out++ = *in;
-	in++;
-	candot = 1;
-    }
-    *out = '\0';
-    return;
-}
-
-static void unmungestr(char *in, char *out) {
-    while (*in) {
-	if (*in == '%' && in[1] && in[2]) {
-	    int i, j;
-
-	    i = in[1] - '0'; i -= (i > 9 ? 7 : 0);
-	    j = in[2] - '0'; j -= (j > 9 ? 7 : 0);
-
-	    *out++ = (i<<4) + j;
-	    in += 3;
-	} else
-	    *out++ = *in++;
-    }
-    *out = '\0';
-    return;
-}
-
-static void wpps(HKEY key, LPCTSTR name, LPCTSTR value) {
-    RegSetValueEx(key, name, 0, REG_SZ, value, 1+strlen(value));
-}
-
-static void wppi(HKEY key, LPCTSTR name, int value) {
-    RegSetValueEx(key, name, 0, REG_DWORD,
-		  (CONST BYTE *)&value, sizeof(value));
-}
-
-static void gpps(HKEY key, LPCTSTR name, LPCTSTR def,
-		 LPTSTR val, int len) {
-    DWORD type, size;
-    size = len;
-
-    if (key == NULL ||
-	RegQueryValueEx(key, name, 0, &type, val, &size) != ERROR_SUCCESS ||
-	type != REG_SZ) {
+static void gpps(void *handle, char *name, char *def, char *val, int len) {
+    if (!read_setting_s(handle, name, val, len)) {
 	strncpy(val, def, len);
 	val[len-1] = '\0';
     }
 }
 
-static void gppi(HKEY key, LPCTSTR name, int def, int *i) {
-    DWORD type, val, size;
-    size = sizeof(val);
-
-    if (key == NULL ||
-	RegQueryValueEx(key, name, 0, &type,
-			(BYTE *)&val, &size) != ERROR_SUCCESS ||
-	size != sizeof(val) || type != REG_DWORD)
-	*i = def;
-    else
-	*i = val;
+static void gppi(void *handle, char *name, int def, int *i) {
+    *i = read_setting_i(handle, name, def);
 }
 
 static HINSTANCE hinst;
@@ -105,36 +42,29 @@ static int readytogo;
 
 static void save_settings (char *section, int do_host) {
     int i;
-    HKEY subkey1, sesskey;
     char *p;
+    void *sesskey;
 
-    p = malloc(3*strlen(section)+1);
-    mungestr(section, p);
-    
-    if (RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1)!=ERROR_SUCCESS ||
-	RegCreateKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
-	sesskey = NULL;
-    }
+    sesskey = open_settings_w(section);
+    if (!sesskey)
+        return;
 
-    free(p);
-    RegCloseKey(subkey1);
-
-    wppi (sesskey, "Present", 1);
+    write_setting_i (sesskey, "Present", 1);
     if (do_host) {
-	wpps (sesskey, "HostName", cfg.host);
-	wppi (sesskey, "PortNumber", cfg.port);
+	write_setting_s (sesskey, "HostName", cfg.host);
+	write_setting_i (sesskey, "PortNumber", cfg.port);
         p = "raw";
         for (i = 0; backends[i].name != NULL; i++)
             if (backends[i].protocol == cfg.protocol) {
                 p = backends[i].name;
                 break;
             }
-        wpps (sesskey, "Protocol", p);
+        write_setting_s (sesskey, "Protocol", p);
     }
-    wppi (sesskey, "CloseOnExit", !!cfg.close_on_exit);
-    wppi (sesskey, "WarnOnClose", !!cfg.warn_on_close);
-    wpps (sesskey, "TerminalType", cfg.termtype);
-    wpps (sesskey, "TerminalSpeed", cfg.termspeed);
+    write_setting_i (sesskey, "CloseOnExit", !!cfg.close_on_exit);
+    write_setting_i (sesskey, "WarnOnClose", !!cfg.warn_on_close);
+    write_setting_s (sesskey, "TerminalType", cfg.termtype);
+    write_setting_s (sesskey, "TerminalSpeed", cfg.termspeed);
     {
       char buf[2*sizeof(cfg.environmt)], *p, *q;
 	p = buf;
@@ -152,51 +82,51 @@ static void save_settings (char *section, int do_host) {
 	    q++;
 	}
 	*p = '\0';
-	wpps (sesskey, "Environment", buf);
+	write_setting_s (sesskey, "Environment", buf);
     }
-    wpps (sesskey, "UserName", cfg.username);
-    wppi (sesskey, "NoPTY", cfg.nopty);
-    wppi (sesskey, "AgentFwd", cfg.agentfwd);
-    wpps (sesskey, "RemoteCmd", cfg.remote_cmd);
-    wpps (sesskey, "Cipher", cfg.cipher == CIPHER_BLOWFISH ? "blowfish" :
+    write_setting_s (sesskey, "UserName", cfg.username);
+    write_setting_i (sesskey, "NoPTY", cfg.nopty);
+    write_setting_i (sesskey, "AgentFwd", cfg.agentfwd);
+    write_setting_s (sesskey, "RemoteCmd", cfg.remote_cmd);
+    write_setting_s (sesskey, "Cipher", cfg.cipher == CIPHER_BLOWFISH ? "blowfish" :
                              cfg.cipher == CIPHER_DES ? "des" : "3des");
-    wppi (sesskey, "AuthTIS", cfg.try_tis_auth);
-    wppi (sesskey, "SshProt", cfg.sshprot);
-    wpps (sesskey, "PublicKeyFile", cfg.keyfile);
-    wppi (sesskey, "RFCEnviron", cfg.rfc_environ);
-    wppi (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
-    wppi (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
-    wppi (sesskey, "LinuxFunctionKeys", cfg.funky_type);
-    wppi (sesskey, "ApplicationCursorKeys", cfg.app_cursor);
-    wppi (sesskey, "ApplicationKeypad", cfg.app_keypad);
-    wppi (sesskey, "NetHackKeypad", cfg.nethack_keypad);
-    wppi (sesskey, "AltF4", cfg.alt_f4);
-    wppi (sesskey, "AltSpace", cfg.alt_space);
-    wppi (sesskey, "LdiscTerm", cfg.ldisc_term);
-    wppi (sesskey, "BlinkCur", cfg.blink_cur);
-    wppi (sesskey, "Beep", cfg.beep);
-    wppi (sesskey, "ScrollbackLines", cfg.savelines);
-    wppi (sesskey, "DECOriginMode", cfg.dec_om);
-    wppi (sesskey, "AutoWrapMode", cfg.wrap_mode);
-    wppi (sesskey, "LFImpliesCR", cfg.lfhascr);
-    wppi (sesskey, "WinNameAlways", cfg.win_name_always);
-    wppi (sesskey, "TermWidth", cfg.width);
-    wppi (sesskey, "TermHeight", cfg.height);
-    wpps (sesskey, "Font", cfg.font);
-    wppi (sesskey, "FontIsBold", cfg.fontisbold);
-    wppi (sesskey, "FontCharSet", cfg.fontcharset);
-    wppi (sesskey, "FontHeight", cfg.fontheight);
-    wppi (sesskey, "FontVTMode", cfg.vtmode);
-    wppi (sesskey, "TryPalette", cfg.try_palette);
-    wppi (sesskey, "BoldAsColour", cfg.bold_colour);
+    write_setting_i (sesskey, "AuthTIS", cfg.try_tis_auth);
+    write_setting_i (sesskey, "SshProt", cfg.sshprot);
+    write_setting_s (sesskey, "PublicKeyFile", cfg.keyfile);
+    write_setting_i (sesskey, "RFCEnviron", cfg.rfc_environ);
+    write_setting_i (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
+    write_setting_i (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
+    write_setting_i (sesskey, "LinuxFunctionKeys", cfg.funky_type);
+    write_setting_i (sesskey, "ApplicationCursorKeys", cfg.app_cursor);
+    write_setting_i (sesskey, "ApplicationKeypad", cfg.app_keypad);
+    write_setting_i (sesskey, "NetHackKeypad", cfg.nethack_keypad);
+    write_setting_i (sesskey, "AltF4", cfg.alt_f4);
+    write_setting_i (sesskey, "AltSpace", cfg.alt_space);
+    write_setting_i (sesskey, "LdiscTerm", cfg.ldisc_term);
+    write_setting_i (sesskey, "BlinkCur", cfg.blink_cur);
+    write_setting_i (sesskey, "Beep", cfg.beep);
+    write_setting_i (sesskey, "ScrollbackLines", cfg.savelines);
+    write_setting_i (sesskey, "DECOriginMode", cfg.dec_om);
+    write_setting_i (sesskey, "AutoWrapMode", cfg.wrap_mode);
+    write_setting_i (sesskey, "LFImpliesCR", cfg.lfhascr);
+    write_setting_i (sesskey, "WinNameAlways", cfg.win_name_always);
+    write_setting_i (sesskey, "TermWidth", cfg.width);
+    write_setting_i (sesskey, "TermHeight", cfg.height);
+    write_setting_s (sesskey, "Font", cfg.font);
+    write_setting_i (sesskey, "FontIsBold", cfg.fontisbold);
+    write_setting_i (sesskey, "FontCharSet", cfg.fontcharset);
+    write_setting_i (sesskey, "FontHeight", cfg.fontheight);
+    write_setting_i (sesskey, "FontVTMode", cfg.vtmode);
+    write_setting_i (sesskey, "TryPalette", cfg.try_palette);
+    write_setting_i (sesskey, "BoldAsColour", cfg.bold_colour);
     for (i=0; i<22; i++) {
 	char buf[20], buf2[30];
 	sprintf(buf, "Colour%d", i);
 	sprintf(buf2, "%d,%d,%d", cfg.colours[i][0],
 		cfg.colours[i][1], cfg.colours[i][2]);
-	wpps (sesskey, buf, buf2);
+	write_setting_s (sesskey, buf, buf2);
     }
-    wppi (sesskey, "MouseIsXterm", cfg.mouse_is_xterm);
+    write_setting_i (sesskey, "MouseIsXterm", cfg.mouse_is_xterm);
     for (i=0; i<256; i+=32) {
 	char buf[20], buf2[256];
 	int j;
@@ -206,54 +136,26 @@ static void save_settings (char *section, int do_host) {
 	    sprintf(buf2+strlen(buf2), "%s%d",
 		    (*buf2 ? "," : ""), cfg.wordness[j]);
 	}
-	wpps (sesskey, buf, buf2);
+	write_setting_s (sesskey, buf, buf2);
     }
-    wppi (sesskey, "KoiWinXlat", cfg.xlat_enablekoiwin);
-    wppi (sesskey, "88592Xlat", cfg.xlat_88592w1250);
-    wppi (sesskey, "CapsLockCyr", cfg.xlat_capslockcyr);
-    wppi (sesskey, "ScrollBar", cfg.scrollbar);
-    wppi (sesskey, "ScrollOnKey", cfg.scroll_on_key);
-    wppi (sesskey, "LockSize", cfg.locksize);
-    wppi (sesskey, "BCE", cfg.bce);
-    wppi (sesskey, "BlinkText", cfg.blinktext);
+    write_setting_i (sesskey, "KoiWinXlat", cfg.xlat_enablekoiwin);
+    write_setting_i (sesskey, "88592Xlat", cfg.xlat_88592w1250);
+    write_setting_i (sesskey, "CapsLockCyr", cfg.xlat_capslockcyr);
+    write_setting_i (sesskey, "ScrollBar", cfg.scrollbar);
+    write_setting_i (sesskey, "ScrollOnKey", cfg.scroll_on_key);
+    write_setting_i (sesskey, "LockSize", cfg.locksize);
+    write_setting_i (sesskey, "BCE", cfg.bce);
+    write_setting_i (sesskey, "BlinkText", cfg.blinktext);
 
-    RegCloseKey(sesskey);
-}
-
-static void del_session (char *section) {
-    HKEY subkey1;
-    char *p;
-
-    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS)
-	return;
-
-    p = malloc(3*strlen(section)+1);
-    mungestr(section, p);
-    RegDeleteKey(subkey1, p);
-    free(p);
-
-    RegCloseKey(subkey1);
+    close_settings_w(sesskey);
 }
 
 static void load_settings (char *section, int do_host) {
     int i;
-    HKEY subkey1, sesskey;
-    char *p;
     char prot[10];
+    void *sesskey;
 
-    p = malloc(3*strlen(section)+1);
-    mungestr(section, p);
-
-    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS) {
-	sesskey = NULL;
-    } else {
-	if (RegOpenKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
-	    sesskey = NULL;
-	}
-	RegCloseKey(subkey1);
-    }
-
-    free(p);
+    sesskey = open_settings_r(section);
 
     gpps (sesskey, "HostName", "", cfg.host, sizeof(cfg.host));
     gppi (sesskey, "PortNumber", default_port, &cfg.port);
@@ -385,7 +287,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "BCE", 0, &cfg.bce);
     gppi (sesskey, "BlinkText", 0, &cfg.blinktext);
 
-    RegCloseKey(sesskey);
+    close_settings_r(sesskey);
 }
 
 static void force_normal(HWND hwnd)
@@ -709,7 +611,7 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 		    MessageBeep(0);
 		    break;
 		}
-		del_session(sessions[n]);
+		del_settings(sessions[n]);
 		get_sesslist (FALSE);
 		get_sesslist (TRUE);
 		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_RESETCONTENT,
@@ -1529,29 +1431,32 @@ static int CALLBACK ReconfDlgProc (HWND hwnd, UINT msg,
 }
 
 void get_sesslist(int allocate) {
+    static char otherbuf[2048];
     static char *buffer;
-    int buflen, bufsize, i, ret;
-    char otherbuf[2048];
-    char *p;
-    HKEY subkey1;
+    int buflen, bufsize, i;
+    char *p, *ret;
+    void *handle;
 
     if (allocate) {
-	if (RegCreateKey(HKEY_CURRENT_USER,
-			 puttystr, &subkey1) != ERROR_SUCCESS)
+        
+	if ((handle = enum_settings_start()) == NULL)
 	    return;
 
 	buflen = bufsize = 0;
 	buffer = NULL;
-	i = 0;
 	do {
-	    ret = RegEnumKey(subkey1, i++, otherbuf, sizeof(otherbuf));
-	    if (ret == ERROR_SUCCESS) {
-		bufsize = buflen + 2048;
-		buffer = srealloc(buffer, bufsize);
-		unmungestr(otherbuf, buffer+buflen);
+            ret = enum_settings_next(handle, otherbuf, sizeof(otherbuf));
+	    if (ret) {
+                int len = strlen(otherbuf)+1;
+                if (bufsize < buflen+len) {
+                    bufsize = buflen + len + 2048;
+                    buffer = srealloc(buffer, bufsize);
+                }
+		strcpy(buffer+buflen, otherbuf);
 		buflen += strlen(buffer+buflen)+1;
 	    }
-	} while (ret == ERROR_SUCCESS);
+	} while (ret);
+        enum_settings_finish(handle);
 	buffer = srealloc(buffer, buflen+1);
 	buffer[buflen] = '\0';
 
