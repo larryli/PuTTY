@@ -3,7 +3,6 @@
  * generator.
  */
 
-#include <windows.h>
 #include <stdio.h>
 
 #include "putty.h"

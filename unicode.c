@@ -1,7 +1,3 @@
-#ifdef WINDOWS
-#include <windows.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>

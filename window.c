@@ -1,23 +1,3 @@
-#include <windows.h>
-#include <imm.h>
-#include <commctrl.h>
-#include <richedit.h>
-#include <mmsystem.h>
-#ifndef AUTO_WINSOCK
-#ifdef WINSOCK_TWO
-#include <winsock2.h>
-#else
-#include <winsock.h>
-#endif
-#endif
-
-#ifndef NO_MULTIMON
-#if WINVER < 0x0500
-#define COMPILE_MULTIMON_STUBS
-#include <multimon.h>
-#endif
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -27,9 +7,20 @@
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
 #include "terminal.h"
-#include "winstuff.h"
 #include "storage.h"
 #include "win_res.h"
+
+#ifndef NO_MULTIMON
+#if WINVER < 0x0500
+#define COMPILE_MULTIMON_STUBS
+#include <multimon.h>
+#endif
+#endif
+
+#include <imm.h>
+#include <commctrl.h>
+#include <richedit.h>
+#include <mmsystem.h>
 
 #define IDM_SHOWLOG   0x0010
 #define IDM_NEWSESS   0x0020
@@ -178,8 +169,6 @@ static char *window_name, *icon_name;
 
 static int compose_state = 0;
 
-static int wsa_started = 0;
-
 static UINT wm_mousewheel = WM_MOUSEWHEEL;
 
 /* Dummy routine, only required in plink. */
@@ -189,8 +178,6 @@ void ldisc_update(void *frontend, int echo, int edit)
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    WORD winsock_ver;
-    WSADATA wsadata;
     WNDCLASS wndclass;
     MSG msg;
     int guess_width, guess_height;
@@ -198,20 +185,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     hinst = inst;
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
 
-    winsock_ver = MAKEWORD(1, 1);
-    if (WSAStartup(winsock_ver, &wsadata)) {
-	MessageBox(NULL, "Unable to initialise WinSock", "WinSock Error",
-		   MB_OK | MB_ICONEXCLAMATION);
-	return 1;
-    }
-    if (LOBYTE(wsadata.wVersion) != 1 || HIBYTE(wsadata.wVersion) != 1) {
-	MessageBox(NULL, "WinSock version is incompatible with 1.1",
-		   "WinSock Error", MB_OK | MB_ICONEXCLAMATION);
-	WSACleanup();
-	return 1;
-    }
-    wsa_started = 1;
-    /* WISHLIST: maybe allow config tweaking even if winsock not present? */
     sk_init();
 
     InitCommonControls();
@@ -305,8 +278,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    p[i] = '\0';
 	    do_defaults(p + 1, &cfg);
 	    if (!*cfg.host && !do_config()) {
-		WSACleanup();
-		return 0;
+		cleanup_exit(0);
 	    }
 	} else if (*p == '&') {
 	    /*
@@ -324,8 +296,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		UnmapViewOfFile(cp);
 		CloseHandle(filemap);
 	    } else if (!do_config()) {
-		WSACleanup();
-		return 0;
+		cleanup_exit(0);
 	    }
 	} else {
 	    /*
@@ -430,8 +401,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	cmdline_run_saved(&cfg);
 
 	if (!*cfg.host && !do_config()) {
-	    WSACleanup();
-	    return 0;
+	    cleanup_exit(0);
 	}
 
 	/*
@@ -493,8 +463,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    MessageBox(NULL, "Unsupported protocol number found",
 		       str, MB_OK | MB_ICONEXCLAMATION);
 	    sfree(str);
-	    WSACleanup();
-	    return 1;
+	    cleanup_exit(1);
 	}
     }
 
@@ -504,8 +473,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	MessageBox(NULL, "Invalid Port Number",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
-	WSACleanup();
-	return 1;
+	cleanup_exit(1);
     }
 
     if (!prev) {
@@ -840,8 +808,6 @@ void cleanup_exit(int code)
     if (pal)
 	DeleteObject(pal);
     sk_cleanup();
-    if (wsa_started)
-	WSACleanup();
 
     if (cfg.protocol == PROT_SSH) {
 	random_save_seed();
@@ -868,8 +834,8 @@ char *do_select(SOCKET skt, int startup)
     }
     if (!hwnd)
 	return "do_select(): internal error (hwnd==NULL)";
-    if (WSAAsyncSelect(skt, hwnd, msg, events) == SOCKET_ERROR) {
-	switch (WSAGetLastError()) {
+    if (p_WSAAsyncSelect(skt, hwnd, msg, events) == SOCKET_ERROR) {
+	switch (p_WSAGetLastError()) {
 	  case WSAENETDOWN:
 	    return "Network is down";
 	  default:
