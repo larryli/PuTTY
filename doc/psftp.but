@@ -1,19 +1,19 @@
 \define{versionidpsftp} \versionid $Id$
 
-\C{psftp} Using PSFTP to transfer files securely
+\C{psftp} Using \i{PSFTP} to transfer files securely
 
-\i{PSFTP}, the PuTTY SFTP client, is a tool for transferring files
+\i{PSFTP}, the PuTTY SFTP client, is a tool for \i{transferring files}
 securely between computers using an SSH connection.
 
 PSFTP differs from PSCP in the following ways:
 
 \b PSCP should work on virtually every SSH server. PSFTP uses the
-new SFTP protocol, which is a feature of SSH-2 only. (PSCP will also
+new \i{SFTP} protocol, which is a feature of SSH-2 only. (PSCP will also
 use this protocol if it can, but there is an SSH-1 equivalent it can
 fall back to if it cannot.)
 
 \b PSFTP allows you to run an interactive file transfer session,
-much like the Windows \c{ftp} program. You can list the contents of
+much like the Windows \i\c{ftp} program. You can list the contents of
 directories, browse around the file system, issue multiple \c{get}
 and \c{put} commands, and eventually log out. By contrast, PSCP is
 designed to do a single file transfer operation and immediately
@@ -57,17 +57,17 @@ options. (The ones not supported by PSFTP are clearly marked.)
 PSFTP also supports some of its own options. The following sections
 describe PSFTP's specific command-line options.
 
-\S{psftp-option-b} \c{-b}: specify a file containing batch commands
+\S{psftp-option-b} \I{-b-PSFTP}\c{-b}: specify a file containing batch commands
 
 In normal operation, PSFTP is an interactive program which displays
 a command line and accepts commands from the keyboard.
 
 If you need to do automated tasks with PSFTP, you would probably
-prefer to specify a set of commands in advance and have them
-executed automatically. The \c{-b} option allows you to do this. You
-use it with a file name containing batch commands. For example, you
-might create a file called \c{myscript.scr} containing lines like
-this:
+prefer to \I{batch scripts in PSFTP}specify a set of commands in
+advance and have them executed automatically. The \c{-b} option
+allows you to do this. You use it with a file name containing batch
+commands. For example, you might create a file called \c{myscript.scr}
+containing lines like this:
 
 \c cd /home/ftp/users/jeff
 \c del jam-old.tar.gz
@@ -84,7 +84,7 @@ When you run a batch script in this way, PSFTP will abort the script
 if any command fails to complete successfully. To change this
 behaviour, you can add the \c{-be} option (\k{psftp-option-be}).
 
-\S{psftp-option-bc} \c{-bc}: display batch commands as they are run
+\S{psftp-option-bc} \I{-bc-PSFTP}\c{-bc}: display batch commands as they are run
 
 The \c{-bc} option alters what PSFTP displays while processing a
 batch script specified with \c{-b}. With the \c{-bc} option, PSFTP
@@ -115,7 +115,7 @@ you might see this:
 \c drwxrwsr-x    2 fred     fred         1024 Mar 13  2000 trn
 \c psftp> quit
 
-\S{psftp-option-be} \c{-be}: continue batch processing on errors
+\S{psftp-option-be} \I{-be-PSFTP}\c{-be}: continue batch processing on errors
 
 When running a batch file, this additional option causes PSFTP to
 continue processing even if a command fails to complete successfully.
@@ -123,7 +123,8 @@ continue processing even if a command fails to complete successfully.
 You might want this to happen if you wanted to delete a file and
 didn't care if it was already not present, for example.
 
-\S{psftp-usage-options-batch}\c{-batch}: avoid interactive prompts
+\S{psftp-usage-options-batch} \I{-batch-PSFTP}\c{-batch}: avoid
+interactive prompts
 
 If you use the \c{-batch} option, PSFTP will never give an
 interactive prompt while establishing the connection. If the
@@ -141,7 +142,7 @@ Once you have started your PSFTP session, you will see a \c{psftp>}
 prompt. You can now type commands to perform file-transfer
 functions. This section lists all the available commands.
 
-\S{psftp-quoting} General quoting rules for PSFTP commands
+\S{psftp-quoting} \I{quoting, in PSFTP}General quoting rules for PSFTP commands
 
 Most PSFTP commands are considered by the PSFTP command interpreter
 as a sequence of words, separated by spaces. For example, the
@@ -149,10 +150,10 @@ command \c{ren oldfilename newfilename} splits up into three words:
 \c{ren} (the command name), \c{oldfilename} (the name of the file to
 be renamed), and \c{newfilename} (the new name to give the file).
 
-Sometimes you will need to specify file names that \e{contain}
-spaces. In order to do this, you can surround the file name with
-double quotes. This works equally well for local file names and
-remote file names:
+Sometimes you will need to specify \I{spaces in filenames}file names
+that \e{contain} spaces. In order to do this, you can surround
+the file name with double quotes. This works equally well for
+local file names and remote file names:
 
 \c psftp> get "spacey file name.txt" "save it under this name.txt"
 
@@ -177,7 +178,7 @@ it up into words at all. See \k{psftp-cmd-pling}.)
 
 \S{psftp-wildcards} Wildcards in PSFTP
 
-Several commands in PSFTP support \q{wildcards} to select multiple
+Several commands in PSFTP support \q{\i{wildcards}} to select multiple
 files.
 
 For \e{local} file specifications (such as the first argument to
@@ -186,7 +187,7 @@ instance, PSFTP running on Windows might require the use of \c{*.*}
 where PSFTP on Unix would need \c{*}.
 
 For \e{remote} file specifications (such as the first argument to
-\c{get}), PSFTP uses a standard wildcard syntax (similar to POSIX
+\c{get}), PSFTP uses a standard wildcard syntax (similar to \i{POSIX}
 wildcards):
 
 \b \c{*} matches any sequence of characters (including a zero-length
@@ -258,7 +259,7 @@ If you type \c{help} with a command name - for example, \c{help get}
 command.
 
 \S{psftp-cmd-cd} The \c{cd} and \c{pwd} commands: changing the
-remote working directory
+remote \i{working directory}
 
 PSFTP maintains a notion of your \q{working directory} on the
 server. This is the default directory that other commands will
@@ -274,7 +275,7 @@ in at the start of the connection).
 To display your current remote working directory, type \c{pwd}.
 
 \S{psftp-cmd-lcd} The \c{lcd} and \c{lpwd} commands: changing the
-local working directory
+local \i{working directory}
 
 As well as having a working directory on the remote server, PSFTP
 also has a working directory on your local machine (just like any
@@ -288,7 +289,7 @@ display your current local working directory, type \c{lpwd}.
 
 \S{psftp-cmd-get} The \c{get} command: fetch a file from the server
 
-To download a file from the server and store it on your local PC,
+To \i{download a file} from the server and store it on your local PC,
 you use the \c{get} command.
 
 In its simplest form, you just use this with a file name:
@@ -303,7 +304,7 @@ specify the local file name after the remote one:
 This will fetch the file on the server called \c{myfile.dat}, but
 will save it to your local machine under the name \c{newname.dat}.
 
-To fetch an entire directory recursively, you can use the \c{-r}
+To fetch an entire directory \i{recursive}ly, you can use the \c{-r}
 option:
 
 \c get -r mydir
@@ -316,7 +317,7 @@ from interpreting anything as a switch after it. For example,
 
 \S{psftp-cmd-put} The \c{put} command: send a file to the server
 
-To upload a file to the server from your local PC, you use the
+To \i{upload a file} to the server from your local PC, you use the
 \c{put} command.
 
 In its simplest form, you just use this with a file name:
@@ -331,7 +332,7 @@ specify the remote file name after the local one:
 This will send the local file called \c{myfile.dat}, but will store
 it on the server under the name \c{newname.dat}.
 
-To send an entire directory recursively, you can use the \c{-r}
+To send an entire directory \i{recursive}ly, you can use the \c{-r}
 option:
 
 \c put -r mydir
@@ -357,7 +358,7 @@ file2.txt})
 Every argument to \c{mget} is treated as the name of a file to fetch
 (unlike \c{get}, which will interpret at most one argument like
 that, and a second argument will be treated as an alternative name
-under which to store the retrieved file), or a wildcard expression
+under which to store the retrieved file), or a \i{wildcard} expression
 matching more than one file.
 
 The \c{-r} and \c{--} options from \c{get} are also available with
@@ -366,7 +367,7 @@ The \c{-r} and \c{--} options from \c{get} are also available with
 \c{mput} is similar to \c{put}, with the same differences.
 
 \S{psftp-cmd-regetput} The \c{reget} and \c{reput} commands:
-resuming file transfers
+\i{resuming file transfers}
 
 If a file transfer fails half way through, and you end up with half
 the file stored on your disk, you can resume the file transfer using
@@ -388,7 +389,7 @@ changed in any way; if there have been changes, you may end up with
 corrupted files. In particular, the \c{-r} option will not pick up
 changes to files or directories already transferred in full.
 
-\S{psftp-cmd-dir} The \c{dir} command: list remote files
+\S{psftp-cmd-dir} The \c{dir} command: \I{listing files}list remote files
 
 To list the files in your remote working directory, just type
 \c{dir}.
@@ -410,7 +411,8 @@ The \c{ls} command works exactly the same way as \c{dir}.
 \S{psftp-cmd-chmod} The \c{chmod} command: change permissions on
 remote files
 
-PSFTP allows you to modify the file permissions on files and
+\I{changing permissions on files}PSFTP
+allows you to modify the file permissions on files and
 directories on the server. You do this using the \c{chmod} command,
 which works very much like the Unix \c{chmod} command.
 
@@ -435,10 +437,12 @@ also be \c{a} (\q{all}) to affect everybody at once.
 \b A \c{+} or \c{-} sign, indicating whether permissions are to be
 added or removed.
 
-\b The actual permissions being added or removed. These can be \c{r}
-(permission to read the file), \c{w} (permission to write to the
-file), and \c{x} (permission to execute the file, or in the case of
-a directory, permission to access files within the directory).
+\b The actual permissions being added or removed. These can be
+\I{read permission}\c{r} (permission to read the file),
+\I{write permission}\c{w} (permission to write to the file), and
+\I{execute permission}\c{x} (permission to execute the file, or in
+the case of a directory, permission to access files within the
+directory).
 
 So the above examples would do:
 
@@ -451,27 +455,27 @@ adds write permission for the file owner.
 all files and directories starting with \q{public}.
 
 In addition to all this, there are a few extra special cases for
-Unix systems. On non-Unix systems these are unlikely to be useful:
+\i{Unix} systems. On non-Unix systems these are unlikely to be useful:
 
 \b You can specify \c{u+s} and \c{u-s} to add or remove the Unix
-set-user-ID bit. This is typically only useful for special purposes;
+\i{set-user-ID bit}. This is typically only useful for special purposes;
 refer to your Unix documentation if you're not sure about it.
 
 \b You can specify \c{g+s} and \c{g-s} to add or remove the Unix
-set-group-ID bit. On a file, this works similarly to the set-user-ID
+\i{set-group-ID bit}. On a file, this works similarly to the set-user-ID
 bit (see your Unix documentation again); on a directory it ensures
 that files created in the directory are accessible by members of the
 group that owns the directory.
 
 \b You can specify \c{+t} and \c{-t} to add or remove the Unix
-\q{sticky bit}. When applied to a directory, this means that the
+\q{\i{sticky bit}}. When applied to a directory, this means that the
 owner of a file in that directory can delete the file (whereas
 normally only the owner of the \e{directory} would be allowed to).
 
 \S{psftp-cmd-del} The \c{del} command: delete remote files
 
-To delete a file on the server, type \c{del} and then the filename
-or filenames:
+To \I{deleting files}delete a file on the server, type \c{del} and
+then the filename or filenames:
 
 \c del oldfile.dat
 \c del file1.txt file2.txt
@@ -487,7 +491,7 @@ The \c{rm} command works exactly the same way as \c{del}.
 
 \S{psftp-cmd-mkdir} The \c{mkdir} command: create remote directories
 
-To create a directory on the server, type \c{mkdir} and then the
+To \i{create a directory} on the server, type \c{mkdir} and then the
 directory name:
 
 \c mkdir newstuff
@@ -498,7 +502,7 @@ You can specify multiple directories to create at once:
 
 \S{psftp-cmd-rmdir} The \c{rmdir} command: remove remote directories
 
-To remove a directory on the server, type \c{rmdir} and then the
+To \i{remove a directory} on the server, type \c{rmdir} and then the
 directory name or names:
 
 \c rmdir oldstuff
@@ -511,7 +515,7 @@ Most SFTP servers will probably refuse to remove a directory if the
 directory has anything in it, so you will need to delete the
 contents first.
 
-\S{psftp-cmd-mv} The \c{mv} command: move and rename remote files
+\S{psftp-cmd-mv} The \c{mv} command: move and \i{rename remote files}
 
 To rename a single file on the server, type \c{mv}, then the current
 file name, and then the new file name:
@@ -534,7 +538,7 @@ directory:
 The \c{rename} and \c{ren} commands work exactly the same way as
 \c{mv}.
 
-\S{psftp-cmd-pling} The \c{!} command: run a local Windows command
+\S{psftp-cmd-pling} The \c{!} command: run a \i{local Windows command}
 
 You can run local Windows commands using the \c{!} command. This is
 the only PSFTP command that is not subject to the command quoting
@@ -550,7 +554,7 @@ the way before downloading an updated version, you might type:
 
 using the Windows \c{ren} command to rename files on your local PC.
 
-\H{psftp-pubkey} Using public key authentication with PSFTP
+\H{psftp-pubkey} Using \i{public key authentication} with PSFTP
 
 Like PuTTY, PSFTP can authenticate using a public key instead of a
 password. There are three ways you can do this.

@@ -7,7 +7,7 @@ interactive login session using PuTTY.
 
 \H{gs-insecure} \ii{Starting a session}
 
-When you start PuTTY, you will see a dialog box. This dialog box
+When you start PuTTY, you will see a \i{dialog box}. This dialog box
 allows you to control everything PuTTY can do. See \k{config} for
 details of all the things you can control.
 
@@ -15,7 +15,7 @@ You don't usually need to change most of the configuration options.
 To start the simplest kind of session, all you need to do is to
 enter a few basic parameters.
 
-In the \q{Host Name} box, enter the Internet host name of the server
+In the \q{Host Name} box, enter the Internet \i{host name} of the server
 you want to connect to. You should have been told this by the
 provider of your login account.
 
@@ -41,7 +41,7 @@ possibly \q{Port} settings, you are ready to connect. Press the
 \q{Open} button at the bottom of the dialog box, and PuTTY will
 begin trying to connect you to the server.
 
-\H{gs-hostkey} \i{Verifying the host key} (SSH only)
+\H{gs-hostkey} \ii{Verifying the host key} (SSH only)
 
 If you are not using the \i{SSH} protocol, you can skip this
 section.
@@ -98,8 +98,8 @@ If you are connecting across a hostile network (such as the
 Internet), you should check with your system administrator, perhaps
 by telephone or in person. (Some modern servers have more than one
 host key. If the system administrator sends you more than one
-fingerprint, you should make sure the one PuTTY shows you is on the
-list, but it doesn't matter which one it is.)
+\I{host key fingerprint}fingerprint, you should make sure the one
+PuTTY shows you is on the list, but it doesn't matter which one it is.)
 
 \# FIXME: this is all very fine but of course in practice the world
 doesn't work that way. Ask the team if they have any good ideas for
@@ -131,7 +131,8 @@ password will probably be refused.
 
 After you log in to the server, what happens next is up to the
 server! Most servers will print some sort of login message and then
-present a \i{prompt}, at which you can type commands which the
+present a \i{prompt}, at which you can type
+\I{commands on the server}commands which the
 server will carry out. Some servers will offer you on-line help;
 others might not. If you are in doubt about what to do next, consult
 your system administrator.

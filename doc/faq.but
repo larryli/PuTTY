@@ -1,6 +1,6 @@
 \define{versionidfaq} \versionid $Id$
 
-\A{faq} PuTTY FAQ
+\A{faq} PuTTY \i{FAQ}
 
 This FAQ is published on the PuTTY web site, and also provided as an
 appendix in the manual.
@@ -27,8 +27,8 @@ else.
 
 \H{faq-support} Features supported in PuTTY
 
-In general, if you want to know if PuTTY supports a particular
-feature, you should look for it on the
+\I{supported features}In general, if you want to know if PuTTY supports
+a particular feature, you should look for it on the
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/}{PuTTY web site}.
 In particular:
 
@@ -63,7 +63,7 @@ files into PuTTY's format.
 
 Yes. SSH-1 support has always been available in PuTTY.
 
-\S{faq-localecho}{Question} Does PuTTY support local echo?
+\S{faq-localecho}{Question} Does PuTTY support \i{local echo}?
 
 Yes. Version 0.52 has proper support for local echo.
 
@@ -99,7 +99,7 @@ like a DOS box?
 Yes; this is a new feature in version 0.52.
 
 \S{faq-password-remember}{Question} Does PuTTY have the ability to
-remember my password so I don't have to type it every time?
+\i{remember my password} so I don't have to type it every time?
 
 No, it doesn't.
 
@@ -123,7 +123,7 @@ authentication, which is more flexible and more secure. See
 authentication.
 
 \S{faq-hostkeys}{Question} Is there an option to turn off the
-annoying host key prompts?
+\I{verifying the host key}annoying host key prompts?
 
 No, there isn't. And there won't be. Even if you write it yourself
 and send us the patch, we won't accept it.
@@ -157,7 +157,7 @@ of host key checking: the right key will be accepted and the wrong
 ones will not. Adding an option to turn host key checking off
 completely is the wrong solution and we will not do it.
 
-If you have host keys available in the common \c{known_hosts} format,
+If you have host keys available in the common \i\c{known_hosts} format,
 we have a script called 
 \W{http://www.tartarus.org/~simon-anonsvn/viewcvs.cgi/putty/contrib/kh2reg.py?view=markup}\c{kh2reg.py}
 to convert them to a Windows .REG file, which can be installed ahead of
@@ -179,7 +179,7 @@ have time, and we don't have motivation. The code is available if
 anyone else wants to try it.
 
 \S{faq-pscp-ascii}{Question} Can PSCP or PSFTP transfer files in
-ASCII mode?
+\i{ASCII} mode?
 
 Unfortunately not.
 
@@ -223,7 +223,7 @@ or any other port of PuTTY, they were mistaken. We don't.
 There are some third-party ports to various platforms, mentioned
 on the Links page of our website.
 
-\S{faq-unix}{Question} Is there a port to Unix?
+\S{faq-unix}{Question} \I{Unix version}Is there a port to Unix?
 
 As of 0.54, there are Unix ports of most of the traditional PuTTY
 tools, and also one entirely new application.
@@ -231,11 +231,11 @@ tools, and also one entirely new application.
 If you look at the source release, you should find a \c{unix}
 subdirectory containing \c{Makefile.gtk}, which should build you Unix
 ports of Plink, PuTTY itself, PuTTYgen, PSCP, PSFTP, and also
-\c{pterm} - an \cw{xterm}-type program which supports the same
+\i\c{pterm} - an \cw{xterm}-type program which supports the same
 terminal emulation as PuTTY. We do not yet have a Unix port of
 Pageant.
 
-If you don't have Gtk, you should still be able to build the
+If you don't have \i{Gtk}, you should still be able to build the
 command-line tools.
 
 Note that Unix PuTTY has mostly only been tested on Linux so far;
@@ -274,7 +274,7 @@ brought up to release quality.
 There's also a third-party port at
 \W{http://pocketputty.duxy.net/}\c{http://pocketputty.duxy.net/}.
 
-\S{faq-win31}{Question} Is there a port to Windows 3.1?
+\S{faq-win31}{Question} Is there a port to \i{Windows 3.1}?
 
 PuTTY is a 32-bit application from the ground up, so it won't run on
 Windows 3.1 as a native 16-bit program; and it would be \e{very}
@@ -282,7 +282,7 @@ hard to port it to do so, because of Windows 3.1's vile memory
 allocation mechanisms.
 
 However, it is possible in theory to compile the existing PuTTY
-source in such a way that it will run under Win32s (an extension to
+source in such a way that it will run under \i{Win32s} (an extension to
 Windows 3.1 to let you run 32-bit programs). In order to do this
 you'll need the right kind of C compiler - modern versions of Visual
 C at least have stopped being backwards compatible to Win32s. Also,
@@ -291,7 +291,7 @@ the last time we tried this it didn't work very well.
 If you're interested in running PuTTY under Windows 3.1, help and
 testing in this area would be very welcome!
 
-\S{faq-mac-port}{Question} Will there be a port to the Mac?
+\S{faq-mac-port}{Question} Will there be a port to the \I{Mac OS}Mac?
 
 There are several answers to this question:
 
@@ -354,15 +354,15 @@ This is what CVS for Windows does, for example.
 
 \H{faq-details} Details of PuTTY's operation
 
-\S{faq-term}{Question} What terminal type does PuTTY use?
+\S{faq-term}{Question} What \i{terminal type} does PuTTY use?
 
 For most purposes, PuTTY can be considered to be an \cw{xterm}
 terminal.
 
-PuTTY also supports some terminal control sequences not supported by
+PuTTY also supports some terminal \i{control sequences} not supported by
 the real \cw{xterm}: notably the Linux console sequences that
 reconfigure the colour palette, and the title bar control sequences
-used by \cw{DECterm} (which are different from the \cw{xterm} ones;
+used by \i\cw{DECterm} (which are different from the \cw{xterm} ones;
 PuTTY supports both).
 
 By default, PuTTY announces its terminal type to the server as
@@ -372,7 +372,7 @@ to say something else; \c{vt220} might help if you have trouble.
 \S{faq-settings}{Question} Where does PuTTY store its data?
 
 On Windows, PuTTY stores most of its data (saved sessions, SSH host
-keys) in the Registry. The precise location is
+keys) in the \i{Registry}. The precise location is
 
 \c HKEY_CURRENT_USER\Software\SimonTatham\PuTTY
 
@@ -394,8 +394,8 @@ On Unix, PuTTY stores all of this data in a directory \cw{~/.putty}.
 
 \H{faq-howto} HOWTO questions
 
-\S{faq-commands}{Question} What commands can I type into my PuTTY
-terminal window?
+\S{faq-commands}{Question} \I{commands on the server}What commands
+can I type into my PuTTY terminal window?
 
 This is not a question you should be asking \e{us}. You need to read
 the manuals, or ask the administrator, of \e{the computer you have
@@ -426,12 +426,12 @@ you can type during those sessions. But the PuTTY maintainer team
 does not administer any server you are likely to be connecting to,
 and cannot help you with questions of this type.
 
-\S{faq-startmax}{Question} How can I make PuTTY start up maximised?
+\S{faq-startmax}{Question} How can I make PuTTY start up \i{maximise}d?
 
 Create a Windows shortcut to start PuTTY from, and set it as \q{Run
 Maximized}.
 
-\S{faq-startsess}{Question} How can I create a Windows shortcut to
+\S{faq-startsess}{Question} How can I create a \i{Windows shortcut} to
 start a particular saved session directly?
 
 To run a PuTTY session saved under the name \q{\cw{mysession}},
@@ -450,7 +450,7 @@ Use the command line \c{putty -ssh host.name}. Alternatively, create
 a saved session that specifies the SSH protocol, and start the saved
 session as shown in \k{faq-startsess}.
 
-\S{faq-cutpaste}{Question} How do I copy and paste between PuTTY and
+\S{faq-cutpaste}{Question} How do I \i{copy and paste} between PuTTY and
 other Windows applications?
 
 Copy and paste works similarly to the X Window System. You use the
@@ -493,8 +493,8 @@ terminate.
 To use PSCP properly, run it from a Command Prompt window. See
 \k{pscp} in the documentation for more details.
 
-\S{faq-pscp-spaces}{Question} How do I use PSCP to copy a file whose
-name has spaces in?
+\S{faq-pscp-spaces}{Question} \I{spaces in filenames}How do I use
+PSCP to copy a file whose name has spaces in?
 
 If PSCP is using the traditional SCP protocol, this is confusing. If
 you're specifying a file at the local end, you just use one set of
@@ -555,7 +555,7 @@ workaround by going to the SSH panel and ticking the box labelled
 this with 0.52 as well, if a buggy server exists that PuTTY doesn't
 know about.
 
-In this context MAC stands for Message Authentication Code. It's a
+In this context MAC stands for \ii{Message Authentication Code}. It's a
 cryptographic term, and it has nothing at all to do with Ethernet
 MAC (Media Access Control) addresses.
 
@@ -566,7 +566,7 @@ This happens because PSCP was expecting to see data from the server
 that was part of the PSCP protocol exchange, and instead it saw data
 that it couldn't make any sense of at all.
 
-This almost always happens because the startup scripts in your
+This almost always happens because the \i{startup scripts} in your
 account on the server machine are generating output. This is
 impossible for PSCP, or any other SCP client, to work around. You
 should never use startup files (\c{.bashrc}, \c{.cshrc} and so on)
@@ -576,7 +576,7 @@ This is not actually a PuTTY problem. If PSCP fails in this way,
 then all other SCP clients are likely to fail in exactly the same
 way. The problem is at the server end.
 
-\S{faq-colours}{Question} I clicked on a colour in the Colours
+\S{faq-colours}{Question} I clicked on a colour in the \ii{Colours}
 panel, and the colour didn't change in my terminal.
 
 That isn't how you're supposed to use the Colours panel.
@@ -594,8 +594,8 @@ Clicking on \q{ANSI Green} won't turn your session green; it will
 only allow you to adjust the \e{shade} of green used when PuTTY is
 instructed by the server to display green text.
 
-\S{faq-winsock2}{Question} Plink on Windows 95 says it can't find
-\cw{WS2_32.DLL}.
+\S{faq-winsock2}{Question} Plink on \i{Windows 95} says it can't find
+\i\cw{WS2_32.DLL}.
 
 Plink requires the extended Windows network library, WinSock version
 2. This is installed as standard on Windows 98 and above, and on
@@ -610,7 +610,7 @@ the
 \c   wuadmintools/s_wunetworkingtools/w95sockets2/
 
 \S{faq-outofmem}{Question} After trying to establish an SSH-2
-connection, PuTTY says \q{Out of memory} and dies.
+connection, PuTTY says \q{\ii{Out of memory}} and dies.
 
 If this happens just while the connection is starting up, this often
 indicates that for some reason the client and server have failed to
@@ -633,9 +633,9 @@ server instead); but it doesn't necessarily mean you've actually run
 out of memory.
 
 \S{faq-outofmem2}{Question} When attempting a file transfer, either
-PSCP or PSFTP says \q{Out of memory} and dies.
+PSCP or PSFTP says \q{\ii{Out of memory}} and dies.
 
-This is almost always caused by your login scripts on the server
+This is almost always caused by your \i{login scripts} on the server
 generating output. PSCP or PSFTP will receive that output when they
 were expecting to see the start of a file transfer protocol, and
 they will attempt to interpret the output as file-transfer protocol.
@@ -664,7 +664,7 @@ is a much simpler protocol.)
 \S{faq-bce}{Question} When I run full-colour applications, I see
 areas of black space where colour ought to be, or vice versa.
 
-You almost certainly need to change the \q{Use background colour to
+You almost certainly need to change the \q{Use \i{background colour} to
 erase screen} setting in the Terminal panel. If there is too much
 black space (the commoner situation), you should enable it, while if
 there is too much colour, you should disable it. (See \k{config-erase}.)
@@ -677,7 +677,7 @@ immediately.
 \S{faq-resetterm}{Question} When I change some terminal settings,
 nothing happens.
 
-Some of the terminal options (notably Auto Wrap and
+Some of the terminal options (notably \ii{Auto Wrap} and
 background-colour screen erase) actually represent the \e{default}
 setting, rather than the currently active setting. The server can
 send sequences that modify these options in mid-session, but when
@@ -693,10 +693,10 @@ In version 0.54, the behaviour has changed - changes to these
 settings take effect immediately.
 
 \S{faq-idleout}{Question} My PuTTY sessions unexpectedly close after
-they are idle for a while.
+they are \I{idle connections}idle for a while.
 
-Some types of firewall, and almost any router doing Network Address
-Translation (NAT, also known as IP masquerading), will forget about
+Some types of \i{firewall}, and almost any router doing Network Address
+Translation (\i{NAT}, also known as IP masquerading), will forget about
 a connection through them if the connection does nothing for too
 long. This will cause the connection to be rudely cut off when
 contact is resumed.
@@ -713,7 +713,8 @@ cause a \e{loss} of robustness against network dropouts. See
 this.
 
 \S{faq-timeout}{Question} PuTTY's network connections time out too
-quickly when network connectivity is temporarily lost.
+quickly when \I{breaks in connectivity}network connectivity is
+temporarily lost.
 
 This is a Windows problem, not a PuTTY problem. The timeout value
 can't be set on per application or per session basis. To increase
@@ -764,8 +765,8 @@ to be empty (see \k{config-answerback}); but writing binary files to
 your terminal is likely to cause various other unpleasant behaviour,
 so this is only a small remedy.
 
-\S{faq-wintitle}{Question} When I \cw{cat} a binary file, my window
-title changes to a nonsense string.
+\S{faq-wintitle}{Question} When I \cw{cat} a binary file, my \i{window
+title} changes to a nonsense string.
 
 Don't do that, then.
 
@@ -825,7 +826,7 @@ page} on the PuTTY website (also provided as \k{feedback} in the
 manual), and follow the guidelines contained in that.
 
 \S{faq-openssh-bad-openssl}{Question} Since my SSH server was upgraded
-to OpenSSH 3.1p1/3.4p1, I can no longer connect with PuTTY.
+to \i{OpenSSH} 3.1p1/3.4p1, I can no longer connect with PuTTY.
 
 There is a known problem when OpenSSH has been built against an
 incorrect version of OpenSSL; the quick workaround is to configure
@@ -870,12 +871,12 @@ key in the wrong format isn't optimal.
 To connect using SSH-2 to a server that supports both versions, you
 need to change the configuration from the default (see \k{faq-ssh2}).
 
-\S{faq-rh8-utf8}{Question} When I'm connected to a Red Hat Linux 8.0
+\S{faq-rh8-utf8}{Question} When I'm connected to a \i{Red Hat Linux} 8.0
 system, some characters don't display properly.
 
 A common complaint is that hyphens in man pages show up as a-acute.
 
-With release 8.0, Red Hat appear to have made UTF-8 the default
+With release 8.0, Red Hat appear to have made \i{UTF-8} the default
 character set. There appears to be no way for terminal emulators such
 as PuTTY to know this (as far as we know, the appropriate escape
 sequence to switch into UTF-8 mode isn't sent).
@@ -893,7 +894,7 @@ necessary.
 scrollback has stopped working when I run \c{screen}.
 
 PuTTY's terminal emulator has always had the policy that when the
-\q{alternate screen} is in use, nothing is added to the scrollback.
+\q{\i{alternate screen}} is in use, nothing is added to the scrollback.
 This is because the usual sorts of programs which use the alternate
 screen are things like text editors, which tend to scroll back and
 forth in the same document a lot; so (a) they would fill up the
@@ -918,12 +919,12 @@ The reason why this only started to be a problem in 0.54 is because
 the alternate screen, and previous versions of PuTTY did not support
 this sequence.
 
-\S{faq-alternate-localhost}{Question} Since I upgraded Windows XP
+\S{faq-alternate-localhost}{Question} Since I upgraded \i{Windows XP}
 to Service Pack 2, I can't use addresses like \cw{127.0.0.2}.
 
-Some people who ask PuTTY to listen on localhost addresses other
-than \cw{127.0.0.1} to forward services such as SMB and Windows
-Terminal Services have found that doing so no longer works since
+Some people who ask PuTTY to listen on \i{localhost} addresses other
+than \cw{127.0.0.1} to forward services such as \i{SMB} and \i{Windows
+Terminal Services} have found that doing so no longer works since
 they upgraded to WinXP SP2.
 
 This is apparently an issue with SP2 that is acknowledged by Microsoft
@@ -949,7 +950,7 @@ PSFTP:
 \c /dir1/dir2filename.ext: no such file or directory
 
 This is not a bug in PSFTP. There is a known bug in some versions of
-portable OpenSSH
+portable \i{OpenSSH}
 (\W{http://bugzilla.mindrot.org/show_bug.cgi?id=697}{bug 697}) that
 causes these symptoms; it appears to have been introduced around
 3.7.x. It manifests only on certain platforms (AIX is what has been
@@ -1002,7 +1003,7 @@ be tampered with, so it would be better to carry PuTTY with you on a
 floppy).
 
 \S{faq-cleanup}{Question} What does PuTTY leave on a system? How can
-I clean up after it?
+I \i{clean up} after it?
 
 PuTTY will leave some Registry entries, and a random seed file, on
 the PC (see \k{faq-settings}). If you are using PuTTY on a public
@@ -1015,7 +1016,7 @@ If PuTTY was installed from the installer package, it will also
 appear in \q{Add/Remove Programs}. Uninstallation does not currently
 remove the above-mentioned registry entries and file.
 
-\S{faq-dsa}{Question} How come PuTTY now supports DSA, when the
+\S{faq-dsa}{Question} How come PuTTY now supports \i{DSA}, when the
 website used to say how insecure it was?
 
 DSA has a major weakness \e{if badly implemented}: it relies on a
@@ -1191,7 +1192,7 @@ setup.
 
 \H{faq-misc} Miscellaneous questions
 
-\S{faq-openssh}{Question} Is PuTTY a port of OpenSSH, or based on
+\S{faq-openssh}{Question} Is PuTTY a port of \i{OpenSSH}, or based on
 OpenSSH?
 
 No, it isn't. PuTTY is almost completely composed of code written

@@ -25,7 +25,7 @@ processor or spreadsheet into your terminal session.
 
 PuTTY's copy and paste works entirely with the \i{mouse}. In order
 to copy text to the clipboard, you just click the \i{left mouse
-button} in the terminal window, and drag to \I{selecting text}select
+button} in the \i{terminal window}, and drag to \I{selecting text}select
 text. When you let go of the button, the text is \e{automatically}
 copied to the clipboard. You do not need to press Ctrl-C or
 Ctrl-Ins; in fact, if you do press Ctrl-C, PuTTY will send a Ctrl-C
@@ -33,9 +33,10 @@ character down your session to the server where it will probably
 cause a process to be interrupted.
 
 Pasting is done using the right button (or the middle mouse button,
-if you have a three-button mouse and have set it up; see
+if you have a \i{three-button mouse} and have set it up; see
 \k{config-mouse}). (Pressing \i{Shift-Ins}, or selecting \q{Paste}
-from the Ctrl+right-click context menu, have the same effect.) When
+from the \I{right mouse button, with Ctrl}Ctrl+right-click
+\i{context menu}, have the same effect.) When
 you click the \i{right mouse button}, PuTTY will read whatever is in
 the Windows clipboard and paste it into your session, \e{exactly} as
 if it had been typed at the keyboard. (Therefore, be careful of
@@ -44,13 +45,13 @@ you may find that the spaces pasted from the clipboard plus the
 spaces added by the editor add up to too many spaces and ruin the
 formatting. There is nothing PuTTY can do about this.)
 
-If you \i{double-click} the left mouse button, PuTTY will select a
-whole word. If you double-click, hold down the second click, and
-drag the mouse, PuTTY will select a sequence of whole words. (You
-can adjust precisely what PuTTY considers to be part of a word; see
-\k{config-charclasses}.) If you \e{triple}-click, or
-\i{triple-click} and drag, then PuTTY will select a whole line or
-sequence of lines.
+If you \i{double-click} the left mouse button, PuTTY will
+\I{selecting words}select a whole word. If you double-click, hold
+down the second click, and drag the mouse, PuTTY will select a
+sequence of whole words. (You can adjust precisely what PuTTY
+considers to be part of a word; see \k{config-charclasses}.)
+If you \e{triple}-click, or \i{triple-click} and drag, then
+PuTTY will \I{selecting lines}select a whole line or sequence of lines.
 
 If you want to select a \I{rectangular selection}rectangular region
 instead of selecting to the end of each line, you can do this by
@@ -66,10 +67,10 @@ middle mouse button to paste, then the right mouse button does this
 instead.) Click the button on the screen, and you can pick up the
 nearest end of the selection and drag it to somewhere else.
 
-It's possible for the server to ask to handle mouse clicks in the
-PuTTY window itself.  If this happens, the mouse cursor will turn
-into an arrow, and using the mouse to copy and paste will only work if
-you hold down Shift.  See \k{config-features-mouse} and
+It's possible for the server to ask to \I{mouse reporting}handle mouse
+clicks in the PuTTY window itself.  If this happens, the \i{mouse pointer}
+will turn into an arrow, and using the mouse to copy and paste will only
+work if you hold down Shift.  See \k{config-features-mouse} and
 \k{config-mouseshift} for details of this feature and how to configure
 it.
 
@@ -78,7 +79,7 @@ it.
 PuTTY keeps track of text that has scrolled up off the top of the
 terminal. So if something appears on the screen that you want to
 read, but it scrolls too fast and it's gone by the time you try to
-look for it, you can use the scrollbar on the right side of the
+look for it, you can use the \i{scrollbar} on the right side of the
 window to look back up the session \i{history} and find it again.
 
 As well as using the scrollbar, you can also page the scrollback up
@@ -90,7 +91,7 @@ By default the last 200 lines scrolled off the top are
 preserved for you to look at. You can increase (or decrease) this
 value using the configuration box; see \k{config-scrollback}.
 
-\S{using-sysmenu} The \i{System menu}
+\S{using-sysmenu} The \ii{System menu}
 
 If you click the left mouse button on the icon in the top left
 corner of PuTTY's terminal window, or click the right mouse button
@@ -101,9 +102,9 @@ PuTTY's system menu contains extra program features in addition to
 the Windows standard options. These extra menu commands are
 described below.
 
-(These options are also available in a context menu brought up
+(These options are also available in a \i{context menu} brought up
 by holding Ctrl and clicking with the right mouse button anywhere
-in the PuTTY window.)
+in the \i{PuTTY window}.)
 
 \S2{using-eventlog} The PuTTY \i{Event Log}
 
@@ -126,7 +127,8 @@ tokens, such as a \i{\q{break} signal}, that can be sent down a
 connection in addition to normal data. Their precise effect is usually
 up to the server. Currently only Telnet and SSH have special commands.
 
-The following special commands are available in Telnet:
+The following \I{Telnet special commands}special commands are
+available in Telnet:
 
 \b \I{Are You There, Telnet special command}Are You There
 
@@ -173,9 +175,10 @@ PuTTY can also be configured to send this when Ctrl-Z is typed; see
 
 \b \I{End Of File, Telnet special command}End Of File
 
-In an SSH connection, the following special commands are available:
+In an SSH connection, the following \I{SSH special commands}special
+commands are available:
 
-\b \I{IGNORE message, SSH special command}\I{No-op, in SSH}IGNORE message
+\b \I{IGNORE message, SSH special command}\I{No-op, in SSH}\ii{IGNORE message}
 
 \lcont{
 Should have no effect.
@@ -184,7 +187,7 @@ Should have no effect.
 \b \I{Repeat key exchange, SSH special command}Repeat key exchange
 
 \lcont{
-Only available in SSH-2. Forces a repeat key exchange immediately (and
+Only available in SSH-2. Forces a \i{repeat key exchange} immediately (and
 resets associated timers and counters). For more information about
 repeat key exchanges, see \k{config-ssh-kex-rekey}.
 }
@@ -257,7 +260,7 @@ the information; the text is not guaranteed not to still be in
 PuTTY's memory.)
 
 The \i{\q{Reset Terminal}} option causes a full reset of the
-terminal emulation. A VT-series terminal is a complex piece of
+\i{terminal emulation}. A VT-series terminal is a complex piece of
 software and can easily get into a state where all the text printed
 becomes unreadable. (This can happen, for example, if you
 accidentally output a binary file to your terminal.) If this
@@ -272,21 +275,21 @@ whole screen and its borders, title bar and scrollbar will
 disappear. (You can configure the scrollbar not to disappear in
 full-screen mode if you want to keep it; see \k{config-scrollback}.)
 
-When you are in full-screen mode, you can still access the system
-menu if you click the left mouse button in the \e{extreme} top left
+When you are in full-screen mode, you can still access the \i{system
+menu} if you click the left mouse button in the \e{extreme} top left
 corner of the screen.
 
 \H{using-logging} Creating a \i{log file} of your \I{session
 log}session
 
 For some purposes you may find you want to log everything that
-appears on your screen. You can do this using the \i{\q{Logging}
-panel} in the configuration box.
+appears on your screen. You can do this using the \q{Logging}
+panel in the configuration box.
 
 To begin a session log, select \q{Change Settings} from the system
 menu and go to the Logging panel. Enter a log file name, and select
 a logging mode. (You can log all session output including the
-terminal control sequences, or you can just log the printable text.
+terminal \i{control sequence}s, or you can just log the printable text.
 It depends what you want the log for.) Click \q{Apply} and your log
 will be started. Later on, you can go back to the Logging panel and
 select \q{Logging turned off completely} to stop logging; then PuTTY
@@ -303,8 +306,8 @@ the characters sent by the server according to the wrong \e{character
 set}. There are a lot of different character sets available, so it's
 entirely possible for this to happen.
 
-If you click \q{Change Settings} and look at the \i{\q{Translation}
-panel}, you should see a large number of character sets which you can
+If you click \q{Change Settings} and look at the \q{Translation}
+panel, you should see a large number of character sets which you can
 select, and other related options. Now all you need is to find out
 which of them you want! (See \k{config-translation} for more
 information.)
@@ -325,7 +328,7 @@ does do.
 
 You should then tick the \q{Enable X11 forwarding} box in the
 Tunnels panel (see \k{config-ssh-x11}) before starting your SSH
-session. The \q{X display location} box is blank by default, which
+session. The \i{\q{X display location}} box is blank by default, which
 means that PuTTY will try to use a sensible default such as \c{:0},
 which is the usual display location where your X server will be
 installed. If that needs changing, then change it.
@@ -348,8 +351,8 @@ point at display 10 or above on the SSH server machine itself:
 If this works, you should then be able to run X applications in the
 remote session and have them display their windows on your PC.
 
-Note that if your PC X server requires authentication to connect,
-then PuTTY cannot currently support it. If this is a problem for
+Note that if your PC X server requires \I{X11 authentication}authentication
+to connect, then PuTTY cannot currently support it. If this is a problem for
 you, you should mail the PuTTY authors \#{FIXME} and give details
 (see \k{feedback}).
 
@@ -357,17 +360,17 @@ For more options relating to X11 forwarding, see \k{config-ssh-x11}.
 
 \H{using-port-forwarding} Using \i{port forwarding} in SSH
 
-The SSH protocol has the ability to forward arbitrary network
-connections over your encrypted SSH connection, to avoid the network
+The SSH protocol has the ability to forward arbitrary \i{network
+connection}s over your encrypted SSH connection, to avoid the network
 traffic being sent in clear. For example, you could use this to
-connect from your home computer to a POP-3 server on a remote
+connect from your home computer to a \i{POP-3} server on a remote
 machine without your POP-3 password being visible to network
 sniffers.
 
-In order to use port forwarding to connect from your local machine
-to a port on a remote server, you need to:
+In order to use port forwarding to \I{local port forwarding}connect
+from your local machine to a port on a remote server, you need to:
 
-\b Choose a port number on your local machine where PuTTY should
+\b Choose a \i{port number} on your local machine where PuTTY should
 listen for incoming connections. There are likely to be plenty of
 unused port numbers above 3000. (You can also use a local loopback
 address here; see below for more details.)
@@ -400,15 +403,16 @@ server instead of \c{popserver.example.com:110}. (Of course, the
 forwarding will stop happening when your PuTTY session closes down.)
 
 You can also forward ports in the other direction: arrange for a
-particular port number on the \e{server} machine to be forwarded
-back to your PC as a connection to a service on your PC or near it.
+particular port number on the \e{server} machine to be \I{remote
+port forwarding}forwarded back to your PC as a connection to a
+service on your PC or near it.
 To do this, just select the \q{Remote} radio button instead of the
 \q{Local} one. The \q{Source port} box will now specify a port
 number on the \e{server} (note that most servers will not allow you
-to use port numbers under 1024 for this purpose).
+to use \I{privileged port}port numbers under 1024 for this purpose).
 
 An alternative way to forward local connections to remote hosts is
-to use \I{dynamic port forwarding}dynamic \I{SOCKS} proxying. For
+to use \I{dynamic port forwarding}dynamic SOCKS proxying. For
 this, you will need to select the \q{Dynamic} radio button instead
 of \q{Local}, and then you should not enter anything into the
 \q{Destination} box (it will be ignored). This will cause PuTTY to
@@ -419,9 +423,9 @@ setting up the Proxy control panel (see \k{config-proxy} for
 details).
 
 The source port for a forwarded connection usually does not accept
-connections from any machine except the SSH client or server machine
-itself (for local and remote forwardings respectively). There are
-controls in the Tunnels panel to change this:
+connections from any machine except the \I{localhost}SSH client or
+server machine itself (for local and remote forwardings respectively).
+There are controls in the Tunnels panel to change this:
 
 \b The \q{Local ports accept connections from other hosts} option
 allows you to set up local-to-remote port forwardings (including
@@ -432,15 +436,16 @@ your client PC can connect to the forwarded port.
 remote-to-local port forwardings (so that machines other than the
 SSH server machine can connect to the forwarded port.) Note that
 this feature is only available in the SSH-2 protocol, and not all
-SSH-2 servers honour it (in OpenSSH, for example, it's usually
+SSH-2 servers honour it (in \i{OpenSSH}, for example, it's usually
 disabled by default).
 
-You can also specify an \i{IP address} to listen on. Typically a
-Windows machine can be asked to listen on any single IP address in
-the \cw{127.*.*.*} range, and all of these are loopback addresses
-available only to the local machine. So if you forward (for example)
-\c{127.0.0.5:79} to a remote machine's \cw{finger} port, then you
-should be able to run commands such as \c{finger fred@127.0.0.5}.
+You can also specify an \i{IP address} to \I{listen address}listen
+on. Typically a Windows machine can be asked to listen on any single
+IP address in the \cw{127.*.*.*} range, and all of these are
+\i{loopback address}es available only to the local machine. So if
+you forward (for example) \c{127.0.0.5:79} to a remote machine's
+\i\cw{finger} port, then you should be able to run commands such as
+\c{finger fred@127.0.0.5}.
 This can be useful if the program connecting to the forwarded port
 doesn't allow you to change the port number it uses. This feature is
 available for local-to-remote forwarded ports; SSH-1 is unable to
@@ -498,7 +503,7 @@ To start a connection to a server called \c{host}:
 
 \c putty.exe [-ssh | -telnet | -rlogin | -raw] [user@]host
 
-If this syntax is used, settings are taken from the Default Settings
+If this syntax is used, settings are taken from the \i{Default Settings}
 (see \k{config-saving}); \c{user} overrides these settings if
 supplied. Also, you can specify a protocol, which will override the
 default protocol (see \k{using-cmdline-protocol}).
@@ -544,7 +549,7 @@ need to make PuTTY start a session.
 
 You need double quotes around the session name if it contains spaces.
 
-If you want to create a Windows shortcut to start a PuTTY saved
+If you want to create a \i{Windows shortcut} to start a PuTTY saved
 session, this is the option you should use: your shortcut should
 call something like
 
@@ -604,27 +609,27 @@ As well as setting up port forwardings in the PuTTY configuration
 command line. The command-line options work just like the ones in
 Unix \c{ssh} programs.
 
-To forward a local port (say 5110) to a remote destination (say
-\cw{popserver.example.com} port 110), you can write something like
-one of these:
+To \I{local port forwarding}forward a local port (say 5110) to a
+remote destination (say \cw{popserver.example.com} port 110), you
+can write something like one of these:
 
 \c putty -L 5110:popserver.example.com:110 -load mysession
 \c plink mysession -L 5110:popserver.example.com:110
 
-To forward a remote port to a local destination, just use the \c{-R}
-option instead of \c{-L}:
+To forward a \I{remote port forwarding}remote port to a local
+destination, just use the \c{-R} option instead of \c{-L}:
 
 \c putty -R 5023:mytelnetserver.myhouse.org:23 -load mysession
 \c plink mysession -R 5023:mytelnetserver.myhouse.org:23
 
-To specify an IP address for the listening end of the tunnel,
-prepend it to the argument:
+To \I{listen address}specify an IP address for the listening end of the
+tunnel, prepend it to the argument:
 
 \c plink -L 127.0.0.5:23:localhost:23 myhost
 
-To set up SOCKS-based dynamic port forwarding on a local port, use
-the \c{-D} option. For this one you only have to pass the port
-number:
+To set up \I{dynamic port forwarding}SOCKS-based dynamic port
+forwarding on a local port, use the \c{-D} option. For this one you
+only have to pass the port number:
 
 \c putty -D 4096 -load mysession
 
@@ -634,11 +639,11 @@ For general information on port forwarding, see
 These options are not available in the file transfer tools PSCP and
 PSFTP.
 
-\S2{using-cmdline-m} \i\c{-m}: read a remote command or script from
-a file
+\S2{using-cmdline-m} \i\c{-m}: \I{reading commands from a file}read
+a remote command or script from a file
 
-The \i\c{-m} option performs a similar function to the \q{Remote
-command} box in the SSH panel of the PuTTY configuration box (see
+The \i\c{-m} option performs a similar function to the \q{\ii{Remote
+command}} box in the SSH panel of the PuTTY configuration box (see
 \k{config-command}). However, the \c{-m} option expects to be given
 a local file name, and it will read a command from that file. On
 most Unix systems, you can even put multiple lines in this file and
@@ -773,7 +778,7 @@ the PuTTY configuration box (see \k{config-address-family}).
 \S2{using-cmdline-identity} \i\c{-i}: specify an SSH \i{private key}
 
 The \c{-i} option allows you to specify the name of a private key
-file in \c{*.PPK} format which PuTTY will use to authenticate with the
+file in \c{*.\i{PPK}} format which PuTTY will use to authenticate with the
 server. This option is only meaningful if you are using SSH.
 
 For general information on \i{public-key authentication}, see
@@ -783,8 +788,8 @@ This option is equivalent to the \q{Private key file for
 authentication} box in the Auth panel of the PuTTY configuration box
 (see \k{config-ssh-privkey}).
 
-\S2{using-cmdline-pgpfp} \i\c{-pgpfp}: display PGP key fingerprints
+\S2{using-cmdline-pgpfp} \i\c{-pgpfp}: display \i{PGP key fingerprint}s
 
 This option causes the PuTTY tools not to run as normal, but instead
 to display the fingerprints of the PuTTY PGP Master Keys, in order to
-aid with verifying new versions. See \k{pgpkeys} for more information.
+aid with \i{verifying new versions}. See \k{pgpkeys} for more information.

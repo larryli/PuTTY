@@ -22,10 +22,11 @@ Plink, Pageant and PuTTYgen.
 
 \e{Note to Unix users:} this manual currently primarily documents the
 Windows versions of the PuTTY utilities. Some options are therefore
-mentioned that are absent from the Unix version; the Unix version has
-features not described here; and the \cw{pterm} and command-line
+mentioned that are absent from the \i{Unix version}; the Unix version has
+features not described here; and the \i\cw{pterm} and command-line
 \cw{puttygen} utilities are not described at all. The only
-Unix-specific documentation that currently exists is the man pages.
+Unix-specific documentation that currently exists is the
+\I{man pages for PuTTY tools}man pages.
 
 \copyright This manual is copyright 2001-2005 Simon Tatham. All
 rights reserved. You may distribute this documentation under the MIT

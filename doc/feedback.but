@@ -1,6 +1,6 @@
 \define{versionidfeedback} \versionid $Id$
 
-\A{feedback} Feedback and bug reporting
+\A{feedback} \ii{Feedback} and \i{bug reporting}
 
 This is a guide to providing feedback to the PuTTY development team.
 It is provided as both a web page on the PuTTY site, and an appendix
@@ -26,7 +26,7 @@ recommend you do so. In particular, support requests
 (\k{feedback-support}) are probably better sent to newsgroups, or
 passed to a local expert if possible.
 
-The PuTTY contact email address is a private mailing list containing
+The PuTTY contact email address is a private \i{mailing list} containing
 four or five core developers. Don't be put off by it being a mailing
 list: if you need to send confidential data as part of a bug report,
 you can trust the people on the list to respect that confidence.
@@ -119,7 +119,7 @@ will say so.)
 \b Check the
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html}{Change
 Log} on the PuTTY website, and see if we have already fixed the bug
-in the development snapshots.
+in the \i{development snapshots}.
 
 \b Check the
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/faq.html}{FAQ}
@@ -140,7 +140,7 @@ If none of those options solved your problem, and you still need to
 report a bug to us, it is useful if you include some general
 information:
 
-\b Tell us what version of PuTTY you are running. To find this out,
+\b Tell us what \i{version of PuTTY} you are running. To find this out,
 use the \q{About PuTTY} option from the System menu. Please \e{do
 not} just tell us \q{I'm running the latest version}; e-mail can be
 delayed and it may not be obvious which version was the latest at
@@ -177,7 +177,7 @@ avoid this problem by telling us exactly what you think it should
 have done, and exactly what it did do.
 
 \b If you think you can, you're welcome to try to fix the problem
-yourself. A patch to the code which fixes a bug is an excellent
+yourself. A \i{patch} to the code which fixes a bug is an excellent
 addition to a bug report. However, a patch is never a \e{substitute}
 for a good bug report; if your patch is wrong or inappropriate, and
 you haven't supplied us with full information about the actual bug,
@@ -277,7 +277,7 @@ high-quality software to the users comes first.)
 way to get a feature implemented quickly, if it's a big one that we
 don't have time to do ourselves.
 
-\H{feedback-support} Support requests
+\H{feedback-support} \ii{Support requests}
 
 If you're trying to make PuTTY do something for you and it isn't
 working, but you're not sure whether it's a bug or not, then
@@ -319,7 +319,7 @@ time to answer it.
 
 \H{feedback-webadmin} Web server administration
 
-If the PuTTY web site is down (Connection Timed Out), please don't
+If the PuTTY \i{web site} is down (Connection Timed Out), please don't
 bother mailing us to tell us about it. Most of us read our e-mail on
 the same machines that host the web site, so if those machines are
 down then we will notice \e{before} we read our e-mail. So there's

@@ -4,7 +4,7 @@
 
 \cfg{winhelp-topic}{pgpfingerprints}
 
-We create \i{PGP signatures} for all the PuTTY
+\I{verifying new versions}We create \i{PGP signatures} for all the PuTTY
 files distributed from our web site, so that users can be confident
 that the files have not been tampered with. Here we identify
 our public keys, and explain our signature policy so you can have an
@@ -47,7 +47,7 @@ Therefore, we have six public keys in total:
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-rsa.asc}{Snapshot key}
 
 \lcont{
-Master Key: 1024-bit; fingerprint:
+Master Key: 1024-bit; \I{PGP key fingerprint}fingerprint:
 \cw{8F\_15\_97\_DA\_25\_30\_AB\_0D\_\_88\_D1\_92\_54\_11\_CF\_0C\_4C}
 }
 

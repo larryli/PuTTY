@@ -1,20 +1,20 @@
 \define{versionidpageant} \versionid $Id$
 
-\C{pageant} Using Pageant for authentication
+\C{pageant} Using \i{Pageant} for authentication
 
 \cfg{winhelp-topic}{pageant.general}
 
-Pageant is an SSH authentication agent. It holds your private keys
-in memory, already decoded, so that you can use them often without
-needing to type a passphrase.
+Pageant is an SSH \i{authentication agent}. It holds your \i{private key}s
+in memory, already decoded, so that you can use them often
+\I{passwordless login}without needing to type a \i{passphrase}.
 
 \H{pageant-start} Getting started with Pageant
 
-Before you run Pageant, you need to have a private key in \c{*.PPK}
+Before you run Pageant, you need to have a private key in \c{*.\i{PPK}}
 format. See \k{pubkey} to find out how to generate and use one.
 
 When you run Pageant, it will put an icon of a computer wearing a
-hat into the System tray. It will then sit and do nothing, until you
+hat into the \ii{System tray}. It will then sit and do nothing, until you
 load a private key into it.
 
 If you click the Pageant icon with the right mouse button, you will
@@ -74,9 +74,9 @@ the SSH-2 protocol).
 
 \b The size (in bits) of the key.
 
-\b The fingerprint for the public key. This should be the same
-fingerprint given by PuTTYgen, and (hopefully) also the same
-fingerprint shown by remote utilities such as \c{ssh-keygen} when
+\b The \I{key fingerprint}fingerprint for the public key. This should be
+the same fingerprint given by PuTTYgen, and (hopefully) also the same
+fingerprint shown by remote utilities such as \i\c{ssh-keygen} when
 applied to your \c{authorized_keys} file.
 
 \b The comment attached to the key.
@@ -118,9 +118,10 @@ or to keys you added remotely using agent forwarding (see
 \H{pageant-cmdline} The Pageant command line
 
 Pageant can be made to do things automatically when it starts up, by
-specifying instructions on its command line. If you're starting
-Pageant from the Windows GUI, you can arrange this by editing the
-properties of the Windows shortcut that it was started from.
+\I{command-line arguments}specifying instructions on its command line.
+If you're starting Pageant from the Windows GUI, you can arrange this
+by editing the properties of the \i{Windows shortcut} that it was
+started from.
 
 \S{pageant-cmdline-loadkey} Making Pageant automatically load keys
 on startup
@@ -142,18 +143,18 @@ line. This program (perhaps a PuTTY, or a WinCVS making use of
 Plink, or whatever) will then be able to use the keys Pageant has
 loaded.
 
-You do this by specifying the \c{-c} option followed by the command,
-like this:
+You do this by specifying the \I{-c-pageant}\c{-c} option followed
+by the command, like this:
 
 \c C:\PuTTY\pageant.exe d:\main.ppk -c C:\PuTTY\putty.exe
 
-\H{pageant-forward} Using agent forwarding
+\H{pageant-forward} Using \i{agent forwarding}
 
 Agent forwarding is a mechanism that allows applications on your SSH
 server machine to talk to the agent on your client machine.
 
 Note that at present, agent forwarding in SSH-2 is only available
-when your SSH server is OpenSSH. The \cw{ssh.com} server uses a
+when your SSH server is \i{OpenSSH}. The \i\cw{ssh.com} server uses a
 different agent protocol, which PuTTY does not yet support.
 
 To enable agent forwarding, first start Pageant. Then set up a PuTTY
@@ -194,7 +195,7 @@ they're actually stored.
 
 In addition, if you have a private key on one of the SSH servers,
 you can send it all the way back to Pageant using the local
-\c{ssh-add} command:
+\i\c{ssh-add} command:
 
 \c unixbox:~$ ssh-add ~/.ssh/id_rsa
 \c Need passphrase for /home/fred/.ssh/id_rsa
@@ -207,7 +208,7 @@ available (not just the ones downstream of the place you added it).
 
 \H{pageant-security} Security considerations
 
-Using Pageant for public-key authentication gives you the
+\I{security risk}Using Pageant for public-key authentication gives you the
 convenience of being able to open multiple SSH sessions without
 having to type a passphrase every time, but also gives you the
 security benefit of never storing a decrypted private key on disk.
@@ -220,7 +221,7 @@ but still less secure than not storing them anywhere at all. This is
 for two reasons:
 
 \b Windows unfortunately provides no way to protect pieces of memory
-from being written to the system swap file. So if Pageant is holding
+from being written to the system \i{swap file}. So if Pageant is holding
 your private keys for a long period of time, it's possible that
 decrypted private key data may be written to the system swap file,
 and an attacker who gained access to your hard disk later on might

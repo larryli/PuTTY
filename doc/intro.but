@@ -15,7 +15,7 @@ logging in to a multi-user computer from another computer, over a
 network.
 
 Multi-user operating systems, such as Unix and VMS, usually present
-a command-line interface to the user, much like the \q{\i{Command
+a \i{command-line interface} to the user, much like the \q{\i{Command
 Prompt}} or \q{\i{MS-DOS Prompt}} in Windows. The system prints a
 prompt, and you type commands which the system will obey.
 
@@ -33,7 +33,7 @@ you.
 
 These protocols can also be used for other types of keyboard-based
 interactive session. In particular, there are a lot of bulletin
-boards, talker systems and MUDs (Multi-User Dungeons) which support
+boards, \i{talker systems} and \i{MUDs} (Multi-User Dungeons) which support
 access using Telnet. There are even a few that support SSH.
 
 You might want to use SSH, Telnet or Rlogin if:
@@ -42,11 +42,11 @@ You might want to use SSH, Telnet or Rlogin if:
 able to access from somewhere else
 
 \b your Internet Service Provider provides you with a login account
-on a web server. (This might also be known as a \i\e{shell account}.
+on a \i{web server}. (This might also be known as a \i\e{shell account}.
 A \e{shell} is the program that runs on the server and interprets
 your commands for you.)
 
-\b you want to use a bulletin board system, talker or MUD which can
+\b you want to use a \i{bulletin board system}, talker or MUD which can
 be accessed using Telnet.
 
 You probably do \e{not} want to use SSH, Telnet or Rlogin if:
@@ -66,8 +66,8 @@ high-security protocol. It uses strong cryptography to protect your
 connection against eavesdropping, hijacking and other attacks. Telnet
 and Rlogin are both older protocols offering minimal security.
 
-\b SSH and Rlogin both allow you to log in to the server without
-having to type a password. (Rlogin's method of doing this is
+\b SSH and Rlogin both allow you to \I{passwordless login}log in to the
+server without having to type a password. (Rlogin's method of doing this is
 insecure, and can allow an attacker to access your account on the
 server. SSH's method is much more secure, and typically breaking the
 security requires the attacker to have gained access to your actual

@@ -2,9 +2,9 @@
 
 \#FIXME: Need examples
 
-\C{pscp} Using PSCP to transfer files securely
+\C{pscp} Using \i{PSCP} to transfer files securely
 
-\i{PSCP}, the PuTTY Secure Copy client, is a tool for transferring files
+\i{PSCP}, the PuTTY Secure Copy client, is a tool for \i{transferring files}
 securely between computers using an SSH connection.
 
 If you have an SSH-2 server, you might prefer PSFTP (see \k{psftp})
@@ -16,9 +16,9 @@ servers, however.
 PSCP is a command line application.  This means that you cannot just
 double-click on its icon to run it and instead you have to bring up a
 \i{console window}.  With Windows 95, 98, and ME, this is called an
-\q{MS-DOS Prompt} and with Windows NT and 2000 it is called a
+\q{MS-DOS Prompt} and with Windows NT, 2000, and XP, it is called a
 \q{Command Prompt}.  It should be available from the Programs section
-of your Start Menu.
+of your \i{Start Menu}.
 
 To start PSCP it will need either to be on your \i{\c{PATH}} or in your
 current directory.  To add the directory containing PSCP to your
@@ -27,10 +27,10 @@ current directory.  To add the directory containing PSCP to your
 \c set PATH=C:\path\to\putty\directory;%PATH%
 
 This will only work for the lifetime of that particular console
-window.  To set your \c{PATH} more permanently on Windows NT, use the
-Environment tab of the System Control Panel.  On Windows 95, 98, and
-ME, you will need to edit your \c{AUTOEXEC.BAT} to include a \c{set}
-command like the one above.
+window.  To set your \c{PATH} more permanently on Windows NT, 2000,
+and XP, use the Environment tab of the System Control Panel.  On
+Windows 95, 98, and ME, you will need to edit your \i\c{AUTOEXEC.BAT}
+to include a \c{set} command like the one above.
 
 \H{pscp-usage} PSCP Usage
 
@@ -70,7 +70,7 @@ familiar with that.)
 
 \S{pscp-usage-basics} The basics
 
-To receive (a) file(s) from a remote server: 
+To \I{receiving files}receive (a) file(s) from a remote server: 
 
 \c pscp [options] [user@]host:source target
 
@@ -79,7 +79,7 @@ user \c{fred} to the file \c{c:\\temp\\example-hosts.txt}, you would type:
 
 \c pscp fred@example.com:/etc/hosts c:\temp\example-hosts.txt
 
-To send (a) file(s) to a remote server: 
+To \I{sending files}send (a) file(s) to a remote server: 
 
 \c pscp [options] source [source...] [user@]host:target
 
@@ -89,7 +89,7 @@ type:
 
 \c pscp c:\documents\foo.txt fred@example.com:/tmp/foo
 
-You can use wildcards to transfer multiple files in either
+You can use \i{wildcards} to transfer multiple files in either
 direction, like this:
 
 \c pscp c:\documents\*.doc fred@example.com:docfiles
@@ -102,8 +102,8 @@ requested a file called \cq{*.c}. If this is a wildcard, consider
 upgrading to SSH-2 or using the \cq{-unsafe} option. Renaming of
 this file has been disallowed}.
 
-This is due to a fundamental insecurity in the old-style SCP
-protocol: the client sends the wildcard string (\c{*.c}) to the
+This is due to a \I{security risk}fundamental insecurity in the old-style
+\i{SCP protocol}: the client sends the wildcard string (\c{*.c}) to the
 server, and the server sends back a sequence of file names that
 match the wildcard pattern. However, there is nothing to stop the
 server sending back a \e{different} pattern and writing over one of
@@ -113,14 +113,14 @@ the wildcard matching rules are decided by the server, the client
 cannot reliably verify that the filenames sent back match the
 pattern.
 
-PSCP will attempt to use the newer SFTP protocol (part of SSH-2)
+PSCP will attempt to use the newer \i{SFTP} protocol (part of SSH-2)
 where possible, which does not suffer from this security flaw. If
 you are talking to an SSH-2 server which supports SFTP, you will
 never see this warning. (You can force use of the SFTP protocol,
 if available, with \c{-sftp} - see \k{pscp-usage-options-backend}.)
 
 If you really need to use a server-side wildcard with an SSH-1
-server, you can use the \c{-unsafe} command line option with PSCP:
+server, you can use the \i\c{-unsafe} command line option with PSCP:
 
 \c pscp -unsafe fred@example.com:source/*.c c:\source
 
@@ -137,12 +137,12 @@ trying to get out of that directory using pathnames including
 
 \S2{pscp-usage-basics-user} \c{user}
 
-The login name on the remote server. If this is omitted, and \c{host}
+The \i{login name} on the remote server. If this is omitted, and \c{host}
 is a PuTTY saved session, PSCP will use any username specified by that 
 saved session.  Otherwise, PSCP will attempt to use the local Windows
 username.
 
-\S2{pscp-usage-basics-host} \c{host}
+\S2{pscp-usage-basics-host} \I{hostname}\c{host}
 
 The name of the remote server, or the name of an existing PuTTY saved
 session. In the latter case, the session's settings for hostname, port
@@ -150,7 +150,7 @@ number, cipher type and username will be used.
 
 \S2{pscp-usage-basics-source} \c{source}
 
-One or more source files. \i{Wildcards} are allowed.  The syntax of
+One or more source files. \ii{Wildcards} are allowed.  The syntax of
 wildcards depends on the system to which they apply, so if you are
 copying \e{from} a Windows system \e{to} a UNIX system, you should use 
 Windows wildcard syntax (e.g. \c{*.*}), but if you are copying \e{from} 
@@ -160,7 +160,7 @@ syntax allowed by your UNIX shell (e.g. \c{*}).
 If the source is a remote server and you do not specify a full
 pathname (in UNIX, a pathname beginning with a \c{/} (slash)
 character), what you specify as a source will be interpreted relative
-to your home directory on the remote server.
+to your \i{home directory} on the remote server.
 
 \S2{pscp-usage-basics-target} \c{target}
 
@@ -190,13 +190,28 @@ describe PSCP's specific command-line options.
 
 These are the command line options that PSCP accepts.
 
-\S2{pscp-usage-options-p}\c{-p} preserve file attributes
+\S2{pscp-usage-options-ls}\I{-ls-PSCP}\c{-ls} \I{listing files}list remote files
+
+If the \c{-ls} option is given, no files are transferred; instead,
+remote files are listed. Only a hostname specification and
+optional remote file specification need be given. For example:
+
+\c pscp -ls fred@example.com:dir1
+
+The SCP protocol does not contain within itself a means of listing
+files. If SCP is in use, this option therefore assumes that the
+server responds appropriately to the command \c{ls\_-la}; therefore,
+it may not work with all servers.
+
+If SFTP is in use, this option should work with all servers.
+
+\S2{pscp-usage-options-p}\I{-p-PSCP}\c{-p} \i{preserve file attributes}
 
 By default, files copied with PSCP are \i{timestamp}ed with the date and
 time they were copied.  The \c{-p} option preserves the original
 timestamp on copied files.
 
-\S2{pscp-usage-options-q}\c{-q} quiet, don't show \i{statistics}
+\S2{pscp-usage-options-q}\I{-q-PSCP}\c{-q} quiet, don't show \i{statistics}
 
 By default, PSCP displays a meter displaying the progress of the
 current transfer:
@@ -210,7 +225,7 @@ that the transfer will be complete, and percentage of the file so far
 transferred.  The \c{-q} option to PSCP suppresses the printing of
 these statistics.
 
-\S2{pscp-usage-options-r}\c{-r} copies directories \i{recursive}ly
+\S2{pscp-usage-options-r}\I{-r-PSCP}\c{-r} copies directories \i{recursive}ly
 
 By default, PSCP will only copy files.  Any directories you specify to
 copy will be skipped, as will their contents.  The \c{-r} option tells
@@ -218,7 +233,7 @@ PSCP to descend into any directories you specify, and to copy them and
 their contents.  This allows you to use PSCP to transfer whole
 directory structures between machines.
 
-\S2{pscp-usage-options-batch}\c{-batch} avoid interactive prompts
+\S2{pscp-usage-options-batch}\I{-batch-PSCP}\c{-batch} avoid interactive prompts
 
 If you use the \c{-batch} option, PSCP will never give an
 interactive prompt while establishing the connection. If the
@@ -230,22 +245,22 @@ This may help PSCP's behaviour when it is used in automated
 scripts: using \c{-batch}, if something goes wrong at connection
 time, the batch job will fail rather than hang.
 
-\S2{pscp-usage-options-backend}\c{-sftp}, \c{-scp} force use of
+\S2{pscp-usage-options-backend}\i\c{-sftp}, \i\c{-scp} force use of
 particular protocol
 
 As mentioned in \k{pscp-usage-basics}, there are two different file
 transfer protocols in use with SSH. Despite its name, PSCP (like many
 other ostensible \cw{scp} clients) can use either of these protocols.
 
-The older SCP protocol does not have a written specification and
-leaves a lot of detail to the server platform. Wildcards are expanded
+The older \i{SCP protocol} does not have a written specification and
+leaves a lot of detail to the server platform. \ii{Wildcards} are expanded
 on the server. The simple design means that any wildcard specification
 supported by the server platform (such as brace expansion) can be
 used, but also leads to interoperability issues such as with filename
 quoting (for instance, where filenames contain spaces), and also the
 security issue described in \k{pscp-usage-basics}.
 
-The newer SFTP protocol, which is usually associated with SSH-2
+The newer \i{SFTP} protocol, which is usually associated with SSH-2
 servers, is specified in a more platform independent way, and leaves
 issues such as wildcard syntax up to the client. (PuTTY's SFTP
 wildcard syntax is described in \k{psftp-wildcards}.) This makes it
@@ -261,16 +276,16 @@ The \c{-sftp} option forces PSCP to use the SFTP protocol or quit.
 When this option is specified, PSCP looks harder for an SFTP server,
 which may allow use of SFTP with SSH-1 depending on server setup.
 
-\S{pscp-retval} Return value
+\S{pscp-retval} \ii{Return value}
 
-PSCP returns an \cw{ERRORLEVEL} of zero (success) only if the files
-were correctly transferred. You can test for this in a batch file,
+PSCP returns an \i\cw{ERRORLEVEL} of zero (success) only if the files
+were correctly transferred. You can test for this in a \i{batch file},
 using code such as this:
 
 \c pscp file*.* user@hostname:
 \c if errorlevel 1 echo There was an error
 
-\S{pscp-pubkey} Using public key authentication with PSCP
+\S{pscp-pubkey} Using \i{public key authentication} with PSCP
 
 Like PuTTY, PSCP can authenticate using a public key instead of a
 password. There are three ways you can do this.

@@ -1,20 +1,20 @@
 \define{versionidplink} \versionid $Id$
 
-\C{plink} Using the command-line connection tool Plink
+\C{plink} Using the command-line connection tool \i{Plink}
 
 \i{Plink} (PuTTY Link) is a command-line connection tool similar to
-UNIX \c{ssh}. It is mostly used for automated operations, such as
+UNIX \c{ssh}. It is mostly used for \i{automated operations}, such as
 making CVS access a repository on a remote server.
 
 Plink is probably not what you want if you want to run an
-interactive session in a console window.
+\i{interactive session} in a console window.
 
 \H{plink-starting} Starting Plink
 
 Plink is a command line application. This means that you cannot just
 double-click on its icon to run it and instead you have to bring up
 a \i{console window}. In Windows 95, 98, and ME, this is called an
-\q{MS-DOS Prompt}, and in Windows NT and 2000 it is called a
+\q{MS-DOS Prompt}, and in Windows NT, 2000, and XP, it is called a
 \q{Command Prompt}. It should be available from the Programs section
 of your Start Menu.
 
@@ -26,10 +26,10 @@ type into the console window:
 \c set PATH=C:\path\to\putty\directory;%PATH%
 
 This will only work for the lifetime of that particular console
-window. To set your \c{PATH} more permanently on Windows NT, use the
-Environment tab of the System Control Panel.  On Windows 95, 98, and
-ME, you will need to edit your \c{AUTOEXEC.BAT} to include a \c{set}
-command like the one above.
+window.  To set your \c{PATH} more permanently on Windows NT, 2000,
+and XP, use the Environment tab of the System Control Panel.  On
+Windows 95, 98, and ME, you will need to edit your \i\c{AUTOEXEC.BAT}
+to include a \c{set} command like the one above.
 
 \H{plink-usage} Using Plink
 
@@ -89,8 +89,8 @@ type \c{plink} and then the host name:
 
 You should then be able to log in as normal and run a session. The
 output sent by the server will be written straight to your command
-prompt window, which will most likely not interpret terminal control
-codes in the way the server expects it to. So if you run any
+prompt window, which will most likely not interpret terminal \i{control
+codes} in the way the server expects it to. So if you run any
 full-screen applications, for example, you can expect to see strange
 characters appearing in your window. Interactive connections like
 this are not the main point of Plink.
@@ -132,7 +132,7 @@ in several ways:
 \b Set up a PuTTY saved session that describes the server you are
 connecting to, and that also specifies the protocol as SSH.
 
-\b Set the Windows environment variable \c{PLINK_PROTOCOL} to the
+\b Set the Windows environment variable \i\c{PLINK_PROTOCOL} to the
 word \c{ssh}.
 
 Usually Plink is not invoked directly by a user, but run
@@ -162,7 +162,7 @@ connecting to, and that also specifies the username to log in as
 (see \k{config-username}).
 
 To avoid being prompted for a password, you should almost certainly
-set up public-key authentication. (See \k{pubkey} for a general
+set up \i{public-key authentication}. (See \k{pubkey} for a general
 introduction to public-key authentication.) Again, you can do this
 in two ways:
 
@@ -203,7 +203,8 @@ options.
 Plink also supports some of its own options. The following sections
 describe Plink's specific command-line options.
 
-\S2{plink-option-batch} \c{-batch}: disable all interactive prompts
+\S2{plink-option-batch} \I{-batch-plink}\c{-batch}: disable all
+interactive prompts
 
 If you use the \c{-batch} option, Plink will never give an
 interactive prompt while establishing the connection. If the
@@ -215,10 +216,10 @@ This may help Plink's behaviour when it is used in automated
 scripts: using \c{-batch}, if something goes wrong at connection
 time, the batch job will fail rather than hang.
 
-\S2{plink-option-s} \c{-s}: remote command is SSH subsystem
+\S2{plink-option-s} \I{-s-plink}\c{-s}: remote command is SSH subsystem
 
 If you specify the \c{-s} option, Plink passes the specified command
-as the name of an SSH \q{subsystem} rather than an ordinary command
+as the name of an SSH \q{\i{subsystem}} rather than an ordinary command
 line.
 
 (This option is only meaningful with the SSH-2 protocol.)
@@ -243,7 +244,7 @@ command line, you can run in a batch file using Plink in this way.
 \H{plink-cvs} Using Plink with \i{CVS}
 
 To use Plink with CVS, you need to set the environment variable
-\c{CVS_RSH} to point to Plink:
+\i\c{CVS_RSH} to point to Plink:
 
 \c set CVS_RSH=\path\to\plink.exe
 
