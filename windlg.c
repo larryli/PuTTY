@@ -2426,8 +2426,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
     }
     if (msg == WM_COMMAND && LOWORD(wParam) == IDCX_ABOUT) {
 	EnableWindow(hwnd, 0);
-	DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX),
-		  GetParent(hwnd), AboutProc);
+	DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 	EnableWindow(hwnd, 1);
 	SetActiveWindow(hwnd);
     }
@@ -2452,6 +2451,7 @@ void defuse_showwindow(void)
 	hwnd = CreateDialog(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX),
 			    NULL, NullDlgProc);
 	ShowWindow(hwnd, SW_HIDE);
+	SetActiveWindow(hwnd);
 	DestroyWindow(hwnd);
     }
 }

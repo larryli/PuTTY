@@ -574,6 +574,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Finally show the window!
      */
     ShowWindow(hwnd, show);
+    SetForegroundWindow(hwnd);
 
     /*
      * Open the initial log file if there is one.
