@@ -5003,7 +5003,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * Additionally, if we'd just tried password
 		     * authentication, we should break out of this
 		     * whole loop so as to go back to the username
-		     * prompt.
+		     * prompt (iff we're configured to allow
+		     * username change attempts).
 		     */
 		    if (s->type == AUTH_TYPE_NONE) {
 			/* do nothing */
@@ -5017,7 +5018,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    } else {
 			c_write_str(ssh, "Access denied\r\n");
 			logevent("Access denied");
-			if (s->type == AUTH_TYPE_PASSWORD) {
+			if (s->type == AUTH_TYPE_PASSWORD &&
+			    ssh->cfg.change_username) {
 			    s->we_are_in = FALSE;
 			    break;
 			}
