@@ -1,4 +1,11 @@
+\versionid $Id: pubkey.but,v 1.2 2001/02/06 09:34:42 owen Exp $
+
+\# FIXME: passphrases, examples (e.g what does a key for pasting into
+\# authorized_keys look like?), index entries, links.
+
 \C{pubkey} Using public keys for SSH authentication
+
+\H{pubkey-intro} Public key authentication - an introduction
 
 \# Explain the basic principles of public key authentication. Many
 \# people don't have the faintest idea what it is or why it's good.
@@ -8,9 +15,75 @@
 \# unpassphrased keys unless they really need to or they can be sure
 \# the machine is secure.
 
+\H{pubkey-puttygen} PuTTYgen: RSA key generator for PuTTY
+
+PuTTYgen is a key generator. It generates pairs of public and private
+keys to be used with PuTTY, PSCP, and Plink, as well as the PuTTY
+authentication agent, Pageant (see \k{pageant}).  PuTTYgen generates
+RSA keys.
+
+When you run PuTTYgen you will see a window where you have two
+choices: \e{Generate} new public/private key pair or \e{Load} an
+existing private key.
+
+\S{pubkey-puttygen-generate} Generate a new key
+
+Before generating a new key you have to chose the strength of the
+encryption. With \e{Parameters} you define the strength of the key. The
+default of 1024 should be OK for most users.
+
+Pressing the \e{Generate} button starts the process of generating a
+new key pair. You then have to move the mouse over the blank area in
+order to generate random data for the algorithm. Continue until the
+progress bar is complete.
+
+As soon as enough random data is available the key is generated.  This 
+may take a little while, especially on slow machines.  Once the key is 
+generated, its details appear in the \e{Key} part of the PuTTYgen
+window.
+
+Now you can change the \e{Key comment} to something more meaningful
+than the default (which is based on the current date).  e.g. add the
+name of the host you will use it for. When using multiple keys a
+meaningful comment may help you remember which passphrase to use!  You
+should always enter a \e{Key passphrase} and \e{Confirm passphrase} to
+protect your keys.
+
 \# Mention a good length for a passphrase. (I think Schneier
 \# said something about this on counterpane.com once.)
 
 \# In case people don't like the idea of exchanging a short password
 \# typed every time for a longer passphrase typed every time, link
 \# to the Pageant chapter.
+
+Finally save the key by pressing the \e{Save} button. Do not close the
+window but proceed with step \k{pubkey-gettingready}, otherwise you
+will have to \e{Load} the private key again as described below.
+
+\S{pubkey-puttygen-load} Load and modify a key
+
+PuTTYgen does not store the public key in a file by default. If you
+have to distribute the public key you can press the \e{Load} button,
+select the private key file, and PuTTYgen will give you the public key
+again.  You can also change the comment and passphrase for your
+private key this way. Just modify the values and \e{Save} the key.
+
+\S{pubkey-gettingready} Getting ready for public key authentication
+
+Connect to your SSH server using PuTTY with the SSH protocol. When the
+connection succeeds you will be prompted for your user name and
+password to login. Once logged in change into the \c{.ssh} directory
+and open the file \c{authorized_keys} with your favorite editor (you
+may have to create this file if this is the first key to add).
+
+Switch to the PuTTYgen window and select all of the content below
+\e{Public key for pasting into authorized_keys file}, copy it to the
+clipboard (\c{Ctrl+C}). Then, switch back to the PuTTY window and
+insert the data into the open file. Save the file.
+
+From now on you can use the private key for authentication to this
+host.  Either select the private key in PuTTY's \e{Connection},
+\e{SSH} panel: \e{Private key file for authentication} dialog or use
+it with Pageant as described in \k{pageant}.
+
+
