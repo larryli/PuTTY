@@ -196,12 +196,10 @@ static const struct Opt o_tspeed =
     { WILL, WONT, DO, DONT, TELOPT_TSPEED, OPTINDEX_TSPEED, REQUESTED };
 static const struct Opt o_ttype =
     { WILL, WONT, DO, DONT, TELOPT_TTYPE, OPTINDEX_TTYPE, REQUESTED };
-static const struct Opt o_oenv = { WILL, WONT, DO, DONT, TELOPT_OLD_ENVIRON,
-    OPTINDEX_OENV, INACTIVE
-};
-static const struct Opt o_nenv = { WILL, WONT, DO, DONT, TELOPT_NEW_ENVIRON,
-    OPTINDEX_NENV, REQUESTED
-};
+static const struct Opt o_oenv =
+    { WILL, WONT, DO, DONT, TELOPT_OLD_ENVIRON, OPTINDEX_OENV, INACTIVE };
+static const struct Opt o_nenv =
+    { WILL, WONT, DO, DONT, TELOPT_NEW_ENVIRON, OPTINDEX_NENV, REQUESTED };
 static const struct Opt o_echo =
     { DO, DONT, WILL, WONT, TELOPT_ECHO, OPTINDEX_ECHO, REQUESTED };
 static const struct Opt o_we_sga =
