@@ -725,6 +725,7 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	memcpy(buf + nowlen, pktin.body + 4, msglen);
 	buf[nowlen + msglen] = '\0';
 	logevent(buf);
+	bombout(("Server sent disconnect message:\n\"%s\"", buf+nowlen));
     }
 
     crFinish(0);
@@ -898,6 +899,11 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
 	memcpy(buf + nowlen, pktin.data + 14, msglen);
 	buf[nowlen + msglen] = '\0';
 	logevent(buf);
+	bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
+		 reason,
+		 (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
+		 ssh2_disconnect_reasons[reason] : "unknown",
+		 buf+nowlen));
     }
 
     crFinish(0);
