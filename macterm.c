@@ -6,6 +6,7 @@
 #include <Fonts.h>
 #include <Gestalt.h>
 #include <MacWindows.h>
+#include <Quickdraw.h>
 #include <QuickdrawText.h>
 #include <Sound.h>
 
@@ -19,9 +20,12 @@ struct mac_session {
     short fontnum;
     int font_ascent;
     WindowPtr(window);
+    RGBColor defpal[24];
+    RGBColor palette[24];
 };
 
 static void mac_initfont(struct mac_session *);
+static void mac_initpalette(struct mac_session *);
 
 /* Temporary hack till I get the terminal emulator supporting multiple sessions */
 
@@ -29,12 +33,46 @@ static struct mac_session *onlysession;
 
 void mac_newsession(void) {
     struct mac_session *s;
+    int i;
 
     /* This should obviously be initialised by other means */
     s = smalloc(sizeof(*s));
+    cfg.bksp_is_delete = TRUE;
+    cfg.rxvt_homeend = FALSE;
+    cfg.linux_funkeys = FALSE;
+    cfg.app_cursor = FALSE;
+    cfg.app_keypad = FALSE;
+    cfg.savelines = 100;
+    cfg.dec_om = FALSE;
+    cfg.wrap_mode = 
+    cfg.lfhascr = FALSE;
+    cfg.win_name_always = FALSE;
+    cfg.width = 80;
+    cfg.height = 24;
     strcpy(cfg.font, "Monaco");
     cfg.fontisbold = 0;
     cfg.fontheight = 9;
+    cfg.vtmode = VT_POORMAN;
+    cfg.try_palette = FALSE;
+    cfg.bold_colour = TRUE;
+    for (i = 0; i < 22; i++) {
+        static char defaults[22][3] = {
+            {187, 187, 187}, {255, 255, 255},
+            {0, 0, 0}, {85, 85, 85},
+            {0, 0, 0}, {0, 255, 0},
+            {0, 0, 0}, {85, 85, 85},
+            {187, 0, 0}, {255, 85, 85},
+            {0, 187, 0}, {85, 255, 85},
+            {187, 187, 0}, {255, 255, 85},
+            {0, 0, 187}, {85, 85, 255},
+            {187, 0, 187}, {255, 85, 255},
+            {0, 187, 187}, {85, 255, 255},
+            {187, 187, 187}, {255, 255, 255}
+         };
+         cfg.colours[i][0] = defaults[i][0];
+         cfg.colours[i][1] = defaults[i][1];
+         cfg.colours[i][2] = defaults[i][2];
+    }
     onlysession = s;
 	
     /* XXX: non-Color-QuickDraw?  Own storage management? */
@@ -46,6 +84,7 @@ void mac_newsession(void) {
     term_init();
     term_size(24, 80, 100);
     mac_initfont(s);
+    mac_initpalette(s);
     ShowWindow(s->window);
 }
 
@@ -74,9 +113,43 @@ static void mac_initfont(struct mac_session *s) {
     font_height = fi.ascent + fi.descent + fi.leading;
     s->font_ascent = fi.ascent;
     SizeWindow(s->window, cols * font_width, rows * font_height, true);
-    inbuf_putstr("Hello,\007 world\007");
+    inbuf_putstr("\033[1mBold\033[m    \033[2mfaint\033[m   \033[3mitalic\033[m  \033[4mu_line\033[m  "
+                 "\033[5mslow bl\033[m \033[6mfast bl\033[m \033[7minverse\033[m \033[8mconceal\033[m "
+                 "\033[9mstruck\033[m  \033[21mdbl ul\033[m\015\012");
+    term_out();
+    inbuf_putstr("\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
+                 "\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
+    term_out();
+    inbuf_putstr("\033[1m\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
+                 "\033[1m\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
+    term_out();
+    inbuf_putstr("\033[37;44mwhite on blue     \033[32;41mgreen on red\015\012");
     term_out();
 }
+
+
+/*
+ * Set up the default palette, then call palette_reset to transfer
+ * it to the working palette (should the emulator do this at
+ * startup?
+ */
+static void mac_initpalette(struct mac_session *s) {
+    int i;
+    static const int ww[] = {
+	6, 7, 8, 9, 10, 11, 12, 13,
+	14, 15, 16, 17, 18, 19, 20, 21,
+	0, 1, 2, 3, 4, 4, 5, 5
+    };
+
+    for (i=0; i<24; i++) {
+	int w = ww[i];
+	s->defpal[i].red   = cfg.colours[w][0] * 0x0101;
+	s->defpal[i].green = cfg.colours[w][1] * 0x0101;
+	s->defpal[i].blue  = cfg.colours[w][2] * 0x0101;
+    }
+    palette_reset();
+}
+
 
 /*
  * Call from the terminal emulator to draw a bit of text
@@ -86,6 +159,8 @@ static void mac_initfont(struct mac_session *s) {
 void do_text(struct mac_session *s, int x, int y, char *text, int len,
 	     unsigned long attr) {
     int style = 0;
+    int bgcolour, fgcolour;
+    RGBColor rgbfore, rgbback;
 
     SetPort(s->window);
     TextFont(s->fontnum);
@@ -96,6 +171,17 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
     TextFace(style);
     TextSize(cfg.fontheight);
     TextMode(srcCopy);
+    if (attr & ATTR_REVERSE) {
+	bgcolour = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
+	fgcolour = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
+    } else {
+	fgcolour = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
+	bgcolour = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
+    }
+    if ((attr & ATTR_BOLD) && cfg.bold_colour)
+    	fgcolour++;
+    RGBForeColor(&s->palette[fgcolour]);
+    RGBBackColor(&s->palette[bgcolour]);
     SetFractEnable(FALSE); /* We want characters on pixel boundaries */
     MoveTo(x * font_width, y * font_height + s->font_ascent);
     DrawText(text, 0, len);
@@ -104,7 +190,7 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
 /*
  * Call from the terminal emulator to get its graphics context.
  * I feel this should disappear entirely (and do_text should take
- * a Session as an argument.  Simon may disagree.
+ * a Session as an argument).  Simon may disagree.
  */
 struct mac_session *get_ctx(void) {
 
@@ -171,6 +257,13 @@ void palette_set(int n, int r, int g, int b) {
  * Reset to the default palette
  */
 void palette_reset(void) {
+    int i;
+    struct mac_session *s = onlysession;
 
-    /* XXX: Do something */
+    for (i = 0; i < 24; i++) {
+	s->palette[i].red   = s->defpal[i].red;
+	s->palette[i].green = s->defpal[i].green;
+	s->palette[i].blue  = s->defpal[i].blue;
+    }
+    term_invalidate();
 }
