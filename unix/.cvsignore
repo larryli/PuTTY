@@ -1,4 +1,4 @@
 Makefile.gtk Makefile
 local
-plink pterm putty puttytel psftp
+plink pterm putty puttytel psftp pscp
 *.log
