@@ -270,7 +270,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	/*
 	 * NYI:
-	 *  - Shift-PgUp/PgDn for scrollbar
 	 *  - nethack mode
 	 *  - alt+numpad
 	 *  - Compose key (!!! requires Unicode faff before even trying)
@@ -916,7 +915,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
      *  - cursor shapes other than block
      *  - VT100 line drawing stuff; code pages in general!
      *  - shadow bolding
-     *  - underline
      */
 
     nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
@@ -993,6 +991,89 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 			y*inst->font_height+cfg.window_border,
 			len*inst->font_width, inst->font_height);
     }
+}
+
+GdkCursor *make_mouse_ptr(int cursor_val)
+{
+    /*
+     * Truly hideous hack: GTK doesn't allow us to set the mouse
+     * cursor foreground and background colours unless we've _also_
+     * created our own cursor from bitmaps. Therefore, I need to
+     * load the `cursor' font and draw glyphs from it on to
+     * pixmaps, in order to construct my cursors with the fg and bg
+     * I want. This is a gross hack, but it's more self-contained
+     * than linking in Xlib to find the X window handle to
+     * inst->area and calling XRecolorCursor, and it's more
+     * futureproof than hard-coding the shapes as bitmap arrays.
+     */
+    static GdkFont *cursor_font = NULL;
+    GdkPixmap *source, *mask;
+    GdkGC *gc;
+    GdkColor cfg = { 0, 65535, 65535, 65535 };
+    GdkColor cbg = { 0, 0, 0, 0 };
+    GdkColor dfg = { 1, 65535, 65535, 65535 };
+    GdkColor dbg = { 0, 0, 0, 0 };
+    GdkCursor *ret;
+    gchar text[2];
+    gint lb, rb, wid, asc, desc, w, h, x, y;
+
+    if (cursor_val < 0) {
+	gdk_font_unref(cursor_font);
+	return NULL;
+    }
+
+    if (!cursor_font)
+	cursor_font = gdk_font_load("cursor");
+
+    /*
+     * Get the text extent of the cursor in question. We use the
+     * mask character for this, because it's typically slightly
+     * bigger than the main character.
+     */
+    text[1] = '\0';
+    text[0] = (char)cursor_val + 1;
+    gdk_string_extents(cursor_font, text, &lb, &rb, &wid, &asc, &desc);
+    w = rb-lb; h = asc+desc; x = -lb; y = asc;
+
+    source = gdk_pixmap_new(NULL, w, h, 1);
+    mask = gdk_pixmap_new(NULL, w, h, 1);
+
+    /*
+     * Draw the mask character on the mask pixmap.
+     */
+    text[1] = '\0';
+    text[0] = (char)cursor_val + 1;
+    gc = gdk_gc_new(mask);
+    gdk_gc_set_foreground(gc, &dbg);
+    gdk_draw_rectangle(mask, gc, 1, 0, 0, w, h);
+    gdk_gc_set_foreground(gc, &dfg);
+    gdk_draw_text(mask, cursor_font, gc, x, y, text, 1);
+    gdk_gc_unref(gc);
+
+    /*
+     * Draw the main character on the source pixmap.
+     */
+    text[1] = '\0';
+    text[0] = (char)cursor_val;
+    gc = gdk_gc_new(source);
+    gdk_gc_set_foreground(gc, &dbg);
+    gdk_draw_rectangle(source, gc, 1, 0, 0, w, h);
+    gdk_gc_set_foreground(gc, &dfg);
+    gdk_draw_text(source, cursor_font, gc, x, y, text, 1);
+    gdk_gc_unref(gc);
+
+    /*
+     * Create the cursor.
+     */
+    ret = gdk_cursor_new_from_pixmap(source, mask, &cfg, &cbg, x, y);
+
+    /*
+     * Clean up.
+     */
+    gdk_pixmap_unref(source);
+    gdk_pixmap_unref(mask);
+
+    return ret;
 }
 
 void modalfatalbox(char *p, ...)
@@ -1093,8 +1174,9 @@ int main(int argc, char **argv)
     gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(window);
 
-    inst->textcursor = gdk_cursor_new(GDK_XTERM);
-    inst->rawcursor = gdk_cursor_new(GDK_ARROW);
+    inst->textcursor = make_mouse_ptr(GDK_XTERM);
+    inst->rawcursor = make_mouse_ptr(GDK_LEFT_PTR);
+    make_mouse_ptr(-1);		       /* clean up cursor font */
     gdk_window_set_cursor(inst->area->window, inst->textcursor);
 
     term_init();
