@@ -134,12 +134,14 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
         return;
     if (ret == 2) {                    /* key was different */
         fprintf(stderr, wrongmsg, fingerprint);
+	fflush(stderr);
         if (fgets(line, sizeof(line), stdin) &&
             line[0] != '\0' && line[0] != '\n') {
             if (line[0] == 'y' || line[0] == 'Y')
                 store_host_key(host, port, keytype, keystr);
         } else {
             fprintf(stderr, abandoned);
+	    fflush(stderr);
             exit(0);
         }
     }

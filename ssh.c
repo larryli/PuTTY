@@ -17,7 +17,7 @@
 
 #define logevent(s) { logevent(s); \
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
-                      fprintf(stderr, "%s\n", s); }
+                      { fprintf(stderr, "%s\n", s); fflush(stderr); } }
 
 #define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, \
                           (s ? sk_close(s), s = NULL : 0), \

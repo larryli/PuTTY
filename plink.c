@@ -88,10 +88,14 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
     if (ret == 0)                      /* success - key matched OK */
         return;
 
-    if (ret == 2)                      /* key was different */
+    if (ret == 2) {		       /* key was different */
         fprintf(stderr, wrongmsg, fingerprint);
-    if (ret == 1)                      /* key was absent */
+	fflush(stderr);
+    }
+    if (ret == 1) {		       /* key was absent */
         fprintf(stderr, absentmsg, fingerprint);
+	fflush(stderr);
+    }
 
     hin = GetStdHandle(STD_INPUT_HANDLE);
     GetConsoleMode(hin, &savemode);
