@@ -88,6 +88,7 @@ void base64_encode_atom(unsigned char *data, int n, char *out)
  *  - return a (pointer,length) pair giving some initial data in
  *    the list, suitable for passing to a send or write system
  *    call
+ *  - retrieve a larger amount of initial data from the list
  *  - return the current size of the buffer chain in bytes
  */
 
@@ -155,16 +156,23 @@ void bufchain_add(bufchain *ch, void *data, int len)
 
 void bufchain_consume(bufchain *ch, int len)
 {
+    struct bufchain_granule *tmp;
+
     assert(ch->buffersize >= len);
-    assert(ch->head != NULL && ch->head->bufpos + len <= ch->head->buflen);
-    ch->head->bufpos += len;
-    ch->buffersize -= len;
-    if (ch->head->bufpos >= ch->head->buflen) {
-	struct bufchain_granule *tmp = ch->head;
-	ch->head = tmp->next;
-	sfree(tmp);
-	if (!ch->head)
-	    ch->tail = NULL;
+    while (len > 0) {
+	int remlen = len;
+	assert(ch->head != NULL);
+	if (remlen >= ch->head->buflen - ch->head->bufpos) {
+	    remlen = ch->head->buflen - ch->head->bufpos;
+	    tmp = ch->head;
+	    ch->head = tmp->next;
+	    sfree(tmp);
+	    if (!ch->head)
+		ch->tail = NULL;
+	} else
+	    ch->head->bufpos += remlen;
+	ch->buffersize -= remlen;
+	len -= remlen;
     }
 }
 
@@ -172,6 +180,28 @@ void bufchain_prefix(bufchain *ch, void **data, int *len)
 {
     *len = ch->head->buflen - ch->head->bufpos;
     *data = ch->head->buf + ch->head->bufpos;
+}
+
+void bufchain_fetch(bufchain *ch, void *data, int len)
+{
+    struct bufchain_granule *tmp;
+    char *data_c = (char *)data;
+
+    tmp = ch->head;
+
+    assert(ch->buffersize >= len);
+    while (len > 0) {
+	int remlen = len;
+
+	assert(tmp != NULL);
+	if (remlen >= tmp->buflen - tmp->bufpos)
+	    remlen = tmp->buflen - tmp->bufpos;
+	memcpy(data_c, tmp->buf + tmp->bufpos, remlen);
+
+	tmp = tmp->next;
+	len -= remlen;
+	data_c += remlen;
+    }
 }
 
 /* ----------------------------------------------------------------------

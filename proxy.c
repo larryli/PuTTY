@@ -7,6 +7,8 @@
 
 #include <windows.h>
 
+#include <assert.h>
+
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
@@ -329,7 +331,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	} else if (cfg.proxy_type == PROXY_TELNET) {
 	    ret->negotiate = proxy_telnet_negotiate;
 	} else {
-	    ret->error = "Network error: Unknown proxy method";
+	    ret->error = "Proxy error: Unknown proxy method";
 	    return (Socket) ret;
 	}
 
@@ -484,7 +486,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	 * we'll need to parse, process, and respond to appropriately.
 	 */
 
-	void *data;
+	char *data, *datap;
 	int len;
 	int eol;
 
@@ -493,26 +495,44 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    int min_ver, maj_ver, status;
 
 	    /* get the status line */
-	    bufchain_prefix(&p->pending_input_data, &data, &len);
-	    eol = get_line_end(data, len);
-	    if (eol < 0) return 1;
+	    len = bufchain_size(&p->pending_input_data);
+	    assert(len > 0);	       /* or we wouldn't be here */
+	    data = smalloc(len);
+	    bufchain_fetch(&p->pending_input_data, data, len);
 
-	    sscanf((char *)data, "HTTP/%i.%i %i", &maj_ver, &min_ver, &status);
+	    eol = get_line_end(data, len);
+	    if (eol < 0) {
+		sfree(data);
+		return 1;
+	    }
+
+	    status = -1;
+	    /* We can't rely on whether the %n incremented the sscanf return */
+	    if (sscanf((char *)data, "HTTP/%i.%i %n",
+		       &maj_ver, &min_ver, &status) < 2 || status == -1) {
+		plug_closing(p->plug, "Proxy error: HTTP response was absent",
+			     PROXY_ERROR_GENERAL, 0);
+		sfree(data);
+		return 1;
+	    }
 
 	    /* remove the status line from the input buffer. */
 	    bufchain_consume(&p->pending_input_data, eol);
-
-	    /* TODO: we need to support Proxy-Auth headers */
-
-	    if (status < 200 || status > 299) {
+	    if (data[status] != '2') {
 		/* error */
-		/* TODO: return a more specific error message,
-		 * TODO: based on the status code.
-		 */
-		plug_closing(p->plug, "Network error: Error while communicating with proxy",
-			    PROXY_ERROR_GENERAL, 0);
+		char buf[1024];
+		data[eol] = '\0';
+		while (eol > status &&
+		       (data[eol-1] == '\r' || data[eol-1] == '\n'))
+		    data[--eol] = '\0';
+		sprintf(buf, "Proxy error: %.900s",
+			data+status);
+		plug_closing(p->plug, buf, PROXY_ERROR_GENERAL, 0);
+		sfree(data);
 		return 1;
 	    }
+
+	    sfree(data);
 
 	    p->state = 2;
 	}
@@ -523,16 +543,22 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	     * header of length 2, (ie. just "\r\n")
 	     */
 
-	    bufchain_prefix(&p->pending_input_data, &data, &len);
-	    eol = get_line_end(data, len);
+	    len = bufchain_size(&p->pending_input_data);
+	    assert(len > 0);	       /* or we wouldn't be here */
+	    data = smalloc(len);
+	    datap = data;
+	    bufchain_fetch(&p->pending_input_data, data, len);
+
+	    eol = get_line_end(datap, len);
+	    if (eol < 0) {
+		sfree(data);
+		return 1;
+	    }
 	    while (eol > 2)
 	    {
-		/* TODO: Proxy-Auth stuff. in some cases, we will
-		 * TODO: need to extract information from headers.
-		 */
 		bufchain_consume(&p->pending_input_data, eol);
-		bufchain_prefix(&p->pending_input_data, &data, &len);
-		eol = get_line_end(data, len);
+		datap += eol;
+		eol = get_line_end(datap, len);
 	    }
 
 	    if (eol == 2) {
@@ -541,14 +567,16 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 		proxy_activate(p);
 		/* proxy activate will have dealt with
 		 * whatever is left of the buffer */
+		sfree(data);
 		return 1;
 	    }
 
+	    sfree(data);
 	    return 1;
 	}
     }
 
-    plug_closing(p->plug, "Network error: Unexpected proxy error",
+    plug_closing(p->plug, "Proxy error: unexpected proxy error",
 		 PROXY_ERROR_UNEXPECTED, 0);
     return 1;
 }
@@ -576,8 +604,8 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	char * command;
 
 	if (sk_addrtype(p->remote_addr) != AF_INET) {
-	    plug_closing(p->plug, "Network error: SOCKS version 4 does not support IPv6",
-			 PROXY_ERROR_GENERAL, 0);
+	    plug_closing(p->plug, "Proxy error: SOCKS version 4 does"
+			 " not support IPv6", PROXY_ERROR_GENERAL, 0);
 	    return 1;
 	}
 
@@ -650,14 +678,16 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	     *  dest. address (4 bytes)
 	     */
 
-	    char *data;
-	    int len;
+	    char data[8];
 
+	    if (bufchain_size(&p->pending_input_data) < 8)
+		return 1;	       /* not got anything yet */
+	    
 	    /* get the response */
-	    bufchain_prefix(&p->pending_input_data, &data, &len);
+	    bufchain_fetch(&p->pending_input_data, data, 8);
 
 	    if (data[0] != 0) {
-		plug_closing(p->plug, "Network error: SOCKS proxy responded with "
+		plug_closing(p->plug, "Proxy error: SOCKS proxy responded with "
 				      "unexpected reply code version",
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
@@ -667,23 +697,23 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 
 		switch (data[1]) {
 		  case 92:
-		    plug_closing(p->plug, "Network error: SOCKS server wanted IDENTD on client",
+		    plug_closing(p->plug, "Proxy error: SOCKS server wanted IDENTD on client",
 				 PROXY_ERROR_GENERAL, 0);
 		    break;
 		  case 93:
-		    plug_closing(p->plug, "Network error: Username and IDENTD on client don't agree",
+		    plug_closing(p->plug, "Proxy error: Username and IDENTD on client don't agree",
 				 PROXY_ERROR_GENERAL, 0);
 		    break;
 		  case 91:
 		  default:
-		    plug_closing(p->plug, "Network error: Error while communicating with proxy",
+		    plug_closing(p->plug, "Proxy error: Error while communicating with proxy",
 				 PROXY_ERROR_GENERAL, 0);
 		    break;
 		}
 
 		return 1;
 	    }
-	    bufchain_consume(&p->pending_input_data, 2);
+	    bufchain_consume(&p->pending_input_data, 8);
 
 	    /* we're done */
 	    proxy_activate(p);
@@ -693,7 +723,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	}
     }
 
-    plug_closing(p->plug, "Network error: Unexpected proxy error",
+    plug_closing(p->plug, "Proxy error: unexpected proxy error",
 		 PROXY_ERROR_UNEXPECTED, 0);
     return 1;
 }
@@ -770,9 +800,6 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	 * we'll need to parse, process, and respond to appropriately.
 	 */
 
-	char *data;
-	int len;
-
 	if (p->state == 1) {
 
 	    /* initial response:
@@ -785,12 +812,16 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	     *     0x03 = CHAP
 	     *     0xff = no acceptable methods
 	     */
+	    char data[2];
+
+	    if (bufchain_size(&p->pending_input_data) < 2)
+		return 1;	       /* not got anything yet */
 
 	    /* get the response */
-	    bufchain_prefix(&p->pending_input_data, &data, &len);
+	    bufchain_fetch(&p->pending_input_data, data, 2);
 
 	    if (data[0] != 5) {
-		plug_closing(p->plug, "Network error: Error while communicating with proxy",
+		plug_closing(p->plug, "Proxy error: SOCKS proxy returned unexpected version",
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
 	    }
@@ -800,8 +831,7 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	    else if (data[1] == 0x02) p->state = 5; /* username/password authentication */
 	    else if (data[1] == 0x03) p->state = 6; /* CHAP authentication */
 	    else {
-		plug_closing(p->plug, "Network error: We don't support any of the SOCKS "
-				      "server's authentication methods",
+		plug_closing(p->plug, "Proxy error: SOCKS proxy did not accept our authentication",
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
 	    }
@@ -816,19 +846,25 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	     *    0 = succeeded
 	     *    >0 = failed
 	     */
+	    char data[2];
+
+	    if (bufchain_size(&p->pending_input_data) < 2)
+		return 1;	       /* not got anything yet */
 
 	    /* get the response */
-	    bufchain_prefix(&p->pending_input_data, &data, &len);
+	    bufchain_fetch(&p->pending_input_data, data, 2);
 
 	    if (data[0] != 1) {
-		plug_closing(p->plug, "Network error: Error while communicating with proxy",
+		plug_closing(p->plug, "Proxy error: SOCKS password "
+			     "subnegotiation contained wrong version number",
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
 	    }
 
 	    if (data[1] != 0) {
 
-		plug_closing(p->plug, "Network error: Proxy refused authentication",
+		plug_closing(p->plug, "Proxy error: SOCKS proxy refused"
+			     " password authentication",
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
 	    }
@@ -904,40 +940,66 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	     * server bound address (variable)
 	     * server bound port (2 bytes) [network order]
 	     */
+	    char data[5];
+	    int len;
+
+	    /* First 5 bytes of packet are enough to tell its length. */ 
+	    if (bufchain_size(&p->pending_input_data) < 5)
+		return 1;	       /* not got anything yet */
 
 	    /* get the response */
-	    bufchain_prefix(&p->pending_input_data, &data, &len);
+	    bufchain_fetch(&p->pending_input_data, data, 5);
 
 	    if (data[0] != 5) {
-		plug_closing(p->plug, "Network error: Error while communicating with proxy",
+		plug_closing(p->plug, "Proxy error: SOCKS proxy returned wrong version number",
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
 	    }
 
 	    if (data[1] != 0) {
+		char buf[256];
+
+		strcpy(buf, "Proxy error: ");
 
 		switch (data[1]) {
-		  case 1:
-		  case 2:
-		  case 3:
-		  case 4:
-		  case 5:
-		  case 6:
-		  case 7:
-		  case 8:
-		  default:
-		    plug_closing(p->plug, "Network error: Error while communicating with proxy",
-				 PROXY_ERROR_GENERAL, 0);
+		  case 1: strcat(buf, "General SOCKS server failure"); break;
+		  case 2: strcat(buf, "Connection not allowed by ruleset"); break;
+		  case 3: strcat(buf, "Network unreachable"); break;
+		  case 4: strcat(buf, "Host unreachable"); break;
+		  case 5: strcat(buf, "Connection refused"); break;
+		  case 6: strcat(buf, "TTL expired"); break;
+		  case 7: strcat(buf, "Command not supported"); break;
+		  case 8: strcat(buf, "Address type not supported"); break;
+		  default: sprintf(buf+strlen(buf),
+				   "Unrecognised SOCKS error code %d",
+				   data[1]);
 		    break;
 		}
+		plug_closing(p->plug, buf, PROXY_ERROR_GENERAL, 0);
 
 		return 1;
 	    }
 
+	    /*
+	     * Eat the rest of the reply packet.
+	     */
+	    len = 6;		       /* first 4 bytes, last 2 */
+	    switch (data[3]) {
+	      case 1: len += 4; break; /* IPv4 address */
+	      case 4: len += 16; break;/* IPv6 address */
+	      case 3: len += (unsigned char)data[4]; break; /* domain name */
+	      default:
+		plug_closing(p->plug, "Proxy error: SOCKS proxy returned "
+			     "unrecognised address format",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+	    if (bufchain_size(&p->pending_input_data) < len)
+		return 1;	       /* not got whole reply yet */
+	    bufchain_consume(&p->pending_input_data, len);
+
 	    /* we're done */
 	    proxy_activate(p);
-	    /* proxy activate will have dealt with
-	     * whatever is left of the buffer */
 	    return 1;
 	}
 
