@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.15 2003/04/05 22:03:06 ben Exp $ */
+/* $Id: macresid.h,v 1.16 2003/04/18 13:09:08 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -70,3 +70,5 @@
 #define SYS7_TEXT_PROC		((CDEF_EditBox << 4) + SYS7_TEXT_VARIANT)
 #define CDEF_Default	130
 #define SYS7_DEFAULT_PROC	(CDEF_Default << 4)
+#define CDEF_ListBox	131
+#define SYS7_LISTBOX_PROC	(CDEF_ListBox << 4)
