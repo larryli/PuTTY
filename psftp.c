@@ -1623,7 +1623,7 @@ void fatalbox(char *fmt, ...)
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
-    fputs(stderr, str);
+    fputs(str, stderr);
 
     exit(1);
 }
@@ -1636,7 +1636,7 @@ void connection_fatal(char *fmt, ...)
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
-    fputs(stderr, str);
+    fputs(str, stderr);
 
     exit(1);
 }
