@@ -142,7 +142,7 @@ print map { " $_.exe" } @projects;
 print "\n\n";
 foreach $p (@projects) {
   print $p, ".exe: ", &project($p), " $p.rsp\n";
-  $ap = $gui{$p} ? "" : " -ap";
+  $ap = $gui{$p} ? " -aa" : " -ap";
   print "\tilink32$ap -Gn -L\$(BCB)\\lib \@$p.rsp\n\n";
 }
 foreach $p (@projects) {
