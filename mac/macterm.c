@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.28 2002/12/31 20:11:38 ben Exp $ */
+/* $Id: macterm.c,v 1.29 2002/12/31 22:49:03 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -60,6 +60,7 @@
 
 #include "macresid.h"
 #include "putty.h"
+#include "charset.h"
 #include "mac.h"
 #include "storage.h"
 #include "terminal.h"
@@ -951,7 +952,10 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     RgnHandle textrgn;
     char mactextbuf[1024];
     UniChar unitextbuf[1024];
+    wchar_t *unitextptr;
     int i;
+    ByteCount iread, olen;
+    OSStatus err;
 
     assert(len <= 1024);
 
@@ -965,23 +969,29 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     if (!RectInRgn(&a.textrect, s->window->visRgn))
 	return;
 
-    if (s->uni_to_font != NULL) {
-	ByteCount iread, olen;
-	OSStatus err;
+    /* Unpack Unicode from the mad format we get passed */
+    for (i = 0; i < len; i++)
+	unitextbuf[i] = (unsigned char)text[i] | (attr & CSET_MASK);
 
-	for (i = 0; i < len; i++)
-	    unitextbuf[i] = (unsigned char)text[i] | (attr & CSET_MASK);
+    if (s->uni_to_font != NULL) {
 	err = ConvertFromUnicodeToText(s->uni_to_font, len * sizeof(UniChar),
 				       unitextbuf, kUnicodeUseFallbacksMask,
 				       0, NULL, NULL, NULL,
 				       1024, &iread, &olen, mactextbuf);
-	if (err == noErr || err == kTECUsedFallbacksStatus)
-	    text = mactextbuf; len = olen;
+	if (err != noErr && err != kTECUsedFallbacksStatus)
+	    /* XXX Should handle this more sensibly */
+	    return;
+    } else {
+	/* XXX this is bogus if wchar_t and UniChar are different sizes. */
+	unitextptr = (wchar_t *)unitextbuf;
+	/* XXX Should choose charset based on script, font etc. */
+	olen = charset_from_unicode(&unitextptr, &len, mactextbuf, 1024,
+				    CS_MAC_ROMAN, NULL, ".", 1);
     }
 
     a.s = s;
-    a.text = text;
-    a.len = len;
+    a.text = mactextbuf;
+    a.len = olen;
     a.attr = attr;
     a.lattr = lattr;
     a.numer.h = a.numer.v = a.denom.h = a.denom.v = 1;

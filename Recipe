@@ -146,4 +146,4 @@ plink    : [U] uxplink uxcons NONSSH UXSSH be_all logging UXMISC
 
 PuTTY    : [M] terminal wcwidth tree234 misc ldisc ldiscucs
          + logging settings be_none mac macdlg macstore macterm macucs
-         + mac_res.rsrc testback
+         + mac_res.rsrc testback CHARSET
