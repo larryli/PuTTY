@@ -1979,7 +1979,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		prev_cfg = cfg;
 
 		reconfig_result =
-		    !do_reconfig(hwnd, back ? back->cfg_info(backhandle) : 0);
+		    do_reconfig(hwnd, back ? back->cfg_info(backhandle) : 0);
 		reconfiguring = FALSE;
 		if (!reconfig_result)
 		    break;
