@@ -71,6 +71,9 @@ int reallyclose(void *frontend);
 char *make_default_wintitle(char *hostname);
 int process_nonoption_arg(char *arg, Config *cfg);
 
+/* pterm.c needs this special function in xkeysym.c */
+int keysym_to_unicode(int keysym);
+
 /* Things uxstore.c needs from pterm.c */
 char *x_get_default(const char *key);
 

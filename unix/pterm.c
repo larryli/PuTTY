@@ -440,11 +440,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     char output[32];
-    int start, end, special;
+    wchar_t ucsoutput[2];
+    int ucsval, start, end, special, use_ucsoutput;
 
     /* By default, nothing is generated. */
     end = start = 0;
-    special = FALSE;
+    special = use_ucsoutput = FALSE;
 
     /*
      * If Alt is being released after typing an Alt+numberpad
@@ -566,12 +567,21 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	special = FALSE;
+	use_ucsoutput = FALSE;
 
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
 	strncpy(output+1, event->string, 31);
-	output[31] = '\0';
-	end = strlen(output);
+	if (!*event->string &&
+	    (ucsval = keysym_to_unicode(event->keyval)) >= 0) {
+	    ucsoutput[0] = '\033';
+	    ucsoutput[1] = ucsval;
+	    use_ucsoutput = TRUE;
+	    end = 2;
+	} else {
+	    output[31] = '\0';
+	    end = strlen(output);
+	}
 	if (event->state & GDK_MOD1_MASK) {
 	    start = 0;
 	    if (end == 1) end = 0;
@@ -582,6 +592,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (!event->string[0] && event->keyval == '`' &&
 	    (event->state & GDK_CONTROL_MASK)) {
 	    output[1] = '\x1C';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	}
 
@@ -589,6 +600,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
 	    output[1] = '\003';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	    special = TRUE;
 	}
@@ -597,6 +609,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * special to ldisc. */
 	if (event->keyval == GDK_Return) {
 	    output[1] = '\015';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	    special = TRUE;
 	}
@@ -608,6 +621,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & (GDK_SHIFT_MASK |
 			     GDK_CONTROL_MASK)) == GDK_CONTROL_MASK) {
 	    output[1] = '\0';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	}
 
@@ -616,6 +630,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) ==
 	    (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) {
 	    output[1] = '\240';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	}
 
@@ -623,6 +638,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_BackSpace &&
 	    !(event->state & GDK_SHIFT_MASK)) {
 	    output[1] = inst->cfg.bksp_is_delete ? '\x7F' : '\x08';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	    special = TRUE;
 	}
@@ -630,6 +646,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_BackSpace &&
 	    (event->state & GDK_SHIFT_MASK)) {
 	    output[1] = inst->cfg.bksp_is_delete ? '\x08' : '\x7F';
+	    use_ucsoutput = FALSE;
 	    end = 2;
 	    special = TRUE;
 	}
@@ -638,6 +655,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_ISO_Left_Tab ||
 	    (event->keyval == GDK_Tab && (event->state & GDK_SHIFT_MASK))) {
 	    end = 1 + sprintf(output+1, "\033[Z");
+	    use_ucsoutput = FALSE;
 	}
 
 	/*
@@ -662,6 +680,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		    output[1] = keys[1];
 		else
 		    output[1] = keys[0];
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	}
@@ -714,6 +733,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 			end = 1 + sprintf(output+1, "\033?%c", xkey);
 		} else
 		    end = 1 + sprintf(output+1, "\033O%c", xkey);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	}
@@ -817,6 +837,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	    if (inst->term->vt52_mode && code > 0 && code <= 6) {
 		end = 1 + sprintf(output+1, "\x1B%c", " HLMEIG"[code]);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 
@@ -841,6 +862,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		if (event->state & GDK_SHIFT_MASK) index += 12;
 		if (event->state & GDK_CONTROL_MASK) index += 24;
 		end = 1 + sprintf(output+1, "\x1B[%c", codes[index]);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	    if (inst->cfg.funky_type == 5 &&     /* SCO small keypad */
@@ -852,6 +874,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		} else {
 		    end = 1 + sprintf(output+1, "\x1B[%c", codes[code-1]);
 		}
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	    if ((inst->term->vt52_mode || inst->cfg.funky_type == 4) &&
@@ -867,10 +890,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		else
 		    end = 1 + sprintf(output+1,
 				      "\x1BO%c", code + 'P' - 11 - offt);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	    if (inst->cfg.funky_type == 1 && code >= 11 && code <= 15) {
 		end = 1 + sprintf(output+1, "\x1B[[%c", code + 'A' - 11);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	    if (inst->cfg.funky_type == 2 && code >= 11 && code <= 14) {
@@ -878,14 +903,17 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
 		else
 		    end = 1 + sprintf(output+1, "\x1BO%c", code + 'P' - 11);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	    if (inst->cfg.rxvt_homeend && (code == 1 || code == 4)) {
 		end = 1 + sprintf(output+1, code == 1 ? "\x1B[H" : "\x1BOw");
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	    if (code) {
 		end = 1 + sprintf(output+1, "\x1B[%d~", code);
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	}
@@ -920,6 +948,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		} else {		    
 		    end = 1 + sprintf(output+1, "\033[%c", xkey);
 		}
+		use_ucsoutput = FALSE;
 		goto done;
 	    }
 	}
@@ -945,19 +974,28 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    output[end] = '\0';	       /* NUL-terminate */
 	    ldisc_send(inst->ldisc, output+start, -2, 1);
 	} else if (!inst->direct_to_font) {
-	    /*
-	     * The stuff we've just generated is assumed to be
-	     * ISO-8859-1! This sounds insane, but `man
-	     * XLookupString' agrees: strings of this type returned
-	     * from the X server are hardcoded to 8859-1. Strictly
-	     * speaking we should be doing this using some sort of
-	     * GtkIMContext, which (if we're lucky) would give us
-	     * our data directly in Unicode; but that's not
-	     * supported in GTK 1.2 as far as I can tell, and it's
-	     * poorly documented even in 2.0, so it'll have to
-	     * wait.
-	     */
-	    lpage_send(inst->ldisc, CS_ISO8859_1, output+start, end-start, 1);
+	    if (!use_ucsoutput) {
+		/*
+		 * The stuff we've just generated is assumed to be
+		 * ISO-8859-1! This sounds insane, but `man
+		 * XLookupString' agrees: strings of this type
+		 * returned from the X server are hardcoded to
+		 * 8859-1. Strictly speaking we should be doing
+		 * this using some sort of GtkIMContext, which (if
+		 * we're lucky) would give us our data directly in
+		 * Unicode; but that's not supported in GTK 1.2 as
+		 * far as I can tell, and it's poorly documented
+		 * even in 2.0, so it'll have to wait.
+		 */
+		lpage_send(inst->ldisc, CS_ISO8859_1, output+start,
+			   end-start, 1);
+	    } else {
+		/*
+		 * We generated our own Unicode key data from the
+		 * keysym, so use that instead.
+		 */
+		luni_send(inst->ldisc, ucsoutput+start, end-start, 1);
+	    }
 	} else {
 	    /*
 	     * In direct-to-font mode, we just send the string
