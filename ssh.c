@@ -174,8 +174,8 @@ static void s_wrpkt_start(int type, int len) {
     pktout.length = len-5;
     if (pktout.maxlen < biglen) {
 	pktout.maxlen = biglen;
-	pktout.data = (pktout.data == NULL ? malloc(biglen) :
-		       realloc(pktout.data, biglen));
+	pktout.data = (pktout.data == NULL ? malloc(biglen+4) :
+		       realloc(pktout.data, biglen+4));
 	if (!pktout.data)
 	    fatalbox("Out of memory");
     }

@@ -1347,7 +1347,8 @@ void set_sbar (int total, int start, int page) {
     si.nMax = total - 1;
     si.nPage = page;
     si.nPos = start;
-    SetScrollInfo (hwnd, SB_VERT, &si, TRUE);
+    if (hwnd)
+        SetScrollInfo (hwnd, SB_VERT, &si, TRUE);
 }
 
 Context get_ctx() {

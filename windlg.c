@@ -116,7 +116,6 @@ static void save_settings (char *section, int do_host) {
     
     if (RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1)!=ERROR_SUCCESS ||
 	RegCreateKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
-	free(p);
 	sesskey = NULL;
     }
 
@@ -221,7 +220,6 @@ static void load_settings (char *section, int do_host) {
     
     if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS ||
 	RegOpenKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
-	free(p);
 	sesskey = NULL;
     }
 
