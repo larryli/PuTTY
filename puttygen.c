@@ -101,6 +101,21 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         SetForegroundWindow(hwnd);
         SetWindowPos (hwnd, HWND_TOP, 0, 0, 0, 0,
                       SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+
+	/*
+	 * Centre the window.
+	 */
+	{			       /* centre the window */
+	    RECT rs, rd;
+	    HWND hw;
+
+	    hw = GetDesktopWindow();
+	    if (GetWindowRect (hw, &rs) && GetWindowRect (hwnd, &rd))
+		MoveWindow (hwnd, (rs.right + rs.left + rd.left - rd.right)/2,
+			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
+			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
+	}
+
         p = (struct PassphraseProcStruct *)lParam;
         passphrase = p->passphrase;
         if (p->comment)
@@ -176,6 +191,20 @@ static int CALLBACK LicenceProc (HWND hwnd, UINT msg,
 				 WPARAM wParam, LPARAM lParam) {
     switch (msg) {
       case WM_INITDIALOG:
+	/*
+	 * Centre the window.
+	 */
+	{			       /* centre the window */
+	    RECT rs, rd;
+	    HWND hw;
+
+	    hw = GetDesktopWindow();
+	    if (GetWindowRect (hw, &rs) && GetWindowRect (hwnd, &rd))
+		MoveWindow (hwnd, (rs.right + rs.left + rd.left - rd.right)/2,
+			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
+			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
+	}
+
 	return 1;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -198,6 +227,20 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam) {
     switch (msg) {
       case WM_INITDIALOG:
+	/*
+	 * Centre the window.
+	 */
+	{			       /* centre the window */
+	    RECT rs, rd;
+	    HWND hw;
+
+	    hw = GetDesktopWindow();
+	    if (GetWindowRect (hw, &rs) && GetWindowRect (hwnd, &rd))
+		MoveWindow (hwnd, (rs.right + rs.left + rd.left - rd.right)/2,
+			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
+			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
+	}
+
         SetDlgItemText (hwnd, 100, ver);
 	return 1;
       case WM_COMMAND:
@@ -228,7 +271,6 @@ struct rsa_key_thread_params {
     HWND dialog;                       /* notify this on completion */
     int keysize;		       /* bits in key */
     struct RSAKey *key;
-    struct RSAAux *aux;
 };
 static DWORD WINAPI generate_rsa_key_thread(void *param) {
     struct rsa_key_thread_params *params =
@@ -236,8 +278,7 @@ static DWORD WINAPI generate_rsa_key_thread(void *param) {
     struct progress prog;
     prog.progbar = params->progressbar;
 
-    rsa_generate(params->key, params->aux,
-		 params->keysize, progress_update, &prog);
+    rsa_generate(params->key, params->keysize, progress_update, &prog);
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
 
@@ -251,9 +292,11 @@ struct MainDlgState {
     int key_exists;
     int entropy_got, entropy_required, entropy_size;
     int keysize;
+    int ssh2;
+    char **commentptr;		       /* points to key.comment or ssh2key.comment */
+    struct ssh2_userkey ssh2key;
     unsigned *entropy;
     struct RSAKey key;
-    struct RSAAux aux;
 };
 
 static void hidemany(HWND hwnd, const int *ids, int hideit) {
@@ -262,7 +305,7 @@ static void hidemany(HWND hwnd, const int *ids, int hideit) {
     }
 }
 
-static void setupbigedit(HWND hwnd, int id, struct RSAKey *key) {
+static void setupbigedit1(HWND hwnd, int id, struct RSAKey *key) {
     char *buffer;
     char *dec1, *dec2;
 
@@ -277,6 +320,32 @@ static void setupbigedit(HWND hwnd, int id, struct RSAKey *key) {
     sfree(dec1);
     sfree(dec2);
     sfree(buffer);
+}
+
+static void setupbigedit2(HWND hwnd, int id, struct ssh2_userkey *key) {
+    unsigned char *pub_blob;
+    char *buffer, *p;
+    int pub_len, buflen;
+    int i;
+
+    pub_blob = key->alg->public_blob(key->data, &pub_len);
+    buffer = smalloc(strlen(key->alg->name) + 4*((pub_len+2)/3) +
+		     strlen(key->comment) + 3);
+    strcpy(buffer, key->alg->name);
+    p = buffer + strlen(buffer);
+    *p++ = ' ';
+    i = 0;
+    while (i < pub_len) {
+	int n = (pub_len-i < 3 ? pub_len-i : 3);
+	base64_encode_atom(pub_blob+i, n, p);
+	i += n;
+	p += 4;
+    }
+    *p++ = ' ';
+    strcpy(p, key->comment);
+    SetDlgItemText(hwnd, id, buffer);
+    sfree(pub_blob);
+    sfree(buffer);    
 }
 
 /*
@@ -301,6 +370,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         IDC_LOADSTATIC, IDC_LOAD,
         IDC_SAVESTATIC, IDC_SAVE,
         IDC_BOX_PARAMS,
+	IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA,
         IDC_BITSSTATIC, IDC_BITS,
         IDC_ABOUT,
     };
@@ -320,6 +390,20 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+	/*
+	 * Centre the window.
+	 */
+	{			       /* centre the window */
+	    RECT rs, rd;
+	    HWND hw;
+
+	    hw = GetDesktopWindow();
+	    if (GetWindowRect (hw, &rs) && GetWindowRect (hwnd, &rd))
+		MoveWindow (hwnd, (rs.right + rs.left + rd.left - rd.right)/2,
+			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
+			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
+	}
+
         state = smalloc(sizeof(*state));
         state->generation_thread_exists = FALSE;
         state->collecting_entropy = FALSE;
@@ -347,14 +431,14 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                         IDC_PKSTATIC, IDC_KEYDISPLAY, 7);
             SendDlgItemMessage(hwnd, IDC_KEYDISPLAY, EM_SETREADONLY, 1, 0);
             staticedit(&cp, "Key fingerprint:", IDC_FPSTATIC,
-                       IDC_FINGERPRINT, 70);
+                       IDC_FINGERPRINT, 75);
             SendDlgItemMessage(hwnd, IDC_FINGERPRINT, EM_SETREADONLY, 1, 0);
             staticedit(&cp, "Key &comment:", IDC_COMMENTSTATIC,
-                       IDC_COMMENTEDIT, 70);
+                       IDC_COMMENTEDIT, 75);
             staticpassedit(&cp, "Key p&assphrase:", IDC_PASSPHRASE1STATIC,
-                           IDC_PASSPHRASE1EDIT, 70);
+                           IDC_PASSPHRASE1EDIT, 75);
             staticpassedit(&cp, "C&onfirm passphrase:", IDC_PASSPHRASE2STATIC,
-                           IDC_PASSPHRASE2EDIT, 70);
+                           IDC_PASSPHRASE2EDIT, 75);
             endbox(&cp);
             beginbox(&cp, "Actions",
                      IDC_BOX_ACTIONS);
@@ -367,10 +451,14 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             endbox(&cp);
             beginbox(&cp, "Parameters",
                      IDC_BOX_PARAMS);
+	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 2,
+                          "SSH&1 (RSA)", IDC_KEYSSH1,
+                          "SSH2 &RSA", IDC_KEYSSH2RSA, NULL);
             staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
             endbox(&cp);
         }
+	CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH1);
 	SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEYSIZE, FALSE);
 
         /*
@@ -416,7 +504,6 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 params->dialog = hwnd;
 		params->keysize = state->keysize;
                 params->key = &state->key;
-                params->aux = &state->aux;
 
                 if (!CreateThread(NULL, 0, generate_rsa_key_thread,
                                   params, 0, &threadid)) {
@@ -439,10 +526,10 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 if (state->key_exists) {
                     HWND editctl = GetDlgItem(hwnd, IDC_COMMENTEDIT);
                     int len = GetWindowTextLength(editctl);
-                    if (state->key.comment)
-                        sfree(state->key.comment);
-                    state->key.comment = smalloc(len+1);
-                    GetWindowText(editctl, state->key.comment, len+1);
+                    if (*state->commentptr)
+                        sfree(*state->commentptr);
+                    *state->commentptr = smalloc(len+1);
+                    GetWindowText(editctl, *state->commentptr, len+1);
                 }                
             }
 	    break;
@@ -459,6 +546,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 state->keysize = GetDlgItemInt(hwnd, IDC_BITS,
                                                &ok, FALSE);
                 if (!ok) state->keysize = DEFAULT_KEYSIZE;
+		/* If we ever introduce a new key type, check it here! */
+		state->ssh2 = !IsDlgButtonChecked(hwnd, IDC_KEYSSH1);
                 if (state->keysize < 256) {
                     int ret = MessageBox(hwnd,
                                          "PuTTYgen will not generate a key"
@@ -546,8 +635,13 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 			if (ret != IDYES)
 			    break;
 		    }
-                    ret = saversakey(filename, &state->key, &state->aux,
-				     *passphrase ? passphrase : NULL);
+		    if (state->ssh2) {
+			ret = ssh2_save_userkey(filename, &state->ssh2key,
+						*passphrase ? passphrase : NULL);
+		    } else {
+			ret = saversakey(filename, &state->key,
+					 *passphrase ? passphrase : NULL);
+		    }
 		    if (ret <= 0) {
 			MessageBox(hwnd, "Unable to save key file",
 				   "PuTTYgen Error",
@@ -564,13 +658,25 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                                    filename, 0)) {
                     char passphrase[PASSPHRASE_MAXLEN];
                     int needs_pass;
+		    int ver;
                     int ret;
                     char *comment;
                     struct PassphraseProcStruct pps;
-                    struct RSAKey newkey;
-                    struct RSAAux newaux;
+                    struct RSAKey newkey1;
+		    struct ssh2_userkey *newkey2;
 
-                    needs_pass = rsakey_encrypted(filename, &comment);
+		    ver = keyfile_version(filename);
+		    if (ver == 0) {
+                        MessageBox(NULL, "Couldn't load private key.",
+                                   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+			break;
+		    }
+
+		    comment = NULL;
+		    if (ver == 1)
+			needs_pass = rsakey_encrypted(filename, &comment);
+		    else
+			needs_pass = ssh2_userkey_encrypted(filename, &comment);
                     pps.passphrase = passphrase;
                     pps.comment = comment;
                     do {
@@ -586,17 +692,23 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                             }
                         } else
                             *passphrase = '\0';
-                        ret = loadrsakey(filename, &newkey, &newaux,
-                                         passphrase);
+			if (ver == 1)
+			    ret = loadrsakey(filename, &newkey1, passphrase);
+			else {
+			    newkey2 = ssh2_load_userkey(filename, passphrase);
+			    if (newkey2 == SSH2_WRONG_PASSPHRASE)
+				ret = -1;
+			    else if (!newkey2)
+				ret = 0;
+			    else
+				ret = 1;
+			}
                     } while (ret == -1);
                     if (comment) sfree(comment);
                     if (ret == 0) {
                         MessageBox(NULL, "Couldn't load private key.",
                                    "PuTTYgen Error", MB_OK | MB_ICONERROR);
                     } else if (ret == 1) {
-                        state->key = newkey;
-                        state->aux = newaux;
-
                         EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
                         EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
                         EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
@@ -605,29 +717,55 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                          * key data.
                          */
                         {
-                            char buf[128];
                             SetDlgItemText(hwnd, IDC_PASSPHRASE1EDIT,
                                            passphrase);
                             SetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
                                            passphrase);
-                            SetDlgItemText(hwnd, IDC_COMMENTEDIT,
-                                           state->key.comment);
-                            /*
-                             * Set the key fingerprint.
-                             */
-                            {
-                                char *savecomment = state->key.comment;
+			    if (ver == 1) {
+				char buf[128];
+				char *savecomment;
+
+				state->ssh2 = FALSE;
+				state->commentptr = &state->key.comment;
+				state->key = newkey1;
+
+				/*
+				 * Set the key fingerprint.
+				 */
+				savecomment = state->key.comment;
                                 state->key.comment = NULL;
                                 rsa_fingerprint(buf, sizeof(buf), &state->key);
                                 state->key.comment = savecomment;
-                            }
-                            SetDlgItemText(hwnd, IDC_FINGERPRINT, buf);
-                            /*
-                             * Construct a decimal representation
-                             * of the key, for pasting into
-                             * .ssh/authorized_keys on a Unix box.
-                             */
-                            setupbigedit(hwnd, IDC_KEYDISPLAY, &state->key);
+
+				SetDlgItemText(hwnd, IDC_FINGERPRINT, buf);
+				/*
+				 * Construct a decimal representation
+				 * of the key, for pasting into
+				 * .ssh/authorized_keys on a Unix box.
+				 */
+				setupbigedit1(hwnd, IDC_KEYDISPLAY, &state->key);
+			    } else {
+				char *fp;
+				char *savecomment;
+
+				state->ssh2 = TRUE;
+				state->commentptr = &state->ssh2key.comment;
+				state->ssh2key = *newkey2;   /* structure copy */
+				sfree(newkey2);
+
+				savecomment = state->ssh2key.comment;
+                                state->ssh2key.comment = NULL;
+				fp = state->
+				    ssh2key.alg->fingerprint(state->ssh2key.data);
+                                state->ssh2key.comment = savecomment;
+
+				SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
+				sfree(fp);
+
+				setupbigedit2(hwnd, IDC_KEYDISPLAY, &state->ssh2key);
+			    }
+                            SetDlgItemText(hwnd, IDC_COMMENTEDIT,
+                                           *state->commentptr);
                         }
                         /*
                          * Finally, hide the progress bar and show
@@ -651,26 +789,30 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
+	if (state->ssh2)
+	    state->commentptr = &state->ssh2key.comment;
+	else
+	    state->commentptr = &state->key.comment;
         /*
          * Invent a comment for the key. We'll do this by including
          * the date in it. This will be so horrifyingly ugly that
          * the user will immediately want to change it, which is
          * what we want :-)
          */
-        state->key.comment = smalloc(30);
+        *state->commentptr = smalloc(30);
         {
             time_t t;
             struct tm *tm;
             time(&t);
             tm = localtime(&t);
-            strftime(state->key.comment, 30, "rsa-key-%Y%m%d", tm);
+            strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", tm);
         }
             
         /*
          * Now update the key controls with all the key data.
          */
         {
-            char buf[128];
+	    char *savecomment;
             /*
              * Blank passphrase, initially. This isn't dangerous,
              * because we will warn (Are You Sure?) before allowing
@@ -681,22 +823,32 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             /*
              * Set the comment.
              */
-            SetDlgItemText(hwnd, IDC_COMMENTEDIT, state->key.comment);
+            SetDlgItemText(hwnd, IDC_COMMENTEDIT, *state->commentptr);
             /*
              * Set the key fingerprint.
              */
-            {
-                char *savecomment = state->key.comment;
-                state->key.comment = NULL;
+	    savecomment = *state->commentptr;
+	    *state->commentptr = NULL;
+            if (state->ssh2) {
+		char *fp;
+                fp = state->ssh2key.alg->fingerprint(state->ssh2key.data);
+		SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
+		sfree(fp);
+	    } else {
+		char buf[128];
                 rsa_fingerprint(buf, sizeof(buf), &state->key);
-                state->key.comment = savecomment;
+		SetDlgItemText(hwnd, IDC_FINGERPRINT, buf);
             }
-            SetDlgItemText(hwnd, IDC_FINGERPRINT, buf);
+	    *state->commentptr = savecomment;
             /*
              * Construct a decimal representation of the key, for
              * pasting into .ssh/authorized_keys on a Unix box.
              */
-            setupbigedit(hwnd, IDC_KEYDISPLAY, &state->key);
+	    if (state->ssh2) {
+		setupbigedit2(hwnd, IDC_KEYDISPLAY, &state->ssh2key);
+	    } else {
+		setupbigedit1(hwnd, IDC_KEYDISPLAY, &state->key);
+	    }
         }
         /*
          * Finally, hide the progress bar and show the key data.

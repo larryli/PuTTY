@@ -259,7 +259,7 @@ static int md5_verify(unsigned char *blk, int len, unsigned long seq) {
     return !memcmp(correct, blk+len, 16);
 }
 
-struct ssh_mac ssh_md5 = {
+const struct ssh_mac ssh_md5 = {
     md5_cskey, md5_sckey,
     md5_generate,
     md5_verify,

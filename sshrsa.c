@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+#include <windows.h> // FIXME
+#include "putty.h" // FIXME
 
 #include "ssh.h"
 
@@ -234,6 +237,78 @@ static char *rsa2_fmtkey(void *key) {
     return p;
 }
 
+static unsigned char *rsa2_public_blob(void *key, int *len) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    int elen, mlen, bloblen;
+    int i;
+    unsigned char *blob, *p;
+
+    elen = (ssh1_bignum_bitcount(rsa->exponent)+8)/8;
+    mlen = (ssh1_bignum_bitcount(rsa->modulus)+8)/8;
+
+    /*
+     * string "ssh-rsa", mpint exp, mpint mod. Total 19+elen+mlen.
+     * (three length fields, 12+7=19).
+     */
+    bloblen = 19+elen+mlen;
+    blob = smalloc(bloblen);
+    p = blob;
+    PUT_32BIT(p, 7); p += 4;
+    memcpy(p, "ssh-rsa", 7); p += 7;
+    PUT_32BIT(p, elen); p += 4;
+    for (i = elen; i-- ;) *p++ = bignum_byte(rsa->exponent, i);
+    PUT_32BIT(p, mlen); p += 4;
+    for (i = mlen; i-- ;) *p++ = bignum_byte(rsa->modulus, i);
+    assert(p == blob + bloblen);
+    *len = bloblen;
+    return blob;
+}
+
+static unsigned char *rsa2_private_blob(void *key, int *len) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    int dlen, plen, qlen, ulen, bloblen;
+    int i;
+    unsigned char *blob, *p;
+
+    dlen = (ssh1_bignum_bitcount(rsa->private_exponent)+8)/8;
+    plen = (ssh1_bignum_bitcount(rsa->p)+8)/8;
+    qlen = (ssh1_bignum_bitcount(rsa->q)+8)/8;
+    ulen = (ssh1_bignum_bitcount(rsa->iqmp)+8)/8;
+
+    /*
+     * mpint private_exp, mpint p, mpint q, mpint iqmp. Total 16 +
+     * sum of lengths.
+     */
+    bloblen = 16+dlen+plen+qlen+ulen;
+    blob = smalloc(bloblen);
+    p = blob;
+    PUT_32BIT(p, dlen); p += 4;
+    for (i = dlen; i-- ;) *p++ = bignum_byte(rsa->private_exponent, i);
+    PUT_32BIT(p, plen); p += 4;
+    for (i = plen; i-- ;) *p++ = bignum_byte(rsa->p, i);
+    PUT_32BIT(p, qlen); p += 4;
+    for (i = qlen; i-- ;) *p++ = bignum_byte(rsa->q, i);
+    PUT_32BIT(p, ulen); p += 4;
+    for (i = ulen; i-- ;) *p++ = bignum_byte(rsa->iqmp, i);
+    assert(p == blob + bloblen);
+    *len = bloblen;
+    return blob;
+}
+
+static void *rsa2_createkey(unsigned char *pub_blob, int pub_len,
+			    unsigned char *priv_blob, int priv_len) {
+    struct RSAKey *rsa;
+    char *pb = (char *)priv_blob;
+    
+    rsa = rsa2_newkey((char *)pub_blob, pub_len);
+    rsa->private_exponent = getmp(&pb, &priv_len);
+    rsa->p = getmp(&pb, &priv_len);
+    rsa->q = getmp(&pb, &priv_len);
+    rsa->iqmp = getmp(&pb, &priv_len);
+
+    return rsa;
+}
+
 static char *rsa2_fingerprint(void *key) {
     struct RSAKey *rsa = (struct RSAKey *)key;
     struct MD5Context md5c;
@@ -333,15 +408,53 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
     return ret;
 }
 
-int rsa2_sign(void *key, char *sig, int siglen,
-	     char *data, int datalen) {
-    return 0;			       /* FIXME */
+unsigned char *rsa2_sign(void *key, char *data, int datalen, int *siglen) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    unsigned char *bytes;
+    int nbytes;
+    unsigned char hash[20];
+    Bignum in, out;
+    int i, j;
+
+    SHA_Simple(data, datalen, hash);
+
+    nbytes = (ssh1_bignum_bitcount(rsa->modulus)-1) / 8;
+    bytes = smalloc(nbytes);
+
+    bytes[0] = 1;
+    for (i = 1; i < nbytes-20-sizeof(asn1_weird_stuff); i++)
+	bytes[i] = 0xFF;
+    for (i = nbytes-20-sizeof(asn1_weird_stuff), j=0; i < nbytes-20; i++,j++)
+	bytes[i] = asn1_weird_stuff[j];
+    for (i = nbytes-20, j=0; i < nbytes; i++,j++)
+	bytes[i] = hash[j];
+
+    in = bignum_from_bytes(bytes, nbytes);
+    sfree(bytes);
+
+    out = modpow(in, rsa->private_exponent, rsa->modulus);
+    freebn(in);
+
+    nbytes = (ssh1_bignum_bitcount(out)+7)/8;
+    bytes = smalloc(4+7+4+nbytes);
+    PUT_32BIT(bytes, 7);
+    memcpy(bytes+4, "ssh-rsa", 7);
+    PUT_32BIT(bytes+4+7, nbytes);
+    for (i = 0; i < nbytes; i++)
+	bytes[4+7+4+i] = bignum_byte(out, nbytes-1-i);
+    freebn(out);
+
+    *siglen = 4+7+4+nbytes;
+    return bytes;
 }
 
-struct ssh_signkey ssh_rsa = {
+const struct ssh_signkey ssh_rsa = {
     rsa2_newkey,
     rsa2_freekey,
     rsa2_fmtkey,
+    rsa2_public_blob,
+    rsa2_private_blob,
+    rsa2_createkey,
     rsa2_fingerprint,
     rsa2_verifysig,
     rsa2_sign,

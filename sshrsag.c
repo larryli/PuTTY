@@ -23,8 +23,7 @@ static void diagbn(char *prefix, Bignum md) {
 }
 #endif
 
-int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
-                 progfn_t pfn, void *pfnparam) {
+int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn, void *pfnparam) {
     Bignum pm1, qm1, phi_n;
 
     /*
@@ -71,16 +70,16 @@ int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
      * general that's slightly more fiddly to arrange. By choosing
      * a prime e, we can simplify the criterion.)
      */
-    aux->p = primegen(bits/2, RSA_EXPONENT, 1, 1, pfn, pfnparam);
-    aux->q = primegen(bits - bits/2, RSA_EXPONENT, 1, 2, pfn, pfnparam);
+    key->p = primegen(bits/2, RSA_EXPONENT, 1, 1, pfn, pfnparam);
+    key->q = primegen(bits - bits/2, RSA_EXPONENT, 1, 2, pfn, pfnparam);
 
     /*
      * Ensure p > q, by swapping them if not.
      */
-    if (bignum_cmp(aux->p, aux->q) < 0) {
-        Bignum t = aux->p;
-        aux->p = aux->q;
-        aux->q = t;
+    if (bignum_cmp(key->p, key->q) < 0) {
+        Bignum t = key->p;
+        key->p = key->q;
+        key->q = t;
     }
 
     /*
@@ -89,11 +88,11 @@ int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
      * and (q^-1 mod p).
      */
     pfn(pfnparam, 3, 1);
-    key->modulus = bigmul(aux->p, aux->q);
+    key->modulus = bigmul(key->p, key->q);
     pfn(pfnparam, 3, 2);
-    pm1 = copybn(aux->p);
+    pm1 = copybn(key->p);
     decbn(pm1);
-    qm1 = copybn(aux->q);
+    qm1 = copybn(key->q);
     decbn(qm1);
     phi_n = bigmul(pm1, qm1);
     pfn(pfnparam, 3, 3);
@@ -101,7 +100,7 @@ int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
     freebn(qm1);
     key->private_exponent = modinv(key->exponent, phi_n);
     pfn(pfnparam, 3, 4);
-    aux->iqmp = modinv(aux->q, aux->p);
+    key->iqmp = modinv(key->q, key->p);
     pfn(pfnparam, 3, 5);
 
     /*

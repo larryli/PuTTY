@@ -237,7 +237,7 @@ static int sha1_verify(unsigned char *blk, int len, unsigned long seq) {
     return !memcmp(correct, blk+len, 20);
 }
 
-struct ssh_mac ssh_sha1 = {
+const struct ssh_mac ssh_sha1 = {
     sha1_cskey, sha1_sckey,
     sha1_generate,
     sha1_verify,
@@ -245,7 +245,7 @@ struct ssh_mac ssh_sha1 = {
     20
 };
 
-struct ssh_mac ssh_sha1_buggy = {
+const struct ssh_mac ssh_sha1_buggy = {
     sha1_cskey_buggy, sha1_sckey_buggy,
     sha1_generate,
     sha1_verify,

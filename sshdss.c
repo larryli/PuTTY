@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "ssh.h"
 
@@ -272,15 +273,59 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     return ret;
 }
 
-int dss_sign(void *key, char *sig, int siglen,
-	     char *data, int datalen) {
-    return 0;			       /* do nothing */
+static unsigned char *dss_public_blob(void *key, int *len) {
+    struct dss_key *dss = (struct dss_key *)key;
+    int plen, qlen, glen, ylen, bloblen;
+    int i;
+    unsigned char *blob, *p;
+
+    plen = (ssh1_bignum_bitcount(dss->p)+8)/8;
+    qlen = (ssh1_bignum_bitcount(dss->q)+8)/8;
+    glen = (ssh1_bignum_bitcount(dss->g)+8)/8;
+    ylen = (ssh1_bignum_bitcount(dss->y)+8)/8;
+
+    /*
+     * string "ssh-dss", mpint p, mpint q, mpint g, mpint y. Total
+     * 27 + sum of lengths. (five length fields, 20+7=27).
+     */
+    bloblen = 27+plen+qlen+glen+ylen;
+    blob = smalloc(bloblen);
+    p = blob;
+    PUT_32BIT(p, 7); p += 4;
+    memcpy(p, "ssh-dss", 7); p += 7;
+    PUT_32BIT(p, plen); p += 4;
+    for (i = plen; i-- ;) *p++ = bignum_byte(dss->p, i);
+    PUT_32BIT(p, qlen); p += 4;
+    for (i = qlen; i-- ;) *p++ = bignum_byte(dss->q, i);
+    PUT_32BIT(p, glen); p += 4;
+    for (i = glen; i-- ;) *p++ = bignum_byte(dss->g, i);
+    PUT_32BIT(p, ylen); p += 4;
+    for (i = ylen; i-- ;) *p++ = bignum_byte(dss->y, i);
+    assert(p == blob + bloblen);
+    *len = bloblen;
+    return blob;
 }
 
-struct ssh_signkey ssh_dss = {
+static unsigned char *dss_private_blob(void *key, int *len) {
+    return NULL;		       /* can't handle DSS private keys */
+}
+
+static void *dss_createkey(unsigned char *pub_blob, int pub_len,
+			   unsigned char *priv_blob, int priv_len) {
+    return NULL;		       /* can't handle DSS private keys */
+}
+
+unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen) {
+    return NULL;		       /* can't handle DSS private keys */
+}
+
+const struct ssh_signkey ssh_dss = {
     dss_newkey,
     dss_freekey,
     dss_fmtkey,
+    dss_public_blob,
+    dss_private_blob,
+    dss_createkey,
     dss_fingerprint,
     dss_verifysig,
     dss_sign,

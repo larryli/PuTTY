@@ -1,10 +1,10 @@
 #include "ssh.h"
 
-struct ssh_kex ssh_diffiehellman = {
+const struct ssh_kex ssh_diffiehellman = {
     "diffie-hellman-group1-sha1"
 };
 
-struct ssh_kex ssh_diffiehellman_gex = {
+const struct ssh_kex ssh_diffiehellman_gex = {
     "diffie-hellman-group-exchange-sha1"
 };
 

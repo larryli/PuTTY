@@ -34,14 +34,11 @@ struct RSAKey {
     Bignum modulus;
     Bignum exponent;
     Bignum private_exponent;
-#endif
-    char *comment;
-};
-
-struct RSAAux {
     Bignum p;
     Bignum q;
     Bignum iqmp;
+#endif
+    char *comment;
 };
 
 int makekey(unsigned char *data, struct RSAKey *result,
@@ -114,7 +111,7 @@ struct ssh2_cipher {
 
 struct ssh2_ciphers {
     int nciphers;
-    struct ssh2_cipher **list;
+    const struct ssh2_cipher *const *list;
 };
 
 struct ssh_mac {
@@ -141,11 +138,14 @@ struct ssh_signkey {
     void *(*newkey)(char *data, int len);
     void (*freekey)(void *key);
     char *(*fmtkey)(void *key);
+    unsigned char *(*public_blob)(void *key, int *len);
+    unsigned char *(*private_blob)(void *key, int *len);
+    void *(*createkey)(unsigned char *pub_blob, int pub_len,
+		       unsigned char *priv_blob, int priv_len);
     char *(*fingerprint)(void *key);
     int (*verifysig)(void *key, char *sig, int siglen,
 		     char *data, int datalen);
-    int (*sign)(void *key, char *sig, int siglen,
-		char *data, int datalen);
+    unsigned char *(*sign)(void *key, char *data, int datalen, int *siglen);
     char *name;
     char *keytype;                     /* for host key cache */
 };
@@ -159,6 +159,26 @@ struct ssh_compress {
     int (*decompress)(unsigned char *block, int len,
 		      unsigned char **outblock, int *outlen);
 };
+
+struct ssh2_userkey {
+    const struct ssh_signkey *alg;     /* the key algorithm */
+    void *data;			       /* the key data */
+    char *comment;		       /* the key comment */
+};
+
+extern const struct ssh_cipher ssh_3des;
+extern const struct ssh_cipher ssh_des;
+extern const struct ssh_cipher ssh_blowfish_ssh1;
+extern const struct ssh2_ciphers ssh2_3des;
+extern const struct ssh2_ciphers ssh2_aes;
+extern const struct ssh2_ciphers ssh2_blowfish;
+extern const struct ssh_kex ssh_diffiehellman;
+extern const struct ssh_kex ssh_diffiehellman_gex;
+extern const struct ssh_signkey ssh_dss;
+extern const struct ssh_signkey ssh_rsa;
+extern const struct ssh_mac ssh_md5;
+extern const struct ssh_mac ssh_sha1;
+extern const struct ssh_mac ssh_sha1_buggy;
 
 #ifndef MSCRYPTOAPI
 void SHATransform(word32 *digest, word32 *data);
@@ -203,25 +223,35 @@ void dh_cleanup(void);
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);
 
-int loadrsakey(char *filename, struct RSAKey *key, struct RSAAux *aux,
-               char *passphrase);
+int loadrsakey(char *filename, struct RSAKey *key, char *passphrase);
 int rsakey_encrypted(char *filename, char **comment);
 
-int saversakey(char *filename, struct RSAKey *key, struct RSAAux *aux,
-               char *passphrase);
+int saversakey(char *filename, struct RSAKey *key, char *passphrase);
 
-void des3_decrypt_pubkey(unsigned char *key,
-                         unsigned char *blk, int len);
-void des3_encrypt_pubkey(unsigned char *key,
-                         unsigned char *blk, int len);
+void base64_encode_atom(unsigned char *data, int n, char *out);
+
+/* ssh2_load_userkey can return this as an error */
+extern struct ssh2_userkey ssh2_wrong_passphrase;
+#define SSH2_WRONG_PASSPHRASE (&ssh2_wrong_passphrase)
+
+int ssh2_userkey_encrypted(char *filename, char **comment);
+struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase);
+char *ssh2_userkey_loadpub(char *filename, char **algorithm, int *pub_blob_len);
+int ssh2_save_userkey(char *filename, struct ssh2_userkey *key, char *passphrase);
+
+int keyfile_version(char *filename);
+
+void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
+void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
+void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
+void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
 
 /*
  * For progress updates in the key generation utility.
  */
 typedef void (*progfn_t)(void *param, int phase, int progress);
 
-int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
-                 progfn_t pfn, void *pfnparam);
+int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn, void *pfnparam);
 Bignum primegen(int bits, int modulus, int residue,
                 int phase, progfn_t pfn, void *pfnparam);
 

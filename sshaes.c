@@ -1023,7 +1023,21 @@ static void aes_ssh2_decrypt_blk(unsigned char *blk, int len) {
     aes_decrypt_cbc(blk, len, &scctx);
 }
 
-static struct ssh2_cipher ssh_aes128 = {
+void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len) {
+    AESContext ctx;
+    aes_setup(&ctx, 16, key, 32);
+    memset(ctx.iv, 0, sizeof(ctx.iv));
+    aes_encrypt_cbc(blk, len, &ctx);
+}
+
+void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len) {
+    AESContext ctx;
+    aes_setup(&ctx, 16, key, 32);
+    memset(ctx.iv, 0, sizeof(ctx.iv));
+    aes_decrypt_cbc(blk, len, &ctx);
+}
+
+static const struct ssh2_cipher ssh_aes128 = {
     aes_csiv, aes128_cskey,
     aes_sciv, aes128_sckey,
     aes_ssh2_encrypt_blk,
@@ -1032,7 +1046,7 @@ static struct ssh2_cipher ssh_aes128 = {
     16, 128
 };
 
-static struct ssh2_cipher ssh_aes192 = {
+static const struct ssh2_cipher ssh_aes192 = {
     aes_csiv, aes192_cskey,
     aes_sciv, aes192_sckey,
     aes_ssh2_encrypt_blk,
@@ -1041,7 +1055,7 @@ static struct ssh2_cipher ssh_aes192 = {
     16, 192
 };
 
-static struct ssh2_cipher ssh_aes256 = {
+static const struct ssh2_cipher ssh_aes256 = {
     aes_csiv, aes256_cskey,
     aes_sciv, aes256_sckey,
     aes_ssh2_encrypt_blk,
@@ -1050,7 +1064,7 @@ static struct ssh2_cipher ssh_aes256 = {
     16, 256
 };
 
-static struct ssh2_cipher ssh_rijndael128 = {
+static const struct ssh2_cipher ssh_rijndael128 = {
     aes_csiv, aes128_cskey,
     aes_sciv, aes128_sckey,
     aes_ssh2_encrypt_blk,
@@ -1059,7 +1073,7 @@ static struct ssh2_cipher ssh_rijndael128 = {
     16, 128
 };
 
-static struct ssh2_cipher ssh_rijndael192 = {
+static const struct ssh2_cipher ssh_rijndael192 = {
     aes_csiv, aes192_cskey,
     aes_sciv, aes192_sckey,
     aes_ssh2_encrypt_blk,
@@ -1068,7 +1082,7 @@ static struct ssh2_cipher ssh_rijndael192 = {
     16, 192
 };
 
-static struct ssh2_cipher ssh_rijndael256 = {
+static const struct ssh2_cipher ssh_rijndael256 = {
     aes_csiv, aes256_cskey,
     aes_sciv, aes256_sckey,
     aes_ssh2_encrypt_blk,
@@ -1077,7 +1091,7 @@ static struct ssh2_cipher ssh_rijndael256 = {
     16, 256
 };
 
-static struct ssh2_cipher ssh_rijndael_lysator = {
+static const struct ssh2_cipher ssh_rijndael_lysator = {
     aes_csiv, aes256_cskey,
     aes_sciv, aes256_sckey,
     aes_ssh2_encrypt_blk,
@@ -1086,7 +1100,7 @@ static struct ssh2_cipher ssh_rijndael_lysator = {
     16, 256
 };
 
-static struct ssh2_cipher *aes_list[] = {
+static const struct ssh2_cipher *const aes_list[] = {
     &ssh_aes256,
     &ssh_rijndael256,
     &ssh_rijndael_lysator,
@@ -1096,7 +1110,7 @@ static struct ssh2_cipher *aes_list[] = {
     &ssh_rijndael128,
 };
 
-struct ssh2_ciphers ssh2_aes = {
+const struct ssh2_ciphers ssh2_aes = {
     sizeof(aes_list) / sizeof(*aes_list),
     aes_list
 };
