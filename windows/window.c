@@ -2934,6 +2934,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
     }
 
+    /*
+     * Any messages we don't process completely above are passed through to
+     * DefWindowProc() for default processing.
+     */
     return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
