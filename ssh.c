@@ -4653,6 +4653,28 @@ static int in_commasep_string(char *needle, char *haystack, int haylen)
 }
 
 /*
+ * Similar routine for checking whether we have the first string in a list.
+ */
+static int first_in_commasep_string(char *needle, char *haystack, int haylen)
+{
+    int needlen;
+    if (!needle || !haystack)	       /* protect against null pointers */
+	return 0;
+    needlen = strlen(needle);
+    /*
+     * Is it at the start of the string?
+     */
+    if (haylen >= needlen &&       /* haystack is long enough */
+	!memcmp(needle, haystack, needlen) &&	/* initial match */
+	(haylen == needlen || haystack[needlen] == ',')
+	/* either , or EOS follows */
+	)
+	return 1;
+    return 0;
+}
+
+
+/*
  * SSH2 key creation method.
  */
 static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
@@ -4920,7 +4942,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      */
     {
 	char *str;
-	int i, j, len;
+	int i, j, len, guessok;
 
 	if (pktin->type != SSH2_MSG_KEXINIT) {
 	    bombout(("expected key exchange packet from server"));
@@ -4959,6 +4981,13 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		     str ? str : "(null)"));
 	    crStop(0);
 	}
+	/*
+	 * Note that the server's guess is considered wrong if it doesn't match
+	 * the first algorithm in our list, even if it's still the algorithm
+	 * we end up using.
+	 */
+	guessok =
+	    first_in_commasep_string(s->preferred_kex[0]->name, str, len);
 	ssh_pkt_getstring(pktin, &str, &len);    /* host key algorithms */
 	for (i = 0; i < lenof(hostkey_algs); i++) {
 	    if (in_commasep_string(hostkey_algs[i]->name, str, len)) {
@@ -4966,6 +4995,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		break;
 	    }
 	}
+	guessok = guessok &&
+	    first_in_commasep_string(hostkey_algs[0]->name, str, len);
 	ssh_pkt_getstring(pktin, &str, &len);    /* client->server cipher */
 	s->warn = 0;
 	for (i = 0; i < s->n_preferred_ciphers; i++) {
@@ -5058,6 +5089,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		break;
 	    }
 	}
+	ssh_pkt_getstring(pktin, &str, &len);  /* client->server language */
+	ssh_pkt_getstring(pktin, &str, &len);  /* server->client language */
+	if (ssh2_pkt_getbool(pktin) && !guessok) /* first_kex_packet_follows */
+	    crWaitUntil(pktin);                /* Ignore packet */
     }
 
     /*
