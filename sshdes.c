@@ -744,6 +744,35 @@ static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
     scheds->iv1 = iv1;
 }
 
+static void des_sdctr3(unsigned char *dest, const unsigned char *src,
+			     unsigned int len, DESContext * scheds)
+{
+    word32 b[2], iv0, iv1, tmp;
+    unsigned int i;
+
+    assert((len & 7) == 0);
+
+    iv0 = scheds->iv0;
+    iv1 = scheds->iv1;
+    for (i = 0; i < len; i += 8) {
+	des_encipher(b, iv0, iv1, &scheds[2]);
+	des_decipher(b, b[0], b[1], &scheds[1]);
+	des_encipher(b, b[0], b[1], &scheds[0]);
+	tmp = GET_32BIT_MSB_FIRST(src);
+	PUT_32BIT_MSB_FIRST(dest, tmp ^ b[0]);
+	src += 4;
+	dest += 4;
+	tmp = GET_32BIT_MSB_FIRST(src);
+	PUT_32BIT_MSB_FIRST(dest, tmp ^ b[0]);
+	src += 4;
+	dest += 4;
+	if ((iv0 = (iv0 + 1) & 0xffffffff) == 0)
+	    iv1 = (iv1 + 1) & 0xffffffff;
+    }
+    scheds->iv0 = iv0;
+    scheds->iv1 = iv1;
+}
+
 static void *des3_make_context(void)
 {
     return snewn(3, DESContext);
@@ -825,6 +854,12 @@ static void des3_ssh2_decrypt_blk(void *handle, unsigned char *blk, int len)
 {
     DESContext *keys = (DESContext *) handle;
     des_cbc3_decrypt(blk, blk, len, keys);
+}
+
+static void des3_ssh2_sdctr(void *handle, unsigned char *blk, int len)
+{
+    DESContext *keys = (DESContext *) handle;
+    des_sdctr3(blk, blk, len, keys);
 }
 
 static void des_ssh2_encrypt_blk(void *handle, unsigned char *blk, int len)
@@ -938,7 +973,14 @@ static const struct ssh2_cipher ssh_3des_ssh2 = {
     des3_make_context, des3_free_context, des3_iv, des3_key,
     des3_ssh2_encrypt_blk, des3_ssh2_decrypt_blk,
     "3des-cbc",
-    8, 168, "triple-DES"
+    8, 168, "triple-DES CBC"
+};
+
+static const struct ssh2_cipher ssh_3des_ssh2_ctr = {
+    des3_make_context, des3_free_context, des3_iv, des3_key,
+    des3_ssh2_sdctr, des3_ssh2_sdctr,
+    "3des-ctr",
+    8, 168, "triple-DES SDCTR"
 };
 
 /*
@@ -953,17 +995,24 @@ static const struct ssh2_cipher ssh_des_ssh2 = {
     des_make_context, des3_free_context, des3_iv, des_key,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk,
     "des-cbc",
-    8, 56, "single-DES"
+    8, 56, "single-DES CBC"
 };
 
 static const struct ssh2_cipher ssh_des_sshcom_ssh2 = {
     des_make_context, des3_free_context, des3_iv, des_key,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk,
     "des-cbc@ssh.com",
-    8, 56, "single-DES"
+    8, 56, "single-DES CBC"
 };
 
+/*
+ * "3des-ctr" is disabled because it hasn't had any interoperability
+ * testing, which is in turn because I couldn't find another implementation
+ * to test against.  Once it's been tested, it can be enabled in standard
+ * builds.
+ */
 static const struct ssh2_cipher *const des3_list[] = {
+/*  &ssh_3des_ssh2_ctr, */
     &ssh_3des_ssh2
 };
 
@@ -985,7 +1034,7 @@ const struct ssh2_ciphers ssh2_des = {
 const struct ssh_cipher ssh_3des = {
     des3_ssh1_make_context, des3_free_context, des3_sesskey,
     des3_encrypt_blk, des3_decrypt_blk,
-    8, "triple-DES"
+    8, "triple-DES inner-CBC"
 };
 
 static void des_sesskey(void *handle, unsigned char *key)
@@ -1010,5 +1059,5 @@ static void des_decrypt_blk(void *handle, unsigned char *blk, int len)
 const struct ssh_cipher ssh_des = {
     des_ssh1_make_context, des3_free_context, des_sesskey,
     des_encrypt_blk, des_decrypt_blk,
-    8, "single-DES"
+    8, "single-DES CBC"
 };
