@@ -425,8 +425,6 @@ int main(int argc, char **argv)
 			    cfg.port = default_port;
 			} else {
 			    cfg = cfg2;
-			    /* Ick: patch up internal pointer after copy */
-			    cfg.remote_cmd_ptr = cfg.remote_cmd;
 			}
 		    }
 
@@ -529,7 +527,7 @@ int main(int argc, char **argv)
 	cfg.host[p1] = '\0';
     }
 
-    if (!*cfg.remote_cmd_ptr)
+    if (!cfg.remote_cmd_ptr && !*cfg.remote_cmd)
 	flags |= FLAG_INTERACTIVE;
 
     /*
