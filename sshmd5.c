@@ -19,7 +19,7 @@
 #define subround(f,w,x,y,z,k,s,ti) \
        w = x + rol(w + f(x,y,z) + block[k] + ti, s)
 
-void MD5_Core_Init(MD5_Core_State * s)
+static void MD5_Core_Init(MD5_Core_State * s)
 {
     s->h[0] = 0x67452301;
     s->h[1] = 0xefcdab89;
@@ -27,7 +27,7 @@ void MD5_Core_Init(MD5_Core_State * s)
     s->h[3] = 0x10325476;
 }
 
-void MD5_Block(MD5_Core_State * s, uint32 * block)
+static void MD5_Block(MD5_Core_State * s, uint32 * block)
 {
     uint32 a, b, c, d;
 
