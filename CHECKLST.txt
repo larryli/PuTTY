@@ -53,9 +53,14 @@ orders them correctly with respect to releases):
 
  - putty/LATEST.VER
 
-And the Windows installer script:
+The Windows installer script:
 
  - putty/putty.iss
+
+The Mac resource file (used to generate the binary bit of the 'vers'
+resources -- the strings are supplied by the usual means):
+
+ - putty/mac/mac_res.r
 
 The actual release procedure
 ----------------------------

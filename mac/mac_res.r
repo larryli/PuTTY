@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.12 2003/01/12 01:25:34 ben Exp $ */
+/* $Id: mac_res.r,v 1.13 2003/01/14 19:29:18 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -40,6 +40,12 @@
 
 /* Get resource IDs we share with C code */
 #include "macresid.h"
+
+/*
+ * Current PuTTY version number.  Minor is in BCD
+ */
+#define VERSION_MAJOR 0x00
+#define VERSION_MINOR 0x53
 
 /*
  * Finder-related resources
@@ -345,7 +351,7 @@ resource 'icl8' (130, purgeable) {
 
 resource 'vers' (1, purgeable) {
     /* XXX This needs to be updated for each new version */
-    0x00, 0x53,
+    VERSION_MAJOR, VERSION_MINOR,
 #ifdef RELEASE
     beta,
 #else
@@ -369,7 +375,7 @@ resource 'vers' (1, purgeable) {
 
 resource 'vers' (2, purgeable) {
     /* XXX This needs to be updated for each new version */
-    0x00, 0x53,
+    VERSION_MAJOR, VERSION_MINOR,
 #ifdef RELEASE
     beta,
 #else
