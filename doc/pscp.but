@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.8 2001/02/04 15:35:36 owen Exp $
+\versionid $Id: pscp.but,v 1.9 2001/02/04 15:49:49 owen Exp $
 
 \#FIXME: Need examples
 
@@ -61,8 +61,8 @@ To receive (a) file(s) from a remote server:
 
 \c pscp [options] [user@]host:source target
 
-So to copy the file /c{/etc/hosts} from the server /c{example.com} as
-user /c{fred} to the file \c{c:\temp\example-hosts.txt}, you would type:
+So to copy the file \c{/etc/hosts} from the server \c{example.com} as
+user \c{fred} to the file \c{c:\\temp\\example-hosts.txt}, you would type:
 
 \c pscp fred@example.com:/etc/hosts c:\temp\example-hosts.txt
 
@@ -70,8 +70,8 @@ To send (a) file(s) to a remote server:
 
 \c pscp [options] source [source...] [user@]host:target
 
-So to copy the local file /c{c:\documents\csh-whynot.txt} to the
-server /c{example.com} as user /c{fred} to the file
+So to copy the local file \c{c:\\documents\\csh-whynot.txt} to the
+server \c{example.com} as user \c{fred} to the file
 \c{/tmp/csh-whynot} you would type:
 
 \c pscp c:\documents\csh-whynot.txt fred@example.com:/tmp/csh-whynot
