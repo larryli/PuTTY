@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.54 2003/03/06 23:44:47 ben Exp $ */
+/* $Id: mac.c,v 1.55 2003/03/17 19:00:36 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -194,8 +194,11 @@ static void mac_startup(void) {
 	fatalbox("Unable to create menu bar.");
     SetMenuBar(menuBar);
     AppendResMenu(GetMenuHandle(mApple), 'DRVR');
-    if (mac_gestalts.menuattr & gestaltMenuMgrAquaLayoutMask)
+    if (mac_gestalts.menuattr & gestaltMenuMgrAquaLayoutMask) {
 	DeleteMenuItem(GetMenuHandle(mFile), iQuit);
+	/* Also delete the separator above the Quit item. */
+	DeleteMenuItem(GetMenuHandle(mFile), iQuit - 1);
+    }
     mac_adjustmenus();
     DrawMenuBar();
     InitCursor();
