@@ -259,7 +259,7 @@ static void load_settings (char *section, int do_host) {
       char buf[2*sizeof(cfg.environmt)], *p, *q;
 	gpps (sesskey, "Environment", "", buf, sizeof(buf));
 	p = buf;
-      q = cfg.environmt;
+	q = cfg.environmt;
 	while (*p) {
 	    while (*p && *p != ',') {
 		int c = *p++;
@@ -267,7 +267,7 @@ static void load_settings (char *section, int do_host) {
 		    c = '\t';
 		if (c == '\\')
 		    c = *p++;
-		*p++ = c;
+		*q++ = c;
 	    }
 	    if (*p == ',') p++;
 	    *q++ = '\0';
