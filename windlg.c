@@ -213,14 +213,17 @@ static void load_settings (char *section, int do_host) {
 
     p = malloc(3*strlen(section)+1);
     mungestr(section, p);
-    
-    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS ||
-	RegOpenKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
+
+    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS) {
 	sesskey = NULL;
+    } else {
+	if (RegOpenKey(subkey1, p, &sesskey) != ERROR_SUCCESS) {
+	    sesskey = NULL;
+	}
+	RegCloseKey(subkey1);
     }
 
     free(p);
-    RegCloseKey(subkey1);
 
     if (do_host) {
 	char prot[10];
