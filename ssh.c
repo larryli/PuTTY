@@ -4582,7 +4582,7 @@ static void ssh1_msg_disconnect(Ssh ssh, struct Packet *pktin)
     bombout(("Server sent disconnect message:\n\"%.*s\"", msglen, msg));
 }
 
-void ssh_msg_ignore(Ssh ssh, struct Packet *pktin)
+static void ssh_msg_ignore(Ssh ssh, struct Packet *pktin)
 {
     /* Do nothing, because we're ignoring it! Duhh. */
 }
@@ -7256,7 +7256,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 /*
  * Handlers for SSH2 messages that might arrive at any moment.
  */
-void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
+static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
 {
     /* log reason code in disconnect message */
     char *buf, *msg;
@@ -7285,7 +7285,7 @@ void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
     sfree(buf);
 }
 
-void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
+static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
 {
     /* log the debug message */
     char *buf, *msg;
@@ -7301,7 +7301,7 @@ void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
     sfree(buf);
 }
 
-void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin)
+static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin)
 {
     struct Packet *pktout;
     pktout = ssh2_pkt_init(SSH2_MSG_UNIMPLEMENTED);
