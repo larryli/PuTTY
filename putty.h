@@ -65,6 +65,8 @@ GLOBAL int app_cursor_keys, app_keypad_keys;
 GLOBAL int seen_key_event;
 GLOBAL int seen_disp_event;
 
+GLOBAL int session_closed;
+
 typedef enum {
     US_NONE = 0, US_KEY = 1, US_DISP = 2, US_BOTH = 3
 } Unscroll_Trigger;

@@ -309,6 +309,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	set_icon (msg);
     }
 
+    session_closed = FALSE;
+
     /*
      * Set up the input and output buffers.
      */
@@ -631,7 +633,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
       case WM_CREATE:
 	break;
       case WM_CLOSE:
-	if (!cfg.warn_on_close ||
+	if (!cfg.warn_on_close || session_closed ||
 	    MessageBox(hwnd, "Are you sure you want to close this session?",
 		       "PuTTY Exit Confirmation",
 		       MB_ICONWARNING | MB_OKCANCEL) == IDOK)
@@ -878,6 +880,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		if (cfg.close_on_exit)
 		    PostQuitMessage(0);
 		else {
+                    session_closed = TRUE;
 		    MessageBox(hwnd, "Connection closed by remote host",
 			       "PuTTY", MB_OK | MB_ICONINFORMATION);
 		    SetWindowText (hwnd, "PuTTY (inactive)");
