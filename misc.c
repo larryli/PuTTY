@@ -303,10 +303,8 @@ void safefree(void *ptr) {
 static FILE *debug_fp = NULL;
 static int debug_got_console = 0;
 
-void dprintf(char *fmt, ...) {
-    char buf[2048];
+static void dputs (char *buf) {
     DWORD dw;
-    va_list ap;
 
     if (!debug_got_console) {
 	AllocConsole();
@@ -316,11 +314,50 @@ void dprintf(char *fmt, ...) {
 	debug_fp = fopen("debug.log", "w");
     }
 
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
     WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &dw, NULL);
     fputs(buf, debug_fp);
     fflush(debug_fp);
+}
+
+
+void dprintf(char *fmt, ...) {
+    char buf[2048];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    dputs (buf);
     va_end(ap);
 }
-#endif
+
+
+void debug_memdump (void *buf, int len, int L) {
+    int i;
+    unsigned char *p = buf;
+    if (L) {
+	int delta;
+        dprintf ("\t%d (0x%x) bytes:\n", len, len);
+	delta = 15 & (int) p;
+	p -= delta;
+	len += delta;
+    }
+    for (; 0 < len; p += 16, len -= 16) {
+	dputs ("\t");
+	if (L) dprintf ("%p:  ", p);
+	for (i = 0; i < 16 && i < len; ++i) {
+	    if (&p[i] < (unsigned char *) buf) {
+		dputs ("   "); /* 3 spaces */
+	    } else {
+		dprintf (
+		    "%c%02.2x",
+		    &p[i] != (unsigned char *) buf && i % 4 ? '.' : ' ',
+		    p[i]
+		);
+	    }
+	}
+	dputs ("\n");
+    }
+}
+
+#endif /* def DEBUG */
+

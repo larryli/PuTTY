@@ -425,7 +425,7 @@ void random_get_savedata(void **data, int *len);
  * Exports from misc.c.
  */
 
-#include "puttymem.h"
+#include "misc.h"
 
 /*
  * Exports from version.c.
@@ -459,11 +459,5 @@ void crypto_wrapup();
 void agent_query(void *in, int inlen, void **out, int *outlen);
 int agent_exists(void);
 
-#ifdef DEBUG
-void dprintf(char *fmt, ...);
-#define debug(x) (dprintf x)
-#else
-#define debug(x)
-#endif
 
 #endif

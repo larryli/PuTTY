@@ -5,6 +5,10 @@
 #ifndef PUTTY_PUTTYMEM_H
 #define PUTTY_PUTTYMEM_H
 
+#include <stddef.h> /* for size_t */
+#include <string.h> /* for memcpy() */
+
+
 /* #define MALLOC_LOG  do this if you suspect putty of leaking memory */
 #ifdef MALLOC_LOG
 #define smalloc(z) (mlog(__FILE__,__LINE__), safemalloc(z))
@@ -20,5 +24,14 @@ void mlog(char *, int);
 void *safemalloc(size_t);
 void *saferealloc(void *, size_t);
 void safefree(void *);
+
+
+/* smalloc a thing */
+#define smalloca(type) ((type *) smalloc (sizeof (type)))
+/* smalloc a copy of a thing */
+#define smallocc(ptr) memcpy (smalloc (sizeof (*ptr)), ptr, sizeof (*ptr))
+/* smalloc n things */
+#define smallocn(n,type) ((type *) smalloc ((n) * sizeof (type)))
+
 
 #endif
