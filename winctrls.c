@@ -1899,6 +1899,8 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	if (msg == WM_COMMAND && id == 2 &&
 	    (HIWORD(wParam) == BN_SETFOCUS || HIWORD(wParam) == BN_KILLFOCUS))
 	    winctrl_set_focus(ctrl, dp, HIWORD(wParam) == BN_SETFOCUS);
+	if (msg == WM_COMMAND && id == 1 && HIWORD(wParam) == EN_CHANGE)
+	    ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
 	if (id == 2 &&
 	    (msg == WM_COMMAND &&
 	     (HIWORD(wParam) == BN_CLICKED ||
