@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.14 2001/12/14 12:48:24 simon Exp $
+\versionid $Id: faq.but,v 1.15 2001/12/16 15:30:03 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -182,6 +182,23 @@ system.
 
 However, PuTTY on portable devices would clearly be a useful thing,
 so in the long term I hope there will be a WinCE port.
+
+\S{faq-win31}{Question} Is there a port to Windows 3.1?
+
+PuTTY is a 32-bit application from the ground up, so it won't run on
+Windows 3.1 as a native 16-bit program; and it would be \e{very}
+hard to port it to do so, because of Windows 3.1's vile memory
+allocation mechanisms.
+
+However, it is possible in theory to compile the existing PuTTY
+source in such a way that it will run under Win32s (an extension to
+Windows 3.1 to let you run 32-bit programs). In order to do this
+you'll need the right kind of C compiler - modern versions of Visual
+C at least have stopped being backwards compatible to Win32s. Also,
+the last time we tried this it didn't work very well.
+
+If you're interested in running PuTTY under Windows 3.1, help and
+testing in this area would be very welcome!
 
 \S{faq-mac-port}{Question} Will there be a port to the Mac?
 
