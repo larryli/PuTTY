@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.2 2002/11/19 22:05:48 ben Exp $ */
+/* $Id: macterm.c,v 1.3 2002/11/19 23:59:27 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -66,9 +66,7 @@
 #define DEFAULT_BG	18
 #define DEFAULT_BG_BOLD	19
 #define CURSOR_FG	20
-#define CURSOR_FG_BOLD	21
-#define CURSOR_BG	22
-#define CURSOR_BG_BOLD	23
+#define CURSOR_BG	21
 
 #define PTOCC(x) ((x) < 0 ? -(-(x - s->font_width - 1) / s->font_width) : \
 			    (x) / s->font_width)
@@ -807,20 +805,9 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     int style = 0;
     struct do_text_args a;
     RgnHandle textrgn;
-#if 0
-    int i;
-#endif
 
     SetPort(s->window);
     
-#if 0
-    fprintf(stderr, "printing at (%d,%d) %d chars (attr=%x, lattr=%x):\n",
-	    x, y, len, attr, lattr);
-    for (i = 0; i < len; i++)
-	fprintf(stderr, "%c", text[i]);
-    fprintf(stderr, "\n");
-#endif
-
     /* First check this text is relevant */
     a.textrect.top = y * s->font_height;
     a.textrect.bottom = (y + 1) * s->font_height;
@@ -889,7 +876,7 @@ static pascal void do_text_for_device(short depth, short devflags,
 	break;
       case 2:
 	if (a->attr & TATTR_ACTCURS) {
-	    PmForeColor(bright ? CURSOR_FG_BOLD : CURSOR_FG);
+	    PmForeColor(CURSOR_FG);
 	    PmBackColor(CURSOR_BG);
 	    TextMode(srcCopy);
 	} else {
@@ -899,7 +886,7 @@ static pascal void do_text_for_device(short depth, short devflags,
 	break;
       default:
 	if (a->attr & TATTR_ACTCURS) {
-	    fgcolour = bright ? CURSOR_FG_BOLD : CURSOR_FG;
+	    fgcolour = CURSOR_FG;
 	    bgcolour = CURSOR_BG;
 	    TextMode(srcCopy);
 	} else {
@@ -942,7 +929,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	     unsigned long attr, int lattr)
 {
 
-    /* FIXME: Should do something here! */
+    do_text(ctx, x, y, text, len, attr, lattr);
 }
 
 /*
@@ -1229,13 +1216,13 @@ void palette_set(void *frontend, int n, int r, int g, int b) {
     static const int first[21] = {
 	0, 2, 4, 6, 8, 10, 12, 14,
 	1, 3, 5, 7, 9, 11, 13, 15,
-	16, 17, 18, 20, 22
+	16, 17, 18, 20, 21
     };
     
     if (!HAVE_COLOR_QD())
 	return;
     real_palette_set(s, first[n], r, g, b);
-    if (first[n] >= 18)
+    if (first[n] == 18)
 	real_palette_set(s, first[n]+1, r, g, b);
     if (first[n] == DEFAULT_BG)
 	mac_adjustwinbg(s);
