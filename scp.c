@@ -310,7 +310,7 @@ static void source(char *src)
     f = CreateFile(src, GENERIC_READ, FILE_SHARE_READ, NULL,
 		   OPEN_EXISTING, 0, 0);
     if (f == INVALID_HANDLE_VALUE) {
-	run_err("%s: Cannot open file");
+	run_err("%s: Cannot open file", src);
 	return;
     }
 
