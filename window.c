@@ -118,6 +118,7 @@ static int caret_x = -1, caret_y = -1;
 static void *ldisc;
 static Backend *back;
 static void *backhandle;
+static Terminal *term;
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -1194,7 +1195,7 @@ static void init_fonts(int pick_width, int pick_height)
     }
     fontflag[0] = fontflag[1] = fontflag[2] = 1;
 
-    init_ucs_tables();
+    init_ucs();
 }
 
 static void another_font(int fontno)

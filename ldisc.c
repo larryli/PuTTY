@@ -10,16 +10,7 @@
 
 #include "putty.h"
 #include "terminal.h"
-
-typedef struct ldisc_tag {
-    Terminal *term;
-    Backend *back;
-    void *backhandle;
-    void *frontend;
-
-    char *buf;
-    int buflen, bufsiz, quotenext;
-} *Ldisc;
+#include "ldisc.h"
 
 #define ECHOING (cfg.localecho == LD_YES || \
                  (cfg.localecho == LD_BACKEND && \

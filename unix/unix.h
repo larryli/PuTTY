@@ -30,13 +30,6 @@ unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define WCHAR wchar_t
 #define BYTE unsigned char
 
-int is_dbcs_leadbyte(int codepage, char byte);
-int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
-	     wchar_t *wcstr, int wclen);
-int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused);
-void init_ucs(void);
-
 /* Things pty.c needs from pterm.c */
 char *get_x_display(void);
 int font_dimension(int which);	       /* 0 for width, 1 for height */

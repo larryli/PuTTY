@@ -56,6 +56,7 @@ struct gui_data {
     void *ldisc;
     Backend *back;
     void *backhandle;
+    Terminal *term;
 };
 
 static struct gui_data the_inst;
@@ -171,7 +172,7 @@ void set_zorder(int top)
  */
 void refresh_window(void)
 {
-    term_invalidate(term);
+    term_invalidate(inst->term);
 }
 
 /*
@@ -296,7 +297,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     }
 
     if (need_size) {
-	term_size(term, h, w, cfg.savelines);
+	term_size(inst->term, h, w, cfg.savelines);
     }
 
     return TRUE;
@@ -420,11 +421,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * at all.
 	 */
 	if (event->keyval == GDK_Page_Up && (event->state & GDK_SHIFT_MASK)) {
-	    term_scroll(term, 0, -cfg.height/2);
+	    term_scroll(inst->term, 0, -cfg.height/2);
 	    return TRUE;
 	}
 	if (event->keyval == GDK_Page_Down && (event->state & GDK_SHIFT_MASK)) {
-	    term_scroll(term, 0, +cfg.height/2);
+	    term_scroll(inst->term, 0, +cfg.height/2);
 	    return TRUE;
 	}
 
@@ -527,7 +528,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * Application keypad mode.
 	 */
-	if (term->app_keypad_keys && !cfg.no_applic_k) {
+	if (inst->term->app_keypad_keys && !cfg.no_applic_k) {
 	    int xkey = 0;
 	    switch (event->keyval) {
 	      case GDK_Num_Lock: xkey = 'P'; break;
@@ -565,7 +566,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	      case GDK_KP_Decimal: case GDK_KP_Delete: xkey = 'n'; break;
 	    }
 	    if (xkey) {
-		if (term->vt52_mode) {
+		if (inst->term->vt52_mode) {
 		    if (xkey >= 'P' && xkey <= 'S')
 			end = 1 + sprintf(output+1, "\033%c", xkey);
 		    else
@@ -673,7 +674,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    if (cfg.funky_type == 3 && code <= 6)
 		code = "\0\2\1\4\5\3\6"[code];
 
-	    if (term->vt52_mode && code > 0 && code <= 6) {
+	    if (inst->term->vt52_mode && code > 0 && code <= 6) {
 		end = 1 + sprintf(output+1, "\x1B%c", " HLMEIG"[code]);
 		goto done;
 	    }
@@ -712,14 +713,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		}
 		goto done;
 	    }
-	    if ((term->vt52_mode || cfg.funky_type == 4) &&
+	    if ((inst->term->vt52_mode || cfg.funky_type == 4) &&
 		code >= 11 && code <= 24) {
 		int offt = 0;
 		if (code > 15)
 		    offt++;
 		if (code > 21)
 		    offt++;
-		if (term->vt52_mode)
+		if (inst->term->vt52_mode)
 		    end = 1 + sprintf(output+1,
 				      "\x1B%c", code + 'P' - 11 - offt);
 		else
@@ -732,7 +733,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		goto done;
 	    }
 	    if (cfg.funky_type == 2 && code >= 11 && code <= 14) {
-		if (term->vt52_mode)
+		if (inst->term->vt52_mode)
 		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
 		else
 		    end = 1 + sprintf(output+1, "\x1BO%c", code + 'P' - 11);
@@ -770,9 +771,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		 * app cursor keys mode they do ESC O A instead.
 		 * Ctrl toggles the two modes.
 		 */
-		if (term->vt52_mode) {
+		if (inst->term->vt52_mode) {
 		    end = 1 + sprintf(output+1, "\033%c", xkey);
-		} else if (!term->app_cursor_keys ^
+		} else if (!inst->term->app_cursor_keys ^
 			   !(event->state & GDK_CONTROL_MASK)) {
 		    end = 1 + sprintf(output+1, "\033O%c", xkey);
 		} else {		    
@@ -797,8 +798,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	ldisc_send(inst->ldisc, output+start, end-start, 1);
 	show_mouseptr(0);
-	term_seen_key_event(term);
-	term_out(term);
+	term_seen_key_event(inst->term);
+	term_out(inst->term);
     }
 
     return TRUE;
@@ -812,11 +813,11 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
     show_mouseptr(1);
 
     if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
-	term_scroll(term, 0, -5);
+	term_scroll(inst->term, 0, -5);
 	return TRUE;
     }
     if (event->button == 5 && event->type == GDK_BUTTON_PRESS) {
-	term_scroll(term, 0, +5);
+	term_scroll(inst->term, 0, +5);
 	return TRUE;
     }
 
@@ -847,7 +848,7 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
     x = (event->x - cfg.window_border) / inst->font_width;
     y = (event->y - cfg.window_border) / inst->font_height;
 
-    term_mouse(term, button, act, x, y, shift, ctrl, alt);
+    term_mouse(inst->term, button, act, x, y, shift, ctrl, alt);
 
     return TRUE;
 }
@@ -874,7 +875,7 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     x = (event->x - cfg.window_border) / inst->font_width;
     y = (event->y - cfg.window_border) / inst->font_height;
 
-    term_mouse(term, button, MA_DRAG, x, y, shift, ctrl, alt);
+    term_mouse(inst->term, button, MA_DRAG, x, y, shift, ctrl, alt);
 
     return TRUE;
 }
@@ -921,7 +922,7 @@ void done_with_pty(struct gui_data *inst)
 			" %d (%.400s)]\r\n", WTERMSIG(exitcode),
 			strsignal(WTERMSIG(exitcode)));
 #endif
-	    from_backend((void *)term, 0, message, strlen(message));
+	    from_backend((void *)inst->term, 0, message, strlen(message));
 	}
 	inst->exited = 1;
     }
@@ -956,8 +957,8 @@ gint timer_func(gpointer data)
 	done_with_pty(inst);
     }
 
-    term_update(term);
-    term_blink(term, 0);
+    term_update(inst->term);
+    term_blink(inst->term, 0);
     return TRUE;
 }
 
@@ -980,9 +981,9 @@ void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 	perror("read pty master");
 	exit(1);
     } else if (ret > 0)
-	from_backend(term, 0, buf, ret);
-    term_blink(term, 1);
-    term_out(term);
+	from_backend(inst->term, 0, buf, ret);
+    term_blink(inst->term, 1);
+    term_out(inst->term);
 }
 
 void destroy(GtkWidget *widget, gpointer data)
@@ -992,9 +993,9 @@ void destroy(GtkWidget *widget, gpointer data)
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
-    term->has_focus = event->in;
-    term_out(term);
-    term_update(term);
+    inst->term->has_focus = event->in;
+    term_out(inst->term);
+    term_update(inst->term);
     show_mouseptr(1);
     return FALSE;
 }
@@ -1180,7 +1181,7 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
 		     gpointer data)
 {
-    term_deselect(term);
+    term_deselect(inst->term);
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
     inst->pasteout_data = NULL;
@@ -1216,9 +1217,9 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     mb_to_wc(0, 0, seldata->data, seldata->length,
 	     inst->pastein_data, inst->pastein_data_len);
 
-    term_do_paste(term);
+    term_do_paste(inst->term);
 
-    if (term_paste_pending(term))
+    if (term_paste_pending(inst->term))
 	inst->term_paste_idle_id = gtk_idle_add(idle_paste_func, inst);
 }
 
@@ -1226,8 +1227,8 @@ gint idle_paste_func(gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (term_paste_pending(term))
-	term_paste(term);
+    if (term_paste_pending(inst->term))
+	term_paste(inst->term);
     else
 	gtk_idle_remove(inst->term_paste_idle_id);
 
@@ -1277,7 +1278,7 @@ void scrollbar_moved(GtkAdjustment *adj, gpointer data)
     if (!cfg.scrollbar)
 	return;
     if (!inst->ignore_sbar)
-	term_scroll(term, 1, (int)adj->value);
+	term_scroll(inst->term, 1, (int)adj->value);
 }
 
 void sys_cursor(int x, int y)
@@ -1360,10 +1361,10 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 
     if (lattr != LATTR_NORM) {
 	x *= 2;
-	if (x >= term->cols)
+	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2 > term->cols)
-	    len = (term->cols-x)/2;    /* trim to LH half */
+	if (x + len*2 > inst->term->cols)
+	    len = (inst->term->cols-x)/2;    /* trim to LH half */
     }
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
@@ -1442,10 +1443,10 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
     if (lattr != LATTR_NORM) {
 	x *= 2;
-	if (x >= term->cols)
+	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2 > term->cols)
-	    len = (term->cols-x)/2;    /* trim to LH half */
+	if (x + len*2 > inst->term->cols)
+	    len = (inst->term->cols-x)/2;    /* trim to LH half */
 	len *= 2;
     }
 
@@ -1475,10 +1476,10 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 
     if (lattr != LATTR_NORM) {
 	x *= 2;
-	if (x >= term->cols)
+	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2 > term->cols)
-	    len = (term->cols-x)/2;    /* trim to LH half */
+	if (x + len*2 > inst->term->cols)
+	    len = (inst->term->cols-x)/2;    /* trim to LH half */
 	len *= 2;
     }
 
@@ -1962,16 +1963,16 @@ int main(int argc, char **argv)
     inst->currcursor = inst->textcursor;
     show_mouseptr(1);
 
-    term = term_init();
+    inst->term = term_init();
 
     inst->back = &pty_backend;
-    inst->back->init((void *)term, &inst->backhandle, NULL, 0, NULL, 0);
+    inst->back->init((void *)inst->term, &inst->backhandle, NULL, 0, NULL, 0);
 
-    term_provide_resize_fn(term, inst->back->size, inst->backhandle);
+    term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
 
-    term_size(term, cfg.height, cfg.width, cfg.savelines);
+    term_size(inst->term, cfg.height, cfg.width, cfg.savelines);
 
-    inst->ldisc = ldisc_create(term, inst->back, inst->backhandle, inst);
+    inst->ldisc = ldisc_create(inst->term, inst->back, inst->backhandle, inst);
     ldisc_send(inst->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     inst->master_fd = pty_master_fd;

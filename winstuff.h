@@ -173,13 +173,4 @@ void force_normal(HWND hwnd);
 void UpdateSizeTip(HWND src, int cx, int cy);
 void EnableSizeTip(int bEnable);
 
-/*
- * Unicode and multi-byte character handling stuff.
- */
-#define is_dbcs_leadbyte(cp, c) IsDBCSLeadByteEx(cp, c)
-#define mb_to_wc(cp, flags, mbstr, mblen, wcstr, wclen) \
-	MultiByteToWideChar(cp, flags, mbstr, mblen, wcstr, wclen)
-#define wc_to_mb(cp, flags, wcstr, wclen, mbstr, mblen, def, defused) \
-	WideCharToMultiByte(cp, flags, wcstr, wclen, mbstr, mblen, def,defused)
-
 #endif

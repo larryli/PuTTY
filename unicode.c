@@ -5,8 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-
 #include <time.h>
+#include <assert.h>
+
 #include "putty.h"
 #include "terminal.h"
 #include "misc.h"
@@ -419,7 +420,7 @@ static struct cp_list_item cp_list[] = {
 
 static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr);
 
-void init_ucs_tables(void)
+void init_ucs(void)
 {
     int i, j;
     int used_dtf = 0;
@@ -596,88 +597,6 @@ static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr)
 	    }
 	}
     }
-}
-
-void lpage_send(void *ldisc, int codepage, char *buf, int len, int interactive)
-{
-    static wchar_t *widebuffer = 0;
-    static int widesize = 0;
-    int wclen;
-
-    if (codepage < 0) {
-	ldisc_send(ldisc, buf, len, interactive);
-	return;
-    }
-
-    if (len > widesize) {
-	sfree(widebuffer);
-	widebuffer = smalloc(len * 2 * sizeof(wchar_t));
-	widesize = len * 2;
-    }
-
-    wclen = mb_to_wc(codepage, 0, buf, len, widebuffer, widesize);
-    luni_send(ldisc, widebuffer, wclen, interactive);
-}
-
-void luni_send(void *ldisc, wchar_t * widebuf, int len, int interactive)
-{
-    static char *linebuffer = 0;
-    static int linesize = 0;
-    int ratio = (in_utf(term))?3:1;
-    int i;
-    char *p;
-
-    if (len * ratio > linesize) {
-	sfree(linebuffer);
-	linebuffer = smalloc(len * ratio * 2 * sizeof(wchar_t));
-	linesize = len * ratio * 2;
-    }
-
-    if (in_utf(term)) {
-	/* UTF is a simple algorithm */
-	for (p = linebuffer, i = 0; i < len; i++) {
-	    wchar_t ch = widebuf[i];
-	    /* Windows wchar_t is UTF-16 */
-	    if ((ch&0xF800) == 0xD800) ch = '.';
-
-	    if (ch < 0x80) {
-		*p++ = (char) (ch);
-	    } else if (ch < 0x800) {
-		*p++ = (0xC0 | (ch >> 6));
-		*p++ = (0x80 | (ch & 0x3F));
-	    } else {
-		*p++ = (0xE0 | (ch >> 12));
-		*p++ = (0x80 | ((ch >> 6) & 0x3F));
-		*p++ = (0x80 | (ch & 0x3F));
-	    }
-	}
-    } else if (!uni_tbl) {
-	int rv;
-	rv = wc_to_mb(line_codepage, 0, widebuf, len,
-		      linebuffer, linesize, NULL, NULL);
-	if (rv >= 0)
-	    p = linebuffer + rv;
-	else
-	    p = linebuffer;
-    } else {
-	/* Others are a lookup in an array */
-	for (p = linebuffer, i = 0; i < len; i++) {
-	    wchar_t ch = widebuf[i];
-	    int by;
-	    char *p1;
-	    if (uni_tbl && (p1 = uni_tbl[(ch >> 8) & 0xFF])
-		&& (by = p1[ch & 0xFF]))
-		*p++ = by;
-	    else if (ch < 0x80)
-		*p++ = (char) ch;
-#if 1
-	    else
-		*p++ = '.';
-#endif
-	}
-    }
-    if (p > linebuffer)
-	ldisc_send(ldisc, linebuffer, p - linebuffer, interactive);
 }
 
 wchar_t xlat_uskbd2cyrllic(int ch)
@@ -1254,4 +1173,52 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype)
 	for (i = j; i < max; i++)
 	    unitab[i] = cp_list[codepage & 0xFFFF].cp_table[i - j];
     }
+}
+
+int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
+	     char *mbstr, int mblen, char *defchr, int *defused)
+{
+    char *p;
+    int i;
+    if (codepage == line_codepage && uni_tbl) {
+	/* Do this by array lookup if we can. */
+	if (wclen < 0) {
+	    for (wclen = 0; wcstr[wclen++] ;);   /* will include the NUL */
+	}
+	for (p = mbstr, i = 0; i < wclen; i++) {
+	    wchar_t ch = wcstr[i];
+	    int by;
+	    char *p1;
+	    if (uni_tbl && (p1 = uni_tbl[(ch >> 8) & 0xFF])
+		&& (by = p1[ch & 0xFF]))
+		*p++ = by;
+	    else if (ch < 0x80)
+		*p++ = (char) ch;
+	    else if (defchr) {
+		int j;
+		for (j = 0; defchr[j]; j++)
+		    *p++ = defchr[j];
+		if (defused) *defused = 1;
+	    }
+#if 1
+	    else
+		*p++ = '.';
+#endif
+	    assert(p - mbstr < mblen);
+	}
+	return p - mbstr;
+    } else
+	return WideCharToMultiByte(codepage, flags, wcstr, wclen,
+				   mbstr, mblen, defchr, defused);
+}
+
+int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
+	     wchar_t *wcstr, int wclen)
+{
+    return MultiByteToWideChar(codepage, flags, mbstr, mblen, wcstr, wclen);
+}
+
+int is_dbcs_leadbyte(int codepage, char byte)
+{
+    return IsDBCSLeadByteEx(codepage, byte);
 }

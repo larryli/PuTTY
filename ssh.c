@@ -5975,8 +5975,6 @@ static void ssh_size(void *handle, int width, int height)
 	break;
       case SSH_STATE_SESSION:
 	if (!cfg.nopty) {
-	    if (!term)
-		return;
 	    if (ssh->version == 1) {
 		send_packet(ssh, SSH1_CMSG_WINDOW_SIZE,
 			    PKT_INT, ssh->term_height,

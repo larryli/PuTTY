@@ -383,8 +383,6 @@ GLOBAL Config cfg;
 GLOBAL int default_protocol;
 GLOBAL int default_port;
 
-GLOBAL Terminal *term;		       /* temporary while changes are made */
-
 struct RSAKey;			       /* be a little careful of scope */
 
 /*
@@ -520,9 +518,14 @@ extern Backend ssh_backend;
 /*
  * Exports from ldisc.c.
  */
-
 void *ldisc_create(Terminal *, Backend *, void *, void *);
 void ldisc_send(void *handle, char *buf, int len, int interactive);
+
+/*
+ * Exports from ldiscucs.c.
+ */
+void lpage_send(void *, int codepage, char *buf, int len, int interactive);
+void luni_send(void *, wchar_t * widebuf, int len, int interactive);
 
 /*
  * Exports from sshrand.c.
@@ -551,9 +554,12 @@ extern char ver[];
 #ifndef CP_UTF8
 #define CP_UTF8 65001
 #endif
-void init_ucs_tables(void);
-void lpage_send(void *, int codepage, char *buf, int len, int interactive);
-void luni_send(void *, wchar_t * widebuf, int len, int interactive);
+void init_ucs(void);
+int is_dbcs_leadbyte(int codepage, char byte);
+int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
+	     wchar_t *wcstr, int wclen);
+int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
+	     char *mbstr, int mblen, char *defchr, int *defused);
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);
