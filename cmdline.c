@@ -137,6 +137,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	/* This parameter must be processed immediately rather than being
 	 * saved. */
 	do_defaults(value, cfg);
+	loaded_session = TRUE;
 	return 2;
     }
     if (!strcmp(p, "-ssh")) {

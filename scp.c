@@ -321,11 +321,27 @@ static void do_cmd(char *host, char *user, char *cmd)
     if (host == NULL || host[0] == '\0')
 	bump("Empty host name");
 
-    /* Try to load settings for this host */
-    do_defaults(host, &cfg);
-    if (cfg.host[0] == '\0') {
-	/* No settings for this host; use defaults */
-	do_defaults(NULL, &cfg);
+    /*
+     * If we haven't loaded session details already (e.g., from -load),
+     * try looking for a session called "host".
+     */
+    if (!loaded_session) {
+	/* Try to load settings for `host' into a temporary config */
+	Config cfg2;
+	cfg2.host[0] = '\0';
+	do_defaults(host, &cfg2);
+	if (cfg2.host[0] != '\0') {
+	    /* Settings present and include hostname */
+	    /* Re-load data into the real config. */
+	    do_defaults(host, &cfg);
+	} else {
+	    /* Session doesn't exist or mention a hostname. */
+	    /* Use `host' as a bare hostname. */
+	    strncpy(cfg.host, host, sizeof(cfg.host) - 1);
+	    cfg.host[sizeof(cfg.host) - 1] = '\0';
+	}
+    } else {
+	/* Patch in hostname `host' to session details. */
 	strncpy(cfg.host, host, sizeof(cfg.host) - 1);
 	cfg.host[sizeof(cfg.host) - 1] = '\0';
     }
@@ -2157,6 +2173,10 @@ int psftp_main(int argc, char *argv[])
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     ssh_get_line = &console_get_line;
     sk_init();
+
+    /* Load Default Settings before doing anything else. */
+    do_defaults(NULL, &cfg);
+    loaded_session = FALSE;
 
     for (i = 1; i < argc; i++) {
 	int ret;

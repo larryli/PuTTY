@@ -295,6 +295,7 @@ int main(int argc, char **argv)
      * Process the command line.
      */
     do_defaults(NULL, &cfg);
+    loaded_session = FALSE;
     default_protocol = cfg.protocol;
     default_port = cfg.port;
     errors = 0;
@@ -409,13 +410,15 @@ int main(int argc, char **argv)
 			 */
 			Config cfg2;
 			do_defaults(p, &cfg2);
-			if (cfg2.host[0] == '\0') {
+			if (loaded_session || cfg2.host[0] == '\0') {
 			    /* No settings for this host; use defaults */
+			    /* (or session was already loaded with -load) */
 			    strncpy(cfg.host, p, sizeof(cfg.host) - 1);
 			    cfg.host[sizeof(cfg.host) - 1] = '\0';
 			    cfg.port = default_port;
 			} else {
 			    cfg = cfg2;
+			    /* Ick: patch up internal pointer after copy */
 			    cfg.remote_cmd_ptr = cfg.remote_cmd;
 			}
 		    } else {
