@@ -718,14 +718,15 @@ void try_send(Actual_Socket s)
 	noise_ultralight(nsent);
 	if (nsent <= 0) {
 	    err = (nsent < 0 ? WSAGetLastError() : 0);
-	    if ((err == 0 && nsent < 0) || err == WSAEWOULDBLOCK) {
+	    if ((err < WSABASEERR && nsent < 0) || err == WSAEWOULDBLOCK) {
 		/*
 		 * Perfectly normal: we've sent all we can for the moment.
 		 * 
-		 * (Apparently some WinSocks can return <0 but
-		 * leave no error indication - WSAGetLastError() is
-		 * called but returns zero - so we check that case
-		 * and treat it just like WSAEWOULDBLOCK.)
+		 * (Some WinSock send() implementations can return
+		 * <0 but leave no sensible error indication -
+		 * WSAGetLastError() is called but returns zero or
+		 * a small number - so we check that case and treat
+		 * it just like WSAEWOULDBLOCK.)
 		 */
 		s->writable = FALSE;
 		return;
