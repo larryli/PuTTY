@@ -1829,8 +1829,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      IDC_PROXYEXCLUDEEDIT, 100, NULL);
 	    staticedit(&cp, "&Username", IDC_PROXYUSERSTATIC,
 		       IDC_PROXYUSEREDIT, 60);
-	    staticedit(&cp, "Pass&word", IDC_PROXYPASSSTATIC,
-		       IDC_PROXYPASSEDIT, 60);
+	    staticpassedit(&cp, "Pass&word", IDC_PROXYPASSSTATIC,
+			   IDC_PROXYPASSEDIT, 60);
 	    endbox(&cp);
 	    beginbox(&cp, "Misc. proxy settings", IDC_BOX_PROXY2);
 	    multiedit(&cp,

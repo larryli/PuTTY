@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.38 2002/09/10 12:30:45 jacob Exp $
+\versionid $Id: config.but,v 1.39 2002/09/21 14:03:05 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1433,9 +1433,16 @@ This excludes both of the above ranges at once.
 If your proxy requires authentication, you can enter a username and
 a password in the \q{Username} and \q{Password} boxes.
 
-Currently only the \q{Username} box has any effect, and that only for
-SOCKS 4 proxies. ( [FIXME] No forms of authentication are supported
-for other types of proxy.)
+Authentication is not supported for all forms of proxy. Currently:
+
+\b Username and password authentication is supported for HTTP proxies.
+
+\b SOCKS 4 can use the \q{Username} field, but does not support
+passwords.
+
+\b PuTTY does not support authentication in SOCKS 5 at all.
+
+\b Authentication is meaningless in Telnet proxies.
 
 \S{config-proxy-command} Specifying the Telnet proxy command
 

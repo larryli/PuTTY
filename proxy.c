@@ -425,8 +425,24 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 
 	sk_getaddr(p->remote_addr, dest, 64);
 
-	sprintf(buf, "CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n\r\n",
+	sprintf(buf, "CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n",
 		dest, p->remote_port, dest, p->remote_port);
+	sk_write(p->sub_socket, buf, strlen(buf));
+
+	if (cfg.proxy_username[0] || cfg.proxy_password[0]) {
+	    char buf[sizeof(cfg.proxy_username)+sizeof(cfg.proxy_password)];
+	    char buf2[sizeof(buf)*4/3 + 100];
+	    int i, j, len;
+	    sprintf(buf, "%s:%s", cfg.proxy_username, cfg.proxy_password);
+	    len = strlen(buf);
+	    sprintf(buf2, "Proxy-Authorization: basic ");
+	    for (i = 0, j = strlen(buf2); i < len; i += 3, j += 4)
+		base64_encode_atom(buf+i, (len-i > 3 ? 3 : len-i), buf2+j);
+	    strcpy(buf2+j, "\r\n");
+	    sk_write(p->sub_socket, buf2, strlen(buf2));
+	}
+
+	sprintf(buf, "\r\n");
 	sk_write(p->sub_socket, buf, strlen(buf));
 
 	p->state = 1;
