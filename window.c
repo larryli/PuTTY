@@ -1758,10 +1758,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
     int  r, i, code;
     unsigned char * p = output;
 
-static WORD keys[3];
-static int compose_state = 0;
-static int compose_char = 0;
-static WPARAM compose_key = 0;
+    static WORD keys[3];
+    static int compose_state = 0;
+    static int compose_char = 0;
+    static WPARAM compose_key = 0;
 
     r = GetKeyboardState(keystate);
     if (!r) memset(keystate, 0, sizeof(keystate));
@@ -2071,6 +2071,16 @@ static WPARAM compose_key = 0;
 		    p += sprintf((char *)p, "\x1B[%c", xkey);
 		return p - output;
 	    }
+	}
+
+	/*
+	 * Finally, deal with Return ourselves. (Win95 seems to
+	 * foul it up when Alt is pressed, for some reason.)
+	 */
+	if (wParam == VK_RETURN)       /* Return */
+	{
+	    *p++ = 0x0D;
+	    return p-output;
 	}
     }
 
