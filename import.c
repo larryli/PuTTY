@@ -213,6 +213,8 @@ struct openssh_key *load_openssh_key(char *filename)
     char buffer[256];
     char *errmsg, *p;
     int headers_done;
+    char base64_bit[4];
+    int base64_chars = 0;
 
     ret = smalloc(sizeof(*ret));
     ret->keyblob = NULL;
@@ -287,32 +289,33 @@ struct openssh_key *load_openssh_key(char *filename)
 	    headers_done = 1;
 
 	    p = buffer;
-	    while (isbase64(p[0]) && isbase64(p[1]) &&
-		   isbase64(p[2]) && isbase64(p[3])) {
-		int len;
-		unsigned char out[3];
+	    while (isbase64(*p)) {
+                base64_bit[base64_chars++] = *p;
+                if (base64_chars == 4) {
+                    unsigned char out[3];
+                    int len;
 
-		len = base64_decode_atom(p, out);
+                    base64_chars = 0;
 
-		if (len <= 0) {
-		    errmsg = "Invalid base64 encoding";
-		    goto error;
-		}
+                    len = base64_decode_atom(base64_bit, out);
 
-		if (ret->keyblob_len + len > ret->keyblob_size) {
-		    ret->keyblob_size = ret->keyblob_len + len + 256;
-		    ret->keyblob = srealloc(ret->keyblob, ret->keyblob_size);
-		}
+                    if (len <= 0) {
+                        errmsg = "Invalid base64 encoding";
+                        goto error;
+                    }
 
-		memcpy(ret->keyblob + ret->keyblob_len, out, len);
-		ret->keyblob_len += len;
+                    if (ret->keyblob_len + len > ret->keyblob_size) {
+                        ret->keyblob_size = ret->keyblob_len + len + 256;
+                        ret->keyblob = srealloc(ret->keyblob, ret->keyblob_size);
+                    }
 
-		p += 4;
-	    }
+                    memcpy(ret->keyblob + ret->keyblob_len, out, len);
+                    ret->keyblob_len += len;
 
-	    if (isbase64(*p)) {
-		errmsg = "base64 characters left at end of line";
-		goto error;
+                    memset(out, 0, sizeof(out));
+                }
+
+		p++;
 	    }
 	}
     }
@@ -327,11 +330,19 @@ struct openssh_key *load_openssh_key(char *filename)
 	goto error;
     }
 
+    memset(buffer, 0, sizeof(buffer));
+    memset(base64_bit, 0, sizeof(base64_bit));
     return ret;
 
     error:
+    memset(buffer, 0, sizeof(buffer));
+    memset(base64_bit, 0, sizeof(base64_bit));
     if (ret) {
-	if (ret->keyblob) sfree(ret->keyblob);
+	if (ret->keyblob) {
+            memset(ret->keyblob, 0, ret->keyblob_size);
+            sfree(ret->keyblob);
+        }
+        memset(&ret, 0, sizeof(ret));
 	sfree(ret);
     }
     return NULL;
@@ -345,7 +356,9 @@ int openssh_encrypted(char *filename)
     if (!key)
 	return 0;
     ret = key->encrypted;
+    memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
+    memset(&key, 0, sizeof(key));
     sfree(key);
     return ret;
 }
@@ -360,7 +373,7 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
     struct ssh2_userkey *retval = NULL;
     char *errmsg;
     unsigned char *blob;
-    int blobptr, privptr;
+    int blobsize, blobptr, privptr;
     char *modptr;
     int modlen;
 
@@ -395,6 +408,9 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
 	 */
 	des3_decrypt_pubkey_ossh(keybuf, key->iv,
 				 key->keyblob, key->keyblob_len);
+
+        memset(&md5c, 0, sizeof(md5c));
+        memset(keybuf, 0, sizeof(keybuf));
     }
 
     /*
@@ -435,7 +451,8 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
     /*
      * Space to create key blob in.
      */
-    blob = smalloc(256+key->keyblob_len);
+    blobsize = 256+key->keyblob_len;
+    blob = smalloc(blobsize);
     PUT_32BIT(blob, 7);
     if (key->type == OSSH_DSA)
 	memcpy(blob+4, "ssh-dss", 7);
@@ -518,14 +535,17 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
     }
 
     retkey->comment = dupstr("imported-openssh-key");
-    if (blob) sfree(blob);
-    sfree(key->keyblob);
-    sfree(key);
-    return retkey;
+    errmsg = NULL;                     /* no error */
+    retval = retkey;
 
     error:
-    if (blob) sfree(blob);
+    if (blob) {
+        memset(blob, 0, blobsize);
+        sfree(blob);
+    }
+    memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
+    memset(&key, 0, sizeof(key));
     sfree(key);
     return retval;
 }
@@ -718,7 +738,11 @@ struct sshcom_key *load_sshcom_key(char *filename)
 
     error:
     if (ret) {
-	if (ret->keyblob) sfree(ret->keyblob);
+	if (ret->keyblob) {
+            memset(ret->keyblob, 0, ret->keyblob_size);
+            sfree(ret->keyblob);
+        }
+        memset(&ret, 0, sizeof(ret));
 	sfree(ret);
     }
     return NULL;
@@ -757,7 +781,9 @@ int sshcom_encrypted(char *filename, char **comment)
 
     done:
     *comment = dupstr(key->comment);
+    memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
+    memset(&key, 0, sizeof(key));
     sfree(key);
     return answer;
 }
@@ -802,7 +828,7 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
     struct ssh2_userkey *ret = NULL, *retkey;
     const struct ssh_signkey *alg;
     unsigned char *blob = NULL;
-    int publen, privlen;
+    int blobsize, publen, privlen;
 
     if (!key)
         return NULL;
@@ -902,12 +928,17 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
 	/*
 	 * Now decrypt the key blob.
 	 */
-        memset(iv, 0, 8);
+        memset(iv, 0, sizeof(iv));
 	des3_decrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
+
+        memset(&md5c, 0, sizeof(md5c));
+        memset(keybuf, 0, sizeof(keybuf));
 
         /*
          * Hereafter we return WRONG_PASSPHRASE for any parsing
-         * error. (But not if we haven't just tried to decrypt it!)
+         * error. (But only if we've just tried to decrypt it!
+         * Returning WRONG_PASSPHRASE for an unencrypted key is
+         * automatic doom.)
          */
         if (encrypted)
             ret = SSH2_WRONG_PASSPHRASE;
@@ -929,7 +960,8 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
      * construct public and private blobs in our own format, and
      * end up feeding them to alg->createkey().
      */
-    blob = smalloc(cipherlen + 256);
+    blobsize = cipherlen + 256;
+    blob = smalloc(blobsize);
     privlen = 0;
     if (type == RSA) {
         struct mpint_pos n, e, d, u, p, q;
@@ -1001,8 +1033,13 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
     ret = retkey;
 
     error:
-    if (blob) sfree(blob);
+    if (blob) {
+        memset(blob, 0, blobsize);
+        sfree(blob);
+    }
+    memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
+    memset(&key, 0, sizeof(key));
     sfree(key);
     return ret;
 }

@@ -840,6 +840,7 @@ void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
     des_key_setup(GET_32BIT_MSB_FIRST(key),
 		  GET_32BIT_MSB_FIRST(key + 4), &ourkeys[2]);
     des_3cbc_decrypt(blk, blk, len, ourkeys);
+    memset(ourkeys, 0, sizeof(ourkeys));
 }
 
 void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
@@ -852,6 +853,7 @@ void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
     des_key_setup(GET_32BIT_MSB_FIRST(key),
 		  GET_32BIT_MSB_FIRST(key + 4), &ourkeys[2]);
     des_3cbc_encrypt(blk, blk, len, ourkeys);
+    memset(ourkeys, 0, sizeof(ourkeys));
 }
 
 void des3_decrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
@@ -867,6 +869,7 @@ void des3_decrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
     ourkeys[0].div0 = GET_32BIT_MSB_FIRST(iv);
     ourkeys[0].div1 = GET_32BIT_MSB_FIRST(iv+4);
     des_cbc3_decrypt(blk, blk, len, ourkeys);
+    memset(ourkeys, 0, sizeof(ourkeys));
 }
 
 void des3_encrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
@@ -882,6 +885,7 @@ void des3_encrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
     ourkeys[0].eiv0 = GET_32BIT_MSB_FIRST(iv);
     ourkeys[0].eiv1 = GET_32BIT_MSB_FIRST(iv+4);
     des_cbc3_encrypt(blk, blk, len, ourkeys);
+    memset(ourkeys, 0, sizeof(ourkeys));
 }
 
 static const struct ssh2_cipher ssh_3des_ssh2 = {
