@@ -121,13 +121,11 @@ static int x11_receive (Socket s, int urgent, char *data, int len) {
  * 
  * Returns an error message, or NULL on success.
  * also, fills the SocketsStructure
- *
- * Also places the canonical host name into `realhost'.
  */
-char *x11_init (Socket *s, char *display, void *c, char **realhost) {
+char *x11_init (Socket *s, char *display, void *c) {
     SockAddr addr;
     int port;
-    char *err;
+    char *err, *dummy_realhost;
     char host[128];
     int n, displaynum;
     struct X11Private *pr;
@@ -148,7 +146,7 @@ char *x11_init (Socket *s, char *display, void *c, char **realhost) {
     /*
      * Try to find host.
      */
-    addr = sk_namelookup(host, realhost);
+    addr = sk_namelookup(host, &dummy_realhost);
     if ( (err = sk_addr_error(addr)) )
 	return err;
 

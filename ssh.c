@@ -165,7 +165,7 @@ extern const struct ssh_cipher ssh_des;
 extern const struct ssh_cipher ssh_blowfish_ssh1;
 extern const struct ssh_cipher ssh_blowfish_ssh2;
 
-extern char *x11_init (Socket *, char *, void *, char **);
+extern char *x11_init (Socket *, char *, void *);
 extern void x11_close (Socket);
 extern void x11_send  (Socket , char *, int);
 extern void x11_invent_auth(char *, int, char *, int);
@@ -1896,11 +1896,9 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 				PKT_END);
 		    logevent("Rejected X11 connect request");
 		} else {
-                    char *rh;
-
 		    c = smalloc(sizeof(struct ssh_channel));
 
-		    if ( x11_init(&c->u.x11.s, cfg.x11_display, c, &rh) != NULL ) {
+		    if ( x11_init(&c->u.x11.s, cfg.x11_display, c) != NULL ) {
 		      logevent("opening X11 forward connection failed");
 		      sfree(c);
 		      send_packet(SSH1_MSG_CHANNEL_OPEN_FAILURE,
@@ -2908,10 +2906,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 c = smalloc(sizeof(struct ssh_channel));
 
                 if (typelen == 3 && !memcmp(type, "x11", 3)) {
-                    char *rh;
                     if (!ssh_X11_fwd_enabled)
                         error = "X11 forwarding is not enabled";
-                    else if ( x11_init(&c->u.x11.s, cfg.x11_display, c, &rh) != NULL ) {
+                    else if ( x11_init(&c->u.x11.s, cfg.x11_display, c) != NULL ) {
                         error = "Unable to open an X11 connection";
                     } else {
                         c->type = CHAN_X11;
