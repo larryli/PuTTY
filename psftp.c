@@ -168,13 +168,13 @@ struct sftp_command {
 
 int sftp_cmd_null(struct sftp_command *cmd)
 {
-    return 0;
+    return 1;			       /* success */
 }
 
 int sftp_cmd_unknown(struct sftp_command *cmd)
 {
     printf("psftp: unknown command \"%s\"\n", cmd->words[0]);
-    return 0;
+    return 0;			       /* failure */
 }
 
 int sftp_cmd_quit(struct sftp_command *cmd)
@@ -269,7 +269,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 
     sfree(cdir);
 
-    return 0;
+    return 1;
 }
 
 /*
@@ -309,7 +309,7 @@ int sftp_cmd_cd(struct sftp_command *cmd)
     pwd = dir;
     printf("Remote directory is now %s\n", pwd);
 
-    return 0;
+    return 1;
 }
 
 /*
@@ -323,7 +323,7 @@ int sftp_cmd_pwd(struct sftp_command *cmd)
     }
 
     printf("Remote directory is %s\n", pwd);
-    return 0;
+    return 1;
 }
 
 /*
@@ -338,6 +338,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
     char *fname, *outfname;
     uint64 offset;
     FILE *fp;
+    int ret;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -393,6 +394,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
      * FIXME: we can use FXP_FSTAT here to get the file size, and
      * thus put up a progress bar.
      */
+    ret = 1;
     while (1) {
 	char buffer[4096];
 	int len;
@@ -403,6 +405,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
 	    break;
 	if (len == -1) {
 	    printf("error while reading: %s\n", fxp_error());
+	    ret = 0;
 	    break;
 	}
 
@@ -411,12 +414,15 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
 	    wlen = fwrite(buffer, 1, len - wpos, fp);
 	    if (wlen <= 0) {
 		printf("error while writing local file\n");
+		ret = 0;
 		break;
 	    }
 	    wpos += wlen;
 	}
-	if (wpos < len)		       /* we had an error */
+	if (wpos < len) {	       /* we had an error */
+	    ret = 0;
 	    break;
+	}
 	offset = uint64_add32(offset, len);
     }
 
@@ -424,7 +430,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
     fxp_close(fh);
     sfree(fname);
 
-    return 0;
+    return ret;
 }
 int sftp_cmd_get(struct sftp_command *cmd)
 {
@@ -447,6 +453,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
     char *fname, *origoutfname, *outfname;
     uint64 offset;
     FILE *fp;
+    int ret;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -519,6 +526,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
      * FIXME: we can use FXP_FSTAT here to get the file size, and
      * thus put up a progress bar.
      */
+    ret = 1;
     while (1) {
 	char buffer[4096];
 	int len;
@@ -526,12 +534,14 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
 	len = fread(buffer, 1, sizeof(buffer), fp);
 	if (len == -1) {
 	    printf("error while reading local file\n");
+	    ret = 0;
 	    break;
 	} else if (len == 0) {
 	    break;
 	}
 	if (!fxp_write(fh, buffer, offset, len)) {
 	    printf("error while writing: %s\n", fxp_error());
+	    ret = 0;
 	    break;
 	}
 	offset = uint64_add32(offset, len);
@@ -541,7 +551,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
     fclose(fp);
     sfree(outfname);
 
-    return 0;
+    return ret;
 }
 int sftp_cmd_put(struct sftp_command *cmd)
 {
@@ -581,7 +591,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     }
 
     sfree(dir);
-    return 0;
+    return 1;
 }
 
 int sftp_cmd_rmdir(struct sftp_command *cmd)
@@ -613,7 +623,7 @@ int sftp_cmd_rmdir(struct sftp_command *cmd)
     }
 
     sfree(dir);
-    return 0;
+    return 1;
 }
 
 int sftp_cmd_rm(struct sftp_command *cmd)
@@ -645,8 +655,7 @@ int sftp_cmd_rm(struct sftp_command *cmd)
     }
 
     sfree(fname);
-    return 0;
-
+    return 1;
 }
 
 int sftp_cmd_mv(struct sftp_command *cmd)
@@ -716,7 +725,7 @@ int sftp_cmd_mv(struct sftp_command *cmd)
 
     sfree(srcfname);
     sfree(dstfname);
-    return 0;
+    return 1;
 }
 
 int sftp_cmd_chmod(struct sftp_command *cmd)
@@ -872,7 +881,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
     printf("%s: %04o -> %04o\n", fname, oldperms, newperms);
 
     sfree(fname);
-    return 0;
+    return 1;
 }
 
 static int sftp_cmd_open(struct sftp_command *cmd)
@@ -892,6 +901,7 @@ static int sftp_cmd_open(struct sftp_command *cmd)
 	return -1;		       /* this is fatal */
     }
     do_sftp_init();
+    return 1;
 }
 
 static int sftp_cmd_help(struct sftp_command *cmd);
@@ -1137,7 +1147,7 @@ static int sftp_cmd_help(struct sftp_command *cmd)
 	    }
 	}
     }
-    return 0;
+    return 1;
 }
 
 /* ----------------------------------------------------------------------
@@ -1151,9 +1161,9 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     char *p, *q, *r;
     int quoting;
 
-	if ((mode == 0) || (modeflags & 1)) {
-	    printf("psftp> ");
-	}
+    if ((mode == 0) || (modeflags & 1)) {
+	printf("psftp> ");
+    }
     fflush(stdout);
 
     cmd = smalloc(sizeof(struct sftp_command));
@@ -1170,9 +1180,6 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	linesize += 512;
 	line = srealloc(line, linesize);
 	ret = fgets(line + linelen, linesize - linelen, fp);
-	if (modeflags & 1) {
-		printf("%s", ret);
-	}
 
 	if (!ret || (linelen == 0 && line[0] == '\0')) {
 	    cmd->obey = sftp_cmd_quit;
@@ -1186,6 +1193,9 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	    line[linelen] = '\0';
 	    break;
 	}
+    }
+    if (modeflags & 1) {
+	printf("%s\n", line);
     }
 
     /*
@@ -1280,6 +1290,7 @@ static void do_sftp_init(void)
 void do_sftp(int mode, int modeflags, char *batchfile)
 {
     FILE *fp;
+    int ret;
 
     /*
      * Batch mode?
@@ -1290,12 +1301,12 @@ void do_sftp(int mode, int modeflags, char *batchfile)
          * Now we're ready to do Real Stuff.
          */
         while (1) {
-    	struct sftp_command *cmd;
-    	cmd = sftp_getcmd(stdin, 0, 0);
-    	if (!cmd)
-    	    break;
-		if (cmd->obey(cmd) < 0)
-		    break;
+	    struct sftp_command *cmd;
+	    cmd = sftp_getcmd(stdin, 0, 0);
+	    if (!cmd)
+		break;
+	    if (cmd->obey(cmd) < 0)
+		break;
 	}
     } else {
         fp = fopen(batchfile, "r");
@@ -1308,9 +1319,10 @@ void do_sftp(int mode, int modeflags, char *batchfile)
 	    cmd = sftp_getcmd(fp, mode, modeflags);
 	    if (!cmd)
 		break;
-	    if (cmd->obey(cmd) < 0)
+	    ret = cmd->obey(cmd);
+	    if (ret < 0)
 		break;
-	    if (fxp_error() != NULL) {
+	    if (ret == 0) {
 		if (!(modeflags & 2))
 		    break;
 	    }
