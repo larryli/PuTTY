@@ -1,4 +1,4 @@
-# $Id: PuTTY.make,v 1.1.2.7 1999/02/28 02:38:40 ben Exp $
+# $Id: PuTTY.make,v 1.1.2.8 1999/03/07 23:15:56 ben Exp $
 # This is the Makefile for building PuTTY for the Mac OS.
 # Users of non-Mac systems will see some pretty strange characters around.
 
@@ -8,7 +8,7 @@ Includes     =
 Sym¥68K      = 
 ObjDir¥68K   =
 
-COptions     = {Includes} {Sym¥68K} 
+COptions     = {Includes} {Sym¥68K} -proto strict -opt all
 
 Objects¥68K  = ¶
 		"{ObjDir¥68K}mac.c.o" ¶
@@ -23,7 +23,8 @@ Objects¥68K  = ¶
 #		"{ObjDir¥68K}sshrsa.c.o" ¶
 #		"{ObjDir¥68K}sshsha.c.o" ¶
 #		"{ObjDir¥68K}telnet.c.o" ¶
-		"{ObjDir¥68K}terminal.c.o"
+		"{ObjDir¥68K}terminal.c.o" ¶
+		"{ObjDir¥68K}testback.c.o"
 
 
 PuTTY ÄÄ {¥MondoBuild¥} {Objects¥68K}
@@ -83,4 +84,7 @@ PuTTY ÄÄ {¥MondoBuild¥} mac_res.r macresid.h
 
 "{ObjDir¥68K}terminal.c.o" Ä {¥MondoBuild¥} terminal.c putty.h
 	{C} terminal.c -o {Targ} {COptions}
+
+"{ObjDir¥68K}testback.c.o" Ä {¥MondoBuild¥} testback.c putty.h
+	{C} testback.c -o {Targ} {COptions}
 
