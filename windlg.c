@@ -66,6 +66,11 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
                 int *selitems;
                 selcount = SendDlgItemMessage(hwnd, IDN_LIST,
                                               LB_GETSELCOUNT, 0, 0);
+                if (selcount == 0) {   /* don't even try to copy zero items */
+                    MessageBeep(0);
+                    break;
+                }
+                    
                 selitems = smalloc(selcount * sizeof(int));
                 if (selitems) {
                     int count = SendDlgItemMessage(hwnd, IDN_LIST,
