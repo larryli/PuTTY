@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.8 2002/08/12 14:08:55 simon Exp $
+\versionid $Id: feedback.but,v 1.9 2002/11/23 11:22:57 jacob Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -62,7 +62,9 @@ problem. Please don't do this without checking with us first - we
 almost never actually need the information in the screen shot.
 Sending a screen shot of an error box is almost certainly
 unnecessary when you could just tell us in plain text what the error
-was. Sending a full-screen shot is \e{occasionally} useful, but it's
+was. (On some versions of Windows, pressing Ctrl-C when the error
+box is displayed will copy the text of the message to the clipboard.)
+Sending a full-screen shot is \e{occasionally} useful, but it's
 probably still wise to check whether we need it before sending it.
 
 If you \e{must} mail a screen shot, don't send it as a \cw{.BMP}
