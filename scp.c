@@ -759,6 +759,8 @@ void scp_sftp_listdir(char *dirname)
     struct fxp_handle *dirh;
     struct fxp_names *names;
     struct fxp_name *ournames;
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
     int nnames, namesize;
     int i;
 
@@ -770,7 +772,11 @@ void scp_sftp_listdir(char *dirname)
 
     printf("Listing directory %s\n", dirname);
 
-    dirh = fxp_opendir(dirname);
+    sftp_register(req = fxp_opendir_send(dirname));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    dirh = fxp_opendir_recv(pktin);
+
     if (dirh == NULL) {
 	printf("Unable to open %s: %s\n", dirname, fxp_error());
     } else {
@@ -779,7 +785,11 @@ void scp_sftp_listdir(char *dirname)
 
 	while (1) {
 
-	    names = fxp_readdir(dirh);
+	    sftp_register(req = fxp_readdir_send(dirh));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    names = fxp_readdir_recv(pktin);
+
 	    if (names == NULL) {
 		if (fxp_error_type() == SSH_FX_EOF)
 		    break;
@@ -802,7 +812,10 @@ void scp_sftp_listdir(char *dirname)
 	    names->nnames = 0;	       /* prevent free_names */
 	    fxp_free_names(names);
 	}
-	fxp_close(dirh);
+	sftp_register(req = fxp_close_send(dirh));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	fxp_close_recv(pktin);
 
 	/*
 	 * Now we have our filenames. Sort them by actual file
@@ -847,7 +860,10 @@ void scp_source_setup(char *target, int shouldbedir)
 	 * Find out whether the target filespec is in fact a
 	 * directory.
 	 */
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
 	struct fxp_attrs attrs;
+	int ret;
 
 	if (!fxp_init()) {
 	    tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
@@ -855,8 +871,12 @@ void scp_source_setup(char *target, int shouldbedir)
 	    return;
 	}
 
-	if (!fxp_stat(target, &attrs) ||
-	    !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS))
+	sftp_register(req = fxp_stat_send(target));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	ret = fxp_stat_recv(pktin, &attrs);
+
+	if (!ret || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS))
 	    scp_sftp_targetisdir = 0;
 	else
 	    scp_sftp_targetisdir = (attrs.permissions & 0040000) != 0;
@@ -903,13 +923,21 @@ int scp_send_filename(char *name, unsigned long size, int modes)
 {
     if (using_sftp) {
 	char *fullname;
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+
 	if (scp_sftp_targetisdir) {
 	    fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
 	} else {
 	    fullname = dupstr(scp_sftp_remotepath);
 	}
-	scp_sftp_filehandle =
-	    fxp_open(fullname, SSH_FXF_WRITE | SSH_FXF_CREAT | SSH_FXF_TRUNC);
+
+	sftp_register(req = fxp_open_send(fullname, SSH_FXF_WRITE |
+					  SSH_FXF_CREAT | SSH_FXF_TRUNC));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	scp_sftp_filehandle = fxp_open_recv(pktin);
+
 	if (!scp_sftp_filehandle) {
 	    tell_user(stderr, "pscp: unable to open %s: %s",
 		      fullname, fxp_error());
@@ -932,10 +960,21 @@ int scp_send_filename(char *name, unsigned long size, int modes)
 int scp_send_filedata(char *data, int len)
 {
     if (using_sftp) {
+	int ret;
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+
 	if (!scp_sftp_filehandle) {
 	    return 1;
 	}
-	if (!fxp_write(scp_sftp_filehandle, data, scp_sftp_fileoffset, len)) {
+
+	sftp_register(req = fxp_write_send(scp_sftp_filehandle,
+					   data, scp_sftp_fileoffset, len));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	ret = fxp_write_recv(pktin);
+
+	if (!ret) {
 	    tell_user(stderr, "error while writing: %s\n", fxp_error());
 	    errs++;
 	    return 1;
@@ -965,6 +1004,10 @@ int scp_send_finish(void)
 {
     if (using_sftp) {
 	struct fxp_attrs attrs;
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+	int ret;
+
 	if (!scp_sftp_filehandle) {
 	    return 1;
 	}
@@ -972,12 +1015,19 @@ int scp_send_finish(void)
 	    attrs.flags = SSH_FILEXFER_ATTR_ACMODTIME;
 	    attrs.atime = scp_sftp_atime;
 	    attrs.mtime = scp_sftp_mtime;
-	    if (!fxp_fsetstat(scp_sftp_filehandle, attrs)) {
+	    sftp_register(req = fxp_fsetstat_send(scp_sftp_filehandle, attrs));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    ret = fxp_fsetstat_recv(pktin);
+	    if (!ret) {
 		tell_user(stderr, "unable to set file times: %s\n", fxp_error());
 		errs++;
 	    }
 	}
-	fxp_close(scp_sftp_filehandle);
+	sftp_register(req = fxp_close_send(scp_sftp_filehandle));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	fxp_close_recv(pktin);
 	scp_has_times = 0;
 	return 0;
     } else {
@@ -1006,6 +1056,10 @@ int scp_send_dirname(char *name, int modes)
 	char *fullname;
 	char const *err;
 	struct fxp_attrs attrs;
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+	int ret;
+
 	if (scp_sftp_targetisdir) {
 	    fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
 	} else {
@@ -1019,12 +1073,22 @@ int scp_send_dirname(char *name, int modes)
 	 * exists and is a directory we will assume we were either
 	 * successful or it didn't matter.
 	 */
-	if (!fxp_mkdir(fullname))
+	sftp_register(req = fxp_mkdir_send(fullname));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	ret = fxp_mkdir_recv(pktin);
+
+	if (!ret)
 	    err = fxp_error();
 	else
 	    err = "server reported no error";
-	if (!fxp_stat(fullname, &attrs) ||
-	    !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
+
+	sftp_register(req = fxp_stat_send(fullname));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	ret = fxp_stat_recv(pktin, &attrs);
+
+	if (!ret || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
 	    !(attrs.permissions & 0040000)) {
 	    tell_user(stderr, "unable to create directory %s: %s",
 		      fullname, err);
@@ -1171,6 +1235,8 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	char *fname;
 	int must_free_fname;
 	struct fxp_attrs attrs;
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
 	int ret;
 
 	if (!scp_sftp_dirstack_head) {
@@ -1239,7 +1305,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	 * Now we have a filename. Stat it, and see if it's a file
 	 * or a directory.
 	 */
-	ret = fxp_stat(fname, &attrs);
+	sftp_register(req = fxp_stat_send(fname));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	ret = fxp_stat_recv(pktin, &attrs);
+
 	if (!ret || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
 	    tell_user(stderr, "unable to identify %s: %s", fname,
 		      ret ? "file type not supplied" : fxp_error());
@@ -1291,7 +1361,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	     * list), we must push the other (target,namelist) pair
 	     * on a stack.
 	     */
-	    dirhandle = fxp_opendir(fname);
+	    sftp_register(req = fxp_opendir_send(fname));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    dirhandle = fxp_opendir_recv(pktin);
+
 	    if (!dirhandle) {
 		tell_user(stderr, "scp: unable to open directory %s: %s",
 			  fname, fxp_error());
@@ -1304,7 +1378,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    while (1) {
 		int i;
 
-		names = fxp_readdir(dirhandle);
+		sftp_register(req = fxp_readdir_send(dirhandle));
+		rreq = sftp_find_request(pktin = sftp_recv());
+		assert(rreq == req);
+		names = fxp_readdir_recv(pktin);
+
 		if (names == NULL) {
 		    if (fxp_error_type() == SSH_FX_EOF)
 			break;
@@ -1328,7 +1406,10 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		names->nnames = 0;	       /* prevent free_names */
 		fxp_free_names(names);
 	    }
-	    fxp_close(dirhandle);
+	    sftp_register(req = fxp_close_send(dirhandle));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    fxp_close_recv(pktin);
 
 	    newitem = snew(struct scp_sftp_dirstack);
 	    newitem->next = scp_sftp_dirstack_head;
@@ -1470,8 +1551,14 @@ int scp_get_sink_action(struct scp_sink_action *act)
 int scp_accept_filexfer(void)
 {
     if (using_sftp) {
-	scp_sftp_filehandle =
-	    fxp_open(scp_sftp_currentname, SSH_FXF_READ);
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+
+	sftp_register(req = fxp_open_send(scp_sftp_currentname, SSH_FXF_READ));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	scp_sftp_filehandle = fxp_open_recv(pktin);
+
 	if (!scp_sftp_filehandle) {
 	    tell_user(stderr, "pscp: unable to open %s: %s",
 		      scp_sftp_currentname, fxp_error());
@@ -1490,8 +1577,16 @@ int scp_accept_filexfer(void)
 int scp_recv_filedata(char *data, int len)
 {
     if (using_sftp) {
-	int actuallen = fxp_read(scp_sftp_filehandle, data,
-				 scp_sftp_fileoffset, len);
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+	int actuallen;
+
+	sftp_register(req = fxp_read_send(scp_sftp_filehandle,
+					  scp_sftp_fileoffset, len));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	actuallen = fxp_read_recv(pktin, data, len);
+
 	if (actuallen == -1 && fxp_error_type() != SSH_FX_EOF) {
 	    tell_user(stderr, "pscp: error while reading: %s", fxp_error());
 	    errs++;
@@ -1511,7 +1606,13 @@ int scp_recv_filedata(char *data, int len)
 int scp_finish_filerecv(void)
 {
     if (using_sftp) {
-	fxp_close(scp_sftp_filehandle);
+	struct sftp_packet *pktin;
+	struct sftp_request *req, *rreq;
+
+	sftp_register(req = fxp_close_send(scp_sftp_filehandle));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	fxp_close_recv(pktin);
 	return 0;
     } else {
 	back->send(backhandle, "", 1);
