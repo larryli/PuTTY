@@ -4804,6 +4804,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	 */
 	if (!(ldata->lattr & LATTR_WRAPPED)) {
 	    while (IS_SPACE_CHR(ldata->chars[nlpos.x - 1].chr) &&
+		   !ldata->chars[nlpos.x - 1].cc_next &&
 		   poslt(top, nlpos))
 		decpos(nlpos);
 	    if (poslt(nlpos, bottom))
@@ -5076,7 +5077,8 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 	 */
 	if (!(ldata->lattr & LATTR_WRAPPED)) {
 	    termchar *q = ldata->chars + term->cols;
-	    while (q > ldata->chars && IS_SPACE_CHR(q[-1].chr))
+	    while (q > ldata->chars &&
+		   IS_SPACE_CHR(q[-1].chr) && !q[-1].cc_next)
 		q--;
 	    if (q == ldata->chars + term->cols)
 		q--;
