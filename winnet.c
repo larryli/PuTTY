@@ -969,7 +969,7 @@ int select_result(WPARAM wParam, LPARAM lParam)
 
 	    memset(&isa, 0, sizeof(struct sockaddr_in));
 	    err = 0;
-	    t = accept(s->s,&isa,&addrlen);
+	    t = accept(s->s,(struct sockaddr *)&isa,&addrlen);
 	    if (t == INVALID_SOCKET)
 	    {
 		err = WSAGetLastError();

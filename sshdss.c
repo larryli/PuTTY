@@ -355,8 +355,6 @@ static unsigned char *dss_private_blob(void *key, int *len)
     int xlen, bloblen;
     int i;
     unsigned char *blob, *p;
-    SHA_State s;
-    unsigned char digest[20];
 
     xlen = (bignum_bitcount(dss->x) + 8) / 8;
 

@@ -3803,13 +3803,11 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 			   len * sizeof(wchar_t));
     clipdata2 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, len2);
 
-    if (!clipdata || !clipdata2 || !clipdata3) {
+    if (!clipdata || !clipdata2) {
 	if (clipdata)
 	    GlobalFree(clipdata);
 	if (clipdata2)
 	    GlobalFree(clipdata2);
-	if (clipdata3)
-	    GlobalFree(clipdata3);
 	return;
     }
     if (!(lock = GlobalLock(clipdata)))
