@@ -386,7 +386,7 @@ static void show_mouseptr(struct gui_data *inst, int show)
 void draw_backing_rect(struct gui_data *inst)
 {
     GdkGC *gc = gdk_gc_new(inst->area->window);
-    gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
+    gdk_gc_set_foreground(gc, &inst->cols[258]);    /* default background */
     gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
 		       inst->cfg.width * inst->font_width + 2*inst->cfg.window_border,
 		       inst->cfg.height * inst->font_height + 2*inst->cfg.window_border);
