@@ -158,7 +158,7 @@ static enum {
 } und_mode;
 static int descent;
 
-#define NCFGCOLOURS 24
+#define NCFGCOLOURS 22
 #define NEXTCOLOURS 240
 #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 static COLORREF colours[NALLCOLOURS];
