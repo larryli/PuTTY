@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.69 2003/02/07 01:38:12 ben Exp $ */
+/* $Id: macterm.c,v 1.70 2003/02/11 23:10:34 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1477,9 +1477,24 @@ void set_raw_mouse_mode(void *frontend, int activate)
 /*
  * Resize the window at the emulator's request
  */
-void request_resize(void *frontend, int w, int h) {
+void request_resize(void *frontend, int w, int h)
+{
     Session *s = frontend;
+    RgnHandle grayrgn;
+    Rect graybox;
+    int wlim, hlim;
 
+    /* Arbitrarily clip to the size of the desktop. */
+    grayrgn = GetGrayRgn();
+#if TARGET_API_MAC_CARBON
+    GetRegionBounds(grayrgn, &graybox);
+#else
+    graybox = (*grayrgn)->rgnBBox;
+#endif
+    wlim = (graybox.right - graybox.left) / s->font_width;
+    hlim = (graybox.bottom - graybox.top) / s->font_height;
+    if (w > wlim) w = wlim;
+    if (h > hlim) h = hlim;
     term_size(s->term, h, w, s->cfg.savelines);
     mac_initfont(s);
 }
