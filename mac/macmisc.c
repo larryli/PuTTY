@@ -1,4 +1,4 @@
-/* $Id: macmisc.c,v 1.1 2003/02/12 23:53:15 ben Exp $ */
+/* $Id: macmisc.c,v 1.2 2003/02/20 22:31:52 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -28,6 +28,8 @@
 #include <MacTypes.h>
 #include <Dialogs.h>
 #include <Files.h>
+#include <MacWindows.h>
+#include <Processes.h>
 #include <Quickdraw.h>
 #include <TextUtils.h>
 
@@ -35,6 +37,7 @@
 #include <stdio.h>
 
 #include "putty.h"
+#include "mac.h"
 
 #if TARGET_API_MAC_CARBON
 /*
@@ -47,6 +50,22 @@ const CFAllocatorRef kCFAllocatorDefault = NULL;
 #else
 QDGlobals qd;
 #endif
+
+/*
+ * Like FrontWindow(), but return NULL if we aren't the front process
+ * (i.e. the front window isn't one of ours).
+ */
+WindowPtr mac_frontwindow(void)
+{
+    ProcessSerialNumber frontpsn;
+    ProcessSerialNumber curpsn = { 0, kCurrentProcess };
+    Boolean result;
+
+    GetFrontProcess(&frontpsn);
+    if (SameProcess(&frontpsn, &curpsn, &result) == noErr && result)
+	return FrontWindow();
+    return NULL;
+}
 
 void fatalbox(char *fmt, ...) {
     va_list ap;

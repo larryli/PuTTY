@@ -112,10 +112,16 @@ extern Session *sesslist;
 /* PuTTYgen per-window state */
 typedef struct KeyState {
     DialogPtr		box;
+    int collecting_entropy;
+    int entropy_got, entropy_required, entropy_size;
+    unsigned *entropy;
+    ControlHandle	progress;
 } KeyState;
 
 #define mac_windowkey(w)	(((WinInfo *)GetWRefCon(w))->ks)
 
+/* from macmisc.c */
+extern WindowPtr mac_frontwindow(void);
 /* from macdlg.c */
 extern void mac_newsession(void);
 extern void mac_dupsession(void);

@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.49 2003/02/15 16:22:15 ben Exp $ */
+/* $Id: mac.c,v 1.50 2003/02/20 22:31:52 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -377,7 +377,7 @@ static int mac_windowtype(WindowPtr window)
 static void mac_keypress(EventRecord *event) {
     WindowPtr window;
 
-    window = FrontWindow();
+    window = mac_frontwindow();
     /*
      * Check for a command-key combination, but ignore it if it counts
      * as a meta-key combination and we're in a terminal window.
@@ -388,7 +388,7 @@ static void mac_keypress(EventRecord *event) {
 	mac_adjustmenus();
 	mac_menucommand(MenuKey(event->message & charCodeMask));
     } else {
-	if (mac_wininfo(window)->key != NULL)
+	if (window != NULL && mac_wininfo(window)->key != NULL)
 	    (*mac_wininfo(window)->key)(window, event);
     }       
 }
@@ -402,7 +402,7 @@ static void mac_menucommand(long result) {
 
     menu = HiWord(result);
     item = LoWord(result);
-    window = FrontWindow();
+    window = mac_frontwindow();
     /* Things which do the same whatever window we're in. */
     switch (menu) {
       case mApple:
@@ -445,7 +445,7 @@ static void mac_menucommand(long result) {
         break;
     }
     /* If we get here, handling is up to window-specific code. */
-    if (mac_wininfo(window)->menu != NULL)
+    if (window != NULL && mac_wininfo(window)->menu != NULL)
 	(*mac_wininfo(window)->menu)(window, menu, item);
 
   done:
@@ -483,7 +483,7 @@ static void mac_adjustmenus(void) {
     WindowPtr window;
     MenuHandle menu;
 
-    window = FrontWindow();
+    window = mac_frontwindow();
     menu = GetMenuHandle(mApple);
     EnableItem(menu, 0);
     EnableItem(menu, iAbout);
@@ -497,7 +497,7 @@ static void mac_adjustmenus(void) {
 	DisableItem(menu, iClose);
     EnableItem(menu, iQuit);
 
-    if (mac_wininfo(window)->adjustmenus != NULL)
+    if (window != NULL && mac_wininfo(window)->adjustmenus != NULL)
 	(*mac_wininfo(window)->adjustmenus)(window);
     else {
 	DisableItem(menu, iSave);
