@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.18 2003/03/29 23:07:55 ben Exp $ */
+/* $Id: macstore.c,v 1.19 2003/04/01 18:10:25 simon Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -116,13 +116,15 @@ struct write_settings {
     FSSpec dstfile;
 };
 
-void *open_settings_w(char const *sessionname) {
+void *open_settings_w(char const *sessionname, char **errmsg) {
     short sessVRefNum;
     long sessDirID;
     OSErr error;
     Str255 psessionname;
     FSSpec dstfile;
-    
+
+    *errmsg = NULL;
+
     error = get_session_dir(kCreateFolder, &sessVRefNum, &sessDirID);
     if (error != noErr) return NULL;
 

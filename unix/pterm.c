@@ -86,6 +86,23 @@ char *x_get_default(const char *key)
     return XGetDefault(GDK_DISPLAY(), app_name, key);
 }
 
+void connection_fatal(void *frontend, char *p, ...)
+{
+    Terminal *term = (Terminal *)frontend;
+    struct gui_data *inst = (struct gui_data *)term->frontend;
+
+    va_list ap;
+    char *msg;
+    va_start(ap, p);
+    msg = dupvprintf(p, ap);
+    va_end(ap);
+    inst->exited = TRUE;
+    fatal_message_box(inst->window, msg);
+    sfree(msg);
+    if (inst->cfg.close_on_exit == FORCE_ON)
+        cleanup_exit(1);
+}
+
 /*
  * Default settings that are specific to pterm.
  */
@@ -1018,7 +1035,8 @@ gint timer_func(gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int exitcode;
 
-    if ((exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
+    if (!inst->exited &&
+        (exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
 	inst->exited = TRUE;
 	if (inst->cfg.close_on_exit == FORCE_ON ||
 	    (inst->cfg.close_on_exit == AUTO && exitcode == 0))
@@ -1032,10 +1050,17 @@ gint timer_func(gpointer data)
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 {
-    select_result(sourcefd,
-		  (condition == GDK_INPUT_READ ? 1 :
-		   condition == GDK_INPUT_WRITE ? 2 :
-		   condition == GDK_INPUT_EXCEPTION ? 4 : -1));
+    /*
+     * We must process exceptional notifications before ordinary
+     * readability ones, or we may go straight past the urgent
+     * marker.
+     */
+    if (condition & GDK_INPUT_EXCEPTION)
+        select_result(sourcefd, 4);
+    if (condition & GDK_INPUT_READ)
+        select_result(sourcefd, 1);
+    if (condition & GDK_INPUT_WRITE)
+        select_result(sourcefd, 2);
 }
 
 void destroy(GtkWidget *widget, gpointer data)
@@ -2437,13 +2462,24 @@ int pt_main(int argc, char **argv)
 
     uxsel_init();
 
+    term_size(inst->term, inst->cfg.height, inst->cfg.width, inst->cfg.savelines);
+
     inst->back = select_backend(&inst->cfg);
     {
-	char *realhost;
+	char *realhost, *error;
 
-	inst->back->init((void *)inst->term, &inst->backhandle, &inst->cfg,
-			 inst->cfg.host, inst->cfg.port, &realhost,
-			 inst->cfg.tcp_nodelay);
+	error = inst->back->init((void *)inst->term, &inst->backhandle,
+                                 &inst->cfg, inst->cfg.host, inst->cfg.port,
+                                 &realhost, inst->cfg.tcp_nodelay);
+
+	if (error) {
+	    char *msg = dupprintf("Unable to open connection to %s:\n%s",
+                                  inst->cfg.host, error);
+            inst->exited = TRUE;
+	    fatal_message_box(inst->window, msg);
+            sfree(msg);
+	    return 0;
+	}
 
         if (inst->cfg.wintitle[0])
             set_title(inst, inst->cfg.wintitle);
@@ -2456,8 +2492,6 @@ int pt_main(int argc, char **argv)
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
-
-    term_size(inst->term, inst->cfg.height, inst->cfg.width, inst->cfg.savelines);
 
     inst->ldisc =
 	ldisc_create(&inst->cfg, inst->term, inst->back, inst->backhandle, inst);

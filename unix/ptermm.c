@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "putty.h"
 
@@ -14,6 +15,16 @@ Backend *select_backend(Config *cfg)
 int cfgbox(Config *cfg)
 {
     return 1;			       /* no-op in pterm */
+}
+
+void fatal_message_box(void *window, char *msg)
+{
+    /* also a no-op in pterm */
+}
+
+void cleanup_exit(int code)
+{
+    exit(code);
 }
 
 int process_nonoption_arg(char *arg, Config *cfg)

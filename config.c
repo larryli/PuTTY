@@ -305,7 +305,13 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		    savedsession[0] = '\0';
 		}
 	    }
-	    save_settings(savedsession, !isdef, cfg);
+            {
+                char *errmsg = save_settings(savedsession, !isdef, cfg);
+                if (errmsg) {
+                    dlg_error_msg(dlg, errmsg);
+                    sfree(errmsg);
+                }
+            }
 	    get_sesslist(ssd->sesslist, FALSE);
 	    get_sesslist(ssd->sesslist, TRUE);
 	    dlg_refresh(ssd->editbox, dlg);

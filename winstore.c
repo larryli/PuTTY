@@ -61,11 +61,13 @@ static void unmungestr(const char *in, char *out, int outlen)
     return;
 }
 
-void *open_settings_w(const char *sessionname)
+void *open_settings_w(const char *sessionname, char **errmsg)
 {
     HKEY subkey1, sesskey;
     int ret;
     char *p;
+
+    *errmsg = NULL;
 
     if (!sessionname || !*sessionname)
 	sessionname = "Default Settings";
@@ -76,13 +78,18 @@ void *open_settings_w(const char *sessionname)
     ret = RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1);
     if (ret != ERROR_SUCCESS) {
 	sfree(p);
+        *errmsg = dupprintf("Unable to create registry key\n"
+                            "HKEY_CURRENT_USER%s", puttystr);
 	return NULL;
     }
     ret = RegCreateKey(subkey1, p, &sesskey);
     sfree(p);
     RegCloseKey(subkey1);
-    if (ret != ERROR_SUCCESS)
+    if (ret != ERROR_SUCCESS) {
+        *errmsg = dupprintf("Unable to create registry key\n"
+                            "HKEY_CURRENT_USER%s\\%s", puttystr, p);
 	return NULL;
+    }
     return (void *) sesskey;
 }
 

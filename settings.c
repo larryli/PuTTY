@@ -141,15 +141,17 @@ static void wprefs(void *sesskey, char *name,
     write_setting_s(sesskey, name, buf);
 }
 
-void save_settings(char *section, int do_host, Config * cfg)
+char *save_settings(char *section, int do_host, Config * cfg)
 {
     void *sesskey;
+    char *errmsg;
 
-    sesskey = open_settings_w(section);
+    sesskey = open_settings_w(section, &errmsg);
     if (!sesskey)
-	return;
+	return errmsg;
     save_open_settings(sesskey, do_host, cfg);
     close_settings_w(sesskey);
+    return NULL;
 }
 
 void save_open_settings(void *sesskey, int do_host, Config *cfg)

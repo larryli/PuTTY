@@ -25,8 +25,10 @@
  * A given key will be written at most once while saving a session.
  * Keys may be up to 255 characters long.  String values have no length
  * limit.
+ * 
+ * Any returned error message must be freed after use.
  */
-void *open_settings_w(const char *sessionname);
+void *open_settings_w(const char *sessionname, char **errmsg);
 void write_setting_s(void *handle, const char *key, const char *value);
 void write_setting_i(void *handle, const char *key, int value);
 void write_setting_filename(void *handle, const char *key, Filename value);

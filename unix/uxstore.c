@@ -5,7 +5,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
+#include <errno.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -132,24 +134,32 @@ static char *fgetline(FILE *fp)
  * file somewhere or other.
  */
 
-void *open_settings_w(const char *sessionname)
+void *open_settings_w(const char *sessionname, char **errmsg)
 {
     char filename[FILENAME_MAX];
     FILE *fp;
 
+    *errmsg = NULL;
+
     /*
-     * Start by making sure the sessions subdir exists. Ignore the
-     * error return from mkdir since it's perfectly likely to be
-     * `already exists', and any other error will trip us up later
-     * on so there's no real need to catch it now.
+     * Start by making sure the .putty directory and its sessions
+     * subdir actually exist. Ignore error returns from mkdir since
+     * they're perfectly likely to be `already exists', and any
+     * other error will trip us up later on so there's no real need
+     * to catch it now.
      */
+    make_filename(filename, INDEX_DIR, sessionname);
+    mkdir(filename, 0700);
     make_filename(filename, INDEX_SESSIONDIR, sessionname);
     mkdir(filename, 0700);
 
     make_filename(filename, INDEX_SESSION, sessionname);
     fp = fopen(filename, "w");
-    if (!fp)
-	return NULL;		       /* can't open */
+    if (!fp) {
+        *errmsg = dupprintf("Unable to create %s: %s",
+                            filename, strerror(errno));
+	return NULL;                   /* can't open */
+    }
     return fp;
 }
 
