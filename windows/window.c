@@ -2295,10 +2295,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		HBRUSH fillcolour, oldbrush;
 		HPEN   edge, oldpen;
 		fillcolour = CreateSolidBrush (
-				    colours[(ATTR_DEFBG>>ATTR_BGSHIFT)*2]);
+				    colours[ATTR_DEFBG>>ATTR_BGSHIFT]);
 		oldbrush = SelectObject(hdc, fillcolour);
 		edge = CreatePen(PS_SOLID, 0, 
-				    colours[(ATTR_DEFBG>>ATTR_BGSHIFT)*2]);
+				    colours[ATTR_DEFBG>>ATTR_BGSHIFT]);
 		oldpen = SelectObject(hdc, edge);
 
 		/*
