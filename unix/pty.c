@@ -486,7 +486,8 @@ static void pty_uxsel_setup(void)
  * freed by the caller.
  */
 static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
-			    char *host, int port, char **realhost, int nodelay)
+			    char *host, int port, char **realhost, int nodelay,
+			    int keepalive)
 {
     int slavefd;
     pid_t pid, pgrp;

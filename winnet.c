@@ -658,7 +658,7 @@ Socket sk_register(void *sock, Plug plug)
 }
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
-	      int nodelay, Plug plug)
+	      int nodelay, int keepalive, Plug plug)
 {
     static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -720,6 +720,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     if (nodelay) {
 	BOOL b = TRUE;
 	p_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
+    }
+
+    if (keepalive) {
+	BOOL b = TRUE;
+	p_setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *) &b, sizeof(b));
     }
 
     /*

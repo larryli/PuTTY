@@ -450,7 +450,8 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     back = &ssh_backend;
 
-    err = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port, &realhost,0);
+    err = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port, &realhost, 
+		     0, cfg.tcp_keepalives);
     if (err != NULL)
 	bump("ssh_init: %s", err);
     logctx = log_init(NULL, &cfg);

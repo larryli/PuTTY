@@ -564,7 +564,7 @@ int main(int argc, char **argv)
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
 	error = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port,
-			   &realhost, nodelay);
+			   &realhost, nodelay, cfg.tcp_keepalives);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;

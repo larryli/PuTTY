@@ -378,7 +378,7 @@ Socket sk_register(OSSocket sockfd, Plug plug)
 }
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
-	      int nodelay, Plug plug)
+	      int nodelay, int keepalive, Plug plug)
 {
     int s;
 #ifdef IPV6
@@ -431,6 +431,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     if (nodelay) {
 	int b = TRUE;
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
+    }
+
+    if (keepalive) {
+	int b = TRUE;
+	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *) &b, sizeof(b));
     }
 
     /*

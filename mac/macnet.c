@@ -12,7 +12,7 @@ struct macnet_stack {
     void (*addrcopy)(SockAddr, char *);
     void (*addr_free)(SockAddr);
     Socket (*skregister)(void *, Plug); /* "register" is a reserved word */
-    Socket (*new)(SockAddr, int, int, int, int, Plug);
+    Socket (*new)(SockAddr, int, int, int, int, int, Plug);
     Socket (*newlistener)(char *, int, Plug, int);
     char *(*addr_error)(SockAddr);
     void (*poll)(void);
@@ -128,11 +128,12 @@ Socket sk_register(void *sock, Plug plug)
 }
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
-	      int nodelay, Plug plug)
+	      int nodelay, int keepalive, Plug plug)
 {
 
     if (stack != NULL)
-	return stack->new(addr, port, privport, oobinline, nodelay, plug);
+	return stack->new(addr, port, privport, oobinline, nodelay, keepalive,
+			  plug);
     return NULL;
 }
 

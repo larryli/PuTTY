@@ -3367,7 +3367,8 @@ int pt_main(int argc, char **argv)
 
 	error = inst->back->init((void *)inst, &inst->backhandle,
                                  &inst->cfg, inst->cfg.host, inst->cfg.port,
-                                 &realhost, inst->cfg.tcp_nodelay);
+                                 &realhost, inst->cfg.tcp_nodelay,
+				 inst->cfg.tcp_keepalives);
 
 	if (error) {
 	    char *msg = dupprintf("Unable to open connection to %s:\n%s",

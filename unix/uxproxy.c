@@ -221,8 +221,8 @@ static int localproxy_select_result(int fd, int event)
 
 Socket platform_new_connection(SockAddr addr, char *hostname,
 			       int port, int privport,
-			       int oobinline, int nodelay, Plug plug,
-			       const Config *cfg)
+			       int oobinline, int nodelay, int keepalive,
+			       Plug plug, const Config *cfg)
 {
     char *cmd;
 

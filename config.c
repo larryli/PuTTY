@@ -1292,6 +1292,10 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  'n', HELPCTX(connection_nodelay),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,tcp_nodelay)));
+	    ctrl_checkbox(s, "Enable TCP keepalives (SO_KEEPALIVE option)",
+			  'p', HELPCTX(connection_tcpkeepalive),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,tcp_keepalives)));
 	}
 
     }

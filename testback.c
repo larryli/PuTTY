@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.9 2003/05/10 11:57:55 ben Exp $ */
+/* $Id: testback.c,v 1.10 2004/06/20 17:07:32 jacob Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -34,9 +34,9 @@
 #include "putty.h"
 
 static const char *null_init(void *, void **, Config *, char *, int, char **,
-			     int);
+			     int, int);
 static const char *loop_init(void *, void **, Config *, char *, int, char **,
-			     int);
+			     int, int);
 static void null_free(void *);
 static void loop_free(void *);
 static void null_reconfig(void *, Config *);
@@ -72,14 +72,14 @@ struct loop_state {
 
 static const char *null_init(void *frontend_handle, void **backend_handle,
 			     Config *cfg, char *host, int port,
-			     char **realhost, int nodelay) {
+			     char **realhost, int nodelay, int keepalive) {
 
     return NULL;
 }
 
 static const char *loop_init(void *frontend_handle, void **backend_handle,
 			     Config *cfg, char *host, int port,
-			     char **realhost, int nodelay) {
+			     char **realhost, int nodelay, int keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
     st->term = frontend_handle;

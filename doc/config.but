@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.83 2004/06/15 11:31:30 jacob Exp $
+\versionid $Id: config.but,v 1.84 2004/06/20 17:07:36 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1506,7 +1506,8 @@ what \e{kind} of network problems you have between you and the
 server.
 
 Keepalives are only supported in Telnet and SSH; the Rlogin and Raw
-protocols offer no way of implementing them.
+protocols offer no way of implementing them. (For an alternative, see
+\k{config-tcp-keepalives}.)
 
 Note that if you are using SSH1 and the server has a bug that makes
 it unable to deal with SSH1 ignore messages (see
@@ -1524,6 +1525,34 @@ get a faster response to your keystrokes when connecting to some
 types of server.
 
 The Nagle algorithm is disabled by default.
+
+\S{config-tcp-keepalives} \q{Enable TCP keepalives}
+
+\cfg{winhelp-topic}{connection.tcpkeepalive}
+
+\e{NOTE:} TCP keepalives should not be confused with the
+application-level keepalives described in \k{config-keepalive}. If in
+doubt, you probably want application-level keepalives; TCP keepalives
+are provided for completeness.
+
+The idea of TCP keepalives is similar to application-level keepalives,
+and the same caveats apply. The main differences are:
+
+\b TCP keepalives are available on \e{all} connection types, including
+Raw and Rlogin.
+
+\b The interval between TCP keepalives is usually much longer,
+typically two hours; this is set by the operating system, and cannot
+be configured within PuTTY.
+
+\b If the operating system does not receive a response to a keepalive,
+it may send out more in quick succession and if terminate the connection
+if no response is received.
+
+TCP keepalives may be useful for ensuring that half-open connections
+are terminated than for keeping a connection alive.
+
+TCP keepalives are disabled by default.
 
 \H{config-proxy} The Proxy panel
 

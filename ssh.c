@@ -2128,7 +2128,7 @@ static void ssh_sent(Plug plug, int bufsize)
  * freed by the caller.
  */
 static const char *connect_to_host(Ssh ssh, char *host, int port,
-				   char **realhost, int nodelay)
+				   char **realhost, int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
 	ssh_closing,
@@ -2169,7 +2169,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     }
     ssh->fn = &fn_table;
     ssh->s = new_connection(addr, *realhost, port,
-			    0, 1, nodelay, (Plug) ssh, &ssh->cfg);
+			    0, 1, nodelay, keepalive, (Plug) ssh, &ssh->cfg);
     if ((err = sk_socket_error(ssh->s)) != NULL) {
 	ssh->s = NULL;
 	return err;
@@ -6183,7 +6183,8 @@ static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
  */
 static const char *ssh_init(void *frontend_handle, void **backend_handle,
 			    Config *cfg,
-			    char *host, int port, char **realhost, int nodelay)
+			    char *host, int port, char **realhost, int nodelay,
+			    int keepalive)
 {
     const char *p;
     Ssh ssh;
@@ -6267,7 +6268,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh->protocol = NULL;
 
-    p = connect_to_host(ssh, host, port, realhost, nodelay);
+    p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
     if (p != NULL)
 	return p;
 

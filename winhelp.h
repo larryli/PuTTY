@@ -63,6 +63,7 @@
 #define WINHELP_CTX_connection_username "connection.username"
 #define WINHELP_CTX_connection_keepalive "connection.keepalive"
 #define WINHELP_CTX_connection_nodelay "connection.nodelay"
+#define WINHELP_CTX_connection_tcpkeepalive "connection.tcpkeepalive"
 #define WINHELP_CTX_proxy_type "proxy.type"
 #define WINHELP_CTX_proxy_main "proxy.main"
 #define WINHELP_CTX_proxy_exclude "proxy.exclude"

@@ -410,7 +410,7 @@ Socket mactcp_register(void *sock, Plug plug)
 static TCPNotifyUPP mactcp_asr_upp;
 
 Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
-	      int nodelay, Plug plug)
+	      int nodelay, int keepalive, Plug plug)
 {
     static struct socket_function_table fn_table = {
 	mactcp_plug,

@@ -611,7 +611,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	char *realhost;
 
 	error = back->init(NULL, &backhandle, &cfg,
-			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
+			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay,
+			   cfg.tcp_keepalives);
 	back->provide_logctx(backhandle, logctx);
 	if (error) {
 	    char *str = dupprintf("%s Error", appname);

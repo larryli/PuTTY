@@ -234,7 +234,7 @@ Socket ot_register(void *sock, Plug plug)
 }
 
 Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
-	      int nodelay, Plug plug)
+	      int nodelay, int keepalive, Plug plug)
 {
     static struct socket_function_table fn_table = {
 	ot_tcp_plug,
@@ -281,7 +281,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
 	return (Socket) ret;
     }
 
-    /* TODO: oobinline, nodelay */
+    /* TODO: oobinline, nodelay, keepalive */
 
     /*
      * Bind to local address.

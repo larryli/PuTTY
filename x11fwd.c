@@ -310,7 +310,7 @@ const char *x11_init(Socket * s, char *display, void *c, void *auth,
     pr->c = c;
 
     pr->s = *s = new_connection(addr, dummy_realhost, port,
-				0, 1, 0, (Plug) pr, cfg);
+				0, 1, 0, 0, (Plug) pr, cfg);
     if ((err = sk_socket_error(*s)) != NULL) {
 	sfree(pr);
 	return err;
