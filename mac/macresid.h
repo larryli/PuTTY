@@ -27,12 +27,12 @@
 /* File menu */
 #define iNew		1
 #define iOpen		2
-#define iChange         3
-#define iClose		5
-#define iSave		6
-#define iSaveAs		7
-#define iDuplicate	8
-#define iQuit		10
+#define iChange         4
+#define iClose		6
+#define iSave		7
+#define iSaveAs		8
+#define iDuplicate	9
+#define iQuit		11
 /* Edit menu */
 #define iUndo		1
 #define iCut		3
