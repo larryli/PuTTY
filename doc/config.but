@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.47 2002/12/18 16:23:10 simon Exp $
+\versionid $Id: config.but,v 1.48 2003/01/12 14:11:38 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1886,6 +1886,53 @@ display location} box.
 
 See \k{using-x-forwarding} for more information about X11
 forwarding.
+
+\S2{config-ssh-x11auth} Remote X11 authentication
+
+\cfg{winhelp-topic}{ssh.tunnels.x11auth}
+
+If you are using X11 forwarding, the virtual X server created on the
+SSH server machine will be protected by authorisation data. This
+data is invented, and checked, by PuTTY.
+
+The usual authorisation method used for this is called
+\cw{MIT-MAGIC-COOKIE-1}. This is a simple password-style protocol:
+the X client sends some cookie data to the server, and the server
+checks that it matches the real cookie. The cookie data is sent over
+an unencrypted X11 connection; so if you allow a client on a third
+machine to access the virtual X server, then the cookie will be sent
+in the clear.
+
+PuTTY offers the alternative protocol \cw{XDM-AUTHORIZATION-1}. This
+is a cryptographically authenticated protocol: the data sent by the
+X client is different every time, and it depends on the IP address
+and port of the client's end of the connection and is also stamped
+with the current time. So an eavesdropper who captures an
+\cw{XDM-AUTHORIZATION-1} string cannot immediately re-use it for
+their own X connection.
+
+PuTTY's support for \cw{XDM-AUTHORIZATION-1} is a somewhat
+experimental feature, and may encounter several problems:
+
+\b Some X clients probably do not even support
+\cw{XDM-AUTHORIZATION-1}, so they will not know what to do with the
+data PuTTY has provided.
+
+\b This authentication mechanism will only work in SSH v2. In SSH
+v1, the SSH server does not tell the client the source address of
+a forwarded connection in a machine-readable format, so it's
+impossible to verify the \cw{XDM-AUTHORIZATION-1} data.
+
+\b You may find this feature causes problems with some SSH servers,
+which will not clean up \cw{XDM-AUTHORIZATION-1} data after a
+session, so that if you then connect to the same server using
+a client which only does \cw{MIT-MAGIC-COOKIE-1} and are allocated
+the same remote display number, you might find that out-of-date
+authentication data is still present on your server and your X
+connections fail.
+
+PuTTY's default is \cw{MIT-MAGIC-COOKIE-1}. If you change it, you
+should be sure you know what you're doing.
 
 \S{config-ssh-portfwd} Port forwarding
 

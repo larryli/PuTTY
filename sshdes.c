@@ -897,10 +897,9 @@ void des3_encrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
     memset(ourkeys, 0, sizeof(ourkeys));
 }
 
-void des_encrypt_xdmauth(unsigned char *keydata, unsigned char *blk, int len)
+static void des_keysetup_xdmauth(unsigned char *keydata, DESContext *dc)
 {
     unsigned char key[8];
-    DESContext dc;
     int i, nbits, j;
     unsigned int bits;
 
@@ -918,9 +917,21 @@ void des_encrypt_xdmauth(unsigned char *keydata, unsigned char *blk, int len)
 	nbits -= 7;
     }
 
-    des_key_setup(GET_32BIT_MSB_FIRST(key), GET_32BIT_MSB_FIRST(key + 4),
-		  &dc);
+    des_key_setup(GET_32BIT_MSB_FIRST(key), GET_32BIT_MSB_FIRST(key + 4), dc);
+}
+
+void des_encrypt_xdmauth(unsigned char *keydata, unsigned char *blk, int len)
+{
+    DESContext dc;
+    des_keysetup_xdmauth(keydata, &dc);
     des_cbc_encrypt(blk, blk, 24, &dc);
+}
+
+void des_decrypt_xdmauth(unsigned char *keydata, unsigned char *blk, int len)
+{
+    DESContext dc;
+    des_keysetup_xdmauth(keydata, &dc);
+    des_cbc_decrypt(blk, blk, 24, &dc);
 }
 
 static const struct ssh2_cipher ssh_3des_ssh2 = {

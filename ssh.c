@@ -3018,7 +3018,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
-				       data, sizeof(data));
+				       data, sizeof(data), cfg.x11_auth);
         x11_get_real_auth(ssh->x11auth, cfg.x11_display);
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
@@ -3277,7 +3277,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    c->ssh = ssh;
 
 		    if (x11_init(&c->u.x11.s, cfg.x11_display, c,
-				 ssh->x11auth) != NULL) {
+				 ssh->x11auth, NULL, -1) != NULL) {
 			logevent("opening X11 forward connection failed");
 			sfree(c);
 			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
@@ -5068,7 +5068,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
-				       data, sizeof(data));
+				       data, sizeof(data), cfg.x11_auth);
         x11_get_real_auth(ssh->x11auth, cfg.x11_display);
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
@@ -5714,6 +5714,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    } else if (ssh->pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
 		int typelen;
+		char *peeraddr;
+		int peeraddrlen;
+		int port;
 		char *error = NULL;
 		struct ssh_channel *c;
 		unsigned remid, winsize, pktsize;
@@ -5724,16 +5727,24 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		remid = ssh2_pkt_getuint32(ssh);
 		winsize = ssh2_pkt_getuint32(ssh);
 		pktsize = ssh2_pkt_getuint32(ssh);
+		ssh2_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
+		port = ssh2_pkt_getuint32(ssh);
 
 		if (typelen == 3 && !memcmp(type, "x11", 3)) {
+		    char *addrstr = smalloc(peeraddrlen+1);
+		    memcpy(addrstr, peeraddr, peeraddrlen);
+		    peeraddr[peeraddrlen] = '\0';
+
 		    if (!ssh->X11_fwd_enabled)
 			error = "X11 forwarding is not enabled";
 		    else if (x11_init(&c->u.x11.s, cfg.x11_display, c,
-				      ssh->x11auth) != NULL) {
+				      ssh->x11auth, addrstr, port) != NULL) {
 			error = "Unable to open an X11 connection";
 		    } else {
 			c->type = CHAN_X11;
 		    }
+
+		    sfree(addrstr);
 		} else if (typelen == 15 &&
 			   !memcmp(type, "forwarded-tcpip", 15)) {
 		    struct ssh_rportfwd pf, *realpf;

@@ -292,6 +292,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "BlinkText", cfg->blinktext);
     write_setting_i(sesskey, "X11Forward", cfg->x11_forward);
     write_setting_s(sesskey, "X11Display", cfg->x11_display);
+    write_setting_i(sesskey, "X11AuthType", cfg->x11_auth);
     write_setting_i(sesskey, "LocalPortAcceptAll", cfg->lport_acceptall);
     write_setting_i(sesskey, "RemotePortAcceptAll", cfg->rport_acceptall);
     {
@@ -582,6 +583,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
     gpps(sesskey, "X11Display", "localhost:0", cfg->x11_display,
 	 sizeof(cfg->x11_display));
+    gppi(sesskey, "X11AuthType", X11_MIT, &cfg->x11_auth);
 
     gppi(sesskey, "LocalPortAcceptAll", 0, &cfg->lport_acceptall);
     gppi(sesskey, "RemotePortAcceptAll", 0, &cfg->rport_acceptall);

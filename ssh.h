@@ -266,10 +266,10 @@ extern void pfd_unthrottle(Socket s);
 extern void pfd_override_throttle(Socket s, int enable);
 
 /* Exports from x11fwd.c */
-extern char *x11_init(Socket *, char *, void *, void *);
+extern char *x11_init(Socket *, char *, void *, void *, const char *, int);
 extern void x11_close(Socket);
 extern int x11_send(Socket, char *, int);
-extern void *x11_invent_auth(char *, int, char *, int);
+extern void *x11_invent_auth(char *, int, char *, int, int);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 extern int x11_get_screen_number(char *display);
@@ -368,6 +368,7 @@ void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk,
 			   int len);
 
 void des_encrypt_xdmauth(unsigned char *key, unsigned char *blk, int len);
+void des_decrypt_xdmauth(unsigned char *key, unsigned char *blk, int len);
 
 /*
  * For progress updates in the key generation utility.

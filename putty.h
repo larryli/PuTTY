@@ -344,6 +344,7 @@ struct config_tag {
     /* X11 forwarding */
     int x11_forward;
     char x11_display[128];
+    int x11_auth;
     /* port forwarding */
     int lport_acceptall; /* accept conns from hosts other than localhost */
     int rport_acceptall; /* same for remote forwarded ports (SSH2 only) */

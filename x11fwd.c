@@ -13,18 +13,18 @@
   ((unsigned long)(unsigned char)(cp)[3] << 24))
 
 #define PUT_32BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (value), \
-  (cp)[1] = (value) >> 8, \
-  (cp)[2] = (value) >> 16, \
-  (cp)[3] = (value) >> 24 )
+  (cp)[0] = (char)(value), \
+  (cp)[1] = (char)((value) >> 8), \
+  (cp)[2] = (char)((value) >> 16), \
+  (cp)[3] = (char)((value) >> 24) )
 
 #define GET_16BIT_LSB_FIRST(cp) \
   (((unsigned long)(unsigned char)(cp)[0]) | \
   ((unsigned long)(unsigned char)(cp)[1] << 8))
 
 #define PUT_16BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (value), \
-  (cp)[1] = (value) >> 8 )
+  (cp)[0] = (char)(value), \
+  (cp)[1] = (char)((value) >> 8) )
 
 #define GET_32BIT_MSB_FIRST(cp) \
   (((unsigned long)(unsigned char)(cp)[0] << 24) | \
@@ -33,18 +33,18 @@
   ((unsigned long)(unsigned char)(cp)[3]))
 
 #define PUT_32BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (value) >> 24, \
-  (cp)[1] = (value) >> 16, \
-  (cp)[2] = (value) >> 8, \
-  (cp)[3] = (value) )
+  (cp)[0] = (char)((value) >> 24), \
+  (cp)[1] = (char)((value) >> 16), \
+  (cp)[2] = (char)((value) >> 8), \
+  (cp)[3] = (char)(value) )
 
 #define GET_16BIT_MSB_FIRST(cp) \
   (((unsigned long)(unsigned char)(cp)[0] << 8) | \
   ((unsigned long)(unsigned char)(cp)[1]))
 
 #define PUT_16BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (value) >> 8, \
-  (cp)[1] = (value) )
+  (cp)[0] = (char)((value) >> 8), \
+  (cp)[1] = (char)(value) )
 
 #define GET_16BIT(endian, cp) \
   (endian=='B' ? GET_16BIT_MSB_FIRST(cp) : GET_16BIT_LSB_FIRST(cp))
@@ -72,23 +72,35 @@ struct X11Private {
     int data_read, auth_plen, auth_psize, auth_dlen, auth_dsize;
     int verified;
     int throttled, throttle_override;
+    unsigned long peer_ip;
+    int peer_port;
     void *c;			       /* data used by ssh.c */
     Socket s;
 };
 
 void *x11_invent_auth(char *proto, int protomaxlen,
-		     char *data, int datamaxlen)
+		      char *data, int datamaxlen, int proto_id)
 {
     struct X11Auth *auth = smalloc(sizeof(struct X11Auth));
     char ourdata[64];
     int i;
 
-    auth->fakeproto = X11_MIT;
+    if (proto_id == X11_MIT) {
+	auth->fakeproto = X11_MIT;
 
-    /* MIT-MAGIC-COOKIE-1. Cookie size is 128 bits (16 bytes). */
-    auth->fakelen = 16;
-    for (i = 0; i < 16; i++)
-	auth->fakedata[i] = random_byte();
+	/* MIT-MAGIC-COOKIE-1. Cookie size is 128 bits (16 bytes). */
+	auth->fakelen = 16;
+	for (i = 0; i < 16; i++)
+	    auth->fakedata[i] = random_byte();
+    } else {
+	assert(proto_id == X11_XDM);
+	auth->fakeproto = X11_XDM;
+
+	/* XDM-AUTHORIZATION-1. Cookie size is 16 bytes; byte 8 is zero. */
+	auth->fakelen = 16;
+	for (i = 0; i < 16; i++)
+	    auth->fakedata[i] = (i == 8 ? 0 : random_byte());
+    }
 
     /* Now format for the recipient. */
     strncpy(proto, x11_authnames[auth->fakeproto], protomaxlen);
@@ -116,19 +128,44 @@ void x11_get_real_auth(void *authv, char *display)
                           auth->realdata, &auth->reallen);
 }
 
-static int x11_verify(struct X11Auth *auth,
-		      char *proto, unsigned char *data, int dlen)
+static char *x11_verify(unsigned long peer_ip, int peer_port,
+			struct X11Auth *auth, char *proto,
+			unsigned char *data, int dlen)
 {
     if (strcmp(proto, x11_authnames[auth->fakeproto]) != 0)
-	return 0;		       /* wrong protocol attempted */
+	return "wrong authentication protocol attempted";
     if (auth->fakeproto == X11_MIT) {
         if (dlen != auth->fakelen)
-            return 0;		       /* cookie was wrong length */
+            return "MIT-MAGIC-COOKIE-1 data was wrong length";
         if (memcmp(auth->fakedata, data, dlen) != 0)
-            return 0;		       /* cookie was wrong cookie! */
+            return "MIT-MAGIC-COOKIE-1 data did not match";
+    }
+    if (auth->fakeproto == X11_XDM) {
+	unsigned long t;
+	time_t tim;
+	int i;
+
+        if (dlen != 24)
+            return "XDM-AUTHORIZATION-1 data was wrong length";
+	if (peer_port == -1)
+            return "cannot do XDM-AUTHORIZATION-1 without remote address data";
+	des_decrypt_xdmauth(auth->fakedata+9, data, 24);
+        if (memcmp(auth->fakedata, data, 8) != 0)
+            return "XDM-AUTHORIZATION-1 data failed check"; /* cookie wrong */
+	if (GET_32BIT_MSB_FIRST(data+8) != peer_ip)
+            return "XDM-AUTHORIZATION-1 data failed check";   /* IP wrong */
+	if ((int)GET_16BIT_MSB_FIRST(data+12) != peer_port)
+            return "XDM-AUTHORIZATION-1 data failed check";   /* port wrong */
+	t = GET_32BIT_MSB_FIRST(data+14);
+	for (i = 18; i < 24; i++)
+	    if (data[i] != 0)	       /* zero padding wrong */
+		return "XDM-AUTHORIZATION-1 data failed check";
+	tim = time(NULL);
+	if (abs(t - tim) > 20*60)      /* 20 minute clock skew should be OK */
+	    return "XDM-AUTHORIZATION-1 time stamp was too far out";
     }
     /* implement other protocols here if ever required */
-    return 1;
+    return NULL;
 }
 
 static int x11_closing(Plug plug, char *error_msg, int error_code,
@@ -189,7 +226,8 @@ int x11_get_screen_number(char *display)
  * Returns an error message, or NULL on success.
  * also, fills the SocketsStructure
  */
-char *x11_init(Socket * s, char *display, void *c, void *auth)
+char *x11_init(Socket * s, char *display, void *c, void *auth,
+	       const char *peeraddr, int peerport)
 {
     static const struct plug_function_table fn_table = {
 	x11_closing,
@@ -251,6 +289,21 @@ char *x11_init(Socket * s, char *display, void *c, void *auth)
     if ((err = sk_socket_error(*s)) != NULL) {
 	sfree(pr);
 	return err;
+    }
+
+    /*
+     * See if we can make sense of the peer address we were given.
+     */
+    {
+	int i[4];
+	if (peeraddr &&
+	    4 == sscanf(peeraddr, "%d.%d.%d.%d", i+0, i+1, i+2, i+3)) {
+	    pr->peer_ip = (i[0] << 24) | (i[1] << 16) | (i[2] << 8) | i[3];
+	    pr->peer_port = peerport;
+	} else {
+	    pr->peer_ip = 0;
+	    pr->peer_port = -1;
+	}
     }
 
     sk_set_private_ptr(*s, pr);
@@ -343,21 +396,26 @@ int x11_send(Socket s, char *data, int len)
      * If we haven't verified the authentication, do so now.
      */
     if (!pr->verified) {
-	int ret;
+	char *err;
 
 	pr->auth_protocol[pr->auth_plen] = '\0';	/* ASCIZ */
-	ret = x11_verify(pr->auth, pr->auth_protocol,
+	err = x11_verify(pr->peer_ip, pr->peer_port,
+			 pr->auth, pr->auth_protocol,
 			 pr->auth_data, pr->auth_dlen);
 
 	/*
 	 * If authentication failed, construct and send an error
 	 * packet, then terminate the connection.
 	 */
-	if (!ret) {
-	    char message[] = "Authentication failed at PuTTY X11 proxy";
-	    unsigned char reply[8 + sizeof(message) + 4];
-	    int msglen = sizeof(message) - 1;	/* skip zero byte */
-	    int msgsize = (msglen + 3) & ~3;
+	if (err) {
+	    char *message;
+	    int msglen, msgsize;
+	    unsigned char *reply;
+
+	    message = dupprintf("PuTTY X11 proxy: %s", err);
+	    msglen = strlen(message);
+	    reply = smalloc(8 + msglen+1 + 4);   /* include zero byte */
+	    msgsize = (msglen + 3) & ~3;
 	    reply[0] = 0;	       /* failure */
 	    reply[1] = msglen;	       /* length of reason string */
 	    memcpy(reply + 2, pr->firstpkt + 2, 4);	/* major/minor proto vsn */
@@ -367,6 +425,8 @@ int x11_send(Socket s, char *data, int len)
 	    sshfwd_write(pr->c, (char *)reply, 8 + msgsize);
 	    sshfwd_close(pr->c);
 	    x11_close(s);
+	    sfree(reply);
+	    sfree(message);
 	    return 0;
 	}
 

@@ -620,6 +620,9 @@ enum { IDCX_ABOUT =
     IDC_X11_FORWARD,
     IDC_X11_DISPSTATIC,
     IDC_X11_DISPLAY,
+    IDC_X11AUTHSTATIC,
+    IDC_X11MIT,
+    IDC_X11XDM,
     IDC_LPORT_ALL,
     IDC_RPORT_ALL,
     IDC_PFWDSTATIC,
@@ -1025,6 +1028,10 @@ char *help_context_cmd(int id)
       case IDC_X11_DISPSTATIC:
       case IDC_X11_DISPLAY:
         return "JI(`',`ssh.tunnels.x11')";
+      case IDC_X11AUTHSTATIC:
+      case IDC_X11MIT:
+      case IDC_X11XDM:
+	return "JI(`',`ssh.tunnels.x11auth')";
       case IDC_PFWDSTATIC:
       case IDC_PFWDSTATIC2:
       case IDC_PFWDREMOVE:
@@ -1347,6 +1354,8 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 
     CheckDlgButton(hwnd, IDC_X11_FORWARD, cfg.x11_forward);
     SetDlgItemText(hwnd, IDC_X11_DISPLAY, cfg.x11_display);
+    CheckRadioButton(hwnd, IDC_X11MIT, IDC_X11XDM,
+		     cfg.x11_auth == X11_MIT ? IDC_X11MIT : IDC_X11XDM);
 
     CheckDlgButton(hwnd, IDC_LPORT_ALL, cfg.lport_acceptall);
     CheckDlgButton(hwnd, IDC_RPORT_ALL, cfg.rport_acceptall);
@@ -2046,8 +2055,12 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		     IDC_TITLE_TUNNELS);
 	    beginbox(&cp, "X11 forwarding", IDC_BOX_TUNNELS1);
 	    checkbox(&cp, "&Enable X11 forwarding", IDC_X11_FORWARD);
-	    multiedit(&cp, "&X display location", IDC_X11_DISPSTATIC,
-		      IDC_X11_DISPLAY, 50, NULL);
+	    staticedit(&cp, "&X display location", IDC_X11_DISPSTATIC,
+		      IDC_X11_DISPLAY, 50);
+	    radioline(&cp, "Remote X11 a&uthentication protocol",
+		      IDC_X11AUTHSTATIC, 2,
+		      "MIT-Magic-Cookie-1", IDC_X11MIT,
+		      "XDM-Authorization-1", IDC_X11XDM, NULL);
 	    endbox(&cp);
     	    beginbox(&cp, "Port forwarding", IDC_BOX_TUNNELS2);
 	    checkbox(&cp, "Local ports accept connections from o&ther hosts",
@@ -3534,6 +3547,16 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == EN_CHANGE)
 		    GetDlgItemText(hwnd, IDC_X11_DISPLAY, cfg.x11_display,
 				   sizeof(cfg.x11_display) - 1);
+		break;
+	      case IDC_X11MIT:
+	      case IDC_X11XDM:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    if (IsDlgButtonChecked(hwnd, IDC_X11MIT))
+			cfg.x11_auth = X11_MIT;
+		    else if (IsDlgButtonChecked(hwnd, IDC_X11XDM))
+			cfg.x11_auth = X11_XDM;
+		}
 		break;
 	      case IDC_PFWDADD:
 		if (HIWORD(wParam) == BN_CLICKED ||
