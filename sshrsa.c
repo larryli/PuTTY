@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "ssh.h"
+#include "misc.h"
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
