@@ -56,6 +56,7 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
 	  case IDOK:
 	  case IDCANCEL:
 	    logbox = NULL;
+            SetActiveWindow(GetParent(hwnd));
 	    DestroyWindow (hwnd);
 	    return 0;
           case IDN_COPY:
@@ -110,6 +111,7 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
 	return 0;
       case WM_CLOSE:
 	logbox = NULL;
+        SetActiveWindow(GetParent(hwnd));
 	DestroyWindow (hwnd);
 	return 0;
     }
@@ -1991,6 +1993,7 @@ void showeventlog (HWND hwnd) {
 			       hwnd, LogProc);
 	ShowWindow (logbox, SW_SHOWNORMAL);
     }
+    SetActiveWindow(logbox);
 }
 
 void showabout (HWND hwnd) {
