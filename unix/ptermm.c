@@ -18,7 +18,13 @@ Backend *select_backend(Config *cfg)
 
 int cfgbox(Config *cfg)
 {
-    return 1;			       /* no-op in pterm */
+    /*
+     * This is a no-op in pterm, except that we'll ensure the
+     * protocol is set to -1 to inhibit the useless Connection
+     * panel in the config box.
+     */
+    cfg->protocol = -1;
+    return 1;
 }
 
 void cleanup_exit(int code)
@@ -42,6 +48,7 @@ int main(int argc, char **argv)
     extern void pty_pre_init(void);    /* declared in pty.c */
 
     cmdline_tooltype = TOOLTYPE_NONNETWORK;
+    default_protocol = -1;
 
     pty_pre_init();
 

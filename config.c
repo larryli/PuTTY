@@ -849,14 +849,27 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_settitle(b, "Session/Logging", "Options controlling session logging");
 
     s = ctrl_getset(b, "Session/Logging", "main", NULL);
-    ctrl_radiobuttons(s, "Session logging:", NO_SHORTCUT, 1,
-		      HELPCTX(logging_main),
-		      dlg_stdradiobutton_handler, I(offsetof(Config, logtype)),
-		      "Logging turned off completely", 't', I(LGTYP_NONE),
-		      "Log printable output only", 'p', I(LGTYP_ASCII),
-		      "Log all session output", 'l', I(LGTYP_DEBUG),
-		      "Log SSH packet data", 's', I(LGTYP_PACKETS),
-		      NULL);
+    /*
+     * The logging buttons change depending on whether SSH packet
+     * logging can sensibly be available.
+     */
+    {
+	char *sshlogname;
+	if ((midsession && protocol == PROT_SSH) ||
+	    (!midsession && backends[3].name != NULL))
+	    sshlogname = "Log SSH packet data";
+	else
+	    sshlogname = NULL;	       /* this will disable the button */
+	ctrl_radiobuttons(s, "Session logging:", NO_SHORTCUT, 1,
+			  HELPCTX(logging_main),
+			  dlg_stdradiobutton_handler,
+			  I(offsetof(Config, logtype)),
+			  "Logging turned off completely", 't', I(LGTYP_NONE),
+			  "Log printable output only", 'p', I(LGTYP_ASCII),
+			  "Log all session output", 'l', I(LGTYP_DEBUG),
+			  sshlogname, 's', I(LGTYP_PACKETS),
+			  NULL);
+    }
     ctrl_filesel(s, "Log file name:", 'f',
 		 NULL, TRUE, "Select session log file name",
 		 HELPCTX(logging_filename),
@@ -1237,36 +1250,42 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_columns(s, 1, 100);
 
     /*
-     * The Connection panel.
+     * The Connection panel. This doesn't show up if we're in a
+     * non-network utility such as pterm. We tell this by being
+     * passed a protocol < 0.
      */
-    ctrl_settitle(b, "Connection", "Options controlling the connection");
+    if (protocol >= 0) {
+	ctrl_settitle(b, "Connection", "Options controlling the connection");
 
-    if (!midsession) {
-	s = ctrl_getset(b, "Connection", "data", "Data to send to the server");
-	ctrl_editbox(s, "Terminal-type string", 't', 50,
-		     HELPCTX(connection_termtype),
-		     dlg_stdeditbox_handler, I(offsetof(Config,termtype)),
-		     I(sizeof(((Config *)0)->termtype)));
-	ctrl_editbox(s, "Auto-login username", 'u', 50,
-		     HELPCTX(connection_username),
-		     dlg_stdeditbox_handler, I(offsetof(Config,username)),
-		     I(sizeof(((Config *)0)->username)));
-    }
+	if (!midsession) {
+	    s = ctrl_getset(b, "Connection", "data",
+			    "Data to send to the server");
+	    ctrl_editbox(s, "Terminal-type string", 't', 50,
+			 HELPCTX(connection_termtype),
+			 dlg_stdeditbox_handler, I(offsetof(Config,termtype)),
+			 I(sizeof(((Config *)0)->termtype)));
+	    ctrl_editbox(s, "Auto-login username", 'u', 50,
+			 HELPCTX(connection_username),
+			 dlg_stdeditbox_handler, I(offsetof(Config,username)),
+			 I(sizeof(((Config *)0)->username)));
+	}
 
-    s = ctrl_getset(b, "Connection", "keepalive",
-		    "Sending of null packets to keep session active");
-    ctrl_editbox(s, "Seconds between keepalives (0 to turn off)", 'k', 20,
-		 HELPCTX(connection_keepalive),
-		 dlg_stdeditbox_handler, I(offsetof(Config,ping_interval)),
-		 I(-1));
+	s = ctrl_getset(b, "Connection", "keepalive",
+			"Sending of null packets to keep session active");
+	ctrl_editbox(s, "Seconds between keepalives (0 to turn off)", 'k', 20,
+		     HELPCTX(connection_keepalive),
+		     dlg_stdeditbox_handler, I(offsetof(Config,ping_interval)),
+		     I(-1));
 
-    if (!midsession) {
-	s = ctrl_getset(b, "Connection", "tcp",
-			"Low-level TCP connection options");
-	ctrl_checkbox(s, "Disable Nagle's algorithm (TCP_NODELAY option)", 'n',
-		      HELPCTX(connection_nodelay),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,tcp_nodelay)));
+	if (!midsession) {
+	    s = ctrl_getset(b, "Connection", "tcp",
+			    "Low-level TCP connection options");
+	    ctrl_checkbox(s, "Disable Nagle's algorithm (TCP_NODELAY option)",
+			  'n', HELPCTX(connection_nodelay),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,tcp_nodelay)));
+	}
+
     }
 
     if (!midsession) {
