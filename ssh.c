@@ -849,6 +849,7 @@ static Bignum ssh2_pkt_getmp(void) {
         else
             b[j/2+1] |= ((unsigned char)p[i]);
     }
+    while (b[0] > 1 && b[b[0]] == 0) b[0]--;
     return b;
 }
 
