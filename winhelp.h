@@ -29,6 +29,8 @@
 #define WINHELP_CTX_features_qtitle "features.qtitle"
 #define WINHELP_CTX_features_dbackspace "features.dbackspace"
 #define WINHELP_CTX_features_charset "features.charset"
+#define WINHELP_CTX_features_arabicshaping "features.arabicshaping"
+#define WINHELP_CTX_features_bidi "features.bidi"
 #define WINHELP_CTX_terminal_autowrap "terminal.autowrap"
 #define WINHELP_CTX_terminal_decom "terminal.decom"
 #define WINHELP_CTX_terminal_lfhascr "terminal.lfhascr"

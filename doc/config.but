@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.77 2004/04/24 20:05:03 jacob Exp $
+\versionid $Id: config.but,v 1.78 2004/05/22 10:36:50 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -821,6 +821,47 @@ to something other than the user intended.
 If you find that accented characters are not showing up the way you
 expect them to, particularly if you're running BitchX, you could try
 disabling the remote character set configuration commands.
+
+\S{config-features-shaping} Disabling Arabic text shaping
+
+\cfg{winhelp-topic}{features.arabicshaping}
+
+PuTTY supports shaping of Arabic text, which means that if your
+server sends text written in the basic Unicode Arabic alphabet then
+it will convert it to the correct display forms before printing it
+on the screen.
+
+If you are using full-screen software which was not expecting this
+to happen (especially if you are not an Arabic speaker and you
+unexpectedly find yourself dealing with Arabic text files in
+applications which are not Arabic-aware), you might find that the
+display becomes corrupted. By ticking this box, you can disable
+Arabic text shaping so that PuTTY displays precisely the characters
+it is told to display.
+
+You may also find you need to disable bidirectional text display;
+see \S{config-features-bidi}.
+
+\S{config-features-bidi} Disabling bidirectional text display
+
+\cfg{winhelp-topic}{features.bidi}
+
+PuTTY supports bidirectional text display, which means that if your
+server sends text written in a language which is usually displayed
+from right to left (such as Arabic or Hebrew) then PuTTY will
+automatically flip it round so that it is displayed in the right
+direction on the screen.
+
+If you are using full-screen software which was not expecting this
+to happen (especially if you are not an Arabic speaker and you
+unexpectedly find yourself dealing with Arabic text files in
+applications which are not Arabic-aware), you might find that the
+display becomes corrupted. By ticking this box, you can disable
+bidirectional text display, so that PuTTY displays text from left to
+right in all situations.
+
+You may also find you need to disable Arabic text shaping;
+see \S{config-features-arabicshaping}.
 
 \H{config-window} The Window panel
 

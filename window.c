@@ -1081,6 +1081,36 @@ static void init_palette(void)
 }
 
 /*
+ * This is a wrapper to ExtTextOut() to force Windows to display
+ * the precise glyphs we give it. Otherwise it would do its own
+ * bidi and Arabic shaping, and we would end up uncertain which
+ * characters it had put where.
+ */
+static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
+			  unsigned short *lpString, UINT cbCount,
+			  CONST INT *lpDx)
+{
+
+    GCP_RESULTSW gcpr;
+    char *buffer = snewn(cbCount*2+2, char);
+    char *classbuffer = snewn(cbCount, char);
+    memset(&gcpr, 0, sizeof(gcpr));
+    memset(buffer, 0, cbCount*2+2);
+    memset(classbuffer, GCPCLASS_NEUTRAL, cbCount);
+
+    gcpr.lStructSize = sizeof(gcpr);
+    gcpr.lpGlyphs = (void *)buffer;
+    gcpr.lpClass = classbuffer;
+    gcpr.nGlyphs = cbCount;
+
+    GetCharacterPlacementW(hdc, lpString, cbCount, 0, &gcpr,
+			   FLI_MASK | GCP_CLASSIN);
+
+    ExtTextOut(hdc, x, y, ETO_GLYPH_INDEX | ETO_CLIPPED | ETO_OPAQUE, lprc,
+	       buffer, cbCount, lpDx);
+}
+
+/*
  * Initialise all the fonts we will need initially. There may be as many as
  * three or as few as one.  The other (poentially) twentyone fonts are done
  * if/when they are needed.
@@ -2989,9 +3019,13 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	for (i = 0; i < len; i++)
 	    wbuf[i] = (WCHAR) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
 
-	ExtTextOutW(hdc, x,
+	/* print Glyphs as they are, without Windows' Shaping*/
+	exact_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
+		      &line_box, wbuf, len, IpDx);
+/*	ExtTextOutW(hdc, x,
 		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
 		    ETO_CLIPPED | ETO_OPAQUE, &line_box, wbuf, len, IpDx);
+ */
 
 	/* And the shadow bold hack. */
 	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {

@@ -166,13 +166,16 @@ install-strip:
 # names. A line beginning `+' is assumed to continue the previous
 # line.
 
+# Terminal emulator and its (platform-independent) dependencies.
+TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
+         + config dialog
+
 # GUI front end and terminal emulator (putty, puttytel).
-GUITERM  = window windlg winctrls terminal sizetip wcwidth unicode ldiscucs
-         + logging printing winutils dialog config wincfg tree234
+GUITERM  = TERMINAL window windlg winctrls sizetip unicode printing
+         + winutils wincfg
 
 # Same thing on Unix.
-UXTERM   = pterm config uxcfg dialog gtkdlg gtkcols gtkpanel tree234
-         + terminal wcwidth uxucs ldiscucs logging uxprint xkeysym
+UXTERM   = TERMINAL pterm uxcfg gtkdlg gtkcols gtkpanel uxucs uxprint xkeysym
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc

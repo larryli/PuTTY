@@ -1037,6 +1037,12 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_checkbox(s, "Disable remote-controlled character set configuration",
 		  'r', HELPCTX(features_charset), dlg_stdcheckbox_handler,
 		  I(offsetof(Config,no_remote_charset)));
+    ctrl_checkbox(s, "Disable Arabic text shaping",
+		  'l', HELPCTX(no_help), dlg_stdcheckbox_handler,
+		  I(offsetof(Config, arabicshaping)));
+    ctrl_checkbox(s, "Disable bidirectional text display",
+		  'j', HELPCTX(no_help), dlg_stdcheckbox_handler,
+		  I(offsetof(Config, bidi)));
 
     /*
      * The Window panel.

@@ -274,6 +274,8 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "DECOriginMode", cfg->dec_om);
     write_setting_i(sesskey, "AutoWrapMode", cfg->wrap_mode);
     write_setting_i(sesskey, "LFImpliesCR", cfg->lfhascr);
+    write_setting_i(sesskey, "DisableArabicShaping", cfg->arabicshaping);
+    write_setting_i(sesskey, "DisableBidi", cfg->bidi);
     write_setting_i(sesskey, "WinNameAlways", cfg->win_name_always);
     write_setting_s(sesskey, "WinTitle", cfg->wintitle);
     write_setting_i(sesskey, "TermWidth", cfg->width);
@@ -283,6 +285,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "UseSystemColours", cfg->system_colour);
     write_setting_i(sesskey, "TryPalette", cfg->try_palette);
     write_setting_i(sesskey, "BoldAsColour", cfg->bold_colour);
+
     for (i = 0; i < 22; i++) {
 	char buf[20], buf2[30];
 	sprintf(buf, "Colour%d", i);
@@ -531,6 +534,8 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "DECOriginMode", 0, &cfg->dec_om);
     gppi(sesskey, "AutoWrapMode", 1, &cfg->wrap_mode);
     gppi(sesskey, "LFImpliesCR", 0, &cfg->lfhascr);
+    gppi(sesskey, "DisableArabicShaping", 0, &cfg->arabicshaping);
+    gppi(sesskey, "DisableBidi", 0, &cfg->bidi);
     gppi(sesskey, "WinNameAlways", 1, &cfg->win_name_always);
     gpps(sesskey, "WinTitle", "", cfg->wintitle, sizeof(cfg->wintitle));
     gppi(sesskey, "TermWidth", 80, &cfg->width);
@@ -540,6 +545,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "UseSystemColours", 0, &cfg->system_colour);
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);
     gppi(sesskey, "BoldAsColour", 1, &cfg->bold_colour);
+
     for (i = 0; i < 22; i++) {
 	static const char *const defaults[] = {
 	    "187,187,187", "255,255,255", "0,0,0", "85,85,85", "0,0,0",
