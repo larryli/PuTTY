@@ -560,7 +560,7 @@ void sk_write_oob(Socket s, char *buf, int len) {
 }
 
 int select_result(WPARAM wParam, LPARAM lParam) {
-    int ret;
+    int ret, open;
     DWORD err;
     char buf[BUFFER_GRANULE];
     Socket s;
@@ -626,9 +626,19 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	try_send(s);
 	break;
       case FD_CLOSE:
-	/* Signal a close on the socket. */
-	return s->receiver(s, 0, NULL, 0);
-	break;
+	/* Signal a close on the socket. First read any outstanding data. */
+        open = 1;
+        do {
+            ret = recv(s->s, buf, sizeof(buf), 0);
+            if (ret < 0) {
+                err = WSAGetLastError();
+                if (err == WSAEWOULDBLOCK)
+                    break;
+                return s->receiver(s, 3, winsock_error_string(err), err);
+            } else
+                open &= s->receiver(s, 0, buf, ret);
+	} while (ret > 0);
+        return open;
     }
 
     return 1;
