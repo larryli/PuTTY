@@ -98,6 +98,7 @@ static void term_send(char *buf, int len) {
 		bsb(plen(term_buf[term_buflen-1]));
 		term_buflen--;
 	    }
+	    back->special (TS_EL);
 	    if( c == CTRL('C') )  back->special (TS_IP);
 	    if( c == CTRL('Z') )  back->special (TS_SUSP);
 	    if( c == CTRL('\\') ) back->special (TS_ABORT);
@@ -123,7 +124,10 @@ static void term_send(char *buf, int len) {
 	    break;
 	  case CTRL('M'):	       /* send with newline */
 	    back->send(term_buf, term_buflen);
-	    back->send("\r\n", 2);
+	    if (cfg.protocol == PROT_RAW)
+	        back->send("\r\n", 2);
+	    else
+	        back->send("\r", 1);
 	    c_write("\r\n", 2);
 	    term_buflen = 0;
 	    break;
