@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.10 2001/11/25 16:57:45 simon Exp $
+\versionid $Id: plink.but,v 1.11 2001/11/25 17:32:39 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -124,19 +124,19 @@ Plink can also be used with WinCVS.  Firstly, arrange for Plink to be
 able to connect to a remote host without a password.  \k{plink-cvs}
 has instructions on this.
 
-In WinCVS, bring up the \e{Preferences} dialogue box from the
-\e{Admin} menu, and switch to the \e{Ports} tab. Tick the box there
-labelled \e{Check for an alternate rsh name} and in the text entry
+In WinCVS, bring up the \q{Preferences} dialogue box from the
+\e{Admin} menu, and switch to the \q{Ports} tab. Tick the box there
+labelled \q{Check for an alternate rsh name} and in the text entry
 field to the right enter the full path to \c{plink.exe}.  Select
-\e{OK} on the \e{Preferences} dialogue box.
+\q{OK} on the \q{Preferences} dialogue box.
 
-Next, select \e{Command Line} from the WinCVS \e{Admin} menu, and type 
+Next, select \q{Command Line} from the WinCVS \q{Admin} menu, and type 
 a CVS command as in \k{plink-cvs}, for example:
 
 \c cvs -d :ext:user@hostname:/path/to/repository co module
 
-Select the folder you want to check out to with the \e{Change Folder}
-button, and click \e{OK} to check out your module.  Once you've got
+Select the folder you want to check out to with the \q{Change Folder}
+button, and click \q{OK} to check out your module.  Once you've got
 modules checked out, WinCVS will happily invoke plink from the GUI for
 CVS operations.
 

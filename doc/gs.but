@@ -1,4 +1,4 @@
-\versionid $Id: gs.but,v 1.4 2001/11/25 16:57:45 simon Exp $
+\versionid $Id: gs.but,v 1.5 2001/11/25 17:32:39 simon Exp $
 
 \C{gs} Getting started with PuTTY
 
@@ -15,18 +15,18 @@ You don't usually need to change most of the configuration options.
 To start the simplest kind of session, all you need to do is to
 enter a few basic parameters.
 
-In the \e{Host Name} box, enter the Internet host name of the server
+In the \q{Host Name} box, enter the Internet host name of the server
 you want to connect to. You should have been told this by the
 provider of your login account.
 
-Now select a login protocol to use, from the \e{Protocol} buttons.
+Now select a login protocol to use, from the \q{Protocol} buttons.
 For a login session, you should select Telnet, Rlogin or SSH. See
 \k{which-one} for a description of the differences between the three
 protocols, and advice on which one to use. The fourth protocol,
 \e{Raw}, is not used for interactive login sessions; you would
 usually use this for debugging other Internet services.
 
-When you change the selected protocol, the number in the \e{Port}
+When you change the selected protocol, the number in the \q{Port}
 box will change. This is normal: it happens because the various
 login services are usually provided on different network ports by
 the server machine. Most servers will use the standard port numbers,
@@ -35,9 +35,9 @@ provides login services on a non-standard port, your system
 administrator should have told you which one. (For example, many
 MUDs run Telnet service on a port other than 23.)
 
-Once you have filled in the \e{Host Name}, \e{Protocol}, and
-possibly \e{Port} settings, you are ready to connect. Press the
-\e{Open} button at the bottom of the dialog box, and PuTTY will
+Once you have filled in the \q{Host Name}, \q{Protocol}, and
+possibly \q{Port} settings, you are ready to connect. Press the
+\q{Open} button at the bottom of the dialog box, and PuTTY will
 begin trying to connect you to the server.
 
 \H{gs-hostkey} Verifying the Host Key (SSH only)

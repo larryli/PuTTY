@@ -1,4 +1,4 @@
-\versionid $Id: pageant.but,v 1.4 2001/11/25 16:57:45 simon Exp $
+\versionid $Id: pageant.but,v 1.5 2001/11/25 17:32:39 simon Exp $
 
 \C{pageant} Using Pageant for authentication
 
@@ -15,7 +15,7 @@ When you run Pageant, it will put an icon of a computer wearing a
 hat into the System tray. It will then sit and do nothing.
 
 If you click the Pageant icon with the right mouse button, you will
-see a menu. Select \e{View Keys} from this menu. The Pageant main
+see a menu. Select \q{View Keys} from this menu. The Pageant main
 window will appear. (You can also bring this window up by
 double-clicking on the Pageant icon.)
 
@@ -23,9 +23,9 @@ The Pageant window contains a list box. This shows the private keys
 Pageant is holding. When you start Pageant, it has no keys, so the
 list box will be empty.
 
-To add a key to Pageant, press the \e{Add Key} button. Pageant will
+To add a key to Pageant, press the \q{Add Key} button. Pageant will
 bring up a file dialog, labelled \q{Select Private Key File}. Find
-your private key file in this dialog, and press \e{Open}.
+your private key file in this dialog, and press \q{Open}.
 
 Pageant will now load the private key. If the key is protected by a
 passphrase, Pageant will ask you to type the passphrase. When the
@@ -39,7 +39,7 @@ open as many PuTTY sessions as you like without having to type your
 passphrase again.
 
 When you want to shut down Pageant, click the right button on the
-Pageant icon in the System tray, and select \e{Exit} from the menu.
+Pageant icon in the System tray, and select \q{Exit} from the menu.
 Closing the Pageant main window does \e{not} shut down Pageant.
 
 \H{pageant-forward} Using agent forwarding
