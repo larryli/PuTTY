@@ -166,10 +166,11 @@ struct dlgparam {
     char *errtitle;		       /* title of error sub-messageboxes */
     void *data;			       /* data to pass in refresh events */
     union control *focused, *lastfocused; /* which ctrl has focus now/before */
+    char shortcuts[128];	       /* track which shortcuts in use */
     int coloursel_wanted;	       /* has an event handler asked for
 					* a colour selector? */
-    char shortcuts[128];	       /* track which shortcuts in use */
     struct { unsigned char r, g, b, ok; } coloursel_result;   /* 0-255 */
+    tree234 *privdata;		       /* stores per-control private data */
     int ended, endresult;	       /* has the dialog been ended? */
 };
 
@@ -282,6 +283,10 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 			   WPARAM wParam, LPARAM lParam);
 void winctrl_rem_shortcuts(struct dlgparam *dp, struct winctrl *c);
 int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id);
+
+void dp_init(struct dlgparam *dp);
+void dp_add_tree(struct dlgparam *dp, struct winctrls *tree);
+void dp_cleanup(struct dlgparam *dp);
 
 /*
  * Exports from wincfg.c.

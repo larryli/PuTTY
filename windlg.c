@@ -582,16 +582,13 @@ int do_config(void)
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, &sesslist, FALSE, 0);
     win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), FALSE);
+    dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
-    dp.controltrees[0] = &ctrls_base;
-    dp.controltrees[1] = &ctrls_panel;
-    dp.nctrltrees = 2;
+    dp_add_tree(&dp, &ctrls_base);
+    dp_add_tree(&dp, &ctrls_panel);
     dp.errtitle = "PuTTY Error";
     dp.data = &cfg;
-    dp.ended = FALSE;
-    dp.lastfocused = NULL;
-    memset(dp.shortcuts, 0, sizeof(dp.shortcuts));
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
     get_sesslist(&sesslist, TRUE);
@@ -601,8 +598,9 @@ int do_config(void)
     get_sesslist(&sesslist, FALSE);
 
     ctrl_free_box(ctrlbox);
-    winctrl_cleanup(&ctrls_base);
     winctrl_cleanup(&ctrls_panel);
+    winctrl_cleanup(&ctrls_base);
+    dp_cleanup(&dp);
 
     return ret;
 }
@@ -617,16 +615,13 @@ int do_reconfig(HWND hwnd)
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, NULL, TRUE, cfg.protocol);
     win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), TRUE);
+    dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
-    dp.controltrees[0] = &ctrls_base;
-    dp.controltrees[1] = &ctrls_panel;
-    dp.nctrltrees = 2;
+    dp_add_tree(&dp, &ctrls_base);
+    dp_add_tree(&dp, &ctrls_panel);
     dp.errtitle = "PuTTY Error";
     dp.data = &cfg;
-    dp.ended = FALSE;
-    dp.lastfocused = NULL;
-    memset(dp.shortcuts, 0, sizeof(dp.shortcuts));
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
     ret =
@@ -636,6 +631,7 @@ int do_reconfig(HWND hwnd)
     ctrl_free_box(ctrlbox);
     winctrl_cleanup(&ctrls_base);
     winctrl_cleanup(&ctrls_panel);
+    dp_cleanup(&dp);
 
     if (!ret)
 	cfg = backup_cfg;	       /* structure copy */

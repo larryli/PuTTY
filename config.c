@@ -198,10 +198,11 @@ static void sshbug_handler(union control *ctrl, void *dlg,
     }
 }
 
+#define SAVEDSESSION_LEN 2048
+
 struct sessionsaver_data {
     union control *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
     union control *okbutton, *cancelbutton;
-    char savedsession[2048];
     struct sesslist *sesslist;
 };
 
@@ -211,6 +212,7 @@ struct sessionsaver_data {
  * failure.
  */
 static int load_selected_session(struct sessionsaver_data *ssd,
+				 char *savedsession,
 				 void *dlg, Config *cfg)
 {
     int i = dlg_listbox_index(ssd->listbox, dlg);
@@ -222,11 +224,11 @@ static int load_selected_session(struct sessionsaver_data *ssd,
     isdef = !strcmp(ssd->sesslist->sessions[i], "Default Settings");
     load_settings(ssd->sesslist->sessions[i], !isdef, cfg);
     if (!isdef) {
-	strncpy(ssd->savedsession, ssd->sesslist->sessions[i],
-		sizeof(ssd->savedsession));
-	ssd->savedsession[sizeof(ssd->savedsession)-1] = '\0';
+	strncpy(savedsession, ssd->sesslist->sessions[i],
+		SAVEDSESSION_LEN);
+	savedsession[SAVEDSESSION_LEN-1] = '\0';
     } else {
-	ssd->savedsession[0] = '\0';
+	savedsession[0] = '\0';
     }
     dlg_refresh(NULL, dlg);
     /* Restore the selection, which might have been clobbered by
@@ -241,10 +243,25 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
     struct sessionsaver_data *ssd =
 	(struct sessionsaver_data *)ctrl->generic.context.p;
+    char *savedsession;
+
+    /*
+     * The first time we're called in a new dialog, we must
+     * allocate space to store the current contents of the saved
+     * session edit box (since it must persist even when we switch
+     * panels, but is not part of the Config).
+     */
+    if (!dlg_get_privdata(ssd->editbox, dlg)) {
+	savedsession = (char *)
+	    dlg_alloc_privdata(ssd->editbox, dlg, SAVEDSESSION_LEN);
+	savedsession[0] = '\0';
+    } else {
+	savedsession = dlg_get_privdata(ssd->editbox, dlg);
+    }
 
     if (event == EVENT_REFRESH) {
 	if (ctrl == ssd->editbox) {
-	    dlg_editbox_set(ctrl, dlg, ssd->savedsession);
+	    dlg_editbox_set(ctrl, dlg, savedsession);
 	} else if (ctrl == ssd->listbox) {
 	    int i;
 	    dlg_update_start(ctrl, dlg);
@@ -255,8 +272,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	}
     } else if (event == EVENT_VALCHANGE) {
 	if (ctrl == ssd->editbox) {
-	    dlg_editbox_get(ctrl, dlg, ssd->savedsession,
-			    sizeof(ssd->savedsession));
+	    dlg_editbox_get(ctrl, dlg, savedsession,
+			    SAVEDSESSION_LEN);
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == ssd->listbox || ctrl == ssd->loadbutton) {
@@ -267,13 +284,13 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * double-click on the list box _and_ that session
 	     * contains a hostname.
 	     */
-	    if (load_selected_session(ssd, dlg, cfg) &&
+	    if (load_selected_session(ssd, savedsession, dlg, cfg) &&
 		(ctrl == ssd->listbox && cfg->host[0])) {
 		dlg_end(dlg, 1);       /* it's all over, and succeeded */
 	    }
 	} else if (ctrl == ssd->savebutton) {
-	    int isdef = !strcmp(ssd->savedsession, "Default Settings");
-	    if (!ssd->savedsession[0]) {
+	    int isdef = !strcmp(savedsession, "Default Settings");
+	    if (!savedsession[0]) {
 		int i = dlg_listbox_index(ssd->listbox, dlg);
 		if (i < 0) {
 		    dlg_beep(dlg);
@@ -281,14 +298,14 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		}
 		isdef = !strcmp(ssd->sesslist->sessions[i], "Default Settings");
 		if (!isdef) {
-		    strncpy(ssd->savedsession, ssd->sesslist->sessions[i],
-			    sizeof(ssd->savedsession));
-		    ssd->savedsession[sizeof(ssd->savedsession)-1] = '\0';
+		    strncpy(savedsession, ssd->sesslist->sessions[i],
+			    SAVEDSESSION_LEN);
+		    savedsession[SAVEDSESSION_LEN-1] = '\0';
 		} else {
-		    ssd->savedsession[0] = '\0';
+		    savedsession[0] = '\0';
 		}
 	    }
-	    save_settings(ssd->savedsession, !isdef, cfg);
+	    save_settings(savedsession, !isdef, cfg);
 	    get_sesslist(ssd->sesslist, FALSE);
 	    get_sesslist(ssd->sesslist, TRUE);
 	    dlg_refresh(ssd->editbox, dlg);
@@ -313,7 +330,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     */
 	    if (dlg_last_focused(dlg) == ssd->listbox && !*cfg->host) {
 		Config cfg2;
-		if (!load_selected_session(ssd, dlg, &cfg2)) {
+		if (!load_selected_session(ssd, savedsession, dlg, &cfg2)) {
 		    dlg_beep(dlg);
 		    return;
 		}
@@ -728,7 +745,6 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	s = ctrl_getset(b, "Session", "savedsessions",
 			"Load, save or delete a stored session");
 	ctrl_columns(s, 2, 75, 25);
-	ssd->savedsession[0] = '\0';
 	ssd->sesslist = sesslist;
 	ssd->editbox = ctrl_editbox(s, "Saved Sessions", 'e', 100,
 				    HELPCTX(session_saved),
