@@ -1017,6 +1017,21 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
     }
 
     /* We assume that we don't screw up and retrieve something out of range. */
+    if (line != NULL) {
+	fatalbox("line==NULL in terminal.c\n"
+		 "lineno=%d y=%d w=%d h=%d\n"
+		 "count(scrollback=%p)=%d\n"
+		 "count(screen=%p)=%d\n"
+		 "count(alt=%p)=%d alt_sblines=%d\n"
+		 "whichtree=%p treeindex=%d\n\n"
+		 "Please contact <putty@projects.tartarus.org> "
+		 "and pass on the above information.",
+		 lineno, y, term->cols, term->rows,
+		 term->scrollback, count234(term->scrollback),
+		 term->screen, count234(term->screen),
+		 term->alt_screen, count234(term->alt_screen), term->alt_sblines,
+		 whichtree, treeindex);
+    }
     assert(line != NULL);
 
     resizeline(term, line, term->cols);
