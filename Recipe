@@ -130,7 +130,7 @@ FORCE:
 !end
 !specialobj borland version
 !begin lcc
-version.o: FORCE
+version.obj: FORCE
 FORCE:
 	lcc $(VER) $(CFLAGS) /c ..\version.c
 !end
