@@ -16,26 +16,6 @@ information.
 
 */
 
-/*
- * $Id: sshdes.c,v 1.2 1999/01/08 13:10:15 simon Exp $
- * $Log: sshdes.c,v $
- * Revision 1.2  1999/01/08 13:10:15  simon
- * John Sullivan's patches plus more fixes:
- *   - Stop using the identifier `environ' as some platforms make it a macro
- *   - Fix silly error box at end of connection in FWHACK mode
- *   - Fix GPF on maximise-then-restore
- *   - Use SetCapture to allow drag-selecting outside the window
- *   - Correctly update window title when iconic and in win_name_always mode
- *
- * Revision 1.1.1.1  1996/02/18 21:38:11  ylo
- * 	Imported ssh-1.2.13.
- *
- * Revision 1.2  1995/07/13  01:22:57  ylo
- * 	Added cvs log.
- *
- * $Endlog$
- */
-
 typedef struct
 {
   word32 key_schedule[32];
@@ -114,26 +94,6 @@ cryptography and data security, including the following:
     1994.
 
 */
-
-/*
- * $Id: sshdes.c,v 1.2 1999/01/08 13:10:15 simon Exp $
- * $Log: sshdes.c,v $
- * Revision 1.2  1999/01/08 13:10:15  simon
- * John Sullivan's patches plus more fixes:
- *   - Stop using the identifier `environ' as some platforms make it a macro
- *   - Fix silly error box at end of connection in FWHACK mode
- *   - Fix GPF on maximise-then-restore
- *   - Use SetCapture to allow drag-selecting outside the window
- *   - Correctly update window title when iconic and in win_name_always mode
- *
- * Revision 1.1.1.1  1996/02/18 21:38:11  ylo
- * 	Imported ssh-1.2.13.
- *
- * Revision 1.2  1995/07/13  01:22:25  ylo
- * 	Added cvs log.
- *
- * $Endlog$
- */
 
 /* Table for key generation.  This used to be in sk.h. */
 /* Copyright (C) 1993 Eric Young - see README for more details */
