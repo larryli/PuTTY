@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.7 2002/08/07 18:08:29 simon Exp $
+\versionid $Id: feedback.but,v 1.8 2002/08/12 14:08:55 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -70,12 +70,10 @@ file. \cw{BMP}s have no compression and they are \e{much} larger
 than other image formats such as PNG, TIFF and GIF. Convert the file
 to a properly compressed image format before sending it.
 
-Please don't mail us executables, at all. For security reasons, it
-would be really unwise of us to run executables we receive from
-unknown people by e-mail, so there's no point sending them to us. At
-some point, indeed, we hope to block all incoming e-mail containing
-executables, as a defence against the vast numbers of e-mail viruses
-we receive every day.
+Please don't mail us executables, at all. Our mail server blocks all
+incoming e-mail containing executables, as a defence against the
+vast numbers of e-mail viruses we receive every day. If you mail us
+an executable, it will just bounce.
 
 If you have made a tiny modification to the PuTTY code, please send
 us a \e{patch} to the source code if possible, rather than sending
