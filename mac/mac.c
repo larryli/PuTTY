@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.16 2003/01/04 00:31:04 ben Exp $ */
+/* $Id: mac.c,v 1.17 2003/01/04 12:45:11 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -118,7 +118,7 @@ static void mac_startup(void) {
     /* Init TextEdit */
     TEInit();
     /* Init Dialog Manager */
-    InitDialogs(nil);
+    InitDialogs(NULL);
     cold = 0;
     
     /* Get base system version (only used if there's no better selector) */
@@ -609,7 +609,7 @@ void fatalbox(char *fmt, ...) {
     stuff[0] = vsprintf((char *)(&stuff[1]), fmt, ap);
     va_end(ap);
     ParamText(stuff, NULL, NULL, NULL);
-    StopAlert(128, nil);
+    StopAlert(128, NULL);
     exit(1);
 }
 
@@ -622,7 +622,7 @@ void modalfatalbox(char *fmt, ...) {
     stuff[0] = vsprintf((char *)(&stuff[1]), fmt, ap);
     va_end(ap);
     ParamText(stuff, NULL, NULL, NULL);
-    StopAlert(128, nil);
+    StopAlert(128, NULL);
     exit(1);
 }
 
