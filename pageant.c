@@ -115,6 +115,23 @@ struct PassphraseProcStruct {
     char *comment;
 };
 
+static tree234 *passphrases = NULL;
+
+/* 
+ * After processing a list of filenames, we want to forget the
+ * passphrases.
+ */
+static void forget_passphrases(void)
+{
+    int i;
+    while (count234(passphrases) > 0) {
+	char *pp = index234(passphrases, 0);
+	memset(pp, 0, strlen(pp));
+	delpos234(passphrases, 0);
+	free(pp);
+    }
+}
+
 /*
  * Dialog-box function for the Licence box.
  */
@@ -327,7 +344,8 @@ static void add_keyfile(char *filename)
     char *comment;
     struct PassphraseProcStruct pps;
     int ver;
-
+    int original_pass;
+	
     ver = keyfile_version(filename);
     if (ver == 0) {
 	MessageBox(NULL, "Couldn't load private key.", APPNAME,
@@ -344,18 +362,26 @@ static void add_keyfile(char *filename)
 	rkey = smalloc(sizeof(*rkey));
     pps.passphrase = passphrase;
     pps.comment = comment;
+    original_pass = 0;
     do {
 	if (needs_pass) {
-	    int dlgret;
-	    dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
-				    NULL, PassphraseProc, (LPARAM) & pps);
-	    passphrase_box = NULL;
-	    if (!dlgret) {
-		if (comment)
-		    sfree(comment);
-		if (ver == 1)
-		    sfree(rkey);
-		return;		       /* operation cancelled */
+	    /* try all the remembered passphrases first */
+	    char *pp = index234(passphrases, attempts);
+	    if(pp) {
+		strcpy(passphrase, pp);
+	    } else {
+		int dlgret;
+		original_pass = 1;
+		dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
+					NULL, PassphraseProc, (LPARAM) & pps);
+		passphrase_box = NULL;
+		if (!dlgret) {
+		    if (comment)
+			sfree(comment);
+		    if (ver == 1)
+			sfree(rkey);
+		    return;		       /* operation cancelled */
+		}
 	    }
 	} else
 	    *passphrase = '\0';
@@ -372,6 +398,13 @@ static void add_keyfile(char *filename)
 	}
 	attempts++;
     } while (ret == -1);
+
+    /* if they typed in an ok passphrase, remember it */
+    if(original_pass && ret) {
+	char *pp = dupstr(passphrase);
+	addpos234(passphrases, pp, 0);
+    }
+
     if (comment)
 	sfree(comment);
     if (ret == 0) {
@@ -980,6 +1013,10 @@ static void prompt_add_keyfile(void)
 {
     OPENFILENAME of;
     char filename[FILENAME_MAX];
+    char *filelist = smalloc(8192);
+    char *filewalker;
+    int n, dirlen;
+	
     memset(&of, 0, sizeof(of));
 #ifdef OPENFILENAME_SIZE_VERSION_400
     of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
@@ -990,17 +1027,52 @@ static void prompt_add_keyfile(void)
     of.lpstrFilter = "All Files\0*\0\0\0";
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
-    of.lpstrFile = filename;
-    *filename = '\0';
-    of.nMaxFile = sizeof(filename);
+    of.lpstrFile = filelist;
+    *filelist = '\0';
+    of.nMaxFile = FILENAME_MAX;
     of.lpstrFileTitle = NULL;
     of.lpstrInitialDir = NULL;
     of.lpstrTitle = "Select Private Key File";
-    of.Flags = 0;
+    of.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER;
     if (GetOpenFileName(&of)) {
-	add_keyfile(filename);
+	if(strlen(filelist) > of.nFileOffset)
+	    /* Only one filename returned? */
+	    add_keyfile(filelist);
+	else {
+	    /* we are returned a bunch of strings, end to
+	     * end. first string is the directory, the
+	     * rest the filenames. terminated with an
+	     * empty string.
+	     */
+	    filewalker = filelist;
+	    dirlen = strlen(filewalker);
+	    if(dirlen > FILENAME_MAX - 8) return;
+	    memcpy(filename, filewalker, dirlen);
+
+	    filewalker += dirlen + 1;
+	    filename[dirlen++] = '\\';
+
+	    /* then go over names one by one */
+	    for(;;) {
+		n = strlen(filewalker) + 1;
+		/* end of the list */
+		if(n == 1)
+		    break;
+		/* too big, shouldn't happen */
+		if(n + dirlen > FILENAME_MAX)
+		    break;
+
+		memcpy(filename + dirlen, filewalker, n);
+		filewalker += n;
+
+		add_keyfile(filename);
+	    }
+	}
+
 	keylist_update();
+	forget_passphrases();
     }
+    sfree(filelist);
 }
 
 /*
@@ -1059,29 +1131,61 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	  case 102:		       /* remove key */
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		int n = SendDlgItemMessage(hwnd, 100, LB_GETCURSEL, 0, 0);
 		int i;
-		if (n == LB_ERR) {
+		int rCount, sCount;
+		int *selectedArray;
+		
+		/* our counter within the array of selected items */
+		int itemNum;
+		
+		/* get the number of items selected in the list */
+		int numSelected = 
+			SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+		
+		/* none selected? that was silly */
+		if (numSelected == 0) {
 		    MessageBeep(0);
 		    break;
 		}
-		for (i = 0; NULL != (rkey = index234(rsakeys, i)); i++)
-		    if (n-- == 0)
-			break;
-		if (rkey) {
-		    del234(rsakeys, rkey);
-		    freersakey(rkey);
-		    sfree(rkey);
-		} else {
-		    for (i = 0; NULL != (skey = index234(ssh2keys, i));
-			 i++) if (n-- == 0)
-			    break;
-		    if (skey) {
-			del234(ssh2keys, skey);
-			skey->alg->freekey(skey->data);
-			sfree(skey);
-		    }
+
+		/* get item indices in an array */
+		selectedArray = smalloc(numSelected * sizeof(int));
+		SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS,
+				numSelected, (WPARAM)selectedArray);
+		
+		itemNum = numSelected - 1;
+		rCount = count234(rsakeys);
+		sCount = count234(ssh2keys);
+		
+		/* go through the non-rsakeys until we've covered them all, 
+		 * and/or we're out of selected items to check. note that
+		 * we go *backwards*, to avoid complications from deleting
+		 * things hence altering the offset of subsequent items
+		 */
+	    for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
+			skey = index234(ssh2keys, i);
+			
+			if (selectedArray[itemNum] == rCount + i) {
+				del234(ssh2keys, skey);
+				skey->alg->freekey(skey->data);
+				sfree(skey);
+			   	itemNum--; 
+			}
 		}
+		
+		/* do the same for the rsa keys */
+		for (i = rCount - 1; (itemNum >= 0) && (i >= 0); i--) {
+			rkey = index234(rsakeys, i);
+
+			if(selectedArray[itemNum] == i) {
+				del234(rsakeys, rkey);
+				freersakey(rkey);
+				sfree(rkey);
+				itemNum--;
+			}
+		}
+
+		sfree(selectedArray); 
 		keylist_update();
 	    }
 	    return 0;
@@ -1424,6 +1528,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
+     * Initialise storage for short-term passphrase cache.
+     */
+    passphrases = newtree234(NULL);
+
+    /*
      * Process the command line and add keys as listed on it.
      * If we already determined that we need to spawn a program from above we
      * need to ignore the first two arguments. [DBW]
@@ -1435,10 +1544,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	while (*p) {
 	    while (*p && isspace(*p))
 		p++;
-	    if (*p && !isspace(*p)) {
+		if (*p && !isspace(*p)) {
 		char *q = p, *pp = p;
 		while (*p && (inquotes || !isspace(*p))) {
-		    if (*p == '"') {
+			if (*p == '"') {
 			inquotes = !inquotes;
 			p++;
 			continue;
@@ -1467,6 +1576,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    }
 	}
     }
+
+    /*
+     * Forget any passphrase that we retained while going over
+     * command line keyfiles.
+     */
+    forget_passphrases();
 
     if (command)
 	spawn_cmd(command, show);
