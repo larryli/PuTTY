@@ -71,4 +71,9 @@ void (*putty_signal(int sig, void (*func)(int)))(int);
  */
 int init_ucs(int font_charset);
 
+/*
+ * Spare function exported directly from uxnet.c.
+ */
+int sk_getxdmdata(void *sock, unsigned long *ip, int *port);
+
 #endif

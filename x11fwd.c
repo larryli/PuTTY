@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <time.h>
 
 #include "putty.h"
 #include "ssh.h"
@@ -52,7 +53,7 @@
   (endian=='B' ? PUT_16BIT_MSB_FIRST(cp, val) : PUT_16BIT_LSB_FIRST(cp, val))
 
 const char *const x11_authnames[] = {
-    "", "MIT-MAGIC-COOKIE-1"
+    "", "MIT-MAGIC-COOKIE-1", "XDM-AUTHORIZATION-1"
 };
 
 struct X11Auth {
@@ -381,13 +382,27 @@ int x11_send(Socket s, char *data, int len)
             char realauthdata[64];
             int realauthlen = 0;
             int authstrlen = strlen(x11_authnames[pr->auth->realproto]);
+	    unsigned long ip;
+	    int port;
             static const char zeroes[4] = { 0,0,0,0 };
 
             if (pr->auth->realproto == X11_MIT) {
                 assert(pr->auth->reallen <= lenof(realauthdata));
                 realauthlen = pr->auth->reallen;
                 memcpy(realauthdata, pr->auth->realdata, realauthlen);
-            }
+            } else if (pr->auth->realproto == X11_XDM &&
+		       pr->auth->reallen == 16 &&
+		       sk_getxdmdata(s, &ip, &port)) {
+		time_t t;
+                realauthlen = 24;
+		memset(realauthdata, 0, 24);
+		memcpy(realauthdata, pr->auth->realdata, 8);
+		PUT_32BIT_MSB_FIRST(realauthdata+8, ip);
+		PUT_16BIT_MSB_FIRST(realauthdata+12, port);
+		t = time(NULL);
+		PUT_32BIT_MSB_FIRST(realauthdata+14, t);
+		des_encrypt_xdmauth(pr->auth->realdata+9, realauthdata, 24);
+	    }
             /* implement other auth methods here if required */
 
             PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 6, authstrlen);

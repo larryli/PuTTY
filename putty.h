@@ -697,6 +697,7 @@ void cmdline_error(char *, ...);
 enum {
     X11_NO_AUTH,
     X11_MIT,                           /* MIT-MAGIC-COOKIE-1 */
+    X11_XDM,			       /* XDM-AUTHORIZATION-1 */
     X11_NAUTHS
 };
 extern const char *const x11_authnames[];  /* declared in x11fwd.c */

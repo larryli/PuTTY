@@ -305,27 +305,27 @@ static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
 static char *sk_tcp_socket_error(Socket s);
 
+static struct socket_function_table tcp_fn_table = {
+    sk_tcp_plug,
+    sk_tcp_close,
+    sk_tcp_write,
+    sk_tcp_write_oob,
+    sk_tcp_flush,
+    sk_tcp_set_private_ptr,
+    sk_tcp_get_private_ptr,
+    sk_tcp_set_frozen,
+    sk_tcp_socket_error
+};
+
 Socket sk_register(void *sock, Plug plug)
 {
-    static struct socket_function_table fn_table = {
-	sk_tcp_plug,
-	sk_tcp_close,
-	sk_tcp_write,
-	sk_tcp_write_oob,
-	sk_tcp_flush,
-	sk_tcp_set_private_ptr,
-	sk_tcp_get_private_ptr,
-	sk_tcp_set_frozen,
-	sk_tcp_socket_error
-    };
-
     Actual_Socket ret;
 
     /*
      * Create Socket structure.
      */
     ret = smalloc(sizeof(struct Socket_tag));
-    ret->fn = &fn_table;
+    ret->fn = &tcp_fn_table;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -355,18 +355,6 @@ Socket sk_register(void *sock, Plug plug)
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug plug)
 {
-    static struct socket_function_table fn_table = {
-	sk_tcp_plug,
-	sk_tcp_close,
-	sk_tcp_write,
-	sk_tcp_write_oob,
-	sk_tcp_flush,
-	sk_tcp_set_private_ptr,
-	sk_tcp_get_private_ptr,
-	sk_tcp_set_frozen,
-	sk_tcp_socket_error
-    };
-
     int s;
 #ifdef IPV6
     struct sockaddr_in6 a6;
@@ -380,7 +368,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
      * Create Socket structure.
      */
     ret = smalloc(sizeof(struct Socket_tag));
-    ret->fn = &fn_table;
+    ret->fn = &tcp_fn_table;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -524,18 +512,6 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
 Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 {
-    static struct socket_function_table fn_table = {
-	sk_tcp_plug,
-	sk_tcp_close,
-	sk_tcp_write,
-	sk_tcp_write_oob,
-	sk_tcp_flush,
-	sk_tcp_set_private_ptr,
-	sk_tcp_get_private_ptr,
-	sk_tcp_set_frozen,
-	sk_tcp_socket_error
-    };
-
     int s;
 #ifdef IPV6
     struct sockaddr_in6 a6;
@@ -550,7 +526,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
      * Create Socket structure.
      */
     ret = smalloc(sizeof(struct Socket_tag));
-    ret->fn = &fn_table;
+    ret->fn = &tcp_fn_table;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -659,6 +635,35 @@ static void sk_tcp_close(Socket sock)
     del234(sktree, s);
     close(s->s);
     sfree(s);
+}
+
+int sk_getxdmdata(void *sock, unsigned long *ip, int *port)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    struct sockaddr_in addr;
+    socklen_t addrlen;
+
+    /*
+     * We must check that this socket really _is_ an Actual_Socket.
+     */
+    if (s->fn != &tcp_fn_table)
+	return 0;		       /* failure */
+
+    /*
+     * If we ever implement connecting to a local X server through
+     * a Unix socket, we return 0xFFFFFFFF for the IP address and
+     * our current pid for the port. Bizarre, but such is life.
+     */
+
+    addrlen = sizeof(addr);
+    if (getsockname(s->s, (struct sockaddr *)&addr, &addrlen) < 0 ||
+	addr.sin_family != AF_INET)
+	return 0;
+
+    *ip = ntohl(addr.sin_addr.s_addr);
+    *port = ntohs(addr.sin_port);
+
+    return 1;
 }
 
 /*

@@ -363,6 +363,8 @@ void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk,
 void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk,
 			   int len);
 
+void des_encrypt_xdmauth(unsigned char *key, unsigned char *blk, int len);
+
 /*
  * For progress updates in the key generation utility.
  */

@@ -26,6 +26,13 @@ typedef void *Context; /* FIXME */
 
 #define OPTIMISE_SCROLL
 
+/*
+ * sk_getxdmdata() does not exist under the Mac (SGT: I have no
+ * idea whatsoever how to write it, and furthermore I'm unconvinced
+ * it's necessary), so it's a macro which always returns FALSE.
+ */
+#define sk_getxdmdata(socket, ip, port) (0)
+
 /* To make it compile */
 
 #include <stdarg.h>
