@@ -518,9 +518,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		     IDC_TITLE);
 	    beginbox(&cp, "Key", IDC_BOX_KEY);
 	    cp2 = cp;
-	    statictext(&cp2, "No key.", IDC_NOKEY);
+	    statictext(&cp2, "No key.", 1, IDC_NOKEY);
 	    cp2 = cp;
-	    statictext(&cp2, "", IDC_GENERATING);
+	    statictext(&cp2, "", 1, IDC_GENERATING);
 	    progressbar(&cp2, IDC_PROGRESS);
 	    bigeditctrl(&cp,
 			"&Public key for pasting into authorized_keys file:",
