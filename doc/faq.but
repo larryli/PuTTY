@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.22 2002/03/24 13:42:30 jacob Exp $
+\versionid $Id: faq.but,v 1.23 2002/03/24 14:08:13 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -693,10 +693,12 @@ PuTTY to use SSH protocol 2 and the Blowfish cipher.
 This is not a PuTTY-specific problem; if you try to connect with
 another client you'll likely have similar problems.
 
-Configurations known to be broken and symptoms:
+Configurations known to be broken (and symptoms):
 
 \b SSH 2 with AES cipher (PuTTY says "Assertion failed! Expression:
 (len & 15) == 0" in sshaes.c, or "Out of memory", or crashes)
+
+\b SSH 2 with 3DES (PuTTY says "Incorrect MAC received on packet")
 
 \b SSH 1 with Blowfish (PuTTY says "Incorrect CRC received on
 packet")
