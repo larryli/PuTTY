@@ -306,8 +306,6 @@ command will give an error message:
 \c c:\>pscp user@host:"\"oo er\"" .
 \c warning: remote host tried to write to a file called 'oo er'
 \c          when we requested a file called '"oo er"'.
-\c          If this is a wildcard, consider upgrading to SSH 2 or using
-\c          the '-unsafe' option. Renaming of this file has been disallowed.
 
 Instead, you need to specify the local file name in full:
 
@@ -341,6 +339,10 @@ automatically (when they announce their version) and enable the
 workaround without the user needing to ask. Therefore you \e{should}
 never have to use this option again after 0.52, but it is still
 provided just in case another buggy server shows up.
+
+In this context MAC stands for Message Authentication Code. It's a
+cryptographic term, and it has nothing at all to do with Ethernet
+MAC (Media Access Control) addresses.
 
 \S{faq-colours} I clicked on a colour in the Colours panel, and the
 colour didn't change in my terminal.
