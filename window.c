@@ -2188,7 +2188,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			    mi.rcMonitor.top == pt.y) {
 			    mouse_on_hotspot = 1;
 			}
-			CloseHandle(mon);
 		    }
 		}
 #else
