@@ -524,8 +524,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
  */
 static void enact_pending_netevent(void) {
     int i;
+    static int reentering = 0;
+
+    if (reentering)
+        return;                        /* don't unpend the pending */
+
     pending_netevent = FALSE;
+
+    reentering = 1;
     i = back->msg (pend_netevent_wParam, pend_netevent_lParam);
+    reentering = 0;
 
     if (i < 0) {
 	char buf[1024];
