@@ -4,8 +4,7 @@
 
 #include <windows.h>
 #include <aclapi.h>
-#include <stdio.h> /* FIXME */
-#include "putty.h" /* FIXME */
+#include <stdio.h>
 #include "ssh.h"
 #include "tree234.h"
 
