@@ -299,6 +299,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		memmove(cfg.host, atsign + 1, 1 + strlen(atsign + 1));
 	    }
 	}
+
+	/*
+	 * Trim a colon suffix off the hostname if it's there.
+	 */
+	cfg.host[strcspn(cfg.host, ":")] = '\0';
     }
 
     /*
