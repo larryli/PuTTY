@@ -332,7 +332,7 @@ struct MainDlgState {
     unsigned *entropy;
     struct RSAKey key;
     struct dss_key dsskey;
-    HMENU filemenu, keymenu, exportmenu;
+    HMENU filemenu, keymenu, cvtmenu;
 };
 
 static void hidemany(HWND hwnd, const int *ids, int hideit)
@@ -539,9 +539,10 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableMenuItem(state->keymenu, IDC_KEYSSH1, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_ENABLED|MF_BYCOMMAND);
-	EnableMenuItem(state->exportmenu, IDC_EXPORT_OPENSSH,
+	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH,
 		       MF_GRAYED|MF_BYCOMMAND);
-	EnableMenuItem(state->exportmenu, IDC_EXPORT_SSHCOM,
+	EnableMenuItem(state->cvtmenu, IDC_EXPORT_SSHCOM,
 		       MF_GRAYED|MF_BYCOMMAND);
 	break;
       case 1:			       /* generating key */
@@ -563,9 +564,10 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableMenuItem(state->keymenu, IDC_KEYSSH1, MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA, MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_GRAYED|MF_BYCOMMAND);
-	EnableMenuItem(state->exportmenu, IDC_EXPORT_OPENSSH,
+	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH,
 		       MF_GRAYED|MF_BYCOMMAND);
-	EnableMenuItem(state->exportmenu, IDC_EXPORT_SSHCOM,
+	EnableMenuItem(state->cvtmenu, IDC_EXPORT_SSHCOM,
 		       MF_GRAYED|MF_BYCOMMAND);
 	break;
       case 2:
@@ -587,13 +589,14 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableMenuItem(state->keymenu, IDC_KEYSSH1, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA,MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA,MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
 	/*
 	 * Enable export menu items if and only if the key type
 	 * supports this kind of export.
 	 */
 	type = state->ssh2 ? SSH_KEYTYPE_SSH2 : SSH_KEYTYPE_SSH1;
 #define do_export_menuitem(x,y) \
-    EnableMenuItem(state->exportmenu, x, MF_BYCOMMAND | \
+    EnableMenuItem(state->cvtmenu, x, MF_BYCOMMAND | \
 		       (import_target_type(y)==type?MF_ENABLED:MF_GRAYED))
 	do_export_menuitem(IDC_EXPORT_OPENSSH, SSH_KEYTYPE_OPENSSH);
 	do_export_menuitem(IDC_EXPORT_SSHCOM, SSH_KEYTYPE_SSHCOM);
@@ -657,13 +660,15 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    state->keymenu = menu1;
 
 	    menu1 = CreateMenu();
+	    AppendMenu(menu1, MF_ENABLED, IDC_IMPORT, "&Import key");
+	    AppendMenu(menu1, MF_SEPARATOR, 0, 0);
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH,
 		       "Export &OpenSSH key");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
-		       "&Export");
-	    state->exportmenu = menu1;
+		       "&Conversions");
+	    state->cvtmenu = menu1;
 
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");
@@ -1024,6 +1029,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    }
 	    break;
 	  case IDC_LOAD:
+	  case IDC_IMPORT:
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (!state->generation_thread_exists) {
@@ -1174,6 +1180,24 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			 */
 			ui_set_state(hwnd, state, 2);
 			state->key_exists = TRUE;
+
+			/*
+			 * If the user has imported a foreign key
+			 * using the Load command, let them know.
+			 * If they've used the Import command, be
+			 * silent.
+			 */
+			if (realtype != type && LOWORD(wParam) == IDC_LOAD) {
+			    char msg[512];
+			    sprintf(msg, "Successfully imported foreign key\n"
+				    "(%s).\n"
+				    "To use this key with PuTTY, you need to\n"
+				    "use the \"Save private key\" command to\n"
+				    "save it in PuTTY's own format.",
+				    key_type_to_str(realtype));
+			    MessageBox(NULL, msg, "PuTTYgen Notice",
+				       MB_OK | MB_ICONINFORMATION);
+			}
 		    }
 		}
 	    }
@@ -1307,9 +1331,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
               case IDC_BITSSTATIC:
               case IDC_BITS:
                 cmd = "JI(`',`puttygen.bits')"; break;
+              case IDC_IMPORT:
               case IDC_EXPORT_OPENSSH:
               case IDC_EXPORT_SSHCOM:
-                cmd = "JI(`',`puttygen.export')"; break;
+                cmd = "JI(`',`puttygen.conversions')"; break;
             }
             if (cmd) {
                 WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
