@@ -198,6 +198,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	 * An initial @ means to activate a saved session.
 	 */
 	if (*p == '@') {
+	    int i = strlen(p);
+	    while (i > 1 && isspace(p[i-1]))
+		i--;
+	    p[i] = '\0';
 	    do_defaults (p+1, &cfg);
 	    if (!*cfg.host && !do_config()) {
 		WSACleanup();
