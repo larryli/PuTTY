@@ -2049,6 +2049,76 @@ static void ssh_throttle_all(int enable, int bufsize)
 }
 
 /*
+ * Username and password input, abstracted off into reusable
+ * routines (hopefully even reusable between SSH1 and SSH2!).
+ */
+static char *ssh_userpass_input_buffer;
+static int ssh_userpass_input_buflen;
+static int ssh_userpass_input_bufpos;
+static int ssh_userpass_input_echo;
+
+/* Set up a username or password input loop on a given buffer. */
+void setup_userpass_input(char *buffer, int buflen, int echo)
+{
+    ssh_userpass_input_buffer = buffer;
+    ssh_userpass_input_buflen = buflen;
+    ssh_userpass_input_bufpos = 0;
+    ssh_userpass_input_echo = echo;
+}
+
+/*
+ * Process some terminal data in the course of username/password
+ * input. Returns >0 for success (line of input returned in
+ * buffer), <0 for failure (user hit ^C/^D, bomb out and exit), 0
+ * for inconclusive (keep waiting for more input please).
+ */
+int process_userpass_input(unsigned char *in, int inlen)
+{
+    char c;
+
+    while (inlen--) {
+	switch (c = *in++) {
+	  case 10:
+	  case 13:
+	    ssh_userpass_input_buffer[ssh_userpass_input_bufpos] = 0;
+	    ssh_userpass_input_buffer[ssh_userpass_input_buflen-1] = 0;
+	    return +1;
+	    break;
+	  case 8:
+	  case 127:
+	    if (ssh_userpass_input_bufpos > 0) {
+		if (ssh_userpass_input_echo)
+		    c_write_str("\b \b");
+		ssh_userpass_input_bufpos--;
+	    }
+	    break;
+	  case 21:
+	  case 27:
+	    while (ssh_userpass_input_bufpos > 0) {
+		if (ssh_userpass_input_echo)
+		    c_write_str("\b \b");
+		ssh_userpass_input_bufpos--;
+	    }
+	    break;
+	  case 3:
+	  case 4:
+	    return -1;
+	    break;
+	  default:
+	    if (((c >= ' ' && c <= '~') ||
+		 ((unsigned char) c >= 160))
+		&& ssh_userpass_input_bufpos < ssh_userpass_input_buflen-1) {
+		ssh_userpass_input_buffer[ssh_userpass_input_bufpos++] = c;
+		if (ssh_userpass_input_echo)
+		    c_write(&c, 1);
+	    }
+	    break;
+	}
+    }
+    return 0;
+}
+
+/*
  * Handle the key exchange and user authentication phases.
  */
 static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
@@ -2233,8 +2303,6 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     fflush(stdout);
     {
-	static int pos = 0;
-	static char c;
 	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
 	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
@@ -2248,47 +2316,18 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		    crReturn(1);
 		}
 	    } else {
+		static int ret;
 		c_write_str("login as: ");
 		ssh_send_ok = 1;
-		while (pos >= 0) {
+
+		setup_userpass_input(username, sizeof(username), 1);
+		do {
 		    crWaitUntil(!ispkt);
-		    while (inlen--)
-			switch (c = *in++) {
-			  case 10:
-			  case 13:
-			    username[pos] = 0;
-			    pos = -1;
-			    break;
-			  case 8:
-			  case 127:
-			    if (pos > 0) {
-				c_write_str("\b \b");
-				pos--;
-			    }
-			    break;
-			  case 21:
-			  case 27:
-			    while (pos > 0) {
-				c_write_str("\b \b");
-				pos--;
-			    }
-			    break;
-			  case 3:
-			  case 4:
-			    cleanup_exit(0);
-			    break;
-			  default:
-			    if (((c >= ' ' && c <= '~') ||
-				 ((unsigned char) c >= 160))
-				&& pos < sizeof(username)-1) {
-				username[pos++] = c;
-				c_write(&c, 1);
-			    }
-			    break;
-			}
-		}
+		    ret = process_userpass_input(in, inlen);
+		} while (ret == 0);
+		if (ret < 0)
+		    cleanup_exit(0);
 		c_write_str("\r\n");
-		username[strcspn(username, "\n\r")] = '\0';
 	    }
 	} else {
 	    strncpy(username, cfg.username, 99);
@@ -2572,37 +2611,17 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	} else {
 	    /* Prompt may have come from server. We've munged it a bit, so
 	     * we know it to be zero-terminated at least once. */
+	    static int ret;
 	    c_write_untrusted(prompt, strlen(prompt));
 	    pos = 0;
-	    ssh_send_ok = 1;
-	    while (pos >= 0) {
+
+	    setup_userpass_input(password, sizeof(password), 0);
+	    do {
 		crWaitUntil(!ispkt);
-		while (inlen--)
-		    switch (c = *in++) {
-		      case 10:
-		      case 13:
-			password[pos] = 0;
-			pos = -1;
-			break;
-		      case 8:
-		      case 127:
-			if (pos > 0)
-			    pos--;
-			break;
-		      case 21:
-		      case 27:
-			pos = 0;
-			break;
-		      case 3:
-		      case 4:
-			cleanup_exit(0);
-			break;
-		      default:
-			if (pos < sizeof(password)-1)
-			    password[pos++] = c;
-			break;
-		    }
-	    }
+		ret = process_userpass_input(in, inlen);
+	    } while (ret == 0);
+	    if (ret < 0)
+		cleanup_exit(0);
 	    c_write_str("\r\n");
 	}
 
@@ -4092,13 +4111,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     username[0] = '\0';
     got_username = FALSE;
     do {
-	static int pos;
-	static char c;
-
 	/*
 	 * Get a username.
 	 */
-	pos = 0;
 	if (got_username && !cfg.change_username) {
 	    /*
 	     * We got a username last time round this loop, and
@@ -4118,45 +4133,16 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    crReturnV;
 		}
 	    } else {
+		static int ret;
 		c_write_str("login as: ");
 		ssh_send_ok = 1;
-		while (pos >= 0) {
+		setup_userpass_input(username, sizeof(username), 1);
+		do {
 		    crWaitUntilV(!ispkt);
-		    while (inlen--)
-			switch (c = *in++) {
-			  case 10:
-			  case 13:
-			    username[pos] = 0;
-			    pos = -1;
-			    break;
-			  case 8:
-			  case 127:
-			    if (pos > 0) {
-				c_write_str("\b \b");
-				pos--;
-			    }
-			    break;
-			  case 21:
-			  case 27:
-			    while (pos > 0) {
-				c_write_str("\b \b");
-				pos--;
-			    }
-			    break;
-			  case 3:
-			  case 4:
-			    cleanup_exit(0);
-			    break;
-			  default:
-			    if (((c >= ' ' && c <= '~') ||
-				 ((unsigned char) c >= 160))
-				&& pos < sizeof(username)-1) {
-				username[pos++] = c;
-				c_write(&c, 1);
-			    }
-			    break;
-			}
-		}
+		    ret = process_userpass_input(in, inlen);
+		} while (ret == 0);
+		if (ret < 0)
+		    cleanup_exit(0);
 	    }
 	    c_write_str("\r\n");
 	    username[strcspn(username, "\n\r")] = '\0';
@@ -4324,6 +4310,14 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	    method = 0;
 	    ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
+
+	    /*
+	     * Most password/passphrase prompts will be
+	     * non-echoing, so we set this to 0 by default.
+	     * Exception is that some keyboard-interactive prompts
+	     * can be echoing, in which case we'll set this to 1.
+	     */
+	    echo = 0;
 
 	    if (!method && can_pubkey && agent_exists() && !tried_agent) {
 		/*
@@ -4579,11 +4573,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_getstring(&lang, &lang_len);
 		    if (name_len > 0) {
 			c_write_untrusted(name, name_len);
-			c_write_str("\n");
+			c_write_str("\r\n");
 		    }
 		    if (inst_len > 0) {
 			c_write_untrusted(inst, inst_len);
-			c_write_str("\n");
+			c_write_str("\r\n");
 		    }
 		    num_prompts = ssh2_pkt_getuint32();
 		}
@@ -4642,41 +4636,17 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			crReturnV;
 		    }
 		} else {
-		    static int pos = 0;
-		    static char c;
-
+		    static int ret;
 		    c_write_untrusted(pwprompt, strlen(pwprompt));
 		    ssh_send_ok = 1;
 
-		    pos = 0;
-		    while (pos >= 0) {
+		    setup_userpass_input(password, sizeof(password), echo);
+		    do {
 			crWaitUntilV(!ispkt);
-			while (inlen--)
-			    switch (c = *in++) {
-			      case 10:
-			      case 13:
-				password[pos] = 0;
-				pos = -1;
-				break;
-			      case 8:
-			      case 127:
-				if (pos > 0)
-				    pos--;
-				break;
-			      case 21:
-			      case 27:
-				pos = 0;
-				break;
-			      case 3:
-			      case 4:
-				cleanup_exit(0);
-				break;
-			      default:
-				if (pos < sizeof(password)-1)
-				    password[pos++] = c;
-				break;
-			    }
-		    }
+			ret = process_userpass_input(in, inlen);
+		    } while (ret == 0);
+		    if (ret < 0)
+			cleanup_exit(0);
 		    c_write_str("\r\n");
 		}
 	    }
