@@ -62,8 +62,6 @@ void cmdline_error(char *p, ...)
     exit(1);
 }
 
-static char *password = NULL;
-
 HANDLE inhandle, outhandle, errhandle;
 DWORD orig_console_mode;
 
