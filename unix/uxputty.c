@@ -16,36 +16,21 @@
  * 
  *  - Go through all the config options and ensure they can all be
  *    configured and reconfigured properly.
- * 
- *  - Remainder of the context menu:
- * 
- *     - New Session, Duplicate Session and the Saved Sessions
- * 	 submenu.
- * 	  + at least New and Duplicate probably _should_ be in
- * 	    pterm.
- *        + Duplicate Session will be fun, since we must work out
- *          how to pass the config data through.
- *        + In fact this should be easier on Unix, since fork() is
- *          available so we need not even exec (this also saves us
- *          the trouble of scrabbling around trying to find our own
- *          binary). Possible scenario: respond to Duplicate
- *          Session by forking. Parent continues as before; child
- *          unceremoniously frees all extant resources (backend,
- *          terminal, ldisc, frontend etc) and then _longjmps_ (I
- *          kid you not) back to a point in pt_main() which causes
- *          it to go back round to the point of opening a new
- *          terminal window and a new backend.
- *        + A tricky bit here is how to free everything without
- *          also _destroying_ things - calling GTK to free up
- *          existing widgets is liable to send destroy messages to
- *          the X server, which won't go down too well with the
- *          parent process. exec() is a much cleaner solution to
- *          this bit, but requires us to invent some ghastly IPC as
- *          we did in Windows PuTTY.
- *        + Arrgh! Also, this won't work in pterm since we'll
- *          already have dropped privileges by this point, so we
- *          can't get another pty. Sigh. Looks like exec has to be
- *          the way forward then :-/
+ *     + icon title appears to be a non-option on Unix.
+ *     + Why the hell did I faff about disabling two of the vtmode
+ * 	 options? The rest aren't used either in pterm! Work out
+ * 	 whether they should be, and how they can be.
+ *     + Refresh in the codepage combo is badly broken.
+ *     + `Don't translate line drawing chars' ?? What is this crap?
+ * 	 It does nothing at all, and where's the option to paste as
+ * 	 lqqqk? What was I smoking?
+ *
+ *  - Better control of the individual config box features.
+ *     + SSH packet logging shouldn't be mentioned in pterm, and in
+ * 	 fact not PuTTYtel either.
+ *     + Keepalives, and the Connection panel in general, shouldn't
+ * 	 crop up in pterm. (And perhaps also not mid-session in
+ * 	 rlogin and raw?)
  */
 
 /*
@@ -81,7 +66,7 @@ int cfgbox(Config *cfg)
 
 static int got_host = 0;
 
-const int use_event_log = 1;
+const int use_event_log = 1, new_session = 1, saved_sessions = 1;
 
 int process_nonoption_arg(char *arg, Config *cfg)
 {

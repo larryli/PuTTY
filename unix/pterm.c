@@ -36,11 +36,15 @@
 
 GdkAtom compound_text_atom, utf8_string_atom;
 
+extern char **pty_argv;	       /* declared in pty.c */
+extern int use_pty_argv;
+
 struct gui_data {
     GtkWidget *window, *area, *sbar;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2;
+    GtkWidget *sessionsmenu;
     GdkPixmap *pixmap;
     GdkFont *fonts[4];                 /* normal, bold, wide, widebold */
     struct {
@@ -75,6 +79,8 @@ struct gui_data {
     struct unicode_data ucsdata;
     Config cfg;
     void *eventlogstuff;
+    char *progname, **gtkargvstart;
+    int ngtkargs;
 };
 
 struct draw_ctx {
@@ -2033,8 +2039,7 @@ int do_cmdline(int argc, char **argv, int do_everything,
                struct gui_data *inst, Config *cfg)
 {
     int err = 0;
-    extern char **pty_argv;	       /* declared in pty.c */
-    extern int use_pty_argv;
+    char *val;
 
     /*
      * Macros to make argument handling easier. Note that because
@@ -2054,7 +2059,6 @@ int do_cmdline(int argc, char **argv, int do_everything,
 }
 #define SECOND_PASS_ONLY { if (!do_everything) continue; }
 
-    char *val;
     while (--argc > 0) {
 	char *p = *++argv;
         int ret;
@@ -2542,6 +2546,213 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     sfree(title);
 }
 
+void fork_and_exec_self(struct gui_data *inst, int fd_to_close, ...)
+{
+    /*
+     * Re-execing ourself is not an exact science under Unix. I do
+     * the best I can by using /proc/self/exe if available and by
+     * assuming argv[0] can be found on $PATH if not.
+     * 
+     * Note that we also have to reconstruct the elements of the
+     * original argv which gtk swallowed, since the user wants the
+     * new session to appear on the same X display as the old one.
+     */
+    char **args;
+    va_list ap;
+    int i, n;
+    int pid;
+
+    /*
+     * Collect the arguments with which to re-exec ourself.
+     */
+    va_start(ap, fd_to_close);
+    n = 2;			       /* progname and terminating NULL */
+    n += inst->ngtkargs;
+    while (va_arg(ap, char *) != NULL)
+	n++;
+    va_end(ap);
+
+    args = snewn(n, char *);
+    args[0] = inst->progname;
+    args[n-1] = NULL;
+    for (i = 0; i < inst->ngtkargs; i++)
+	args[i+1] = inst->gtkargvstart[i];
+
+    i++;
+    va_start(ap, fd_to_close);
+    while ((args[i++] = va_arg(ap, char *)) != NULL);
+    va_end(ap);
+
+    assert(i == n);
+
+    /*
+     * Do the double fork.
+     */
+    pid = fork();
+    if (pid < 0) {
+	perror("fork");
+	return;
+    }
+
+    if (pid == 0) {
+	int pid2 = fork();
+	if (pid2 < 0) {
+	    perror("fork");
+	    _exit(1);
+	} else if (pid2 > 0) {
+	    /*
+	     * First child has successfully forked second child. My
+	     * Work Here Is Done. Note the use of _exit rather than
+	     * exit: the latter appears to cause destroy messages
+	     * to be sent to the X server. I suspect gtk uses
+	     * atexit.
+	     */
+	    _exit(0);
+	}
+
+	/*
+	 * If we reach here, we are the second child, so we now
+	 * actually perform the exec.
+	 */
+	if (fd_to_close >= 0)
+	    close(fd_to_close);
+
+	execv("/proc/self/exe", args);
+	execvp(inst->progname, args);
+	perror("exec");
+	_exit(127);
+
+    } else {
+	int status;
+	waitpid(pid, &status, 0);
+    }
+
+}
+
+void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
+{
+    struct gui_data *inst = (struct gui_data *)gdata;
+    /*
+     * For this feature we must marshal cfg and (possibly) pty_argv
+     * into a byte stream, create a pipe, and send this byte stream
+     * to the child through the pipe.
+     */
+    int i, ret, size;
+    char *data;
+    char option[80];
+    int pipefd[2];
+
+    if (pipe(pipefd) < 0) {
+	perror("pipe");
+	return;
+    }
+
+    size = sizeof(inst->cfg);
+    if (use_pty_argv && pty_argv) {
+	for (i = 0; pty_argv[i]; i++)
+	    size += strlen(pty_argv[i]) + 1;
+    }
+
+    data = snewn(size, char);
+    memcpy(data, &inst->cfg, sizeof(inst->cfg));
+    if (use_pty_argv && pty_argv) {
+	int p = sizeof(inst->cfg);
+	for (i = 0; pty_argv[i]; i++) {
+	    strcpy(data + p, pty_argv[i]);
+	    p += strlen(pty_argv[i]) + 1;
+	}
+	assert(p == size);
+    }
+
+    sprintf(option, "---[%d,%d]", pipefd[0], size);
+    fcntl(pipefd[0], F_SETFD, 0);
+    fork_and_exec_self(inst, pipefd[1], option, NULL);
+    close(pipefd[0]);
+
+    i = 0;
+    while (i < size && (ret = write(pipefd[1], data + i, size - i)) > 0)
+	i += ret;
+    if (ret < 0)
+	perror("write to pipe");
+    close(pipefd[1]);
+    sfree(data);
+}
+
+int read_dupsession_data(struct gui_data *inst, Config *cfg, char *arg)
+{
+    int fd, i, ret, size;
+    char *data;
+
+    if (sscanf(arg, "---[%d,%d]", &fd, &size) != 2) {
+	fprintf(stderr, "%s: malformed magic argument `%s'\n", appname, arg);
+	exit(1);
+    }
+
+    data = snewn(size, char);
+    i = 0;
+    while (i < size && (ret = read(fd, data + i, size - i)) > 0)
+	i += ret;
+    if (ret < 0) {
+	perror("read from pipe");
+	exit(1);
+    } else if (i < size) {
+	fprintf(stderr, "%s: unexpected EOF in Duplicate Session data\n",
+		appname);
+	exit(1);
+    }
+
+    memcpy(cfg, data, sizeof(Config));
+    if (use_pty_argv && size > sizeof(Config)) {
+	int n = 0;
+	i = sizeof(Config);
+	while (i < size) {
+	    while (i < size && data[i]) i++;
+	    if (i >= size) {
+		fprintf(stderr, "%s: malformed Duplicate Session data\n",
+			appname);
+		exit(1);
+	    }
+	    i++;
+	    n++;
+	}
+	pty_argv = snewn(n+1, char *);
+	pty_argv[n] = NULL;
+	n = 0;
+	i = sizeof(Config);
+	while (i < size) {
+	    char *p = data + i;
+	    while (i < size && data[i]) i++;
+	    assert(i < size);
+	    i++;
+	    pty_argv[n++] = dupstr(p);
+	}
+    }
+
+    return 0;
+}
+
+void new_session_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    fork_and_exec_self(inst, -1, NULL);
+}
+
+void saved_session_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    char *str = (char *)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+
+    fork_and_exec_self(inst, -1, "-load", str, NULL);
+}
+
+void saved_session_freedata(GtkMenuItem *item, gpointer data)
+{
+    char *str = (char *)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+
+    sfree(str);
+}
+
 void update_specials_menu(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -2580,12 +2791,6 @@ int pt_main(int argc, char **argv)
     extern int cfgbox(Config *cfg);
     struct gui_data *inst;
 
-    /* defer any child exit handling until we're ready to deal with
-     * it */
-    block_signal(SIGCHLD, 1);
-
-    gtk_init(&argc, &argv);
-
     /*
      * Create an instance structure and initialise to zeroes
      */
@@ -2593,16 +2798,47 @@ int pt_main(int argc, char **argv)
     memset(inst, 0, sizeof(*inst));
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
 
-    if (do_cmdline(argc, argv, 0, inst, &inst->cfg))
-	exit(1);		       /* pre-defaults pass to get -class */
-    do_defaults(NULL, &inst->cfg);
-    if (do_cmdline(argc, argv, 1, inst, &inst->cfg))
-	exit(1);		       /* post-defaults, do everything */
+    /* defer any child exit handling until we're ready to deal with
+     * it */
+    block_signal(SIGCHLD, 1);
 
-    cmdline_run_saved(&inst->cfg);
+    /*
+     * SIGPIPE is not something we want to see terminating the
+     * process.
+     */
+    block_signal(SIGPIPE, 1);
 
-    if (!*inst->cfg.host && !cfgbox(&inst->cfg))
-	exit(0);		       /* config box hit Cancel */
+    inst->progname = argv[0];
+    /*
+     * Copy the original argv before letting gtk_init fiddle with
+     * it. It will be required later.
+     */
+    {
+	int i, oldargc;
+	inst->gtkargvstart = snewn(argc-1, char *);
+	for (i = 1; i < argc; i++)
+	    inst->gtkargvstart[i-1] = dupstr(argv[i]);
+	oldargc = argc;
+	gtk_init(&argc, &argv);
+	inst->ngtkargs = oldargc - argc;
+    }
+
+    if (argc > 1 && !strncmp(argv[1], "---", 3)) {
+	read_dupsession_data(inst, &inst->cfg, argv[1]);
+	/* Splatter this argument so it doesn't clutter a ps listing */
+	memset(argv[1], 0, strlen(argv[1]));
+    } else {
+	if (do_cmdline(argc, argv, 0, inst, &inst->cfg))
+	    exit(1);		       /* pre-defaults pass to get -class */
+	do_defaults(NULL, &inst->cfg);
+	if (do_cmdline(argc, argv, 1, inst, &inst->cfg))
+	    exit(1);		       /* post-defaults, do everything */
+
+	cmdline_run_saved(&inst->cfg);
+
+	if (!*inst->cfg.host && !cfgbox(&inst->cfg))
+	    exit(0);		       /* config box hit Cancel */
+    }
 
     if (!compound_text_atom)
         compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
@@ -2707,7 +2943,7 @@ int pt_main(int argc, char **argv)
     {
 	GtkWidget *menuitem;
 	char *s;
-	extern const int use_event_log;
+	extern const int use_event_log, new_session, saved_sessions;
 
 	inst->menu = gtk_menu_new();
 
@@ -2720,6 +2956,36 @@ int pt_main(int argc, char **argv)
 	gtk_signal_connect(GTK_OBJECT(menuitem), "activate", \
 			       GTK_SIGNAL_FUNC(func), inst); \
 } while (0)
+	if (new_session)
+	    MKMENUITEM("New Session", new_session_menuitem);
+        MKMENUITEM("Duplicate Session", dup_session_menuitem);
+	if (saved_sessions) {
+	    struct sesslist sesslist;
+	    int i;
+
+	    inst->sessionsmenu = gtk_menu_new();
+
+	    get_sesslist(&sesslist, TRUE);
+	    for (i = 1; i < sesslist.nsessions; i++) {
+		menuitem = gtk_menu_item_new_with_label(sesslist.sessions[i]);
+		gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
+		gtk_widget_show(menuitem);
+		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
+				    dupstr(sesslist.sessions[i]));
+		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
+				   GTK_SIGNAL_FUNC(saved_session_menuitem),
+				   inst);
+		gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
+				   GTK_SIGNAL_FUNC(saved_session_freedata),
+				   inst);
+	    }
+	    get_sesslist(&sesslist, FALSE);
+
+	    MKMENUITEM("Saved Sessions", NULL);
+	    gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem),
+				      inst->sessionsmenu);
+	}
+	MKMENUITEM(NULL, NULL);
         MKMENUITEM("Change Settings", change_settings_menuitem);
 	MKMENUITEM(NULL, NULL);
 	if (use_event_log)
