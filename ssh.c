@@ -2409,6 +2409,20 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 	    sfree(c);
 	}
     }
+    /*
+     * Go through port-forwardings, and close any associated
+     * listening sockets.
+     */
+    if (ssh->portfwds) {
+	struct ssh_portfwd *pf;
+	while (NULL != (pf = index234(ssh->portfwds, 0))) {
+	    /* Dispose of any listening socket. */
+	    if (pf->local)
+		pfd_terminate(pf->local);
+	    del234(ssh->portfwds, pf); /* moving next one to index 0 */
+	    free_portfwd(pf);
+	}
+    }
 
     return ret;
 }
