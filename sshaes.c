@@ -32,8 +32,6 @@
 
 #include "ssh.h"
 
-typedef unsigned int word32;
-
 #define MAX_NR 14		       /* max no of rounds */
 #define MAX_NK 8		       /* max no of words in input key */
 #define MAX_NB 8		       /* max no of words in cipher blk */
