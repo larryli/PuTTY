@@ -2,6 +2,7 @@
  * cryptographic random number generator for PuTTY's ssh client
  */
 
+#include "putty.h"
 #include "ssh.h"
 
 void noise_get_heavy(void (*func) (void *, int));
@@ -41,7 +42,7 @@ struct RandPool {
 static struct RandPool pool;
 int random_active = 0;
 
-void random_stir(void)
+static void random_stir(void)
 {
     word32 block[HASHINPUT / sizeof(word32)];
     word32 digest[HASHSIZE / sizeof(word32)];
