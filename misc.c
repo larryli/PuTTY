@@ -408,6 +408,8 @@ void *safemalloc(size_t size)
 #ifdef MALLOC_LOG
 	sprintf(str, "Out of memory! (%s:%d, size=%d)",
 		mlog_file, mlog_line, size);
+	fprintf(fp, "*** %s\n", str);
+	fclose(fp);
 #else
 	strcpy(str, "Out of memory!");
 #endif
@@ -443,6 +445,8 @@ void *saferealloc(void *ptr, size_t size)
 #ifdef MALLOC_LOG
 	sprintf(str, "Out of memory! (%s:%d, size=%d)",
 		mlog_file, mlog_line, size);
+	fprintf(fp, "*** %s\n", str);
+	fclose(fp);
 #else
 	strcpy(str, "Out of memory!");
 #endif
