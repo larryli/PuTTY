@@ -374,6 +374,7 @@ struct config_tag {
     int login_shell;
     int scrollbar_on_left;
     char boldfont[64];
+    int shadowboldoffset;
 };
 
 /*

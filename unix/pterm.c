@@ -1296,16 +1296,9 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		  y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
 		  text, len);
 
-    /*
-     * X fonts seem to be pretty consistent about leaving the
-     * _left_ pixel of the cell blank rather than the right. Hence
-     * I'm going to hard-code shadow bolding as displaying one
-     * pixel to the left rather than try to work out whether it
-     * should be left or right.
-     */
     if (shadow) {
 	gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-		      x*inst->font_width+cfg.window_border - 1,
+		      x*inst->font_width+cfg.window_border + cfg.shadowboldoffset,
 		      y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
 		      text, len);
     }

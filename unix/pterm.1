@@ -270,6 +270,15 @@ This resource is the same as the \fI-fb\fP command-line option: it
 controls the font used to display bold text when \fIBoldAsColour\fP
 is turned off. The default is unset (the font will be bolded by
 printing it twice at a one-pixel offset).
+.IP "\fBpterm.ShadowBoldOffset\fP"
+This resource can be set to an integer; the default is -1. It
+specifies the offset at which text is overprinted when using "shadow
+bold" mode. The default (-1) means that the text will be printed in
+the normal place, and also one character to the left; this seems to
+work well for most X bitmap fonts, which have a blank line of pixels
+down the left-hand side. For some fonts, you may need to set this to
++1, so that the text is overprinted one pixel to the right; for
+really large fonts, you may want to set it even higher.
 .IP "\fBpterm.BoldAsColour\fP"
 This option should be set to either 0 or 1; the default is 1. It
 specifies the default state of auto wrap mode. When set to 1, bold
