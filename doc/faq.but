@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.57 2004/02/12 18:28:00 simon Exp $
+\versionid $Id: faq.but,v 1.58 2004/02/13 00:20:52 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -593,12 +593,11 @@ is liable to lead to problems.
 
 \S{faq-psftp-slow}{Question} PSFTP transfers files much slower than PSCP.
 
-We believe this is because the SFTP and SSH2 protocols are less
-efficient at bulk data transfer than SCP and SSH1, because every
-block of data transferred requires an acknowledgment from the far
-end. It would in theory be possible to queue several blocks of data
-to get round this speed problem, but as yet we haven't done the
-coding. If you really want this fixed, feel free to offer to help.
+The throughput of PSFTP 0.54 should be much better than 0.53b and
+prior; we've added code to the SFTP backend to queue several blocks
+of data rather than waiting for an acknowledgement for each. (The
+SCP backend did not suffer from this performance issue because SCP
+is a much simpler protocol.)
 
 \S{faq-bce}{Question} When I run full-colour applications, I see
 areas of black space where colour ought to be.
