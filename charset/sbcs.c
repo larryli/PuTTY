@@ -28,18 +28,26 @@ void write_sbcs(charset_spec const *charset, long int input_chr,
 		void (*emit)(void *ctx, long int output), void *emitctx)
 {
     const struct sbcs_data *sd = charset->data;
-    int i;
+    int i, j, k, c;
 
     UNUSEDARG(state);
 
     /*
-     * FIXME: this should work, but it's ludicrously inefficient.
-     * We should be using the ucs2sbcs table.
+     * Binary-search in the ucs2sbcs table.
      */
-    for (i = 0; i < 256; i++)
-	if (sd->sbcs2ucs[i] == input_chr) {
-	    emit(emitctx, i);
+    i = -1;
+    j = sd->nvalid;
+    while (i+1 < j) {
+	k = (i+j)/2;
+	c = sd->ucs2sbcs[k];
+	if (input_chr < sd->sbcs2ucs[c])
+	    j = k;
+	else if (input_chr > sd->sbcs2ucs[c])
+	    i = k;
+	else {
+	    emit(emitctx, c);
 	    return;
 	}
+    }
     emit(emitctx, ERROR);
 }
