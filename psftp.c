@@ -25,7 +25,7 @@
  */
 
 static int psftp_connect(char *userhost, char *user, int portnumber);
-static void do_sftp_init(void);
+static int do_sftp_init(void);
 
 /* ----------------------------------------------------------------------
  * sftp client state.
