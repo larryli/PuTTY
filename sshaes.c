@@ -61,296 +61,6 @@ struct AESContext {
     int Nb, Nr;
 };
 
-/*
- * Apple's SC 8.8.4f1 and MrC 4.1.0f1c1 refuse to handle these if
- * they've got dimensions (they claim "already defined" when the
- * arrays are actually defined).  Microsoft Visual C refuses to handle
- * them without ("unknown size").  Bah.
- *
- * K&R2 A10.2 says both are OK, of course.
- */
-#if defined __SC__ || defined __MRC__
-static const unsigned char Sbox[], Sboxinv[];
-static const word32 E0[], E1[], E2[], E3[];
-static const word32 D0[], D1[], D2[], D3[];
-#else
-static const unsigned char Sbox[256], Sboxinv[256];
-static const word32 E0[256], E1[256], E2[256], E3[256];
-static const word32 D0[256], D1[256], D2[256], D3[256];
-#endif
-
-/*
- * Common macros in both the encryption and decryption routines.
- */
-#define ADD_ROUND_KEY_4 (block[0]^=*keysched++, block[1]^=*keysched++, \
-		         block[2]^=*keysched++, block[3]^=*keysched++)
-#define ADD_ROUND_KEY_6 (block[0]^=*keysched++, block[1]^=*keysched++, \
-		         block[2]^=*keysched++, block[3]^=*keysched++, \
-		         block[4]^=*keysched++, block[5]^=*keysched++)
-#define ADD_ROUND_KEY_8 (block[0]^=*keysched++, block[1]^=*keysched++, \
-		         block[2]^=*keysched++, block[3]^=*keysched++, \
-		         block[4]^=*keysched++, block[5]^=*keysched++, \
-		         block[6]^=*keysched++, block[7]^=*keysched++)
-#define MOVEWORD(i) ( block[i] = newstate[i] )
-
-/*
- * Macros for the encryption routine. There are three encryption
- * cores, for Nb=4,6,8.
- */
-#define MAKEWORD(i) ( newstate[i] = (E0[(block[i] >> 24) & 0xFF] ^ \
-				     E1[(block[(i+C1)%Nb] >> 16) & 0xFF] ^ \
-				     E2[(block[(i+C2)%Nb] >> 8) & 0xFF] ^ \
-				     E3[block[(i+C3)%Nb] & 0xFF]) )
-#define LASTWORD(i) ( newstate[i] = (Sbox[(block[i] >> 24) & 0xFF] << 24) | \
-			    (Sbox[(block[(i+C1)%Nb] >> 16) & 0xFF] << 16) | \
-			    (Sbox[(block[(i+C2)%Nb] >>  8) & 0xFF] <<  8) | \
-			    (Sbox[(block[(i+C3)%Nb]      ) & 0xFF]      ) )
-
-/*
- * Core encrypt routines, expecting word32 inputs read big-endian
- * from the byte-oriented input stream.
- */
-static void aes_encrypt_nb_4(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 1, C2 = 2, C3 = 3, Nb = 4;
-    word32 *keysched = ctx->keysched;
-    word32 newstate[4];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_4;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-    }
-    ADD_ROUND_KEY_4;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    ADD_ROUND_KEY_4;
-}
-static void aes_encrypt_nb_6(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 1, C2 = 2, C3 = 3, Nb = 6;
-    word32 *keysched = ctx->keysched;
-    word32 newstate[6];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_6;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-    }
-    ADD_ROUND_KEY_6;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    ADD_ROUND_KEY_6;
-}
-static void aes_encrypt_nb_8(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 1, C2 = 3, C3 = 4, Nb = 8;
-    word32 *keysched = ctx->keysched;
-    word32 newstate[8];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_8;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MAKEWORD(6);
-	MAKEWORD(7);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-	MOVEWORD(6);
-	MOVEWORD(7);
-    }
-    ADD_ROUND_KEY_8;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    LASTWORD(6);
-    LASTWORD(7);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    MOVEWORD(6);
-    MOVEWORD(7);
-    ADD_ROUND_KEY_8;
-}
-
-#undef MAKEWORD
-#undef LASTWORD
-
-/*
- * Macros for the decryption routine. There are three decryption
- * cores, for Nb=4,6,8.
- */
-#define MAKEWORD(i) ( newstate[i] = (D0[(block[i] >> 24) & 0xFF] ^ \
-				     D1[(block[(i+C1)%Nb] >> 16) & 0xFF] ^ \
-				     D2[(block[(i+C2)%Nb] >> 8) & 0xFF] ^ \
-				     D3[block[(i+C3)%Nb] & 0xFF]) )
-#define LASTWORD(i) (newstate[i] = (Sboxinv[(block[i] >> 24) & 0xFF] << 24) | \
-			   (Sboxinv[(block[(i+C1)%Nb] >> 16) & 0xFF] << 16) | \
-			   (Sboxinv[(block[(i+C2)%Nb] >>  8) & 0xFF] <<  8) | \
-			   (Sboxinv[(block[(i+C3)%Nb]      ) & 0xFF]      ) )
-
-/*
- * Core decrypt routines, expecting word32 inputs read big-endian
- * from the byte-oriented input stream.
- */
-static void aes_decrypt_nb_4(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 4 - 1, C2 = 4 - 2, C3 = 4 - 3, Nb = 4;
-    word32 *keysched = ctx->invkeysched;
-    word32 newstate[4];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_4;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-    }
-    ADD_ROUND_KEY_4;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    ADD_ROUND_KEY_4;
-}
-static void aes_decrypt_nb_6(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 6 - 1, C2 = 6 - 2, C3 = 6 - 3, Nb = 6;
-    word32 *keysched = ctx->invkeysched;
-    word32 newstate[6];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_6;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-    }
-    ADD_ROUND_KEY_6;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    ADD_ROUND_KEY_6;
-}
-static void aes_decrypt_nb_8(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 8 - 1, C2 = 8 - 3, C3 = 8 - 4, Nb = 8;
-    word32 *keysched = ctx->invkeysched;
-    word32 newstate[8];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_8;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MAKEWORD(6);
-	MAKEWORD(7);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-	MOVEWORD(6);
-	MOVEWORD(7);
-    }
-    ADD_ROUND_KEY_8;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    LASTWORD(6);
-    LASTWORD(7);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    MOVEWORD(6);
-    MOVEWORD(7);
-    ADD_ROUND_KEY_8;
-}
-
-#undef MAKEWORD
-#undef LASTWORD
-
 static const unsigned char Sbox[256] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
     0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -949,6 +659,279 @@ static const word32 D3[256] = {
     0xa8017139, 0x0cb3de08, 0xb4e49cd8, 0x56c19064,
     0xcb84617b, 0x32b670d5, 0x6c5c7448, 0xb85742d0,
 };
+
+/*
+ * Common macros in both the encryption and decryption routines.
+ */
+#define ADD_ROUND_KEY_4 (block[0]^=*keysched++, block[1]^=*keysched++, \
+		         block[2]^=*keysched++, block[3]^=*keysched++)
+#define ADD_ROUND_KEY_6 (block[0]^=*keysched++, block[1]^=*keysched++, \
+		         block[2]^=*keysched++, block[3]^=*keysched++, \
+		         block[4]^=*keysched++, block[5]^=*keysched++)
+#define ADD_ROUND_KEY_8 (block[0]^=*keysched++, block[1]^=*keysched++, \
+		         block[2]^=*keysched++, block[3]^=*keysched++, \
+		         block[4]^=*keysched++, block[5]^=*keysched++, \
+		         block[6]^=*keysched++, block[7]^=*keysched++)
+#define MOVEWORD(i) ( block[i] = newstate[i] )
+
+/*
+ * Macros for the encryption routine. There are three encryption
+ * cores, for Nb=4,6,8.
+ */
+#define MAKEWORD(i) ( newstate[i] = (E0[(block[i] >> 24) & 0xFF] ^ \
+				     E1[(block[(i+C1)%Nb] >> 16) & 0xFF] ^ \
+				     E2[(block[(i+C2)%Nb] >> 8) & 0xFF] ^ \
+				     E3[block[(i+C3)%Nb] & 0xFF]) )
+#define LASTWORD(i) ( newstate[i] = (Sbox[(block[i] >> 24) & 0xFF] << 24) | \
+			    (Sbox[(block[(i+C1)%Nb] >> 16) & 0xFF] << 16) | \
+			    (Sbox[(block[(i+C2)%Nb] >>  8) & 0xFF] <<  8) | \
+			    (Sbox[(block[(i+C3)%Nb]      ) & 0xFF]      ) )
+
+/*
+ * Core encrypt routines, expecting word32 inputs read big-endian
+ * from the byte-oriented input stream.
+ */
+static void aes_encrypt_nb_4(AESContext * ctx, word32 * block)
+{
+    int i;
+    static const int C1 = 1, C2 = 2, C3 = 3, Nb = 4;
+    word32 *keysched = ctx->keysched;
+    word32 newstate[4];
+    for (i = 0; i < ctx->Nr - 1; i++) {
+	ADD_ROUND_KEY_4;
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+    }
+    ADD_ROUND_KEY_4;
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    ADD_ROUND_KEY_4;
+}
+static void aes_encrypt_nb_6(AESContext * ctx, word32 * block)
+{
+    int i;
+    static const int C1 = 1, C2 = 2, C3 = 3, Nb = 6;
+    word32 *keysched = ctx->keysched;
+    word32 newstate[6];
+    for (i = 0; i < ctx->Nr - 1; i++) {
+	ADD_ROUND_KEY_6;
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
+    }
+    ADD_ROUND_KEY_6;
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
+    ADD_ROUND_KEY_6;
+}
+static void aes_encrypt_nb_8(AESContext * ctx, word32 * block)
+{
+    int i;
+    static const int C1 = 1, C2 = 3, C3 = 4, Nb = 8;
+    word32 *keysched = ctx->keysched;
+    word32 newstate[8];
+    for (i = 0; i < ctx->Nr - 1; i++) {
+	ADD_ROUND_KEY_8;
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MAKEWORD(6);
+	MAKEWORD(7);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
+	MOVEWORD(6);
+	MOVEWORD(7);
+    }
+    ADD_ROUND_KEY_8;
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    LASTWORD(6);
+    LASTWORD(7);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
+    MOVEWORD(6);
+    MOVEWORD(7);
+    ADD_ROUND_KEY_8;
+}
+
+#undef MAKEWORD
+#undef LASTWORD
+
+/*
+ * Macros for the decryption routine. There are three decryption
+ * cores, for Nb=4,6,8.
+ */
+#define MAKEWORD(i) ( newstate[i] = (D0[(block[i] >> 24) & 0xFF] ^ \
+				     D1[(block[(i+C1)%Nb] >> 16) & 0xFF] ^ \
+				     D2[(block[(i+C2)%Nb] >> 8) & 0xFF] ^ \
+				     D3[block[(i+C3)%Nb] & 0xFF]) )
+#define LASTWORD(i) (newstate[i] = (Sboxinv[(block[i] >> 24) & 0xFF] << 24) | \
+			   (Sboxinv[(block[(i+C1)%Nb] >> 16) & 0xFF] << 16) | \
+			   (Sboxinv[(block[(i+C2)%Nb] >>  8) & 0xFF] <<  8) | \
+			   (Sboxinv[(block[(i+C3)%Nb]      ) & 0xFF]      ) )
+
+/*
+ * Core decrypt routines, expecting word32 inputs read big-endian
+ * from the byte-oriented input stream.
+ */
+static void aes_decrypt_nb_4(AESContext * ctx, word32 * block)
+{
+    int i;
+    static const int C1 = 4 - 1, C2 = 4 - 2, C3 = 4 - 3, Nb = 4;
+    word32 *keysched = ctx->invkeysched;
+    word32 newstate[4];
+    for (i = 0; i < ctx->Nr - 1; i++) {
+	ADD_ROUND_KEY_4;
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+    }
+    ADD_ROUND_KEY_4;
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    ADD_ROUND_KEY_4;
+}
+static void aes_decrypt_nb_6(AESContext * ctx, word32 * block)
+{
+    int i;
+    static const int C1 = 6 - 1, C2 = 6 - 2, C3 = 6 - 3, Nb = 6;
+    word32 *keysched = ctx->invkeysched;
+    word32 newstate[6];
+    for (i = 0; i < ctx->Nr - 1; i++) {
+	ADD_ROUND_KEY_6;
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
+    }
+    ADD_ROUND_KEY_6;
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
+    ADD_ROUND_KEY_6;
+}
+static void aes_decrypt_nb_8(AESContext * ctx, word32 * block)
+{
+    int i;
+    static const int C1 = 8 - 1, C2 = 8 - 3, C3 = 8 - 4, Nb = 8;
+    word32 *keysched = ctx->invkeysched;
+    word32 newstate[8];
+    for (i = 0; i < ctx->Nr - 1; i++) {
+	ADD_ROUND_KEY_8;
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MAKEWORD(6);
+	MAKEWORD(7);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
+	MOVEWORD(6);
+	MOVEWORD(7);
+    }
+    ADD_ROUND_KEY_8;
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    LASTWORD(6);
+    LASTWORD(7);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
+    MOVEWORD(6);
+    MOVEWORD(7);
+    ADD_ROUND_KEY_8;
+}
+
+#undef MAKEWORD
+#undef LASTWORD
+
 
 /*
  * Set up an AESContext. `keylen' and `blocklen' are measured in
