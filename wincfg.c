@@ -233,8 +233,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * RTF paste is Windows-specific.
      */
-    s = ctrl_getset(b, "Window/Selection", "trans",
-		    "Translation of pasted characters");
+    s = ctrl_getset(b, "Window/Selection", "format",
+		    "Formatting of pasted characters");
     ctrl_checkbox(s, "Paste to clipboard in RTF as well as plain text", 'f',
 		  HELPCTX(selection_rtf),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,rtf_paste)));
