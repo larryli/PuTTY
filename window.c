@@ -1493,6 +1493,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_ABOUT:
 	    showabout(hwnd);
 	    break;
+          case SC_KEYMENU:
+	    /*
+	     * We get this if the System menu has been activated.
+	     * This might happen from within TranslateKey, in which
+	     * case it really wants to be followed by a `space'
+	     * character to actually _bring the menu up_ rather
+	     * than just sitting there in `ready to appear' state.
+	     */
+	    if( lParam == 0 )
+		PostMessage(hwnd, WM_CHAR, ' ', 0);
+	    break;
 	  default:
 	    if (wParam >= IDM_SAVED_MIN && wParam <= IDM_SAVED_MAX) {
 		SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
@@ -2294,7 +2305,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     int scan, left_alt = 0, key_down, shift_state;
     int r, i, code;
     unsigned char *p = output;
-    static int alt_state = 0;
     static int alt_sum = 0;
 
     HKL kbd_layout = GetKeyboardLayout(0);
@@ -2535,8 +2545,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return -1;
 	}
 	if (left_alt && wParam == VK_SPACE && cfg.alt_space) {
-	    alt_state = 0;
-	    PostMessage(hwnd, WM_CHAR, ' ', 0);
 	    SendMessage(hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
 	    return -1;
 	}
@@ -2796,6 +2804,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	  case VK_F20:
 	    code = 34;
 	    break;
+	}
+	if ((shift_state&2) == 0) switch (wParam) {
 	  case VK_HOME:
 	    code = 1;
 	    break;
@@ -3044,19 +3054,15 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    keys[0] = 10;
     }
 
-    /* ALT alone may or may not want to bring up the System menu */
-    if (wParam == VK_MENU) {
-	if (cfg.alt_only) {
-	    if (message == WM_SYSKEYDOWN)
-		alt_state = 1;
-	    else if (message == WM_SYSKEYUP && alt_state)
-		PostMessage(hwnd, WM_CHAR, ' ', 0);
-	    if (message == WM_SYSKEYUP)
-		alt_state = 0;
-	} else
-	    return 0;
-    } else
-	alt_state = 0;
+    /*
+     * ALT alone may or may not want to bring up the System menu.
+     * If it's not meant to, we return 0 on presses or releases of
+     * ALT, to show that we've swallowed the keystroke. Otherwise
+     * we return -1, which means Windows will give the keystroke
+     * its default handling (i.e. bring up the System menu).
+     */
+    if (wParam == VK_MENU && !cfg.alt_only)
+	return 0;
 
     return -1;
 }
