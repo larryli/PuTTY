@@ -911,11 +911,9 @@ void try_send(Actual_Socket s)
 		 */
 		s->writable = FALSE;
 		return;
-	    } else if (nsent == 0 ||
-		       err == ECONNABORTED || err == ECONNRESET) {
+	    } else {
 		/*
-		 * If send() returns CONNABORTED or CONNRESET, we
-		 * unfortunately can't just call plug_closing(),
+		 * We unfortunately can't just call plug_closing(),
 		 * because it's quite likely that we're currently
 		 * _in_ a call from the code we'd be calling back
 		 * to, so we'd have to make half the SSH code
@@ -925,11 +923,6 @@ void try_send(Actual_Socket s)
 		 */
 		s->pending_error = err;
 		return;
-	    } else {
-		/* We're inside the Unix frontend here, so we know
-		 * that the frontend handle is unnecessary. */
-		logevent(NULL, strerror(err));
-		fatalbox("%s", strerror(err));
 	    }
 	} else {
 	    if (s->sending_oob) {
@@ -1024,12 +1017,9 @@ static int net_select_result(int fd, int event)
 	    ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
 	    noise_ultralight(ret);
 	    if (ret <= 0) {
-		const char *str = (ret == 0 ? "Internal networking trouble" :
-				   strerror(errno));
-		/* We're inside the Unix frontend here, so we know
-		 * that the frontend handle is unnecessary. */
-		logevent(NULL, str);
-		fatalbox("%s", str);
+                return plug_closing(s->plug,
+				    ret == 0 ? "Internal networking trouble" :
+				    strerror(errno), errno, 0);
 	    } else {
                 /*
                  * Receiving actual data on a socket means we can
