@@ -448,6 +448,7 @@ struct config_tag {
     /* translations */
     int vtmode;
     char line_codepage[128];
+    int utf8_override;
     int xlat_capslockcyr;
     /* X11 forwarding */
     int x11_forward;

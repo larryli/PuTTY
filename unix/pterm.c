@@ -2737,8 +2737,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
 
-    inst->direct_to_font = init_ucs(&inst->ucsdata,
-				    inst->cfg.line_codepage, font_charset,
+    inst->direct_to_font = init_ucs(&inst->ucsdata, inst->cfg.line_codepage,
+				    inst->cfg.utf8_override, font_charset,
 				    inst->cfg.vtmode);
 }
 
