@@ -2834,8 +2834,11 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	}
 
 	/* Warn about chosen cipher if necessary. */
-	if (warn)
+	if (warn) {
+            sk_set_frozen(ssh->s, 1);
 	    askalg(ssh->frontend, "cipher", cipher_string);
+            sk_set_frozen(ssh->s, 0);
+        }
     }
 
     switch (s->cipher_type) {
@@ -4889,9 +4892,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 		ssh->kex = k;
 	    }
 	    if (ssh->kex) {
-		if (s->warn)
+		if (s->warn) {
+                    sk_set_frozen(ssh->s, 1);
 		    askalg(ssh->frontend, "key-exchange algorithm",
 			   ssh->kex->name);
+                    sk_set_frozen(ssh->s, 0);
+                }
 		break;
 	    }
 	}
@@ -4922,9 +4928,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 		}
 	    }
 	    if (s->cscipher_tobe) {
-		if (s->warn)
+		if (s->warn) {
+                    sk_set_frozen(ssh->s, 1);
 		    askalg(ssh->frontend, "client-to-server cipher",
 			   s->cscipher_tobe->name);
+                    sk_set_frozen(ssh->s, 0);
+                }
 		break;
 	    }
 	}
@@ -4949,9 +4958,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 		}
 	    }
 	    if (s->sccipher_tobe) {
-		if (s->warn)
+		if (s->warn) {
+                    sk_set_frozen(ssh->s, 1);
 		    askalg(ssh->frontend, "server-to-client cipher",
 			   s->sccipher_tobe->name);
+                    sk_set_frozen(ssh->s, 0);
+                }
 		break;
 	    }
 	}
@@ -5108,9 +5120,11 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      */
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
     s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
+    sk_set_frozen(ssh->s, 1);
     verify_ssh_host_key(ssh->frontend,
 			ssh->savedhost, ssh->savedport, ssh->hostkey->keytype,
 			s->keystr, s->fingerprint);
+    sk_set_frozen(ssh->s, 0);
     if (!s->got_session_id) {     /* don't bother logging this in rekeys */
 	logevent("Host key fingerprint is:");
 	logevent(s->fingerprint);
