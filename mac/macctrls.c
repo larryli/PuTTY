@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.33 2003/04/13 14:37:07 ben Exp $ */
+/* $Id: macctrls.c,v 1.34 2003/04/14 21:34:46 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -1264,7 +1264,14 @@ void macctrl_key(WindowPtr window, EventRecord *event)
 	    HandleControlKey(control, (event->message & keyCodeMask) >> 8,
 			     event->message & charCodeMask, event->modifiers);
 	    mc = (union macctrl *)GetControlReference(control);
-	    ctrlevent(mcs, mc, EVENT_VALCHANGE);
+	    switch (mc->generic.type) {
+	      case MACCTRL_LISTBOX:
+		ctrlevent(mcs, mc, EVENT_SELCHANGE);
+		break;
+	      default:
+		ctrlevent(mcs, mc, EVENT_VALCHANGE);
+		break;
+	    }
 	}
     }
 #if !TARGET_API_MAC_CARBON
