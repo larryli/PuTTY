@@ -1,4 +1,4 @@
-/* $Id: putty.r,v 1.1.2.2 1999/02/19 22:06:36 ben Exp $ */
+/* $Id: putty.r,v 1.1.2.3 1999/02/19 23:03:29 ben Exp $ */
 /* PuTTY resources */
 
 #include "Types.r"
@@ -240,6 +240,35 @@ resource 'icl8' (130, purgeable) {
 /*
  * Internal resources
  */
+
+/* Menu bar */
+
+resource 'MBAR' (128, preload) {
+    { 128, 129 }
+};
+
+resource 'MENU' (128, preload) {
+    128,
+    textMenuProc,
+    0b11111111111111111111111111111101,
+    enabled,
+    apple,
+    {
+	"About PuTTYÉ",		noicon, nokey, nomark, plain,
+	"-",			noicon, nokey, nomark, plain,
+    }
+};
+
+resource 'MENU' (129, preload) {
+    129,
+    textMenuProc,
+    0b11111111111111111111111111111111,
+    enabled,
+    "File",
+    {
+	"Quit",			noicon, "Q", nomark, plain,
+    }
+};
 
 /* Fatal error box.  Stolen from the Finder. */
 

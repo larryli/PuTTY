@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.1 1999/02/19 21:35:12 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.2 1999/02/19 23:03:29 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -21,6 +21,8 @@ QDGlobals qd;
 int cold = 1;
 
 int main (int argc, char **argv) {
+    Handle menuBar;
+
     /* Init QuickDraw */
     InitGraf(&qd.thePort);
     /* Init Font Manager */
@@ -35,6 +37,15 @@ int main (int argc, char **argv) {
     InitDialogs(nil);
     InitCursor();
     cold = 0;
+    
+    menuBar = GetNewMBar(128);
+    if (menuBar == NULL)
+    	fatalbox("Unable to create menu bar.");
+    SetMenuBar(menuBar);
+    AppendResMenu(GetMenuHandle(128), 'DRVR');
+    /* adjustmenus */
+    DrawMenuBar();
+    
     fatalbox("Init complete");
 }
 
