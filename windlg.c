@@ -2038,10 +2038,22 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    cfg.protocol =
 			i ? PROT_SSH : j ? PROT_TELNET : k ? PROT_RLOGIN :
 			PROT_RAW;
-		    if ((cfg.protocol == PROT_SSH && cfg.port != 22)
-			|| (cfg.protocol == PROT_TELNET && cfg.port != 23)
-			|| (cfg.protocol == PROT_RLOGIN
-			    && cfg.port != 513)) {
+		    /*
+		     * When switching using the arrow keys, we
+		     * appear to get two of these messages, both
+		     * mentioning the target button in
+		     * LOWORD(wParam), but one of them called while
+		     * the previous button is still checked. This
+		     * causes an unnecessary reset of the port
+		     * number field, which we fix by ensuring here
+		     * that the button selected is indeed the one
+		     * checked.
+		     */
+		    if (IsDlgButtonChecked(hwnd, LOWORD(wParam)) &&
+			((cfg.protocol == PROT_SSH && cfg.port != 22)
+			 || (cfg.protocol == PROT_TELNET && cfg.port != 23)
+			 || (cfg.protocol == PROT_RLOGIN
+			     && cfg.port != 513))) {
 			cfg.port = i ? 22 : j ? 23 : 513;
 			SetDlgItemInt(hwnd, IDC_PORT, cfg.port, FALSE);
 		    }
