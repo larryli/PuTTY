@@ -286,7 +286,7 @@ void fatalbox(char *fmt, ...)
     char str[0x100];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal:");
+    strcpy(str, "Fatal: ");
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
@@ -309,7 +309,7 @@ void connection_fatal(char *fmt, ...)
     char str[0x100];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal:");
+    strcpy(str, "Fatal: ");
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
@@ -473,7 +473,7 @@ static void bump(char *fmt, ...)
     char str[0x100];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal:");
+    strcpy(str, "Fatal: ");
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
@@ -708,7 +708,185 @@ static int response(void)
     }
 }
 
-/*
+/* ----------------------------------------------------------------------
+ * Helper routines that contain the actual SCP protocol elements,
+ * so they can be switched to use SFTP.
+ */
+
+int scp_send_errmsg(char *str)
+{
+    back->send("\001", 1);	       /* scp protocol error prefix */
+    back->send(str, strlen(str));
+    return 0;			       /* can't fail */
+}
+
+int scp_send_filetimes(unsigned long mtime, unsigned long atime)
+{
+    char buf[80];
+    sprintf(buf, "T%lu 0 %lu 0\n", mtime, atime);
+    back->send(buf, strlen(buf));
+    return response();
+}
+
+int scp_send_filename(char *name, unsigned long size, int modes)
+{
+    char buf[40];
+    sprintf(buf, "C%04o %lu ", modes, size);
+    back->send(buf, strlen(buf));
+    back->send(name, strlen(name));
+    back->send("\n", 1);
+    return response();
+}
+
+int scp_send_filedata(char *data, int len)
+{
+    int bufsize = back->send(data, len);
+
+    /*
+     * If the network transfer is backing up - that is, the remote
+     * site is not accepting data as fast as we can produce it -
+     * then we must loop on network events until we have space in
+     * the buffer again.
+     */
+    while (bufsize > MAX_SCP_BUFSIZE) {
+	if (!scp_process_network_event())
+	    return 1;
+	bufsize = back->sendbuffer();
+    }
+
+    return 0;
+}
+
+int scp_send_finish(void)
+{
+    back->send("", 1);
+    return response();
+}
+
+int scp_send_dirname(char *name, int modes)
+{
+    char buf[40];
+    sprintf(buf, "D%04o 0 ", modes);
+    back->send(buf, strlen(buf));
+    back->send(name, strlen(name));
+    back->send("\n", 1);
+    return response();
+}
+
+int scp_send_enddir(void)
+{
+    back->send("E\n", 2);
+    return response();
+}
+
+int scp_sink_init(void)
+{
+    back->send("", 1);
+    return 0;
+}
+
+#define SCP_SINK_FILE   1
+#define SCP_SINK_DIR    2
+#define SCP_SINK_ENDDIR 3
+struct scp_sink_action {
+    int action;			       /* FILE, DIR, ENDDIR */
+    char *buf;			       /* will need freeing after use */
+    char *name;			       /* filename or dirname (not ENDDIR) */
+    int mode;			       /* access mode (not ENDDIR) */
+    unsigned long size;		       /* file size (not ENDDIR) */
+    int settime;		       /* 1 if atime and mtime are filled */
+    unsigned long atime, mtime;	       /* access times for the file */
+};
+
+int scp_get_sink_action(struct scp_sink_action *act)
+{
+    int done = 0;
+    int i, bufsize;
+    int action;
+    char ch;
+
+    act->settime = 0;
+    act->buf = NULL;
+    bufsize = 0;
+
+    while (!done) {
+	if (ssh_scp_recv(&ch, 1) <= 0)
+	    return 1;
+	if (ch == '\n')
+	    bump("Protocol error: Unexpected newline");
+	i = 0;
+	action = ch;
+	do {
+	    if (ssh_scp_recv(&ch, 1) <= 0)
+		bump("Lost connection");
+	    if (i >= bufsize) {
+		bufsize = i + 128;
+		act->buf = srealloc(act->buf, bufsize);
+	    }
+	    act->buf[i++] = ch;
+	} while (ch != '\n');
+	act->buf[i - 1] = '\0';
+	switch (action) {
+	  case '\01':		       /* error */
+	    tell_user(stderr, "%s\n", act->buf);
+	    errs++;
+	    continue;		       /* go round again */
+	  case '\02':		       /* fatal error */
+	    bump("%s", act->buf);
+	  case 'E':
+	    back->send("", 1);
+	    act->action = SCP_SINK_ENDDIR;
+	    return 0;
+	  case 'T':
+	    if (sscanf(act->buf, "%ld %*d %ld %*d",
+		       &act->mtime, &act->atime) == 2) {
+		act->settime = 1;
+		back->send("", 1);
+		continue;	       /* go round again */
+	    }
+	    bump("Protocol error: Illegal time format");
+	  case 'C':
+	  case 'D':
+	    act->action = (action == 'C' ? SCP_SINK_FILE : SCP_SINK_DIR);
+	    break;
+	  default:
+	    bump("Protocol error: Expected control record");
+	}
+	/*
+	 * We will go round this loop only once, unless we hit
+	 * `continue' above.
+	 */
+	done = 1;
+    }
+
+    /*
+     * If we get here, we must have seen SCP_SINK_FILE or
+     * SCP_SINK_DIR.
+     */
+    if (sscanf(act->buf, "%o %lu %n", &act->mode, &act->size, &i) != 2)
+	bump("Protocol error: Illegal file descriptor format");
+    act->name = act->buf + i;
+    return 0;
+}
+
+int scp_accept_filexfer(void)
+{
+    back->send("", 1);
+    return 0;			       /* can't fail */
+}
+
+int scp_recv_filedata(char *data, int len)
+{
+    return ssh_scp_recv(data, len);
+}
+
+int scp_finish_filerecv(void)
+{
+    back->send("", 1);
+    return response();
+}
+
+/* ----------------------------------------------------------------------
  *  Send an error message to the other side and to the screen.
  *  Increment error counter.
  */
@@ -721,8 +899,7 @@ static void run_err(const char *fmt, ...)
     strcpy(str, "scp: ");
     vsprintf(str + strlen(str), fmt, ap);
     strcat(str, "\n");
-    back->send("\001", 1);	       /* scp protocol error prefix */
-    back->send(str, strlen(str));
+    scp_send_errmsg(str);
     tell_user(stderr, "%s", str);
     va_end(ap);
 }
@@ -792,18 +969,14 @@ static void source(char *src)
 	GetFileTime(f, NULL, &actime, &wrtime);
 	TIME_WIN_TO_POSIX(actime, atime);
 	TIME_WIN_TO_POSIX(wrtime, mtime);
-	sprintf(buf, "T%lu 0 %lu 0\n", mtime, atime);
-	back->send(buf, strlen(buf));
-	if (response())
+	if (scp_send_filetimes(mtime, atime))
 	    return;
     }
 
     size = GetFileSize(f, NULL);
-    sprintf(buf, "C0644 %lu %s\n", size, last);
     if (verbose)
-	tell_user(stderr, "Sending file modes: %s", buf);
-    back->send(buf, strlen(buf));
-    if (response())
+	tell_user(stderr, "Sending file %s, size=%lu", last, size);
+    if (scp_send_filename(last, size, 0644))
 	return;
 
     stat_bytes = 0;
@@ -813,7 +986,6 @@ static void source(char *src)
     for (i = 0; i < size; i += 4096) {
 	char transbuf[4096];
 	DWORD j, k = 4096;
-	int bufsize;
 
 	if (i + k > size)
 	    k = size - i;
@@ -822,7 +994,9 @@ static void source(char *src)
 		printf("\n");
 	    bump("%s: Read error", src);
 	}
-	bufsize = back->send(transbuf, k);
+	if (scp_send_filedata(transbuf, k))
+	    bump("%s: Network error occurred", src);
+
 	if (statistics) {
 	    stat_bytes += k;
 	    if (time(NULL) != stat_lasttime || i + k == size) {
@@ -832,22 +1006,10 @@ static void source(char *src)
 	    }
 	}
 
-	/*
-	 * If the network transfer is backing up - that is, the
-	 * remote site is not accepting data as fast as we can
-	 * produce it - then we must loop on network events until
-	 * we have space in the buffer again.
-	 */
-	while (bufsize > MAX_SCP_BUFSIZE) {
-	    if (!scp_process_network_event())
-		bump("%s: Network error occurred", src);
-	    bufsize = back->sendbuffer();
-	}
     }
     CloseHandle(f);
 
-    back->send("", 1);
-    (void) response();
+    (void) scp_send_finish();
 }
 
 /*
@@ -872,11 +1034,9 @@ static void rsource(char *src)
 
     /* maybe send filetime */
 
-    sprintf(buf, "D0755 0 %s\n", last);
     if (verbose)
-	tell_user(stderr, "Entering directory: %s", buf);
-    back->send(buf, strlen(buf));
-    if (response())
+	tell_user(stderr, "Entering directory: %s", last);
+    if (scp_send_dirname(last, 0755))
 	return;
 
     sprintf(buf, "%s/*", src);
@@ -895,9 +1055,7 @@ static void rsource(char *src)
     }
     FindClose(dir);
 
-    sprintf(buf, "E\n");
-    back->send(buf, strlen(buf));
-    (void) response();
+    (void) scp_send_enddir();
 }
 
 /*
@@ -913,9 +1071,7 @@ static void sink(char *targ, char *src)
     int exists;
     DWORD attr;
     HANDLE f;
-    unsigned long mtime, atime;
-    unsigned int mode;
-    unsigned long size, i;
+    unsigned long received;
     int wrerror = 0;
     unsigned long stat_bytes;
     time_t stat_starttime, stat_lasttime;
@@ -928,48 +1084,14 @@ static void sink(char *targ, char *src)
     if (targetshouldbedirectory && !targisdir)
 	bump("%s: Not a directory", targ);
 
-    back->send("", 1);
+    scp_sink_init();
     while (1) {
-	settime = 0;
-      gottime:
-	if (ssh_scp_recv(&ch, 1) <= 0)
+	struct scp_sink_action act;
+	if (scp_get_sink_action(&act))
 	    return;
-	if (ch == '\n')
-	    bump("Protocol error: Unexpected newline");
-	i = 0;
-	buf[i++] = ch;
-	do {
-	    if (ssh_scp_recv(&ch, 1) <= 0)
-		bump("Lost connection");
-	    buf[i++] = ch;
-	} while (i < sizeof(buf) && ch != '\n');
-	buf[i - 1] = '\0';
-	switch (buf[0]) {
-	  case '\01':		       /* error */
-	    tell_user(stderr, "%s\n", buf + 1);
-	    errs++;
-	    continue;
-	  case '\02':		       /* fatal error */
-	    bump("%s", buf + 1);
-	  case 'E':
-	    back->send("", 1);
-	    return;
-	  case 'T':
-	    if (sscanf(buf, "T%ld %*d %ld %*d", &mtime, &atime) == 2) {
-		settime = 1;
-		back->send("", 1);
-		goto gottime;
-	    }
-	    bump("Protocol error: Illegal time format");
-	  case 'C':
-	  case 'D':
-	    break;
-	  default:
-	    bump("Protocol error: Expected control record");
-	}
 
-	if (sscanf(buf + 1, "%u %lu %[^\n]", &mode, &size, namebuf) != 3)
-	    bump("Protocol error: Illegal file descriptor format");
+	if (act.action == SCP_SINK_ENDDIR)
+	    return;
 	/* Security fix: ensure the file ends up where we asked for it. */
 	if (targisdir) {
 	    char t[2048];
@@ -977,8 +1099,8 @@ static void sink(char *targ, char *src)
 	    strcpy(t, targ);
 	    if (targ[0] != '\0')
 		strcat(t, "/");
-	    p = namebuf + strlen(namebuf);
-	    while (p > namebuf && p[-1] != '/' && p[-1] != '\\')
+	    p = act.name + strlen(act.name);
+	    while (p > act.name && p[-1] != '/' && p[-1] != '\\')
 		p--;
 	    strcat(t, p);
 	    strcpy(namebuf, t);
@@ -988,7 +1110,7 @@ static void sink(char *targ, char *src)
 	attr = GetFileAttributes(namebuf);
 	exists = (attr != (DWORD) - 1);
 
-	if (buf[0] == 'D') {
+	if (act.action == SCP_SINK_DIR) {
 	    if (exists && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0) {
 		run_err("%s: Not a directory", namebuf);
 		continue;
@@ -1011,7 +1133,8 @@ static void sink(char *targ, char *src)
 	    continue;
 	}
 
-	back->send("", 1);
+	if (scp_accept_filexfer())
+	    return;
 
 	stat_bytes = 0;
 	stat_starttime = time(NULL);
@@ -1023,17 +1146,22 @@ static void sink(char *targ, char *src)
 	if (strrchr(stat_name, '\\') != NULL)
 	    stat_name = strrchr(stat_name, '\\') + 1;
 
-	for (i = 0; i < size; i += 4096) {
+	received = 0;
+	while (received < act.size) {
 	    char transbuf[4096];
-	    DWORD j, k = 4096;
-	    if (i + k > size)
-		k = size - i;
-	    if (ssh_scp_recv(transbuf, k) == 0)
+	    DWORD blksize, read, written;
+	    blksize = 4096;
+	    if (blksize > act.size - received)
+		blksize = act.size - received;
+	    read = scp_recv_filedata(transbuf, blksize);
+	    if (read <= 0)
 		bump("Lost connection");
 	    if (wrerror)
 		continue;
-	    if (!WriteFile(f, transbuf, k, &j, NULL) || j != k) {
+	    if (!WriteFile(f, transbuf, read, &written, NULL) ||
+		written != read) {
 		wrerror = 1;
+		/* FIXME: in sftp we can actually abort the transfer */
 		if (statistics)
 		    printf("\r%-25.25s | %50s\n",
 			   stat_name,
@@ -1041,20 +1169,20 @@ static void sink(char *targ, char *src)
 		continue;
 	    }
 	    if (statistics) {
-		stat_bytes += k;
-		if (time(NULL) > stat_lasttime || i + k == size) {
+		stat_bytes += read;
+		if (time(NULL) > stat_lasttime ||
+		    received + read == act.size) {
 		    stat_lasttime = time(NULL);
-		    print_stats(stat_name, size, stat_bytes,
+		    print_stats(stat_name, act.size, stat_bytes,
 				stat_starttime, stat_lasttime);
 		}
 	    }
+	    received += read;
 	}
-	(void) response();
-
-	if (settime) {
+	if (act.settime) {
 	    FILETIME actime, wrtime;
-	    TIME_POSIX_TO_WIN(atime, actime);
-	    TIME_POSIX_TO_WIN(mtime, wrtime);
+	    TIME_POSIX_TO_WIN(act.atime, actime);
+	    TIME_POSIX_TO_WIN(act.mtime, wrtime);
 	    SetFileTime(f, NULL, &actime, &wrtime);
 	}
 
@@ -1063,12 +1191,12 @@ static void sink(char *targ, char *src)
 	    run_err("%s: Write error", namebuf);
 	    continue;
 	}
-	back->send("", 1);
+	(void) scp_finish_filerecv();
     }
 }
 
 /*
- *  We will copy local files to a remote server.
+ * We will copy local files to a remote server.
  */
 static void toremote(int argc, char *argv[])
 {
