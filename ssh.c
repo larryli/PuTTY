@@ -371,19 +371,28 @@ const static struct ssh_kex *kex_algs[] = {
 
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
-static void nullmac_key(unsigned char *key)
+static void *nullmac_make_context(void)
+{
+    return NULL;
+}
+static void nullmac_free_context(void *handle)
 {
 }
-static void nullmac_generate(unsigned char *blk, int len,
+static void nullmac_key(void *handle, unsigned char *key)
+{
+}
+static void nullmac_generate(void *handle, unsigned char *blk, int len,
 			     unsigned long seq)
 {
 }
-static int nullmac_verify(unsigned char *blk, int len, unsigned long seq)
+static int nullmac_verify(void *handle, unsigned char *blk, int len,
+			  unsigned long seq)
 {
     return 1;
 }
 const static struct ssh_mac ssh_mac_none = {
-    nullmac_key, nullmac_key, nullmac_generate, nullmac_verify, "none", 0
+    nullmac_make_context, nullmac_free_context, nullmac_key,
+    nullmac_generate, nullmac_verify, "none", 0
 };
 const static struct ssh_mac *macs[] = {
     &ssh_sha1, &ssh_md5, &ssh_mac_none
@@ -554,6 +563,7 @@ struct ssh_tag {
     const struct ssh2_cipher *cscipher, *sccipher;
     void *cs_cipher_ctx, *sc_cipher_ctx;
     const struct ssh_mac *csmac, *scmac;
+    void *cs_mac_ctx, *sc_mac_ctx;
     const struct ssh_compress *cscomp, *sccomp;
     const struct ssh_kex *kex;
     const struct ssh_signkey *hostkey;
@@ -979,7 +989,7 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
      * Check the MAC.
      */
     if (ssh->scmac
-	&& !ssh->scmac->verify(ssh->pktin.data, st->len + 4,
+	&& !ssh->scmac->verify(ssh->sc_mac_ctx, ssh->pktin.data, st->len + 4,
 			       st->incoming_sequence)) {
 	bombout(("Incorrect MAC received on packet"));
 	crReturn(0);
@@ -1468,7 +1478,8 @@ static int ssh2_pkt_construct(Ssh ssh)
 	ssh->pktout.data[ssh->pktout.length + i] = random_byte();
     PUT_32BIT(ssh->pktout.data, ssh->pktout.length + padding - 4);
     if (ssh->csmac)
-	ssh->csmac->generate(ssh->pktout.data, ssh->pktout.length + padding,
+	ssh->csmac->generate(ssh->cs_mac_ctx, ssh->pktout.data,
+			     ssh->pktout.length + padding,
 			     ssh->v2_outgoing_sequence);
     ssh->v2_outgoing_sequence++;       /* whether or not we MACed */
 
@@ -4031,12 +4042,22 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
     ssh->cscipher = s->cscipher_tobe;
     ssh->cs_cipher_ctx = ssh->cscipher->make_context();
+
     if (ssh->sc_cipher_ctx)
 	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
     ssh->sccipher = s->sccipher_tobe;
     ssh->sc_cipher_ctx = ssh->sccipher->make_context();
+
+    if (ssh->cs_mac_ctx)
+	ssh->csmac->free_context(ssh->cs_mac_ctx);
     ssh->csmac = s->csmac_tobe;
+    ssh->cs_mac_ctx = ssh->csmac->make_context();
+
+    if (ssh->sc_mac_ctx)
+	ssh->scmac->free_context(ssh->sc_mac_ctx);
     ssh->scmac = s->scmac_tobe;
+    ssh->sc_mac_ctx = ssh->scmac->make_context();
+
     ssh->cscomp = s->cscomp_tobe;
     ssh->sccomp = s->sccomp_tobe;
     ssh->cscomp->compress_init();
@@ -4059,9 +4080,9 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'B',keyspace);
 	ssh->sccipher->setiv(ssh->sc_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'E',keyspace);
-	ssh->csmac->setcskey(keyspace);
+	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'F',keyspace);
-	ssh->scmac->setsckey(keyspace);
+	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
     }
     {
 	char buf[256];
@@ -5785,7 +5806,9 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->sccipher = NULL;
     ssh->sc_cipher_ctx = NULL;
     ssh->csmac = NULL;
+    ssh->sc_mac_ctx = NULL;
     ssh->scmac = NULL;
+    ssh->sc_mac_ctx = NULL;
     ssh->cscomp = NULL;
     ssh->sccomp = NULL;
     ssh->kex = NULL;

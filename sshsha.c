@@ -193,54 +193,51 @@ void SHA_Simple(void *p, int len, unsigned char *output)
  * HMAC wrapper on it.
  */
 
-static SHA_State sha1_cs_mac_s1, sha1_cs_mac_s2;
-static SHA_State sha1_sc_mac_s1, sha1_sc_mac_s2;
-
-static void sha1_key(SHA_State * s1, SHA_State * s2,
-		     unsigned char *key, int len)
+static void *sha1_make_context(void)
 {
+    return smalloc(2*sizeof(SHA_State));
+}
+
+static void sha1_free_context(void *handle)
+{
+    sfree(handle);
+}
+
+static void sha1_key_internal(void *handle, unsigned char *key, int len)
+{
+    SHA_State *keys = (SHA_State *)handle;
     unsigned char foo[64];
     int i;
 
     memset(foo, 0x36, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
-    SHA_Init(s1);
-    SHA_Bytes(s1, foo, 64);
+    SHA_Init(&keys[0]);
+    SHA_Bytes(&keys[0], foo, 64);
 
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
-    SHA_Init(s2);
-    SHA_Bytes(s2, foo, 64);
+    SHA_Init(&keys[1]);
+    SHA_Bytes(&keys[1], foo, 64);
 
     memset(foo, 0, 64);		       /* burn the evidence */
 }
 
-static void sha1_cskey(unsigned char *key)
+static void sha1_key(void *handle, unsigned char *key)
 {
-    sha1_key(&sha1_cs_mac_s1, &sha1_cs_mac_s2, key, 20);
+    sha1_key_internal(handle, key, 20);
 }
 
-static void sha1_sckey(unsigned char *key)
+static void sha1_key_buggy(void *handle, unsigned char *key)
 {
-    sha1_key(&sha1_sc_mac_s1, &sha1_sc_mac_s2, key, 20);
+    sha1_key_internal(handle, key, 16);
 }
 
-static void sha1_cskey_buggy(unsigned char *key)
+static void sha1_do_hmac(void *handle, unsigned char *blk, int len,
+			 unsigned long seq, unsigned char *hmac)
 {
-    sha1_key(&sha1_cs_mac_s1, &sha1_cs_mac_s2, key, 16);
-}
-
-static void sha1_sckey_buggy(unsigned char *key)
-{
-    sha1_key(&sha1_sc_mac_s1, &sha1_sc_mac_s2, key, 16);
-}
-
-static void sha1_do_hmac(SHA_State * s1, SHA_State * s2,
-			 unsigned char *blk, int len, unsigned long seq,
-			 unsigned char *hmac)
-{
+    SHA_State *keys = (SHA_State *)handle;
     SHA_State s;
     unsigned char intermediate[20];
 
@@ -249,53 +246,52 @@ static void sha1_do_hmac(SHA_State * s1, SHA_State * s2,
     intermediate[2] = (unsigned char) ((seq >> 8) & 0xFF);
     intermediate[3] = (unsigned char) ((seq) & 0xFF);
 
-    s = *s1;			       /* structure copy */
+    s = keys[0];		       /* structure copy */
     SHA_Bytes(&s, intermediate, 4);
     SHA_Bytes(&s, blk, len);
     SHA_Final(&s, intermediate);
-    s = *s2;			       /* structure copy */
+    s = keys[1];		       /* structure copy */
     SHA_Bytes(&s, intermediate, 20);
     SHA_Final(&s, hmac);
 }
 
-static void sha1_generate(unsigned char *blk, int len, unsigned long seq)
+static void sha1_generate(void *handle, unsigned char *blk, int len,
+			  unsigned long seq)
 {
-    sha1_do_hmac(&sha1_cs_mac_s1, &sha1_cs_mac_s2, blk, len, seq,
-		 blk + len);
+    sha1_do_hmac(handle, blk, len, seq, blk + len);
 }
 
-static int sha1_verify(unsigned char *blk, int len, unsigned long seq)
+static int sha1_verify(void *handle, unsigned char *blk, int len,
+		       unsigned long seq)
 {
     unsigned char correct[20];
-    sha1_do_hmac(&sha1_sc_mac_s1, &sha1_sc_mac_s2, blk, len, seq, correct);
+    sha1_do_hmac(handle, blk, len, seq, correct);
     return !memcmp(correct, blk + len, 20);
 }
 
 void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
 		      unsigned char *output) {
-    SHA_State s1, s2;
+    SHA_State states[2];
     unsigned char intermediate[20];
 
-    sha1_key(&s1, &s2, key, keylen);
-    SHA_Bytes(&s1, data, datalen);
-    SHA_Final(&s1, intermediate);
+    sha1_key_internal(states, key, keylen);
+    SHA_Bytes(&states[0], data, datalen);
+    SHA_Final(&states[0], intermediate);
 
-    SHA_Bytes(&s2, intermediate, 20);
-    SHA_Final(&s2, output);
+    SHA_Bytes(&states[1], intermediate, 20);
+    SHA_Final(&states[1], output);
 }
 
 const struct ssh_mac ssh_sha1 = {
-    sha1_cskey, sha1_sckey,
-    sha1_generate,
-    sha1_verify,
+    sha1_make_context, sha1_free_context, sha1_key,
+    sha1_generate, sha1_verify,
     "hmac-sha1",
     20
 };
 
 const struct ssh_mac ssh_sha1_buggy = {
-    sha1_cskey_buggy, sha1_sckey_buggy,
-    sha1_generate,
-    sha1_verify,
+    sha1_make_context, sha1_free_context, sha1_key_buggy,
+    sha1_generate, sha1_verify,
     "hmac-sha1",
     20
 };

@@ -151,10 +151,11 @@ struct ssh2_ciphers {
 };
 
 struct ssh_mac {
-    void (*setcskey) (unsigned char *key);
-    void (*setsckey) (unsigned char *key);
-    void (*generate) (unsigned char *blk, int len, unsigned long seq);
-    int (*verify) (unsigned char *blk, int len, unsigned long seq);
+    void *(*make_context)(void);
+    void (*free_context)(void *);
+    void (*setkey) (void *, unsigned char *key);
+    void (*generate) (void *, unsigned char *blk, int len, unsigned long seq);
+    int (*verify) (void *, unsigned char *blk, int len, unsigned long seq);
     char *name;
     int len;
 };
