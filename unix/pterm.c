@@ -54,6 +54,8 @@ struct gui_data {
     char icontitle[sizeof(((Config *)0)->wintitle)];
     int master_fd, master_func_id, exited;
     void *ldisc;
+    Backend *back;
+    void *backhandle;
 };
 
 static struct gui_data the_inst;
@@ -887,8 +889,8 @@ void done_with_pty(struct gui_data *inst)
 	gtk_input_remove(inst->master_func_id);
     }
 
-    if (!inst->exited && back->exitcode(backhandle) >= 0) {
-	int exitcode = back->exitcode(backhandle);
+    if (!inst->exited && inst->back->exitcode(inst->backhandle) >= 0) {
+	int exitcode = inst->back->exitcode(inst->backhandle);
 	int clean;
 
 	clean = WIFEXITED(exitcode) && (WEXITSTATUS(exitcode) == 0);
@@ -941,7 +943,7 @@ gint timer_func(gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (back->exitcode(backhandle) >= 0) {
+    if (inst->back->exitcode(inst->backhandle) >= 0) {
 	/*
 	 * The primary child process died. We could keep the
 	 * terminal open for remaining subprocesses to output to,
@@ -1962,14 +1964,14 @@ int main(int argc, char **argv)
 
     term = term_init();
 
-    back = &pty_backend;
-    back->init((void *)term, &backhandle, NULL, 0, NULL, 0);
+    inst->back = &pty_backend;
+    inst->back->init((void *)term, &inst->backhandle, NULL, 0, NULL, 0);
 
-    term_provide_resize_fn(term, back->size, backhandle);
+    term_provide_resize_fn(term, inst->back->size, inst->backhandle);
 
     term_size(term, cfg.height, cfg.width, cfg.savelines);
 
-    inst->ldisc = ldisc_create(term, back, backhandle, inst);
+    inst->ldisc = ldisc_create(term, inst->back, inst->backhandle, inst);
     ldisc_send(inst->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     inst->master_fd = pty_master_fd;

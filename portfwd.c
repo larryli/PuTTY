@@ -61,6 +61,8 @@ struct PFwdPrivate {
     struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
     void *c;			       /* (channel) data used by ssh.c */
+    void *backhandle;		       /* instance of SSH backend itself */
+    /* Note that backhandle need not be filled in if c is non-NULL */
     Socket s;
     char hostname[128];
     int throttled, throttle_override;
@@ -137,6 +139,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     pr->throttled = pr->throttle_override = 0;
     pr->ready = 1;
     pr->c = c;
+    pr->backhandle = NULL;	       /* we shouldn't need this */
 
     pr->s = *s = new_connection(addr, dummy_realhost, port, 0, 1, 0, (Plug) pr);
     if ((err = sk_socket_error(*s))) {
@@ -170,6 +173,7 @@ static int pfd_accepting(Plug p, void *sock)
     pr->fn = &fn_table;
 
     pr->c = NULL;
+    pr->backhandle = org->backhandle;
 
     pr->s = s = sk_register(sock, (Plug) pr);
     if ((err = sk_socket_error(s))) {
@@ -177,7 +181,7 @@ static int pfd_accepting(Plug p, void *sock)
 	return err != NULL;
     }
 
-    pr->c = new_sock_channel(backhandle, s);
+    pr->c = new_sock_channel(org->backhandle, s);
 
     strcpy(pr->hostname, org->hostname);
     pr->port = org->port;
@@ -192,8 +196,7 @@ static int pfd_accepting(Plug p, void *sock)
 	return 1;
     } else {
 	/* asks to forward to the specified host/port for this */
-	ssh_send_port_open(backhandle, pr->c, pr->hostname,
-			   pr->port, "forwarding");
+	ssh_send_port_open(pr->c, pr->hostname, pr->port, "forwarding");
     }
 
     return 0;
@@ -203,7 +206,7 @@ static int pfd_accepting(Plug p, void *sock)
 /* Add a new forwarding from port -> desthost:destport
  sets up a listener on the local machine on port
  */
-char *pfd_addforward(char *desthost, int destport, int port)
+char *pfd_addforward(char *desthost, int destport, int port, void *backhandle)
 {
     static struct plug_function_table fn_table = {
 	pfd_closing,
@@ -227,6 +230,7 @@ char *pfd_addforward(char *desthost, int destport, int port)
     pr->throttled = pr->throttle_override = 0;
     pr->ready = 0;
     pr->waiting = NULL;
+    pr->backhandle = backhandle;
 
     pr->s = s = new_listener(port, (Plug) pr, !cfg.lport_acceptall);
     if ((err = sk_socket_error(s))) {

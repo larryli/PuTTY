@@ -32,6 +32,8 @@ static int do_sftp_init(void);
  */
 
 char *pwd, *homedir;
+static Backend *back;
+static void *backhandle;
 
 /* ----------------------------------------------------------------------
  * Higher-level helper functions used in commands.
@@ -1484,7 +1486,7 @@ void connection_fatal(char *fmt, ...)
     cleanup_exit(1);
 }
 
-void ldisc_send(char *buf, int len, int interactive)
+void ldisc_send(void *handle, char *buf, int len, int interactive)
 {
     /*
      * This is only here because of the calls to ldisc_send(NULL,

@@ -116,6 +116,8 @@ static time_t last_movement = 0;
 static int caret_x = -1, caret_y = -1;
 
 static void *ldisc;
+static Backend *back;
+static void *backhandle;
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1

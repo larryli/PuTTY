@@ -99,6 +99,9 @@ static int gui_mode = 0;
 static char *gui_hwnd = NULL;
 static int using_sftp = 0;
 
+static Backend *back;
+static void *backhandle;
+
 static void source(char *src);
 static void rsource(char *src);
 static void sink(char *targ, char *src);
@@ -117,7 +120,7 @@ static void gui_update_stats(char *name, unsigned long size,
  */
 #define MAX_SCP_BUFSIZE 16384
 
-void ldisc_send(char *buf, int len, int interactive)
+void ldisc_send(void *handle, char *buf, int len, int interactive)
 {
     /*
      * This is only here because of the calls to ldisc_send(NULL,

@@ -320,7 +320,8 @@ extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 
 extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
-extern char *pfd_addforward(char *desthost, int destport, int port);
+extern char *pfd_addforward(char *desthost, int destport, int port,
+			    void *backhandle);
 extern void pfd_close(Socket s);
 extern int pfd_send(Socket s, char *data, int len);
 extern void pfd_confirm(Socket s);
@@ -3113,7 +3114,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		if (type == 'L') {
-		    pfd_addforward(host, dport, sport);
+		    pfd_addforward(host, dport, sport, ssh);
 		    sprintf(buf, "Local port %.*s%.*s%d%.*s forwarding to"
 			    " %s:%.*s%.*s%d%.*s",
 			    sserv ? strlen(sports) : 0, sports,
@@ -5155,7 +5156,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		if (type == 'L') {
-		    pfd_addforward(host, dport, sport);
+		    pfd_addforward(host, dport, sport, ssh);
 		    sprintf(buf, "Local port %.*s%.*s%d%.*s forwarding to"
 			    " %s:%.*s%.*s%d%.*s",
 			    sserv ? strlen(sports) : 0, sports,
@@ -6077,11 +6078,10 @@ void ssh_unthrottle(void *handle, int bufsize)
     }
 }
 
-void ssh_send_port_open(void *handle, void *channel, char *hostname,
-			int port, char *org)
+void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 {
-    Ssh ssh = (Ssh) handle;
     struct ssh_channel *c = (struct ssh_channel *)channel;
+    Ssh ssh = c->ssh;
     char buf[1024];
 
     sprintf(buf, "Opening forwarded connection to %.512s:%d", hostname, port);

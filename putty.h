@@ -23,17 +23,6 @@ typedef struct terminal_tag Terminal;
 #include "puttyps.h"
 #include "network.h"
 
-/*
- * Global variables. Most modules declare these `extern', but
- * window.c will do `#define PUTTY_DO_GLOBALS' before including this
- * module, and so will get them properly defined.
- */
-#ifdef PUTTY_DO_GLOBALS
-#define GLOBAL
-#else
-#define GLOBAL extern
-#endif
-
 /* Three attribute types: 
  * The ATTRs (normal attributes) are stored with the characters in the main
  * display arrays
@@ -103,9 +92,6 @@ typedef struct terminal_tag Terminal;
 GLOBAL int alt_pressed;
 
 GLOBAL int session_closed;
-
-GLOBAL char *help_path;
-GLOBAL int help_has_contents;
 
 GLOBAL int nsessions;
 GLOBAL char **sessions;
@@ -208,9 +194,6 @@ struct backend_tag {
     void (*unthrottle) (void *handle, int);
     int default_port;
 };
-
-GLOBAL Backend *back;
-GLOBAL void *backhandle;
 
 extern struct backend_list {
     int protocol;

@@ -69,6 +69,9 @@ DWORD orig_console_mode;
 
 WSAEVENT netevent;
 
+static Backend *back;
+static void *backhandle;
+
 int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;

@@ -252,8 +252,7 @@ void logevent(char *);
 
 /* Allocate and register a new channel for port forwarding */
 void *new_sock_channel(void *handle, Socket s);
-void ssh_send_port_open(void *handle, void *channel,
-			char *hostname, int port, char *org);
+void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);

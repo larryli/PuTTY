@@ -44,6 +44,12 @@ GLOBAL HWND logbox;
 GLOBAL HINSTANCE hinst;
 
 /*
+ * Details of the help file.
+ */
+GLOBAL char *help_path;
+GLOBAL int help_has_contents;
+
+/*
  * I've just looked in the windows standard headr files for WM_USER, there
  * are hundreds of flags defined using the form WM_USER+123 so I've 
  * renumbered this NETEVENT value and the two in window.c
