@@ -895,8 +895,6 @@ if (defined $makefiles{'gtk'}) {
     "\n".
     ".SUFFIXES:\n".
     "\n".
-    "%.o:\n".
-    "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
     "\n";
     print &splitline("all:" . join "", map { " $_" } &progrealnames("XU"));
     print "\n\n";
@@ -911,6 +909,7 @@ if (defined $makefiles{'gtk'}) {
     foreach $d (&deps("X.o", undef, $dirpfx, "/", "gtk")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
           "\n";
+      print &splitline("\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c $d->{deps}->[0]\n");
     }
     print "\n";
     print $makefile_extra{'gtk'};
