@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.46 2003/03/29 01:44:39 owen Exp $
+\versionid $Id: faq.but,v 1.47 2003/05/22 08:43:50 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -28,11 +28,6 @@ implemented.
 \S{faq-ssh2}{Question} Does PuTTY support SSH v2?
 
 Yes. SSH v2 support has been available in PuTTY since version 0.50.
-However, currently the \e{default} SSH protocol is v1; to select SSH
-v2 if your server supports both, go to the SSH panel and change the
-\e{Preferred SSH protocol version} option. (The factory default will
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/ssh2-default.html}{change to v2}
-in the next full release.)
 
 Public key authentication (both RSA and DSA) in SSH v2 is new in
 version 0.52.
@@ -194,16 +189,10 @@ or any other port of PuTTY, they were mistaken. We don't.
 
 It's currently being worked on. If you look at the nightly source
 snapshots, you should find a \c{unix} subdirectory, which should
-build you a Unix port of Plink, and also \c{pterm} - an
+build you Unix ports of Plink, PuTTY itself, and also \c{pterm} - an
 \cw{xterm}-type program which supports the same terminal emulation
-as PuTTY.
-
-It isn't yet clear whether we will bother combining the terminal
-emulator and network back end into the same process, to provide a
-Unix port of the full GUI form of PuTTY. It wouldn't be as useful a
-thing on Unix as it would be on Windows; its major value would
-probably be as a pathfinding effort for other ports. If anyone
-really wants it, we'd be interested to know why :-)
+as PuTTY. We do not yet have Unix ports of PSCP, PSFTP, Pageant or
+PuTTYgen.
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
