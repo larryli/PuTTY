@@ -89,7 +89,7 @@ MOBJ2 = tree234.$(OBJ)
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
 OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
-OBJS4 = x11fwd.$(OBJ) sshaes.$(OBJ)
+OBJS4 = x11fwd.$(OBJ) portforward.$(OBJ) sshaes.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ) sshaes.$(OBJ)
@@ -298,7 +298,8 @@ windlg.$(OBJ): windlg.c network.h puttymem.h storage.h winstuff.h putty.h ssh.h 
 window.$(OBJ): window.c network.h puttymem.h storage.h winstuff.h putty.h win_res.h 
 winnet.$(OBJ): winnet.c network.h puttymem.h putty.h tree234.h 
 winstore.$(OBJ): winstore.c network.h puttymem.h storage.h putty.h 
-x11fwd.$(OBJ): x11fwd.c network.h puttymem.h ssh.h putty.h 
+x11fwd.$(OBJ): x11fwd.c network.h puttymem.h ssh.h putty.h
+portforward.$(OBJ): portforward.c network.h puttymem.h ssh.h putty.h
 xlat.$(OBJ): xlat.c network.h puttymem.h putty.h 
 ##--
 

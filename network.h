@@ -48,6 +48,10 @@ struct plug_function_table {
      *  - urgent==2. `data' points to `len' bytes of data,
      *    the first of which was the one at the Urgent mark.
      */
+    int (*accepting)(Plug p, struct sockaddr *addr, void *sock);
+    /*
+     * returns 0 if the host at address addr is a valid host for connecting or error
+     */
 };
 
 
@@ -59,6 +63,10 @@ void sk_addr_free(SockAddr addr);
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      Plug p);
 
+Socket sk_newlistenner(int port, Plug plug);
+
+Socket sk_register(void *sock, Plug plug);
+
 #define sk_plug(s,p) (((*s)->plug) (s, p))
 #define sk_close(s) (((*s)->close) (s))
 #define sk_write(s,buf,len) (((*s)->write) (s, buf, len))
@@ -68,6 +76,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 #ifdef DEFINE_PLUG_METHOD_MACROS
 #define plug_closing(p,msg,code,callback) (((*p)->closing) (p, msg, code, callback))
 #define plug_receive(p,urgent,buf,len) (((*p)->receive) (p, urgent, buf, len))
+#define plug_accepting(p, addr, sock) (((*p)->accepting)(p, addr, sock))
 #endif
 
 /*
@@ -88,6 +97,14 @@ void *sk_get_private_ptr(Socket s);
 char *sk_addr_error(SockAddr addr);
 #define sk_socket_error(s) (((*s)->socket_error) (s))
 
+/*
+ * Set the `frozen' flag on a socket. A frozen socket is one in
+ * which all sends are buffered and receives are ignored. This is
+ * so that (for example) a new port-forwarding can sit in limbo
+ * until its associated SSH channel is ready, and then pending data
+ * can be sent on.
+ */
+void sk_set_frozen(Socket sock, int is_frozen);
 
 /********** SSL stuff **********/
 
@@ -95,7 +112,6 @@ char *sk_addr_error(SockAddr addr);
  * This section is subject to change, but you get the general idea
  * of what it will eventually look like.
  */
-
 
 typedef struct certificate *Certificate;
 typedef struct our_certificate *Our_Certificate;

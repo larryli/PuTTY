@@ -38,6 +38,7 @@ void beginbox(struct ctlpos *cp, char *name, int idbox);
 void endbox(struct ctlpos *cp);
 void multiedit(struct ctlpos *cp, ...);
 void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...);
+void bareradioline(struct ctlpos *cp, int nacross, ...);
 void radiobig(struct ctlpos *cp, char *text, int id, ...);
 void checkbox(struct ctlpos *cp, char *text, int id);
 void statictext(struct ctlpos *cp, char *text, int id);
@@ -63,3 +64,7 @@ void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
 void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
 		char *btext, int bid, ...);
 void progressbar(struct ctlpos *cp, int id);
+void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
+	       char *e1stext, int e1sid, int e1id,
+	       char *e2stext, int e2sid, int e2id,
+	       char *btext, int bid);

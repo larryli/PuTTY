@@ -65,6 +65,7 @@ struct Socket_tag {
     void *private_ptr;
     struct buffer *head, *tail;
     int writable;
+    int frozen; /* this tells the write stuff not to even bother trying to send at this point */
     int sending_oob;
     int oobinline;
 };
@@ -368,6 +369,58 @@ static void sk_tcp_write(Socket s, char *data, int len);
 static void sk_tcp_write_oob(Socket s, char *data, int len);
 static char *sk_tcp_socket_error(Socket s);
 
+extern char *do_select(SOCKET skt, int startup);
+
+Socket sk_register(void *sock, Plug plug)
+{
+    static struct socket_function_table fn_table = {
+	sk_tcp_plug,
+	sk_tcp_close,
+	sk_tcp_write,
+	sk_tcp_write_oob,
+	sk_tcp_flush,
+	sk_tcp_socket_error
+    };
+
+    DWORD err;
+    char *errstr;
+    Actual_Socket ret;
+
+    /*
+     * Create Socket structure.
+     */
+    ret = smalloc(sizeof(struct Socket_tag));
+    ret->fn = &fn_table;
+    ret->error = NULL;
+    ret->plug = plug;
+    ret->head = ret->tail = NULL;
+    ret->writable = 1;		       /* to start with */
+    ret->sending_oob = 0;
+    ret->frozen = 1;
+
+    ret->s = (SOCKET)sock;
+
+    if (ret->s == INVALID_SOCKET) {
+	err = WSAGetLastError();
+	ret->error = winsock_error_string(err);
+	return (Socket) ret;
+    }
+
+    ret->oobinline = 0;
+
+    /* Set up a select mechanism. This could be an AsyncSelect on a
+     * window, or an EventSelect on an event object. */
+    errstr = do_select(ret->s, 1);
+    if (errstr) {
+	ret->error = errstr;
+	return (Socket) ret;
+    }
+
+    add234(sktree, ret);
+
+    return (Socket) ret;
+}
+
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      Plug plug)
 {
@@ -388,7 +441,6 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     DWORD err;
     char *errstr;
     Actual_Socket ret;
-    extern char *do_select(SOCKET skt, int startup);
     short localport;
 
     /*
@@ -401,6 +453,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->head = ret->tail = NULL;
     ret->writable = 1;		       /* to start with */
     ret->sending_oob = 0;
+    ret->frozen = 0;
 
     /*
      * Open socket.
@@ -519,6 +572,111 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
+Socket sk_newlistenner(int port, Plug plug)
+{
+    static struct socket_function_table fn_table = {
+	sk_tcp_plug,
+	sk_tcp_close,
+	sk_tcp_write,
+	sk_tcp_write_oob,
+	sk_tcp_flush,
+	sk_tcp_socket_error
+    };
+
+    SOCKET s;
+#ifdef IPV6
+    SOCKADDR_IN6 a6;
+#endif
+    SOCKADDR_IN a;
+    DWORD err;
+    char *errstr;
+    Actual_Socket ret;
+    int retcode;
+    int on = 1;
+
+    /*
+     * Create Socket structure.
+     */
+    ret = smalloc(sizeof(struct Socket_tag));
+    ret->fn = &fn_table;
+    ret->error = NULL;
+    ret->plug = plug;
+    ret->head = ret->tail = NULL;
+    ret->writable = 0;		       /* to start with */
+    ret->sending_oob = 0;
+    ret->frozen = 0;
+
+    /*
+     * Open socket.
+     */
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    ret->s = s;
+
+    if (s == INVALID_SOCKET) {
+	err = WSAGetLastError();
+	ret->error = winsock_error_string(err);
+	return (Socket) ret;
+    }
+
+    ret->oobinline = 0;
+
+
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
+
+
+#ifdef IPV6
+	if (addr->family == AF_INET6) {
+	    memset(&a6, 0, sizeof(a6));
+	    a6.sin6_family = AF_INET6;
+/*a6.sin6_addr      = in6addr_any; *//* == 0 */
+	    a6.sin6_port = htons(port);
+	} else
+#endif
+	{
+	    a.sin_family = AF_INET;
+	    a.sin_addr.s_addr = htonl(INADDR_ANY);
+	    a.sin_port = htons((short)port);
+	}
+#ifdef IPV6
+	retcode = bind(s, (addr->family == AF_INET6 ?
+			   (struct sockaddr *) &a6 :
+			   (struct sockaddr *) &a),
+		       (addr->family ==
+			AF_INET6 ? sizeof(a6) : sizeof(a)));
+#else
+	retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
+#endif
+	if (retcode != SOCKET_ERROR) {
+	    err = 0;
+	} else {
+	    err = WSAGetLastError();
+	}
+
+    if (err) {
+	ret->error = winsock_error_string(err);
+	return (Socket) ret;
+    }
+
+
+    if (listen(s, SOMAXCONN) == SOCKET_ERROR) {
+        closesocket(s);
+	ret->error = winsock_error_string(err);
+	return (Socket) ret;
+    }
+
+    /* Set up a select mechanism. This could be an AsyncSelect on a
+     * window, or an EventSelect on an event object. */
+    errstr = do_select(s, 1);
+    if (errstr) {
+	ret->error = errstr;
+	return (Socket) ret;
+    }
+
+    add234(sktree, ret);
+
+    return (Socket) ret;
+}
+
 static void sk_tcp_close(Socket sock)
 {
     extern char *do_select(SOCKET skt, int startup);
@@ -536,6 +694,7 @@ static void sk_tcp_close(Socket sock)
  */
 void try_send(Actual_Socket s)
 {
+    if (s->frozen) return;
     while (s->head) {
 	int nsent;
 	DWORD err;
@@ -694,6 +853,11 @@ int select_result(WPARAM wParam, LPARAM lParam)
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
+
+	/* In the case the socket is still frozen, we don't even bother */
+	if (s->frozen)
+	    break;
+
 	/*
 	 * We have received data on the socket. For an oobinline
 	 * socket, this might be data _before_ an urgent pointer,
@@ -769,6 +933,26 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	    }
 	} while (ret > 0);
 	return open;
+       case FD_ACCEPT:
+	{
+		struct sockaddr isa;
+		int addrlen = sizeof(struct sockaddr);
+		SOCKET t;  /* socket of connection */
+
+		memset(&isa, 0, sizeof(struct sockaddr));
+		err = 0;
+		t = accept(s->s,&isa,&addrlen);
+		if (t == INVALID_SOCKET)
+				{
+					err = WSAGetLastError();
+					if (err == WSATRY_AGAIN)
+						break;
+				}
+
+		if (plug_accepting(s->plug, &isa, (void*)t)) {
+			closesocket(t); // denied or error
+		}
+	}
     }
 
     return 1;
@@ -803,6 +987,16 @@ static char *sk_tcp_socket_error(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
     return s->error;
+}
+
+void sk_set_frozen(Socket sock, int is_frozen)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    s->frozen = is_frozen;
+    if (!is_frozen) {
+	char c;
+	recv(s->s, &c, 1, MSG_PEEK);
+    }
 }
 
 /*

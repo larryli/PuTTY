@@ -196,6 +196,12 @@ extern void x11_close(Socket);
 extern void x11_send(Socket, char *, int);
 extern void x11_invent_auth(char *, int, char *, int);
 
+extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
+extern char *pfd_addforward(char *desthost, int destport, int port);
+extern void pfd_close(Socket s);
+extern void pfd_send(Socket s, char *data, int len);
+extern void pfd_confirm(Socket s);
+
 /*
  * Ciphers for SSH2. We miss out single-DES because it isn't
  * supported; also 3DES and Blowfish are both done differently from
@@ -263,6 +269,7 @@ enum {				       /* channel types */
     CHAN_MAINSESSION,
     CHAN_X11,
     CHAN_AGENT,
+    CHAN_SOCKDATA
 };
 
 /*
@@ -286,7 +293,20 @@ struct ssh_channel {
 	struct ssh_x11_channel {
 	    Socket s;
 	} x11;
+	struct ssh_pfd_channel {
+	    Socket s;
+	} pfd;
     } u;
+};
+
+/*
+ * 2-3-4 tree storing remote->local port forwardings (so we can
+ * reject any attempt to open a port we didn't explicitly ask to
+ * have forwarded).
+ */
+struct ssh_rportfwd {
+    unsigned port;
+    char host[256];
 };
 
 struct Packet {
@@ -329,6 +349,8 @@ static int ssh_echoing, ssh_editing;
 
 static tree234 *ssh_channels;	       /* indexed by local id */
 static struct ssh_channel *mainchan;   /* primary session channel */
+
+static tree234 *ssh_rportfwds;
 
 static enum {
     SSH_STATE_PREPACKET,
@@ -389,6 +411,18 @@ static int ssh_channelfind(void *av, void *bv)
     if (*a < b->localid)
 	return -1;
     if (*a > b->localid)
+	return +1;
+    return 0;
+}
+
+static int ssh_rportcmp(void *av, void *bv)
+{
+    struct ssh_rportfwd *a = (struct ssh_rportfwd *) av;
+    struct ssh_rportfwd *b = (struct ssh_rportfwd *) bv;
+    int i;
+    if ( (i = strcmp(a->host, b->host)) != 0)
+	return i < 0 ? -1 : +1;
+    if (a->port > b->port)
 	return +1;
     return 0;
 }
@@ -2263,7 +2297,10 @@ void sshfwd_close(struct ssh_channel *c)
 	c->closes = 1;
 	if (c->type == CHAN_X11) {
 	    c->u.x11.s = NULL;
-	    logevent("X11 connection terminated");
+	    logevent("Forwarded X11 connection terminated");
+	} else if (c->type == CHAN_SOCKDATA) {
+	    c->u.pfd.s = NULL;
+	    logevent("Forwarded port closed");
 	}
     }
 }
@@ -2334,6 +2371,68 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 	} else {
 	    logevent("X11 forwarding enabled");
 	    ssh_X11_fwd_enabled = TRUE;
+	}
+    }
+
+    {
+	char type, *e;
+	int n;
+	int sport,dport;
+	char sports[256], dports[256], host[256];
+	char buf[1024];
+
+	ssh_rportfwds = newtree234(ssh_rportcmp);
+        /* Add port forwardings. */
+	e = cfg.portfwd;
+	while (*e) {
+	    type = *e++;
+	    n = 0;
+	    while (*e && *e != '\t')
+		sports[n++] = *e++;
+	    sports[n] = 0;
+	    if (*e == '\t')
+		e++;
+	    n = 0;
+	    while (*e && *e != ':')
+		host[n++] = *e++;
+	    host[n] = 0;
+	    if (*e == ':')
+		e++;
+	    n = 0;
+	    while (*e)
+		dports[n++] = *e++;
+	    dports[n] = 0;
+	    e++;
+	    dport = atoi(dports);
+	    sport = atoi(sports);
+	    if (sport && dport) {
+		if (type == 'L') {
+		    pfd_addforward(host, dport, sport);
+		    sprintf(buf, "Local port %d forwarding to %s:%d",
+			    sport, host, dport);
+		    logevent(buf);
+		} else {
+		    struct ssh_rportfwd *pf;
+		    pf = smalloc(sizeof(*pf));
+		    strcpy(pf->host, host);
+		    pf->port = dport;
+		    if (add234(ssh_rportfwds, pf) != pf) {
+			sprintf(buf, 
+				"Duplicate remote port forwarding to %s:%s",
+				host, dport);
+			logevent(buf);
+		    } else {
+			sprintf(buf, "Requesting remote port %d forward to %s:%d",
+				sport, host, dport);
+			logevent(buf);
+			send_packet(SSH1_CMSG_PORT_FORWARD_REQUEST,
+				    PKT_INT, sport,
+				    PKT_STR, host,
+				    PKT_INT, dport,
+				    PKT_END);
+		    }
+		}
+	    }
 	}
     }
 
@@ -2460,6 +2559,73 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 				PKT_INT, c->remoteid, PKT_INT, c->localid,
 				PKT_END);
 		}
+	    } else if (pktin.type == SSH1_MSG_PORT_OPEN) {
+   		/* Remote side is trying to open a channel to talk to a
+		 * forwarded port. Give them back a local channel number. */
+		struct ssh_channel *c;
+		struct ssh_rportfwd pf;
+		int hostsize, port;
+		char host[256], buf[1024];
+		char *p, *h, *e;
+		c = smalloc(sizeof(struct ssh_channel));
+
+		hostsize = GET_32BIT(pktin.body+4);
+		for(h = host, p = pktin.body+8; hostsize != 0; hostsize--) {
+		    if (h+1 < host+sizeof(host))
+			*h++ = *p;
+		    *p++;
+		}
+		*h = 0;
+		port = GET_32BIT(p);
+
+		strcpy(pf.host, host);
+		pf.port = port;
+
+		if (find234(ssh_rportfwds, &pf, NULL) == NULL) {
+		    sprintf(buf, "Rejected remote port open request for %s:%d",
+			    host, port);
+		    logevent(buf);
+                    send_packet(SSH1_MSG_CHANNEL_OPEN_FAILURE,
+                                PKT_INT, GET_32BIT(pktin.body), PKT_END);
+		} else {
+		    sprintf(buf, "Received remote port open request for %s:%d",
+			    host, port);
+		    logevent(buf);
+		    e = pfd_newconnect(&c->u.pfd.s, host, port, c);
+		    if (e != NULL) {
+			char buf[256];
+			sprintf(buf, "Port open failed: %s", e);
+			logevent(buf);
+			sfree(c);
+			send_packet(SSH1_MSG_CHANNEL_OPEN_FAILURE,
+				    PKT_INT, GET_32BIT(pktin.body),
+				    PKT_END);
+		    } else {
+			c->remoteid = GET_32BIT(pktin.body);
+			c->localid = alloc_channel_id();
+			c->closes = 0;
+			c->type = CHAN_SOCKDATA;	/* identify channel type */
+			add234(ssh_channels, c);
+			send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+				    PKT_INT, c->remoteid, PKT_INT,
+				    c->localid, PKT_END);
+			logevent("Forwarded port opened successfully");
+		    }
+		}
+
+	    } else if (pktin.type == SSH1_MSG_CHANNEL_OPEN_CONFIRMATION) {
+		    unsigned int remoteid = GET_32BIT(pktin.body);
+		    unsigned int localid = GET_32BIT(pktin.body+4);
+		    struct ssh_channel *c;
+		    
+		    c = find234(ssh_channels, &remoteid, ssh_channelfind);
+		    if (c) {
+			c->remoteid = localid;
+			pfd_confirm(c->u.pfd.s);
+		    } else {
+			sshfwd_close(c);
+		    }
+
 	    } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
 		       pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
 		/* Remote side closes a channel. */
@@ -2474,10 +2640,16 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			send_packet(pktin.type, PKT_INT, c->remoteid,
 				    PKT_END);
 		    if ((c->closes == 0) && (c->type == CHAN_X11)) {
-			logevent("X11 connection closed");
+			logevent("Forwarded X11 connection terminated");
 			assert(c->u.x11.s != NULL);
 			x11_close(c->u.x11.s);
 			c->u.x11.s = NULL;
+		    }
+		    if ((c->closes == 0) && (c->type == CHAN_SOCKDATA)) {
+			logevent("Forwarded port closed");
+			assert(c->u.pfd.s != NULL);
+			pfd_close(c->u.pfd.s);
+			c->u.pfd.s = NULL;
 		    }
 		    c->closes |= closetype;
 		    if (c->closes == 3) {
@@ -2497,6 +2669,9 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		      case CHAN_X11:
 			x11_send(c->u.x11.s, p, len);
 			break;
+		      case CHAN_SOCKDATA:
+			      pfd_send(c->u.pfd.s, p, len);
+			      break;
 		      case CHAN_AGENT:
 			/* Data for an agent message. Buffer it. */
 			while (len > 0) {
@@ -3976,6 +4151,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		      case CHAN_X11:
 			x11_send(c->u.x11.s, data, length);
 			break;
+		      case CHAN_SOCKDATA:
+			      pfd_send(c->u.pfd.s, data, length);
+			      break;
 		      case CHAN_AGENT:
 			while (length > 0) {
 			    if (c->u.a.lensofar < 4) {
@@ -4059,6 +4237,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    sshfwd_close(c);
 		} else if (c->type == CHAN_AGENT) {
 		    sshfwd_close(c);
+		} else if (c->type == CHAN_SOCKDATA) {
+			pfd_close(c->u.pfd.s);
+			sshfwd_close(c);
 		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_CLOSE) {
 		unsigned i = ssh2_pkt_getuint32();
@@ -4080,6 +4261,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    break;
 		  case CHAN_AGENT:
 		    break;
+		  case CHAN_SOCKDATA:
+			  break;
 		}
 		del234(ssh_channels, c);
 		sfree(c->v2.outbuffer);
@@ -4305,6 +4488,39 @@ static void ssh_special(Telnet_Special code)
 	/* do nothing */
     }
 }
+
+void *new_sock_channel(Socket s)
+{
+    struct ssh_channel *c;
+    c = smalloc(sizeof(struct ssh_channel));
+
+    if (c) {
+	c->remoteid = GET_32BIT(pktin.body);
+	c->localid = alloc_channel_id();
+	c->closes = 0;
+	c->type = CHAN_SOCKDATA;	/* identify channel type */
+	c->u.pfd.s = s;
+	add234(ssh_channels, c);
+    }
+    return c;
+}
+
+void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
+{
+    struct ssh_channel *c = (struct ssh_channel *)channel;
+    char buf[1024];
+
+    sprintf(buf, "Opening forwarded connection to %.512s:%d", hostname, port);
+    logevent(buf);
+
+    send_packet(SSH1_MSG_PORT_OPEN,
+		PKT_INT, c->localid,
+		PKT_STR, hostname,
+		PKT_INT, port,
+		//PKT_STR, org,
+		PKT_END);
+}
+
 
 static Socket ssh_socket(void)
 {

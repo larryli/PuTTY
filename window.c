@@ -706,7 +706,7 @@ char *do_select(SOCKET skt, int startup)
     int msg, events;
     if (startup) {
 	msg = WM_NETEVENT;
-	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE;
+	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT;
     } else {
 	msg = events = 0;
     }

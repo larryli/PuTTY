@@ -197,10 +197,9 @@ char *x11_init(Socket * s, char *display, void *c)
 void x11_close(Socket s)
 {
     struct X11Private *pr;
-    if (!s)
-	return;
-    pr = (struct X11Private *) sk_get_private_ptr(s);
-
+    if (!s)
+	return;
+    pr = (struct X11Private *) sk_get_private_ptr(s);
     if (pr->auth_protocol) {
 	sfree(pr->auth_protocol);
 	sfree(pr->auth_data);

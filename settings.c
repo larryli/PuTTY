@@ -160,6 +160,26 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "BlinkText", cfg->blinktext);
     write_setting_i(sesskey, "X11Forward", cfg->x11_forward);
     write_setting_s(sesskey, "X11Display", cfg->x11_display);
+    write_setting_i(sesskey, "LocalPortAcceptAll", cfg->lport_acceptall);
+    {
+	char buf[2 * sizeof(cfg->portfwd)], *p, *q;
+	p = buf;
+	q = cfg->portfwd;
+	while (*q) {
+	    while (*q) {
+		int c = *q++;
+		if (c == '=' || c == ',' || c == '\\')
+		    *p++ = '\\';
+		if (c == '\t')
+		    c = '=';
+		*p++ = c;
+	    }
+	    *p++ = ',';
+	    q++;
+	}
+	*p = '\0';
+	write_setting_s(sesskey, "PortForwardings", buf);
+    }
 
     close_settings_w(sesskey);
 }
@@ -364,6 +384,28 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
     gpps(sesskey, "X11Display", "localhost:0", cfg->x11_display,
 	 sizeof(cfg->x11_display));
+
+    gppi(sesskey, "LocalPortAcceptAll", 0, &cfg->lport_acceptall);
+    {
+	char buf[2 * sizeof(cfg->portfwd)], *p, *q;
+	gpps(sesskey, "PortForwardings", "", buf, sizeof(buf));
+	p = buf;
+	q = cfg->portfwd;
+	while (*p) {
+	    while (*p && *p != ',') {
+		int c = *p++;
+		if (c == '=')
+		    c = '\t';
+		if (c == '\\')
+		    c = *p++;
+		*q++ = c;
+	    }
+	    if (*p == ',')
+		p++;
+	    *q++ = '\0';
+	}
+	*q = '\0';
+    }
 
     close_settings_r(sesskey);
 }

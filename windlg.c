@@ -503,10 +503,24 @@ enum { IDCX_ABOUT =
 
     tunnelspanelstart,
     IDC_TITLE_TUNNELS,
-    IDC_BOX_TUNNELS,
+    IDC_BOX_TUNNELS1,
+    IDC_BOX_TUNNELS2,
     IDC_X11_FORWARD,
     IDC_X11_DISPSTATIC,
     IDC_X11_DISPLAY,
+    IDC_LPORT_ALL,
+    IDC_PFWDSTATIC,
+    IDC_PFWDSTATIC2,
+    IDC_PFWDREMOVE,
+    IDC_PFWDLIST,
+    IDC_PFWDADD,
+    IDC_SPORTSTATIC,
+    IDC_SPORTEDIT,
+    IDC_DPORTSTATIC,
+    IDC_DPORTEDIT,
+    IDC_PFWDLOCAL,
+    IDC_PFWDREMOTE,
+
     tunnelspanelend,
 
     controlendvalue
@@ -669,6 +683,12 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 			       (LPARAM) p);
 	    p += strlen(p) + 1;
 	}
+	p = cfg.portfwd;
+	while (*p) {
+	    SendDlgItemMessage(hwnd, IDC_PFWDLIST, LB_ADDSTRING, 0,
+			       (LPARAM) p);
+	    p += strlen(p) + 1;
+	}
     }
     CheckRadioButton(hwnd, IDC_EMBSD, IDC_EMRFC,
 		     cfg.rfc_environ ? IDC_EMRFC : IDC_EMBSD);
@@ -736,6 +756,9 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 
     CheckDlgButton(hwnd, IDC_X11_FORWARD, cfg.x11_forward);
     SetDlgItemText(hwnd, IDC_X11_DISPLAY, cfg.x11_display);
+
+    CheckDlgButton(hwnd, IDC_LPORT_ALL, cfg.lport_acceptall);
+    CheckRadioButton(hwnd, IDC_PFWDLOCAL, IDC_PFWDREMOTE, IDC_PFWDLOCAL);
 }
 
 struct treeview_faff {
@@ -1195,17 +1218,30 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == tunnelspanelstart) {
-	/* The Tunnels panel. Accelerators used: [acgo] ex */
+	/* The Tunnels panel. Accelerators used: [acgo] deilmrstx */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
 	    bartitle(&cp, "Options controlling SSH tunnelling",
 		     IDC_TITLE_TUNNELS);
-	    beginbox(&cp, "X11 forwarding options", IDC_BOX_TUNNELS);
+	    beginbox(&cp, "X11 forwarding", IDC_BOX_TUNNELS1);
 	    checkbox(&cp, "&Enable X11 forwarding", IDC_X11_FORWARD);
 	    multiedit(&cp, "&X display location", IDC_X11_DISPSTATIC,
 		      IDC_X11_DISPLAY, 50, NULL);
 	    endbox(&cp);
+    	    beginbox(&cp, "Port forwarding", IDC_BOX_TUNNELS2);
+	    checkbox(&cp, "Local ports accept connections from o&ther hosts", IDC_LPORT_ALL);
+	    staticbtn(&cp, "Forwarded ports:", IDC_PFWDSTATIC,
+		      "&Remove", IDC_PFWDREMOVE);
+	    fwdsetter(&cp, IDC_PFWDLIST,
+		      "Add new forwarded port:", IDC_PFWDSTATIC2,
+		      "&Source port", IDC_SPORTSTATIC, IDC_SPORTEDIT,
+		      "Dest&ination", IDC_DPORTSTATIC, IDC_DPORTEDIT,
+		      "A&dd", IDC_PFWDADD);
+	    bareradioline(&cp, 2,
+			  "&Local", IDC_PFWDLOCAL, "Re&mote", IDC_PFWDREMOTE, NULL);
+	    endbox(&cp);
+
 	}
     }
 }
@@ -2400,10 +2436,100 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			cfg.x11_forward =
 			IsDlgButtonChecked(hwnd, IDC_X11_FORWARD);
 		break;
+	      case IDC_LPORT_ALL:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.lport_acceptall =
+			IsDlgButtonChecked(hwnd, IDC_LPORT_ALL);
+		break;
 	      case IDC_X11_DISPLAY:
 		if (HIWORD(wParam) == EN_CHANGE)
 		    GetDlgItemText(hwnd, IDC_X11_DISPLAY, cfg.x11_display,
 				   sizeof(cfg.x11_display) - 1);
+		break;
+	      case IDC_PFWDADD:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    char str[sizeof(cfg.portfwd)];
+		    char *p;
+		    if (IsDlgButtonChecked(hwnd, IDC_PFWDLOCAL))
+			str[0] = 'L';
+		    else
+			str[0] = 'R';
+		    GetDlgItemText(hwnd, IDC_SPORTEDIT, str+1,
+				   sizeof(str) - 2);
+		    if (!str[1]) {
+			MessageBox(hwnd,
+				   "You need to specify a source port number",
+				   "PuTTY Error", MB_OK | MB_ICONERROR);
+			break;
+		    }
+		    p = str + strlen(str);
+		    *p++ = '\t';
+		    GetDlgItemText(hwnd, IDC_DPORTEDIT, p,
+				   sizeof(str) - 1 - (p - str));
+		    if (!*p || !strchr(p, ':')) {
+			MessageBox(hwnd,
+				   "You need to specify a destination address\n"
+				   "in the form \"host.name:port\"",
+				   "PuTTY Error", MB_OK | MB_ICONERROR);
+			break;
+		    }
+		    p = cfg.portfwd;
+		    while (*p) {
+			while (*p)
+			    p++;
+			p++;
+		    }
+		    if ((p - cfg.portfwd) + strlen(str) + 2 <
+			sizeof(cfg.portfwd)) {
+			strcpy(p, str);
+			p[strlen(str) + 1] = '\0';
+			SendDlgItemMessage(hwnd, IDC_PFWDLIST, LB_ADDSTRING,
+					   0, (LPARAM) str);
+			SetDlgItemText(hwnd, IDC_SPORTEDIT, "");
+			SetDlgItemText(hwnd, IDC_DPORTEDIT, "");
+		    } else {
+			MessageBox(hwnd, "Too many forwardings",
+				   "PuTTY Error", MB_OK | MB_ICONERROR);
+		    }
+		}
+		break;
+	      case IDC_PFWDREMOVE:
+		if (HIWORD(wParam) != BN_CLICKED &&
+		    HIWORD(wParam) != BN_DOUBLECLICKED) break;
+		i = SendDlgItemMessage(hwnd, IDC_PFWDLIST,
+				       LB_GETCURSEL, 0, 0);
+		if (i == LB_ERR)
+		    MessageBeep(0);
+		else {
+		    char *p, *q;
+
+		    SendDlgItemMessage(hwnd, IDC_PFWDLIST, LB_DELETESTRING,
+				       i, 0);
+		    p = cfg.portfwd;
+		    while (i > 0) {
+			if (!*p)
+			    goto disaster2;
+			while (*p)
+			    p++;
+			p++;
+			i--;
+		    }
+		    q = p;
+		    if (!*p)
+			goto disaster2;
+		    while (*p)
+			p++;
+		    p++;
+		    while (*p) {
+			while (*p)
+			    *q++ = *p++;
+			*q++ = *p++;
+		    }
+		    *q = '\0';
+		  disaster2:;
+		}
 		break;
 	    }
 	return 0;

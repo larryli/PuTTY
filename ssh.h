@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "puttymem.h"
+#include "network.h"
 
 /*
  * Useful thing.
@@ -199,6 +200,8 @@ void random_add_noise(void *noise, int length);
 void random_add_heavynoise(void *noise, int length);
 
 void logevent(char *);
+void *new_sock_channel(Socket s); // allocates and register a new channel for port forwarding
+void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);
@@ -270,6 +273,7 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
 		 void *pfnparam);
 Bignum primegen(int bits, int modulus, int residue, int phase,
 		progfn_t pfn, void *pfnparam);
+
 
 /*
  * zlib compression.

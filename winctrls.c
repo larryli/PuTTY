@@ -148,35 +148,13 @@ void multiedit(struct ctlpos *cp, ...)
     cp->ypos += 8 + GAPWITHIN + 12 + GAPBETWEEN;
 }
 
-/*
- * A set of radio buttons on the same line, with a static above
- * them. `nacross' dictates how many parts the line is divided into
- * (you might want this not to equal the number of buttons if you
- * needed to line up some 2s and some 3s to look good in the same
- * panel).
- * 
- * There's a bit of a hack in here to ensure that if nacross
- * exceeds the actual number of buttons, the rightmost button
- * really does get all the space right to the edge of the line, so
- * you can do things like
- * 
- * (*) Button1  (*) Button2  (*) ButtonWithReallyLongTitle
- */
-void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...)
+static void radioline_common(struct ctlpos *cp, int nacross, va_list ap)
 {
     RECT r;
-    va_list ap;
     int group;
     int i;
     char *btext;
 
-    r.left = GAPBETWEEN;
-    r.top = cp->ypos;
-    r.right = cp->width;
-    r.bottom = STATICHEIGHT;
-    cp->ypos += r.bottom + GAPWITHIN;
-    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
-    va_start(ap, nacross);
     group = WS_GROUP;
     i = 0;
     btext = va_arg(ap, char *);
@@ -206,8 +184,50 @@ void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...)
 	i++;
 	btext = nextbtext;
     }
-    va_end(ap);
     cp->ypos += r.bottom + GAPBETWEEN;
+}
+
+/*
+ * A set of radio buttons on the same line, with a static above
+ * them. `nacross' dictates how many parts the line is divided into
+ * (you might want this not to equal the number of buttons if you
+ * needed to line up some 2s and some 3s to look good in the same
+ * panel).
+ * 
+ * There's a bit of a hack in here to ensure that if nacross
+ * exceeds the actual number of buttons, the rightmost button
+ * really does get all the space right to the edge of the line, so
+ * you can do things like
+ * 
+ * (*) Button1  (*) Button2  (*) ButtonWithReallyLongTitle
+ */
+void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...)
+{
+    RECT r;
+    va_list ap;
+
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos;
+    r.right = cp->width;
+    r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
+    va_start(ap, nacross);
+    radioline_common(cp, nacross, ap);
+    va_end(ap);
+}
+
+/*
+ * A set of radio buttons on the same line, without a static above
+ * them. Otherwise just like radioline.
+ */
+void bareradioline(struct ctlpos *cp, int nacross, ...)
+{
+    va_list ap;
+
+    va_start(ap, nacross);
+    radioline_common(cp, nacross, ap);
+    va_end(ap);
 }
 
 /*
@@ -762,4 +782,73 @@ void progressbar(struct ctlpos *cp, int id)
 	  | PBS_SMOOTH
 #endif
 	  , WS_EX_CLIENTEDGE, "", id);
+}
+
+/*
+ * Another special control: the forwarding options setter. First a
+ * list box; next a static header line, introducing a pair of edit
+ * boxes with associated statics, another button, and a radio
+ * button pair.
+ */
+void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
+	       char *e1stext, int e1sid, int e1id,
+	       char *e2stext, int e2sid, int e2id,
+	       char *btext, int bid)
+{
+    RECT r;
+    const int height = (STATICHEIGHT > EDITHEIGHT
+			&& STATICHEIGHT >
+			PUSHBTNHEIGHT ? STATICHEIGHT : EDITHEIGHT >
+			PUSHBTNHEIGHT ? EDITHEIGHT : PUSHBTNHEIGHT);
+    const static int percents[] = { 25, 35, 15, 25 };
+    int i, j, xpos, percent;
+    const int LISTHEIGHT = 42;
+
+    /* The list box. */
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos;
+    r.right = cp->width;
+    r.bottom = LISTHEIGHT;
+    cp->ypos += r.bottom + GAPBETWEEN;
+    doctl(cp, r, "LISTBOX",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS
+	  | LBS_USETABSTOPS, WS_EX_CLIENTEDGE, "", listid);
+
+    /* The static control. */
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos;
+    r.right = cp->width;
+    r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    /* The statics+edits+buttons. */
+    for (j = 0; j < 2; j++) {
+	percent = 0;
+	for (i = 0; i < (j ? 2 : 4); i++) {
+	    xpos = (cp->width + GAPBETWEEN) * percent / 100;
+	    r.left = xpos + GAPBETWEEN;
+	    percent += percents[i];
+	    if (j==1 && i==1) percent = 100;
+	    xpos = (cp->width + GAPBETWEEN) * percent / 100;
+	    r.right = xpos - r.left;
+	    r.top = cp->ypos;
+	    r.bottom = (i == 0 ? STATICHEIGHT :
+			i == 1 ? EDITHEIGHT : PUSHBTNHEIGHT);
+	    r.top += (height - r.bottom) / 2;
+	    if (i == 0) {
+		doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0,
+		      j == 0 ? e1stext : e2stext, j == 0 ? e1sid : e2sid);
+	    } else if (i == 1) {
+		doctl(cp, r, "EDIT",
+		      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+		      WS_EX_CLIENTEDGE, "", j == 0 ? e1id : e2id);
+	    } else if (i == 3) {
+		doctl(cp, r, "BUTTON",
+		      WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+		      0, btext, bid);
+	    }
+	}
+	cp->ypos += height + GAPWITHIN;
+    }
 }

@@ -313,6 +313,9 @@ typedef struct {
     /* X11 forwarding */
     int x11_forward;
     char x11_display[128];
+    /* port forwarding */
+    int lport_acceptall; /* accepts connection from hosts other than localhost */
+    char portfwd[1024]; /* [LR]localport\thost:port\000[LR]localport\thost:port\000\000 */
 } Config;
 
 /*

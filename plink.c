@@ -256,7 +256,7 @@ char *do_select(SOCKET skt, int startup)
 {
     int events;
     if (startup) {
-	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE;
+	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT;
     } else {
 	events = 0;
     }
@@ -649,6 +649,9 @@ int main(int argc, char **argv)
 			connopen &= select_result(wp, (LPARAM) FD_OOB);
 		    if (things.lNetworkEvents & FD_WRITE)
 			connopen &= select_result(wp, (LPARAM) FD_WRITE);
+    		    if (things.lNetworkEvents & FD_ACCEPT)
+			connopen &= select_result(wp, (LPARAM) FD_ACCEPT);
+
 		}
 	    }
 	} else if (n == 1) {
