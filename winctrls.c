@@ -1139,14 +1139,17 @@ void progressbar(struct ctlpos *cp, int id)
  * Another special control: the forwarding options setter. First a
  * list box; next a static header line, introducing a pair of edit
  * boxes with associated statics, another button, and a radio
- * button pair.
+ * button pair. Then we have a bareradioline, which is included in
+ * this control group because it belongs before the `Add' button in
+ * the tab order.
  */
 void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *e1stext, int e1sid, int e1id,
 	       char *e2stext, int e2sid, int e2id,
-	       char *btext, int bid)
+	       char *btext, int bid,
+	       char *r1text, int r1id, char *r2text, int r2id)
 {
-    RECT r;
+    RECT r, button_r;
     const int height = (STATICHEIGHT > EDITHEIGHT
 			&& STATICHEIGHT >
 			PUSHBTNHEIGHT ? STATICHEIGHT : EDITHEIGHT >
@@ -1195,11 +1198,19 @@ void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 		      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
 		      WS_EX_CLIENTEDGE, "", j == 0 ? e1id : e2id);
 	    } else if (i == 3) {
-		doctl(cp, r, "BUTTON",
-		      WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-		      0, btext, bid);
+		/*
+		 * We postpone creation of the button until we've
+		 * done everything else, since it belongs last in
+		 * the tab order.
+		 */
+		button_r = r;	       /* structure copy */
 	    }
 	}
 	cp->ypos += height + GAPWITHIN;
     }
+    bareradioline(cp, 2, r1text, r1id, r2text, r2id, NULL);
+    /* Create the postponed button. */
+    doctl(cp, button_r, "BUTTON",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+	  0, btext, bid);
 }

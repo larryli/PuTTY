@@ -2037,10 +2037,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      "Add new forwarded port:", IDC_PFWDSTATIC2,
 		      "&Source port", IDC_SPORTSTATIC, IDC_SPORTEDIT,
 		      "Dest&ination", IDC_DPORTSTATIC, IDC_DPORTEDIT,
-		      "A&dd", IDC_PFWDADD);
-	    bareradioline(&cp, 2,
-			  "&Local", IDC_PFWDLOCAL,
-			  "Re&mote", IDC_PFWDREMOTE, NULL);
+		      "A&dd", IDC_PFWDADD,
+		      "&Local", IDC_PFWDLOCAL,
+		      "Re&mote", IDC_PFWDREMOTE);
 	    endbox(&cp);
 
 	}

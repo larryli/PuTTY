@@ -170,7 +170,8 @@ void progressbar(struct ctlpos *cp, int id);
 void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *e1stext, int e1sid, int e1id,
 	       char *e2stext, int e2sid, int e2id,
-	       char *btext, int bid);
+	       char *btext, int bid,
+	       char *r1text, int r1id, char *r2text, int r2id);
 
 /*
  * Exports from windlg.c.
