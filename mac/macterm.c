@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.14 2002/11/28 21:02:07 ben Exp $ */
+/* $Id: macterm.c,v 1.15 2002/11/28 21:10:55 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -843,7 +843,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     TextFace(style);
     TextSize(s->cfg.fontheight);
     TextMode(srcOr);
-    SetFractEnable(FALSE); /* We want characters on pixel boundaries */
     if (HAVE_COLOR_QD())
 	if (style & bold) {
 	    SpaceExtra(s->font_boldadjust << 16);
