@@ -1073,7 +1073,7 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
             logevent(buf);
 	    sfree(buf);
             buf = dupprintf("Disconnection message text: %n%.*s",
-			    msglen, &nowlen, ssh->pktin.data + 14);
+			    &nowlen, msglen, ssh->pktin.data + 14);
             logevent(buf);
             bombout((ssh,"Server sent disconnect message\ntype %d (%s):\n\"%s\"",
                      reason,
