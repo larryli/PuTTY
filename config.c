@@ -274,7 +274,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	} else if (ctrl == ssd->savebutton) {
 	    int isdef = !strcmp(ssd->savedsession, "Default Settings");
 	    if (!ssd->savedsession[0]) {
-		int i = dlg_listbox_index(ctrl, dlg);
+		int i = dlg_listbox_index(ssd->listbox, dlg);
 		if (i < 0) {
 		    dlg_beep(dlg);
 		    return;
@@ -288,7 +288,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		    ssd->savedsession[0] = '\0';
 		}
 	    }
-	    save_settings(ssd->savedsession, isdef, cfg);
+	    save_settings(ssd->savedsession, !isdef, cfg);
 	    get_sesslist(ssd->sesslist, FALSE);
 	    get_sesslist(ssd->sesslist, TRUE);
 	    dlg_refresh(ssd->editbox, dlg);
