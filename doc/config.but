@@ -455,6 +455,12 @@ PuTTY window's menu, like clicking on the top left corner. If it is
 disabled, then pressing ALT-Space will just send \c{ESC SPACE} to
 the server.
 
+Some accessibility programs for Windows may need this option
+enabling to be able to control PuTTY's window successfully. For
+instance, Dragon NaturallySpeaking requires it both to open the
+system menu via voice, and to close, minimise, maximise and restore
+the window.
+
 \S{config-altonly} \q{System menu appears on Alt alone}
 
 If this option is enabled, then pressing and releasing ALT will
