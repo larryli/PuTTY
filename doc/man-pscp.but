@@ -88,6 +88,14 @@ The command-line options supported by \e{pscp} are:
 
 \dd Private key file for authentication.
 
+\dt \cw{-scp}
+
+\dd Force use of SCP protocol.
+
+\dt \cw{-sftp}
+
+\dd Force use of SFTP protocol.
+
 \S{pscp-manpage-more-information} MORE INFORMATION
 
 For more information on \cw{pscp} it's probably best to go and look at
