@@ -1690,7 +1690,15 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	do_defaults(NULL, &cfg);
 	strncpy(cfg.host, host, sizeof(cfg.host) - 1);
 	cfg.host[sizeof(cfg.host) - 1] = '\0';
-	cfg.port = 22;
+    }
+
+    /*
+     * Force use of SSH. (If they got the protocol wrong we assume the
+     * port is useless too.)
+     */
+    if (cfg.protocol != PROT_SSH) {
+        cfg.protocol = PROT_SSH;
+        cfg.port = 22;
     }
 
     /*
@@ -1740,9 +1748,6 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		cfg.username[len - 1] = '\0';
 	}
     }
-
-    if (cfg.protocol != PROT_SSH)
-	cfg.port = 22;
 
     if (portnumber)
 	cfg.port = portnumber;
@@ -1852,8 +1857,6 @@ int main(int argc, char *argv[])
 	} else if (strcmp(argv[i], "-h") == 0 ||
 		   strcmp(argv[i], "-?") == 0) {
 	    usage();
-	} else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
-	    user = argv[++i];
 	} else if (strcmp(argv[i], "-batch") == 0) {
 	    console_batch_mode = 1;
 	} else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
