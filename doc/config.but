@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.56 2003/02/19 09:54:45 jacob Exp $
+\versionid $Id: config.but,v 1.57 2003/03/05 22:07:40 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -622,10 +622,14 @@ on a terminal bell:
 the server can send as many Control-G characters as it likes and
 nothing at all will happen.
 
-\b \q{Play Windows Default Sound} is the default setting. It causes
-the Windows \q{Default Beep} sound to be played. To change what this
-sound is, or to test it if nothing seems to be happening, use the
-Sound configurer in the Windows Control Panel.
+\b \q{Make default system alert sound} is the default setting. It
+causes the Windows \q{Default Beep} sound to be played. To change
+what this sound is, or to test it if nothing seems to be happening,
+use the Sound configurer in the Windows Control Panel.
+
+\b \q{Visual bell} is a silent alternative to a beeping computer. In
+this mode, when the server sends a Control-G, the whole PuTTY window
+will flash white for a fraction of a second.
 
 \b \q{Play a custom sound file} allows you to specify a particular
 sound file to be used by PuTTY alone, or even by a particular
@@ -633,10 +637,6 @@ individual PuTTY session. This allows you to distinguish your PuTTY
 beeps from any other beeps on the system. If you select this option,
 you will also need to enter the name of your sound file in the edit
 control \q{Custom sound file to play as a bell}.
-
-\b \q{Visual bell} is a silent alternative to a beeping computer. In
-this mode, when the server sends a Control-G, the whole PuTTY window
-will flash white for a fraction of a second.
 
 \S{config-belltaskbar} \q{Taskbar/caption indication on bell}
 
@@ -883,32 +883,6 @@ offered a choice from all the fixed-width fonts installed on the
 system. (VT100-style terminal handling can only deal with fixed-
 width fonts.)
 
-\S{config-title} Controlling the window title
-
-\cfg{winhelp-topic}{appearance.title}
-
-The \q{Window title} edit box allows you to set the title of the
-PuTTY window. By default the window title will contain the host name
-followed by \q{PuTTY}, for example \c{server1.example.com - PuTTY}.
-If you want a different window title, this is where to set it.
-
-PuTTY allows the server to send \c{xterm} control sequences which
-modify the title of the window in mid-session. There is also an
-\c{xterm} sequence to modify the title of the window's \e{icon}.
-This makes sense in a windowing system where the window becomes an
-icon when minimised, such as Windows 3.1 or most X Window System
-setups; but in the Windows 95-like user interface it isn't as
-applicable.
-
-By default, PuTTY only uses the server-supplied \e{window} title, and
-ignores the icon title entirely. If for some reason you want to see
-both titles, check the box marked \q{Separate window and icon titles}.
-If you do this, PuTTY's window title and Taskbar caption will
-change into the server-supplied icon title if you minimise the PuTTY
-window, and change back to the server-supplied window title if you
-restore it. (If the server has not bothered to supply a window or
-icon title, none of this will happen.)
-
 \S{config-mouseptr} \q{Hide mouse pointer when typing in window}
 
 \cfg{winhelp-topic}{appearance.hidemouse}
@@ -943,6 +917,32 @@ it to zero, or increase it further.
 
 The Behaviour configuration panel allows you to control aspects of
 the behaviour of PuTTY's window.
+
+\S{config-title} Controlling the window title
+
+\cfg{winhelp-topic}{appearance.title}
+
+The \q{Window title} edit box allows you to set the title of the
+PuTTY window. By default the window title will contain the host name
+followed by \q{PuTTY}, for example \c{server1.example.com - PuTTY}.
+If you want a different window title, this is where to set it.
+
+PuTTY allows the server to send \c{xterm} control sequences which
+modify the title of the window in mid-session. There is also an
+\c{xterm} sequence to modify the title of the window's \e{icon}.
+This makes sense in a windowing system where the window becomes an
+icon when minimised, such as Windows 3.1 or most X Window System
+setups; but in the Windows 95-like user interface it isn't as
+applicable.
+
+By default, PuTTY only uses the server-supplied \e{window} title, and
+ignores the icon title entirely. If for some reason you want to see
+both titles, check the box marked \q{Separate window and icon titles}.
+If you do this, PuTTY's window title and Taskbar caption will
+change into the server-supplied icon title if you minimise the PuTTY
+window, and change back to the server-supplied window title if you
+restore it. (If the server has not bothered to supply a window or
+icon title, none of this will happen.)
 
 \S{config-warnonclose} \q{Warn before closing window}
 

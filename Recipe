@@ -95,7 +95,7 @@
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = window windlg winctrls terminal sizetip wcwidth unicode ldiscucs
-         + logging printing winutils
+         + logging printing winutils dialog config wincfg tree234
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc
@@ -146,7 +146,7 @@ pageant  : [G] pageant sshrsa sshpubk sshdes sshbn sshmd5 version tree234
 
 puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand noise sshsha winstore misc winctrls sshrsa sshdss winmisc
-         + sshpubk sshaes sshsh512 import winutils puttygen.res LIBS
+         + sshpubk sshaes sshsh512 import winutils puttygen.res tree234 LIBS
 
 pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
          + logging uxprint settings pty be_none uxstore signal CHARSET

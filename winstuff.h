@@ -7,6 +7,10 @@
 
 #include <stdio.h>		       /* for FILENAME_MAX */
 
+#include "tree234.h"
+
+#include "winhelp.h"
+
 struct Filename {
     char path[FILENAME_MAX];
 };
@@ -112,6 +116,16 @@ GLOBAL void *logctx;
 #define sk_getxdmdata(socket, ip, port) (0)
 
 /*
+ * File-selector filter strings used in the config box. On Windows,
+ * these strings are of exactly the type needed to go in
+ * `lpstrFilter' in an OPENFILENAME structure.
+ */
+#define FILTER_KEY_FILES ("PuTTY Private Key Files (*.ppk)\0*.ppk\0" \
+			      "All Files (*.*)\0*\0\0\0")
+#define FILTER_WAVE_FILES ("Wave Files (*.wav)\0*.WAV\0" \
+			       "All Files (*.*)\0*\0\0\0")
+
+/*
  * Exports from winctrls.c.
  */
 
@@ -142,6 +156,24 @@ struct prefslist {
 };
 
 /*
+ * This structure is passed to event handler functions as the `dlg'
+ * parameter, and hence is passed back to winctrls access functions.
+ */
+struct dlgparam {
+    HWND hwnd;			       /* the hwnd of the dialog box */
+    struct winctrls *controltrees[8];  /* can have several of these */
+    int nctrltrees;
+    char *errtitle;		       /* title of error sub-messageboxes */
+    void *data;			       /* data to pass in refresh events */
+    union control *focused, *lastfocused; /* which ctrl has focus now/before */
+    int coloursel_wanted;	       /* has an event handler asked for
+					* a colour selector? */
+    char shortcuts[128];	       /* track which shortcuts in use */
+    struct { unsigned char r, g, b, ok; } coloursel_result;   /* 0-255 */
+    int ended, endresult;	       /* has the dialog been ended? */
+};
+
+/*
  * Exports from winctrls.c.
  */
 void ctlposinit(struct ctlpos *cp, HWND hwnd,
@@ -151,7 +183,7 @@ HWND doctl(struct ctlpos *cp, RECT r,
 void bartitle(struct ctlpos *cp, char *name, int id);
 void beginbox(struct ctlpos *cp, char *name, int idbox);
 void endbox(struct ctlpos *cp);
-void multiedit(struct ctlpos *cp, ...);
+void multiedit(struct ctlpos *cp, int password, ...);
 void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...);
 void bareradioline(struct ctlpos *cp, int nacross, ...);
 void radiobig(struct ctlpos *cp, char *text, int id, ...);
@@ -183,8 +215,8 @@ void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
 	       char *btext, int bid, int eid, char *s2text, int s2id);
 void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
 		char *btext, int bid, ...);
-void prefslist(struct prefslist *hdl, struct ctlpos *cp, char *stext,
-	       int sid, int listid, int upbid, int dnbid);
+void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
+	       char *stext, int sid, int listid, int upbid, int dnbid);
 int handle_prefslist(struct prefslist *hdl,
 		     int *array, int maxmemb,
 		     int is_dlmsg, HWND hwnd,
@@ -195,6 +227,56 @@ void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *e2stext, int e2sid, int e2id,
 	       char *btext, int bid,
 	       char *r1text, int r1id, char *r2text, int r2id);
+
+#define MAX_SHORTCUTS_PER_CTRL 16
+
+/*
+ * This structure is what's stored for each `union control' in the
+ * portable-dialog interface.
+ */
+struct winctrl {
+    union control *ctrl;
+    /*
+     * The control may have several components at the Windows
+     * level, with different dialog IDs. To avoid needing N
+     * separate platformsidectrl structures (which could be stored
+     * separately in a tree234 so that lookup by ID worked), we
+     * impose the constraint that those IDs must be in a contiguous
+     * block.
+     */
+    int base_id;
+    int num_ids;
+    /*
+     * Remember what keyboard shortcuts were used by this control,
+     * so that when we remove it again we can take them out of the
+     * list in the dlgparam.
+     */
+    char shortcuts[MAX_SHORTCUTS_PER_CTRL];
+    /*
+     * Some controls need a piece of allocated memory in which to
+     * store temporary data about the control.
+     */
+    void *data;
+};
+/*
+ * And this structure holds a set of the above, in two separate
+ * tree234s so that it can find an item by `union control' or by
+ * dialog ID.
+ */
+struct winctrls {
+    tree234 *byctrl, *byid;
+};
+void winctrl_init(struct winctrls *);
+void winctrl_cleanup(struct winctrls *);
+void winctrl_add(struct winctrls *, struct winctrl *);
+void winctrl_remove(struct winctrls *, struct winctrl *);
+struct winctrl *winctrl_findbyctrl(struct winctrls *, union control *);
+struct winctrl *winctrl_findbyid(struct winctrls *, int);
+struct winctrl *winctrl_findbyindex(struct winctrls *, int);
+void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
+		    struct ctlpos *cp, struct controlset *s, int *id);
+int winctrl_handle_command(struct dlgparam *dp, UINT msg,
+			   WPARAM wParam, LPARAM lParam);
 
 /*
  * Exports from windlg.c.
