@@ -431,10 +431,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	strncpy(output+1, event->string, 31);
 	output[31] = '\0';
 	end = strlen(output);
-	if (event->state & GDK_MOD1_MASK)
-	    start = end = 0;
-	else
-	    start = end = 1;
+	if (event->state & GDK_MOD1_MASK) {
+	    start = 0;
+	    if (end == 1) end = 0;
+	} else
+	    start = 1;
 
 	/* Control-` is the same as Control-\ (unless gtk has a better idea) */
 	if (!event->string[0] && event->keyval == '`' &&
