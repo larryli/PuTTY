@@ -3,7 +3,9 @@
  */
 
 #include <windows.h>
+#ifndef NO_SECURITY
 #include <aclapi.h>
+#endif
 #include <stdio.h>
 #include "ssh.h"
 #include "tree234.h"
@@ -48,11 +50,13 @@ static HMENU systray_menu;
 static tree234 *rsakeys;
 
 static int has_security;
+#ifndef NO_SECURITY
 typedef DWORD (WINAPI *gsi_fn_t)
     (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
                                  PSID *, PSID *, PACL *, PACL *,
                                  PSECURITY_DESCRIPTOR *);
 static gsi_fn_t getsecurityinfo;
+#endif
 
 /*
  * We need this to link with the RSA code, because rsaencrypt()
@@ -635,6 +639,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 #endif
             if (filemap != NULL && filemap != INVALID_HANDLE_VALUE) {
                 int rc;
+#ifndef NO_SECURITY
                 if (has_security) {
                     if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
                                             GetCurrentProcessId())) == NULL) {
@@ -678,6 +683,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                     debug(("security APIs not present\r\n"));
 #endif
                 }
+#endif
                 p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
 #ifdef DEBUG_IPC
                 debug(("p is %p\r\n", p));
@@ -713,6 +719,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         has_security = FALSE;
 
     if (has_security) {
+#ifndef NO_SECURITY
         /*
          * Attempt to ge the security API we need.
          */
@@ -725,6 +732,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
                        "Pageant Fatal Error", MB_ICONERROR | MB_OK);
             return 1;
         }
+#else
+	MessageBox(NULL,
+		   "This program has been compiled for Win9X and will\n"
+		   "not run on NT, in case it causes a security breach.",
+		   "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+	return 1;
+#endif
     } else
         advapi = NULL;
 
