@@ -237,6 +237,7 @@ static Socket s = NULL;
 
 static unsigned char session_key[32];
 static int ssh1_compressing;
+static int ssh_agentfwd_enabled;
 static const struct ssh_cipher *cipher = NULL;
 static const struct ssh_cipher *cscipher = NULL;
 static const struct ssh_cipher *sccipher = NULL;
@@ -1024,6 +1025,7 @@ static int do_ssh_init(unsigned char c) {
 	    break;
     }
 
+    ssh_agentfwd_enabled = FALSE;
     rdpkt2_state.incoming_sequence = 0;
 
     *vsp = 0;
@@ -1732,8 +1734,10 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             crReturnV;
         } else if (pktin.type == SSH1_SMSG_FAILURE) {
             logevent("Agent forwarding refused");
-        } else
+        } else {
             logevent("Agent forwarding enabled");
+	    ssh_agentfwd_enabled = TRUE;
+	}
     }
 
     if (!cfg.nopty) {
@@ -1797,26 +1801,35 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             } else if (pktin.type == SSH1_SMSG_AGENT_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * agent. Give them back a local channel number. */
-                unsigned i = 1;
+                unsigned i;
                 struct ssh_channel *c;
                 enum234 e;
-                for (c = first234(ssh_channels, &e); c; c = next234(&e)) {
-                    if (c->localid > i)
-                        break;         /* found a free number */
-                    i = c->localid + 1;
-                }
-                c = malloc(sizeof(struct ssh_channel));
-                c->remoteid = GET_32BIT(pktin.body);
-                c->localid = i;
-                c->closes = 0;
-                c->type = SSH1_SMSG_AGENT_OPEN;   /* identify channel type */
-                c->u.a.lensofar = 0;
-                add234(ssh_channels, c);
-                send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-                            PKT_INT, c->remoteid, PKT_INT, c->localid,
-                            PKT_END);
-            } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
-                       pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
+
+		/* Refuse if agent forwarding is disabled. */
+		if (!ssh_agentfwd_enabled) {
+		    send_packet(SSH1_MSG_CHANNEL_OPEN_FAILURE,
+				PKT_INT, GET_32BIT(pktin.body),
+				PKT_END);
+		} else {
+		    i = 1;
+		    for (c = first234(ssh_channels, &e); c; c = next234(&e)) {
+			if (c->localid > i)
+			    break;     /* found a free number */
+			i = c->localid + 1;
+		    }
+		    c = malloc(sizeof(struct ssh_channel));
+		    c->remoteid = GET_32BIT(pktin.body);
+		    c->localid = i;
+		    c->closes = 0;
+		    c->type = SSH1_SMSG_AGENT_OPEN;/* identify channel type */
+		    c->u.a.lensofar = 0;
+		    add234(ssh_channels, c);
+		    send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+				PKT_INT, c->remoteid, PKT_INT, c->localid,
+				PKT_END);
+		}
+	    } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
+		       pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
                 /* Remote side closes a channel. */
                 unsigned i = GET_32BIT(pktin.body);
                 struct ssh_channel *c;
