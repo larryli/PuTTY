@@ -1418,10 +1418,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 /*
  * Fork and Exec the command in cmdline. [DBW]
  */
-void spawn_cmd(char *cmdline, int show)
+void spawn_cmd(char *cmdline, char * args, int show)
 {
     if (ShellExecute(NULL, _T("open"), cmdline,
-		     NULL, NULL, show) <= (HINSTANCE) 32) {
+		     args, NULL, show) <= (HINSTANCE) 32) {
 	TCHAR sMsg[140];
 	sprintf(sMsg, _T("Failed to run \"%.100s\", Error: %d"), cmdline,
 		(int)GetLastError());
@@ -1583,8 +1583,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     forget_passphrases();
 
-    if (command)
-	spawn_cmd(command, show);
+    if (command) {
+	char *args;
+	if (command[0] == '"')
+	    args = strchr(++command, '"');
+	else
+	    args = strchr(command, ' ');
+	if (args) {
+	    *args++ = 0;
+	    while(*args && isspace(*args)) args++;
+	}
+	spawn_cmd(command, args, show);
+    }
 
     /*
      * If Pageant was already running, we leave now. If we haven't
