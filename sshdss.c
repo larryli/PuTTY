@@ -546,9 +546,16 @@ unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
      * signing the same hash twice with the same key yields the
      * same signature.
      * 
-     * (It doesn't, _per se_, protect against reuse of k. Reuse of
-     * k is left to chance; all it does is prevent _excessively
-     * high_ chances of reuse of k due to entropy problems.)
+     * Despite this determinism, it's still not predictable to an
+     * attacker, because in order to repeat the SHA-512
+     * construction that created it, the attacker would have to
+     * know the private key value x - and by assumption he doesn't,
+     * because if he knew that he wouldn't be attacking k!
+     *
+     * (This trick doesn't, _per se_, protect against reuse of k.
+     * Reuse of k is left to chance; all it does is prevent
+     * _excessively high_ chances of reuse of k due to entropy
+     * problems.)
      * 
      * Thanks to Colin Plumb for the general idea of using x to
      * ensure k is hard to guess, and to the Cambridge University
