@@ -347,6 +347,11 @@ SockAddr name_lookup(char *host, int port, char **canonicalname,
     return sk_namelookup(host, canonicalname);
 }
 
+Socket platform_new_connection(SockAddr addr, char *hostname,
+			       int port, int privport,
+			       int oobinline, int nodelay, Plug plug,
+			       const Config *cfg);
+
 Socket new_connection(SockAddr addr, char *hostname,
 		      int port, int privport,
 		      int oobinline, int nodelay, Plug plug,
@@ -378,6 +383,11 @@ Socket new_connection(SockAddr addr, char *hostname,
 	Proxy_Plug pplug;
 	SockAddr proxy_addr;
 	char *proxy_canonical_name;
+	Socket sret;
+
+	if ( (sret = platform_new_connection(addr, hostname, port, privport,
+					     oobinline, nodelay, plug, cfg)) )
+	    return sret;
 
 	ret = snew(struct Socket_proxy_tag);
 	ret->fn = &socket_fn_table;
@@ -1161,103 +1171,117 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
  * standardised or at all well-defined.)
  */
 
-int proxy_telnet_negotiate (Proxy_Socket p, int change)
+char *format_telnet_command(SockAddr addr, int port, const Config *cfg)
 {
-    if (p->state == PROXY_CHANGE_NEW) {
+    char *ret = NULL;
+    int retlen = 0, retsize = 0;
+    int so = 0, eo = 0;
+#define ENSURE(n) do { \
+    if (retsize < retlen + n) { \
+	retsize = retlen + n + 512; \
+	ret = sresize(ret, retsize, char); \
+    } \
+} while (0)
 
-	int so = 0, eo = 0;
+    /* we need to escape \\, \%, \r, \n, \t, \x??, \0???, 
+     * %%, %host, %port, %user, and %pass
+     */
 
-	/* we need to escape \\, \%, \r, \n, \t, \x??, \0???, 
-	 * %%, %host, %port, %user, and %pass
-	 */
+    while (cfg->proxy_telnet_command[eo] != 0) {
 
-	while (p->cfg.proxy_telnet_command[eo] != 0) {
+	/* scan forward until we hit end-of-line,
+	 * or an escape character (\ or %) */
+	while (cfg->proxy_telnet_command[eo] != 0 &&
+	       cfg->proxy_telnet_command[eo] != '%' &&
+	       cfg->proxy_telnet_command[eo] != '\\') eo++;
 
-	    /* scan forward until we hit end-of-line, 
-	     * or an escape character (\ or %) */
-	    while (p->cfg.proxy_telnet_command[eo] != 0 &&
-		   p->cfg.proxy_telnet_command[eo] != '%' &&
-		   p->cfg.proxy_telnet_command[eo] != '\\') eo++;
+	/* if we hit eol, break out of our escaping loop */
+	if (cfg->proxy_telnet_command[eo] == 0) break;
 
-	    /* if we hit eol, break out of our escaping loop */
-	    if (p->cfg.proxy_telnet_command[eo] == 0) break;
+	/* if there was any unescaped text before the escape
+	 * character, send that now */
+	if (eo != so) {
+	    ENSURE(eo - so);
+	    memcpy(ret + retlen, cfg->proxy_telnet_command + so, eo - so);
+	    retlen += eo - so;
+	}
 
-	    /* if there was any unescaped text before the escape
-	     * character, send that now */
-	    if (eo != so) {
-		sk_write(p->sub_socket, 
-			 p->cfg.proxy_telnet_command + so, eo - so);
-	    }
+	so = eo++;
 
-	    so = eo++;
+	/* if the escape character was the last character of
+	 * the line, we'll just stop and send it. */
+	if (cfg->proxy_telnet_command[eo] == 0) break;
 
-	    /* if the escape character was the last character of
-	     * the line, we'll just stop and send it. */
-	    if (p->cfg.proxy_telnet_command[eo] == 0) break;
+	if (cfg->proxy_telnet_command[so] == '\\') {
 
-	    if (p->cfg.proxy_telnet_command[so] == '\\') {
+	    /* we recognize \\, \%, \r, \n, \t, \x??.
+	     * anything else, we just send unescaped (including the \).
+	     */
 
-		/* we recognize \\, \%, \r, \n, \t, \x??. 
-		 * anything else, we just send unescaped (including the \). 
-		 */
+	    switch (cfg->proxy_telnet_command[eo]) {
 
-		switch (p->cfg.proxy_telnet_command[eo]) {
+	      case '\\':
+		ENSURE(1);
+		ret[retlen++] = '\\';
+		eo++;
+		break;
 
-		  case '\\':
-		    sk_write(p->sub_socket, "\\", 1);
-		    eo++;
-		    break;
+	      case '%':
+		ENSURE(1);
+		ret[retlen++] = '%';
+		eo++;
+		break;
 
-		  case '%':
-		    sk_write(p->sub_socket, "%%", 1);
-		    eo++;
-		    break;
+	      case 'r':
+		ENSURE(1);
+		ret[retlen++] = '\r';
+		eo++;
+		break;
 
-		  case 'r':
-		    sk_write(p->sub_socket, "\r", 1);
-		    eo++;
-		    break;
+	      case 'n':
+		ENSURE(1);
+		ret[retlen++] = '\n';
+		eo++;
+		break;
 
-		  case 'n':
-		    sk_write(p->sub_socket, "\n", 1);
-		    eo++;
-		    break;
+	      case 't':
+		ENSURE(1);
+		ret[retlen++] = '\t';
+		eo++;
+		break;
 
-		  case 't':
-		    sk_write(p->sub_socket, "\t", 1);
-		    eo++;
-		    break;
-
-		  case 'x':
-		  case 'X':
-		    {
+	      case 'x':
+	      case 'X':
+		{
 		    /* escaped hexadecimal value (ie. \xff) */
 		    unsigned char v = 0;
 		    int i = 0;
 
 		    for (;;) {
 			eo++;
-			if (p->cfg.proxy_telnet_command[eo] >= '0' &&
-			    p->cfg.proxy_telnet_command[eo] <= '9')
-			    v += p->cfg.proxy_telnet_command[eo] - '0';
-			else if (p->cfg.proxy_telnet_command[eo] >= 'a' &&
-				 p->cfg.proxy_telnet_command[eo] <= 'f')
-			    v += p->cfg.proxy_telnet_command[eo] - 'a' + 10;
-			else if (p->cfg.proxy_telnet_command[eo] >= 'A' &&
-				 p->cfg.proxy_telnet_command[eo] <= 'F')
-			    v += p->cfg.proxy_telnet_command[eo] - 'A' + 10;
+			if (cfg->proxy_telnet_command[eo] >= '0' &&
+			    cfg->proxy_telnet_command[eo] <= '9')
+			    v += cfg->proxy_telnet_command[eo] - '0';
+			else if (cfg->proxy_telnet_command[eo] >= 'a' &&
+				 cfg->proxy_telnet_command[eo] <= 'f')
+			    v += cfg->proxy_telnet_command[eo] - 'a' + 10;
+			else if (cfg->proxy_telnet_command[eo] >= 'A' &&
+				 cfg->proxy_telnet_command[eo] <= 'F')
+			    v += cfg->proxy_telnet_command[eo] - 'A' + 10;
 			else {
 			    /* non hex character, so we abort and just
 			     * send the whole thing unescaped (including \x)
 			     */
-			    sk_write(p->sub_socket, "\\", 1);
+			    ENSURE(1);
+			    ret[retlen++] = '\\';
 			    eo = so + 1;
 			    break;
 			}
 
 			/* we only extract two hex characters */
 			if (i == 1) {
-			    sk_write(p->sub_socket, (char *)&v, 1);
+			    ENSURE(1);
+			    ret[retlen++] = v;
 			    eo++;
 			    break;
 			}
@@ -1265,68 +1289,101 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 			i++;
 			v <<= 4;
 		    }
-		    }
-		    break;
+		}
+		break;
 
-		  default:
-		    sk_write(p->sub_socket, 
-			     p->cfg.proxy_telnet_command + so, 2);
-		    eo++;
-		    break;
-		}
-	    } else {
-
-		/* % escape. we recognize %%, %host, %port, %user, %pass. 
-		 * anything else, we just send unescaped (including the %). 
-		 */
-
-		if (p->cfg.proxy_telnet_command[eo] == '%') {
-		    sk_write(p->sub_socket, "%", 1);
-		    eo++;
-		}
-		else if (strnicmp(p->cfg.proxy_telnet_command + eo,
-				  "host", 4) == 0) {
-		    char dest[512];
-		    sk_getaddr(p->remote_addr, dest, lenof(dest));
-		    sk_write(p->sub_socket, dest, strlen(dest));
-		    eo += 4;
-		}
-		else if (strnicmp(p->cfg.proxy_telnet_command + eo,
-				  "port", 4) == 0) {
-		    char port[8];
-		    sprintf(port, "%i", p->remote_port);
-		    sk_write(p->sub_socket, port, strlen(port));
-		    eo += 4;
-		}
-		else if (strnicmp(p->cfg.proxy_telnet_command + eo,
-				  "user", 4) == 0) {
-		    sk_write(p->sub_socket, p->cfg.proxy_username, 
-			strlen(p->cfg.proxy_username));
-		    eo += 4;
-		}
-		else if (strnicmp(p->cfg.proxy_telnet_command + eo,
-				  "pass", 4) == 0) {
-		    sk_write(p->sub_socket, p->cfg.proxy_password, 
-			strlen(p->cfg.proxy_password));
-		    eo += 4;
-		}
-		else {
-		    /* we don't escape this, so send the % now, and
-		     * don't advance eo, so that we'll consider the
-		     * text immediately following the % as unescaped.
-		     */
-		    sk_write(p->sub_socket, "%", 1);
-		}
+	      default:
+		ENSURE(2);
+		memcpy(ret+retlen, cfg->proxy_telnet_command + so, 2);
+		retlen += 2;
+		eo++;
+		break;
 	    }
+	} else {
 
-	    /* resume scanning for additional escapes after this one. */
-	    so = eo;
+	    /* % escape. we recognize %%, %host, %port, %user, %pass.
+	     * anything else, we just send unescaped (including the %).
+	     */
+
+	    if (cfg->proxy_telnet_command[eo] == '%') {
+		ENSURE(1);
+		ret[retlen++] = '%';
+		eo++;
+	    }
+	    else if (strnicmp(cfg->proxy_telnet_command + eo,
+			      "host", 4) == 0) {
+		char dest[512];
+		int destlen;
+		sk_getaddr(addr, dest, lenof(dest));
+		destlen = strlen(dest);
+		ENSURE(destlen);
+		memcpy(ret+retlen, dest, destlen);
+		retlen += destlen;
+		eo += 4;
+	    }
+	    else if (strnicmp(cfg->proxy_telnet_command + eo,
+			      "port", 4) == 0) {
+		char portstr[8], portlen;
+		portlen = sprintf(portstr, "%i", port);
+		ENSURE(portlen);
+		memcpy(ret + retlen, portstr, portlen);
+		retlen += portlen;
+		eo += 4;
+	    }
+	    else if (strnicmp(cfg->proxy_telnet_command + eo,
+			      "user", 4) == 0) {
+		int userlen = strlen(cfg->proxy_username);
+		ENSURE(userlen);
+		memcpy(ret+retlen, cfg->proxy_username, userlen);
+		retlen += userlen;
+		eo += 4;
+	    }
+	    else if (strnicmp(cfg->proxy_telnet_command + eo,
+			      "pass", 4) == 0) {
+		int passlen = strlen(cfg->proxy_password);
+		ENSURE(passlen);
+		memcpy(ret+retlen, cfg->proxy_password, passlen);
+		retlen += passlen;
+		eo += 4;
+	    }
+	    else {
+		/* we don't escape this, so send the % now, and
+		 * don't advance eo, so that we'll consider the
+		 * text immediately following the % as unescaped.
+		 */
+		ENSURE(1);
+		ret[retlen++] = '%';
+	    }
 	}
 
-	/* if there is any unescaped text at the end of the line, send it */
-	if (eo != so) {
-	    sk_write(p->sub_socket, p->cfg.proxy_telnet_command + so, eo - so);
-	}
+	/* resume scanning for additional escapes after this one. */
+	so = eo;
+    }
+
+    /* if there is any unescaped text at the end of the line, send it */
+    if (eo != so) {
+	ENSURE(eo - so);
+	memcpy(ret + retlen, cfg->proxy_telnet_command + so, eo - so);
+	retlen += eo - so;
+    }
+
+    ENSURE(1);
+    ret[retlen] = '\0';
+    return ret;
+
+#undef ENSURE
+}
+
+int proxy_telnet_negotiate (Proxy_Socket p, int change)
+{
+    if (p->state == PROXY_CHANGE_NEW) {
+	char *formatted_cmd;
+
+	formatted_cmd = format_telnet_command(p->remote_addr, p->remote_port,
+					      &p->cfg);
+
+	sk_write(p->sub_socket, formatted_cmd, strlen(formatted_cmd));
+	sfree(formatted_cmd);
 
 	p->state = 1;
 	return 0;

@@ -118,11 +118,11 @@ SFTP     = sftp int64 logging
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
 WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
-         + windefs winmisc
+         + windefs winmisc pproxy
 UXMISC   = misc version uxstore settings tree234 uxsel uxnet proxy cmdline
-         + uxmisc
+         + uxmisc uxproxy
 MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
-         + macmisc macabout
+         + macmisc macabout pproxy
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc

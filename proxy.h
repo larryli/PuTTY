@@ -100,4 +100,10 @@ extern int proxy_telnet_negotiate (Proxy_Socket, int);
 extern int proxy_socks4_negotiate (Proxy_Socket, int);
 extern int proxy_socks5_negotiate (Proxy_Socket, int);
 
+/*
+ * This may be reused by local-command proxies on individual
+ * platforms.
+ */
+char *format_telnet_command(SockAddr addr, int port, const Config *cfg);
+
 #endif

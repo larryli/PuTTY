@@ -1296,14 +1296,14 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      "Options controlling proxy usage");
 
 	s = ctrl_getset(b, "Connection/Proxy", "basics", "Proxy basics");
-	ctrl_radiobuttons(s, "Proxy type:", NO_SHORTCUT, 4,
+	ctrl_radiobuttons(s, "Proxy type:", 't', 4,
 			  HELPCTX(proxy_type),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, proxy_type)),
-			  "None", 'n', I(PROXY_NONE),
-			  "HTTP", 't', I(PROXY_HTTP),
-			  "SOCKS", 's', I(PROXY_SOCKS),
-			  "Telnet", 'l', I(PROXY_TELNET),
+			  "None", I(PROXY_NONE),
+			  "HTTP", I(PROXY_HTTP),
+			  "SOCKS", I(PROXY_SOCKS),
+			  "Telnet", I(PROXY_TELNET),
 			  NULL);
 	ctrl_columns(s, 2, 80, 20);
 	c = ctrl_editbox(s, "Proxy hostname", 'y', 100,

@@ -224,7 +224,7 @@ enum {
     /*
      * Proxy types.
      */
-    PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET
+    PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET, PROXY_CMD
 };
 
 enum {
