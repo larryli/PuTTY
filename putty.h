@@ -132,6 +132,8 @@ typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
     TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO, TS_PING,
     TS_EOL,
+    /* Special command for SSH. */
+    TS_REKEY,
     /* POSIX-style signals. (not Telnet) */
     TS_SIGABRT, TS_SIGALRM, TS_SIGFPE,  TS_SIGHUP,  TS_SIGILL,
     TS_SIGINT,  TS_SIGKILL, TS_SIGPIPE, TS_SIGQUIT, TS_SIGSEGV,
@@ -637,7 +639,6 @@ FontSpec platform_default_fontspec(const char *name);
 Terminal *term_init(Config *, struct unicode_data *, void *);
 void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
-void term_out(Terminal *);
 void term_paint(Terminal *, Context, int, int, int, int, int);
 void term_scroll(Terminal *, int, int);
 void term_pwron(Terminal *);
