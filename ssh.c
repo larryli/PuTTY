@@ -167,6 +167,9 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 extern const struct ssh_cipher ssh_3des;
 extern const struct ssh_cipher ssh_3des_ssh2;
 extern const struct ssh_cipher ssh_des;
+extern const struct ssh_cipher ssh_aes128_ssh2;
+extern const struct ssh_cipher ssh_aes192_ssh2;
+extern const struct ssh_cipher ssh_aes256_ssh2;
 extern const struct ssh_cipher ssh_blowfish_ssh1;
 extern const struct ssh_cipher ssh_blowfish_ssh2;
 
@@ -181,7 +184,13 @@ extern void x11_invent_auth(char *, int, char *, int);
  * SSH1. (3DES uses outer chaining; Blowfish has the opposite
  * endianness and different-sized keys.)
  */
-const static struct ssh_cipher *ciphers[] = { &ssh_blowfish_ssh2, &ssh_3des_ssh2 };
+const static struct ssh_cipher *ciphers[] = {
+    &ssh_aes256_ssh2,
+    &ssh_aes192_ssh2,
+    &ssh_aes128_ssh2,
+    &ssh_blowfish_ssh2,
+    &ssh_3des_ssh2
+};
 
 extern const struct ssh_kex ssh_diffiehellman;
 extern const struct ssh_kex ssh_diffiehellman_gex;
@@ -940,7 +949,7 @@ static int ssh2_pkt_construct(void) {
      * Add padding. At least four bytes, and must also bring total
      * length (minus MAC) up to a multiple of the block size.
      */
-    cipherblk = cipher ? cipher->blksize : 8;   /* block size */
+    cipherblk = cscipher ? cscipher->blksize : 8;   /* block size */
     cipherblk = cipherblk < 8 ? 8 : cipherblk;   /* or 8 if blksize < 8 */
     padding = 4;
     padding += (cipherblk - (pktout.length + padding) % cipherblk) % cipherblk;

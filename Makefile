@@ -83,15 +83,15 @@ MOBJ2 = tree234.$(OBJ)
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
 OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
-OBJS4 = x11fwd.$(OBJ)
+OBJS4 = x11fwd.$(OBJ) sshaes.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
-PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ)
+PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ) sshaes.$(OBJ)
 ##-- objects puttygen
 GEN1 = puttygen.$(OBJ) sshrsag.$(OBJ) sshprime.$(OBJ) sshdes.$(OBJ)
 GEN2 = sshbn.$(OBJ) sshmd5.$(OBJ) version.$(OBJ) sshrand.$(OBJ) noise.$(OBJ)
 GEN3 = sshsha.$(OBJ) winstore.$(OBJ) misc.$(OBJ) winctrls.$(OBJ)
-GEN4 = sshrsa.$(OBJ) sshpubk.$(OBJ)
+GEN4 = sshrsa.$(OBJ) sshpubk.$(OBJ) sshaes.$(OBJ)
 ##-- resources putty puttytel
 PRESRC = win_res.$(RES)
 ##-- resources pageant
@@ -257,6 +257,7 @@ noise.$(OBJ): noise.c putty.h puttymem.h network.h ssh.h storage.h
 ssh.$(OBJ): ssh.c ssh.h putty.h puttymem.h network.h tree234.h
 sshcrc.$(OBJ): sshcrc.c ssh.h puttymem.h
 sshdes.$(OBJ): sshdes.c ssh.h puttymem.h
+sshaes.$(OBJ): sshaes.c ssh.h puttymem.h
 sshmd5.$(OBJ): sshmd5.c ssh.h puttymem.h
 sshrsa.$(OBJ): sshrsa.c ssh.h puttymem.h
 sshsha.$(OBJ): sshsha.c ssh.h puttymem.h
