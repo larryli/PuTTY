@@ -52,8 +52,6 @@ typedef struct {
     char *realhost;
     /* Logging */
     void *logctx;
-    /* Conveniences */
-    unsigned long attr_mask;		/* Mask of attributes to display */
 
     /* Mac-specific elements */
     short		fontnum;

@@ -155,6 +155,9 @@ struct terminal_tag {
 
     short wordness[256];
 
+    /* Mask of attributes to pay attention to when painting. */
+    unsigned long attr_mask;
+
     wchar_t *paste_buffer;
     int paste_len, paste_pos, paste_hold;
     long last_paste;

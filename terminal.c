@@ -336,6 +336,7 @@ Terminal *term_init(Config *mycfg, void *frontend)
     term->nbeeps = 0;
     term->lastbeep = FALSE;
     term->beep_overloaded = FALSE;
+    term->attr_mask = 0xffffffff;
     term->resize_fn = NULL;
     term->resize_ctx = NULL;
 
@@ -3039,7 +3040,8 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    if ((term->disptext[idx] ^ tattr) & ATTR_WIDE)
 		dirty_line = TRUE;
 
-	    break_run = (tattr != attr || j - start >= sizeof(ch));
+	    break_run = (((tattr ^ attr) & term->attr_mask) ||
+		j - start >= sizeof(ch));
 
 	    /* Special hack for VT100 Linedraw glyphs */
 	    if ((attr & CSET_MASK) == 0x2300 && tchar >= 0xBA

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.15 2002/11/28 21:10:55 ben Exp $ */
+/* $Id: macterm.c,v 1.16 2002/11/29 00:32:03 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -94,13 +94,9 @@ static RoutineDescriptor mac_scrolltracker_upp =
 static RoutineDescriptor do_text_for_device_upp =
     BUILD_ROUTINE_DESCRIPTOR(uppDeviceLoopDrawingProcInfo,
 			     (ProcPtr)do_text_for_device);
-static RoutineDescriptor mac_set_attr_mask_upp =
-    BUILD_ROUTINE_DESCRIPTOR(uppDeviceLoopDrawingProcInfo,
-			     (ProcPtr)mac_set_attr_mask);
 #else /* not TARGET_RT_MAC_CFM */
 #define mac_scrolltracker_upp	mac_scrolltracker
 #define do_text_for_device_upp	do_text_for_device
-#define mac_set_attr_mask_upp	mac_set_attr_mask
 #endif /* not TARGET_RT_MAC_CFM */
 
 static void inbuf_putc(Session *s, int c) {
@@ -170,7 +166,6 @@ void mac_newsession(void) {
 
     mac_initfont(s);
     mac_initpalette(s);
-    s->attr_mask = ATTR_MASK;
     if (HAVE_COLOR_QD()) {
 	/* Set to FALSE to not get palette updates in the background. */
 	SetPalette(s->window, s->palette, TRUE); 
@@ -946,12 +941,34 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
  * Should probably be called start_redraw or something.
  */
 void pre_paint(Session *s) {
+    GDHandle gdh;
+    Rect myrect, tmprect;
 
-    s->attr_mask = ATTR_INVALID;
-    if (HAVE_COLOR_QD())
-	DeviceLoop(s->window->visRgn, &mac_set_attr_mask_upp, (long)s, 0);
-    else
-	mac_set_attr_mask(1, 0, NULL, (long)s);
+    s->term->attr_mask = 0xffffffff;
+    if (HAVE_COLOR_QD()) {
+	SetPort(s->window);
+	myrect = (*s->window->visRgn)->rgnBBox;
+	LocalToGlobal((Point *)&myrect.top);
+	LocalToGlobal((Point *)&myrect.bottom);
+	for (gdh = GetDeviceList();
+	     gdh != NULL;
+	     gdh = GetNextDevice(gdh)) {
+	    if (TestDeviceAttribute(gdh, screenDevice) &&
+		TestDeviceAttribute(gdh, screenActive) &&
+		SectRect(&(*gdh)->gdRect, &myrect, &tmprect)) {
+		switch ((*(*gdh)->gdPMap)->pixelSize) {
+		  case 1:
+		    if (s->cfg.bold_colour)
+			s->term->attr_mask &= ~ATTR_BOLD;
+		    /* FALLTHROUGH */
+		  case 2:
+		    s->term->attr_mask &= ~ATTR_COLOURS;
+		}
+	    }
+	}
+    } else
+	s->term->attr_mask &= ~(ATTR_COLOURS |
+			        (s->cfg.bold_colour ? ATTR_BOLD : 0));
 }
 
 Context get_ctx(void *frontend) {
@@ -963,26 +980,6 @@ Context get_ctx(void *frontend) {
 
 void free_ctx(Context ctx) {
 
-}
-
-static pascal void mac_set_attr_mask(short depth, short devflags,
-				     GDHandle device, long cookie) {
-
-    Session *s = (Session *)cookie;
-
-    switch (depth) {
-      default:
-	s->attr_mask |= ATTR_FGMASK | ATTR_BGMASK;
-	/* FALLTHROUGH */
-      case 2:
-	s->attr_mask |= ATTR_BOLD;
-	/* FALLTHROUGH */
-      case 1:
-	s->attr_mask |= ATTR_UNDER | ATTR_REVERSE | TATTR_ACTCURS |
-	    TATTR_PASCURS | ATTR_ASCII | ATTR_GBCHR | ATTR_LINEDRW |
-	    (s->cfg.bold_colour ? 0 : ATTR_BOLD); 
-	break;
-    }
 }
 
 /*
