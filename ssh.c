@@ -1776,9 +1776,9 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (cfg.sshbug_hmac2 == BUG_ON ||
 	(cfg.sshbug_hmac2 == BUG_AUTO &&
-	 (!strncmp(imp, "2.1.0", 5) || !strncmp(imp, "2.0.", 4) ||
-	  !strncmp(imp, "2.2.0", 5) || !strncmp(imp, "2.3.0", 5) ||
-	  !strncmp(imp, "2.1 ", 4)))) {
+	 (wc_match("2.1.0*", imp) || wc_match("2.0.*", imp) ||
+	  wc_match("2.2.0*", imp) || wc_match("2.3.0*", imp) ||
+	  wc_match("2.1 *", imp)))) {
 	/*
 	 * These versions have the HMAC bug.
 	 */
@@ -1788,7 +1788,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (cfg.sshbug_derivekey2 == BUG_ON ||
 	(cfg.sshbug_derivekey2 == BUG_AUTO &&
-	 (!strncmp(imp, "2.0.", 4)))) {
+	 (wc_match("2.0.*", imp)))) {
 	/*
 	 * These versions have the key-derivation bug (failing to
 	 * include the literal shared secret in the hashes that
@@ -1800,8 +1800,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (cfg.sshbug_rsapad2 == BUG_ON ||
 	(cfg.sshbug_rsapad2 == BUG_AUTO &&
-	 ((!strncmp(imp, "OpenSSH_2.", 10) && imp[10]>='5' && imp[10]<='9') ||
-	  (!strncmp(imp, "OpenSSH_3.", 10) && imp[10]>='0' && imp[10]<='2')))){
+	 (wc_match("OpenSSH_2.[5-9]*", imp) ||
+	  wc_match("OpenSSH_3.[0-2]*", imp)))) {
 	/*
 	 * These versions have the SSH2 RSA padding bug.
 	 */
@@ -1811,7 +1811,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (cfg.sshbug_dhgex2 == BUG_ON) {
 	/*
-	 * These versions have the SSH2 DH GEX bug.
+	 * User specified the SSH2 DH GEX bug.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_DH_GEX;
 	logevent("We believe remote version has SSH2 DH group exchange bug");
