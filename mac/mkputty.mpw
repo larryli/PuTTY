@@ -1,36 +1,15 @@
-# $Id: mkputty.mpw,v 1.1 2002/12/02 21:06:12 ben Exp $
-
-set program "{1}"
-shift
-if "{program}" == "68k"
-	set program PuTTY.68k
-end
-if "{program}" == "ppc"
-	set program PuTTY.ppc
-end
-if "{program}" == "" || "{program}" == "fat"
-	set program PuTTY
-end
+# $Id: mkputty.mpw,v 1.2 2002/12/29 19:11:40 ben Exp $
 
 Set makefile Makefile.mpw
 
 #	Run Make, then execute its output.
 
-Echo "# `Date -t` ----- Build of {program}."
-#if (`exists "#"Å"#"`)
-#	echo "# `Date -t` ----- Warning: auto-save file present."
-#end
 Echo "# `Date -t` ----- Analyzing dependencies."
 Begin
 	Echo "Set Echo 1"
 	Make "{program}" {"Parameters"} -f "{makefile}"
-End > "{program}".makeout
+End > make.out
 Echo "# `Date -t` ----- Executing build commands."
-"{program}".makeout
-Delete "{program}".makeout
+make.out
+Delete make.out
 Echo "# `Date -t` ----- Done."
-Set type "`files -i -n -x t "{program}" ³ Dev:Null || Set Status 0`"
-Set CaseSensitive True #filetype check for DA must be case sensitive
-If "{type}" =~ /Å APPL/ OR "{type}" =~ /Å MPST/ 	# application or tool
-	Echo -n ¶t; Quote -n "{program}"; Echo -n " "
-End
