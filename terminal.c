@@ -215,6 +215,7 @@ void term_update(void) {
 	     (seen_disp_event && (!cfg.scroll_on_key)) ) {
 	    disptop = scrtop;
 	    seen_disp_event = seen_key_event = 0;
+	    update_sbar();
 	}
 	do_paint (ctx, TRUE);
         sys_cursor(curs_x, curs_y + (scrtop - disptop) / (cols+1));
