@@ -6791,6 +6791,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    } else if (s->method == AUTH_KEYBOARD_INTERACTIVE) {
 		if (s->curr_prompt == 0) {
 		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
+		    s->pktout->forcepad = 256;
 		    ssh2_pkt_adduint32(s->pktout, s->num_prompts);
 		}
 		if (s->need_pw) {      /* only add pw if we just got one! */
