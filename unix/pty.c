@@ -621,10 +621,18 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	/*
 	 * SIGINT and SIGQUIT may have been set to ignored by our
 	 * parent, particularly by things like sh -c 'pterm &' and
-	 * some window managers. Reverse this for our child process.
+	 * some window managers. SIGCHLD, meanwhile, has been
+	 * tinkered with by the watchdog process. Reverse all this
+	 * for our child process.
 	 */
 	putty_signal(SIGINT, SIG_DFL);
 	putty_signal(SIGQUIT, SIG_DFL);
+	{
+	    sigset_t set;
+	    sigemptyset(&set);
+	    sigaddset(&set, SIGCHLD);
+	    sigprocmask(SIG_UNBLOCK, &set, NULL);
+	}
 	if (pty_argv)
 	    execvp(pty_argv[0], pty_argv);
 	else {
