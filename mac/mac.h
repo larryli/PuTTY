@@ -85,6 +85,9 @@ extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
 /* from macucs.c */
 extern void init_ucs(void);
+/* from mtcpnet.c */
+extern OSErr mactcp_init(void);
+extern void mactcp_shutdown(void);
 
 #endif
 
