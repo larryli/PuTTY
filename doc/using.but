@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.23 2004/06/15 10:17:03 jacob Exp $
+\versionid $Id: using.but,v 1.24 2004/07/20 15:34:39 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -549,7 +549,9 @@ command} box in the SSH panel of the PuTTY configuration box (see
 \k{config-command}). However, the \c{-m} option expects to be given
 a local file name, and it will read a command from that file. On
 most Unix systems, you can even put multiple lines in this file and
-execute more than one command in sequence, or a whole shell script.
+execute more than one command in sequence, or a whole shell script;
+but this will not work on all servers (and is known not to work
+with certain \q{embedded} servers such as routers).
 
 This option is not available in the file transfer tools PSCP and
 PSFTP.
