@@ -2,7 +2,10 @@ This is the README for PuTTY, a free Win32 Telnet and SSH client.
 
 The provided Makefile is for MS Visual C++ systems. Type `nmake' to
 build both putty.exe (the main program) and pscp.exe (an SCP
-client).
+client). The comment at the top of the Makefile gives extra build
+options you can use to build in limited Win32s compatibility, a hack
+to pass SSH through some types of firewall, and `official' version
+numbers.
 
 Setting up a project file in the Visual C++ IDE sometimes fails to
 work. In particular, Visual Studio 6 falls over on the odd macro
