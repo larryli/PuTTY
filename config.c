@@ -256,8 +256,12 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
      * allocate space to store the current contents of the saved
      * session edit box (since it must persist even when we switch
      * panels, but is not part of the Config).
+     * 
+     * Of course, this doesn't need to be done mid-session.
      */
-    if (!dlg_get_privdata(ssd->editbox, dlg)) {
+    if (!ssd->editbox) {
+        savedsession = NULL;
+    } else if (!dlg_get_privdata(ssd->editbox, dlg)) {
 	savedsession = (char *)
 	    dlg_alloc_privdata(ssd->editbox, dlg, SAVEDSESSION_LEN);
 	savedsession[0] = '\0';
@@ -333,6 +337,11 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		dlg_refresh(ssd->listbox, dlg);
 	    }
 	} else if (ctrl == ssd->okbutton) {
+            if (!savedsession) {
+                /* In a mid-session Change Settings, Apply is always OK. */
+		dlg_end(dlg, 1);
+                return;
+            }
 	    /*
 	     * Annoying special case. If the `Open' button is
 	     * pressed while no host name is currently set, _and_
@@ -730,6 +739,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 
     ssd = (struct sessionsaver_data *)
 	ctrl_alloc(b, sizeof(struct sessionsaver_data));
+    memset(ssd, 0, sizeof(*ssd));
     ssd->sesslist = (midsession ? NULL : sesslist);
 
     /*

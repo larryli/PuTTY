@@ -55,6 +55,7 @@ struct gui_data {
     char *pasteout_data, *pasteout_data_utf8;
     int pasteout_data_len, pasteout_data_utf8_len;
     int font_width, font_height;
+    int width, height;
     int ignore_sbar;
     int mouseptr_visible;
     guint term_paste_idle_id;
@@ -373,13 +374,13 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     w = (event->width - 2*inst->cfg.window_border) / inst->font_width;
     h = (event->height - 2*inst->cfg.window_border) / inst->font_height;
 
-    if (w != inst->cfg.width || h != inst->cfg.height) {
+    if (w != inst->width || h != inst->height) {
 	if (inst->pixmap) {
 	    gdk_pixmap_unref(inst->pixmap);
 	    inst->pixmap = NULL;
 	}
-	inst->cfg.width = w;
-	inst->cfg.height = h;
+	inst->cfg.width = inst->width = w;
+	inst->cfg.height = inst->height = h;
 	need_size = 1;
     }
     if (!inst->pixmap) {
@@ -1160,7 +1161,10 @@ void request_resize(void *frontend, int w, int h)
     gtk_widget_set_size_request(inst->area, area_x, area_y);
 #else
     gtk_widget_set_usize(inst->area, area_x, area_y);
+    gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), area_x, area_y);
 #endif
+
+    gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
 
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_window_resize(GTK_WINDOW(inst->window),
@@ -1179,6 +1183,7 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
     inst->cols[n].green = g * 0x0101;
     inst->cols[n].blue = b * 0x0101;
 
+    gdk_colormap_free_colors(inst->colmap, inst->cols + n, 1);
     gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
 			      FALSE, FALSE, success);
     if (!success[0])
@@ -2294,102 +2299,18 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
-void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
+void setup_fonts_ucs(struct gui_data *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    term_clrsb(inst->term);
-}
-
-void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
-{
-    struct gui_data *inst = (struct gui_data *)data;
-    term_pwron(inst->term);
-    ldisc_send(inst->ldisc, NULL, 0, 0);
-}
-
-void special_menuitem(GtkMenuItem *item, gpointer data)
-{
-    struct gui_data *inst = (struct gui_data *)data;
-    int code = (int)gtk_object_get_data(GTK_OBJECT(item), "user-data");
-
-    inst->back->special(inst->backhandle, code);
-}
-
-void about_menuitem(GtkMenuItem *item, gpointer data)
-{
-    struct gui_data *inst = (struct gui_data *)data;
-    about_box(inst->window);
-}
-
-void event_log_menuitem(GtkMenuItem *item, gpointer data)
-{
-    struct gui_data *inst = (struct gui_data *)data;
-    showeventlog(inst->eventlogstuff, inst->window);
-}
-
-void update_specials_menu(void *frontend)
-{
-    Terminal *term = (Terminal *)frontend;
-    struct gui_data *inst = (struct gui_data *)term->frontend;
-
-    const struct telnet_special *specials;
-
-    specials = inst->back->get_specials(inst->backhandle);
-    gtk_container_foreach(GTK_CONTAINER(inst->specialsmenu),
-			  (GtkCallback)gtk_widget_destroy, NULL);
-    if (specials) {
-	int i;
-	GtkWidget *menuitem;
-	for (i = 0; specials[i].name; i++) {
-	    if (*specials[i].name) {
-		menuitem = gtk_menu_item_new_with_label(specials[i].name);
-		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
-				    (gpointer)specials[i].code);
-		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
-				   GTK_SIGNAL_FUNC(special_menuitem), inst);
-	    } else
-		menuitem = gtk_menu_item_new();
-	    gtk_container_add(GTK_CONTAINER(inst->specialsmenu), menuitem);
-	    gtk_widget_show(menuitem);
-	}
-	gtk_widget_show(inst->specialsitem1);
-	gtk_widget_show(inst->specialsitem2);
-    } else {
-	gtk_widget_hide(inst->specialsitem1);
-	gtk_widget_hide(inst->specialsitem2);
-    }
-}
-
-int pt_main(int argc, char **argv)
-{
-    extern Backend *select_backend(Config *cfg);
-    extern int cfgbox(Config *cfg);
-    struct gui_data *inst;
     int font_charset;
 
-    /* defer any child exit handling until we're ready to deal with
-     * it */
-    block_signal(SIGCHLD, 1);
-
-    gtk_init(&argc, &argv);
-
-    /*
-     * Create an instance structure and initialise to zeroes
-     */
-    inst = snew(struct gui_data);
-    memset(inst, 0, sizeof(*inst));
-    inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
-
-    if (do_cmdline(argc, argv, 0, inst, &inst->cfg))
-	exit(1);		       /* pre-defaults pass to get -class */
-    do_defaults(NULL, &inst->cfg);
-    if (do_cmdline(argc, argv, 1, inst, &inst->cfg))
-	exit(1);		       /* post-defaults, do everything */
-
-    cmdline_run_saved(&inst->cfg);
-
-    if (!*inst->cfg.host && !cfgbox(&inst->cfg))
-	exit(0);		       /* config box hit Cancel */
+    if (inst->fonts[0])
+        gdk_font_unref(inst->fonts[0]);
+    if (inst->fonts[1])
+        gdk_font_unref(inst->fonts[1]);
+    if (inst->fonts[2])
+        gdk_font_unref(inst->fonts[2]);
+    if (inst->fonts[3])
+        gdk_font_unref(inst->fonts[3]);
 
     inst->fonts[0] = gdk_font_load(inst->cfg.font.name);
     if (!inst->fonts[0]) {
@@ -2432,11 +2353,226 @@ int pt_main(int argc, char **argv)
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
 
+    inst->direct_to_font = init_ucs(&inst->ucsdata,
+				    inst->cfg.line_codepage, font_charset);
+}
+
+void set_geom_hints(struct gui_data *inst)
+{
+    GdkGeometry geom;
+    geom.min_width = inst->font_width + 2*inst->cfg.window_border;
+    geom.min_height = inst->font_height + 2*inst->cfg.window_border;
+    geom.max_width = geom.max_height = -1;
+    geom.base_width = 2*inst->cfg.window_border;
+    geom.base_height = 2*inst->cfg.window_border;
+    geom.width_inc = inst->font_width;
+    geom.height_inc = inst->font_height;
+    geom.min_aspect = geom.max_aspect = 0;
+    gtk_window_set_geometry_hints(GTK_WINDOW(inst->window), inst->area, &geom,
+                                  GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE |
+                                  GDK_HINT_RESIZE_INC);
+}
+
+void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    term_clrsb(inst->term);
+}
+
+void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    term_pwron(inst->term);
+    ldisc_send(inst->ldisc, NULL, 0, 0);
+}
+
+void special_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    int code = (int)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+
+    inst->back->special(inst->backhandle, code);
+}
+
+void about_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    about_box(inst->window);
+}
+
+void event_log_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    showeventlog(inst->eventlogstuff, inst->window);
+}
+
+void change_settings_menuitem(GtkMenuItem *item, gpointer data)
+{
+    /* This maps colour indices in inst->cfg to those used in inst->cols. */
+    static const int ww[] = {
+        6, 7, 8, 9, 10, 11, 12, 13,
+        14, 15, 16, 17, 18, 19, 20, 21,
+        0, 1, 2, 3, 4, 5
+    };
+    struct gui_data *inst = (struct gui_data *)data;
+    char *title = dupcat(appname, " Reconfiguration", NULL);
+    Config cfg2, oldcfg;
+    int i, need_size;
+
+    cfg2 = inst->cfg;                  /* structure copy */
+
+    if (do_config_box(title, &cfg2, 1)) {
+
+        oldcfg = inst->cfg;            /* structure copy */
+        inst->cfg = cfg2;              /* structure copy */
+
+        /* Pass new config data to the logging module */
+        log_reconfig(inst->logctx, &cfg2);
+        /*
+         * Flush the line discipline's edit buffer in the case
+         * where local editing has just been disabled.
+         */
+        ldisc_send(inst->ldisc, NULL, 0, 0);
+        /* Pass new config data to the terminal */
+        term_reconfig(inst->term, &cfg2);
+        /* Pass new config data to the back end */
+        inst->back->reconfig(inst->backhandle, &cfg2);
+
+        /*
+         * Just setting inst->cfg is sufficient to cause colour
+         * setting changes to appear on the next ESC]R palette
+         * reset. But we should also check whether any colour
+         * settings have been changed, and revert the ones that
+         * have to the new default, on the assumption that the user
+         * is most likely to want an immediate update.
+         */
+        for (i = 0; i < NCOLOURS; i++) {
+            if (oldcfg.colours[ww[i]][0] != cfg2.colours[ww[i]][0] ||
+                oldcfg.colours[ww[i]][1] != cfg2.colours[ww[i]][1] ||
+                oldcfg.colours[ww[i]][2] != cfg2.colours[ww[i]][2])
+                real_palette_set(inst, i, cfg2.colours[ww[i]][0],
+                                 cfg2.colours[ww[i]][1],
+                                 cfg2.colours[ww[i]][2]);
+        }
+
+        /*
+         * If the scrollbar needs to be shown, hidden, or moved
+         * from one end to the other of the window, do so now.
+         */
+        if (oldcfg.scrollbar != cfg2.scrollbar) {
+            if (cfg2.scrollbar)
+                gtk_widget_show(inst->sbar);
+            else
+                gtk_widget_hide(inst->sbar);
+        }
+        if (oldcfg.scrollbar_on_left != cfg2.scrollbar_on_left) {
+            gtk_box_reorder_child(inst->hbox, inst->sbar,
+                                  cfg2.scrollbar_on_left ? 0 : 1);
+        }
+
+        /*
+         * Change the window title, if required.
+         */
+        if (strcmp(oldcfg.wintitle, cfg2.wintitle))
+            set_title(inst, cfg2.wintitle);
+
+        /*
+         * Redo the whole tangled fonts and Unicode mess if
+         * necessary.
+         */
+        if (strcmp(oldcfg.font.name, cfg2.font.name) ||
+            strcmp(oldcfg.boldfont.name, cfg2.boldfont.name) ||
+            strcmp(oldcfg.widefont.name, cfg2.widefont.name) ||
+            strcmp(oldcfg.wideboldfont.name, cfg2.wideboldfont.name) ||
+            strcmp(oldcfg.line_codepage, cfg2.line_codepage)) {
+            setup_fonts_ucs(inst);
+            need_size = 1;
+        } else
+            need_size = 0;
+
+        /*
+         * Resize the window.
+         */
+        if (oldcfg.width != cfg2.width || oldcfg.height != cfg2.height ||
+            oldcfg.window_border != cfg2.window_border || need_size) {
+            set_geom_hints(inst);
+            request_resize(inst, cfg2.width, cfg2.height);
+            //term_size(inst->term, cfg2.height, cfg2.width, cfg2.savelines);
+            // where TF is our configure event going?!
+        }
+
+        term_invalidate(inst->term);
+    }
+    sfree(title);
+}
+
+void update_specials_menu(void *frontend)
+{
+    Terminal *term = (Terminal *)frontend;
+    struct gui_data *inst = (struct gui_data *)term->frontend;
+
+    const struct telnet_special *specials;
+
+    specials = inst->back->get_specials(inst->backhandle);
+    gtk_container_foreach(GTK_CONTAINER(inst->specialsmenu),
+			  (GtkCallback)gtk_widget_destroy, NULL);
+    if (specials) {
+	int i;
+	GtkWidget *menuitem;
+	for (i = 0; specials[i].name; i++) {
+	    if (*specials[i].name) {
+		menuitem = gtk_menu_item_new_with_label(specials[i].name);
+		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
+				    (gpointer)specials[i].code);
+		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
+				   GTK_SIGNAL_FUNC(special_menuitem), inst);
+	    } else
+		menuitem = gtk_menu_item_new();
+	    gtk_container_add(GTK_CONTAINER(inst->specialsmenu), menuitem);
+	    gtk_widget_show(menuitem);
+	}
+	gtk_widget_show(inst->specialsitem1);
+	gtk_widget_show(inst->specialsitem2);
+    } else {
+	gtk_widget_hide(inst->specialsitem1);
+	gtk_widget_hide(inst->specialsitem2);
+    }
+}
+
+int pt_main(int argc, char **argv)
+{
+    extern Backend *select_backend(Config *cfg);
+    extern int cfgbox(Config *cfg);
+    struct gui_data *inst;
+
+    /* defer any child exit handling until we're ready to deal with
+     * it */
+    block_signal(SIGCHLD, 1);
+
+    gtk_init(&argc, &argv);
+
+    /*
+     * Create an instance structure and initialise to zeroes
+     */
+    inst = snew(struct gui_data);
+    memset(inst, 0, sizeof(*inst));
+    inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
+
+    if (do_cmdline(argc, argv, 0, inst, &inst->cfg))
+	exit(1);		       /* pre-defaults pass to get -class */
+    do_defaults(NULL, &inst->cfg);
+    if (do_cmdline(argc, argv, 1, inst, &inst->cfg))
+	exit(1);		       /* post-defaults, do everything */
+
+    cmdline_run_saved(&inst->cfg);
+
+    if (!*inst->cfg.host && !cfgbox(&inst->cfg))
+	exit(0);		       /* config box hit Cancel */
+
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
-    inst->direct_to_font = init_ucs(&inst->ucsdata,
-				    inst->cfg.line_codepage, font_charset);
+    setup_fonts_ucs(inst);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
@@ -2445,43 +2581,36 @@ int pt_main(int argc, char **argv)
      */
     palette_reset(inst);
 
+    inst->width = inst->cfg.width;
+    inst->height = inst->cfg.height;
+
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
 			  inst->font_width * inst->cfg.width + 2*inst->cfg.window_border,
 			  inst->font_height * inst->cfg.height + 2*inst->cfg.window_border);
-    if (inst->cfg.scrollbar) {
-	inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
-	inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
-    }
+    inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
+    inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
-    if (inst->cfg.scrollbar) {
-	if (inst->cfg.scrollbar_on_left)
-	    gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
-	else
-	    gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
-    }
+    /*
+     * We always create the scrollbar; it remains invisible if
+     * unwanted, so we can pop it up quickly if it suddenly becomes
+     * desirable.
+     */
+    if (inst->cfg.scrollbar_on_left)
+        gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
     gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
+    if (!inst->cfg.scrollbar_on_left)
+        gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
-    {
-	GdkGeometry geom;
-	geom.min_width = inst->font_width + 2*inst->cfg.window_border;
-	geom.min_height = inst->font_height + 2*inst->cfg.window_border;
-	geom.max_width = geom.max_height = -1;
-	geom.base_width = 2*inst->cfg.window_border;
-	geom.base_height = 2*inst->cfg.window_border;
-	geom.width_inc = inst->font_width;
-	geom.height_inc = inst->font_height;
-	geom.min_aspect = geom.max_aspect = 0;
-	gtk_window_set_geometry_hints(GTK_WINDOW(inst->window), inst->area, &geom,
-				      GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE |
-				      GDK_HINT_RESIZE_INC);
-    }
+    set_geom_hints(inst);
 
     gtk_widget_show(inst->area);
     if (inst->cfg.scrollbar)
 	gtk_widget_show(inst->sbar);
+    else
+	gtk_widget_hide(inst->sbar);
     gtk_widget_show(GTK_WIDGET(inst->hbox));
 
     if (inst->gotpos) {
@@ -2554,6 +2683,8 @@ int pt_main(int argc, char **argv)
 	gtk_signal_connect(GTK_OBJECT(menuitem), "activate", \
 			       GTK_SIGNAL_FUNC(func), inst); \
 } while (0)
+        MKMENUITEM("Change Settings", change_settings_menuitem);
+	MKMENUITEM(NULL, NULL);
 	if (use_event_log)
 	    MKMENUITEM("Event Log", event_log_menuitem);
 	MKMENUITEM("Special Commands", NULL);
