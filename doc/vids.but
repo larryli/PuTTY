@@ -1,0 +1,30 @@
+\# Invoke the versionid macros defined in all the other manual
+\# chapter files.
+
+\versionidblurb
+
+\versionidintro
+
+\versionidgs
+
+\versionidusing
+
+\versionidconfig
+
+\versionidpscp
+
+\versionidpsftp
+
+\versionidplink
+
+\versionidpubkey
+
+\versionidpageant
+
+\versioniderrors
+
+\versionidfaq
+
+\versionidfeedback
+
+\versionidlicence

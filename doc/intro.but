@@ -1,4 +1,4 @@
-\versionid $Id: intro.but,v 1.7 2004/10/24 15:58:31 jacob Exp $
+\define{versionidintro} \versionid $Id$
 
 \C{intro} Introduction to PuTTY
 

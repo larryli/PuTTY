@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.10 2004/09/27 00:23:19 jacob Exp $
+\define{versioniderrors} \versionid $Id$
 
 \C{errors} Common error messages
 

@@ -1,4 +1,4 @@
-\versionid $Id: pageant.but,v 1.11 2004/05/22 11:09:31 simon Exp $
+\define{versionidpageant} \versionid $Id$
 
 \C{pageant} Using Pageant for authentication
 

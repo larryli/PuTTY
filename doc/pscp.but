@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.29 2004/08/03 13:23:48 jacob Exp $
+\define{versionidpscp} \versionid $Id$
 
 \#FIXME: Need examples
 

@@ -119,7 +119,10 @@ of the tag.
     + Make sure Owen has kept the Alpha release link maps somewhere
       useful.
 
- - Run Halibut to build the docs.
+ - Run Halibut to build the docs. Define VERSION on the make command
+   line to override the version strings, since Subversion revision
+   numbers are less meaningful on a tag.
+    + make -C doc VERSION="PuTTY release 0.XX"
 
  - Build the binary archives putty.zip (one for each architecture):
    each one just contains all the .exe files except PuTTYtel, and

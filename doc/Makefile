@@ -1,13 +1,45 @@
+all: man index.html
+
+# Decide on the versionid policy.
+#
+# If the user has passed in $(VERSION) on the command line (`make
+# VERSION="Release 0.56"'), we use that as an explicit version
+# string. Otherwise, we use `svnversion' to examine the checked-out
+# documentation source, and if that returns a single revision
+# number then we invent a version string reflecting just that
+# number. Failing _that_, we resort to versionids.but which shows a
+# $Id for each individual file.
+#
+# So here, we define VERSION using svnversion if it isn't already
+# defined ...
+ifndef VERSION
+SVNVERSION=$(shell test -d .svn && svnversion .)
+BADCHARS=$(findstring :,$(SVNVERSION))$(findstring S,$(SVNVERSION))
+ifeq ($(BADCHARS),)
+ifneq ($(SVNVERSION),)
+VERSION=Built from revision $(patsubst M,,$(SVNVERSION))
+endif
+endif
+endif
+# ... and now, we condition our build behaviour on whether or not
+# VERSION _is_ defined.
+ifdef VERSION
+VERSIONIDS=vstr
+vstr.but: FORCE
+	echo \\versionid $(VERSION) > vstr.but
+FORCE:;
+else
+VERSIONIDS=vids
+endif
+
 CHAPTERS := $(SITE) blurb intro gs using config pscp psftp plink pubkey
 CHAPTERS += pageant errors faq feedback licence
-CHAPTERS += index
+CHAPTERS += index $(VERSIONIDS)
 
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 
 # This is temporary. Hack it locally or something.
 HALIBUT = $(HOME)/src/halibut/build/halibut
-
-all: man index.html
 
 index.html: $(INPUTS)
 	$(HALIBUT) --text --html --winhelp $(INPUTS)
@@ -25,4 +57,4 @@ puttytel.1: man-ptel.but mancfg.but; $(MKMAN)
 pterm.1: man-pter.but mancfg.but; $(MKMAN)
 
 clean:
-	rm -f *.html *.txt *.hlp *.cnt *.1
+	rm -f *.html *.txt *.hlp *.cnt *.1 vstr.but

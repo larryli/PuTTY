@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.37 2004/10/24 16:48:43 jacob Exp $
+\define{versionidusing} \versionid $Id$
 
 \C{using} Using PuTTY
 

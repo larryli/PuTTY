@@ -1,4 +1,4 @@
-\versionid $Id: gs.but,v 1.9 2004/10/24 16:24:58 jacob Exp $
+\define{versionidgs} \versionid $Id$
 
 \C{gs} Getting started with PuTTY
 

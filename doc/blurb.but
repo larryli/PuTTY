@@ -1,3 +1,5 @@
+\define{versionidblurb} \versionid $Id$
+
 \title PuTTY User Manual
 
 \cfg{xhtml-leaf-level}{1}
@@ -26,5 +28,3 @@ Unix-specific documentation that currently exists is the man pages.
 \copyright This manual is copyright 2001-2004 Simon Tatham. All
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.
-
-\versionid $Id: blurb.but,v 1.13 2004/10/24 22:57:36 jacob Exp $

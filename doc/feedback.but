@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.20 2004/11/15 15:57:28 jacob Exp $
+\define{versionidfeedback} \versionid $Id$
 
 \A{feedback} Feedback and bug reporting
 

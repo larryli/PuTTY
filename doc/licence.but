@@ -1,4 +1,4 @@
-\versionid $Id: licence.but,v 1.7 2004/08/30 13:23:23 simon Exp $
+\define{versionidlicence} \versionid $Id$
 
 \A{licence} PuTTY Licence
 
