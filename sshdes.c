@@ -6,6 +6,7 @@
 
 /*
  * Description of DES
+ * ------------------
  *
  * Unlike the description in FIPS 46, I'm going to use _sensible_ indices:
  * bits in an n-bit word are numbered from 0 at the LSB to n-1 at the MSB.
@@ -142,6 +143,138 @@
  *   15  4 25 19  9  1 26 16  5 11 23  8 12  7 17  0 22  3 10 14  6 20 27 24
  */
 
+/*
+ * Implementation details
+ * ----------------------
+ * 
+ * If you look at the code in this module, you'll find it looks
+ * nothing _like_ the above algorithm. Here I explain the
+ * differences...
+ *
+ * Key setup has not been heavily optimised here. We are not
+ * concerned with key agility: we aren't codebreakers. We don't
+ * mind a little delay (and it really is a little one; it may be a
+ * factor of five or so slower than it could be but it's still not
+ * an appreciable length of time) while setting up. The only tweaks
+ * in the key setup are ones which change the format of the key
+ * schedule to speed up the actual encryption. I'll describe those
+ * below.
+ *
+ * The first and most obvious optimisation is the S-boxes. Since
+ * each S-box always targets the same four bits in the final 32-bit
+ * word, so the output from (for example) S-box 0 must always be
+ * shifted left 28 bits, we can store the already-shifted outputs
+ * in the lookup tables. This reduces lookup-and-shift to lookup,
+ * so the S-box step is now just a question of ORing together eight
+ * table lookups.
+ *
+ * The permutation P is just a bit order change; it's invariant
+ * with respect to OR, in that P(x)|P(y) = P(x|y). Therefore, we
+ * can apply P to every entry of the S-box tables and then we don't
+ * have to do it in the code of f(). This yields a set of tables
+ * which might be called SP-boxes.
+ *
+ * The bit-selection function E is our next target. Note that E is
+ * immediately followed by the operation of splitting into 6-bit
+ * chunks. Examining the 6-bit chunks coming out of E we notice
+ * they're all contiguous within the word (speaking cyclically -
+ * the end two wrap round); so we can extract those bit strings
+ * individually rather than explicitly running E. This would yield
+ * code such as
+ *
+ *     y |= SPboxes[0][ (rotl(R, 5) ^  top6bitsofK) & 0x3F ];
+ *     t |= SPboxes[1][ (rotl(R,11) ^ next6bitsofK) & 0x3F ];
+ *
+ * and so on; and the key schedule preparation would have to
+ * provide each 6-bit chunk separately.
+ *
+ * Really we'd like to XOR in the key schedule element before
+ * looking up bit strings in R. This we can't do, naively, because
+ * the 6-bit strings we want overlap. But look at the strings:
+ *
+ *       3322222222221111111111
+ * bit   10987654321098765432109876543210
+ * 
+ * box0  XXXXX                          X
+ * box1     XXXXXX
+ * box2         XXXXXX
+ * box3             XXXXXX
+ * box4                 XXXXXX
+ * box5                     XXXXXX
+ * box6                         XXXXXX
+ * box7  X                          XXXXX
+ *
+ * The bit strings we need to XOR in for boxes 0, 2, 4 and 6 don't
+ * overlap with each other. Neither do the ones for boxes 1, 3, 5
+ * and 7. So we could provide the key schedule in the form of two
+ * words that we can separately XOR into R, and then every S-box
+ * index is available as a (cyclically) contiguous 6-bit substring
+ * of one or the other of the results.
+ *
+ * The comments in Eric Young's libdes implementation point out
+ * that two of these bit strings require a rotation (rather than a
+ * simple shift) to extract. It's unavoidable that at least _one_
+ * must do; but we can actually run the whole inner algorithm (all
+ * 16 rounds) rotated one bit to the left, so that what the `real'
+ * DES description sees as L=0x80000001 we see as L=0x00000003.
+ * This requires rotating all our SP-box entries one bit to the
+ * left, and rotating each word of the key schedule elements one to
+ * the left, and rotating L and R one bit left just after IP and
+ * one bit right again just before FP. And in each round we convert
+ * a rotate into a shift, so we've saved a few per cent.
+ *
+ * That's about it for the inner loop; the SP-box tables as listed
+ * below are what I've described here (the original S value,
+ * shifted to its final place in the input to P, run through P, and
+ * then rotated one bit left). All that remains is to optimise the
+ * initial permutation IP.
+ *
+ * IP is not an arbitrary permutation. It has the nice property
+ * that if you take any bit number, write it in binary (6 bits),
+ * permute those 6 bits and invert some of them, you get the final
+ * position of that bit. Specifically, the bit whose initial
+ * position is given (in binary) as fedcba ends up in position
+ * AcbFED (where a capital letter denotes the inverse of a bit).
+ *
+ * We have the 64-bit data in two 32-bit words L and R, where bits
+ * in L are those with f=1 and bits in R are those with f=0. We
+ * note that we can do a simple transformation: suppose we exchange
+ * the bits with f=1,c=0 and the bits with f=0,c=1. This will cause
+ * the bit fedcba to be in position cedfba - we've `swapped' bits c
+ * and f in the position of each bit!
+ * 
+ * Better still, this transformation is easy. In the example above,
+ * bits in L with c=0 are bits 0x0F0F0F0F, and those in R with c=1
+ * are 0xF0F0F0F0. So we can do
+ *
+ *     difference = ((R >> 4) ^ L) & 0x0F0F0F0F
+ *     R ^= (difference << 4)
+ *     L ^= difference
+ *
+ * to perform the swap. Let's denote this by bitswap(4,0x0F0F0F0F).
+ * Also, we can invert the bit at the top just by exchanging L and
+ * R. So in a few swaps and a few of these bit operations we can
+ * do:
+ * 
+ * Initially the position of bit fedcba is     fedcba
+ * Swap L with R to make it                    Fedcba
+ * Perform bitswap( 4,0x0F0F0F0F) to make it   cedFba
+ * Perform bitswap(16,0x0000FFFF) to make it   ecdFba
+ * Swap L with R to make it                    EcdFba
+ * Perform bitswap( 2,0x33333333) to make it   bcdFEa
+ * Perform bitswap( 8,0x00FF00FF) to make it   dcbFEa
+ * Swap L with R to make it                    DcbFEa
+ * Perform bitswap( 1,0x55555555) to make it   acbFED
+ * Swap L with R to make it                    AcbFED
+ *
+ * (In the actual code the four swaps are implicit: R and L are
+ * simply used the other way round in the first, second and last
+ * bitswap operations.)
+ *
+ * The final permutation is just the inverse of IP, so it can be
+ * performed by a similar set of operations.
+ */
+
 typedef struct {
     word32 k0246[16], k1357[16];
     word32 eiv0, eiv1;
@@ -172,6 +305,14 @@ void des_key_setup(word32 key_msw, word32 key_lsw, DESContext *sched) {
         1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26, 34, 42,
         50, 58, 3, 11, 19, 27, 35, 43, 51, 59, 36, 44, 52, 60
     };
+    /*
+     * The bit numbers in the two lists below don't correspond to
+     * the ones in the above description of PC2, because in the
+     * above description C and D are concatenated so `bit 28' means
+     * bit 0 of C. In this implementation we're using the standard
+     * `bitsel' function above and C is in the second word, so bit
+     * 0 of C is addressed by writing `32' here.
+     */
     static const int PC2_0246[] = {
         49, 36, 59, 55, -1, -1, 37, 41, 48, 56, 34, 52, -1, -1, 15, 4,
         25, 19, 9, 1, -1, -1, 12, 7, 17, 0, 22, 3, -1, -1, 46, 43
