@@ -429,6 +429,7 @@ struct config_tag {
     char answerback[256];
     char printer[128];
     /* Colour options */
+    int system_colour;
     int try_palette;
     int bold_colour;
     unsigned char colours[22][3];

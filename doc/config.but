@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.66 2003/06/25 15:52:29 jacob Exp $
+\versionid $Id: config.but,v 1.67 2003/09/03 20:14:38 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1314,6 +1314,18 @@ it wants instead of going with the Windows standard defaults.
 If you are not getting the colours you ask for on an 8-bit display,
 you can try enabling this option. However, be warned that it's never
 worked very well.
+
+\S{config-syscolour} \q{Use system colours}
+
+\cfg{winhelp-topic}{colours.system}
+
+Enabling this option will cause PuTTY to ignore the configured colours
+for \q{Default Background/Foreground} and \q{Cursor Colour/Text} (see
+\k{config-colourcfg}), instead going with the system-wide defaults.
+
+Note that non-bold and bold text will be the same colour if this
+option is enabled. You might want to change to indicating bold text
+by font changes (see \k{config-boldcolour}).
 
 \S{config-colourcfg} Adjusting the colours in the terminal window
 
