@@ -588,11 +588,14 @@ END
 print $_;
 print <<END;
 
-# -w 53 disables "unused parameter" warnings
-COptions     = -i : -i :: -w 35
-COptions_68K = {COptions} -proto strict -model far
-COptions_PPC = {COptions}
-ILinkOptions = -t 'APPL' -c 'pTTY' -br 68k -model far
+# -w 35 disables "unused parameter" warnings
+COptions     = -i : -i :: -w 35 -w err -proto strict
+COptions_68K = {COptions} -model far -opt space
+COptions_PPC = {COptions} -opt size
+
+LinkOptions = -c 'pTTY'
+LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
+LinkOptions_PPC = {LinkOptions}
 
 Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MacRuntime.o" \xb6
@@ -604,7 +607,7 @@ Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}OpenTptInet.o" \xb6
 		"{Libraries}UnicodeConverterLib.far.o"
 
-Libs_PPC =	"{SharedLibraries}InterfaceLib" \xb6
+Libs_CFM =	"{SharedLibraries}InterfaceLib" \xb6
 		"{SharedLibraries}StdCLib" \xb6
 		"{SharedLibraries}MathLib" \xb6
 		"{SharedLibraries}AppearanceLib" \xb6
@@ -621,28 +624,42 @@ Libs_PPC =	"{SharedLibraries}InterfaceLib" \xb6
 			-weaklib OTNativeClientLib \xb6
 		"{SharedLibraries}OpenTptInternetLib" \xb6
 			-weaklib OTInetClientLib \xb6
+		"{SharedLibraries}TextCommon" \xb6
+			-weaklib TextCommon \xb6
+		"{SharedLibraries}UnicodeConverter" \xb6
+			-weaklib UnicodeConverter
+
+Libs_PPC =	{Libs_CFM} \xb6
 		"{PPCLibraries}StdCRuntime.o" \xb6
 		"{PPCLibraries}PPCCRuntime.o" \xb6
+		"{PPCLibraries}CarbonAccessors.o" \xb6
 		"{PPCLibraries}OpenTransportAppPPC.o" \xb6
 		"{PPCLibraries}OpenTptInetPPC.o"
-
 
 END
 print &splitline("all \xc4 " . join(" ", &progrealnames("M")), undef, "\xb6");
 print "\n\n";
 foreach $p (&prognames("M")) {
   ($prog, $type) = split ",", $p;
-  $objstr = &objects($p, "X.c.o", undef, undef);
-  print &splitline($prog . " \xc4 " . $objstr, undef, "\xb6"), "\n";
-  print &splitline("\tILink -o {Targ} {ILinkOptions} " .
+
+  print &splitline("$prog \xc4 $prog.68k $prog.ppc", undef, "\xb6"), "\n\n";
+
+  $objstr = &objects($p, "X.68k.o", undef, undef);
+  print &splitline("$prog.68k \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("\tILink -o {Targ} {LinkOptions_68K} " .
                    $objstr . " {Libs_68K}", 69, "\xb6"), "\n\n";
+
+  $objstr = &objects($p, "X.ppc.o", undef, undef);
+  print &splitline("$prog.ppc \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
+                   $objstr . " {Libs_PPC}", 69, "\xb6"), "\n\n";
 }
-foreach $d (&deps("X.c.o", undef, "::", ":")) {
+foreach $d (&deps("X.68k.o", undef, "::", ":")) {
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_68K}\n\n";
 }
-foreach $d (&deps("X.c.x", undef, "::", ":")) {
+foreach $d (&deps("X.ppc.o", undef, "::", ":")) {
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   # The odd stuff here seems to stop afpd getting confused.
