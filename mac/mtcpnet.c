@@ -603,11 +603,11 @@ static pascal void mactcp_asr(StreamPtr str, unsigned short event, Ptr cookie,
  */
 void mactcp_poll(void)
 {
-    Actual_Socket s;
+    Actual_Socket s, next;
     TCPiopb pb;
 
-    for (s = mactcp.socklist; s != NULL; s = s->next) {
-	/* XXX above can't handle sockets being deleted. */
+    for (s = mactcp.socklist; s != NULL; s = next) {
+	next = s->next;
 	do {
 	    pb.ioCRefNum = mactcp.refnum;
 	    pb.csCode = TCPStatus;
