@@ -2833,9 +2833,10 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
     {
 	char type, *e;
 	int n;
-	int sport,dport;
+	int sport,dport,sserv,dserv;
 	char sports[256], dports[256], host[256];
 	char buf[1024];
+	struct servent *se;
 
 	ssh_rportfwds = newtree234(ssh_rportcmp_ssh1);
         /* Add port forwardings. */
@@ -2860,12 +2861,43 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 	    dports[n] = 0;
 	    e++;
 	    dport = atoi(dports);
+	    dserv = 0;
+	    if (dport == 0) {
+		dserv = 1;
+		se = getservbyname(dports, NULL);
+		if (se != NULL) {
+		    dport = ntohs(se->s_port);
+		} else {
+		    sprintf(buf,
+			    "Service lookup failed for destination port \"%s\"",
+			    dports);
+		    logevent(buf);
+		}
+	    }
 	    sport = atoi(sports);
+	    sserv = 0;
+	    if (sport == 0) {
+		sserv = 1;
+		se = getservbyname(sports, NULL);
+		if (se != NULL) {
+		    sport = ntohs(se->s_port);
+		} else {
+		    sprintf(buf,
+			    "Service lookup failed for source port \"%s\"",
+			    sports);
+		    logevent(buf);
+		}
+	    }
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, sport);
-		    sprintf(buf, "Local port %d forwarding to %s:%d",
-			    sport, host, dport);
+		    sprintf(buf, "Local port %.*s%.*s%d%.*s forwarding to"
+			    " %s:%.*s%.*s%d%.*s",
+			    sserv ? strlen(sports) : 0, sports,
+			    sserv, "(", sport, sserv, ")",
+			    host,
+			    dserv ? strlen(dports) : 0, dports,
+			    dserv, "(", dport, dserv, ")");
 		    logevent(buf);
 		} else {
 		    struct ssh_rportfwd *pf;
@@ -2879,8 +2911,13 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			logevent(buf);
 			sfree(pf);
 		    } else {
-			sprintf(buf, "Requesting remote port %d forward to %s:%d",
-				sport, host, dport);
+			sprintf(buf, "Requesting remote port %.*s%.*s%d%.*s"
+				" forward to %s:%.*s%.*s%d%.*s",
+			    sserv ? strlen(sports) : 0, sports,
+			    sserv, "(", sport, sserv, ")",
+			    host,
+			    dserv ? strlen(dports) : 0, dports,
+			    dserv, "(", dport, dserv, ")");
 			logevent(buf);
 			send_packet(SSH1_CMSG_PORT_FORWARD_REQUEST,
 				    PKT_INT, sport,
@@ -4714,9 +4751,10 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	static char *e;		       /* preserve across crReturn */
 	char type;
 	int n;
-	int sport,dport;
+	int sport,dport,sserv,dserv;
 	char sports[256], dports[256], host[256];
 	char buf[1024];
+	struct servent *se;
 
 	ssh_rportfwds = newtree234(ssh_rportcmp_ssh2);
         /* Add port forwardings. */
@@ -4741,12 +4779,43 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    dports[n] = 0;
 	    e++;
 	    dport = atoi(dports);
+	    dserv = 0;
+	    if (dport == 0) {
+		dserv = 1;
+		se = getservbyname(dports, NULL);
+		if (se != NULL) {
+		    dport = ntohs(se->s_port);
+		} else {
+		    sprintf(buf,
+			    "Service lookup failed for destination port \"%s\"",
+			    dports);
+		    logevent(buf);
+		}
+	    }
 	    sport = atoi(sports);
+	    sserv = 0;
+	    if (sport == 0) {
+		sserv = 1;
+		se = getservbyname(sports, NULL);
+		if (se != NULL) {
+		    sport = ntohs(se->s_port);
+		} else {
+		    sprintf(buf,
+			    "Service lookup failed for source port \"%s\"",
+			    sports);
+		    logevent(buf);
+		}
+	    }
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, sport);
-		    sprintf(buf, "Local port %d forwarding to %s:%d",
-			    sport, host, dport);
+		    sprintf(buf, "Local port %.*s%.*s%d%.*s forwarding to"
+			    " %s:%.*s%.*s%d%.*s",
+			    sserv ? strlen(sports) : 0, sports,
+			    sserv, "(", sport, sserv, ")",
+			    host,
+			    dserv ? strlen(dports) : 0, dports,
+			    dserv, "(", dport, dserv, ")");
 		    logevent(buf);
 		} else {
 		    struct ssh_rportfwd *pf;
@@ -4761,8 +4830,13 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			logevent(buf);
 			sfree(pf);
 		    } else {
-			sprintf(buf, "Requesting remote port %d (forwarded to %s:%d)",
-				sport, host, dport);
+			sprintf(buf, "Requesting remote port %.*s%.*s%d%.*s"
+				" forward to %s:%.*s%.*s%d%.*s",
+			    sserv ? strlen(sports) : 0, sports,
+			    sserv, "(", sport, sserv, ")",
+			    host,
+			    dserv ? strlen(dports) : 0, dports,
+			    dserv, "(", dport, dserv, ")");
 			logevent(buf);
 			ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring("tcpip-forward");
