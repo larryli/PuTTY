@@ -1012,9 +1012,19 @@ static pascal void mac_growtermdraghook(void)
 
 void mac_closeterm(WindowPtr window)
 {
+    int alertret;
     Session *s = mac_windowsession(window);
 
-    /* XXX warn on close */
+    if (s->cfg.warn_on_close) {
+	ParamText("\pAre you sure you want to close this session?",
+		  NULL, NULL, NULL);
+	alertret=CautionAlert(wQuestion, NULL);
+	if (alertret == 2) {
+	    /* Cancel */
+	    return;
+	}
+    }
+
     HideWindow(s->window);
     *s->prev = s->next;
     s->next->prev = s->prev;
