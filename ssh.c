@@ -2912,6 +2912,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		if (c && c->type == CHAN_SOCKDATA_DORMANT) {
 		    c->remoteid = localid;
 		    c->type = CHAN_SOCKDATA;
+		    c->v.v1.throttling = 0;
 		    pfd_confirm(c->u.pfd.s);
 		}
 
