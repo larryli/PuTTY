@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.23 2002/03/24 14:08:13 jacob Exp $
+\versionid $Id: faq.but,v 1.24 2002/04/01 15:18:29 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -531,6 +531,36 @@ If this happens to you, it is quite likely to still be a PuTTY bug
 and you should report it (although it might be a bug in your SSH
 server instead); but it doesn't necessarily mean you've actually run
 out of memory.
+
+\S{faq-outofmem2}{Question} When attempting a file transfer, either
+PSCP or PSFTP says \q{Out of memory} and dies.
+
+This is almost always caused by your login scripts on the server
+generating output. PSCP or PSFTP will receive that output when they
+were expecting to see the start of a file transfer protocol, and
+they will attempt to interpret the output as file-transfer protocol.
+This will usually lead to an \q{out of memory} error for much the
+same reasons as given in \k{faq-outofmem}.
+
+This is a setup problem in your account on your server, \e{not} a
+PSCP/PSFTP bug. Your login scripts should \e{never} generate output
+during non-interactive sessions; secure file transfer is not the
+only form of remote access that will break if they do.
+
+On Unix, a simple fix is to ensure that all the parts of your login
+script that might generate output are in \c{.profile} (if you use a
+Bourne shell derivative) or \c{.login} (if you use a C shell).
+Putting them in more general files such as \c{.bashrc} or \c{.cshrc}
+is liable to lead to problems.
+
+\S{faq-psftp-slow} PSFTP transfers files much slower than PSCP.
+
+We believe this is because the SFTP and SSH2 protocols are less
+efficient at bulk data transfer than SCP and SSH1, because every
+block of data transferred requires an acknowledgment from the far
+end. It would in theory be possible to queue several blocks of data
+to get round this speed problem, but as yet we haven't done the
+coding. If you really want this fixed, feel free to offer to help.
 
 \S{faq-bce}{Question} When I run full-colour applications, I see
 areas of black space where colour ought to be.
