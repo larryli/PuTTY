@@ -166,7 +166,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 
 #define translate(x) if (type == x) return #x
 #define translatec(x,ctx) if (type == x && (pkt_ctx & ctx)) return #x
-char *ssh1_pkt_type(int type)
+static char *ssh1_pkt_type(int type)
 {
     translate(SSH1_MSG_DISCONNECT);
     translate(SSH1_SMSG_PUBLIC_KEY);
@@ -211,7 +211,7 @@ char *ssh1_pkt_type(int type)
     translate(SSH1_CMSG_AUTH_CCARD_RESPONSE);
     return "unknown";
 }
-char *ssh2_pkt_type(int pkt_ctx, int type)
+static char *ssh2_pkt_type(int pkt_ctx, int type)
 {
     translate(SSH2_MSG_DISCONNECT);
     translate(SSH2_MSG_IGNORE);
@@ -625,7 +625,7 @@ struct ssh_tag {
 #define logevent(s) logevent(ssh->frontend, s)
 
 /* logevent, only printf-formatted. */
-void logeventf(Ssh ssh, char *fmt, ...)
+static void logeventf(Ssh ssh, char *fmt, ...)
 {
     va_list ap;
     char *buf;
@@ -2125,7 +2125,7 @@ static void ssh_throttle_all(Ssh ssh, int enable, int bufsize)
  */
 
 /* Set up a username or password input loop on a given buffer. */
-void setup_userpass_input(Ssh ssh, char *buffer, int buflen, int echo)
+static void setup_userpass_input(Ssh ssh, char *buffer, int buflen, int echo)
 {
     ssh->userpass_input_buffer = buffer;
     ssh->userpass_input_buflen = buflen;
@@ -2139,7 +2139,7 @@ void setup_userpass_input(Ssh ssh, char *buffer, int buflen, int echo)
  * buffer), <0 for failure (user hit ^C/^D, bomb out and exit), 0
  * for inconclusive (keep waiting for more input please).
  */
-int process_userpass_input(Ssh ssh, unsigned char *in, int inlen)
+static int process_userpass_input(Ssh ssh, unsigned char *in, int inlen)
 {
     char c;
 
@@ -6087,7 +6087,7 @@ void *new_sock_channel(void *handle, Socket s)
  * This is called when stdout/stderr (the entity to which
  * from_backend sends data) manages to clear some backlog.
  */
-void ssh_unthrottle(void *handle, int bufsize)
+static void ssh_unthrottle(void *handle, int bufsize)
 {
     Ssh ssh = (Ssh) handle;
     if (ssh->version == 1) {
