@@ -7,6 +7,8 @@
 #include <aclapi.h>
 #endif
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include "ssh.h"
 #include "tree234.h"
 

@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <imm.h>
 #include <commctrl.h>
 #ifndef AUTO_WINSOCK
 #ifdef WINSOCK_TWO

@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <winsock.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "putty.h"
 #include "network.h"
@@ -336,7 +337,7 @@ int select_result(WPARAM wParam, LPARAM lParam) {
     DWORD err;
     char buf[BUFFER_GRANULE];
     Socket s;
-    int atmark;
+    u_long atmark;
 
     /* wParam is the socket itself */
     s = find234(sktree, (void *)wParam, cmpforsearch);

@@ -7,6 +7,7 @@
 #endif
 #include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
@@ -16,7 +17,7 @@
 
 void fatalbox (char *p, ...) {
     va_list ap;
-    fprintf(stderr, "FATAL ERROR: ", p);
+    fprintf(stderr, "FATAL ERROR: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
@@ -26,7 +27,7 @@ void fatalbox (char *p, ...) {
 }
 void connection_fatal (char *p, ...) {
     va_list ap;
-    fprintf(stderr, "FATAL ERROR: ", p);
+    fprintf(stderr, "FATAL ERROR: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);

@@ -189,7 +189,7 @@ int saversakey(char *filename, struct RSAKey *key, struct RSAAux *aux,
     unsigned char buf[16384];
     unsigned char keybuf[16];
     struct MD5Context md5c;
-    char *p, *estart;
+    unsigned char *p, *estart;
     FILE *fp;
 
     /*

@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define PUTTY_DO_GLOBALS
 

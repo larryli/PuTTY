@@ -14,6 +14,9 @@
  * send _that_ to the receiver function with `urgent' set.
  */
 
+#ifndef PUTTY_NETWORK_H
+#define PUTTY_NETWORK_H
+
 typedef struct Socket_tag *Socket;
 typedef struct SockAddr_tag *SockAddr;
 typedef int (*sk_receiver_t)(Socket s, int urgent, char *data, int len);
@@ -42,3 +45,5 @@ void *sk_get_private_ptr(Socket s);
  */
 char *sk_addr_error(SockAddr addr);
 char *sk_socket_error(Socket addr);
+
+#endif
