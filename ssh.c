@@ -118,6 +118,29 @@
 #define SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE   9    /* 0x9 */
 #define SSH2_DISCONNECT_CONNECTION_LOST           10   /* 0xa */
 #define SSH2_DISCONNECT_BY_APPLICATION            11   /* 0xb */
+#define SSH2_DISCONNECT_TOO_MANY_CONNECTIONS      12   /* 0xc */
+#define SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER    13   /* 0xd */
+#define SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE 14 /* 0xe */
+#define SSH2_DISCONNECT_ILLEGAL_USER_NAME         15   /* 0xf */
+
+static const char *const ssh2_disconnect_reasons[] = {
+    NULL,
+    "SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT",
+    "SSH_DISCONNECT_PROTOCOL_ERROR",
+    "SSH_DISCONNECT_KEY_EXCHANGE_FAILED",
+    "SSH_DISCONNECT_HOST_AUTHENTICATION_FAILED",
+    "SSH_DISCONNECT_MAC_ERROR",
+    "SSH_DISCONNECT_COMPRESSION_ERROR",
+    "SSH_DISCONNECT_SERVICE_NOT_AVAILABLE",
+    "SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED",
+    "SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE",
+    "SSH_DISCONNECT_CONNECTION_LOST",
+    "SSH_DISCONNECT_BY_APPLICATION",
+    "SSH_DISCONNECT_TOO_MANY_CONNECTIONS",
+    "SSH_DISCONNECT_AUTH_CANCELLED_BY_USER",
+    "SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE",
+    "SSH_DISCONNECT_ILLEGAL_USER_NAME",
+};
 
 #define SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED     1    /* 0x1 */
 #define SSH2_OPEN_CONNECT_FAILED                  2    /* 0x2 */
@@ -510,6 +533,20 @@ next_packet:
 	goto next_packet;
     }
 
+    if (pktin.type == SSH1_MSG_DISCONNECT) {
+	/* log reason code in disconnect message */
+	char buf[256];
+	int msglen = GET_32BIT(pktin.body);
+	int nowlen;
+	strcpy(buf, "Remote sent disconnect: ");
+	nowlen = strlen(buf);
+	if (msglen > sizeof(buf)-nowlen-1)
+	    msglen = sizeof(buf)-nowlen-1;
+	memcpy(buf+nowlen, pktin.body+4, msglen);
+	buf[nowlen+msglen] = '\0';
+	logevent(buf);
+    }
+
     crFinish(0);
 }
 
@@ -648,6 +685,28 @@ next_packet:
 
     if (pktin.type == SSH2_MSG_IGNORE || pktin.type == SSH2_MSG_DEBUG)
         goto next_packet;              /* FIXME: print DEBUG message */
+
+    if (pktin.type == SSH2_MSG_DISCONNECT) {
+	/* log reason code in disconnect message */
+	char buf[256];
+	int reason = GET_32BIT(pktin.data+6);
+	int msglen = GET_32BIT(pktin.data+10);
+	int nowlen;
+	if (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) {
+	    sprintf(buf, "Received disconnect message (%s)",
+		    ssh2_disconnect_reasons[reason]);
+	} else {
+	    sprintf(buf, "Received disconnect message (unknown type %d)", reason);
+	}
+	logevent(buf);
+	strcpy(buf, "Disconnection message text: ");
+	nowlen = strlen(buf);
+	if (msglen > sizeof(buf)-nowlen-1)
+	    msglen = sizeof(buf)-nowlen-1;
+	memcpy(buf+nowlen, pktin.data+14, msglen);
+	buf[nowlen+msglen] = '\0';
+	logevent(buf);
+    }
 
     crFinish(0);
 }
@@ -3022,6 +3081,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    if (pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
 		bombout(("Strange packet received during authentication: type %d",
 			 pktin.type));
+		crReturnV;
 	    }
 
 	    gotit = FALSE;
