@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.5 2001/01/28 14:38:23 owen Exp $
+\versionid $Id: pscp.but,v 1.6 2001/01/31 00:25:57 owen Exp $
 
 \#FIXME: Need examples, index entries, links
 
@@ -7,21 +7,19 @@
 \# Explain PSCP: the command line, the modes of use (local->remote
 \# and remote->local, recursive, wildcards).
 
-\H{pscp-intro} Introduction to PSCP
-
-PSCP, the PuTTY Secure Copy client, is a tool for transferring files
+\i{PSCP}, the PuTTY Secure Copy client, is a tool for transferring files
 securely between computers using an SSH connection.
 
 \H{pscp-starting} Starting PSCP
 
 PSCP is a command line application.  This means that you cannot just
 double-click on its icon to run it and instead you have to bring up a
-console window.  With Windows 95, 98, and ME, this is called an
+\i{console window}.  With Windows 95, 98, and ME, this is called an
 \q{MS-DOS Prompt} and with Windows NT and 2000 it is called a
 \q{Command Prompt}.  It should be available from the Programs section
 of your Start Menu.
 
-To start PSCP it will need either to be on your \c{PATH} or in your
+To start PSCP it will need either to be on your \i{\c{PATH}} or in your
 current directory.  To add the directory containing PSCP to your
 \c{PATH} environment variable, type into the console window:
 
@@ -67,30 +65,43 @@ To send (a) file(s) to a remote server:
 
 \c{pscp [options] source [source...] [user@]host:target}
 
-\b \c{user} The login name on the remote server. If this is omitted, scp
-will try to use the default login from the PuTTY saved session.
+\S2{pscp-usage-basics-user} \c{user}
 
-\b \c{host} The name of the remote server, or the name of an existing PuTTY
-saved session. In the latter case, the session's settings for
-hostname, port number, cipher type and username will be used.  
+The login name on the remote server. If this is omitted, and \c{host}
+is a PuTTY saved session, PSCP will use any username specified by that 
+saved session.  Otherwise, PSCP will attempt to use the local Windows
+username.
 
-\b \c{source} One or more source files. Wildcards are allowed.  
+\S2{pscp-usage-basics-host} \c{host}
 
-\# FIXME: describe wildcard syntax
+The name of the remote server, or the name of an existing PuTTY saved
+session. In the latter case, the session's settings for hostname, port
+number, cipher type and username will be used.
 
-\b \c{target} The filename or directory to put the file(s).  
+\S2{pscp-usage-basics-source} \c{source}
+
+One or more source files. \i{Wildcards} are allowed.  The syntax of
+wildcards depends on the system to which they apply, so if you are
+copying \e{from} a Windows system \e{to} a UNIX system, you should use 
+Windows wildcard syntax (e.g. \c{*.*}), but if you are copying \{from} 
+a UNIX system \e{to} a Windows system, you would use the wildcard
+syntax allowed by your UNIX shell (e.g. \c{*}).
+
+\S2{pscp-usage-basics-target} \c{target}
+
+The filename or directory to put the file(s).
 
 \S{pscp-usage-options} Options
 
-\# Document each command line option.
+These are the command line options that PSCP accepts.
 
 \S2{pscp-usage-options-p}\c{-p} preserve file attributes
 
-By default, files copied with PSCP are timestamped with the date and
+By default, files copied with PSCP are \i{timestamp}ed with the date and
 time they were copied.  The \c{-p} option preserves the original
 timestamp on copied files.
 
-\S2{pscp-usage-options-q}\c{-q} quiet, don't show statistics
+\S2{pscp-usage-options-q}\c{-q} quiet, don't show \i{statistics}
 
 By default, PSCP displays a meter displaying the progress of the
 current transfer:
@@ -104,7 +115,7 @@ that the transfer will be complete, and percentage of the file so far
 transferred.  The \c{-q} option to PSCP suppresses the printing of
 these statistics.
 
-\S2{pscp-usage-options-r}\c{-r} copies directories recursively
+\S2{pscp-usage-options-r}\c{-r} copies directories \i{recursive}ly
 
 By default, PSCP will only copy files.  Any directories you specify to
 copy will be skipped, as will their contents.  The \c{-r} option tells
@@ -112,7 +123,7 @@ PSCP to descend into any directories you specify, and to copy them and
 their contents.  This allows you to use PSCP to transfer whole
 directory structures between machines.
 
-\S2{pscp-usage-options-v}\c{-v} show verbose messages
+\S2{pscp-usage-options-v}\c{-v} show \i{verbose} messages
 
 The \c{-v} option to PSCP makes it print extra information about the
 file transfer.  For example:
@@ -128,14 +139,14 @@ file transfer.  For example:
 
 This information may be useful for debugging problems with PSCP.
 
-\S2{pscp-usage-options-P}\c{-P port} connect to specified port
+\S2{pscp-usage-options-P}\c{-P port} connect to specified \i{port}
 
 If the \c{host} you specify is a saved session, PSCP uses any port
 number specified in that saved session.  If not, PSCP uses the default
 SSH port, 22.  The \c{-P} option allows you specify the port number to 
 connect to for PSCP's SSH connection.
 
-\S2{pscp-usage-options-pw}\c{-pw passw} login with specified password
+\S2{pscp-usage-options-pw}\c{-pw passw} login with specified \i{password}
 
 If a password is required to connect to the \c{host}, PSCP will
 interactively prompt you for it.  However, this may not always be
@@ -147,10 +158,10 @@ line.
 Since specifying passwords in scripts is a bad idea for security
 reasons, you might want instead to consider using public-key
 authentication (see \k{pubkey}).  PSCP will attempt to authenticate
-with any public key specified in a saved session's configuration
-before asking for a password.
+with any key specified in a saved session's configuration or with a
+key stored in Pageant (see \k{pageant}) before asking for a password.
 
-\H{pscp-ixplorer} Secure iXplorer
+\H{pscp-ixplorer} \i{Secure iXplorer}
 
 Lars Gunnarson has written a graphical interface for PSCP.  You can
 get it from his web site, at
