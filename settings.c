@@ -20,7 +20,8 @@ static const struct keyval ciphernames[] = {
     { "des",	    CIPHER_DES }
 };
 
-static void gpps(void *handle, char *name, char *def, char *val, int len)
+static void gpps(void *handle, const char *name, const char *def,
+		 char *val, int len)
 {
     if (!read_setting_s(handle, name, val, len)) {
 	char *pdef;
@@ -518,7 +519,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);
     gppi(sesskey, "BoldAsColour", 1, &cfg->bold_colour);
     for (i = 0; i < 22; i++) {
-	static char *defaults[] = {
+	static const char *const defaults[] = {
 	    "187,187,187", "255,255,255", "0,0,0", "85,85,85", "0,0,0",
 	    "0,255,0", "0,0,0", "85,85,85", "187,0,0", "255,85,85",
 	    "0,187,0", "85,255,85", "187,187,0", "255,255,85", "0,0,187",
@@ -541,7 +542,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "RectSelect", 0, &cfg->rect_select);
     gppi(sesskey, "MouseOverride", 1, &cfg->mouse_override);
     for (i = 0; i < 256; i += 32) {
-	static char *defaults[] = {
+	static const char *const defaults[] = {
 	    "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0",
 	    "0,1,2,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1",
 	    "1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,2",

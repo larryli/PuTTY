@@ -758,10 +758,10 @@ static int telnet_send(void *handle, char *buf, int len)
 {
     Telnet telnet = (Telnet) handle;
     unsigned char *p, *end;
-    static unsigned char iac[2] = { IAC, IAC };
-    static unsigned char cr[2] = { CR, NUL };
+    static const unsigned char iac[2] = { IAC, IAC };
+    static const unsigned char cr[2] = { CR, NUL };
 #if 0
-    static unsigned char nl[2] = { CR, LF };
+    static const unsigned char nl[2] = { CR, LF };
 #endif
 
     if (telnet->s == NULL)

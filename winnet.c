@@ -59,7 +59,7 @@
 	((ntohl(addr.s_addr) & 0xFF000000L) == 0x7F000000L)
 
 struct Socket_tag {
-    struct socket_function_table *fn;
+    const struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
     char *error;
     SOCKET s;
@@ -471,7 +471,7 @@ extern char *do_select(SOCKET skt, int startup);
 
 Socket sk_register(void *sock, Plug plug)
 {
-    static struct socket_function_table fn_table = {
+    static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
 	sk_tcp_close,
 	sk_tcp_write,
@@ -528,7 +528,7 @@ Socket sk_register(void *sock, Plug plug)
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug plug)
 {
-    static struct socket_function_table fn_table = {
+    static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
 	sk_tcp_close,
 	sk_tcp_write,
@@ -706,7 +706,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
 Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 {
-    static struct socket_function_table fn_table = {
+    static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
 	sk_tcp_close,
 	sk_tcp_write,

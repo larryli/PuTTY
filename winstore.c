@@ -13,9 +13,9 @@ static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
 static char seedpath[2 * MAX_PATH + 10] = "\0";
 
-static char hex[16] = "0123456789ABCDEF";
+static const char hex[16] = "0123456789ABCDEF";
 
-static void mungestr(char *in, char *out)
+static void mungestr(const char *in, char *out)
 {
     int candot = 0;
 
@@ -35,7 +35,7 @@ static void mungestr(char *in, char *out)
     return;
 }
 
-static void unmungestr(char *in, char *out, int outlen)
+static void unmungestr(const char *in, char *out, int outlen)
 {
     while (*in) {
 	if (*in == '%' && in[1] && in[2]) {
@@ -60,7 +60,7 @@ static void unmungestr(char *in, char *out, int outlen)
     return;
 }
 
-void *open_settings_w(char *sessionname)
+void *open_settings_w(const char *sessionname)
 {
     HKEY subkey1, sesskey;
     int ret;
@@ -82,14 +82,14 @@ void *open_settings_w(char *sessionname)
     return (void *) sesskey;
 }
 
-void write_setting_s(void *handle, char *key, char *value)
+void write_setting_s(void *handle, const char *key, const char *value)
 {
     if (handle)
 	RegSetValueEx((HKEY) handle, key, 0, REG_SZ, value,
 		      1 + strlen(value));
 }
 
-void write_setting_i(void *handle, char *key, int value)
+void write_setting_i(void *handle, const char *key, int value)
 {
     if (handle)
 	RegSetValueEx((HKEY) handle, key, 0, REG_DWORD,
@@ -101,7 +101,7 @@ void close_settings_w(void *handle)
     RegCloseKey((HKEY) handle);
 }
 
-void *open_settings_r(char *sessionname)
+void *open_settings_r(const char *sessionname)
 {
     HKEY subkey1, sesskey;
     char *p;
@@ -123,7 +123,7 @@ void *open_settings_r(char *sessionname)
     return (void *) sesskey;
 }
 
-char *read_setting_s(void *handle, char *key, char *buffer, int buflen)
+char *read_setting_s(void *handle, const char *key, char *buffer, int buflen)
 {
     DWORD type, size;
     size = buflen;
@@ -136,7 +136,7 @@ char *read_setting_s(void *handle, char *key, char *buffer, int buflen)
 	return buffer;
 }
 
-int read_setting_i(void *handle, char *key, int defvalue)
+int read_setting_i(void *handle, const char *key, int defvalue)
 {
     DWORD type, val, size;
     size = sizeof(val);
@@ -155,7 +155,7 @@ void close_settings_r(void *handle)
     RegCloseKey((HKEY) handle);
 }
 
-void del_settings(char *sessionname)
+void del_settings(const char *sessionname)
 {
     HKEY subkey1;
     char *p;
@@ -215,8 +215,8 @@ void enum_settings_finish(void *handle)
     sfree(e);
 }
 
-static void hostkey_regname(char *buffer, char *hostname,
-			    int port, char *keytype)
+static void hostkey_regname(char *buffer, const char *hostname,
+			    int port, const char *keytype)
 {
     int len;
     strcpy(buffer, keytype);
@@ -226,7 +226,8 @@ static void hostkey_regname(char *buffer, char *hostname,
     mungestr(hostname, buffer + strlen(buffer));
 }
 
-int verify_host_key(char *hostname, int port, char *keytype, char *key)
+int verify_host_key(const char *hostname, int port,
+		    const char *keytype, const char *key)
 {
     char *otherstr, *regname;
     int len;
@@ -331,7 +332,8 @@ int verify_host_key(char *hostname, int port, char *keytype, char *key)
 	return 0;		       /* key matched OK in registry */
 }
 
-void store_host_key(char *hostname, int port, char *keytype, char *key)
+void store_host_key(const char *hostname, int port,
+		    const char *keytype, const char *key)
 {
     char *regname;
     HKEY rkey;

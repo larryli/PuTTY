@@ -560,11 +560,11 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 
     /* Last chance, if !unicode then try poorman links. */
     if (cfg->vtmode != VT_UNICODE) {
-	static char poorman_scoacs[] = 
+	static const char poorman_scoacs[] = 
 	    "CueaaaaceeeiiiAAE**ooouuyOUc$YPsaiounNao?++**!<>###||||++||++++++--|-+||++--|-+----++++++++##||#aBTPEsyt******EN=+><++-=... n2* ";
-	static char poorman_latin1[] =
+	static const char poorman_latin1[] =
 	    " !cL.Y|S\"Ca<--R~o+23'u|.,1o>///?AAAAAAACEEEEIIIIDNOOOOOxOUUUUYPBaaaaaaaceeeeiiiionooooo/ouuuuypy";
-	static char poorman_vt100[] = "*#****o~**+++++-----++++|****L.";
+	static const char poorman_vt100[] = "*#****o~**+++++-----++++|****L.";
 
 	for (i = 160; i < 256; i++)
 	    if (!DIRECT_FONT(ucsdata->unitab_line[i]) &&
@@ -603,7 +603,7 @@ static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr)
 
 wchar_t xlat_uskbd2cyrllic(int ch)
 {
-    static wchar_t cyrtab[] = {
+    static const wchar_t cyrtab[] = {
             0,      1,       2,      3,      4,      5,      6,      7,
             8,      9,      10,     11,     12,     13,     14,     15,
             16,     17,     18,     19,     20,     21,     22,     23,
@@ -624,10 +624,10 @@ wchar_t xlat_uskbd2cyrllic(int ch)
     return cyrtab[ch&0x7F];
 }
 
-int check_compose(int first, int second)
+int check_compose_internal(int first, int second, int recurse)
 {
 
-    static struct {
+    static const struct {
 	char first, second;
 	wchar_t composed;
     } composetbl[] = {
@@ -961,7 +961,6 @@ int check_compose(int first, int second)
 	0, 0, 0}
     }, *c;
 
-    static int recurse = 0;
     int nc = -1;
 
     for (c = composetbl; c->first; c++) {
@@ -970,15 +969,18 @@ int check_compose(int first, int second)
     }
 
     if (recurse == 0) {
-	recurse = 1;
-	nc = check_compose(second, first);
+	nc = check_compose_internal(second, first, 1);
 	if (nc == -1)
-	    nc = check_compose(toupper(first), toupper(second));
+	    nc = check_compose(toupper(first), toupper(second), 1);
 	if (nc == -1)
-	    nc = check_compose(toupper(second), toupper(first));
-	recurse = 0;
+	    nc = check_compose(toupper(second), toupper(first), 1);
     }
     return nc;
+}
+
+int check_compose(int first, int second)
+{
+    return check_compose_internal(first, second, 0);
 }
 
 int decode_codepage(char *cp_name)

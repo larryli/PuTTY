@@ -493,8 +493,8 @@ void registry_cleanup(void);
  * which I can reliably set aside to indicate `nil'. The string
  * function is perfectly all right returning NULL, of course.)
  */
-char *platform_default_s(char *name);
-int platform_default_i(char *name, int def);
+char *platform_default_s(const char *name);
+int platform_default_i(const char *name, int def);
 
 /*
  * Exports from terminal.c.

@@ -77,7 +77,7 @@ static Config cfg;
 /*
  * Default settings that are specific to pterm.
  */
-char *platform_default_s(char *name)
+char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "X11Display"))
 	return getenv("DISPLAY");
@@ -125,7 +125,7 @@ char *platform_default_s(char *name)
     return NULL;
 }
 
-int platform_default_i(char *name, int def)
+int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "TermWidth") ||
 	!strcmp(name, "TermHeight")) {
@@ -136,7 +136,7 @@ int platform_default_i(char *name, int def)
     return def;
 }
 
-char *x_get_default(char *key)
+char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */
 }

@@ -39,7 +39,7 @@ char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
 
 /* Things uxstore.c needs from pterm.c */
-char *x_get_default(char *key);
+char *x_get_default(const char *key);
 
 /* Things uxstore.c provides to pterm.c */
 void provide_xrm_string(char *string);

@@ -19,6 +19,7 @@ typedef struct rlogin_tag {
 
     Socket s;
     int bufsize;
+    int firstbyte;
     int term_width, term_height;
     void *frontend;
 } *Rlogin;
@@ -69,13 +70,12 @@ static int rlogin_receive(Plug plug, int urgent, char *data, int len)
 	 * byte is expected to be NULL and is ignored, and the rest
 	 * is printed.
 	 */
-	static int firstbyte = 1;
-	if (firstbyte) {
+	if (rlogin->firstbyte) {
 	    if (data[0] == '\0') {
 		data++;
 		len--;
 	    }
-	    firstbyte = 0;
+	    rlogin->firstbyte = 0;
 	}
 	if (len > 0)
             c_write(rlogin, data, len);
@@ -116,6 +116,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
     rlogin->frontend = frontend_handle;
     rlogin->term_width = cfg->width;
     rlogin->term_height = cfg->height;
+    rlogin->firstbyte = 1;
     *backend_handle = rlogin;
 
     /*

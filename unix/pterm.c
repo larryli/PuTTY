@@ -80,7 +80,7 @@ static int send_raw_mouse;
 
 static char *app_name = "pterm";
 
-char *x_get_default(char *key)
+char *x_get_default(const char *key)
 {
     return XGetDefault(GDK_DISPLAY(), app_name, key);
 }
@@ -88,14 +88,14 @@ char *x_get_default(char *key)
 /*
  * Default settings that are specific to pterm.
  */
-char *platform_default_s(char *name)
+char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "Font"))
 	return "fixed";	       /* COE_NORMAL works badly in an xterm */
     return NULL;
 }
 
-int platform_default_i(char *name, int def)
+int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "CloseOnExit"))
 	return COE_ALWAYS;	       /* COE_NORMAL works badly in an xterm */

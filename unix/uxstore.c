@@ -21,16 +21,16 @@
  * file somewhere or other.
  */
 
-void *open_settings_w(char *sessionname)
+void *open_settings_w(const char *sessionname)
 {
     return NULL;
 }
 
-void write_setting_s(void *handle, char *key, char *value)
+void write_setting_s(void *handle, const char *key, const char *value)
 {
 }
 
-void write_setting_i(void *handle, char *key, int value)
+void write_setting_i(void *handle, const char *key, int value)
 {
 }
 
@@ -48,8 +48,8 @@ void close_settings_w(void *handle)
  */
 
 struct xrm_string {
-    char *key;
-    char *value;
+    const char *key;
+    const char *value;
 };
 
 static tree234 *xrmtree = NULL;
@@ -63,7 +63,7 @@ int xrmcmp(void *av, void *bv)
 
 void provide_xrm_string(char *string)
 {
-    char *p, *q;
+    char *p, *q, *key;
     struct xrm_string *xrms, *ret;
 
     p = q = strchr(string, ':');
@@ -76,9 +76,10 @@ void provide_xrm_string(char *string)
     while (p > string && p[-1] != '.' && p[-1] != '*')
 	p--;
     xrms = smalloc(sizeof(struct xrm_string));
-    xrms->key = smalloc(q-p);
-    memcpy(xrms->key, p, q-p);
-    xrms->key[q-p-1] = '\0';
+    key = smalloc(q-p);
+    memcpy(key, p, q-p);
+    key[q-p-1] = '\0';
+    xrms->key = key;
     while (*q && isspace(*q))
 	q++;
     xrms->value = dupstr(q);
@@ -94,7 +95,7 @@ void provide_xrm_string(char *string)
     }
 }
 
-char *get_setting(char *key)
+const char *get_setting(const char *key)
 {
     struct xrm_string tmp, *ret;
     tmp.key = key;
@@ -106,15 +107,15 @@ char *get_setting(char *key)
     return x_get_default(key);
 }
 
-void *open_settings_r(char *sessionname)
+void *open_settings_r(const char *sessionname)
 {
     static int thing_to_return_an_arbitrary_non_null_pointer_to;
     return &thing_to_return_an_arbitrary_non_null_pointer_to;
 }
 
-char *read_setting_s(void *handle, char *key, char *buffer, int buflen)
+char *read_setting_s(void *handle, const char *key, char *buffer, int buflen)
 {
-    char *val = get_setting(key);
+    const char *val = get_setting(key);
     if (!val)
 	return NULL;
     else {
@@ -124,9 +125,9 @@ char *read_setting_s(void *handle, char *key, char *buffer, int buflen)
     }
 }
 
-int read_setting_i(void *handle, char *key, int defvalue)
+int read_setting_i(void *handle, const char *key, int defvalue)
 {
-    char *val = get_setting(key);
+    const char *val = get_setting(key);
     if (!val)
 	return defvalue;
     else
@@ -137,7 +138,7 @@ void close_settings_r(void *handle)
 {
 }
 
-void del_settings(char *sessionname)
+void del_settings(const char *sessionname)
 {
 }
 
@@ -206,7 +207,8 @@ static char *fgetline(FILE *fp)
  * 
  *   rsa@22:foovax.example.org 0x23,0x293487364395345345....2343
  */
-int verify_host_key(char *hostname, int port, char *keytype, char *key)
+int verify_host_key(const char *hostname, int port,
+		    const char *keytype, const char *key)
 {
     FILE *fp;
     char filename[FILENAME_MAX];
@@ -272,7 +274,8 @@ int verify_host_key(char *hostname, int port, char *keytype, char *key)
     return ret;
 }
 
-void store_host_key(char *hostname, int port, char *keytype, char *key)
+void store_host_key(const char *hostname, int port,
+		    const char *keytype, const char *key)
 {
     FILE *fp;
     int fd;

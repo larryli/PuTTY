@@ -10,14 +10,14 @@
 
 #include "putty.h"
 
-char *platform_default_s(char *name)
+char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "Font"))
 	return "Courier New";
     return NULL;
 }
 
-int platform_default_i(char *name, int def)
+int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "FontCharSet"))
 	return ANSI_CHARSET;

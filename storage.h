@@ -26,9 +26,9 @@
  * Keys may be up to 255 characters long.  String values have no length
  * limit.
  */
-void *open_settings_w(char *sessionname);
-void write_setting_s(void *handle, char *key, char *value);
-void write_setting_i(void *handle, char *key, int value);
+void *open_settings_w(const char *sessionname);
+void write_setting_s(void *handle, const char *key, const char *value);
+void write_setting_i(void *handle, const char *key, int value);
 void close_settings_w(void *handle);
 
 /*
@@ -45,15 +45,15 @@ void close_settings_w(void *handle);
  * should invent a sensible default. If an integer setting is not
  * present, read_setting_i() returns its provided default.
  */
-void *open_settings_r(char *sessionname);
-char *read_setting_s(void *handle, char *key, char *buffer, int buflen);
-int read_setting_i(void *handle, char *key, int defvalue);
+void *open_settings_r(const char *sessionname);
+char *read_setting_s(void *handle, const char *key, char *buffer, int buflen);
+int read_setting_i(void *handle, const char *key, int defvalue);
 void close_settings_r(void *handle);
 
 /*
  * Delete a whole saved session.
  */
-void del_settings(char *sessionname);
+void del_settings(const char *sessionname);
 
 /*
  * Enumerate all saved sessions.
@@ -71,13 +71,15 @@ void enum_settings_finish(void *handle);
  * be 0 (entry matches database), 1 (entry is absent in database),
  * or 2 (entry exists in database and is different).
  */
-int verify_host_key(char *hostname, int port, char *keytype, char *key);
+int verify_host_key(const char *hostname, int port,
+		    const char *keytype, const char *key);
 
 /*
  * Write a host key into the database, overwriting any previous
  * entry that might have been there.
  */
-void store_host_key(char *hostname, int port, char *keytype, char *key);
+void store_host_key(const char *hostname, int port,
+		    const char *keytype, const char *key);
 
 /* ----------------------------------------------------------------------
  * Functions to access PuTTY's random number seed file.

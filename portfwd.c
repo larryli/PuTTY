@@ -57,7 +57,7 @@ struct pfwd_queue {
 };
 
 struct PFwdPrivate {
-    struct plug_function_table *fn;
+    const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
     void *c;			       /* (channel) data used by ssh.c */
     void *backhandle;		       /* instance of SSH backend itself */
@@ -111,7 +111,7 @@ static void pfd_sent(Plug plug, int bufsize)
 char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
 		     const Config *cfg)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	pfd_closing,
 	pfd_receive,
 	pfd_sent,
@@ -157,7 +157,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
 
 static int pfd_accepting(Plug p, void *sock)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	pfd_closing,
 	pfd_receive,
 	pfd_sent,
@@ -208,7 +208,7 @@ static int pfd_accepting(Plug p, void *sock)
 char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
 		     void *backhandle, const Config *cfg)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	pfd_closing,
 	pfd_receive,		       /* should not happen... */
 	pfd_sent,		       /* also should not happen */
