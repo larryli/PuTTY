@@ -59,9 +59,11 @@ static void bsb(int n)
 }
 
 #define CTRL(x) (x^'@')
+#define KCTRL(x) ((x^'@') | 0x100)
 
 void ldisc_send(char *buf, int len)
 {
+    int keyflag = 0;
     /*
      * Called with len=0 when the options change. We must inform
      * the front end in case it needs to know.
@@ -71,12 +73,19 @@ void ldisc_send(char *buf, int len)
 	ldisc_update(ECHOING, EDITING);
     }
     /*
+     * Less than zero means null terminated special string.
+     */
+    if (len < 0) {
+	len = strlen(buf);
+	keyflag = KCTRL('@');
+    }
+    /*
      * Either perform local editing, or just send characters.
      */
     if (EDITING) {
 	while (len--) {
-	    char c;
-	    c = *buf++;
+	    int c;
+	    c = *buf++ + keyflag;
 	    switch (term_quotenext ? ' ' : c) {
 		/*
 		 * ^h/^?: delete one char and output one BSB
@@ -92,8 +101,8 @@ void ldisc_send(char *buf, int len)
 		 * else send line and reset to BOL
 		 * ^m: send line-plus-\r\n and reset to BOL
 		 */
-	      case CTRL('H'):
-	      case CTRL('?'):	       /* backspace/delete */
+	      case KCTRL('H'):
+	      case KCTRL('?'):	       /* backspace/delete */
 		if (term_buflen > 0) {
 		    if (ECHOING)
 			bsb(plen(term_buf[term_buflen - 1]));
@@ -147,17 +156,51 @@ void ldisc_send(char *buf, int len)
 		    term_buflen = 0;
 		}
 		break;
-	      case CTRL('M'):	       /* send with newline */
-		if (term_buflen > 0)
-		    back->send(term_buf, term_buflen);
-		if (cfg.protocol == PROT_RAW)
-		    back->send("\r\n", 2);
-		else
-		    back->send("\r", 1);
-		if (ECHOING)
-		    c_write("\r\n", 2);
-		term_buflen = 0;
-		break;
+		/*
+		 * This particularly hideous bit of code from RDB
+		 * allows ordinary ^M^J to do the same thing as
+		 * magic-^M when in Raw protocol. The line `case
+		 * KCTRL('M'):' is _inside_ the if block. Thus:
+		 * 
+		 *  - receiving regular ^M goes straight to the
+		 *    default clause and inserts as a literal ^M.
+		 *  - receiving regular ^J _not_ directly after a
+		 *    literal ^M (or not in Raw protocol) fails the
+		 *    if condition, leaps to the bottom of the if,
+		 *    and falls through into the default clause
+		 *    again.
+		 *  - receiving regular ^J just after a literal ^M
+		 *    in Raw protocol passes the if condition,
+		 *    deletes the literal ^M, and falls through
+		 *    into the magic-^M code
+		 *  - receiving a magic-^M empties the line buffer,
+		 *    signals end-of-line in one of the various
+		 *    entertaining ways, and _doesn't_ fall out of
+		 *    the bottom of the if and through to the
+		 *    default clause because of the break.
+		 */
+	      case CTRL('J'):
+		if (cfg.protocol == PROT_RAW &&
+		    term_buflen > 0 && term_buf[term_buflen - 1] == '\r') {
+		    if (ECHOING)
+			bsb(plen(term_buf[term_buflen - 1]));
+		    term_buflen--;
+		    /* FALLTHROUGH */
+	      case KCTRL('M'):	       /* send with newline */
+		    if (term_buflen > 0)
+			back->send(term_buf, term_buflen);
+		    if (cfg.protocol == PROT_RAW)
+			back->send("\r\n", 2);
+		    else if (cfg.protocol == PROT_TELNET)
+			back->special(TS_EOL);
+		    else
+			back->send("\r", 1);
+		    if (ECHOING)
+			c_write("\r\n", 2);
+		    term_buflen = 0;
+		    break;
+		}
+		/* FALLTHROUGH */
 	      default:		       /* get to this label from ^V handler */
 		if (term_buflen >= term_bufsiz) {
 		    term_bufsiz = term_buflen + 256;
@@ -165,7 +208,7 @@ void ldisc_send(char *buf, int len)
 		}
 		term_buf[term_buflen++] = c;
 		if (ECHOING)
-		    pwrite(c);
+		    pwrite((unsigned char) c);
 		term_quotenext = FALSE;
 		break;
 	    }
@@ -181,7 +224,34 @@ void ldisc_send(char *buf, int len)
 	if (len > 0) {
 	    if (ECHOING)
 		c_write(buf, len);
-	    back->send(buf, len);
+	    if (keyflag && cfg.protocol == PROT_TELNET && len == 1) {
+		switch (buf[0]) {
+		  case CTRL('M'):
+		    back->special(TS_EOL);
+		    break;
+		  case CTRL('?'):
+		  case CTRL('H'):
+		    if (cfg.telnet_keyboard) {
+			back->special(TS_EC);
+			break;
+		    }
+		  case CTRL('C'):
+		    if (cfg.telnet_keyboard) {
+			back->special(TS_IP);
+			break;
+		    }
+		  case CTRL('Z'):
+		    if (cfg.telnet_keyboard) {
+			back->special(TS_SUSP);
+			break;
+		    }
+
+		  default:
+		    back->send(buf, len);
+		    break;
+		}
+	    } else
+		back->send(buf, len);
 	}
     }
 }

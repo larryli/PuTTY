@@ -653,7 +653,9 @@ static void telnet_send(char *buf, int len)
     char *p;
     static unsigned char iac[2] = { IAC, IAC };
     static unsigned char cr[2] = { CR, NUL };
+#if 0
     static unsigned char nl[2] = { CR, LF };
+#endif
 
     if (s == NULL)
 	return;
@@ -667,7 +669,7 @@ static void telnet_send(char *buf, int len)
 	sk_write(s, q, p - q);
 
 	while (p < buf + len && !iswritable((unsigned char) *p)) {
-	    sk_write(s, (unsigned char) *p == IAC ? iac : nl, 2);
+	    sk_write(s, (unsigned char) *p == IAC ? iac : cr, 2);
 	    p++;
 	}
     }
@@ -758,6 +760,9 @@ static void telnet_special(Telnet_Special code)
       case TS_EOF:
 	b[1] = xEOF;
 	sk_write(s, b, 2);
+	break;
+      case TS_EOL:
+	sk_write(s, "\r\n", 2);
 	break;
       case TS_SYNCH:
 	b[1] = DM;

@@ -291,6 +291,7 @@ enum { IDCX_ABOUT =
     IDC_CURAPPLIC,
     IDC_COMPOSEKEY,
     IDC_CTRLALTKEYS,
+    IDC_TELNETKEY,
     keyboardpanelend,
 
     terminalpanelstart,
@@ -588,6 +589,7 @@ static void init_dlg_ctrls(HWND hwnd)
     CheckDlgButton(hwnd, IDC_ALTONLY, cfg.alt_only);
     CheckDlgButton(hwnd, IDC_COMPOSEKEY, cfg.compose_key);
     CheckDlgButton(hwnd, IDC_CTRLALTKEYS, cfg.ctrlaltkeys);
+    CheckDlgButton(hwnd, IDC_TELNETKEY, cfg.telnet_keyboard);
     CheckRadioButton(hwnd, IDC_ECHOBACKEND, IDC_ECHONO,
 		     cfg.localecho == LD_BACKEND ? IDC_ECHOBACKEND :
 		     cfg.localecho == LD_YES ? IDC_ECHOYES : IDC_ECHONO);
@@ -1098,6 +1100,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC,
 		       IDC_LOGEDIT, 50);
 	    endbox(&cp);
+	} else {
+	    beginbox(&cp, "Adjust telnet session.", IDC_BOX_CONNECTION1);
+	    checkbox(&cp, "Keyboard sends telnet Backspace and Interrupt",
+		     IDC_TELNETKEY);
+	    endbox(&cp);
 	}
 	beginbox(&cp, "Sending of null packets to keep session active",
 		 IDC_BOX_CONNECTION2);
@@ -1107,7 +1114,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == telnetpanelstart) {
-	/* The Telnet panel. Accelerators used: [acgo] svldr bft */
+	/* The Telnet panel. Accelerators used: [acgo] svldr bftk */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1128,6 +1135,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    radioline(&cp, "&Telnet negotiation mode:", IDC_ACTSTATIC, 2,
 		      "Passive", IDC_TPASSIVE, "Active",
 		      IDC_TACTIVE, NULL);
+	    checkbox(&cp, "&Keyboard sends telnet Backspace and Interrupt",
+		     IDC_TELNETKEY);
 	    endbox(&cp);
 	}
     }
@@ -1697,6 +1706,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.ctrlaltkeys =
 			IsDlgButtonChecked(hwnd, IDC_CTRLALTKEYS);
+		break;
+	      case IDC_TELNETKEY:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.telnet_keyboard =
+			IsDlgButtonChecked(hwnd, IDC_TELNETKEY);
 		break;
 	      case IDC_WRAPMODE:
 		if (HIWORD(wParam) == BN_CLICKED ||

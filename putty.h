@@ -107,7 +107,8 @@ GLOBAL HWND logbox;
 
 typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
-    TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO, TS_PING
+    TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO, TS_PING,
+    TS_EOL
 } Telnet_Special;
 
 typedef enum {
@@ -206,6 +207,7 @@ typedef struct {
     int app_cursor;
     int app_keypad;
     int nethack_keypad;
+    int telnet_keyboard;
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
     int alt_only;		       /* is it special? */

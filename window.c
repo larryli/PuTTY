@@ -2554,7 +2554,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	if (wParam == VK_BACK && shift_state == 0) {	/* Backspace */
 	    *p++ = (cfg.bksp_is_delete ? 0x7F : 0x08);
-	    return p - output;
+	    *p++ = 0;
+	    return -2;
 	}
 	if (wParam == VK_TAB && shift_state == 1) {	/* Shift tab */
 	    *p++ = 0x1B;
@@ -2572,7 +2573,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
 	if (wParam == VK_CANCEL && shift_state == 2) {	/* Ctrl-Break */
 	    *p++ = 3;
-	    return p - output;
+	    *p++ = 0;
+	    return -2;
 	}
 	if (wParam == VK_PAUSE) {      /* Break/Pause */
 	    *p++ = 26;
@@ -2786,7 +2788,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	 */
 	if (wParam == VK_RETURN) {     /* Return */
 	    *p++ = 0x0D;
-	    return p - output;
+	    *p++ = 0;
+	    return -2;
 	}
     }
 
