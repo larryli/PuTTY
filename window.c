@@ -592,7 +592,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	    if (!has_focus)
 	       timer_id = SetTimer(hwnd, 1, 59500, NULL);
 	    else
-	       timer_id = SetTimer(hwnd, 1, 250, NULL);
+	       timer_id = SetTimer(hwnd, 1, 100, NULL);
 	    long_timer = 1;
 	
 	    /* There's no point rescanning everything in the message queue
