@@ -260,12 +260,23 @@ happen if you pull the network cable out of the back of an
 Ethernet-connected computer, or if Windows has any other similar
 reason to believe the entire network has become unreachable.
 
+Windows also generates this error if it has given up on the machine
+at the other end of the connection ever responding to it. If the
+network between your client and server goes down and your client
+then tries to send some data, Windows will make several attempts to
+send the data and will then give up and kill the connection. In
+particular, this can occur even if you didn't type anything, if you
+are using SSH-2 and PuTTY attempts a key re-exchange. (See
+\k{config-ssh-kex-rekey} for more about key re-exchange.)
+
+(It can also occur if you are using keepalives in your connection.
+Other people have reported that keepalives \e{fix} this error for
+them. See \k{config-keepalive} for a discussion of the pros and cons
+of keepalives.)
+
 We are not aware of any reason why this error might occur that would
 represent a bug in PuTTY. The problem is between you, your Windows
 system, your network and the remote system.
-
-Some people have reported that enabling keepalives (see
-\k{config-keepalive}) fixes this error for them.
 
 \H{errors-connreset} \q{Network error: Connection reset by peer}
 
@@ -305,3 +316,12 @@ the network, or because it is turned off.
 Check that you have correctly entered the host name or IP address of
 your server machine. If that fails, consult the administrator of
 your server.
+
+Unix also generates this error when it tries to send data down a
+connection and contact with the server has been completely lost
+during a connection. (There is a delay of minutes before Unix gives
+up on receiving a reply from the server.) This can occur if you type
+things into PuTTY while the network is down, but it can also occur
+if PuTTY decides of its own accord to send data: due to a repeat key
+exchange in SSH-2 (see \k{config-ssh-kex-rekey}) or due to
+keepalives (\k{config-keepalive}).
