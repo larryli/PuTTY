@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.17 2004/01/20 12:46:35 jacob Exp $
+\versionid $Id: using.but,v 1.18 2004/02/07 23:35:32 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -32,7 +32,8 @@ server where it will probably cause a process to be interrupted.
 
 Pasting is done using the right button (or the middle mouse button,
 if you have a three-button mouse and have set it up; see
-\k{config-mouse}). Pressing Shift-Ins has the same effect.
+\k{config-mouse}). (Pressing Shift-Ins, or selecting \q{Paste} from
+the Ctrl+right-click context menu, have the same effect.)
 When you click the right mouse button, PuTTY will
 read whatever is in the Windows Clipboard and paste it into your
 session, \e{exactly} as if it had been typed at the keyboard.
@@ -95,6 +96,10 @@ items like Minimise, Move, Size and Close.
 PuTTY's system menu contains extra program features in addition to
 the Windows standard options. These extra menu commands are
 described below.
+
+(These options are also available in a context menu brought up
+by holding Ctrl and clicking with the right mouse button anywhere
+in the PuTTY window.)
 
 \S2{using-eventlog} The PuTTY Event Log
 
