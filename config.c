@@ -1576,37 +1576,39 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  HELPCTX(ssh_ciphers),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,ssh2_des_cbc)));
+	}
 
-	    /*
-	     * The Connection/SSH/Kex panel.
-	     */
-	    ctrl_settitle(b, "Connection/SSH/Kex",
-			  "Options controlling SSH key exchange");
+	/*
+	 * The Connection/SSH/Kex panel. (Owing to repeat key
+	 * exchange, this is all meaningful in mid-session.)
+	 */
+	ctrl_settitle(b, "Connection/SSH/Kex",
+		      "Options controlling SSH key exchange");
 
-	    s = ctrl_getset(b, "Connection/SSH/Kex", "main",
-			    "Key exchange algorithm options");
-	    c = ctrl_draglist(s, "Algorithm selection policy", 's',
-			      HELPCTX(ssh_kexlist),
-			      kexlist_handler, P(NULL));
-	    c->listbox.height = 5;
+	s = ctrl_getset(b, "Connection/SSH/Kex", "main",
+			"Key exchange algorithm options");
+	c = ctrl_draglist(s, "Algorithm selection policy", 's',
+			  HELPCTX(ssh_kexlist),
+			  kexlist_handler, P(NULL));
+	c->listbox.height = 5;
 
-	    s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
-			    "Options controlling key re-exchange");
+	s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
+			"Options controlling key re-exchange");
 
-	    /* FIXME: these could usefully be configured mid-session in SSH-2.
-	     *        (So could cipher/compression/kex, now we have rekey.) */
-	    ctrl_editbox(s, "Max minutes before rekey (0 for no limit)", 't', 20,
-			 HELPCTX(ssh_kex_repeat),
-			 dlg_stdeditbox_handler,
-			 I(offsetof(Config,ssh_rekey_time)),
-			 I(-1));
-	    ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'd', 20,
-			 HELPCTX(ssh_kex_repeat),
-			 dlg_stdeditbox_handler,
-			 I(offsetof(Config,ssh_rekey_data)),
-			 I(16));
-	    ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
-		      HELPCTX(ssh_kex_repeat));
+	ctrl_editbox(s, "Max minutes before rekey (0 for no limit)", 't', 20,
+		     HELPCTX(ssh_kex_repeat),
+		     dlg_stdeditbox_handler,
+		     I(offsetof(Config,ssh_rekey_time)),
+		     I(-1));
+	ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'd', 20,
+		     HELPCTX(ssh_kex_repeat),
+		     dlg_stdeditbox_handler,
+		     I(offsetof(Config,ssh_rekey_data)),
+		     I(16));
+	ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
+		  HELPCTX(ssh_kex_repeat));
+
+	if (!midsession) {
 
 	    /*
 	     * The Connection/SSH/Auth panel.

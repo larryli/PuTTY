@@ -746,7 +746,7 @@ struct ssh_tag {
     unsigned long incoming_data_size, outgoing_data_size, deferred_data_size;
     unsigned long max_data_size;
     int kex_in_progress;
-    long next_rekey;
+    long next_rekey, last_rekey;
 };
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -5211,6 +5211,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * Key exchange is over. Schedule a timer for our next rekey.
      */
     ssh->kex_in_progress = FALSE;
+    ssh->last_rekey = GETTICKCOUNT();
     if (ssh->cfg.ssh_rekey_time != 0)
 	ssh->next_rekey = schedule_timer(ssh->cfg.ssh_rekey_time*60*TICKSPERSEC,
 					 ssh2_timer, ssh);
@@ -7213,7 +7214,7 @@ static void ssh2_timer(void *ctx, long now)
 {
     Ssh ssh = (Ssh)ctx;
 
-    if (!ssh->kex_in_progress &&
+    if (!ssh->kex_in_progress && ssh->cfg.ssh_rekey_time != 0 &&
 	now - ssh->next_rekey >= 0) {
 	do_ssh2_transport(ssh, "Initiating key re-exchange (timeout)",
 			  -1, NULL);
@@ -7459,8 +7460,37 @@ static void ssh_free(void *handle)
 static void ssh_reconfig(void *handle, Config *cfg)
 {
     Ssh ssh = (Ssh) handle;
+    char *rekeying = NULL;
+    unsigned long old_max_data_size;
+
     pinger_reconfig(ssh->pinger, &ssh->cfg, cfg);
     ssh_setup_portfwd(ssh, cfg);
+
+    if (ssh->cfg.ssh_rekey_time != cfg->ssh_rekey_time &&
+	cfg->ssh_rekey_time != 0) {
+	long new_next = ssh->last_rekey + cfg->ssh_rekey_time*60*TICKSPERSEC;
+	long now = GETTICKCOUNT();
+
+	if (new_next - now < 0) {
+	    rekeying = "Initiating key re-exchange (timeout shortened)";
+	} else {
+	    ssh->next_rekey = schedule_timer(new_next - now, ssh2_timer, ssh);
+	}
+    }
+
+    old_max_data_size = ssh->max_data_size;
+    ssh->max_data_size = parse_blocksize(cfg->ssh_rekey_data);
+    if (old_max_data_size != ssh->max_data_size &&
+	ssh->max_data_size != 0) {
+	if (ssh->outgoing_data_size > ssh->max_data_size ||
+	    ssh->incoming_data_size > ssh->max_data_size)
+	    rekeying = "Initiating key re-exchange (data limit lowered)";
+    }
+
+    if (rekeying && !ssh->kex_in_progress) {
+	do_ssh2_transport(ssh, rekeying, -1, NULL);
+    }
+
     ssh->cfg = *cfg;		       /* STRUCTURE COPY */
 }
 
