@@ -2519,7 +2519,18 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
             oldcfg.window_border != cfg2.window_border || need_size) {
             set_geom_hints(inst);
             request_resize(inst, cfg2.width, cfg2.height);
-        }
+        } else {
+	    /*
+	     * The above will have caused a call to term_size() for
+	     * us if it happened. If the user has fiddled with only
+	     * the scrollback size, the above will not have
+	     * happened and we will need an explicit term_size()
+	     * here.
+	     */
+	    if (oldcfg.savelines != cfg2.savelines)
+		term_size(inst->term, inst->term->rows, inst->term->cols,
+			  cfg2.savelines);
+	}
 
         term_invalidate(inst->term);
     }
