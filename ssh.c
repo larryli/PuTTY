@@ -1844,7 +1844,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 		s->i = -1;
 	    } else if (s->i < sizeof(s->version) - 1)
 		s->version[s->i++] = c;
-	} else if (c == '\n')
+	} else if (c == '\012')
 	    break;
     }
 
@@ -1894,7 +1894,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	sha_string(&ssh->exhashbase, s->vstring, strcspn(s->vstring, "\r\n"));
 	sprintf(vlog, "We claim version: %s", verstring);
 	logevent(vlog);
-	strcat(verstring, "\n");
+	strcat(verstring, "\012");
 	logevent("Using SSH protocol version 2");
 	sk_write(ssh->s, verstring, strlen(verstring));
 	ssh->protocol = ssh2_protocol;
@@ -1910,7 +1910,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 		sshver);
 	sprintf(vlog, "We claim version: %s", verstring);
 	logevent(vlog);
-	strcat(verstring, "\n");
+	strcat(verstring, "\012");
 
 	logevent("Using SSH protocol version 1");
 	sk_write(ssh->s, verstring, strlen(verstring));
