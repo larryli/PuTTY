@@ -52,7 +52,7 @@ POBJS = ssh.$(OBJ) be_all.$(OBJ)
 ##-- objects puttytel
 TOBJS = be_nossh.$(OBJ)
 ##-- objects pscp
-SOBJS = scp.$(OBJ) windlg.$(OBJ) scpssh.$(OBJ) be_none.$(OBJ)
+SOBJS = scp.$(OBJ) windlg.$(OBJ) ssh.$(OBJ) be_none.$(OBJ)
 ##-- objects putty puttytel pscp
 MOBJS = misc.$(OBJ) version.$(OBJ)
 ##-- objects putty pscp
@@ -139,7 +139,6 @@ sshsha.$(OBJ): sshsha.c ssh.h
 sshrand.$(OBJ): sshrand.c ssh.h
 sshblowf.$(OBJ): sshblowf.c ssh.h
 scp.$(OBJ): scp.c putty.h scp.h
-scpssh.$(OBJ): scpssh.c putty.h ssh.h scp.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c
 be_nossh.$(OBJ): be_nossh.c

@@ -1,29 +1,17 @@
 /*
  *  scp.h
- *  Joris van Rantwijk, Aug 1999.
+ *  Joris van Rantwijk, Aug 1999, Jun 2000.
  */
 
+#define SCP_FLAG	1
+#define SCP_VERBOSE	2
+#define IS_SCP ((scp_flags & SCP_FLAG) != 0)
 
-/*
- *  Exported from scp.c
- */
-extern int verbose;
-void ssh_get_password(char *prompt, char *str, int maxlen);
-
-
-/*
- *  Exported from scpssh.c
- */
-char * ssh_init(char *host, int port, char *cmd, char **realhost);
-int ssh_recv(unsigned char *buf, int len);
-void ssh_send(unsigned char *buf, int len);
-void ssh_send_eof(void);
-
-/*
- * Exports from mscrypto.c
- */
-#ifdef MSCRYPTOAPI
-int crypto_startup();
-void crypto_wrapup();
-#endif
+/* Exported from ssh.c */
+extern int scp_flags;
+extern void (*ssh_get_password)(const char *prompt, char *str, int maxlen);
+char * ssh_scp_init(char *host, int port, char *cmd, char **realhost);
+int ssh_scp_recv(unsigned char *buf, int len);
+void ssh_scp_send(unsigned char *buf, int len);
+void ssh_scp_send_eof(void);
 

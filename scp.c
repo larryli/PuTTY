@@ -1,6 +1,6 @@
 /*
  *  scp.c  -  Scp (Secure Copy) client for PuTTY.
- *  Joris van Rantwijk, Aug 1999, Nov 1999.
+ *  Joris van Rantwijk, Simon Tatham
  *
  *  This is mainly based on ssh-1.2.26/scp.c by Timo Rinne & Tatu Ylonen.
  *  They, in turn, used stuff from BSD rcp.
@@ -22,7 +22,7 @@
 #define TIME_WIN_TO_POSIX(ft, t) ((t) = (unsigned long) \
 	((*(LONGLONG*)&(ft)) / (LONGLONG) 10000000 - (LONGLONG) 11644473600))
 
-int verbose = 0;
+static int verbose = 0;
 static int recursive = 0;
 static int preserve = 0;
 static int targetshouldbedirectory = 0;
@@ -35,6 +35,14 @@ static int connection_open = 0;
 static void source(char *src);
 static void rsource(char *src);
 static void sink(char *targ);
+
+/*
+ *  This function is needed to link with ssh.c, but it never gets called.
+ */
+void term_out(void)
+{
+    abort();
+}
 
 /*
  *  Print an error message and perform a fatal exit.
@@ -63,13 +71,13 @@ static void bump(char *fmt, ...)
     va_end(ap);
     if (connection_open) {
 	char ch;
-	ssh_send_eof();
-	ssh_recv(&ch, 1);
+	ssh_scp_send_eof();
+	ssh_scp_recv(&ch, 1);
     }
     exit(1);
 }
 
-void ssh_get_password(char *prompt, char *str, int maxlen)
+static void get_password(const char *prompt, char *str, int maxlen)
 {
     HANDLE hin, hout;
     DWORD savemode, i;
@@ -134,7 +142,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     if (portnumber)
 	cfg.port = portnumber;
 
-    err = ssh_init(cfg.host, cfg.port, cmd, &realhost);
+    err = ssh_scp_init(cfg.host, cfg.port, cmd, &realhost);
     if (err != NULL)
 	bump("ssh_init: %s", err);
     if (verbose && realhost != NULL)
@@ -209,7 +217,7 @@ static int response(void)
     char ch, resp, rbuf[2048];
     int p;
 
-    if (ssh_recv(&resp, 1) <= 0)
+    if (ssh_scp_recv(&resp, 1) <= 0)
 	bump("Lost connection");
 
     p = 0;
@@ -222,7 +230,7 @@ static int response(void)
       case 1:		/* error */
       case 2:		/* fatal error */
 	do {
-	    if (ssh_recv(&ch, 1) <= 0)
+	    if (ssh_scp_recv(&ch, 1) <= 0)
 		bump("Protocol error: Lost connection");
 	    rbuf[p++] = ch;
 	} while (p < sizeof(rbuf) && ch != '\n');
@@ -249,7 +257,7 @@ static void run_err(const char *fmt, ...)
     strcpy(str, "\01scp: ");
     vsprintf(str+strlen(str), fmt, ap);
     strcat(str, "\n");
-    ssh_send(str, strlen(str));
+    ssh_scp_send(str, strlen(str));
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
@@ -321,7 +329,7 @@ static void source(char *src)
 	TIME_WIN_TO_POSIX(actime, atime);
 	TIME_WIN_TO_POSIX(wrtime, mtime);
 	sprintf(buf, "T%lu 0 %lu 0\n", mtime, atime);
-	ssh_send(buf, strlen(buf));
+	ssh_scp_send(buf, strlen(buf));
 	if (response())
 	    return;
     }
@@ -330,7 +338,7 @@ static void source(char *src)
     sprintf(buf, "C0644 %lu %s\n", size, last);
     if (verbose)
 	fprintf(stderr, "Sending file modes: %s", buf);
-    ssh_send(buf, strlen(buf));
+    ssh_scp_send(buf, strlen(buf));
     if (response())
 	return;
 
@@ -348,7 +356,7 @@ static void source(char *src)
 	    if (statistics) printf("\n");
 	    bump("%s: Read error", src);
 	}
-	ssh_send(transbuf, k);
+	ssh_scp_send(transbuf, k);
 	if (statistics) {
 	    stat_bytes += k;
 	    if (time(NULL) != stat_lasttime ||
@@ -361,7 +369,7 @@ static void source(char *src)
     }
     CloseHandle(f);
 
-    ssh_send("", 1);
+    ssh_scp_send("", 1);
     (void) response();
 }
 
@@ -390,7 +398,7 @@ static void rsource(char *src)
     sprintf(buf, "D0755 0 %s\n", last);
     if (verbose)
 	fprintf(stderr, "Entering directory: %s", buf);
-    ssh_send(buf, strlen(buf));
+    ssh_scp_send(buf, strlen(buf));
     if (response())
 	return;
 
@@ -412,7 +420,7 @@ static void rsource(char *src)
     FindClose(dir);
 
     sprintf(buf, "E\n");
-    ssh_send(buf, strlen(buf));
+    ssh_scp_send(buf, strlen(buf));
     (void) response();
 }
 
@@ -444,18 +452,18 @@ static void sink(char *targ)
     if (targetshouldbedirectory && !targisdir)
 	bump("%s: Not a directory", targ);
 
-    ssh_send("", 1);
+    ssh_scp_send("", 1);
     while (1) {
 	settime = 0;
 	gottime:
-	if (ssh_recv(&ch, 1) <= 0)
+	if (ssh_scp_recv(&ch, 1) <= 0)
 	    return;
 	if (ch == '\n')
 	    bump("Protocol error: Unexpected newline");
 	i = 0;
 	buf[i++] = ch;
 	do {
-	    if (ssh_recv(&ch, 1) <= 0)
+	    if (ssh_scp_recv(&ch, 1) <= 0)
 		bump("Lost connection");
 	    buf[i++] = ch;
 	} while (i < sizeof(buf) && ch != '\n');
@@ -468,13 +476,13 @@ static void sink(char *targ)
 	  case '\02':	/* fatal error */
 	    bump("%s", buf+1);
 	  case 'E':
-	    ssh_send("", 1);
+	    ssh_scp_send("", 1);
 	    return;
 	  case 'T':
 	    if (sscanf(buf, "T%ld %*d %ld %*d",
 		       &mtime, &atime) == 2) {
 		settime = 1;
-		ssh_send("", 1);
+		ssh_scp_send("", 1);
 		goto gottime;
 	    }
 	    bump("Protocol error: Illegal time format");
@@ -524,7 +532,7 @@ static void sink(char *targ)
 	    continue;
 	}
 
-	ssh_send("", 1);
+	ssh_scp_send("", 1);
 
 	if (statistics) {
 	    stat_bytes = 0;
@@ -542,7 +550,7 @@ static void sink(char *targ)
 	    char transbuf[4096];
 	    DWORD j, k = 4096;
 	    if (i + k > size) k = size - i;
-	    if (ssh_recv(transbuf, k) == 0)
+	    if (ssh_scp_recv(transbuf, k) == 0)
 		bump("Lost connection");
 	    if (wrerror) continue;
 	    if (! WriteFile(f, transbuf, k, &j, NULL) || j != k) {
@@ -577,7 +585,7 @@ static void sink(char *targ)
 	    run_err("%s: Write error", namebuf);
 	    continue;
 	}
-	ssh_send("", 1);
+	ssh_scp_send("", 1);
     }
 }
 
@@ -778,7 +786,7 @@ static void get_dir_list(int argc, char *argv[])
     do_cmd(host, user, cmd);
     sfree(cmd);
 
-    while (ssh_recv(&c, 1) > 0)
+    while (ssh_scp_recv(&c, 1) > 0)
 	fputc(c, stdout);	       /* thank heavens for buffered I/O */
 }
 
@@ -826,13 +834,17 @@ int main(int argc, char *argv[])
     int i;
     int list = 0;
 
+    default_protocol = PROT_TELNET;
+
+    scp_flags = SCP_FLAG;
+    ssh_get_password = &get_password;
     init_winsock();
 
     for (i = 1; i < argc; i++) {
 	if (argv[i][0] != '-')
 	    break;
 	if (strcmp(argv[i], "-v") == 0)
-	    verbose = 1;
+	    verbose = 1, scp_flags |= SCP_VERBOSE;
 	else if (strcmp(argv[i], "-r") == 0)
 	    recursive = 1;
 	else if (strcmp(argv[i], "-p") == 0)
@@ -876,8 +888,8 @@ int main(int argc, char *argv[])
 
     if (connection_open) {
 	char ch;
-	ssh_send_eof();
-	ssh_recv(&ch, 1);
+	ssh_scp_send_eof();
+	ssh_scp_recv(&ch, 1);
     }
     WSACleanup();
     random_save_seed();
@@ -886,3 +898,4 @@ int main(int argc, char *argv[])
 }
 
 /* end */
+
