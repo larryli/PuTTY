@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.34 2003/01/05 10:52:56 ben Exp $ */
+/* $Id: macterm.c,v 1.35 2003/01/05 11:31:51 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -162,7 +162,7 @@ void mac_opensession(void) {
      */
     s->back = NULL;
     for (i = 0; backends[i].backend != NULL; i++)
-	if (backends[i].protocol == cfg.protocol) {
+	if (backends[i].protocol == s->cfg.protocol) {
 	    s->back = backends[i].backend;
 	    break;
 	}
