@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.47 2003/01/14 18:43:26 ben Exp $ */
+/* $Id: macterm.c,v 1.48 2003/01/14 18:44:34 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -208,11 +208,9 @@ static void mac_workoutfontscale(Session *s, int wantwidth,
     const char text = 'W';
     FontInfo fi;
 
-    fprintf(stderr, "want width = %d\n", wantwidth);
     numer.v = denom.v = 1; /* always */
     numer.h = denom.h = 1;
     for (i = 0; i < 3; i++) {
-	fprintf(stderr, "Trying %d:%d\n", numer.h, denom.h);
 	tmpnumer = numer;
 	tmpdenom = denom;
 	if (s->window->grafProcs != NULL)
@@ -223,7 +221,6 @@ static void mac_workoutfontscale(Session *s, int wantwidth,
 	/* The result of StdTxMeas must be scaled by the factors it returns. */
 	gotwidth = FixRound(FixMul(gotwidth << 16,
 				   FixRatio(tmpnumer.h, tmpdenom.h)));
-	fprintf(stderr, "width = %d\n", gotwidth);
 	if (gotwidth == wantwidth)
 	    break;
 	numer.h *= wantwidth;
