@@ -14,6 +14,8 @@
 #define GLOBAL extern
 #endif
 
+GLOBAL HINSTANCE putty_inst;
+
 #define ATTR_ACTCURS 0x80000000UL      /* active cursor (block) */
 #define ATTR_PASCURS 0x40000000UL      /* passive cursor (box) */
 #define ATTR_INVALID 0x20000000UL

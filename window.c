@@ -7,6 +7,7 @@
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
 #include "win_res.h"
+#include "sizetip.h"
 
 #define IDM_SHOWLOG   0x0010
 #define IDM_NEWSESS   0x0020
@@ -81,6 +82,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     WNDCLASS wndclass;
     MSG msg;
     int guess_width, guess_height;
+
+    putty_inst = inst;
 
     winsock_ver = MAKEWORD(1, 1);
     if (WSAStartup(winsock_ver, &wsadata)) {
@@ -871,6 +874,12 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
       case WM_IGNORE_SIZE:
 	ignore_size = TRUE;	       /* don't panic on next WM_SIZE msg */
 	break;
+      case WM_ENTERSIZEMOVE:
+          EnableSizeTip(1);
+          break;
+      case WM_EXITSIZEMOVE:
+          EnableSizeTip(0);
+          break;
       case WM_SIZING:
 	{
 	    int width, height, w, h, ew, eh;
@@ -880,6 +889,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    height = r->bottom - r->top - extra_height;
 	    w = (width + font_width/2) / font_width; if (w < 1) w = 1;
 	    h = (height + font_height/2) / font_height; if (h < 1) h = 1;
+        UpdateSizeTip(hwnd, w, h);
 	    ew = width - w * font_width;
 	    eh = height - h * font_height;
 	    if (ew != 0) {
