@@ -1,9 +1,51 @@
 /*
  * Windows networking abstraction.
+ *
+ * Due to this clean abstraction it was possible
+ * to easily implement IPv6 support :)
+ *
+ * IPv6 patch 1 (27 October 2000) Jeroen Massar <jeroen@unfix.org>
+ *  - Preliminary hacked IPv6 support.
+ *    - Connecting to IPv6 address (eg fec0:4242:4242:100:2d0:b7ff:fe8f:5d42) works.
+ *    - Connecting to IPv6 hostname (eg heaven.ipv6.unfix.org) works.
+ *  - Compiles as either IPv4 or IPv6.
+ *
+ * IPv6 patch 2 (29 October 2000) Jeroen Massar <jeroen@unfix.org>
+ *  - When compiled as IPv6 it also allows connecting to IPv4 hosts.
+ *  - Added some more documentation.
+ *
+ * IPv6 patch 3 (18 November 2000) Jeroen Massar <jeroen@unfix.org>
+ *  - It now supports dynamically loading the IPv6 resolver dll's.
+ *    This way we should be able to distribute one (1) binary
+ *    which supports both IPv4 and IPv6.
+ *  - getaddrinfo() and getnameinfo() are loaded dynamicaly if possible.
+ *  - in6addr_any is defined in this file so we don't need to link to wship6.lib
+ *  - The patch is now more unified so that we can still
+ *    remove all IPv6 support by undef'ing IPV6.
+ *    But where it fallsback to IPv4 it uses the IPv4 code which is already in place...
+ *  - Canonical name resolving works.
+ *
+ * IPv6 patch 4 (07 January 2001) Jeroen Massar <jeroen@unfix.org>
+ *  - patch against CVS of today, will be submitted to the bugs list
+ *    as a 'cvs diff -u' on Simon's request...
+ *
  */
 
-#include <windows.h>
+/*
+ * Define IPV6 to have IPv6 on-the-fly-loading support.
+ * This means that one doesn't have to have an IPv6 stack to use it.
+ * But if an IPv6 stack is found it is used with a fallback to IPv4.
+ */
+/* #define IPV6 1 */
+
+#ifdef IPV6
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <tpipv6.h>
+#else
 #include <winsock.h>
+#endif
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -25,7 +67,17 @@ struct Socket_tag {
 
 struct SockAddr_tag {
     char *error;
-    unsigned long address;
+    /* address family this belongs to, AF_INET for IPv4, AF_INET6 for IPv6. */
+    int family;			     
+    unsigned long address;	       /* Address IPv4 style. */
+#ifdef IPV6
+    struct addrinfo *ai;	       /* Address IPv6 style. */
+#endif
+    /*
+     * We need to have this lengthy enough to hold *any* hostname
+     * (including IPv6 reverse...)
+     */
+    char realhost[8192];
 };
 
 struct buffer {
@@ -97,25 +149,133 @@ char *winsock_error_string(int error) {
     }
 }
 
-SockAddr sk_namelookup(char *host, char **canonicalname) {
+SockAddr sk_namelookup(char *host, char **canonicalname)
+{
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     unsigned long a;
-    struct hostent *h;
+    struct hostent *h = NULL;
 
-    ret->error = NULL;
-    if ( (a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
-	if ( (h = gethostbyname(host)) == NULL) {
-	    DWORD err = WSAGetLastError();
-	    ret->error = winsock_error_string(err);
-	} else {
-	    memcpy (&a, h->h_addr, sizeof(a));
-	    *canonicalname = h->h_name;
+    /* Clear the structure and default to IPv4. */
+    memset(ret, 0, sizeof(struct SockAddr_tag));
+    ret->family = 0;		       /* We set this one when we have resolved the host. */
+    *canonicalname = ret->realhost;    /* This makes sure we always have a hostname to return. */
+
+    if ( (a = inet_addr(host)) == (unsigned long) INADDR_NONE)
+    {
+#ifdef IPV6
+
+	/* Try to get the getaddrinfo() function from wship6.dll */
+	/* This way one doesn't need to have IPv6 dll's to use PuTTY and
+	 * it will fallback to IPv4. */
+	typedef int (CALLBACK* FGETADDRINFO)(const char *nodename,
+					     const char *servname,
+					     const struct addrinfo *hints,
+					     struct addrinfo **res);
+	FGETADDRINFO fGetAddrInfo = NULL;
+
+	HINSTANCE dllWSHIP6 = LoadLibrary("wship6.dll");
+	if (dllWSHIP6)
+	    fGetAddrInfo = (FGETADDRINFO)GetProcAddress(dllWSHIP6,
+							"getaddrinfo");
+
+	/*
+	 * Use fGetAddrInfo when it's available (which usually also
+	 * means IPv6 is installed...)
+	 */
+	if (fGetAddrInfo)
+	{
+	    /*debug(("Resolving \"%s\" with getaddrinfo()  (IPv4+IPv6 capable)...\n", host)); */
+	    if (fGetAddrInfo(host, NULL, NULL, &ret->ai) == 0)
+		ret->family = ret->ai->ai_family;
 	}
-    } else {
+	else
+#endif
+	    /*
+	     * Otherwise use the IPv4-only gethostbyname...
+	     * (NOTE: we don't use gethostbyname as a
+	     * fallback!)
+	     */
+	    if (ret->family == 0)
+	{
+	    /*debug(("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host)); */
+	    if (h = gethostbyname(host)) ret->family = AF_INET;
+	}
+	/*debug(("Done resolving...(family is %d) AF_INET = %d, AF_INET6 = %d\n", ret->family, AF_INET, AF_INET6)); */
+
+	if (ret->family == 0)
+	{
+	    DWORD err = WSAGetLastError();
+	    ret->error = (err == WSAENETDOWN ? "Network is down" :
+			  err == WSAHOST_NOT_FOUND ? "Host does not exist" :
+			  err == WSATRY_AGAIN ? "Host not found" :
+#ifdef IPV6
+			  fGetAddrInfo ? "getaddrinfo: unknown error" :
+#endif
+			  "gethostbyname: unknown error");
+#ifdef DEBUG
+	    {
+		LPVOID lpMsgBuf;
+		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&lpMsgBuf,	0,	NULL);
+		debug(("Error %ld: %s (h=%lx)\n", err, lpMsgBuf, h));
+		/* Free the buffer. */
+		LocalFree(lpMsgBuf);
+	    }
+#endif
+	}
+	else
+	{
+	    ret->error = NULL;
+
+#ifdef IPV6
+	    /* If we got an address info use that... */
+	    if (ret->ai)
+	    {
+		typedef int (CALLBACK* FGETNAMEINFO)
+		    (const struct sockaddr FAR *sa, socklen_t salen,
+		     char FAR * host, size_t hostlen, char FAR * serv,
+		     size_t servlen, int flags);
+		FGETNAMEINFO fGetNameInfo = NULL;
+
+		/* Are we in IPv4 fallback mode? */
+		/* We put the IPv4 address into the a variable so we can further-on use the IPv4 code... */
+		if (ret->family == AF_INET)
+		    memcpy(&a, (char *)&((SOCKADDR_IN *)ret->ai->ai_addr)->sin_addr, sizeof(a));
+
+		/* Now let's find that canonicalname... */
+		if ((dllWSHIP6) && (fGetNameInfo = (FGETNAMEINFO)GetProcAddress(dllWSHIP6, "getnameinfo")))
+		{
+		    if (fGetNameInfo((struct sockaddr *)ret->ai->ai_addr,
+				     ret->family == AF_INET ?
+				     sizeof(SOCKADDR_IN) :
+				     sizeof(SOCKADDR_IN6), ret->realhost,
+				     sizeof(ret->realhost), NULL,
+				     0, 0) != 0)
+		    {
+			strncpy(ret->realhost, host,
+				sizeof(ret->realhost));
+		    }
+		}
+	    }
+	    /* We used the IPv4-only gethostbyname()... */
+	    else
+	    {
+#endif
+		memcpy(&a, h->h_addr, sizeof(a));
+		/* This way we are always sure the h->h_name is valid :) */
+		strncpy(ret->realhost, h->h_name, sizeof(ret->realhost));
+#ifdef IPV6
+	    }
+#endif
+	}
+#ifdef IPV6
+	FreeLibrary(dllWSHIP6);
+#endif
+    }
+    else
+    {
 	*canonicalname = host;
     }
     ret->address = ntohl(a);
-
     return ret;
 }
 
@@ -125,6 +285,9 @@ void sk_addr_free(SockAddr addr) {
 
 Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     SOCKET s;
+#ifdef IPV6
+    SOCKADDR_IN6 a6;
+#endif
     SOCKADDR_IN a;
     DWORD err;
     char *errstr;
@@ -145,7 +308,7 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     /*
      * Open socket.
      */
-    s = socket(AF_INET, SOCK_STREAM, 0);
+    s = socket(addr->family, SOCK_STREAM, 0);
     ret->s = s;
 
     if (s == INVALID_SOCKET) {
@@ -157,23 +320,58 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     /*
      * Bind to local address.
      */
-    a.sin_family = AF_INET;
-    a.sin_addr.s_addr = htonl(INADDR_ANY);
-    a.sin_port = htons(0);
-    if (bind (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR) {
+#ifdef IPV6
+    if (addr->family == AF_INET6)
+    {
+	memset(&a6,0,sizeof(a6));
+	a6.sin6_family	= AF_INET6;
+	/*a6.sin6_addr	= in6addr_any;*/			/* == 0 */
+	a6.sin6_port	= htons(0);
+    }
+    else
+    {
+#endif
+	a.sin_family = AF_INET;
+	a.sin_addr.s_addr = htonl(INADDR_ANY);
+	a.sin_port = htons(0);
+#ifdef IPV6
+    }
+    if (bind (s, (addr->family == AF_INET6) ? (struct sockaddr *)&a6 : (struct sockaddr *)&a, (addr->family == AF_INET6) ? sizeof(a6) : sizeof(a)) == SOCKET_ERROR)
+#else
+	if (bind (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR)
+#endif
+    {
 	err = WSAGetLastError();
-        ret->error = winsock_error_string(err);
+	ret->error = winsock_error_string(err);
 	return ret;
     }
 
     /*
      * Connect to remote address.
      */
-    a.sin_addr.s_addr = htonl(addr->address);
-    a.sin_port = htons((short)port);
-    if (connect (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR) {
+#ifdef IPV6
+    if (addr->family == AF_INET6)
+    {
+	memset(&a,0,sizeof(a));
+	a6.sin6_family = AF_INET6;
+	a6.sin6_port = htons((short)port);
+	a6.sin6_addr = ((struct sockaddr_in6 *)addr->ai->ai_addr)->sin6_addr;
+    }
+    else
+    {
+#endif
+	a.sin_family = AF_INET;
+	a.sin_addr.s_addr = htonl(addr->address);
+	a.sin_port = htons((short)port);
+#ifdef IPV6
+    }
+    if (connect (s, (addr->family == AF_INET6) ? (struct sockaddr *)&a6 : (struct sockaddr *)&a, (addr->family == AF_INET6) ? sizeof(a6) : sizeof(a)) == SOCKET_ERROR)
+#else
+	if (connect (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR)
+#endif
+    {
 	err = WSAGetLastError();
-        ret->error = winsock_error_string(err);
+	ret->error = winsock_error_string(err);
 	return ret;
     }
 
