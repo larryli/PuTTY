@@ -133,14 +133,13 @@ static void unlineptr(termline *line)
 	freeline(line);
 }
 
+#ifdef TERM_CC_DIAGS
 /*
  * Diagnostic function: verify that a termline has a correct
  * combining character structure.
  * 
- * XXX-REMOVE-BEFORE-RELEASE: This is a performance-intensive
- * check. Although it's currently really useful for getting all the
- * bugs out of the new cc stuff, it will want to be absent when we
- * make a proper release.
+ * This is a performance-intensive check, so it's no longer enabled
+ * by default.
  */
 static void cc_check(termline *line)
 {
@@ -185,6 +184,7 @@ static void cc_check(termline *line)
 
     sfree(flags);
 }
+#endif
 
 /*
  * Add a combining character to a character cell.
@@ -231,7 +231,9 @@ static void add_cc(termline *line, int col, unsigned long chr)
     line->chars[newcc].chr = chr;
     line->chars[col].cc_next = newcc - col;
 
-    cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
+#ifdef TERM_CC_DIAGS
+    cc_check(line);
+#endif
 }
 
 /*
@@ -257,7 +259,9 @@ static void clear_cc(termline *line, int col)
 
     line->chars[origcol].cc_next = 0;
 
-    cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
+#ifdef TERM_CC_DIAGS
+    cc_check(line);
+#endif
 }
 
 /*
@@ -305,7 +309,9 @@ static void copy_termchar(termline *destline, int x, termchar *src)
 	add_cc(destline, x, src->chr);
     }
 
-    cc_check(destline);		       /* XXX-REMOVE-BEFORE-RELEASE */
+#ifdef TERM_CC_DIAGS
+    cc_check(destline);
+#endif
 }
 
 /*
@@ -324,7 +330,9 @@ static void move_termchar(termline *line, termchar *dest, termchar *src)
     /* Ensure the original cell doesn't have a cc list. */
     src->cc_next = 0;
 
-    cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
+#ifdef TERM_CC_DIAGS
+    cc_check(line);
+#endif
 }
 
 /*
@@ -669,9 +677,9 @@ static unsigned char *compressline(termline *ldata)
      * Diagnostics: ensure that the compressed data really does
      * decompress to the right thing.
      * 
-     * XXX-REMOVE-BEFORE-RELEASE: This is a bit performance-heavy
-     * to be leaving in production code.
+     * This is a bit performance-heavy for production code.
      */
+#ifdef TERM_CC_DIAGS
 #ifndef CHECK_SB_COMPRESSION
     {
 	int dused;
@@ -701,6 +709,7 @@ static unsigned char *compressline(termline *ldata)
 	freeline(dcl);
     }
 #endif
+#endif /* TERM_CC_DIAGS */
 
     /*
      * Trim the allocated memory so we don't waste any, and return.
@@ -960,7 +969,9 @@ static void resizeline(Terminal *term, termline *line, int cols)
 	for (i = oldcols; i < cols; i++)
 	    line->chars[i] = term->basic_erase_char;
 
-	cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
+#ifdef TERM_CC_DIAGS
+	cc_check(line);
+#endif
     }
 }
 
@@ -1835,7 +1846,9 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
     } else {
 	while (lines > 0) {
 	    line = delpos234(term->screen, topline);
-	    cc_check(line);	       /* XXX-REMOVE-BEFORE-RELEASE */
+#ifdef TERM_CC_DIAGS
+	    cc_check(line);
+#endif
 	    if (sb && term->savelines > 0) {
 		int sblen = count234(term->scrollback);
 		/*
