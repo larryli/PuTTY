@@ -109,22 +109,22 @@ SOCK2 = ws2_32.lib
 all: putty.exe puttytel.exe pscp.exe plink.exe pageant.exe puttygen.exe
 
 putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
-	link $(LFLAGS) -out:putty.exe @putty.rsp
+	link $(LFLAGS) -out:putty.exe -map:putty.map @putty.rsp
 
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(MOBJ2) $(PRESRC) puttytel.rsp
-	link $(LFLAGS) -out:puttytel.exe @puttytel.rsp
+	link $(LFLAGS) -out:puttytel.exe -map:puttytel.map @puttytel.rsp
 
 pageant.exe: $(PAGE1) $(PAGE2) $(PAGERC) pageant.rsp
-	link $(LFLAGS) -out:pageant.exe @pageant.rsp
+	link $(LFLAGS) -out:pageant.exe -map:pageant.map @pageant.rsp
 
 puttygen.exe: $(GEN1) $(GEN2) $(GEN3) $(GEN4) $(GENRC) puttygen.rsp
-	link $(LFLAGS) -out:puttygen.exe @puttygen.rsp
+	link $(LFLAGS) -out:puttygen.exe -map:puttygen.map @puttygen.rsp
 
 pscp.exe: $(SOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
-	link $(LFLAGS) -out:pscp.exe @pscp.rsp
+	link $(LFLAGS) -out:pscp.exe -map:pscp.map @pscp.rsp
 
 plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(LRESRC) plink.rsp
-	link $(LFLAGS) -out:plink.exe @plink.rsp
+	link $(LFLAGS) -out:plink.exe -map:plink.map @plink.rsp
 
 putty.rsp: makefile
 	echo /nologo /subsystem:windows > putty.rsp
