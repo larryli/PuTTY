@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <grp.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
@@ -57,6 +58,34 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
     char name[FILENAME_MAX];
     pid_t pid, pgrp;
 
+#ifdef BSD_PTYS
+    {
+	const char chars1[] = "pqrstuvwxyz";
+	const char chars2[] = "0123456789abcdef";
+	const char *p1, *p2;
+	char master_name[20];
+
+	for (p1 = chars1; *p1; p1++)
+	    for (p2 = chars2; *p2; p2++) {
+		sprintf(master_name, "/dev/pty%c%c", *p1, *p2);
+		pty_master_fd = open(master_name, O_RDWR);
+		if (pty_master_fd >= 0) {
+		    if (geteuid() == 0 ||
+			access(master_name, R_OK | W_OK) == 0)
+			goto got_one;
+		    close(pty_master_fd);
+		}
+	    }
+
+	/* If we get here, we couldn't get a tty at all. */
+	fprintf(stderr, "pterm: unable to open a pseudo-terminal device\n");
+	exit(1);
+
+	got_one:
+	strcpy(name, master_name);
+	name[5] = 't';		       /* /dev/ptyXX -> /dev/ttyXX */
+    }
+#else
     pty_master_fd = open("/dev/ptmx", O_RDWR);
 
     if (pty_master_fd < 0) {
@@ -76,6 +105,7 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 
     name[FILENAME_MAX-1] = '\0';
     strncpy(name, ptsname(pty_master_fd), FILENAME_MAX-1);
+#endif
 
     /*
      * Fork and execute the command.
@@ -98,6 +128,15 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	    exit(1);
 	}
 
+#ifdef BSD_PTYS
+	/* We need to chown/chmod the /dev/ttyXX device. */
+	{
+	    struct group *gp = getgrnam("tty");
+	    fchown(slavefd, getuid(), gp ? gp->gr_gid : -1);
+	    fchmod(slavefd, 0600);
+	}
+#endif
+
 	close(pty_master_fd);
 	close(0);
 	close(1);
@@ -113,6 +152,9 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	setpgrp();
 	close(open(name, O_WRONLY, 0));
 	setpgrp();
+	/* In case we were setgid-utmp or setuid-root, drop privs. */
+	setgid(getgid());
+	setuid(getuid());
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
