@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "ssh.h"
 #include "putty.h"
@@ -2038,12 +2039,20 @@ int do_reconfig (HWND hwnd) {
 }
 
 void logevent (char *string) {
+    char timebuf[40];
+    time_t t;
+
     if (nevents >= negsize) {
 	negsize += 64;
 	events = srealloc (events, negsize * sizeof(*events));
     }
-    events[nevents] = smalloc(1+strlen(string));
-    strcpy (events[nevents], string);
+
+    time(&t);
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S    ", localtime(&t));
+
+    events[nevents] = smalloc(strlen(timebuf)+strlen(string)+1);
+    strcpy(events[nevents], timebuf);
+    strcat(events[nevents], string);
     nevents++;
     if (logbox) {
         int count;
