@@ -147,15 +147,16 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
     /*
      * RSA blinding relies on the fact that (xy)^d mod n is equal
      * to (x^d mod n) * (y^d mod n) mod n. We invent a random pair
-     * y and y^d; then we multiply x by y, raise to the power e mod
-     * n as usual, and divide by y^d to recover x^d. Thus the
-     * timing of the modpow does not reveal information about x,
-     * but only about xy, which is unpredictable to an attacker.
+     * y and y^d; then we multiply x by y, raise to the power d mod
+     * n as usual, and divide by y^d to recover x^d. Thus an
+     * attacker can't correlate the timing of the modpow with the
+     * input, because they don't know anything about the number
+     * that was input to the actual modpow.
      * 
      * The clever bit is that we don't have to do a huge modpow to
      * get y and y^d; we will use the number we just invented as
-     * _y^d_, and use the RSA public exponent to compute y from it,
-     * which is much faster.
+     * _y^d_, and use the _public_ exponent to compute (y^d)^e = y
+     * from it, which is much faster to do.
      */
     random_encrypted = modpow(random, key->exponent, key->modulus);
     random_inverse = modinv(random, key->modulus);
