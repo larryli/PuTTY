@@ -415,7 +415,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	/* look-up proxy */
 	proxy_addr = sk_namelookup(cfg.proxy_host,
 				   &proxy_canonical_name);
-	if ((err = sk_addr_error(proxy_addr))) {
+	if ((err = sk_addr_error(proxy_addr)) != NULL) {
 	    ret->error = "Proxy error: Unable to resolve proxy host name";
 	    return (Socket)ret;
 	}
@@ -515,7 +515,8 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    len = strlen(buf);
 	    sprintf(buf2, "Proxy-Authorization: basic ");
 	    for (i = 0, j = strlen(buf2); i < len; i += 3, j += 4)
-		base64_encode_atom(buf+i, (len-i > 3 ? 3 : len-i), buf2+j);
+		base64_encode_atom((unsigned char *)(buf+i),
+				   (len-i > 3 ? 3 : len-i), buf2+j);
 	    strcpy(buf2+j, "\r\n");
 	    sk_write(p->sub_socket, buf2, strlen(buf2));
 	}
@@ -1247,7 +1248,7 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 
 			/* we only extract two hex characters */
 			if (i == 1) {
-			    sk_write(p->sub_socket, &v, 1);
+			    sk_write(p->sub_socket, (char *)&v, 1);
 			    eo++;
 			    break;
 			}
