@@ -422,25 +422,32 @@ int main(int argc, char **argv)
 		    }
 		}
 	    } else {
-		int len = sizeof(cfg.remote_cmd) - 1;
-		char *cp = cfg.remote_cmd;
-		int len2;
+		char *command;
+		int cmdlen, cmdsize;
+		cmdlen = cmdsize = 0;
+		command = NULL;
 
-		strncpy(cp, p, len);
-		cp[len] = '\0';
-		len2 = strlen(cp);
-		len -= len2;
-		cp += len2;
-		while (--argc) {
-		    if (len > 0)
-			len--, *cp++ = ' ';
-		    strncpy(cp, *++argv, len);
-		    cp[len] = '\0';
-		    len2 = strlen(cp);
-		    len -= len2;
-		    cp += len2;
+		while (argc) {
+		    while (*p) {
+			if (cmdlen >= cmdsize) {
+			    cmdsize = cmdlen + 512;
+			    command = srealloc(command, cmdsize);
+			}
+			command[cmdlen++]=*p++;
+		    }
+		    if (cmdlen >= cmdsize) {
+			cmdsize = cmdlen + 512;
+			command = srealloc(command, cmdsize);
+		    }
+		    command[cmdlen++]=' '; /* always add trailing space */
+		    if (--argc) p = *++argv;
 		}
+		if (cmdlen) command[--cmdlen]='\0';
+				       /* change trailing blank to NUL */
+		cfg.remote_cmd_ptr = command;
+		cfg.remote_cmd_ptr2 = NULL;
 		cfg.nopty = TRUE;      /* command => no terminal */
+
 		break;		       /* done with cmdline */
 	    }
 	}
