@@ -133,10 +133,8 @@ unsigned char xlat_kbd2tty(unsigned char c)
 {
     if(cfg.xlat_enablekoiwin)
 	return win2koi[c];
-    else if (cfg.xlat_88592w1250)
+    else if (cfg.xlat_88592w1250 || cfg.xlat_88592cp852)
         return xlatWIN1250toISO88592[c];
-    else if (cfg.xlat_88592cp852)
-        return xlatCP852toISO88592[c];
     return c;
 }
 
