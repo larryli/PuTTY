@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.19 2003/08/29 19:06:22 jacob Exp $
+\versionid $Id: plink.but,v 1.20 2004/01/20 12:46:35 jacob Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -43,7 +43,7 @@ use Plink:
 
 \c Z:\sysosd>plink
 \c PuTTY Link: command-line connection utility
-\c Unidentified build, Aug 29 2003 19:49:05
+\c Unidentified build, Jan 20 2004 12:39:22
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
@@ -57,9 +57,12 @@ use Plink:
 \c   -batch    disable all interactive prompts
 \c The following options only apply to SSH connections:
 \c   -pw passw login with specified password
-\c   -D listen-port   Dynamic SOCKS-based port forwarding
-\c   -L listen-port:host:port   Forward local port to remote address
-\c   -R listen-port:host:port   Forward remote port to local address
+\c   -D [listen-IP:]listen-port
+\c             Dynamic SOCKS-based port forwarding
+\c   -L [listen-IP:]listen-port:host:port
+\c             Forward local port to remote address
+\c   -R [listen-IP:]listen-port:host:port
+\c             Forward remote port to local address
 \c   -X -x     enable / disable X11 forwarding
 \c   -A -a     enable / disable agent forwarding
 \c   -t -T     enable / disable pty allocation

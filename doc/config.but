@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.72 2003/11/20 18:33:22 simon Exp $
+\versionid $Id: config.but,v 1.73 2004/01/20 12:46:35 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2047,17 +2047,9 @@ To remove a port forwarding, simply select its details in the list
 box, and click the \q{Remove} button.
 
 In the \q{Source port} box, you can also optionally enter an IP
-address to listen on. Typically a Windows machine can be asked to
-listen on any single IP address in the \cw{127.*.*.*} range, and all
-of these are loopback addresses available only to the local machine.
-So if you forward (for example) \c{127.0.0.5:79} to a remote
-machine's \cw{finger} port, then you should be able to run commands
-such as \c{finger fred@127.0.0.5}. This can be useful if the program
-connecting to the forwarded port doesn't allow you to change the
-port number it uses. This feature is available for local-to-remote
-forwarded ports; SSH1 is unable to support it for remote-to-local
-ports, while SSH2 can support it in theory but servers will not
-necessarily cooperate.
+address to listen on, by specifying (for instance) \c{127.0.0.5:79}.
+See \k{using-port-forwarding} for more information on how this
+works and its restrictions.
 
 \S{config-ssh-portfwd-localhost} Controlling the visibility of
 forwarded ports
