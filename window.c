@@ -1798,7 +1798,7 @@ static WPARAM compose_key = 0;
 
 	   if ( cfg.funky_type == 0 ||
 	      ( cfg.funky_type == 1 && app_keypad_keys)) switch(wParam) {
-	       case VK_EXECUTE: xkey = 'P'; break;
+	       case VK_EXECUTE: if (app_keypad_keys) xkey = 'P'; break;
 	       case VK_DIVIDE:  xkey = 'Q'; break;
 	       case VK_MULTIPLY:xkey = 'R'; break;
 	       case VK_SUBTRACT:xkey = 'S'; break;
