@@ -60,7 +60,7 @@ The Windows installer script:
 The Mac resource file (used to generate the binary bit of the 'vers'
 resources -- the strings are supplied by the usual means):
 
- - putty/mac/mac_res.r
+ - putty/mac/version.r
 
 The actual release procedure
 ----------------------------
