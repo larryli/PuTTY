@@ -1174,10 +1174,10 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 
     if (query)
 	switch (mode) {
-	  case 1:		       /* application cursor keys */
+	  case 1:		       /* DECCKM: application cursor keys */
 	    term->app_cursor_keys = state;
 	    break;
-	  case 2:		       /* VT52 mode */
+	  case 2:		       /* DECANM: VT52 mode */
 	    term->vt52_mode = !state;
 	    if (term->vt52_mode) {
 		term->blink_is_real = FALSE;
@@ -1186,7 +1186,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 		term->blink_is_real = term->cfg.blinktext;
 	    }
 	    break;
-	  case 3:		       /* 80/132 columns */
+	  case 3:		       /* DECCOLM: 80/132 columns */
 	    deselect(term);
 	    if (!term->cfg.no_remote_resize)
 		request_resize(term->frontend, state ? 132 : 80, term->rows);
@@ -1196,7 +1196,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    move(term, 0, 0, 0);
 	    erase_lots(term, FALSE, TRUE, TRUE);
 	    break;
-	  case 5:		       /* reverse video */
+	  case 5:		       /* DECSCNM: reverse video */
 	    /*
 	     * Toggle reverse video. If we receive an OFF within the
 	     * visual bell timeout period after an ON, we trigger an
@@ -1225,21 +1225,21 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    if (state)
 		term_update(term);
 	    break;
-	  case 6:		       /* DEC origin mode */
+	  case 6:		       /* DECOM: DEC origin mode */
 	    term->dec_om = state;
 	    break;
-	  case 7:		       /* auto wrap */
+	  case 7:		       /* DECAWM: auto wrap */
 	    term->wrap = state;
 	    break;
-	  case 8:		       /* auto key repeat */
+	  case 8:		       /* DECARM: auto key repeat */
 	    term->repeat_off = !state;
 	    break;
-	  case 10:		       /* set local edit mode */
+	  case 10:		       /* DECEDM: set local edit mode */
 	    term->term_editing = state;
 	    if (term->ldisc)	       /* cause ldisc to notice changes */
 		ldisc_send(term->ldisc, NULL, 0, 0);
 	    break;
-	  case 25:		       /* enable/disable cursor */
+	  case 25:		       /* DECTCEM: enable/disable cursor */
 	    compatibility2(OTHER, VT220);
 	    term->cursor_on = state;
 	    term->seen_disp_event = TRUE;
@@ -1282,19 +1282,19 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    break;
     } else
 	switch (mode) {
-	  case 4:		       /* set insert mode */
+	  case 4:		       /* IRM: set insert mode */
 	    compatibility(VT102);
 	    term->insert = state;
 	    break;
-	  case 12:		       /* set echo mode */
+	  case 12:		       /* SRM: set echo mode */
 	    term->term_echoing = !state;
 	    if (term->ldisc)	       /* cause ldisc to notice changes */
 		ldisc_send(term->ldisc, NULL, 0, 0);
 	    break;
-	  case 20:		       /* Return sends ... */
+	  case 20:		       /* LNM: Return sends ... */
 	    term->cr_lf_return = state;
 	    break;
-	  case 34:		       /* Make cursor BIG */
+	  case 34:		       /* WYULCURM: Make cursor BIG */
 	    compatibility2(OTHER, VT220);
 	    term->big_cursor = !state;
 	}
@@ -1602,7 +1602,7 @@ void term_out(Terminal *term)
 	    /* Or normal C0 controls. */
 	if ((c & -32) == 0 && term->termstate < DO_CTRLS) {
 	    switch (c) {
-	      case '\005':	       /* terminal type query */
+	      case '\005':	       /* ENQ: terminal type query */
 		/* Strictly speaking this is VT100 but a VT100 defaults to
 		 * no response. Other terminals respond at their option.
 		 *
@@ -1634,7 +1634,7 @@ void term_out(Terminal *term)
 			       abuf, d - abuf, 0);
 		}
 		break;
-	      case '\007':
+	      case '\007':	      /* BEL: Bell */
 		{
 		    struct beeptime *newbeep;
 		    unsigned long ticks;
@@ -1700,7 +1700,7 @@ void term_out(Terminal *term)
 		    term->disptop = 0;
 		}
 		break;
-	      case '\b':
+	      case '\b':	      /* BS: Back space */
 		if (term->curs.x == 0 &&
 		    (term->curs.y == 0 || term->wrap == 0))
 		    /* do nothing */ ;
@@ -1713,15 +1713,15 @@ void term_out(Terminal *term)
 		fix_cpos;
 		term->seen_disp_event = TRUE;
 		break;
-	      case '\016':
+	      case '\016':	      /* LS1: Locking-shift one */
 		compatibility(VT100);
 		term->cset = 1;
 		break;
-	      case '\017':
+	      case '\017':	      /* LS0: Locking-shift zero */
 		compatibility(VT100);
 		term->cset = 0;
 		break;
-	      case '\033':
+	      case '\033':	      /* ESC: Escape */
 		if (term->vt52_mode)
 		    term->termstate = VT52_ESC;
 		else {
@@ -1730,7 +1730,7 @@ void term_out(Terminal *term)
 		    term->esc_query = FALSE;
 		}
 		break;
-	      case '\015':
+	      case '\015':	      /* CR: Carriage return */
 		term->curs.x = 0;
 		term->wrapnext = FALSE;
 		fix_cpos;
@@ -1739,7 +1739,7 @@ void term_out(Terminal *term)
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
-	      case '\014':
+	      case '\014':	      /* FF: Form feed */
 		if (has_compat(SCOANSI)) {
 		    move(term, 0, 0, 0);
 		    erase_lots(term, FALSE, FALSE, TRUE);
@@ -1748,9 +1748,9 @@ void term_out(Terminal *term)
 		    term->seen_disp_event = 1;
 		    break;
 		}
-	      case '\013':
+	      case '\013':	      /* VT: Line tabulation */
 		compatibility(VT100);
-	      case '\012':
+	      case '\012':	      /* LF: Line feed */
 		if (term->curs.y == term->marg_b)
 		    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
 		else if (term->curs.y < term->rows - 1)
@@ -1764,7 +1764,7 @@ void term_out(Terminal *term)
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
-	      case '\t':
+	      case '\t':	      /* HT: Character tabulation */
 		{
 		    pos old_curs = term->curs;
 		    unsigned long *ldata = lineptr(term->curs.y);
@@ -1910,36 +1910,36 @@ void term_out(Terminal *term)
 		}
 		term->termstate = TOPLEVEL;
 		switch (ANSI(c, term->esc_query)) {
-		  case '[':	       /* enter CSI mode */
+		  case '[':		/* enter CSI mode */
 		    term->termstate = SEEN_CSI;
 		    term->esc_nargs = 1;
 		    term->esc_args[0] = ARG_DEFAULT;
 		    term->esc_query = FALSE;
 		    break;
-		  case ']':	       /* xterm escape sequences */
+		  case ']':		/* OSC: xterm escape sequences */
 		    /* Compatibility is nasty here, xterm, linux, decterm yuk! */
 		    compatibility(OTHER);
 		    term->termstate = SEEN_OSC;
 		    term->esc_args[0] = 0;
 		    break;
-		  case '7':	       /* save cursor */
+		  case '7':		/* DECSC: save cursor */
 		    compatibility(VT100);
 		    save_cursor(term, TRUE);
 		    break;
-		  case '8':	       /* restore cursor */
+		  case '8':	 	/* DECRC: restore cursor */
 		    compatibility(VT100);
 		    save_cursor(term, FALSE);
 		    term->seen_disp_event = TRUE;
 		    break;
-		  case '=':
+		  case '=':		/* DECKPAM: Keypad application mode */
 		    compatibility(VT100);
 		    term->app_keypad_keys = TRUE;
 		    break;
-		  case '>':
+		  case '>':		/* DECKPNM: Keypad numeric mode */
 		    compatibility(VT100);
 		    term->app_keypad_keys = FALSE;
 		    break;
-		  case 'D':	       /* exactly equivalent to LF */
+		  case 'D':	       /* IND: exactly equivalent to LF */
 		    compatibility(VT100);
 		    if (term->curs.y == term->marg_b)
 			scroll(term, term->marg_t, term->marg_b, 1, TRUE);
@@ -1949,7 +1949,7 @@ void term_out(Terminal *term)
 		    term->wrapnext = FALSE;
 		    term->seen_disp_event = TRUE;
 		    break;
-		  case 'E':	       /* exactly equivalent to CR-LF */
+		  case 'E':	       /* NEL: exactly equivalent to CR-LF */
 		    compatibility(VT100);
 		    term->curs.x = 0;
 		    if (term->curs.y == term->marg_b)
@@ -1960,7 +1960,7 @@ void term_out(Terminal *term)
 		    term->wrapnext = FALSE;
 		    term->seen_disp_event = TRUE;
 		    break;
-		  case 'M':	       /* reverse index - backwards LF */
+		  case 'M':	       /* RI: reverse index - backwards LF */
 		    compatibility(VT100);
 		    if (term->curs.y == term->marg_t)
 			scroll(term, term->marg_t, term->marg_b, -1, TRUE);
@@ -1970,13 +1970,13 @@ void term_out(Terminal *term)
 		    term->wrapnext = FALSE;
 		    term->seen_disp_event = TRUE;
 		    break;
-		  case 'Z':	       /* terminal type query */
+		  case 'Z':	       /* DECID: terminal type query */
 		    compatibility(VT100);
 		    if (term->ldisc)
 			ldisc_send(term->ldisc, term->id_string,
 				   strlen(term->id_string), 0);
 		    break;
-		  case 'c':	       /* restore power-on settings */
+		  case 'c':	       /* RIS: restore power-on settings */
 		    compatibility(VT100);
 		    power_on(term);
 		    if (term->ldisc)   /* cause ldisc to notice changes */
@@ -1990,12 +1990,12 @@ void term_out(Terminal *term)
 		    term->disptop = 0;
 		    term->seen_disp_event = TRUE;
 		    break;
-		  case 'H':	       /* set a tab */
+		  case 'H':	       /* HTS: set a tab */
 		    compatibility(VT100);
 		    term->tabs[term->curs.x] = TRUE;
 		    break;
 
-		  case ANSI('8', '#'):	/* ESC # 8 fills screen with Es :-) */
+		  case ANSI('8', '#'):	/* DECALN: fills screen with Es :-) */
 		    compatibility(VT100);
 		    {
 			unsigned long *ldata;
@@ -2026,16 +2026,16 @@ void term_out(Terminal *term)
 			unsigned long nlattr;
 			unsigned long *ldata;
 			switch (ANSI(c, term->esc_query)) {
-			  case ANSI('3', '#'):
+			  case ANSI('3', '#'): /* DECDHL: 2*height, top */
 			    nlattr = LATTR_TOP;
 			    break;
-			  case ANSI('4', '#'):
+			  case ANSI('4', '#'): /* DECDHL: 2*height, bottom */
 			    nlattr = LATTR_BOT;
 			    break;
-			  case ANSI('5', '#'):
+			  case ANSI('5', '#'): /* DECSWL: normal */
 			    nlattr = LATTR_NORM;
 			    break;
-			  default: /* spiritually case ANSI('6', '#'): */
+			  default: /* case ANSI('6', '#'): DECDWL: 2*width */
 			    nlattr = LATTR_WIDE;
 			    break;
 			}
@@ -2044,7 +2044,7 @@ void term_out(Terminal *term)
 			ldata[term->cols] |= nlattr;
 		    }
 		    break;
-
+		  /* GZD4: G0 designate 94-set */
 		  case ANSI('A', '('):
 		    compatibility(VT100);
 		    if (!term->cfg.no_remote_charset)
@@ -2065,7 +2065,7 @@ void term_out(Terminal *term)
 		    if (!term->cfg.no_remote_charset)
 			term->cset_attr[0] = ATTR_SCOACS; 
 		    break;
-
+		  /* G1D4: G1-designate 94-set */
 		  case ANSI('A', ')'):
 		    compatibility(VT100);
 		    if (!term->cfg.no_remote_charset)
@@ -2086,7 +2086,7 @@ void term_out(Terminal *term)
 		    if (!term->cfg.no_remote_charset)
 			term->cset_attr[1] = ATTR_SCOACS; 
 		    break;
-
+		  /* DOCS: Designate other coding system */
 		  case ANSI('8', '%'):	/* Old Linux code */
 		  case ANSI('G', '%'):
 		    compatibility(OTHER);
@@ -2124,59 +2124,59 @@ void term_out(Terminal *term)
 		    term->termstate = SEEN_CSI;
 		} else
 		    switch (ANSI(c, term->esc_query)) {
-		      case 'A':       /* move up N lines */
+		      case 'A':       /* CUU: move up N lines */
 			move(term, term->curs.x,
 			     term->curs.y - def(term->esc_args[0], 1), 1);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'e':       /* move down N lines */
+		      case 'e':		/* VPR: move down N lines */
 			compatibility(ANSI);
 			/* FALLTHROUGH */
-		      case 'B':
+		      case 'B':		/* CUD: Cursor down */
 			move(term, term->curs.x,
 			     term->curs.y + def(term->esc_args[0], 1), 1);
 			term->seen_disp_event = TRUE;
 			break;
-		      case ANSI('c', '>'):	/* report xterm version */
+		      case ANSI('c', '>'):	/* DA: report xterm version */
 			compatibility(OTHER);
 			/* this reports xterm version 136 so that VIM can
 			   use the drag messages from the mouse reporting */
 			if (term->ldisc)
 			    ldisc_send(term->ldisc, "\033[>0;136;0c", 11, 0);
 			break;
-		      case 'a':       /* move right N cols */
+		      case 'a':		/* HPR: move right N cols */
 			compatibility(ANSI);
 			/* FALLTHROUGH */
-		      case 'C':
+		      case 'C':		/* CUF: Cursor right */ 
 			move(term, term->curs.x + def(term->esc_args[0], 1),
 			     term->curs.y, 1);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'D':       /* move left N cols */
+		      case 'D':       /* CUB: move left N cols */
 			move(term, term->curs.x - def(term->esc_args[0], 1),
 			     term->curs.y, 1);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'E':       /* move down N lines and CR */
+		      case 'E':       /* CNL: move down N lines and CR */
 			compatibility(ANSI);
 			move(term, 0,
 			     term->curs.y + def(term->esc_args[0], 1), 1);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'F':       /* move up N lines and CR */
+		      case 'F':       /* CPL: move up N lines and CR */
 			compatibility(ANSI);
 			move(term, 0,
 			     term->curs.y - def(term->esc_args[0], 1), 1);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'G':
-		      case '`':       /* set horizontal posn */
+		      case 'G':	      /* CHA */
+		      case '`':       /* HPA: set horizontal posn */
 			compatibility(ANSI);
 			move(term, def(term->esc_args[0], 1) - 1,
 			     term->curs.y, 0);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'd':       /* set vertical posn */
+		      case 'd':       /* VPA: set vertical posn */
 			compatibility(ANSI);
 			move(term, term->curs.x,
 			     ((term->dec_om ? term->marg_t : 0) +
@@ -2184,8 +2184,8 @@ void term_out(Terminal *term)
 			     (term->dec_om ? 2 : 0));
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'H':
-		      case 'f':       /* set horz and vert posns at once */
+		      case 'H':	     /* CUP */
+		      case 'f':      /* HVP: set horz and vert posns at once */
 			if (term->esc_nargs < 2)
 			    term->esc_args[1] = ARG_DEFAULT;
 			move(term, def(term->esc_args[1], 1) - 1,
@@ -2194,7 +2194,7 @@ void term_out(Terminal *term)
 			     (term->dec_om ? 2 : 0));
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'J':       /* erase screen or parts of it */
+		      case 'J':       /* ED: erase screen or parts of it */
 			{
 			    unsigned int i = def(term->esc_args[0], 0) + 1;
 			    if (i > 3)
@@ -2204,7 +2204,7 @@ void term_out(Terminal *term)
 			term->disptop = 0;
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'K':       /* erase line or parts of it */
+		      case 'K':       /* EL: erase line or parts of it */
 			{
 			    unsigned int i = def(term->esc_args[0], 0) + 1;
 			    if (i > 3)
@@ -2213,7 +2213,7 @@ void term_out(Terminal *term)
 			}
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'L':       /* insert lines */
+		      case 'L':       /* IL: insert lines */
 			compatibility(VT102);
 			if (term->curs.y <= term->marg_b)
 			    scroll(term, term->curs.y, term->marg_b,
@@ -2221,7 +2221,7 @@ void term_out(Terminal *term)
 			fix_cpos;
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'M':       /* delete lines */
+		      case 'M':       /* DL: delete lines */
 			compatibility(VT102);
 			if (term->curs.y <= term->marg_b)
 			    scroll(term, term->curs.y, term->marg_b,
@@ -2230,25 +2230,25 @@ void term_out(Terminal *term)
 			fix_cpos;
 			term->seen_disp_event = TRUE;
 			break;
-		      case '@':       /* insert chars */
+		      case '@':       /* ICH: insert chars */
 			/* XXX VTTEST says this is vt220, vt510 manual says vt102 */
 			compatibility(VT102);
 			insch(term, def(term->esc_args[0], 1));
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'P':       /* delete chars */
+		      case 'P':       /* DCH: delete chars */
 			compatibility(VT102);
 			insch(term, -def(term->esc_args[0], 1));
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'c':       /* terminal type query */
+		      case 'c':       /* DA: terminal type query */
 			compatibility(VT100);
 			/* This is the response for a VT102 */
 			if (term->ldisc)
 			    ldisc_send(term->ldisc, term->id_string,
  				       strlen(term->id_string), 0);
 			break;
-		      case 'n':       /* cursor position query */
+		      case 'n':       /* DSR: cursor position query */
 			if (term->ldisc) {
 			    if (term->esc_args[0] == 6) {
 				char buf[32];
@@ -2260,7 +2260,7 @@ void term_out(Terminal *term)
 			    }
 			}
 			break;
-		      case 'h':       /* toggle modes to high */
+		      case 'h':       /* SM: toggle modes to high */
 		      case ANSI_QUE('h'):
 			compatibility(VT100);
 			{
@@ -2270,7 +2270,7 @@ void term_out(Terminal *term)
 					    term->esc_query, TRUE);
 			}
 			break;
-		      case 'i':
+		      case 'i':		/* MC: Media copy */
 		      case ANSI_QUE('i'):
 			compatibility(VT100);
 			{
@@ -2286,7 +2286,7 @@ void term_out(Terminal *term)
 			    }
 			}
 			break;			
-		      case 'l':       /* toggle modes to low */
+		      case 'l':       /* RM: toggle modes to low */
 		      case ANSI_QUE('l'):
 			compatibility(VT100);
 			{
@@ -2296,7 +2296,7 @@ void term_out(Terminal *term)
 					    term->esc_query, FALSE);
 			}
 			break;
-		      case 'g':       /* clear tabs */
+		      case 'g':       /* TBC: clear tabs */
 			compatibility(VT100);
 			if (term->esc_nargs == 1) {
 			    if (term->esc_args[0] == 0) {
@@ -2308,7 +2308,7 @@ void term_out(Terminal *term)
 			    }
 			}
 			break;
-		      case 'r':       /* set scroll margins */
+		      case 'r':       /* DECSTBM: set scroll margins */
 			compatibility(VT100);
 			if (term->esc_nargs <= 2) {
 			    int top, bot;
@@ -2342,7 +2342,7 @@ void term_out(Terminal *term)
 			    }
 			}
 			break;
-		      case 'm':       /* set graphics rendition */
+		      case 'm':       /* SGR: set graphics rendition */
 			{
 			    /* 
 			     * A VT100 without the AVO only had one
@@ -2506,7 +2506,7 @@ void term_out(Terminal *term)
 			save_cursor(term, FALSE);
 			term->seen_disp_event = TRUE;
 			break;
-		      case 't':       /* set page size - ie window height */
+		      case 't': /* DECSLPP: set page size - ie window height */
 			/*
 			 * VT340/VT420 sequence DECSLPP, DEC only allows values
 			 *  24/25/36/48/72/144 other emulators (eg dtterm) use
@@ -2641,7 +2641,7 @@ void term_out(Terminal *term)
 			    }
 			}
 			break;
-		      case 'S':
+		      case 'S':		/* SU: Scroll up */
 			compatibility(SCOANSI);
 			scroll(term, term->marg_t, term->marg_b,
 			       def(term->esc_args[0], 1), TRUE);
@@ -2649,7 +2649,7 @@ void term_out(Terminal *term)
 			term->wrapnext = FALSE;
 			term->seen_disp_event = TRUE;
 			break;
-		      case 'T':
+		      case 'T':		/* SD: Scroll down */
 			compatibility(SCOANSI);
 			scroll(term, term->marg_t, term->marg_b,
 			       -def(term->esc_args[0], 1), TRUE);
@@ -2657,11 +2657,12 @@ void term_out(Terminal *term)
 			term->wrapnext = FALSE;
 			term->seen_disp_event = TRUE;
 			break;
-		      case ANSI('|', '*'):
-			/* VT420 sequence DECSNLS
+		      case ANSI('|', '*'): /* DECSNLS */
+			/* 
 			 * Set number of lines on screen
-			 * VT420 uses VGA like hardware and can support any size in
-			 * reasonable range (24..49 AIUI) with no default specified.
+			 * VT420 uses VGA like hardware and can
+			 * support any size in reasonable range
+			 * (24..49 AIUI) with no default specified.
 			 */
 			compatibility(VT420);
 			if (term->esc_nargs == 1 && term->esc_args[0] > 0) {
@@ -2672,10 +2673,11 @@ void term_out(Terminal *term)
 			    deselect(term);
 			}
 			break;
-		      case ANSI('|', '$'):
-			/* VT340/VT420 sequence DECSCPP
+		      case ANSI('|', '$'): /* DECSCPP */
+			/*
 			 * Set number of columns per page
-			 * Docs imply range is only 80 or 132, but I'll allow any.
+			 * Docs imply range is only 80 or 132, but
+			 * I'll allow any.
 			 */
 			compatibility(VT340TEXT);
 			if (term->esc_nargs <= 1) {
@@ -2686,8 +2688,9 @@ void term_out(Terminal *term)
 			    deselect(term);
 			}
 			break;
-		      case 'X':       /* write N spaces w/o moving cursor */
-			/* XXX VTTEST says this is vt220, vt510 manual says vt100 */
+		      case 'X':     /* ECH: write N spaces w/o moving cursor */
+			/* XXX VTTEST says this is vt220, vt510 manual
+			 * says vt100 */
 			compatibility(ANSIMIN);
 			{
 			    int n = def(term->esc_args[0], 1);
@@ -2705,7 +2708,7 @@ void term_out(Terminal *term)
 			    term->seen_disp_event = TRUE;
 			}
 			break;
-		      case 'x':       /* report terminal characteristics */
+		      case 'x':       /* DECREQTPARM: report terminal characteristics */
 			compatibility(VT100);
 			if (term->ldisc) {
 			    char buf[32];
@@ -2717,7 +2720,7 @@ void term_out(Terminal *term)
 			    }
 			}
 			break;
-		      case 'Z':		/* BackTab for xterm */
+		      case 'Z':		/* CBT: BackTab for xterm */
 			compatibility(OTHER);
 			{
 			    int i = def(term->esc_args[0], 1);
@@ -2805,7 +2808,7 @@ void term_out(Terminal *term)
 						(term->curr_attr & 
 						 (ATTR_FGMASK | ATTR_BGMASK)));
 			break;
-		      case ANSI('p', '"'):
+		      case ANSI('p', '"'): /* DECSCL: set compat level */
 			/*
 			 * Allow the host to make this emulator a
 			 * 'perfect' VT102. This first appeared in
