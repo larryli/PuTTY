@@ -519,7 +519,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
 	    /* Accelerators used: acglops1rbd */
 
-	    ctlposinit(&cp, hwnd, 10, 10, 10);
+	    ctlposinit(&cp, hwnd, 4, 4, 4);
 	    bartitle(&cp, "Public and private key generation for PuTTY",
 		     IDC_TITLE);
 	    beginbox(&cp, "Key", IDC_BOX_KEY);
@@ -530,7 +530,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    progressbar(&cp2, IDC_PROGRESS);
 	    bigeditctrl(&cp,
 			"&Public key for pasting into authorized_keys file:",
-			IDC_PKSTATIC, IDC_KEYDISPLAY, 7);
+			IDC_PKSTATIC, IDC_KEYDISPLAY, 5);
 	    SendDlgItemMessage(hwnd, IDC_KEYDISPLAY, EM_SETREADONLY, 1, 0);
 	    staticedit(&cp, "Key fingerprint:", IDC_FPSTATIC,
 		       IDC_FINGERPRINT, 75);
