@@ -1549,7 +1549,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             if (response) {
                 p = response + 5;
                 nkeys = GET_32BIT(p); p += 4;
-                { char buf[64]; sprintf(buf, "Pageant has %d keys", nkeys);
+                { char buf[64]; sprintf(buf, "Pageant has %d SSH1 keys", nkeys);
                     logevent(buf); }
                 for (i = 0; i < nkeys; i++) {
                     static struct RSAKey key;
@@ -2933,7 +2933,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		if (response) {
 		    p = response + 5;
 		    nkeys = GET_32BIT(p); p += 4;
-		    { char buf[64]; sprintf(buf, "Pageant has %d keys", nkeys);
+		    { char buf[64]; sprintf(buf, "Pageant has %d SSH2 keys", nkeys);
 			logevent(buf); }
 		    for (i = 0; i < nkeys; i++) {
 			static char *pkblob, *alg, *commentp;
