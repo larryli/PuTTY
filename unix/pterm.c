@@ -1973,7 +1973,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 			    y*inst->font_height+inst->cfg.window_border,
 			    x*inst->font_width+inst->cfg.window_border + 2*i+1,
 			    y*inst->font_height+inst->cfg.window_border,
-			    len * inst->font_width - i, inst->font_height);
+			    len * widefactor * inst->font_width - i, inst->font_height);
 	}
 	len *= 2;
 	if ((lattr & LATTR_MODE) != LATTR_WIDE) {
@@ -1987,9 +1987,9 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 		gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
 				x*inst->font_width+inst->cfg.window_border,
 				y*inst->font_height+inst->cfg.window_border+dt*i+db,
-				x*widefactor*inst->font_width+inst->cfg.window_border,
+				x*inst->font_width+inst->cfg.window_border,
 				y*inst->font_height+inst->cfg.window_border+dt*(i+1),
-				len * inst->font_width, inst->font_height-i-1);
+				len * widefactor * inst->font_width, inst->font_height-i-1);
 	    }
 	}
     }
