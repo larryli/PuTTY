@@ -1433,7 +1433,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     for (i = 0; i < newrows; i++) {
 	newdisp[i] = newline(term, newcols, FALSE);
 	for (j = 0; j < newcols; j++)
-	    newdisp[i]->chars[i].attr = ATTR_INVALID;
+	    newdisp[i]->chars[j].attr = ATTR_INVALID;
     }
     if (term->disptext) {
 	for (i = 0; i < oldrows; i++)
