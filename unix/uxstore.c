@@ -85,6 +85,8 @@ static void make_filename(char *filename, int index, const char *subname)
     char *home;
     int len;
     home = getenv("HOME");
+    if (!home)
+        home="/";
     strncpy(filename, home, FILENAME_MAX);
     len = strlen(filename);
     if (index == INDEX_SESSION) {
