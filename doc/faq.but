@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.63 2004/03/16 08:18:37 simon Exp $
+\versionid $Id: faq.but,v 1.64 2004/03/29 11:37:44 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -1038,12 +1038,12 @@ asking for any.
 
 Having said all that, if you still really \e{want} to give us money,
 we won't argue :-) The easiest way for us to accept donations is if
-you go to \W{http://www.e-gold.com}\cw{www.e-gold.com}, and deposit
-your donation in account number 174769. Then send us e-mail to let
-us know you've done so (otherwise we might not notice for months!).
-Alternatively, if e-gold isn't convenient for you, you can donate to
-\cw{<anakin@pobox.com>} using PayPal
-(\W{http://www.paypal.com/}\cw{www.paypal.com}).
+you send money to \cw{<anakin@pobox.com>} using PayPal
+(\W{http://www.paypal.com/}\cw{www.paypal.com}). Alternatively, if
+you don't trust PayPal, you could donate through e-gold
+(\W{http://www.e-gold.com}\cw{www.e-gold.com}): deposit your
+donation in account number 174769, then send us e-mail to let us
+know you've done so (otherwise we might not notice for months!).
 
 Small donations (tens of dollars or tens of euros) will probably be
 spent on beer or curry, which helps motivate our volunteer team to
