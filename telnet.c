@@ -394,9 +394,12 @@ static void proc_rec_opt(Telnet telnet, int cmd, int option)
     }
     /*
      * If we reach here, the option was one we weren't prepared to
-     * cope with. So send a negative ack.
+     * cope with. If the request was positive (WILL or DO), we send
+     * a negative ack to indicate refusal. If the request was
+     * negative (WONT / DONT), we must do nothing.
      */
-    send_opt(telnet, (cmd == WILL ? DONT : WONT), option);
+    if (cmd == WILL || cmd == DO)
+        send_opt(telnet, (cmd == WILL ? DONT : WONT), option);
 }
 
 static void process_subneg(Telnet telnet)
