@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.13 2001/11/25 17:32:39 simon Exp $
+\versionid $Id: config.but,v 1.14 2001/11/25 18:59:12 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -582,10 +582,8 @@ terminal size will change when you resize the window.
 
 \S{config-scrollback} Controlling scrollback
 
-Text that scrolls off the top of the PuTTY terminal window is kept
-for reference. The scrollbar on the right of the window lets you
-view the scrolled-off text. You can also page through the scrollback
-using the keyboard, by pressing Shift-PgUp and Shift-PgDn.
+These options let you configure the way PuTTY keeps text after it
+scrolls off the top of the screen (see \k{using-scrollback}).
 
 The \q{Lines of scrollback} box lets you configure how many lines of
 text PuTTY keeps. The \q{Display scrollbar} option allows you to

@@ -1,4 +1,4 @@
-CHAPTERS = blurb intro gs config pscp plink pubkey pageant faq
+CHAPTERS = blurb intro gs using config pscp plink pubkey pageant faq
 
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 

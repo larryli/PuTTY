@@ -1,0 +1,209 @@
+\versionid $Id: using.but,v 1.1 2001/11/25 18:59:12 simon Exp $
+
+\C{using} Using PuTTY
+
+This chapter provides a general introduction to some more advanced
+features of PuTTY. For extreme detail and reference purposes,
+\k{config} is likely to contain more information.
+
+\H{using-session} During your session
+
+A lot of PuTTY's complexity and features are in the configuration
+panel. Once you have worked your way through that and started
+a session, things should be reasonably simple after that.
+Nevertheless, there are a few more useful features available.
+
+\S{using-selection} Copying and pasting text
+
+Often in a PuTTY session you will find text on your terminal screen
+which you want to type in again. Like most other terminal emulators,
+PuTTY allows you to copy and paste the text rather than having to
+type it again. Also, copy and paste uses the Windows clipboard, so
+that you can paste (for example) URLs into a web browser, or paste
+from a word processor or spreadsheet into your terminal session.
+
+PuTTY's copy and paste works entirely with the mouse. In order to
+copy text to the clipboard, you just click the left mouse button in
+the terminal window, and drag to select text. When you let go of the
+button, the text is \e{automatically} copied to the clipboard. You
+do not need to press Ctrl-C or Ctrl-Ins; in fact, if you do press
+Ctrl-C, PuTTY will send a Ctrl-C character down your session to the
+server where it will probably cause a process to be interrupted.
+
+Pasting is done using the right button (or the middle mouse button,
+if you have a three-button mouse and have set it up; see
+\k{config-mouse}). When you click the right mouse button, PuTTY will
+read whatever is in the Windows Clipboard and paste it into your
+session, \e{exactly} as if it had been typed at the keyboard.
+(Therefore, be careful of pasting formatted text into an editor that
+does automatic indenting; you may find that the spaces pasted from
+the clipboard plus the spaces added by the editor add up to too many
+spaces and ruin the formatting. There is nothing PuTTY can do about
+this.)
+
+If you double-click the left mouse button, PuTTY will select a whole
+word. If you double-click, hold down the second click, and drag the
+mouse, PuTTY will select a sequence of whole words. If you
+\e{triple}-click, or triple-click and drag, then PuTTY will select a
+whole line or sequence of lines.
+
+If you want to select a rectangular region instead of selecting to
+the end of each line, you can do this by holding down Alt when you
+make your selection. (You can also configure rectangular selection
+to be the default, and then holding down Alt gives the normal
+behaviour instead. See \#{FIXME} for details.)
+
+If you have a middle mouse button, then you can use it to adjust an
+existing selection if you selected something slightly wrong. (If you
+have configured the middle mouse button to paste, then the right
+mouse button does this instead.) Click the button on the screen, and
+you can pick up the nearest end of the selection and drag it to
+somewhere else.
+
+\S{using-scrollback} Scrolling the screen back
+
+PuTTY keeps track of text that has scrolled up off the top of the
+terminal. So if something appears on the screen that you want to
+read, but it scrolls too fast and it's gone by the time you try to
+look for it, you can use the scrollbar on the right side of the
+window to look back up the session history and find it again.
+
+As well as using the scrollbar, you can also page the scrollback up
+and down by pressing Shift-PgUp and Shift-PgDn. These are still
+available if you configure the scrollbar to be invisible.
+
+By default the last 200 lines scrolled off the top are
+preserved for you to look at. You can increase (or decrease) this
+value using the configuration box; see \k{config-scrollback}.
+
+\S{using-sysmenu} The System menu
+
+If you click the left mouse button on the icon in the top left
+corner of PuTTY's window, or click the right mouse button on the
+title bar, you will see the standard Windows system menu containing
+items like Minimise, Move, Size and Close.
+
+PuTTY's system menu contains extra program features in addition to
+the Windows standard options. These extra menu commands are
+described below.
+
+\S2{using-eventlog} The PuTTY Event Log
+
+If you choose \q{Event Log} from the system menu, a small window
+will pop up in which PuTTY logs significant events during the
+connection. Most of the events in the log will probably take place
+during session startup, but a few can occur at any point in the
+session, and one or two occur right at the end.
+
+You can use the mouse to select one or more lines of the Event Log,
+and hit the Copy button to copy them to the clipboard. If you are
+reporting a bug, it's often useful to paste the contents of the
+Event Log into your bug report.
+
+\S2{using-newsession} Starting new sessions
+
+PuTTY's system menu provides some shortcut ways to start new
+sessions:
+
+\b Selecting \q{New Session} will start a completely new instance of
+PuTTY, and bring up the configuration box as normal.
+
+\b Selecting \q{Duplicate Session} will start a session with
+precisely the same options as your current one - connecting to the
+same host using the same protocol, with all the same terminal
+settings and everything.
+
+\b The \q{Saved Sessions} submenu gives you quick access to any
+sets of stored session details you have previously saved. See
+\k{config-saving} for details of how to create saved sessions.
+
+\S2{using-changesettings} Changing your session settings
+
+If you select \q{Change Settings} from the system menu, PuTTY will
+display a cut-down version of its initial configuration box. This
+allows you to adjust most properties of your current session. You
+can change the terminal size, the font, the actions of various
+keypresses, the colours, and so on.
+
+Some of the options that are available in the main configuration box
+are not shown in the cut-down Change Settings box. These are usually
+options which don't make sense to change in the middle of a session
+(for example, you can't switch from SSH to Telnet in mid-session).
+
+\S2{using-copyall} Copy All to Clipboard
+
+This system menu option provides a convenient way to copy the whole
+contents of the terminal screen and scrollback to the clipboard in
+one go.
+
+\S2{reset-terminal} Clearing and resetting the terminal
+
+The \q{Clear Scrollback} option on the system menu tells PuTTY to
+discard all the lines of text that have been kept after they
+scrolled off the top of the screen. This might be useful, for
+example, if you displayed sensitive information and wanted to make
+sure nobody could look over your shoulder and see it. (Note that
+this only prevents a casual user from using the scrollbar to view
+the information; the text is not guaranteed not to still be in
+PuTTY's memory.)
+
+The \q{Reset Terminal} option causes a full reset of the terminal
+emulation. A VT-series terminal is a complex piece of software and
+can easily get into a state where all the text printed becomes
+unreadable. (This can happen, for example, if you accidentally
+output a binary file to your terminal.) If this happens, selecting
+Reset Terminal should sort it out.
+
+\S2{using-fullscreen} Full screen mode
+
+If you find the title bar on a maximised window to be ugly or
+distracting, you can select Full Screen mode to maximise PuTTY
+\q{even more}. When you select this, PuTTY will expand to fill the
+whole screen and its borders, title bar and scrollbar will
+disappear. (You can configure the scrollbar not to disappear in
+full-screen mode if you want to keep it.)
+\#{FIXME, document how and xref to it from here!}
+
+When you are in full-screen mode, you can still access the system
+menu if you click the left mouse button in the \e{extreme} top left
+corner of the screen.
+
+\H{using-logging} Creating a log file of your session
+
+For some purposes you may find you want to log everything that
+appears on your screen. You can do this using the \q{Logging} panel
+in the configuration box.
+
+To begin a session log, select \q{Change Settings} from the system
+menu and go to the Logging panel. Enter a log file name, and select
+a logging mode. (You can log all session output including the
+terminal control sequences, or you can just log the printable text.
+It depends what you want the log for.) Click \q{Apply} and your log
+will be started. Later on, you can go back to the Logging panel and
+select \q{Logging turned off completely} to stop logging; then PuTTY
+will close the log file and you can safely read it.
+
+See \k{config-logging} for more details and options.
+
+\H{using-translation} Altering your character set configuration
+
+If you find that special characters (accented characters, for
+example) are not being displayed correctly in your PuTTY session, it
+may be that PuTTY is interpreting the characters sent by the server
+according to the wrong \e{character set}. There are a lot of
+different character sets available, so it's entirely possible for
+this to happen.
+
+If you click \q{Change Settings} and look at the \q{Translation}
+panel, you should see a large number of character sets which you can
+select. Now all you need is to find out which of them you want!
+
+\H{using-forwarding} Port forwarding and X forwarding in SSH
+
+\# using X forwarding
+
+\# using port forwarding
+
+\H{using-rawprot} Making raw TCP connections
+
+\# Raw protocol
