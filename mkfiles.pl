@@ -603,15 +603,25 @@ print <<END;
 
 ROptions     = `Echo "{VER}" | StreamEdit -e "1,\$ replace /=(\xc5)\xa81\xb0/ 'STR=\xb6\xb6\xb6\xb6\xb6"' \xa81 '\xb6\xb6\xb6\xb6\xb6"'"`
 
+C_68K = {C}
+C_CFM68K = {C}
+C_PPC = {PPCC}
+C_Carbon = {PPCC}
+
 # -w 35 disables "unused parameter" warnings
 COptions     = -i : -i :: -i ::charset -w 35 -w err -proto strict -ansi on \xb6
 	       -notOnce
 COptions_68K = {COptions} -model far -opt time
 # Enabling "-opt space" for CFM-68K gives me undefined references to
-# _$LDIVT and _$LMODT.
+# _\$LDIVT and _\$LMODT.
 COptions_CFM68K = {COptions} -model cfmSeg -opt time
 COptions_PPC = {COptions} -opt size -traceback
 COptions_Carbon = {COptions} -opt size -traceback -d TARGET_API_MAC_CARBON
+
+Link_68K = ILink
+Link_CFM68K = ILink
+Link_PPC = PPCLink
+Link_Carbon = PPCLink
 
 LinkOptions = -c 'pTTY' -fragname PuTTY
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
@@ -677,68 +687,44 @@ foreach $p (&prognames("M")) {
 
   $rsrc = &objects($p, "", "X.rsrc", undef);
 
-  $objstr = &objects($p, "X.68k.o", "", undef);
-  print &splitline("$prog.68k \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
-  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
-  print &splitline("\tILink -o {Targ} {LinkOptions_68K} " .
-                   $objstr . " {Libs_68K}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
+  foreach $arch qw(68K CFM68K PPC Carbon) {
+      $objstr = &objects($p, "X.\L$arch\E.o", "", undef);
+      print &splitline("$prog.\L$arch\E \xc4 $objstr $rsrc", undef, "\xb6");
+      print "\n";
+      print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
+      print &splitline("\t{Link_$arch} -o {Targ} {LinkOptions_$arch} " .
+		       $objstr . " {Libs_$arch}", 69, "\xb6"), "\n";
+      print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
+  }
 
-  $objstr = &objects($p, "X.cfm68k.o", "", undef);
-  print &splitline("$prog.cfm68k \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
-  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
-  print &splitline("\tILink -o {Targ} {LinkOptions_CFM68K} " .
-                   $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
-
-  $objstr = &objects($p, "X.ppc.o", "", undef);
-  print &splitline("$prog.ppc \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
-  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
-  print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
-                   $objstr . " {Libs_PPC}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
-
-  $objstr = &objects($p, "X.carbon.o", "", undef);
-  print &splitline("$prog.carbon \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
-  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
-  print &splitline("\tPPCLink -o {Targ} {LinkOptions_Carbon} " .
-                   $objstr . " {Libs_Carbon}", 69, "\xb6"), "\n";
-  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
 }
 foreach $d (&deps("", "X.rsrc", "::", ":")) {
   next unless $d->{obj};
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   print "\tRez ", $d->{deps}->[0], " -o {Targ} {ROptions}\n\n";
-} 
-foreach $d (&deps("X.68k.o", "", "::", ":")) {
-  next unless $d->{obj};
-  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
-		   undef, "\xb6"), "\n";
-  print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_68K}\n\n";
 }
-foreach $d (&deps("X.cfm68k.o", "", "::", ":")) {
-  next unless $d->{obj};
-  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
-		   undef, "\xb6"), "\n";
-  print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_CFM68K}\n\n";
+foreach $arch qw(68K CFM68K) {
+    foreach $d (&deps("X.\L$arch\E.o", "", "::", ":")) {
+	 next unless $d->{obj};
+	print &splitline(sprintf("%s \xc4 %s", $d->{obj},
+				 join " ", @{$d->{deps}}),
+			 undef, "\xb6"), "\n";
+	 print "\t{C_$arch} ", $d->{deps}->[0],
+	       " -o {Targ} {COptions_$arch}\n\n";
+     }
 }
-foreach $d (&deps("X.ppc.o", "", "::", ":")) {
-  next unless $d->{obj};
-  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
-		   undef, "\xb6"), "\n";
-  # The odd stuff here seems to stop afpd getting confused.
-  print "\techo -n > {Targ}\n";
-  print "\tsetfile -t XCOF {Targ}\n";
-  print "\t{PPCC} ", $d->{deps}->[0], " -o {Targ} {COptions_PPC}\n\n";
-}
-foreach $d (&deps("X.carbon.o", "", "::", ":")) {
-  next unless $d->{obj};
-  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
-		   undef, "\xb6"), "\n";
-  # The odd stuff here seems to stop afpd getting confused.
-  print "\techo -n > {Targ}\n";
-  print "\tsetfile -t XCOF {Targ}\n";
-  print "\t{PPCC} ", $d->{deps}->[0], " -o {Targ} {COptions_Carbon}\n\n";
+foreach $arch qw(PPC Carbon) {
+    foreach $d (&deps("X.\L$arch\E.o", "", "::", ":")) {
+	 next unless $d->{obj};
+	print &splitline(sprintf("%s \xc4 %s", $d->{obj},
+				 join " ", @{$d->{deps}}),
+			 undef, "\xb6"), "\n";
+	 # The odd stuff here seems to stop afpd getting confused.
+	 print "\techo -n > {Targ}\n";
+	 print "\tsetfile -t XCOF {Targ}\n";
+	 print "\t{C_$arch} ", $d->{deps}->[0],
+	       " -o {Targ} {COptions_$arch}\n\n";
+     }
 }
 select STDOUT; close OUT;
