@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.12 2003/01/24 14:12:31 jacob Exp $
+\versionid $Id: feedback.but,v 1.13 2003/06/06 18:16:52 ben Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -280,6 +280,11 @@ if someone can solve your problem. Or try doing the same thing with
 a different SSH client and see if it works with that. Please do not
 report it as a PuTTY bug unless you are really sure it \e{is} a bug
 in PuTTY.
+
+\b If someone else installed PuTTY for you, or you're using PuTTY on
+someone else's computer, try asking them for help first.  They're more
+likely to understand how they installed it and what they expected you
+to use it for than we are.
 
 \b If you have successfully made a connection to your server and now
 need to know what to type at the server's command prompt, or other
