@@ -1164,6 +1164,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		init_dlg_ctrls(hwnd);
                 if (!isdef)
                     SetDlgItemText(hwnd, IDC_SESSEDIT, sessions[n]);
+		else
+                    SetDlgItemText(hwnd, IDC_SESSEDIT, "");
 	    }
 	    if (LOWORD(wParam) == IDC_SESSLIST) {
 		/*
