@@ -171,6 +171,8 @@ struct terminal_tag {
 
     void *logctx;
 
+    struct unicode_data *ucsdata;
+
     /*
      * We maintain a full _copy_ of a Config structure here, not
      * merely a pointer to it. That way, when we're passed a new
@@ -181,6 +183,6 @@ struct terminal_tag {
     Config cfg;
 };
 
-#define in_utf(term) ((term)->utf || line_codepage==CP_UTF8)
+#define in_utf(term) ((term)->utf || (term)->ucsdata->line_codepage==CP_UTF8)
 
 #endif

@@ -337,7 +337,8 @@ void term_clrsb(Terminal *term)
 /*
  * Initialise the terminal.
  */
-Terminal *term_init(Config *mycfg, void *frontend)
+Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
+		    void *frontend)
 {
     Terminal *term;
 
@@ -347,6 +348,7 @@ Terminal *term_init(Config *mycfg, void *frontend)
      */
     term = smalloc(sizeof(Terminal));
     term->frontend = frontend;
+    term->ucsdata = ucsdata;
     term->cfg = *mycfg;		       /* STRUCTURE COPY */
     term->logctx = NULL;
     term->compatibility_level = TM_PUTTY;
@@ -1274,8 +1276,8 @@ void term_out(Terminal *term)
 		  case 0:
 		    if (c < 0x80) {
 			/* UTF-8 must be stateless so we ignore iso2022. */
-			if (unitab_ctrl[c] != 0xFF) 
-			     c = unitab_ctrl[c];
+			if (term->ucsdata->unitab_ctrl[c] != 0xFF) 
+			     c = term->ucsdata->unitab_ctrl[c];
 			else c = ((unsigned char)c) | ATTR_ASCII;
 			break;
 		    } else if ((c & 0xe0) == 0xc0) {
@@ -1372,8 +1374,8 @@ void term_out(Terminal *term)
 		     * the same encoding.
 		     */
 		  case ATTR_LINEDRW:
-		    if (unitab_ctrl[c] != 0xFF)
-			c = unitab_ctrl[c];
+		    if (term->ucsdata->unitab_ctrl[c] != 0xFF)
+			c = term->ucsdata->unitab_ctrl[c];
 		    else
 			c = ((unsigned char) c) | ATTR_LINEDRW;
 		    break;
@@ -1385,8 +1387,8 @@ void term_out(Terminal *term)
 			break;
 		    }
 		  /*FALLTHROUGH*/ case ATTR_ASCII:
-		    if (unitab_ctrl[c] != 0xFF)
-			c = unitab_ctrl[c];
+		    if (term->ucsdata->unitab_ctrl[c] != 0xFF)
+			c = term->ucsdata->unitab_ctrl[c];
 		    else
 			c = ((unsigned char) c) | ATTR_ASCII;
 		    break;
@@ -3115,13 +3117,13 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    tattr = (*d & (ATTR_MASK ^ CSET_MASK));
 	    switch (tchar & CSET_MASK) {
 	      case ATTR_ASCII:
-		tchar = unitab_line[tchar & 0xFF];
+		tchar = term->ucsdata->unitab_line[tchar & 0xFF];
 		break;
 	      case ATTR_LINEDRW:
-		tchar = unitab_xterm[tchar & 0xFF];
+		tchar = term->ucsdata->unitab_xterm[tchar & 0xFF];
 		break;
 	      case ATTR_SCOACS:  
-		tchar = unitab_scoacs[tchar&0xFF]; 
+		tchar = term->ucsdata->unitab_scoacs[tchar&0xFF]; 
 		break;
 	    }
 	    tattr |= (tchar & CSET_MASK);
@@ -3179,7 +3181,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    if ((attr & CSET_MASK) == 0x2300 && tchar >= 0xBA
 		&& tchar <= 0xBD) break_run = TRUE;
 
-	    if (!dbcs_screenfont && !dirty_line) {
+	    if (!term->ucsdata->dbcs_screenfont && !dirty_line) {
 		if ((tchar | tattr) == term->disptext[idx])
 		    break_run = TRUE;
 		else if (!dirty_run && ccount == 1)
@@ -3194,7 +3196,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		start = j;
 		ccount = 0;
 		attr = tattr;
-		if (dbcs_screenfont)
+		if (term->ucsdata->dbcs_screenfont)
 		    last_run_dirty = dirty_run;
 		dirty_run = dirty_line;
 	    }
@@ -3414,22 +3416,22 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 	    switch (uc & CSET_MASK) {
 	      case ATTR_LINEDRW:
 		if (!term->cfg.rawcnp) {
-		    uc = unitab_xterm[uc & 0xFF];
+		    uc = term->ucsdata->unitab_xterm[uc & 0xFF];
 		    break;
 		}
 	      case ATTR_ASCII:
-		uc = unitab_line[uc & 0xFF];
+		uc = term->ucsdata->unitab_line[uc & 0xFF];
 		break;
 	      case ATTR_SCOACS:  
-		uc = unitab_scoacs[uc&0xFF]; 
+		uc = term->ucsdata->unitab_scoacs[uc&0xFF]; 
 		break;
 	    }
 	    switch (uc & CSET_MASK) {
 	      case ATTR_ACP:
-		uc = unitab_font[uc & 0xFF];
+		uc = term->ucsdata->unitab_font[uc & 0xFF];
 		break;
 	      case ATTR_OEMCP:
-		uc = unitab_oemcp[uc & 0xFF];
+		uc = term->ucsdata->unitab_oemcp[uc & 0xFF];
 		break;
 	    }
 
@@ -3443,14 +3445,14 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 		    char buf[4];
 		    WCHAR wbuf[4];
 		    int rv;
-		    if (is_dbcs_leadbyte(font_codepage, (BYTE) c)) {
+		    if (is_dbcs_leadbyte(term->ucsdata->font_codepage, (BYTE) c)) {
 			buf[0] = c;
 			buf[1] = (char) (0xFF & ldata[top.x + 1]);
-			rv = mb_to_wc(font_codepage, 0, buf, 2, wbuf, 4);
+			rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 2, wbuf, 4);
 			top.x++;
 		    } else {
 			buf[0] = c;
-			rv = mb_to_wc(font_codepage, 0, buf, 1, wbuf, 4);
+			rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 1, wbuf, 4);
 		    }
 
 		    if (rv > 0) {
@@ -3580,28 +3582,29 @@ static int wordtype(Terminal *term, int uc)
 
     switch (uc & CSET_MASK) {
       case ATTR_LINEDRW:
-	uc = unitab_xterm[uc & 0xFF];
+	uc = term->ucsdata->unitab_xterm[uc & 0xFF];
 	break;
       case ATTR_ASCII:
-	uc = unitab_line[uc & 0xFF];
+	uc = term->ucsdata->unitab_line[uc & 0xFF];
 	break;
       case ATTR_SCOACS:  
-	uc = unitab_scoacs[uc&0xFF]; 
+	uc = term->ucsdata->unitab_scoacs[uc&0xFF]; 
 	break;
     }
     switch (uc & CSET_MASK) {
       case ATTR_ACP:
-	uc = unitab_font[uc & 0xFF];
+	uc = term->ucsdata->unitab_font[uc & 0xFF];
 	break;
       case ATTR_OEMCP:
-	uc = unitab_oemcp[uc & 0xFF];
+	uc = term->ucsdata->unitab_oemcp[uc & 0xFF];
 	break;
     }
 
     /* For DBCS font's I can't do anything usefull. Even this will sometimes
      * fail as there's such a thing as a double width space. :-(
      */
-    if (dbcs_screenfont && font_codepage == line_codepage)
+    if (term->ucsdata->dbcs_screenfont &&
+	term->ucsdata->font_codepage == term->ucsdata->line_codepage)
 	return (uc != ' ');
 
     if (uc < 0x80)

@@ -67,6 +67,7 @@ struct gui_data {
     void *backhandle;
     Terminal *term;
     void *logctx;
+    struct unicode_data ucsdata;
     Config cfg;
 };
 
@@ -1283,9 +1284,10 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 
     inst->pasteout_data = smalloc(len*6);
     inst->pasteout_data_len = len*6;
-    inst->pasteout_data_len = wc_to_mb(line_codepage, 0, data, len,
-				       inst->pasteout_data,
-				       inst->pasteout_data_len, NULL, NULL);
+    inst->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
+				       data, len, inst->pasteout_data,
+				       inst->pasteout_data_len,
+				       NULL, NULL, NULL);
     if (inst->pasteout_data_len == 0) {
 	sfree(inst->pasteout_data);
 	inst->pasteout_data = NULL;
@@ -1396,7 +1398,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     inst->pastein_data_len = seldata->length;
     inst->pastein_data_len =
 	mb_to_wc((seldata->type == inst->utf8_string_atom ?
-		  CS_UTF8 : line_codepage),
+		  CS_UTF8 : inst->ucsdata.line_codepage),
 		 0, seldata->data, seldata->length,
 		 inst->pastein_data, inst->pastein_data_len);
 
@@ -1646,7 +1648,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	} else {
 	    gcs = smalloc(sizeof(GdkWChar) * (len+1));
 	    wc_to_mb(inst->fontinfo[fontid].charset, 0,
-		     wcs, len, gcs, len, ".", NULL);
+		     wcs, len, gcs, len, ".", NULL, NULL);
 	    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
 			  x*inst->font_width+inst->cfg.window_border,
 			  y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
@@ -2315,7 +2317,8 @@ int main(int argc, char **argv)
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
-    inst->direct_to_font = init_ucs(inst->cfg.line_codepage, font_charset);
+    inst->direct_to_font = init_ucs(&inst->ucsdata,
+				    inst->cfg.line_codepage, font_charset);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
@@ -2415,7 +2418,7 @@ int main(int argc, char **argv)
     inst->currcursor = inst->textcursor;
     show_mouseptr(inst, 1);
 
-    inst->term = term_init(&inst->cfg, inst);
+    inst->term = term_init(&inst->cfg, &inst->ucsdata, inst);
     inst->logctx = log_init(inst, &inst->cfg);
     term_provide_logctx(inst->term, inst->logctx);
 

@@ -69,7 +69,9 @@ void (*putty_signal(int sig, void (*func)(int)))(int);
 /*
  * Exports from unicode.c.
  */
-int init_ucs(char *line_codepage, int font_charset);
+struct unicode_data;
+int init_ucs(struct unicode_data *ucsdata,
+	     char *line_codepage, int font_charset);
 
 /*
  * Spare function exported directly from uxnet.c.

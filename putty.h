@@ -108,15 +108,18 @@ struct sesslist {
     char *buffer;		       /* so memory can be freed later */
 };
 
-GLOBAL int dbcs_screenfont;
-GLOBAL int font_codepage;
-GLOBAL int line_codepage;
-GLOBAL wchar_t unitab_scoacs[256];
-GLOBAL wchar_t unitab_line[256];
-GLOBAL wchar_t unitab_font[256];
-GLOBAL wchar_t unitab_xterm[256];
-GLOBAL wchar_t unitab_oemcp[256];
-GLOBAL unsigned char unitab_ctrl[256];
+struct unicode_data {
+    char **uni_tbl;
+    int dbcs_screenfont;
+    int font_codepage;
+    int line_codepage;
+    wchar_t unitab_scoacs[256];
+    wchar_t unitab_line[256];
+    wchar_t unitab_font[256];
+    wchar_t unitab_xterm[256];
+    wchar_t unitab_oemcp[256];
+    unsigned char unitab_ctrl[256];
+};
 
 #define LGXF_OVR  1		       /* existing logfile overwrite */
 #define LGXF_APN  0		       /* existing logfile append */
@@ -497,7 +500,7 @@ int platform_default_i(char *name, int def);
  * Exports from terminal.c.
  */
 
-Terminal *term_init(Config *, void *);
+Terminal *term_init(Config *, struct unicode_data *, void *);
 void term_size(Terminal *, int, int, int);
 void term_out(Terminal *);
 void term_paint(Terminal *, Context, int, int, int, int, int);
@@ -616,7 +619,8 @@ int is_dbcs_leadbyte(int codepage, char byte);
 int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
 	     wchar_t *wcstr, int wclen);
 int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused);
+	     char *mbstr, int mblen, char *defchr, int *defused,
+	     struct unicode_data *ucsdata);
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);

@@ -66,8 +66,8 @@ void luni_send(void *handle, wchar_t * widebuf, int len, int interactive)
 	}
     } else {
 	int rv;
-	rv = wc_to_mb(line_codepage, 0, widebuf, len,
-		      linebuffer, linesize, NULL, NULL);
+	rv = wc_to_mb(ldisc->term->ucsdata->line_codepage, 0, widebuf, len,
+		      linebuffer, linesize, NULL, NULL, ldisc->term->ucsdata);
 	if (rv >= 0)
 	    p = linebuffer + rv;
 	else

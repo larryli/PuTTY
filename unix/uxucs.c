@@ -58,7 +58,8 @@ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
 }
 
 int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused)
+	     char *mbstr, int mblen, char *defchr, int *defused,
+	     struct unicode_data *ucsdata)
 {
     /* FIXME: we should remove the defused param completely... */
     if (defused)
@@ -104,7 +105,8 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 /*
  * Return value is TRUE if pterm is to run in direct-to-font mode.
  */
-int init_ucs(char *linecharset, int font_charset)
+int init_ucs(struct unicode_data *ucsdata, 
+	     char *linecharset, int font_charset)
 {
     int i, ret = 0;
 
@@ -114,15 +116,15 @@ int init_ucs(char *linecharset, int font_charset)
      * support at all. So we set this to something which will never
      * be used.
      */
-    font_codepage = -1;
+    ucsdata->font_codepage = -1;
 
     /*
      * line_codepage should be decoded from the specification in
      * cfg.
      */
-    line_codepage = charset_from_mimeenc(linecharset);
-    if (line_codepage == CS_NONE)
-	line_codepage = charset_from_xenc(linecharset);
+    ucsdata->line_codepage = charset_from_mimeenc(linecharset);
+    if (ucsdata->line_codepage == CS_NONE)
+	ucsdata->line_codepage = charset_from_xenc(linecharset);
 
     /*
      * If line_codepage is _still_ CS_NONE, we assume we're using
@@ -131,10 +133,10 @@ int init_ucs(char *linecharset, int font_charset)
      * font we were given had an incomprehensible charset - then we
      * fall back to using the D800 page.
      */
-    if (line_codepage == CS_NONE)
-	line_codepage = font_charset;
+    if (ucsdata->line_codepage == CS_NONE)
+	ucsdata->line_codepage = font_charset;
 
-    if (line_codepage == CS_NONE)
+    if (ucsdata->line_codepage == CS_NONE)
 	ret = 1;
 
     /*
@@ -148,13 +150,14 @@ int init_ucs(char *linecharset, int font_charset)
 	c[0] = i;
 	p = c;
 	len = 1;
-	if (line_codepage == CS_NONE)
-	    unitab_line[i] = 0xD800 | i;
-	else if (1 == charset_to_unicode(&p, &len, wc, 1, line_codepage,
+	if (ucsdata->line_codepage == CS_NONE)
+	    ucsdata->unitab_line[i] = 0xD800 | i;
+	else if (1 == charset_to_unicode(&p, &len, wc, 1,
+					 ucsdata->line_codepage,
 					 NULL, L"", 0))
-	    unitab_line[i] = wc[0];
+	    ucsdata->unitab_line[i] = wc[0];
 	else
-	    unitab_line[i] = 0xFFFD;
+	    ucsdata->unitab_line[i] = 0xFFFD;
     }
 
     /*
@@ -175,9 +178,9 @@ int init_ucs(char *linecharset, int font_charset)
 	    0x2502, 0x2264, 0x2265, 0x03c0, 0x2260, 0x00a3, 0x00b7, 0x0020
 	};
 	if (i >= 0x5F && i < 0x7F)
-	    unitab_xterm[i] = unitab_xterm_std[i & 0x1F];
+	    ucsdata->unitab_xterm[i] = unitab_xterm_std[i & 0x1F];
 	else
-	    unitab_xterm[i] = unitab_line[i];
+	    ucsdata->unitab_xterm[i] = ucsdata->unitab_line[i];
     }
 
     /*
@@ -192,9 +195,9 @@ int init_ucs(char *linecharset, int font_charset)
 	p = c;
 	len = 1;
 	if (1 == charset_to_unicode(&p, &len, wc, 1, CS_CP437, NULL, L"", 0))
-	    unitab_scoacs[i] = wc[0];
+	    ucsdata->unitab_scoacs[i] = wc[0];
 	else
-	    unitab_scoacs[i] = 0xFFFD;
+	    ucsdata->unitab_scoacs[i] = 0xFFFD;
     }
 
     /*
@@ -205,12 +208,12 @@ int init_ucs(char *linecharset, int font_charset)
      * used in this way will be IBM or MS code pages anyway.)
      */
     for (i = 0; i < 256; i++) {
-	int lineval = unitab_line[i];
+	int lineval = ucsdata->unitab_line[i];
 	if (lineval < ' ' || (lineval >= 0x7F && lineval < 0xA0) ||
 	    (lineval >= 0xD800 && lineval < 0xD820) || (lineval == 0xD87F))
-	    unitab_ctrl[i] = i;
+	    ucsdata->unitab_ctrl[i] = i;
 	else
-	    unitab_ctrl[i] = 0xFF;
+	    ucsdata->unitab_ctrl[i] = 0xFF;
     }
 
     return ret;

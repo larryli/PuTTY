@@ -16,8 +16,6 @@
  * the xterm one has the four scanlines that have no unicode 2.0
  * equivalents mapped to their unicode 3.0 locations.
  */
-static char **uni_tbl;
-
 static const WCHAR unitab_xterm_std[32] = {
     0x2666, 0x2592, 0x2409, 0x240c, 0x240d, 0x240a, 0x00b0, 0x00b1,
     0x2424, 0x240b, 0x2518, 0x2510, 0x250c, 0x2514, 0x253c, 0x23ba,
@@ -416,7 +414,7 @@ static const struct cp_list_item cp_list[] = {
 
 static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr);
 
-void init_ucs(Config *cfg)
+void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 {
     int i, j;
     int used_dtf = 0;
@@ -426,132 +424,138 @@ void init_ucs(Config *cfg)
 	tbuf[i] = i;
 
     /* Decide on the Line and Font codepages */
-    line_codepage = decode_codepage(cfg->line_codepage);
+    ucsdata->line_codepage = decode_codepage(cfg->line_codepage);
 
-    if (font_codepage <= 0) { 
-	font_codepage=0; 
-	dbcs_screenfont=0; 
+    if (ucsdata->font_codepage <= 0) { 
+	ucsdata->font_codepage=0; 
+	ucsdata->dbcs_screenfont=0; 
     }
 
     if (cfg->vtmode == VT_OEMONLY) {
-	font_codepage = 437;
-	dbcs_screenfont = 0;
-	if (line_codepage <= 0)
-	    line_codepage = GetACP();
-    } else if (line_codepage <= 0)
-	line_codepage = font_codepage;
+	ucsdata->font_codepage = 437;
+	ucsdata->dbcs_screenfont = 0;
+	if (ucsdata->line_codepage <= 0)
+	    ucsdata->line_codepage = GetACP();
+    } else if (ucsdata->line_codepage <= 0)
+	ucsdata->line_codepage = ucsdata->font_codepage;
 
     /* Collect screen font ucs table */
-    if (dbcs_screenfont || font_codepage == 0) {
-	get_unitab(font_codepage, unitab_font, 2);
+    if (ucsdata->dbcs_screenfont || ucsdata->font_codepage == 0) {
+	get_unitab(ucsdata->font_codepage, ucsdata->unitab_font, 2);
 	for (i = 128; i < 256; i++)
-	    unitab_font[i] = (WCHAR) (ATTR_ACP + i);
+	    ucsdata->unitab_font[i] = (WCHAR) (ATTR_ACP + i);
     } else {
-	get_unitab(font_codepage, unitab_font, 1);
+	get_unitab(ucsdata->font_codepage, ucsdata->unitab_font, 1);
 
 	/* CP437 fonts are often broken ... */
-	if (font_codepage == 437)
-	    unitab_font[0] = unitab_font[255] = 0xFFFF;
+	if (ucsdata->font_codepage == 437)
+	    ucsdata->unitab_font[0] = ucsdata->unitab_font[255] = 0xFFFF;
     }
     if (cfg->vtmode == VT_XWINDOWS)
-	memcpy(unitab_font + 1, unitab_xterm_std,
+	memcpy(ucsdata->unitab_font + 1, unitab_xterm_std,
 	       sizeof(unitab_xterm_std));
 
     /* Collect OEMCP ucs table */
-    get_unitab(CP_OEMCP, unitab_oemcp, 1);
+    get_unitab(CP_OEMCP, ucsdata->unitab_oemcp, 1);
 
     /* Collect CP437 ucs table for SCO acs */
     if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS)
-	memcpy(unitab_scoacs, unitab_oemcp, sizeof(unitab_scoacs));
+	memcpy(ucsdata->unitab_scoacs, ucsdata->unitab_oemcp,
+	       sizeof(ucsdata->unitab_scoacs));
     else
-	get_unitab(437, unitab_scoacs, 1);
+	get_unitab(437, ucsdata->unitab_scoacs, 1);
 
     /* Collect line set ucs table */
-    if (line_codepage == font_codepage &&
-	(dbcs_screenfont || cfg->vtmode == VT_POORMAN || font_codepage==0)) {
+    if (ucsdata->line_codepage == ucsdata->font_codepage &&
+	(ucsdata->dbcs_screenfont ||
+	 cfg->vtmode == VT_POORMAN || ucsdata->font_codepage==0)) {
 
 	/* For DBCS and POOR fonts force direct to font */
 	used_dtf = 1;
 	for (i = 0; i < 32; i++)
-	    unitab_line[i] = (WCHAR) i;
+	    ucsdata->unitab_line[i] = (WCHAR) i;
 	for (i = 32; i < 256; i++)
-	    unitab_line[i] = (WCHAR) (ATTR_ACP + i);
-	unitab_line[127] = (WCHAR) 127;
+	    ucsdata->unitab_line[i] = (WCHAR) (ATTR_ACP + i);
+	ucsdata->unitab_line[127] = (WCHAR) 127;
     } else {
-	get_unitab(line_codepage, unitab_line, 0);
+	get_unitab(ucsdata->line_codepage, ucsdata->unitab_line, 0);
     }
 
 #if 0
     debug(
-	  ("Line cp%d, Font cp%d%s\n", line_codepage, font_codepage,
-	   dbcs_screenfont ? " DBCS" : ""));
+	  ("Line cp%d, Font cp%d%s\n", ucsdata->line_codepage,
+	   ucsdata->font_codepage, ucsdata->dbcs_screenfont ? " DBCS" : ""));
 
     for (i = 0; i < 256; i += 16) {
 	for (j = 0; j < 16; j++) {
-	    debug(("%04x%s", unitab_line[i + j], j == 15 ? "" : ","));
+	    debug(("%04x%s", ucsdata->unitab_line[i + j], j == 15 ? "" : ","));
 	}
 	debug(("\n"));
     }
 #endif
 
     /* VT100 graphics - NB: Broken for non-ascii CP's */
-    memcpy(unitab_xterm, unitab_line, sizeof(unitab_xterm));
-    memcpy(unitab_xterm + '`', unitab_xterm_std, sizeof(unitab_xterm_std));
-    unitab_xterm['_'] = ' ';
+    memcpy(ucsdata->unitab_xterm, ucsdata->unitab_line,
+	   sizeof(ucsdata->unitab_xterm));
+    memcpy(ucsdata->unitab_xterm + '`', unitab_xterm_std,
+	   sizeof(unitab_xterm_std));
+    ucsdata->unitab_xterm['_'] = ' ';
 
     /* Generate UCS ->line page table. */
-    if (uni_tbl) {
+    if (ucsdata->uni_tbl) {
 	for (i = 0; i < 256; i++)
-	    if (uni_tbl[i])
-		sfree(uni_tbl[i]);
-	sfree(uni_tbl);
-	uni_tbl = 0;
+	    if (ucsdata->uni_tbl[i])
+		sfree(ucsdata->uni_tbl[i]);
+	sfree(ucsdata->uni_tbl);
+	ucsdata->uni_tbl = 0;
     }
     if (!used_dtf) {
 	for (i = 0; i < 256; i++) {
-	    if (DIRECT_CHAR(unitab_line[i]))
+	    if (DIRECT_CHAR(ucsdata->unitab_line[i]))
 		continue;
-	    if (DIRECT_FONT(unitab_line[i]))
+	    if (DIRECT_FONT(ucsdata->unitab_line[i]))
 		continue;
-	    if (!uni_tbl) {
-		uni_tbl = smalloc(256 * sizeof(char *));
-		memset(uni_tbl, 0, 256 * sizeof(char *));
+	    if (!ucsdata->uni_tbl) {
+		ucsdata->uni_tbl = smalloc(256 * sizeof(char *));
+		memset(ucsdata->uni_tbl, 0, 256 * sizeof(char *));
 	    }
-	    j = ((unitab_line[i] >> 8) & 0xFF);
-	    if (!uni_tbl[j]) {
-		uni_tbl[j] = smalloc(256 * sizeof(char));
-		memset(uni_tbl[j], 0, 256 * sizeof(char));
+	    j = ((ucsdata->unitab_line[i] >> 8) & 0xFF);
+	    if (!ucsdata->uni_tbl[j]) {
+		ucsdata->uni_tbl[j] = smalloc(256 * sizeof(char));
+		memset(ucsdata->uni_tbl[j], 0, 256 * sizeof(char));
 	    }
-	    uni_tbl[j][unitab_line[i] & 0xFF] = i;
+	    ucsdata->uni_tbl[j][ucsdata->unitab_line[i] & 0xFF] = i;
 	}
     }
 
     /* Find the line control characters. */
     for (i = 0; i < 256; i++)
-	if (unitab_line[i] < ' '
-	    || (unitab_line[i] >= 0x7F && unitab_line[i] < 0xA0))
-	    unitab_ctrl[i] = i;
+	if (ucsdata->unitab_line[i] < ' '
+	    || (ucsdata->unitab_line[i] >= 0x7F && 
+		ucsdata->unitab_line[i] < 0xA0))
+	    ucsdata->unitab_ctrl[i] = i;
 	else
-	    unitab_ctrl[i] = 0xFF;
+	    ucsdata->unitab_ctrl[i] = 0xFF;
 
     /* Generate line->screen direct conversion links. */
     if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS)
-	link_font(unitab_scoacs, unitab_oemcp, ATTR_OEMCP);
+	link_font(ucsdata->unitab_scoacs, ucsdata->unitab_oemcp, ATTR_OEMCP);
 
-    link_font(unitab_line, unitab_font, ATTR_ACP);
-    link_font(unitab_scoacs, unitab_font, ATTR_ACP);
-    link_font(unitab_xterm, unitab_font, ATTR_ACP);
+    link_font(ucsdata->unitab_line, ucsdata->unitab_font, ATTR_ACP);
+    link_font(ucsdata->unitab_scoacs, ucsdata->unitab_font, ATTR_ACP);
+    link_font(ucsdata->unitab_xterm, ucsdata->unitab_font, ATTR_ACP);
 
     if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS) {
-	link_font(unitab_line, unitab_oemcp, ATTR_OEMCP);
-	link_font(unitab_xterm, unitab_oemcp, ATTR_OEMCP);
+	link_font(ucsdata->unitab_line, ucsdata->unitab_oemcp, ATTR_OEMCP);
+	link_font(ucsdata->unitab_xterm, ucsdata->unitab_oemcp, ATTR_OEMCP);
     }
 
-    if (dbcs_screenfont && font_codepage != line_codepage) {
+    if (ucsdata->dbcs_screenfont &&
+	ucsdata->font_codepage != ucsdata->line_codepage) {
 	/* F***ing Microsoft fonts, Japanese and Korean codepage fonts
 	 * have a currency symbol at 0x5C but their unicode value is 
 	 * still given as U+005C not the correct U+00A5. */
-	unitab_line['\\'] = ATTR_OEMCP + '\\';
+	ucsdata->unitab_line['\\'] = ATTR_OEMCP + '\\';
     }
 
     /* Last chance, if !unicode then try poorman links. */
@@ -563,18 +567,20 @@ void init_ucs(Config *cfg)
 	static char poorman_vt100[] = "*#****o~**+++++-----++++|****L.";
 
 	for (i = 160; i < 256; i++)
-	    if (!DIRECT_FONT(unitab_line[i]) &&
-		unitab_line[i] >= 160 && unitab_line[i] < 256)
-		unitab_line[i] = (WCHAR) (ATTR_ACP
-					  + poorman_latin1[unitab_line[i] -
-							   160]);
+	    if (!DIRECT_FONT(ucsdata->unitab_line[i]) &&
+		ucsdata->unitab_line[i] >= 160 &&
+		ucsdata->unitab_line[i] < 256) {
+		ucsdata->unitab_line[i] =
+		    (WCHAR) (ATTR_ACP +
+			     poorman_latin1[ucsdata->unitab_line[i] - 160]);
+	    }
 	for (i = 96; i < 127; i++)
-	    if (!DIRECT_FONT(unitab_xterm[i]))
-		unitab_xterm[i] =
-		    (WCHAR) (ATTR_ACP + poorman_vt100[i - 96]);
+	    if (!DIRECT_FONT(ucsdata->unitab_xterm[i]))
+		ucsdata->unitab_xterm[i] =
+	    (WCHAR) (ATTR_ACP + poorman_vt100[i - 96]);
 	for(i=128;i<256;i++) 
-	    if (!DIRECT_FONT(unitab_scoacs[i]))
-		unitab_scoacs[i] = 
+	    if (!DIRECT_FONT(ucsdata->unitab_scoacs[i]))
+		ucsdata->unitab_scoacs[i] = 
 		    (WCHAR) (ATTR_ACP + poorman_scoacs[i - 128]);
     }
 }
@@ -1172,11 +1178,12 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype)
 }
 
 int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused)
+	     char *mbstr, int mblen, char *defchr, int *defused,
+	     struct unicode_data *ucsdata)
 {
     char *p;
     int i;
-    if (codepage == line_codepage && uni_tbl) {
+    if (ucsdata && codepage == ucsdata->line_codepage && ucsdata->uni_tbl) {
 	/* Do this by array lookup if we can. */
 	if (wclen < 0) {
 	    for (wclen = 0; wcstr[wclen++] ;);   /* will include the NUL */
@@ -1185,7 +1192,7 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 	    wchar_t ch = wcstr[i];
 	    int by;
 	    char *p1;
-	    if (uni_tbl && (p1 = uni_tbl[(ch >> 8) & 0xFF])
+	    if (ucsdata->uni_tbl && (p1 = ucsdata->uni_tbl[(ch >> 8) & 0xFF])
 		&& (by = p1[ch & 0xFF]))
 		*p++ = by;
 	    else if (ch < 0x80)

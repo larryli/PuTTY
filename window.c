@@ -120,6 +120,7 @@ static void *ldisc;
 static Backend *back;
 static void *backhandle;
 
+static struct unicode_data ucsdata;
 static int session_closed;
 
 Config cfg;			       /* exported to windlg.c */
@@ -508,7 +509,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hwnd = NULL;
 
-    term = term_init(&cfg, NULL);
+    memset(&ucsdata, 0, sizeof(ucsdata));
+
+    term = term_init(&cfg, &ucsdata, NULL);
     logctx = log_init(NULL, &cfg);
     term_provide_logctx(term, logctx);
 
@@ -1112,16 +1115,15 @@ static void init_fonts(int pick_width, int pick_height)
 
 	/* !!! Yes the next line is right */
 	if (cset == OEM_CHARSET)
-	    font_codepage = GetOEMCP();
+	    ucsdata.font_codepage = GetOEMCP();
 	else
-	    if (TranslateCharsetInfo
-		((DWORD *) cset, &info, TCI_SRCCHARSET)) font_codepage =
-		info.ciACP;
+	    if (TranslateCharsetInfo ((DWORD *) cset, &info, TCI_SRCCHARSET))
+		ucsdata.font_codepage = info.ciACP;
 	else
-	    font_codepage = -1;
+	    ucsdata.font_codepage = -1;
 
-	GetCPInfo(font_codepage, &cpinfo);
-	dbcs_screenfont = (cpinfo.MaxCharSize > 1);
+	GetCPInfo(ucsdata.font_codepage, &cpinfo);
+	ucsdata.dbcs_screenfont = (cpinfo.MaxCharSize > 1);
     }
 
     f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
@@ -1209,7 +1211,7 @@ static void init_fonts(int pick_width, int pick_height)
     }
     fontflag[0] = fontflag[1] = fontflag[2] = 1;
 
-    init_ucs(&cfg);
+    init_ucs(&cfg, &ucsdata);
 }
 
 static void another_font(int fontno)
@@ -2760,8 +2762,8 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    if (lattr == LATTR_TOP || lattr == LATTR_BOT)
 		text_adjust *= 2;
 	    attr &= ~CSET_MASK;
-	    text[0] = (char) (unitab_xterm['q'] & CHAR_MASK);
-	    attr |= (unitab_xterm['q'] & CSET_MASK);
+	    text[0] = (char) (ucsdata.unitab_xterm['q'] & CHAR_MASK);
+	    attr |= (ucsdata.unitab_xterm['q'] & CSET_MASK);
 	    if (attr & ATTR_UNDER) {
 		attr &= ~ATTR_UNDER;
 		force_manual_underline = 1;
@@ -2822,7 +2824,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	line_box.right = font_width*term->cols+offset_width;
 
     /* We're using a private area for direct to font. (512 chars.) */
-    if (dbcs_screenfont && (attr & CSET_MASK) == ATTR_ACP) {
+    if (ucsdata.dbcs_screenfont && (attr & CSET_MASK) == ATTR_ACP) {
 	/* Ho Hum, dbcs fonts are a PITA! */
 	/* To display on W9x I have to convert to UCS */
 	static wchar_t *uni_buf = 0;
@@ -2835,15 +2837,15 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
 	for(nlen = mptr = 0; mptr<len; mptr++) {
 	    uni_buf[nlen] = 0xFFFD;
-	    if (IsDBCSLeadByteEx(font_codepage, (BYTE) text[mptr])) {
+	    if (IsDBCSLeadByteEx(ucsdata.font_codepage, (BYTE) text[mptr])) {
 		IpDx[nlen] += char_width;
-	        MultiByteToWideChar(font_codepage, MB_USEGLYPHCHARS,
+	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
 				   text+mptr, 2, uni_buf+nlen, 1);
 		mptr++;
 	    }
 	    else
 	    {
-	        MultiByteToWideChar(font_codepage, MB_USEGLYPHCHARS,
+	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
 				   text+mptr, 1, uni_buf+nlen, 1);
 	    }
 	    nlen++;
@@ -3012,17 +3014,17 @@ int char_width(Context ctx, int uc) {
 
     switch (uc & CSET_MASK) {
       case ATTR_ASCII:
-	uc = unitab_line[uc & 0xFF];
+	uc = ucsdata.unitab_line[uc & 0xFF];
 	break;
       case ATTR_LINEDRW:
-	uc = unitab_xterm[uc & 0xFF];
+	uc = ucsdata.unitab_xterm[uc & 0xFF];
 	break;
       case ATTR_SCOACS:
-	uc = unitab_scoacs[uc & 0xFF];
+	uc = ucsdata.unitab_scoacs[uc & 0xFF];
 	break;
     }
     if (DIRECT_FONT(uc)) {
-	if (dbcs_screenfont) return 1;
+	if (ucsdata.dbcs_screenfont) return 1;
 
 	/* Speedup, I know of no font where ascii is the wrong width */
 	if ((uc&CHAR_MASK) >= ' ' && (uc&CHAR_MASK)<= '~') 
@@ -3767,7 +3769,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
 	    if (alt_sum) {
-		if (in_utf(term) || dbcs_screenfont)
+		if (in_utf(term) || ucsdata.dbcs_screenfont)
 		    debug((", (U+%04x)", alt_sum));
 		else
 		    debug((", LCH(%d)", alt_sum));
@@ -3820,7 +3822,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 		if (!key_down) {
 		    if (alt_sum) {
-			if (in_utf(term) || dbcs_screenfont) {
+			if (in_utf(term) || ucsdata.dbcs_screenfont) {
 			    keybuf = alt_sum;
 			    term_seen_key_event(term);
 			    luni_send(ldisc, &keybuf, 1, 1);
@@ -3870,7 +3872,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (!left_alt)
 	    keys[0] = 0;
 	/* If we will be using alt_sum fix the 256s */
-	else if (keys[0] && (in_utf(term) || dbcs_screenfont))
+	else if (keys[0] && (in_utf(term) || ucsdata.dbcs_screenfont))
 	    keys[0] = 10;
     }
 
