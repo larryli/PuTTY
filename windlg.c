@@ -1965,7 +1965,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshpanelstart) {
-	/* The SSH panel. Accelerators used: [acgoh] r pe12ni sd */
+	/* The SSH panel. Accelerators used: [acgoh] r pel12n sud i */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1986,10 +1986,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      "2 o&nly", IDC_SSHPROT2ONLY, NULL);
 	    endbox(&cp);
 	    beginbox(&cp, "Encryption options", IDC_BOX_SSH3);
+	    /* Adds accelerators: ud */
 	    prefslist(&cipherlist, &cp, "Encryption cipher &selection policy:",
 		      IDC_CIPHERSTATIC2, IDC_CIPHERLIST, IDC_CIPHERUP,
 		      IDC_CIPHERDN);
-	    checkbox(&cp, "Enable non-standard use of single-&DES in SSH 2",
+	    checkbox(&cp, "Enable non-standard use of s&ingle-DES in SSH 2",
 		     IDC_SSH2DES);
 	    endbox(&cp);
 	}
@@ -2022,7 +2023,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshbugspanelstart) {
-	/* The SSH bugs panel. Accelerators used: [acgoh] isrmep */
+	/* The SSH bugs panel. Accelerators used: [acgoh] isrmepd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -2049,7 +2050,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == tunnelspanelstart) {
-	/* The Tunnels panel. Accelerators used: [acgoh] deilmrstxp */
+	/* The Tunnels panel. Accelerators used: [acgoh] exu tprsdilm */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
