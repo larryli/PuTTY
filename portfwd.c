@@ -220,7 +220,7 @@ static int pfd_receive(Plug plug, int urgent, char *data, int len)
 		}
 
 		if (pr->dynamic == 0x5001) {
-		    int atype, alen;
+		    int atype, alen = 0;
 		    if (pr->port < 6) continue;
 		    atype = (unsigned char)pr->hostname[3];
 		    if (atype == 1)    /* IPv4 address */
