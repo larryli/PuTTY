@@ -71,9 +71,9 @@ scp.rsp: makefile
 	echo $(SCPOBJS) >> scp.rsp
 	echo $(SCPOBJS2) >> scp.rsp
 	echo $(SCPOBJS3) >> scp.rsp
-	echo scp.res >> link.rsp
-	echo $(LIBS1) >> link.rsp
-	echo $(LIBS2) >> link.rsp
+	echo scp.res >> scp.rsp
+	echo $(LIBS1) >> scp.rsp
+	echo $(LIBS2) >> scp.rsp
 
 scp.obj: scp.c putty.h scp.h
 scpssh.obj: scpssh.c putty.h ssh.h scp.h
