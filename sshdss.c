@@ -473,7 +473,7 @@ static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
+static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
 {
     /*
      * The basic DSS signing algorithm is:
