@@ -847,7 +847,6 @@ void term_out(void) {
 		    long ticks;
 
 		    ticks = GetTickCount();
-debug(("beep received at %ld, last was %ld, nbeeps=%d\n", ticks, lastbeep, nbeeps));
 
 		    if (!beep_overloaded) {
 			newbeep = smalloc(sizeof(struct beeptime));
@@ -869,7 +868,6 @@ debug(("beep received at %ld, last was %ld, nbeeps=%d\n", ticks, lastbeep, nbeep
 			   beephead->ticks < ticks - cfg.bellovl_t*1000) {
 			struct beeptime *tmp = beephead;
 			beephead = tmp->next;
-debug(("throwing out beep received at %ld\n", tmp->ticks));
 			sfree(tmp);
 			if (!beephead)
 			    beeptail = NULL;
@@ -883,7 +881,6 @@ debug(("throwing out beep received at %ld\n", tmp->ticks));
 			 * last beep was more than s seconds ago,
 			 * leave overload mode.
 			 */
-debug(("silence reigns, leaving overload mode\n"));
 			beep_overloaded = FALSE;
 		    } else if (cfg.bellovl && !beep_overloaded &&
 			       nbeeps >= cfg.bellovl_n) {
@@ -892,8 +889,6 @@ debug(("silence reigns, leaving overload mode\n"));
 			 * remaining in the queue, go into overload
 			 * mode.
 			 */
-debug(("%d beeps between times %ld and %ld, overload!\n",
-       nbeeps, beephead->ticks, ticks));
 			beep_overloaded = TRUE;
 		    }
 		    lastbeep = ticks;
@@ -902,7 +897,6 @@ debug(("%d beeps between times %ld and %ld, overload!\n",
 		     * Perform an actual beep if we're not overloaded.
 		     */
 		    if ((!cfg.bellovl || !beep_overloaded) && cfg.beep != 0) {
-debug(("not overloaded; performing a beep\n"));
 			if (cfg.beep != 2)
 			    beep(cfg.beep);
 			else if(cfg.beep == 2) {
