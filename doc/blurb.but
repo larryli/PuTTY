@@ -6,8 +6,6 @@
 
 \cfg{xhtml-leaf-contains-contents}{true}
 
-\cfg{xhtml-head-end}{<link rel='stylesheet' href='http://www.chiark.greenend.org.uk/~sgtatham/putty/sitestyle.css' type='text/css' />}
-
 \cfg{xhtml-body-end}{Comments to <a href='mailto:putty@projects.tartarus.org'>putty@projects.tartarus.org</a>}
 
 \preamble PuTTY is a free (MIT-licensed) Win32 Telnet and SSH
@@ -18,4 +16,4 @@ PSCP, Plink, Pageant and PuTTYgen.
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.
 
-\versionid $Id: blurb.but,v 1.7 2003/01/03 10:59:53 simon Exp $
+\versionid $Id: blurb.but,v 1.8 2003/10/30 10:30:23 simon Exp $

@@ -1,5 +1,5 @@
-CHAPTERS := blurb intro gs using config pscp psftp plink pubkey pageant
-CHAPTERS += errors faq feedback licence
+CHAPTERS := $(SITE) blurb intro gs using config pscp psftp plink pubkey
+CHAPTERS += pageant errors faq feedback licence
 
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 
