@@ -3537,6 +3537,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = 0x1C;
 	    return p - output;
 	}
+	if (shift_state == 3 && wParam == 0xDE) {
+	    *p++ = 0x1E;	       /* Ctrl-~ == Ctrl-^ in xterm at least */
+	    return p - output;
+	}
 	if (shift_state == 0 && wParam == VK_RETURN && term->cr_lf_return) {
 	    *p++ = '\r';
 	    *p++ = '\n';
