@@ -435,6 +435,9 @@ static void makerle(struct buf *b, termline *ldata,
 		hdrpos = b->len;
 		hdrsize = 0;
 		add(b, 0);
+		/* And ensure this run doesn't interfere with the next. */
+		prevlen = prevpos = 0;
+		prev2 = FALSE;
 
 		continue;
 	    } else {
