@@ -724,10 +724,10 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 2) {		       /* key was different */
 	ParamText(pappname, pkeytype, pfingerprint, NULL);
 	alertret=CautionAlert(wWrong, NULL);
-	if (alertret == 9) {
+	if (alertret == 8) {
 	    /* Cancel */
 	    goto cancel;
-	} else if (alertret == 8) {
+	} else if (alertret == 9) {
 	    /* Connect Just Once */
 	} else {
 	    /* Update Key */
@@ -737,10 +737,10 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 1) {                     /* key was absent */
 	ParamText(pkeytype, pfingerprint, pappname, NULL);
 	alertret=CautionAlert(wAbsent, NULL);
-	if (alertret == 8) {
+	if (alertret == 7) {
 	    /* Cancel */
 	    goto cancel;
-	} else if (alertret == 7) {
+	} else if (alertret == 8) {
 	    /* Connect Just Once */
 	} else {
 	    /* Update Key */

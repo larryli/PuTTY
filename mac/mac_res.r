@@ -1008,7 +1008,7 @@ resource 'DITL' (wQuestion, "fatalbox", purgeable) {
 /* Absent host key */
 
 resource 'ALRT' (wAbsent, "absent", purgeable) {
-	{32, 67, 332, 435},
+	{37, 67, 337, 435},
 	wAbsent,
 	beepStages,
 	alertPositionMainScreen
@@ -1017,7 +1017,7 @@ resource 'ALRT' (wAbsent, "absent", purgeable) {
 resource 'DITL' (wAbsent, "absent", purgeable) {
 	{	/* array DITLarray: 8 elements */
 		/* [1] */
-		{11, 72, 60, 357},
+		{10, 72, 60, 357},
 		StaticText {
 			disabled,
 			"The server's host key is not cached.  You "
@@ -1025,13 +1025,13 @@ resource 'DITL' (wAbsent, "absent", purgeable) {
 			"computer you think it is."
 		},
 		/* [2] */
-		{65, 71, 113, 355},
+		{65, 72, 113, 355},
 		StaticText {
 			disabled,
 			"The server's ^0 key fingerprint is:\n^1"
 		},
 		/* [3] */
-		{121, 70, 172, 354},
+		{121, 72, 172, 354},
 		StaticText {
 			disabled,
 			"If you trust this host, hit Add Key to add "
@@ -1039,7 +1039,7 @@ resource 'DITL' (wAbsent, "absent", purgeable) {
 			"connecting."
 		},
 		/* [4] */
-		{178, 70, 226, 354},
+		{178, 72, 226, 354},
 		StaticText {
 			disabled,
 			"If you want to carry on connecting just "
@@ -1047,29 +1047,29 @@ resource 'DITL' (wAbsent, "absent", purgeable) {
 			"select Just Once."
 		},
 		/* [5] */
-		{233, 69, 281, 353},
+		{233, 72, 271, 353},
 		StaticText {
 			disabled,
 			"If you do not trust this host, hit Cancel "
 			"to abandon the connection."
 		},
 		/* [6] */
-		{285, 70, 303, 139},
+		{275, 72, 295, 139},
 		Button {
 			enabled,
 			"Add Key"
 		},
 		/* [7] */
-		{285, 214, 305, 288},
-		Button {
-			enabled,
-			"Just Once"
-		},
-		/* [8] */
-		{284, 295, 304, 354},
+		{275, 217, 295, 277},
 		Button {
 			enabled,
 			"Cancel"
+		},
+		/* [8] */
+		{275, 290, 295, 360},
+		Button {
+			enabled,
+			"Just Once"
 		}
 	}
 };
@@ -1086,7 +1086,7 @@ resource 'ALRT' (wWrong, "wrong", purgeable) {
 resource 'DITL' (wWrong, "wrong", purgeable) {
 	{	/* array DITLarray: 9 elements */
 		/* [1] */
-		{7, 74, 23, 358},
+		{10, 72, 26, 358},
 		StaticText {
 			disabled,
 			"WARNING - POTENTIAL SECURITY BREACH!"
@@ -1103,13 +1103,13 @@ resource 'DITL' (wWrong, "wrong", purgeable) {
 			"server."
 		},
 		/* [3] */
-		{142, 72, 190, 356},
+		{136, 72, 190, 356},
 		StaticText {
 			disabled,
 			"The new ^1 key fingerprint is:\n^2"
 		},
 		/* [4] */
-		{190, 73, 238, 357},
+		{190, 72, 238, 357},
 		StaticText {
 			disabled,
 			"If you were expecting this change and "
@@ -1117,7 +1117,7 @@ resource 'DITL' (wWrong, "wrong", purgeable) {
 			"^0's cache and continue connecting."
 		},
 		/* [5] */
-		{246, 74, 294, 358},
+		{246, 72, 294, 358},
 		StaticText {
 			disabled,
 			"If you want to carry on connecting just "
@@ -1125,7 +1125,7 @@ resource 'DITL' (wWrong, "wrong", purgeable) {
 			"select Just Once."
 		},
 		/* [6] */
-		{301, 74, 349, 358},
+		{301, 72, 349, 358},
 		StaticText {
 			disabled,
 			"If you do not trust this host, hit Cancel "
@@ -1133,22 +1133,22 @@ resource 'DITL' (wWrong, "wrong", purgeable) {
 			"ONLY guaranteed safe choice."
 		},
 		/* [7] */
-		{361, 76, 379, 163},
+		{360, 72, 380, 163},
 		Button {
 			enabled,
 			"Update Key"
 		},
 		/* [8] */
-		{360, 215, 380, 289},
-		Button {
-			enabled,
-			"Just Once"
-		},
-		/* [9] */
-		{360, 298, 380, 357},
+		{360, 217, 380, 277},
 		Button {
 			enabled,
 			"Cancel"
+		},
+		/* [9] */
+		{360, 290, 380, 360},
+		Button {
+			enabled,
+			"Just Once"
 		}
 	}
 };
