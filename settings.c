@@ -416,7 +416,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "ProxyMethod", -1, &cfg->proxy_type);
     if (cfg->proxy_type == -1) {
         int i;
-        gppi(sesskey, "ProxyType", -1, &i);
+        gppi(sesskey, "ProxyType", 0, &i);
         if (i == 0)
             cfg->proxy_type = PROXY_NONE;
         else if (i == 1)
