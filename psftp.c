@@ -1741,7 +1741,7 @@ int sftp_recvdata(char *buf, int len)
 }
 int sftp_senddata(char *buf, int len)
 {
-    back->send(backhandle, (unsigned char *) buf, len);
+    back->send(backhandle, buf, len);
     return 1;
 }
 

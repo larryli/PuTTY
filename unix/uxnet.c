@@ -871,7 +871,7 @@ static int net_select_result(int fd, int event)
 
 	    memset(&isa, 0, sizeof(struct sockaddr_in));
 	    err = 0;
-	    t = accept(s->s,(struct sockaddr *)&isa,&addrlen);
+	    t = accept(s->s,(struct sockaddr *)&isa,(socklen_t *) &addrlen);
 	    if (t < 0) {
 		break;
 	    }
