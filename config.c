@@ -50,6 +50,33 @@ static void protocolbuttons_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void loggingbuttons_handler(union control *ctrl, void *dlg,
+				   void *data, int event)
+{
+    int button;
+    Config *cfg = (Config *)data;
+    /* This function works just like the standard radio-button handler,
+     * but it has to fall back to "no logging" in situations where the
+     * configured logging type isn't applicable.
+     */
+    if (event == EVENT_REFRESH) {
+        for (button = 0; button < ctrl->radio.nbuttons; button++)
+            if (cfg->logtype == ctrl->radio.buttondata[button].i)
+	        break;
+    
+    /* We fell off the end, so we lack the configured logging type */
+    if (button == ctrl->radio.nbuttons) {
+        button=0;
+        cfg->logtype=LGTYP_NONE;
+    }
+    dlg_radiobutton_set(ctrl, dlg, button);
+    } else if (event == EVENT_VALCHANGE) {
+        button = dlg_radiobutton_get(ctrl, dlg);
+        assert(button >= 0 && button < ctrl->radio.nbuttons);
+        cfg->logtype = ctrl->radio.buttondata[button].i;
+    }
+}
+
 static void numeric_keypad_handler(union control *ctrl, void *dlg,
 				   void *data, int event)
 {
@@ -947,7 +974,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	    sshlogname = NULL;	       /* this will disable the button */
 	ctrl_radiobuttons(s, "Session logging:", NO_SHORTCUT, 1,
 			  HELPCTX(logging_main),
-			  dlg_stdradiobutton_handler,
+			  loggingbuttons_handler,
 			  I(offsetof(Config, logtype)),
 			  "Logging turned off completely", 't', I(LGTYP_NONE),
 			  "Log printable output only", 'p', I(LGTYP_ASCII),
