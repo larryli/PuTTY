@@ -2,8 +2,9 @@ This is the README for the source archive of PuTTY, a free Win32
 and Unix Telnet and SSH client.
 
 If you want to rebuild PuTTY from source, we provide a variety of
-Makefiles and equivalents. (If you have fetched the source from CVS,
-you'll have to generate the Makefiles yourself -- see below.)
+Makefiles and equivalents. (If you have fetched the source from
+Subversion, you'll have to generate the Makefiles yourself -- see
+below.)
 
 For building on Windows:
 

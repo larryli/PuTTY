@@ -35,6 +35,7 @@ find . -name uxarc -prune -o -name . -o \
 find . -name uxarc -prune -o \
        -name CVS -prune -o \
        -name .cvsignore -prune -o \
+       -name .svn -prune -o \
        -name '*.zip' -prune -o \
        -name '*.tar.gz' -prune -o \
        -type f -exec ln -s $PWD/{} uxarc/$arcname/{} \;

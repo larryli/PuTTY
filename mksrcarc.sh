@@ -2,6 +2,7 @@
 perl mkfiles.pl
 text=`{ find . -name CVS -prune -o \
                -name .cvsignore -prune -o \
+               -name .svn -prune -o \
                -name LATEST.VER -prune -o \
                -name CHECKLST.txt -prune -o \
                -name mksrcarc.sh -prune -o \
