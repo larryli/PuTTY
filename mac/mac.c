@@ -71,6 +71,7 @@ static int cold = 1;
 static int borednow = FALSE;
 struct mac_gestalts mac_gestalts;
 UInt32 sleeptime;
+static long timing_next_time;
 
 static void mac_startup(void);
 static void mac_eventloop(void);
@@ -244,16 +245,32 @@ static void mac_startup(void) {
 			  NewAEEventHandlerUPP(&mac_aevt_quit), 0, FALSE);
 }
 
+void timer_change_notify(long next)
+{
+    timing_next_time = next;
+}
+
 static void mac_eventloop(void) {
     Boolean gotevent;
     EventRecord event;
     RgnHandle cursrgn;
+    long next;
+    long ticksleft;
 
     cursrgn = NewRgn();
     sleeptime = 0;
     for (;;) {
     	mac_adjustcursor(cursrgn);
+	ticksleft=timing_next_time-GETTICKCOUNT();
+	if (sleeptime > ticksleft && ticksleft >=0)
+	    sleeptime=ticksleft;
 	gotevent = WaitNextEvent(everyEvent, &event, sleeptime, cursrgn);
+	if (timing_next_time <= GETTICKCOUNT()) {
+            if (run_timers(timing_next_time, &next)) {
+                timer_change_notify(next);
+            }
+        }
+
 	/*
 	 * XXX For now, limit sleep time to 1/10 s to work around
 	 * wake-before-sleep race in MacTCP code.
