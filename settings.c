@@ -493,7 +493,11 @@ void load_settings(char *section, int do_host, Config * cfg)
 #ifdef _WINDOWS
     gppi(sesskey, "FontCharSet", ANSI_CHARSET, &cfg->fontcharset);
 #endif
+#ifdef macintosh
+    gppi(sesskey, "FontHeight", 9, &cfg->fontheight);
+#else
     gppi(sesskey, "FontHeight", 10, &cfg->fontheight);
+#endif
 #ifdef _WINDOWS
     if (cfg->fontheight < 0) {
 	int oldh, newh;
