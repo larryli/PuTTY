@@ -1783,7 +1783,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 			    break;
 			  default:
 			    if (((c >= ' ' && c <= '~') ||
-				 ((unsigned char) c >= 160)) && pos < 40) {
+				 ((unsigned char) c >= 160))
+				&& pos < sizeof(username)-1) {
 				username[pos++] = c;
 				c_write(&c, 1);
 			    }
@@ -2053,9 +2054,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 			exit(0);
 			break;
 		      default:
-			if (((c >= ' ' && c <= '~') ||
-			     ((unsigned char) c >= 160))
-			    && pos < sizeof(password))
+			if (pos < sizeof(password)-1)
 			    password[pos++] = c;
 			break;
 		    }
@@ -3197,7 +3196,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			    break;
 			  default:
 			    if (((c >= ' ' && c <= '~') ||
-				 ((unsigned char) c >= 160)) && pos < 40) {
+				 ((unsigned char) c >= 160))
+				&& pos < sizeof(username)-1) {
 				username[pos++] = c;
 				c_write(&c, 1);
 			    }
@@ -3582,9 +3582,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 				exit(0);
 				break;
 			      default:
-				if (((c >= ' ' && c <= '~') ||
-				     ((unsigned char) c >= 160))
-				    && pos < 40)
+				if (pos < sizeof(password)-1)
 				    password[pos++] = c;
 				break;
 			    }
