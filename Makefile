@@ -57,7 +57,8 @@ SOBJS = scp.$(OBJ) windlg.$(OBJ) ssh.$(OBJ) be_none.$(OBJ)
 MOBJS = misc.$(OBJ) version.$(OBJ)
 ##-- objects putty pscp
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
-OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ)
+OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
+OBJS3 = sshbn.$(OBJ)
 ##-- resources putty
 PRESRC = win_res.$(RES)
 ##-- resources puttytel
@@ -78,7 +79,7 @@ LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
 
 all: putty.exe puttytel.exe pscp.exe
 
-putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(PRESRC) putty.rsp
+putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe @putty.rsp
 
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
@@ -95,6 +96,7 @@ putty.rsp: makefile
 	echo $(MOBJS) >> putty.rsp
 	echo $(OBJS1) >> putty.rsp
 	echo $(OBJS2) >> putty.rsp
+	echo $(OBJS3) >> putty.rsp
 	echo $(PRESRC) >> putty.rsp
 	echo $(LIBS1) >> putty.rsp
 	echo $(LIBS2) >> putty.rsp
@@ -115,6 +117,7 @@ pscp.rsp: makefile
 	echo $(MOBJS) >> pscp.rsp
 	echo $(OBJS1) >> pscp.rsp
 	echo $(OBJS2) >> pscp.rsp
+	echo $(OBJS3) >> pscp.rsp
 	echo $(SRESRC) >> pscp.rsp
 	echo $(LIBS1) >> pscp.rsp
 	echo $(LIBS2) >> pscp.rsp
@@ -138,6 +141,9 @@ sshrsa.$(OBJ): sshrsa.c ssh.h
 sshsha.$(OBJ): sshsha.c ssh.h
 sshrand.$(OBJ): sshrand.c ssh.h
 sshblowf.$(OBJ): sshblowf.c ssh.h
+sshdh.$(OBJ): sshdh.c ssh.h
+sshdss.$(OBJ): sshdss.c ssh.h
+sshbn.$(OBJ): sshbn.c ssh.h
 scp.$(OBJ): scp.c putty.h scp.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c

@@ -414,5 +414,7 @@ static void blowfish_decrypt_blk(unsigned char *blk, int len)
 struct ssh_cipher ssh_blowfish = {
     blowfish_sesskey,
     blowfish_encrypt_blk,
-    blowfish_decrypt_blk
+    blowfish_decrypt_blk,
+    "blowfish-cbc",
+    8
 };

@@ -685,7 +685,9 @@ static void des3_decrypt_blk(unsigned char *blk, int len) {
 struct ssh_cipher ssh_3des = {
     des3_sesskey,
     des3_encrypt_blk,
-    des3_decrypt_blk
+    des3_decrypt_blk,
+    "3des-cbc",
+    8
 };
 
 static void des_sesskey(unsigned char *key) {
@@ -705,5 +707,7 @@ static void des_decrypt_blk(unsigned char *blk, int len) {
 struct ssh_cipher ssh_des = {
     des_sesskey,
     des_encrypt_blk,
-    des_decrypt_blk
+    des_decrypt_blk,
+    "des-cbc", /* should never be used - not a valid cipher in ssh2 */
+    8
 };
