@@ -107,6 +107,7 @@ static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
+static int get_fullscreen_rect(RECT * ss);
 
 static time_t last_movement = 0;
 
@@ -480,8 +481,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     guess_height = extra_height + font_height * rows;
     {
 	RECT r;
-	HWND w = GetDesktopWindow();
-	GetWindowRect(w, &r);
+		get_fullscreen_rect(&r);
 	if (guess_width > r.right - r.left)
 	    guess_width = r.right - r.left;
 	if (guess_height > r.bottom - r.top)
@@ -1213,7 +1213,7 @@ void request_resize(int w, int h)
 	switch (first_time) {
 	  case 1:
 	    /* Get the size of the screen */
-	    if (GetClientRect(GetDesktopWindow(), &ss))
+	    if (get_fullscreen_rect(&ss))
 		/* first_time = 0 */ ;
 	    else {
 		first_time = 2;
@@ -1382,8 +1382,9 @@ static void reset_window(int reinit) {
 
 	    static RECT ss;
 	    int width, height;
+		
+		get_fullscreen_rect(&ss);
 
-	    GetClientRect(GetDesktopWindow(), &ss);
 	    width = (ss.right - ss.left - extra_width) / font_width;
 	    height = (ss.bottom - ss.top - extra_height) / font_height;
 
@@ -2216,8 +2217,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         if (wParam == SIZE_RESTORED)
             clear_full_screen();
         if (wParam == SIZE_MAXIMIZED && fullscr_on_max) {
-            make_full_screen();
             fullscr_on_max = FALSE;
+            make_full_screen();
         }
 
 	if (cfg.resize_action == RESIZE_DISABLED) {
@@ -4346,6 +4347,32 @@ int is_full_screen()
     return TRUE;
 }
 
+/* Get the rect/size of a full screen window using the nearest available
+ * monitor in multimon systems; default to something sensible if only
+ * one monitor is present. */
+static int get_fullscreen_rect(RECT * ss)
+{
+#ifdef MONITOR_DEFAULTTONEAREST
+	HMONITOR mon;
+	MONITORINFO mi;
+	mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfo(mon, &mi);
+
+	/* structure copy */
+	*ss = mi.rcMonitor;
+	return TRUE;
+#else
+/* could also use code like this:
+	ss->left = ss->top = 0;
+	ss->right = GetSystemMetrics(SM_CXSCREEN);
+	ss->bottom = GetSystemMetrics(SM_CYSCREEN);
+*/ 
+	return GetClientRect(GetDesktopWindow(), &ss);
+#endif
+}
+
+
 /*
  * Go full-screen. This should only be called when we are already
  * maximised.
@@ -4353,10 +4380,13 @@ int is_full_screen()
 void make_full_screen()
 {
     DWORD style;
-    int x, y, w, h;
+	RECT ss;
 
     assert(IsZoomed(hwnd));
 
+	if (is_full_screen())
+		return;
+	
     /* Remove the window furniture. */
     style = GetWindowLong(hwnd, GWL_STYLE);
     style &= ~(WS_CAPTION | WS_BORDER | WS_THICKFRAME);
@@ -4367,24 +4397,11 @@ void make_full_screen()
     SetWindowLong(hwnd, GWL_STYLE, style);
 
     /* Resize ourselves to exactly cover the nearest monitor. */
-#ifdef MONITOR_DEFAULTTONEAREST
-    {
-	HMONITOR mon;
-	MONITORINFO mi;
-	mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-	mi.cbSize = sizeof(mi);
-	GetMonitorInfo(mon, &mi);
-	x = mi.rcMonitor.left;
-	y = mi.rcMonitor.top;
-	w = mi.rcMonitor.right;
-	h = mi.rcMonitor.bottom;
-    }
-#else
-    x = y = 0;
-    w = GetSystemMetrics(SM_CXSCREEN);
-    h = GetSystemMetrics(SM_CYSCREEN);
-#endif
-    SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
+	get_fullscreen_rect(&ss);
+    SetWindowPos(hwnd, HWND_TOP, ss.left, ss.top,
+			ss.right - ss.left,
+			ss.bottom - ss.top,
+			SWP_FRAMECHANGED);
 
     /* Tick the menu item in the System menu. */
     CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
