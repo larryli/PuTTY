@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.36 2002/10/10 14:39:35 jacob Exp $
+\versionid $Id: faq.but,v 1.37 2002/11/02 16:27:17 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -162,36 +162,44 @@ happens.
 \H{faq-ports} Ports to other operating systems
 
 The eventual goal is for PuTTY to be a multi-platform program, able
-to run on at least Windows, MacOS and Unix. Whether this will
-actually ever happen I have no idea, but it is the plan. A Mac port
-has been started, but is only half-finished and currently not moving
-very fast.
+to run on at least Windows, MacOS and Unix.
 
 Porting will become easier once PuTTY has a generalised porting
 layer, drawing a clear line between platform-dependent and
-platform-independent code. The general intention is for this porting
-layer to evolve naturally as part of the process of doing the first
-port. One particularly nasty part of this will be separating the
-many configuration options into platform-dependent and
-platform-independent ones; for example, the options controlling when
-the Windows System menu appears will be pretty much meaningless
-under X11 or perhaps other windowing systems, whereas Telnet Passive
-Mode is universal and shouldn't need to be specified once for each
-platform.
+platform-independent code. The general intention was for this
+porting layer to evolve naturally as part of the process of doing
+the first port; a Unix port is now under way and the plan seems to
+be working so far.
 
 \S{faq-ports-general}{Question} What ports of PuTTY exist?
 
-Currently, PuTTY only runs on full Win32 systems. This includes
-Windows 95, 98, and ME, and it includes Windows NT, Windows 2000 and
-Windows XP.
+Currently, release versions of PuTTY only run on full Win32 systems.
+This includes Windows 95, 98, and ME, and it includes Windows NT,
+Windows 2000 and Windows XP. In the development code, a partial port
+to Unix is under way (see \k{faq-unix}).
 
-It does \e{not} include Windows CE (see \k{faq-wince}), and it does
-not quite include the Win32s environment under Windows 3.1 (see
-\k{faq-win31}).
+Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}),
+and it does not quite run on the Win32s environment under Windows
+3.1 (see \k{faq-win31}).
 
-We do not have ports for any other systems at the present time. If
-anyone told you we had a Unix port, or an iPaq port, or any other
-port of PuTTY, they were mistaken. We don't.
+We do not have release-quality ports for any other systems at the
+present time. If anyone told you we had a Mac port, or an iPaq port,
+or any other port of PuTTY, they were mistaken. We don't.
+
+\S{faq-unix}{Question} Will there be a port to Unix?
+
+It's currently being worked on. If you look at the nightly source
+snapshots, you should find a \c{unix} subdirectory, which should
+build you a Unix port of Plink, and also \c{pterm} - an
+\cw{xterm}-type program which supports the same terminal emulation
+as PuTTY.
+
+It isn't yet clear whether we will bother combining the terminal
+emulator and network back end into the same process, to provide a
+Unix port of the full GUI form of PuTTY. It wouldn't be as useful a
+thing on Unix as it would be on Windows; its major value would
+probably be as a pathfinding effort for other ports. If anyone
+really wants it, we'd be interested to know why :-)
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
@@ -226,14 +234,6 @@ A Mac port was started once and is half-finished, but development
 has been static for some time and the main PuTTY code has moved on,
 so it's not clear how quickly development would resume even if
 developer effort were available.
-
-\S{faq-unix}{Question} Will there be a port to Unix?
-
-I hope so, if only so that I can have an \cw{xterm}-like program
-that supports exactly the same terminal emulation as PuTTY. If and
-when we do do a Unix port, it will have a local-terminal back end so
-it can be used like an \cw{xterm}, rather than only being usable as
-a network utility.
 
 \S{faq-epoc}{Question} Will there be a port to EPOC?
 
