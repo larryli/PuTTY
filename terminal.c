@@ -1697,7 +1697,7 @@ void term_out(Terminal *term)
 			    term_update(term);
 			}
 		    }
-		    term->disptop = 0;
+		    term->seen_disp_event = TRUE;
 		}
 		break;
 	      case '\b':	      /* BS: Back space */
