@@ -402,6 +402,7 @@ static void add_keyfile(Filename filename)
     int ret;
     int attempts;
     char *comment;
+    const char *error = NULL;
     struct PassphraseProcStruct pps;
     int type;
     int original_pass;
@@ -424,18 +425,20 @@ static void add_keyfile(Filename filename)
 	int i, nkeys, bloblen, keylistlen;
 
 	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(&filename, &blob, &bloblen, NULL)) {
-		MessageBox(NULL, "Couldn't load private key.", APPNAME,
-			   MB_OK | MB_ICONERROR);
+	    if (!rsakey_pubblob(&filename, &blob, &bloblen, &error)) {
+		char *msg = dupprintf("Couldn't load private key (%s)", error);
+		MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+		sfree(msg);
 		return;
 	    }
 	    keylist = get_keylist1(&keylistlen);
 	} else {
 	    unsigned char *blob2;
-	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen, NULL);
+	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen, &error);
 	    if (!blob) {
-		MessageBox(NULL, "Couldn't load private key.", APPNAME,
-			   MB_OK | MB_ICONERROR);
+		char *msg = dupprintf("Couldn't load private key (%s)", error);
+		MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+		sfree(msg);
 		return;
 	    }
 	    /* For our purposes we want the blob prefixed with its length */
@@ -515,6 +518,7 @@ static void add_keyfile(Filename filename)
 	sfree(blob);
     }
 
+    error = NULL;
     if (type == SSH_KEYTYPE_SSH1)
 	needs_pass = rsakey_encrypted(&filename, &comment);
     else
@@ -548,9 +552,9 @@ static void add_keyfile(Filename filename)
 	} else
 	    *passphrase = '\0';
 	if (type == SSH_KEYTYPE_SSH1)
-	    ret = loadrsakey(&filename, rkey, passphrase, NULL);
+	    ret = loadrsakey(&filename, rkey, passphrase, &error);
 	else {
-	    skey = ssh2_load_userkey(&filename, passphrase, NULL);
+	    skey = ssh2_load_userkey(&filename, passphrase, &error);
 	    if (skey == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!skey)
@@ -570,8 +574,9 @@ static void add_keyfile(Filename filename)
     if (comment)
 	sfree(comment);
     if (ret == 0) {
-	MessageBox(NULL, "Couldn't load private key.", APPNAME,
-		   MB_OK | MB_ICONERROR);
+	char *msg = dupprintf("Couldn't load private key (%s)", error);
+	MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+	sfree(msg);
 	if (type == SSH_KEYTYPE_SSH1)
 	    sfree(rkey);
 	return;
