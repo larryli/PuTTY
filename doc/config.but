@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.58 2003/03/06 12:51:12 simon Exp $
+\versionid $Id: config.but,v 1.59 2003/03/07 09:03:11 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -856,7 +856,7 @@ terminal contents. You can disable this behaviour by turning off
 screen revert when you press a key, by turning on \q{Reset
 scrollback on keypress}.
 
-\S{config-scrollback} \q{Push erased text into scrollback}
+\S{config-erasetoscrollback} \q{Push erased text into scrollback}
 
 \cfg{winhelp-topic}{window.erased}
 
