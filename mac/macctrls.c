@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.16 2003/03/28 00:06:17 ben Exp $ */
+/* $Id: macctrls.c,v 1.17 2003/03/28 00:50:04 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -1069,17 +1069,16 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
     assert(mc->generic.type == MACCTRL_EDITBOX);
     GetPort(&saveport);
     SetPort((GrafPtr)(GetWindowPort(mcs->window)));
-    if (mac_gestalts.apprvers >= 0x100) {
+    if (mac_gestalts.apprvers >= 0x100)
 	SetControlData(mc->editbox.tbctrl, kControlEntireControl,
 		       ctrl->editbox.password ?
 		       kControlEditTextPasswordTag :
 		       kControlEditTextTextTag,
 		       strlen(text), text);
-    } else {
+    else
 	TESetText(text, strlen(text),
 		  (TEHandle)(*mc->editbox.tbctrl)->contrlData);
-    }
-	DrawOneControl(mc->editbox.tbctrl);
+    DrawOneControl(mc->editbox.tbctrl);
     SetPort(saveport);
 }
 
@@ -1087,6 +1086,7 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
+    TEHandle te;
     Size olen;
 
     assert(mc != NULL);
@@ -1099,14 +1099,17 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 			   length - 1, buffer, &olen) != noErr)
 	    olen = 0;
 	if (olen > length - 1)
-	    buffer[length - 1] = '\0';
-	else
-	    buffer[olen] = '\0';
-	buffer[olen] = '\0';
-    } else
-	buffer[0] = '\0';
+	    olen = length - 1;
+    } else {
+	te = (TEHandle)(*mc->editbox.tbctrl)->contrlData;
+	olen = (*te)->teLength;
+	if (olen > length - 1)
+	    olen = length - 1;
+	memcpy(buffer, *(*te)->hText, olen);
+    }
+    buffer[olen] = '\0';
     fprintf(stderr, "dlg_editbox_get: %s\n", buffer);
-};
+}
 
 
 /*
