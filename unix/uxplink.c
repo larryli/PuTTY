@@ -532,12 +532,17 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < skcount; i++) {
 	    socket = sklist[i];
+            /*
+             * We must process exceptional notifications before
+             * ordinary readability ones, or we may go straight
+             * past the urgent marker.
+             */
+	    if (FD_ISSET(socket, &xset))
+		select_result(socket, 4);
 	    if (FD_ISSET(socket, &rset))
 		select_result(socket, 1);
 	    if (FD_ISSET(socket, &wset))
 		select_result(socket, 2);
-	    if (FD_ISSET(socket, &xset))
-		select_result(socket, 4);
 	}
 
 	if (FD_ISSET(0, &rset)) {

@@ -810,10 +810,12 @@ int select_result(int fd, int event)
 
 	/*
 	 * If we reach here, this is an oobinline socket, which
-	 * means we should set s->oobpending and then fall through
-	 * to the read case.
+	 * means we should set s->oobpending and then deal with it
+	 * when we get called for the readability event (which
+	 * should also occur).
 	 */
 	s->oobpending = TRUE;
+        break;
       case 1: 			       /* readable; also acceptance */
 	if (s->listener) {
 	    /*
@@ -864,7 +866,7 @@ int select_result(int fd, int event)
 	} else
 	    atmark = 1;
 
-	ret = recv(s->s, buf, sizeof(buf), 0);
+	ret = recv(s->s, buf, s->oobpending ? 1 : sizeof(buf), 0);
 	noise_ultralight(ret);
 	if (ret < 0) {
 	    if (errno == EWOULDBLOCK) {
