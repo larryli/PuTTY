@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.9 2002/11/23 11:22:57 jacob Exp $
+\versionid $Id: feedback.but,v 1.10 2003/01/10 15:23:01 ben Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -33,6 +33,10 @@ list: if you need to send confidential data as part of a bug report,
 you can trust the people on the list to respect that confidence.
 Also, the archives aren't publicly available, so you shouldn't be
 letting yourself in for any spam by sending us mail.
+
+Please use a meaningful subject line on your message.  We get a lot of
+mail, and it's hard to find the message we're looking for if they all
+have subject lines like \q{PuTTY bug}.
 
 \S{feedback-largefiles} Sending large attachments
 
