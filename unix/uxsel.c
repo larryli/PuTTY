@@ -115,6 +115,13 @@ int first_fd(int *state, int *rwx)
 int select_result(int fd, int event)
 {
     struct fd *fdstruct = find234(fds, &fd, uxsel_fd_findcmp);
-    assert(fdstruct != NULL);
-    return fdstruct->callback(fd, event);
+    /*
+     * Apparently this can sometimes be NULL. Can't see how, but I
+     * assume it means I need to ignore the event since it's on an
+     * fd I've stopped being interested in. Sigh.
+     */
+    if (fdstruct)
+        return fdstruct->callback(fd, event);
+    else
+        return 1;
 }

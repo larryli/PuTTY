@@ -677,6 +677,35 @@ static void errmsg_button_clicked(GtkButton *button, gpointer data)
     gtk_widget_destroy(GTK_WIDGET(data));
 }
 
+static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
+{
+    gint x, y, w, h, dx, dy;
+    GtkRequisition req;
+    gtk_window_set_position(GTK_WINDOW(child), GTK_WIN_POS_NONE);
+    gtk_widget_size_request(GTK_WIDGET(child), &req);
+
+    gdk_window_get_origin(GTK_WIDGET(parent)->window, &x, &y);
+    gdk_window_get_size(GTK_WIDGET(parent)->window, &w, &h);
+
+    /*
+     * One corner of the transient will be offset inwards, by 1/4
+     * of the parent window's size, from the corresponding corner
+     * of the parent window. The corner will be chosen so as to
+     * place the transient closer to the centre of the screen; this
+     * should avoid transients going off the edge of the screen on
+     * a regular basis.
+     */
+    if (x + w/2 < gdk_screen_width() / 2)
+        dx = x + w/4;                  /* work from left edges */
+    else
+        dx = x + 3*w/4 - req.width;    /* work from right edges */
+    if (y + h/2 < gdk_screen_height() / 2)
+        dy = y + h/4;                  /* work from top edges */
+    else
+        dy = y + 3*h/4 - req.height;   /* work from bottom edges */
+    gtk_widget_set_uposition(GTK_WIDGET(child), dx, dy);
+}
+
 void dlg_error_msg(void *dlg, char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
@@ -705,15 +734,7 @@ void dlg_error_msg(void *dlg, char *msg)
                        GTK_SIGNAL_FUNC(window_destroy), NULL);
     gtk_window_set_modal(GTK_WINDOW(window), TRUE);
     gtk_window_set_transient_for(GTK_WINDOW(window), GTK_WINDOW(dp->window));
-    {
-	gint x, y, w, h, dx, dy;
-	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
-	gdk_window_get_origin(GTK_WIDGET(dp->window)->window, &x, &y);
-	gdk_window_get_size(GTK_WIDGET(dp->window)->window, &w, &h);
-	dx = x + w/4;
-	dy = y + h/4;
-	gtk_widget_set_uposition(GTK_WIDGET(window), dx, dy);
-    }
+    set_transient_window_pos(dp->window, window);
     gtk_widget_show(window);
     gtk_main();
 }
@@ -1940,11 +1961,12 @@ int do_config_box(const char *title, Config *cfg)
 	scs.sc[index].action = SHORTCUT_EMPTY;
     }
 
+    window = gtk_dialog_new();
+
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, &sl, FALSE, 0);
-    unix_setup_config_box(ctrlbox, FALSE);
+    unix_setup_config_box(ctrlbox, FALSE, window);
 
-    window = gtk_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
     hbox = gtk_hbox_new(FALSE, 4);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox), hbox, TRUE, TRUE, 0);
@@ -2218,13 +2240,7 @@ int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
 
     gtk_window_set_modal(GTK_WINDOW(window), TRUE);
     if (parentwin) {
-	gint x, y, w, h, dx, dy;
-	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
-	gdk_window_get_origin(parentwin->window, &x, &y);
-	gdk_window_get_size(parentwin->window, &w, &h);
-	dx = x + w/4;
-	dy = y + h/4;
-	gtk_widget_set_uposition(GTK_WIDGET(window), dx, dy);
+        set_transient_window_pos(parentwin, window);
 	gtk_window_set_transient_for(GTK_WINDOW(window),
 				     GTK_WINDOW(parentwin));
     } else
@@ -2419,7 +2435,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
     sfree(title);
 }
 
-void about_box(void)
+void about_box(void *window)
 {
     GtkWidget *w;
     char *title;
@@ -2467,6 +2483,7 @@ void about_box(void)
 		       w, FALSE, FALSE, 5);
     gtk_widget_show(w);
 
+    set_transient_window_pos(GTK_WIDGET(window), aboutbox);
     gtk_widget_show(aboutbox);
 }
 
@@ -2582,13 +2599,7 @@ void showeventlog(void *estuff, void *parentwin)
     dlg_refresh(NULL, &es->dp);
 
     if (parent) {
-	gint x, y, w, h, dx, dy;
-	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
-	gdk_window_get_origin(parent->window, &x, &y);
-	gdk_window_get_size(parent->window, &w, &h);
-	dx = x + w/4;
-	dy = y + h/4;
-	gtk_widget_set_uposition(GTK_WIDGET(window), dx, dy);
+        set_transient_window_pos(parent, window);
 	gtk_window_set_transient_for(GTK_WINDOW(window),
 				     GTK_WINDOW(parent));
     } else

@@ -14,11 +14,11 @@ static void about_handler(union control *ctrl, void *dlg,
 			  void *data, int event)
 {
     if (event == EVENT_ACTION) {
-	about_box();
+	about_box(ctrl->generic.context.p);
     }
 }
 
-void unix_setup_config_box(struct controlbox *b, int midsession)
+void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
 {
     struct controlset *s, *s2;
     union control *c;
@@ -30,7 +30,7 @@ void unix_setup_config_box(struct controlbox *b, int midsession)
 	 */
 	s = ctrl_getset(b, "", "", "");
 	c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
-			    about_handler, P(NULL));
+			    about_handler, P(win));
 	c->generic.column = 0;
     }
 

@@ -2314,8 +2314,8 @@ void special_menuitem(GtkMenuItem *item, gpointer data)
 
 void about_menuitem(GtkMenuItem *item, gpointer data)
 {
-    /* struct gui_data *inst = (struct gui_data *)data; */
-    about_box();
+    struct gui_data *inst = (struct gui_data *)data;
+    about_box(inst->window);
 }
 
 void event_log_menuitem(GtkMenuItem *item, gpointer data)
