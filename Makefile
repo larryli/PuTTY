@@ -30,6 +30,13 @@
 ##--
 
 CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
+# LFLAGS = /debug
+
+# Use MSVC DLL
+# CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
+
+# Disable debug and incremental linking
+LFLAGS = /incremental:no
 
 .c.obj:
 	cl $(COMPAT) $(FWHACK) $(CFLAGS) /c $*.c
@@ -72,13 +79,13 @@ LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
 all: putty.exe puttytel.exe pscp.exe
 
 putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(PRESRC) putty.rsp
-	link /debug -out:putty.exe @putty.rsp
+	link $(LFLAGS) -out:putty.exe @putty.rsp
 
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
-	link /debug -out:puttytel.exe @puttytel.rsp
+	link $(LFLAGS) -out:puttytel.exe @puttytel.rsp
 
 pscp.exe: $(SOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
-	link /debug -out:pscp.exe @pscp.rsp
+	link $(LFLAGS) -out:pscp.exe @pscp.rsp
 
 putty.rsp: makefile
 	echo /nologo /subsystem:windows > putty.rsp
