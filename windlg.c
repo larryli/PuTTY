@@ -442,18 +442,609 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
     return 0;
 }
 
+/* ----------------------------------------------------------------------
+ * Routines to self-manage the controls in a dialog box.
+ */
+
+#define GAPBETWEEN 3
+#define GAPWITHIN 1
+#define DLGWIDTH 168
+#define STATICHEIGHT 8
+#define CHECKBOXHEIGHT 8
+#define RADIOHEIGHT 8
+#define EDITHEIGHT 12
+#define COMBOHEIGHT 12
+#define PUSHBTNHEIGHT 14
+
+struct ctlpos {
+    HWND hwnd;
+    LONG units;
+    WPARAM font;
+    int ypos, width;
+};
+
+/* Used on self-constructed dialogs. */
+void ctlposinit(struct ctlpos *cp, HWND hwnd) {
+    RECT r;
+    cp->hwnd = hwnd;
+    cp->units = GetWindowLong(hwnd, GWL_USERDATA);
+    cp->font = GetWindowLong(hwnd, DWL_USER);
+    cp->ypos = GAPBETWEEN;
+    GetClientRect(hwnd, &r);
+    cp->width = (r.right * 4) / (cp->units & 0xFFFF) - 2*GAPBETWEEN;
+}
+
+/* Used on kosher dialogs. */
+void ctlposinit2(struct ctlpos *cp, HWND hwnd) {
+    RECT r;
+    cp->hwnd = hwnd;
+    r.left = r.top = 0;
+    r.right = 4;
+    r.bottom = 8;
+    MapDialogRect(hwnd, &r);
+    cp->units = (r.bottom << 16) | r.right;
+    cp->font = SendMessage(hwnd, WM_GETFONT, 0, 0);
+    cp->ypos = GAPBETWEEN;
+    GetClientRect(hwnd, &r);
+    cp->width = (r.right * 4) / (cp->units & 0xFFFF) - 2*GAPBETWEEN;
+}
+
+void doctl(struct ctlpos *cp, RECT r, char *wclass, int wstyle, int exstyle,
+           char *wtext, int wid) {
+    HWND ctl;
+    /*
+     * Note nonstandard use of RECT. This is deliberate: by
+     * transforming the width and height directly we arrange to
+     * have all supposedly same-sized controls really same-sized.
+     */
+
+    /* MapDialogRect, or its near equivalent. */
+    r.left = (r.left * (cp->units & 0xFFFF)) / 4;
+    r.right = (r.right * (cp->units & 0xFFFF)) / 4;
+    r.top = (r.top * ((cp->units>>16) & 0xFFFF)) / 8;
+    r.bottom = (r.bottom * ((cp->units>>16) & 0xFFFF)) / 8;
+
+    ctl = CreateWindowEx(exstyle, wclass, wtext, wstyle,
+                         r.left, r.top, r.right, r.bottom,
+                         cp->hwnd, (HMENU)wid, hinst, NULL);
+    SendMessage(ctl, WM_SETFONT, cp->font, MAKELPARAM(TRUE, 0));
+}
+
+/*
+ * Some edit boxes. Each one has a static above it. The percentages
+ * of the horizontal space are provided.
+ */
+void multiedit(struct ctlpos *cp, ...) {
+    RECT r;
+    va_list ap;
+    int percent, xpos;
+
+    percent = xpos = 0;
+    va_start(ap, cp);
+    while (1) {
+        char *text;
+        int staticid, editid, pcwidth;
+        text = va_arg(ap, char *);
+        if (!text)
+            break;
+        staticid = va_arg(ap, int);
+        editid = va_arg(ap, int);
+        pcwidth = va_arg(ap, int);
+
+        r.left = xpos + GAPBETWEEN;
+        percent += pcwidth;
+        xpos = (cp->width + GAPBETWEEN) * percent / 100;
+        r.right = xpos - r.left;
+
+        r.top = cp->ypos; r.bottom = STATICHEIGHT;
+        doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0,
+              text, staticid);
+        r.top = cp->ypos + 8 + GAPWITHIN; r.bottom = EDITHEIGHT;
+        doctl(cp, r, "EDIT",
+              WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+              WS_EX_CLIENTEDGE,
+              "", editid);
+    }
+    va_end(ap);
+    cp->ypos += 8+GAPWITHIN+12+GAPBETWEEN;
+}
+
+/*
+ * A set of radio buttons on the same line, with a static above
+ * them. `nacross' dictates how many parts the line is divided into
+ * (you might want this not to equal the number of buttons if you
+ * needed to line up some 2s and some 3s to look good in the same
+ * panel).
+ */
+void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...) {
+    RECT r;
+    va_list ap;
+    int group;
+    int i;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
+    va_start(ap, nacross);
+    group = WS_GROUP;
+    i = 0;
+    while (1) {
+        char *btext;
+        int bid;
+        btext = va_arg(ap, char *);
+        if (!btext)
+            break;
+        bid = va_arg(ap, int);
+        r.left = GAPBETWEEN + i * (cp->width+GAPBETWEEN)/nacross;
+        r.right = (i+1) * (cp->width+GAPBETWEEN)/nacross - r.left;
+        r.top = cp->ypos; r.bottom = RADIOHEIGHT;
+        doctl(cp, r, "BUTTON",
+              BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP | group,
+              0,
+              btext, bid);
+        group = 0;
+        i++;
+    }
+    va_end(ap);
+    cp->ypos += r.bottom + GAPBETWEEN;
+}
+
+/*
+ * A set of radio buttons on multiple lines, with a static above
+ * them.
+ */
+void radiobig(struct ctlpos *cp, char *text, int id, ...) {
+    RECT r;
+    va_list ap;
+    int group;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
+    va_start(ap, id);
+    group = WS_GROUP;
+    while (1) {
+        char *btext;
+        int bid;
+        btext = va_arg(ap, char *);
+        if (!btext)
+            break;
+        bid = va_arg(ap, int);
+        r.left = GAPBETWEEN; r.top = cp->ypos;
+        r.right = cp->width; r.bottom = STATICHEIGHT;
+        cp->ypos += r.bottom + GAPWITHIN;
+        doctl(cp, r, "BUTTON",
+              BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP | group,
+              0,
+              btext, bid);
+        group = 0;
+    }
+    va_end(ap);
+    cp->ypos += GAPBETWEEN - GAPWITHIN;
+}
+
+/*
+ * A single standalone checkbox.
+ */
+void checkbox(struct ctlpos *cp, char *text, int id) {
+    RECT r;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = CHECKBOXHEIGHT;
+    cp->ypos += r.bottom + GAPBETWEEN;
+    doctl(cp, r, "BUTTON",
+          BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 0,
+          text, id);
+}
+
+/*
+ * A button on the right hand side, with a static to its left.
+ */
+void staticbtn(struct ctlpos *cp, char *stext, int sid, char *btext, int bid) {
+    const int height = (PUSHBTNHEIGHT > STATICHEIGHT ?
+                        PUSHBTNHEIGHT : STATICHEIGHT);
+    RECT r;
+    int lwid, rwid, rpos;
+
+    rpos = GAPBETWEEN + 3 * (cp->width + GAPBETWEEN) / 4;
+    lwid = rpos - 2*GAPBETWEEN;
+    rwid = cp->width + GAPBETWEEN - rpos;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos + (height-STATICHEIGHT)/2;
+    r.right = lwid; r.bottom = STATICHEIGHT;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    r.left = rpos; r.top = cp->ypos + (height-PUSHBTNHEIGHT)/2;
+    r.right = rwid; r.bottom = PUSHBTNHEIGHT;
+    doctl(cp, r, "BUTTON",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+          0,
+          btext, bid);
+
+    cp->ypos += height + GAPBETWEEN;
+}
+
+/*
+ * An edit control on the right hand side, with a static to its left.
+ */
+void staticedit(struct ctlpos *cp, char *stext, int sid, int eid) {
+    const int height = (EDITHEIGHT > STATICHEIGHT ?
+                        EDITHEIGHT : STATICHEIGHT);
+    RECT r;
+    int lwid, rwid, rpos;
+
+    rpos = GAPBETWEEN + (cp->width + GAPBETWEEN) / 2;
+    lwid = rpos - 2*GAPBETWEEN;
+    rwid = cp->width + GAPBETWEEN - rpos;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos + (height-STATICHEIGHT)/2;
+    r.right = lwid; r.bottom = STATICHEIGHT;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    r.left = rpos; r.top = cp->ypos + (height-EDITHEIGHT)/2;
+    r.right = rwid; r.bottom = EDITHEIGHT;
+    doctl(cp, r, "EDIT",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+          WS_EX_CLIENTEDGE,
+          "", eid);
+
+    cp->ypos += height + GAPBETWEEN;
+}
+
+/*
+ * A tab-control substitute when a real tab control is unavailable.
+ */
+void ersatztab(struct ctlpos *cp, char *stext, int sid, int lid, int s2id) {
+    const int height = (COMBOHEIGHT > STATICHEIGHT ?
+                        COMBOHEIGHT : STATICHEIGHT);
+    RECT r;
+    int bigwid, lwid, rwid, rpos;
+    static const int BIGGAP = 15;
+    static const int MEDGAP = 3;
+
+    bigwid = cp->width + 2*GAPBETWEEN - 2*BIGGAP;
+    cp->ypos += MEDGAP;
+    rpos = BIGGAP + (bigwid + BIGGAP) / 2;
+    lwid = rpos - 2*BIGGAP;
+    rwid = bigwid + BIGGAP - rpos;
+
+    r.left = BIGGAP; r.top = cp->ypos + (height-STATICHEIGHT)/2;
+    r.right = lwid; r.bottom = STATICHEIGHT;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    r.left = rpos; r.top = cp->ypos + (height-COMBOHEIGHT)/2;
+    r.right = rwid; r.bottom = COMBOHEIGHT*10;
+    doctl(cp, r, "COMBOBOX",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+          CBS_DROPDOWNLIST | CBS_HASSTRINGS,
+          WS_EX_CLIENTEDGE,
+          "", lid);
+
+    cp->ypos += height + MEDGAP + GAPBETWEEN;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = 2;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE | SS_ETCHEDHORZ,
+          0, "", s2id);
+}
+
+/*
+ * A static line, followed by an edit control on the left hand side
+ * and a button on the right.
+ */
+void editbutton(struct ctlpos *cp, char *stext, int sid,
+                int eid, char *btext, int bid) {
+    const int height = (EDITHEIGHT > PUSHBTNHEIGHT ?
+                        EDITHEIGHT : PUSHBTNHEIGHT);
+    RECT r;
+    int lwid, rwid, rpos;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    rpos = GAPBETWEEN + 3 * (cp->width + GAPBETWEEN) / 4;
+    lwid = rpos - 2*GAPBETWEEN;
+    rwid = cp->width + GAPBETWEEN - rpos;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos + (height-EDITHEIGHT)/2;
+    r.right = lwid; r.bottom = EDITHEIGHT;
+    doctl(cp, r, "EDIT",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+          WS_EX_CLIENTEDGE,
+          "", eid);
+
+    r.left = rpos; r.top = cp->ypos + (height-PUSHBTNHEIGHT)/2;
+    r.right = rwid; r.bottom = PUSHBTNHEIGHT;
+    doctl(cp, r, "BUTTON",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+          0,
+          btext, bid);
+
+    cp->ypos += height + GAPBETWEEN;
+}
+
+/*
+ * Special control which was hard to describe generically: the
+ * session-saver assembly. A static; below that an edit box; below
+ * that a list box. To the right of the list box, a column of
+ * buttons.
+ */
+void sesssaver(struct ctlpos *cp, char *text,
+               int staticid, int editid, int listid, ...) {
+    RECT r;
+    va_list ap;
+    int lwid, rwid, rpos;
+    int y;
+    const int LISTDEFHEIGHT = 66;
+
+    rpos = GAPBETWEEN + 3 * (cp->width + GAPBETWEEN) / 4;
+    lwid = rpos - 2*GAPBETWEEN;
+    rwid = cp->width + GAPBETWEEN - rpos;
+
+    /* The static control. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = lwid; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, staticid);
+
+    /* The edit control. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = lwid; r.bottom = EDITHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "EDIT",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+          WS_EX_CLIENTEDGE,
+          "", staticid);
+
+    /*
+     * The buttons (we should hold off on the list box until we
+     * know how big the buttons are).
+     */
+    va_start(ap, listid);
+    y = cp->ypos;
+    while (1) {
+        char *btext = va_arg(ap, char *);
+        int bid;
+        if (!btext) break;
+        bid = va_arg(ap, int);
+        r.left = rpos; r.top = y;
+        r.right = rwid; r.bottom = PUSHBTNHEIGHT;
+        y += r.bottom + GAPWITHIN;
+        doctl(cp, r, "BUTTON",
+              WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+              0,
+              btext, bid);
+    }
+
+    /* Compute list box height. LISTDEFHEIGHT, or height of buttons. */
+    y -= cp->ypos;
+    y -= GAPWITHIN;
+    if (y < LISTDEFHEIGHT) y = LISTDEFHEIGHT;
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = lwid; r.bottom = y;
+    cp->ypos += y + GAPBETWEEN;
+    doctl(cp, r, "LISTBOX",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS,
+          WS_EX_CLIENTEDGE,
+          "", listid);
+}
+
+/*
+ * Another special control: the environment-variable setter. A
+ * static line first; then a pair of edit boxes with associated
+ * statics, and two buttons; then a list box.
+ */
+void envsetter(struct ctlpos *cp, char *stext, int sid,
+               char *e1stext, int e1sid, int e1id,
+               char *e2stext, int e2sid, int e2id,
+               int listid, char *b1text, int b1id, char *b2text, int b2id) {
+    RECT r;
+    const int height = (STATICHEIGHT > EDITHEIGHT && STATICHEIGHT > PUSHBTNHEIGHT ?
+                        STATICHEIGHT :
+                        EDITHEIGHT > PUSHBTNHEIGHT ?
+                        EDITHEIGHT : PUSHBTNHEIGHT);
+    const static int percents[] = { 20, 35, 10, 25 };
+    int i, j, xpos, percent;
+    const int LISTHEIGHT = 42;
+
+    /* The static control. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    /* The statics+edits+buttons. */
+    for (j = 0; j < 2; j++) {
+        percent = 10;
+        for (i = 0; i < 4; i++) {
+            xpos = (cp->width + GAPBETWEEN) * percent / 100;
+            r.left = xpos + GAPBETWEEN;
+            percent += percents[i];
+            xpos = (cp->width + GAPBETWEEN) * percent / 100;
+            r.right = xpos - r.left;
+            r.top = cp->ypos;
+            r.bottom = (i==0 ? STATICHEIGHT :
+                        i==1 ? EDITHEIGHT :
+                        PUSHBTNHEIGHT);
+            r.top += (height-r.bottom)/2;
+            if (i==0) {
+                doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0,
+                      j==0 ? e1stext : e2stext, j==0 ? e1sid : e2sid);
+            } else if (i==1) {
+                doctl(cp, r, "EDIT",
+                      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+                      WS_EX_CLIENTEDGE,
+                      "", j==0 ? e1id : e2id);
+            } else if (i==3) {
+                doctl(cp, r, "BUTTON",
+                      WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                      0,
+                      j==0 ? b1text : b2text, j==0 ? b1id : b2id);
+            }
+        }
+        cp->ypos += height + GAPWITHIN;
+    }
+
+    /* The list box. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = LISTHEIGHT;
+    cp->ypos += r.bottom + GAPBETWEEN;
+    doctl(cp, r, "LISTBOX",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS |
+          LBS_USETABSTOPS,
+          WS_EX_CLIENTEDGE,
+          "", listid);
+}
+
+/*
+ * Yet another special control: the character-class setter. A
+ * static, then a list, then a line containing a
+ * button-and-static-and-edit. 
+ */
+void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
+               char *btext, int bid, int eid, char *s2text, int s2id) {
+    RECT r;
+    const int height = (STATICHEIGHT > EDITHEIGHT && STATICHEIGHT > PUSHBTNHEIGHT ?
+                        STATICHEIGHT :
+                        EDITHEIGHT > PUSHBTNHEIGHT ?
+                        EDITHEIGHT : PUSHBTNHEIGHT);
+    const static int percents[] = { 30, 40, 30 };
+    int i, xpos, percent;
+    const int LISTHEIGHT = 66;
+
+    /* The static control. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    /* The list box. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = LISTHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "LISTBOX",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS |
+          LBS_USETABSTOPS,
+          WS_EX_CLIENTEDGE,
+          "", listid);
+
+    /* The button+static+edit. */
+    percent = xpos = 0;
+    for (i = 0; i < 3; i++) {
+        r.left = xpos + GAPBETWEEN;
+        percent += percents[i];
+        xpos = (cp->width + GAPBETWEEN) * percent / 100;
+        r.right = xpos - r.left;
+        r.top = cp->ypos;
+        r.bottom = (i==0 ? PUSHBTNHEIGHT :
+                    i==1 ? STATICHEIGHT :
+                    EDITHEIGHT);
+        r.top += (height-r.bottom)/2;
+        if (i==0) {
+            doctl(cp, r, "BUTTON",
+                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                  0, btext, bid);
+        } else if (i==1) {
+            doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE | SS_CENTER,
+                  0, s2text, s2id);
+        } else if (i==2) {
+            doctl(cp, r, "EDIT",
+                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+                  WS_EX_CLIENTEDGE, "", eid);
+        }
+    }
+    cp->ypos += height + GAPBETWEEN;
+}
+
+/*
+ * A special control (horrors!). The colour editor. A static line;
+ * then on the left, a list box, and on the right, a sequence of
+ * two-part statics followed by a button.
+ */
+void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
+                char *btext, int bid, ...) {
+    RECT r;
+    int y;
+    va_list ap;
+    int lwid, rwid, rpos;
+    const int LISTHEIGHT = 66;
+
+    /* The static control. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+    
+    rpos = GAPBETWEEN + 2 * (cp->width + GAPBETWEEN) / 3;
+    lwid = rpos - 2*GAPBETWEEN;
+    rwid = cp->width + GAPBETWEEN - rpos;
+
+    /* The list box. */
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = lwid; r.bottom = LISTHEIGHT;
+    doctl(cp, r, "LISTBOX",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS |
+          LBS_USETABSTOPS,
+          WS_EX_CLIENTEDGE,
+          "", listid);
+
+    /* The statics. */
+    y = cp->ypos;
+    va_start(ap, bid);
+    while (1) {
+        char *ltext;
+        int lid, rid;
+        ltext = va_arg(ap, char *);
+        if (!ltext) break;
+        lid = va_arg(ap, int);
+        rid = va_arg(ap, int);
+        r.top = y; r.bottom = STATICHEIGHT;
+        y += r.bottom + GAPWITHIN;
+        r.left = rpos; r.right = rwid/2;
+        doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, ltext, lid);
+        r.left = rpos + r.right; r.right = rwid - r.right;
+        doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE | SS_RIGHT, 0, "", rid);
+    }
+    va_end(ap);
+
+    /* The button. */
+    r.top = y + 2*GAPWITHIN; r.bottom = PUSHBTNHEIGHT;
+    r.left = rpos; r.right = rwid;
+    doctl(cp, r, "BUTTON",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+          0, btext, bid);
+
+    cp->ypos += LISTHEIGHT + GAPBETWEEN;
+}
+
 static int GeneralPanelProc (HWND hwnd, UINT msg,
 			     WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+      case WM_SETFONT:
+        {
+            HFONT hfont = (HFONT)wParam;
+            HFONT oldfont;
+            HDC hdc;
+            TEXTMETRIC tm;
+            LONG units;
+
+            hdc = GetDC(hwnd);
+            oldfont = SelectObject(hdc, hfont);
+            GetTextMetrics(hdc, &tm);
+            units = (tm.tmHeight << 16) | tm.tmAveCharWidth;
+            SelectObject(hdc, oldfont);
+            DeleteDC(hdc);
+            SetWindowLong(hwnd, GWL_USERDATA, units);
+            SetWindowLong(hwnd, DWL_USER, wParam);
+        }
+        return 0;
       case WM_INITDIALOG:
 	SetWindowPos (hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	return 1;
-/*      case WM_CTLCOLORDLG: */
-/*	return (int) GetStockObject (LTGRAY_BRUSH); */
-/*      case WM_CTLCOLORSTATIC: */
-/*      case WM_CTLCOLORBTN: */
-/*	SetBkColor ((HDC)wParam, RGB(192,192,192)); */
-/*	return (int) GetStockObject (LTGRAY_BRUSH); */
       case WM_CLOSE:
 	DestroyWindow (hwnd);
 	return 1;
@@ -466,9 +1057,32 @@ static char savedsession[2048];
 static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     int i;
+    struct ctlpos cp;
 
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] dehlnprstwx */
+        ctlposinit(&cp, hwnd);
+        multiedit(&cp,
+                  "Host &Name", IDC0_HOSTSTATIC, IDC0_HOST, 75,
+                  "&Port", IDC0_PORTSTATIC, IDC0_PORT, 25, NULL);
+        radioline(&cp, "Protocol:", IDC0_PROTSTATIC, 3,
+                  "&Raw", IDC0_PROTRAW,
+                  "&Telnet", IDC0_PROTTELNET,
+#ifdef FWHACK
+                  "SS&H/hack",
+#else
+                  "SS&H",
+#endif
+                  IDC0_PROTSSH, NULL);
+        sesssaver(&cp, "Stor&ed Sessions",
+                  IDC0_SESSSTATIC, IDC0_SESSEDIT, IDC0_SESSLIST,
+                  "&Load", IDC0_SESSLOAD,
+                  "&Save", IDC0_SESSSAVE,
+                  "&Delete", IDC0_SESSDEL, NULL);
+        checkbox(&cp, "Close Window on E&xit", IDC0_CLOSEEXIT);
+        checkbox(&cp, "&Warn on Close", IDC0_CLOSEWARN);
+
 	SetDlgItemText (hwnd, IDC0_HOST, cfg.host);
 	SetDlgItemText (hwnd, IDC0_SESSEDIT, savedsession);
 	SetDlgItemInt (hwnd, IDC0_PORT, cfg.port, FALSE);
@@ -631,9 +1245,34 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 }
 
 static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
-				    WPARAM wParam, LPARAM lParam) {
+                                  WPARAM wParam, LPARAM lParam) {
+    struct ctlpos cp;
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] 4?ehiklmnprsuvxy */
+        ctlposinit(&cp, hwnd);
+        radioline(&cp, "Action of Backspace:", IDC1_DELSTATIC, 2,
+                  "Control-&H", IDC1_DEL008,
+                  "Control-&? (127)", IDC1_DEL127, NULL);
+        radioline(&cp, "Action of Home and End:", IDC1_HOMESTATIC, 2,
+                  "&Standard", IDC1_HOMETILDE,
+                  "&rxvt", IDC1_HOMERXVT, NULL);
+        radioline(&cp, "Function key and keypad layout:", IDC1_FUNCSTATIC, 3,
+                  "&VT400", IDC1_FUNCTILDE,
+                  "&Linux", IDC1_FUNCLINUX,
+                  "&Xterm R6", IDC1_FUNCXTERM, NULL);
+        radioline(&cp, "Initial state of cursor keys:", IDC1_CURSTATIC, 2,
+                  "&Normal", IDC1_CURNORMAL,
+                  "A&pplication", IDC1_CURAPPLIC, NULL);
+        radioline(&cp, "Initial state of numeric keypad:", IDC1_KPSTATIC, 3,
+                  "Nor&mal", IDC1_KPNORMAL,
+                  "Appl&ication", IDC1_KPAPPLIC,
+                  "N&etHack", IDC1_KPNH, NULL);
+        checkbox(&cp, "ALT-F&4 is special (closes window)", IDC1_ALTF4);
+        checkbox(&cp, "ALT-Space is special (S&ystem menu)", IDC1_ALTSPACE);
+        checkbox(&cp, "&Use local terminal line discipline", IDC1_LDISCTERM);
+        checkbox(&cp, "Reset scrollback on &keypress", IDC1_SCROLLKEY);
+
 	CheckRadioButton (hwnd, IDC1_DEL008, IDC1_DEL127,
 			  cfg.bksp_is_delete ? IDC1_DEL127 : IDC1_DEL008);
 	CheckRadioButton (hwnd, IDC1_HOMETILDE, IDC1_HOMERXVT,
@@ -724,12 +1363,28 @@ static void fmtfont (char *buf) {
 
 static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
+    struct ctlpos cp;
     CHOOSEFONT cf;
     LOGFONT lf;
     char fontstatic[256];
 
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] dghlmnprsw */
+        ctlposinit(&cp, hwnd);
+        multiedit(&cp,
+                  "&Rows", IDC2_ROWSSTATIC, IDC2_ROWSEDIT, 33,
+                  "Colu&mns", IDC2_COLSSTATIC, IDC2_COLSEDIT, 33,
+                  "&Scrollback", IDC2_SAVESTATIC, IDC2_SAVEEDIT, 33,
+                  NULL);
+        staticbtn(&cp, "", IDC2_FONTSTATIC, "C&hange...", IDC2_CHOOSEFONT);
+        checkbox(&cp, "Auto &wrap mode initially on", IDC2_WRAPMODE);
+        checkbox(&cp, "&DEC Origin Mode initially on", IDC2_DECOM);
+        checkbox(&cp, "Implicit CR in every &LF", IDC2_LFHASCR);
+        checkbox(&cp, "Bee&p enabled", IDC1_BEEP);
+        checkbox(&cp, "Use Back&ground colour erase", IDC2_BCE);
+        checkbox(&cp, "Enable bli&nking text", IDC2_BLINKTEXT);
+
 	CheckDlgButton (hwnd, IDC2_WRAPMODE, cfg.wrap_mode);
 	CheckDlgButton (hwnd, IDC2_DECOM, cfg.dec_om);
 	CheckDlgButton (hwnd, IDC2_LFHASCR, cfg.lfhascr);
@@ -823,8 +1478,19 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 
 static int CALLBACK WindowProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
+    struct ctlpos cp;
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] bikty */
+        ctlposinit(&cp, hwnd);
+        multiedit(&cp,
+                  "Initial window &title:", IDCW_WINTITLE, IDCW_WINEDIT, 100,
+                  NULL);
+        checkbox(&cp, "Avoid ever using &icon title", IDCW_WINNAME);
+        checkbox(&cp, "&Blinking cursor", IDCW_BLINKCUR);
+        checkbox(&cp, "Displa&y scrollbar", IDCW_SCROLLBAR);
+        checkbox(&cp, "Loc&k Window size", IDCW_LOCKSIZE);
+
 	SetDlgItemText (hwnd, IDCW_WINEDIT, cfg.wintitle);
 	CheckDlgButton (hwnd, IDCW_WINNAME, cfg.win_name_always);
 	CheckDlgButton (hwnd, IDCW_BLINKCUR, cfg.blink_cur);
@@ -867,9 +1533,24 @@ static int CALLBACK WindowProc (HWND hwnd, UINT msg,
 static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     int i;
+    struct ctlpos cp;
 
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] bdflrstuv */
+        ctlposinit(&cp, hwnd);
+        staticedit(&cp, "Terminal-&type string", IDC3_TTSTATIC, IDC3_TTEDIT);
+        staticedit(&cp, "Terminal-&speed string", IDC3_TSSTATIC, IDC3_TSEDIT);
+        staticedit(&cp, "Auto-login &username", IDC3_LOGSTATIC, IDC3_LOGEDIT);
+        envsetter(&cp, "Environment variables:", IDC3_ENVSTATIC,
+                  "&Variable", IDC3_VARSTATIC, IDC3_VAREDIT,
+                  "Va&lue", IDC3_VALSTATIC, IDC3_VALEDIT,
+                  IDC3_ENVLIST,
+                  "A&dd", IDC3_ENVADD, "&Remove", IDC3_ENVREMOVE);
+        radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC3_EMSTATIC, 2,
+                  "&BSD (commonplace)", IDC3_EMBSD,
+                  "R&FC 1408 (unusual)", IDC3_EMRFC, NULL);
+
 	SetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype);
 	SetDlgItemText (hwnd, IDC3_TSEDIT, cfg.termspeed);
 	SetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username);
@@ -982,11 +1663,33 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 
 static int CALLBACK SshProc (HWND hwnd, UINT msg,
 			     WPARAM wParam, LPARAM lParam) {
+    struct ctlpos cp;
     OPENFILENAME of;
     char filename[sizeof(cfg.keyfile)];
 
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] 123abdkmprtuw */
+        ctlposinit(&cp, hwnd);
+        staticedit(&cp, "Terminal-&type string", IDC3_TTSTATIC, IDC3_TTEDIT);
+        staticedit(&cp, "Auto-login &username", IDC3_LOGSTATIC, IDC3_LOGEDIT);
+        multiedit(&cp,
+                  "&Remote command:", IDC3_CMDSTATIC, IDC3_CMDEDIT, 100,
+                  NULL);
+        checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC3_NOPTY);
+        checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
+                 IDC3_AUTHTIS);
+        checkbox(&cp, "Allow &agent forwarding", IDC3_AGENTFWD);
+        editbutton(&cp, "Private &key file for authentication:",
+                    IDC3_PKSTATIC, IDC3_PKEDIT, "Bro&wse...", IDC3_PKBUTTON);
+        radioline(&cp, "Preferred SSH protocol version:",
+                  IDC3_SSHPROTSTATIC, 2,
+                  "&1", IDC3_SSHPROT1, "&2", IDC3_SSHPROT2, NULL);
+        radioline(&cp, "Preferred encryption algorithm:", IDC3_CIPHERSTATIC, 3,
+                  "&3DES", IDC3_CIPHER3DES,
+                  "&Blowfish", IDC3_CIPHERBLOWF,
+                  "&DES", IDC3_CIPHERDES, NULL);    
+
 	SetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype);
 	SetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username);
 	CheckDlgButton (hwnd, IDC3_NOPTY, cfg.nopty);
@@ -1094,10 +1797,21 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 
 static int CALLBACK SelectionProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
+    struct ctlpos cp;
     int i;
 
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] stwx */
+        ctlposinit(&cp, hwnd);
+        radiobig(&cp, "Action of mouse buttons:", IDC4_MBSTATIC,
+                 "&Windows (Right pastes, Middle extends)", IDC4_MBWINDOWS,
+                 "&xterm (Right extends, Middle pastes)", IDC4_MBXTERM,
+                 NULL);
+        charclass(&cp, "Character classes:", IDC4_CCSTATIC, IDC4_CCLIST,
+                  "&Set", IDC4_CCSET, IDC4_CCEDIT,
+                  "&to class", IDC4_CCSTATIC2);
+
 	CheckRadioButton (hwnd, IDC4_MBWINDOWS, IDC4_MBXTERM,
 			  cfg.mouse_is_xterm ? IDC4_MBXTERM : IDC4_MBWINDOWS);
 	{
@@ -1172,8 +1886,21 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
 	TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE,
 	TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE
     };
+    struct ctlpos cp;
+
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] bmlu */
+        ctlposinit(&cp, hwnd);
+        checkbox(&cp, "&Bolded text is a different colour", IDC5_BOLDCOLOUR);
+        checkbox(&cp, "Attempt to use &logical palettes", IDC5_PALETTE);
+        colouredit(&cp, "Select a colo&ur and click to modify it:",
+                   IDC5_STATIC, IDC5_LIST,
+                   "&Modify...", IDC5_CHANGE,
+                   "Red:", IDC5_RSTATIC, IDC5_RVALUE,
+                   "Green:", IDC5_GSTATIC, IDC5_GVALUE,
+                   "Blue:", IDC5_BSTATIC, IDC5_BVALUE, NULL);
+
 	CheckDlgButton (hwnd, IDC5_BOLDCOLOUR, cfg.bold_colour);
 	CheckDlgButton (hwnd, IDC5_PALETTE, cfg.try_palette);
 	{
@@ -1267,8 +1994,26 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
 
 static int CALLBACK TranslationProc (HWND hwnd, UINT msg,
 				  WPARAM wParam, LPARAM lParam) {
+    struct ctlpos cp;
+
     switch (msg) {
       case WM_INITDIALOG:
+        /* Accelerators used: [aco] beiknpsx */
+        ctlposinit(&cp, hwnd);
+        radiobig(&cp,
+                 "Handling of VT100 line drawing characters:", IDC2_VTSTATIC,
+                 "Font has &XWindows encoding", IDC2_VTXWINDOWS,
+                 "Use font in &both ANSI and OEM modes", IDC2_VTOEMANSI,
+                 "Use font in O&EM mode only", IDC2_VTOEMONLY,
+                 "&Poor man's line drawing (""+"", ""-"" and ""|"")",
+                 IDC2_VTPOORMAN, NULL);
+        radiobig(&cp,
+                 "Character set translation:", IDC6_XLATSTATIC,
+                 "&None", IDC6_NOXLAT,
+                 "&KOI8 / Win-1251", IDC6_KOI8WIN1251,
+                 "&ISO-8859-2 / Win-1250", IDC6_88592WIN1250, NULL);
+        checkbox(&cp, "CAP&S LOCK acts as cyrillic switch", IDC6_CAPSLOCKCYR);
+
 	CheckRadioButton (hwnd, IDC6_NOXLAT, IDC6_88592WIN1250,
 			  cfg.xlat_88592w1250 ? IDC6_88592WIN1250 :
 			  cfg.xlat_enablekoiwin ? IDC6_KOI8WIN1251 :
@@ -1335,10 +2080,31 @@ static char *names[NPANELS] = {
 static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6, 7, 8};
 static int reconfp[RECONF_NPANELS] = { 1, 2, 3, 6, 7, 8};
 
+static HWND makesubdialog(HWND hwnd, int x, int y, int w, int h, int n) {
+    RECT r;
+    HWND ret;
+    WPARAM font;
+    r.left = x; r.top = y;
+    r.right = r.left + w; r.bottom = r.top + h;
+    MapDialogRect(hwnd, &r);
+    ret = CreateWindowEx(WS_EX_CONTROLPARENT,
+                           WC_DIALOG, "",   /* no title */
+                           WS_CHILD | WS_VISIBLE | DS_SETFONT,
+                           r.left, r.top,
+                           r.right-r.left, r.bottom-r.top,
+                           hwnd, (HMENU)(panelids[n]),
+                           hinst, NULL);
+    SetWindowLong (ret, DWL_DLGPROC, (LONG)panelproc[n]);
+    font = SendMessage(hwnd, WM_GETFONT, 0, 0);
+    SendMessage (ret, WM_SETFONT, font, MAKELPARAM(0, 0));
+    SendMessage (ret, WM_INITDIALOG, 0, 0);
+    return ret;
+}
+
 static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam,
 			       int npanels, int *panelnums, HWND *page) {
-    HWND hw;
+    HWND hw, tabctl;
 
     switch (msg) {
       case WM_INITDIALOG:
@@ -1351,25 +2117,48 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
 			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
 	}
+        {
+            RECT r;
+            r.left = 3; r.right = r.left + 174;
+            r.top = 3; r.bottom = r.top + 193;
+            MapDialogRect(hwnd, &r);
+            tabctl = CreateWindowEx(0, WC_TABCONTROL, "",
+                                    WS_CHILD | WS_VISIBLE |
+                                    WS_TABSTOP | TCS_MULTILINE,
+                                    r.left, r.top,
+                                    r.right-r.left, r.bottom-r.top,
+                                    hwnd, (HMENU)IDC_TAB, hinst, NULL);
+
+            if (!tabctl) {
+                struct ctlpos cp;
+                ctlposinit2(&cp, hwnd);
+                ersatztab(&cp, "Category:", IDC_TABSTATIC1, IDC_TABLIST,
+                          IDC_TABSTATIC2);
+            } else {
+                WPARAM font = SendMessage(hwnd, WM_GETFONT, 0, 0);
+                SendMessage(tabctl, WM_SETFONT, font, MAKELPARAM(TRUE, 0));
+            }
+        }
 	*page = NULL;
-	{			       /* initialise the tab control */
+	if (tabctl) {                  /* initialise the tab control */
 	    TC_ITEMHEADER tab;
 	    int i;
 
-	    hw = GetDlgItem (hwnd, IDC_TAB);
 	    for (i=0; i<npanels; i++) {
 		tab.mask = TCIF_TEXT;
 		tab.pszText = names[panelnums[i]];
-		TabCtrl_InsertItem (hw, i, &tab);
+		TabCtrl_InsertItem (tabctl, i, &tab);
 	    }
-/*	    *page = CreateDialogIndirect (hinst, panels[panelnums[0]].temp,
-					  hwnd, panelproc[panelnums[0]]);*/
-	    *page = CreateDialog (hinst, panelids[panelnums[0]],
-				  hwnd, panelproc[panelnums[0]]);
-	    SetWindowLong (*page, GWL_EXSTYLE,
-			   GetWindowLong (*page, GWL_EXSTYLE) |
-			   WS_EX_CONTROLPARENT);
-	}
+        } else {
+	    int i;
+
+	    for (i=0; i<npanels; i++) {
+                SendDlgItemMessage(hwnd, IDC_TABLIST, CB_ADDSTRING,
+                                   0, (LPARAM)names[panelnums[i]]);
+	    }
+            SendDlgItemMessage(hwnd, IDC_TABLIST, CB_SETCURSEL, 0, 0);
+        }
+        *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[0]);
 	SetFocus (*page);
 	return 0;
       case WM_NOTIFY:
@@ -1378,21 +2167,24 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    int i = TabCtrl_GetCurSel(((LPNMHDR)lParam)->hwndFrom);
 	    if (*page)
 		DestroyWindow (*page);
-/*	    *page = CreateDialogIndirect (hinst, panels[panelnums[i]].temp,	
-					  hwnd, panelproc[panelnums[i]]);*/
-	    *page = CreateDialog (hinst, panelids[panelnums[i]],
-				  hwnd, panelproc[panelnums[i]]);
-	    SetWindowLong (*page, GWL_EXSTYLE,
-			   GetWindowLong (*page, GWL_EXSTYLE) |
-			   WS_EX_CONTROLPARENT);
+            *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[i]);
 	    SetFocus (((LPNMHDR)lParam)->hwndFrom);   /* ensure focus stays */
 	    return 0;
 	}
 	break;
-/*      case WM_CTLCOLORDLG: */
-/*	return (int) GetStockObject (LTGRAY_BRUSH); */
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
+          case IDC_TABLIST:
+            if (HIWORD(wParam) == CBN_SELCHANGE) {
+                HWND tablist = GetDlgItem (hwnd, IDC_TABLIST);
+                int i = SendMessage (tablist, CB_GETCURSEL, 0, 0);
+                if (*page)
+                    DestroyWindow (*page);
+                *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[i]);
+                SetFocus(tablist);     /* ensure focus stays */
+                return 0;
+            }
+            break;
 	  case IDOK:
 	    if (*cfg.host)
 		EndDialog (hwnd, 1);
