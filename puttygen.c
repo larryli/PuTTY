@@ -1107,6 +1107,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	  case IDC_SAVE:
           case IDC_EXPORT_OPENSSH:
           case IDC_EXPORT_SSHCOM:
+	    if (HIWORD(wParam) != BN_CLICKED)
+		break;
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (state->key_exists) {
@@ -1200,6 +1202,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    }
 	    break;
 	  case IDC_SAVEPUB:
+	    if (HIWORD(wParam) != BN_CLICKED)
+		break;
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (state->key_exists) {
@@ -1233,6 +1237,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    break;
 	  case IDC_LOAD:
 	  case IDC_IMPORT:
+	    if (HIWORD(wParam) != BN_CLICKED)
+		break;
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (!state->generation_thread_exists) {
