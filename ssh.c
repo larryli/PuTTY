@@ -167,7 +167,7 @@ const static struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
 extern const struct ssh_hostkey ssh_dss;
 const static struct ssh_hostkey *hostkey_algs[] = { &ssh_dss };
 
-extern const struct ssh_mac ssh_sha1, ssh_sha1_buggy;
+extern const struct ssh_mac ssh_md5, ssh_sha1, ssh_sha1_buggy;
 
 static void nullmac_key(unsigned char *key) { }
 static void nullmac_generate(unsigned char *blk, int len, unsigned long seq) { }
@@ -175,8 +175,10 @@ static int nullmac_verify(unsigned char *blk, int len, unsigned long seq) { retu
 const static struct ssh_mac ssh_mac_none = {
     nullmac_key, nullmac_key, nullmac_generate, nullmac_verify, "none", 0
 };
-const static struct ssh_mac *macs[] = { &ssh_sha1, &ssh_mac_none };
-const static struct ssh_mac *buggymacs[] = { &ssh_sha1_buggy, &ssh_mac_none };
+const static struct ssh_mac *macs[] = {
+    &ssh_sha1, &ssh_md5, &ssh_mac_none };
+const static struct ssh_mac *buggymacs[] = {
+    &ssh_sha1_buggy, &ssh_md5, &ssh_mac_none };
 
 const static struct ssh_compress ssh_comp_none = {
     "none"
@@ -1830,6 +1832,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static char *str;
     static Bignum e, f, K;
     static const struct ssh_mac **maclist;
+    static int nmacs;
     static const struct ssh_cipher *cscipher_tobe = NULL;
     static const struct ssh_cipher *sccipher_tobe = NULL;
     static const struct ssh_mac *csmac_tobe = NULL;
@@ -1864,9 +1867,9 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * Be prepared to work around the buggy MAC problem.
      */
     if (cfg.buggymac)
-        maclist = buggymacs;
+        maclist = buggymacs, nmacs = lenof(buggymacs);
     else
-        maclist = macs;
+        maclist = macs, nmacs = lenof(macs);
 
     begin_key_exchange:
     /*
@@ -1907,16 +1910,16 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
     /* List client->server MAC algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = 0; i < lenof(maclist); i++) {
+    for (i = 0; i < nmacs; i++) {
         ssh2_pkt_addstring_str(maclist[i]->name);
-        if (i < lenof(maclist)-1)
+        if (i < nmacs-1)
             ssh2_pkt_addstring_str(",");
     }
     /* List server->client MAC algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = 0; i < lenof(maclist); i++) {
+    for (i = 0; i < nmacs; i++) {
         ssh2_pkt_addstring_str(maclist[i]->name);
-        if (i < lenof(maclist)-1)
+        if (i < nmacs-1)
             ssh2_pkt_addstring_str(",");
     }
     /* List client->server compression algorithms. */
@@ -1989,14 +1992,14 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
         }
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server mac */
-    for (i = 0; i < lenof(maclist); i++) {
+    for (i = 0; i < nmacs; i++) {
         if (in_commasep_string(maclist[i]->name, str, len)) {
             csmac_tobe = maclist[i];
             break;
         }
     }
     ssh2_pkt_getstring(&str, &len);    /* server->client mac */
-    for (i = 0; i < lenof(maclist); i++) {
+    for (i = 0; i < nmacs; i++) {
         if (in_commasep_string(maclist[i]->name, str, len)) {
             scmac_tobe = maclist[i];
             break;

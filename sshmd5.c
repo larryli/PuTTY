@@ -192,3 +192,77 @@ void MD5Final(unsigned char output[16], struct MD5Context *s) {
         output[4*i+0] = (s->core.h[i] >>  0) & 0xFF;
     }
 }
+
+/* ----------------------------------------------------------------------
+ * The above is the MD5 algorithm itself. Now we implement the
+ * HMAC wrapper on it.
+ */
+
+static struct MD5Context md5_cs_mac_s1, md5_cs_mac_s2;
+static struct MD5Context md5_sc_mac_s1, md5_sc_mac_s2;
+
+static void md5_key(struct MD5Context *s1, struct MD5Context *s2,
+                    unsigned char *key, int len) {
+    unsigned char foo[64];
+    int i;
+
+    memset(foo, 0x36, 64);
+    for (i = 0; i < len && i < 64; i++)
+        foo[i] ^= key[i];
+    MD5Init(s1);
+    MD5Update(s1, foo, 64);
+
+    memset(foo, 0x5C, 64);
+    for (i = 0; i < len && i < 64; i++)
+        foo[i] ^= key[i];
+    MD5Init(s2);
+    MD5Update(s2, foo, 64);
+
+    memset(foo, 0, 64);                /* burn the evidence */
+}
+
+static void md5_cskey(unsigned char *key) {
+    md5_key(&md5_cs_mac_s1, &md5_cs_mac_s2, key, 16);
+}
+
+static void md5_sckey(unsigned char *key) {
+    md5_key(&md5_sc_mac_s1, &md5_sc_mac_s2, key, 16);
+}
+
+static void md5_do_hmac(struct MD5Context *s1, struct MD5Context *s2,
+                         unsigned char *blk, int len, unsigned long seq,
+                         unsigned char *hmac) {
+    struct MD5Context s;
+    unsigned char intermediate[16];
+
+    intermediate[0] = (unsigned char)((seq >> 24) & 0xFF);
+    intermediate[1] = (unsigned char)((seq >> 16) & 0xFF);
+    intermediate[2] = (unsigned char)((seq >>  8) & 0xFF);
+    intermediate[3] = (unsigned char)((seq      ) & 0xFF);
+
+    s = *s1;                           /* structure copy */
+    MD5Update(&s, intermediate, 4);
+    MD5Update(&s, blk, len);
+    MD5Final(intermediate, &s);
+    s = *s2;                           /* structure copy */
+    MD5Update(&s, intermediate, 16);
+    MD5Final(hmac, &s);
+}
+
+static void md5_generate(unsigned char *blk, int len, unsigned long seq) {
+    md5_do_hmac(&md5_cs_mac_s1, &md5_cs_mac_s2, blk, len, seq, blk+len);
+}
+
+static int md5_verify(unsigned char *blk, int len, unsigned long seq) {
+    unsigned char correct[16];
+    md5_do_hmac(&md5_sc_mac_s1, &md5_sc_mac_s2, blk, len, seq, correct);
+    return !memcmp(correct, blk+len, 16);
+}
+
+struct ssh_mac ssh_md5 = {
+    md5_cskey, md5_sckey,
+    md5_generate,
+    md5_verify,
+    "hmac-md5",
+    16
+};
