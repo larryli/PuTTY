@@ -128,6 +128,24 @@ static void *get_keylist1(void);
 static void *get_keylist2(void);
 
 /*
+ * We need this to link with the RSA code, because rsaencrypt()
+ * pads its data with random bytes. Since we only use rsadecrypt()
+ * and the signing functions, which are deterministic, this should
+ * never be called.
+ *
+ * If it _is_ called, there is a _serious_ problem, because it
+ * won't generate true random numbers. So we must scream, panic,
+ * and exit immediately if that should happen.
+ */
+int random_byte(void)
+{
+    MessageBox(main_hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
+    exit(0);
+    /* this line can't be reached but it placates MSVC's warnings :-) */
+    return 0;
+}
+
+/*
  * Blob structure for passing to the asymmetric SSH2 key compare
  * function, prototyped here.
  */
@@ -1928,11 +1946,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	ssh2keys = newtree234(cmpkeys_ssh2);
 
     }
-
-    /*
-     * Initialise the random number generator.
-     */
-    random_init();
 
     /*
      * Initialise storage for short-term passphrase cache.

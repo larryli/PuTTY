@@ -146,7 +146,7 @@ psftp    : [C] psftp console WINSSH be_none SFTP WINMISC scp.res LIBS1
 
 pageant  : [G] pageant sshrsa sshpubk sshdes sshbn sshmd5 version tree234
          + misc sshaes sshsha pageantc sshdss sshsh512 winutils winmisc
-         + sshrand noise winstore pageant.res LIBS
+         + pageant.res LIBS
 
 puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand noise sshsha winstore misc winctrls sshrsa sshdss winmisc

@@ -89,6 +89,20 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key)
     freebn(b2);
 }
 
+static void sha512_mpint(SHA512_State * s, Bignum b)
+{
+    unsigned char lenbuf[4];
+    int len;
+    len = (bignum_bitcount(b) + 8) / 8;
+    PUT_32BIT(lenbuf, len);
+    SHA512_Bytes(s, lenbuf, 4);
+    while (len-- > 0) {
+	lenbuf[0] = bignum_byte(b, len);
+	SHA512_Bytes(s, lenbuf, 1);
+    }
+    memset(lenbuf, 0, sizeof(lenbuf));
+}
+
 /*
  * This function is a wrapper on modpow(). It has the same effect
  * as modpow(), but employs RSA blinding to protect against timing
@@ -100,6 +114,11 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
     Bignum input_blinded, ret_blinded;
     Bignum ret;
 
+    SHA512_State ss;
+    unsigned char digest512[64];
+    int digestused = lenof(digest512);
+    int hashseq = 0;
+
     /*
      * Start by inventing a random number chosen uniformly from the
      * range 2..modulus-1. (We do this by preparing a random number
@@ -110,6 +129,10 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
      * There are timing implications to the potential retries, of
      * course, but all they tell you is the modulus, which you
      * already knew.)
+     * 
+     * To preserve determinism and avoid Pageant needing to share
+     * the random number pool, we actually generate this `random'
+     * number by hashing stuff with the private key.
      */
     while (1) {
 	int bits, byte, bitsleft, v;
@@ -123,8 +146,35 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
 	byte = 0;
 	bitsleft = 0;
 	while (bits--) {
-	    if (bitsleft <= 0)
-		bitsleft = 8, byte = random_byte();
+	    if (bitsleft <= 0) {
+		bitsleft = 8;
+		/*
+		 * Conceptually the following few lines are equivalent to
+		 *    byte = random_byte();
+		 */
+		if (digestused >= lenof(digest512)) {
+		    unsigned char seqbuf[4];
+		    PUT_32BIT(seqbuf, hashseq);
+		    SHA512_Init(&ss);
+		    SHA512_Bytes(&ss, "RSA deterministic blinding", 26);
+		    SHA512_Bytes(&ss, seqbuf, sizeof(seqbuf));
+		    sha512_mpint(&ss, key->private_exponent);
+		    SHA512_Final(&ss, digest512);
+		    hashseq++;
+
+		    /*
+		     * Now hash that digest plus the signature
+		     * input.
+		     */
+		    SHA512_Init(&ss);
+		    SHA512_Bytes(&ss, digest512, sizeof(digest512));
+		    sha512_mpint(&ss, input);
+		    SHA512_Final(&ss, digest512);
+
+		    digestused = 0;
+		}
+		byte = digest512[digestused++];
+	    }
 	    v = byte & 1;
 	    byte >>= 1;
 	    bitsleft--;
