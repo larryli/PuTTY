@@ -1,11 +1,15 @@
 /*
- *  scp.c  -  Scp (Secure Copy) client for PuTTY.
- *  Joris van Rantwijk, Simon Tatham
+ * scp.c  -  Scp (Secure Copy) client for PuTTY.
+ * Joris van Rantwijk, Simon Tatham
  *
- *  This is mainly based on ssh-1.2.26/scp.c by Timo Rinne & Tatu Ylonen.
- *  They, in turn, used stuff from BSD rcp.
- *
- *  Adaptations to enable connecting a GUI by L. Gunnarsson - Sept 2000
+ * This is mainly based on ssh-1.2.26/scp.c by Timo Rinne & Tatu Ylonen.
+ * They, in turn, used stuff from BSD rcp.
+ * 
+ * (SGT, 2001-09-10: Joris van Rantwijk assures me that although
+ * this file as originally submitted was inspired by, and
+ * _structurally_ based on, ssh-1.2.26's scp.c, there wasn't any
+ * actual code duplicated, so the above comment shouldn't give rise
+ * to licensing issues.)
  */
 
 #include <windows.h>
