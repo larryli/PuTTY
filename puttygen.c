@@ -18,6 +18,8 @@
 
 #define DEFAULT_KEYSIZE 1024
 
+static int requested_help;
+
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)
  */
@@ -518,6 +520,17 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+        if (help_path)
+            SetWindowLong(hwnd, GWL_EXSTYLE,
+                          GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_CONTEXTHELP);
+        else {
+            /*
+             * If we add a Help button, this is where we destroy it
+             * if the help file isn't present.
+             */
+        }
+        requested_help = FALSE;
+
 	/*
 	 * Centre the window.
 	 */
@@ -1067,9 +1080,62 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	hidemany(hwnd, generating_ids, TRUE);
 	hidemany(hwnd, gotkey_ids, FALSE);
 	break;
+      case WM_HELP:
+        if (help_path) {
+            int id = ((LPHELPINFO)lParam)->iCtrlId;
+            char *cmd = NULL;
+            switch (id) {
+              case IDC_GENERATING:
+              case IDC_PROGRESS:
+              case IDC_GENSTATIC:
+              case IDC_GENERATE:
+                cmd = "JI(`',`puttygen.generate')"; break;
+              case IDC_PKSTATIC:
+              case IDC_KEYDISPLAY:
+                cmd = "JI(`',`puttygen.pastekey')"; break;
+              case IDC_FPSTATIC:
+              case IDC_FINGERPRINT:
+                cmd = "JI(`',`puttygen.fingerprint')"; break;
+              case IDC_COMMENTSTATIC:
+              case IDC_COMMENTEDIT:
+                cmd = "JI(`',`puttygen.comment')"; break;
+              case IDC_PASSPHRASE1STATIC:
+              case IDC_PASSPHRASE1EDIT:
+              case IDC_PASSPHRASE2STATIC:
+              case IDC_PASSPHRASE2EDIT:
+                cmd = "JI(`',`puttygen.passphrase')"; break;
+              case IDC_LOADSTATIC:
+              case IDC_LOAD:
+                cmd = "JI(`',`puttygen.load')"; break;
+              case IDC_SAVESTATIC:
+              case IDC_SAVE:
+                cmd = "JI(`',`puttygen.savepriv')"; break;
+              case IDC_SAVEPUB:
+                cmd = "JI(`',`puttygen.savepub')"; break;
+              case IDC_TYPESTATIC:
+              case IDC_KEYSSH1:
+              case IDC_KEYSSH2RSA:
+              case IDC_KEYSSH2DSA:
+                cmd = "JI(`',`puttygen.keytype')"; break;
+              case IDC_BITSSTATIC:
+              case IDC_BITS:
+                cmd = "JI(`',`puttygen.bits')"; break;
+            }
+            if (cmd) {
+                WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+                requested_help = TRUE;
+            } else {
+                MessageBeep(0);
+            }
+        }
+        break;
       case WM_CLOSE:
 	state = (struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	sfree(state);
+        if (requested_help) {
+            WinHelp(hwnd, help_path, HELP_QUIT, 0);
+            requested_help = FALSE;
+        }
 	EndDialog(hwnd, 1);
 	return 0;
     }
@@ -1080,6 +1146,27 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     InitCommonControls();
     hinst = inst;
+
+    /*
+     * See if we can find our Help file.
+     */
+    {
+        char b[2048], *p, *q, *r;
+        FILE *fp;
+        GetModuleFileName(NULL, b, sizeof(b) - 1);
+        r = b;
+        p = strrchr(b, '\\');
+        if (p && p >= r) r = p+1;
+        q = strrchr(b, ':');
+        if (q && q >= r) r = q+1;
+        strcpy(r, "putty.hlp");
+        if ( (fp = fopen(b, "r")) != NULL) {
+            help_path = dupstr(b);
+            fclose(fp);
+        } else
+            help_path = NULL;
+    }
+
     random_init();
     return DialogBox(hinst, MAKEINTRESOURCE(201), NULL,
 		     MainDlgProc) != IDOK;
