@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.76 2004/08/20 08:32:30 jacob Exp $
+\versionid $Id: faq.but,v 1.77 2004/08/20 09:09:01 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -875,8 +875,8 @@ than \cw{127.0.0.1} to forward services such as SMB and Windows
 Terminal Services have found that doing so no longer works since
 they upgraded to WinXP SP2.
 
-This is an issue with SP2 that is acknowledged by Microsoft in
-MS Knowledge Base article
+This is apparently an issue with SP2 that is acknowledged by Microsoft
+in MS Knowledge Base article
 \W{http://support.microsoft.com/default.aspx?scid=kb;en-us;884020}{884020}.
 
 For a fix, you'll need to contact Microsoft support. We've been told
