@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.44 2003/01/12 16:11:27 ben Exp $ */
+/* $Id: macterm.c,v 1.45 2003/01/12 16:25:58 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -177,6 +177,7 @@ void mac_startsession(Session *s)
     if (errmsg != NULL)
 	fatalbox("%s", errmsg);
     s->back->provide_logctx(s->backhandle, s->logctx);
+    set_title(s, s->realhost);
 
     term_provide_resize_fn(s->term, s->back->size, s->backhandle);
 
