@@ -93,6 +93,8 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
     int ret;
+    HANDLE hin;
+    DWORD savemode, i;
 
     static const char absentmsg[] =
 	"The server's host key is not cached in the registry. You\n"
@@ -102,8 +104,11 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	"%s\n"
 	"If you trust this host, enter \"y\" to add the key to\n"
 	"PuTTY's cache and carry on connecting.\n"
-	"If you do not trust this host, enter \"n\" to abandon the\n"
-	"connection.\n" "Continue connecting? (y/n) ";
+	"If you want to carry on connecting just once, without\n"
+	"adding the key to the cache, enter \"n\".\n"
+	"If you do not trust this host, press Return to abandon the\n"
+	"connection.\n"
+	"Store key in cache? (y/n) ";
 
     static const char wrongmsg[] =
 	"WARNING - POTENTIAL SECURITY BREACH!\n"
@@ -115,9 +120,9 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	"The new key fingerprint is:\n"
 	"%s\n"
 	"If you were expecting this change and trust the new key,\n"
-	"enter Yes to update PuTTY's cache and continue connecting.\n"
+	"enter \"y\" to update PuTTY's cache and continue connecting.\n"
 	"If you want to carry on connecting but without updating\n"
-	"the cache, enter No.\n"
+	"the cache, enter \"n\".\n"
 	"If you want to abandon the connection completely, press\n"
 	"Return to cancel. Pressing Return is the ONLY guaranteed\n"
 	"safe choice.\n"
@@ -134,28 +139,29 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 
     if (ret == 0)		       /* success - key matched OK */
 	return;
+
     if (ret == 2) {		       /* key was different */
 	fprintf(stderr, wrongmsg, fingerprint);
 	fflush(stderr);
-	if (fgets(line, sizeof(line), stdin) &&
-	    line[0] != '\0' && line[0] != '\n') {
-	    if (line[0] == 'y' || line[0] == 'Y')
-		store_host_key(host, port, keytype, keystr);
-	} else {
-	    fprintf(stderr, abandoned);
-	    fflush(stderr);
-	    exit(0);
-	}
     }
     if (ret == 1) {		       /* key was absent */
 	fprintf(stderr, absentmsg, fingerprint);
-	if (fgets(line, sizeof(line), stdin) &&
-	    (line[0] == 'y' || line[0] == 'Y'))
+	fflush(stderr);
+    }
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+			 ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
+    SetConsoleMode(hin, savemode);
+
+    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
+	if (line[0] == 'y' || line[0] == 'Y')
 	    store_host_key(host, port, keytype, keystr);
-	else {
-	    fprintf(stderr, abandoned);
-	    exit(0);
-	}
+    } else {
+	fprintf(stderr, abandoned);
+	exit(0);
     }
 }
 

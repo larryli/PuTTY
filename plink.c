@@ -59,8 +59,11 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	"%s\n"
 	"If you trust this host, enter \"y\" to add the key to\n"
 	"PuTTY's cache and carry on connecting.\n"
-	"If you do not trust this host, enter \"n\" to abandon the\n"
-	"connection.\n" "Continue connecting? (y/n) ";
+	"If you want to carry on connecting just once, without\n"
+	"adding the key to the cache, enter \"n\".\n"
+	"If you do not trust this host, press Return to abandon the\n"
+	"connection.\n"
+	"Store key in cache? (y/n) ";
 
     static const char wrongmsg[] =
 	"WARNING - POTENTIAL SECURITY BREACH!\n"
@@ -108,22 +111,12 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
     ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
     SetConsoleMode(hin, savemode);
 
-    if (ret == 2) {		       /* key was different */
-	if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
-	    if (line[0] == 'y' || line[0] == 'Y')
-		store_host_key(host, port, keytype, keystr);
-	} else {
-	    fprintf(stderr, abandoned);
-	    exit(0);
-	}
-    }
-    if (ret == 1) {		       /* key was absent */
+    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
 	if (line[0] == 'y' || line[0] == 'Y')
 	    store_host_key(host, port, keytype, keystr);
-	else {
-	    fprintf(stderr, abandoned);
-	    exit(0);
-	}
+    } else {
+	fprintf(stderr, abandoned);
+	exit(0);
     }
 }
 

@@ -2512,7 +2512,9 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	"%s\n"
 	"If you trust this host, hit Yes to add the key to\n"
 	"PuTTY's cache and carry on connecting.\n"
-	"If you do not trust this host, hit No to abandon the\n"
+	"If you want to carry on connecting just once, without\n"
+	"adding the key to the cache, hit No.\n"
+	"If you do not trust this host, hit Cancel to abandon the\n"
 	"connection.\n";
 
     static const char wrongmsg[] =
@@ -2533,7 +2535,6 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	"Cancel. Hitting Cancel is the ONLY guaranteed safe\n" "choice.\n";
 
     static const char mbtitle[] = "PuTTY Security Alert";
-
 
     char message[160 +
 	/* sensible fingerprint max size */
@@ -2561,10 +2562,11 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	int mbret;
 	sprintf(message, absentmsg, fingerprint);
 	mbret = MessageBox(NULL, message, mbtitle,
-			   MB_ICONWARNING | MB_YESNO);
-	if (mbret == IDNO)
+			   MB_ICONWARNING | MB_YESNOCANCEL);
+	if (mbret == IDYES)
+	    store_host_key(host, port, keytype, keystr);
+	if (mbret == IDCANCEL)
 	    exit(0);
-	store_host_key(host, port, keytype, keystr);
     }
 }
 
