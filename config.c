@@ -1484,6 +1484,10 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 				    HELPCTX(ssh_tunnels_portfwd),
 				    portfwd_handler, P(pfd));
 	pfd->listbox->listbox.height = 3;
+	pfd->listbox->listbox.ncols = 2;
+	pfd->listbox->listbox.percentages = smalloc(2*sizeof(int));
+	pfd->listbox->listbox.percentages[0] = 20;
+	pfd->listbox->listbox.percentages[1] = 80;
 	ctrl_tabdelay(s, pfd->rembutton);
 	ctrl_text(s, "Add new forwarded port:", HELPCTX(ssh_tunnels_portfwd));
 	/* You want to enter source, destination and type, _then_ hit Add.
