@@ -102,7 +102,7 @@ immediately; if you want, you can load the private key back into
 PuTTYgen later (see \k{puttygen-load}) and the public key will be
 available for copying and pasting again.
 
-\k{pubkey-gettingready} describes the typical process of configuring
+\K{pubkey-gettingready} describes the typical process of configuring
 PuTTY to attempt public-key authentication, and configuring your SSH
 server to accept it.
 
