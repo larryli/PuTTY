@@ -281,7 +281,7 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	    close(i);
 	fcntl(0, F_SETFD, 0);
 	fcntl(1, F_SETFD, 0);
-	execl("/bin/sh", "sh", "-c", cmd, NULL);
+	execl("/bin/sh", "sh", "-c", cmd, (void *)NULL);
 	_exit(255);
     }
 

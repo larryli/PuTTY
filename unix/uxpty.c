@@ -813,7 +813,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 		sprintf(shellname, "-%s", p);
 	    } else
 		shellname = shell;
-	    execl(getenv("SHELL"), shellname, NULL);
+	    execl(getenv("SHELL"), shellname, (void *)NULL);
 	}
 
 	/*
