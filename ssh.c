@@ -2279,7 +2279,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * Set IVs after keys.
      */
     ssh2_mkkey(K, exchange_hash, 'C', keyspace); cscipher->setcskey(keyspace);
-    ssh2_mkkey(K, exchange_hash, 'D', keyspace); cscipher->setsckey(keyspace);
+    ssh2_mkkey(K, exchange_hash, 'D', keyspace); sccipher->setsckey(keyspace);
     ssh2_mkkey(K, exchange_hash, 'A', keyspace); cscipher->setcsiv(keyspace);
     ssh2_mkkey(K, exchange_hash, 'B', keyspace); sccipher->setsciv(keyspace);
     ssh2_mkkey(K, exchange_hash, 'E', keyspace); csmac->setcskey(keyspace);
