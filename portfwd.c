@@ -127,7 +127,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
      * Try to find host.
      */
     addr = name_lookup(hostname, port, &dummy_realhost);
-    if ((err = sk_addr_error(addr)))
+    if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
     /*
@@ -141,7 +141,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     pr->backhandle = NULL;	       /* we shouldn't need this */
 
     pr->s = *s = new_connection(addr, dummy_realhost, port, 0, 1, 0, (Plug) pr);
-    if ((err = sk_socket_error(*s))) {
+    if ((err = sk_socket_error(*s)) != NULL) {
 	sfree(pr);
 	return err;
     }
@@ -175,7 +175,7 @@ static int pfd_accepting(Plug p, void *sock)
     pr->backhandle = org->backhandle;
 
     pr->s = s = sk_register(sock, (Plug) pr);
-    if ((err = sk_socket_error(s))) {
+    if ((err = sk_socket_error(s)) != NULL) {
 	sfree(pr);
 	return err != NULL;
     }
@@ -233,7 +233,7 @@ char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
     pr->backhandle = backhandle;
 
     pr->s = s = new_listener(srcaddr, port, (Plug) pr, !cfg.lport_acceptall);
-    if ((err = sk_socket_error(s))) {
+    if ((err = sk_socket_error(s)) != NULL) {
 	sfree(pr);
 	return err;
     }
