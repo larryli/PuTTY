@@ -22,7 +22,6 @@
 
 /*
  * TODO:
- *  - check the return value from saversakey()
  *  - test the generated keys for actual working-RSA-key-hood
  *  - variable key size
  */
@@ -508,9 +507,9 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 }
                 if (prompt_keyfile(hwnd, "Save private key as:",
                                    filename, 1)) {
+		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
-			int ret;
 			char buffer[FILENAME_MAX+80];
 			fclose(fp);
 			sprintf(buffer, "Overwrite existing file\n%.*s?",
@@ -520,9 +519,13 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 			if (ret != IDYES)
 			    break;
 		    }
-                    saversakey(filename, &state->key, &state->aux,
-                               *passphrase ? passphrase : NULL);
-                    /* FIXME: check return value */
+                    ret = saversakey(filename, &state->key, &state->aux,
+				     *passphrase ? passphrase : NULL);
+		    if (ret <= 0) {
+			MessageBox(hwnd, "Unable to save key file",
+				   "PuTTYgen Error",
+				   MB_OK | MB_ICONERROR);
+		    }
                 }
             }
             break;
