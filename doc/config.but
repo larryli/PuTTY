@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.81 2004/06/10 10:01:11 jacob Exp $
+\versionid $Id: config.but,v 1.82 2004/06/15 11:11:19 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -637,6 +637,8 @@ use the Sound configurer in the Windows Control Panel.
 \b \q{Visual bell} is a silent alternative to a beeping computer. In
 this mode, when the server sends a Control-G, the whole PuTTY window
 will flash white for a fraction of a second.
+
+\b \q{Beep using the PC speaker} is self-explanatory.
 
 \b \q{Play a custom sound file} allows you to specify a particular
 sound file to be used by PuTTY alone, or even by a particular
