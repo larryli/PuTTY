@@ -273,6 +273,11 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     }
     else
     {
+        /*
+         * Hack inserted to deal with problems with numeric IPs.
+         * FIXME: how will this work in IPv6?
+         */
+        ret->family = AF_INET;
 	*canonicalname = host;
     }
     ret->address = ntohl(a);
