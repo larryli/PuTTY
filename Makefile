@@ -72,10 +72,17 @@ OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) tree234.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ)
+##-- objects puttygen
+GEN1 = puttygen.$(OBJ) sshrsag.$(OBJ) sshprime.$(OBJ) sshdes.$(OBJ)
+GEN2 = sshbn.$(OBJ) sshmd5.$(OBJ) version.$(OBJ) sshrand.$(OBJ) noise.$(OBJ)
+GEN3 = sshsha.$(OBJ) winstore.$(OBJ) misc.$(OBJ) winctrls.$(OBJ)
+GEN4 = sshrsa.$(OBJ) sshpubk.$(OBJ)
 ##-- resources putty puttytel
 PRESRC = win_res.$(RES)
 ##-- resources pageant
 PAGERC = pageant.$(RES)
+##-- resources puttygen
+GENRC = puttygen.$(RES)
 ##-- resources pscp
 SRESRC = scp.$(RES)
 ##-- resources plink
@@ -86,6 +93,7 @@ LRESRC = plink.$(RES)
 # putty
 # puttytel
 # pageant
+# puttygen
 ##-- console-apps
 # pscp
 # plink ws2_32
@@ -97,7 +105,7 @@ LIBS3 = shell32.lib
 SOCK1 = wsock32.lib
 SOCK2 = ws2_32.lib
 
-all: putty.exe puttytel.exe pscp.exe plink.exe pageant.exe
+all: putty.exe puttytel.exe pscp.exe plink.exe pageant.exe puttygen.exe
 
 putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe @putty.rsp
@@ -107,6 +115,9 @@ puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(PRESRC) puttytel
 
 pageant.exe: $(PAGE1) $(PAGE2) $(PAGERC) pageant.rsp
 	link $(LFLAGS) -out:pageant.exe @pageant.rsp
+
+puttygen.exe: $(GEN1) $(GEN2) $(GEN3) $(GEN4) $(GENRC) puttygen.rsp
+	link $(LFLAGS) -out:puttygen.exe @puttygen.rsp
 
 pscp.exe: $(SOBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe @pscp.rsp
@@ -143,12 +154,23 @@ puttytel.rsp: makefile
 
 pageant.rsp: makefile
 	echo /nologo /subsystem:windows > pageant.rsp
-        echo $(PAGE1) >> pageant.rsp
-        echo $(PAGE2) >> pageant.rsp
-        echo $(PAGERC) >> pageant.rsp
+	echo $(PAGE1) >> pageant.rsp
+	echo $(PAGE2) >> pageant.rsp
+	echo $(PAGERC) >> pageant.rsp
 	echo $(LIBS1) >> pageant.rsp
 	echo $(LIBS2) >> pageant.rsp
 	echo $(LIBS3) >> pageant.rsp
+
+puttygen.rsp: makefile
+	echo /nologo /subsystem:windows > puttygen.rsp
+	echo $(GEN1) >> puttygen.rsp
+	echo $(GEN2) >> puttygen.rsp
+	echo $(GEN3) >> puttygen.rsp
+	echo $(GEN4) >> puttygen.rsp
+	echo $(GENRC) >> puttygen.rsp
+	echo $(LIBS1) >> puttygen.rsp
+	echo $(LIBS2) >> puttygen.rsp
+	echo $(LIBS3) >> puttygen.rsp
 
 pscp.rsp: makefile
 	echo /nologo /subsystem:console > pscp.rsp
@@ -235,6 +257,12 @@ pageant.$(RES): pageant.rc pageant.ico pageants.ico
 ##--
 pageant.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 pageant.rc
+
+##-- dependencies
+puttygen.$(RES): puttygen.rc puttygen.ico
+##--
+puttygen.$(RES):
+	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 puttygen.rc
 
 clean:
 	del *.obj

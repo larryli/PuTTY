@@ -4,6 +4,7 @@
  */
 
 #include <windows.h>
+#include <commctrl.h>
 
 #include "winstuff.h"
 
@@ -18,6 +19,7 @@
 #define EDITHEIGHT 12
 #define COMBOHEIGHT 12
 #define PUSHBTNHEIGHT 14
+#define PROGBARHEIGHT 14
 
 void ctlposinit(struct ctlpos *cp, HWND hwnd,
                 int leftborder, int rightborder, int topborder) {
@@ -247,6 +249,18 @@ void checkbox(struct ctlpos *cp, char *text, int id) {
 }
 
 /*
+ * A single standalone static text control.
+ */
+void statictext(struct ctlpos *cp, char *text, int id) {
+    RECT r;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPBETWEEN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
+}
+
+/*
  * A button on the right hand side, with a static to its left.
  */
 void staticbtn(struct ctlpos *cp, char *stext, int sid,
@@ -277,8 +291,9 @@ void staticbtn(struct ctlpos *cp, char *stext, int sid,
 /*
  * An edit control on the right hand side, with a static to its left.
  */
-void staticedit(struct ctlpos *cp, char *stext,
-                int sid, int eid, int percentedit) {
+static void staticedit_internal(struct ctlpos *cp, char *stext,
+                                int sid, int eid, int percentedit,
+                                int style) {
     const int height = (EDITHEIGHT > STATICHEIGHT ?
                         EDITHEIGHT : STATICHEIGHT);
     RECT r;
@@ -295,11 +310,42 @@ void staticedit(struct ctlpos *cp, char *stext,
     r.left = rpos; r.top = cp->ypos + (height-EDITHEIGHT)/2;
     r.right = rwid; r.bottom = EDITHEIGHT;
     doctl(cp, r, "EDIT",
-          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | style,
           WS_EX_CLIENTEDGE,
           "", eid);
 
     cp->ypos += height + GAPBETWEEN;
+}
+
+void staticedit(struct ctlpos *cp, char *stext,
+                int sid, int eid, int percentedit) {
+    staticedit_internal(cp, stext, sid, eid, percentedit, 0);
+}
+
+void staticpassedit(struct ctlpos *cp, char *stext,
+                    int sid, int eid, int percentedit) {
+    staticedit_internal(cp, stext, sid, eid, percentedit, ES_PASSWORD);
+}
+
+/*
+ * A big multiline edit control with a static labelling it.
+ */
+void bigeditctrl(struct ctlpos *cp, char *stext,
+                 int sid, int eid, int lines) {
+    RECT r;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = EDITHEIGHT + (lines-1) * STATICHEIGHT;
+    cp->ypos += r.bottom + GAPBETWEEN;
+    doctl(cp, r, "EDIT",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE,
+          WS_EX_CLIENTEDGE,
+          "", eid);
 }
 
 /*
@@ -633,3 +679,22 @@ void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
     cp->ypos += LISTHEIGHT + GAPBETWEEN;
 }
 
+/*
+ * A progress bar (from Common Controls). We like our progress bars
+ * to be smooth and unbroken, without those ugly divisions; some
+ * older compilers may not support that, but that's life.
+ */
+void progressbar(struct ctlpos *cp, int id) {
+    RECT r;
+
+    r.left = GAPBETWEEN; r.top = cp->ypos;
+    r.right = cp->width; r.bottom = PROGBARHEIGHT;
+    cp->ypos += r.bottom + GAPBETWEEN;
+
+    doctl(cp, r, PROGRESS_CLASS,
+          WS_CHILD | WS_VISIBLE
+#ifdef PBS_SMOOTH
+          | PBS_SMOOTH
+#endif
+          , WS_EX_CLIENTEDGE, "", id);
+}

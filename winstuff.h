@@ -42,10 +42,15 @@ void radioline(struct ctlpos *cp,
                char *text, int id, int nacross, ...);
 void radiobig(struct ctlpos *cp, char *text, int id, ...);
 void checkbox(struct ctlpos *cp, char *text, int id);
+void statictext(struct ctlpos *cp, char *text, int id);
 void staticbtn(struct ctlpos *cp, char *stext, int sid,
                char *btext, int bid);
 void staticedit(struct ctlpos *cp, char *stext,
                 int sid, int eid, int percentedit);
+void staticpassedit(struct ctlpos *cp, char *stext,
+                    int sid, int eid, int percentedit);
+void bigeditctrl(struct ctlpos *cp, char *stext,
+                 int sid, int eid, int lines);
 void ersatztab(struct ctlpos *cp, char *stext, int sid,
                int lid, int s2id);
 void editbutton(struct ctlpos *cp, char *stext, int sid,
@@ -61,3 +66,4 @@ void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
                char *btext, int bid, int eid, char *s2text, int s2id);
 void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
                 char *btext, int bid, ...);
+void progressbar(struct ctlpos *cp, int id);

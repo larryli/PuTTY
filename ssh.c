@@ -1531,7 +1531,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             static unsigned char buffer[32];
 
             tried_publickey = 1;
-            i = loadrsakey(cfg.keyfile, &pubkey, password);
+            i = loadrsakey(cfg.keyfile, &pubkey, NULL, password);
             if (i == 0) {
                 c_write("Couldn't load public key from ", 30);
                 c_write(cfg.keyfile, strlen(cfg.keyfile));

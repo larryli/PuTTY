@@ -145,6 +145,7 @@ void SHATransform(word32 *digest, word32 *data);
 
 int random_byte(void);
 void random_add_noise(void *noise, int length);
+void random_add_heavynoise(void *noise, int length);
 
 void logevent (char *);
 
@@ -170,14 +171,21 @@ Bignum bigmul(Bignum a, Bignum b);
 Bignum modinv(Bignum number, Bignum modulus);
 Bignum bignum_rshift(Bignum number, int shift);
 int bignum_cmp(Bignum a, Bignum b);
+char *bignum_decimal(Bignum x);
 
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);
 
-int loadrsakey(char *filename, struct RSAKey *key, char *passphrase);
+int loadrsakey(char *filename, struct RSAKey *key, struct RSAAux *aux,
+               char *passphrase);
 int rsakey_encrypted(char *filename, char **comment);
 
+int saversakey(char *filename, struct RSAKey *key, struct RSAAux *aux,
+               char *passphrase);
+
 void des3_decrypt_pubkey(unsigned char *key,
+                         unsigned char *blk, int len);
+void des3_encrypt_pubkey(unsigned char *key,
                          unsigned char *blk, int len);
 
 /*

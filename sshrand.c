@@ -40,22 +40,6 @@ struct RandPool {
 
 static struct RandPool pool;
 
-void random_add_noise(void *noise, int length) {
-    unsigned char *p = noise;
-
-    while (length >= (HASHINPUT - pool.incomingpos)) {
-	memcpy(pool.incomingb + pool.incomingpos, p,
-	       HASHINPUT - pool.incomingpos);
-	p += HASHINPUT - pool.incomingpos;
-	length -= HASHINPUT - pool.incomingpos;
-	SHATransform((word32 *)pool.incoming, (word32 *)pool.incomingb);
-	pool.incomingpos = 0;
-    }
-
-    memcpy(pool.incomingb + pool.incomingpos, p, length);
-    pool.incomingpos += length;
-}
-
 void random_stir(void) {
     word32 block[HASHINPUT/sizeof(word32)];
     word32 digest[HASHSIZE/sizeof(word32)];
@@ -126,33 +110,73 @@ void random_stir(void) {
     pool.poolpos = sizeof(pool.incoming);
 }
 
-static void random_add_heavynoise(void *noise, int length) {
+void random_add_noise(void *noise, int length) {
     unsigned char *p = noise;
+    int i;
 
-    while (length >= (POOLSIZE - pool.poolpos)) {
-	memcpy(pool.pool + pool.poolpos, p, POOLSIZE - pool.poolpos);
-	p += POOLSIZE - pool.poolpos;
-	length -= POOLSIZE - pool.poolpos;
-	random_stir();
-	pool.poolpos = 0;
+    /*
+     * This function processes HASHINPUT bytes into only HASHSIZE
+     * bytes, so _if_ we were getting incredibly high entropy
+     * sources then we would be throwing away valuable stuff.
+     */
+    while (length >= (HASHINPUT - pool.incomingpos)) {
+	memcpy(pool.incomingb + pool.incomingpos, p,
+	       HASHINPUT - pool.incomingpos);
+	p += HASHINPUT - pool.incomingpos;
+	length -= HASHINPUT - pool.incomingpos;
+	SHATransform((word32 *)pool.incoming, (word32 *)pool.incomingb);
+        for (i = 0; i < HASHSIZE; i++) {
+            pool.pool[pool.poolpos++] ^= pool.incomingb[i];
+            if (pool.poolpos >= POOLSIZE)
+                pool.poolpos = 0;
+        }
+        if (pool.poolpos < HASHSIZE)
+            random_stir();
+
+	pool.incomingpos = 0;
     }
 
-    memcpy(pool.pool + pool.poolpos, p, length);
-    pool.poolpos += length;
+    memcpy(pool.incomingb + pool.incomingpos, p, length);
+    pool.incomingpos += length;
+}
+
+void random_add_heavynoise(void *noise, int length) {
+    unsigned char *p = noise;
+    int i;
+
+    while (length >= POOLSIZE) {
+        for (i = 0; i < POOLSIZE; i++)
+            pool.pool[i] ^= *p++;
+	random_stir();
+	length -= POOLSIZE;
+    }
+
+    for (i = 0; i < length; i++)
+        pool.pool[i] ^= *p++;
+    random_stir();
+}
+
+static void random_add_heavynoise_bitbybit(void *noise, int length) {
+    unsigned char *p = noise;
+    int i;
+
+    while (length >= POOLSIZE - pool.poolpos) {
+        for (i = 0; i < POOLSIZE - pool.poolpos; i++)
+            pool.pool[pool.poolpos + i] ^= *p++;
+	random_stir();
+	length -= POOLSIZE - pool.poolpos;
+        pool.poolpos = 0;
+    }
+
+    for (i = 0; i < length; i++)
+        pool.pool[i] ^= *p++;
+    pool.poolpos = i;
 }
 
 void random_init(void) {
     memset(&pool, 0, sizeof(pool));    /* just to start with */
 
-    /*
-     * For noise_get_heavy, we temporarily use `poolpos' as the
-     * pointer for addition of noise, rather than extraction of
-     * random numbers.
-     */
-    pool.poolpos = 0;
-    noise_get_heavy(random_add_heavynoise);
-
-    random_stir();
+    noise_get_heavy(random_add_heavynoise_bitbybit);
 }
 
 int random_byte(void) {

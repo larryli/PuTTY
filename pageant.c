@@ -252,7 +252,7 @@ static void add_keyfile(char *filename) {
             }
         } else
             *passphrase = '\0';
-        ret = loadrsakey(filename, key, passphrase);
+        ret = loadrsakey(filename, key, NULL, passphrase);
         attempts++;
     } while (ret == -1);
     if (comment) free(comment);

@@ -65,17 +65,17 @@ static void internal_mul(unsigned short *a, unsigned short *b,
     }
 }
 
-static int internal_add_shifted(unsigned short *number,
-                                unsigned short n, int shift) {
+static void internal_add_shifted(unsigned short *number,
+                                unsigned n, int shift) {
     int word = 1 + (shift / 16);
     int bshift = shift % 16;
-    unsigned long carry, addend;
+    unsigned long addend;
 
     addend = n << bshift;
 
     while (addend) {
         addend += number[word];
-        number[word] = addend & 0xFFFF;
+        number[word] = (unsigned short) addend & 0xFFFF;
         addend >>= 16;
         word++;
     }
@@ -577,7 +577,7 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend) {
         for (i = 1; i <= rlen; i++) {
             carry += (i <= ret[0] ? ret[i] : 0);
             carry += (i <= addend[0] ? addend[i] : 0);
-            ret[i] = carry & 0xFFFF;
+            ret[i] = (unsigned short) carry & 0xFFFF;
             carry >>= 16;
             if (ret[i] != 0 && i > maxspot)
                 maxspot = i;
@@ -620,7 +620,7 @@ Bignum bignum_add_long(Bignum number, unsigned long addend) {
         carry += addend & 0xFFFF;
         carry += (i <= number[0] ? number[i] : 0);
         addend >>= 16;
-        ret[i] = carry & 0xFFFF;
+        ret[i] = (unsigned short) carry & 0xFFFF;
         carry >>= 16;
         if (ret[i] != 0)
             maxspot = i;
@@ -633,7 +633,6 @@ Bignum bignum_add_long(Bignum number, unsigned long addend) {
  * Compute the residue of a bignum, modulo a (max 16-bit) short.
  */
 unsigned short bignum_mod_short(Bignum number, unsigned short modulus) {
-    Bignum ret;
     unsigned long mod, r;
     int i;
 
@@ -641,7 +640,7 @@ unsigned short bignum_mod_short(Bignum number, unsigned short modulus) {
     mod = modulus;
     for (i = number[0]; i > 0; i--)
         r = (r * 65536 + number[i]) % mod;
-    return r;
+    return (unsigned short) r;
 }
 
 static void diagbn(char *prefix, Bignum md) {
@@ -735,4 +734,75 @@ Bignum modinv(Bignum number, Bignum modulus) {
 
     /* and return. */
     return x;
+}
+
+/*
+ * Render a bignum into decimal. Return a malloced string holding
+ * the decimal representation.
+ */
+char *bignum_decimal(Bignum x) {
+    int ndigits, ndigit;
+    int i, iszero;
+    unsigned long carry;
+    char *ret;
+    unsigned short *workspace;
+
+    /*
+     * First, estimate the number of digits. Since log(10)/log(2)
+     * is just greater than 93/28 (the joys of continued fraction
+     * approximations...) we know that for every 93 bits, we need
+     * at most 28 digits. This will tell us how much to malloc.
+     *
+     * Formally: if x has i bits, that means x is strictly less
+     * than 2^i. Since 2 is less than 10^(28/93), this is less than
+     * 10^(28i/93). We need an integer power of ten, so we must
+     * round up (rounding down might make it less than x again).
+     * Therefore if we multiply the bit count by 28/93, rounding
+     * up, we will have enough digits.
+     */
+    i = ssh1_bignum_bitcount(x);
+    ndigits = (28*i + 92)/93;          /* multiply by 28/93 and round up */
+    ndigits++;                         /* allow for trailing \0 */
+    ret = malloc(ndigits);
+
+    /*
+     * Now allocate some workspace to hold the binary form as we
+     * repeatedly divide it by ten. Initialise this to the
+     * big-endian form of the number.
+     */
+    workspace = malloc(sizeof(unsigned short) * x[0]);
+    for (i = 0; i < x[0]; i++)
+        workspace[i] = x[x[0] - i];
+
+    /*
+     * Next, write the decimal number starting with the last digit.
+     * We use ordinary short division, dividing 10 into the
+     * workspace.
+     */
+    ndigit = ndigits-1;
+    ret[ndigit] = '\0';
+    do {
+        iszero = 1;
+        carry = 0;
+        for (i = 0; i < x[0]; i++) {
+            carry = (carry << 16) + workspace[i];
+            workspace[i] = (unsigned short) (carry / 10);
+            if (workspace[i])
+                iszero = 0;
+            carry %= 10;
+        }
+        ret[--ndigit] = (char)(carry + '0');
+    } while (!iszero);
+
+    /*
+     * There's a chance we've fallen short of the start of the
+     * string. Correct if so.
+     */
+    if (ndigit > 0)
+        memmove(ret, ret+ndigit, ndigits-ndigit);
+
+    /*
+     * Done.
+     */
+    return ret;
 }
