@@ -807,6 +807,7 @@ static void usage(void)
     printf("%s\n", ver);
     printf("Usage: scp [options] [user@]host:source target\n");
     printf("       scp [options] source [source...] [user@]host:target\n");
+    printf("       scp [options] -ls user@host:filespec\n");
     printf("Options:\n");
     printf("  -p        preserve file attributes\n");
     printf("  -q        quiet, don't show statistics\n");
