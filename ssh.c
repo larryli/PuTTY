@@ -3873,6 +3873,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     static int we_are_in;
     static int num_prompts, echo;
     static char username[100];
+    static int got_username;
     static char pwprompt[200];
     static char password[100];
     static void *publickey_blob;
@@ -3917,6 +3918,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      *    retype it!
      */
     username[0] = '\0';
+    got_username = FALSE;
     do {
 	static int pos;
 	static char c;
@@ -3925,7 +3927,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	 * Get a username.
 	 */
 	pos = 0;
-	if (*username && !cfg.change_username) {
+	if (got_username && !cfg.change_username) {
 	    /*
 	     * We got a username last time round this loop, and
 	     * with change_username turned off we don't try to get
@@ -3995,6 +3997,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c_write_str(stuff);
 	    }
 	}
+	got_username = TRUE;
 
 	/*
 	 * Send an authentication request using method "none": (a)
