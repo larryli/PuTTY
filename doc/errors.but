@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.6 2003/03/18 09:03:31 simon Exp $
+\versionid $Id: errors.but,v 1.7 2003/07/12 13:25:43 jacob Exp $
 
 \C{errors} Common error messages
 
@@ -143,6 +143,24 @@ type of message, the first thing you should do is check your
 \e{server} configuration carefully. Also, read the PuTTY Event Log;
 the server may have sent diagnostic messages explaining exactly what
 problem it had with your setup.
+
+\H{errors-access-denied} \q{Access denied}, \q{Authentication refused}
+
+Various forms of this error are printed in the PuTTY window, or
+written to the PuTTY Event Log (see \k{using-eventlog}) during
+authentication.
+
+If you see one of these messages, it means that the server has refused 
+all the forms of authentication PuTTY has tried and it has no further
+ideas.
+
+It may be worth checking the Event Log for diagnostic messages from
+the server giving more detail.
+
+This error can be caused by buggy SSH-1 servers that fail to cope with
+the various strategies we use for camouflaging passwords in transit.
+Upgrade your server, or use the workarounds described in
+\k{config-ssh-bug-ignore1} and possibly \k{config-ssh-bug-plainpw1}.
 
 \H{errors-crc} \q{Incorrect CRC received on packet} or \q{Incorrect
 MAC received on packet}
