@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.17 2001/09/24 22:00:46 simon Exp $
+\versionid $Id: pscp.but,v 1.18 2001/12/14 12:15:43 simon Exp $
 
 \#FIXME: Need examples
 
@@ -6,6 +6,10 @@
 
 \i{PSCP}, the PuTTY Secure Copy client, is a tool for transferring files
 securely between computers using an SSH connection.
+
+If you have an SSH 2 server, you might prefer PSFTP (see \k{psftp})
+for interactive use. PSFTP does not in general work with SSH 1
+servers, however.
 
 \H{pscp-starting} Starting PSCP
 
