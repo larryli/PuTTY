@@ -195,6 +195,11 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
 
+    /*
+     * Set up the colour map.
+     */
+    palette_reset();
+
     w = (event->width - 2*cfg.window_border) / inst->font_width;
     h = (event->height - 2*cfg.window_border) / inst->font_height;
 
@@ -227,11 +232,6 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     if (need_size) {
 	term_size(h, w, cfg.savelines);
     }
-
-    /*
-     * Set up the colour map.
-     */
-    palette_reset();
 
     return TRUE;
 }
