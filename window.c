@@ -723,7 +723,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		timer_id = 0;
 	    }
 	    HideCaret(hwnd);
-	    term_out();
+	    if (GetCapture() != hwnd)
+		term_out();
 	    term_update();
 	    ShowCaret(hwnd);
 
@@ -1517,7 +1518,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_TIMER:
 	if (pending_netevent)
 	    enact_pending_netevent();
-	term_out();
+	if (GetCapture() != hwnd)
+	    term_out();
 	noise_regular();
 	HideCaret(hwnd);
 	term_update();
