@@ -183,8 +183,8 @@ struct tm ltime(void)
     tm.tm_min=d.minute;
     tm.tm_hour=d.hour;
     tm.tm_mday=d.day;
-    tm.tm_mon=d.month;
-    tm.tm_year=d.year;
+    tm.tm_mon=d.month-1;
+    tm.tm_year=d.year-1900;
     tm.tm_wday=d.dayOfWeek;
     tm.tm_yday=1; /* GetTime doesn't tell us */
     tm.tm_isdst=0; /* Have to do DST ourselves */

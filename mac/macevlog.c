@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.8 2003/05/04 14:18:18 simon Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -106,6 +106,16 @@ void logevent(void *frontend, const char *str)
     Session *s = frontend;
     ListBounds bounds, visible;
     Cell cell = { 0, 0 };
+    char timebuf[40];
+    struct tm tm;
+    char *string;
+
+    tm=ltime();
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", &tm);
+
+    string=snewn(strlen(timebuf) + strlen(str) +1, char);
+    strcpy(string, timebuf);
+    strcat(string, str);
 
     if (s->eventlog == NULL)
 	mac_createeventlog(s);
@@ -122,10 +132,11 @@ void logevent(void *frontend, const char *str)
 
     cell.v = bounds.bottom;
     LAddRow(1, cell.v, s->eventlog);
-    LSetCell(str, strlen(str), cell, s->eventlog);
+    LSetCell(string, strlen(string), cell, s->eventlog);
     /* ">=" and "2" because there can be a blank cell below the last one. */
     if (visible.bottom >= bounds.bottom)
 	LScroll(0, 2, s->eventlog);
+    sfree(string);
 }
 
 static void mac_draweventloggrowicon(Session *s)
