@@ -110,6 +110,10 @@ supported by \fIpterm\fP) should be valid here (examples are
 encoding which is valid in an X logical font description should be
 valid ("ibm-cp437", for example).
 
+\fIpterm\fP's default behaviour is to use the same character
+encoding as its primary font. If you supply a Unicode (iso10646-1)
+font, it will default to the UTF-8 character set.
+
 Character set names are case-insensitive.
 .IP "\fB\-nethack\fP"
 Tells \fIpterm\fP to enable NetHack keypad mode, in which the

@@ -836,18 +836,27 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	printf("\n");
 #endif
 
-	/*
-	 * The stuff we've just generated is assumed to be
-	 * ISO-8859-1! This sounds insane, but `man XLookupString'
-	 * agrees: strings of this type returned from the X server
-	 * are hardcoded to 8859-1. Strictly speaking we should be
-	 * doing this using some sort of GtkIMContext, which (if
-	 * we're lucky) would give us our data directly in Unicode;
-	 * but that's not supported in GTK 1.2 as far as I can
-	 * tell, and it's poorly documented even in 2.0, so it'll
-	 * have to wait.
-	 */
-	lpage_send(inst->ldisc, CS_ISO8859_1, output+start, end-start, 1);
+	if (inst->fontinfo[0].charset != CS_NONE) {
+	    /*
+	     * The stuff we've just generated is assumed to be
+	     * ISO-8859-1! This sounds insane, but `man
+	     * XLookupString' agrees: strings of this type returned
+	     * from the X server are hardcoded to 8859-1. Strictly
+	     * speaking we should be doing this using some sort of
+	     * GtkIMContext, which (if we're lucky) would give us
+	     * our data directly in Unicode; but that's not
+	     * supported in GTK 1.2 as far as I can tell, and it's
+	     * poorly documented even in 2.0, so it'll have to
+	     * wait.
+	     */
+	    lpage_send(inst->ldisc, CS_ISO8859_1, output+start, end-start, 1);
+	} else {
+	    /*
+	     * In direct-to-font mode, we just send the string
+	     * exactly as we received it.
+	     */
+	    ldisc_send(inst->ldisc, output+start, end-start, 1);
+	}
 
 	show_mouseptr(inst, 0);
 	term_seen_key_event(inst->term);
@@ -1218,17 +1227,25 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
     if (inst->pasteout_data_utf8)
 	sfree(inst->pasteout_data_utf8);
 
-    inst->pasteout_data_utf8 = smalloc(len*6);
-    inst->pasteout_data_utf8_len = len*6;
-    {
+    /*
+     * Set up UTF-8 paste data. This only happens if we aren't in
+     * direct-to-font mode using the D800 hack.
+     */
+    if (inst->fontinfo[0].charset != CS_NONE) {
 	wchar_t *tmp = data;
 	int tmplen = len;
+
+	inst->pasteout_data_utf8 = smalloc(len*6);
+	inst->pasteout_data_utf8_len = len*6;
 	inst->pasteout_data_utf8_len =
 	    charset_from_unicode(&tmp, &tmplen, inst->pasteout_data_utf8,
 				 inst->pasteout_data_utf8_len,
 				 CS_UTF8, NULL, NULL, 0);
 	inst->pasteout_data_utf8 =
 	    srealloc(inst->pasteout_data_utf8, inst->pasteout_data_utf8_len);
+    } else {
+	inst->pasteout_data_utf8 = NULL;
+	inst->pasteout_data_utf8_len = 0;
     }
 
     inst->pasteout_data = smalloc(len);
@@ -1243,8 +1260,9 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 				 GDK_SELECTION_TYPE_STRING, 1);
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				 inst->compound_text_atom, 1);
-	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
-				 inst->utf8_string_atom, 1);
+	if (inst->pasteout_data_utf8)
+	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+				     inst->utf8_string_atom, 1);
     }
 }
 
@@ -1286,15 +1304,24 @@ void request_paste(void *frontend)
      * comes back _then_ we can call term_do_paste().
      */
 
-    /*
-     * First we attempt to retrieve the selection as a UTF-8 string
-     * (which we will convert to the correct code page before
-     * sending to the session, of course). If that fails,
-     * selection_received() will be informed and will fall back to
-     * an ordinary string.
-     */
-    gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			  inst->utf8_string_atom, GDK_CURRENT_TIME);
+    if (inst->fontinfo[0].charset != CS_NONE) {
+	/*
+	 * First we attempt to retrieve the selection as a UTF-8
+	 * string (which we will convert to the correct code page
+	 * before sending to the session, of course). If that
+	 * fails, selection_received() will be informed and will
+	 * fall back to an ordinary string.
+	 */
+	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+			      inst->utf8_string_atom, GDK_CURRENT_TIME);
+    } else {
+	/*
+	 * If we're in direct-to-font mode, we disable UTF-8
+	 * pasting, and go straight to ordinary string data.
+	 */
+	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+			      GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
+    }
 }
 
 gint idle_paste_func(gpointer data);   /* forward ref */
@@ -1562,12 +1589,9 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 			     gwcs, len*2);
 	    sfree(gwcs);
 	} else {
-	    wchar_t *wcstmp = wcs;
-	    int lentmp = len;
 	    gcs = smalloc(sizeof(GdkWChar) * (len+1));
-	    charset_from_unicode(&wcstmp, &lentmp, gcs, len,
-				 inst->fontinfo[fontid].charset,
-				 NULL, ".", 1);
+	    wc_to_mb(inst->fontinfo[fontid].charset, 0,
+		     wcs, len, gcs, len, ".", NULL);
 	    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
 			  x*inst->font_width+cfg.window_border,
 			  y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
@@ -2101,13 +2125,20 @@ static void block_signal(int sig, int block_it) {
   }
 }
 
-static void set_font_info(struct gui_data *inst, int fontid)
+/*
+ * This function retrieves the character set encoding of a font. It
+ * returns the character set without the X11 hack (in case the user
+ * asks to use the font's own encoding).
+ */
+static int set_font_info(struct gui_data *inst, int fontid)
 {
     GdkFont *font = inst->fonts[fontid];
     XFontStruct *xfs = GDK_FONT_XFONT(font);
     Display *disp = GDK_FONT_XDISPLAY(font);
     Atom charset_registry, charset_encoding;
     unsigned long registry_ret, encoding_ret;
+    int retval = CS_NONE;
+
     charset_registry = XInternAtom(disp, "CHARSET_REGISTRY", False);
     charset_encoding = XInternAtom(disp, "CHARSET_ENCODING", False);
     inst->fontinfo[fontid].charset = CS_NONE;
@@ -2119,10 +2150,13 @@ static void set_font_info(struct gui_data *inst, int fontid)
 	enc = XGetAtomName(disp, (Atom)encoding_ret);
 	if (reg && enc) {
 	    char *encoding = dupcat(reg, "-", enc, NULL);
-	    inst->fontinfo[fontid].charset = charset_from_xenc(encoding);
+	    retval = inst->fontinfo[fontid].charset =
+		charset_from_xenc(encoding);
 	    /* FIXME: when libcharset supports wide encodings fix this. */
-	    if (!strcasecmp(encoding, "iso10646-1"))
+	    if (!strcasecmp(encoding, "iso10646-1")) {
 		inst->fontinfo[fontid].is_wide = 1;
+		retval = CS_UTF8;
+	    }
 
 	    /*
 	     * Hack for X line-drawing characters: if the primary
@@ -2148,19 +2182,11 @@ static void set_font_info(struct gui_data *inst, int fontid)
 		    inst->fontinfo[fontid].charset = CS_ISO8859_1_X11;
 	    }
 
-	    /*
-	     * FIXME: this is a hack. Currently fonts with
-	     * incomprehensible encodings are dealt with by
-	     * pretending they're 8859-1. It's ugly, but it's good
-	     * enough to stop things crashing. Should do something
-	     * better here.
-	     */
-	    if (inst->fontinfo[fontid].charset == CS_NONE)
-		inst->fontinfo[fontid].charset = CS_ISO8859_1;
-
 	    sfree(encoding);
 	}
     }
+
+    return retval;
 }
 
 int main(int argc, char **argv)
@@ -2168,6 +2194,7 @@ int main(int argc, char **argv)
     extern int pty_master_fd;	       /* declared in pty.c */
     extern void pty_pre_init(void);    /* declared in pty.c */
     struct gui_data *inst;
+    int font_charset;
 
     /* defer any child exit handling until we're ready to deal with
      * it */
@@ -2195,7 +2222,7 @@ int main(int argc, char **argv)
 	fprintf(stderr, "pterm: unable to load font \"%s\"\n", cfg.font);
 	exit(1);
     }
-    set_font_info(inst, 0);
+    font_charset = set_font_info(inst, 0);
     if (cfg.boldfont[0]) {
 	inst->fonts[1] = gdk_font_load(cfg.boldfont);
 	if (!inst->fonts[1]) {
@@ -2233,7 +2260,7 @@ int main(int argc, char **argv)
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
-    init_ucs();
+    init_ucs(font_charset);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 

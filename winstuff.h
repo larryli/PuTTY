@@ -189,4 +189,9 @@ void force_normal(HWND hwnd);
 void UpdateSizeTip(HWND src, int cx, int cy);
 void EnableSizeTip(int bEnable);
 
+/*
+ * Exports from unicode.c.
+ */
+void init_ucs(void);
+
 #endif

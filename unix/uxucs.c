@@ -41,6 +41,17 @@ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
 	setlocale(LC_CTYPE, "C");
 
 	return n;
+    } else if (codepage == CS_NONE) {
+	int n = 0;
+
+	while (mblen > 0) {
+	    wcstr[n] = 0xD800 | (mbstr[0] & 0xFF);
+	    n++;
+	    mbstr++;
+	    mblen--;
+	}
+
+	return n;
     } else
 	return charset_to_unicode(&mbstr, &mblen, wcstr, wclen, codepage,
 				  NULL, NULL, 0);
@@ -73,12 +84,24 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 	setlocale(LC_CTYPE, "C");
 
 	return n;
-    } else
+    } else if (codepage == CS_NONE) {
+	int n = 0;
+	while (wclen > 0 && n < mblen) {
+	    if (*wcstr >= 0xD800 && *wcstr < 0xD900)
+		mbstr[n++] = (*wcstr & 0xFF);
+	    else if (defchr)
+		mbstr[n++] = *defchr;
+	    wcstr++;
+	    wclen--;
+	}
+	return n;
+    } else {
 	return charset_from_unicode(&wcstr, &wclen, mbstr, mblen, codepage,
 				    NULL, NULL, 0);
+    }
 }
 
-void init_ucs(void)
+void init_ucs(int font_charset)
 {
     int i;
 
@@ -97,14 +120,16 @@ void init_ucs(void)
     line_codepage = charset_from_mimeenc(cfg.line_codepage);
     if (line_codepage == CS_NONE)
 	line_codepage = charset_from_xenc(cfg.line_codepage);
-    /* If it's still CS_NONE, we should assume direct-to-font. */
 
-    /* FIXME: this is a hack. Currently fonts with incomprehensible
-     * encodings are dealt with by pretending they're 8859-1. It's
-     * ugly, but it's good enough to stop things crashing. Should do
-     * something better here. */
+    /*
+     * If line_codepage is _still_ CS_NONE, we assume we're using
+     * the font's own encoding. This has been passed in to us, so
+     * we use that. If it's still CS_NONE after _that_ - i.e. the
+     * font we were given had an incomprehensible charset - then we
+     * fall back to using the D800 page.
+     */
     if (line_codepage == CS_NONE)
-	line_codepage = CS_ISO8859_1;
+	line_codepage = font_charset;
 
     /*
      * Set up unitab_line, by translating each individual character
@@ -117,7 +142,10 @@ void init_ucs(void)
 	c[0] = i;
 	p = c;
 	len = 1;
-	if (1 == charset_to_unicode(&p,&len,wc,1,line_codepage,NULL,L"",0))
+	if (line_codepage == CS_NONE)
+	    unitab_line[i] = 0xD800 | i;
+	else if (1 == charset_to_unicode(&p, &len, wc, 1, line_codepage,
+					 NULL, L"", 0))
 	    unitab_line[i] = wc[0];
 	else
 	    unitab_line[i] = 0xFFFD;
@@ -157,17 +185,25 @@ void init_ucs(void)
 	c[0] = i;
 	p = c;
 	len = 1;
-	if (1 == charset_to_unicode(&p,&len,wc,1,CS_CP437,NULL,L"",0))
+	if (1 == charset_to_unicode(&p, &len, wc, 1, CS_CP437, NULL, L"", 0))
 	    unitab_scoacs[i] = wc[0];
 	else
 	    unitab_scoacs[i] = 0xFFFD;
     }
 
-    /* Find the line control characters. */
-    for (i = 0; i < 256; i++)
-	if (unitab_line[i] < ' '
-	    || (unitab_line[i] >= 0x7F && unitab_line[i] < 0xA0))
+    /*
+     * Find the control characters in the line codepage. For
+     * direct-to-font mode using the D800 hack, we assume 00-1F and
+     * 7F are controls, but allow 80-9F through. (It's as good a
+     * guess as anything; and my bet is that half the weird fonts
+     * used in this way will be IBM or MS code pages anyway.)
+     */
+    for (i = 0; i < 256; i++) {
+	int lineval = unitab_line[i];
+	if (lineval < ' ' || (lineval >= 0x7F && lineval < 0xA0) ||
+	    (lineval >= 0xD800 && lineval < 0xD820) || (lineval == 0xD87F))
 	    unitab_ctrl[i] = i;
 	else
 	    unitab_ctrl[i] = 0xFF;
+    }
 }

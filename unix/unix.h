@@ -66,4 +66,9 @@ int next_socket(int *state, int *rwx);
 /* BSD-semantics version of signal() */
 void (*putty_signal(int sig, void (*func)(int)))(int);
 
+/*
+ * Exports from unicode.c.
+ */
+void init_ucs(int font_charset);
+
 #endif

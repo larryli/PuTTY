@@ -589,7 +589,7 @@ extern char ver[];
 #ifndef CP_UTF8
 #define CP_UTF8 65001
 #endif
-void init_ucs(void);
+/* void init_ucs(void); -- this is now in platform-specific headers */
 int is_dbcs_leadbyte(int codepage, char byte);
 int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
 	     wchar_t *wcstr, int wclen);
