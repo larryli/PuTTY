@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.20 2003/01/18 17:24:21 ben Exp $ */
+/* $Id: mac_res.r,v 1.21 2003/01/20 22:55:08 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -69,8 +69,8 @@ resource 'SIZE' (-1) {
     dontGetFrontClicks,
     ignoreAppDiedEvents,
     is32BitCompatible,
-    notHighLevelEventAware,
-    onlyLocalHLEvents,
+    isHighLevelEventAware,
+    localandRemoteHLEvents,
     isStationeryAware,
     dontUseTextEditServices,
     reserved,

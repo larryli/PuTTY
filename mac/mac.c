@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.33 2003/01/18 20:09:21 ben Exp $ */
+/* $Id: mac.c,v 1.34 2003/01/20 22:55:08 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -29,6 +29,8 @@
  */
 
 #include <MacTypes.h>
+#include <AEDataModel.h>
+#include <AppleEvents.h>
 #include <Quickdraw.h>
 #include <Fonts.h>
 #include <MacWindows.h>
@@ -65,6 +67,7 @@ QDGlobals qd;
 Session *sesslist;
 
 static int cold = 1;
+static int borednow = FALSE;
 struct mac_gestalts mac_gestalts;
 
 static void mac_startup(void);
@@ -86,8 +89,8 @@ static void mac_adjustcursor(RgnHandle);
 static void mac_adjustmenus(void);
 static void mac_closewindow(WindowPtr);
 static void mac_zoomwindow(WindowPtr, short);
-static void mac_shutdown(void);
 #pragma noreturn (cleanup_exit)
+static pascal OSErr mac_aevt_quit(const AppleEvent *, AppleEvent *, long);
 
 struct mac_windows {
     WindowPtr about;
@@ -169,10 +172,12 @@ static void mac_startup(void) {
 	mac_gestalts.uncvattr = (*ti)->tecUnicodeConverterFeatures;
 	DisposeHandle((Handle)ti);
     }
-    /* OpenTransport? */
+
+#if 0    /* OpenTransport? */
     if (Gestalt(gestaltOpenTpt, &mac_gestalts.otptattr) != noErr ||
 	(mac_gestalts.otptattr & gestaltOpenTptTCPPresentMask) == 0 ||
 	ot_init() != noErr)
+#endif
 	mac_gestalts.otptattr = 0;
     if (mac_gestalts.otptattr == 0) {
 	/* MacTCP? */
@@ -224,6 +229,10 @@ static void mac_startup(void) {
 	    LMSetCurDirStore(dirid);
 	}
     }
+
+    /* Install Apple Event handlers. */
+    AEInstallEventHandler(kCoreEventClass, kAEQuitApplication,
+			  NewAEEventHandlerUPP(&mac_aevt_quit), 0, FALSE);
 }
 
 static void mac_eventloop(void) {
@@ -238,6 +247,8 @@ static void mac_eventloop(void) {
 	mac_adjustcursor(cursrgn);
 	if (gotevent)
 	    mac_event(&event);
+	if (borednow)
+	    cleanup_exit(0);
 	if (mac_gestalts.mtcpvers != 0)
 	    mactcp_poll();
 	if (mac_gestalts.otptattr != 0)
@@ -304,6 +315,9 @@ static void mac_event(EventRecord *event) {
 	    DIBadMount(pt, event->message);
         }
         break;
+      case kHighLevelEvent:
+	AEProcessAppleEvent(event); /* errors? */
+	break;
     }
 }
 
@@ -635,6 +649,14 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
 	    break;
 	}
     }
+}
+
+static pascal OSErr mac_aevt_quit(const AppleEvent *req, AppleEvent *reply,
+				  long refcon)
+{
+
+    borednow = 1;
+    return noErr;
 }
 
 void cleanup_exit(int status)
