@@ -65,6 +65,11 @@ struct termline {
     struct termchar *chars;
 };
 
+struct bidi_cache_entry {
+    int width;
+    struct termchar *chars;
+};
+
 struct terminal_tag {
 
     int compatibility_level;
@@ -247,7 +252,7 @@ struct terminal_tag {
     int ltemp_size;
     bidi_char *wcFrom, *wcTo;
     int wcFromTo_size;
-    termchar **pre_bidi_cache, **post_bidi_cache;
+    struct bidi_cache_entry *pre_bidi_cache, *post_bidi_cache;
     int bidi_cache_size;
 };
 

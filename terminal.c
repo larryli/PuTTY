@@ -1294,8 +1294,8 @@ void term_free(Terminal *term)
     sfree(term->wcTo);
 
     for (i = 0; i < term->bidi_cache_size; i++) {
-	sfree(term->pre_bidi_cache[i]);
-	sfree(term->post_bidi_cache[i]);
+	sfree(term->pre_bidi_cache[i].chars);
+	sfree(term->post_bidi_cache[i].chars);
     }
     sfree(term->pre_bidi_cache);
     sfree(term->post_bidi_cache);
@@ -4161,11 +4161,14 @@ static int term_bidi_cache_hit(Terminal *term, int line,
     if (line >= term->bidi_cache_size)
 	return FALSE;		       /* cache doesn't have this many lines */
 
-    if (!term->pre_bidi_cache[line])
+    if (!term->pre_bidi_cache[line].chars)
 	return FALSE;		       /* cache doesn't contain _this_ line */
 
+    if (term->pre_bidi_cache[line].width != width)
+	return FALSE;		       /* line is wrong width */
+
     for (i = 0; i < width; i++)
-	if (!termchars_equal(term->pre_bidi_cache[line] + i, lbefore + i))
+	if (!termchars_equal(term->pre_bidi_cache[line].chars+i, lbefore+i))
 	    return FALSE;	       /* line doesn't match cache */
 
     return TRUE;		       /* it didn't match. */
@@ -4179,24 +4182,29 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 	term->bidi_cache_size = line+1;
 	term->pre_bidi_cache = sresize(term->pre_bidi_cache,
 				       term->bidi_cache_size,
-				       termchar *);
+				       struct bidi_cache_entry);
 	term->post_bidi_cache = sresize(term->post_bidi_cache,
 					term->bidi_cache_size,
-					termchar *);
+					struct bidi_cache_entry);
 	while (j < term->bidi_cache_size) {
-	    term->pre_bidi_cache[j] = term->post_bidi_cache[j] = NULL;
+	    term->pre_bidi_cache[j].chars =
+		term->post_bidi_cache[j].chars = NULL;
+	    term->pre_bidi_cache[j].width =
+		term->post_bidi_cache[j].width = -1;
 	    j++;
 	}
     }
 
-    sfree(term->pre_bidi_cache[line]);
-    sfree(term->post_bidi_cache[line]);
+    sfree(term->pre_bidi_cache[line].chars);
+    sfree(term->post_bidi_cache[line].chars);
 
-    term->pre_bidi_cache[line] = snewn(width, termchar);
-    term->post_bidi_cache[line] = snewn(width, termchar);
+    term->pre_bidi_cache[line].width = width;
+    term->pre_bidi_cache[line].chars = snewn(width, termchar);
+    term->post_bidi_cache[line].width = width;
+    term->post_bidi_cache[line].chars = snewn(width, termchar);
 
-    memcpy(term->pre_bidi_cache[line], lbefore, width * TSIZE);
-    memcpy(term->post_bidi_cache[line], lafter, width * TSIZE);
+    memcpy(term->pre_bidi_cache[line].chars, lbefore, width * TSIZE);
+    memcpy(term->post_bidi_cache[line].chars, lafter, width * TSIZE);
 }
 
 /*
@@ -4399,7 +4407,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 		lchars = term->ltemp;
 	    } else {
-		lchars = term->post_bidi_cache[i];
+		lchars = term->post_bidi_cache[i].chars;
 	    }
 	} else
 	    lchars = ldata->chars;
