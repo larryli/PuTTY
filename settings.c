@@ -34,18 +34,18 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "Present", 1);
     if (do_host) {
 	write_setting_s(sesskey, "HostName", cfg->host);
-	write_setting_i(sesskey, "PortNumber", cfg->port);
 	write_setting_s(sesskey, "LogFileName", cfg->logfilename);
 	write_setting_i(sesskey, "LogType", cfg->logtype);
 	write_setting_i(sesskey, "LogFileClash", cfg->logxfovr);
-	p = "raw";
-	for (i = 0; backends[i].name != NULL; i++)
-	    if (backends[i].protocol == cfg->protocol) {
-		p = backends[i].name;
-		break;
-	    }
-	write_setting_s(sesskey, "Protocol", p);
     }
+    p = "raw";
+    for (i = 0; backends[i].name != NULL; i++)
+	if (backends[i].protocol == cfg->protocol) {
+	    p = backends[i].name;
+	    break;
+	}
+    write_setting_s(sesskey, "Protocol", p);
+    write_setting_i(sesskey, "PortNumber", cfg->port);
     write_setting_i(sesskey, "CloseOnExit", cfg->close_on_exit);
     write_setting_i(sesskey, "WarnOnClose", !!cfg->warn_on_close);
     write_setting_i(sesskey, "PingInterval", cfg->ping_interval / 60);	/* minutes */
