@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.2 2003/02/15 16:22:15 ben Exp $ */
+/* $Id: macevlog.c,v 1.3 2003/02/19 01:03:47 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -50,9 +50,6 @@ static void mac_updateeventlog(WindowPtr);
 static void mac_createeventlog(Session *s)
 {
     Rect view;
-#if TARGET_API_MAC_CARBON
-    Rect controlrect;
-#endif
     ListBounds bounds = { 0, 0, 0, 1 }; /* 1 column, 0 rows */
     Point csize = { 0, 0 };
     GrafPtr saveport;
