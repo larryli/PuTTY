@@ -362,6 +362,8 @@ union control *ctrl_droplist(struct controlset *s, char *label, char shortcut,
     c->listbox.draglist = 0;
     c->listbox.multisel = 0;
     c->listbox.percentwidth = percentage;
+    c->listbox.ncols = 0;
+    c->listbox.percentages = NULL;
     return c;
 }
 
@@ -376,6 +378,8 @@ union control *ctrl_draglist(struct controlset *s,char *label,char shortcut,
     c->listbox.draglist = 1;
     c->listbox.multisel = 0;
     c->listbox.percentwidth = 100;
+    c->listbox.ncols = 0;
+    c->listbox.percentages = NULL;
     return c;
 }
 
