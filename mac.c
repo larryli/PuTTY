@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.5 1999/02/20 23:55:55 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.6 1999/02/21 18:09:41 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -12,18 +12,23 @@
 #include <Dialogs.h>
 #include <Devices.h>
 #include <DiskInit.h>
+#include <Gestalt.h>
 #include <ToolUtils.h>
 
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>		/* putty.h needs size_t */
 
+#define PUTTY_DO_GLOBALS
+
 #include "macresid.h"
 #include "putty.h"
+#include "mac.h"
 
 QDGlobals qd;
 
-int cold = 1;
+static int cold = 1;
+long mac_qdversion;
 
 static void mac_startup(void);
 static void mac_eventloop(void);
@@ -63,6 +68,10 @@ static void mac_startup(void) {
     /* Init Dialog Manager */
     InitDialogs(nil);
     cold = 0;
+    
+    /* Find out if we've got Color Quickdraw */
+    if (Gestalt(gestaltQuickdrawVersion, &mac_qdversion) != noErr)
+    	mac_qdversion = gestaltOriginalQD;
     
     menuBar = GetNewMBar(128);
     if (menuBar == NULL)
@@ -172,7 +181,13 @@ static void mac_updatewindow(WindowPtr window) {
 
     switch (mac_windowtype(window)) {
       case wTerminal:
-	/* XXX: DO something */
+	BeginUpdate(window);
+	term_paint((struct mac_session *)GetWRefCon(window),
+		   (*window->visRgn)->rgnBBox.left,
+		   (*window->visRgn)->rgnBBox.top,
+		   (*window->visRgn)->rgnBBox.right,
+		   (*window->visRgn)->rgnBBox.bottom);
+	EndUpdate(window);
 	break;
       case wAbout:
 	BeginUpdate(window);

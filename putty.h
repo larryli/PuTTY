@@ -6,6 +6,7 @@
 #ifdef macintosh
 #include <MacTypes.h>
 typedef UInt32 DWORD;
+struct mac_session;
 #endif /* macintosh */
 
 #ifndef TRUE
@@ -41,7 +42,8 @@ typedef UInt32 DWORD;
 #define CHAR_MASK    0x000000FFUL
 
 #ifdef macintosh
-typedef void *Context; /* Temporarily until I work out what it should really be */
+struct mac_session;
+typedef struct mac_session *Context;
 #else /* not macintosh */
 typedef HDC Context;
 #endif /* not macintosh */
@@ -58,24 +60,6 @@ typedef HDC Context;
 #else
 #define GLOBAL extern
 #endif
-
-struct session {
-    /* Display state */
-    int rows, cols, savelines;
-    int font_width, font_height;
-    int has_focus;
-    /* Buffers */
-    unsigned char inbuf[INBUF_SIZE];
-    int inbuf_head, inbuf_reap;
-    unsigned char outbuf[OUTBUF_SIZE];
-    int outbuf_head, outbuf_reap;
-    /* Emulator state */
-    int app_cursor_keys, app_keypad_keys;
-    /* Backend */
-    Backend *back;
-    /* Config that created this session */
-    Config cfg;
-}
 
 GLOBAL int rows, cols, savelines;
 
@@ -170,6 +154,25 @@ typedef struct {
 } Config;
 
 GLOBAL Config cfg;
+
+typedef struct {
+    /* Display state */
+    int rows, cols, savelines;
+    int font_width, font_height;
+    int has_focus;
+    /* Buffers */
+    unsigned char inbuf[INBUF_SIZE];
+    int inbuf_head, inbuf_reap;
+    unsigned char outbuf[OUTBUF_SIZE];
+    int outbuf_head, outbuf_reap;
+    /* Emulator state */
+    int app_cursor_keys, app_keypad_keys;
+    /* Backend */
+    Backend *back;
+    /* Config that created this session */
+    Config cfg;
+} Session;
+
 
 /*
  * Exports from window.c.

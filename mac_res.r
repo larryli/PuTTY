@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.1.2.1 1999/02/21 10:29:13 ben Exp $ */
+/* $Id: mac_res.r,v 1.1.2.2 1999/02/21 18:09:41 ben Exp $ */
 /* PuTTY resources */
 
 #define PICT_RezTemplateVersion 1
@@ -45,8 +45,8 @@ resource 'SIZE' (-1) {
     reserved,
     reserved,
     reserved,
-    65536,		/* Minimum size */
-    65536,		/* Preferred size */
+    1024 * 1024,	/* Minimum size */
+    1024 * 1024,	/* Preferred size */
 };
 
 resource 'FREF' (128, purgeable) {
@@ -267,11 +267,11 @@ resource 'MENU' (mApple, preload) {
 resource 'MENU' (mFile, preload) {
     mFile,
     textMenuProc,
-    0b11111111111111111111111111111101,
+    0b11111111111111111111111111111011,
     enabled,
     "File",
     {
-	"New Session"		noicon, "N",   nomark, plain,
+	"New Session",		noicon, "N",   nomark, plain,
 	"Close",		noicon, "W",   nomark, plain,
 	"-",			noicon, nokey, nomark, plain,
 	"Quit",			noicon, "Q",   nomark, plain,
@@ -313,12 +313,12 @@ resource 'DITL' (wFatal, "fatalbox", purgeable) {
 /* Terminal window */
 
 resource 'WIND' (wTerminal, "terminal", purgeable) {
-    { 0, 0, 0, 0 },
+    { 0, 0, 200, 200 },
     zoomDocProc,
     invisible,
     goAway,
     0x0,
-    "untitled"
+    "untitled",
     staggerParentWindowScreen
 };
 
@@ -344,7 +344,7 @@ resource 'DITL' (wAbout, "about", purgeable) {
 	{ 13, 13, 29, 173 },
 	StaticText { disabled, "PuTTY"},
 	{ 42, 13, 74, 173 },
-	StaticText { disabled, "Mac Development\n© 1997-9 Simon Tatham"},
+	StaticText { disabled,"Experimantal Mac Port\n© 1997-9 Simon Tatham"},
     }
 };
 
