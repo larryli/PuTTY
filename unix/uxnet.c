@@ -64,9 +64,10 @@ struct SockAddr_tag {
      * in this SockAddr structure.
      */
     int family;
-    unsigned long address;	       /* Address IPv4 style. */
 #ifdef IPV6
     struct addrinfo *ai;	       /* Address IPv6 style. */
+#else
+    unsigned long address;	       /* Address IPv4 style. */
 #endif
     char hostname[512];		       /* Store an unresolved host name. */
 };
@@ -122,8 +123,13 @@ char *error_string(int error)
 SockAddr sk_namelookup(const char *host, char **canonicalname)
 {
     SockAddr ret = snew(struct SockAddr_tag);
+#ifdef IPV6
+    struct addrinfo hints;
+    int err;
+#else
     unsigned long a;
     struct hostent *h = NULL;
+#endif
     char realhost[8192];
 
     /* Clear the structure and default to IPv4. */
@@ -132,61 +138,49 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
     *realhost = '\0';
     ret->error = NULL;
 
-    if ((a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
 #ifdef IPV6
-	if (getaddrinfo(host, NULL, NULL, &ret->ai) == 0) {
-	    ret->family = ret->ai->ai_family;
-	} else
-#endif
-	{
-	    /*
-	     * Otherwise use the IPv4-only gethostbyname... (NOTE:
-	     * we don't use gethostbyname as a fallback!)
-	     */
-	    if (ret->family == 0) {
+    hints.ai_flags = AI_CANONNAME;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = 0;
+    hints.ai_protocol = 0;
+    hints.ai_addrlen = 0;
+    hints.ai_addr = NULL;
+    hints.ai_canonname = NULL;
+    hints.ai_next = NULL;
+    err = getaddrinfo(host, NULL, NULL, &ret->ai);
+    if (err != 0) {
+	ret->error = gai_strerror(err);
+	return ret;
+    }
+    ret->family = ret->ai->ai_family;
+    *realhost = '\0';
+    if (ret->ai->ai_canonname != NULL)
+	strncat(realhost, ret->ai->ai_canonname, sizeof(realhost) - 1);
+    else
+	strncat(realhost, host, sizeof(realhost) - 1);
+#else
+    if ((a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
+	/*
+	 * Otherwise use the IPv4-only gethostbyname... (NOTE:
+	 * we don't use gethostbyname as a fallback!)
+	 */
+	if (ret->family == 0) {
 		/*debug(("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host)); */
 		if ( (h = gethostbyname(host)) )
-		    ret->family = AF_INET;
-	    }
-	    if (ret->family == 0) {
+			ret->family = AF_INET;
+	}
+	if (ret->family == 0) {
 		ret->error = (h_errno == HOST_NOT_FOUND ||
-			      h_errno == NO_DATA ||
-			      h_errno == NO_ADDRESS ? "Host does not exist" :
-			      h_errno == TRY_AGAIN ?
-			      "Temporary name service failure" :
-			      "gethostbyname: unknown error");
+		    h_errno == NO_DATA ||
+		    h_errno == NO_ADDRESS ? "Host does not exist" :
+		    h_errno == TRY_AGAIN ?
+		    "Temporary name service failure" :
+		    "gethostbyname: unknown error");
 		return ret;
-	    }
 	}
-
-#ifdef IPV6
-	/* If we got an address info use that... */
-	if (ret->ai) {
-
-	    /* Are we in IPv4 fallback mode? */
-	    /* We put the IPv4 address into the a variable so we can further-on use the IPv4 code... */
-	    if (ret->family == AF_INET)
-		memcpy(&a,
-		       (char *) &((struct sockaddr_in *) ret->ai->
-				  ai_addr)->sin_addr, sizeof(a));
-
-	    /* Now let's find that canonicalname... */
-	    if (getnameinfo((struct sockaddr *) ret->ai->ai_addr,
-			    ret->family ==
-			    AF_INET ? sizeof(struct sockaddr_in) :
-			    sizeof(struct sockaddr_in6), realhost,
-			    sizeof(realhost), NULL, 0, 0) != 0) {
-		strncpy(realhost, host, sizeof(realhost));
-	    }
-	}
-	/* We used the IPv4-only gethostbyname()... */
-	else
-#endif
-	{
-	    memcpy(&a, h->h_addr, sizeof(a));
-	    /* This way we are always sure the h->h_name is valid :) */
-	    strncpy(realhost, h->h_name, sizeof(realhost));
-	}
+	memcpy(&a, h->h_addr, sizeof(a));
+	/* This way we are always sure the h->h_name is valid :) */
+	strncpy(realhost, h->h_name, sizeof(realhost));
     } else {
 	/*
 	 * This must be a numeric IPv4 address because it caused a
@@ -196,6 +190,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
 	strncpy(realhost, host, sizeof(realhost));
     }
     ret->address = ntohl(a);
+#endif
     realhost[lenof(realhost)-1] = '\0';
     *canonicalname = snewn(1+strlen(realhost), char);
     strcpy(*canonicalname, realhost);
@@ -214,20 +209,24 @@ SockAddr sk_nonamelookup(const char *host)
 
 void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
+
+    if (addr->family == AF_UNSPEC) {
+	strncpy(buf, addr->hostname, buflen);
+	buf[buflen-1] = '\0';
+    } else {
 #ifdef IPV6
-    if (addr->family == AF_INET6) {
-	FIXME; /* I don't know how to get a text form of an IPv6 address. */
-    } else
-#endif
-    if (addr->family == AF_INET) {
+	if (getnameinfo(addr->ai->ai_addr, addr->ai->ai_addrlen, buf, buflen,
+			NULL, 0, NI_NUMERICHOST) != 0) {
+	    buf[0] = '\0';
+	    strncat(buf, "<unknown>", buflen - 1);
+	}
+#else
 	struct in_addr a;
+	assert(addr->family == AF_INET);
 	a.s_addr = htonl(addr->address);
 	strncpy(buf, inet_ntoa(a), buflen);
 	buf[buflen-1] = '\0';
-    } else {
-	assert(addr->family == AF_UNSPEC);
-	strncpy(buf, addr->hostname, buflen);
-	buf[buflen-1] = '\0';
+#endif
     }
 }
 
@@ -238,18 +237,25 @@ int sk_hostname_is_local(char *name)
 
 int sk_address_is_local(SockAddr addr)
 {
+
+    if (addr->family == AF_UNSPEC)
+	return 0;                      /* we don't know; assume not */
+    else {
 #ifdef IPV6
-    if (addr->family == AF_INET6) {
-	FIXME;  /* someone who can compile for IPV6 had better do this bit */
-    } else
-#endif
-    if (addr->family == AF_INET) {
+	if (addr->family == AF_INET)
+	    return ipv4_is_loopback(
+		((struct sockaddr_in *)addr->ai->ai_addr)->sin_addr);
+	else if (addr->family == AF_INET6)
+	    return IN6_IS_ADDR_LOOPBACK(
+		&((struct sockaddr_in6 *)addr->ai->ai_addr)->sin6_addr);
+	else
+	    return 0;
+#else
 	struct in_addr a;
+	assert(addr->family == AF_INET);
 	a.s_addr = htonl(addr->address);
 	return ipv4_is_loopback(a);
-    } else {
-	assert(addr->family == AF_UNSPEC);
-	return 0;                      /* we don't know; assume not */
+#endif
     }
 }
 
@@ -264,21 +270,32 @@ int sk_addrtype(SockAddr addr)
 
 void sk_addrcopy(SockAddr addr, char *buf)
 {
-    assert(addr->family != AF_UNSPEC);
+
 #ifdef IPV6
-    if (addr->family == AF_INET6) {
-	memcpy(buf, (char*) addr->ai, 16);
-    } else
+    if (addr->family == AF_INET)
+	memcpy(buf, &((struct sockaddr_in *)addr->ai->ai_addr)->sin_addr,
+	       sizeof(struct in_addr));
+    else if (addr->family == AF_INET6)
+	memcpy(buf, &((struct sockaddr_in6 *)addr->ai->ai_addr)->sin6_addr,
+	       sizeof(struct in6_addr));
+    else
+	assert(FALSE);
+#else
+    struct in_addr a;
+
+    assert(addr->family == AF_INET);
+    a.s_addr = htonl(addr->address);
+    memcpy(buf, (char*) &a.s_addr, 4);
 #endif
-    if (addr->family == AF_INET) {
-	struct in_addr a;
-	a.s_addr = htonl(addr->address);
-	memcpy(buf, (char*) &a.s_addr, 4);
-    }
 }
 
 void sk_addr_free(SockAddr addr)
 {
+
+#ifdef IPV6
+    if (addr->ai != NULL)
+	freeaddrinfo(addr->ai);
+#endif
     sfree(addr);
 }
 
@@ -422,26 +439,20 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
 #ifdef IPV6
 	if (addr->family == AF_INET6) {
-	    memset(&a6, 0, sizeof(a6));
+	    /* XXX use getaddrinfo to get a local address? */
 	    a6.sin6_family = AF_INET6;
-/*a6.sin6_addr      = in6addr_any; *//* == 0 */
+	    a6.sin6_addr = in6addr_any;
 	    a6.sin6_port = htons(localport);
+	    retcode = bind(s, (struct sockaddr *) &a6, sizeof(a6));
 	} else
 #endif
 	{
+	    assert(addr->family == AF_INET);
 	    a.sin_family = AF_INET;
 	    a.sin_addr.s_addr = htonl(INADDR_ANY);
 	    a.sin_port = htons(localport);
+	    retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
 	}
-#ifdef IPV6
-	retcode = bind(s, (addr->family == AF_INET6 ?
-			   (struct sockaddr *) &a6 :
-			   (struct sockaddr *) &a),
-		       (addr->family ==
-			AF_INET6 ? sizeof(a6) : sizeof(a)));
-#else
-	retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
-#endif
 	if (retcode >= 0) {
 	    err = 0;
 	    break;		       /* done */
@@ -467,20 +478,20 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
      * Connect to remote address.
      */
 #ifdef IPV6
-    if (addr->family == AF_INET6) {
-	memset(&a, 0, sizeof(a));
-	a6.sin6_family = AF_INET6;
-	a6.sin6_port = htons((short) port);
-	a6.sin6_addr =
-	    ((struct sockaddr_in6 *) addr->ai->ai_addr)->sin6_addr;
-    } else
-#endif
-    {
-	a.sin_family = AF_INET;
-	a.sin_addr.s_addr = htonl(addr->address);
-	a.sin_port = htons((short) port);
+    /* XXX would be better to have got getaddrinfo() to fill in the port. */
+    if (addr->family == AF_INET)
+	((struct sockaddr_in *)addr->ai->ai_addr)->sin_port =
+	    htons(port);
+    else {
+	assert(addr->family == AF_INET6);
+	((struct sockaddr_in *)addr->ai->ai_addr)->sin_port =
+	    htons(port);
     }
-
+#else
+    a.sin_family = AF_INET;
+    a.sin_addr.s_addr = htonl(addr->address);
+    a.sin_port = htons((short) port);
+#endif
     {
 	int i = 1;
 	ioctl(s, FIONBIO, &i);
@@ -488,9 +499,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
     if ((
 #ifdef IPV6
-	    connect(s, ((addr->family == AF_INET6) ?
-			(struct sockaddr *) &a6 : (struct sockaddr *) &a),
-		    (addr->family == AF_INET6) ? sizeof(a6) : sizeof(a))
+	    connect(s, addr->ai->ai_addr, addr->ai->ai_addrlen)
 #else
 	    connect(s, (struct sockaddr *) &a, sizeof(a))
 #endif
@@ -518,7 +527,11 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 {
     int s;
 #ifdef IPV6
+#if 0
     struct sockaddr_in6 a6;
+#endif
+    struct addrinfo hints, *ai;
+    char portstr[6];
 #endif
     struct sockaddr_in a;
     int err;
@@ -559,17 +572,31 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
 #ifdef IPV6
-    if (addr->family == AF_INET6) {
-	memset(&a6, 0, sizeof(a6));
-	a6.sin6_family = AF_INET6;
-	/* FIXME: srcaddr is ignored for IPv6, because I (SGT) don't
-	 * know how to do it. :-) */
+    hints.ai_flags = AI_NUMERICHOST;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = 0;
+    hints.ai_protocol = 0;
+    hints.ai_addrlen = 0;
+    hints.ai_addr = NULL;
+    hints.ai_canonname = NULL;
+    hints.ai_next = NULL;
+    sprintf(portstr, "%d", port);
+    if (srcaddr != NULL && getaddrinfo(srcaddr, portstr, &hints, &ai) == 0)
+	retcode = bind(s, ai->ai_addr, ai->ai_addrlen);
+    else
+#if 0
+    {
+	/*
+	 * FIXME: Need two listening sockets, in principle, one for v4
+	 * and one for v6
+	 */
 	if (local_host_only)
 	    a6.sin6_addr = in6addr_loopback;
 	else
 	    a6.sin6_addr = in6addr_any;
 	a6.sin6_port = htons(port);
     } else
+#endif
 #endif
     {
 	int got_addr = 0;
@@ -599,16 +626,9 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 	}
 
 	a.sin_port = htons((short)port);
+	retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
     }
-#ifdef IPV6
-    retcode = bind(s, (addr->family == AF_INET6 ?
-		       (struct sockaddr *) &a6 :
-		       (struct sockaddr *) &a),
-		   (addr->family ==
-		    AF_INET6 ? sizeof(a6) : sizeof(a)));
-#else
-    retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
-#endif
+
     if (retcode >= 0) {
 	err = 0;
     } else {
