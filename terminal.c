@@ -1263,17 +1263,18 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    term->disptop = 0;
 	    break;
 	  case 1048:                   /* save/restore cursor */
-	    save_cursor(term, state);
+	    if (!term->cfg.no_alt_screen)
+                save_cursor(term, state);
 	    if (!state) term->seen_disp_event = TRUE;
 	    break;
 	  case 1049:                   /* cursor & alternate screen */
-	    if (state)
+	    if (state && !term->cfg.no_alt_screen)
 		save_cursor(term, state);
 	    if (!state) term->seen_disp_event = TRUE;
 	    compatibility(OTHER);
 	    deselect(term);
 	    swap_screen(term, term->cfg.no_alt_screen ? 0 : state, TRUE, FALSE);
-	    if (!state)
+	    if (!state && !term->cfg.no_alt_screen)
 		save_cursor(term, state);
 	    term->disptop = 0;
 	    break;
