@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.26 2004/07/30 09:38:37 jacob Exp $
+\versionid $Id: using.but,v 1.27 2004/08/12 20:55:58 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -272,6 +272,8 @@ Note that if your PC X server requires authentication to connect,
 then PuTTY cannot currently support it. If this is a problem for
 you, you should mail the PuTTY authors \#{FIXME} and give details
 (see \k{feedback}).
+
+For more options relating to X11 forwarding, see \k{config-ssh-x11}.
 
 \H{using-port-forwarding} Using \i{port forwarding} in SSH
 
