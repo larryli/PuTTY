@@ -2,17 +2,19 @@
  * psftp.c: front end for PSFTP.
  */
 
+#include <windows.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
 
+#define PUTTY_DO_GLOBALS
+#include "putty.h"
+#include "storage.h"
+#include "ssh.h"
 #include "sftp.h"
 #include "int64.h"
-
-#define smalloc malloc
-#define srealloc realloc
-#define sfree free
 
 /* ----------------------------------------------------------------------
  * String handling routines.
@@ -75,12 +77,20 @@ char *pwd, *homedir;
  */
 char *canonify(char *name) {
     char *fullname, *canonname;
+
     if (name[0] == '/') {
 	fullname = dupstr(name);
     } else {
-	fullname = dupcat(pwd, "/", name, NULL);
+	char *slash;
+	if (pwd[strlen(pwd)-1] == '/')
+	    slash = "";
+	else
+	    slash = "/";
+	fullname = dupcat(pwd, slash, name, NULL);
     }
-    canonname = fxp_realpath(name);
+
+    canonname = fxp_realpath(fullname);
+
     if (canonname) {
 	sfree(fullname);
 	return canonname;
@@ -383,6 +393,7 @@ static struct sftp_cmd_lookup {
      */
     {"bye", sftp_cmd_quit},
     {"cd", sftp_cmd_cd},
+    {"dir", sftp_cmd_ls},
     {"exit", sftp_cmd_quit},
     {"get", sftp_cmd_get},
     {"ls", sftp_cmd_ls},
@@ -539,15 +550,448 @@ void do_sftp(void) {
 	if (cmd->obey(cmd) < 0)
 	    break;
     }
-
-    /* ------------------------------------------------------------------
-     * We've received an exit command. Tidy up and leave.
-     */
-    io_finish();
 }
 
-int main(void) {
-    io_init();
+/* ----------------------------------------------------------------------
+ * Dirty bits: integration with PuTTY.
+ */
+
+static int verbose = 0;
+
+void verify_ssh_host_key(char *host, int port, char *keytype,
+                         char *keystr, char *fingerprint) {
+    int ret;
+
+    static const char absentmsg[] =
+        "The server's host key is not cached in the registry. You\n"
+        "have no guarantee that the server is the computer you\n"
+        "think it is.\n"
+        "The server's key fingerprint is:\n"
+        "%s\n"
+        "If you trust this host, enter \"y\" to add the key to\n"
+        "PuTTY's cache and carry on connecting.\n"
+        "If you do not trust this host, enter \"n\" to abandon the\n"
+        "connection.\n"
+        "Continue connecting? (y/n) ";
+
+    static const char wrongmsg[] =
+        "WARNING - POTENTIAL SECURITY BREACH!\n"
+        "The server's host key does not match the one PuTTY has\n"
+        "cached in the registry. This means that either the\n"
+        "server administrator has changed the host key, or you\n"
+        "have actually connected to another computer pretending\n"
+        "to be the server.\n"
+        "The new key fingerprint is:\n"
+        "%s\n"
+        "If you were expecting this change and trust the new key,\n"
+        "enter Yes to update PuTTY's cache and continue connecting.\n"
+        "If you want to carry on connecting but without updating\n"
+        "the cache, enter No.\n"
+        "If you want to abandon the connection completely, press\n"
+        "Return to cancel. Pressing Return is the ONLY guaranteed\n"
+        "safe choice.\n"
+        "Update cached key? (y/n, Return cancels connection) ";
+
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+
+    /*
+     * Verify the key against the registry.
+     */
+    ret = verify_host_key(host, port, keytype, keystr);
+
+    if (ret == 0)                      /* success - key matched OK */
+        return;
+    if (ret == 2) {                    /* key was different */
+        fprintf(stderr, wrongmsg, fingerprint);
+        if (fgets(line, sizeof(line), stdin) &&
+            line[0] != '\0' && line[0] != '\n') {
+            if (line[0] == 'y' || line[0] == 'Y')
+                store_host_key(host, port, keytype, keystr);
+        } else {
+            fprintf(stderr, abandoned);
+            exit(0);
+        }
+    }
+    if (ret == 1) {                    /* key was absent */
+        fprintf(stderr, absentmsg, fingerprint);
+        if (fgets(line, sizeof(line), stdin) &&
+            (line[0] == 'y' || line[0] == 'Y'))
+            store_host_key(host, port, keytype, keystr);
+        else {
+            fprintf(stderr, abandoned);
+            exit(0);
+        }
+    }
+}
+
+/*
+ *  Print an error message and perform a fatal exit.
+ */
+void fatalbox(char *fmt, ...)
+{
+    char str[0x100]; /* Make the size big enough */
+    va_list ap;
+    va_start(ap, fmt);
+    strcpy(str, "Fatal:");
+    vsprintf(str+strlen(str), fmt, ap);
+    va_end(ap);
+    strcat(str, "\n");
+    fprintf(stderr, str);
+
+    exit(1);
+}
+void connection_fatal(char *fmt, ...)
+{
+    char str[0x100]; /* Make the size big enough */
+    va_list ap;
+    va_start(ap, fmt);
+    strcpy(str, "Fatal:");
+    vsprintf(str+strlen(str), fmt, ap);
+    va_end(ap);
+    strcat(str, "\n");
+    fprintf(stderr, str);
+
+    exit(1);
+}
+
+void logevent(char *string) { }
+
+void ldisc_send(char *buf, int len) {
+    /*
+     * This is only here because of the calls to ldisc_send(NULL,
+     * 0) in ssh.c. Nothing in PSFTP actually needs to use the
+     * ldisc as an ldisc. So if we get called with any real data, I
+     * want to know about it.
+     */
+    assert(len == 0);
+}
+
+/*
+ * Be told what socket we're supposed to be using.
+ */
+static SOCKET sftp_ssh_socket;
+char *do_select(SOCKET skt, int startup) {
+    if (startup)
+	sftp_ssh_socket = skt;
+    else
+	sftp_ssh_socket = INVALID_SOCKET;
+    return NULL;
+}
+extern int select_result(WPARAM, LPARAM);
+
+/*
+ * Receive a block of data from the SSH link. Block until all data
+ * is available.
+ *
+ * To do this, we repeatedly call the SSH protocol module, with our
+ * own trap in from_backend() to catch the data that comes back. We
+ * do this until we have enough data.
+ */
+
+static unsigned char *outptr;          /* where to put the data */
+static unsigned outlen;                /* how much data required */
+static unsigned char *pending = NULL;  /* any spare data */
+static unsigned pendlen=0, pendsize=0; /* length and phys. size of buffer */
+void from_backend(int is_stderr, char *data, int datalen) {
+    unsigned char *p = (unsigned char *)data;
+    unsigned len = (unsigned)datalen;
+
+    /*
+     * stderr data is just spouted to local stderr and otherwise
+     * ignored.
+     */
+    if (is_stderr) {
+	fwrite(data, 1, len, stderr);
+	return;
+    }
+
+    /*
+     * If this is before the real session begins, just return.
+     */
+    if (!outptr)
+        return;
+
+    if (outlen > 0) {
+        unsigned used = outlen;
+        if (used > len) used = len;
+        memcpy(outptr, p, used);
+        outptr += used; outlen -= used;
+        p += used; len -= used;
+    }
+
+    if (len > 0) {
+        if (pendsize < pendlen + len) {
+            pendsize = pendlen + len + 4096;
+            pending = (pending ? srealloc(pending, pendsize) :
+                       smalloc(pendsize));
+            if (!pending)
+                fatalbox("Out of memory");
+        }
+        memcpy(pending+pendlen, p, len);
+        pendlen += len;
+    }
+}
+int sftp_recvdata(char *buf, int len) {
+    outptr = (unsigned char *)buf;
+    outlen = len;
+
+    /*
+     * See if the pending-input block contains some of what we
+     * need.
+     */
+    if (pendlen > 0) {
+        unsigned pendused = pendlen;
+        if (pendused > outlen)
+            pendused = outlen;
+	memcpy(outptr, pending, pendused);
+        memmove(pending, pending+pendused, pendlen-pendused);
+	outptr += pendused;
+	outlen -= pendused;
+        pendlen -= pendused;
+        if (pendlen == 0) {
+            pendsize = 0;
+            sfree(pending);
+            pending = NULL;
+        }
+        if (outlen == 0)
+            return 1;
+    }
+
+    while (outlen > 0) {
+        fd_set readfds;
+
+        FD_ZERO(&readfds);
+        FD_SET(sftp_ssh_socket, &readfds);
+        if (select(1, &readfds, NULL, NULL, NULL) < 0)
+            return 0;                  /* doom */
+        select_result((WPARAM)sftp_ssh_socket, (LPARAM)FD_READ);
+    }
+
+    return 1;
+}
+int sftp_senddata(char *buf, int len) {
+    back->send((unsigned char *)buf, len);
+    return 1;
+}
+
+/*
+ * Loop through the ssh connection and authentication process.
+ */
+static void ssh_sftp_init(void) {
+    if (sftp_ssh_socket == INVALID_SOCKET)
+	return;
+    while (!back->sendok()) {
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(sftp_ssh_socket, &readfds);
+        if (select(1, &readfds, NULL, NULL, NULL) < 0)
+            return;                    /* doom */
+        select_result((WPARAM)sftp_ssh_socket, (LPARAM)FD_READ);
+    }
+}
+
+static char *password = NULL;
+static int get_password(const char *prompt, char *str, int maxlen)
+{
+    HANDLE hin, hout;
+    DWORD savemode, i;
+
+    if (password) {
+        static int tried_once = 0;
+
+        if (tried_once) {
+            return 0;
+        } else {
+            strncpy(str, password, maxlen);
+            str[maxlen-1] = '\0';
+            tried_once = 1;
+            return 1;
+        }
+    }
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    hout = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hin == INVALID_HANDLE_VALUE || hout == INVALID_HANDLE_VALUE) {
+	fprintf(stderr, "Cannot get standard input/output handles\n");
+	exit(1);
+    }
+
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode & (~ENABLE_ECHO_INPUT)) |
+		   ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT);
+
+    WriteFile(hout, prompt, strlen(prompt), &i, NULL);
+    ReadFile(hin, str, maxlen-1, &i, NULL);
+
+    SetConsoleMode(hin, savemode);
+
+    if ((int)i > maxlen) i = maxlen-1; else i = i - 2;
+    str[i] = '\0';
+
+    WriteFile(hout, "\r\n", 2, &i, NULL);
+
+    return 1;
+}
+
+/*
+ *  Initialize the Win$ock driver.
+ */
+static void init_winsock(void)
+{
+    WORD winsock_ver;
+    WSADATA wsadata;
+
+    winsock_ver = MAKEWORD(1, 1);
+    if (WSAStartup(winsock_ver, &wsadata)) {
+	fprintf(stderr, "Unable to initialise WinSock");
+	exit(1);
+    }
+    if (LOBYTE(wsadata.wVersion) != 1 ||
+	HIBYTE(wsadata.wVersion) != 1) {
+	fprintf(stderr, "WinSock version is incompatible with 1.1");
+	exit(1);
+    }
+}
+
+/*
+ *  Short description of parameters.
+ */
+static void usage(void)
+{
+    printf("PuTTY Secure File Transfer (SFTP) client\n");
+    printf("%s\n", ver);
+    printf("Usage: psftp [options] user@host\n");
+    printf("Options:\n");
+    printf("  -v        show verbose messages\n");
+    printf("  -P port   connect to specified port\n");
+    printf("  -pw passw login with specified password\n");
+    exit(1);
+}
+
+/*
+ * Main program. Parse arguments etc.
+ */
+int main(int argc, char *argv[])
+{
+    int i;
+    int portnumber = 0;
+    char *user, *host, *userhost, *realhost;
+    char *err;
+
+    flags = FLAG_STDERR;
+    ssh_get_password = &get_password;
+    init_winsock();
+    sk_init();
+
+    userhost = user = NULL;
+
+    for (i = 1; i < argc; i++) {
+	if (argv[i][0] != '-') {
+	    if (userhost)
+		usage();
+	    else
+		userhost = dupstr(argv[i]);
+	} else if (strcmp(argv[i], "-v") == 0) {
+	    verbose = 1, flags |= FLAG_VERBOSE;
+	} else if (strcmp(argv[i], "-h") == 0 ||
+		   strcmp(argv[i], "-?") == 0) {
+	    usage();
+	} else if (strcmp(argv[i], "-l") == 0 && i+1 < argc) {
+	    user = argv[++i];
+	} else if (strcmp(argv[i], "-P") == 0 && i+1 < argc) {
+	    portnumber = atoi(argv[++i]);
+	} else if (strcmp(argv[i], "-pw") == 0 && i+1 < argc) {
+	    password = argv[++i];
+	} else if (strcmp(argv[i], "--") == 0) {
+	    i++;
+	    break;
+	} else {
+	    usage();
+	}
+    }
+    argc -= i;
+    argv += i;
+    back = NULL;
+
+    if (argc > 0 || !userhost)
+	usage();
+
+    /* Separate host and username */
+    host = userhost;
+    host = strrchr(host, '@');
+    if (host == NULL) {
+	host = userhost;
+    } else {
+	*host++ = '\0';
+	if (user) {
+	    printf("psftp: multiple usernames specified; using \"%s\"\n", user);
+	} else
+	    user = userhost;
+    }
+
+    /* Try to load settings for this host */
+    do_defaults(host, &cfg);
+    if (cfg.host[0] == '\0') {
+	/* No settings for this host; use defaults */
+        do_defaults(NULL, &cfg);
+	strncpy(cfg.host, host, sizeof(cfg.host)-1);
+	cfg.host[sizeof(cfg.host)-1] = '\0';
+	cfg.port = 22;
+    }
+
+    /* Set username */
+    if (user != NULL && user[0] != '\0') {
+	strncpy(cfg.username, user, sizeof(cfg.username)-1);
+	cfg.username[sizeof(cfg.username)-1] = '\0';
+    }
+    if (!cfg.username[0]) {
+	printf("login as: ");
+	if (!fgets(cfg.username, sizeof(cfg.username), stdin)) {
+	    fprintf(stderr, "psftp: aborting\n");
+	    exit(1);
+	} else {
+	    int len = strlen(cfg.username);
+	    if (cfg.username[len-1] == '\n')
+		cfg.username[len-1] = '\0';
+	}
+    }
+
+    if (cfg.protocol != PROT_SSH)
+	cfg.port = 22;
+
+    if (portnumber)
+	cfg.port = portnumber;
+
+    /* SFTP uses SSH2 by default always */
+    cfg.sshprot = 2;
+
+    /* Set up subsystem name. FIXME: fudge for SSH1. */
+    strcpy(cfg.remote_cmd, "sftp");
+    cfg.ssh_subsys = TRUE;
+    cfg.nopty = TRUE;
+
+    back = &ssh_backend;
+
+    err = back->init(cfg.host, cfg.port, &realhost);
+    if (err != NULL) {
+	fprintf(stderr, "ssh_init: %s", err);
+	return 1;
+    }
+    ssh_sftp_init();
+    if (verbose && realhost != NULL)
+	printf("Connected to %s\n", realhost);
+
     do_sftp();
+
+    if (back != NULL && back->socket() != NULL) {
+	char ch;
+	back->special(TS_EOF);
+	sftp_recvdata(&ch, 1);
+    }
+    WSACleanup();
+    random_save_seed();
+
     return 0;
 }

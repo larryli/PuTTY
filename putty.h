@@ -176,6 +176,7 @@ typedef struct {
     int sshprot;                       /* use v1 or v2 when both available */
     int buggymac;                      /* MAC bug commmercial <=v2.3.x SSH2 */
     int try_tis_auth;
+    int ssh_subsys;		       /* run a subsystem rather than a command */
     /* Telnet options */
     char termtype[32];
     char termspeed[32];

@@ -74,10 +74,12 @@ TOBJS = be_nossh.$(OBJ)
 PLOBJS = plink.$(OBJ)
 ##-- objects pscp
 SOBJS = scp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
-##-- objects putty puttytel pscp plink
+##-- objects psftp
+SOBJS = psftp.$(OBJ) sftp.$(OBJ) int64.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
+##-- objects putty puttytel pscp psftp plink
 MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ) settings.$(OBJ)
 MOBJ2 = tree234.$(OBJ)
-##-- objects putty pscp plink
+##-- objects putty pscp psftp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
 OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
@@ -96,7 +98,7 @@ PRESRC = win_res.$(RES)
 PAGERC = pageant.$(RES)
 ##-- resources puttygen
 GENRC = puttygen.$(RES)
-##-- resources pscp
+##-- resources pscp psftp
 SRESRC = scp.$(RES)
 ##-- resources plink
 LRESRC = plink.$(RES)
@@ -109,6 +111,7 @@ LRESRC = plink.$(RES)
 # puttygen
 ##-- console-apps
 # pscp
+# psftp
 # plink ws2_32
 ##--
 
@@ -256,6 +259,9 @@ pageant.$(OBJ): pageant.c ssh.h puttymem.h tree234.h
 pageantc.$(OBJ): pageantc.c puttymem.h
 tree234.$(OBJ): tree234.c tree234.h puttymem.h
 puttygen.$(OBJ): puttygen.c putty.h ssh.h winstuff.h
+psftp.$(OBJ): psftp.c putty.h ssh.h storage.h sftp.h int64.h
+sftp.$(OBJ): psftp.c sftp.h int64.h
+int64.$(OBJ): int64.c int64.h
 ##--
 
 # Hack to force version.obj to be rebuilt always

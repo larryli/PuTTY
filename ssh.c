@@ -20,7 +20,7 @@
                       fprintf(stderr, "%s\n", s); }
 
 #define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, \
-                          (s ? sk_close(s), s = NULL : (void)0), \
+                          (s ? sk_close(s), s = NULL : 0), \
                           connection_fatal msg )
 
 #define SSH1_MSG_DISCONNECT                       1    /* 0x1 */
@@ -2858,7 +2858,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
     ssh2_pkt_adduint32(mainchan->remoteid); /* recipient channel */
-    if (*cfg.remote_cmd) {
+    if (cfg.ssh_subsys) {
+        ssh2_pkt_addstring("subsystem");
+        ssh2_pkt_addbool(1);           /* want reply */
+        ssh2_pkt_addstring(cfg.remote_cmd);
+    } else if (*cfg.remote_cmd) {
         ssh2_pkt_addstring("exec");
         ssh2_pkt_addbool(1);           /* want reply */
         ssh2_pkt_addstring(cfg.remote_cmd);

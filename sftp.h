@@ -55,6 +55,18 @@
 
 #define SFTP_PROTO_VERSION 3
 
+/*
+ * External references. The sftp client module sftp.c expects to be
+ * able to get at these functions.
+ * 
+ * sftp_recvdata must never return less than len. It either blocks
+ * until len is available, or it returns failure.
+ * 
+ * Both functions return 1 on success, 0 on failure.
+ */
+int sftp_senddata(char *data, int len);
+int sftp_recvdata(char *data, int len);
+
 struct fxp_attrs {
     unsigned long flags;
     uint64 size;
@@ -113,6 +125,11 @@ void fxp_close(struct fxp_handle *handle);
  * Read from a file.
  */
 int fxp_read(struct fxp_handle *handle, char *buffer, uint64 offset, int len);
+
+/*
+ * Write to a file. Returns 0 on error, 1 on OK.
+ */
+int fxp_write(struct fxp_handle *handle, char *buffer, uint64 offset, int len);
 
 /*
  * Read from a directory.

@@ -4,8 +4,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
-#include <unistd.h>
 
 #include "int64.h"
 #include "sftp.h"
@@ -168,71 +168,33 @@ static void sftp_pkt_free(struct sftp_packet *pkt) {
 }
 
 /* ----------------------------------------------------------------------
- * Send and receive packet functions. FIXME: change for PuTTY.
+ * Send and receive packet functions.
  */
-int tossh, fromssh;
-int io_init(void) {
-    int to[2], from[2];
-    int pid;
-
-    assert(pipe(to) == 0);
-    assert(pipe(from) == 0);
-    pid = fork();
-    assert(pid >= 0);
-    if (pid == 0) {
-	/* We are child. Dup one end of each pipe to our std[io],
-	 * close other end, exec. */
-	close(0); dup2(to[0], 0); close(to[1]);
-	close(1); dup2(from[1], 1); close(from[0]);
-	execl("/home/simon/src/openssh/openssh_cvs/prefix/bin/ssh", "ssh", "-2", "simon@localhost", "-s", "sftp", NULL);
-	//execl("/root/ssh-research/ssh-2.4.0/apps/ssh/sftp-server2", "sftp-server2", NULL);
-	//execl("/usr/lib/sftp-server", "sftp-server", NULL);
-	assert(0);		       /* bomb out if not */
-    } else {
-	/* We are parent. Close wrong end of each pipe, assign to glob vars. */
-	close(to[0]); tossh = to[1];
-	close(from[1]); fromssh = from[0];
-    }
-}
-int io_finish(void) {
-    int pid, status;
-    close(tossh);
-    close(fromssh);
-    pid = wait(&status);
-}
 int sftp_send(struct sftp_packet *pkt) {
+    int ret;
     char x[4];
     PUT_32BIT(x, pkt->length);
-    assert(4 == write(tossh, x, 4));
-    assert(pkt->length = write(tossh, pkt->data, pkt->length));
+    ret = (sftp_senddata(x, 4) &&
+	   sftp_senddata(pkt->data, pkt->length));
     sftp_pkt_free(pkt);
+    return ret;
 }
 struct sftp_packet *sftp_recv(void) {
     struct sftp_packet *pkt;
     char x[4];
     int p, ret;
 
-    for (p = 0; p < 4 ;) {
-	ret = read(fromssh, x+p, 4-p);
-	assert(ret >= 0);
-	if (ret == 0)
-	    return NULL;
-	p += ret;
-    }
+    if (!sftp_recvdata(x, 4))
+	return NULL;
 
     pkt = smalloc(sizeof(struct sftp_packet));
     pkt->savedpos = 0;
     pkt->length = pkt->maxlen = GET_32BIT(x);
     pkt->data = smalloc(pkt->length);
 
-    for (p = 0; p < pkt->length ;) {
-	ret = read(fromssh, pkt->data+p, pkt->length-p);
-	assert(ret >= 0);
-	if (ret == 0) {
-	    sftp_pkt_free(pkt);
-	    return NULL;
-	}
-	p += ret;
+    if (!sftp_recvdata(pkt->data, pkt->length)) {
+	sftp_pkt_free(pkt);
+	return NULL;
     }
 
     pkt->type = sftp_pkt_getbyte(pkt);
@@ -299,7 +261,7 @@ static int fxp_got_status(struct sftp_packet *pktin) {
 	return -1;
 }
 
-static int fxp_internal_error(char *msg) {
+static void fxp_internal_error(char *msg) {
     fxp_error_message = msg;
     fxp_errtype = -1;
 }
@@ -510,7 +472,7 @@ int fxp_read(struct fxp_handle *handle, char *buffer, uint64 offset, int len) {
     id = sftp_pkt_getuint32(pktin);
     if (id != 0xBCD) {
 	fxp_internal_error("request ID mismatch");
-	return;
+	return -1;
     }
     if (pktin->type == SSH_FXP_DATA) {
 	char *str;
@@ -548,7 +510,7 @@ struct fxp_names *fxp_readdir(struct fxp_handle *handle) {
     id = sftp_pkt_getuint32(pktin);
     if (id != 0xABC) {
 	fxp_internal_error("request ID mismatch\n");
-	return;
+	return NULL;
     }
     if (pktin->type == SSH_FXP_NAME) {
 	struct fxp_names *ret;
@@ -589,6 +551,10 @@ int fxp_write(struct fxp_handle *handle, char *buffer, uint64 offset, int len) {
     sftp_send(pktout);
     pktin = sftp_recv();
     id = sftp_pkt_getuint32(pktin);
+    if (id != 0xDCB) {
+	fxp_internal_error("request ID mismatch\n");
+	return NULL;
+    }
     fxp_got_status(pktin);
     return fxp_errtype == SSH_FX_OK;
 }
