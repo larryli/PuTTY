@@ -108,6 +108,7 @@ static time_t last_movement = 0;
 #define FONT_MAXNO 	0x2F
 #define FONT_SHIFT	5
 static HFONT fonts[FONT_MAXNO];
+static LOGFONT lfont;
 static int fontflag[FONT_MAXNO];
 static enum {
     BOLD_COLOURS, BOLD_SHADOW, BOLD_FONT
@@ -909,6 +910,21 @@ static void init_fonts(int pick_width, int pick_height)
 			   FIXED_PITCH | FF_DONTCARE, cfg.font)
 
     f(FONT_NORMAL, cfg.fontcharset, fw_dontcare, FALSE);
+
+    lfont.lfHeight = font_height;
+    lfont.lfWidth = font_width;
+    lfont.lfEscapement = 0;
+    lfont.lfOrientation  = 0;
+    lfont.lfWeight  = fw_dontcare;
+    lfont.lfItalic = FALSE;
+    lfont.lfUnderline = FALSE;
+    lfont.lfStrikeOut = FALSE;
+    lfont.lfCharSet = cfg.fontcharset;
+    lfont.lfOutPrecision = OUT_DEFAULT_PRECIS;
+    lfont.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+    lfont.lfQuality = DEFAULT_QUALITY;
+    lfont.lfPitchAndFamily = FIXED_PITCH | FF_DONTCARE;
+    strncpy(lfont.lfFaceName, cfg.font, LF_FACESIZE);
 
     SelectObject(hdc, fonts[FONT_NORMAL]);
     GetTextMetrics(hdc, &tm);
@@ -2230,6 +2246,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			  LOCALE_IDEFAULTANSICODEPAGE, lbuf, sizeof(lbuf));
 
 	    kbd_codepage = atoi(lbuf);
+	}
+	break;
+      case WM_IME_NOTIFY:
+	if(wParam == IMN_SETOPENSTATUS) {
+	    HIMC hImc = ImmGetContext(hwnd);
+	    ImmSetCompositionFont(hImc, &lfont);
+	    ImmReleaseContext(hwnd, hImc);
+	    return 0;
 	}
 	break;
       case WM_IME_COMPOSITION:
