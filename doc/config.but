@@ -1552,9 +1552,9 @@ To remove one from the list, select it in the list box and press
 
 \cfg{winhelp-topic}{connection.keepalive}
 
-If you find your sessions are closing unexpectedly (\q{Connection
-reset by peer}) after they have been idle for a while, you might
-want to try using this option.
+If you find your sessions are closing unexpectedly (most often with
+\q{Connection reset by peer}) after they have been idle for a while,
+you might want to try using this option.
 
 Some network routers and firewalls need to keep track of all
 connections through them. Usually, these firewalls will assume a
