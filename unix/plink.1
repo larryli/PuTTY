@@ -31,8 +31,10 @@ Disable interactive prompts.
 Set remote password to \fIpassword\fR.
 .IP "\fB-L\fR \fIlisten\fB:\fIhost\fB:\fIport\fR"
 Forward the local port to a remote address.
-.IP "\fB-L\fR \fIlisten\fB:\fIhost\fB:\fIport\fR"
+.IP "\fB-R\fR \fIlisten\fB:\fIhost\fB:\fIport\fR"
 Forward the a remote port to a local address.
+.IP "\fB-D\fR \fIlisten-port\fR"
+Dynamic port forwarding: start a SOCKS server on \fIlisten-port\fR.
 .IP "\fB-X\fR"
 Enable X11 forwarding.
 .IP "\fB-x\fR"
@@ -55,3 +57,5 @@ Enable compression.
 Private key file for authentication.
 .IP "\fB-s\fR"
 Remote command is SSH subsystem (SSH-2 only).
+.SH BUGS
+This man page isn't terribly complete.
