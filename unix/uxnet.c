@@ -728,6 +728,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
         hints.ai_addr = NULL;
         hints.ai_canonname = NULL;
         hints.ai_next = NULL;
+	assert(port >= 0 && port <= 99999);
         sprintf(portstr, "%d", port);
         retcode = getaddrinfo(srcaddr, portstr, &hints, &ai);
 	if (retcode == 0) {
