@@ -372,6 +372,8 @@ struct config_tag {
     /* Options for pterm. Should split out into platform-dependent part. */
     int stamp_utmp;
     int login_shell;
+    int scrollbar_on_left;
+    char boldfont[64];
 };
 
 /*

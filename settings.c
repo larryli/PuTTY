@@ -311,6 +311,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "BugDHGEx2", cfg->sshbug_dhgex2);
     write_setting_i(sesskey, "StampUtmp", cfg->stamp_utmp);
     write_setting_i(sesskey, "LoginShell", cfg->login_shell);
+    write_setting_i(sesskey, "ScrollbarOnLeft", cfg->scrollbar_on_left);
     close_settings_w(sesskey);
 }
 
@@ -596,6 +597,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "BugDHGEx2", BUG_AUTO, &i); cfg->sshbug_dhgex2 = i;
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
+    gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);
 
     close_settings_r(sesskey);
 }

@@ -1133,7 +1133,6 @@ void term_out(void)
 		else
 		    print_state = 0;
 		if (print_state == 4) {
-		    printing = only_printing = FALSE;
 		    term_print_finish();
 		}
 		continue;
@@ -1915,8 +1914,6 @@ void term_out(void)
 				print_state = 0;
 				term_print_setup();
 			    } else if (esc_args[0] == 4 && printing) {
-				printing = FALSE;
-				only_printing = FALSE;
 				term_print_finish();
 			    }
 			}
