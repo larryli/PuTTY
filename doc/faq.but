@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.77 2004/08/20 09:09:01 jacob Exp $
+\versionid $Id: faq.but,v 1.78 2004/08/27 13:33:25 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -886,7 +886,7 @@ probably not before).
 
 (\e{However}, we've been told that SP2 \e{also} fixes the bug that
 means you need to use non-\cw{127.0.0.1} addresses to forward
-Terminal Services.)
+Terminal Services in the first place.)
 
 \H{faq-secure} Security questions
 
