@@ -217,7 +217,6 @@ static void usage(void)
     printf("            force use of a particular protocol\n");
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
-    printf("  -m file   read remote command(s) from file\n");
     printf("  -batch    disable all interactive prompts\n");
     printf("The following options only apply to SSH connections:\n");
     printf("  -pw passw login with specified password\n");
@@ -234,6 +233,7 @@ static void usage(void)
     printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
+    printf("  -m file   read remote command(s) from file\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
     printf("  -N        don't start a shell/command (SSH-2 only)\n");
     exit(1);

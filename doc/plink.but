@@ -54,7 +54,6 @@ use Plink:
 \c             force use of a particular protocol
 \c   -P port   connect to specified port
 \c   -l user   connect with specified username
-\c   -m file   read remote command(s) from file
 \c   -batch    disable all interactive prompts
 \c The following options only apply to SSH connections:
 \c   -pw passw login with specified password
@@ -71,6 +70,7 @@ use Plink:
 \c   -4 -6     force use of IPv4 or IPv6
 \c   -C        enable compression
 \c   -i key    private key file for authentication
+\c   -m file   read remote command(s) from file
 \c   -s        remote command is an SSH subsystem (SSH-2 only)
 \c   -N        don't start a shell/command (SSH-2 only)
 
