@@ -122,11 +122,6 @@ int export_ssh2(char *filename, int type,
                          (c) == '+' || (c) == '/' || (c) == '=' \
                          )
 
-extern int base64_decode_atom(char *atom, unsigned char *out);
-extern int base64_lines(int datalen);
-extern void base64_encode_atom(unsigned char *data, int n, char *out);
-extern void base64_encode(FILE *fp, unsigned char *data, int datalen, int cpl);
-
 /*
  * Read an ASN.1/BER identifier and length pair.
  * 

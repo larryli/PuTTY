@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 
 #include "puttymem.h"
@@ -316,7 +317,10 @@ int rsakey_pubblob(char *filename, void **blob, int *bloblen);
 
 int saversakey(char *filename, struct RSAKey *key, char *passphrase);
 
-void base64_encode_atom(unsigned char *data, int n, char *out);
+extern int base64_decode_atom(char *atom, unsigned char *out);
+extern int base64_lines(int datalen);
+extern void base64_encode_atom(unsigned char *data, int n, char *out);
+extern void base64_encode(FILE *fp, unsigned char *data, int datalen, int cpl);
 
 /* ssh2_load_userkey can return this as an error */
 extern struct ssh2_userkey ssh2_wrong_passphrase;
