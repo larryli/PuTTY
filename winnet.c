@@ -745,7 +745,6 @@ void try_send(Actual_Socket s)
 	    urgentflag = 0;
 	    bufchain_prefix(&s->output_data, &data, &len);
 	}
-
 	nsent = send(s->s, data, len, urgentflag);
 	noise_ultralight(nsent);
 	if (nsent <= 0) {
@@ -765,17 +764,30 @@ void try_send(Actual_Socket s)
 	    } else if (nsent == 0 ||
 		       err == WSAECONNABORTED || err == WSAECONNRESET) {
 		/*
-		 * FIXME. This will have to be done better when we
-		 * start managing multiple sockets (e.g. SSH port
-		 * forwarding), because if we get CONNRESET while
-		 * trying to write a particular forwarded socket
-		 * then it isn't necessarily the end of the world.
-		 * Ideally I'd like to pass the error code back to
-		 * somewhere the next select_result() will see it,
-		 * but that might be hard. Perhaps I should pass it
-		 * back to be queued in the Windows front end bit.
+		 * ASSUMPTION:
+		 * 
+		 * I'm assuming here that if a TCP connection is
+		 * reset or aborted once established, we will be
+		 * notified by a select event rather than a
+		 * CONNABORTED or CONNRESET from send(). In other
+		 * words, I'm assuming CONNABORTED and CONNRESET
+		 * don't come back from a _nonblocking_ send(),
+		 * because the local side doesn't know they've
+		 * happened until it waits for a response to its
+		 * TCP segment - so the error will arrive
+		 * asynchronously.
+		 * 
+		 * If I'm wrong, this will be a really nasty case,
+		 * because we can't necessarily call plug_closing()
+		 * without having to make half the SSH code
+		 * reentrant; so instead we'll have to schedule a
+		 * call to plug_closing() for some suitable future
+		 * time.
 		 */
-		fatalbox(winsock_error_string(err));
+		fatalbox("SERIOUS NETWORK INTERNAL ERROR: %s\n"
+			 "Please report this immediately to "
+			 "<putty@projects.tartarus.org>.",
+			 winsock_error_string(err));
 	    } else {
 		fatalbox(winsock_error_string(err));
 	    }
