@@ -606,7 +606,7 @@ ROptions     = `Echo "{VER}" | StreamEdit -e "1,\$ replace /=(\xc5)\xa81\xb0/ 'S
 # -w 35 disables "unused parameter" warnings
 COptions     = -i : -i :: -i ::charset -w 35 -w err -proto strict -ansi on \xb6
 	       -notOnce
-COptions_68K = {COptions} -model far -opt space
+COptions_68K = {COptions} -model far -opt time
 # Enabling "-opt space" for CFM-68K gives me undefined references to
 # _$LDIVT and _$LMODT.
 COptions_CFM68K = {COptions} -model cfmSeg -opt time
