@@ -145,8 +145,10 @@ SockAddr sk_namelookup(const char *host, char **canonicalname, int address_famil
 
 #ifndef NO_IPV6
     hints.ai_flags = AI_CANONNAME;
-    hints.ai_family = address_family;
-    hints.ai_socktype = 0;
+    hints.ai_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+		       address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+		       AF_UNSPEC);
+    hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = 0;
     hints.ai_addrlen = 0;
     hints.ai_addr = NULL;
