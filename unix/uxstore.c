@@ -19,7 +19,7 @@
 #include "tree234.h"
 
 enum {
-    INDEX_DIR, INDEX_HOSTKEYS, INDEX_RANDSEED,
+    INDEX_DIR, INDEX_HOSTKEYS, INDEX_HOSTKEYS_TMP, INDEX_RANDSEED,
     INDEX_SESSIONDIR, INDEX_SESSION,
 };
 
@@ -98,6 +98,7 @@ static void make_filename(char *filename, int index, const char *subname)
                 index == INDEX_DIR ? "/.putty" :
                 index == INDEX_SESSIONDIR ? "/.putty/sessions" :
                 index == INDEX_HOSTKEYS ? "/.putty/sshhostkeys" :
+                index == INDEX_HOSTKEYS_TMP ? "/.putty/sshhostkeys.tmp" :
                 index == INDEX_RANDSEED ? "/.putty/randomseed" :
                 "/.putty/ERROR", FILENAME_MAX - len);
     }
@@ -495,26 +496,48 @@ int verify_host_key(const char *hostname, int port,
 void store_host_key(const char *hostname, int port,
 		    const char *keytype, const char *key)
 {
-    FILE *fp;
-    int fd;
-    char filename[FILENAME_MAX];
+    FILE *rfp, *wfp;
+    char *newtext, *line;
+    int headerlen;
+    char filename[FILENAME_MAX], tmpfilename[FILENAME_MAX];
 
+    newtext = dupprintf("%s@%d:%s %s\n", keytype, port, hostname, key);
+    headerlen = 1 + strcspn(newtext, " ");   /* count the space too */
+
+    /*
+     * Open both the old file and a new file.
+     */
     make_filename(filename, INDEX_HOSTKEYS, NULL);
-    fd = open(filename, O_CREAT | O_APPEND | O_RDWR, 0600);
-    if (fd < 0) {
-	char dir[FILENAME_MAX];
+    rfp = fopen(filename, "r");
+    if (!rfp)
+	return;
+    make_filename(tmpfilename, INDEX_HOSTKEYS_TMP, NULL);
+    wfp = fopen(tmpfilename, "w");
+    if (!wfp) {
+	fclose(rfp);
+	return;
+    }
 
-	make_filename(dir, INDEX_DIR, NULL);
-	mkdir(dir, 0700);
-	fd = open(filename, O_CREAT | O_APPEND | O_RDWR, 0600);
+    /*
+     * Copy all lines from the old file to the new one that _don't_
+     * involve the same host key identifier as the one we're adding.
+     */
+    while ( (line = fgetline(rfp)) ) {
+	if (strncmp(line, newtext, headerlen))
+	    fputs(line, wfp);
     }
-    if (fd < 0) {
-	perror(filename);
-	exit(1);
-    }
-    fp = fdopen(fd, "a");
-    fprintf(fp, "%s@%d:%s %s\n", keytype, port, hostname, key);
-    fclose(fp);
+
+    /*
+     * Now add the new line at the end.
+     */
+    fputs(newtext, wfp);
+
+    fclose(rfp);
+    fclose(wfp);
+
+    rename(tmpfilename, filename);
+
+    sfree(newtext);
 }
 
 void read_random_seed(noise_consumer_t consumer)
