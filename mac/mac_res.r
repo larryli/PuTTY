@@ -1281,6 +1281,9 @@ data 'CDEF' (CDEF_Default) {
 data 'CDEF' (CDEF_ListBox) {
     $"4EF9 00000000"
 };
+data 'CDEF' (CDEF_GroupBox) {
+    $"43F9 00000000"
+};
 
 /* List box template */
 

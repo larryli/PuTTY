@@ -64,7 +64,8 @@ union macctrl {
 	    MACCTRL_CHECKBOX,
 	    MACCTRL_BUTTON,
 	    MACCTRL_LISTBOX,
-	    MACCTRL_POPUP
+	    MACCTRL_POPUP,
+	    MACCTRL_GROUPBOX
 	} type;
 	/* Template from which this was generated */
 	union control *ctrl;
@@ -111,10 +112,16 @@ union macctrl {
 	unsigned int nids;
 	int *ids;
     } popup;
+    struct {
+	struct macctrl_generic generic;
+	ControlRef tbctrl;
+    } groupbox;
 };
 
 struct mac_layoutstate {
     Point pos;
+    Point boxpos;
+    char *boxname;
     unsigned int width;
     unsigned int panelnum;
 };
@@ -147,6 +154,8 @@ static void macctrl_listbox(struct macctrls *, WindowPtr,
 			    struct mac_layoutstate *, union control *);
 static void macctrl_popup(struct macctrls *, WindowPtr,
 			  struct mac_layoutstate *, union control *);
+static void macctrl_groupbox(struct macctrls *, WindowPtr,
+			     struct mac_layoutstate *, union control *);
 #if !TARGET_API_MAC_CARBON
 static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16, ControlRef,
 					       ControlDefProcMessage, SInt32);
@@ -154,6 +163,8 @@ static pascal SInt32 macctrl_sys7_default_cdef(SInt16, ControlRef,
 					       ControlDefProcMessage, SInt32);
 static pascal SInt32 macctrl_sys7_listbox_cdef(SInt16, ControlRef,
 					       ControlDefProcMessage, SInt32);
+static pascal SInt32 macctrl_sys7_groupbox_cdef(SInt16, ControlRef,
+						ControlDefProcMessage, SInt32);
 #endif
 
 #if !TARGET_API_MAC_CARBON
@@ -184,6 +195,8 @@ static void macctrl_init()
     (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_default_cdef);
     cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_ListBox);
     (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_listbox_cdef);
+    cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_GroupBox);
+    (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_groupbox_cdef);
     inited = 1;
 #endif
 }
@@ -286,6 +299,8 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     /* 14 = proxies, 19 = portfwd, 20 = SSH bugs */
 }
 
+
+
 #define MAXCOLS 16
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -295,24 +310,31 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     unsigned int i, j, ncols, colstart, colspan;
     struct mac_layoutstate cols[MAXCOLS], pos;
 
-    cols[0] = *curstate;
-    ncols = 1;
+    /* Start a containing box, if we have a boxname. */
+    if (s->boxname && *s->boxname) {
+	curstate->boxpos = curstate->pos;
+	if (s->boxtitle) {
+	    curstate->boxname = s->boxtitle;
+	    curstate->pos.v += 10; /* XXX determine font height */
+	} else {
+	    curstate->boxname = NULL;
+	}
+	curstate->pos.v += 6;
+	curstate->pos.h += 12;
+	curstate->width -= 24;
+    }
 
     /* Draw a title, if we have one. */
     if (!s->boxname && s->boxtitle) {
-	union control c;
-	c.text.label = dupstr(s->boxtitle);
-	macctrl_text(mcs, window, &cols[0], &c);
+	union control *ctrl = snew(union control);
+	ctrl->generic.handler = NULL;
+	ctrl->text.label = dupstr(s->boxtitle);
+	macctrl_text(mcs, window, curstate, ctrl);
 	/* FIXME: should be highlighted, centred or boxed */
     }
 
-    /* Start a containing box, if we have a boxname. */
-    /* FIXME: draw a box, not just its title */
-    if (s->boxname && *s->boxname && s->boxtitle) {
-	union control c;
-	c.text.label = dupstr(s->boxtitle);
-	macctrl_text(mcs, window, &cols[0], &c);
-    }
+    cols[0] = *curstate;
+    ncols = 1;
 
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
@@ -380,6 +402,15 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     for (j = 0; j < ncols; j++)
 	if (cols[j].pos.v > curstate->pos.v)
 	    curstate->pos.v = cols[j].pos.v;
+
+    if (s->boxname && *s->boxname) {
+	union control *ctrl = snew(union control);
+	/* We're coming out of a box, so set the width back */
+	curstate->pos.h -= 12;
+	curstate->width += 24;
+	/* And draw the box to the original width */
+	macctrl_groupbox(mcs, window, curstate, ctrl);
+    }
 }
 
 static void macctrl_hideshowpanel(struct macctrls *mcs, unsigned int panel,
@@ -434,6 +465,9 @@ static void macctrl_hideshowpanel(struct macctrls *mcs, unsigned int panel,
 	    break;
 	  case MACCTRL_POPUP:
 	    hideshow(mc->popup.tbctrl);
+	    break;
+	  case MACCTRL_GROUPBOX:
+	    hideshow(mc->groupbox.tbctrl);
 	    break;
 	}
     }
@@ -1005,6 +1039,48 @@ static pascal SInt32 macctrl_sys7_listbox_cdef(SInt16 variant,
 }
 #endif
 
+#if !TARGET_API_MAC_CARBON
+static pascal SInt32 macctrl_sys7_groupbox_cdef(SInt16 variant,
+						ControlRef control,
+						ControlDefProcMessage msg,
+						SInt32 param)
+{
+    RgnHandle rgn;
+    Rect rect;
+    PenState savestate;
+
+    switch (msg) {
+      case drawCntl:
+	if ((*control)->contrlVis) {
+	    rect = (*control)->contrlRect;
+	    GetPenState(&savestate);
+	    PenNormal();
+	    PenSize(3, 3);
+	    PenPat(&qd.gray);
+	    FrameRect(&rect);
+	    SetPenState(&savestate);
+	}
+	return 0;
+      case calcCRgns:
+	if (param & (1 << 31)) {
+	    param &= ~(1 << 31);
+	    goto calcthumbrgn;
+	}
+	/* FALLTHROUGH */
+      case calcCntlRgn:
+	rgn = (RgnHandle)param;
+	RectRgn(rgn, &(*control)->contrlRect);
+	return 0;
+      case calcThumbRgn:
+      calcthumbrgn:
+	rgn = (RgnHandle)param;
+	SetEmptyRgn(rgn);
+	return 0;
+    }
+    return 0;
+}
+#endif
+
 static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
 			  union control *ctrl)
@@ -1060,6 +1136,39 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
     ctrlevent(mcs, mc, EVENT_REFRESH);
 }
 
+static void macctrl_groupbox(struct macctrls *mcs, WindowPtr window,
+			     struct mac_layoutstate *curstate,
+			     union control *ctrl)
+{
+    union macctrl *mc = snew (union macctrl);
+    Str255 ptitle;
+    Rect r;
+
+    r.top = curstate->boxpos.v;
+    r.left = curstate->boxpos.h;
+    r.bottom = curstate->pos.v;
+    r.right = curstate->boxpos.h + curstate->width;
+
+    mc->generic.type = MACCTRL_GROUPBOX;
+    mc->generic.privdata = NULL;
+    mc->generic.ctrl = ctrl;
+    mc->generic.ctrl->generic.handler = NULL;
+
+    if (curstate->boxname)
+	c2pstrcpy(ptitle, curstate->boxname);
+    else
+	c2pstrcpy(ptitle, "");
+    if (mac_gestalts.apprvers >= 0x100) { /* Appearance Manager */
+	mc->groupbox.tbctrl = NewControl(window, &r, ptitle, FALSE, 0, 0, 1,
+					 kControlGroupBoxTextTitleProc, (long)mc);
+    } else {
+	mc->groupbox.tbctrl = NewControl(window, &r, ptitle, FALSE, 0, 0, 1,
+					 SYS7_GROUPBOX_PROC, (long)mc);
+    }
+    add234(mcs->byctrl, mc);
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
+}
 
 void macctrl_activate(WindowPtr window, EventRecord *event)
 {

@@ -75,3 +75,5 @@
 #define SYS7_DEFAULT_PROC	(CDEF_Default << 4)
 #define CDEF_ListBox	131
 #define SYS7_LISTBOX_PROC	(CDEF_ListBox << 4)
+#define CDEF_GroupBox   132
+#define SYS7_GROUPBOX_PROC      (CDEF_GroupBox << 4)
