@@ -25,52 +25,6 @@
  */
 
 /* ----------------------------------------------------------------------
- * String handling routines.
- */
-
-char *dupstr(char *s)
-{
-    int len = strlen(s);
-    char *p = smalloc(len + 1);
-    strcpy(p, s);
-    return p;
-}
-
-/* Allocate the concatenation of N strings. Terminate arg list with NULL. */
-char *dupcat(char *s1, ...)
-{
-    int len;
-    char *p, *q, *sn;
-    va_list ap;
-
-    len = strlen(s1);
-    va_start(ap, s1);
-    while (1) {
-	sn = va_arg(ap, char *);
-	if (!sn)
-	    break;
-	len += strlen(sn);
-    }
-    va_end(ap);
-
-    p = smalloc(len + 1);
-    strcpy(p, s1);
-    q = p + strlen(p);
-
-    va_start(ap, s1);
-    while (1) {
-	sn = va_arg(ap, char *);
-	if (!sn)
-	    break;
-	strcpy(q, sn);
-	q += strlen(q);
-    }
-    va_end(ap);
-
-    return p;
-}
-
-/* ----------------------------------------------------------------------
  * sftp client state.
  */
 

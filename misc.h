@@ -3,6 +3,9 @@
 
 #include "puttymem.h"
 
+char *dupstr(char *s);
+char *dupcat(char *s1, ...);
+
 struct bufchain_granule;
 typedef struct bufchain_tag {
     struct bufchain_granule *head, *tail;

@@ -673,6 +673,23 @@ static char *colon(char *str)
 }
 
 /*
+ * Return a pointer to the portion of str that comes after the last
+ * slash or backslash.
+ */
+static char *stripslashes(char *str)
+{
+    char *p;
+
+    p = strrchr(str, '/');
+    if (p) str = p+1;
+
+    p = strrchr(str, '\\');
+    if (p) str = p+1;
+
+    return str;
+}
+
+/*
  *  Wait for a response from the other side.
  *  Return 0 if ok, -1 if error.
  */
@@ -909,7 +926,6 @@ static void run_err(const char *fmt, ...)
  */
 static void source(char *src)
 {
-    char buf[2048];
     unsigned long size;
     char *last;
     HANDLE f;
@@ -1017,8 +1033,7 @@ static void source(char *src)
  */
 static void rsource(char *src)
 {
-    char buf[2048];
-    char *last;
+    char *last, *findfile;
     HANDLE dir;
     WIN32_FIND_DATA fdat;
     int ok;
@@ -1039,32 +1054,32 @@ static void rsource(char *src)
     if (scp_send_dirname(last, 0755))
 	return;
 
-    sprintf(buf, "%s/*", src);
-    dir = FindFirstFile(buf, &fdat);
+    findfile = dupcat(src, "/*", NULL);
+    dir = FindFirstFile(findfile, &fdat);
     ok = (dir != INVALID_HANDLE_VALUE);
     while (ok) {
 	if (strcmp(fdat.cFileName, ".") == 0 ||
 	    strcmp(fdat.cFileName, "..") == 0) {
-	} else if (strlen(src) + 1 + strlen(fdat.cFileName) >= sizeof(buf)) {
-	    run_err("%s/%s: Name too long", src, fdat.cFileName);
+	    /* ignore . and .. */
 	} else {
-	    sprintf(buf, "%s/%s", src, fdat.cFileName);
-	    source(buf);
+	    char *foundfile = dupcat(src, "/", fdat.cFileName);
+	    source(foundfile);
+	    sfree(foundfile);
 	}
 	ok = FindNextFile(dir, &fdat);
     }
     FindClose(dir);
+    sfree(findfile);
 
     (void) scp_send_enddir();
 }
 
 /*
- *  Execute the sink part of the SCP protocol.
+ * Execute the sink part of the SCP protocol.
  */
 static void sink(char *targ, char *src)
 {
-    char buf[2048];
-    char namebuf[2048];
+    char *destfname;
     char ch;
     int targisdir = 0;
     int settime;
@@ -1092,44 +1107,87 @@ static void sink(char *targ, char *src)
 
 	if (act.action == SCP_SINK_ENDDIR)
 	    return;
-	/* Security fix: ensure the file ends up where we asked for it. */
+
 	if (targisdir) {
-	    char t[2048];
-	    char *p;
-	    strcpy(t, targ);
+	    /*
+	     * Prevent the remote side from maliciously writing to
+	     * files outside the target area by sending a filename
+	     * containing `../'. In fact, it shouldn't be sending
+	     * filenames with any slashes in at all; so we'll find
+	     * the last slash or backslash in the filename and use
+	     * only the part after that. (And warn!)
+	     * 
+	     * In addition, we also ensure here that if we're
+	     * copying a single file and the target is a directory
+	     * (common usage: `pscp host:filename .') the remote
+	     * can't send us a _different_ file name. We can
+	     * distinguish this case because `src' will be non-NULL
+	     * and the last component of that will fail to match
+	     * (the last component of) the name sent.
+	     */
+	    char *striptarget, *stripsrc;
+
+	    striptarget = stripslashes(act.name);
+	    if (striptarget != act.name) {
+		tell_user(stderr, "warning: remote host sent a compound"
+			  " pathname - possibly malicious! (ignored)");
+	    }
+
+	    /*
+	     * Also check to see if the target filename is '.' or
+	     * '..', or indeed '...' and so on because Windows
+	     * appears to interpret those like '..'.
+	     */
+	    if (striptarget[strspn(striptarget, ".")] == '\0') {
+		bump("security violation: remote host attempted to write to"
+		     " a '.' or '..' path!");
+	    }
+
+	    if (src) {
+		stripsrc = stripslashes(src);
+		if (strcmp(striptarget, stripsrc)) {
+		    tell_user(stderr, "warning: remote host attempted to"
+			      " write to a different filename: disallowing");
+		}
+		/* Override the name the server provided with our own. */
+		striptarget = stripsrc;
+	    }
+
 	    if (targ[0] != '\0')
-		strcat(t, "/");
-	    p = act.name + strlen(act.name);
-	    while (p > act.name && p[-1] != '/' && p[-1] != '\\')
-		p--;
-	    strcat(t, p);
-	    strcpy(namebuf, t);
+		destfname = dupcat(targ, "\\", striptarget, NULL);
+	    else
+		destfname = dupstr(striptarget);
 	} else {
-	    strcpy(namebuf, targ);
+	    /*
+	     * In this branch of the if, the target area is a
+	     * single file with an explicitly specified name in any
+	     * case, so there's no danger.
+	     */
+	    destfname = dupstr(targ);
 	}
-	attr = GetFileAttributes(namebuf);
+	attr = GetFileAttributes(destfname);
 	exists = (attr != (DWORD) - 1);
 
 	if (act.action == SCP_SINK_DIR) {
 	    if (exists && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0) {
-		run_err("%s: Not a directory", namebuf);
+		run_err("%s: Not a directory", destfname);
 		continue;
 	    }
 	    if (!exists) {
-		if (!CreateDirectory(namebuf, NULL)) {
-		    run_err("%s: Cannot create directory", namebuf);
+		if (!CreateDirectory(destfname, NULL)) {
+		    run_err("%s: Cannot create directory", destfname);
 		    continue;
 		}
 	    }
-	    sink(namebuf, NULL);
+	    sink(destfname, NULL);
 	    /* can we set the timestamp for directories ? */
 	    continue;
 	}
 
-	f = CreateFile(namebuf, GENERIC_WRITE, 0, NULL,
+	f = CreateFile(destfname, GENERIC_WRITE, 0, NULL,
 		       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 	if (f == INVALID_HANDLE_VALUE) {
-	    run_err("%s: Cannot create file", namebuf);
+	    run_err("%s: Cannot create file", destfname);
 	    continue;
 	}
 
@@ -1139,12 +1197,7 @@ static void sink(char *targ, char *src)
 	stat_bytes = 0;
 	stat_starttime = time(NULL);
 	stat_lasttime = 0;
-	if ((stat_name = strrchr(namebuf, '/')) == NULL)
-	    stat_name = namebuf;
-	else
-	    stat_name++;
-	if (strrchr(stat_name, '\\') != NULL)
-	    stat_name = strrchr(stat_name, '\\') + 1;
+	stat_name = stripslashes(destfname);
 
 	received = 0;
 	while (received < act.size) {
@@ -1188,10 +1241,12 @@ static void sink(char *targ, char *src)
 
 	CloseHandle(f);
 	if (wrerror) {
-	    run_err("%s: Write error", namebuf);
+	    run_err("%s: Write error", destfname);
 	    continue;
 	}
 	(void) scp_finish_filerecv();
+	sfree(destfname);
+	sfree(act.name);
     }
 }
 
@@ -1255,6 +1310,7 @@ static void toremote(int argc, char *argv[])
     (void) response();
 
     for (i = 0; i < argc - 1; i++) {
+	char *srcpath, *last;
 	HANDLE dir;
 	WIN32_FIND_DATA fdat;
 	src = argv[i];
@@ -1263,6 +1319,25 @@ static void toremote(int argc, char *argv[])
 	    errs++;
 	    continue;
 	}
+
+	/*
+	 * Trim off the last pathname component of `src', to
+	 * provide the base pathname which will be prepended to
+	 * filenames returned from Find{First,Next}File.
+	 */
+	srcpath = dupstr(src);
+	last = stripslashes(srcpath);
+	if (last == srcpath) {
+	    last = strchr(srcpath, ':');
+	    if (last)
+		last++;
+	    else
+		last = srcpath;
+	}
+printf("src=:%s:\nsrcpath=:%s:\nlast=:%s:\n", src, srcpath, last);
+	*last = '\0';
+printf("srcpath=:%s:\n", srcpath);
+
 	dir = FindFirstFile(src, &fdat);
 	if (dir == INVALID_HANDLE_VALUE) {
 	    run_err("%s: No such file or directory", src);
@@ -1270,7 +1345,7 @@ static void toremote(int argc, char *argv[])
 	}
 	do {
 	    char *last;
-	    char namebuf[2048];
+	    char *filename;
 	    /*
 	     * Ensure that . and .. are never matched by wildcards,
 	     * but only by deliberate action.
@@ -1292,23 +1367,12 @@ static void toremote(int argc, char *argv[])
 		} else
 		    continue;	       /* ignore this one */
 	    }
-	    if (strlen(src) + strlen(fdat.cFileName) >= sizeof(namebuf)) {
-		tell_user(stderr, "%s: Name too long", src);
-		continue;
-	    }
-	    strcpy(namebuf, src);
-	    if ((last = strrchr(namebuf, '/')) == NULL)
-		last = namebuf;
-	    else
-		last++;
-	    if (strrchr(last, '\\') != NULL)
-		last = strrchr(last, '\\') + 1;
-	    if (last == namebuf && strrchr(namebuf, ':') != NULL)
-		last = strchr(namebuf, ':') + 1;
-	    strcpy(last, fdat.cFileName);
-	    source(namebuf);
+	    filename = dupcat(srcpath, fdat.cFileName, NULL);
+	    source(filename);
+	    sfree(filename);
 	} while (FindNextFile(dir, &fdat));
 	FindClose(dir);
+	sfree(srcpath);
     }
 }
 

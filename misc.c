@@ -4,7 +4,53 @@
 #include <assert.h>
 #include "putty.h"
 
-/*
+/* ----------------------------------------------------------------------
+ * String handling routines.
+ */
+
+char *dupstr(char *s)
+{
+    int len = strlen(s);
+    char *p = smalloc(len + 1);
+    strcpy(p, s);
+    return p;
+}
+
+/* Allocate the concatenation of N strings. Terminate arg list with NULL. */
+char *dupcat(char *s1, ...)
+{
+    int len;
+    char *p, *q, *sn;
+    va_list ap;
+
+    len = strlen(s1);
+    va_start(ap, s1);
+    while (1) {
+	sn = va_arg(ap, char *);
+	if (!sn)
+	    break;
+	len += strlen(sn);
+    }
+    va_end(ap);
+
+    p = smalloc(len + 1);
+    strcpy(p, s1);
+    q = p + strlen(p);
+
+    va_start(ap, s1);
+    while (1) {
+	sn = va_arg(ap, char *);
+	if (!sn)
+	    break;
+	strcpy(q, sn);
+	q += strlen(q);
+    }
+    va_end(ap);
+
+    return p;
+}
+
+/* ----------------------------------------------------------------------
  * Generic routines to deal with send buffers: a linked list of
  * smallish blocks, with the operations
  * 
@@ -99,7 +145,7 @@ void bufchain_prefix(bufchain *ch, void **data, int *len)
     *data = ch->head->buf + ch->head->bufpos;
 }
 
-/*
+/* ----------------------------------------------------------------------
  * My own versions of malloc, realloc and free. Because I want
  * malloc and realloc to bomb out and exit the program if they run
  * out of memory, realloc to reliably call malloc if passed a NULL
@@ -410,6 +456,10 @@ void safefree(void *ptr)
 	fprintf(fp, "freeing null pointer - no action taken\n");
 #endif
 }
+
+/* ----------------------------------------------------------------------
+ * Debugging routines.
+ */
 
 #ifdef DEBUG
 static FILE *debug_fp = NULL;
