@@ -474,6 +474,9 @@ void luni_send(wchar_t * widebuf, int len)
 	/* UTF is a simple algorithm */
 	for (p = linebuffer, i = 0; i < len; i++) {
 	    wchar_t ch = widebuf[i];
+	    /* Windows wchar_t is UTF-16 */
+	    if ((ch&0xF800) == 0xD800) ch = '.';
+
 	    if (ch < 0x80) {
 		*p++ = (char) (ch);
 	    } else if (ch < 0x800) {
