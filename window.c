@@ -104,8 +104,11 @@ static WPARAM pend_netevent_wParam = 0;
 static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
+static void sys_cursor_update(void);
 
 static time_t last_movement = 0;
+
+static int caret_x = -1, caret_y = -1;
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -2039,6 +2042,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	show_mouseptr(1);
 	has_focus = FALSE;
 	DestroyCaret();
+	caret_x = caret_y = -1;	       /* ensure caret is replaced next time */
 	term_out();
 	term_update();
 	break;
@@ -2155,6 +2159,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_FULLSCR_ON_MAX:
 	fullscr_on_max = TRUE;
 	break;
+      case WM_MOVE:
+	sys_cursor_update();
+	break;
       case WM_SIZE:
 #ifdef RDB_DEBUG_PATCH
 	debug((27, "WM_SIZE %s (%d,%d)",
@@ -2238,6 +2245,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    reset_window(0);
 	    }
 	}
+	sys_cursor_update();
 	return 0;
       case WM_VSCROLL:
 	switch (LOWORD(wParam)) {
@@ -2347,6 +2355,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	/* wParam == Font number */
 	/* lParam == Locale */
 	set_input_locale((HKL)lParam);
+	sys_cursor_update();
 	break;
       case WM_IME_NOTIFY:
 	if(wParam == IMN_SETOPENSTATUS) {
@@ -2482,13 +2491,35 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
  */
 void sys_cursor(int x, int y)
 {
+    int cx, cy;
+
+    if (!has_focus) return;
+
+    /*
+     * Avoid gratuitously re-updating the cursor position and IMM
+     * window if there's no actual change required.
+     */
+    cx = x * font_width + offset_width;
+    cy = y * font_height + offset_height;
+    if (cx == caret_x && cy == caret_y)
+	return;
+    caret_x = cx;
+    caret_y = cy;
+
+    sys_cursor_update();
+}
+
+static void sys_cursor_update(void)
+{
     COMPOSITIONFORM cf;
     HIMC hIMC;
 
     if (!has_focus) return;
-    
-    SetCaretPos(x * font_width + offset_width,
-		y * font_height + offset_height);
+
+    if (caret_x < 0 || caret_y < 0)
+	return;
+
+    SetCaretPos(caret_x, caret_y);
 
     /* IMM calls on Win98 and beyond only */
     if(osVersion.dwPlatformId == VER_PLATFORM_WIN32s) return; /* 3.11 */
@@ -2499,8 +2530,8 @@ void sys_cursor(int x, int y)
     /* we should have the IMM functions */
     hIMC = ImmGetContext(hwnd);
     cf.dwStyle = CFS_POINT;
-    cf.ptCurrentPos.x = x * font_width + offset_width;
-    cf.ptCurrentPos.y = y * font_height + offset_height;
+    cf.ptCurrentPos.x = caret_x;
+    cf.ptCurrentPos.y = caret_y;
     ImmSetCompositionWindow(hIMC, &cf);
 
     ImmReleaseContext(hwnd, hIMC);
