@@ -952,7 +952,12 @@ PuTTY will leave some Registry entries, and a random seed file, on
 the PC (see \k{faq-settings}). If you are using PuTTY on a public
 PC, or somebody else's PC, you might want to clean these up when you
 leave. You can do that automatically, by running the command
-\c{putty -cleanup}.
+\c{putty -cleanup}. (Note that this only removes settings for
+the currently logged-in user on \i{multi-user systems}.)
+
+If PuTTY was installed from the installer package, it will also
+appear in \q{Add/Remove Programs}. Uninstallation does not currently
+remove the above-mentioned registry entries and file.
 
 \S{faq-dsa}{Question} How come PuTTY now supports DSA, when the
 website used to say how insecure it was?

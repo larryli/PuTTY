@@ -520,8 +520,12 @@ use the \c{-load} option (described in \k{using-cmdline-load}).
 
 If invoked with the \c{-cleanup} option, rather than running as
 normal, PuTTY will remove its \I{removing registry entries}registry
-entries and \I{random seed file} from the local machine (after
+entries and \i{random seed file} from the local machine (after
 confirming with the user).
+
+Note that on \i{multi-user systems}, \c{-cleanup} only removes
+registry entries and files associated with the currently logged-in
+user.
 
 \S{using-general-opts} Standard command-line options
 
