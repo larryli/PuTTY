@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.65 2003/02/04 01:53:50 ben Exp $ */
+/* $Id: macterm.c,v 1.66 2003/02/04 02:03:53 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -204,7 +204,7 @@ static void mac_initfont(Session *s) {
     TextEncoding enc;
     OptionBits fbflags;
 
-    SetPort(GetWindowPort(s->window));
+    SetPort((GrafPtr)GetWindowPort(s->window));
     GetFNum(s->cfg.font.name, &s->fontnum);
     TextFont(s->fontnum);
     TextFace(s->cfg.font.face);
@@ -384,7 +384,7 @@ void mac_adjusttermcursor(WindowPtr window, Point mouse, RgnHandle cursrgn) {
     RgnHandle visrgn;
 #endif
 
-    SetPort(GetWindowPort(window));
+    SetPort((GrafPtr)GetWindowPort(window));
     s = (Session *)GetWRefCon(window);
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
@@ -485,7 +485,7 @@ void mac_clickterm(WindowPtr window, EventRecord *event) {
     static ControlActionUPP mac_scrolltracker_upp = NULL;
 
     s = (Session *)GetWRefCon(window);
-    SetPort(GetWindowPort(window));
+    SetPort((GrafPtr)GetWindowPort(window));
     mouse = event->where;
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
@@ -518,7 +518,7 @@ static void text_click(Session *s, EventRecord *event) {
     static int lastrow = -1, lastcol = -1;
     static Mouse_Action lastact = MA_NOTHING;
 
-    SetPort(GetWindowPort(s->window));
+    SetPort((GrafPtr)GetWindowPort(s->window));
     localwhere = event->where;
     GlobalToLocal(&localwhere);
 
@@ -1012,7 +1012,7 @@ void mac_updateterm(WindowPtr window) {
 #endif
 
     s = (Session *)GetWRefCon(window);
-    SetPort(GetWindowPort(window));
+    SetPort((GrafPtr)GetWindowPort(window));
     BeginUpdate(window);
     pre_paint(s);
 #if TARGET_API_MAC_CARBON
@@ -1050,7 +1050,7 @@ static void mac_drawgrowicon(Session *s) {
     Rect clip;
     RgnHandle savergn;
 
-    SetPort(GetWindowPort(s->window));
+    SetPort((GrafPtr)GetWindowPort(s->window));
     /*
      * Stop DrawGrowIcon giving us space for a horizontal scrollbar
      * See Tech Note TB575 for details.
@@ -1103,7 +1103,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
     assert(len <= 1024);
 
-    SetPort(GetWindowPort(s->window));
+    SetPort((GrafPtr)GetWindowPort(s->window));
 
     fontwidth = s->font_width;
     if ((lattr & LATTR_MODE) != LATTR_NORM)
@@ -1171,7 +1171,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	a.denom = s->font_bigdenom;
 	break;
     }
-    SetPort(GetWindowPort(s->window));
+    SetPort((GrafPtr)GetWindowPort(s->window));
     TextFont(s->fontnum);
     style = s->cfg.font.face;
     if ((attr & ATTR_BOLD) && !s->cfg.bold_colour)
@@ -1213,15 +1213,13 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
 static pascal void do_text_for_device(short depth, short devflags,
 				      GDHandle device, long cookie) {
-    struct do_text_args *a;
+    struct do_text_args *a = (struct do_text_args *)cookie;
     int bgcolour, fgcolour, bright, reverse, tmp;
 #if TARGET_API_MAC_CARBON
     CQDProcsPtr gp = GetPortGrafProcs(GetWindowPort(a->s->window));
 #else
     QDProcsPtr gp = a->s->window->grafProcs;
 #endif
-
-    a = (struct do_text_args *)cookie;
 
     bright = (a->attr & ATTR_BOLD) && a->s->cfg.bold_colour;
     reverse = a->attr & ATTR_REVERSE;
@@ -1321,7 +1319,7 @@ void pre_paint(Session *s) {
 
     if (HAVE_COLOR_QD()) {
 	s->term->attr_mask = 0;
-	SetPort(GetWindowPort(s->window));
+	SetPort((GrafPtr)GetWindowPort(s->window));
 #if TARGET_API_MAC_CARBON
 	visrgn = NewRgn();
 	GetPortVisibleRegion(GetWindowPort(s->window), visrgn);
@@ -1674,7 +1672,7 @@ void do_scroll(Context ctx, int topline, int botline, int lines) {
     RgnHandle update = NewRgn();
     Point g2l = { 0, 0 };
 
-    SetPort(GetWindowPort(s->window));
+    SetPort((GrafPtr)GetWindowPort(s->window));
 
     /*
      * Work out the part of the update region that will scrolled by
