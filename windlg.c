@@ -307,7 +307,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "FontIsBold", 0, &cfg.fontisbold);
     gppi (sesskey, "FontCharSet", ANSI_CHARSET, &cfg.fontcharset);
     gppi (sesskey, "FontHeight", 10, &cfg.fontheight);
-    gppi (sesskey, "FontVTMode", VT_POORMAN, (int *)&cfg.vtmode);
+    gppi (sesskey, "FontVTMode", VT_OEMANSI, (int *)&cfg.vtmode);
     gppi (sesskey, "TryPalette", 0, &cfg.try_palette);
     gppi (sesskey, "BoldAsColour", 1, &cfg.bold_colour);
     for (i=0; i<22; i++) {
