@@ -1,4 +1,4 @@
-\versionid $Id: gs.but,v 1.7 2004/04/08 12:38:53 simon Exp $
+\versionid $Id: gs.but,v 1.8 2004/09/17 14:26:39 jacob Exp $
 
 \C{gs} Getting started with PuTTY
 
@@ -25,7 +25,7 @@ buttons. For a login session, you should select \i{Telnet},
 differences between the three protocols, and advice on which one to
 use. The fourth protocol, \I{raw protocol}\e{Raw}, is not used for
 interactive login sessions; you would usually use this for debugging
-other Internet services.
+other Internet services (see \k{using-rawprot}).
 
 When you change the selected protocol, the number in the \q{Port}
 box will change. This is normal: it happens because the various
