@@ -560,6 +560,7 @@ struct ssh_tag {
     int remote_bugs;
     const struct ssh_cipher *cipher;
     void *v1_cipher_ctx;
+    void *crcda_ctx;
     const struct ssh2_cipher *cscipher, *sccipher;
     void *cs_cipher_ctx, *sc_cipher_ctx;
     const struct ssh_mac *csmac, *scmac;
@@ -809,7 +810,8 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	st->to_read -= st->chunk;
     }
 
-    if (ssh->cipher && detect_attack(ssh->pktin.data, st->biglen, NULL)) {
+    if (ssh->cipher && detect_attack(ssh->crcda_ctx, ssh->pktin.data,
+				     st->biglen, NULL)) {
         bombout(("Network attack (CRC compensation) detected!"));
         crReturn(0);
     }
@@ -2376,6 +2378,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	sprintf(buf, "Initialised %.200s encryption", ssh->cipher->text_name);
 	logevent(buf);
     }
+
+    ssh->crcda_ctx = crcda_make_context();
+    logevent("Installing CRC compensation attack detector");
 
     crWaitUntil(ispkt);
 
@@ -5801,6 +5806,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->s = NULL;
     ssh->cipher = NULL;
     ssh->v1_cipher_ctx = NULL;
+    ssh->crcda_ctx = NULL;
     ssh->cscipher = NULL;
     ssh->cs_cipher_ctx = NULL;
     ssh->sccipher = NULL;

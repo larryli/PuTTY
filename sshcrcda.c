@@ -56,6 +56,24 @@ typedef unsigned short uint16;
 uchar ONE[4] = { 1, 0, 0, 0 };
 uchar ZERO[4] = { 0, 0, 0, 0 };
 
+struct crcda_ctx {
+    uint16 *h;
+    uint32 n;
+};
+
+void *crcda_make_context(void)
+{
+    struct crcda_ctx *ret = smalloc(sizeof(struct crcda_ctx));
+    ret->h = NULL;
+    ret->n = HASH_MINSIZE / HASH_ENTRYSIZE;
+    return ret;
+}
+
+void crcda_free_context(void *handle)
+{
+    sfree(handle);
+}
+
 static void crc_update(uint32 *a, void *b)
 {
     *a = crc32_update(*a, b, 4);
@@ -85,10 +103,9 @@ static int check_crc(uchar *S, uchar *buf, uint32 len, uchar *IV)
 }
 
 /* Detect a crc32 compensation attack on a packet */
-int detect_attack(uchar *buf, uint32 len, uchar *IV)
+int detect_attack(void *handle, uchar *buf, uint32 len, uchar *IV)
 {
-    static uint16 *h = (uint16 *) NULL;
-    static uint32 n = HASH_MINSIZE / HASH_ENTRYSIZE;
+    struct crcda_ctx *ctx = (struct crcda_ctx *)handle;
     register uint32 i, j;
     uint32 l;
     register uchar *c;
@@ -96,17 +113,16 @@ int detect_attack(uchar *buf, uint32 len, uchar *IV)
 
     assert(!(len > (SSH_MAXBLOCKS * SSH_BLOCKSIZE) ||
              len % SSH_BLOCKSIZE != 0));
-    for (l = n; l < HASH_FACTOR(len / SSH_BLOCKSIZE); l = l << 2)
+    for (l = ctx->n; l < HASH_FACTOR(len / SSH_BLOCKSIZE); l = l << 2)
         ;
 
-    if (h == NULL) {
-        logevent("Installing CRC compensation attack detector");
-        n = l;
-        h = (uint16 *) smalloc(n * HASH_ENTRYSIZE);
+    if (ctx->h == NULL) {
+        ctx->n = l;
+        ctx->h = (uint16 *) smalloc(ctx->n * HASH_ENTRYSIZE);
     } else {
-        if (l > n) {
-            n = l;
-            h = (uint16 *) srealloc(h, n * HASH_ENTRYSIZE);
+        if (l > ctx->n) {
+            ctx->n = l;
+            ctx->h = (uint16 *) srealloc(ctx->h, ctx->n * HASH_ENTRYSIZE);
         }
     }
 
@@ -129,29 +145,29 @@ int detect_attack(uchar *buf, uint32 len, uchar *IV)
         }
         return 0;                      /* ok */
     }
-    memset(h, HASH_UNUSEDCHAR, n * HASH_ENTRYSIZE);
+    memset(ctx->h, HASH_UNUSEDCHAR, ctx->n * HASH_ENTRYSIZE);
 
     if (IV)
-        h[HASH(IV) & (n - 1)] = HASH_IV;
+        ctx->h[HASH(IV) & (ctx->n - 1)] = HASH_IV;
 
     for (c = buf, j = 0; c < (buf + len); c += SSH_BLOCKSIZE, j++) {
-        for (i = HASH(c) & (n - 1); h[i] != HASH_UNUSED;
-             i = (i + 1) & (n - 1)) {
-            if (h[i] == HASH_IV) {
+        for (i = HASH(c) & (ctx->n - 1); ctx->h[i] != HASH_UNUSED;
+             i = (i + 1) & (ctx->n - 1)) {
+            if (ctx->h[i] == HASH_IV) {
                 if (!CMP(c, IV)) {
                     if (check_crc(c, buf, len, IV))
                         return 1;      /* attack detected */
                     else
                         break;
                 }
-            } else if (!CMP(c, buf + h[i] * SSH_BLOCKSIZE)) {
+            } else if (!CMP(c, buf + ctx->h[i] * SSH_BLOCKSIZE)) {
                 if (check_crc(c, buf, len, IV))
                     return 1;          /* attack detected */
                 else
                     break;
             }
         }
-        h[i] = j;
+        ctx->h[i] = j;
     }
     return 0;                          /* ok */
 }
