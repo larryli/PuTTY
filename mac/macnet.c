@@ -174,6 +174,10 @@ int net_service_lookup(char *service)
     return 0;
 }
 
+SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname)
+{
+    return NULL;
+}
 
 /*
  * Local Variables:

@@ -68,6 +68,15 @@ void noise_get_light(void (*func) (void *, int))
 }
 
 /*
+ * This function is called on a timer, and grabs as much changeable
+ * system data as it can quickly get its hands on.
+ */
+void noise_regular(void)
+{
+    /* XXX */
+}
+
+/*
  * This function is called on every keypress or mouse move, and
  * will add the current time to the noise pool. It gets the scan
  * code or mouse position passed in, and adds that too.

@@ -784,6 +784,8 @@ void update_specials_menu(void *frontend)
 	mac_adjustmenus();
 }
 
+void notify_remote_exit(void *fe) { /* XXX anything needed here? */ }
+
 /*
  * Local Variables:
  * c-file-style: "simon"
