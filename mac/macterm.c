@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.19 2002/12/08 22:15:10 ben Exp $ */
+/* $Id: macterm.c,v 1.20 2002/12/08 22:23:08 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1010,7 +1010,7 @@ void pre_paint(Session *s) {
     GDHandle gdh;
     Rect myrect, tmprect;
 
-    s->term->attr_mask = 0xffffffff;
+    s->term->attr_mask = 0;
     if (HAVE_COLOR_QD()) {
 	SetPort(s->window);
 	myrect = (*s->window->visRgn)->rgnBBox;
@@ -1025,10 +1025,14 @@ void pre_paint(Session *s) {
 		switch ((*(*gdh)->gdPMap)->pixelSize) {
 		  case 1:
 		    if (s->cfg.bold_colour)
-			s->term->attr_mask &= ~ATTR_BOLD;
-		    /* FALLTHROUGH */
+			s->term->attr_mask |= ~(ATTR_BOLD | ATTR_COLOURS);
+		    break;
 		  case 2:
-		    s->term->attr_mask &= ~ATTR_COLOURS;
+		    s->term->attr_mask |= ~ATTR_COLOURS;
+		    break;
+		  default:
+		    s->term->attr_mask = ~0;
+		    return; /* No point checking more screens. */
 		}
 	    }
 	}
