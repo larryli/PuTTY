@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.14 2002/02/04 13:29:04 simon Exp $
+\versionid $Id: plink.but,v 1.15 2002/03/05 20:39:27 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -313,6 +313,10 @@ Next, select \q{Command Line} from the WinCVS \q{Admin} menu, and type
 a CVS command as in \k{plink-cvs}, for example:
 
 \c cvs -d :ext:user@hostname:/path/to/repository co module
+
+or (if you're using a saved session):
+
+\c cvs -d :ext:user@sessionname:/path/to/repository co module
 
 Select the folder you want to check out to with the \q{Change Folder}
 button, and click \q{OK} to check out your module.  Once you've got
