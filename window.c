@@ -728,7 +728,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		timer_id = 0;
 	    }
 	    HideCaret(hwnd);
-	    if (GetCapture() != hwnd)
+	    if (GetCapture() != hwnd || 
+		(send_raw_mouse && !(cfg.mouse_override && is_shift_pressed())))
 		term_out();
 	    term_update();
 	    ShowCaret(hwnd);
@@ -1521,6 +1522,17 @@ static int is_alt_pressed(void)
     return FALSE;
 }
 
+static int is_shift_pressed(void)
+{
+    BYTE keystate[256];
+    int r = GetKeyboardState(keystate);
+    if (!r)
+	return FALSE;
+    if (keystate[VK_SHIFT] & 0x80)
+	return TRUE;
+    return FALSE;
+}
+
 static int resizing;
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
@@ -1535,7 +1547,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_TIMER:
 	if (pending_netevent)
 	    enact_pending_netevent();
-	if (GetCapture() != hwnd)
+	if (GetCapture() != hwnd || 
+	    (send_raw_mouse && !(cfg.mouse_override && is_shift_pressed())))
 	    term_out();
 	noise_regular();
 	HideCaret(hwnd);
