@@ -545,6 +545,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     WNDCLASS wndclass;
     MSG msg;
 
+    /*
+     * First bomb out totally if we are already running.
+     */
+    if (FindWindow("Pageant", "Pageant")) {
+        MessageBox(NULL, "Pageant is already running", "Pageant Error",
+                   MB_ICONERROR | MB_OK);
+        return 0;
+    }
+
     instance = inst;
 
     if (!prev) {
