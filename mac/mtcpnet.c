@@ -142,6 +142,19 @@ enum { uppAddrToStrProcInfo = kCStackBased
 
 /* End of AddressXlation.h bits */
 
+/* TCP connection states, mysteriously missing from <MacTCP.h> */
+#define TCPS_CLOSED		0
+#define TCPS_LISTEN		2
+#define TCPS_SYN_RECEIVED	4
+#define TCPS_SYN_SENT		6
+#define TCPS_ESTABLISHED	8
+#define TCPS_FIN_WAIT_1		10
+#define TCPS_FIN_WAIT_2		12
+#define TCPS_CLOSE_WAIT		14
+#define TCPS_CLOSING		16
+#define TCPS_LAST_ACK		18
+#define TCPS_TIME_WAIT		20
+
 struct Socket_tag {
     struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
@@ -606,8 +619,12 @@ void mactcp_poll(void)
 	    if (pb.csParam.status.amtUnreadData == 0)
 		break;
 	    mactcp_recv(s, pb.csParam.status.amtUnreadData);
-	    /* Should check connectionState in case remote has closed */
 	} while (TRUE);
+	switch (pb.csParam.status.connectionState) {
+	  case TCPS_CLOSE_WAIT:
+	    /* Remote end has sent us a FIN */
+	    plug_closing(s->plug, NULL, 0, 0);
+	}
       next_socket:
 	;
     }
