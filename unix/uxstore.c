@@ -29,7 +29,7 @@ static char *mungestr(const char *in)
 {
     char *out, *ret;
 
-    if (!in)
+    if (!in || !*in)
         in = "Default Settings";
 
     ret = out = snewn(3*strlen(in)+1, char);
