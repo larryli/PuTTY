@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.16 2001/12/29 17:00:06 simon Exp $
+\versionid $Id: faq.but,v 1.17 2002/01/02 15:44:06 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -784,6 +784,16 @@ find anything then we'll just distribute the money among the
 developers. If you want to be sure your donation is going towards
 something worthwhile, ask us first. If you don't like these terms,
 feel perfectly free not to donate. We don't mind.
+
+\S{faq-sillyputty}{Question} Where can I buy silly putty?
+
+You're looking at the wrong web site; the only PuTTY we know about
+here is the name of a computer program.
+
+If you want the kind of putty you can buy as an executive toy, the
+PuTTY team can personally recommend Thinking Putty, which you can
+buy from Crazy Aaron's Putty World, at
+\W{http://www.puttyworld.com}\cw{www.puttyworld.com}.
 
 \S{faq-pronounce}{Question} How do I pronounce PuTTY?
 
