@@ -1312,7 +1312,8 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
     /*
      * Next, write p-1 as q*2^k.
      */
-    for (k = 0; bignum_bit(p, k) == !k; k++);	/* find first 1 bit in p-1 */
+    for (k = 0; bignum_bit(p, k) == !k; k++)
+	continue;	/* find first 1 bit in p-1 */
     q = bignum_rshift(p, k);
     /* And store p-1 itself, which we'll need. */
     pm1 = copybn(p);
