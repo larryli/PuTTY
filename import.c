@@ -148,8 +148,8 @@ int export_ssh2(const Filename *filename, int type,
 /* Primitive versus constructed bit. */
 #define ASN1_CONSTRUCTED            (1 << 5)
 
-int ber_read_id_len(void *source, int sourcelen,
-		    int *id, int *length, int *flags)
+static int ber_read_id_len(void *source, int sourcelen,
+			   int *id, int *length, int *flags)
 {
     unsigned char *p = (unsigned char *) source;
 
@@ -198,7 +198,7 @@ int ber_read_id_len(void *source, int sourcelen,
  * Will avoid writing anything if dest is NULL, but still return
  * amount of space required.
  */
-int ber_write_id_len(void *dest, int id, int length, int flags)
+static int ber_write_id_len(void *dest, int id, int length, int flags)
 {
     unsigned char *d = (unsigned char *)dest;
     int len = 0;
@@ -282,7 +282,7 @@ static int put_mp(void *target, void *data, int len)
 /* Simple structure to point to an mp-int within a blob. */
 struct mpint_pos { void *start; int bytes; };
 
-int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
+static int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
 {
     int bytes;
     unsigned char *d = (unsigned char *) data;
@@ -316,7 +316,7 @@ struct openssh_key {
     int keyblob_len, keyblob_size;
 };
 
-struct openssh_key *load_openssh_key(const Filename *filename)
+static struct openssh_key *load_openssh_key(const Filename *filename)
 {
     struct openssh_key *ret;
     FILE *fp;
@@ -985,7 +985,7 @@ struct sshcom_key {
     int keyblob_len, keyblob_size;
 };
 
-struct sshcom_key *load_sshcom_key(const Filename *filename)
+static struct sshcom_key *load_sshcom_key(const Filename *filename)
 {
     struct sshcom_key *ret;
     FILE *fp;
@@ -1143,7 +1143,7 @@ int sshcom_encrypted(const Filename *filename, char **comment)
     return answer;
 }
 
-int sshcom_read_mpint(void *data, int len, struct mpint_pos *ret)
+static int sshcom_read_mpint(void *data, int len, struct mpint_pos *ret)
 {
     int bits;
     int bytes;
