@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.6 2003/01/23 22:57:43 ben Exp $ */
+/* $Id: macdlg.c,v 1.7 2003/01/25 14:04:47 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -195,8 +195,8 @@ pascal OSErr mac_aevt_odoc(const AppleEvent *req, AppleEvent *reply,
     if (err != noErr) goto out;
 
     for (i = 0; i < ndocs; i++) {
-	err = AEGetNthPtr(&docs, i, typeFSS, &keywd, &type, &fss, sizeof(fss),
-			  &size);
+	err = AEGetNthPtr(&docs, i + 1, typeFSS,
+			  &keywd, &type, &fss, sizeof(fss), &size);
 	if (err != noErr) goto out;
 	err = mac_opensessionfrom(&fss);
 	if (err != noErr) goto out;
