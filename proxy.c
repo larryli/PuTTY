@@ -695,6 +695,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	    namelen = 0;
 	    sk_addrcopy(p->remote_addr, addr);
 	} else {		       /* type == ADDRTYPE_NAME */
+	    assert(type == ADDRTYPE_NAME);
 	    sk_getaddr(p->remote_addr, hostname, lenof(hostname));
 	    namelen = strlen(hostname) + 1;   /* include the NUL */
 	    addr[0] = addr[1] = addr[2] = 0;
@@ -999,7 +1000,8 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 		len = 22;	       /* 4 hdr + 16 addr + 2 trailer */
 		command[3] = 4; /* IPv6 */
 		sk_addrcopy(p->remote_addr, command+4);
-	    } else if (type == ADDRTYPE_NAME) {
+	    } else {
+		assert(type == ADDRTYPE_NAME);
 		command[3] = 3;
 		sk_getaddr(p->remote_addr, command+5, 256);
 		command[4] = strlen(command+5);
