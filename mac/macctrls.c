@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.32 2003/04/13 13:52:44 ben Exp $ */
+/* $Id: macctrls.c,v 1.33 2003/04/13 14:37:07 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -213,6 +213,17 @@ static int macctrl_cmp_byctrl_find(void *av, void *bv)
 	return 0;
 }
 
+static union control panellist;
+
+static void panellist_handler(union control *ctrl, void *dlg, void *data,
+			      int event)
+{
+    struct macctrls *mcs = dlg;
+
+    if (event == EVENT_SELCHANGE)
+	macctrl_switchtopanel(mcs, dlg_listbox_index(ctrl, dlg) + 1);
+}
+
 void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 		       struct macctrls *mcs)
 {
@@ -222,16 +233,13 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     Rect rect;
 
     macctrl_init();
+    if (mac_gestalts.apprvers >= 0x100)
+	CreateRootControl(window, &root);
 #if TARGET_API_MAC_CARBON
     GetPortBounds(GetWindowPort(window), &rect);
 #else
     rect = window->portRect;
 #endif
-    curstate.pos.h = rect.left + 13;
-    curstate.pos.v = rect.bottom - 33;
-    curstate.width = rect.right - rect.left - (13 * 2);
-    if (mac_gestalts.apprvers >= 0x100)
-	CreateRootControl(window, &root);
     mcs->window = window;
     mcs->byctrl = newtree234(macctrl_cmp_byctrl);
     mcs->focus = NULL;
@@ -245,12 +253,26 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     mcs->panels = snewn(mcs->npanels, union macctrl *);
     memset(mcs->panels, 0, sizeof(*mcs->panels) * mcs->npanels);
     curstate.panelnum = 0;
+
+    curstate.pos.h = rect.left + 13;
+    curstate.pos.v = rect.top + 13;
+    curstate.width = 160;
+    panellist.listbox.type = CTRL_LISTBOX;
+    panellist.listbox.handler = &panellist_handler;
+    panellist.listbox.height = 15;
+    panellist.listbox.percentwidth = 100;
+    macctrl_listbox(mcs, window, &curstate, &panellist);
+
+    curstate.pos.h = rect.left + 13 + 160 + 13;
+    curstate.pos.v = rect.bottom - 33;
+    curstate.width = rect.right - (rect.left + 13 + 160) - (13 * 2);
     for (i = 0; i < cb->nctrlsets; i++) {
 	if (i > 0 && strcmp(cb->ctrlsets[i]->pathname,
 			    cb->ctrlsets[i-1]->pathname)) {
 	    curstate.pos.v = rect.top + 13;
 	    curstate.panelnum++;
 	    assert(curstate.panelnum < mcs->npanels);
+	    dlg_listbox_add(&panellist, mcs, cb->ctrlsets[i]->pathname);
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
