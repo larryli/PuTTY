@@ -1,13 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef AUTO_WINSOCK
-#ifdef WINSOCK_TWO
-#include <winsock2.h>
-#else
-#include <winsock.h>
-#endif
-#endif
 
 #include "putty.h"
 
@@ -18,7 +11,7 @@
 #define TRUE 1
 #endif
 
-static SOCKET s = INVALID_SOCKET;
+static Socket s = NULL;
 
 #define	IAC	255		/* interpret as command: */
 #define	DONT	254		/* you are not to use option */
@@ -145,32 +138,6 @@ static char *sb_buf = NULL;
 static int sb_size = 0;
 #define SB_DELTA 1024
 
-static void try_write (void) {
-    while (outbuf_head != outbuf_reap) {
-	int end = (outbuf_reap < outbuf_head ? outbuf_head : OUTBUF_SIZE);
-	int len = end - outbuf_reap;
-	int ret;
-
-	ret = send (s, outbuf+outbuf_reap, len, 0);
-	if (ret > 0)
-	    outbuf_reap = (outbuf_reap + ret) & OUTBUF_MASK;
-	if (ret < len)
-	    return;
-    }
-}
-
-static void s_write (void *buf, int len) {
-    unsigned char *p = buf;
-    while (len--) {
-	int new_head = (outbuf_head + 1) & OUTBUF_MASK;
-	if (new_head != outbuf_reap) {
-	    outbuf[outbuf_head] = *p++;
-	    outbuf_head = new_head;
-	}
-    }
-    try_write();
-}
-
 static void c_write1(int c) {
     char cc = (char)c;
     from_backend(0, &cc, 1);
@@ -189,7 +156,7 @@ static void send_opt (int cmd, int option) {
     unsigned char b[3];
 
     b[0] = IAC; b[1] = cmd; b[2] = option;
-    s_write (b, 3);
+    sk_write(s, b, 3);
     log_option("client", cmd, option);
 }
 
@@ -286,7 +253,7 @@ static void process_subneg (void) {
 	    strcpy(b+4, cfg.termspeed);
 	    n = 4 + strlen(cfg.termspeed);
 	    b[n] = IAC; b[n+1] = SE;
-	    s_write (b, n+2);
+	    sk_write(s, b, n+2);
 	    logevent("server:\tSB TSPEED SEND");
 	    sprintf(logbuf, "client:\tSB TSPEED IS %s", cfg.termspeed);
 	    logevent (logbuf);
@@ -302,7 +269,7 @@ static void process_subneg (void) {
 		b[n+4] = (cfg.termtype[n] >= 'a' && cfg.termtype[n] <= 'z' ?
 			  cfg.termtype[n] + 'A'-'a' : cfg.termtype[n]);
 	    b[n+4] = IAC; b[n+5] = SE;
-	    s_write (b, n+6);
+	    sk_write(s, b, n+6);
 	    b[n+4] = 0;
 	    logevent("server:\tSB TTYPE SEND");
 	    sprintf(logbuf, "client:\tSB TTYPE IS %s", b+4);
@@ -367,7 +334,7 @@ static void process_subneg (void) {
 		while (*e) b[n++] = *e++;
 	    }
 	    b[n++] = IAC; b[n++] = SE;
-	    s_write (b, n);
+	    sk_write(s, b, n);
 	    sprintf(logbuf, "client:\tSB %s IS %s", telopt(sb_opt),
 		    n==6 ? "<nothing>" : "<stuff>");
 	    logevent (logbuf);
@@ -486,37 +453,34 @@ static void do_telnet_read (char *buf, int len) {
     }
 }
 
+static int telnet_receive(Socket s, int urgent, char *data, int len) {
+    if (!len) {
+	/* Connection has closed. */
+	sk_close(s);
+	s = NULL;
+	return 0;
+    }
+    do_telnet_read (data, len);
+    return 1;
+}
+
 /*
- * Called to set up the Telnet connection. Will arrange for
- * WM_NETEVENT messages to be passed to the specified window, whose
- * window procedure should then call telnet_msg().
+ * Called to set up the Telnet connection.
  *
  * Returns an error message, or NULL on success.
  *
  * Also places the canonical host name into `realhost'.
  */
-static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
-    SOCKADDR_IN addr;
-    struct hostent *h;
-    unsigned long a;
+static char *telnet_init (char *host, int port, char **realhost) {
+    SockAddr addr;
+    char *err;
 
     /*
      * Try to find host.
      */
-    if ( (a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
-	if ( (h = gethostbyname(host)) == NULL)
-	    switch (WSAGetLastError()) {
-	      case WSAENETDOWN: return "Network is down";
-	      case WSAHOST_NOT_FOUND: case WSANO_DATA:
-		return "Host does not exist";
-	      case WSATRY_AGAIN: return "Host not found";
-	      default: return "gethostbyname: unknown error";
-	    }
-	memcpy (&a, h->h_addr, sizeof(a));
-	*realhost = h->h_name;
-    } else
-	*realhost = host;
-    a = ntohl(a);
+    addr = sk_namelookup(host, realhost);
+    if ( (err = sk_addr_error(addr)) )
+	return err;
 
     if (port < 0)
 	port = 23;		       /* default telnet port */
@@ -524,51 +488,11 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
     /*
      * Open socket.
      */
-    s = socket(AF_INET, SOCK_STREAM, 0);
-    if (s == INVALID_SOCKET)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  case WSAEAFNOSUPPORT: return "TCP/IP support not present";
-	  default: return "socket(): unknown error";
-	}
+    s = sk_new(addr, port, telnet_receive);
+    if ( (err = sk_socket_error(s)) )
+	return err;
 
-    {
-	BOOL b = TRUE;
-	setsockopt (s, SOL_SOCKET, SO_OOBINLINE, (void *)&b, sizeof(b));
-    }
-
-    /*
-     * Bind to local address.
-     */
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(0);
-    if (bind (s, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  default: return "bind(): unknown error";
-	}
-
-    /*
-     * Connect to remote address.
-     */
-    addr.sin_addr.s_addr = htonl(a);
-    addr.sin_port = htons((short)port);
-    if (connect (s, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  case WSAECONNREFUSED: return "Connection refused";
-	  case WSAENETUNREACH: return "Network is unreachable";
-	  case WSAEHOSTUNREACH: return "No route to host";
-	  default: return "connect(): unknown error";
-	}
-
-    if (hwnd && WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ |
-			FD_WRITE | FD_OOB | FD_CLOSE) == SOCKET_ERROR)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  default: return "WSAAsyncSelect(): unknown error";
-	}
+    sk_addr_free(addr);
 
     /*
      * Initialise option states.
@@ -604,72 +528,6 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
 }
 
 /*
- * Process a WM_NETEVENT message. Will return 0 if the connection
- * has closed, or <0 for a socket error.
- */
-static int telnet_msg (WPARAM wParam, LPARAM lParam) {
-    int ret;
-    /* This needs to be larger than the packet size now that inbuf
-     * cannot overflow, in fact the fewer calls we make to windows
-     * the faster we will run!
-     */
-    char buf[16384];	
-
-    /*
-     * Because reading less than the whole of the available pending
-     * data can generate an FD_READ event, we need to allow for the
-     * possibility that FD_READ may arrive with FD_CLOSE already in
-     * the queue; so it's possible that we can get here even with s
-     * invalid. If so, we return 1 and don't worry about it.
-     */
-    if (s == INVALID_SOCKET)
-	return 1;
-
-    if (WSAGETSELECTERROR(lParam) != 0) {
-        closesocket(s);
-        s = INVALID_SOCKET;
-	return -WSAGETSELECTERROR(lParam);
-    }
-
-    switch (WSAGETSELECTEVENT(lParam)) {
-      case FD_READ:
-      case FD_CLOSE:
-	{
-	    int clear_of_oob = 1;
-
-	    /* Don't check for error return; some shims don't support
-	     * this ioctl.
-	     */
-	    ioctlsocket (s, SIOCATMARK, &clear_of_oob);
-
-	    in_synch = !clear_of_oob;
-
-	    do {
-		ret = recv(s, buf, sizeof(buf), 0);
-		if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
-		    return 1;
-		if (ret < 0) {		       /* any _other_ error */
-                    closesocket(s);
-                    s = INVALID_SOCKET;
-		    return -10000-WSAGetLastError();
-                }
-		if (ret == 0) {
-		    s = INVALID_SOCKET;
-		    return 0;
-		}
-	        do_telnet_read (buf, ret);
-	    } while (in_synch);
-	}
-	return 1;
-      case FD_WRITE:
-	if (outbuf_head != outbuf_reap)
-	    try_write();
-	return 1;
-    }
-    return 1;			       /* shouldn't happen, but WTF */
-}
-
-/*
  * Called to send data down the Telnet connection.
  */
 static void telnet_send (char *buf, int len) {
@@ -678,7 +536,7 @@ static void telnet_send (char *buf, int len) {
     static unsigned char cr[2] = { CR, NUL };
     static unsigned char nl[2] = { CR, LF };
 
-    if (s == INVALID_SOCKET)
+    if (s == NULL)
 	return;
 
     p = buf;
@@ -686,10 +544,10 @@ static void telnet_send (char *buf, int len) {
 	char *q = p;
 
 	while (iswritable((unsigned char)*p) && p < buf+len) p++;
-	s_write (q, p-q);
+	sk_write(s, q, p-q);
 
 	while (p < buf+len && !iswritable((unsigned char)*p)) {
-	    s_write ((unsigned char)*p == IAC ? iac : nl, 2);
+	    sk_write(s, (unsigned char)*p == IAC ? iac : nl, 2);
 	    p++;
 	}
     }
@@ -702,13 +560,13 @@ static void telnet_size(void) {
     unsigned char b[16];
     char logbuf[50];
 
-    if (s == INVALID_SOCKET || o_naws.state != ACTIVE)
+    if (s == NULL || o_naws.state != ACTIVE)
 	return;
     b[0] = IAC; b[1] = SB; b[2] = TELOPT_NAWS;
     b[3] = cols >> 8; b[4] = cols & 0xFF;
     b[5] = rows >> 8; b[6] = rows & 0xFF;
     b[7] = IAC; b[8] = SE;
-    s_write (b, 9);
+    sk_write(s, b, 9);
     sprintf(logbuf, "client:\tSB NAWS %d,%d",
 	    ((unsigned char)b[3] << 8) + (unsigned char)b[4],
 	    ((unsigned char)b[5] << 8) + (unsigned char)b[6]);
@@ -721,28 +579,28 @@ static void telnet_size(void) {
 static void telnet_special (Telnet_Special code) {
     unsigned char b[2];
 
-    if (s == INVALID_SOCKET)
+    if (s == NULL)
 	return;
 
     b[0] = IAC;
     switch (code) {
-      case TS_AYT: b[1] = AYT; s_write (b, 2); break;
-      case TS_BRK: b[1] = BREAK; s_write (b, 2); break;
-      case TS_EC: b[1] = EC; s_write (b, 2); break;
-      case TS_EL: b[1] = EL; s_write (b, 2); break;
-      case TS_GA: b[1] = GA; s_write (b, 2); break;
-      case TS_NOP: b[1] = NOP; s_write (b, 2); break;
-      case TS_ABORT: b[1] = ABORT; s_write (b, 2); break;
-      case TS_AO: b[1] = AO; s_write (b, 2); break;
-      case TS_IP: b[1] = IP; s_write (b, 2); break;
-      case TS_SUSP: b[1] = SUSP; s_write (b, 2); break;
-      case TS_EOR: b[1] = EOR; s_write (b, 2); break;
-      case TS_EOF: b[1] = xEOF; s_write (b, 2); break;
+      case TS_AYT: b[1] = AYT; sk_write(s, b, 2); break;
+      case TS_BRK: b[1] = BREAK; sk_write(s, b, 2); break;
+      case TS_EC: b[1] = EC; sk_write(s, b, 2); break;
+      case TS_EL: b[1] = EL; sk_write(s, b, 2); break;
+      case TS_GA: b[1] = GA; sk_write(s, b, 2); break;
+      case TS_NOP: b[1] = NOP; sk_write(s, b, 2); break;
+      case TS_ABORT: b[1] = ABORT; sk_write(s, b, 2); break;
+      case TS_AO: b[1] = AO; sk_write(s, b, 2); break;
+      case TS_IP: b[1] = IP; sk_write(s, b, 2); break;
+      case TS_SUSP: b[1] = SUSP; sk_write(s, b, 2); break;
+      case TS_EOR: b[1] = EOR; sk_write(s, b, 2); break;
+      case TS_EOF: b[1] = xEOF; sk_write(s, b, 2); break;
       case TS_SYNCH:
-	outbuf_head = outbuf_reap = 0;
-	b[1] = DM;
-	send (s, b, 2, MSG_OOB);
-	break;
+        b[1] = DM;
+        sk_write (s, b, 1);
+        sk_write_oob (s, b+1, 1);
+        break;
       case TS_RECHO:
 	if (o_echo.state == INACTIVE || o_echo.state == REALLY_INACTIVE) {
 	    o_echo.state = REQUESTED;
@@ -758,19 +616,18 @@ static void telnet_special (Telnet_Special code) {
       case TS_PING: 
 	if (o_they_sga.state == ACTIVE) {
 	    b[1] = NOP; 
-	    s_write (b, 2); 
+	    sk_write(s, b, 2); 
 	}
         break;
     }
 }
 
-static SOCKET telnet_socket(void) { return s; }
+static Socket telnet_socket(void) { return s; }
 
 static int telnet_sendok(void) { return 1; }
 
 Backend telnet_backend = {
     telnet_init,
-    telnet_msg,
     telnet_send,
     telnet_size,
     telnet_special,

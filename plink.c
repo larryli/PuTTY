@@ -11,8 +11,8 @@
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
-#include "winstuff.h"
 #include "storage.h"
+#include "tree234.h"
 
 void fatalbox (char *p, ...) {
     va_list ap;
@@ -121,6 +121,8 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 HANDLE outhandle, errhandle;
 DWORD orig_console_mode;
 
+WSAEVENT netevent;
+
 void begin_session(void) {
     if (!cfg.ldisc_term)
         SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
@@ -144,7 +146,7 @@ void from_backend(int is_stderr, char *data, int len) {
 struct input_data {
     DWORD len;
     char buffer[4096];
-    HANDLE event;
+    HANDLE event, eventback;
 };
 
 static int get_password(const char *prompt, char *str, int maxlen)
@@ -196,8 +198,9 @@ static DWORD WINAPI stdin_read_thread(void *param) {
     inhandle = GetStdHandle(STD_INPUT_HANDLE);
 
     while (ReadFile(inhandle, idata->buffer, sizeof(idata->buffer),
-                    &idata->len, NULL)) {
+                    &idata->len, NULL) && idata->len > 0) {
         SetEvent(idata->event);
+        WaitForSingleObject(idata->eventback, INFINITE);
     }
 
     idata->len = 0;
@@ -222,18 +225,38 @@ static void usage(void)
     exit(1);
 }
 
+char *do_select(SOCKET skt, int startup) {
+    int events;
+    if (startup) {
+	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE;
+    } else {
+	events = 0;
+    }
+    if (WSAEventSelect (skt, netevent, events) == SOCKET_ERROR) {
+        switch (WSAGetLastError()) {
+          case WSAENETDOWN: return "Network is down";
+          default: return "WSAAsyncSelect(): unknown error";
+        }
+    }
+    return NULL;
+}
+
 int main(int argc, char **argv) {
     WSADATA wsadata;
     WORD winsock_ver;
-    WSAEVENT netevent, stdinevent;
+    WSAEVENT stdinevent;
     HANDLE handles[2];
-    SOCKET socket;
     DWORD threadid;
     struct input_data idata;
     int sending;
     int portnumber = -1;
+    SOCKET *sklist;
+    int skcount, sksize;
+    int connopen;
 
     ssh_get_password = get_password;
+
+    sklist = NULL; skcount = sksize = 0;
 
     flags = FLAG_STDERR;
     /*
@@ -429,22 +452,24 @@ int main(int argc, char **argv) {
 	WSACleanup();
 	return 1;
     }
+    sk_init();
 
     /*
      * Start up the connection.
      */
+    netevent = CreateEvent(NULL, FALSE, FALSE, NULL);
     {
 	char *error;
 	char *realhost;
 
-	error = back->init (NULL, cfg.host, cfg.port, &realhost);
+	error = back->init (cfg.host, cfg.port, &realhost);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
 	}
     }
+    connopen = 1;
 
-    netevent = CreateEvent(NULL, FALSE, FALSE, NULL);
     stdinevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
     GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &orig_console_mode);
@@ -453,15 +478,10 @@ int main(int argc, char **argv) {
     errhandle = GetStdHandle(STD_ERROR_HANDLE);
 
     /*
-     * Now we must send the back end oodles of stuff.
-     */
-    socket = back->socket();
-    /*
      * Turn off ECHO and LINE input modes. We don't care if this
      * call fails, because we know we aren't necessarily running in
      * a console.
      */
-    WSAEventSelect(socket, netevent, FD_READ | FD_CLOSE);
     handles[0] = netevent;
     handles[1] = stdinevent;
     sending = FALSE;
@@ -486,6 +506,7 @@ int main(int argc, char **argv) {
              *    - so we're back to ReadFile blocking.
              */
             idata.event = stdinevent;
+            idata.eventback = CreateEvent(NULL, FALSE, FALSE, NULL);
             if (!CreateThread(NULL, 0, stdin_read_thread,
                               &idata, 0, &threadid)) {
                 fprintf(stderr, "Unable to create second thread\n");
@@ -497,22 +518,62 @@ int main(int argc, char **argv) {
         n = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
         if (n == 0) {
             WSANETWORKEVENTS things;
-            if (!WSAEnumNetworkEvents(socket, netevent, &things)) {
-                if (things.lNetworkEvents & FD_READ)
-                    back->msg(0, FD_READ);
-                if (things.lNetworkEvents & FD_CLOSE) {
-                    back->msg(0, FD_CLOSE);
-                    break;
-                }
+	    enum234 e;
+	    SOCKET socket;
+	    extern SOCKET first_socket(enum234 *), next_socket(enum234 *);
+	    extern int select_result(WPARAM, LPARAM);
+            int i;
+
+            /*
+             * We must not call select_result() for any socket
+             * until we have finished enumerating within the tree.
+             * This is because select_result() may close the socket
+             * and modify the tree.
+             */
+            /* Count the active sockets. */
+            i = 0;
+            for (socket = first_socket(&e); socket != INVALID_SOCKET;
+		 socket = next_socket(&e))
+                i++;
+
+            /* Expand the buffer if necessary. */
+            if (i > sksize) {
+                sksize = i+16;
+                sklist = srealloc(sklist, sksize * sizeof(*sklist));
             }
+
+            /* Retrieve the sockets into sklist. */
+            skcount = 0;
+	    for (socket = first_socket(&e); socket != INVALID_SOCKET;
+		 socket = next_socket(&e)) {
+                sklist[skcount++] = socket;
+            }
+
+            /* Now we're done enumerating; go through the list. */
+            for (i = 0; i < skcount; i++) {
+                WPARAM wp;
+                socket = sklist[i];
+                wp = (WPARAM)socket;
+		if (!WSAEnumNetworkEvents(socket, netevent, &things)) {
+		    if (things.lNetworkEvents & FD_READ)
+			connopen &= select_result(wp, (LPARAM)FD_READ);
+		    if (things.lNetworkEvents & FD_CLOSE)
+			connopen &= select_result(wp, (LPARAM)FD_CLOSE);
+		    if (things.lNetworkEvents & FD_OOB)
+			connopen &= select_result(wp, (LPARAM)FD_OOB);
+		    if (things.lNetworkEvents & FD_WRITE)
+                        connopen &= select_result(wp, (LPARAM)FD_WRITE);
+		}
+	    }
         } else if (n == 1) {
             if (idata.len > 0) {
                 back->send(idata.buffer, idata.len);
             } else {
                 back->special(TS_EOF);
             }
+            SetEvent(idata.eventback);
         }
-        if (back->socket() == INVALID_SOCKET)
+        if (!connopen || back->socket() == NULL)
             break;                 /* we closed the connection */
     }
     WSACleanup();

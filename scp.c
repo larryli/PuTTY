@@ -242,6 +242,19 @@ void connection_fatal(char *fmt, ...)
 }
 
 /*
+ * Be told what socket we're supposed to be using.
+ */
+static SOCKET scp_ssh_socket;
+char *do_select(SOCKET skt, int startup) {
+    if (startup)
+	scp_ssh_socket = skt;
+    else
+	scp_ssh_socket = INVALID_SOCKET;
+    return NULL;
+}
+extern int select_result(WPARAM, LPARAM);
+
+/*
  * Receive a block of data from the SSH link. Block until all data
  * is available.
  *
@@ -249,6 +262,7 @@ void connection_fatal(char *fmt, ...)
  * own trap in from_backend() to catch the data that comes back. We
  * do this until we have enough data.
  */
+
 static unsigned char *outptr;          /* where to put the data */
 static unsigned outlen;                /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
@@ -295,8 +309,6 @@ void from_backend(int is_stderr, char *data, int datalen) {
     }
 }
 static int ssh_scp_recv(unsigned char *buf, int len) {
-    SOCKET s;
-
     outptr = buf;
     outlen = len;
 
@@ -324,16 +336,12 @@ static int ssh_scp_recv(unsigned char *buf, int len) {
 
     while (outlen > 0) {
         fd_set readfds;
-        s = back->socket();
-        if (s == INVALID_SOCKET) {
-            connection_open = FALSE;
-            return 0;
-        }
+
         FD_ZERO(&readfds);
-        FD_SET(s, &readfds);
+        FD_SET(scp_ssh_socket, &readfds);
         if (select(1, &readfds, NULL, NULL, NULL) < 0)
             return 0;                  /* doom */
-        back->msg(0, FD_READ);
+        select_result((WPARAM)scp_ssh_socket, (LPARAM)FD_READ);
     }
 
     return len;
@@ -343,18 +351,15 @@ static int ssh_scp_recv(unsigned char *buf, int len) {
  * Loop through the ssh connection and authentication process.
  */
 static void ssh_scp_init(void) {
-    SOCKET s;
-
-    s = back->socket();
-    if (s == INVALID_SOCKET)
+    if (scp_ssh_socket == INVALID_SOCKET)
 	return;
     while (!back->sendok()) {
         fd_set readfds;
         FD_ZERO(&readfds);
-        FD_SET(s, &readfds);
+        FD_SET(scp_ssh_socket, &readfds);
         if (select(1, &readfds, NULL, NULL, NULL) < 0)
             return;                    /* doom */
-        back->msg(0, FD_READ);
+        select_result((WPARAM)scp_ssh_socket, (LPARAM)FD_READ);
     }
 }
 
@@ -464,7 +469,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     back = &ssh_backend;
 
-    err = back->init(NULL, cfg.host, cfg.port, &realhost);
+    err = back->init(cfg.host, cfg.port, &realhost);
     if (err != NULL)
 	bump("ssh_init: %s", err);
     ssh_scp_init();
@@ -1178,6 +1183,7 @@ int main(int argc, char *argv[])
     flags = FLAG_STDERR;
     ssh_get_password = &get_password;
     init_winsock();
+    sk_init();
 
     for (i = 1; i < argc; i++) {
 	if (argv[i][0] != '-')

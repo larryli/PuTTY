@@ -4,13 +4,6 @@
  */
 
 #include <windows.h>
-#ifndef AUTO_WINSOCK
-#ifdef WINSOCK_TWO
-#include <winsock2.h>
-#else
-#include <winsock.h>
-#endif
-#endif
 #include <stdio.h>
 #include "putty.h"
 

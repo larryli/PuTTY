@@ -129,6 +129,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	return 1;
     }
     /* WISHLIST: maybe allow config tweaking even if winsock not present? */
+    sk_init();
 
     InitCommonControls();
 
@@ -435,7 +436,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	char msg[1024], *title;
 	char *realhost;
 
-	error = back->init (hwnd, cfg.host, cfg.port, &realhost);
+	error = back->init (cfg.host, cfg.port, &realhost);
 	if (error) {
 	    sprintf(msg, "Unable to open connection:\n%s", error);
 	    MessageBox(NULL, msg, "PuTTY Error", MB_ICONERROR | MB_OK);
@@ -624,6 +625,28 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 }
 
 /*
+ * Set up, or shut down, an AsyncSelect. Called from winnet.c.
+ */
+char *do_select(SOCKET skt, int startup) {
+    int msg, events;
+    if (startup) {
+	msg = WM_NETEVENT;
+	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE;
+    } else {
+	msg = events = 0;
+    }
+    if (!hwnd)
+	return "do_select(): internal error (hwnd==NULL)";
+    if (WSAAsyncSelect (skt, hwnd, msg, events) == SOCKET_ERROR) {
+        switch (WSAGetLastError()) {
+          case WSAENETDOWN: return "Network is down";
+          default: return "WSAAsyncSelect(): unknown error";
+        }
+    }
+    return NULL;
+}
+
+/*
  * Print a message box and close the connection.
  */
 void connection_fatal(char *fmt, ...) {
@@ -646,8 +669,9 @@ void connection_fatal(char *fmt, ...) {
  * Actually do the job requested by a WM_NETEVENT
  */
 static void enact_pending_netevent(void) {
-    int i;
     static int reentering = 0;
+    extern int select_result(WPARAM, LPARAM);
+    int ret;
 
     if (reentering)
         return;                        /* don't unpend the pending */
@@ -655,25 +679,10 @@ static void enact_pending_netevent(void) {
     pending_netevent = FALSE;
 
     reentering = 1;
-    i = back->msg (pend_netevent_wParam, pend_netevent_lParam);
+    ret = select_result (pend_netevent_wParam, pend_netevent_lParam);
     reentering = 0;
 
-    if (i < 0) {
-	char buf[1024];
-	switch (WSABASEERR + (-i) % 10000) {
-	  case WSAECONNRESET:
-	    sprintf(buf, "Connection reset by peer");
-	    break;
-	  case WSAECONNABORTED:
-	    sprintf(buf, "Connection aborted");
-	    break;
-	  default:
-	    sprintf(buf, "Unexpected network error %d", -i);
-	    break;
-	}
-        connection_fatal(buf);
-    }
-    if (i <= 0) {
+    if (ret == 0) {
 	if (cfg.close_on_exit)
 	    PostQuitMessage(0);
 	else {

@@ -1,11 +1,4 @@
 #include <windows.h>
-#ifndef AUTO_WINSOCK
-#ifdef WINSOCK_TWO
-#include <winsock2.h>
-#else
-#include <winsock.h>
-#endif
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2150,7 +2143,7 @@ void term_nopaste() {
 }
 
 void term_paste() {
-static long last_paste = 0;
+    static long last_paste = 0;
     long now, paste_diff;
 
     if(paste_len == 0) return;
@@ -2166,10 +2159,15 @@ static long last_paste = 0;
 
     while(paste_pos<paste_len)
     {
-	char c = paste_buffer[paste_pos++];
-	ldisc->send (&c, 1);
+	int n = 0;
+	while (n + paste_pos < paste_len) {
+	    if (paste_buffer[paste_pos + n++] == '\r')
+		break;
+	}
+	ldisc->send (paste_buffer+paste_pos, n);
+	paste_pos += n;
 
-	if (c =='\r') {
+	if (paste_pos < paste_len) {
 	    paste_hold = 1;
 	    return;
 	}

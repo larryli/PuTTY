@@ -1,14 +1,8 @@
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#ifndef AUTO_WINSOCK
-#ifdef WINSOCK_TWO
-#include <winsock2.h>
-#else
-#include <winsock.h>
-#endif
-#endif
 
 #include "putty.h"
 #include "tree234.h"
@@ -25,8 +19,8 @@
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       fprintf(stderr, "%s\n", s); }
 
-#define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, closesocket(s), \
-                       s = INVALID_SOCKET, connection_fatal msg )
+#define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, sk_close(s), \
+                       s = NULL, connection_fatal msg )
 
 #define SSH1_MSG_DISCONNECT                       1    /* 0x1 */
 #define SSH1_SMSG_PUBLIC_KEY                      2    /* 0x2 */
@@ -217,7 +211,7 @@ struct Packet {
 
 static SHA_State exhash;
 
-static SOCKET s = INVALID_SOCKET;
+static Socket s = NULL;
 
 static unsigned char session_key[32];
 static const struct ssh_cipher *cipher = NULL;
@@ -286,32 +280,6 @@ static int ssh_channelfind(void *av, void *bv) {
     if (*a < b->localid) return -1;
     if (*a > b->localid) return +1;
     return 0;
-}
-
-static void s_write (char *buf, int len) {
-    while (len > 0) {
-	int i = send (s, buf, len, 0);
-        noise_ultralight(i);
-        if (i <= 0) {
-            bombout(("Lost connection while sending"));
-            return;
-        }
-	if (i > 0)
-	    len -= i, buf += i;
-    }
-}
-
-static int s_read (char *buf, int len) {
-    int ret = 0;
-    while (len > 0) {
-	int i = recv (s, buf, len, 0);
-        noise_ultralight(i);
-	if (i > 0)
-	    len -= i, buf += i, ret += i;
-	else
-	    return i;
-    }
-    return ret;
 }
 
 static void c_write (char *buf, int len) {
@@ -544,19 +512,6 @@ next_packet:
     crFinish(0);
 }
 
-static void ssh_gotdata(unsigned char *data, int datalen)
-{
-    while (datalen > 0) {
-	if ( s_rdpkt(&data, &datalen) == 0 ) {
-	    ssh_protocol(NULL, 0, 1);
-            if (ssh_state == SSH_STATE_CLOSED) {
-                return;
-            }
-        }
-    }
-}
-
-
 static void s_wrpkt_start(int type, int len) {
     int pad, biglen;
 
@@ -608,7 +563,7 @@ static void s_wrpkt(void) {
     if (cipher)
 	cipher->encrypt(pktout.data+4, biglen);
 
-    s_write(pktout.data, biglen+4);
+    sk_write(s, pktout.data, biglen+4);
 }
 
 /*
@@ -693,109 +648,6 @@ static void send_packet(int pkttype, ...)
     va_end(args);
 
     s_wrpkt();
-}
-
-
-/*
- * Connect to specified host and port.
- * Returns an error message, or NULL on success.
- * Also places the canonical host name into `realhost'.
- */
-static char *connect_to_host(char *host, int port, char **realhost)
-{
-    SOCKADDR_IN addr;
-    struct hostent *h;
-    unsigned long a;
-#ifdef FWHACK
-    char *FWhost;
-    int FWport;
-#endif
-
-    savedhost = malloc(1+strlen(host));
-    if (!savedhost)
-	fatalbox("Out of memory");
-    strcpy(savedhost, host);
-
-    if (port < 0)
-	port = 22;		       /* default ssh port */
-    savedport = port;
-
-#ifdef FWHACK
-    FWhost = host;
-    FWport = port;
-    host = FWSTR;
-    port = 23;
-#endif
-
-    /*
-     * Try to find host.
-     */
-    if ( (a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
-	if ( (h = gethostbyname(host)) == NULL)
-	    switch (WSAGetLastError()) {
-	      case WSAENETDOWN: return "Network is down";
-	      case WSAHOST_NOT_FOUND: case WSANO_DATA:
-		return "Host does not exist";
-	      case WSATRY_AGAIN: return "Host not found";
-	      default: return "gethostbyname: unknown error";
-	    }
-	memcpy (&a, h->h_addr, sizeof(a));
-	*realhost = h->h_name;
-    } else
-	*realhost = host;
-#ifdef FWHACK
-    *realhost = FWhost;
-#endif
-    a = ntohl(a);
-
-    /*
-     * Open socket.
-     */
-    s = socket(AF_INET, SOCK_STREAM, 0);
-    if (s == INVALID_SOCKET)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  case WSAEAFNOSUPPORT: return "TCP/IP support not present";
-	  default: return "socket(): unknown error";
-	}
-
-    /*
-     * Bind to local address.
-     */
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(0);
-    if (bind (s, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  default: return "bind(): unknown error";
-	}
-
-    /*
-     * Connect to remote address.
-     */
-    addr.sin_addr.s_addr = htonl(a);
-    addr.sin_port = htons((short)port);
-    if (connect (s, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  case WSAECONNREFUSED: return "Connection refused";
-	  case WSAENETUNREACH: return "Network is unreachable";
-	  case WSAEHOSTUNREACH: return "No route to host";
-	  default: return "connect(): unknown error";
-	}
-
-#ifdef FWHACK
-    send(s, "connect ", 8, 0);
-    send(s, FWhost, strlen(FWhost), 0);
-    {
-	char buf[20];
-	sprintf(buf, " %d\n", FWport);
-	send (s, buf, strlen(buf), 0);
-    }
-#endif
-
-    return NULL;
 }
 
 static int ssh_versioncmp(char *a, char *b) {
@@ -931,7 +783,7 @@ static void ssh2_pkt_send(void) {
         cscipher->encrypt(pktout.data, pktout.length + padding);
     maclen = csmac ? csmac->len : 0;
 
-    s_write(pktout.data, pktout.length + padding + maclen);
+    sk_write(s, pktout.data, pktout.length + padding + maclen);
 }
 
 #if 0
@@ -1000,33 +852,35 @@ static Bignum ssh2_pkt_getmp(void) {
     return b;
 }
 
-static int do_ssh_init(void) {
-    char c, *vsp;
-    char version[10];
-    char vstring[80];
-    char vlog[sizeof(vstring)+20];
-    int i;
+static int do_ssh_init(unsigned char c) {
+    static char *vsp;
+    static char version[10];
+    static char vstring[80];
+    static char vlog[sizeof(vstring)+20];
+    static int i;
 
-#ifdef FWHACK
-    i = 0;
-    while (s_read(&c, 1) == 1) {
-	if (c == 'S' && i < 2) i++;
-	else if (c == 'S' && i == 2) i = 2;
-	else if (c == 'H' && i == 2) break;
-	else i = 0;
-    }
-#else
-    if (s_read(&c,1) != 1 || c != 'S') return 0;
-    if (s_read(&c,1) != 1 || c != 'S') return 0;
-    if (s_read(&c,1) != 1 || c != 'H') return 0;
-#endif
-    strcpy(vstring, "SSH-");
-    vsp = vstring+4;
-    if (s_read(&c,1) != 1 || c != '-') return 0;
+    crBegin;
+
+    /* Search for the string "SSH-" in the input. */
     i = 0;
     while (1) {
-	if (s_read(&c,1) != 1)
-	    return 0;
+	static const int transS[] = { 1, 2, 2, 1 };
+	static const int transH[] = { 0, 0, 3, 0 };
+	static const int transminus[] = { 0, 0, 0, -1 };
+	if (c == 'S') i = transS[i];
+	else if (c == 'H') i = transH[i];
+	else if (c == '-') i = transminus[i];
+	else i = 0;
+	if (i < 0)
+	    break;
+	crReturn(1);		       /* get another character */
+    }
+
+    strcpy(vstring, "SSH-");
+    vsp = vstring+4;
+    i = 0;
+    while (1) {
+	crReturn(1);		       /* get another char */
 	if (vsp < vstring+sizeof(vstring)-1)
 	    *vsp++ = c;
 	if (i >= 0) {
@@ -1066,7 +920,7 @@ static int do_ssh_init(void) {
         sprintf(vlog, "We claim version: %s", verstring);
         logevent(vlog);
         logevent("Using SSH protocol version 2");
-        s_write(vstring, strlen(vstring));
+        sk_write(s, vstring, strlen(vstring));
         ssh_protocol = ssh2_protocol;
         ssh_version = 2;
         s_rdpkt = ssh2_rdpkt;
@@ -1080,13 +934,127 @@ static int do_ssh_init(void) {
         vlog[strcspn(vlog, "\r\n")] = '\0';
         logevent(vlog);
         logevent("Using SSH protocol version 1");
-        s_write(vstring, strlen(vstring));
+        sk_write(s, vstring, strlen(vstring));
         ssh_protocol = ssh1_protocol;
         ssh_version = 1;
         s_rdpkt = ssh1_rdpkt;
     }
-    ssh_send_ok = 0;
+
+    crFinish(0);
+}
+
+static void ssh_gotdata(unsigned char *data, int datalen)
+{
+    crBegin;
+
+    /*
+     * To begin with, feed the characters one by one to the
+     * protocol initialisation / selection function do_ssh_init().
+     * When that returns 0, we're done with the initial greeting
+     * exchange and can move on to packet discipline.
+     */
+    while (1) {
+	int ret;
+	if (datalen == 0)
+	    crReturnV;		       /* more data please */
+	ret = do_ssh_init(*data);
+	data++; datalen--;
+	if (ret == 0)
+	    break;
+    }
+
+    /*
+     * We emerge from that loop when the initial negotiation is
+     * over and we have selected an s_rdpkt function. Now pass
+     * everything to s_rdpkt, and then pass the resulting packets
+     * to the proper protocol handler.
+     */
+    if (datalen == 0)
+	crReturnV;
+    while (1) {
+	while (datalen > 0) {
+	    if ( s_rdpkt(&data, &datalen) == 0 ) {
+		ssh_protocol(NULL, 0, 1);
+		if (ssh_state == SSH_STATE_CLOSED) {
+		    return;
+		}
+	    }
+	}
+	crReturnV;
+    }
+    crFinishV;
+}
+
+static int ssh_receive(Socket s, int urgent, char *data, int len) {
+    if (!len) {
+	/* Connection has closed. */
+	sk_close(s);
+	s = NULL;
+	return 0;
+    }
+    ssh_gotdata (data, len);
     return 1;
+}
+
+/*
+ * Connect to specified host and port.
+ * Returns an error message, or NULL on success.
+ * Also places the canonical host name into `realhost'.
+ */
+static char *connect_to_host(char *host, int port, char **realhost)
+{
+    SockAddr addr;
+    char *err;
+#ifdef FWHACK
+    char *FWhost;
+    int FWport;
+#endif
+
+    savedhost = malloc(1+strlen(host));
+    if (!savedhost)
+	fatalbox("Out of memory");
+    strcpy(savedhost, host);
+
+    if (port < 0)
+	port = 22;		       /* default ssh port */
+    savedport = port;
+
+#ifdef FWHACK
+    FWhost = host;
+    FWport = port;
+    host = FWSTR;
+    port = 23;
+#endif
+
+    /*
+     * Try to find host.
+     */
+    addr = sk_namelookup(host, realhost);
+    if ( (err = sk_addr_error(addr)) )
+	return err;
+
+#ifdef FWHACK
+    *realhost = FWhost;
+#endif
+
+    /*
+     * Open socket.
+     */
+    s = sk_new(addr, port, ssh_receive);
+    if ( (err = sk_socket_error(s)) )
+	return err;
+
+#ifdef FWHACK
+    sk_write(s, "connect ", 8);
+    sk_write(s, FWhost, strlen(FWhost));
+    {
+	char buf[20];
+	sprintf(buf, " %d\n", FWport);
+	sk_write(s, buf, strlen(buf));
+    }
+#endif
+
+    return NULL;
 }
 
 /*
@@ -1775,8 +1743,13 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 crReturnV;
 	    }
 	} else {
-	    send_packet(SSH1_CMSG_STDIN_DATA,
-	                PKT_INT, inlen, PKT_DATA, in, inlen, PKT_END);
+	    while (inlen > 0) {
+		int len = min(inlen, 512);
+		send_packet(SSH1_CMSG_STDIN_DATA,
+			    PKT_INT, len, PKT_DATA, in, len, PKT_END);
+		in += len;
+		inlen -= len;
+	    }
 	}
     }
 
@@ -2441,8 +2414,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                     ssh2_pkt_init(SSH2_MSG_DISCONNECT);
                     ssh2_pkt_send();
                     ssh_state = SSH_STATE_CLOSED;
-                    closesocket(s);
-                    s = INVALID_SOCKET;
+                    sk_close(s);
+                    s = NULL;
                 }
                 continue;              /* remote sends close; ignore (FIXME) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
@@ -2510,13 +2483,11 @@ static void ssh2_protocol(unsigned char *in, int inlen, int ispkt)
 }
 
 /*
- * Called to set up the connection. Will arrange for WM_NETEVENT
- * messages to be passed to the specified window, whose window
- * procedure should then call telnet_msg().
+ * Called to set up the connection.
  *
  * Returns an error message, or NULL on success.
  */
-static char *ssh_init (HWND hwnd, char *host, int port, char **realhost) {
+static char *ssh_init (char *host, int port, char **realhost) {
     char *p;
 	
 #ifdef MSCRYPTOAPI
@@ -2524,77 +2495,20 @@ static char *ssh_init (HWND hwnd, char *host, int port, char **realhost) {
 	return "Microsoft high encryption pack not installed!";
 #endif
 
+    ssh_send_ok = 0;
+
     p = connect_to_host(host, port, realhost);
     if (p != NULL)
 	return p;
 
-    if (!do_ssh_init())
-	return "Protocol initialisation error";
-
-    if (hwnd && WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ | FD_CLOSE) == SOCKET_ERROR)
-	switch (WSAGetLastError()) {
-	  case WSAENETDOWN: return "Network is down";
-	  default: return "WSAAsyncSelect(): unknown error";
-	}
-
     return NULL;
-}
-
-/*
- * Process a WM_NETEVENT message. Will return 0 if the connection
- * has closed, or <0 for a socket error.
- */
-static int ssh_msg (WPARAM wParam, LPARAM lParam) {
-    int ret;
-    char buf[256];
-
-    /*
-     * Because reading less than the whole of the available pending
-     * data can generate an FD_READ event, we need to allow for the
-     * possibility that FD_READ may arrive with FD_CLOSE already in
-     * the queue; so it's possible that we can get here even with s
-     * invalid. If so, we return 1 and don't worry about it.
-     */
-    if (s == INVALID_SOCKET)
-	return 1;
-
-    if (WSAGETSELECTERROR(lParam) != 0) {
-        closesocket(s);
-        s = INVALID_SOCKET;
-	return -WSAGETSELECTERROR(lParam);
-    }
-
-    switch (WSAGETSELECTEVENT(lParam)) {
-      case FD_READ:
-      case FD_CLOSE:
-	ret = recv(s, buf, sizeof(buf), 0);
-	if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
-	    return 1;
-	if (ret < 0) {		       /* any _other_ error */
-            closesocket(s);
-            s = INVALID_SOCKET;
-	    return -10000-WSAGetLastError();
-        }
-	if (ret == 0) {
-	    s = INVALID_SOCKET;
-	    return 0;
-	}
-	ssh_gotdata (buf, ret);
-        if (ssh_state == SSH_STATE_CLOSED) {
-            closesocket(s);
-            s = INVALID_SOCKET;
-            return 0;
-        }
-	return 1;
-    }
-    return 1;			       /* shouldn't happen, but WTF */
 }
 
 /*
  * Called to send data down the Telnet connection.
  */
 static void ssh_send (char *buf, int len) {
-    if (s == INVALID_SOCKET)
+    if (s == NULL)
 	return;
 
     ssh_protocol(buf, len, 0);
@@ -2648,13 +2562,12 @@ static void ssh_special (Telnet_Special code) {
     }
 }
 
-static SOCKET ssh_socket(void) { return s; }
+static Socket ssh_socket(void) { return s; }
 
 static int ssh_sendok(void) { return ssh_send_ok; }
 
 Backend ssh_backend = {
     ssh_init,
-    ssh_msg,
     ssh_send,
     ssh_size,
     ssh_special,

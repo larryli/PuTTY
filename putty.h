@@ -1,6 +1,8 @@
 #ifndef PUTTY_PUTTY_H
 #define PUTTY_PUTTY_H
 
+#include "network.h"
+
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #define PUTTY_REG_PARENT "Software\\SimonTatham"
 #define PUTTY_REG_PARENT_CHILD "PuTTY"
@@ -104,12 +106,11 @@ typedef enum {
 } VT_Mode;
 
 typedef struct {
-    char *(*init) (HWND hwnd, char *host, int port, char **realhost);
-    int (*msg) (WPARAM wParam, LPARAM lParam);
+    char *(*init) (char *host, int port, char **realhost);
     void (*send) (char *buf, int len);
     void (*size) (void);
     void (*special) (Telnet_Special code);
-    SOCKET (*socket) (void);
+    Socket (*socket) (void);
     int (*sendok) (void);
     int default_port;
 } Backend;
