@@ -410,6 +410,7 @@ next_packet:
 	if (pktin.maxlen < st->pad + decomplen) {
 	    pktin.maxlen = st->pad + decomplen;
 	    pktin.data = srealloc(pktin.data, pktin.maxlen+APIEXTRA);
+            pktin.body = pktin.data + st->pad + 1;
 	    if (!pktin.data)
 		fatalbox("Out of memory");
 	}
