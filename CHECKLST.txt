@@ -154,6 +154,13 @@ of the tag.
       signatures), the Unix source tarball (plus signatures),
       puttydoc.txt, the .hlp and .cnt files, and puttydoc.zip.
 
+ - Create subdir `htmldoc' in the release directory, which should
+   contain exactly the same set of HTML files that went into
+   puttydoc.zip.
+    + It also needs a copy of sitestyle.css, because the online
+      versions of the HTML docs will link to this (although the
+      zipped form should be self-contained).
+
  - Create and sign md5sums files: one in the x86 subdir, one in the
    alpha subdir, and one in the parent dir of both of those.
     + The md5sums files need not list the .DSA and .RSA signatures,
@@ -165,13 +172,6 @@ of the tag.
 
  - Now double-check by verifying all the signatures on all the
    files, and running md5sum -c on all the md5sums files.
-
- - Create subdir `htmldoc' in the release directory, which should
-   contain exactly the same set of HTML files that went into
-   puttydoc.zip.
-    + It also needs a copy of sitestyle.css, because the online
-      versions of the HTML docs will link to this (although the
-      zipped form should be self-contained).
 
  - Now the whole release directory should be present and correct.
    Upload to ixion:www/putty/<ver>.
