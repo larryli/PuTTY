@@ -163,6 +163,7 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "AltSpace", cfg.alt_space);
     wppi (sesskey, "LdiscTerm", cfg.ldisc_term);
     wppi (sesskey, "BlinkCur", cfg.blink_cur);
+    wppi (sesskey, "Beep", cfg.beep);
     wppi (sesskey, "ScrollbackLines", cfg.savelines);
     wppi (sesskey, "DECOriginMode", cfg.dec_om);
     wppi (sesskey, "AutoWrapMode", cfg.wrap_mode);
@@ -298,6 +299,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "AltSpace", 0, &cfg.alt_space);
     gppi (sesskey, "LdiscTerm", 0, &cfg.ldisc_term);
     gppi (sesskey, "BlinkCur", 0, &cfg.blink_cur);
+    gppi (sesskey, "Beep", 1, &cfg.beep);
     gppi (sesskey, "ScrollbackLines", 200, &cfg.savelines);
     gppi (sesskey, "DECOriginMode", 0, &cfg.dec_om);
     gppi (sesskey, "AutoWrapMode", 1, &cfg.wrap_mode);
@@ -651,6 +653,7 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 	CheckDlgButton (hwnd, IDC1_ALTSPACE, cfg.alt_space);
 	CheckDlgButton (hwnd, IDC1_LDISCTERM, cfg.ldisc_term);
 	CheckDlgButton (hwnd, IDC1_BLINKCUR, cfg.blink_cur);
+        CheckDlgButton (hwnd, IDC1_BEEP, cfg.beep);
 	break;
       case WM_COMMAND:
 	if (HIWORD(wParam) == BN_CLICKED ||
@@ -700,6 +703,10 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 		    cfg.blink_cur = IsDlgButtonChecked (hwnd, IDC1_BLINKCUR);
+              case IDC1_BEEP:
+                if (HIWORD(wParam) == BN_CLICKED ||
+                    HIWORD(wParam) == BN_DOUBLECLICKED)
+                    cfg.beep = IsDlgButtonChecked (hwnd, IDC1_BEEP);
 		break;
 	    }
     }

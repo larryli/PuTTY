@@ -65,6 +65,7 @@
 #define IDC1_ALTSPACE   1018
 #define IDC1_LDISCTERM  1019
 #define IDC1_BLINKCUR   1020
+#define IDC1_BEEP       1021
 
 #define IDC2_WRAPMODE   1001
 #define IDC2_DECOM      1002

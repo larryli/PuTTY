@@ -151,6 +151,7 @@ typedef struct {
     int alt_space;		       /* is it special? */
     int ldisc_term;
     int blink_cur;
+    int beep;
     /* Terminal options */
     int savelines;
     int dec_om;

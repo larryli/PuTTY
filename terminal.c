@@ -676,7 +676,7 @@ void term_out(void) {
 		ldisc->send ("PuTTY", 5);
 		break;
 	      case '\007':
-		beep();
+                if(cfg.beep) beep();
 		disptop = scrtop;
 		break;
 	      case '\b':
