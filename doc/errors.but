@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.4 2003/01/31 23:18:44 ben Exp $
+\versionid $Id: errors.but,v 1.5 2003/03/17 16:57:23 simon Exp $
 
 \C{errors} Common error messages
 
@@ -204,20 +204,15 @@ of \c{su} do it automatically.
 \H{errors-connaborted} \q{Network error: Software caused connection
 abort}
 
-In modern versions of PuTTY, you should not see this error.
+This error occurs when the Windows network code decides that your
+network connection is dead. For example, it will happen if you pull
+the network cable out of the back of an Ethernet-connected computer,
+or if Windows has any other similar reason to believe the entire
+network has become unreachable.
 
-Windows's documentation about this error condition is not very good,
-but as far as we can tell, this error occurs when PuTTY is listening
-on a port, another program makes a connection to that port, but
-closes the connection so fast that PuTTY has no time to answer it.
-
-PuTTY only ever listens on a port when it is doing local-to-remote
-port forwarding (see \k{using-port-forwarding}); and if an incoming
-connection on that port receives this error, PuTTY should simply
-close the connection and continue without error.
-
-If you see this error in PuTTY 0.53 or above, we would welcome a
-report of the circumstances.
+We are not aware of any reason why this error might occur that would
+represent a bug in PuTTY. The problem is between you, your Windows
+system, your network and the remote system.
 
 \H{errors-connreset} \q{Network error: Connection reset by peer}
 
@@ -242,3 +237,14 @@ access.
 Check that you are connecting with the correct protocol (SSH, Telnet
 or Rlogin), and check that the port number is correct. If that
 fails, consult the administrator of your server.
+
+\H{errors-connrefused} \q{Network error: Connection timed out}
+
+This error means that the network connection PuTTY tried to make to
+your server received no response at all from the server. Usually
+this happens because the server machine is completely isolated from
+the network, or because it is turned off.
+
+Check that you have correctly entered the host name or IP address of
+your server machine. If that fails, consult the administrator of
+your server.
