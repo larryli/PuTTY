@@ -1315,7 +1315,8 @@ char *format_telnet_command(SockAddr addr, int port, const Config *cfg)
 	} else {
 
 	    /* % escape. we recognize %%, %host, %port, %user, %pass.
-	     * anything else, we just send unescaped (including the %).
+	     * %proxyhost, %proxyport. Anything else we just send
+	     * unescaped (including the %).
 	     */
 
 	    if (cfg->proxy_telnet_command[eo] == '%') {
@@ -1358,6 +1359,25 @@ char *format_telnet_command(SockAddr addr, int port, const Config *cfg)
 		memcpy(ret+retlen, cfg->proxy_password, passlen);
 		retlen += passlen;
 		eo += 4;
+	    }
+	    else if (strnicmp(cfg->proxy_telnet_command + eo,
+			      "proxyhost", 4) == 0) {
+		int phlen = strlen(cfg->proxy_host);
+		ENSURE(phlen);
+		memcpy(ret+retlen, cfg->proxy_host, phlen);
+		retlen += phlen;
+		eo += 9;
+	    }
+	    else if (strnicmp(cfg->proxy_telnet_command + eo,
+			      "proxyport", 4) == 0) {
+                char pport[50];
+		int pplen;
+                sprintf(pport, "%d", cfg->proxy_port);
+                pplen = strlen(cfg->proxy_host);
+		ENSURE(pplen);
+		memcpy(ret+retlen, pport, pplen);
+		retlen += pplen;
+		eo += 9;
 	    }
 	    else {
 		/* we don't escape this, so send the % now, and
