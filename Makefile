@@ -40,6 +40,12 @@
 #      build, since at the time of writing this <aclapi.h> is known
 #      not to be available in Cygwin.
 #
+#  - COMPAT=/DNO_MULTIMON
+#      Disables PuTTY's use of <multimon.h>, which is not available
+#      with some development environments. This means that PuTTY's
+#      full-screen mode (configurable to work on Alt-Enter) will
+#      not behave usefully in a multi-monitor environment.
+#
 #  - RCFL=/DASCIICTLS
 #      Uses ASCII rather than Unicode to specify the tab control in
 #      the resource file. Probably most useful when compiling with

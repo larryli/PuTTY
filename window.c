@@ -10,7 +10,7 @@
 #endif
 #endif
 
-#if WINVER < 0x0500
+#if (WINVER < 0x0500) && !defined(NO_MULTIMON)
 #define COMPILE_MULTIMON_STUBS
 #include <multimon.h>
 #endif
@@ -3843,7 +3843,7 @@ static void flip_full_screen(void)
 
     if (full_screen) {
 	int x, y, cx, cy;
-#ifdef MONITOR_DEFAULTTONEAREST
+#if !defined(NO_MULTIMON) && defined(MONITOR_DEFAULTTONEAREST)
 	/* The multi-monitor safe way of doing things */
 	HMONITOR	mon;
 	MONITORINFO	mi;
@@ -3887,4 +3887,3 @@ static void flip_full_screen(void)
     CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
 		  MF_BYCOMMAND| full_screen ? MF_CHECKED : MF_UNCHECKED);
 }
-
