@@ -219,6 +219,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_KPNORMAL,
     IDC_KPAPPLIC,
     IDC_KPNH,
+    IDC_NOAPPLIC,
     IDC_CURSTATIC,
     IDC_CURNORMAL,
     IDC_CURAPPLIC,
@@ -430,6 +431,7 @@ static void init_dlg_ctrls(HWND hwnd) {
                       cfg.funky_type == 2 ? IDC_FUNCXTERM :
                       cfg.funky_type == 3 ? IDC_FUNCVT400 :
                       IDC_FUNCTILDE );
+    CheckDlgButton (hwnd, IDC_NOAPPLIC, cfg.no_applic);
     CheckRadioButton (hwnd, IDC_CURNORMAL, IDC_CURAPPLIC,
 		      cfg.app_cursor ? IDC_CURAPPLIC : IDC_CURNORMAL);
     CheckRadioButton (hwnd, IDC_KPNORMAL, IDC_KPNH,
@@ -730,8 +732,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		      "&Xterm R6", IDC_FUNCXTERM,
                       "&VT400", IDC_FUNCVT400, NULL);
             endbox(&cp);
-            beginbox(&cp, "Change the initial state of:",
+            beginbox(&cp, "Application keypad settings:",
                      IDC_BOX_KEYBOARD2, IDC_BOXT_KEYBOARD2);
+            checkbox(&cp,
+                     "Application ke&ypad and cursor keys totally disabled",
+                     IDC_NOAPPLIC);
 	    radioline(&cp, "Initial state of cursor keys:", IDC_CURSTATIC, 2,
 		      "&Normal", IDC_CURNORMAL,
 		      "A&pplication", IDC_CURAPPLIC, NULL);
@@ -1234,6 +1239,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.app_cursor = IsDlgButtonChecked (hwnd, IDC_CURAPPLIC);
+	    break;
+	  case IDC_NOAPPLIC:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.no_applic = IsDlgButtonChecked (hwnd, IDC_NOAPPLIC);
 	    break;
 	  case IDC_ALTF4:
 	    if (HIWORD(wParam) == BN_CLICKED ||

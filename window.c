@@ -1903,7 +1903,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    compose_state = 0;
 
 	/* Nastyness with NUMLock - Shift-NUMLock is left alone though */
-	if ( (cfg.funky_type == 3 || (cfg.funky_type <= 1 && app_keypad_keys))
+	if ( (cfg.funky_type == 3 ||
+              (cfg.funky_type <= 1 && app_keypad_keys && !cfg.no_applic))
 	      && wParam==VK_NUMLOCK && !(keystate[VK_SHIFT]&0x80)) {
 
 	    wParam = VK_EXECUTE;
@@ -1948,7 +1949,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     if (compose_state>1 && left_alt) compose_state = 0;
 
     /* Sanitize the number pad if not using a PC NumPad */
-    if( left_alt || (app_keypad_keys && cfg.funky_type != 2)
+    if( left_alt || (app_keypad_keys && !cfg.no_applic && cfg.funky_type != 2)
 	|| cfg.funky_type == 3 || cfg.nethack_keypad || compose_state )
     {
 	if ((HIWORD(lParam)&KF_EXTENDED) == 0)
@@ -2030,13 +2031,14 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	   int xkey = 0;
 
 	   if ( cfg.funky_type == 3 ||
-	      ( cfg.funky_type <= 1 && app_keypad_keys)) switch(wParam) {
+	      ( cfg.funky_type <= 1 &&
+               app_keypad_keys && !cfg.no_applic)) switch(wParam) {
 	       case VK_EXECUTE: xkey = 'P'; break;
 	       case VK_DIVIDE:  xkey = 'Q'; break;
 	       case VK_MULTIPLY:xkey = 'R'; break;
 	       case VK_SUBTRACT:xkey = 'S'; break;
 	   }
-	   if(app_keypad_keys) switch(wParam) {
+	   if(app_keypad_keys && !cfg.no_applic) switch(wParam) {
 	       case VK_NUMPAD0: xkey = 'p'; break;
 	       case VK_NUMPAD1: xkey = 'q'; break;
 	       case VK_NUMPAD2: xkey = 'r'; break;
@@ -2198,7 +2200,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    {
 		if (vt52_mode)
 		    p += sprintf((char *)p, "\x1B%c", xkey);
-		else if (app_cursor_keys)
+		else if (app_cursor_keys && !cfg.no_applic)
 		    p += sprintf((char *)p, "\x1BO%c", xkey);
 		else
 		    p += sprintf((char *)p, "\x1B[%c", xkey);
