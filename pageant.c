@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <tchar.h>
 
+#include "putty.h"
 #include "ssh.h"
 #include "misc.h"
 #include "tree234.h"
@@ -390,7 +391,7 @@ static void keylist_update(void)
 /*
  * This function loads a key from a file and adds it.
  */
-static void add_keyfile(char *filename)
+static void add_keyfile(Filename filename)
 {
     char passphrase[PASSPHRASE_MAXLEN];
     struct RSAKey *rkey = NULL;
@@ -403,7 +404,7 @@ static void add_keyfile(char *filename)
     int type;
     int original_pass;
 	
-    type = key_type(filename);
+    type = key_type(&filename);
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
 	char msg[256];
 	sprintf(msg, "Couldn't load this key (%s)", key_type_to_str(type));
@@ -421,7 +422,7 @@ static void add_keyfile(char *filename)
 	int i, nkeys, bloblen;
 
 	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(filename, &blob, &bloblen)) {
+	    if (!rsakey_pubblob(&filename, &blob, &bloblen)) {
 		MessageBox(NULL, "Couldn't load private key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
 		return;
@@ -429,7 +430,7 @@ static void add_keyfile(char *filename)
 	    keylist = get_keylist1();
 	} else {
 	    unsigned char *blob2;
-	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen);
+	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen);
 	    if (!blob) {
 		MessageBox(NULL, "Couldn't load private key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
@@ -471,9 +472,9 @@ static void add_keyfile(char *filename)
     }
 
     if (type == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(filename, &comment);
+	needs_pass = rsakey_encrypted(&filename, &comment);
     else
-	needs_pass = ssh2_userkey_encrypted(filename, &comment);
+	needs_pass = ssh2_userkey_encrypted(&filename, &comment);
     attempts = 0;
     if (type == SSH_KEYTYPE_SSH1)
 	rkey = smalloc(sizeof(*rkey));
@@ -503,9 +504,9 @@ static void add_keyfile(char *filename)
 	} else
 	    *passphrase = '\0';
 	if (type == SSH_KEYTYPE_SSH1)
-	    ret = loadrsakey(filename, rkey, passphrase);
+	    ret = loadrsakey(&filename, rkey, passphrase);
 	else {
-	    skey = ssh2_load_userkey(filename, passphrase);
+	    skey = ssh2_load_userkey(&filename, passphrase);
 	    if (skey == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!skey)
@@ -1264,7 +1265,7 @@ static void prompt_add_keyfile(void)
     if (GetOpenFileName(&of)) {
 	if(strlen(filelist) > of.nFileOffset)
 	    /* Only one filename returned? */
-	    add_keyfile(filelist);
+	    add_keyfile(filename_from_str(filelist));
 	else {
 	    /* we are returned a bunch of strings, end to
 	     * end. first string is the directory, the
@@ -1292,7 +1293,7 @@ static void prompt_add_keyfile(void)
 		memcpy(filename + dirlen, filewalker, n);
 		filewalker += n;
 
-		add_keyfile(filename);
+		add_keyfile(filename_from_str(filename));
 	    }
 	}
 
@@ -1968,7 +1969,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		command = "";
 	    break;
 	} else {
-	    add_keyfile(argv[i]);
+	    add_keyfile(filename_from_str(argv[i]));
 	    added_keys = TRUE;
 	}
     }

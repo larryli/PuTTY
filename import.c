@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <ctype.h>
 
+#include "putty.h"
 #include "ssh.h"
 #include "misc.h"
 
@@ -23,13 +24,15 @@
     ((unsigned long)(unsigned char)(cp)[2] << 8) | \
     ((unsigned long)(unsigned char)(cp)[3]))
 
-int openssh_encrypted(char *filename);
-struct ssh2_userkey *openssh_read(char *filename, char *passphrase);
-int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase);
+int openssh_encrypted(const Filename *filename);
+struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase);
+int openssh_write(const Filename *filename, struct ssh2_userkey *key,
+		  char *passphrase);
 
-int sshcom_encrypted(char *filename, char **comment);
-struct ssh2_userkey *sshcom_read(char *filename, char *passphrase);
-int sshcom_write(char *filename, struct ssh2_userkey *key, char *passphrase);
+int sshcom_encrypted(const Filename *filename, char **comment);
+struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase);
+int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
+		 char *passphrase);
 
 /*
  * Given a key type, determine whether we know how to import it.
@@ -59,10 +62,11 @@ int import_target_type(int type)
 /*
  * Determine whether a foreign key is encrypted.
  */
-int import_encrypted(char *filename, int type, char **comment)
+int import_encrypted(const Filename *filename, int type, char **comment)
 {
     if (type == SSH_KEYTYPE_OPENSSH) {
-	*comment = dupstr(filename);   /* OpenSSH doesn't do key comments */
+	/* OpenSSH doesn't do key comments */
+	*comment = dupstr(filename_to_str(*filename));
 	return openssh_encrypted(filename);
     }
     if (type == SSH_KEYTYPE_SSHCOM) {
@@ -74,7 +78,8 @@ int import_encrypted(char *filename, int type, char **comment)
 /*
  * Import an SSH1 key.
  */
-int import_ssh1(char *filename, int type, struct RSAKey *key, char *passphrase)
+int import_ssh1(const Filename *filename, int type,
+		struct RSAKey *key, char *passphrase)
 {
     return 0;
 }
@@ -82,7 +87,8 @@ int import_ssh1(char *filename, int type, struct RSAKey *key, char *passphrase)
 /*
  * Import an SSH2 key.
  */
-struct ssh2_userkey *import_ssh2(char *filename, int type, char *passphrase)
+struct ssh2_userkey *import_ssh2(const Filename *filename, int type,
+				 char *passphrase)
 {
     if (type == SSH_KEYTYPE_OPENSSH)
 	return openssh_read(filename, passphrase);
@@ -94,7 +100,8 @@ struct ssh2_userkey *import_ssh2(char *filename, int type, char *passphrase)
 /*
  * Export an SSH1 key.
  */
-int export_ssh1(char *filename, int type, struct RSAKey *key, char *passphrase)
+int export_ssh1(const Filename *filename, int type, struct RSAKey *key,
+		char *passphrase)
 {
     return 0;
 }
@@ -102,7 +109,7 @@ int export_ssh1(char *filename, int type, struct RSAKey *key, char *passphrase)
 /*
  * Export an SSH2 key.
  */
-int export_ssh2(char *filename, int type,
+int export_ssh2(const Filename *filename, int type,
                 struct ssh2_userkey *key, char *passphrase)
 {
     if (type == SSH_KEYTYPE_OPENSSH)
@@ -309,7 +316,7 @@ struct openssh_key {
     int keyblob_len, keyblob_size;
 };
 
-struct openssh_key *load_openssh_key(char *filename)
+struct openssh_key *load_openssh_key(const Filename *filename)
 {
     struct openssh_key *ret;
     FILE *fp;
@@ -325,7 +332,7 @@ struct openssh_key *load_openssh_key(char *filename)
     ret->encrypted = 0;
     memset(ret->iv, 0, sizeof(ret->iv));
 
-    fp = fopen(filename, "r");
+    fp = f_open(*filename, "r");
     if (!fp) {
 	errmsg = "Unable to open key file";
 	goto error;
@@ -451,7 +458,7 @@ struct openssh_key *load_openssh_key(char *filename)
     return NULL;
 }
 
-int openssh_encrypted(char *filename)
+int openssh_encrypted(const Filename *filename)
 {
     struct openssh_key *key = load_openssh_key(filename);
     int ret;
@@ -466,7 +473,7 @@ int openssh_encrypted(char *filename)
     return ret;
 }
 
-struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
+struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase)
 {
     struct openssh_key *key = load_openssh_key(filename);
     struct ssh2_userkey *retkey;
@@ -655,7 +662,8 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
     return retval;
 }
 
-int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
+int openssh_write(const Filename *filename, struct ssh2_userkey *key,
+		  char *passphrase)
 {
     unsigned char *pubblob, *privblob, *spareblob;
     int publen, privlen, sparelen;
@@ -860,7 +868,7 @@ int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
      * And save it. We'll use Unix line endings just in case it's
      * subsequently transferred in binary mode.
      */
-    fp = fopen(filename, "wb");	       /* ensure Unix line endings */
+    fp = f_open(*filename, "wb");      /* ensure Unix line endings */
     if (!fp)
 	goto error;
     fputs(header, fp);
@@ -977,7 +985,7 @@ struct sshcom_key {
     int keyblob_len, keyblob_size;
 };
 
-struct sshcom_key *load_sshcom_key(char *filename)
+struct sshcom_key *load_sshcom_key(const Filename *filename)
 {
     struct sshcom_key *ret;
     FILE *fp;
@@ -993,7 +1001,7 @@ struct sshcom_key *load_sshcom_key(char *filename)
     ret->keyblob = NULL;
     ret->keyblob_len = ret->keyblob_size = 0;
 
-    fp = fopen(filename, "r");
+    fp = f_open(*filename, "r");
     if (!fp) {
 	errmsg = "Unable to open key file";
 	goto error;
@@ -1095,7 +1103,7 @@ struct sshcom_key *load_sshcom_key(char *filename)
     return NULL;
 }
 
-int sshcom_encrypted(char *filename, char **comment)
+int sshcom_encrypted(const Filename *filename, char **comment)
 {
     struct sshcom_key *key = load_sshcom_key(filename);
     int pos, len, answer;
@@ -1177,7 +1185,7 @@ static int sshcom_put_mpint(void *target, void *data, int len)
     return len+4;
 }
 
-struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
+struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase)
 {
     struct sshcom_key *key = load_sshcom_key(filename);
     char *errmsg;
@@ -1407,7 +1415,8 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
     return ret;
 }
 
-int sshcom_write(char *filename, struct ssh2_userkey *key, char *passphrase)
+int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
+		 char *passphrase)
 {
     unsigned char *pubblob, *privblob;
     int publen, privlen;
@@ -1571,7 +1580,7 @@ int sshcom_write(char *filename, struct ssh2_userkey *key, char *passphrase)
      * And save it. We'll use Unix line endings just in case it's
      * subsequently transferred in binary mode.
      */
-    fp = fopen(filename, "wb");	       /* ensure Unix line endings */
+    fp = f_open(*filename, "wb");      /* ensure Unix line endings */
     if (!fp)
 	goto error;
     fputs("---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);

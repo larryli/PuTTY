@@ -1,7 +1,6 @@
 #ifndef PUTTY_PUTTY_H
 #define PUTTY_PUTTY_H
 
-#include <stdio.h>		       /* for FILENAME_MAX */
 #include <stddef.h>		       /* for wchar_t */
 
 /*
@@ -26,6 +25,7 @@ typedef struct terminal_tag Terminal;
 
 #include "puttyps.h"
 #include "network.h"
+#include "misc.h"
 
 /* Three attribute types: 
  * The ATTRs (normal attributes) are stored with the characters in
@@ -339,7 +339,7 @@ struct config_tag {
     int agentfwd;
     int change_username;	       /* allow username switching in SSH2 */
     int ssh_cipherlist[CIPHER_MAX];
-    char keyfile[FILENAME_MAX];
+    Filename keyfile;
     int sshprot;		       /* use v1 or v2 when both available */
     int ssh2_des_cbc;		       /* "des-cbc" nonstandard SSH2 cipher */
     int try_tis_auth;
@@ -396,7 +396,7 @@ struct config_tag {
     int bellovl_n;		       /* number of bells to cause overload */
     int bellovl_t;		       /* time interval for overload (seconds) */
     int bellovl_s;		       /* period of silence to re-enable bell (s) */
-    char bell_wavefile[FILENAME_MAX];
+    Filename bell_wavefile;
     int scrollbar;
     int scrollbar_in_fullscreen;
     int resize_action;
@@ -404,11 +404,8 @@ struct config_tag {
     int blinktext;
     int win_name_always;
     int width, height;
-    char font[256];
-    int fontisbold;
-    int fontheight;
-    int fontcharset;
-    char logfilename[FILENAME_MAX];
+    FontSpec font;
+    Filename logfilename;
     int logtype;
     int logxfovr;
     int hide_mouseptr;
@@ -447,9 +444,9 @@ struct config_tag {
     int stamp_utmp;
     int login_shell;
     int scrollbar_on_left;
-    char boldfont[256];
-    char widefont[256];
-    char wideboldfont[256];
+    FontSpec boldfont;
+    FontSpec widefont;
+    FontSpec wideboldfont;
     int shadowboldoffset;
 };
 
@@ -563,10 +560,14 @@ void registry_cleanup(void);
  * (The integer one is expected to return `def' if it has no clear
  * opinion of its own. This is because there's no integer value
  * which I can reliably set aside to indicate `nil'. The string
- * function is perfectly all right returning NULL, of course.)
+ * function is perfectly all right returning NULL, of course. The
+ * Filename and FontSpec functions are _not allowed_ to fail to
+ * return, since these defaults _must_ be per-platform.)
  */
 char *platform_default_s(const char *name);
 int platform_default_i(const char *name, int def);
+Filename platform_default_filename(const char *name);
+FontSpec platform_default_fontspec(const char *name);
 
 /*
  * Exports from terminal.c.
@@ -740,7 +741,7 @@ void logevent(void *frontend, char *);
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint);
 void askcipher(void *frontend, char *ciphername, int cs);
-int askappend(void *frontend, char *filename);
+int askappend(void *frontend, Filename filename);
 
 /*
  * Exports from console.c (that aren't equivalents to things in
@@ -785,5 +786,13 @@ enum {
     X11_NAUTHS
 };
 extern const char *const x11_authnames[];  /* declared in x11fwd.c */
+
+/*
+ * Miscellaneous exports from the platform-specific code.
+ */
+Filename filename_from_str(char *string);
+char *filename_to_str(Filename fn);
+int filename_equal(Filename f1, Filename f2);
+int filename_is_null(Filename fn);
 
 #endif

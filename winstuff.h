@@ -5,6 +5,20 @@
 #ifndef PUTTY_WINSTUFF_H
 #define PUTTY_WINSTUFF_H
 
+#include <stdio.h>		       /* for FILENAME_MAX */
+
+struct Filename {
+    char path[FILENAME_MAX];
+};
+#define f_open(filename, mode) ( fopen((filename).path, (mode)) )
+
+struct FontSpec {
+    char name[64];
+    int isbold;
+    int height;
+    int charset;
+};
+
 /*
  * Global variables. Most modules declare these `extern', but
  * window.c will do `#define PUTTY_DO_GLOBALS' before including this

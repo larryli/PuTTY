@@ -134,6 +134,24 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 	return atoi(val);
 }
 
+int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
+{
+    return !!read_setting_s(handle, name, result->name, sizeof(result->name));
+}
+int read_setting_filename(void *handle, const char *name, Filename *result)
+{
+    return !!read_setting_s(handle, name, result->path, sizeof(result->path));
+}
+
+void write_setting_fontspec(void *handle, const char *name, FontSpec result)
+{
+    write_setting_s(handle, name, result.name);
+}
+void write_setting_filename(void *handle, const char *name, Filename result)
+{
+    write_setting_s(handle, name, result.path);
+}
+
 void close_settings_r(void *handle)
 {
 }

@@ -1062,7 +1062,7 @@ static void init_fonts(int pick_width, int pick_height)
     bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
     und_mode = UND_FONT;
 
-    if (cfg.fontisbold) {
+    if (cfg.font.isbold) {
 	fw_dontcare = FW_BOLD;
 	fw_bold = FW_HEAVY;
     } else {
@@ -1075,7 +1075,7 @@ static void init_fonts(int pick_width, int pick_height)
     if (pick_height)
 	font_height = pick_height;
     else {
-	font_height = cfg.fontheight;
+	font_height = cfg.font.height;
 	if (font_height > 0) {
 	    font_height =
 		-MulDiv(font_height, GetDeviceCaps(hdc, LOGPIXELSY), 72);
@@ -1087,9 +1087,9 @@ static void init_fonts(int pick_width, int pick_height)
     fonts[i] = CreateFont (font_height, font_width, 0, 0, w, FALSE, u, FALSE, \
 			   c, OUT_DEFAULT_PRECIS, \
 		           CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, \
-			   FIXED_PITCH | FF_DONTCARE, cfg.font)
+			   FIXED_PITCH | FF_DONTCARE, cfg.font.name)
 
-    f(FONT_NORMAL, cfg.fontcharset, fw_dontcare, FALSE);
+    f(FONT_NORMAL, cfg.font.charset, fw_dontcare, FALSE);
 
     lfont.lfHeight = font_height;
     lfont.lfWidth = font_width;
@@ -1099,12 +1099,12 @@ static void init_fonts(int pick_width, int pick_height)
     lfont.lfItalic = FALSE;
     lfont.lfUnderline = FALSE;
     lfont.lfStrikeOut = FALSE;
-    lfont.lfCharSet = cfg.fontcharset;
+    lfont.lfCharSet = cfg.font.charset;
     lfont.lfOutPrecision = OUT_DEFAULT_PRECIS;
     lfont.lfClipPrecision = CLIP_DEFAULT_PRECIS;
     lfont.lfQuality = DEFAULT_QUALITY;
     lfont.lfPitchAndFamily = FIXED_PITCH | FF_DONTCARE;
-    strncpy(lfont.lfFaceName, cfg.font, LF_FACESIZE);
+    strncpy(lfont.lfFaceName, cfg.font.name, LF_FACESIZE);
 
     SelectObject(hdc, fonts[FONT_NORMAL]);
     GetTextMetrics(hdc, &tm);
@@ -1138,7 +1138,7 @@ static void init_fonts(int pick_width, int pick_height)
 	ucsdata.dbcs_screenfont = (cpinfo.MaxCharSize > 1);
     }
 
-    f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
+    f(FONT_UNDERLINE, cfg.font.charset, fw_dontcare, TRUE);
 
     /*
      * Some fonts, e.g. 9-pt Courier, draw their underlines
@@ -1189,7 +1189,7 @@ static void init_fonts(int pick_width, int pick_height)
     }
 
     if (bold_mode == BOLD_FONT) {
-	f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
+	f(FONT_BOLD, cfg.font.charset, fw_bold, FALSE);
     }
 #undef f
 
@@ -1240,7 +1240,7 @@ static void another_font(int fontno)
     if (basefont != fontno && !fontflag[basefont])
 	another_font(basefont);
 
-    if (cfg.fontisbold) {
+    if (cfg.font.isbold) {
 	fw_dontcare = FW_BOLD;
 	fw_bold = FW_HEAVY;
     } else {
@@ -1248,10 +1248,10 @@ static void another_font(int fontno)
 	fw_bold = FW_BOLD;
     }
 
-    c = cfg.fontcharset;
+    c = cfg.font.charset;
     w = fw_dontcare;
     u = FALSE;
-    s = cfg.font;
+    s = cfg.font.name;
     x = font_width;
 
     if (fontno & FONT_WIDE)
@@ -1878,11 +1878,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				  icon_name);
 		}
 
-		if (strcmp(cfg.font, prev_cfg.font) != 0 ||
+		if (strcmp(cfg.font.name, prev_cfg.font.name) != 0 ||
 		    strcmp(cfg.line_codepage, prev_cfg.line_codepage) != 0 ||
-		    cfg.fontisbold != prev_cfg.fontisbold ||
-		    cfg.fontheight != prev_cfg.fontheight ||
-		    cfg.fontcharset != prev_cfg.fontcharset ||
+		    cfg.font.isbold != prev_cfg.font.isbold ||
+		    cfg.font.height != prev_cfg.font.height ||
+		    cfg.font.charset != prev_cfg.font.charset ||
 		    cfg.vtmode != prev_cfg.vtmode ||
 		    cfg.bold_colour != prev_cfg.bold_colour ||
 		    cfg.resize_action == RESIZE_DISABLED ||
@@ -4099,10 +4099,10 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 
 	get_unitab(CP_ACP, unitab, 0);
 
-	rtfsize = 100 + strlen(cfg.font);
+	rtfsize = 100 + strlen(cfg.font.name);
 	rtf = smalloc(rtfsize);
 	sprintf(rtf, "{\\rtf1\\ansi%d{\\fonttbl\\f0\\fmodern %s;}\\f0",
-		GetACP(), cfg.font);
+		GetACP(), cfg.font.name);
 	rtflen = strlen(rtf);
 
 	/*
@@ -4378,7 +4378,8 @@ void beep(void *frontend, int mode)
 	 */
 	lastbeep = GetTickCount();
     } else if (mode == BELL_WAVEFILE) {
-	if (!PlaySound(cfg.bell_wavefile, NULL, SND_ASYNC | SND_FILENAME)) {
+	if (!PlaySound(cfg.bell_wavefile.path, NULL,
+		       SND_ASYNC | SND_FILENAME)) {
 	    char buf[sizeof(cfg.bell_wavefile) + 80];
 	    sprintf(buf, "Unable to play sound file\n%s\n"
 		    "Using default sound instead", cfg.bell_wavefile);

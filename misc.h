@@ -12,6 +12,9 @@
 #define TRUE 1
 #endif
 
+typedef struct Filename Filename;
+typedef struct FontSpec FontSpec;
+
 char *dupstr(const char *s);
 char *dupcat(const char *s1, ...);
 char *dupprintf(const char *fmt, ...);

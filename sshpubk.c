@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "putty.h"
 #include "ssh.h"
 #include "misc.h"
 
@@ -152,12 +153,12 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     return ret;
 }
 
-int loadrsakey(char *filename, struct RSAKey *key, char *passphrase)
+int loadrsakey(const Filename *filename, struct RSAKey *key, char *passphrase)
 {
     FILE *fp;
     char buf[64];
 
-    fp = fopen(filename, "rb");
+    fp = f_open(*filename, "rb");
     if (!fp)
 	return 0;		       /* doesn't even exist */
 
@@ -180,12 +181,12 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase)
  * See whether an RSA key is encrypted. Return its comment field as
  * well.
  */
-int rsakey_encrypted(char *filename, char **comment)
+int rsakey_encrypted(const Filename *filename, char **comment)
 {
     FILE *fp;
     char buf[64];
 
-    fp = fopen(filename, "rb");
+    fp = f_open(*filename, "rb");
     if (!fp)
 	return 0;		       /* doesn't even exist */
 
@@ -205,7 +206,7 @@ int rsakey_encrypted(char *filename, char **comment)
  * an RSA key, as given in the agent protocol (modulus bits,
  * exponent, modulus).
  */
-int rsakey_pubblob(char *filename, void **blob, int *bloblen)
+int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen)
 {
     FILE *fp;
     char buf[64];
@@ -217,7 +218,7 @@ int rsakey_pubblob(char *filename, void **blob, int *bloblen)
     *bloblen = 0;
     ret = 0;
 
-    fp = fopen(filename, "rb");
+    fp = f_open(*filename, "rb");
     if (!fp)
 	return 0;		       /* doesn't even exist */
 
@@ -240,7 +241,7 @@ int rsakey_pubblob(char *filename, void **blob, int *bloblen)
 /*
  * Save an RSA key file. Return nonzero on success.
  */
-int saversakey(char *filename, struct RSAKey *key, char *passphrase)
+int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase)
 {
     unsigned char buf[16384];
     unsigned char keybuf[16];
@@ -330,7 +331,7 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase)
     /*
      * Done. Write the result to the file.
      */
-    fp = fopen(filename, "wb");
+    fp = f_open(*filename, "wb");
     if (fp) {
 	int ret = (fwrite(buf, 1, p - buf, fp) == (size_t) (p - buf));
 	ret = ret && (fclose(fp) == 0);
@@ -573,7 +574,8 @@ struct ssh2_userkey ssh2_wrong_passphrase = {
     NULL, NULL, NULL
 };
 
-struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
+struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
+				       char *passphrase)
 {
     FILE *fp;
     char header[40], *b, *encryption, *comment, *mac;
@@ -589,7 +591,7 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
     comment = mac = NULL;
     public_blob = private_blob = NULL;
 
-    fp = fopen(filename, "rb");
+    fp = f_open(*filename, "rb");
     if (!fp)
 	goto error;
 
@@ -810,7 +812,7 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
     return ret;
 }
 
-char *ssh2_userkey_loadpub(char *filename, char **algorithm,
+char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 			   int *pub_blob_len)
 {
     FILE *fp;
@@ -822,7 +824,7 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm,
 
     public_blob = NULL;
 
-    fp = fopen(filename, "rb");
+    fp = f_open(*filename, "rb");
     if (!fp)
 	goto error;
 
@@ -886,7 +888,7 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm,
     return NULL;
 }
 
-int ssh2_userkey_encrypted(char *filename, char **commentptr)
+int ssh2_userkey_encrypted(const Filename *filename, char **commentptr)
 {
     FILE *fp;
     char header[40], *b, *comment;
@@ -895,7 +897,7 @@ int ssh2_userkey_encrypted(char *filename, char **commentptr)
     if (commentptr)
 	*commentptr = NULL;
 
-    fp = fopen(filename, "rb");
+    fp = f_open(*filename, "rb");
     if (!fp)
 	return 0;
     if (!read_header(fp, header)
@@ -972,7 +974,7 @@ void base64_encode(FILE * fp, unsigned char *data, int datalen, int cpl)
     fputc('\n', fp);
 }
 
-int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
+int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		      char *passphrase)
 {
     FILE *fp;
@@ -1076,7 +1078,7 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
 	memset(&s, 0, sizeof(s));
     }
 
-    fp = fopen(filename, "w");
+    fp = f_open(*filename, "w");
     if (!fp)
 	return 0;
     fprintf(fp, "PuTTY-User-Key-File-2: %s\n", key->alg->name);
@@ -1103,7 +1105,7 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
  * A function to determine the type of a private key file. Returns
  * 0 on failure, 1 or 2 on success.
  */
-int key_type(char *filename)
+int key_type(const Filename *filename)
 {
     FILE *fp;
     char buf[32];
@@ -1112,7 +1114,7 @@ int key_type(char *filename)
     const char openssh_sig[] = "-----BEGIN ";
     int i;
 
-    fp = fopen(filename, "r");
+    fp = f_open(*filename, "r");
     if (!fp)
 	return SSH_KEYTYPE_UNOPENABLE;
     i = fread(buf, 1, sizeof(buf), fp);

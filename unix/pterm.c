@@ -88,10 +88,28 @@ char *x_get_default(const char *key)
 /*
  * Default settings that are specific to pterm.
  */
+FontSpec platform_default_fontspec(const char *name)
+{
+    FontSpec ret;
+    if (!strcmp(name, "Font"))
+	strcpy(ret.name, "fixed");
+    else
+	*ret.name = '\0';
+    return ret;
+}
+
+Filename platform_default_filename(const char *name)
+{
+    Filename ret;
+    if (!strcmp(name, "LogFileName"))
+	strcpy(ret.path, "putty.log");
+    else
+	*ret.path = '\0';
+    return ret;
+}
+
 char *platform_default_s(const char *name)
 {
-    if (!strcmp(name, "Font"))
-	return "fixed";
     return NULL;
 }
 
@@ -112,7 +130,7 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
 }
 
-int askappend(void *frontend, char *filename)
+int askappend(void *frontend, Filename filename)
 {
     /*
      * Logging in an xterm-alike is liable to be something you only
@@ -2022,26 +2040,26 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 	if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg->font, val, sizeof(cfg->font));
-	    cfg->font[sizeof(cfg->font)-1] = '\0';
+	    strncpy(cfg->font.name, val, sizeof(cfg->font.name));
+	    cfg->font.name[sizeof(cfg->font.name)-1] = '\0';
 
 	} else if (!strcmp(p, "-fb")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg->boldfont, val, sizeof(cfg->boldfont));
-	    cfg->boldfont[sizeof(cfg->boldfont)-1] = '\0';
+	    strncpy(cfg->boldfont.name, val, sizeof(cfg->boldfont.name));
+	    cfg->boldfont.name[sizeof(cfg->boldfont.name)-1] = '\0';
 
 	} else if (!strcmp(p, "-fw")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg->widefont, val, sizeof(cfg->widefont));
-	    cfg->widefont[sizeof(cfg->widefont)-1] = '\0';
+	    strncpy(cfg->widefont.name, val, sizeof(cfg->widefont.name));
+	    cfg->widefont.name[sizeof(cfg->widefont.name)-1] = '\0';
 
 	} else if (!strcmp(p, "-fwb")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg->wideboldfont, val, sizeof(cfg->wideboldfont));
-	    cfg->wideboldfont[sizeof(cfg->wideboldfont)-1] = '\0';
+	    strncpy(cfg->wideboldfont.name, val, sizeof(cfg->wideboldfont.name));
+	    cfg->wideboldfont.name[sizeof(cfg->wideboldfont.name)-1] = '\0';
 
 	} else if (!strcmp(p, "-cs")) {
 	    EXPECTS_ARG;
@@ -2122,8 +2140,8 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 	} else if (!strcmp(p, "-log")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg->logfilename, val, sizeof(cfg->logfilename));
-	    cfg->logfilename[sizeof(cfg->logfilename)-1] = '\0';
+	    strncpy(cfg->logfilename.path, val, sizeof(cfg->logfilename.path));
+	    cfg->logfilename.path[sizeof(cfg->logfilename.path)-1] = '\0';
 	    cfg->logtype = LGTYP_DEBUG;
 
 	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
@@ -2278,37 +2296,38 @@ int main(int argc, char **argv)
     if (do_cmdline(argc, argv, 1, &inst->cfg))
 	exit(1);		       /* post-defaults, do everything */
 
-    inst->fonts[0] = gdk_font_load(inst->cfg.font);
+    inst->fonts[0] = gdk_font_load(inst->cfg.font.name);
     if (!inst->fonts[0]) {
-	fprintf(stderr, "pterm: unable to load font \"%s\"\n", inst->cfg.font);
+	fprintf(stderr, "pterm: unable to load font \"%s\"\n",
+		inst->cfg.font.name);
 	exit(1);
     }
     font_charset = set_font_info(inst, 0);
-    if (inst->cfg.boldfont[0]) {
-	inst->fonts[1] = gdk_font_load(inst->cfg.boldfont);
+    if (inst->cfg.boldfont.name[0]) {
+	inst->fonts[1] = gdk_font_load(inst->cfg.boldfont.name);
 	if (!inst->fonts[1]) {
 	    fprintf(stderr, "pterm: unable to load bold font \"%s\"\n",
-		    inst->cfg.boldfont);
+		    inst->cfg.boldfont.name);
 	    exit(1);
 	}
 	set_font_info(inst, 1);
     } else
 	inst->fonts[1] = NULL;
-    if (inst->cfg.widefont[0]) {
-	inst->fonts[2] = gdk_font_load(inst->cfg.widefont);
+    if (inst->cfg.widefont.name[0]) {
+	inst->fonts[2] = gdk_font_load(inst->cfg.widefont.name);
 	if (!inst->fonts[2]) {
 	    fprintf(stderr, "pterm: unable to load wide font \"%s\"\n",
-		    inst->cfg.boldfont);
+		    inst->cfg.widefont.name);
 	    exit(1);
 	}
 	set_font_info(inst, 2);
     } else
 	inst->fonts[2] = NULL;
-    if (inst->cfg.wideboldfont[0]) {
-	inst->fonts[3] = gdk_font_load(inst->cfg.wideboldfont);
+    if (inst->cfg.wideboldfont.name[0]) {
+	inst->fonts[3] = gdk_font_load(inst->cfg.wideboldfont.name);
 	if (!inst->fonts[3]) {
 	    fprintf(stderr, "pterm: unable to load wide/bold font \"%s\"\n",
-		    inst->cfg.boldfont);
+		    inst->cfg.wideboldfont.name);
 	    exit(1);
 	}
 	set_font_info(inst, 3);

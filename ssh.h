@@ -4,6 +4,7 @@
 #include "puttymem.h"
 #include "network.h"
 #include "int64.h"
+#include "misc.h"
 
 struct ssh_channel;
 
@@ -319,11 +320,12 @@ void dh_cleanup(void *);
 Bignum dh_create_e(void *, int nbits);
 Bignum dh_find_K(void *, Bignum f);
 
-int loadrsakey(char *filename, struct RSAKey *key, char *passphrase);
-int rsakey_encrypted(char *filename, char **comment);
-int rsakey_pubblob(char *filename, void **blob, int *bloblen);
+int loadrsakey(const Filename *filename, struct RSAKey *key,
+	       char *passphrase);
+int rsakey_encrypted(const Filename *filename, char **comment);
+int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen);
 
-int saversakey(char *filename, struct RSAKey *key, char *passphrase);
+int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase);
 
 extern int base64_decode_atom(char *atom, unsigned char *out);
 extern int base64_lines(int datalen);
@@ -334,11 +336,12 @@ extern void base64_encode(FILE *fp, unsigned char *data, int datalen, int cpl);
 extern struct ssh2_userkey ssh2_wrong_passphrase;
 #define SSH2_WRONG_PASSPHRASE (&ssh2_wrong_passphrase)
 
-int ssh2_userkey_encrypted(char *filename, char **comment);
-struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase);
-char *ssh2_userkey_loadpub(char *filename, char **algorithm,
+int ssh2_userkey_encrypted(const Filename *filename, char **comment);
+struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
+				       char *passphrase);
+char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 			   int *pub_blob_len);
-int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
+int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		      char *passphrase);
 
 enum {
@@ -347,16 +350,19 @@ enum {
     SSH_KEYTYPE_SSH1, SSH_KEYTYPE_SSH2,
     SSH_KEYTYPE_OPENSSH, SSH_KEYTYPE_SSHCOM
 };
-int key_type(char *filename);
+int key_type(const Filename *filename);
 char *key_type_to_str(int type);
 
 int import_possible(int type);
 int import_target_type(int type);
-int import_encrypted(char *filename, int type, char **comment);
-int import_ssh1(char *filename, int type, struct RSAKey *key,char *passphrase);
-struct ssh2_userkey *import_ssh2(char *filename, int type, char *passphrase);
-int export_ssh1(char *filename, int type, struct RSAKey *key,char *passphrase);
-int export_ssh2(char *filename, int type,
+int import_encrypted(const Filename *filename, int type, char **comment);
+int import_ssh1(const Filename *filename, int type,
+		struct RSAKey *key, char *passphrase);
+struct ssh2_userkey *import_ssh2(const Filename *filename, int type,
+				 char *passphrase);
+int export_ssh1(const Filename *filename, int type,
+		struct RSAKey *key, char *passphrase);
+int export_ssh2(const Filename *filename, int type,
                 struct ssh2_userkey *key, char *passphrase);
 
 void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len);

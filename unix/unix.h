@@ -1,7 +1,17 @@
 #ifndef PUTTY_UNIX_H
 #define PUTTY_UNIX_H
 
+#include <stdio.h>		       /* for FILENAME_MAX */
 #include "charset.h"
+
+struct Filename {
+    char path[FILENAME_MAX];
+};
+#define f_open(filename, mode) ( fopen((filename).path, (mode)) )
+
+struct FontSpec {
+    char name[256];
+};
 
 typedef void *Context;                 /* FIXME: probably needs changing */
 

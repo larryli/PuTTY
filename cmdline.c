@@ -307,8 +307,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     if (!strcmp(p, "-i")) {
 	RETURN(2);
 	SAVEABLE(1);
-	strncpy(cfg->keyfile, value, sizeof(cfg->keyfile));
-	cfg->keyfile[sizeof(cfg->keyfile)-1] = '\0';
+	cfg->keyfile = filename_from_str(value);
     }
 
     return ret;			       /* unrecognised */

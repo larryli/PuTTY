@@ -136,6 +136,23 @@ int platform_default_i(const char *name, int def)
     return def;
 }
 
+FontSpec platform_default_fontspec(const char *name)
+{
+    FontSpec ret;
+    *ret.name = '\0';
+    return ret;
+}
+
+Filename platform_default_filename(const char *name)
+{
+    Filename ret;
+    if (!strcmp(name, "LogFileName"))
+	strcpy(ret.path, "putty.log");
+    else
+	*ret.path = '\0';
+    return ret;
+}
+
 char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */

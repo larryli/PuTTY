@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.37 2003/01/25 15:15:40 ben Exp $ */
+/* $Id: mac.c,v 1.38 2003/02/01 12:54:40 simon Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -741,8 +741,9 @@ void old_keyfile_warning(void)
 
 }
 
-char *platform_default_s(char const *name)
+FontSpec platform_default_font(char const *name)
 {
+    FontSpec ret;
     long smfs;
     Str255 pname;
     static char cname[256];
@@ -754,28 +755,39 @@ char *platform_default_s(char const *name)
 	if (smfs != 0) {
 	    GetFontName(HiWord(smfs), pname);
 	    if (pname[0] == 0)
-		return "Monaco";
-	    p2cstrcpy(cname, pname);
-	    return cname;
-	} else
-	    return "Monaco";
+		strcpy(ret.name, "Monaco");
+	    ret.height = LoWord(smfs);
+	    p2cstrcpy(ret.name, pname);
+	} else {
+	    strcpy(ret.name, "Monaco");
+	    ret.height = 9;
+	}
+	ret.isbold = 0;
+    } else {
+	ret.name[0] = '\0';
     }
+
+    return ret;
+}
+
+Filename platform_default_filename(const char *name)
+{
+    Filename ret;
+    if (!strcmp(name, "LogFileName"))
+	strcpy(ret.path, "putty.log");
+    else
+	*ret.path = '\0';
+    return ret;
+}
+
+char *platform_default_s(char const *name)
+{
     return NULL;
 }
 
 int platform_default_i(char const *name, int def)
 {
     long smfs;
-
-    if (!strcmp(name, "FontHeight")) {
-	smfs = GetScriptVariable(smSystemScript, smScriptMonoFondSize);
-	if (smfs == 0)
-	    smfs = GetScriptVariable(smRoman, smScriptMonoFondSize);
-	if (smfs != 0)
-	    return LoWord(smfs);
-	else
-	    return 9;
-    }
 
     /* Non-raw cut and paste of line-drawing chars works badly on the
      * current Unix stub implementation of the Unicode functions.
@@ -791,6 +803,29 @@ void platform_get_x11_auth(char *display, int *proto,
                            unsigned char *data, int *datalen)
 {
     /* SGT: I have no idea whether Mac X servers need anything here. */
+}
+
+Filename filename_from_str(char *str)
+{
+    Filename ret;
+    strncpy(ret.path, str, sizeof(ret.path));
+    ret.path[sizeof(ret.path)-1] = '\0';
+    return ret;
+}
+
+char *filename_to_str(Filename fn)
+{
+    return fn.path;
+}
+
+int filename_equal(Filename f1, Filename f2)
+{
+    return !strcmp(f1.path, f2.path);
+}
+
+int filename_is_null(Filename fn)
+{
+    return !*fn.path;
 }
 
 /*

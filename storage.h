@@ -29,6 +29,8 @@
 void *open_settings_w(const char *sessionname);
 void write_setting_s(void *handle, const char *key, const char *value);
 void write_setting_i(void *handle, const char *key, int value);
+void write_setting_filename(void *handle, const char *key, Filename value);
+void write_setting_fontspec(void *handle, const char *key, FontSpec font);
 void close_settings_w(void *handle);
 
 /*
@@ -44,10 +46,15 @@ void close_settings_w(void *handle);
  * read_setting_s() can return NULL, in which case the caller
  * should invent a sensible default. If an integer setting is not
  * present, read_setting_i() returns its provided default.
+ * 
+ * read_setting_filename() and read_setting_fontspec() each read into
+ * the provided buffer, and return zero if they failed to.
  */
 void *open_settings_r(const char *sessionname);
 char *read_setting_s(void *handle, const char *key, char *buffer, int buflen);
 int read_setting_i(void *handle, const char *key, int defvalue);
+int read_setting_filename(void *handle, const char *key, Filename *value);
+int read_setting_fontspec(void *handle, const char *key, FontSpec *font);
 void close_settings_r(void *handle);
 
 /*

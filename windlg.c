@@ -660,14 +660,14 @@ static const char *const colours[] = {
 
 static void fmtfont(char *buf)
 {
-    sprintf(buf, "Font: %s, ", cfg.font);
-    if (cfg.fontisbold)
+    sprintf(buf, "Font: %s, ", cfg.font.name);
+    if (cfg.font.isbold)
 	strcat(buf, "bold, ");
-    if (cfg.fontheight == 0)
+    if (cfg.font.height == 0)
 	strcat(buf, "default height");
     else
 	sprintf(buf + strlen(buf), "%d-point",
-		(cfg.fontheight < 0 ? -cfg.fontheight : cfg.fontheight));
+		(cfg.font.height < 0 ? -cfg.font.height : cfg.font.height));
 }
 
 char *help_context_cmd(int id)
@@ -1161,7 +1161,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     B_IND_DISABLED ? IDC_B_IND_DISABLED : cfg.beep_ind ==
 		     B_IND_FLASH ? IDC_B_IND_FLASH : cfg.beep_ind ==
 		     B_IND_STEADY ? IDC_B_IND_STEADY : IDC_B_IND_DISABLED);
-    SetDlgItemText(hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile);
+    SetDlgItemText(hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile.path);
     CheckDlgButton(hwnd, IDC_BELLOVL, cfg.bellovl);
     SetDlgItemInt(hwnd, IDC_BELLOVLN, cfg.bellovl_n, FALSE);
     MySetDlgItemFlt(hwnd, IDC_BELLOVLT, cfg.bellovl_t / 1000.0);
@@ -1197,7 +1197,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_R_TSEDIT, cfg.termspeed);
     SetDlgItemText(hwnd, IDC_RLLUSEREDIT, cfg.localusername);
     SetDlgItemText(hwnd, IDC_LOGEDIT, cfg.username);
-    SetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename);
+    SetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename.path);
     CheckRadioButton(hwnd, IDC_LSTATOFF, IDC_LSTATPACKET,
 		     cfg.logtype == LGTYP_NONE ? IDC_LSTATOFF :
 		     cfg.logtype == LGTYP_ASCII ? IDC_LSTATASCII :
@@ -1240,7 +1240,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.sshprot == 3 ? IDC_SSHPROT2ONLY : IDC_SSHPROT1ONLY);
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
     CheckDlgButton(hwnd, IDC_AUTHKI, cfg.try_ki_auth);
-    SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
+    SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile.path);
     SetDlgItemText(hwnd, IDC_CMDEDIT, cfg.remote_cmd);
 
     {
@@ -2116,7 +2116,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
     struct treeview_faff tvfaff;
     HTREEITEM hsession;
     OPENFILENAME of;
-    char filename[sizeof(cfg.keyfile)];
+    char filename[sizeof(cfg.keyfile.path)];
     CHOOSEFONT cf;
     LOGFONT lf;
     char fontstatic[256];
@@ -2777,20 +2777,20 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_CHOOSEFONT:
 		{
 		    HDC hdc = GetDC(0);
-		    lf.lfHeight = -MulDiv(cfg.fontheight,
+		    lf.lfHeight = -MulDiv(cfg.font.height,
 					  GetDeviceCaps(hdc, LOGPIXELSY),
 					  72);
 		    ReleaseDC(0, hdc);
 		}
 		lf.lfWidth = lf.lfEscapement = lf.lfOrientation = 0;
 		lf.lfItalic = lf.lfUnderline = lf.lfStrikeOut = 0;
-		lf.lfWeight = (cfg.fontisbold ? FW_BOLD : 0);
-		lf.lfCharSet = cfg.fontcharset;
+		lf.lfWeight = (cfg.font.isbold ? FW_BOLD : 0);
+		lf.lfCharSet = cfg.font.charset;
 		lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
 		lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
 		lf.lfQuality = DEFAULT_QUALITY;
 		lf.lfPitchAndFamily = FIXED_PITCH | FF_DONTCARE;
-		strncpy(lf.lfFaceName, cfg.font,
+		strncpy(lf.lfFaceName, cfg.font.name,
 			sizeof(lf.lfFaceName) - 1);
 		lf.lfFaceName[sizeof(lf.lfFaceName) - 1] = '\0';
 
@@ -2801,11 +2801,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    CF_INITTOLOGFONTSTRUCT | CF_SCREENFONTS;
 
 		if (ChooseFont(&cf)) {
-		    strncpy(cfg.font, lf.lfFaceName, sizeof(cfg.font) - 1);
-		    cfg.font[sizeof(cfg.font) - 1] = '\0';
-		    cfg.fontisbold = (lf.lfWeight == FW_BOLD);
-		    cfg.fontcharset = lf.lfCharSet;
-		    cfg.fontheight = cf.iPointSize / 10;
+		    strncpy(cfg.font.name, lf.lfFaceName,
+			    sizeof(cfg.font.name) - 1);
+		    cfg.font.name[sizeof(cfg.font.name) - 1] = '\0';
+		    cfg.font.isbold = (lf.lfWeight == FW_BOLD);
+		    cfg.font.charset = lf.lfCharSet;
+		    cfg.font.height = cf.iPointSize / 10;
 		    fmtfont(fontstatic);
 		    SetDlgItemText(hwnd, IDC_FONTSTATIC, fontstatic);
 		}
@@ -2852,23 +2853,23 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		of.lpstrCustomFilter = NULL;
 		of.nFilterIndex = 1;
 		of.lpstrFile = filename;
-		strcpy(filename, cfg.bell_wavefile);
+		strcpy(filename, cfg.bell_wavefile.path);
 		of.nMaxFile = sizeof(filename);
 		of.lpstrFileTitle = NULL;
 		of.lpstrInitialDir = NULL;
 		of.lpstrTitle = "Select Bell Sound File";
 		of.Flags = 0;
 		if (GetOpenFileName(&of)) {
-		    strcpy(cfg.bell_wavefile, filename);
+		    strcpy(cfg.bell_wavefile.path, filename);
 		    SetDlgItemText(hwnd, IDC_BELL_WAVEEDIT,
-				   cfg.bell_wavefile);
+				   cfg.bell_wavefile.path);
 		}
 		break;
 	      case IDC_BELL_WAVEEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)
 		    GetDlgItemText(hwnd, IDC_BELL_WAVEEDIT,
-				   cfg.bell_wavefile,
-				   sizeof(cfg.bell_wavefile) - 1);
+				   cfg.bell_wavefile.path,
+				   sizeof(cfg.bell_wavefile.path) - 1);
 		break;
 	      case IDC_BELLOVL:
 		if (HIWORD(wParam) == BN_CLICKED ||
@@ -3090,8 +3091,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 
 	      case IDC_LGFEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)
-		    GetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename,
-				   sizeof(cfg.logfilename) - 1);
+		    GetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename.path,
+				   sizeof(cfg.logfilename.path) - 1);
 		break;
 	      case IDC_LGFBUTTON:
 		memset(&of, 0, sizeof(of));
@@ -3105,15 +3106,15 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		of.lpstrCustomFilter = NULL;
 		of.nFilterIndex = 1;
 		of.lpstrFile = filename;
-		strcpy(filename, cfg.logfilename);
+		strcpy(filename, cfg.logfilename.path);
 		of.nMaxFile = sizeof(filename);
 		of.lpstrFileTitle = NULL;
 		of.lpstrInitialDir = NULL;
 		of.lpstrTitle = "Select session log file";
 		of.Flags = 0;
 		if (GetSaveFileName(&of)) {
-		    strcpy(cfg.logfilename, filename);
-		    SetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename);
+		    strcpy(cfg.logfilename.path, filename);
+		    SetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename.path);
 		}
 		break;
 	      case IDC_LSTATOFF:
@@ -3313,8 +3314,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		break;
 	      case IDC_PKEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)
-		    GetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile,
-				   sizeof(cfg.keyfile) - 1);
+		    GetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile.path,
+				   sizeof(cfg.keyfile.path) - 1);
 		break;
 	      case IDC_CMDEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)
@@ -3334,15 +3335,15 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		of.lpstrCustomFilter = NULL;
 		of.nFilterIndex = 1;
 		of.lpstrFile = filename;
-		strcpy(filename, cfg.keyfile);
+		strcpy(filename, cfg.keyfile.path);
 		of.nMaxFile = sizeof(filename);
 		of.lpstrFileTitle = NULL;
 		of.lpstrInitialDir = NULL;
 		of.lpstrTitle = "Select Private Key File";
 		of.Flags = 0;
 		if (GetOpenFileName(&of)) {
-		    strcpy(cfg.keyfile, filename);
-		    SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
+		    strcpy(cfg.keyfile.path, filename);
+		    SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile.path);
 		}
 		break;
 	      case IDC_RAWCNP:
@@ -3941,7 +3942,7 @@ void askcipher(void *frontend, char *ciphername, int cs)
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(void *frontend, char *filename)
+int askappend(void *frontend, Filename filename)
 {
     static const char mbtitle[] = "PuTTY Log to File";
     static const char msgtemplate[] =
@@ -3954,7 +3955,7 @@ int askappend(void *frontend, char *filename)
     char message[sizeof(msgtemplate) + FILENAME_MAX];
     int mbret;
 
-    sprintf(message, msgtemplate, FILENAME_MAX, filename);
+    sprintf(message, msgtemplate, FILENAME_MAX, filename.path);
 
     mbret = MessageBox(NULL, message, mbtitle,
 		       MB_ICONQUESTION | MB_YESNOCANCEL);

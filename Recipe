@@ -115,7 +115,7 @@ SFTP     = sftp int64 logging
 # Pageant or PuTTYgen).
 WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
          + windefs winmisc
-UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline
+UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline uxmisc
 MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
 
 # Character set library, for use in pterm.
@@ -140,11 +140,11 @@ pscp     : [C] scp console WINSSH be_none SFTP wildcard WINMISC scp.res LIBS1
 psftp    : [C] psftp console WINSSH be_none SFTP WINMISC scp.res LIBS1
 
 pageant  : [G] pageant sshrsa sshpubk sshdes sshbn sshmd5 version tree234
-         + misc sshaes sshsha pageantc sshdss sshsh512 winutils
+         + misc sshaes sshsha pageantc sshdss sshsh512 winutils winmisc
          + pageant.res LIBS
 
 puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
-         + sshrand noise sshsha winstore misc winctrls sshrsa sshdss
+         + sshrand noise sshsha winstore misc winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh512 import winutils puttygen.res LIBS
 
 pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs

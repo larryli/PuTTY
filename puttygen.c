@@ -621,7 +621,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 }
 
 void load_key_file(HWND hwnd, struct MainDlgState *state,
-		   char *filename, int was_import_cmd)
+		   Filename filename, int was_import_cmd)
 {
     char passphrase[PASSPHRASE_MAXLEN];
     int needs_pass;
@@ -632,7 +632,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     struct RSAKey newkey1;
     struct ssh2_userkey *newkey2 = NULL;
 
-    type = realtype = key_type(filename);
+    type = realtype = key_type(&filename);
     if (type != SSH_KEYTYPE_SSH1 &&
 	type != SSH_KEYTYPE_SSH2 &&
 	!import_possible(type)) {
@@ -652,12 +652,12 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 
     comment = NULL;
     if (realtype == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(filename, &comment);
+	needs_pass = rsakey_encrypted(&filename, &comment);
     else if (realtype == SSH_KEYTYPE_SSH2)
 	needs_pass =
-	ssh2_userkey_encrypted(filename, &comment);
+	ssh2_userkey_encrypted(&filename, &comment);
     else
-	needs_pass = import_encrypted(filename, realtype,
+	needs_pass = import_encrypted(&filename, realtype,
 				      &comment);
     pps.passphrase = passphrase;
     pps.comment = comment;
@@ -676,17 +676,17 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	    *passphrase = '\0';
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (realtype == type)
-		ret = loadrsakey(filename, &newkey1,
+		ret = loadrsakey(&filename, &newkey1,
 				 passphrase);
 	    else
-		ret = import_ssh1(filename, realtype,
+		ret = import_ssh1(&filename, realtype,
 				  &newkey1, passphrase);
 	} else {
 	    if (realtype == type)
-		newkey2 = ssh2_load_userkey(filename,
+		newkey2 = ssh2_load_userkey(&filename,
 					    passphrase);
 	    else
-		newkey2 = import_ssh2(filename, realtype,
+		newkey2 = import_ssh2(&filename, realtype,
 				      passphrase);
 	    if (newkey2 == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
@@ -940,7 +940,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	 * Load a key file if one was provided on the command line.
 	 */
 	if (cmdline_keyfile)
-	    load_key_file(hwnd, state, cmdline_keyfile, 0);
+	    load_key_file(hwnd, state, filename_from_str(cmdline_keyfile), 0);
 
 	return 1;
       case WM_MOUSEMOVE:
@@ -1166,19 +1166,21 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    }
 
 		    if (state->ssh2) {
+			Filename fn = filename_from_str(filename);
                         if (type != realtype)
-                            ret = export_ssh2(filename, type, &state->ssh2key,
+                            ret = export_ssh2(&fn, type, &state->ssh2key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = ssh2_save_userkey(filename, &state->ssh2key,
+                            ret = ssh2_save_userkey(&fn, &state->ssh2key,
                                                     *passphrase ? passphrase :
                                                     NULL);
 		    } else {
+			Filename fn = filename_from_str(filename);
                         if (type != realtype)
-                            ret = export_ssh1(filename, type, &state->key,
+                            ret = export_ssh1(&fn, type, &state->key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = saversakey(filename, &state->key,
+                            ret = saversakey(&fn, &state->key,
                                              *passphrase ? passphrase : NULL);
 		    }
 		    if (ret <= 0) {
@@ -1228,7 +1230,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		char filename[FILENAME_MAX];
 		if (prompt_keyfile(hwnd, "Load private key:",
 				   filename, 0, LOWORD(wParam)==IDC_LOAD))
-		    load_key_file(hwnd, state, filename,
+		    load_key_file(hwnd, state, filename_from_str(filename),
 				  LOWORD(wParam) != IDC_LOAD);
 	    }
 	    break;

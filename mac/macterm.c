@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.61 2003/02/01 12:26:33 ben Exp $ */
+/* $Id: macterm.c,v 1.62 2003/02/01 12:54:40 simon Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -213,11 +213,11 @@ static void mac_initfont(Session *s) {
     OptionBits fbflags;
 
     SetPort(s->window);
-    c2pstrcpy(macfont, s->cfg.font);
+    c2pstrcpy(macfont, s->cfg.font.name);
     GetFNum(macfont, &s->fontnum);
     TextFont(s->fontnum);
-    TextFace(s->cfg.fontisbold ? bold : 0);
-    TextSize(s->cfg.fontheight);
+    TextFace(s->cfg.font.isbold ? bold : 0);
+    TextSize(s->cfg.font.height);
     GetFontInfo(&fi);
     s->font_width = CharWidth('W'); /* Well, it's what NCSA uses. */
     s->font_ascent = fi.ascent;
@@ -227,10 +227,10 @@ static void mac_initfont(Session *s) {
 			 &s->font_stdnumer, &s->font_stddenom);
     mac_workoutfontscale(s, s->font_width * 2,
 			 &s->font_widenumer, &s->font_widedenom);
-    TextSize(s->cfg.fontheight * 2);
+    TextSize(s->cfg.font.height * 2);
     mac_workoutfontscale(s, s->font_width * 2,
 			 &s->font_bignumer, &s->font_bigdenom);
-    TextSize(s->cfg.fontheight);
+    TextSize(s->cfg.font.height);
     if (!s->cfg.bold_colour) {
 	TextFace(bold);
 	s->font_boldadjust = s->font_width - CharWidth('W');
@@ -262,7 +262,7 @@ static void mac_initfont(Session *s) {
 	s->font_charset =
 	    charset_from_macenc(FontToScript(s->fontnum),
 				GetScriptManagerVariable(smRegionCode),
-				mac_gestalts.sysvers, s->cfg.font);
+				mac_gestalts.sysvers, s->cfg.font.name);
     }
 
     mac_adjustsize(s, s->term->rows, s->term->cols);
@@ -581,7 +581,7 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
     stsc->scrpStyleTab[0].scrpAscent = s->font_ascent;
     stsc->scrpStyleTab[0].scrpFont = s->fontnum;
     stsc->scrpStyleTab[0].scrpFace = 0;
-    stsc->scrpStyleTab[0].scrpSize = s->cfg.fontheight;
+    stsc->scrpStyleTab[0].scrpSize = s->cfg.font.height;
     stsc->scrpStyleTab[0].scrpColor.red = 0;
     stsc->scrpStyleTab[0].scrpColor.green = 0;
     stsc->scrpStyleTab[0].scrpColor.blue = 0;
@@ -1029,25 +1029,25 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.lattr = lattr;
     switch (lattr & LATTR_MODE) {
       case LATTR_NORM:
-	TextSize(s->cfg.fontheight);
+	TextSize(s->cfg.font.height);
 	a.numer = s->font_stdnumer;
 	a.denom = s->font_stddenom;
 	break;
       case LATTR_WIDE:
-	TextSize(s->cfg.fontheight);
+	TextSize(s->cfg.font.height);
 	a.numer = s->font_widenumer;
 	a.denom = s->font_widedenom;
 	break;
       case LATTR_TOP:
       case LATTR_BOT:
-	TextSize(s->cfg.fontheight * 2);
+	TextSize(s->cfg.font.height * 2);
 	a.numer = s->font_bignumer;
 	a.denom = s->font_bigdenom;
 	break;
     }
     SetPort(s->window);
     TextFont(s->fontnum);
-    if (s->cfg.fontisbold || (attr & ATTR_BOLD) && !s->cfg.bold_colour)
+    if (s->cfg.font.isbold || (attr & ATTR_BOLD) && !s->cfg.bold_colour)
     	style |= bold;
     if (attr & ATTR_UNDER)
 	style |= underline;
@@ -1594,7 +1594,7 @@ void frontend_keypress(void *handle)
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(void *frontend, char *filename)
+int askappend(void *frontend, Filename filename)
 {
 
     /* FIXME: not implemented yet. */

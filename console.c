@@ -192,7 +192,7 @@ void askcipher(void *frontend, char *ciphername, int cs)
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(void *frontend, char *filename)
+int askappend(void *frontend, Filename filename)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -213,11 +213,11 @@ int askappend(void *frontend, char *filename)
     char line[32];
 
     if (console_batch_mode) {
-	fprintf(stderr, msgtemplate_batch, FILENAME_MAX, filename);
+	fprintf(stderr, msgtemplate_batch, FILENAME_MAX, filename.path);
 	fflush(stderr);
 	return 0;
     }
-    fprintf(stderr, msgtemplate, FILENAME_MAX, filename);
+    fprintf(stderr, msgtemplate, FILENAME_MAX, filename.path);
     fflush(stderr);
 
     hin = GetStdHandle(STD_INPUT_HANDLE);

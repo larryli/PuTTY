@@ -10,12 +10,12 @@
 /* log session to file stuff ... */
 struct LogContext {
     FILE *lgfp;
-    char currlogfilename[FILENAME_MAX];
+    Filename currlogfilename;
     void *frontend;
     Config cfg;
 };
 
-static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm);
+static void xlatlognam(Filename *d, Filename s, char *hostname, struct tm *tm);
 
 /*
  * Log session traffic.
@@ -113,9 +113,9 @@ void logfopen(void *handle)
     tm = *localtime(&t);
 
     /* substitute special codes in file name */
-    xlatlognam(ctx->currlogfilename, ctx->cfg.logfilename,ctx->cfg.host, &tm);
+    xlatlognam(&ctx->currlogfilename, ctx->cfg.logfilename,ctx->cfg.host, &tm);
 
-    ctx->lgfp = fopen(ctx->currlogfilename, "r");  /* file already present? */
+    ctx->lgfp = f_open(ctx->currlogfilename, "r");  /* file already present? */
     if (ctx->lgfp) {
 	int i;
 	fclose(ctx->lgfp);
@@ -132,7 +132,7 @@ void logfopen(void *handle)
 	}
     }
 
-    ctx->lgfp = fopen(ctx->currlogfilename, writemod);
+    ctx->lgfp = f_open(ctx->currlogfilename, writemod);
     if (ctx->lgfp) {			       /* enter into event log */
 	/* --- write header line into log file */
 	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", ctx->lgfp);
@@ -146,7 +146,7 @@ void logfopen(void *handle)
 		 ctx->cfg.logtype == LGTYP_DEBUG ? "raw" :
 		 ctx->cfg.logtype == LGTYP_PACKETS ? "SSH packets" : "<ukwn>"));
 	/* Make sure we do not exceed the output buffer size */
-	strncat(buf, ctx->currlogfilename, 128);
+	strncat(buf, filename_to_str(ctx->currlogfilename), 128);
 	buf[strlen(buf)] = '\0';
 	logevent(ctx->frontend, buf);
     }
@@ -183,7 +183,7 @@ void log_reconfig(void *handle, Config *cfg)
     struct LogContext *ctx = (struct LogContext *)handle;
     int reset_logging;
 
-    if (strcmp(ctx->cfg.logfilename, cfg->logfilename) ||
+    if (!filename_equal(ctx->cfg.logfilename, cfg->logfilename) ||
 	ctx->cfg.logtype != cfg->logtype)
 	reset_logging = TRUE;
     else
@@ -204,10 +204,16 @@ void log_reconfig(void *handle, Config *cfg)
  *
  * "&Y":YYYY   "&m":MM   "&d":DD   "&T":hhmm   "&h":<hostname>   "&&":&
  */
-static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm) {
+static void xlatlognam(Filename *dest, Filename src,
+		       char *hostname, struct tm *tm) {
     char buf[10], *bufp;
     int size;
-    int len = FILENAME_MAX-1;
+    char buffer[FILENAME_MAX];
+    int len = sizeof(buffer)-1;
+    char *d, *s;
+
+    d = buffer;
+    s = filename_to_str(src);
 
     while (*s) {
 	/* Let (bufp, len) be the string to append. */
@@ -250,4 +256,6 @@ static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm) {
 	len -= size;
     }
     *d = '\0';
+
+    *dest = filename_from_str(s);
 }

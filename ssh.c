@@ -2457,8 +2457,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     }
     s->tis_auth_refused = s->ccard_auth_refused = 0;
     /* Load the public half of ssh->cfg.keyfile so we notice if it's in Pageant */
-    if (*ssh->cfg.keyfile) {
-	if (!rsakey_pubblob(ssh->cfg.keyfile,
+    if (!filename_is_null(ssh->cfg.keyfile)) {
+	if (!rsakey_pubblob(&ssh->cfg.keyfile,
 			    &s->publickey_blob, &s->publickey_bloblen))
 	    s->publickey_blob = NULL;
     } else
@@ -2586,7 +2586,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (s->authed)
 		break;
 	}
-	if (*ssh->cfg.keyfile && !s->tried_publickey)
+	if (!filename_is_null(ssh->cfg.keyfile) && !s->tried_publickey)
 	    s->pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
 	if (ssh->cfg.try_tis_auth &&
@@ -2652,7 +2652,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (flags & FLAG_VERBOSE)
 		c_write_str(ssh, "Trying public key authentication.\r\n");
 	    logeventf(ssh, "Trying public key \"%s\"", ssh->cfg.keyfile);
-	    type = key_type(ssh->cfg.keyfile);
+	    type = key_type(&ssh->cfg.keyfile);
 	    if (type != SSH_KEYTYPE_SSH1) {
 		sprintf(msgbuf, "Key is of wrong type (%s)",
 			key_type_to_str(type));
@@ -2662,7 +2662,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		s->tried_publickey = 1;
 		continue;
 	    }
-	    if (!rsakey_encrypted(ssh->cfg.keyfile, &comment)) {
+	    if (!rsakey_encrypted(&ssh->cfg.keyfile, &comment)) {
 		if (flags & FLAG_VERBOSE)
 		    c_write_str(ssh, "No passphrase required.\r\n");
 		goto tryauth;
@@ -2718,10 +2718,10 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    s->tried_publickey = 1;
 	    
 	    {
-		int ret = loadrsakey(ssh->cfg.keyfile, &s->key, s->password);
+		int ret = loadrsakey(&ssh->cfg.keyfile, &s->key, s->password);
 		if (ret == 0) {
 		    c_write_str(ssh, "Couldn't load private key from ");
-		    c_write_str(ssh, ssh->cfg.keyfile);
+		    c_write_str(ssh, filename_to_str(ssh->cfg.keyfile));
 		    c_write_str(ssh, ".\r\n");
 		    continue;	       /* go and try password */
 		}
@@ -4388,13 +4388,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	s->tried_keyb_inter = FALSE;
 	s->kbd_inter_running = FALSE;
 	/* Load the pub half of ssh->cfg.keyfile so we notice if it's in Pageant */
-	if (*ssh->cfg.keyfile) {
+	if (!filename_is_null(ssh->cfg.keyfile)) {
 	    int keytype;
 	    logeventf(ssh, "Reading private key file \"%.150s\"", ssh->cfg.keyfile);
-	    keytype = key_type(ssh->cfg.keyfile);
+	    keytype = key_type(&ssh->cfg.keyfile);
 	    if (keytype == SSH_KEYTYPE_SSH2) {
 		s->publickey_blob =
-		    ssh2_userkey_loadpub(ssh->cfg.keyfile, NULL,
+		    ssh2_userkey_loadpub(&ssh->cfg.keyfile, NULL,
 					 &s->publickey_bloblen);
 	    } else {
 		char *msgbuf;
@@ -4692,7 +4692,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 * willing to accept it.
 		 */
 		pub_blob =
-		    (unsigned char *)ssh2_userkey_loadpub(ssh->cfg.keyfile,
+		    (unsigned char *)ssh2_userkey_loadpub(&ssh->cfg.keyfile,
 							  &algorithm,
 							  &pub_blob_len);
 		if (pub_blob) {
@@ -4720,7 +4720,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * Actually attempt a serious authentication using
 		     * the key.
 		     */
-		    if (ssh2_userkey_encrypted(ssh->cfg.keyfile, &comment)) {
+		    if (ssh2_userkey_encrypted(&ssh->cfg.keyfile, &comment)) {
 			sprintf(s->pwprompt,
 				"Passphrase for key \"%.100s\": ",
 				comment);
@@ -4872,7 +4872,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 */
 		struct ssh2_userkey *key;
 
-		key = ssh2_load_userkey(ssh->cfg.keyfile, s->password);
+		key = ssh2_load_userkey(&ssh->cfg.keyfile, s->password);
 		if (key == SSH2_WRONG_PASSPHRASE || key == NULL) {
 		    if (key == SSH2_WRONG_PASSPHRASE) {
 			c_write_str(ssh, "Wrong passphrase\r\n");

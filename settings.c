@@ -37,6 +37,22 @@ static void gpps(void *handle, const char *name, const char *def,
     }
 }
 
+/*
+ * gppfont and gppfile cannot have local defaults, since the very
+ * format of a Filename or Font is platform-dependent. So the
+ * platform-dependent functions MUST return some sort of value.
+ */
+static void gppfont(void *handle, const char *name, FontSpec *result)
+{
+    if (!read_setting_fontspec(handle, name, result))
+	*result = platform_default_fontspec(name);
+}
+static void gppfile(void *handle, const char *name, Filename *result)
+{
+    if (!read_setting_filename(handle, name, result))
+	*result = platform_default_filename(name);
+}
+
 static void gppi(void *handle, char *name, int def, int *i)
 {
     def = platform_default_i(name, def);
@@ -144,7 +160,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "Present", 1);
     if (do_host) {
 	write_setting_s(sesskey, "HostName", cfg->host);
-	write_setting_s(sesskey, "LogFileName", cfg->logfilename);
+	write_setting_filename(sesskey, "LogFileName", cfg->logfilename);
 	write_setting_i(sesskey, "LogType", cfg->logtype);
 	write_setting_i(sesskey, "LogFileClash", cfg->logxfovr);
     }
@@ -209,7 +225,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_i(sesskey, "SSH2DES", cfg->ssh2_des_cbc);
-    write_setting_s(sesskey, "PublicKeyFile", cfg->keyfile);
+    write_setting_filename(sesskey, "PublicKeyFile", cfg->keyfile);
     write_setting_s(sesskey, "RemoteCommand", cfg->remote_cmd);
     write_setting_i(sesskey, "RFCEnviron", cfg->rfc_environ);
     write_setting_i(sesskey, "PassiveTelnet", cfg->passive_telnet);
@@ -246,7 +262,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i(sesskey, "Beep", cfg->beep);
     write_setting_i(sesskey, "BeepInd", cfg->beep_ind);
-    write_setting_s(sesskey, "BellWaveFile", cfg->bell_wavefile);
+    write_setting_filename(sesskey, "BellWaveFile", cfg->bell_wavefile);
     write_setting_i(sesskey, "BellOverload", cfg->bellovl);
     write_setting_i(sesskey, "BellOverloadN", cfg->bellovl_n);
     write_setting_i(sesskey, "BellOverloadT", cfg->bellovl_t);
@@ -259,10 +275,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_s(sesskey, "WinTitle", cfg->wintitle);
     write_setting_i(sesskey, "TermWidth", cfg->width);
     write_setting_i(sesskey, "TermHeight", cfg->height);
-    write_setting_s(sesskey, "Font", cfg->font);
-    write_setting_i(sesskey, "FontIsBold", cfg->fontisbold);
-    write_setting_i(sesskey, "FontCharSet", cfg->fontcharset);
-    write_setting_i(sesskey, "FontHeight", cfg->fontheight);
+    write_setting_fontspec(sesskey, "Font", cfg->font);
     write_setting_i(sesskey, "FontVTMode", cfg->vtmode);
     write_setting_i(sesskey, "TryPalette", cfg->try_palette);
     write_setting_i(sesskey, "BoldAsColour", cfg->bold_colour);
@@ -333,7 +346,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "StampUtmp", cfg->stamp_utmp);
     write_setting_i(sesskey, "LoginShell", cfg->login_shell);
     write_setting_i(sesskey, "ScrollbarOnLeft", cfg->scrollbar_on_left);
-    write_setting_s(sesskey, "BoldFont", cfg->boldfont);
+    write_setting_fontspec(sesskey, "BoldFont", cfg->boldfont);
     write_setting_i(sesskey, "ShadowBoldOffset", cfg->shadowboldoffset);
 }
 
@@ -360,8 +373,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     } else {
 	cfg->host[0] = '\0';	       /* blank hostname */
     }
-    gpps(sesskey, "LogFileName", "putty.log",
-	 cfg->logfilename, sizeof(cfg->logfilename));
+    gppfile(sesskey, "LogFileName", &cfg->logfilename);
     gppi(sesskey, "LogType", 0, &cfg->logtype);
     gppi(sesskey, "LogFileClash", LGXF_ASK, &cfg->logxfovr);
 
@@ -442,7 +454,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
-    gpps(sesskey, "PublicKeyFile", "", cfg->keyfile, sizeof(cfg->keyfile));
+    gppfile(sesskey, "PublicKeyFile", &cfg->keyfile);
     gpps(sesskey, "RemoteCommand", "", cfg->remote_cmd,
 	 sizeof(cfg->remote_cmd));
     gppi(sesskey, "RFCEnviron", 0, &cfg->rfc_environ);
@@ -482,8 +494,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     /* pedantic compiler tells me I can't use &cfg->beep as an int * :-) */
     gppi(sesskey, "Beep", 1, &cfg->beep);
     gppi(sesskey, "BeepInd", 0, &cfg->beep_ind);
-    gpps(sesskey, "BellWaveFile", "", cfg->bell_wavefile,
-	 sizeof(cfg->bell_wavefile));
+    gppfile(sesskey, "BellWaveFile", &cfg->bell_wavefile);
     gppi(sesskey, "BellOverload", 1, &cfg->bellovl);
     gppi(sesskey, "BellOverloadN", 5, &cfg->bellovl_n);
     gppi(sesskey, "BellOverloadT", 2*TICKSPERSEC, &cfg->bellovl_t);
@@ -496,24 +507,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gpps(sesskey, "WinTitle", "", cfg->wintitle, sizeof(cfg->wintitle));
     gppi(sesskey, "TermWidth", 80, &cfg->width);
     gppi(sesskey, "TermHeight", 24, &cfg->height);
-    gpps(sesskey, "Font", "XXX", cfg->font, sizeof(cfg->font));
-    gppi(sesskey, "FontIsBold", 0, &cfg->fontisbold);
-    gppi(sesskey, "FontCharSet", 0, &cfg->fontcharset);
-    gppi(sesskey, "FontHeight", 10, &cfg->fontheight);
-#ifdef _WINDOWS
-    if (cfg->fontheight < 0) {
-	int oldh, newh;
-	HDC hdc = GetDC(NULL);
-	int logpix = GetDeviceCaps(hdc, LOGPIXELSY);
-	ReleaseDC(NULL, hdc);
-
-	oldh = -cfg->fontheight;
-	newh = MulDiv(oldh, 72, logpix) + 1;
-	if (MulDiv(newh, logpix, 72) > oldh)
-	    newh--;
-	cfg->fontheight = newh;
-    }
-#endif
+    gppfont(sesskey, "Font", &cfg->font);
     gppi(sesskey, "FontVTMode", VT_UNICODE, (int *) &cfg->vtmode);
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);
     gppi(sesskey, "BoldAsColour", 1, &cfg->bold_colour);
@@ -625,7 +619,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);
-    gpps(sesskey, "BoldFont", "", cfg->boldfont, sizeof(cfg->boldfont));
+    gppfont(sesskey, "BoldFont", &cfg->boldfont);
     gppi(sesskey, "ShadowBoldOffset", 1, &cfg->shadowboldoffset);
 }
 

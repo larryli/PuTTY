@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.12 2003/01/21 00:27:24 ben Exp $ */
+/* $Id: macstore.c,v 1.13 2003/02/01 12:54:40 simon Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -321,6 +321,49 @@ int read_setting_i(void *handle, char const *key, int defvalue) {
 
   out:
     return defvalue;
+}
+
+int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
+{
+    char *settingname;
+    FontSpec ret;
+
+    if (!read_setting_s(handle, name, ret.name, sizeof(ret.name)))
+	return 0;
+    settingname = dupcat(name, "IsBold", NULL);
+    ret.isbold = read_setting_i(handle, settingname, -1);
+    sfree(settingname);
+    if (ret.isbold == -1) return 0;
+    if (ret.charset == -1) return 0;
+    settingname = dupcat(name, "Height", NULL);
+    ret.height = read_setting_i(handle, settingname, INT_MIN);
+    sfree(settingname);
+    if (ret.height == INT_MIN) return 0;
+    *result = ret;
+    return 1;
+}
+
+void write_setting_fontspec(void *handle, const char *name, FontSpec font)
+{
+    char *settingname;
+
+    write_setting_s(handle, name, font.name);
+    settingname = dupcat(name, "IsBold", NULL);
+    write_setting_i(handle, settingname, font.isbold);
+    sfree(settingname);
+    settingname = dupcat(name, "Height", NULL);
+    write_setting_i(handle, settingname, font.height);
+    sfree(settingname);
+}
+
+int read_setting_filename(void *handle, const char *name, Filename *result)
+{
+    return !!read_setting_s(handle, name, result->path, sizeof(result->path));
+}
+
+void write_setting_filename(void *handle, const char *name, Filename result)
+{
+    write_setting_s(handle, name, result.path);
 }
 
 void close_settings_r(void *handle) {
