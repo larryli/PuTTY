@@ -2,6 +2,10 @@
  * Macintosh OpenTransport networking abstraction
  */
 
+#if TARGET_API_MAC_CARBON
+#define OTCARBONAPPLICATION 1
+#endif
+
 #include <OpenTransport.h>
 #include <OpenTptInternet.h>
 
