@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.5 2003/01/18 20:52:59 ben Exp $ */
+/* $Id: macdlg.c,v 1.6 2003/01/23 22:57:43 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -30,6 +30,8 @@
  */
 
 #include <MacTypes.h>
+#include <AEDataModel.h>
+#include <AppleEvents.h>
 #include <Dialogs.h>
 #include <Resources.h>
 #include <StandardFile.h>
@@ -60,29 +62,34 @@ void mac_newsession(void)
     ShowWindow(s->settings_window);
 }
 
-void mac_opensession(void) {
+static OSErr mac_opensessionfrom(FSSpec *fss)
+{
+    FInfo fi;
     Session *s;
-    StandardFileReply sfr;
-    static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
     void *sesshandle;
     int i;
+    OSErr err;
 
     s = smalloc(sizeof(*s));
     memset(s, 0, sizeof(*s));
 
-    StandardGetFile(NULL, 1, sftypes, &sfr);
-    if (!sfr.sfGood) goto fail;
-
-    sesshandle = open_settings_r_fsp(&sfr.sfFile);
-    if (sesshandle == NULL) goto fail;
-    load_open_settings(sesshandle, TRUE, &s->cfg);
-    close_settings_r(sesshandle);
-    if (sfr.sfFlags & kIsStationery)
+    err = FSpGetFInfo(fss, &fi);
+    if (err != noErr) return err;
+    if (fi.fdFlags & kIsStationery)
 	s->hasfile = FALSE;
     else {
 	s->hasfile = TRUE;
-	s->savefile = sfr.sfFile;
+	s->savefile = *fss;
     }
+
+    sesshandle = open_settings_r_fsp(fss);
+    if (sesshandle == NULL) {
+	/* XXX need a way to pass up an error number */
+	err = -9999;
+	goto fail;
+    }
+    load_open_settings(sesshandle, TRUE, &s->cfg);
+    close_settings_r(sesshandle);
 
     /*
      * Select protocol. This is farmed out into a table in a
@@ -98,11 +105,22 @@ void mac_opensession(void) {
 	fatalbox("Unsupported protocol number found");
     }
     mac_startsession(s);
-    return;
+    return noErr;
 
   fail:
     sfree(s);
-    return;
+    return err;
+}
+
+void mac_opensession(void) {
+    StandardFileReply sfr;
+    static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
+
+    StandardGetFile(NULL, 1, sftypes, &sfr);
+    if (!sfr.sfGood) return;
+
+    mac_opensessionfrom(&sfr.sfFile);
+    /* XXX handle error */
 }
 
 void mac_savesession(void)
@@ -137,6 +155,70 @@ void mac_savesessionas(void)
     close_settings_w(sesshandle);
     s->hasfile = TRUE;
     s->savefile = sfr.sfFile;
+}
+
+pascal OSErr mac_aevt_oapp(const AppleEvent *req, AppleEvent *reply,
+			   long refcon)
+{
+    DescType type;
+    Size size;
+
+    if (AEGetAttributePtr(req, keyMissedKeywordAttr, typeWildCard,
+			  &type, NULL, 0, &size) == noErr)
+	return errAEParamMissed;
+
+    /* XXX we should do something here. */
+    return noErr;
+}
+
+pascal OSErr mac_aevt_odoc(const AppleEvent *req, AppleEvent *reply,
+			   long refcon)
+{
+    DescType type;
+    AEKeyword keywd;
+    Size size;
+    AEDescList docs = { typeNull, NULL };
+    OSErr err;
+    long ndocs, i;
+    FSSpec fss;
+
+    err = AEGetParamDesc(req, keyDirectObject, typeAEList, &docs);
+    if (err != noErr) goto out;
+
+    if (AEGetAttributePtr(req, keyMissedKeywordAttr, typeWildCard,
+			  &type, NULL, 0, &size) == noErr) {
+	err = errAEParamMissed;
+	goto out;
+    }
+
+    err = AECountItems(&docs, &ndocs);
+    if (err != noErr) goto out;
+
+    for (i = 0; i < ndocs; i++) {
+	err = AEGetNthPtr(&docs, i, typeFSS, &keywd, &type, &fss, sizeof(fss),
+			  &size);
+	if (err != noErr) goto out;
+	err = mac_opensessionfrom(&fss);
+	if (err != noErr) goto out;
+    }
+
+  out:
+    AEDisposeDesc(&docs);
+    return err;
+}
+
+pascal OSErr mac_aevt_pdoc(const AppleEvent *req, AppleEvent *reply,
+			   long refcon)
+{
+    DescType type;
+    Size size;
+
+    if (AEGetAttributePtr(req, keyMissedKeywordAttr, typeWildCard,
+			  &type, NULL, 0, &size) == noErr)
+	return errAEParamMissed;
+
+    /* We can't meaningfully do anything here. */
+    return errAEEventNotHandled;
 }
 
 void mac_activatedlg(WindowPtr window, EventRecord *event)

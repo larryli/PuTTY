@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.34 2003/01/20 22:55:08 ben Exp $ */
+/* $Id: mac.c,v 1.35 2003/01/23 22:57:43 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -90,7 +90,6 @@ static void mac_adjustmenus(void);
 static void mac_closewindow(WindowPtr);
 static void mac_zoomwindow(WindowPtr, short);
 #pragma noreturn (cleanup_exit)
-static pascal OSErr mac_aevt_quit(const AppleEvent *, AppleEvent *, long);
 
 struct mac_windows {
     WindowPtr about;
@@ -231,6 +230,12 @@ static void mac_startup(void) {
     }
 
     /* Install Apple Event handlers. */
+    AEInstallEventHandler(kCoreEventClass, kAEOpenApplication,
+			  NewAEEventHandlerUPP(&mac_aevt_oapp), 0, FALSE);
+    AEInstallEventHandler(kCoreEventClass, kAEOpenDocuments,
+			  NewAEEventHandlerUPP(&mac_aevt_odoc), 0, FALSE);
+    AEInstallEventHandler(kCoreEventClass, kAEPrintDocuments,
+			  NewAEEventHandlerUPP(&mac_aevt_pdoc), 0, FALSE);
     AEInstallEventHandler(kCoreEventClass, kAEQuitApplication,
 			  NewAEEventHandlerUPP(&mac_aevt_quit), 0, FALSE);
 }
@@ -651,9 +656,15 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
     }
 }
 
-static pascal OSErr mac_aevt_quit(const AppleEvent *req, AppleEvent *reply,
+pascal OSErr mac_aevt_quit(const AppleEvent *req, AppleEvent *reply,
 				  long refcon)
 {
+    DescType type;
+    Size size;
+
+    if (AEGetAttributePtr(req, keyMissedKeywordAttr, typeWildCard,
+			  &type, NULL, 0, &size) == noErr)
+	return errAEParamMissed;
 
     borednow = 1;
     return noErr;

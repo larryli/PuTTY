@@ -144,6 +144,11 @@ extern Socket ot_register(void *, Plug);
 extern Socket ot_new(SockAddr addr, int, int, int, int, Plug);
 extern Socket ot_newlistener(char *, int, Plug, int);
 extern char *ot_addr_error(SockAddr);
+/* Apple Event Handlers (in various files) */
+extern pascal OSErr mac_aevt_oapp(const AppleEvent *, AppleEvent *, long);
+extern pascal OSErr mac_aevt_odoc(const AppleEvent *, AppleEvent *, long);
+extern pascal OSErr mac_aevt_pdoc(const AppleEvent *, AppleEvent *, long);
+extern pascal OSErr mac_aevt_quit(const AppleEvent *, AppleEvent *, long);
 
 #endif
 
