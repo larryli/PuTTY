@@ -1435,7 +1435,7 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
     /*
      * Shift-Tab should send ESC [ Z.
      */
-    if (ret && (keystate[VK_SHIFT] & 0x80) && wParam == '\t') {
+    if (ret && (keystate[VK_SHIFT] & 0x80) && wParam == VK_TAB) {
         *p++ = 0x1B;                   /* ESC */
         *p++ = '[';
         *p++ = 'Z';
