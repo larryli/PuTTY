@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.4 2002/12/28 22:25:31 ben Exp $ */
+/* $Id: macstore.c,v 1.5 2002/12/28 22:44:27 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -131,6 +131,7 @@ void write_setting_s(void *handle, char *key, char *value) {
     int fd = *(int *)handle;
     Handle h;
     int id;
+    OSErr error;
 
     UseResFile(fd);
     if (ResError() != noErr)
@@ -219,7 +220,6 @@ void *open_settings_r(char *sessionname) {
 char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
     int fd;
     Handle h;
-    OSErr error;
     size_t len;
 
     if (handle == NULL) goto out;
