@@ -349,10 +349,11 @@ char *get_window_title(void *frontend, int icon)
 
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
-    /*
-     * We could implement warn-on-close here if we really wanted
-     * to.
-     */
+    struct gui_data *inst = (struct gui_data *)data;
+    if (inst->cfg.warn_on_close) {
+	if (!reallyclose(inst->term))
+	    return TRUE;
+    }
     return FALSE;
 }
 

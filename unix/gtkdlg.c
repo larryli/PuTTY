@@ -2269,6 +2269,19 @@ static int string_width(char *text)
     return req.width;
 }
 
+int reallyclose(void *frontend)
+{
+    char *title = dupcat(appname, " Exit Confirmation", NULL);
+    int ret = messagebox(GTK_WIDGET(get_window(frontend)),
+			 title, "Are you sure you want to close this session?",
+			 string_width("Most of the width of the above text"),
+			 "Yes", 'y', +1, 1,
+			 "No", 'n', -1, 0,
+			 NULL);
+    sfree(title);
+    return ret;
+}
+
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
