@@ -146,6 +146,7 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "NoPTY", cfg.nopty);
     wpps (sesskey, "Cipher", cfg.cipher == CIPHER_BLOWFISH ? "blowfish" :
                              cfg.cipher == CIPHER_DES ? "des" : "3des");
+    wppi (sesskey, "AuthTIS", cfg.try_tis_auth);
     wppi (sesskey, "RFCEnviron", cfg.rfc_environ);
     wppi (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
     wppi (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
@@ -275,6 +276,7 @@ static void load_settings (char *section, int do_host) {
 	else
 	    cfg.cipher = CIPHER_3DES;
     }
+    gppi (sesskey, "AuthTIS", 0, &cfg.try_tis_auth);
     gppi (sesskey, "RFCEnviron", 0, &cfg.rfc_environ);
     gppi (sesskey, "BackspaceIsDelete", 1, &cfg.bksp_is_delete);
     gppi (sesskey, "RXVTHomeEnd", 0, &cfg.rxvt_homeend);
@@ -896,6 +898,7 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 			  cfg.cipher == CIPHER_DES ? IDC3_CIPHERDES :
 
 			  IDC3_CIPHER3DES);
+	CheckDlgButton (hwnd, IDC3_AUTHTIS, cfg.try_tis_auth);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -926,6 +929,11 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 		else if (IsDlgButtonChecked (hwnd, IDC3_CIPHERDES))
 		    cfg.cipher = CIPHER_DES;
 	    }
+	    break;
+	  case IDC3_AUTHTIS:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.try_tis_auth = IsDlgButtonChecked (hwnd, IDC3_AUTHTIS);
 	    break;
 	}
 	break;

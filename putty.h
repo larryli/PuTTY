@@ -101,6 +101,7 @@ typedef struct {
     /* SSH options */
     int nopty;
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
+    int try_tis_auth;
     /* Telnet options */
     char termtype[32];
     char termspeed[32];

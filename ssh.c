@@ -29,6 +29,11 @@
 #define SSH_MSG_IGNORE 32
 #define SSH_CMSG_EXIT_CONFIRMATION 33
 #define SSH_MSG_DEBUG 36
+#define SSH_CMSG_AUTH_TIS 39
+#define SSH_SMSG_AUTH_TIS_CHALLENGE 40
+#define SSH_CMSG_AUTH_TIS_RESPONSE 41
+
+#define SSH_AUTH_TIS              5
 
 /* Coroutine mechanics for the sillier bits of the code */
 #define crBegin1	static int crLine = 0;
@@ -293,7 +298,7 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     unsigned char cookie[8];
     struct RSAKey servkey, hostkey;
     struct MD5Context md5c;
-    unsigned long supported_ciphers_mask;
+    static unsigned long supported_ciphers_mask, supported_auths_mask;
     int cipher_type;
 
     extern struct ssh_cipher ssh_3des;
@@ -318,10 +323,15 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 
     j = makekey(pktin.body+8+i, &hostkey, &keystr2);
 
-    supported_ciphers_mask = (pktin.body[12+i+j] << 24) |
-                             (pktin.body[13+i+j] << 16) |
-                             (pktin.body[14+i+j] << 8) |
-                             (pktin.body[15+i+j]);
+    supported_ciphers_mask = ((pktin.body[12+i+j] << 24) |
+                              (pktin.body[13+i+j] << 16) |
+                              (pktin.body[14+i+j] << 8) |
+                              (pktin.body[15+i+j]));
+
+    supported_auths_mask = ((pktin.body[16+i+j] << 24) |
+                            (pktin.body[17+i+j] << 16) |
+                            (pktin.body[18+i+j] << 8) |
+                            (pktin.body[19+i+j]));
 
     MD5Update(&md5c, keystr2, hostkey.bytes);
     MD5Update(&md5c, keystr1, servkey.bytes);
@@ -444,7 +454,33 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 	static char password[100];
 	static int pos;
 	static char c;
-	c_write("password: ", 10);
+        static int pwpkt_type;
+
+        /*
+         * Show password prompt, having first obtained it via a TIS
+         * exchange if we're doing TIS authentication.
+         */
+        pwpkt_type = SSH_CMSG_AUTH_PASSWORD;
+        if (pktin.type == SSH_SMSG_FAILURE &&
+            cfg.try_tis_auth &&
+            (supported_auths_mask & (1<<SSH_AUTH_TIS))) {
+            pwpkt_type = SSH_CMSG_AUTH_TIS_RESPONSE;
+            s_wrpkt_start(SSH_CMSG_AUTH_TIS, 0);
+            s_wrpkt();
+            do { crReturnV; } while (!ispkt);
+            if (pktin.type != SSH_SMSG_AUTH_TIS_CHALLENGE) {
+                c_write("TIS authentication refused.\r\n", 29);
+            } else {
+                int challengelen = ((pktin.body[0] << 24) |
+                                    (pktin.body[1] << 16) |
+                                    (pktin.body[2] << 8) |
+                                    (pktin.body[3]));
+                c_write(pktin.body+4, challengelen);
+            }
+        }
+        if (pwpkt_type == SSH_CMSG_AUTH_PASSWORD)
+            c_write("password: ", 10);
+
 	pos = 0;
 	while (pos >= 0) {
 	    do { crReturnV; } while (ispkt);
@@ -471,7 +507,7 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 	    }
 	}
 	c_write("\r\n", 2);
-	s_wrpkt_start(SSH_CMSG_AUTH_PASSWORD, 4+strlen(password));
+	s_wrpkt_start(pwpkt_type, 4+strlen(password));
 	pktout.body[0] = pktout.body[1] = pktout.body[2] = 0;
 	pktout.body[3] = strlen(password);
 	memcpy(pktout.body+4, password, strlen(password));
@@ -506,9 +542,9 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
         s_wrpkt();
         ssh_state = SSH_STATE_INTERMED;
         do { crReturnV; } while (!ispkt);
-        if (pktin.type != SSH_MSG_SUCCESS && pktin.type != SSH_MSG_FAILURE) {
+        if (pktin.type != SSH_SMSG_SUCCESS && pktin.type != SSH_SMSG_FAILURE) {
             fatalbox("Protocol confusion");
-        } else if (pktin.type == SSH_MSG_FAILURE) {
+        } else if (pktin.type == SSH_SMSG_FAILURE) {
             c_write("Server refused to allocate pty\r\n", 32);
         }
     }
@@ -531,9 +567,9 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 		c_write(pktin.body+4, len);
 	    } else if (pktin.type == SSH_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
-	    } else if (pktin.type == SSH_MSG_SUCCESS) {
+	    } else if (pktin.type == SSH_SMSG_SUCCESS) {
 		/* may be from EXEC_SHELL on some servers */
-	    } else if (pktin.type == SSH_MSG_FAILURE) {
+	    } else if (pktin.type == SSH_SMSG_FAILURE) {
 		/* may be from EXEC_SHELL on some servers
 		 * if no pty is available or in other odd cases. Ignore */
 	    } else if (pktin.type == SSH_SMSG_EXITSTATUS) {
