@@ -485,6 +485,8 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
     char *modptr;
     int modlen;
 
+    blob = NULL;
+
     if (!key)
 	return NULL;
 
