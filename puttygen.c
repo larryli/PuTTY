@@ -657,6 +657,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 }
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
+    InitCommonControls();
     hinst = inst;
     random_init();
     return DialogBox(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc) != IDOK;
