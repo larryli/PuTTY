@@ -4,10 +4,10 @@ CHAPTERS += faq feedback licence
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 
 # This is temporary. Hack it locally or something.
-BUTTRESS = $(HOME)/src/buttress/build/buttress
+HALIBUT = $(HOME)/src/halibut/build/halibut
 
 Contents.html: $(INPUTS)
-	$(HOME)/src/buttress/build/buttress $(INPUTS)
+	$(HOME)/src/halibut/build/halibut $(INPUTS)
 	rm -f index.html
 	ln -s Contents.html index.html
 	mv output.txt puttydoc.txt
