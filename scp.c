@@ -49,6 +49,9 @@
 #define   WM_STATS_ELAPSED	( WM_APP_BASE+405 )
 #define   WM_RET_ERR_CNT	( WM_APP_BASE+406 )
 #define   WM_LS_RET_ERR_CNT	( WM_APP_BASE+407 )
+#define   WM_STATS_DONE		( WM_APP_BASE+408 )
+#define   WM_STATS_ETA		( WM_APP_BASE+409 )
+#define   WM_STATS_RATEBS	( WM_APP_BASE+410 )
 
 static int list = 0;
 static int verbose = 0;
@@ -65,6 +68,9 @@ static int errs = 0;
 #define NAME_STR_MAX 2048
 static char statname[NAME_STR_MAX + 1];
 static unsigned long statsize = 0;
+static unsigned long statdone = 0;
+static unsigned long stateta = 0;
+static unsigned long statratebs = 0;
 static int statperct = 0;
 static unsigned long statelapsed = 0;
 static int gui_mode = 0;
@@ -79,7 +85,9 @@ static void tell_char(FILE * stream, char c);
 static void tell_str(FILE * stream, char *str);
 static void tell_user(FILE * stream, char *fmt, ...);
 static void gui_update_stats(char *name, unsigned long size,
-			     int percentage, unsigned long elapsed);
+			     int percentage, unsigned long elapsed, 
+			     unsigned long done, unsigned long eta,
+			     unsigned long ratebs);
 
 /*
  * The maximum amount of queued data we accept before we stop and
@@ -257,7 +265,9 @@ static void tell_user(FILE * stream, char *fmt, ...)
 }
 
 static void gui_update_stats(char *name, unsigned long size,
-			     int percentage, unsigned long elapsed)
+			     int percentage, unsigned long elapsed,
+			     unsigned long done, unsigned long eta,
+			     unsigned long ratebs)
 {
     unsigned int i;
 
@@ -271,6 +281,18 @@ static void gui_update_stats(char *name, unsigned long size,
     if (statsize != size) {
 	send_msg((HWND) atoi(gui_hwnd), WM_STATS_SIZE, (WPARAM) size);
 	statsize = size;
+    }
+    if (statdone != done) {
+	send_msg((HWND) atoi(gui_hwnd), WM_STATS_DONE, (WPARAM) done);
+	statdone = done;
+    }
+    if (stateta != eta) {
+	send_msg((HWND) atoi(gui_hwnd), WM_STATS_ETA, (WPARAM) eta);
+	stateta = eta;
+    }
+    if (statratebs != ratebs) {
+	send_msg((HWND) atoi(gui_hwnd), WM_STATS_RATEBS, (WPARAM) ratebs);
+	statratebs = ratebs;
     }
     if (statelapsed != elapsed) {
 	send_msg((HWND) atoi(gui_hwnd), WM_STATS_ELAPSED,
@@ -668,26 +690,29 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
     char etastr[10];
     int pct;
     int len;
+    int elap;
 
-    /* GUI Adaptation - Sept 2000 */
+    elap = (unsigned long) difftime(now, start);
+
+    if (now > start)
+	ratebs = (float) done / elap;
+    else
+	ratebs = (float) done;
+
+    if (ratebs < 1.0)
+	eta = size - done;
+    else
+	eta = (unsigned long) ((size - done) / ratebs);
+    sprintf(etastr, "%02ld:%02ld:%02ld",
+	    eta / 3600, (eta % 3600) / 60, eta % 60);
+
+    pct = (int) (100 * (done * 1.0 / size));
+
     if (gui_mode)
-	gui_update_stats(name, size, (int) (100 * (done * 1.0 / size)),
-			 (unsigned long) difftime(now, start));
+	/* GUI Adaptation - Sept 2000 */
+	gui_update_stats(name, size, pct, elap, done, eta, 
+			 (unsigned long) ratebs);
     else {
-	if (now > start)
-	    ratebs = (float) done / (now - start);
-	else
-	    ratebs = (float) done;
-
-	if (ratebs < 1.0)
-	    eta = size - done;
-	else
-	    eta = (unsigned long) ((size - done) / ratebs);
-	sprintf(etastr, "%02ld:%02ld:%02ld",
-		eta / 3600, (eta % 3600) / 60, eta % 60);
-
-	pct = (int) (100 * (done * 1.0 / size));
-
 	len = printf("\r%-25.25s | %10ld kB | %5.1f kB/s | ETA: %8s | %3d%%",
 		     name, done / 1024, ratebs / 1024.0, etastr, pct);
 	if (len < prev_stats_len)
