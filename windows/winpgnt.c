@@ -1737,8 +1737,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    GetCursorPos(&cursorpos);
 	    PostMessage(hwnd, WM_SYSTRAY2, cursorpos.x, cursorpos.y);
 	} else if (lParam == WM_LBUTTONDBLCLK) {
-	    /* Equivalent to IDM_VIEWKEYS. */
-	    PostMessage(hwnd, WM_COMMAND, IDM_VIEWKEYS, 0);
+	    /* Run the default menu item. */
+	    UINT menuitem = GetMenuDefaultItem(systray_menu, FALSE, 0);
+	    if (menuitem != -1)
+		PostMessage(hwnd, WM_COMMAND, menuitem, 0);
 	}
 	break;
       case WM_SYSTRAY2:
@@ -2115,6 +2117,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
         AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
 	initial_menuitems_count = GetMenuItemCount(session_menu);
+
+	/* Set the default menu item. */
+	SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, FALSE);
 
 	ShowWindow(main_hwnd, SW_HIDE);
 
