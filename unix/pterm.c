@@ -11,6 +11,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
@@ -1602,10 +1604,16 @@ int do_cmdline(int argc, char **argv, int do_everything)
     if (!do_everything) continue; \
 } while (0)
 
+    /*
+     * TODO:
+     * 
+     * finish -geometry
+     */
+
     char *val;
     while (--argc > 0) {
 	char *p = *++argv;
-	if (!strcmp(p, "-fn")) {
+	if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
 	    strncpy(cfg.font, val, sizeof(cfg.font));
@@ -1616,6 +1624,54 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	    SECOND_PASS_ONLY;
 	    strncpy(cfg.boldfont, val, sizeof(cfg.boldfont));
 	    cfg.boldfont[sizeof(cfg.boldfont)-1] = '\0';
+
+	} else if (!strcmp(p, "-geometry")) {
+	    int flags, x, y, w, h;
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+
+	    flags = XParseGeometry(val, &x, &y, &w, &h);
+	    if (flags & WidthValue)
+		cfg.width = w;
+	    if (flags & HeightValue)
+		cfg.height = h;
+
+	    /*
+	     * Apparently setting the initial window position is
+	     * difficult in GTK 1.2. Not entirely sure why this
+	     * should be. 2.0 has gtk_window_parse_geometry(),
+	     * which would help... For the moment, though, I can't
+	     * be bothered with this.
+	     */
+
+	} else if (!strcmp(p, "-sl")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    cfg.savelines = atoi(val);
+
+	} else if (!strcmp(p, "-fg") || !strcmp(p, "-bg") ||
+		   !strcmp(p, "-bfg") || !strcmp(p, "-bbg") ||
+		   !strcmp(p, "-cfg") || !strcmp(p, "-cbg")) {
+	    GdkColor col;
+
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    if (!gdk_color_parse(val, &col)) {
+		err = 1;
+		fprintf(stderr, "pterm: unable to parse colour \"%s\"\n", val);
+	    } else {
+		int index;
+		index = (!strcmp(p, "-fg") ? 0 :
+			 !strcmp(p, "-bg") ? 2 :
+			 !strcmp(p, "-bfg") ? 1 :
+			 !strcmp(p, "-bbg") ? 3 :
+			 !strcmp(p, "-cfg") ? 4 :
+			 !strcmp(p, "-cbg") ? 5 : -1);
+		assert(index != -1);
+		cfg.colours[index][0] = col.red / 256;
+		cfg.colours[index][1] = col.green / 256;
+		cfg.colours[index][2] = col.blue / 256;
+	    }
 
 	} else if (!strcmp(p, "-e")) {
 	    /* This option swallows all further arguments. */
@@ -1646,23 +1702,31 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	    cfg.logfilename[sizeof(cfg.logfilename)-1] = '\0';
 	    cfg.logtype = LGTYP_DEBUG;
 
-	} else if (!strcmp(p, "-hide")) {
-	    SECOND_PASS_ONLY;
-	    cfg.hide_mouseptr = 1;
-
-	} else if (!strcmp(p, "-ut-")) {
+	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
 	    SECOND_PASS_ONLY;
 	    cfg.stamp_utmp = 0;
 
-	} else if (!strcmp(p, "-ls-")) {
+	} else if (!strcmp(p, "-ut")) {
+	    SECOND_PASS_ONLY;
+	    cfg.stamp_utmp = 0;
+
+	} else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
 	    SECOND_PASS_ONLY;
 	    cfg.login_shell = 0;
+
+	} else if (!strcmp(p, "-ls")) {
+	    SECOND_PASS_ONLY;
+	    cfg.login_shell = 1;
 
 	} else if (!strcmp(p, "-nethack")) {
 	    SECOND_PASS_ONLY;
 	    cfg.nethack_keypad = 1;
 
-	} else if (!strcmp(p, "-sb-")) {
+	} else if (!strcmp(p, "-sb-") || !strcmp(p, "+sb")) {
+	    SECOND_PASS_ONLY;
+	    cfg.scrollbar = 0;
+
+	} else if (!strcmp(p, "-sb")) {
 	    SECOND_PASS_ONLY;
 	    cfg.scrollbar = 0;
 
