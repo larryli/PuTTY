@@ -52,8 +52,8 @@ void random_add_noise(void *noise, int length) {
 	pool.incomingpos = 0;
     }
 
-    memcpy(pool.incomingb, p, length);
-    pool.incomingpos = length;
+    memcpy(pool.incomingb + pool_incomingpos, p, length);
+    pool.incomingpos += length;
 }
 
 void random_stir(void) {
@@ -121,7 +121,7 @@ void random_stir(void) {
      * there'll be some extra bizarreness there.
      */
     SHATransform(digest, block);
-    memcpy(digest, pool.incoming, sizeof(digest));
+    memcpy(pool.incoming, digest, sizeof(digest));
 
     pool.poolpos = sizeof(pool.incoming);
 }
@@ -137,8 +137,8 @@ static void random_add_heavynoise(void *noise, int length) {
 	pool.poolpos = 0;
     }
 
-    memcpy(pool.pool, p, length);
-    pool.poolpos = length;
+    memcpy(pool.pool + pool.poolpos, p, length);
+    pool.poolpos += length;
 }
 
 void random_init(void) {
