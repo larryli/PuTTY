@@ -25,19 +25,17 @@ static void c_write (char *buf, int len) {
     from_backend(0, buf, len);
 }
 
-static int rlogin_receive (Socket skt, int urgent, char *data, int len) {
-    if (urgent==3) {
+static int rlogin_closing (Plug plug, char *error_msg, int error_code, int calling_back) {
+    sk_close(s);
+    s = NULL;
+    if (error_msg) {
         /* A socket error has occurred. */
-        sk_close(s);
-        s = NULL;
-        connection_fatal(data);
-        return 0;
-    } else if (!len) {
-	/* Connection has closed. */
-	sk_close(s);
-	s = NULL;
-	return 0;
-    }
+        connection_fatal (error_msg);
+    } /* Otherwise, the remote side closed the connection normally. */
+    return 0;
+}
+
+static int rlogin_receive (Plug plug, int urgent, char *data, int len) {
     if (urgent == 2) {
         char c;
         
@@ -77,6 +75,11 @@ static int rlogin_receive (Socket skt, int urgent, char *data, int len) {
  * Also places the canonical host name into `realhost'.
  */
 static char *rlogin_init (char *host, int port, char **realhost) {
+    static struct plug_function_table fn_table = {
+	rlogin_closing,
+	rlogin_receive
+    }, *fn_table_ptr = &fn_table;
+
     SockAddr addr;
     char *err;
 
@@ -93,7 +96,7 @@ static char *rlogin_init (char *host, int port, char **realhost) {
     /*
      * Open socket.
      */
-    s = sk_new(addr, port, 1, 0, rlogin_receive);
+    s = sk_new(addr, port, 1, 0, &fn_table_ptr);
     if ( (err = sk_socket_error(s)) )
 	return err;
 

@@ -1270,21 +1270,20 @@ static void ssh_gotdata(unsigned char *data, int datalen)
     crFinishV;
 }
 
-static int ssh_receive(Socket skt, int urgent, char *data, int len) {
-    if (urgent==3) {
+static int ssh_closing (Plug plug, char *error_msg, int error_code, int calling_back) {
+    ssh_state = SSH_STATE_CLOSED;
+    sk_close(s);
+    s = NULL;
+    if (error_msg) {
         /* A socket error has occurred. */
-        ssh_state = SSH_STATE_CLOSED;
-        sk_close(s);
-        s = NULL;
-        connection_fatal(data);
-        return 0;
-    } else if (!len) {
-	/* Connection has closed. */
-	ssh_state = SSH_STATE_CLOSED;
-	sk_close(s);
-	s = NULL;
-	return 0;
+        connection_fatal (error_msg);
+    } else {
+	/* Otherwise, the remote side closed the connection normally. */
     }
+    return 0;
+}
+
+static int ssh_receive(Plug plug, int urgent, char *data, int len) {
     ssh_gotdata (data, len);
     if (ssh_state == SSH_STATE_CLOSED) {
         if (s) {
@@ -1303,6 +1302,11 @@ static int ssh_receive(Socket skt, int urgent, char *data, int len) {
  */
 static char *connect_to_host(char *host, int port, char **realhost)
 {
+    static struct plug_function_table fn_table = {
+	ssh_closing,
+	ssh_receive
+    }, *fn_table_ptr = &fn_table;
+
     SockAddr addr;
     char *err;
 #ifdef FWHACK
@@ -1340,7 +1344,7 @@ static char *connect_to_host(char *host, int port, char **realhost)
     /*
      * Open socket.
      */
-    s = sk_new(addr, port, 0, 1, ssh_receive);
+    s = sk_new(addr, port, 0, 1, &fn_table_ptr);
     if ( (err = sk_socket_error(s)) )
 	return err;
 

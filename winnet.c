@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 #include "tree234.h"
@@ -56,15 +57,27 @@
 #define BUFFER_GRANULE 512
 
 struct Socket_tag {
+    struct socket_function_table *fn;
+    /* the above variable absolutely *must* be the first in this structure */
     char *error;
     SOCKET s;
-    sk_receiver_t receiver;
+    Plug plug;
     void *private_ptr;
     struct buffer *head, *tail;
     int writable;
     int sending_oob;
     int oobinline;
 };
+
+/*
+ * We used to typedef struct Socket_tag *Socket.
+ *
+ * Since we have made the networking abstraction slightly more
+ * abstract, Socket no longer means a tcp socket (it could mean
+ * an ssl socket).  So now we must use Actual_Socket when we know
+ * we are talking about a tcp socket.
+ */
+typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
     char *error;
@@ -90,7 +103,7 @@ struct buffer {
 static tree234 *sktree;
 
 static int cmpfortree(void *av, void *bv) {
-    Socket a = (Socket)av, b = (Socket)bv;
+    Actual_Socket a = (Actual_Socket)av, b = (Actual_Socket)bv;
     unsigned long as = (unsigned long)a->s, bs = (unsigned long)b->s;
     if (as < bs) return -1;
     if (as > bs) return +1;
@@ -98,7 +111,7 @@ static int cmpfortree(void *av, void *bv) {
 }
 
 static int cmpforsearch(void *av, void *bv) {
-    Socket b = (Socket)bv;
+    Actual_Socket b = (Actual_Socket)bv;
     unsigned long as = (unsigned long)av, bs = (unsigned long)b->s;
     if (as < bs) return -1;
     if (as > bs) return +1;
@@ -289,8 +302,37 @@ void sk_addr_free(SockAddr addr) {
     sfree(addr);
 }
 
+static Plug sk_tcp_plug (Socket sock, Plug p) {
+    Actual_Socket s = (Actual_Socket) sock;
+    Plug ret = s->plug;
+    if (p) s->plug = p;
+    return ret;
+}
+
+static void sk_tcp_flush (Socket s) {
+    /*
+     * We send data to the socket as soon as we can anyway,
+     * so we don't need to do anything here.  :-)
+     */
+}
+
+void sk_tcp_close (Socket s);
+void sk_tcp_write (Socket s, char *data, int len);
+void sk_tcp_write_oob (Socket s, char *data, int len);
+char *sk_tcp_socket_error(Socket s);
+
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
-              sk_receiver_t receiver) {
+              Plug plug)
+{
+    static struct socket_function_table fn_table = {
+	sk_tcp_plug,
+	sk_tcp_close,
+	sk_tcp_write,
+	sk_tcp_write_oob,
+	sk_tcp_flush,
+	sk_tcp_socket_error
+    };
+
     SOCKET s;
 #ifdef IPV6
     SOCKADDR_IN6 a6;
@@ -298,7 +340,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     SOCKADDR_IN a;
     DWORD err;
     char *errstr;
-    Socket ret;
+    Actual_Socket ret;
     extern char *do_select(SOCKET skt, int startup);
     short localport;
 
@@ -306,8 +348,9 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
      * Create Socket structure.
      */
     ret = smalloc(sizeof(struct Socket_tag));
+    ret->fn = &fn_table;
     ret->error = NULL;
-    ret->receiver = receiver;
+    ret->plug = plug;
     ret->head = ret->tail = NULL;
     ret->writable = 1;		       /* to start with */
     ret->sending_oob = 0;
@@ -321,7 +364,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     if (s == INVALID_SOCKET) {
 	err = WSAGetLastError();
         ret->error = winsock_error_string(err);
-	return ret;
+	return (Socket) ret;
     }
 
     ret->oobinline = oobinline;
@@ -384,7 +427,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     if (err)
     {
 	ret->error = winsock_error_string(err);
-	return ret;
+	return (Socket) ret;
     }
 
     /*
@@ -413,7 +456,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     {
 	err = WSAGetLastError();
 	ret->error = winsock_error_string(err);
-	return ret;
+	return (Socket) ret;
     }
 
     /* Set up a select mechanism. This could be an AsyncSelect on a
@@ -421,16 +464,17 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     errstr = do_select(s, 1);
     if (errstr) {
 	ret->error = errstr;
-	return ret;
+	return (Socket) ret;
     }
 
     add234(sktree, ret);
 
-    return ret;
+    return (Socket) ret;
 }
 
-void sk_close(Socket s) {
+static void sk_tcp_close(Socket sock) {
     extern char *do_select(SOCKET skt, int startup);
+    Actual_Socket s = (Actual_Socket) sock;
 
     del234(sktree, s);
     do_select(s->s, 0);
@@ -442,7 +486,7 @@ void sk_close(Socket s) {
  * The function which tries to send on a socket once it's deemed
  * writable.
  */
-void try_send(Socket s) {
+void try_send(Actual_Socket s) {
     while (s->head) {
 	int nsent;
 	DWORD err;
@@ -497,7 +541,9 @@ void try_send(Socket s) {
     }
 }
 
-void sk_write(Socket s, char *buf, int len) {
+static void sk_tcp_write(Socket sock, char *buf, int len) {
+    Actual_Socket s = (Actual_Socket) sock;
+
     /*
      * Add the data to the buffer list on the socket.
      */
@@ -532,7 +578,9 @@ void sk_write(Socket s, char *buf, int len) {
 	try_send(s);
 }
 
-void sk_write_oob(Socket s, char *buf, int len) {
+static void sk_tcp_write_oob(Socket sock, char *buf, int len) {
+    Actual_Socket s = (Actual_Socket) sock;
+
     /*
      * Replace the buffer list on the socket with the data.
      */
@@ -567,7 +615,7 @@ int select_result(WPARAM wParam, LPARAM lParam) {
     int ret, open;
     DWORD err;
     char buf[BUFFER_GRANULE];
-    Socket s;
+    Actual_Socket s;
     u_long atmark;
 
     /* wParam is the socket itself */
@@ -578,9 +626,9 @@ int select_result(WPARAM wParam, LPARAM lParam) {
     if ((err = WSAGETSELECTERROR(lParam)) != 0) {
         /*
          * An error has occurred on this socket. Pass it to the
-         * receiver function.
+         * plug.
          */
-        return s->receiver(s, 3, winsock_error_string(err), err);
+        return plug_closing (s->plug, winsock_error_string(err), err, 0);
     }
 
     noise_ultralight(lParam);
@@ -615,9 +663,11 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	    }
 	}
 	if (ret < 0) {
-	    return s->receiver(s, 3, winsock_error_string(err), err);
+	    return plug_closing (s->plug, winsock_error_string(err), err, 0);
+	} else if (0 == ret) {
+	    return plug_closing (s->plug, NULL, 0, 0);
 	} else {
-	    return s->receiver(s, atmark ? 0 : 1, buf, ret);
+	    return plug_receive (s->plug, atmark ? 0 : 1, buf, ret);
 	}
 	break;
       case FD_OOB:
@@ -633,7 +683,7 @@ int select_result(WPARAM wParam, LPARAM lParam) {
             fatalbox(ret == 0 ? "Internal networking trouble" :
                      winsock_error_string(WSAGetLastError()));
         } else {
-            return s->receiver(s, 2, buf, ret);
+	    return plug_receive (s->plug, 2, buf, ret);
         }
         break;
       case FD_WRITE:
@@ -649,9 +699,11 @@ int select_result(WPARAM wParam, LPARAM lParam) {
                 err = WSAGetLastError();
                 if (err == WSAEWOULDBLOCK)
                     break;
-                return s->receiver(s, 3, winsock_error_string(err), err);
-            } else
-                open &= s->receiver(s, 0, buf, ret);
+                return plug_closing (s->plug, winsock_error_string(err), err, 0);
+            } else {
+		if (ret) open &= plug_receive (s->plug, 0, buf, ret);
+		else open &= plug_closing (s->plug, NULL, 0, 0);
+	    }
 	} while (ret > 0);
         return open;
     }
@@ -663,10 +715,12 @@ int select_result(WPARAM wParam, LPARAM lParam) {
  * Each socket abstraction contains a `void *' private field in
  * which the client can keep state.
  */
-void sk_set_private_ptr(Socket s, void *ptr) {
+void sk_set_private_ptr(Socket sock, void *ptr) {
+    Actual_Socket s = (Actual_Socket) sock;
     s->private_ptr = ptr;
 }
-void *sk_get_private_ptr(Socket s) {
+void *sk_get_private_ptr(Socket sock) {
+    Actual_Socket s = (Actual_Socket) sock;
     return s->private_ptr;
 }
 
@@ -678,7 +732,8 @@ void *sk_get_private_ptr(Socket s) {
 char *sk_addr_error(SockAddr addr) {
     return addr->error;
 }
-char *sk_socket_error(Socket s) {
+static char *sk_tcp_socket_error(Socket sock) {
+    Actual_Socket s = (Actual_Socket) sock;
     return s->error;
 }
 
@@ -686,10 +741,10 @@ char *sk_socket_error(Socket s) {
  * For Plink: enumerate all sockets currently active.
  */
 SOCKET first_socket(enum234 *e) {
-    Socket s = first234(sktree, e);
+    Actual_Socket s = first234(sktree, e);
     return s ? s->s : INVALID_SOCKET;
 }
 SOCKET next_socket(enum234 *e) {
-    Socket s = next234(e);
+    Actual_Socket s = next234(e);
     return s ? s->s : INVALID_SOCKET;
 }

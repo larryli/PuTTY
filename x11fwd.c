@@ -62,12 +62,15 @@ extern void sshfwd_close(void *);
 extern void sshfwd_write(void *, char *, int);
 
 struct X11Private {
+    struct plug_function_table *fn;
+    /* the above variable absolutely *must* be the first in this structure */
     unsigned char firstpkt[12];        /* first X data packet */
     char *auth_protocol;
     unsigned char *auth_data;
     int data_read, auth_plen, auth_psize, auth_dlen, auth_dsize;
     int verified;
     void *c;                           /* data used by ssh.c */
+    Socket s;
 };
 
 void x11_close (Socket s);
@@ -103,23 +106,22 @@ static int x11_verify(char *proto, unsigned char *data, int dlen) {
     return 1;
 }
 
-static int x11_receive (Socket s, int urgent, char *data, int len) {
-    struct X11Private *pr = (struct X11Private *)sk_get_private_ptr(s);
+static int x11_closing (Plug plug, char *error_msg, int error_code, int calling_back) {
+    struct X11Private *pr = (struct X11Private *) plug;
 
-    if (urgent==3) {
-        /*
-         * A socket error has occurred. We have no way to
-         * communicate this down the forwarded connection, so we'll
-         * just treat it like a proper close.
-         */
-        len = 0;
-    }
-    if (!len) {
-	/* Connection has closed. */
-        sshfwd_close(pr->c);
-	x11_close(s);
-        return 1;
-    }
+    /*
+     * We have no way to communicate down the forwarded connection,
+     * so if an error occurred on the socket, we just ignore it
+     * and treat it like a proper close.
+     */
+    sshfwd_close(pr->c);
+    x11_close(pr->s);
+    return 1;
+}
+
+static int x11_receive (Plug plug, int urgent, char *data, int len) {
+    struct X11Private *pr = (struct X11Private *) plug;
+
     sshfwd_write(pr->c, data, len);
     return 1;
 }
@@ -131,6 +133,11 @@ static int x11_receive (Socket s, int urgent, char *data, int len) {
  * also, fills the SocketsStructure
  */
 char *x11_init (Socket *s, char *display, void *c) {
+    static struct plug_function_table fn_table = {
+	x11_closing,
+	x11_receive
+    };
+
     SockAddr addr;
     int port;
     char *err, *dummy_realhost;
@@ -163,15 +170,18 @@ char *x11_init (Socket *s, char *display, void *c) {
     /*
      * Open socket.
      */
-    *s = sk_new(addr, port, 0, 1, x11_receive);
-    if ( (err = sk_socket_error(*s)) )
-	return err;
-
     pr = (struct X11Private *)smalloc(sizeof(struct X11Private));
+    pr->fn = &fn_table;
     pr->auth_protocol = NULL;
     pr->verified = 0;
     pr->data_read = 0;
     pr->c = c;
+
+    pr->s = *s = sk_new(addr, port, 0, 1, (Plug) pr);
+    if ( (err = sk_socket_error(*s)) ) {
+	sfree (pr);
+	return err;
+    }
 
     sk_set_private_ptr(*s, pr);
     sk_addr_free(addr);
