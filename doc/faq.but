@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.47 2003/05/22 08:43:50 simon Exp $
+\versionid $Id: faq.but,v 1.48 2003/10/14 19:57:50 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -189,10 +189,10 @@ or any other port of PuTTY, they were mistaken. We don't.
 
 It's currently being worked on. If you look at the nightly source
 snapshots, you should find a \c{unix} subdirectory, which should
-build you Unix ports of Plink, PuTTY itself, and also \c{pterm} - an
-\cw{xterm}-type program which supports the same terminal emulation
-as PuTTY. We do not yet have Unix ports of PSCP, PSFTP, Pageant or
-PuTTYgen.
+build you Unix ports of Plink, PuTTY itself, PSCP, PSFTP, and
+also \c{pterm} - an \cw{xterm}-type program which supports the
+same terminal emulation as PuTTY. We do not yet have Unix ports of
+Pageant or PuTTYgen.
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
