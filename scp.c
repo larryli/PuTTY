@@ -1234,15 +1234,27 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    struct fxp_names *names;
 
 	    /*
-	     * It's a directory. If we're not in recursive mode and
-	     * we haven't been passed a wildcard from
-	     * scp_sink_setup, this just merits a complaint.
+	     * It's a directory. If we're not in recursive mode,
+	     * this merits a complaint (which is fatal if the name
+	     * was specified directly, but not if it was matched by
+	     * a wildcard).
+	     * 
+	     * We skip this complaint completely if
+	     * scp_sftp_wildcard is set, because that's an
+	     * indication that we're not actually supposed to
+	     * _recursively_ transfer the dir, just scan it for
+	     * things matching the wildcard.
 	     */
 	    if (!scp_sftp_recursive && !scp_sftp_wildcard) {
 		tell_user(stderr, "pscp: %s: is a directory", fname);
 		errs++;
 		if (must_free_fname) sfree(fname);
-		return 1;
+		if (scp_sftp_dirstack_head) {
+		    act->action = SCP_SINK_RETRY;
+		    return 0;
+		} else {
+		    return 1;
+		}
 	    }
 
 	    /*
