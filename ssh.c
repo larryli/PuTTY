@@ -106,6 +106,7 @@
  */
 #define SSH2_PKTCTX_DHGROUP          0x0001
 #define SSH2_PKTCTX_DHGEX            0x0002
+#define SSH2_PKTCTX_KEX_MASK         0x000F
 #define SSH2_PKTCTX_PUBLICKEY        0x0010
 #define SSH2_PKTCTX_PASSWORD         0x0020
 #define SSH2_PKTCTX_KBDINTER         0x0040
@@ -4675,6 +4676,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	s->maclist = macs, s->nmacs = lenof(macs);
 
   begin_key_exchange:
+    ssh->pkt_ctx &= ~SSH2_PKTCTX_KEX_MASK;
     {
 	int i, j, commalist_started;
 
