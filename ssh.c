@@ -360,6 +360,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 #define SSH1_BUFFER_LIMIT 32768
 #define SSH_MAX_BACKLOG 32768
 #define OUR_V2_WINSIZE 16384
+#define OUR_V2_MAXPKT 0x4000UL
 
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
@@ -5961,7 +5962,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	ssh2_pkt_adduint32(pktout, c->remoteid);
 	ssh2_pkt_adduint32(pktout, c->localid);
 	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);
-	ssh2_pkt_adduint32(pktout, 0x4000UL);	/* our max pkt size */
+	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);	/* our max pkt size */
 	ssh2_pkt_send(ssh, pktout);
     }
 }
@@ -6868,7 +6869,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
 	ssh->mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
-	ssh2_pkt_adduint32(s->pktout, 0x4000UL);      /* our max pkt size */
+	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);    /* our max pkt size */
 	ssh2_pkt_send(ssh, s->pktout);
 	crWaitUntilV(pktin);
 	if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
@@ -7941,7 +7942,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 	ssh2_pkt_adduint32(pktout, c->localid);
 	c->v.v2.locwindow = OUR_V2_WINSIZE;
 	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);/* our window size */
-	ssh2_pkt_adduint32(pktout, 0x4000UL);      /* our max pkt size */
+	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(pktout, hostname);
 	ssh2_pkt_adduint32(pktout, port);
 	/*
