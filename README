@@ -19,6 +19,12 @@ problem while compiling PuTTY under VS6, you should:
 Alternatively disable the /ZI option, replacing it with a saner
 value, such as /Zi.
 
+For other compilers, some alternative Makefiles are provided. These
+Makefiles are generated automatically from the master `Makefile' by
+the Perl script `mkfiles.pl'. Additions and corrections to the
+script are more useful than additions and corrections to the
+alternative Makefiles themselves.
+
 The PuTTY home web site is
 
     http://www.chiark.greenend.org.uk/~sgtatham/putty.html
