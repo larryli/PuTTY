@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.75 2004/08/19 12:58:14 jacob Exp $
+\versionid $Id: faq.but,v 1.76 2004/08/20 08:32:30 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -883,6 +883,10 @@ For a fix, you'll need to contact Microsoft support. We've been told
 that the process is reasonably easy, and is free of charge; and that
 the fix will be included in the next Windows XP Service Pack (but
 probably not before).
+
+(\e{However}, we've been told that SP2 \e{also} fixes the bug that
+means you need to use non-\cw{127.0.0.1} addresses to forward
+Terminal Services.)
 
 \H{faq-secure} Security questions
 
