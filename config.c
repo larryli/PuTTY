@@ -1295,14 +1295,15 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	ctrl_settitle(b, "Connection/Proxy",
 		      "Options controlling proxy usage");
 
-	s = ctrl_getset(b, "Connection/Proxy", "basics", "Proxy basics");
-	ctrl_radiobuttons(s, "Proxy type:", 't', 4,
+	s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
+	ctrl_radiobuttons(s, "Proxy type:", 't', 3,
 			  HELPCTX(proxy_type),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, proxy_type)),
 			  "None", I(PROXY_NONE),
+			  "SOCKS 4", I(PROXY_SOCKS4),
+			  "SOCKS 5", I(PROXY_SOCKS5),
 			  "HTTP", I(PROXY_HTTP),
-			  "SOCKS", I(PROXY_SOCKS),
 			  "Telnet", I(PROXY_TELNET),
 			  NULL);
 	ctrl_columns(s, 2, 80, 20);
@@ -1346,19 +1347,11 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			 I(offsetof(Config,proxy_password)),
 			 I(sizeof(((Config *)0)->proxy_password)));
 	c->editbox.password = 1;
-
-	s = ctrl_getset(b, "Connection/Proxy", "misc",
-			"Miscellaneous proxy settings");
 	ctrl_editbox(s, "Telnet command", 'm', 100,
 		     HELPCTX(proxy_command),
 		     dlg_stdeditbox_handler,
 		     I(offsetof(Config,proxy_telnet_command)),
 		     I(sizeof(((Config *)0)->proxy_telnet_command)));
-	ctrl_radiobuttons(s, "SOCKS Version", 'v', 2,
-			  HELPCTX(proxy_socksver),
-			  dlg_stdradiobutton_handler,
-			  I(offsetof(Config, proxy_socks_version)),
-			  "Version 5", I(5), "Version 4", I(4), NULL);
     }
 
     /*

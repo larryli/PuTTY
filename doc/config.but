@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.63 2003/04/26 13:22:25 simon Exp $
+\versionid $Id: config.but,v 1.64 2003/05/07 12:07:23 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1457,8 +1457,8 @@ connection.
 web server supporting the HTTP \cw{CONNECT} command, as documented
 in \W{http://www.ietf.org/rfc/rfc2817.txt}{RFC 2817}.
 
-\b Selecting \q{SOCKS} allows you to proxy your connections through
-a SOCKS server.
+\b Selecting \q{SOCKS 4} or \q{SOCKS 5} allows you to proxy your
+connections through a SOCKS server.
 
 \b Many firewalls implement a less formal type of proxy in which a
 user can make a Telnet connection directly to the firewall machine
@@ -1586,15 +1586,6 @@ the proxy, followed by a command to connect to the desired host and
 port. Note that if you do not include the \c{%user} or \c{%pass}
 tokens in the Telnet command, then the \q{Username} and \q{Password}
 configuration fields will be ignored.
-
-\S{config-proxy-socksver} Selecting the version of the SOCKS protocol
-
-\cfg{winhelp-topic}{proxy.socksver}
-
-SOCKS servers exist in two versions: version 5
-(\W{http://www.ietf.org/rfc/rfc1928.txt}{RFC 1928}) and the earlier
-version 4. The \q{SOCKS Version} radio buttons allow you to select
-which one to use, if you have selected the SOCKS proxy type.
 
 \H{config-telnet} The Telnet panel
 

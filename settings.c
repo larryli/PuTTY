@@ -188,13 +188,12 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_s(sesskey, "ProxyExcludeList", cfg->proxy_exclude_list);
     write_setting_i(sesskey, "ProxyDNS", (cfg->proxy_dns+2)%3);
     write_setting_i(sesskey, "ProxyLocalhost", cfg->even_proxy_localhost);
-    write_setting_i(sesskey, "ProxyType", cfg->proxy_type);
+    write_setting_i(sesskey, "ProxyMethod", cfg->proxy_type);
     write_setting_s(sesskey, "ProxyHost", cfg->proxy_host);
     write_setting_i(sesskey, "ProxyPort", cfg->proxy_port);
     write_setting_s(sesskey, "ProxyUsername", cfg->proxy_username);
     write_setting_s(sesskey, "ProxyPassword", cfg->proxy_password);
     write_setting_s(sesskey, "ProxyTelnetCommand", cfg->proxy_telnet_command);
-    write_setting_i(sesskey, "ProxySOCKSVersion", cfg->proxy_socks_version);
 
     {
 	char buf[2 * sizeof(cfg->environmt)], *p, *q;
@@ -414,7 +413,26 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	 sizeof(cfg->proxy_exclude_list));
     gppi(sesskey, "ProxyDNS", 1, &i); cfg->proxy_dns = (i+1)%3;
     gppi(sesskey, "ProxyLocalhost", 0, &cfg->even_proxy_localhost);
-    gppi(sesskey, "ProxyType", PROXY_NONE, &cfg->proxy_type);
+    gppi(sesskey, "ProxyMethod", -1, &cfg->proxy_type);
+    if (cfg->proxy_type == -1) {
+        int i;
+        gppi(sesskey, "ProxyType", -1, &i);
+        if (i == 0)
+            cfg->proxy_type = PROXY_NONE;
+        else if (i == 1)
+            cfg->proxy_type = PROXY_HTTP;
+        else if (i == 3)
+            cfg->proxy_type = PROXY_TELNET;
+        else if (i == 4)
+            cfg->proxy_type = PROXY_CMD;
+        else {
+            gppi(sesskey, "ProxySOCKSVersion", 5, &i);
+            if (i == 5)
+                cfg->proxy_type = PROXY_SOCKS5;
+            else
+                cfg->proxy_type = PROXY_SOCKS4;
+        }
+    }
     gpps(sesskey, "ProxyHost", "proxy", cfg->proxy_host,
 	 sizeof(cfg->proxy_host));
     gppi(sesskey, "ProxyPort", 80, &cfg->proxy_port);
@@ -424,7 +442,6 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	 sizeof(cfg->proxy_password));
     gpps(sesskey, "ProxyTelnetCommand", "connect %host %port\\n",
 	 cfg->proxy_telnet_command, sizeof(cfg->proxy_telnet_command));
-    gppi(sesskey, "ProxySOCKSVersion", 5, &cfg->proxy_socks_version);
 
     {
 	char buf[2 * sizeof(cfg->environmt)], *p, *q;

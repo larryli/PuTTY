@@ -16,7 +16,9 @@
 
 #define do_proxy_dns(cfg) \
     (cfg->proxy_dns == FORCE_ON || \
-	 (cfg->proxy_dns == AUTO && cfg->proxy_type != PROXY_SOCKS))
+	 (cfg->proxy_dns == AUTO && \
+              cfg->proxy_type != PROXY_SOCKS4 && \
+              cfg->proxy_type != PROXY_SOCKS5))
 
 /*
  * Call this when proxy negotiation is complete, so that this
@@ -410,11 +412,10 @@ Socket new_connection(SockAddr addr, char *hostname,
 	
 	if (cfg->proxy_type == PROXY_HTTP) {
 	    ret->negotiate = proxy_http_negotiate;
-	} else if (cfg->proxy_type == PROXY_SOCKS) {
-	    if (cfg->proxy_socks_version == 4)
-		ret->negotiate = proxy_socks4_negotiate;
-	    else
-		ret->negotiate = proxy_socks5_negotiate;
+	} else if (cfg->proxy_type == PROXY_SOCKS4) {
+            ret->negotiate = proxy_socks4_negotiate;
+	} else if (cfg->proxy_type == PROXY_SOCKS5) {
+            ret->negotiate = proxy_socks5_negotiate;
 	} else if (cfg->proxy_type == PROXY_TELNET) {
 	    ret->negotiate = proxy_telnet_negotiate;
 	} else {

@@ -224,7 +224,8 @@ enum {
     /*
      * Proxy types.
      */
-    PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET, PROXY_CMD
+    PROXY_NONE, PROXY_SOCKS4, PROXY_SOCKS5,
+    PROXY_HTTP, PROXY_TELNET, PROXY_CMD
 };
 
 enum {
@@ -338,7 +339,6 @@ struct config_tag {
     char proxy_username[32];
     char proxy_password[32];
     char proxy_telnet_command[512];
-    int proxy_socks_version;
     /* SSH options */
     char remote_cmd[512];
     char remote_cmd2[512];	       /* fallback if the first fails

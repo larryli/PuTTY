@@ -130,7 +130,7 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
      * Unix supports a local-command proxy. This also means we must
      * adjust the text on the `Telnet command' control.
      */
-    s = ctrl_getset(b, "Connection/Proxy", "basics", "Proxy basics");
+    s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
     {
 	int i;
 	for (i = 0; i < s->ncontrols; i++) {
@@ -139,7 +139,6 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
 		c->generic.context.i == offsetof(Config, proxy_type)) {
 		assert(c->generic.handler == dlg_stdradiobutton_handler);
 		c->radio.nbuttons++;
-		c->radio.ncolumns++;
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
@@ -150,11 +149,7 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
 		break;
 	    }
 	}
-    }
-    s = ctrl_getset(b, "Connection/Proxy", "misc",
-		    "Miscellaneous proxy settings");
-    {
-	int i;
+
 	for (i = 0; i < s->ncontrols; i++) {
 	    c = s->ctrls[i];
 	    if (c->generic.type == CTRL_EDITBOX &&
