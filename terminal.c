@@ -381,6 +381,9 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->rows = term->cols = -1;
     power_on(term);
     term->beephead = term->beeptail = NULL;
+#ifdef OPTIMISE_SCROLL
+    term->scrollhead = term->scrolltail = NULL;
+#endif /* OPTIMISE_SCROLL */
     term->nbeeps = 0;
     term->lastbeep = FALSE;
     term->beep_overloaded = FALSE;
@@ -795,6 +798,35 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 
 #ifdef OPTIMISE_SCROLL
 /*
+ * Add a scroll of a region on the screen into the pending scroll list.
+ * `lines' is +ve for scrolling forward, -ve for backward.
+ *
+ * If the scroll is on the same area as the last scroll in the list,
+ * merge them.
+ */
+void save_scroll(Terminal *term, int topline, int botline, int lines)
+{
+    struct scrollregion *newscroll;
+    if (term->scrolltail &&
+	term->scrolltail->topline == topline && 
+	term->scrolltail->botline == botline) {
+	term->scrolltail->lines += lines;
+    } else {
+	newscroll = smalloc(sizeof(struct scrollregion));
+	newscroll->topline = topline;
+	newscroll->botline = botline;
+	newscroll->lines = lines;
+	newscroll->next = NULL;
+
+	if (!term->scrollhead)
+	    term->scrollhead = newscroll;
+	else
+	    term->scrolltail->next = newscroll;
+	term->scrolltail = newscroll;
+    }
+}
+
+/*
  * Scroll the physical display, and our conception of it in disptext.
  */
 static void scroll_display(Terminal *term, int topline, int botline, int lines)
@@ -820,7 +852,7 @@ static void scroll_display(Terminal *term, int topline, int botline, int lines)
 	for (i = 0; i < distance; i++)
 	    start[i] |= ATTR_INVALID;
     }
-    do_scroll(term->frontend, topline, botline, lines);
+    save_scroll(term, topline, botline, lines);
 }
 #endif /* OPTIMISE_SCROLL */
 
@@ -3087,6 +3119,9 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     char ch[1024];
     long cursor_background = ERASE_CHAR;
     unsigned long ticks;
+#ifdef OPTIMISE_SCROLL
+    struct scrollregion *sr;
+#endif /* OPTIMISE_SCROLL */
 
     /*
      * Check the visual bell state.
@@ -3148,6 +3183,18 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	term->curstype = 0;
     }
     term->dispcurs = NULL;
+
+#ifdef OPTIMISE_SCROLL
+    /* Do scrolls */
+    sr = term->scrollhead;
+    while (sr) {
+	struct scrollregion *next = sr->next;
+	do_scroll(ctx, sr->topline, sr->botline, sr->lines);
+	sfree(sr);
+	sr = next;
+    }
+    term->scrollhead = term->scrolltail = NULL;
+#endif /* OPTIMISE_SCROLL */
 
     /* The normal screen data */
     for (i = 0; i < term->rows; i++) {

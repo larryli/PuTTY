@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.60 2003/01/28 00:35:54 ben Exp $ */
+/* $Id: macterm.c,v 1.61 2003/02/01 12:26:33 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1506,8 +1506,8 @@ void palette_reset(void *frontend) {
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
  * for backward.)
  */
-void do_scroll(void *frontend, int topline, int botline, int lines) {
-    Session *s = frontend;
+void do_scroll(Context ctx, int topline, int botline, int lines) {
+    Session *s = ctx;
     Rect r;
     RgnHandle scrollrgn = NewRgn();
     RgnHandle movedupdate = NewRgn();

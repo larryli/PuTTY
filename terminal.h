@@ -20,6 +20,15 @@ typedef struct {
     int y, x;
 } pos;
 
+#ifdef OPTIMISE_SCROLL
+struct scrollregion {
+    struct scrollregion *next;
+    int topline; /* Top line of scroll region. */
+    int botline; /* Bottom line of scroll region. */
+    int lines; /* Number of lines to scroll by - +ve is forwards. */
+};
+#endif /* OPTIMISE_SCROLL */
+
 struct terminal_tag {
 
     int compatibility_level;
@@ -46,6 +55,10 @@ struct terminal_tag {
 #define fix_cpos do { \
     term->cpos = lineptr(term->curs.y) + term->curs.x; \
 } while(0)
+
+#ifdef OPTIMISE_SCROLL
+    struct scrollregion *scrollhead, *scrolltail;
+#endif /* OPTIMISE_SCROLL */
 
     unsigned long curr_attr, save_attr;
     unsigned long erase_char;
