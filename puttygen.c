@@ -5,9 +5,6 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <time.h>
-#ifndef NO_SECURITY
-#include <aclapi.h>
-#endif
 #include <stdio.h>
 
 #define PUTTY_DO_GLOBALS
