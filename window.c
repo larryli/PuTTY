@@ -8,30 +8,30 @@
 #include "putty.h"
 #include "win_res.h"
 
-#define IDM_SHOWLOG   501
-#define IDM_NEWSESS   502
-#define IDM_DUPSESS   503
-#define IDM_RECONF    504
-#define IDM_CLRSB     505
-#define IDM_RESET     506
-#define IDM_TEL_AYT   507
-#define IDM_TEL_BRK   508
-#define IDM_TEL_SYNCH 509
-#define IDM_TEL_EC    510
-#define IDM_TEL_EL    511
-#define IDM_TEL_GA    512
-#define IDM_TEL_NOP   513
-#define IDM_TEL_ABORT 514
-#define IDM_TEL_AO    515
-#define IDM_TEL_IP    516
-#define IDM_TEL_SUSP  517
-#define IDM_TEL_EOR   518
-#define IDM_TEL_EOF   519
-#define IDM_ABOUT     520
-#define IDM_SAVEDSESS 521
+#define IDM_SHOWLOG   0x0010
+#define IDM_NEWSESS   0x0020
+#define IDM_DUPSESS   0x0030
+#define IDM_RECONF    0x0040
+#define IDM_CLRSB     0x0050
+#define IDM_RESET     0x0060
+#define IDM_TEL_AYT   0x0070
+#define IDM_TEL_BRK   0x0080
+#define IDM_TEL_SYNCH 0x0090
+#define IDM_TEL_EC    0x00a0
+#define IDM_TEL_EL    0x00b0
+#define IDM_TEL_GA    0x00c0
+#define IDM_TEL_NOP   0x00d0
+#define IDM_TEL_ABORT 0x00e0
+#define IDM_TEL_AO    0x00f0
+#define IDM_TEL_IP    0x0100
+#define IDM_TEL_SUSP  0x0110
+#define IDM_TEL_EOR   0x0120
+#define IDM_TEL_EOF   0x0130
+#define IDM_ABOUT     0x0140
+#define IDM_SAVEDSESS 0x0150
 
-#define IDM_SAVED_MIN 4096
-#define IDM_SAVED_MAX 8192
+#define IDM_SAVED_MIN 0x1000
+#define IDM_SAVED_MAX 0x2000
 
 #define WM_IGNORE_SIZE (WM_USER + 2)
 #define WM_IGNORE_CLIP (WM_USER + 3)
@@ -615,14 +615,14 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
       case WM_DESTROY:
 	PostQuitMessage (0);
 	return 0;
-    case WM_SYSCOMMAND:
-	switch (wParam) {
+      case WM_SYSCOMMAND:
+	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
 	  case IDM_SHOWLOG:
 	    shownegot(hwnd);
 	    break;
 	  case IDM_NEWSESS:
 	  case IDM_DUPSESS:
-	case IDM_SAVEDSESS:
+	  case IDM_SAVEDSESS:
 	    {
 		char b[2048];
 		char c[30], *cl;
@@ -659,10 +659,11 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		    sprintf(c, "putty &%08x", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
-		  sprintf(c, "putty @%s", sessions[(lParam - IDM_SAVED_MIN) / 16]);
-		  cl = c;
+		    sprintf(c, "putty @%s",
+			    sessions[(lParam - IDM_SAVED_MIN) / 16]);
+		    cl = c;
 		} else
-		  cl = NULL;
+		    cl = NULL;
 
 		GetModuleFileName (NULL, b, sizeof(b)-1);
 		si.cb = sizeof(si);
