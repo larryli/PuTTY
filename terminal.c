@@ -587,7 +587,7 @@ static void check_selection(pos from, pos to)
 static void scroll(int topline, int botline, int lines, int sb)
 {
     unsigned long *line, *line2;
-    int i;
+    int i, seltop;
 
     if (topline != 0 || alt_which != 0)
 	sb = FALSE;
@@ -637,6 +637,23 @@ static void scroll(int topline, int botline, int lines, int sb)
 		}
 		addpos234(scrollback, line, sblen);
 		line = line2;
+
+		/*
+		 * If the user is currently looking at part of the
+		 * scrollback, and they haven't enabled any options
+		 * that are going to reset the scrollback as a
+		 * result of this movement, then the chances are
+		 * they'd like to keep looking at the same line. So
+		 * we move their viewpoint at the same rate as the
+		 * scroll, at least until their viewpoint hits the
+		 * top end of the scrollback buffer, at which point
+		 * we don't have the choice any more.
+		 * 
+		 * Thanks to Jan Holmen Holsten for the idea and
+		 * initial implementation.
+		 */
+		if (disptop > -savelines && disptop < 0)
+		    disptop--;
 	    }
             line = resizeline(line, cols);
 	    for (i = 0; i < cols; i++)
@@ -644,17 +661,26 @@ static void scroll(int topline, int botline, int lines, int sb)
 	    line[cols + 1] = 0;
 	    addpos234(screen, line, botline);
 
-	    if (selstart.y >= topline && selstart.y <= botline) {
+	    /*
+	     * If the selection endpoints move into the scrollback,
+	     * we keep them moving until they hit the top. However,
+	     * of course, if the line _hasn't_ moved into the
+	     * scrollback then we don't do this, and cut them off
+	     * at the top of the scroll region.
+	     */
+	    seltop = sb ? -savelines : 0;
+
+	    if (selstart.y >= seltop && selstart.y <= botline) {
 		selstart.y--;
-		if (selstart.y < topline) {
-		    selstart.y = topline;
+		if (selstart.y < seltop) {
+		    selstart.y = seltop;
 		    selstart.x = 0;
 		}
 	    }
-	    if (selend.y >= topline && selend.y <= botline) {
+	    if (selend.y >= seltop && selend.y <= botline) {
 		selend.y--;
-		if (selend.y < topline) {
-		    selend.y = topline;
+		if (selend.y < seltop) {
+		    selend.y = seltop;
 		    selend.x = 0;
 		}
 	    }
