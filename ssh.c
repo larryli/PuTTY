@@ -2203,7 +2203,13 @@ static int process_userpass_input(Ssh ssh, unsigned char *in, int inlen)
 	    return -1;
 	    break;
 	  default:
-	    if (((c >= ' ' && c <= '~') ||
+	    /*
+	     * This simplistic check for printability is disabled
+	     * when we're doing password input, because some people
+	     * have control characters in their passwords.o
+	     */
+	    if ((!ssh->userpass_input_echo ||
+		 (c >= ' ' && c <= '~') ||
 		 ((unsigned char) c >= 160))
 		&& ssh->userpass_input_bufpos < ssh->userpass_input_buflen-1) {
 		ssh->userpass_input_buffer[ssh->userpass_input_bufpos++] = c;
