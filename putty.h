@@ -426,6 +426,10 @@ Mouse_Button translate_button(void *frontend, Mouse_Button b);
 void connection_fatal(void *frontend, char *, ...);
 void fatalbox(char *, ...);
 void modalfatalbox(char *, ...);
+#ifdef macintosh
+#pragma noreturn(fatalbox)
+#pragma noreturn(modalfatalbox)
+#endif
 void beep(void *frontend, int);
 void begin_session(void *frontend);
 void sys_cursor(void *frontend, int x, int y);
