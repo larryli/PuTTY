@@ -1901,6 +1901,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		char b[2048];
 		char c[30], *cl;
 		int freecl = FALSE;
+		BOOL inherit_handles;
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
 		HANDLE filemap = NULL;
@@ -1929,6 +1930,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			    UnmapViewOfFile(p);
 			}
 		    }
+		    inherit_handles = TRUE;
 		    sprintf(c, "putty &%p", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
@@ -1938,11 +1940,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			char *session = sesslist.sessions[sessno];
 			/* XXX spaces? quotes? "-load"? */
 			cl = dupprintf("putty @%s", session);
+			inherit_handles = FALSE;
 			freecl = TRUE;
 		    } else
 			break;
-		} else
+		} else /* IDM_NEWSESS */ {
 		    cl = NULL;
+		    inherit_handles = FALSE;
+		}
 
 		GetModuleFileName(NULL, b, sizeof(b) - 1);
 		si.cb = sizeof(si);
@@ -1952,7 +1957,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		si.dwFlags = 0;
 		si.cbReserved2 = 0;
 		si.lpReserved2 = NULL;
-		CreateProcess(b, cl, NULL, NULL, TRUE,
+		CreateProcess(b, cl, NULL, NULL, inherit_handles,
 			      NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
 
 		if (filemap)
