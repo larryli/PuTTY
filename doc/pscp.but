@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.23 2004/02/07 18:17:50 simon Exp $
+\versionid $Id: pscp.but,v 1.24 2004/02/13 11:20:42 jacob Exp $
 
 \#FIXME: Need examples
 
@@ -261,9 +261,3 @@ automatically detect Pageant and try to use the keys within it.
 
 For more general information on public-key authentication, see
 \k{pubkey}.
-
-\H{pscp-ixplorer} \i{Secure iXplorer}
-
-Lars Gunnarson has written a graphical interface for PSCP.  You can
-get it from his web site, at
-\W{http://www.i-tree.org/}{www.i-tree.org}.
