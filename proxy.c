@@ -345,7 +345,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	Proxy_Socket ret;
 	Proxy_Plug pplug;
 	SockAddr proxy_addr;
-	char * proxy_canonical_name;
+	char *proxy_canonical_name, *err;
 
 	ret = smalloc(sizeof(struct Socket_proxy_tag));
 	ret->fn = &socket_fn_table;
@@ -388,6 +388,10 @@ Socket new_connection(SockAddr addr, char *hostname,
 	/* look-up proxy */
 	proxy_addr = sk_namelookup(cfg.proxy_host,
 				   &proxy_canonical_name);
+	if ((err = sk_addr_error(proxy_addr))) {
+	    ret->error = "Proxy error: Unable to resolve proxy host name";
+	    return (Socket)ret;
+	}
 	sfree(proxy_canonical_name);
 
 	/* create the actual socket we will be using,
