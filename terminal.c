@@ -211,6 +211,7 @@ void term_update(void) {
 	    seen_disp_event = seen_key_event = 0;
 	}
 	do_paint (ctx, TRUE);
+        sys_cursor(curs_x, curs_y + (scrtop - disptop) / (cols+1));
 	free_ctx (ctx);
     }
 }
@@ -1695,7 +1696,7 @@ static int linecmp (unsigned long *a, unsigned long *b) {
  * Given a context, update the window. Out of paranoia, we don't
  * allow WM_PAINT responses to do scrolling optimisations.
  */
-static void do_paint (Context ctx, int may_optimise){ 
+static void do_paint (Context ctx, int may_optimise){
     int i, j, start, our_curs_y;
     unsigned long attr, rv, cursor;
     char ch[1024];

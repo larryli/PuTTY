@@ -1269,11 +1269,13 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	return 0;
       case WM_SETFOCUS:
 	has_focus = TRUE;
+        CreateCaret(hwnd, NULL, font_width, font_height);
 	term_out();
 	term_update();
 	break;
       case WM_KILLFOCUS:
 	has_focus = FALSE;
+        DestroyCaret();
 	term_out();
 	term_update();
 	break;
@@ -1445,6 +1447,16 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     }
 
     return DefWindowProc (hwnd, message, wParam, lParam);
+}
+
+/*
+ * Move the system caret. (We maintain one, even though it's
+ * invisible, for the benefit of blind people: apparently some
+ * helper software tracks the system caret, so we should arrange to
+ * have one.)
+ */
+void sys_cursor(int x, int y) {
+    SetCaretPos(x * font_width, y * font_height);
 }
 
 /*

@@ -249,6 +249,7 @@ void connection_fatal(char *, ...);
 void fatalbox (char *, ...);
 void beep (int);
 void begin_session(void);
+void sys_cursor(int x, int y);
 #define OPTIMISE_IS_SCROLL 1
 
 /*
