@@ -165,13 +165,11 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 #define crWaitUntilV(c)	do { crReturnV; } while (!(c))
 
 extern const struct ssh_cipher ssh_3des;
-extern const struct ssh_cipher ssh_3des_ssh2;
+extern const struct ssh2_ciphers ssh2_3des;
 extern const struct ssh_cipher ssh_des;
-extern const struct ssh_cipher ssh_aes128_ssh2;
-extern const struct ssh_cipher ssh_aes192_ssh2;
-extern const struct ssh_cipher ssh_aes256_ssh2;
+extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh_cipher ssh_blowfish_ssh1;
-extern const struct ssh_cipher ssh_blowfish_ssh2;
+extern const struct ssh2_ciphers ssh2_blowfish;
 
 extern char *x11_init (Socket *, char *, void *);
 extern void x11_close (Socket);
@@ -184,12 +182,10 @@ extern void x11_invent_auth(char *, int, char *, int);
  * SSH1. (3DES uses outer chaining; Blowfish has the opposite
  * endianness and different-sized keys.)
  */
-const static struct ssh_cipher *ciphers[] = {
-    &ssh_aes256_ssh2,
-    &ssh_aes192_ssh2,
-    &ssh_aes128_ssh2,
-    &ssh_blowfish_ssh2,
-    &ssh_3des_ssh2
+const static struct ssh2_ciphers *ciphers[] = {
+    &ssh2_aes,
+    &ssh2_blowfish,
+    &ssh2_3des,
 };
 
 extern const struct ssh_kex ssh_diffiehellman;
@@ -278,8 +274,8 @@ static int ssh1_compressing;
 static int ssh_agentfwd_enabled;
 static int ssh_X11_fwd_enabled;
 static const struct ssh_cipher *cipher = NULL;
-static const struct ssh_cipher *cscipher = NULL;
-static const struct ssh_cipher *sccipher = NULL;
+static const struct ssh2_cipher *cscipher = NULL;
+static const struct ssh2_cipher *sccipher = NULL;
 static const struct ssh_mac *csmac = NULL;
 static const struct ssh_mac *scmac = NULL;
 static const struct ssh_compress *cscomp = NULL;
@@ -1396,9 +1392,15 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     logevent("Encrypted session key");
 
-    cipher_type = cfg.cipher == CIPHER_BLOWFISH ? SSH_CIPHER_BLOWFISH :
-                  cfg.cipher == CIPHER_DES ? SSH_CIPHER_DES : 
-                  SSH_CIPHER_3DES;
+    switch (cfg.cipher) {
+      case CIPHER_BLOWFISH: cipher_type = SSH_CIPHER_BLOWFISH; break;
+      case CIPHER_DES:      cipher_type = SSH_CIPHER_DES;      break;
+      case CIPHER_3DES:     cipher_type = SSH_CIPHER_3DES;     break;
+      case CIPHER_AES:
+        c_write("AES not supported in SSH1, falling back to 3DES\r\n", 49);
+        cipher_type = SSH_CIPHER_3DES;
+        break;
+    }
     if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
 	c_write("Selected cipher not supported, falling back to 3DES\r\n", 53);
 	cipher_type = SSH_CIPHER_3DES;
@@ -2181,14 +2183,14 @@ static void ssh2_mkkey(Bignum K, char *H, char *sessid, char chr, char *keyspace
  */
 static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 {
-    static int i, len, nbits;
+    static int i, j, len, nbits;
     static char *str;
     static Bignum p, g, e, f, K;
     static int kex_init_value, kex_reply_value;
     static const struct ssh_mac **maclist;
     static int nmacs;
-    static const struct ssh_cipher *cscipher_tobe = NULL;
-    static const struct ssh_cipher *sccipher_tobe = NULL;
+    static const struct ssh2_cipher *cscipher_tobe = NULL;
+    static const struct ssh2_cipher *sccipher_tobe = NULL;
     static const struct ssh_mac *csmac_tobe = NULL;
     static const struct ssh_mac *scmac_tobe = NULL;
     static const struct ssh_compress *cscomp_tobe = NULL;
@@ -2199,7 +2201,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static unsigned char exchange_hash[20];
     static unsigned char first_exchange_hash[20];
     static unsigned char keyspace[40];
-    static const struct ssh_cipher *preferred_cipher;
+    static const struct ssh2_ciphers *preferred_cipher;
     static const struct ssh_compress *preferred_comp;
     static int first_kex;
 
@@ -2211,15 +2213,17 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * Set up the preferred cipher and compression.
      */
     if (cfg.cipher == CIPHER_BLOWFISH) {
-        preferred_cipher = &ssh_blowfish_ssh2;
+        preferred_cipher = &ssh2_blowfish;
     } else if (cfg.cipher == CIPHER_DES) {
         logevent("Single DES not supported in SSH2; using 3DES");
-        preferred_cipher = &ssh_3des_ssh2;
+        preferred_cipher = &ssh2_3des;
     } else if (cfg.cipher == CIPHER_3DES) {
-        preferred_cipher = &ssh_3des_ssh2;
+        preferred_cipher = &ssh2_3des;
+    } else if (cfg.cipher == CIPHER_AES) {
+        preferred_cipher = &ssh2_aes;
     } else {
         /* Shouldn't happen, but we do want to initialise to _something_. */
-        preferred_cipher = &ssh_3des_ssh2;
+        preferred_cipher = &ssh2_3des;
     }
     if (cfg.compression)
 	preferred_comp = &ssh_zlib;
@@ -2258,18 +2262,22 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     /* List client->server encryption algorithms. */
     ssh2_pkt_addstring_start();
     for (i = 0; i < lenof(ciphers)+1; i++) {
-        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
-        ssh2_pkt_addstring_str(c->name);
-        if (i < lenof(ciphers))
-            ssh2_pkt_addstring_str(",");
+        const struct ssh2_ciphers *c = i==0 ? preferred_cipher : ciphers[i-1];
+        for (j = 0; j < c->nciphers; j++) {
+            ssh2_pkt_addstring_str(c->list[j]->name);
+            if (i < lenof(ciphers) || j < c->nciphers-1)
+                ssh2_pkt_addstring_str(",");
+        }
     }
     /* List server->client encryption algorithms. */
     ssh2_pkt_addstring_start();
     for (i = 0; i < lenof(ciphers)+1; i++) {
-        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
-        ssh2_pkt_addstring_str(c->name);
-        if (i < lenof(ciphers))
-            ssh2_pkt_addstring_str(",");
+        const struct ssh2_ciphers *c = i==0 ? preferred_cipher : ciphers[i-1];
+        for (j = 0; j < c->nciphers; j++) {
+            ssh2_pkt_addstring_str(c->list[j]->name);
+            if (i < lenof(ciphers) || j < c->nciphers-1)
+                ssh2_pkt_addstring_str(",");
+        }
     }
     /* List client->server MAC algorithms. */
     ssh2_pkt_addstring_start();
@@ -2345,19 +2353,27 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server cipher */
     for (i = 0; i < lenof(ciphers)+1; i++) {
-        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
-        if (in_commasep_string(c->name, str, len)) {
-            cscipher_tobe = c;
-            break;
+        const struct ssh2_ciphers *c = i==0 ? preferred_cipher : ciphers[i-1];
+        for (j = 0; j < c->nciphers; j++) {
+            if (in_commasep_string(c->list[j]->name, str, len)) {
+                cscipher_tobe = c->list[j];
+                break;
+            }
         }
+        if (cscipher_tobe)
+            break;
     }
     ssh2_pkt_getstring(&str, &len);    /* server->client cipher */
     for (i = 0; i < lenof(ciphers)+1; i++) {
-        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
-        if (in_commasep_string(c->name, str, len)) {
-            sccipher_tobe = c;
-            break;
+        const struct ssh2_ciphers *c = i==0 ? preferred_cipher : ciphers[i-1];
+        for (j = 0; j < c->nciphers; j++) {
+            if (in_commasep_string(c->list[j]->name, str, len)) {
+                sccipher_tobe = c->list[j];
+                break;
+            }
         }
+        if (sccipher_tobe)
+            break;
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server mac */
     for (i = 0; i < nmacs; i++) {

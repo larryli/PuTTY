@@ -790,8 +790,7 @@ void des3_encrypt_pubkey(unsigned char *key,
     des_3cbc_encrypt(blk, blk, len, ourkeys);
 }
 
-struct ssh_cipher ssh_3des_ssh2 = {
-    NULL,
+static struct ssh2_cipher ssh_3des_ssh2 = {
     des3_csiv, des3_cskey,
     des3_sciv, des3_sckey,
     des3_ssh2_encrypt_blk,
@@ -800,13 +799,20 @@ struct ssh_cipher ssh_3des_ssh2 = {
     8, 168
 };
 
+static struct ssh2_cipher *des3_list[] = {
+    &ssh_3des_ssh2
+};
+
+struct ssh2_ciphers ssh2_3des = {
+    sizeof(des3_list) / sizeof(*des3_list),
+    des3_list
+};
+
 struct ssh_cipher ssh_3des = {
     des3_sesskey,
-    NULL, NULL, NULL, NULL,
     des3_encrypt_blk,
     des3_decrypt_blk,
-    "3des-cbc",
-    8, 168
+    8
 };
 
 static void des_sesskey(unsigned char *key) {
@@ -825,9 +831,7 @@ static void des_decrypt_blk(unsigned char *blk, int len) {
 
 struct ssh_cipher ssh_des = {
     des_sesskey,
-    NULL, NULL, NULL, NULL,            /* SSH 2 bits - unused */
     des_encrypt_blk,
     des_decrypt_blk,
-    "des-cbc", /* should never be used - not a valid cipher in ssh2 */
-    8, 56
+    8
 };

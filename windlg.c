@@ -366,6 +366,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_CIPHER3DES,
     IDC_CIPHERBLOWF,
     IDC_CIPHERDES,
+    IDC_CIPHERAES,
     IDC_BUGGYMAC,
     IDC_AUTHTIS,
     IDC_PKSTATIC,
@@ -578,9 +579,10 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_COMPRESS, cfg.compression);
     CheckDlgButton (hwnd, IDC_BUGGYMAC, cfg.buggymac);
     CheckDlgButton (hwnd, IDC_AGENTFWD, cfg.agentfwd);
-    CheckRadioButton (hwnd, IDC_CIPHER3DES, IDC_CIPHERDES,
+    CheckRadioButton (hwnd, IDC_CIPHER3DES, IDC_CIPHERAES,
 		      cfg.cipher == CIPHER_BLOWFISH ? IDC_CIPHERBLOWF :
 		      cfg.cipher == CIPHER_DES ? IDC_CIPHERDES :
+		      cfg.cipher == CIPHER_AES ? IDC_CIPHERAES :
 		      IDC_CIPHER3DES);
     CheckRadioButton (hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
 		      cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
@@ -1031,10 +1033,12 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
             radioline(&cp, "Preferred SSH protocol version:",
                       IDC_SSHPROTSTATIC, 2,
                       "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
-            radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 3,
+            radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 4,
                       "&3DES", IDC_CIPHER3DES,
                       "&Blowfish", IDC_CIPHERBLOWF,
-                      "&DES", IDC_CIPHERDES, NULL);
+                      "&DES", IDC_CIPHERDES,
+                      "&AES", IDC_CIPHERAES,
+                      NULL);
             checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
                      IDC_BUGGYMAC);
             endbox(&cp);
@@ -1779,6 +1783,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	  case IDC_CIPHER3DES:
 	  case IDC_CIPHERBLOWF:
 	  case IDC_CIPHERDES:
+	  case IDC_CIPHERAES:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		if (IsDlgButtonChecked (hwnd, IDC_CIPHER3DES))
@@ -1787,6 +1792,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		    cfg.cipher = CIPHER_BLOWFISH;
 		else if (IsDlgButtonChecked (hwnd, IDC_CIPHERDES))
 		    cfg.cipher = CIPHER_DES;
+		else if (IsDlgButtonChecked (hwnd, IDC_CIPHERAES))
+		    cfg.cipher = CIPHER_AES;
 	    }
 	    break;
 	  case IDC_SSHPROT1:

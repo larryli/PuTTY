@@ -171,7 +171,7 @@ typedef struct {
     int nopty;
     int compression;
     int agentfwd;
-    enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
+    enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES, CIPHER_AES } cipher;
     char keyfile[FILENAME_MAX];
     int sshprot;                       /* use v1 or v2 when both available */
     int buggymac;                      /* MAC bug commmercial <=v2.3.x SSH2 */

@@ -73,8 +73,11 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "Compression", cfg->compression);
     write_setting_i (sesskey, "AgentFwd", cfg->agentfwd);
     write_setting_s (sesskey, "RemoteCmd", cfg->remote_cmd);
-    write_setting_s (sesskey, "Cipher", cfg->cipher == CIPHER_BLOWFISH ? "blowfish" :
-                             cfg->cipher == CIPHER_DES ? "des" : "3des");
+    write_setting_s (sesskey, "Cipher",
+                     cfg->cipher == CIPHER_BLOWFISH ? "blowfish" :
+                     cfg->cipher == CIPHER_DES ? "des" :
+                     cfg->cipher == CIPHER_AES ? "aes" :
+                     "3des");
     write_setting_i (sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i (sesskey, "SshProt", cfg->sshprot);
     write_setting_i (sesskey, "BuggyMAC", cfg->buggymac);
@@ -218,6 +221,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
 	    cfg->cipher = CIPHER_BLOWFISH;
 	else if (!strcmp(cipher, "des"))
 	    cfg->cipher = CIPHER_DES;
+	else if (!strcmp(cipher, "aes"))
+	    cfg->cipher = CIPHER_AES;
 	else
 	    cfg->cipher = CIPHER_3DES;
     }

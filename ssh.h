@@ -95,6 +95,12 @@ void SHA_Simple(void *p, int len, unsigned char *output);
 
 struct ssh_cipher {
     void (*sesskey)(unsigned char *key);   /* for ssh 1 */
+    void (*encrypt)(unsigned char *blk, int len);
+    void (*decrypt)(unsigned char *blk, int len);
+    int blksize;
+};
+
+struct ssh2_cipher {
     void (*setcsiv)(unsigned char *key);   /* for ssh 2 */
     void (*setcskey)(unsigned char *key);   /* for ssh 2 */
     void (*setsciv)(unsigned char *key);   /* for ssh 2 */
@@ -104,6 +110,11 @@ struct ssh_cipher {
     char *name;
     int blksize;
     int keylen;
+};
+
+struct ssh2_ciphers {
+    int nciphers;
+    struct ssh2_cipher **list;
 };
 
 struct ssh_mac {

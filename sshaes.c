@@ -1023,8 +1023,7 @@ static void aes_ssh2_decrypt_blk(unsigned char *blk, int len) {
     aes_decrypt_cbc(blk, len, &scctx);
 }
 
-struct ssh_cipher ssh_aes128_ssh2 = {
-    NULL,
+static struct ssh2_cipher ssh_aes128 = {
     aes_csiv, aes128_cskey,
     aes_sciv, aes128_sckey,
     aes_ssh2_encrypt_blk,
@@ -1033,8 +1032,7 @@ struct ssh_cipher ssh_aes128_ssh2 = {
     16, 128
 };
 
-struct ssh_cipher ssh_aes192_ssh2 = {
-    NULL,
+static struct ssh2_cipher ssh_aes192 = {
     aes_csiv, aes192_cskey,
     aes_sciv, aes192_sckey,
     aes_ssh2_encrypt_blk,
@@ -1043,8 +1041,7 @@ struct ssh_cipher ssh_aes192_ssh2 = {
     16, 192
 };
 
-struct ssh_cipher ssh_aes256_ssh2 = {
-    NULL,
+static struct ssh2_cipher ssh_aes256 = {
     aes_csiv, aes256_cskey,
     aes_sciv, aes256_sckey,
     aes_ssh2_encrypt_blk,
@@ -1053,31 +1050,53 @@ struct ssh_cipher ssh_aes256_ssh2 = {
     16, 256
 };
 
-#ifdef TESTMODE
+static struct ssh2_cipher ssh_rijndael128 = {
+    aes_csiv, aes128_cskey,
+    aes_sciv, aes128_sckey,
+    aes_ssh2_encrypt_blk,
+    aes_ssh2_decrypt_blk,
+    "rijndael128-cbc",
+    16, 128
+};
 
-#include <stdio.h>
+static struct ssh2_cipher ssh_rijndael192 = {
+    aes_csiv, aes192_cskey,
+    aes_sciv, aes192_sckey,
+    aes_ssh2_encrypt_blk,
+    aes_ssh2_decrypt_blk,
+    "rijndael192-cbc",
+    16, 192
+};
 
-int main(void) {
-    AESContext c;
-    static unsigned char key[32] = {};
-    word32 block[32];
-    int i, j, k;
+static struct ssh2_cipher ssh_rijndael256 = {
+    aes_csiv, aes256_cskey,
+    aes_sciv, aes256_sckey,
+    aes_ssh2_encrypt_blk,
+    aes_ssh2_decrypt_blk,
+    "rijndael256-cbc",
+    16, 256
+};
 
-    for (i = 16; i <= 32; i += 8) {
-	for (j = 16; j <= 32; j += 8) {
-	    printf("b%d, k%d: ", i, j);
-	    fflush(stdout);
-	    aes_setup(&c, i, key, j);
-	    memset(block, 0, sizeof(block));
-	    aes_encrypt(&c, block);
-	    aes_decrypt(&c, block);
-	    for (k = 0; k < i/4; k++)
-		printf("%08x ", block[k]);
-	    printf("\n");
-	}
-    }
+static struct ssh2_cipher ssh_rijndael_lysator = {
+    aes_csiv, aes256_cskey,
+    aes_sciv, aes256_sckey,
+    aes_ssh2_encrypt_blk,
+    aes_ssh2_decrypt_blk,
+    "rijndael-cbc@lysator.liu.se",
+    16, 256
+};
 
-    return 0;
-}
+static struct ssh2_cipher *aes_list[] = {
+    &ssh_aes256,
+    &ssh_rijndael256,
+    &ssh_rijndael_lysator,
+    &ssh_aes192,
+    &ssh_rijndael192,
+    &ssh_aes128,
+    &ssh_rijndael128,
+};
 
-#endif
+struct ssh2_ciphers ssh2_aes = {
+    sizeof(aes_list) / sizeof(*aes_list),
+    aes_list
+};
