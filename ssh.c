@@ -171,8 +171,8 @@ const static struct ssh_cipher *ciphers[] = { &ssh_blowfish_ssh2, &ssh_3des_ssh2
 extern const struct ssh_kex ssh_diffiehellman;
 const static struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
 
-extern const struct ssh_hostkey ssh_dss;
-const static struct ssh_hostkey *hostkey_algs[] = { &ssh_dss };
+extern const struct ssh_signkey ssh_dss;
+const static struct ssh_signkey *hostkey_algs[] = { &ssh_dss };
 
 extern const struct ssh_mac ssh_md5, ssh_sha1, ssh_sha1_buggy;
 
@@ -246,7 +246,7 @@ static const struct ssh_mac *scmac = NULL;
 static const struct ssh_compress *cscomp = NULL;
 static const struct ssh_compress *sccomp = NULL;
 static const struct ssh_kex *kex = NULL;
-static const struct ssh_hostkey *hostkey = NULL;
+static const struct ssh_signkey *hostkey = NULL;
 int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
 
 static char *savedhost;
@@ -1987,6 +1987,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static const struct ssh_compress *sccomp_tobe = NULL;
     static char *hostkeydata, *sigdata, *keystr, *fingerprint;
     static int hostkeylen, siglen;
+    static void *hkey;		       /* actual host key */
     static unsigned char exchange_hash[20];
     static unsigned char keyspace[40];
     static const struct ssh_cipher *preferred_cipher;
@@ -2216,8 +2217,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     debug(("\r\n"));
 #endif
 
-    hostkey->setkey(hostkeydata, hostkeylen);
-    if (!hostkey->verifysig(sigdata, siglen, exchange_hash, 20)) {
+    hkey = hostkey->newkey(hostkeydata, hostkeylen);
+    if (!hostkey->verifysig(hkey, sigdata, siglen, exchange_hash, 20)) {
         bombout(("Server failed host key check"));
         crReturn(0);
     }
@@ -2235,14 +2236,15 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * Authenticate remote host: verify host key. (We've already
      * checked the signature of the exchange hash.)
      */
-    keystr = hostkey->fmtkey();
-    fingerprint = hostkey->fingerprint();
+    keystr = hostkey->fmtkey(hkey);
+    fingerprint = hostkey->fingerprint(hkey);
     verify_ssh_host_key(savedhost, savedport, hostkey->keytype,
                         keystr, fingerprint);
     logevent("Host key fingerprint is:");
     logevent(fingerprint);
     free(fingerprint);
     free(keystr);
+    hostkey->freekey(hkey);
 
     /*
      * Send SSH2_MSG_NEWKEYS.

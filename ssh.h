@@ -126,11 +126,15 @@ struct ssh_kex {
     char *name;
 };
 
-struct ssh_hostkey {
-    void (*setkey)(char *data, int len);
-    char *(*fmtkey)(void);
-    char *(*fingerprint)(void);
-    int (*verifysig)(char *sig, int siglen, char *data, int datalen);
+struct ssh_signkey {
+    void *(*newkey)(char *data, int len);
+    void (*freekey)(void *key);
+    char *(*fmtkey)(void *key);
+    char *(*fingerprint)(void *key);
+    int (*verifysig)(void *key, char *sig, int siglen,
+		     char *data, int datalen);
+    int (*sign)(void *key, char *sig, int siglen,
+		char *data, int datalen);
     char *name;
     char *keytype;                     /* for host key cache */
 };
