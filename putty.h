@@ -227,6 +227,11 @@ void *saferealloc(void *, size_t);
 void safefree(void *);
 
 /*
+ * Exports from version.c.
+ */
+extern char ver[];
+
+/*
  * A debug system.
  */
 #ifdef DEBUG

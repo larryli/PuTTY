@@ -19,8 +19,10 @@
 #define IDN_LIST        1001
 
 #define IDA_ICON        1001
-#define IDA_TEXT        1002
-#define IDA_LICENCE     1003
+#define IDA_TEXT1       1002
+#define IDA_VERSION     1003
+#define IDA_TEXT2       1004
+#define IDA_LICENCE     1005
 
 #define IDC_TAB         1001
 #define IDC_ABOUT       1002

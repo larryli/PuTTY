@@ -367,6 +367,7 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam) {
     switch (msg) {
       case WM_INITDIALOG:
+        SetDlgItemText (hwnd, IDA_VERSION, ver);
 	return 1;
 /*      case WM_CTLCOLORDLG: */
 /*	return (int) GetStockObject (LTGRAY_BRUSH); */

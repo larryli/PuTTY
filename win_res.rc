@@ -4,18 +4,17 @@
 
 #include "win_res.h"
 
-IDI_MAINICON ICON "putty.ico"
-
-IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 136, 58
+IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 136, 70
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About PuTTY"
 FONT 8, "MS Sans Serif"
 BEGIN
-    DEFPUSHBUTTON "&Close", IDOK, 82, 40, 48, 14
-    PUSHBUTTON "View &Licence", IDA_LICENCE, 6, 40, 70, 14
-    ICON IDI_MAINICON, IDA_ICON, 10, 10, 0, 0
-    LTEXT "PuTTY Beta 0.45\n\251 1997-8 Simon Tatham\nAll rights reserved.",
-          IDA_TEXT, 40, 6, 96, 24
+    DEFPUSHBUTTON "&Close", IDOK, 82, 52, 48, 14
+    PUSHBUTTON "View &Licence", IDA_LICENCE, 6, 52, 70, 14
+    CTEXT "PuTTY", IDA_TEXT1, 10, 6, 120, 8
+    CTEXT "", IDA_VERSION, 10, 16, 120, 16
+    CTEXT "\251 1997-9 Simon Tatham. All rights reserved.",
+          IDA_TEXT2, 10, 34, 120, 16
 END
 
 IDD_MAINBOX DIALOG DISCARDABLE 0, 0, 180, 216
@@ -210,7 +209,7 @@ FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON "OK", IDOK, 98, 211, 44, 14
 
-    LTEXT "Copyright \251 1998 Simon Tatham", 1000, 10, 10, 206, 8
+    LTEXT "Copyright \251 1997-9 Simon Tatham", 1000, 10, 10, 206, 8
     LTEXT "Portions copyright Gary S. Brown and Eric Young", 1100, 10, 18, 206, 8
 
     LTEXT "Permission is hereby granted, free of charge, to any person", 1002, 10, 34, 206, 8
