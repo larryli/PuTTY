@@ -181,6 +181,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_HMAC                             2
 #define BUG_NEEDS_SSH1_PLAIN_PASSWORD        	  4
 #define BUG_CHOKES_ON_RSA	        	  8
+#define BUG_SSH2_RSA_PADDING	        	 16
 
 static int ssh_pkt_ctx = 0;
 
@@ -1567,6 +1568,75 @@ static Bignum ssh2_pkt_getmp(void)
 }
 
 /*
+ * Helper function to add an SSH2 signature blob to a packet.
+ * Expects to be shown the public key blob as well as the signature
+ * blob. Normally works just like ssh2_pkt_addstring, but will
+ * fiddle with the signature packet if necessary for
+ * BUG_SSH2_RSA_PADDING.
+ */
+static void ssh2_add_sigblob(void *pkblob_v, int pkblob_len,
+			     void *sigblob_v, int sigblob_len)
+{
+    unsigned char *pkblob = (unsigned char *)pkblob_v;
+    unsigned char *sigblob = (unsigned char *)sigblob_v;
+
+    /* dmemdump(pkblob, pkblob_len); */
+    /* dmemdump(sigblob, sigblob_len); */
+
+    /*
+     * See if this is in fact an ssh-rsa signature and a buggy
+     * server; otherwise we can just do this the easy way.
+     */
+    if ((ssh_remote_bugs & BUG_SSH2_RSA_PADDING) &&
+	(GET_32BIT(pkblob) == 7 && !memcmp(pkblob+4, "ssh-rsa", 7))) {
+	int pos, len, siglen;
+
+	/*
+	 * Find the byte length of the modulus.
+	 */
+
+	pos = 4+7;		       /* skip over "ssh-rsa" */
+	pos += 4 + GET_32BIT(pkblob+pos);   /* skip over exponent */
+	len = GET_32BIT(pkblob+pos);   /* find length of modulus */
+	pos += 4;		       /* find modulus itself */
+	while (len > 0 && pkblob[pos] == 0)
+	    len--, pos++;
+	/* debug(("modulus length is %d\n", len)); */
+
+	/*
+	 * Now find the signature integer.
+	 */
+	pos = 4+7;		       /* skip over "ssh-rsa" */
+	siglen = GET_32BIT(sigblob+pos);
+	/* debug(("signature length is %d\n", siglen)); */
+
+	if (len != siglen) {
+	    unsigned char newlen[4];
+	    ssh2_pkt_addstring_start();
+	    ssh2_pkt_addstring_data(sigblob, pos);
+	    /* dmemdump(sigblob, pos); */
+	    pos += 4;		       /* point to start of actual sig */
+	    PUT_32BIT(newlen, len);
+	    ssh2_pkt_addstring_data(newlen, 4);
+	    /* dmemdump(newlen, 4); */
+	    newlen[0] = 0;
+	    while (len-- > siglen) {
+		ssh2_pkt_addstring_data(newlen, 1);
+		/* dmemdump(newlen, 1); */
+	    }
+	    ssh2_pkt_addstring_data(sigblob+pos, siglen);
+	    /* dmemdump(sigblob+pos, siglen); */
+	    return;
+	}
+
+	/* Otherwise fall through and do it the easy way. */
+    }
+
+    ssh2_pkt_addstring_start();
+    ssh2_pkt_addstring_data(sigblob, sigblob_len);
+}
+
+/*
  * Examine the remote side's version string and compare it against
  * a list of known buggy implementations.
  */
@@ -1621,6 +1691,15 @@ static void ssh_detect_bugs(char *vstring)
 	 */
 	ssh_remote_bugs |= BUG_SSH2_HMAC;
 	logevent("We believe remote version has SSH2 HMAC bug");
+    }
+
+    if ((!strncmp(imp, "OpenSSH_2.", 10) && imp[10]>='5' && imp[10]<='9') ||
+	(!strncmp(imp, "OpenSSH_3.", 10) && imp[10]>='0' && imp[10]<='2')) {
+	/*
+	 * These versions have the SSH2 RSA padding bug.
+	 */
+	ssh_remote_bugs |= BUG_SSH2_RSA_PADDING;
+	logevent("We believe remote version has SSH2 RSA padding bug");
     }
 }
 
@@ -4359,10 +4438,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			if (ret) {
 			    if (ret[4] == SSH2_AGENT_SIGN_RESPONSE) {
 				logevent("Sending Pageant's response");
-				ssh2_pkt_addstring_start();
-				ssh2_pkt_addstring_data(ret + 9,
-							GET_32BIT(ret +
-								  5));
+				ssh2_add_sigblob(pkblob, pklen,
+						 ret + 9, GET_32BIT(ret + 5));
 				ssh2_pkt_send();
 				authed = TRUE;
 				break;
@@ -4585,8 +4662,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_send();
 		    type = AUTH_TYPE_NONE;
 		} else {
-		    unsigned char *blob, *sigdata;
-		    int blob_len, sigdata_len;
+		    unsigned char *pkblob, *sigblob, *sigdata;
+		    int pkblob_len, sigblob_len, sigdata_len;
 
 		    /*
 		     * We have loaded the private key and the server
@@ -4599,10 +4676,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addstring("publickey");	/* method */
 		    ssh2_pkt_addbool(TRUE);
 		    ssh2_pkt_addstring(key->alg->name);
-		    blob = key->alg->public_blob(key->data, &blob_len);
+		    pkblob = key->alg->public_blob(key->data, &pkblob_len);
 		    ssh2_pkt_addstring_start();
-		    ssh2_pkt_addstring_data(blob, blob_len);
-		    sfree(blob);
+		    ssh2_pkt_addstring_data(pkblob, pkblob_len);
 
 		    /*
 		     * The data to be signed is:
@@ -4618,12 +4694,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    memcpy(sigdata + 4, ssh2_session_id, 20);
 		    memcpy(sigdata + 24, pktout.data + 5,
 			   pktout.length - 5);
-		    blob =
-			key->alg->sign(key->data, sigdata, sigdata_len,
-				       &blob_len);
-		    ssh2_pkt_addstring_start();
-		    ssh2_pkt_addstring_data(blob, blob_len);
-		    sfree(blob);
+		    sigblob = key->alg->sign(key->data, sigdata,
+					     sigdata_len, &sigblob_len);
+		    ssh2_add_sigblob(pkblob, pkblob_len,
+				     sigblob, sigblob_len);
+		    sfree(pkblob);
+		    sfree(sigblob);
 		    sfree(sigdata);
 
 		    ssh2_pkt_send();
