@@ -4,6 +4,7 @@
  */
 
 #include <string.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -15,6 +16,22 @@
 #define CAT2(x,y) x ## y
 #define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
+
+#define NCOLOURS (lenof(((Config *)0)->colours))
+
+struct gui_data {
+    GtkWidget *area;
+    GdkPixmap *pixmap;
+    GdkFont *fonts[2];                 /* normal and bold (for now!) */
+    GdkCursor *rawcursor, *textcursor;
+    GdkColor cols[NCOLOURS];
+    GdkColormap *colmap;
+    GdkGC *black_gc, *white_gc;
+};
+
+static struct gui_data the_inst;
+static struct gui_data *inst = &the_inst;   /* so we always write `inst->' */
+static int send_raw_mouse;
 
 void ldisc_update(int echo, int edit)
 {
@@ -137,15 +154,6 @@ char *get_window_title(int icon)
     return "FIXME: window title retrieval not yet implemented";
 }
 
-struct gui_data {
-    GtkWidget *area;
-    GdkFont *fonts[2];                 /* normal and bold (for now!) */
-    GdkGC *black_gc, *white_gc;
-};
-
-static struct gui_data the_inst;
-static struct gui_data *inst = &the_inst;   /* so we always write `inst->' */
-
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
     /*
@@ -158,54 +166,45 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
+    if (inst->pixmap)
+	gdk_pixmap_unref(inst->pixmap);
+
+    inst->pixmap = gdk_pixmap_new(widget->window, 9*80, 15*24, -1);
+
     inst->fonts[0] = gdk_font_load("9x15t");   /* XXCONFIG */
     inst->fonts[1] = NULL;             /* XXCONFIG */
     inst->black_gc = widget->style->black_gc;
     inst->white_gc = widget->style->white_gc;
 
-#if 0                                  /* FIXME: get cmap from settings */
     /*
      * Set up the colour map.
      */
     inst->colmap = gdk_colormap_get_system();
     {
-	char *colours[] = {
-	    "#cc0000", "#880000", "#ff0000",
-	    "#cc6600", "#884400", "#ff7f00",
-	    "#cc9900", "#886600", "#ffbf00",
-	    "#cccc00", "#888800", "#ffff00",
-	    "#00cc00", "#008800", "#00ff00",
-	    "#008400", "#005800", "#00b000",
-	    "#008484", "#005858", "#00b0b0",
-	    "#00cccc", "#008888", "#00ffff",
-	    "#0066cc", "#004488", "#007fff",
-	    "#9900cc", "#660088", "#bf00ff",
-	    "#cc00cc", "#880088", "#ff00ff",
-	    "#cc9999", "#886666", "#ffbfbf",
-	    "#cccc99", "#888866", "#ffffbf",
-	    "#99cc99", "#668866", "#bfffbf",
-	    "#9999cc", "#666688", "#bfbfff",
-	    "#757575", "#4e4e4e", "#9c9c9c",
-	    "#999999", "#666666", "#bfbfbf",
-	    "#cccccc", "#888888", "#ffffff",
+	static const int ww[] = {
+	    6, 7, 8, 9, 10, 11, 12, 13,
+	    14, 15, 16, 17, 18, 19, 20, 21,
+	    0, 1, 2, 3, 4, 5
 	};
-	ASSERT(sizeof(colours)/sizeof(*colours)==3*NCOLOURS);
-	gboolean success[3*NCOLOURS];
+	gboolean success[NCOLOURS];
 	int i;
 
-	for (i = 0; i < 3*NCOLOURS; i++) {
-	    if (!gdk_color_parse(colours[i], &inst->cols[i]))
-		g_error("4tris: couldn't parse colour \"%s\"\n", colours[i]);
+	assert(lenof(ww) == NCOLOURS);
+
+	for (i = 0; i < NCOLOURS; i++) {
+	    inst->cols[i].red = cfg.colours[ww[i]][0] * 0x0101;
+	    inst->cols[i].green = cfg.colours[ww[i]][1] * 0x0101;
+	    inst->cols[i].blue = cfg.colours[ww[i]][2] * 0x0101;
 	}
 
-	gdk_colormap_alloc_colors(inst->colmap, inst->cols, 3*NCOLOURS,
+	gdk_colormap_alloc_colors(inst->colmap, inst->cols, NCOLOURS,
 				  FALSE, FALSE, success);
-	for (i = 0; i < 3*NCOLOURS; i++) {
+	for (i = 0; i < NCOLOURS; i++) {
 	    if (!success[i])
-		g_error("4tris: couldn't allocate colour \"%s\"\n", colours[i]);
+		g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
+			i, cfg.colours[i][0], cfg.colours[i][1], cfg.colours[i][2]);
 	}
     }
-#endif
 
     return TRUE;
 }
@@ -233,9 +232,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     /* struct gui_data *inst = (struct gui_data *)data; */
 
     if (event->type == GDK_KEY_PRESS) {
-	char c[1];
-	c[0] = event->keyval;
-	ldisc_send(c, 1, 1);
+	ldisc_send(event->string, strlen(event->string), 1);
 	term_out();
     }
 
@@ -257,9 +254,9 @@ void destroy(GtkWidget *widget, gpointer data)
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
-    /*
-     * FIXME: need to faff with the cursor shape.
-     */
+    has_focus = event->in;
+    term_out();
+    term_update();
     return FALSE;
 }
 
@@ -268,7 +265,12 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
  */
 void set_raw_mouse_mode(int activate)
 {
-    /* FIXME: currently ignored */
+    activate = activate && !cfg.no_mouse_rep;
+    send_raw_mouse = activate;
+    if (send_raw_mouse)
+	gdk_window_set_cursor(inst->area->window, inst->rawcursor);
+    else
+	gdk_window_set_cursor(inst->area->window, inst->textcursor);
 }
 
 void request_resize(int w, int h)
@@ -338,7 +340,10 @@ int CharWidth(Context ctx, int uc)
 
 Context get_ctx(void)
 {
-    GdkGC *gc = gdk_gc_new(inst->area->window);
+    GdkGC *gc;
+    if (!inst->area->window)
+	return NULL;
+    gc = gdk_gc_new(inst->area->window);
     return gc;
 }
 
@@ -357,27 +362,75 @@ void free_ctx(Context ctx)
 void do_text(Context ctx, int x, int y, char *text, int len,
 	     unsigned long attr, int lattr)
 {
-    GdkColor fg, bg;
-
+    int nfg, nbg, t;
     GdkGC *gc = (GdkGC *)ctx;
-    fg.red = fg.green = fg.blue = 65535;
-    bg.red = bg.green = bg.blue = 65535;
-    gdk_gc_set_foreground(gc, &fg);
-    gdk_gc_set_background(gc, &bg);
 
-    gdk_draw_text(inst->area->window, inst->fonts[0], inst->white_gc,
+    /*
+     * NYI:
+     *  - ATTR_WIDE (is this for Unicode CJK? I hope so)
+     *  - LATTR_* (ESC # 4 double-width and double-height stuff)
+     *  - cursor shapes other than block
+     *  - VT100 line drawing stuff; code pages in general!
+     *  - shadow bolding
+     *  - underline
+     */
+
+    nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
+    nbg = 2 * ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
+    if (attr & ATTR_REVERSE) {
+	t = nfg;
+	nfg = nbg;
+	nbg = t;
+    }
+    if (cfg.bold_colour && (attr & ATTR_BOLD))
+	nfg++;
+    if (cfg.bold_colour && (attr & ATTR_BLINK))
+	nbg++;
+    if (attr & TATTR_ACTCURS) {
+	nfg = NCOLOURS-2;
+	nbg = NCOLOURS-1;
+    }
+
+    gdk_gc_set_foreground(gc, &inst->cols[nbg]);
+    gdk_draw_rectangle(inst->pixmap, gc, 1, x*9, y*15, len*9, 15);
+    
+    gdk_gc_set_foreground(gc, &inst->cols[nfg]);
+    gdk_draw_text(inst->pixmap, inst->fonts[0], gc,
 		  x*9, y*15 + inst->fonts[0]->ascent, text, len);
+
+    if (attr & ATTR_UNDER) {
+	int uheight = inst->fonts[0]->ascent + 1;
+	if (uheight >= 15)
+	    uheight = 14;
+	gdk_draw_line(inst->pixmap, gc, x*9, y*15 + uheight,
+		      (x+len)*9-1, y*15+uheight);
+    }
+
+    gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
+		    x*9, y*15, x*9, y*15, len*9, 15);
 }
 
 void do_cursor(Context ctx, int x, int y, char *text, int len,
 	       unsigned long attr, int lattr)
 {
-    /* FIXME: passive cursor NYI */
+    int passive;
+    GdkGC *gc = (GdkGC *)ctx;
+
+    /*
+     * NYI: cursor shapes other than block
+     */
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
-	attr |= TATTR_ACTCURS;
-    }
+	passive = 1;
+    } else
+	passive = 0;
     do_text(ctx, x, y, text, len, attr, lattr);
+    if (passive) {
+	gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
+	gdk_draw_rectangle(inst->pixmap, gc, 0, x*9, y*15, len*9-1, 15-1);
+	gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
+			x*9, y*15, x*9, y*15, len*9, 15);
+    }
 }
 
 void modalfatalbox(char *p, ...)
@@ -417,8 +470,6 @@ int main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(delete_window), inst);
     gtk_signal_connect(GTK_OBJECT(window), "key_press_event",
 		       GTK_SIGNAL_FUNC(key_event), inst);
-    gtk_signal_connect(GTK_OBJECT(window), "key_release_event",
-		       GTK_SIGNAL_FUNC(key_event), inst);
     gtk_signal_connect(GTK_OBJECT(window), "focus_in_event",
 		       GTK_SIGNAL_FUNC(focus_event), inst);
     gtk_signal_connect(GTK_OBJECT(window), "focus_out_event",
@@ -433,6 +484,10 @@ int main(int argc, char **argv)
 
     gtk_widget_show(inst->area);
     gtk_widget_show(window);
+
+    inst->textcursor = gdk_cursor_new(GDK_XTERM);
+    inst->rawcursor = gdk_cursor_new(GDK_ARROW);
+    gdk_window_set_cursor(inst->area->window, inst->textcursor);
 
     term_init();
     term_size(24, 80, 2000);
