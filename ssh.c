@@ -533,6 +533,7 @@ struct ssh_portfwd {
 
 struct Packet {
     long length;
+    long forcepad; /* Force padding to at least this length */
     int type;
     unsigned long sequence;
     unsigned char *data;
@@ -1572,6 +1573,7 @@ static struct Packet *ssh2_pkt_init(int pkt_type)
 {
     struct Packet *pkt = ssh_new_packet();
     pkt->length = 5;
+    pkt->forcepad = 0;
     ssh2_pkt_addbyte(pkt, (unsigned char) pkt_type);
     return pkt;
 }
@@ -1668,12 +1670,17 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     /*
      * Add padding. At least four bytes, and must also bring total
      * length (minus MAC) up to a multiple of the block size.
+     * If pkt->forcepad is set, make sure the packet is at least that size
+     * after padding.
      */
     cipherblk = ssh->cscipher ? ssh->cscipher->blksize : 8;  /* block size */
     cipherblk = cipherblk < 8 ? 8 : cipherblk;	/* or 8 if blksize < 8 */
     padding = 4;
+    if (pkt->length + padding < pkt->forcepad)
+	padding = pkt->forcepad - pkt->length;
     padding +=
 	(cipherblk - (pkt->length + padding) % cipherblk) % cipherblk;
+    assert(padding <= 255);
     maclen = ssh->csmac ? ssh->csmac->len : 0;
     ssh2_pkt_ensure(pkt, pkt->length + padding + maclen);
     pkt->data[4] = padding;
@@ -1791,6 +1798,7 @@ static void ssh2_pkt_send(Ssh ssh, struct Packet *pkt)
 	ssh2_pkt_send_noqueue(ssh, pkt);
 }
 
+#if 0 /* disused */
 /*
  * Either queue or defer a packet, depending on whether queueing is
  * set.
@@ -1802,6 +1810,7 @@ static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
     else
 	ssh2_pkt_defer_noqueue(ssh, pkt);
 }
+#endif
 
 /*
  * Send the whole deferred data block constructed by
@@ -6756,20 +6765,16 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 	    } else if (s->method == AUTH_PASSWORD) {
 		/*
-		 * We send the password packet lumped tightly together with
-		 * an SSH_MSG_IGNORE packet. The IGNORE packet contains a
-		 * string long enough to make the total length of the two
-		 * packets constant. This should ensure that a passive
-		 * listener doing traffic analyis can't work out the length
-		 * of the password.
+		 * We pad out the password packet to 256 bytes to make
+		 * it harder for an attacker to find the length of the
+		 * user's password.
 		 *
-		 * For this to work, we need an assumption about the
-		 * maximum length of the password packet. I think 256 is
-		 * pretty conservative. Anyone using a password longer than
-		 * that probably doesn't have much to worry about from
+		 * Anyone using a password longer than 256 bytes
+		 * probably doesn't have much to worry about from
 		 * people who find out how long their password is!
 		 */
 		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		s->pktout->forcepad = 256;
 		ssh2_pkt_addstring(s->pktout, s->username);
 		ssh2_pkt_addstring(s->pktout, "ssh-connection");	/* service requested */
 		ssh2_pkt_addstring(s->pktout, "password");
@@ -6778,41 +6783,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		ssh2_pkt_addstring(s->pktout, s->password);
 		memset(s->password, 0, sizeof(s->password));
 		end_log_omission(ssh, s->pktout);
-		ssh2_pkt_defer(ssh, s->pktout);
-		/*
-		 * We'll include a string that's an exact multiple of the
-		 * cipher block size. If the cipher is NULL for some
-		 * reason, we don't do this trick at all because we gain
-		 * nothing by it.
-		 */
-		if (ssh->cscipher) {
-		    int stringlen, i;
-
-		    stringlen = (256 - ssh->deferred_len);
-		    stringlen += ssh->cscipher->blksize - 1;
-		    stringlen -= (stringlen % ssh->cscipher->blksize);
-		    if (ssh->cscomp) {
-			/*
-			 * Temporarily disable actual compression,
-			 * so we can guarantee to get this string
-			 * exactly the length we want it. The
-			 * compression-disabling routine should
-			 * return an integer indicating how many
-			 * bytes we should adjust our string length
-			 * by.
-			 */
-			stringlen -= 
-			    ssh->cscomp->disable_compression(ssh->cs_comp_ctx);
-		    }
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_IGNORE);
-		    ssh2_pkt_addstring_start(s->pktout);
-		    for (i = 0; i < stringlen; i++) {
-			char c = (char) random_byte();
-			ssh2_pkt_addstring_data(s->pktout, &c, 1);
-		    }
-		    ssh2_pkt_defer(ssh, s->pktout);
-		}
-		ssh_pkt_defersend(ssh);
+		ssh2_pkt_send(ssh, s->pktout);
 		logevent("Sent password");
 		s->type = AUTH_TYPE_PASSWORD;
 	    } else if (s->method == AUTH_KEYBOARD_INTERACTIVE) {
