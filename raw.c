@@ -89,9 +89,8 @@ static char *raw_init(char *host, int port, char **realhost)
  */
 static int raw_send(char *buf, int len)
 {
-
     if (s == NULL)
-	return;
+	return 0;
 
     raw_bufsize = sk_write(s, buf, len);
 

@@ -137,9 +137,8 @@ static char *rlogin_init(char *host, int port, char **realhost)
  */
 static int rlogin_send(char *buf, int len)
 {
-
     if (s == NULL)
-	return;
+	return 0;
 
     rlogin_bufsize = sk_write(s, buf, len);
 
