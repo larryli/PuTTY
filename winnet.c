@@ -393,6 +393,9 @@ static void sk_tcp_flush(Socket s)
 static void sk_tcp_close(Socket s);
 static int sk_tcp_write(Socket s, char *data, int len);
 static int sk_tcp_write_oob(Socket s, char *data, int len);
+static void sk_tcp_set_private_ptr(Socket s, void *ptr);
+static void *sk_tcp_get_private_ptr(Socket s);
+static void sk_tcp_set_frozen(Socket s, int is_frozen);
 static char *sk_tcp_socket_error(Socket s);
 
 extern char *do_select(SOCKET skt, int startup);
@@ -405,6 +408,9 @@ Socket sk_register(void *sock, Plug plug)
 	sk_tcp_write,
 	sk_tcp_write_oob,
 	sk_tcp_flush,
+	sk_tcp_set_private_ptr,
+	sk_tcp_get_private_ptr,
+	sk_tcp_set_frozen,
 	sk_tcp_socket_error
     };
 
@@ -459,6 +465,9 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	sk_tcp_write,
 	sk_tcp_write_oob,
 	sk_tcp_flush,
+	sk_tcp_set_private_ptr,
+	sk_tcp_get_private_ptr,
+	sk_tcp_set_frozen,
 	sk_tcp_socket_error
     };
 
@@ -633,6 +642,9 @@ Socket sk_newlistener(int port, Plug plug, int local_host_only)
 	sk_tcp_write,
 	sk_tcp_write_oob,
 	sk_tcp_flush,
+	sk_tcp_set_private_ptr,
+	sk_tcp_get_private_ptr,
+	sk_tcp_set_frozen,
 	sk_tcp_socket_error
     };
 
@@ -1043,13 +1055,13 @@ void net_pending_errors(void)
  * Each socket abstraction contains a `void *' private field in
  * which the client can keep state.
  */
-void sk_set_private_ptr(Socket sock, void *ptr)
+static void sk_tcp_set_private_ptr(Socket sock, void *ptr)
 {
     Actual_Socket s = (Actual_Socket) sock;
     s->private_ptr = ptr;
 }
 
-void *sk_get_private_ptr(Socket sock)
+static void *sk_tcp_get_private_ptr(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
     return s->private_ptr;
@@ -1070,7 +1082,7 @@ static char *sk_tcp_socket_error(Socket sock)
     return s->error;
 }
 
-void sk_set_frozen(Socket sock, int is_frozen)
+static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 {
     Actual_Socket s = (Actual_Socket) sock;
     if (s->frozen == is_frozen)

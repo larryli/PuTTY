@@ -242,6 +242,15 @@ typedef struct {
     int warn_on_close;
     int ping_interval;		       /* in seconds */
     int tcp_nodelay;
+    /* Proxy options */
+    char proxy_exclude_list[512];
+    enum { PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET } proxy_type;
+    char proxy_host[512];
+    int proxy_port;
+    char proxy_username[32];
+    char proxy_password[32];
+    char proxy_telnet_command[512];
+    int proxy_socks_version;
     /* SSH options */
     char remote_cmd[512];
     char remote_cmd2[512];	       /* fallback if the first fails

@@ -138,7 +138,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     pr->ready = 1;
     pr->c = c;
 
-    pr->s = *s = sk_new(addr, port, 0, 1, 0, (Plug) pr);
+    pr->s = *s = new_connection(addr, dummy_realhost, port, 0, 1, 0, (Plug) pr);
     if ((err = sk_socket_error(*s))) {
 	sfree(pr);
 	return err;
@@ -227,7 +227,7 @@ char *pfd_addforward(char *desthost, int destport, int port)
     pr->ready = 0;
     pr->waiting = NULL;
 
-    pr->s = s = sk_newlistener(port, (Plug) pr, !cfg.lport_acceptall);
+    pr->s = s = new_listener(port, (Plug) pr, !cfg.lport_acceptall);
     if ((err = sk_socket_error(s))) {
 	sfree(pr);
 	return err;

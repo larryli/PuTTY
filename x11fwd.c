@@ -188,7 +188,7 @@ char *x11_init(Socket * s, char *display, void *c)
     pr->throttled = pr->throttle_override = 0;
     pr->c = c;
 
-    pr->s = *s = sk_new(addr, port, 0, 1, 0, (Plug) pr);
+    pr->s = *s = new_connection(addr, dummy_realhost, port, 0, 1, 0, (Plug) pr);
     if ((err = sk_socket_error(*s))) {
 	sfree(pr);
 	return err;

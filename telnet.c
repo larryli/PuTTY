@@ -636,7 +636,7 @@ static char *telnet_init(char *host, int port, char **realhost, int nodelay)
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
 	logevent(buf);
     }
-    s = sk_new(addr, port, 0, 1, nodelay, &fn_table_ptr);
+    s = new_connection(addr, *realhost, port, 0, 1, nodelay, &fn_table_ptr);
     if ((err = sk_socket_error(s)))
 	return err;
 

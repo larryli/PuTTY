@@ -438,6 +438,32 @@ enum { IDCX_ABOUT =
     IDC_NODELAY,
     connectionpanelend,
 
+    proxypanelstart,
+    IDC_TITLE_PROXY,
+    IDC_BOX_PROXY1,
+    IDC_PROXYTYPESTATIC,
+    IDC_PROXYTYPENONE,
+    IDC_PROXYTYPEHTTP,
+    IDC_PROXYTYPESOCKS,
+    IDC_PROXYTYPETELNET,
+    IDC_PROXYHOSTSTATIC,
+    IDC_PROXYHOSTEDIT,
+    IDC_PROXYPORTSTATIC,
+    IDC_PROXYPORTEDIT,
+    IDC_PROXYEXCLUDESTATIC,
+    IDC_PROXYEXCLUDEEDIT,
+    IDC_PROXYUSERSTATIC,
+    IDC_PROXYUSEREDIT,
+    IDC_PROXYPASSSTATIC,
+    IDC_PROXYPASSEDIT,
+    IDC_BOX_PROXY2,
+    IDC_PROXYTELNETCMDSTATIC,
+    IDC_PROXYTELNETCMDEDIT,
+    IDC_PROXYSOCKSVERSTATIC,
+    IDC_PROXYSOCKSVER5,
+    IDC_PROXYSOCKSVER4,
+    proxypanelend,
+
     telnetpanelstart,
     IDC_TITLE_TELNET,
     IDC_BOX_TELNET1,
@@ -1243,6 +1269,20 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_LPORT_ALL, cfg.lport_acceptall);
     CheckDlgButton(hwnd, IDC_RPORT_ALL, cfg.rport_acceptall);
     CheckRadioButton(hwnd, IDC_PFWDLOCAL, IDC_PFWDREMOTE, IDC_PFWDLOCAL);
+
+    /* proxy config */
+    CheckRadioButton(hwnd, IDC_PROXYTYPENONE, IDC_PROXYTYPETELNET,
+		     cfg.proxy_type == PROXY_HTTP ? IDC_PROXYTYPEHTTP :
+		     cfg.proxy_type == PROXY_SOCKS ? IDC_PROXYTYPESOCKS :
+		     cfg.proxy_type == PROXY_TELNET ? IDC_PROXYTYPETELNET : IDC_PROXYTYPENONE);
+    SetDlgItemText(hwnd, IDC_PROXYHOSTEDIT, cfg.proxy_host);
+    SetDlgItemInt(hwnd, IDC_PROXYPORTEDIT, cfg.proxy_port, FALSE);
+    SetDlgItemText(hwnd, IDC_PROXYEXCLUDEEDIT, cfg.proxy_exclude_list);
+    SetDlgItemText(hwnd, IDC_PROXYTELNETCMDEDIT, cfg.proxy_telnet_command);
+    SetDlgItemText(hwnd, IDC_PROXYUSEREDIT, cfg.proxy_username);
+    SetDlgItemText(hwnd, IDC_PROXYPASSEDIT, cfg.proxy_password);
+    CheckRadioButton(hwnd, IDC_PROXYSOCKSVER5, IDC_PROXYSOCKSVER4,
+		     cfg.proxy_socks_version == 4 ? IDC_PROXYSOCKSVER4 : IDC_PROXYSOCKSVER5);
 }
 
 struct treeview_faff {
@@ -1687,6 +1727,41 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	}
     }
 
+    if (panel == proxypanelstart) {
+	/* The Proxy panel. Accelerators used: [acgoh] ntslypeuwmv */
+	struct ctlpos cp;
+	ctlposinit(&cp, hwnd, 80, 3, 13);
+	if (dlgtype == 0) {
+	    bartitle(&cp, "Options controlling proxy usage",
+		     IDC_TITLE_PROXY);
+	    beginbox(&cp, "Proxy basics", IDC_BOX_PROXY1);
+	    radioline(&cp, "Proxy type:", IDC_PROXYTYPESTATIC, 4,
+		      "&None", IDC_PROXYTYPENONE,
+		      "H&TTP", IDC_PROXYTYPEHTTP,
+		      "&SOCKS", IDC_PROXYTYPESOCKS,
+		      "Te&lnet", IDC_PROXYTYPETELNET, NULL);
+	    multiedit(&cp,
+		      "Prox&y Host", IDC_PROXYHOSTSTATIC, IDC_PROXYHOSTEDIT, 80,
+		      "&Port", IDC_PROXYPORTSTATIC, IDC_PROXYPORTEDIT, 20, NULL);
+	    multiedit(&cp,
+		      "&Exclude Hosts/IPs", IDC_PROXYEXCLUDESTATIC,
+		      IDC_PROXYEXCLUDEEDIT, 100, NULL);
+	    staticedit(&cp, "&Username", IDC_PROXYUSERSTATIC,
+		       IDC_PROXYUSEREDIT, 60);
+	    staticedit(&cp, "Pass&word", IDC_PROXYPASSSTATIC,
+		       IDC_PROXYPASSEDIT, 60);
+	    endbox(&cp);
+	    beginbox(&cp, "Misc. proxy settings", IDC_BOX_PROXY2);
+	    multiedit(&cp,
+		      "Telnet co&mmand", IDC_PROXYTELNETCMDSTATIC,
+		      IDC_PROXYTELNETCMDEDIT, 100, NULL);
+	    radioline(&cp, "SOCKS &Version", IDC_PROXYSOCKSVERSTATIC,
+		      2, "Version 5", IDC_PROXYSOCKSVER5, "Version 4",
+		      IDC_PROXYSOCKSVER4, NULL);
+	    endbox(&cp);
+	}
+    }
+
     if (panel == telnetpanelstart) {
 	/* The Telnet panel. Accelerators used: [acgoh] svldr bftk */
 	struct ctlpos cp;
@@ -1957,6 +2032,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	treeview_insert(&tvfaff, 1, "Colours");
 	treeview_insert(&tvfaff, 0, "Connection");
 	if (dlgtype == 0) {
+	    treeview_insert(&tvfaff, 1, "Proxy");
 	    treeview_insert(&tvfaff, 1, "Telnet");
 	    treeview_insert(&tvfaff, 1, "Rlogin");
 	    if (backends[3].backend != NULL) {
@@ -2040,6 +2116,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, tunnelspanelstart);
 	    if (!strcmp(buffer, "Connection"))
 		create_controls(hwnd, dlgtype, connectionpanelstart);
+	    if (!strcmp(buffer, "Proxy"))
+		create_controls(hwnd, dlgtype, proxypanelstart);
 	    if (!strcmp(buffer, "Telnet"))
 		create_controls(hwnd, dlgtype, telnetpanelstart);
 	    if (!strcmp(buffer, "Rlogin"))
@@ -2741,6 +2819,73 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    GetDlgItemText(hwnd, IDC_TTEDIT, cfg.termtype,
 				   sizeof(cfg.termtype) - 1);
 		break;
+
+		/* proxy config */
+	      case IDC_PROXYHOSTEDIT:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    GetDlgItemText(hwnd, IDC_PROXYHOSTEDIT, cfg.proxy_host, 
+				   sizeof(cfg.proxy_host) - 1);
+		break;
+	      case IDC_PROXYPORTEDIT:
+		if (HIWORD(wParam) == EN_CHANGE) {
+		    GetDlgItemText(hwnd, IDC_PROXYPORTEDIT, portname, 31);
+		    if (isdigit(portname[0]))
+			MyGetDlgItemInt(hwnd, IDC_PROXYPORTEDIT, &cfg.proxy_port);
+		    else {
+			service = getservbyname(portname, NULL);
+			if (service)
+			    cfg.proxy_port = ntohs(service->s_port);
+			else
+			    cfg.proxy_port = 0;
+		    }
+		}
+		break;
+	      case IDC_PROXYEXCLUDEEDIT:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    GetDlgItemText(hwnd, IDC_PROXYEXCLUDEEDIT,
+				   cfg.proxy_exclude_list,
+				   sizeof(cfg.proxy_exclude_list) - 1);
+		break;
+	      case IDC_PROXYUSEREDIT:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    GetDlgItemText(hwnd, IDC_PROXYUSEREDIT,
+				   cfg.proxy_username, 
+				   sizeof(cfg.proxy_username) - 1);
+		break;
+	      case IDC_PROXYPASSEDIT:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    GetDlgItemText(hwnd, IDC_PROXYPASSEDIT,
+				   cfg.proxy_password, 
+				   sizeof(cfg.proxy_password) - 1);
+		break;
+	      case IDC_PROXYTELNETCMDEDIT:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    GetDlgItemText(hwnd, IDC_PROXYTELNETCMDEDIT,
+				   cfg.proxy_telnet_command,
+				   sizeof(cfg.proxy_telnet_command) - 1);
+		break;
+	      case IDC_PROXYSOCKSVER5:
+	      case IDC_PROXYSOCKSVER4:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    cfg.proxy_socks_version =
+			IsDlgButtonChecked(hwnd, IDC_PROXYSOCKSVER4) ? 4 : 5;
+		}
+		break;
+	      case IDC_PROXYTYPENONE:
+	      case IDC_PROXYTYPEHTTP:
+	      case IDC_PROXYTYPESOCKS:
+	      case IDC_PROXYTYPETELNET:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    cfg.proxy_type =
+			IsDlgButtonChecked(hwnd, IDC_PROXYTYPEHTTP) ? PROXY_HTTP :
+			IsDlgButtonChecked(hwnd, IDC_PROXYTYPESOCKS) ? PROXY_SOCKS :
+			IsDlgButtonChecked(hwnd, IDC_PROXYTYPETELNET) ? PROXY_TELNET :
+			PROXY_NONE;
+		}
+		break;
+
 	      case IDC_LGFEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)
 		    GetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename,

@@ -148,6 +148,17 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "TCPNoDelay", cfg->tcp_nodelay);
     write_setting_s(sesskey, "TerminalType", cfg->termtype);
     write_setting_s(sesskey, "TerminalSpeed", cfg->termspeed);
+
+    /* proxy settings */
+    write_setting_s(sesskey, "ProxyExcludeList", cfg->proxy_exclude_list);
+    write_setting_i(sesskey, "ProxyType", cfg->proxy_type);
+    write_setting_s(sesskey, "ProxyHost", cfg->proxy_host);
+    write_setting_i(sesskey, "ProxyPort", cfg->proxy_port);
+    write_setting_s(sesskey, "ProxyUsername", cfg->proxy_username);
+    write_setting_s(sesskey, "ProxyPassword", cfg->proxy_password);
+    write_setting_s(sesskey, "ProxyTelnetCommand", cfg->proxy_telnet_command);
+    write_setting_i(sesskey, "ProxySOCKSVersion", cfg->proxy_socks_version);
+
     {
 	char buf[2 * sizeof(cfg->environmt)], *p, *q;
 	p = buf;
@@ -343,6 +354,22 @@ void load_settings(char *section, int do_host, Config * cfg)
 	 sizeof(cfg->termtype));
     gpps(sesskey, "TerminalSpeed", "38400,38400", cfg->termspeed,
 	 sizeof(cfg->termspeed));
+
+    /* proxy settings */
+    gpps(sesskey, "ProxyExcludeList", "", cfg->proxy_exclude_list,
+	 sizeof(cfg->proxy_exclude_list));
+    gppi(sesskey, "ProxyType", PROXY_NONE, &cfg->proxy_type);
+    gpps(sesskey, "ProxyHost", "proxy", cfg->proxy_host,
+	 sizeof(cfg->proxy_host));
+    gppi(sesskey, "ProxyPort", 80, &cfg->proxy_port);
+    gpps(sesskey, "ProxyUsername", "", cfg->proxy_username,
+	 sizeof(cfg->proxy_username));
+    gpps(sesskey, "ProxyPassword", "", cfg->proxy_password,
+	 sizeof(cfg->proxy_password));
+    gpps(sesskey, "ProxyTelnetCommand", "connect %host %port",
+	 cfg->proxy_telnet_command, sizeof(cfg->proxy_telnet_command));
+    gppi(sesskey, "ProxySOCKSVersion", 5, &cfg->proxy_socks_version);
+
     {
 	char buf[2 * sizeof(cfg->environmt)], *p, *q;
 	gpps(sesskey, "Environment", "", buf, sizeof(buf));

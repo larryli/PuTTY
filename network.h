@@ -27,6 +27,9 @@ struct socket_function_table {
     int (*write) (Socket s, char *data, int len);
     int (*write_oob) (Socket s, char *data, int len);
     void (*flush) (Socket s);
+    void (*set_private_ptr) (Socket s, void *ptr);
+    void *(*get_private_ptr) (Socket s);
+    void (*set_frozen) (Socket s, int is_frozen);
     /* ignored by tcp, but vital for ssl */
     char *(*socket_error) (Socket s);
 };
@@ -60,6 +63,13 @@ struct plug_function_table {
      */
 };
 
+/* proxy indirection layer */
+Socket new_connection(SockAddr addr, char *hostname,
+		      int port, int privport,
+		      int oobinline, int nodelay, Plug plug);
+Socket new_listener(int port, Plug plug, int local_host_only);
+
+/* socket functions */
 
 void sk_init(void);		       /* called once at program startup */
 void sk_cleanup(void);		       /* called just before program exit */
@@ -95,8 +105,8 @@ Socket sk_register(void *sock, Plug plug);
  * This is perhaps unnecessary now that we have the notion of a plug,
  * but there is some existing code that uses it, so it stays.
  */
-void sk_set_private_ptr(Socket s, void *ptr);
-void *sk_get_private_ptr(Socket s);
+#define sk_set_private_ptr(s, ptr) (((*s)->set_private_ptr) (s, ptr))
+#define sk_get_private_ptr(s) (((*s)->get_private_ptr) (s))
 
 /*
  * Special error values are returned from sk_namelookup and sk_new
@@ -123,7 +133,7 @@ char *sk_addr_error(SockAddr addr);
  *    associated local socket in order to avoid unbounded buffer
  *    growth.
  */
-void sk_set_frozen(Socket sock, int is_frozen);
+#define sk_set_frozen(s, is_frozen) (((*s)->set_frozen) (s, is_frozen))
 
 /*
  * Call this after an operation that might have tried to send on a

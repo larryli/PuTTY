@@ -96,7 +96,7 @@ GOBJS1 = window.$(OBJ) windlg.$(OBJ) winctrls.$(OBJ) terminal.$(OBJ)
 GOBJS2 = sizetip.$(OBJ) wcwidth.$(OBJ) unicode.$(OBJ) logging.$(OBJ)
 GOBJS3 = printing.$(OBJ)
 ##-- objects putty puttytel plink
-LOBJS1 = telnet.$(OBJ) raw.$(OBJ) rlogin.$(OBJ) ldisc.$(OBJ) winnet.$(OBJ)
+LOBJS1 = telnet.$(OBJ) raw.$(OBJ) rlogin.$(OBJ) ldisc.$(OBJ) winnet.$(OBJ) proxy.$(OBJ)
 ##-- objects putty plink
 POBJS = be_all.$(OBJ)
 ##-- objects puttytel
@@ -104,9 +104,9 @@ TOBJS = be_nossh.$(OBJ)
 ##-- objects plink
 PLOBJS = plink.$(OBJ) logging.$(OBJ)
 ##-- objects pscp
-SOBJS = scp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ) wildcard.$(OBJ)
+SOBJS = scp.$(OBJ) winnet.$(OBJ) proxy.$(OBJ) be_none.$(OBJ) wildcard.$(OBJ)
 ##-- objects psftp
-FOBJS = psftp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
+FOBJS = psftp.$(OBJ) winnet.$(OBJ) proxy.$(OBJ) be_none.$(OBJ)
 ##-- objects pscp psftp
 SFOBJS = sftp.$(OBJ) int64.$(OBJ) logging.$(OBJ)
 ##-- objects putty puttytel pscp psftp plink
@@ -303,7 +303,8 @@ pageantc.$(OBJ): pageantc.c puttymem.h
 plink.$(OBJ): plink.c network.h misc.h puttymem.h storage.h putty.h tree234.h 
 portfwd.$(OBJ): portfwd.c network.h misc.h puttymem.h int64.h ssh.h putty.h 
 printing.$(OBJ): printing.c network.h misc.h puttymem.h putty.h 
-psftp.$(OBJ): psftp.c network.h misc.h sftp.h ssh.h storage.h int64.h puttymem.h putty.h 
+proxy.$(OBJ): proxy.c proxy.h network.h 
+psftp.$(OBJ): psftp.c network.h misc.h sftp.h ssh.h storage.h int64.h puttymem.h putty.h
 puttygen.$(OBJ): puttygen.c network.h misc.h puttymem.h int64.h winstuff.h ssh.h putty.h 
 raw.$(OBJ): raw.c network.h misc.h puttymem.h putty.h 
 rlogin.$(OBJ): rlogin.c network.h misc.h puttymem.h putty.h 
