@@ -324,14 +324,18 @@ void mac_pollterm(void)
  */
 static void mac_adjustsize(Session *s, int newrows, int newcols) {
     int winwidth, winheight;
+    int extraforscroll;
 
-    winwidth = newcols * s->font_width + 15;
+    extraforscroll=s->cfg.scrollbar ? 15 : 0;
+    winwidth = newcols * s->font_width + extraforscroll;
     winheight = newrows * s->font_height;
     SizeWindow(s->window, winwidth, winheight, true);
-    HideControl(s->scrollbar);
-    MoveControl(s->scrollbar, winwidth - 15, -1);
-    SizeControl(s->scrollbar, 16, winheight - 13);
-    ShowControl(s->scrollbar);
+    if (s->cfg.scrollbar) {
+        HideControl(s->scrollbar);
+        MoveControl(s->scrollbar, winwidth - extraforscroll, -1);
+        SizeControl(s->scrollbar, extraforscroll + 1, winheight - 13);
+        ShowControl(s->scrollbar);
+    }
     mac_drawgrowicon(s);
 }
 
@@ -1043,7 +1047,7 @@ static void mac_activateterm(WindowPtr window, EventRecord *event)
     s = mac_windowsession(window);
     term_set_focus(s->term, active);
     term_update(s->term);
-    if (active)
+    if (active && s->cfg.scrollbar)
 	ShowControl(s->scrollbar);
     else {
 	if (HAVE_COLOR_QD())

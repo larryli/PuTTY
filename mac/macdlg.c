@@ -181,7 +181,6 @@ static void mac_enddlg_reconfig(WindowPtr window, int value)
 	if (s->cfg.height != prev_cfg.height ||
 	    s->cfg.width != prev_cfg.width ||
 	    s->cfg.savelines != prev_cfg.savelines) {
-	    term_size(s->term, s->cfg.height, s->cfg.width, s->cfg.savelines);
 	    request_resize(s, s->cfg.width, s->cfg.height);
 	}
 
@@ -189,7 +188,11 @@ static void mac_enddlg_reconfig(WindowPtr window, int value)
 	if (s->cfg.wintitle[0])
             set_title(s, s->cfg.wintitle);
 
-	/* TODO: zoom, scroll bar, font */
+	/* Scroll bar */
+	if (s->cfg.scrollbar != prev_cfg.scrollbar)
+           request_resize(s, s->cfg.width, s->cfg.height);
+
+	/* TODO: zoom, font */
     }
 }
 
