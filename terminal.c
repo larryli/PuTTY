@@ -929,7 +929,7 @@ void term_out(void) {
 		}
 		break;
 	      case 'r':		       /* set scroll margins */
-		if (esc_nargs <= 2) {
+		if (!esc_query && esc_nargs <= 2) {
 		    int top, bot;
 		    top = def(esc_args[0], 1) - 1;
 		    if (top < 0)
