@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.28 2002/05/15 19:16:45 simon Exp $
+\versionid $Id: faq.but,v 1.29 2002/05/23 22:02:53 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -737,6 +737,17 @@ packet")
 For more details and OpenSSH patches, see
 \W{http://bugzilla.mindrot.org/show_bug.cgi?id=138}{bug 138} in the
 OpenSSH BTS.
+
+\S{faq-ssh2key-ssh1conn}{Question} Why do I see "Couldn't load private
+key from ..."? Why can PuTTYgen load my key but not PuTTY?
+
+It's likely that you've generated an SSH protocol 2 key with PuTTYgen,
+but you're trying to use it in an SSH 1 connection. SSH1 and SSH2 keys
+have different formats, and (at least in 0.52) PuTTY's reporting of a
+key in the wrong format isn't optimal.
+
+To connect using SSH 2 to a server that supports both versions, you
+need to change the configuration from the default (see \k{faq-ssh2}).
 
 \H{faq-secure} Security questions
 
