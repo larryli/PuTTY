@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.1 2001/11/25 18:59:12 simon Exp $
+\versionid $Id: using.but,v 1.2 2001/11/25 19:22:47 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -43,15 +43,16 @@ this.)
 
 If you double-click the left mouse button, PuTTY will select a whole
 word. If you double-click, hold down the second click, and drag the
-mouse, PuTTY will select a sequence of whole words. If you
-\e{triple}-click, or triple-click and drag, then PuTTY will select a
-whole line or sequence of lines.
+mouse, PuTTY will select a sequence of whole words. (You can adjust
+precisely what PuTTY considers to be part of a word; see
+\k{config-charclasses}.) If you \e{triple}-click, or triple-click
+and drag, then PuTTY will select a whole line or sequence of lines.
 
 If you want to select a rectangular region instead of selecting to
 the end of each line, you can do this by holding down Alt when you
 make your selection. (You can also configure rectangular selection
 to be the default, and then holding down Alt gives the normal
-behaviour instead. See \#{FIXME} for details.)
+behaviour instead. See \k{config-rectselect} for details.)
 
 If you have a middle mouse button, then you can use it to adjust an
 existing selection if you selected something slightly wrong. (If you
@@ -161,8 +162,7 @@ distracting, you can select Full Screen mode to maximise PuTTY
 \q{even more}. When you select this, PuTTY will expand to fill the
 whole screen and its borders, title bar and scrollbar will
 disappear. (You can configure the scrollbar not to disappear in
-full-screen mode if you want to keep it.)
-\#{FIXME, document how and xref to it from here!}
+full-screen mode if you want to keep it; see \k{config-scrollback}.)
 
 When you are in full-screen mode, you can still access the system
 menu if you click the left mouse button in the \e{extreme} top left

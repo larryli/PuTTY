@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.14 2001/11/25 18:59:12 simon Exp $
+\versionid $Id: config.but,v 1.15 2001/11/25 19:22:47 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -267,6 +267,12 @@ The server can ask PuTTY to display text that blinks on and off.
 This is very distracting, so PuTTY allows you to turn blinking text
 off completely.
 
+\S{config-answerback} \q{Answerback to ^E}
+
+This option controls what PuTTY will send back to the server if the
+server sends it the ^E enquiry character. Normally it just sends
+the string \q{PuTTY}.
+
 \S{config-localecho} \q{Local echo}
 
 With local echo disabled, characters you type into the PuTTY window
@@ -307,90 +313,6 @@ working in. If you find it has made the wrong decision, you can use
 this configuration option to override its choice: you can force
 local line editing to be turned on, or force it to be turned off,
 instead of relying on the automatic detection.
-
-\H{config-bell} The Bell panel
-
-The Bell panel controls the terminal bell feature: the server's
-ability to cause PuTTY to beep at you.
-
-In the default configuration, when the server sends the character
-with ASCII code 7 (Control-G), PuTTY will play the Windows Default
-Beep sound. This is not always what you want the terminal bell
-feature to do; the Bell panel allows you to configure alternative
-actions.
-
-\S{config-bellstyle} \q{Set the style of bell}
-
-This control allows you to select various different actions to occur
-on a terminal bell:
-
-\b Selecting \q{None} disables the bell completely. In this mode,
-the server can send as many Control-G characters as it likes and
-nothing at all will happen.
-
-\b \q{Play Windows Default Sound} is the default setting. It causes
-the Windows \q{Default Beep} sound to be played. To change what this
-sound is, or to test it if nothing seems to be happening, use the
-Sound configurer in the Windows Control Panel.
-
-\b \q{Play a custom sound file} allows you to specify a particular
-sound file to be used by PuTTY alone, or even by a particular
-individual PuTTY session. This allows you to distinguish your PuTTY
-beeps from any other beeps on the system. If you select this option,
-you will also need to enter the name of your sound file in the edit
-control \q{Custom sound file to play as a bell}.
-
-\b \q{Visual bell} is a silent alternative to a beeping computer. In
-this mode, when the server sends a Control-G, the whole PuTTY window
-will flash white for a fraction of a second.
-
-\S{config-belltaskbar} \q{Taskbar/caption indication on bell}
-
-This feature controls what happens to the PuTTY window's entry in
-the Windows Taskbar if a bell occurs while the window does not have
-the input focus.
-
-In the default state (\q{Disabled}) nothing unusual happens.
-
-If you select \q{Steady}, then when a bell occurs and the window is
-not in focus, the window's Taskbar entry and its title bar will
-change colour to let you know that PuTTY session is asking for your
-attention. The change of colour will persist until you select the
-window, so you can leave several PuTTY windows minimised in your
-terminal, go away from your keyboard, and be sure not to have missed
-any important beeps when you get back.
-
-\q{Flashing} is even more eye-catching: the Taskbar entry will
-continuously flash on and off until you select the window.
-
-\S{config-bellovl} \q{Control the bell overload behaviour}
-
-A common user error in a terminal session is to accidentally run the
-Unix command \c{cat} (or equivalent) on an inappropriate file type,
-such as an executable, image file, or ZIP file. This produces a huge
-stream of non-text characters sent to the terminal, which typically
-includes a lot of bell characters. As a result of this the terminal
-often doesn't stop beeping for ten minutes, and everybody else in
-the office gets annoyed.
-
-To try to avoid this behaviour, or any other cause of excessive
-beeping, PuTTY includes a bell overload management feature. In the
-default configuration, receiving more than five bell characters in a
-two-second period will cause the overload feature to activate. Once
-the overload feature is active, further bells will have no effect at
-all, so the rest of your binary file will be sent to the screen in
-silence. After a period of five seconds during which no further
-bells are received, the overload feature will turn itself off again
-and bells will be re-enabled.
-
-If you want this feature completely disabled, you can turn it off
-using the checkbox \q{Bell is temporarily disabled when over-used}.
-
-Alternatively, if you like the bell overload feature but don't agree
-with the settings, you can configure the details: how many bells
-constitute an overload, how short a time period they have to arrive
-in to do so, and how much silent time is required before the
-overload feature will deactivate itself.
 
 \H{config-keyboard} The Keyboard panel
 
@@ -547,10 +469,94 @@ If you uncheck this box, Ctrl-Alt will become a synonym for AltGr,
 so you can use it to type extra graphic characters if your keyboard
 has any.
 
+\H{config-bell} The Bell panel
+
+The Bell panel controls the terminal bell feature: the server's
+ability to cause PuTTY to beep at you.
+
+In the default configuration, when the server sends the character
+with ASCII code 7 (Control-G), PuTTY will play the Windows Default
+Beep sound. This is not always what you want the terminal bell
+feature to do; the Bell panel allows you to configure alternative
+actions.
+
+\S{config-bellstyle} \q{Set the style of bell}
+
+This control allows you to select various different actions to occur
+on a terminal bell:
+
+\b Selecting \q{None} disables the bell completely. In this mode,
+the server can send as many Control-G characters as it likes and
+nothing at all will happen.
+
+\b \q{Play Windows Default Sound} is the default setting. It causes
+the Windows \q{Default Beep} sound to be played. To change what this
+sound is, or to test it if nothing seems to be happening, use the
+Sound configurer in the Windows Control Panel.
+
+\b \q{Play a custom sound file} allows you to specify a particular
+sound file to be used by PuTTY alone, or even by a particular
+individual PuTTY session. This allows you to distinguish your PuTTY
+beeps from any other beeps on the system. If you select this option,
+you will also need to enter the name of your sound file in the edit
+control \q{Custom sound file to play as a bell}.
+
+\b \q{Visual bell} is a silent alternative to a beeping computer. In
+this mode, when the server sends a Control-G, the whole PuTTY window
+will flash white for a fraction of a second.
+
+\S{config-belltaskbar} \q{Taskbar/caption indication on bell}
+
+This feature controls what happens to the PuTTY window's entry in
+the Windows Taskbar if a bell occurs while the window does not have
+the input focus.
+
+In the default state (\q{Disabled}) nothing unusual happens.
+
+If you select \q{Steady}, then when a bell occurs and the window is
+not in focus, the window's Taskbar entry and its title bar will
+change colour to let you know that PuTTY session is asking for your
+attention. The change of colour will persist until you select the
+window, so you can leave several PuTTY windows minimised in your
+terminal, go away from your keyboard, and be sure not to have missed
+any important beeps when you get back.
+
+\q{Flashing} is even more eye-catching: the Taskbar entry will
+continuously flash on and off until you select the window.
+
+\S{config-bellovl} \q{Control the bell overload behaviour}
+
+A common user error in a terminal session is to accidentally run the
+Unix command \c{cat} (or equivalent) on an inappropriate file type,
+such as an executable, image file, or ZIP file. This produces a huge
+stream of non-text characters sent to the terminal, which typically
+includes a lot of bell characters. As a result of this the terminal
+often doesn't stop beeping for ten minutes, and everybody else in
+the office gets annoyed.
+
+To try to avoid this behaviour, or any other cause of excessive
+beeping, PuTTY includes a bell overload management feature. In the
+default configuration, receiving more than five bell characters in a
+two-second period will cause the overload feature to activate. Once
+the overload feature is active, further bells will have no effect at
+all, so the rest of your binary file will be sent to the screen in
+silence. After a period of five seconds during which no further
+bells are received, the overload feature will turn itself off again
+and bells will be re-enabled.
+
+If you want this feature completely disabled, you can turn it off
+using the checkbox \q{Bell is temporarily disabled when over-used}.
+
+Alternatively, if you like the bell overload feature but don't agree
+with the settings, you can configure the details: how many bells
+constitute an overload, how short a time period they have to arrive
+in to do so, and how much silent time is required before the
+overload feature will deactivate itself.
+
 \H{config-window} The Window panel
 
 The Window configuration panel allows you to control aspects of the
-PuTTY window and its behaviour.
+PuTTY window.
 
 \S{config-winsize} Setting the size of the PuTTY window
 
@@ -558,12 +564,12 @@ The \q{Rows} and \q{Columns} boxes let you set the PuTTY window to a
 precise size. Of course you can also drag the window to a new size
 while a session is running.
 
-\S{config-winsizelock} Locking the size of the PuTTY window
+\S{config-winsizelock} What to do when the window is resized
 
 These options allow you to control what happens when the user tries
 to resize the PuTTY window.
 
-When you resize the PuTTY window, one of three things can happen:
+When you resize the PuTTY window, one of four things can happen:
 
 \b Nothing (if you have completely disabled resizes).
 
@@ -572,6 +578,10 @@ columns in the terminal can change.
 
 \b The number of rows and columns in the terminal can stay the same,
 and the font size can change.
+
+\b You can allow PuTTY to change \e{either} the terminal size or the
+font size. In this mode it will change the terminal size most of the
+time, but enlarge the font when you maximise the window.
 
 You can control which of these happens using the \q{Lock terminal
 size against resizing} and \q{Lock font size against resizing}
@@ -586,9 +596,10 @@ These options let you configure the way PuTTY keeps text after it
 scrolls off the top of the screen (see \k{using-scrollback}).
 
 The \q{Lines of scrollback} box lets you configure how many lines of
-text PuTTY keeps. The \q{Display scrollbar} option allows you to
+text PuTTY keeps. The \q{Display scrollbar} options allow you to
 hide the scrollbar (although you can still view the scrollback using
-Shift-PgUp and Shift-PgDn).
+Shift-PgUp and Shift-PgDn). You can separately configure whether the
+scrollbar is shown in full-screen mode and in normal modes.
 
 If you are viewing part of the scrollback when the server sends more
 text to PuTTY, the screen will revert to showing the current
@@ -597,61 +608,10 @@ terminal contents. You can disable this behaviour by turning off
 screen revert when you press a key, by turning on \q{Reset
 scrollback on keypress}.
 
-\S{config-warnonclose} \q{Warn before closing window}
-
-If you press the Close button in a PuTTY window that contains a
-running session, PuTTY will put up a warning window asking if you
-really meant to close the window. A window whose session has already
-terminated can always be closed without a warning.
-
-If you want to be able to close a window quickly, you can disable
-the \q{Warn before closing window} option.
-
-\S{config-altf4} \q{Window closes on ALT-F4}
-
-By default, pressing ALT-F4 causes the window to close (or a warning
-box to appear; see \k{config-warnonclose}). If you disable the
-\q{Window closes on ALT-F4} option, then pressing ALT-F4 will simply
-send a key sequence to the server.
-
-\S{config-altspace} \q{System menu appears on ALT-Space}
-
-If this option is enabled, then pressing ALT-Space will bring up the
-PuTTY window's menu, like clicking on the top left corner. If it is
-disabled, then pressing ALT-Space will just send \c{ESC SPACE} to
-the server.
-
-Some accessibility programs for Windows may need this option
-enabling to be able to control PuTTY's window successfully. For
-instance, Dragon NaturallySpeaking requires it both to open the
-system menu via voice, and to close, minimise, maximise and restore
-the window.
-
-\S{config-altonly} \q{System menu appears on Alt alone}
-
-If this option is enabled, then pressing and releasing ALT will
-bring up the PuTTY window's menu, like clicking on the top left
-corner. If it is disabled, then pressing and releasing ALT will have
-no effect.
-
-\S{config-alwaysontop} \q{Ensure window is always on top}
-
-If this option is enabled, the PuTTY window will stay on top of all
-other windows.
-
-\S{config-fullscreen} \q{Full screen on Alt-Enter}
-
-If this option is enabled, then pressing Alt-Enter will cause the
-PuTTY window to become full-screen - that is, it will not only
-maximise itself, it will expand so that the title bar goes off the
-top of the screen, and place itself on top of the Windows taskbar,
-so that \e{nothing} is visible on the screen except PuTTY. Pressing
-Alt-Enter again will restore the previous window size.
-
 \H{config-appearance} The Appearance panel
 
 The Appearance configuration panel allows you to control aspects of
-PuTTY's appearance.
+the appearance of PuTTY's window.
 
 \S{config-cursor} Controlling the appearance of the cursor
 
@@ -718,6 +678,59 @@ You can also configure a completely blank gap between the text in
 the window and the border, using the \q{Gap between text and window
 edge} control. By default this is set at one pixel. You can reduce
 it to zero, or increase it further.
+
+\H{config-behaviour} The Behaviour panel
+
+The Behaviour configuration panel allows you to control aspects of
+the behaviour of PuTTY's window.
+
+\S{config-warnonclose} \q{Warn before closing window}
+
+If you press the Close button in a PuTTY window that contains a
+running session, PuTTY will put up a warning window asking if you
+really meant to close the window. A window whose session has already
+terminated can always be closed without a warning.
+
+If you want to be able to close a window quickly, you can disable
+the \q{Warn before closing window} option.
+
+\S{config-altf4} \q{Window closes on ALT-F4}
+
+By default, pressing ALT-F4 causes the window to close (or a warning
+box to appear; see \k{config-warnonclose}). If you disable the
+\q{Window closes on ALT-F4} option, then pressing ALT-F4 will simply
+send a key sequence to the server.
+
+\S{config-altspace} \q{System menu appears on ALT-Space}
+
+If this option is enabled, then pressing ALT-Space will bring up the
+PuTTY window's menu, like clicking on the top left corner. If it is
+disabled, then pressing ALT-Space will just send \c{ESC SPACE} to
+the server.
+
+Some accessibility programs for Windows may need this option
+enabling to be able to control PuTTY's window successfully. For
+instance, Dragon NaturallySpeaking requires it both to open the
+system menu via voice, and to close, minimise, maximise and restore
+the window.
+
+\S{config-altonly} \q{System menu appears on Alt alone}
+
+If this option is enabled, then pressing and releasing ALT will
+bring up the PuTTY window's menu, like clicking on the top left
+corner. If it is disabled, then pressing and releasing ALT will have
+no effect.
+
+\S{config-alwaysontop} \q{Ensure window is always on top}
+
+If this option is enabled, the PuTTY window will stay on top of all
+other windows.
+
+\S{config-fullscreen} \q{Full screen on Alt-Enter}
+
+If this option is enabled, then pressing Alt-Enter will cause the
+PuTTY window to become full-screen. (See \k{using-fullscreen}).
+Pressing Alt-Enter again will restore the previous window size.
 
 \H{config-translation} The Translation panel
 
@@ -817,6 +830,19 @@ they come out mostly as \c{q} and \c{x}, with a scattering of
 trying to recreate the same box layout in another program, for
 example.
 
+\S{config-rtfpaste} Pasting in Rich Text Format
+
+If you enable \q{Paste to clipboard in RTF as well as plain text},
+PuTTY will write formatting information to the clipboard as well as
+the actual text you copy. Currently the only effect of this will be
+that if you paste into (say) a word processor, the text will appear
+in the word processor in the same font PuTTY was using to display
+it. In future it is likely that other formatting information (bold,
+underline, colours) will be copied as well.
+
+This option can easily be inconvenient, so by default it is
+disabled.
+
 \S{config-mouse} Changing the actions of the mouse buttons
 
 PuTTY's copy and paste mechanism is modelled on the Unix \c{xterm}
@@ -851,6 +877,21 @@ applications that do this, but in case someone ever writes one,
 unchecking the \q{Shift overrides application's use of mouse}
 checkbox will cause Shift + mouse clicks to go to the server as well
 (so that mouse-driven copy and paste will be completely disabled).
+
+\S{config-rectselect} Default selection mode
+
+As described in \k{using-selection}, PuTTY has two modes of
+selecting text to be copied to the clipboard. In the default mode
+(\q{Normal}), dragging the mouse from point A to point B selects to
+the end of the line containing A, all the lines in between, and from
+the very beginning of the line containing B. In the other mode
+(\q{Rectangular block}), dragging the mouse between two points
+defines a rectangle, and everything within that rectangle is copied.
+
+Normally, you have to hold down Alt while dragging the mouse to
+select a rectangular block. Using the \q{Default selection mode}
+control, you can set rectangular selection as the default, and then
+you have to hold down Alt to get the \e{normal} behaviour.
 
 \S{config-charclasses} Configuring word-by-word selection
 
@@ -1184,10 +1225,11 @@ to use this option any more.
 
 PuTTY supports a variety of different encryption algorithms, and
 allows you to choose which one you prefer to use. You can do this by
-dragging the algorithms up and down in the list box to specify a
-preference order. When you make an SSH connection, PuTTY will search
-down the list from the top until it finds an algorithm supported by
-the server, and then use that.
+dragging the algorithms up and down in the list box (or moving them
+using the Up and Down buttons) to specify a preference order. When
+you make an SSH connection, PuTTY will search down the list from the
+top until it finds an algorithm supported by the server, and then
+use that.
 
 If the algorithm PuTTY finds is below the \q{warn below here} line,
 you will see a warning box when you make the connection:
@@ -1200,10 +1242,9 @@ you will see a warning box when you make the connection:
 This warns you that the first available encryption is not a very
 secure one. Typically you would put the \q{warn below here} line
 between the encryptions you consider secure and the ones you
-consider substandard.
-
-By default, PuTTY supplies a preference order intended to reflect a
-reasonable preference in terms of security and speed.
+consider substandard. By default, PuTTY supplies a preference order
+intended to reflect a reasonable preference in terms of security and
+speed.
 
 \H{config-ssh-auth} The Auth panel
 

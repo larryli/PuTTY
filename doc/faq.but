@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.11 2001/11/25 16:57:45 simon Exp $
+\versionid $Id: faq.but,v 1.12 2001/11/25 19:22:47 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -556,7 +556,7 @@ try harder to keep connections alive instead of abandoning them.
 \S{faq-puttyputty}{question} When I \cw{cat} a binary file, I get
 `PuTTYPuTTYPuTTY' on my command line.
 
-Don't \cw{cat} binary files, then.
+Don't do that, then.
 
 This is designed behaviour; when PuTTY receives the character
 Control-E from the remote server, it interprets it as a request to
@@ -567,10 +567,15 @@ response. Writing a binary file to your terminal is likely to output
 many Control-E characters, and cause this behaviour. Don't do it.
 It's a bad plan.
 
+To mitigate the effects, you could configure the answerback string
+to be empty (see \k{config-answerback}); but writing binary files to
+your terminal is likely to cause various other unpleasant behaviour,
+so this is only a small remedy.
+
 \S{faq-puttyputty}{question} When I \cw{cat} a binary file, my
 window title changes to a nonsense string.
 
-Don't \cw{cat} binary files, then.
+Don't do that, then.
 
 It is designed behaviour that PuTTY should have the ability to
 adjust the window title on instructions from the server. Normally
