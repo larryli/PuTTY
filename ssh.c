@@ -1541,6 +1541,7 @@ static int ssh2_pkt_getbool(void)
 static void ssh2_pkt_getstring(char **p, int *length)
 {
     *p = NULL;
+    *length = 0;
     if (pktin.length - pktin.savedpos < 4)
 	return;
     *length = GET_32BIT(pktin.data + pktin.savedpos);
@@ -4034,7 +4035,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     static int tried_pubkey_config, tried_agent, tried_keyb_inter;
     static int kbd_inter_running;
     static int we_are_in;
-    static int num_prompts, echo;
+    static int num_prompts, curr_prompt, echo;
     static char username[100];
     static int got_username;
     static char pwprompt[200];
@@ -4235,9 +4236,14 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    if (kbd_inter_running &&
 		pktin.type == SSH2_MSG_USERAUTH_INFO_REQUEST) {
 		/*
-		 * This is a further prompt in keyboard-interactive
-		 * authentication. Do nothing.
+		 * This is either a further set-of-prompts packet
+		 * in keyboard-interactive authentication, or it's
+		 * the same one and we came back here with `gotit'
+		 * set. In the former case, we must reset the
+		 * curr_prompt variable.
 		 */
+		if (!gotit)
+		    curr_prompt = 0;
 	    } else if (pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
 		bombout(("Strange packet received during authentication: type %d",
 			 pktin.type));
@@ -4537,6 +4543,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		}
 
 		kbd_inter_running = TRUE;
+		curr_prompt = 0;
 	    }
 
 	    if (kbd_inter_running) {
@@ -4546,28 +4553,50 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 		ssh_pkt_ctx |= SSH2_PKTCTX_KBDINTER;
 
-		/* We've got packet with that "interactive" info
-		   dump banners, and set its prompt as ours */
-		{
-		    char *name, *inst, *lang, *prompt;
-		    int name_len, inst_len, lang_len, prompt_len;
+		if (curr_prompt == 0) {
+		    /*
+		     * We've got a fresh USERAUTH_INFO_REQUEST.
+		     * Display header data, and start going through
+		     * the prompts.
+		     */
+		    char *name, *inst, *lang;
+		    int name_len, inst_len, lang_len;
+
 		    ssh2_pkt_getstring(&name, &name_len);
 		    ssh2_pkt_getstring(&inst, &inst_len);
 		    ssh2_pkt_getstring(&lang, &lang_len);
-		    if (name_len > 0)
+		    if (name_len > 0) {
 			c_write_untrusted(name, name_len);
-		    if (inst_len > 0)
+			c_write_str("\n");
+		    }
+		    if (inst_len > 0) {
 			c_write_untrusted(inst, inst_len);
+			c_write_str("\n");
+		    }
 		    num_prompts = ssh2_pkt_getuint32();
+		}
+
+		/*
+		 * If there are prompts remaining in the packet,
+		 * display one and get a response.
+		 */
+		if (curr_prompt < num_prompts) {
+		    char *prompt;
+		    int prompt_len;
 
 		    ssh2_pkt_getstring(&prompt, &prompt_len);
-		    strncpy(pwprompt, prompt, sizeof(pwprompt));
-		    pwprompt[prompt_len < sizeof(pwprompt) ?
-			     prompt_len : sizeof(pwprompt)-1] = '\0';
-		    need_pw = TRUE;
-
+		    if (prompt_len > 0) {
+			strncpy(pwprompt, prompt, sizeof(pwprompt));
+			pwprompt[prompt_len < sizeof(pwprompt) ?
+				 prompt_len : sizeof(pwprompt)-1] = '\0';
+		    } else {
+			strcpy(pwprompt,
+			       "<server failed to send prompt>: ");
+		    }
 		    echo = ssh2_pkt_getbool();
-		}
+		    need_pw = TRUE;
+		} else
+		    need_pw = FALSE;
 	    }
 
 	    if (!method && can_passwd) {
@@ -4763,11 +4792,28 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		logevent("Sent password");
 		type = AUTH_TYPE_PASSWORD;
 	    } else if (method == AUTH_KEYBOARD_INTERACTIVE) {
-                ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
-                ssh2_pkt_adduint32(num_prompts);
-                ssh2_pkt_addstring(password);
-                memset(password, 0, sizeof(password));
-                ssh2_pkt_send();
+		if (curr_prompt == 0) {
+		    ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
+		    ssh2_pkt_adduint32(num_prompts);
+		}
+		if (need_pw) {	       /* only add pw if we just got one! */
+		    ssh2_pkt_addstring(password);
+		    memset(password, 0, sizeof(password));
+		    curr_prompt++;
+		}
+		if (curr_prompt >= num_prompts) {
+		    ssh2_pkt_send();
+		} else {
+		    /*
+		     * If there are prompts remaining, we set
+		     * `gotit' so that we won't attempt to get
+		     * another packet. Then we go back round the
+		     * loop and will end up retrieving another
+		     * prompt out of the existing packet. Funky or
+		     * what?
+		     */
+		    gotit = TRUE;
+		}
 		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 	    } else {
 		c_write_str
