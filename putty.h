@@ -109,6 +109,9 @@ GLOBAL int session_closed;
 
 GLOBAL int big_cursor;
 
+GLOBAL char *help_path;
+GLOBAL int help_has_contents;
+
 GLOBAL int utf;
 GLOBAL int dbcs_screenfont;
 GLOBAL int font_codepage;

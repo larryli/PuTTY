@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.16 2001/11/29 22:32:37 simon Exp $
+\versionid $Id: config.but,v 1.17 2001/12/06 13:28:02 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -15,6 +15,8 @@ to specify in order to open a session at all, and also allows you to
 save your settings to be reloaded later.
 
 \S{config-hostname} The host name section
+
+\cfg{winhelp-topic}{session.hostname}
 
 The top box on the Session panel, labelled \q{Specify your
 connection by host name}, contains the details that need to be
@@ -35,6 +37,8 @@ change it if you have an unusual server. If you select Raw mode, you
 will almost certainly need to fill in the \q{Port} box.
 
 \S{config-saving} Loading and storing saved sessions
+
+\cfg{winhelp-topic}{session.saved}
 
 The next part of the Session configuration panel allows you to save
 your preferred PuTTY options so they will appear automatically the
@@ -86,6 +90,8 @@ Settings, you must also update every saved session separately.
 
 \S{config-closeonexit} \q{Close Window on Exit}
 
+\cfg{winhelp-topic}{session.coe}
+
 Finally in the Session panel, there is an option labelled \q{Close
 Window on Exit}. This controls whether the PuTTY session window
 disappears as soon as the session inside it terminates. If you are
@@ -101,6 +107,8 @@ aborted unexpectedly by network trouble or a confusing message from
 the server will leave the window up.
 
 \H{config-logging} The Logging panel
+
+\cfg{winhelp-topic}{logging.main}
 
 The Logging configuration panel allows you to save log files of your
 PuTTY sessions, for debugging, analysis or future reference.
@@ -128,6 +136,8 @@ else can replay the session later in slow motion and watch to see
 what went wrong.
 
 \S{config-logfilename} \q{Log file name}
+
+\cfg{winhelp-topic}{logging.filename}
 
 In this edit box you enter the name of the file you want to log the
 session to. The \q{Browse} button will let you look around your file
@@ -161,6 +171,8 @@ like
 
 \S{config-logfileexists} \q{What to do if the log file already exists}
 
+\cfg{winhelp-topic}{logging.exists}
+
 This control allows you to specify what PuTTY should do if it tries
 to start writing to a log file and it finds the file already exists.
 You might want to automatically destroy the existing log file and
@@ -176,6 +188,8 @@ The Terminal configuration panel allows you to control the behaviour
 of PuTTY's terminal emulation.
 
 \S{config-autowrap} \q{Auto wrap mode initially on}
+
+\cfg{winhelp-topic}{terminal.autowrap}
 
 Auto wrap mode controls what happens when text printed in a PuTTY
 window reaches the right-hand edge of the window.
@@ -197,6 +211,8 @@ Settings}, you will need to reset the terminal \#{ FIXME } before
 the change takes effect.
 
 \S{config-decom} \q{DEC Origin Mode initially on}
+
+\cfg{winhelp-topic}{terminal.decom}
 
 DEC Origin Mode is a minor option which controls how PuTTY
 interprets cursor-position control sequences sent by the server.
@@ -225,6 +241,8 @@ the change takes effect.
 
 \S{config-crlf} \q{Implicit CR in every LF}
 
+\cfg{winhelp-topic}{terminal.lfhascr}
+
 Most servers send two control characters, CR and LF, to start a new
 line of the screen. The CR character makes the cursor return to the
 left-hand side of the screen. The LF character makes the cursor move
@@ -248,6 +266,8 @@ option, and things might go back to normal:
 
 \S{config-erase} \q{Use background colour to erase screen}
 
+\cfg{winhelp-topic}{terminal.bce}
+
 Not all terminals agree on what colour to turn the screen when the
 server sends a \q{clear screen} sequence. Some terminals believe the
 screen should always be cleared to the \e{default} background
@@ -263,17 +283,23 @@ the \e{current} background colour.
 
 \S{config-blink} \q{Enable blinking text}
 
+\cfg{winhelp-topic}{terminal.blink}
+
 The server can ask PuTTY to display text that blinks on and off.
 This is very distracting, so PuTTY allows you to turn blinking text
 off completely.
 
 \S{config-answerback} \q{Answerback to ^E}
 
+\cfg{winhelp-topic}{terminal.answerback}
+
 This option controls what PuTTY will send back to the server if the
 server sends it the ^E enquiry character. Normally it just sends
 the string \q{PuTTY}.
 
 \S{config-localecho} \q{Local echo}
+
+\cfg{winhelp-topic}{terminal.localecho}
 
 With local echo disabled, characters you type into the PuTTY window
 are not echoed in the window \e{by PuTTY}. They are simply sent to
@@ -289,6 +315,8 @@ echo to be turned on, or force it to be turned off, instead of
 relying on the automatic detection.
 
 \S{config-localedit} \q{Local line editing}
+
+\cfg{winhelp-topic}{terminal.localedit}
 
 Normally, every character you type into the PuTTY window is sent
 immediately to the server the moment you type it.
@@ -321,6 +349,8 @@ of the keyboard in PuTTY.
 
 \S{config-backspace} Changing the action of the Backspace key
 
+\cfg{winhelp-topic}{keyboard.backspace}
+
 Some terminals believe that the Backspace key should send the same
 thing to the server as Control-H (ASCII code 8). Other terminals
 believe that the Backspace key should send ASCII code 127 (usually
@@ -341,6 +371,8 @@ help.
 
 \S{config-homeend} Changing the action of the Home and End keys
 
+\cfg{winhelp-topic}{keyboard.homeend}
+
 The Unix terminal emulator \c{rxvt} disagrees with the rest of the
 world about what character sequences should be sent to the server by
 the Home and End keys.
@@ -353,6 +385,8 @@ If you find an application on which the Home and End keys aren't
 working, you could try switching this option to see if it helps.
 
 \S{config-funkeys} Changing the action of the function keys and keypad
+
+\cfg{winhelp-topic}{keyboard.funkeys}
 
 This option affects the function keys (F1 to F12) and the top row of
 the numeric keypad.
@@ -388,6 +422,8 @@ fiddle with it.
 
 \S{config-appcursor} Controlling Application Cursor Keys mode
 
+\cfg{winhelp-topic}{keyboard.appcursor}
+
 Application Cursor Keys mode is a way for the server to change the
 control sequences sent by the arrow keys. In normal mode, the arrow
 keys send \c{ESC [A} through to \c{ESC [D}. In application mode,
@@ -399,6 +435,8 @@ initial state, and also allows you to disable application mode
 completely.
 
 \S{config-appkeypad} Controlling Application Keypad mode
+
+\cfg{winhelp-topic}{keyboard.appkeypad}
 
 Application Keypad mode is a way for the server to change the
 behaviour of the numeric keypad.
@@ -423,6 +461,8 @@ completely.
 
 \S{config-nethack} Using NetHack keypad mode
 
+\cfg{winhelp-topic}{keyboard.nethack}
+
 PuTTY has a special mode for playing NetHack. You can enable it by
 selecting \q{NetHack} in the \q{Initial state of numeric keypad}
 control.
@@ -441,6 +481,8 @@ on. We don't know why.
 
 \S{config-compose} Enabling a DEC-like Compose key
 
+\cfg{winhelp-topic}{keyboard.compose}
+
 DEC terminals have a Compose key, which provides an easy-to-remember
 way of typing accented characters. You press Compose and then type
 two more characters. The two characters are \q{combined} to produce
@@ -453,6 +495,8 @@ option, the Windows Application key and the AltGr key will both have
 this behaviour.
 
 \S{config-ctrlalt} \q{Control-Alt is different from AltGr}
+
+\cfg{winhelp-topic}{keyboard.ctrlalt}
 
 Some old keyboards do not have an AltGr key, which can make it
 difficult to type some characters. PuTTY can be configured to treat
@@ -482,6 +526,8 @@ actions.
 
 \S{config-bellstyle} \q{Set the style of bell}
 
+\cfg{winhelp-topic}{bell.style}
+
 This control allows you to select various different actions to occur
 on a terminal bell:
 
@@ -507,6 +553,8 @@ will flash white for a fraction of a second.
 
 \S{config-belltaskbar} \q{Taskbar/caption indication on bell}
 
+\cfg{winhelp-topic}{bell.taskbar}
+
 This feature controls what happens to the PuTTY window's entry in
 the Windows Taskbar if a bell occurs while the window does not have
 the input focus.
@@ -525,6 +573,8 @@ any important beeps when you get back.
 continuously flash on and off until you select the window.
 
 \S{config-bellovl} \q{Control the bell overload behaviour}
+
+\cfg{winhelp-topic}{bell.overload}
 
 A common user error in a terminal session is to accidentally run the
 Unix command \c{cat} (or equivalent) on an inappropriate file type,
@@ -560,11 +610,15 @@ PuTTY window.
 
 \S{config-winsize} Setting the size of the PuTTY window
 
+\cfg{winhelp-topic}{window.size}
+
 The \q{Rows} and \q{Columns} boxes let you set the PuTTY window to a
 precise size. Of course you can also drag the window to a new size
 while a session is running.
 
 \S{config-winsizelock} What to do when the window is resized
+
+\cfg{winhelp-topic}{window.resize}
 
 These options allow you to control what happens when the user tries
 to resize the PuTTY window.
@@ -592,6 +646,8 @@ terminal size will change when you resize the window.
 
 \S{config-scrollback} Controlling scrollback
 
+\cfg{winhelp-topic}{window.scrollback}
+
 These options let you configure the way PuTTY keeps text after it
 scrolls off the top of the screen (see \k{using-scrollback}).
 
@@ -615,6 +671,8 @@ the appearance of PuTTY's window.
 
 \S{config-cursor} Controlling the appearance of the cursor
 
+\cfg{winhelp-topic}{appearance.cursor}
+
 The \q{Cursor appearance} option lets you configure the cursor to be
 a block, an underline, or a vertical line. A block cursor becomes an
 empty box when the window loses focus; an underline or a vertical
@@ -625,6 +683,8 @@ works in any of the cursor modes.
 
 \S{config-font} Controlling the font used in the terminal window
 
+\cfg{winhelp-topic}{appearance.font}
+
 This option allows you to choose what font, in what size, the PuTTY
 terminal window uses to display the text in the session. You will be
 offered a choice from all the fixed-width fonts installed on the
@@ -632,6 +692,8 @@ system. (VT100-style terminal handling can only deal with fixed-
 width fonts.)
 
 \S{config-title} Controlling the window title
+
+\cfg{winhelp-topic}{appearance.title}
 
 The \q{Window title} edit box allows you to set the title of the
 PuTTY window. By default the window title will contain the host name
@@ -655,6 +717,8 @@ titles the server sends it.
 
 \S{config-mouseptr} \q{Hide mouse pointer when typing in window}
 
+\cfg{winhelp-topic}{appearance.hidemouse}
+
 If you enable this option, the mouse pointer will disappear if the
 PuTTY window is selected and you press a key. This way, it will not
 obscure any of the text in the window while you work in your
@@ -664,6 +728,8 @@ This option is disabled by default, so the mouse pointer remains
 visible at all times.
 
 \S{config-winborder} Controlling the window border
+
+\cfg{winhelp-topic}{appearance.border}
 
 PuTTY allows you to configure the appearance of the window border to
 some extent.
@@ -686,6 +752,8 @@ the behaviour of PuTTY's window.
 
 \S{config-warnonclose} \q{Warn before closing window}
 
+\cfg{winhelp-topic}{behaviour.closewarn}
+
 If you press the Close button in a PuTTY window that contains a
 running session, PuTTY will put up a warning window asking if you
 really meant to close the window. A window whose session has already
@@ -696,12 +764,16 @@ the \q{Warn before closing window} option.
 
 \S{config-altf4} \q{Window closes on ALT-F4}
 
+\cfg{winhelp-topic}{behaviour.altf4}
+
 By default, pressing ALT-F4 causes the window to close (or a warning
 box to appear; see \k{config-warnonclose}). If you disable the
 \q{Window closes on ALT-F4} option, then pressing ALT-F4 will simply
 send a key sequence to the server.
 
 \S{config-altspace} \q{System menu appears on ALT-Space}
+
+\cfg{winhelp-topic}{behaviour.altspace}
 
 If this option is enabled, then pressing ALT-Space will bring up the
 PuTTY window's menu, like clicking on the top left corner. If it is
@@ -716,6 +788,8 @@ the window.
 
 \S{config-altonly} \q{System menu appears on Alt alone}
 
+\cfg{winhelp-topic}{behaviour.altonly}
+
 If this option is enabled, then pressing and releasing ALT will
 bring up the PuTTY window's menu, like clicking on the top left
 corner. If it is disabled, then pressing and releasing ALT will have
@@ -723,10 +797,14 @@ no effect.
 
 \S{config-alwaysontop} \q{Ensure window is always on top}
 
+\cfg{winhelp-topic}{behaviour.alwaysontop}
+
 If this option is enabled, the PuTTY window will stay on top of all
 other windows.
 
 \S{config-fullscreen} \q{Full screen on Alt-Enter}
+
+\cfg{winhelp-topic}{behaviour.altenter}
 
 If this option is enabled, then pressing Alt-Enter will cause the
 PuTTY window to become full-screen. (See \k{using-fullscreen}).
@@ -739,6 +817,8 @@ translation between the character set understood by the server and
 the character set understood by PuTTY.
 
 \S{config-charset} Controlling character set translation
+
+\cfg{winhelp-topic}{translation.codepage}
 
 During an interactive session, PuTTY receives a stream of 8-bit
 bytes from the server, and in order to display them on the screen it
@@ -771,6 +851,8 @@ Not all server-side applications will support it.
 
 \S{config-cyr} \q{Caps Lock acts as Cyrillic switch}
 
+\cfg{winhelp-topic}{translation.cyrillic}
+
 This feature allows you to switch between a US/UK keyboard layout
 and a Cyrillic keyboard layout by using the Caps Lock key, if you
 need to type (for example) Russian and English side by side in the
@@ -780,6 +862,8 @@ Currently this feature is not expected to work properly if your
 native keyboard layout is not US or UK.
 
 \S{config-linedraw} Controlling display of line drawing characters
+
+\cfg{winhelp-topic}{translation.linedraw}
 
 VT100-series terminals allow the server to send control sequences
 that shift temporarily into a separate character set for drawing
@@ -819,6 +903,8 @@ work in the PuTTY window.
 \S{config-linedrawpaste} Controlling the pasting of line drawing
 characters
 
+\cfg{winhelp-topic}{selection.linedraw}
+
 By default, when you copy and paste a piece of the PuTTY screen that
 contains VT100 line and box drawing characters, PuTTY will translate
 them into the \q{poor man's} line-drawing characters \c{+}, \c{-}
@@ -832,6 +918,8 @@ example.
 
 \S{config-rtfpaste} Pasting in Rich Text Format
 
+\cfg{winhelp-topic}{selection.rtf}
+
 If you enable \q{Paste to clipboard in RTF as well as plain text},
 PuTTY will write formatting information to the clipboard as well as
 the actual text you copy. Currently the only effect of this will be
@@ -844,6 +932,8 @@ This option can easily be inconvenient, so by default it is
 disabled.
 
 \S{config-mouse} Changing the actions of the mouse buttons
+
+\cfg{winhelp-topic}{selection.buttons}
 
 PuTTY's copy and paste mechanism is modelled on the Unix \c{xterm}
 application. The X Window System uses a three-button mouse, and the
@@ -859,6 +949,8 @@ If you have a three-button mouse and you are already used to the
 mouse buttons} control.
 
 \S{config-mouseshift} \q{Shift overrides application's use of mouse}
+
+\cfg{winhelp-topic}{selection.shiftdrag}
 
 PuTTY allows the server to send control codes that let it take over
 the mouse and use it for purposes other than copy and paste.
@@ -880,6 +972,8 @@ checkbox will cause Shift + mouse clicks to go to the server as well
 
 \S{config-rectselect} Default selection mode
 
+\cfg{winhelp-topic}{selection.rect}
+
 As described in \k{using-selection}, PuTTY has two modes of
 selecting text to be copied to the clipboard. In the default mode
 (\q{Normal}), dragging the mouse from point A to point B selects to
@@ -894,6 +988,8 @@ control, you can set rectangular selection as the default, and then
 you have to hold down Alt to get the \e{normal} behaviour.
 
 \S{config-charclasses} Configuring word-by-word selection
+
+\cfg{winhelp-topic}{selection.charclasses}
 
 PuTTY will select a word at a time in the terminal window if you
 double-click to begin the drag. This panel allows you to control
@@ -932,6 +1028,8 @@ The Colours panel allows you to control PuTTY's use of colour.
 
 \S{config-boldcolour} \q{Bolded text is a different colour}
 
+\cfg{winhelp-topic}{colours.bold}
+
 When the server sends a control sequence indicating that some text
 should be displayed in bold, PuTTY can handle this two ways. It can
 either change the font for a bold version, or use the same font in a
@@ -945,6 +1043,8 @@ change to indicate the difference.
 
 \S{config-logpalette} \q{Attempt to use logical palettes}
 
+\cfg{winhelp-topic}{colours.logpal}
+
 Logical palettes are a mechanism by which a Windows application
 running on an 8-bit colour display can select precisely the colours
 it wants instead of going with the Windows standard defaults.
@@ -954,6 +1054,8 @@ you can try enabling this option. However, be warned that it's never
 worked very well.
 
 \S{config-colourcfg} Adjusting the colours in the terminal window
+
+\cfg{winhelp-topic}{colours.config}
 
 The main colour control allows you to specify exactly what colours
 things should be displayed in. To modify one of the PuTTY colours,
@@ -977,6 +1079,8 @@ more than one type of connection.
 
 \S{config-termtype} \q{Terminal-type string}
 
+\cfg{winhelp-topic}{connection.termtype}
+
 Most servers you might connect to with PuTTY are designed to be
 connected to from lots of different types of terminal. In order to
 send the right control sequences to each one, the server will need
@@ -996,6 +1100,8 @@ application or your server.
 
 \S{config-username} \q{Auto-login username}
 
+\cfg{winhelp-topic}{connection.username}
+
 All three of the SSH, Telnet and Rlogin protocols allow you to
 specify what user name you want to log in as, without having to type
 it explicitly every time. (Some Telnet servers don't support this.)
@@ -1003,6 +1109,8 @@ it explicitly every time. (Some Telnet servers don't support this.)
 In this box you can type that user name.
 
 \S{config-keepalive} Using keepalives to prevent disconnection
+
+\cfg{winhelp-topic}{connection.keepalive}
 
 If you find your sessions are closing unexpectedly (\q{Connection
 reset by peer}) after they have been idle for a while, you might
@@ -1048,6 +1156,8 @@ protocols offer no way of implementing them.
 
 \S{config-nodelay} \q{Disable Nagle's algorithm}
 
+\cfg{winhelp-topic}{connection.nodelay}
+
 Nagle's algorithm is a detail of TCP/IP implementations that tries
 to minimise the number of small data packets sent down a network
 connection. With Nagle's algorithm enabled, PuTTY's bandwidth usage
@@ -1064,12 +1174,16 @@ Telnet sessions.
 
 \S{config-termspeed} \q{Terminal-speed string}
 
+\cfg{winhelp-topic}{telnet.termspeed}
+
 Telnet allows the client to send a text string that describes the
 terminal speed. PuTTY lets you configure this, in case you find the
 server is reacting badly to the default value. (I'm not aware of any
 servers that do have a problem with it.)
 
 \S{config-environ} Setting environment variables on the server
+
+\cfg{winhelp-topic}{telnet.environ}
 
 The Telnet protocol also provides a means for the client to pass
 environment variables to the server. Many Telnet servers have
@@ -1085,6 +1199,8 @@ To remove one from the list, select it in the list box and press
 \q{Remove}.
 
 \S{config-oldenviron} \q{Handling of OLD_ENVIRON ambiguity}
+
+\cfg{winhelp-topic}{telnet.oldenviron}
 
 The original Telnet mechanism for passing environment variables was
 badly specified. At the time the standard (RFC 1408) was written,
@@ -1107,6 +1223,8 @@ unambiguous. This feature should only be needed if you have trouble
 passing environment variables to quite an old server.
 
 \S{config-ptelnet} Passive and active Telnet negotiation modes
+
+\cfg{winhelp-topic}{telnet.passive}
 
 In a Telnet connection, there are two types of data passed between
 the client and the server: actual text, and \e{negotiations} about
@@ -1131,6 +1249,8 @@ passive mode to see if it helps.
 
 \S{config-telnetkey} \q{Keyboard sends telnet Backspace and Interrupt}
 
+\cfg{winhelp-topic}{telnet.specialkeys}
+
 If this box is checked, the Backspace key on the keyboard will send
 the Telnet special backspace code, and Control-C will send the
 Telnet special interrupt code. You probably shouldn't enable this
@@ -1143,12 +1263,16 @@ Rlogin sessions.
 
 \S{config-rlogin-termspeed} \q{Terminal-speed string}
 
+\cfg{winhelp-topic}{rlogin.termspeed}
+
 Like Telnet, Rlogin allows the client to send a text string that
 describes the terminal speed. PuTTY lets you configure this, in case
 you find the server is reacting badly to the default value. (I'm not
 aware of any servers that do have a problem with it.)
 
 \S{config-rlogin-localuser} \q{Local username}
+
+\cfg{winhelp-topic}{rlogin.localuser}
 
 Rlogin allows an automated (password-free) form of login by means of
 a file called \c{.rhosts} on the server. You put a line in your
@@ -1186,12 +1310,16 @@ SSH sessions.
 
 \S{config-command} Executing a specific command on the server
 
+\cfg{winhelp-topic}{ssh.command}
+
 In SSH, you don't have to run a general shell session on the server.
 Instead, you can choose to run a single specific command (such as a
 mail user agent, for example). If you want to do this, enter the
 command in the \q{Remote command} box.
 
 \S{config-ssh-pty} \q{Don't allocate a pseudo-terminal}
+
+\cfg{winhelp-topic}{ssh.nopty}
 
 When connecting to a Unix system, most interactive shell sessions
 are run in a \e{pseudo-terminal}, which allows the Unix system to
@@ -1206,6 +1334,8 @@ the usual way of working.
 
 \S{config-ssh-comp} \q{Enable compression}
 
+\cfg{winhelp-topic}{ssh.compress}
+
 This enables data compression in the SSH connection: data sent by
 the server is compressed before sending, and decompressed at the
 client end. Likewise, data sent by PuTTY to the server is compressed
@@ -1214,6 +1344,8 @@ make the most of a low-bandwidth connection.
 
 \S{config-ssh-prot} \q{Preferred SSH protocol version}
 
+\cfg{winhelp-topic}{ssh.protocol}
+
 This allows you to select whether you would like to use SSH protocol
 version 1 or version 2. \#{FIXME: say something about this elsewhere?}
 
@@ -1221,6 +1353,8 @@ PuTTY will attempt to use protocol 1 if the server you connect to
 does not offer protocol 2, and vice versa.
 
 \S{config-ssh-macbug} \q{Imitate SSH 2 MAC bug}
+
+\cfg{winhelp-topic}{ssh.buggymac}
 
 This option \e{should} now be unnecessary. It existed in order to
 work around a bug in early versions (2.3.0 and below) of the SSH
@@ -1233,6 +1367,8 @@ enable the bug compatibility automatically, so you should never need
 to use this option any more.
 
 \S{config-ssh-encryption} Encryption algorithm selection
+
+\cfg{winhelp-topic}{ssh.ciphers}
 
 PuTTY supports a variety of different encryption algorithms, and
 allows you to choose which one you prefer to use. You can do this by
@@ -1271,6 +1407,8 @@ SSH sessions.
 
 \S{config-ssh-tis} \q{Attempt TIS or CryptoCard authentication}
 
+\cfg{winhelp-topic}{ssh.auth.tis}
+
 TIS and CryptoCard authentication are simple challenge/response
 forms of authentication available in SSH protocol version 1 only.
 You might use them if you were using S/Key one-time passwords, for
@@ -1287,6 +1425,8 @@ responses take.
 
 \S{config-ssh-tis} \q{Attempt keyboard-interactive authentication}
 
+\cfg{winhelp-topic}{ssh.auth.ki}
+
 The SSH 2 equivalent of TIS authentication is called
 \q{keyboard-interactive}. It is a flexible authentication method
 using an arbitrary sequence of requests and responses; so it is not
@@ -1299,6 +1439,8 @@ to turn it off in case you should have trouble with it.
 
 \S{config-ssh-agentfwd} \q{Allow agent forwarding}
 
+\cfg{winhelp-topic}{ssh.auth.agentfwd}
+
 This option allows the SSH server to open forwarded connections back
 to your local copy of Pageant. If you are not running Pageant, this
 option will do nothing.
@@ -1310,6 +1452,8 @@ there is a security risk involved with enabling this option; see
 
 \S{config-ssh-privkey} \q{Private key file for authentication}
 
+\cfg{winhelp-topic}{ssh.auth.privkey}
+
 This box is where you enter the name of your private key file if you
 are using public key authentication. See \k{pubkey} for information
 about public key authentication in SSH.
@@ -1320,6 +1464,8 @@ The Tunnels panel allows you to configure tunnelling of other
 connection types through an SSH connection.
 
 \S{config-ssh-x11} X11 forwarding
+
+\cfg{winhelp-topic}{ssh.tunnels.x11}
 
 If your server lets you run X Window System applications, X11
 forwarding allows you to securely give those applications access to
@@ -1337,6 +1483,8 @@ display location} box.
 \# FIXME: perhaps link to some more general X forwarding info?
 
 \S{config-ssh-portfwd} Port forwarding
+
+\cfg{winhelp-topic}{ssh.tunnels.portfwd}
 
 Port forwarding allows you to tunnel other types of network
 connection down an SSH connection.

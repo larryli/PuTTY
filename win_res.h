@@ -24,7 +24,7 @@
 #define IDC_TABSTATIC1  1002
 #define IDC_TABSTATIC2  1003
 #define IDC_TABLIST     1004
-#define IDC_ABOUT       1005
-#define IDC_SUBDLG      1006
+#define IDC_HELPBTN     1005
+#define IDC_ABOUT       1006
 
 #endif

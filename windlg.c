@@ -17,6 +17,7 @@ static int nevents = 0, negsize = 0;
 
 static int readytogo;
 static int sesslist_has_focus;
+static int requested_help;
 
 static struct prefslist cipherlist;
 
@@ -295,7 +296,6 @@ enum { IDCX_ABOUT =
     IDC_CURAPPLIC,
     IDC_COMPOSEKEY,
     IDC_CTRLALTKEYS,
-    IDC_TELNETKEY,
     keyboardpanelend,
 
     terminalpanelstart,
@@ -435,6 +435,7 @@ enum { IDCX_ABOUT =
     IDC_ACTSTATIC,
     IDC_TPASSIVE,
     IDC_TACTIVE,
+    IDC_TELNETKEY,
     telnetpanelend,
 
     rloginpanelstart,
@@ -588,6 +589,325 @@ static void fmtfont(char *buf)
     else
 	sprintf(buf + strlen(buf), "%d-point",
 		(cfg.fontheight < 0 ? -cfg.fontheight : cfg.fontheight));
+}
+
+char *help_context_cmd(int id)
+{
+    switch (id) {
+      case IDC_HOSTSTATIC:
+      case IDC_HOST:
+      case IDC_PORTSTATIC:
+      case IDC_PORT:
+      case IDC_PROTSTATIC:
+      case IDC_PROTRAW:
+      case IDC_PROTTELNET:
+      case IDC_PROTRLOGIN:
+      case IDC_PROTSSH:
+        return "JI(`',`session.hostname')";
+      case IDC_SESSSTATIC:
+      case IDC_SESSEDIT:
+      case IDC_SESSLIST:
+      case IDC_SESSLOAD:
+      case IDC_SESSSAVE:
+      case IDC_SESSDEL:
+        return "JI(`',`session.saved')";
+      case IDC_CLOSEEXIT:
+      case IDC_COEALWAYS:
+      case IDC_COENEVER:
+      case IDC_COENORMAL:
+        return "JI(`',`session.coe')";
+      case IDC_LSTATSTATIC:
+      case IDC_LSTATOFF:
+      case IDC_LSTATASCII:
+      case IDC_LSTATRAW:
+        return "JI(`',`logging.main')";
+      case IDC_LGFSTATIC:
+      case IDC_LGFEDIT:
+      case IDC_LGFBUTTON:
+      case IDC_LGFEXPLAIN:
+        return "JI(`',`logging.filename')";
+      case IDC_LSTATXIST:
+      case IDC_LSTATXOVR:
+      case IDC_LSTATXAPN:
+      case IDC_LSTATXASK:
+        return "JI(`',`logging.exists')";
+
+      case IDC_DELSTATIC:
+      case IDC_DEL008:
+      case IDC_DEL127:
+        return "JI(`',`keyboard.backspace')";
+      case IDC_HOMESTATIC:
+      case IDC_HOMETILDE:
+      case IDC_HOMERXVT:
+        return "JI(`',`keyboard.homeend')";
+      case IDC_FUNCSTATIC:
+      case IDC_FUNCTILDE:
+      case IDC_FUNCLINUX:
+      case IDC_FUNCXTERM:
+      case IDC_FUNCVT400:
+      case IDC_FUNCVT100P:
+      case IDC_FUNCSCO:
+        return "JI(`',`keyboard.funkeys')";
+      case IDC_KPSTATIC:
+      case IDC_KPNORMAL:
+      case IDC_KPAPPLIC:
+      case IDC_NOAPPLICK:
+        return "JI(`',`keyboard.appkeypad')";
+      case IDC_NOAPPLICC:
+      case IDC_CURSTATIC:
+      case IDC_CURNORMAL:
+      case IDC_CURAPPLIC:
+        return "JI(`',`keyboard.appcursor')";
+      case IDC_KPNH:
+        return "JI(`',`keyboard.nethack')";
+      case IDC_COMPOSEKEY:
+        return "JI(`',`keyboard.compose')";
+      case IDC_CTRLALTKEYS:
+        return "JI(`',`keyboard.ctrlalt')";
+
+      case IDC_WRAPMODE:
+        return "JI(`',`terminal.autowrap')";
+      case IDC_DECOM:
+        return "JI(`',`terminal.decom')";
+      case IDC_LFHASCR:
+        return "JI(`',`terminal.lfhascr')";
+      case IDC_BCE:
+        return "JI(`',`terminal.bce')";
+      case IDC_BLINKTEXT:
+        return "JI(`',`terminal.blink')";
+      case IDC_ANSWERBACK:
+      case IDC_ANSWEREDIT:
+        return "JI(`',`terminal.answerback')";
+      case IDC_ECHOSTATIC:
+      case IDC_ECHOBACKEND:
+      case IDC_ECHOYES:
+      case IDC_ECHONO:
+        return "JI(`',`terminal.localecho')";
+      case IDC_EDITSTATIC:
+      case IDC_EDITBACKEND:
+      case IDC_EDITYES:
+      case IDC_EDITNO:
+        return "JI(`',`terminal.localedit')";
+
+      case IDC_BELLSTATIC:
+      case IDC_BELL_DISABLED:
+      case IDC_BELL_DEFAULT:
+      case IDC_BELL_WAVEFILE:
+      case IDC_BELL_VISUAL:
+      case IDC_BELL_WAVESTATIC:
+      case IDC_BELL_WAVEEDIT:
+      case IDC_BELL_WAVEBROWSE:
+        return "JI(`',`bell.style')";
+      case IDC_B_IND_STATIC:
+      case IDC_B_IND_DISABLED:
+      case IDC_B_IND_FLASH:
+      case IDC_B_IND_STEADY:
+        return "JI(`',`bell.taskbar')";
+      case IDC_BELLOVL:
+      case IDC_BELLOVLNSTATIC:
+      case IDC_BELLOVLN:
+      case IDC_BELLOVLTSTATIC:
+      case IDC_BELLOVLT:
+      case IDC_BELLOVLEXPLAIN:
+      case IDC_BELLOVLSSTATIC:
+      case IDC_BELLOVLS:
+        return "JI(`',`bell.overload')";
+
+      case IDC_ROWSSTATIC:
+      case IDC_ROWSEDIT:
+      case IDC_COLSSTATIC:
+      case IDC_COLSEDIT:
+        return "JI(`',`window.size')";
+      case IDC_RESIZESTATIC:
+      case IDC_RESIZETERM:
+      case IDC_RESIZEFONT:
+      case IDC_RESIZENONE:
+      case IDC_RESIZEEITHER:
+        return "JI(`',`window.resize')";
+      case IDC_SCROLLBAR:
+      case IDC_SCROLLBARFULLSCREEN:
+      case IDC_SAVESTATIC:
+      case IDC_SAVEEDIT:
+      case IDC_SCROLLKEY:
+      case IDC_SCROLLDISP:
+        return "JI(`',`window.scrollback')";
+
+      case IDC_CLOSEWARN:
+        return "JI(`',`behaviour.closewarn')";
+      case IDC_ALTF4:
+        return "JI(`',`behaviour.altf4')";
+      case IDC_ALTSPACE:
+        return "JI(`',`behaviour.altspace')";
+      case IDC_ALTONLY:
+        return "JI(`',`behaviour.altonly')";
+      case IDC_ALWAYSONTOP:
+        return "JI(`',`behaviour.alwaysontop')";
+      case IDC_FULLSCREENONALTENTER:
+        return "JI(`',`behaviour.altenter')";
+
+      case IDC_CURSORSTATIC:
+      case IDC_CURBLOCK:
+      case IDC_CURUNDER:
+      case IDC_CURVERT:
+      case IDC_BLINKCUR:
+        return "JI(`',`appearance.cursor')";
+      case IDC_FONTSTATIC:
+      case IDC_CHOOSEFONT:
+        return "JI(`',`appearance.font')";
+      case IDC_WINTITLE:
+      case IDC_WINEDIT:
+      case IDC_WINNAME:
+        return "JI(`',`appearance.title')";
+      case IDC_HIDEMOUSE:
+        return "JI(`',`appearance.hidemouse')";
+      case IDC_SUNKENEDGE:
+      case IDC_WINBSTATIC:
+      case IDC_WINBEDIT:
+        return "JI(`',`appearance.border')";
+
+      case IDC_TTSTATIC:
+      case IDC_TTEDIT:
+        return "JI(`',`connection.termtype')";
+      case IDC_LOGSTATIC:
+      case IDC_LOGEDIT:
+        return "JI(`',`connection.username')";
+      case IDC_PINGSTATIC:
+      case IDC_PINGEDIT:
+        return "JI(`',`connection.keepalive')";
+      case IDC_NODELAY:
+        return "JI(`',`connection.nodelay')";
+
+      case IDC_TSSTATIC:
+      case IDC_TSEDIT:
+        return "JI(`',`telnet.termspeed')";
+      case IDC_ENVSTATIC:
+      case IDC_VARSTATIC:
+      case IDC_VAREDIT:
+      case IDC_VALSTATIC:
+      case IDC_VALEDIT:
+      case IDC_ENVLIST:
+      case IDC_ENVADD:
+      case IDC_ENVREMOVE:
+        return "JI(`',`telnet.environ')";
+      case IDC_EMSTATIC:
+      case IDC_EMBSD:
+      case IDC_EMRFC:
+        return "JI(`',`telnet.oldenviron')";
+      case IDC_ACTSTATIC:
+      case IDC_TPASSIVE:
+      case IDC_TACTIVE:
+        return "JI(`',`telnet.passive')";
+      case IDC_TELNETKEY:
+        return "JI(`',`telnet.specialkeys')";
+
+      case IDC_R_TSSTATIC:
+      case IDC_R_TSEDIT:
+        return "JI(`',`rlogin.termspeed')";
+      case IDC_RLLUSERSTATIC:
+      case IDC_RLLUSEREDIT:
+        return "JI(`',`rlogin.localuser')";
+
+      case IDC_NOPTY:
+        return "JI(`',`ssh.nopty')";
+      case IDC_CIPHERSTATIC2:
+      case IDC_CIPHERLIST:
+      case IDC_CIPHERUP:
+      case IDC_CIPHERDN:
+      case IDC_SSH2DES:
+        return "JI(`',`ssh.ciphers')";
+      case IDC_BUGGYMAC:
+        return "JI(`',`ssh.buggymac')";
+      case IDC_SSHPROTSTATIC:
+      case IDC_SSHPROT1:
+      case IDC_SSHPROT2:
+        return "JI(`',`ssh.protocol')";
+      case IDC_CMDSTATIC:
+      case IDC_CMDEDIT:
+        return "JI(`',`ssh.command')";
+      case IDC_COMPRESS:
+        return "JI(`',`ssh.compress')";
+
+      case IDC_PKSTATIC:
+      case IDC_PKEDIT:
+      case IDC_PKBUTTON:
+        return "JI(`',`ssh.auth.privkey')";
+      case IDC_AGENTFWD:
+        return "JI(`',`ssh.auth.agentfwd')";
+      case IDC_AUTHTIS:
+        return "JI(`',`ssh.auth.tis')";
+      case IDC_AUTHKI:
+        return "JI(`',`ssh.auth.ki')";
+
+      case IDC_MBSTATIC:
+      case IDC_MBWINDOWS:
+      case IDC_MBXTERM:
+        return "JI(`',`selection.buttons')";
+      case IDC_MOUSEOVERRIDE:
+        return "JI(`',`selection.shiftdrag')";
+      case IDC_SELTYPESTATIC:
+      case IDC_SELTYPELEX:
+      case IDC_SELTYPERECT:
+        return "JI(`',`selection.rect')";
+      case IDC_CCSTATIC:
+      case IDC_CCLIST:
+      case IDC_CCSET:
+      case IDC_CCSTATIC2:
+      case IDC_CCEDIT:
+        return "JI(`',`selection.charclasses')";
+      case IDC_RAWCNP:
+        return "JI(`',`selection.linedraw')";
+      case IDC_RTFPASTE:
+        return "JI(`',`selection.rtf')";
+
+      case IDC_BOLDCOLOUR:
+        return "JI(`',`colours.bold')";
+      case IDC_PALETTE:
+        return "JI(`',`colours.logpal')";
+      case IDC_COLOURSTATIC:
+      case IDC_COLOURLIST:
+      case IDC_RSTATIC:
+      case IDC_GSTATIC:
+      case IDC_BSTATIC:
+      case IDC_RVALUE:
+      case IDC_GVALUE:
+      case IDC_BVALUE:
+      case IDC_CHANGE:
+        return "JI(`',`colours.config')";
+
+      case IDC_CODEPAGESTATIC:
+      case IDC_CODEPAGE:
+        return "JI(`',`translation.codepage')";
+      case IDC_CAPSLOCKCYR:
+        return "JI(`',`translation.cyrillic')";
+      case IDC_VTSTATIC:
+      case IDC_VTXWINDOWS:
+      case IDC_VTOEMANSI:
+      case IDC_VTOEMONLY:
+      case IDC_VTPOORMAN:
+      case IDC_VTUNICODE:
+        return "JI(`',`translation.linedraw')";
+
+      case IDC_X11_FORWARD:
+      case IDC_X11_DISPSTATIC:
+      case IDC_X11_DISPLAY:
+        return "JI(`',`ssh.tunnels.x11')";
+      case IDC_LPORT_ALL:
+      case IDC_PFWDSTATIC:
+      case IDC_PFWDSTATIC2:
+      case IDC_PFWDREMOVE:
+      case IDC_PFWDLIST:
+      case IDC_PFWDADD:
+      case IDC_SPORTSTATIC:
+      case IDC_SPORTEDIT:
+      case IDC_DPORTSTATIC:
+      case IDC_DPORTEDIT:
+      case IDC_PFWDLOCAL:
+      case IDC_PFWDREMOTE:
+        return "JI(`',`ssh.tunnels.portfwd')";
+
+      default:
+        return NULL;
+    }
 }
 
 /* 2nd arg: NZ => don't redraw session list (use when loading
@@ -1440,6 +1760,15 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
       case WM_INITDIALOG:
 	readytogo = 0;
 	SetWindowLong(hwnd, GWL_USERDATA, 0);
+        if (help_path)
+            SetWindowLong(hwnd, GWL_EXSTYLE,
+                          GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_CONTEXTHELP);
+        else {
+            HWND item = GetDlgItem(hwnd, IDC_HELPBTN);
+            if (item)
+                DestroyWindow(item);
+        }
+        requested_help = FALSE;
 	SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
 		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
 	/*
@@ -1636,12 +1965,31 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    }
 		}
 		/* If at this point we have a valid session, go! */
-		if (*cfg.host)
+		if (*cfg.host) {
+                    if (requested_help) {
+                        WinHelp(hwnd, help_path, HELP_QUIT, 0);
+                        requested_help = FALSE;
+                    }
 		    EndDialog(hwnd, 1);
-		else
+                } else
 		    MessageBeep(0);
 		return 0;
+	      case IDC_HELPBTN:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+                    if (help_path) {
+                        WinHelp(hwnd, help_path,
+                                help_has_contents ? HELP_FINDER : HELP_CONTENTS,
+                                0);
+                        requested_help = TRUE;
+                    }
+                }
+                break;
 	      case IDCANCEL:
+                if (requested_help) {
+                    WinHelp(hwnd, help_path, HELP_QUIT, 0);
+                    requested_help = FALSE;
+                }
 		EndDialog(hwnd, 0);
 		return 0;
 	      case IDC_PROTTELNET:
@@ -2738,7 +3086,23 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		break;
 	    }
 	return 0;
+      case WM_HELP:
+        if (help_path) {
+            int id = ((LPHELPINFO)lParam)->iCtrlId;
+            char *cmd = help_context_cmd(id);
+            if (cmd) {
+                WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+                requested_help = TRUE;
+            } else {
+                MessageBeep(0);
+            }
+        }
+        break;
       case WM_CLOSE:
+        if (requested_help) {
+            WinHelp(hwnd, help_path, HELP_QUIT, 0);
+            requested_help = FALSE;
+        }
 	EndDialog(hwnd, 0);
 	return 0;
 

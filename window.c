@@ -42,10 +42,11 @@
 #define IDM_TEL_SUSP  0x0110
 #define IDM_TEL_EOR   0x0120
 #define IDM_TEL_EOF   0x0130
-#define IDM_ABOUT     0x0140
-#define IDM_SAVEDSESS 0x0150
-#define IDM_COPYALL   0x0160
-#define IDM_FULLSCREEN	0x0170
+#define IDM_HELP      0x0140
+#define IDM_ABOUT     0x0150
+#define IDM_SAVEDSESS 0x0160
+#define IDM_COPYALL   0x0170
+#define IDM_FULLSCREEN	0x0180
 
 #define IDM_SESSLGP   0x0250	       /* log type printable */
 #define IDM_SESSLGA   0x0260	       /* log type all chars */
@@ -188,6 +189,32 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                        "PuTTY Fatal Error", MB_OK | MB_ICONEXCLAMATION);
 	    return 1;
         }
+    }
+
+    /*
+     * See if we can find our Help file.
+     */
+    {
+        char b[2048], *p, *q, *r;
+        FILE *fp;
+        GetModuleFileName(NULL, b, sizeof(b) - 1);
+        r = b;
+        p = strrchr(b, '\\');
+        if (p && p >= r) r = p+1;
+        q = strrchr(b, ':');
+        if (q && q >= r) r = q+1;
+        strcpy(r, "putty.hlp");
+        if ( (fp = fopen(b, "r")) != NULL) {
+            help_path = dupstr(b);
+            fclose(fp);
+        } else
+            help_path = NULL;
+        strcpy(r, "putty.cnt");
+        if ( (fp = fopen(b, "r")) != NULL) {
+            help_has_contents = TRUE;
+            fclose(fp);
+        } else
+            help_has_contents = FALSE;
     }
 
     /*
@@ -586,6 +613,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
 		   MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
+        if (help_path)
+            AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
 	AppendMenu(m, MF_ENABLED, IDM_ABOUT, "&About PuTTY");
     }
 
@@ -1754,6 +1783,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_ABOUT:
 	    showabout(hwnd);
+	    break;
+	  case IDM_HELP:
+	    WinHelp(hwnd, help_path,
+                    help_has_contents ? HELP_FINDER : HELP_CONTENTS, 0);
 	    break;
 	  case SC_MOUSEMENU:
 	    /*
