@@ -212,7 +212,7 @@ void term_update(void) {
     ctx = get_ctx();
     if (ctx) {
         if ( (seen_key_event && (cfg.scroll_on_key)) ||
-	     (seen_disp_event && (!cfg.scroll_on_key)) ) {
+	     (seen_disp_event && (cfg.scroll_on_disp)) ) {
 	    disptop = scrtop;
 	    seen_disp_event = seen_key_event = 0;
 	    update_sbar();

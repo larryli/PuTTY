@@ -210,6 +210,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_TITLE_KEYBOARD,
     IDC_BOX_KEYBOARD1, IDC_BOXT_KEYBOARD1,
     IDC_BOX_KEYBOARD2, IDC_BOXT_KEYBOARD2,
+    IDC_BOX_KEYBOARD3, IDC_BOXT_KEYBOARD3,
     IDC_DELSTATIC,
     IDC_DEL008,
     IDC_DEL127,
@@ -228,6 +229,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_CURSTATIC,
     IDC_CURNORMAL,
     IDC_CURAPPLIC,
+    IDC_COMPOSEKEY,
     keyboardpanelend,
 
     terminalpanelstart,
@@ -268,7 +270,9 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_SAVEEDIT,
     IDC_ALTF4,
     IDC_ALTSPACE,
+    IDC_ALTONLY,
     IDC_SCROLLKEY,
+    IDC_SCROLLDISP,
     windowpanelend,
 
     connectionpanelstart,
@@ -437,8 +441,11 @@ static void init_dlg_ctrls(HWND hwnd) {
 		      cfg.app_keypad ? IDC_KPAPPLIC : IDC_KPNORMAL);
     CheckDlgButton (hwnd, IDC_ALTF4, cfg.alt_f4);
     CheckDlgButton (hwnd, IDC_ALTSPACE, cfg.alt_space);
+    CheckDlgButton (hwnd, IDC_ALTONLY, cfg.alt_only);
+    CheckDlgButton (hwnd, IDC_COMPOSEKEY, cfg.compose_key);
     CheckDlgButton (hwnd, IDC_LDISCTERM, cfg.ldisc_term);
     CheckDlgButton (hwnd, IDC_SCROLLKEY, cfg.scroll_on_key);
+    CheckDlgButton (hwnd, IDC_SCROLLDISP, cfg.scroll_on_disp);
 
     CheckDlgButton (hwnd, IDC_WRAPMODE, cfg.wrap_mode);
     CheckDlgButton (hwnd, IDC_DECOM, cfg.dec_om);
@@ -587,6 +594,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+	readytogo = 0;
 	SetWindowLong(hwnd, GWL_USERDATA, 0);
 	/*
 	 * Centre the window.
@@ -718,7 +726,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             treeview_insert(&tvfaff, 0, "Terminal");
 	}
 
-	/* The Keyboard panel. Accelerators used: [acgo] h?srvlxvnpmie */
+	/* The Keyboard panel. Accelerators used: [acgo] h?srvlxvnpmiet */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
@@ -748,11 +756,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		      "Appl&ication", IDC_KPAPPLIC,
 		      "N&etHack", IDC_KPNH, NULL);
             endbox(&cp);
+            beginbox(&cp, "Enable extra keyboard features:",
+                     IDC_BOX_KEYBOARD3, IDC_BOXT_KEYBOARD3);
+	    checkbox(&cp, "Application and AltGr ac&t as Compose key",
+		     IDC_COMPOSEKEY);
+            endbox(&cp);
 
             treeview_insert(&tvfaff, 1, "Keyboard");
 	}
 
-        /* The Window panel. Accelerators used: [acgo] tibsdkw4y */
+        /* The Window panel. Accelerators used: [acgo] tibsdkw4ylp */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
@@ -776,11 +789,14 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                        IDC_SAVESTATIC, IDC_SAVEEDIT, 50);
 	    checkbox(&cp, "&Display scrollbar", IDC_SCROLLBAR);
 	    checkbox(&cp, "Reset scrollback on &keypress", IDC_SCROLLKEY);
+	    checkbox(&cp, "Reset scrollback on dis&play activity",
+		     IDC_SCROLLDISP);
             endbox(&cp);
             beginbox(&cp, NULL, IDC_BOX_WINDOW4, 0);
 	    checkbox(&cp, "&Warn before closing window", IDC_CLOSEWARN);
 	    checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
-	    checkbox(&cp, "S&ystem menu appears on ALT-Space)", IDC_ALTSPACE);
+	    checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
+	    checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
             endbox(&cp);
 
             treeview_insert(&tvfaff, 0, "Window");
@@ -1221,6 +1237,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.alt_space = IsDlgButtonChecked (hwnd, IDC_ALTSPACE);
 	    break;
+	  case IDC_ALTONLY:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.alt_only = IsDlgButtonChecked (hwnd, IDC_ALTONLY);
+	    break;
 	  case IDC_LDISCTERM:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
@@ -1230,6 +1251,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.scroll_on_key = IsDlgButtonChecked (hwnd, IDC_SCROLLKEY);
+	    break;
+	  case IDC_SCROLLDISP:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.scroll_on_disp = IsDlgButtonChecked (hwnd, IDC_SCROLLDISP);
+	    break;
+	  case IDC_COMPOSEKEY:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.compose_key = IsDlgButtonChecked (hwnd, IDC_COMPOSEKEY);
 	    break;
 	  case IDC_WRAPMODE:
 	    if (HIWORD(wParam) == BN_CLICKED ||

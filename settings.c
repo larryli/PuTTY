@@ -90,6 +90,8 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "NetHackKeypad", cfg->nethack_keypad);
     write_setting_i (sesskey, "AltF4", cfg->alt_f4);
     write_setting_i (sesskey, "AltSpace", cfg->alt_space);
+    write_setting_i (sesskey, "AltOnly", cfg->alt_only);
+    write_setting_i (sesskey, "ComposeKey", cfg->compose_key);
     write_setting_i (sesskey, "LdiscTerm", cfg->ldisc_term);
     write_setting_i (sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i (sesskey, "Beep", cfg->beep);
@@ -133,6 +135,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "CapsLockCyr", cfg->xlat_capslockcyr);
     write_setting_i (sesskey, "ScrollBar", cfg->scrollbar);
     write_setting_i (sesskey, "ScrollOnKey", cfg->scroll_on_key);
+    write_setting_i (sesskey, "ScrollOnDisp", cfg->scroll_on_disp);
     write_setting_i (sesskey, "LockSize", cfg->locksize);
     write_setting_i (sesskey, "BCE", cfg->bce);
     write_setting_i (sesskey, "BlinkText", cfg->blinktext);
@@ -213,6 +216,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "NetHackKeypad", 0, &cfg->nethack_keypad);
     gppi (sesskey, "AltF4", 1, &cfg->alt_f4);
     gppi (sesskey, "AltSpace", 0, &cfg->alt_space);
+    gppi (sesskey, "AltOnly", 0, &cfg->alt_only);
+    gppi (sesskey, "ComposeKey", 0, &cfg->compose_key);
     gppi (sesskey, "LdiscTerm", 0, &cfg->ldisc_term);
     gppi (sesskey, "BlinkCur", 0, &cfg->blink_cur);
     gppi (sesskey, "Beep", 1, &cfg->beep);
@@ -279,6 +284,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "CapsLockCyr", 0, &cfg->xlat_capslockcyr);
     gppi (sesskey, "ScrollBar", 1, &cfg->scrollbar);
     gppi (sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
+    gppi (sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
     gppi (sesskey, "LockSize", 0, &cfg->locksize);
     gppi (sesskey, "BCE", 0, &cfg->bce);
     gppi (sesskey, "BlinkText", 0, &cfg->blinktext);

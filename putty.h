@@ -160,8 +160,11 @@ typedef struct {
     int nethack_keypad;
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
+    int alt_only;		       /* is it special? */
     int ldisc_term;
     int scroll_on_key;
+    int scroll_on_disp;
+    int compose_key;
     char wintitle[256];                /* initial window title */
     /* Terminal options */
     int savelines;
