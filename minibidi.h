@@ -38,12 +38,12 @@
 #define OISR	0x40	/* Override is R */
 
 /* Shaping Helpers */
-#define STYPE(xh) (((xh >= SHAPE_FIRST) && (xh <= SHAPE_LAST)) ? \
-shapetypes[xh-SHAPE_FIRST].type : SU) /*))*/
-#define SISOLATED(xh) (shapetypes[xh-SHAPE_FIRST].form_b)
-#define SFINAL(xh) xh+1
-#define SINITIAL(xh) xh+2
-#define SMEDIAL(ch) ch+3
+#define STYPE(xh) ((((xh) >= SHAPE_FIRST) && ((xh) <= SHAPE_LAST)) ? \
+shapetypes[(xh)-SHAPE_FIRST].type : SU) /*))*/
+#define SISOLATED(xh) (shapetypes[(xh)-SHAPE_FIRST].form_b)
+#define SFINAL(xh) ((xh)+1)
+#define SINITIAL(xh) ((xh)+2)
+#define SMEDIAL(ch) ((ch)+3)
 
 typedef struct bidi_char {
     wchar_t origwc, wc;
@@ -64,42 +64,40 @@ int do_bidi(bidi_char *line, int count);
 void doMirror(wchar_t* ch);
 
 /* character types */
-enum
-{
-   L,
-   LRE,
-   LRO,
-   R,
-   AL,
-   RLE,
-   RLO,
-   PDF,
-   EN,
-   ES,
-   ET,
-   AN,
-   CS,
-   NSM,
-   BN,
-   B,
-   S,
-   WS,
-   ON,
+enum {
+    L,
+    LRE,
+    LRO,
+    R,
+    AL,
+    RLE,
+    RLO,
+    PDF,
+    EN,
+    ES,
+    ET,
+    AN,
+    CS,
+    NSM,
+    BN,
+    B,
+    S,
+    WS,
+    ON,
 };
 
 /* Shaping Types */
-enum
-{
-	SL, /* Left-Joining, doesnt exist in U+0600 - U+06FF */
-	SR, /* Right-Joining, ie has Isolated, Final */
-	SD, /* Dual-Joining, ie has Isolated, Final, Initial, Medial */
-	SU, /* Non-Joining */
-	SC  /* Join-Causing, like U+0640 (TATWEEL) */
+enum {
+    SL, /* Left-Joining, doesnt exist in U+0600 - U+06FF */
+    SR, /* Right-Joining, ie has Isolated, Final */
+    SD, /* Dual-Joining, ie has Isolated, Final, Initial, Medial */
+    SU, /* Non-Joining */
+    SC  /* Join-Causing, like U+0640 (TATWEEL) */
 };
 
-typedef struct{
-	char type;
-	wchar_t form_b;
+typedef struct {
+    char type;
+    wchar_t form_b;
 } shape_node;
 
 /* Kept near the actual table, for verification. */
@@ -107,66 +105,64 @@ typedef struct{
 #define SHAPE_LAST 0x64A
 
 const shape_node shapetypes[] = {
-/* index, Typ, Iso, Ligature Index*/
-/* 621 */ {SU, 0xFE80},
-/* 622 */ {SR, 0xFE81},
-/* 623 */ {SR, 0xFE83},
-/* 624 */ {SR, 0xFE85},
-/* 625 */ {SR, 0xFE87},
-/* 626 */ {SD, 0xFE89},
-/* 627 */ {SR, 0xFE8D},
-/* 628 */ {SD, 0xFE8F},
-/* 629 */ {SR, 0xFE93},
-/* 62A */ {SD, 0xFE95},
-/* 62B */ {SD, 0xFE99},
-/* 62C */ {SD, 0xFE9D},
-/* 62D */ {SD, 0xFEA1},
-/* 62E */ {SD, 0xFEA5},
-/* 62F */ {SR, 0xFEA9},
-/* 630 */ {SR, 0xFEAB},
-/* 631 */ {SR, 0xFEAD},
-/* 632 */ {SR, 0xFEAF},
-/* 633 */ {SD, 0xFEB1},
-/* 634 */ {SD, 0xFEB5},
-/* 635 */ {SD, 0xFEB9},
-/* 636 */ {SD, 0xFEBD},
-/* 637 */ {SD, 0xFEC1},
-/* 638 */ {SD, 0xFEC5},
-/* 639 */ {SD, 0xFEC9},
-/* 63A */ {SD, 0xFECD},
-/* 63B */ {SU, 0x0},
-/* 63C */ {SU, 0x0},
-/* 63D */ {SU, 0x0},
-/* 63E */ {SU, 0x0},
-/* 63F */ {SU, 0x0},
-/* 640 */ {SC, 0x0},
-/* 641 */ {SD, 0xFED1},
-/* 642 */ {SD, 0xFED5},
-/* 643 */ {SD, 0xFED9},
-/* 644 */ {SD, 0xFEDD},
-/* 645 */ {SD, 0xFEE1},
-/* 646 */ {SD, 0xFEE5},
-/* 647 */ {SD, 0xFEE9},
-/* 648 */ {SR, 0xFEED},
-/* 649 */ {SR, 0xFEEF}, /* SD */
-/* 64A */ {SD, 0xFEF1},
+    /* index, Typ, Iso, Ligature Index*/
+    /* 621 */ {SU, 0xFE80},
+    /* 622 */ {SR, 0xFE81},
+    /* 623 */ {SR, 0xFE83},
+    /* 624 */ {SR, 0xFE85},
+    /* 625 */ {SR, 0xFE87},
+    /* 626 */ {SD, 0xFE89},
+    /* 627 */ {SR, 0xFE8D},
+    /* 628 */ {SD, 0xFE8F},
+    /* 629 */ {SR, 0xFE93},
+    /* 62A */ {SD, 0xFE95},
+    /* 62B */ {SD, 0xFE99},
+    /* 62C */ {SD, 0xFE9D},
+    /* 62D */ {SD, 0xFEA1},
+    /* 62E */ {SD, 0xFEA5},
+    /* 62F */ {SR, 0xFEA9},
+    /* 630 */ {SR, 0xFEAB},
+    /* 631 */ {SR, 0xFEAD},
+    /* 632 */ {SR, 0xFEAF},
+    /* 633 */ {SD, 0xFEB1},
+    /* 634 */ {SD, 0xFEB5},
+    /* 635 */ {SD, 0xFEB9},
+    /* 636 */ {SD, 0xFEBD},
+    /* 637 */ {SD, 0xFEC1},
+    /* 638 */ {SD, 0xFEC5},
+    /* 639 */ {SD, 0xFEC9},
+    /* 63A */ {SD, 0xFECD},
+    /* 63B */ {SU, 0x0},
+    /* 63C */ {SU, 0x0},
+    /* 63D */ {SU, 0x0},
+    /* 63E */ {SU, 0x0},
+    /* 63F */ {SU, 0x0},
+    /* 640 */ {SC, 0x0},
+    /* 641 */ {SD, 0xFED1},
+    /* 642 */ {SD, 0xFED5},
+    /* 643 */ {SD, 0xFED9},
+    /* 644 */ {SD, 0xFEDD},
+    /* 645 */ {SD, 0xFEE1},
+    /* 646 */ {SD, 0xFEE5},
+    /* 647 */ {SD, 0xFEE9},
+    /* 648 */ {SR, 0xFEED},
+    /* 649 */ {SR, 0xFEEF}, /* SD */
+    /* 64A */ {SD, 0xFEF1},
 };
 
 /*
  * This describes the data byte and its frequency  
  */
-typedef struct
-{
-   unsigned char d;
-   unsigned char f;
-}RLENode;
+typedef struct {
+    unsigned char d;
+    unsigned char f;
+} RLENode;
 
 
 /* This is an array of RLENodes, which is the
  * Compressed unicode types table
  */
-const RLENode RLE_table[] =
-{
+const RLENode RLE_table[] = {
     { BN,   9}, {  S,   1}, {  B,   1}, {  S,   1}, { WS,   1},
     {  B,   1}, { BN,  14}, {  B,   3}, {  S,   1}, { WS,   1},
     { ON,   2}, { ET,   3}, { ON,   5}, { ET,   1}, { CS,   1},
