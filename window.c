@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <imm.h>
 #include <commctrl.h>
+#include <mmsystem.h>
 #ifndef AUTO_WINSOCK
 #ifdef WINSOCK_TWO
 #include <winsock2.h>

@@ -124,7 +124,7 @@ LRESRC = plink.$(RES)
 
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = comctl32.lib comdlg32.lib
-LIBS3 = shell32.lib
+LIBS3 = shell32.lib winmm.lib
 SOCK1 = wsock32.lib
 SOCK2 = ws2_32.lib
 
