@@ -365,8 +365,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             staticbtn(&cp, "Save the generated key to a new file",
                       IDC_SAVESTATIC, "&Save", IDC_SAVE);
             endbox(&cp);
-            beginbox(&cp, "Actions",
-                     IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS);
+            beginbox(&cp, "Parameters",
+                     IDC_BOX_PARAMS, IDC_BOXT_PARAMS);
             staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
             endbox(&cp);
