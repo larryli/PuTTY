@@ -598,8 +598,17 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
+#ifdef _WINDOWS
     gpps(sesskey, "X11Display", "localhost:0", cfg->x11_display,
 	 sizeof(cfg->x11_display));
+#else
+    {
+	/* On Unix, the default X display should simply be $DISPLAY. */
+	char *disp = getenv("DISPLAY");
+	gpps(sesskey, "X11Display", disp, cfg->x11_display,
+	     sizeof(cfg->x11_display));
+    }
+#endif
 
     gppi(sesskey, "LocalPortAcceptAll", 0, &cfg->lport_acceptall);
     gppi(sesskey, "RemotePortAcceptAll", 0, &cfg->rport_acceptall);

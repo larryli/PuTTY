@@ -189,8 +189,16 @@ char *x11_init(Socket * s, char *display, void *c, void *auth)
 	displaynum = 0;		       /* sensible default */
     if (n > sizeof(host) - 1)
 	n = sizeof(host) - 1;
-    strncpy(host, display, n);
-    host[n] = '\0';
+    if (n > 0) {
+	strncpy(host, display, n);
+	host[n] = '\0';
+    } else {
+	/*
+	 * Local display numbers, particularly on Unix, often omit
+	 * the display part completely.
+	 */
+	strcpy(host, "localhost");
+    }
 
     /*
      * Try to find host.
