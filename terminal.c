@@ -634,6 +634,9 @@ static unsigned char *compressline(termline *ldata)
     /*
      * Diagnostics: ensure that the compressed data really does
      * decompress to the right thing.
+     * 
+     * XXX-REMOVE-BEFORE-RELEASE: This is a bit performance-heavy
+     * to be leaving in production code.
      */
 #ifndef CHECK_SB_COMPRESSION
     {
