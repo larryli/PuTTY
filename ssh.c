@@ -2247,13 +2247,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 
     s->vstring[s->vslen] = 0;
     s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
-    {
-	char *vlog;
-	vlog = snewn(20 + s->vslen, char);
-	sprintf(vlog, "Server version: %s", s->vstring);
-	logevent(vlog);
-	sfree(vlog);
-    }
+    logeventf(ssh, "Server version: %s", s->vstring);
     ssh_detect_bugs(ssh, s->vstring);
 
     /*
@@ -2433,6 +2427,7 @@ static void ssh_log(Plug plug, int type, SockAddr addr, int port,
 	msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
 
     logevent(msg);
+    sfree(msg);
 }
 
 static int ssh_closing(Plug plug, const char *error_msg, int error_code,
@@ -3047,17 +3042,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		s->p = s->response + 5;
 		s->nkeys = GET_32BIT(s->p);
 		s->p += 4;
-		{
-		    char buf[64];
-		    sprintf(buf, "Pageant has %d SSH1 keys", s->nkeys);
-		    logevent(buf);
-		}
+		logeventf(ssh, "Pageant has %d SSH1 keys", s->nkeys);
 		for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
-		    {
-			char buf[64];
-			sprintf(buf, "Trying Pageant key #%d", s->keyi);
-			logevent(buf);
-		    }
+		    logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 		    if (s->publickey_blob &&
 			!memcmp(s->p, s->publickey_blob,
 				s->publickey_bloblen)) {
@@ -3266,18 +3253,18 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	if (s->pwpkt_type == SSH1_CMSG_AUTH_RSA) {
 	    char *comment = NULL;
 	    int type;
-	    char msgbuf[256];
 	    if (flags & FLAG_VERBOSE)
 		c_write_str(ssh, "Trying public key authentication.\r\n");
 	    logeventf(ssh, "Trying public key \"%s\"",
 		      filename_to_str(&ssh->cfg.keyfile));
 	    type = key_type(&ssh->cfg.keyfile);
 	    if (type != SSH_KEYTYPE_SSH1) {
-		sprintf(msgbuf, "Key is of wrong type (%s)",
-			key_type_to_str(type));
-		logevent(msgbuf);
-		c_write_str(ssh, msgbuf);
+		char *msg = dupprintf("Key is of wrong type (%s)",
+				      key_type_to_str(type));
+		logevent(msg);
+		c_write_str(ssh, msg);
 		c_write_str(ssh, "\r\n");
+		sfree(msg);
 		s->tried_publickey = 1;
 		continue;
 	    }
@@ -4145,7 +4132,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     struct ssh_rportfwd pf, *pfp;
     int remoteid;
     int hostsize, port;
-    char *host, buf[1024];
+    char *host;
     const char *e;
     c = snew(struct ssh_channel);
     c->ssh = ssh;
@@ -4162,21 +4149,17 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     pfp = find234(ssh->rportfwds, &pf, NULL);
 
     if (pfp == NULL) {
-	sprintf(buf, "Rejected remote port open request for %s:%d",
-		pf.dhost, port);
-	logevent(buf);
+	logeventf(ssh, "Rejected remote port open request for %s:%d",
+		  pf.dhost, port);
 	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 		    PKT_INT, remoteid, PKT_END);
     } else {
-	sprintf(buf, "Received remote port open request for %s:%d",
-		pf.dhost, port);
-	logevent(buf);
+	logeventf(ssh, "Received remote port open request for %s:%d",
+		  pf.dhost, port);
 	e = pfd_newconnect(&c->u.pfd.s, pf.dhost, port,
 			   c, &ssh->cfg, pfp->pfrec->addressfamily);
 	if (e != NULL) {
-	    char buf[256];
-	    sprintf(buf, "Port open failed: %s", e);
-	    logevent(buf);
+	    logeventf(ssh, "Port open failed: %s", e);
 	    sfree(c);
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 			PKT_INT, remoteid, PKT_END);
@@ -4352,11 +4335,8 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 
 static void ssh1_smsg_exit_status(Ssh ssh, struct Packet *pktin)
 {
-    char buf[100];
     ssh->exitcode = ssh_pkt_getuint32(pktin);
-    sprintf(buf, "Server sent command exit status %d",
-	    ssh->exitcode);
-    logevent(buf);
+    logeventf(ssh, "Server sent command exit status %d", ssh->exitcode);
     send_packet(ssh, SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
     /*
      * In case `helpful' firewalls or proxies tack
@@ -4563,13 +4543,11 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
  */
 static void ssh1_msg_debug(Ssh ssh, struct Packet *pktin)
 {
-    char *buf, *msg;
+    char *msg;
     int msglen;
 
     ssh_pkt_getstring(pktin, &msg, &msglen);
-    buf = dupprintf("Remote debug message: %.*s", msglen, msg);
-    logevent(buf);
-    sfree(buf);
+    logeventf(ssh, "Remote debug message: %.*s", msglen, msg);
 }
 
 static void ssh1_msg_disconnect(Ssh ssh, struct Packet *pktin)
@@ -5737,7 +5715,6 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     unsigned reason_code;
     char *reason_string;
     int reason_length;
-    char *message;
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
     if (!c)
@@ -5749,11 +5726,8 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     if (reason_code >= lenof(reasons))
 	reason_code = 0; /* ensure reasons[reason_code] in range */
     ssh_pkt_getstring(pktin, &reason_string, &reason_length);
-    message = dupprintf("Forwarded connection refused by"
-			" server: %s [%.*s]", reasons[reason_code],
-			reason_length, reason_string);
-    logevent(message);
-    sfree(message);
+    logeventf(ssh, "Forwarded connection refused by server: %s [%.*s]",
+	      reasons[reason_code], reason_length, reason_string);
 
     pfd_close(c->u.pfd.s);
 
@@ -6388,19 +6362,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    s->p = s->response + 5;
 		    s->nkeys = GET_32BIT(s->p);
 		    s->p += 4;
-		    {
-			char buf[64];
-			sprintf(buf, "Pageant has %d SSH2 keys", s->nkeys);
-			logevent(buf);
-		    }
+		    logeventf(ssh, "Pageant has %d SSH2 keys", s->nkeys);
 		    for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
 			void *vret;
 
-			{
-			    char buf[64];
-			    sprintf(buf, "Trying Pageant key #%d", s->keyi);
-			    logevent(buf);
-			}
+			logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 			s->pklen = GET_32BIT(s->p);
 			s->p += 4;
 			if (s->publickey_blob &&
@@ -7288,7 +7254,7 @@ static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
 static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
 {
     /* log the debug message */
-    char *buf, *msg;
+    char *msg;
     int msglen;
     int always_display;
 
@@ -7296,9 +7262,7 @@ static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
     always_display = ssh2_pkt_getbool(pktin);
     ssh_pkt_getstring(pktin, &msg, &msglen);
 
-    buf = dupprintf("Remote debug message: %.*s", msglen, msg);
-    logevent(buf);
-    sfree(buf);
+    logeventf(ssh, "Remote debug message: %.*s", msglen, msg);
 }
 
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin)
