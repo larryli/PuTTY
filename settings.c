@@ -189,6 +189,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "LinuxFunctionKeys", cfg->funky_type);
     write_setting_i(sesskey, "NoApplicationKeys", cfg->no_applic_k);
     write_setting_i(sesskey, "NoApplicationCursors", cfg->no_applic_c);
+    write_setting_i(sesskey, "NoMouseReporting", cfg->no_mouse_rep);
     write_setting_i(sesskey, "NoRemoteResize", cfg->no_remote_resize);
     write_setting_i(sesskey, "NoAltScreen", cfg->no_alt_screen);
     write_setting_i(sesskey, "NoRemoteWinTitle", cfg->no_remote_wintitle);
@@ -385,6 +386,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "LinuxFunctionKeys", 0, &cfg->funky_type);
     gppi(sesskey, "NoApplicationKeys", 0, &cfg->no_applic_k);
     gppi(sesskey, "NoApplicationCursors", 0, &cfg->no_applic_c);
+    gppi(sesskey, "NoMouseReporting", 0, &cfg->no_mouse_rep);
     gppi(sesskey, "NoRemoteResize", 0, &cfg->no_remote_resize);
     gppi(sesskey, "NoAltScreen", 0, &cfg->no_alt_screen);
     gppi(sesskey, "NoRemoteWinTitle", 0, &cfg->no_remote_wintitle);

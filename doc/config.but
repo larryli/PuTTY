@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.27 2002/03/06 23:04:20 simon Exp $
+\versionid $Id: config.but,v 1.28 2002/03/09 11:47:39 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -668,6 +668,26 @@ then do not deal correctly with the modified keys. You can force
 these modes to be permanently disabled no matter what the server
 tries to do.
 
+\S{config-features-mouse} Disabling \cw{xterm}-style mouse reporting
+
+\cfg{winhelp-topic}{features.mouse}
+
+PuTTY allows the server to send control codes that let it take over
+the mouse and use it for purposes other than copy and paste.
+Applications which use this feature include the text-mode web
+browser \c{links}, the Usenet newsreader \c{trn} version 4, and the
+file manager \c{mc} (Midnight Commander).
+
+If you find this feature inconvenient, you can disable it using the
+\q{Disable xterm-style mouse reporting} control. With this box
+ticked, the mouse will \e{always} do copy and paste in the normal
+way.
+
+Note that even if the application takes over the mouse, you can
+still manage PuTTY's copy and paste by holding down the Shift key
+while you select and paste, unless you have deliberately turned this
+feature off (see \k{config-mouseshift}).
+
 \S{config-features-resize} Disabling remote terminal resizing
 
 \cfg{winhelp-topic}{features.resize}
@@ -1097,6 +1117,10 @@ applications that do this, but in case someone ever writes one,
 unchecking the \q{Shift overrides application's use of mouse}
 checkbox will cause Shift + mouse clicks to go to the server as well
 (so that mouse-driven copy and paste will be completely disabled).
+
+If you want to prevent the application from taking over the mouse at
+all, you can do this using the Features control panel; see
+\k{config-features-mouse}.
 
 \S{config-rectselect} Default selection mode
 

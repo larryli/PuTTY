@@ -352,12 +352,17 @@ void term_pwron(void)
 
 /*
  * When the user reconfigures us, we need to check the forbidden-
- * alternate-screen config option.
+ * alternate-screen config option, and also disable raw mouse mode
+ * if the user has disabled mouse reporting.
  */
 void term_reconfig(void)
 {
     if (cfg.no_alt_screen)
 	swap_screen(0);
+    if (cfg.no_mouse_rep) {
+	xterm_mouse = 0;
+	set_raw_mouse_mode(0);
+    }
     if (cfg.no_remote_charset) {
 	cset_attr[0] = cset_attr[1] = ATTR_ASCII;
 	sco_acs = alt_sco_acs = 0;
@@ -3387,7 +3392,9 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 {
     pos selpoint;
     unsigned long *ldata;
-    int raw_mouse = xterm_mouse && !(cfg.mouse_override && shift);
+    int raw_mouse = (xterm_mouse &&
+		     !cfg.no_mouse_rep &&
+		     !(cfg.mouse_override && shift));
     int default_seltype;
 
     if (y < 0) {

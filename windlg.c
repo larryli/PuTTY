@@ -329,6 +329,7 @@ enum { IDCX_ABOUT =
     IDC_BOX_FEATURES1,
     IDC_NOAPPLICK,
     IDC_NOAPPLICC,
+    IDC_NOMOUSEREP,
     IDC_NORESIZE,
     IDC_NOALTSCREEN,
     IDC_NOWINTITLE,
@@ -687,6 +688,8 @@ char *help_context_cmd(int id)
       case IDC_NOAPPLICK:
       case IDC_NOAPPLICC:
         return "JI(`',`features.application')";
+      case IDC_NOMOUSEREP:
+        return "JI(`',`features.mouse')";
       case IDC_NORESIZE:
         return "JI(`',`features.resize')";
       case IDC_NOALTSCREEN:
@@ -989,6 +992,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.funky_type == 5 ? IDC_FUNCSCO : IDC_FUNCTILDE);
     CheckDlgButton(hwnd, IDC_NOAPPLICC, cfg.no_applic_c);
     CheckDlgButton(hwnd, IDC_NOAPPLICK, cfg.no_applic_k);
+    CheckDlgButton(hwnd, IDC_NOMOUSEREP, cfg.no_mouse_rep);
     CheckDlgButton(hwnd, IDC_NORESIZE, cfg.no_remote_resize);
     CheckDlgButton(hwnd, IDC_NOALTSCREEN, cfg.no_alt_screen);
     CheckDlgButton(hwnd, IDC_NOWINTITLE, cfg.no_remote_wintitle);
@@ -1353,7 +1357,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == featurespanelstart) {
-	/* The Features panel. Accelerators used: [acgoh] ukswtbr */
+	/* The Features panel. Accelerators used: [acgoh] ukswtbrx */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Enabling and disabling advanced terminal features ",
@@ -1361,6 +1365,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	beginbox(&cp, NULL, IDC_BOX_FEATURES1);
 	checkbox(&cp, "Disable application c&ursor keys mode", IDC_NOAPPLICC);
 	checkbox(&cp, "Disable application &keypad mode", IDC_NOAPPLICK);
+	checkbox(&cp, "Disable &xterm-style mouse reporting", IDC_NOMOUSEREP);
 	checkbox(&cp, "Disable remote-controlled terminal re&sizing",
 		 IDC_NORESIZE);
 	checkbox(&cp, "Disable s&witching to alternate terminal screen",
@@ -2314,6 +2319,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.no_applic_k =
 			IsDlgButtonChecked(hwnd, IDC_NOAPPLICK);
+		break;
+	      case IDC_NOMOUSEREP:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.no_mouse_rep =
+			IsDlgButtonChecked(hwnd, IDC_NOMOUSEREP);
 		break;
 	      case IDC_NORESIZE:
 		if (HIWORD(wParam) == BN_CLICKED ||

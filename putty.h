@@ -277,6 +277,7 @@ typedef struct {
     int funky_type;
     int no_applic_c;		       /* totally disable app cursor keys */
     int no_applic_k;		       /* totally disable app keypad */
+    int no_mouse_rep;		       /* totally disable mouse reporting */
     int no_remote_resize;	       /* disable remote resizing */
     int no_alt_screen;		       /* disable alternate screen */
     int no_remote_wintitle;	       /* disable remote retitling */

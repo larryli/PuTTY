@@ -756,7 +756,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
-    cleanup_exit(msg.wParam);
+    cleanup_exit(msg.wParam);	       /* this doesn't return... */
+    return msg.wParam;		       /* ... but optimiser doesn't know */
 }
 
 /*
@@ -816,6 +817,7 @@ char *do_select(SOCKET skt, int startup)
  */
 void set_raw_mouse_mode(int activate)
 {
+    activate = activate && !cfg.no_mouse_rep;
     send_raw_mouse = activate;
     SetCursor(LoadCursor(NULL, activate ? IDC_ARROW : IDC_IBEAM));
 }
