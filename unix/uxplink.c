@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <pwd.h>
+#include <sys/ioctl.h>
 
 /* More helpful version of the FD_SET macro, to also handle maxfd. */
 #define FD_SET_MAX(fd, max, set) do { \
@@ -68,6 +70,68 @@ struct termios orig_termios;
 
 static Backend *back;
 static void *backhandle;
+
+/*
+ * Default settings that are specific to pterm.
+ */
+char *platform_default_s(char *name)
+{
+    if (!strcmp(name, "X11Display"))
+	return getenv("DISPLAY");
+    if (!strcmp(name, "TermType"))
+	return getenv("TERM");
+    if (!strcmp(name, "UserName")) {
+	/*
+	 * Remote login username will default to the local username.
+	 */
+	struct passwd *p;
+	uid_t uid = getuid();
+	char *user, *ret = NULL;
+
+	/*
+	 * First, find who we think we are using getlogin. If this
+	 * agrees with our uid, we'll go along with it. This should
+	 * allow sharing of uids between several login names whilst
+	 * coping correctly with people who have su'ed.
+	 */
+	user = getlogin();
+	setpwent();
+	if (user)
+	    p = getpwnam(user);
+	else
+	    p = NULL;
+	if (p && p->pw_uid == uid) {
+	    /*
+	     * The result of getlogin() really does correspond to
+	     * our uid. Fine.
+	     */
+	    ret = user;
+	} else {
+	    /*
+	     * If that didn't work, for whatever reason, we'll do
+	     * the simpler version: look up our uid in the password
+	     * file and map it straight to a name.
+	     */
+	    p = getpwuid(uid);
+	    ret = p->pw_name;
+	}
+	endpwent();
+
+	return ret;
+    }
+    return NULL;
+}
+
+int platform_default_i(char *name, int def)
+{
+    if (!strcmp(name, "TermWidth") ||
+	!strcmp(name, "TermHeight")) {
+	struct winsize size;
+	if (ioctl(0, TIOCGWINSZ, (void *)&size) >= 0)
+	    return (!strcmp(name, "TermWidth") ? size.ws_col : size.ws_row);
+    }
+    return def;
+}
 
 char *x_get_default(char *key)
 {

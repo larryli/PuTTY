@@ -482,6 +482,18 @@ void do_defaults(char *, Config *);
 void registry_cleanup(void);
 
 /*
+ * Functions used by settings.c to provide platform-specific
+ * default settings.
+ * 
+ * (The integer one is expected to return `def' if it has no clear
+ * opinion of its own. This is because there's no integer value
+ * which I can reliably set aside to indicate `nil'. The string
+ * function is perfectly all right returning NULL, of course.)
+ */
+char *platform_default_s(char *name);
+int platform_default_i(char *name, int def);
+
+/*
  * Exports from terminal.c.
  */
 

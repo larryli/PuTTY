@@ -83,6 +83,23 @@ char *x_get_default(char *key)
     return XGetDefault(GDK_DISPLAY(), app_name, key);
 }
 
+/*
+ * Default settings that are specific to pterm.
+ */
+char *platform_default_s(char *name)
+{
+    if (!strcmp(name, "Font"))
+	return "fixed";	       /* COE_NORMAL works badly in an xterm */
+    return NULL;
+}
+
+int platform_default_i(char *name, int def)
+{
+    if (!strcmp(name, "CloseOnExit"))
+	return COE_ALWAYS;	       /* COE_NORMAL works badly in an xterm */
+    return def;
+}
+
 void ldisc_update(void *frontend, int echo, int edit)
 {
     /*

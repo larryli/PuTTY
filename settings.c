@@ -23,13 +23,22 @@ static const struct keyval ciphernames[] = {
 static void gpps(void *handle, char *name, char *def, char *val, int len)
 {
     if (!read_setting_s(handle, name, val, len)) {
-	strncpy(val, def, len);
+	char *pdef;
+
+	pdef = platform_default_s(name);
+	if (pdef) {
+	    strncpy(val, pdef, len);
+	} else {
+	    strncpy(val, def, len);
+	}
+
 	val[len - 1] = '\0';
     }
 }
 
 static void gppi(void *handle, char *name, int def, int *i)
 {
+    def = platform_default_i(name, def);
     *i = read_setting_i(handle, name, def);
 }
 
@@ -367,13 +376,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
      * single command in its own pterm), but I don't think it's a
      * sane default, unfortunately.
      */
-    gppi(sesskey, "CloseOnExit",
-#ifdef _WINDOWS
-         COE_NORMAL,
-#else
-         COE_ALWAYS,
-#endif
-         &cfg->close_on_exit);
+    gppi(sesskey, "CloseOnExit", COE_NORMAL, &cfg->close_on_exit);
     gppi(sesskey, "WarnOnClose", 1, &cfg->warn_on_close);
     {
 	/* This is two values for backward compatibility with 0.50/0.51 */
@@ -492,22 +495,10 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gpps(sesskey, "WinTitle", "", cfg->wintitle, sizeof(cfg->wintitle));
     gppi(sesskey, "TermWidth", 80, &cfg->width);
     gppi(sesskey, "TermHeight", 24, &cfg->height);
-#ifdef _WINDOWS
-    gpps(sesskey, "Font", "Courier New", cfg->font, sizeof(cfg->font));
-#elif defined(macintosh)
-    gpps(sesskey, "Font", "Monaco", cfg->font, sizeof(cfg->font));
-#else
-    gpps(sesskey, "Font", "fixed", cfg->font, sizeof(cfg->font));
-#endif
+    gpps(sesskey, "Font", "XXX", cfg->font, sizeof(cfg->font));
     gppi(sesskey, "FontIsBold", 0, &cfg->fontisbold);
-#ifdef _WINDOWS
-    gppi(sesskey, "FontCharSet", ANSI_CHARSET, &cfg->fontcharset);
-#endif
-#ifdef macintosh
-    gppi(sesskey, "FontHeight", 9, &cfg->fontheight);
-#else
+    gppi(sesskey, "FontCharSet", 0, &cfg->fontcharset);
     gppi(sesskey, "FontHeight", 10, &cfg->fontheight);
-#endif
 #ifdef _WINDOWS
     if (cfg->fontheight < 0) {
 	int oldh, newh;
@@ -543,16 +534,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	    cfg->colours[i][2] = c2;
 	}
     }
-#ifndef _WINDOWS
-    /* Non-raw cut and paste of line-drawing chars works badly on the
-     * current Unix stub implementation of the Unicode functions.
-     * So I'm going to temporarily set the default to raw mode so
-     * that the failure mode isn't quite so drastically horrid.
-     * When Unicode comes in, this can all be put right. */
-    gppi(sesskey, "RawCNP", 1, &cfg->rawcnp);
-#else
     gppi(sesskey, "RawCNP", 0, &cfg->rawcnp);
-#endif
     gppi(sesskey, "PasteRTF", 0, &cfg->rtf_paste);
     gppi(sesskey, "MouseIsXterm", 0, &cfg->mouse_is_xterm);
     gppi(sesskey, "RectSelect", 0, &cfg->rect_select);
@@ -598,17 +580,8 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
-#ifdef _WINDOWS
     gpps(sesskey, "X11Display", "localhost:0", cfg->x11_display,
 	 sizeof(cfg->x11_display));
-#else
-    {
-	/* On Unix, the default X display should simply be $DISPLAY. */
-	char *disp = getenv("DISPLAY");
-	gpps(sesskey, "X11Display", disp, cfg->x11_display,
-	     sizeof(cfg->x11_display));
-    }
-#endif
 
     gppi(sesskey, "LocalPortAcceptAll", 0, &cfg->lport_acceptall);
     gppi(sesskey, "RemotePortAcceptAll", 0, &cfg->rport_acceptall);

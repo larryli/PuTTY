@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.20 2003/01/08 22:46:12 ben Exp $ */
+/* $Id: mac.c,v 1.21 2003/01/09 18:06:29 simon Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -692,6 +692,27 @@ void askcipher(void *frontend, char *ciphername, int cs)
 void old_keyfile_warning(void)
 {
 
+}
+
+char *platform_default_s(char *name)
+{
+    if (!strcmp(name, "Font"))
+	return "Monaco";
+    return NULL;
+}
+
+int platform_default_i(char *name, int def)
+{
+    if (!strcmp(name, "FontHeight"))
+	return 9;
+    /* Non-raw cut and paste of line-drawing chars works badly on the
+     * current Unix stub implementation of the Unicode functions.
+     * So I'm going to temporarily set the default to raw mode so
+     * that the failure mode isn't quite so drastically horrid.
+     * When Unicode comes in, this can all be put right. */
+    if (!strcmp(name, "RawCNP"))
+	return 1;
+    return def;
 }
 
 /*
