@@ -53,6 +53,7 @@ static int preserve = 0;
 static int targetshouldbedirectory = 0;
 static int statistics = 1;
 static int portnumber = 0;
+static int prev_stats_len = 0;
 static char *password = NULL;
 static int errs = 0;
 /* GUI Adaptation - Sept 2000 */
@@ -566,6 +567,7 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
     unsigned long eta;
     char etastr[10];
     int pct;
+    int len;
 
     /* GUI Adaptation - Sept 2000 */
     if (gui_mode)
@@ -586,8 +588,11 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 
 	pct = (int) (100.0 * (float) done / size);
 
-	printf("\r%-25.25s | %10ld kB | %5.1f kB/s | ETA: %8s | %3d%%",
-	       name, done / 1024, ratebs / 1024.0, etastr, pct);
+	len = printf("\r%-25.25s | %10ld kB | %5.1f kB/s | ETA: %8s | %3d%%",
+		     name, done / 1024, ratebs / 1024.0, etastr, pct);
+	if (len < prev_stats_len)
+	    printf("%*s", prev_stats_len - len, "");
+	prev_stats_len = len;
 
 	if (done == size)
 	    printf("\n");
