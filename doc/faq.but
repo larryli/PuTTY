@@ -381,12 +381,12 @@ while host keys are stored under \c{SshHostKeys}.
 
 PuTTY also requires a random number seed file, to improve the
 unpredictability of randomly chosen data needed as part of the SSH
-cryptography. This is stored by default in your Windows home
-directory (\c{%HOMEDRIVE%\\%HOMEPATH%}), or in the actual Windows
-directory (such as \c{C:\\WINDOWS}) if the home directory doesn't
-exist, for example if you're using Win95. If you want to change the
-location of the random number seed file, you can put your chosen
-pathname in the Registry, at
+cryptography. This is stored by default in a file called \i\c{PUTTY.RND}
+in your Windows home directory (\c{%HOMEDRIVE%\\%HOMEPATH%}), or in
+the actual Windows directory (such as \c{C:\\WINDOWS}) if the home
+directory doesn't exist, for example if you're using Win95. If you
+want to change the location of the random number seed file, you can
+put your chosen pathname in the Registry, at
 
 \c HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\RandSeedFile
 
