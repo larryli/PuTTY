@@ -6473,10 +6473,6 @@ static void ssh_free(void *handle)
 	crcda_free_context(ssh->crcda_ctx);
 	ssh->crcda_ctx = NULL;
     }
-    if (ssh->logctx) {
-	log_free(ssh->logctx);
-	ssh->logctx = NULL;
-    }
     if (ssh->s)
 	ssh_do_close(ssh);
     sfree(ssh);
