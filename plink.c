@@ -289,6 +289,12 @@ int main(int argc, char **argv)
 
     sklist = NULL;
     skcount = sksize = 0;
+    /*
+     * Initialise port and protocol to sensible defaults. (These
+     * will be overridden by more or less anything.)
+     */
+    default_protocol = PROT_SSH;
+    default_port = 22;
 
     flags = FLAG_STDERR;
     /*
