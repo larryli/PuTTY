@@ -294,13 +294,15 @@ If you're looking in the 0.51 release or earlier, the Tunnels panel
 isn't there. It was added in the development snapshots after 0.51,
 and releases 0.52 and onwards will contain it.
 
-\S{faq-options} How do I use all PuTTY's features (port forwarding,
-SSH v2 etc) in Plink?
+\S{faq-options} How do I use all PuTTY's features (public keys, port
+forwarding, SSH v2, etc.) in PSCP, PSFTP and Plink?
 
-Plink is currently rather short of command line options to enable
-this sort of thing. You can use these features if you create a PuTTY
-saved session, and then use the name of the saved session on Plink's
-command line in place of a hostname.
+The command-line tools are currently rather short of command line
+options to enable this sort of thing. However, you can use most of
+PuTTY's features if you create a PuTTY saved session, and then use
+the name of the saved session on the command line in place of a
+hostname. This works for PSCP, PSFTP and Plink (but don't expect
+port forwarding in the file transfer applications!).
 
 \S{faq-pscp} How do I use PSCP.EXE? When I double-click it gives me
 a command prompt window which then closes instantly.
