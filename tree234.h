@@ -55,7 +55,7 @@ void *find234(tree234 *t, void *e, cmpfn234 cmp);
  * Delete an element e in a 2-3-4 tree. Does not free the element,
  * merely removes all links to it from the tree nodes.
  */
-void *del234(tree234 *t, void *e);
+void del234(tree234 *t, void *e);
 
 /*
  * Iterate over the elements of a tree234, in order.
