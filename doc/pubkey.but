@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.14 2002/05/11 16:45:29 simon Exp $
+\versionid $Id: pubkey.but,v 1.15 2002/05/15 20:07:11 simon Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -329,6 +329,38 @@ put up a dialog box where you can browse around the file system and
 find your key file. Once you select the file, PuTTYgen will ask you
 for a passphrase (if necessary) and will then display the key
 details in the same way as if it had just generated the key.
+
+PuTTYgen can also load SSH2 private keys in OpenSSH's format and
+\cw{ssh.com}'s format. Once you have loaded one of these key types,
+you can then save it back out as a PuTTY-format key so that you can
+use it with PuTTY. The passphrase will be unchanged by this process.
+You may want to change the key comment before you save the key,
+since OpenSSH's SSH2 key format contains no space for a comment and
+\cw{ssh.com}'s default comment format is long and verbose.
+
+\S{puttygen-export} Exporting your private key in an alternative format
+
+\cfg{winhelp-topic}{puttygen.export}
+
+Most SSH1 clients use a standard format for storing private keys on
+disk. PuTTY uses this format as well; so if you have generated an
+SSH1 private key using OpenSSH or \cw{ssh.com}'s client, you can use
+it with PuTTY, and vice versa.
+
+However, SSH2 private keys have no standard format. OpenSSH and
+\cw{ssh.com} have different formats, and PuTTY's is different again.
+So a key generated with one client cannot immediately be used with
+another.
+
+PuTTYgen has the ability to export private keys in OpenSSH format,
+or in \cw{ssh.com} format. To do so, select an option from the
+\q{Export} menu at the top of the PuTTYgen window. Exporting a key
+works exactly like saving it (see \k{puttygen-savepriv}) - you need
+to have typed your passphrase in beforehand, and you will be warned
+if you are about to save a key without a passphrase.
+
+Note that the export options are only available if you have
+generated an SSH2 key.
 
 \H{pubkey-gettingready} Getting ready for public key authentication
 

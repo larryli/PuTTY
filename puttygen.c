@@ -332,6 +332,7 @@ struct MainDlgState {
     unsigned *entropy;
     struct RSAKey key;
     struct dss_key dsskey;
+    HMENU filemenu, keymenu, exportmenu;
 };
 
 static void hidemany(HWND hwnd, const int *ids, int hideit)
@@ -475,45 +476,138 @@ static int save_ssh2_pubkey(char *filename, struct ssh2_userkey *key)
     return 1;
 }
 
+enum {
+    controlidstart = 100,
+    IDC_QUIT,
+    IDC_TITLE,
+    IDC_BOX_KEY,
+    IDC_NOKEY,
+    IDC_GENERATING,
+    IDC_PROGRESS,
+    IDC_PKSTATIC, IDC_KEYDISPLAY,
+    IDC_FPSTATIC, IDC_FINGERPRINT,
+    IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
+    IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
+    IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT,
+    IDC_BOX_ACTIONS,
+    IDC_GENSTATIC, IDC_GENERATE,
+    IDC_LOADSTATIC, IDC_LOAD,
+    IDC_SAVESTATIC, IDC_SAVE, IDC_SAVEPUB,
+    IDC_BOX_PARAMS,
+    IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
+    IDC_BITSSTATIC, IDC_BITS,
+    IDC_ABOUT,
+    IDC_GIVEHELP,
+    IDC_IMPORT, IDC_EXPORT_OPENSSH, IDC_EXPORT_SSHCOM
+};
+
+static const int nokey_ids[] = { IDC_NOKEY, 0 };
+static const int generating_ids[] = { IDC_GENERATING, IDC_PROGRESS, 0 };
+static const int gotkey_ids[] = {
+    IDC_PKSTATIC, IDC_KEYDISPLAY,
+    IDC_FPSTATIC, IDC_FINGERPRINT,
+    IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
+    IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
+    IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 0
+};
+
+/*
+ * Small UI helper function to switch the state of the main dialog
+ * by enabling and disabling controls and menu items.
+ */
+void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
+{
+    int type;
+
+    switch (status) {
+      case 0:			       /* no key */
+	hidemany(hwnd, nokey_ids, FALSE);
+	hidemany(hwnd, generating_ids, TRUE);
+	hidemany(hwnd, gotkey_ids, TRUE);
+	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
+	EnableMenuItem(state->filemenu, IDC_LOAD, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->filemenu, IDC_SAVE, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->filemenu, IDC_SAVEPUB, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_GENERATE, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH1, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->exportmenu, IDC_EXPORT_OPENSSH,
+		       MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->exportmenu, IDC_EXPORT_SSHCOM,
+		       MF_GRAYED|MF_BYCOMMAND);
+	break;
+      case 1:			       /* generating key */
+	hidemany(hwnd, nokey_ids, TRUE);
+	hidemany(hwnd, generating_ids, FALSE);
+	hidemany(hwnd, gotkey_ids, TRUE);
+	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 0);
+	EnableMenuItem(state->filemenu, IDC_LOAD, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->filemenu, IDC_SAVE, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->filemenu, IDC_SAVEPUB, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_GENERATE, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH1, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->exportmenu, IDC_EXPORT_OPENSSH,
+		       MF_GRAYED|MF_BYCOMMAND);
+	EnableMenuItem(state->exportmenu, IDC_EXPORT_SSHCOM,
+		       MF_GRAYED|MF_BYCOMMAND);
+	break;
+      case 2:
+	hidemany(hwnd, nokey_ids, TRUE);
+	hidemany(hwnd, generating_ids, TRUE);
+	hidemany(hwnd, gotkey_ids, FALSE);
+	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
+	EnableMenuItem(state->filemenu, IDC_LOAD, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->filemenu, IDC_SAVE, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->filemenu, IDC_SAVEPUB, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_GENERATE, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH1, MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA,MF_ENABLED|MF_BYCOMMAND);
+	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA,MF_ENABLED|MF_BYCOMMAND);
+	/*
+	 * Enable export menu items if and only if the key type
+	 * supports this kind of export.
+	 */
+	type = state->ssh2 ? SSH_KEYTYPE_SSH2 : SSH_KEYTYPE_SSH1;
+#define do_export_menuitem(x,y) \
+    EnableMenuItem(state->exportmenu, x, MF_BYCOMMAND | \
+		       (import_target_type(y)==type?MF_ENABLED:MF_GRAYED))
+	do_export_menuitem(IDC_EXPORT_OPENSSH, SSH_KEYTYPE_OPENSSH);
+	do_export_menuitem(IDC_EXPORT_SSHCOM, SSH_KEYTYPE_SSHCOM);
+#undef do_export_menuitem
+	break;
+    }
+}
+
 /*
  * Dialog-box function for the main PuTTYgen dialog box.
  */
 static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
-    enum {
-	controlidstart = 100,
-	IDC_TITLE,
-	IDC_BOX_KEY,
-	IDC_NOKEY,
-	IDC_GENERATING,
-	IDC_PROGRESS,
-	IDC_PKSTATIC, IDC_KEYDISPLAY,
-	IDC_FPSTATIC, IDC_FINGERPRINT,
-	IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
-	IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
-	IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT,
-	IDC_BOX_ACTIONS,
-	IDC_GENSTATIC, IDC_GENERATE,
-	IDC_LOADSTATIC, IDC_LOAD,
-	IDC_SAVESTATIC, IDC_SAVE, IDC_SAVEPUB,
-	IDC_BOX_PARAMS,
-	IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
-	IDC_BITSSTATIC, IDC_BITS,
-	IDC_ABOUT,
-	IDC_GIVEHELP,
-	IDC_IMPORT, IDC_EXPORT_OPENSSH, IDC_EXPORT_SSHCOM
-    };
-    static const int nokey_ids[] = { IDC_NOKEY, 0 };
-    static const int generating_ids[] =
-	{ IDC_GENERATING, IDC_PROGRESS, 0 };
-    static const int gotkey_ids[] = {
-	IDC_PKSTATIC, IDC_KEYDISPLAY,
-	IDC_FPSTATIC, IDC_FINGERPRINT,
-	IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
-	IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
-	IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 0
-    };
     static const char generating_msg[] =
 	"Please wait while a key is generated...";
     static const char entropy_msg[] =
@@ -533,33 +627,48 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         }
         requested_help = FALSE;
 
+	state = smalloc(sizeof(*state));
+	state->generation_thread_exists = FALSE;
+	state->collecting_entropy = FALSE;
+	state->entropy = NULL;
+	state->key_exists = FALSE;
+	SetWindowLong(hwnd, GWL_USERDATA, (LONG) state);
 	{
 	    HMENU menu, menu1;
 
 	    menu = CreateMenu();
 
 	    menu1 = CreateMenu();
-	    AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "&Generate key pair");
 	    AppendMenu(menu1, MF_ENABLED, IDC_LOAD, "&Load private key");
 	    AppendMenu(menu1, MF_ENABLED, IDC_SAVEPUB, "Save p&ublic key");
 	    AppendMenu(menu1, MF_ENABLED, IDC_SAVE, "&Save private key");
-
+	    AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+	    AppendMenu(menu1, MF_ENABLED, IDC_QUIT, "E&xit");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&File");
+	    state->filemenu = menu1;
+
+	    menu1 = CreateMenu();
+	    AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "&Generate key pair");
+	    AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH&1 key (RSA)");
+	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH2 &RSA key");
+	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH2 &DSA key");
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Key");
+	    state->keymenu = menu1;
 
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH,
 		       "Export &OpenSSH key");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
-
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
 		       "&Export");
+	    state->exportmenu = menu1;
 
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");
 	    if (help_path)
 		AppendMenu(menu1, MF_ENABLED, IDC_GIVEHELP, "&Help");
-
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Help");
 
 	    SetMenu(hwnd, menu);
@@ -580,12 +689,6 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
 	}
 
-	state = smalloc(sizeof(*state));
-	state->generation_thread_exists = FALSE;
-	state->collecting_entropy = FALSE;
-	state->entropy = NULL;
-	state->key_exists = FALSE;
-	SetWindowLong(hwnd, GWL_USERDATA, (LONG) state);
 	{
 	    struct ctlpos cp, cp2;
 
@@ -632,6 +735,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    endbox(&cp);
 	}
 	CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2DSA, IDC_KEYSSH1);
+	CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1, IDC_KEYSSH2DSA,
+			   IDC_KEYSSH1, MF_BYCOMMAND);
 	SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEYSIZE, FALSE);
 
 	/*
@@ -640,11 +745,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	 * buttons, because with no key we obviously can't save
 	 * anything.
 	 */
-	hidemany(hwnd, nokey_ids, FALSE);
-	hidemany(hwnd, generating_ids, TRUE);
-	hidemany(hwnd, gotkey_ids, TRUE);
-	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
-	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
+	ui_set_state(hwnd, state, 0);
 
 	return 1;
       case WM_MOUSEMOVE:
@@ -694,6 +795,22 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
+	  case IDC_KEYSSH1:
+	  case IDC_KEYSSH2RSA:
+	  case IDC_KEYSSH2DSA:
+	    {
+		state = (struct MainDlgState *)
+		    GetWindowLong(hwnd, GWL_USERDATA);
+		if (!IsDlgButtonChecked(hwnd, LOWORD(wParam)))
+		    CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2DSA,
+				     LOWORD(wParam));
+		CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1, IDC_KEYSSH2DSA,
+				   LOWORD(wParam), MF_BYCOMMAND);
+	    }
+	    break;
+	  case IDC_QUIT:
+	    PostMessage(hwnd, WM_CLOSE, 0, 0);
+	    break;
 	  case IDC_COMMENTEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE) {
 		state = (struct MainDlgState *)
@@ -754,19 +871,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    state->keysize = 256;
 		    SetDlgItemInt(hwnd, IDC_BITS, 256, FALSE);
 		}
-		hidemany(hwnd, nokey_ids, TRUE);
-		hidemany(hwnd, generating_ids, FALSE);
-		hidemany(hwnd, gotkey_ids, TRUE);
-		EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 0);
-		EnableWindow(GetDlgItem(hwnd, IDC_BITS), 0);
-		state->key_exists = FALSE;
+		ui_set_state(hwnd, state, 1);
 		SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
+		state->key_exists = FALSE;
 		state->collecting_entropy = TRUE;
 
 		/*
@@ -1001,14 +1108,6 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			MessageBox(NULL, "Couldn't load private key.",
 				   "PuTTYgen Error", MB_OK | MB_ICONERROR);
 		    } else if (ret == 1) {
-			EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
-			EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 			/*
 			 * Now update the key controls with all the
 			 * key data.
@@ -1073,9 +1172,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			 * Finally, hide the progress bar and show
 			 * the key data.
 			 */
-			hidemany(hwnd, nokey_ids, TRUE);
-			hidemany(hwnd, generating_ids, TRUE);
-			hidemany(hwnd, gotkey_ids, FALSE);
+			ui_set_state(hwnd, state, 2);
 			state->key_exists = TRUE;
 		    }
 		}
@@ -1090,14 +1187,6 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
 			   MAKELPARAM(0, PROGRESSRANGE));
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE, 0);
-	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
-	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 	if (state->ssh2) {
 	    if (state->is_dsa) {
 		state->ssh2key.data = &state->dsskey;
@@ -1176,9 +1265,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	/*
 	 * Finally, hide the progress bar and show the key data.
 	 */
-	hidemany(hwnd, nokey_ids, TRUE);
-	hidemany(hwnd, generating_ids, TRUE);
-	hidemany(hwnd, gotkey_ids, FALSE);
+	ui_set_state(hwnd, state, 2);
 	break;
       case WM_HELP:
         if (help_path) {
@@ -1220,6 +1307,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
               case IDC_BITSSTATIC:
               case IDC_BITS:
                 cmd = "JI(`',`puttygen.bits')"; break;
+              case IDC_EXPORT_OPENSSH:
+              case IDC_EXPORT_SSHCOM:
+                cmd = "JI(`',`puttygen.export')"; break;
             }
             if (cmd) {
                 WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
