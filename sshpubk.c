@@ -105,7 +105,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
      */
     if (ciphertype) {
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 	des3_decrypt_pubkey(keybuf, buf + i, (len - i + 7) & ~7);
 	memset(keybuf, 0, sizeof(keybuf));	/* burn the evidence */
@@ -155,7 +155,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
 int loadrsakey(char *filename, struct RSAKey *key, char *passphrase)
 {
     FILE *fp;
-    unsigned char buf[64];
+    char buf[64];
 
     fp = fopen(filename, "rb");
     if (!fp)
@@ -183,7 +183,7 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase)
 int rsakey_encrypted(char *filename, char **comment)
 {
     FILE *fp;
-    unsigned char buf[64];
+    char buf[64];
 
     fp = fopen(filename, "rb");
     if (!fp)
@@ -208,7 +208,7 @@ int rsakey_encrypted(char *filename, char **comment)
 int rsakey_pubblob(char *filename, void **blob, int *bloblen)
 {
     FILE *fp;
-    unsigned char buf[64];
+    char buf[64];
     struct RSAKey key;
     int ret;
 
@@ -321,7 +321,7 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase)
      */
     if (passphrase) {
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 	des3_encrypt_pubkey(keybuf, estart, p - estart);
 	memset(keybuf, 0, sizeof(keybuf));	/* burn the evidence */
@@ -529,7 +529,7 @@ int base64_decode_atom(char *atom, unsigned char *out)
     return len;
 }
 
-static char *read_blob(FILE * fp, int nlines, int *bloblen)
+static unsigned char *read_blob(FILE * fp, int nlines, int *bloblen)
 {
     unsigned char *blob;
     char *line;
@@ -873,7 +873,7 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm,
 	*pub_blob_len = public_blob_len;
     if (algorithm)
 	*algorithm = alg->name;
-    return public_blob;
+    return (char *)public_blob;
 
     /*
      * Error processing.
@@ -1056,7 +1056,7 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
     }
 
     if (passphrase) {
-	char key[40];
+	unsigned char key[40];
 	SHA_State s;
 
 	passlen = strlen(passphrase);
