@@ -1671,6 +1671,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 c->localid = i;
                 c->closes = 0;
                 c->type = SSH1_SMSG_AGENT_OPEN;   /* identify channel type */
+                c->u.a.lensofar = 0;
                 add234(ssh_channels, c);
                 send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
                             PKT_INT, c->remoteid, PKT_INT, c->localid,
