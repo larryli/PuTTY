@@ -1409,9 +1409,18 @@ void dlg_refresh(union control *ctrl, void *dlg)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc;
+    int i;
 
-    if (ctrl == NULL)
-	return; /* FIXME */
+    if (ctrl == NULL) {
+        /* NULL means refresh every control */
+        for (i = 0 ; i < mcs->npanels; i++) {
+	    for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next) {
+	        ctrlevent(mcs, mc, EVENT_REFRESH);
+	    }
+        }
+        return;
+    }
+    /* Just refresh a specific control */
     mc = findbyctrl(mcs, ctrl);
     assert(mc != NULL);
     ctrlevent(mcs, mc, EVENT_REFRESH);
