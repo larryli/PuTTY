@@ -11,16 +11,6 @@
 #include <ctype.h>
 #include <tchar.h>
 
-// FIXME
-#define DEBUG
-#ifdef DEBUG
-void dprintf(char *fmt, ...);
-#define debug(x) (dprintf x)
-#else
-#define debug(x)
-#endif
-
-
 #include "ssh.h"
 #include "tree234.h"
 
@@ -296,22 +286,16 @@ static void add_keyfile(char *filename) {
         return;
     }
 
-debug(("ooh %d\n", __LINE__));
     if (ver == 1)
 	needs_pass = rsakey_encrypted(filename, &comment);
     else
 	needs_pass = ssh2_userkey_encrypted(filename, &comment);
-debug(("ooh %d\n", __LINE__));
     attempts = 0;
-debug(("ooh %d\n", __LINE__));
     if (ver == 1)
 	rkey = smalloc(sizeof(*rkey));
-debug(("ooh %d\n", __LINE__));
     pps.passphrase = passphrase;
     pps.comment = comment;
-debug(("ooh %d\n", __LINE__));
     do {
-debug(("ooh %d\n", __LINE__));
         if (needs_pass) {
             int dlgret;
             dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
@@ -325,13 +309,10 @@ debug(("ooh %d\n", __LINE__));
             }
         } else
             *passphrase = '\0';
-debug(("ooh %d\n", __LINE__));
 	if (ver == 1)
 	    ret = loadrsakey(filename, rkey, passphrase);
 	else {
-debug(("ooh %d\n", __LINE__));
 	    skey = ssh2_load_userkey(filename, passphrase);
-debug(("ooh %d\n", __LINE__));
 	    if (skey == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!skey)
@@ -341,9 +322,7 @@ debug(("ooh %d\n", __LINE__));
 	}
         attempts++;
     } while (ret == -1);
-debug(("ooh %d\n", __LINE__));
     if (comment) sfree(comment);
-debug(("ooh %d\n", __LINE__));
     if (ret == 0) {
         MessageBox(NULL, "Couldn't load private key.", APPNAME,
                    MB_OK | MB_ICONERROR);
@@ -351,15 +330,12 @@ debug(("ooh %d\n", __LINE__));
 	    sfree(rkey);
         return;
     }
-debug(("ooh %d\n", __LINE__));
     if (ver == 1) {
 	if (already_running) {
 	    unsigned char *request, *response;
 	    int reqlen, clen, resplen;
 
-debug(("ooh %d\n", __LINE__));
 	    clen = strlen(rkey->comment);
-debug(("ooh %d\n", __LINE__));
 
 	    reqlen = 4 + 1 +	       /* length, message type */
 		4 +		       /* bit count */
@@ -371,14 +347,10 @@ debug(("ooh %d\n", __LINE__));
 		ssh1_bignum_length(rkey->q) +
 		4 + clen	       /* comment */
 		;
-debug(("ooh %d %d\n", __LINE__, reqlen));
 
 	    request = smalloc(reqlen);
-debug(("ooh %d\n", __LINE__));
 
-debug(("ooh %d\n", __LINE__));
 	    request[4] = SSH1_AGENTC_ADD_RSA_IDENTITY;
-debug(("ooh %d\n", __LINE__));
 	    reqlen = 5;
 	    PUT_32BIT(request+reqlen, bignum_bitcount(rkey->modulus));
 	    reqlen += 4;
@@ -393,9 +365,7 @@ debug(("ooh %d\n", __LINE__));
 	    reqlen += 4+clen;
 	    PUT_32BIT(request, reqlen-4);
 
-debug(("ooh %d\n", __LINE__));
 	    agent_query(request, reqlen, &response, &resplen);
-debug(("ooh %d\n", __LINE__));
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
 		MessageBox(NULL, "The already running Pageant "
 			   "refused to add the key.", APPNAME,
@@ -408,58 +378,37 @@ debug(("ooh %d\n", __LINE__));
 	if (already_running) {
 	    unsigned char *request, *response;
 	    int reqlen, alglen, clen, keybloblen, resplen;
-debug(("ooh %d\n", __LINE__));
 	    alglen = strlen(skey->alg->name);
-debug(("ooh %d\n", __LINE__));
 	    clen = strlen(skey->comment);
-debug(("ooh %d\n", __LINE__));
 
-debug(("ooh %d\n", __LINE__));
 	    keybloblen = skey->alg->openssh_fmtkey(skey->data, NULL, 0);
-debug(("ooh %d\n", __LINE__));
 
-debug(("ooh %d\n", __LINE__));
 	    reqlen = 4 + 1 +	       /* length, message type */
 		4 + alglen +	       /* algorithm name */
 		keybloblen +	       /* key data */
 		4 + clen	       /* comment */
 		;
-debug(("ooh %d\n", __LINE__));
 
-debug(("ooh %d\n", __LINE__));
 	    request = smalloc(reqlen);
-debug(("ooh %d\n", __LINE__));
 
 	    request[4] = SSH2_AGENTC_ADD_IDENTITY;
-debug(("ooh %d\n", __LINE__));
 	    reqlen = 5;
-debug(("ooh %d\n", __LINE__));
 	    PUT_32BIT(request+reqlen, alglen);
-debug(("ooh %d\n", __LINE__));
 	    reqlen += 4;
-debug(("ooh %d\n", __LINE__));
 	    memcpy(request+reqlen, skey->alg->name, alglen);
-debug(("ooh %d\n", __LINE__));
 	    reqlen += alglen;
-debug(("ooh %d\n", __LINE__));
 	    reqlen += skey->alg->openssh_fmtkey(skey->data,
 						request+reqlen, keybloblen);
-debug(("ooh %d\n", __LINE__));
 	    PUT_32BIT(request+reqlen, clen);
-debug(("ooh %d\n", __LINE__));
 	    memcpy(request+reqlen+4, skey->comment, clen);
-debug(("ooh %d\n", __LINE__));
 	    PUT_32BIT(request, reqlen-4);
-debug(("ooh %d\n", __LINE__));
 	    reqlen += clen+4;
 
 	    agent_query(request, reqlen, &response, &resplen);
-debug(("ooh %d\n", __LINE__));
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
 		MessageBox(NULL, "The already running Pageant"
 			   "refused to add the key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
-debug(("ooh %d\n", __LINE__));
 	} else {
 	    if (add234(ssh2keys, skey) != skey) {
 		skey->alg->freekey(skey->data);
