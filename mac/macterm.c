@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.38 2003/01/09 22:51:41 ben Exp $ */
+/* $Id: macterm.c,v 1.39 2003/01/09 23:29:22 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1402,9 +1402,12 @@ void get_window_pixels(void *frontend, int *x, int *y)
 char *get_window_title(void *frontend, int icon)
 {
     Session *s = frontend;
+    Str255 ptitle;
+    static char title[256];
 
-    /* Erm, we don't save this at the moment */
-    return "";
+    GetWTitle(s->window, ptitle);
+    p2cstrcpy(title, ptitle);
+    return title;
 }
 
 /*
