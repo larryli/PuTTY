@@ -2611,6 +2611,14 @@ static void ssh_special (Telnet_Special code) {
             ssh2_pkt_send();
         }
         logevent("Sent EOF message");
+    } else if (code == TS_PING) {
+        if (ssh_version == 1) {
+            send_packet(SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
+        } else {
+            ssh2_pkt_init(SSH2_MSG_IGNORE);
+            ssh2_pkt_addstring_start();
+            ssh2_pkt_send();
+        }
     } else {
         /* do nothing */
     }

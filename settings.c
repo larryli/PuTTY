@@ -48,6 +48,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
     }
     write_setting_i (sesskey, "CloseOnExit", !!cfg->close_on_exit);
     write_setting_i (sesskey, "WarnOnClose", !!cfg->warn_on_close);
+    write_setting_i (sesskey, "PingInterval", cfg->ping_interval);
     write_setting_s (sesskey, "TerminalType", cfg->termtype);
     write_setting_s (sesskey, "TerminalSpeed", cfg->termspeed);
     {
@@ -157,6 +158,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
 
     gppi (sesskey, "CloseOnExit", 1, &cfg->close_on_exit);
     gppi (sesskey, "WarnOnClose", 1, &cfg->warn_on_close);
+    gppi (sesskey, "PingInterval", 0, &cfg->ping_interval);
     gpps (sesskey, "TerminalType", "xterm", cfg->termtype,
 	  sizeof(cfg->termtype));
     gpps (sesskey, "TerminalSpeed", "38400,38400", cfg->termspeed,

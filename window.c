@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <time.h>
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
@@ -56,6 +57,8 @@ static int pending_netevent = 0;
 static WPARAM pend_netevent_wParam = 0;
 static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
+
+static time_t last_movement = 0;
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -512,10 +515,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     has_focus = (GetForegroundWindow() == hwnd);
     UpdateWindow (hwnd);
 
+    if (GetMessage (&msg, NULL, 0, 0) == 1)
     {
 	int timer_id = 0, long_timer = 0;
 
-	while (GetMessage (&msg, NULL, 0, 0) == 1) {
+	while (msg.message != WM_QUIT) {
 	    /* Sometimes DispatchMessage calls routines that use their own
 	     * GetMessage loop, setup this timer so we get some control back.
 	     *
@@ -530,9 +534,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		timer_id = SetTimer(hwnd, 1, 20, NULL);
 	    DispatchMessage (&msg);
 
-	    /* This is too fast, but I'll leave it for now 'cause it shows
-	     * how often term_update is called (far too often at times!)
-	     */
+	    /* Make sure we blink everything that needs it. */
 	    term_blink(0);
 
 	    /* Send the paste buffer if there's anything to send */
@@ -542,31 +544,44 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	     * we've delayed, reading the socket, writing, and repainting
 	     * the window.
 	     */
-	    if (!PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE)) {
-		if (pending_netevent) {
-		    enact_pending_netevent();
+	    if (PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))
+		continue;
 
-		    term_blink(1);
-		}
-	    } else continue;
-	    if (!PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE)) {
-		if (timer_id) {
-		    KillTimer(hwnd, timer_id);
-		    timer_id = 0;
-		}
-                HideCaret(hwnd);
-		if (inbuf_head)
-		    term_out();
-		term_update();
-                ShowCaret(hwnd);
-		if (!has_focus)
-		   timer_id = SetTimer(hwnd, 1, 2000, NULL);
-		else if (cfg.blinktext)
-		   timer_id = SetTimer(hwnd, 1, 250, NULL);
-		else
-		   timer_id = SetTimer(hwnd, 1, 500, NULL);
-		long_timer = 1;
+	    if (pending_netevent) {
+		enact_pending_netevent();
+
+		/* Force the cursor blink on */
+		term_blink(1);
+
+		if (PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))
+		    continue;
 	    }
+
+	    /* Okay there is now nothing to do so we make sure the screen is
+	     * completely up to date then tell windows to call us in a little 
+	     * while.
+	     */
+	    if (timer_id) {
+		KillTimer(hwnd, timer_id);
+		timer_id = 0;
+	    }
+            HideCaret(hwnd);
+	    if (inbuf_head)
+		term_out();
+	    term_update();
+            ShowCaret(hwnd);
+	    if (!has_focus)
+	       timer_id = SetTimer(hwnd, 1, 59500, NULL);
+	    else
+	       timer_id = SetTimer(hwnd, 1, 250, NULL);
+	    long_timer = 1;
+	
+	    /* There's no point rescanning everything in the message queue
+	     * so we do an apperently unneccesary wait here 
+	     */
+	    WaitMessage();
+	    if (GetMessage (&msg, NULL, 0, 0) != 1)
+		break;
 	}
     }
 
@@ -1013,6 +1028,16 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
         HideCaret(hwnd);
 	term_update();
         ShowCaret(hwnd);
+	if (cfg.ping_interval > 0)
+        {
+           time_t now;
+           time(&now);
+           if (now-last_movement > cfg.ping_interval * 60 - 10)
+           {
+              back->special(TS_PING);
+              last_movement = now;
+           }
+        }
 	return 0;
       case WM_CREATE:
 	break;
@@ -1290,6 +1315,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	pending_netevent = TRUE;
 	pend_netevent_wParam=wParam;
 	pend_netevent_lParam=lParam;
+	time(&last_movement);
 	return 0;
       case WM_SETFOCUS:
 	has_focus = TRUE;
@@ -1569,16 +1595,7 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 	    }
     }
 
-    if (attr & ATTR_GBCHR) {
-	int i;
-	/*
-	 * GB mapping: map # to pound, and everything else stays
-	 * normal.
-	 */
-	for (i=0; i<len; i++)
-	    if (text[i] == '#')
-		text[i] = cfg.vtmode == VT_OEMONLY ? '\x9C' : '\xA3';
-    } else if (attr & ATTR_LINEDRW) {
+    if (attr & ATTR_LINEDRW) {
 	int i;
 	/* ISO 8859-1 */
 	static const char poorman[] =
@@ -1602,6 +1619,8 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 	/*
 	 * Line drawing mapping: map ` thru ~ (0x60 thru 0x7E) to
 	 * VT100 line drawing chars; everything else stays normal.
+	 *
+	 * Actually '_' maps to space too, but that's done before.
 	 */
 	switch (cfg.vtmode) {
 	  case VT_XWINDOWS:
@@ -1767,6 +1786,63 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
     if (!r) memset(keystate, 0, sizeof(keystate));
     else
     {
+#if 0
+       {  /* Tell us all about key events */
+	  static BYTE oldstate[256];
+	  static int first = 1;
+	  static int scan;
+	  int ch;
+	  if(first) memcpy(oldstate, keystate, sizeof(oldstate));
+	  first=0;
+
+	  if ((HIWORD(lParam)&(KF_UP|KF_REPEAT))==KF_REPEAT) {
+	     debug(("+"));
+	  } else if ((HIWORD(lParam)&KF_UP) && scan==(HIWORD(lParam) & 0xFF) ) {
+	     debug((". U"));
+	  } else {
+	     debug((".\n"));
+	     if (wParam >= VK_F1 && wParam <= VK_F20 )
+		debug(("K_F%d", wParam+1-VK_F1));
+	     else switch(wParam)
+	     {
+	     case VK_SHIFT:   debug(("SHIFT")); break;
+	     case VK_CONTROL: debug(("CTRL")); break;
+	     case VK_MENU:    debug(("ALT")); break;
+	     default:         debug(("VK_%02x", wParam));
+	     }
+	     if(message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)
+		debug(("*"));
+	     debug((", S%02x", scan=(HIWORD(lParam) & 0xFF) ));
+
+	     ch = MapVirtualKey(wParam, 2);
+	     if (ch>=' ' && ch<='~') debug((", '%c'", ch));
+	     else if (ch)            debug((", $%02x", ch));
+
+	     if (keys[0]) debug((", KB0=%02x", keys[0]));
+	     if (keys[1]) debug((", KB1=%02x", keys[1]));
+	     if (keys[2]) debug((", KB2=%02x", keys[2]));
+
+	     if ( (keystate[VK_SHIFT]&0x80)!=0)     debug((", S"));
+	     if ( (keystate[VK_CONTROL]&0x80)!=0)   debug((", C"));
+	     if ( (HIWORD(lParam)&KF_EXTENDED) )    debug((", E"));
+	     if ( (HIWORD(lParam)&KF_UP) )          debug((", U"));
+	  }
+
+	  if ((HIWORD(lParam)&(KF_UP|KF_REPEAT))==KF_REPEAT)
+	     ;
+	  else if ( (HIWORD(lParam)&KF_UP) ) 
+	     oldstate[wParam&0xFF] ^= 0x80;
+	  else
+	     oldstate[wParam&0xFF] ^= 0x81;
+
+	  for(ch=0; ch<256; ch++)
+	     if (oldstate[ch] != keystate[ch])
+		debug((", M%02x=%02x", ch, keystate[ch]));
+
+	  memcpy(oldstate, keystate, sizeof(oldstate));
+       }
+#endif
+
 	/* Note if AltGr was pressed and if it was used as a compose key */
 	if (wParam == VK_MENU && (HIWORD(lParam)&KF_EXTENDED))
 	{
@@ -1789,7 +1865,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 	   compose_state = 0;
 
 	/* Nastyness with NUMLock - Shift-NUMLock is left alone though */
-	if ( (cfg.funky_type == 0 || (cfg.funky_type == 1 && app_keypad_keys))
+	if ( (cfg.funky_type == 3 || (cfg.funky_type <= 1 && app_keypad_keys))
 	      && wParam==VK_NUMLOCK && !(keystate[VK_SHIFT]&0x80)) {
 
 	    wParam = VK_EXECUTE;
@@ -1835,7 +1911,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 
     /* Sanitize the number pad if not using a PC NumPad */
     if( left_alt || (app_keypad_keys && cfg.funky_type != 2)
-	  || cfg.nethack_keypad || compose_state )
+	|| cfg.funky_type == 3 || cfg.nethack_keypad || compose_state )
     {
 	if ((HIWORD(lParam)&KF_EXTENDED) == 0)
 	{
@@ -1890,6 +1966,11 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
             SendMessage (hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
             return -1;
 	}
+	/* Control-Numlock for app-keypad mode switch */
+	if (wParam == VK_PAUSE && shift_state == 2) {
+	    app_keypad_keys ^= 1;
+	    return 0;
+	}
 
 	/* Nethack keypad */
 	if (cfg.nethack_keypad && !left_alt) {
@@ -1910,9 +1991,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 	if (!left_alt) {
 	   int xkey = 0;
 
-	   if ( cfg.funky_type == 0 ||
-	      ( cfg.funky_type == 1 && app_keypad_keys)) switch(wParam) {
-	       case VK_EXECUTE: if (app_keypad_keys) xkey = 'P'; break;
+	   if ( cfg.funky_type == 3 ||
+	      ( cfg.funky_type <= 1 && app_keypad_keys)) switch(wParam) {
+	       case VK_EXECUTE: xkey = 'P'; break;
 	       case VK_DIVIDE:  xkey = 'Q'; break;
 	       case VK_MULTIPLY:xkey = 'R'; break;
 	       case VK_SUBTRACT:xkey = 'S'; break;
@@ -1930,9 +2011,17 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 	       case VK_NUMPAD9: xkey = 'y'; break;
 
 	       case VK_DECIMAL: xkey = 'n'; break;
-	       case VK_ADD:     if(shift_state) xkey = 'm'; 
-				else            xkey = 'l';
+	       case VK_ADD:     if(cfg.funky_type==2) { 
+				    if(shift_state) xkey = 'l';
+				    else            xkey = 'k';
+				} else if(shift_state)  xkey = 'm'; 
+				  else                  xkey = 'l';
 				break;
+
+	       case VK_DIVIDE:  if(cfg.funky_type==2) xkey = 'o'; break;
+	       case VK_MULTIPLY:if(cfg.funky_type==2) xkey = 'j'; break;
+	       case VK_SUBTRACT:if(cfg.funky_type==2) xkey = 'm'; break;
+
 	       case VK_RETURN:
 				if (HIWORD(lParam)&KF_EXTENDED)
 				    xkey = 'M';
@@ -2031,12 +2120,18 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 	  case VK_PRIOR: code = 5; break;
 	  case VK_NEXT: code = 6; break;
 	}
+	/* Reorder edit keys to physical order */
+	if (cfg.funky_type == 3 && code <= 6 ) code = "\0\2\1\4\5\3\6"[code];
+
 	if (cfg.funky_type == 1 && code >= 11 && code <= 15) {
 	    p += sprintf((char *)p, "\x1B[[%c", code + 'A' - 11);
 	    return p - output;
 	}
 	if (cfg.funky_type == 2 && code >= 11 && code <= 14) {
-	    p += sprintf((char *)p, "\x1BO%c", code + 'P' - 11);
+	    if (vt52_mode)
+	        p += sprintf((char *)p, "\x1B%c", code + 'P' - 11);
+	    else
+	        p += sprintf((char *)p, "\x1BO%c", code + 'P' - 11);
 	    return p - output;
 	}
 	if (cfg.rxvt_homeend && (code == 1 || code == 4)) {
@@ -2141,10 +2236,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 
     /* This stops ALT press-release doing a 'COMMAND MENU' function */
     if (message == WM_SYSKEYUP && wParam == VK_MENU) 
-    {
-	keystate[VK_MENU] = 0;
 	return 0;
-    }
 
     return -1;
 }

@@ -92,7 +92,7 @@ GLOBAL char *logfile;
 
 typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
-    TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO
+    TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO, TS_PING
 } Telnet_Special;
 
 typedef enum {
@@ -139,6 +139,7 @@ typedef struct {
     enum { PROT_RAW, PROT_TELNET, PROT_SSH } protocol;
     int close_on_exit;
     int warn_on_close;
+    int ping_interval;
     /* SSH options */
     char remote_cmd[512];
     int nopty;

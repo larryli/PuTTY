@@ -631,8 +631,11 @@ static int telnet_msg (WPARAM wParam, LPARAM lParam) {
       case FD_CLOSE:
 	{
 	    int clear_of_oob = 1;
-	    if (ioctlsocket (s, SIOCATMARK, &clear_of_oob) < 0 )
-		return -20000-WSAGetLastError();
+
+	    /* Don't check for error return; some shims don't support
+	     * this ioctl.
+	     */
+	    ioctlsocket (s, SIOCATMARK, &clear_of_oob);
 
 	    in_synch = !clear_of_oob;
 
@@ -747,6 +750,12 @@ static void telnet_special (Telnet_Special code) {
 	    send_opt (o_echo.nsend, o_echo.option);
 	}
 	break;
+      case TS_PING: 
+	if (o_they_sga.state == ACTIVE) {
+	    b[1] = NOP; 
+	    s_write (b, 2); 
+	}
+        break;
     }
 }
 

@@ -25,7 +25,6 @@
 #define CL_ANSI		0x2000	/* ANSI ECMA-48 not in the VT100..VT420 */
 #define CL_OTHER	0x4000	/* Others, Xterm, linux, putty, dunno, etc */
 
-#define TM_ANSIMIN	(CL_ANSIMIN)
 #define TM_VT100	(CL_ANSIMIN|CL_VT100)
 #define TM_VT100AVO	(TM_VT100|CL_VT100AVO)
 #define TM_VT102	(TM_VT100AVO|CL_VT102)
@@ -710,7 +709,7 @@ static void toggle_mode (int mode, int query, int state) {
 	repeat_off = !state;
 	break;
       case 25:			       /* enable/disable cursor */
-	compatibility(VT220);
+	compatibility2(OTHER,VT220);
 	cursor_on = state;
 	seen_disp_event = TRUE;
 	break;
@@ -734,7 +733,7 @@ static void toggle_mode (int mode, int query, int state) {
 	 * DONT send TS_RECHO/TS_LECHO; the telnet daemon tries to fix the
 	 * tty and _really_ confuses some programs.
 	 */
-	compatibility(VT220);
+	compatibility2(OTHER,VT220);
         ldisc = (state? &ldisc_simple : &ldisc_term);
 	break;
       case 20:			       /* Return sends ... */
@@ -903,6 +902,14 @@ static int beep_overload = 0;
 		}
 		seen_disp_event = TRUE;
 		break;
+	      case '\177': /* Destructive backspace 
+			      This does nothing on a real VT100 */
+	        compatibility(OTHER);
+		if (curs_x && !wrapnext) curs_x--;
+		wrapnext = FALSE;
+		fix_cpos;
+		*cpos = (' ' | curr_attr | ATTR_ASCII);
+		break;
 	    }
 	}
 	else switch (termstate) {
@@ -928,12 +935,21 @@ static int beep_overload = 0;
 		 * we use the same font as well as the same encoding.
 		 */
 	    case ATTR_LINEDRW:
-		if (c<0x60 || c>0x7F)
+		if (c<0x5f || c>0x7F)
 	            *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
 		              ATTR_ASCII;
+		else if (c==0x5F)
+		   *cpos++ = ' ' | curr_attr | ATTR_ASCII;
 		else
 	            *cpos++ = ((unsigned char)c) | curr_attr | ATTR_LINEDRW;
 		break;
+	    case ATTR_GBCHR:
+		/* If UK-ASCII, make the '#' a LineDraw Pound */
+		if (c == '#') {
+		    *cpos++ = '}' | curr_attr | ATTR_LINEDRW;
+		    break;
+		}
+		/*FALLTHROUGH*/
 	    default:
 	        *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
 		    (c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
@@ -1299,16 +1315,16 @@ static int beep_overload = 0;
 			  case 7:      /* enable reverse video */
 			    curr_attr |= ATTR_REVERSE; break;
 			  case 22:     /* disable bold */
-			    compatibility(VT220);
+			    compatibility2(OTHER,VT220);
 			    curr_attr &= ~ATTR_BOLD; break;
 			  case 24:     /* disable underline */
-			    compatibility(VT220);
+			    compatibility2(OTHER,VT220);
 			    curr_attr &= ~ATTR_UNDER; break;
 			  case 25:     /* disable blink */
-			    compatibility(VT220);
+			    compatibility2(OTHER,VT220);
 			    curr_attr &= ~ATTR_BLINK; break;
 			  case 27:     /* disable reverse video */
-			    compatibility(VT220);
+			    compatibility2(OTHER,VT220);
 			    curr_attr &= ~ATTR_REVERSE; break;
 			  case 30: case 31: case 32: case 33:
 			  case 34: case 35: case 36: case 37:
@@ -1424,8 +1440,8 @@ static int beep_overload = 0;
 		 * This first appeared in the VT220, but we do need to get 
 		 * back to PuTTY mode so I won't check it.
 		 *
-		 * The arg == 60 is a PuTTY extension.
-		 * The 2nd arg, 8bit vs 7bit is not obeyed.
+		 * The arg in 40..42 are a PuTTY extension.
+		 * The 2nd arg, 8bit vs 7bit is not checked.
 		 *
 		 * Setting VT102 mode should also change the Fkeys to
 		 * generate PF* codes as a real VT102 has no Fkeys.
@@ -1435,9 +1451,47 @@ static int beep_overload = 0;
 		 * Note ESC c will NOT change this!
 		 */
 
-		if (esc_args[0] == 61)      compatibility_level = TM_VT102;
-		else if (esc_args[0] == 60) compatibility_level = TM_ANSIMIN;
-		else                        compatibility_level = TM_PUTTY;
+		switch (esc_args[0]) {
+		case 61: compatibility_level &= ~TM_VTXXX;
+		         compatibility_level |=  TM_VT102;	break;
+		case 62: compatibility_level &= ~TM_VTXXX;
+		         compatibility_level |=  TM_VT220;	break;
+
+		default: if( esc_args[0] > 60 && esc_args[0] < 70 )
+		            compatibility_level |= TM_VTXXX; 	
+			 break;
+
+		case 40: compatibility_level &=  TM_VTXXX;	break;
+		case 41: compatibility_level  =  TM_PUTTY;	break;
+		case 42: compatibility_level  =  TM_SCOANSI;	break;
+
+		case ARG_DEFAULT: 
+			 compatibility_level  =  TM_PUTTY;	break;
+		case 50: break;
+		}
+
+		/* Change the response to CSI c */
+		if (esc_args[0] == 50) {
+		   int i;
+		   char lbuf[64];
+		   strcpy(id_string, "\033[?");
+		   for (i=1; i<esc_nargs; i++) {
+		      if (i!=1) strcat(id_string, ";");
+		      sprintf(lbuf, "%d", esc_args[i]);
+		      strcat(id_string, lbuf);
+		   }
+		   strcat(id_string, "c");
+		}
+
+#if 0
+		/* Is this a good idea ? 
+		 * Well we should do a soft reset at this point ...
+		 */
+		if (!has_compat(VT420) && has_compat(VT100)) {
+		    if (reset_132) request_resize (132, 24, 1);
+		    else           request_resize ( 80, 24, 1);
+		}
+#endif
 		break;
 	    }
 	    break;
@@ -1641,10 +1695,10 @@ static int beep_overload = 0;
 		ldisc->send ("\033/Z", 3);
 		break;
 	      case '=':
-	        app_cursor_keys = TRUE;
+	        app_keypad_keys = TRUE;
 		break;
 	      case '>':
-	        app_cursor_keys = FALSE;
+	        app_keypad_keys = FALSE;
 		break;
 	      case '<':
 		/* XXX This should switch to VT100 mode not current or default
@@ -2000,7 +2054,28 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 			nl = TRUE;
 		}
 		while (q < nlpos && q < selend)
-		    *p++ = (unsigned char) (*q++ & CHAR_MASK);
+		{
+		    /* VT Specials -> ISO8859-1  */
+		    static const char poorman2[] =
+ "* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
+
+		    int ch = (*q & CHAR_MASK);
+
+		    if ((*q & ATTR_LINEDRW) && ch >= 0x60 && ch <  0x7F )
+		    {
+			int x;
+			*p++ = poorman2[2*(ch-0x60)];
+			if ( (x = poorman2[2*(ch-0x60)+1]) != ' ')
+			    *p++ = x;
+		    }
+#if 0
+		    else if ((*q & ATTR_GBCHR) && ch == '#')
+			*p++ = (unsigned char) 0xA3;
+#endif
+		    else
+			*p++ = (unsigned char) ch;
+		    q++;
+		}
 		if (nl) {
 		    int i;
 		    for (i=0; i<sizeof(sel_nl); i++)

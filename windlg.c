@@ -392,13 +392,14 @@ static void staticbtn(struct ctlpos *cp, char *stext, int sid,
 /*
  * An edit control on the right hand side, with a static to its left.
  */
-static void staticedit(struct ctlpos *cp, char *stext, int sid, int eid) {
+static void staticedit(struct ctlpos *cp, char *stext,
+                       int sid, int eid, int percentedit) {
     const int height = (EDITHEIGHT > STATICHEIGHT ?
                         EDITHEIGHT : STATICHEIGHT);
     RECT r;
     int lwid, rwid, rpos;
 
-    rpos = GAPBETWEEN + (cp->width + GAPBETWEEN) / 2;
+    rpos = GAPBETWEEN + (100-percentedit) * (cp->width + GAPBETWEEN) / 100;
     lwid = rpos - 2*GAPBETWEEN;
     rwid = cp->width + GAPBETWEEN - rpos;
 
@@ -766,8 +767,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TAB, controlstartvalue,
     IDC0_SESSLOAD,
     IDC0_SESSSAVE,
     IDC0_SESSDEL,
-    IDC0_CLOSEEXIT,
-    IDC0_CLOSEWARN,
+    IDC0_PINGSTATIC,
+    IDC0_PINGEDIT,
     connectionpanelend,
 
     keyboardpanelstart,
@@ -781,6 +782,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TAB, controlstartvalue,
     IDC1_FUNCTILDE,
     IDC1_FUNCLINUX,
     IDC1_FUNCXTERM,
+    IDC1_FUNCVT400,
     IDC1_KPSTATIC,
     IDC1_KPNORMAL,
     IDC1_KPAPPLIC,
@@ -819,6 +821,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TAB, controlstartvalue,
     IDC3_LOCKSIZE,
     IDC3_WINTITLE,
     IDC3_WINEDIT,
+    IDC3_CLOSEEXIT,
+    IDC3_CLOSEWARN,
     windowpanelend,
 
     telnetpanelstart,
@@ -948,18 +952,18 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckRadioButton (hwnd, IDC0_PROTRAW, IDC0_PROTSSH,
 		      cfg.protocol==PROT_SSH ? IDC0_PROTSSH :
 		      cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW );
-    CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
-    CheckDlgButton (hwnd, IDC0_CLOSEWARN, cfg.warn_on_close);
+    SetDlgItemInt (hwnd, IDC0_PINGEDIT, cfg.ping_interval, FALSE);
 
     CheckRadioButton (hwnd, IDC1_DEL008, IDC1_DEL127,
 		      cfg.bksp_is_delete ? IDC1_DEL127 : IDC1_DEL008);
     CheckRadioButton (hwnd, IDC1_HOMETILDE, IDC1_HOMERXVT,
 		      cfg.rxvt_homeend ? IDC1_HOMERXVT : IDC1_HOMETILDE);
     CheckRadioButton (hwnd, IDC1_FUNCTILDE, IDC1_FUNCXTERM,
-		      cfg.funky_type ?
-		      (cfg.funky_type==2 ? IDC1_FUNCXTERM
-		       : IDC1_FUNCLINUX )
-		      : IDC1_FUNCTILDE);
+                      cfg.funky_type == 0 ? IDC1_FUNCTILDE :
+                      cfg.funky_type == 1 ? IDC1_FUNCLINUX :
+                      cfg.funky_type == 2 ? IDC1_FUNCXTERM :
+                      cfg.funky_type == 3 ? IDC1_FUNCVT400 :
+                      IDC1_FUNCTILDE );
     CheckRadioButton (hwnd, IDC1_CURNORMAL, IDC1_CURAPPLIC,
 		      cfg.app_cursor ? IDC1_CURAPPLIC : IDC1_CURNORMAL);
     CheckRadioButton (hwnd, IDC1_KPNORMAL, IDC1_KPNH,
@@ -987,6 +991,8 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC3_BLINKCUR, cfg.blink_cur);
     CheckDlgButton (hwnd, IDC3_SCROLLBAR, cfg.scrollbar);
     CheckDlgButton (hwnd, IDC3_LOCKSIZE, cfg.locksize);
+    CheckDlgButton (hwnd, IDC3_CLOSEEXIT, cfg.close_on_exit);
+    CheckDlgButton (hwnd, IDC3_CLOSEWARN, cfg.warn_on_close);
 
     SetDlgItemText (hwnd, IDC4_TTEDIT, cfg.termtype);
     SetDlgItemText (hwnd, IDC4_TSEDIT, cfg.termspeed);
@@ -1155,8 +1161,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			  "&Save", IDC0_SESSSAVE,
 			  "&Delete", IDC0_SESSDEL, NULL);
 	    }
-	    checkbox(&cp, "Close Window on E&xit", IDC0_CLOSEEXIT);
-	    checkbox(&cp, "&Warn on Close", IDC0_CLOSEWARN);
+            staticedit(&cp, "Keepalive inter&val (minutes)",
+                       IDC0_PINGSTATIC, IDC0_PINGEDIT, 25);
 
 	    tab.mask = TCIF_TEXT; tab.pszText = "Connection";
 	    TabCtrl_InsertItem (tabctl, i++, &tab);
@@ -1172,10 +1178,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    radioline(&cp, "Action of Home and End:", IDC1_HOMESTATIC, 2,
 		      "&Standard", IDC1_HOMETILDE,
 		      "&rxvt", IDC1_HOMERXVT, NULL);
-	    radioline(&cp, "Function key and keypad layout:", IDC1_FUNCSTATIC, 3,
+	    radioline(&cp, "Function key and keypad layout:", IDC1_FUNCSTATIC, 4,
 		      "&VT400", IDC1_FUNCTILDE,
 		      "&Linux", IDC1_FUNCLINUX,
-		      "&Xterm R6", IDC1_FUNCXTERM, NULL);
+		      "&Xterm R6", IDC1_FUNCXTERM,
+                      "&VT400", IDC1_FUNCVT400, NULL);
 	    radioline(&cp, "Initial state of cursor keys:", IDC1_CURSTATIC, 2,
 		      "&Normal", IDC1_CURNORMAL,
 		      "A&pplication", IDC1_CURAPPLIC, NULL);
@@ -1192,7 +1199,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    TabCtrl_InsertItem (tabctl, i++, &tab);
 	}
 
-        /* The Terminal panel. Accelerators used: [aco] dghlmnprsw */
+        /* The Terminal panel. Accelerators used: [aco] dghlmnprsvw */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 6, 30);
@@ -1224,6 +1231,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    checkbox(&cp, "&Blinking cursor", IDC3_BLINKCUR);
 	    checkbox(&cp, "Displa&y scrollbar", IDC3_SCROLLBAR);
 	    checkbox(&cp, "Loc&k Window size", IDC3_LOCKSIZE);
+	    checkbox(&cp, "Close Window on E&xit", IDC3_CLOSEEXIT);
+	    checkbox(&cp, "&Warn on Close", IDC3_CLOSEWARN);
 	    tab.mask = TCIF_TEXT; tab.pszText = "Window";
 	    TabCtrl_InsertItem (tabctl, i++, &tab);
 	}
@@ -1233,9 +1242,9 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 6, 30);
 	    if (dlgtype == 0) {
-		staticedit(&cp, "Terminal-&type string", IDC4_TTSTATIC, IDC4_TTEDIT);
-		staticedit(&cp, "Terminal-&speed string", IDC4_TSSTATIC, IDC4_TSEDIT);
-		staticedit(&cp, "Auto-login &username", IDC4_LOGSTATIC, IDC4_LOGEDIT);
+		staticedit(&cp, "Terminal-&type string", IDC4_TTSTATIC, IDC4_TTEDIT, 50);
+		staticedit(&cp, "Terminal-&speed string", IDC4_TSSTATIC, IDC4_TSEDIT, 50);
+		staticedit(&cp, "Auto-login &username", IDC4_LOGSTATIC, IDC4_LOGEDIT, 50);
 		envsetter(&cp, "Environment variables:", IDC4_ENVSTATIC,
 			  "&Variable", IDC4_VARSTATIC, IDC4_VAREDIT,
 			  "Va&lue", IDC4_VALSTATIC, IDC4_VALEDIT,
@@ -1254,8 +1263,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 6, 30);
 	    if (dlgtype == 0) {
-		staticedit(&cp, "Terminal-&type string", IDC5_TTSTATIC, IDC5_TTEDIT);
-		staticedit(&cp, "Auto-login &username", IDC5_LOGSTATIC, IDC5_LOGEDIT);
+		staticedit(&cp, "Terminal-&type string", IDC5_TTSTATIC, IDC5_TTEDIT, 50);
+		staticedit(&cp, "Auto-login &username", IDC5_LOGSTATIC, IDC5_LOGEDIT, 50);
 		multiedit(&cp,
 			  "&Remote command:", IDC5_CMDSTATIC, IDC5_CMDEDIT, 100,
 			  NULL);
@@ -1340,7 +1349,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
         {
             HWND ctl;
             ctl = GetDlgItem(hwnd, IDC0_HOST);
-            if (!ctl) ctl = GetDlgItem(hwnd, IDC0_CLOSEEXIT);
+            if (!ctl) ctl = GetDlgItem(hwnd, IDC0_PINGEDIT);
             SetFocus(ctl);
         }
 
@@ -1426,16 +1435,6 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	  case IDC0_PORT:
 	    if (HIWORD(wParam) == EN_CHANGE)
 		MyGetDlgItemInt (hwnd, IDC0_PORT, &cfg.port);
-	    break;
-	  case IDC0_CLOSEEXIT:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC0_CLOSEEXIT);
-	    break;
-	  case IDC0_CLOSEWARN:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.warn_on_close = IsDlgButtonChecked (hwnd, IDC0_CLOSEWARN);
 	    break;
 	  case IDC0_SESSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE) {
@@ -1529,6 +1528,10 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
 	    }
+          case IDC0_PINGEDIT:
+            if (HIWORD(wParam) == EN_CHANGE)
+                MyGetDlgItemInt (hwnd, IDC0_PINGEDIT, &cfg.ping_interval);
+            break;
 	  case IDC1_DEL008:
 	  case IDC1_DEL127:
 	    if (HIWORD(wParam) == BN_CLICKED ||
@@ -1545,6 +1548,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.funky_type = 2;
+	    break;
+	  case IDC1_FUNCVT400:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.funky_type = 3;
 	    break;
 	  case IDC1_FUNCTILDE:
 	  case IDC1_FUNCLINUX:
@@ -1688,6 +1696,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == EN_CHANGE)
 		GetDlgItemText (hwnd, IDC3_WINEDIT, cfg.wintitle,
 				sizeof(cfg.wintitle)-1);
+	    break;
+	  case IDC3_CLOSEEXIT:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC3_CLOSEEXIT);
+	    break;
+	  case IDC3_CLOSEWARN:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.warn_on_close = IsDlgButtonChecked (hwnd, IDC3_CLOSEWARN);
 	    break;
 	  case IDC4_TTEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
