@@ -70,11 +70,12 @@ print
 "# You may also need to tell windres where to find include files:\n".
 "# RCINC = --include-dir c:\\cygwin\\include\\\n".
 "\n".
-"CFLAGS = -g -O2 -D_WINDOWS -DDEBUG\n".
+"CFLAGS = -mno-cygwin -Wall -O2 -D_WINDOWS -DDEBUG -DWIN32S_COMPAT -D_NO_OLDNAMES -I.\n".
+"LDFLAGS = -mno-cygwin -s\n".
 "RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 --define WINVER=0x0400\n".
 "LIBS = -ladvapi32 -luser32 -lgdi32 -lwsock32 -lcomctl32 -lcomdlg32\n".
 "OBJ=o\n".
-"RES=o\n".
+"RES=res.o\n".
 "\n";
 print $store{"objdefs"};
 print
@@ -84,12 +85,13 @@ print
 "%.o: %.c\n".
 "\t\$(CC) \$(FWHACK) \$(CFLAGS) -c \$<\n".
 "\n".
-"%.o: %.rc\n".
+"%.res.o: %.rc\n".
 "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
 "\n";
 foreach $p (@projects) {
   print $p, ".exe: ", &project($p), "\n";
-  print "\t\$(CC) \$(LDFLAGS) -o \$@ " . &project($p), " \$(LIBS)\n\n";
+  my $mw = $gui{$p} ? " -mwindows" : "";
+  print "\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " . &project($p), " \$(LIBS)\n\n";
 }
 print $store{"dependencies"};
 print
