@@ -299,7 +299,7 @@ static Bignum getmp(char **data, int *datalen)
     getstring(data, datalen, &p, &length);
     if (!p)
 	return NULL;
-    b = bignum_from_bytes(p, length);
+    b = bignum_from_bytes((unsigned char *)p, length);
     return b;
 }
 
@@ -510,7 +510,7 @@ static char *rsa2_fingerprint(void *key)
     int numlen, i;
 
     MD5Init(&md5c);
-    MD5Update(&md5c, "\0\0\0\7ssh-rsa", 11);
+    MD5Update(&md5c, (unsigned char *)"\0\0\0\7ssh-rsa", 11);
 
 #define ADD_BIGNUM(bignum) \
     numlen = (bignum_bitcount(bignum)+8)/8; \
