@@ -1,5 +1,7 @@
 \title PuTTY User Manual
 
+\cfg{xhtml-leaf-level}{1}
+
 \cfg{xhtml-leaf-smallest-contents}{2}
 
 \cfg{xhtml-leaf-contains-contents}{true}
