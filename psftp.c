@@ -192,8 +192,7 @@ static int bare_name_compare(const void *av, const void *bv)
 /* ----------------------------------------------------------------------
  * The meat of the `get' and `put' commands.
  */
-int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
-		  char *wildcard)
+int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 {
     struct fxp_handle *fh;
     struct sftp_packet *pktin;
@@ -208,22 +207,18 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
      * (If we're not in recursive mode, we need not even check: the
      * subsequent FXP_OPEN will return a usable error message.)
      */
-    if (wildcard || recurse) {
+    if (recurse) {
 	struct fxp_attrs attrs;
 	int result;
 
-	if (!wildcard) {
-	    sftp_register(req = fxp_stat_send(fname));
-	    rreq = sftp_find_request(pktin = sftp_recv());
-	    assert(rreq == req);
-	    result = fxp_stat_recv(pktin, rreq, &attrs);
-	} else
-	    result = 0;		       /* placate optimisers */
+	sftp_register(req = fxp_stat_send(fname));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	result = fxp_stat_recv(pktin, rreq, &attrs);
 
-	if (wildcard ||
-	    (result &&
-	     (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
-	     (attrs.permissions & 0040000))) {
+	if (result &&
+	    (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
+	    (attrs.permissions & 0040000)) {
 
 	    struct fxp_handle *dirhandle;
 	    int nnames, namesize;
@@ -233,11 +228,9 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
 
 	    /*
 	     * First, attempt to create the destination directory,
-	     * unless it already exists (or this is a wildcard
-	     * run).
+	     * unless it already exists.
 	     */
-	    if (!wildcard &&
-		file_type(outfname) != FILE_TYPE_DIRECTORY &&
+	    if (file_type(outfname) != FILE_TYPE_DIRECTORY &&
 		!create_directory(outfname)) {
 		printf("%s: Cannot create directory\n", outfname);
 		return 0;
@@ -284,9 +277,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
 		}
 		for (i = 0; i < names->nnames; i++)
 		    if (strcmp(names->names[i].filename, ".") &&
-			strcmp(names->names[i].filename, "..") &&
-			(!wildcard || wc_match(wildcard,
-					       names->names[i].filename))) {
+			strcmp(names->names[i].filename, "..")) {
 			if (!vet_filename(names->names[i].filename)) {
 			    printf("ignoring potentially dangerous server-"
 				   "supplied filename '%s'\n",
@@ -302,14 +293,6 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
 	    rreq = sftp_find_request(pktin = sftp_recv());
 	    assert(rreq == req);
 	    fxp_close_recv(pktin, rreq);
-
-	    /*
-	     * A polite warning if nothing at all matched the
-	     * wildcard.
-	     */
-	    if (wildcard && !nnames) {
-		printf("%s: nothing matched\n", wildcard);
-	    }
 
 	    /*
 	     * Sort the names into a clear order. This ought to
@@ -362,8 +345,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
 						ournames[i]->filename);
 		else
 		    nextoutfname = dupstr(ournames[i]->filename);
-		ret = sftp_get_file(nextfname, nextoutfname,
-				    recurse, restart, NULL);
+		ret = sftp_get_file(nextfname, nextoutfname, recurse, restart);
 		restart = FALSE;       /* after first partial file, do full */
 		sfree(nextoutfname);
 		sfree(nextfname);
@@ -484,8 +466,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
     return ret;
 }
 
-int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
-		  char *wildcard)
+int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 {
     struct fxp_handle *fh;
     struct fxp_xfer *xfer;
@@ -500,7 +481,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
      * (If we're not in recursive mode, we need not even check: the
      * subsequent fopen will return an error message.)
      */
-    if (wildcard || (recurse && file_type(fname) == FILE_TYPE_DIRECTORY)) {
+    if (recurse && file_type(fname) == FILE_TYPE_DIRECTORY) {
 	struct fxp_attrs attrs;
 	int result;
 	int nnames, namesize;
@@ -508,28 +489,26 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
 	DirHandle *dh;
 	int i;
 
-	if (!wildcard) {
-	    /*
-	     * First, attempt to create the destination directory,
-	     * unless it already exists.
-	     */
-	    sftp_register(req = fxp_stat_send(outfname));
+	/*
+	 * First, attempt to create the destination directory,
+	 * unless it already exists.
+	 */
+	sftp_register(req = fxp_stat_send(outfname));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	result = fxp_stat_recv(pktin, rreq, &attrs);
+	if (!result ||
+	    !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
+	    !(attrs.permissions & 0040000)) {
+	    sftp_register(req = fxp_mkdir_send(outfname));
 	    rreq = sftp_find_request(pktin = sftp_recv());
 	    assert(rreq == req);
-	    result = fxp_stat_recv(pktin, rreq, &attrs);
-	    if (!result ||
-		!(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
-		!(attrs.permissions & 0040000)) {
-		sftp_register(req = fxp_mkdir_send(outfname));
-		rreq = sftp_find_request(pktin = sftp_recv());
-		assert(rreq == req);
-		result = fxp_mkdir_recv(pktin, rreq);
+	    result = fxp_mkdir_recv(pktin, rreq);
 
-		if (!result) {
-		    printf("%s: create directory: %s\n",
-			   outfname, fxp_error());
-		    return 0;
-		}
+	    if (!result) {
+		printf("%s: create directory: %s\n",
+		       outfname, fxp_error());
+		return 0;
 	    }
 	}
 
@@ -538,43 +517,20 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
 	 */
 	nnames = namesize = 0;
 	ournames = NULL;
-	if (wildcard) {
-	    WildcardMatcher *wcm;
 
-	    wcm = begin_wildcard_matching(wildcard);
-	    if (wcm) {
-		while ((name = wildcard_get_filename(wcm)) != NULL) {
-		    if (nnames >= namesize) {
-			namesize += 128;
-			ournames = sresize(ournames, namesize, char *);
-		    }
-		    ournames[nnames++] = name;
-		}
-		finish_wildcard_matching(wcm);
-	    }
-	} else {
-	    dh = open_directory(fname);
-	    if (!dh) {
-		printf("%s: unable to open directory\n", fname);
-		return 0;
-	    }
-	    while ((name = read_filename(dh)) != NULL) {
-		if (nnames >= namesize) {
-		    namesize += 128;
-		    ournames = sresize(ournames, namesize, char *);
-		}
-		ournames[nnames++] = name;
-	    }
-	    close_directory(dh);
+	dh = open_directory(fname);
+	if (!dh) {
+	    printf("%s: unable to open directory\n", fname);
+	    return 0;
 	}
-
-	/*
-	 * A polite warning if nothing at all matched the
-	 * wildcard.
-	 */
-	if (wildcard && !nnames) {
-	    printf("%s: nothing matched\n", wildcard);
+	while ((name = read_filename(dh)) != NULL) {
+	    if (nnames >= namesize) {
+		namesize += 128;
+		ournames = sresize(ournames, namesize, char *);
+	    }
+	    ournames[nnames++] = name;
 	}
+	close_directory(dh);
 
 	/*
 	 * Sort the names into a clear order. This ought to make
@@ -623,8 +579,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
 	    else
 		nextfname = dupstr(ournames[i]);
 	    nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
-	    ret = sftp_put_file(nextfname, nextoutfname,
-				recurse, restart, NULL);
+	    ret = sftp_put_file(nextfname, nextoutfname, recurse, restart);
 	    restart = FALSE;	       /* after first partial file, do full */
 	    sfree(nextoutfname);
 	    sfree(nextfname);
@@ -744,6 +699,146 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart,
     fclose(fp);
 
     return ret;
+}
+
+/* ----------------------------------------------------------------------
+ * A remote wildcard matcher, providing a similar interface to the
+ * local one in psftp.h.
+ */
+
+typedef struct SftpWildcardMatcher {
+    struct fxp_handle *dirh;
+    struct fxp_names *names;
+    int namepos;
+    char *wildcard, *prefix;
+} SftpWildcardMatcher;
+
+SftpWildcardMatcher *sftp_begin_wildcard_matching(char *name)
+{
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+    char *wildcard;
+    char *unwcdir, *tmpdir, *cdir;
+    int len, check;
+    SftpWildcardMatcher *swcm;
+    struct fxp_handle *dirh;
+
+    /*
+     * We don't handle multi-level wildcards; so we expect to find
+     * a fully specified directory part, followed by a wildcard
+     * after that.
+     */
+    wildcard = stripslashes(name, 0);
+
+    unwcdir = dupstr(name);
+    len = wildcard - name;
+    unwcdir[len] = '\0';
+    if (len > 0 && unwcdir[len-1] == '/')
+	unwcdir[len-1] = '\0';
+    tmpdir = snewn(1 + len, char);
+    check = wc_unescape(tmpdir, unwcdir);
+    sfree(tmpdir);
+
+    if (!check) {
+	printf("Multiple-level wildcards are not supported\n");
+	sfree(unwcdir);
+	return NULL;
+    }
+
+    cdir = canonify(unwcdir);
+
+    sftp_register(req = fxp_opendir_send(cdir));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    dirh = fxp_opendir_recv(pktin, rreq);
+
+    if (dirh) {
+	swcm = snew(SftpWildcardMatcher);
+	swcm->dirh = dirh;
+	swcm->names = NULL;
+	swcm->wildcard = dupstr(wildcard);
+	swcm->prefix = unwcdir;
+    } else {
+	printf("Unable to open %s: %s\n", cdir, fxp_error());
+	swcm = NULL;
+	sfree(unwcdir);
+    }
+
+    sfree(cdir);
+
+    return swcm;
+}
+
+char *sftp_wildcard_get_filename(SftpWildcardMatcher *swcm)
+{
+    struct fxp_name *name;
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+
+    while (1) {
+	if (swcm->names && swcm->namepos >= swcm->names->nnames) {
+	    fxp_free_names(swcm->names);
+	    swcm->names = NULL;
+	}
+
+	if (!swcm->names) {
+	    sftp_register(req = fxp_readdir_send(swcm->dirh));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    swcm->names = fxp_readdir_recv(pktin, rreq);
+
+	    if (!swcm->names) {
+		if (fxp_error_type() != SSH_FX_EOF)
+		    printf("%s: reading directory: %s\n", swcm->prefix,
+			   fxp_error());
+		return NULL;
+	    }
+
+	    swcm->namepos = 0;
+	}
+
+	assert(swcm->names && swcm->namepos < swcm->names->nnames);
+
+	name = &swcm->names->names[swcm->namepos++];
+
+	if (!strcmp(name->filename, ".") || !strcmp(name->filename, ".."))
+	    continue;		       /* expected bad filenames */
+
+	if (!vet_filename(name->filename)) {
+	    printf("ignoring potentially dangerous server-"
+		   "supplied filename '%s'\n", name->filename);
+	    continue;		       /* unexpected bad filename */
+	}
+
+	if (!wc_match(swcm->wildcard, name->filename))
+	    continue;		       /* doesn't match the wildcard */
+
+	/*
+	 * We have a working filename. Return it.
+	 */
+	return dupprintf("%s%s%s", swcm->prefix,
+			 swcm->prefix[strlen(swcm->prefix)-1]=='/' ? "" : "/",
+			 name->filename);
+    }
+}
+
+void sftp_finish_wildcard_matching(SftpWildcardMatcher *swcm)
+{
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+
+    sftp_register(req = fxp_close_send(swcm->dirh));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    fxp_close_recv(pktin, rreq);
+
+    if (swcm->names)
+	fxp_free_names(swcm->names);
+
+    sfree(swcm->prefix);
+    sfree(swcm->wildcard);
+
+    sfree(swcm);
 }
 
 /* ----------------------------------------------------------------------
@@ -988,7 +1083,7 @@ int sftp_cmd_pwd(struct sftp_command *cmd)
  */
 int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 {
-    char *fname, *unwcfname, *origfname, *outfname;
+    char *fname, *unwcfname, *origfname, *origwfname, *outfname;
     int i, ret;
     int recurse = FALSE;
 
@@ -1017,18 +1112,37 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	return 0;
     }
 
+    ret = 1;
     do {
-	unwcfname = NULL;
-	origfname = cmd->words[i++];
+	SftpWildcardMatcher *swcm;
 
-	if (multiple &&
-	    !wc_unescape(unwcfname = snewn(strlen(origfname)+1, char),
-			 origfname)) {
-	    ret = sftp_get_file(pwd, NULL, recurse, restart, origfname);
+	origfname = cmd->words[i++];
+	unwcfname = snewn(strlen(origfname)+1, char);
+
+	if (multiple && !wc_unescape(unwcfname, origfname)) {
+	    swcm = sftp_begin_wildcard_matching(origfname);
+	    if (!swcm) {
+		sfree(unwcfname);
+		continue;
+	    }
+	    origwfname = sftp_wildcard_get_filename(swcm);
+	    if (!origwfname) {
+		/* Politely warn the user that nothing matched. */
+		printf("%s: nothing matched\n", origfname);
+		sftp_finish_wildcard_matching(swcm);
+		sfree(unwcfname);
+		continue;
+	    }
 	} else {
-	    fname = canonify(origfname);
+	    origwfname = origfname;
+	    swcm = NULL;
+	}
+
+	while (origwfname) {
+	    fname = canonify(origwfname);
+
 	    if (!fname) {
-		printf("%s: %s\n", origfname, fxp_error());
+		printf("%s: %s\n", origwfname, fxp_error());
 		sfree(unwcfname);
 		return 0;
 	    }
@@ -1036,13 +1150,22 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	    if (!multiple && i < cmd->nwords)
 		outfname = cmd->words[i++];
 	    else
-		outfname = stripslashes(origfname, 0);
+		outfname = stripslashes(origwfname, 0);
 
-	    ret = sftp_get_file(fname, outfname, recurse, restart, NULL);
+	    ret = sftp_get_file(fname, outfname, recurse, restart);
 
 	    sfree(fname);
+
+	    if (swcm) {
+		sfree(origwfname);
+		origwfname = sftp_wildcard_get_filename(swcm);
+	    } else {
+		origwfname = NULL;
+	    }
 	}
 	sfree(unwcfname);
+	if (swcm)
+	    sftp_finish_wildcard_matching(swcm);
 	if (!ret)
 	    return ret;
 
@@ -1074,7 +1197,7 @@ int sftp_cmd_reget(struct sftp_command *cmd)
  */
 int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 {
-    char *fname, *origoutfname, *outfname;
+    char *fname, *wfname, *origoutfname, *outfname;
     int i, ret;
     int recurse = FALSE;
 
@@ -1103,25 +1226,54 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 	return 0;
     }
 
+    ret = 1;
     do {
+	WildcardMatcher *wcm;
 	fname = cmd->words[i++];
 
 	if (multiple && test_wildcard(fname, FALSE) == WCTYPE_WILDCARD) {
-	    ret = sftp_put_file(NULL, pwd, recurse, restart, fname);
+	    wcm = begin_wildcard_matching(fname);
+	    wfname = wildcard_get_filename(wcm);
+	    if (!wfname) {
+		/* Politely warn the user that nothing matched. */
+		printf("%s: nothing matched\n", fname);
+		finish_wildcard_matching(wcm);
+		continue;
+	    }
 	} else {
+	    wfname = fname;
+	    wcm = NULL;
+	}
+
+	while (wfname) {
 	    if (!multiple && i < cmd->nwords)
 		origoutfname = cmd->words[i++];
 	    else
-		origoutfname = stripslashes(fname, 1);
+		origoutfname = stripslashes(wfname, 1);
 
 	    outfname = canonify(origoutfname);
 	    if (!outfname) {
 		printf("%s: %s\n", origoutfname, fxp_error());
+		if (wcm) {
+		    sfree(wfname);
+		    finish_wildcard_matching(wcm);
+		}
 		return 0;
 	    }
-	    ret = sftp_put_file(fname, outfname, recurse, restart, NULL);
+	    ret = sftp_put_file(wfname, outfname, recurse, restart);
 	    sfree(outfname);
+
+	    if (wcm) {
+		sfree(wfname);
+		wfname = wildcard_get_filename(wcm);
+	    } else {
+		wfname = NULL;
+	    }
 	}
+
+	if (wcm)
+	    finish_wildcard_matching(wcm);
+
 	if (!ret)
 	    return ret;
 
