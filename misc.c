@@ -294,7 +294,7 @@ static void *minefield_alloc(int size)
     /*
      * Update the admin region.
      */
-    for (i = start + 2; i < start + npages - 1; i++)
+    for (i = start + 2; i < start + npages + 1; i++)
 	minefield_admin[i] = 0xFFFE;   /* used but no region starts here */
     minefield_admin[start + 1] = region_start % PAGESIZE;
 
