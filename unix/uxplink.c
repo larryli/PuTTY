@@ -72,6 +72,7 @@ struct termios orig_termios;
 
 static Backend *back;
 static void *backhandle;
+static Config cfg;
 
 /*
  * Default settings that are specific to pterm.

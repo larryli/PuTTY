@@ -409,9 +409,6 @@ GLOBAL int flags;
 GLOBAL int default_protocol;
 GLOBAL int default_port;
 
-/* This variable, OTOH, needs to be made non-global ASAP. FIXME. */
-GLOBAL Config cfg;
-
 struct RSAKey;			       /* be a little careful of scope */
 
 /*

@@ -122,6 +122,8 @@ static void *backhandle;
 
 static int session_closed;
 
+Config cfg;			       /* exported to windlg.c */
+
 extern struct sesslist sesslist;       /* imported from windlg.c */
 
 #define FONT_NORMAL 0

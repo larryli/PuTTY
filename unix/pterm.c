@@ -67,6 +67,7 @@ struct gui_data {
     void *backhandle;
     Terminal *term;
     void *logctx;
+    Config cfg;
 };
 
 struct draw_ctx {
@@ -303,7 +304,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 
 static void show_mouseptr(struct gui_data *inst, int show)
 {
-    if (!cfg.hide_mouseptr)
+    if (!inst->cfg.hide_mouseptr)
 	show = 1;
     if (show)
 	gdk_window_set_cursor(inst->area->window, inst->currcursor);
@@ -317,37 +318,37 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
 
-    w = (event->width - 2*cfg.window_border) / inst->font_width;
-    h = (event->height - 2*cfg.window_border) / inst->font_height;
+    w = (event->width - 2*inst->cfg.window_border) / inst->font_width;
+    h = (event->height - 2*inst->cfg.window_border) / inst->font_height;
 
-    if (w != cfg.width || h != cfg.height) {
+    if (w != inst->cfg.width || h != inst->cfg.height) {
 	if (inst->pixmap) {
 	    gdk_pixmap_unref(inst->pixmap);
 	    inst->pixmap = NULL;
 	}
-	cfg.width = w;
-	cfg.height = h;
+	inst->cfg.width = w;
+	inst->cfg.height = h;
 	need_size = 1;
     }
     if (!inst->pixmap) {
 	GdkGC *gc;
 
 	inst->pixmap = gdk_pixmap_new(widget->window,
-				      (cfg.width * inst->font_width +
-				       2*cfg.window_border),
-				      (cfg.height * inst->font_height +
-				       2*cfg.window_border), -1);
+				      (inst->cfg.width * inst->font_width +
+				       2*inst->cfg.window_border),
+				      (inst->cfg.height * inst->font_height +
+				       2*inst->cfg.window_border), -1);
 
 	gc = gdk_gc_new(inst->area->window);
 	gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
 	gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
-			   cfg.width * inst->font_width + 2*cfg.window_border,
-			   cfg.height * inst->font_height + 2*cfg.window_border);
+			   inst->cfg.width * inst->font_width + 2*inst->cfg.window_border,
+			   inst->cfg.height * inst->font_height + 2*inst->cfg.window_border);
 	gdk_gc_unref(gc);
     }
 
     if (need_size) {
-	term_size(inst->term, h, w, cfg.savelines);
+	term_size(inst->term, h, w, inst->cfg.savelines);
     }
 
     return TRUE;
@@ -479,11 +480,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * at all.
 	 */
 	if (event->keyval == GDK_Page_Up && (event->state & GDK_SHIFT_MASK)) {
-	    term_scroll(inst->term, 0, -cfg.height/2);
+	    term_scroll(inst->term, 0, -inst->cfg.height/2);
 	    return TRUE;
 	}
 	if (event->keyval == GDK_Page_Down && (event->state & GDK_SHIFT_MASK)) {
-	    term_scroll(inst->term, 0, +cfg.height/2);
+	    term_scroll(inst->term, 0, +inst->cfg.height/2);
 	    return TRUE;
 	}
 
@@ -541,13 +542,13 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/* We don't let GTK tell us what Backspace is! We know better. */
 	if (event->keyval == GDK_BackSpace &&
 	    !(event->state & GDK_SHIFT_MASK)) {
-	    output[1] = cfg.bksp_is_delete ? '\x7F' : '\x08';
+	    output[1] = inst->cfg.bksp_is_delete ? '\x7F' : '\x08';
 	    end = 2;
 	}
 	/* For Shift Backspace, do opposite of what is configured. */
 	if (event->keyval == GDK_BackSpace &&
 	    (event->state & GDK_SHIFT_MASK)) {
-	    output[1] = cfg.bksp_is_delete ? '\x08' : '\x7F';
+	    output[1] = inst->cfg.bksp_is_delete ? '\x08' : '\x7F';
 	    end = 2;
 	}
 
@@ -560,7 +561,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * NetHack keypad mode.
 	 */
-	if (cfg.nethack_keypad) {
+	if (inst->cfg.nethack_keypad) {
 	    char *keys = NULL;
 	    switch (event->keyval) {
 	      case GDK_KP_1: case GDK_KP_End: keys = "bB"; break;
@@ -586,7 +587,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * Application keypad mode.
 	 */
-	if (inst->term->app_keypad_keys && !cfg.no_applic_k) {
+	if (inst->term->app_keypad_keys && !inst->cfg.no_applic_k) {
 	    int xkey = 0;
 	    switch (event->keyval) {
 	      case GDK_Num_Lock: xkey = 'P'; break;
@@ -600,7 +601,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		 * in xterm function key mode we change which two...
 		 */
 	      case GDK_KP_Add:
-		if (cfg.funky_type == 2) {
+		if (inst->cfg.funky_type == 2) {
 		    if (event->state & GDK_SHIFT_MASK)
 			xkey = 'l';
 		    else
@@ -729,7 +730,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		break;
 	    }
 	    /* Reorder edit keys to physical order */
-	    if (cfg.funky_type == 3 && code <= 6)
+	    if (inst->cfg.funky_type == 3 && code <= 6)
 		code = "\0\2\1\4\5\3\6"[code];
 
 	    if (inst->term->vt52_mode && code > 0 && code <= 6) {
@@ -737,7 +738,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		goto done;
 	    }
 
-	    if (cfg.funky_type == 5 &&     /* SCO function keys */
+	    if (inst->cfg.funky_type == 5 &&     /* SCO function keys */
 		code >= 11 && code <= 34) {
 		char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
 		int index = 0;
@@ -760,7 +761,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		end = 1 + sprintf(output+1, "\x1B[%c", codes[index]);
 		goto done;
 	    }
-	    if (cfg.funky_type == 5 &&     /* SCO small keypad */
+	    if (inst->cfg.funky_type == 5 &&     /* SCO small keypad */
 		code >= 1 && code <= 6) {
 		char codes[] = "HL.FIG";
 		if (code == 3) {
@@ -771,7 +772,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		}
 		goto done;
 	    }
-	    if ((inst->term->vt52_mode || cfg.funky_type == 4) &&
+	    if ((inst->term->vt52_mode || inst->cfg.funky_type == 4) &&
 		code >= 11 && code <= 24) {
 		int offt = 0;
 		if (code > 15)
@@ -786,18 +787,18 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 				      "\x1BO%c", code + 'P' - 11 - offt);
 		goto done;
 	    }
-	    if (cfg.funky_type == 1 && code >= 11 && code <= 15) {
+	    if (inst->cfg.funky_type == 1 && code >= 11 && code <= 15) {
 		end = 1 + sprintf(output+1, "\x1B[[%c", code + 'A' - 11);
 		goto done;
 	    }
-	    if (cfg.funky_type == 2 && code >= 11 && code <= 14) {
+	    if (inst->cfg.funky_type == 2 && code >= 11 && code <= 14) {
 		if (inst->term->vt52_mode)
 		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
 		else
 		    end = 1 + sprintf(output+1, "\x1BO%c", code + 'P' - 11);
 		goto done;
 	    }
-	    if (cfg.rxvt_homeend && (code == 1 || code == 4)) {
+	    if (inst->cfg.rxvt_homeend && (code == 1 || code == 4)) {
 		end = 1 + sprintf(output+1, code == 1 ? "\x1B[H" : "\x1BOw");
 		goto done;
 	    }
@@ -920,12 +921,12 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
       default: return FALSE;	       /* don't know this event type */
     }
 
-    if (send_raw_mouse && !(cfg.mouse_override && shift) &&
+    if (send_raw_mouse && !(inst->cfg.mouse_override && shift) &&
 	act != MA_CLICK && act != MA_RELEASE)
 	return TRUE;		       /* we ignore these in raw mouse mode */
 
-    x = (event->x - cfg.window_border) / inst->font_width;
-    y = (event->y - cfg.window_border) / inst->font_height;
+    x = (event->x - inst->cfg.window_border) / inst->font_width;
+    y = (event->y - inst->cfg.window_border) / inst->font_height;
 
     term_mouse(inst->term, button, act, x, y, shift, ctrl, alt);
 
@@ -951,8 +952,8 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     else
 	return FALSE;		       /* don't even know what button! */
 
-    x = (event->x - cfg.window_border) / inst->font_width;
-    y = (event->y - cfg.window_border) / inst->font_height;
+    x = (event->x - inst->cfg.window_border) / inst->font_width;
+    y = (event->y - inst->cfg.window_border) / inst->font_height;
 
     term_mouse(inst->term, button, MA_DRAG, x, y, shift, ctrl, alt);
 
@@ -979,8 +980,8 @@ void done_with_pty(struct gui_data *inst)
 	 * Terminate now, if the Close On Exit setting is
 	 * appropriate.
 	 */
-	if (cfg.close_on_exit == COE_ALWAYS ||
-	    (cfg.close_on_exit == COE_NORMAL && clean))
+	if (inst->cfg.close_on_exit == COE_ALWAYS ||
+	    (inst->cfg.close_on_exit == COE_NORMAL && clean))
 	    exit(0);
 
 	/*
@@ -1086,7 +1087,7 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 void set_raw_mouse_mode(void *frontend, int activate)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    activate = activate && !cfg.no_mouse_rep;
+    activate = activate && !inst->cfg.no_mouse_rep;
     send_raw_mouse = activate;
     if (send_raw_mouse)
 	inst->currcursor = inst->rawcursor;
@@ -1138,8 +1139,8 @@ void request_resize(void *frontend, int w, int h)
     offset_x = outer.width - inner.width;
     offset_y = outer.height - inner.height;
 
-    area_x = inst->font_width * w + 2*cfg.window_border;
-    area_y = inst->font_height * h + 2*cfg.window_border;
+    area_x = inst->font_width * w + 2*inst->cfg.window_border;
+    area_y = inst->font_height * h + 2*inst->cfg.window_border;
 
     /*
      * Now we must set the size request on the drawing area back to
@@ -1203,7 +1204,7 @@ void palette_set(void *frontend, int n, int r, int g, int b)
 void palette_reset(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    /* This maps colour indices in cfg to those used in inst->cols. */
+    /* This maps colour indices in inst->cfg to those used in inst->cols. */
     static const int ww[] = {
 	6, 7, 8, 9, 10, 11, 12, 13,
         14, 15, 16, 17, 18, 19, 20, 21,
@@ -1221,9 +1222,9 @@ void palette_reset(void *frontend)
     }
 
     for (i = 0; i < NCOLOURS; i++) {
-	inst->cols[i].red = cfg.colours[ww[i]][0] * 0x0101;
-	inst->cols[i].green = cfg.colours[ww[i]][1] * 0x0101;
-	inst->cols[i].blue = cfg.colours[ww[i]][2] * 0x0101;
+	inst->cols[i].red = inst->cfg.colours[ww[i]][0] * 0x0101;
+	inst->cols[i].green = inst->cfg.colours[ww[i]][1] * 0x0101;
+	inst->cols[i].blue = inst->cfg.colours[ww[i]][2] * 0x0101;
     }
 
     gdk_colormap_alloc_colors(inst->colmap, inst->cols, NCOLOURS,
@@ -1231,7 +1232,7 @@ void palette_reset(void *frontend)
     for (i = 0; i < NCOLOURS; i++) {
 	if (!success[i])
 	    g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
-		    i, cfg.colours[i][0], cfg.colours[i][1], cfg.colours[i][2]);
+		    i, inst->cfg.colours[i][0], inst->cfg.colours[i][1], inst->cfg.colours[i][2]);
     }
 
     set_window_background(inst);
@@ -1439,7 +1440,7 @@ void set_icon(void *frontend, char *title)
 void set_sbar(void *frontend, int total, int start, int page)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    if (!cfg.scrollbar)
+    if (!inst->cfg.scrollbar)
 	return;
     inst->sbar_adjust->lower = 0;
     inst->sbar_adjust->upper = total;
@@ -1456,7 +1457,7 @@ void scrollbar_moved(GtkAdjustment *adj, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (!cfg.scrollbar)
+    if (!inst->cfg.scrollbar)
 	return;
     if (!inst->ignore_sbar)
 	term_scroll(inst->term, 1, (int)adj->value);
@@ -1536,9 +1537,9 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	nfg = nbg;
 	nbg = t;
     }
-    if (cfg.bold_colour && (attr & ATTR_BOLD))
+    if (inst->cfg.bold_colour && (attr & ATTR_BOLD))
 	nfg++;
-    if (cfg.bold_colour && (attr & ATTR_BLINK))
+    if (inst->cfg.bold_colour && (attr & ATTR_BLINK))
 	nbg++;
     if (attr & TATTR_ACTCURS) {
 	nfg = NCOLOURS-2;
@@ -1554,7 +1555,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	widefactor = 1;
     }
 
-    if ((attr & ATTR_BOLD) && !cfg.bold_colour) {
+    if ((attr & ATTR_BOLD) && !inst->cfg.bold_colour) {
 	if (inst->fonts[fontid | 1])
 	    fontid |= 1;
 	else
@@ -1574,8 +1575,8 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
     {
 	GdkRectangle r;
 
-	r.x = x*inst->font_width+cfg.window_border;
-	r.y = y*inst->font_height+cfg.window_border;
+	r.x = x*inst->font_width+inst->cfg.window_border;
+	r.y = y*inst->font_height+inst->cfg.window_border;
 	r.width = rlen*widefactor*inst->font_width;
 	r.height = inst->font_height;
 	gdk_gc_set_clip_rectangle(gc, &r);
@@ -1583,8 +1584,8 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
     gdk_draw_rectangle(inst->pixmap, gc, 1,
-		       x*inst->font_width+cfg.window_border,
-		       y*inst->font_height+cfg.window_border,
+		       x*inst->font_width+inst->cfg.window_border,
+		       y*inst->font_height+inst->cfg.window_border,
 		       rlen*widefactor*inst->font_width, inst->font_height);
 
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
@@ -1630,8 +1631,8 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	    for (i = 0; i <= len; i++)
 		gwcs[i] = wcs[i];
 	    gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
-			     x*inst->font_width+cfg.window_border,
-			     y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
+			     x*inst->font_width+inst->cfg.window_border,
+			     y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 			     gwcs, len*2);
 	    sfree(gwcs);
 	} else {
@@ -1639,8 +1640,8 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	    wc_to_mb(inst->fontinfo[fontid].charset, 0,
 		     wcs, len, gcs, len, ".", NULL);
 	    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-			  x*inst->font_width+cfg.window_border,
-			  y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
+			  x*inst->font_width+inst->cfg.window_border,
+			  y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 			  gcs, len);
 	    sfree(gcs);
 	}
@@ -1649,8 +1650,8 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 
     if (shadow) {
 	gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-		      x*inst->font_width+cfg.window_border + cfg.shadowboldoffset,
-		      y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
+		      x*inst->font_width+inst->cfg.window_border + inst->cfg.shadowboldoffset,
+		      y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 		      text, len);
     }
 
@@ -1658,10 +1659,10 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	int uheight = inst->fonts[0]->ascent + 1;
 	if (uheight >= inst->font_height)
 	    uheight = inst->font_height - 1;
-	gdk_draw_line(inst->pixmap, gc, x*inst->font_width+cfg.window_border,
-		      y*inst->font_height + uheight + cfg.window_border,
-		      (x+len)*widefactor*inst->font_width-1+cfg.window_border,
-		      y*inst->font_height + uheight + cfg.window_border);
+	gdk_draw_line(inst->pixmap, gc, x*inst->font_width+inst->cfg.window_border,
+		      y*inst->font_height + uheight + inst->cfg.window_border,
+		      (x+len)*widefactor*inst->font_width-1+inst->cfg.window_border,
+		      y*inst->font_height + uheight + inst->cfg.window_border);
     }
 
     if (lattr != LATTR_NORM) {
@@ -1676,10 +1677,10 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	int i;
 	for (i = 0; i < len * widefactor * inst->font_width; i++) {
 	    gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
-			    x*inst->font_width+cfg.window_border + 2*i,
-			    y*inst->font_height+cfg.window_border,
-			    x*inst->font_width+cfg.window_border + 2*i+1,
-			    y*inst->font_height+cfg.window_border,
+			    x*inst->font_width+inst->cfg.window_border + 2*i,
+			    y*inst->font_height+inst->cfg.window_border,
+			    x*inst->font_width+inst->cfg.window_border + 2*i+1,
+			    y*inst->font_height+inst->cfg.window_border,
 			    len * inst->font_width - i, inst->font_height);
 	}
 	len *= 2;
@@ -1692,10 +1693,10 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		dt = 1, db = 0;
 	    for (i = 0; i < inst->font_height; i+=2) {
 		gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
-				x*inst->font_width+cfg.window_border,
-				y*inst->font_height+cfg.window_border+dt*i+db,
-				x*widefactor*inst->font_width+cfg.window_border,
-				y*inst->font_height+cfg.window_border+dt*(i+1),
+				x*inst->font_width+inst->cfg.window_border,
+				y*inst->font_height+inst->cfg.window_border+dt*i+db,
+				x*widefactor*inst->font_width+inst->cfg.window_border,
+				y*inst->font_height+inst->cfg.window_border+dt*(i+1),
 				len * inst->font_width, inst->font_height-i-1);
 	    }
 	}
@@ -1728,10 +1729,10 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-		    x*inst->font_width+cfg.window_border,
-		    y*inst->font_height+cfg.window_border,
-		    x*inst->font_width+cfg.window_border,
-		    y*inst->font_height+cfg.window_border,
+		    x*inst->font_width+inst->cfg.window_border,
+		    y*inst->font_height+inst->cfg.window_border,
+		    x*inst->font_width+inst->cfg.window_border,
+		    y*inst->font_height+inst->cfg.window_border,
 		    len*widefactor*inst->font_width, inst->font_height);
 }
 
@@ -1749,7 +1750,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	passive = 1;
     } else
 	passive = 0;
-    if ((attr & TATTR_ACTCURS) && cfg.cursor_type != 0) {
+    if ((attr & TATTR_ACTCURS) && inst->cfg.cursor_type != 0) {
 	attr &= ~TATTR_ACTCURS;
     }
     do_text_internal(ctx, x, y, text, len, attr, lattr);
@@ -1769,7 +1770,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	len *= 2;
     }
 
-    if (cfg.cursor_type == 0) {
+    if (inst->cfg.cursor_type == 0) {
 	/*
 	 * An active block cursor will already have been done by
 	 * the above do_text call, so we only need to do anything
@@ -1778,8 +1779,8 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	if (passive) {
 	    gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
 	    gdk_draw_rectangle(inst->pixmap, gc, 0,
-			       x*inst->font_width+cfg.window_border,
-			       y*inst->font_height+cfg.window_border,
+			       x*inst->font_width+inst->cfg.window_border,
+			       y*inst->font_height+inst->cfg.window_border,
 			       len*inst->font_width-1, inst->font_height-1);
 	}
     } else {
@@ -1793,13 +1794,13 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	else
 	    char_width = inst->font_width;
 
-	if (cfg.cursor_type == 1) {
+	if (inst->cfg.cursor_type == 1) {
 	    uheight = inst->fonts[0]->ascent + 1;
 	    if (uheight >= inst->font_height)
 		uheight = inst->font_height - 1;
 
-	    startx = x * inst->font_width + cfg.window_border;
-	    starty = y * inst->font_height + cfg.window_border + uheight;
+	    startx = x * inst->font_width + inst->cfg.window_border;
+	    starty = y * inst->font_height + inst->cfg.window_border + uheight;
 	    dx = 1;
 	    dy = 0;
 	    length = len * char_width;
@@ -1807,8 +1808,8 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	    int xadjust = 0;
 	    if (attr & TATTR_RIGHTCURS)
 		xadjust = char_width - 1;
-	    startx = x * inst->font_width + cfg.window_border + xadjust;
-	    starty = y * inst->font_height + cfg.window_border;
+	    startx = x * inst->font_width + inst->cfg.window_border + xadjust;
+	    starty = y * inst->font_height + inst->cfg.window_border;
 	    dx = 0;
 	    dy = 1;
 	    length = inst->font_height;
@@ -1830,10 +1831,10 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-		    x*inst->font_width+cfg.window_border,
-		    y*inst->font_height+cfg.window_border,
-		    x*inst->font_width+cfg.window_border,
-		    y*inst->font_height+cfg.window_border,
+		    x*inst->font_width+inst->cfg.window_border,
+		    y*inst->font_height+inst->cfg.window_border,
+		    x*inst->font_width+inst->cfg.window_border,
+		    y*inst->font_height+inst->cfg.window_border,
 		    len*widefactor*inst->font_width, inst->font_height);
 }
 
@@ -1972,7 +1973,7 @@ static void help(FILE *fp) {
     }
 }
 
-int do_cmdline(int argc, char **argv, int do_everything)
+int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 {
     int err = 0;
     extern char **pty_argv;	       /* declared in pty.c */
@@ -2007,32 +2008,32 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.font, val, sizeof(cfg.font));
-	    cfg.font[sizeof(cfg.font)-1] = '\0';
+	    strncpy(cfg->font, val, sizeof(cfg->font));
+	    cfg->font[sizeof(cfg->font)-1] = '\0';
 
 	} else if (!strcmp(p, "-fb")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.boldfont, val, sizeof(cfg.boldfont));
-	    cfg.boldfont[sizeof(cfg.boldfont)-1] = '\0';
+	    strncpy(cfg->boldfont, val, sizeof(cfg->boldfont));
+	    cfg->boldfont[sizeof(cfg->boldfont)-1] = '\0';
 
 	} else if (!strcmp(p, "-fw")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.widefont, val, sizeof(cfg.widefont));
-	    cfg.widefont[sizeof(cfg.widefont)-1] = '\0';
+	    strncpy(cfg->widefont, val, sizeof(cfg->widefont));
+	    cfg->widefont[sizeof(cfg->widefont)-1] = '\0';
 
 	} else if (!strcmp(p, "-fwb")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.wideboldfont, val, sizeof(cfg.wideboldfont));
-	    cfg.wideboldfont[sizeof(cfg.wideboldfont)-1] = '\0';
+	    strncpy(cfg->wideboldfont, val, sizeof(cfg->wideboldfont));
+	    cfg->wideboldfont[sizeof(cfg->wideboldfont)-1] = '\0';
 
 	} else if (!strcmp(p, "-cs")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.line_codepage, val, sizeof(cfg.line_codepage));
-	    cfg.line_codepage[sizeof(cfg.line_codepage)-1] = '\0';
+	    strncpy(cfg->line_codepage, val, sizeof(cfg->line_codepage));
+	    cfg->line_codepage[sizeof(cfg->line_codepage)-1] = '\0';
 
 	} else if (!strcmp(p, "-geometry")) {
 	    int flags, x, y, w, h;
@@ -2041,9 +2042,9 @@ int do_cmdline(int argc, char **argv, int do_everything)
 
 	    flags = XParseGeometry(val, &x, &y, &w, &h);
 	    if (flags & WidthValue)
-		cfg.width = w;
+		cfg->width = w;
 	    if (flags & HeightValue)
-		cfg.height = h;
+		cfg->height = h;
 
 	    /*
 	     * Apparently setting the initial window position is
@@ -2056,11 +2057,11 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	} else if (!strcmp(p, "-sl")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    cfg.savelines = atoi(val);
+	    cfg->savelines = atoi(val);
 
 	} else if (!strcmp(p, "-fg") || !strcmp(p, "-bg") ||
 		   !strcmp(p, "-bfg") || !strcmp(p, "-bbg") ||
-		   !strcmp(p, "-cfg") || !strcmp(p, "-cbg")) {
+		   !strcmp(p, "-inst->cfg") || !strcmp(p, "-cbg")) {
 	    GdkColor col;
 
 	    EXPECTS_ARG;
@@ -2074,12 +2075,12 @@ int do_cmdline(int argc, char **argv, int do_everything)
 			 !strcmp(p, "-bg") ? 2 :
 			 !strcmp(p, "-bfg") ? 1 :
 			 !strcmp(p, "-bbg") ? 3 :
-			 !strcmp(p, "-cfg") ? 4 :
+			 !strcmp(p, "-inst->cfg") ? 4 :
 			 !strcmp(p, "-cbg") ? 5 : -1);
 		assert(index != -1);
-		cfg.colours[index][0] = col.red / 256;
-		cfg.colours[index][1] = col.green / 256;
-		cfg.colours[index][2] = col.blue / 256;
+		cfg->colours[index][0] = col.red / 256;
+		cfg->colours[index][1] = col.green / 256;
+		cfg->colours[index][2] = col.blue / 256;
 	    }
 
 	} else if (!strcmp(p, "-e")) {
@@ -2101,43 +2102,43 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	} else if (!strcmp(p, "-T")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.wintitle, val, sizeof(cfg.wintitle));
-	    cfg.wintitle[sizeof(cfg.wintitle)-1] = '\0';
+	    strncpy(cfg->wintitle, val, sizeof(cfg->wintitle));
+	    cfg->wintitle[sizeof(cfg->wintitle)-1] = '\0';
 
 	} else if (!strcmp(p, "-log")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(cfg.logfilename, val, sizeof(cfg.logfilename));
-	    cfg.logfilename[sizeof(cfg.logfilename)-1] = '\0';
-	    cfg.logtype = LGTYP_DEBUG;
+	    strncpy(cfg->logfilename, val, sizeof(cfg->logfilename));
+	    cfg->logfilename[sizeof(cfg->logfilename)-1] = '\0';
+	    cfg->logtype = LGTYP_DEBUG;
 
 	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
 	    SECOND_PASS_ONLY;
-	    cfg.stamp_utmp = 0;
+	    cfg->stamp_utmp = 0;
 
 	} else if (!strcmp(p, "-ut")) {
 	    SECOND_PASS_ONLY;
-	    cfg.stamp_utmp = 1;
+	    cfg->stamp_utmp = 1;
 
 	} else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
 	    SECOND_PASS_ONLY;
-	    cfg.login_shell = 0;
+	    cfg->login_shell = 0;
 
 	} else if (!strcmp(p, "-ls")) {
 	    SECOND_PASS_ONLY;
-	    cfg.login_shell = 1;
+	    cfg->login_shell = 1;
 
 	} else if (!strcmp(p, "-nethack")) {
 	    SECOND_PASS_ONLY;
-	    cfg.nethack_keypad = 1;
+	    cfg->nethack_keypad = 1;
 
 	} else if (!strcmp(p, "-sb-") || !strcmp(p, "+sb")) {
 	    SECOND_PASS_ONLY;
-	    cfg.scrollbar = 0;
+	    cfg->scrollbar = 0;
 
 	} else if (!strcmp(p, "-sb")) {
 	    SECOND_PASS_ONLY;
-	    cfg.scrollbar = 0;
+	    cfg->scrollbar = 0;
 
 	} else if (!strcmp(p, "-name")) {
 	    EXPECTS_ARG;
@@ -2250,11 +2251,11 @@ int main(int argc, char **argv)
 
     gtk_init(&argc, &argv);
 
-    if (do_cmdline(argc, argv, 0))     /* pre-defaults pass to get -class */
-	exit(1);
-    do_defaults(NULL, &cfg);
-    if (do_cmdline(argc, argv, 1))     /* post-defaults, do everything */
-	exit(1);
+    if (do_cmdline(argc, argv, 0, &inst->cfg))
+	exit(1);		       /* pre-defaults pass to get -class */
+    do_defaults(NULL, &inst->cfg);
+    if (do_cmdline(argc, argv, 1, &inst->cfg))
+	exit(1);		       /* post-defaults, do everything */
 
     /*
      * Create an instance structure and initialise to zeroes
@@ -2263,37 +2264,37 @@ int main(int argc, char **argv)
     memset(inst, 0, sizeof(*inst));
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
 
-    inst->fonts[0] = gdk_font_load(cfg.font);
+    inst->fonts[0] = gdk_font_load(inst->cfg.font);
     if (!inst->fonts[0]) {
-	fprintf(stderr, "pterm: unable to load font \"%s\"\n", cfg.font);
+	fprintf(stderr, "pterm: unable to load font \"%s\"\n", inst->cfg.font);
 	exit(1);
     }
     font_charset = set_font_info(inst, 0);
-    if (cfg.boldfont[0]) {
-	inst->fonts[1] = gdk_font_load(cfg.boldfont);
+    if (inst->cfg.boldfont[0]) {
+	inst->fonts[1] = gdk_font_load(inst->cfg.boldfont);
 	if (!inst->fonts[1]) {
 	    fprintf(stderr, "pterm: unable to load bold font \"%s\"\n",
-		    cfg.boldfont);
+		    inst->cfg.boldfont);
 	    exit(1);
 	}
 	set_font_info(inst, 1);
     } else
 	inst->fonts[1] = NULL;
-    if (cfg.widefont[0]) {
-	inst->fonts[2] = gdk_font_load(cfg.widefont);
+    if (inst->cfg.widefont[0]) {
+	inst->fonts[2] = gdk_font_load(inst->cfg.widefont);
 	if (!inst->fonts[2]) {
 	    fprintf(stderr, "pterm: unable to load wide font \"%s\"\n",
-		    cfg.boldfont);
+		    inst->cfg.boldfont);
 	    exit(1);
 	}
 	set_font_info(inst, 2);
     } else
 	inst->fonts[2] = NULL;
-    if (cfg.wideboldfont[0]) {
-	inst->fonts[3] = gdk_font_load(cfg.wideboldfont);
+    if (inst->cfg.wideboldfont[0]) {
+	inst->fonts[3] = gdk_font_load(inst->cfg.wideboldfont);
 	if (!inst->fonts[3]) {
 	    fprintf(stderr, "pterm: unable to load wide/bold font \"%s\"\n",
-		    cfg.boldfont);
+		    inst->cfg.boldfont);
 	    exit(1);
 	}
 	set_font_info(inst, 3);
@@ -2306,12 +2307,12 @@ int main(int argc, char **argv)
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
-    inst->direct_to_font = init_ucs(cfg.line_codepage, font_charset);
+    inst->direct_to_font = init_ucs(inst->cfg.line_codepage, font_charset);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
-    if (cfg.wintitle[0])
-	set_title(inst, cfg.wintitle);
+    if (inst->cfg.wintitle[0])
+	set_title(inst, inst->cfg.wintitle);
     else
 	set_title(inst, "pterm");
 
@@ -2322,15 +2323,15 @@ int main(int argc, char **argv)
 
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
-			  inst->font_width * cfg.width + 2*cfg.window_border,
-			  inst->font_height * cfg.height + 2*cfg.window_border);
-    if (cfg.scrollbar) {
+			  inst->font_width * inst->cfg.width + 2*inst->cfg.window_border,
+			  inst->font_height * inst->cfg.height + 2*inst->cfg.window_border);
+    if (inst->cfg.scrollbar) {
 	inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
 	inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     }
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
-    if (cfg.scrollbar) {
-	if (cfg.scrollbar_on_left)
+    if (inst->cfg.scrollbar) {
+	if (inst->cfg.scrollbar_on_left)
 	    gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 	else
 	    gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
@@ -2341,11 +2342,11 @@ int main(int argc, char **argv)
 
     {
 	GdkGeometry geom;
-	geom.min_width = inst->font_width + 2*cfg.window_border;
-	geom.min_height = inst->font_height + 2*cfg.window_border;
+	geom.min_width = inst->font_width + 2*inst->cfg.window_border;
+	geom.min_height = inst->font_height + 2*inst->cfg.window_border;
 	geom.max_width = geom.max_height = -1;
-	geom.base_width = 2*cfg.window_border;
-	geom.base_height = 2*cfg.window_border;
+	geom.base_width = 2*inst->cfg.window_border;
+	geom.base_height = 2*inst->cfg.window_border;
 	geom.width_inc = inst->font_width;
 	geom.height_inc = inst->font_height;
 	geom.min_aspect = geom.max_aspect = 0;
@@ -2382,7 +2383,7 @@ int main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(selection_get), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "selection_clear_event",
 		       GTK_SIGNAL_FUNC(selection_clear), inst);
-    if (cfg.scrollbar)
+    if (inst->cfg.scrollbar)
 	gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
 			   GTK_SIGNAL_FUNC(scrollbar_moved), inst);
     gtk_timeout_add(20, timer_func, inst);
@@ -2392,7 +2393,7 @@ int main(int argc, char **argv)
 			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK);
 
     gtk_widget_show(inst->area);
-    if (cfg.scrollbar)
+    if (inst->cfg.scrollbar)
 	gtk_widget_show(inst->sbar);
     gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(inst->window);
@@ -2406,21 +2407,21 @@ int main(int argc, char **argv)
     inst->currcursor = inst->textcursor;
     show_mouseptr(inst, 1);
 
-    inst->term = term_init(&cfg, inst);
-    inst->logctx = log_init(inst, &cfg);
+    inst->term = term_init(&inst->cfg, inst);
+    inst->logctx = log_init(inst, &inst->cfg);
     term_provide_logctx(inst->term, inst->logctx);
 
     inst->back = &pty_backend;
-    inst->back->init((void *)inst->term, &inst->backhandle, &cfg,
+    inst->back->init((void *)inst->term, &inst->backhandle, &inst->cfg,
 		     NULL, 0, NULL, 0);
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
 
-    term_size(inst->term, cfg.height, cfg.width, cfg.savelines);
+    term_size(inst->term, inst->cfg.height, inst->cfg.width, inst->cfg.savelines);
 
     inst->ldisc =
-	ldisc_create(&cfg, inst->term, inst->back, inst->backhandle, inst);
+	ldisc_create(&inst->cfg, inst->term, inst->back, inst->backhandle, inst);
     ldisc_send(inst->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     inst->master_fd = pty_master_fd;

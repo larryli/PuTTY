@@ -69,6 +69,7 @@ WSAEVENT netevent;
 
 static Backend *back;
 static void *backhandle;
+static Config cfg;
 
 int term_ldisc(Terminal *term, int mode)
 {

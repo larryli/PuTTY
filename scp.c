@@ -101,6 +101,7 @@ static int using_sftp = 0;
 
 static Backend *back;
 static void *backhandle;
+static Config cfg;
 
 static void source(char *src);
 static void rsource(char *src);

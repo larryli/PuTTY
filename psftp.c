@@ -34,6 +34,7 @@ static int do_sftp_init(void);
 char *pwd, *homedir;
 static Backend *back;
 static void *backhandle;
+static Config cfg;
 
 /* ----------------------------------------------------------------------
  * Higher-level helper functions used in commands.

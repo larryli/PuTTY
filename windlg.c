@@ -27,6 +27,8 @@ static int requested_help;
 
 static struct prefslist cipherlist;
 
+extern Config cfg;		       /* defined in window.c */
+
 struct sesslist sesslist;	       /* exported to window.c */
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
