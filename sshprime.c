@@ -24,32 +24,85 @@
 
 /*
  * The Miller-Rabin primality test is an extension to the Fermat
- * test. The Fermat test just checks that a^(n-1) == 1 mod n; this
- * is vulnerable to Carmichael numbers. Miller-Rabin makes use of
- * the fact that if p is truly prime and a^K == 1 mod p for even K,
- * then a^(K/2) must be congruent to either 1 or -1. In Hence, we
- * write n-1 as q * 2^k, with odd q, and then we compute a^q, a^2q,
- * a^4q, a^8q, ..., a^(n-1) mod n. If n is prime, the last of these
- * must be 1, and the last one that _isn't_ 1 must be -1. So we
- * expect to see either a^q congruent to 1, or a^q congruent to -1,
- * or a^q to become congruent to -1 after squaring at most k-1
- * times.
+ * test. The Fermat test just checks that a^(p-1) == 1 mod p; this
+ * is vulnerable to Carmichael numbers. Miller-Rabin considers how
+ * that 1 is derived as well.
  * 
- * For example, consider a=2 and n=1729 (a Carmichael number).
- * 2^1728 mod 1729 is 1, so the Fermat test would have no problem
- * with this. But Miller-Rabin looks at 2^(1728/2), 2^(1728/4),
- * ..., 2^(1728/64) as well. Now 2^(1728/64) == 645, 2^(1728/32) ==
- * 1065, 2^(1728/16) == 1. Hang on! The value before the first 1
- * was 1065, and we expected 1728 (i.e. -1). Guards! Seize this
- * impostor.
+ * Lemma: if a^2 == 1 (mod p), and p is prime, then either a == 1
+ * or a == -1 (mod p).
  * 
- * (It doesn't work for all bases. Try a=932 and n=1729, and even
- * the Miller-Rabin test can't tell the difference, because
- * 932^(1728/64) is already 1 and so we don't get to see what
- * happens before the first 1. But there isn't any class of numbers
- * which give false positives on Miller-Rabin for _all_ bases, so
- * by trying several bases we probabilistically rule out Carmichael
- * numbers as well as everything else composite.)
+ *   Proof: p divides a^2-1, i.e. p divides (a+1)(a-1). Hence,
+ *   since p is prime, either p divides (a+1) or p divides (a-1).
+ *   But this is the same as saying that either a is congruent to
+ *   -1 mod p or a is congruent to +1 mod p. []
+ * 
+ *   Comment: This fails when p is not prime. Consider p=mn, so
+ *   that mn divides (a+1)(a-1). Now we could have m dividing (a+1)
+ *   and n dividing (a-1), without the whole of mn dividing either.
+ *   For example, consider a=10 and p=99. 99 = 9 * 11; 9 divides
+ *   10-1 and 11 divides 10+1, so a^2 is congruent to 1 mod p
+ *   without a having to be congruent to either 1 or -1.
+ * 
+ * So the Miller-Rabin test, as well as considering a^(p-1),
+ * considers a^((p-1)/2), a^((p-1)/4), and so on as far as it can
+ * go. In other words. we write p-1 as q * 2^k, with k as large as
+ * possible (i.e. q must be odd), and we consider the powers
+ * 
+ *       a^(q*2^0)      a^(q*2^1)          ...  a^(q*2^(k-1))  a^(q*2^k)
+ * i.e.  a^((n-1)/2^k)  a^((n-1)/2^(k-1))  ...  a^((n-1)/2)    a^(n-1)
+ * 
+ * If p is to be prime, the last of these must be 1. Therefore, by
+ * the above lemma, the one before it must be either 1 or -1. And
+ * _if_ it's 1, then the one before that must be either 1 or -1,
+ * and so on ... In other words, we expect to see a trailing chain
+ * of 1s preceded by a -1. (If we're unlucky, our trailing chain of
+ * 1s will be as long as the list so we'll never get to see what
+ * lies before it. This doesn't count as a test failure because it
+ * hasn't _proved_ that p is not prime.)
+ * 
+ * For example, consider a=2 and p=1729. 1729 is a Carmichael
+ * number: although it's not prime, it satisfies a^(p-1) == 1 mod p
+ * for any a coprime to it. So the Fermat test wouldn't have a
+ * problem with it at all, unless we happened to stumble on an a
+ * which had a common factor.
+ * 
+ * So. 1729 - 1 equals 27 * 2^6. So we look at
+ * 
+ *     2^27 mod 1729 == 645
+ *    2^108 mod 1729 == 1065
+ *    2^216 mod 1729 == 1
+ *    2^432 mod 1729 == 1
+ *    2^864 mod 1729 == 1
+ *   2^1728 mod 1729 == 1
+ * 
+ * We do have a trailing string of 1s, so the Fermat test would
+ * have been happy. But this trailing string of 1s is preceded by
+ * 1065; whereas if 1729 were prime, we'd expect to see it preceded
+ * by -1 (i.e. 1728.). Guards! Seize this impostor.
+ * 
+ * (If we were unlucky, we might have tried a=16 instead of a=2;
+ * now 16^27 mod 1729 == 1, so we would have seen a long string of
+ * 1s and wouldn't have seen the thing _before_ the 1s. So, just
+ * like the Fermat test, for a given p there may well exist values
+ * of a which fail to show up its compositeness. So we try several,
+ * just like the Fermat test. The difference is that Miller-Rabin
+ * is not _in general_ fooled by Carmichael numbers.)
+ * 
+ * Put simply, then, the Miller-Rabin test requires us to:
+ * 
+ *  1. write p-1 as q * 2^k, with q odd
+ *  2. compute z = (a^q) mod p.
+ *  3. report success if z == 1 or z == -1.
+ *  4. square z at most k-1 times, and report success if it becomes
+ *     -1 at any point.
+ *  5. report failure otherwise.
+ * 
+ * (We expect z to become -1 after at most k-1 squarings, because
+ * if it became -1 after k squarings then a^(p-1) would fail to be
+ * 1. And we don't need to investigate what happens after we see a
+ * -1, because we _know_ that -1 squared is 1 modulo anything at
+ * all, so after we've seen a -1 we can be sure of seeing nothing
+ * but 1s.)
  */
 
 /*
