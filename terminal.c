@@ -1517,7 +1517,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 		back->send (q, p-q);
 		if (p <= data+len-sizeof(sel_nl) &&
 		    !memcmp(p, sel_nl, sizeof(sel_nl))) {
-		    back->send ("\r", 1);
+		    back->send ("\n", 1);
 		    p += sizeof(sel_nl);
 		}
 		q = p;
