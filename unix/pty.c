@@ -236,6 +236,17 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 #endif
 
     /*
+     * Set the backspace character to be whichever of ^H and ^? is
+     * specified by bksp_is_delete.
+     */
+    {
+	struct termios attrs;
+	tcgetattr(pty_master_fd, &attrs);
+	attrs.c_cc[VERASE] = cfg.bksp_is_delete ? '\177' : '\010';
+	tcsetattr(pty_master_fd, TCSANOW, &attrs);
+    }
+
+    /*
      * Trap as many fatal signals as we can in the hope of having
      * the best chance to clean up utmp before termination.
      */
