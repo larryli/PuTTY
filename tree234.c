@@ -90,6 +90,8 @@ void freetree234(tree234 *t) {
 static int countnode234(node234 *n) {
     int count = 0;
     int i;
+    if (!n)
+	return 0;
     for (i = 0; i < 4; i++)
 	count += n->counts[i];
     for (i = 0; i < 3; i++)
