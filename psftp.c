@@ -1504,10 +1504,36 @@ int main(int argc, char *argv[])
     /* SFTP uses SSH2 by default always */
     cfg.sshprot = 2;
 
-    /* Set up subsystem name. FIXME: fudge for SSH1. */
+    /* Set up subsystem name. */
     strcpy(cfg.remote_cmd, "sftp");
     cfg.ssh_subsys = TRUE;
     cfg.nopty = TRUE;
+
+    /*
+     * Set up fallback option, for SSH1 servers or servers with the
+     * sftp subsystem not enabled but the server binary installed
+     * in the usual place. We only support fallback on Unix
+     * systems, and we use the kludgy command string
+     * 
+     *   if test ! -x /usr/lib/sftp-server -a -x /usr/local/lib/sftp-server
+     *   then
+     *     exec /usr/local/lib/sftp-server
+     *   else
+     *     exec /usr/lib/sftp-server
+     *   fi
+     * 
+     * the idea being that this will attempt to use either of the
+     * obvious pathnames and then give up, and when it does give up
+     * it will print the preferred pathname in the error messages.
+     */
+    cfg.remote_cmd_ptr2 =
+	"if test ! -x /usr/lib/sftp-server -a -x /usr/local/lib/sftp-server\n"
+	"then\n"
+	"  exec /usr/local/lib/sftp-server\n"
+	"else\n"
+	"  exec /usr/lib/sftp-server\n"
+	"fi";
+    cfg.ssh_subsys2 = FALSE;
 
     back = &ssh_backend;
 
