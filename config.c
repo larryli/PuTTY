@@ -1384,9 +1384,11 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  "2 only", 'n', I(3), NULL);
 
 	s = ctrl_getset(b, "Connection/SSH", "encryption", "Encryption options");
-	ctrl_draglist(s, "Encryption cipher selection policy:", 's',
-		      HELPCTX(ssh_ciphers),
-		      cipherlist_handler, P(NULL));
+	c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
+			  HELPCTX(ssh_ciphers),
+			  cipherlist_handler, P(NULL));
+	c->listbox.height = 6;
+	
 	ctrl_checkbox(s, "Enable non-standard use of single-DES in SSH 2", 'i',
 		      HELPCTX(ssh_ciphers),
 		      dlg_stdcheckbox_handler,
