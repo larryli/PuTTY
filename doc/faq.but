@@ -623,12 +623,17 @@ SCP backend did not suffer from this performance issue because SCP
 is a much simpler protocol.)
 
 \S{faq-bce}{Question} When I run full-colour applications, I see
-areas of black space where colour ought to be.
+areas of black space where colour ought to be, or vice versa.
 
-You almost certainly need to enable the \q{Use background colour to
-erase screen} setting in the Terminal panel. Note that if you do
-this in mid-session, in versions before 0.54, it may not take effect
-until you reset the terminal (see \k{faq-resetterm}).
+You almost certainly need to change the \q{Use background colour to
+erase screen} setting in the Terminal panel. If there is too much
+black space (the commoner situation), you should enable it, while if
+there is too much colour, you should disable it. (See \k{config-erase}.)
+
+In old versions of PuTTY, this was disabled by default, and would not
+take effect until you reset the terminal (see \k{faq-resetterm}).
+Since 0.54, it is enabled by default, and changes take effect
+immediately.
 
 \S{faq-resetterm}{Question} When I change some terminal settings,
 nothing happens.
