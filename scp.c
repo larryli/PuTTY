@@ -26,6 +26,7 @@
 
 #define PUTTY_DO_GLOBALS
 #include "putty.h"
+#include "winstuff.h"
 #include "storage.h"
 
 #define TIME_POSIX_TO_WIN(t, ft) (*(LONGLONG*)&(ft) = \

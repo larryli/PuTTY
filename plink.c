@@ -11,6 +11,7 @@
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
+#include "winstuff.h"
 #include "storage.h"
 
 void fatalbox (char *p, ...) {

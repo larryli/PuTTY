@@ -14,6 +14,7 @@
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
+#include "winstuff.h"
 #include "storage.h"
 #include "win_res.h"
 
@@ -107,7 +108,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     MSG msg;
     int guess_width, guess_height;
 
-    putty_inst = inst;
+    hinst = inst;
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
 
     winsock_ver = MAKEWORD(1, 1);

@@ -6,6 +6,7 @@
 
 #define RSA_EXPONENT 37                /* we like this prime */
 
+#if 0                                  /* bignum diagnostic function */
 static void diagbn(char *prefix, Bignum md) {
     int i, nibbles, morenibbles;
     static const char hex[] = "0123456789ABCDEF";
@@ -20,6 +21,7 @@ static void diagbn(char *prefix, Bignum md) {
 
     if (prefix) putchar('\n');
 }
+#endif
 
 int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
                  progfn_t pfn, void *pfnparam) {
@@ -61,7 +63,6 @@ int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
      * We don't generate e; we just use a standard one always.
      */
     key->exponent = bignum_from_short(RSA_EXPONENT);
-    diagbn("e = ",key->exponent);
 
     /*
      * Generate p and q: primes with combined length `bits', not
@@ -98,17 +99,10 @@ int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
     pfn(pfnparam, 3, 3);
     freebn(pm1);
     freebn(qm1);
-    diagbn("p = ", aux->p);
-    diagbn("q = ", aux->q);
-    diagbn("e = ", key->exponent);
-    diagbn("n = ", key->modulus);
-    diagbn("phi(n) = ", phi_n);
     key->private_exponent = modinv(key->exponent, phi_n);
     pfn(pfnparam, 3, 4);
-    diagbn("d = ", key->private_exponent);
     aux->iqmp = modinv(aux->q, aux->p);
     pfn(pfnparam, 3, 5);
-    diagbn("iqmp = ", aux->iqmp);
 
     /*
      * Clean up temporary numbers.

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include "putty.h"
+#include "winstuff.h"
 
 static ATOM tip_class = 0;
 
@@ -114,7 +115,7 @@ void UpdateSizeTip(HWND src, int cx, int cy)
             wc.lpfnWndProc = SizeTipWndProc;
             wc.cbClsExtra = 0;
             wc.cbWndExtra = 0;
-            wc.hInstance = putty_inst;
+            wc.hInstance = hinst;
             wc.hIcon = NULL;
             wc.hCursor = NULL;
             wc.hbrBackground = NULL;
@@ -171,7 +172,7 @@ void UpdateSizeTip(HWND src, int cx, int cy)
 
         tip_wnd = CreateWindowEx(WS_EX_TOOLWINDOW|WS_EX_TOPMOST, MAKEINTRESOURCE(tip_class), str, WS_POPUP,
 				 ix, iy, sz.cx, sz.cy,
-				 NULL, NULL, putty_inst, NULL);
+				 NULL, NULL, hinst, NULL);
 
         ShowWindow(tip_wnd, SW_SHOWNOACTIVATE);
 

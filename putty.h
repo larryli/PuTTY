@@ -18,8 +18,6 @@
 #define GLOBAL extern
 #endif
 
-GLOBAL HINSTANCE putty_inst;
-
 #define ATTR_ACTCURS 0x80000000UL      /* active cursor (block) */
 #define ATTR_PASCURS 0x40000000UL      /* passive cursor (box) */
 #define ATTR_INVALID 0x20000000UL
@@ -269,7 +267,7 @@ void random_destroy_seed(void);
 /*
  * Exports from windlg.c.
  */
-int defuse_showwindow(void);
+void defuse_showwindow(void);
 int do_config (void);
 int do_reconfig (HWND);
 void do_defaults (char *, Config *);

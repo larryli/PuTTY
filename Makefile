@@ -51,7 +51,7 @@ OBJ=obj
 RES=res
 
 ##-- objects putty puttytel
-GOBJS1 = window.$(OBJ) windlg.$(OBJ) terminal.$(OBJ)
+GOBJS1 = window.$(OBJ) windlg.$(OBJ) winctrls.$(OBJ) terminal.$(OBJ)
 GOBJS2 = xlat.$(OBJ) sizetip.$(OBJ)
 ##-- objects putty puttytel plink
 LOBJS1 = telnet.$(OBJ) raw.$(OBJ) ldisc.$(OBJ)
@@ -177,12 +177,13 @@ plink.rsp: makefile
  	echo $(SOCK2) >> plink.rsp
 
 ##-- dependencies
-window.$(OBJ): window.c putty.h win_res.h storage.h
-windlg.$(OBJ): windlg.c putty.h ssh.h win_res.h
+window.$(OBJ): window.c putty.h win_res.h storage.h winstuff.h
+windlg.$(OBJ): windlg.c putty.h ssh.h win_res.h winstuff.h
+winctrls.$(OBJ): winctrls.c winstuff.h winstuff.h
 settings.$(OBJ): settings.c putty.h storage.h
 winstore.$(OBJ): winstore.c putty.h storage.h
 terminal.$(OBJ): terminal.c putty.h
-sizetip.$(OBJ): sizetip.c putty.h
+sizetip.$(OBJ): sizetip.c putty.h winstuff.h
 telnet.$(OBJ): telnet.c putty.h
 raw.$(OBJ): raw.c putty.h
 xlat.$(OBJ): xlat.c putty.h
@@ -201,12 +202,12 @@ sshdh.$(OBJ): sshdh.c ssh.h
 sshdss.$(OBJ): sshdss.c ssh.h
 sshbn.$(OBJ): sshbn.c ssh.h
 sshpubk.$(OBJ): sshpubk.c ssh.h
-scp.$(OBJ): scp.c putty.h
+scp.$(OBJ): scp.c putty.h winstuff.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c
 be_nossh.$(OBJ): be_nossh.c
 be_none.$(OBJ): be_none.c
-plink.$(OBJ): plink.c putty.h
+plink.$(OBJ): plink.c putty.h winstuff.h
 pageant.$(OBJ): pageant.c ssh.h tree234.h
 tree234.$(OBJ): tree234.c tree234.h
 ##--

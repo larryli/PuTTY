@@ -169,6 +169,7 @@ Bignum bignum_add_long(Bignum number, unsigned long addend);
 Bignum bigmul(Bignum a, Bignum b);
 Bignum modinv(Bignum number, Bignum modulus);
 Bignum bignum_rshift(Bignum number, int shift);
+int bignum_cmp(Bignum a, Bignum b);
 
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);
