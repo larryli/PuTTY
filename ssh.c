@@ -2184,13 +2184,13 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
             /*
              * Construct a v2 version string.
              */
-            verstring = dupprintf("SSH-2.0-%s\n", sshver);
+            verstring = dupprintf("SSH-2.0-%s\r\n", sshver);
             ssh->version = 2;
         } else {
             /*
              * Construct a v1 version string.
              */
-            verstring = dupprintf("SSH-%s-%s\n",
+            verstring = dupprintf("SSH-%s-%s\r\n",
                                   (ssh_versioncmp(s->version, "1.5") <= 0 ?
                                    s->version : "1.5"),
                                   sshver);
@@ -2204,8 +2204,10 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
              * Hash our version string and their version string.
              */
             SHA_Init(&ssh->exhashbase);
-            sha_string(&ssh->exhashbase, verstring, strlen(verstring)-1);
-            sha_string(&ssh->exhashbase, s->vstring, strcspn(s->vstring, "\r\n"));
+            sha_string(&ssh->exhashbase, verstring,
+                       strcspn(verstring, "\r\n"));
+            sha_string(&ssh->exhashbase, s->vstring,
+                       strcspn(s->vstring, "\r\n"));
 
             /*
              * Initialise SSHv2 protocol.
@@ -2222,7 +2224,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
             ssh->s_rdpkt = ssh1_rdpkt;
         }
         logeventf(ssh, "We claim version: %.*s",
-                  strlen(verstring)-1, verstring);
+                  strcspn(verstring, "\r\n"), verstring);
 	sk_write(ssh->s, verstring, strlen(verstring));
         sfree(verstring);
     }
