@@ -53,10 +53,12 @@ you want them saved. Then come back to the Session panel. Select the
 \q{Default Settings} entry in the saved sessions list, with a single
 click. Then press the \q{Save} button.
 
+\lcont{
 Note that PuTTY does not allow you to save a host name into the
 Default Settings entry. This ensures that when PuTTY is started up,
 the host name box is always empty, so a user can always just type in
 a host name and connect.
+}
 
 If there is a specific host you want to store the details of how to
 connect to, you should create a saved session, which will be
@@ -69,6 +71,14 @@ Sessions} input box. (The server name is often a good choice for a
 saved session name.) Then press the \q{Save} button. Your saved
 session name should now appear in the list box.
 
+\lcont{
+You can also save settings in mid-session, from the \q{Change Settings}
+dialog. Settings changed since the start of the session will be saved
+with their current values; as well as settings changed through the
+dialog, this includes changes in window size, window title changes
+sent by the server, and so on.
+}
+
 \b To reload a saved session: single-click to select the session
 name in the list box, and then press the \q{Load} button. Your saved
 settings should all appear in the configuration panel.
@@ -76,7 +86,7 @@ settings should all appear in the configuration panel.
 \b To modify a saved session: first load it as described above. Then
 make the changes you want. Come back to the Session panel, and press
 the \q{Save} button. The new settings will be saved over the top of
-the old ones
+the old ones.
 
 \lcont{
 To save the new settings under a different name, you can enter the new
