@@ -1,4 +1,5 @@
-#include <windows.h>
+/* $Id: misc.c,v 1.2.2.1 1999/02/19 15:24:15 ben Exp $ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "putty.h"
@@ -24,11 +25,8 @@ void mlog(char *file, int line) {
 
 void *safemalloc(size_t size) {
     void *p = malloc (size);
-    if (!p) {
-	MessageBox(NULL, "Out of memory!", "PuTTY Fatal Error",
-		   MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-	exit(1);
-    }
+    if (!p)
+	fatalbox("%s", "Out of memory!");
 #ifdef MALLOC_LOG
     if (fp)
 	fprintf(fp, "malloc(%d) returns %p\n", size, p);
@@ -42,11 +40,8 @@ void *saferealloc(void *ptr, size_t size) {
 	p = malloc (size);
     else
 	p = realloc (ptr, size);
-    if (!p) {
-	MessageBox(NULL, "Out of memory!", "PuTTY Fatal Error",
-		   MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-	exit(1);
-    }
+    if (!p)
+	fatalbox("%s", "Out of memory!");
 #ifdef MALLOC_LOG
     if (fp)
 	fprintf(fp, "realloc(%p,%d) returns %p\n", ptr, size, p);
