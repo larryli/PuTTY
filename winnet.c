@@ -237,6 +237,8 @@ void sk_cleanup(void)
 	for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
 	    p_closesocket(s->s);
 	}
+	freetree234(sktree);
+	sktree = NULL;
     }
 
     p_WSACleanup();

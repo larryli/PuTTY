@@ -2178,6 +2178,12 @@ int psftp_main(int argc, char *argv[])
     if (gui_mode)
 	gui_send_errcount(list, errs);
 
+    cmdline_cleanup();
+    console_provide_logctx(NULL);
+    back->free(backhandle);
+    backhandle = NULL;
+    back = NULL;
+    sk_cleanup();
     return (errs == 0 ? 0 : 1);
 }
 

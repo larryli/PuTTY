@@ -2535,6 +2535,22 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     ssh->crcda_ctx = crcda_make_context();
     logevent("Installing CRC compensation attack detector");
 
+    if (servkey.modulus) {
+	sfree(servkey.modulus);
+	servkey.modulus = NULL;
+    }
+    if (servkey.exponent) {
+	sfree(servkey.exponent);
+	servkey.exponent = NULL;
+    }
+    if (hostkey.modulus) {
+	sfree(hostkey.modulus);
+	hostkey.modulus = NULL;
+    }
+    if (hostkey.exponent) {
+	sfree(hostkey.exponent);
+	hostkey.exponent = NULL;
+    }
     crWaitUntil(ispkt);
 
     if (ssh->pktin.type != SSH1_SMSG_SUCCESS) {
@@ -3037,6 +3053,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    }
 		    logevent("Sending password with camouflage packets");
 		    ssh_pkt_defersend(ssh);
+		    sfree(randomstr);
 		} 
 		else if (!(ssh->remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
 		    /*
@@ -4338,6 +4355,10 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     if (ssh->sccomp->text_name)
 	logeventf(ssh, "Initialised %s decompression",
 		  ssh->sccomp->text_name);
+    freebn(s->f);
+    freebn(s->g);
+    freebn(s->K);
+    freebn(s->p);
 
     /*
      * If this is the first key exchange phase, we must pass the
@@ -6278,7 +6299,22 @@ static void ssh_free(void *handle)
     sfree(ssh->do_ssh1_login_state);
     sfree(ssh->do_ssh2_transport_state);
     sfree(ssh->do_ssh2_authconn_state);
-    
+    if (ssh->pktout.data) {
+	sfree(ssh->pktout.data);
+	ssh->pktout.data = NULL;
+    }
+    if (ssh->pktin.data) {
+	sfree(ssh->pktin.data);
+	ssh->pktin.data = NULL;
+    }
+    if (ssh->crcda_ctx) {
+	crcda_free_context(ssh->crcda_ctx);
+	ssh->crcda_ctx = NULL;
+    }
+    if (ssh->logctx) {
+	log_free(ssh->logctx);
+	ssh->logctx = NULL;
+    }
     if (ssh->s)
 	ssh_do_close(ssh);
     sfree(ssh);

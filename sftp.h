@@ -67,6 +67,11 @@
 int sftp_senddata(char *data, int len);
 int sftp_recvdata(char *data, int len);
 
+/*
+ * Free sftp_requests
+ */
+void sftp_cleanup_request(void);
+
 struct fxp_attrs {
     unsigned long flags;
     uint64 size;

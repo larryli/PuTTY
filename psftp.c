@@ -25,6 +25,7 @@
 
 static int psftp_connect(char *userhost, char *user, int portnumber);
 static int do_sftp_init(void);
+void do_sftp_cleanup();
 
 /* ----------------------------------------------------------------------
  * sftp client state.
@@ -1404,8 +1405,8 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	 */
 	cmd->nwords = cmd->wordssize = 2;
 	cmd->words = sresize(cmd->words, cmd->wordssize, char *);
-	cmd->words[0] = "!";
-	cmd->words[1] = p+1;
+	cmd->words[0] = dupstr("!");
+	cmd->words[1] = dupstr(p+1);
     } else {
 
 	/*
@@ -1448,10 +1449,11 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 		cmd->wordssize = cmd->nwords + 16;
 		cmd->words = sresize(cmd->words, cmd->wordssize, char *);
 	    }
-	    cmd->words[cmd->nwords++] = q;
+	    cmd->words[cmd->nwords++] = dupstr(q);
 	}
     }
 
+	sfree(line);
     /*
      * Now parse the first word and assign a function.
      */
@@ -1504,6 +1506,23 @@ static int do_sftp_init(void)
     return 0;
 }
 
+void do_sftp_cleanup()
+{
+    char ch;
+    back->special(backhandle, TS_EOF);
+    sftp_recvdata(&ch, 1);
+    back->free(backhandle);
+    sftp_cleanup_request();
+    if (pwd) {
+	sfree(pwd);
+	pwd = NULL;
+    }
+    if (homedir) {
+	sfree(homedir);
+	homedir = NULL;
+    }
+}
+
 void do_sftp(int mode, int modeflags, char *batchfile)
 {
     FILE *fp;
@@ -1522,7 +1541,15 @@ void do_sftp(int mode, int modeflags, char *batchfile)
 	    cmd = sftp_getcmd(stdin, 0, 0);
 	    if (!cmd)
 		break;
-	    if (cmd->obey(cmd) < 0)
+	    ret = cmd->obey(cmd);
+	    if (cmd->words) {
+		int i;
+		for(i = 0; i < cmd->nwords; i++)
+		    sfree(cmd->words[i]);
+		sfree(cmd->words);
+	    }
+	    sfree(cmd);
+	    if (ret < 0)
 		break;
 	}
     } else {
@@ -1908,6 +1935,8 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     }
     if (verbose && realhost != NULL)
 	printf("Connected to %s\n", realhost);
+    if (realhost != NULL)
+	sfree(realhost);
     return 0;
 }
 
@@ -1993,13 +2022,16 @@ int psftp_main(int argc, char *argv[])
      * it now.
      */
     if (userhost) {
-	if (psftp_connect(userhost, user, portnumber))
+	int ret;
+	ret = psftp_connect(userhost, user, portnumber);
+	sfree(userhost);
+	if (ret)
 	    return 1;
 	if (do_sftp_init())
 	    return 1;
     } else {
 	printf("psftp: no hostname specified; use \"open host.name\""
-	    " to connect\n");
+	       " to connect\n");
     }
 
     do_sftp(mode, modeflags, batchfile);
@@ -2010,6 +2042,12 @@ int psftp_main(int argc, char *argv[])
 	sftp_recvdata(&ch, 1);
     }
     random_save_seed();
+    cmdline_cleanup();
+    console_provide_logctx(NULL);
+    do_sftp_cleanup();
+    backhandle = NULL;
+    back = NULL;
+    sk_cleanup();
 
     return 0;
 }
