@@ -169,7 +169,6 @@ void try_output(int is_stderr)
 
 int from_backend(void *frontend_handle, int is_stderr, char *data, int len)
 {
-    HANDLE h = (is_stderr ? errhandle : outhandle);
     int osize, esize;
 
     assert(len > 0);
