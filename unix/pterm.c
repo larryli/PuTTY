@@ -2022,7 +2022,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
 
-    int passive, widefactor;
+    int active, passive, widefactor;
 
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
@@ -2031,7 +2031,9 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	passive = 0;
     if ((attr & TATTR_ACTCURS) && inst->cfg.cursor_type != 0) {
 	attr &= ~TATTR_ACTCURS;
-    }
+        active = 1;
+    } else
+        active = 0;
     do_text_internal(ctx, x, y, text, len, attr, lattr);
 
     if (attr & ATTR_WIDE) {
@@ -2103,10 +2105,10 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 		startx += dx;
 		starty += dy;
 	    }
-	} else {
+	} else if (active) {
 	    gdk_draw_line(inst->pixmap, gc, startx, starty,
 			  startx + (length-1) * dx, starty + (length-1) * dy);
-	}
+	} /* else no cursor (e.g., blinked off) */
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
