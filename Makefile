@@ -17,6 +17,11 @@ OBJS3 = sshsha.obj sshblowf.obj version.obj
 RESRC = win_res.res
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
+SCPOBJS = scp.obj windlg.obj misc.obj noise.obj 
+SCPOBJS2 = scpssh.obj sshcrc.obj sshdes.obj sshmd5.obj
+SCPOBJS3 = sshrsa.obj sshrand.obj sshsha.obj sshblowf.obj version.obj
+
+all: putty.exe pscp.exe
 
 putty.exe: $(PUTTYOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(RESRC) link.rsp
 	link /debug -out:putty.exe @link.rsp
@@ -57,6 +62,24 @@ versionpseudotarget:
 
 win_res.res: win_res.rc win_res.h putty.ico
 	rc $(FWHACK) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
+
+pscp.exe: $(SCPOBJS) $(SCPOBJS2) $(SCPOBJS3) scp.res scp.rsp
+	link /debug -out:pscp.exe @scp.rsp
+
+scp.rsp: makefile
+	echo /nologo /subsystem:console > scp.rsp
+	echo $(SCPOBJS) >> scp.rsp
+	echo $(SCPOBJS2) >> scp.rsp
+	echo $(SCPOBJS3) >> scp.rsp
+	echo scp.res >> link.rsp
+	echo $(LIBS1) >> link.rsp
+	echo $(LIBS2) >> link.rsp
+
+scp.obj: scp.c putty.h scp.h
+scpssh.obj: scpssh.c putty.h ssh.h scp.h
+
+scp.res: scp.rc scp.ico
+	rc -r -DWIN32 -D_WIN32 -DWINVER=0x0400 scp.rc
 
 clean:
 	del *.obj
