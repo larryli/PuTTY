@@ -37,6 +37,8 @@ struct Socket_tag {
     int oobinline;
     int pending_error;                 /* in case send() returns error */
     int listener;
+    int nodelay, keepalive;
+    int privport, port;
     struct Socket_tag *next;
     struct Socket_tag **prev;
 };
@@ -188,7 +190,9 @@ static void ot_tcp_set_frozen(Socket s, int is_frozen);
 static const char *ot_tcp_socket_error(Socket s);
 static void ot_recv(Actual_Socket s);
 static void ot_listenaccept(Actual_Socket s);
+static void ot_setoption(EndpointRef, OTXTILevel, OTXTIName, UInt32);
 void ot_poll(void);
+
 
 Socket ot_register(void *sock, Plug plug)
 {
@@ -268,6 +272,8 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     ret->localhost_only = 0;           /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->oobinline = oobinline;
+    ret->nodelay = nodelay;
+    ret->keepalive = keepalive;
     ret->oobpending = FALSE;
     ret->listener = 0;
 
@@ -282,7 +288,15 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
 	return (Socket) ret;
     }
 
-    /* TODO: oobinline, nodelay, keepalive */
+    if (ret->oobinline)
+	ot_setoption(ep, INET_TCP, TCP_OOBINLINE, T_YES);
+
+    if (ret->nodelay)
+	ot_setoption(ep, INET_TCP, TCP_NODELAY, T_YES);
+
+    if (ret->keepalive) {
+	ot_setoption(ep, INET_TCP, TCP_KEEPALIVE, T_YES);
+    }
 
     /*
      * Bind to local address.
@@ -379,7 +393,7 @@ Socket ot_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
 	return (Socket) ret;
     }
 
-    /* TODO: set SO_REUSEADDR */
+    ot_setoption(ep, INET_IP, IP_REUSEADDR, T_YES);
 
     OTInitInetAddress(&addr, port, kOTAnyInetAddress);
     /* XXX: pay attention to local_host_only */
@@ -533,6 +547,12 @@ void ot_poll(void)
 	  case T_LISTEN: /* Connection attempt */
 	    ot_listenaccept(s);
 	    break;
+	  case T_ORDREL: /* Orderly disconnect */
+	    plug_closing(s->plug, NULL, 0, 0);
+	    break;
+	  case T_DISCONNECT: /* Abortive disconnect*/
+	    plug_closing(s->plug, NULL, 0, 0);
+	    break;
 	}
     }
 }
@@ -581,7 +601,36 @@ void ot_listenaccept(Actual_Socket s)
 	OTCloseProvider(ep);
     }
 }
+
+static void ot_setoption(EndpointRef ep,
+			OTXTILevel level,
+			OTXTIName name,
+			UInt32 value)
+{
+    TOption option;
+    TOptMgmt request;
+    TOptMgmt result;
+
+    if (name == TCP_KEEPALIVE) {
+	option.len = sizeof(struct t_kpalive);
+	option.value[1] = T_UNSPEC;
+    } else
+	option.len = kOTFourByteOptionSize;
+    option.level = level;
+    option.name = name;
+    option.status = 0;
+    option.value[0] = value;
+
+    request.opt.buf = (unsigned char *) &option;
+    request.opt.len = sizeof(option);
+    request.flags = T_NEGOTIATE;
+
+    result.opt.buf = (unsigned char *) &option;
+    result.opt.maxlen = sizeof(option);
     
+    OTOptionManagement(ep, &request, &result);
+}
+
 /*
  * Local Variables:
  * c-file-style: "simon"
