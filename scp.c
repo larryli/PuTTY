@@ -466,6 +466,8 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 
 	if (done == size)
 	    printf("\n");
+
+	fflush(stdout);
     }
 }
 
