@@ -1535,8 +1535,10 @@ static void do_paint (Context ctx, int may_optimise){
 
     if (cursor_on) {
         if (has_focus) {
-	    if (blinker) cursor = ATTR_ACTCURS;
-	    else         cursor = 0;
+	    if (blinker || !cfg.blink_cur)
+                cursor = ATTR_ACTCURS;
+            else
+                cursor = 0;
         }
         else
             cursor = ATTR_PASCURS;

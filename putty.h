@@ -150,6 +150,7 @@ typedef struct {
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
     int ldisc_term;
+    int blink_cur;
     /* Terminal options */
     int savelines;
     int dec_om;

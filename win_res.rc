@@ -125,6 +125,8 @@ BEGIN
         IDC1_ALTSPACE, 3, 123, 162, 10
     AUTOCHECKBOX "&Use local terminal line discipline",
         IDC1_LDISCTERM, 3, 133, 162, 10
+    AUTOCHECKBOX "&Blinking cursor",
+        IDC1_BLINKCUR, 3, 143, 162, 10
 END
 
 IDD_PANEL2 DIALOG DISCARDABLE 6, 30, 168, 163
