@@ -178,7 +178,7 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 
 /*
  *  Find a colon in str and return a pointer to the colon.
- *  This is used to seperate hostname from filename.
+ *  This is used to separate hostname from filename.
  */
 static char * colon(char *str)
 {
@@ -592,7 +592,7 @@ static void toremote(int argc, char *argv[])
 
     targ = argv[argc-1];
 
-    /* Seperate host from filename */
+    /* Separate host from filename */
     host = targ;
     targ = colon(targ);
     if (targ == NULL)
@@ -602,7 +602,7 @@ static void toremote(int argc, char *argv[])
 	targ = ".";
     /* Substitute "." for emtpy target */
 
-    /* Seperate host and username */
+    /* Separate host and username */
     user = host;
     host = strrchr(host, '@');
     if (host == NULL) {
@@ -694,7 +694,7 @@ static void tolocal(int argc, char *argv[])
     src = argv[0];
     targ = argv[1];
 
-    /* Seperate host from filename */
+    /* Separate host from filename */
     host = src;
     src = colon(src);
     if (src == NULL)
@@ -704,7 +704,7 @@ static void tolocal(int argc, char *argv[])
 	src = ".";
     /* Substitute "." for empty filename */
 
-    /* Seperate username and hostname */
+    /* Separate username and hostname */
     user = host;
     host = strrchr(host, '@');
     if (host == NULL) {
@@ -727,6 +727,59 @@ static void tolocal(int argc, char *argv[])
     sfree(cmd);
 
     sink(targ);
+}
+
+/*
+ *  We will issue a list command to get a remote directory.
+ */
+static void get_dir_list(int argc, char *argv[])
+{
+    char *src, *host, *user;
+    char *cmd, *p, *q;
+    char c;
+
+    src = argv[0];
+
+    /* Separate host from filename */
+    host = src;
+    src = colon(src);
+    if (src == NULL)
+	bump("Local to local copy not supported");
+    *src++ = '\0';
+    if (*src == '\0')
+	src = ".";
+    /* Substitute "." for empty filename */
+
+    /* Separate username and hostname */
+    user = host;
+    host = strrchr(host, '@');
+    if (host == NULL) {
+	host = user;
+	user = NULL;
+    } else {
+	*host++ = '\0';
+	if (*user == '\0')
+	    user = NULL;
+    }
+
+    cmd = smalloc(4*strlen(src) + 100);
+    strcpy(cmd, "ls -la '");
+    p = cmd + strlen(cmd);
+    for (q = src; *q; q++) {
+	if (*q == '\'') {
+	    *p++ = '\''; *p++ = '\\'; *p++ = '\''; *p++ = '\'';
+	} else {
+	    *p++ = *q;
+	}
+    }
+    *p++ = '\'';
+    *p = '\0';
+    
+    do_cmd(host, user, cmd);
+    sfree(cmd);
+
+    while (ssh_recv(&c, 1) > 0)
+	fputc(c, stdout);	       /* thank heavens for buffered I/O */
 }
 
 /*
@@ -770,6 +823,7 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
     int i;
+    int list = 0;
 
     init_winsock();
 
@@ -791,6 +845,8 @@ int main(int argc, char *argv[])
 	    portnumber = atoi(argv[++i]);
 	else if (strcmp(argv[i], "-pw") == 0 && i+1 < argc)
 	    password = argv[++i];
+	else if (strcmp(argv[i], "-ls") == 0)
+	    list = 1;
 	else if (strcmp(argv[i], "--") == 0)
 	{ i++; break; }
 	else
@@ -799,24 +855,29 @@ int main(int argc, char *argv[])
     argc -= i;
     argv += i;
 
-    if (argc < 2)
-	usage();
-    if (argc > 2)
-	targetshouldbedirectory = 1;
+    if (list) {
+	if (argc != 1)
+	    usage();
+	get_dir_list(argc, argv);
 
-    if (colon(argv[argc-1]) != NULL)
-	toremote(argc, argv);
-    else
-	tolocal(argc, argv);
+    } else {
+
+	if (argc < 2)
+	    usage();
+	if (argc > 2)
+	    targetshouldbedirectory = 1;
+
+	if (colon(argv[argc-1]) != NULL)
+	    toremote(argc, argv);
+	else
+	    tolocal(argc, argv);
+    }
 
     if (connection_open) {
 	char ch;
 	ssh_send_eof();
 	ssh_recv(&ch, 1);
     }
-#ifdef MSCRYPTOAPI
-    crypto_wrapup();
-#endif
     WSACleanup();
     random_save_seed();
 
