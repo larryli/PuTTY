@@ -190,8 +190,8 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
          + winutils wincfg
 
 # Same thing on Unix.
-UXTERM   = TERMINAL gtkwin gtkdlg gtkcols gtkpanel uxcfg uxucs uxprint xkeysym
-         + timing
+UXTERM   = TERMINAL gtkwin gtkdlg gtkcols gtkpanel gtkcfg uxcfg uxucs uxprint
+         + xkeysym timing
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc pinger

@@ -98,6 +98,9 @@ void uxsel_input_remove(int id);
 struct controlbox;
 void unix_setup_config_box(struct controlbox *b, int midsession, void *window);
 
+/* gtkcfg.c */
+void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
+
 /*
  * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
  * which causes mb_to_wc and wc_to_mb to call _libc_ rather than
