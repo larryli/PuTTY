@@ -426,6 +426,7 @@ void term_deselect(void);
 void term_update(void);
 void term_invalidate(void);
 void term_blink(int set_cursor);
+void term_do_paste(void);
 void term_paste(void);
 void term_nopaste(void);
 int term_ldisc(int option);

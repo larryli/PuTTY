@@ -2461,8 +2461,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return 0;
 	}
 	if (wParam == VK_INSERT && shift_state == 1) {
-	    term_mouse(MBT_PASTE, MA_CLICK, 0, 0, 0, 0);
-	    term_mouse(MBT_PASTE, MA_RELEASE, 0, 0, 0, 0);
+	    term_do_paste();
 	    return 0;
 	}
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {

@@ -2969,6 +2969,54 @@ static void sel_spread(void)
     incpos(selend);
 }
 
+void term_do_paste(void)
+{
+    wchar_t *data;
+    int len;
+
+    get_clip(&data, &len);
+    if (data) {
+        wchar_t *p, *q;
+
+        if (paste_buffer)
+            sfree(paste_buffer);
+        paste_pos = paste_hold = paste_len = 0;
+        paste_buffer = smalloc(len * sizeof(wchar_t));
+
+        p = q = data;
+        while (p < data + len) {
+            while (p < data + len &&
+                   !(p <= data + len - sel_nl_sz &&
+                     !memcmp(p, sel_nl, sizeof(sel_nl))))
+                p++;
+
+            {
+                int i;
+                for (i = 0; i < p - q; i++) {
+                    paste_buffer[paste_len++] = q[i];
+                }
+            }
+
+            if (p <= data + len - sel_nl_sz &&
+                !memcmp(p, sel_nl, sizeof(sel_nl))) {
+                paste_buffer[paste_len++] = '\r';
+                p += sel_nl_sz;
+            }
+            q = p;
+        }
+
+        /* Assume a small paste will be OK in one go. */
+        if (paste_len < 256) {
+            luni_send(paste_buffer, paste_len);
+            if (paste_buffer)
+                sfree(paste_buffer);
+            paste_buffer = 0;
+            paste_pos = paste_hold = paste_len = 0;
+        }
+    }
+    get_clip(NULL, NULL);
+}
+
 void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 		int shift, int ctrl)
 {
@@ -3101,50 +3149,7 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 	    selstate = NO_SELECTION;
     } else if (b == MBT_PASTE
 	       && (a == MA_CLICK || a == MA_2CLK || a == MA_3CLK)) {
-	wchar_t *data;
-	int len;
-
-	get_clip(&data, &len);
-	if (data) {
-	    wchar_t *p, *q;
-
-	    if (paste_buffer)
-		sfree(paste_buffer);
-	    paste_pos = paste_hold = paste_len = 0;
-	    paste_buffer = smalloc(len * sizeof(wchar_t));
-
-	    p = q = data;
-	    while (p < data + len) {
-		while (p < data + len &&
-		       !(p <= data + len - sel_nl_sz &&
-			 !memcmp(p, sel_nl, sizeof(sel_nl))))
-		    p++;
-
-		{
-		    int i;
-		    for (i = 0; i < p - q; i++) {
-			paste_buffer[paste_len++] = q[i];
-		    }
-		}
-
-		if (p <= data + len - sel_nl_sz &&
-		    !memcmp(p, sel_nl, sizeof(sel_nl))) {
-		    paste_buffer[paste_len++] = '\r';
-		    p += sel_nl_sz;
-		}
-		q = p;
-	    }
-
-	    /* Assume a small paste will be OK in one go. */
-	    if (paste_len < 256) {
-		luni_send(paste_buffer, paste_len);
-		if (paste_buffer)
-		    sfree(paste_buffer);
-		paste_buffer = 0;
-		paste_pos = paste_hold = paste_len = 0;
-	    }
-	}
-	get_clip(NULL, NULL);
+        term_do_paste();
     }
 
     term_update();
