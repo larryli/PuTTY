@@ -60,6 +60,7 @@ static void enact_pending_netevent(void);
 #define FONT_OEMBOLDUND 6
 #define FONT_OEMUND 7
 static HFONT fonts[8];
+static int font_needs_hand_underlining;
 static enum {
     BOLD_COLOURS, BOLD_SHADOW, BOLD_FONT
 } bold_mode;
@@ -678,6 +679,50 @@ font_messup:
 	font_width = tm.tmAveCharWidth;
 
 	f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
+
+        /*
+         * Some fonts, e.g. 9-pt Courier, draw their underlines
+         * outside their character cell. We successfully prevent
+         * screen corruption by clipping the text output, but then
+         * we lose the underline completely. Here we try to work
+         * out whether this is such a font, and if it is, we set a
+         * flag that causes underlines to be drawn by hand.
+         *
+         * Having tried other more sophisticated approaches (such
+         * as examining the TEXTMETRIC structure or requesting the
+         * height of a string), I think we'll do this the brute
+         * force way: we create a small bitmap, draw an underlined
+         * space on it, and test to see whether any pixels are
+         * foreground-coloured. (Since we expect the underline to
+         * go all the way across the character cell, we only search
+         * down a single column of the bitmap, half way across.)
+         */
+        {
+            HDC und_dc;
+            HBITMAP und_bm, und_oldbm;
+            int i, gotit;
+            COLORREF c;
+
+            und_dc = CreateCompatibleDC(hdc);
+            und_bm = CreateCompatibleBitmap(hdc, font_width, font_height);
+            und_oldbm = SelectObject(und_dc, und_bm);
+            SelectObject(und_dc, fonts[FONT_UNDERLINE]);
+            SetTextAlign(und_dc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
+            SetTextColor (und_dc, RGB(255,255,255));
+            SetBkColor (und_dc, RGB(0,0,0));
+            SetBkMode (und_dc, OPAQUE);
+            ExtTextOut (und_dc, 0, 0, ETO_OPAQUE, NULL, " ", 1, NULL);
+            gotit = FALSE;
+            for (i = 0; i < font_height; i++) {
+                c = GetPixel(und_dc, font_width/2, i);
+                if (c != RGB(0,0,0))
+                    gotit = TRUE;
+            }
+            SelectObject(und_dc, und_oldbm);
+            DeleteObject(und_bm);
+            DeleteDC(und_dc);
+            font_needs_hand_underlining = !gotit;
+        }
 
         if (bold_mode == BOLD_FONT) {
 	    f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
@@ -1342,7 +1387,7 @@ void do_text (Context ctx, int x, int y, char *text, int len,
     RECT line_box;
     int force_manual_underline = 0;
     int fnt_width = font_width*(1+(lattr!=LATTR_NORM));
-static int *IpDx = 0, IpDxLEN = 0;;
+    static int *IpDx = 0, IpDxLEN = 0;;
 
     if (len>IpDxLEN || IpDx[0] != fnt_width) {
 	int i;
@@ -1485,6 +1530,8 @@ static int *IpDx = 0, IpDxLEN = 0;;
 
 	nfont &= ~(FONT_BOLD|FONT_UNDERLINE);
     }
+    if (font_needs_hand_underlining && (attr & ATTR_UNDER))
+        force_manual_underline = 1;
     if (attr & ATTR_REVERSE) {
 	t = nfg; nfg = nbg; nbg = t;
     }
