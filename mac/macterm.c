@@ -1500,6 +1500,14 @@ void set_title(void *frontend, char *title)
 }
 
 /*
+ * Used by backend to indicate busy-ness
+ */
+void set_busy_status(void *frontend, int status)
+{
+    /* FIXME do something */
+}
+
+/*
  * set or clear the "raw mouse message" mode
  */
 void set_raw_mouse_mode(void *frontend, int activate)

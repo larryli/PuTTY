@@ -5142,16 +5142,19 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     /*
      * Now generate and send e for Diffie-Hellman.
      */
+    set_busy_status(ssh->frontend, BUSY_CPU); /* this can take a while */
     s->e = dh_create_e(ssh->kex_ctx, s->nbits * 2);
     s->pktout = ssh2_pkt_init(s->kex_init_value);
     ssh2_pkt_addmp(s->pktout, s->e);
     ssh2_pkt_send_noqueue(ssh, s->pktout);
 
+    set_busy_status(ssh->frontend, BUSY_WAITING); /* wait for server */
     crWaitUntil(pktin);
     if (pktin->type != s->kex_reply_value) {
 	bombout(("expected key exchange reply packet from server"));
 	crStop(0);
     }
+    set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
     ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
     s->f = ssh2_pkt_getmp(pktin);
     if (!s->f) {
@@ -5161,6 +5164,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
 
     s->K = dh_find_K(ssh->kex_ctx, s->f);
+
+    /* We assume everything from now on will be quick, and it might
+     * involve user interaction. */
+    set_busy_status(ssh->frontend, BUSY_NOT);
 
     sha_string(&ssh->exhash, s->hostkeydata, s->hostkeylen);
     if (ssh->kex == &ssh_diffiehellman_gex) {

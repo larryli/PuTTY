@@ -647,6 +647,16 @@ int is_iconic(void *frontend);
 void get_window_pos(void *frontend, int *x, int *y);
 void get_window_pixels(void *frontend, int *x, int *y);
 char *get_window_title(void *frontend, int icon);
+/* Hint from backend to frontend about time-consuming operations.
+ * Initial state is assumed to be BUSY_NOT. */
+enum {
+    BUSY_NOT,	    /* Not busy, all user interaction OK */
+    BUSY_WAITING,   /* Waiting for something; local event loops still running
+		       so some local interaction (e.g. menus) OK, but network
+		       stuff is suspended */
+    BUSY_CPU	    /* Locally busy (e.g. crypto); user interaction suspended */
+};
+void set_busy_status(void *frontend, int status);
 
 void cleanup_exit(int);
 

@@ -64,7 +64,7 @@ struct gui_data {
 	int is_wide;
     } fontinfo[4];
     int xpos, ypos, gotpos, gravity;
-    GdkCursor *rawcursor, *textcursor, *blankcursor, *currcursor;
+    GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
     GdkColormap *colmap;
     wchar_t *pastein_data;
@@ -76,6 +76,7 @@ struct gui_data {
     int width, height;
     int ignore_sbar;
     int mouseptr_visible;
+    int busy_status;
     guint term_paste_idle_id;
     int alt_keycode;
     int alt_digits;
@@ -372,15 +373,34 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
     return FALSE;
 }
 
+static void update_mouseptr(struct gui_data *inst)
+{
+    switch (inst->busy_status) {
+      case BUSY_NOT:
+	if (!inst->mouseptr_visible) {
+	    gdk_window_set_cursor(inst->area->window, inst->blankcursor);
+	} else if (send_raw_mouse) {
+	    gdk_window_set_cursor(inst->area->window, inst->rawcursor);
+	} else {
+	    gdk_window_set_cursor(inst->area->window, inst->textcursor);
+	}
+	break;
+      case BUSY_WAITING:    /* XXX can we do better? */
+      case BUSY_CPU:
+	/* We always display these cursors. */
+	gdk_window_set_cursor(inst->area->window, inst->waitcursor);
+	break;
+      default:
+	assert(0);
+    }
+}
+
 static void show_mouseptr(struct gui_data *inst, int show)
 {
     if (!inst->cfg.hide_mouseptr)
 	show = 1;
-    if (show)
-	gdk_window_set_cursor(inst->area->window, inst->currcursor);
-    else
-	gdk_window_set_cursor(inst->area->window, inst->blankcursor);
     inst->mouseptr_visible = show;
+    update_mouseptr(inst);
 }
 
 void draw_backing_rect(struct gui_data *inst)
@@ -1227,6 +1247,13 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
     return FALSE;
 }
 
+void set_busy_status(void *frontend, int status)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    inst->busy_status = status;
+    update_mouseptr(inst);
+}
+
 /*
  * set or clear the "raw mouse message" mode
  */
@@ -1235,11 +1262,7 @@ void set_raw_mouse_mode(void *frontend, int activate)
     struct gui_data *inst = (struct gui_data *)frontend;
     activate = activate && !inst->cfg.no_mouse_rep;
     send_raw_mouse = activate;
-    if (send_raw_mouse)
-	inst->currcursor = inst->rawcursor;
-    else
-	inst->currcursor = inst->textcursor;
-    show_mouseptr(inst, inst->mouseptr_visible);
+    update_mouseptr(inst);
 }
 
 void request_resize(void *frontend, int w, int h)
@@ -3310,6 +3333,7 @@ int pt_main(int argc, char **argv)
     inst = snew(struct gui_data);
     memset(inst, 0, sizeof(*inst));
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
+    inst->busy_status = BUSY_NOT;
 
     /* defer any child exit handling until we're ready to deal with
      * it */
@@ -3520,6 +3544,7 @@ int pt_main(int argc, char **argv)
 
     inst->textcursor = make_mouse_ptr(inst, GDK_XTERM);
     inst->rawcursor = make_mouse_ptr(inst, GDK_LEFT_PTR);
+    inst->waitcursor = make_mouse_ptr(inst, GDK_WATCH);
     inst->blankcursor = make_mouse_ptr(inst, -1);
     make_mouse_ptr(inst, -2);	       /* clean up cursor font */
     inst->currcursor = inst->textcursor;

@@ -31,6 +31,10 @@ void cleanup_exit(int code)
     exit(code);
 }
 
+void set_busy_status(void *frontend, int status)
+{
+}
+
 void update_specials_menu(void *frontend)
 {
 }

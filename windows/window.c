@@ -177,6 +177,8 @@ static Mouse_Button lastbtn;
 static int send_raw_mouse = 0;
 static int wheel_accumulator = 0;
 
+static int busy_status = BUSY_NOT;
+
 static char *window_name, *icon_name;
 
 static int compose_state = 0;
@@ -949,6 +951,50 @@ void update_specials_menu(void *frontend)
     }
 }
 
+static void update_mouse_pointer(void)
+{
+    LPTSTR curstype;
+    int force_visible = FALSE;
+    static int forced_visible = FALSE;
+    switch (busy_status) {
+      case BUSY_NOT:
+	if (send_raw_mouse)
+	    curstype = IDC_ARROW;
+	else
+	    curstype = IDC_IBEAM;
+	break;
+      case BUSY_WAITING:
+	curstype = IDC_APPSTARTING; /* this may be an abuse */
+	force_visible = TRUE;
+	break;
+      case BUSY_CPU:
+	curstype = IDC_WAIT;
+	force_visible = TRUE;
+	break;
+      default:
+	assert(0);
+    }
+    {
+	HCURSOR cursor = LoadCursor(NULL, curstype);
+	SetClassLong(hwnd, GCL_HCURSOR, (LONG)cursor);
+	SetCursor(cursor); /* force redraw of cursor at current posn */
+    }
+    if (force_visible != forced_visible) {
+	/* We want some cursor shapes to be visible always.
+	 * Along with show_mouseptr(), this manages the ShowCursor()
+	 * counter such that if we switch back to a non-force_visible
+	 * cursor, the previous visibility state is restored. */
+	ShowCursor(force_visible);
+	forced_visible = force_visible;
+    }
+}
+
+void set_busy_status(void *frontend, int status)
+{
+    busy_status = status;
+    update_mouse_pointer();
+}
+
 /*
  * set or clear the "raw mouse message" mode
  */
@@ -956,7 +1002,7 @@ void set_raw_mouse_mode(void *frontend, int activate)
 {
     activate = activate && !cfg.no_mouse_rep;
     send_raw_mouse = activate;
-    SetCursor(LoadCursor(NULL, activate ? IDC_ARROW : IDC_IBEAM));
+    update_mouse_pointer();
 }
 
 /*
@@ -1736,6 +1782,8 @@ static Mouse_Button translate_button(Mouse_Button button)
 
 static void show_mouseptr(int show)
 {
+    /* NB that the counter in ShowCursor() is also frobbed by
+     * update_mouse_pointer() */
     static int cursor_visible = 1;
     if (!cfg.hide_mouseptr)	       /* override if this feature disabled */
 	show = 1;
@@ -2751,12 +2799,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		lpage_send(ldisc, CP_ACP, &c, 1, 1);
 	}
 	return 0;
-      case WM_SETCURSOR:
-	if (send_raw_mouse && LOWORD(lParam) == HTCLIENT) {
-	    SetCursor(LoadCursor(NULL, IDC_ARROW));
-	    return TRUE;
-	}
-	break;
       case WM_SYSCOLORCHANGE:
 	if (cfg.system_colour) {
 	    /* Refresh palette from system colours. */

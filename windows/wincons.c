@@ -33,6 +33,10 @@ void cleanup_exit(int code)
     exit(code);
 }
 
+void set_busy_status(void *frontend, int status)
+{
+}
+
 void notify_remote_exit(void *frontend)
 {
 }
