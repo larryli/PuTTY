@@ -229,33 +229,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     /*
      * Set up the colour map.
      */
-    if (!inst->colmap) {
-	static const int ww[] = {
-	    6, 7, 8, 9, 10, 11, 12, 13,
-	    14, 15, 16, 17, 18, 19, 20, 21,
-	    0, 1, 2, 3, 4, 5
-	};
-	gboolean success[NCOLOURS];
-	int i;
-
-	inst->colmap = gdk_colormap_get_system();
-
-	assert(lenof(ww) == NCOLOURS);
-
-	for (i = 0; i < NCOLOURS; i++) {
-	    inst->cols[i].red = cfg.colours[ww[i]][0] * 0x0101;
-	    inst->cols[i].green = cfg.colours[ww[i]][1] * 0x0101;
-	    inst->cols[i].blue = cfg.colours[ww[i]][2] * 0x0101;
-	}
-
-	gdk_colormap_alloc_colors(inst->colmap, inst->cols, NCOLOURS,
-				  FALSE, FALSE, success);
-	for (i = 0; i < NCOLOURS; i++) {
-	    if (!success[i])
-		g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
-			i, cfg.colours[i][0], cfg.colours[i][1], cfg.colours[i][2]);
-	}
-    }
+    palette_reset();
 
     return TRUE;
 }
@@ -840,13 +814,65 @@ void request_resize(int w, int h)
     /* FIXME: currently ignored */
 }
 
+void real_palette_set(int n, int r, int g, int b)
+{
+    gboolean success[1];
+
+    inst->cols[n].red = r * 0x0101;
+    inst->cols[n].green = g * 0x0101;
+    inst->cols[n].blue = b * 0x0101;
+
+    gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
+			      FALSE, FALSE, success);
+    if (!success[0])
+	g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
+		n, r, g, b);
+}
+
 void palette_set(int n, int r, int g, int b)
 {
-    /* FIXME: currently ignored */
+    static const int first[21] = {
+	0, 2, 4, 6, 8, 10, 12, 14,
+	1, 3, 5, 7, 9, 11, 13, 15,
+	16, 17, 18, 20, 22
+    };
+    real_palette_set(first[n], r, g, b);
+    if (first[n] >= 18)
+	real_palette_set(first[n] + 1, r, g, b);
 }
+
 void palette_reset(void)
 {
-    /* FIXME: currently ignored */
+    /* This maps colour indices in cfg to those used in inst->cols. */
+    static const int ww[] = {
+	6, 7, 8, 9, 10, 11, 12, 13,
+        14, 15, 16, 17, 18, 19, 20, 21,
+	0, 1, 2, 3, 4, 5
+    };
+    gboolean success[NCOLOURS];
+    int i;
+
+    assert(lenof(ww) == NCOLOURS);
+
+    if (!inst->colmap) {
+	inst->colmap = gdk_colormap_get_system();
+    } else {
+	gdk_colormap_free_colors(inst->colmap, inst->cols, NCOLOURS);
+    }
+
+    for (i = 0; i < NCOLOURS; i++) {
+	inst->cols[i].red = cfg.colours[ww[i]][0] * 0x0101;
+	inst->cols[i].green = cfg.colours[ww[i]][1] * 0x0101;
+	inst->cols[i].blue = cfg.colours[ww[i]][2] * 0x0101;
+    }
+
+    gdk_colormap_alloc_colors(inst->colmap, inst->cols, NCOLOURS,
+			      FALSE, FALSE, success);
+    for (i = 0; i < NCOLOURS; i++) {
+	if (!success[i])
+	    g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
+		    i, cfg.colours[i][0], cfg.colours[i][1], cfg.colours[i][2]);
+    }
 }
 
 void write_clip(wchar_t * data, int len, int must_deselect)
