@@ -62,7 +62,7 @@ MOBJS = misc.$(OBJ) version.$(OBJ)
 ##-- objects putty pscp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
-OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ)
+OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) tree234.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ)
@@ -183,7 +183,7 @@ xlat.$(OBJ): xlat.c putty.h
 ldisc.$(OBJ): ldisc.c putty.h
 misc.$(OBJ): misc.c putty.h
 noise.$(OBJ): noise.c putty.h ssh.h
-ssh.$(OBJ): ssh.c ssh.h putty.h
+ssh.$(OBJ): ssh.c ssh.h putty.h tree234.h
 sshcrc.$(OBJ): sshcrc.c ssh.h
 sshdes.$(OBJ): sshdes.c ssh.h
 sshmd5.$(OBJ): sshmd5.c ssh.h

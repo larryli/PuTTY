@@ -21,8 +21,6 @@
 
 #define APPNAME "Pageant"
 
-#define MAILSLOTNAME "\\\\.\\mailslot\\pageant_listener"
-
 #define SSH_AGENTC_REQUEST_RSA_IDENTITIES    1
 #define SSH_AGENT_RSA_IDENTITIES_ANSWER      2
 #define SSH_AGENTC_RSA_CHALLENGE             3
@@ -513,7 +511,6 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     WNDCLASS wndclass;
-    HANDLE mailslot;
     MSG msg;
 
     instance = inst;
@@ -573,21 +570,30 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     ShowWindow (hwnd, SW_HIDE);
 
     /*
-     * Create the mailslot.
-     */
-    {
-        SECURITY_ATTRIBUTES sa;
-        sa.nLength = sizeof(sa);
-        sa.lpSecurityDescriptor = NULL;
-        sa.bInheritHandle = TRUE;
-        mailslot = CreateMailslot(MAILSLOTNAME, 0, 0, &sa);
-    }
-
-    /*
      * Initialise storage for RSA keys.
      */
     rsakeys = newtree234(cmpkeys);
 
+    /*
+     * Process the command line and add RSA keys as listed on it.
+     * FIXME: we don't support spaces in filenames here. We should.
+     */
+    {
+        char *p = cmdline;
+        while (*p) {
+            while (*p && isspace(*p)) p++;
+            if (*p && !isspace(*p)) {
+                char *q = p;
+                while (*p && !isspace(*p)) p++;
+                if (*p) *p++ = '\0';
+                add_keyfile(q);
+            }
+        }
+    }
+
+    /*
+     * Main message loop.
+     */
     while (GetMessage(&msg, NULL, 0, 0) == 1) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);

@@ -5,6 +5,7 @@
 #include <winsock.h>
 
 #include "putty.h"
+#include "tree234.h"
 #include "ssh.h"
 #include "scp.h"
 
@@ -38,6 +39,13 @@
 #define SSH1_SMSG_STDERR_DATA	18
 #define SSH1_CMSG_EOF		19
 #define SSH1_SMSG_EXIT_STATUS	20
+#define SSH1_MSG_CHANNEL_OPEN_CONFIRMATION  21
+#define SSH1_MSG_CHANNEL_OPEN_FAILURE   22
+#define SSH1_MSG_CHANNEL_DATA   23
+#define SSH1_MSG_CHANNEL_CLOSE  24
+#define SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION 25
+#define SSH1_CMSG_AGENT_REQUEST_FORWARDING  30
+#define SSH1_SMSG_AGENT_OPEN    31
 #define SSH1_CMSG_EXIT_CONFIRMATION	33
 #define SSH1_MSG_IGNORE		32
 #define SSH1_MSG_DEBUG		36
@@ -146,7 +154,7 @@ struct ssh_hostkey *hostkey_algs[] = { &ssh_dss };
 
 extern struct ssh_mac ssh_sha1;
 
-SHA_State exhash;
+static SHA_State exhash;
 
 static void nullmac_key(unsigned char *key) { }
 static void nullmac_generate(unsigned char *blk, int len, unsigned long seq) { }
@@ -177,6 +185,37 @@ int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
 
 static char *savedhost;
 static int ssh_send_ok;
+
+/*
+ * 2-3-4 tree storing channels.
+ */
+struct ssh_channel {
+    int remoteid, localid;
+    int type;
+    int closes;
+    union {
+        struct ssh_agent_channel {
+            unsigned char *message;
+            unsigned char msglen[4];
+            int lensofar, totallen;
+        } a;
+    } u;
+};
+static tree234 *ssh_channels;           /* indexed by local id */
+static int ssh_channelcmp(void *av, void *bv) {
+    struct ssh_channel *a = (struct ssh_channel *)av;
+    struct ssh_channel *b = (struct ssh_channel *)bv;
+    if (a->localid < b->localid) return -1;
+    if (a->localid > b->localid) return +1;
+    return 0;
+}
+static int ssh_channelfind(void *av, void *bv) {
+    int *a = (int *)av;
+    struct ssh_channel *b = (struct ssh_channel *)bv;
+    if (*a < b->localid) return -1;
+    if (*a > b->localid) return +1;
+    return 0;
+}
 
 static enum {
     SSH_STATE_BEFORE_SIZE,
@@ -1497,6 +1536,18 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
     if (ssh_state == SSH_STATE_CLOSED)
         crReturnV;
 
+    if (1 /* FIXME: agent exists && agent forwarding configured */ ) {
+        logevent("Requesting agent forwarding");
+        send_packet(SSH1_CMSG_AGENT_REQUEST_FORWARDING, PKT_END);
+        do { crReturnV; } while (!ispkt);
+        if (pktin.type != SSH1_SMSG_SUCCESS && pktin.type != SSH1_SMSG_FAILURE) {
+            fatalbox("Protocol confusion");
+        } else if (pktin.type == SSH1_SMSG_FAILURE) {
+            logevent("Agent forwarding refused");
+        } else
+            logevent("Agent forwarding enabled");
+    }
+
     if (!cfg.nopty) {
 	send_packet(SSH1_CMSG_REQUEST_PTY,
 	            PKT_STR, cfg.termtype,
@@ -1525,6 +1576,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	ssh_size();
 
     ssh_send_ok = 1;
+    ssh_channels = newtree234(ssh_channelcmp);
     while (1) {
 	crReturnV;
 	if (ispkt) {
@@ -1535,6 +1587,94 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	    } else if (pktin.type == SSH1_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
+            } else if (pktin.type == SSH1_SMSG_AGENT_OPEN) {
+                /* Remote side is trying to open a channel to talk to our
+                 * agent. Give them back a local channel number. */
+                int i = 1;
+                struct ssh_channel *c;
+                enum234 e;
+                for (c = first234(ssh_channels, &e); c; c = next234(&e)) {
+                    if (c->localid > i)
+                        break;         /* found a free number */
+                    i = c->localid + 1;
+                }
+                c = malloc(sizeof(struct ssh_channel));
+                c->remoteid = GET_32BIT(pktin.body);
+                c->localid = i;
+                c->type = SSH1_SMSG_AGENT_OPEN;   /* identify channel type */
+                add234(ssh_channels, c);
+                send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+                            PKT_INT, c->remoteid, PKT_INT, c->localid,
+                            PKT_END);
+            } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
+                       pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
+                /* Remote side closes a channel. */
+                int i = GET_32BIT(pktin.body);
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (c) {
+                    int closetype;
+                    closetype = (pktin.type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
+                    send_packet(pktin.type, PKT_INT, c->remoteid, PKT_END);
+                    c->closes |= closetype;
+                    if (c->closes == 3) {
+                        del234(ssh_channels, c);
+                        free(c);
+                    }
+                }
+            } else if (pktin.type == SSH1_MSG_CHANNEL_DATA) {
+                /* Data sent down one of our channels. */
+                int i = GET_32BIT(pktin.body);
+                int len = GET_32BIT(pktin.body+4);
+                unsigned char *p = pktin.body+8;
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (c) {
+                    switch(c->type) {
+                      case SSH1_SMSG_AGENT_OPEN:
+                        /* Data for an agent message. Buffer it. */
+                        while (len > 0) {
+                            if (c->u.a.lensofar < 4) {
+                                int l = min(4 - c->u.a.lensofar, len);
+                                memcpy(c->u.a.msglen + c->u.a.lensofar, p, l);
+                                p += l; len -= l; c->u.a.lensofar += l;
+                            }
+                            if (c->u.a.lensofar == 4) {
+                                c->u.a.totallen = 4 + GET_32BIT(c->u.a.msglen);
+                                c->u.a.message = malloc(c->u.a.totallen);
+                                memcpy(c->u.a.message, c->u.a.msglen, 4);
+                            }
+                            if (c->u.a.lensofar >= 4 && len > 0) {
+                                int l = min(c->u.a.totallen - c->u.a.lensofar, len);
+                                memcpy(c->u.a.message + c->u.a.lensofar, p, l);
+                                p += l; len -= l; c->u.a.lensofar += l;
+                            }
+                            if (c->u.a.lensofar == c->u.a.totallen) {
+                                void *reply, *sentreply;
+                                int replylen;
+                                agent_query(c->u.a.message, c->u.a.totallen,
+                                            &reply, &replylen);
+                                if (reply)
+                                    sentreply = reply;
+                                else {
+                                    /* Fake SSH_AGENT_FAILURE. */
+                                    sentreply = "\0\0\0\1\5";
+                                    replylen = 5;
+                                }
+                                send_packet(SSH1_MSG_CHANNEL_DATA,
+                                            PKT_INT, c->remoteid,
+                                            PKT_INT, replylen,
+                                            PKT_DATA, sentreply, replylen,
+                                            PKT_END);
+                                if (reply)
+                                    free(reply);
+                                free(c->u.a.message);
+                                c->u.a.lensofar = 0;
+                            }
+                        }
+                        break;
+                    }
+                }                
 	    } else if (pktin.type == SSH1_SMSG_SUCCESS) {
 		/* may be from EXEC_SHELL on some servers */
 	    } else if (pktin.type == SSH1_SMSG_FAILURE) {
