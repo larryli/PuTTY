@@ -2979,9 +2979,19 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    while (pktin.type == SSH2_MSG_USERAUTH_BANNER) {
                 char *banner;
                 int size;
-		ssh2_pkt_getstring(&banner, &size);
-                if (banner)
-                    c_write_untrusted(banner, size);
+                /*
+                 * Don't show the banner if we're operating in
+                 * non-verbose non-interactive mode. (It's probably
+                 * a script, which means nobody will read the
+                 * banner _anyway_, and moreover the printing of
+                 * the banner will screw up processing on the
+                 * output of (say) plink.)
+                 */
+                if (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE)) {
+                    ssh2_pkt_getstring(&banner, &size);
+                    if (banner)
+                        c_write_untrusted(banner, size);
+                }
 		crWaitUntilV(ispkt);
 	    }
 	    if (pktin.type == SSH2_MSG_USERAUTH_SUCCESS) {
@@ -3110,9 +3120,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			    continue;
 			}
 
-			c_write_str("Authenticating with public key \"");
-			c_write(commentp, commentlen);
-			c_write_str("\" from agent\r\n");
+                        if (flags & FLAG_VERBOSE) {
+                            c_write_str("Authenticating with public key \"");
+                            c_write(commentp, commentlen);
+                            c_write_str("\" from agent\r\n");
+                        }
 
 			/*
 			 * Server is willing to accept the key.
