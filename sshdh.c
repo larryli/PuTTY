@@ -4,6 +4,10 @@ struct ssh_kex ssh_diffiehellman = {
     "diffie-hellman-group1-sha1"
 };
 
+struct ssh_kex ssh_diffiehellman_gex = {
+    "diffie-hellman-group-exchange-sha1"
+};
+
 /*
  * The prime p used in the key exchange. 
  */
@@ -46,6 +50,15 @@ static void dh_init(void) {
 void dh_setup_group1(void) {
     p = bignum_from_bytes(P, sizeof(P));
     g = bignum_from_bytes(G, sizeof(G));
+    dh_init();
+}
+
+/*
+ * Initialise DH for an alternative group.
+ */
+void dh_setup_group(Bignum pval, Bignum gval) {
+    p = copybn(pval);
+    g = copybn(gval);
     dh_init();
 }
 

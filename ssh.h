@@ -187,6 +187,7 @@ int bignum_cmp(Bignum a, Bignum b);
 char *bignum_decimal(Bignum x);
 
 void dh_setup_group1(void);
+void dh_setup_group(Bignum pval, Bignum gval);
 void dh_cleanup(void);
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);

@@ -87,6 +87,10 @@
 #define SSH2_MSG_NEWKEYS                          21   /* 0x15 */
 #define SSH2_MSG_KEXDH_INIT                       30   /* 0x1e */
 #define SSH2_MSG_KEXDH_REPLY                      31   /* 0x1f */
+#define SSH2_MSG_KEX_DH_GEX_REQUEST               30   /* 0x1e */
+#define SSH2_MSG_KEX_DH_GEX_GROUP                 31   /* 0x1f */
+#define SSH2_MSG_KEX_DH_GEX_INIT                  32   /* 0x20 */
+#define SSH2_MSG_KEX_DH_GEX_REPLY                 33   /* 0x21 */
 #define SSH2_MSG_USERAUTH_REQUEST                 50   /* 0x32 */
 #define SSH2_MSG_USERAUTH_FAILURE                 51   /* 0x33 */
 #define SSH2_MSG_USERAUTH_SUCCESS                 52   /* 0x34 */
@@ -180,7 +184,12 @@ extern void x11_invent_auth(char *, int, char *, int);
 const static struct ssh_cipher *ciphers[] = { &ssh_blowfish_ssh2, &ssh_3des_ssh2 };
 
 extern const struct ssh_kex ssh_diffiehellman;
-const static struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
+extern const struct ssh_kex ssh_diffiehellman_gex;
+const static struct ssh_kex *kex_algs[] = {
+#ifdef DO_DIFFIE_HELLMAN_GEX
+    &ssh_diffiehellman_gex,
+#endif
+    &ssh_diffiehellman };
 
 extern const struct ssh_signkey ssh_dss;
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_dss };
@@ -806,8 +815,8 @@ static int ssh_versioncmp(char *a, char *b) {
 
 
 /*
- * Utility routine for putting an SSH-protocol `string' into a SHA
- * state.
+ * Utility routines for putting an SSH-protocol `string' and
+ * `uint32' into a SHA state.
  */
 #include <stdio.h>
 static void sha_string(SHA_State *s, void *str, int len) {
@@ -815,6 +824,12 @@ static void sha_string(SHA_State *s, void *str, int len) {
     PUT_32BIT(lenblk, len);
     SHA_Bytes(s, lenblk, 4);
     SHA_Bytes(s, str, len);
+}
+
+static void sha_uint32(SHA_State *s, unsigned i) {
+    unsigned char intblk[4];
+    PUT_32BIT(intblk, i);
+    SHA_Bytes(s, intblk, 4);
 }
 
 /*
@@ -2157,9 +2172,10 @@ static void ssh2_mkkey(Bignum K, char *H, char *sessid, char chr, char *keyspace
  */
 static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 {
-    static int i, len;
+    static int i, len, nbits;
     static char *str;
-    static Bignum e, f, K;
+    static Bignum p, g, e, f, K;
+    static int kex_init_value, kex_reply_value;
     static const struct ssh_mac **maclist;
     static int nmacs;
     static const struct ssh_cipher *cscipher_tobe = NULL;
@@ -2366,27 +2382,60 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
 
     /*
-     * Currently we only support Diffie-Hellman and DSS, so let's
-     * bomb out if those aren't selected.
+     * If we're doing Diffie-Hellman group exchange, start by
+     * requesting a group.
      */
-    if (kex != &ssh_diffiehellman || hostkey != &ssh_dss) {
-        bombout(("internal fault: chaos in SSH 2 transport layer"));
-        crReturn(0);
+    if (kex == &ssh_diffiehellman_gex) {
+        int csbits, scbits;
+
+        logevent("Doing Diffie-Hellman group exchange");
+        /*
+         * Work out number of bits. We start with the maximum key
+         * length of either cipher...
+         */
+        csbits = cscipher_tobe->keylen;
+        scbits = sccipher_tobe->keylen;
+        nbits = (csbits > scbits ? csbits : scbits);
+        /* The keys only have 160-bit entropy, since they're based on
+         * a SHA-1 hash. So cap the key size at 160 bits. */
+        if (nbits > 160) nbits = 160;
+        /*
+         * ... and then work out how big a DH group we will need to
+         * allow that much data.
+         */
+        nbits = 512 << ((nbits-1) / 64);
+        ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST);
+        ssh2_pkt_adduint32(nbits);
+        ssh2_pkt_send();
+
+        crWaitUntil(ispkt);
+        if (pktin.type != SSH2_MSG_KEX_DH_GEX_GROUP) {
+            bombout(("expected key exchange group packet from server"));
+            crReturn(0);
+        }
+        p = ssh2_pkt_getmp();
+        g = ssh2_pkt_getmp();
+        dh_setup_group(p, g);
+        kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
+        kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
+    } else {
+        dh_setup_group1();
+        kex_init_value = SSH2_MSG_KEXDH_INIT;
+        kex_reply_value = SSH2_MSG_KEXDH_REPLY;
     }
 
+    logevent("Doing Diffie-Hellman key exchange");
     /*
-     * Now we begin the fun. Generate and send e for Diffie-Hellman.
+     * Now generate and send e for Diffie-Hellman.
      */
-    dh_setup_group1();
-
     e = dh_create_e();
-    ssh2_pkt_init(SSH2_MSG_KEXDH_INIT);
+    ssh2_pkt_init(kex_init_value);
     ssh2_pkt_addmp(e);
     ssh2_pkt_send();
 
     crWaitUntil(ispkt);
-    if (pktin.type != SSH2_MSG_KEXDH_REPLY) {
-        bombout(("expected key exchange packet from server"));
+    if (pktin.type != kex_reply_value) {
+        bombout(("expected key exchange reply packet from server"));
         crReturn(0);
     }
     ssh2_pkt_getstring(&hostkeydata, &hostkeylen);
@@ -2396,6 +2445,11 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     K = dh_find_K(f);
 
     sha_string(&exhash, hostkeydata, hostkeylen);
+    if (kex == &ssh_diffiehellman_gex) {
+        sha_uint32(&exhash, nbits);
+        sha_mpint(&exhash, p);
+        sha_mpint(&exhash, g);
+    }
     sha_mpint(&exhash, e);
     sha_mpint(&exhash, f);
     sha_mpint(&exhash, K);
@@ -2433,7 +2487,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     fingerprint = hostkey->fingerprint(hkey);
     verify_ssh_host_key(savedhost, savedport, hostkey->keytype,
                         keystr, fingerprint);
-    if (first_kex) {		       /* don't bother logging this in rekeys */
+    if (first_kex) {                /* don't bother logging this in rekeys */
 	logevent("Host key fingerprint is:");
 	logevent(fingerprint);
     }
