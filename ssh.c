@@ -88,11 +88,12 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR };
 #define crWaitUntil(c)	do { crReturn(0); } while (!(c))
 
 extern struct ssh_cipher ssh_3des;
+extern struct ssh_cipher ssh_3des_ssh2;
 extern struct ssh_cipher ssh_des;
 extern struct ssh_cipher ssh_blowfish;
 
 /* for ssh 2; we miss out single-DES because it isn't supported */
-struct ssh_cipher *ciphers[] = { &ssh_3des, &ssh_blowfish };
+struct ssh_cipher *ciphers[] = { &ssh_3des_ssh2, &ssh_blowfish };
 
 extern struct ssh_kex ssh_diffiehellman;
 struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
@@ -408,8 +409,9 @@ next_packet:
     /*
      * Check the MAC.
      */
-    if (scmac && !scmac->verify(pktin.data, incoming_sequence++, len+4))
+    if (scmac && !scmac->verify(pktin.data, len+4, incoming_sequence))
 	fatalbox("Incorrect MAC received on packet");
+    incoming_sequence++;               /* whether or not we MACed */
 
     pktin.savedpos = 6;
     pktin.type = pktin.data[5];
@@ -1207,7 +1209,7 @@ void ssh2_pkt_addmp(Bignum b) {
 }
 void ssh2_pkt_send(void) {
     int cipherblk, maclen, padding, i;
-    unsigned long outgoing_sequence = 0;
+    static unsigned long outgoing_sequence = 0;
 
     /*
      * Add padding. At least four bytes, and must also bring total
@@ -1222,8 +1224,9 @@ void ssh2_pkt_send(void) {
         pktout.data[pktout.length + i] = random_byte();
     PUT_32BIT(pktout.data, pktout.length + padding - 4);
     if (csmac)
-        csmac->generate(pktout.data, outgoing_sequence++,
-                      pktout.length + padding);
+        csmac->generate(pktout.data, pktout.length + padding,
+                        outgoing_sequence);
+    outgoing_sequence++;               /* whether or not we MACed */
     if (cscipher)
         cscipher->encrypt(pktout.data, pktout.length + padding);
     maclen = csmac ? csmac->len : 0;
@@ -1583,6 +1586,14 @@ static int do_ssh2_kex(unsigned char *in, int inlen, int ispkt)
     ssh2_mkkey(K, exchange_hash, 'B', keyspace); sccipher->setsciv(keyspace);
     ssh2_mkkey(K, exchange_hash, 'E', keyspace); csmac->setcskey(keyspace);
     ssh2_mkkey(K, exchange_hash, 'F', keyspace); scmac->setsckey(keyspace);
+
+    /*
+     * Now we're encrypting. Send a test packet (FIXME).
+     */
+    crWaitUntil(!ispkt);
+    ssh2_pkt_init(SSH2_MSG_IGNORE);
+    ssh2_pkt_addstring("oo-er");
+    ssh2_pkt_send();
 
     crWaitUntil(0);
 

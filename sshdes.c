@@ -1,5 +1,9 @@
 #include <assert.h>
+#include <stdarg.h> /* FIXME */
+#include <windows.h> /* FIXME */
+#include "putty.h" /* FIXME */
 #include "ssh.h"
+
 
 /* des.c - implementation of DES
  */
@@ -655,11 +659,61 @@ static void des_3cbc_encrypt(unsigned char *dest, const unsigned char *src,
     des_cbc_encrypt(dest, src, len, &scheds[2]);
 }
 
+static void des_cbc3_encrypt(unsigned char *dest, const unsigned char *src,
+                             unsigned int len, DESContext *scheds) {
+    word32 out[2], iv0, iv1;
+    unsigned int i;
+
+    assert((len & 7) == 0);
+
+    iv0 = scheds->eiv0;
+    iv1 = scheds->eiv1;
+    for (i = 0; i < len; i += 8) {
+        iv0 ^= GET_32BIT_MSB_FIRST(src); src += 4;
+        iv1 ^= GET_32BIT_MSB_FIRST(src); src += 4;
+        des_encipher(out, iv0, iv1, &scheds[0]);
+        des_decipher(out, out[0], out[1], &scheds[1]);
+        des_encipher(out, out[0], out[1], &scheds[2]);
+        iv0 = out[0];
+        iv1 = out[1];
+        PUT_32BIT_MSB_FIRST(dest, iv0); dest += 4;
+        PUT_32BIT_MSB_FIRST(dest, iv1); dest += 4;
+    }
+    scheds->eiv0 = iv0;
+    scheds->eiv1 = iv1;
+}
+
 static void des_3cbc_decrypt(unsigned char *dest, const unsigned char *src,
                              unsigned int len, DESContext *scheds) {
     des_cbc_decrypt(dest, src, len, &scheds[2]);
     des_cbc_encrypt(dest, src, len, &scheds[1]);
     des_cbc_decrypt(dest, src, len, &scheds[0]);
+}
+
+static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
+                             unsigned int len, DESContext *scheds) {
+    word32 out[2], iv0, iv1, xL, xR;
+    unsigned int i;
+
+    assert((len & 7) == 0);
+
+    iv0 = scheds->div0;
+    iv1 = scheds->div1;
+    for (i = 0; i < len; i += 8) {
+        xL = GET_32BIT_MSB_FIRST(src); src += 4;
+        xR = GET_32BIT_MSB_FIRST(src); src += 4;
+        des_decipher(out, xL, xR, &scheds[2]);
+        des_encipher(out, out[0], out[1], &scheds[1]);
+        des_decipher(out, out[0], out[1], &scheds[0]);
+        iv0 ^= out[0];
+        iv1 ^= out[1];
+        PUT_32BIT_MSB_FIRST(dest, iv0); dest += 4;
+        PUT_32BIT_MSB_FIRST(dest, iv1); dest += 4;
+        iv0 = xL;
+        iv1 = xR;
+    }
+    scheds->div0 = iv0;
+    scheds->div1 = iv1;
 }
 
 static DESContext cskeys[3], sckeys[3];
@@ -707,10 +761,27 @@ static void des3_decrypt_blk(unsigned char *blk, int len) {
     des_3cbc_decrypt(blk, blk, len, sckeys);
 }
 
-struct ssh_cipher ssh_3des = {
-    des3_sesskey,
+static void des3_ssh2_encrypt_blk(unsigned char *blk, int len) {
+    des_cbc3_encrypt(blk, blk, len, cskeys);
+}
+
+static void des3_ssh2_decrypt_blk(unsigned char *blk, int len) {
+    des_cbc3_decrypt(blk, blk, len, sckeys);
+}
+
+struct ssh_cipher ssh_3des_ssh2 = {
+    NULL,
     des3_csiv, des3_cskey,
     des3_sciv, des3_sckey,
+    des3_ssh2_encrypt_blk,
+    des3_ssh2_decrypt_blk,
+    "3des-cbc",
+    8
+};
+
+struct ssh_cipher ssh_3des = {
+    des3_sesskey,
+    NULL, NULL, NULL, NULL,
     des3_encrypt_blk,
     des3_decrypt_blk,
     "3des-cbc",
