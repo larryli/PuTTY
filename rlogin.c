@@ -41,7 +41,7 @@ static int rlogin_receive (Socket skt, int urgent, char *data, int len) {
         char c;
         
         c = *data++; len--;
-        if (c == 0x80)
+        if (c == '\x80')
             rlogin_size();
         /*
          * We should flush everything (aka Telnet SYNCH) if we see
