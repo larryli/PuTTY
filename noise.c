@@ -44,7 +44,6 @@ void noise_get_heavy(void (*func) (void *, int)) {
     mod = GetModuleHandle("KERNEL32");
     if (mod) {
         gsps = (gsps_t)GetProcAddress(mod, "GetSystemPowerStatus");
-        debug(("got gsps=%p\n", gsps));
     }
 }
 
