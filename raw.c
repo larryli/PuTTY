@@ -243,5 +243,6 @@ Backend raw_backend = {
     raw_size,
     raw_special,
     raw_socket,
-    raw_sendok
+    raw_sendok,
+    1
 };

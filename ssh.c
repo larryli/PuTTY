@@ -2627,5 +2627,6 @@ Backend ssh_backend = {
     ssh_size,
     ssh_special,
     ssh_socket,
-    ssh_sendok
+    ssh_sendok,
+    22
 };

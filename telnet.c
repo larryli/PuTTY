@@ -761,5 +761,6 @@ Backend telnet_backend = {
     telnet_size,
     telnet_special,
     telnet_socket,
-    telnet_sendok
+    telnet_sendok,
+    23
 };

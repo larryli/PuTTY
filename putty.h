@@ -115,6 +115,7 @@ typedef struct {
     void (*special) (Telnet_Special code);
     SOCKET (*socket) (void);
     int (*sendok) (void);
+    int default_port;
 } Backend;
 
 GLOBAL Backend *back;
