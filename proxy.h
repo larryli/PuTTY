@@ -4,8 +4,7 @@
  * A proxy layer, if necessary, wedges itself between the
  * network code and the higher level backend.
  *
- * Supported proxies: HTTP CONNECT, generic telnet
- * In progress: SOCKS
+ * Supported proxies: HTTP CONNECT, generic telnet, SOCKS 4 & 5
  */
 
 #ifndef PUTTY_PROXY_H

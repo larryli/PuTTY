@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.43 2002/10/20 13:23:30 simon Exp $
+\versionid $Id: config.but,v 1.44 2002/10/22 09:40:38 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1454,7 +1454,8 @@ proxies and SOCKS 5 proxies.
 \b SOCKS 4 can use the \q{Username} field, but does not support
 passwords.
 
-\b Authentication is meaningless in Telnet proxies.
+\b You can specify a way to include a username and password in the
+Telnet proxy command (see \k{config-proxy-command}).
 
 \S{config-proxy-command} Specifying the Telnet proxy command
 
@@ -1472,8 +1473,20 @@ other character. \c{\\\\} is used to encode the \c{\\} character
 itself.
 
 Also, the special strings \c{%host} and \c{%port} will be replaced
-by the host name and port number you want to connect to. To get a
-literal \c{%} sign, enter \c{%%}.
+by the host name and port number you want to connect to. The strings
+\c{%user} and \c{%pass} will be replaced by the proxy username and 
+password you specify. To get a literal \c{%} sign, enter \c{%%}.
+
+If the Telnet proxy server prompts for a username and password
+before commands can be sent, you can use a command such as:
+
+\c %user\\n%pass\\nconnect %host %port\\n
+
+This will send your username and password as the first two lines to 
+the proxy, followed by a command to connect to the desired host and 
+port. Note that if you do not include the \c{%user} or \c{%pass}
+tokens in the Telnet command, then the \q{Username} and \q{Password}
+configuration fields will be ignored.
 
 \S{config-proxy-socksver} Selecting the version of the SOCKS protocol
 

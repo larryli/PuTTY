@@ -22,43 +22,50 @@ void proxy_activate (Proxy_Socket p)
 {
     void *data;
     int len;
-
+    long output_before, output_after;
+    
     p->state = PROXY_STATE_ACTIVE;
 
-    /* let's try to keep extra receive events from coming through */
+    /* we want to ignore new receive events until we have sent
+     * all of our buffered receive data.
+     */
     sk_set_frozen(p->sub_socket, 1);
 
+    /* how many bytes of output have we buffered? */
+    output_before = bufchain_size(&p->pending_oob_output_data) +
+	bufchain_size(&p->pending_output_data);
+    /* and keep track of how many bytes do not get sent. */
+    output_after = 0;
+    
     /* send buffered OOB writes */
     while (bufchain_size(&p->pending_oob_output_data) > 0) {
 	bufchain_prefix(&p->pending_oob_output_data, &data, &len);
-	sk_write_oob(p->sub_socket, data, len);
+	output_after += sk_write_oob(p->sub_socket, data, len);
 	bufchain_consume(&p->pending_oob_output_data, len);
     }
-    bufchain_clear(&p->pending_oob_output_data);
 
     /* send buffered normal writes */
     while (bufchain_size(&p->pending_output_data) > 0) {
 	bufchain_prefix(&p->pending_output_data, &data, &len);
-	sk_write(p->sub_socket, data, len);
+	output_after += sk_write(p->sub_socket, data, len);
 	bufchain_consume(&p->pending_output_data, len);
     }
-    bufchain_clear(&p->pending_output_data);
+
+    /* if we managed to send any data, let the higher levels know. */
+    if (output_after < output_before)
+	plug_sent(p->plug, output_after);
 
     /* if we were asked to flush the output during
      * the proxy negotiation process, do so now.
      */
     if (p->pending_flush) sk_flush(p->sub_socket);
 
-    /* forward buffered recv data to the backend */
-    while (bufchain_size(&p->pending_input_data) > 0) {
-	bufchain_prefix(&p->pending_input_data, &data, &len);
-	plug_receive(p->plug, 0, data, len);
-	bufchain_consume(&p->pending_input_data, len);
-    }
-    bufchain_clear(&p->pending_input_data);
-
-    /* now set the underlying socket to whatever freeze state they wanted */
-    sk_set_frozen(p->sub_socket, p->freeze);
+    /* if the backend wanted the socket unfrozen, try to unfreeze.
+     * our set_frozen handler will flush buffered receive data before
+     * unfreezing the actual underlying socket.
+     */
+    if (!p->freeze)
+	sk_set_frozen((Socket)p, 0);
 }
 
 /* basic proxy socket functions */
@@ -135,6 +142,30 @@ static void sk_proxy_set_frozen (Socket s, int is_frozen)
 	ps->freeze = is_frozen;
 	return;
     }
+    
+    /* handle any remaining buffered recv data first */
+    if (bufchain_size(&ps->pending_input_data) > 0) {
+	ps->freeze = is_frozen;
+
+	/* loop while we still have buffered data, and while we are
+	 * unfrozen. the plug_receive call in the loop could result 
+	 * in a call back into this function refreezing the socket, 
+	 * so we have to check each time.
+	 */
+        while (!ps->freeze && bufchain_size(&ps->pending_input_data) > 0) {
+	    char * data;
+	    int len;
+	    bufchain_prefix(&ps->pending_input_data, &data, &len);
+	    plug_receive(ps->plug, 0, data, len);
+	    bufchain_consume(&ps->pending_input_data, len);
+	}
+
+	/* if we're still frozen, we'll have to wait for another
+	 * call from the backend to finish unbuffering the data.
+	 */
+	if (ps->freeze) return;
+    }
+    
     sk_set_frozen(ps->sub_socket, is_frozen);
 }
 
@@ -314,8 +345,6 @@ Socket new_connection(SockAddr addr, char *hostname,
 	ret->remote_addr = addr;
 	ret->remote_port = port;
 
-	/* XXX review these initialisations, and initialise other fields
-	 * in Proxy_Socket structure */
 	ret->error = NULL;
 	ret->pending_flush = 0;
 	ret->freeze = 0;
@@ -326,7 +355,8 @@ Socket new_connection(SockAddr addr, char *hostname,
 
 	ret->sub_socket = NULL;
 	ret->state = PROXY_STATE_NEW;
-
+	ret->negotiate = NULL;
+	
 	if (cfg.proxy_type == PROXY_HTTP) {
 	    ret->negotiate = proxy_http_negotiate;
 	} else if (cfg.proxy_type == PROXY_SOCKS) {
@@ -1069,7 +1099,7 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 	int so = 0, eo = 0;
 
 	/* we need to escape \\, \%, \r, \n, \t, \x??, \0???, 
-	 * %%, %host, and %port 
+	 * %%, %host, %port, %user, and %pass
 	 */
 
 	while (cfg.proxy_telnet_command[eo] != 0) {
@@ -1177,27 +1207,40 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 		}
 	    } else {
 
-		/* % escape. we recognize %%, %host, %port. anything else,
-		 * we just send unescaped (including the %). */
+		/* % escape. we recognize %%, %host, %port, %user, %pass. 
+		 * anything else, we just send unescaped (including the %). 
+		 */
 
 		if (cfg.proxy_telnet_command[eo] == '%') {
 		    sk_write(p->sub_socket, "%", 1);
 		    eo++;
-		} 
+		}
 		else if (strnicmp(cfg.proxy_telnet_command + eo,
 				  "host", 4) == 0) {
 		    char dest[64];
 		    sk_getaddr(p->remote_addr, dest, 64);
 		    sk_write(p->sub_socket, dest, strlen(dest));
 		    eo += 4;
-		} 
+		}
 		else if (strnicmp(cfg.proxy_telnet_command + eo,
 				  "port", 4) == 0) {
 		    char port[8];
 		    sprintf(port, "%i", p->remote_port);
 		    sk_write(p->sub_socket, port, strlen(port));
 		    eo += 4;
-		} 
+		}
+		else if (strnicmp(cfg.proxy_telnet_command + eo,
+				  "user", 4) == 0) {
+		    sk_write(p->sub_socket, cfg.proxy_username, 
+			strlen(cfg.proxy_username));
+		    eo += 4;
+		}
+		else if (strnicmp(cfg.proxy_telnet_command + eo,
+				  "pass", 4) == 0) {
+		    sk_write(p->sub_socket, cfg.proxy_password, 
+			strlen(cfg.proxy_password));
+		    eo += 4;
+		}
 		else {
 		    /* we don't escape this, so send the % now, and
 		     * don't advance eo, so that we'll consider the
