@@ -1864,17 +1864,18 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (len == -1)
 		    return DefWindowProc(hwnd, message, wParam, lParam);
 
-		/*
-		 * We need not bother about stdin backlogs here,
-		 * because in GUI PuTTY we can't do anything about
-		 * it anyway; there's no means of asking Windows to
-		 * hold off on KEYDOWN messages. We _have_ to
-		 * buffer everything we're sent.
-		 */
-		ldisc_send(buf, len);
-
-		if (len > 0)
+		if (len > 0) {
+		    /*
+		     * We need not bother about stdin backlogs
+		     * here, because in GUI PuTTY we can't do
+		     * anything about it anyway; there's no means
+		     * of asking Windows to hold off on KEYDOWN
+		     * messages. We _have_ to buffer everything
+		     * we're sent.
+		     */
+		    ldisc_send(buf, len);
 		    show_mouseptr(0);
+		}
 	    }
 	}
 	return 0;
@@ -3026,6 +3027,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    lpage_send(kbd_codepage, cbuf + !left_alt,
 			       1 + !!left_alt);
 		}
+		show_mouseptr(0);
 	    }
 
 	    /* This is so the ALT-Numpad and dead keys work correctly. */
