@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.17 2001/12/06 13:28:02 simon Exp $
+\versionid $Id: config.but,v 1.18 2001/12/06 20:05:39 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -31,10 +31,11 @@ rlogin connection or an SSH connection. (See \k{which-one} for a
 summary of the differences between SSH, Telnet and rlogin.)
 
 \b The \q{Port} box lets you specify which port number on the server
-to connect to. If you select Telnet, Rlogin, or SSH, this box will be
-filled in automatically to the usual value, and you will only need to
-change it if you have an unusual server. If you select Raw mode, you
-will almost certainly need to fill in the \q{Port} box.
+to connect to. If you select Telnet, Rlogin, or SSH, this box will
+be filled in automatically to the usual value, and you will only
+need to change it if you have an unusual server. If you select Raw
+mode (see \k{using-rawprot}), you will almost certainly need to fill
+in the \q{Port} box.
 
 \S{config-saving} Loading and storing saved sessions
 
@@ -207,8 +208,8 @@ could try turning this option off.
 Auto wrap mode can be turned on and off by control sequences sent by
 the server. This configuration option only controls the \e{default}
 state. If you modify this option in mid-session using \q{Change
-Settings}, you will need to reset the terminal \#{ FIXME } before
-the change takes effect.
+Settings}, you will need to reset the terminal (see
+\k{reset-terminal}) before the change takes effect.
 
 \S{config-decom} \q{DEC Origin Mode initially on}
 
@@ -233,11 +234,11 @@ a full-screen application is displaying pieces of text in what looks
 like the wrong part of the screen, you could try turning DEC Origin
 Mode on to see whether that helps.
 
-DEC Origin Mode can be turned on and off by control sequences sent by
-the server. This configuration option only controls the \e{default}
-state. If you modify this option in mid-session using \q{Change
-Settings}, you will need to reset the terminal \#{ FIXME } before
-the change takes effect.
+DEC Origin Mode can be turned on and off by control sequences sent
+by the server. This configuration option only controls the
+\e{default} state. If you modify this option in mid-session using
+\q{Change Settings}, you will need to reset the terminal (see
+\k{reset-terminal}) before the change takes effect.
 
 \S{config-crlf} \q{Implicit CR in every LF}
 
@@ -281,6 +282,12 @@ With this option disabled, screen clearing is always done in the
 default background colour. With this option enabled, it is done in
 the \e{current} background colour.
 
+Background-colour erase can be turned on and off by control
+sequences sent by the server. This configuration option only
+controls the \e{default} state. If you modify this option in
+mid-session using \q{Change Settings}, you will need to reset the
+terminal (see \k{reset-terminal}) before the change takes effect.
+
 \S{config-blink} \q{Enable blinking text}
 
 \cfg{winhelp-topic}{terminal.blink}
@@ -289,6 +296,16 @@ The server can ask PuTTY to display text that blinks on and off.
 This is very distracting, so PuTTY allows you to turn blinking text
 off completely.
 
+When blinking text is disabled and the server attempts to make some
+text blink, PuTTY will instead display the text with a bolded
+background colour.
+
+Blinking text can be turned on and off by control sequences sent by
+the server. This configuration option only controls the \e{default}
+state. If you modify this option in mid-session using \q{Change
+Settings}, you will need to reset the terminal (see
+\k{reset-terminal}) before the change takes effect.
+
 \S{config-answerback} \q{Answerback to ^E}
 
 \cfg{winhelp-topic}{terminal.answerback}
@@ -296,6 +313,14 @@ off completely.
 This option controls what PuTTY will send back to the server if the
 server sends it the ^E enquiry character. Normally it just sends
 the string \q{PuTTY}.
+
+If you accidentally write the contents of a binary file to your
+terminal, you will probably find that it contains more than one ^E
+character, and as a result your next command line will probably read
+\q{PuTTYPuTTYPuTTY...} as if you had typed the answerback string
+multiple times at the keyboard. If you set the answerback string to
+be empty, this problem should go away, but doing so might cause
+other problems.
 
 \S{config-localecho} \q{Local echo}
 
@@ -807,8 +832,12 @@ other windows.
 \cfg{winhelp-topic}{behaviour.altenter}
 
 If this option is enabled, then pressing Alt-Enter will cause the
-PuTTY window to become full-screen. (See \k{using-fullscreen}).
-Pressing Alt-Enter again will restore the previous window size.
+PuTTY window to become full-screen. Pressing Alt-Enter again will
+restore the previous window size.
+
+The full-screen feature is also available from the System menu, even
+when it is configured not to be available on the Alt-Enter key. See
+\k{using-fullscreen}.
 
 \H{config-translation} The Translation panel
 
@@ -1471,49 +1500,51 @@ If your server lets you run X Window System applications, X11
 forwarding allows you to securely give those applications access to
 a local X display on your PC.
 
-This feature will only be useful if you have an X server on your PC,
-such as Exceed or XWin32.
-
 To enable X11 forwarding, check the \q{Enable X11 forwarding} box.
 If your X display is not the primary display on your local machine
 (which it almost certainly will be unless you have deliberately
 arranged otherwise), you need to enter its location in the \q{X
 display location} box.
 
-\# FIXME: perhaps link to some more general X forwarding info?
+See \k{using-x-forwarding} for more information about X11
+forwarding.
 
 \S{config-ssh-portfwd} Port forwarding
 
 \cfg{winhelp-topic}{ssh.tunnels.portfwd}
 
 Port forwarding allows you to tunnel other types of network
-connection down an SSH connection.
+connection down an SSH session. See \k{using-port-forwarding} for a
+general discussion of port forwarding and how it works.
 
-To set up a local port forwarding, make sure the \q{Local} radio
-button is set. Then enter a local port number (on your PC) in the
-\q{Source port} box, and a hostname and port number (separated by a
-colon) in the \q{Destination} box, and finally press the \q{Add}
-button. For example, you might select a source port of 10079, and a
-destination of \c{server2.example.com:79}.
+The port forwarding section in the Tunnels panel shows a list of all
+the port forwardings that PuTTY will try to set up when it connects
+to the server. By default no port forwardings are set up, so this
+list is empty.
 
-If you do this, and then start the session, you should find that
-connecting to your local PC on port 10079 gives you a connection to
-port 79 (the finger server) on \c{server2.example.com}. The
-connection is actually going to PuTTY itself, which encrypts the
-connection data and sends it down the secure channel to the SSH
-server. The connection then proceeds in clear from there to the
-eventual destination. So you might use this (for example) to forward
-a connection between two non-hostile network zones that are only
-connected by a hostile zone such as the open Internet.
+To add a port forwarding:
 
-You can forward ports on the SSH server machine in the other
-direction, too (so the connection will start at the server end and
-be sent down the secure connection to PuTTY, which will make the
-real connection to the destination). To work this way round, just
-click the \q{Remote} radio button instead of \q{Local}.
+\b Set one of the \q{Local} or \q{Remote} radio buttons, depending
+on whether you want to forward a local port to a remote destination
+(\q{Local}) or forward a remote port to a local destination
+(\q{Remote}).
 
-\# FIXME: perhaps move this to a general port-forwarding section and
-\# just link to it here?
+\b Enter a source port number into the \q{Source port} box. For
+local forwardings, PuTTY will listen on this port of your PC. For
+remote forwardings, your SSH server will listen on this port of the
+remote machine. Note that most servers will not allow you to listen
+on port numbers less than 1024.
+
+\b Enter a hostname and port number separated by a colon, in the
+\q{Destination} box. Connections received on the source port will be
+directed to this destination. For example, to connect to a POP-3
+server, you might enter \c{popserver.example.com:110}.
+
+\b Click the \q{Add} button. Your forwarding details should appear
+in the list box.
+
+To remove a port forwarding, simply select its details in the list
+box, and click the \q{Remove} button.
 
 \H{config-file} Storing configuration in a file
 

@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.2 2001/11/25 19:22:47 simon Exp $
+\versionid $Id: using.but,v 1.3 2001/12/06 20:05:39 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -198,12 +198,122 @@ If you click \q{Change Settings} and look at the \q{Translation}
 panel, you should see a large number of character sets which you can
 select. Now all you need is to find out which of them you want!
 
-\H{using-forwarding} Port forwarding and X forwarding in SSH
+\H{using-x-forwarding} Using X11 forwarding in SSH
 
-\# using X forwarding
+The SSH protocol has the ability to securely forward X Window System
+applications over your encrypted SSH connection, so that you can run
+an application on the SSH server machine and have it put its windows
+up on your local machine without sending any X network traffic in
+the clear.
 
-\# using port forwarding
+In order to use this feature, you will need an X display server for
+your Windows machine, such as X-Win32 or Exceed. This will probably
+install itself as display number 0 on your local machine; if it
+doesn't, the manual for the X server should tell you what it does
+do.
+
+You should then tick the \q{Enable X11 forwarding} box in the
+Tunnels panel (see \k{config-ssh-x11}) before starting your SSH
+session. The \q{X display location} box reads \c{localhost:0} by
+default, which is the usual display location where your X server
+will be installed. If that needs changing, then change it.
+
+Now you should be able to log in to the SSH server as normal. To
+check that X forwarding has been successfully negotiated during
+connection startup, you can check the PuTTY Event Log (see
+\k{using-eventlog}). It should say something like this:
+
+\c 2001-12-05 17:22:01 Requesting X11 forwarding
+\c 2001-12-05 17:22:02 X11 forwarding enabled
+
+If the remote system is Unix or Unix-like, you should also be able
+to see that the \c{DISPLAY} environment variable has been set to
+point at display 10 or above on the SSH server machine itself:
+
+\c fred@unixbox:~$ echo $DISPLAY
+\c unixbox:10.0
+
+If this works, you should then be able to run X applications in the
+remote session and have them display their windows on your PC.
+
+Note that if your PC X server requires authentication to connect,
+then PuTTY cannot currently support it. If this is a problem for
+you, you should mail the authors \#{FIXME} and give details.
+
+\H{using-port-forwarding} Using port forwarding in SSH
+
+The SSH protocol has the ability to forward arbitrary network
+connections over your encrypted SSH connection, to avoid the network
+traffic being sent in clear. For example, you could use this to
+connect from your home computer to a POP-3 server on a remote
+machine without your POP-3 password being visible to network
+sniffers.
+
+In order to use port forwarding to connect from your local machine
+to a port on a remote server, you need to:
+
+\b Choose a port number on your local machine where PuTTY should
+listen for incoming connections. There are likely to be plenty of
+unused port numbers above 3000.
+
+\b Now, before you start your SSH connection, go to the Tunnels
+panel (see \k{config-ssh-portfwd}). Make sure the \q{Local} radio
+button is set. Enter the local port number into the \q{Source port}
+box. Enter the destination host name and port number into the
+\q{Destination} box, separated by a colon (for example,
+\c{popserver.example.com:110} to connect to a POP-3 server).
+
+\b Now click the \q{Add} button. The details of your port forwarding
+should appear in the list box.
+
+Now start your session. To check that PuTTY has set up the port
+forwarding correctly, you can look at the PuTTY Event Log (see
+\k{using-eventlog}). It should say something like this:
+
+\c 2001-12-05 17:22:10 Local port 3110 forwarding to
+\c          popserver.example.com:110
+
+Now if you connect to the source port number on your local PC, you
+should find that it answers you exactly as if it were the service
+running on the destination machine. So in this example, you could
+then configure an e-mail client to use \c{localhost:3110} as a POP-3
+server instead of \c{popserver.example.com:110}. (Of course, the
+forwarding will stop happening when your PuTTY session closes down.)
+
+You can also forward ports in the other direction: arrange for a
+particular port number on the \e{server} machine to be forwarded
+back to your PC as a connection to a service on your PC or near it.
+To do this, just select the \q{Remote} radio button instead of the
+\q{Local} one. The \q{Source port} box will now specify a port
+number on the \e{server} (note that most servers will not allow you
+to use port numbers under 1024 for this purpose).
 
 \H{using-rawprot} Making raw TCP connections
 
-\# Raw protocol
+A lot of Internet protocols are composed of commands and responses
+in plain text. For example, SMTP (the protocol used to transfer
+e-mail), NNTP (the protocol used to transfer Usenet news), and HTTP
+(the protocol used to serve Web pages) all consist of commands in
+readable plain text.
+
+Sometimes it can be useful to connect directly to one of these
+services and speak the protocol \q{by hand}, by typing protocol
+commands and watching the responses. On Unix machines, you can do
+this using the system's \c{telnet} command to connect to the right
+port number. For example, \c{telnet mailserver.example.com 25} might
+enable you to talk directly to the SMTP service running on a mail
+server.
+
+Although the Unix \c{telnet} program provides this functionality,
+the protocol being used is not really Telnet. Really there is no
+actual protocol at all; the bytes sent down the connection are
+exactly the ones you type, and the bytes shown on the screen are
+exactly the ones sent by the server. Unix \c{telnet} will attempt to
+detect or guess whether the service it is talking to is a real
+Telnet service or not; PuTTY prefers to be told for certain.
+
+In order to make a debugging connection to a service of this type,
+you simply select the fourth protocol name, \q{Raw}, from the
+\q{Protocol} buttons in the \q{Session} configuration panel. (See
+\k{config-hostname}.) You can then enter a host name and a port
+number, and make the connection.

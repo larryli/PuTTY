@@ -1,4 +1,4 @@
-\versionid $Id: gs.but,v 1.5 2001/11/25 17:32:39 simon Exp $
+\versionid $Id: gs.but,v 1.6 2001/12/06 20:05:39 simon Exp $
 
 \C{gs} Getting started with PuTTY
 
@@ -40,9 +40,9 @@ possibly \q{Port} settings, you are ready to connect. Press the
 \q{Open} button at the bottom of the dialog box, and PuTTY will
 begin trying to connect you to the server.
 
-\H{gs-hostkey} Verifying the Host Key (SSH only)
+\H{gs-hostkey} Verifying the Host Key (SSH only)
 
-If you are not using the SSH protocol, you can skip this section.
+If you are not using the SSH protocol, you can skip this section.
 
 If you are using SSH to connect to a server for the first time, you
 will probably see a message looking something like this:
@@ -71,7 +71,7 @@ To prevent this attack, each server has a unique identifying code,
 called a \e{host key}. These keys are created in a way that prevents
 one server from forging another server's key. So if you connect to a
 server and it sends you a different host key from the one you were
-expecting, PuTTY can warn you that the server may have been switched
+expecting, PuTTY can warn you that the server may have been switched
 and that a spoofing attack might be in progress.
 
 PuTTY records the host key for each server you connect to, in the
@@ -82,7 +82,7 @@ and you will have the chance to abandon your connection before you
 type any private information (such as a password) into it.
 
 However, when you connect to a server you have not connected to
-before, PuTTY has no way of telling whether the host key is the
+before, PuTTY has no way of telling whether the host key is the
 right one or not. So it gives the warning shown above, and asks you
 whether you want to trust this host key or not.
 
@@ -94,7 +94,7 @@ If you are connecting across a hostile network (such as the
 Internet), you should check with your system administrator, perhaps
 by telephone or in person. (Some modern servers have more than one
 host key. If the system administrator sends you more than one
-fingerprint, you should make sure the one PuTTY shows you is on the
+fingerprint, you should make sure the one PuTTY shows you is on the
 list, but it doesn't matter which one it is.)
 
 \# FIXME: this is all very fine but of course in practice the world
@@ -113,7 +113,7 @@ right.
 
 If you are using SSH, be careful not to type your username wrongly,
 because you will not have a chance to correct it after you press
-Return. This is an unfortunate feature of the SSH protocol: it does
+Return. This is an unfortunate feature of the SSH protocol: it does
 not allow you to make two login attempts using different usernames.
 If you type your username wrongly, you must close PuTTY and start
 again.
@@ -139,9 +139,9 @@ When you have finished your session, you should log out by typing
 the server's own logout command. This might vary between servers; if
 in doubt, try \c{logout} or \c{exit}, or consult a manual or your
 system administrator. When the server processes your logout command,
-the PuTTY window should close itself automatically.
+the PuTTY window should close itself automatically.
 
-You \e{can} close a PuTTY session using the Close button in the
+You \e{can} close a PuTTY session using the Close button in the
 window border, but this might confuse the server - a bit like
 hanging up a telephone unexpectedly in the middle of a conversation.
 We recommend you do not do this unless the server has stopped

@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.10 2001/11/25 17:32:39 simon Exp $
+\versionid $Id: pubkey.but,v 1.11 2001/12/06 20:05:39 simon Exp $
 
 \# FIXME: passphrases, examples (e.g what does a key for pasting into
 \# authorized_keys look like?), index entries, links.
@@ -22,13 +22,13 @@ Public key authentication solves this problem. You generate a \e{key
 pair}, consisting of a public key (which everybody is allowed to
 know) and a private key (which you keep secret and do not give to
 anybody). The private key is able to generate \e{signatures}.
-A signature created using your private key cannot be forged by
+A signature created using your private key cannot be forged by
 anybody who does not have that key; but anybody who has your public
 key can verify that a particular signature is genuine.
 
 So you generate a key pair on your own computer, and you copy the
 public key to the server. Then, when the server asks you to prove
-who you are, PuTTY can generate a signature using your private key.
+who you are, PuTTY can generate a signature using your private key.
 The server can verify that signature (since it has your public key)
 and allow you to log in. Now if the server is hacked or spoofed, the
 attacker does not gain your private key or password; they only gain
@@ -52,7 +52,7 @@ agent}, a separate program which holds decrypted private keys and
 generates signatures on request. PuTTY's authentication agent is
 called Pageant. When you begin a Windows session, you start Pageant
 and load your public key into it (typing your passphrase once). For
-the rest of your session, you can start PuTTY any number of times
+the rest of your session, you can start PuTTY any number of times
 and Pageant will automatically generate signatures without you
 having to do anything. When you close your Windows session, Pageant
 shuts down, without ever having stored your decrypted private key on
