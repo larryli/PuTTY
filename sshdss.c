@@ -102,7 +102,7 @@ static void *dss_newkey(char *data, int len) {
     int slen;
     struct dss_key *dss;
 
-    dss = malloc(sizeof(struct dss_key));
+    dss = smalloc(sizeof(struct dss_key));
     if (!dss) return NULL;
     getstring(&data, &len, &p, &slen);
 
@@ -117,7 +117,7 @@ static void *dss_newkey(char *data, int len) {
 #endif
 
     if (!p || memcmp(p, "ssh-dss", 7)) {
-	free(dss);
+	sfree(dss);
 	return NULL;
     }
     dss->p = getmp(&data, &len);
@@ -134,7 +134,7 @@ static void dss_freekey(void *key) {
     freebn(dss->q);
     freebn(dss->g);
     freebn(dss->y);
-    free(dss);
+    sfree(dss);
 }
 
 static char *dss_fmtkey(void *key) {
@@ -146,7 +146,7 @@ static char *dss_fmtkey(void *key) {
         return NULL;
     len = 8 + 4 + 1;                   /* 4 x "0x", punctuation, \0 */
     len += 4 * (dss->p[0] + dss->q[0] + dss->g[0] + dss->y[0]);   /* digits */
-    p = malloc(len);
+    p = smalloc(len);
     if (!p) return NULL;
 
     pos = 0;
@@ -199,7 +199,7 @@ static char *dss_fingerprint(void *key) {
     sprintf(buffer, "%d ", ssh1_bignum_bitcount(dss->p));
     for (i = 0; i < 16; i++)
         sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
-    ret = malloc(strlen(buffer)+1);
+    ret = smalloc(strlen(buffer)+1);
     if (ret)
         strcpy(ret, buffer);
     return ret;

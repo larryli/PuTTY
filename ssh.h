@@ -1,5 +1,7 @@
 #include <string.h>
 
+#include "puttymem.h"
+
 /*
  * Useful thing.
  */

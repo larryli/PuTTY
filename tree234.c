@@ -6,10 +6,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "puttymem.h"
+
 #include "tree234.h"
 
-#define mknew(typ) ( (typ *) malloc (sizeof (typ)) )
-#define sfree free
+#define mknew(typ) ( (typ *) smalloc (sizeof (typ)) )
+/* #define sfree free */
 
 #ifdef TEST
 #define LOG(x) (printf x)
@@ -819,8 +821,8 @@ void addtest(void *elem) {
 
     if (arraysize < arraylen+1) {
         arraysize = arraylen+1+256;
-        array = (array == NULL ? malloc(arraysize*sizeof(*array)) :
-                 realloc(array, arraysize*sizeof(*array)));
+        array = (array == NULL ? smalloc(arraysize*sizeof(*array)) :
+                 srealloc(array, arraysize*sizeof(*array)));
     }
 
     i = 0;

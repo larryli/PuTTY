@@ -72,7 +72,7 @@ OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
 OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
-PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ)
+PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ)
 ##-- objects puttygen
 GEN1 = puttygen.$(OBJ) sshrsag.$(OBJ) sshprime.$(OBJ) sshdes.$(OBJ)
 GEN2 = sshbn.$(OBJ) sshmd5.$(OBJ) version.$(OBJ) sshrand.$(OBJ) noise.$(OBJ)
@@ -204,40 +204,41 @@ plink.rsp: makefile
  	echo $(SOCK2) >> plink.rsp
 
 ##-- dependencies
-window.$(OBJ): window.c putty.h network.h win_res.h storage.h winstuff.h
-windlg.$(OBJ): windlg.c putty.h network.h ssh.h win_res.h winstuff.h
+window.$(OBJ): window.c putty.h puttymem.h network.h win_res.h storage.h winstuff.h
+windlg.$(OBJ): windlg.c putty.h puttymem.h network.h ssh.h win_res.h winstuff.h
 winctrls.$(OBJ): winctrls.c winstuff.h winstuff.h
-settings.$(OBJ): settings.c putty.h network.h storage.h
-winstore.$(OBJ): winstore.c putty.h network.h storage.h
-terminal.$(OBJ): terminal.c putty.h network.h
-sizetip.$(OBJ): sizetip.c putty.h network.h winstuff.h
-telnet.$(OBJ): telnet.c putty.h network.h
-raw.$(OBJ): raw.c putty.h network.h
-xlat.$(OBJ): xlat.c putty.h network.h
-ldisc.$(OBJ): ldisc.c putty.h network.h
-misc.$(OBJ): misc.c putty.h network.h
-noise.$(OBJ): noise.c putty.h network.h ssh.h storage.h
-ssh.$(OBJ): ssh.c ssh.h putty.h network.h tree234.h
-sshcrc.$(OBJ): sshcrc.c ssh.h
-sshdes.$(OBJ): sshdes.c ssh.h
-sshmd5.$(OBJ): sshmd5.c ssh.h
-sshrsa.$(OBJ): sshrsa.c ssh.h
-sshsha.$(OBJ): sshsha.c ssh.h
-sshrand.$(OBJ): sshrand.c ssh.h
-sshblowf.$(OBJ): sshblowf.c ssh.h
-sshdh.$(OBJ): sshdh.c ssh.h
-sshdss.$(OBJ): sshdss.c ssh.h
-sshbn.$(OBJ): sshbn.c ssh.h
-sshpubk.$(OBJ): sshpubk.c ssh.h
-sshzlib.$(OBJ): sshzlib.c ssh.h
-scp.$(OBJ): scp.c putty.h network.h winstuff.h
+settings.$(OBJ): settings.c putty.h puttymem.h network.h storage.h
+winstore.$(OBJ): winstore.c putty.h puttymem.h network.h storage.h
+terminal.$(OBJ): terminal.c putty.h puttymem.h network.h
+sizetip.$(OBJ): sizetip.c putty.h puttymem.h network.h winstuff.h
+telnet.$(OBJ): telnet.c putty.h puttymem.h network.h
+raw.$(OBJ): raw.c putty.h puttymem.h network.h
+xlat.$(OBJ): xlat.c putty.h puttymem.h network.h
+ldisc.$(OBJ): ldisc.c putty.h puttymem.h network.h
+misc.$(OBJ): misc.c putty.h puttymem.h network.h
+noise.$(OBJ): noise.c putty.h puttymem.h network.h ssh.h storage.h
+ssh.$(OBJ): ssh.c ssh.h putty.h puttymem.h network.h tree234.h
+sshcrc.$(OBJ): sshcrc.c ssh.h puttymem.h
+sshdes.$(OBJ): sshdes.c ssh.h puttymem.h
+sshmd5.$(OBJ): sshmd5.c ssh.h puttymem.h
+sshrsa.$(OBJ): sshrsa.c ssh.h puttymem.h
+sshsha.$(OBJ): sshsha.c ssh.h puttymem.h
+sshrand.$(OBJ): sshrand.c ssh.h puttymem.h
+sshblowf.$(OBJ): sshblowf.c ssh.h puttymem.h
+sshdh.$(OBJ): sshdh.c ssh.h puttymem.h
+sshdss.$(OBJ): sshdss.c ssh.h puttymem.h
+sshbn.$(OBJ): sshbn.c ssh.h puttymem.h
+sshpubk.$(OBJ): sshpubk.c ssh.h puttymem.h
+sshzlib.$(OBJ): sshzlib.c ssh.h puttymem.h
+scp.$(OBJ): scp.c putty.h puttymem.h network.h winstuff.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c
 be_nossh.$(OBJ): be_nossh.c
 be_none.$(OBJ): be_none.c
-plink.$(OBJ): plink.c putty.h network.h winstuff.h
-pageant.$(OBJ): pageant.c ssh.h tree234.h
-tree234.$(OBJ): tree234.c tree234.h
+plink.$(OBJ): plink.c putty.h puttymem.h network.h winstuff.h
+pageant.$(OBJ): pageant.c ssh.h puttymem.h tree234.h
+pageantc.$(OBJ): pageantc.c puttymem.h
+tree234.$(OBJ): tree234.c tree234.h puttymem.h
 ##--
 
 # Hack to force version.obj to be rebuilt always

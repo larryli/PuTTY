@@ -413,9 +413,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     {
         char *bits;
         int size = (font_width+15)/16 * 2 * font_height; 
-        bits = calloc(size, 1);
+        bits = smalloc(size);
+        memset(bits, 0, size);
         caretbm = CreateBitmap(font_width, font_height, 1, 1, bits);
-        free(bits);
+        sfree(bits);
     }
 
     /*
@@ -1130,7 +1131,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
 		    char *session = sessions[(lParam - IDM_SAVED_MIN) / 16];
-		    cl = malloc(16 + strlen(session)); /* 8, but play safe */
+		    cl = smalloc(16 + strlen(session)); /* 8, but play safe */
 		    if (!cl)
 			cl = NULL;     /* not a very important failure mode */
 		    else {
@@ -1154,7 +1155,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		if (filemap)
 		    CloseHandle(filemap);
 		if (freecl)
-		    free(cl);
+		    sfree(cl);
 	    }
 	    break;
           case IDM_RECONF:

@@ -163,7 +163,7 @@ void sk_close(Socket s) {
     del234(sktree, s);
     do_select(s->s, 0);
     closesocket(s->s);
-    free(s);
+    sfree(s);
 }
 
 char *winsock_error_string(int error) {
@@ -258,7 +258,7 @@ void try_send(Socket s) {
 	    if (s->head->bufpos >= s->head->buflen) {
 		struct buffer *tmp = s->head;
 		s->head = tmp->next;
-		free(tmp);
+		sfree(tmp);
 		if (!s->head)
 		    s->tail = NULL;
 	    }
@@ -312,7 +312,7 @@ void sk_write_oob(Socket s, char *buf, int len) {
         while (walk) {
             struct buffer *tmp = walk;
             walk = tmp->next;
-            free(tmp);
+            sfree(tmp);
         }
     }
     s->head->next = NULL;

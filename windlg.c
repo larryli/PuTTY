@@ -66,7 +66,7 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
                 int *selitems;
                 selcount = SendDlgItemMessage(hwnd, IDN_LIST,
                                               LB_GETSELCOUNT, 0, 0);
-                selitems = malloc(selcount * sizeof(int));
+                selitems = smalloc(selcount * sizeof(int));
                 if (selitems) {
                     int count = SendDlgItemMessage(hwnd, IDN_LIST,
                                                    LB_GETSELITEMS,
@@ -85,7 +85,7 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
                     for (i = 0; i < count; i++)
                         size += strlen(events[selitems[i]]) + sizeof(sel_nl);
 
-                    clipdata = malloc(size);
+                    clipdata = smalloc(size);
                     if (clipdata) {
                         char *p = clipdata;
                         for (i = 0; i < count; i++) {
@@ -97,9 +97,9 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
                             p += sizeof(sel_nl);
                         }
                         write_clip(clipdata, size, TRUE);
-                        free(clipdata);
+                        sfree(clipdata);
                     }
-                    free(selitems);
+                    sfree(selitems);
 
                     for (i = 0; i < nevents; i++)
                         SendDlgItemMessage(hwnd, IDN_LIST, LB_SETSEL,

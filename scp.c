@@ -299,8 +299,8 @@ void from_backend(int is_stderr, char *data, int datalen) {
     if (len > 0) {
         if (pendsize < pendlen + len) {
             pendsize = pendlen + len + 4096;
-            pending = (pending ? realloc(pending, pendsize) :
-                       malloc(pendsize));
+            pending = (pending ? srealloc(pending, pendsize) :
+                       smalloc(pendsize));
             if (!pending)
                 fatalbox("Out of memory");
         }
@@ -327,7 +327,7 @@ static int ssh_scp_recv(unsigned char *buf, int len) {
         pendlen -= pendused;
         if (pendlen == 0) {
             pendsize = 0;
-            free(pending);
+            sfree(pending);
             pending = NULL;
         }
         if (outlen == 0)

@@ -169,5 +169,5 @@ void freersakey(struct RSAKey *key) {
     if (key->modulus) freebn(key->modulus);
     if (key->exponent) freebn(key->exponent);
     if (key->private_exponent) freebn(key->private_exponent);
-    if (key->comment) free(key->comment);
+    if (key->comment) sfree(key->comment);
 }

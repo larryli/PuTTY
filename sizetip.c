@@ -43,7 +43,7 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
             Rectangle(hdc, cr.left, cr.top, cr.right, cr.bottom);
 
             wtlen = GetWindowTextLength(hWnd);
-            wt = (LPTSTR)malloc((wtlen+1)*sizeof(TCHAR));
+            wt = (LPTSTR)smalloc((wtlen+1)*sizeof(TCHAR));
             GetWindowText(hWnd, wt, wtlen+1);
 
             SetTextColor(hdc, tip_text);
@@ -51,7 +51,7 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
 
             TextOut(hdc, cr.left+3, cr.top+3, wt, wtlen);
 
-            free(wt);
+            sfree(wt);
 
             SelectObject(hdc, holdbr);
             DeleteObject(hbr);

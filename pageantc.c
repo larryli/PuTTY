@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "puttymem.h"
+
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 #define AGENT_MAX_MSGLEN  8192
 
@@ -60,7 +62,7 @@ void agent_query(void *in, int inlen, void **out, int *outlen) {
     if (id > 0) {
         retlen = 4 + GET_32BIT(p);
         debug(("len is %d\n", retlen));
-        ret = malloc(retlen);
+        ret = smalloc(retlen);
         if (ret) {
             memcpy(ret, p, retlen);
             *out = ret;

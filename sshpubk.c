@@ -77,7 +77,7 @@ static int loadrsakey_main(FILE *fp, struct RSAKey *key, struct RSAAux *aux,
     j = GET_32BIT(buf+i);
     i += 4;
     if (len-i < j) goto end;
-    comment = malloc(j+1);
+    comment = smalloc(j+1);
     if (comment) {
         memcpy(comment, buf+i, j);
         comment[j] = '\0';

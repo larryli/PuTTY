@@ -122,7 +122,7 @@ static int lz77_init(struct LZ77Context *ctx) {
     struct LZ77InternalContext *st;
     int i;
 
-    st = (struct LZ77InternalContext *)malloc(sizeof(*st));
+    st = (struct LZ77InternalContext *)smalloc(sizeof(*st));
     if (!st)
 	return 0;
 
@@ -345,7 +345,7 @@ static void outbits(struct Outbuf *out, unsigned long bits, int nbits) {
     while (out->noutbits >= 8) {
         if (out->outlen >= out->outsize) {
             out->outsize = out->outlen + 64;
-            out->outbuf = realloc(out->outbuf, out->outsize);
+            out->outbuf = srealloc(out->outbuf, out->outsize);
         }
         out->outbuf[out->outlen++] = (unsigned char)(out->outbits & 0xFF);
         out->outbits >>= 8;
@@ -560,7 +560,7 @@ void zlib_compress_init(void) {
     ectx.literal = zlib_literal;
     ectx.match = zlib_match;
 
-    out = malloc(sizeof(struct Outbuf));
+    out = smalloc(sizeof(struct Outbuf));
     out->outbits = out->noutbits = 0;
     out->firstblock = 1;
     ectx.userdata = out;
@@ -665,11 +665,11 @@ struct zlib_table {
 static struct zlib_table *zlib_mkonetab(int *codes, unsigned char *lengths,
                                         int nsyms,
                                         int pfx, int pfxbits, int bits) {
-    struct zlib_table *tab = malloc(sizeof(struct zlib_table));
+    struct zlib_table *tab = smalloc(sizeof(struct zlib_table));
     int pfxmask = (1 << pfxbits) - 1;
     int nbits, i, j, code;
 
-    tab->table = malloc((1 << bits) * sizeof(struct zlib_tableentry));
+    tab->table = smalloc((1 << bits) * sizeof(struct zlib_tableentry));
     tab->mask = (1 << bits) - 1;
 
     for (code = 0; code <= tab->mask; code++) {
@@ -778,7 +778,7 @@ void zlib_decompress_init(void) {
     memset(lengths, 5, 32);
     dctx.staticdisttable = zlib_mktable(lengths, 32);
     dctx.state = START;                /* even before header */
-    dctx.currlentable = dctx.currdisttable = NULL;
+    dctx.currlentable = dctx.currdisttable = dctx.lenlentable = NULL;
     dctx.bits = 0;
     dctx.nbits = 0;
     logevent("Initialised zlib (RFC1950) decompression");
@@ -809,7 +809,7 @@ static void zlib_emit_char(int c) {
     dctx.winpos = (dctx.winpos + 1) & (WINSIZE-1);
     if (dctx.outlen >= dctx.outsize) {
 	dctx.outsize = dctx.outlen + 512;
-	dctx.outblk = realloc(dctx.outblk, dctx.outsize);
+	dctx.outblk = srealloc(dctx.outblk, dctx.outsize);
     }
     dctx.outblk[dctx.outlen++] = c;
 }

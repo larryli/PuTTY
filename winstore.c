@@ -58,16 +58,16 @@ void *open_settings_w(char *sessionname) {
     int ret;
     char *p;
 
-    p = malloc(3*strlen(sessionname)+1);
+    p = smalloc(3*strlen(sessionname)+1);
     mungestr(sessionname, p);
     
     ret = RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1);
     if (ret != ERROR_SUCCESS) {
-        free(p);
+        sfree(p);
         return NULL;
     }
     ret = RegCreateKey(subkey1, p, &sesskey);
-    free(p);
+    sfree(p);
     RegCloseKey(subkey1);
     if (ret != ERROR_SUCCESS)
         return NULL;
@@ -93,7 +93,7 @@ void *open_settings_r(char *sessionname) {
     HKEY subkey1, sesskey;
     char *p;
 
-    p = malloc(3*strlen(sessionname)+1);
+    p = smalloc(3*strlen(sessionname)+1);
     mungestr(sessionname, p);
 
     if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS) {
@@ -105,7 +105,7 @@ void *open_settings_r(char *sessionname) {
 	RegCloseKey(subkey1);
     }
 
-    free(p);
+    sfree(p);
 
     return (void *)sesskey;
 }
@@ -147,10 +147,10 @@ void del_settings (char *sessionname) {
     if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS)
 	return;
 
-    p = malloc(3*strlen(sessionname)+1);
+    p = smalloc(3*strlen(sessionname)+1);
     mungestr(sessionname, p);
     RegDeleteKey(subkey1, p);
-    free(p);
+    sfree(p);
 
     RegCloseKey(subkey1);
 }
@@ -167,7 +167,7 @@ void *enum_settings_start(void) {
     if (RegCreateKey(HKEY_CURRENT_USER, puttystr, &key) != ERROR_SUCCESS)
         return NULL;
 
-    ret = malloc(sizeof(*ret));
+    ret = smalloc(sizeof(*ret));
     if (ret) {
         ret->key = key;
         ret->i = 0;
@@ -179,11 +179,11 @@ void *enum_settings_start(void) {
 char *enum_settings_next(void *handle, char *buffer, int buflen) {
     struct enumsettings *e = (struct enumsettings *)handle;
     char *otherbuf;
-    otherbuf = malloc(3*buflen);
+    otherbuf = smalloc(3*buflen);
     if (otherbuf && RegEnumKey(e->key, e->i++, otherbuf,
                                3*buflen) == ERROR_SUCCESS) {
         unmungestr(otherbuf, buffer, buflen);
-        free(otherbuf);
+        sfree(otherbuf);
         return buffer;
     } else
         return NULL;
@@ -193,7 +193,7 @@ char *enum_settings_next(void *handle, char *buffer, int buflen) {
 void enum_settings_finish(void *handle) {
     struct enumsettings *e = (struct enumsettings *)handle;
     RegCloseKey(e->key);
-    free(e);
+    sfree(e);
 }
 
 static void hostkey_regname(char *buffer, char *hostname,

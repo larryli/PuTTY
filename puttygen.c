@@ -241,7 +241,7 @@ static DWORD WINAPI generate_rsa_key_thread(void *param) {
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
 
-    free(params);
+    sfree(params);
     return 0;
 }
 
@@ -268,15 +268,15 @@ static void setupbigedit(HWND hwnd, int id, struct RSAKey *key) {
 
     dec1 = bignum_decimal(key->exponent);
     dec2 = bignum_decimal(key->modulus);
-    buffer = malloc(strlen(dec1)+strlen(dec2)+
-                    strlen(key->comment)+30);
+    buffer = smalloc(strlen(dec1)+strlen(dec2)+
+                     strlen(key->comment)+30);
     sprintf(buffer, "%d %s %s %s",
             ssh1_bignum_bitcount(key->modulus),
             dec1, dec2, key->comment);
     SetDlgItemText(hwnd, id, buffer);
-    free(dec1);
-    free(dec2);
-    free(buffer);
+    sfree(dec1);
+    sfree(dec2);
+    sfree(buffer);
 }
 
 /*
@@ -320,7 +320,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-        state = malloc(sizeof(*state));
+        state = smalloc(sizeof(*state));
         state->generation_thread_exists = FALSE;
         state->collecting_entropy = FALSE;
         state->entropy = NULL;
@@ -403,7 +403,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                  */
                 random_add_heavynoise(state->entropy, state->entropy_size);
                 memset(state->entropy, 0, state->entropy_size);
-                free(state->entropy);
+                sfree(state->entropy);
                 state->collecting_entropy = FALSE;
 
                 SetDlgItemText(hwnd, IDC_GENERATING, generating_msg);
@@ -411,7 +411,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                                    MAKELPARAM(0, PROGRESSRANGE));
                 SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
 
-                params = malloc(sizeof(*params));
+                params = smalloc(sizeof(*params));
                 params->progressbar = GetDlgItem(hwnd, IDC_PROGRESS);
                 params->dialog = hwnd;
 		params->keysize = state->keysize;
@@ -423,7 +423,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                     MessageBox(hwnd, "Out of thread resources",
                                "Key generation error",
                                MB_OK | MB_ICONERROR);
-                    free(params);
+                    sfree(params);
                 } else {
                     state->generation_thread_exists = TRUE;
                 }
@@ -440,8 +440,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                     HWND editctl = GetDlgItem(hwnd, IDC_COMMENTEDIT);
                     int len = GetWindowTextLength(editctl);
                     if (state->key.comment)
-                        free(state->key.comment);
-                    state->key.comment = malloc(len+1);
+                        sfree(state->key.comment);
+                    state->key.comment = smalloc(len+1);
                     GetWindowText(editctl, state->key.comment, len+1);
                 }                
             }
@@ -498,7 +498,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 state->entropy_got = 0;
                 state->entropy_size = (state->entropy_required *
                                        sizeof(*state->entropy));
-                state->entropy = malloc(state->entropy_size);
+                state->entropy = smalloc(state->entropy_size);
 
                 SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
                                    MAKELPARAM(0, state->entropy_required));
@@ -589,7 +589,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                         ret = loadrsakey(filename, &newkey, &newaux,
                                          passphrase);
                     } while (ret == -1);
-                    if (comment) free(comment);
+                    if (comment) sfree(comment);
                     if (ret == 0) {
                         MessageBox(NULL, "Couldn't load private key.",
                                    "PuTTYgen Error", MB_OK | MB_ICONERROR);
@@ -657,7 +657,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
          * the user will immediately want to change it, which is
          * what we want :-)
          */
-        state->key.comment = malloc(30);
+        state->key.comment = smalloc(30);
         {
             time_t t;
             struct tm *tm;
@@ -707,7 +707,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         break;
       case WM_CLOSE:
         state = (struct MainDlgState *)GetWindowLong(hwnd, GWL_USERDATA);
-        free(state);
+        sfree(state);
         EndDialog(hwnd, 1);
 	return 0;
     }

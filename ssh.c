@@ -355,8 +355,8 @@ next_packet:
 
     if (pktin.maxlen < st->biglen) {
 	pktin.maxlen = st->biglen;
-	pktin.data = (pktin.data == NULL ? malloc(st->biglen+APIEXTRA) :
-	              realloc(pktin.data, st->biglen+APIEXTRA));
+	pktin.data = (pktin.data == NULL ? smalloc(st->biglen+APIEXTRA) :
+	              srealloc(pktin.data, st->biglen+APIEXTRA));
 	if (!pktin.data)
 	    fatalbox("Out of memory");
     }
@@ -409,13 +409,13 @@ next_packet:
 
 	if (pktin.maxlen < st->pad + decomplen) {
 	    pktin.maxlen = st->pad + decomplen;
-	    pktin.data = realloc(pktin.data, pktin.maxlen+APIEXTRA);
+	    pktin.data = srealloc(pktin.data, pktin.maxlen+APIEXTRA);
 	    if (!pktin.data)
 		fatalbox("Out of memory");
 	}
 
 	memcpy(pktin.body-1, decompblk, decomplen);
-	free(decompblk);
+	sfree(decompblk);
 	pktin.length = decomplen-1;
 #if 0
 	debug(("Packet payload post-decompression:\n"));
@@ -475,8 +475,8 @@ next_packet:
 
     if (pktin.maxlen < st->cipherblk) {
 	pktin.maxlen = st->cipherblk;
-	pktin.data = (pktin.data == NULL ? malloc(st->cipherblk+APIEXTRA) :
-	              realloc(pktin.data, st->cipherblk+APIEXTRA));
+	pktin.data = (pktin.data == NULL ? smalloc(st->cipherblk+APIEXTRA) :
+	              srealloc(pktin.data, st->cipherblk+APIEXTRA));
 	if (!pktin.data)
 	    fatalbox("Out of memory");
     }
@@ -523,8 +523,8 @@ next_packet:
      */
     if (pktin.maxlen < st->packetlen+st->maclen) {
 	pktin.maxlen = st->packetlen+st->maclen;
-	pktin.data = (pktin.data == NULL ? malloc(pktin.maxlen+APIEXTRA) :
-	              realloc(pktin.data, pktin.maxlen+APIEXTRA));
+	pktin.data = (pktin.data == NULL ? smalloc(pktin.maxlen+APIEXTRA) :
+	              srealloc(pktin.data, pktin.maxlen+APIEXTRA));
 	if (!pktin.data)
 	    fatalbox("Out of memory");
     }
@@ -569,8 +569,8 @@ next_packet:
 					 &newpayload, &newlen)) {
 	    if (pktin.maxlen < newlen+5) {
 		pktin.maxlen = newlen+5;
-		pktin.data = (pktin.data == NULL ? malloc(pktin.maxlen+APIEXTRA) :
-			      realloc(pktin.data, pktin.maxlen+APIEXTRA));
+		pktin.data = (pktin.data == NULL ? smalloc(pktin.maxlen+APIEXTRA) :
+			      srealloc(pktin.data, pktin.maxlen+APIEXTRA));
 		if (!pktin.data)
 		    fatalbox("Out of memory");
 	    }
@@ -583,7 +583,7 @@ next_packet:
 	    debug(("\r\n"));
 #endif
 
-	    free(newpayload);
+	    sfree(newpayload);
 	}
     }
 
@@ -609,11 +609,11 @@ static void ssh1_pktout_size(int len) {
 #ifdef MSCRYPTOAPI
 	/* Allocate enough buffer space for extra block
 	 * for MS CryptEncrypt() */
-	pktout.data = (pktout.data == NULL ? malloc(biglen+12) :
-		       realloc(pktout.data, biglen+12));
+	pktout.data = (pktout.data == NULL ? smalloc(biglen+12) :
+		       srealloc(pktout.data, biglen+12));
 #else
-	pktout.data = (pktout.data == NULL ? malloc(biglen+4) :
-		       realloc(pktout.data, biglen+4));
+	pktout.data = (pktout.data == NULL ? smalloc(biglen+4) :
+		       srealloc(pktout.data, biglen+4));
 #endif
 	if (!pktout.data)
 	    fatalbox("Out of memory");
@@ -645,7 +645,7 @@ static void s_wrpkt(void) {
 			    &compblk, &complen);
 	ssh1_pktout_size(complen-1);
 	memcpy(pktout.body-1, compblk, complen);
-	free(compblk);
+	sfree(compblk);
 #if 0
 	debug(("Packet payload post-compression:\n"));
 	for (i = -1; i < pktout.length; i++)
@@ -795,8 +795,8 @@ static void ssh2_pkt_adddata(void *data, int len) {
     pktout.length += len;
     if (pktout.maxlen < pktout.length) {
         pktout.maxlen = pktout.length + 256;
-	pktout.data = (pktout.data == NULL ? malloc(pktout.maxlen+APIEXTRA) :
-                       realloc(pktout.data, pktout.maxlen+APIEXTRA));
+	pktout.data = (pktout.data == NULL ? smalloc(pktout.maxlen+APIEXTRA) :
+                       srealloc(pktout.data, pktout.maxlen+APIEXTRA));
         if (!pktout.data)
             fatalbox("Out of memory");
     }
@@ -838,7 +838,7 @@ static void ssh2_pkt_addstring(char *data) {
 static char *ssh2_mpint_fmt(Bignum b, int *len) {
     unsigned char *p;
     int i, n = b[0];
-    p = malloc(n * 2 + 1);
+    p = smalloc(n * 2 + 1);
     if (!p)
         fatalbox("out of memory");
     p[0] = 0;
@@ -859,7 +859,7 @@ static void ssh2_pkt_addmp(Bignum b) {
     p = ssh2_mpint_fmt(b, &len);
     ssh2_pkt_addstring_start();
     ssh2_pkt_addstring_data(p, len);
-    free(p);
+    sfree(p);
 }
 static void ssh2_pkt_send(void) {
     int cipherblk, maclen, padding, i;
@@ -881,7 +881,7 @@ static void ssh2_pkt_send(void) {
 				       &newpayload, &newlen)) {
 	    pktout.length = 5;
 	    ssh2_pkt_adddata(newpayload, newlen);
-	    free(newpayload);
+	    sfree(newpayload);
 	}
     }
 
@@ -925,7 +925,7 @@ void bndebug(char *string, Bignum b) {
     for (i = 0; i < len; i++)
         debug((" %02x", p[i]));
     debug(("\r\n"));
-    free(p);
+    sfree(p);
 }
 #endif
 
@@ -934,7 +934,7 @@ static void sha_mpint(SHA_State *s, Bignum b) {
     int len;
     p = ssh2_mpint_fmt(b, &len);
     sha_string(s, p, len);
-    free(p);
+    sfree(p);
 }
 
 /*
@@ -1149,7 +1149,7 @@ static char *connect_to_host(char *host, int port, char **realhost)
     int FWport;
 #endif
 
-    savedhost = malloc(1+strlen(host));
+    savedhost = smalloc(1+strlen(host));
     if (!savedhost)
 	fatalbox("Out of memory");
     strcpy(savedhost, host);
@@ -1255,7 +1255,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     len = (hostkey.bytes > servkey.bytes ? hostkey.bytes : servkey.bytes);
 
-    rsabuf = malloc(len);
+    rsabuf = smalloc(len);
     if (!rsabuf)
 	fatalbox("Out of memory");
 
@@ -1268,13 +1268,13 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
          */
         int len = rsastr_len(&hostkey);
         char fingerprint[100];
-        char *keystr = malloc(len);
+        char *keystr = smalloc(len);
         if (!keystr)
             fatalbox("Out of memory");
         rsastr_fmt(keystr, &hostkey);
         rsa_fingerprint(fingerprint, sizeof(fingerprint), &hostkey);
         verify_ssh_host_key(savedhost, savedport, "rsa", keystr, fingerprint);
-        free(keystr);
+        sfree(keystr);
     }
 
     for (i=0; i<32; i++) {
@@ -1316,7 +1316,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     logevent("Trying to enable encryption...");
 
-    free(rsabuf);
+    sfree(rsabuf);
 
     cipher = cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
              cipher_type == SSH_CIPHER_DES ? &ssh_des :
@@ -1460,7 +1460,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                         len += ssh1_bignum_length(challenge);
                         len += 16;     /* session id */
                         len += 4;      /* response format */
-                        agentreq = malloc(4 + len);
+                        agentreq = smalloc(4 + len);
                         PUT_32BIT(agentreq, len);
                         q = agentreq + 4;
                         *q++ = SSH_AGENTC_RSA_CHALLENGE;
@@ -1472,13 +1472,13 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                         memcpy(q, session_id, 16); q += 16;
                         PUT_32BIT(q, 1);   /* response format */
                         agent_query(agentreq, len+4, &ret, &retlen);
-                        free(agentreq);
+                        sfree(agentreq);
                         if (ret) {
                             if (ret[4] == SSH_AGENT_RSA_RESPONSE) {
                                 logevent("Sending Pageant's response");
                                 send_packet(SSH1_CMSG_AUTH_RSA_RESPONSE,
                                             PKT_DATA, ret+5, 16, PKT_END);
-                                free(ret);
+                                sfree(ret);
                                 crWaitUntil(ispkt);
                                 if (pktin.type == SSH1_SMSG_SUCCESS) {
                                     logevent("Pageant's response accepted");
@@ -1493,7 +1493,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                                     logevent("Pageant's response not accepted");
                             } else {
                                 logevent("Pageant failed to answer challenge");
-                                free(ret);
+                                sfree(ret);
                             }
                         } else {
                             logevent("No reply received from Pageant");
@@ -1573,7 +1573,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                 goto tryauth;
             }
             sprintf(prompt, "Passphrase for key \"%.100s\": ", comment);
-            free(comment);
+            sfree(comment);
         }
 
 	if (ssh_get_password) {
@@ -1817,7 +1817,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 			    break;     /* found a free number */
 			i = c->localid + 1;
 		    }
-		    c = malloc(sizeof(struct ssh_channel));
+		    c = smalloc(sizeof(struct ssh_channel));
 		    c->remoteid = GET_32BIT(pktin.body);
 		    c->localid = i;
 		    c->closes = 0;
@@ -1841,7 +1841,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                     c->closes |= closetype;
                     if (c->closes == 3) {
                         del234(ssh_channels, c);
-                        free(c);
+                        sfree(c);
                     }
                 }
             } else if (pktin.type == SSH1_MSG_CHANNEL_DATA) {
@@ -1863,7 +1863,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                             }
                             if (c->u.a.lensofar == 4) {
                                 c->u.a.totallen = 4 + GET_32BIT(c->u.a.msglen);
-                                c->u.a.message = malloc(c->u.a.totallen);
+                                c->u.a.message = smalloc(c->u.a.totallen);
                                 memcpy(c->u.a.message, c->u.a.msglen, 4);
                             }
                             if (c->u.a.lensofar >= 4 && len > 0) {
@@ -1889,8 +1889,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                                             PKT_DATA, sentreply, replylen,
                                             PKT_END);
                                 if (reply)
-                                    free(reply);
-                                free(c->u.a.message);
+                                    sfree(reply);
+                                sfree(c->u.a.message);
                                 c->u.a.lensofar = 0;
                             }
                         }
@@ -2242,8 +2242,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
                         keystr, fingerprint);
     logevent("Host key fingerprint is:");
     logevent(fingerprint);
-    free(fingerprint);
-    free(keystr);
+    sfree(fingerprint);
+    sfree(keystr);
     hostkey->freekey(hkey);
 
     /*
@@ -2442,7 +2442,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * So now create a channel with a session in it.
      */
-    mainchan = malloc(sizeof(struct ssh_channel));
+    mainchan = smalloc(sizeof(struct ssh_channel));
     mainchan->localid = 100;           /* as good as any */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
     ssh2_pkt_addstring("session");

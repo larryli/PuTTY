@@ -28,7 +28,7 @@ unsigned short bnOne[2] = { 1, 1 };
 Bignum Zero = bnZero, One = bnOne;
 
 Bignum newbn(int length) {
-    Bignum b = malloc((length+1)*sizeof(unsigned short));
+    Bignum b = smalloc((length+1)*sizeof(unsigned short));
     if (!b)
 	abort();		       /* FIXME */
     memset(b, 0, (length+1)*sizeof(*b));
@@ -37,7 +37,7 @@ Bignum newbn(int length) {
 }
 
 Bignum copybn(Bignum orig) {
-    Bignum b = malloc((orig[0]+1)*sizeof(unsigned short));
+    Bignum b = smalloc((orig[0]+1)*sizeof(unsigned short));
     if (!b)
 	abort();		       /* FIXME */
     memcpy(b, orig, (orig[0]+1)*sizeof(*b));
@@ -49,7 +49,7 @@ void freebn(Bignum b) {
      * Burn the evidence, just in case.
      */
     memset(b, 0, sizeof(b[0]) * (b[0] + 1));
-    free(b);
+    sfree(b);
 }
 
 /*
@@ -194,7 +194,7 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod)
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
-    m = malloc(mlen * sizeof(unsigned short));
+    m = smalloc(mlen * sizeof(unsigned short));
     for (j = 0; j < mlen; j++) m[j] = mod[mod[0] - j];
 
     /* Shift m left to make msb bit set */
@@ -207,14 +207,14 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod)
     }
 
     /* Allocate n of size mlen, copy base to n */
-    n = malloc(mlen * sizeof(unsigned short));
+    n = smalloc(mlen * sizeof(unsigned short));
     i = mlen - base[0];
     for (j = 0; j < i; j++) n[j] = 0;
     for (j = 0; j < base[0]; j++) n[i+j] = base[base[0] - j];
 
     /* Allocate a and b of size 2*mlen. Set a = 1 */
-    a = malloc(2 * mlen * sizeof(unsigned short));
-    b = malloc(2 * mlen * sizeof(unsigned short));
+    a = smalloc(2 * mlen * sizeof(unsigned short));
+    b = smalloc(2 * mlen * sizeof(unsigned short));
     for (i = 0; i < 2*mlen; i++) a[i] = 0;
     a[2*mlen-1] = 1;
 
@@ -259,10 +259,10 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod)
     while (result[0] > 1 && result[result[0]] == 0) result[0]--;
 
     /* Free temporary arrays */
-    for (i = 0; i < 2*mlen; i++) a[i] = 0; free(a);
-    for (i = 0; i < 2*mlen; i++) b[i] = 0; free(b);
-    for (i = 0; i < mlen; i++) m[i] = 0; free(m);
-    for (i = 0; i < mlen; i++) n[i] = 0; free(n);
+    for (i = 0; i < 2*mlen; i++) a[i] = 0; sfree(a);
+    for (i = 0; i < 2*mlen; i++) b[i] = 0; sfree(b);
+    for (i = 0; i < mlen; i++) m[i] = 0; sfree(m);
+    for (i = 0; i < mlen; i++) n[i] = 0; sfree(n);
 
     return result;
 }
@@ -282,7 +282,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
-    m = malloc(mlen * sizeof(unsigned short));
+    m = smalloc(mlen * sizeof(unsigned short));
     for (j = 0; j < mlen; j++) m[j] = mod[mod[0] - j];
 
     /* Shift m left to make msb bit set */
@@ -297,19 +297,19 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     pqlen = (p[0] > q[0] ? p[0] : q[0]);
 
     /* Allocate n of size pqlen, copy p to n */
-    n = malloc(pqlen * sizeof(unsigned short));
+    n = smalloc(pqlen * sizeof(unsigned short));
     i = pqlen - p[0];
     for (j = 0; j < i; j++) n[j] = 0;
     for (j = 0; j < p[0]; j++) n[i+j] = p[p[0] - j];
 
     /* Allocate o of size pqlen, copy q to o */
-    o = malloc(pqlen * sizeof(unsigned short));
+    o = smalloc(pqlen * sizeof(unsigned short));
     i = pqlen - q[0];
     for (j = 0; j < i; j++) o[j] = 0;
     for (j = 0; j < q[0]; j++) o[i+j] = q[q[0] - j];
 
     /* Allocate a of size 2*pqlen for result */
-    a = malloc(2 * pqlen * sizeof(unsigned short));
+    a = smalloc(2 * pqlen * sizeof(unsigned short));
 
     /* Main computation */
     internal_mul(n, o, a, pqlen);
@@ -332,10 +332,10 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     while (result[0] > 1 && result[result[0]] == 0) result[0]--;
 
     /* Free temporary arrays */
-    for (i = 0; i < 2*pqlen; i++) a[i] = 0; free(a);
-    for (i = 0; i < mlen; i++) m[i] = 0; free(m);
-    for (i = 0; i < pqlen; i++) n[i] = 0; free(n);
-    for (i = 0; i < pqlen; i++) o[i] = 0; free(o);
+    for (i = 0; i < 2*pqlen; i++) a[i] = 0; sfree(a);
+    for (i = 0; i < mlen; i++) m[i] = 0; sfree(m);
+    for (i = 0; i < pqlen; i++) n[i] = 0; sfree(n);
+    for (i = 0; i < pqlen; i++) o[i] = 0; sfree(o);
 
     return result;
 }
@@ -355,7 +355,7 @@ void bigmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
-    m = malloc(mlen * sizeof(unsigned short));
+    m = smalloc(mlen * sizeof(unsigned short));
     for (j = 0; j < mlen; j++) m[j] = mod[mod[0] - j];
 
     /* Shift m left to make msb bit set */
@@ -372,7 +372,7 @@ void bigmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     if (plen <= mlen) plen = mlen+1;
 
     /* Allocate n of size plen, copy p to n */
-    n = malloc(plen * sizeof(unsigned short));
+    n = smalloc(plen * sizeof(unsigned short));
     for (j = 0; j < plen; j++) n[j] = 0;
     for (j = 1; j <= p[0]; j++) n[plen-j] = p[j];
 
@@ -396,8 +396,8 @@ void bigmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     }
 
     /* Free temporary arrays */
-    for (i = 0; i < mlen; i++) m[i] = 0; free(m);
-    for (i = 0; i < plen; i++) n[i] = 0; free(n);
+    for (i = 0; i < mlen; i++) m[i] = 0; sfree(m);
+    for (i = 0; i < plen; i++) n[i] = 0; sfree(n);
 }
 
 /*
@@ -574,7 +574,7 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend) {
     Bignum ret;
 
     /* mlen space for a, mlen space for b, 2*mlen for result */
-    workspace = malloc(mlen * 4 * sizeof(unsigned short));
+    workspace = smalloc(mlen * 4 * sizeof(unsigned short));
     for (i = 0; i < mlen; i++) {
         workspace[0*mlen + i] = (mlen-i <= a[0] ? a[mlen-i] : 0);
         workspace[1*mlen + i] = (mlen-i <= b[0] ? b[mlen-i] : 0);
@@ -787,14 +787,14 @@ char *bignum_decimal(Bignum x) {
     i = ssh1_bignum_bitcount(x);
     ndigits = (28*i + 92)/93;          /* multiply by 28/93 and round up */
     ndigits++;                         /* allow for trailing \0 */
-    ret = malloc(ndigits);
+    ret = smalloc(ndigits);
 
     /*
      * Now allocate some workspace to hold the binary form as we
      * repeatedly divide it by ten. Initialise this to the
      * big-endian form of the number.
      */
-    workspace = malloc(sizeof(unsigned short) * x[0]);
+    workspace = smalloc(sizeof(unsigned short) * x[0]);
     for (i = 0; i < x[0]; i++)
         workspace[i] = x[x[0] - i];
 
