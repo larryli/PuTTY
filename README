@@ -31,6 +31,9 @@ Makefiles and equivalents:
    time of writing this Cygwin doesn't include the necessary
    headers.
 
+ - Makefile.lcc is for lcc-win32. Type `make -f Makefile.lcc'. (You
+   will probably need to specify COMPAT=-DNO_MULTIMON.)
+
 All of the Makefiles are generated automatically from the file
 `Recipe' by the Perl script `mkfiles.pl'. Additions and corrections
 to Recipe and the mkfiles.pl are much more useful than additions and
