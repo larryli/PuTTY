@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.9 1999/03/01 22:26:50 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.10 1999/03/01 23:43:29 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -59,6 +59,7 @@ static void mac_initfont(struct mac_session *);
 static void mac_initpalette(struct mac_session *);
 static void mac_adjustsize(struct mac_session *);
 static pascal void mac_scrolltracker(ControlHandle, short);
+static pascal void do_text_for_device(short, short, GDHandle, long);
 
 /*
  * Temporary hack till I get the terminal emulator supporting multiple
@@ -271,6 +272,14 @@ void mac_updateterm(WindowPtr window) {
     EndUpdate(window);
 }
 
+struct do_text_args {
+    struct mac_session *s;
+    Rect textrect;
+    char *text;
+    int len;
+    unsigned long attr;
+};
+
 /*
  * Call from the terminal emulator to draw a bit of text
  *
@@ -281,18 +290,24 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
     int style = 0;
     int bgcolour, fgcolour;
     RGBColor rgbfore, rgbback;
-    Rect textrect;
+    struct do_text_args a;
+    RgnHandle textrgn;
 
     SetPort(s->window);
     
     /* First check this text is relevant */
-    textrect.top = y * font_height;
-    textrect.bottom = (y + 1) * font_height;
-    textrect.left = x * font_width;
-    textrect.right = (x + len) * font_width;
-    if (!RectInRgn(&textrect, s->window->visRgn))
+    a.textrect.top = y * font_height;
+    a.textrect.bottom = (y + 1) * font_height;
+    a.textrect.left = x * font_width;
+    a.textrect.right = (x + len) * font_width;
+    if (!RectInRgn(&a.textrect, s->window->visRgn))
 	return;
-	
+
+    a.s = s;
+    a.text = text;
+    a.len = len;
+    a.attr = attr;
+    SetPort(s->window);
     TextFont(s->fontnum);
     if (cfg.fontisbold || (attr & ATTR_BOLD) && !cfg.bold_colour)
     	style |= bold;
@@ -300,26 +315,46 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
 	style |= underline;
     TextFace(style);
     TextSize(cfg.fontheight);
-    TextMode(srcCopy);
-    if (attr & ATTR_REVERSE) {
-	bgcolour = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
-	fgcolour = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
-    } else {
-	fgcolour = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
-	bgcolour = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
-    }
-    if ((attr & ATTR_BOLD) && cfg.bold_colour)
-    	fgcolour++;
-    /* RGBForeColor(&s->palette[fgcolour]); */ /* XXX Non-Color-QD version */
-    /* RGBBackColor(&s->palette[bgcolour]); */
-    PmForeColor(fgcolour);
-    PmBackColor(bgcolour);
+    if (attr & ATTR_REVERSE)
+	TextMode(notSrcCopy);
+    else
+	TextMode(srcCopy);
     SetFractEnable(FALSE); /* We want characters on pixel boundaries */
-    MoveTo(textrect.left, textrect.top + s->font_ascent);
-    DrawText(text, 0, len);
-    
+    textrgn = NewRgn();
+    RectRgn(textrgn, &a.textrect);
+    DeviceLoop(textrgn, do_text_for_device, (long)&a, 0);
     /* Tell the window manager about it in case this isn't an update */
-    ValidRect(&textrect);
+    DisposeRgn(textrgn);
+    ValidRect(&a.textrect);
+}
+
+static pascal void do_text_for_device(short depth, short devflags,
+				      GDHandle device, long cookie) {
+    struct do_text_args *a;
+    int bgcolour, fgcolour;
+
+    a = (struct do_text_args *)cookie;
+
+    switch (depth) {
+      case 1:
+	/* XXX This should be done with a _little_ more configurability */
+	ForeColor(whiteColor);
+	BackColor(blackColor);
+	break;
+      default:
+	fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
+	bgcolour = ((a->attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
+	if ((a->attr & ATTR_BOLD) && cfg.bold_colour)
+	    if (a->attr & ATTR_REVERSE)
+		bgcolour++;
+	    else
+		fgcolour++;
+	PmForeColor(fgcolour);
+	PmBackColor(bgcolour);
+	break;
+    }
+    MoveTo(a->textrect.left, a->textrect.top + a->s->font_ascent);
+    DrawText(a->text, 0, a->len);
 }
 
 /*
@@ -351,7 +386,7 @@ void set_sbar(int total, int start, int page) {
     SetControlMaximum(s->scrollbar, total - page);
     SetControlValue(s->scrollbar, start);
 #if 0
-    /* XXX: This doesn't compile for me - bjh */
+    /* XXX: This doesn't link for me - bjh */
     if (mac_gestalts.cntlattr & gestaltControlMgrPresent)
 	SetControlViewSize(s->scrollbar, page);
 #endif
