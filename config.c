@@ -986,10 +986,6 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_checkbox(s, "Display scrollbar", 'd',
 		  HELPCTX(window_scrollback),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,scrollbar)));
-    ctrl_checkbox(s, "Display scrollbar in full screen mode", 'i',
-		  HELPCTX(window_scrollback),
-		  dlg_stdcheckbox_handler,
-		  I(offsetof(Config,scrollbar_in_fullscreen)));
     ctrl_checkbox(s, "Reset scrollback on keypress", 'k',
 		  HELPCTX(window_scrollback),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,scroll_on_key)));

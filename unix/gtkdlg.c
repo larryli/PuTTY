@@ -2,6 +2,23 @@
  * gtkdlg.c - GTK implementation of the PuTTY configuration box.
  */
 
+/*
+ * TODO:
+ * 
+ *  - event handling, in general!
+ * 
+ *  - keyboard stuff
+ *     + accelerators
+ *     + tab order
+ *     + default button
+ * 
+ *  - cosmetics:
+ *     + can't we _somehow_ have less leading between radio buttons?
+ *     + wrapping text widgets, the horror, the horror
+ *     + labels and their associated edit boxes don't line up
+ *       properly
+ */
+
 #include <assert.h>
 #include <gtk/gtk.h>
 
@@ -14,7 +31,6 @@
 
 #include "putty.h"
 #include "dialog.h"
-
 
 void *dlg_get_privdata(union control *ctrl, void *dlg)
 {
@@ -211,7 +227,7 @@ int dlg_coloursel_results(union control *ctrl, void *dlg,
  * definitely a GtkWidget and should probably be added to a
  * GtkVbox.)
  */
-GtkWidget *layout_ctrls(struct controlset *s)
+GtkWidget *layout_ctrls(struct controlset *s, int listitemheight)
 {
     Columns *cols;
     GtkWidget *ret;
@@ -353,10 +369,152 @@ GtkWidget *layout_ctrls(struct controlset *s)
                 w = container;
             }
             break;
+          case CTRL_FILESELECT:
+          case CTRL_FONTSELECT:
+            {
+                GtkWidget *ww;
+                GtkRequisition req;
+                char *browsebtn =
+                    (ctrl->generic.type == CTRL_FILESELECT ?
+                     "Browse..." : "Change...");
+
+                gint percentages[] = { 75, 25 };
+                w = columns_new(4);
+                columns_set_cols(COLUMNS(w), 2, percentages);
+
+                if (ctrl->generic.label) {
+                    ww = gtk_label_new(ctrl->generic.label);
+                    columns_add(COLUMNS(w), ww, 0, 2);
+		    columns_force_left_align(COLUMNS(w), ww);
+                    gtk_widget_show(ww);
+                }
+
+                ww = gtk_entry_new();
+                gtk_widget_size_request(ww, &req);
+                gtk_widget_set_usize(ww, 10, req.height);
+                columns_add(COLUMNS(w), ww, 0, 1);
+                gtk_widget_show(ww);
+
+                ww = gtk_button_new_with_label(browsebtn);
+                columns_add(COLUMNS(w), ww, 1, 1);
+                gtk_widget_show(ww);
+            }
+            break;
+          case CTRL_LISTBOX:
+            if (ctrl->listbox.height == 0) {
+                w = gtk_option_menu_new();
+            } else {
+                GtkWidget *list;
+                list = gtk_list_new();
+                gtk_list_set_selection_mode(GTK_LIST(list),
+                                            (ctrl->listbox.multisel ?
+                                             GTK_SELECTION_MULTIPLE :
+                                             GTK_SELECTION_SINGLE));
+                w = gtk_scrolled_window_new(NULL, NULL);
+                gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(w),
+                                                      list);
+                gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w),
+                                               GTK_POLICY_NEVER,
+                                               GTK_POLICY_AUTOMATIC);
+                gtk_widget_show(list);
+
+                /*
+                 * Adjust the height of the scrolled window to the
+                 * minimum given by the height parameter.
+                 * 
+                 * This piece of guesswork is a horrid hack based
+                 * on looking inside the GTK 1.2 sources
+                 * (specifically gtkviewport.c, which appears to be
+                 * the widget which provides the border around the
+                 * scrolling area). Anyone lets me know how I can
+                 * do this in a way which isn't at risk from GTK
+                 * upgrades, I'd be grateful.
+                 */
+		{
+		    int edge = GTK_WIDGET(list)->style->klass->ythickness;
+                    gtk_widget_set_usize(w, 10,
+                                         2*edge + (ctrl->listbox.height *
+						   listitemheight));
+		}
+#if 1
+/* here is an example of a percentage-based tabbed list item */
+{ int i; for (i=0; i<10; i++) {
+    GtkWidget *listitem = gtk_list_item_new();
+    GtkWidget *cols = columns_new(4);
+    GtkWidget *label1 = gtk_label_new("left");
+    GtkWidget *label2 = gtk_label_new("right");
+    GList *itemlist;
+    static const gint percents[] = { 50, 50 };
+    columns_set_cols(COLUMNS(cols), 2, percents);
+    columns_add(COLUMNS(cols), label1, 0, 1);
+    columns_force_left_align(COLUMNS(cols), label1);
+    columns_add(COLUMNS(cols), label2, 1, 1);
+    columns_force_left_align(COLUMNS(cols), label2);
+    gtk_widget_show(label1);
+    gtk_widget_show(label2);
+    gtk_widget_show(cols);
+    gtk_container_add(GTK_CONTAINER(listitem), cols);
+    itemlist = g_list_append(NULL, listitem);
+    gtk_list_append_items(GTK_LIST(list), itemlist);
+    gtk_widget_show(listitem);
+} }
+#endif
+
+                if (ctrl->listbox.draglist) {
+                    /*
+                     * GTK doesn't appear to make it easy to
+                     * implement a proper draggable list; so
+                     * instead I'm just going to have to put an Up
+                     * and a Down button to the right of the actual
+                     * list box. Ah well.
+                     */
+                    GtkWidget *cols, *button;
+                    static const gint percentages[2] = { 80, 20 };
+
+                    cols = columns_new(4);
+                    columns_set_cols(COLUMNS(cols), 2, percentages);
+                    columns_add(COLUMNS(cols), w, 0, 1);
+                    gtk_widget_show(w);
+                    button = gtk_button_new_with_label("Up");
+                    columns_add(COLUMNS(cols), button, 1, 1);
+                    gtk_widget_show(button);
+                    button = gtk_button_new_with_label("Down");
+                    columns_add(COLUMNS(cols), button, 1, 1);
+                    gtk_widget_show(button);
+
+                    w = cols;
+                }
+
+            }
+            if (ctrl->generic.label) {
+                GtkWidget *label, *container;
+
+                label = gtk_label_new(ctrl->generic.label);
+
+		container = columns_new(4);
+                if (ctrl->listbox.percentwidth == 100) {
+                    columns_add(COLUMNS(container), label, 0, 1);
+		    columns_force_left_align(COLUMNS(container), label);
+                    columns_add(COLUMNS(container), w, 0, 1);
+                } else {
+                    gint percentages[2];
+                    percentages[1] = ctrl->listbox.percentwidth;
+                    percentages[0] = 100 - ctrl->listbox.percentwidth;
+                    columns_set_cols(COLUMNS(container), 2, percentages);
+                    columns_add(COLUMNS(container), label, 0, 1);
+		    columns_force_left_align(COLUMNS(container), label);
+                    columns_add(COLUMNS(container), w, 1, 1);
+                }
+                gtk_widget_show(label);
+                gtk_widget_show(w);
+
+                w = container;
+            }
+            break;
           case CTRL_TEXT:
             w = gtk_label_new(ctrl->generic.label);
             gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
-	    gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_FILL);
+            /* FIXME: deal with wrapping! */
             break;
         }
         if (w) {
@@ -391,7 +549,7 @@ void do_config_box(void)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
 	*tree, *treescroll, *panels, *panelvbox;
-    int index, level;
+    int index, level, listitemheight;
     struct controlbox *ctrlbox;
     char *path;
     GtkTreeItem *treeitemlevels[8];
@@ -403,13 +561,22 @@ void do_config_box(void)
 
     do_defaults(NULL, &cfg);
 
+    {
+        GtkWidget *listitem = gtk_list_item_new_with_label("foo");
+        GtkRequisition req;
+        gtk_widget_size_request(listitem, &req);
+        listitemheight = req.height;
+        gtk_widget_unref(listitem);
+    }
+
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, NULL, FALSE, 0);
+    unix_setup_config_box(ctrlbox, FALSE);
 
     window = gtk_dialog_new();
-    gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(window)->vbox), 4);
     hbox = gtk_hbox_new(FALSE, 4);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox), hbox, TRUE, TRUE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), 10);
     gtk_widget_show(hbox);
     vbox = gtk_vbox_new(FALSE, 4);
     gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
@@ -424,6 +591,7 @@ void do_config_box(void)
     treescroll = gtk_scrolled_window_new(NULL, NULL);
     tree = gtk_tree_new();
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
+    gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
 					  tree);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(treescroll),
@@ -441,7 +609,7 @@ void do_config_box(void)
     level = 0;
     for (index = 0; index < ctrlbox->nctrlsets; index++) {
 	struct controlset *s = ctrlbox->ctrlsets[index];
-	GtkWidget *w = layout_ctrls(s);
+	GtkWidget *w = layout_ctrls(s, listitemheight);
 
 	if (!*s->pathname) {
 	    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
@@ -515,6 +683,7 @@ void do_config_box(void)
 	    }
 
 	    gtk_box_pack_start(GTK_BOX(panelvbox), w, FALSE, FALSE, 0);
+            gtk_widget_show(w);
 	}
     }
 
@@ -544,8 +713,8 @@ void do_config_box(void)
 
 /* Compile command for testing:
 
-   gcc -o gtkdlg gtk{dlg,cols,panel}.c ../{config,dialog,settings}.c \
-                 ../{misc,tree234,be_none}.c ux{store,misc,print}.c \
+gcc -g -o gtkdlg gtk{dlg,cols,panel}.c ../{config,dialog,settings}.c \
+                 ../{misc,tree234,be_none}.c ux{store,misc,print,cfg}.c \
                  -I. -I.. -I../charset -DTESTMODE `gtk-config --cflags --libs`
  */
 

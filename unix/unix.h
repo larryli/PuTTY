@@ -66,6 +66,10 @@ int select_result(int fd, int event);
 int first_socket(int *state, int *rwx);
 int next_socket(int *state, int *rwx);
 
+/* uxcfg.c */
+struct controlbox;
+void unix_setup_config_box(struct controlbox *b, int midsession);
+
 /*
  * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
  * which causes mb_to_wc and wc_to_mb to call _libc_ rather than

@@ -54,6 +54,41 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     }
 
     /*
+     * Full-screen mode is a Windows peculiarity; hence
+     * scrollbar_in_fullscreen is as well.
+     */
+    s = ctrl_getset(b, "Window", "scrollback",
+		    "Control the scrollback in the window");
+    ctrl_checkbox(s, "Display scrollbar in full screen mode", 'i',
+		  HELPCTX(window_scrollback),
+		  dlg_stdcheckbox_handler,
+		  I(offsetof(Config,scrollbar_in_fullscreen)));
+    /*
+     * Really this wants to go just after `Display scrollbar'. See
+     * if we can find that control, and do some shuffling.
+     */
+    {
+        int i;
+        for (i = 0; i < s->ncontrols; i++) {
+            c = s->ctrls[i];
+            if (c->generic.type == CTRL_CHECKBOX &&
+                c->generic.context.i == offsetof(Config,scrollbar)) {
+                /*
+                 * Control i is the scrollbar checkbox.
+                 * Control s->ncontrols-1 is the scrollbar-in-FS one.
+                 */
+                if (i < s->ncontrols-2) {
+                    c = s->ctrls[s->ncontrols-1];
+                    memmove(s->ctrls+i+2, s->ctrls+i+1,
+                            (s->ncontrols-i-2)*sizeof(union control *));
+                    s->ctrls[i+1] = c;
+                }
+                break;
+            }
+        }
+    }
+
+    /*
      * Windows has the AltGr key, which has various Windows-
      * specific options.
      */
