@@ -16,23 +16,6 @@
     (cp)[3] = (unsigned char)(value); }
 
 #if 0
-/*
- * Condition this section in for debugging of DSS.
- */
-static void diagbn(char *prefix, Bignum md) {
-    int i, nibbles, morenibbles;
-    static const char hex[] = "0123456789ABCDEF";
-
-    printf("%s0x", prefix ? prefix : "");
-
-    nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
-    morenibbles = 4*md[0] - nibbles;
-    for (i=0; i<morenibbles; i++) putchar('-');
-    for (i=nibbles; i-- ;)
-        putchar(hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF]);
-
-    if (prefix) putchar('\n');
-}
 #define DEBUG_DSS
 #else
 #define diagbn(x,y)
@@ -51,7 +34,7 @@ static void getstring(char **data, int *datalen, char **p, int *length) {
 }
 static Bignum getmp(char **data, int *datalen) {
     char *p;
-    int i, j, length;
+    int length;
     Bignum b;
 
     getstring(data, datalen, &p, &length);
@@ -59,37 +42,16 @@ static Bignum getmp(char **data, int *datalen) {
         return NULL;
     if (p[0] & 0x80)
         return NULL;                   /* negative mp */
-    b = newbn((length+1)/2);
-    for (i = 0; i < length; i++) {
-        j = length - 1 - i;
-        if (j & 1)
-            b[j/2+1] |= ((unsigned char)p[i]) << 8;
-        else
-            b[j/2+1] |= ((unsigned char)p[i]);
-    }
-    while (b[0] > 1 && b[b[0]] == 0) b[0]--;
+    b = bignum_from_bytes(p, length);
     return b;
 }
 
 static Bignum get160(char **data, int *datalen) {
-    char *p;
-    int i, j, length;
     Bignum b;
 
-    p = *data;
+    b = bignum_from_bytes(*data, 20);
     *data += 20; *datalen -= 20;
 
-    length = 20;
-    while (length > 0 && !p[0])
-        p++, length--;
-    b = newbn((length+1)/2);
-    for (i = 0; i < length; i++) {
-        j = length - 1 - i;
-        if (j & 1)
-            b[j/2+1] |= ((unsigned char)p[i]) << 8;
-        else
-            b[j/2+1] |= ((unsigned char)p[i]);
-    }
     return b;
 }
 
@@ -145,7 +107,10 @@ static char *dss_fmtkey(void *key) {
     if (!dss->p)
         return NULL;
     len = 8 + 4 + 1;                   /* 4 x "0x", punctuation, \0 */
-    len += 4 * (dss->p[0] + dss->q[0] + dss->g[0] + dss->y[0]);   /* digits */
+    len += 4 * (ssh1_bignum_bitcount(dss->p)+15)/16;
+    len += 4 * (ssh1_bignum_bitcount(dss->q)+15)/16;
+    len += 4 * (ssh1_bignum_bitcount(dss->g)+15)/16;
+    len += 4 * (ssh1_bignum_bitcount(dss->y)+15)/16;
     p = smalloc(len);
     if (!p) return NULL;
 
@@ -222,7 +187,7 @@ static int dss_verifysig(void *key, char *sig, int siglen,
         int i;
         printf("sig:");
         for (i=0;i<siglen;i++)
-            printf("  %02xf", (unsigned char)(sig[i]));
+            printf("  %02x", (unsigned char)(sig[i]));
         printf("\n");
     }
 #endif

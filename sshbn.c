@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define BIGNUM_INTERNAL
+typedef unsigned short *Bignum;
+
 #include "ssh.h"
 
 unsigned short bnZero[1] = { 0 };
@@ -27,13 +30,17 @@ unsigned short bnOne[2] = { 1, 1 };
 
 Bignum Zero = bnZero, One = bnOne;
 
-Bignum newbn(int length) {
+static Bignum newbn(int length) {
     Bignum b = smalloc((length+1)*sizeof(unsigned short));
     if (!b)
 	abort();		       /* FIXME */
     memset(b, 0, (length+1)*sizeof(*b));
     b[0] = length;
     return b;
+}
+
+void bn_restore_invariant(Bignum b) {
+    while (b[0] > 1 && b[b[0]] == 0) b[0]--;
 }
 
 Bignum copybn(Bignum orig) {
@@ -50,6 +57,12 @@ void freebn(Bignum b) {
      */
     memset(b, 0, sizeof(b[0]) * (b[0] + 1));
     sfree(b);
+}
+
+Bignum bn_power_2(int n) {
+    Bignum ret = newbn((n+15)/16);
+    bignum_set_bit(ret, n, 1);
+    return ret;
 }
 
 /*
@@ -410,41 +423,47 @@ void decbn(Bignum bn) {
     bn[i]--;
 }
 
+Bignum bignum_from_bytes(unsigned char *data, int nbytes) {
+    Bignum result;
+    int w, i;
+
+    w = (nbytes+1)/2;		       /* bytes -> words */
+
+    result = newbn(w);
+    for (i=1; i<=w; i++)
+        result[i] = 0;
+    for (i=nbytes; i-- ;) {
+        unsigned char byte = *data++;
+        if (i & 1)
+            result[1+i/2] |= byte<<8;
+        else
+            result[1+i/2] |= byte;
+    }
+
+    while (result[0] > 1 && result[result[0]] == 0) result[0]--;
+    return result;
+}
+
 /*
  * Read an ssh1-format bignum from a data buffer. Return the number
  * of bytes consumed.
  */
 int ssh1_read_bignum(unsigned char *data, Bignum *result) {
     unsigned char *p = data;
-    Bignum bn;
     int i;
     int w, b;
 
     w = 0;
     for (i=0; i<2; i++)
         w = (w << 8) + *p++;
-
     b = (w+7)/8;                       /* bits -> bytes */
-    w = (w+15)/16;		       /* bits -> words */
 
     if (!result)                       /* just return length */
         return b + 2;
 
-    bn = newbn(w);
+    *result = bignum_from_bytes(p, b);
 
-    for (i=1; i<=w; i++)
-        bn[i] = 0;
-    for (i=b; i-- ;) {
-        unsigned char byte = *p++;
-        if (i & 1)
-            bn[1+i/2] |= byte<<8;
-        else
-            bn[1+i/2] |= byte;
-    }
-
-    *result = bn;
-
-    return p - data;
+    return p + b - data;
 }
 
 /*
@@ -452,7 +471,6 @@ int ssh1_read_bignum(unsigned char *data, Bignum *result) {
  */
 int ssh1_bignum_bitcount(Bignum bn) {
     int bitcount = bn[0] * 16 - 1;
-
     while (bitcount >= 0 && (bn[bitcount/16+1] >> (bitcount % 16)) == 0)
         bitcount--;
     return bitcount + 1;
@@ -620,6 +638,30 @@ Bignum bigmul(Bignum a, Bignum b) {
 }
 
 /*
+ * Create a bignum which is the bitmask covering another one. That
+ * is, the smallest integer which is >= N and is also one less than
+ * a power of two.
+ */
+Bignum bignum_bitmask(Bignum n) {
+    Bignum ret = copybn(n);
+    int i;
+    unsigned short j;
+
+    i = ret[0];
+    while (n[i] == 0 && i > 0)
+        i--;
+    if (i <= 0)
+        return ret;                    /* input was zero */
+    j = 1;
+    while (j < n[i])
+        j = 2*j+1;
+    ret[i] = j;
+    while (--i > 0)
+        ret[i] = 0xFFFF;
+    return ret;
+}
+
+/*
  * Convert a (max 16-bit) short into a bignum.
  */
 Bignum bignum_from_short(unsigned short n) {
@@ -667,7 +709,7 @@ unsigned short bignum_mod_short(Bignum number, unsigned short modulus) {
     return (unsigned short) r;
 }
 
-static void diagbn(char *prefix, Bignum md) {
+void diagbn(char *prefix, Bignum md) {
     int i, nibbles, morenibbles;
     static const char hex[] = "0123456789ABCDEF";
 

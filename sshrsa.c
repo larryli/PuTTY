@@ -48,7 +48,7 @@ int makeprivate(unsigned char *data, struct RSAKey *result) {
 
 void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
     Bignum b1, b2;
-    int w, i;
+    int i;
     unsigned char *p;
 
     memmove(data+key->bytes-length, data, length);
@@ -62,31 +62,13 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
     }
     data[key->bytes-length-1] = 0;
 
-    w = (key->bytes+1)/2;
-
-    b1 = newbn(w);
-
-    p = data;
-    for (i=1; i<=w; i++)
-	b1[i] = 0;
-    for (i=key->bytes; i-- ;) {
-	unsigned char byte = *p++;
-	if (i & 1)
-	    b1[1+i/2] |= byte<<8;
-	else
-	    b1[1+i/2] |= byte;
-    }
+    b1 = bignum_from_bytes(data, key->bytes);
 
     b2 = modpow(b1, key->exponent, key->modulus);
 
     p = data;
     for (i=key->bytes; i-- ;) {
-	unsigned char b;
-	if (i & 1)
-	    b = b2[1+i/2] >> 8;
-	else
-	    b = b2[1+i/2] & 0xFF;
-	*p++ = b;
+        *p++ = bignum_byte(b2, i);
     }
 
     freebn(b1);
@@ -101,10 +83,13 @@ Bignum rsadecrypt(Bignum input, struct RSAKey *key) {
 
 int rsastr_len(struct RSAKey *key) {
     Bignum md, ex;
+    int mdlen, exlen;
 
     md = key->modulus;
     ex = key->exponent;
-    return 4 * (ex[0]+md[0]) + 20;
+    mdlen = (ssh1_bignum_bitcount(md)+15) / 16;
+    exlen = (ssh1_bignum_bitcount(ex)+15) / 16;
+    return 4 * (mdlen+exlen) + 20;
 }
 
 void rsastr_fmt(char *str, struct RSAKey *key) {

@@ -674,7 +674,7 @@ Bignum primegen(int bits, int modulus, int residue,
     /*
      * Generate a k-bit random number with top and bottom bits set.
      */
-    p = newbn((bits+15)/16);
+    p = bn_power_2(bits-1);
     for (i = 0; i < bits; i++) {
         if (i == 0 || i == bits-1)
             v = 1;
@@ -754,7 +754,7 @@ Bignum primegen(int bits, int modulus, int residue,
          * Invent a random number between 1 and p-1 inclusive.
          */
         while (1) {
-            w = newbn((bits+15)/16);
+            w = bn_power_2(bits-1);
             for (i = 0; i < bits; i++) {
                 if (bitsleft <= 0)
                     bitsleft = 8; byte = random_byte();
@@ -763,6 +763,7 @@ Bignum primegen(int bits, int modulus, int residue,
                 bitsleft--;
                 bignum_set_bit(w, i, v);
             }
+            bn_restore_invariant(w);
             if (bignum_cmp(w, p) >= 0 || bignum_cmp(w, Zero) == 0) {
                 freebn(w);
                 continue;

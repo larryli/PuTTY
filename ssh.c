@@ -869,20 +869,18 @@ static void ssh2_pkt_addstring(char *data) {
 }
 static char *ssh2_mpint_fmt(Bignum b, int *len) {
     unsigned char *p;
-    int i, n = b[0];
-    p = smalloc(n * 2 + 1);
+    int i, n = (ssh1_bignum_bitcount(b)+7)/8;
+    p = smalloc(n + 1);
     if (!p)
         fatalbox("out of memory");
     p[0] = 0;
-    for (i = 0; i < n; i++) {
-        p[i*2+1] = (b[n-i] >> 8) & 0xFF;
-        p[i*2+2] = (b[n-i]     ) & 0xFF;
-    }
+    for (i = 1; i <= n; i++)
+        p[i] = bignum_byte(b, n-i);
     i = 0;
-    while (p[i] == 0 && (p[i+1] & 0x80) == 0)
+    while (i <= n && p[i] == 0 && (p[i+1] & 0x80) == 0)
         i++;
-    memmove(p, p+i, n*2+1-i);
-    *len = n*2+1-i;
+    memmove(p, p+i, n+1-i);
+    *len = n+1-i;
     return p;
 }
 static void ssh2_pkt_addmp(Bignum b) {
@@ -1041,7 +1039,7 @@ static void ssh2_pkt_getstring(char **p, int *length) {
 }
 static Bignum ssh2_pkt_getmp(void) {
     char *p;
-    int i, j, length;
+    int length;
     Bignum b;
 
     ssh2_pkt_getstring(&p, &length);
@@ -1051,15 +1049,7 @@ static Bignum ssh2_pkt_getmp(void) {
         bombout(("internal error: Can't handle negative mpints"));
         return NULL;
     }
-    b = newbn((length+1)/2);
-    for (i = 0; i < length; i++) {
-        j = length - 1 - i;
-        if (j & 1)
-            b[j/2+1] |= ((unsigned char)p[i]) << 8;
-        else
-            b[j/2+1] |= ((unsigned char)p[i]);
-    }
-    while (b[0] > 1 && b[b[0]] == 0) b[0]--;
+    b = bignum_from_bytes(p, length);
     return b;
 }
 
@@ -1753,9 +1743,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             response = rsadecrypt(challenge, &pubkey);
             freebn(pubkey.private_exponent);   /* burn the evidence */
 
-            for (i = 0; i < 32; i += 2) {
-                buffer[i] = response[16-i/2] >> 8;
-                buffer[i+1] = response[16-i/2] & 0xFF;
+            for (i = 0; i < 32; i++) {
+                buffer[i] = bignum_byte(response, 31-i);
             }
 
             MD5Init(&md5c);
@@ -2388,6 +2377,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     /*
      * Now we begin the fun. Generate and send e for Diffie-Hellman.
      */
+    dh_setup_group1();
+
     e = dh_create_e();
     ssh2_pkt_init(SSH2_MSG_KEXDH_INIT);
     ssh2_pkt_addmp(e);
@@ -2409,6 +2400,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     sha_mpint(&exhash, f);
     sha_mpint(&exhash, K);
     SHA_Final(&exhash, exchange_hash);
+
+    dh_cleanup();
 
 #if 0
     debug(("Exchange hash is:\r\n"));

@@ -20,12 +20,9 @@
 #define APIEXTRA 0
 #endif
 
-/*
- * A Bignum is stored as a sequence of `unsigned short' words. The
- * first tells how many remain; the remaining ones are digits, LS
- * first.
- */
-typedef unsigned short *Bignum;
+#ifndef BIGNUM_INTERNAL
+typedef void *Bignum;
+#endif
 
 struct RSAKey {
     int bits;
@@ -161,14 +158,16 @@ void random_add_heavynoise(void *noise, int length);
 
 void logevent (char *);
 
-Bignum newbn(int length);
 Bignum copybn(Bignum b);
+Bignum bn_power_2(int n);
+void bn_restore_invariant(Bignum b);
 Bignum bignum_from_short(unsigned short n);
 void freebn(Bignum b);
 Bignum modpow(Bignum base, Bignum exp, Bignum mod);
 Bignum modmul(Bignum a, Bignum b, Bignum mod);
 void decbn(Bignum n);
 extern Bignum Zero, One;
+Bignum bignum_from_bytes(unsigned char *data, int nbytes);
 int ssh1_read_bignum(unsigned char *data, Bignum *result);
 int ssh1_bignum_bitcount(Bignum bn);
 int ssh1_bignum_length(Bignum bn);
@@ -181,10 +180,13 @@ unsigned short bignum_mod_short(Bignum number, unsigned short modulus);
 Bignum bignum_add_long(Bignum number, unsigned long addend);
 Bignum bigmul(Bignum a, Bignum b);
 Bignum modinv(Bignum number, Bignum modulus);
+Bignum bignum_bitmask(Bignum number);
 Bignum bignum_rshift(Bignum number, int shift);
 int bignum_cmp(Bignum a, Bignum b);
 char *bignum_decimal(Bignum x);
 
+void dh_setup_group1(void);
+void dh_cleanup(void);
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);
 
