@@ -2136,7 +2136,7 @@ int do_cmdline(int argc, char **argv, int do_everything,
 	    } else
 		err = 1, fprintf(stderr, "pterm: -e expects an argument\n");
 
-	} else if (!strcmp(p, "-T")) {
+	} else if (!strcmp(p, "-title")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
 	    strncpy(cfg->wintitle, val, sizeof(cfg->wintitle));
