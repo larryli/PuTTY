@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.51 2003/01/23 11:37:54 jacob Exp $
+\versionid $Id: config.but,v 1.52 2003/01/27 23:03:30 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1282,9 +1282,10 @@ colour to go in place of the old one.
 PuTTY allows you to set the cursor colour, the default foreground
 and background, and the precise shades of all the ANSI configurable
 colours (black, red, green, yellow, blue, magenta, cyan, and white).
-In addition, if you have selected \q{Bolded text is a different
-colour}, you can also modify the precise shades used for the bold
-versions of these colours.
+You can also modify the precise shades used for the bold versions of
+these colours; these are used to display bold text if you have
+selected \q{Bolded text is a different colour}, and can also be used
+if the server asks specifically to use them.
 
 \H{config-connection} The Connection panel
 

@@ -1542,17 +1542,19 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 
     int nfg, nbg, t, fontid, shadow, rlen, widefactor;
 
-    nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
-    nbg = 2 * ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
+    nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
+    nfg = 2 * (nfg & 0xF) + (nfg & 0x10 ? 1 : 0);
+    nbg = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
+    nbg = 2 * (nbg & 0xF) + (nbg & 0x10 ? 1 : 0);
     if (attr & ATTR_REVERSE) {
 	t = nfg;
 	nfg = nbg;
 	nbg = t;
     }
     if (inst->cfg.bold_colour && (attr & ATTR_BOLD))
-	nfg++;
+	nfg |= 1;
     if (inst->cfg.bold_colour && (attr & ATTR_BLINK))
-	nbg++;
+	nbg |= 1;
     if (attr & TATTR_ACTCURS) {
 	nfg = NCOLOURS-2;
 	nbg = NCOLOURS-1;

@@ -657,11 +657,6 @@ static const char *const colours[] = {
     "ANSI Cyan", "ANSI Cyan Bold",
     "ANSI White", "ANSI White Bold"
 };
-static const int permcolour[] = {
-    TRUE, FALSE, TRUE, FALSE, TRUE, TRUE,
-    TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE,
-    TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE
-};
 
 static void fmtfont(char *buf)
 {
@@ -1308,9 +1303,8 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	    SendDlgItemMessage(hwnd, IDC_COLOURLIST,
 			       LB_DELETESTRING, i, 0);
 	for (i = 0; i < 22; i++)
-	    if (cfg.bold_colour || permcolour[i])
-		SendDlgItemMessage(hwnd, IDC_COLOURLIST, LB_ADDSTRING, 0,
-				   (LPARAM) colours[i]);
+	    SendDlgItemMessage(hwnd, IDC_COLOURLIST, LB_ADDSTRING, 0,
+			       (LPARAM) colours[i]);
     }
     SendDlgItemMessage(hwnd, IDC_COLOURLIST, LB_SETCURSEL, 0, 0);
     SetDlgItemInt(hwnd, IDC_RVALUE, cfg.colours[0][0], FALSE);
@@ -3399,25 +3393,6 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    int n, i;
 		    cfg.bold_colour =
 			IsDlgButtonChecked(hwnd, IDC_BOLDCOLOUR);
-		    SendDlgItemMessage(hwnd, IDC_COLOURLIST, WM_SETREDRAW,
-				       FALSE, 0);
-		    n =
-			SendDlgItemMessage(hwnd, IDC_COLOURLIST,
-					   LB_GETCOUNT, 0, 0);
-		    if (n != 12 + 10 * cfg.bold_colour) {
-			for (i = n; i-- > 0;)
-			    SendDlgItemMessage(hwnd, IDC_COLOURLIST,
-					       LB_DELETESTRING, i, 0);
-			for (i = 0; i < 22; i++)
-			    if (cfg.bold_colour || permcolour[i])
-				SendDlgItemMessage(hwnd, IDC_COLOURLIST,
-						   LB_ADDSTRING, 0,
-						   (LPARAM) colours[i]);
-		    }
-		    SendDlgItemMessage(hwnd, IDC_COLOURLIST, WM_SETREDRAW,
-				       TRUE, 0);
-		    InvalidateRect(GetDlgItem(hwnd, IDC_COLOURLIST), NULL,
-				   TRUE);
 		}
 		break;
 	      case IDC_PALETTE:

@@ -2798,8 +2798,10 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     if ((attr & CSET_MASK) == ATTR_OEMCP)
 	nfont |= FONT_OEM;
 
-    nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
-    nbg = 2 * ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
+    nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
+    nfg = 2 * (nfg & 0xF) + (nfg & 0x10 ? 1 : 0);
+    nbg = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
+    nbg = 2 * (nbg & 0xF) + (nbg & 0x10 ? 1 : 0);
     if (bold_mode == BOLD_FONT && (attr & ATTR_BOLD))
 	nfont |= FONT_BOLD;
     if (und_mode == UND_FONT && (attr & ATTR_UNDER))
@@ -2821,9 +2823,9 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	nbg = t;
     }
     if (bold_mode == BOLD_COLOURS && (attr & ATTR_BOLD))
-	nfg++;
+	nfg |= 1;
     if (bold_mode == BOLD_COLOURS && (attr & ATTR_BLINK))
-	nbg++;
+	nbg |= 1;
     fg = colours[nfg];
     bg = colours[nbg];
     SelectObject(hdc, fonts[nfont]);

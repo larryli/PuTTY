@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.57 2003/01/27 00:39:01 ben Exp $ */
+/* $Id: macterm.c,v 1.58 2003/01/27 23:03:30 simon Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1090,8 +1090,10 @@ static pascal void do_text_for_device(short depth, short devflags,
 
     if (HAVE_COLOR_QD()) {
 	if (depth > 2) {
-	    fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
+	    fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
+	    fgcolour = (fgcolour & 0xF) * 2 + (fgcolour & 0x10 ? 1 : 0);
 	    bgcolour = ((a->attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
+	    bgcolour = (bgcolour & 0xF) * 2 + (bgcolour & 0x10 ? 1 : 0);
 	} else {
 	    /*
 	     * NB: bold reverse in 2bpp breaks with the usual PuTTY model and
@@ -1106,7 +1108,7 @@ static pascal void do_text_for_device(short depth, short devflags,
 	    bgcolour = tmp;
 	}
 	if (bright && depth > 2)
-	    fgcolour++;
+	    fgcolour |= 1;
 	if ((a->attr & TATTR_ACTCURS) && depth > 1) {
 	    fgcolour = CURSOR_FG;
 	    bgcolour = CURSOR_BG;

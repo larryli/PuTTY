@@ -474,8 +474,9 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	} else {
 	    line = smalloc(TSIZE * (newcols + 2));
 	    line[0] = newcols;
-	    for (j = 0; j <= newcols; j++)
+	    for (j = 0; j < newcols; j++)
 		line[j + 1] = ERASE_CHAR;
+            line[newcols] = LATTR_NORM;
 	}
 	addpos234(term->screen, line, 0);
     }
@@ -504,8 +505,9 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     for (i = 0; i < newrows; i++) {
 	line = smalloc(TSIZE * (newcols + 2));
 	line[0] = newcols;
-	for (j = 0; j <= newcols; j++)
+	for (j = 0; j < newcols; j++)
 	    line[j + 1] = term->erase_char;
+        line[newcols + 1] = LATTR_NORM;
 	addpos234(newalt, line, i);
     }
     if (term->alt_screen) {
@@ -742,7 +744,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
             line = resizeline(line, term->cols);
 	    for (i = 0; i < term->cols; i++)
 		line[i + 1] = term->erase_char;
-	    line[term->cols + 1] = 0;
+	    line[term->cols + 1] = LATTR_NORM;
 	    addpos234(term->screen, line, botline);
 
 	    /*
@@ -972,10 +974,12 @@ static void erase_lots(Terminal *term,
 
     ldata = lineptr(start.y);
     while (poslt(start, end)) {
-	if (start.x == term->cols && !erase_lattr)
-	    ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
-	else
+	if (start.x == term->cols) {
+            if (erase_lattr)
+                ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
+        } else {
 	    ldata[start.x] = term->erase_char;
+        }
 	if (incpos(start) && start.y < term->rows)
 	    ldata = lineptr(start.y);
     }
@@ -2281,6 +2285,20 @@ void term_out(Terminal *term)
 				    term->curr_attr |=
 					(term->esc_args[i] - 30)<<ATTR_FGSHIFT;
 				    break;
+				  case 90:
+				  case 91:
+				  case 92:
+				  case 93:
+				  case 94:
+				  case 95:
+				  case 96:
+				  case 97:
+				    /* xterm-style bright foreground */
+				    term->curr_attr &= ~ATTR_FGMASK;
+				    term->curr_attr |=
+					((term->esc_args[i] - 90 + 16)
+                                         << ATTR_FGSHIFT);
+				    break;
 				  case 39:	/* default-foreground */
 				    term->curr_attr &= ~ATTR_FGMASK;
 				    term->curr_attr |= ATTR_DEFFG;
@@ -2297,6 +2315,20 @@ void term_out(Terminal *term)
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |=
 					(term->esc_args[i] - 40)<<ATTR_BGSHIFT;
+				    break;
+				  case 100:
+				  case 101:
+				  case 102:
+				  case 103:
+				  case 104:
+				  case 105:
+				  case 106:
+				  case 107:
+				    /* xterm-style bright background */
+				    term->curr_attr &= ~ATTR_BGMASK;
+				    term->curr_attr |=
+					((term->esc_args[i] - 100 + 16)
+                                         << ATTR_BGSHIFT);
 				    break;
 				  case 49:	/* default-background */
 				    term->curr_attr &= ~ATTR_BGMASK;
