@@ -2640,13 +2640,12 @@ static void term_out(Terminal *term)
 	if ((c & ~0x1F) == 0 && term->termstate < DO_CTRLS) {
 	    switch (c) {
 	      case '\005':	       /* ENQ: terminal type query */
-		/* Strictly speaking this is VT100 but a VT100 defaults to
+		/* 
+		 * Strictly speaking this is VT100 but a VT100 defaults to
 		 * no response. Other terminals respond at their option.
 		 *
 		 * Don't put a CR in the default string as this tends to
 		 * upset some weird software.
-		 *
-		 * An xterm returns "xterm" (5 characters)
 		 */
 		compatibility(ANSIMIN);
 		if (term->ldisc) {
@@ -3517,7 +3516,7 @@ static void term_out(Terminal *term)
 				  case 95:
 				  case 96:
 				  case 97:
-				    /* xterm-style bright foreground */
+				    /* aixterm-style bright foreground */
 				    term->curr_attr &= ~ATTR_FGMASK;
 				    term->curr_attr |=
 					((term->esc_args[i] - 90 + 8)
@@ -3548,7 +3547,7 @@ static void term_out(Terminal *term)
 				  case 105:
 				  case 106:
 				  case 107:
-				    /* xterm-style bright background */
+				    /* aixterm-style bright background */
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |=
 					((term->esc_args[i] - 100 + 8)
@@ -3805,7 +3804,7 @@ static void term_out(Terminal *term)
 			    }
 			}
 			break;
-		      case 'Z':		/* CBT: BackTab for xterm */
+		      case 'Z':		/* CBT */
 			compatibility(OTHER);
 			{
 			    int i = def(term->esc_args[0], 1);
