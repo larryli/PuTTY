@@ -66,6 +66,8 @@ void mac_newsession(void) {
     cfg.try_palette = FALSE;
     cfg.bold_colour = TRUE;
     cfg.colours = GetNewPalette(PREF_pltt_ID);
+    if (cfg.colours == NULL)
+	fatalbox("Failed to get default palette");
     onlysession = s;
 	
     /* XXX: Own storage management? */
@@ -78,8 +80,9 @@ void mac_newsession(void) {
     term_size(24, 80, 100);
     mac_initfont(s);
     mac_initpalette(s);
-    /* Set to TRUE to get palette updates in the background. */
-    SetPalette(s->window, s->palette, FALSE); 
+    /* Set to FALSE to not get palette updates in the background. */
+    SetPalette(s->window, s->palette, TRUE); 
+    ActivatePalette(s->window);
     ShowWindow(s->window);
     inbuf_putstr("\033[1mBold\033[m    \033[2mfaint\033[m   \033[3mitalic\033[m  \033[4mu_line\033[m  "
                  "\033[5mslow bl\033[m \033[6mfast bl\033[m \033[7minverse\033[m \033[8mconceal\033[m "
@@ -115,7 +118,11 @@ static void mac_initfont(struct mac_session *s) {
 
 static void mac_initpalette(struct mac_session *s) {
 
-    s->palette = NewPalette(0, NULL, 0, 0);
+    if (mac_qdversion == gestaltOriginalQD)
+	return;
+    s->palette = NewPalette((*cfg.colours)->pmEntries, NULL, pmCourteous, 0);
+    if (s->palette == NULL)
+	fatalbox("Unable to create palette");
     CopyPalette(cfg.colours, s->palette, 0, 0, (*cfg.colours)->pmEntries);
 }
 

@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.1.2.3 1999/02/24 01:29:10 ben Exp $ */
+/* $Id: mac_res.r,v 1.1.2.4 1999/02/24 21:17:05 ben Exp $ */
 /* PuTTY resources */
 
 #define PICT_RezTemplateVersion 1
@@ -312,7 +312,7 @@ resource 'DITL' (wFatal, "fatalbox", purgeable) {
 
 /* Terminal window */
 
-resource 'WIND' (PREF_pltt_ID, "terminal", purgeable) {
+resource 'WIND' (wTerminal, "terminal", purgeable) {
     { 0, 0, 200, 200 },
     zoomDocProc,
     invisible,
@@ -322,7 +322,7 @@ resource 'WIND' (PREF_pltt_ID, "terminal", purgeable) {
     staggerParentWindowScreen
 };
 
-resource 'pltt' (wTerminal, "terminal", purgeable) {
+resource 'pltt' (PREF_pltt_ID, "terminal", purgeable) {
     {
 	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* black */
 	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright black */
