@@ -2078,11 +2078,42 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * window, we put up the System menu instead of doing
 	     * selection.
 	     */
-	    if (is_full_screen() && press && button == MBT_LEFT &&
-		X_POS(lParam) == 0 && Y_POS(lParam) == 0) {
-		SendMessage(hwnd, WM_SYSCOMMAND, SC_MOUSEMENU, 0);
-		return 0;
+	    {
+		char mouse_on_hotspot = 0;
+		POINT pt;
+
+		GetCursorPos(&pt);
+#ifndef NO_MULTIMON
+		{
+		    HMONITOR mon;
+		    MONITORINFO mi;
+
+		    mon = MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
+
+		    if (mon != NULL) {
+			mi.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(mon, &mi);
+
+			if (mi.rcMonitor.left == pt.x &&
+			    mi.rcMonitor.top == pt.y) {
+			    mouse_on_hotspot = 1;
+			}
+			CloseHandle(mon);
+		    }
+		}
+#else
+		if (pt.x == 0 && pt.y == 0) {
+		    mouse_on_hotspot = 1;
+		}
+#endif
+		if (is_full_screen() && press &&
+		    button == MBT_LEFT && mouse_on_hotspot) {
+		    SendMessage(hwnd, WM_SYSCOMMAND, SC_MOUSEMENU,
+				MAKELPARAM(pt.x, pt.y));
+		    return 0;
+		}
 	    }
+
 	    if (press) {
 		click(button,
 		      TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
