@@ -189,6 +189,11 @@ static int bare_name_compare(const void *av, const void *bv)
     return strcmp(*a, *b);
 }
 
+static void not_connected(void)
+{
+    printf("psftp: not connected to a host; use \"open host.name\"\n");
+}
+
 /* ----------------------------------------------------------------------
  * The meat of the `get' and `put' commands.
  */
@@ -936,7 +941,7 @@ int sftp_cmd_quit(struct sftp_command *cmd)
 int sftp_cmd_close(struct sftp_command *cmd)
 {
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -966,7 +971,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     int i;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1088,7 +1093,7 @@ int sftp_cmd_cd(struct sftp_command *cmd)
     char *dir;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1131,7 +1136,7 @@ int sftp_cmd_cd(struct sftp_command *cmd)
 int sftp_cmd_pwd(struct sftp_command *cmd)
 {
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1155,7 +1160,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
     int recurse = FALSE;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1269,7 +1274,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
     int recurse = FALSE;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1370,7 +1375,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     int i, ret;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1431,7 +1436,7 @@ int sftp_cmd_rmdir(struct sftp_command *cmd)
     int i, ret;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1473,7 +1478,7 @@ int sftp_cmd_rm(struct sftp_command *cmd)
     int i, ret;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1568,7 +1573,7 @@ int sftp_cmd_mv(struct sftp_command *cmd)
     int i, ret;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
@@ -1662,7 +1667,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
     struct sftp_context_chmod actx, *ctx = &actx;
 
     if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	not_connected();
 	return 0;
     }
 
