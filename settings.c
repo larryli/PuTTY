@@ -102,6 +102,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_s (sesskey, "Answerback", cfg->answerback);
     write_setting_i (sesskey, "AlwaysOnTop", cfg->alwaysontop);
     write_setting_i (sesskey, "HideMousePtr", cfg->hide_mouseptr);
+    write_setting_i (sesskey, "SunkenEdge", cfg->sunken_edge);
     write_setting_i (sesskey, "CurType", cfg->cursor_type);
     write_setting_i (sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i (sesskey, "Beep", cfg->beep);
@@ -260,6 +261,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gpps (sesskey, "Answerback", "PuTTY", cfg->answerback, sizeof(cfg->answerback));
     gppi (sesskey, "AlwaysOnTop", 0, &cfg->alwaysontop);
     gppi (sesskey, "HideMousePtr", 0, &cfg->hide_mouseptr);
+    gppi (sesskey, "SunkenEdge", 0, &cfg->sunken_edge);
     gppi (sesskey, "CurType", 0, &cfg->cursor_type);
     gppi (sesskey, "BlinkCur", 0, &cfg->blink_cur);
     gppi (sesskey, "Beep", 1, &cfg->beep);

@@ -354,6 +354,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BOX_APPEARANCE2,
     IDC_BOX_APPEARANCE3,
     IDC_BOX_APPEARANCE4,
+    IDC_BOX_APPEARANCE5,
     IDC_CURSORSTATIC,
     IDC_CURBLOCK,
     IDC_CURUNDER,
@@ -365,6 +366,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_WINEDIT,
     IDC_WINNAME,
     IDC_HIDEMOUSE,
+    IDC_SUNKENEDGE,
     appearancepanelend,
 
     connectionpanelstart,
@@ -608,6 +610,7 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_WINEDIT, cfg.wintitle);
     CheckDlgButton (hwnd, IDC_WINNAME, cfg.win_name_always);
     CheckDlgButton (hwnd, IDC_HIDEMOUSE, cfg.hide_mouseptr);
+    CheckDlgButton (hwnd, IDC_SUNKENEDGE, cfg.sunken_edge);
     CheckRadioButton (hwnd, IDC_CURBLOCK, IDC_CURVERT,
 		      cfg.cursor_type==0 ? IDC_CURBLOCK :
 		      cfg.cursor_type==1 ? IDC_CURUNDER : IDC_CURVERT);
@@ -792,7 +795,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == loggingpanelstart) {
-        /* The Logging panel. Accelerators used: [acgo] tplfwes */
+        /* The Logging panel. Accelerators used: [acgo] tplfwe */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling session logging",
@@ -960,7 +963,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == appearancepanelstart) {
-        /* The Appearance panel. Accelerators used: [acgo] luvb h ti p */
+        /* The Appearance panel. Accelerators used: [acgo] luvb h ti p s */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling PuTTY's appearance",
@@ -989,6 +992,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                  IDC_BOX_APPEARANCE4);
         checkbox(&cp, "Hide mouse &pointer when typing in window",
                  IDC_HIDEMOUSE);
+        endbox(&cp);
+        beginbox(&cp, "Adjust the window border",
+                 IDC_BOX_APPEARANCE5);
+        checkbox(&cp, "&Sunken-edge border (slightly thicker)",
+                 IDC_SUNKENEDGE);
         endbox(&cp);
     }
 
@@ -1766,6 +1774,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.hide_mouseptr = IsDlgButtonChecked (hwnd, IDC_HIDEMOUSE);
+	    break;
+	  case IDC_SUNKENEDGE:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.sunken_edge = IsDlgButtonChecked (hwnd, IDC_SUNKENEDGE);
 	    break;
 	  case IDC_CURBLOCK:
 	    if (HIWORD(wParam) == BN_CLICKED ||

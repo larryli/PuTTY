@@ -242,6 +242,7 @@ typedef struct {
     int logtype;
     int logxfovr;
     int hide_mouseptr;
+    int sunken_edge;
     char answerback[256];
     /* Colour options */
     int try_palette;

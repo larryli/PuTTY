@@ -371,7 +371,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         int exwinmode = 0;
 	if (!cfg.scrollbar)  winmode &= ~(WS_VSCROLL);
 	if (cfg.locksize)    winmode &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
-        if (cfg.alwaysontop) exwinmode = WS_EX_TOPMOST;
+        if (cfg.alwaysontop) exwinmode |= WS_EX_TOPMOST;
+	if (cfg.sunken_edge) exwinmode |= WS_EX_CLIENTEDGE;
         hwnd = CreateWindowEx (exwinmode, appname, appname,
                               winmode, CW_USEDEFAULT, CW_USEDEFAULT,
                               guess_width, guess_height,
@@ -1193,6 +1194,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
           case IDM_RECONF:
             {
                 int prev_alwaysontop = cfg.alwaysontop;
+                int prev_sunken_edge = cfg.sunken_edge;
 		char oldlogfile[FILENAME_MAX];
 		int oldlogtype;
 		int need_setwpos = FALSE;
@@ -1246,15 +1248,19 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                     nexflag = exflag;
                     if (cfg.alwaysontop != prev_alwaysontop) {
                         if (cfg.alwaysontop) {
-                            nexflag = WS_EX_TOPMOST;
+                            nexflag |= WS_EX_TOPMOST;
                             SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                                          SWP_NOMOVE | SWP_NOSIZE);
                         } else {
-                            nexflag = 0;
+                            nexflag &= ~(WS_EX_TOPMOST);
                             SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
                                          SWP_NOMOVE | SWP_NOSIZE);
                         }
                     }
+                    if (cfg.sunken_edge)
+                        nexflag |= WS_EX_CLIENTEDGE;
+                    else
+                        nexflag &= ~(WS_EX_CLIENTEDGE);
 
                     nflg = flag;
                     if (cfg.scrollbar) nflg |=  WS_VSCROLL;
@@ -1291,7 +1297,8 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		    cfg.width != cols ||
 		    old_fwidth != font_width ||
 		    old_fheight != font_height ||
-		    cfg.savelines != savelines)
+		    cfg.savelines != savelines ||
+                    cfg.sunken_edge != prev_sunken_edge)
 		    need_setwpos = TRUE;
                 term_size(cfg.height, cfg.width, cfg.savelines);
                 InvalidateRect(hwnd, NULL, TRUE);
