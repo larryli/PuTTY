@@ -77,7 +77,8 @@ static int rlogin_receive(Plug plug, int urgent, char *data, int len)
  * 
  * Returns an error message, or NULL on success.
  *
- * Also places the canonical host name into `realhost'.
+ * Also places the canonical host name into `realhost'. It must be
+ * freed by the caller.
  */
 static char *rlogin_init(char *host, int port, char **realhost)
 {

@@ -517,6 +517,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     ssh_scp_init();
     if (verbose && realhost != NULL)
 	tell_user(stderr, "Connected to %s\n", realhost);
+    sfree(realhost);
 }
 
 /*

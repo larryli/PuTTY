@@ -87,11 +87,6 @@ struct SockAddr_tag {
 #ifdef IPV6
     struct addrinfo *ai;	       /* Address IPv6 style. */
 #endif
-    /*
-     * We need to have this lengthy enough to hold *any* hostname
-     * (including IPv6 reverse...)
-     */
-    char realhost[8192];
 };
 
 struct buffer {
@@ -213,11 +208,12 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     unsigned long a;
     struct hostent *h = NULL;
+    char realhost[8192];
 
     /* Clear the structure and default to IPv4. */
     memset(ret, 0, sizeof(struct SockAddr_tag));
     ret->family = 0;		       /* We set this one when we have resolved the host. */
-    *canonicalname = ret->realhost;    /* This makes sure we always have a hostname to return. */
+    *realhost = '\0';
 
     if ((a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
 #ifdef IPV6
@@ -312,10 +308,9 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 			((struct sockaddr *) ret->ai->ai_addr,
 			 ret->family ==
 			 AF_INET ? sizeof(SOCKADDR_IN) :
-			 sizeof(SOCKADDR_IN6), ret->realhost,
-			 sizeof(ret->realhost), NULL, 0, 0) != 0) {
-			strncpy(ret->realhost, host,
-				sizeof(ret->realhost));
+			 sizeof(SOCKADDR_IN6), realhost,
+			 sizeof(realhost), NULL, 0, 0) != 0) {
+			strncpy(realhost, host, sizeof(realhost));
 		    }
 		}
 	    }
@@ -325,7 +320,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	    {
 		memcpy(&a, h->h_addr, sizeof(a));
 		/* This way we are always sure the h->h_name is valid :) */
-		strncpy(ret->realhost, h->h_name, sizeof(ret->realhost));
+		strncpy(realhost, h->h_name, sizeof(realhost));
 	    }
 	}
 #ifdef IPV6
@@ -337,9 +332,12 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	 * success return from inet_addr.
 	 */
 	ret->family = AF_INET;
-	*canonicalname = host;
+	strncpy(realhost, host, sizeof(realhost));
     }
     ret->address = ntohl(a);
+    realhost[lenof(realhost)-1] = '\0';
+    *canonicalname = smalloc(1+strlen(realhost));
+    strcpy(*canonicalname, realhost);
     return ret;
 }
 

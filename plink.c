@@ -550,6 +550,7 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
 	}
+	sfree(realhost);
     }
     connopen = 1;
 

@@ -476,6 +476,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    sprintf(msg, "%s - PuTTY", realhost);
 	    title = msg;
 	}
+	sfree(realhost);
 	set_title(title);
 	set_icon(title);
     }

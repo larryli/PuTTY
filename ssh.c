@@ -1505,7 +1505,8 @@ static int ssh_receive(Plug plug, int urgent, char *data, int len)
 /*
  * Connect to specified host and port.
  * Returns an error message, or NULL on success.
- * Also places the canonical host name into `realhost'.
+ * Also places the canonical host name into `realhost'. It must be
+ * freed by the caller.
  */
 static char *connect_to_host(char *host, int port, char **realhost)
 {
@@ -1545,7 +1546,7 @@ static char *connect_to_host(char *host, int port, char **realhost)
 	return err;
 
 #ifdef FWHACK
-    *realhost = FWhost;
+    *realhost = strdup(FWhost);
 #endif
 
     /*
