@@ -780,6 +780,7 @@ void cmdline_error(char *, ...);
 /*
  * Exports from config.c.
  */
+struct controlbox;
 void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      int midsession, int protocol);
 
