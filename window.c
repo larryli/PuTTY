@@ -391,7 +391,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         char *bits;
         int size = (font_width+15)/16 * 2 * font_height; 
         bits = calloc(size, 1);
-        memset(bits, 0x55, size);
         caretbm = CreateBitmap(font_width, font_height, 1, 1, bits);
         free(bits);
     }
