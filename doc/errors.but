@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.5 2003/03/17 16:57:23 simon Exp $
+\versionid $Id: errors.but,v 1.6 2003/03/18 09:03:31 simon Exp $
 
 \C{errors} Common error messages
 
@@ -238,7 +238,7 @@ Check that you are connecting with the correct protocol (SSH, Telnet
 or Rlogin), and check that the port number is correct. If that
 fails, consult the administrator of your server.
 
-\H{errors-connrefused} \q{Network error: Connection timed out}
+\H{errors-conntimedout} \q{Network error: Connection timed out}
 
 This error means that the network connection PuTTY tried to make to
 your server received no response at all from the server. Usually
