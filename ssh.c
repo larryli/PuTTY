@@ -20,90 +20,91 @@
                       if (!(flags & FLAG_CONNECTION) && (flags & FLAG_VERBOSE)) \
                       fprintf(stderr, "%s\n", s); }
 
-#define SSH1_MSG_DISCONNECT	1
-#define SSH1_SMSG_PUBLIC_KEY	2
-#define SSH1_CMSG_SESSION_KEY	3
-#define SSH1_CMSG_USER		4
-#define SSH1_CMSG_AUTH_RSA      6
-#define SSH1_SMSG_AUTH_RSA_CHALLENGE 7
-#define SSH1_CMSG_AUTH_RSA_RESPONSE 8
-#define SSH1_CMSG_AUTH_PASSWORD	9
-#define SSH1_CMSG_REQUEST_PTY	10
-#define SSH1_CMSG_WINDOW_SIZE	11
-#define SSH1_CMSG_EXEC_SHELL	12
-#define SSH1_CMSG_EXEC_CMD	13
-#define SSH1_SMSG_SUCCESS	14
-#define SSH1_SMSG_FAILURE	15
-#define SSH1_CMSG_STDIN_DATA	16
-#define SSH1_SMSG_STDOUT_DATA	17
-#define SSH1_SMSG_STDERR_DATA	18
-#define SSH1_CMSG_EOF		19
-#define SSH1_SMSG_EXIT_STATUS	20
-#define SSH1_MSG_CHANNEL_OPEN_CONFIRMATION  21
-#define SSH1_MSG_CHANNEL_OPEN_FAILURE   22
-#define SSH1_MSG_CHANNEL_DATA   23
-#define SSH1_MSG_CHANNEL_CLOSE  24
-#define SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION 25
-#define SSH1_CMSG_AGENT_REQUEST_FORWARDING  30
-#define SSH1_SMSG_AGENT_OPEN    31
-#define SSH1_CMSG_EXIT_CONFIRMATION	33
-#define SSH1_MSG_IGNORE		32
-#define SSH1_MSG_DEBUG		36
-#define SSH1_CMSG_AUTH_TIS	39
-#define SSH1_SMSG_AUTH_TIS_CHALLENGE	40
-#define SSH1_CMSG_AUTH_TIS_RESPONSE	41
-#define SSH1_CMSG_AUTH_CCARD	70
-#define SSH1_SMSG_AUTH_CCARD_CHALLENGE	71
-#define SSH1_CMSG_AUTH_CCARD_RESPONSE	72
+#define SSH1_MSG_DISCONNECT                       1    /* 0x1 */
+#define SSH1_SMSG_PUBLIC_KEY                      2    /* 0x2 */
+#define SSH1_CMSG_SESSION_KEY                     3    /* 0x3 */
+#define SSH1_CMSG_USER                            4    /* 0x4 */
+#define SSH1_CMSG_AUTH_RSA                        6    /* 0x6 */
+#define SSH1_SMSG_AUTH_RSA_CHALLENGE              7    /* 0x7 */
+#define SSH1_CMSG_AUTH_RSA_RESPONSE               8    /* 0x8 */
+#define SSH1_CMSG_AUTH_PASSWORD                   9    /* 0x9 */
+#define SSH1_CMSG_REQUEST_PTY                     10   /* 0xa */
+#define SSH1_CMSG_WINDOW_SIZE                     11   /* 0xb */
+#define SSH1_CMSG_EXEC_SHELL                      12   /* 0xc */
+#define SSH1_CMSG_EXEC_CMD                        13   /* 0xd */
+#define SSH1_SMSG_SUCCESS                         14   /* 0xe */
+#define SSH1_SMSG_FAILURE                         15   /* 0xf */
+#define SSH1_CMSG_STDIN_DATA                      16   /* 0x10 */
+#define SSH1_SMSG_STDOUT_DATA                     17   /* 0x11 */
+#define SSH1_SMSG_STDERR_DATA                     18   /* 0x12 */
+#define SSH1_CMSG_EOF                             19   /* 0x13 */
+#define SSH1_SMSG_EXIT_STATUS                     20   /* 0x14 */
+#define SSH1_MSG_CHANNEL_OPEN_CONFIRMATION        21   /* 0x15 */
+#define SSH1_MSG_CHANNEL_OPEN_FAILURE             22   /* 0x16 */
+#define SSH1_MSG_CHANNEL_DATA                     23   /* 0x17 */
+#define SSH1_MSG_CHANNEL_CLOSE                    24   /* 0x18 */
+#define SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION       25   /* 0x19 */
+#define SSH1_CMSG_AGENT_REQUEST_FORWARDING        30   /* 0x1e */
+#define SSH1_SMSG_AGENT_OPEN                      31   /* 0x1f */
+#define SSH1_CMSG_EXIT_CONFIRMATION               33   /* 0x21 */
+#define SSH1_MSG_IGNORE                           32   /* 0x20 */
+#define SSH1_MSG_DEBUG                            36   /* 0x24 */
+#define SSH1_CMSG_AUTH_TIS                        39   /* 0x27 */
+#define SSH1_SMSG_AUTH_TIS_CHALLENGE              40   /* 0x28 */
+#define SSH1_CMSG_AUTH_TIS_RESPONSE               41   /* 0x29 */
+#define SSH1_CMSG_AUTH_CCARD                      70   /* 0x46 */
+#define SSH1_SMSG_AUTH_CCARD_CHALLENGE            71   /* 0x47 */
+#define SSH1_CMSG_AUTH_CCARD_RESPONSE             72   /* 0x48 */
 
-#define SSH1_AUTH_TIS		5
-#define SSH1_AUTH_CCARD		16
+#define SSH1_AUTH_TIS                             5    /* 0x5 */
+#define SSH1_AUTH_CCARD                           16   /* 0x10 */
 
-#define SSH_AGENTC_REQUEST_RSA_IDENTITIES    1
-#define SSH_AGENT_RSA_IDENTITIES_ANSWER      2
-#define SSH_AGENTC_RSA_CHALLENGE             3
-#define SSH_AGENT_RSA_RESPONSE               4
-#define SSH_AGENT_FAILURE                    5
-#define SSH_AGENT_SUCCESS                    6
-#define SSH_AGENTC_ADD_RSA_IDENTITY          7
-#define SSH_AGENTC_REMOVE_RSA_IDENTITY       8
+#define SSH_AGENTC_REQUEST_RSA_IDENTITIES         1    /* 0x1 */
+#define SSH_AGENT_RSA_IDENTITIES_ANSWER           2    /* 0x2 */
+#define SSH_AGENTC_RSA_CHALLENGE                  3    /* 0x3 */
+#define SSH_AGENT_RSA_RESPONSE                    4    /* 0x4 */
+#define SSH_AGENT_FAILURE                         5    /* 0x5 */
+#define SSH_AGENT_SUCCESS                         6    /* 0x6 */
+#define SSH_AGENTC_ADD_RSA_IDENTITY               7    /* 0x7 */
+#define SSH_AGENTC_REMOVE_RSA_IDENTITY            8    /* 0x8 */
 
-#define SSH2_MSG_DISCONNECT             1
-#define SSH2_MSG_IGNORE                 2
-#define SSH2_MSG_UNIMPLEMENTED          3
-#define SSH2_MSG_DEBUG                  4
-#define SSH2_MSG_SERVICE_REQUEST        5
-#define SSH2_MSG_SERVICE_ACCEPT         6
-#define SSH2_MSG_KEXINIT                20
-#define SSH2_MSG_NEWKEYS                21
-#define SSH2_MSG_KEXDH_INIT             30
-#define SSH2_MSG_KEXDH_REPLY            31
-#define SSH2_MSG_USERAUTH_REQUEST            50
-#define SSH2_MSG_USERAUTH_FAILURE            51
-#define SSH2_MSG_USERAUTH_SUCCESS            52
-#define SSH2_MSG_USERAUTH_BANNER             53
-#define SSH2_MSG_USERAUTH_PK_OK              60
-#define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ   60
-#define SSH2_MSG_GLOBAL_REQUEST                  80
-#define SSH2_MSG_REQUEST_SUCCESS                 81
-#define SSH2_MSG_REQUEST_FAILURE                 82
-#define SSH2_MSG_CHANNEL_OPEN                    90
-#define SSH2_MSG_CHANNEL_OPEN_CONFIRMATION       91
-#define SSH2_MSG_CHANNEL_OPEN_FAILURE            92
-#define SSH2_MSG_CHANNEL_WINDOW_ADJUST           93
-#define SSH2_MSG_CHANNEL_DATA                    94
-#define SSH2_MSG_CHANNEL_EXTENDED_DATA           95
-#define SSH2_MSG_CHANNEL_EOF                     96
-#define SSH2_MSG_CHANNEL_CLOSE                   97
-#define SSH2_MSG_CHANNEL_REQUEST                 98
-#define SSH2_MSG_CHANNEL_SUCCESS                 99
-#define SSH2_MSG_CHANNEL_FAILURE                 100
+#define SSH2_MSG_DISCONNECT                       1    /* 0x1 */
+#define SSH2_MSG_IGNORE                           2    /* 0x2 */
+#define SSH2_MSG_UNIMPLEMENTED                    3    /* 0x3 */
+#define SSH2_MSG_DEBUG                            4    /* 0x4 */
+#define SSH2_MSG_SERVICE_REQUEST                  5    /* 0x5 */
+#define SSH2_MSG_SERVICE_ACCEPT                   6    /* 0x6 */
+#define SSH2_MSG_KEXINIT                          20   /* 0x14 */
+#define SSH2_MSG_NEWKEYS                          21   /* 0x15 */
+#define SSH2_MSG_KEXDH_INIT                       30   /* 0x1e */
+#define SSH2_MSG_KEXDH_REPLY                      31   /* 0x1f */
+#define SSH2_MSG_USERAUTH_REQUEST                 50   /* 0x32 */
+#define SSH2_MSG_USERAUTH_FAILURE                 51   /* 0x33 */
+#define SSH2_MSG_USERAUTH_SUCCESS                 52   /* 0x34 */
+#define SSH2_MSG_USERAUTH_BANNER                  53   /* 0x35 */
+#define SSH2_MSG_USERAUTH_PK_OK                   60   /* 0x3c */
+#define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ        60   /* 0x3c */
+#define SSH2_MSG_GLOBAL_REQUEST                   80   /* 0x50 */
+#define SSH2_MSG_REQUEST_SUCCESS                  81   /* 0x51 */
+#define SSH2_MSG_REQUEST_FAILURE                  82   /* 0x52 */
+#define SSH2_MSG_CHANNEL_OPEN                     90   /* 0x5a */
+#define SSH2_MSG_CHANNEL_OPEN_CONFIRMATION        91   /* 0x5b */
+#define SSH2_MSG_CHANNEL_OPEN_FAILURE             92   /* 0x5c */
+#define SSH2_MSG_CHANNEL_WINDOW_ADJUST            93   /* 0x5d */
+#define SSH2_MSG_CHANNEL_DATA                     94   /* 0x5e */
+#define SSH2_MSG_CHANNEL_EXTENDED_DATA            95   /* 0x5f */
+#define SSH2_MSG_CHANNEL_EOF                      96   /* 0x60 */
+#define SSH2_MSG_CHANNEL_CLOSE                    97   /* 0x61 */
+#define SSH2_MSG_CHANNEL_REQUEST                  98   /* 0x62 */
+#define SSH2_MSG_CHANNEL_SUCCESS                  99   /* 0x63 */
+#define SSH2_MSG_CHANNEL_FAILURE                  100  /* 0x64 */
 
-#define SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED    1
-#define SSH2_OPEN_CONNECT_FAILED                 2
-#define SSH2_OPEN_UNKNOWN_CHANNEL_TYPE           3
-#define SSH2_OPEN_RESOURCE_SHORTAGE              4
-#define SSH2_EXTENDED_DATA_STDERR                1
+#define SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED     1    /* 0x1 */
+#define SSH2_OPEN_CONNECT_FAILED                  2    /* 0x2 */
+#define SSH2_OPEN_UNKNOWN_CHANNEL_TYPE            3    /* 0x3 */
+#define SSH2_OPEN_RESOURCE_SHORTAGE               4    /* 0x4 */
+
+#define SSH2_EXTENDED_DATA_STDERR                 1    /* 0x1 */
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
@@ -190,7 +191,7 @@ static int ssh_send_ok;
  * 2-3-4 tree storing channels.
  */
 struct ssh_channel {
-    int remoteid, localid;
+    unsigned remoteid, localid;
     int type;
     int closes;
     union {
@@ -199,6 +200,11 @@ struct ssh_channel {
             unsigned char msglen[4];
             int lensofar, totallen;
         } a;
+        struct ssh2_data_channel {
+            unsigned char *outbuffer;
+            unsigned outbuflen, outbufsize;
+            unsigned remwindow, remmaxpkt;
+        } v2;
     } u;
 };
 static tree234 *ssh_channels;           /* indexed by local id */
@@ -210,12 +216,14 @@ static int ssh_channelcmp(void *av, void *bv) {
     return 0;
 }
 static int ssh_channelfind(void *av, void *bv) {
-    int *a = (int *)av;
+    unsigned *a = (unsigned *)av;
     struct ssh_channel *b = (struct ssh_channel *)bv;
     if (*a < b->localid) return -1;
     if (*a > b->localid) return +1;
     return 0;
 }
+
+static struct ssh_channel *mainchan;   /* primary session channel */
 
 static enum {
     SSH_STATE_BEFORE_SIZE,
@@ -1598,7 +1606,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             } else if (pktin.type == SSH1_SMSG_AGENT_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * agent. Give them back a local channel number. */
-                int i = 1;
+                unsigned i = 1;
                 struct ssh_channel *c;
                 enum234 e;
                 for (c = first234(ssh_channels, &e); c; c = next234(&e)) {
@@ -1618,7 +1626,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
                        pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
                 /* Remote side closes a channel. */
-                int i = GET_32BIT(pktin.body);
+                unsigned i = GET_32BIT(pktin.body);
                 struct ssh_channel *c;
                 c = find234(ssh_channels, &i, ssh_channelfind);
                 if (c) {
@@ -2013,11 +2021,6 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 }
 
 /*
- * SSH2: remote identifier for the main session channel.
- */
-static unsigned long ssh_remote_channel;
-
-/*
  * Handle the SSH2 userauth and connection layers.
  */
 static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
@@ -2168,30 +2171,34 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * So now create a channel with a session in it.
      */
+    mainchan = malloc(sizeof(struct ssh_channel));
+    mainchan->localid = 100;           /* as good as any */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
     ssh2_pkt_addstring("session");
-    ssh2_pkt_adduint32(100);           /* as good as any */
-    ssh2_pkt_adduint32(0x7FFFFFFFUL);  /* very big window which we ignore */
-    ssh2_pkt_adduint32(0x7FFFFFFFUL);  /* very big max pkt size */
+    ssh2_pkt_adduint32(mainchan->localid);
+    ssh2_pkt_adduint32(0x7FFFFFFFUL);  /* our window size */
+    ssh2_pkt_adduint32(0x4000UL);  /* our max pkt size */
     ssh2_pkt_send();
     crWaitUntilV(ispkt);
     if (pktin.type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
         fatalbox("Server refused to open a session");
         /* FIXME: error data comes back in FAILURE packet */
     }
-    if (ssh2_pkt_getuint32() != 100) {
+    if (ssh2_pkt_getuint32() != mainchan->localid) {
         fatalbox("Server's channel confirmation cited wrong channel");
     }
-    ssh_remote_channel = ssh2_pkt_getuint32();
-    remote_winsize = ssh2_pkt_getuint32();
-    remote_maxpkt = ssh2_pkt_getuint32();
+    mainchan->remoteid = ssh2_pkt_getuint32();
+    mainchan->u.v2.remwindow = ssh2_pkt_getuint32();
+    mainchan->u.v2.remmaxpkt = ssh2_pkt_getuint32();
+    mainchan->u.v2.outbuffer = NULL;
+    mainchan->u.v2.outbuflen = mainchan->u.v2.outbufsize = 0;
     logevent("Opened channel for session");
 
     /*
      * Now allocate a pty for the session.
      */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-    ssh2_pkt_adduint32(ssh_remote_channel); /* recipient channel */
+    ssh2_pkt_adduint32(mainchan->remoteid); /* recipient channel */
     ssh2_pkt_addstring("pty-req");
     ssh2_pkt_addbool(1);               /* want reply */
     ssh2_pkt_addstring(cfg.termtype);
@@ -2220,12 +2227,18 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      * Start a shell.
      */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-    ssh2_pkt_adduint32(ssh_remote_channel); /* recipient channel */
+    ssh2_pkt_adduint32(mainchan->remoteid); /* recipient channel */
     ssh2_pkt_addstring("shell");
     ssh2_pkt_addbool(1);               /* want reply */
     ssh2_pkt_send();
-    do {                               /* FIXME: pay attention to these */
+    do {
         crWaitUntilV(ispkt);
+        if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+            /* FIXME: be able to handle other channels here */
+            if (ssh2_pkt_getuint32() != mainchan->localid)
+                continue;          /* wrong channel */
+            mainchan->u.v2.remwindow += ssh2_pkt_getuint32();
+        }
     } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
     if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
         if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
@@ -2241,38 +2254,102 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      */
     ssh_send_ok = 1;
     while (1) {
+        static int try_send;
 	crReturnV;
+        try_send = FALSE;
 	if (ispkt) {
 	    if (pktin.type == SSH2_MSG_CHANNEL_DATA ||
                 pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA) {
                 char *data;
                 int length;
-                if (ssh2_pkt_getuint32() != 100)
+                /* FIXME: be able to handle other channels here */
+                if (ssh2_pkt_getuint32() != mainchan->localid)
                     continue;          /* wrong channel */
                 if (pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
                     ssh2_pkt_getuint32() != SSH2_EXTENDED_DATA_STDERR)
                     continue;          /* extended but not stderr */
                 ssh2_pkt_getstring(&data, &length);
-                if (data)
+                if (data) {
                     c_write(data, length);
+                    /*
+                     * Enlarge the window again at the remote side,
+                     * just in case it ever runs down and they fail
+                     * to send us any more data.
+                     */
+                    ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+                    ssh2_pkt_adduint32(mainchan->remoteid);
+                    ssh2_pkt_adduint32(length);
+                    ssh2_pkt_send();
+                }
 	    } else if (pktin.type == SSH2_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
-		logevent("Received disconnect request");
+		logevent("Received disconnect message");
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_REQUEST) {
                 continue;              /* exit status et al; ignore (FIXME?) */
+	    } else if (pktin.type == SSH2_MSG_CHANNEL_EOF) {
+                continue;              /* remote sends EOF; ignore */
+	    } else if (pktin.type == SSH2_MSG_CHANNEL_CLOSE) {
+                /* FIXME: be able to handle other channels here */
+                if (ssh2_pkt_getuint32() != mainchan->localid)
+                    continue;          /* wrong channel */
+                ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+                ssh2_pkt_adduint32(mainchan->remoteid);
+                ssh2_pkt_send();
+                /* FIXME: mark the channel as closed */
+                if (1 /* FIXME: "all channels are closed" */) {
+                    logevent("All channels closed. Disconnecting");
+                    ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+                    ssh2_pkt_send();
+                }
+                continue;              /* remote sends close; ignore (FIXME) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
-                continue;              /* ignore for now (FIXME!) */
+                /* FIXME: be able to handle other channels here */
+                if (ssh2_pkt_getuint32() != mainchan->localid)
+                    continue;          /* wrong channel */
+                mainchan->u.v2.remwindow += ssh2_pkt_getuint32();
+                try_send = TRUE;
 	    } else {
 		fatalbox("Strange packet received: type %d", pktin.type);
 	    }
 	} else {
-            /* FIXME: for now, ignore window size */
-            ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
-            ssh2_pkt_adduint32(ssh_remote_channel);
-            ssh2_pkt_addstring_start();
-            ssh2_pkt_addstring_data(in, inlen);
-            ssh2_pkt_send();
+            /*
+             * We have spare data. Add it to the channel buffer.
+             */
+            if (mainchan->u.v2.outbufsize <
+                mainchan->u.v2.outbuflen + inlen) {
+                mainchan->u.v2.outbufsize =
+                    mainchan->u.v2.outbuflen + inlen + 1024;
+                mainchan->u.v2.outbuffer = srealloc(mainchan->u.v2.outbuffer,
+                                                    mainchan->u.v2.outbufsize);
+            }
+            memcpy(mainchan->u.v2.outbuffer + mainchan->u.v2.outbuflen,
+                   in, inlen);
+            mainchan->u.v2.outbuflen += inlen;
+            try_send = TRUE;
 	}
+        if (try_send) {
+            /*
+             * Try to send data on the channel if we can. (FIXME:
+             * on _all_ channels.)
+             */
+            while (mainchan->u.v2.remwindow > 0 &&
+                   mainchan->u.v2.outbuflen > 0) {
+                unsigned len = mainchan->u.v2.remwindow;
+                if (len > mainchan->u.v2.outbuflen)
+                    len = mainchan->u.v2.outbuflen;
+                if (len > mainchan->u.v2.remmaxpkt)
+                    len = mainchan->u.v2.remmaxpkt;
+                ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
+                ssh2_pkt_adduint32(mainchan->remoteid);
+                ssh2_pkt_addstring_start();
+                ssh2_pkt_addstring_data(mainchan->u.v2.outbuffer, len);
+                ssh2_pkt_send();
+                mainchan->u.v2.outbuflen -= len;
+                memmove(mainchan->u.v2.outbuffer, mainchan->u.v2.outbuffer+len,
+                        mainchan->u.v2.outbuflen);
+                mainchan->u.v2.remwindow -= len;
+            }
+        }
     }
 
     crFinishV;
@@ -2404,7 +2481,7 @@ static void ssh_special (Telnet_Special code) {
             send_packet(SSH1_CMSG_EOF, PKT_END);
         } else {
             ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
-            ssh2_pkt_adduint32(ssh_remote_channel);
+            ssh2_pkt_adduint32(mainchan->remoteid);
             ssh2_pkt_send();
         }
     } else {
