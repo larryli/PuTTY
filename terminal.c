@@ -3106,7 +3106,7 @@ void term_invalidate(Terminal *term)
  * Paint the window in response to a WM_PAINT message.
  */
 void term_paint(Terminal *term, Context ctx,
-		int left, int top, int right, int bottom)
+		int left, int top, int right, int bottom, int immediately)
 {
     int i, j;
     if (left < 0) left = 0;
@@ -3128,7 +3128,7 @@ void term_paint(Terminal *term, Context ctx,
      * fails to actually do anything when re-sizing ... painting the wrong
      * window perhaps ?
      */
-    if (alt_pressed)
+    if (immediately)
         do_paint (term, ctx, FALSE);
 }
 

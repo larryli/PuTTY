@@ -2082,7 +2082,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		       (p.rcPaint.left-offset_width)/font_width,
 		       (p.rcPaint.top-offset_height)/font_height,
 		       (p.rcPaint.right-offset_width-1)/font_width,
-		       (p.rcPaint.bottom-offset_height-1)/font_height);
+		       (p.rcPaint.bottom-offset_height-1)/font_height,
+		       is_alt_pressed());
 
 	    if (p.fErase ||
 	        p.rcPaint.left  < offset_width  ||
@@ -2189,7 +2190,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * 1) Keep the sizetip uptodate
 	 * 2) Make sure the window size is _stepped_ in units of the font size.
 	 */
-	if (cfg.resize_action != RESIZE_FONT && !alt_pressed) {
+	if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
 	    int width, height, w, h, ew, eh;
 	    LPRECT r = (LPRECT) lParam;
 
@@ -2350,7 +2351,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * down the connection during an NT opaque drag.)
 	     */
 	    if (resizing) {
-		if (cfg.resize_action != RESIZE_FONT && !alt_pressed) {
+		if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
 		    need_backend_resize = TRUE;
 		    w = (width-cfg.window_border*2) / font_width;
 		    if (w < 1) w = 1;
@@ -2554,7 +2555,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
       default:
 	if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
-	    int shift_pressed=0, control_pressed=0, alt_pressed=0;
+	    int shift_pressed=0, control_pressed=0;
 
 	    if (message == WM_MOUSEWHEEL) {
 		wheel_accumulator += (short)HIWORD(wParam);
@@ -3187,8 +3188,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    left_alt = 0;
 	}
     }
-
-    alt_pressed = (left_alt && key_down);
 
     scan = (HIWORD(lParam) & (KF_UP | KF_EXTENDED | 0xFF));
     shift_state = ((keystate[VK_SHIFT] & 0x80) != 0)

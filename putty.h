@@ -92,8 +92,6 @@ typedef struct terminal_tag Terminal;
 #define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
 #define ATTR_CUR_XOR 0x00BA0000UL
 
-GLOBAL int alt_pressed;
-
 GLOBAL int session_closed;
 
 GLOBAL int nsessions;
@@ -458,7 +456,7 @@ void registry_cleanup(void);
 Terminal *term_init(void *frontend);
 void term_size(Terminal *, int, int, int);
 void term_out(Terminal *);
-void term_paint(Terminal *, Context, int, int, int, int);
+void term_paint(Terminal *, Context, int, int, int, int, int);
 void term_scroll(Terminal *, int, int);
 void term_pwron(Terminal *);
 void term_clrsb(Terminal *);
