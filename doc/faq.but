@@ -477,6 +477,28 @@ and you should report it (although it might be a bug in your SSH
 server instead); but it doesn't necessarily mean you've actually run
 out of memory.
 
+\S{faq-bce} When I run full-colour applications, I see areas of
+black space where colour ought to be.
+
+You almost certainly need to enable the \q{Use background colour to
+erase screen} setting in the Terminal panel. Note that if you do
+this in mid-session, it won't take effect until you reset the
+terminal (see \k{faq-resetterm}).
+
+\S{faq-resetterm} When I change some terminal settings, nothing
+happens.
+
+Some of the terminal options (notably Auto Wrap and
+background-colour screen erase) actually represent the \e{default}
+setting, rather than the currently active setting. The server can
+send sequences that modify these options in mid-session, but when
+the terminal is reset (by server action, or by you choosing \q{Reset
+Terminal} from the System menu) the defaults are restored.
+
+If you want to change one of these options in the middle of a
+session, you will find that the change does not immediately take
+effect. It will only take effect once you reset the terminal.
+
 \S{faq-altgr} I can't type characters that require the AltGr key.
 
 In PuTTY version 0.51, the AltGr key was broken. The bug has been
