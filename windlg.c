@@ -648,7 +648,6 @@ int do_reconfig(HWND hwnd)
     ctrl_free_box(ctrlbox);
     winctrl_cleanup(&ctrls_base);
     winctrl_cleanup(&ctrls_panel);
-    sfree(dp.errtitle);
     dp_cleanup(&dp);
 
     if (!ret)
