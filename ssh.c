@@ -1193,7 +1193,8 @@ static int do_ssh_init(unsigned char c) {
         /*
          * This is a v2 server. Begin v2 protocol.
          */
-        char *verstring = "SSH-2.0-PuTTY";
+        char verstring[80];
+        sprintf(verstring, "SSH-2.0-%s", sshver);
         SHA_Init(&exhashbase);
         /*
          * Hash our version string and their version string.
@@ -1212,8 +1213,9 @@ static int do_ssh_init(unsigned char c) {
         /*
          * This is a v1 server. Begin v1 protocol.
          */
-        sprintf(vstring, "SSH-%s-PuTTY\n",
-                (ssh_versioncmp(version, "1.5") <= 0 ? version : "1.5"));
+        sprintf(vstring, "SSH-%s-%s\n",
+                (ssh_versioncmp(version, "1.5") <= 0 ? version : "1.5"),
+                sshver);
         sprintf(vlog, "We claim version: %s", vstring);
         vlog[strcspn(vlog, "\r\n")] = '\0';
         logevent(vlog);

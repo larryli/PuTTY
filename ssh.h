@@ -182,6 +182,11 @@ extern const struct ssh_mac ssh_md5;
 extern const struct ssh_mac ssh_sha1;
 extern const struct ssh_mac ssh_sha1_buggy;
 
+/*
+ * PuTTY version number formatted as an SSH version string. 
+ */
+extern char sshver[];
+
 #ifndef MSCRYPTOAPI
 void SHATransform(word32 *digest, word32 *data);
 #endif
