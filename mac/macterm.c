@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.13 2002/11/28 00:25:09 ben Exp $ */
+/* $Id: macterm.c,v 1.14 2002/11/28 21:02:07 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -779,15 +779,21 @@ void mac_updateterm(WindowPtr window) {
 
 static void mac_drawgrowicon(Session *s) {
     Rect clip;
+    RgnHandle savergn;
 
     SetPort(s->window);
-    /* Stop DrawGrowIcon giving us space for a horizontal scrollbar */
-    SetRect(&clip, s->window->portRect.right - 15, SHRT_MIN,
-	    SHRT_MAX, SHRT_MAX);
+    /*
+     * Stop DrawGrowIcon giving us space for a horizontal scrollbar
+     * See Tech Note TB575 for details.
+     */
+    clip = s->window->portRect;
+    clip.left = clip.right - 15;
+    savergn = NewRgn();
+    GetClip(savergn);
     ClipRect(&clip);
     DrawGrowIcon(s->window);
-    clip.left = SHRT_MIN;
-    ClipRect(&clip);
+    SetClip(savergn);
+    DisposeRgn(savergn);
 }    
 
 struct do_text_args {
