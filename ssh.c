@@ -4356,9 +4356,11 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	logeventf(ssh, "Initialised %s decompression",
 		  ssh->sccomp->text_name);
     freebn(s->f);
-    freebn(s->g);
     freebn(s->K);
-    freebn(s->p);
+    if (ssh->kex == &ssh_diffiehellman_gex) {
+	freebn(s->g);
+	freebn(s->p);
+    }
 
     /*
      * If this is the first key exchange phase, we must pass the
