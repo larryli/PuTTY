@@ -383,6 +383,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     int err;
     Actual_Socket ret;
     short localport;
+    int fl;
 
     /*
      * Create Socket structure.
@@ -492,10 +493,10 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     a.sin_addr.s_addr = htonl(addr->address);
     a.sin_port = htons((short) port);
 #endif
-    {
-	int i = 1;
-	ioctl(s, FIONBIO, &i);
-    }
+
+    fl = fcntl(s, F_GETFL);
+    if (fl != -1)
+	fcntl(s, F_SETFL, fl | O_NONBLOCK);
 
     if ((
 #ifdef IPV6
