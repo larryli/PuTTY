@@ -769,14 +769,14 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	    if (term->selstart.y >= topline && term->selstart.y <= botline) {
 		term->selstart.y++;
 		if (term->selstart.y > botline) {
-		    term->selstart.y = botline;
+		    term->selstart.y = botline + 1;
 		    term->selstart.x = 0;
 		}
 	    }
 	    if (term->selend.y >= topline && term->selend.y <= botline) {
 		term->selend.y++;
 		if (term->selend.y > botline) {
-		    term->selend.y = botline;
+		    term->selend.y = botline + 1;
 		    term->selend.x = 0;
 		}
 	    }
