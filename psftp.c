@@ -1396,7 +1396,8 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
 	    printf("mkdir %s: %s\n", dir, fxp_error());
 	    sfree(dir);
 	    ret = 0;
-	}
+	} else
+	    printf("mkdir %s: OK\n", dir);
 
 	sfree(dir);
     }
@@ -1419,6 +1420,8 @@ static int sftp_action_rmdir(void *vctx, char *dir)
 	printf("rmdir %s: %s\n", dir, fxp_error());
 	return 0;
     }
+
+    printf("rmdir %s: OK\n", dir);
 
     return 1;
 }
@@ -1459,6 +1462,8 @@ static int sftp_action_rm(void *vctx, char *fname)
 	printf("rm %s: %s\n", fname, fxp_error());
 	return 0;
     }
+
+    printf("rm %s: OK\n", fname);
 
     return 1;
 }
