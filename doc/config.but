@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.50 2003/01/16 15:43:18 jacob Exp $
+\versionid $Id: config.but,v 1.51 2003/01/23 11:37:54 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -898,14 +898,16 @@ modify the title of the window in mid-session. There is also an
 This makes sense in a windowing system where the window becomes an
 icon when minimised, such as Windows 3.1 or most X Window System
 setups; but in the Windows 95-like user interface it isn't as
-applicable. By default PuTTY's window title and Taskbar caption will
+applicable.
+
+By default, PuTTY only uses the server-supplied \e{window} title, and
+ignores the icon title entirely. If for some reason you want to see
+both titles, check the box marked \q{Separate window and icon titles}.
+If you do this, PuTTY's window title and Taskbar caption will
 change into the server-supplied icon title if you minimise the PuTTY
 window, and change back to the server-supplied window title if you
 restore it. (If the server has not bothered to supply a window or
-icon title, none of this will happen.) By checking the box marked
-\q{Avoid ever using icon title}, you can arrange that PuTTY will
-always display the window title, and completely ignore any icon
-titles the server sends it.
+icon title, none of this will happen.)
 
 \S{config-mouseptr} \q{Hide mouse pointer when typing in window}
 

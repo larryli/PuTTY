@@ -1176,7 +1176,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_BLINKTEXT, cfg.blinktext);
 
     SetDlgItemText(hwnd, IDC_WINEDIT, cfg.wintitle);
-    CheckDlgButton(hwnd, IDC_WINNAME, cfg.win_name_always);
+    CheckDlgButton(hwnd, IDC_WINNAME, !cfg.win_name_always);
     CheckDlgButton(hwnd, IDC_HIDEMOUSE, cfg.hide_mouseptr);
     CheckDlgButton(hwnd, IDC_SUNKENEDGE, cfg.sunken_edge);
     SetDlgItemInt(hwnd, IDC_WINBEDIT, cfg.window_border, FALSE);
@@ -1720,7 +1720,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 IDC_BOX_APPEARANCE3);
 	multiedit(&cp,
 		  "Window &title:", IDC_WINTITLE, IDC_WINEDIT, 100, NULL);
-	checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
+	checkbox(&cp, "Separate window and &icon titles", IDC_WINNAME);
 	endbox(&cp);
 	beginbox(&cp, "Adjust the use of the mouse pointer",
 		 IDC_BOX_APPEARANCE4);
@@ -2910,7 +2910,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.win_name_always =
-			IsDlgButtonChecked(hwnd, IDC_WINNAME);
+			!IsDlgButtonChecked(hwnd, IDC_WINNAME);
 		break;
 	      case IDC_HIDEMOUSE:
 		if (HIWORD(wParam) == BN_CLICKED ||
