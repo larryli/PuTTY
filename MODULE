@@ -1,5 +1,0 @@
-Module: putty
-Author: Simon Tatham <anakin@pobox.com>
-Description: PuTTY is a free (MIT-licensed) Win32 implementation of Telnet and SSH, with a comprehensive xterm/Linux/vt220 terminal emulator attached.
-Homepage: http://www.chiark.greenend.org.uk/~sgtatham/putty/
-Release: http://www.chiark.greenend.org.uk/~sgtatham/putty/
