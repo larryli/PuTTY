@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.4 2001/01/28 14:27:08 owen Exp $
+\versionid $Id: pscp.but,v 1.5 2001/01/28 14:38:23 owen Exp $
 
 \#FIXME: Need examples, index entries, links
 
@@ -27,7 +27,11 @@ current directory.  To add the directory containing PSCP to your
 
 \c set PATH C:\path\to\putty\directory;%PATH%
 
-\# FIXME: or the Environment panel in NT, or something else in Win9x...
+This will only work for the lifetime of that particular console
+window.  To set your \c{PATH} more permanently on Windows NT, use the
+Environment tab of the System Control Panel.  On Windows 95, 98, and
+ME, you will need to edit your \c{AUTOEXEC.BAT} to include a \c{set}
+command like the one above.
 
 \H{pscp-usage} PSCP Usage
 
