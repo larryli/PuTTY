@@ -680,7 +680,7 @@ Bignum primegen(int bits, int modulus, int residue,
             v = 1;
         else {
             if (bitsleft <= 0)
-                bitsleft = 8; byte = random_byte();
+                bitsleft = 8, byte = random_byte();
             v = byte & 1;
             byte >>= 1;
             bitsleft--;
@@ -757,7 +757,7 @@ Bignum primegen(int bits, int modulus, int residue,
             w = bn_power_2(bits-1);
             for (i = 0; i < bits; i++) {
                 if (bitsleft <= 0)
-                    bitsleft = 8; byte = random_byte();
+                    bitsleft = 8, byte = random_byte();
                 v = byte & 1;
                 byte >>= 1;
                 bitsleft--;
