@@ -3,14 +3,19 @@
  * back end, all running as a GTK application. Wish me luck.
  */
 
+#define _GNU_SOURCE
+
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <gtk/gtk.h>
@@ -47,6 +52,7 @@ struct gui_data {
     int alt_keycode;
     char wintitle[sizeof(((Config *)0)->wintitle)];
     char icontitle[sizeof(((Config *)0)->wintitle)];
+    int master_fd, master_func_id, exited;
 };
 
 static struct gui_data the_inst;
@@ -870,21 +876,79 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     return TRUE;
 }
 
+void done_with_pty(struct gui_data *inst)
+{
+    extern void pty_close(void);
+
+    if (inst->master_fd >= 0) {
+	pty_close();
+	inst->master_fd = -1;
+	gtk_input_remove(inst->master_func_id);
+    }
+
+    if (!inst->exited && back->exitcode() >= 0) {
+	int exitcode = back->exitcode();
+	int clean;
+
+	clean = WIFEXITED(exitcode) && (WEXITSTATUS(exitcode) == 0);
+
+	/*
+	 * Terminate now, if the Close On Exit setting is
+	 * appropriate.
+	 */
+	if (cfg.close_on_exit == COE_ALWAYS ||
+	    (cfg.close_on_exit == COE_NORMAL && clean))
+	    exit(0);
+
+	/*
+	 * Otherwise, output an indication that the session has
+	 * closed.
+	 */
+	{
+	    char message[512];
+	    if (WIFEXITED(exitcode))
+		sprintf(message, "\r\n[pterm: process terminated with exit"
+			" code %d]\r\n", WEXITSTATUS(exitcode));
+	    else if (WIFSIGNALED(exitcode))
+#ifdef HAVE_NO_STRSIGNAL
+		sprintf(message, "\r\n[pterm: process terminated on signal"
+			" %d]\r\n", WTERMSIG(exitcode));
+#else
+		sprintf(message, "\r\n[pterm: process terminated on signal"
+			" %d (%.400s)]\r\n", WTERMSIG(exitcode),
+			strsignal(WTERMSIG(exitcode)));
+#endif
+	    from_backend((void *)term, 0, message, strlen(message));
+	}
+	inst->exited = 1;
+    }
+}
+
+void frontend_keypress(void)
+{
+    /*
+     * If our child process has exited but not closed, terminate on
+     * any keypress.
+     */
+    if (inst->exited)
+	exit(0);
+}
+
 gint timer_func(gpointer data)
 {
-    /* struct gui_data *inst = (struct gui_data *)data; */
-    extern int pty_child_is_dead();  /* declared in pty.c */
+    struct gui_data *inst = (struct gui_data *)data;
 
-    if (pty_child_is_dead()) {
+    if (back->exitcode() >= 0) {
 	/*
 	 * The primary child process died. We could keep the
 	 * terminal open for remaining subprocesses to output to,
 	 * but conventional wisdom seems to feel that that's the
-	 * Wrong Thing for an xterm-alike, so we bail out now. This
-	 * would be easy enough to change or make configurable if
-	 * necessary.
+	 * Wrong Thing for an xterm-alike, so we bail out now
+	 * (though we don't necessarily _close_ the window,
+	 * depending on the state of Close On Exit). This would be
+	 * easy enough to change or make configurable if necessary.
 	 */
-	exit(0);
+	done_with_pty(inst);
     }
 
     term_update(term);
@@ -894,7 +958,7 @@ gint timer_func(gpointer data)
 
 void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 {
-    /* struct gui_data *inst = (struct gui_data *)data; */
+    struct gui_data *inst = (struct gui_data *)data;
     char buf[4096];
     int ret;
 
@@ -906,14 +970,11 @@ void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
      * to happen. Boo.
      */
     if (ret == 0 || (ret < 0 && errno == EIO)) {
-	exit(0);
-    }
-
-    if (ret < 0) {
+	done_with_pty(inst);
+    } else if (ret < 0) {
 	perror("read pty master");
 	exit(1);
-    }
-    if (ret > 0)
+    } else if (ret > 0)
 	from_backend(term, 0, buf, ret);
     term_blink(term, 1);
     term_out(term);
@@ -1885,7 +1946,10 @@ int main(int argc, char **argv)
     term_size(term, cfg.height, cfg.width, cfg.savelines);
     ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
 
-    gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
+    inst->master_fd = pty_master_fd;
+    inst->exited = FALSE;
+    inst->master_func_id = gdk_input_add(pty_master_fd, GDK_INPUT_READ,
+					 pty_input_func, inst);
 
     gtk_main();
 

@@ -61,15 +61,11 @@ static int pty_child_pid;
 static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
 static int pty_term_width, pty_term_height;
 static sig_atomic_t pty_child_dead;
+static int pty_exit_code;
 #ifndef OMIT_UTMP
 static struct utmp utmp_entry;
 #endif
 char **pty_argv;
-
-int pty_child_is_dead(void)
-{
-    return pty_child_dead;
-}
 
 static void setup_utmp(char *ttyname, char *location)
 {
@@ -156,8 +152,10 @@ static void sigchld_handler(int signum)
     pid_t pid;
     int status;
     pid = waitpid(-1, &status, WNOHANG);
-    if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status)))
-	pty_child_dead = TRUE;	
+    if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
+	pty_exit_code = status;
+	pty_child_dead = TRUE;
+    }
 }
 
 static void fatal_sig_handler(int signum)
@@ -497,6 +495,9 @@ static char *pty_init(void *frontend,
  */
 static int pty_send(char *buf, int len)
 {
+    if (pty_master_fd < 0)
+	return 0;		       /* ignore all writes if fd closed */
+
     while (len > 0) {
 	int ret = write(pty_master_fd, buf, len);
 	if (ret < 0) {
@@ -507,6 +508,15 @@ static int pty_send(char *buf, int len)
 	len -= ret;
     }
     return 0;
+}
+
+void pty_close(void)
+{
+    if (pty_master_fd >= 0) {
+	close(pty_master_fd);
+	pty_master_fd = -1;
+    }
+    close(pty_utmp_helper_pipe);       /* this causes utmp to be cleaned up */
 }
 
 /*
@@ -566,8 +576,10 @@ static int pty_ldisc(int option)
 
 static int pty_exitcode(void)
 {
-    /* Shouldn't ever be required */
-    return 0;
+    if (!pty_child_dead)
+	return -1;		       /* not dead yet */
+    else
+	return pty_exit_code;
 }
 
 Backend pty_backend = {
