@@ -767,6 +767,23 @@ int sftp_cmd_quit(struct sftp_command *cmd)
     return -1;
 }
 
+int sftp_cmd_close(struct sftp_command *cmd)
+{
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
+    if (back != NULL && back->socket(backhandle) != NULL) {
+	char ch;
+	back->special(backhandle, TS_EOF);
+	sftp_recvdata(&ch, 1);
+    }
+    do_sftp_cleanup();
+
+    return 0;
+}
+
 /*
  * List a directory. If no arguments are given, list pwd; otherwise
  * list the directory given in words[1].
@@ -1630,6 +1647,14 @@ static struct sftp_cmd_lookup {
 	    "  more than one user for the same modifier (\"ug+w\"). You can\n"
 	    "  use commas to separate different modifiers (\"u+rwx,g+s\").\n",
 	    sftp_cmd_chmod
+    },
+    {
+	"close", TRUE, "finish your SFTP session but do not quit PSFTP",
+	    "\n"
+	    "  Terminates your SFTP session, but does not quit the PSFTP\n"
+	    "  program. You can then use \"open\" to start another SFTP\n"
+	    "  session, to the same server or to a different one.\n",
+	    sftp_cmd_close
     },
     {
 	"del", TRUE, "delete a file",
@@ -2579,12 +2604,10 @@ int psftp_main(int argc, char *argv[])
 	back->special(backhandle, TS_EOF);
 	sftp_recvdata(&ch, 1);
     }
+    do_sftp_cleanup();
     random_save_seed();
     cmdline_cleanup();
     console_provide_logctx(NULL);
-    do_sftp_cleanup();
-    backhandle = NULL;
-    back = NULL;
     sk_cleanup();
 
     return 0;
