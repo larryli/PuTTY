@@ -1245,6 +1245,29 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
     }
 
     /*
+     * NetHack keypad mode. This may conflict with Shift-PgUp/PgDn,
+     * so we do it first.
+     */
+    if (cfg.nethack_keypad) {
+	int shift = keystate[VK_SHIFT] & 0x80;
+        /*
+         * NB the shifted versions only work with numlock off.
+         */
+	switch ( (lParam >> 16) & 0x1FF ) {
+	  case 0x047: *p++ = shift ? 'Y' : 'y'; return p - output;
+	  case 0x048: *p++ = shift ? 'K' : 'k'; return p - output;
+	  case 0x049: *p++ = shift ? 'U' : 'u'; return p - output;
+	  case 0x04B: *p++ = shift ? 'H' : 'h'; return p - output;
+	  case 0x04C: *p++ = '.'; return p - output;
+	  case 0x04D: *p++ = shift ? 'L' : 'l'; return p - output;
+	  case 0x04F: *p++ = shift ? 'B' : 'b'; return p - output;
+	  case 0x050: *p++ = shift ? 'J' : 'j'; return p - output;
+	  case 0x051: *p++ = shift ? 'N' : 'n'; return p - output;
+	  case 0x053: *p++ = '.'; return p - output;
+	}
+    }
+
+    /*
      * Shift-PgUp, Shift-PgDn, and Alt-F4 all produce window
      * events: we'll deal with those now.
      */
@@ -1287,24 +1310,7 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
 	return p - output;
     }
 
-    if (cfg.nethack_keypad) {
-	int shift = keystate[VK_SHIFT] & 0x80;
-        /*
-         * NB the shifted versions only work with numlock off.
-         */
-	switch ( (lParam >> 16) & 0x1FF ) {
-	  case 0x047: *p++ = shift ? 'Y' : 'y'; return p - output;
-	  case 0x048: *p++ = shift ? 'K' : 'k'; return p - output;
-	  case 0x049: *p++ = shift ? 'U' : 'u'; return p - output;
-	  case 0x04B: *p++ = shift ? 'H' : 'h'; return p - output;
-	  case 0x04C: *p++ = '.'; return p - output;
-	  case 0x04D: *p++ = shift ? 'L' : 'l'; return p - output;
-	  case 0x04F: *p++ = shift ? 'B' : 'b'; return p - output;
-	  case 0x050: *p++ = shift ? 'J' : 'j'; return p - output;
-	  case 0x051: *p++ = shift ? 'N' : 'n'; return p - output;
-	  case 0x053: *p++ = '.'; return p - output;
-	}
-    } else if (app_keypad_keys) {
+    if (app_keypad_keys) {
 	/*
 	 * If we're in applications keypad mode, we have to process it
 	 * before char-map translation, because it will pre-empt lots
