@@ -56,6 +56,8 @@
 #define wiSettingsOpen		1
 #define wEventLog	133
 #define wQuestion	134
+#define wAbsent         135
+#define wWrong          136
 
 /* Controls */
 #define cVScroll	128

@@ -694,9 +694,15 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
-    Str255 stuff;
+    Str255 pappname;
+    Str255 pfingerprint;
+    Str255 pkeytype;
     Session *s = frontend;
-    int ret;
+    int ret, alertret;
+    
+    c2pstrcpy(pappname, appname);
+    c2pstrcpy(pkeytype, keytype);
+    c2pstrcpy(pfingerprint, fingerprint);
 
     /*
      * This function is horribly wrong.  For one thing, the alert
@@ -716,29 +722,42 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 0)		       /* success - key matched OK */
 	return;
     if (ret == 2) {		       /* key was different */
-	stuff[0] = sprintf((char *)(&stuff[1]),
-			   "WARNING - POTENTIAL SECURITY BREACH\n",
-			   "The key fingerprint is: %s\n"
-			   "Continue connecting?", fingerprint);
-	ParamText(stuff, NULL, NULL, NULL);
+	ParamText(pappname, pkeytype, pfingerprint, NULL);
+	alertret=CautionAlert(wWrong, NULL);
+	if (alertret == 9) {
+	    /* Cancel */
+	    goto cancel;
+	} else if (alertret == 8) {
+	    /* Connect Just Once */
+	} else {
+	    /* Update Key */
+	    store_host_key(host, port, keytype, keystr);
+	}
     }
     if (ret == 1) {                     /* key was absent */
-	stuff[0] = sprintf((char *)(&stuff[1]),
-			   "The server's key fingerprint is: %s\n"
-			   "Continue connecting?", fingerprint);
-	ParamText(stuff, NULL, NULL, NULL);
+	ParamText(pkeytype, pfingerprint, pappname, NULL);
+	alertret=CautionAlert(wAbsent, NULL);
+	if (alertret == 8) {
+	    /* Cancel */
+	    goto cancel;
+	} else if (alertret == 7) {
+	    /* Connect Just Once */
+	} else {
+	    /* Update Key */
+	    store_host_key(host, port, keytype, keystr);
+	}
     }
 
-    if (CautionAlert(wQuestion, NULL) == 2) {
-	/*
-	 * User chose "Cancel".  Unfortunately, if I tear the
-	 * connection down here, Bad Things happen when I return.  I
-	 * think this function should actually return something
-	 * telling the SSH code to abandon the connection.
-	 */	
-    } else {
-	store_host_key(host, port, keytype, keystr);
-    }
+    return;
+
+  cancel:
+    /*
+     * User chose "Cancel".  Unfortunately, if I tear the
+     * connection down here, Bad Things happen when I return.  I
+     * think this function should actually return something
+     * telling the SSH code to abandon the connection.
+     */	
+    return;
 }
 
 void askalg(void *frontend, const char *algtype, const char *algname)

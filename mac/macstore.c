@@ -683,6 +683,7 @@ void store_host_key(const char *hostname, int port,
     char *resname;
     Str255 presname;
     Handle resvalue;
+    Handle reshandle;
     int id;
 
     /* Open the host key file */
@@ -708,7 +709,12 @@ void store_host_key(const char *hostname, int port,
     UseResFile(keyrefnum);
     resname = dupprintf("%s@%d:%s", keytype, port, hostname);
     c2pstrcpy(presname, resname);
-    
+
+    reshandle = Get1NamedResource(FOUR_CHAR_CODE('TEXT'), presname);
+    if (reshandle != NULL) {
+	/* The resource exists, we're replacing a host key */
+	RemoveResource(reshandle);
+    }
     error = PtrToHand(key, &resvalue, strlen(key));
     if (error != noErr) goto out;
 
