@@ -22,7 +22,6 @@
 
 /*
  * TODO:
- *  - have some means of verifying passphrase changes against typos
  *  - prompt before overwriting an existing file
  *  - check the return value from saversakey()
  *  - test the generated keys for actual working-RSA-key-hood
@@ -302,7 +301,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         IDC_PKSTATIC, IDC_KEYDISPLAY,
         IDC_FPSTATIC, IDC_FINGERPRINT,
         IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
-        IDC_PASSPHRASESTATIC, IDC_PASSPHRASEEDIT,
+        IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
+        IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT,
         IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS,
         IDC_GENSTATIC, IDC_GENERATE,
         IDC_LOADSTATIC, IDC_LOAD,
@@ -315,7 +315,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         IDC_PKSTATIC, IDC_KEYDISPLAY,
         IDC_FPSTATIC, IDC_FINGERPRINT,
         IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
-        IDC_PASSPHRASESTATIC, IDC_PASSPHRASEEDIT, 0 };
+        IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
+        IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 0 };
     static const char generating_msg[] =
         "Please wait while a key is generated...";
     static const char entropy_msg[] =
@@ -330,6 +331,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         SetWindowLong(hwnd, GWL_USERDATA, (LONG)state);
         {
             struct ctlpos cp, cp2;
+
+	    /* Accelerators used: acglops */
 
             ctlposinit(&cp, hwnd, 10, 10, 10);
             bartitle(&cp, "Public and private key generation for PuTTY",
@@ -351,8 +354,10 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             SendDlgItemMessage(hwnd, IDC_FINGERPRINT, EM_SETREADONLY, 1, 0);
             staticedit(&cp, "Key &comment:", IDC_COMMENTSTATIC,
                        IDC_COMMENTEDIT, 70);
-            staticpassedit(&cp, "Key p&assphrase:", IDC_PASSPHRASESTATIC,
-                           IDC_PASSPHRASEEDIT, 70);
+            staticpassedit(&cp, "Key p&assphrase:", IDC_PASSPHRASE1STATIC,
+                           IDC_PASSPHRASE1EDIT, 70);
+            staticpassedit(&cp, "C&onfirm passphrase:", IDC_PASSPHRASE2STATIC,
+                           IDC_PASSPHRASE2EDIT, 70);
             endbox(&cp);
             beginbox(&cp, "Actions",
                      IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS);
@@ -480,8 +485,18 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             if (state->key_exists) {
                 char filename[FILENAME_MAX];
                 char passphrase[PASSPHRASE_MAXLEN];
-                GetDlgItemText(hwnd, IDC_PASSPHRASEEDIT,
-                               passphrase, sizeof(passphrase)-1);
+                char passphrase2[PASSPHRASE_MAXLEN];
+                GetDlgItemText(hwnd, IDC_PASSPHRASE1EDIT,
+                               passphrase, sizeof(passphrase));
+                GetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
+                               passphrase2, sizeof(passphrase2));
+		if (strcmp(passphrase, passphrase2)) {
+                    MessageBox(hwnd,
+			       "The two passphrases given do not match.",
+			       "PuTTYgen Error",
+			       MB_OK | MB_ICONERROR);
+		    break;
+		}
                 if (!*passphrase) {
                     int ret;
                     ret = MessageBox(hwnd,
@@ -551,7 +566,9 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                          */
                         {
                             char buf[128];
-                            SetDlgItemText(hwnd, IDC_PASSPHRASEEDIT,
+                            SetDlgItemText(hwnd, IDC_PASSPHRASE1EDIT,
+                                           passphrase);
+                            SetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
                                            passphrase);
                             SetDlgItemText(hwnd, IDC_COMMENTEDIT,
                                            state->key.comment);
@@ -619,7 +636,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
              * because we will warn (Are You Sure?) before allowing
              * the user to save an unprotected private key.
              */
-            SetDlgItemText(hwnd, IDC_PASSPHRASEEDIT, "");
+            SetDlgItemText(hwnd, IDC_PASSPHRASE1EDIT, "");
+            SetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT, "");
             /*
              * Set the comment.
              */
