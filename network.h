@@ -54,7 +54,7 @@ struct plug_function_table {
      * on a socket is cleared or partially cleared. The new backlog
      * size is passed in the `bufsize' parameter.
      */
-    int (*accepting)(Plug p, struct sockaddr *addr, void *sock);
+    int (*accepting)(Plug p, void *sock);
     /*
      * returns 0 if the host at address addr is a valid host for connecting or error
      */
@@ -69,7 +69,7 @@ void sk_addr_free(SockAddr addr);
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      Plug p);
 
-Socket sk_newlistenner(int port, Plug plug);
+Socket sk_newlistener(int port, Plug plug, int local_host_only);
 
 Socket sk_register(void *sock, Plug plug);
 
@@ -83,7 +83,7 @@ Socket sk_register(void *sock, Plug plug);
 #define plug_closing(p,msg,code,callback) (((*p)->closing) (p, msg, code, callback))
 #define plug_receive(p,urgent,buf,len) (((*p)->receive) (p, urgent, buf, len))
 #define plug_sent(p,bufsize) (((*p)->sent) (p, bufsize))
-#define plug_accepting(p, addr, sock) (((*p)->accepting)(p, addr, sock))
+#define plug_accepting(p, sock) (((*p)->accepting)(p, sock))
 #endif
 
 /*

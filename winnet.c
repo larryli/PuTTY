@@ -570,7 +570,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistenner(int port, Plug plug)
+Socket sk_newlistener(int port, Plug plug, int local_host_only)
 {
     static struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -627,13 +627,19 @@ Socket sk_newlistenner(int port, Plug plug)
 	if (addr->family == AF_INET6) {
 	    memset(&a6, 0, sizeof(a6));
 	    a6.sin6_family = AF_INET6;
-/*a6.sin6_addr      = in6addr_any; *//* == 0 */
+	    if (local_host_only)
+		a6.sin6_addr = in6addr_loopback;
+	    else
+		a6.sin6_addr = in6addr_any;
 	    a6.sin6_port = htons(port);
 	} else
 #endif
 	{
 	    a.sin_family = AF_INET;
-	    a.sin_addr.s_addr = htonl(INADDR_ANY);
+	    if (local_host_only)
+		a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	    else
+		a.sin_addr.s_addr = htonl(INADDR_ANY);
 	    a.sin_port = htons((short)port);
 	}
 #ifdef IPV6
@@ -909,23 +915,23 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	return open;
        case FD_ACCEPT:
 	{
-		struct sockaddr isa;
-		int addrlen = sizeof(struct sockaddr);
-		SOCKET t;  /* socket of connection */
+	    struct sockaddr isa;
+	    int addrlen = sizeof(struct sockaddr);
+	    SOCKET t;  /* socket of connection */
 
-		memset(&isa, 0, sizeof(struct sockaddr));
-		err = 0;
-		t = accept(s->s,&isa,&addrlen);
-		if (t == INVALID_SOCKET)
-				{
-					err = WSAGetLastError();
-					if (err == WSATRY_AGAIN)
-						break;
-				}
+	    memset(&isa, 0, sizeof(struct sockaddr));
+	    err = 0;
+	    t = accept(s->s,&isa,&addrlen);
+	    if (t == INVALID_SOCKET)
+	    {
+		err = WSAGetLastError();
+		if (err == WSATRY_AGAIN)
+		    break;
+	    }
 
-		if (plug_accepting(s->plug, &isa, (void*)t)) {
-			closesocket(t); // denied or error
-		}
+	    if (plug_accepting(s->plug, (void*)t)) {
+		closesocket(t);	       /* denied or error */
+	    }
 	}
     }
 

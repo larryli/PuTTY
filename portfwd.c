@@ -153,9 +153,8 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
  called when someone connects to the local port
  */
 
-static int pfd_accepting(Plug p, struct sockaddr *addr, void *sock)
+static int pfd_accepting(Plug p, void *sock)
 {
-    /* for now always accept this socket */
     static struct plug_function_table fn_table = {
 	pfd_closing,
 	pfd_receive,
@@ -163,12 +162,8 @@ static int pfd_accepting(Plug p, struct sockaddr *addr, void *sock)
 	NULL
     };
     struct PFwdPrivate *pr, *org;
-    struct sockaddr_in *sin = (struct sockaddr_in *)addr;
     Socket s;
     char *err;
-
-    if (ntohl(sin->sin_addr.s_addr) != 0x7F000001 && !cfg.lport_acceptall)
-	return 1; /* denied */
 
     org = (struct PFwdPrivate *)p;
     pr = (struct PFwdPrivate *) smalloc(sizeof(struct PFwdPrivate));
@@ -205,7 +200,7 @@ static int pfd_accepting(Plug p, struct sockaddr *addr, void *sock)
 
 
 /* Add a new forwarding from port -> desthost:destport
- sets up a listenner on the local machine on port
+ sets up a listener on the local machine on port
  */
 char *pfd_addforward(char *desthost, int destport, int port)
 {
@@ -232,7 +227,7 @@ char *pfd_addforward(char *desthost, int destport, int port)
     pr->ready = 0;
     pr->waiting = NULL;
 
-    pr->s = s = sk_newlistenner(port, (Plug) pr);
+    pr->s = s = sk_newlistener(port, (Plug) pr, !cfg.lport_acceptall);
     if ((err = sk_socket_error(s))) {
 	sfree(pr);
 	return err;
