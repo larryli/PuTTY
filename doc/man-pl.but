@@ -136,6 +136,10 @@ tunnel all their connections. Only works in SSH.
 
 \dd Remote command is SSH subsystem (SSH-2 only).
 
+\dt \cw{-N}
+
+\dd Don't start a remote command or shell at all (SSH-2 only).
+
 \S{plink-manpage-more-information} MORE INFORMATION
 
 For more information on plink, it's probably best to go and look at

@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.25 2004/08/19 13:14:55 jacob Exp $
+\versionid $Id: plink.but,v 1.26 2004/10/15 23:32:01 jacob Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -71,6 +71,7 @@ use Plink:
 \c   -C        enable compression
 \c   -i key    private key file for authentication
 \c   -s        remote command is an SSH subsystem (SSH-2 only)
+\c   -N        don't start a shell/command (SSH-2 only)
 
 Once this works, you are ready to use Plink.
 
