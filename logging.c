@@ -96,7 +96,7 @@ void logfopen(void *handle)
 
     if (!cfg.logtype)
 	return;
-    sprintf(writemod, "wb");	       /* default to rewrite */
+    sprintf(writemod, "w");	       /* default to rewrite */
 
     time(&t);
     tm = *localtime(&t);
@@ -124,7 +124,7 @@ void logfopen(void *handle)
 	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", ctx->lgfp);
 	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", &tm);
 	fputs(buf, ctx->lgfp);
-	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\r\n", ctx->lgfp);
+	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\n", ctx->lgfp);
 
 	sprintf(buf, "%s session log (%s mode) to file: ",
 		(writemod[0] == 'a') ? "Appending" : "Writing new",
