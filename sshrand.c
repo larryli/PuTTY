@@ -52,7 +52,7 @@ void random_add_noise(void *noise, int length) {
 	pool.incomingpos = 0;
     }
 
-    memcpy(pool.incomingb + pool_incomingpos, p, length);
+    memcpy(pool.incomingb + pool.incomingpos, p, length);
     pool.incomingpos += length;
 }
 
