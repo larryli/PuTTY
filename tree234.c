@@ -453,7 +453,7 @@ void del234(tree234 *t, void *e) {
 		    }
 		    n->kids[j] = NULL;
 		    if (j < 3) n->elems[j] = NULL;
-		    LOG(("  case 3b\n"));
+		    LOG(("  case 3b ki=%d\n", ki));
 
 		    if (!n->elems[0]) {
 			/*
@@ -627,75 +627,305 @@ void *next234(enum234 *e) {
 
 #ifdef TEST
 
-int pnode(node234 *n, int level) {
-    printf("%*s%p\n", level*4, "", n);
-    if (n->kids[0]) pnode(n->kids[0], level+1);
-    if (n->elems[0]) printf("%*s\"%s\"\n", level*4+4, "", n->elems[0]);
-    if (n->kids[1]) pnode(n->kids[1], level+1);
-    if (n->elems[1]) printf("%*s\"%s\"\n", level*4+4, "", n->elems[1]);
-    if (n->kids[2]) pnode(n->kids[2], level+1);
-    if (n->elems[2]) printf("%*s\"%s\"\n", level*4+4, "", n->elems[2]);
-    if (n->kids[3]) pnode(n->kids[3], level+1);
-}
-int ptree(tree234 *t) {
-    if (t->root)
-	pnode(t->root, 0);
-    else
-	printf("empty tree\n");
+/*
+ * Test code for the 2-3-4 tree. This code maintains an alternative
+ * representation of the data in the tree, in an array (using the
+ * obvious and slow insert and delete functions). After each tree
+ * operation, the tree_valid() function is called, which ensures
+ * all the tree properties are preserved (node->child->parent
+ * always equals node; number of kids == number of elements + 1;
+ * all tree nodes are distinct; ordering property between elements
+ * of a node and elements of its children is preserved) and also
+ * ensures the list represented by the tree is the same list it
+ * should be. (This last check also verifies the ordering
+ * properties, because the `same list it should be' is by
+ * definition correctly ordered.)
+ */
+
+#include <stdarg.h>
+
+/*
+ * Error reporting function.
+ */
+void error(char *fmt, ...) {
+    va_list ap;
+    printf("ERROR: ");
+    va_start(ap, fmt);
+    vfprintf(stdout, fmt, ap);
+    va_end(ap);
+    printf("\n");
 }
 
-int cmp(void *av, void *bv) {
-    char *a = (char *)av;
-    char *b = (char *)bv;
+/* The array representation of the data. */
+void **array;
+int arraylen, arraysize;
+cmpfn234 cmp;
+
+/* The tree representation of the same data. */
+tree234 *tree;
+
+typedef struct {
+    int treedepth;
+    int elemcount;
+} chkctx;
+
+void chknode(chkctx *ctx, int level, node234 *node,
+             void *lowbound, void *highbound) {
+    int nkids, nelems;
+    int i;
+
+    /* Count the non-NULL kids. */
+    for (nkids = 0; nkids < 4 && node->kids[nkids]; nkids++);
+    /* Ensure no kids beyond the first NULL are non-NULL. */
+    for (i = nkids; i < 4; i++)
+        if (node->kids[i]) {
+            error("node %p: nkids=%d but kids[%d] non-NULL",
+                   node, nkids, i);
+        }
+
+    /* Count the non-NULL elements. */
+    for (nelems = 0; nelems < 3 && node->elems[nelems]; nelems++);
+    /* Ensure no elements beyond the first NULL are non-NULL. */
+    for (i = nelems; i < 3; i++)
+        if (node->elems[i]) {
+            error("node %p: nelems=%d but elems[%d] non-NULL",
+                   node, nelems, i);
+        }
+
+    if (nkids == 0) {
+        /*
+         * If nkids==0, this is a leaf node; verify that the tree
+         * depth is the same everywhere.
+         */
+        if (ctx->treedepth < 0)
+            ctx->treedepth = level;    /* we didn't know the depth yet */
+        else if (ctx->treedepth != level)
+            error("node %p: leaf at depth %d, previously seen depth %d",
+                   node, level, ctx->treedepth);
+    } else {
+        /*
+         * If nkids != 0, then it should be nelems+1, unless nelems
+         * is 0 in which case nkids should also be 0 (and so we
+         * shouldn't be in this condition at all).
+         */
+        int shouldkids = (nelems ? nelems+1 : 0);
+        if (nkids != shouldkids) {
+            error("node %p: %d elems should mean %d kids but has %d",
+                   node, nelems, shouldkids, nkids);
+        }
+    }
+
+    /*
+     * nelems should be at least 1.
+     */
+    if (nelems == 0) {
+        error("node %p: no elems", node, nkids);
+    }
+
+    /*
+     * Add nelems to the running element count of the whole tree
+     * (to ensure the enum234 routines see them all).
+     */
+    ctx->elemcount += nelems;
+
+    /*
+     * Check ordering property: all elements should be strictly >
+     * lowbound, strictly < highbound, and strictly < each other in
+     * sequence. (lowbound and highbound are NULL at edges of tree
+     * - both NULL at root node - and NULL is considered to be <
+     * everything and > everything. IYSWIM.)
+     */
+    for (i = -1; i < nelems; i++) {
+        void *lower = (i == -1 ? lowbound : node->elems[i]);
+        void *higher = (i+1 == nelems ? highbound : node->elems[i+1]);
+        if (lower && higher && cmp(lower, higher) >= 0) {
+            error("node %p: kid comparison [%d=%s,%d=%s] failed",
+                   node, i, lower, i+1, higher);
+        }
+    }
+
+    /*
+     * Check parent pointers: all non-NULL kids should have a
+     * parent pointer coming back to this node.
+     */
+    for (i = 0; i < nkids; i++)
+        if (node->kids[i]->parent != node) {
+            error("node %p kid %d: parent ptr is %p not %p",
+                   node, i, node->kids[i]->parent, node);
+        }
+
+
+    /*
+     * Now (finally!) recurse into subtrees.
+     */
+    for (i = 0; i < nkids; i++) {
+        void *lower = (i == 0 ? lowbound : node->elems[i-1]);
+        void *higher = (i >= nelems ? highbound : node->elems[i]);
+        chknode(ctx, level+1, node->kids[i], lower, higher);
+    }
+}
+
+void verify(void) {
+    chkctx ctx;
+    enum234 e;
+    int i;
+    void *p;
+
+    ctx.treedepth = -1;                /* depth unknown yet */
+    ctx.elemcount = 0;                 /* no elements seen yet */
+    /*
+     * Verify validity of tree properties.
+     */
+    if (tree->root)
+        chknode(&ctx, 0, tree->root, NULL, NULL);
+    printf("tree depth: %d\n", ctx.treedepth);
+    /*
+     * Enumerate the tree and ensure it matches up to the array.
+     */
+    for (i = 0, p = first234(tree, &e);
+         p;
+         i++, p = next234(&e)) {
+        if (i >= arraylen)
+            error("tree contains more than %d elements", arraylen);
+        if (array[i] != p)
+            error("enum at position %d: array says %s, tree says %s",
+                   i, array[i], p);
+    }
+    if (i != ctx.elemcount) {
+        error("tree really contains %d elements, enum gave %d",
+               i, ctx.elemcount);
+    }
+    if (i < arraylen) {
+        error("enum gave only %d elements, array has %d", i, arraylen);
+    }
+}
+
+void addtest(void *elem) {
+    int i, j;
+    void *retval, *realret;
+
+    if (arraysize < arraylen+1) {
+        arraysize = arraylen+1+256;
+        array = (array == NULL ? malloc(arraysize*sizeof(*array)) :
+                 realloc(array, arraysize*sizeof(*array)));
+    }
+
+    i = 0;
+    while (i < arraylen && cmp(elem, array[i]) > 0)
+        i++;
+    /* now i points to the first element >= elem */
+    if (i < arraylen && !cmp(elem, array[i]))
+        retval = array[i];             /* expect that returned not elem */
+    else {
+        retval = elem;                  /* expect elem returned (success) */
+        for (j = arraylen; j > i; j--)
+            array[j] = array[j-1];
+        array[i] = elem;                /* add elem to array */
+        arraylen++;
+    }
+
+    realret = add234(tree, elem);
+    if (realret != retval) {
+        error("add: retval was %p expected %p", realret, retval);
+    }
+
+    verify();
+}
+
+void deltest(void *elem) {
+    int i;
+
+    i = 0;
+    while (i < arraylen && cmp(elem, array[i]) > 0)
+        i++;
+    /* now i points to the first element >= elem */
+    if (i >= arraylen || cmp(elem, array[i]) != 0)
+        return;                        /* don't do it! */
+    else {
+        while (i < arraylen-1) {
+            array[i] = array[i+1];
+            i++;
+        }
+        arraylen--;                    /* delete elem from array */
+    }
+
+    del234(tree, elem);
+
+    verify();
+}
+
+/* A sample data set and test utility. Designed for pseudo-randomness,
+ * and yet repeatability. */
+
+/*
+ * This random number generator uses the `portable implementation'
+ * given in ANSI C99 draft N869. It assumes `unsigned' is 32 bits;
+ * change it if not.
+ */
+int randomnumber(unsigned *seed) {
+    *seed *= 1103515245;
+    *seed += 12345;
+    return ((*seed) / 65536) % 32768;
+}
+
+int mycmp(void *av, void *bv) {
+    char const *a = (char const *)av;
+    char const *b = (char const *)bv;
     return strcmp(a, b);
 }
 
-int main(void) {
-    tree234 *t = newtree234(cmp);
-    
-    add234(t, "Richard");
-    add234(t, "Of");
-    add234(t, "York");
-    add234(t, "Gave");
-    add234(t, "Battle");
-    add234(t, "In");
-    add234(t, "Vain");
-    add234(t, "Rabbits");
-    add234(t, "On");
-    add234(t, "Your");
-    add234(t, "Garden");
-    add234(t, "Bring");
-    add234(t, "Invisible");
-    add234(t, "Vegetables");
+#define lenof(x) ( sizeof((x)) / sizeof(*(x)) )
 
-    ptree(t);
-    del234(t, find234(t, "Richard", NULL));
-    ptree(t);
-    del234(t, find234(t, "Of", NULL));
-    ptree(t);
-    del234(t, find234(t, "York", NULL));
-    ptree(t);
-    del234(t, find234(t, "Gave", NULL));
-    ptree(t);
-    del234(t, find234(t, "Battle", NULL));
-    ptree(t);
-    del234(t, find234(t, "In", NULL));
-    ptree(t);
-    del234(t, find234(t, "Vain", NULL));
-    ptree(t);
-    del234(t, find234(t, "Rabbits", NULL));
-    ptree(t);
-    del234(t, find234(t, "On", NULL));
-    ptree(t);
-    del234(t, find234(t, "Your", NULL));
-    ptree(t);
-    del234(t, find234(t, "Garden", NULL));
-    ptree(t);
-    del234(t, find234(t, "Bring", NULL));
-    ptree(t);
-    del234(t, find234(t, "Invisible", NULL));
-    ptree(t);
-    del234(t, find234(t, "Vegetables", NULL));
-    ptree(t);
+char *strings[] = {
+    "a", "ab", "absque", "coram", "de",
+    "palam", "clam", "cum", "ex", "e",
+    "sine", "tenus", "pro", "prae",
+    "banana", "carrot", "cabbage", "broccoli", "onion", "zebra",
+    "penguin", "blancmange", "pangolin", "whale", "hedgehog",
+    "giraffe", "peanut", "bungee", "foo", "bar", "baz", "quux",
+    "murfl", "spoo", "breen", "flarn", "octothorpe",
+    "snail", "tiger", "elephant", "octopus", "warthog", "armadillo",
+    "aardvark", "wyvern", "dragon", "elf", "dwarf", "orc", "goblin",
+    "pixie", "basilisk", "warg", "ape", "lizard", "newt", "shopkeeper",
+    "wand", "ring", "amulet"
+};
+
+#define NSTR lenof(strings)
+
+int main(void) {
+    int in[NSTR];
+    int i, j;
+    unsigned seed = 0;
+
+    for (i = 0; i < NSTR; i++) in[i] = 0;
+    array = NULL;
+    arraylen = arraysize = 0;
+    tree = newtree234(mycmp);
+    cmp = mycmp;
+
+    verify();
+    for (i = 0; i < 10000; i++) {
+        j = randomnumber(&seed);
+        j %= NSTR;
+        printf("trial: %d\n", i);
+        if (in[j]) {
+            printf("deleting %s (%d)\n", strings[j], j);
+            deltest(strings[j]);
+            in[j] = 0;
+        } else {
+            printf("adding %s (%d)\n", strings[j], j);
+            addtest(strings[j]);
+            in[j] = 1;
+        }
+    }
+
+    while (arraylen > 0) {
+        j = randomnumber(&seed);
+        j %= arraylen;
+        deltest(array[j]);
+    }
+
+    return 0;
 }
+
 #endif
