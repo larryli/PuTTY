@@ -270,10 +270,10 @@ psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP UXMISC
 
 PuTTY    : [M] terminal wcwidth ldiscucs logging BE_ALL mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACSSH MACMISC CHARSET
-         + stricmp vsnprint dialog config macctrls
+         + stricmp vsnprint dialog config macctrls minibidi
 PuTTYtel : [M] terminal wcwidth ldiscucs logging BE_NOSSH mac macdlg
 	 + macevlog macterm macucs mac_res.rsrc testback NONSSH MACMISC
-	 + CHARSET stricmp vsnprint dialog config macctrls
+	 + CHARSET stricmp vsnprint dialog config macctrls minibidi
 PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
          + sshaes sshsh512 import macpgen.rsrc macpgkey macabout
