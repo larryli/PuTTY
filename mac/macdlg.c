@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.3 2003/01/18 16:54:25 ben Exp $ */
+/* $Id: macdlg.c,v 1.4 2003/01/18 20:09:21 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -31,6 +31,7 @@
 
 #include <MacTypes.h>
 #include <Dialogs.h>
+#include <Resources.h>
 #include <StandardFile.h>
 #include <Windows.h>
 
@@ -94,6 +95,32 @@ void mac_opensession(void) {
   fail:
     sfree(s);
     return;
+}
+
+void mac_savesession(void)
+{
+
+    /* Don't remember which file a session goes with yet, so... */
+    mac_savesessionas();
+}
+
+void mac_savesessionas(void)
+{
+    Session *s = (Session *)GetWRefCon(FrontWindow());
+    StandardFileReply sfr;
+    void *sesshandle;
+
+    StandardPutFile("\pSave session as:", "\puntitled", &sfr);
+    if (!sfr.sfGood) return;
+
+    if (!sfr.sfReplacing) {
+	FSpCreateResFile(&sfr.sfFile, PUTTY_CREATOR, SESS_TYPE, sfr.sfScript);
+	if (ResError() != noErr) return; /* XXX report error */
+    }
+    sesshandle = open_settings_w_fsp(&sfr.sfFile);
+    if (sesshandle == NULL) return; /* XXX report error */
+    save_open_settings(sesshandle, TRUE, &s->cfg);
+    close_settings_w(sesshandle);
 }
 
 void mac_activatedlg(WindowPtr window, EventRecord *event)

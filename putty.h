@@ -474,6 +474,7 @@ void random_destroy_seed(void);
  * Exports from settings.c.
  */
 void save_settings(char *section, int do_host, Config * cfg);
+void save_open_settings(void *sesskey, int do_host, Config *cfg);
 void load_settings(char *section, int do_host, Config * cfg);
 void load_open_settings(void *sesskey, int do_host, Config *cfg);
 void get_sesslist(struct sesslist *, int allocate);

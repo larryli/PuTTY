@@ -15,6 +15,11 @@
 
 #include "charset.h"
 
+#define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
+#define INTERNAL_CREATOR FOUR_CHAR_CODE('pTTI')
+#define SESS_TYPE	FOUR_CHAR_CODE('Sess')
+#define SEED_TYPE	FOUR_CHAR_CODE('Seed')
+
 struct mac_gestalts {
     long sysvers;
     long qdvers;
@@ -81,6 +86,8 @@ extern Session *sesslist;
 
 /* from macdlg.c */
 extern void mac_newsession(void);
+extern void mac_savesession(void);
+extern void mac_savesessionas(void);
 extern void mac_clickdlg(WindowPtr, EventRecord *);
 extern void mac_activatedlg(WindowPtr, EventRecord *);
 /* from macterm.c */
@@ -100,6 +107,7 @@ extern void mac_closeterm(WindowPtr);
 extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
+extern void *open_settings_w_fsp(FSSpec *);
 /* from macucs.c */
 extern void init_ucs(Session *);
 /* from mtcpnet.c */

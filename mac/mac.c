@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.32 2003/01/15 23:30:21 ben Exp $ */
+/* $Id: mac.c,v 1.33 2003/01/18 20:09:21 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -485,6 +485,12 @@ static void mac_menucommand(long result) {
           case iClose:
             mac_closewindow(window);
             goto done;
+	  case iSave:
+	    mac_savesession();
+	    goto done;
+	  case iSaveAs:
+	    mac_savesessionas();
+	    goto done;
           case iQuit:
             cleanup_exit(0);
             goto done;
@@ -581,10 +587,18 @@ static void mac_adjustmenus(void) {
     EnableItem(menu, iQuit);
 
     switch (mac_windowtype(window)) {
+      case wSettings:
+	DisableItem(menu, iSave); /* XXX enable if modified */
+	EnableItem(menu, iSaveAs);
+	menu = GetMenuHandle(mEdit);
+	DisableItem(menu, 0);
+	break;
       case wTerminal:
 	mac_adjusttermmenus(window);
 	break;
       default:
+	DisableItem(menu, iSave);
+	DisableItem(menu, iSaveAs);
 	menu = GetMenuHandle(mEdit);
 	DisableItem(menu, 0);
 	break;

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.51 2003/01/18 16:54:25 ben Exp $ */
+/* $Id: macterm.c,v 1.52 2003/01/18 20:09:21 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -400,6 +400,9 @@ void mac_adjusttermmenus(WindowPtr window) {
     long offset;
 
     s = (Session *)GetWRefCon(window);
+    menu = GetMenuHandle(mFile);
+    DisableItem(menu, iSave); /* XXX enable if modified */
+    EnableItem(menu, iSaveAs);
     menu = GetMenuHandle(mEdit);
     EnableItem(menu, 0);
     DisableItem(menu, iUndo);

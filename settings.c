@@ -127,13 +127,19 @@ static void wprefs(void *sesskey, char *name,
 
 void save_settings(char *section, int do_host, Config * cfg)
 {
-    int i;
-    char *p;
     void *sesskey;
 
     sesskey = open_settings_w(section);
     if (!sesskey)
 	return;
+    save_open_settings(sesskey, do_host, cfg);
+    close_settings_w(sesskey);
+}
+
+void save_open_settings(void *sesskey, int do_host, Config *cfg)
+{
+    int i;
+    char *p;
 
     write_setting_i(sesskey, "Present", 1);
     if (do_host) {
@@ -327,7 +333,6 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "ScrollbarOnLeft", cfg->scrollbar_on_left);
     write_setting_s(sesskey, "BoldFont", cfg->boldfont);
     write_setting_i(sesskey, "ShadowBoldOffset", cfg->shadowboldoffset);
-    close_settings_w(sesskey);
 }
 
 void load_settings(char *section, int do_host, Config * cfg)

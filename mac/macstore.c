@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.10 2003/01/18 16:10:21 ben Exp $ */
+/* $Id: macstore.c,v 1.11 2003/01/18 20:09:21 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -11,17 +11,13 @@
 #include <Resources.h>
 #include <TextUtils.h>
 
+#include <stdio.h>
 #include <string.h>
 
 #include "putty.h"
 #include "storage.h"
 #include "mac.h"
 #include "macresid.h"
-
-#define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
-#define INTERNAL_CREATOR FOUR_CHAR_CODE('pTTI')
-#define SESS_TYPE	FOUR_CHAR_CODE('Sess')
-#define SEED_TYPE	FOUR_CHAR_CODE('Seed')
 
 
 OSErr FSpGetDirID(FSSpec *f, long *idp, Boolean makeit);
@@ -123,30 +119,45 @@ struct write_settings {
 };
 
 void *open_settings_w(char const *sessionname) {
-    short sessVRefNum, tmpVRefNum;
-    long sessDirID, tmpDirID;
+    short sessVRefNum;
+    long sessDirID;
     OSErr error;
     Str255 psessionname;
-    struct write_settings *ws;
+    FSSpec dstfile;
     
-    ws = safemalloc(sizeof *ws);
     error = get_session_dir(kCreateFolder, &sessVRefNum, &sessDirID);
-    if (error != noErr) goto out;
+    if (error != noErr) return NULL;
 
     c2pstrcpy(psessionname, sessionname);
-    error = FSMakeFSSpec(sessVRefNum, sessDirID, psessionname, &ws->dstfile);
-    if (error != noErr && error != fnfErr) goto out;
+    error = FSMakeFSSpec(sessVRefNum, sessDirID, psessionname, &dstfile);
     if (error == fnfErr) {
-	FSpCreateResFile(&ws->dstfile, PUTTY_CREATOR, SESS_TYPE,
-			 smSystemScript);
-	if ((error = ResError()) != noErr) goto out;
-    }
+	FSpCreateResFile(&dstfile, PUTTY_CREATOR, SESS_TYPE, smSystemScript);
+	if ((error = ResError()) != noErr) return NULL;
+    } else if (error != noErr) return NULL;
+
+    return open_settings_w_fsp(&dstfile);
+}
+
+/*
+ * NB: Destination file must exist.
+ */
+void *open_settings_w_fsp(FSSpec *dstfile)
+{
+    short tmpVRefNum;
+    long tmpDirID;
+    struct write_settings *ws;
+    OSErr error;
+    Str255 tmpname;
+
+    ws = smalloc(sizeof *ws);
+    ws->dstfile = *dstfile;
 
     /* Create a temporary file to save to first. */
-    error = FindFolder(sessVRefNum, kTemporaryFolderType, kCreateFolder,
-		       &tmpVRefNum, &tmpDirID);
+    error = FindFolder(ws->dstfile.vRefNum, kTemporaryFolderType,
+		       kCreateFolder, &tmpVRefNum, &tmpDirID);
     if (error != noErr) goto out;
-    error = FSMakeFSSpec(tmpVRefNum, tmpDirID, psessionname, &ws->tmpfile);
+    c2pstrcpy(tmpname, tmpnam(NULL));
+    error = FSMakeFSSpec(tmpVRefNum, tmpDirID, tmpname, &ws->tmpfile);
     if (error != noErr && error != fnfErr) goto out;
     if (error == noErr) {
 	error = FSpDelete(&ws->tmpfile);
