@@ -4371,7 +4371,7 @@ static int term_bidi_cache_hit(Terminal *term, int line,
 
 static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 				  termchar *lafter, bidi_char *wcTo,
-				  int width)
+				  int width, int size)
 {
     int i;
 
@@ -4403,14 +4403,14 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
     sfree(term->post_bidi_cache[line].backward);
 
     term->pre_bidi_cache[line].width = width;
-    term->pre_bidi_cache[line].chars = snewn(width, termchar);
+    term->pre_bidi_cache[line].chars = snewn(size, termchar);
     term->post_bidi_cache[line].width = width;
-    term->post_bidi_cache[line].chars = snewn(width, termchar);
+    term->post_bidi_cache[line].chars = snewn(size, termchar);
     term->post_bidi_cache[line].forward = snewn(width, int);
     term->post_bidi_cache[line].backward = snewn(width, int);
 
-    memcpy(term->pre_bidi_cache[line].chars, lbefore, width * TSIZE);
-    memcpy(term->post_bidi_cache[line].chars, lafter, width * TSIZE);
+    memcpy(term->pre_bidi_cache[line].chars, lbefore, size * TSIZE);
+    memcpy(term->post_bidi_cache[line].chars, lafter, size * TSIZE);
     memset(term->post_bidi_cache[line].forward, 0, width * sizeof(int));
     memset(term->post_bidi_cache[line].backward, 0, width * sizeof(int));
 
@@ -4512,7 +4512,8 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 		    term->ltemp[it].chr = term->wcTo[it].wc;
 	    }
 	    term_bidi_cache_store(term, scr_y, ldata->chars,
-				  term->ltemp, term->wcTo, ldata->size);
+				  term->ltemp, term->wcTo,
+                                  term->cols, ldata->size);
 
 	    lchars = term->ltemp;
 	} else {
