@@ -730,7 +730,7 @@ int main(int argc, char **argv)
 	  case SSH_KEYTYPE_OPENSSH:
 	  case SSH_KEYTYPE_SSHCOM:
 	    ssh2key = import_ssh2(&infilename, intype, passphrase);
-	    if (ssh2key)
+	    if (ssh2key && ssh2key != SSH2_WRONG_PASSPHRASE)
 		error = NULL;
 	    else if (!error) {
 		if (ssh2key == SSH2_WRONG_PASSPHRASE)
