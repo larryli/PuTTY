@@ -201,7 +201,7 @@ static void power_on(Terminal *term)
     term->in_vbell = FALSE;
     term->cursor_on = 1;
     term->big_cursor = 0;
-    term->save_attr = term->curr_attr = ATTR_DEFAULT;
+    term->default_attr = term->save_attr = term->curr_attr = ATTR_DEFAULT;
     term->term_editing = term->term_echoing = FALSE;
     term->app_cursor_keys = term->cfg.app_cursor;
     term->app_keypad_keys = term->cfg.app_keypad;
@@ -2376,7 +2376,7 @@ void term_out(Terminal *term)
 			    for (i = 0; i < term->esc_nargs; i++) {
 				switch (def(term->esc_args[i], 0)) {
 				  case 0:	/* restore defaults */
-				    term->curr_attr = ATTR_DEFAULT;
+				    term->curr_attr = term->default_attr;
 				    break;
 				  case 1:	/* enable bold */
 				    compatibility(VT100AVO);
@@ -2782,21 +2782,27 @@ void term_out(Terminal *term)
 		      case ANSI('F', '='):      /* set normal foreground */
 			compatibility(SCOANSI);
 			if (term->esc_args[0] >= 0 && term->esc_args[0] < 16) {
-			    term->curr_attr &= ~ATTR_FGMASK;
-			    term->curr_attr |=
-				(sco2ansicolour[term->esc_args[0] & 0x7] |
+			    long colour =
+ 				(sco2ansicolour[term->esc_args[0] & 0x7] |
 				 ((term->esc_args[0] & 0x8) << 1)) <<
 				ATTR_FGSHIFT;
+			    term->curr_attr &= ~ATTR_FGMASK;
+			    term->curr_attr |= colour;
+			    term->default_attr &= ~ATTR_FGMASK;
+			    term->default_attr |= colour;
 			}
 			break;
 		      case ANSI('G', '='):      /* set normal background */
 			compatibility(SCOANSI);
 			if (term->esc_args[0] >= 0 && term->esc_args[0] < 16) {
-			    term->curr_attr &= ~ATTR_BGMASK;
-			    term->curr_attr |=
-				(sco2ansicolour[term->esc_args[0] & 0x7] |
+			    long colour =
+ 				(sco2ansicolour[term->esc_args[0] & 0x7] |
 				 ((term->esc_args[0] & 0x8) << 1)) <<
 				ATTR_BGSHIFT;
+			    term->curr_attr &= ~ATTR_BGMASK;
+			    term->curr_attr |= colour;
+			    term->default_attr &= ~ATTR_BGMASK;
+			    term->default_attr |= colour;
 			}
 			break;
 		      case ANSI('L', '='):
