@@ -8,6 +8,7 @@ typedef void *Context; /* FIXME */
 #include <Files.h>
 
 #include <stdio.h>
+#include "charset.h"
 
 struct Filename {
     FSSpec fss;
@@ -63,3 +64,6 @@ extern int strnicmp(char const *, char const *, size_t);
 #define HELPCTX(foo) I(0)
 
 #define FILTER_KEY_FILES "pAgt.PPK"
+
+#define CP_UTF8 CS_UTF8		       /* from libcharset */
+

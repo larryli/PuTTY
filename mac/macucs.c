@@ -1,4 +1,4 @@
-/* $Id: macucs.c,v 1.7 2003/04/05 22:12:44 ben Exp $ */
+/* $Id$ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,6 +6,7 @@
 
 #include <time.h>
 #include "putty.h"
+#include "charset.h"
 #include "terminal.h"
 #include "misc.h"
 #include "mac.h"
@@ -13,14 +14,14 @@
 /*
  * Mac Unicode-handling routines.
  * 
- * FIXME: currently trivial stub versions assuming all codepages
- * are ISO8859-1.
- *
+ * BJH:
  * What we _should_ do is to use the Text Encoding Conversion Manager
  * when it's available, and have our own routines for converting to
  * standard Mac OS scripts when it's not.  Support for ATSUI might be
  * nice, too.
- */
+ *
+ * I (OSD) am unsure any of the above is necessary if we just use
+ * libcharset */
 
 /*
  * Determine whether a byte is the first byte of a double-byte
@@ -91,6 +92,8 @@ void init_ucs(Session *s)
 {
     int i;
 
+    s->ucsdata.line_codepage = decode_codepage(s->cfg.line_codepage);
+
     /* Find the line control characters. FIXME: this is not right. */
     for (i = 0; i < 256; i++)
 	if (i < ' ' || (i >= 0x7F && i < 0xA0))
@@ -112,19 +115,25 @@ void init_ucs(Session *s)
 
 int decode_codepage(char *cp_name)
 {
-
-    return 0;
+    if (!*cp_name)
+	return CS_NONE;		       /* use font encoding */
+    return charset_from_localenc(cp_name);
 }
 
 char const *cp_enumerate (int index)
 {
-
-    if (index == 0) return "ISO/IEC 8859-1";
-    return NULL;
+    int charset;
+    if (index == 0)
+	return "Use font encoding";
+    charset = charset_localenc_nth(index-1);
+    if (charset == CS_NONE)
+	return NULL;
+    return charset_to_localenc(charset);
 }
 
 char const *cp_name(int codepage)
 {
-
-    return "ISO/IEC 8859-1";
+    if (codepage == CS_NONE)
+	return "Use font encoding";
+    return charset_to_localenc(codepage);
 }

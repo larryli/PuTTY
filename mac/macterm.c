@@ -87,6 +87,8 @@ static void mac_drawgrowicon(Session *s);
 static pascal void mac_growtermdraghook(void);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
+static void do_text_internal(Context, int, int, wchar_t *, int,
+			     unsigned long, int);
 static void text_click(Session *, EventRecord *);
 static void mac_activateterm(WindowPtr, EventRecord *);
 static void mac_adjusttermcursor(WindowPtr, Point, RgnHandle);
@@ -1131,8 +1133,8 @@ struct do_text_args {
  *
  * x and y are text row and column (zero-based)
  */
-void do_text(Context ctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr)
+static void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
+		      unsigned long attr, int lattr)
 {
     Session *s = ctx;
     int style;
@@ -1149,11 +1151,6 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
     static DeviceLoopDrawingUPP do_text_for_device_upp = NULL;
 
     assert(len <= 1024);
-
-    /* SGT, 2004-10-14: I don't know how to support combining characters
-     * on the Mac. Hopefully the first person to fail this assertion will
-     * know how to do it better than me... */
-    assert(!(attr & TATTR_COMBINING));
 
     SetPort((GrafPtr)GetWindowPort(s->window));
 
@@ -1259,6 +1256,24 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 #endif
 }
 
+/*
+ * Wrapper that handles combining characters.
+ */
+void do_text(Context ctx, int x, int y, wchar_t *text, int len,
+	     unsigned long attr, int lattr)
+{
+    if (attr & TATTR_COMBINING) {
+	unsigned long a = 0;
+	attr &= ~TATTR_COMBINING;
+	while (len--) {
+	    do_text_internal(ctx, x, y, text, 1, attr | a, lattr);
+	    text++;
+	    a = TATTR_COMBINING;
+	}
+    } else
+	do_text_internal(ctx, x, y, text, len, attr, lattr);
+}
+
 static pascal void do_text_for_device(short depth, short devflags,
 				      GDHandle device, long cookie)
 {
@@ -1313,7 +1328,8 @@ static pascal void do_text_for_device(short depth, short devflags,
 	}
     }
 
-    EraseRect(&a->textrect);
+    if (!(a->attr & TATTR_COMBINING))
+	EraseRect(&a->textrect);
     switch (a->lattr & LATTR_MODE) {
       case LATTR_NORM:
       case LATTR_WIDE:
