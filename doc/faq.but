@@ -904,6 +904,11 @@ screen, but it's still usually helpful to have PuTTY's scrollback
 continue working. The simplest solution is to go to the Features
 control panel and tick \q{Disable switching to alternate terminal
 screen}. (See \k{config-features-altscreen} for more details.)
+Alternatively, you can tell \c{screen} itself not to use the
+alternate screen: the
+\W{http://www4.informatik.uni-erlangen.de/~jnweiger/screen-faq.html}{\c{screen}
+FAQ} suggests adding the line \cq{termcapinfo xterm ti@:te@} to your
+\cw{.screenrc} file.
 
 The reason why this only started to be a problem in 0.54 is because
 \c{screen} typically uses an unusual control sequence to switch to
