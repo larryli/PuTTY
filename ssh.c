@@ -2112,7 +2112,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 * an AUTH_RSA message.
 	 */
 	ssh->remote_bugs |= BUG_CHOKES_ON_RSA;
-	logevent("We believe remote version can't handle RSA authentication");
+	logevent("We believe remote version can't handle SSH-1 RSA authentication");
     }
 
     if (ssh->cfg.sshbug_hmac2 == FORCE_ON ||

@@ -2670,7 +2670,7 @@ to talking to OpenSSH.
 
 This is an SSH-2-specific bug.
 
-\S{config-ssh-bug-pksessid2} \q{Misuses the session ID in PK auth}
+\S{config-ssh-bug-pksessid2} \q{Misuses the session ID in SSH-2 PK auth}
 
 \cfg{winhelp-topic}{ssh.bugs.pksessid2}
 
@@ -2688,7 +2688,7 @@ SSH-2 public-key authentication will fail.
 
 This is an SSH-2-specific bug.
 
-\S{config-ssh-bug-rekey} \q{Handles key re-exchange badly}
+\S{config-ssh-bug-rekey} \q{Handles SSH-2 key re-exchange badly}
 
 \cfg{winhelp-topic}{ssh.bugs.rekey2}
 

@@ -1842,10 +1842,10 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	    ctrl_droplist(s, "Requires padding on SSH-2 RSA signatures", 'p', 20,
 			  HELPCTX(ssh_bugs_rsapad2),
 			  sshbug_handler, I(offsetof(Config,sshbug_rsapad2)));
-	    ctrl_droplist(s, "Misuses the session ID in PK auth", 'n', 20,
+	    ctrl_droplist(s, "Misuses the session ID in SSH-2 PK auth", 'n', 20,
 			  HELPCTX(ssh_bugs_pksessid2),
 			  sshbug_handler, I(offsetof(Config,sshbug_pksessid2)));
-	    ctrl_droplist(s, "Handles key re-exchange badly", 'k', 20,
+	    ctrl_droplist(s, "Handles SSH-2 key re-exchange badly", 'k', 20,
 			  HELPCTX(ssh_bugs_rekey2),
 			  sshbug_handler, I(offsetof(Config,sshbug_rekey2)));
 	}
