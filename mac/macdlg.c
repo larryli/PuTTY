@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.9 2003/02/01 23:55:00 ben Exp $ */
+/* $Id: macdlg.c,v 1.10 2003/02/02 15:59:00 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -33,6 +33,7 @@
 #include <AEDataModel.h>
 #include <AppleEvents.h>
 #include <Dialogs.h>
+#include <Navigation.h>
 #include <Resources.h>
 #include <StandardFile.h>
 #include <Windows.h>
@@ -112,17 +113,68 @@ static OSErr mac_opensessionfrom(FSSpec *fss)
     return err;
 }
 
+static OSErr mac_openlist(AEDesc docs)
+{
+    OSErr err;
+    long ndocs, i;
+    FSSpec fss;
+    AEKeyword keywd;
+    DescType type;
+    Size size;
+
+    err = AECountItems(&docs, &ndocs);
+    if (err != noErr) return err;
+
+    for (i = 0; i < ndocs; i++) {
+	err = AEGetNthPtr(&docs, i + 1, typeFSS,
+			  &keywd, &type, &fss, sizeof(fss), &size);
+	if (err != noErr) return err;;
+	err = mac_opensessionfrom(&fss);
+	if (err != noErr) return err;
+    }
+    return noErr;
+}
+
 void mac_opensession(void)
 {
+
+    if (mac_gestalts.navsvers > 0) {
+	NavReplyRecord navr;
+	NavDialogOptions navopts;
+	NavTypeListHandle navtypes;
+	AEDesc defaultloc = { 'null', NULL };
+	AEDesc *navdefault = NULL;
+	short vol;
+	long dirid;
+	FSSpec fss;
+
+	if (NavGetDefaultDialogOptions(&navopts) != noErr) return;
+	/* XXX should we create sessions dir? */
+	if (get_session_dir(FALSE, &vol, &dirid) == noErr &&
+	    FSMakeFSSpec(vol, dirid, NULL, &fss) == noErr &&
+	    AECreateDesc(typeFSS, &fss, sizeof(fss), &defaultloc) == noErr)
+	    navdefault = &defaultloc;
+	/* Can't meaningfully preview a saved session yet */
+	navopts.dialogOptionFlags &= ~kNavAllowPreviews;
+	navtypes = (NavTypeListHandle)GetResource('open', open_pTTY);
+	if (NavGetFile(navdefault, &navr, &navopts, NULL, NULL, NULL, navtypes,
+		       NULL) == noErr && navr.validRecord)
+	    mac_openlist(navr.selection);
+	NavDisposeReply(&navr);
+	if (navtypes != NULL)
+	    ReleaseResource((Handle)navtypes);
+    }
 #if !TARGET_API_MAC_CARBON /* XXX Navigation Services */
-    StandardFileReply sfr;
-    static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
+    else {
+	StandardFileReply sfr;
+	static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
 
-    StandardGetFile(NULL, 1, sftypes, &sfr);
-    if (!sfr.sfGood) return;
+	StandardGetFile(NULL, 1, sftypes, &sfr);
+	if (!sfr.sfGood) return;
 
-    mac_opensessionfrom(&sfr.sfFile);
-    /* XXX handle error */
+	mac_opensessionfrom(&sfr.sfFile);
+	/* XXX handle error */
+    }
 #endif
 }
 
@@ -180,12 +232,9 @@ pascal OSErr mac_aevt_odoc(const AppleEvent *req, AppleEvent *reply,
 			   long refcon)
 {
     DescType type;
-    AEKeyword keywd;
     Size size;
     AEDescList docs = { typeNull, NULL };
     OSErr err;
-    long ndocs, i;
-    FSSpec fss;
 
     err = AEGetParamDesc(req, keyDirectObject, typeAEList, &docs);
     if (err != noErr) goto out;
@@ -196,16 +245,7 @@ pascal OSErr mac_aevt_odoc(const AppleEvent *req, AppleEvent *reply,
 	goto out;
     }
 
-    err = AECountItems(&docs, &ndocs);
-    if (err != noErr) goto out;
-
-    for (i = 0; i < ndocs; i++) {
-	err = AEGetNthPtr(&docs, i + 1, typeFSS,
-			  &keywd, &type, &fss, sizeof(fss), &size);
-	if (err != noErr) goto out;
-	err = mac_opensessionfrom(&fss);
-	if (err != noErr) goto out;
-    }
+    err = mac_openlist(docs);
 
   out:
     AEDisposeDesc(&docs);

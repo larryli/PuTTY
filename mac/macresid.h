@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.7 2003/01/27 00:33:49 ben Exp $ */
+/* $Id: macresid.h,v 1.8 2003/02/02 15:59:00 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -11,6 +11,9 @@
 
 /* Menu bar IDs */
 #define MBAR_Main	128
+
+/* Open IDs */
+#define open_pTTY	128
 
 /* Menu IDs */
 #define mApple		128

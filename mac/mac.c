@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.42 2003/02/01 23:42:30 ben Exp $ */
+/* $Id: mac.c,v 1.43 2003/02/02 15:59:00 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -43,6 +43,7 @@
 #include <DiskInit.h>
 #include <Gestalt.h>
 #include <LowMem.h>
+#include <Navigation.h>
 #include <Resources.h>
 #include <Script.h>
 #include <TextCommon.h>
@@ -175,6 +176,11 @@ static void mac_startup(void) {
 	mac_gestalts.uncvattr = (*ti)->tecUnicodeConverterFeatures;
 	DisposeHandle((Handle)ti);
     }
+    /* Navigation Services? */
+    if (NavServicesAvailable())
+	mac_gestalts.navsvers = NavLibraryVersion();
+    else
+	mac_gestalts.navsvers = 0;
 
     sk_init();
 

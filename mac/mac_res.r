@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.24 2003/01/27 23:46:03 ben Exp $ */
+/* $Id: mac_res.r,v 1.25 2003/02/02 15:59:00 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -140,6 +140,30 @@ resource 'BNDL' (129, purgeable) {
 	    FREF_Seed, FREF_Seed,
 	};
     };
+};
+
+/* Open resource, for the Translation Manager and Navigation Services */
+resource 'open' (open_pTTY) {
+    'pTTY',
+    { 'Sess' }
+};
+
+/* Kind resources, for Navigation services etc. */
+resource 'kind' (128) {
+    'pTTY',
+    verBritain,
+    {
+	'Sess', "PuTTY saved session",
+    }
+};
+
+resource 'kind' (129) {
+    'pTTI',
+    verBritain,
+    {
+	'HKey', "PuTTY host key database",
+	'Seed', "PuTTY random number seed",
+    }
 };
 
 /* Icons, courtesy of DeRez */

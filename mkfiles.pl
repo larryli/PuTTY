@@ -624,6 +624,7 @@ Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MathLib.far.o" \xb6
 		"{Libraries}IntEnv.far.o" \xb6
 		"{Libraries}Interface.o" \xb6
+		"{Libraries}Navigation.far.o" \xb6
 		"{Libraries}OpenTransport.o" \xb6
 		"{Libraries}OpenTransportApp.o" \xb6
 		"{Libraries}OpenTptInet.o" \xb6
@@ -633,6 +634,8 @@ Libs_CFM =	"{SharedLibraries}InterfaceLib" \xb6
 		"{SharedLibraries}StdCLib" \xb6
 		"{SharedLibraries}AppearanceLib" \xb6
 			-weaklib AppearanceLib \xb6
+		"{SharedLibraries}NavigationLib" \xb6
+			-weaklib NavigationLib \xb6
 		"{SharedLibraries}TextCommon" \xb6
 			-weaklib TextCommon \xb6
 		"{SharedLibraries}UnicodeConverter" \xb6
