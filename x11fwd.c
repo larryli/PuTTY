@@ -299,7 +299,7 @@ int x11_send(Socket s, char *data, int len)
 	pr->auth_dsize = (pr->auth_dlen + 3) & ~3;
 	/* Leave room for a terminating zero, to make our lives easier. */
 	pr->auth_protocol = (char *) smalloc(pr->auth_psize + 1);
-	pr->auth_data = (char *) smalloc(pr->auth_dsize);
+	pr->auth_data = (unsigned char *) smalloc(pr->auth_dsize);
     }
 
     /*
@@ -338,7 +338,7 @@ int x11_send(Socket s, char *data, int len)
 	    PUT_16BIT(pr->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
 	    memset(reply + 8, 0, msgsize);
 	    memcpy(reply + 8, message, msglen);
-	    sshfwd_write(pr->c, reply, 8 + msgsize);
+	    sshfwd_write(pr->c, (char *)reply, 8 + msgsize);
 	    sshfwd_close(pr->c);
 	    x11_close(s);
 	    return 0;
@@ -351,7 +351,7 @@ int x11_send(Socket s, char *data, int len)
 	 */
 	PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 6, 0);	/* auth proto */
 	PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 8, 0);	/* auth data */
-	sk_write(s, pr->firstpkt, 12);
+	sk_write(s, (char *)pr->firstpkt, 12);
 	pr->verified = 1;
     }
 
