@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.45 2003/03/04 14:14:17 ben Exp $
+\versionid $Id: faq.but,v 1.46 2003/03/29 01:44:39 owen Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -207,13 +207,10 @@ really wants it, we'd be interested to know why :-)
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
-Probably not in the particularly near future. Despite sharing large
-parts of the Windows API, in practice WinCE doesn't appear to be
-significantly easier to port to than a totally different operating
-system.
-
-However, PuTTY on portable devices would clearly be a useful thing,
-so in the long term I hope there will be a WinCE port.
+It's currently being worked on, but it's only in its early stages yet,
+and certainly isn't yet useful.  PuTTY on portable devices would
+clearly be a useful thing, so in the long term I hope it can be
+brought up to release quality.
 
 \S{faq-win31}{Question} Is there a port to Windows 3.1?
 
@@ -234,9 +231,9 @@ testing in this area would be very welcome!
 
 \S{faq-mac-port}{Question} Will there be a port to the Mac?
 
-Eventually.  The terminal emulation code has been ported, as has the
-saved-settings infrastructure, but networking and a configuration GUI
-still need to be done before the port will be of any use.
+There is a port to the Mac OS in progress. It's just about usable, but
+has an awful lot of gaps and rough edges that will need cleaning up
+before release.
 
 \S{faq-epoc}{Question} Will there be a port to EPOC?
 
@@ -244,6 +241,10 @@ I hope so, but given that ports aren't really progressing very fast
 even on systems the developers \e{do} already know how to program
 for, it might be a long time before any of us get round to learning
 a new system and doing the port for that.
+
+However, some of the work has been done by other people, and a beta
+port of PuTTY for the Nokia 9200 Communicator series is available
+from \W{http://www.s2.org/putty/}\cw{http://www.s2.org/putty/}
 
 \H{faq-embedding} Embedding PuTTY in other programs
 
