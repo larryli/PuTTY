@@ -318,9 +318,9 @@ static int proxy_for_destination (SockAddr addr, char *hostname, int port,
 	     * match (ie. a specific IP)
 	     */
 
-	    if (addr && stricmp(hostip, exclude_list + s) == 0)
+	    if (addr && strnicmp(hostip, exclude_list + s, e - s) == 0)
 		return 0; /* IP/hostname excluded. do not use proxy. */
-	    if (stricmp(hostname, exclude_list + s) == 0)
+	    if (strnicmp(hostname, exclude_list + s, e - s) == 0)
 		return 0; /* IP/hostname excluded. do not use proxy. */
 	}
 
