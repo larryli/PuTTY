@@ -817,7 +817,9 @@ char *sftp_wildcard_get_filename(SftpWildcardMatcher *swcm)
 	 * We have a working filename. Return it.
 	 */
 	return dupprintf("%s%s%s", swcm->prefix,
-			 swcm->prefix[strlen(swcm->prefix)-1]=='/' ? "" : "/",
+			 (!swcm->prefix[0] ||
+			  swcm->prefix[strlen(swcm->prefix)-1]=='/' ?
+			  "" : "/"),
 			 name->filename);
     }
 }
@@ -839,6 +841,71 @@ void sftp_finish_wildcard_matching(SftpWildcardMatcher *swcm)
     sfree(swcm->wildcard);
 
     sfree(swcm);
+}
+
+/*
+ * General function to match a potential wildcard in a filename
+ * argument and iterate over every matching file. Used in several
+ * PSFTP commands (rmdir, rm, chmod, mv).
+ */
+int wildcard_iterate(char *filename, int (*func)(void *, char *), void *ctx)
+{
+    char *unwcfname, *newname, *cname;
+    int is_wc, ret;
+
+    unwcfname = snewn(strlen(filename)+1, char);
+    is_wc = !wc_unescape(unwcfname, filename);
+
+    if (is_wc) {
+	SftpWildcardMatcher *swcm = sftp_begin_wildcard_matching(filename);
+	int matched = FALSE;
+	sfree(unwcfname);
+
+	if (!swcm)
+	    return 0;
+
+	ret = 1;
+
+	while ( (newname = sftp_wildcard_get_filename(swcm)) != NULL ) {
+	    cname = canonify(newname);
+	    if (!cname) {
+		printf("%s: %s\n", newname, fxp_error());
+		ret = 0;
+	    }
+	    matched = TRUE;
+	    ret &= func(ctx, cname);
+	    sfree(cname);
+	}
+
+	if (!matched) {
+	    /* Politely warn the user that nothing matched. */
+	    printf("%s: nothing matched\n", filename);
+	}
+
+	sftp_finish_wildcard_matching(swcm);
+    } else {
+	cname = canonify(unwcfname);
+	if (!cname) {
+	    printf("%s: %s\n", filename, fxp_error());
+	    ret = 0;
+	}
+	ret = func(ctx, cname);
+	sfree(cname);
+	sfree(unwcfname);
+    }
+
+    return ret;
+}
+
+/*
+ * Handy helper function.
+ */
+int is_wildcard(char *name)
+{
+    char *unwcfname = snewn(strlen(name)+1, char);
+    int is_wc = !wc_unescape(unwcfname, name);
+    sfree(unwcfname);
+    return is_wc;
 }
 
 /* ----------------------------------------------------------------------
@@ -1300,6 +1367,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     struct sftp_packet *pktin;
     struct sftp_request *req, *rreq;
     int result;
+    int i, ret;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -1311,33 +1379,53 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
 	return 0;
     }
 
-    dir = canonify(cmd->words[1]);
-    if (!dir) {
-	printf("%s: %s\n", dir, fxp_error());
-	return 0;
+    ret = 1;
+    for (i = 1; i < cmd->nwords; i++) {
+	dir = canonify(cmd->words[i]);
+	if (!dir) {
+	    printf("%s: %s\n", dir, fxp_error());
+	    return 0;
+	}
+
+	sftp_register(req = fxp_mkdir_send(dir));
+	rreq = sftp_find_request(pktin = sftp_recv());
+	assert(rreq == req);
+	result = fxp_mkdir_recv(pktin, rreq);
+
+	if (!result) {
+	    printf("mkdir %s: %s\n", dir, fxp_error());
+	    sfree(dir);
+	    ret = 0;
+	}
+
+	sfree(dir);
     }
 
-    sftp_register(req = fxp_mkdir_send(dir));
+    return ret;
+}
+
+static int sftp_action_rmdir(void *vctx, char *dir)
+{
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+    int result;
+
+    sftp_register(req = fxp_rmdir_send(dir));
     rreq = sftp_find_request(pktin = sftp_recv());
     assert(rreq == req);
-    result = fxp_mkdir_recv(pktin, rreq);
+    result = fxp_rmdir_recv(pktin, rreq);
 
     if (!result) {
-	printf("mkdir %s: %s\n", dir, fxp_error());
-	sfree(dir);
+	printf("rmdir %s: %s\n", dir, fxp_error());
 	return 0;
     }
 
-    sfree(dir);
     return 1;
 }
 
 int sftp_cmd_rmdir(struct sftp_command *cmd)
 {
-    char *dir;
-    struct sftp_packet *pktin;
-    struct sftp_request *req, *rreq;
-    int result;
+    int i, ret;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -1349,49 +1437,18 @@ int sftp_cmd_rmdir(struct sftp_command *cmd)
 	return 0;
     }
 
-    dir = canonify(cmd->words[1]);
-    if (!dir) {
-	printf("%s: %s\n", dir, fxp_error());
-	return 0;
-    }
+    ret = 1;
+    for (i = 1; i < cmd->nwords; i++)
+	ret &= wildcard_iterate(cmd->words[i], sftp_action_rmdir, NULL);
 
-    sftp_register(req = fxp_rmdir_send(dir));
-    rreq = sftp_find_request(pktin = sftp_recv());
-    assert(rreq == req);
-    result = fxp_rmdir_recv(pktin, rreq);
-
-    if (!result) {
-	printf("rmdir %s: %s\n", dir, fxp_error());
-	sfree(dir);
-	return 0;
-    }
-
-    sfree(dir);
-    return 1;
+    return ret;
 }
 
-int sftp_cmd_rm(struct sftp_command *cmd)
+static int sftp_action_rm(void *vctx, char *fname)
 {
-    char *fname;
     struct sftp_packet *pktin;
     struct sftp_request *req, *rreq;
     int result;
-
-    if (back == NULL) {
-	printf("psftp: not connected to a host; use \"open host.name\"\n");
-	return 0;
-    }
-
-    if (cmd->nwords < 2) {
-	printf("rm: expects a filename\n");
-	return 0;
-    }
-
-    fname = canonify(cmd->words[1]);
-    if (!fname) {
-	printf("%s: %s\n", fname, fxp_error());
-	return 0;
-    }
 
     sftp_register(req = fxp_remove_send(fname));
     rreq = sftp_find_request(pktin = sftp_recv());
@@ -1404,16 +1461,107 @@ int sftp_cmd_rm(struct sftp_command *cmd)
 	return 0;
     }
 
-    sfree(fname);
     return 1;
+}
+
+int sftp_cmd_rm(struct sftp_command *cmd)
+{
+    int i, ret;
+
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
+    if (cmd->nwords < 2) {
+	printf("rm: expects a filename\n");
+	return 0;
+    }
+
+    ret = 1;
+    for (i = 1; i < cmd->nwords; i++)
+	ret &= wildcard_iterate(cmd->words[i], sftp_action_rm, NULL);
+
+    return ret;
+}
+
+static int check_is_dir(char *dstfname)
+{
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+    struct fxp_attrs attrs;
+    int result;
+
+    sftp_register(req = fxp_stat_send(dstfname));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    result = fxp_stat_recv(pktin, rreq, &attrs);
+
+    if (result &&
+	(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
+	(attrs.permissions & 0040000))
+	return TRUE;
+    else
+	return FALSE;
+}
+
+struct sftp_context_mv {
+    char *dstfname;
+    int dest_is_dir;
+};
+
+static int sftp_action_mv(void *vctx, char *srcfname)
+{
+    struct sftp_context_mv *ctx = (struct sftp_context_mv *)vctx;
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+    const char *error;
+    char *finalfname, *newcanon = NULL;
+    int ret, result;
+
+    if (ctx->dest_is_dir) {
+	char *p;
+	char *newname;
+
+	p = srcfname + strlen(srcfname);
+	while (p > srcfname && p[-1] != '/') p--;
+	newname = dupcat(ctx->dstfname, "/", p, NULL);
+	newcanon = canonify(newname);
+	if (!newcanon) {
+	    printf("%s: %s\n", newname, fxp_error());
+	    sfree(newname);
+	    return 0;
+	}
+	sfree(newname);
+
+	finalfname = newcanon;
+    } else {
+	finalfname = ctx->dstfname;
+    }
+
+    sftp_register(req = fxp_rename_send(srcfname, finalfname));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    result = fxp_rename_recv(pktin, rreq);
+
+    error = result ? NULL : fxp_error();
+
+    if (error) {
+	printf("mv %s %s: %s\n", srcfname, finalfname, error);
+	ret = 0;
+    } else {
+	printf("%s -> %s\n", srcfname, finalfname);
+	ret = 1;
+    }
+
+    sfree(newcanon);
+    return ret;
 }
 
 int sftp_cmd_mv(struct sftp_command *cmd)
 {
-    char *srcfname, *dstfname;
-    struct sftp_packet *pktin;
-    struct sftp_request *req, *rreq;
-    int result;
+    struct sftp_context_mv actx, *ctx = &actx;
+    int i, ret;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -1424,83 +1572,90 @@ int sftp_cmd_mv(struct sftp_command *cmd)
 	printf("mv: expects two filenames\n");
 	return 0;
     }
-    srcfname = canonify(cmd->words[1]);
-    if (!srcfname) {
-	printf("%s: %s\n", srcfname, fxp_error());
+
+    ctx->dstfname = canonify(cmd->words[cmd->nwords-1]);
+    if (!ctx->dstfname) {
+	printf("%s: %s\n", ctx->dstfname, fxp_error());
 	return 0;
     }
 
-    dstfname = canonify(cmd->words[2]);
-    if (!dstfname) {
-	printf("%s: %s\n", dstfname, fxp_error());
+    /*
+     * If there's more than one source argument, or one source
+     * argument which is a wildcard, we _require_ that the
+     * destination is a directory.
+     */
+    ctx->dest_is_dir = check_is_dir(ctx->dstfname);
+    if ((cmd->nwords > 3 || is_wildcard(cmd->words[1])) && !ctx->dest_is_dir) {
+	printf("mv: multiple or wildcard arguments require the destination"
+	       " to be a directory\n");
 	return 0;
     }
 
-    sftp_register(req = fxp_rename_send(srcfname, dstfname));
+    /*
+     * Now iterate over the source arguments.
+     */
+    ret = 1;
+    for (i = 1; i < cmd->nwords-1; i++)
+	ret &= wildcard_iterate(cmd->words[i], sftp_action_mv, ctx);
+
+    return ret;
+}
+
+struct sftp_context_chmod {
+    unsigned attrs_clr, attrs_xor;
+};
+
+static int sftp_action_chmod(void *vctx, char *fname)
+{
+    struct fxp_attrs attrs;
+    struct sftp_packet *pktin;
+    struct sftp_request *req, *rreq;
+    int result;
+    unsigned oldperms, newperms;
+    struct sftp_context_chmod *ctx = (struct sftp_context_chmod *)vctx;
+
+    sftp_register(req = fxp_stat_send(fname));
     rreq = sftp_find_request(pktin = sftp_recv());
     assert(rreq == req);
-    result = fxp_rename_recv(pktin, rreq);
+    result = fxp_stat_recv(pktin, rreq, &attrs);
+
+    if (!result || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
+	printf("get attrs for %s: %s\n", fname,
+	       result ? "file permissions not provided" : fxp_error());
+	sfree(fname);
+	return 0;
+    }
+
+    attrs.flags = SSH_FILEXFER_ATTR_PERMISSIONS;   /* perms _only_ */
+    oldperms = attrs.permissions & 07777;
+    attrs.permissions &= ~ctx->attrs_clr;
+    attrs.permissions ^= ctx->attrs_xor;
+    newperms = attrs.permissions & 07777;
+
+    if (oldperms == newperms)
+	return 1;		       /* no need to do anything! */
+
+    sftp_register(req = fxp_setstat_send(fname, attrs));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    result = fxp_setstat_recv(pktin, rreq);
 
     if (!result) {
-	char const *error = fxp_error();
-	struct fxp_attrs attrs;
-
-	/*
-	 * The move might have failed because dstfname pointed at a
-	 * directory. We check this possibility now: if dstfname
-	 * _is_ a directory, we re-attempt the move by appending
-	 * the basename of srcfname to dstfname.
-	 */
-	sftp_register(req = fxp_stat_send(dstfname));
-	rreq = sftp_find_request(pktin = sftp_recv());
-	assert(rreq == req);
-	result = fxp_stat_recv(pktin, rreq, &attrs);
-
-	if (result &&
-	    (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
-	    (attrs.permissions & 0040000)) {
-	    char *p;
-	    char *newname, *newcanon;
-	    printf("(destination %s is a directory)\n", dstfname);
-	    p = srcfname + strlen(srcfname);
-	    while (p > srcfname && p[-1] != '/') p--;
-	    newname = dupcat(dstfname, "/", p, NULL);
-	    newcanon = canonify(newname);
-	    sfree(newname);
-	    if (newcanon) {
-		sfree(dstfname);
-		dstfname = newcanon;
-
-		sftp_register(req = fxp_rename_send(srcfname, dstfname));
-		rreq = sftp_find_request(pktin = sftp_recv());
-		assert(rreq == req);
-		result = fxp_rename_recv(pktin, rreq);
-
-		error = result ? NULL : fxp_error();
-	    }
-	}
-	if (error) {
-	    printf("mv %s %s: %s\n", srcfname, dstfname, error);
-	    sfree(srcfname);
-	    sfree(dstfname);
-	    return 0;
-	}
+	printf("set attrs for %s: %s\n", fname, fxp_error());
+	sfree(fname);
+	return 0;
     }
-    printf("%s -> %s\n", srcfname, dstfname);
 
-    sfree(srcfname);
-    sfree(dstfname);
+    printf("%s: %04o -> %04o\n", fname, oldperms, newperms);
+
     return 1;
 }
 
 int sftp_cmd_chmod(struct sftp_command *cmd)
 {
-    char *fname, *mode;
-    int result;
-    struct fxp_attrs attrs;
-    unsigned attrs_clr, attrs_xor, oldperms, newperms;
-    struct sftp_packet *pktin;
-    struct sftp_request *req, *rreq;
+    char *mode;
+    int i, ret;
+    struct sftp_context_chmod actx, *ctx = &actx;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -1523,7 +1678,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
      * Additionally, the s attribute may not be specified for any
      * [ugoa] specifications other than exactly u or exactly g.
      */
-    attrs_clr = attrs_xor = 0;
+    ctx->attrs_clr = ctx->attrs_xor = 0;
     mode = cmd->words[1];
     if (mode[0] >= '0' && mode[0] <= '9') {
 	if (mode[strspn(mode, "01234567")]) {
@@ -1531,9 +1686,9 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 		   " contain digits 0-7 only\n");
 	    return 0;
 	}
-	attrs_clr = 07777;
-	sscanf(mode, "%o", &attrs_xor);
-	attrs_xor &= attrs_clr;
+	ctx->attrs_clr = 07777;
+	sscanf(mode, "%o", &ctx->attrs_xor);
+	ctx->attrs_xor &= ctx->attrs_clr;
     } else {
 	while (*mode) {
 	    char *modebegin = mode;
@@ -1601,61 +1756,27 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 	    perms &= subset;
 	    switch (action) {
 	      case '+':
-		attrs_clr |= perms;
-		attrs_xor |= perms;
+		ctx->attrs_clr |= perms;
+		ctx->attrs_xor |= perms;
 		break;
 	      case '-':
-		attrs_clr |= perms;
-		attrs_xor &= ~perms;
+		ctx->attrs_clr |= perms;
+		ctx->attrs_xor &= ~perms;
 		break;
 	      case '=':
-		attrs_clr |= subset;
-		attrs_xor |= perms;
+		ctx->attrs_clr |= subset;
+		ctx->attrs_xor |= perms;
 		break;
 	    }
 	    if (*mode) mode++;	       /* eat comma */
 	}
     }
 
-    fname = canonify(cmd->words[2]);
-    if (!fname) {
-	printf("%s: %s\n", fname, fxp_error());
-	return 0;
-    }
+    ret = 1;
+    for (i = 2; i < cmd->nwords; i++)
+	ret &= wildcard_iterate(cmd->words[i], sftp_action_chmod, ctx);
 
-    sftp_register(req = fxp_stat_send(fname));
-    rreq = sftp_find_request(pktin = sftp_recv());
-    assert(rreq == req);
-    result = fxp_stat_recv(pktin, rreq, &attrs);
-
-    if (!result || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
-	printf("get attrs for %s: %s\n", fname,
-	       result ? "file permissions not provided" : fxp_error());
-	sfree(fname);
-	return 0;
-    }
-
-    attrs.flags = SSH_FILEXFER_ATTR_PERMISSIONS;   /* perms _only_ */
-    oldperms = attrs.permissions & 07777;
-    attrs.permissions &= ~attrs_clr;
-    attrs.permissions ^= attrs_xor;
-    newperms = attrs.permissions & 07777;
-
-    sftp_register(req = fxp_setstat_send(fname, attrs));
-    rreq = sftp_find_request(pktin = sftp_recv());
-    assert(rreq == req);
-    result = fxp_setstat_recv(pktin, rreq);
-
-    if (!result) {
-	printf("set attrs for %s: %s\n", fname, fxp_error());
-	sfree(fname);
-	return 0;
-    }
-
-    printf("%s: %04o -> %04o\n", fname, oldperms, newperms);
-
-    sfree(fname);
-    return 1;
+    return ret;
 }
 
 static int sftp_cmd_open(struct sftp_command *cmd)
