@@ -1794,6 +1794,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     struct MD5Context md5c;
     static unsigned long supported_ciphers_mask, supported_auths_mask;
     static int tried_publickey;
+    static int tis_auth_refused, ccard_auth_refused;
     static unsigned char session_id[16];
     static int cipher_type;
     static char username[100];
@@ -2042,6 +2043,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     crWaitUntil(ispkt);
 
     tried_publickey = 0;
+    tis_auth_refused = ccard_auth_refused = 0;
 
     while (pktin.type == SSH1_SMSG_FAILURE) {
 	static char password[100];
@@ -2049,12 +2051,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static int pos;
 	static char c;
 	static int pwpkt_type;
-	/*
-	 * Show password prompt, having first obtained it via a TIS
-	 * or CryptoCard exchange if we're doing TIS or CryptoCard
-	 * authentication.
-	 */
 	pwpkt_type = SSH1_CMSG_AUTH_PASSWORD;
+
 	if (agent_exists()) {
 	    /*
 	     * Attempt RSA authentication using Pageant.
@@ -2177,9 +2175,9 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	if (*cfg.keyfile && !tried_publickey)
 	    pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
-	if (pktin.type == SSH1_SMSG_FAILURE &&
-	    cfg.try_tis_auth &&
-	    (supported_auths_mask & (1 << SSH1_AUTH_TIS))) {
+	if (cfg.try_tis_auth &&
+	    (supported_auths_mask & (1 << SSH1_AUTH_TIS)) &&
+	    !tis_auth_refused) {
 	    pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
 	    logevent("Requested TIS authentication");
 	    send_packet(SSH1_CMSG_AUTH_TIS, PKT_END);
@@ -2188,6 +2186,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		logevent("TIS authentication declined");
 		if (flags & FLAG_INTERACTIVE)
 		    c_write_str("TIS authentication refused.\r\n");
+		tis_auth_refused = 1;
+		continue;
 	    } else {
 		int challengelen = ((pktin.body[0] << 24) |
 				    (pktin.body[1] << 16) |
@@ -2197,12 +2197,17 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		if (challengelen > sizeof(prompt) - 1)
 		    challengelen = sizeof(prompt) - 1;	/* prevent overrun */
 		memcpy(prompt, pktin.body + 4, challengelen);
-		prompt[challengelen] = '\0';
+		/* Prompt heuristic comes from OpenSSH */
+		strncpy(prompt + challengelen,
+		        memchr(prompt, '\n', challengelen) ?
+			"": "\r\nResponse: ",
+			(sizeof prompt) - challengelen);
+		prompt[(sizeof prompt) - 1] = '\0';
 	    }
 	}
-	if (pktin.type == SSH1_SMSG_FAILURE &&
-	    cfg.try_tis_auth &&
-	    (supported_auths_mask & (1 << SSH1_AUTH_CCARD))) {
+	if (cfg.try_tis_auth &&
+	    (supported_auths_mask & (1 << SSH1_AUTH_CCARD)) &&
+	    !ccard_auth_refused) {
 	    pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
 	    logevent("Requested CryptoCard authentication");
 	    send_packet(SSH1_CMSG_AUTH_CCARD, PKT_END);
@@ -2210,6 +2215,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    if (pktin.type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
 		logevent("CryptoCard authentication declined");
 		c_write_str("CryptoCard authentication refused.\r\n");
+		ccard_auth_refused = 1;
+		continue;
 	    } else {
 		int challengelen = ((pktin.body[0] << 24) |
 				    (pktin.body[1] << 16) |
@@ -2219,7 +2226,9 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		if (challengelen > sizeof(prompt) - 1)
 		    challengelen = sizeof(prompt) - 1;	/* prevent overrun */
 		memcpy(prompt, pktin.body + 4, challengelen);
-		strncpy(prompt + challengelen, "\r\nResponse : ",
+		strncpy(prompt + challengelen,
+		        memchr(prompt, '\n', challengelen) ?
+			"" : "\r\nResponse: ",
 			sizeof(prompt) - challengelen);
 		prompt[sizeof(prompt) - 1] = '\0';
 	    }
@@ -2241,6 +2250,11 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    sfree(comment);
 	}
 
+	/*
+	 * Show password prompt, having first obtained it via a TIS
+	 * or CryptoCard exchange if we're doing TIS or CryptoCard
+	 * authentication.
+	 */
 	if (ssh_get_line) {
 	    if (!ssh_get_line(prompt, password, sizeof(password), TRUE)) {
 		/*
@@ -2256,7 +2270,9 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		crReturn(1);
 	    }
 	} else {
-	    c_write_str(prompt);
+	    /* Prompt may have come from server. We've munged it a bit, so
+	     * we know it to be zero-terminated at least once. */
+	    c_write_untrusted(prompt, strlen(prompt));
 	    pos = 0;
 	    ssh_send_ok = 1;
 	    while (pos >= 0) {
