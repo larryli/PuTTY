@@ -275,8 +275,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
 	{
-	    default_port = 0; /* illegal */
 	    int i;
+	    default_port = 0; /* illegal */
 	    for (i = 0; backends[i].backend != NULL; i++)
 		if (backends[i].protocol == default_protocol) {
 		    default_port = backends[i].backend->default_port;
