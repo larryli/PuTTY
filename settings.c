@@ -510,7 +510,16 @@ void load_settings(char *section, int do_host, Config * cfg)
 	    cfg->colours[i][2] = c2;
 	}
     }
+#ifndef _WINDOWS
+    /* Non-raw cut and paste of line-drawing chars works badly on the
+     * current Unix stub implementation of the Unicode functions.
+     * So I'm going to temporarily set the default to raw mode so
+     * that the failure mode isn't quite so drastically horrid.
+     * When Unicode comes in, this can all be put right. */
+    gppi(sesskey, "RawCNP", 1, &cfg->rawcnp);
+#else
     gppi(sesskey, "RawCNP", 0, &cfg->rawcnp);
+#endif
     gppi(sesskey, "PasteRTF", 0, &cfg->rtf_paste);
     gppi(sesskey, "MouseIsXterm", 0, &cfg->mouse_is_xterm);
     gppi(sesskey, "RectSelect", 0, &cfg->rect_select);
