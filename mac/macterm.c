@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.73 2003/04/12 21:06:34 ben Exp $ */
+/* $Id: macterm.c,v 1.74 2003/04/12 21:07:25 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -193,9 +193,9 @@ static void mac_workoutfontscale(Session *s, int wantwidth,
     const char text = 'W';
     FontInfo fi;
 #if TARGET_API_MAC_CARBON
-    CQDProcsPtr gp = GetPortGrafProcs(GetWindowPort(s->window));;
+    CQDProcsPtr gp = GetPortGrafProcs(GetWindowPort(s->window));
 #else
-    QDProcsPtr gp = s->window->grafProcs;;
+    QDProcsPtr gp = s->window->grafProcs;
 #endif
 
     numer.v = denom.v = 1; /* always */
