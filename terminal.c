@@ -99,7 +99,7 @@ static int wrap, wrapnext;	       /* wrap flags */
 static int insert;		       /* insert-mode flag */
 static int cset;		       /* 0 or 1: which char set */
 static int save_cset, save_csattr;     /* saved with cursor position */
-static int save_utf;     	       /* saved with cursor position */
+static int save_utf, save_wnext;       /* saved with cursor position */
 static int rvideo;		       /* global reverse video flag */
 static unsigned long rvbell_startpoint;/* for ESC[?5hESC[?5l vbell */
 static int cursor_on;		       /* cursor enabled flag */
@@ -746,6 +746,7 @@ static void save_cursor(int save)
 	save_attr = curr_attr;
 	save_cset = cset;
 	save_utf = utf;
+	save_wnext = wrapnext;
 	save_csattr = cset_attr[cset];
 	save_sco_acs = sco_acs;
     } else {
@@ -759,6 +760,13 @@ static void save_cursor(int save)
 	curr_attr = save_attr;
 	cset = save_cset;
 	utf = save_utf;
+	wrapnext = save_wnext;
+	/*
+	 * wrapnext might reset to False if the x position is no
+	 * longer at the rightmost edge.
+	 */
+	if (wrapnext && curs.x < cols-1)
+	    wrapnext = FALSE;
 	cset_attr[cset] = save_csattr;
 	sco_acs = save_sco_acs;
 	fix_cpos;
