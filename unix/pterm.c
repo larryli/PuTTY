@@ -274,7 +274,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 *  - nethack mode
 	 *  - alt+numpad
 	 *  - Compose key (!!! requires Unicode faff before even trying)
-	 *  - Shift-Ins for paste (need to deal with pasting first)
 	 */
 
 	/*
@@ -287,6 +286,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 	if (event->keyval == GDK_Page_Down && (event->state & GDK_SHIFT_MASK)) {
 	    term_scroll(0, +cfg.height/2);
+	    return TRUE;
+	}
+
+	/*
+	 * Neither does Shift-Ins.
+	 */
+	if (event->keyval == GDK_Insert && (event->state & GDK_SHIFT_MASK)) {
+	    request_paste();
 	    return TRUE;
 	}
 
