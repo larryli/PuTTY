@@ -14,10 +14,10 @@
 struct keyval { char *s; int v; };
 
 static const struct keyval ciphernames[] = {
-    { "WARN",	    CIPHER_WARN },
-    { "3des",	    CIPHER_3DES },
-    { "blowfish",   CIPHER_BLOWFISH },
     { "aes",	    CIPHER_AES },
+    { "blowfish",   CIPHER_BLOWFISH },
+    { "3des",	    CIPHER_3DES },
+    { "WARN",	    CIPHER_WARN },
     { "des",	    CIPHER_DES }
 };
 
@@ -171,7 +171,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "NoPTY", cfg->nopty);
     write_setting_i(sesskey, "Compression", cfg->compression);
     write_setting_i(sesskey, "AgentFwd", cfg->agentfwd);
-    wprefs(sesskey, "SSHCipherList", ciphernames, CIPHER_MAX,
+    wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX,
 	   cfg->ssh_cipherlist);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
@@ -342,19 +342,8 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "NoPTY", 0, &cfg->nopty);
     gppi(sesskey, "Compression", 0, &cfg->compression);
     gppi(sesskey, "AgentFwd", 0, &cfg->agentfwd);
-    {
-	/* Backwards compatibility: recreate old cipher policy. */
-	char defcipherlist[80];
-	gpps(sesskey, "Cipher", "3des", defcipherlist, 80);
-	if (strcmp(defcipherlist, "3des") != 0) {
-	    int l = strlen(defcipherlist);
-	    strncpy(defcipherlist + l, ",3des", 80 - l);
-	    defcipherlist[79] = '\0';
-	}
-	/* Use it as default if no new-style policy. */
-	gprefs(sesskey, "SSHCipherList", defcipherlist,
-	       ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
-    }
+    gprefs(sesskey, "Cipher", "\0",
+	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
     gppi(sesskey, "SshProt", 1, &cfg->sshprot);
     gppi(sesskey, "BuggyMAC", 0, &cfg->buggymac);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
