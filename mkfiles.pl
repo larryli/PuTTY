@@ -593,6 +593,8 @@ END
 print $_;
 print <<END;
 
+ROptions     = `Echo "{VER}" | StreamEdit -e "1,\$ replace /=(\xc5)\xa81\xb0/ 'STR=\xb6\xb6\xb6\xb6\xb6"' \xa81 '\xb6\xb6\xb6\xb6\xb6"'"`
+
 # -w 35 disables "unused parameter" warnings
 COptions     = -i : -i :: -w 35 -w err -proto strict
 COptions_68K = {COptions} -model far -opt space
@@ -649,14 +651,14 @@ foreach $p (&prognames("M")) {
   print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.cfm68k.o", "", undef);
-  print &splitline("$prog.cfm68k \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("$prog.cfm68k \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
   print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_CFM68K} " .
                    $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n";
   print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.ppc.o", "", undef);
-  print &splitline("$prog.ppc \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("$prog.ppc \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
   print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
                    $objstr . " {Libs_PPC}", 69, "\xb6"), "\n";

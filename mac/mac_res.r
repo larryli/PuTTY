@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.6 2002/12/30 18:21:17 ben Exp $ */
+/* $Id: mac_res.r,v 1.7 2002/12/30 23:14:11 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -342,6 +342,53 @@ resource 'icl8' (130, purgeable) {
 	$"000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 };
 
+resource 'vers' (1, purgeable) {
+    /* XXX This needs to be updated for each new version */
+    0x00, 0x53,
+#ifdef RELEASE
+    beta,
+#else
+    development,
+#endif
+    0, /* No prerelease version */
+    2, /* Region code 2 = UK */
+#ifdef RELEASESTR
+    RELEASESTR,
+    "Release " RELEASESTR,
+#else
+#ifdef SNAPSHOTSTR
+    SNAPSHOTSTR,
+    "Development snapshot " SNAPSHOTSTR,
+#else
+    "unknown",
+    "Unidentified build, " $$Date " " $$Time,
+#endif
+#endif
+};
+
+resource 'vers' (2, purgeable) {
+    /* XXX This needs to be updated for each new version */
+    0x00, 0x53,
+#ifdef RELEASE
+    beta,
+#else
+    development,
+#endif
+    0, /* No prerelease version */
+    2, /* Region code 2 = UK */
+#ifdef RELEASESTR
+    RELEASESTR,
+    "PuTTY " RELEASESTR,
+#else
+#ifdef SNAPSHOTSTR
+    SNAPSHOTSTR,
+    "PuTTY snapshot " SNAPSHOTSTR,
+#else
+    "unknown",
+    "PuTTY",
+#endif
+#endif
+};
 
 /*
  * Internal resources
