@@ -104,6 +104,8 @@ static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
 	} while (0)
 	CHECK_CTX(errors_hostkey_absent);
 	CHECK_CTX(errors_hostkey_changed);
+	CHECK_CTX(errors_cantloadkey);
+	CHECK_CTX(option_cleanup);
 #undef CHECK_CTX
 	if (context) {
 	    /* We avoid using malloc, in case we're in a situation where
@@ -125,8 +127,7 @@ int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
      * callback function for the Help button.
      */
     mbox.cbSize = sizeof(mbox);
-    /* FIXME: assumes global hwnd and hinst are always the Right Thing;
-     * are they? */
+    /* Assumes the globals `hinst' and `hwnd' have sensible values. */
     mbox.hInstance = hinst;
     mbox.hwndOwner = hwnd;
     mbox.lpfnMsgBoxCallback = &message_box_help_callback;

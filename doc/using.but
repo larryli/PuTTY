@@ -516,6 +516,8 @@ use the \c{-load} option (described in \k{using-cmdline-load}).
 
 \S{using-cleanup} \i\c{-cleanup}
 
+\cfg{winhelp-topic}{options.cleanup}
+
 If invoked with the \c{-cleanup} option, rather than running as
 normal, PuTTY will remove its \I{removing registry entries}registry
 entries and \I{random seed file} from the local machine (after

@@ -633,8 +633,8 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	!import_possible(type)) {
 	char *msg = dupprintf("Couldn't load private key (%s)",
 			      key_type_to_str(type));
-	MessageBox(NULL, msg,
-		   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+	message_box(msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+		    HELPCTXID(errors_cantloadkey));
 	sfree(msg);
 	return;
     }
@@ -695,7 +695,8 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	sfree(comment);
     if (ret == 0) {
 	char *msg = dupprintf("Couldn't load private key (%s)", errmsg);
-	MessageBox(NULL, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR);
+	message_box(msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+		    HELPCTXID(errors_cantloadkey));
 	sfree(msg);
     } else if (ret == 1) {
 	/*
@@ -1415,6 +1416,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     InitCommonControls();
     hinst = inst;
+    hwnd = NULL;
 
     /*
      * See if we can find our Help file.

@@ -3,6 +3,7 @@
  * the \cfg{winhelp-topic} directives in the Halibut source.
  */
 
+/* Maximum length for WINHELP_CTX_foo strings */
 #define WINHELP_CTX_MAXLEN 80
 
 /* These are used in the cross-platform configuration dialog code. */
@@ -137,3 +138,7 @@
 #define WINHELP_CTXID_errors_hostkey_absent 1
 #define WINHELP_CTX_errors_hostkey_changed "errors.hostkey.changed"
 #define WINHELP_CTXID_errors_hostkey_changed 2
+#define WINHELP_CTX_errors_cantloadkey "errors.cantloadkey"
+#define WINHELP_CTXID_errors_cantloadkey 3
+#define WINHELP_CTX_option_cleanup "options.cleanup"
+#define WINHELP_CTXID_option_cleanup 4

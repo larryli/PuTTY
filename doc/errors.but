@@ -130,8 +130,10 @@ Similarly, any error message starting with \q{Assertion failed} is a
 bug in PuTTY. Please report it to us, and include the exact text
 from the error message box.
 
-\H{errors-key-wrong-format} \q{Unable to use this private key file},
+\H{errors-cant-load-key} \q{Unable to use this private key file},
 \q{Couldn't load private key}, \q{Key is of wrong type}
+
+\cfg{winhelp-topic}{errors.cantloadkey}
 
 Various forms of this error are printed in the PuTTY window, or
 written to the PuTTY Event Log (see \k{using-eventlog}) when trying

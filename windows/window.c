@@ -299,6 +299,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     int guess_width, guess_height;
 
     hinst = inst;
+    hwnd = NULL;
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
 
     sk_init();
@@ -451,8 +452,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 				   "SESSIONS. Are you really sure you want\n"
 				   "to continue?", appname);
 		    s2 = dupprintf("%s Warning", appname);
-		    if (MessageBox(NULL, s1, s2,
-				   MB_YESNO | MB_ICONWARNING) == IDYES) {
+		    if (message_box(s1, s2, MB_YESNO | MB_ICONWARNING,
+				    HELPCTXID(option_cleanup)) == IDYES) {
 			cleanup_all();
 		    }
 		    sfree(s1);
@@ -596,8 +597,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	RegisterClass(&wndclass);
     }
-
-    hwnd = NULL;
 
     memset(&ucsdata, 0, sizeof(ucsdata));
 

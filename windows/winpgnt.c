@@ -50,8 +50,6 @@
 
 extern char ver[];
 
-static HINSTANCE instance;
-static HWND main_hwnd;
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
@@ -80,7 +78,7 @@ void modalfatalbox(char *fmt, ...)
     va_start(ap, fmt);
     buf = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(main_hwnd, buf, "Pageant Fatal Error",
+    MessageBox(hwnd, buf, "Pageant Fatal Error",
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(buf);
     exit(1);
@@ -142,7 +140,7 @@ static void *get_keylist2(int *length);
  */
 int random_byte(void)
 {
-    MessageBox(main_hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
+    MessageBox(hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
     exit(0);
     /* this line can't be reached but it placates MSVC's warnings :-) */
     return 0;
@@ -236,7 +234,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	    return 0;
 	  case 101:
 	    EnableWindow(hwnd, 0);
-	    DialogBox(instance, MAKEINTRESOURCE(214), hwnd, LicenceProc);
+	    DialogBox(hinst, MAKEINTRESOURCE(214), hwnd, LicenceProc);
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
 	    return 0;
@@ -412,9 +410,11 @@ static void add_keyfile(Filename filename)
 	
     type = key_type(&filename);
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
-	char msg[256];
-	sprintf(msg, "Couldn't load this key (%s)", key_type_to_str(type));
-	MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+	char *msg = dupprintf("Couldn't load this key (%s)",
+			      key_type_to_str(type));
+	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
+		    HELPCTXID(errors_cantloadkey));
+	sfree(msg);
 	return;
     }
 
@@ -430,7 +430,8 @@ static void add_keyfile(Filename filename)
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (!rsakey_pubblob(&filename, &blob, &bloblen, &error)) {
 		char *msg = dupprintf("Couldn't load private key (%s)", error);
-		MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
+			    HELPCTXID(errors_cantloadkey));
 		sfree(msg);
 		return;
 	    }
@@ -440,7 +441,8 @@ static void add_keyfile(Filename filename)
 	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen, &error);
 	    if (!blob) {
 		char *msg = dupprintf("Couldn't load private key (%s)", error);
-		MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
+			    HELPCTXID(errors_cantloadkey));
 		sfree(msg);
 		return;
 	    }
@@ -541,7 +543,7 @@ static void add_keyfile(Filename filename)
 	    } else {
 		int dlgret;
 		original_pass = 1;
-		dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
+		dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
 					NULL, PassphraseProc, (LPARAM) & pps);
 		passphrase_box = NULL;
 		if (!dlgret) {
@@ -578,7 +580,8 @@ static void add_keyfile(Filename filename)
 	sfree(comment);
     if (ret == 0) {
 	char *msg = dupprintf("Couldn't load private key (%s)", error);
-	MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
+	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
+		    HELPCTXID(errors_cantloadkey));
 	sfree(msg);
 	if (type == SSH_KEYTYPE_SSH1)
 	    sfree(rkey);
@@ -1417,7 +1420,7 @@ static void prompt_add_keyfile(void)
 	
     if (!keypath) keypath = filereq_new();
     memset(&of, 0, sizeof(of));
-    of.hwndOwner = main_hwnd;
+    of.hwndOwner = hwnd;
     of.lpstrFilter = FILTER_KEY_FILES;
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
@@ -1581,7 +1584,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 if (help_path) {
-                    WinHelp(main_hwnd, help_path, HELP_COMMAND,
+                    WinHelp(hwnd, help_path, HELP_COMMAND,
                             (DWORD)"JI(`',`pageant.general')");
                     requested_help = TRUE;
                 }
@@ -1600,7 +1603,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
             }
             if (topic) {
 		char *cmd = dupprintf("JI(`',`%s')", topic);
-                WinHelp(main_hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+                WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
 		sfree(cmd);
                 requested_help = TRUE;
             } else {
@@ -1633,7 +1636,7 @@ static BOOL AddTrayIcon(HWND hwnd)
     tnid.uID = 1;	       /* unique within this systray use */
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
-    tnid.hIcon = hicon = LoadIcon(instance, MAKEINTRESOURCE(201));
+    tnid.hIcon = hicon = LoadIcon(hinst, MAKEINTRESOURCE(201));
     strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
 
     res = Shell_NotifyIcon(NIM_ADD, &tnid);
@@ -1758,7 +1761,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_VIEWKEYS:
 	    if (!keylist) {
-		keylist = CreateDialog(instance, MAKEINTRESOURCE(211),
+		keylist = CreateDialog(hinst, MAKEINTRESOURCE(211),
 				       NULL, KeyListProc);
 		ShowWindow(keylist, SW_SHOWNORMAL);
 	    }
@@ -1783,7 +1786,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
-		aboutbox = CreateDialog(instance, MAKEINTRESOURCE(213),
+		aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(213),
 					NULL, AboutProc);
 		ShowWindow(aboutbox, SW_SHOWNORMAL);
 		/* 
@@ -1797,7 +1800,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_HELP:
             if (help_path) {
-                WinHelp(main_hwnd, help_path, HELP_COMMAND,
+                WinHelp(hwnd, help_path, HELP_COMMAND,
                         (DWORD)"JI(`',`pageant.general')");
                 requested_help = TRUE;
             }
@@ -1828,7 +1831,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_DESTROY:
         if (requested_help) {
-            WinHelp(main_hwnd, help_path, HELP_QUIT, 0);
+            WinHelp(hwnd, help_path, HELP_QUIT, 0);
             requested_help = FALSE;
         }
 	PostQuitMessage(0);
@@ -1970,6 +1973,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     int argc, i;
     char **argv, **argstart;
 
+    hinst = inst;
+    hwnd = NULL;
+
     /*
      * Determine whether we're an NT system (should have security
      * APIs) or a non-NT system (don't do security).
@@ -2007,8 +2013,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 #endif
     } else
 	advapi = NULL;
-
-    instance = inst;
 
     /*
      * See if we can find our Help file.
@@ -2074,15 +2078,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    RegisterClass(&wndclass);
 	}
 
-	main_hwnd = keylist = NULL;
+	keylist = NULL;
 
-	main_hwnd = CreateWindow(APPNAME, APPNAME,
-                                 WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-                                 CW_USEDEFAULT, CW_USEDEFAULT,
-                                 100, 100, NULL, NULL, inst, NULL);
+	hwnd = CreateWindow(APPNAME, APPNAME,
+			    WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+			    CW_USEDEFAULT, CW_USEDEFAULT,
+			    100, 100, NULL, NULL, inst, NULL);
 
 	/* Set up a system tray icon */
-	AddTrayIcon(main_hwnd);
+	AddTrayIcon(hwnd);
 
         /* Accelerators used: nsvkxa */
         systray_menu = CreatePopupMenu();
@@ -2107,7 +2111,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	/* Set the default menu item. */
 	SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, FALSE);
 
-	ShowWindow(main_hwnd, SW_HIDE);
+	ShowWindow(hwnd, SW_HIDE);
 
 	/*
 	 * Initialise storage for RSA keys.
@@ -2194,7 +2198,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	NOTIFYICONDATA tnid;
 
 	tnid.cbSize = sizeof(NOTIFYICONDATA);
-	tnid.hWnd = main_hwnd;
+	tnid.hWnd = hwnd;
 	tnid.uID = 1;
 
 	Shell_NotifyIcon(NIM_DELETE, &tnid);
