@@ -124,6 +124,12 @@ char *sk_addr_error(SockAddr addr);
  */
 void sk_set_frozen(Socket sock, int is_frozen);
 
+/*
+ * Call this after an operation that might have tried to send on a
+ * socket, to clean up any pending network errors.
+ */
+void net_pending_errors(void);
+
 /********** SSL stuff **********/
 
 /*

@@ -2523,19 +2523,29 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 void sshfwd_close(struct ssh_channel *c)
 {
     if (c && !c->closes) {
-	if (ssh_version == 1) {
-	    send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
-			PKT_END);
-	} else {
-	    ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-	    ssh2_pkt_adduint32(c->remoteid);
-	    ssh2_pkt_send();
+	/*
+	 * If the channel's remoteid is -1, we have sent
+	 * CHANNEL_OPEN for this channel, but it hasn't even been
+	 * acknowledged by the server. So we must set a close flag
+	 * on it now, and then when the server acks the channel
+	 * open, we can close it then.
+	 */
+	if (c->remoteid != -1) {
+	    if (ssh_version == 1) {
+		send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
+			    PKT_END);
+	    } else {
+		ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+		ssh2_pkt_adduint32(c->remoteid);
+		ssh2_pkt_send();
+	    }
 	}
 	c->closes = 1;
 	if (c->type == CHAN_X11) {
 	    c->u.x11.s = NULL;
 	    logevent("Forwarded X11 connection terminated");
-	} else if (c->type == CHAN_SOCKDATA) {
+	} else if (c->type == CHAN_SOCKDATA ||
+		   c->type == CHAN_SOCKDATA_DORMANT) {
 	    c->u.pfd.s = NULL;
 	    logevent("Forwarded port closed");
 	}
@@ -2903,6 +2913,17 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		    c->remoteid = localid;
 		    c->type = CHAN_SOCKDATA;
 		    pfd_confirm(c->u.pfd.s);
+		}
+
+		if (c && c->closes) {
+		    /*
+		     * We have a pending close on this channel,
+		     * which we decided on before the server acked
+		     * the channel open. So now we know the
+		     * remoteid, we can close it again.
+		     */
+		    send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
+				PKT_END);
 		}
 
 	    } else if (pktin.type == SSH1_MSG_CHANNEL_OPEN_FAILURE) {
@@ -4864,11 +4885,22 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    continue;	       /* dunno why they're confirming this */
 		c->remoteid = ssh2_pkt_getuint32();
 		c->type = CHAN_SOCKDATA;
-		c->closes = 0;
 		c->v.v2.remwindow = ssh2_pkt_getuint32();
 		c->v.v2.remmaxpkt = ssh2_pkt_getuint32();
 		bufchain_init(&c->v.v2.outbuffer);
-		pfd_confirm(c->u.pfd.s);
+		if (c->u.pfd.s)
+		    pfd_confirm(c->u.pfd.s);
+		if (c->closes) {
+		    /*
+		     * We have a pending close on this channel,
+		     * which we decided on before the server acked
+		     * the channel open. So now we know the
+		     * remoteid, we can close it again.
+		     */
+		    ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+		    ssh2_pkt_adduint32(c->remoteid);
+		    ssh2_pkt_send();
+		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN_FAILURE) {
 		unsigned i = ssh2_pkt_getuint32();
 		struct ssh_channel *c;
