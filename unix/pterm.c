@@ -24,13 +24,14 @@
 #define NCOLOURS (lenof(((Config *)0)->colours))
 
 struct gui_data {
-    GtkWidget *area;
+    GtkWidget *area, *sbar;
+    GtkBox *hbox;
+    GtkAdjustment *sbar_adjust;
     GdkPixmap *pixmap;
     GdkFont *fonts[2];                 /* normal and bold (for now!) */
     GdkCursor *rawcursor, *textcursor;
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
-    GdkGC *black_gc, *white_gc;
     int font_width, font_height;
 };
 
@@ -175,11 +176,20 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	gdk_pixmap_unref(inst->pixmap);
 
     inst->pixmap = gdk_pixmap_new(widget->window,
-				  cfg.width * inst->font_width,
-				  cfg.height * inst->font_height, -1);
+				  (cfg.width * inst->font_width +
+				   2*cfg.window_border),
+				  (cfg.height * inst->font_height +
+				   2*cfg.window_border), -1);
 
-    inst->black_gc = widget->style->black_gc;
-    inst->white_gc = widget->style->white_gc;
+    {
+	GdkGC *gc;
+	gc = gdk_gc_new(inst->area->window);
+	gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
+	gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
+			   cfg.width * inst->font_width + 2*cfg.window_border,
+			   cfg.height * inst->font_height + 2*cfg.window_border);
+	gdk_gc_unref(gc);
+    }
 
     /*
      * Set up the colour map.
@@ -222,11 +232,14 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
      * Pass the exposed rectangle to terminal.c, which will call us
      * back to do the actual painting.
      */
-    term_paint(NULL, 
-	       event->area.x / inst->font_width,
-	       event->area.y / inst->font_height,
-	       (event->area.x + event->area.width - 1) / inst->font_width,
-	       (event->area.y + event->area.height - 1) / inst->font_height);
+    if (inst->pixmap) {
+	gdk_draw_pixmap(widget->window,
+			widget->style->fg_gc[GTK_WIDGET_STATE(widget)],
+			inst->pixmap,
+			event->area.x, event->area.y,
+			event->area.x, event->area.y,
+			event->area.width, event->area.height);
+    }
     return TRUE;
 }
 
@@ -259,6 +272,19 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 *  - Compose key (!!! requires Unicode faff before even trying)
 	 *  - Shift-Ins for paste (need to deal with pasting first)
 	 */
+
+	/*
+	 * Shift-PgUp and Shift-PgDn don't even generate keystrokes
+	 * at all.
+	 */
+	if (event->keyval == GDK_Page_Up && (event->state & GDK_SHIFT_MASK)) {
+	    term_scroll(0, -cfg.height/2);
+	    return TRUE;
+	}
+	if (event->keyval == GDK_Page_Down && (event->state & GDK_SHIFT_MASK)) {
+	    term_scroll(0, +cfg.height/2);
+	    return TRUE;
+	}
 
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
@@ -690,7 +716,18 @@ void set_icon(char *title)
 
 void set_sbar(int total, int start, int page)
 {
-    /* FIXME: currently ignored */
+    inst->sbar_adjust->lower = 0;
+    inst->sbar_adjust->upper = total;
+    inst->sbar_adjust->value = start;
+    inst->sbar_adjust->page_size = page;
+    inst->sbar_adjust->step_increment = 1;
+    inst->sbar_adjust->page_increment = page/2;
+    gtk_adjustment_changed(inst->sbar_adjust);
+}
+
+void scrollbar_moved(GtkAdjustment *adj, gpointer data)
+{
+    term_scroll(1, (int)adj->value);
 }
 
 void sys_cursor(int x, int y)
@@ -770,25 +807,30 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
     gdk_draw_rectangle(inst->pixmap, gc, 1,
-		       x*inst->font_width, y*inst->font_height,
+		       x*inst->font_width+cfg.window_border,
+		       y*inst->font_height+cfg.window_border,
 		       len*inst->font_width, inst->font_height);
-    
+
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
-    gdk_draw_text(inst->pixmap, inst->fonts[0], gc, x*inst->font_width,
-		  y*inst->font_height + inst->fonts[0]->ascent, text, len);
+    gdk_draw_text(inst->pixmap, inst->fonts[0], gc,
+		  x*inst->font_width+cfg.window_border,
+		  y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
+		  text, len);
 
     if (attr & ATTR_UNDER) {
 	int uheight = inst->fonts[0]->ascent + 1;
 	if (uheight >= inst->font_height)
 	    uheight = inst->font_height - 1;
-	gdk_draw_line(inst->pixmap, gc, x*inst->font_width,
-		      y*inst->font_height + uheight,
+	gdk_draw_line(inst->pixmap, gc, x*inst->font_width+cfg.window_border,
+		      y*inst->font_height + uheight + cfg.window_border,
 		      (x+len)*inst->font_width-1, y*inst->font_height+uheight);
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-		    x*inst->font_width, y*inst->font_height,
-		    x*inst->font_width, y*inst->font_height,
+		    x*inst->font_width+cfg.window_border,
+		    y*inst->font_height+cfg.window_border,
+		    x*inst->font_width+cfg.window_border,
+		    y*inst->font_height+cfg.window_border,
 		    len*inst->font_width, inst->font_height);
 }
 
@@ -810,11 +852,14 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     if (passive) {
 	gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
 	gdk_draw_rectangle(inst->pixmap, gc, 0,
-			   x*inst->font_width, y*inst->font_height,
+			   x*inst->font_width+cfg.window_border,
+			   y*inst->font_height+cfg.window_border,
 			   len*inst->font_width-1, inst->font_height-1);
 	gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-			x*inst->font_width, y*inst->font_height,
-			x*inst->font_width, y*inst->font_height,
+			x*inst->font_width+cfg.window_border,
+			y*inst->font_height+cfg.window_border,
+			x*inst->font_width+cfg.window_border,
+			y*inst->font_height+cfg.window_border,
 			len*inst->font_width, inst->font_height);
     }
 }
@@ -852,10 +897,35 @@ int main(int argc, char **argv)
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
-			  inst->font_width * cfg.width,
-			  inst->font_height * cfg.height);
+			  inst->font_width * cfg.width + 2*cfg.window_border,
+			  inst->font_height * cfg.height + 2*cfg.window_border);
+    inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, 0, 0, 0, 0));
+    inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
+    inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+    gtk_box_pack_start(inst->hbox, inst->area, FALSE, FALSE, 0);
+    gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
-    gtk_container_add(GTK_CONTAINER(window), inst->area);
+    gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(inst->hbox));
+//    gtk_container_add(GTK_CONTAINER(window), inst->sbar);
+
+    {
+	GdkGeometry geom;
+	geom.min_width = inst->font_width + 2*cfg.window_border;
+	geom.min_height = inst->font_height + 2*cfg.window_border;
+	geom.max_width = geom.max_height = -1;
+	geom.base_width = 2*cfg.window_border;
+	geom.base_height = 2*cfg.window_border;
+	geom.width_inc = inst->font_width;
+	geom.height_inc = inst->font_height;
+	geom.min_aspect = geom.max_aspect = 0;
+	gtk_window_set_geometry_hints(GTK_WINDOW(window), inst->area, &geom,
+				      GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE |
+				      GDK_HINT_RESIZE_INC);
+	// FIXME: base_width and base_height don't seem to work properly.
+	// Wonder if this is because base of _zero_ is deprecated, and we
+	// need a nonzero base size? Will it help if I put in the scrollbar?
+	// FIXME also: the scrollbar is not working, find out why.
+    }
 
     gtk_signal_connect(GTK_OBJECT(window), "destroy",
 		       GTK_SIGNAL_FUNC(destroy), inst);
@@ -871,12 +941,16 @@ int main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(configure_area), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "expose_event",
 		       GTK_SIGNAL_FUNC(expose_area), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
+		       GTK_SIGNAL_FUNC(scrollbar_moved), inst);
     gtk_timeout_add(20, timer_func, inst);
     gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK);
 
     gtk_widget_show(inst->area);
+    gtk_widget_show(inst->sbar);
+    gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(window);
 
     inst->textcursor = gdk_cursor_new(GDK_XTERM);
