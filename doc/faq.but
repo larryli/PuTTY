@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.31 2002/08/09 09:11:09 simon Exp $
+\versionid $Id: faq.but,v 1.32 2002/08/09 09:14:04 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -795,15 +795,15 @@ all. For this reason we now believe PuTTY's DSA implementation is
 probably OK. However, if you have the choice, we still recommend you
 use RSA instead.
 
-\S{faq-virtuallock}{Question} Couldn't Pageant use \c{VirtualLock()}
-to stop private keys being written to disk?
+\S{faq-virtuallock}{Question} Couldn't Pageant use
+\cw{VirtualLock()} to stop private keys being written to disk?
 
-Unfortunately not. The \c{VirtualLock()} function in the Windows API
-doesn't do a proper job: it may prevent small pieces of a process's
-memory from being paged to disk while the process is running, but it
-doesn't stop the process's memory as a whole from being swapped
-completely out to disk when the process is long-term inactive. And
-Pageant spends most of its time inactive.
+Unfortunately not. The \cw{VirtualLock()} function in the Windows
+API doesn't do a proper job: it may prevent small pieces of a
+process's memory from being paged to disk while the process is
+running, but it doesn't stop the process's memory as a whole from
+being swapped completely out to disk when the process is long-term
+inactive. And Pageant spends most of its time inactive.
 
 \H{faq-admin} Administrative questions
 
