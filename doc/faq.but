@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.48 2003/10/14 19:57:50 jacob Exp $
+\versionid $Id: faq.but,v 1.49 2003/10/15 12:09:24 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -148,14 +148,15 @@ anyone else wants to try it.
 \S{faq-pscp-ascii}{Question} Can PSCP or PSFTP transfer files in
 ASCII mode?
 
-Unfortunately not. This is a limitation of the file transfer
-protocols: the SCP and SFTP protocols have no notion of transferring
-a file in anything other than binary mode.
+Unfortunately not.
 
-SFTP is designed to be extensible, so it's possible that an
-extension might be proposed at some later date that implements ASCII
-transfer. But the PuTTY team can't do anything about it until that
-happens.
+Until recently, this was a limitation of the file transfer protocols:
+the SCP and SFTP protocols had no notion of transferring a file in
+anything other than binary mode. (This is still true of SCP.)
+
+The current draft protocol spec of SFTP proposes a means of
+implementing ASCII transfer. At some point PSCP/PSFTP may implement
+this proposal.
 
 \H{faq-ports} Ports to other operating systems
 
