@@ -4744,6 +4744,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	    s->method = 0;
 	    ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
+	    s->need_pw = FALSE;
 
 	    /*
 	     * Most password/passphrase prompts will be
