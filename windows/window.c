@@ -2734,13 +2734,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    unsigned char buf[20];
 	    int len;
 
-	    if (wParam == VK_PROCESSKEY) {
-		MSG m;
-		m.hwnd = hwnd;
-		m.message = WM_KEYDOWN;
-		m.wParam = wParam;
-		m.lParam = lParam & 0xdfff;
-		TranslateMessage(&m);
+	    if (wParam == VK_PROCESSKEY) { /* IME PROCESS key */
+		if (message == WM_KEYDOWN) {
+		    MSG m;
+		    m.hwnd = hwnd;
+		    m.message = WM_KEYDOWN;
+		    m.wParam = wParam;
+		    m.lParam = lParam & 0xdfff;
+		    TranslateMessage(&m);
+		} else break; /* pass to Windows for default processing */
 	    } else {
 		len = TranslateKey(message, wParam, lParam, buf);
 		if (len == -1)
