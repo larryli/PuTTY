@@ -455,6 +455,22 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
           case IDC_GENERATE:
             state = (struct MainDlgState *)GetWindowLong(hwnd, GWL_USERDATA);
             if (!state->generation_thread_exists) {
+                BOOL ok;
+                state->keysize = GetDlgItemInt(hwnd, IDC_BITS,
+                                               &ok, FALSE);
+                if (!ok) state->keysize = DEFAULT_KEYSIZE;
+                if (state->keysize < 256) {
+                    int ret = MessageBox(hwnd,
+                                         "PuTTYgen will not generate a key"
+                                         " smaller than 256 bits.\n"
+                                         "Key length reset to 256. Continue?",
+                                         "PuTTYgen Warning",
+                                         MB_ICONWARNING | MB_OKCANCEL);
+                    if (ret != IDOK)
+                        break;
+                    state->keysize = 256;
+                    SetDlgItemInt(hwnd, IDC_BITS, 256, FALSE);
+                }
                 hidemany(hwnd, nokey_ids, TRUE);
                 hidemany(hwnd, generating_ids, FALSE);
                 hidemany(hwnd, gotkey_ids, TRUE);
@@ -464,12 +480,6 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 state->key_exists = FALSE;
                 SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
                 state->collecting_entropy = TRUE;
-		{
-		    BOOL ok;
-		    state->keysize = GetDlgItemInt(hwnd, IDC_BITS,
-						   &ok, FALSE);
-		    if (!ok) state->keysize = DEFAULT_KEYSIZE;
-		}
 
                 /*
                  * My brief statistical tests on mouse movements
