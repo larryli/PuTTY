@@ -3,30 +3,6 @@
  */
 
 /*
- * TODO:
- * 
- *  - colour selection woe: what to do about GTK's colour selector
- *    not allowing us full resolution in our own colour selections?
- *    Perhaps making the colour resolution per-platform, at least
- *    at the config level, is actually the least unpleasant
- *    alternative.
- * 
- *  - cosmetics:
- *     + can't we _somehow_ have less leading between radio buttons?
- *     + wrapping text widgets, the horror, the horror
- *     + labels and their associated edit boxes don't line up
- *       properly
- *     + don't suppose we can fix the vertical offset labels get
- *       from their underlines?
- *     + apparently Left/Right on the treeview should be expanding
- *       and collapsing branches.
- *     + why the hell are the Up/Down focus movement keys sorting
- *       things by _width_? (See the Logging and Features panels
- *       for good examples.)
- *     + window title.
- */
-
-/*
  * TODO when porting to GTK 2.0:
  * 
  *  - GtkTree is apparently deprecated and we should switch to
@@ -77,6 +53,7 @@ struct uctrl {
     GtkWidget *optmenu;	      /* also for optionmenu */
     GtkWidget *text;	      /* for text */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
+    guint textsig;
 };
 
 struct dlgparam {
@@ -96,6 +73,7 @@ struct dlgparam {
 
 enum {				       /* values for Shortcut.action */
     SHORTCUT_EMPTY,		       /* no shortcut on this key */
+    SHORTCUT_TREE,		       /* focus a tree item */
     SHORTCUT_FOCUS,		       /* focus the supplied widget */
     SHORTCUT_UCTRL,		       /* do something sane with uctrl */
     SHORTCUT_UCTRL_UP,		       /* uctrl is a draglist, move Up */
@@ -1180,6 +1158,17 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     }
 }
 
+static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
+			    gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    struct uctrl *uc = dlg_find_bywidget(dp, widget);
+
+    gtk_widget_set_usize(uc->text, alloc->width, -1);
+    gtk_label_set_text(GTK_LABEL(uc->text), uc->ctrl->generic.label);
+    gtk_signal_disconnect(GTK_OBJECT(uc->text), uc->textsig);
+}
+
 /* ----------------------------------------------------------------------
  * This function does the main layout work: it reads a controlset,
  * it creates the relevant GTK controls, and returns a GtkWidget
@@ -1299,7 +1288,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                 gint i, *percentages;
                 GSList *group;
 
-                w = columns_new(1);
+                w = columns_new(0);
                 if (ctrl->generic.label) {
                     GtkWidget *label = gtk_label_new(ctrl->generic.label);
                     columns_add(COLUMNS(w), label, 0, 1);
@@ -1349,62 +1338,72 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
             }
             break;
           case CTRL_EDITBOX:
-            if (ctrl->editbox.has_list) {
-                w = gtk_combo_new();
-		gtk_combo_set_value_in_list(GTK_COMBO(w), FALSE, TRUE);
-		uc->entry = GTK_COMBO(w)->entry;
-                uc->list = GTK_COMBO(w)->list;
-            } else {
-                w = gtk_entry_new();
-                if (ctrl->editbox.password)
-                    gtk_entry_set_visibility(GTK_ENTRY(w), FALSE);
-		uc->entry = w;
-            }
-	    gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
-			       GTK_SIGNAL_FUNC(editbox_changed), dp);
-	    gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
-			       GTK_SIGNAL_FUNC(editbox_key), dp);
-            gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_in_event",
-                               GTK_SIGNAL_FUNC(widget_focus), dp);
-            /*
-             * Edit boxes, for some strange reason, have a minimum
-             * width of 150 in GTK 1.2. We don't want this - we'd
-             * rather the edit boxes acquired their natural width
-             * from the column layout of the rest of the box.
-             */
-            {
+	    {
                 GtkRequisition req;
+
+		if (ctrl->editbox.has_list) {
+		    w = gtk_combo_new();
+		    gtk_combo_set_value_in_list(GTK_COMBO(w), FALSE, TRUE);
+		    uc->entry = GTK_COMBO(w)->entry;
+		    uc->list = GTK_COMBO(w)->list;
+		} else {
+		    w = gtk_entry_new();
+		    if (ctrl->editbox.password)
+			gtk_entry_set_visibility(GTK_ENTRY(w), FALSE);
+		    uc->entry = w;
+		}
+		gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
+				   GTK_SIGNAL_FUNC(editbox_changed), dp);
+		gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
+				   GTK_SIGNAL_FUNC(editbox_key), dp);
+		gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_in_event",
+				   GTK_SIGNAL_FUNC(widget_focus), dp);
+		/*
+		 * Edit boxes, for some strange reason, have a minimum
+		 * width of 150 in GTK 1.2. We don't want this - we'd
+		 * rather the edit boxes acquired their natural width
+		 * from the column layout of the rest of the box.
+		 *
+		 * Also, while we're here, we'll squirrel away the
+		 * edit box height so we can use that to centre its
+		 * label vertically beside it.
+		 */
                 gtk_widget_size_request(w, &req);
                 gtk_widget_set_usize(w, 10, req.height);
-            }
-            if (ctrl->generic.label) {
-                GtkWidget *label, *container;
 
-                label = gtk_label_new(ctrl->generic.label);
-		shortcut_add(scs, label, ctrl->editbox.shortcut,
-			     SHORTCUT_FOCUS, uc->entry);
+		if (ctrl->generic.label) {
+		    GtkWidget *label, *container;
 
-		container = columns_new(4);
-                if (ctrl->editbox.percentwidth == 100) {
-                    columns_add(COLUMNS(container), label, 0, 1);
-		    columns_force_left_align(COLUMNS(container), label);
-                    columns_add(COLUMNS(container), w, 0, 1);
-                } else {
-                    gint percentages[2];
-                    percentages[1] = ctrl->editbox.percentwidth;
-                    percentages[0] = 100 - ctrl->editbox.percentwidth;
-                    columns_set_cols(COLUMNS(container), 2, percentages);
-                    columns_add(COLUMNS(container), label, 0, 1);
-		    columns_force_left_align(COLUMNS(container), label);
-                    columns_add(COLUMNS(container), w, 1, 1);
-                }
-                gtk_widget_show(label);
-                gtk_widget_show(w);
+		    label = gtk_label_new(ctrl->generic.label);
 
-                w = container;
-            }
-	    gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_out_event",
-			       GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
+		    shortcut_add(scs, label, ctrl->editbox.shortcut,
+				 SHORTCUT_FOCUS, uc->entry);
+
+		    container = columns_new(4);
+		    if (ctrl->editbox.percentwidth == 100) {
+			columns_add(COLUMNS(container), label, 0, 1);
+			columns_force_left_align(COLUMNS(container), label);
+			columns_add(COLUMNS(container), w, 0, 1);
+		    } else {
+			gint percentages[2];
+			percentages[1] = ctrl->editbox.percentwidth;
+			percentages[0] = 100 - ctrl->editbox.percentwidth;
+			columns_set_cols(COLUMNS(container), 2, percentages);
+			columns_add(COLUMNS(container), label, 0, 1);
+			columns_force_left_align(COLUMNS(container), label);
+			columns_add(COLUMNS(container), w, 1, 1);
+			/* Centre the label vertically. */
+			gtk_widget_set_usize(label, -1, req.height);
+			gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+		    }
+		    gtk_widget_show(label);
+		    gtk_widget_show(w);
+
+		    w = container;
+		}
+		gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_out_event",
+				   GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
+	    }
             break;
           case CTRL_FILESELECT:
           case CTRL_FONTSELECT:
@@ -1566,10 +1565,37 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
             }
             break;
           case CTRL_TEXT:
-            uc->text = w = gtk_label_new(ctrl->generic.label);
+	    /*
+	     * Wrapping text widgets don't sit well with the GTK
+	     * layout model, in which widgets state a minimum size
+	     * and the whole window then adjusts to the smallest
+	     * size it can sensibly take given its contents. A
+	     * wrapping text widget _has_ no clear minimum size;
+	     * instead it has a range of possibilities. It can be
+	     * one line deep but 2000 wide, or two lines deep and
+	     * 1000 pixels, or three by 867, or four by 500 and so
+	     * on. It can be as short as you like provided you
+	     * don't mind it being wide, or as narrow as you like
+	     * provided you don't mind it being tall.
+	     * 
+	     * Therefore, it fits very badly into the layout model.
+	     * Hence the only thing to do is pick a width and let
+	     * it choose its own number of lines. To do this I'm
+	     * going to cheat a little. All new wrapping text
+	     * widgets will be created with a minimal text content
+	     * "X"; then, after the rest of the dialog box is set
+	     * up and its size calculated, the text widgets will be
+	     * told their width and given their real text, which
+	     * will cause the size to be recomputed in the y
+	     * direction (because many of them will expand to more
+	     * than one line).
+	     */
+            uc->text = w = gtk_label_new("X");
             gtk_misc_set_alignment(GTK_MISC(w), 0.0, 0.0);
             gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
-            /* FIXME: deal with wrapping! */
+	    uc->textsig =
+		gtk_signal_connect(GTK_OBJECT(w), "size-allocate",
+				   GTK_SIGNAL_FUNC(label_sizealloc), dp);
             break;
         }
 
@@ -1611,6 +1637,42 @@ static void window_destroy(GtkWidget *widget, gpointer data)
     gtk_main_quit();
 }
 
+static int tree_grab_focus(struct dlgparam *dp)
+{
+    int i, f;
+
+    /*
+     * See if any of the treeitems has the focus.
+     */
+    f = -1;
+    for (i = 0; i < dp->ntreeitems; i++)
+        if (GTK_WIDGET_HAS_FOCUS(dp->treeitems[i])) {
+            f = i;
+            break;
+        }
+
+    if (f >= 0)
+        return FALSE;
+    else {
+        gtk_widget_grab_focus(dp->currtreeitem);
+        return TRUE;
+    }
+}
+
+gint tree_focus(GtkContainer *container, GtkDirectionType direction,
+                gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+
+    gtk_signal_emit_stop_by_name(GTK_OBJECT(container), "focus");
+    /*
+     * If there's a focused treeitem, we return FALSE to cause the
+     * focus to move on to some totally other control. If not, we
+     * focus the selected one.
+     */
+    return tree_grab_focus(dp);
+}
+
 int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
@@ -1627,6 +1689,9 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	struct Shortcut *sc = &dp->shortcuts->sc[schr];
 
 	switch (sc->action) {
+	  case SHORTCUT_TREE:
+	    tree_grab_focus(dp);
+	    break;
 	  case SHORTCUT_FOCUS:
 	    gtk_widget_grab_focus(sc->widget);
 	    break;
@@ -1719,18 +1784,40 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
     if (event->keyval == GDK_Up || event->keyval == GDK_KP_Up ||
         event->keyval == GDK_Down || event->keyval == GDK_KP_Down) {
-        int i, j = -1;
+        int dir, i, j = -1;
         for (i = 0; i < dp->ntreeitems; i++)
-            if (widget == dp->treeitems[i]) {
-                if (event->keyval == GDK_Up || event->keyval == GDK_KP_Up) {
-                    if (i > 0)
-                        j = i-1;
-                } else {
-                    if (i < dp->ntreeitems-1)
-                        j = i+1;
-                }
-                break;
-            }
+            if (widget == dp->treeitems[i])
+		break;
+	if (i < dp->ntreeitems) {
+	    if (event->keyval == GDK_Up || event->keyval == GDK_KP_Up)
+		dir = -1;
+	    else
+		dir = +1;
+
+	    while (1) {
+		i += dir;
+		if (i < 0 || i >= dp->ntreeitems)
+		    break;	       /* nothing in that dir to select */
+		/*
+		 * Determine if this tree item is visible.
+		 */
+		{
+		    GtkWidget *w = dp->treeitems[i];
+		    int vis = TRUE;
+		    while (w && GTK_IS_TREE_ITEM(w) || GTK_IS_TREE(w)) {
+			if (!GTK_WIDGET_VISIBLE(w)) {
+			    vis = FALSE;
+			    break;
+			}
+			w = w->parent;
+		    }
+		    if (vis) {
+			j = i;	       /* got one */
+			break;
+		    }
+		}
+	    }
+	}
         gtk_signal_emit_stop_by_name(GTK_OBJECT(widget),
                                      "key_press_event");
         if (j >= 0) {
@@ -1741,40 +1828,24 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
         return TRUE;
     }
 
-    return FALSE;
-}
-
-gint tree_focus(GtkContainer *container, GtkDirectionType direction,
-                gpointer data)
-{
-    struct dlgparam *dp = (struct dlgparam *)data;
-    int i, f, dir;
-
-    gtk_signal_emit_stop_by_name(GTK_OBJECT(container), "focus");
-    dir = (direction == GTK_DIR_UP || direction == GTK_DIR_LEFT ||
-           direction == GTK_DIR_TAB_BACKWARD) ? -1 : +1;
-
     /*
-     * See if any of the treeitems has the focus.
+     * It's nice for Left and Right to expand and collapse tree
+     * branches.
      */
-    f = -1;
-    for (i = 0; i < dp->ntreeitems; i++)
-        if (GTK_WIDGET_HAS_FOCUS(dp->treeitems[i])) {
-            f = i;
-            break;
-        }
-
-    /*
-     * If there's a focused treeitem, we return FALSE to cause the
-     * focus to move on to some totally other control. If not, we
-     * focus the selected one.
-     */
-    if (f >= 0)
-        return FALSE;
-    else {
-        gtk_widget_grab_focus(dp->currtreeitem);
-        return TRUE;
+    if (event->keyval == GDK_Left || event->keyval == GDK_KP_Left) {
+        gtk_signal_emit_stop_by_name(GTK_OBJECT(widget),
+                                     "key_press_event");
+	gtk_tree_item_collapse(GTK_TREE_ITEM(widget));
+	return TRUE;
     }
+    if (event->keyval == GDK_Right || event->keyval == GDK_KP_Right) {
+        gtk_signal_emit_stop_by_name(GTK_OBJECT(widget),
+                                     "key_press_event");
+	gtk_tree_item_expand(GTK_TREE_ITEM(widget));
+	return TRUE;
+    }
+
+    return FALSE;
 }
 
 void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
@@ -1817,7 +1888,7 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 	}
 }
 
-int do_config_box(void)
+int do_config_box(const char *title)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
 	*tree, *treescroll, *panels, *panelvbox;
@@ -1857,6 +1928,7 @@ int do_config_box(void)
     unix_setup_config_box(ctrlbox, FALSE);
 
     window = gtk_dialog_new();
+    gtk_window_set_title(GTK_WINDOW(window), title);
     hbox = gtk_hbox_new(FALSE, 4);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox), hbox, TRUE, TRUE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 10);
@@ -1875,7 +1947,7 @@ int do_config_box(void)
     tree = gtk_tree_new();
     gtk_signal_connect(GTK_OBJECT(tree), "focus_in_event",
                        GTK_SIGNAL_FUNC(widget_focus), &dp);
-    shortcut_add(&scs, label, 'g', SHORTCUT_FOCUS, tree);
+    shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
     gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
@@ -2055,8 +2127,9 @@ int do_config_box(void)
 /* Compile command for testing:
 
 gcc -g -o gtkdlg gtk{dlg,cols,panel}.c ../{config,dialog,settings}.c \
-                 ../{misc,tree234,be_none}.c ux{store,misc,print,cfg}.c \
-                 -I. -I.. -I../charset -DTESTMODE `gtk-config --cflags --libs`
+../{misc,tree234,be_none}.c ux{store,misc,print,cfg}.c \
+-I. -I.. -I../charset -DTESTMODE `gtk-config --cflags --libs`
+
  */
 
 void modalfatalbox(char *p, ...)
@@ -2142,7 +2215,7 @@ char *x_get_default(const char *key)
 int main(int argc, char **argv)
 {
     gtk_init(&argc, &argv);
-    printf("returned %d\n", do_config_box());
+    printf("returned %d\n", do_config_box("PuTTY Configuration"));
     return 0;
 }
 

@@ -375,10 +375,6 @@ static void panels_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
          children = children->next) {
         GtkAllocation call;
 
-        /* Only take visible widgets into account. */
-        if (!GTK_WIDGET_VISIBLE(child))
-            continue;
-
         call.x = alloc->x + border;
         call.width = alloc->width - 2*border;
         call.y = alloc->y + border;
