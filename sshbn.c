@@ -289,7 +289,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
 {
     unsigned short *a, *n, *m, *o;
     int mshift;
-    int pqlen, mlen, i, j;
+    int pqlen, mlen, rlen, i, j;
     Bignum result;
 
     /* Allocate m of size mlen, copy mod to m */
@@ -339,9 +339,10 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     }
 
     /* Copy result to buffer */
-    result = newbn(mod[0]);
-    for (i = 0; i < mlen; i++)
-	result[result[0] - i] = a[i+2*pqlen-mlen];
+    rlen = (mlen < pqlen*2 ? mlen : pqlen*2);
+    result = newbn(rlen);
+    for (i = 0; i < rlen; i++)
+	result[result[0] - i] = a[i+2*pqlen-rlen];
     while (result[0] > 1 && result[result[0]] == 0) result[0]--;
 
     /* Free temporary arrays */
