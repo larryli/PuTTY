@@ -2,18 +2,6 @@
  * cmdgen.c - command-line form of PuTTYgen
  */
 
-/*
- * TODO:
- * 
- *  - Test thoroughly.
- *     + a neat way to do this might be to have a -DTESTMODE for
- * 	 this file, which #defines console_get_line and
- * 	 get_random_noise to different names in order to be able to
- * 	 link them to test stubs rather than the real ones. That
- * 	 way I can have a test rig which checks whether passphrases
- * 	 are being prompted for.
- */
-
 #define PUTTY_DO_GLOBALS
 
 #include <stdio.h>
@@ -26,7 +14,25 @@
 #include "putty.h"
 #include "ssh.h"
 
-#ifdef TESTMODE
+#ifdef TEST_CMDGEN
+/*
+ * This section overrides some definitions below for test purposes.
+ * When compiled with -DTEST_CMDGEN:
+ * 
+ *  - Calls to get_random_data() are replaced with the diagnostic
+ *    function below (I #define the name so that I can still link
+ *    with the original set of modules without symbol clash), in
+ *    order to avoid depleting the test system's /dev/random
+ *    unnecessarily.
+ * 
+ *  - Calls to console_get_line() are replaced with the diagnostic
+ *    function below, so that I can run tests in an automated
+ *    manner and provide their interactive passphrase inputs.
+ * 
+ *  - main() is renamed to cmdgen_main(); at the bottom of the file
+ *    I define another main() which calls the former repeatedly to
+ *    run tests.
+ */
 #define get_random_data get_random_data_diagnostic
 char *get_random_data(int len)
 {
@@ -34,6 +40,21 @@ char *get_random_data(int len)
     memset(buf, 'x', len);
     return buf;
 }
+#define console_get_line console_get_line_diagnostic
+int nprompts, promptsgot;
+const char *prompts[3];
+int console_get_line(const char *prompt, char *str, int maxlen, int is_pw)
+{
+    if (promptsgot < nprompts) {
+	assert(strlen(prompts[promptsgot]) < maxlen);
+	strcpy(str, prompts[promptsgot++]);
+	return TRUE;
+    } else {
+	promptsgot++;		       /* track number of requests anyway */
+	return FALSE;
+    }
+}
+#define main cmdgen_main
 #endif
 
 struct progress {
@@ -184,7 +205,7 @@ static int save_ssh2_pubkey(char *filename, char *comment,
     return 1;
 }
 
-static void move(char *from, char *to)
+static int move(char *from, char *to)
 {
     int ret;
 
@@ -198,8 +219,9 @@ static void move(char *from, char *to)
     }
     if (ret) {
 	perror("puttygen: cannot move new file on to old one");
-	exit(1);
+	return FALSE;
     }
+    return TRUE;
 }
 
 static char *blobfp(char *alg, int bits, char *blob, int bloblen)
@@ -537,7 +559,7 @@ int main(int argc, char **argv)
 	(intype == SSH_KEYTYPE_SSHCOM && outtype == SSHCOM)) {
 	if (!outfile) {
 	    outfile = infile;
-	    outfiletmp = dupcat(outfile, ".tmp");
+	    outfiletmp = dupcat(outfile, ".tmp", NULL);
 	}
 
 	if (!change_passphrase && !comment) {
@@ -610,6 +632,7 @@ int main(int argc, char **argv)
 	} else {
 	    struct RSAKey *rsakey = snew(struct RSAKey);
 	    rsa_generate(rsakey, bits, progressfn, &prog);
+	    rsakey->comment = NULL;
 	    if (keytype == RSA1) {
 		ssh1key = rsakey;
 	    } else {
@@ -672,10 +695,11 @@ int main(int argc, char **argv)
 		n += ssh1_read_bignum(blob + n, &ssh1key->exponent);
 		n += ssh1_read_bignum(blob + n, &ssh1key->modulus);
 		ssh1key->comment = NULL;
+		ssh1key->private_exponent = NULL;
 	    } else {
 		ret = loadrsakey(&infilename, ssh1key, passphrase, &error);
 	    }
-	    if (ret)
+	    if (ret > 0)
 		error = NULL;
 	    else if (!error)
 		error = "unknown error";
@@ -693,7 +717,7 @@ int main(int argc, char **argv)
 	    } else {
 		ssh2key = ssh2_load_userkey(&infilename, passphrase, &error);
 	    }
-	    if (ssh2key || ssh2blob)
+	    if ((ssh2key && ssh2key != SSH2_WRONG_PASSPHRASE) || ssh2blob)
 		error = NULL;
 	    else if (!error) {
 		if (ssh2key == SSH2_WRONG_PASSPHRASE)
@@ -807,8 +831,10 @@ int main(int argc, char **argv)
 		return 1;
 	    }
 	}
-	if (outfiletmp)
-	    move(outfiletmp, outfile);
+	if (outfiletmp) {
+	    if (!move(outfiletmp, outfile))
+		return 1;	       /* rename failed */
+	}
 	break;
 
       case PUBLIC:
@@ -928,8 +954,10 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "puttygen: unable to export key\n");
 	    return 1;
 	}
-	if (outfiletmp)
-	    move(outfiletmp, outfile);
+	if (outfiletmp) {
+	    if (!move(outfiletmp, outfile))
+		return 1;	       /* rename failed */
+	}
 	break;
     }
 
@@ -947,3 +975,550 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+#ifdef TEST_CMDGEN
+
+#undef main
+
+#include <stdarg.h>
+
+int passes, fails;
+
+void setup_passphrases(char *first, ...)
+{
+    va_list ap;
+    char *next;
+
+    nprompts = 0;
+    if (first) {
+	prompts[nprompts++] = first;
+	va_start(ap, first);
+	while ((next = va_arg(ap, char *)) != NULL) {
+	    assert(nprompts < lenof(prompts));
+	    prompts[nprompts++] = next;
+	}
+	va_end(ap);
+    }
+}
+
+void test(int retval, ...)
+{
+    va_list ap;
+    int i, argc, ret;
+    char **argv;
+
+    argc = 0;
+    va_start(ap, retval);
+    while (va_arg(ap, char *) != NULL)
+	argc++;
+    va_end(ap);
+
+    argv = snewn(argc+1, char *);
+    va_start(ap, retval);
+    for (i = 0; i <= argc; i++)
+	argv[i] = va_arg(ap, char *);
+    va_end(ap);
+
+    promptsgot = 0;
+    ret = cmdgen_main(argc, argv);
+
+    if (ret != retval) {
+	printf("FAILED retval (exp %d got %d):", retval, ret);
+	for (i = 0; i < argc; i++)
+	    printf(" %s", argv[i]);
+	printf("\n");
+	fails++;
+    } else if (promptsgot != nprompts) {
+	printf("FAILED nprompts (exp %d got %d):", nprompts, promptsgot);
+	for (i = 0; i < argc; i++)
+	    printf(" %s", argv[i]);
+	printf("\n");
+	fails++;
+    } else {
+	passes++;
+    }
+}
+
+void filecmp(char *file1, char *file2, char *fmt, ...)
+{
+    /*
+     * Ideally I should do file comparison myself, to maximise the
+     * portability of this test suite once this application begins
+     * running on non-Unix platforms. For the moment, though,
+     * calling Unix diff is perfectly adequate.
+     */
+    char *buf;
+    int ret;
+
+    buf = dupprintf("diff -q '%s' '%s'", file1, file2);
+    ret = system(buf);
+    sfree(buf);
+
+    if (ret) {
+	va_list ap;
+
+	printf("FAILED diff (ret=%d): ", ret);
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+
+	printf("\n");
+
+	fails++;
+    } else
+	passes++;
+}
+
+char *cleanup_fp(char *s)
+{
+    char *p;
+
+    if (!strncmp(s, "ssh-", 4)) {
+	s += strcspn(s, " \n\t");
+	s += strspn(s, " \n\t");
+    }
+
+    p = s;
+    s += strcspn(s, " \n\t");
+    s += strspn(s, " \n\t");
+    s += strcspn(s, " \n\t");
+
+    return dupprintf("%.*s", s - p, p);
+}
+
+char *get_fp(char *filename)
+{
+    FILE *fp;
+    char buf[256], *ret;
+
+    fp = fopen(filename, "r");
+    if (!fp)
+	return NULL;
+    ret = fgets(buf, sizeof(buf), fp);
+    fclose(fp);
+    if (!ret)
+	return NULL;
+    return cleanup_fp(buf);
+}
+
+void check_fp(char *filename, char *fp, char *fmt, ...)
+{
+    char *newfp;
+
+    if (!fp)
+	return;
+
+    newfp = get_fp(filename);
+
+    if (!strcmp(fp, newfp)) {
+	passes++;
+    } else {
+	va_list ap;
+
+	printf("FAILED check_fp ['%s' != '%s']: ", newfp, fp);
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+
+	printf("\n");
+
+	fails++;
+    }
+
+    sfree(newfp);
+}
+
+int main(int argc, char **argv)
+{
+    int i;
+    static char *const keytypes[] = { "rsa1", "dsa", "rsa" };
+
+    /*
+     * Even when this thing is compiled for automatic test mode,
+     * it's helpful to be able to invoke it with command-line
+     * options for _manual_ tests.
+     */
+    if (argc > 1)
+	return cmdgen_main(argc, argv);
+
+    passes = fails = 0;
+
+    for (i = 0; i < lenof(keytypes); i++) {
+	char filename[128], osfilename[128], scfilename[128];
+	char pubfilename[128], tmpfilename1[128], tmpfilename2[128];
+	char *fp;
+
+	sprintf(filename, "test-%s.ppk", keytypes[i]);
+	sprintf(pubfilename, "test-%s.pub", keytypes[i]);
+	sprintf(osfilename, "test-%s.os", keytypes[i]);
+	sprintf(scfilename, "test-%s.sc", keytypes[i]);
+	sprintf(tmpfilename1, "test-%s.tmp1", keytypes[i]);
+	sprintf(tmpfilename2, "test-%s.tmp2", keytypes[i]);
+
+	/*
+	 * Create an encrypted key.
+	 */
+	setup_passphrases("sponge", "sponge", NULL);
+	test(0, "puttygen", "-t", keytypes[i], "-o", filename, NULL);
+
+	/*
+	 * List the public key in OpenSSH format.
+	 */
+	setup_passphrases(NULL);
+	test(0, "puttygen", "-L", filename, "-o", pubfilename, NULL);
+	{
+	    char cmdbuf[256];
+	    fp = NULL;
+	    sprintf(cmdbuf, "ssh-keygen -l -f '%s' > '%s'",
+		    pubfilename, tmpfilename1);
+	    if (system(cmdbuf) ||
+		(fp = get_fp(tmpfilename1)) == NULL) {
+		printf("UNABLE to test fingerprint matching against OpenSSH");
+	    }
+	}
+
+	/*
+	 * List the public key in IETF/ssh.com format.
+	 */
+	setup_passphrases(NULL);
+	test(0, "puttygen", "-p", filename, NULL);
+
+	/*
+	 * List the fingerprint of the key.
+	 */
+	setup_passphrases(NULL);
+	test(0, "puttygen", "-l", filename, "-o", tmpfilename1, NULL);
+	if (!fp) {
+	    /*
+	     * If we can't test fingerprints against OpenSSH, we
+	     * can at the very least test equality of all the
+	     * fingerprints we generate of this key throughout
+	     * testing.
+	     */
+	    fp = get_fp(tmpfilename1);
+	} else {
+	    check_fp(tmpfilename1, fp, "%s initial fp", keytypes[i]);
+	}
+
+	/*
+	 * Change the comment of the key; this _does_ require a
+	 * passphrase owing to the tamperproofing.
+	 * 
+	 * NOTE: In SSH1, this only requires a passphrase because
+	 * of inadequacies of the loading and saving mechanisms. In
+	 * _principle_, it should be perfectly possible to modify
+	 * the comment on an SSH1 key without requiring a
+	 * passphrase; the only reason I can't do it is because my
+	 * loading and saving mechanisms don't include a method of
+	 * loading all the key data without also trying to decrypt
+	 * the private section.
+	 * 
+	 * I don't consider this to be a problem worth solving,
+	 * because (a) to fix it would probably end up bloating
+	 * PuTTY proper, and (b) SSH1 is on the way out anyway so
+	 * it shouldn't be highly significant. If it seriously
+	 * bothers anyone then perhaps I _might_ be persuadable.
+	 */
+	setup_passphrases("sponge", NULL);
+	test(0, "puttygen", "-C", "new-comment", filename, NULL);
+
+	/*
+	 * Change the passphrase to nothing.
+	 */
+	setup_passphrases("sponge", "", "", NULL);
+	test(0, "puttygen", "-P", filename, NULL);
+
+	/*
+	 * Change the comment of the key again; this time we expect no
+	 * passphrase to be required.
+	 */
+	setup_passphrases(NULL);
+	test(0, "puttygen", "-C", "new-comment-2", filename, NULL);
+
+	/*
+	 * Export the private key into OpenSSH format; no passphrase
+	 * should be required since the key is currently unencrypted.
+	 * For RSA1 keys, this should give an error.
+	 */
+	setup_passphrases(NULL);
+	test((i==0), "puttygen", "-O", "private-openssh", "-o", osfilename,
+	     filename, NULL);
+
+	if (i) {
+	    /*
+	     * List the fingerprint of the OpenSSH-formatted key.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-l", osfilename, "-o", tmpfilename1, NULL);
+	    check_fp(tmpfilename1, fp, "%s openssh clear fp", keytypes[i]);
+
+	    /*
+	     * List the public half of the OpenSSH-formatted key in
+	     * OpenSSH format.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-L", osfilename, NULL);
+
+	    /*
+	     * List the public half of the OpenSSH-formatted key in
+	     * IETF/ssh.com format.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-p", osfilename, NULL);
+	}
+
+	/*
+	 * Export the private key into ssh.com format; no passphrase
+	 * should be required since the key is currently unencrypted.
+	 * For RSA1 keys, this should give an error.
+	 */
+	setup_passphrases(NULL);
+	test((i==0), "puttygen", "-O", "private-sshcom", "-o", scfilename,
+	     filename, NULL);
+
+	if (i) {
+	    /*
+	     * List the fingerprint of the ssh.com-formatted key.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-l", scfilename, "-o", tmpfilename1, NULL);
+	    check_fp(tmpfilename1, fp, "%s ssh.com clear fp", keytypes[i]);
+
+	    /*
+	     * List the public half of the ssh.com-formatted key in
+	     * OpenSSH format.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-L", scfilename, NULL);
+
+	    /*
+	     * List the public half of the ssh.com-formatted key in
+	     * IETF/ssh.com format.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-p", scfilename, NULL);
+	}
+
+	if (i) {
+	    /*
+	     * Convert from OpenSSH into ssh.com.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", osfilename, "-o", tmpfilename1,
+		 "-O", "private-sshcom", NULL);
+
+	    /*
+	     * Convert from ssh.com back into a PuTTY key,
+	     * supplying the same comment as we had before we
+	     * started to ensure the comparison works.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", tmpfilename1, "-C", "new-comment-2",
+		 "-o", tmpfilename2, NULL);
+
+	    /*
+	     * See if the PuTTY key thus generated is the same as
+	     * the original.
+	     */
+	    filecmp(filename, tmpfilename2,
+		    "p->o->s->p clear %s", keytypes[i]);
+
+	    /*
+	     * Convert from ssh.com to OpenSSH.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", scfilename, "-o", tmpfilename1,
+		 "-O", "private-openssh", NULL);
+
+	    /*
+	     * Convert from OpenSSH back into a PuTTY key,
+	     * supplying the same comment as we had before we
+	     * started to ensure the comparison works.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", tmpfilename1, "-C", "new-comment-2",
+		 "-o", tmpfilename2, NULL);
+
+	    /*
+	     * See if the PuTTY key thus generated is the same as
+	     * the original.
+	     */
+	    filecmp(filename, tmpfilename2,
+		    "p->s->o->p clear %s", keytypes[i]);
+
+	    /*
+	     * Finally, do a round-trip conversion between PuTTY
+	     * and ssh.com without involving OpenSSH, to test that
+	     * the key comment is preserved in that case.
+	     */
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", "-O", "private-sshcom", "-o", tmpfilename1,
+		 filename, NULL);
+	    setup_passphrases(NULL);
+	    test(0, "puttygen", tmpfilename1, "-o", tmpfilename2, NULL);
+	    filecmp(filename, tmpfilename2,
+		    "p->s->p clear %s", keytypes[i]);
+	}
+
+	/*
+	 * Check that mismatched passphrases cause an error.
+	 */
+	setup_passphrases("sponge2", "sponge3", NULL);
+	test(1, "puttygen", "-P", filename, NULL);
+
+	/*
+	 * Put a passphrase back on.
+	 */
+	setup_passphrases("sponge2", "sponge2", NULL);
+	test(0, "puttygen", "-P", filename, NULL);
+
+	/*
+	 * Export the private key into OpenSSH format, this time
+	 * while encrypted. For RSA1 keys, this should give an
+	 * error.
+	 */
+	if (i == 0)
+	    setup_passphrases(NULL);   /* error, hence no passphrase read */
+	else
+	    setup_passphrases("sponge2", NULL);
+	test((i==0), "puttygen", "-O", "private-openssh", "-o", osfilename,
+	     filename, NULL);
+
+	if (i) {
+	    /*
+	     * List the fingerprint of the OpenSSH-formatted key.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-l", osfilename, "-o", tmpfilename1, NULL);
+	    check_fp(tmpfilename1, fp, "%s openssh encrypted fp", keytypes[i]);
+
+	    /*
+	     * List the public half of the OpenSSH-formatted key in
+	     * OpenSSH format.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-L", osfilename, NULL);
+
+	    /*
+	     * List the public half of the OpenSSH-formatted key in
+	     * IETF/ssh.com format.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-p", osfilename, NULL);
+	}
+
+	/*
+	 * Export the private key into ssh.com format, this time
+	 * while encrypted. For RSA1 keys, this should give an
+	 * error.
+	 */
+	if (i == 0)
+	    setup_passphrases(NULL);   /* error, hence no passphrase read */
+	else
+	    setup_passphrases("sponge2", NULL);
+	test((i==0), "puttygen", "-O", "private-sshcom", "-o", scfilename,
+	     filename, NULL);
+
+	if (i) {
+	    /*
+	     * List the fingerprint of the ssh.com-formatted key.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-l", scfilename, "-o", tmpfilename1, NULL);
+	    check_fp(tmpfilename1, fp, "%s ssh.com encrypted fp", keytypes[i]);
+
+	    /*
+	     * List the public half of the ssh.com-formatted key in
+	     * OpenSSH format.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-L", scfilename, NULL);
+
+	    /*
+	     * List the public half of the ssh.com-formatted key in
+	     * IETF/ssh.com format.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-p", scfilename, NULL);
+	}
+
+	if (i) {
+	    /*
+	     * Convert from OpenSSH into ssh.com.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", osfilename, "-o", tmpfilename1,
+		 "-O", "private-sshcom", NULL);
+
+	    /*
+	     * Convert from ssh.com back into a PuTTY key,
+	     * supplying the same comment as we had before we
+	     * started to ensure the comparison works.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", tmpfilename1, "-C", "new-comment-2",
+		 "-o", tmpfilename2, NULL);
+
+	    /*
+	     * See if the PuTTY key thus generated is the same as
+	     * the original.
+	     */
+	    filecmp(filename, tmpfilename2,
+		    "p->o->s->p encrypted %s", keytypes[i]);
+
+	    /*
+	     * Convert from ssh.com to OpenSSH.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", scfilename, "-o", tmpfilename1,
+		 "-O", "private-openssh", NULL);
+
+	    /*
+	     * Convert from OpenSSH back into a PuTTY key,
+	     * supplying the same comment as we had before we
+	     * started to ensure the comparison works.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", tmpfilename1, "-C", "new-comment-2",
+		 "-o", tmpfilename2, NULL);
+
+	    /*
+	     * See if the PuTTY key thus generated is the same as
+	     * the original.
+	     */
+	    filecmp(filename, tmpfilename2,
+		    "p->s->o->p encrypted %s", keytypes[i]);
+
+	    /*
+	     * Finally, do a round-trip conversion between PuTTY
+	     * and ssh.com without involving OpenSSH, to test that
+	     * the key comment is preserved in that case.
+	     */
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", "-O", "private-sshcom", "-o", tmpfilename1,
+		 filename, NULL);
+	    setup_passphrases("sponge2", NULL);
+	    test(0, "puttygen", tmpfilename1, "-o", tmpfilename2, NULL);
+	    filecmp(filename, tmpfilename2,
+		    "p->s->p encrypted %s", keytypes[i]);
+	}
+
+	/*
+	 * Load with the wrong passphrase.
+	 */
+	setup_passphrases("sponge8", NULL);
+	test(1, "puttygen", "-C", "spurious-new-comment", filename, NULL);
+
+	/*
+	 * Load a totally bogus file.
+	 */
+	setup_passphrases(NULL);
+	test(1, "puttygen", "-C", "spurious-new-comment", pubfilename, NULL);
+    }
+    printf("%d passes, %d fails\n", passes, fails);
+    return 0;
+}
+
+#endif

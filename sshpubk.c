@@ -824,6 +824,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	    /* An incorrect MAC is an unconditional Error if the key is
 	     * unencrypted. Otherwise, it means Wrong Passphrase. */
 	    if (cipher) {
+		error = "wrong passphrase";
 		ret = SSH2_WRONG_PASSPHRASE;
 	    } else {
 		error = "MAC failed";
