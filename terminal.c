@@ -319,13 +319,15 @@ void term_update(void)
     Context ctx;
     ctx = get_ctx();
     if (ctx) {
-	if (seen_disp_event)
-	    update_sbar();
+	int need_sbar_update = seen_disp_event;
 	if ((seen_key_event && (cfg.scroll_on_key)) ||
 	    (seen_disp_event && (cfg.scroll_on_disp))) {
 	    disptop = 0;	       /* return to main screen */
 	    seen_disp_event = seen_key_event = 0;
+	    need_sbar_update = TRUE;
 	}
+	if (need_sbar_update)
+	    update_sbar();
 	do_paint(ctx, TRUE);
 	sys_cursor(curs.x, curs.y - disptop);
 	free_ctx(ctx);
