@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.72 2003/03/29 23:07:55 ben Exp $ */
+/* $Id: macterm.c,v 1.73 2003/04/12 21:06:34 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -157,7 +157,7 @@ void mac_startsession(Session *s)
     s->logctx = log_init(s->term, &s->cfg);
     term_provide_logctx(s->term, s->logctx);
 
-    errmsg = s->back->init(s->term, &s->backhandle, &s->cfg, s->cfg.host,
+    errmsg = s->back->init(s, &s->backhandle, &s->cfg, s->cfg.host,
 			   s->cfg.port, &s->realhost, s->cfg.tcp_nodelay);
     if (errmsg != NULL)
 	fatalbox("%s", errmsg);
@@ -1845,6 +1845,13 @@ int askappend(void *frontend, Filename filename)
 
     /* FIXME: not implemented yet. */
     return 2;
+}
+
+int from_backend(void *frontend, int is_stderr, const char *data, int len)
+{
+    Session *s = frontend;
+
+    return term_data(s->term, is_stderr, data, len);
 }
 
 /*

@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.6 2003/03/29 23:07:55 ben Exp $ */
+/* $Id: macevlog.c,v 1.7 2003/04/12 21:06:34 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -101,16 +101,9 @@ void mac_freeeventlog(Session *s)
     }
 }
 
-/*
- * FIXME: logevent() should be passed a frontend handle, but backends have to
- * have a terminal handle instead, because they pass it to from_backend(),
- * so we accept a terminal handle here as well, and hope no-one tries to call
- * us with sensible arguments.
- */
 void logevent(void *frontend, char *str)
 {
-    Terminal *term = frontend;
-    Session *s = term->frontend;
+    Session *s = frontend;
     ListBounds bounds, visible;
     Cell cell = { 0, 0 };
 
