@@ -4222,6 +4222,11 @@ void set_iconic(int iconic)
  */
 void move_window(int x, int y)
 {
+    if (cfg.resize_action == RESIZE_DISABLED || 
+        cfg.resize_action == RESIZE_FONT ||
+	IsZoomed(hwnd))
+       return;
+
     SetWindowPos(hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 }
 
