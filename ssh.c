@@ -3712,6 +3712,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      *    the username they will want to be able to get back and
      *    retype it!
      */
+    username[0] = '\0';
     do {
 	static int pos;
 	static char c;
@@ -3720,7 +3721,13 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	 * Get a username.
 	 */
 	pos = 0;
-	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
+	if (*username && !cfg.change_username) {
+	    /*
+	     * We got a username last time round this loop, and
+	     * with change_username turned off we don't try to get
+	     * it again.
+	     */
+	} else if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
 	    if (ssh_get_line) {
 		if (!ssh_get_line("login as: ",
 				  username, sizeof(username), FALSE)) {

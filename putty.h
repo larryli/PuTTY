@@ -251,6 +251,7 @@ typedef struct {
     int nopty;
     int compression;
     int agentfwd;
+    int change_username;	       /* allow username switching in SSH2 */
     int ssh_cipherlist[CIPHER_MAX];
     char keyfile[FILENAME_MAX];
     int sshprot;		       /* use v1 or v2 when both available */

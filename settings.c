@@ -172,6 +172,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "NoPTY", cfg->nopty);
     write_setting_i(sesskey, "Compression", cfg->compression);
     write_setting_i(sesskey, "AgentFwd", cfg->agentfwd);
+    write_setting_i(sesskey, "ChangeUsername", cfg->change_username);
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX,
 	   cfg->ssh_cipherlist);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
@@ -359,6 +360,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "NoPTY", 0, &cfg->nopty);
     gppi(sesskey, "Compression", 0, &cfg->compression);
     gppi(sesskey, "AgentFwd", 0, &cfg->agentfwd);
+    gppi(sesskey, "ChangeUsername", 0, &cfg->change_username);
     gprefs(sesskey, "Cipher", "\0",
 	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
     gppi(sesskey, "SshProt", 1, &cfg->sshprot);

@@ -477,6 +477,7 @@ enum { IDCX_ABOUT =
     IDC_PKEDIT,
     IDC_PKBUTTON,
     IDC_AGENTFWD,
+    IDC_CHANGEUSER,
     IDC_AUTHTIS,
     IDC_AUTHKI,
     sshauthpanelend,
@@ -833,6 +834,8 @@ char *help_context_cmd(int id)
         return "JI(`',`ssh.auth.privkey')";
       case IDC_AGENTFWD:
         return "JI(`',`ssh.auth.agentfwd')";
+      case IDC_CHANGEUSER:
+        return "JI(`',`ssh.auth.changeuser')";
       case IDC_AUTHTIS:
         return "JI(`',`ssh.auth.tis')";
       case IDC_AUTHKI:
@@ -1063,6 +1066,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_BUGGYMAC, cfg.buggymac);
     CheckDlgButton(hwnd, IDC_SSH2DES, cfg.ssh2_des_cbc);
     CheckDlgButton(hwnd, IDC_AGENTFWD, cfg.agentfwd);
+    CheckDlgButton(hwnd, IDC_CHANGEUSER, cfg.change_username);
     CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
 		     cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
@@ -1674,6 +1678,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    beginbox(&cp, "Authentication parameters",
 		     IDC_BOX_SSHAUTH2);
 	    checkbox(&cp, "Allow agent &forwarding", IDC_AGENTFWD);
+	    checkbox(&cp, "Allow attempted changes of &username in SSH2",
+		     IDC_CHANGEUSER);
 	    editbutton(&cp, "Private &key file for authentication:",
 		       IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...",
 		       IDC_PKBUTTON);
@@ -2755,6 +2761,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.agentfwd =
 			IsDlgButtonChecked(hwnd, IDC_AGENTFWD);
+		break;
+	      case IDC_CHANGEUSER:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.change_username =
+			IsDlgButtonChecked(hwnd, IDC_CHANGEUSER);
 		break;
 	      case IDC_CIPHERLIST:
 	      case IDC_CIPHERUP:
