@@ -20,11 +20,6 @@
 
 #define DEFAULT_KEYSIZE 1024
 
-/*
- * TODO:
- *  - test the generated keys for actual working-RSA-key-hood
- */
-
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)
  */
