@@ -309,6 +309,18 @@ extern void pfd_confirm(Socket s);
 extern void pfd_unthrottle(Socket s);
 extern void pfd_override_throttle(Socket s, int enable);
 
+static void ssh2_pkt_init(int pkt_type);
+static void ssh2_pkt_addbool(unsigned char value);
+static void ssh2_pkt_adduint32(unsigned long value);
+static void ssh2_pkt_addstring_start(void);
+static void ssh2_pkt_addstring_str(char *data);
+static void ssh2_pkt_addstring_data(char *data, int len);
+static void ssh2_pkt_addstring(char *data);
+static char *ssh2_mpint_fmt(Bignum b, int *len);
+static void ssh2_pkt_addmp(Bignum b);
+static int ssh2_pkt_construct(void);
+static void ssh2_pkt_send(void);
+
 /*
  * Buffer management constants. There are several of these for
  * various different purposes:
@@ -770,8 +782,8 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	pktin.type == SSH1_MSG_DEBUG ||
 	pktin.type == SSH1_SMSG_AUTH_TIS_CHALLENGE ||
 	pktin.type == SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
-	long strlen = GET_32BIT(pktin.body);
-	if (strlen + 4 != pktin.length) {
+	long stringlen = GET_32BIT(pktin.body);
+	if (stringlen + 4 != pktin.length) {
 	    bombout(("Received data packet with bogus string length"));
 	    crReturn(0);
 	}
@@ -780,12 +792,12 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
     if (pktin.type == SSH1_MSG_DEBUG) {
 	/* log debug message */
 	char buf[80];
-	int strlen = GET_32BIT(pktin.body);
+	int stringlen = GET_32BIT(pktin.body);
 	strcpy(buf, "Remote: ");
-	if (strlen > 70)
-	    strlen = 70;
-	memcpy(buf + 8, pktin.body + 4, strlen);
-	buf[8 + strlen] = '\0';
+	if (stringlen > 70)
+	    stringlen = 70;
+	memcpy(buf + 8, pktin.body + 4, stringlen);
+	buf[8 + stringlen] = '\0';
 	logevent(buf);
 	goto next_packet;
     } else if (pktin.type == SSH1_MSG_IGNORE) {
@@ -945,36 +957,105 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
     log_packet(PKT_INCOMING, pktin.type, ssh2_pkt_type(pktin.type),
 	       pktin.data+6, pktin.length-6);
 
-    if (pktin.type == SSH2_MSG_IGNORE || pktin.type == SSH2_MSG_DEBUG)
-	goto next_packet;	       /* FIXME: print DEBUG message */
-
-    if (pktin.type == SSH2_MSG_DISCONNECT) {
-	/* log reason code in disconnect message */
-	char buf[256];
-	int reason = GET_32BIT(pktin.data + 6);
-	unsigned msglen = GET_32BIT(pktin.data + 10);
-	unsigned nowlen;
-	if (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) {
-	    sprintf(buf, "Received disconnect message (%s)",
-		    ssh2_disconnect_reasons[reason]);
-	} else {
-	    sprintf(buf, "Received disconnect message (unknown type %d)",
-		    reason);
+    switch (pktin.type) {
+        /*
+         * These packets we must handle instantly.
+         */
+      case SSH2_MSG_DISCONNECT:
+        {
+            /* log reason code in disconnect message */
+            char buf[256];
+            int reason = GET_32BIT(pktin.data + 6);
+            unsigned msglen = GET_32BIT(pktin.data + 10);
+            unsigned nowlen;
+            if (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) {
+                sprintf(buf, "Received disconnect message (%s)",
+                        ssh2_disconnect_reasons[reason]);
+            } else {
+                sprintf(buf, "Received disconnect message (unknown type %d)",
+                        reason);
+            }
+            logevent(buf);
+            strcpy(buf, "Disconnection message text: ");
+            nowlen = strlen(buf);
+            if (msglen > sizeof(buf) - nowlen - 1)
+                msglen = sizeof(buf) - nowlen - 1;
+            memcpy(buf + nowlen, pktin.data + 14, msglen);
+            buf[nowlen + msglen] = '\0';
+            logevent(buf);
+            bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
+                     reason,
+                     (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
+                     ssh2_disconnect_reasons[reason] : "unknown",
+                     buf+nowlen));
+            crReturn(0);
+        }
+        break;
+      case SSH2_MSG_IGNORE:
+	goto next_packet;
+      case SSH2_MSG_DEBUG:
+	{
+	    /* log the debug message */
+	    char buf[512];
+	    /* int display = pktin.body[6]; */
+	    int stringlen = GET_32BIT(pktin.data+7);
+	    int prefix;
+	    strcpy(buf, "Remote debug message: ");
+	    prefix = strlen(buf);
+	    if (stringlen > sizeof(buf)-prefix-1)
+		stringlen = sizeof(buf)-prefix-1;
+	    memcpy(buf + prefix, pktin.data + 11, stringlen);
+	    buf[prefix + stringlen] = '\0';
+	    logevent(buf);
 	}
-	logevent(buf);
-	strcpy(buf, "Disconnection message text: ");
-	nowlen = strlen(buf);
-	if (msglen > sizeof(buf) - nowlen - 1)
-	    msglen = sizeof(buf) - nowlen - 1;
-	memcpy(buf + nowlen, pktin.data + 14, msglen);
-	buf[nowlen + msglen] = '\0';
-	logevent(buf);
-	bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
-		 reason,
-		 (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
-		 ssh2_disconnect_reasons[reason] : "unknown",
-		 buf+nowlen));
-	crReturn(0);
+        goto next_packet;              /* FIXME: print the debug message */
+
+        /*
+         * These packets we need do nothing about here.
+         */
+      case SSH2_MSG_UNIMPLEMENTED:
+      case SSH2_MSG_SERVICE_REQUEST:
+      case SSH2_MSG_SERVICE_ACCEPT:
+      case SSH2_MSG_KEXINIT:
+      case SSH2_MSG_NEWKEYS:
+      case SSH2_MSG_KEXDH_INIT:
+      case SSH2_MSG_KEXDH_REPLY:
+      /* case SSH2_MSG_KEX_DH_GEX_REQUEST: duplicate case value */
+      /* case SSH2_MSG_KEX_DH_GEX_GROUP: duplicate case value */
+      case SSH2_MSG_KEX_DH_GEX_INIT:
+      case SSH2_MSG_KEX_DH_GEX_REPLY:
+      case SSH2_MSG_USERAUTH_REQUEST:
+      case SSH2_MSG_USERAUTH_FAILURE:
+      case SSH2_MSG_USERAUTH_SUCCESS:
+      case SSH2_MSG_USERAUTH_BANNER:
+      case SSH2_MSG_USERAUTH_PK_OK:
+      /* case SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ: duplicate case value */
+      /* case SSH2_MSG_USERAUTH_INFO_REQUEST: duplicate case value */
+      case SSH2_MSG_USERAUTH_INFO_RESPONSE:
+      case SSH2_MSG_GLOBAL_REQUEST:
+      case SSH2_MSG_REQUEST_SUCCESS:
+      case SSH2_MSG_REQUEST_FAILURE:
+      case SSH2_MSG_CHANNEL_OPEN:
+      case SSH2_MSG_CHANNEL_OPEN_CONFIRMATION:
+      case SSH2_MSG_CHANNEL_OPEN_FAILURE:
+      case SSH2_MSG_CHANNEL_WINDOW_ADJUST:
+      case SSH2_MSG_CHANNEL_DATA:
+      case SSH2_MSG_CHANNEL_EXTENDED_DATA:
+      case SSH2_MSG_CHANNEL_EOF:
+      case SSH2_MSG_CHANNEL_CLOSE:
+      case SSH2_MSG_CHANNEL_REQUEST:
+      case SSH2_MSG_CHANNEL_SUCCESS:
+      case SSH2_MSG_CHANNEL_FAILURE:
+        break;
+
+        /*
+         * For anything else we send SSH2_MSG_UNIMPLEMENTED.
+         */
+      default:
+	ssh2_pkt_init(SSH2_MSG_UNIMPLEMENTED);
+	ssh2_pkt_adduint32(st->incoming_sequence - 1);
+	ssh2_pkt_send();
+        break;
     }
 
     crFinish(0);
