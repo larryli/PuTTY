@@ -3734,6 +3734,14 @@ static int ssh2_try_send(struct ssh_channel *c)
  */
 static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
 {
+    /*
+     * Never send WINDOW_ADJUST for a channel that the remote side
+     * already thinks it's closed; there's no point, since it won't
+     * be sending any more data anyway.
+     */
+    if (c->closes != 0)
+	return;
+
     if (newwin > c->v.v2.locwindow) {
 	ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 	ssh2_pkt_adduint32(c->remoteid);
