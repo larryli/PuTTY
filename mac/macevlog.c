@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.3 2003/02/19 01:03:47 ben Exp $ */
+/* $Id: macevlog.c,v 1.4 2003/02/23 12:41:44 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -110,7 +110,7 @@ void logevent(void *frontend, char *str)
 {
     Terminal *term = frontend;
     Session *s = term->frontend;
-    ListBounds bounds;
+    ListBounds bounds, visible;
     Cell cell = { 0, 0 };
 
     if (s->eventlog == NULL)
@@ -120,12 +120,18 @@ void logevent(void *frontend, char *str)
 
 #if TARGET_API_MAC_CARBON
     GetListDataBounds(s->eventlog, &bounds);
+    GetListVisibleCells(s->eventlog, &visible);
 #else
     bounds = (*s->eventlog)->dataBounds;
+    visible = (*s->eventlog)->visible;
 #endif
+
     cell.v = bounds.bottom;
     LAddRow(1, cell.v, s->eventlog);
     LSetCell(str, strlen(str), cell, s->eventlog);
+    /* ">=" and "2" because there can be a blank cell below the last one. */
+    if (visible.bottom >= bounds.bottom)
+	LScroll(0, 2, s->eventlog);
 }
 
 static void mac_draweventloggrowicon(Session *s)
