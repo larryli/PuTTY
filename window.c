@@ -1799,6 +1799,11 @@ static WPARAM compose_key = 0;
             SendMessage (hwnd, WM_VSCROLL, SB_PAGEDOWN, 0);
             return 0;
 	}
+        if (wParam == VK_INSERT && shift_state == 1) {
+            term_mouse (MB_PASTE, MA_CLICK, 0, 0);
+            term_mouse (MB_PASTE, MA_RELEASE, 0, 0);
+            return 0;
+        }
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {
             return -1;
 	}
