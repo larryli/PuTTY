@@ -2871,7 +2871,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
      * Record that we pressed key so the scroll window can be reset, but
      * be careful to avoid Shift-UP/Down
      */
-    if (wParam != VK_SHIFT && wParam != VK_PRIOR && wParam != VK_NEXT) {
+    if (wParam != VK_SHIFT && wParam != VK_PRIOR && wParam != VK_NEXT &&
+	wParam != VK_MENU && wParam != VK_CONTROL) {
 	seen_key_event = 1;
     }
 
