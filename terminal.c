@@ -934,14 +934,17 @@ void term_out(void)
 {
     int c, inbuf_reap;
 
+    /*
+     * Optionally log the session traffic to a file. Useful for
+     * debugging and possibly also useful for actual logging.
+     */
+    if (cfg.logtype == LGTYP_DEBUG)
+	for (inbuf_reap = 0; inbuf_reap < inbuf_head; inbuf_reap++) {
+	    logtraffic((unsigned char) inbuf[inbuf_reap], LGTYP_DEBUG);
+	}
+
     for (inbuf_reap = 0; inbuf_reap < inbuf_head; inbuf_reap++) {
 	c = inbuf[inbuf_reap];
-
-	/*
-	 * Optionally log the session traffic to a file. Useful for
-	 * debugging and possibly also useful for actual logging.
-	 */
-	logtraffic((unsigned char) c, LGTYP_DEBUG);
 
 	/* Note only VT220+ are 8-bit VT102 is seven bit, it shouldn't even
 	 * be able to display 8-bit characters, but I'll let that go 'cause
@@ -985,9 +988,9 @@ void term_out(void)
 		  case 4:
 		  case 5:
 		    if ((c & 0xC0) != 0x80) {
-			inbuf_reap--;  /* This causes the faulting character */
-			c = UCSERR;    /* to be logged twice - not really a */
-			utf_state = 0; /* serious problem. */
+			inbuf_reap--;
+			c = UCSERR;
+			utf_state = 0;
 			break;
 		    }
 		    utf_char = (utf_char << 6) | (c & 0x3f);
