@@ -1,0 +1,55 @@
+.TH plink 1
+.SH NAME
+plink \- mumble
+.SH SYNOPSIS
+\fBplink\fR [\fIoptions\fR] [\fIuser\fB@\fR]\fIhost\fR [\fIcommand\fR]
+.SH DESCRIPTION
+\fBplink\fR is a network connection tool supporting several protocols.
+.SH OPTIONS
+The command-line options supported by \fIplink\fP are:
+.IP "\fB-v\fR"
+Show verbose messages.
+.IP "\fB-load\fR \fIsession\fR"
+Load settings from saved session.
+.IP "\fB-ssh\fR"
+Force use of SSH protocol (default).
+.IP "\fB-telnet\fR"
+Force use of Telnet protocol.
+.IP "\fB-rlogin\fR"
+Force use of rlogin protocol.
+.IP "\fB-raw\fR"
+Force raw mode.
+.IP "\fB-P\fR \fIport\fR"
+Connect to port \fIport\fR.
+.IP "\fB-l\fR \fIuser\fR"
+Set remote username to \fIuser\fR.
+.IP "\fB-m\fR \fIpath\fR"
+Read remote command(s) from file \fIpath\fR.
+.IP "\fB-batch\fR"
+Disable interactive prompts.
+.IP "\fB-pw\fR \fIpassword\fR"
+Set remote password to \fIpassword\fR.
+.IP "\fB-L\fR \fIlisten\fB:\fIhost\fB:\fIport\fR"
+Forward the local port to a remote address.
+.IP "\fB-L\fR \fIlisten\fB:\fIhost\fB:\fIport\fR"
+Forward the a remote port to a local address.
+.IP "\fB-X\fR"
+Enable X11 forwarding.
+.IP "\fB-x\fR"
+Disable X11 forwarding (default).
+.IP "\fB-A\fR"
+Enable agent forwarding.
+.IP "\fB-x\fR"
+Disable agent forwarding.
+.IP "\fB-T\fR"
+Enable pty allocation (default if a command is NOT specified).
+.IP "\fB-t\fR"
+Disable pty allocation (default if a command is specified).
+.IP "\fB-1\fR"
+Force use of SSH protocol version 1.
+.IP "\fB-2\fR"
+Force use of SSH protocol version 2.
+.IP "\fB-C\fR"
+Enable compression.
+.IP "\fB-i\fR \fIpath\fR"
+Private key file for authentication.
