@@ -2739,7 +2739,7 @@ void sshfwd_close(struct ssh_channel *c)
 	 * on it now, and then when the server acks the channel
 	 * open, we can close it then.
 	 */
-	if (c->remoteid != -1) {
+	if (((int)c->remoteid) != -1) {
 	    if (ssh_version == 1) {
 		send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
 			    PKT_END);
