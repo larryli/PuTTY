@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.10 2001/02/19 10:54:18 simon Exp $
+\versionid $Id: pscp.but,v 1.11 2001/06/28 13:36:14 owen Exp $
 
 \#FIXME: Need examples
 
@@ -23,7 +23,7 @@ To start PSCP it will need either to be on your \i{\c{PATH}} or in your
 current directory.  To add the directory containing PSCP to your
 \c{PATH} environment variable, type into the console window:
 
-\c set PATH C:\path\to\putty\directory;%PATH%
+\c set PATH=C:\path\to\putty\directory;%PATH%
 
 This will only work for the lifetime of that particular console
 window.  To set your \c{PATH} more permanently on Windows NT, use the

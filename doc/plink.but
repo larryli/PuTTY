@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.5 2001/04/18 15:23:36 owen Exp $
+\versionid $Id: plink.but,v 1.6 2001/06/28 13:36:14 owen Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -30,7 +30,7 @@ To start Plink it will need either to be on your \i{\c{PATH}} or in your
 current directory.  To add the directory containing Plink to your
 \c{PATH} environment variable, type into the console window:
 
-\c set PATH C:\path\to\putty\directory;%PATH%
+\c set PATH=C:\path\to\putty\directory;%PATH%
 
 This will only work for the lifetime of that particular console
 window.  To set your \c{PATH} more permanently on Windows NT, use the
