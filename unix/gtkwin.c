@@ -1169,7 +1169,7 @@ void notify_remote_exit(void *frontend)
 	inst->exited = TRUE;
 	if (inst->cfg.close_on_exit == FORCE_ON ||
 	    (inst->cfg.close_on_exit == AUTO && exitcode == 0))
-	    exit(0);		       /* just go. */
+	    gtk_main_quit();	       /* just go */
 	if (inst->ldisc) {
 	    ldisc_free(inst->ldisc);
 	    inst->ldisc = NULL;

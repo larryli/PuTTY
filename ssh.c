@@ -2517,6 +2517,9 @@ static int ssh_closing(Plug plug, const char *error_msg, int error_code,
         error_msg = "Server unexpectedly closed network connection";
     }
 
+    if (need_notify)
+        notify_remote_exit(ssh->frontend);
+
     if (error_msg) {
 	/* A socket error has occurred. */
 	logevent(error_msg);
@@ -2524,8 +2527,6 @@ static int ssh_closing(Plug plug, const char *error_msg, int error_code,
     } else {
         logevent("Server closed network connection");
     }
-    if (need_notify)
-        notify_remote_exit(ssh->frontend);
     return 0;
 }
 
