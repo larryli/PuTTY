@@ -86,6 +86,10 @@ typedef struct {
 #define incpos(p) ( (p).x == cols ? ((p).x = 0, (p).y++, 1) : ((p).x++, 0) )
 #define decpos(p) ( (p).x == 0 ? ((p).x = cols, (p).y--, 1) : ((p).x--, 0) )
 
+/* Product-order comparisons for rectangular block selection. */
+#define posPlt(p1,p2) ( (p1).y <= (p2).y && (p1).x < (p2).x )
+#define posPle(p1,p2) ( (p1).y <= (p2).y && (p1).x <= (p2).x )
+
 static bufchain inbuf;		       /* terminal input buffer */
 static pos curs;		       /* cursor */
 static pos savecurs;		       /* saved cursor position */
@@ -162,6 +166,9 @@ static enum {
 static enum {
     NO_SELECTION, ABOUT_TO, DRAGGING, SELECTED
 } selstate;
+static enum {
+    LEXICOGRAPHIC, RECTANGULAR
+} seltype;
 static enum {
     SM_CHAR, SM_WORD, SM_LINE
 } selmode;
@@ -2586,7 +2593,7 @@ static void do_paint(Context ctx, int may_optimise)
     for (i = 0; i < rows; i++) {
 	unsigned long *ldata;
 	int lattr;
-	int idx, dirty_line, dirty_run;
+	int idx, dirty_line, dirty_run, selected;
 	unsigned long attr = 0;
 	int updated_line = 0;
 	int start = 0;
@@ -2626,9 +2633,12 @@ static void do_paint(Context ctx, int may_optimise)
 		    tattr |= ATTR_WIDE;
 
 	    /* Video reversing things */
+	    if (seltype == LEXICOGRAPHIC)
+		selected = posle(selstart, scrpos) && poslt(scrpos, selend);
+	    else
+		selected = posPle(selstart, scrpos) && posPlt(scrpos, selend);
 	    tattr = (tattr ^ rv
-		     ^ (posle(selstart, scrpos) &&
-			poslt(scrpos, selend) ? ATTR_REVERSE : 0));
+		     ^ (selected ? ATTR_REVERSE : 0));
 
 	    /* 'Real' blinking ? */
 	    if (blink_is_real && (tattr & ATTR_BLINK)) {
@@ -2816,25 +2826,38 @@ void term_scroll(int rel, int where)
     term_update();
 }
 
-static void clipme(pos top, pos bottom)
+static void clipme(pos top, pos bottom, int rect)
 {
     wchar_t *workbuf;
     wchar_t *wbptr;		       /* where next char goes within workbuf */
+    int old_top_x;
     int wblen = 0;		       /* workbuf len */
     int buflen;			       /* amount of memory allocated to workbuf */
 
     buflen = 5120;		       /* Default size */
     workbuf = smalloc(buflen * sizeof(wchar_t));
     wbptr = workbuf;		       /* start filling here */
+    old_top_x = top.x;		       /* needed for rect==1 */
 
     while (poslt(top, bottom)) {
 	int nl = FALSE;
 	unsigned long *ldata = lineptr(top.y);
 	pos nlpos;
 
+	/*
+	 * nlpos will point at the maximum position on this line we
+	 * should copy up to. So we start it at the end of the
+	 * line...
+	 */
 	nlpos.y = top.y;
 	nlpos.x = cols;
 
+	/*
+	 * ... move it backwards if there's unused space at the end
+	 * of the line (and also set `nl' if this is the case,
+	 * because in normal selection mode this means we need a
+	 * newline at the end)...
+	 */
 	if (!(ldata[cols] & LATTR_WRAPPED)) {
 	    while (((ldata[nlpos.x - 1] & 0xFF) == 0x20 ||
 		    (DIRECT_CHAR(ldata[nlpos.x - 1]) &&
@@ -2844,6 +2867,20 @@ static void clipme(pos top, pos bottom)
 	    if (poslt(nlpos, bottom))
 		nl = TRUE;
 	}
+
+	/*
+	 * ... and then clip it to the terminal x coordinate if
+	 * we're doing rectangular selection. (In this case we
+	 * still did the above, so that copying e.g. the right-hand
+	 * column from a table doesn't fill with spaces on the
+	 * right.)
+	 */
+	if (rect) {
+	    if (nlpos.x > bottom.x)
+		nlpos.x = bottom.x;
+	    nl = (top.y < bottom.y);
+	}
+
 	while (poslt(top, bottom) && poslt(top, nlpos)) {
 #if 0
 	    char cbuf[16], *p;
@@ -2931,7 +2968,7 @@ static void clipme(pos top, pos bottom)
 	    }
 	}
 	top.y++;
-	top.x = 0;
+	top.x = rect ? old_top_x : 0;
     }
     wblen++;
     *wbptr++ = 0;
@@ -2945,7 +2982,7 @@ void term_copyall(void)
     pos top;
     top.y = -count234(scrollback);
     top.x = 0;
-    clipme(top, curs);
+    clipme(top, curs, 0);
 }
 
 /*
@@ -3149,10 +3186,12 @@ static pos sel_spread_half(pos p, int dir)
 
 static void sel_spread(void)
 {
-    selstart = sel_spread_half(selstart, -1);
-    decpos(selend);
-    selend = sel_spread_half(selend, +1);
-    incpos(selend);
+    if (seltype == LEXICOGRAPHIC) {
+	selstart = sel_spread_half(selstart, -1);
+	decpos(selend);
+	selend = sel_spread_half(selend, +1);
+	incpos(selend);
+    }
 }
 
 void term_do_paste(void)
@@ -3204,11 +3243,12 @@ void term_do_paste(void)
 }
 
 void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
-		int shift, int ctrl)
+		int shift, int ctrl, int alt)
 {
     pos selpoint;
     unsigned long *ldata;
     int raw_mouse = xterm_mouse && !(cfg.mouse_override && shift);
+    int default_seltype;
 
     if (y < 0) {
 	y = 0;
@@ -3290,9 +3330,23 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 
     b = translate_button(b);
 
+    /*
+     * Set the selection type (rectangular or normal) at the start
+     * of a selection attempt, from the state of Alt.
+     */
+    if (!alt ^ !cfg.rect_select)
+	default_seltype = RECTANGULAR;
+    else
+	default_seltype = LEXICOGRAPHIC;
+	
+    if (selstate == NO_SELECTION) {
+	seltype = default_seltype;
+    }
+
     if (b == MBT_SELECT && a == MA_CLICK) {
 	deselect();
 	selstate = ABOUT_TO;
+	seltype = default_seltype;
 	selanchor = selpoint;
 	selmode = SM_CHAR;
     } else if (b == MBT_SELECT && (a == MA_2CLK || a == MA_3CLK)) {
@@ -3308,26 +3362,64 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 	if (selstate == ABOUT_TO && poseq(selanchor, selpoint))
 	    return;
 	if (b == MBT_EXTEND && a != MA_DRAG && selstate == SELECTED) {
-	    if (posdiff(selpoint, selstart) <
-		posdiff(selend, selstart) / 2) {
-		selanchor = selend;
-		decpos(selanchor);
+	    if (seltype == LEXICOGRAPHIC) {
+		/*
+		 * For normal selection, we extend by moving
+		 * whichever end of the current selection is closer
+		 * to the mouse.
+		 */
+		if (posdiff(selpoint, selstart) <
+		    posdiff(selend, selstart) / 2) {
+		    selanchor = selend;
+		    decpos(selanchor);
+		} else {
+		    selanchor = selstart;
+		}
 	    } else {
-		selanchor = selstart;
+		/*
+		 * For rectangular selection, we have a choice of
+		 * _four_ places to put selanchor and selpoint: the
+		 * four corners of the selection.
+		 */
+		if (2*selpoint.x < selstart.x + selend.x)
+		    selanchor.x = selend.x-1;
+		else
+		    selanchor.x = selstart.x;
+
+		if (2*selpoint.y < selstart.y + selend.y)
+		    selanchor.y = selend.y;
+		else
+		    selanchor.y = selstart.y;
 	    }
 	    selstate = DRAGGING;
 	}
 	if (selstate != ABOUT_TO && selstate != DRAGGING)
 	    selanchor = selpoint;
 	selstate = DRAGGING;
-	if (poslt(selpoint, selanchor)) {
-	    selstart = selpoint;
-	    selend = selanchor;
-	    incpos(selend);
+	if (seltype == LEXICOGRAPHIC) {
+	    /*
+	     * For normal selection, we set (selstart,selend) to
+	     * (selpoint,selanchor) in some order.
+	     */
+	    if (poslt(selpoint, selanchor)) {
+		selstart = selpoint;
+		selend = selanchor;
+		incpos(selend);
+	    } else {
+		selstart = selanchor;
+		selend = selpoint;
+		incpos(selend);
+	    }
 	} else {
-	    selstart = selanchor;
-	    selend = selpoint;
-	    incpos(selend);
+	    /*
+	     * For rectangular selection, we may need to
+	     * interchange x and y coordinates (if the user has
+	     * dragged in the -x and +y directions, or vice versa).
+	     */
+	    selstart.x = min(selanchor.x, selpoint.x);
+	    selend.x = 1+max(selanchor.x, selpoint.x);
+	    selstart.y = min(selanchor.y, selpoint.y);
+	    selend.y =   max(selanchor.y, selpoint.y);
 	}
 	sel_spread();
     } else if ((b == MBT_SELECT || b == MBT_EXTEND) && a == MA_RELEASE) {
@@ -3336,7 +3428,7 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 	     * We've completed a selection. We now transfer the
 	     * data to the clipboard.
 	     */
-	    clipme(selstart, selend);
+	    clipme(selstart, selend, (seltype == RECTANGULAR));
 	    selstate = SELECTED;
 	} else
 	    selstate = NO_SELECTION;

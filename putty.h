@@ -326,6 +326,7 @@ typedef struct {
     unsigned char colours[22][3];
     /* Selection options */
     int mouse_is_xterm;
+    int rect_select;
     int rawcnp;
     int mouse_override;
     short wordness[256];
@@ -452,7 +453,7 @@ void term_paint(Context, int, int, int, int);
 void term_scroll(int, int);
 void term_pwron(void);
 void term_clrsb(void);
-void term_mouse(Mouse_Button, Mouse_Action, int, int, int, int);
+void term_mouse(Mouse_Button, Mouse_Action, int, int, int, int, int);
 void term_deselect(void);
 void term_update(void);
 void term_invalidate(void);

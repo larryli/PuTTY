@@ -1335,13 +1335,13 @@ static void reset_window(int reinit) {
     }
 }
 
-static void click(Mouse_Button b, int x, int y, int shift, int ctrl)
+static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
 {
     int thistime = GetMessageTime();
 
     if (send_raw_mouse && !(cfg.mouse_override && shift)) {
 	lastbtn = MBT_NOTHING;
-	term_mouse(b, MA_CLICK, x, y, shift, ctrl);
+	term_mouse(b, MA_CLICK, x, y, shift, ctrl, alt);
 	return;
     }
 
@@ -1354,7 +1354,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl)
 	lastact = MA_CLICK;
     }
     if (lastact != MA_NOTHING)
-	term_mouse(b, lastact, x, y, shift, ctrl);
+	term_mouse(b, lastact, x, y, shift, ctrl, alt);
     lasttime = thistime;
 }
 
@@ -1383,6 +1383,19 @@ static void show_mouseptr(int show)
     else if (!cursor_visible && show)
 	ShowCursor(TRUE);
     cursor_visible = show;
+}
+
+static int is_alt_pressed(void)
+{
+    BYTE keystate[256];
+    int r = GetKeyboardState(keystate);
+    if (!r)
+	return FALSE;
+    if (keystate[VK_MENU] & 0x80)
+	return TRUE;
+    if (keystate[VK_RMENU] & 0x80)
+	return TRUE;
+    return FALSE;
 }
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
@@ -1730,14 +1743,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (send_raw_mouse) {
 		    /* send a mouse-down followed by a mouse up */
+		    
 		    term_mouse(b,
 			       MA_CLICK,
 			       TO_CHR_X(X_POS(lParam)),
 			       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
-			       wParam & MK_CONTROL);
+			       wParam & MK_CONTROL, is_alt_pressed());
 		    term_mouse(b, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 			       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
-			       wParam & MK_CONTROL);
+			       wParam & MK_CONTROL, is_alt_pressed());
 		} else {
 		    /* trigger a scroll */
 		    term_scroll(0,
@@ -1754,6 +1768,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_RBUTTONUP:
 	{
 	    int button, press;
+
 	    switch (message) {
 	      case WM_LBUTTONDOWN:
 		button = MBT_LEFT;
@@ -1786,13 +1801,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if (press) {
 		click(button,
 		      TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
-		      wParam & MK_SHIFT, wParam & MK_CONTROL);
+		      wParam & MK_SHIFT, wParam & MK_CONTROL,
+		      is_alt_pressed());
 		SetCapture(hwnd);
 	    } else {
 		term_mouse(button, MA_RELEASE,
 			   TO_CHR_X(X_POS(lParam)),
 			   TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
-			   wParam & MK_CONTROL);
+			   wParam & MK_CONTROL, is_alt_pressed());
 		ReleaseCapture();
 	    }
 	}
@@ -1815,7 +1831,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		b = MBT_RIGHT;
 	    term_mouse(b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
 		       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
-		       wParam & MK_CONTROL);
+		       wParam & MK_CONTROL, is_alt_pressed());
 	}
 	return 0;
       case WM_NCMOUSEMOVE:

@@ -479,6 +479,9 @@ enum { IDCX_ABOUT =
     IDC_MBWINDOWS,
     IDC_MBXTERM,
     IDC_MOUSEOVERRIDE,
+    IDC_SELTYPESTATIC,
+    IDC_SELTYPELEX,
+    IDC_SELTYPERECT,
     IDC_CCSTATIC,
     IDC_CCLIST,
     IDC_CCSET,
@@ -763,9 +766,10 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 
     }
 
-
     CheckRadioButton(hwnd, IDC_MBWINDOWS, IDC_MBXTERM,
 		     cfg.mouse_is_xterm ? IDC_MBXTERM : IDC_MBWINDOWS);
+    CheckRadioButton(hwnd, IDC_SELTYPELEX, IDC_SELTYPERECT,
+		     cfg.rect_select == 0 ? IDC_SELTYPELEX : IDC_SELTYPERECT);
     CheckDlgButton(hwnd, IDC_MOUSEOVERRIDE, cfg.mouse_override);
     CheckDlgButton(hwnd, IDC_RAWCNP, cfg.rawcnp);
     {
@@ -1141,7 +1145,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == selectionpanelstart) {
-	/* The Selection panel. Accelerators used: [acgo] d wxp hst */
+	/* The Selection panel. Accelerators used: [acgo] d wxp hst nr */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling copy and paste",
@@ -1161,6 +1165,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	checkbox(&cp,
 		 "Shift overrides a&pplication's use of mouse",
 		 IDC_MOUSEOVERRIDE);
+        radioline(&cp,
+                  "Default selection mode (Alt+drag does the other one):",
+                  IDC_SELTYPESTATIC, 2,
+		  "&Normal", IDC_SELTYPELEX,
+		  "&Rectangular block", IDC_SELTYPERECT, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Control the select-one-word-at-a-time mode",
 		 IDC_BOX_SELECTION3);
@@ -2406,6 +2415,10 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_MBWINDOWS:
 	      case IDC_MBXTERM:
 		cfg.mouse_is_xterm = IsDlgButtonChecked(hwnd, IDC_MBXTERM);
+		break;
+	      case IDC_SELTYPELEX:
+	      case IDC_SELTYPERECT:
+		cfg.rect_select = IsDlgButtonChecked(hwnd, IDC_SELTYPERECT);
 		break;
 	      case IDC_MOUSEOVERRIDE:
 		cfg.mouse_override = IsDlgButtonChecked(hwnd, IDC_MOUSEOVERRIDE);

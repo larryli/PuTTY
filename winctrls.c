@@ -712,7 +712,7 @@ void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
 			PUSHBTNHEIGHT ? EDITHEIGHT : PUSHBTNHEIGHT);
     const static int percents[] = { 30, 40, 30 };
     int i, xpos, percent;
-    const int LISTHEIGHT = 66;
+    const int LISTHEIGHT = 52;
 
     /* The static control. */
     r.left = GAPBETWEEN;
