@@ -223,6 +223,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     sessionpanelend,
 
     loggingpanelstart,
+    IDC_TITLE_LOGGING,
     IDC_BOX_LOGGING1,
     IDC_LSTATSTATIC,
     IDC_LSTATOFF,
@@ -269,7 +270,6 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_WRAPMODE,
     IDC_DECOM,
     IDC_LFHASCR,
-    IDC_BEEP,
     IDC_BCE,
     IDC_BLINKTEXT,
     IDC_ANSWERBACK,
@@ -283,6 +283,24 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_EDITYES,
     IDC_EDITNO,
     terminalpanelend,
+
+    bellpanelstart,
+    IDC_TITLE_BELL,
+    IDC_BOX_BELL1,
+    IDC_BOX_BELL2,
+    IDC_BELLSTATIC,
+    IDC_BELL_DISABLED,
+    IDC_BELL_DEFAULT,
+    IDC_BELL_VISUAL,
+    IDC_BELLOVL,
+    IDC_BELLOVLNSTATIC,
+    IDC_BELLOVLN,
+    IDC_BELLOVLTSTATIC,
+    IDC_BELLOVLT,
+    IDC_BELLOVLEXPLAIN,
+    IDC_BELLOVLSSTATIC,
+    IDC_BELLOVLS,
+    bellpanelend,
 
     windowpanelstart,
     IDC_TITLE_WINDOW,
@@ -547,7 +565,14 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemInt (hwnd, IDC_SAVEEDIT, cfg.savelines, FALSE);
     fmtfont (fontstatic);
     SetDlgItemText (hwnd, IDC_FONTSTATIC, fontstatic);
-    CheckDlgButton (hwnd, IDC_BEEP, cfg.beep);
+    CheckRadioButton (hwnd, IDC_BELL_DISABLED, IDC_BELL_VISUAL,
+		      cfg.beep==0 ? IDC_BELL_DISABLED :
+		      cfg.beep==1 ? IDC_BELL_DEFAULT : IDC_BELL_VISUAL);
+    CheckDlgButton (hwnd, IDC_BELLOVL, cfg.bellovl);
+    SetDlgItemInt (hwnd, IDC_BELLOVLN, cfg.bellovl_n, FALSE);
+    SetDlgItemInt (hwnd, IDC_BELLOVLT, cfg.bellovl_t, FALSE);
+    SetDlgItemInt (hwnd, IDC_BELLOVLS, cfg.bellovl_s, FALSE);
+
     CheckDlgButton (hwnd, IDC_BCE, cfg.bce);
     CheckDlgButton (hwnd, IDC_BLINKTEXT, cfg.blinktext);
 
@@ -738,7 +763,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling session logging",
-                 IDC_TITLE_TERMINAL);
+                 IDC_TITLE_LOGGING);
         beginbox(&cp, NULL, IDC_BOX_LOGGING1);
         radiobig(&cp,
                  "Session logging:", IDC_LSTATSTATIC,
@@ -752,7 +777,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == terminalpanelstart) {
-        /* The Terminal panel. Accelerators used: [acgo] wdlben hts */
+        /* The Terminal panel. Accelerators used: [acgo] wdlen hts */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the terminal emulation",
@@ -762,7 +787,6 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         checkbox(&cp, "Auto &wrap mode initially on", IDC_WRAPMODE);
         checkbox(&cp, "&DEC Origin Mode initially on", IDC_DECOM);
         checkbox(&cp, "Implicit CR in every &LF", IDC_LFHASCR);
-        checkbox(&cp, "&Beep enabled", IDC_BEEP);
         checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
         checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
         multiedit(&cp,
@@ -780,6 +804,35 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                   "Auto", IDC_EDITBACKEND,
                   "Force on", IDC_EDITYES,
                   "Force off", IDC_EDITNO, NULL);
+        endbox(&cp);
+    }
+
+    if (panel == bellpanelstart) {
+        /* The Bell panel. Accelerators used: [acgo] bdsm */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling the terminal bell",
+                 IDC_TITLE_BELL);
+        beginbox(&cp, "Set the style of bell",
+                 IDC_BOX_BELL1);
+        radiobig(&cp,
+                 "Action to happen when a &bell occurs:", IDC_BELLSTATIC,
+                 "None (bell disabled)", IDC_BELL_DISABLED,
+                 "Play Windows Default Sound", IDC_BELL_DEFAULT,
+                 "Visual bell (flash window)", IDC_BELL_VISUAL, NULL);
+        endbox(&cp);
+	beginbox(&cp, "Control the bell overload behaviour",
+		 IDC_BOX_BELL2);
+	checkbox(&cp, "Bell is temporarily &disabled when over-used",
+		 IDC_BELLOVL);
+	staticedit(&cp, "Over-use means this &many bells...",
+		   IDC_BELLOVLNSTATIC, IDC_BELLOVLN, 20);
+	staticedit(&cp, "... in this many &seconds",
+		   IDC_BELLOVLTSTATIC, IDC_BELLOVLT, 20);
+	statictext(&cp, "The bell is re-enabled after a few seconds of silence.",
+		   IDC_BELLOVLEXPLAIN);
+	staticedit(&cp, "Seconds of silence required",
+		   IDC_BELLOVLSSTATIC, IDC_BELLOVLS, 20);
         endbox(&cp);
     }
 
@@ -1165,6 +1218,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
         treeview_insert(&tvfaff, 1, "Logging");
         treeview_insert(&tvfaff, 0, "Terminal");
         treeview_insert(&tvfaff, 1, "Keyboard");
+        treeview_insert(&tvfaff, 1, "Bell");
         treeview_insert(&tvfaff, 0, "Window");
         treeview_insert(&tvfaff, 1, "Appearance");
         treeview_insert(&tvfaff, 1, "Translation");
@@ -1232,6 +1286,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, keyboardpanelstart);
 	    if (!strcmp(buffer, "Terminal"))
 		create_controls(hwnd, dlgtype, terminalpanelstart);
+	    if (!strcmp(buffer, "Bell"))
+		create_controls(hwnd, dlgtype, bellpanelstart);
 	    if (!strcmp(buffer, "Window"))
 		create_controls(hwnd, dlgtype, windowpanelstart);
 	    if (!strcmp(buffer, "Appearance"))
@@ -1588,11 +1644,33 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		SetDlgItemText (hwnd, IDC_FONTSTATIC, fontstatic);
 	    }
 	    break;
-	  case IDC_BEEP:
+	  case IDC_BELL_DISABLED:
+	  case IDC_BELL_DEFAULT:
+	  case IDC_BELL_VISUAL:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (LOWORD(wParam)==IDC_BELL_DISABLED) cfg.beep = 0;
+		if (LOWORD(wParam)==IDC_BELL_DEFAULT) cfg.beep = 1;
+		if (LOWORD(wParam)==IDC_BELL_VISUAL) cfg.beep = 2;
+            }
+	    break;
+	  case IDC_BELLOVL:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.beep = IsDlgButtonChecked (hwnd, IDC_BEEP);
+		cfg.bellovl = IsDlgButtonChecked (hwnd, IDC_BELLOVL);
 	    break;
+          case IDC_BELLOVLN:
+            if (HIWORD(wParam) == EN_CHANGE)
+                MyGetDlgItemInt (hwnd, IDC_BELLOVLN, &cfg.bellovl_n);
+            break;
+          case IDC_BELLOVLT:
+            if (HIWORD(wParam) == EN_CHANGE)
+                MyGetDlgItemInt (hwnd, IDC_BELLOVLT, &cfg.bellovl_t);
+            break;
+          case IDC_BELLOVLS:
+            if (HIWORD(wParam) == EN_CHANGE)
+                MyGetDlgItemInt (hwnd, IDC_BELLOVLS, &cfg.bellovl_s);
+            break;
 	  case IDC_BLINKTEXT:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)

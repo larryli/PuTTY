@@ -595,14 +595,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		term_out();
 	    term_update();
             ShowCaret(hwnd);
-	    if (!has_focus)
+	    if (in_vbell)
+	       /* Hmm, term_update didn't want to do an update too soon ... */
+	       timer_id = SetTimer(hwnd, 1, 50, NULL);
+	    else if (!has_focus)
 	       timer_id = SetTimer(hwnd, 1, 59500, NULL);
 	    else
 	       timer_id = SetTimer(hwnd, 1, 100, NULL);
 	    long_timer = 1;
 	
 	    /* There's no point rescanning everything in the message queue
-	     * so we do an apperently unneccesary wait here 
+	     * so we do an apparently unnecessary wait here
 	     */
 	    WaitMessage();
 	    if (GetMessage (&msg, NULL, 0, 0) != 1)
@@ -2633,21 +2636,7 @@ void fatalbox(char *fmt, ...) {
 /*
  * Beep.
  */
-void beep(int errorbeep) {
-    static long last_beep = 0;
-    long now, beep_diff;
-
-    now = GetTickCount();
-    beep_diff = now-last_beep;
-
-    /* Make sure we only respond to one beep per packet or so */
-    if (beep_diff>=0 && beep_diff<50)
-        return;
-
-    if(errorbeep)
-       MessageBeep(MB_ICONHAND);
-    else
-       MessageBeep(MB_OK);
-
-    last_beep = GetTickCount();
+void beep(int mode) {
+    if (mode == 1)
+	MessageBeep(MB_OK);
 }

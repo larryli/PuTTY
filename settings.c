@@ -104,6 +104,10 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "CurType", cfg->cursor_type);
     write_setting_i (sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i (sesskey, "Beep", cfg->beep);
+    write_setting_i (sesskey, "BellOverload", cfg->bellovl);
+    write_setting_i (sesskey, "BellOverloadN", cfg->bellovl_n);
+    write_setting_i (sesskey, "BellOverloadT", cfg->bellovl_t);
+    write_setting_i (sesskey, "BellOverloadS", cfg->bellovl_s);
     write_setting_i (sesskey, "ScrollbackLines", cfg->savelines);
     write_setting_i (sesskey, "DECOriginMode", cfg->dec_om);
     write_setting_i (sesskey, "AutoWrapMode", cfg->wrap_mode);
@@ -256,6 +260,10 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "CurType", 0, &cfg->cursor_type);
     gppi (sesskey, "BlinkCur", 0, &cfg->blink_cur);
     gppi (sesskey, "Beep", 1, &cfg->beep);
+    gppi (sesskey, "BellOverload", 1, &cfg->bellovl);
+    gppi (sesskey, "BellOverloadN", 5, &cfg->bellovl_n);
+    gppi (sesskey, "BellOverloadT", 2, &cfg->bellovl_t);
+    gppi (sesskey, "BellOverloadS", 5, &cfg->bellovl_s);
     gppi (sesskey, "ScrollbackLines", 200, &cfg->savelines);
     gppi (sesskey, "DECOriginMode", 0, &cfg->dec_om);
     gppi (sesskey, "AutoWrapMode", 1, &cfg->wrap_mode);

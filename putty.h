@@ -72,6 +72,9 @@ GLOBAL int outbuf_head, outbuf_reap;
 
 GLOBAL int has_focus;
 
+GLOBAL int in_vbell;
+GLOBAL long vbell_timeout;
+
 GLOBAL int app_cursor_keys, app_keypad_keys, vt52_mode;
 GLOBAL int repeat_off, cr_lf_return;
 
@@ -214,7 +217,11 @@ typedef struct {
     int lfhascr;
     int cursor_type;		       /* 0=block 1=underline 2=vertical */
     int blink_cur;
-    int beep;
+    int beep;			       /* 0=none 1=defaultsound 2=visual */
+    int bellovl;		       /* bell overload protection active? */
+    int bellovl_n;		       /* number of bells to cause overload */
+    int bellovl_t;		       /* time interval for overload (seconds) */
+    int bellovl_s;		       /* period of silence to re-enable bell (s) */
     int scrollbar;
     int locksize;
     int bce;

@@ -55,6 +55,17 @@ static unsigned long *disptext;	       /* buffer of text on real screen */
 static unsigned long *wanttext;	       /* buffer of text we want on screen */
 static unsigned long *alttext;	       /* buffer of text on alt. screen */
 
+#define VBELL_TIMEOUT 100	       /* millisecond duration of visual bell */
+
+struct beeptime {
+    struct beeptime *next;
+    long ticks;
+};
+static struct beeptime *beephead, *beeptail;
+int nbeeps;
+int beep_overloaded;
+long lastbeep;
+
 static unsigned char *selspace;	       /* buffer for building selections in */
 
 #define TSIZE (sizeof(*text))
@@ -183,6 +194,7 @@ static void power_on(void) {
     alt_cset = cset = 0;
     cset_attr[0] = cset_attr[1] = ATTR_ASCII;
     rvideo = 0;
+    in_vbell = FALSE;
     cursor_on = 1;
     save_attr = curr_attr = ATTR_DEFAULT;
     term_editing = term_echoing = FALSE;
@@ -255,6 +267,10 @@ void term_init(void) {
     deselect();
     rows = cols = -1;
     power_on();
+    beephead = beeptail = NULL;
+    nbeeps = 0;
+    lastbeep = FALSE;
+    beep_overloaded = FALSE;
 }
 
 /*
@@ -773,9 +789,6 @@ static void do_osc(void) {
 void term_out(void) {
     int c, inbuf_reap;
 
-static int beep_overload = 0;
-    int beep_count = 0;
-
     for(inbuf_reap = 0; inbuf_reap < inbuf_head; inbuf_reap++)
     {
         c = inbuf[inbuf_reap];
@@ -829,9 +842,77 @@ static int beep_overload = 0;
 		}
 		break;
 	      case '\007':
-		beep_count++; 
-		if(beep_count>6) beep_overload=1;
-		disptop = scrtop;
+		{
+		    struct beeptime *newbeep;
+		    long ticks;
+
+		    ticks = GetTickCount();
+debug(("beep received at %ld, last was %ld, nbeeps=%d\n", ticks, lastbeep, nbeeps));
+
+		    if (!beep_overloaded) {
+			newbeep = smalloc(sizeof(struct beeptime));
+			newbeep->ticks = ticks;
+			newbeep->next = NULL;
+			if (!beephead)
+			    beephead = newbeep;
+			else
+			    beeptail->next = newbeep;
+			beeptail = newbeep;
+			nbeeps++;
+		    }
+
+		    /*
+		     * Throw out any beeps that happened more than
+		     * t seconds ago.
+		     */
+		    while (beephead &&
+			   beephead->ticks < ticks - cfg.bellovl_t*1000) {
+			struct beeptime *tmp = beephead;
+			beephead = tmp->next;
+debug(("throwing out beep received at %ld\n", tmp->ticks));
+			sfree(tmp);
+			if (!beephead)
+			    beeptail = NULL;
+			nbeeps--;
+		    }
+
+		    if (cfg.bellovl && beep_overloaded &&
+			ticks-lastbeep >= cfg.bellovl_s * 1000) {
+			/*
+			 * If we're currently overloaded and the
+			 * last beep was more than s seconds ago,
+			 * leave overload mode.
+			 */
+debug(("silence reigns, leaving overload mode\n"));
+			beep_overloaded = FALSE;
+		    } else if (cfg.bellovl && !beep_overloaded &&
+			       nbeeps >= cfg.bellovl_n) {
+			/*
+			 * Now, if we have n or more beeps
+			 * remaining in the queue, go into overload
+			 * mode.
+			 */
+debug(("%d beeps between times %ld and %ld, overload!\n",
+       nbeeps, beephead->ticks, ticks));
+			beep_overloaded = TRUE;
+		    }
+		    lastbeep = ticks;
+
+		    /*
+		     * Perform an actual beep if we're not overloaded.
+		     */
+		    if ((!cfg.bellovl || !beep_overloaded) && cfg.beep != 0) {
+debug(("not overloaded; performing a beep\n"));
+			if (cfg.beep != 2)
+			    beep(cfg.beep);
+			else if(cfg.beep == 2) {
+			    in_vbell = TRUE;
+			    vbell_timeout = ticks + VBELL_TIMEOUT;
+			    term_update();
+			}
+		    }
+		    disptop = scrtop;
+		}
 		break;
 	      case '\b':
 		if (curs_x == 0 && curs_y == 0)
@@ -1753,13 +1834,6 @@ static int beep_overload = 0;
 	    check_selection (cpos, cpos+1);
     }
     inbuf_head = 0;
-
-    if (beep_overload)
-    {
-       if(!beep_count) beep_overload=0;
-    }
-    else if(beep_count && beep_count<5 && cfg.beep)
-       beep(beep_count/3);
 }
 
 /*
@@ -1783,7 +1857,23 @@ static void do_paint (Context ctx, int may_optimise){
     int i, j, start, our_curs_y;
     unsigned long attr, rv, cursor;
     char ch[1024];
+    long ticks;
 
+    /*
+     * Check the visual bell state.
+     */
+    if (in_vbell) {
+	ticks = GetTickCount();
+	if (ticks - vbell_timeout >= 0)
+	    in_vbell = FALSE;
+    }
+
+    /* Depends on:
+     * screen array, disptop, scrtop,
+     * selection, rv, 
+     * cfg.blinkpc, blink_is_real, tblinker, 
+     * curs_y, curs_x, blinker, cfg.blink_cur, cursor_on, has_focus
+     */
     if (cursor_on) {
         if (has_focus) {
 	    if (blinker || !cfg.blink_cur)
@@ -1796,8 +1886,9 @@ static void do_paint (Context ctx, int may_optimise){
 	if (wrapnext)
 	    cursor |= ATTR_RIGHTCURS;
     }
-    else           cursor = 0;
-    rv = (rvideo ? ATTR_REVERSE : 0);
+    else
+	cursor = 0;
+    rv = (!rvideo ^ !in_vbell ? ATTR_REVERSE : 0);
     our_curs_y = curs_y + (scrtop - disptop) / (cols+1);
 
     for (i=0; i<rows; i++) {
