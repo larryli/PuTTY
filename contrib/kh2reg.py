@@ -1,12 +1,12 @@
 #! /usr/bin/env python
 
-# $Id: kh2reg.py,v 1.2 2003/10/14 23:23:28 jacob Exp $
+# $Id: kh2reg.py,v 1.3 2003/10/21 13:26:12 jacob Exp $
 # Convert OpenSSH known_hosts and known_hosts2 files to "new format" PuTTY
 # host keys.
 #   usage:
-#     kh2reg.py [ -win ] known_hosts1 2 3 4 ... > hosts.reg
+#     kh2reg.py [ --win ] known_hosts1 2 3 4 ... > hosts.reg
 #       Creates a Windows .REG file (double-click to install).
-#     kh2reg.py -unix    known_hosts1 2 3 4 ... > sshhostkeys
+#     kh2reg.py --unix    known_hosts1 2 3 4 ... > sshhostkeys
 #       Creates data suitable for storing in ~/.putty/sshhostkeys (Unix).
 # Line endings are someone else's problem as is traditional.
 # Developed for Python 1.5.2.
