@@ -65,7 +65,7 @@ static char *gui_hwnd = NULL;
 
 static void source(char *src);
 static void rsource(char *src);
-static void sink(char *targ);
+static void sink(char *targ, char *src);
 /* GUI Adaptation - Sept 2000 */
 static void tell_char(FILE *stream, char c);
 static void tell_str(FILE *stream, char *str);
@@ -754,7 +754,7 @@ static void rsource(char *src)
 /*
  *  Execute the sink part of the SCP protocol.
  */
-static void sink(char *targ)
+static void sink(char *targ, char *src)
 {
     char buf[2048];
     char namebuf[2048];
@@ -822,6 +822,13 @@ static void sink(char *targ)
 
 	if (sscanf(buf+1, "%u %lu %[^\n]", &mode, &size, namebuf) != 3)
 	    bump("Protocol error: Illegal file descriptor format");
+	/* Security fix: ensure the file ends up where we asked for it. */
+	if (src) {
+	    char *p = src + strlen(src);
+	    while (p > src && p[-1] != '/' && p[-1] != '\\')
+		p--;
+	    strcpy(namebuf, p);
+	}
 	if (targisdir) {
 	    char t[2048];
 	    char *p;
@@ -851,7 +858,7 @@ static void sink(char *targ)
 		    continue;
 		}
 	    }
-	    sink(namebuf);
+	    sink(namebuf, NULL);
 	    /* can we set the timestamp for directories ? */
 	    continue;
 	}
@@ -1064,7 +1071,7 @@ static void tolocal(int argc, char *argv[])
     do_cmd(host, user, cmd);
     sfree(cmd);
 
-    sink(targ);
+    sink(targ, src);
 }
 
 /*
