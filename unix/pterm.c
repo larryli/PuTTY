@@ -786,6 +786,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	ldisc_send(output+start, end-start, 1);
 	show_mouseptr(0);
+	seen_key_event = 1;
 	term_out();
     }
 
