@@ -1561,15 +1561,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    sprintf(c, "putty &%p", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
-		    char *session =
-			sessions[(lParam - IDM_SAVED_MIN) / 16];
-		    cl = smalloc(16 + strlen(session));	/* 8, but play safe */
-		    if (!cl)
-			cl = NULL;     /* not a very important failure mode */
-		    else {
-			sprintf(cl, "putty @%s", session);
-			freecl = TRUE;
-		    }
+		    if ((lParam - IDM_SAVED_MIN) / 16 < nsessions) {
+			char *session =
+			    sessions[(lParam - IDM_SAVED_MIN) / 16];
+			cl = smalloc(16 + strlen(session));
+				       /* 8, but play safe */
+			if (!cl)
+			    cl = NULL;    
+				       /* not a very important failure mode */
+			else {
+			    sprintf(cl, "putty @%s", session);
+			    freecl = TRUE;
+			}
+		    } else
+			break;
 		} else
 		    cl = NULL;
 
