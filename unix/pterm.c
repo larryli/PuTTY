@@ -59,8 +59,10 @@ void ldisc_update(int echo, int edit)
 int askappend(char *filename)
 {
     /*
-     * FIXME: for the moment we just wipe the log file. Since I
-     * haven't yet enabled logging, this shouldn't matter yet!
+     * Logging in an xterm-alike is liable to be something you only
+     * do at serious diagnostic need. Hence, I'm going to take the
+     * easy option for now and assume we always want to overwrite
+     * log files. I can always make it properly configurable later.
      */
     return 2;
 }
@@ -1252,6 +1254,14 @@ int main(int argc, char **argv)
 		cfg.wintitle[sizeof(cfg.wintitle)-1] = '\0';
 	    } else
 		err = 1, fprintf(stderr, "pterm: -T expects an argument\n");
+	}
+	if (!strcmp(p, "-log")) {
+	    if (--argc > 0) {
+		strncpy(cfg.logfilename, *++argv, sizeof(cfg.logfilename));
+		cfg.logfilename[sizeof(cfg.logfilename)-1] = '\0';
+		cfg.logtype = LGTYP_DEBUG;
+	    } else
+		err = 1, fprintf(stderr, "pterm: -log expects an argument\n");
 	}
 	if (!strcmp(p, "-hide")) {
 	    cfg.hide_mouseptr = 1;
