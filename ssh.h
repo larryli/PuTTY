@@ -200,6 +200,7 @@ extern const struct ssh_cipher ssh_3des;
 extern const struct ssh_cipher ssh_des;
 extern const struct ssh_cipher ssh_blowfish_ssh1;
 extern const struct ssh2_ciphers ssh2_3des;
+extern const struct ssh2_ciphers ssh2_des;
 extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh2_ciphers ssh2_blowfish;
 extern const struct ssh_kex ssh_diffiehellman;

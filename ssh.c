@@ -236,15 +236,13 @@ extern void pfd_override_throttle(Socket s, int enable);
 #define OUR_V2_WINSIZE 16384
 
 /*
- * Ciphers for SSH2. We miss out single-DES because it isn't
- * supported; also 3DES and Blowfish are both done differently from
- * SSH1. (3DES uses outer chaining; Blowfish has the opposite
- * endianness and different-sized keys.)
+ * Ciphers for SSH2.
  */
 const static struct ssh2_ciphers *ciphers[] = {
     &ssh2_aes,
     &ssh2_blowfish,
     &ssh2_3des,
+    &ssh2_des,
 };
 
 const static struct ssh_kex *kex_algs[] = {
@@ -3172,7 +3170,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	    n_preferred_ciphers++;
 	    break;
 	  case CIPHER_DES:
-	    /* Not supported in SSH2; silently drop */
+	    preferred_ciphers[n_preferred_ciphers] = &ssh2_des;
+	    n_preferred_ciphers++;
 	    break;
 	  case CIPHER_3DES:
 	    preferred_ciphers[n_preferred_ciphers] = &ssh2_3des;

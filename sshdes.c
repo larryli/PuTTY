@@ -757,6 +757,13 @@ static void des3_cskey(unsigned char *key)
     logevent("Initialised triple-DES client->server encryption");
 }
 
+static void des_cskey(unsigned char *key)
+{
+    des_key_setup(GET_32BIT_MSB_FIRST(key),
+		  GET_32BIT_MSB_FIRST(key + 4), &cskeys[0]);
+    logevent("Initialised single-DES client->server encryption");
+}
+
 static void des3_csiv(unsigned char *key)
 {
     cskeys[0].eiv0 = GET_32BIT_MSB_FIRST(key);
@@ -778,6 +785,13 @@ static void des3_sckey(unsigned char *key)
     des_key_setup(GET_32BIT_MSB_FIRST(key + 16),
 		  GET_32BIT_MSB_FIRST(key + 20), &sckeys[2]);
     logevent("Initialised triple-DES server->client encryption");
+}
+
+static void des_sckey(unsigned char *key)
+{
+    des_key_setup(GET_32BIT_MSB_FIRST(key),
+		  GET_32BIT_MSB_FIRST(key + 4), &sckeys[0]);
+    logevent("Initialised single-DES server->client encryption");
 }
 
 static void des3_sesskey(unsigned char *key)
@@ -804,6 +818,16 @@ static void des3_ssh2_encrypt_blk(unsigned char *blk, int len)
 static void des3_ssh2_decrypt_blk(unsigned char *blk, int len)
 {
     des_cbc3_decrypt(blk, blk, len, sckeys);
+}
+
+static void des_ssh2_encrypt_blk(unsigned char *blk, int len)
+{
+    des_cbc_encrypt(blk, blk, len, cskeys);
+}
+
+static void des_ssh2_decrypt_blk(unsigned char *blk, int len)
+{
+    des_cbc_decrypt(blk, blk, len, sckeys);
 }
 
 void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
@@ -839,6 +863,20 @@ static const struct ssh2_cipher ssh_3des_ssh2 = {
     8, 168
 };
 
+/*
+ * Single DES in ssh2. It isn't clear that "des-cbc" is an official
+ * cipher name, but ssh.com support it and apparently aren't the
+ * only people to do so, so we sigh and implement it anyway.
+ */
+static const struct ssh2_cipher ssh_des_ssh2 = {
+    des3_csiv, des_cskey,	       /* iv functions shared with 3des */
+    des3_sciv, des_sckey,
+    des_ssh2_encrypt_blk,
+    des_ssh2_decrypt_blk,
+    "des-cbc",
+    8, 56
+};
+
 static const struct ssh2_cipher *const des3_list[] = {
     &ssh_3des_ssh2
 };
@@ -846,6 +884,15 @@ static const struct ssh2_cipher *const des3_list[] = {
 const struct ssh2_ciphers ssh2_3des = {
     sizeof(des3_list) / sizeof(*des3_list),
     des3_list
+};
+
+static const struct ssh2_cipher *const des_list[] = {
+    &ssh_des_ssh2
+};
+
+const struct ssh2_ciphers ssh2_des = {
+    sizeof(des3_list) / sizeof(*des_list),
+    des_list
 };
 
 const struct ssh_cipher ssh_3des = {
@@ -857,9 +904,8 @@ const struct ssh_cipher ssh_3des = {
 
 static void des_sesskey(unsigned char *key)
 {
-    des_key_setup(GET_32BIT_MSB_FIRST(key),
-		  GET_32BIT_MSB_FIRST(key + 4), &cskeys[0]);
-    logevent("Initialised single-DES encryption");
+    des_cskey(key);
+    des_sckey(key);
 }
 
 static void des_encrypt_blk(unsigned char *blk, int len)
