@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.8 2003/01/05 12:53:38 ben Exp $
+$Id: README.mac,v 1.9 2003/01/05 15:31:45 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -49,8 +49,6 @@ Known bugs:
  * Display is far too slow.
  * Real bold doesn't compensate for changing character widths without Color
    QuickDraw. [MAYBE FIXED]
- * sshsha.c and sshmd5.c cause a stack overflow in Apple's PowerPC C compiler 
-   unless optimisation is entirely disabled.
 
 Features we need (and aren't entirely obvious):
 
