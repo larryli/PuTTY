@@ -301,7 +301,8 @@ int main(int argc, char **argv)
     while (--argc) {
 	char *p = *++argv;
 	if (*p == '-') {
-	    int ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL), 1);
+	    int ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
+					    1, &cfg);
 	    if (ret == -2) {
 		fprintf(stderr,
 			"plink: option \"%s\" requires an argument\n", p);
@@ -479,7 +480,7 @@ int main(int argc, char **argv)
     /*
      * Perform command-line overrides on session configuration.
      */
-    cmdline_run_saved();
+    cmdline_run_saved(&cfg);
 
     /*
      * Trim a colon suffix off the hostname if it's there.
