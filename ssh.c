@@ -824,7 +824,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->realcrc = crc32(ssh->pktin.data, st->biglen - 4);
     st->gotcrc = GET_32BIT(ssh->pktin.data + st->biglen - 4);
     if (st->gotcrc != st->realcrc) {
-	bombout((ssh,"Incorrect CRC received on packet: wanted 0x%08x, got 0x%08x", st->realcrc, st->gotcrc));
+	bombout((ssh,"Incorrect CRC received on packet"));
 	crReturn(0);
     }
 
