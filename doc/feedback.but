@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.13 2003/06/06 18:16:52 ben Exp $
+\versionid $Id: feedback.but,v 1.14 2003/09/23 10:05:06 jacob Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -133,6 +133,8 @@ delayed and it may not be obvious which version was the latest at
 the time you sent the message. 
 
 \b Tell us what version of what OS you are running PuTTY on.
+(If you're running on Windows for Alpha, tell us, or we'll assume
+you're running on Intel as this is overwhelmingly the case.)
 
 \b Tell us what protocol you are connecting with: SSH, Telnet,
 Rlogin or Raw mode.
