@@ -4375,8 +4375,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	/* Load the pub half of cfg.keyfile so we notice if it's in Pageant */
 	if (*cfg.keyfile) {
 	    int keytype;
-	    logeventf(ssh->frontend,
-		      "Reading private key file \"%.150s\"", cfg.keyfile);
+	    logeventf(ssh, "Reading private key file \"%.150s\"", cfg.keyfile);
 	    keytype = key_type(cfg.keyfile);
 	    if (keytype == SSH_KEYTYPE_SSH2) {
 		s->publickey_blob =
@@ -4384,8 +4383,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 					 &s->publickey_bloblen);
 	    } else {
 		char *msgbuf;
-		logeventf(ssh->frontend,
-			  "Unable to use this key file (%s)",
+		logeventf(ssh, "Unable to use this key file (%s)",
 			  key_type_to_str(keytype));
 		msgbuf = dupprintf("Unable to use key file \"%.150s\""
 				   " (%s)\r\n", cfg.keyfile,
