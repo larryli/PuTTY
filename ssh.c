@@ -3164,7 +3164,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	    method = 0;
 
-	    if (!method && can_pubkey && agent_exists && !tried_agent) {
+	    if (!method && can_pubkey && agent_exists() && !tried_agent) {
 		/*
 		 * Attempt public-key authentication using Pageant.
 		 */
