@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.41 2003/02/01 21:44:05 ben Exp $ */
+/* $Id: mac.c,v 1.42 2003/02/01 23:42:30 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -62,7 +62,9 @@
 #include "ssh.h"
 #include "mac.h"
 
+#if !TARGET_API_MAC_CARBON
 QDGlobals qd;
+#endif
 
 Session *sesslist;
 
@@ -110,6 +112,7 @@ static void mac_startup(void) {
     Handle menuBar;
     TECInfoHandle ti;
 
+#if !TARGET_API_MAC_CARBON
     /* Init Memory Manager */
     MaxApplZone();
     /* Init QuickDraw */
@@ -124,6 +127,7 @@ static void mac_startup(void) {
     TEInit();
     /* Init Dialog Manager */
     InitDialogs(NULL);
+#endif
     cold = 0;
     
     /* Get base system version (only used if there's no better selector) */
@@ -202,6 +206,7 @@ static void mac_startup(void) {
     }
     flags = FLAG_INTERACTIVE;
 
+#if !TARGET_API_MAC_CARBON
     {
 	short vol;
 	long dirid;
@@ -213,6 +218,7 @@ static void mac_startup(void) {
 	    LMSetCurDirStore(dirid);
 	}
     }
+#endif
 
     /* Install Apple Event handlers. */
     AEInstallEventHandler(kCoreEventClass, kAEOpenApplication,
@@ -248,7 +254,6 @@ static void mac_eventloop(void) {
 static void mac_event(EventRecord *event) {
     short part;
     WindowPtr window;
-    Point pt;
 
     switch (event->what) {
       case mouseDown:
@@ -258,9 +263,11 @@ static void mac_event(EventRecord *event) {
 	    mac_adjustmenus();
 	    mac_menucommand(MenuSelect(event->where));
 	    break;
+#if !TARGET_API_MAC_CARBON
 	  case inSysWindow:
 	    SystemClick(event, window);
 	    break;
+#endif
 	  case inContent:
 	    if (window != FrontWindow())
 	    	/* XXX: check for movable modal dboxes? */
@@ -274,7 +281,16 @@ static void mac_event(EventRecord *event) {
 	    break;
 	  case inDrag:
 	    /* XXX: moveable modal check? */
+#if TARGET_API_MAC_CARBON
+	    {
+		BitMap screenBits;
+
+		GetQDGlobalsScreenBits(&screenBits);
+		DragWindow(window, event->where, &screenBits.bounds);
+	    }
+#else
 	    DragWindow(window, event->where, &qd.screenBits.bounds);
+#endif
 	    break;
 	  case inGrow:
 	    mac_growwindow(window, event);
@@ -296,12 +312,16 @@ static void mac_event(EventRecord *event) {
       case updateEvt:
         mac_updatewindow((WindowPtr)event->message);
         break;
+#if !TARGET_API_MAC_CARBON
       case diskEvt:
 	if (HiWord(event->message) != noErr) {
+	    Point pt;
+
 	    SetPt(&pt, 120, 120);
 	    DIBadMount(pt, event->message);
         }
         break;
+#endif
       case kHighLevelEvent:
 	AEProcessAppleEvent(event); /* errors? */
 	break;
@@ -310,13 +330,15 @@ static void mac_event(EventRecord *event) {
 
 static void mac_contentclick(WindowPtr window, EventRecord *event) {
     short item;
+    DialogRef dialog;
 
     switch (mac_windowtype(window)) {
       case wTerminal:
 	mac_clickterm(window, event);
 	break;
       case wAbout:
-	if (DialogSelect(event, &window, &item))
+	dialog = GetDialogFromWindow(window);
+	if (DialogSelect(event, &dialog, &item))
 	    switch (item) {
 	      case wiAboutLicence:
 		mac_openlicence();
@@ -356,19 +378,25 @@ static void mac_activatewindow(WindowPtr window, EventRecord *event) {
 }
 
 static void mac_activateabout(WindowPtr window, EventRecord *event) {
+    DialogRef dialog;
     DialogItemType itemtype;
     Handle itemhandle;
     short item;
     Rect itemrect;
     int active;
 
+    dialog = GetDialogFromWindow(window);
     active = (event->modifiers & activeFlag) != 0;
-    GetDialogItem(window, wiAboutLicence, &itemtype, &itemhandle, &itemrect);
+    GetDialogItem(dialog, wiAboutLicence, &itemtype, &itemhandle, &itemrect);
     HiliteControl((ControlHandle)itemhandle, active ? 0 : 255);
-    DialogSelect(event, &window, &item);
+    DialogSelect(event, &dialog, &item);
 }
 
-static void mac_updatewindow(WindowPtr window) {
+static void mac_updatewindow(WindowPtr window)
+{
+#if TARGET_API_MAC_CARBON
+    RgnHandle rgn;
+#endif
 
     switch (mac_windowtype(window)) {
       case wTerminal:
@@ -377,7 +405,14 @@ static void mac_updatewindow(WindowPtr window) {
       case wAbout:
       case wSettings:
 	BeginUpdate(window);
+#if TARGET_API_MAC_CARBON
+	rgn = NewRgn();
+	GetPortVisibleRegion(GetWindowPort(window), rgn);
+	UpdateDialog(GetDialogFromWindow(window), rgn);
+	DisposeRgn(rgn);
+#else
 	UpdateDialog(window, window->visRgn);
+#endif
 	EndUpdate(window);
 	break;
       case wLicence:
@@ -391,17 +426,23 @@ static void mac_updatelicence(WindowPtr window)
     Handle h;
     int len;
     long fondsize;
+    Rect textrect;
 
-    SetPort(window);
+    SetPort((GrafPtr)GetWindowPort(window));
     BeginUpdate(window);
     fondsize = GetScriptVariable(smRoman, smScriptSmallFondSize);
     TextFont(HiWord(fondsize));
     TextSize(LoWord(fondsize));
     h = Get1Resource('TEXT', wLicence);
     len = GetResourceSizeOnDisk(h);
+#if TARGET_API_MAC_CARBON
+    GetPortBounds(GetWindowPort(window), &textrect);
+#else
+    textrect = window->portRect;
+#endif
     if (h != NULL) {
 	HLock(h);
-	TETextBox(*h, len, &window->portRect, teFlushDefault);
+	TETextBox(*h, len, &textrect, teFlushDefault);
 	HUnlock(h);
     }
     EndUpdate(window);
@@ -417,7 +458,7 @@ static int mac_windowtype(WindowPtr window) {
 
     if (window == NULL)
 	return wNone;
-    kind = ((WindowPeek)window)->windowKind;
+    kind = GetWindowKind(window);
     if (kind < 0)
 	return wDA;
     if (GetWVariant(window) == zoomDocProc)
@@ -456,14 +497,17 @@ static void mac_keypress(EventRecord *event) {
 
 static void mac_menucommand(long result) {
     short menu, item;
-    Str255 da;
     WindowPtr window;
+#if !TARGET_API_MAC_CARBON
+    Str255 da;
+#endif
 
     menu = HiWord(result);
     item = LoWord(result);
     window = FrontWindow();
     /* Things which do the same whatever window we're in. */
     switch (menu) {
+#if !TARGET_API_MAC_CARBON
       case mApple:
         switch (item) {
           case iAbout:
@@ -475,6 +519,7 @@ static void mac_menucommand(long result) {
             goto done;
         }
         break;
+#endif
       case mFile:
         switch (item) {
           case iNew:
@@ -521,11 +566,12 @@ static void mac_openabout(void) {
     if (windows.about)
 	SelectWindow(windows.about);
     else {
-	windows.about = GetNewDialog(wAbout, NULL, (WindowPtr)-1);
+	windows.about =
+	    GetDialogWindow(GetNewDialog(wAbout, NULL, (WindowPtr)-1));
 	vers = (VersRecHndl)Get1Resource('vers', 1);
 	if (vers != NULL && *vers != NULL) {
 	    longvers = (*vers)->shortVersion + (*vers)->shortVersion[0] + 1;
-	    GetDialogItem(windows.about, wiAboutVersion,
+	    GetDialogItem(GetDialogFromWindow(windows.about), wiAboutVersion,
 			  &itemtype, &item, &box);
 	    assert(itemtype & kStaticTextDialogItem);
 	    SetDialogItemText(item, longvers);
@@ -547,15 +593,17 @@ static void mac_openlicence(void) {
 static void mac_closewindow(WindowPtr window) {
 
     switch (mac_windowtype(window)) {
+#if !TARGET_API_MAC_CARBON
       case wDA:
 	CloseDeskAcc(((WindowPeek)window)->windowKind);
 	break;
+#endif
       case wTerminal:
 	mac_closeterm(window);
 	break;
       case wAbout:
 	windows.about = NULL;
-	DisposeDialog(window);
+	DisposeDialog(GetDialogFromWindow(window));
 	break;
       case wLicence:
 	windows.licence = NULL;
@@ -572,6 +620,11 @@ static void mac_zoomwindow(WindowPtr window, short part) {
 /*
  * Make the menus look right before the user gets to see them.
  */
+#if TARGET_API_MAC_CARBON
+/* XXX Is this good enough?  What about Carbon on OS 8.1? */
+#define EnableItem EnableMenuItem
+#define DisableItem DisableMenuItem
+#endif
 static void mac_adjustmenus(void) {
     WindowPtr window;
     MenuHandle menu;
@@ -619,6 +672,10 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
     Point mouse;
     WindowPtr window, front;
     short part;
+#if TARGET_API_MAC_CARBON
+    Cursor arrow;
+    RgnHandle visrgn;
+#endif
 
     GetMouse(&mouse);
     LocalToGlobal(&mouse);
@@ -626,18 +683,37 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
     front = FrontWindow();
     if (part != inContent || window == NULL || window != front) {
 	/* Cursor isn't in the front window, so switch to arrow */
+#if TARGET_API_MAC_CARBON
+	GetQDGlobalsArrow(&arrow);
+	SetCursor(&arrow);
+#else
 	SetCursor(&qd.arrow);
+#endif
 	SetRectRgn(cursrgn, SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
-	if (front != NULL)
+	if (front != NULL) {
+#if TARGET_API_MAC_CARBON
+	    visrgn = NewRgn();
+	    GetPortVisibleRegion(GetWindowPort(front), visrgn);
+	    DiffRgn(cursrgn, visrgn, cursrgn);
+	    DisposeRgn(visrgn);
+#else
 	    DiffRgn(cursrgn, front->visRgn, cursrgn);
+#endif
+	}
     } else {
 	switch (mac_windowtype(window)) {
 	  case wTerminal:
 	    mac_adjusttermcursor(window, mouse, cursrgn);
 	    break;
 	  default:
+#if TARGET_API_MAC_CARBON
+	    GetQDGlobalsArrow(&arrow);
+	    SetCursor(&arrow);
+	    GetPortVisibleRegion(GetWindowPort(window), cursrgn);
+#else
 	    SetCursor(&qd.arrow);
 	    CopyRgn(window->visRgn, cursrgn);
+#endif
 	    break;
 	}
     }
