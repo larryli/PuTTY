@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.29 2003/04/05 18:00:46 ben Exp $ */
+/* $Id: macctrls.c,v 1.30 2003/04/05 22:00:57 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -61,6 +61,7 @@ union macctrl {
 	    MACCTRL_RADIO,
 	    MACCTRL_CHECKBOX,
 	    MACCTRL_BUTTON,
+	    MACCTRL_LISTBOX,
 	    MACCTRL_POPUP
 	} type;
 	/* Template from which this was generated */
@@ -93,6 +94,12 @@ union macctrl {
 	ControlRef tbctrl;
 	ControlRef tbring;
     } button;
+    struct {
+	struct macctrl_generic generic;
+	ControlRef tbctrl;
+	unsigned int nids;
+	int *ids;
+    } listbox;
     struct {
 	struct macctrl_generic generic;
 	ControlRef tbctrl;
@@ -132,6 +139,8 @@ static void macctrl_checkbox(struct macctrls *, WindowPtr,
 			     struct mac_layoutstate *, union control *);
 static void macctrl_button(struct macctrls *, WindowPtr,
 			   struct mac_layoutstate *, union control *);
+static void macctrl_listbox(struct macctrls *, WindowPtr,
+			    struct mac_layoutstate *, union control *);
 static void macctrl_popup(struct macctrls *, WindowPtr,
 			  struct mac_layoutstate *, union control *);
 #if !TARGET_API_MAC_CARBON
@@ -239,7 +248,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 1);
+    macctrl_switchtopanel(mcs, 19);
     /* 14 = proxies, 20 = SSH bugs */
 }
 
@@ -325,6 +334,8 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 	  case CTRL_LISTBOX:
 	    if (ctrl->listbox.height == 0)
 		macctrl_popup(mcs, window, &cols[colstart], ctrl);
+	    else
+		macctrl_listbox(mcs, window, &cols[colstart], ctrl);
 	    break;
 	}
     }
@@ -337,6 +348,9 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
 {
     unsigned int i, j;
     union macctrl *mc;
+    ListHandle list;
+    Size olen;
+
 
 #define hideshow(c) do {						\
     if (i == which) ShowControl(c); else HideControl(c);		\
@@ -370,6 +384,24 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
 		break;
 	      case MACCTRL_BUTTON:
 		hideshow(mc->button.tbctrl);
+		break;
+	      case MACCTRL_LISTBOX:
+		hideshow(mc->listbox.tbctrl);
+		/*
+		 * At least under Mac OS 8.1, hiding a list box
+		 * doesn't hide its scroll bars.
+		 */
+		if (mac_gestalts.apprvers >= 0x100) {
+		    if (GetControlData(mc->listbox.tbctrl,
+				       kControlEntireControl,
+				       kControlListBoxListHandleTag,
+				       sizeof(list), &list, &olen) == noErr)
+#if TARGET_API_MAC_CARBON
+			hideshow(GetListVerticalScrollBar(list));
+#else
+			hideshow((*list)->vScroll);
+#endif
+		}
 		break;
 	      case MACCTRL_POPUP:
 		hideshow(mc->popup.tbctrl);
@@ -790,6 +822,59 @@ static pascal SInt32 macctrl_sys7_default_cdef(SInt16 variant,
 }
 #endif
 
+static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
+			    struct mac_layoutstate *curstate,
+			    union control *ctrl)
+{
+    union macctrl *mc = snew(union macctrl);
+    Rect bounds;
+    ListHandle list;
+    Size olen;
+
+    if (mac_gestalts.apprvers < 0x100)
+	return;
+    if (ctrl->listbox.label != NULL)
+	fprintf(stderr, "    label = %s\n", ctrl->listbox.label);
+    fprintf(stderr, "    height = %d\n", ctrl->listbox.height);
+    if (ctrl->listbox.draglist)
+	fprintf(stderr, "    draglist\n");
+    if (ctrl->listbox.multisel)
+	fprintf(stderr, "    multisel\n");
+    fprintf(stderr, "    ncols = %d\n", ctrl->listbox.ncols);
+    assert(ctrl->listbox.percentwidth == 100);
+    mc->generic.type = MACCTRL_LISTBOX;
+    mc->generic.ctrl = ctrl;
+    mc->generic.privdata = NULL;
+    /* The list starts off empty */
+    mc->listbox.nids = 0;
+    mc->listbox.ids = NULL;
+    bounds.left = curstate->pos.h;
+    bounds.right = bounds.left + curstate->width;
+    bounds.top = curstate->pos.v;
+    bounds.bottom = bounds.top + 20 * ctrl->listbox.height;
+
+    mc->button.tbctrl = NewControl(window, &bounds, NULL, TRUE,
+				   ldes_Default, 0, 0,
+				   kControlListBoxProc, (long)mc);
+    if (!ctrl->listbox.multisel) {
+	if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+			   kControlListBoxListHandleTag, sizeof(list), &list,
+			   &olen) != noErr)
+	    return;
+#if TARGET_API_MAC_CARBON
+	SetListSelectionFlags(list, lOnlyOne);
+#else
+	(*list)->selFlags = lOnlyOne;
+#endif
+    }
+    add234(mcs->byctrl, mc);
+    curstate->pos.v += 6 + 20 * ctrl->listbox.height;
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
+    ctrlevent(mcs, mc, EVENT_REFRESH);
+}
+
+
 static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
 			  union control *ctrl)
@@ -892,6 +977,9 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 		if (mc->button.tbring != NULL)
 		    HiliteControl(mc->button.tbring, state);		    
 		break;
+	      case MACCTRL_LISTBOX:
+		HiliteControl(mc->listbox.tbctrl, state);
+		break;
 	      case MACCTRL_POPUP:
 		HiliteControl(mc->popup.tbctrl, state);
 		break;
@@ -968,6 +1056,10 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 	  case MACCTRL_BUTTON:
 	    if (trackresult != 0)
 		ctrlevent(mcs, mc, EVENT_ACTION);
+	    break;
+	  case MACCTRL_LISTBOX:
+	    /* FIXME spot double-click */
+	    ctrlevent(mcs, mc, EVENT_SELCHANGE);
 	    break;
 	  case MACCTRL_POPUP:
 	    ctrlevent(mcs, mc, EVENT_SELCHANGE);
@@ -1223,7 +1315,7 @@ void dlg_radiobutton_set(union control *ctrl, void *dlg, int whichbutton)
     union macctrl *mc = findbyctrl(mcs, ctrl);
     int i;
 
-    assert(mc != NULL);
+    if (mc == NULL) return;
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
 	if (i == whichbutton)
 	    SetControlValue(mc->radio.tbctrls[i],
@@ -1260,7 +1352,7 @@ void dlg_checkbox_set(union control *ctrl, void *dlg, int checked)
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
 
-    assert(mc != NULL);
+    if (mc == NULL) return;
     SetControlValue(mc->checkbox.tbctrl,
 		    checked ? kControlCheckBoxCheckedValue :
 		              kControlCheckBoxUncheckedValue);
@@ -1286,7 +1378,7 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
     union macctrl *mc = findbyctrl(mcs, ctrl);
     GrafPtr saveport;
 
-    assert(mc != NULL);
+    if (mc == NULL) return;
     assert(mc->generic.type == MACCTRL_EDITBOX);
     GetPort(&saveport);
     SetPort((GrafPtr)(GetWindowPort(mcs->window)));
@@ -1349,6 +1441,7 @@ static void dlg_macpopup_clear(union control *ctrl, void *dlg)
     MenuRef menu = mc->popup.menu;
     unsigned int i, n;
 
+    if (mc == NULL) return;
     fprintf(stderr, "      popup_clear\n");
     n = CountMenuItems(menu);
     for (i = 0; i < n; i++)
@@ -1359,11 +1452,33 @@ static void dlg_macpopup_clear(union control *ctrl, void *dlg)
     SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
+static void dlg_maclist_clear(union control *ctrl, void *dlg)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    ListHandle list;
+    Size olen;
+
+    if (mc == NULL) return;
+    fprintf(stderr, "      maclist_clear\n");
+    if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+		       kControlListBoxListHandleTag, sizeof(list), &list,
+		       &olen) != noErr)
+	return;
+    LDelRow(0, 0, list);
+    mc->listbox.nids = 0;
+    sfree(mc->listbox.ids);
+    mc->listbox.ids = NULL;
+    DrawOneControl(mc->listbox.tbctrl);
+}
+
 void dlg_listbox_clear(union control *ctrl, void *dlg)
 {
 
     if (ctrl->listbox.height == 0)
 	dlg_macpopup_clear(ctrl, dlg);
+    else
+	dlg_maclist_clear(ctrl, dlg);
 }
 
 static void dlg_macpopup_del(union control *ctrl, void *dlg, int index)
@@ -1372,6 +1487,7 @@ static void dlg_macpopup_del(union control *ctrl, void *dlg, int index)
     union macctrl *mc = findbyctrl(mcs, ctrl);
     MenuRef menu = mc->popup.menu;
 
+    if (mc == NULL) return;
     fprintf(stderr, "      popup_del %d\n", index);
     DeleteMenuItem(menu, index + 1);
     if (mc->popup.ids != NULL)
@@ -1380,11 +1496,33 @@ static void dlg_macpopup_del(union control *ctrl, void *dlg, int index)
     SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
+static void dlg_maclist_del(union control *ctrl, void *dlg, int index)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    ListHandle list;
+    Size olen;
+
+    if (mc == NULL) return;
+    fprintf(stderr, "      maclist_del %d\n", index);
+    if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+		       kControlListBoxListHandleTag, sizeof(list), &list,
+		       &olen) != noErr)
+	return;
+    LDelRow(1, index, list);
+    if (mc->listbox.ids != NULL)
+	memcpy(mc->listbox.ids + index, mc->listbox.ids + index + 1,
+	       (mc->listbox.nids - index - 1) * sizeof(*mc->listbox.ids));
+    DrawOneControl(mc->listbox.tbctrl);
+}
+
 void dlg_listbox_del(union control *ctrl, void *dlg, int index)
 {
 
     if (ctrl->listbox.height == 0)
 	dlg_macpopup_del(ctrl, dlg, index);
+    else
+	dlg_maclist_del(ctrl, dlg, index);
 }
 
 static void dlg_macpopup_add(union control *ctrl, void *dlg, char const *text)
@@ -1394,6 +1532,7 @@ static void dlg_macpopup_add(union control *ctrl, void *dlg, char const *text)
     MenuRef menu = mc->popup.menu;
     Str255 itemstring;
 
+    if (mc == NULL) return;
     fprintf(stderr, "      popup_add %s\n", text);
     assert(text[0] != '\0');
     c2pstrcpy(itemstring, text);
@@ -1402,11 +1541,40 @@ static void dlg_macpopup_add(union control *ctrl, void *dlg, char const *text)
     SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
+
+static void dlg_maclist_add(union control *ctrl, void *dlg, char const *text)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    ListHandle list;
+    Size olen;
+    ListBounds bounds;
+    Cell cell = { 0, 0 };
+
+    if (mc == NULL) return;
+    fprintf(stderr, "      maclist_add %s\n", text);
+    if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+		       kControlListBoxListHandleTag, sizeof(list), &list,
+		       &olen) != noErr)
+	return;
+#if TARGET_API_MAC_CARBON
+    GetListDataBounds(list, &bounds);
+#else
+    bounds = (*list)->dataBounds;
+#endif
+    cell.v = bounds.bottom;
+    LAddRow(1, cell.v, list);
+    LSetCell(text, strlen(text), cell, list);
+    DrawOneControl(mc->listbox.tbctrl);
+}
+
 void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
 {
 
     if (ctrl->listbox.height == 0)
 	dlg_macpopup_add(ctrl, dlg, text);
+    else
+	dlg_maclist_add(ctrl, dlg, text);
 }
 
 static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
@@ -1417,7 +1585,8 @@ static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
     MenuRef menu = mc->popup.menu;
     unsigned int index;
 
-    fprintf(stderr, "      popup_addwthindex %s, %d\n", text, id);
+    if (mc == NULL) return;
+    fprintf(stderr, "      popup_addwthid %s, %d\n", text, id);
     dlg_macpopup_add(ctrl, dlg, text);
     index = CountMenuItems(menu) - 1;
     if (mc->popup.nids <= index) {
@@ -1427,12 +1596,44 @@ static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
     mc->popup.ids[index] = id;
 }
 
+static void dlg_maclist_addwithid(union control *ctrl, void *dlg,
+				  char const *text, int id)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    ListHandle list;
+    Size olen;
+    ListBounds bounds;
+    int index;
+
+    if (mc == NULL) return;
+    fprintf(stderr, "      maclist_addwithid %s %d\n", text, id);
+    dlg_maclist_add(ctrl, dlg, text);
+    if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+		       kControlListBoxListHandleTag, sizeof(list), &list,
+		       &olen) != noErr)
+	return;
+#if TARGET_API_MAC_CARBON
+    GetListDataBounds(list, &bounds);
+#else
+    bounds = (*list)->dataBounds;
+#endif
+    index = bounds.bottom;
+    if (mc->listbox.nids <= index) {
+	mc->listbox.nids = index + 1;
+	mc->listbox.ids = sresize(mc->listbox.ids, mc->listbox.nids, int);
+    }
+    mc->listbox.ids[index] = id;
+}
+
 void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 			   char const *text, int id)
 {
 
     if (ctrl->listbox.height == 0)
 	dlg_macpopup_addwithid(ctrl, dlg, text, id);
+    else
+	dlg_maclist_addwithid(ctrl, dlg, text, id);
 }
 
 int dlg_listbox_getid(union control *ctrl, void *dlg, int index)
@@ -1440,6 +1641,7 @@ int dlg_listbox_getid(union control *ctrl, void *dlg, int index)
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
 
+    assert(mc != NULL);
     if (ctrl->listbox.height == 0) {
 	assert(mc->popup.ids != NULL && mc->popup.nids > index);
 	return mc->popup.ids[index];
@@ -1447,15 +1649,52 @@ int dlg_listbox_getid(union control *ctrl, void *dlg, int index)
     return 0;
 }
 
-int dlg_listbox_index(union control *ctrl, void *dlg)
+static int dlg_maclist_index(union control *ctrl, void *dlg)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
+    ListHandle list;
+    Size olen;
+    Cell cell = { 0, 0 };
 
-    if (ctrl->listbox.height == 0)
+    if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+		       kControlListBoxListHandleTag, sizeof(list), &list,
+		       &olen) != noErr)
+	return -1;
+    if (LGetSelect(TRUE, &cell, list))
+	return cell.v;
+    else
+	return -1;
+}
+
+int dlg_listbox_index(union control *ctrl, void *dlg)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc;
+
+    if (ctrl->listbox.height == 0) {
+	mc  = findbyctrl(mcs, ctrl);
+	assert(mc != NULL);
 	return GetControlValue(mc->popup.tbctrl) - 1;
-    return 0;
-};
+    } else
+	return dlg_maclist_index(ctrl, dlg);
+}
+
+static int dlg_maclist_issel(union control *ctrl, void *dlg, int index)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    ListHandle list;
+    Size olen;
+    Cell cell = { 0, 0 };
+
+    if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
+		       kControlListBoxListHandleTag, sizeof(list), &list,
+		       &olen) != noErr)
+	return FALSE;
+    cell.v = index;
+    return LGetSelect(FALSE, &cell, list);
+}
 
 int dlg_listbox_issel(union control *ctrl, void *dlg, int index)
 {
@@ -1464,14 +1703,16 @@ int dlg_listbox_issel(union control *ctrl, void *dlg, int index)
 
     if (ctrl->listbox.height == 0)
 	return GetControlValue(mc->popup.tbctrl) - 1 == index;
-    return 0;
-};
+    else
+	return dlg_maclist_issel(ctrl, dlg, index);
+}
 
 void dlg_listbox_select(union control *ctrl, void *dlg, int index)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
 
+    if (mc == NULL) return;
     if (ctrl->listbox.height == 0)
 	SetControlValue(mc->popup.tbctrl, index + 1);
 };
@@ -1486,7 +1727,7 @@ void dlg_text_set(union control *ctrl, void *dlg, char const *text)
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
 
-    assert(mc != NULL);
+    if (mc == NULL) return;
     if (mac_gestalts.apprvers >= 0x100)
 	SetControlData(mc->text.tbctrl, kControlEntireControl,
 		       kControlStaticTextTextTag, strlen(text), text);
