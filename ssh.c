@@ -460,7 +460,7 @@ struct ssh_channel {
 	struct ssh_agent_channel {
 	    unsigned char *message;
 	    unsigned char msglen[4];
-	    int lensofar, totallen;
+	    unsigned lensofar, totallen;
 	} a;
 	struct ssh_x11_channel {
 	    Socket s;
@@ -524,6 +524,8 @@ static void ssh_throttle_all(Ssh ssh, int enable, int bufsize);
 static void ssh2_set_window(struct ssh_channel *c, unsigned newwin);
 static int ssh_sendbuffer(void *handle);
 static void ssh_do_close(Ssh ssh);
+static unsigned long ssh_pkt_getuint32(Ssh ssh);
+static void ssh_pkt_getstring(Ssh ssh, char **p, int *length);
 
 struct rdpkt1_state_tag {
     long len, pad, biglen, to_read;
@@ -972,15 +974,14 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     }
 
     if (ssh->pktin.type == SSH1_MSG_DEBUG) {
-	/* log debug message */
-	char buf[512];
-	int stringlen = GET_32BIT(ssh->pktin.body);
-	strcpy(buf, "Remote debug message: ");
-	if (stringlen > 480)
-	    stringlen = 480;
-	memcpy(buf + 8, ssh->pktin.body + 4, stringlen);
-	buf[8 + stringlen] = '\0';
+        char *buf, *msg;
+        int msglen;
+
+        ssh_pkt_getstring(ssh, &msg, &msglen);
+        buf = dupprintf("Remote debug message: %.*s", msglen, msg);
 	logevent(buf);
+        sfree(buf);
+
 	goto next_packet;
     } else if (ssh->pktin.type == SSH1_MSG_IGNORE) {
 	/* do nothing */
@@ -989,17 +990,12 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
     if (ssh->pktin.type == SSH1_MSG_DISCONNECT) {
 	/* log reason code in disconnect message */
-	char buf[256];
-	unsigned msglen = GET_32BIT(ssh->pktin.body);
-	unsigned nowlen;
-	strcpy(buf, "Remote sent disconnect: ");
-	nowlen = strlen(buf);
-	if (msglen > sizeof(buf) - nowlen - 1)
-	    msglen = sizeof(buf) - nowlen - 1;
-	memcpy(buf + nowlen, ssh->pktin.body + 4, msglen);
-	buf[nowlen + msglen] = '\0';
-	/* logevent(buf); (this is now done within the bombout macro) */
-	bombout(("Server sent disconnect message:\n\"%s\"", buf+nowlen));
+	char *msg;
+	int msglen;
+
+        ssh_pkt_getstring(ssh, &msg, &msglen);
+
+	bombout(("Server sent disconnect message:\n\"%.*s\"", msglen, msg));
 	crStop(0);
     }
 
@@ -1168,10 +1164,11 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
       case SSH2_MSG_DISCONNECT:
         {
             /* log reason code in disconnect message */
-            char *buf;
-	    int nowlen;
-            int reason = GET_32BIT(ssh->pktin.data + 6);
-            unsigned msglen = GET_32BIT(ssh->pktin.data + 10);
+            char *buf, *msg;
+            int nowlen, reason, msglen;
+
+            reason = ssh_pkt_getuint32(ssh);
+            ssh_pkt_getstring(ssh, &msg, &msglen);
 
             if (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) {
                 buf = dupprintf("Received disconnect message (%s)",
@@ -1183,7 +1180,7 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
             logevent(buf);
 	    sfree(buf);
             buf = dupprintf("Disconnection message text: %n%.*s",
-			    &nowlen, msglen, ssh->pktin.data + 14);
+			    &nowlen, msglen, msg);
             logevent(buf);
             bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
                      reason,
@@ -1199,19 +1196,16 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
       case SSH2_MSG_DEBUG:
 	{
 	    /* log the debug message */
-	    char buf[512];
-	    /* int display = ssh->pktin.body[6]; */
-	    int stringlen = GET_32BIT(ssh->pktin.data+7);
-	    int prefix;
-	    strcpy(buf, "Remote debug message: ");
-	    prefix = strlen(buf);
-	    if (stringlen > (int)(sizeof(buf)-prefix-1))
-		stringlen = sizeof(buf)-prefix-1;
-	    memcpy(buf + prefix, ssh->pktin.data + 11, stringlen);
-	    buf[prefix + stringlen] = '\0';
+	    char *buf, *msg;
+	    int msglen;
+
+            ssh_pkt_getstring(ssh, &msg, &msglen);
+
+            buf = dupprintf("Remote debug message: %.*s", msglen, msg);
 	    logevent(buf);
+            sfree(buf);
 	}
-        goto next_packet;              /* FIXME: print the debug message */
+        goto next_packet;
 
         /*
          * These packets we need do nothing about here.
@@ -5254,7 +5248,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addstring_data(ssh, (char *)pub_blob,
 					    pub_blob_len);
 		    ssh2_pkt_send(ssh);
-		    logevent("Offered public key");	/* FIXME */
+		    logevent("Offered public key");
 
 		    crWaitUntilV(ispkt);
 		    if (ssh->pktin.type != SSH2_MSG_USERAUTH_PK_OK) {
