@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.60 2003/04/05 11:52:42 simon Exp $
+\versionid $Id: config.but,v 1.61 2003/04/11 17:39:48 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -88,6 +88,13 @@ name in the list box, and then press the \q{Delete} button.
 Each saved session is independent of the Default Settings
 configuration. If you change your preferences and update Default
 Settings, you must also update every saved session separately.
+
+Saved sessions are stored in the Registry, at the location
+
+\c HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\Sessions
+
+If you need to store them in a file, you could try the method
+described in \k{config-file}.
 
 \S{config-closeonexit} \q{Close Window on Exit}
 
