@@ -143,8 +143,16 @@ void keylist_update(void) {
     if (keylist) {
         SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
         for (key = first234(rsakeys, &e); key; key = next234(&e)) {
+            char listentry[512], *p;
+            /*
+             * Replace two spaces in the fingerprint with tabs, for
+             * nice alignment in the box.
+             */
+            rsa_fingerprint(listentry, sizeof(listentry), key);
+            p = strchr(listentry, ' '); if (p) *p = '\t';
+            p = strchr(listentry, ' '); if (p) *p = '\t';
             SendDlgItemMessage (keylist, 100, LB_ADDSTRING,
-                                0, (LPARAM) key->comment);
+                                0, (LPARAM)listentry);
         }
         SendDlgItemMessage (keylist, 100, LB_SETCURSEL, (WPARAM) -1, 0);
     }
@@ -327,6 +335,7 @@ void answer_msg(void *msg) {
                 ret[4] = SSH_AGENT_SUCCESS;
             } else {
                 freersakey(key);
+                free(key);
             }
         }
         break;
@@ -413,10 +422,13 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-        for (key = first234(rsakeys, &e); key; key = next234(&e)) {
-            SendDlgItemMessage (hwnd, 100, LB_ADDSTRING,
-                                0, (LPARAM) key->comment);
-        }
+        keylist = hwnd;
+	{
+	    static int tabs[2] = {25, 175};
+	    SendDlgItemMessage (hwnd, 100, LB_SETTABSTOPS, 2,
+				(LPARAM) tabs);
+	}
+        keylist_update();
         return 0;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -463,12 +475,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
                         break;
                 del234(rsakeys, key);
                 freersakey(key); free(key);
-                SendDlgItemMessage(hwnd, 100, LB_RESETCONTENT, 0, 0);
-                for (key = first234(rsakeys, &e); key; key = next234(&e)) {
-                    SendDlgItemMessage (hwnd, 100, LB_ADDSTRING,
-                                        0, (LPARAM) key->comment);
-                }
-		SendDlgItemMessage (hwnd, 100, LB_SETCURSEL, (WPARAM) -1, 0);
+                keylist_update();
             }
             return 0;
 	}

@@ -1100,21 +1100,15 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     j = makekey(pktin.body+8+i, &hostkey, &keystr2, 0);
 
     /*
-     * Hash the host key and print the hash in the log box. Just as
-     * a last resort in case the registry's host key checking is
-     * compromised, we'll allow the user some ability to verify
-     * host keys by eye.
+     * Log the host key fingerprint.
      */
-    MD5Init(&md5c);
-    MD5Update(&md5c, keystr2, hostkey.bytes);
-    MD5Final(session_id, &md5c);
     {
 	char logmsg[80];
-	int i;
-	logevent("Host key MD5 is:");
+	logevent("Host key fingerprint is:");
 	strcpy(logmsg, "      ");
-	for (i = 0; i < 16; i++)
-	    sprintf(logmsg+strlen(logmsg), "%02x", session_id[i]);
+        hostkey.comment = NULL;
+        rsa_fingerprint(logmsg+strlen(logmsg), sizeof(logmsg)-strlen(logmsg),
+                        &hostkey);
 	logevent(logmsg);
     }
 

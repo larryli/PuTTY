@@ -9,34 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined TESTMODE || defined RSADEBUG
-#ifndef DLVL
-#define DLVL 10000
-#endif
-#define debug(x) bndebug(#x,x)
-static int level = 0;
-static void bndebug(char *name, Bignum b) {
-    int i;
-    int w = 50-level-strlen(name)-5*b[0];
-    if (level >= DLVL)
-	return;
-    if (w < 0) w = 0;
-    dprintf("%*s%s%*s", level, "", name, w, "");
-    for (i=b[0]; i>0; i--)
-	dprintf(" %04x", b[i]);
-    dprintf("\n");
-}
-#define dmsg(x) do {if(level<DLVL){dprintf("%*s",level,"");printf x;}} while(0)
-#define enter(x) do { dmsg(x); level += 4; } while(0)
-#define leave(x) do { level -= 4; dmsg(x); } while(0)
-#else
-#define debug(x)
-#define dmsg(x)
-#define enter(x)
-#define leave(x)
-#endif
-
 #include "ssh.h"
+
 
 int makekey(unsigned char *data, struct RSAKey *result,
 	    unsigned char **keystr, int order) {
@@ -77,8 +51,6 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
     int w, i;
     unsigned char *p;
 
-    debug(key->exponent);
-
     memmove(data+key->bytes-length, data, length);
     data[0] = 0;
     data[1] = 2;
@@ -106,11 +78,7 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
 	    b1[1+i/2] |= byte;
     }
 
-    debug(b1);
-
     modpow(b1, key->exponent, key->modulus, b2);
-
-    debug(b2);
 
     p = data;
     for (i=key->bytes; i-- ;) {
@@ -160,49 +128,44 @@ void rsastr_fmt(char *str, struct RSAKey *key) {
     str[len] = '\0';
 }
 
+/*
+ * Generate a fingerprint string for the key. Compatible with the
+ * OpenSSH fingerprint code.
+ */
+void rsa_fingerprint(char *str, int len, struct RSAKey *key) {
+    struct MD5Context md5c;
+    unsigned char digest[16];
+    char buffer[16*3+40];
+    int numlen, slen, i;
+
+    MD5Init(&md5c);
+    numlen = ssh1_bignum_length(key->modulus) - 2;
+    for (i = numlen; i-- ;) {
+        unsigned char c = bignum_byte(key->modulus, i);
+        MD5Update(&md5c, &c, 1);
+    }
+    numlen = ssh1_bignum_length(key->exponent) - 2;
+    for (i = numlen; i-- ;) {
+        unsigned char c = bignum_byte(key->exponent, i);
+        MD5Update(&md5c, &c, 1);
+    }
+    MD5Final(digest, &md5c);
+
+    sprintf(buffer, "%d ", ssh1_bignum_bitcount(key->modulus));
+    for (i = 0; i < 16; i++)
+        sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
+    strncpy(str, buffer, len); str[len-1] = '\0';
+    slen = strlen(str);
+    if (key->comment && slen < len-1) {
+        str[slen] = ' ';
+        strncpy(str+slen+1, key->comment, len-slen-1);
+        str[len-1] = '\0';
+    }
+}
+
 void freersakey(struct RSAKey *key) {
     if (key->modulus) freebn(key->modulus);
     if (key->exponent) freebn(key->exponent);
     if (key->private_exponent) freebn(key->private_exponent);
     if (key->comment) free(key->comment);
 }
-
-#ifdef TESTMODE
-
-#ifndef NODDY
-#define p1 10007
-#define p2 10069
-#define p3 10177
-#else
-#define p1 3
-#define p2 7
-#define p3 13
-#endif
-
-unsigned short P1[2] = { 1, p1 };
-unsigned short P2[2] = { 1, p2 };
-unsigned short P3[2] = { 1, p3 };
-unsigned short bigmod[5] = { 4, 0, 0, 0, 32768U };
-unsigned short mod[5] = { 4, 0, 0, 0, 0 };
-unsigned short a[5] = { 4, 0, 0, 0, 0 };
-unsigned short b[5] = { 4, 0, 0, 0, 0 };
-unsigned short c[5] = { 4, 0, 0, 0, 0 };
-unsigned short One[2] = { 1, 1 };
-unsigned short Two[2] = { 1, 2 };
-
-int main(void) {
-    modmult(P1, P2, bigmod, a);   debug(a);
-    modmult(a, P3, bigmod, mod);  debug(mod);
-
-    sub(P1, One, a);              debug(a);
-    sub(P2, One, b);              debug(b);
-    modmult(a, b, bigmod, c);     debug(c);
-    sub(P3, One, a);              debug(a);
-    modmult(a, c, bigmod, b);     debug(b);
-
-    modpow(Two, b, mod, a);       debug(a);
-
-    return 0;
-}
-
-#endif
