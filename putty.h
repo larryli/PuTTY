@@ -916,7 +916,16 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
  */
 int askalg(void *frontend, const char *algtype, const char *algname,
 	   void (*callback)(void *ctx, int result), void *ctx);
-int askappend(void *frontend, Filename filename);
+/*
+ * askappend can return four values:
+ * 
+ *  - 2 means overwrite the log file
+ *  - 1 means append to the log file
+ *  - 0 means cancel logging for this session
+ *  - -1 means please wait.
+ */
+int askappend(void *frontend, Filename filename,
+	      void (*callback)(void *ctx, int result), void *ctx);
 
 /*
  * Exports from console.c (that aren't equivalents to things in

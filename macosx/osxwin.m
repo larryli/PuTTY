@@ -254,6 +254,7 @@
 	if (realhost)
 	    sfree(realhost);	       /* FIXME: do something with this */
     }
+    back->provide_logctx(backhandle, logctx);
 
     /*
      * Create a line discipline. (This must be done after creating
@@ -784,11 +785,27 @@ printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
 - (void)startAlert:(NSAlert *)alert
     withCallback:(void (*)(void *, int))callback andCtx:(void *)ctx
 {
-    alert_callback = callback;
-    alert_ctx = ctx;		     /* NB this is assumed to need freeing! */
-    [alert beginSheetModalForWindow:self modalDelegate:self
-     didEndSelector:@selector(alertSheetDidEnd:returnCode:contextInfo:)
-     contextInfo:NULL];
+    if (alert_ctx || alert_qhead) {
+	/*
+	 * Queue this alert to be shown later.
+	 */
+	struct alert_queue *qitem = snew(struct alert_queue);
+	qitem->next = NULL;
+	qitem->alert = alert;
+	qitem->callback = callback;
+	qitem->ctx = ctx;
+	if (alert_qtail)
+	    alert_qtail->next = qitem;
+	else
+	    alert_qhead = qitem;
+	alert_qtail = qitem;
+    } else {
+	alert_callback = callback;
+	alert_ctx = ctx;	       /* NB this is assumed to need freeing! */
+	[alert beginSheetModalForWindow:self modalDelegate:self
+	 didEndSelector:@selector(alertSheetDidEnd:returnCode:contextInfo:)
+	 contextInfo:NULL];
+    }
 }
 
 - (void)alertSheetDidEnd:(NSAlert *)alert returnCode:(int)returnCode
@@ -803,19 +820,30 @@ printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
 - (void)alertSheetDidFinishEnding:(id)object
 {
     int returnCode = [object intValue];
-    void (*this_callback)(void *, int);
-    void *this_ctx;
+
+    alert_callback(alert_ctx, returnCode);   /* transfers ownership of ctx */
 
     /*
-     * We must save the values of our alert_callback and alert_ctx
-     * fields, in case they are set up again by the callback
-     * function!
+     * If there's an alert in our queue (either already or because
+     * the callback just queued it), start it.
      */
-    this_callback = alert_callback;
-    this_ctx = alert_ctx;
-    alert_ctx = NULL;
+    if (alert_qhead) {
+	struct alert_queue *qnext;
 
-    this_callback(this_ctx, returnCode);   /* transfers ownership of ctx */
+	alert_callback = alert_qhead->callback;
+	alert_ctx = alert_qhead->ctx;
+	[alert_qhead->alert beginSheetModalForWindow:self modalDelegate:self
+	 didEndSelector:@selector(alertSheetDidEnd:returnCode:contextInfo:)
+	 contextInfo:NULL];
+
+	qnext = alert_qhead->next;
+	sfree(alert_qhead);
+	alert_qhead = qnext;
+	if (!qnext)
+	    alert_qtail = NULL;
+    } else {
+	alert_ctx = NULL;
+    }
 }
 
 @end

@@ -2753,7 +2753,8 @@ void logevent_dlg(void *estuff, const char *string)
     es->nevents++;
 }
 
-int askappend(void *frontend, Filename filename)
+int askappend(void *frontend, Filename filename,
+	      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
 	"The session log file \"%.*s\" already exists. "

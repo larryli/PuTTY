@@ -306,9 +306,48 @@
  * Various special-purpose dialog boxes.
  */
 
-int askappend(void *frontend, Filename filename)
+struct appendstate {
+    void (*callback)(void *ctx, int result);
+    void *ctx;
+};
+
+static void askappend_callback(void *ctx, int result)
 {
-    return 0;			       /* FIXME */
+    struct appendstate *state = (struct appendstate *)ctx;
+
+    state->callback(state->ctx, (result == NSAlertFirstButtonReturn ? 2 :
+				 result == NSAlertSecondButtonReturn ? 1 : 0));
+    sfree(state);
+}
+
+int askappend(void *frontend, Filename filename,
+	      void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char msgtemplate[] =
+	"The session log file \"%s\" already exists. "
+	"You can overwrite it with a new session log, "
+	"append your session log to the end of it, "
+	"or disable session logging for this session.";
+
+    char *text;
+    SessionWindow *win = (SessionWindow *)frontend;
+    struct appendstate *state;
+    NSAlert *alert;
+
+    text = dupprintf(msgtemplate, filename.path);
+
+    state = snew(struct appendstate);
+    state->callback = callback;
+    state->ctx = ctx;
+
+    alert = [[NSAlert alloc] init];
+    [alert setInformativeText:[NSString stringWithCString:text]];
+    [alert addButtonWithTitle:@"Overwrite"];
+    [alert addButtonWithTitle:@"Append"];
+    [alert addButtonWithTitle:@"Disable"];
+    [win startAlert:alert withCallback:askappend_callback andCtx:state];
+
+    return -1;
 }
 
 struct algstate {

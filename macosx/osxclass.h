@@ -27,6 +27,13 @@ extern AppController *controller;
  * The SessionWindow class, defined in osxwin.m.
  */
 
+struct alert_queue {
+    struct alert_queue *next;
+    NSAlert *alert;
+    void (*callback)(void *, int);
+    void *ctx;
+};
+
 @class SessionWindow;
 @class TerminalView;
 
@@ -40,8 +47,14 @@ extern AppController *controller;
     void *ldisc;
     Backend *back;
     void *backhandle;
+    /*
+     * The following two members relate to the currently active
+     * alert sheet, if any. They are NULL if there isn't one.
+     */
     void (*alert_callback)(void *, int);
     void *alert_ctx;
+    /* This queues future alerts that need to be shown. */
+    struct alert_queue *alert_qhead, *alert_qtail;
 }
 - (id)initWithConfig:(Config)cfg;
 - (void)drawStartFinish:(BOOL)start;
