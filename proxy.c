@@ -161,10 +161,14 @@ static void sk_proxy_set_frozen (Socket s, int is_frozen)
 	 */
         while (!ps->freeze && bufchain_size(&ps->pending_input_data) > 0) {
 	    void *data;
+	    char databuf[512];
 	    int len;
 	    bufchain_prefix(&ps->pending_input_data, &data, &len);
-	    plug_receive(ps->plug, 0, data, len);
+	    if (len > lenof(databuf))
+		len = lenof(databuf);
+	    memcpy(databuf, data, len);
 	    bufchain_consume(&ps->pending_input_data, len);
+	    plug_receive(ps->plug, 0, databuf, len);
 	}
 
 	/* if we're still frozen, we'll have to wait for another
