@@ -245,8 +245,6 @@ static struct cp_list_item cp_list[] = {
     {"Win1257 (Baltic)", 1257},
     {"Win1258 (Vietnamese)", 1258},
 
-    {"Win1258 (Vietnamese)", 1258},
-
     {"CP437", 437},
     {"CP819", 28591},
     {"CP878", 20866},
@@ -963,6 +961,8 @@ int decode_codepage(char *cp_name)
 		    codepage = cpi->codepage;
 		    if (codepage == CP_UTF8)
 			goto break_break;
+		    if (codepage == -1)
+			return codepage;
 		    if (codepage == 0) {
 			codepage = 65536 + (cpi - cp_list);
 			goto break_break;
