@@ -611,11 +611,13 @@ COptions_68K = {COptions} -model far -opt time
 # _$LDIVT and _$LMODT.
 COptions_CFM68K = {COptions} -model cfmSeg -opt time
 COptions_PPC = {COptions} -opt size
+COptions_Carbon = {COptions} -opt size -d TARGET_API_MAC_CARBON
 
 LinkOptions = -c 'pTTY' -fragname PuTTY
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
 LinkOptions_CFM68K = {LinkOptions} -br 020 -model cfmseg -compact
 LinkOptions_PPC = {LinkOptions}
+LinkOptions_Carbon = {LinkOptions}
 
 Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MacRuntime.o" \xb6
@@ -655,6 +657,8 @@ Libs_PPC =	{Libs_CFM} \xb6
 		"{PPCLibraries}OpenTransportAppPPC.o" \xb6
 		"{PPCLibraries}OpenTptInetPPC.o"
 
+Libs_Carbon =	"{SharedLibraries}CarbonLib"
+
 END
 print &splitline("all \xc4 " . join(" ", &progrealnames("M")), undef, "\xb6");
 print "\n\n";
@@ -686,6 +690,13 @@ foreach $p (&prognames("M")) {
   print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
                    $objstr . " {Libs_PPC}", 69, "\xb6"), "\n";
   print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
+
+  $objstr = &objects($p, "X.carbon.o", "", undef);
+  print &splitline("$prog.carbon \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
+  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
+  print &splitline("\tPPCLink -o {Targ} {LinkOptions_Carbon} " .
+                   $objstr . " {Libs_Carbon}", 69, "\xb6"), "\n";
+  print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
 }
 foreach $d (&deps("", "X.rsrc", "::", ":")) {
   next unless $d->{obj};
@@ -713,5 +724,14 @@ foreach $d (&deps("X.ppc.o", "", "::", ":")) {
   print "\techo -n > {Targ}\n";
   print "\tsetfile -t XCOF {Targ}\n";
   print "\t{PPCC} ", $d->{deps}->[0], " -o {Targ} {COptions_PPC}\n\n";
+}
+foreach $d (&deps("X.carbon.o", "", "::", ":")) {
+  next unless $d->{obj};
+  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
+		   undef, "\xb6"), "\n";
+  # The odd stuff here seems to stop afpd getting confused.
+  print "\techo -n > {Targ}\n";
+  print "\tsetfile -t XCOF {Targ}\n";
+  print "\t{PPCC} ", $d->{deps}->[0], " -o {Targ} {COptions_Carbon}\n\n";
 }
 select STDOUT; close OUT;
