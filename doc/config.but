@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.96 2004/10/24 18:26:00 jacob Exp $
+\versionid $Id: config.but,v 1.97 2004/11/09 17:57:32 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1388,6 +1388,18 @@ immediately.
 \H{config-colours} The Colours panel
 
 The Colours panel allows you to control PuTTY's use of colour.
+
+\S{config-ansicolour} \q{Allow terminal to specify ANSI colours}
+
+\cfg{winhelp-topic}{colours.ansi}
+
+This option is enabled by default. If it is disabled, PuTTY will
+ignore any control sequences sent by the server to request coloured
+text.
+
+If you have a particularly garish application, you might want to
+turn this option off and make PuTTY only use the default foreground
+and background colours.
 
 \S{config-boldcolour} \q{Bolded text is a different colour}
 

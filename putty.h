@@ -444,6 +444,7 @@ struct config_tag {
     int arabicshaping;
     int bidi;
     /* Colour options */
+    int ansi_colour;
     int system_colour;
     int try_palette;
     int bold_colour;

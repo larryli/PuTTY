@@ -4447,6 +4447,10 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    tchar = d->chr;
 	    tattr = d->attr;
 
+            if (!term->cfg.ansi_colour)
+                tattr = (tattr & ~(ATTR_FGMASK | ATTR_BGMASK)) | 
+                ATTR_DEFFG | ATTR_DEFBG;
+
 	    switch (tchar & CSET_MASK) {
 	      case CSET_ASCII:
 		tchar = term->ucsdata->unitab_line[tchar & 0xFF];

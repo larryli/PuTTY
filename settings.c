@@ -288,6 +288,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "FontVTMode", cfg->vtmode);
     write_setting_i(sesskey, "UseSystemColours", cfg->system_colour);
     write_setting_i(sesskey, "TryPalette", cfg->try_palette);
+    write_setting_i(sesskey, "ANSIColour", cfg->ansi_colour);
     write_setting_i(sesskey, "BoldAsColour", cfg->bold_colour);
 
     for (i = 0; i < 22; i++) {
@@ -553,6 +554,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "FontVTMode", VT_UNICODE, (int *) &cfg->vtmode);
     gppi(sesskey, "UseSystemColours", 0, &cfg->system_colour);
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);
+    gppi(sesskey, "ANSIColour", 1, &cfg->ansi_colour);
     gppi(sesskey, "BoldAsColour", 1, &cfg->bold_colour);
 
     for (i = 0; i < 22; i++) {

@@ -96,6 +96,7 @@
 #define WINHELP_CTX_selection_charclasses "selection.charclasses"
 #define WINHELP_CTX_selection_linedraw "selection.linedraw"
 #define WINHELP_CTX_selection_rtf "selection.rtf"
+#define WINHELP_CTX_colours_ansi "colours.ansi"
 #define WINHELP_CTX_colours_bold "colours.bold"
 #define WINHELP_CTX_colours_system "colours.system"
 #define WINHELP_CTX_colours_logpal "colours.logpal"
