@@ -582,7 +582,7 @@ static void run_err(const char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     errs++;
-    strcpy(str, "\01scp: ");
+    strcpy(str, "scp: ");
     vsprintf(str+strlen(str), fmt, ap);
     strcat(str, "\n");
     back->send(str, strlen(str));
@@ -824,10 +824,14 @@ static void sink(char *targ)
 	    bump("Protocol error: Illegal file descriptor format");
 	if (targisdir) {
 	    char t[2048];
+	    char *p;
 	    strcpy(t, targ);
 	    if (targ[0] != '\0')
 		strcat(t, "/");
-	    strcat(t, namebuf);
+	    p = namebuf + strlen(namebuf);
+	    while (p > namebuf && p[-1] != '/' && p[-1] != '\\')
+		p--;
+	    strcat(t, p);
 	    strcpy(namebuf, t);
 	} else {
 	    strcpy(namebuf, targ);
