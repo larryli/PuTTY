@@ -1,4 +1,4 @@
-/* $Id: macpgen.c,v 1.3 2003/02/16 14:27:37 ben Exp $ */
+/* $Id: macpgen.c,v 1.4 2003/02/20 22:55:09 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -204,12 +204,33 @@ static void mac_eventloop(void) {
     Boolean gotevent;
     EventRecord event;
     RgnHandle cursrgn;
+    Point mousenow, mousethen;
+    KeyState *ks;
+    WindowPtr front;
 
     cursrgn = NewRgn();
+    GetMouse(&mousethen);
     for (;;) {
     	mac_adjustcursor(cursrgn);
 	gotevent = WaitNextEvent(everyEvent, &event, LONG_MAX, cursrgn);
 	mac_adjustcursor(cursrgn);
+	front = mac_frontwindow();
+	if (front != NULL) {
+	    ks = mac_windowkey(front);
+	    if (ks->collecting_entropy) {
+		GetMouse(&mousenow);
+		if (mousenow.h != mousethen.h || mousenow.v != mousethen.v) {
+		    ks->entropy[ks->entropy_got++] = *(unsigned *)&mousenow;
+		    ks->entropy[ks->entropy_got++] = TickCount();
+		    if (ks->entropy_got >= ks->entropy_required)
+			ks->collecting_entropy = 0;
+		    SetControlValue(ks->progress, ks->entropy_got);
+		    mousethen = mousenow;
+		}
+		SetEmptyRgn(cursrgn);
+	    }
+	}
+	    
 	if (gotevent)
 	    mac_event(&event);
 	if (borednow)

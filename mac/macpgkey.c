@@ -1,6 +1,7 @@
-/* $Id: macpgkey.c,v 1.2 2003/02/16 14:27:37 ben Exp $ */
+/* $Id: macpgkey.c,v 1.3 2003/02/20 22:55:09 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
+ * Copyright (c) 1997-2003 Simon Tatham
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person
@@ -28,22 +29,104 @@
 /* Stuff to handle the key window in PuTTYgen */
 
 #include <MacTypes.h>
+#include <Controls.h>
 #include <Dialogs.h>
 #include <MacWindows.h>
 
 #include "putty.h"
 #include "mac.h"
 #include "macpgrid.h"
+#include "ssh.h"
+
+/* ----------------------------------------------------------------------
+ * Progress report code. This is really horrible :-)
+ */
+#define PROGRESSRANGE 65535
+#define MAXPHASE 5
+struct progress {
+    int nphases;
+    struct {
+	int exponential;
+	unsigned startpoint, total;
+	unsigned param, current, n;    /* if exponential */
+	unsigned mult;		       /* if linear */
+    } phases[MAXPHASE];
+    unsigned total, divisor, range;
+    ControlHandle progbar;
+};
+
+static void progress_update(void *param, int action, int phase, int iprogress)
+{
+    struct progress *p = (struct progress *) param;
+    unsigned progress = iprogress;
+    int position;
+
+    if (action < PROGFN_READY && p->nphases < phase)
+	p->nphases = phase;
+    switch (action) {
+      case PROGFN_INITIALISE:
+	p->nphases = 0;
+	break;
+      case PROGFN_LIN_PHASE:
+	p->phases[phase-1].exponential = 0;
+	p->phases[phase-1].mult = p->phases[phase].total / progress;
+	break;
+      case PROGFN_EXP_PHASE:
+	p->phases[phase-1].exponential = 1;
+	p->phases[phase-1].param = 0x10000 + progress;
+	p->phases[phase-1].current = p->phases[phase-1].total;
+	p->phases[phase-1].n = 0;
+	break;
+      case PROGFN_PHASE_EXTENT:
+	p->phases[phase-1].total = progress;
+	break;
+      case PROGFN_READY:
+	{
+	    unsigned total = 0;
+	    int i;
+	    for (i = 0; i < p->nphases; i++) {
+		p->phases[i].startpoint = total;
+		total += p->phases[i].total;
+	    }
+	    p->total = total;
+	    p->divisor = ((p->total + PROGRESSRANGE - 1) / PROGRESSRANGE);
+	    p->range = p->total / p->divisor;
+	    SetControlMaximum(p->progbar, p->range);
+	}
+	break;
+      case PROGFN_PROGRESS:
+	if (p->phases[phase-1].exponential) {
+	    while (p->phases[phase-1].n < progress) {
+		p->phases[phase-1].n++;
+		p->phases[phase-1].current *= p->phases[phase-1].param;
+		p->phases[phase-1].current /= 0x10000;
+	    }
+	    position = (p->phases[phase-1].startpoint +
+			p->phases[phase-1].total - p->phases[phase-1].current);
+	} else {
+	    position = (p->phases[phase-1].startpoint +
+			progress * p->phases[phase-1].mult);
+	}
+	SetControlValue(p->progbar, position / p->divisor);
+	break;
+    }
+}
 
 static void mac_clickkey(WindowPtr window, EventRecord *event)
 {
     short item;
     DialogRef dialog;
+    KeyState *ks = mac_windowkey(window);
 
     dialog = GetDialogFromWindow(window);
     if (DialogSelect(event, &dialog, &item))
 	switch (item) {
 	  case wiKeyGenerate:
+	    SetControlMaximum(ks->progress, 1024);
+	    ks->entropy = smalloc(1024 * sizeof(*ks->entropy));
+	    ks->entropy_required = 1024;
+	    ks->entropy_got = 0;
+	    ks->collecting_entropy = TRUE;
 	    /* Do something */
 	    break;
 	}
@@ -87,9 +170,14 @@ void mac_newkey(void)
 {
     KeyState *ks;
     WinInfo *wi;
+    Handle h;
+    short type;
+    Rect rect;
 
     ks = smalloc(sizeof(*ks));
     ks->box = GetNewDialog(wKey, NULL, (WindowPtr)-1);
+    GetDialogItem(ks->box, wiKeyProgress, &type, &h, &rect);
+    ks->progress = (ControlHandle)h;
     wi = smalloc(sizeof(*wi));
     memset(wi, 0, sizeof(*wi));
     wi->ks = ks;

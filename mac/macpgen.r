@@ -1,4 +1,4 @@
-/* $Id: macpgen.r,v 1.3 2003/02/16 14:27:37 ben Exp $ */
+/* $Id: macpgen.r,v 1.4 2003/02/20 22:55:09 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -460,10 +460,19 @@ resource 'dlgx' (wKey, "key", purgeable) {
     }
 };
 
+#define cProgress 129
+
 resource 'DITL' (wKey, "key", purgeable) {
     {
 	{ 13, 13, 33, 227 },
 	Button { enabled, "Generate" },
+	{ 46, 13, 12, 227 },
+	Control { enabled, cProgress },
     }
 };
 
+resource 'CNTL' (cProgress) {
+    { 46, 13, 12, 227 },
+    0, visible, 0, 0,
+    kControlProgressBarProc, 0, ""
+};
