@@ -394,6 +394,7 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 {
     int slavefd;
     pid_t pid, pgrp;
+    long windowid;
 
     pty_frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
@@ -435,6 +436,8 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	}
     }
 
+    windowid = get_windowid(pty_frontend);
+
     /*
      * Fork and execute the command.
      */
@@ -475,6 +478,11 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	    char term_env_var[10 + sizeof(cfg->termtype)];
 	    sprintf(term_env_var, "TERM=%s", cfg->termtype);
 	    putenv(term_env_var);
+	}
+	{
+	    char windowid_env_var[40];
+	    sprintf(windowid_env_var, "WINDOWID=%ld", windowid);
+	    putenv(windowid_env_var);
 	}
 	/*
 	 * SIGINT and SIGQUIT may have been set to ignored by our

@@ -1978,6 +1978,13 @@ char *get_x_display(void *frontend)
     return gdk_get_display();
 }
 
+long get_windowid(void *frontend)
+{
+    Terminal *term = (Terminal *)frontend;
+    struct gui_data *inst = (struct gui_data *)(term->frontend);
+    return (long)GDK_WINDOW_XWINDOW(inst->area->window);
+}
+
 static void help(FILE *fp) {
     if(fprintf(fp,
 "pterm option summary:\n"
