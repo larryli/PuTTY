@@ -975,8 +975,10 @@ static void erase_lots(Terminal *term,
     ldata = lineptr(start.y);
     while (poslt(start, end)) {
 	if (start.x == term->cols) {
-            if (erase_lattr)
-                ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
+            if (!erase_lattr)
+                ldata[start.x] = ~(LATTR_WRAPPED | LATTR_WRAPPED2);
+            else
+                ldata[start.x] = LATTR_NORM;
         } else {
 	    ldata[start.x] = term->erase_char;
         }
