@@ -252,7 +252,6 @@ unsigned char *rsa_public_blob(struct RSAKey *key, int *len)
 int rsa_public_blob_len(void *data)
 {
     unsigned char *p = (unsigned char *)data;
-    int ret;
 
     p += 4;			       /* length word */
     p += ssh1_read_bignum(p, NULL);    /* exponent */
@@ -560,7 +559,7 @@ static char *rsa2_fingerprint(void *key)
  *    iso(1) identified-organization(3) oiw(14) secsig(3)
  *    algorithms(2) 26 }
  */
-static unsigned char asn1_weird_stuff[] = {
+static const unsigned char asn1_weird_stuff[] = {
     0x00, 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B,
     0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00, 0x04, 0x14,
 };
