@@ -93,8 +93,7 @@ char *x_get_default(const char *key)
 
 void connection_fatal(void *frontend, char *p, ...)
 {
-    Terminal *term = (Terminal *)frontend;
-    struct gui_data *inst = (struct gui_data *)term->frontend;
+    struct gui_data *inst = (struct gui_data *)frontend;
 
     va_list ap;
     char *msg;
@@ -164,10 +163,15 @@ int askappend(void *frontend, Filename filename)
     return 2;
 }
 
+int from_backend(void *frontend, int is_stderr, const char *data, int len)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    return term_data(inst->term, is_stderr, data, len);
+}
+
 void logevent(void *frontend, char *string)
 {
-    Terminal *term = (Terminal *)frontend;
-    struct gui_data *inst = (struct gui_data *)term->frontend;
+    struct gui_data *inst = (struct gui_data *)frontend;
 
     log_eventlog(inst->logctx, string);
 
@@ -212,8 +216,7 @@ static Mouse_Button translate_button(Mouse_Button button)
  */
 void *get_window(void *frontend)
 {
-    Terminal *term = (Terminal *)frontend;
-    struct gui_data *inst = (struct gui_data *)term->frontend;
+    struct gui_data *inst = (struct gui_data *)frontend;
     return inst->window;
 }
 
@@ -351,7 +354,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     if (inst->cfg.warn_on_close) {
-	if (!reallyclose(inst->term))
+	if (!reallyclose(inst))
 	    return TRUE;
     }
     return FALSE;
@@ -1981,8 +1984,7 @@ char *get_x_display(void *frontend)
 
 long get_windowid(void *frontend)
 {
-    Terminal *term = (Terminal *)frontend;
-    struct gui_data *inst = (struct gui_data *)(term->frontend);
+    struct gui_data *inst = (struct gui_data *)frontend;
     return (long)GDK_WINDOW_XWINDOW(inst->area->window);
 }
 
@@ -2508,8 +2510,6 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
             oldcfg.window_border != cfg2.window_border || need_size) {
             set_geom_hints(inst);
             request_resize(inst, cfg2.width, cfg2.height);
-            //term_size(inst->term, cfg2.height, cfg2.width, cfg2.savelines);
-            // where TF is our configure event going?!
         }
 
         term_invalidate(inst->term);
@@ -2519,8 +2519,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 
 void update_specials_menu(void *frontend)
 {
-    Terminal *term = (Terminal *)frontend;
-    struct gui_data *inst = (struct gui_data *)term->frontend;
+    struct gui_data *inst = (struct gui_data *)frontend;
 
     const struct telnet_special *specials;
 
@@ -2737,7 +2736,7 @@ int pt_main(int argc, char **argv)
     {
 	char *realhost, *error;
 
-	error = inst->back->init((void *)inst->term, &inst->backhandle,
+	error = inst->back->init((void *)inst, &inst->backhandle,
                                  &inst->cfg, inst->cfg.host, inst->cfg.port,
                                  &realhost, inst->cfg.tcp_nodelay);
 
@@ -2759,7 +2758,7 @@ int pt_main(int argc, char **argv)
         }
     }
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
-    update_specials_menu(inst->term);
+    update_specials_menu(inst);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
 

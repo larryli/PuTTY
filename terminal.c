@@ -4705,13 +4705,8 @@ int term_ldisc(Terminal *term, int option)
     return FALSE;
 }
 
-/*
- * from_backend(), to get data from the backend for the terminal.
- */
-int from_backend(void *vterm, int is_stderr, const char *data, int len)
+int term_data(Terminal *term, int is_stderr, const char *data, int len)
 {
-    Terminal *term = (Terminal *)vterm;
-
     assert(len > 0);
 
     bufchain_add(&term->inbuf, data, len);

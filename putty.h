@@ -543,6 +543,7 @@ void request_paste(void *frontend);
 void frontend_keypress(void *frontend);
 void ldisc_update(void *frontend, int echo, int edit);
 void update_specials_menu(void *frontend);
+int from_backend(void *frontend, int is_stderr, const char *data, int len);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(void *frontend, int iconic);
@@ -622,7 +623,7 @@ int term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *);
 void term_reconfig(Terminal *, Config *);
 void term_seen_key_event(Terminal *); 
-int from_backend(void *, int is_stderr, const char *data, int len);
+int term_data(Terminal *, int is_stderr, const char *data, int len);
 void term_provide_resize_fn(Terminal *term,
 			    void (*resize_fn)(void *, int, int),
 			    void *resize_ctx);

@@ -14,11 +14,15 @@
 /*
  * TODO:
  * 
- *  - Copy-and-paste from the Event Log.
+ *  - Go through all the config options and ensure they can all be
+ *    configured and reconfigured properly.
  * 
  *  - Remainder of the context menu:
  * 
- *     - New Session and Duplicate Session (perhaps in pterm, in fact?!)
+ *     - New Session, Duplicate Session and the Saved Sessions
+ * 	 submenu.
+ * 	  + at least New and Duplicate probably _should_ be in
+ * 	    pterm.
  *        + Duplicate Session will be fun, since we must work out
  *          how to pass the config data through.
  *        + In fact this should be easier on Unix, since fork() is
@@ -42,10 +46,6 @@
  *          already have dropped privileges by this point, so we
  *          can't get another pty. Sigh. Looks like exec has to be
  *          the way forward then :-/
- * 
- *     - Saved Sessions submenu (not in pterm of course)
- * 
- *     - Copy All to Clipboard (for what that's worth)
  */
 
 /*

@@ -632,7 +632,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	char msg[1024], *title;
 	char *realhost;
 
-	error = back->init((void *)term, &backhandle, &cfg,
+	error = back->init(NULL, &backhandle, &cfg,
 			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
 	back->provide_logctx(backhandle, logctx);
 	if (error) {
@@ -4620,4 +4620,9 @@ void frontend_keypress(void *handle)
      * nothing here.
      */
     return;
+}
+
+int from_backend(void *frontend, int is_stderr, const char *data, int len)
+{
+    return term_data(term, is_stderr, data, len);
 }
