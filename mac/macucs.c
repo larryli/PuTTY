@@ -1,4 +1,4 @@
-/* $Id: macucs.c,v 1.6 2003/03/17 21:40:37 ben Exp $ */
+/* $Id: macucs.c,v 1.7 2003/04/05 22:12:44 ben Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,14 +116,14 @@ int decode_codepage(char *cp_name)
     return 0;
 }
 
-char *cp_enumerate (int index)
+char const *cp_enumerate (int index)
 {
 
     if (index == 0) return "ISO/IEC 8859-1";
     return NULL;
 }
 
-char *cp_name(int codepage)
+char const *cp_name(int codepage)
 {
 
     return "ISO/IEC 8859-1";
