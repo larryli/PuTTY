@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.9 2003/01/05 15:31:45 ben Exp $
+$Id: README.mac,v 1.10 2003/01/14 19:41:19 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -49,14 +49,18 @@ Known bugs:
  * Display is far too slow.
  * Real bold doesn't compensate for changing character widths without Color
    QuickDraw. [MAYBE FIXED]
+ * init_ucs() gets unitab_xterm completely wrong.
 
-Features we need (and aren't entirely obvious):
+Unimplemented features:
 
  * TCP urgent data.
- * Scroll-conflation -- scroll_display should change the in-memory
-   display and remember the scroll, then do_scroll should be called
-   only when scroll_display gets called for a different rectangle or
-   term_paint happens.
+ * Clipping host resize requests to screen size.
+ * Changing font size in reponse to resize requests.
+ * TEXT copy/paste.
+ * Catching up with current keyboard mapping in other ports.
+ * Saving sessions.
+ * Session configuration.
+ * 'TMPL' for 'Int ' resources (copied into saved sessions).
 
 Local Variables:
 mode: text
