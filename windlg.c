@@ -795,7 +795,7 @@ static void sesssaver(struct ctlpos *cp, char *text,
     doctl(cp, r, "EDIT",
           WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
           WS_EX_CLIENTEDGE,
-          "", staticid);
+          "", editid);
 
     /*
      * The buttons (we should hold off on the list box until we
