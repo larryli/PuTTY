@@ -13,7 +13,6 @@
 #include "putty.h"
 #include "tree234.h"
 #include "ssh.h"
-#include "scp.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -288,6 +287,11 @@ static void c_write (char *buf, int len) {
 	return;
     }
     while (len--) 
+        c_write1(*buf++);
+}
+
+static void c_writedata (char *buf, int len) {
+    while (len--)
         c_write1(*buf++);
 }
 
@@ -1645,7 +1649,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	    if (pktin.type == SSH1_SMSG_STDOUT_DATA ||
                 pktin.type == SSH1_SMSG_STDERR_DATA) {
 		long len = GET_32BIT(pktin.body);
-		c_write(pktin.body+4, len);
+		c_writedata(pktin.body+4, len);
 	    } else if (pktin.type == SSH1_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
@@ -2176,7 +2180,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	if (!(flags & FLAG_INTERACTIVE)) {
 	    char prompt[200];
-	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
+	    sprintf(prompt, "%.90s@%.90s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
                 /*
                  * get_password failed to get a password (for
@@ -2365,7 +2369,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                     continue;          /* extended but not stderr */
                 ssh2_pkt_getstring(&data, &length);
                 if (data) {
-                    c_write(data, length);
+                    c_writedata(data, length);
                     /*
                      * Enlarge the window again at the remote side,
                      * just in case it ever runs down and they fail
@@ -2590,171 +2594,6 @@ static void ssh_special (Telnet_Special code) {
     } else {
         /* do nothing */
     }
-}
-
-
-/*
- * Read and decrypt one incoming SSH packet.
- * (only used by pSCP)
- */
-static void get_packet(void)
-{
-    unsigned char buf[4096], *p;
-    long to_read;
-    int len;
-
-    p = NULL;
-    len = 0;
-
-    while ((to_read = s_rdpkt(&p, &len)) > 0) {
-	if (to_read > sizeof(buf)) to_read = sizeof(buf);
-	len = s_read(buf, to_read);
-	if (len != to_read) {
-	    closesocket(s);
-	    s = INVALID_SOCKET;
-	    return;
-	}
-	p = buf;
-    }
-
-    assert(len == 0);
-}
-
-/*
- * Receive a block of data over the SSH link. Block until
- * all data is available. Return nr of bytes read (0 if lost connection).
- * (only used by pSCP)
- */
-int ssh_scp_recv(unsigned char *buf, int len)
-{
-    static int pending_input_len = 0;
-    static unsigned char *pending_input_ptr;
-    int to_read = len;
-
-    if (pending_input_len >= to_read) {
-	memcpy(buf, pending_input_ptr, to_read);
-	pending_input_ptr += to_read;
-	pending_input_len -= to_read;
-	return len;
-    }
-    
-    if (pending_input_len > 0) {
-	memcpy(buf, pending_input_ptr, pending_input_len);
-	buf += pending_input_len;
-	to_read -= pending_input_len;
-	pending_input_len = 0;
-    }
-
-    if (s == INVALID_SOCKET)
-	return 0;
-    while (to_read > 0) {
-	get_packet();
-	if (s == INVALID_SOCKET)
-	    return 0;
-	if (pktin.type == SSH1_SMSG_STDOUT_DATA) {
-	    int plen = GET_32BIT(pktin.body);
-	    if (plen <= to_read) {
-		memcpy(buf, pktin.body + 4, plen);
-		buf += plen;
-		to_read -= plen;
-	    } else {
-		memcpy(buf, pktin.body + 4, to_read);
-		pending_input_len = plen - to_read;
-		pending_input_ptr = pktin.body + 4 + to_read;
-		to_read = 0;
-	    }
-	} else if (pktin.type == SSH1_SMSG_STDERR_DATA) {
-	    int plen = GET_32BIT(pktin.body);
-	    fwrite(pktin.body + 4, plen, 1, stderr);
-	} else if (pktin.type == SSH1_MSG_DISCONNECT) {
-		logevent("Received disconnect request");
-	} else if (pktin.type == SSH1_SMSG_SUCCESS ||
-	           pktin.type == SSH1_SMSG_FAILURE) {
-		/* ignore */
-	} else if (pktin.type == SSH1_SMSG_EXIT_STATUS) {
-	    char logbuf[100];
-	    sprintf(logbuf, "Remote exit status: %d", GET_32BIT(pktin.body));
-	    logevent(logbuf);
-	    send_packet(SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
-	    logevent("Closing connection");
-	    closesocket(s);
-	    s = INVALID_SOCKET;
-	} else {
-	    bombout(("Strange packet received: type %d", pktin.type));
-            return 0;
-	}
-    }
-
-    return len;
-}
-
-/*
- * Send a block of data over the SSH link.
- * Block until all data is sent.
- * (only used by pSCP)
- */
-void ssh_scp_send(unsigned char *buf, int len)
-{
-    if (s == INVALID_SOCKET)
-	return;
-    send_packet(SSH1_CMSG_STDIN_DATA,
-                PKT_INT, len, PKT_DATA, buf, len, PKT_END);
-}
-
-/*
- * Send an EOF notification to the server.
- * (only used by pSCP)
- */
-void ssh_scp_send_eof(void)
-{
-    if (s == INVALID_SOCKET)
-	return;
-    send_packet(SSH1_CMSG_EOF, PKT_END);
-}
-
-/*
- * Set up the connection, login on the remote host and
- * start execution of a command.
- * Returns an error message, or NULL on success.
- * (only used by pSCP)
- */
-char *ssh_scp_init(char *host, int port, char *cmd, char **realhost)
-{
-    char buf[160], *p;
-
-#ifdef MSCRYPTOAPI
-    if (crypto_startup() == 0)
-	return "Microsoft high encryption pack not installed!";
-#endif
-
-    p = connect_to_host(host, port, realhost);
-    if (p != NULL)
-	return p;
-
-    random_init();
-
-    if (!do_ssh_init())
-	return "Protocol initialisation error";
-
-    /* Exchange keys and login */
-    do {
-	get_packet();
-	if (s == INVALID_SOCKET)
-	    return "Connection closed by remote host";
-    } while (!do_ssh1_login(NULL, 0, 1));
-
-    if (ssh_state == SSH_STATE_CLOSED) {
-        closesocket(s);
-        s = INVALID_SOCKET;
-        return "Session initialisation error";
-    }
-
-    /* Execute command */
-    sprintf(buf, "Sending command: %.100s", cmd);
-    logevent(buf);
-    send_packet(SSH1_CMSG_EXEC_CMD, PKT_STR, cmd, PKT_END);
-
-    return NULL;
 }
 
 static SOCKET ssh_socket(void) { return s; }

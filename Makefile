@@ -204,7 +204,7 @@ sshdh.$(OBJ): sshdh.c ssh.h
 sshdss.$(OBJ): sshdss.c ssh.h
 sshbn.$(OBJ): sshbn.c ssh.h
 sshpubk.$(OBJ): sshpubk.c ssh.h
-scp.$(OBJ): scp.c putty.h scp.h
+scp.$(OBJ): scp.c putty.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c
 be_nossh.$(OBJ): be_nossh.c

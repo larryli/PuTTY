@@ -26,7 +26,6 @@
 
 #define PUTTY_DO_GLOBALS
 #include "putty.h"
-#include "scp.h"
 
 #define TIME_POSIX_TO_WIN(t, ft) (*(LONGLONG*)&(ft) = \
 	((LONGLONG) (t) + (LONGLONG) 11644473600) * (LONGLONG) 10000000)
@@ -77,7 +76,6 @@ static void gui_update_stats(char *name, unsigned long size, int percentage, tim
  * These functions are needed to link with other modules, but
  * (should) never get called.
  */
-void term_out(void) { abort(); }
 void begin_session(void) { }
 void write_clip (void *data, int len) { }
 void term_deselect(void) { }
@@ -179,6 +177,120 @@ void connection_fatal(char *fmt, ...)
 }
 
 /*
+ * Receive a block of data from the SSH link. Block until all data
+ * is available.
+ *
+ * To do this, we repeatedly call the SSH protocol module, with our
+ * own trap in term_out() to catch the data that comes back. We do
+ * this until we have enough data.
+ */
+static unsigned char *outptr;          /* where to put the data */
+static unsigned outlen;                /* how much data required */
+static unsigned char *pending = NULL;  /* any spare data */
+static unsigned pendlen=0, pendsize=0; /* length and phys. size of buffer */
+void term_out(void) {
+    /*
+     * Here we must deal with a block of data, in `inbuf', size
+     * `inbuf_head'.
+     */
+    unsigned char *p = inbuf;
+    unsigned len = inbuf_head;
+
+    inbuf_head = 0;
+
+    /*
+     * If this is before the real session begins, just return.
+     */
+    if (!outptr)
+        return;
+
+    if (outlen > 0) {
+        unsigned used = outlen;
+        if (used > len) used = len;
+        memcpy(outptr, p, used);
+        outptr += used; outlen -= used;
+        p += used; len -= used;
+    }
+
+    if (len > 0) {
+        if (pendsize < pendlen + len) {
+            pendsize = pendlen + len + 4096;
+            pending = (pending ? realloc(pending, pendsize) :
+                       malloc(pendsize));
+            if (!pending)
+                fatalbox("Out of memory");
+        }
+        memcpy(pending+pendlen, p, len);
+        pendlen += len;
+    }
+}
+static int ssh_scp_recv(unsigned char *buf, int len) {
+    SOCKET s;
+
+    outptr = buf;
+    outlen = len;
+
+    /*
+     * See if the pending-input block contains some of what we
+     * need.
+     */
+    if (pendlen > 0) {
+        unsigned pendused = pendlen;
+        if (pendused > outlen)
+            pendused = outlen;
+	memcpy(outptr, pending, pendused);
+        memmove(pending, pending+pendused, pendlen-pendused);
+	outptr += pendused;
+	outlen -= pendused;
+        pendlen -= pendused;
+        if (pendlen == 0) {
+            pendsize = 0;
+            free(pending);
+            pending = NULL;
+        }
+        if (outlen == 0)
+            return len;
+    }
+
+    while (outlen > 0) {
+        fd_set readfds;
+        s = back->socket();
+        if (s == INVALID_SOCKET) {
+            connection_open = FALSE;
+            return 0;
+        }
+        FD_ZERO(&readfds);
+        FD_SET(s, &readfds);
+        if (select(1, &readfds, NULL, NULL, NULL) < 0)
+            return 0;                  /* doom */
+        back->msg(0, FD_READ);
+        term_out();
+    }
+
+    return len;
+}
+
+/*
+ * Loop through the ssh connection and authentication process.
+ */
+static void ssh_scp_init(void) {
+    SOCKET s;
+
+    s = back->socket();
+    if (s == INVALID_SOCKET)
+	return;
+    while (!back->sendok()) {
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(s, &readfds);
+        if (select(1, &readfds, NULL, NULL, NULL) < 0)
+            return;                    /* doom */
+        back->msg(0, FD_READ);
+        term_out();
+    }
+}
+
+/*
  *  Print an error message and exit after closing the SSH link.
  */
 static void bump(char *fmt, ...)
@@ -194,7 +306,7 @@ static void bump(char *fmt, ...)
 
     if (connection_open) {
 	char ch;
-	ssh_scp_send_eof();
+	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
     }
     exit(1);
@@ -278,9 +390,16 @@ static void do_cmd(char *host, char *user, char *cmd)
     if (portnumber)
 	cfg.port = portnumber;
 
-    err = ssh_scp_init(cfg.host, cfg.port, cmd, &realhost);
+    strncpy(cfg.remote_cmd, cmd, sizeof(cfg.remote_cmd));
+    cfg.remote_cmd[sizeof(cfg.remote_cmd)-1] = '\0';
+    cfg.nopty = TRUE;
+
+    back = &ssh_backend;
+
+    err = back->init(NULL, cfg.host, cfg.port, &realhost);
     if (err != NULL)
 	bump("ssh_init: %s", err);
+    ssh_scp_init();
     if (verbose && realhost != NULL)
 	tell_user(stderr, "Connected to %s\n", realhost);
 
@@ -398,7 +517,7 @@ static void run_err(const char *fmt, ...)
     strcpy(str, "\01scp: ");
     vsprintf(str+strlen(str), fmt, ap);
     strcat(str, "\n");
-    ssh_scp_send(str, strlen(str));
+    back->send(str, strlen(str));
     tell_user(stderr, "%s",str);
     va_end(ap);
 }
@@ -469,7 +588,7 @@ static void source(char *src)
 	TIME_WIN_TO_POSIX(actime, atime);
 	TIME_WIN_TO_POSIX(wrtime, mtime);
 	sprintf(buf, "T%lu 0 %lu 0\n", mtime, atime);
-	ssh_scp_send(buf, strlen(buf));
+	back->send(buf, strlen(buf));
 	if (response())
 	    return;
     }
@@ -478,7 +597,7 @@ static void source(char *src)
     sprintf(buf, "C0644 %lu %s\n", size, last);
     if (verbose)
 	tell_user(stderr, "Sending file modes: %s", buf);
-    ssh_scp_send(buf, strlen(buf));
+    back->send(buf, strlen(buf));
     if (response())
 	return;
 
@@ -496,7 +615,7 @@ static void source(char *src)
 	    if (statistics) printf("\n");
 	    bump("%s: Read error", src);
 	}
-	ssh_scp_send(transbuf, k);
+	back->send(transbuf, k);
 	if (statistics) {
 	    stat_bytes += k;
 	    if (time(NULL) != stat_lasttime ||
@@ -509,7 +628,7 @@ static void source(char *src)
     }
     CloseHandle(f);
 
-    ssh_scp_send("", 1);
+    back->send("", 1);
     (void) response();
 }
 
@@ -538,7 +657,7 @@ static void rsource(char *src)
     sprintf(buf, "D0755 0 %s\n", last);
     if (verbose)
 	tell_user(stderr, "Entering directory: %s", buf);
-    ssh_scp_send(buf, strlen(buf));
+    back->send(buf, strlen(buf));
     if (response())
 	return;
 
@@ -560,7 +679,7 @@ static void rsource(char *src)
     FindClose(dir);
 
     sprintf(buf, "E\n");
-    ssh_scp_send(buf, strlen(buf));
+    back->send(buf, strlen(buf));
     (void) response();
 }
 
@@ -592,7 +711,7 @@ static void sink(char *targ)
     if (targetshouldbedirectory && !targisdir)
 	bump("%s: Not a directory", targ);
 
-    ssh_scp_send("", 1);
+    back->send("", 1);
     while (1) {
 	settime = 0;
 	gottime:
@@ -616,13 +735,13 @@ static void sink(char *targ)
 	  case '\02':	/* fatal error */
 	    bump("%s", buf+1);
 	  case 'E':
-	    ssh_scp_send("", 1);
+	    back->send("", 1);
 	    return;
 	  case 'T':
 	    if (sscanf(buf, "T%ld %*d %ld %*d",
 		       &mtime, &atime) == 2) {
 		settime = 1;
-		ssh_scp_send("", 1);
+		back->send("", 1);
 		goto gottime;
 	    }
 	    bump("Protocol error: Illegal time format");
@@ -672,7 +791,7 @@ static void sink(char *targ)
 	    continue;
 	}
 
-	ssh_scp_send("", 1);
+	back->send("", 1);
 
 	if (statistics) {
 	    stat_bytes = 0;
@@ -725,7 +844,7 @@ static void sink(char *targ)
 	    run_err("%s: Write error", namebuf);
 	    continue;
 	}
-	ssh_scp_send("", 1);
+	back->send("", 1);
     }
 }
 
@@ -1032,7 +1151,7 @@ int main(int argc, char *argv[])
 
     if (connection_open) {
 	char ch;
-	ssh_scp_send_eof();
+	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
     }
     WSACleanup();
