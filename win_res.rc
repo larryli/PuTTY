@@ -237,7 +237,7 @@ BEGIN
     
 END
 
-/* Accelerators used: [aco] 123abdhkmptu */
+/* Accelerators used: [aco] 123abdhkmprtu */
 IDD_PANEL35 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -271,10 +271,13 @@ BEGIN
     LTEXT "Public &key file:", IDC3_PKSTATIC, 3, 85, 119, 8
     EDITTEXT IDC3_PKEDIT,  3, 93, 119, 12, ES_AUTOHSCROLL
     
-    PUSHBUTTON "C&hange...", IDC3_PKBUTTON,  129, 93, 35, 12
+    LTEXT "&Remote command:", IDC3_CMDSTATIC, 3, 111, 119, 8
+    EDITTEXT IDC3_CMDEDIT,  3, 119, 119, 12, ES_AUTOHSCROLL
+    
+    PUSHBUTTON "C&hange...", IDC3_PKBUTTON,  129, 119, 35, 12
     
     
-    AUTOCHECKBOX "Allow &agent forwarding", IDC3_AGENTFWD, 3, 109, 162, 8
+    AUTOCHECKBOX "Allow &agent forwarding", IDC3_AGENTFWD, 3, 135, 162, 8
 END
 
 /* Accelerators used: [aco] stwx */

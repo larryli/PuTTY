@@ -93,6 +93,7 @@ static void save_settings (char *section, int do_host) {
     write_setting_i (sesskey, "AuthTIS", cfg.try_tis_auth);
     write_setting_i (sesskey, "SshProt", cfg.sshprot);
     write_setting_s (sesskey, "PublicKeyFile", cfg.keyfile);
+    write_setting_s (sesskey, "RemoteCommand", cfg.remote_cmd);
     write_setting_i (sesskey, "RFCEnviron", cfg.rfc_environ);
     write_setting_i (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
     write_setting_i (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
@@ -211,6 +212,8 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "SshProt", 1, &cfg.sshprot);
     gppi (sesskey, "AuthTIS", 0, &cfg.try_tis_auth);
     gpps (sesskey, "PublicKeyFile", "", cfg.keyfile, sizeof(cfg.keyfile));
+    gpps (sesskey, "RemoteCommand", "", cfg.remote_cmd,
+          sizeof(cfg.remote_cmd));
     gppi (sesskey, "RFCEnviron", 0, &cfg.rfc_environ);
     gppi (sesskey, "BackspaceIsDelete", 1, &cfg.bksp_is_delete);
     gppi (sesskey, "RXVTHomeEnd", 0, &cfg.rxvt_homeend);
@@ -996,6 +999,7 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 			  cfg.sshprot == 1 ? IDC3_SSHPROT1 : IDC3_SSHPROT2);
 	CheckDlgButton (hwnd, IDC3_AUTHTIS, cfg.try_tis_auth);
 	SetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile);
+	SetDlgItemText (hwnd, IDC3_CMDEDIT, cfg.remote_cmd);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -1051,6 +1055,11 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == EN_CHANGE)
 		GetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile,
 				sizeof(cfg.keyfile)-1);
+	    break;
+	  case IDC3_CMDEDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+		GetDlgItemText (hwnd, IDC3_CMDEDIT, cfg.remote_cmd,
+				sizeof(cfg.remote_cmd)-1);
 	    break;
 	  case IDC3_PKBUTTON:
             /*
