@@ -7338,6 +7338,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh->channels = NULL;
     ssh->rportfwds = NULL;
+    ssh->portfwds = NULL;
 
     ssh->send_ok = 0;
     ssh->editing = 0;
