@@ -1150,8 +1150,8 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 	static const char poorman[] =
 	    "*#****\xB0\xB1**+++++-----++++|****\xA3\xB7";
 	static const char oemmap[] =
-	    "*\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
-	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3****\x9C\xFA";
+	    "\x04\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
+	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3\xF3\xF2\xE3*\x9C\xFA";
 
 	/*
 	 * Line drawing mapping: map ` thru ~ (0x60 thru 0x7E) to
