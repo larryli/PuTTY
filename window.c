@@ -859,9 +859,6 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     static int ignore_keymenu = TRUE;
     static int just_reconfigged = FALSE;
 
-    if (message != 275)
-    debug(("msg=%d wParam=%08x lParam=%08x\r\n", message, wParam, lParam));
-
     switch (message) {
       case WM_TIMER:
 	if (pending_netevent)
