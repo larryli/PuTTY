@@ -444,6 +444,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     do_defaults(host, &cfg);
     if (cfg.host[0] == '\0') {
 	/* No settings for this host; use defaults */
+        do_defaults(NULL, &cfg);
 	strncpy(cfg.host, host, sizeof(cfg.host)-1);
 	cfg.host[sizeof(cfg.host)-1] = '\0';
 	cfg.port = 22;

@@ -370,13 +370,15 @@ int main(int argc, char **argv) {
                         /*
                          * One string.
                          */
-                        do_defaults (p, &cfg);
-                        if (cfg.host[0] == '\0') {
+                        Config cfg2;
+                        do_defaults (p, &cfg2);
+                        if (cfg2.host[0] == '\0') {
                             /* No settings for this host; use defaults */
                             strncpy(cfg.host, p, sizeof(cfg.host)-1);
                             cfg.host[sizeof(cfg.host)-1] = '\0';
                             cfg.port = 22;
-                        }
+                        } else
+                            cfg = cfg2;
                     } else {
                         *r++ = '\0';
                         strncpy(cfg.username, p, sizeof(cfg.username)-1);
