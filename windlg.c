@@ -149,6 +149,7 @@ static void save_settings (char *section, int do_host) {
     }
     wpps (sesskey, "UserName", cfg.username);
     wppi (sesskey, "NoPTY", cfg.nopty);
+    wpps (sesskey, "RemoteCmd", cfg.remote_cmd);
     wpps (sesskey, "Cipher", cfg.cipher == CIPHER_BLOWFISH ? "blowfish" :
                              cfg.cipher == CIPHER_DES ? "des" : "3des");
     wppi (sesskey, "AuthTIS", cfg.try_tis_auth);
@@ -283,6 +284,7 @@ static void load_settings (char *section, int do_host) {
     }
     gpps (sesskey, "UserName", "", cfg.username, sizeof(cfg.username));
     gppi (sesskey, "NoPTY", 0, &cfg.nopty);
+    gpps (sesskey, "RemoteCmd", "", cfg.remote_cmd, sizeof(cfg.remote_cmd));
     {
 	char cipher[10];
 	gpps (sesskey, "Cipher", "3des", cipher, 10);

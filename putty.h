@@ -134,6 +134,7 @@ typedef struct {
     int close_on_exit;
     int warn_on_close;
     /* SSH options */
+    char remote_cmd[512];
     int nopty;
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
     char keyfile[FILENAME_MAX];

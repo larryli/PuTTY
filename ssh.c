@@ -221,6 +221,7 @@ struct Packet {
 static struct Packet pktin = { 0, 0, NULL, NULL, 0 };
 static struct Packet pktout = { 0, 0, NULL, NULL, 0 };
 
+static int ssh_version;
 static void (*ssh_protocol)(unsigned char *in, int inlen, int ispkt);
 static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
@@ -972,6 +973,7 @@ static int do_ssh_init(void) {
         logevent("Using SSH protocol version 2");
         s_write(vstring, strlen(vstring));
         ssh_protocol = ssh2_protocol;
+        ssh_version = 2;
         s_rdpkt = ssh2_rdpkt;
     } else {
         /*
@@ -985,6 +987,7 @@ static int do_ssh_init(void) {
         logevent("Using SSH protocol version 1");
         s_write(vstring, strlen(vstring));
         ssh_protocol = ssh1_protocol;
+        ssh_version = 1;
         s_rdpkt = ssh1_rdpkt;
     }
     return 1;
@@ -1398,7 +1401,10 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	logevent("Allocated pty");
     }
 
-    send_packet(SSH1_CMSG_EXEC_SHELL, PKT_END);
+    if (*cfg.remote_cmd)
+        send_packet(SSH1_CMSG_EXEC_CMD, PKT_STR, cfg.remote_cmd, PKT_END);
+    else
+        send_packet(SSH1_CMSG_EXEC_SHELL, PKT_END);
     logevent("Started session");
 
     ssh_state = SSH_STATE_SESSION;
@@ -1744,11 +1750,15 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 }
 
 /*
+ * SSH2: remote identifier for the main session channel.
+ */
+static unsigned long ssh_remote_channel;
+
+/*
  * Handle the SSH2 userauth and connection layers.
  */
 static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 {
-    static unsigned long their_channel;
     static unsigned long remote_winsize;
     static unsigned long remote_maxpkt;
 
@@ -1909,7 +1919,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     if (ssh2_pkt_getuint32() != 100) {
         fatalbox("Server's channel confirmation cited wrong channel");
     }
-    their_channel = ssh2_pkt_getuint32();
+    ssh_remote_channel = ssh2_pkt_getuint32();
     remote_winsize = ssh2_pkt_getuint32();
     remote_maxpkt = ssh2_pkt_getuint32();
     logevent("Opened channel for session");
@@ -1918,7 +1928,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      * Now allocate a pty for the session.
      */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-    ssh2_pkt_adduint32(their_channel); /* recipient channel */
+    ssh2_pkt_adduint32(ssh_remote_channel); /* recipient channel */
     ssh2_pkt_addstring("pty-req");
     ssh2_pkt_addbool(1);               /* want reply */
     ssh2_pkt_addstring(cfg.termtype);
@@ -1947,7 +1957,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      * Start a shell.
      */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-    ssh2_pkt_adduint32(their_channel); /* recipient channel */
+    ssh2_pkt_adduint32(ssh_remote_channel); /* recipient channel */
     ssh2_pkt_addstring("shell");
     ssh2_pkt_addbool(1);               /* want reply */
     ssh2_pkt_send();
@@ -1994,7 +2004,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	} else {
             /* FIXME: for now, ignore window size */
             ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
-            ssh2_pkt_adduint32(their_channel);
+            ssh2_pkt_adduint32(ssh_remote_channel);
             ssh2_pkt_addstring_start();
             ssh2_pkt_addstring_data(in, inlen);
             ssh2_pkt_send();
@@ -2120,10 +2130,22 @@ static void ssh_size(void) {
 }
 
 /*
- * (Send Telnet special codes)
+ * Send Telnet special codes. TS_EOF is useful for `plink', so you
+ * can send an EOF and collect resulting output (e.g. `plink
+ * hostname sort').
  */
 static void ssh_special (Telnet_Special code) {
-    /* do nothing */
+    if (code == TS_EOF) {
+        if (ssh_version = 1) {
+            send_packet(SSH1_CMSG_EOF, PKT_END);
+        } else {
+            ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
+            ssh2_pkt_adduint32(ssh_remote_channel);
+            ssh2_pkt_send();
+        }
+    } else {
+        /* do nothing */
+    }
 }
 
 
