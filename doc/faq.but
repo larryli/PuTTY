@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.59 2004/02/13 12:19:26 jacob Exp $
+\versionid $Id: faq.but,v 1.60 2004/02/16 14:38:42 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -231,6 +231,28 @@ command-line tools.
 Note that Unix PuTTY has mostly only been tested on Linux so far;
 portability problems such as BSD-style ptys or different header file
 requirements are expected.
+
+\S{faq-unix-why}{Question} What's the point of the Unix port? Unix
+has OpenSSH.
+
+All sorts of little things. \c{pterm} is directly useful to anyone
+who prefers PuTTY's terminal emulation to \c{xterm}'s, which at
+least some people do. Unix Plink has apparently found a niche among
+people who find the complexity of OpenSSL makes OpenSSH hard to
+install (and who don't mind Plink not having as many features). Some
+users want to generate a large number of SSH keys on Unix and then
+copy them all into PuTTY, and the Unix PuTTYgen should allow them to
+automate that conversion process.
+
+There were development advantages as well; porting PuTTY to Unix was
+a valuable path-finding effort for other future ports, and also
+allowed us to use the excellent Linux tool
+\W{http://valgrind.kde.org/}{Valgrind} to help with debugging, which
+has already improved PuTTY's stability on \e{all} platforms.
+
+However, if you're a Unix user and you can see no reason to switch
+from OpenSSH to PuTTY/Plink, then you're probably right. We don't
+expect our Unix port to be the right thing for everybody.
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
@@ -818,6 +840,30 @@ if you use \q{Change Settings}, changes may not take place immediately
 If you really want to change the character set used by the server, the
 right place is \c{/etc/sysconfig/i18n}, but this shouldn't be
 necessary.
+
+\S{faq-screen}{Question} Since I upgraded to PuTTY 0.54, the
+scrollback has stopped working when I run \c{screen}.
+
+PuTTY's terminal emulator has always had the policy that when the
+\q{alternate screen} is in use, nothing is added to the scrollback.
+This is because the usual sorts of programs which use the alternate
+screen are things like text editors, which tend to scroll back and
+forth in the same document a lot; so (a) they would fill up the
+scrollback with a large amount of unhelpfully disordered text, and
+(b) they contain their \e{own} method for the user to scroll back to
+the bit they were interested in. We have generally found this policy
+to do the Right Thing in almost all situations.
+
+Unfortunately, \c{screen} is one exception: it uses the alternate
+screen, but it's still usually helpful to have PuTTY's scrollback
+continue working. The simplest solution is to go to the Features
+control panel and tick \q{Disable switching to alternate terminal
+screen}. (See \k{config-features-altscreen} for more details.)
+
+The reason why this only started to be a problem in 0.54 is because
+\c{screen} typically uses an unusual control sequence to switch to
+the alternate screen, and previous versions of PuTTY did not support
+this sequence.
 
 \H{faq-secure} Security questions
 
