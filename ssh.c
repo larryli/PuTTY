@@ -494,14 +494,13 @@ struct ssh_channel {
  * of its ports was connected to; and _you_ have to remember what
  * local host:port pair went with that port number.
  * 
- * Hence: in SSH 1 this structure stores host:port pairs we intend
- * to allow connections to, and is indexed by those host:port
- * pairs. In SSH 2 it stores a mapping from source port to
- * destination host:port pair, and is indexed by source port.
+ * Hence, in SSH 1 this structure is indexed by destination
+ * host:port pair, whereas in SSH 2 it is indexed by source port.
  */
 struct ssh_rportfwd {
     unsigned sport, dport;
     char dhost[256];
+    char *sportdesc;
 };
 
 struct Packet {
@@ -561,6 +560,15 @@ struct rdpkt2_state_tag {
 };
 
 typedef void (*handler_fn_t)(Ssh ssh, struct Packet *pktin);
+typedef void (*chandler_fn_t)(Ssh ssh, struct Packet *pktin, void *ctx);
+
+struct queued_handler;
+struct queued_handler {
+    int msg1, msg2;
+    chandler_fn_t handler;
+    void *ctx;
+    struct queued_handler *next;
+};
 
 struct ssh_tag {
     const struct plug_function_table *fn;
@@ -642,7 +650,6 @@ struct ssh_tag {
     int userpass_input_bufpos;
     int userpass_input_echo;
 
-    char *portfwd_strptr;
     int pkt_ctx;
 
     void *x11auth;
@@ -697,6 +704,12 @@ struct ssh_tag {
      * with at any time.
      */
     handler_fn_t packet_dispatch[256];
+
+    /*
+     * Queues of one-off handler functions for success/failure
+     * indications from a request.
+     */
+    struct queued_handler *qhead, *qtail;
 
     /*
      * This module deals with sending keepalives.
@@ -3502,6 +3515,271 @@ void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
     }
 }
 
+static void ssh_queueing_handler(Ssh ssh, struct Packet *pktin)
+{
+    struct queued_handler *qh = ssh->qhead;
+
+    assert(qh != NULL);
+
+    assert(pktin->type == qh->msg1 || pktin->type == qh->msg2);
+
+    if (qh->msg1 > 0) {
+	assert(ssh->packet_dispatch[qh->msg1] == ssh_queueing_handler);
+	ssh->packet_dispatch[qh->msg1] = NULL;
+    }
+    if (qh->msg2 > 0) {
+	assert(ssh->packet_dispatch[qh->msg2] == ssh_queueing_handler);
+	ssh->packet_dispatch[qh->msg2] = NULL;
+    }
+
+    if (qh->next) {
+	ssh->qhead = qh->next;
+
+	if (ssh->qhead->msg1 > 0) {
+	    assert(ssh->packet_dispatch[ssh->qhead->msg1] == NULL);
+	    ssh->packet_dispatch[ssh->qhead->msg1] = ssh_queueing_handler;
+	}
+	if (ssh->qhead->msg2 > 0) {
+	    assert(ssh->packet_dispatch[ssh->qhead->msg2] == NULL);
+	    ssh->packet_dispatch[ssh->qhead->msg2] = ssh_queueing_handler;
+	}
+    } else {
+	ssh->qhead = ssh->qtail = NULL;
+	ssh->packet_dispatch[pktin->type] = NULL;
+    }
+
+    qh->handler(ssh, pktin, qh->ctx);
+
+    sfree(qh);
+}
+
+static void ssh_queue_handler(Ssh ssh, int msg1, int msg2,
+			      chandler_fn_t handler, void *ctx)
+{
+    struct queued_handler *qh;
+
+    qh = snew(struct queued_handler);
+    qh->msg1 = msg1;
+    qh->msg2 = msg2;
+    qh->handler = handler;
+    qh->ctx = ctx;
+    qh->next = NULL;
+
+    if (ssh->qtail == NULL) {
+	ssh->qhead = qh;
+
+	if (qh->msg1 > 0) {
+	    assert(ssh->packet_dispatch[qh->msg1] == NULL);
+	    ssh->packet_dispatch[qh->msg1] = ssh_queueing_handler;
+	}
+	if (qh->msg2 > 0) {
+	    assert(ssh->packet_dispatch[qh->msg2] == NULL);
+	    ssh->packet_dispatch[qh->msg2] = ssh_queueing_handler;
+	}
+    } else {
+	ssh->qtail->next = qh;
+    }
+    ssh->qtail = qh;
+}
+
+static void ssh_rportfwd_succfail(Ssh ssh, struct Packet *pktin, void *ctx)
+{
+    struct ssh_rportfwd *rpf, *pf = (struct ssh_rportfwd *)ctx;
+
+    if (pktin->type == (ssh->version == 1 ? SSH1_SMSG_SUCCESS :
+			SSH2_MSG_REQUEST_SUCCESS)) {
+	logeventf(ssh, "Remote port forwarding from %s enabled",
+		  pf->sportdesc);
+    } else {
+	logeventf(ssh, "Remote port forwarding from %s refused",
+		  pf->sportdesc);
+
+	rpf = del234(ssh->rportfwds, pf);
+	assert(rpf == pf);
+	sfree(pf->sportdesc);
+	sfree(pf);
+    }
+}
+
+static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
+{
+    char type;
+    int n;
+    int sport,dport,sserv,dserv;
+    char sports[256], dports[256], saddr[256], host[256];
+    const char *portfwd_strptr;
+
+    portfwd_strptr = cfg->portfwd;
+
+    while (*portfwd_strptr) {
+	type = *portfwd_strptr++;
+	saddr[0] = '\0';
+	n = 0;
+	while (*portfwd_strptr && *portfwd_strptr != '\t') {
+	    if (*portfwd_strptr == ':') {
+		/*
+		 * We've seen a colon in the middle of the
+		 * source port number. This means that
+		 * everything we've seen until now is the
+		 * source _address_, so we'll move it into
+		 * saddr and start sports from the beginning
+		 * again.
+		 */
+		portfwd_strptr++;
+		sports[n] = '\0';
+		if (ssh->version == 1 && type == 'R') {
+		    logeventf(ssh, "SSH1 cannot handle remote source address "
+			      "spec \"%s\"; ignoring", sports);
+		} else
+		    strcpy(saddr, sports);
+		n = 0;
+	    }
+	    if (n < 255) sports[n++] = *portfwd_strptr++;
+	}
+	sports[n] = 0;
+	if (type != 'D') {
+	    if (*portfwd_strptr == '\t')
+		portfwd_strptr++;
+	    n = 0;
+	    while (*portfwd_strptr && *portfwd_strptr != ':') {
+		if (n < 255) host[n++] = *portfwd_strptr++;
+	    }
+	    host[n] = 0;
+	    if (*portfwd_strptr == ':')
+		portfwd_strptr++;
+	    n = 0;
+	    while (*portfwd_strptr) {
+		if (n < 255) dports[n++] = *portfwd_strptr++;
+	    }
+	    dports[n] = 0;
+	    portfwd_strptr++;
+	    dport = atoi(dports);
+	    dserv = 0;
+	    if (dport == 0) {
+		dserv = 1;
+		dport = net_service_lookup(dports);
+		if (!dport) {
+		    logeventf(ssh, "Service lookup failed for destination"
+			      " port \"%s\"", dports);
+		}
+	    }
+	} else {
+	    while (*portfwd_strptr) portfwd_strptr++;
+	    dport = dserv = -1;
+	    portfwd_strptr++;	       /* eat the NUL and move to next one */
+	}
+	sport = atoi(sports);
+	sserv = 0;
+	if (sport == 0) {
+	    sserv = 1;
+	    sport = net_service_lookup(sports);
+	    if (!sport) {
+		logeventf(ssh, "Service lookup failed for source"
+			  " port \"%s\"", sports);
+	    }
+	}
+	if (sport && dport) {
+	    /* Set up a description of the source port. */
+	    static char *sportdesc;
+	    sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+				  (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+				  (int)(*saddr?1:0), ":",
+				  (int)(sserv ? strlen(sports) : 0), sports,
+				  sserv, "(", sport, sserv, ")");
+	    if (type == 'L') {
+		/* Verbose description of the destination port */
+		char *dportdesc = dupprintf("%s:%.*s%.*s%d%.*s",
+					    host,
+					    (int)(dserv ? strlen(dports) : 0), dports,
+					    dserv, "(", dport, dserv, ")");
+		const char *err = pfd_addforward(host, dport,
+						 *saddr ? saddr : NULL,
+						 sport, ssh, &ssh->cfg);
+		if (err) {
+		    logeventf(ssh, "Local port %s forward to %s"
+			      " failed: %s", sportdesc, dportdesc, err);
+		} else {
+		    logeventf(ssh, "Local port %s forwarding to %s",
+			      sportdesc, dportdesc);
+		}
+		sfree(dportdesc);
+	    } else if (type == 'D') {
+		const char *err = pfd_addforward(NULL, -1,
+						 *saddr ? saddr : NULL,
+						 sport, ssh, &ssh->cfg);
+		if (err) {
+		    logeventf(ssh, "Local port %s SOCKS dynamic forward"
+			      " setup failed: %s", sportdesc, err);
+		} else {
+		    logeventf(ssh, "Local port %s doing SOCKS"
+			      " dynamic forwarding", sportdesc);
+		}
+	    } else {
+		struct ssh_rportfwd *pf;
+
+		/*
+		 * Ensure the remote port forwardings tree exists.
+		 */
+		if (!ssh->rportfwds) {
+		    if (ssh->version == 1)
+			ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
+		    else
+			ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
+		}
+
+		pf = snew(struct ssh_rportfwd);
+		strcpy(pf->dhost, host);
+		pf->dport = dport;
+		pf->sport = sport;
+		if (add234(ssh->rportfwds, pf) != pf) {
+		    logeventf(ssh, "Duplicate remote port forwarding to %s:%d",
+			      host, dport);
+		    sfree(pf);
+		} else {
+		    logeventf(ssh, "Requesting remote port %s"
+			      " forward to %s:%.*s%.*s%d%.*s",
+			      sportdesc, host,
+			      (int)(dserv ? strlen(dports) : 0), dports,
+			      dserv, "(", dport, dserv, ")");
+
+		    pf->sportdesc = sportdesc;
+		    sportdesc = NULL;
+
+		    if (ssh->version == 1) {
+			send_packet(ssh, SSH1_CMSG_PORT_FORWARD_REQUEST,
+				    PKT_INT, sport,
+				    PKT_STR, host,
+				    PKT_INT, dport,
+				    PKT_END);
+			ssh_queue_handler(ssh, SSH1_SMSG_SUCCESS,
+					  SSH1_SMSG_FAILURE,
+					  ssh_rportfwd_succfail, pf);
+		    } else {
+			struct Packet *pktout;
+			pktout = ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
+			ssh2_pkt_addstring(pktout, "tcpip-forward");
+			ssh2_pkt_addbool(pktout, 1);/* want reply */
+			if (*saddr) {
+			    ssh2_pkt_addstring(pktout, saddr);
+			} else if (ssh->cfg.rport_acceptall) {
+			    ssh2_pkt_addstring(pktout, "0.0.0.0");
+			} else {
+			    ssh2_pkt_addstring(pktout, "127.0.0.1");
+			}
+			ssh2_pkt_adduint32(pktout, sport);
+			ssh2_pkt_send(ssh, pktout);
+
+			ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS,
+					  SSH2_MSG_REQUEST_FAILURE,
+					  ssh_rportfwd_succfail, pf);
+		    }
+		}
+	    }
+	    sfree(sportdesc);
+	}
+    }
+}
+
 static void ssh1_smsg_stdout_stderr_data(Ssh ssh, struct Packet *pktin)
 {
     char *string;
@@ -3885,164 +4163,8 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	}
     }
 
-    {
-	char type;
-	int n;
-	int sport,dport,sserv,dserv;
-	char sports[256], dports[256], saddr[256], host[256];
-
-	ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
-        /* Add port forwardings. */
-	ssh->portfwd_strptr = ssh->cfg.portfwd;
-	while (*ssh->portfwd_strptr) {
-	    type = *ssh->portfwd_strptr++;
-	    saddr[0] = '\0';
-	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != '\t') {
-		if (*ssh->portfwd_strptr == ':') {
-		    /*
-		     * We've seen a colon in the middle of the
-		     * source port number. This means that
-		     * everything we've seen until now is the
-		     * source _address_, so we'll move it into
-		     * saddr and start sports from the beginning
-		     * again.
-		     */
-		    ssh->portfwd_strptr++;
-		    sports[n] = '\0';
-		    strcpy(saddr, sports);
-		    n = 0;
-		}
-		if (n < 255) sports[n++] = *ssh->portfwd_strptr++;
-	    }
-	    sports[n] = 0;
-	    if (type != 'D') {
-		if (*ssh->portfwd_strptr == '\t')
-		    ssh->portfwd_strptr++;
-		n = 0;
-		while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
-		    if (n < 255) host[n++] = *ssh->portfwd_strptr++;
-		}
-		host[n] = 0;
-		if (*ssh->portfwd_strptr == ':')
-		    ssh->portfwd_strptr++;
-		n = 0;
-		while (*ssh->portfwd_strptr) {
-		    if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
-		}
-		dports[n] = 0;
-		ssh->portfwd_strptr++;
-		dport = atoi(dports);
-		dserv = 0;
-		if (dport == 0) {
-		    dserv = 1;
-		    dport = net_service_lookup(dports);
-		    if (!dport) {
-			logeventf(ssh, "Service lookup failed for"
-				  " destination port \"%s\"", dports);
-		    }
-		}
-	    } else {
-		while (*ssh->portfwd_strptr) ssh->portfwd_strptr++;
-		dport = dserv = -1;
-		ssh->portfwd_strptr++; /* eat the NUL and move to next one */
-	    }
-	    sport = atoi(sports);
-	    sserv = 0;
-	    if (sport == 0) {
-		sserv = 1;
-		sport = net_service_lookup(sports);
-		if (!sport) {
-		    logeventf(ssh, "Service lookup failed for source"
-			      " port \"%s\"", sports);
-		}
-	    }
-	    if (sport && dport) {
-		/* Set up a description of the source port. */
-		static char *sportdesc;
-		sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
-			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
-			(int)(*saddr?1:0), ":",
-			(int)(sserv ? strlen(sports) : 0), sports,
-			sserv, "(", sport, sserv, ")");
-		if (type == 'L') {
-		    /* Verbose description of the destination port */
-		    char *dportdesc = dupprintf("%s:%.*s%.*s%d%.*s",
-			    host,
-			    (int)(dserv ? strlen(dports) : 0), dports,
-			    dserv, "(", dport, dserv, ")");
-		    const char *err = pfd_addforward(host, dport,
-						     *saddr ? saddr : NULL,
-						     sport, ssh, &ssh->cfg);
-		    if (err) {
-			logeventf(ssh, "Local port %s forward to %s"
-				  " failed: %s", sportdesc, dportdesc, err);
-		    } else {
-			logeventf(ssh, "Local port %s forwarding to %s",
-				  sportdesc, dportdesc);
-		    }
-		    sfree(dportdesc);
-		} else if (type == 'D') {
-		    const char *err = pfd_addforward(NULL, -1,
-						     *saddr ? saddr : NULL,
-						     sport, ssh, &ssh->cfg);
-		    if (err) {
-			logeventf(ssh, "Local port %s SOCKS dynamic forward"
-				  " setup failed: %s", sportdesc, err);
-		    } else {
-			logeventf(ssh, "Local port %s doing SOCKS"
-				  " dynamic forwarding", sportdesc);
-		    }
-		} else {
-		    struct ssh_rportfwd *pf;
-		    pf = snew(struct ssh_rportfwd);
-		    strcpy(pf->dhost, host);
-		    pf->dport = dport;
-		    if (*saddr) {
-			logeventf(ssh,
-				  "SSH1 cannot handle source address spec \"%s:%d\"; ignoring",
-				  saddr, sport);
-		    }
-		    if (add234(ssh->rportfwds, pf) != pf) {
-			logeventf(ssh, 
-				  "Duplicate remote port forwarding to %s:%d",
-				  host, dport);
-			sfree(pf);
-		    } else {
-			logeventf(ssh, "Requesting remote port %.*s%.*s%d%.*s"
-				  " forward to %s:%.*s%.*s%d%.*s",
-				  (int)(sserv ? strlen(sports) : 0), sports,
-				  sserv, "(", sport, sserv, ")",
-				  host,
-				  (int)(dserv ? strlen(dports) : 0), dports,
-				  dserv, "(", dport, dserv, ")");
-			send_packet(ssh, SSH1_CMSG_PORT_FORWARD_REQUEST,
-				    PKT_INT, sport,
-				    PKT_STR, host,
-				    PKT_INT, dport,
-				    PKT_END);
-			do {
-			    crReturnV;
-			} while (!pktin);
-			if (pktin->type != SSH1_SMSG_SUCCESS
-			    && pktin->type != SSH1_SMSG_FAILURE) {
-			    bombout(("Protocol confusion"));
-			    crStopV;
-			} else if (pktin->type == SSH1_SMSG_FAILURE) {
-			    c_write_str(ssh, "Server refused port"
-					" forwarding\r\n");
-			    logevent("Server refused this port forwarding");
-			} else {
-			    logevent("Remote port forwarding enabled");
-			    ssh->packet_dispatch[SSH1_MSG_PORT_OPEN] =
-				ssh1_msg_port_open;
-			}
-		    }
-		}
-		sfree(sportdesc);
-	    }
-	}
-    }
+    ssh_setup_portfwd(ssh, &ssh->cfg);
+    ssh->packet_dispatch[SSH1_MSG_PORT_OPEN] = ssh1_msg_port_open;
 
     if (!ssh->cfg.nopty) {
 	/* Unpick the terminal-speed string. */
@@ -6526,163 +6648,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Enable port forwardings.
      */
-    {
-	char type;
-	int n;
-	int sport,dport,sserv,dserv;
-	char sports[256], dports[256], saddr[256], host[256];
-
-	ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
-        /* Add port forwardings. */
-	ssh->portfwd_strptr = ssh->cfg.portfwd;
-	while (*ssh->portfwd_strptr) {
-	    type = *ssh->portfwd_strptr++;
-	    saddr[0] = '\0';
-	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != '\t') {
-		if (*ssh->portfwd_strptr == ':') {
-		    /*
-		     * We've seen a colon in the middle of the
-		     * source port number. This means that
-		     * everything we've seen until now is the
-		     * source _address_, so we'll move it into
-		     * saddr and start sports from the beginning
-		     * again.
-		     */
-		    ssh->portfwd_strptr++;
-		    sports[n] = '\0';
-		    strcpy(saddr, sports);
-		    n = 0;
-		}
-		if (n < 255) sports[n++] = *ssh->portfwd_strptr++;
-	    }
-	    sports[n] = 0;
-	    if (type != 'D') {
-		if (*ssh->portfwd_strptr == '\t')
-		    ssh->portfwd_strptr++;
-		n = 0;
-		while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
-		    if (n < 255) host[n++] = *ssh->portfwd_strptr++;
-		}
-		host[n] = 0;
-		if (*ssh->portfwd_strptr == ':')
-		    ssh->portfwd_strptr++;
-		n = 0;
-		while (*ssh->portfwd_strptr) {
-		    if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
-		}
-		dports[n] = 0;
-		ssh->portfwd_strptr++;
-		dport = atoi(dports);
-		dserv = 0;
-		if (dport == 0) {
-		    dserv = 1;
-		    dport = net_service_lookup(dports);
-		    if (!dport) {
-			logeventf(ssh, "Service lookup failed for destination"
-				  " port \"%s\"", dports);
-		    }
-		}
-	    } else {
-		while (*ssh->portfwd_strptr) ssh->portfwd_strptr++;
-		dport = dserv = -1;
-		ssh->portfwd_strptr++; /* eat the NUL and move to next one */
-	    }
-	    sport = atoi(sports);
-	    sserv = 0;
-	    if (sport == 0) {
-		sserv = 1;
-		sport = net_service_lookup(sports);
-		if (!sport) {
-		    logeventf(ssh, "Service lookup failed for source"
-			      " port \"%s\"", sports);
-		}
-	    }
-	    if (sport && dport) {
-		/* Set up a description of the source port. */
-		static char *sportdesc;
-		sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
-			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
-			(int)(*saddr?1:0), ":",
-			(int)(sserv ? strlen(sports) : 0), sports,
-			sserv, "(", sport, sserv, ")");
-		if (type == 'L') {
-		    /* Verbose description of the destination port */
-		    char *dportdesc = dupprintf("%s:%.*s%.*s%d%.*s",
-			    host,
-			    (int)(dserv ? strlen(dports) : 0), dports,
-			    dserv, "(", dport, dserv, ")");
-		    const char *err = pfd_addforward(host, dport,
-						     *saddr ? saddr : NULL,
-						     sport, ssh, &ssh->cfg);
-		    if (err) {
-			logeventf(ssh, "Local port %s forward to %s"
-				  " failed: %s", sportdesc, dportdesc, err);
-		    } else {
-			logeventf(ssh, "Local port %s forwarding to %s",
-				  sportdesc, dportdesc);
-		    }
-		    sfree(dportdesc);
-		} else if (type == 'D') {
-		    const char *err = pfd_addforward(NULL, -1,
-						     *saddr ? saddr : NULL,
-						     sport, ssh, &ssh->cfg);
-		    if (err) {
-			logeventf(ssh, "Local port %s SOCKS dynamic forward"
-				  " setup failed: %s", sportdesc, err);
-		    } else {
-			logeventf(ssh, "Local port %s doing SOCKS"
-				  " dynamic forwarding", sportdesc);
-		    }
-		} else {
-		    struct ssh_rportfwd *pf;
-		    pf = snew(struct ssh_rportfwd);
-		    strcpy(pf->dhost, host);
-		    pf->dport = dport;
-		    pf->sport = sport;
-		    if (add234(ssh->rportfwds, pf) != pf) {
-			logeventf(ssh, "Duplicate remote port forwarding"
-				  " to %s:%d", host, dport);
-			sfree(pf);
-		    } else {
-			logeventf(ssh, "Requesting remote port %s"
-				  " forward to %s:%.*s%.*s%d%.*s",
-				  sportdesc,
-				  host,
-				  (int)(dserv ? strlen(dports) : 0), dports,
-				  dserv, "(", dport, dserv, ")");
-			s->pktout = ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
-			ssh2_pkt_addstring(s->pktout, "tcpip-forward");
-			ssh2_pkt_addbool(s->pktout, 1);/* want reply */
-			if (*saddr) {
-			    ssh2_pkt_addstring(s->pktout, saddr);
-			} else if (ssh->cfg.rport_acceptall) {
-			    ssh2_pkt_addstring(s->pktout, "0.0.0.0");
-			} else {
-			    ssh2_pkt_addstring(s->pktout, "127.0.0.1");
-			}
-			ssh2_pkt_adduint32(s->pktout, sport);
-			ssh2_pkt_send(ssh, s->pktout);
-
-			crWaitUntilV(pktin);
-
-			if (pktin->type != SSH2_MSG_REQUEST_SUCCESS) {
-			    if (pktin->type != SSH2_MSG_REQUEST_FAILURE) {
-				bombout(("Unexpected response to port "
-					 "forwarding request: packet type %d",
-					 pktin->type));
-				crStopV;
-			    }
-			    logevent("Server refused this port forwarding");
-			} else {
-			    logevent("Remote port forwarding enabled");
-			}
-		    }
-		}
-		sfree(sportdesc);
-	    }
-	}
-    }
+    ssh_setup_portfwd(ssh, &ssh->cfg);
 
     /*
      * Potentially enable agent forwarding.
@@ -7182,6 +7148,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->queue = NULL;
     ssh->queuelen = ssh->queuesize = 0;
     ssh->queueing = FALSE;
+    ssh->qhead = ssh->qtail = NULL;
 
     *backend_handle = ssh;
 
@@ -7259,6 +7226,13 @@ static void ssh_free(void *handle)
     while (ssh->queuelen-- > 0)
 	ssh_free_packet(ssh->queue[ssh->queuelen]);
     sfree(ssh->queue);
+
+    while (ssh->qhead) {
+	struct queued_handler *qh = ssh->qhead;
+	ssh->qhead = qh->next;
+	sfree(ssh->qhead);
+    }
+    ssh->qhead = ssh->qtail = NULL;
 
     if (ssh->channels) {
 	while ((c = delpos234(ssh->channels, 0)) != NULL) {
