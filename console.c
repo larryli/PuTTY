@@ -47,14 +47,14 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"The server's host key is not cached in the registry. You\n"
 	"have no guarantee that the server is the computer you\n"
 	"think it is.\n"
-	"The server's key fingerprint is:\n"
+	"The server's %s key fingerprint is:\n"
 	"%s\n"
 	"Connection abandoned.\n";
     static const char absentmsg[] =
 	"The server's host key is not cached in the registry. You\n"
 	"have no guarantee that the server is the computer you\n"
 	"think it is.\n"
-	"The server's key fingerprint is:\n"
+	"The server's %s key fingerprint is:\n"
 	"%s\n"
 	"If you trust this host, enter \"y\" to add the key to\n"
 	"PuTTY's cache and carry on connecting.\n"
@@ -71,7 +71,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"server administrator has changed the host key, or you\n"
 	"have actually connected to another computer pretending\n"
 	"to be the server.\n"
-	"The new key fingerprint is:\n"
+	"The new %s key fingerprint is:\n"
 	"%s\n"
 	"Connection abandoned.\n";
     static const char wrongmsg[] =
@@ -81,7 +81,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"server administrator has changed the host key, or you\n"
 	"have actually connected to another computer pretending\n"
 	"to be the server.\n"
-	"The new key fingerprint is:\n"
+	"The new %s key fingerprint is:\n"
 	"%s\n"
 	"If you were expecting this change and trust the new key,\n"
 	"enter \"y\" to update PuTTY's cache and continue connecting.\n"
@@ -106,18 +106,18 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 
     if (ret == 2) {		       /* key was different */
 	if (console_batch_mode) {
-	    fprintf(stderr, wrongmsg_batch, fingerprint);
+	    fprintf(stderr, wrongmsg_batch, keytype, fingerprint);
 	    cleanup_exit(1);
 	}
-	fprintf(stderr, wrongmsg, fingerprint);
+	fprintf(stderr, wrongmsg, keytype, fingerprint);
 	fflush(stderr);
     }
     if (ret == 1) {		       /* key was absent */
 	if (console_batch_mode) {
-	    fprintf(stderr, absentmsg_batch, fingerprint);
+	    fprintf(stderr, absentmsg_batch, keytype, fingerprint);
 	    cleanup_exit(1);
 	}
-	fprintf(stderr, absentmsg, fingerprint);
+	fprintf(stderr, absentmsg, keytype, fingerprint);
 	fflush(stderr);
     }
 

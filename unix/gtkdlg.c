@@ -2296,7 +2296,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     static const char absenttxt[] =
 	"The server's host key is not cached. You have no guarantee "
 	"that the server is the computer you think it is.\n"
-	"The server's key fingerprint is:\n"
+	"The server's %s key fingerprint is:\n"
 	"%s\n"
 	"If you trust this host, press \"Accept\" to add the key to "
 	"PuTTY's cache and carry on connecting.\n"
@@ -2310,7 +2310,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"cached. This means that either the server administrator "
 	"has changed the host key, or you have actually connected "
 	"to another computer pretending to be the server.\n"
-	"The new key fingerprint is:\n"
+	"The new %s key fingerprint is:\n"
 	"%s\n"
 	"If you were expecting this change and trust the new key, "
 	"press \"Accept\" to update PuTTY's cache and continue connecting.\n"
@@ -2330,7 +2330,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 0)		       /* success - key matched OK */
 	return;
 
-    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), fingerprint);
+    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype, fingerprint);
 
     ret = messagebox(GTK_WIDGET(get_window(frontend)),
 		     "PuTTY Security Alert", text,

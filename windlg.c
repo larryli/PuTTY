@@ -711,7 +711,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"The server's host key is not cached in the registry. You\n"
 	"have no guarantee that the server is the computer you\n"
 	"think it is.\n"
-	"The server's key fingerprint is:\n"
+	"The server's %s key fingerprint is:\n"
 	"%s\n"
 	"If you trust this host, hit Yes to add the key to\n"
 	"%s's cache and carry on connecting.\n"
@@ -728,7 +728,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"server administrator has changed the host key, or you\n"
 	"have actually connected to another computer pretending\n"
 	"to be the server.\n"
-	"The new key fingerprint is:\n"
+	"The new %s key fingerprint is:\n"
 	"%s\n"
 	"If you were expecting this change and trust the new key,\n"
 	"hit Yes to update %s's cache and continue connecting.\n"
@@ -749,7 +749,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 2) {		       /* key was different */
 	int mbret;
 	char *message, *title;
-	message = dupprintf(wrongmsg, appname, fingerprint, appname);
+	message = dupprintf(wrongmsg, appname, keytype, fingerprint, appname);
 	title = dupprintf(mbtitle, appname);
 	mbret = MessageBox(NULL, message, title,
 			   MB_ICONWARNING | MB_YESNOCANCEL);
@@ -763,7 +763,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 1) {		       /* key was absent */
 	int mbret;
 	char *message, *title;
-	message = dupprintf(absentmsg, fingerprint, appname);
+	message = dupprintf(absentmsg, keytype, fingerprint, appname);
 	title = dupprintf(mbtitle, appname);
 	mbret = MessageBox(NULL, message, title,
 			   MB_ICONWARNING | MB_YESNOCANCEL);
