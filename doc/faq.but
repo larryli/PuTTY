@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.39 2002/11/22 00:07:31 ben Exp $
+\versionid $Id: faq.but,v 1.40 2002/12/15 11:51:21 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -765,6 +765,25 @@ key in the wrong format isn't optimal.
 
 To connect using SSH 2 to a server that supports both versions, you
 need to change the configuration from the default (see \k{faq-ssh2}).
+
+\S{faq-rh8-utf8}{Question} When I'm connected to a Red Hat Linux 8.0
+system, some characters don't display properly.
+
+A common complaint is that hyphens in man pages show up as a-acute.
+
+With release 8.0, Red Hat appear to have made UTF-8 the default
+character set. There appears to be no way for terminal emulators such
+as PuTTY to know this (as far as we know, the appropriate escape
+sequence to switch into UTF-8 mode isn't sent).
+
+A fix is to configure sessions to RH8 systems to use UTF-8
+translation - see \k{config-charset} in the documentation. (Note that
+if you use \q{Change Settings}, changes may not take place immediately
+- see \k{faq-resetterm}.)
+
+If you really want to change the character set used by the server, the
+right place is \c{/etc/sysconfig/i18n}, but this shouldn't be
+necessary.
 
 \H{faq-secure} Security questions
 
