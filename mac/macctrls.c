@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.11 2003/03/24 22:41:38 ben Exp $ */
+/* $Id: macctrls.c,v 1.12 2003/03/24 22:46:11 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -594,25 +594,14 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
     int i, j;
     ControlPartCode state;
     union macctrl *mc;
-#if 0
-    ControlRef root;
-#endif
 
     GetPort(&saveport);
     SetPort((GrafPtr)GetWindowPort(window));
-    if (mac_gestalts.apprvers >= 0x100) {
+    if (mac_gestalts.apprvers >= 0x100)
 	SetThemeWindowBackground(window, active ?
 				 kThemeBrushModelessDialogBackgroundActive :
 				 kThemeBrushModelessDialogBackgroundInactive,
 				 TRUE);
-#if 0
-	GetRootControl(window, &root);
-	if (active)
-	    ActivateControl(root);
-	else
-	    DeactivateControl(root);
-#endif
-    }
     state = active ? kControlNoPart : kControlInactivePart;
     for (i = 0; i <= mcs->curpanel; i += mcs->curpanel)
 	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next)
