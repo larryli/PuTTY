@@ -5770,7 +5770,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		/* Set up a description of the source port. */
-		static char *sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+		static char *sportdesc;
+		sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
 			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
 			(int)(*saddr?1:0), ":",
 			(int)(sserv ? strlen(sports) : 0), sports,
@@ -5823,12 +5824,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_init(ssh, SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring(ssh, "tcpip-forward");
 			ssh2_pkt_addbool(ssh, 1);/* want reply */
-			if (*saddr)
+			if (*saddr) {
 			    ssh2_pkt_addstring(ssh, saddr);
-			if (ssh->cfg.rport_acceptall)
+			} else if (ssh->cfg.rport_acceptall) {
 			    ssh2_pkt_addstring(ssh, "0.0.0.0");
-			else
+			} else {
 			    ssh2_pkt_addstring(ssh, "127.0.0.1");
+			}
 			ssh2_pkt_adduint32(ssh, sport);
 			ssh2_pkt_send(ssh);
 
