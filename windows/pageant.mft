@@ -3,13 +3,13 @@
      See 20020104174954.A12067@imsa.edu. -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 <assemblyIdentity
-   version="1.0.0.0"
-   processorArchitecture="x86"
+   type="win32"
    name="Pageant"
-   type="win32" />
-   <description>SSH authentication agent for PuTTY.</description>
+   version="0.0.0.0"/>
    <dependency>
    <dependentAssembly>
+        <!-- Load Common Controls 6 instead of 5 to get WinXP native-
+             looking controls in the client area. -->
         <assemblyIdentity type="win32"
              name="Microsoft.Windows.Common-Controls"
              version="6.0.0.0" 
