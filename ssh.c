@@ -2454,9 +2454,9 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * transport. If we ever see a KEXINIT, we must go back to the
      * start.
      */
-    do {
+    while (!(ispkt && pktin.type == SSH2_MSG_KEXINIT)) {
         crReturn(1);
-    } while (!(ispkt && pktin.type == SSH2_MSG_KEXINIT));
+    }
     logevent("Server initiated key re-exchange");
     goto begin_key_exchange;
 
