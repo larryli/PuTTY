@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.35 2003/01/23 22:57:43 ben Exp $ */
+/* $Id: mac.c,v 1.36 2003/01/24 00:25:33 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -172,22 +172,7 @@ static void mac_startup(void) {
 	DisposeHandle((Handle)ti);
     }
 
-#if 0    /* OpenTransport? */
-    if (Gestalt(gestaltOpenTpt, &mac_gestalts.otptattr) != noErr ||
-	(mac_gestalts.otptattr & gestaltOpenTptTCPPresentMask) == 0 ||
-	ot_init() != noErr)
-#endif
-	mac_gestalts.otptattr = 0;
-    if (mac_gestalts.otptattr == 0) {
-	/* MacTCP? */
-	if (Gestalt(FOUR_CHAR_CODE('mtcp'), &mac_gestalts.mtcpvers) != noErr)
-	    mac_gestalts.mtcpvers = 0;
-	if (mac_gestalts.mtcpvers > 0) {
-	    if (mactcp_init() != noErr)
-		mac_gestalts.mtcpvers = 0;
-	}
-    } else
-	mac_gestalts.mtcpvers = 0;
+    sk_init();
 
     /* We've been tested with the Appearance Manager */
     if (mac_gestalts.apprvers != 0)
@@ -254,10 +239,7 @@ static void mac_eventloop(void) {
 	    mac_event(&event);
 	if (borednow)
 	    cleanup_exit(0);
-	if (mac_gestalts.mtcpvers != 0)
-	    mactcp_poll();
-	if (mac_gestalts.otptattr != 0)
-	    ot_poll();
+	sk_poll();
 	mac_pollterm();
     }
     DisposeRgn(cursrgn);

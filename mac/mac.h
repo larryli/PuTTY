@@ -28,8 +28,6 @@ struct mac_gestalts {
     long windattr;
     long encvvers; /* TEC version (from TECGetInfo()) */
     long uncvattr; /* Unicode Converter attributes (frem TECGetInfo()) */
-    long mtcpvers;
-    long otptattr;
 };
 
 extern struct mac_gestalts mac_gestalts;
@@ -112,6 +110,8 @@ extern void *open_settings_r_fsp(FSSpec *);
 extern void *open_settings_w_fsp(FSSpec *);
 /* from macucs.c */
 extern void init_ucs(Session *);
+/* from macnet.c */
+extern void sk_poll(void);
 /* from mtcpnet.c */
 extern OSErr mactcp_init(void);
 extern void mactcp_cleanup(void);
