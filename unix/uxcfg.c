@@ -117,10 +117,13 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
     ctrl_fontsel(s, "Font used for bold wide text", 'i',
 		 HELPCTX(no_help),
 		 dlg_stdfontsel_handler, I(offsetof(Config,wideboldfont)));
-    ctrl_text(s, "If you leave the bold font selectors blank, bold text"
-              " will be displayed by overprinting (\"shadow bold\"). Note"
-              " that this only applies if you have not requested bolding"
-              " to be done by changing the text colour.",
+    ctrl_checkbox(s, "Use shadow bold instead of bold fonts", 'u',
+		  HELPCTX(no_help),
+		  dlg_stdcheckbox_handler,
+		  I(offsetof(Config,shadowbold)));
+    ctrl_text(s, "(Note that bold fonts or shadow bolding are only"
+	      " used if you have not requested bolding to be done by"
+	      " changing the text colour.)",
               HELPCTX(no_help));
     ctrl_editbox(s, "Horizontal offset for shadow bold:", 'z', 20,
 		 HELPCTX(no_help), dlg_stdeditbox_handler,

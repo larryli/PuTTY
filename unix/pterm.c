@@ -2622,23 +2622,27 @@ void setup_fonts_ucs(struct gui_data *inst)
     }
     font_charset = set_font_info(inst, 0);
 
-    if (inst->cfg.boldfont.name[0]) {
-	name = inst->cfg.boldfont.name;
-	guessed = FALSE;
+    if (inst->cfg.shadowbold) {
+	inst->fonts[1] = NULL;
     } else {
-	name = guess_derived_font_name(inst->fonts[0], TRUE, FALSE);
-	guessed = TRUE;
+	if (inst->cfg.boldfont.name[0]) {
+	    name = inst->cfg.boldfont.name;
+	    guessed = FALSE;
+	} else {
+	    name = guess_derived_font_name(inst->fonts[0], TRUE, FALSE);
+	    guessed = TRUE;
+	}
+	inst->fonts[1] = name ? gdk_font_load(name) : NULL;
+	if (inst->fonts[1]) {
+	    set_font_info(inst, 1);
+	} else if (!guessed) {
+	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
+		    inst->cfg.boldfont.name);
+	    exit(1);
+	}
+	if (guessed)
+	    sfree(name);
     }
-    inst->fonts[1] = name ? gdk_font_load(name) : NULL;
-    if (inst->fonts[1]) {
-	set_font_info(inst, 1);
-    } else if (!guessed) {
-	fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
-		inst->cfg.boldfont.name);
-	exit(1);
-    }
-    if (guessed)
-	sfree(name);
 
     if (inst->cfg.widefont.name[0]) {
 	name = inst->cfg.widefont.name;
@@ -2658,33 +2662,37 @@ void setup_fonts_ucs(struct gui_data *inst)
     if (guessed)
 	sfree(name);
 
-    if (inst->cfg.wideboldfont.name[0]) {
-	name = inst->cfg.wideboldfont.name;
-	guessed = FALSE;
+    if (inst->cfg.shadowbold) {
+	inst->fonts[3] = NULL;
     } else {
-	/*
-	 * Here we have some choices. We can widen the bold font,
-	 * bolden the wide font, or widen and bolden the standard
-	 * font. Try them all, in that order!
-	 */
-	if (inst->cfg.widefont.name[0])
-	    name = guess_derived_font_name(inst->fonts[2], TRUE, FALSE);
-	else if (inst->cfg.boldfont.name[0])
-	    name = guess_derived_font_name(inst->fonts[1], FALSE, TRUE);
-	else
-	    name = guess_derived_font_name(inst->fonts[0], TRUE, TRUE);
-	guessed = TRUE;
+	if (inst->cfg.wideboldfont.name[0]) {
+	    name = inst->cfg.wideboldfont.name;
+	    guessed = FALSE;
+	} else {
+	    /*
+	     * Here we have some choices. We can widen the bold font,
+	     * bolden the wide font, or widen and bolden the standard
+	     * font. Try them all, in that order!
+	     */
+	    if (inst->cfg.widefont.name[0])
+		name = guess_derived_font_name(inst->fonts[2], TRUE, FALSE);
+	    else if (inst->cfg.boldfont.name[0])
+		name = guess_derived_font_name(inst->fonts[1], FALSE, TRUE);
+	    else
+		name = guess_derived_font_name(inst->fonts[0], TRUE, TRUE);
+	    guessed = TRUE;
+	}
+	inst->fonts[3] = name ? gdk_font_load(name) : NULL;
+	if (inst->fonts[3]) {
+	    set_font_info(inst, 3);
+	} else if (!guessed) {
+	    fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n", appname,
+		    inst->cfg.wideboldfont.name);
+	    exit(1);
+	}
+	if (guessed)
+	    sfree(name);
     }
-    inst->fonts[3] = name ? gdk_font_load(name) : NULL;
-    if (inst->fonts[3]) {
-	set_font_info(inst, 3);
-    } else if (!guessed) {
-	fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n", appname,
-		inst->cfg.wideboldfont.name);
-	exit(1);
-    }
-    if (guessed)
-	sfree(name);
 
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
@@ -2841,7 +2849,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
             strcmp(oldcfg.widefont.name, cfg2.widefont.name) ||
             strcmp(oldcfg.wideboldfont.name, cfg2.wideboldfont.name) ||
             strcmp(oldcfg.line_codepage, cfg2.line_codepage) ||
-	    oldcfg.vtmode != cfg2.vtmode) {
+	    oldcfg.vtmode != cfg2.vtmode ||
+	    oldcfg.shadowbold != cfg2.shadowbold) {
             setup_fonts_ucs(inst);
             need_size = 1;
         } else

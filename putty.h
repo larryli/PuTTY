@@ -470,6 +470,7 @@ struct config_tag {
     int stamp_utmp;
     int login_shell;
     int scrollbar_on_left;
+    int shadowbold;
     FontSpec boldfont;
     FontSpec widefont;
     FontSpec wideboldfont;
