@@ -44,11 +44,45 @@ static HINSTANCE instance;
 static HWND main_hwnd;
 static HWND keylist;
 static HWND aboutbox;
-static HMENU systray_menu;
+static HMENU systray_menu, session_menu;
 static int already_running;
 static int requested_help;
 
 static char *help_path;
+static char *putty_path;
+
+#define IDM_PUTTY         0x0060
+#define IDM_SESSIONS_BASE 0x1000
+#define IDM_SESSIONS_MAX  0x2000
+#define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
+#define PUTTY_DEFAULT     "Default%20Settings"
+static int initial_menuitems_count;
+
+/* Un-munge session names out of the registry. */
+static void unmungestr(char *in, char *out, int outlen)
+{
+    while (*in) {
+	if (*in == '%' && in[1] && in[2]) {
+	    int i, j;
+
+	    i = in[1] - '0';
+	    i -= (i > 9 ? 7 : 0);
+	    j = in[2] - '0';
+	    j -= (j > 9 ? 7 : 0);
+
+	    *out++ = (i << 4) + j;
+	    if (!--outlen)
+		return;
+	    in += 3;
+	} else {
+	    *out++ = *in++;
+	    if (!--outlen)
+		return;
+	}
+    }
+    *out = '\0';
+    return;
+}
 
 static tree234 *rsakeys, *ssh2keys;
 
@@ -1444,6 +1478,59 @@ static BOOL AddTrayIcon(HWND hwnd)
     return res;
 }
 
+/* Update the saved-sessions menu. */
+static void update_sessions(void)
+{
+    int num_entries;
+    HKEY hkey;
+    TCHAR buf[MAX_PATH + 1];
+    MENUITEMINFO mii;
+
+    int index_key, index_menu;
+
+    if (!putty_path)
+	return;
+
+    if(ERROR_SUCCESS != RegOpenKey(HKEY_CURRENT_USER, PUTTY_REGKEY, &hkey))
+	return;
+
+    for(num_entries = GetMenuItemCount(session_menu);
+	num_entries > initial_menuitems_count;
+	num_entries--)
+	RemoveMenu(session_menu, 0, MF_BYPOSITION);
+
+    index_key = 0;
+    index_menu = 0;
+
+    while(ERROR_SUCCESS == RegEnumKey(hkey, index_key, buf, MAX_PATH)) {
+	TCHAR session_name[MAX_PATH + 1];
+	unmungestr(buf, session_name, MAX_PATH);
+	if(strcmp(buf, PUTTY_DEFAULT) != 0) {
+	    memset(&mii, 0, sizeof(mii));
+	    mii.cbSize = sizeof(mii);
+	    mii.fMask = MIIM_TYPE | MIIM_STATE | MIIM_ID;
+	    mii.fType = MFT_STRING;
+	    mii.fState = MFS_ENABLED;
+	    mii.wID = (index_menu * 16) + IDM_SESSIONS_BASE;
+	    mii.dwTypeData = session_name;
+	    InsertMenuItem(session_menu, index_menu, TRUE, &mii);
+	    index_menu++;
+	}
+	index_key++;
+    }
+
+    RegCloseKey(hkey);
+
+    if(index_menu == 0) {
+	mii.cbSize = sizeof(mii);
+	mii.fMask = MIIM_TYPE | MIIM_STATE;
+	mii.fType = MFT_STRING;
+	mii.fState = MFS_GRAYED;
+	mii.dwTypeData = _T("(No sessions)");
+	InsertMenuItem(session_menu, index_menu, TRUE, &mii);
+    }
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -1478,6 +1565,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSTRAY2:
 	if (!menuinprogress) {
 	    menuinprogress = 1;
+	    update_sessions();
 	    SetForegroundWindow(hwnd);
 	    ret = TrackPopupMenu(systray_menu,
 				 TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
@@ -1489,6 +1577,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_COMMAND:
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
+	  case IDM_PUTTY:
+	    if((int)ShellExecute(hwnd, NULL, putty_path, _T(""), _T(""),
+				 SW_SHOW) <= 32) {
+		MessageBox(NULL, "Unable to execute PuTTY!",
+			   "Error", MB_OK | MB_ICONERROR);
+	    }
+	    break;
 	  case IDM_CLOSE:
 	    if (passphrase_box)
 		SendMessage(passphrase_box, WM_CLOSE, 0, 0);
@@ -1536,6 +1631,28 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                         (DWORD)"JI(`',`pageant.general')");
                 requested_help = TRUE;
             }
+	    break;
+	  default:
+	    {
+		if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
+		    MENUITEMINFO mii;
+		    TCHAR buf[MAX_PATH + 1];
+		    TCHAR param[MAX_PATH + 1];
+		    memset(&mii, 0, sizeof(mii));
+		    mii.cbSize = sizeof(mii);
+		    mii.fMask = MIIM_TYPE;
+		    mii.cch = MAX_PATH;
+		    mii.dwTypeData = buf;
+		    GetMenuItemInfo(session_menu, wParam, FALSE, &mii);
+		    strcpy(param, "@");
+		    strcat(param, mii.dwTypeData);
+		    if((int)ShellExecute(hwnd, NULL, putty_path, param,
+					 _T(""), SW_SHOW) <= 32) {
+			MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+				   MB_OK | MB_ICONERROR);
+		    }
+		}
+	    }
 	    break;
 	}
 	break;
@@ -1728,6 +1845,27 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
+     * Look for the PuTTY binary (we will enable the saved session
+     * submenu if we find it).
+     */
+    {
+        char b[2048], *p, *q, *r;
+        FILE *fp;
+        GetModuleFileName(NULL, b, sizeof(b) - 1);
+        r = b;
+        p = strrchr(b, '\\');
+        if (p && p >= r) r = p+1;
+        q = strrchr(b, ':');
+        if (q && q >= r) r = q+1;
+        strcpy(r, "putty.exe");
+        if ( (fp = fopen(b, "r")) != NULL) {
+            putty_path = dupstr(b);
+            fclose(fp);
+        } else
+            putty_path = NULL;
+    }
+
+    /*
      * Find out if Pageant is already running.
      */
     already_running = FALSE;
@@ -1760,8 +1898,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	/* Set up a system tray icon */
 	AddTrayIcon(main_hwnd);
 
+        /* Accelerators used: nsvkxa */
         systray_menu = CreatePopupMenu();
-        /* accelerators used: vkxa */
+	if (putty_path) {
+	    session_menu = CreateMenu();
+	    AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
+	    AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
+		       (UINT) session_menu, "&Saved Sessions");
+	    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+	}
         AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
                "&View Keys");
         AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
@@ -1771,6 +1916,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
         AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+	initial_menuitems_count = GetMenuItemCount(session_menu);
 
 	ShowWindow(main_hwnd, SW_HIDE);
 
@@ -1889,5 +2035,5 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     if (advapi)
 	FreeLibrary(advapi);
-    exit(msg.wParam);
+    return msg.wParam;
 }
