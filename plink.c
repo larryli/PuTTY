@@ -171,6 +171,11 @@ int main(int argc, char **argv) {
             if (!strcmp(p, "-ssh")) {
 		default_protocol = cfg.protocol = PROT_SSH;
 		default_port = cfg.port = 22;
+            } else if (!strcmp(p, "-telnet")) {
+		default_protocol = cfg.protocol = PROT_TELNET;
+		default_port = cfg.port = 23;
+            } else if (!strcmp(p, "-raw")) {
+		default_protocol = cfg.protocol = PROT_RAW;
 	    } else if (!strcmp(p, "-v")) {
                 flags |= FLAG_VERBOSE;
 	    } else if (!strcmp(p, "-log")) {
@@ -212,6 +217,27 @@ int main(int argc, char **argv) {
                     strncpy (cfg.host, q, sizeof(cfg.host)-1);
                     cfg.host[sizeof(cfg.host)-1] = '\0';
                 } else {
+                    char *r;
+                    /*
+                     * Before we process the [user@]host string, we
+                     * first check for the presence of a protocol
+                     * prefix (a protocol name followed by ",").
+                     */
+                    r = strchr(p, ',');
+                    if (r) {
+                        int i, j;
+                        for (i = 0; backends[i].backend != NULL; i++) {
+                            j = strlen(backends[i].name);
+                            if (j == r-p &&
+                                !memcmp(backends[i].name, p, j)) {
+                                default_protocol = cfg.protocol = backends[i].protocol;
+                                portnumber = backends[i].backend->default_port;
+                                p = r+1;
+                                break;
+                            }
+                        }
+                    }
+
                     /*
                      * Three cases. Either (a) there's a nonzero
                      * length string followed by an @, in which
@@ -222,7 +248,7 @@ int main(int argc, char **argv) {
                      * string and it _doesn't_ exist in the
                      * database.
                      */
-                    char *r = strrchr(p, '@');
+                    r = strrchr(p, '@');
                     if (r == p) p++, r = NULL;   /* discount initial @ */
                     if (r == NULL) {
                         /*
