@@ -45,6 +45,8 @@
 
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x2000
+/* Maximum number of sessions on saved-session submenu */
+#define MENU_SAVED_MAX (IDM_SAVED_MAX-IDM_SAVED_MIN)
 
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
 #define WM_FULLSCR_ON_MAX (WM_XUSER + 3)
@@ -708,10 +710,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	s = CreateMenu();
 	get_sesslist(&sesslist, TRUE);
+	/* skip sesslist.sessions[0] == Default Settings */
 	for (i = 1;
-	     i < ((sesslist.nsessions < 256) ? sesslist.nsessions : 256);
+	     i < ((sesslist.nsessions <= MENU_SAVED_MAX+1) ? sesslist.nsessions
+							   : MENU_SAVED_MAX+1);
 	     i++)
-	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + (16 * i),
+	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + i-1,
 		       sesslist.sessions[i]);
 
 	for (j = 0; j < lenof(popup_menus); j++) {
@@ -1883,18 +1887,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    sprintf(c, "putty &%p", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
-		    if ((lParam - IDM_SAVED_MIN) / 16 < sesslist.nsessions) {
-			char *session =
-			    sesslist.sessions[(lParam - IDM_SAVED_MIN) / 16];
-			cl = snewn(16 + strlen(session), char);
-				       /* 8, but play safe */
-			if (!cl)
-			    cl = NULL;    
-				       /* not a very important failure mode */
-			else {
-			    sprintf(cl, "putty @%s", session);
-			    freecl = TRUE;
-			}
+		    unsigned int sessno = lParam - IDM_SAVED_MIN + 1;
+		    if (sessno < sesslist.nsessions) {
+			char *session = sesslist.sessions[sessno];
+			/* XXX spaces? quotes? "-load"? */
+			cl = dupprintf("putty @%s", session);
+			freecl = TRUE;
 		    } else
 			break;
 		} else
@@ -2112,7 +2110,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    flip_full_screen();
 	    break;
 	  default:
-	    if (wParam >= IDM_SAVED_MIN && wParam <= IDM_SAVED_MAX) {
+	    if (wParam >= IDM_SAVED_MIN && wParam < IDM_SAVED_MAX) {
 		SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
 	    }
 	    if (wParam >= IDM_SPECIAL_MIN && wParam <= IDM_SPECIAL_MAX) {
