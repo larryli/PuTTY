@@ -103,7 +103,8 @@ void usage(void)
     fprintf(stderr,
 	    "Usage: puttygen ( keyfile | -t type [ -b bits ] )\n"
 	    "                [ -C comment ] [ -P ]\n"
-	    "                [ -o output-keyfile ] [ -O type ]\n");
+	    "                [ -o output-keyfile ] [ -O type | -l | -L"
+	    " | -p ]\n");
 }
 
 void help(void)
@@ -116,6 +117,7 @@ void help(void)
     usage();
     fprintf(stderr,
 	    "  -t    specify key type when generating (rsa, dsa, rsa1)\n"
+	    "  -b    specify number of bits when generating key\n"
 	    "  -C    change or specify key comment\n"
 	    "  -P    change key passphrase\n"
 	    "  -O    specify output type:\n"
@@ -125,6 +127,7 @@ void help(void)
 	    "           public              standard / ssh.com public key\n"
 	    "           public-openssh      OpenSSH public key\n"
 	    "           fingerprint         output the key fingerprint\n"
+	    "  -o    specify output file\n"
 	    "  -l    equivalent to `-O fingerprint'\n"
 	    "  -L    equivalent to `-O public-openssh'\n"
 	    "  -p    equivalent to `-O public'\n"
