@@ -2377,7 +2377,7 @@ static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
 
 static int ssh_do_close(Ssh ssh, int notify_exit)
 {
-    int i, ret = 0;
+    int ret = 0;
     struct ssh_channel *c;
 
     ssh->state = SSH_STATE_CLOSED;
@@ -2390,11 +2390,11 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
             ret = 1;
     }
     /*
-     * Now we must shut down any port and X forwardings going
+     * Now we must shut down any port- and X-forwarded channels going
      * through this connection.
      */
     if (ssh->channels) {
-	for (i = 0; NULL != (c = index234(ssh->channels, i)); i++) {
+	while (NULL != (c = index234(ssh->channels, 0))) {
 	    switch (c->type) {
 	      case CHAN_X11:
 		x11_close(c->u.x11.s);
@@ -2403,7 +2403,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 		pfd_close(c->u.pfd.s);
 		break;
 	    }
-	    del234(ssh->channels, c);
+	    del234(ssh->channels, c); /* moving next one to index 0 */
 	    if (ssh->version == 2)
 		bufchain_clear(&c->v.v2.outbuffer);
 	    sfree(c);
