@@ -3458,7 +3458,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     if (cfg.agentfwd && agent_exists()) {
         char proto[20], data[64];
         logevent("Requesting OpenSSH-style agent forwarding");
-        x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
         ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
         ssh2_pkt_adduint32(mainchan->remoteid);
         ssh2_pkt_addstring("auth-agent-req@openssh.com");
