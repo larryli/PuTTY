@@ -774,6 +774,12 @@ static int sk_tcp_write(Socket sock, const char *buf, int len)
     if (s->writable)
 	try_send(s);
 
+    /*
+     * Update the select() status to correctly reflect whether or
+     * not we should be selecting for write.
+     */
+    uxsel_tell(s);
+
     return bufchain_size(&s->output_data);
 }
 
@@ -794,6 +800,12 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
      */
     if (s->writable)
 	try_send(s);
+
+    /*
+     * Update the select() status to correctly reflect whether or
+     * not we should be selecting for write.
+     */
+    uxsel_tell(s);
 
     return s->sending_oob;
 }
