@@ -252,6 +252,7 @@ struct sessionsaver_data {
     union control *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
     union control *okbutton, *cancelbutton;
     struct sesslist *sesslist;
+    int midsession;
 };
 
 /* 
@@ -298,8 +299,6 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
      * allocate space to store the current contents of the saved
      * session edit box (since it must persist even when we switch
      * panels, but is not part of the Config).
-     * 
-     * Of course, this doesn't need to be done mid-session.
      */
     if (!ssd->editbox) {
         savedsession = NULL;
@@ -328,7 +327,9 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 			    SAVEDSESSION_LEN);
 	}
     } else if (event == EVENT_ACTION) {
-	if (ctrl == ssd->listbox || ctrl == ssd->loadbutton) {
+	if (!ssd->midsession &&
+	    (ctrl == ssd->listbox ||
+	     (ssd->loadbutton && ctrl == ssd->loadbutton))) {
 	    /*
 	     * The user has double-clicked a session, or hit Load.
 	     * We must load the selected session, and then
@@ -368,7 +369,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    get_sesslist(ssd->sesslist, TRUE);
 	    dlg_refresh(ssd->editbox, dlg);
 	    dlg_refresh(ssd->listbox, dlg);
-	} else if (ctrl == ssd->delbutton) {
+	} else if (!ssd->midsession &&
+		   ssd->delbutton && ctrl == ssd->delbutton) {
 	    int i = dlg_listbox_index(ssd->listbox, dlg);
 	    if (i <= 0) {
 		dlg_beep(dlg);
@@ -379,7 +381,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		dlg_refresh(ssd->listbox, dlg);
 	    }
 	} else if (ctrl == ssd->okbutton) {
-            if (!savedsession) {
+            if (ssd->midsession) {
                 /* In a mid-session Change Settings, Apply is always OK. */
 		dlg_end(dlg, 1);
                 return;
@@ -784,7 +786,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ssd = (struct sessionsaver_data *)
 	ctrl_alloc(b, sizeof(struct sessionsaver_data));
     memset(ssd, 0, sizeof(*ssd));
-    ssd->sesslist = (midsession ? NULL : sesslist);
+    ssd->midsession = midsession;
 
     /*
      * The standard panel that appears at the bottom of all panels:
@@ -867,18 +869,32 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 				sessionsaver_handler, P(ssd));
     ssd->listbox->generic.column = 0;
     ssd->listbox->listbox.height = 7;
-    ssd->loadbutton = ctrl_pushbutton(s, "Load", 'l',
-				      HELPCTX(session_saved),
-				      sessionsaver_handler, P(ssd));
-    ssd->loadbutton->generic.column = 1;
+    if (!midsession) {
+	ssd->loadbutton = ctrl_pushbutton(s, "Load", 'l',
+					  HELPCTX(session_saved),
+					  sessionsaver_handler, P(ssd));
+	ssd->loadbutton->generic.column = 1;
+    } else {
+	/* We can't offer the Load button mid-session, as it would allow the
+	 * user to load and subsequently save settings they can't see. (And
+	 * also change otherwise immutable settings underfoot; that probably
+	 * shouldn't be a problem, but.) */
+	ssd->loadbutton = NULL;
+    }
+    /* "Save" button is permitted mid-session. */
     ssd->savebutton = ctrl_pushbutton(s, "Save", 'v',
 				      HELPCTX(session_saved),
 				      sessionsaver_handler, P(ssd));
     ssd->savebutton->generic.column = 1;
-    ssd->delbutton = ctrl_pushbutton(s, "Delete", 'd',
-				     HELPCTX(session_saved),
-				     sessionsaver_handler, P(ssd));
-    ssd->delbutton->generic.column = 1;
+    if (!midsession) {
+	ssd->delbutton = ctrl_pushbutton(s, "Delete", 'd',
+					 HELPCTX(session_saved),
+					 sessionsaver_handler, P(ssd));
+	ssd->delbutton->generic.column = 1;
+    } else {
+	/* Disable the Delete button mid-session too, for UI consistency. */
+	ssd->delbutton = NULL;
+    }
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
