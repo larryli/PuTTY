@@ -306,8 +306,13 @@ charset CS_ISO8859_16
   appear from positions 0x5F to 0x7E inclusive. Here is the modified
   ISO8859-1 code table.
 
+  Note that position 0 is still 0000, not 0020 as it might plausibly
+  be, because I didn't like the idea that converting several words
+  in Unicode through this table would produce NULs in place of all
+  the spaces! In principle that works fine, but it makes me uneasy.
+
 charset CS_ISO8859_1_X11
-0020 2666 2592 2409 240c 240d 240a 00b0 00b1 2424 240b 2518 2510 250c 2514 253c
+0000 2666 2592 2409 240c 240d 240a 00b0 00b1 2424 240b 2518 2510 250c 2514 253c
 23ba 23bb 2500 23bc 23bd 251c 2524 2534 252c 2502 2264 2265 03c0 2260 00a3 00b7
 0020 0021 0022 0023 0024 0025 0026 0027 0028 0029 002a 002b 002c 002d 002e 002f
 0030 0031 0032 0033 0034 0035 0036 0037 0038 0039 003a 003b 003c 003d 003e 003f
