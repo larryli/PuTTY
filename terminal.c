@@ -41,7 +41,7 @@ static int alt_t, alt_b;
 static int alt_which;
 
 #define ARGS_MAX 32		       /* max # of esc sequence arguments */
-#define ARG_DEFAULT -1		       /* if an arg isn't specified */
+#define ARG_DEFAULT 0		       /* if an arg isn't specified */
 #define def(a,d) ( (a) == ARG_DEFAULT ? (d) : (a) )
 static int esc_args[ARGS_MAX];
 static int esc_nargs;
