@@ -70,10 +70,6 @@ extern void mac_menuterm(WindowPtr, short, short);
 /* from macstore.c */
 OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
-/* from maccfg.c */
-extern void mac_loadconfig(Config *);
-/* from macnet.c */
-extern void macnet_eventcheck(void);
 
 #endif
 
