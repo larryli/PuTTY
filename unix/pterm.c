@@ -2394,7 +2394,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
 
     inst->direct_to_font = init_ucs(&inst->ucsdata,
-				    inst->cfg.line_codepage, font_charset);
+				    inst->cfg.line_codepage, font_charset,
+				    inst->cfg.vtmode);
 }
 
 void set_geom_hints(struct gui_data *inst)
@@ -2531,7 +2532,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
             strcmp(oldcfg.boldfont.name, cfg2.boldfont.name) ||
             strcmp(oldcfg.widefont.name, cfg2.widefont.name) ||
             strcmp(oldcfg.wideboldfont.name, cfg2.wideboldfont.name) ||
-            strcmp(oldcfg.line_codepage, cfg2.line_codepage)) {
+            strcmp(oldcfg.line_codepage, cfg2.line_codepage) ||
+	    oldcfg.vtmode != cfg2.vtmode) {
             setup_fonts_ucs(inst);
             need_size = 1;
         } else

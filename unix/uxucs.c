@@ -107,7 +107,7 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
  * Return value is TRUE if pterm is to run in direct-to-font mode.
  */
 int init_ucs(struct unicode_data *ucsdata, 
-	     char *linecharset, int font_charset)
+	     char *linecharset, int font_charset, int vtmode)
 {
     int i, ret = 0;
 
@@ -176,8 +176,18 @@ int init_ucs(struct unicode_data *ucsdata,
 	    0x23bb, 0x2500, 0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c,
 	    0x2502, 0x2264, 0x2265, 0x03c0, 0x2260, 0x00a3, 0x00b7, 0x0020
 	};
+	static const wchar_t unitab_xterm_poorman[32] =
+	    L"*#****o~**+++++-----++++|****L. ";
+
+	const wchar_t *ptr;
+
+	if (vtmode == VT_POORMAN)
+	    ptr = unitab_xterm_poorman;
+	else
+	    ptr = unitab_xterm_std;
+
 	if (i >= 0x5F && i < 0x7F)
-	    ucsdata->unitab_xterm[i] = unitab_xterm_std[i & 0x1F];
+	    ucsdata->unitab_xterm[i] = ptr[i & 0x1F];
 	else
 	    ucsdata->unitab_xterm[i] = ucsdata->unitab_line[i];
     }

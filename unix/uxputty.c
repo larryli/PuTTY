@@ -13,17 +13,6 @@
 
 /*
  * TODO:
- * 
- *  - Go through all the config options and ensure they can all be
- *    configured and reconfigured properly.
- *     + icon title appears to be a non-option on Unix.
- *     + Why the hell did I faff about disabling two of the vtmode
- * 	 options? The rest aren't used either in pterm! Work out
- * 	 whether they should be, and how they can be.
- *     + Refresh in the codepage combo is badly broken.
- *     + `Don't translate line drawing chars' ?? What is this crap?
- * 	 It does nothing at all, and where's the option to paste as
- * 	 lqqqk? What was I smoking?
  *
  *  - Better control of the individual config box features.
  *     + SSH packet logging shouldn't be mentioned in pterm, and in

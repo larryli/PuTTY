@@ -115,7 +115,7 @@ void (*putty_signal(int sig, void (*func)(int)))(int);
  */
 struct unicode_data;
 int init_ucs(struct unicode_data *ucsdata,
-	     char *line_codepage, int font_charset);
+	     char *line_codepage, int font_charset, int vtmode);
 
 /*
  * Spare function exported directly from uxnet.c.

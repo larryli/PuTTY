@@ -1143,9 +1143,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      HELPCTX(translation_linedraw),
 		      dlg_stdradiobutton_handler,
 		      I(offsetof(Config, vtmode)),
-		      "Font has XWindows encoding", 'x', I(VT_XWINDOWS),
+		      "Use Unicode line drawing code points",'u',I(VT_UNICODE),
 		      "Poor man's line drawing (+, - and |)",'p',I(VT_POORMAN),
-		      "Unicode mode", 'u', I(VT_UNICODE), NULL);
+		      NULL);
 
     /*
      * The Window/Selection panel.

@@ -197,15 +197,18 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	    if (c->generic.type == CTRL_RADIO &&
 		c->generic.context.i == offsetof(Config, vtmode)) {
 		assert(c->generic.handler == dlg_stdradiobutton_handler);
-		c->radio.nbuttons += 2;
+		c->radio.nbuttons += 3;
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
+		c->radio.buttons[c->radio.nbuttons-3] =
+		    dupstr("Font has XWindows encoding");
 		c->radio.buttons[c->radio.nbuttons-2] =
 		    dupstr("Use font in both ANSI and OEM modes");
 		c->radio.buttons[c->radio.nbuttons-1] =
 		    dupstr("Use font in OEM mode only");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
+		c->radio.buttondata[c->radio.nbuttons-3] = I(VT_XWINDOWS);
 		c->radio.buttondata[c->radio.nbuttons-2] = I(VT_OEMANSI);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(VT_OEMONLY);
 		if (!c->radio.shortcuts) {
@@ -217,6 +220,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		    c->radio.shortcuts = sresize(c->radio.shortcuts,
 						 c->radio.nbuttons, char);
 		}
+		c->radio.shortcuts[c->radio.nbuttons-3] = 'x';
 		c->radio.shortcuts[c->radio.nbuttons-2] = 'b';
 		c->radio.shortcuts[c->radio.nbuttons-1] = 'e';
 		break;
