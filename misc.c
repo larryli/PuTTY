@@ -379,8 +379,13 @@ static void *minefield_c_realloc(void *p, size_t size)
 #ifdef MALLOC_LOG
 static FILE *fp = NULL;
 
+static char *mlog_file = NULL;
+static int mlog_line = 0;
+
 void mlog(char *file, int line)
 {
+    mlog_file = file;
+    mlog_line = line;
     if (!fp) {
 	fp = fopen("putty_mem.log", "w");
 	setvbuf(fp, NULL, _IONBF, BUFSIZ);
@@ -399,7 +404,14 @@ void *safemalloc(size_t size)
     p = malloc(size);
 #endif
     if (!p) {
-	MessageBox(NULL, "Out of memory!", "PuTTY Fatal Error",
+	char str[200];
+#ifdef MALLOC_LOG
+	sprintf(str, "Out of memory! (%s:%d, size=%d)",
+		mlog_file, mlog_line, size);
+#else
+	strcpy(str, "Out of memory!");
+#endif
+	MessageBox(NULL, str, "PuTTY Fatal Error",
 		   MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
 	exit(1);
     }
@@ -427,7 +439,14 @@ void *saferealloc(void *ptr, size_t size)
 #endif
     }
     if (!p) {
-	MessageBox(NULL, "Out of memory!", "PuTTY Fatal Error",
+	char str[200];
+#ifdef MALLOC_LOG
+	sprintf(str, "Out of memory! (%s:%d, size=%d)",
+		mlog_file, mlog_line, size);
+#else
+	strcpy(str, "Out of memory!");
+#endif
+	MessageBox(NULL, str, "PuTTY Fatal Error",
 		   MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
 	exit(1);
     }
