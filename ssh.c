@@ -2247,7 +2247,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 if (c) {
                     int closetype;
                     closetype = (pktin.type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
-                    send_packet(pktin.type, PKT_INT, c->remoteid, PKT_END);
+                    if (!(c->closes & closetype))
+                        send_packet(pktin.type, PKT_INT, c->remoteid, PKT_END);
 		    if ((c->closes == 0) && (c->type == CHAN_X11)) {
 		        logevent("X11 connection closed");
 			assert(c->u.x11.s != NULL);
