@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.43 2003/02/01 00:29:38 ben Exp $
+\versionid $Id: faq.but,v 1.44 2003/02/15 18:47:22 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -22,7 +22,8 @@ development snapshots, in which case testing will be very welcome.
 \b try the
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/}{Wishlist
 page}, and see if you can find the feature there. If it's on there,
-it probably \e{hasn't} been implemented.
+and not in the \q{Recently fixed} section, it probably \e{hasn't} been
+implemented.
 
 \S{faq-ssh2}{Question} Does PuTTY support SSH v2?
 
