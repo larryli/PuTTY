@@ -318,7 +318,7 @@ up on your local machine without sending any X network traffic in
 the clear.
 
 In order to use this feature, you will need an X display server for
-your Windows machine, such as X-Win32 or Exceed. This will probably
+your Windows machine, such as Cygwin/X, X-Win32, or Exceed. This will probably
 install itself as display number 0 on your local machine; if it
 doesn't, the manual for the \i{X server} should tell you what it
 does do.
