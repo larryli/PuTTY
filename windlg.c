@@ -358,6 +358,7 @@ enum { IDCX_ABOUT =
     IDC_RESIZETERM,
     IDC_RESIZEFONT,
     IDC_RESIZENONE,
+    IDC_RESIZEEITHER,
     IDC_SCROLLBAR,
     IDC_SCROLLBARFULLSCREEN,
     IDC_CLOSEWARN,
@@ -681,9 +682,10 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton(hwnd, IDC_SCROLLBAR, cfg.scrollbar);
     CheckDlgButton(hwnd, IDC_SCROLLBARFULLSCREEN, cfg.scrollbar_in_fullscreen);
-    CheckRadioButton(hwnd, IDC_RESIZETERM, IDC_RESIZENONE,
+    CheckRadioButton(hwnd, IDC_RESIZETERM, IDC_RESIZEEITHER,
 		     cfg.resize_action == RESIZE_TERM ? IDC_RESIZETERM :
 		     cfg.resize_action == RESIZE_FONT ? IDC_RESIZEFONT :
+		     cfg.resize_action == RESIZE_EITHER ? IDC_RESIZEEITHER :
 		     IDC_RESIZENONE);
     CheckRadioButton(hwnd, IDC_COEALWAYS, IDC_COENORMAL,
 		     cfg.close_on_exit == COE_NORMAL ? IDC_COENORMAL :
@@ -1058,9 +1060,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
 		  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50, NULL);
 	radioline(&cp, "When window is resi&zed, change:", IDC_RESIZESTATIC,
-		  3, "Terminal size", IDC_RESIZETERM,
- 		  "Font size", IDC_RESIZEFONT,
- 		  "Forbid resize", IDC_RESIZENONE, NULL);
+		  4, "Terminal", IDC_RESIZETERM,
+ 		  "Font", IDC_RESIZEFONT,
+ 		  "Special", IDC_RESIZEEITHER,
+ 		  "Nothing", IDC_RESIZENONE, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Control the scrollback in the window",
 		 IDC_BOX_WINDOW2);
@@ -2140,6 +2143,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_RESIZETERM:
 	      case IDC_RESIZEFONT:
 	      case IDC_RESIZENONE:
+	      case IDC_RESIZEEITHER:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    cfg.resize_action =
@@ -2147,6 +2151,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 					   IDC_RESIZETERM) ? RESIZE_TERM :
 			IsDlgButtonChecked(hwnd,
 					   IDC_RESIZEFONT) ? RESIZE_FONT :
+			IsDlgButtonChecked(hwnd,
+					   IDC_RESIZEEITHER) ? RESIZE_EITHER :
 			RESIZE_DISABLED;
 		}
 		break;

@@ -666,6 +666,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	    flash_window(1);	       /* maintain */
 
+	    /* The messages seem unreliable; especially if we're being tricky */
+	    has_focus = (GetForegroundWindow() == hwnd);
+
 	    if (in_vbell)
 		/* Hmm, term_update didn't want to do an update too soon ... */
 		timer_id = SetTimer(hwnd, 1, 50, NULL);
@@ -1113,7 +1116,7 @@ void request_resize(int w, int h)
 
     /* If the window is maximized supress resizing attempts */
     if (IsZoomed(hwnd)) {
-	if (cfg.resize_action != RESIZE_FONT)
+	if (cfg.resize_action == RESIZE_TERM)
 	    return;
     }
 
@@ -1150,7 +1153,7 @@ void request_resize(int w, int h)
 
     term_size(h, w, cfg.savelines);
 
-    if (cfg.resize_action != RESIZE_FONT) {
+    if (cfg.resize_action != RESIZE_FONT && !IsZoomed(hwnd)) {
 	width = extra_width + font_width * w;
 	height = extra_height + font_height * h;
 
@@ -1185,6 +1188,8 @@ static void reset_window(int reinit) {
     win_width  = cr.right - cr.left;
     win_height = cr.bottom - cr.top;
 
+    if (cfg.resize_action == RESIZE_DISABLED) reinit = 2;
+
     /* Are we being forced to reload the fonts ? */
     if (reinit>1) {
 #ifdef RDB_DEBUG_PATCH
@@ -1218,7 +1223,7 @@ static void reset_window(int reinit) {
 	extra_width = wr.right - wr.left - cr.right + cr.left;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
 
-	if (cfg.resize_action == RESIZE_FONT) {
+	if (cfg.resize_action != RESIZE_TERM) {
 	    if (  font_width != win_width/cols || 
 		  font_height != win_height/rows) {
 		deinit_fonts();
@@ -1274,6 +1279,8 @@ static void reset_window(int reinit) {
 			 font_height*rows + extra_height,
 			 SWP_NOMOVE | SWP_NOZORDER);
 	}
+
+	InvalidateRect(hwnd, NULL, TRUE);
 	return;
     }
 
@@ -1281,7 +1288,9 @@ static void reset_window(int reinit) {
      * window. But that may be too big for the screen which forces us
      * to change the terminal.
      */
-    if ((cfg.resize_action != RESIZE_FONT  && reinit==0) || reinit>0) {
+    if ((cfg.resize_action == RESIZE_TERM && reinit<=0) ||
+        (cfg.resize_action == RESIZE_EITHER && reinit<0) ||
+	    reinit>0) {
 	offset_width = offset_height = cfg.window_border;
 	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
@@ -1298,13 +1307,27 @@ static void reset_window(int reinit) {
 
 	    /* Grrr too big */
 	    if ( rows > height || cols > width ) {
-		if ( height > rows ) height = rows;
-		if ( width > cols )  width = cols;
-		term_size(height, width, cfg.savelines);
+		if (cfg.resize_action == RESIZE_EITHER) {
+		    /* Make the font the biggest we can */
+		    if (cols > width)
+			font_width = (ss.right - ss.left - extra_width)/cols;
+		    if (rows > height)
+			font_height = (ss.bottom - ss.top - extra_height)/rows;
+
+		    deinit_fonts();
+		    init_fonts(font_width, font_height);
+
+		    width = (ss.right - ss.left - extra_width) / font_width;
+		    height = (ss.bottom - ss.top - extra_height) / font_height;
+		} else {
+		    if ( height > rows ) height = rows;
+		    if ( width > cols )  width = cols;
+		    term_size(height, width, cfg.savelines);
 #ifdef RDB_DEBUG_PATCH
-		debug((27, "reset_window() -> term resize to (%d,%d)",
-			   height, width));
+		    debug((27, "reset_window() -> term resize to (%d,%d)",
+			       height, width));
 #endif
+		}
 	    }
 	    
 	    SetWindowPos(hwnd, NULL, 0, 0, 
@@ -1569,7 +1592,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (cfg.height != prev_cfg.height ||
 		    cfg.width != prev_cfg.width ||
 		    cfg.savelines != prev_cfg.savelines ||
-		    cfg.resize_action != RESIZE_TERM)
+		    cfg.resize_action == RESIZE_FONT ||
+		    cfg.resize_action == RESIZE_DISABLED)
 		    term_size(cfg.height, cfg.width, cfg.savelines);
 
 		/* Enable or disable the scroll bar, etc */
@@ -1641,8 +1665,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    cfg.fontcharset != prev_cfg.fontcharset ||
 		    cfg.vtmode != prev_cfg.vtmode ||
 		    cfg.bold_colour != prev_cfg.bold_colour ||
-		    (cfg.resize_action != RESIZE_FONT &&
-		     prev_cfg.resize_action == RESIZE_FONT))
+		    cfg.resize_action == RESIZE_DISABLED ||
+		    cfg.resize_action == RESIZE_EITHER ||
+		    (cfg.resize_action != prev_cfg.resize_action))
 		    init_lvl = 2;
 
 		InvalidateRect(hwnd, NULL, TRUE);
@@ -1962,6 +1987,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	term_update();
 	break;
       case WM_KILLFOCUS:
+	if (full_screen) flip_full_screen();
 	show_mouseptr(1);
 	has_focus = FALSE;
 	DestroyCaret();
@@ -1993,22 +2019,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * 1) Keep the sizetip uptodate
 	 * 2) Make sure the window size is _stepped_ in units of the font size.
 	 */
-	if (cfg.resize_action == RESIZE_TERM && !alt_pressed) {
+	if (cfg.resize_action != RESIZE_FONT && !alt_pressed) {
 	    int width, height, w, h, ew, eh;
 	    LPRECT r = (LPRECT) lParam;
 
-	    if ( !need_backend_resize && 
+	    if ( !need_backend_resize && cfg.resize_action == RESIZE_EITHER &&
 		    (cfg.height != rows || cfg.width != cols )) {
 		/* 
-		 * Great! It seems the host has been changing the terminal
-		 * size, well the user is now grabbing so this is probably
-		 * the least confusing solution in the long run even though
-		 * it a is suprise. Unfortunatly the only way to prevent 
-		 * this seems to be to let the host change the window size 
-		 * and as that's a user option we're still right back here.
-		 */
+		 * Great! It seems that both the terminal size and the
+		 * font size have been changed and the user is now dragging.
+		 * 
+		 * It will now be difficult to get back to the configured
+		 * font size!
+		 *
+		 * This would be easier but it seems to be too confusing.
+
 		term_size(cfg.height, cfg.width, cfg.savelines);
 		reset_window(2);
+		 */
+	        cfg.height=rows; cfg.width=cols;
+
 		InvalidateRect(hwnd, NULL, TRUE);
 		need_backend_resize = TRUE;
 	    }
@@ -2084,11 +2114,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		"...",
 	    LOWORD(lParam), HIWORD(lParam)));
 #endif
-	if (wParam == SIZE_MINIMIZED) {
+	if (wParam == SIZE_MINIMIZED)
 	    SetWindowText(hwnd,
 			  cfg.win_name_always ? window_name : icon_name);
-	    break;
-	}
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
 
@@ -2103,11 +2131,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    height = HIWORD(lParam);
 
 	    if (!resizing) {
-		if (wParam == SIZE_MAXIMIZED) {
+		if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
 		    was_zoomed = 1;
 		    prev_rows = rows;
 		    prev_cols = cols;
-		    if (cfg.resize_action != RESIZE_FONT) {
+		    if (cfg.resize_action == RESIZE_TERM) {
 			w = width / font_width;
 			if (w < 1) w = 1;
 			h = height / font_height;
@@ -2118,9 +2146,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    reset_window(0);
 		} else if (wParam == SIZE_RESTORED && was_zoomed) {
 		    was_zoomed = 0;
-		    if (cfg.resize_action != RESIZE_FONT)
+		    if (cfg.resize_action == RESIZE_TERM)
 			term_size(prev_rows, prev_cols, cfg.savelines);
-		    reset_window(0);
+		    if (cfg.resize_action != RESIZE_FONT)
+			reset_window(2);
+		    else
+			reset_window(0);
 		}
 		/* This is an unexpected resize, these will normally happen
 		 * if the window is too large. Probably either the user
@@ -2137,7 +2168,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * down the connection during an NT opaque drag.)
 	     */
 	    if (resizing) {
-		if (cfg.resize_action == RESIZE_TERM && !alt_pressed) {
+		if (cfg.resize_action != RESIZE_FONT && !alt_pressed) {
 		    need_backend_resize = TRUE;
 		    w = (width-cfg.window_border*2) / font_width;
 		    if (w < 1) w = 1;
@@ -3011,7 +3042,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
 	if (left_alt && wParam == VK_RETURN && cfg.fullscreenonaltenter &&
 	    (cfg.resize_action != RESIZE_DISABLED)) {
-	    flip_full_screen();
+ 	    if ((HIWORD(lParam) & (KF_UP | KF_REPEAT)) != KF_REPEAT)
+ 		flip_full_screen();
 	    return -1;
 	}
 	/* Control-Numlock for app-keypad mode switch */
@@ -3578,7 +3610,8 @@ void set_sbar(int total, int start, int page)
 {
     SCROLLINFO si;
 
-    if (!cfg.scrollbar)
+    if ((full_screen && !cfg.scrollbar_in_fullscreen) ||
+	(!full_screen && !cfg.scrollbar))
 	return;
 
     si.cbSize = sizeof(si);
@@ -4042,32 +4075,36 @@ static void flip_full_screen(void)
 	    SetWindowPlacement(hwnd, &wp);
 	}
 
-	style = GetWindowLong(hwnd, GWL_STYLE) & ~WS_CAPTION;
+	style = GetWindowLong(hwnd, GWL_STYLE) & ~(WS_CAPTION|WS_THICKFRAME);
 	style &= ~WS_VSCROLL;
 	if (cfg.scrollbar_in_fullscreen)
 	    style |= WS_VSCROLL;
 	SetWindowLong(hwnd, GWL_STYLE, style);
 
-	/* This seems to be needed otherwize explorer doesn't notice
-	 * we want to go fullscreen and it's bar is still visible
+	/* Some versions of explorer get confused and don't take
+	 * notice of us going fullscreen, so go topmost too.
 	 */
-	SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
 		     SWP_NOACTIVATE | SWP_NOCOPYBITS |
-		     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+		     SWP_NOMOVE | SWP_NOSIZE |
 		     SWP_FRAMECHANGED);
 
 	wp.showCmd = SW_SHOWMAXIMIZED;
 	SetWindowPlacement(hwnd, &wp);
     } else {
 	style = GetWindowLong(hwnd, GWL_STYLE) | WS_CAPTION;
+	if (cfg.resize_action != RESIZE_DISABLED)
+	    style |= WS_THICKFRAME;
 	style &= ~WS_VSCROLL;
 	if (cfg.scrollbar)
 	    style |= WS_VSCROLL;
 	SetWindowLong(hwnd, GWL_STYLE, style);
 
-	/* Don't need to do a SetWindowPos as the resize will force a
-	 * full redraw.
-	 */
+	SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+		     SWP_NOACTIVATE | SWP_NOCOPYBITS |
+		     SWP_NOMOVE | SWP_NOSIZE |
+		     SWP_FRAMECHANGED);
+
 	wp.showCmd = SW_SHOWNORMAL;
 	SetWindowPlacement(hwnd, &wp);
     }
