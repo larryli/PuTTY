@@ -1734,7 +1734,7 @@ static struct sftp_cmd_lookup {
     },
     {
 	"mput", TRUE, "upload multiple files at once",
-	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
+	    " [ -r ] [ -- ] <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Uploads many files to the server, storing each one under the\n"
 	    "  same name it has on the client side. You can use wildcards\n"
 	    "  such as \"*.c\" to specify lots of files at once.\n"
