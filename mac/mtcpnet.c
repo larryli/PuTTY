@@ -244,7 +244,6 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     volatile int done = FALSE;
     char *realhost;
 
-    fprintf(stderr, "Resolving %s...\n", host);
     /* Clear the structure. */
     memset(ret, 0, sizeof(struct SockAddr_tag));
     if (mactcp_lookupdone_upp == NULL)
@@ -266,7 +265,6 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	realhost = "";
     *canonicalname = smalloc(1+strlen(realhost));
     strcpy(*canonicalname, realhost);
-    fprintf(stderr, "canonical name = %s\n", realhost);
     return ret;
 }
 
@@ -361,6 +359,12 @@ static void mactcp_flush(Socket s)
     fatalbox("sk_tcp_flush");
 }
 
+Socket sk_register(void *sock, Plug plug)
+{
+
+    fatalbox("sk_register");
+}
+
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug plug)
 {
@@ -381,7 +385,6 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ip_addr dstaddr;
     size_t buflen;
 
-    fprintf(stderr, "Opening socket, port = %d\n", port);
     /*
      * Create Socket structure.
      */
@@ -417,9 +420,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     upb.csParam.mtu.remoteHost = dstaddr;
     upb.csParam.mtu.userDataPtr = NULL;
     ret->err = PBControlSync((ParmBlkPtr)&upb);
-    fprintf(stderr, "getting mtu, err = %d\n", ret->err);
     if (ret->err != noErr) return (Socket)ret;
-    fprintf(stderr, "Got MTU = %d\n", upb.csParam.mtu.mtuSize);
 
     buflen = upb.csParam.mtu.mtuSize * 4 + 1024;
     if (buflen < 4096) buflen = 4096;
@@ -432,7 +433,6 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->err = PBControlSync((ParmBlkPtr)&pb);
     if (ret->err != noErr) return (Socket)ret;
     ret->s = pb.tcpStream;
-    fprintf(stderr, "stream opened\n");
 
     /*
      * Open the connection.
@@ -466,10 +466,16 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     /* Add this to the list of all sockets */
     ret->next = mactcp.socklist;
     ret->prev = &mactcp.socklist;
+    ret->next->prev = &ret->next;
     mactcp.socklist = ret;
 
-    fprintf(stderr, "Socket connected\n");
     return (Socket)ret;
+}
+
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
+{
+
+    fatalbox("sk_newlistener");
 }
 
 static void mactcp_close(Socket sock)
@@ -754,6 +760,14 @@ OSErr CloseResolver(void)
     DisposeHandle(dnr_handle);
     return noErr;
 }
+
+/* MacTCP doesn't have a services database. */
+int net_service_lookup(char *service)
+{
+
+    return 0;
+}
+
 
 /*
  * Local Variables:

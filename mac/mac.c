@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.19 2003/01/05 12:53:38 ben Exp $ */
+/* $Id: mac.c,v 1.20 2003/01/08 22:46:12 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -57,9 +57,12 @@
 
 #include "macresid.h"
 #include "putty.h"
+#include "ssh.h"
 #include "mac.h"
 
 QDGlobals qd;
+
+Session *sesslist;
 
 static int cold = 1;
 struct mac_gestalts mac_gestalts;
@@ -84,7 +87,7 @@ static void mac_adjustmenus(void);
 static void mac_closewindow(WindowPtr);
 static void mac_zoomwindow(WindowPtr, short);
 static void mac_shutdown(void);
-#pragma noreturn (mac_shutdown)
+#pragma noreturn (cleanup_exit)
 
 struct mac_windows {
     WindowPtr about;
@@ -186,6 +189,15 @@ static void mac_startup(void) {
 
     default_protocol = DEFAULT_PROTOCOL;
     default_port = DEFAULT_PORT;
+    flags = FLAG_INTERACTIVE;
+
+    /*
+     * Really grotty hack to ensure that anything that looks at the
+     * global "cfg" variable gets something vaguely sensible.
+     * Obviously, nothing should actually be using it, but that will
+     * take a while to arrange.
+     */
+    do_defaults(NULL, &cfg);
 
     {
 	short vol;
@@ -214,6 +226,7 @@ static void mac_eventloop(void) {
 	if (gotevent)
 	    mac_event(&event);
 	mactcp_poll();
+	mac_pollterm();
     }
     DisposeRgn(cursrgn);
 }
@@ -457,7 +470,7 @@ static void mac_menucommand(long result) {
             mac_closewindow(window);
             goto done;
           case iQuit:
-            mac_shutdown();
+            cleanup_exit(0);
             goto done;
         }
         break;
@@ -597,14 +610,15 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
     }
 }
 
-static void mac_shutdown(void) {
+void cleanup_exit(int status)
+{
 
 #if !TARGET_RT_MAC_CFM
     if (mac_gestalts.encvvers != 0)
 	TerminateUnicodeConverter();
 #endif
     mactcp_shutdown();
-    exit(0);
+    exit(status);
 }
 
 void fatalbox(char *fmt, ...) {
@@ -645,6 +659,39 @@ void connection_fatal(void *fontend, char *fmt, ...) {
     ParamText(stuff, NULL, NULL, NULL);
     StopAlert(128, NULL);
     exit(1);
+}
+
+/* Null SSH agent client -- never finds an agent. */
+
+int agent_exists(void)
+{
+
+    return FALSE;
+}
+
+void agent_query(void *in, int inlen, void **out, int *outlen)
+{
+
+    *out = NULL;
+    *outlen = 0;
+}
+
+/* Temporary null routines for testing. */
+
+void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+			 char *keystr, char *fingerprint)
+{
+
+}
+
+void askcipher(void *frontend, char *ciphername, int cs)
+{
+
+}
+
+void old_keyfile_warning(void)
+{
+
 }
 
 /*

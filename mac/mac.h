@@ -34,7 +34,9 @@ extern struct mac_gestalts mac_gestalts;
 #define HAVE_COLOR_QD() (mac_gestalts.qdvers > gestaltOriginalQD)
 #endif
 
-typedef struct {
+typedef struct Session {
+    struct Session *next;
+    struct Session **prev;
     /* Config that created this session */
     Config cfg;
     /* Terminal emulator internal state */
@@ -65,6 +67,8 @@ typedef struct {
     charset_t		font_charset; /* font_charset is used at a time. */
 } Session;
 
+extern Session *sesslist;
+
 /* from macdlg.c */
 extern void mac_newsession(void);
 extern void mac_clickdlg(WindowPtr, EventRecord *);
@@ -72,6 +76,7 @@ extern void mac_activatedlg(WindowPtr, EventRecord *);
 /* from macterm.c */
 extern void mac_opensession(void);
 extern void mac_startsession(Session *);
+extern void mac_pollterm(void);
 extern void mac_activateterm(WindowPtr, Boolean);
 extern void mac_adjusttermcursor(WindowPtr, Point, RgnHandle);
 extern void mac_adjusttermmenus(WindowPtr);
@@ -81,6 +86,7 @@ extern void mac_growterm(WindowPtr, EventRecord *);
 extern void mac_keyterm(WindowPtr, EventRecord *);
 extern void mac_menuterm(WindowPtr, short, short);
 /* from macstore.c */
+extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
 /* from macucs.c */

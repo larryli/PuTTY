@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.35 2003/01/05 11:31:51 ben Exp $ */
+/* $Id: macterm.c,v 1.36 2003/01/08 22:46:12 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -223,6 +223,10 @@ void mac_startsession(Session *s)
     sprintf(msg, "Elapsed ticks: %d\015\012", TickCount() - starttime);
     inbuf_putstr(s, msg);
     term_out(s->term);
+    s->next = sesslist;
+    s->prev = s->next->prev;
+    s->next->prev = &s->next;
+    sesslist = s;
 }
 
 static UnicodeToTextFallbackUPP uni_to_font_fallback_upp;
@@ -300,6 +304,18 @@ static pascal OSStatus uni_to_font_fallback(UniChar *ucp,
     return noErr;
 }
 
+/*
+ * Called every time round the event loop.
+ */
+void mac_pollterm(void)
+{
+    Session *s;
+
+    for (s = sesslist; s != NULL; s = s->next) {
+	term_out(s->term);
+	term_update(s->term);
+    }
+}
 
 /*
  * To be called whenever the window size changes.

@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.6 2002/12/30 18:21:17 ben Exp $ */
+/* $Id: macstore.c,v 1.7 2003/01/08 22:46:12 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -19,6 +19,7 @@
 
 #define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
 #define SESS_TYPE	FOUR_CHAR_CODE('Sess')
+#define SEED_TYPE	FOUR_CHAR_CODE('Seed')
 
 
 OSErr FSpGetDirID(FSSpec *f, long *idp, Boolean makeit);
@@ -28,11 +29,12 @@ OSErr FSpGetDirID(FSSpec *f, long *idp, Boolean makeit);
  * preferences folder.  Each (key,value) pair is stored as a resource.
  */
 
-OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID) {
+OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID)
+{
     OSErr error = noErr;
     short prefVRefNum;
-    FSSpec puttydir, sessdir;
-    long prefDirID, puttyDirID, sessDirID;
+    FSSpec puttydir;
+    long prefDirID, puttyDirID;
 
     error = FindFolder(kOnSystemDisk, kPreferencesFolderType, makeit,
 		       &prefVRefNum, &prefDirID);
@@ -43,13 +45,28 @@ OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID) {
     error = FSpGetDirID(&puttydir, &puttyDirID, makeit);
     if (error != noErr) goto out;
 
-    error = FSMakeFSSpec(prefVRefNum, puttyDirID, "\pSaved Sessions",
+    *pVRefNum = prefVRefNum;
+    *pDirID = puttyDirID;
+
+  out:
+    return error;
+}
+
+OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID) {
+    OSErr error = noErr;
+    short puttyVRefNum;
+    FSSpec sessdir;
+    long puttyDirID, sessDirID;
+
+    error = get_putty_dir(makeit, &puttyVRefNum, &puttyDirID);
+    if (error != noErr) goto out;
+    error = FSMakeFSSpec(puttyVRefNum, puttyDirID, "\pSaved Sessions",
 			 &sessdir);
     if (error != noErr && error != fnfErr) goto out;
     error = FSpGetDirID(&sessdir, &sessDirID, makeit);
     if (error != noErr) goto out;
 
-    *pVRefNum = prefVRefNum;
+    *pVRefNum = puttyVRefNum;
     *pDirID = sessDirID;
 
   out:
@@ -350,6 +367,74 @@ void enum_settings_finish(void *handle) {
     safefree(handle);
 }
 
+#define SEED_SIZE 512
+
+void read_random_seed(noise_consumer_t consumer)
+{
+    short puttyVRefNum;
+    long puttyDirID;
+    OSErr error;
+    char buf[SEED_SIZE];
+    short refnum;
+    long count = SEED_SIZE;
+
+    if (get_putty_dir(kDontCreateFolder, &puttyVRefNum, &puttyDirID) != noErr)
+	return;
+    if (HOpenDF(puttyVRefNum, puttyDirID, "\pPuTTY Random Seed", fsRdPerm,
+		&refnum) != noErr)
+	return;
+    error = FSRead(refnum, &count, buf);
+    if (error != noErr && error != eofErr)
+	return;
+    (*consumer)(buf, count);
+    FSClose(refnum);
+}
+
+void write_random_seed(void *data, int len)
+{
+    short puttyVRefNum, tmpVRefNum;
+    long puttyDirID, tmpDirID;
+    OSErr error;
+    FSSpec dstfile, tmpfile;
+    short refnum;
+    long count = len;
+
+    if (get_putty_dir(kCreateFolder, &puttyVRefNum, &puttyDirID) != noErr)
+	return;
+
+    error = FSMakeFSSpec(puttyVRefNum, puttyDirID, "\pPuTTY Random Seed",
+			 &dstfile);
+    if (error != noErr && error != fnfErr) return;
+
+    /* Create a temporary file to save to first. */
+    error = FindFolder(puttyVRefNum, kTemporaryFolderType, kCreateFolder,
+		       &tmpVRefNum, &tmpDirID);
+    if (error != noErr) return;
+    error = FSMakeFSSpec(tmpVRefNum, tmpDirID, "\pPuTTY Random Seed",
+			 &tmpfile);
+    if (error != noErr && error != fnfErr) return;
+    if (error == noErr) {
+	error = FSpDelete(&tmpfile);
+	if (error != noErr) return;
+    }
+    error = FSpCreate(&tmpfile, PUTTY_CREATOR, SEED_TYPE, smRoman);
+    if (error != noErr) return;
+
+    if (FSpOpenDF(&tmpfile, fsWrPerm, &refnum) != noErr) goto fail;
+
+    if (FSWrite(refnum, &count, data) != noErr) goto fail2;
+    if (FSClose(refnum) != noErr) goto fail;
+
+    if (FSpExchangeFiles(&tmpfile, &dstfile) != noErr) goto fail;
+    if (FSpDelete(&tmpfile) != noErr) return;
+
+    return;
+    
+  fail2:
+    FSClose(refnum);
+  fail:
+    FSpDelete(&tmpfile);
+}
 
 /*
  * Emacs magic:
