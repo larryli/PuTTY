@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.44 2003/02/15 18:47:22 jacob Exp $
+\versionid $Id: faq.but,v 1.45 2003/03/04 14:14:17 ben Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -952,8 +952,15 @@ PuTTY team can personally recommend Thinking Putty, which you can
 buy from Crazy Aaron's Putty World, at
 \W{http://www.puttyworld.com}\cw{www.puttyworld.com}.
 
-\S{faq-pronounce}{Question} How do I pronounce PuTTY?
+\S{faq-meaning}{Question} What does \q{PuTTY} mean?
 
-Exactly like the normal word \q{putty}. Just like the stuff you put
-on window frames. (One of the reasons it's called PuTTY is because
-it makes Windows usable. :-)
+It's the name of a popular SSH and Telnet client.  Any other meaning
+is in the eye of the beholder.  It's been rumoured that \q{PuTTY}
+is the antonym of \q{\cw{getty}}, or that it's the stuff that makes your
+Windows useful, or that it's a kind of plutonium Teletype.  We
+couldn't possibly comment on such allegations.
+
+\S{faq-pronounce}{Question} How do I pronounce \q{PuTTY}?
+
+Exactly like the English word \q{putty}, which we pronounce
+/\u02C8{'}p\u028C{V}t\u026A{I}/.
