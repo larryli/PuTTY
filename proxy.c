@@ -8,6 +8,8 @@
 #include <windows.h>
 
 #include <assert.h>
+#include <ctype.h>
+#include <string.h>
 
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
@@ -646,7 +648,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	}
 
 	length = strlen(cfg.proxy_username) + 9;
-	command = (char*) malloc(length);
+	command = (char*) smalloc(length);
 	strcpy(command + 8, cfg.proxy_username);
 
 	command[0] = 4; /* version 4 */
@@ -660,7 +662,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	sk_addrcopy(p->remote_addr, command + 4);
 
 	sk_write(p->sub_socket, command, length);
-	free(command);
+	sfree(command);
 
 	p->state = 1;
 	return 0;
