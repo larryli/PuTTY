@@ -241,9 +241,10 @@ security issue described in \k{pscp-usage-basics}.
 
 The newer SFTP protocol, which is usually associated with SSH 2
 servers, is specified in a more platform independent way, and leaves
-issues such as wildcard syntax up to the client. This makes it more
-consistent across platforms, more suitable for scripting and
-automation, and avoids security issues with wilcard matching.
+issues such as wildcard syntax up to the client. (PuTTY's SFTP
+wildcard syntax is described in \k{psftp-wildcards}.) This makes it
+more consistent across platforms, more suitable for scripting and
+automation, and avoids security issues with wildcard matching.
 
 Normally PSCP will attempt to use the SFTP protocol, and only fall
 back to the SCP protocol if SFTP is not available on the server.

@@ -173,6 +173,48 @@ file whose name is \c{a file with "quotes" in it}.
 which passes its command line straight to Windows without splitting
 it up into words at all. See \k{psftp-cmd-pling}.)
 
+\S{psftp-wildcards} Wildcards in PSFTP
+
+Several commands in PSFTP support \q{wildcards} to select multiple
+files.
+
+For \e{local} file specifications (such as the first argument to
+\c{put}), wildcard rules for the local operating system are used. For
+instance, PSFTP running on Windows might require the use of \c{*.*}
+where PSFTP on Unix would need \c{*}.
+
+For \e{remote} file specifications (such as the first argument to
+\c{get}), PSFTP uses a standard wildcard syntax (similar to POSIX
+wildcards):
+
+\b \c{*} matches any sequence of characters (including a zero-length
+sequence).
+
+\b \c{?} matches exactly one character.
+
+\b \c{[abc]} matches exactly one character which can be \cw{a},
+\cw{b}, or \cw{c}.
+
+\lcont{
+
+\c{[a-z]} matches any character in the range \cw{a} to \cw{z}.
+
+\c{[^abc]} matches a single character that is \e{not} \cw{a}, \cw{b},
+or \cw{c}.
+
+Special cases: \c{[-a]} matches a literal hyphen (\cw{-}) or \cw{a};
+\c{[^-a]} matches all other characters. \c{[a^]} matches a literal
+caret (\cw{^}) or \cw{a}.
+
+}
+
+\b \c{\\} (backslash) before any of the above characters (or itself)
+removes that character's special meaning.
+
+A leading period (\cw{.}) on a filename is not treated specially,
+unlike in some Unix contexts; \c{get *} will fetch all files, whether
+or not they start with a leading period.
+
 \S{psftp-cmd-open} The \c{open} command: start a session
 
 If you started PSFTP by double-clicking in the GUI, or just by
@@ -191,11 +233,18 @@ not opened successfully, PSFTP will terminate immediately.
 \S{psftp-cmd-quit} The \c{quit} command: end your session
 
 When you have finished your session, type the command \c{quit} to
-terminate PSFTP and return to the command line (or just close the
-PSFTP console window if you started it from the GUI).
+close the connection, terminate PSFTP and return to the command line
+(or just close the PSFTP console window if you started it from the
+GUI).
 
 You can also use the \c{bye} and \c{exit} commands, which have
 exactly the same effect.
+
+\S{psftp-cmd-close} The \c{close} command: close your connection
+
+If you just want to close the network connection but keep PSFTP
+running, you can use the \c{close} command. You can then use the
+\c{open} command to open a new connection.
 
 \S{psftp-cmd-help} The \c{help} command: get quick online help
 
@@ -309,6 +358,9 @@ that, and a second argument will be treated as an alternative name
 under which to store the retrieved file), or a wildcard expression
 matching more than one file.
 
+The \c{-r} and \c{--} options from \c{get} are also available with
+\c{mget}.
+
 \c{mput} is similar to \c{put}, with the same differences.
 
 \S{psftp-cmd-regetput} The \c{reget} and \c{reput} commands:
@@ -326,6 +378,13 @@ syntax of \c{get} and \c{put}:
 
 \c reget myfile.dat
 \c reget myfile.dat newname.dat
+\c reget -r mydir
+
+These commands are intended mainly for resuming interrupted transfers.
+They assume that the remote file or directory structure has not
+changed in any way; if there have been changes, you may end up with
+corrupted files. In particular, the \c{-r} option will not pick up
+changes to files or directories already transferred in full.
 
 \S{psftp-cmd-dir} The \c{dir} command: list remote files
 
