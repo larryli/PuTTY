@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.12 2001/12/12 18:45:56 simon Exp $
+\versionid $Id: pubkey.but,v 1.13 2001/12/14 09:58:07 simon Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -337,13 +337,13 @@ accept your public key for authentication:
 
 \b If your server is using the SSH 1 protocol, you should change
 into the \c{.ssh} directory and open the file \c{authorized_keys}
-with your favorite editor. (You may have to create this file if this
-is the first key you have put in it). Then switch to the PuTTYgen
-window, select all of the text in the \q{Public key for pasting into
-authorized_keys file} box (see \k{puttygen-pastekey}), and copy it
-to the clipboard (\c{Ctrl+C}). Then, switch back to the PuTTY window
-and insert the data into the open file, making sure it ends up all
-on one line. Save the file.
+with your favourite editor. (You may have to create this file if
+this is the first key you have put in it). Then switch to the
+PuTTYgen window, select all of the text in the \q{Public key for
+pasting into authorized_keys file} box (see \k{puttygen-pastekey}),
+and copy it to the clipboard (\c{Ctrl+C}). Then, switch back to the
+PuTTY window and insert the data into the open file, making sure it
+ends up all on one line. Save the file.
 
 \b If your server is OpenSSH and is using the SSH 2 protocol, you
 should follow the same instructions, except that in earlier versions
