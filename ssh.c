@@ -1204,7 +1204,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
         if (*cfg.keyfile && !tried_publickey)
             pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
-	if (IS_SCP) {
+	if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD && IS_SCP) {
 	    char prompt[200];
 	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
