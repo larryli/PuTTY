@@ -40,7 +40,7 @@ static struct macnet_stack mactcp = {
 void sk_init(void)
 {
 
-#if 0
+#ifndef NO_OT
     if (ot_init() == noErr)
 	stack = &ot;
     else
