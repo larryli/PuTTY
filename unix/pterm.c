@@ -152,17 +152,6 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
 }
 
-int askappend(void *frontend, Filename filename)
-{
-    /*
-     * Logging in an xterm-alike is liable to be something you only
-     * do at serious diagnostic need. Hence, I'm going to take the
-     * easy option for now and assume we always want to overwrite
-     * log files. I can always make it properly configurable later.
-     */
-    return 2;
-}
-
 int from_backend(void *frontend, int is_stderr, const char *data, int len)
 {
     struct gui_data *inst = (struct gui_data *)frontend;

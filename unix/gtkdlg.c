@@ -2739,3 +2739,31 @@ void logevent_dlg(void *estuff, char *string)
     }
     es->nevents++;
 }
+
+int askappend(void *frontend, Filename filename)
+{
+    static const char msgtemplate[] =
+	"The session log file \"%.*s\" already exists. "
+	"You can overwrite it with a new session log, "
+	"append your session log to the end of it, "
+	"or disable session logging for this session.";
+    char *message;
+    char *mbtitle;
+    int mbret;
+
+    message = dupprintf(msgtemplate, FILENAME_MAX, filename.path);
+    mbtitle = dupprintf("%s Log to File", appname);
+
+    mbret = messagebox(get_window(frontend), mbtitle, message,
+		       string_width("LINE OF TEXT SUITABLE FOR THE"
+				    " ASKAPPEND WIDTH"),
+		       "Overwrite", 'o', 1, 2,
+		       "Append", 'a', 0, 1,
+		       "Disable", 'd', -1, 0,
+		       NULL);
+
+    sfree(message);
+    sfree(mbtitle);
+
+    return mbret;
+}
