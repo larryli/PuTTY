@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.41 2003/05/10 20:23:23 ben Exp $ */
+/* $Id: macctrls.c,v 1.42 2003/05/10 20:51:39 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -291,8 +291,8 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 			      struct controlset *s,
 			      WindowPtr window, struct macctrls *mcs)
 {
-    unsigned int i, j, ncols, colstart;
-    struct mac_layoutstate cols[MAXCOLS];
+    unsigned int i, j, ncols, colstart, colspan;
+    struct mac_layoutstate cols[MAXCOLS], pos;
 
     cols[0] = *curstate;
     ncols = 1;
@@ -301,8 +301,8 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 	union control *ctrl = s->ctrls[i];
 
 	colstart = COLUMN_START(ctrl->generic.column);
-	switch (ctrl->generic.type) {
-	  case CTRL_COLUMNS:
+	colspan = COLUMN_SPAN(ctrl->generic.column);
+	if (ctrl->generic.type == CTRL_COLUMNS) {
 	    if (ctrl->columns.ncols != 1) {
 		ncols = ctrl->columns.ncols;
 		assert(ncols <= MAXCOLS);
@@ -324,28 +324,40 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 		cols[0].width = curstate->width;
 		ncols = 1;
 	    }
-	    break;
-	  case CTRL_TEXT:
-	    macctrl_text(mcs, window, &cols[colstart], ctrl);
-	    break;
-	  case CTRL_EDITBOX:
-	    macctrl_editbox(mcs, window, &cols[colstart], ctrl);
-	    break;
-	  case CTRL_RADIO:
-	    macctrl_radio(mcs, window, &cols[colstart], ctrl);
-	    break;
-	  case CTRL_CHECKBOX:
-	    macctrl_checkbox(mcs, window, &cols[colstart], ctrl);
-	    break;
-	  case CTRL_BUTTON:
-	    macctrl_button(mcs, window, &cols[colstart], ctrl);
-	    break;
-	  case CTRL_LISTBOX:
-	    if (ctrl->listbox.height == 0)
-		macctrl_popup(mcs, window, &cols[colstart], ctrl);
-	    else
-		macctrl_listbox(mcs, window, &cols[colstart], ctrl);
-	    break;
+	} else {
+	    pos = cols[colstart];
+	    pos.width = cols[colstart + colspan - 1].width +
+		(cols[colstart + colspan - 1].pos.h - cols[colstart].pos.h);
+
+	    for (j = colstart; j < colstart + colspan; j++)
+		if (pos.pos.v < cols[j].pos.v)
+		    pos.pos.v = cols[j].pos.v;
+
+	    switch (ctrl->generic.type) {
+	      case CTRL_TEXT:
+		macctrl_text(mcs, window, &pos, ctrl);
+		break;
+	      case CTRL_EDITBOX:
+		macctrl_editbox(mcs, window, &pos, ctrl);
+		break;
+	      case CTRL_RADIO:
+		macctrl_radio(mcs, window, &pos, ctrl);
+		break;
+	      case CTRL_CHECKBOX:
+		macctrl_checkbox(mcs, window, &pos, ctrl);
+		break;
+	      case CTRL_BUTTON:
+		macctrl_button(mcs, window, &pos, ctrl);
+		break;
+	      case CTRL_LISTBOX:
+		if (ctrl->listbox.height == 0)
+		    macctrl_popup(mcs, window, &pos, ctrl);
+		else
+		    macctrl_listbox(mcs, window, &pos, ctrl);
+		break;
+	    }
+	    for (j = colstart; j < colstart + colspan; j++)
+		cols[j].pos.v = pos.pos.v;
 	}
     }
     for (j = 0; j < ncols; j++)
