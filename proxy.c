@@ -930,7 +930,7 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	    char command[22];
 	    int len;
 
-	    if (sk_addrtype(p->remote_addr) == ADDRTYPE_IPV6) {
+	    if (sk_addrtype(p->remote_addr) == ADDRTYPE_IPV4) {
 		len = 10;
 		command[3] = 1; /* IPv4 */
 	    } else {
