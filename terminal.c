@@ -1917,6 +1917,85 @@ void term_scroll (int rel, int where) {
     term_update();
 }
 
+static void clipme(long *top, long *bottom, char *workbuf) {
+    char *wbptr;		/* where next char goes within workbuf */
+    int wblen = 0;		/* workbuf len */
+    int buflen;			/* amount of memory allocated to workbuf */
+
+    if ( workbuf != NULL ) {	/* user supplied buffer? */
+	buflen = -1;		/* assume buffer passed in is big enough */
+	wbptr = workbuf;	/* start filling here */
+    }
+    else
+	buflen = 0;		/* No data is available yet */
+
+    while (top < bottom) {
+	int nl = FALSE;
+	unsigned long *lineend = top - (top-text) % (cols+1) + cols;
+	unsigned long *nlpos = lineend;
+
+	if (!(*nlpos & ATTR_WRAPPED)) {
+	    while ((nlpos[-1] & CHAR_MASK) == 0x20 && nlpos > top)
+		nlpos--;
+	    if (nlpos < bottom)
+		nl = TRUE;
+	}
+	while (top < nlpos && top < bottom)
+	{
+#if 0
+	    /* VT Specials -> ISO8859-1  */
+	    static const char poorman2[] =
+"* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
+#endif
+
+	    int ch = (*top & CHAR_MASK);
+
+#if 0
+	    if ((*top & ATTR_LINEDRW) && ch >= 0x60 && ch < 0x7F) {
+		int x;
+		*wbptr++ = poorman2[2*(ch-0x60)];
+		if ( (x = poorman2[2*(ch-0x60)+1]) != ' ')
+		    *wbptr++ = x;
+	    } else
+#endif
+#if 0
+	    if ((*top & ATTR_GBCHR) && ch == '#')
+		*wbptr++ = (unsigned char) 0xA3;
+	    else
+#endif
+	    if ( wblen == buflen )
+	    {
+		workbuf = srealloc(workbuf, buflen += 100);
+		wbptr = workbuf + wblen;
+	    }
+	    wblen++;
+	    *wbptr++ = (unsigned char) ch;
+	    top++;
+	}
+	if (nl) {
+	    int i;
+	    for (i=0; i<sizeof(sel_nl); i++)
+	    {
+		if ( wblen == buflen )
+		{
+		    workbuf = srealloc(workbuf, buflen += 100);
+		    wbptr = workbuf + wblen;
+		}
+	        wblen++;
+		*wbptr++ = sel_nl[i];
+	    }
+	}
+	top = lineend + 1;       /* start of next line */
+    }
+    write_clip (workbuf, wblen, FALSE);	/* transfer to clipboard */
+    if ( buflen > 0 )	/* indicates we allocated this buffer */
+	sfree(workbuf);
+
+}
+void term_copyall (void) {
+    clipme(sbtop, cpos, NULL /* dynamic allocation */);
+}
+
 /*
  * Spread the selection outwards according to the selection mode.
  */
@@ -2034,54 +2113,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 	     * We've completed a selection. We now transfer the
 	     * data to the clipboard.
 	     */
-	    unsigned char *p = selspace;
-	    unsigned long *q = selstart;
-
-	    while (q < selend) {
-		int nl = FALSE;
-		unsigned long *lineend = q - (q-text) % (cols+1) + cols;
-		unsigned long *nlpos = lineend;
-
-		if (!(*nlpos & ATTR_WRAPPED)) {
-		    while ((nlpos[-1] & CHAR_MASK) == 0x20 && nlpos > q)
-			nlpos--;
-		    if (nlpos < selend)
-			nl = TRUE;
-		}
-		while (q < nlpos && q < selend)
-		{
-#if 0
-		    /* VT Specials -> ISO8859-1  */
-		    static const char poorman2[] =
- "* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
-#endif
-
-		    int ch = (*q & CHAR_MASK);
-
-#if 0
-		    if ((*q & ATTR_LINEDRW) && ch >= 0x60 && ch < 0x7F) {
-			int x;
-			*p++ = poorman2[2*(ch-0x60)];
-			if ( (x = poorman2[2*(ch-0x60)+1]) != ' ')
-			    *p++ = x;
-		    } else
-#endif
-#if 0
-		    if ((*q & ATTR_GBCHR) && ch == '#')
-			*p++ = (unsigned char) 0xA3;
-		    else
-#endif
-			*p++ = (unsigned char) ch;
-		    q++;
-		}
-		if (nl) {
-		    int i;
-		    for (i=0; i<sizeof(sel_nl); i++)
-			*p++ = sel_nl[i];
-		}
-		q = lineend + 1;       /* start of next line */
-	    }
-	    write_clip (selspace, p - selspace, FALSE);
+	    clipme(selstart, selend, selspace);
 	    selstate = SELECTED;
 	} else
 	    selstate = NO_SELECTION;

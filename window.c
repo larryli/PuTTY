@@ -40,6 +40,7 @@
 #define IDM_TEL_EOF   0x0130
 #define IDM_ABOUT     0x0140
 #define IDM_SAVEDSESS 0x0150
+#define IDM_COPYALL   0x0160
 
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x2000
@@ -513,6 +514,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	AppendMenu (m, MF_POPUP | MF_ENABLED, (UINT) s, "Sa&ved Sessions");
 	AppendMenu (m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
 	AppendMenu (m, MF_SEPARATOR, 0, 0);
+	AppendMenu (m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
 	AppendMenu (m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
 	AppendMenu (m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
 	AppendMenu (m, MF_SEPARATOR, 0, 0);
@@ -1245,6 +1247,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                 }
             }
             break;
+	  case IDM_COPYALL:
+	    term_copyall();
+	    break;
           case IDM_CLRSB:
             term_clrsb();
             break;

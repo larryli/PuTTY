@@ -314,6 +314,7 @@ void term_blink(int set_cursor);
 void term_paste(void);
 void term_nopaste(void);
 void from_backend(int is_stderr, char *data, int len);
+void term_copyall(void);
 
 /*
  * Exports from raw.c.
