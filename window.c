@@ -930,13 +930,15 @@ void set_raw_mouse_mode(void *frontend, int activate)
 void connection_fatal(void *frontend, char *fmt, ...)
 {
     va_list ap;
-    char stuff[200], morestuff[100];
+    char *stuff, morestuff[100];
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    stuff = dupvprintf(fmt, ap);
     va_end(ap);
     sprintf(morestuff, "%.70s Fatal Error", appname);
     MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
+    sfree(stuff);
+
     if (cfg.close_on_exit == FORCE_ON)
 	PostQuitMessage(1);
     else {
@@ -953,13 +955,14 @@ void connection_fatal(void *frontend, char *fmt, ...)
 void cmdline_error(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200], morestuff[100];
+    char *stuff, morestuff[100];
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    stuff = dupvprintf(fmt, ap);
     va_end(ap);
     sprintf(morestuff, "%.70s Command Line Error", appname);
     MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
+    sfree(stuff);
     exit(1);
 }
 
@@ -4302,13 +4305,14 @@ void optimised_move(void *frontend, int to, int from, int lines)
 void fatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200], morestuff[100];
+    char *stuff, morestuff[100];
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    stuff = dupvprintf(fmt, ap);
     va_end(ap);
     sprintf(morestuff, "%.70s Fatal Error", appname);
     MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
+    sfree(stuff);
     cleanup_exit(1);
 }
 
@@ -4318,14 +4322,15 @@ void fatalbox(char *fmt, ...)
 void modalfatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200], morestuff[100];
+    char *stuff, morestuff[100];
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    stuff = dupvprintf(fmt, ap);
     va_end(ap);
     sprintf(morestuff, "%.70s Fatal Error", appname);
     MessageBox(hwnd, stuff, morestuff,
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    sfree(stuff);
     cleanup_exit(1);
 }
 

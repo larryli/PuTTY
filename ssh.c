@@ -2085,7 +2085,7 @@ static int ssh_closing(Plug plug, char *error_msg, int error_code,
     if (error_msg) {
 	/* A socket error has occurred. */
 	logevent(error_msg);
-	connection_fatal(ssh->frontend, error_msg);
+	connection_fatal(ssh->frontend, "%s", error_msg);
     } else {
 	/* Otherwise, the remote side closed the connection normally. */
     }
