@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.25 2003/01/11 23:33:57 ben Exp $ */
+/* $Id: mac.c,v 1.26 2003/01/12 14:45:33 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -240,6 +240,8 @@ static void mac_eventloop(void) {
 	    mac_event(&event);
 	if (mac_gestalts.mtcpvers != 0)
 	    mactcp_poll();
+	if (mac_gestalts.otptattr != 0)
+	    ot_poll();
 	mac_pollterm();
     }
     DisposeRgn(cursrgn);
@@ -645,7 +647,7 @@ void fatalbox(char *fmt, ...) {
     va_end(ap);
     ParamText(stuff, NULL, NULL, NULL);
     StopAlert(128, NULL);
-    exit(1);
+    cleanup_exit(1);
 }
 
 void modalfatalbox(char *fmt, ...) {
@@ -658,7 +660,7 @@ void modalfatalbox(char *fmt, ...) {
     va_end(ap);
     ParamText(stuff, NULL, NULL, NULL);
     StopAlert(128, NULL);
-    exit(1);
+    cleanup_exit(1);
 }
 
 /* This should only kill the current session, not the whole application. */
@@ -672,7 +674,7 @@ void connection_fatal(void *fontend, char *fmt, ...) {
     va_end(ap);
     ParamText(stuff, NULL, NULL, NULL);
     StopAlert(128, NULL);
-    exit(1);
+    cleanup_exit(1);
 }
 
 /* Null SSH agent client -- never finds an agent. */
