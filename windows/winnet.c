@@ -251,8 +251,10 @@ void sk_cleanup(void)
     p_WSACleanup();
     if (winsock_module)
 	FreeLibrary(winsock_module);
+#ifndef NO_IPV6
     if (wship6_module)
 	FreeLibrary(wship6_module);
+#endif
 }
 
 char *winsock_error_string(int error)
