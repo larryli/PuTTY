@@ -233,36 +233,14 @@ static struct cp_list_item cp_list[] = {
     {"Win1257 (Baltic)", 1257},
     {"Win1258 (Vietnamese)", 1258},
 
-    /* All below here are aliases - First the windows ones. */
-    {"Central European (Win1250)", 1250},
-    {"Cyrillic (Win1251)", 1251},
-    {"Western (Win1252)", 1252},
-    {"Greek (Win1253)", 1253},
-    {"Turkish (Win1254)", 1254},
-    {"Hebrew (Win1255)", 1255},
-    {"Arabic (Win1256)", 1256},
-    {"Baltic (Win1257)", 1257},
-    {"Vietnamese (Win1258)", 1258},
+    {"Win1258 (Vietnamese)", 1258},
 
-    {"ROMAN8", 0, 96, roman8},
-    {"R8", 0, 96, roman8},
-
-    /* Note this is Latin ->> */
-    {"LATIN0", 0, 96, iso_8859_15},
-    {"L0", 0, 96, iso_8859_15},
-
+    {"CP437", 437},
     {"CP819", 28591},
     {"CP878", 20866},
-    {"L1", 28591},
-    {"L2", 28592},
-    {"L3", 28593},
-    {"L4", 28594},
-    {"L5", 28599},
-    {"LATIN1", 28591},
-    {"LATIN2", 28592},
-    {"LATIN3", 28593},
-    {"LATIN4", 28594},
-    {"LATIN5", 28599},
+
+    {"Use font encoding", -1},
+
     {0, 0}
 };
 
@@ -884,6 +862,49 @@ int decode_codepage(char *cp_name)
     int codepage = -1;
     CPINFO cpinfo;
 
+    if (!*cp_name) {
+	/*
+	 * Here we select a plausible default code page based on
+	 * the locale the user is in. We wish to select an ISO code
+	 * page or appropriate local default _rather_ than go with
+	 * the Win125* series, because it's more important to have
+	 * CSI and friends enabled by default than the ghastly
+	 * Windows extra quote characters, and because it's more
+	 * likely the user is connecting to a remote server that
+	 * does something Unixy or VMSy and hence standards-
+	 * compliant than that they're connecting back to a Windows
+	 * box using horrible nonstandard charsets.
+	 * 
+	 * Accordingly, Robert de Bath suggests a method for
+	 * picking a default character set that runs as follows:
+	 * first call GetACP to get the system's ANSI code page
+	 * identifier, and translate as follows:
+	 * 
+	 * 1250 -> ISO 8859-2
+	 * 1251 -> KOI8-U
+	 * 1252 -> ISO 8859-1
+	 * 1253 -> ISO 8859-7
+	 * 1254 -> ISO 8859-9
+	 * 1255 -> ISO 8859-8
+	 * 1256 -> ISO 8859-6
+	 * 1257 -> ISO 8859-4
+	 * 
+	 * and for anything else, choose direct-to-font.
+	 */
+	int cp = GetACP();
+	switch (cp) {
+	  case 1250: cp_name = "ISO-8859-2"; break;
+	  case 1251: cp_name = "KOI8-U"; break;
+	  case 1252: cp_name = "ISO-8859-1"; break;
+	  case 1253: cp_name = "ISO-8859-7"; break;
+	  case 1254: cp_name = "ISO-8859-9"; break;
+	  case 1255: cp_name = "ISO-8859-8"; break;
+	  case 1256: cp_name = "ISO-8859-6"; break;
+	  case 1257: cp_name = "ISO-8859-4"; break;
+	    /* default: leave it blank, which will select -1, direct->font */
+	}
+    }
+
     if (cp_name && *cp_name)
 	for (cpi = cp_list; cpi->name; cpi++) {
 	    s = cp_name;
@@ -947,6 +968,12 @@ char *cp_name(int codepage)
 {
     struct cp_list_item *cpi, *cpno;
     static char buf[32];
+
+    if (codepage == -1) {
+	sprintf(buf, "Use font encoding");
+	return buf;
+    }
+
     if (codepage > 0 && codepage < 65536)
 	sprintf(buf, "CP%03d", codepage);
     else

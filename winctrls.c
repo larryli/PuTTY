@@ -153,10 +153,9 @@ void multiedit(struct ctlpos *cp, ...)
 }
 
 /*
- * A static line, followed by a full-width drop-down list (ie a
- * non-editing combo box).
+ * A static line, followed by a full-width combo box.
  */
-void dropdownlist(struct ctlpos *cp, char *text, int staticid, int listid)
+void combobox(struct ctlpos *cp, char *text, int staticid, int listid)
 {
     RECT r;
 
@@ -170,7 +169,7 @@ void dropdownlist(struct ctlpos *cp, char *text, int staticid, int listid)
     r.bottom = COMBOHEIGHT * 10;
     doctl(cp, r, "COMBOBOX",
 	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL |
-	  CBS_DROPDOWNLIST | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", listid);
+	  CBS_DROPDOWN | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", listid);
 
     cp->ypos += STATICHEIGHT + GAPWITHIN + COMBOHEIGHT + GAPBETWEEN;
 }

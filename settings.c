@@ -457,7 +457,11 @@ void load_settings(char *section, int do_host, Config * cfg)
 	    cfg->wordness[j] = atoi(q);
 	}
     }
-    gpps(sesskey, "LineCodePage", "ISO-8859-1:1987", cfg->line_codepage,
+    /*
+     * The empty default for LineCodePage will be converted later
+     * into a plausible default for the locale.
+     */
+    gpps(sesskey, "LineCodePage", "", cfg->line_codepage,
 	 sizeof(cfg->line_codepage));
     gppi(sesskey, "ScrollBar", 1, &cfg->scrollbar);
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);

@@ -784,15 +784,13 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     {
 	int i;
 	char *cp;
-	int index = 0;
+	strcpy(cfg.line_codepage, cp_name(decode_codepage(cfg.line_codepage)));
 	SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_RESETCONTENT, 0, 0);
 	for (i = 0; (cp = cp_enumerate(i)) != NULL; i++) {
 	    SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_ADDSTRING,
 			       0, (LPARAM) cp);
-	    if (!strcmp(cp, cfg.line_codepage))
-		index = i;
 	}
-	SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_SETCURSEL, index, 0);
+	SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
     }
     
     CheckRadioButton(hwnd, IDC_VTXWINDOWS, IDC_VTUNICODE,
@@ -1104,9 +1102,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	endbox(&cp);
 	beginbox(&cp, "Character set translation on received data",
 		 IDC_BOX_TRANSLATION2);
-	dropdownlist(&cp,
-		     "Received data assumed to be in which character set:",
-		     IDC_CODEPAGESTATIC, IDC_CODEPAGE);
+	combobox(&cp, "Received data assumed to be in which character set:",
+		 IDC_CODEPAGESTATIC, IDC_CODEPAGE);
 	endbox(&cp);
     }
 
@@ -2458,6 +2455,13 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 						   CB_GETCURSEL, 0, 0);
 		    SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_GETLBTEXT,
 				       index, (LPARAM)cfg.line_codepage);
+		} else if (HIWORD(wParam) == CBN_EDITCHANGE) {
+		    GetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage,
+				   sizeof(cfg.line_codepage) - 1);
+		} else if (HIWORD(wParam) == CBN_KILLFOCUS) {
+		    strcpy(cfg.line_codepage,
+			   cp_name(decode_codepage(cfg.line_codepage)));
+		    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
 		}
 		break;
 	      case IDC_VTXWINDOWS:
