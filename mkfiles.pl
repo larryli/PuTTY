@@ -1200,7 +1200,7 @@ if (defined $makefiles{'osx'}) {
       }
     }
     print "\nclean:\n".
-    "\trm -f *.o *.dmg\n".
+    "\trm -f *.o *.dmg". (join "", map { " $_" } &progrealnames("U")) . "\n";
     "\trm -rf *.app\n";
     select STDOUT; close OUT;
 }
