@@ -13,7 +13,7 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 PUTTYOBJS = window.obj windlg.obj terminal.obj telnet.obj
 OBJS1 = misc.obj noise.obj
 OBJS2 = ssh.obj sshcrc.obj sshdes.obj sshmd5.obj sshrsa.obj sshrand.obj
-OBJS3 = sshsha.obj version.obj
+OBJS3 = sshsha.obj sshblowf.obj version.obj
 RESRC = win_res.res
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
@@ -47,6 +47,7 @@ sshmd5.obj: sshmd5.c ssh.h
 sshrsa.obj: sshrsa.c ssh.h
 sshsha.obj: sshsha.c ssh.h
 sshrand.obj: sshrand.c ssh.h
+sshblowf.obj: sshblowf.c ssh.h
 version.obj: versionpseudotarget
 	@echo (built version.obj)
 
