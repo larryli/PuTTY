@@ -1340,50 +1340,52 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_HELP:
         if (help_path) {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
-            char *cmd = NULL;
+            char *topic = NULL;
             switch (id) {
               case IDC_GENERATING:
               case IDC_PROGRESS:
               case IDC_GENSTATIC:
               case IDC_GENERATE:
-                cmd = "JI(`',`puttygen.generate')"; break;
+                topic = "puttygen.generate"; break;
               case IDC_PKSTATIC:
               case IDC_KEYDISPLAY:
-                cmd = "JI(`',`puttygen.pastekey')"; break;
+                topic = "puttygen.pastekey"; break;
               case IDC_FPSTATIC:
               case IDC_FINGERPRINT:
-                cmd = "JI(`',`puttygen.fingerprint')"; break;
+                topic = "puttygen.fingerprint"; break;
               case IDC_COMMENTSTATIC:
               case IDC_COMMENTEDIT:
-                cmd = "JI(`',`puttygen.comment')"; break;
+                topic = "puttygen.comment"; break;
               case IDC_PASSPHRASE1STATIC:
               case IDC_PASSPHRASE1EDIT:
               case IDC_PASSPHRASE2STATIC:
               case IDC_PASSPHRASE2EDIT:
-                cmd = "JI(`',`puttygen.passphrase')"; break;
+                topic = "puttygen.passphrase"; break;
               case IDC_LOADSTATIC:
               case IDC_LOAD:
-                cmd = "JI(`',`puttygen.load')"; break;
+                topic = "puttygen.load"; break;
               case IDC_SAVESTATIC:
               case IDC_SAVE:
-                cmd = "JI(`',`puttygen.savepriv')"; break;
+                topic = "puttygen.savepriv"; break;
               case IDC_SAVEPUB:
-                cmd = "JI(`',`puttygen.savepub')"; break;
+                topic = "puttygen.savepub"; break;
               case IDC_TYPESTATIC:
               case IDC_KEYSSH1:
               case IDC_KEYSSH2RSA:
               case IDC_KEYSSH2DSA:
-                cmd = "JI(`',`puttygen.keytype')"; break;
+                topic = "puttygen.keytype"; break;
               case IDC_BITSSTATIC:
               case IDC_BITS:
-                cmd = "JI(`',`puttygen.bits')"; break;
+                topic = "puttygen.bits"; break;
               case IDC_IMPORT:
               case IDC_EXPORT_OPENSSH:
               case IDC_EXPORT_SSHCOM:
-                cmd = "JI(`',`puttygen.conversions')"; break;
+                topic = "puttygen.conversions"; break;
             }
-            if (cmd) {
+            if (topic) {
+		char *cmd = dupprintf("JI(`',`%s')", topic);
                 WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+		sfree(cmd);
                 requested_help = TRUE;
             } else {
                 MessageBeep(0);
@@ -1435,7 +1437,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         if (p && p >= r) r = p+1;
         q = strrchr(b, ':');
         if (q && q >= r) r = q+1;
-        strcpy(r, "putty.hlp");
+        strcpy(r, PUTTY_HELP_FILE);
         if ( (fp = fopen(b, "r")) != NULL) {
             help_path = dupstr(b);
             fclose(fp);

@@ -1608,14 +1608,16 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
       case WM_HELP:
         if (help_path) {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
-            char *cmd = NULL;
+            char *topic = NULL;
             switch (id) {
-              case 100: cmd = "JI(`',`pageant.keylist')"; break;
-              case 101: cmd = "JI(`',`pageant.addkey')"; break;
-              case 102: cmd = "JI(`',`pageant.remkey')"; break;
+              case 100: topic = "pageant.keylist"; break;
+              case 101: topic = "pageant.addkey"; break;
+              case 102: topic = "pageant.remkey"; break;
             }
-            if (cmd) {
+            if (topic) {
+		char *cmd = dupprintf("JI(`',`%s')", topic);
                 WinHelp(main_hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+		sfree(cmd);
                 requested_help = TRUE;
             } else {
                 MessageBeep(0);
@@ -2036,7 +2038,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         if (p && p >= r) r = p+1;
         q = strrchr(b, ':');
         if (q && q >= r) r = q+1;
-        strcpy(r, "putty.hlp");
+        strcpy(r, PUTTY_HELP_FILE);
         if ( (fp = fopen(b, "r")) != NULL) {
             help_path = dupstr(b);
             fclose(fp);

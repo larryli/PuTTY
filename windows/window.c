@@ -340,13 +340,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         if (p && p >= r) r = p+1;
         q = strrchr(b, ':');
         if (q && q >= r) r = q+1;
-        strcpy(r, "putty.hlp");
+        strcpy(r, PUTTY_HELP_FILE);
         if ( (fp = fopen(b, "r")) != NULL) {
             help_path = dupstr(b);
             fclose(fp);
         } else
             help_path = NULL;
-        strcpy(r, "putty.cnt");
+        strcpy(r, PUTTY_HELP_CONTENTS);
         if ( (fp = fopen(b, "r")) != NULL) {
             help_has_contents = TRUE;
             fclose(fp);

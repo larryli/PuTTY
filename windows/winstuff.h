@@ -57,6 +57,9 @@ typedef struct terminal_tag Terminal;
 #define PUTTY_REG_GPARENT "Software"
 #define PUTTY_REG_GPARENT_CHILD "SimonTatham"
 
+#define PUTTY_HELP_FILE "putty.hlp"
+#define PUTTY_HELP_CONTENTS "putty.cnt"
+
 #define GETTICKCOUNT GetTickCount
 #define CURSORBLINK GetCaretBlinkTime()
 #define TICKSPERSEC 1000	       /* GetTickCount returns milliseconds */
