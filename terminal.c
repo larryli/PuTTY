@@ -3175,9 +3175,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    /* 'Real' blinking ? */
 	    if (term->blink_is_real && (tattr & ATTR_BLINK)) {
 		if (term->has_focus && term->tblinker) {
-		    tchar = ' ';
-		    tattr &= ~CSET_MASK;
-		    tattr |= ATTR_ACP;
+		    tchar = term->ucsdata->unitab_line[(unsigned char)' '];
 		}
 		tattr &= ~ATTR_BLINK;
 	    }
