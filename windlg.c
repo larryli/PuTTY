@@ -596,7 +596,11 @@ static void hide(HWND hwnd, int hide, int minid, int maxid) {
     for (i = minid; i < maxid; i++) {
 	HWND ctl = GetDlgItem(hwnd, i);
 	if (ctl) {
+            if (!hide)
+                EnableWindow(ctl, 1);
 	    ShowWindow(ctl, hide ? SW_HIDE : SW_SHOW);
+            if (hide)
+                EnableWindow(ctl, 0);
 	}
     }
 }
