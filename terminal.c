@@ -1221,20 +1221,15 @@ static int beep_overload = 0;
 		compatibility(VT100);
 		if (esc_nargs <= 2) {
 		    int top, bot;
-		    /* VTTEST Bug 9 if the first arg is default _or_ zero
-		     * this is a full screen region irrespective of 2nd arg.
-		     */
-		    if (esc_args[0] <= 0) {
-		       top=0;
-		       bot=rows-1;
-		    } else {
-		       top = def(esc_args[0], 1) - 1;
-		       bot = (esc_nargs <= 1 || esc_args[1] == 0 ? rows :
-			      def(esc_args[1], rows)) - 1;
-		    }
+		    top = def(esc_args[0], 1) - 1;
+		    bot = (esc_nargs <= 1 || esc_args[1] == 0 ? rows :
+			   def(esc_args[1], rows)) - 1;
 		    if (bot >= rows)
 			bot = rows-1;
-		    if (top <= bot) {
+		    /* VTTEST Bug 9 - if region is less than 2 lines
+		     * don't change region.
+		     */
+		    if (bot-top > 1) {
 			marg_t = top;
 			marg_b = bot;
 			curs_x = 0;
