@@ -1428,12 +1428,12 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			      I(offsetof(Config, passive_telnet)),
 			      "Passive", I(1), "Active", I(0), NULL);
 	}
-	ctrl_checkbox(s, "Keyboard sends telnet Backspace and Interrupt", 'k',
+	ctrl_checkbox(s, "Keyboard sends Telnet special commands", 'k',
 		      HELPCTX(telnet_specialkeys),
 		      dlg_stdcheckbox_handler,
 		      I(offsetof(Config,telnet_keyboard)));
-	ctrl_checkbox(s, "Return key sends telnet New Line instead of ^M",
-		      NO_SHORTCUT, HELPCTX(telnet_newline),
+	ctrl_checkbox(s, "Return key sends Telnet New Line instead of ^M",
+		      'm', HELPCTX(telnet_newline),
 		      dlg_stdcheckbox_handler,
 		      I(offsetof(Config,telnet_newline)));
     }

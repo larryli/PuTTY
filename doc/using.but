@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.31 2004/09/20 22:10:09 jacob Exp $
+\versionid $Id: using.but,v 1.32 2004/09/22 22:15:25 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -136,6 +136,11 @@ The following special commands are available in Telnet:
 
 \b \I{Erase Character, Telnet special command}Erase Character
 
+\lcont{
+PuTTY can also be configured to send this when the Backspace key is
+pressed; see \k{config-telnetkey}.
+}
+
 \b \I{Erase Line, Telnet special command}Erase Line
 
 \b \I{Go Ahead, Telnet special command}Go Ahead
@@ -152,7 +157,17 @@ Should have no effect.
 
 \b \I{Interrupt Process, Telnet special command}Interrupt Process
 
+\lcont{
+PuTTY can also be configured to send this when Ctrl-C is typed; see
+\k{config-telnetkey}.
+}
+
 \b \I{Suspend Process, Telnet special command}Suspend Process
+
+\lcont{
+PuTTY can also be configured to send this when Ctrl-Z is typed; see
+\k{config-telnetkey}.
+}
 
 \b \I{End Of Record, Telnet special command}End Of Record
 

@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.89 2004/09/17 14:26:39 jacob Exp $
+\versionid $Id: config.but,v 1.90 2004/09/22 22:15:25 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1795,16 +1795,26 @@ get through certain types of firewall and Telnet proxy server. If
 you have confusing trouble with a firewall, you could try enabling
 passive mode to see if it helps.
 
-\S{config-telnetkey} \q{Keyboard sends telnet Backspace and Interrupt}
+\S{config-telnetkey} \q{Keyboard sends Telnet special commands}
 
 \cfg{winhelp-topic}{telnet.specialkeys}
 
-If this box is checked, the Backspace key on the keyboard will send
-the Telnet special backspace code, and Control-C will send the
-Telnet special interrupt code. You probably shouldn't enable this
+If this box is checked, several key sequences will have their normal
+actions modified:
+
+\b the Backspace key on the keyboard will send the \I{Erase Character,
+Telnet special command}Telnet special backspace code;
+
+\b Control-C will send the Telnet special \I{Interrupt Process, Telnet
+special command}Interrupt Process code;
+
+\b Control-Z will send the Telnet special \I{Suspend Process, Telnet
+special command}Suspend Process code.
+
+You probably shouldn't enable this
 unless you know what you're doing.
 
-\S{config-telnetnl} \q{Return key sends telnet New Line instead of ^M}
+\S{config-telnetnl} \q{Return key sends Telnet New Line instead of ^M}
 
 \cfg{winhelp-topic}{telnet.newline}
 
