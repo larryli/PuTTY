@@ -157,6 +157,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
 
     sesskey = open_settings_r(section);
 
+    cfg->ssh_subsys = 0;               /* FIXME: load this properly */
+
     gpps (sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
     gppi (sesskey, "PortNumber", default_port, &cfg->port);
     gpps (sesskey, "LogFileName", "putty.log",
