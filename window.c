@@ -606,7 +606,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	       /* Hmm, term_update didn't want to do an update too soon ... */
 	       timer_id = SetTimer(hwnd, 1, 50, NULL);
 	    else if (!has_focus)
-	       timer_id = SetTimer(hwnd, 1, 59500, NULL);
+	       timer_id = SetTimer(hwnd, 1, 2000, NULL);
 	    else
 	       timer_id = SetTimer(hwnd, 1, 100, NULL);
 	    long_timer = 1;
