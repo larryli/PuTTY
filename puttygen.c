@@ -22,7 +22,6 @@
 
 /*
  * TODO:
- *  - prompt before overwriting an existing file
  *  - check the return value from saversakey()
  *  - test the generated keys for actual working-RSA-key-hood
  *  - variable key size
@@ -509,7 +508,18 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 }
                 if (prompt_keyfile(hwnd, "Save private key as:",
                                    filename, 1)) {
-                    /* FIXME: prompt before overwriting */
+		    FILE *fp = fopen(filename, "r");
+		    if (fp) {
+			int ret;
+			char buffer[FILENAME_MAX+80];
+			fclose(fp);
+			sprintf(buffer, "Overwrite existing file\n%.*s?",
+				FILENAME_MAX, filename);
+			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
+					 MB_YESNO | MB_ICONWARNING);
+			if (ret != IDYES)
+			    break;
+		    }
                     saversakey(filename, &state->key, &state->aux,
                                *passphrase ? passphrase : NULL);
                     /* FIXME: check return value */
