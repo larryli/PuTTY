@@ -1961,7 +1961,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_SETCURSOR:
-	if (send_raw_mouse) {
+	if (send_raw_mouse && LOWORD(lParam) == HTCLIENT) {
 	    SetCursor(LoadCursor(NULL, IDC_ARROW));
 	    return TRUE;
 	}
