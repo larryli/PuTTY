@@ -321,6 +321,11 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
 	}
 
 	s = e;
+
+	/* Make sure we really have reached the next comma or end-of-string */
+	while (exclude_list[s] &&
+	       !isspace(exclude_list[s]) &&
+	       exclude_list[s] != ',') s++;
     }
 
     /* no matches in the exclude list, so use the proxy */
