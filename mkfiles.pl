@@ -601,7 +601,8 @@ Libs_68K =	 "{CLibraries}StdCLib.o" \xb6
 		"{Libraries}Interface.o" \xb6
 		"{Libraries}OpenTransport.o" \xb6
 		"{Libraries}OpenTransportApp.o" \xb6
-		"{Libraries}OpenTptInet.o"
+		"{Libraries}OpenTptInet.o" \xb6
+		"{Libraries}UnicodeConverterLib.far.o"
 
 Libs_PPC =	"{SharedLibraries}InterfaceLib" \xb6
 		"{SharedLibraries}StdCLib" \xb6

@@ -10,6 +10,7 @@
 #include <Gestalt.h>
 #include <MacWindows.h>
 #include <Palettes.h>
+#include <UnicodeConverter.h>
 
 struct mac_gestalts {
     long sysvers;
@@ -17,6 +18,7 @@ struct mac_gestalts {
     long apprvers;
     long cntlattr;
     long windattr;
+    long encvvers;
 };
 
 extern struct mac_gestalts mac_gestalts;
@@ -64,6 +66,7 @@ typedef struct {
     ControlHandle	scrollbar;
     WCTabHandle		wctab;
     int			raw_mouse;
+    UnicodeToTextInfo	uni_to_font;
 } Session;
 
 #endif

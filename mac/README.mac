@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.1 2002/12/11 18:34:49 ben Exp $
+$Id: README.mac,v 1.2 2002/12/13 00:02:48 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -7,9 +7,25 @@ Compiling it:
 
  See ../README for generic information.
 
- I compile PuTTY using MPW, with Universal Headers 3.4.2.  The
- "mkputty.mpw" script does most of the work, but currently needs you
- to run "Rez -append -o PuTTY mac_res.r {Includes}" to get the
+ To compile PuTTY for Mac OS you will need:
+
+ MPW
+  <ftp://ftp.apple.com/developer/Tool_Chest/Core_Mac_OS_Tools/MPW_etc./
+   MPW-GM_Images/MPW-GM.img.bin>
+
+ Universal Headers (optional)
+  <ftp://ftp.apple.com/developer/Development_Kits/
+   UniversalHeaders3.4.2.img.bin>
+
+ Text Encoding Converter SDK
+  <ftp://ftp.apple.com/developer/Development_Kits/TEC_1.5.sit.hqx>
+
+ Install MPW, install the new Universal Headers (optional), then put
+ the contents of the "68K Static Libraries" directory of the Text
+ Encoding Converter SDK into "Interfaces&Libraries:Libraries:Libraries".
+
+ The "mkputty.mpw" script does most of the work, but currently needs
+ you to run "Rez -append -o PuTTY mac_res.r {Includes}" to get the
  resources compiled in.  The Makefile currently only generates a
  Classic 68K application.  Other architectures will come later.
 

@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.6 2002/12/10 01:11:40 ben Exp $ */
+/* $Id: mac.c,v 1.7 2002/12/13 00:02:48 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -42,7 +42,9 @@
 #include <Gestalt.h>
 #include <Resources.h>
 #include <Script.h>
+#include <TextCommon.h>
 #include <ToolUtils.h>
+#include <UnicodeConverter.h>
 
 #include <assert.h>
 #include <limits.h>
@@ -100,6 +102,7 @@ int main (int argc, char **argv) {
 
 static void mac_startup(void) {
     Handle menuBar;
+    TECInfoHandle ti;
 
     /* Init Memory Manager */
     MaxApplZone();
@@ -142,6 +145,19 @@ static void mac_startup(void) {
     /* Mac OS 8.5 Window Manager? */
     if (Gestalt(gestaltWindowMgrAttr, &mac_gestalts.windattr) != noErr)
 	mac_gestalts.windattr = 0;
+    /* Text Encoding Conversion Manager? */
+    if (
+#if TARGET_RT_MAC_CFM
+	&TECGetInfo == kUnresolvedCFragSymbolAddress ||
+#else
+	InitializeUnicodeConverter(NULL) != noErr ||
+#endif
+	TECGetInfo(&ti) != noErr)
+	mac_gestalts.encvvers = 0;
+    else {
+	mac_gestalts.encvvers = (*ti)->tecVersion;
+	DisposeHandle((Handle)ti);
+    }
 
     /* We've been tested with the Appearance Manager */
     if (mac_gestalts.apprvers != 0)
@@ -548,6 +564,8 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
 
 static void mac_shutdown(void) {
 
+    if (mac_gestalts.encvvers != 0)
+	TerminateUnicodeConverter();
     exit(0);
 }
 

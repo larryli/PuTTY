@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.22 2002/12/09 23:26:52 ben Exp $ */
+/* $Id: macterm.c,v 1.23 2002/12/13 00:02:48 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -46,8 +46,10 @@
 #include <Scrap.h>
 #include <Script.h>
 #include <Sound.h>
+#include <TextCommon.h>
 #include <Threads.h>
 #include <ToolUtils.h>
+#include <UnicodeConverter.h>
 
 #include <assert.h>
 #include <limits.h>
@@ -75,6 +77,10 @@
 			    (y) / s->font_height)
 
 static void mac_initfont(Session *);
+static pascal OSStatus uni_to_font_fallback(UniChar *, ByteCount, ByteCount *,
+					    TextPtr, ByteCount, ByteCount *,
+					    LogicalAddress *,
+					    ConstUnicodeMappingPtr);
 static void mac_initpalette(Session *);
 static void mac_adjustwinbg(Session *);
 static void mac_adjustsize(Session *, int, int);
@@ -180,10 +186,14 @@ void mac_newsession(void) {
     term_out(s->term);
 }
 
+static UnicodeToTextFallbackUPP uni_to_font_fallback_upp;
+
 static void mac_initfont(Session *s) {
     Str255 macfont;
     FontInfo fi;
- 
+    TextEncoding enc;
+    OSStatus err;
+
     SetPort(s->window);
     macfont[0] = sprintf((char *)&macfont[1], "%s", s->cfg.font);
     GetFNum(macfont, &s->fontnum);
@@ -200,8 +210,45 @@ static void mac_initfont(Session *s) {
 	s->font_boldadjust = s->font_width - CharWidth('W');
     } else
 	s->font_boldadjust = 0;
+
+    if (s->uni_to_font != NULL)
+	DisposeUnicodeToTextInfo(&s->uni_to_font);
+    if (mac_gestalts.encvvers == 0 ||
+	UpgradeScriptInfoToTextEncoding(kTextScriptDontCare,
+					kTextLanguageDontCare,
+					kTextRegionDontCare, macfont,
+					&enc) != noErr ||
+	CreateUnicodeToTextInfoByEncoding(enc, &s->uni_to_font) != noErr) {
+	s->uni_to_font = NULL;
+    } else {
+	if (uni_to_font_fallback_upp == NULL)
+	    uni_to_font_fallback_upp =
+		NewUnicodeToTextFallbackProc(&uni_to_font_fallback);
+	if (SetFallbackUnicodeToText(s->uni_to_font,
+	    uni_to_font_fallback_upp, 
+	    kUnicodeFallbackCustomOnly | kUnicodeFallbackInterruptSafeMask,
+	    NULL) != noErr) {
+	    DisposeUnicodeToTextInfo(&s->uni_to_font);
+	    s->uni_to_font = NULL;
+	}
+    }
+
     mac_adjustsize(s, s->term->rows, s->term->cols);
 }
+
+static pascal OSStatus uni_to_font_fallback(UniChar *ucp,
+    ByteCount ilen, ByteCount *iusedp, TextPtr obuf, ByteCount olen,
+    ByteCount *ousedp, LogicalAddress *cookie, ConstUnicodeMappingPtr mapping)
+{
+
+    if (olen < 1)
+	return kTECOutputBufferFullStatus;
+    *obuf = '?';
+    *iusedp = ilen;
+    *ousedp = 1;
+    return noErr;
+}
+
 
 /*
  * To be called whenever the window size changes.
@@ -879,6 +926,11 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     int style = 0;
     struct do_text_args a;
     RgnHandle textrgn;
+    char mactextbuf[1024];
+    UniChar unitextbuf[1024];
+    int i;
+
+    assert(len <= 1024);
 
     SetPort(s->window);
     
@@ -889,6 +941,20 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.textrect.right = (x + len) * s->font_width;
     if (!RectInRgn(&a.textrect, s->window->visRgn))
 	return;
+
+    if (s->uni_to_font != NULL) {
+	ByteCount iread, olen;
+	OSStatus err;
+
+	for (i = 0; i < len; i++)
+	    unitextbuf[i] = (unsigned char)text[i] | (attr & CSET_MASK);
+	err = ConvertFromUnicodeToText(s->uni_to_font, len * sizeof(UniChar),
+				       unitextbuf, kUnicodeUseFallbacksMask,
+				       0, NULL, NULL, NULL,
+				       1024, &iread, &olen, mactextbuf);
+	if (err == noErr || err == kTECUsedFallbacksStatus)
+	    text = mactextbuf; len = olen;
+    }
 
     a.s = s;
     a.text = text;
