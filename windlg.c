@@ -1090,6 +1090,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling character set translation",
 		 IDC_TITLE_TRANSLATION);
+	beginbox(&cp, "Character set translation on received data",
+		 IDC_BOX_TRANSLATION2);
+	combobox(&cp, "Received data assumed to be in which character set:",
+		 IDC_CODEPAGESTATIC, IDC_CODEPAGE);
+	endbox(&cp);
 	beginbox(&cp, "Adjust how PuTTY displays line drawing characters",
 		 IDC_BOX_TRANSLATION1);
 	radiobig(&cp,
@@ -1099,11 +1104,6 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 "Use font in O&EM mode only", IDC_VTOEMONLY,
 		 "&Poor man's line drawing (" "+" ", " "-" " and " "|" ")",
 		 IDC_VTPOORMAN, "&Unicode mode", IDC_VTUNICODE, NULL);
-	endbox(&cp);
-	beginbox(&cp, "Character set translation on received data",
-		 IDC_BOX_TRANSLATION2);
-	combobox(&cp, "Received data assumed to be in which character set:",
-		 IDC_CODEPAGESTATIC, IDC_CODEPAGE);
 	endbox(&cp);
     }
 
