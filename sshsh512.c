@@ -8,8 +8,6 @@
 
 #define BLKSIZE 128
 
-typedef unsigned int uint32;
-
 /*
  * Arithmetic implementations. Note that AND, XOR and NOT can
  * overlap destination with one source, but the others can't.
