@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.9 2003/02/07 01:38:12 ben Exp $ */
+/* $Id: macresid.h,v 1.10 2003/03/06 23:46:06 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -54,6 +54,7 @@
 #define wSettings	132
 #define wiSettingsOpen		1
 #define wEventLog	133
+#define wQuestion	134
 
 /* Controls */
 #define cVScroll	128

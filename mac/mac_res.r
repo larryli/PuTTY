@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.29 2003/02/27 23:21:23 ben Exp $ */
+/* $Id: mac_res.r,v 1.30 2003/03/06 23:46:06 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -961,6 +961,38 @@ resource 'DITL' (wFatal, "fatalbox", purgeable) {
 		StaticText {
 			disabled,
 			""
+		},
+		/* [3] */
+		{7, 74, 55, 358},
+		StaticText {
+			disabled,
+			"^0"
+		}
+	}
+};
+
+/* Caution box.  Stolen from the Finder. */
+
+resource 'ALRT' (wQuestion, "questionbox", purgeable) {
+	{54, 67, 152, 435},
+	wQuestion,
+	beepStages,
+	alertPositionMainScreen
+};
+
+resource 'DITL' (wQuestion, "fatalbox", purgeable) {
+	{	/* array DITLarray: 3 elements */
+		/* [1] */
+		{68, 299, 88, 358},
+		Button {
+			enabled,
+			"OK"
+		},
+		/* [2] */
+		{68, 227, 88, 286},
+		Button {
+			enabled,
+			"Cancel"
 		},
 		/* [3] */
 		{7, 74, 55, 358},
