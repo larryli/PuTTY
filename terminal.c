@@ -150,7 +150,7 @@ void term_update(void) {
     Context ctx;
     ctx = get_ctx();
     if (ctx) {
-        if ( (seen_key_event && (unscroll_event & US_KEY)) &&
+        if ( (seen_key_event && (unscroll_event & US_KEY)) ||
 	     (seen_disp_event && (unscroll_event & US_DISP)) ) {
 	    disptop = scrtop;
 	    seen_disp_event = seen_key_event = 0;
