@@ -1710,6 +1710,15 @@ int main(int argc, char *argv[])
     /* SFTP uses SSH2 by default always */
     cfg.sshprot = 2;
 
+    /*
+     * Disable scary things which shouldn't be enabled for simple
+     * things like SCP and SFTP: agent forwarding, port forwarding,
+     * X forwarding.
+     */
+    cfg.x11_forward = 0;
+    cfg.agentfwd = 0;
+    cfg.portfwd[0] = cfg.portfwd[1] = '\0';
+
     /* Set up subsystem name. */
     strcpy(cfg.remote_cmd, "sftp");
     cfg.ssh_subsys = TRUE;

@@ -604,6 +604,15 @@ static void do_cmd(char *host, char *user, char *cmd)
 	cfg.port = portnumber;
 
     /*
+     * Disable scary things which shouldn't be enabled for simple
+     * things like SCP and SFTP: agent forwarding, port forwarding,
+     * X forwarding.
+     */
+    cfg.x11_forward = 0;
+    cfg.agentfwd = 0;
+    cfg.portfwd[0] = cfg.portfwd[1] = '\0';
+
+    /*
      * Attempt to start the SFTP subsystem as a first choice,
      * falling back to the provided scp command if that fails.
      */
