@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.56 2003/03/25 23:18:59 ben Exp $ */
+/* $Id: mac.c,v 1.57 2003/04/05 14:34:06 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -777,6 +777,16 @@ void platform_get_x11_auth(char *display, int *proto,
                            unsigned char *data, int *datalen)
 {
     /* SGT: I have no idea whether Mac X servers need anything here. */
+}
+
+void update_specials_menu(void *frontend)
+{
+    Session *s = frontend;
+    WindowPtr front;
+
+    front = mac_frontwindow();
+    if (front != NULL && mac_windowsession(front) == s)
+	mac_adjustmenus();
 }
 
 /*
