@@ -777,14 +777,15 @@ int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
     seqlen = len;
     /* Now add on the SEQUENCE header. */
     len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
-    /* And round up to the cipher block size. */
+    /* Round up to the cipher block size, ensuring we have at least one
+     * byte of padding (see below). */
+    outlen = len;
     if (passphrase)
-	len = (len+7) &~ 7;
+	outlen = (outlen+8) &~ 7;
 
     /*
      * Now we know how big outblob needs to be. Allocate it.
      */
-    outlen = len;
     outblob = smalloc(outlen);
 
     /*
@@ -797,8 +798,27 @@ int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
 	memcpy(outblob+pos, numbers[i].start, numbers[i].bytes);
 	pos += numbers[i].bytes;
     }
+
+    /*
+     * Padding on OpenSSH keys is deterministic. The number of
+     * padding bytes is always more than zero, and always at most
+     * the cipher block length. The value of each padding byte is
+     * equal to the number of padding bytes. So a plaintext that's
+     * an exact multiple of the block size will be padded with 08
+     * 08 08 08 08 08 08 08 (assuming a 64-bit block cipher); a
+     * plaintext one byte less than a multiple of the block size
+     * will be padded with just 01.
+     * 
+     * This enables the OpenSSL key decryption function to strip
+     * off the padding algorithmically and return the unpadded
+     * plaintext to the next layer: it looks at the final byte, and
+     * then expects to find that many bytes at the end of the data
+     * with the same value. Those are all removed and the rest is
+     * returned.
+     */
+    assert(pos == len);
     while (pos < outlen) {
-	outblob[pos++] = random_byte();
+        outblob[pos++] = outlen - len;
     }
 
     /*
