@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <stdarg.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
@@ -146,6 +147,8 @@ int from_backend(int is_stderr, char *data, int len)
 {
     HANDLE h = (is_stderr ? errhandle : outhandle);
     int osize, esize;
+
+    assert(len > 0);
 
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);

@@ -68,7 +68,8 @@ static int rlogin_receive(Plug plug, int urgent, char *data, int len)
 	    }
 	    firstbyte = 0;
 	}
-	c_write(data, len);
+	if (len > 0)
+            c_write(data, len);
     }
     return 1;
 }

@@ -3603,6 +3603,8 @@ int term_ldisc(int option)
  */
 int from_backend(int is_stderr, char *data, int len)
 {
+    assert(len > 0);
+
     bufchain_add(&inbuf, data, len);
 
     /*

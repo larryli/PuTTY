@@ -268,6 +268,8 @@ int from_backend(int is_stderr, char *data, int datalen)
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
 
+    assert(len > 0);
+
     /*
      * stderr data is just spouted to local stderr and otherwise
      * ignored.
