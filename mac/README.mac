@@ -4,7 +4,9 @@ Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 This is a port of PuTTY to the Classic Mac OS.  It is a work in
-progress and should be considered unfinished and insecure.  Unless you
+progress and should be considered unfinished and insecure.  It is
+not considered to be of release quality, even if you found it (and
+you're reading this) in a PuTTY release source archive.  Unless you
 know what you're doing, don't use it.
 
 Compiling it:

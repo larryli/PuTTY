@@ -1,9 +1,11 @@
 This directory contains a Mac OS X port of PuTTY/pterm, running as a
 native Aqua GUI application.
 
-THIS PORT IS CURRENTLY UNFINISHED AND EXPERIMENTAL. You are welcome
-to use it, but don't be surprised at unexpected behaviour. I'm not
-kidding.
+THIS PORT IS CURRENTLY UNFINISHED AND EXPERIMENTAL. It is _not_
+considered to be of release quality, even if you've found it (and
+are reading this) in a PuTTY release source archive. You are welcome
+to try using it, but don't be surprised at unexpected behaviour. I'm
+not kidding.
 
 In particular, I have not yet decided where OS X PuTTY should store
 its configuration data. Options include storing it in ~/.putty to be
