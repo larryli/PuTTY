@@ -653,7 +653,7 @@ static void s_wrpkt_start(int type, int len) {
     pktout.type = type;
 }
 
-static void s_wrpkt(void) {
+static int s_wrpkt_prepare(void) {
     int pad, len, biglen, i;
     unsigned long crc;
 
@@ -700,91 +700,116 @@ static void s_wrpkt(void) {
     if (cipher)
 	cipher->encrypt(pktout.data+4, biglen);
 
-    sk_write(s, pktout.data, biglen+4);
+    return biglen+4;
+}
+
+static void s_wrpkt(void) {
+    int len;
+    len = s_wrpkt_prepare();
+    sk_write(s, pktout.data, len);
+}
+
+static void s_wrpkt_defer(void) {
+    int len;
+    len = s_wrpkt_prepare();
+    if (deferred_len + len > deferred_size) {
+        deferred_size = deferred_len + len + 128;
+        deferred_send_data = srealloc(deferred_send_data, deferred_size);
+    }
+    memcpy(deferred_send_data+deferred_len, pktout.data, len);
+    deferred_len += len;
 }
 
 /*
- * Construct a packet with the specified contents and
- * send it to the server.
+ * Construct a packet with the specified contents.
  */
-static void send_packet(int pkttype, ...)
+static void construct_packet(int pkttype, va_list ap1, va_list ap2)
 {
-    va_list args;
     unsigned char *p, *argp, argchar;
     unsigned long argint;
     int pktlen, argtype, arglen;
     Bignum bn;
 
     pktlen = 0;
-    va_start(args, pkttype);
-    while ((argtype = va_arg(args, int)) != PKT_END) {
+    while ((argtype = va_arg(ap1, int)) != PKT_END) {
 	switch (argtype) {
 	  case PKT_INT:
-	    (void) va_arg(args, int);
+	    (void) va_arg(ap1, int);
 	    pktlen += 4;
 	    break;
 	  case PKT_CHAR:
-	    (void) va_arg(args, char);
+	    (void) va_arg(ap1, char);
 	    pktlen++;
 	    break;
 	  case PKT_DATA:
-	    (void) va_arg(args, unsigned char *);
-	    arglen = va_arg(args, int);
+	    (void) va_arg(ap1, unsigned char *);
+	    arglen = va_arg(ap1, int);
 	    pktlen += arglen;
 	    break;
 	  case PKT_STR:
-	    argp = va_arg(args, unsigned char *);
+	    argp = va_arg(ap1, unsigned char *);
 	    arglen = strlen(argp);
 	    pktlen += 4 + arglen;
 	    break;
 	  case PKT_BIGNUM:
-	    bn = va_arg(args, Bignum);
+	    bn = va_arg(ap1, Bignum);
             pktlen += ssh1_bignum_length(bn);
 	    break;
 	  default:
 	    assert(0);
 	}
     }
-    va_end(args);
 
     s_wrpkt_start(pkttype, pktlen);
     p = pktout.body;
 
-    va_start(args, pkttype);
-    while ((argtype = va_arg(args, int)) != PKT_END) {
+    while ((argtype = va_arg(ap2, int)) != PKT_END) {
 	switch (argtype) {
 	  case PKT_INT:
-	    argint = va_arg(args, int);
+	    argint = va_arg(ap2, int);
 	    PUT_32BIT(p, argint);
 	    p += 4;
 	    break;
 	  case PKT_CHAR:
-	    argchar = va_arg(args, unsigned char);
+	    argchar = va_arg(ap2, unsigned char);
 	    *p = argchar;
 	    p++;
 	    break;
 	  case PKT_DATA:
-	    argp = va_arg(args, unsigned char *);
-	    arglen = va_arg(args, int);
+	    argp = va_arg(ap2, unsigned char *);
+	    arglen = va_arg(ap2, int);
 	    memcpy(p, argp, arglen);
 	    p += arglen;
 	    break;
 	  case PKT_STR:
-	    argp = va_arg(args, unsigned char *);
+	    argp = va_arg(ap2, unsigned char *);
 	    arglen = strlen(argp);
 	    PUT_32BIT(p, arglen);
 	    memcpy(p + 4, argp, arglen);
 	    p += 4 + arglen;
 	    break;
 	  case PKT_BIGNUM:
-	    bn = va_arg(args, Bignum);
+	    bn = va_arg(ap2, Bignum);
             p += ssh1_write_bignum(p, bn);
 	    break;
 	}
     }
-    va_end(args);
+}
 
+static void send_packet(int pkttype, ...) {
+    va_list ap1, ap2;
+    va_start(ap1, pkttype);
+    va_start(ap2, pkttype);
+    construct_packet(pkttype, ap1, ap2);
     s_wrpkt();
+}
+
+static void defer_packet(int pkttype, ...) {
+    va_list ap1, ap2;
+    va_start(ap1, pkttype);
+    va_start(ap2, pkttype);
+    construct_packet(pkttype, ap1, ap2);
+    s_wrpkt_defer();
 }
 
 static int ssh_versioncmp(char *a, char *b) {
@@ -989,9 +1014,9 @@ static void ssh2_pkt_defer(void) {
 
 /*
  * Send the whole deferred data block constructed by
- * ssh2_pkt_defer().
+ * ssh2_pkt_defer() or SSH1's defer_packet().
  */
-static void ssh2_pkt_defersend(void) {
+static void ssh_pkt_defersend(void) {
     sk_write(s, deferred_send_data, deferred_len);
     deferred_len = deferred_size = 0;
     sfree(deferred_send_data);
@@ -1784,7 +1809,67 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
             break;                     /* we're through! */
         } else {
-            send_packet(pwpkt_type, PKT_STR, password, PKT_END);
+            if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD) {
+                /*
+                 * Defence against traffic analysis: we send a
+                 * whole bunch of packets containing strings of
+                 * different lengths. One of these strings is the
+                 * password, in a SSH1_CMSG_AUTH_PASSWORD packet.
+                 * The others are all random data in
+                 * SSH1_MSG_IGNORE packets. This way a passive
+                 * listener can't tell which is the password, and
+                 * hence can't deduce the password length.
+                 * 
+                 * Anybody with a password length greater than 16
+                 * bytes is going to have enough entropy in their
+                 * password that a listener won't find it _that_
+                 * much help to know how long it is. So what we'll
+                 * do is:
+                 * 
+                 *  - if password length < 16, we send 15 packets
+                 *    containing string lengths 1 through 15
+                 * 
+                 *  - otherwise, we let N be the nearest multiple
+                 *    of 8 below the password length, and send 8
+                 *    packets containing string lengths N through
+                 *    N+7. This won't obscure the order of
+                 *    magnitude of the password length, but it will
+                 *    introduce a bit of extra uncertainty.
+                 */
+                int bottom, top, pwlen, i;
+                char *randomstr;
+
+                pwlen = strlen(password);
+                if (pwlen < 16) {
+                    bottom = 1;
+                    top = 15;
+                } else {
+                    bottom = pwlen &~ 7;
+                    top = bottom + 7;
+                }
+
+                assert(pwlen >= bottom && pwlen <= top);
+
+                randomstr = smalloc(top+1);
+
+                for (i = bottom; i <= top; i++) {
+                    if (i == pwlen)
+                        defer_packet(pwpkt_type, PKT_STR, password, PKT_END);
+                    else {
+                        for (j = 0; j < i; j++) {
+                            do {
+                                randomstr[j] = random_byte();
+                            } while (randomstr[j] == '\0');
+                        }
+                        randomstr[i] = '\0';
+                        defer_packet(SSH1_MSG_IGNORE,
+                                     PKT_STR, randomstr, PKT_END);
+                    }
+                }
+                ssh_pkt_defersend();
+            } else {
+                send_packet(pwpkt_type, PKT_STR, password, PKT_END);
+            }
         }
 	logevent("Sent password");
 	memset(password, 0, strlen(password));
@@ -3151,7 +3236,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    }
 		    ssh2_pkt_defer();
 		}
-		ssh2_pkt_defersend();
+		ssh_pkt_defersend();
 		logevent("Sent password");
 		type = AUTH_TYPE_PASSWORD;
 	    } else {
