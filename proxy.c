@@ -15,8 +15,8 @@
 #include "proxy.h"
 
 #define do_proxy_dns(cfg) \
-    (cfg->proxy_dns == 2 || \
-	 (cfg->proxy_dns == 1 && cfg->proxy_type != PROXY_SOCKS))
+    (cfg->proxy_dns == FORCE_ON || \
+	 (cfg->proxy_dns == AUTO && cfg->proxy_type != PROXY_SOCKS))
 
 /*
  * Call this when proxy negotiation is complete, so that this

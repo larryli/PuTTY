@@ -1719,8 +1719,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     ssh->remote_bugs = 0;
 
-    if (ssh->cfg.sshbug_ignore1 == BUG_ON ||
-	(ssh->cfg.sshbug_ignore1 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_ignore1 == FORCE_ON ||
+	(ssh->cfg.sshbug_ignore1 == AUTO &&
 	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
 	  !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
 	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25")))) {
@@ -1733,8 +1733,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH1 ignore bug");
     }
 
-    if (ssh->cfg.sshbug_plainpw1 == BUG_ON ||
-	(ssh->cfg.sshbug_plainpw1 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_plainpw1 == FORCE_ON ||
+	(ssh->cfg.sshbug_plainpw1 == AUTO &&
 	 (!strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions need a plain password sent; they can't
@@ -1745,8 +1745,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version needs a plain SSH1 password");
     }
 
-    if (ssh->cfg.sshbug_rsa1 == BUG_ON ||
-	(ssh->cfg.sshbug_rsa1 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_rsa1 == FORCE_ON ||
+	(ssh->cfg.sshbug_rsa1 == AUTO &&
 	 (!strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions apparently have no clue whatever about
@@ -1757,8 +1757,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version can't handle RSA authentication");
     }
 
-    if (ssh->cfg.sshbug_hmac2 == BUG_ON ||
-	(ssh->cfg.sshbug_hmac2 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_hmac2 == FORCE_ON ||
+	(ssh->cfg.sshbug_hmac2 == AUTO &&
 	 (wc_match("2.1.0*", imp) || wc_match("2.0.*", imp) ||
 	  wc_match("2.2.0*", imp) || wc_match("2.3.0*", imp) ||
 	  wc_match("2.1 *", imp)))) {
@@ -1769,8 +1769,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH2 HMAC bug");
     }
 
-    if (ssh->cfg.sshbug_derivekey2 == BUG_ON ||
-	(ssh->cfg.sshbug_derivekey2 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_derivekey2 == FORCE_ON ||
+	(ssh->cfg.sshbug_derivekey2 == AUTO &&
 	 (wc_match("2.0.0*", imp) || wc_match("2.0.1[01]*", imp) ))) {
 	/*
 	 * These versions have the key-derivation bug (failing to
@@ -1781,8 +1781,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH2 key-derivation bug");
     }
 
-    if (ssh->cfg.sshbug_rsapad2 == BUG_ON ||
-	(ssh->cfg.sshbug_rsapad2 == BUG_AUTO &&
+    if (ssh->cfg.sshbug_rsapad2 == FORCE_ON ||
+	(ssh->cfg.sshbug_rsapad2 == AUTO &&
 	 (wc_match("OpenSSH_2.[5-9]*", imp) ||
 	  wc_match("OpenSSH_3.[0-2]*", imp)))) {
 	/*
@@ -1792,7 +1792,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	logevent("We believe remote version has SSH2 RSA padding bug");
     }
 
-    if (ssh->cfg.sshbug_dhgex2 == BUG_ON) {
+    if (ssh->cfg.sshbug_dhgex2 == FORCE_ON) {
 	/*
 	 * User specified the SSH2 DH GEX bug.
 	 */

@@ -912,7 +912,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
     vsprintf(stuff, fmt, ap);
     va_end(ap);
     MessageBox(hwnd, stuff, "PuTTY Fatal Error", MB_ICONERROR | MB_OK);
-    if (cfg.close_on_exit == COE_ALWAYS)
+    if (cfg.close_on_exit == FORCE_ON)
 	PostQuitMessage(1);
     else {
 	session_closed = TRUE;
@@ -957,8 +957,8 @@ static void enact_pending_netevent(void)
     if (ret == 0 && !session_closed) {
 	/* Abnormal exits will already have set session_closed and taken
 	 * appropriate action. */
-	if (cfg.close_on_exit == COE_ALWAYS ||
-	    cfg.close_on_exit == COE_NORMAL) PostQuitMessage(0);
+	if (cfg.close_on_exit == FORCE_ON ||
+	    cfg.close_on_exit == AUTO) PostQuitMessage(0);
 	else {
 	    session_closed = TRUE;
 	    set_icon(NULL, "PuTTY (inactive)");

@@ -1136,11 +1136,11 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_TELNETKEY, cfg.telnet_keyboard);
     CheckDlgButton(hwnd, IDC_TELNETRET, cfg.telnet_newline);
     CheckRadioButton(hwnd, IDC_ECHOBACKEND, IDC_ECHONO,
-		     cfg.localecho == LD_BACKEND ? IDC_ECHOBACKEND :
-		     cfg.localecho == LD_YES ? IDC_ECHOYES : IDC_ECHONO);
+		     cfg.localecho == AUTO ? IDC_ECHOBACKEND :
+		     cfg.localecho == FORCE_ON ? IDC_ECHOYES : IDC_ECHONO);
     CheckRadioButton(hwnd, IDC_EDITBACKEND, IDC_EDITNO,
-		     cfg.localedit == LD_BACKEND ? IDC_EDITBACKEND :
-		     cfg.localedit == LD_YES ? IDC_EDITYES : IDC_EDITNO);
+		     cfg.localedit == AUTO ? IDC_EDITBACKEND :
+		     cfg.localedit == FORCE_ON ? IDC_EDITYES : IDC_EDITNO);
     SetDlgItemText(hwnd, IDC_ANSWEREDIT, cfg.answerback);
     CheckDlgButton(hwnd, IDC_ALWAYSONTOP, cfg.alwaysontop);
     CheckDlgButton(hwnd, IDC_FULLSCREENONALTENTER, cfg.fullscreenonaltenter);
@@ -1192,9 +1192,9 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.resize_action == RESIZE_EITHER ? IDC_RESIZEEITHER :
 		     IDC_RESIZENONE);
     CheckRadioButton(hwnd, IDC_COEALWAYS, IDC_COENORMAL,
-		     cfg.close_on_exit == COE_NORMAL ? IDC_COENORMAL :
+		     cfg.close_on_exit == AUTO ? IDC_COENORMAL :
 		     cfg.close_on_exit ==
-		     COE_NEVER ? IDC_COENEVER : IDC_COEALWAYS);
+		     FORCE_OFF ? IDC_COENEVER : IDC_COEALWAYS);
     CheckDlgButton(hwnd, IDC_CLOSEWARN, cfg.warn_on_close);
 
     SetDlgItemText(hwnd, IDC_TTEDIT, cfg.termtype);
@@ -1373,8 +1373,8 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_PROXYEXCLUDEEDIT, cfg.proxy_exclude_list);
     CheckDlgButton(hwnd, IDC_PROXYLOCALHOST, cfg.even_proxy_localhost);
     CheckRadioButton(hwnd, IDC_PROXYDNSNO, IDC_PROXYDNSYES,
-		     cfg.proxy_dns == PROXYDNS_NO ? IDC_PROXYDNSNO :
-		     cfg.proxy_dns == PROXYDNS_YES ? IDC_PROXYDNSYES :
+		     cfg.proxy_dns == FORCE_OFF ? IDC_PROXYDNSNO :
+		     cfg.proxy_dns == FORCE_ON ? IDC_PROXYDNSYES :
 		     IDC_PROXYDNSAUTO);
     SetDlgItemText(hwnd, IDC_PROXYTELNETCMDEDIT, cfg.proxy_telnet_command);
     SetDlgItemText(hwnd, IDC_PROXYUSEREDIT, cfg.proxy_username);
@@ -1388,50 +1388,50 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_SETCURSEL,
-		       cfg.sshbug_ignore1 == BUG_ON ? 2 :
-		       cfg.sshbug_ignore1 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_ignore1 == FORCE_ON ? 2 :
+		       cfg.sshbug_ignore1 == FORCE_OFF ? 1 : 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_ADDSTRING, 0, (LPARAM)"Auto");
     SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_SETCURSEL,
-		       cfg.sshbug_plainpw1 == BUG_ON ? 2 :
-		       cfg.sshbug_plainpw1 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_plainpw1 == FORCE_ON ? 2 :
+		       cfg.sshbug_plainpw1 == FORCE_OFF ? 1 : 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_ADDSTRING, 0, (LPARAM)"Auto");
     SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_SETCURSEL,
-		       cfg.sshbug_rsa1 == BUG_ON ? 2 :
-		       cfg.sshbug_rsa1 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_rsa1 == FORCE_ON ? 2 :
+		       cfg.sshbug_rsa1 == FORCE_OFF ? 1 : 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_ADDSTRING, 0, (LPARAM)"Auto");
     SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_SETCURSEL,
-		       cfg.sshbug_hmac2 == BUG_ON ? 2 :
-		       cfg.sshbug_hmac2 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_hmac2 == FORCE_ON ? 2 :
+		       cfg.sshbug_hmac2 == FORCE_OFF ? 1 : 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_ADDSTRING, 0, (LPARAM)"Auto");
     SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_SETCURSEL,
-		       cfg.sshbug_derivekey2 == BUG_ON ? 2 :
-		       cfg.sshbug_derivekey2 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_derivekey2 == FORCE_ON ? 2 :
+		       cfg.sshbug_derivekey2 == FORCE_OFF ? 1 : 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_ADDSTRING, 0, (LPARAM)"Auto");
     SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_SETCURSEL,
-		       cfg.sshbug_rsapad2 == BUG_ON ? 2 :
-		       cfg.sshbug_rsapad2 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_rsapad2 == FORCE_ON ? 2 :
+		       cfg.sshbug_rsapad2 == FORCE_OFF ? 1 : 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_ADDSTRING, 0, (LPARAM)"Auto");
     SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_ADDSTRING, 0, (LPARAM)"Off");
     SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_ADDSTRING, 0, (LPARAM)"On");
     SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_SETCURSEL,
-		       cfg.sshbug_dhgex2 == BUG_ON ? 2 :
-		       cfg.sshbug_dhgex2 == BUG_OFF ? 1 : 0, 0);
+		       cfg.sshbug_dhgex2 == FORCE_ON ? 2 :
+		       cfg.sshbug_dhgex2 == FORCE_OFF ? 1 : 0, 0);
 }
 
 struct treeview_faff {
@@ -2678,11 +2678,11 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    if (LOWORD(wParam) == IDC_ECHOBACKEND)
-			cfg.localecho = LD_BACKEND;
+			cfg.localecho = AUTO;
 		    if (LOWORD(wParam) == IDC_ECHOYES)
-			cfg.localecho = LD_YES;
+			cfg.localecho = FORCE_ON;
 		    if (LOWORD(wParam) == IDC_ECHONO)
-			cfg.localecho = LD_NO;
+			cfg.localecho = FORCE_OFF;
 		}
 		break;
 	      case IDC_EDITBACKEND:
@@ -2691,11 +2691,11 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    if (LOWORD(wParam) == IDC_EDITBACKEND)
-			cfg.localedit = LD_BACKEND;
+			cfg.localedit = AUTO;
 		    if (LOWORD(wParam) == IDC_EDITYES)
-			cfg.localedit = LD_YES;
+			cfg.localedit = FORCE_ON;
 		    if (LOWORD(wParam) == IDC_EDITNO)
-			cfg.localedit = LD_NO;
+			cfg.localedit = FORCE_OFF;
 		}
 		break;
 	      case IDC_ANSWEREDIT:
@@ -2992,10 +2992,10 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    cfg.close_on_exit =
 			IsDlgButtonChecked(hwnd,
-					   IDC_COEALWAYS) ? COE_ALWAYS :
+					   IDC_COEALWAYS) ? FORCE_ON :
 			IsDlgButtonChecked(hwnd,
-					   IDC_COENEVER) ? COE_NEVER :
-			COE_NORMAL;
+					   IDC_COENEVER) ? FORCE_OFF :
+			AUTO;
 		}
 		break;
 	      case IDC_CLOSEWARN:
@@ -3074,9 +3074,9 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    cfg.proxy_dns =
-			IsDlgButtonChecked(hwnd, IDC_PROXYDNSNO) ? PROXYDNS_NO :
-			IsDlgButtonChecked(hwnd, IDC_PROXYDNSYES) ? PROXYDNS_YES :
-			PROXYDNS_AUTO;
+			IsDlgButtonChecked(hwnd, IDC_PROXYDNSNO) ? FORCE_OFF :
+			IsDlgButtonChecked(hwnd, IDC_PROXYDNSYES) ? FORCE_ON :
+			AUTO;
 		}
 		break;
 	      case IDC_PROXYTYPENONE:
@@ -3649,56 +3649,56 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_ignore1 = (index == 0 ? BUG_AUTO :
-					  index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_ignore1 = (index == 0 ? AUTO :
+					  index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	      case IDC_BUGD_PLAINPW1:
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_plainpw1 = (index == 0 ? BUG_AUTO :
-					   index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_plainpw1 = (index == 0 ? AUTO :
+					   index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	      case IDC_BUGD_RSA1:
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_RSA1,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_rsa1 = (index == 0 ? BUG_AUTO :
-				       index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_rsa1 = (index == 0 ? AUTO :
+				       index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	      case IDC_BUGD_HMAC2:
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_hmac2 = (index == 0 ? BUG_AUTO :
-					index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_hmac2 = (index == 0 ? AUTO :
+					index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	      case IDC_BUGD_DERIVEKEY2:
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_derivekey2 = (index == 0 ? BUG_AUTO :
-					     index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_derivekey2 = (index == 0 ? AUTO :
+					     index == 1 ? FORCE_OFF:FORCE_ON);
 		}
 		break;
 	      case IDC_BUGD_RSAPAD2:
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_rsapad2 = (index == 0 ? BUG_AUTO :
-					  index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_rsapad2 = (index == 0 ? AUTO :
+					  index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	      case IDC_BUGD_DHGEX2:
 		if (HIWORD(wParam) == CBN_SELCHANGE) {
 		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2,
 						   CB_GETCURSEL, 0, 0);
-		    cfg.sshbug_dhgex2 = (index == 0 ? BUG_AUTO :
-					 index == 1 ? BUG_OFF : BUG_ON);
+		    cfg.sshbug_dhgex2 = (index == 0 ? AUTO :
+					 index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	    }

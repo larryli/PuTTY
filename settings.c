@@ -373,17 +373,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	    break;
 	}
 
-    /*
-     * CloseOnExit defaults to closing only on a clean exit - but
-     * unfortunately not on Unix (pterm). On Unix, the exit code of
-     * a shell is the last exit code of one of its child processes,
-     * even if it's an interactive shell - so some pterms will
-     * close and some will not for no particularly good reason. The
-     * mode is still useful for specialist purposes (running a
-     * single command in its own pterm), but I don't think it's a
-     * sane default, unfortunately.
-     */
-    gppi(sesskey, "CloseOnExit", COE_NORMAL, &cfg->close_on_exit);
+    gppi(sesskey, "CloseOnExit", AUTO, &cfg->close_on_exit);
     gppi(sesskey, "WarnOnClose", 1, &cfg->warn_on_close);
     {
 	/* This is two values for backward compatibility with 0.50/0.51 */
@@ -401,9 +391,9 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     /* proxy settings */
     gpps(sesskey, "ProxyExcludeList", "", cfg->proxy_exclude_list,
 	 sizeof(cfg->proxy_exclude_list));
-    gppi(sesskey, "ProxyDNS", PROXYDNS_AUTO, &i); cfg->proxy_dns = i;
+    gppi(sesskey, "ProxyDNS", AUTO, &cfg->proxy_dns);
     gppi(sesskey, "ProxyLocalhost", 0, &cfg->even_proxy_localhost);
-    gppi(sesskey, "ProxyType", PROXY_NONE, &i); cfg->proxy_type = i;
+    gppi(sesskey, "ProxyType", PROXY_NONE, &cfg->proxy_type);
     gpps(sesskey, "ProxyHost", "proxy", cfg->proxy_host,
 	 sizeof(cfg->proxy_host));
     gppi(sesskey, "ProxyPort", 80, &cfg->proxy_port);
@@ -474,8 +464,8 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "CtrlAltKeys", 1, &cfg->ctrlaltkeys);
     gppi(sesskey, "TelnetKey", 0, &cfg->telnet_keyboard);
     gppi(sesskey, "TelnetRet", 1, &cfg->telnet_newline);
-    gppi(sesskey, "LocalEcho", LD_BACKEND, &cfg->localecho);
-    gppi(sesskey, "LocalEdit", LD_BACKEND, &cfg->localedit);
+    gppi(sesskey, "LocalEcho", AUTO, &cfg->localecho);
+    gppi(sesskey, "LocalEdit", AUTO, &cfg->localedit);
     gpps(sesskey, "Answerback", "PuTTY", cfg->answerback,
 	 sizeof(cfg->answerback));
     gppi(sesskey, "AlwaysOnTop", 0, &cfg->alwaysontop);
@@ -486,8 +476,8 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "CurType", 0, &cfg->cursor_type);
     gppi(sesskey, "BlinkCur", 0, &cfg->blink_cur);
     /* pedantic compiler tells me I can't use &cfg->beep as an int * :-) */
-    gppi(sesskey, "Beep", 1, &i); cfg->beep = i;
-    gppi(sesskey, "BeepInd", 0, &i); cfg->beep_ind = i;
+    gppi(sesskey, "Beep", 1, &cfg->beep);
+    gppi(sesskey, "BeepInd", 0, &cfg->beep_ind);
     gpps(sesskey, "BellWaveFile", "", cfg->bell_wavefile,
 	 sizeof(cfg->bell_wavefile));
     gppi(sesskey, "BellOverload", 1, &cfg->bellovl);
@@ -583,7 +573,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "ScrollBarFullScreen", 0, &cfg->scrollbar_in_fullscreen);
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
     gppi(sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
-    gppi(sesskey, "LockSize", 0, &i); cfg->resize_action = i;
+    gppi(sesskey, "LockSize", 0, &cfg->resize_action);
     gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
@@ -613,21 +603,21 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	}
 	*q = '\0';
     }
-    gppi(sesskey, "BugIgnore1", BUG_AUTO, &i); cfg->sshbug_ignore1 = i;
-    gppi(sesskey, "BugPlainPW1", BUG_AUTO, &i); cfg->sshbug_plainpw1 = i;
-    gppi(sesskey, "BugRSA1", BUG_AUTO, &i); cfg->sshbug_rsa1 = i;
+    gppi(sesskey, "BugIgnore1", AUTO, &cfg->sshbug_ignore1);
+    gppi(sesskey, "BugPlainPW1", AUTO, &cfg->sshbug_plainpw1);
+    gppi(sesskey, "BugRSA1", AUTO, &cfg->sshbug_rsa1);
     {
 	int i;
-	gppi(sesskey, "BugHMAC2", BUG_AUTO, &i); cfg->sshbug_hmac2 = i;
-	if (cfg->sshbug_hmac2 == BUG_AUTO) {
+	gppi(sesskey, "BugHMAC2", AUTO, &cfg->sshbug_hmac2);
+	if (cfg->sshbug_hmac2 == AUTO) {
 	    gppi(sesskey, "BuggyMAC", 0, &i);
 	    if (i == 1)
-		cfg->sshbug_hmac2 = BUG_ON;
+		cfg->sshbug_hmac2 = FORCE_ON;
 	}
     }
-    gppi(sesskey, "BugDeriveKey2", BUG_AUTO, &i); cfg->sshbug_derivekey2 = i;
-    gppi(sesskey, "BugRSAPad2", BUG_AUTO, &i); cfg->sshbug_rsapad2 = i;
-    gppi(sesskey, "BugDHGEx2", BUG_AUTO, &i); cfg->sshbug_dhgex2 = i;
+    gppi(sesskey, "BugDeriveKey2", AUTO, &cfg->sshbug_derivekey2);
+    gppi(sesskey, "BugRSAPad2", AUTO, &cfg->sshbug_rsapad2);
+    gppi(sesskey, "BugDHGEx2", AUTO, &cfg->sshbug_dhgex2);
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);

@@ -91,14 +91,14 @@ char *x_get_default(const char *key)
 char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "Font"))
-	return "fixed";	       /* COE_NORMAL works badly in an xterm */
+	return "fixed";
     return NULL;
 }
 
 int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "CloseOnExit"))
-	return COE_ALWAYS;	       /* COE_NORMAL works badly in an xterm */
+	return FORCE_ON;	       /* AUTO works badly in an xterm */
     return def;
 }
 
@@ -991,8 +991,8 @@ void done_with_pty(struct gui_data *inst)
 	 * Terminate now, if the Close On Exit setting is
 	 * appropriate.
 	 */
-	if (inst->cfg.close_on_exit == COE_ALWAYS ||
-	    (inst->cfg.close_on_exit == COE_NORMAL && clean))
+	if (inst->cfg.close_on_exit == FORCE_ON ||
+	    (inst->cfg.close_on_exit == AUTO && clean))
 	    exit(0);
 
 	/*

@@ -187,9 +187,9 @@ typedef enum {
 #define PK_ISKEYPAD(k)	((k) >= PK_PF1 && (k) <= PK_KPENTER)
 #define PK_ISFKEY(k)	((k) >= PK_F1 && (k) <= PK_F20)
 
-typedef enum {
+enum {
     VT_XWINDOWS, VT_OEMANSI, VT_OEMONLY, VT_POORMAN, VT_UNICODE
-} VT_Mode;
+};
 
 enum {
     /*
@@ -205,9 +205,22 @@ enum {
 
 enum {
     /*
-     * Line discipline option states: off, on, up to the backend.
+     * Several different bits of the PuTTY configuration seem to be
+     * three-way settings whose values are `always yes', `always
+     * no', and `decide by some more complex automated means'. This
+     * is true of line discipline options (local echo and line
+     * editing), proxy DNS, Close On Exit, and SSH server bug
+     * workarounds. Accordingly I supply a single enum here to deal
+     * with them all.
      */
-    LD_YES, LD_NO, LD_BACKEND
+    FORCE_ON, FORCE_OFF, AUTO
+};
+
+enum {
+    /*
+     * Proxy types.
+     */
+    PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET
 };
 
 enum {
@@ -219,12 +232,23 @@ enum {
 };
 
 enum {
-    /*
-     * Close On Exit behaviours. (cfg.close_on_exit)
-     */
-    COE_NEVER,			       /* Never close the window */
-    COE_NORMAL,			       /* Close window on "normal" (non-error) exits only */
-    COE_ALWAYS			       /* Always close the window */
+    /* Protocol back ends. (cfg.protocol) */
+    PROT_RAW, PROT_TELNET, PROT_RLOGIN, PROT_SSH
+};
+
+enum {
+    /* Bell settings (cfg.beep) */
+    BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE
+};
+
+enum {
+    /* Taskbar flashing indication on bell (cfg.beep_ind) */
+    B_IND_DISABLED, B_IND_FLASH, B_IND_STEADY
+};
+
+enum {
+    /* Resize actions (cfg.resize_action) */
+    RESIZE_TERM, RESIZE_DISABLED, RESIZE_FONT, RESIZE_EITHER
 };
 
 enum {
@@ -275,20 +299,28 @@ extern struct backend_list {
  */
 extern const int be_default_protocol;
 
+/*
+ * IMPORTANT POLICY POINT: everything in this structure which wants
+ * to be treated like an integer must be an actual, honest-to-
+ * goodness `int'. No enum-typed variables. This is because parts
+ * of the code will want to pass around `int *' pointers to them
+ * and we can't run the risk of porting to some system on which the
+ * enum comes out as a different size from int.
+ */
 struct config_tag {
     /* Basic options */
     char host[512];
     int port;
-    enum { PROT_RAW, PROT_TELNET, PROT_RLOGIN, PROT_SSH } protocol;
+    int protocol;
     int close_on_exit;
     int warn_on_close;
     int ping_interval;		       /* in seconds */
     int tcp_nodelay;
     /* Proxy options */
     char proxy_exclude_list[512];
-    enum { PROXYDNS_NO, PROXYDNS_AUTO, PROXYDNS_YES } proxy_dns;
+    int proxy_dns;
     int even_proxy_localhost;
-    enum { PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET } proxy_type;
+    int proxy_type;
     char proxy_host[512];
     int proxy_port;
     char proxy_username[32];
@@ -359,12 +391,8 @@ struct config_tag {
     int lfhascr;
     int cursor_type;		       /* 0=block 1=underline 2=vertical */
     int blink_cur;
-    enum {
-	BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE
-    } beep;
-    enum {
-	B_IND_DISABLED, B_IND_FLASH, B_IND_STEADY
-    } beep_ind;
+    int beep;
+    int beep_ind;
     int bellovl;		       /* bell overload protection active? */
     int bellovl_n;		       /* number of bells to cause overload */
     int bellovl_t;		       /* time interval for overload (seconds) */
@@ -372,7 +400,7 @@ struct config_tag {
     char bell_wavefile[FILENAME_MAX];
     int scrollbar;
     int scrollbar_in_fullscreen;
-    enum { RESIZE_TERM, RESIZE_DISABLED, RESIZE_FONT, RESIZE_EITHER } resize_action;
+    int resize_action;
     int bce;
     int blinktext;
     int win_name_always;
@@ -401,7 +429,7 @@ struct config_tag {
     int mouse_override;
     short wordness[256];
     /* translations */
-    VT_Mode vtmode;
+    int vtmode;
     char line_codepage[128];
     int xlat_capslockcyr;
     /* X11 forwarding */
@@ -413,9 +441,7 @@ struct config_tag {
     int rport_acceptall; /* same for remote forwarded ports (SSH2 only) */
     char portfwd[1024]; /* [LR]localport\thost:port\000[LR]localport\thost:port\000\000 */
     /* SSH bug compatibility modes */
-    enum {
-	BUG_AUTO, BUG_OFF, BUG_ON
-    } sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
+    int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
 	sshbug_dhgex2;
     /* Options for pterm. Should split out into platform-dependent part. */

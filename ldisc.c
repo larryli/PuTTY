@@ -12,12 +12,12 @@
 #include "terminal.h"
 #include "ldisc.h"
 
-#define ECHOING (ldisc->cfg->localecho == LD_YES || \
-                 (ldisc->cfg->localecho == LD_BACKEND && \
+#define ECHOING (ldisc->cfg->localecho == FORCE_ON || \
+                 (ldisc->cfg->localecho == AUTO && \
                       (ldisc->back->ldisc(ldisc->backhandle, LD_ECHO) || \
 			   term_ldisc(ldisc->term, LD_ECHO))))
-#define EDITING (ldisc->cfg->localedit == LD_YES || \
-                 (ldisc->cfg->localedit == LD_BACKEND && \
+#define EDITING (ldisc->cfg->localedit == FORCE_ON || \
+                 (ldisc->cfg->localedit == AUTO && \
                       (ldisc->back->ldisc(ldisc->backhandle, LD_EDIT) || \
 			   term_ldisc(ldisc->term, LD_EDIT))))
 
