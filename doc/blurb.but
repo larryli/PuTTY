@@ -4,6 +4,10 @@
 
 \cfg{xhtml-leaf-contains-contents}{true}
 
+\cfg{xhtml-head-end}{<link rel='stylesheet' href='http://www.chiark.greenend.org.uk/~sgtatham/putty/sitestyle.css' type='text/css' />}
+
+\cfg{xhtml-body-end}{Comments to <a href='mailto:putty@projects.tartarus.org'>putty@projects.tartarus.org</a>}
+
 \preamble PuTTY is a free (MIT-licensed) Win32 Telnet and SSH
 client. This manual documents PuTTY, and its companion utilities
 PSCP, Plink, Pageant and PuTTYgen.
