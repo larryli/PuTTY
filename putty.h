@@ -450,6 +450,7 @@ struct config_tag {
     /* translations */
     int vtmode;
     char line_codepage[128];
+    int utf8_override;
     int xlat_capslockcyr;
     /* X11 forwarding */
     int x11_forward;
@@ -562,6 +563,10 @@ void sys_cursor(void *frontend, int x, int y);
 void request_paste(void *frontend);
 void frontend_keypress(void *frontend);
 void ldisc_update(void *frontend, int echo, int edit);
+/* It's the backend's responsibility to invoke this at the start of a
+ * connection, if necessary; it can also invoke it later if the set of
+ * special commands changes. It does not need to invoke it at session
+ * shutdown. */
 void update_specials_menu(void *frontend);
 int from_backend(void *frontend, int is_stderr, const char *data, int len);
 #define OPTIMISE_IS_SCROLL 1

@@ -590,6 +590,29 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	    sprintf(windowid_env_var, "WINDOWID=%ld", windowid);
 	    putenv(windowid_env_var);
 	}
+	{
+	    char *e = cfg->environmt;
+	    char *var, *varend, *val, *varval;
+	    while (*e) {
+		var = e;
+		while (*e && *e != '\t') e++;
+		varend = e;
+		if (*e == '\t') e++;
+		val = e;
+		while (*e) e++;
+		e++;
+
+		varval = dupprintf("%.*s=%s", varend-var, var, val);
+		putenv(varval);
+		/*
+		 * We must not free varval, since putenv links it
+		 * into the environment _in place_. Weird, but
+		 * there we go. Memory usage will be rationalised
+		 * as soon as we exec anyway.
+		 */
+	    }
+	}
+
 	/*
 	 * SIGINT and SIGQUIT may have been set to ignored by our
 	 * parent, particularly by things like sh -c 'pterm &' and

@@ -130,6 +130,21 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
                  I(offsetof(Config,shadowboldoffset)), I(-1));
 
     /*
+     * Markus Kuhn feels, not totally unreasonably, that it's good
+     * for all applications to shift into UTF-8 mode if they notice
+     * that they've been started with a LANG setting dictating it,
+     * so that people don't have to keep remembering a separate
+     * UTF-8 option for every application they use. Therefore,
+     * here's an override option in the Translation panel.
+     */
+    s = ctrl_getset(b, "Window/Translation", "trans",
+		    "Character set translation on received data");
+    ctrl_checkbox(s, "Override with UTF-8 if locale says so", 'l',
+		  HELPCTX(translation_utf8_override),
+		  dlg_stdcheckbox_handler,
+		  I(offsetof(Config,utf8_override)));
+
+    /*
      * Unix supports a local-command proxy. This also means we must
      * adjust the text on the `Telnet command' control.
      */

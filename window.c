@@ -686,8 +686,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	SetScrollInfo(hwnd, SB_VERT, &si, FALSE);
     }
 
-    start_backend();
-
     /*
      * Prepare the mouse handler.
      */
@@ -742,7 +740,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
-    update_specials_menu(NULL);
+    start_backend();
 
     /*
      * Set up the initial input locale.

@@ -4788,6 +4788,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	int siglen, retlen, len;
 	char *q, *agentreq, *ret;
 	int try_send;
+	int num_env, env_left, env_ok;
     };
     crState(do_ssh2_authconn_state);
 
@@ -5645,6 +5646,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(ssh);
 	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
 	add234(ssh->channels, ssh->mainchan);
+	update_specials_menu(ssh->frontend);
 	logevent("Opened channel for session");
     } else
 	ssh->mainchan = NULL;
@@ -5954,6 +5956,82 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     }
 
     /*
+     * Send environment variables.
+     * 
+     * Simplest thing here is to send all the requests at once, and
+     * then wait for a whole bunch of successes or failures.
+     */
+    if (ssh->mainchan && *ssh->cfg.environmt) {
+	char *e = ssh->cfg.environmt;
+	char *var, *varend, *val;
+
+	s->num_env = 0;
+
+	while (*e) {
+	    var = e;
+	    while (*e && *e != '\t') e++;
+	    varend = e;
+	    if (*e == '\t') e++;
+	    val = e;
+	    while (*e) e++;
+	    e++;
+
+	    ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
+	    ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
+	    ssh2_pkt_addstring(ssh, "env");
+	    ssh2_pkt_addbool(ssh, 1);	       /* want reply */
+	    ssh2_pkt_addstring_start(ssh);
+	    ssh2_pkt_addstring_data(ssh, var, varend-var);
+	    ssh2_pkt_addstring(ssh, val);
+	    ssh2_pkt_send(ssh);
+
+	    s->num_env++;
+	}
+
+	logeventf(ssh, "Sent %d environment variables", s->num_env);
+
+	s->env_ok = 0;
+	s->env_left = s->num_env;
+
+	while (s->env_left > 0) {
+	    do {
+		crWaitUntilV(ispkt);
+		if (ssh->pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+		    unsigned i = ssh_pkt_getuint32(ssh);
+		    struct ssh_channel *c;
+		    c = find234(ssh->channels, &i, ssh_channelfind);
+		    if (!c)
+			continue;	       /* nonexistent channel */
+		    c->v.v2.remwindow += ssh_pkt_getuint32(ssh);
+		}
+	    } while (ssh->pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+
+	    if (ssh->pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
+		if (ssh->pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
+		    bombout(("Unexpected response to environment request:"
+			     " packet type %d", ssh->pktin.type));
+		    crStopV;
+		}
+	    } else {
+		s->env_ok++;
+	    }
+
+	    s->env_left--;
+	}
+
+	if (s->env_ok == s->num_env) {
+	    logevent("All environment variables successfully set");
+	} else if (s->env_ok == 0) {
+	    logevent("All environment variables refused");
+	    c_write_str(ssh, "Server refused to set environment variables\r\n");
+	} else {
+	    logeventf(ssh, "%d environment variables refused",
+		      s->num_env - s->env_ok);
+	    c_write_str(ssh, "Server refused to set all environment variables\r\n");
+	}
+    }
+
+    /*
      * Start a shell or a remote command. We may have to attempt
      * this twice if the config data has provided a second choice
      * of command.
@@ -6150,7 +6228,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		/* Do pre-close processing on the channel. */
 		switch (c->type) {
 		  case CHAN_MAINSESSION:
-		    break;	       /* nothing to see here, move along */
+		    ssh->mainchan = NULL;
+		    update_specials_menu(ssh->frontend);
+		    break;
 		  case CHAN_X11:
 		    if (c->u.x11.s != NULL)
 			x11_close(c->u.x11.s);
@@ -6801,23 +6881,49 @@ static void ssh_size(void *handle, int width, int height)
  */
 static const struct telnet_special *ssh_get_specials(void *handle)
 {
+    static const struct telnet_special ignore_special[] = {
+	{"IGNORE message", TS_NOP},
+    };
+    static const struct telnet_special ssh2_session_specials[] = {
+	{"", 0},
+	{"Break", TS_BRK}
+	/* XXX we should also support signals */
+    };
+    static const struct telnet_special specials_end[] = {
+	{NULL, 0}
+    };
+    static struct telnet_special ssh_specials[lenof(ignore_special) +
+					      lenof(ssh2_session_specials) +
+					      lenof(specials_end)];
     Ssh ssh = (Ssh) handle;
+    int i = 0;
+#define ADD_SPECIALS(name) \
+    do { \
+	assert((i + lenof(name)) <= lenof(ssh_specials)); \
+	memcpy(&ssh_specials[i], name, sizeof name); \
+	i += lenof(name); \
+    } while(0)
 
     if (ssh->version == 1) {
-	static const struct telnet_special ssh1_specials[] = {
-	    {"IGNORE message", TS_NOP},
-	    {NULL, 0}
-	};
-	return ssh1_specials;
+	/* Don't bother offering IGNORE if we've decided the remote
+	 * won't cope with it, since we wouldn't bother sending it if
+	 * asked anyway. */
+	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
+	    ADD_SPECIALS(ignore_special);
     } else if (ssh->version == 2) {
-	static const struct telnet_special ssh2_specials[] = {
-	    {"Break", TS_BRK},
-	    {"IGNORE message", TS_NOP},
-	    {NULL, 0}
-	};
-	return ssh2_specials;
-    } else
+	/* XXX add rekey, when implemented */
+	ADD_SPECIALS(ignore_special);
+	if (ssh->mainchan)
+	    ADD_SPECIALS(ssh2_session_specials);
+    } /* else we're not ready yet */
+
+    if (i) {
+	ADD_SPECIALS(specials_end);
+	return ssh_specials;
+    } else {
 	return NULL;
+    }
+#undef ADD_SPECIALS
 }
 
 /*

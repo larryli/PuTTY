@@ -2721,8 +2721,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
 
-    inst->direct_to_font = init_ucs(&inst->ucsdata,
-				    inst->cfg.line_codepage, font_charset,
+    inst->direct_to_font = init_ucs(&inst->ucsdata, inst->cfg.line_codepage,
+				    inst->cfg.utf8_override, font_charset,
 				    inst->cfg.vtmode);
 }
 
@@ -3201,7 +3201,6 @@ static void start_backend(struct gui_data *inst)
 	sfree(title);
     }
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
-    update_specials_menu(inst);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
 
@@ -3420,6 +3419,8 @@ int pt_main(int argc, char **argv)
 	inst->specialsitem1 = menuitem;
 	MKMENUITEM(NULL, NULL);
 	inst->specialsitem2 = menuitem;
+	gtk_widget_hide(inst->specialsitem1);
+	gtk_widget_hide(inst->specialsitem2);
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
 	MKMENUITEM("Copy All", copy_all_menuitem);
