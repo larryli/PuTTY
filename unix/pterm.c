@@ -1229,7 +1229,7 @@ void request_paste(void *frontend)
 gint idle_paste_func(gpointer data);   /* forward ref */
 
 void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
-			gpointer data)
+			guint time, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
