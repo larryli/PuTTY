@@ -234,6 +234,17 @@ enum {
 
 enum {
     /*
+     * SSH-2 key exchange algorithms
+     */
+    KEX_WARN,
+    KEX_DHGROUP1,
+    KEX_DHGROUP14,
+    KEX_DHGEX,
+    KEX_MAX
+};
+
+enum {
+    /*
      * SSH ciphers (both SSH1 and SSH2)
      */
     CIPHER_WARN,		       /* pseudo 'cipher' */
@@ -388,6 +399,7 @@ struct config_tag {
 				        * but never for loading/saving */
     int nopty;
     int compression;
+    int ssh_kexlist[KEX_MAX];
     int agentfwd;
     int change_username;	       /* allow username switching in SSH2 */
     int ssh_cipherlist[CIPHER_MAX];
@@ -514,7 +526,7 @@ struct config_tag {
     /* SSH bug compatibility modes */
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
-	sshbug_dhgex2, sshbug_pksessid2;
+	sshbug_pksessid2;
     /* Options for pterm. Should split out into platform-dependent part. */
     int stamp_utmp;
     int login_shell;
@@ -862,7 +874,7 @@ int wc_unescape(char *output, const char *wildcard);
 void logevent(void *frontend, const char *);
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint);
-void askcipher(void *frontend, char *ciphername, int cs);
+void askalg(void *frontend, const char *algtype, const char *algname);
 int askappend(void *frontend, Filename filename);
 
 /*

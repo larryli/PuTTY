@@ -124,6 +124,48 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void kexlist_handler(union control *ctrl, void *dlg,
+			    void *data, int event)
+{
+    Config *cfg = (Config *)data;
+    if (event == EVENT_REFRESH) {
+	int i;
+
+	static const struct { char *s; int k; } kexes[] = {
+	    { "Diffie-Hellman group 1",		KEX_DHGROUP1 },
+	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
+	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
+	    { "-- warn below here --",		KEX_WARN }
+	};
+
+	/* Set up the "kex preference" box. */
+	/* (kexlist assumed to contain all algorithms) */
+	dlg_update_start(ctrl, dlg);
+	dlg_listbox_clear(ctrl, dlg);
+	for (i = 0; i < KEX_MAX; i++) {
+	    int k = cfg->ssh_kexlist[i];
+	    int j;
+	    char *kstr = NULL;
+	    for (j = 0; j < (sizeof kexes) / (sizeof kexes[0]); j++) {
+		if (kexes[j].k == k) {
+		    kstr = kexes[j].s;
+		    break;
+		}
+	    }
+	    dlg_listbox_addwithid(ctrl, dlg, kstr, k);
+	}
+	dlg_update_done(ctrl, dlg);
+
+    } else if (event == EVENT_VALCHANGE) {
+	int i;
+
+	/* Update array to match the list box. */
+	for (i=0; i < KEX_MAX; i++)
+	    cfg->ssh_kexlist[i] = dlg_listbox_getid(ctrl, dlg, i);
+
+    }
+}
+
 static void printerbox_handler(union control *ctrl, void *dlg,
 			       void *data, int event)
 {
@@ -1526,6 +1568,25 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      I(offsetof(Config,ssh2_des_cbc)));
 
 	/*
+	 * The Connection/SSH/Kex panel.
+	 */
+	ctrl_settitle(b, "Connection/SSH/Kex",
+		      "Options controlling SSH key exchange");
+
+	s = ctrl_getset(b, "Connection/SSH/Kex", "main", 
+			"Key exchange algorithm options");
+	c = ctrl_draglist(s, "Algorithm selection policy", 's',
+			  HELPCTX(ssh_kexlist),
+			  kexlist_handler, P(NULL));
+	c->listbox.height = 5;
+
+#if 0
+	s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
+			"Options controlling key re-exchange");
+	/* FIXME: at least time and data size */
+#endif
+
+	/*
 	 * The Connection/SSH/Auth panel.
 	 */
 	ctrl_settitle(b, "Connection/SSH/Auth",
@@ -1659,9 +1720,6 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	ctrl_droplist(s, "Requires padding on SSH2 RSA signatures", 'p', 20,
 		      HELPCTX(ssh_bugs_rsapad2),
 		      sshbug_handler, I(offsetof(Config,sshbug_rsapad2)));
-	ctrl_droplist(s, "Chokes on Diffie-Hellman group exchange", 'd', 20,
-		      HELPCTX(ssh_bugs_dhgex2),
-		      sshbug_handler, I(offsetof(Config,sshbug_dhgex2)));
 	ctrl_droplist(s, "Misuses the session ID in PK auth", 'n', 20,
 		      HELPCTX(ssh_bugs_pksessid2),
 		      sshbug_handler, I(offsetof(Config,sshbug_pksessid2)));

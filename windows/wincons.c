@@ -147,21 +147,20 @@ void update_specials_menu(void *frontend)
 }
 
 /*
- * Ask whether the selected cipher is acceptable (since it was
+ * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
- * cs: 0 = both ways, 1 = client->server, 2 = server->client
  */
-void askcipher(void *frontend, char *ciphername, int cs)
+void askalg(void *frontend, const char *algtype, const char *algname)
 {
     HANDLE hin;
     DWORD savemode, i;
 
     static const char msg[] =
-	"The first %scipher supported by the server is\n"
+	"The first %s supported by the server is\n"
 	"%s, which is below the configured warning threshold.\n"
 	"Continue with connection? (y/n) ";
     static const char msg_batch[] =
-	"The first %scipher supported by the server is\n"
+	"The first %s supported by the server is\n"
 	"%s, which is below the configured warning threshold.\n"
 	"Connection abandoned.\n";
     static const char abandoned[] = "Connection abandoned.\n";
@@ -169,17 +168,11 @@ void askcipher(void *frontend, char *ciphername, int cs)
     char line[32];
 
     if (console_batch_mode) {
-	fprintf(stderr, msg_batch,
-		(cs == 0) ? "" :
-		(cs == 1) ? "client-to-server " : "server-to-client ",
-		ciphername);
+	fprintf(stderr, msg_batch, algtype, algname);
 	cleanup_exit(1);
     }
 
-    fprintf(stderr, msg,
-	    (cs == 0) ? "" :
-	    (cs == 1) ? "client-to-server " : "server-to-client ",
-	    ciphername);
+    fprintf(stderr, msg, algtype, algname);
     fflush(stderr);
 
     hin = GetStdHandle(STD_INPUT_HANDLE);

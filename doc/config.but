@@ -2098,6 +2098,77 @@ these servers if you enable the \q{Enable legacy use of single-DES in
 SSH 2} option; by default this is disabled and PuTTY will stick to
 recommended ciphers.
 
+\H{config-ssh-kex} The Kex panel
+
+\# FIXME: This whole section is draft. Feel free to revise.
+
+The Kex panel (short for \q{key exchange}) allows you to configure
+options related to SSH-2 key exchange.
+
+Key exchange occurs at the start of an SSH connection (and
+occasionally thereafter); it establishes a shared secret that is used
+as the basis for all of SSH's security features. It is therefore very
+important for the security of the connection that the key exchange is
+secure.
+
+Key exchange is a cryptographically intensive process; if either the
+client or the server is a relatively slow machine, the slower methods
+may take several tens of seconds to complete.
+
+If connection startup is too slow, or the connection hangs
+periodically, you may want to try changing these settings.
+
+If you don't understand what any of this means, it's safe to leave
+these settings alone.
+
+This entire panel is only relevant to SSH protocol version 2; none of
+these settings affect SSH-1 at all.
+
+\S{config-ssh-kex-order} Key exchange algorithm selection
+
+\cfg{winhelp-topic}{ssh.kex.order}
+
+PuTTY supports a variety of SSH-2 key exchange methods, and allows you
+to choose which one you prefer to use; configuration is similar to
+cipher selection (see \k{config-ssh-encryption}).
+
+PuTTY currently supports the following varieties of Diffie-Hellman key
+exchange:
+
+\b \q{Group 14}: a well-known 2048-bit group.
+
+\b \q{Group 1}: a well-known 1024-bit group. This is less secure
+\#{FIXME better words} than group 14, but may be faster with slow
+client or server machines, and may be the only method supported by
+older server software.
+
+\b \q{Group exchange}: with this method, instead of using a fixed
+group, PuTTY requests that the server suggest a group to use for key
+exchange; the server can avoid groups known to be weak, and possibly
+invent new ones over time, without any changes required to PuTTY's
+configuration. We recommend use of this method, if possible.
+
+If the first algorithm PuTTY finds is below the \q{warn below here}
+line, you will see a warning box when you make the connection, similar
+to that for cipher selection (see \k{config-ssh-encryption}).
+
+\# [Repeat key exchange bumph when config is added:] If the session
+key negotiated at connection startup is used too much or for too long,
+it may become feasible to mount attacks against the SSH connection.
+Therefore, the SSH protocol specifies that a new key exchange should
+take place every so often.
+
+\# While this renegotiation is taking place, no data can pass through
+the SSH connection, so it may appear to \q{freeze}. (The occurrence of
+repeat key exchange is noted in the Event Log; see
+\k{using-eventlog}.) Usually the same algorithm is used as at the
+start of the connection, with a similar overhead.
+
+\# [When options are added to frob how often this happens, we should
+hardcode the values recommended by the drafts -- 1 hour, 1GB -- in
+this documentation, in case PuTTY's defaults are obscured by Default
+Settings etc. Assuming we think they're good advice, that is.]
+
 \H{config-ssh-auth} The Auth panel
 
 The Auth panel allows you to configure authentication options for
@@ -2452,23 +2523,6 @@ OpenSSH expects. If this bug is enabled when talking to a correct
 server, it is likely that no damage will be done, since correct
 servers usually still accept padded signatures because they're used
 to talking to OpenSSH.
-
-This is an SSH2-specific bug.
-
-\S{config-ssh-bug-dhgex} \q{Chokes on Diffie-Hellman group exchange}
-
-\cfg{winhelp-topic}{ssh.bugs.dhgex2}
-
-We have anecdotal evidence that some SSH servers claim to be able to
-perform Diffie-Hellman group exchange, but fail to actually do so
-when PuTTY tries to. If your SSH2 sessions spontaneously close
-immediately after opening the PuTTY window, it might be worth
-enabling the workaround for this bug to see if it helps.
-
-We have no hard evidence that any specific version of specific
-server software reliably demonstrates this bug. Therefore, PuTTY
-will never \e{assume} a server has this bug; if you want the
-workaround, you need to enable it manually.
 
 This is an SSH2-specific bug.
 

@@ -777,24 +777,21 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 }
 
 /*
- * Ask whether the selected cipher is acceptable (since it was
+ * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
- * cs: 0 = both ways, 1 = client->server, 2 = server->client
  */
-void askcipher(void *frontend, char *ciphername, int cs)
+void askalg(void *frontend, const char *algtype, const char *algname)
 {
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
-	"The first %.35scipher supported by the server\n"
+	"The first %s supported by the server\n"
 	"is %.64s, which is below the configured\n"
 	"warning threshold.\n"
 	"Do you want to continue with this connection?\n";
     char *message, *title;
     int mbret;
 
-    message = dupprintf(msg, ((cs == 0) ? "" :
-			      (cs == 1) ? "client-to-server " :
-			      "server-to-client "), ciphername);
+    message = dupprintf(msg, algtype, algname);
     title = dupprintf(mbtitle, appname);
     mbret = MessageBox(NULL, message, title,
 		       MB_ICONWARNING | MB_YESNO);

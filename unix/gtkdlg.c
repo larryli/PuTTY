@@ -2351,22 +2351,19 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 }
 
 /*
- * Ask whether the selected cipher is acceptable (since it was
+ * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
- * cs: 0 = both ways, 1 = client->server, 2 = server->client
  */
-void askcipher(void *frontend, char *ciphername, int cs)
+void askalg(void *frontend, const char *algtype, const char *algname)
 {
     static const char msg[] =
-	"The first %scipher supported by the server is "
+	"The first %s supported by the server is "
 	"%s, which is below the configured warning threshold.\n"
 	"Continue with connection?";
     char *text;
     int ret;
 
-    text = dupprintf(msg, (cs == 0) ? "" :
-                     (cs == 1) ? "client-to-server " : "server-to-client ",
-                     ciphername);
+    text = dupprintf(msg, algtype, algname);
     ret = messagebox(GTK_WIDGET(get_window(frontend)),
 		     "PuTTY Security Alert", text,
 		     string_width("Continue with connection?"),

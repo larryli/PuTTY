@@ -162,7 +162,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_CHOKES_ON_RSA	        	  8
 #define BUG_SSH2_RSA_PADDING	        	 16
 #define BUG_SSH2_DERIVEKEY                       32
-#define BUG_SSH2_DH_GEX                          64
+/* 64 was BUG_SSH2_DH_GEX, now spare */
 #define BUG_SSH2_PK_SESSIONID                   128
 
 #define translate(x) if (type == x) return #x
@@ -359,12 +359,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 #define SSH1_BUFFER_LIMIT 32768
 #define SSH_MAX_BACKLOG 32768
 #define OUR_V2_WINSIZE 16384
-
-const static struct ssh_kex *kex_algs[] = {
-    &ssh_diffiehellman_gex,
-    &ssh_diffiehellman_group14,
-    &ssh_diffiehellman_group1,
-};
 
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
@@ -2058,14 +2052,6 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	ssh->remote_bugs |= BUG_SSH2_PK_SESSIONID;
 	logevent("We believe remote version has SSH2 public-key-session-ID bug");
     }
-
-    if (ssh->cfg.sshbug_dhgex2 == FORCE_ON) {
-	/*
-	 * User specified the SSH2 DH GEX bug.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_DH_GEX;
-	logevent("We believe remote version has SSH2 DH group exchange bug");
-    }
 }
 
 /*
@@ -2761,7 +2747,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 
 	/* Warn about chosen cipher if necessary. */
 	if (warn)
-	    askcipher(ssh->frontend, cipher_string, 0);
+	    askalg(ssh->frontend, "cipher", cipher_string);
     }
 
     switch (s->cipher_type) {
@@ -4321,6 +4307,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	int hostkeylen, siglen;
 	void *hkey;		       /* actual host key */
 	unsigned char exchange_hash[20];
+	int n_preferred_kex;
+	const struct ssh_kex *preferred_kex[KEX_MAX];
 	int n_preferred_ciphers;
 	const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
 	const struct ssh_compress *preferred_comp;
@@ -4336,6 +4324,37 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     s->cscomp_tobe = s->sccomp_tobe = NULL;
 
     s->first_kex = 1;
+
+    {
+	int i;
+	/*
+	 * Set up the preferred key exchange. (NULL => warn below here)
+	 */
+	s->n_preferred_kex = 0;
+	for (i = 0; i < KEX_MAX; i++) {
+	    switch (ssh->cfg.ssh_kexlist[i]) {
+	      case KEX_DHGEX:
+		s->preferred_kex[s->n_preferred_kex++] =
+		    &ssh_diffiehellman_gex;
+		break;
+	      case KEX_DHGROUP14:
+		s->preferred_kex[s->n_preferred_kex++] =
+		    &ssh_diffiehellman_group14;
+		break;
+	      case KEX_DHGROUP1:
+		s->preferred_kex[s->n_preferred_kex++] =
+		    &ssh_diffiehellman_group1;
+		break;
+	      case CIPHER_WARN:
+		/* Flag for later. Don't bother if it's the last in
+		 * the list. */
+		if (i < KEX_MAX - 1) {
+		    s->preferred_kex[s->n_preferred_kex++] = NULL;
+		}
+		break;
+	    }
+	}
+    }
 
     {
 	int i;
@@ -4388,7 +4407,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 
   begin_key_exchange:
     {
-	int i, j, cipherstr_started;
+	int i, j, commalist_started;
 
 	/*
 	 * Enable queueing of outgoing auth- or connection-layer
@@ -4409,13 +4428,14 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	    ssh2_pkt_addbyte(s->pktout, (unsigned char) random_byte());
 	/* List key exchange algorithms. */
 	ssh2_pkt_addstring_start(s->pktout);
-	for (i = 0; i < lenof(kex_algs); i++) {
-	    if (kex_algs[i] == &ssh_diffiehellman_gex &&
-		(ssh->remote_bugs & BUG_SSH2_DH_GEX))
-		continue;
-	    ssh2_pkt_addstring_str(s->pktout, kex_algs[i]->name);
-	    if (i < lenof(kex_algs) - 1)
+	commalist_started = 0;
+	for (i = 0; i < s->n_preferred_kex; i++) {
+	    const struct ssh_kex *k = s->preferred_kex[i];
+	    if (!k) continue;	       /* warning flag */
+	    if (commalist_started)
 		ssh2_pkt_addstring_str(s->pktout, ",");
+	    ssh2_pkt_addstring_str(s->pktout, s->preferred_kex[i]->name);
+	    commalist_started = 1;
 	}
 	/* List server host key algorithms. */
 	ssh2_pkt_addstring_start(s->pktout);
@@ -4426,28 +4446,28 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	}
 	/* List client->server encryption algorithms. */
 	ssh2_pkt_addstring_start(s->pktout);
-	cipherstr_started = 0;
+	commalist_started = 0;
 	for (i = 0; i < s->n_preferred_ciphers; i++) {
 	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
 	    if (!c) continue;	       /* warning flag */
 	    for (j = 0; j < c->nciphers; j++) {
-		if (cipherstr_started)
+		if (commalist_started)
 		    ssh2_pkt_addstring_str(s->pktout, ",");
 		ssh2_pkt_addstring_str(s->pktout, c->list[j]->name);
-		cipherstr_started = 1;
+		commalist_started = 1;
 	    }
 	}
 	/* List server->client encryption algorithms. */
 	ssh2_pkt_addstring_start(s->pktout);
-	cipherstr_started = 0;
+	commalist_started = 0;
 	for (i = 0; i < s->n_preferred_ciphers; i++) {
 	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
 	    if (!c) continue; /* warning flag */
 	    for (j = 0; j < c->nciphers; j++) {
-		if (cipherstr_started)
+		if (commalist_started)
 		    ssh2_pkt_addstring_str(s->pktout, ",");
 		ssh2_pkt_addstring_str(s->pktout, c->list[j]->name);
-		cipherstr_started = 1;
+		commalist_started = 1;
 	    }
 	}
 	/* List client->server MAC algorithms. */
@@ -4528,14 +4548,25 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	s->sccomp_tobe = NULL;
 	pktin->savedpos += 16;	        /* skip garbage cookie */
 	ssh_pkt_getstring(pktin, &str, &len);    /* key exchange algorithms */
-	for (i = 0; i < lenof(kex_algs); i++) {
-	    if (kex_algs[i] == &ssh_diffiehellman_gex &&
-		(ssh->remote_bugs & BUG_SSH2_DH_GEX))
-		continue;
-	    if (in_commasep_string(kex_algs[i]->name, str, len)) {
-		ssh->kex = kex_algs[i];
+	s->warn = 0;
+	for (i = 0; i < s->n_preferred_kex; i++) {
+	    const struct ssh_kex *k = s->preferred_kex[i];
+	    if (!k) {
+		s->warn = 1;
+	    } else if (in_commasep_string(k->name, str, len)) {
+		ssh->kex = k;
+	    }
+	    if (ssh->kex) {
+		if (s->warn)
+		    askalg(ssh->frontend, "key-exchange algorithm",
+			   ssh->kex->name);
 		break;
 	    }
+	}
+	if (!ssh->kex) {
+	    bombout(("Couldn't agree a key exchange algorithm (available: %s)",
+		     str ? str : "(null)"));
+	    crStop(0);
 	}
 	ssh_pkt_getstring(pktin, &str, &len);    /* host key algorithms */
 	for (i = 0; i < lenof(hostkey_algs); i++) {
@@ -4560,7 +4591,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	    }
 	    if (s->cscipher_tobe) {
 		if (s->warn)
-		    askcipher(ssh->frontend, s->cscipher_tobe->name, 1);
+		    askalg(ssh->frontend, "client-to-server cipher",
+			   s->cscipher_tobe->name);
 		break;
 	    }
 	}
@@ -4586,7 +4618,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	    }
 	    if (s->sccipher_tobe) {
 		if (s->warn)
-		    askcipher(ssh->frontend, s->sccipher_tobe->name, 2);
+		    askalg(ssh->frontend, "server-to-client cipher",
+			   s->sccipher_tobe->name);
 		break;
 	    }
 	}

@@ -12,12 +12,20 @@
  */
 struct keyval { char *s; int v; };
 
+/* The cipher order given here is the default order. */
 static const struct keyval ciphernames[] = {
     { "aes",	    CIPHER_AES },
     { "blowfish",   CIPHER_BLOWFISH },
     { "3des",	    CIPHER_3DES },
     { "WARN",	    CIPHER_WARN },
     { "des",	    CIPHER_DES }
+};
+
+static const struct keyval kexnames[] = {
+    { "dh-gex-sha1",	    KEX_DHGEX },
+    { "dh-group14-sha1",    KEX_DHGROUP14 },
+    { "dh-group1-sha1",	    KEX_DHGROUP1 },
+    { "WARN",		    KEX_WARN }
 };
 
 static void gpps(void *handle, const char *name, const char *def,
@@ -227,6 +235,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "ChangeUsername", cfg->change_username);
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX,
 	   cfg->ssh_cipherlist);
+    wprefs(sesskey, "KEX", kexnames, KEX_MAX, cfg->ssh_kexlist);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshNoShell", cfg->ssh_no_shell);
@@ -358,7 +367,6 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "BugHMAC2", 2-cfg->sshbug_hmac2);
     write_setting_i(sesskey, "BugDeriveKey2", 2-cfg->sshbug_derivekey2);
     write_setting_i(sesskey, "BugRSAPad2", 2-cfg->sshbug_rsapad2);
-    write_setting_i(sesskey, "BugDHGEx2", 2-cfg->sshbug_dhgex2);
     write_setting_i(sesskey, "BugPKSessID2", 2-cfg->sshbug_pksessid2);
     write_setting_i(sesskey, "StampUtmp", cfg->stamp_utmp);
     write_setting_i(sesskey, "LoginShell", cfg->login_shell);
@@ -492,6 +500,20 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "ChangeUsername", 0, &cfg->change_username);
     gprefs(sesskey, "Cipher", "\0",
 	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
+    {
+	/* Backward-compatibility: we used to have an option to
+	 * disable gex under the "bugs" panel after one report of
+	 * a server which offered it then choked, but we never got
+	 * a server version string or any other reports. */
+	char *default_kexes;
+	gppi(sesskey, "BugDHGEx2", 0, &i); i = 2-i;
+	if (i == FORCE_ON)
+	    default_kexes = "dh-group14-sha1,dh-group1-sha1,WARN,dh-gex-sha1";
+	else
+	    default_kexes = "dh-gex-sha1,dh-group14-sha1,dh-group1-sha1,WARN";
+	gprefs(sesskey, "KEX", default_kexes,
+	       kexnames, KEX_MAX, cfg->ssh_kexlist);
+    }
     gppi(sesskey, "SshProt", 2, &cfg->sshprot);
     gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
@@ -667,7 +689,6 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     }
     gppi(sesskey, "BugDeriveKey2", 0, &i); cfg->sshbug_derivekey2 = 2-i;
     gppi(sesskey, "BugRSAPad2", 0, &i); cfg->sshbug_rsapad2 = 2-i;
-    gppi(sesskey, "BugDHGEx2", 0, &i); cfg->sshbug_dhgex2 = 2-i;
     gppi(sesskey, "BugPKSessID2", 0, &i); cfg->sshbug_pksessid2 = 2-i;
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);

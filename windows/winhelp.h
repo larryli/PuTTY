@@ -86,6 +86,7 @@
 #define WINHELP_CTX_ssh_protocol "ssh.protocol"
 #define WINHELP_CTX_ssh_command "ssh.command"
 #define WINHELP_CTX_ssh_compress "ssh.compress"
+#define WINHELP_CTX_ssh_kexlist "ssh.kex.order"
 #define WINHELP_CTX_ssh_auth_privkey "ssh.auth.privkey"
 #define WINHELP_CTX_ssh_auth_agentfwd "ssh.auth.agentfwd"
 #define WINHELP_CTX_ssh_auth_changeuser "ssh.auth.changeuser"
@@ -116,5 +117,4 @@
 #define WINHELP_CTX_ssh_bugs_hmac2 "ssh.bugs.hmac2"
 #define WINHELP_CTX_ssh_bugs_derivekey2 "ssh.bugs.derivekey2"
 #define WINHELP_CTX_ssh_bugs_rsapad2 "ssh.bugs.rsapad2"
-#define WINHELP_CTX_ssh_bugs_dhgex2 "ssh.bugs.dhgex2"
 #define WINHELP_CTX_ssh_bugs_pksessid2 "ssh.bugs.pksessid2"

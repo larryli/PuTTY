@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.59 2003/05/10 12:27:38 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -704,7 +704,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     }
 }
 
-void askcipher(void *frontend, char *ciphername, int cs)
+void askalg(void *frontend, const char *algtype, const char *algname)
 {
 
 }
