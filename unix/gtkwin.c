@@ -95,6 +95,7 @@ struct gui_data {
     char *progname, **gtkargvstart;
     int ngtkargs;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
+    int reconfiguring;
 };
 
 struct draw_ctx {
@@ -2878,6 +2879,11 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 
     assert(lenof(ww) == NCFGCOLOURS);
 
+    if (inst->reconfiguring)
+      return;
+    else
+      inst->reconfiguring = TRUE;
+
     cfg2 = inst->cfg;                  /* structure copy */
 
     if (do_config_box(title, &cfg2, 1,
@@ -2995,6 +3001,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	gtk_widget_queue_draw(inst->area);
     }
     sfree(title);
+    inst->reconfiguring = FALSE;
 }
 
 void fork_and_exec_self(struct gui_data *inst, int fd_to_close, ...)
