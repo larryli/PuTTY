@@ -1089,6 +1089,14 @@ int scp_sink_setup(char *source, int preserve, int recursive)
 		 * slash.
 		 */
 		lastpart[-1] = '\0';
+	    } else if (!*dupsource) {
+		/*
+		 * The remains of dupsource are _empty_ - the whole
+		 * pathname was a wildcard. Hence we need to
+		 * replace it with ".".
+		 */
+		sfree(dupsource);
+		dupsource = dupstr(".");
 	    }
 
 	    /*
@@ -1165,6 +1173,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		 * Simple case: we are only dealing with one file.
 		 */
 		fname = scp_sftp_remotepath;
+printf("oi :%s:\n", fname);
 		must_free_fname = 0;
 		scp_sftp_donethistarget = 1;
 	    } else {
@@ -1187,10 +1196,12 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		     !wc_match(head->wildcard,
 			       head->names[head->namepos].filename))))
 		head->namepos++;       /* skip . and .. */
+printf("ooh\n");
 	    if (head->namepos < head->namelen) {
 		fname = dupcat(head->dirpath, "/",
 			       head->names[head->namepos++].filename,
 			       NULL);
+printf("got :%s:\n", fname);
 		must_free_fname = 1;
 	    } else {
 		/*
@@ -1213,7 +1224,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		return 0;
 	    }
 	}
-
+printf("filename :%s:\n", fname);
 	/*
 	 * Now we have a filename. Stat it, and see if it's a file
 	 * or a directory.
