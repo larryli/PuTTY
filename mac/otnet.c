@@ -5,6 +5,8 @@
 #include <OpenTransport.h>
 #include <OpenTptInternet.h>
 
+#include <string.h>
+
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
@@ -262,7 +264,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
 
     /* FIXME: bolt the port onto the end */
 
-    OTMemzero(&connectCall, sizeof(TCall));
+    memset(&connectCall, 0, sizeof(TCall));
     connectCall.addr.buf = (UInt8 *) &(addr->address);
     connectCall.addr.len = sizeof(DNSAddress);
 

@@ -647,7 +647,6 @@ Libs_PPC =	{Libs_CFM} \xb6
 		"{SharedLibraries}OpenTransportLib" \xb6
 			-weaklib OTClientLib \xb6
 			-weaklib OTClientUtilLib \xb6
-			-weaklib OTUtilityLib \xb6
 		"{SharedLibraries}OpenTptInternetLib" \xb6
 			-weaklib OTInetClientLib \xb6
 		"{PPCLibraries}StdCRuntime.o" \xb6
