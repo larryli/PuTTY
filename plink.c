@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
                 WPARAM wp;
                 socket = sklist[i];
                 wp = (WPARAM)socket;
-		if (!WSAEnumNetworkEvents(socket, netevent, &things)) {
+		if (!WSAEnumNetworkEvents(socket, NULL, &things)) {
                     noise_ultralight(socket);
                     noise_ultralight(things.lNetworkEvents);
 		    if (things.lNetworkEvents & FD_READ)
