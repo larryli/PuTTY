@@ -8,6 +8,8 @@
 
 #include <stddef.h>
 
+#include "putty.h"
+
 struct interval {
   unsigned short first;
   unsigned short last;

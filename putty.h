@@ -600,6 +600,12 @@ char *cp_name(int codepage);
 void get_unitab(int codepage, wchar_t * unitab, int ftype);
 
 /*
+ * Exports from wcwidth.c
+ */
+int wcwidth(wchar_t ucs);
+int wcswidth(const wchar_t *pwcs, size_t n);
+
+/*
  * Exports from mscrypto.c
  */
 #ifdef MSCRYPTOAPI

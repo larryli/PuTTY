@@ -1542,7 +1542,6 @@ void term_out(Terminal *term)
 		    term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		{
-		    extern int wcwidth(wchar_t ucs);
 		    int width = 0;
 		    if (DIRECT_CHAR(c))
 			width = 1;
