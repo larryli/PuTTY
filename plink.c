@@ -177,7 +177,7 @@ static int get_password(const char *prompt, char *str, int maxlen)
     return 1;
 }
 
-static int WINAPI stdin_read_thread(void *param) {
+static DWORD WINAPI stdin_read_thread(void *param) {
     struct input_data *idata = (struct input_data *)param;
     HANDLE inhandle;
 

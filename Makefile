@@ -88,7 +88,7 @@ LRESRC = plink.$(RES)
 # pageant
 ##-- console-apps
 # pscp
-# plink
+# plink ws2_32
 ##--
 
 LIBS1 = advapi32.lib user32.lib gdi32.lib

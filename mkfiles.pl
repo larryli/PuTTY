@@ -29,12 +29,18 @@ close IN;
 
 foreach $i (split '\n',$store{'gui-apps'}) {
   $i =~ s/^# //;
+  $speciallibs = [split ' ', $i];
+  $i = shift @$speciallibs; # take off project name
   $gui{$i} = 1;
+  $libs{$i} = $speciallibs;
 }
 
 foreach $i (split '\n',$store{'console-apps'}) {
   $i =~ s/^# //;
-  $gui{$i} = -0;
+  $speciallibs = [split ' ', $i];
+  $i = shift @$speciallibs; # take off project name
+  $gui{$i} = 0;
+  $libs{$i} = $speciallibs;
 }
 
 sub project {
@@ -91,7 +97,9 @@ print
 foreach $p (@projects) {
   print $p, ".exe: ", &project($p), "\n";
   my $mw = $gui{$p} ? " -mwindows" : "";
-  print "\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " . &project($p), " \$(LIBS)\n\n";
+  $libstr = "";
+  foreach $lib (@{$libs{$p}}) { $libstr .= " -l$lib"; }
+  print "\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " . &project($p), " \$(LIBS)$libstr\n\n";
 }
 print $store{"dependencies"};
 print
@@ -117,9 +125,6 @@ print
 "# If you rename this file to `Makefile', you should change this line,\n".
 "# so that the .rsp files still depend on the correct makefile.\n".
 "MAKEFILE = Makefile.bor\n".
-"\n".
-"# Stop windows.h including winsock2.h which would conflict with winsock 1\n".
-"CFLAGS = -DWIN32_LEAN_AND_MEAN\n".
 "\n".
 "# Get include directory for resource compiler\n".
 "!if !\$d(BCB)\n".
@@ -155,7 +160,10 @@ foreach $p (@projects) {
     print "\techo \$($objlines[$i])$plus >> $p.rsp\n";
   }
   print "\techo $p.exe >> $p.rsp\n";
-  print "\techo nul,cw32 import32, >> $p.rsp\n";
+  @libs = @{$libs{$p}};
+  unshift @libs, "cw32", "import32";
+  $libstr = join ' ', @libs;
+  print "\techo nul,$libstr, >> $p.rsp\n";
   print "\techo " . (join " ", &project("resources.$p")) . " >> $p.rsp\n";
   print "\n";
 }
