@@ -596,6 +596,11 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		p += strlen(p) + 1;
 	    }
 	    dlg_update_done(ctrl, dlg);
+	} else if (ctrl == pfd->direction) {
+	    /*
+	     * Default is Local.
+	     */
+	    dlg_radiobutton_set(ctrl, dlg, 0);
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
