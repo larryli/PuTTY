@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.8 1999/02/28 17:05:11 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.9 1999/03/01 22:26:50 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -58,8 +58,12 @@ struct mac_session {
 static void mac_initfont(struct mac_session *);
 static void mac_initpalette(struct mac_session *);
 static void mac_adjustsize(struct mac_session *);
+static pascal void mac_scrolltracker(ControlHandle, short);
 
-/* Temporary hack till I get the terminal emulator supporting multiple sessions */
+/*
+ * Temporary hack till I get the terminal emulator supporting multiple
+ * sessions
+ */
 
 static struct mac_session *onlysession;
 
@@ -110,7 +114,7 @@ void mac_newsession(void) {
     SetWRefCon(s->window, (long)s);
     s->scrollbar = GetNewControl(cVScroll, s->window);
     term_init();
-    term_size(24, 80, 100);
+    term_size(cfg.height, cfg.width, cfg.savelines);
     mac_initfont(s);
     mac_initpalette(s);
     /* Set to FALSE to not get palette updates in the background. */
@@ -179,6 +183,53 @@ static void mac_updatewinbg(struct mac_session *s) {
     ct.ctTable[0].value = wContentColor;
     ct.ctTable[0].rgb = (*s->palette)->pmInfo[16].ciRGB;
     SetWinColor(s->window, cth);
+}
+
+void mac_clickterm(WindowPtr window, EventRecord *event) {
+    struct mac_session *s;
+    Point mouse;
+    ControlHandle control;
+    int part;
+
+    s = (struct mac_session *)GetWRefCon(window);
+    SetPort(window);
+    mouse = event->where;
+    GlobalToLocal(&mouse);
+    part = FindControl(mouse, window, &control);
+    if (control == s->scrollbar) {
+	switch (part) {
+	  case kControlIndicatorPart:
+	    if (TrackControl(control, mouse, NULL) == kControlIndicatorPart)
+		term_scroll(+1, GetControlValue(control));
+	    break;
+	  case kControlUpButtonPart:
+	  case kControlDownButtonPart:
+	  case kControlPageUpPart:
+	  case kControlPageDownPart:
+	    TrackControl(control, mouse, mac_scrolltracker);
+	    break;
+	}
+    }
+}
+
+static pascal void mac_scrolltracker(ControlHandle control, short part) {
+    struct mac_session *s;
+
+    s = (struct mac_session *)GetWRefCon((*control)->contrlOwner);
+    switch (part) {
+      case kControlUpButtonPart:
+	term_scroll(0, -1);
+	break;
+      case kControlDownButtonPart:
+	term_scroll(0, +1);
+	break;
+      case kControlPageUpPart:
+	term_scroll(0, -(rows - 1));
+	break;
+      case kControlPageDownPart:
+	term_scroll(0, +(rows - 1));
+	break;
+    }
 }
 
 void mac_activateterm(WindowPtr window, Boolean active) {
@@ -273,8 +324,6 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
 
 /*
  * Call from the terminal emulator to get its graphics context.
- * I feel this should disappear entirely (and do_text should take
- * a Session as an argument).  Simon may disagree.
  */
 struct mac_session *get_ctx(void) {
 
@@ -360,6 +409,8 @@ void palette_set(int n, int r, int g, int b) {
 	16, 17, 18, 20, 22
     };
     
+    if (mac_gestalts.qdvers == gestaltOriginalQD)
+      return;
     col.red   = r * 0x0101;
     col.green = g * 0x0101;
     col.blue  = b * 0x0101;
@@ -380,4 +431,30 @@ void palette_reset(void) {
     CopyPalette(cfg.colours, s->palette, 0, 0, (*cfg.colours)->pmEntries);
     ActivatePalette(s->window);
     /* Palette Manager will generate update events as required. */
+}
+
+/*
+ * Move `lines' lines from position `from' to position `to' in the
+ * window.
+ * Note that this is currently broken if "from" and "to" are more
+ * than "lines" lines apart.
+ */
+void optimised_move(int to, int from, int lines) {
+    Rect r;
+    RgnHandle update;
+    struct mac_session *s = onlysession;
+    int min, max, d;
+
+    SetPort(s->window);
+
+    min = (to < from ? to : from);
+    max = to + from - min;
+    d = max - min;
+
+    update = NewRgn();
+    r.left = 0; r.right = cols * font_width;
+    r.top = min * font_height; r.bottom = (max+lines) * font_height;
+    ScrollRect(&r, 0, (to - from) * font_height, update);
+    InvalRgn(update); /* XXX: necessary?  probably harmless anyway */
+    DisposeRgn(update);
 }
