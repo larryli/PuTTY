@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.12 2001/11/25 19:22:47 simon Exp $
+\versionid $Id: faq.but,v 1.13 2001/12/04 19:12:04 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -24,7 +24,7 @@ development snapshots, in which case testing will be very welcome.
 page}, and see if you can find the feature there. If it's on there,
 it probably \e{hasn't} been implemented.
 
-\S{faq-ssh2}{question} Does PuTTY support SSH v2?
+\S{faq-ssh2}{Question} Does PuTTY support SSH v2?
 
 Yes. SSH v2 support has been available in PuTTY since version 0.50.
 However, currently the \e{default} SSH protocol is v1; to select SSH
@@ -34,7 +34,7 @@ v2 if your server supports both, go to the SSH panel and change the
 Public key authentication (both RSA and DSA) in SSH v2 has been
 added since version 0.51.
 
-\S{faq-ssh2-keyfmt}{question} Does PuTTY support reading OpenSSH or
+\S{faq-ssh2-keyfmt}{Question} Does PuTTY support reading OpenSSH or
 \cw{ssh.com} SSHv2 private key files?
 
 Not at present. OpenSSH and \cw{ssh.com} have totally different
@@ -42,11 +42,11 @@ formats for private key files, and neither one is particularly
 pleasant, so PuTTY has its own. We do plan to write a converter at
 some stage.
 
-\S{faq-ssh1}{question} Does PuTTY support SSH v1?
+\S{faq-ssh1}{Question} Does PuTTY support SSH v1?
 
 Yes. SSH 1 support has always been available in PuTTY.
 
-\S{faq-localecho}{question} Does PuTTY support local echo?
+\S{faq-localecho}{Question} Does PuTTY support local echo?
 
 Yes.
 
@@ -68,18 +68,18 @@ problem with PuTTY's default choice, you can force each option to be
 enabled or disabled as you choose. The controls are in the Terminal
 panel, in the section marked \q{Line discipline options}.
 
-\S{faq-disksettings}{question} Does PuTTY support storing its
+\S{faq-disksettings}{Question} Does PuTTY support storing its
 settings in a disk file?
 
 Not at present, although \k{config-file} in the documentation gives
 a method of achieving the same effect.
 
-\S{faq-fullscreen}{question} Does PuTTY support full-screen mode,
+\S{faq-fullscreen}{Question} Does PuTTY support full-screen mode,
 like a DOS box?
 
 Not in the 0.51 release, but it has been added since then.
 
-\S{faq-password}{question} Does PuTTY have the ability to remember
+\S{faq-password}{Question} Does PuTTY have the ability to remember
 my password so I don't have to type it every time?
 
 No, it doesn't.
@@ -103,7 +103,7 @@ authentication, which is more flexible and more secure. See
 \k{pubkey} in the documentation for a full discussion of public key
 authentication.
 
-\S{faq-hostkeys}{question} Is there an option to turn off the
+\S{faq-hostkeys}{Question} Is there an option to turn off the
 annoying host key prompts?
 
 No, there isn't. And there won't be. Even if you write it yourself
@@ -138,7 +138,7 @@ of host key checking: the right key will be accepted and the wrong
 ones will not. Adding an option to turn host key checking off
 completely is the wrong solution and we will not do it.
 
-\S{faq-server}{question} Will you write an SSH server for the PuTTY
+\S{faq-server}{Question} Will you write an SSH server for the PuTTY
 suite, to go with the client?
 
 No. The only reason we might want to would be if we could easily
@@ -173,7 +173,7 @@ under X11 or perhaps other windowing systems, whereas Telnet Passive
 Mode is universal and shouldn't need to be specified once for each
 platform.
 
-\S{faq-wince}{question} Will there be a port to Windows CE?
+\S{faq-wince}{Question} Will there be a port to Windows CE?
 
 Probably not in the particularly near future. Despite sharing large
 parts of the Windows API, in practice WinCE doesn't appear to be
@@ -183,14 +183,14 @@ system.
 However, PuTTY on portable devices would clearly be a useful thing,
 so in the long term I hope there will be a WinCE port.
 
-\S{faq-mac}{question} Will there be a port to the Mac?
+\S{faq-mac}{Question} Will there be a port to the Mac?
 
 A Mac port was started once and is half-finished, but development
 has been static for some time and the main PuTTY code has moved on,
 so it's not clear how quickly development would resume even if
 developer effort were available.
 
-\S{faq-unix}{question} Will there be a port to Unix?
+\S{faq-unix}{Question} Will there be a port to Unix?
 
 I hope so, if only so that I can have an \cw{xterm}-like program
 that supports exactly the same terminal emulation as PuTTY. If and
@@ -198,7 +198,7 @@ when we do do a Unix port, it will have a local-terminal back end so
 it can be used like an \cw{xterm}, rather than only being usable as
 a network utility.
 
-\S{faq-epoc}{question} Will there be a port to EPOC?
+\S{faq-epoc}{Question} Will there be a port to EPOC?
 
 I hope so, but given that ports aren't really progressing very fast
 even on systems the developers \e{do} already know how to program
@@ -207,7 +207,7 @@ a new system and doing the port for that.
 
 \H{faq-embedding} Embedding PuTTY in other programs
 
-\S{faq-dll}{question} Is the SSH or Telnet code available as a DLL?
+\S{faq-dll}{Question} Is the SSH or Telnet code available as a DLL?
 
 No, it isn't. It would take a reasonable amount of rewriting for
 this to be possible, and since the PuTTY project itself doesn't
@@ -217,7 +217,7 @@ has taken the time to do it.
 Most of the code cleanup work would be a good thing to happen in
 general, so if anyone feels like helping, we wouldn't say no.
 
-\S{faq-vb}{question} Is the SSH or Telnet code available as a Visual
+\S{faq-vb}{Question} Is the SSH or Telnet code available as a Visual
 Basic component?
 
 No, it isn't. None of the PuTTY team uses Visual Basic, and none of
@@ -230,7 +230,7 @@ If someone offers to do some of this work for us, we might consider
 it, but unless that happens I can't see VB integration being
 anywhere other than the very bottom of our priority list.
 
-\S{faq-ipc}{question} How can I use PuTTY to make an SSH connection
+\S{faq-ipc}{Question} How can I use PuTTY to make an SSH connection
 from within another program?
 
 Probably your best bet is to use Plink, the command-line connection
@@ -243,7 +243,7 @@ This is what CVS for Windows does, for example.
 
 \H{faq-details} Details of PuTTY's operation
 
-\S{faq-term}{question} What terminal type does PuTTY use?
+\S{faq-term}{Question} What terminal type does PuTTY use?
 
 For most purposes, PuTTY can be considered to be an \cw{xterm}
 terminal, although full support for some of \cw{xterm}'s features,
@@ -260,7 +260,7 @@ By default, PuTTY announces its terminal type to the server as
 \c{xterm}. If you have a problem with this, you can reconfigure it
 to say something else; \c{vt220} might help if you have trouble.
 
-\S{faq-settings}{question} Where does PuTTY store its data?
+\S{faq-settings}{Question} Where does PuTTY store its data?
 
 PuTTY stores most of its data (saved sessions, SSH host keys) in the
 Registry. The precise location is
@@ -283,12 +283,12 @@ pathname in the Registry, at
 
 \H{faq-howto} HOWTO questions
 
-\S{faq-startmax}{question} How can I make PuTTY start up maximised?
+\S{faq-startmax}{Question} How can I make PuTTY start up maximised?
 
 Create a Windows shortcut to start PuTTY from, and set it as \q{Run
 Maximized}.
 
-\S{faq-startsess}{question} How can I create a Windows shortcut to
+\S{faq-startsess}{Question} How can I create a Windows shortcut to
 start a particular saved session directly?
 
 To run a PuTTY session saved under the name \q{\cw{mysession}},
@@ -297,14 +297,14 @@ like
 
 \c \path\name\to\putty.exe @mysession
 
-\S{faq-startssh}{question} How can I start an SSH session straight
+\S{faq-startssh}{Question} How can I start an SSH session straight
 from the command line?
 
 Use the command line \c{putty -ssh host.name}. Alternatively, create
 a saved session that specifies the SSH protocol, and start the saved
 session as shown in \k{faq-startsess}.
 
-\S{faq-cutpaste}{question} How do I copy and paste between PuTTY and
+\S{faq-cutpaste}{Question} How do I copy and paste between PuTTY and
 other Windows applications?
 
 Copy and paste works similarly to the X Window System. You use the
@@ -324,14 +324,14 @@ Windows users don't have a middle button at all.
 
 You can also paste by pressing Shift-Ins.
 
-\S{faq-tunnels}{question} How do I use X forwarding and port
+\S{faq-tunnels}{Question} How do I use X forwarding and port
 forwarding? I can't find the Tunnels panel.
 
 If you're looking in the 0.51 release or earlier, the Tunnels panel
 isn't there. It was added in the development snapshots after 0.51,
 and releases 0.52 and onwards will contain it.
 
-\S{faq-options}{question} How do I use all PuTTY's features (public
+\S{faq-options}{Question} How do I use all PuTTY's features (public
 keys, port forwarding, SSH v2, etc.) in PSCP, PSFTP and Plink?
 
 The command-line tools are currently rather short of command line
@@ -341,7 +341,7 @@ the name of the saved session on the command line in place of a
 hostname. This works for PSCP, PSFTP and Plink (but don't expect
 port forwarding in the file transfer applications!).
 
-\S{faq-pscp}{question} How do I use PSCP.EXE? When I double-click it
+\S{faq-pscp}{Question} How do I use PSCP.EXE? When I double-click it
 gives me a command prompt window which then closes instantly.
 
 PSCP is a command-line application, not a GUI application. If you
@@ -351,7 +351,7 @@ terminate.
 To use PSCP properly, run it from a Command Prompt window. See
 \k{pscp} in the documentation for more details.
 
-\S{faq-pscp-spaces}{question} How do I use PSCP to copy a file whose
+\S{faq-pscp-spaces}{Question} How do I use PSCP to copy a file whose
 name has spaces in?
 
 If PSCP is using the traditional SCP protocol, this is confusing. If
@@ -389,7 +389,7 @@ of quotes in the obvious way:
 
 \H{faq-trouble} Troubleshooting
 
-\S{faq-mac}{question} Why do I see \q{Incorrect MAC received on
+\S{faq-mac}{Question} Why do I see \q{Incorrect MAC received on
 packet}?
 
 This is due to a bug in old SSH 2 servers distributed by
@@ -414,7 +414,7 @@ In this context MAC stands for Message Authentication Code. It's a
 cryptographic term, and it has nothing at all to do with Ethernet
 MAC (Media Access Control) addresses.
 
-\S{faq-colours}{question} I clicked on a colour in the Colours
+\S{faq-colours}{Question} I clicked on a colour in the Colours
 panel, and the colour didn't change in my terminal.
 
 That isn't how you're supposed to use the Colours panel.
@@ -432,7 +432,7 @@ Clicking on \q{ANSI Green} won't turn your session green; it will
 only allow you to adjust the \e{shade} of green used when PuTTY is
 instructed by the server to display green text.
 
-\S{faq-winsock2}{question} Plink on Windows 95 says it can't find
+\S{faq-winsock2}{Question} Plink on Windows 95 says it can't find
 \cw{WS2_32.DLL}.
 
 Plink requires the extended Windows network library, WinSock version
@@ -447,7 +447,7 @@ the
 \c http://www.microsoft.com/windows95/downloads/contents/wuadmintools/
 \c   s_wunetworkingtools/w95sockets2/
 
-\S{faq-rekey}{question} My PuTTY sessions close after an hour and
+\S{faq-rekey}{Question} My PuTTY sessions close after an hour and
 tell me \q{Server failed host key check}.
 
 This is a bug in all versions of PuTTY up to and including 0.51. SSH
@@ -458,7 +458,7 @@ get this wrong.
 The bug has been fixed since version 0.51, so upgrading to a later
 version or snapshot should solve the problem.
 
-\S{faq-outofmem}{question} After trying to establish an SSH 2
+\S{faq-outofmem}{Question} After trying to establish an SSH 2
 connection, PuTTY says \q{Out of memory} and dies.
 
 If this happens just while the connection is starting up, this often
@@ -481,7 +481,7 @@ and you should report it (although it might be a bug in your SSH
 server instead); but it doesn't necessarily mean you've actually run
 out of memory.
 
-\S{faq-bce}{question} When I run full-colour applications, I see
+\S{faq-bce}{Question} When I run full-colour applications, I see
 areas of black space where colour ought to be.
 
 You almost certainly need to enable the \q{Use background colour to
@@ -489,7 +489,7 @@ erase screen} setting in the Terminal panel. Note that if you do
 this in mid-session, it won't take effect until you reset the
 terminal (see \k{faq-resetterm}).
 
-\S{faq-resetterm}{question} When I change some terminal settings,
+\S{faq-resetterm}{Question} When I change some terminal settings,
 nothing happens.
 
 Some of the terminal options (notably Auto Wrap and
@@ -503,13 +503,13 @@ If you want to change one of these options in the middle of a
 session, you will find that the change does not immediately take
 effect. It will only take effect once you reset the terminal.
 
-\S{faq-altgr}{question} I can't type characters that require the
+\S{faq-altgr}{Question} I can't type characters that require the
 AltGr key.
 
 In PuTTY version 0.51, the AltGr key was broken. The bug has been
 fixed since then.
 
-\S{faq-idleout}{question} My PuTTY sessions unexpectedly close after
+\S{faq-idleout}{Question} My PuTTY sessions unexpectedly close after
 they are idle for a while.
 
 Some types of firewall, and almost any router doing Network Address
@@ -529,7 +529,7 @@ cause a \e{loss} of robustness against network dropouts. See
 \k{config-keepalive} in the documentation for more discussion of
 this.
 
-\S{faq-timeout}{question} PuTTY's network connections time out too
+\S{faq-timeout}{Question} PuTTY's network connections time out too
 quickly when network connectivity is temporarily lost.
 
 This is a Windows problem, not a PuTTY problem. The timeout value
@@ -553,7 +553,7 @@ and it must be of type DWORD.
 Set the key's value to something like 10. This will cause Windows to
 try harder to keep connections alive instead of abandoning them.
 
-\S{faq-puttyputty}{question} When I \cw{cat} a binary file, I get
+\S{faq-puttyputty}{Question} When I \cw{cat} a binary file, I get
 `PuTTYPuTTYPuTTY' on my command line.
 
 Don't do that, then.
@@ -572,7 +572,7 @@ to be empty (see \k{config-answerback}); but writing binary files to
 your terminal is likely to cause various other unpleasant behaviour,
 so this is only a small remedy.
 
-\S{faq-puttyputty}{question} When I \cw{cat} a binary file, my
+\S{faq-puttyputty}{Question} When I \cw{cat} a binary file, my
 window title changes to a nonsense string.
 
 Don't do that, then.
@@ -586,7 +586,7 @@ your terminal runs the risk of sending the same control sequence by
 accident, and cause unexpected changes in the window title. Don't do
 it.
 
-\S{faq-password}{question} My keyboard stops working once PuTTY
+\S{faq-password}{Question} My keyboard stops working once PuTTY
 displays the password prompt.
 
 No, it doesn't. PuTTY just doesn't display the password you type, so
@@ -599,7 +599,7 @@ might be valuable information.
 
 \H{faq-secure} Security questions
 
-\S{faq-publicpc}{question} Is it safe for me to download PuTTY and
+\S{faq-publicpc}{Question} Is it safe for me to download PuTTY and
 use it on a public PC?
 
 It depends on whether you trust that PC. If you don't trust the
@@ -614,7 +614,7 @@ If you do trust the PC, then it's probably OK to use PuTTY on it
 be tampered with, so it would be better to carry PuTTY with you on a
 floppy).
 
-\S{faq-cleanup}{question} What does PuTTY leave on a system? How can
+\S{faq-cleanup}{Question} What does PuTTY leave on a system? How can
 I clean up after it?
 
 PuTTY will leave some Registry entries, and a random seed file, on
@@ -623,7 +623,7 @@ PC, or somebody else's PC, you might want to clean these up when you
 leave. You can do that automatically, by running the command
 \c{putty -cleanup}.
 
-\S{faq-dsa}{question} How come PuTTY now supports DSA, when the
+\S{faq-dsa}{Question} How come PuTTY now supports DSA, when the
 website used to say how insecure it was?
 
 DSA has a major weakness \e{if badly implemented}: it relies on a
@@ -641,7 +641,7 @@ use RSA instead.
 
 \H{faq-admin} Administrative questions
 
-\S{faq-domain}{question} Would you like me to register you a nicer
+\S{faq-domain}{Question} Would you like me to register you a nicer
 domain name?
 
 No, thank you. Even if you can find one (most of them seem to have
@@ -658,12 +658,12 @@ to point where we wanted it, and wouldn't suddenly change or do
 strange things. Having it registered for us by a third party who we
 don't even know is not the best way to achieve this.
 
-\S{faq-webhosting}{question} Would you like free web hosting for the
+\S{faq-webhosting}{Question} Would you like free web hosting for the
 PuTTY web site?
 
 We already have some, thanks.
 
-\S{faq-sourceforge}{question} Why don't you move PuTTY to
+\S{faq-sourceforge}{Question} Why don't you move PuTTY to
 SourceForge?
 
 Partly, because we don't want to move the web site location (see
@@ -682,7 +682,7 @@ No offence to SourceForge; I think they do a wonderful job. But
 they're not ideal for everyone, and in particular they're not ideal
 for us.
 
-\S{faq-mailinglist1}{question} Why can't I subscribe to the
+\S{faq-mailinglist1}{Question} Why can't I subscribe to the
 putty-bugs mailing list?
 
 Because you're not a member of the PuTTY core development team. The
@@ -694,7 +694,7 @@ something more like a newsgroup and we would be completely
 overwhelmed by the volume of traffic. It's hard enough to keep up
 with the list as it is.
 
-\S{faq-mailinglist2}{question} If putty-bugs isn't a
+\S{faq-mailinglist2}{Question} If putty-bugs isn't a
 general-subscription mailing list, what is?
 
 There isn't one, that we know of.
@@ -707,7 +707,7 @@ forwarded on to us by the questioner. In any case, it's probably
 better to use the established newsgroup \cw{comp.security.ssh} for
 this purpose.
 
-\S{faq-donations}{question} How can I donate to PuTTY development?
+\S{faq-donations}{Question} How can I donate to PuTTY development?
 
 Please, \e{please} don't feel you have to. PuTTY is completely free
 software, and not shareware. We think it's very important that
@@ -733,7 +733,7 @@ developers. If you want to be sure your donation is going towards
 something worthwhile, ask us first. If you don't like these terms,
 feel perfectly free not to donate. We don't mind.
 
-\S{faq-pronounce}{question} How do I pronounce PuTTY?
+\S{faq-pronounce}{Question} How do I pronounce PuTTY?
 
 Exactly like the normal word \q{putty}. Just like the stuff you put
 on window frames. (One of the reasons it's called PuTTY is because
