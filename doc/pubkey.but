@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.7 2001/11/25 16:57:45 simon Exp $
+\versionid $Id: pubkey.but,v 1.8 2001/11/25 17:12:23 simon Exp $
 
 \# FIXME: passphrases, examples (e.g what does a key for pasting into
 \# authorized_keys look like?), index entries, links.
@@ -130,12 +130,12 @@ protect your keys.
 a dictionary word as a password because it's easy for an attacker to
 run through a whole dictionary, you should not use a song lyric,
 quotation or other well-known sentence as a passphrase. DiceWare
-(\W{www.diceware.com}\cw{www.diceware.com}) recommends using at
-least five words each generated randomly by rolling five dice, which
-gives over 2^64 possible passwords and is probably not a bad scheme.
-If you want your passphrase to make grammatical sense, this cuts
-down the possibilities a lot and you should use a longer one as a
-result.)
+(\W{http://www.diceware.com/}\cw{www.diceware.com}) recommends using
+at least five words each generated randomly by rolling five dice,
+which gives over 2^64 possible passwords and is probably not a bad
+scheme. If you want your passphrase to make grammatical sense, this
+cuts down the possibilities a lot and you should use a longer one as
+a result.)
 
 Finally save the key by pressing the \e{Save} button. Do not close the
 window but proceed with step \k{pubkey-gettingready}, otherwise you
