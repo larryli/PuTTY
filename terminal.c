@@ -906,7 +906,7 @@ void term_out(void) {
 		     * t seconds ago.
 		     */
 		    while (beephead &&
-			   beephead->ticks < ticks - cfg.bellovl_t*1000) {
+			   beephead->ticks < ticks - cfg.bellovl_t) {
 			struct beeptime *tmp = beephead;
 			beephead = tmp->next;
 			sfree(tmp);
@@ -916,7 +916,7 @@ void term_out(void) {
 		    }
 
 		    if (cfg.bellovl && beep_overloaded &&
-			ticks-lastbeep >= cfg.bellovl_s * 1000) {
+			ticks-lastbeep >= cfg.bellovl_s) {
 			/*
 			 * If we're currently overloaded and the
 			 * last beep was more than s seconds ago,

@@ -43,6 +43,20 @@ static void MyGetDlgItemInt (HWND hwnd, int id, int *result) {
 	*result = n;
 }
 
+static void MyGetDlgItemFlt (HWND hwnd, int id, int *result, int scale) {
+    char text[80];
+    BOOL ok;
+    ok = GetDlgItemText (hwnd, id, text, sizeof(text)-1);
+    if (ok && text[0])
+	*result = (int) (scale * atof(text));
+}
+
+static void MySetDlgItemFlt (HWND hwnd, int id, double value) {
+    char text[80];
+    sprintf(text, "%g", value);
+    SetDlgItemText (hwnd, id, text);
+}
+
 static int CALLBACK LogProc (HWND hwnd, UINT msg,
 			     WPARAM wParam, LPARAM lParam) {
     int i;
@@ -585,8 +599,8 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile);
     CheckDlgButton (hwnd, IDC_BELLOVL, cfg.bellovl);
     SetDlgItemInt (hwnd, IDC_BELLOVLN, cfg.bellovl_n, FALSE);
-    SetDlgItemInt (hwnd, IDC_BELLOVLT, cfg.bellovl_t, FALSE);
-    SetDlgItemInt (hwnd, IDC_BELLOVLS, cfg.bellovl_s, FALSE);
+    MySetDlgItemFlt (hwnd, IDC_BELLOVLT, cfg.bellovl_t / 1000.0);
+    MySetDlgItemFlt (hwnd, IDC_BELLOVLS, cfg.bellovl_s / 1000.0);
 
     CheckDlgButton (hwnd, IDC_BCE, cfg.bce);
     CheckDlgButton (hwnd, IDC_BLINKTEXT, cfg.blinktext);
@@ -1727,11 +1741,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             break;
           case IDC_BELLOVLT:
             if (HIWORD(wParam) == EN_CHANGE)
-                MyGetDlgItemInt (hwnd, IDC_BELLOVLT, &cfg.bellovl_t);
+                MyGetDlgItemFlt (hwnd, IDC_BELLOVLT, &cfg.bellovl_t, 1000);
             break;
           case IDC_BELLOVLS:
             if (HIWORD(wParam) == EN_CHANGE)
-                MyGetDlgItemInt (hwnd, IDC_BELLOVLS, &cfg.bellovl_s);
+                MyGetDlgItemFlt (hwnd, IDC_BELLOVLS, &cfg.bellovl_s, 1000);
             break;
 	  case IDC_BLINKTEXT:
 	    if (HIWORD(wParam) == BN_CLICKED ||

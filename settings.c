@@ -267,8 +267,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
 	  sizeof(cfg->bell_wavefile));
     gppi (sesskey, "BellOverload", 1, &cfg->bellovl);
     gppi (sesskey, "BellOverloadN", 5, &cfg->bellovl_n);
-    gppi (sesskey, "BellOverloadT", 2, &cfg->bellovl_t);
-    gppi (sesskey, "BellOverloadS", 5, &cfg->bellovl_s);
+    gppi (sesskey, "BellOverloadT", 2000, &cfg->bellovl_t);
+    gppi (sesskey, "BellOverloadS", 5000, &cfg->bellovl_s);
     gppi (sesskey, "ScrollbackLines", 200, &cfg->savelines);
     gppi (sesskey, "DECOriginMode", 0, &cfg->dec_om);
     gppi (sesskey, "AutoWrapMode", 1, &cfg->wrap_mode);
