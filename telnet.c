@@ -742,7 +742,7 @@ static int telnet_send(void *handle, char *buf, int len)
     while (p < buf + len) {
 	char *q = p;
 
-	while (iswritable((unsigned char) *p) && p < buf + len)
+	while (p < buf + len && iswritable((unsigned char) *p))
 	    p++;
 	telnet->bufsize = sk_write(telnet->s, q, p - q);
 
