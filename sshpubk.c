@@ -784,7 +784,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 
 	    SHA_Init(&s);
 	    SHA_Bytes(&s, header, sizeof(header)-1);
-	    if (passphrase)
+	    if (cipher && passphrase)
 		SHA_Bytes(&s, passphrase, passlen);
 	    SHA_Final(&s, mackey);
 
