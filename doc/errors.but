@@ -69,7 +69,8 @@ this, let us know and we'll move it up our priority list.
 ... below the configured warning threshold}
 
 This occurs when the SSH server does not offer any ciphers which you
-have configured PuTTY to consider strong enough.
+have configured PuTTY to consider strong enough. By default, PuTTY
+puts up this warning only for single-DES encryption.
 
 See \k{config-ssh-encryption} for more information on this message.
 
@@ -271,6 +272,10 @@ connecting through a firewall or a NAT router which has timed the
 connection out. See \k{faq-idleout} in the FAQ for more details. You
 may be able to improve the situation by using keepalives; see
 \k{config-keepalive} for details on this.
+
+Note that Windows can produce this error in some circumstances without
+seeing a connection reset from the server, for instance if the
+connection to the network is lost.
 
 \H{errors-connrefused} \q{Network error: Connection refused}
 
