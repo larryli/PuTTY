@@ -322,6 +322,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
         state = malloc(sizeof(*state));
         state->generation_thread_exists = FALSE;
+        state->collecting_entropy = FALSE;
+        state->entropy = NULL;
         state->key_exists = FALSE;
         SetWindowLong(hwnd, GWL_USERDATA, (LONG)state);
         {
@@ -385,7 +387,9 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 	return 1;
       case WM_MOUSEMOVE:
         state = (struct MainDlgState *)GetWindowLong(hwnd, GWL_USERDATA);
-        if (state->collecting_entropy) {
+        if (state->collecting_entropy &&
+            state->entropy &&
+            state->entropy_got < state->entropy_required) {
             state->entropy[state->entropy_got++] = lParam;
             state->entropy[state->entropy_got++] = GetMessageTime();
             SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS,
@@ -400,6 +404,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 random_add_heavynoise(state->entropy, state->entropy_size);
                 memset(state->entropy, 0, state->entropy_size);
                 free(state->entropy);
+                state->collecting_entropy = FALSE;
 
                 SetDlgItemText(hwnd, IDC_GENERATING, generating_msg);
                 SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
@@ -421,7 +426,6 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                     free(params);
                 } else {
                     state->generation_thread_exists = TRUE;
-                    state->collecting_entropy = FALSE;
                 }
             }
         }
