@@ -200,8 +200,8 @@ optional remote file specification need be given. For example:
 
 The SCP protocol does not contain within itself a means of listing
 files. If SCP is in use, this option therefore assumes that the
-server responds appropriately to the command \c{ls\_-la}; therefore,
-it may not work with all servers.
+server responds appropriately to the command \c{ls\_-la};
+this may not work with all servers.
 
 If SFTP is in use, this option should work with all servers.
 
