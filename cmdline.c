@@ -236,33 +236,39 @@ int cmdline_process_param(char *p, char *value, int need_save)
 
     if (!strcmp(p, "-A")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	cfg.agentfwd = 1;
     }
     if (!strcmp(p, "-a")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	cfg.agentfwd = 0;
     }
 
     if (!strcmp(p, "-X")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	cfg.x11_forward = 1;
     }
     if (!strcmp(p, "-x")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	cfg.x11_forward = 0;
     }
 
     if (!strcmp(p, "-t")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	cfg.nopty = 0;
     }
     if (!strcmp(p, "-T")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	cfg.nopty = 1;
     }
