@@ -4099,7 +4099,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 
     fprintf(stderr, "keysym = %d, %d chars:", keysym, tlen);
     for (i = 0; i < tlen; i++)
-	fprintf(stderr, " %04x", text[i]);
+	fprintf(stderr, " %04x", (unsigned)text[i]);
     fprintf(stderr, "\n");
 #endif
 
@@ -4148,8 +4148,8 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
     if (keysym == PK_NULL && (modifiers & PKM_CONTROL) && tlen == 1 &&
 	text[0] >= 0x20 && text[0] <= 0x7e) {
 	/* ASCII chars + Control */
-	if (text[0] >= 0x40 && text[0] <= 0x5f ||
-	    text[0] >= 0x61 && text[0] <= 0x7a)
+	if ((text[0] >= 0x40 && text[0] <= 0x5f) ||
+	    (text[0] >= 0x61 && text[0] <= 0x7a))
 	    text[0] &= 0x1f;
 	else {
 	    /*
@@ -4188,6 +4188,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	  case PK_KP7: c = 'y'; break;
 	  case PK_KP8: c = 'k'; break;
 	  case PK_KP9: c = 'u'; break;
+	  default: break; /* else gcc warns `enum value not used' */
 	}
 	if (c != 0) {
 	    if (c != '.') {
@@ -4218,6 +4219,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_PF2: xkey = 'Q'; break;
 	      case PK_PF3: xkey = 'R'; break;
 	      case PK_PF4: xkey = 'S'; break;
+	      default: break; /* else gcc warns `enum value not used' */
 	    }
 	}
 	if (term->app_keypad_keys && !term->cfg.no_applic_k) {
@@ -4234,6 +4236,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_KP9: xkey = 'y'; break;
 	      case PK_KPDECIMAL: xkey = 'n'; break;
 	      case PK_KPENTER: xkey = 'M'; break;
+	      default: break; /* else gcc warns `enum value not used' */
 	    }
 	    if (term->cfg.funky_type == FUNKY_XTERM && tlen > 0) {
 		/*
@@ -4268,6 +4271,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 		    break;
 		  case PK_KPMINUS: xkey = 'm'; break;
 		  case PK_KPCOMMA: xkey = 'l'; break;
+		  default: break; /* else gcc warns `enum value not used' */
 		}
 	    }
 	}
@@ -4294,6 +4298,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_KP7: keysym = PK_HOME; break;
 	      case PK_KP8: keysym = PK_UP; break;
 	      case PK_KP9: keysym = PK_PAGEUP; break;
+	      default: break; /* else gcc warns `enum value not used' */
 	    }
 	}
     }
@@ -4332,6 +4337,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 		*p++ = 0x0a;
 	    goto done;
 	}
+      default: break; /* else gcc warns `enum value not used' */
     }
 
     /* SCO function keys and editing keys */
@@ -4356,6 +4362,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_END:      xkey = 'F'; break;
 	      case PK_PAGEUP:   xkey = 'I'; break;
 	      case PK_PAGEDOWN: xkey = 'G'; break;
+	      default: break; /* else gcc warns `enum value not used' */
 	    }
 	    p += sprintf((char *) p, "\x1B[%c", xkey);
 	}
@@ -4373,6 +4380,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_END:      keysym = PK_PAGEUP;   break;
 	      case PK_PAGEUP:   keysym = PK_DELETE;   break;
 	      case PK_PAGEDOWN: keysym = PK_PAGEDOWN; break;
+	      default: break; /* else gcc warns `enum value not used' */
 	    }
 	}
 
@@ -4397,6 +4405,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_END:      xkey = 'E'; break;
 	      case PK_PAGEUP:   xkey = 'I'; break;
 	      case PK_PAGEDOWN: xkey = 'G'; break;
+	      default: break; /* else gcc warns `enum value not used' */
 	    }
 	    p += sprintf((char *) p, "\x1B%c", xkey);
 	    goto done;
@@ -4409,6 +4418,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	  case PK_END:      code = 4; break;
 	  case PK_PAGEUP:   code = 5; break;
 	  case PK_PAGEDOWN: code = 6; break;
+	  default: break; /* else gcc warns `enum value not used' */
 	}
 	p += sprintf((char *) p, "\x1B[%d~", code);
 	goto done;
@@ -4452,6 +4462,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	  case PK_RIGHT: xkey = 'C'; break;
 	  case PK_LEFT:  xkey = 'D'; break;
 	  case PK_REST:  xkey = 'G'; break; /* centre key on number pad */
+	  default: break; /* else gcc warns `enum value not used' */
 	}
 	if (term->vt52_mode)
 	    p += sprintf((char *) p, "\x1B%c", xkey);
@@ -4509,7 +4520,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 #if 0
 	    fprintf(stderr, "sending %d unichars:", tlen);
 	    for (i = 0; i < tlen; i++)
-		fprintf(stderr, " %04x", text[i]);
+		fprintf(stderr, " %04x", (unsigned) text[i]);
 	    fprintf(stderr, "\n");
 #endif
 	    luni_send(term->ldisc, text, tlen, 1);
