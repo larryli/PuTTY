@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.19 2003/03/29 20:16:51 ben Exp $ */
+/* $Id: macctrls.c,v 1.20 2003/03/29 22:04:21 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -133,8 +133,6 @@ static void macctrl_button(struct macctrls *, WindowPtr,
 static void macctrl_popup(struct macctrls *, WindowPtr,
 			  struct mac_layoutstate *, union control *);
 #if !TARGET_API_MAC_CARBON
-static pascal SInt32 macctrl_sys7_text_cdef(SInt16, ControlRef,
-					    ControlDefProcMessage, SInt32);
 static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16, ControlRef,
 					       ControlDefProcMessage, SInt32);
 static pascal SInt32 macctrl_sys7_default_cdef(SInt16, ControlRef,
@@ -163,8 +161,6 @@ static void macctrl_init()
     PatchCDEF cdef;
 
     if (inited) return;
-    cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Text);
-    (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_text_cdef);
     cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_EditBox);
     (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_editbox_cdef);
     cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Default);
@@ -239,7 +235,8 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 14);
+    macctrl_switchtopanel(mcs, 2);
+    /* 14 = proxies, 20 = SSH bugs */
 }
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -384,6 +381,7 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 {
     union macctrl *mc = smalloc(sizeof *mc);
     Rect bounds;
+    SInt16 height;
 
     fprintf(stderr, "    label = %s\n", ctrl->text.label);
     mc->generic.type = MACCTRL_TEXT;
@@ -394,7 +392,6 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 16;
     if (mac_gestalts.apprvers >= 0x100) {
-	SInt16 height;
 	Size olen;
 
 	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
@@ -405,53 +402,25 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 	GetControlData(mc->text.tbctrl, kControlEntireControl,
 		       kControlStaticTextTextHeightTag,
 		       sizeof(height), &height, &olen);
-	fprintf(stderr, "    height = %d\n", height);
-	SizeControl(mc->text.tbctrl, curstate->width, height);
-	curstate->pos.v += height + 6;
-    } else {
-	Str255 title;
-
-	c2pstrcpy(title, ctrl->text.label);
-	mc->text.tbctrl = NewControl(window, &bounds, title, TRUE, 0, 0, 0,
-				     SYS7_TEXT_PROC, (long)mc);
     }
+#if !TARGET_API_MAC_CARBON
+    else {
+	TEHandle te;
+
+	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+				     SYS7_TEXT_PROC, (long)mc);
+	te = (TEHandle)(*mc->text.tbctrl)->contrlData;
+	TESetText(ctrl->text.label, strlen(ctrl->text.label), te);
+	height = TEGetHeight(1, (*te)->nLines, te);
+    }
+#endif
+    fprintf(stderr, "    height = %d\n", height);
+    SizeControl(mc->text.tbctrl, curstate->width, height);
+    curstate->pos.v += height + 6;
     add234(mcs->byctrl, mc);
     mc->generic.next = mcs->panels[curstate->panelnum];
     mcs->panels[curstate->panelnum] = mc;
 }
-
-#if !TARGET_API_MAC_CARBON
-static pascal SInt32 macctrl_sys7_text_cdef(SInt16 variant, ControlRef control,
-				     ControlDefProcMessage msg, SInt32 param)
-{
-    RgnHandle rgn;
-
-    switch (msg) {
-      case drawCntl:
-	if ((*control)->contrlVis)
-	    TETextBox((*control)->contrlTitle + 1, (*control)->contrlTitle[0],
-		      &(*control)->contrlRect, teFlushDefault);
-	return 0;
-      case calcCRgns:
-	if (param & (1 << 31)) {
-	    param &= ~(1 << 31);
-	    goto calcthumbrgn;
-	}
-	/* FALLTHROUGH */
-      case calcCntlRgn:
-	rgn = (RgnHandle)param;
-	RectRgn(rgn, &(*control)->contrlRect);
-	return 0;
-      case calcThumbRgn:
-      calcthumbrgn:
-	rgn = (RgnHandle)param;
-	SetEmptyRgn(rgn);
-	return 0;
-    }
-
-    return 0;
-}
-#endif
 
 static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 			    struct mac_layoutstate *curstate,
@@ -495,15 +464,17 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 					ctrl->editbox.password ?
 					kControlEditTextPasswordProc :
 					kControlEditTextProc, (long)mc);
-    } else {
-	Str255 title;
-
-	c2pstrcpy(title, ctrl->editbox.label);
-	mc->editbox.tblabel = NewControl(window, &lbounds, title, TRUE,
+    }
+#if !TARGET_API_MAC_CARBON
+    else {
+	mc->editbox.tblabel = NewControl(window, &lbounds, NULL, TRUE,
 					 0, 0, 0, SYS7_TEXT_PROC, (long)mc);
+	TESetText(ctrl->editbox.label, strlen(ctrl->editbox.label),
+		  (TEHandle)(*mc->editbox.tblabel)->contrlData);
 	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
 					SYS7_EDITBOX_PROC, (long)mc);
     }
+#endif
     curstate->pos.v += 28;
     add234(mcs->byctrl, mc);
     mc->generic.next = mcs->panels[curstate->panelnum];
@@ -526,7 +497,8 @@ static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
     switch (msg) {
       case initCntl:
 	rect = (*control)->contrlRect;
-	InsetRect(&rect, 3, 3); /* 2 if it's 20 pixels high */
+	if (variant == SYS7_EDITBOX_VARIANT)
+	    InsetRect(&rect, 3, 3); /* 2 if it's 20 pixels high */
 	te = TENew(&rect, &rect);
 	ssfs = GetScriptVariable(smSystemScript, smScriptSysFondSize);
 	(*te)->txSize = LoWord(ssfs);
@@ -539,18 +511,23 @@ static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
       case drawCntl:
 	if ((*control)->contrlVis) {
 	    rect = (*control)->contrlRect;
-	    PenNormal();
-	    FrameRect(&rect);
-	    InsetRect(&rect, 3, 3);
+	    if (variant == SYS7_EDITBOX_VARIANT) {
+		PenNormal();
+		FrameRect(&rect);
+		InsetRect(&rect, 3, 3);
+	    }
+	    (*(TEHandle)(*control)->contrlData)->viewRect = rect;
 	    TEUpdate(&rect, (TEHandle)(*control)->contrlData);
 	}
 	return 0;
       case testCntl:
+	if (variant == SYS7_TEXT_VARIANT)
+	    return kControlNoPart;
 	mouse.h = LoWord(param);
 	mouse.v = HiWord(param);
-	return
-	    PtInRect(mouse, &(*(TEHandle)(*control)->contrlData)->viewRect) ?
-	    kControlEditTextPart : kControlNoPart;
+	rect = (*control)->contrlRect;
+	InsetRect(&rect, 3, 3);
+	return PtInRect(mouse, &rect) ? kControlEditTextPart : kControlNoPart;
       case calcCRgns:
 	if (param & (1 << 31)) {
 	    param &= ~(1 << 31);
@@ -598,13 +575,15 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 	SetControlData(mc->radio.tblabel, kControlEntireControl,
 		       kControlStaticTextTextTag,
 		       strlen(ctrl->radio.label), ctrl->radio.label);
-    } else {
-	Str255 title;
-
-	c2pstrcpy(title, ctrl->radio.label);
-	mc->editbox.tblabel = NewControl(window, &bounds, title, TRUE,
-					 0, 0, 0, SYS7_TEXT_PROC, (long)mc);
     }
+ #if !TARGET_API_MAC_CARBON
+    else {
+	mc->radio.tblabel = NewControl(window, &bounds, NULL, TRUE,
+					 0, 0, 0, SYS7_TEXT_PROC, (long)mc);
+	TESetText(ctrl->radio.label, strlen(ctrl->radio.label),
+		  (TEHandle)(*mc->radio.tblabel)->contrlData);
+    }
+#endif
     curstate->pos.v += 18;
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
 	fprintf(stderr, "    button = %s\n", ctrl->radio.buttons[i]);
@@ -817,7 +796,7 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 				 TRUE);
     state = active ? kControlNoPart : kControlInactivePart;
     for (i = 0; i <= mcs->curpanel; i += mcs->curpanel)
-	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next)
+	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next) {
 	    switch (mc->generic.type) {
 	      case MACCTRL_TEXT:
 		HiliteControl(mc->text.tbctrl, state);
@@ -841,6 +820,15 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 		HiliteControl(mc->popup.tbctrl, state);
 		break;
 	    }
+#if !TARGET_API_MAC_CARBON
+	    if (mcs->focus == mc) {
+		if (active)
+		    macctrl_enfocus(mc);
+		else
+		    macctrl_defocus(mc);
+	    }
+#endif
+	}
     SetPort(saveport);
 }
 
@@ -1375,16 +1363,16 @@ void dlg_text_set(union control *ctrl, void *dlg, char const *text)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
-    Str255 title;
 
     assert(mc != NULL);
     if (mac_gestalts.apprvers >= 0x100)
 	SetControlData(mc->text.tbctrl, kControlEntireControl,
 		       kControlStaticTextTextTag, strlen(text), text);
-    else {
-	c2pstrcpy(title, text);
-	SetControlTitle(mc->text.tbctrl, title);
-    }
+#if !TARGET_API_MAC_CARBON
+    else
+	TESetText(text, strlen(text),
+		  (TEHandle)(*mc->text.tbctrl)->contrlData);
+#endif
 }
 
 

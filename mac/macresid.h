@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.13 2003/03/29 18:31:09 ben Exp $ */
+/* $Id: macresid.h,v 1.14 2003/03/29 22:04:21 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -60,9 +60,10 @@
 #define cVScroll	128
 
 /* xDEFs */
-#define CDEF_Text	128
-#define SYS7_TEXT_PROC	(CDEF_Text << 4)
 #define CDEF_EditBox	129
-#define SYS7_EDITBOX_PROC	(CDEF_EditBox << 4)
+#define SYS7_EDITBOX_VARIANT	0
+#define SYS7_TEXT_VARIANT	1
+#define SYS7_EDITBOX_PROC	((CDEF_EditBox << 4) + SYS7_EDITBOX_VARIANT)
+#define SYS7_TEXT_PROC		((CDEF_EditBox << 4) + SYS7_TEXT_VARIANT)
 #define CDEF_Default	130
 #define SYS7_DEFAULT_PROC	(CDEF_Default << 4)
