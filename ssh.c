@@ -772,14 +772,22 @@ static int ssh_msg (WPARAM wParam, LPARAM lParam) {
     int ret;
     char buf[256];
 
-    if (s == INVALID_SOCKET)	       /* how the hell did we get here?! */
-	return -5000;
+    /*
+     * Because reading less than the whole of the available pending
+     * data can generate an FD_READ event, we need to allow for the
+     * possibility that FD_READ may arrive with FD_CLOSE already in
+     * the queue; so it's possible that we can get here even with s
+     * invalid. If so, we return 1 and don't worry about it.
+     */
+    if (s == INVALID_SOCKET)
+	return 1;
 
     if (WSAGETSELECTERROR(lParam) != 0)
 	return -WSAGETSELECTERROR(lParam);
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
+      case FD_CLOSE:
 	ret = recv(s, buf, sizeof(buf), 0);
 	if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
 	    return 1;
@@ -787,14 +795,10 @@ static int ssh_msg (WPARAM wParam, LPARAM lParam) {
 	    return -10000-WSAGetLastError();
 	if (ret == 0) {
 	    s = INVALID_SOCKET;
-	    return 0;		       /* can't happen, in theory */
+	    return 0;
 	}
 	ssh_gotdata (buf, ret);
 	return 1;
-      case FD_CLOSE:
-	s = INVALID_SOCKET;
-        ssh_state = SSH_STATE_CLOSED;
-	return 0;
     }
     return 1;			       /* shouldn't happen, but WTF */
 }
