@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.80 2004/05/22 11:09:31 simon Exp $
+\versionid $Id: config.but,v 1.81 2004/06/10 10:01:11 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1012,7 +1012,11 @@ followed by \q{PuTTY}, for example \c{server1.example.com - PuTTY}.
 If you want a different window title, this is where to set it.
 
 PuTTY allows the server to send \c{xterm} control sequences which
-modify the title of the window in mid-session. There is also an
+modify the title of the window in mid-session (unless this is disabled -
+see \k{config-features-retitle}); the title string set here
+is therefore only the \e{initial} window title.
+
+As well as the \e{window} title, there is also an
 \c{xterm} sequence to modify the title of the window's \e{icon}.
 This makes sense in a windowing system where the window becomes an
 icon when minimised, such as Windows 3.1 or most X Window System
