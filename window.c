@@ -2663,7 +2663,21 @@ void fatalbox(char *fmt, ...) {
  */
 void beep(int mode) {
     if (mode == BELL_DEFAULT) {
+	/*
+	 * For MessageBeep style bells, we want to be careful of
+	 * timing, because they don't have the nice property of
+	 * PlaySound bells that each one cancels the previous
+	 * active one. So we limit the rate to one per 50ms or so.
+	 */
+	static long lastbeep = 0;
+	long now, beepdiff;
+
+	now = GetTickCount();
+	beepdiff = now - lastbeep;
+	if (beepdiff >= 0 && beepdiff < 50)
+	    return;
 	MessageBeep(MB_OK);
+	lastbeep = now;
     } else if (mode == BELL_WAVEFILE) {
 	if (!PlaySound(cfg.bell_wavefile, NULL, SND_ASYNC | SND_FILENAME)) {
 	    char buf[sizeof(cfg.bell_wavefile)+80];
