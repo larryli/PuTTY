@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.18 2003/01/25 15:18:51 ben Exp $
+$Id: README.mac,v 1.19 2003/01/25 15:21:54 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -46,8 +46,6 @@ Runtime requirements:
  runs in the Classic environment in Mac OS X.
 
 Known bugs:
- * PowerPC and fat versions fail to start on systems without AppearanceLib (ie
-   most System 7 ones).  The 68k version works fine. [MAYBE FIXED]
  * Display is far too slow.
  * Real bold doesn't compensate for changing character widths without Color
    QuickDraw. [MAYBE FIXED]
