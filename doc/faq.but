@@ -839,13 +839,13 @@ default cipher differs from many other clients.)
 
 \e{OpenSSH 3.1p1:} configurations known to be broken (and symptoms):
 
-\b SSH-2 with AES cipher (PuTTY says "Assertion failed! Expression:
-(len & 15) == 0" in sshaes.c, or "Out of memory", or crashes)
+\b SSH-2 with AES cipher (PuTTY says \q{Assertion failed! Expression:
+(len & 15) == 0} in \cw{sshaes.c}, or \q{Out of memory}, or crashes)
 
-\b SSH-2 with 3DES (PuTTY says "Incorrect MAC received on packet")
+\b SSH-2 with 3DES (PuTTY says \q{Incorrect MAC received on packet})
 
-\b SSH-1 with Blowfish (PuTTY says "Incorrect CRC received on
-packet")
+\b SSH-1 with Blowfish (PuTTY says \q{Incorrect CRC received on
+packet})
 
 \b SSH-1 with 3DES
 
@@ -857,8 +857,8 @@ bug 138 above, or use another cipher (e.g., 3DES) instead.
 and workarounds with older versions of OpenSSH, although it's not
 clear the underlying cause is the same.
 
-\S{faq-ssh2key-ssh1conn}{Question} Why do I see "Couldn't load private
-key from ..."? Why can PuTTYgen load my key but not PuTTY?
+\S{faq-ssh2key-ssh1conn}{Question} Why do I see \q{Couldn't load
+private key from ...}? Why can PuTTYgen load my key but not PuTTY?
 
 It's likely that you've generated an SSH protocol 2 key with PuTTYgen,
 but you're trying to use it in an SSH-1 connection. SSH-1 and SSH-2 keys

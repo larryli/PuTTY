@@ -141,8 +141,8 @@ report a bug to us, it is useful if you include some general
 information:
 
 \b Tell us what version of PuTTY you are running. To find this out,
-use the "About PuTTY" option from the System menu. Please \e{do not}
-just tell us \q{I'm running the latest version}; e-mail can be
+use the \q{About PuTTY} option from the System menu. Please \e{do
+not} just tell us \q{I'm running the latest version}; e-mail can be
 delayed and it may not be obvious which version was the latest at
 the time you sent the message. 
 
