@@ -152,7 +152,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname, int address_famil
     hints.ai_addr = NULL;
     hints.ai_canonname = NULL;
     hints.ai_next = NULL;
-    err = getaddrinfo(host, NULL, NULL, &ret->ai);
+    err = getaddrinfo(host, NULL, &hints, &ret->ai);
     if (err != 0) {
 	ret->error = gai_strerror(err);
 	return ret;
