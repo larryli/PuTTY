@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.22 2003/01/28 11:56:32 ben Exp $
+$Id: README.mac,v 1.23 2003/01/28 11:57:08 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -81,6 +81,7 @@ Unimplemented features (should be done before release):
  * Warn-on-quit.
  * Event log.
  * Flashing things.
+ * Non-block cursors.
 
 Wishlist (after release):
  * SFTP client (GUI?)
