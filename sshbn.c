@@ -482,7 +482,7 @@ void decbn(Bignum bn)
     bn[i]--;
 }
 
-Bignum bignum_from_bytes(unsigned char *data, int nbytes)
+Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
 {
     Bignum result;
     int w, i;
@@ -509,9 +509,9 @@ Bignum bignum_from_bytes(unsigned char *data, int nbytes)
  * Read an ssh1-format bignum from a data buffer. Return the number
  * of bytes consumed.
  */
-int ssh1_read_bignum(unsigned char *data, Bignum * result)
+int ssh1_read_bignum(const unsigned char *data, Bignum * result)
 {
-    unsigned char *p = data;
+    const unsigned char *p = data;
     int i;
     int w, b;
 

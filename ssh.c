@@ -569,6 +569,7 @@ struct ssh_tag {
     const struct ssh_kex *kex;
     const struct ssh_signkey *hostkey;
     unsigned char v2_session_id[20];
+    void *kex_ctx;
 
     char *savedhost;
     int savedport;
@@ -3953,12 +3954,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
 	s->p = ssh2_pkt_getmp(ssh);
 	s->g = ssh2_pkt_getmp(ssh);
-	dh_setup_group(s->p, s->g);
+	ssh->kex_ctx = dh_setup_group(s->p, s->g);
 	s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
 	s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
     } else {
 	ssh->pkt_ctx |= SSH2_PKTCTX_DHGROUP1;
-	dh_setup_group1();
+	ssh->kex_ctx = dh_setup_group1();
 	s->kex_init_value = SSH2_MSG_KEXDH_INIT;
 	s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
     }
@@ -3967,7 +3968,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Now generate and send e for Diffie-Hellman.
      */
-    s->e = dh_create_e(s->nbits * 2);
+    s->e = dh_create_e(ssh->kex_ctx, s->nbits * 2);
     ssh2_pkt_init(ssh, s->kex_init_value);
     ssh2_pkt_addmp(ssh, s->e);
     ssh2_pkt_send(ssh);
@@ -3981,7 +3982,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     s->f = ssh2_pkt_getmp(ssh);
     ssh2_pkt_getstring(ssh, &s->sigdata, &s->siglen);
 
-    s->K = dh_find_K(s->f);
+    s->K = dh_find_K(ssh->kex_ctx, s->f);
 
     sha_string(&ssh->exhash, s->hostkeydata, s->hostkeylen);
     if (ssh->kex == &ssh_diffiehellman_gex) {
@@ -3994,7 +3995,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     sha_mpint(&ssh->exhash, s->K);
     SHA_Final(&ssh->exhash, s->exchange_hash);
 
-    dh_cleanup();
+    dh_cleanup(ssh->kex_ctx);
 
 #if 0
     debug(("Exchange hash is:\n"));

@@ -261,8 +261,8 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod);
 Bignum modmul(Bignum a, Bignum b, Bignum mod);
 void decbn(Bignum n);
 extern Bignum Zero, One;
-Bignum bignum_from_bytes(unsigned char *data, int nbytes);
-int ssh1_read_bignum(unsigned char *data, Bignum * result);
+Bignum bignum_from_bytes(const unsigned char *data, int nbytes);
+int ssh1_read_bignum(const unsigned char *data, Bignum * result);
 int bignum_bitcount(Bignum bn);
 int ssh1_bignum_length(Bignum bn);
 int ssh2_bignum_length(Bignum bn);
@@ -283,11 +283,11 @@ Bignum bignum_rshift(Bignum number, int shift);
 int bignum_cmp(Bignum a, Bignum b);
 char *bignum_decimal(Bignum x);
 
-void dh_setup_group1(void);
-void dh_setup_group(Bignum pval, Bignum gval);
-void dh_cleanup(void);
-Bignum dh_create_e(int nbits);
-Bignum dh_find_K(Bignum f);
+void *dh_setup_group1(void);
+void *dh_setup_group(Bignum pval, Bignum gval);
+void dh_cleanup(void *);
+Bignum dh_create_e(void *, int nbits);
+Bignum dh_find_K(void *, Bignum f);
 
 int loadrsakey(char *filename, struct RSAKey *key, char *passphrase);
 int rsakey_encrypted(char *filename, char **comment);
