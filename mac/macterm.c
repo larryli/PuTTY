@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.39 2003/01/09 23:29:22 ben Exp $ */
+/* $Id: macterm.c,v 1.40 2003/01/12 01:25:34 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -109,35 +109,6 @@ static RoutineDescriptor do_text_for_device_upp =
 #define do_text_for_device_upp	do_text_for_device
 #endif /* not TARGET_RT_MAC_CFM */
 
-static void inbuf_putc(Session *s, int c) {
-    char ch = c;
-
-    from_backend(s->term, 0, &ch, 1);
-}
-
-static void inbuf_putstr(Session *s, const char *c) {
-
-    from_backend(s->term, 0, (char *)c, strlen(c));
-}
-
-static void display_resource(Session *s, unsigned long type, short id) {
-    Handle h;
-    int len;
-    char *t;
-
-    h = GetResource(type, id);
-    if (h == NULL)
-	fatalbox("Can't get test resource");
-    len = GetResourceSizeOnDisk(h);
-    DetachResource(h);
-    HNoPurge(h);
-    HLock(h);
-    t = *h;
-    from_backend(s->term, 0, t, len);
-    term_out(s->term);
-    DisposeHandle(h);
-}
-	
 void mac_opensession(void) {
     Session *s;
     StandardFileReply sfr;
@@ -179,8 +150,6 @@ void mac_opensession(void) {
 
 void mac_startsession(Session *s)
 {
-    UInt32 starttime;
-    char msg[128];
     char *errmsg;
 
     /* XXX: Own storage management? */
@@ -205,8 +174,7 @@ void mac_startsession(Session *s)
 
     errmsg = s->back->init(s->term, &s->backhandle, s->cfg.host, s->cfg.port,
 		  &s->realhost, s->cfg.tcp_nodelay);
-    if (errmsg != NULL)
-	inbuf_putstr(s, errmsg);
+    fatalbox("%s", errmsg);
     s->back->provide_logctx(s->backhandle, s->logctx);
 
     term_provide_resize_fn(s->term, s->back->size, s->backhandle);
@@ -218,11 +186,6 @@ void mac_startsession(Session *s)
     ldisc_send(s->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     ShowWindow(s->window);
-    starttime = TickCount();
-    display_resource(s, 'pTST', 128);
-    sprintf(msg, "Elapsed ticks: %d\015\012", TickCount() - starttime);
-    inbuf_putstr(s, msg);
-    term_out(s->term);
     s->next = sesslist;
     s->prev = s->next->prev;
     s->next->prev = &s->next;

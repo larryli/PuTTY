@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.11 2003/01/09 19:27:29 ben Exp $ */
+/* $Id: mac_res.r,v 1.12 2003/01/12 01:25:34 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -596,5 +596,3 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
     "CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE."
 };
-
-read 'pTST' (128, "test data", purgeable) "fragment";
