@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1 2002/11/19 02:13:46 ben Exp $ */
+/* $Id: macterm.c,v 1.2 2002/11/19 22:05:48 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -753,10 +753,10 @@ void mac_updateterm(WindowPtr window) {
     BeginUpdate(window);
     pre_paint(s);
     term_paint(s->term, s,
-	       (*window->visRgn)->rgnBBox.left,
-	       (*window->visRgn)->rgnBBox.top,
-	       (*window->visRgn)->rgnBBox.right,
-	       (*window->visRgn)->rgnBBox.bottom, 1);
+	       PTOCC((*window->visRgn)->rgnBBox.left),
+	       PTOCR((*window->visRgn)->rgnBBox.top),
+	       PTOCC((*window->visRgn)->rgnBBox.right),
+	       PTOCR((*window->visRgn)->rgnBBox.bottom), 1);
     /* Restore default colours in case the Window Manager uses them */
     if (HAVE_COLOR_QD()) {
 	PmForeColor(DEFAULT_FG);
