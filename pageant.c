@@ -170,7 +170,7 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
  */
 static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                                    WPARAM wParam, LPARAM lParam) {
-    static char *passphrase;
+    static char *passphrase = NULL;
     struct PassphraseProcStruct *p;
 
     switch (msg) {
@@ -197,6 +197,7 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         if (p->comment)
             SetDlgItemText(hwnd, 101, p->comment);
         *passphrase = 0;
+        SetDlgItemText (hwnd, 102, passphrase);
         return 0;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -210,7 +211,7 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 	    EndDialog (hwnd, 0);
 	    return 0;
           case 102:                    /* edit box */
-	    if (HIWORD(wParam) == EN_CHANGE) {
+	    if ((HIWORD(wParam) == EN_CHANGE) && passphrase) {
                 GetDlgItemText (hwnd, 102, passphrase, PASSPHRASE_MAXLEN-1);
                 passphrase[PASSPHRASE_MAXLEN-1] = '\0';
             }
