@@ -54,6 +54,17 @@ GLOBAL HINSTANCE hinst;
 #define WM_NETEVENT  (WM_XUSER + 5)
 
 /*
+ * On Windows, we send MA_2CLK as the only event marking the second
+ * press of a mouse button. Compare unix.h.
+ */
+#define MULTICLICK_ONLY_EVENT 1
+
+/*
+ * On Windows, data written to the clipboard must be NUL-terminated.
+ */
+#define SELECTION_NUL_TERMINATED 1
+
+/*
  * Exports from winctrls.c.
  */
 

@@ -32,6 +32,10 @@ struct gui_data {
     GdkCursor *rawcursor, *textcursor;
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
+    wchar_t *pastein_data;
+    int pastein_data_len;
+    char *pasteout_data;
+    int pasteout_data_len;
     int font_width, font_height;
 };
 
@@ -616,6 +620,68 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     return TRUE;
 }
 
+gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    int shift, ctrl, alt, x, y, button, act;
+
+    shift = event->state & GDK_SHIFT_MASK;
+    ctrl = event->state & GDK_CONTROL_MASK;
+    alt = event->state & GDK_MOD1_MASK;
+    if (event->button == 1)
+	button = MBT_LEFT;
+    else if (event->button == 2)
+	button = MBT_MIDDLE;
+    else if (event->button == 3)
+	button = MBT_RIGHT;
+    else
+	return FALSE;		       /* don't even know what button! */
+
+    switch (event->type) {
+      case GDK_BUTTON_PRESS: act = MA_CLICK; break;
+      case GDK_BUTTON_RELEASE: act = MA_RELEASE; break;
+      case GDK_2BUTTON_PRESS: act = MA_2CLK; break;
+      case GDK_3BUTTON_PRESS: act = MA_3CLK; break;
+      default: return FALSE;	       /* don't know this event type */
+    }
+
+    if (send_raw_mouse && !(cfg.mouse_override && shift) &&
+	act != MA_CLICK && act != MA_RELEASE)
+	return TRUE;		       /* we ignore these in raw mouse mode */
+
+    x = (event->x - cfg.window_border) / inst->font_width;
+    y = (event->y - cfg.window_border) / inst->font_height;
+
+    term_mouse(button, act, x, y, shift, ctrl, alt);
+
+    return TRUE;
+}
+
+gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    int shift, ctrl, alt, x, y, button;
+
+    shift = event->state & GDK_SHIFT_MASK;
+    ctrl = event->state & GDK_CONTROL_MASK;
+    alt = event->state & GDK_MOD1_MASK;
+    if (event->state & GDK_BUTTON1_MASK)
+	button = MBT_LEFT;
+    else if (event->state & GDK_BUTTON2_MASK)
+	button = MBT_MIDDLE;
+    else if (event->state & GDK_BUTTON3_MASK)
+	button = MBT_RIGHT;
+    else
+	return FALSE;		       /* don't even know what button! */
+
+    x = (event->x - cfg.window_border) / inst->font_width;
+    y = (event->y - cfg.window_border) / inst->font_height;
+
+    term_mouse(button, MA_DRAG, x, y, shift, ctrl, alt);
+
+    return TRUE;
+}
+
 gint timer_func(gpointer data)
 {
     /* struct gui_data *inst = (struct gui_data *)data; */
@@ -692,15 +758,72 @@ void palette_reset(void)
 
 void write_clip(wchar_t * data, int len, int must_deselect)
 {
-    /* FIXME: currently ignored */
+    if (inst->pasteout_data)
+	sfree(inst->pasteout_data);
+    inst->pasteout_data = smalloc(len);
+    inst->pasteout_data_len = len;
+    wc_to_mb(0, 0, data, len, inst->pasteout_data, inst->pasteout_data_len,
+	     NULL, NULL);
+
+    if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
+				GDK_CURRENT_TIME)) {
+	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+				 GDK_SELECTION_TYPE_STRING, 1);
+    }
+}
+
+void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
+		   guint info, guint time_stamp, gpointer data)
+{
+    gtk_selection_data_set(seldata, GDK_SELECTION_TYPE_STRING, 8,
+			   inst->pasteout_data, inst->pasteout_data_len);
+}
+
+gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
+		     gpointer data)
+{
+    term_deselect();
+    if (inst->pasteout_data)
+	sfree(inst->pasteout_data);
+    inst->pasteout_data = NULL;
+    inst->pasteout_data_len = 0;
+    return TRUE;
+}
+
+void request_paste(void)
+{
+    /*
+     * In Unix, pasting is asynchronous: all we can do at the
+     * moment is to call gtk_selection_convert(), and when the data
+     * comes back _then_ we can call term_do_paste().
+     */
+    gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+			  GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
+}
+
+void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
+			gpointer data)
+{
+    if (seldata->length <= 0 ||
+	seldata->type != GDK_SELECTION_TYPE_STRING)
+	return;			       /* Nothing happens. */
+
+    if (inst->pastein_data)
+	sfree(inst->pastein_data);
+
+    inst->pastein_data = smalloc(seldata->length * sizeof(wchar_t));
+    inst->pastein_data_len = seldata->length;
+    mb_to_wc(0, 0, seldata->data, seldata->length,
+	     inst->pastein_data, inst->pastein_data_len);
+
+    term_do_paste();
 }
 
 void get_clip(wchar_t ** p, int *len)
 {
     if (p) {
-	/* FIXME: currently nonfunctional */
-	*p = NULL;
-	*len = 0;
+	*p = inst->pastein_data;
+	*len = inst->pastein_data_len;
     }
 }
 
@@ -907,7 +1030,6 @@ int main(int argc, char **argv)
     gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(inst->hbox));
-//    gtk_container_add(GTK_CONTAINER(window), inst->sbar);
 
     {
 	GdkGeometry geom;
@@ -922,10 +1044,6 @@ int main(int argc, char **argv)
 	gtk_window_set_geometry_hints(GTK_WINDOW(window), inst->area, &geom,
 				      GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE |
 				      GDK_HINT_RESIZE_INC);
-	// FIXME: base_width and base_height don't seem to work properly.
-	// Wonder if this is because base of _zero_ is deprecated, and we
-	// need a nonzero base size? Will it help if I put in the scrollbar?
-	// FIXME also: the scrollbar is not working, find out why.
     }
 
     gtk_signal_connect(GTK_OBJECT(window), "destroy",
@@ -942,12 +1060,26 @@ int main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(configure_area), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "expose_event",
 		       GTK_SIGNAL_FUNC(expose_area), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->area), "button_press_event",
+		       GTK_SIGNAL_FUNC(button_event), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->area), "button_release_event",
+		       GTK_SIGNAL_FUNC(button_event), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->area), "motion_notify_event",
+		       GTK_SIGNAL_FUNC(motion_event), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->area), "selection_received",
+		       GTK_SIGNAL_FUNC(selection_received), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->area), "selection_get",
+		       GTK_SIGNAL_FUNC(selection_get), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->area), "selection_clear_event",
+		       GTK_SIGNAL_FUNC(selection_clear), inst);
     gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
 		       GTK_SIGNAL_FUNC(scrollbar_moved), inst);
     gtk_timeout_add(20, timer_func, inst);
     gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
-			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK);
+			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
+			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+			  GDK_BUTTON_MOTION_MASK);
 
     gtk_widget_show(inst->area);
     gtk_widget_show(inst->sbar);

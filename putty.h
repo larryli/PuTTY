@@ -435,6 +435,7 @@ void modalfatalbox(char *, ...);
 void beep(int);
 void begin_session(void);
 void sys_cursor(int x, int y);
+void request_paste(void);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(int iconic);

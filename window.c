@@ -3817,6 +3817,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     return -1;
 }
 
+void request_paste(void)
+{
+    /*
+     * In Windows, pasting is synchronous: we can read the
+     * clipboard with no difficulty, so request_paste() can just go
+     * ahead and paste.
+     */
+    term_do_paste();
+}
+
 void set_title(char *title)
 {
     sfree(window_name);

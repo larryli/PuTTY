@@ -3221,8 +3221,10 @@ static void clipme(pos top, pos bottom, int rect)
 	top.y++;
 	top.x = rect ? old_top_x : 0;
     }
+#if SELECTION_NUL_TERMINATED
     wblen++;
     *wbptr++ = 0;
+#endif
     write_clip(workbuf, wblen, FALSE); /* transfer to clipboard */
     if (buflen > 0)		       /* indicates we allocated this buffer */
 	sfree(workbuf);
@@ -3686,8 +3688,12 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 	} else
 	    selstate = NO_SELECTION;
     } else if (b == MBT_PASTE
-	       && (a == MA_CLICK || a == MA_2CLK || a == MA_3CLK)) {
-        term_do_paste();
+	       && (a == MA_CLICK
+#if MULTICLICK_ONLY_EVENT
+		   || a == MA_2CLK || a == MA_3CLK
+#endif
+		   )) {
+	request_paste();
     }
 
     term_update();

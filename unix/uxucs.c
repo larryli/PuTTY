@@ -92,7 +92,29 @@ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
     int ret = 0;
     while (mblen > 0 && wclen > 0) {
 	*wcstr++ = (unsigned char) *mbstr++;
-	ret++;
+	mblen--, wclen--, ret++;
+    }
+    return ret;			       /* FIXME: check error codes! */
+}
+
+int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
+	     char *mbstr, int mblen, char *defchr, int *defused)
+{
+    int ret = 0;
+    if (defused)
+	*defused = 0;
+    while (mblen > 0 && wclen > 0) {
+	if (*wcstr >= 0x100) {
+	    if (defchr)
+		*mbstr++ = *defchr;
+	    else
+		*mbstr++ = '\xBF';
+	    if (defused)
+		*defused = 1;
+	} else
+	    *mbstr++ = (unsigned char) *wcstr;
+	wcstr++;
+	mblen--, wclen--, ret++;
     }
     return ret;			       /* FIXME: check error codes! */
 }
