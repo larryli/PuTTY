@@ -313,3 +313,8 @@ void frontend_keypress(void *handle)
      */
     return;
 }
+
+int is_interactive(void)
+{
+    return isatty(0);
+}
