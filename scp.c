@@ -1883,7 +1883,7 @@ static void sink(char *targ, char *src)
 	}
 	(void) scp_finish_filerecv();
 	sfree(destfname);
-	sfree(act.name);
+	sfree(act.buf);
     }
 }
 
