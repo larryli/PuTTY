@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.18 2002/01/14 12:16:58 simon Exp $
+\versionid $Id: faq.but,v 1.19 2002/01/23 09:43:10 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -147,6 +147,18 @@ I really can't see it being a lot less effort for us to do that than
 it would be for us to write a server from the ground up. We don't
 have time, and we don't have motivation. The code is available if
 anyone else wants to try it.
+
+\S{faq-pscp-ascii}{Question} Can PSCP or PSFTP transfer files in
+ASCII mode?
+
+Unfortunately not. This is a limitation of the file transfer
+protocols: the SCP and SFTP protocols have no notion of transferring
+a file in anything other than binary mode.
+
+SFTP is designed to be extensible, so it's possible that an
+extension might be proposed at some later date that implements ASCII
+transfer. But the PuTTY team can't do anything about it until that
+happens.
 
 \H{faq-ports} Ports to other operating systems
 
@@ -422,6 +434,23 @@ know about.
 In this context MAC stands for Message Authentication Code. It's a
 cryptographic term, and it has nothing at all to do with Ethernet
 MAC (Media Access Control) addresses.
+
+\S{faq-pscp-protocol}{Question} Why do I see \q{Fatal: Protocol
+error: Expected control record} in PSCP?
+
+This happens because PSCP was expecting to see data from the server
+that was part of the PSCP protocol exchange, and instead it saw data
+that it couldn't make any sense of at all.
+
+This almost always happens because the startup scripts in your
+account on the server machine are generating output. This is
+impossible for PSCP, or any other SCP client, to work around. You
+should never use startup files (\c{.bashrc}, \c{.cshrc} and so on)
+which generate output in non-interactive sessions.
+
+This is not actually a PuTTY problem. If PSCP fails in this way,
+then all other SCP clients are likely to fail in exactly the same
+way. The problem is at the server end.
 
 \S{faq-colours}{Question} I clicked on a colour in the Colours
 panel, and the colour didn't change in my terminal.
