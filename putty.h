@@ -303,7 +303,7 @@ struct config_tag {
     int blinktext;
     int win_name_always;
     int width, height;
-    char font[64];
+    char font[256];
     int fontisbold;
     int fontheight;
     int fontcharset;
