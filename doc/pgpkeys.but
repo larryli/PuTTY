@@ -42,37 +42,23 @@ they sign it in return.
 Therefore, we have six public keys in total:
 
 \b RSA:
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-rsa.asc}{Master Key},
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-rsa.asc}{Release key},
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-rsa.asc}{Snapshot key}
 
 \lcont{
-
-\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-rsa.asc}{Master Key}
-
-\lcont{
-1024-bit; fingerprint:
+Master Key: 1024-bit; fingerprint:
 \cw{8F\_15\_97\_DA\_25\_30\_AB\_0D\_\_88\_D1\_92\_54\_11\_CF\_0C\_4C}
 }
 
-\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-rsa.asc}{Release key}
-
-\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-rsa.asc}{Snapshot key}
-
-}
-
 \b DSA:
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-dsa.asc}{Master Key},
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-dsa.asc}{Release key},
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-dsa.asc}{Snapshot key}
 
 \lcont{
-
-\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-dsa.asc}{Master Key}
-
-\lcont{
-1024-bit; fingerprint:
+Master Key: 1024-bit; fingerprint:
 \cw{313C\_3E76\_4B74\_C2C5\_F2AE\_\_83A8\_4F5E\_6DF5\_6A93\_B34E}
-}
-
-\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-dsa.asc}{Release key}
-
-\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-dsa.asc}{Snapshot key}
-
 }
 
 \H{pgpkeys-security} Security details
