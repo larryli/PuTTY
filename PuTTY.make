@@ -1,4 +1,4 @@
-# $Id: PuTTY.make,v 1.1.2.4 1999/02/20 22:10:33 ben Exp $
+# $Id: PuTTY.make,v 1.1.2.5 1999/02/21 10:29:12 ben Exp $
 # This is the Makefile for building PuTTY for the Mac OS.
 # Users of non-Mac systems will see some pretty strange characters around.
 
@@ -39,8 +39,8 @@ PuTTY ÄÄ {¥MondoBuild¥} {Objects¥68K}
 		"{Libraries}Interface.o"
 
 
-PuTTY ÄÄ {¥MondoBuild¥} putty.r macresid.h
-	Rez putty.r -o {Targ} {Includes} -append
+PuTTY ÄÄ {¥MondoBuild¥} mac_res.r macresid.h
+	Rez mac_res.r -o {Targ} {Includes} -append
 
 
 "{ObjDir¥68K}mac.c.o" Ä {¥MondoBuild¥} mac.c putty.h macresid.h

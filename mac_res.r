@@ -1,4 +1,4 @@
-/* $Id: putty.r,v 1.1.2.6 1999/02/20 23:55:55 ben Exp $ */
+/* $Id: mac_res.r,v 1.1.2.1 1999/02/21 10:29:13 ben Exp $ */
 /* PuTTY resources */
 
 #define PICT_RezTemplateVersion 1
