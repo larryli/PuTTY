@@ -39,6 +39,12 @@ struct RSAKey {
     char *comment;
 };
 
+struct RSAAux {
+    Bignum p;
+    Bignum q;
+    Bignum iqmp;
+};
+
 int makekey(unsigned char *data, struct RSAKey *result,
 	    unsigned char **keystr, int order);
 int makeprivate(unsigned char *data, struct RSAKey *result);
@@ -144,6 +150,7 @@ void logevent (char *);
 
 Bignum newbn(int length);
 Bignum copybn(Bignum b);
+Bignum bignum_from_short(unsigned short n);
 void freebn(Bignum b);
 void modpow(Bignum base, Bignum exp, Bignum mod, Bignum result);
 void modmul(Bignum a, Bignum b, Bignum mod, Bignum result);
@@ -153,7 +160,15 @@ int ssh1_read_bignum(unsigned char *data, Bignum *result);
 int ssh1_bignum_bitcount(Bignum bn);
 int ssh1_bignum_length(Bignum bn);
 int bignum_byte(Bignum bn, int i);
+int bignum_bit(Bignum bn, int i);
+void bignum_set_bit(Bignum bn, int i, int value);
 int ssh1_write_bignum(void *data, Bignum bn);
+Bignum biggcd(Bignum a, Bignum b);
+unsigned short bignum_mod_short(Bignum number, unsigned short modulus);
+Bignum bignum_add_long(Bignum number, unsigned long addend);
+Bignum bigmul(Bignum a, Bignum b);
+Bignum modinv(Bignum number, Bignum modulus);
+Bignum bignum_rshift(Bignum number, int shift);
 
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);
@@ -163,3 +178,13 @@ int rsakey_encrypted(char *filename, char **comment);
 
 void des3_decrypt_pubkey(unsigned char *key,
                          unsigned char *blk, int len);
+
+/*
+ * For progress updates in the key generation utility.
+ */
+typedef void (*progfn_t)(void *param, int phase, int progress);
+
+int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
+                 progfn_t pfn, void *pfnparam);
+Bignum primegen(int bits, int modulus, int residue,
+                int phase, progfn_t pfn, void *pfnparam);
