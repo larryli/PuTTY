@@ -12,6 +12,7 @@
 #include <Palettes.h>
 
 struct mac_gestalts {
+    long sysvers;
     long qdvers;
     long apprvers;
     long cntlattr;

@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.5 2002/12/06 00:09:34 ben Exp $ */
+/* $Id: mac.c,v 1.6 2002/12/10 01:11:40 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -117,6 +117,11 @@ static void mac_startup(void) {
     InitDialogs(nil);
     cold = 0;
     
+    /* Get base system version (only used if there's no better selector) */
+    if (Gestalt(gestaltSystemVersion, &mac_gestalts.sysvers) != noErr ||
+	(mac_gestalts.sysvers & 0xffff) < 0x700)
+	fatalbox("PuTTY requires System 7 or newer");
+    mac_gestalts.sysvers &= 0xffff;
     /* Find out if we've got Color Quickdraw */
     if (Gestalt(gestaltQuickdrawVersion, &mac_gestalts.qdvers) != noErr)
     	mac_gestalts.qdvers = gestaltOriginalQD;
