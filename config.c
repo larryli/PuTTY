@@ -1600,7 +1600,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		     dlg_stdeditbox_handler,
 		     I(offsetof(Config,ssh_rekey_time)),
 		     I(-1));
-	ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'd', 20,
+	ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'x', 20,
 		     HELPCTX(ssh_kex_repeat),
 		     dlg_stdeditbox_handler,
 		     I(offsetof(Config,ssh_rekey_data)),
