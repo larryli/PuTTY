@@ -2317,8 +2317,8 @@ void sys_cursor(int x, int y)
     /* we should have the IMM functions */
     hIMC = ImmGetContext(hwnd);
     cf.dwStyle = CFS_POINT;
-    cf.ptCurrentPos.x = x * font_width;
-    cf.ptCurrentPos.y = y * font_height;
+    cf.ptCurrentPos.x = x * font_width + offset_width;
+    cf.ptCurrentPos.y = y * font_height + offset_height;
     ImmSetCompositionWindow(hIMC, &cf);
 
     ImmReleaseContext(hwnd, hIMC);
