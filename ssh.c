@@ -347,6 +347,16 @@ static void c_write (char *buf, int len) {
     from_backend(1, buf, len);
 }
 
+static void c_write_untrusted(char *buf, int len) {
+    int i;
+    for (i = 0; i < len; i++) {
+        if (buf[i] == '\n')
+            c_write("\r\n", 2);
+        else if ((buf[i] & 0x60) || (buf[i] == '\r'))
+            c_write(buf+i, 1);
+    }
+}
+
 static void c_write_str (char *buf) {
     c_write(buf, strlen(buf));
 }
@@ -2946,7 +2956,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    if (!gotit)
 		crWaitUntilV(ispkt);
 	    while (pktin.type == SSH2_MSG_USERAUTH_BANNER) {
-		/* FIXME: should support this */
+                char *banner;
+                int size;
+		ssh2_pkt_getstring(&banner, &size);
+                if (banner)
+                    c_write_untrusted(banner, size);
 		crWaitUntilV(ispkt);
 	    }
 	    if (pktin.type == SSH2_MSG_USERAUTH_SUCCESS) {
