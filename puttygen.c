@@ -328,7 +328,7 @@ static void hidemany(HWND hwnd, const int *ids, int hideit)
     }
 }
 
-static void setupbigedit1(HWND hwnd, int id, struct RSAKey *key)
+static void setupbigedit1(HWND hwnd, int id, int idstatic, struct RSAKey *key)
 {
     char *buffer;
     char *dec1, *dec2;
@@ -340,12 +340,15 @@ static void setupbigedit1(HWND hwnd, int id, struct RSAKey *key)
     sprintf(buffer, "%d %s %s %s",
 	    bignum_bitcount(key->modulus), dec1, dec2, key->comment);
     SetDlgItemText(hwnd, id, buffer);
+    SetDlgItemText(hwnd, idstatic,
+		   "&Public key for pasting into authorized_keys file:");
     sfree(dec1);
     sfree(dec2);
     sfree(buffer);
 }
 
-static void setupbigedit2(HWND hwnd, int id, struct ssh2_userkey *key)
+static void setupbigedit2(HWND hwnd, int id, int idstatic,
+			  struct ssh2_userkey *key)
 {
     unsigned char *pub_blob;
     char *buffer, *p;
@@ -368,8 +371,75 @@ static void setupbigedit2(HWND hwnd, int id, struct ssh2_userkey *key)
     *p++ = ' ';
     strcpy(p, key->comment);
     SetDlgItemText(hwnd, id, buffer);
+    SetDlgItemText(hwnd, idstatic, "&Public key for pasting into "
+		   "OpenSSH authorized_keys2 file:");
     sfree(pub_blob);
     sfree(buffer);
+}
+
+static int save_ssh1_pubkey(char *filename, struct RSAKey *key)
+{
+    char *dec1, *dec2;
+    FILE *fp;
+
+    dec1 = bignum_decimal(key->exponent);
+    dec2 = bignum_decimal(key->modulus);
+    fp = fopen(filename, "wb");
+    if (!fp)
+	return 0;
+    fprintf(fp, "%d %s %s %s\n",
+	    bignum_bitcount(key->modulus), dec1, dec2, key->comment);
+    fclose(fp);
+    sfree(dec1);
+    sfree(dec2);
+    return 1;
+}
+
+static int save_ssh2_pubkey(char *filename, struct ssh2_userkey *key)
+{
+    unsigned char *pub_blob;
+    char *p;
+    int pub_len;
+    int i, column;
+    FILE *fp;
+
+    pub_blob = key->alg->public_blob(key->data, &pub_len);
+
+    fp = fopen(filename, "wb");
+    if (!fp)
+	return 0;
+
+    fprintf(fp, "---- BEGIN SSH2 PUBLIC KEY ----\n");
+
+    fprintf(fp, "Comment: \"");
+    for (p = key->comment; *p; p++) {
+	if (*p == '\\' || *p == '\"')
+	    fputc('\\', fp);
+	fputc(*p, fp);
+    }
+    fprintf(fp, "\"\n");
+
+    i = 0;
+    column = 0;
+    while (i < pub_len) {
+	char buf[5];
+	int n = (pub_len - i < 3 ? pub_len - i : 3);
+	base64_encode_atom(pub_blob + i, n, buf);
+	i += n;
+	buf[4] = '\0';
+	fputs(buf, fp);
+	if (++column >= 16) {
+	    fputc('\n', fp);
+	    column = 0;
+	}
+    }
+    if (column > 0)
+	fputc('\n', fp);
+    
+    fprintf(fp, "---- END SSH2 PUBLIC KEY ----\n");
+    fclose(fp);
+    sfree(pub_blob);
+    return 1;
 }
 
 /*
@@ -393,7 +463,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	IDC_BOX_ACTIONS,
 	IDC_GENSTATIC, IDC_GENERATE,
 	IDC_LOADSTATIC, IDC_LOAD,
-	IDC_SAVESTATIC, IDC_SAVE,
+	IDC_SAVESTATIC, IDC_SAVE, IDC_SAVEPUB,
 	IDC_BOX_PARAMS,
 	IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA,
 	IDC_BITSSTATIC, IDC_BITS,
@@ -441,7 +511,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	{
 	    struct ctlpos cp, cp2;
 
-	    /* Accelerators used: acglops */
+	    /* Accelerators used: acglops1rb */
 
 	    ctlposinit(&cp, hwnd, 10, 10, 10);
 	    bartitle(&cp, "Public and private key generation for PuTTY",
@@ -472,8 +542,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		      IDC_GENSTATIC, "&Generate", IDC_GENERATE);
 	    staticbtn(&cp, "Load an existing private key file",
 		      IDC_LOADSTATIC, "&Load", IDC_LOAD);
-	    staticbtn(&cp, "Save the generated key to a new file",
-		      IDC_SAVESTATIC, "&Save", IDC_SAVE);
+	    static2btn(&cp, "Save the generated key", IDC_SAVESTATIC,
+		       "Save p&ublic key", IDC_SAVEPUB,
+		       "&Save private key", IDC_SAVE);
 	    endbox(&cp);
 	    beginbox(&cp, "Parameters", IDC_BOX_PARAMS);
 	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 2,
@@ -489,13 +560,14 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	/*
 	 * Initially, hide the progress bar and the key display,
 	 * and show the no-key display. Also disable the Save
-	 * button, because with no key we obviously can't save
+	 * buttons, because with no key we obviously can't save
 	 * anything.
 	 */
 	hidemany(hwnd, nokey_ids, FALSE);
 	hidemany(hwnd, generating_ids, TRUE);
 	hidemany(hwnd, gotkey_ids, TRUE);
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
 
 	return 1;
       case WM_MOUSEMOVE:
@@ -555,10 +627,11 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    *state->commentptr = smalloc(len + 1);
 		    GetWindowText(editctl, *state->commentptr, len + 1);
 		    if (state->ssh2) {
-			setupbigedit2(hwnd, IDC_KEYDISPLAY,
+			setupbigedit2(hwnd, IDC_KEYDISPLAY, IDC_PKSTATIC,
 				      &state->ssh2key);
 		    } else {
-			setupbigedit1(hwnd, IDC_KEYDISPLAY, &state->key);
+			setupbigedit1(hwnd, IDC_KEYDISPLAY, IDC_PKSTATIC,
+				      &state->key);
 		    }
 		}
 	    }
@@ -597,6 +670,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 0);
 		EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 0);
 		EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
+		EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
+		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 0);
+		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 0);
+		EnableWindow(GetDlgItem(hwnd, IDC_BITS), 0);
 		state->key_exists = FALSE;
 		SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
 		state->collecting_entropy = TRUE;
@@ -681,6 +758,37 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		}
 	    }
 	    break;
+	  case IDC_SAVEPUB:
+	    state =
+		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+	    if (state->key_exists) {
+		char filename[FILENAME_MAX];
+		if (prompt_keyfile(hwnd, "Save public key as:",
+				   filename, 1)) {
+		    int ret;
+		    FILE *fp = fopen(filename, "r");
+		    if (fp) {
+			char buffer[FILENAME_MAX + 80];
+			fclose(fp);
+			sprintf(buffer, "Overwrite existing file\n%.*s?",
+				FILENAME_MAX, filename);
+			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
+					 MB_YESNO | MB_ICONWARNING);
+			if (ret != IDYES)
+			    break;
+		    }
+		    if (state->ssh2) {
+			ret = save_ssh2_pubkey(filename, &state->ssh2key);
+		    } else {
+			ret = save_ssh1_pubkey(filename, &state->key);
+		    }
+		    if (ret <= 0) {
+			MessageBox(hwnd, "Unable to save key file",
+				   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+		    }
+		}
+	    }
+	    break;
 	  case IDC_LOAD:
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
@@ -747,6 +855,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
 			EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
 			EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
+			EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
+			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
+			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
+			EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 			/*
 			 * Now update the key controls with all the
 			 * key data.
@@ -780,7 +892,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				 * .ssh/authorized_keys on a Unix box.
 				 */
 				setupbigedit1(hwnd, IDC_KEYDISPLAY,
-					      &state->key);
+					      IDC_PKSTATIC, &state->key);
 			    } else {
 				char *fp;
 				char *savecomment;
@@ -802,7 +914,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				sfree(fp);
 
 				setupbigedit2(hwnd, IDC_KEYDISPLAY,
-					      &state->ssh2key);
+					      IDC_PKSTATIC, &state->ssh2key);
 			    }
 			    SetDlgItemText(hwnd, IDC_COMMENTEDIT,
 					   *state->commentptr);
@@ -830,6 +942,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 	if (state->ssh2) {
 	    state->ssh2key.data = &state->key;
 	    state->ssh2key.alg = &ssh_rsa;
@@ -886,12 +1002,15 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    *state->commentptr = savecomment;
 	    /*
 	     * Construct a decimal representation of the key, for
-	     * pasting into .ssh/authorized_keys on a Unix box.
+	     * pasting into .ssh/authorized_keys or
+	     * .ssh/authorized_keys2 on a Unix box.
 	     */
 	    if (state->ssh2) {
-		setupbigedit2(hwnd, IDC_KEYDISPLAY, &state->ssh2key);
+		setupbigedit2(hwnd, IDC_KEYDISPLAY,
+			      IDC_PKSTATIC, &state->ssh2key);
 	    } else {
-		setupbigedit1(hwnd, IDC_KEYDISPLAY, &state->key);
+		setupbigedit1(hwnd, IDC_KEYDISPLAY,
+			      IDC_PKSTATIC, &state->key);
 	    }
 	}
 	/*

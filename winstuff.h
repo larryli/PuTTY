@@ -55,6 +55,8 @@ void checkbox(struct ctlpos *cp, char *text, int id);
 void statictext(struct ctlpos *cp, char *text, int id);
 void staticbtn(struct ctlpos *cp, char *stext, int sid,
 	       char *btext, int bid);
+void static2btn(struct ctlpos *cp, char *stext, int sid,
+		char *btext1, int bid1, char *btext2, int bid2);
 void staticedit(struct ctlpos *cp, char *stext,
 		int sid, int eid, int percentedit);
 void dropdownlist(struct ctlpos *cp, char *text, int staticid, int listid);

@@ -362,6 +362,48 @@ void staticbtn(struct ctlpos *cp, char *stext, int sid,
 }
 
 /*
+ * Like staticbtn, but two buttons.
+ */
+void static2btn(struct ctlpos *cp, char *stext, int sid,
+		char *btext1, int bid1, char *btext2, int bid2)
+{
+    const int height = (PUSHBTNHEIGHT > STATICHEIGHT ?
+			PUSHBTNHEIGHT : STATICHEIGHT);
+    RECT r;
+    int lwid, rwid1, rwid2, rpos1, rpos2;
+
+    rpos1 = GAPBETWEEN + (cp->width + GAPBETWEEN) / 2;
+    rpos2 = GAPBETWEEN + 3 * (cp->width + GAPBETWEEN) / 4;
+    lwid = rpos1 - 2 * GAPBETWEEN;
+    rwid1 = rpos2 - rpos1 - GAPBETWEEN;
+    rwid2 = cp->width + GAPBETWEEN - rpos2;
+
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos + (height - STATICHEIGHT) / 2;
+    r.right = lwid;
+    r.bottom = STATICHEIGHT;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    r.left = rpos1;
+    r.top = cp->ypos + (height - PUSHBTNHEIGHT) / 2;
+    r.right = rwid1;
+    r.bottom = PUSHBTNHEIGHT;
+    doctl(cp, r, "BUTTON",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+	  0, btext1, bid1);
+
+    r.left = rpos2;
+    r.top = cp->ypos + (height - PUSHBTNHEIGHT) / 2;
+    r.right = rwid2;
+    r.bottom = PUSHBTNHEIGHT;
+    doctl(cp, r, "BUTTON",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+	  0, btext2, bid2);
+
+    cp->ypos += height + GAPBETWEEN;
+}
+
+/*
  * An edit control on the right hand side, with a static to its left.
  */
 static void staticedit_internal(struct ctlpos *cp, char *stext,
