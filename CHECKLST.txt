@@ -159,6 +159,9 @@ of the tag.
  - Create subdir `htmldoc' in the release directory, which should
    contain exactly the same set of HTML files that went into
    puttydoc.zip.
+    + It also needs a copy of sitestyle.css, because the online
+      versions of the HTML docs will link to this (although the
+      zipped form should be self-contained).
 
  - Now the whole release directory should be present and correct.
    Upload to ixion:www/putty/<ver>, upload to
