@@ -50,7 +50,7 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
         {
-            static const int tabs[4] = {78, 108};
+            static int tabs[4] = {78, 108};
             SendDlgItemMessage (hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
                                 (LPARAM) tabs);
         }
@@ -2058,14 +2058,14 @@ void logevent (char *string) {
     events[nevents] = smalloc(strlen(timebuf)+strlen(string)+1);
     strcpy(events[nevents], timebuf);
     strcat(events[nevents], string);
-    nevents++;
     if (logbox) {
         int count;
 	SendDlgItemMessage (logbox, IDN_LIST, LB_ADDSTRING,
-			    0, (LPARAM)string);
+			    0, (LPARAM)events[nevents]);
 	count = SendDlgItemMessage (logbox, IDN_LIST, LB_GETCOUNT, 0, 0);
 	SendDlgItemMessage (logbox, IDN_LIST, LB_SETTOPINDEX, count-1, 0);
     }
+    nevents++;
 }
 
 void showeventlog (HWND hwnd) {
