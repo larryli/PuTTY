@@ -14,7 +14,7 @@ BEGIN
     DEFPUSHBUTTON "&Close", IDOK, 82, 40, 48, 14
     PUSHBUTTON "View &Licence", IDA_LICENCE, 6, 40, 70, 14
     ICON IDI_MAINICON, IDA_ICON, 10, 10, 0, 0
-    LTEXT "PuTTY Beta 0.44\n\251 1997-8 Simon Tatham\nAll rights reserved.",
+    LTEXT "PuTTY Beta 0.45\n\251 1997-8 Simon Tatham\nAll rights reserved.",
           IDA_TEXT, 40, 6, 96, 24
 END
 
