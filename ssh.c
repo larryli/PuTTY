@@ -2767,6 +2767,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    if (s->authed)
 			break;
 		}
+		sfree(s->response);
 	    }
 	    if (s->authed)
 		break;
@@ -4922,6 +4923,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    if (s->authed)
 			continue;
 		}
+		sfree(s->response);
 	    }
 
 	    if (!s->method && s->can_pubkey && s->publickey_blob
@@ -6264,10 +6266,18 @@ static void ssh_free(void *handle)
 	ssh->csmac->free_context(ssh->cs_mac_ctx);
     if (ssh->sc_mac_ctx)
 	ssh->scmac->free_context(ssh->sc_mac_ctx);
-    if (ssh->cs_comp_ctx)
-	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
-    if (ssh->sc_comp_ctx)
-	ssh->sccomp->compress_cleanup(ssh->sc_comp_ctx);
+    if (ssh->cs_comp_ctx) {
+	if (ssh->cscomp)
+	    ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
+	else
+	    zlib_compress_cleanup(ssh->cs_comp_ctx);
+    }
+    if (ssh->sc_comp_ctx) {
+	if (ssh->sccomp)
+	    ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
+	else
+	    zlib_decompress_cleanup(ssh->sc_comp_ctx);
+    }
     if (ssh->kex_ctx)
 	dh_cleanup(ssh->kex_ctx);
     sfree(ssh->savedhost);
