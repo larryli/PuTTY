@@ -46,6 +46,9 @@ HALIBUT = halibut
 index.html: $(INPUTS)
 	$(HALIBUT) --text --html --winhelp $(INPUTS)
 
+putty.info: $(INPUTS)
+	$(HALIBUT) --info $(INPUTS)
+
 MKMAN = $(HALIBUT) --man=$@ mancfg.but $<
 MANPAGES = putty.1 puttygen.1 plink.1 pscp.1 psftp.1 puttytel.1 pterm.1
 man: $(MANPAGES)
@@ -59,4 +62,4 @@ puttytel.1: man-ptel.but mancfg.but; $(MKMAN)
 pterm.1: man-pter.but mancfg.but; $(MKMAN)
 
 clean:
-	rm -f *.html *.txt *.hlp *.cnt *.1 vstr.but
+	rm -f *.html *.txt *.hlp *.cnt *.1 *.info vstr.but
