@@ -291,7 +291,11 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BELLSTATIC,
     IDC_BELL_DISABLED,
     IDC_BELL_DEFAULT,
+    IDC_BELL_WAVEFILE,
     IDC_BELL_VISUAL,
+    IDC_BELL_WAVESTATIC,
+    IDC_BELL_WAVEEDIT,
+    IDC_BELL_WAVEBROWSE,
     IDC_BELLOVL,
     IDC_BELLOVLNSTATIC,
     IDC_BELLOVLN,
@@ -566,8 +570,11 @@ static void init_dlg_ctrls(HWND hwnd) {
     fmtfont (fontstatic);
     SetDlgItemText (hwnd, IDC_FONTSTATIC, fontstatic);
     CheckRadioButton (hwnd, IDC_BELL_DISABLED, IDC_BELL_VISUAL,
-		      cfg.beep==0 ? IDC_BELL_DISABLED :
-		      cfg.beep==1 ? IDC_BELL_DEFAULT : IDC_BELL_VISUAL);
+		      cfg.beep==BELL_DISABLED ? IDC_BELL_DISABLED :
+		      cfg.beep==BELL_DEFAULT ? IDC_BELL_DEFAULT :
+		      cfg.beep==BELL_WAVEFILE ? IDC_BELL_WAVEFILE :
+		      cfg.beep==BELL_VISUAL ? IDC_BELL_VISUAL : IDC_BELL_DEFAULT);
+    SetDlgItemText (hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile);
     CheckDlgButton (hwnd, IDC_BELLOVL, cfg.bellovl);
     SetDlgItemInt (hwnd, IDC_BELLOVLN, cfg.bellovl_n, FALSE);
     SetDlgItemInt (hwnd, IDC_BELLOVLT, cfg.bellovl_t, FALSE);
@@ -808,7 +815,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == bellpanelstart) {
-        /* The Bell panel. Accelerators used: [acgo] bdsm */
+        /* The Bell panel. Accelerators used: [acgo] bdsm w */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the terminal bell",
@@ -819,7 +826,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                  "Action to happen when a &bell occurs:", IDC_BELLSTATIC,
                  "None (bell disabled)", IDC_BELL_DISABLED,
                  "Play Windows Default Sound", IDC_BELL_DEFAULT,
+                 "Play a custom sound file", IDC_BELL_WAVEFILE,
                  "Visual bell (flash window)", IDC_BELL_VISUAL, NULL);
+	editbutton(&cp, "Custom sound file to play as a bell:",
+		   IDC_BELL_WAVESTATIC, IDC_BELL_WAVEEDIT,
+		   "Bro&wse...", IDC_BELL_WAVEBROWSE);
         endbox(&cp);
 	beginbox(&cp, "Control the bell overload behaviour",
 		 IDC_BOX_BELL2);
@@ -1646,13 +1657,42 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    break;
 	  case IDC_BELL_DISABLED:
 	  case IDC_BELL_DEFAULT:
+	  case IDC_BELL_WAVEFILE:
 	  case IDC_BELL_VISUAL:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		if (LOWORD(wParam)==IDC_BELL_DISABLED) cfg.beep = 0;
-		if (LOWORD(wParam)==IDC_BELL_DEFAULT) cfg.beep = 1;
-		if (LOWORD(wParam)==IDC_BELL_VISUAL) cfg.beep = 2;
+		if (LOWORD(wParam)==IDC_BELL_DISABLED) cfg.beep = BELL_DISABLED;
+		if (LOWORD(wParam)==IDC_BELL_DEFAULT) cfg.beep = BELL_DEFAULT;
+		if (LOWORD(wParam)==IDC_BELL_WAVEFILE) cfg.beep = BELL_WAVEFILE;
+		if (LOWORD(wParam)==IDC_BELL_VISUAL) cfg.beep = BELL_VISUAL;
             }
+	    break;
+	  case IDC_BELL_WAVEBROWSE:
+            memset(&of, 0, sizeof(of));
+#ifdef OPENFILENAME_SIZE_VERSION_400
+            of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
+#else
+            of.lStructSize = sizeof(of);
+#endif
+            of.hwndOwner = hwnd;
+            of.lpstrFilter = "Wave Files\0*.WAV\0AllFiles\0*\0\0\0";
+            of.lpstrCustomFilter = NULL;
+            of.nFilterIndex = 1;
+            of.lpstrFile = filename; strcpy(filename, cfg.bell_wavefile);
+            of.nMaxFile = sizeof(filename);
+            of.lpstrFileTitle = NULL;
+            of.lpstrInitialDir = NULL;
+            of.lpstrTitle = "Select Bell Sound File";
+            of.Flags = 0;
+            if (GetOpenFileName(&of)) {
+                strcpy(cfg.bell_wavefile, filename);
+                SetDlgItemText (hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile);
+            }
+	    break;
+	  case IDC_BELL_WAVEEDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+		GetDlgItemText (hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile,
+				sizeof(cfg.bell_wavefile)-1);
 	    break;
 	  case IDC_BELLOVL:
 	    if (HIWORD(wParam) == BN_CLICKED ||

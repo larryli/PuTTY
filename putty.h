@@ -217,11 +217,14 @@ typedef struct {
     int lfhascr;
     int cursor_type;		       /* 0=block 1=underline 2=vertical */
     int blink_cur;
-    int beep;			       /* 0=none 1=defaultsound 2=visual */
+    enum {
+	BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE
+    } beep;
     int bellovl;		       /* bell overload protection active? */
     int bellovl_n;		       /* number of bells to cause overload */
     int bellovl_t;		       /* time interval for overload (seconds) */
     int bellovl_s;		       /* period of silence to re-enable bell (s) */
+    char bell_wavefile[FILENAME_MAX];
     int scrollbar;
     int locksize;
     int bce;

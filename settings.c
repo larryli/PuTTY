@@ -104,6 +104,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "CurType", cfg->cursor_type);
     write_setting_i (sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i (sesskey, "Beep", cfg->beep);
+    write_setting_s (sesskey, "BellWaveFile", cfg->bell_wavefile);
     write_setting_i (sesskey, "BellOverload", cfg->bellovl);
     write_setting_i (sesskey, "BellOverloadN", cfg->bellovl_n);
     write_setting_i (sesskey, "BellOverloadT", cfg->bellovl_t);
@@ -260,6 +261,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "CurType", 0, &cfg->cursor_type);
     gppi (sesskey, "BlinkCur", 0, &cfg->blink_cur);
     gppi (sesskey, "Beep", 1, &cfg->beep);
+    gpps (sesskey, "BellWaveFile", "", cfg->bell_wavefile,
+	  sizeof(cfg->bell_wavefile));
     gppi (sesskey, "BellOverload", 1, &cfg->bellovl);
     gppi (sesskey, "BellOverloadN", 5, &cfg->bellovl_n);
     gppi (sesskey, "BellOverloadT", 2, &cfg->bellovl_t);

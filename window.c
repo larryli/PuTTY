@@ -2637,6 +2637,15 @@ void fatalbox(char *fmt, ...) {
  * Beep.
  */
 void beep(int mode) {
-    if (mode == 1)
+    if (mode == BELL_DEFAULT) {
 	MessageBeep(MB_OK);
+    } else if (mode == BELL_WAVEFILE) {
+	if (!PlaySound(cfg.bell_wavefile, NULL, SND_ASYNC | SND_FILENAME)) {
+	    char buf[sizeof(cfg.bell_wavefile)+80];
+	    sprintf(buf, "Unable to play sound file\n%s\n"
+		    "Using default sound instead", cfg.bell_wavefile);
+	    MessageBox(hwnd, buf, "PuTTY Sound Error", MB_OK | MB_ICONEXCLAMATION);
+	    cfg.beep = BELL_DEFAULT;
+	}
+    }
 }
