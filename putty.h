@@ -263,6 +263,12 @@ void safefree(void *);
 extern char ver[];
 
 /*
+ * Exports from sizetip.c.
+ */
+void UpdateSizeTip(HWND src, int cx, int cy);
+void EnableSizeTip(int bEnable);
+
+/*
  * Exports from xlat.c.
  */
 unsigned char xlat_kbd2tty(unsigned char c);

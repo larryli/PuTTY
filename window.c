@@ -7,7 +7,6 @@
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
 #include "win_res.h"
-#include "sizetip.h"
 
 #define IDM_SHOWLOG   0x0010
 #define IDM_NEWSESS   0x0020
