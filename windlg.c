@@ -228,18 +228,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     terminalpanelstart,
     IDC_TITLE_TERMINAL,
     IDC_BOX_TERMINAL1, IDC_BOXT_TERMINAL1,
-    IDC_BOX_TERMINAL2, IDC_BOXT_TERMINAL2,
-    IDC_BOX_TERMINAL3, IDC_BOXT_TERMINAL3,
     IDC_WRAPMODE,
     IDC_DECOM,
-    IDC_DIMSTATIC,
-    IDC_ROWSSTATIC,
-    IDC_ROWSEDIT,
-    IDC_COLSSTATIC,
-    IDC_COLSEDIT,
-    IDC_LOCKSIZE,
-    IDC_FONTSTATIC,
-    IDC_CHOOSEFONT,
     IDC_LFHASCR,
     IDC_BEEP,
     IDC_BCE,
@@ -251,13 +241,13 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_TITLE_WINDOW,
     IDC_BOX_WINDOW1, IDC_BOXT_WINDOW1,
     IDC_BOX_WINDOW2, IDC_BOXT_WINDOW2,
-    IDC_BOX_WINDOW3, IDC_BOXT_WINDOW3,
-    IDC_BOX_WINDOW4,
-    IDC_WINNAME,
-    IDC_BLINKCUR,
+    IDC_BOX_WINDOW3,
+    IDC_ROWSSTATIC,
+    IDC_ROWSEDIT,
+    IDC_COLSSTATIC,
+    IDC_COLSEDIT,
+    IDC_LOCKSIZE,
     IDC_SCROLLBAR,
-    IDC_WINTITLE,
-    IDC_WINEDIT,
     IDC_CLOSEWARN,
     IDC_SAVESTATIC,
     IDC_SAVEEDIT,
@@ -267,6 +257,19 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_SCROLLKEY,
     IDC_SCROLLDISP,
     windowpanelend,
+
+    appearancepanelstart,
+    IDC_TITLE_APPEARANCE,
+    IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1,
+    IDC_BOX_APPEARANCE2, IDC_BOXT_APPEARANCE2,
+    IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3,
+    IDC_BLINKCUR,
+    IDC_FONTSTATIC,
+    IDC_CHOOSEFONT,
+    IDC_WINTITLE,
+    IDC_WINEDIT,
+    IDC_WINNAME,
+    appearancepanelend,
 
     connectionpanelstart,
     IDC_TITLE_CONNECTION,
@@ -687,26 +690,14 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             hsession = treeview_insert(&tvfaff, 0, "Session");
 	}
 
-        /* The Terminal panel. Accelerators used: [acgo] rmkh&dlbenu */
+        /* The Terminal panel. Accelerators used: [acgo] &dlbenu */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
             bartitle(&cp, "Options controlling the terminal emulation",
                      IDC_TITLE_TERMINAL);
-            beginbox(&cp, "Set the size of the terminal window",
-                     IDC_BOX_TERMINAL1, IDC_BOXT_TERMINAL1);
-	    multiedit(&cp,
-		      "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
-		      "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50,
-		      NULL);
-	    checkbox(&cp, "Loc&k window size against resizing", IDC_LOCKSIZE);
-            endbox(&cp);
-            beginbox(&cp, "Set the font used in the terminal window",
-                     IDC_BOX_TERMINAL2, IDC_BOXT_TERMINAL2);
-	    staticbtn(&cp, "", IDC_FONTSTATIC, "C&hange...", IDC_CHOOSEFONT);
-            endbox(&cp);
             beginbox(&cp, "Set various terminal options",
-                     IDC_BOX_TERMINAL3, IDC_BOXT_TERMINAL3);
+                     IDC_BOX_TERMINAL1, IDC_BOXT_TERMINAL1);
 	    checkbox(&cp, "Auto &wrap mode initially on", IDC_WRAPMODE);
 	    checkbox(&cp, "&DEC Origin Mode initially on", IDC_DECOM);
 	    checkbox(&cp, "Implicit CR in every &LF", IDC_LFHASCR);
@@ -758,26 +749,22 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             treeview_insert(&tvfaff, 1, "Keyboard");
 	}
 
-        /* The Window panel. Accelerators used: [acgo] tibsdkw4ylp */
+        /* The Window panel. Accelerators used: [acgo] bsdkw4ylp */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
             bartitle(&cp, "Options controlling PuTTY's window",
                      IDC_TITLE_WINDOW);
-            beginbox(&cp, "Adjust the use of the window title",
+            beginbox(&cp, "Set the size of the window",
                      IDC_BOX_WINDOW1, IDC_BOXT_WINDOW1);
-	    if (dlgtype == 0)
-		multiedit(&cp,
-			  "Initial window &title:", IDC_WINTITLE,
-			  IDC_WINEDIT, 100, NULL);
-	    checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
-            endbox(&cp);
-            beginbox(&cp, "Adjust the use of the cursor",
-                     IDC_BOX_WINDOW2, IDC_BOXT_WINDOW2);
-	    checkbox(&cp, "Cursor &blinks", IDC_BLINKCUR);
+	    multiedit(&cp,
+		      "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
+		      "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50,
+		      NULL);
+	    checkbox(&cp, "Loc&k window size against resizing", IDC_LOCKSIZE);
             endbox(&cp);
             beginbox(&cp, "Control the scrollback in the window",
-                     IDC_BOX_WINDOW3, IDC_BOXT_WINDOW3);
+                     IDC_BOX_WINDOW2, IDC_BOXT_WINDOW2);
             staticedit(&cp, "Lines of &scrollback",
                        IDC_SAVESTATIC, IDC_SAVEEDIT, 50);
 	    checkbox(&cp, "&Display scrollbar", IDC_SCROLLBAR);
@@ -785,7 +772,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    checkbox(&cp, "Reset scrollback on dis&play activity",
 		     IDC_SCROLLDISP);
             endbox(&cp);
-            beginbox(&cp, NULL, IDC_BOX_WINDOW4, 0);
+            beginbox(&cp, NULL, IDC_BOX_WINDOW3, 0);
 	    checkbox(&cp, "&Warn before closing window", IDC_CLOSEWARN);
 	    checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
 	    checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
@@ -793,6 +780,32 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             endbox(&cp);
 
             treeview_insert(&tvfaff, 0, "Window");
+	}
+
+        /* The Appearance panel. Accelerators used: [acgo] rmkhti */
+	{
+	    struct ctlpos cp;
+	    ctlposinit(&cp, hwnd, 80, 3, 13);
+            bartitle(&cp, "Options controlling PuTTY's appearance",
+                     IDC_TITLE_WINDOW);
+            beginbox(&cp, "Adjust the use of the cursor",
+                     IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1);
+	    checkbox(&cp, "Cursor &blinks", IDC_BLINKCUR);
+            endbox(&cp);
+            beginbox(&cp, "Set the font used in the terminal window",
+                     IDC_BOX_APPEARANCE2, IDC_BOXT_APPEARANCE2);
+	    staticbtn(&cp, "", IDC_FONTSTATIC, "C&hange...", IDC_CHOOSEFONT);
+            endbox(&cp);
+            beginbox(&cp, "Adjust the use of the window title",
+                     IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3);
+	    if (dlgtype == 0)
+		multiedit(&cp,
+			  "Initial window &title:", IDC_WINTITLE,
+			  IDC_WINEDIT, 100, NULL);
+	    checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
+            endbox(&cp);
+
+            treeview_insert(&tvfaff, 1, "Appearance");
 	}
 
 	/* The Translation panel. Accelerators used: [acgo] xbepnkis */
@@ -1018,6 +1031,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		hide(hwnd, FALSE, terminalpanelstart, terminalpanelend);
 	    if (!strcmp(buffer, "Window"))
 		hide(hwnd, FALSE, windowpanelstart, windowpanelend);
+	    if (!strcmp(buffer, "Appearance"))
+		hide(hwnd, FALSE, appearancepanelstart, appearancepanelend);
 	    if (!strcmp(buffer, "Connection"))
 		hide(hwnd, FALSE, connectionpanelstart, connectionpanelend);
 	    if (!strcmp(buffer, "Telnet"))
