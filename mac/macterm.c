@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.7 2002/11/23 14:22:11 ben Exp $ */
+/* $Id: macterm.c,v 1.8 2002/11/23 19:01:01 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -152,7 +152,7 @@ void mac_newsession(void) {
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
     SetWRefCon(s->window, (long)s);
     s->scrollbar = GetNewControl(cVScroll, s->window);
-    s->term = term_init(s);
+    s->term = term_init(&s->cfg, s);
 
     s->logctx = log_init(s);
     term_provide_logctx(s->term, s->logctx);

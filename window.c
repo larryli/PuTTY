@@ -506,7 +506,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hwnd = NULL;
 
-    term = term_init(NULL);
+    term = term_init(&cfg, NULL);
     logctx = log_init(NULL);
     term_provide_logctx(term, logctx);
 

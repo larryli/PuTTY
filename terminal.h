@@ -167,6 +167,8 @@ struct terminal_tag {
     void *frontend;
 
     void *logctx;
+
+    Config *cfg;
 };
 
 #define in_utf(term) ((term)->utf || line_codepage==CP_UTF8)

@@ -2101,7 +2101,7 @@ int main(int argc, char **argv)
     inst->currcursor = inst->textcursor;
     show_mouseptr(inst, 1);
 
-    inst->term = term_init(inst);
+    inst->term = term_init(&cfg, inst);
     inst->logctx = log_init(inst);
     term_provide_logctx(inst->term, inst->logctx);
 

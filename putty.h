@@ -467,7 +467,7 @@ void registry_cleanup(void);
  * Exports from terminal.c.
  */
 
-Terminal *term_init(void *frontend);
+Terminal *term_init(Config *, void *);
 void term_size(Terminal *, int, int, int);
 void term_out(Terminal *);
 void term_paint(Terminal *, Context, int, int, int, int, int);

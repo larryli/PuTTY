@@ -150,10 +150,10 @@ static void power_on(Terminal *term)
 	for (i = 0; i < term->cols; i++)
 	    term->tabs[i] = (i % 8 == 0 ? TRUE : FALSE);
     }
-    term->alt_om = term->dec_om = cfg.dec_om;
+    term->alt_om = term->dec_om = term->cfg->dec_om;
     term->alt_ins = term->insert = FALSE;
     term->alt_wnext = term->wrapnext = term->save_wnext = FALSE;
-    term->alt_wrap = term->wrap = cfg.wrap_mode;
+    term->alt_wrap = term->wrap = term->cfg->wrap_mode;
     term->alt_cset = term->cset = term->save_cset = 0;
     term->alt_utf = term->utf = term->save_utf = 0;
     term->utf_state = 0;
@@ -165,17 +165,17 @@ static void power_on(Terminal *term)
     term->big_cursor = 0;
     term->save_attr = term->curr_attr = ATTR_DEFAULT;
     term->term_editing = term->term_echoing = FALSE;
-    term->app_cursor_keys = cfg.app_cursor;
-    term->app_keypad_keys = cfg.app_keypad;
-    term->use_bce = cfg.bce;
-    term->blink_is_real = cfg.blinktext;
+    term->app_cursor_keys = term->cfg->app_cursor;
+    term->app_keypad_keys = term->cfg->app_keypad;
+    term->use_bce = term->cfg->bce;
+    term->blink_is_real = term->cfg->blinktext;
     term->erase_char = ERASE_CHAR;
     term->alt_which = 0;
     term_print_finish(term);
     {
 	int i;
 	for (i = 0; i < 256; i++)
-	    term->wordness[i] = cfg.wordness[i];
+	    term->wordness[i] = term->cfg->wordness[i];
     }
     if (term->screen) {
 	swap_screen(term, 1, FALSE, FALSE);
@@ -194,7 +194,7 @@ void term_update(Terminal *term)
     ctx = get_ctx(term->frontend);
     if (ctx) {
 	int need_sbar_update = term->seen_disp_event;
-	if (term->seen_disp_event && cfg.scroll_on_disp) {
+	if (term->seen_disp_event && term->cfg->scroll_on_disp) {
 	    term->disptop = 0;	       /* return to main screen */
 	    term->seen_disp_event = 0;
 	    need_sbar_update = TRUE;
@@ -232,7 +232,7 @@ void term_seen_key_event(Terminal *term)
     /*
      * Reset the scrollback on keypress, if we're doing that.
      */
-    if (cfg.scroll_on_key) {
+    if (term->cfg->scroll_on_key) {
 	term->disptop = 0;	       /* return to main screen */
 	term->seen_disp_event = 1;
     }
@@ -260,18 +260,18 @@ void term_pwron(Terminal *term)
  */
 void term_reconfig(Terminal *term)
 {
-    if (cfg.no_alt_screen)
+    if (term->cfg->no_alt_screen)
 	swap_screen(term, 0, FALSE, FALSE);
-    if (cfg.no_mouse_rep) {
+    if (term->cfg->no_mouse_rep) {
 	term->xterm_mouse = 0;
 	set_raw_mouse_mode(term->frontend, 0);
     }
-    if (cfg.no_remote_charset) {
+    if (term->cfg->no_remote_charset) {
 	term->cset_attr[0] = term->cset_attr[1] = ATTR_ASCII;
 	term->sco_acs = term->alt_sco_acs = 0;
 	term->utf = 0;
     }
-    if (!*cfg.printer) {
+    if (!*term->cfg->printer) {
 	term_print_finish(term);
     }
 }
@@ -292,7 +292,7 @@ void term_clrsb(Terminal *term)
 /*
  * Initialise the terminal.
  */
-Terminal *term_init(void *frontend)
+Terminal *term_init(Config *mycfg, void *frontend)
 {
     Terminal *term;
 
@@ -302,6 +302,7 @@ Terminal *term_init(void *frontend)
      */
     term = smalloc(sizeof(Terminal));
     term->frontend = frontend;
+    term->cfg = mycfg;
     term->logctx = NULL;
     term->compatibility_level = TM_PUTTY;
     strcpy(term->id_string, "\033[?6c");
@@ -900,12 +901,12 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 		term->blink_is_real = FALSE;
 		term->vt52_bold = FALSE;
 	    } else {
-		term->blink_is_real = cfg.blinktext;
+		term->blink_is_real = term->cfg->blinktext;
 	    }
 	    break;
 	  case 3:		       /* 80/132 columns */
 	    deselect(term);
-	    if (!cfg.no_remote_resize)
+	    if (!term->cfg->no_remote_resize)
 		request_resize(term->frontend, state ? 132 : 80, term->rows);
 	    term->reset_132 = state;
 	    break;
@@ -960,7 +961,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 47:		       /* alternate screen */
 	    compatibility(OTHER);
 	    deselect(term);
-	    swap_screen(term, cfg.no_alt_screen ? 0 : state, FALSE, FALSE);
+	    swap_screen(term, term->cfg->no_alt_screen ? 0 : state, FALSE, FALSE);
 	    term->disptop = 0;
 	    break;
 	  case 1000:		       /* xterm mouse 1 */
@@ -974,7 +975,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 1047:                   /* alternate screen */
 	    compatibility(OTHER);
 	    deselect(term);
-	    swap_screen(term, cfg.no_alt_screen ? 0 : state, TRUE, TRUE);
+	    swap_screen(term, term->cfg->no_alt_screen ? 0 : state, TRUE, TRUE);
 	    term->disptop = 0;
 	    break;
 	  case 1048:                   /* save/restore cursor */
@@ -987,7 +988,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    if (!state) term->seen_disp_event = TRUE;
 	    compatibility(OTHER);
 	    deselect(term);
-	    swap_screen(term, cfg.no_alt_screen ? 0 : state, TRUE, FALSE);
+	    swap_screen(term, term->cfg->no_alt_screen ? 0 : state, TRUE, FALSE);
 	    if (!state)
 		save_cursor(term, state);
 	    term->disptop = 0;
@@ -1026,14 +1027,14 @@ static void do_osc(Terminal *term)
 	switch (term->esc_args[0]) {
 	  case 0:
 	  case 1:
-	    if (!cfg.no_remote_wintitle)
+	    if (!term->cfg->no_remote_wintitle)
 		set_icon(term->frontend, term->osc_string);
 	    if (term->esc_args[0] == 1)
 		break;
 	    /* fall through: parameter 0 means set both */
 	  case 2:
 	  case 21:
-	    if (!cfg.no_remote_wintitle)
+	    if (!term->cfg->no_remote_wintitle)
 		set_title(term->frontend, term->osc_string);
 	    break;
 	}
@@ -1046,7 +1047,7 @@ static void do_osc(Terminal *term)
 static void term_print_setup(Terminal *term)
 {
     bufchain_clear(&term->printer_buf);
-    term->print_job = printer_start_job(cfg.printer);
+    term->print_job = printer_start_job(term->cfg->printer);
 }
 static void term_print_flush(Terminal *term)
 {
@@ -1120,7 +1121,7 @@ void term_out(Terminal *term)
 	     * Optionally log the session traffic to a file. Useful for
 	     * debugging and possibly also useful for actual logging.
 	     */
-	    if (cfg.logtype == LGTYP_DEBUG && term->logctx)
+	    if (term->cfg->logtype == LGTYP_DEBUG && term->logctx)
 		logtraffic(term->logctx, (unsigned char) c, LGTYP_DEBUG);
 	} else {
 	    c = unget;
@@ -1308,7 +1309,7 @@ void term_out(Terminal *term)
 		term->curs.x--;
 	    term->wrapnext = FALSE;
 	    fix_cpos;
-	    if (!cfg.no_dbackspace)    /* destructive bksp might be disabled */
+	    if (!term->cfg->no_dbackspace)    /* destructive bksp might be disabled */
 		*term->cpos = (' ' | term->curr_attr | ATTR_ASCII);
 	} else
 	    /* Or normal C0 controls. */
@@ -1327,7 +1328,7 @@ void term_out(Terminal *term)
 		if (term->ldisc) {
 		    char abuf[256], *s, *d;
 		    int state = 0;
-		    for (s = cfg.answerback, d = abuf; *s; s++) {
+		    for (s = term->cfg->answerback, d = abuf; *s; s++) {
 			if (state) {
 			    if (*s >= 'a' && *s <= 'z')
 				*d++ = (*s - ('a' - 1));
@@ -1370,7 +1371,7 @@ void term_out(Terminal *term)
 		     * t seconds ago.
 		     */
 		    while (term->beephead &&
-			   term->beephead->ticks < ticks - cfg.bellovl_t) {
+			   term->beephead->ticks < ticks - term->cfg->bellovl_t) {
 			struct beeptime *tmp = term->beephead;
 			term->beephead = tmp->next;
 			sfree(tmp);
@@ -1379,16 +1380,16 @@ void term_out(Terminal *term)
 			term->nbeeps--;
 		    }
 
-		    if (cfg.bellovl && term->beep_overloaded &&
-			ticks - term->lastbeep >= (unsigned)cfg.bellovl_s) {
+		    if (term->cfg->bellovl && term->beep_overloaded &&
+			ticks - term->lastbeep >= (unsigned)term->cfg->bellovl_s) {
 			/*
 			 * If we're currently overloaded and the
 			 * last beep was more than s seconds ago,
 			 * leave overload mode.
 			 */
 			term->beep_overloaded = FALSE;
-		    } else if (cfg.bellovl && !term->beep_overloaded &&
-			       term->nbeeps >= cfg.bellovl_n) {
+		    } else if (term->cfg->bellovl && !term->beep_overloaded &&
+			       term->nbeeps >= term->cfg->bellovl_n) {
 			/*
 			 * Now, if we have n or more beeps
 			 * remaining in the queue, go into overload
@@ -1401,9 +1402,9 @@ void term_out(Terminal *term)
 		    /*
 		     * Perform an actual beep if we're not overloaded.
 		     */
-		    if (!cfg.bellovl || !term->beep_overloaded) {
-			beep(term->frontend, cfg.beep);
-			if (cfg.beep == BELL_VISUAL) {
+		    if (!term->cfg->bellovl || !term->beep_overloaded) {
+			beep(term->frontend, term->cfg->beep);
+			if (term->cfg->beep == BELL_VISUAL) {
 			    term->in_vbell = TRUE;
 			    term->vbell_startpoint = ticks;
 			    term_update(term);
@@ -1467,7 +1468,7 @@ void term_out(Terminal *term)
 		    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
 		else if (term->curs.y < term->rows - 1)
 		    term->curs.y++;
-		if (cfg.lfhascr)
+		if (term->cfg->lfhascr)
 		    term->curs.x = 0;
 		fix_cpos;
 		term->wrapnext = FALSE;
@@ -1667,7 +1668,7 @@ void term_out(Terminal *term)
 		    if (term->ldisc)   /* cause ldisc to notice changes */
 			ldisc_send(term->ldisc, NULL, 0, 0);
 		    if (term->reset_132) {
-			if (!cfg.no_remote_resize)
+			if (!term->cfg->no_remote_resize)
 			    request_resize(term->frontend, 80, term->rows);
 			term->reset_132 = 0;
 		    }
@@ -1732,55 +1733,55 @@ void term_out(Terminal *term)
 
 		  case ANSI('A', '('):
 		    compatibility(VT100);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[0] = ATTR_GBCHR;
 		    break;
 		  case ANSI('B', '('):
 		    compatibility(VT100);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[0] = ATTR_ASCII;
 		    break;
 		  case ANSI('0', '('):
 		    compatibility(VT100);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[0] = ATTR_LINEDRW;
 		    break;
 		  case ANSI('U', '('): 
 		    compatibility(OTHER);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[0] = ATTR_SCOACS; 
 		    break;
 
 		  case ANSI('A', ')'):
 		    compatibility(VT100);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[1] = ATTR_GBCHR;
 		    break;
 		  case ANSI('B', ')'):
 		    compatibility(VT100);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[1] = ATTR_ASCII;
 		    break;
 		  case ANSI('0', ')'):
 		    compatibility(VT100);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[1] = ATTR_LINEDRW;
 		    break;
 		  case ANSI('U', ')'): 
 		    compatibility(OTHER);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->cset_attr[1] = ATTR_SCOACS; 
 		    break;
 
 		  case ANSI('8', '%'):	/* Old Linux code */
 		  case ANSI('G', '%'):
 		    compatibility(OTHER);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->utf = 1;
 		    break;
 		  case ANSI('@', '%'):
 		    compatibility(OTHER);
-		    if (!cfg.no_remote_charset)
+		    if (!term->cfg->no_remote_charset)
 			term->utf = 0;
 		    break;
 		}
@@ -1960,7 +1961,7 @@ void term_out(Terminal *term)
 			compatibility(VT100);
 			{
 			    if (term->esc_nargs != 1) break;
-			    if (term->esc_args[0] == 5 && *cfg.printer) {
+			    if (term->esc_args[0] == 5 && *term->cfg->printer) {
 				term->printing = TRUE;
 				term->only_printing = !term->esc_query;
 				term->print_state = 0;
@@ -2082,15 +2083,15 @@ void term_out(Terminal *term)
 				    break;
 				  case 10:      /* SCO acs off */
 				    compatibility(SCOANSI);
-				    if (cfg.no_remote_charset) break;
+				    if (term->cfg->no_remote_charset) break;
 				    term->sco_acs = 0; break;
 				  case 11:      /* SCO acs on */
 				    compatibility(SCOANSI);
-				    if (cfg.no_remote_charset) break;
+				    if (term->cfg->no_remote_charset) break;
 				    term->sco_acs = 1; break;
 				  case 12:      /* SCO acs on flipped */
 				    compatibility(SCOANSI);
-				    if (cfg.no_remote_charset) break;
+				    if (term->cfg->no_remote_charset) break;
 				    term->sco_acs = 2; break;
 				  case 22:	/* disable bold */
 				    compatibility2(OTHER, VT220);
@@ -2169,7 +2170,7 @@ void term_out(Terminal *term)
 			    && (term->esc_args[0] < 1 ||
 				term->esc_args[0] >= 24)) {
 			    compatibility(VT340TEXT);
-			    if (!cfg.no_remote_resize)
+			    if (!term->cfg->no_remote_resize)
 				request_resize(term->frontend, term->cols,
 					       def(term->esc_args[0], 24));
 			    deselect(term);
@@ -2189,7 +2190,7 @@ void term_out(Terminal *term)
 				break;
 			      case 3:
 				if (term->esc_nargs >= 3) {
-				    if (!cfg.no_remote_resize)
+				    if (!term->cfg->no_remote_resize)
 					move_window(term->frontend,
 						    def(term->esc_args[1], 0),
 						    def(term->esc_args[2], 0));
@@ -2214,10 +2215,10 @@ void term_out(Terminal *term)
 				break;
 			      case 8:
 				if (term->esc_nargs >= 3) {
-				    if (!cfg.no_remote_resize)
+				    if (!term->cfg->no_remote_resize)
 					request_resize(term->frontend,
-						       def(term->esc_args[2], cfg.width),
-						       def(term->esc_args[1], cfg.height));
+						       def(term->esc_args[2], term->cfg->width),
+						       def(term->esc_args[1], term->cfg->height));
 				}
 				break;
 			      case 9:
@@ -2315,10 +2316,10 @@ void term_out(Terminal *term)
 			 */
 			compatibility(VT420);
 			if (term->esc_nargs == 1 && term->esc_args[0] > 0) {
-			    if (!cfg.no_remote_resize)
+			    if (!term->cfg->no_remote_resize)
 				request_resize(term->frontend, term->cols,
 					       def(term->esc_args[0],
-						   cfg.height));
+						   term->cfg->height));
 			    deselect(term);
 			}
 			break;
@@ -2329,10 +2330,10 @@ void term_out(Terminal *term)
 			 */
 			compatibility(VT340TEXT);
 			if (term->esc_nargs <= 1) {
-			    if (!cfg.no_remote_resize)
+			    if (!term->cfg->no_remote_resize)
 				request_resize(term->frontend,
 					       def(term->esc_args[0],
-						   cfg.width), term->rows);
+						   term->cfg->width), term->rows);
 			    deselect(term);
 			}
 			break;
@@ -2464,7 +2465,7 @@ void term_out(Terminal *term)
 			 * Well we should do a soft reset at this point ...
 			 */
 			if (!has_compat(VT420) && has_compat(VT100)) {
-			    if (!cfg.no_remote_resize) {
+			    if (!term->cfg->no_remote_resize) {
 				if (term->reset_132)
 				    request_resize(132, 24);
 				else
@@ -2700,7 +2701,7 @@ void term_out(Terminal *term)
 		     *     emulation.
 		     */
 		    term->vt52_mode = FALSE;
-		    term->blink_is_real = cfg.blinktext;
+		    term->blink_is_real = term->cfg->blinktext;
 		    break;
 #if 0
 		  case '^':
@@ -2913,7 +2914,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     /* Has the cursor position or type changed ? */
     if (term->cursor_on) {
 	if (term->has_focus) {
-	    if (term->blinker || !cfg.blink_cur)
+	    if (term->blinker || !term->cfg->blink_cur)
 		cursor = TATTR_ACTCURS;
 	    else
 		cursor = 0;
@@ -3262,7 +3263,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 
 	    switch (uc & CSET_MASK) {
 	      case ATTR_LINEDRW:
-		if (!cfg.rawcnp) {
+		if (!term->cfg->rawcnp) {
 		    uc = unitab_xterm[uc & 0xFF];
 		    break;
 		}
@@ -3618,8 +3619,8 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
     pos selpoint;
     unsigned long *ldata;
     int raw_mouse = (term->xterm_mouse &&
-		     !cfg.no_mouse_rep &&
-		     !(cfg.mouse_override && shift));
+		     !term->cfg->no_mouse_rep &&
+		     !(term->cfg->mouse_override && shift));
     int default_seltype;
 
     if (y < 0) {
@@ -3708,7 +3709,7 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
      * Set the selection type (rectangular or normal) at the start
      * of a selection attempt, from the state of Alt.
      */
-    if (!alt ^ !cfg.rect_select)
+    if (!alt ^ !term->cfg->rect_select)
 	default_seltype = RECTANGULAR;
     else
 	default_seltype = LEXICOGRAPHIC;
