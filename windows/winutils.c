@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <limits.h>
 
 #include "winstuff.h"
 #include "misc.h"
@@ -26,7 +25,7 @@
  */
 
 struct filereq_tag {
-    TCHAR cwd[PATH_MAX];
+    TCHAR cwd[MAX_PATH];
 };
 
 /*
@@ -37,7 +36,7 @@ struct filereq_tag {
  */
 BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save)
 {
-    TCHAR cwd[PATH_MAX]; /* process CWD */
+    TCHAR cwd[MAX_PATH]; /* process CWD */
     BOOL ret;
 
     /* Get process CWD */
