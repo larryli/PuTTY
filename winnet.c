@@ -62,7 +62,7 @@ struct Socket_tag {
     void *private_ptr;
     struct buffer *head, *tail;
     int writable;
-    int in_oob, sending_oob;
+    int sending_oob;
 };
 
 struct SockAddr_tag {
@@ -308,7 +308,6 @@ Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver) {
     ret->receiver = receiver;
     ret->head = ret->tail = NULL;
     ret->writable = 1;		       /* to start with */
-    ret->in_oob = FALSE;
     ret->sending_oob = 0;
 
     /*
@@ -321,6 +320,10 @@ Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver) {
 	err = WSAGetLastError();
         ret->error = winsock_error_string(err);
 	return ret;
+    }
+    {
+	BOOL b = TRUE;
+	setsockopt (s, SOL_SOCKET, SO_OOBINLINE, (void *)&b, sizeof(b));
     }
 
     /*
@@ -580,6 +583,12 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
+        atmark = 1;
+        /* Some WinSock wrappers don't support this call, so we
+         * deliberately don't check the return value. If the call
+         * fails and does nothing, we will get back atmark==1,
+         * which is good enough to keep going at least. */
+        ioctlsocket(s->s, SIOCATMARK, &atmark);
 	ret = recv(s->s, buf, sizeof(buf), 0);
 	if (ret < 0) {
 	    err = WSAGetLastError();
@@ -590,8 +599,11 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	if (ret < 0) {
 	    return s->receiver(s, 3, winsock_error_string(err), err);
 	} else {
-            int type = s->in_oob ? 2 : 0;
-            s->in_oob = FALSE;
+            int type = 0;
+	    if (atmark==0) {
+		ioctlsocket(s->s, SIOCATMARK, &atmark);
+		if(atmark) type = 2; else type = 1;
+	    }
 	    return s->receiver(s, type, buf, ret);
 	}
 	break;
@@ -600,20 +612,13 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	 * Read all data up to the OOB marker, and send it to the
 	 * receiver with urgent==1 (OOB pending).
 	 */
-        atmark = 1;
-        s->in_oob = TRUE;
-        /* Some WinSock wrappers don't support this call, so we
-         * deliberately don't check the return value. If the call
-         * fails and does nothing, we will get back atmark==1,
-         * which is good enough to keep going at least. */
-        ioctlsocket(s->s, SIOCATMARK, &atmark);
         ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
         noise_ultralight(ret);
         if (ret <= 0) {
             fatalbox(ret == 0 ? "Internal networking trouble" :
                      winsock_error_string(WSAGetLastError()));
         } else {
-            return s->receiver(s, atmark ? 2 : 1, buf, ret);
+            return s->receiver(s, 2, buf, ret);
         }
         break;
       case FD_WRITE:

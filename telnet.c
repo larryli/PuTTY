@@ -478,6 +478,7 @@ static int telnet_receive(Socket skt, int urgent, char *data, int len) {
 	s = NULL;
 	return 0;
     }
+    if(urgent) in_synch = TRUE;
     do_telnet_read (data, len);
     return 1;
 }
