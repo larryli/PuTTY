@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.4 2001/12/13 17:38:59 simon Exp $
+\versionid $Id: using.but,v 1.5 2001/12/15 12:15:24 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -290,6 +290,22 @@ To do this, just select the \q{Remote} radio button instead of the
 \q{Local} one. The \q{Source port} box will now specify a port
 number on the \e{server} (note that most servers will not allow you
 to use port numbers under 1024 for this purpose).
+
+The source port for a forwarded connection usually does not accept
+connections from any machine except the SSH client or server machine
+itself (for local and remote forwardings respectively). There are
+controls in the Tunnels panel to change this:
+
+\b The \q{Local ports accept connections from other hosts} option
+allows you to set up local-to-remote port forwardings in such a way
+that machines other than your client PC can connect to the forwarded
+port.
+
+\b The \q{Remote ports do the same} option does the same thing for
+remote-to-local port forwardings (so that machines other than the
+SSH server machine can connect to the forwarded port.) Note that
+this feature is only available in the SSH 2 protocol, and not all
+SSH 2 servers support it (OpenSSH 3.0 does not, for example).
 
 \H{using-rawprot} Making raw TCP connections
 

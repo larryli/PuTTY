@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.21 2001/12/14 14:57:50 simon Exp $
+\versionid $Id: config.but,v 1.22 2001/12/15 12:15:24 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1575,6 +1575,27 @@ in the list box.
 
 To remove a port forwarding, simply select its details in the list
 box, and click the \q{Remove} button.
+
+\S{config-ssh-portfwd-localhost} Controlling the visibility of
+forwarded ports
+
+\cfg{winhelp-topic}{ssh.tunnels.portfwd.localhost}
+
+The source port for a forwarded connection usually does not accept
+connections from any machine except the SSH client or server machine
+itself (for local and remote forwardings respectively). There are
+controls in the Tunnels panel to change this:
+
+\b The \q{Local ports accept connections from other hosts} option
+allows you to set up local-to-remote port forwardings in such a way
+that machines other than your client PC can connect to the forwarded
+port.
+
+\b The \q{Remote ports do the same} option does the same thing for
+remote-to-local port forwardings (so that machines other than the
+SSH server machine can connect to the forwarded port.) Note that
+this feature is only available in the SSH 2 protocol, and not all
+SSH 2 servers support it (OpenSSH 3.0 does not, for example).
 
 \H{config-file} Storing configuration in a file
 

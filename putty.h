@@ -347,7 +347,8 @@ typedef struct {
     int x11_forward;
     char x11_display[128];
     /* port forwarding */
-    int lport_acceptall; /* accepts connection from hosts other than localhost */
+    int lport_acceptall; /* accept conns from hosts other than localhost */
+    int rport_acceptall; /* same for remote forwarded ports (SSH2 only) */
     char portfwd[1024]; /* [LR]localport\thost:port\000[LR]localport\thost:port\000\000 */
 } Config;
 

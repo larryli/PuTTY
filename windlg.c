@@ -545,6 +545,7 @@ enum { IDCX_ABOUT =
     IDC_X11_DISPSTATIC,
     IDC_X11_DISPLAY,
     IDC_LPORT_ALL,
+    IDC_RPORT_ALL,
     IDC_PFWDSTATIC,
     IDC_PFWDSTATIC2,
     IDC_PFWDREMOVE,
@@ -896,7 +897,6 @@ char *help_context_cmd(int id)
       case IDC_X11_DISPSTATIC:
       case IDC_X11_DISPLAY:
         return "JI(`',`ssh.tunnels.x11')";
-      case IDC_LPORT_ALL:
       case IDC_PFWDSTATIC:
       case IDC_PFWDSTATIC2:
       case IDC_PFWDREMOVE:
@@ -909,6 +909,9 @@ char *help_context_cmd(int id)
       case IDC_PFWDLOCAL:
       case IDC_PFWDREMOTE:
         return "JI(`',`ssh.tunnels.portfwd')";
+      case IDC_LPORT_ALL:
+      case IDC_RPORT_ALL:
+        return "JI(`',`ssh.tunnels.portfwd.localhost')";
 
       default:
         return NULL;
@@ -1171,6 +1174,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_X11_DISPLAY, cfg.x11_display);
 
     CheckDlgButton(hwnd, IDC_LPORT_ALL, cfg.lport_acceptall);
+    CheckDlgButton(hwnd, IDC_RPORT_ALL, cfg.rport_acceptall);
     CheckRadioButton(hwnd, IDC_PFWDLOCAL, IDC_PFWDREMOTE, IDC_PFWDLOCAL);
 }
 
@@ -1694,7 +1698,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == tunnelspanelstart) {
-	/* The Tunnels panel. Accelerators used: [acgo] deilmrstx */
+	/* The Tunnels panel. Accelerators used: [acgo] deilmrsthx */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1706,7 +1710,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      IDC_X11_DISPLAY, 50, NULL);
 	    endbox(&cp);
     	    beginbox(&cp, "Port forwarding", IDC_BOX_TUNNELS2);
-	    checkbox(&cp, "Local ports accept connections from o&ther hosts", IDC_LPORT_ALL);
+	    checkbox(&cp, "Local ports accept connections from o&ther hosts",
+		     IDC_LPORT_ALL);
+	    checkbox(&cp, "Remote ports do t&he same (SSH v2 only)",
+		     IDC_RPORT_ALL);
 	    staticbtn(&cp, "Forwarded ports:", IDC_PFWDSTATIC,
 		      "&Remove", IDC_PFWDREMOVE);
 	    fwdsetter(&cp, IDC_PFWDLIST,
@@ -1715,7 +1722,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      "Dest&ination", IDC_DPORTSTATIC, IDC_DPORTEDIT,
 		      "A&dd", IDC_PFWDADD);
 	    bareradioline(&cp, 2,
-			  "&Local", IDC_PFWDLOCAL, "Re&mote", IDC_PFWDREMOTE, NULL);
+			  "&Local", IDC_PFWDLOCAL,
+			  "Re&mote", IDC_PFWDREMOTE, NULL);
 	    endbox(&cp);
 
 	}
@@ -3007,14 +3015,20 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_X11_FORWARD:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-			cfg.x11_forward =
-			IsDlgButtonChecked(hwnd, IDC_X11_FORWARD);
+		    cfg.x11_forward =
+		    IsDlgButtonChecked(hwnd, IDC_X11_FORWARD);
 		break;
 	      case IDC_LPORT_ALL:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-			cfg.lport_acceptall =
-			IsDlgButtonChecked(hwnd, IDC_LPORT_ALL);
+		    cfg.lport_acceptall =
+		    IsDlgButtonChecked(hwnd, IDC_LPORT_ALL);
+		break;
+	      case IDC_RPORT_ALL:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		    cfg.rport_acceptall =
+		    IsDlgButtonChecked(hwnd, IDC_RPORT_ALL);
 		break;
 	      case IDC_X11_DISPLAY:
 		if (HIWORD(wParam) == EN_CHANGE)

@@ -4607,7 +4607,10 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring("tcpip-forward");
 			ssh2_pkt_addbool(1);/* want reply */
-			ssh2_pkt_addstring("127.0.0.1");
+			if (cfg.rport_acceptall)
+			    ssh2_pkt_addstring("0.0.0.0");
+			else
+			    ssh2_pkt_addstring("127.0.0.1");
 			ssh2_pkt_adduint32(sport);
 			ssh2_pkt_send();
 
