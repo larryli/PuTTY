@@ -276,6 +276,7 @@ SockAddr mactcp_namelookup(char const *host, char **canonicalname)
     OSErr err;
     volatile int done = FALSE;
     char *realhost;
+    int realhostlen;
 
     /* Clear the structure. */
     memset(ret, 0, sizeof(struct SockAddr_tag));
@@ -293,9 +294,13 @@ SockAddr mactcp_namelookup(char const *host, char **canonicalname)
 	    continue;
     ret->resolved = TRUE;
     
-    if (ret->hostinfo.rtnCode == noErr)
+    if (ret->hostinfo.rtnCode == noErr) {
 	realhost = ret->hostinfo.cname;
-    else
+	/* MacTCP puts trailing dots on canonical names. */
+	realhostlen = strlen(realhost);
+	if (realhost[realhostlen - 1] == '.')
+	    realhost[realhostlen - 1] = '\0';
+    } else
 	realhost = "";
     *canonicalname = smalloc(1+strlen(realhost));
     strcpy(*canonicalname, realhost);
