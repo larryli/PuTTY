@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.45 2003/01/12 16:25:58 ben Exp $ */
+/* $Id: macterm.c,v 1.46 2003/01/14 15:24:51 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1256,8 +1256,7 @@ void set_raw_mouse_mode(void *frontend, int activate)
 void request_resize(void *frontend, int w, int h) {
     Session *s = frontend;
 
-    s->term->cols = w;
-    s->term->rows = h;
+    term_size(s->term, h, w, s->cfg.savelines);
     mac_initfont(s);
 }
 
