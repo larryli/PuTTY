@@ -17,7 +17,9 @@ SVNVERSION=$(shell test -d .svn && svnversion .)
 BADCHARS=$(findstring :,$(SVNVERSION))$(findstring S,$(SVNVERSION))
 ifeq ($(BADCHARS),)
 ifneq ($(SVNVERSION),)
+ifneq ($(SVNVERSION),exported)
 VERSION=Built from revision $(patsubst M,,$(SVNVERSION))
+endif
 endif
 endif
 endif

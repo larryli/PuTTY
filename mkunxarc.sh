@@ -30,7 +30,10 @@ relver=`cat LATEST.VER`
 arcname="putty$arcsuffix"
 mkdir uxarc
 mkdir uxarc/$arcname
-find . -name uxarc -prune -o -name . -o \
+find . -name uxarc -prune -o \
+       -name CVS -prune -o \
+       -name .svn -prune -o \
+       -name . -o \
        -type d -exec mkdir uxarc/$arcname/{} \;
 find . -name uxarc -prune -o \
        -name CVS -prune -o \
