@@ -719,6 +719,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "BugDeriveKey2", 0, &i); cfg->sshbug_derivekey2 = 2-i;
     gppi(sesskey, "BugRSAPad2", 0, &i); cfg->sshbug_rsapad2 = 2-i;
     gppi(sesskey, "BugPKSessID2", 0, &i); cfg->sshbug_pksessid2 = 2-i;
+    gppi(sesskey, "BugRekey2", 0, &i); cfg->sshbug_rekey2 = 2-i;
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);

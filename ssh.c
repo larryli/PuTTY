@@ -163,7 +163,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_CHOKES_ON_RSA	        	  8
 #define BUG_SSH2_RSA_PADDING	        	 16
 #define BUG_SSH2_DERIVEKEY                       32
-/* 64 was BUG_SSH2_DH_GEX, now spare */
+#define BUG_SSH2_REKEY                           64
 #define BUG_SSH2_PK_SESSIONID                   128
 
 #define translate(x) if (type == x) return #x
@@ -1739,8 +1739,7 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
     if (!ssh->kex_in_progress &&
 	ssh->max_data_size != 0 &&
 	ssh->outgoing_data_size > ssh->max_data_size)
-	do_ssh2_transport(ssh, "Initiating key re-exchange "
-			  "(too much data sent)", -1, NULL);
+	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
 
     ssh_free_packet(pkt);
 }
@@ -1830,8 +1829,7 @@ static void ssh_pkt_defersend(Ssh ssh)
     if (!ssh->kex_in_progress &&
 	ssh->max_data_size != 0 &&
 	ssh->outgoing_data_size > ssh->max_data_size)
-	do_ssh2_transport(ssh, "Initiating key re-exchange "
-			  "(too much data sent)", -1, NULL);
+	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
     ssh->deferred_data_size = 0;
 }
 
@@ -2137,6 +2135,16 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_SSH2_PK_SESSIONID;
 	logevent("We believe remote version has SSH2 public-key-session-ID bug");
+    }
+
+    if (ssh->cfg.sshbug_rekey2 == FORCE_ON ||
+	(ssh->cfg.sshbug_rekey2 == AUTO &&
+	 wc_match("Sun_SSH_1.0", imp))) {
+	/*
+	 * These versions have the SSH2 ignore-rekey bug.
+	 */
+	ssh->remote_bugs |= BUG_SSH2_REKEY;
+	logevent("We believe remote version has SSH2 ignore-rekey bug");
     }
 }
 
@@ -5307,12 +5315,35 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      */
     while (!((pktin && pktin->type == SSH2_MSG_KEXINIT) ||
 	     (!pktin && inlen == -1))) {
+        wait_for_rekey:
 	crReturn(1);
     }
     if (pktin) {
 	logevent("Server initiated key re-exchange");
     } else {
-	logevent((char *)in);
+        /*
+         * Special case: if the server bug is set that doesn't
+         * allow rekeying, we give a different log message and
+         * continue waiting. (If such a server _initiates_ a rekey,
+         * we process it anyway!)
+         */
+        if ((ssh->remote_bugs & BUG_SSH2_REKEY)) {
+            logeventf(ssh, "Server bug prevents key re-exchange (%s)",
+                      (char *)in);
+            /* Reset the counters, so that at least this message doesn't
+             * hit the event log _too_ often. */
+            ssh->outgoing_data_size = 0;
+            ssh->incoming_data_size = 0;
+            if (ssh->cfg.ssh_rekey_time != 0) {
+                ssh->next_rekey =
+                    schedule_timer(ssh->cfg.ssh_rekey_time*60*TICKSPERSEC,
+                                   ssh2_timer, ssh);
+            }
+            goto wait_for_rekey;       /* this is utterly horrid */
+        } else {
+            logeventf(ssh, "Initiating key re-exchange (%s)", (char *)in);
+            logevent((char *)in);
+        }
     }
     goto begin_key_exchange;
 
@@ -7286,8 +7317,7 @@ static void ssh2_timer(void *ctx, long now)
 
     if (!ssh->kex_in_progress && ssh->cfg.ssh_rekey_time != 0 &&
 	now - ssh->next_rekey >= 0) {
-	do_ssh2_transport(ssh, "Initiating key re-exchange (timeout)",
-			  -1, NULL);
+	do_ssh2_transport(ssh, "timeout", -1, NULL);
     }
 }
 
@@ -7302,8 +7332,7 @@ static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen,
 	if (!ssh->kex_in_progress &&
 	    ssh->max_data_size != 0 &&
 	    ssh->incoming_data_size > ssh->max_data_size)
-	    do_ssh2_transport(ssh, "Initiating key re-exchange "
-			      "(too much data received)", -1, NULL);
+	    do_ssh2_transport(ssh, "too much data received", -1, NULL);
     }
 
     if (pktin && ssh->packet_dispatch[pktin->type]) {
@@ -7544,7 +7573,7 @@ static void ssh_reconfig(void *handle, Config *cfg)
 	long now = GETTICKCOUNT();
 
 	if (new_next - now < 0) {
-	    rekeying = "Initiating key re-exchange (timeout shortened)";
+	    rekeying = "timeout shortened";
 	} else {
 	    ssh->next_rekey = schedule_timer(new_next - now, ssh2_timer, ssh);
 	}
@@ -7556,18 +7585,18 @@ static void ssh_reconfig(void *handle, Config *cfg)
 	ssh->max_data_size != 0) {
 	if (ssh->outgoing_data_size > ssh->max_data_size ||
 	    ssh->incoming_data_size > ssh->max_data_size)
-	    rekeying = "Initiating key re-exchange (data limit lowered)";
+	    rekeying = "data limit lowered";
     }
 
     if (ssh->cfg.compression != cfg->compression) {
-	rekeying = "Initiating key re-exchange (compression setting changed)";
+	rekeying = "compression setting changed";
 	rekey_mandatory = TRUE;
     }
 
     if (ssh->cfg.ssh2_des_cbc != cfg->ssh2_des_cbc ||
 	memcmp(ssh->cfg.ssh_cipherlist, cfg->ssh_cipherlist,
 	       sizeof(ssh->cfg.ssh_cipherlist))) {
-	rekeying = "Initiating key re-exchange (cipher settings changed)";
+	rekeying = "cipher settings changed";
 	rekey_mandatory = TRUE;
     }
 
@@ -7780,8 +7809,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	}
     } else if (code == TS_REKEY) {
 	if (!ssh->kex_in_progress && ssh->version == 2) {
-	    do_ssh2_transport(ssh, "Initiating key re-exchange at"
-			      " user request", -1, NULL);
+	    do_ssh2_transport(ssh, "at user request", -1, NULL);
 	}
     } else if (code == TS_BRK) {
 	if (ssh->state == SSH_STATE_CLOSED

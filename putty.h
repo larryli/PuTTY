@@ -540,7 +540,7 @@ struct config_tag {
     /* SSH bug compatibility modes */
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
-	sshbug_pksessid2;
+	sshbug_pksessid2, sshbug_rekey2;
     /* Options for pterm. Should split out into platform-dependent part. */
     int stamp_utmp;
     int login_shell;

@@ -121,3 +121,4 @@
 #define WINHELP_CTX_ssh_bugs_derivekey2 "ssh.bugs.derivekey2"
 #define WINHELP_CTX_ssh_bugs_rsapad2 "ssh.bugs.rsapad2"
 #define WINHELP_CTX_ssh_bugs_pksessid2 "ssh.bugs.pksessid2"
+#define WINHELP_CTX_ssh_bugs_rekey2 "ssh.bugs.rekey2"
