@@ -831,13 +831,6 @@ OSErr CloseResolver(void)
     return noErr;
 }
 
-/* MacTCP doesn't have a services database. */
-int net_service_lookup(char *service)
-{
-
-    return 0;
-}
-
 #endif
 
 /*

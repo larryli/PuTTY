@@ -166,6 +166,14 @@ void sk_cleanup(void)
 	stack->cleanup();
 }
 
+/* We should use Internet Config here. */
+int net_service_lookup(char *service)
+{
+
+    return 0;
+}
+
+
 /*
  * Local Variables:
  * c-file-style: "simon"
