@@ -426,6 +426,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         caretbm = CreateBitmap(font_width, font_height, 1, 1, bits);
         sfree(bits);
     }
+    CreateCaret(hwnd, caretbm, font_width, font_height);
 
     /*
      * Initialise the scroll bar.
@@ -1398,7 +1399,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	return 0;
       case WM_SETFOCUS:
 	has_focus = TRUE;
-        CreateCaret(hwnd, caretbm, 0, 0);
+        CreateCaret(hwnd, caretbm, font_width, font_height);
         ShowCaret(hwnd);
         compose_state = 0;
 	term_out();
