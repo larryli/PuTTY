@@ -1,0 +1,21 @@
+This is the README for PuTTY, a free Win32 Telnet and SSH client.
+
+The provided Makefile is for MS Visual C++ systems. Type `nmake' to
+build both putty.exe (the main program) and pscp.exe (an SCP
+client).
+
+Setting up a project file in the Visual C++ IDE sometimes fails to
+work. In particular, Visual Studio 6 falls over on the odd macro
+usage in ssh.c. This is a bug in Visual Studio, since the VC++6
+command line compiler works fine. If in doubt, just use `nmake'.
+
+The PuTTY home web site is
+
+    http://www.chiark.greenend.org.uk/~sgtatham/putty.html
+
+Bug reports and feature requests should be sent to
+<putty-bugs@lists.tartarus.org>. PLEASE read the section on the web
+site about how to report bugs effectively. Do NOT send one-line
+reports saying `it doesn't work'!
+
+See the file LICENCE for the licence conditions.
