@@ -25,7 +25,7 @@
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       fprintf(stderr, "%s\n", s); }
 
-#define bombout(msg) ( ssh_state == SSH_STATE_CLOSED, closesocket(s), \
+#define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, closesocket(s), \
                        s = INVALID_SOCKET, connection_fatal msg )
 
 #define SSH1_MSG_DISCONNECT                       1    /* 0x1 */
@@ -2285,7 +2285,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
     ssh2_pkt_addstring("session");
     ssh2_pkt_adduint32(mainchan->localid);
-    ssh2_pkt_adduint32(0x7FFFFFFFUL);  /* our window size */
+    ssh2_pkt_adduint32(0x8000UL);  /* our window size */
     ssh2_pkt_adduint32(0x4000UL);  /* our max pkt size */
     ssh2_pkt_send();
     crWaitUntilV(ispkt);
@@ -2429,6 +2429,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                     logevent("All channels closed. Disconnecting");
                     ssh2_pkt_init(SSH2_MSG_DISCONNECT);
                     ssh2_pkt_send();
+                    ssh_state = SSH_STATE_CLOSED;
+                    closesocket(s);
+                    s = INVALID_SOCKET;
                 }
                 continue;              /* remote sends close; ignore (FIXME) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {

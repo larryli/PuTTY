@@ -511,6 +511,8 @@ int main(int argc, char **argv) {
                 back->special(TS_EOF);
             }
         }
+        if (back->socket() == INVALID_SOCKET)
+            break;                 /* we closed the connection */
     }
     WSACleanup();
     return 0;
