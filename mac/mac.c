@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.17 2003/01/04 12:45:11 ben Exp $ */
+/* $Id: mac.c,v 1.18 2003/01/05 10:52:56 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -167,6 +167,8 @@ static void mac_startup(void) {
 	DisposeHandle((Handle)ti);
     }
 
+    mactcp_init();
+
     /* We've been tested with the Appearance Manager */
     if (mac_gestalts.apprvers != 0)
 	RegisterAppearanceClient();
@@ -181,6 +183,9 @@ static void mac_startup(void) {
     InitCursor();
     windows.about = NULL;
     windows.licence = NULL;
+
+    default_protocol = DEFAULT_PROTOCOL;
+    default_port = DEFAULT_PORT;
 
     {
 	short vol;
@@ -597,6 +602,7 @@ static void mac_shutdown(void) {
     if (mac_gestalts.encvvers != 0)
 	TerminateUnicodeConverter();
 #endif
+    mactcp_shutdown();
     exit(0);
 }
 
@@ -614,6 +620,20 @@ void fatalbox(char *fmt, ...) {
 }
 
 void modalfatalbox(char *fmt, ...) {
+    va_list ap;
+    Str255 stuff;
+    
+    va_start(ap, fmt);
+    /* We'd like stuff to be a Pascal string */
+    stuff[0] = vsprintf((char *)(&stuff[1]), fmt, ap);
+    va_end(ap);
+    ParamText(stuff, NULL, NULL, NULL);
+    StopAlert(128, NULL);
+    exit(1);
+}
+
+/* This should only kill the current session, not the whole application. */
+void connection_fatal(void *fontend, char *fmt, ...) {
     va_list ap;
     Str255 stuff;
     

@@ -144,6 +144,23 @@ enum { uppAddrToStrProcInfo = kCStackBased
 struct Socket_tag {
     struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
+    StreamPtr s;
+    OSErr err;
+    Plug plug;
+    void *private_ptr;
+    bufchain output_data;
+    int connected;
+    int writable;
+    int frozen; /* this causes readability notifications to be ignored */
+    int frozen_readable; /* this means we missed at least one readability
+			  * notification while we were frozen */
+    int localhost_only;		       /* for listening sockets */
+    char oobdata[1];
+    int sending_oob;
+    int oobpending;		       /* is there OOB data available to read? */
+    int oobinline;
+    int pending_error;		       /* in case send() returns error */
+    int listener;
 };
 
 /*
@@ -170,6 +187,15 @@ static struct {
 } mactcp;
 
 static pascal void mactcp_lookupdone(struct hostInfo *hi, char *cookie);
+static Plug mactcp_plug(Socket, Plug);
+static void mactcp_flush(Socket);
+static void mactcp_close(Socket);
+static int mactcp_write(Socket, char *, int);
+static int mactcp_write_oob(Socket, char *, int);
+static void mactcp_set_private_ptr(Socket, void *);
+static void *mactcp_get_private_ptr(Socket);
+static char *mactcp_socket_error(Socket);
+static void mactcp_set_frozen(Socket, int);
 
 /*
  * Initialise MacTCP.
@@ -183,9 +209,9 @@ OSErr mactcp_init(void)
     /*
      * IM:Devices describes a convoluted way of finding a spare unit
      * number to open a driver on before calling OpenDriver.  Happily,
-     * I think the MacTCP INIT ensures that .IPP is already open (and
-     * hence has a valid unit number already) so we don't need to go
-     * through all that.
+     * the MacTCP INIT ensures that .IPP is already open (and hence
+     * has a valid unit number already) so we don't need to go through
+     * all that.  (MacTCP Programmer's Guide p6)
      */
     err = OpenDriver("\p.IPP", &mactcp.refnum);
     if (err != noErr) return err;
@@ -212,6 +238,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     volatile int done = FALSE;
     char *realhost;
 
+    fprintf(stderr, "Resolving %s...\n", host);
     /* Clear the structure. */
     memset(ret, 0, sizeof(struct SockAddr_tag));
     if (mactcp_lookupdone_upp == NULL)
@@ -233,6 +260,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	realhost = "";
     *canonicalname = smalloc(1+strlen(realhost));
     strcpy(*canonicalname, realhost);
+    fprintf(stderr, "canonical name = %s\n", realhost);
     return ret;
 }
 
@@ -306,11 +334,207 @@ void sk_addr_free(SockAddr addr)
     sfree(addr);
 }
 
+static Plug mactcp_plug(Socket sock, Plug p)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    Plug ret = s->plug;
+
+    if (p)
+	s->plug = p;
+    return ret;
+}
+
+static void mactcp_flush(Socket s)
+{
+
+    fatalbox("sk_tcp_flush");
+}
+
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug plug)
 {
+    static struct socket_function_table fn_table = {
+	mactcp_plug,
+	mactcp_close,
+	mactcp_write,
+	mactcp_write_oob,
+	mactcp_flush,
+	mactcp_set_private_ptr,
+	mactcp_get_private_ptr,
+	mactcp_set_frozen,
+	mactcp_socket_error
+    };
+    TCPiopb pb;
+    UDPiopb upb;
+    Actual_Socket ret;
+    ip_addr dstaddr;
+    size_t buflen;
 
-    fatalbox("sk_new");
+    fprintf(stderr, "Opening socket, port = %d\n", port);
+    /*
+     * Create Socket structure.
+     */
+    ret = smalloc(sizeof(struct Socket_tag));
+    ret->s = 0;
+    ret->fn = &fn_table;
+    ret->err = noErr;
+    ret->plug = plug;
+    bufchain_init(&ret->output_data);
+    ret->connected = 0;		       /* to start with */
+    ret->writable = 0;		       /* to start with */
+    ret->sending_oob = 0;
+    ret->frozen = 0;
+    ret->frozen_readable = 0;
+    ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->pending_error = 0;
+    ret->oobpending = FALSE;
+    ret->listener = 0;
+
+    dstaddr = addr->hostinfo.addr[0]; /* XXX should try all of them */
+    /*
+     * Create a TCP stream.
+     * 
+     * MacTCP requires us to provide it with some buffer memory.  Page
+     * 31 of the Programmer's Guide says it should be a minimum of
+     * 4*MTU+1024.  Page 36 says a minimum of 4096 bytes.  Assume
+     * they're both correct.
+     */
+    assert(addr->resolved);
+    upb.ioCRefNum = mactcp.refnum;
+    upb.csCode = UDPMaxMTUSize;
+    upb.csParam.mtu.remoteHost = dstaddr;
+    upb.csParam.mtu.userDataPtr = NULL;
+    ret->err = PBControlSync((ParmBlkPtr)&upb);
+    fprintf(stderr, "getting mtu, err = %d\n", ret->err);
+    if (ret->err != noErr) return (Socket)ret;
+    fprintf(stderr, "Got MTU = %d\n", upb.csParam.mtu.mtuSize);
+
+    buflen = upb.csParam.mtu.mtuSize * 4 + 1024;
+    if (buflen < 4096) buflen = 4096;
+    pb.ioCRefNum = mactcp.refnum;
+    pb.csCode = TCPCreate;
+    pb.csParam.create.rcvBuff = smalloc(buflen);
+    pb.csParam.create.rcvBuffLen = buflen;
+    pb.csParam.create.notifyProc = NULL;
+    pb.csParam.create.userDataPtr = (Ptr)ret;
+    ret->err = PBControlSync((ParmBlkPtr)&pb);
+    if (ret->err != noErr) return (Socket)ret;
+    ret->s = pb.tcpStream;
+    fprintf(stderr, "stream opened\n");
+
+    /*
+     * Open the connection.
+     */
+    pb.ioCRefNum = mactcp.refnum;
+    pb.csCode = TCPActiveOpen;
+    pb.tcpStream = ret->s;
+    pb.csParam.open.validityFlags = 0;
+    pb.csParam.open.remoteHost = dstaddr;
+    pb.csParam.open.remotePort = port;
+    pb.csParam.open.localPort = privport ? 1023 : 0;
+    pb.csParam.open.dontFrag = FALSE;
+    pb.csParam.open.timeToLive = 0;
+    pb.csParam.open.security = 0;
+    pb.csParam.open.optionCnt = 0;
+    pb.csParam.open.userDataPtr = (Ptr)ret;
+    while (1) {
+	ret->err = PBControlSync((ParmBlkPtr)&pb);
+	if (!privport || ret->err != duplicateSocket)
+	    break;
+	pb.csParam.open.localPort--;
+	if (pb.csParam.open.localPort == 0)
+	    break;
+    }
+
+    if (ret->err != noErr) return (Socket)ret;
+
+    ret->connected = TRUE;
+    ret->writable = TRUE;
+
+    fprintf(stderr, "Socket connected\n");
+    return (Socket)ret;
+}
+
+static void mactcp_close(Socket sock)
+{
+    Actual_Socket s = (Actual_Socket)sock;
+    TCPiopb pb;
+
+    /*
+     * TCPClose is equivalent to shutdown(fd, SHUT_WR), and hence
+     * leaves the Rx side open, while TCPAbort seems rather vicious,
+     * throwing away Tx data that haven't been ACKed yet.  We do both
+     * in succession.
+     */
+    pb.ioCRefNum = mactcp.refnum;
+    pb.csCode = TCPClose;
+    pb.tcpStream = s->s;
+    pb.csParam.close.validityFlags = 0;
+    pb.csParam.close.userDataPtr = (Ptr)s;
+    s->err = PBControlSync((ParmBlkPtr)&pb);
+    /* Not much we can do about an error anyway. */
+
+    pb.ioCRefNum = mactcp.refnum;
+    pb.csCode = TCPAbort;
+    pb.tcpStream = s->s;
+    pb.csParam.abort.userDataPtr = (Ptr)s;
+    s->err = PBControlSync((ParmBlkPtr)&pb);
+    /* Even less we can do about an error here. */
+
+    pb.ioCRefNum = mactcp.refnum;
+    pb.csCode = TCPRelease;
+    pb.tcpStream = s->s;
+    pb.csParam.create.userDataPtr = (Ptr)s;
+    s->err = PBControlSync((ParmBlkPtr)&pb);
+    if (s->err == noErr)
+	sfree(pb.csParam.create.rcvBuff);
+    sfree(s);
+}
+
+static int mactcp_write(Socket sock, char *buf, int len)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    wdsEntry wds[2];
+    TCPiopb pb;
+
+    fprintf(stderr, "Write data, %d bytes\n", len);
+
+    wds[0].length = len;
+    wds[0].ptr = buf;
+    wds[1].length = 0;
+
+    pb.ioCRefNum = mactcp.refnum;
+    pb.csCode = TCPSend;
+    pb.tcpStream = s->s;
+    pb.csParam.send.validityFlags = 0;
+    pb.csParam.send.pushFlag = TRUE; /* XXX we want it to return. */
+    pb.csParam.send.urgentFlag = 0;
+    pb.csParam.send.wdsPtr = (Ptr)wds;
+    pb.csParam.send.userDataPtr = (Ptr)s;
+    s->err = PBControlSync((ParmBlkPtr)&pb);
+    return 0;
+}
+
+static int mactcp_write_oob(Socket sock, char *buf, int len)
+{
+
+    fatalbox("mactcp_write_oob");
+}
+
+/*
+ * Each socket abstraction contains a `void *' private field in
+ * which the client can keep state.
+ */
+static void mactcp_set_private_ptr(Socket sock, void *ptr)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    s->private_ptr = ptr;
+}
+
+static void *mactcp_get_private_ptr(Socket sock)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    return s->private_ptr;
 }
 
 /*
@@ -343,6 +567,31 @@ char *sk_addr_error(SockAddr addr)
     }
 }
 
+static char *mactcp_socket_error(Socket sock)
+{
+    static char buf[64];
+    Actual_Socket s = (Actual_Socket) sock;
+
+    switch (s->err) {
+      case noErr:
+	return NULL;
+      case insufficientResources:
+	return "Insufficient resources to open TCP stream";
+      case duplicateSocket:
+	return "Duplicate socket";
+      case openFailed:
+	return "Connection failed while opening";
+      default:
+	sprintf(buf, "Unknown MacTCP error %d", s->err);
+	return buf;
+    }
+}
+
+static void mactcp_set_frozen(Socket sock, int is_frozen)
+{
+
+    fatalbox("mactcp_set_frozen");
+}
 
 /*
  * Bits below here would usually be in dnr.c, shipped with the MacTCP
@@ -378,7 +627,7 @@ static OSErr OpenResolver(char *hosts_file)
     pb.fileParam.ioDirID = dirid;
     fd = -1;
 
-    while (PBHGetFInfo(&pb, FALSE) == noErr) {
+    while (PBHGetFInfoSync(&pb) == noErr) {
 	if (pb.fileParam.ioFlFndrInfo.fdType == 'cdev' &&
 	    pb.fileParam.ioFlFndrInfo.fdCreator == 'ztcp') {
 	    fd = HOpenResFile(vrefnum, dirid, filename, fsRdPerm);

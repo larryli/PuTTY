@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.33 2003/01/04 00:48:13 ben Exp $ */
+/* $Id: macterm.c,v 1.34 2003/01/05 10:52:56 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -143,6 +143,7 @@ void mac_opensession(void) {
     StandardFileReply sfr;
     static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
     void *sesshandle;
+    int i;
 
     s = smalloc(sizeof(*s));
     memset(s, 0, sizeof(*s));
@@ -154,7 +155,20 @@ void mac_opensession(void) {
     if (sesshandle == NULL) goto fail;
     load_open_settings(sesshandle, TRUE, &s->cfg);
     close_settings_r(sesshandle);
-    s->back = &loop_backend;
+
+    /*
+     * Select protocol. This is farmed out into a table in a
+     * separate file to enable an ssh-free variant.
+     */
+    s->back = NULL;
+    for (i = 0; backends[i].backend != NULL; i++)
+	if (backends[i].protocol == cfg.protocol) {
+	    s->back = backends[i].backend;
+	    break;
+	}
+    if (s->back == NULL) {
+	fatalbox("Unsupported protocol number found");
+    }
     mac_startsession(s);
     return;
 
@@ -167,6 +181,7 @@ void mac_startsession(Session *s)
 {
     UInt32 starttime;
     char msg[128];
+    char *errmsg;
 
     /* XXX: Own storage management? */
     if (HAVE_COLOR_QD())
@@ -177,10 +192,21 @@ void mac_startsession(Session *s)
     s->scrollbar = GetNewControl(cVScroll, s->window);
     s->term = term_init(&s->cfg, s);
 
+    mac_initfont(s);
+    mac_initpalette(s);
+    if (HAVE_COLOR_QD()) {
+	/* Set to FALSE to not get palette updates in the background. */
+	SetPalette(s->window, s->palette, TRUE); 
+	ActivatePalette(s->window);
+    }
+
     s->logctx = log_init(s);
     term_provide_logctx(s->term, s->logctx);
 
-    s->back->init(s->term, &s->backhandle, "localhost", 23, &s->realhost, 0);
+    errmsg = s->back->init(s->term, &s->backhandle, s->cfg.host, s->cfg.port,
+		  &s->realhost, s->cfg.tcp_nodelay);
+    if (errmsg != NULL)
+	inbuf_putstr(s, errmsg);
     s->back->provide_logctx(s->backhandle, s->logctx);
 
     term_provide_resize_fn(s->term, s->back->size, s->backhandle);
@@ -191,13 +217,6 @@ void mac_startsession(Session *s)
     s->ldisc = ldisc_create(&s->cfg, s->term, s->back, s->backhandle, s);
     ldisc_send(s->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
-    mac_initfont(s);
-    mac_initpalette(s);
-    if (HAVE_COLOR_QD()) {
-	/* Set to FALSE to not get palette updates in the background. */
-	SetPalette(s->window, s->palette, TRUE); 
-	ActivatePalette(s->window);
-    }
     ShowWindow(s->window);
     starttime = TickCount();
     display_resource(s, 'pTST', 128);
@@ -1490,7 +1509,7 @@ void do_scroll(void *frontend, int topline, int botline, int lines) {
 
 void logevent(void *frontend, char *str) {
 
-    /* XXX Do something */
+    fprintf(stderr, "%s\n", str);
 }
 
 /* Dummy routine, only required in plink. */

@@ -11,7 +11,7 @@ typedef void *Context; /* FIXME */
  */
 #define SEL_NL { 0x2028 }
 
-
+#include <MacTypes.h>
 #include <Events.h> /* Timing related goo */
 
 #define GETTICKCOUNT TickCount
@@ -21,7 +21,8 @@ typedef void *Context; /* FIXME */
 #define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
 
 #define WCHAR wchar_t
-#define BYTE unsigned char
+#define BYTE UInt8
+#define DWORD UInt32
 
 #define OPTIMISE_SCROLL
 
@@ -29,3 +30,6 @@ typedef void *Context; /* FIXME */
 
 #include <stdarg.h>
 extern int vsnprintf(char *, size_t, char const *, va_list);
+
+extern int stricmp(char const *, char const *);
+extern int strnicmp(char const *, char const *, size_t);
