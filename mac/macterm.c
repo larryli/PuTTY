@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.31 2003/01/02 00:33:40 ben Exp $ */
+/* $Id: macterm.c,v 1.32 2003/01/04 00:13:18 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -336,7 +336,7 @@ static void mac_adjustwinbg(Session *s) {
 
     if (!HAVE_COLOR_QD())
 	return;
-#if TARGET_RT_CFM /* XXX doesn't link (at least for 68k) */
+#if !TARGET_CPU_68K
     if (mac_gestalts.windattr & gestaltWindowMgrPresent)
 	SetWindowContentColor(s->window,
 			      &(*s->palette)->pmInfo[DEFAULT_BG].ciRGB);
@@ -1180,8 +1180,7 @@ void set_sbar(void *frontend, int total, int start, int page) {
     (*s->scrollbar)->contrlMin = 0;
     (*s->scrollbar)->contrlMax = total - page;
     SetControlValue(s->scrollbar, start);
-#if TARGET_RT_CFM
-    /* XXX: This doesn't link for me. */
+#if !TARGET_CPU_68K
     if (mac_gestalts.cntlattr & gestaltControlMgrPresent)
 	SetControlViewSize(s->scrollbar, page);
 #endif

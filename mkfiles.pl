@@ -637,6 +637,10 @@ Libs_CFM68K =	{Libs_CFM} \xb6
 		"{CFM68KLibraries}NuMacRuntime.o"
 
 Libs_PPC =	{Libs_CFM} \xb6
+		"{SharedLibraries}ControlsLib" \xb6
+			-weaklib ControlsLib \xb6
+		"{SharedLibraries}WindowsLib" \xb6
+			-weaklib WindowsLib \xb6
 		"{PPCLibraries}StdCRuntime.o" \xb6
 		"{PPCLibraries}PPCCRuntime.o" \xb6
 		"{PPCLibraries}CarbonAccessors.o"

@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.14 2003/01/02 00:33:40 ben Exp $ */
+/* $Id: mac.c,v 1.15 2003/01/04 00:13:18 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -140,12 +140,19 @@ static void mac_startup(void) {
     if (&RegisterAppearanceClient == kUnresolvedCFragSymbolAddress)
 	mac_gestalts.apprvers = 0;
 #endif
+#if TARGET_CPU_68K
+    mac_gestalts.cntlattr = 0;
+    mac_gestalts.windattr = 0;
+#else
     /* Mac OS 8.5 Control Manager (proportional scrollbars)? */
-    if (Gestalt(gestaltControlMgrAttr, &mac_gestalts.cntlattr) != noErr)
+    if (Gestalt(gestaltControlMgrAttr, &mac_gestalts.cntlattr) != noErr ||
+	&SetControlViewSize == kUnresolvedCFragSymbolAddress)
 	mac_gestalts.cntlattr = 0;
     /* Mac OS 8.5 Window Manager? */
-    if (Gestalt(gestaltWindowMgrAttr, &mac_gestalts.windattr) != noErr)
+    if (Gestalt(gestaltWindowMgrAttr, &mac_gestalts.windattr) != noErr ||
+	&SetWindowContentColor == kUnresolvedCFragSymbolAddress)
 	mac_gestalts.windattr = 0;
+#endif
     /* Text Encoding Conversion Manager? */
     if (
 #if TARGET_RT_MAC_CFM
