@@ -1056,8 +1056,16 @@ void term_out(void)
 		paste_hold = 0;
 		logtraffic((unsigned char) c, LGTYP_ASCII);
 		break;
-	      case '\013':
 	      case '\014':
+		if (has_compat(SCOANSI)) {
+		    move(0, 0, 0);
+		    erase_lots(FALSE, FALSE, TRUE);
+		    disptop = 0;
+		    wrapnext = FALSE;
+		    seen_disp_event = 1;
+		    break;
+		}
+	      case '\013':
 		compatibility(VT100);
 	      case '\n':
 		if (curs.y == marg_b)
@@ -1614,6 +1622,20 @@ void term_out(void)
 			    request_resize(cols, def(esc_args[0], 24), 0);
 			    deselect();
 			}
+			break;
+		      case 'S':
+			compatibility(SCOANSI);
+			scroll(marg_t, marg_b, def(esc_args[0], 1), TRUE);
+			fix_cpos;
+			wrapnext = FALSE;
+			seen_disp_event = TRUE;
+			break;
+		      case 'T':
+			compatibility(SCOANSI);
+			scroll(marg_t, marg_b, -def(esc_args[0], 1), TRUE);
+			fix_cpos;
+			wrapnext = FALSE;
+			seen_disp_event = TRUE;
 			break;
 		      case ANSI('|', '*'):
 			/* VT420 sequence DECSNLS
