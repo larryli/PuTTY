@@ -117,7 +117,7 @@ WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
          + windefs winmisc
 UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline uxmisc
 MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
-         + macmisc
+         + macmisc macabout
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc
