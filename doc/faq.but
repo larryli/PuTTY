@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.80 2004/09/22 14:07:35 jacob Exp $
+\versionid $Id: faq.but,v 1.81 2004/10/07 10:19:46 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -1100,8 +1100,8 @@ cover disk / distribute it with other software / etc?
 
 Yes. You need not bother asking us explicitly for permission. You
 already have permission. Redistribution of the unmodified PuTTY
-binary in this way is entirely permitted by our licence, and you are
-welcome to do it as much as you like.
+binary in this way is entirely permitted by our licence (see
+\k{licence}), and you are welcome to do it as much as you like.
 
 If you are distributing PuTTY within your own organisation, or for
 use with your own product, then we recommend (but do not insist)
