@@ -78,7 +78,7 @@ void *open_settings_w(const char *sessionname, char **errmsg)
     if (ret != ERROR_SUCCESS) {
 	sfree(p);
         *errmsg = dupprintf("Unable to create registry key\n"
-                            "HKEY_CURRENT_USER%s", puttystr);
+                            "HKEY_CURRENT_USER\\%s", puttystr);
 	return NULL;
     }
     ret = RegCreateKey(subkey1, p, &sesskey);
@@ -86,7 +86,7 @@ void *open_settings_w(const char *sessionname, char **errmsg)
     RegCloseKey(subkey1);
     if (ret != ERROR_SUCCESS) {
         *errmsg = dupprintf("Unable to create registry key\n"
-                            "HKEY_CURRENT_USER%s\\%s", puttystr, p);
+                            "HKEY_CURRENT_USER\\%s\\%s", puttystr, p);
 	return NULL;
     }
     return (void *) sesskey;
