@@ -2116,6 +2116,17 @@ int do_cmdline(int argc, char **argv, int do_everything,
 	char *p = *++argv;
         int ret;
 
+	/*
+	 * Shameless cheating. Debian requires all X terminal
+	 * emulators to support `-T title'; but
+	 * cmdline_process_param will eat -T (it means no-pty) and
+	 * complain that pterm doesn't support it. So, in pterm
+	 * only, we convert -T into -title.
+	 */
+	if ((cmdline_tooltype & TOOLTYPE_NONNETWORK) &&
+	    !strcmp(p, "-T"))
+	    p = "-title";
+
         ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
                                     do_everything ? 1 : -1, cfg);
 
