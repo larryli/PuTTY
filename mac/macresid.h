@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.2 2002/12/30 18:21:17 ben Exp $ */
+/* $Id: macresid.h,v 1.3 2002/12/31 01:40:14 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -40,6 +40,8 @@
 #define wiAboutVersion		3
 #define wTerminal	130
 #define wLicence	131
+#define wSettings	132
+#define wiSettingsOpen		1
 
 /* Controls */
 #define cVScroll	128

@@ -48,6 +48,7 @@ typedef struct {
     int			font_leading;
     int			font_boldadjust;
     WindowPtr		window;
+    WindowPtr		settings_window;
     PaletteHandle	palette;
     ControlHandle	scrollbar;
     WCTabHandle		wctab;
@@ -55,8 +56,11 @@ typedef struct {
     UnicodeToTextInfo	uni_to_font;
 } Session;
 
-/* from macterm.c */
+/* from macdlg.c */
 extern void mac_newsession(void);
+extern void mac_clickdlg(WindowPtr, EventRecord *);
+extern void mac_activatedlg(WindowPtr, EventRecord *);
+/* from macterm.c */
 extern void mac_opensession(void);
 extern void mac_startsession(Session *);
 extern void mac_activateterm(WindowPtr, Boolean);

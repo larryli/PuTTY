@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.11 2002/12/30 19:01:44 ben Exp $ */
+/* $Id: mac.c,v 1.12 2002/12/31 01:40:14 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -280,6 +280,9 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
 		break;
 	    }
 	break;
+      case wSettings:
+	mac_clickdlg(window, event);
+	break;
     }
 }
 
@@ -299,6 +302,9 @@ static void mac_activatewindow(WindowPtr window, EventRecord *event) {
     switch (mac_windowtype(window)) {
       case wTerminal:
 	mac_activateterm(window, active);
+	break;
+      case wSettings:
+	mac_activatedlg(window, event);
 	break;
       case wAbout:
 	mac_activateabout(window, event);
@@ -326,6 +332,7 @@ static void mac_updatewindow(WindowPtr window) {
 	mac_updateterm(window);
 	break;
       case wAbout:
+      case wSettings:
 	BeginUpdate(window);
 	UpdateDialog(window, window->visRgn);
 	EndUpdate(window);
@@ -363,6 +370,7 @@ static void mac_updatelicence(WindowPtr window)
  */
 static int mac_windowtype(WindowPtr window) {
     int kind;
+    long refcon;
 
     if (window == NULL)
 	return wNone;
@@ -371,7 +379,11 @@ static int mac_windowtype(WindowPtr window) {
 	return wDA;
     if (GetWVariant(window) == zoomDocProc)
 	return wTerminal;
-    return GetWRefCon(window);
+    refcon = GetWRefCon(window);
+    if (refcon < 1024)
+	return refcon;
+    else
+	return wSettings;
 }
 
 /*

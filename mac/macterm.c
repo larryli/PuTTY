@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.26 2002/12/30 18:21:17 ben Exp $ */
+/* $Id: macterm.c,v 1.27 2002/12/31 01:40:14 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -137,18 +137,6 @@ static void display_resource(Session *s, unsigned long type, short id) {
     DisposeHandle(h);
 }
 	
-
-void mac_newsession(void) {
-    Session *s;
-
-    /* This should obviously be initialised by other means */
-    s = smalloc(sizeof(*s));
-    memset(s, 0, sizeof(*s));
-    do_defaults(NULL, &s->cfg);
-    s->back = &loop_backend;
-    mac_startsession(s);
-}
-
 void mac_opensession(void) {
     Session *s;
     StandardFileReply sfr;
