@@ -278,7 +278,7 @@ pageantc.$(OBJ): pageantc.c puttymem.h
 tree234.$(OBJ): tree234.c tree234.h puttymem.h
 puttygen.$(OBJ): puttygen.c putty.h ssh.h winstuff.h
 psftp.$(OBJ): psftp.c putty.h ssh.h storage.h sftp.h int64.h
-sftp.$(OBJ): psftp.c sftp.h int64.h
+sftp.$(OBJ): sftp.c sftp.h int64.h
 int64.$(OBJ): int64.c int64.h
 ##--
 
