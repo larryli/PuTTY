@@ -730,14 +730,16 @@ change is
 \W{http://support.microsoft.com/default.aspx?scid=kb;en-us;158474}{158474}
 for more information.)
 
-On Windows NT or 2000, the registry key is
+On Windows NT, 2000, or XP, the registry key to create or change is
 
 \c HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\
 \c   Parameters\TcpMaxDataRetransmissions
 
 and it must be of type DWORD.
-(See MS Knowledge Base article
+(See MS Knowledge Base articles
 \W{http://support.microsoft.com/default.aspx?scid=kb;en-us;120642}{120642}
+and
+\W{http://support.microsoft.com/default.aspx?scid=kb;en-us;314053}{314053}
 for more information.)
 
 Set the key's value to something like 10. This will cause Windows to
