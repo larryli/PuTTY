@@ -1,7 +1,5 @@
 #!/bin/sh
 perl mkfiles.pl
-relver=`cat LATEST.VER`
-unixarc="putty-$relver$datesuffix"
 text=`{ find . -name CVS -prune -o \
                -name .cvsignore -prune -o \
                -name LATEST.VER -prune -o \
