@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.4 2002/12/13 00:45:08 ben Exp $ */
+/* $Id: mac_res.r,v 1.5 2002/12/30 14:17:51 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -27,9 +27,15 @@
 
 /* PuTTY resources */
 
-#include "Types.r"
-#include "Dialogs.r"
-#include "Palettes.r"
+/*
+ * The space after the # for system includes is to stop mkfiles.pl
+ * trying to chase them (Rez doesn't support the angle-bracket
+ * syntax).
+ */
+
+# include "Types.r"
+# include "Dialogs.r"
+# include "Palettes.r"
 
 /* Get resource IDs we share with C code */
 #include "macresid.h"
