@@ -68,6 +68,7 @@ struct Socket_tag {
     int frozen; /* this causes readability notifications to be ignored */
     int frozen_readable; /* this means we missed at least one readability
 			  * notification while we were frozen */
+    int localhost_only;		       /* for listening sockets */
     char oobdata[1];
     int sending_oob;
     int oobinline;
@@ -410,6 +411,7 @@ Socket sk_register(void *sock, Plug plug)
     ret->sending_oob = 0;
     ret->frozen = 1;
     ret->frozen_readable = 0;
+    ret->localhost_only = 0;	       /* unused, but best init anyway */
 
     ret->s = (SOCKET)sock;
 
@@ -469,6 +471,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->sending_oob = 0;
     ret->frozen = 0;
     ret->frozen_readable = 0;
+    ret->localhost_only = 0;	       /* unused, but best init anyway */
 
     /*
      * Open socket.
@@ -636,6 +639,7 @@ Socket sk_newlistener(int port, Plug plug, int local_host_only)
     ret->sending_oob = 0;
     ret->frozen = 0;
     ret->frozen_readable = 0;
+    ret->localhost_only = local_host_only;
 
     /*
      * Open socket.
@@ -963,11 +967,11 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	return open;
        case FD_ACCEPT:
 	{
-	    struct sockaddr isa;
-	    int addrlen = sizeof(struct sockaddr);
+	    struct sockaddr_in isa;
+	    int addrlen = sizeof(struct sockaddr_in);
 	    SOCKET t;  /* socket of connection */
 
-	    memset(&isa, 0, sizeof(struct sockaddr));
+	    memset(&isa, 0, sizeof(struct sockaddr_in));
 	    err = 0;
 	    t = accept(s->s,&isa,&addrlen);
 	    if (t == INVALID_SOCKET)
@@ -977,7 +981,10 @@ int select_result(WPARAM wParam, LPARAM lParam)
 		    break;
 	    }
 
-	    if (plug_accepting(s->plug, (void*)t)) {
+	    if (s->localhost_only &&
+		ntohl(isa.sin_addr.s_addr) != INADDR_LOOPBACK) {
+		closesocket(t);	       /* dodgy WinSock let nonlocal through */
+	    } else if (plug_accepting(s->plug, (void*)t)) {
 		closesocket(t);	       /* denied or error */
 	    }
 	}
