@@ -1,5 +1,6 @@
 CHAPTERS := $(SITE) blurb intro gs using config pscp psftp plink pubkey
 CHAPTERS += pageant errors faq feedback licence
+CHAPTERS += index
 
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 
