@@ -491,7 +491,7 @@ int x11_send(Socket s, char *data, int len)
                 memcpy(realauthdata, pr->auth->realdata, realauthlen);
             } else if (pr->auth->realproto == X11_XDM &&
 		       pr->auth->reallen == 16 &&
-		       (buf = sk_getxdmdata(s, &buflen))) {
+		       ((buf = sk_getxdmdata(s, &buflen))!=0)) {
 		time_t t;
                 realauthlen = (buflen+12+7) & ~7;
 		assert(realauthlen <= lenof(realauthdata));
