@@ -2767,6 +2767,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    return TRUE;
 	}
 	break;
+      case WM_SYSCOLORCHANGE:
+	if (cfg.system_colour) {
+	    /* Refresh palette from system colours. */
+	    /* XXX actually this zaps the entire palette. */
+	    systopalette();
+	    init_palette();
+	    /* Force a repaint of the terminal window. */
+	    term_invalidate(term);
+	}
+	break;
       case WM_AGENT_CALLBACK:
 	{
 	    struct agent_callback *c = (struct agent_callback *)lParam;
