@@ -3872,9 +3872,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			    ldisc_send(ldisc, &ch, 1, 1);
 			}
 			alt_sum = 0;
-		    } else
+		    } else {
 			term_seen_key_event(term);
 			lpage_send(ldisc, kbd_codepage, &ch, 1, 1);
+		    }
 		} else {
 		    if(capsOn && ch < 0x80) {
 			WCHAR cbuf[2];
