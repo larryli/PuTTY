@@ -500,7 +500,8 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 		    exit(0);
 		    break;
 		  default:
-		    if (((c >= ' ' && c <= '~') || (c >= 160)) && pos < 40) {
+		    if (((c >= ' ' && c <= '~') ||
+                         ((unsigned char)c >= 160)) && pos < 40) {
 			username[pos++] = c;
 			c_write(&c, 1);
 		    }
@@ -584,7 +585,8 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 		exit(0);
 		break;
 	      default:
-		if (((c >= ' ' && c <= '~') || (c >= 160)) && pos < 40)
+		if (((c >= ' ' && c <= '~') ||
+                     ((unsigned char)c >= 160)) && pos < 40)
 		    password[pos++] = c;
 		break;
 	    }
