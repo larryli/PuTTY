@@ -92,12 +92,16 @@ of the tag.
  - Build the Windows/x86 release binaries. Don't forget to supply
    VER=/DRELEASE=<ver>. Run them, or at least one or two of them, to
    ensure that they really do report their version number correctly.
+    + Save the release link maps. Currently I keep these on ixion,
+      in src/putty/local/maps-<version>.
 
  - Acquire the Windows/alpha release binaries from Owen.
     + Verify the snapshot-key signatures on these, to ensure they're
       really the ones he built. If I'm going to snapshot-sign a zip
       file I make out of these, I'm damn well going to make sure the
       binaries that go _into_ it were snapshot-signed themselves.
+    + Make sure Owen has kept the Alpha release link maps somewhere
+      useful.
 
  - Run Halibut to build the docs.
 
