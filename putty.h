@@ -430,8 +430,6 @@ struct config_tag {
     int window_border;
     char answerback[256];
     char printer[128];
-    int arabicshaping;
-    int bidi;
     /* Colour options */
     int system_colour;
     int try_palette;
@@ -838,16 +836,6 @@ void cmdline_error(char *, ...);
 struct controlbox;
 void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      int midsession, int protocol);
-
-/*
- * Exports from minibidi.c.
- */
-typedef struct bidi_char {
-    wchar_t origwc, wc;
-    unsigned short index;
-} bidi_char;
-int do_bidi(bidi_char *line, int count);
-int do_shape(bidi_char *line, bidi_char *to, int count);
 
 /*
  * X11 auth mechanisms we know about.

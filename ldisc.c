@@ -32,20 +32,13 @@ static int plen(Ldisc ldisc, unsigned char c)
 	return 1;
     else if (c < 128)
 	return 2;		       /* ^x for some x */
-    else if (in_utf(ldisc->term) && c >= 0xC0)
-	return 1;		       /* UTF-8 introducer character
-					* (FIXME: combining / wide chars) */
-    else if (in_utf(ldisc->term) && c >= 0x80 && c < 0xC0)
-	return 0;		       /* UTF-8 followup character */
     else
-	return 4;		       /* <XY> hex representation */
+	return 4;		       /* <XY> for hex XY */
 }
 
 static void pwrite(Ldisc ldisc, unsigned char c)
 {
-    if ((c >= 32 && c <= 126) ||
-	(!in_utf(ldisc->term) && c >= 0xA0) ||
-	(in_utf(ldisc->term) && c >= 0x80)) {
+    if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf(ldisc->term))) {
 	c_write(ldisc, (char *)&c, 1);
     } else if (c < 128) {
 	char cc[2];
@@ -57,14 +50,6 @@ static void pwrite(Ldisc ldisc, unsigned char c)
 	sprintf(cc, "<%02X>", c);
 	c_write(ldisc, cc, 4);
     }
-}
-
-static int char_start(Ldisc ldisc, unsigned char c)
-{
-    if (in_utf(ldisc->term))
-	return (c < 0x80 || c >= 0xC0);
-    else
-	return 1;
 }
 
 static void bsb(Ldisc ldisc, int n)
@@ -152,9 +137,7 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 		c += KCTRL('@');
 	    switch (ldisc->quotenext ? ' ' : c) {
 		/*
-		 * ^h/^?: delete, and output BSBs, to return to
-		 * last character boundary (in UTF-8 mode this may
-		 * be more than one byte)
+		 * ^h/^?: delete one char and output one BSB
 		 * ^w: delete, and output BSBs, to return to last
 		 * space/nonspace boundary
 		 * ^u: delete, and output BSBs, to return to BOL
@@ -170,11 +153,9 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 	      case KCTRL('H'):
 	      case KCTRL('?'):	       /* backspace/delete */
 		if (ldisc->buflen > 0) {
-		    do {
-			if (ECHOING)
-			    bsb(ldisc, plen(ldisc, ldisc->buf[ldisc->buflen - 1]));
-			ldisc->buflen--;
-		    } while (!char_start(ldisc, ldisc->buf[ldisc->buflen]));
+		    if (ECHOING)
+			bsb(ldisc, plen(ldisc, ldisc->buf[ldisc->buflen - 1]));
+		    ldisc->buflen--;
 		}
 		break;
 	      case CTRL('W'):	       /* delete word */
