@@ -46,6 +46,11 @@
 #      full-screen mode (configurable to work on Alt-Enter) will
 #      not behave usefully in a multi-monitor environment.
 #
+#  - COMPAT=/DMSVC4
+#  - RCFL=/DMSVC4
+#      Makes a couple of minor changes so that PuTTY compiles using
+#      MSVC 4. You will also need /DNO_SECURITY and /DNO_MULTIMON.
+#
 #  - RCFL=/DASCIICTLS
 #      Uses ASCII rather than Unicode to specify the tab control in
 #      the resource file. Probably most useful when compiling with

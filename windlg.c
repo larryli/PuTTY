@@ -12,6 +12,12 @@
 #include "win_res.h"
 #include "storage.h"
 
+#ifdef MSVC4
+#define TVINSERTSTRUCT  TV_INSERTSTRUCT
+#define TVITEM          TV_ITEM
+#define ICON_BIG        1
+#endif
+
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
