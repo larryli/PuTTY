@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.11 1999/03/02 14:52:35 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.12 1999/03/02 21:51:55 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -492,5 +492,25 @@ void optimised_move(int to, int from, int lines) {
     r.top = min * font_height; r.bottom = (max+lines) * font_height;
     ScrollRect(&r, 0, (to - from) * font_height, update);
     InvalRgn(update); /* XXX: necessary?  probably harmless anyway */
+    DisposeRgn(update);
+}
+
+
+/*
+ * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
+ * for backward.)
+ */
+void do_scroll(int topline, int botline, int lines) {
+    struct mac_session *s = onlysession;
+    Rect r;
+    RgnHandle update;
+
+    SetPort(s->window);
+    update = NewRgn();
+    SetRect(&r, 0, topline * font_height,
+	    cols * font_width, (botline + 1) * font_height);
+    ScrollRect(&r, 0, - lines * font_height, update);
+    /* XXX: move update region? */
+    InvalRgn(update);
     DisposeRgn(update);
 }

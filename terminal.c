@@ -97,6 +97,7 @@ static void erase_lots (int, int, int);
 static void swap_screen (int);
 static void update_sbar (void);
 static void deselect (void);
+static void scroll_display(int, int, int);
 
 /*
  * Set up power-on settings for the terminal.
@@ -400,9 +401,29 @@ static void scroll (int topline, int botline, int lines, int sb) {
 		selend = scroll_top + size + scroll_size;
 	}
     }
-
-    scroll_heuristic += lines;
+    scroll_display(topline, botline, lines);
 }
+
+static void scroll_display(int topline, int botline, int lines) {
+    unsigned long *start, *end;
+    int distance, size, i;
+
+    start = disptext + topline * (cols + 1);
+    end = disptext + (botline + 1) * (cols + 1);
+    distance = (lines > 0 ? lines : -lines) * (cols + 1);
+    size = end - start - distance;
+    if (lines > 0) {
+	memmove(start, start + distance, size * TSIZE);
+	for (i = 0; i < distance; i++)
+	    (start + size)[i] |= ATTR_INVALID;
+    } else {
+	memmove(start + distance, start, size * TSIZE);
+	for (i = 0; i < distance; i++)
+	    start[i] |= ATTR_INVALID;
+    }
+    do_scroll(topline, botline, lines);
+}
+    
 
 /*
  * Move the cursor to a given position, clipping at boundaries. We
@@ -1282,6 +1303,8 @@ void term_scroll (int rel, int where) {
     if (disptop > scrtop)
 	disptop = scrtop;
     update_sbar();
+    if (rel == 0 && where < rows && where > -rows)
+	scroll_display(0, rows - 1, where);
     term_update();
 }
 
