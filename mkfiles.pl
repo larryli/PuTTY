@@ -336,6 +336,7 @@ foreach $p (&prognames("GC")) {
   my $mw = $type eq "G" ? " -mwindows" : "";
   $libstr = &objects($p, undef, undef, "-lX");
   print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
+                   "-Wl,-Map,$prog.map " .
                    $objstr . " $libstr", 69), "\n\n";
 }
 foreach $d (&deps("X.o", "X.res.o", "", "/")) {
