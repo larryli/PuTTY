@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.28 2003/04/05 17:19:38 ben Exp $ */
+/* $Id: macctrls.c,v 1.29 2003/04/05 18:00:46 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -91,6 +91,7 @@ union macctrl {
     struct {
 	struct macctrl_generic generic;
 	ControlRef tbctrl;
+	ControlRef tbring;
     } button;
     struct {
 	struct macctrl_generic generic;
@@ -714,6 +715,7 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
     c2pstrcpy(title, ctrl->button.label);
     mc->button.tbctrl = NewControl(window, &bounds, title, TRUE, 0, 0, 1,
 				   pushButProc, (long)mc);
+    mc->button.tbring = NULL;
     if (mac_gestalts.apprvers >= 0x100) {
 	Boolean isdefault = ctrl->button.isdefault;
 
@@ -722,8 +724,8 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 		       sizeof(isdefault), &isdefault);
     } else if (ctrl->button.isdefault) {
 	InsetRect(&bounds, -4, -4);
-	NewControl(window, &bounds, title, TRUE, 0, 0, 1,
-		   SYS7_DEFAULT_PROC, (long)mc);
+	mc->button.tbring = NewControl(window, &bounds, title, TRUE, 0, 0, 1,
+				       SYS7_DEFAULT_PROC, (long)mc);
     }
     if (mac_gestalts.apprvers >= 0x110) {
 	Boolean iscancel = ctrl->button.iscancel;
@@ -751,15 +753,20 @@ static pascal SInt32 macctrl_sys7_default_cdef(SInt16 variant,
     RgnHandle rgn;
     Rect rect;
     int oval;
+    PenState savestate;
 
     switch (msg) {
       case drawCntl:
 	if ((*control)->contrlVis) {
 	    rect = (*control)->contrlRect;
+	    GetPenState(&savestate);
 	    PenNormal();
 	    PenSize(3, 3);
+	    if ((*control)->contrlHilite == kControlInactivePart)
+		PenPat(&qd.gray);
 	    oval = (rect.bottom - rect.top) / 2 + 2;
 	    FrameRoundRect(&rect, oval, oval);
+	    SetPenState(&savestate);
 	}
 	return 0;
       case calcCRgns:
@@ -882,6 +889,8 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 		break;
 	      case MACCTRL_BUTTON:
 		HiliteControl(mc->button.tbctrl, state);
+		if (mc->button.tbring != NULL)
+		    HiliteControl(mc->button.tbring, state);		    
 		break;
 	      case MACCTRL_POPUP:
 		HiliteControl(mc->popup.tbctrl, state);
