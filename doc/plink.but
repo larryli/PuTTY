@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.4 2001/02/19 23:24:01 owen Exp $
+\versionid $Id: plink.but,v 1.5 2001/04/18 15:23:36 owen Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -103,11 +103,11 @@ To use Plink with CVS, you need to set the environment variable
 You also need to arrange to be able to connect to a remote host
 without a password.  To do this, either:
 
-\b Run PuTTY, and create a PuTTY saved session (see
-\k{config-saving}) which specifies your private key file (see
-\k{config-auth}). You will probably also want to specify a username
-to log in as (see \k{config-username}).  You should then be able to
-run CVS as follows:
+\b Run PuTTY, and create a PuTTY saved session (see \k{config-saving})
+with the protocol set to SSH (see \k{config-hostname}) and specifies
+your private key file (see \k{config-auth}). You will probably also
+want to specify a username to log in as (see \k{config-username}).
+You should then be able to run CVS as follows:
 
 \c cvs -d :ext:user@sessionname:/path/to/repository co module
 
