@@ -2608,12 +2608,19 @@ static void term_out(Terminal *term)
 	    }
 	}
 
-	/* How about C1 controls ? */
+	/*
+	 * How about C1 controls? 
+	 * Explicitly ignore SCI (0x9a), which we don't translate to DECID.
+	 */
 	if ((c & -32) == 0x80 && term->termstate < DO_CTRLS &&
 	    !term->vt52_mode && has_compat(VT220)) {
-	    term->termstate = SEEN_ESC;
-	    term->esc_query = FALSE;
-	    c = '@' + (c & 0x1F);
+	    if (c == 0x9a)
+		c = 0;
+	    else {
+		term->termstate = SEEN_ESC;
+		term->esc_query = FALSE;
+		c = '@' + (c & 0x1F);
+	    }
 	}
 
 	/* Or the GL control. */
