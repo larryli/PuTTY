@@ -229,6 +229,57 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+static int SaneDialogBox(HINSTANCE hinst,
+			 LPCTSTR tmpl,
+			 HWND hwndparent,
+			 DLGPROC lpDialogFunc)
+{
+    WNDCLASS wc;
+    HWND hwnd;
+    MSG msg;
+    int flags;
+    int ret;
+    int gm;
+
+    wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
+    wc.lpfnWndProc = DefDlgProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = DLGWINDOWEXTRA + 8;
+    wc.hInstance = hinst;
+    wc.hIcon = NULL;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH) (COLOR_BACKGROUND +1);
+    wc.lpszMenuName = NULL;
+    wc.lpszClassName = "PuTTYConfigBox";
+    RegisterClass(&wc);
+
+    hwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
+
+    SetWindowLong(hwnd, BOXFLAGS, 0); /* flags */
+    SetWindowLong(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
+
+    while ((gm=GetMessage(&msg, NULL, 0, 0)) > 0) {
+	flags=GetWindowLong(hwnd, BOXFLAGS);
+	if (!(flags & DF_END) && !IsDialogMessage(hwnd, &msg))
+	    DispatchMessage(&msg);
+	if (flags & DF_END)
+	    break;
+    }
+
+    if (gm == 0)
+        PostQuitMessage(msg.wParam); /* We got a WM_QUIT, pass it on */
+
+    ret=GetWindowLong(hwnd, BOXRESULT);
+    DestroyWindow(hwnd);
+    return ret;
+}
+
+static void SaneEndDialog(HWND hwnd, int ret)
+{
+    SetWindowLong(hwnd, BOXRESULT, ret);
+    SetWindowLong(hwnd, BOXFLAGS, DF_END);
+}
+
 /*
  * Null dialog procedure.
  */

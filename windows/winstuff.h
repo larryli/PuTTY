@@ -341,14 +341,6 @@ void show_help(HWND hwnd);
 /*
  * Exports from winmisc.c.
  */
-
-int SaneDialogBox(HINSTANCE hinst,
-		  LPCTSTR tmpl,
-		  HWND hwndparent,
-		  DLGPROC lpDialogFunc);
-
-void SaneEndDialog(HWND hwnd, int ret);
-
 extern OSVERSIONINFO osVersion;
 BOOL init_winver(void);
 
