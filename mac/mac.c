@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.57 2003/04/05 14:34:06 ben Exp $ */
+/* $Id: mac.c,v 1.58 2003/05/10 11:40:18 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -661,11 +661,13 @@ int agent_exists(void)
     return FALSE;
 }
 
-void agent_query(void *in, int inlen, void **out, int *outlen)
+int agent_query(void *in, int inlen, void **out, int *outlen,
+		void (*callback)(void *, void *, int), void *callback_ctx)
 {
 
     *out = NULL;
     *outlen = 0;
+    return 1;
 }
 
 /* Temporary null routines for testing. */
