@@ -52,7 +52,7 @@ void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...);
 void bareradioline(struct ctlpos *cp, int nacross, ...);
 void radiobig(struct ctlpos *cp, char *text, int id, ...);
 void checkbox(struct ctlpos *cp, char *text, int id);
-void statictext(struct ctlpos *cp, char *text, int id);
+void statictext(struct ctlpos *cp, char *text, int lines, int id);
 void staticbtn(struct ctlpos *cp, char *stext, int sid,
 	       char *btext, int bid);
 void static2btn(struct ctlpos *cp, char *stext, int sid,

@@ -201,6 +201,7 @@ static void deselect(void);
 /* log session to file stuff ... */
 static FILE *lgfp = NULL;
 static void logtraffic(unsigned char c, int logmode);
+static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm);
 
 /*
  * Resize a line to make it `cols' columns wide.
@@ -3336,22 +3337,35 @@ void logtraffic(unsigned char c, int logmode)
     }
 }
 
+void settimstr(char *ta, int no_sec);
+char *subslfcode(char *dest, char *src, char *dstrt);
+char *stpncpy(char *dst, const char *src, size_t maxlen);
+char timdatbuf[20];
+char currlogfilename[FILENAME_MAX];
+
 /* open log file append/overwrite mode */
 void logfopen(void)
 {
     char buf[256];
     time_t t;
-    struct tm *tm;
+    struct tm tm;
     char writemod[4];
 
     if (!cfg.logtype)
 	return;
     sprintf(writemod, "wb");	       /* default to rewrite */
-    lgfp = fopen(cfg.logfilename, "r");	/* file already present? */
+
+    time(&t);
+    tm = *localtime(&t);
+
+    /* substitute special codes in file name */
+    xlatlognam(currlogfilename,cfg.logfilename,cfg.host, &tm);
+
+    lgfp = fopen(currlogfilename, "r");	/* file already present? */
     if (lgfp) {
 	int i;
 	fclose(lgfp);
-	i = askappend(cfg.logfilename);
+	i = askappend(currlogfilename);
 	if (i == 1)
 	    writemod[0] = 'a';	       /* set append mode */
 	else if (i == 0) {	       /* cancelled */
@@ -3361,22 +3375,20 @@ void logfopen(void)
 	}
     }
 
-    lgfp = fopen(cfg.logfilename, writemod);
+    lgfp = fopen(currlogfilename, writemod);
     if (lgfp) {			       /* enter into event log */
 	sprintf(buf, "%s session log (%s mode) to file : ",
 		(writemod[0] == 'a') ? "Appending" : "Writing new",
 		(cfg.logtype == LGTYP_ASCII ? "ASCII" :
 		 cfg.logtype == LGTYP_DEBUG ? "raw" : "<ukwn>"));
 	/* Make sure we do not exceed the output buffer size */
-	strncat(buf, cfg.logfilename, 128);
+	strncat(buf, currlogfilename, 128);
 	buf[strlen(buf)] = '\0';
 	logevent(buf);
 
-	/* --- write header line iinto log file */
+	/* --- write header line into log file */
 	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", lgfp);
-	time(&t);
-	tm = localtime(&t);
-	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", tm);
+	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", &tm);
 	fputs(buf, lgfp);
 	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\r\n", lgfp);
     }
@@ -3388,4 +3400,58 @@ void logfclose(void)
 	fclose(lgfp);
 	lgfp = NULL;
     }
+}
+
+/*
+ * translate format codes into time/date strings
+ * and insert them into log file name
+ *
+ * "&Y":YYYY   "&m":MM   "&d":DD   "&T":hhmm   "&h":<hostname>   "&&":&
+ */
+static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm) {
+    char buf[10], *bufp;
+    int size;
+    char *ds = d; /* save start pos. */
+    int len = FILENAME_MAX-1;
+
+    while (*s) {
+	/* Let (bufp, len) be the string to append. */
+	bufp = buf;		       /* don't usually override this */
+	if (*s == '&') {
+	    char c;
+	    s++;
+	    if (*s) switch (c = *s++, tolower(c)) {
+	      case 'y':
+		size = strftime(buf, sizeof(buf), "%Y", tm);
+		break;
+	      case 'm':
+		size = strftime(buf, sizeof(buf), "%m", tm);
+		break;
+	      case 'd':
+		size = strftime(buf, sizeof(buf), "%d", tm);
+		break;
+	      case 't':
+		size = strftime(buf, sizeof(buf), "%H%M%S", tm);
+		break;
+	      case 'h':
+		bufp = hostname;
+		size = strlen(bufp);
+		break;
+	      default:
+		buf[0] = '&';
+		size = 1;
+		if (c != '&')
+		    buf[size++] = c;
+	    }
+	} else {
+	    buf[0] = *s++;
+	    size = 1;
+	}
+	if (size > len)
+	    size = len;
+	memcpy(d, bufp, size);
+	d += size;
+	len -= size;
+    }
+    *d = '\0';
 }

@@ -315,14 +315,14 @@ void checkbox(struct ctlpos *cp, char *text, int id)
 /*
  * A single standalone static text control.
  */
-void statictext(struct ctlpos *cp, char *text, int id)
+void statictext(struct ctlpos *cp, char *text, int lines, int id)
 {
     RECT r;
 
     r.left = GAPBETWEEN;
     r.top = cp->ypos;
     r.right = cp->width;
-    r.bottom = STATICHEIGHT;
+    r.bottom = STATICHEIGHT * lines;
     cp->ypos += r.bottom + GAPBETWEEN;
     doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
 }

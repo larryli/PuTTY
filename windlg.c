@@ -259,6 +259,7 @@ enum { IDCX_ABOUT =
     IDC_LGFSTATIC,
     IDC_LGFEDIT,
     IDC_LGFBUTTON,
+    IDC_LGFEXPLAIN,
     IDC_LSTATXIST,
     IDC_LSTATXOVR,
     IDC_LSTATXAPN,
@@ -907,6 +908,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	editbutton(&cp, "Log &file name:",
 		   IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
 		   IDC_LGFBUTTON);
+	statictext(&cp, "(Log file name can contain &&Y, &&M, &&D for date,"
+		   " &&T for time, and &&H for host name)", 2, IDC_LGFEXPLAIN);
 	radiobig(&cp,
 		 "What to do if the log file already &exists:",
 		 IDC_LSTATXIST, "Always overwrite it", IDC_LSTATXOVR,
@@ -973,7 +976,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		   IDC_BELLOVLTSTATIC, IDC_BELLOVLT, 20);
 	statictext(&cp,
 		   "The bell is re-enabled after a few seconds of silence.",
-		   IDC_BELLOVLEXPLAIN);
+		   1, IDC_BELLOVLEXPLAIN);
 	staticedit(&cp, "Seconds of &silence required", IDC_BELLOVLSSTATIC,
 		   IDC_BELLOVLS, 20);
 	endbox(&cp);
