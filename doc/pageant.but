@@ -1,4 +1,4 @@
-\versionid $Id: pageant.but,v 1.9 2003/01/16 15:43:18 jacob Exp $
+\versionid $Id: pageant.but,v 1.10 2003/02/11 14:10:20 simon Exp $
 
 \C{pageant} Using Pageant for authentication
 
@@ -154,11 +154,7 @@ server machine to talk to the agent on your client machine.
 
 Note that at present, agent forwarding in SSH2 is only available
 when your SSH server is OpenSSH. The \cw{ssh.com} server uses a
-different agent protocol which they have not published. If you would
-like PuTTY to be able to support agent forwarding to an \cw{ssh.com}
-server, please write to \cw{ssh.com} and explain to them that they
-are hurting themselves and their users by keeping their protocol
-secret.
+different agent protocol, which PuTTY does not yet support.
 
 To enable agent forwarding, first start Pageant. Then set up a PuTTY
 SSH session in which \q{Allow agent forwarding} is enabled (see
