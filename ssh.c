@@ -2168,8 +2168,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 			    break;
 			  case 3:
 			  case 4:
-			    random_save_seed();
-			    exit(0);
+			    cleanup_exit(0);
 			    break;
 			  default:
 			    if (((c >= ' ' && c <= '~') ||
@@ -2474,8 +2473,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 			break;
 		      case 3:
 		      case 4:
-			random_save_seed();
-			exit(0);
+			cleanup_exit(0);
 			break;
 		      default:
 			if (pos < sizeof(password)-1)
@@ -3973,8 +3971,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			    break;
 			  case 3:
 			  case 4:
-			    random_save_seed();
-			    exit(0);
+			    cleanup_exit(0);
 			    break;
 			  default:
 			    if (((c >= ' ' && c <= '~') ||
@@ -4452,8 +4449,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 				break;
 			      case 3:
 			      case 4:
-				random_save_seed();
-				exit(0);
+				cleanup_exit(0);
 				break;
 			      default:
 				if (pos < sizeof(password)-1)

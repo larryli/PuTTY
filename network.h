@@ -62,6 +62,7 @@ struct plug_function_table {
 
 
 void sk_init(void);		       /* called once at program startup */
+void sk_cleanup(void);		       /* called just before program exit */
 
 SockAddr sk_namelookup(char *host, char **canonicalname);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);

@@ -3365,7 +3365,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
 	if (mbret == IDCANCEL)
-	    exit(0);
+	    cleanup_exit(0);
     }
     if (ret == 1) {		       /* key was absent */
 	int mbret;
@@ -3375,7 +3375,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
 	if (mbret == IDCANCEL)
-	    exit(0);
+	    cleanup_exit(0);
     }
 }
 
@@ -3406,7 +3406,7 @@ void askcipher(char *ciphername, int cs)
     if (mbret == IDYES)
 	return;
     else
-	exit(0);
+	cleanup_exit(0);
 }
 
 /*

@@ -1453,7 +1453,7 @@ void fatalbox(char *fmt, ...)
     strcat(str, "\n");
     fputs(str, stderr);
 
-    exit(1);
+    cleanup_exit(1);
 }
 void connection_fatal(char *fmt, ...)
 {
@@ -1466,7 +1466,7 @@ void connection_fatal(char *fmt, ...)
     strcat(str, "\n");
     fputs(str, stderr);
 
-    exit(1);
+    cleanup_exit(1);
 }
 
 void ldisc_send(char *buf, int len, int interactive)
@@ -1627,11 +1627,11 @@ static void init_winsock(void)
     winsock_ver = MAKEWORD(1, 1);
     if (WSAStartup(winsock_ver, &wsadata)) {
 	fprintf(stderr, "Unable to initialise WinSock");
-	exit(1);
+	cleanup_exit(1);
     }
     if (LOBYTE(wsadata.wVersion) != 1 || HIBYTE(wsadata.wVersion) != 1) {
 	fprintf(stderr, "WinSock version is incompatible with 1.1");
-	exit(1);
+	cleanup_exit(1);
     }
 }
 
@@ -1650,7 +1650,7 @@ static void usage(void)
     printf("  -v        show verbose messages\n");
     printf("  -P port   connect to specified port\n");
     printf("  -pw passw login with specified password\n");
-    exit(1);
+    cleanup_exit(1);
 }
 
 /*
@@ -1720,7 +1720,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	printf("login as: ");
 	if (!fgets(cfg.username, sizeof(cfg.username), stdin)) {
 	    fprintf(stderr, "psftp: aborting\n");
-	    exit(1);
+	    cleanup_exit(1);
 	} else {
 	    int len = strlen(cfg.username);
 	    if (cfg.username[len - 1] == '\n')

@@ -39,7 +39,7 @@ struct RandPool {
 };
 
 static struct RandPool pool;
-static int random_active = 0;
+int random_active = 0;
 
 void random_stir(void)
 {

@@ -159,6 +159,8 @@ static char *window_name, *icon_name;
 
 static int compose_state = 0;
 
+static int wsa_started = 0;
+
 static OSVERSIONINFO osVersion;
 
 static UINT wm_mousewheel = WM_MOUSEWHEEL;
@@ -192,6 +194,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	WSACleanup();
 	return 1;
     }
+    wsa_started = 1;
     /* WISHLIST: maybe allow config tweaking even if winsock not present? */
     sk_init();
 
@@ -753,6 +756,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
+    cleanup_exit(msg.wParam);
+}
+
+/*
+ * Clean up and exit.
+ */
+void cleanup_exit(int code)
+{
     /*
      * Clean up.
      */
@@ -760,7 +771,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     sfree(logpal);
     if (pal)
 	DeleteObject(pal);
-    WSACleanup();
+    sk_cleanup();
+    if (wsa_started)
+	WSACleanup();
 
     if (cfg.protocol == PROT_SSH) {
 	random_save_seed();
@@ -769,7 +782,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 #endif
     }
 
-    return msg.wParam;
+    exit(code);
 }
 
 /*
@@ -4123,7 +4136,7 @@ void fatalbox(char *fmt, ...)
     vsprintf(stuff, fmt, ap);
     va_end(ap);
     MessageBox(hwnd, stuff, "PuTTY Fatal Error", MB_ICONERROR | MB_OK);
-    exit(1);
+    cleanup_exit(1);
 }
 
 /*

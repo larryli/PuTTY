@@ -124,6 +124,18 @@ void sk_init(void)
     sktree = newtree234(cmpfortree);
 }
 
+void sk_cleanup(void)
+{
+    Actual_Socket s;
+    int i;
+
+    if (sktree) {
+	for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
+	    closesocket(s->s);
+	}
+    }
+}
+
 char *winsock_error_string(int error)
 {
     switch (error) {

@@ -427,6 +427,8 @@ void get_window_pos(int *x, int *y);
 void get_window_pixels(int *x, int *y);
 char *get_window_title(int icon);
 
+void cleanup_exit(int);
+
 /*
  * Exports from noise.c.
  */
@@ -536,6 +538,7 @@ void random_add_noise(void *noise, int length);
 void random_init(void);
 int random_byte(void);
 void random_get_savedata(void **data, int *len);
+extern int random_active;
 
 /*
  * Exports from misc.c.

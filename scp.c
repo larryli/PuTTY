@@ -210,7 +210,7 @@ void fatalbox(char *fmt, ...)
 		0 /*lParam */ ))SleepEx(1000, TRUE);
     }
 
-    exit(1);
+    cleanup_exit(1);
 }
 void connection_fatal(char *fmt, ...)
 {
@@ -233,7 +233,7 @@ void connection_fatal(char *fmt, ...)
 		0 /*lParam */ ))SleepEx(1000, TRUE);
     }
 
-    exit(1);
+    cleanup_exit(1);
 }
 
 /*
@@ -404,7 +404,7 @@ static void bump(char *fmt, ...)
 		0 /*lParam */ ))SleepEx(1000, TRUE);
     }
 
-    exit(1);
+    cleanup_exit(1);
 }
 
 /*
@@ -2055,7 +2055,7 @@ static void usage(void)
     printf
 	("  -gui hWnd GUI mode with the windows handle for receiving messages\n");
 #endif
-    exit(1);
+    cleanup_exit(1);
 }
 
 /*

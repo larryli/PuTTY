@@ -1658,6 +1658,8 @@ void spawn_cmd(char *cmdline, char * args, int show)
     }
 }
 
+void cleanup_exit(int code) { exit(code); }
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     WNDCLASS wndclass;

@@ -27,7 +27,7 @@ void fatalbox(char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
     WSACleanup();
-    exit(1);
+    cleanup_exit(1);
 }
 void connection_fatal(char *p, ...)
 {
@@ -38,7 +38,7 @@ void connection_fatal(char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
     WSACleanup();
-    exit(1);
+    cleanup_exit(1);
 }
 
 static char *password = NULL;
@@ -607,7 +607,7 @@ int main(int argc, char **argv)
     if (!CreateThread(NULL, 0, stdout_write_thread,
 		      &odata, 0, &out_threadid)) {
 	fprintf(stderr, "Unable to create output thread\n");
-	exit(1);
+	cleanup_exit(1);
     }
     edata.event = stderrevent;
     edata.eventback = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -616,7 +616,7 @@ int main(int argc, char **argv)
     if (!CreateThread(NULL, 0, stdout_write_thread,
 		      &edata, 0, &err_threadid)) {
 	fprintf(stderr, "Unable to create error output thread\n");
-	exit(1);
+	cleanup_exit(1);
     }
 
     while (1) {
@@ -644,7 +644,7 @@ int main(int argc, char **argv)
 	    if (!CreateThread(NULL, 0, stdin_read_thread,
 			      &idata, 0, &in_threadid)) {
 		fprintf(stderr, "Unable to create input thread\n");
-		exit(1);
+		cleanup_exit(1);
 	    }
 	    sending = TRUE;
 	}
@@ -725,7 +725,7 @@ int main(int argc, char **argv)
 	    odata.busy = 0;
 	    if (!odata.writeret) {
 		fprintf(stderr, "Unable to write to standard output\n");
-		exit(0);
+		cleanup_exit(0);
 	    }
 	    bufchain_consume(&stdout_data, odata.lenwritten);
 	    if (bufchain_size(&stdout_data) > 0)
@@ -738,7 +738,7 @@ int main(int argc, char **argv)
 	    edata.busy = 0;
 	    if (!edata.writeret) {
 		fprintf(stderr, "Unable to write to standard output\n");
-		exit(0);
+		cleanup_exit(0);
 	    }
 	    bufchain_consume(&stderr_data, edata.lenwritten);
 	    if (bufchain_size(&stderr_data) > 0)

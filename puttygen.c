@@ -1142,6 +1142,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+void cleanup_exit(int code) { exit(code); }
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     InitCommonControls();

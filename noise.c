@@ -53,8 +53,10 @@ void random_save_seed(void)
     int len;
     void *data;
 
-    random_get_savedata(&data, &len);
-    write_random_seed(data, len);
+    if (random_active) {
+	random_get_savedata(&data, &len);
+	write_random_seed(data, len);
+    }
 }
 
 /*
