@@ -6,7 +6,11 @@ INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 # This is temporary. Hack it locally or something.
 HALIBUT = $(HOME)/src/halibut/build/halibut
 
-all: Contents.html man
+DROPPINGS := output.txt output.hlp output.cnt output.1
+DROPPINGS += Contents.html IndexPage.html Chapter*.html Section*.html
+DROPPINGS += Appendix*.html
+
+all: man Contents.html
 
 Contents.html: $(INPUTS)
 	$(HALIBUT) $(INPUTS)
@@ -16,7 +20,7 @@ Contents.html: $(INPUTS)
 	mv output.hlp putty.hlp
 	mv output.cnt putty.cnt
 
-MKMAN = $(HALIBUT) mancfg.but $< && mv output.1 $@
+MKMAN = $(HALIBUT) mancfg.but $< && mv output.1 $@ && rm -f $(DROPPINGS)
 MANPAGES = putty.1 puttygen.1 plink.1 pscp.1 psftp.1 puttytel.1 pterm.1
 man: $(MANPAGES)
 
