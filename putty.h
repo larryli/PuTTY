@@ -492,6 +492,10 @@ struct config_tag {
  * These flags describe the type of _application_ - they wouldn't
  * vary between individual sessions - and so it's OK to have this
  * variable be GLOBAL.
+ * 
+ * Note that additional flags may be defined in platform-specific
+ * headers. It's probably best if those ones start from 0x1000, to
+ * avoid collision.
  */
 #define FLAG_VERBOSE     0x0001
 #define FLAG_STDERR      0x0002

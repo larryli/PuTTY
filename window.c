@@ -55,6 +55,7 @@
 
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
 #define WM_FULLSCR_ON_MAX (WM_XUSER + 3)
+#define WM_AGENT_CALLBACK (WM_XUSER + 4)
 
 /* Needed for Chinese support and apparently not always defined. */
 #ifndef VK_PROCESSKEY
@@ -121,6 +122,13 @@ static int specials_menu_position;
 Config cfg;			       /* exported to windlg.c */
 
 extern struct sesslist sesslist;       /* imported from windlg.c */
+
+struct agent_callback {
+    void (*callback)(void *, void *, int);
+    void *callback_ctx;
+    void *data;
+    int len;
+};
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -2575,6 +2583,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    SetCursor(LoadCursor(NULL, IDC_ARROW));
 	    return TRUE;
 	}
+	break;
+      case WM_AGENT_CALLBACK:
+	{
+	    struct agent_callback *c = (struct agent_callback *)lParam;
+	    c->callback(c->callback_ctx, c->data, c->len);
+	    sfree(c);
+	}
+	return 0;
       default:
 	if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
 	    int shift_pressed=0, control_pressed=0;
@@ -4625,4 +4641,15 @@ void frontend_keypress(void *handle)
 int from_backend(void *frontend, int is_stderr, const char *data, int len)
 {
     return term_data(term, is_stderr, data, len);
+}
+
+void agent_schedule_callback(void (*callback)(void *, void *, int),
+			     void *callback_ctx, void *data, int len)
+{
+    struct agent_callback *c = snew(struct agent_callback);
+    c->callback = callback;
+    c->callback_ctx = callback_ctx;
+    c->data = data;
+    c->len = len;
+    PostMessage(hwnd, WM_AGENT_CALLBACK, 0, (LPARAM)c);
 }

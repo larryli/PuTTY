@@ -1514,6 +1514,16 @@ char *do_select(SOCKET skt, int startup)
 extern int select_result(WPARAM, LPARAM);
 
 /*
+ * In psftp, all agent requests should be synchronous, so this is a
+ * never-called stub.
+ */
+void agent_schedule_callback(void (*callback)(void *, void *, int),
+			     void *callback_ctx, void *data, int len)
+{
+    assert(!"We shouldn't be here");
+}
+
+/*
  * Receive a block of data from the SSH link. Block until all data
  * is available.
  *
@@ -1862,7 +1872,7 @@ int main(int argc, char *argv[])
     char *batchfile = NULL;
     int errors = 0;
 
-    flags = FLAG_STDERR | FLAG_INTERACTIVE;
+    flags = FLAG_STDERR | FLAG_INTERACTIVE | FLAG_SYNCAGENT;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     ssh_get_line = &console_get_line;
     init_winsock();

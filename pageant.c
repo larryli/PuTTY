@@ -1792,7 +1792,19 @@ void spawn_cmd(char *cmdline, char * args, int show)
     }
 }
 
+/*
+ * This is a can't-happen stub, since Pageant never makes
+ * asynchronous agent requests.
+ */
+void agent_schedule_callback(void (*callback)(void *, void *, int),
+			     void *callback_ctx, void *data, int len)
+{
+    assert(!"We shouldn't get here");
+}
+
 void cleanup_exit(int code) { exit(code); }
+
+int flags = FLAG_SYNCAGENT;
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {

@@ -16,7 +16,16 @@
 #include "storage.h"
 #include "tree234.h"
 
+#define WM_AGENT_CALLBACK (WM_XUSER + 4)
+
 #define MAX_STDIN_BACKLOG 4096
+
+struct agent_callback {
+    void (*callback)(void *, void *, int);
+    void *callback_ctx;
+    void *data;
+    int len;
+};
 
 void fatalbox(char *p, ...)
 {
@@ -185,6 +194,19 @@ int from_backend(void *frontend_handle, int is_stderr,
     esize = bufchain_size(&stderr_data);
 
     return osize + esize;
+}
+
+static DWORD main_thread_id;
+
+void agent_schedule_callback(void (*callback)(void *, void *, int),
+			     void *callback_ctx, void *data, int len)
+{
+    struct agent_callback *c = snew(struct agent_callback);
+    c->callback = callback;
+    c->callback_ctx = callback_ctx;
+    c->data = data;
+    c->len = len;
+    PostThreadMessage(main_thread_id, WM_AGENT_CALLBACK, 0, (LPARAM)c);
 }
 
 /*
@@ -565,6 +587,8 @@ int main(int argc, char **argv)
     GetConsoleMode(inhandle, &orig_console_mode);
     SetConsoleMode(inhandle, ENABLE_PROCESSED_INPUT);
 
+    main_thread_id = GetCurrentThreadId();
+
     /*
      * Turn off ECHO and LINE input modes. We don't care if this
      * call fails, because we know we aren't necessarily running in
@@ -629,7 +653,8 @@ int main(int argc, char **argv)
 	    sending = TRUE;
 	}
 
-	n = WaitForMultipleObjects(4, handles, FALSE, INFINITE);
+	n = MsgWaitForMultipleObjects(4, handles, FALSE, INFINITE,
+				      QS_POSTMESSAGE);
 	if (n == 0) {
 	    WSANETWORKEVENTS things;
 	    SOCKET socket;
@@ -726,6 +751,15 @@ int main(int argc, char **argv)
 	    if (connopen && back->socket(backhandle) != NULL) {
 		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
 				 bufchain_size(&stderr_data));
+	    }
+	} else if (n == 4) {
+	    MSG msg;
+	    while (PeekMessage(&msg, INVALID_HANDLE_VALUE,
+			       WM_AGENT_CALLBACK, WM_AGENT_CALLBACK,
+			       PM_REMOVE)) {
+		struct agent_callback *c = (struct agent_callback *)msg.lParam;
+		c->callback(c->callback_ctx, c->data, c->len);
+		sfree(c);
 	    }
 	}
 	if (!reading && back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
