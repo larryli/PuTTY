@@ -80,6 +80,8 @@ struct macctrls {
     union macctrl	*focus; /* Input focus for System 7 */
     union macctrl	*defbutton; /* Default button */
     union macctrl	*canbutton; /* Cancel button */
+    Boolean		gotcolour;
+    RGBColor		thecolour;
 };    
 
 typedef struct Session {
