@@ -1,3 +1,5 @@
+\versionid $Id: pageant.but,v 1.4 2001/11/25 16:57:45 simon Exp $
+
 \C{pageant} Using Pageant for authentication
 
 Pageant is an SSH authentication agent. It holds your private keys
@@ -42,20 +44,115 @@ Closing the Pageant main window does \e{not} shut down Pageant.
 
 \H{pageant-forward} Using agent forwarding
 
-\# Walk the user through enabling agent forwarding and starting a
-\# second-level session.
+Agent forwarding is a mechanism that allows applications on your SSH
+server machine to talk to the agent on your client machine.
 
-\# Demonstrate the use of ssh-add at the remote end.
+Note that at present, agent forwarding in SSH2 is only available
+when your SSH server is OpenSSH. The \cw{ssh.com} server uses a
+different agent protocol which they have not published. If you would
+like PuTTY to be able to support agent forwarding to an \cw{ssh.com}
+server, please write to \cw{ssh.com} and explain to them that they
+are hurting themselves and their users by keeping their protocol
+secret.
+
+To enable agent forwarding, first start Pageant. Then set up a PuTTY
+SSH session in which \q{Allow agent forwarding} is enabled (see
+\k{config-ssh-agentfwd}). Open the session as normal.
+
+If this has worked, your applications on the server should now have
+access to a Unix domain socket which the SSH server will forward
+back to PuTTY, and PuTTY will forward on to the agent. To check that
+this has actually happened, you can try this command on Unix server
+machines:
+
+\c unixbox:~$ echo $SSH_AUTH_SOCK
+\c /tmp/ssh-XXNP18Jz/agent.28794
+\c unixbox:~$
+
+If the result line comes up blank, agent forwarding has not been
+enabled at all.
+
+Now if you run \c{ssh} on the server and use it to connect through
+to another server that accepts one of the keys in Pageant, you
+should be able to log in without a password:
+
+\c unixbox:~$ ssh -v otherunixbox
+\c [...]
+\c debug: next auth method to try is publickey
+\c debug: userauth_pubkey_agent: trying agent key my-putty-key
+\c debug: ssh-userauth2 successful: method publickey
+\c [...]
+
+If you enable agent forwarding on \e{that} SSH connection as well
+(see the manual for your server-side SSH client to find out how to
+do this), your authentication keys will still be available on the
+next machine you connect to - two SSH connections away from where
+they're actually stored.
+
+In addition, if you have a private key on one of the SSH servers,
+you can send it all the way back to Pageant using the local
+\c{ssh-add} command:
+
+\c unixbox:~$ ssh-add ~/.ssh/id_rsa
+\c Need passphrase for /home/fred/.ssh/id_rsa
+\c Enter passphrase for /home/fred/.ssh/id_rsa:
+\c Identity added: /home/fred/.ssh/id_rsa (/home/simon/.ssh/id_rsa)
+\c unixbox:~$
+
+and then it's available to every machine that has agent forwarding
+available (not just the ones downstream of the place you added it).
 
 \H{pageant-security} Security considerations
 
-\# Explain that local use of Pageant allows you convenient one-touch
-\# authentication without ever storing a decrypted key on disk
+Using Pageant for public-key authentication gives you the
+convenience of being able to open multiple SSH sessions without
+having to type a passphrase every time, but also gives you the
+security benefit of never storing a decrypted private key on disk.
+Many people feel this is a good compromise between security and
+convenience.
 
-\# Explain that, despite this, it still doesn't protect you against
-\# your local machine being hacked (swap files, but more importantly
-\# trojans)
+It \e{is} a compromise, however. Holding your decrypted private keys
+in Pageant is better than storing them in easy-to-find disk files,
+but still less secure than not storing them anywhere at all. This is
+for two reasons:
 
-\# Explain that forwarding agent connections to a remote site
-\# can be abused by the sysadmin of that site, so you'd better know
-\# you can trust them
+\b Windows unfortunately provides no way to protect pieces of memory
+from being written to the system swap file. So if Pageant is holding
+your private keys for a long period of time, it's possible that
+decrypted private key data may be written to the system swap file,
+and an attacker who gained access to your hard disk later on might
+be able to recover that data. (However, if you stored an unencrypted
+key in a disk file they would \e{certainly} be able to recover it.)
+
+\b Although, like most modern operating systems, Windows prevents
+programs from accidentally accessing one another's memory space, it
+does allow programs to access one another's memory space
+deliberately, for special purposes such as debugging. This means
+that if you allow a virus, trojan, or other malicious program on to
+your Windows system while Pageant is running, it could access the
+memory of the Pageant process, extract your decrypted authentication
+keys, and send them back to its master.
+
+Similarly, use of agent \e{forwarding} is a security improvement on
+other methods of one-touch authentication, but not perfect. Holding
+your keys in Pageant on your Windows box has a security advantage
+over holding them on the remote server machine itself (either in an
+agent or just unencrypted on disk), because if the server machine
+ever sees your unencrypted private key then the sysadmin or anyone
+who cracks the machine can steal the keys and pretend to be you for
+as long as they want.
+
+However, the sysadmin of the server machine can always pretend to be
+you \e{on that machine}. So if you forward your agent to a server
+machine, then the sysadmin of that machine can access the forwarded
+agent connection and request signatures from your public keys, and
+can therefore log in to other machines as you. They can only do this
+to a limited extent - when the agent forwarding disappears they lose
+the ability - but using Pageant doesn't actually \e{prevent} the
+sysadmin (or hackers) on the server from doing this.
+
+Therefore, if you don't trust the sysadmin of a server machine, you
+should \e{never} use agent forwarding to that machine. (Of course
+you also shouldn't store private keys on that machine, type
+passphrases into it, or log into other machines from it in any way
+at all; Pageant is hardly unique in this respect.)

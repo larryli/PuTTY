@@ -1,17 +1,6 @@
-\versionid $Id: plink.but,v 1.9 2001/09/22 17:34:10 simon Exp $
+\versionid $Id: plink.but,v 1.10 2001/11/25 16:57:45 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
-
-\# Explain Plink
-
-\# Explain that Plink is probably not what you want if you want to
-\# run an interactive session in a Command Prompt window
-
-\# Explain that Plink is really for batch-file use, and that
-\# therefore it works best with public-key authentication; link to
-\# that chapter
-
-\# Give instructions on how to set up Plink with CVS
 
 \i{Plink} (PuTTY Link) is a command-line connection tool similar to
 UNIX \c{ssh}.  It is probably not what you want if you want to run

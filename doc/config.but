@@ -1,3 +1,5 @@
+\versionid $Id: config.but,v 1.12 2001/11/25 16:57:45 simon Exp $
+
 \C{config} Configuring PuTTY
 
 This chapter describes all the configuration options in PuTTY.

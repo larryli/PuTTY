@@ -1,3 +1,5 @@
+\versionid $Id: intro.but,v 1.4 2001/11/25 16:57:45 simon Exp $
+
 \C{intro} Introduction to PuTTY
 
 PuTTY is a free SSH, Telnet and Rlogin client for 32-bit Windows
