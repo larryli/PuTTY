@@ -1049,7 +1049,7 @@ struct req {
 
 struct fxp_xfer {
     uint64 offset, furthestdata, filesize;
-    int nreqs, req_max, eof, err;
+    int req_totalsize, req_maxsize, eof, err;
     struct fxp_handle *fh;
     struct req *head, *tail;
 };
@@ -1061,8 +1061,8 @@ static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64 offset)
     xfer->fh = fh;
     xfer->offset = offset;
     xfer->head = xfer->tail = NULL;
-    xfer->nreqs = 0;
-    xfer->req_max = 4;		       /* FIXME: set properly! */
+    xfer->req_totalsize = 0;
+    xfer->req_maxsize = 16384;
     xfer->err = 0;
     xfer->filesize = uint64_make(ULONG_MAX, ULONG_MAX);
     xfer->furthestdata = uint64_make(0, 0);
@@ -1070,7 +1070,7 @@ static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64 offset)
     return xfer;
 }
 
-int xfer_download_done(struct fxp_xfer *xfer)
+int xfer_done(struct fxp_xfer *xfer)
 {
     /*
      * We're finished if we've seen EOF _and_ there are no
@@ -1081,7 +1081,7 @@ int xfer_download_done(struct fxp_xfer *xfer)
 
 void xfer_download_queue(struct fxp_xfer *xfer)
 {
-    while (xfer->nreqs < xfer->req_max && !xfer->eof) {
+    while (xfer->req_totalsize < xfer->req_maxsize && !xfer->eof) {
 	/*
 	 * Queue a new read request.
 	 */
@@ -1107,7 +1107,7 @@ void xfer_download_queue(struct fxp_xfer *xfer)
 	fxp_set_userdata(req, rr);
 
 	xfer->offset = uint64_add32(xfer->offset, rr->len);
-	xfer->nreqs++;
+	xfer->req_totalsize += rr->len;
 
 #ifdef DEBUG_DOWNLOAD
 	{ char buf[40]; uint64_decimal(rr->offset, buf); printf("queueing read request %p at %s\n", rr, buf); }
@@ -1234,8 +1234,8 @@ int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len)
 	    xfer->head->prev = NULL;
 	else
 	    xfer->tail = NULL;
+	xfer->req_totalsize -= rr->len;
 	sfree(rr);
-	xfer->nreqs--;
     }
 
     if (retbuf) {
@@ -1244,6 +1244,99 @@ int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len)
 	return 1;
     } else
 	return 0;
+}
+
+struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64 offset)
+{
+    struct fxp_xfer *xfer = xfer_init(fh, offset);
+
+    /*
+     * We set `eof' to 1 because this will cause xfer_done() to
+     * return true iff there are no outstanding requests. During an
+     * upload, our caller will be responsible for working out
+     * whether all the data has been sent, so all it needs to know
+     * from us is whether the outstanding requests have been
+     * handled once that's done.
+     */
+    xfer->eof = 1;
+
+    return xfer;
+}
+
+int xfer_upload_ready(struct fxp_xfer *xfer)
+{
+    if (xfer->req_totalsize < xfer->req_maxsize)
+	return 1;
+    else
+	return 0;
+}
+
+void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len)
+{
+    struct req *rr;
+    struct sftp_request *req;
+
+    rr = snew(struct req);
+    rr->offset = xfer->offset;
+    rr->complete = 0;
+    if (xfer->tail) {
+	xfer->tail->next = rr;
+	rr->prev = xfer->tail;
+    } else {
+	xfer->head = rr;
+	rr->prev = NULL;
+    }
+    xfer->tail = rr;
+    rr->next = NULL;
+
+    rr->len = len;
+    rr->buffer = NULL;
+    sftp_register(req = fxp_write_send(xfer->fh, buffer, rr->offset, len));
+    fxp_set_userdata(req, rr);
+
+    xfer->offset = uint64_add32(xfer->offset, rr->len);
+    xfer->req_totalsize += rr->len;
+
+#ifdef DEBUG_UPLOAD
+    { char buf[40]; uint64_decimal(rr->offset, buf); printf("queueing write request %p at %s [len %d]\n", rr, buf, len); }
+#endif
+}
+
+int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
+{
+    struct sftp_request *rreq;
+    struct req *rr, *prev, *next;
+    int ret;
+
+    rreq = sftp_find_request(pktin);
+    rr = (struct req *)fxp_get_userdata(rreq);
+    if (!rr)
+	return 0;		       /* this packet isn't ours */
+    ret = fxp_write_recv(pktin, rreq);
+#ifdef DEBUG_UPLOAD
+    printf("write request %p has returned [%d]\n", rr, ret);
+#endif
+
+    /*
+     * Remove this one from the queue.
+     */
+    prev = rr->prev;
+    next = rr->next;
+    if (prev)
+	prev->next = next;
+    else
+	xfer->head = next;
+    if (next)
+	next->prev = prev;
+    else
+	xfer->tail = prev;
+    xfer->req_totalsize -= rr->len;
+    sfree(rr);
+
+    if (!ret)
+	return -1;
+
+    return 1;
 }
 
 void xfer_cleanup(struct fxp_xfer *xfer)

@@ -229,10 +229,15 @@ struct sftp_packet *sftp_recv(void);
 struct fxp_xfer;
 
 struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64 offset);
-int xfer_download_done(struct fxp_xfer *xfer);
 void xfer_download_queue(struct fxp_xfer *xfer);
 int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
 int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len);
 
+struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64 offset);
+int xfer_upload_ready(struct fxp_xfer *xfer);
+void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len);
+int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
+
+int xfer_done(struct fxp_xfer *xfer);
 void xfer_set_error(struct fxp_xfer *xfer);
 void xfer_cleanup(struct fxp_xfer *xfer);

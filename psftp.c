@@ -441,7 +441,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
      */
     ret = 1;
     xfer = xfer_download_init(fh, offset);
-    while (!xfer_download_done(xfer)) {
+    while (!xfer_done(xfer)) {
 	void *vbuf;
 	int ret, len;
 	int wpos, wlen;
@@ -506,12 +506,13 @@ int sftp_cmd_reget(struct sftp_command *cmd)
 int sftp_general_put(struct sftp_command *cmd, int restart)
 {
     struct fxp_handle *fh;
+    struct fxp_xfer *xfer;
     char *fname, *origoutfname, *outfname;
     struct sftp_packet *pktin;
     struct sftp_request *req, *rreq;
     uint64 offset;
     FILE *fp;
-    int ret;
+    int ret, err, eof;
 
     if (back == NULL) {
 	printf("psftp: not connected to a host; use \"open host.name\"\n");
@@ -595,31 +596,34 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
      * thus put up a progress bar.
      */
     ret = 1;
-    while (1) {
+    xfer = xfer_upload_init(fh, offset);
+    err = eof = 0;
+    while ((!err && !eof) || !xfer_done(xfer)) {
 	char buffer[4096];
 	int len, ret;
 
-	len = fread(buffer, 1, sizeof(buffer), fp);
-	if (len == -1) {
-	    printf("error while reading local file\n");
-	    ret = 0;
-	    break;
-	} else if (len == 0) {
-	    break;
+	while (xfer_upload_ready(xfer) && !err && !eof) {
+	    len = fread(buffer, 1, sizeof(buffer), fp);
+	    if (len == -1) {
+		printf("error while reading local file\n");
+		err = 1;
+	    } else if (len == 0) {
+		eof = 1;
+	    } else {
+		xfer_upload_data(xfer, buffer, len);
+	    }
 	}
 
-	sftp_register(req = fxp_write_send(fh, buffer, offset, len));
-	rreq = sftp_find_request(pktin = sftp_recv());
-	assert(rreq == req);
-	ret = fxp_write_recv(pktin, rreq);
+	pktin = sftp_recv();
+	ret = xfer_upload_gotpkt(xfer, pktin);
 
 	if (!ret) {
 	    printf("error while writing: %s\n", fxp_error());
-	    ret = 0;
-	    break;
+	    err = 1;
 	}
-	offset = uint64_add32(offset, len);
     }
+
+    xfer_cleanup(xfer);
 
     sftp_register(req = fxp_close_send(fh));
     rreq = sftp_find_request(pktin = sftp_recv());
