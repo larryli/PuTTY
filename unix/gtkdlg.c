@@ -23,9 +23,7 @@
  *     + why the hell are the Up/Down focus movement keys sorting
  *       things by _width_? (See the Logging and Features panels
  *       for good examples.)
- *     + the error message box is in totally the wrong place and
- *       also looks ugly. Try to fix; look at how (frex) AisleRiot
- *       does it better.
+ *     + window title.
  */
 
 /*
@@ -89,7 +87,7 @@ struct dlgparam {
      * due to automatic processing and should not flag a user event. */
     int flags;
     struct Shortcuts *shortcuts;
-    GtkWidget *cancelbutton, *currtreeitem, **treeitems;
+    GtkWidget *window, *cancelbutton, *currtreeitem, **treeitems;
     union control *currfocus, *lastfocus;
     int ntreeitems;
     int retval;
@@ -689,14 +687,18 @@ static void errmsg_button_clicked(GtkButton *button, gpointer data)
 void dlg_error_msg(void *dlg, char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
-    GtkWidget *window, *text, *ok;
+    GtkWidget *window, *hbox, *text, *ok;
 
     window = gtk_dialog_new();
     text = gtk_label_new(msg);
     gtk_misc_set_alignment(GTK_MISC(text), 0.0, 0.0);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), text, FALSE, FALSE, 20);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
-                       text, FALSE, FALSE, 0);
+                       hbox, FALSE, FALSE, 20);
     gtk_widget_show(text);
+    gtk_widget_show(hbox);
+    gtk_window_set_title(GTK_WINDOW(window), "Error");
     gtk_label_set_line_wrap(GTK_LABEL(text), TRUE);
     ok = gtk_button_new_with_label("OK");
     gtk_box_pack_end(GTK_BOX(GTK_DIALOG(window)->action_area),
@@ -709,6 +711,16 @@ void dlg_error_msg(void *dlg, char *msg)
     gtk_signal_connect(GTK_OBJECT(window), "destroy",
                        GTK_SIGNAL_FUNC(window_destroy), NULL);
     gtk_window_set_modal(GTK_WINDOW(window), TRUE);
+    gtk_window_set_transient_for(GTK_WINDOW(window), GTK_WINDOW(dp->window));
+    {
+	gint x, y, w, h, dx, dy;
+	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
+	gdk_window_get_origin(GTK_WIDGET(dp->window)->window, &x, &y);
+	gdk_window_get_size(GTK_WIDGET(dp->window)->window, &w, &h);
+	dx = x + w/4;
+	dy = y + h/4;
+	gtk_widget_set_uposition(GTK_WIDGET(window), dx, dy);
+    }
     gtk_widget_show(window);
     gtk_main();
 }
@@ -1991,7 +2003,9 @@ int do_config_box(void)
     dp.currtreeitem = dp.treeitems[0];
     dp.lastfocus = NULL;
     dp.retval = 0;
+    dp.window = window;
 
+    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     gtk_widget_show(window);
 
     /*
