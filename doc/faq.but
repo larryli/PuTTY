@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.53 2004/01/24 18:30:32 jacob Exp $
+\versionid $Id: faq.but,v 1.54 2004/02/04 18:39:14 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -149,6 +149,12 @@ Registry in advance. That way, you retain the \e{important} feature
 of host key checking: the right key will be accepted and the wrong
 ones will not. Adding an option to turn host key checking off
 completely is the wrong solution and we will not do it.
+
+If you have host keys available in the common \c{known_hosts} format,
+we have a script called 
+\W{http://cvs.tartarus.org/putty/contrib/kh2reg.py}\c{kh2reg.py}
+to convert them to a Windows .REG file, which can be installed ahead of
+time by double-clicking or using \c{REGEDIT}.
 
 \S{faq-server}{Question} Will you write an SSH server for the PuTTY
 suite, to go with the client?
