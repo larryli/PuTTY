@@ -98,7 +98,7 @@ char *platform_default_s(const char *name)
 int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "CloseOnExit"))
-	return FORCE_ON;	       /* AUTO works badly in an xterm */
+	return 2;  /* maps to FORCE_ON after painful rearrangement :-( */
     return def;
 }
 
