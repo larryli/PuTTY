@@ -3705,6 +3705,8 @@ void logevent(char *string)
     char timebuf[40];
     time_t t;
 
+    log_eventlog(string);
+
     if (nevents >= negsize) {
 	negsize += 64;
 	events = srealloc(events, negsize * sizeof(*events));

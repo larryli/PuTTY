@@ -33,11 +33,24 @@ void logtraffic(unsigned char c, int logmode)
 }
 
 /*
+ * Log an Event Log entry (used in SSH packet logging mode).
+ */
+void log_eventlog(char *event)
+{
+    if (cfg.logtype != LGTYP_PACKETS)
+	return;
+    if (!lgfp)
+	logfopen();
+    if (lgfp)
+	fprintf(lgfp, "Event Log: %s\n", event);
+}
+
+/*
  * Log an SSH packet.
  */
 void log_packet(int direction, int type, char *texttype, void *data, int len)
 {
-    int i, j, c;
+    int i, j;
     char dumpdata[80], smalldata[5];
 
     if (cfg.logtype != LGTYP_PACKETS)
@@ -72,6 +85,10 @@ void logfopen(void)
     struct tm tm;
     char writemod[4];
 
+    /* Prevent repeat calls */
+    if (lgfp)
+	return;
+
     if (!cfg.logtype)
 	return;
     sprintf(writemod, "wb");	       /* default to rewrite */
@@ -98,20 +115,21 @@ void logfopen(void)
 
     lgfp = fopen(currlogfilename, writemod);
     if (lgfp) {			       /* enter into event log */
-	sprintf(buf, "%s session log (%s mode) to file : ",
-		(writemod[0] == 'a') ? "Appending" : "Writing new",
-		(cfg.logtype == LGTYP_ASCII ? "ASCII" :
-		 cfg.logtype == LGTYP_DEBUG ? "raw" : "<ukwn>"));
-	/* Make sure we do not exceed the output buffer size */
-	strncat(buf, currlogfilename, 128);
-	buf[strlen(buf)] = '\0';
-	logevent(buf);
-
 	/* --- write header line into log file */
 	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", lgfp);
 	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", &tm);
 	fputs(buf, lgfp);
 	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\r\n", lgfp);
+
+	sprintf(buf, "%s session log (%s mode) to file: ",
+		(writemod[0] == 'a') ? "Appending" : "Writing new",
+		(cfg.logtype == LGTYP_ASCII ? "ASCII" :
+		 cfg.logtype == LGTYP_DEBUG ? "raw" :
+		 cfg.logtype == LGTYP_PACKETS ? "SSH packets" : "<ukwn>"));
+	/* Make sure we do not exceed the output buffer size */
+	strncat(buf, currlogfilename, 128);
+	buf[strlen(buf)] = '\0';
+	logevent(buf);
     }
 }
 

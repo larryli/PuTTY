@@ -518,6 +518,7 @@ void term_reconfig(void);
  */
 void logtraffic(unsigned char c, int logmode);
 enum { PKT_INCOMING, PKT_OUTGOING };
+void log_eventlog(char *string);
 void log_packet(int direction, int type, char *texttype, void *data, int len);
 
 /*
