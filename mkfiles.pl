@@ -11,7 +11,7 @@ use FileHandle;
 
 open IN, "Recipe" or die "unable to open Recipe file\n";
 
-@incdirs = ("", "unix/");
+@incdirs = ("", "unix/", "mac/");
 
 $help = ""; # list of newline-free lines of help text
 %programs = (); # maps prog name + type letter to listref of objects/resources
