@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.24 2004/08/03 13:23:48 jacob Exp $
+\versionid $Id: plink.but,v 1.25 2004/08/19 13:14:55 jacob Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -51,7 +51,7 @@ use Plink:
 \c   -v        show verbose messages
 \c   -load sessname  Load settings from saved session
 \c   -ssh -telnet -rlogin -raw
-\c             force use of a particular protocol (default SSH)
+\c             force use of a particular protocol
 \c   -P port   connect to specified port
 \c   -l user   connect with specified username
 \c   -m file   read remote command(s) from file

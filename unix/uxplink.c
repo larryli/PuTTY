@@ -212,7 +212,7 @@ static void usage(void)
     printf("  -v        show verbose messages\n");
     printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw\n");
-    printf("            force use of a particular protocol (default SSH)\n");
+    printf("            force use of a particular protocol\n");
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
     printf("  -m file   read remote command(s) from file\n");
