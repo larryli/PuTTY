@@ -3318,7 +3318,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	AUTH_TYPE_PUBLICKEY_OFFER_LOUD,
 	AUTH_TYPE_PUBLICKEY_OFFER_QUIET,
 	AUTH_TYPE_PASSWORD,
-	AUTH_TYPE_KEYBOARD_INTERACTIVE
+	AUTH_TYPE_KEYBOARD_INTERACTIVE,
+	AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET
     } type;
     static int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
     static int tried_pubkey_config, tried_agent, tried_keyb_inter;
@@ -3534,6 +3535,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			if (type == AUTH_TYPE_PUBLICKEY_OFFER_LOUD)
 			    c_write_str("Server refused our key\r\n");
 			logevent("Server refused public key");
+		    } else if (type == AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET) {
+			/* server declined keyboard-interactive; ignore */
 		    } else {
 			c_write_str("Access denied\r\n");
 			logevent("Access denied");
@@ -3577,7 +3580,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    if (pktin.type == SSH2_MSG_USERAUTH_FAILURE)
 			gotit = TRUE;
 		    logevent("Keyboard-interactive authentication refused");
-		    type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		    type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
 		    continue;
 		}
 
