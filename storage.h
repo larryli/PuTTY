@@ -21,6 +21,10 @@
  * then close it using close_settings_w(). At the end of this call
  * sequence the settings should have been written to the PuTTY
  * persistent storage area.
+ *
+ * A given key will be written at most once while saving a session.
+ * Keys may be up to 255 characters long.  String values have no length
+ * limit.
  */
 void *open_settings_w(char *sessionname);
 void write_setting_s(void *handle, char *key, char *value);
