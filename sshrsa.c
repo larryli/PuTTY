@@ -373,17 +373,26 @@ static char *rsa2_fingerprint(void *key) {
 /*
  * This is the magic ASN.1/DER prefix that goes in the decoded
  * signature, between the string of FFs and the actual SHA hash
- * value. As closely as I can tell, the meaning of it is:
+ * value. The meaning of it is:
  * 
  * 00 -- this marks the end of the FFs; not part of the ASN.1 bit itself
  * 
  * 30 21 -- a constructed SEQUENCE of length 0x21
  *    30 09 -- a constructed sub-SEQUENCE of length 9
  *       06 05 -- an object identifier, length 5
- *          2B 0E 03 02 1A -- 
+ *          2B 0E 03 02 1A -- object id { 1 3 14 3 2 26 }
+ *                            (the 1,3 comes from 0x2B = 43 = 40*1+3)
  *       05 00 -- NULL
  *    04 14 -- a primitive OCTET STRING of length 0x14
  *       [0x14 bytes of hash data follows]
+ * 
+ * The object id in the middle there is listed as `id-sha1' in
+ * ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1d2.asn (the
+ * ASN module for PKCS #1) and its expanded form is as follows:
+ * 
+ * id-sha1                OBJECT IDENTIFIER ::= {
+ *    iso(1) identified-organization(3) oiw(14) secsig(3)
+ *    algorithms(2) 26 }
  */
 static unsigned char asn1_weird_stuff[] = {
     0x00,0x30,0x21,0x30,0x09,0x06,0x05,0x2B,
