@@ -221,8 +221,6 @@ int verify_host_key(char *hostname, int port, char *keytype, char *key) {
      */
     otherstr = smalloc(len);
     regname = smalloc(3*(strlen(hostname)+strlen(keytype))+15);
-    if (!otherstr || !regname)
-	fatalbox("Out of memory");
 
     hostkey_regname(regname, hostname, port, keytype);
 
@@ -315,8 +313,6 @@ void store_host_key(char *hostname, int port, char *keytype, char *key) {
     HKEY rkey;
 
     regname = smalloc(3*(strlen(hostname)+strlen(keytype))+15);
-    if (!regname)
-	fatalbox("Out of memory");
 
     hostkey_regname(regname, hostname, port, keytype);
 
