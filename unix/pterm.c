@@ -1398,7 +1398,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
 
-    int nfg, nbg, t, fontid, shadow;
+    int nfg, nbg, t, fontid, shadow, rlen;
 
     /*
      * NYI:
@@ -1435,13 +1435,25 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	    return;
 	if (x + len*2 > inst->term->cols)
 	    len = (inst->term->cols-x)/2;    /* trim to LH half */
+	rlen = len * 2;
+    } else
+	rlen = len;
+
+    {
+	GdkRectangle r;
+
+	r.x = x*inst->font_width+cfg.window_border;
+	r.y = y*inst->font_height+cfg.window_border;
+	r.width = rlen*inst->font_width;
+	r.height = inst->font_height;
+	gdk_gc_set_clip_rectangle(gc, &r);
     }
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
     gdk_draw_rectangle(inst->pixmap, gc, 1,
 		       x*inst->font_width+cfg.window_border,
 		       y*inst->font_height+cfg.window_border,
-		       len*inst->font_width, inst->font_height);
+		       rlen*inst->font_width, inst->font_height);
 
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
     gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,

@@ -626,7 +626,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);
     gpps(sesskey, "BoldFont", "", cfg->boldfont, sizeof(cfg->boldfont));
-    gppi(sesskey, "ShadowBoldOffset", -1, &cfg->shadowboldoffset);
+    gppi(sesskey, "ShadowBoldOffset", 1, &cfg->shadowboldoffset);
 
     close_settings_r(sesskey);
 }
