@@ -906,7 +906,7 @@ char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     error = "file format error";
     if ((b = read_body(fp)) == NULL)
 	goto error;
-    /* Select key algorithm structure. Currently only ssh-rsa. */
+    /* Select key algorithm structure. */
     alg = find_pubkey_alg(b);
     if (!alg) {
 	sfree(b);
