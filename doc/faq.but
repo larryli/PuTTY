@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.71 2004/05/26 09:19:48 jacob Exp $
+\versionid $Id: faq.but,v 1.72 2004/07/24 12:37:42 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -625,8 +625,8 @@ areas of black space where colour ought to be.
 
 You almost certainly need to enable the \q{Use background colour to
 erase screen} setting in the Terminal panel. Note that if you do
-this in mid-session, it may not take effect until you reset the
-terminal (see \k{faq-resetterm}).
+this in mid-session, in versions before 0.54, it may not take effect
+until you reset the terminal (see \k{faq-resetterm}).
 
 \S{faq-resetterm}{Question} When I change some terminal settings,
 nothing happens.
