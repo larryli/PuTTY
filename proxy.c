@@ -519,7 +519,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    int i, j, len;
 	    sprintf(buf, "%s:%s", p->cfg.proxy_username, p->cfg.proxy_password);
 	    len = strlen(buf);
-	    sprintf(buf2, "Proxy-Authorization: basic ");
+	    sprintf(buf2, "Proxy-Authorization: Basic ");
 	    for (i = 0, j = strlen(buf2); i < len; i += 3, j += 4)
 		base64_encode_atom((unsigned char *)(buf+i),
 				   (len-i > 3 ? 3 : len-i), buf2+j);
