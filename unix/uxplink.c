@@ -111,6 +111,9 @@ void try_output(int is_stderr)
     void *senddata;
     int sendlen, ret;
 
+    if (bufchain_size(chain) == 0)
+        return;
+
     bufchain_prefix(chain, &senddata, &sendlen);
     ret = write(fd, senddata, sendlen);
     if (ret > 0)
