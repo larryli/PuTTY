@@ -494,7 +494,7 @@ void del234(tree234 *t, void *e) {
 	     */
 	    int i;
 	    LOG(("  case 1\n"));
-	    for (i = ei; i < 3 && n->elems[i+1]; i++)
+	    for (i = ei; i < 2 && n->elems[i+1]; i++)
 		n->elems[i] = n->elems[i+1];
 	    n->elems[i] = NULL;
 	    return;		       /* finished! */
