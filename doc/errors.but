@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.1 2002/10/01 16:27:36 simon Exp $
+\versionid $Id: errors.but,v 1.2 2002/11/25 19:02:23 ben Exp $
 
 \C{errors} Common error messages
 
@@ -93,7 +93,7 @@ memory} error.
 
 This can happen in SSH 2, if PuTTY and the server have not enabled
 encryption in the same way (see \k{faq-outofmem} in the FAQ). Some
-versions of OpenSSH have a knownq problem with this: see
+versions of OpenSSH have a known problem with this: see
 \k{faq-openssh-bad-openssl}.
 
 This can also happen in PSCP or PSFTP, if your login scripts on the
