@@ -346,6 +346,10 @@ static void usage(void)
     printf("  -P port   connect to specified port\n");
     printf("  -pw passw login with specified password\n");
     printf("  -m file   read remote command(s) from file\n");
+    printf("  -L listen-port:host:port   Forward local port to "
+	   "remote address\n");
+    printf("  -R listen-port:host:port   Forward remote port to"
+	   " local address\n");
     exit(1);
 }
 
@@ -383,6 +387,7 @@ int main(int argc, char **argv)
     SOCKET *sklist;
     int skcount, sksize;
     int connopen;
+    char extra_portfwd[sizeof(cfg.portfwd)];
 
     ssh_get_line = get_line;
 
@@ -441,6 +446,23 @@ int main(int argc, char **argv)
 		--argc, username = *++argv;
 		strncpy(cfg.username, username, sizeof(cfg.username));
 		cfg.username[sizeof(cfg.username) - 1] = '\0';
+	    } else if ((!strcmp(p, "-L") || !strcmp(p, "-R")) && argc > 1) {
+		char *fwd, *ptr;
+		int i=0;
+		--argc, fwd = *++argv;
+		ptr = extra_portfwd;
+		/* if multiple forwards, find end of list */
+		if (ptr[0]=='R' || ptr[0]=='L') {
+		    for (i = 0; i < sizeof(extra_portfwd) - 2; i++)
+			if (ptr[i]=='\000' && ptr[i+1]=='\000')
+			    break;
+		    ptr = ptr + i + 1;  /* point to next forward slot */
+		}
+		ptr[0] = p[1];  /* insert a 'L' or 'R' at the start */
+		strncpy(ptr+1, fwd, sizeof(extra_portfwd) - i);
+		ptr[strcspn(ptr, ":")] = '\t';  /* replace first : with \t */
+		ptr[strlen(ptr)+1] = '\000';    /* append two '\000' */
+		extra_portfwd[sizeof(extra_portfwd) - 1] = '\0';
 	    } else if (!strcmp(p, "-m") && argc > 1) {
 		char *filename, *command;
 		int cmdlen, cmdsize;
@@ -636,6 +658,30 @@ int main(int argc, char **argv)
 	    fprintf(stderr,
 		    "Internal fault: Unsupported protocol found\n");
 	    return 1;
+	}
+    }
+
+    /*
+     * Add extra port forwardings (accumulated on command line) to
+     * cfg.
+     */
+    {
+	int i;
+	char *p;
+	p = extra_portfwd;
+	i = 0;
+	while (cfg.portfwd[i])
+	    i += strlen(cfg.portfwd+i) + 1;
+	while (*p) {
+	    if (strlen(p)+2 > sizeof(cfg.portfwd)-i) {
+		fprintf(stderr, "Internal fault: not enough space for all"
+			" port forwardings\n");
+		break;
+	    }
+	    strncpy(cfg.portfwd+i, p, sizeof(cfg.portfwd)-i-1);
+	    i += strlen(cfg.portfwd+i) + 1;
+	    cfg.portfwd[i] = '\0';
+	    p += strlen(p)+1;
 	}
     }
 
