@@ -445,9 +445,10 @@ type 'TEXT' {
 resource 'TEXT' (wLicence, "licence", purgeable) {
     "Copyright 1997-2005 Simon Tatham.\n"
     "\n"
-    "Portions copyright Robert de Bath, Joris van Rantwijk, Delian"
-    "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,"
-    "Justin Bradford, Ben Harris, and CORE SDI S.A.\n"
+    "Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
+    "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry, "
+    "Justin Bradford, Ben Harris, Malcolm Smith, Markus Kuhn, and "
+    "CORE SDI S.A.\n"
     "\n"    
     "Permission is hereby granted, free of charge, to any person "
     "obtaining a copy of this software and associated documentation "
