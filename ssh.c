@@ -7412,14 +7412,17 @@ static void ssh_size(void *handle, int width, int height)
  */
 static const struct telnet_special *ssh_get_specials(void *handle)
 {
-    static const struct telnet_special ignore_special[] = {
+    static const struct telnet_special ssh1_ignore_special[] = {
+	{"IGNORE message", TS_NOP}
+    };
+    static const struct telnet_special ssh2_transport_specials[] = {
 	{"IGNORE message", TS_NOP},
 	{"Repeat key exchange", TS_REKEY},
     };
     static const struct telnet_special ssh2_session_specials[] = {
 	{NULL, TS_SEP},
 	{"Break", TS_BRK},
-	/* These are the signal names defined by draft-ietf-secsh-connect-19.
+	/* These are the signal names defined by draft-ietf-secsh-connect-23.
 	 * They include all the ISO C signals, but are a subset of the POSIX
 	 * required signals. */
 	{"SIGINT (Interrupt)", TS_SIGINT},
@@ -7437,7 +7440,8 @@ static const struct telnet_special *ssh_get_specials(void *handle)
     static const struct telnet_special specials_end[] = {
 	{NULL, TS_EXITMENU}
     };
-    static struct telnet_special ssh_specials[lenof(ignore_special) +
+    /* XXX review this length for any changes: */
+    static struct telnet_special ssh_specials[lenof(ssh2_transport_specials) +
 					      lenof(ssh2_session_specials) +
 					      lenof(specials_end)];
     Ssh ssh = (Ssh) handle;
@@ -7454,9 +7458,9 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 	 * won't cope with it, since we wouldn't bother sending it if
 	 * asked anyway. */
 	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
-	    ADD_SPECIALS(ignore_special);
+	    ADD_SPECIALS(ssh1_ignore_special);
     } else if (ssh->version == 2) {
-	ADD_SPECIALS(ignore_special);
+	ADD_SPECIALS(ssh2_transport_specials);
 	if (ssh->mainchan)
 	    ADD_SPECIALS(ssh2_session_specials);
     } /* else we're not ready yet */
