@@ -184,12 +184,15 @@ foreach $i (keys %depends) {
 sub findfile {
   my ($name) = @_;
   my $dir, $i, $outdir = "";
-  $i = 0;
-  foreach $dir (@incdirs) {
-    $outdir = $dir, $i++ if -f "$dir$name";
+  unless (defined $findfilecache{$name}) {
+    $i = 0;
+    foreach $dir (@incdirs) {
+      $outdir = $dir, $i++ if -f "$dir$name";
+    }
+    die "multiple instances of source file $name\n" if $i > 1;
+    $findfilecache{$name} = $outdir . $name;
   }
-  die "multiple instances of source file $name\n" if $i > 1;
-  return "$outdir$name";
+  return $findfilecache{$name};
 }
 
 sub objects {
