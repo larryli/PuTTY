@@ -46,10 +46,15 @@
 #define SSH1_MSG_CHANNEL_DATA                     23   /* 0x17 */
 #define SSH1_MSG_CHANNEL_CLOSE                    24   /* 0x18 */
 #define SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION       25   /* 0x19 */
+#define SSH1_SMSG_X11_OPEN                        27   /* 0x1b */
+#define SSH1_CMSG_PORT_FORWARD_REQUEST            28   /* 0x1c */
+#define SSH1_MSG_PORT_OPEN                        29   /* 0x1d */
 #define SSH1_CMSG_AGENT_REQUEST_FORWARDING        30   /* 0x1e */
 #define SSH1_SMSG_AGENT_OPEN                      31   /* 0x1f */
-#define SSH1_CMSG_EXIT_CONFIRMATION               33   /* 0x21 */
 #define SSH1_MSG_IGNORE                           32   /* 0x20 */
+#define SSH1_CMSG_EXIT_CONFIRMATION               33   /* 0x21 */
+#define SSH1_CMSG_X11_REQUEST_FORWARDING          34   /* 0x22 */
+#define SSH1_CMSG_AUTH_RHOSTS_RSA                 35   /* 0x23 */
 #define SSH1_MSG_DEBUG                            36   /* 0x24 */
 #define SSH1_CMSG_REQUEST_COMPRESSION             37   /* 0x25 */
 #define SSH1_CMSG_AUTH_TIS                        39   /* 0x27 */
@@ -160,6 +165,11 @@ extern const struct ssh_cipher ssh_des;
 extern const struct ssh_cipher ssh_blowfish_ssh1;
 extern const struct ssh_cipher ssh_blowfish_ssh2;
 
+extern char *x11_init (Socket *, char *, void *, char **);
+extern void x11_close (Socket);
+extern void x11_send  (Socket , char *, int);
+extern void x11_invent_auth(char *, int, char *, int);
+
 /*
  * Ciphers for SSH2. We miss out single-DES because it isn't
  * supported; also 3DES and Blowfish are both done differently from
@@ -214,6 +224,9 @@ struct ssh_channel {
             unsigned char msglen[4];
             int lensofar, totallen;
         } a;
+        struct ssh_x11_channel {
+            Socket s;
+        } x11;  
         struct ssh2_data_channel {
             unsigned char *outbuffer;
             unsigned outbuflen, outbufsize;
@@ -238,6 +251,7 @@ static Socket s = NULL;
 static unsigned char session_key[32];
 static int ssh1_compressing;
 static int ssh_agentfwd_enabled;
+static int ssh_X11_fwd_enabled;
 static const struct ssh_cipher *cipher = NULL;
 static const struct ssh_cipher *cscipher = NULL;
 static const struct ssh_cipher *sccipher = NULL;
@@ -1719,6 +1733,25 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     crFinish(1);
 }
 
+void sshfwd_close(struct ssh_channel *c) {
+
+  if (c) {
+    send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid, PKT_END);
+    logevent("X11 connection terminated");
+    c->closes = 1;
+    c->u.x11.s = NULL;
+  }
+}
+
+void sshfwd_write(struct ssh_channel *c, char *buf, int len) {
+
+  send_packet(SSH1_MSG_CHANNEL_DATA,
+	      PKT_INT, c->remoteid,
+	      PKT_INT, len,
+	      PKT_DATA, buf, len,
+	      PKT_END);
+}
+
 static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
     crBegin;
 
@@ -1742,6 +1775,26 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
         } else {
             logevent("Agent forwarding enabled");
 	    ssh_agentfwd_enabled = TRUE;
+	}
+    }
+
+    if (cfg.x11_forward) {
+        char proto[20], data[64];
+        logevent("Requesting X11 forwarding");
+        x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
+        send_packet(SSH1_CMSG_X11_REQUEST_FORWARDING, 
+		    PKT_STR, proto, PKT_STR, data,
+		    PKT_INT, 0,
+		    PKT_END);
+        do { crReturnV; } while (!ispkt);
+        if (pktin.type != SSH1_SMSG_SUCCESS && pktin.type != SSH1_SMSG_FAILURE) {
+            bombout(("Protocol confusion"));
+            crReturnV;
+        } else if (pktin.type == SSH1_SMSG_FAILURE) {
+            logevent("X11 forwarding refused");
+        } else {
+            logevent("X11 forwarding enabled");
+	    ssh_X11_fwd_enabled = TRUE;
 	}
     }
 
@@ -1805,6 +1858,49 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
                 crReturnV;
+            } else if (pktin.type == SSH1_SMSG_X11_OPEN) {
+                /* Remote side is trying to open a channel to talk to our
+                 * X-Server. Give them back a local channel number. */
+                unsigned i;
+                struct ssh_channel *c, *d;
+                enum234 e;
+
+		logevent("Received X11 connect request");
+		/* Refuse if X11 forwarding is disabled. */
+		if (!ssh_X11_fwd_enabled) {
+		    send_packet(SSH1_MSG_CHANNEL_OPEN_FAILURE,
+				PKT_INT, GET_32BIT(pktin.body),
+				PKT_END);
+		    logevent("Rejected X11 connect request");
+		} else {
+                    char *rh;
+
+		    c = smalloc(sizeof(struct ssh_channel));
+
+		    if ( x11_init(&c->u.x11.s, cfg.x11_display, c, &rh) != NULL ) {
+		      logevent("opening X11 forward connection failed");
+		      sfree(c);
+		      send_packet(SSH1_MSG_CHANNEL_OPEN_FAILURE,
+				  PKT_INT, GET_32BIT(pktin.body),
+				  PKT_END);
+		    } else {
+		      logevent("opening X11 forward connection succeeded");
+		      for (i=1, d = first234(ssh_channels, &e); d; d = next234(&e)) {
+			if (d->localid > i)
+			  break;     /* found a free number */
+			i = d->localid + 1;
+		      }
+		      c->remoteid = GET_32BIT(pktin.body);
+		      c->localid = i;
+		      c->closes = 0;
+		      c->type = SSH1_SMSG_X11_OPEN;/* identify channel type */
+		      add234(ssh_channels, c);
+		      send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+				  PKT_INT, c->remoteid, PKT_INT, c->localid,
+				  PKT_END);
+		      logevent("Opened X11 forward channel");
+		    }
+		}
             } else if (pktin.type == SSH1_SMSG_AGENT_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * agent. Give them back a local channel number. */
@@ -1845,6 +1941,12 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                     int closetype;
                     closetype = (pktin.type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
                     send_packet(pktin.type, PKT_INT, c->remoteid, PKT_END);
+		    if ((c->closes == 0) && (c->type == SSH1_SMSG_X11_OPEN)) {
+		        logevent("X11 connection closed");
+			assert(c->u.x11.s != NULL);
+			x11_close(c->u.x11.s);
+			c->u.x11.s = NULL;
+		    }
                     c->closes |= closetype;
                     if (c->closes == 3) {
                         del234(ssh_channels, c);
@@ -1860,6 +1962,9 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 c = find234(ssh_channels, &i, ssh_channelfind);
                 if (c) {
                     switch(c->type) {
+                      case SSH1_SMSG_X11_OPEN:
+			x11_send(c->u.x11.s, p, len);
+			break;
                       case SSH1_SMSG_AGENT_OPEN:
                         /* Data for an agent message. Buffer it. */
                         while (len > 0) {

@@ -423,6 +423,8 @@ Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver) {
 }
 
 void sk_close(Socket s) {
+    extern char *do_select(SOCKET skt, int startup);
+
     del234(sktree, s);
     do_select(s->s, 0);
     closesocket(s->s);

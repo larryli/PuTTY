@@ -209,6 +209,9 @@ typedef struct {
     int xlat_88592w1250;
     int xlat_88592cp852;
     int xlat_capslockcyr;
+    /* X11 forwarding */
+    int x11_forward;
+    char x11_display[128];
 } Config;
 
 /*

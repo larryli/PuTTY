@@ -401,6 +401,13 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_VTPOORMAN,
     translationpanelend,
 
+    tunnelspanelstart,
+    IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS,
+    IDC_X11_FORWARD,
+    IDC_X11_DISPSTATIC,
+    IDC_X11_DISPLAY,
+    tunnelspanelend,
+
     controlendvalue
 };
 
@@ -579,6 +586,9 @@ static void init_dlg_ctrls(HWND hwnd) {
 		      cfg.vtmode == VT_OEMANSI ? IDC_VTOEMANSI :
 		      cfg.vtmode == VT_OEMONLY ? IDC_VTOEMONLY :
 		      IDC_VTPOORMAN);
+
+    CheckDlgButton (hwnd, IDC_X11_FORWARD, cfg.x11_forward);
+    SetDlgItemText (hwnd, IDC_X11_DISPLAY, cfg.x11_display);
 }
 
 static void hide(HWND hwnd, int hide, int minid, int maxid) {
@@ -1064,6 +1074,22 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                 treeview_insert(&tvfaff, 1, "SSH");
 	    }
 	}
+        /* The Tunnels panel. Accelerators used: [acgo] ex */
+        {
+	    struct ctlpos tp;
+	    ctlposinit(&tp, hwnd, 80, 3, 13);
+	    if (dlgtype == 0) {
+	      beginbox(&tp, "X11 forwarding options",
+		       IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS);
+	      checkbox(&tp, "&Enable X11 forwarding",
+		       IDC_X11_FORWARD);
+	      multiedit(&tp, "&X display location", IDC_X11_DISPSTATIC,
+			IDC_X11_DISPLAY, 50, NULL);
+	      endbox(&tp);
+	      
+	      treeview_insert(&tvfaff, 2, "Tunnels");
+	    }
+        }
 
 	init_dlg_ctrls(hwnd);
         for (i = 0; i < nsessions; i++)
@@ -1124,6 +1150,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		hide(hwnd, FALSE, windowpanelstart, windowpanelend);
 	    if (!strcmp(buffer, "Appearance"))
 		hide(hwnd, FALSE, appearancepanelstart, appearancepanelend);
+	    if (!strcmp(buffer, "Tunnels"))
+		hide(hwnd, FALSE, tunnelspanelstart, tunnelspanelend);
 	    if (!strcmp(buffer, "Connection"))
 		hide(hwnd, FALSE, connectionpanelstart, connectionpanelend);
 	    if (!strcmp(buffer, "Telnet"))
@@ -1848,6 +1876,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		 IsDlgButtonChecked (hwnd, IDC_VTOEMONLY) ? VT_OEMONLY :
 		 VT_POORMAN);
 	    break;
+	  case IDC_X11_FORWARD:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.x11_forward = IsDlgButtonChecked (hwnd, IDC_X11_FORWARD);
+	    break;
+          case IDC_X11_DISPLAY:
+            if (HIWORD(wParam) == EN_CHANGE)
+                GetDlgItemText (hwnd, IDC_X11_DISPLAY, cfg.x11_display,
+                                sizeof(cfg.x11_display)-1);
+            break;
 	}
 	return 0;
       case WM_CLOSE:

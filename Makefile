@@ -81,6 +81,7 @@ MOBJ2 = tree234.$(OBJ)
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
 OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
+OBJS4 = x11fwd.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ)
@@ -119,7 +120,7 @@ SOCK2 = ws2_32.lib
 
 all: putty.exe puttytel.exe pscp.exe plink.exe pageant.exe puttygen.exe
 
-putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
+putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe -map:putty.map @putty.rsp
 
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(MOBJ2) $(PRESRC) puttytel.rsp
@@ -131,10 +132,10 @@ pageant.exe: $(PAGE1) $(PAGE2) $(PAGERC) pageant.rsp
 puttygen.exe: $(GEN1) $(GEN2) $(GEN3) $(GEN4) $(GENRC) puttygen.rsp
 	link $(LFLAGS) -out:puttygen.exe -map:puttygen.map @puttygen.rsp
 
-pscp.exe: $(SOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
+pscp.exe: $(SOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe -map:pscp.map @pscp.rsp
 
-plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(LRESRC) plink.rsp
+plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(LRESRC) plink.rsp
 	link $(LFLAGS) -out:plink.exe -map:plink.map @plink.rsp
 
 putty.rsp: makefile
@@ -148,6 +149,7 @@ putty.rsp: makefile
 	echo $(OBJS1) >> putty.rsp
 	echo $(OBJS2) >> putty.rsp
 	echo $(OBJS3) >> putty.rsp
+	echo $(OBJS4) >> putty.rsp
 	echo $(PRESRC) >> putty.rsp
 	echo $(LIBS1) >> putty.rsp
 	echo $(LIBS2) >> putty.rsp
@@ -194,6 +196,7 @@ pscp.rsp: makefile
 	echo $(OBJS1) >> pscp.rsp
 	echo $(OBJS2) >> pscp.rsp
 	echo $(OBJS3) >> pscp.rsp
+	echo $(OBJS4) >> pscp.rsp
 	echo $(SRESRC) >> pscp.rsp
 	echo $(LIBS1) >> pscp.rsp
 	echo $(LIBS2) >> pscp.rsp
@@ -209,6 +212,7 @@ plink.rsp: makefile
 	echo $(OBJS1) >> plink.rsp
 	echo $(OBJS2) >> plink.rsp
 	echo $(OBJS3) >> plink.rsp
+	echo $(OBJS4) >> plink.rsp
 	echo $(LRESRC) >> plink.rsp
 	echo $(LIBS1) >> plink.rsp
  	echo $(LIBS2) >> plink.rsp

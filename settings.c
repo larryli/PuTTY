@@ -142,6 +142,8 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "LockSize", cfg->locksize);
     write_setting_i (sesskey, "BCE", cfg->bce);
     write_setting_i (sesskey, "BlinkText", cfg->blinktext);
+    write_setting_i (sesskey, "X11Forward", cfg->x11_forward);
+    write_setting_s (sesskey, "X11Display", cfg->x11_display);
 
     close_settings_w(sesskey);
 }
@@ -306,6 +308,9 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "LockSize", 0, &cfg->locksize);
     gppi (sesskey, "BCE", 0, &cfg->bce);
     gppi (sesskey, "BlinkText", 0, &cfg->blinktext);
+    gppi (sesskey, "X11Forward", 0, &cfg->x11_forward);
+    gpps (sesskey, "X11Display", "localhost:0", cfg->x11_display,
+          sizeof(cfg->x11_display));
 
     close_settings_r(sesskey);
 }
