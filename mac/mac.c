@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.10 2002/12/30 18:21:17 ben Exp $ */
+/* $Id: mac.c,v 1.11 2002/12/30 19:01:44 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -40,6 +40,7 @@
 #include <Devices.h>
 #include <DiskInit.h>
 #include <Gestalt.h>
+#include <LowMem.h>
 #include <Resources.h>
 #include <Script.h>
 #include <TextCommon.h>
@@ -174,6 +175,17 @@ static void mac_startup(void) {
     windows.about = NULL;
     windows.licence = NULL;
 
+    {
+	short vol;
+	long dirid;
+
+	/* Set the default directory for loading and saving settings. */
+	/* XXX Should we create it? */
+	if (get_session_dir(FALSE, &vol, &dirid) == noErr) {
+	    LMSetSFSaveDisk(-vol);
+	    LMSetCurDirStore(dirid);
+	}
+    }
     init_ucs();
 }
 
