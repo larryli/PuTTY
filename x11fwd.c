@@ -200,14 +200,14 @@ char *x11_init(Socket * s, char *display, void *c, void *auth)
 	strcpy(host, "localhost");
     }
 
+    port = 6000 + displaynum;
+
     /*
      * Try to find host.
      */
     addr = name_lookup(host, port, &dummy_realhost);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
-
-    port = 6000 + displaynum;
 
     /*
      * Open socket.
