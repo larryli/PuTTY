@@ -1578,7 +1578,7 @@ will be slightly more efficient; with it disabled, you may find you
 get a faster response to your keystrokes when connecting to some
 types of server.
 
-The Nagle algorithm is disabled by default.
+The Nagle algorithm is disabled by default for interactive connections.
 
 \S{config-tcp-keepalives} \q{Enable TCP keepalives}
 
@@ -1600,7 +1600,7 @@ typically two hours; this is set by the operating system, and cannot
 be configured within PuTTY.
 
 \b If the operating system does not receive a response to a keepalive,
-it may send out more in quick succession and if terminate the connection
+it may send out more in quick succession and terminate the connection
 if no response is received.
 
 TCP keepalives may be more useful for ensuring that half-open connections
@@ -1629,7 +1629,7 @@ explicitly set this to \q{IPv4} or \q{IPv6}.
 The Data panel allows you to configure various pieces of data which
 can be sent to the server to affect your connection at the far end.
 
-Each options on this panel applies to more than one protocol.
+Each option on this panel applies to more than one protocol.
 Options which apply to only one protocol appear on that protocol's
 configuration panels.
 
@@ -2336,7 +2336,9 @@ This box is where you enter the name of your private key file if you
 are using public key authentication. See \k{pubkey} for information
 about public key authentication in SSH.
 
-This key must be in PuTTY's native format (\c{*.PPK}).
+This key must be in PuTTY's native format (\c{*.PPK}). If you have a
+private key in another format that you want to use with PuTTY, see
+\k{puttygen-conversions}.
 
 \H{config-ssh-x11} The X11 panel
 
@@ -2352,7 +2354,7 @@ a local X display on your PC.
 To enable X11 forwarding, check the \q{Enable X11 forwarding} box.
 If your X display is somewhere unusual, you will need to enter its
 location in the \q{X display location} box; if this is left blank,
-PuTTY try to find a sensible default in the environment, or use the
+PuTTY will try to find a sensible default in the environment, or use the
 primary local display (\c{:0}) if that fails.
 
 See \k{using-x-forwarding} for more information about X11
