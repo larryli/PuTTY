@@ -23,7 +23,7 @@
 
 static void c_write(Ldisc ldisc, char *buf, int len)
 {
-    from_backend(ldisc->term, 0, buf, len);
+    from_backend(ldisc->frontend, 0, buf, len);
 }
 
 static int plen(Ldisc ldisc, unsigned char c)
