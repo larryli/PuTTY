@@ -3222,6 +3222,8 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
     HDC hdc = ctx;
     int ctype = cfg.cursor_type;
 
+    lattr &= LATTR_MODE;
+
     if ((attr & TATTR_ACTCURS) && (ctype == 0 || term->big_cursor)) {
 	if (*text != UCSWIDE) {
 	    do_text(ctx, x, y, text, len, attr, lattr);
