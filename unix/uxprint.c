@@ -41,3 +41,17 @@ void printer_finish_job(printer_job *pj)
     pclose(pj->fp);
     sfree(pj);
 }
+
+/*
+ * There's no sensible way to enumerate printers under Unix, since
+ * practically any valid Unix command is a valid printer :-) So
+ * these are useless stub functions, and uxcfg.c will disable the
+ * drop-down list in the printer configurer.
+ */
+printer_enum *printer_start_enum(int *nprinters_ptr) {
+    *nprinters_ptr = 0;
+    return NULL;
+}
+char *printer_get_name(printer_enum *pe, int i) { return NULL;
+}
+void printer_finish_enum(printer_enum *pe) { }

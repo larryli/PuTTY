@@ -30,14 +30,6 @@ int decode_codepage(char *cp_name)
     return -2;
 }
 
-printer_enum *printer_start_enum(int *nprinters_ptr) {
-    *nprinters_ptr = 0;
-    return NULL;
-}
-char *printer_get_name(printer_enum *pe, int i) { return NULL;
-}
-void printer_finish_enum(printer_enum *pe) { }
-
 Backend *select_backend(Config *cfg)
 {
     return &pty_backend;

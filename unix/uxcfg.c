@@ -43,6 +43,14 @@ void unix_setup_config_box(struct controlbox *b, int midsession)
      */
 
     /*
+     * On Unix, we don't have a drop-down list for the printer
+     * control.
+     */
+    s = ctrl_getset(b, "Terminal", "printing", "Remote-controlled printing");
+    assert(s->ncontrols == 1 && s->ctrls[0]->generic.type == CTRL_EDITBOX);
+    s->ctrls[0]->editbox.has_list = 0;
+
+    /*
      * GTK makes it rather easier to put the scrollbar on the left
      * than Windows does!
      */

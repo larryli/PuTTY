@@ -133,12 +133,18 @@ static void printerbox_handler(union control *ctrl, void *dlg,
 	printer_enum *pe;
 
 	dlg_update_start(ctrl, dlg);
-	dlg_listbox_clear(ctrl, dlg);
-	dlg_listbox_add(ctrl, dlg, PRINTER_DISABLED_STRING);
-	pe = printer_start_enum(&nprinters);
-	for (i = 0; i < nprinters; i++)
-	    dlg_listbox_add(ctrl, dlg, printer_get_name(pe, i));
-	printer_finish_enum(pe);
+	/*
+	 * Some backends may wish to disable the drop-down list on
+	 * this edit box. Be prepared for this.
+	 */
+	if (ctrl->editbox.has_list) {
+	    dlg_listbox_clear(ctrl, dlg);
+	    dlg_listbox_add(ctrl, dlg, PRINTER_DISABLED_STRING);
+	    pe = printer_start_enum(&nprinters);
+	    for (i = 0; i < nprinters; i++)
+		dlg_listbox_add(ctrl, dlg, printer_get_name(pe, i));
+	    printer_finish_enum(pe);
+	}
 	dlg_editbox_set(ctrl, dlg,
 			(*cfg->printer ? cfg->printer :
 			 PRINTER_DISABLED_STRING));
