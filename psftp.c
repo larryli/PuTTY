@@ -1847,6 +1847,15 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     }
 
     /*
+     * If saved session / Default Settings says SSH-1 (`1 only' or `1'),
+     * then change it to SSH-2, on the grounds that that's more likely to
+     * work for SFTP. (Can be overridden with `-1' option.)
+     * But if it says `2 only' or `2', respect which.
+     */
+    if (cfg.sshprot != 2 && cfg.sshprot != 3)
+	cfg.sshprot = 2;
+
+    /*
      * Enact command-line overrides.
      */
     cmdline_run_saved(&cfg);
@@ -1912,9 +1921,6 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     if (portnumber)
 	cfg.port = portnumber;
-
-    /* SFTP uses SSH2 by default always */
-    cfg.sshprot = 2;
 
     /*
      * Disable scary things which shouldn't be enabled for simple
