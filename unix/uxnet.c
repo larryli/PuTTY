@@ -418,6 +418,7 @@ Socket sk_register(OSSocket sockfd, Plug plug)
     ret->oobpending = FALSE;
     ret->listener = 0;
     ret->addr = NULL;
+    ret->connected = 1;
 
     ret->s = sockfd;
 
