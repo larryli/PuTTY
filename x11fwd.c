@@ -51,10 +51,16 @@
 #define PUT_16BIT(endian, cp, val) \
   (endian=='B' ? PUT_16BIT_MSB_FIRST(cp, val) : PUT_16BIT_LSB_FIRST(cp, val))
 
+struct X11Auth {
+    unsigned char data[64];
+    int len;
+};
+
 struct X11Private {
-    struct plug_function_table *fn;
+    const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
     unsigned char firstpkt[12];	       /* first X data packet */
+    struct X11Auth *auth;
     char *auth_protocol;
     unsigned char *auth_data;
     int data_read, auth_plen, auth_psize, auth_dlen, auth_dsize;
@@ -66,35 +72,36 @@ struct X11Private {
 
 void x11_close(Socket s);
 
-static unsigned char x11_authdata[64];
-static int x11_authdatalen;
-
-void x11_invent_auth(char *proto, int protomaxlen,
+void *x11_invent_auth(char *proto, int protomaxlen,
 		     char *data, int datamaxlen)
 {
+    struct X11Auth *auth = smalloc(sizeof(struct X11Auth));
     char ourdata[64];
     int i;
 
     /* MIT-MAGIC-COOKIE-1. Cookie size is 128 bits (16 bytes). */
-    x11_authdatalen = 16;
+    auth->len = 16;
     for (i = 0; i < 16; i++)
-	x11_authdata[i] = random_byte();
+	auth->data[i] = random_byte();
 
     /* Now format for the recipient. */
     strncpy(proto, "MIT-MAGIC-COOKIE-1", protomaxlen);
     ourdata[0] = '\0';
-    for (i = 0; i < x11_authdatalen; i++)
-	sprintf(ourdata + strlen(ourdata), "%02x", x11_authdata[i]);
+    for (i = 0; i < auth->len; i++)
+	sprintf(ourdata + strlen(ourdata), "%02x", auth->data[i]);
     strncpy(data, ourdata, datamaxlen);
+
+    return auth;
 }
 
-static int x11_verify(char *proto, unsigned char *data, int dlen)
+static int x11_verify(struct X11Auth *auth,
+		      char *proto, unsigned char *data, int dlen)
 {
     if (strcmp(proto, "MIT-MAGIC-COOKIE-1") != 0)
 	return 0;		       /* wrong protocol attempted */
-    if (dlen != x11_authdatalen)
+    if (dlen != auth->len)
 	return 0;		       /* cookie was wrong length */
-    if (memcmp(x11_authdata, data, dlen) != 0)
+    if (memcmp(auth->data, data, dlen) != 0)
 	return 0;		       /* cookie was wrong cookie! */
     return 1;
 }
@@ -139,9 +146,9 @@ static void x11_sent(Plug plug, int bufsize)
  * Returns an error message, or NULL on success.
  * also, fills the SocketsStructure
  */
-char *x11_init(Socket * s, char *display, void *c)
+char *x11_init(Socket * s, char *display, void *c, void *auth)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	x11_closing,
 	x11_receive,
 	x11_sent,
@@ -183,6 +190,7 @@ char *x11_init(Socket * s, char *display, void *c)
     pr = (struct X11Private *) smalloc(sizeof(struct X11Private));
     pr->fn = &fn_table;
     pr->auth_protocol = NULL;
+    pr->auth = (struct X11Auth *)auth;
     pr->verified = 0;
     pr->data_read = 0;
     pr->throttled = pr->throttle_override = 0;
@@ -287,7 +295,8 @@ int x11_send(Socket s, char *data, int len)
 	int ret;
 
 	pr->auth_protocol[pr->auth_plen] = '\0';	/* ASCIZ */
-	ret = x11_verify(pr->auth_protocol, pr->auth_data, pr->auth_dlen);
+	ret = x11_verify(pr->auth, pr->auth_protocol,
+			 pr->auth_data, pr->auth_dlen);
 
 	/*
 	 * If authentication failed, construct and send an error

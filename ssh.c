@@ -312,10 +312,10 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 
 typedef struct ssh_tag *Ssh;
 
-extern char *x11_init(Socket *, char *, void *);
+extern char *x11_init(Socket *, char *, void *, void *);
 extern void x11_close(Socket);
 extern int x11_send(Socket, char *, int);
-extern void x11_invent_auth(char *, int, char *, int);
+extern void *x11_invent_auth(char *, int, char *, int);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 
@@ -627,6 +627,8 @@ struct ssh_tag {
 
     char *portfwd_strptr;
     int pkt_ctx;
+
+    void *x11auth;
 
     int version;
     int v1_throttle_count;
@@ -3030,7 +3032,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     if (cfg.x11_forward) {
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
-	x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
+	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
+				       data, sizeof(data));
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, proto, PKT_STR, data,
@@ -3273,7 +3276,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    c = smalloc(sizeof(struct ssh_channel));
 		    c->ssh = ssh;
 
-		    if (x11_init(&c->u.x11.s, cfg.x11_display, c) != NULL) {
+		    if (x11_init(&c->u.x11.s, cfg.x11_display, c,
+				 ssh->x11auth) != NULL) {
 			logevent("opening X11 forward connection failed");
 			sfree(c);
 			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
@@ -5057,7 +5061,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     if (cfg.x11_forward) {
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
-	x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
+	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
+				       data, sizeof(data));
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
 	ssh2_pkt_addstring(ssh, "x11-req");
@@ -5703,8 +5708,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		if (typelen == 3 && !memcmp(type, "x11", 3)) {
 		    if (!ssh->X11_fwd_enabled)
 			error = "X11 forwarding is not enabled";
-		    else if (x11_init(&c->u.x11.s, cfg.x11_display, c) !=
-			     NULL) {
+		    else if (x11_init(&c->u.x11.s, cfg.x11_display, c,
+				      ssh->x11auth) != NULL) {
 			error = "Unable to open an X11 connection";
 		    } else {
 			c->type = CHAN_X11;
@@ -5869,6 +5874,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->deferred_size = 0;
     ssh->fallback_cmd = 0;
     ssh->pkt_ctx = 0;
+    ssh->x11auth = NULL;
     ssh->v2_outgoing_sequence = 0;
     ssh->ssh1_rdpkt_crstate = 0;
     ssh->ssh2_rdpkt_crstate = 0;
