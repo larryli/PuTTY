@@ -628,7 +628,6 @@ int decode_codepage(char *cp_name)
     char *s, *d;
     struct cp_list_item *cpi;
     int codepage = -1;
-    char ch;
     CPINFO cpinfo;
 
     if (cp_name && *cp_name)
@@ -652,11 +651,7 @@ int decode_codepage(char *cp_name)
 		    if (GetCPInfo(codepage, &cpinfo) != 0)
 			goto break_break;
 		}
-		if (islower(*s))
-		    ch = toupper(*s++);
-		else
-		    ch = *s++;
-		if (ch != *d++)
+		if (tolower(*s++) != tolower(*d++))
 		    break;
 	    }
 	}
@@ -799,7 +794,27 @@ static struct cp_list_item cp_list[] = {
     {"VSCII", 0, 256, vscii},
     {"DEC-MCS", 0, 96, dec_mcs},
 
-/* All below here are aliases */
+    {"Win1250 (Central European)", 1250},
+    {"Win1251 (Cyrillic)", 1251},
+    {"Win1252 (Western)", 1252},
+    {"Win1253 (Greek)", 1253},
+    {"Win1254 (Turkish)", 1254},
+    {"Win1255 (Hebrew)", 1255},
+    {"Win1256 (Arabic)", 1256},
+    {"Win1257 (Baltic)", 1257},
+    {"Win1258 (Vietnamese)", 1258},
+
+    /* All below here are aliases - First the windows ones. */
+    {"Central European (Win1250)", 1250},
+    {"Cyrillic (Win1251)", 1251},
+    {"Western (Win1252)", 1252},
+    {"Greek (Win1253)", 1253},
+    {"Turkish (Win1254)", 1254},
+    {"Hebrew (Win1255)", 1255},
+    {"Arabic (Win1256)", 1256},
+    {"Baltic (Win1257)", 1257},
+    {"Vietnamese (Win1258)", 1258},
+
     {"ROMAN8", 0, 96, roman8},
     {"R8", 0, 96, roman8},
 
