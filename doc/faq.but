@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.58 2004/02/13 00:20:52 jacob Exp $
+\versionid $Id: faq.but,v 1.59 2004/02/13 12:19:26 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -894,6 +894,36 @@ don't even know is not the best way to achieve this.
 PuTTY web site?
 
 We already have some, thanks.
+
+\S{faq-link}{Question} Would you link to my web site from the PuTTY
+web site?
+
+Only if the content of your web page is of definite direct interest
+to PuTTY users. If your content is unrelated, or only tangentially
+related, to PuTTY, then the link would simply be advertising for
+you.
+
+One very nice effect of the Google ranking mechanism is that by and
+large, the most popular web sites get the highest rankings. This
+means that when an ordinary person does a search, the top item in
+the search is very likely to be a high-quality site or the site they
+actually wanted, rather than the site which paid the most money for
+its ranking.
+
+The PuTTY web site is held in high esteem by Google, for precisely
+this reason: lots of people have linked to it simply because they
+like PuTTY, without us ever having to ask anyone to link to us. We
+feel that it would be an abuse of this esteem to use it to boost the
+ranking of random advertisers' web sites. If you want your web site
+to have a high Google ranking, we'd prefer that you achieve this the
+way we did - by being good enough at what you do that people will
+link to you simply because they like you.
+
+If you have software based on PuTTY, or specifically designed to
+interoperate with PuTTY, or in some other way of genuine interest to
+PuTTY users, then we will probably be happy to add a link to you on
+our Links page. And if you're running a mirror of the PuTTY web
+site, we're \e{definitely} interested.
 
 \S{faq-sourceforge}{Question} Why don't you move PuTTY to
 SourceForge?
