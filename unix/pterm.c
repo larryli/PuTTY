@@ -722,6 +722,15 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
     show_mouseptr(1);
 
+    if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
+	term_scroll(0, -5);
+	return TRUE;
+    }
+    if (event->button == 5 && event->type == GDK_BUTTON_PRESS) {
+	term_scroll(0, +5);
+	return TRUE;
+    }
+
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
     alt = event->state & GDK_MOD1_MASK;
