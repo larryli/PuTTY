@@ -184,6 +184,17 @@ static Mouse_Button translate_button(Mouse_Button button)
 }
 
 /*
+ * Return the top-level GtkWindow associated with a particular
+ * front end instance.
+ */
+void *get_window(void *frontend)
+{
+    Terminal *term = (Terminal *)frontend;
+    struct gui_data *inst = (struct gui_data *)term->frontend;
+    return inst->window;
+}
+
+/*
  * Minimise or restore the window in response to a server-side
  * request.
  */

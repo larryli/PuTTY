@@ -55,6 +55,9 @@ char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
 long get_windowid(void *frontend);
 
+/* Things gtkdlg.c needs from pterm.c */
+void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
+
 /* Things uxstore.c needs from pterm.c */
 char *x_get_default(const char *key);
 

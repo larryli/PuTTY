@@ -3,40 +3,81 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include "putty.h"
 #include "storage.h"
 
 /*
- * FIXME: At least some of these functions should be replaced with
- * GTK GUI error-box-type things.
+ * TODO:
  * 
- * In particular, all the termios-type things must go, and
- * termios.h should disappear from the above #include list.
+ *  - Arrange for the window title not to be `pterm'.
+ * 
+ *  - Fix command-line parsing to be more PuTTYlike and not so
+ *    ptermy - in particular non-option arguments should be
+ *    hostname and port in the obvious way.
+ * 
+ *  - Session loading and saving; current thinking says the best
+ *    way is to have a subdir .putty/sessions containing files
+ *    whose names are actually munged saved session names.
+ * 
+ *  - libcharset enumeration.
+ * 
+ *  - fix the printer enum (I think the sensible thing is simply to
+ *    have uxcfg.c remove the drop-down list completely, since you
+ *    can't sensibly provide an enumerated list of lpr commands!).
+ * 
+ *  - Ctrl+right-click for a context menu (also in Windows for
+ *    consistency, I think). This should contain pretty much
+ *    everything in the Windows PuTTY menu, and a subset of that in
+ *    pterm:
+ * 
+ *     - Telnet special commands (not in pterm :-)
+ * 
+ *     - Event Log (this means we must implement the Event Log; not
+ *       in pterm)
+ * 
+ *     - New Session and Duplicate Session (perhaps in pterm, in fact?!)
+ *        + Duplicate Session will be fun, since we must work out
+ *          how to pass the config data through.
+ *        + In fact this should be easier on Unix, since fork() is
+ *          available so we need not even exec (this also saves us
+ *          the trouble of scrabbling around trying to find our own
+ *          binary). Possible scenario: respond to Duplicate
+ *          Session by forking. Parent continues as before; child
+ *          unceremoniously frees all extant resources (backend,
+ *          terminal, ldisc, frontend etc) and then _longjmps_ (I
+ *          kid you not) back to a point in pt_main() which causes
+ *          it to go back round to the point of opening a new
+ *          terminal window and a new backend.
+ *        + A tricky bit here is how to free everything without
+ *          also _destroying_ things - calling GTK to free up
+ *          existing widgets is liable to send destroy messages to
+ *          the X server, which won't go down too well with the
+ *          parent process. exec() is a much cleaner solution to
+ *          this bit, but requires us to invent some ghastly IPC as
+ *          we did in Windows PuTTY.
+ *        + Arrgh! Also, this won't work in pterm since we'll
+ *          already have dropped privileges by this point, so we
+ *          can't get another pty. Sigh. Looks like exec has to be
+ *          the way forward then :-/
+ * 
+ *     - Saved Sessions submenu (not in pterm of course)
+ * 
+ *     - Change Settings
+ *        + we must also implement mid-session reconfig in pterm.c.
+ *        + note this also requires config.c and uxcfg.c to be able
+ *          to get hold of the application name.
+ * 
+ *     - Copy All to Clipboard (for what that's worth)
+ * 
+ *     - Clear Scrollback and Reset Terminal
+ * 
+ *     - About (and uxcfg.c must also supply the about box)
  */
-void fatalbox(char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    cleanup_exit(1);
-}
-void connection_fatal(void *frontend, char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    cleanup_exit(1);
-}
+
 void cmdline_error(char *p, ...)
 {
     va_list ap;
@@ -59,138 +100,6 @@ void cleanup_exit(int code)
     sk_cleanup();
     random_save_seed();
     exit(code);
-}
-
-void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint)
-{
-    int ret;
-
-    static const char absentmsg[] =
-	"The server's host key is not cached. You have no guarantee\n"
-	"that the server is the computer you think it is.\n"
-	"The server's key fingerprint is:\n"
-	"%s\n"
-	"If you trust this host, enter \"y\" to add the key to\n"
-	"PuTTY's cache and carry on connecting.\n"
-	"If you want to carry on connecting just once, without\n"
-	"adding the key to the cache, enter \"n\".\n"
-	"If you do not trust this host, press Return to abandon the\n"
-	"connection.\n"
-	"Store key in cache? (y/n) ";
-
-    static const char wrongmsg[] =
-	"WARNING - POTENTIAL SECURITY BREACH!\n"
-	"The server's host key does not match the one PuTTY has\n"
-	"cached. This means that either the server administrator\n"
-	"has changed the host key, or you have actually connected\n"
-	"to another computer pretending to be the server.\n"
-	"The new key fingerprint is:\n"
-	"%s\n"
-	"If you were expecting this change and trust the new key,\n"
-	"enter \"y\" to update PuTTY's cache and continue connecting.\n"
-	"If you want to carry on connecting but without updating\n"
-	"the cache, enter \"n\".\n"
-	"If you want to abandon the connection completely, press\n"
-	"Return to cancel. Pressing Return is the ONLY guaranteed\n"
-	"safe choice.\n"
-	"Update cached key? (y/n, Return cancels connection) ";
-
-    static const char abandoned[] = "Connection abandoned.\n";
-
-    char line[32];
-
-    /*
-     * Verify the key.
-     */
-    ret = verify_host_key(host, port, keytype, keystr);
-
-    if (ret == 0)		       /* success - key matched OK */
-	return;
-
-    if (ret == 2) {		       /* key was different */
-	fprintf(stderr, wrongmsg, fingerprint);
-	fflush(stderr);
-    }
-    if (ret == 1) {		       /* key was absent */
-	fprintf(stderr, absentmsg, fingerprint);
-	fflush(stderr);
-    }
-
-    {
-	struct termios oldmode, newmode;
-	tcgetattr(0, &oldmode);
-	newmode = oldmode;
-	newmode.c_lflag |= ECHO | ISIG | ICANON;
-	tcsetattr(0, TCSANOW, &newmode);
-	line[0] = '\0';
-	read(0, line, sizeof(line) - 1);
-	tcsetattr(0, TCSANOW, &oldmode);
-    }
-
-    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
-	if (line[0] == 'y' || line[0] == 'Y')
-	    store_host_key(host, port, keytype, keystr);
-    } else {
-	fprintf(stderr, abandoned);
-	cleanup_exit(0);
-    }
-}
-
-/*
- * Ask whether the selected cipher is acceptable (since it was
- * below the configured 'warn' threshold).
- * cs: 0 = both ways, 1 = client->server, 2 = server->client
- */
-void askcipher(void *frontend, char *ciphername, int cs)
-{
-    static const char msg[] =
-	"The first %scipher supported by the server is\n"
-	"%s, which is below the configured warning threshold.\n"
-	"Continue with connection? (y/n) ";
-    static const char abandoned[] = "Connection abandoned.\n";
-
-    char line[32];
-
-    fprintf(stderr, msg,
-	    (cs == 0) ? "" :
-	    (cs == 1) ? "client-to-server " : "server-to-client ",
-	    ciphername);
-    fflush(stderr);
-
-    {
-	struct termios oldmode, newmode;
-	tcgetattr(0, &oldmode);
-	newmode = oldmode;
-	newmode.c_lflag |= ECHO | ISIG | ICANON;
-	tcsetattr(0, TCSANOW, &newmode);
-	line[0] = '\0';
-	read(0, line, sizeof(line) - 1);
-	tcsetattr(0, TCSANOW, &oldmode);
-    }
-
-    if (line[0] == 'y' || line[0] == 'Y') {
-	return;
-    } else {
-	fprintf(stderr, abandoned);
-	cleanup_exit(0);
-    }
-}
-
-void old_keyfile_warning(void)
-{
-    static const char message[] =
-	"You are loading an SSH 2 private key which has an\n"
-	"old version of the file format. This means your key\n"
-	"file is not fully tamperproof. Future versions of\n"
-	"PuTTY may stop supporting this private key format,\n"
-	"so we recommend you convert your key to the new\n"
-	"format.\n"
-	"\n"
-	"Once the key is loaded into PuTTYgen, you can perform\n"
-	"this conversion simply by saving it again.\n";
-
-    fputs(message, stderr);
 }
 
 /*

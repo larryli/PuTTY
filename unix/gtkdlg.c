@@ -12,6 +12,7 @@
  */
 
 #include <assert.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -27,6 +28,7 @@
 #endif
 
 #include "putty.h"
+#include "storage.h"
 #include "dialog.h"
 #include "tree234.h"
 
@@ -147,6 +149,8 @@ static void dlg_init(struct dlgparam *dp)
     dp->byctrl = newtree234(uctrl_cmp_byctrl);
     dp->bywidget = newtree234(uctrl_cmp_bywidget);
     dp->coloursel_result.ok = FALSE;
+    dp->treeitems = NULL;
+    dp->window = dp->cancelbutton = dp->currtreeitem = NULL;
 }
 
 static void dlg_cleanup(struct dlgparam *dp)
@@ -2117,108 +2121,246 @@ int do_config_box(const char *title, Config *cfg)
     return dp.retval;
 }
 
-/* ======================================================================
- * Below here is a stub main program which allows the dialog box
- * code to be compiled and tested with a minimal amount of the rest
- * of PuTTY.
+static void messagebox_handler(union control *ctrl, void *dlg,
+			       void *data, int event)
+{
+    if (event == EVENT_ACTION)
+	dlg_end(dlg, ctrl->generic.context.i);
+}
+int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
+{
+    GtkWidget *window, *w0, *w1;
+    struct controlbox *ctrlbox;
+    struct controlset *s0, *s1;
+    union control *c;
+    struct dlgparam dp;
+    struct Shortcuts scs;
+    int index, ncols;
+    va_list ap;
+
+    dlg_init(&dp);
+
+    for (index = 0; index < lenof(scs.sc); index++) {
+	scs.sc[index].action = SHORTCUT_EMPTY;
+    }
+
+    ctrlbox = ctrl_new_box();
+
+    ncols = 0;
+    va_start(ap, minwid);
+    while (va_arg(ap, char *) != NULL) {
+	ncols++;
+	(void) va_arg(ap, int);	       /* shortcut */
+	(void) va_arg(ap, int);	       /* normal/default/cancel */
+	(void) va_arg(ap, int);	       /* end value */
+    }
+    va_end(ap);
+
+    s0 = ctrl_getset(ctrlbox, "", "", "");
+    c = ctrl_columns(s0, 2, 50, 50);
+    c->columns.ncols = s0->ncolumns = ncols;
+    c->columns.percentages = sresize(c->columns.percentages, ncols, int);
+    for (index = 0; index < ncols; index++)
+	c->columns.percentages[index] = (index+1)*100/ncols - index*100/ncols;
+    va_start(ap, minwid);
+    index = 0;
+    while (1) {
+	char *title = va_arg(ap, char *);
+	int shortcut, type, value;
+	if (title == NULL)
+	    break;
+	shortcut = va_arg(ap, int);
+	type = va_arg(ap, int);
+	value = va_arg(ap, int);
+	c = ctrl_pushbutton(s0, title, shortcut, HELPCTX(no_help),
+			    messagebox_handler, I(value));
+	c->generic.column = index++;
+	if (type > 0)
+	    c->button.isdefault = TRUE;
+	else if (type < 0)
+	    c->button.iscancel = TRUE;
+    }
+    va_end(ap);
+
+    s1 = ctrl_getset(ctrlbox, "x", "", "");
+    ctrl_text(s1, msg, HELPCTX(no_help));
+
+    window = gtk_dialog_new();
+    gtk_window_set_title(GTK_WINDOW(window), title);
+    w0 = layout_ctrls(&dp, &scs, s0, 0, GTK_WINDOW(window));
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
+		       w0, TRUE, TRUE, 0);
+    gtk_widget_show(w0);
+    w1 = layout_ctrls(&dp, &scs, s1, 0, GTK_WINDOW(window));
+    gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
+    gtk_widget_set_usize(w1, minwid+20, -1);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
+		       w1, TRUE, TRUE, 0);
+    gtk_widget_show(w1);
+
+    dp.shortcuts = &scs;
+    dp.lastfocus = NULL;
+    dp.retval = 0;
+    dp.window = window;
+
+    gtk_window_set_modal(GTK_WINDOW(window), TRUE);
+    if (parentwin) {
+	gint x, y, w, h, dx, dy;
+	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
+	gdk_window_get_origin(parentwin->window, &x, &y);
+	gdk_window_get_size(parentwin->window, &w, &h);
+	dx = x + w/4;
+	dy = y + h/4;
+	gtk_widget_set_uposition(GTK_WIDGET(window), dx, dy);
+	gtk_window_set_transient_for(GTK_WINDOW(window),
+				     GTK_WINDOW(parentwin));
+    } else
+	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+    gtk_widget_show(window);
+
+    gtk_signal_connect(GTK_OBJECT(window), "destroy",
+		       GTK_SIGNAL_FUNC(window_destroy), NULL);
+    gtk_signal_connect(GTK_OBJECT(window), "key_press_event",
+		       GTK_SIGNAL_FUNC(win_key_press), &dp);
+
+    gtk_main();
+
+    dlg_cleanup(&dp);
+    ctrl_free_box(ctrlbox);
+
+    return dp.retval;
+}
+
+static int string_width(char *text)
+{
+    GtkWidget *label = gtk_label_new(text);
+    GtkRequisition req;
+    gtk_widget_size_request(label, &req);
+    gtk_widget_unref(label);
+    return req.width;
+}
+
+void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+			 char *keystr, char *fingerprint)
+{
+    static const char absenttxt[] =
+	"The server's host key is not cached. You have no guarantee "
+	"that the server is the computer you think it is.\n"
+	"The server's key fingerprint is:\n"
+	"%s\n"
+	"If you trust this host, press \"Accept\" to add the key to "
+	"PuTTY's cache and carry on connecting.\n"
+	"If you want to carry on connecting just once, without "
+	"adding the key to the cache, press \"Connect Once\".\n"
+	"If you do not trust this host, press \"Cancel\" to abandon the "
+	"connection.";
+    static const char wrongtxt[] =
+	"WARNING - POTENTIAL SECURITY BREACH!\n"
+	"The server's host key does not match the one PuTTY has "
+	"cached. This means that either the server administrator "
+	"has changed the host key, or you have actually connected "
+	"to another computer pretending to be the server.\n"
+	"The new key fingerprint is:\n"
+	"%s\n"
+	"If you were expecting this change and trust the new key, "
+	"press \"Accept\" to update PuTTY's cache and continue connecting.\n"
+	"If you want to carry on connecting but without updating "
+	"the cache, press \"Connect Once\".\n"
+	"If you want to abandon the connection completely, press "
+	"\"Cancel\" to cancel. Pressing \"Cancel\" is the ONLY guaranteed "
+	"safe choice.";
+    char *text;
+    int ret;
+
+    /*
+     * Verify the key.
+     */
+    ret = verify_host_key(host, port, keytype, keystr);
+
+    if (ret == 0)		       /* success - key matched OK */
+	return;
+
+    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), fingerprint);
+
+    ret = messagebox(GTK_WIDGET(get_window(frontend)),
+		     "PuTTY Security Alert", text,
+		     string_width(fingerprint),
+		     "Accept", 'a', 0, 2,
+		     "Connect Once", 'o', 0, 1,
+		     "Cancel", 'c', -1, 0,
+		     NULL);
+
+    sfree(text);
+
+    if (ret == 0)
+	cleanup_exit(0);
+    else if (ret == 2)
+	store_host_key(host, port, keytype, keystr);
+}
+
+/*
+ * Ask whether the selected cipher is acceptable (since it was
+ * below the configured 'warn' threshold).
+ * cs: 0 = both ways, 1 = client->server, 2 = server->client
  */
+void askcipher(void *frontend, char *ciphername, int cs)
+{
+    static const char msg[] =
+	"The first %scipher supported by the server is "
+	"%s, which is below the configured warning threshold.\n"
+	"Continue with connection?";
+    char *text;
+    int ret;
 
-#ifdef TESTMODE
+    text = dupprintf(msg, (cs == 0) ? "" :
+                     (cs == 1) ? "client-to-server " : "server-to-client ",
+                     ciphername);
+    ret = messagebox(GTK_WIDGET(get_window(frontend)),
+		     "PuTTY Security Alert", text,
+		     string_width("Continue with connection?"),
+		     "Yes", 'y', 0, 1,
+		     "No", 'n', 0, 0,
+		     NULL);
+    sfree(text);
 
-/* Compile command for testing:
+    if (ret) {
+	return;
+    } else {
+	cleanup_exit(0);
+    }
+}
 
-gcc -g -o gtkdlg gtk{dlg,cols,panel}.c ../{config,dialog,settings}.c \
-../{misc,tree234,be_none}.c ux{store,misc,print,cfg}.c \
--I. -I.. -I../charset -DTESTMODE `gtk-config --cflags --libs`
+void old_keyfile_warning(void)
+{
+    /*
+     * This should never happen on Unix. We hope.
+     */
+}
 
- */
-
-void modalfatalbox(char *p, ...)
+void fatalbox(char *p, ...)
 {
     va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
+    char *msg;
     va_start(ap, p);
-    vfprintf(stderr, p, ap);
+    msg = dupvprintf(p, ap);
     va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
+    messagebox(NULL, "PuTTY Fatal Error", msg,
+               string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+               "OK", 'o', 1, 1, NULL);
+    sfree(msg);
+    cleanup_exit(1);
 }
-
-char *cp_name(int codepage)
+void connection_fatal(void *frontend, char *p, ...)
 {
-    return (codepage == 123 ? "testing123" :
-            codepage == 234 ? "testing234" :
-            codepage == 345 ? "testing345" :
-            "unknown");
+    va_list ap;
+    char *msg;
+    va_start(ap, p);
+    msg = dupvprintf(p, ap);
+    va_end(ap);
+    messagebox(GTK_WIDGET(get_window(frontend)),
+               "PuTTY Fatal Error", msg,
+               string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+               "OK", 'o', 1, 1, NULL);
+    sfree(msg);
+    cleanup_exit(1);
 }
-
-char *cp_enumerate(int index)
-{
-    return (index == 0 ? "testing123" :
-            index == 1 ? "testing234" :
-            NULL);
-}
-
-int decode_codepage(char *cp_name)
-{
-    return (!strcmp(cp_name, "testing123") ? 123 :
-            !strcmp(cp_name, "testing234") ? 234 :
-            !strcmp(cp_name, "testing345") ? 345 :
-            -2);
-}
-
-struct printer_enum_tag { int dummy; } printer_test;
-
-printer_enum *printer_start_enum(int *nprinters_ptr) {
-    *nprinters_ptr = 2;
-    return &printer_test;
-}
-char *printer_get_name(printer_enum *pe, int i) {
-    return (i==0 ? "lpr" : i==1 ? "lpr -Pfoobar" : NULL);
-}
-void printer_finish_enum(printer_enum *pe) { }
-
-char *platform_default_s(const char *name)
-{
-    return NULL;
-}
-
-int platform_default_i(const char *name, int def)
-{
-    return def;
-}
-
-FontSpec platform_default_fontspec(const char *name)
-{
-    FontSpec ret;
-    if (!strcmp(name, "Font"))
-	strcpy(ret.name, "fixed");
-    else
-	*ret.name = '\0';
-    return ret;
-}
-
-Filename platform_default_filename(const char *name)
-{
-    Filename ret;
-    if (!strcmp(name, "LogFileName"))
-	strcpy(ret.path, "putty.log");
-    else
-	*ret.path = '\0';
-    return ret;
-}
-
-char *x_get_default(const char *key)
-{
-    return NULL;
-}
-
-int main(int argc, char **argv)
-{
-    Config cfg;
-    gtk_init(&argc, &argv);
-    printf("returned %d\n", do_config_box("PuTTY Configuration", &cfg));
-    return 0;
-}
-
-#endif
