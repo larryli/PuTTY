@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "putty.h"
+#include "terminal.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -12,6 +13,8 @@
 #endif
 
 static Socket s = NULL;
+
+static void *frontend;
 
 #define	IAC	255		       /* interpret as command: */
 #define	DONT	254		       /* you are not to use option */
@@ -189,7 +192,7 @@ static void c_write1(int c)
 {
     int backlog;
     char cc = (char) c;
-    backlog = from_backend(0, &cc, 1);
+    backlog = from_backend(frontend, 0, &cc, 1);
     sk_set_frozen(s, backlog > TELNET_MAX_BACKLOG);
 }
 
@@ -451,9 +454,9 @@ static void process_subneg(void)
 }
 
 static enum {
-    TOPLEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
+    TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
     SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
-} telnet_state = TOPLEVEL;
+} telnet_state = TOP_LEVEL;
 
 static void do_telnet_read(char *buf, int len)
 {
@@ -462,10 +465,10 @@ static void do_telnet_read(char *buf, int len)
 	int c = (unsigned char) *buf++;
 
 	switch (telnet_state) {
-	  case TOPLEVEL:
+	  case TOP_LEVEL:
 	  case SEENCR:
 	    if (c == NUL && telnet_state == SEENCR)
-		telnet_state = TOPLEVEL;
+		telnet_state = TOP_LEVEL;
 	    else if (c == IAC)
 		telnet_state = SEENIAC;
 	    else {
@@ -487,7 +490,7 @@ static void do_telnet_read(char *buf, int len)
 		if (c == CR)
 		    telnet_state = SEENCR;
 		else
-		    telnet_state = TOPLEVEL;
+		    telnet_state = TOP_LEVEL;
 	    }
 	    break;
 	  case SEENIAC:
@@ -503,30 +506,30 @@ static void do_telnet_read(char *buf, int len)
 		telnet_state = SEENSB;
 	    else if (c == DM) {
 		in_synch = 0;
-		telnet_state = TOPLEVEL;
+		telnet_state = TOP_LEVEL;
 	    } else {
 		/* ignore everything else; print it if it's IAC */
 		if (c == IAC) {
 		    c_write1(c);
 		}
-		telnet_state = TOPLEVEL;
+		telnet_state = TOP_LEVEL;
 	    }
 	    break;
 	  case SEENWILL:
 	    proc_rec_opt(WILL, c);
-	    telnet_state = TOPLEVEL;
+	    telnet_state = TOP_LEVEL;
 	    break;
 	  case SEENWONT:
 	    proc_rec_opt(WONT, c);
-	    telnet_state = TOPLEVEL;
+	    telnet_state = TOP_LEVEL;
 	    break;
 	  case SEENDO:
 	    proc_rec_opt(DO, c);
-	    telnet_state = TOPLEVEL;
+	    telnet_state = TOP_LEVEL;
 	    break;
 	  case SEENDONT:
 	    proc_rec_opt(DONT, c);
-	    telnet_state = TOPLEVEL;
+	    telnet_state = TOP_LEVEL;
 	    break;
 	  case SEENSB:
 	    sb_opt = c;
@@ -559,7 +562,7 @@ static void do_telnet_read(char *buf, int len)
 		goto subneg_addchar;   /* yes, it's a hack, I know, but... */
 	    else {
 		process_subneg();
-		telnet_state = TOPLEVEL;
+		telnet_state = TOP_LEVEL;
 	    }
 	    break;
 	}
@@ -602,7 +605,8 @@ static void telnet_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *telnet_init(char *host, int port, char **realhost, int nodelay)
+static char *telnet_init(void *frontend_handle,
+			 char *host, int port, char **realhost, int nodelay)
 {
     static struct plug_function_table fn_table = {
 	telnet_closing,
@@ -612,6 +616,8 @@ static char *telnet_init(char *host, int port, char **realhost, int nodelay)
 
     SockAddr addr;
     char *err;
+
+    frontend = frontend_handle;
 
     /*
      * Try to find host.
@@ -718,15 +724,15 @@ static void telnet_size(void)
     unsigned char b[16];
     char logbuf[50];
 
-    if (s == NULL || o_naws.state != ACTIVE)
+    if (s == NULL || term == NULL || o_naws.state != ACTIVE)
 	return;
     b[0] = IAC;
     b[1] = SB;
     b[2] = TELOPT_NAWS;
-    b[3] = cols >> 8;
-    b[4] = cols & 0xFF;
-    b[5] = rows >> 8;
-    b[6] = rows & 0xFF;
+    b[3] = term->cols >> 8;
+    b[4] = term->cols & 0xFF;
+    b[5] = term->rows >> 8;
+    b[6] = term->rows & 0xFF;
     b[7] = IAC;
     b[8] = SE;
     telnet_bufsize = sk_write(s, b, 9);

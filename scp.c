@@ -308,7 +308,7 @@ static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-int from_backend(int is_stderr, char *data, int datalen)
+int from_backend(void *frontend, int is_stderr, char *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
@@ -565,7 +565,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     back = &ssh_backend;
 
-    err = back->init(cfg.host, cfg.port, &realhost, 0);
+    err = back->init(NULL, cfg.host, cfg.port, &realhost, 0);
     if (err != NULL)
 	bump("ssh_init: %s", err);
     ssh_scp_init();

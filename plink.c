@@ -69,7 +69,7 @@ DWORD orig_console_mode;
 
 WSAEVENT netevent;
 
-int term_ldisc(int mode)
+int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
@@ -164,7 +164,7 @@ void try_output(int is_stderr)
     }
 }
 
-int from_backend(int is_stderr, char *data, int len)
+int from_backend(void *frontend_handle, int is_stderr, char *data, int len)
 {
     HANDLE h = (is_stderr ? errhandle : outhandle);
     int osize, esize;
@@ -529,7 +529,7 @@ int main(int argc, char **argv)
 	int nodelay = cfg.tcp_nodelay &&
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
-	error = back->init(cfg.host, cfg.port, &realhost, nodelay);
+	error = back->init(NULL, cfg.host, cfg.port, &realhost, nodelay);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;

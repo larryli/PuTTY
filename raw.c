@@ -15,12 +15,13 @@
 
 static Socket s = NULL;
 static int raw_bufsize;
+static void *frontend;
 
 static void raw_size(void);
 
 static void c_write(char *buf, int len)
 {
-    int backlog = from_backend(0, buf, len);
+    int backlog = from_backend(frontend, 0, buf, len);
     sk_set_frozen(s, backlog > RAW_MAX_BACKLOG);
 }
 
@@ -58,7 +59,8 @@ static void raw_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *raw_init(char *host, int port, char **realhost, int nodelay)
+static char *raw_init(void *frontend_handle, char *host, int port,
+		      char **realhost, int nodelay)
 {
     static struct plug_function_table fn_table = {
 	raw_closing,
@@ -68,6 +70,8 @@ static char *raw_init(char *host, int port, char **realhost, int nodelay)
 
     SockAddr addr;
     char *err;
+
+    frontend = frontend_handle;
 
     /*
      * Try to find host.

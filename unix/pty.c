@@ -18,6 +18,7 @@
 #include <sys/ioctl.h>
 
 #include "putty.h"
+#include "terminal.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -372,7 +373,8 @@ void pty_pre_init(void)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *pty_init(char *host, int port, char **realhost, int nodelay)
+static char *pty_init(void *frontend,
+		      char *host, int port, char **realhost, int nodelay)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -521,10 +523,10 @@ static void pty_size(void)
 {
     struct winsize size;
 
-    size.ws_row = (unsigned short)rows;
-    size.ws_col = (unsigned short)cols;
-    size.ws_xpixel = (unsigned short) cols * font_dimension(0);
-    size.ws_ypixel = (unsigned short) rows * font_dimension(1);
+    size.ws_row = (unsigned short)term->rows;
+    size.ws_col = (unsigned short)term->cols;
+    size.ws_xpixel = (unsigned short) term->cols * font_dimension(0);
+    size.ws_ypixel = (unsigned short) term->rows * font_dimension(1);
     ioctl(pty_master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }

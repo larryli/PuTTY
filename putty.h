@@ -18,6 +18,7 @@
 
 typedef struct config_tag Config;
 typedef struct backend_tag Backend;
+typedef struct terminal_tag Terminal;
 
 #include "puttyps.h"
 #include "network.h"
@@ -99,22 +100,9 @@ typedef struct backend_tag Backend;
 #define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
 #define ATTR_CUR_XOR 0x00BA0000UL
 
-GLOBAL int rows, cols, savelines;
-
-GLOBAL int has_focus;
-
-GLOBAL int in_vbell;
-GLOBAL unsigned long vbell_startpoint;
-
-GLOBAL int app_cursor_keys, app_keypad_keys, vt52_mode;
-GLOBAL int repeat_off, cr_lf_return;
-
-GLOBAL int seen_disp_event;
 GLOBAL int alt_pressed;
 
 GLOBAL int session_closed;
-
-GLOBAL int big_cursor;
 
 GLOBAL char *help_path;
 GLOBAL int help_has_contents;
@@ -133,7 +121,6 @@ GLOBAL wchar_t unitab_font[256];
 GLOBAL wchar_t unitab_xterm[256];
 GLOBAL wchar_t unitab_oemcp[256];
 GLOBAL unsigned char unitab_ctrl[256];
-#define in_utf (utf || line_codepage==CP_UTF8)
 
 #define LGXF_OVR  1		       /* existing logfile overwrite */
 #define LGXF_APN  0		       /* existing logfile append */
@@ -201,7 +188,8 @@ enum {
 };
 
 struct backend_tag {
-    char *(*init) (char *host, int port, char **realhost, int nodelay);
+    char *(*init) (void *frontend_handle,
+		   char *host, int port, char **realhost, int nodelay);
     /* back->send() returns the current amount of buffered data. */
     int (*send) (char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */
@@ -410,6 +398,8 @@ GLOBAL Config cfg;
 GLOBAL int default_protocol;
 GLOBAL int default_port;
 
+GLOBAL Terminal *term;		       /* temporary while changes are made */
+
 struct RSAKey;			       /* be a little careful of scope */
 
 /*
@@ -476,33 +466,33 @@ void registry_cleanup(void);
  * Exports from terminal.c.
  */
 
-void term_init(void);
-void term_size(int, int, int);
-void term_out(void);
-void term_paint(Context, int, int, int, int);
-void term_scroll(int, int);
-void term_pwron(void);
-void term_clrsb(void);
-void term_mouse(Mouse_Button, Mouse_Action, int, int, int, int, int);
-void term_deselect(void);
-void term_update(void);
-void term_invalidate(void);
-void term_blink(int set_cursor);
-void term_do_paste(void);
-int term_paste_pending(void);
-void term_paste(void);
-void term_nopaste(void);
-int term_ldisc(int option);
-int from_backend(int is_stderr, char *data, int len);
-void logfopen(void);
-void logfclose(void);
-void term_copyall(void);
-void term_reconfig(void);
-void term_seen_key_event(void);
+Terminal *term_init(void);
+void term_size(Terminal *, int, int, int);
+void term_out(Terminal *);
+void term_paint(Terminal *, Context, int, int, int, int);
+void term_scroll(Terminal *, int, int);
+void term_pwron(Terminal *);
+void term_clrsb(Terminal *);
+void term_mouse(Terminal *, Mouse_Button, Mouse_Action, int,int,int,int,int);
+void term_deselect(Terminal *);
+void term_update(Terminal *);
+void term_invalidate(Terminal *);
+void term_blink(Terminal *, int set_cursor);
+void term_do_paste(Terminal *);
+int term_paste_pending(Terminal *);
+void term_paste(Terminal *);
+void term_nopaste(Terminal *);
+int term_ldisc(Terminal *, int option);
+void term_copyall(Terminal *);
+void term_reconfig(Terminal *);
+void term_seen_key_event(Terminal *); 
+int from_backend(void *, int is_stderr, char *data, int len);
 
 /*
  * Exports from logging.c.
  */
+void logfopen();
+void logfclose();
 void logtraffic(unsigned char c, int logmode);
 enum { PKT_INCOMING, PKT_OUTGOING };
 void log_eventlog(char *string);

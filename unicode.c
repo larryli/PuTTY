@@ -8,6 +8,7 @@
 
 #include <time.h>
 #include "putty.h"
+#include "terminal.h"
 #include "misc.h"
 
 /* Character conversion arrays; they are usually taken from windows,
@@ -622,7 +623,7 @@ void luni_send(wchar_t * widebuf, int len, int interactive)
 {
     static char *linebuffer = 0;
     static int linesize = 0;
-    int ratio = (in_utf)?3:1;
+    int ratio = (in_utf(term))?3:1;
     int i;
     char *p;
 
@@ -632,7 +633,7 @@ void luni_send(wchar_t * widebuf, int len, int interactive)
 	linesize = len * ratio * 2;
     }
 
-    if (in_utf) {
+    if (in_utf(term)) {
 	/* UTF is a simple algorithm */
 	for (p = linebuffer, i = 0; i < len; i++) {
 	    wchar_t ch = widebuf[i];

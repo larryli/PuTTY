@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "terminal.h"
 #include "tree234.h"
 #include "ssh.h"
 
@@ -533,6 +534,8 @@ static int savedport;
 static int ssh_send_ok;
 static int ssh_echoing, ssh_editing;
 
+static void *frontend;
+
 static tree234 *ssh_channels;	       /* indexed by local id */
 static struct ssh_channel *mainchan;   /* primary session channel */
 static int ssh_exitcode = -1;
@@ -688,7 +691,7 @@ static void c_write(char *buf, int len)
 		fputc(buf[i], stderr);
 	return;
     }
-    from_backend(1, buf, len);
+    from_backend(frontend, 1, buf, len);
 }
 
 static void c_write_untrusted(char *buf, int len)
@@ -3124,7 +3127,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
     if (!cfg.nopty) {
 	send_packet(SSH1_CMSG_REQUEST_PTY,
 		    PKT_STR, cfg.termtype,
-		    PKT_INT, rows, PKT_INT, cols,
+		    PKT_INT, term ? term->rows : 24,
+		    PKT_INT, term ? term->cols : 80,
 		    PKT_INT, 0, PKT_INT, 0, PKT_CHAR, 0, PKT_END);
 	ssh_state = SSH_STATE_INTERMED;
 	do {
@@ -3198,7 +3202,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		pktin.type == SSH1_SMSG_STDERR_DATA) {
 		long len = GET_32BIT(pktin.body);
 		int bufsize =
-		    from_backend(pktin.type == SSH1_SMSG_STDERR_DATA,
+		    from_backend(frontend, pktin.type == SSH1_SMSG_STDERR_DATA,
 				 pktin.body + 4, len);
 		if (!ssh1_stdout_throttling && bufsize > SSH1_BUFFER_LIMIT) {
 		    ssh1_stdout_throttling = 1;
@@ -5142,8 +5146,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	ssh2_pkt_addstring("pty-req");
 	ssh2_pkt_addbool(1);	       /* want reply */
 	ssh2_pkt_addstring(cfg.termtype);
-	ssh2_pkt_adduint32(cols);
-	ssh2_pkt_adduint32(rows);
+	ssh2_pkt_adduint32(term ? term->cols : 80);
+	ssh2_pkt_adduint32(term ? term->rows : 24);
 	ssh2_pkt_adduint32(0);	       /* pixel width */
 	ssh2_pkt_adduint32(0);	       /* pixel height */
 	ssh2_pkt_addstring_start();
@@ -5281,7 +5285,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    switch (c->type) {
 		      case CHAN_MAINSESSION:
 			bufsize =
-			    from_backend(pktin.type ==
+			    from_backend(frontend, pktin.type ==
 					 SSH2_MSG_CHANNEL_EXTENDED_DATA,
 					 data, length);
 			break;
@@ -5706,7 +5710,8 @@ static void ssh2_protocol(unsigned char *in, int inlen, int ispkt)
  *
  * Returns an error message, or NULL on success.
  */
-static char *ssh_init(char *host, int port, char **realhost, int nodelay)
+static char *ssh_init(void *frontend_handle,
+		      char *host, int port, char **realhost, int nodelay)
 {
     char *p;
 
@@ -5714,6 +5719,8 @@ static char *ssh_init(char *host, int port, char **realhost, int nodelay)
     if (crypto_startup() == 0)
 	return "Microsoft high encryption pack not installed!";
 #endif
+
+    frontend = frontend_handle;
 
     ssh_send_ok = 0;
     ssh_editing = 0;
@@ -5787,17 +5794,19 @@ static void ssh_size(void)
 	break;
       case SSH_STATE_SESSION:
 	if (!cfg.nopty) {
+	    if (!term)
+		return;
 	    if (ssh_version == 1) {
 		send_packet(SSH1_CMSG_WINDOW_SIZE,
-			    PKT_INT, rows, PKT_INT, cols,
+			    PKT_INT, term->rows, PKT_INT, term->cols,
 			    PKT_INT, 0, PKT_INT, 0, PKT_END);
 	    } else {
 		ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 		ssh2_pkt_adduint32(mainchan->remoteid);
 		ssh2_pkt_addstring("window-change");
 		ssh2_pkt_addbool(0);
-		ssh2_pkt_adduint32(cols);
-		ssh2_pkt_adduint32(rows);
+		ssh2_pkt_adduint32(term->cols);
+		ssh2_pkt_adduint32(term->rows);
 		ssh2_pkt_adduint32(0);
 		ssh2_pkt_adduint32(0);
 		ssh2_pkt_send();

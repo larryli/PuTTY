@@ -26,6 +26,7 @@
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
+#include "terminal.h"
 #include "winstuff.h"
 #include "storage.h"
 #include "win_res.h"
@@ -492,8 +493,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hwnd = NULL;
 
-    savelines = cfg.savelines;
-    term_init();
+    term = term_init();
 
     cfgtopalette();
 
@@ -508,9 +508,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     font_height = 20;
     extra_width = 25;
     extra_height = 28;
-    term_size(cfg.height, cfg.width, cfg.savelines);
-    guess_width = extra_width + font_width * cols;
-    guess_height = extra_height + font_height * rows;
+    term_size(term, cfg.height, cfg.width, cfg.savelines);
+    guess_width = extra_width + font_width * term->cols;
+    guess_height = extra_height + font_height * term->rows;
     {
 	RECT r;
 		get_fullscreen_rect(&r);
@@ -559,8 +559,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Resize the window, now we know what size we _really_ want it
      * to be.
      */
-    guess_width = extra_width + font_width * cols;
-    guess_height = extra_height + font_height * rows;
+    guess_width = extra_width + font_width * term->cols;
+    guess_height = extra_height + font_height * term->rows;
     SetWindowPos(hwnd, NULL, 0, 0, guess_width, guess_height,
 		 SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
 
@@ -586,8 +586,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_ALL | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = rows - 1;
-	si.nPage = rows;
+	si.nMax = term->rows - 1;
+	si.nPage = term->rows;
 	si.nPos = 0;
 	SetScrollInfo(hwnd, SB_VERT, &si, FALSE);
     }
@@ -600,7 +600,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	char msg[1024], *title;
 	char *realhost;
 
-	error = back->init(cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
+	error = back->init((void *)term,
+			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
 	if (error) {
 	    sprintf(msg, "Unable to open connection to\n"
 		    "%.800s\n" "%s", cfg.host, error);
@@ -706,7 +707,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     logpal = NULL;
     init_palette();
 
-    has_focus = (GetForegroundWindow() == hwnd);
+    term->has_focus = (GetForegroundWindow() == hwnd);
     UpdateWindow(hwnd);
 
     if (GetMessage(&msg, NULL, 0, 0) == 1) {
@@ -729,10 +730,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		DispatchMessage(&msg);
 
 	    /* Make sure we blink everything that needs it. */
-	    term_blink(0);
+	    term_blink(term, 0);
 
 	    /* Send the paste buffer if there's anything to send */
-	    term_paste();
+	    term_paste(term);
 
 	    /* If there's nothing new in the queue then we can do everything
 	     * we've delayed, reading the socket, writing, and repainting
@@ -745,7 +746,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		enact_pending_netevent();
 
 		/* Force the cursor blink on */
-		term_blink(1);
+		term_blink(term, 1);
 
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		    continue;
@@ -761,20 +762,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    }
 	    HideCaret(hwnd);
 	    if (GetCapture() != hwnd || 
-		(send_raw_mouse && !(cfg.mouse_override && is_shift_pressed())))
-		term_out();
-	    term_update();
+		(send_raw_mouse &&
+		 !(cfg.mouse_override && is_shift_pressed())))
+		term_out(term);
+	    term_update(term);
 	    ShowCaret(hwnd);
 
 	    flash_window(1);	       /* maintain */
 
 	    /* The messages seem unreliable; especially if we're being tricky */
-	    has_focus = (GetForegroundWindow() == hwnd);
+	    term->has_focus = (GetForegroundWindow() == hwnd);
 
-	    if (in_vbell)
+	    if (term->in_vbell)
 		/* Hmm, term_update didn't want to do an update too soon ... */
 		timer_id = SetTimer(hwnd, 1, 50, NULL);
-	    else if (!has_focus)
+	    else if (!term->has_focus)
 		timer_id = SetTimer(hwnd, 1, 500, NULL);
 	    else
 		timer_id = SetTimer(hwnd, 1, 100, NULL);
@@ -1250,7 +1252,7 @@ void request_resize(int w, int h)
     }
 
     if (cfg.resize_action == RESIZE_DISABLED) return;
-    if (h == rows && w == cols) return;
+    if (h == term->rows && w == term->cols) return;
 
     /* Sanity checks ... */
     {
@@ -1280,7 +1282,7 @@ void request_resize(int w, int h)
 	}
     }
 
-    term_size(h, w, cfg.savelines);
+    term_size(term, h, w, cfg.savelines);
 
     if (cfg.resize_action != RESIZE_FONT && !IsZoomed(hwnd)) {
 	width = extra_width + font_width * w;
@@ -1334,10 +1336,10 @@ static void reset_window(int reinit) {
 
     /* Is the window out of position ? */
     if ( !reinit && 
-	    (offset_width != (win_width-font_width*cols)/2 ||
-	     offset_height != (win_height-font_height*rows)/2) ){
-	offset_width = (win_width-font_width*cols)/2;
-	offset_height = (win_height-font_height*rows)/2;
+	    (offset_width != (win_width-font_width*term->cols)/2 ||
+	     offset_height != (win_height-font_height*term->rows)/2) ){
+	offset_width = (win_width-font_width*term->cols)/2;
+	offset_height = (win_height-font_height*term->rows)/2;
 	InvalidateRect(hwnd, NULL, TRUE);
 #ifdef RDB_DEBUG_PATCH
 	debug((27, "reset_window() -> Reposition terminal"));
@@ -1353,12 +1355,12 @@ static void reset_window(int reinit) {
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
 
 	if (cfg.resize_action != RESIZE_TERM) {
-	    if (  font_width != win_width/cols || 
-		  font_height != win_height/rows) {
+	    if (  font_width != win_width/term->cols || 
+		  font_height != win_height/term->rows) {
 		deinit_fonts();
-		init_fonts(win_width/cols, win_height/rows);
-		offset_width = (win_width-font_width*cols)/2;
-		offset_height = (win_height-font_height*rows)/2;
+		init_fonts(win_width/term->cols, win_height/term->rows);
+		offset_width = (win_width-font_width*term->cols)/2;
+		offset_height = (win_height-font_height*term->rows)/2;
 		InvalidateRect(hwnd, NULL, TRUE);
 #ifdef RDB_DEBUG_PATCH
 		debug((25, "reset_window() -> Z font resize to (%d, %d)",
@@ -1366,15 +1368,15 @@ static void reset_window(int reinit) {
 #endif
 	    }
 	} else {
-	    if (  font_width != win_width/cols || 
-		  font_height != win_height/rows) {
+	    if (  font_width != win_width/term->cols || 
+		  font_height != win_height/term->rows) {
 		/* Our only choice at this point is to change the 
 		 * size of the terminal; Oh well.
 		 */
-		term_size( win_height/font_height, win_width/font_width,
-			   cfg.savelines);
-		offset_width = (win_width-font_width*cols)/2;
-		offset_height = (win_height-font_height*rows)/2;
+		term_size(term, win_height/font_height, win_width/font_width,
+			  cfg.savelines);
+		offset_width = (win_width-font_width*term->cols)/2;
+		offset_height = (win_height-font_height*term->rows)/2;
 		InvalidateRect(hwnd, NULL, TRUE);
 #ifdef RDB_DEBUG_PATCH
 		debug((27, "reset_window() -> Zoomed term_size"));
@@ -1396,16 +1398,16 @@ static void reset_window(int reinit) {
 	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
 
-	if (win_width != font_width*cols + offset_width*2 ||
-	    win_height != font_height*rows + offset_height*2) {
+	if (win_width != font_width*term->cols + offset_width*2 ||
+	    win_height != font_height*term->rows + offset_height*2) {
 
 	    /* If this is too large windows will resize it to the maximum
 	     * allowed window size, we will then be back in here and resize
 	     * the font or terminal to fit.
 	     */
 	    SetWindowPos(hwnd, NULL, 0, 0, 
-		         font_width*cols + extra_width, 
-			 font_height*rows + extra_height,
+		         font_width*term->cols + extra_width, 
+			 font_height*term->rows + extra_height,
 			 SWP_NOMOVE | SWP_NOZORDER);
 	}
 
@@ -1424,8 +1426,8 @@ static void reset_window(int reinit) {
 	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
 
-	if (win_width != font_width*cols + offset_width*2 ||
-	    win_height != font_height*rows + offset_height*2) {
+	if (win_width != font_width*term->cols + offset_width*2 ||
+	    win_height != font_height*term->rows + offset_height*2) {
 
 	    static RECT ss;
 	    int width, height;
@@ -1436,13 +1438,15 @@ static void reset_window(int reinit) {
 	    height = (ss.bottom - ss.top - extra_height) / font_height;
 
 	    /* Grrr too big */
-	    if ( rows > height || cols > width ) {
+	    if ( term->rows > height || term->cols > width ) {
 		if (cfg.resize_action == RESIZE_EITHER) {
 		    /* Make the font the biggest we can */
-		    if (cols > width)
-			font_width = (ss.right - ss.left - extra_width)/cols;
-		    if (rows > height)
-			font_height = (ss.bottom - ss.top - extra_height)/rows;
+		    if (term->cols > width)
+			font_width = (ss.right - ss.left - extra_width)
+			    / term->cols;
+		    if (term->rows > height)
+			font_height = (ss.bottom - ss.top - extra_height)
+			    / term->rows;
 
 		    deinit_fonts();
 		    init_fonts(font_width, font_height);
@@ -1450,9 +1454,9 @@ static void reset_window(int reinit) {
 		    width = (ss.right - ss.left - extra_width) / font_width;
 		    height = (ss.bottom - ss.top - extra_height) / font_height;
 		} else {
-		    if ( height > rows ) height = rows;
-		    if ( width > cols )  width = cols;
-		    term_size(height, width, cfg.savelines);
+		    if ( height > term->rows ) height = term->rows;
+		    if ( width > term->cols )  width = term->cols;
+		    term_size(term, height, width, cfg.savelines);
 #ifdef RDB_DEBUG_PATCH
 		    debug((27, "reset_window() -> term resize to (%d,%d)",
 			       height, width));
@@ -1461,15 +1465,15 @@ static void reset_window(int reinit) {
 	    }
 	    
 	    SetWindowPos(hwnd, NULL, 0, 0, 
-		         font_width*cols + extra_width, 
-			 font_height*rows + extra_height,
+		         font_width*term->cols + extra_width, 
+			 font_height*term->rows + extra_height,
 			 SWP_NOMOVE | SWP_NOZORDER);
 
 	    InvalidateRect(hwnd, NULL, TRUE);
 #ifdef RDB_DEBUG_PATCH
 	    debug((27, "reset_window() -> window resize to (%d,%d)",
-			font_width*cols + extra_width,
-			font_height*rows + extra_height));
+			font_width*term->cols + extra_width,
+			font_height*term->rows + extra_height));
 #endif
 	}
 	return;
@@ -1477,14 +1481,14 @@ static void reset_window(int reinit) {
 
     /* We're allowed to or must change the font but do we want to ?  */
 
-    if (font_width != (win_width-cfg.window_border*2)/cols || 
-	font_height != (win_height-cfg.window_border*2)/rows) {
+    if (font_width != (win_width-cfg.window_border*2)/term->cols || 
+	font_height != (win_height-cfg.window_border*2)/term->rows) {
 
 	deinit_fonts();
-	init_fonts((win_width-cfg.window_border*2)/cols, 
-		   (win_height-cfg.window_border*2)/rows);
-	offset_width = (win_width-font_width*cols)/2;
-	offset_height = (win_height-font_height*rows)/2;
+	init_fonts((win_width-cfg.window_border*2)/term->cols, 
+		   (win_height-cfg.window_border*2)/term->rows);
+	offset_width = (win_width-font_width*term->cols)/2;
+	offset_height = (win_height-font_height*term->rows)/2;
 
 	extra_width = wr.right - wr.left - cr.right + cr.left +offset_width*2;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top+offset_height*2;
@@ -1513,7 +1517,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
 
     if (send_raw_mouse && !(cfg.mouse_override && shift)) {
 	lastbtn = MBT_NOTHING;
-	term_mouse(b, MA_CLICK, x, y, shift, ctrl, alt);
+	term_mouse(term, b, MA_CLICK, x, y, shift, ctrl, alt);
 	return;
     }
 
@@ -1526,7 +1530,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
 	lastact = MA_CLICK;
     }
     if (lastact != MA_NOTHING)
-	term_mouse(b, lastact, x, y, shift, ctrl, alt);
+	term_mouse(term, b, lastact, x, y, shift, ctrl, alt);
     lasttime = thistime;
 }
 
@@ -1597,10 +1601,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    enact_pending_netevent();
 	if (GetCapture() != hwnd || 
 	    (send_raw_mouse && !(cfg.mouse_override && is_shift_pressed())))
-	    term_out();
+	    term_out(term);
 	noise_regular();
 	HideCaret(hwnd);
-	term_update();
+	term_update(term);
 	ShowCaret(hwnd);
 	if (cfg.ping_interval > 0) {
 	    time_t now;
@@ -1748,7 +1752,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		init_palette();
 
 		/* Give terminal a heads-up on miscellaneous stuff */
-		term_reconfig();
+		term_reconfig(term);
 
 		/* Screen size changed ? */
 		if (cfg.height != prev_cfg.height ||
@@ -1757,7 +1761,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    cfg.resize_action == RESIZE_FONT ||
 		    (cfg.resize_action == RESIZE_EITHER && IsZoomed(hwnd)) ||
 		    cfg.resize_action == RESIZE_DISABLED)
-		    term_size(cfg.height, cfg.width, cfg.savelines);
+		    term_size(term, cfg.height, cfg.width, cfg.savelines);
 
 		/* Enable or disable the scroll bar, etc */
 		{
@@ -1846,13 +1850,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_COPYALL:
-	    term_copyall();
+	    term_copyall(term);
 	    break;
 	  case IDM_CLRSB:
-	    term_clrsb();
+	    term_clrsb(term);
 	    break;
 	  case IDM_RESET:
-	    term_pwron();
+	    term_pwron(term);
+	    ldisc_send(NULL, 0, 0);
 	    break;
 	  case IDM_TEL_AYT:
 	    back->special(TS_AYT);
@@ -2004,7 +2009,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		      is_alt_pressed());
 		SetCapture(hwnd);
 	    } else {
-		term_mouse(button, MA_RELEASE,
+		term_mouse(term, button, MA_RELEASE,
 			   TO_CHR_X(X_POS(lParam)),
 			   TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
 			   wParam & MK_CONTROL, is_alt_pressed());
@@ -2029,7 +2034,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		b = MBT_MIDDLE;
 	    else
 		b = MBT_RIGHT;
-	    term_mouse(b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
+	    term_mouse(term, b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
 		       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
 		       wParam & MK_CONTROL, is_alt_pressed());
 	}
@@ -2043,7 +2048,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_DESTROYCLIPBOARD:
 	if (!ignore_clip)
-	    term_deselect();
+	    term_deselect(term);
 	ignore_clip = FALSE;
 	return 0;
       case WM_PAINT:
@@ -2055,7 +2060,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		SelectPalette(hdc, pal, TRUE);
 		RealizePalette(hdc);
 	    }
-	    term_paint(hdc, 
+	    term_paint(term, hdc, 
 		       (p.rcPaint.left-offset_width)/font_width,
 		       (p.rcPaint.top-offset_height)/font_height,
 		       (p.rcPaint.right-offset_width-1)/font_width,
@@ -2064,8 +2069,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if (p.fErase ||
 	        p.rcPaint.left  < offset_width  ||
 		p.rcPaint.top   < offset_height ||
-		p.rcPaint.right >= offset_width + font_width*cols ||
-		p.rcPaint.bottom>= offset_height + font_height*rows)
+		p.rcPaint.right >= offset_width + font_width*term->cols ||
+		p.rcPaint.bottom>= offset_height + font_height*term->rows)
 	    {
 		HBRUSH fillcolour, oldbrush;
 		HPEN   edge, oldpen;
@@ -2089,8 +2094,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		ExcludeClipRect(hdc, 
 			offset_width, offset_height,
-			offset_width+font_width*cols,
-			offset_height+font_height*rows);
+			offset_width+font_width*term->cols,
+			offset_height+font_height*term->rows);
 
 		Rectangle(hdc, p.rcPaint.left, p.rcPaint.top, 
 			  p.rcPaint.right, p.rcPaint.bottom);
@@ -2125,21 +2130,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	time(&last_movement);
 	return 0;
       case WM_SETFOCUS:
-	has_focus = TRUE;
+	term->has_focus = TRUE;
 	CreateCaret(hwnd, caretbm, font_width, font_height);
 	ShowCaret(hwnd);
 	flash_window(0);	       /* stop */
 	compose_state = 0;
-	term_out();
-	term_update();
+	term_out(term);
+	term_update(term);
 	break;
       case WM_KILLFOCUS:
 	show_mouseptr(1);
-	has_focus = FALSE;
+	term->has_focus = FALSE;
 	DestroyCaret();
 	caret_x = caret_y = -1;	       /* ensure caret is replaced next time */
-	term_out();
-	term_update();
+	term_out(term);
+	term_update(term);
 	break;
       case WM_ENTERSIZEMOVE:
 #ifdef RDB_DEBUG_PATCH
@@ -2156,7 +2161,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	debug((27, "WM_EXITSIZEMOVE"));
 #endif
 	if (need_backend_resize) {
-	    term_size(cfg.height, cfg.width, cfg.savelines);
+	    term_size(term, cfg.height, cfg.width, cfg.savelines);
 	    InvalidateRect(hwnd, NULL, TRUE);
 	}
 	break;
@@ -2171,7 +2176,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    LPRECT r = (LPRECT) lParam;
 
 	    if ( !need_backend_resize && cfg.resize_action == RESIZE_EITHER &&
-		    (cfg.height != rows || cfg.width != cols )) {
+		    (cfg.height != term->rows || cfg.width != term->cols )) {
 		/* 
 		 * Great! It seems that both the terminal size and the
 		 * font size have been changed and the user is now dragging.
@@ -2181,10 +2186,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 *
 		 * This would be easier but it seems to be too confusing.
 
-		term_size(cfg.height, cfg.width, cfg.savelines);
+		term_size(term, cfg.height, cfg.width, cfg.savelines);
 		reset_window(2);
 		 */
-	        cfg.height=rows; cfg.width=cols;
+	        cfg.height=term->rows; cfg.width=term->cols;
 
 		InvalidateRect(hwnd, NULL, TRUE);
 		need_backend_resize = TRUE;
@@ -2228,25 +2233,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    width = r->right - r->left - ex_width;
 	    height = r->bottom - r->top - ex_height;
 
-	    w = (width + cols/2)/cols;
-	    h = (height + rows/2)/rows;
-	    if ( r->right != r->left + w*cols + ex_width) 
+	    w = (width + term->cols/2)/term->cols;
+	    h = (height + term->rows/2)/term->rows;
+	    if ( r->right != r->left + w*term->cols + ex_width)
 		rv = 1;
 
 	    if (wParam == WMSZ_LEFT ||
 		wParam == WMSZ_BOTTOMLEFT || wParam == WMSZ_TOPLEFT)
-		r->left = r->right - w*cols - ex_width;
+		r->left = r->right - w*term->cols - ex_width;
 	    else
-		r->right = r->left + w*cols + ex_width;
+		r->right = r->left + w*term->cols + ex_width;
 
-	    if (r->bottom != r->top + h*rows + ex_height)
+	    if (r->bottom != r->top + h*term->rows + ex_height)
 		rv = 1;
 
 	    if (wParam == WMSZ_TOP ||
 		wParam == WMSZ_TOPRIGHT || wParam == WMSZ_TOPLEFT)
-		r->top = r->bottom - h*rows - ex_height;
+		r->top = r->bottom - h*term->rows - ex_height;
 	    else
-		r->bottom = r->top + h*rows + ex_height;
+		r->bottom = r->top + h*term->rows + ex_height;
 
 	    return rv;
 	}
@@ -2292,21 +2297,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if (!resizing) {
 		if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
 		    was_zoomed = 1;
-		    prev_rows = rows;
-		    prev_cols = cols;
+		    prev_rows = term->rows;
+		    prev_cols = term->cols;
 		    if (cfg.resize_action == RESIZE_TERM) {
 			w = width / font_width;
 			if (w < 1) w = 1;
 			h = height / font_height;
 			if (h < 1) h = 1;
 
-			term_size(h, w, cfg.savelines);
+			term_size(term, h, w, cfg.savelines);
 		    }
 		    reset_window(0);
 		} else if (wParam == SIZE_RESTORED && was_zoomed) {
 		    was_zoomed = 0;
 		    if (cfg.resize_action == RESIZE_TERM)
-			term_size(prev_rows, prev_cols, cfg.savelines);
+			term_size(term, prev_rows, prev_cols, cfg.savelines);
 		    if (cfg.resize_action != RESIZE_FONT)
 			reset_window(2);
 		    else
@@ -2345,26 +2350,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_VSCROLL:
 	switch (LOWORD(wParam)) {
 	  case SB_BOTTOM:
-	    term_scroll(-1, 0);
+	    term_scroll(term, -1, 0);
 	    break;
 	  case SB_TOP:
-	    term_scroll(+1, 0);
+	    term_scroll(term, +1, 0);
 	    break;
 	  case SB_LINEDOWN:
-	    term_scroll(0, +1);
+	    term_scroll(term, 0, +1);
 	    break;
 	  case SB_LINEUP:
-	    term_scroll(0, -1);
+	    term_scroll(term, 0, -1);
 	    break;
 	  case SB_PAGEDOWN:
-	    term_scroll(0, +rows / 2);
+	    term_scroll(term, 0, +term->rows / 2);
 	    break;
 	  case SB_PAGEUP:
-	    term_scroll(0, -rows / 2);
+	    term_scroll(term, 0, -term->rows / 2);
 	    break;
 	  case SB_THUMBPOSITION:
 	  case SB_THUMBTRACK:
-	    term_scroll(1, HIWORD(wParam));
+	    term_scroll(term, 1, HIWORD(wParam));
 	    break;
 	}
 	break;
@@ -2429,7 +2434,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * preferable to having to faff about buffering
 		     * things.
 		     */
-		    term_nopaste();
+		    term_nopaste(term);
 
 		    /*
 		     * We need not bother about stdin backlogs
@@ -2439,7 +2444,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * messages. We _have_ to buffer everything
 		     * we're sent.
 		     */
-		    term_seen_key_event();
+		    term_seen_key_event(term);
 		    ldisc_send(buf, len, 1);
 		    show_mouseptr(0);
 		}
@@ -2486,7 +2491,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * luni_send() covering the whole of buff. So
 		 * instead we luni_send the characters one by one.
 		 */
-		term_seen_key_event();
+		term_seen_key_event(term);
 		for (i = 0; i < n; i += 2) {
 		    luni_send((unsigned short *)(buff+i), 1, 1);
 		}
@@ -2502,11 +2507,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
-	    term_seen_key_event();
+	    term_seen_key_event(term);
 	    lpage_send(kbd_codepage, buf, 2, 1);
 	} else {
 	    char c = (unsigned char) wParam;
-	    term_seen_key_event();
+	    term_seen_key_event(term);
 	    lpage_send(kbd_codepage, &c, 1, 1);
 	}
 	return (0);
@@ -2520,7 +2525,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 */
 	{
 	    char c = (unsigned char)wParam;
-	    term_seen_key_event();
+	    term_seen_key_event(term);
 	    lpage_send(CP_ACP, &c, 1, 1);
 	}
 	return 0;
@@ -2563,18 +2568,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (send_raw_mouse &&
 		    !(cfg.mouse_override && shift_pressed)) {
 		    /* send a mouse-down followed by a mouse up */
-		    term_mouse(b,
+		    term_mouse(term, b,
 			       MA_CLICK,
 			       TO_CHR_X(X_POS(lParam)),
 			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
 			       control_pressed, is_alt_pressed());
-		    term_mouse(b, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
+		    term_mouse(term, b, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
 			       control_pressed, is_alt_pressed());
 		} else {
 		    /* trigger a scroll */
-		    term_scroll(0,
-				b == MBT_WHEEL_UP ? -rows / 2 : rows / 2);
+		    term_scroll(term, 0,
+				b == MBT_WHEEL_UP ?
+				-term->rows / 2 : term->rows / 2);
 		}
 	    }
 	    return 0;
@@ -2594,7 +2600,7 @@ void sys_cursor(int x, int y)
 {
     int cx, cy;
 
-    if (!has_focus) return;
+    if (!term->has_focus) return;
 
     /*
      * Avoid gratuitously re-updating the cursor position and IMM
@@ -2615,7 +2621,7 @@ static void sys_cursor_update(void)
     COMPOSITIONFORM cf;
     HIMC hIMC;
 
-    if (!has_focus) return;
+    if (!term->has_focus) return;
 
     if (caret_x < 0 || caret_y < 0)
 	return;
@@ -2672,7 +2678,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     }
 
     /* Only want the left half of double width lines */
-    if (lattr != LATTR_NORM && x*2 >= cols)
+    if (lattr != LATTR_NORM && x*2 >= term->cols)
 	return;
 
     x *= fnt_width;
@@ -2680,7 +2686,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     x += offset_width;
     y += offset_height;
 
-    if ((attr & TATTR_ACTCURS) && (cfg.cursor_type == 0 || big_cursor)) {
+    if ((attr & TATTR_ACTCURS) && (cfg.cursor_type == 0 || term->big_cursor)) {
 	attr &= ATTR_CUR_AND | (bold_mode != BOLD_COLOURS ? ATTR_BOLD : 0);
 	attr ^= ATTR_CUR_XOR;
     }
@@ -2781,8 +2787,8 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     line_box.bottom = y + font_height;
 
     /* Only want the left half of double width lines */
-    if (line_box.right > font_width*cols+offset_width)
-	line_box.right = font_width*cols+offset_width;
+    if (line_box.right > font_width*term->cols+offset_width)
+	line_box.right = font_width*term->cols+offset_width;
 
     /* We're using a private area for direct to font. (512 chars.) */
     if (dbcs_screenfont && (attr & CSET_MASK) == ATTR_ACP) {
@@ -2896,7 +2902,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     HDC hdc = ctx;
     int ctype = cfg.cursor_type;
 
-    if ((attr & TATTR_ACTCURS) && (ctype == 0 || big_cursor)) {
+    if ((attr & TATTR_ACTCURS) && (ctype == 0 || term->big_cursor)) {
 	if (((attr & CSET_MASK) | (unsigned char) *text) != UCSWIDE) {
 	    do_text(ctx, x, y, text, len, attr, lattr);
 	    return;
@@ -2913,7 +2919,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     x += offset_width;
     y += offset_height;
 
-    if ((attr & TATTR_PASCURS) && (ctype == 0 || big_cursor)) {
+    if ((attr & TATTR_PASCURS) && (ctype == 0 || term->big_cursor)) {
 	POINT pts[5];
 	HPEN oldpen;
 	pts[0].x = pts[1].x = pts[4].x = x;
@@ -3129,7 +3135,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	/* Nastyness with NUMLock - Shift-NUMLock is left alone though */
 	if ((cfg.funky_type == 3 ||
-	     (cfg.funky_type <= 1 && app_keypad_keys && !cfg.no_applic_k))
+	     (cfg.funky_type <= 1 && term->app_keypad_keys &&
+	      !cfg.no_applic_k))
 	    && wParam == VK_NUMLOCK && !(keystate[VK_SHIFT] & 0x80)) {
 
 	    wParam = VK_EXECUTE;
@@ -3144,7 +3151,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     }
 
     /* Disable Auto repeat if required */
-    if (repeat_off && (HIWORD(lParam) & (KF_UP | KF_REPEAT)) == KF_REPEAT)
+    if (term->repeat_off &&
+	(HIWORD(lParam) & (KF_UP | KF_REPEAT)) == KF_REPEAT)
 	return 0;
 
     if ((HIWORD(lParam) & KF_ALTDOWN) && (keystate[VK_RMENU] & 0x80) == 0)
@@ -3194,7 +3202,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	compose_state = 0;
 
     /* Sanitize the number pad if not using a PC NumPad */
-    if (left_alt || (app_keypad_keys && !cfg.no_applic_k
+    if (left_alt || (term->app_keypad_keys && !cfg.no_applic_k
 		     && cfg.funky_type != 2)
 	|| cfg.funky_type == 3 || cfg.nethack_keypad || compose_state) {
 	if ((HIWORD(lParam) & KF_EXTENDED) == 0) {
@@ -3258,7 +3266,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return 0;
 	}
 	if (wParam == VK_INSERT && shift_state == 1) {
-	    term_do_paste();
+	    term_do_paste(term);
 	    return 0;
 	}
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {
@@ -3276,7 +3284,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
 	/* Control-Numlock for app-keypad mode switch */
 	if (wParam == VK_PAUSE && shift_state == 2) {
-	    app_keypad_keys ^= 1;
+	    term->app_keypad_keys ^= 1;
 	    return 0;
 	}
 
@@ -3319,7 +3327,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	    if (cfg.funky_type == 3 ||
 		(cfg.funky_type <= 1 &&
-		 app_keypad_keys && !cfg.no_applic_k)) switch (wParam) {
+		 term->app_keypad_keys && !cfg.no_applic_k)) switch (wParam) {
 		  case VK_EXECUTE:
 		    xkey = 'P';
 		    break;
@@ -3333,7 +3341,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    xkey = 'S';
 		    break;
 		}
-	    if (app_keypad_keys && !cfg.no_applic_k)
+	    if (term->app_keypad_keys && !cfg.no_applic_k)
 		switch (wParam) {
 		  case VK_NUMPAD0:
 		    xkey = 'p';
@@ -3400,7 +3408,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    break;
 		}
 	    if (xkey) {
-		if (vt52_mode) {
+		if (term->vt52_mode) {
 		    if (xkey >= 'P' && xkey <= 'S')
 			p += sprintf((char *) p, "\x1B%c", xkey);
 		    else
@@ -3459,7 +3467,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = 0x1C;
 	    return p - output;
 	}
-	if (shift_state == 0 && wParam == VK_RETURN && cr_lf_return) {
+	if (shift_state == 0 && wParam == VK_RETURN && term->cr_lf_return) {
 	    *p++ = '\r';
 	    *p++ = '\n';
 	    return p - output;
@@ -3561,7 +3569,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (cfg.funky_type == 3 && code <= 6)
 	    code = "\0\2\1\4\5\3\6"[code];
 
-	if (vt52_mode && code > 0 && code <= 6) {
+	if (term->vt52_mode && code > 0 && code <= 6) {
 	    p += sprintf((char *) p, "\x1B%c", " HLMEIG"[code]);
 	    return p - output;
 	}
@@ -3599,13 +3607,13 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    }
 	    return p - output;
 	}
-	if ((vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
+	if ((term->vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
 	    int offt = 0;
 	    if (code > 15)
 		offt++;
 	    if (code > 21)
 		offt++;
-	    if (vt52_mode)
+	    if (term->vt52_mode)
 		p += sprintf((char *) p, "\x1B%c", code + 'P' - 11 - offt);
 	    else
 		p +=
@@ -3617,7 +3625,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 	if (cfg.funky_type == 2 && code >= 11 && code <= 14) {
-	    if (vt52_mode)
+	    if (term->vt52_mode)
 		p += sprintf((char *) p, "\x1B%c", code + 'P' - 11);
 	    else
 		p += sprintf((char *) p, "\x1BO%c", code + 'P' - 11);
@@ -3656,10 +3664,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		break;
 	    }
 	    if (xkey) {
-		if (vt52_mode)
+		if (term->vt52_mode)
 		    p += sprintf((char *) p, "\x1B%c", xkey);
 		else {
-		    int app_flg = (app_cursor_keys && !cfg.no_applic_c);
+		    int app_flg = (term->app_cursor_keys && !cfg.no_applic_c);
 #if 0
 		    /*
 		     * RDB: VT100 & VT102 manuals both state the
@@ -3675,7 +3683,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		     * _this_ I'll have to put in a configurable
 		     * option.
 		     */
-		    if (!app_keypad_keys)
+		    if (!term->app_keypad_keys)
 			app_flg = 0;
 #endif
 		    /* Useful mapping of Ctrl-arrows */
@@ -3722,7 +3730,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
 	    if (alt_sum) {
-		if (in_utf || dbcs_screenfont)
+		if (in_utf(term) || dbcs_screenfont)
 		    debug((", (U+%04x)", alt_sum));
 		else
 		    debug((", LCH(%d)", alt_sum));
@@ -3746,7 +3754,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	     * sensible, but for the moment it's preferable to
 	     * having to faff about buffering things.
 	     */
-	    term_nopaste();
+	    term_nopaste(term);
 
 	    p = output;
 	    for (i = 0; i < r; i++) {
@@ -3766,7 +3774,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			return 0;
 		    }
 		    keybuf = nc;
-		    term_seen_key_event();
+		    term_seen_key_event(term);
 		    luni_send(&keybuf, 1, 1);
 		    continue;
 		}
@@ -3775,9 +3783,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 		if (!key_down) {
 		    if (alt_sum) {
-			if (in_utf || dbcs_screenfont) {
+			if (in_utf(term) || dbcs_screenfont) {
 			    keybuf = alt_sum;
-			    term_seen_key_event();
+			    term_seen_key_event(term);
 			    luni_send(&keybuf, 1, 1);
 			} else {
 			    ch = (char) alt_sum;
@@ -3790,25 +3798,25 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * messages. We _have_ to buffer
 			     * everything we're sent.
 			     */
-			    term_seen_key_event();
+			    term_seen_key_event(term);
 			    ldisc_send(&ch, 1, 1);
 			}
 			alt_sum = 0;
 		    } else
-			term_seen_key_event();
+			term_seen_key_event(term);
 			lpage_send(kbd_codepage, &ch, 1, 1);
 		} else {
 		    if(capsOn && ch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(ch);
-			term_seen_key_event();
+			term_seen_key_event(term);
 			luni_send(cbuf+!left_alt, 1+!!left_alt, 1);
 		    } else {
 			char cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = ch;
-			term_seen_key_event();
+			term_seen_key_event(term);
 			lpage_send(kbd_codepage, cbuf+!left_alt, 1+!!left_alt, 1);
 		    }
 		}
@@ -3824,7 +3832,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (!left_alt)
 	    keys[0] = 0;
 	/* If we will be using alt_sum fix the 256s */
-	else if (keys[0] && (in_utf || dbcs_screenfont))
+	else if (keys[0] && (in_utf(term) || dbcs_screenfont))
 	    keys[0] = 10;
     }
 
@@ -3848,7 +3856,7 @@ void request_paste(void)
      * clipboard with no difficulty, so request_paste() can just go
      * ahead and paste.
      */
-    term_do_paste();
+    term_do_paste(term);
 }
 
 void set_title(char *title)
@@ -4213,7 +4221,7 @@ void optimised_move(int to, int from, int lines)
     max = to + from - min;
 
     r.left = offset_width;
-    r.right = offset_width + cols * font_width;
+    r.right = offset_width + term->cols * font_width;
     r.top = offset_height + min * font_height;
     r.bottom = offset_height + (max + lines) * font_height;
     ScrollWindow(hwnd, 0, (to - from) * font_height, &r, &r);
@@ -4322,7 +4330,7 @@ void beep(int mode)
 	}
     }
     /* Otherwise, either visual bell or disabled; do nothing here */
-    if (!has_focus) {
+    if (!term->has_focus) {
 	flash_window(2);	       /* start */
     }
 }

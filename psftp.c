@@ -1522,7 +1522,7 @@ static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-int from_backend(int is_stderr, char *data, int datalen)
+int from_backend(void *frontend, int is_stderr, char *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
@@ -1822,7 +1822,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     back = &ssh_backend;
 
-    err = back->init(cfg.host, cfg.port, &realhost, 0);
+    err = back->init(NULL, cfg.host, cfg.port, &realhost, 0);
     if (err != NULL) {
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;

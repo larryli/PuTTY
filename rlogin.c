@@ -4,6 +4,7 @@
 #include <ctype.h>
 
 #include "putty.h"
+#include "terminal.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -16,12 +17,13 @@
 
 static Socket s = NULL;
 static int rlogin_bufsize;
+static void *frontend;
 
 static void rlogin_size(void);
 
 static void c_write(char *buf, int len)
 {
-    int backlog = from_backend(0, buf, len);
+    int backlog = from_backend(frontend, 0, buf, len);
     sk_set_frozen(s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
@@ -88,7 +90,8 @@ static void rlogin_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *rlogin_init(char *host, int port, char **realhost, int nodelay)
+static char *rlogin_init(void *frontend_handle,
+			 char *host, int port, char **realhost, int nodelay)
 {
     static struct plug_function_table fn_table = {
 	rlogin_closing,
@@ -98,6 +101,8 @@ static char *rlogin_init(char *host, int port, char **realhost, int nodelay)
 
     SockAddr addr;
     char *err;
+
+    frontend = frontend_handle;
 
     /*
      * Try to find host.
@@ -179,13 +184,13 @@ static void rlogin_size(void)
 {
     char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    if (s == NULL)
+    if (s == NULL || term == NULL)
 	return;
     
-    b[6] = cols >> 8;
-    b[7] = cols & 0xFF;
-    b[4] = rows >> 8;
-    b[5] = rows & 0xFF;
+    b[6] = term->cols >> 8;
+    b[7] = term->cols & 0xFF;
+    b[4] = term->rows >> 8;
+    b[5] = term->rows & 0xFF;
     rlogin_bufsize = sk_write(s, b, 12);
     return;
 }

@@ -9,17 +9,18 @@
 #include <ctype.h>
 
 #include "putty.h"
+#include "terminal.h"
 
 #define ECHOING (cfg.localecho == LD_YES || \
                  (cfg.localecho == LD_BACKEND && \
-                      (back->ldisc(LD_ECHO) || term_ldisc(LD_ECHO))))
+                      (back->ldisc(LD_ECHO) || term_ldisc(term, LD_ECHO))))
 #define EDITING (cfg.localedit == LD_YES || \
                  (cfg.localedit == LD_BACKEND && \
-                      (back->ldisc(LD_EDIT) || term_ldisc(LD_EDIT))))
+                      (back->ldisc(LD_EDIT) || term_ldisc(term, LD_EDIT))))
 
 static void c_write(char *buf, int len)
 {
-    from_backend(0, buf, len);
+    from_backend(term, 0, buf, len);
 }
 
 static char *term_buf = NULL;
@@ -27,7 +28,7 @@ static int term_buflen = 0, term_bufsiz = 0, term_quotenext = 0;
 
 static int plen(unsigned char c)
 {
-    if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf))
+    if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf(term)))
 	return 1;
     else if (c < 128)
 	return 2;		       /* ^x for some x */
@@ -37,7 +38,7 @@ static int plen(unsigned char c)
 
 static void pwrite(unsigned char c)
 {
-    if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf)) {
+    if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf(term))) {
 	c_write(&c, 1);
     } else if (c < 128) {
 	char cc[2];
@@ -70,6 +71,7 @@ void ldisc_send(char *buf, int len, int interactive)
     if (len == 0) {
 	void ldisc_update(int echo, int edit);
 	ldisc_update(ECHOING, EDITING);
+	return;
     }
     /*
      * Less than zero means null terminated special string.
