@@ -7,8 +7,6 @@
 
 #include "ssh.h"
 
-typedef unsigned int uint32;
-
 /* ----------------------------------------------------------------------
  * Core SHA algorithm: processes 16-word blocks into a message digest.
  */

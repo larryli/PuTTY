@@ -745,7 +745,7 @@ font_messup:
 
     if (cfg.fontisbold) {
 	fw_dontcare = FW_BOLD;
-	fw_bold = FW_BLACK;
+	fw_bold = FW_HEAVY;
    } else {
 	fw_dontcare = FW_DONTCARE;
 	fw_bold = FW_BOLD;
