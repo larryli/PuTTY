@@ -5834,7 +5834,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		int typelen;
 		char *peeraddr;
 		int peeraddrlen;
-		int port;
+		int peerport;
 		char *error = NULL;
 		struct ssh_channel *c;
 		unsigned remid, winsize, pktsize;
@@ -5845,18 +5845,18 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		remid = ssh2_pkt_getuint32(ssh);
 		winsize = ssh2_pkt_getuint32(ssh);
 		pktsize = ssh2_pkt_getuint32(ssh);
-		ssh2_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
-		port = ssh2_pkt_getuint32(ssh);
 
 		if (typelen == 3 && !memcmp(type, "x11", 3)) {
 		    char *addrstr = snewn(peeraddrlen+1, char);
 		    memcpy(addrstr, peeraddr, peeraddrlen);
 		    peeraddr[peeraddrlen] = '\0';
+                    ssh2_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
+                    peerport = ssh2_pkt_getuint32(ssh);
 
 		    if (!ssh->X11_fwd_enabled)
 			error = "X11 forwarding is not enabled";
 		    else if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-				      ssh->x11auth, addrstr, port,
+				      ssh->x11auth, addrstr, peerport,
 				      &ssh->cfg) != NULL) {
 			error = "Unable to open an X11 connection";
 		    } else {
@@ -5871,6 +5871,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    int dummylen;
 		    ssh2_pkt_getstring(ssh, &dummy, &dummylen);/* skip address */
 		    pf.sport = ssh2_pkt_getuint32(ssh);
+                    ssh2_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
+                    peerport = ssh2_pkt_getuint32(ssh);
 		    realpf = find234(ssh->rportfwds, &pf, NULL);
 		    if (realpf == NULL) {
 			error = "Remote port is not recognised";
