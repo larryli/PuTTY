@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.56 2004/02/10 19:32:08 simon Exp $
+\versionid $Id: faq.but,v 1.57 2004/02/12 18:28:00 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -215,8 +215,8 @@ or any other port of PuTTY, they were mistaken. We don't.
 
 \S{faq-unix}{Question} Is there a port to Unix?
 
-As of 0.54 (out soon), there are Unix ports of most of the
-traditional PuTTY tools, and also one entirely new application.
+As of 0.54, there are Unix ports of most of the traditional PuTTY
+tools, and also one entirely new application.
 
 If you look at the source release, you should find a \c{unix}
 subdirectory containing \c{Makefile.gtk}, which should build you Unix
@@ -623,8 +623,8 @@ the middle of a session, you will find that the change does not
 immediately take effect. It will only take effect once you reset
 the terminal.
 
-In version 0.54 (out soon), the behaviour has changed - changes to
-these settings take effect immediately.
+In version 0.54, the behaviour has changed - changes to these
+settings take effect immediately.
 
 \S{faq-altgr}{Question} I can't type characters that require the
 AltGr key.
