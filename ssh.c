@@ -5589,8 +5589,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		unsigned i = ssh2_pkt_getuint32(ssh);
 		struct ssh_channel *c;
 		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (!c)
-		    continue;	       /* nonexistent channel */
+		if (!c || c->closes)
+		    continue;	       /* nonexistent or closing channel */
 		c->v.v2.remwindow += ssh2_pkt_getuint32(ssh);
 		s->try_send = TRUE;
 	    } else if (ssh->pktin.type == SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
@@ -5811,7 +5811,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	     * Try to send data on all channels if we can.
 	     */
 	    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++) {
-		int bufsize = ssh2_try_send(c);
+		int bufsize;
+		if (c->closes)
+		    continue;	       /* don't send on closing channels */
+		bufsize = ssh2_try_send(c);
 		if (bufsize == 0) {
 		    switch (c->type) {
 		      case CHAN_MAINSESSION:
