@@ -32,7 +32,7 @@ static const WCHAR unitab_xterm_std[32] = {
  */
 
 /* 
- * Tables for ISO-8859-{1-9,13-16} derived from those downloaded
+ * Tables for ISO-8859-{1-10,13-16} derived from those downloaded
  * 2001-10-02 from <http://www.unicode.org/Public/MAPPINGS/> -- jtn
  * Table for ISO-8859-11 derived from same on 2002-11-18. -- bjh21
  */
@@ -183,15 +183,12 @@ static const wchar_t iso_8859_9[] = {
     0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x0131, 0x015F, 0x00FF
 };
 
-/* ISO 8859-10:1993? (Latin-6, "Nordic" [Sami, Inuit, Icelandic]) */
-/* Translation table from RDB. unicode.org (ISO/IEC 8859-10:1998) has
- * U+2015 (HORIZONTAL BAR) at codepoint 0xBD instead
- * (U+2014 is EM DASH). -- jtn */
+/* ISO/IEC 8859-10:1998 (Latin-6, "Nordic" [Sami, Inuit, Icelandic]) */
 static const wchar_t iso_8859_10[] = {
     0x00A0, 0x0104, 0x0112, 0x0122, 0x012A, 0x0128, 0x0136, 0x00A7,
     0x013B, 0x0110, 0x0160, 0x0166, 0x017D, 0x00AD, 0x016A, 0x014A,
     0x00B0, 0x0105, 0x0113, 0x0123, 0x012B, 0x0129, 0x0137, 0x00B7,
-    0x013C, 0x0111, 0x0161, 0x0167, 0x017E, 0x2014, 0x016B, 0x014B,
+    0x013C, 0x0111, 0x0161, 0x0167, 0x017E, 0x2015, 0x016B, 0x014B,
     0x0100, 0x00C1, 0x00C2, 0x00C3, 0x00C4, 0x00C5, 0x00C6, 0x012E,
     0x010C, 0x00C9, 0x0118, 0x00CB, 0x0116, 0x00CD, 0x00CE, 0x00CF,
     0x00D0, 0x0145, 0x014C, 0x00D3, 0x00D4, 0x00D5, 0x00D6, 0x0168,
@@ -383,7 +380,7 @@ static const struct cp_list_item cp_list[] = {
     {"ISO-8859-7:1987 (Latin/Greek)", 0, 96, iso_8859_7},
     {"ISO-8859-8:1999 (Latin/Hebrew)", 0, 96, iso_8859_8},
     {"ISO-8859-9:1999 (Latin-5, Turkish)", 0, 96, iso_8859_9},
-    {"ISO-8859-10:1993 (Latin-6, Nordic)", 0, 96, iso_8859_10},
+    {"ISO-8859-10:1998 (Latin-6, Nordic)", 0, 96, iso_8859_10},
     {"ISO-8859-11:2001 (Latin/Thai)", 0, 96, iso_8859_11},
     {"ISO-8859-13:1998 (Latin-7, Baltic)", 0, 96, iso_8859_13},
     {"ISO-8859-14:1998 (Latin-8, Celtic)", 0, 96, iso_8859_14},
