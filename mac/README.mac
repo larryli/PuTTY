@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.11 2003/01/19 00:00:53 ben Exp $
+$Id: README.mac,v 1.12 2003/01/20 01:07:13 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -27,8 +27,11 @@ Compiling it:
  "Interfaces&Libraries:Libraries:SharedLibraries".
 
  The "mkputty.mpw" script does all the work, and currently producess a
- Classic 68K build of PuTTY called "PuTTY.68k", a CFM-68K build called
- "PuTTY.cfm68k", and a non-Carbon PowerPC build called "PuTTY.ppc".
+ Classic 68K build of PuTTY called "PuTTY.68k", a non-Carbon PowerPC
+ build called "PuTTY.ppc", and similar builds of PuTTYtel called
+ "PuTTYtel.68k" and "PuTTYtel.ppc".  The CFM-68K build is currently
+ disabled because it overflows the global data space and I can't work
+ out how to stop this happening.
 
 Runtime requirements:
 
@@ -53,16 +56,25 @@ Known bugs:
    connections to fail with "Incorrect CRC received on packet".  Using
    "-opt none" works around this.
 
-Unimplemented features:
+Unimplemented features (should be done before release):
 
  * TCP urgent data.
  * Clipping host resize requests to screen size.
  * Changing font size in reponse to resize requests.
  * TEXT copy/paste.
  * Catching up with current keyboard mapping in other ports.
- * Saving sessions.
  * Session configuration.
- * 'TMPL' for 'Int ' resources (copied into saved sessions).
+ * Filename abstraction (we want to use alias records).
+ * Host key database.
+ * Entropy collection.
+ * Private key files.
+ * Pageant and PuTTYgen.
+ * Apple Events.
+
+Wishlist (after release):
+ * SFTP client (GUI?)
+ * Carbon compatibility (requires Open Transport and Navigation Services).
+ * 'styl' copy (and paste, for script codes?).
 
 Local Variables:
 mode: text
