@@ -81,6 +81,7 @@ struct gui_data {
     void *eventlogstuff;
     char *progname, **gtkargvstart;
     int ngtkargs;
+    guint32 input_event_time; /* Timestamp of the most recent input event. */
 };
 
 struct draw_ctx {
@@ -446,6 +447,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     char output[32];
     wchar_t ucsoutput[2];
     int ucsval, start, end, special, use_ucsoutput;
+
+    /* Remember the timestamp. */
+    inst->input_event_time = event->time;
 
     /* By default, nothing is generated. */
     end = start = 0;
@@ -1021,6 +1025,9 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button, act;
 
+    /* Remember the timestamp. */
+    inst->input_event_time = event->time;
+
     show_mouseptr(inst, 1);
 
     if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
@@ -1076,6 +1083,9 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button;
+
+    /* Remember the timestamp. */
+    inst->input_event_time = event->time;
 
     show_mouseptr(inst, 1);
 
@@ -1391,7 +1401,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
     }
 
     if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
-				GDK_CURRENT_TIME)) {
+				inst->input_event_time)) {
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				 GDK_SELECTION_TYPE_STRING, 1);
 	if (inst->pasteout_data_ctext)
@@ -1427,6 +1437,7 @@ gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
 		     gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
+
     term_deselect(inst->term);
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
@@ -1461,14 +1472,16 @@ void request_paste(void *frontend)
 	 * fall back to an ordinary string.
 	 */
 	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      utf8_string_atom, GDK_CURRENT_TIME);
+			      utf8_string_atom,
+			      inst->input_event_time);
     } else {
 	/*
 	 * If we're in direct-to-font mode, we disable UTF-8
 	 * pasting, and go straight to ordinary string data.
 	 */
 	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
+			      GDK_SELECTION_TYPE_STRING,
+			      inst->input_event_time);
     }
 }
 
@@ -1491,7 +1504,8 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	 * text next.
 	 */
 	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      compound_text_atom, GDK_CURRENT_TIME);
+			      compound_text_atom,
+			      inst->input_event_time);
 	return;
     }
 
@@ -1501,7 +1515,8 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	 * string.
 	 */
 	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
+			      GDK_SELECTION_TYPE_STRING,
+			      inst->input_event_time);
 	return;
     }
 
@@ -1529,7 +1544,8 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	     * Compound text failed; fall back to STRING.
 	     */
 	    gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-				  GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
+				  GDK_SELECTION_TYPE_STRING,
+				  inst->input_event_time);
 	    return;
 	}
 	text = list[0];
