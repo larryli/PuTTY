@@ -1982,7 +1982,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 }
 
 void sshfwd_close(struct ssh_channel *c) {
-    if (c) {
+    if (c && !c->closes) {
         if (ssh_version == 1) {
             send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid, PKT_END);
         } else {
