@@ -60,6 +60,16 @@
 const wchar_t sel_nl[] = SEL_NL;
 
 /*
+ * Fetch the character at a particular position in a line array,
+ * for purposes of `wordtype'. The reason this isn't just a simple
+ * array reference is that if the character we find is UCSWIDE,
+ * then we must look one space further to the left.
+ */
+#define UCSGET(a, x) \
+    ( (x)>0 && ((a)[(x)] & (CHAR_MASK | CSET_MASK)) == UCSWIDE ? \
+	(a)[(x)-1] : (a)[(x)] )
+
+/*
  * Internal prototypes.
  */
 static unsigned long *resizeline(unsigned long *, int);
@@ -820,6 +830,44 @@ static void save_cursor(Terminal *term, int save)
 }
 
 /*
+ * This function is called before doing _anything_ which affects
+ * only part of a line of text. It is used to mark the boundary
+ * between two character positions, and it indicates that some sort
+ * of effect is going to happen on only one side of that boundary.
+ * 
+ * The effect of this function is to check whether a CJK
+ * double-width character is straddling the boundary, and to remove
+ * it and replace it with two spaces if so. (Of course, one or
+ * other of those spaces is then likely to be replaced with
+ * something else again, as a result of whatever happens next.)
+ * 
+ * Also, if the boundary is at the right-hand _edge_ of the screen,
+ * it implies something deliberate is being done to the rightmost
+ * column position; hence we must clear LATTR_WRAPPED2.
+ * 
+ * The input to the function is the coordinates of the _second_
+ * character of the pair.
+ */
+static void check_boundary(Terminal *term, int x, int y)
+{
+    unsigned long *ldata;
+
+    /* Validate input coordinates, just in case. */
+    if (x == 0 || x > term->cols)
+	return;
+
+    ldata = lineptr(y);
+    if (x == term->cols) {
+	ldata[x] &= ~LATTR_WRAPPED2;
+    } else {
+	if ((ldata[x] & (CHAR_MASK | CSET_MASK)) == UCSWIDE) {
+	    ldata[x-1] = ldata[x] =
+		(ldata[x-1] &~ (CHAR_MASK | CSET_MASK)) | ATTR_ASCII | ' ';
+	}
+    }
+}
+
+/*
  * Erase a large portion of the screen: the whole screen, or the
  * whole line, or parts thereof.
  */
@@ -850,6 +898,8 @@ static void erase_lots(Terminal *term,
 	end = term->curs;
 	incpos(end);
     }
+    if (!from_begin || !to_end)
+	check_boundary(term, term->curs.x, term->curs.y);
     check_selection(term, start, end);
 
     /* Clear screen also forces a full window redraw, just in case. */
@@ -859,7 +909,7 @@ static void erase_lots(Terminal *term,
     ldata = lineptr(start.y);
     while (poslt(start, end)) {
 	if (start.x == term->cols && !erase_lattr)
-	    ldata[start.x] &= ~LATTR_WRAPPED;
+	    ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
 	else
 	    ldata[start.x] = term->erase_char;
 	if (incpos(start) && start.y < term->rows)
@@ -885,6 +935,9 @@ static void insch(Terminal *term, int n)
     cursplus.y = term->curs.y;
     cursplus.x = term->curs.x + n;
     check_selection(term, term->curs, cursplus);
+    check_boundary(term, term->curs.x, term->curs.y);
+    if (dir < 0)
+	check_boundary(term, term->curs.x + n, term->curs.y);
     ldata = lineptr(term->curs.y);
     if (dir < 0) {
 	memmove(ldata + term->curs.x, ldata + term->curs.x + n, m * TSIZE);
@@ -1549,9 +1602,30 @@ void term_out(Terminal *term)
 			width = wcwidth((wchar_t) c);
 		    switch (width) {
 		      case 2:
-			*term->cpos++ = c | term->curr_attr;
-			if (++term->curs.x == term->cols) {
-			    *term->cpos |= LATTR_WRAPPED;
+			/*
+			 * If we're about to display a double-width
+			 * character starting in the rightmost
+			 * column, then we do something special
+			 * instead. We must print a space in the
+			 * last column of the screen, then wrap;
+			 * and we also set LATTR_WRAPPED2 which
+			 * instructs subsequent cut-and-pasting not
+			 * only to splice this line to the one
+			 * after it, but to ignore the space in the
+			 * last character position as well.
+			 * (Because what was actually output to the
+			 * terminal was presumably just a sequence
+			 * of CJK characters, and we don't want a
+			 * space to be pasted in the middle of
+			 * those just because they had the
+			 * misfortune to start in the wrong parity
+			 * column. xterm concurs.)
+			 */
+			check_boundary(term, term->curs.x, term->curs.y);
+			check_boundary(term, term->curs.x+2, term->curs.y);
+			if (term->curs.x == term->cols-1) {
+			    *term->cpos++ = ATTR_ASCII | ' ' | term->curr_attr;
+			    *term->cpos |= LATTR_WRAPPED | LATTR_WRAPPED2;
 			    if (term->curs.y == term->marg_b)
 				scroll(term, term->marg_t, term->marg_b,
 				       1, TRUE);
@@ -1559,10 +1633,17 @@ void term_out(Terminal *term)
 				term->curs.y++;
 			    term->curs.x = 0;
 			    fix_cpos;
+			    /* Now we must check_boundary again, of course. */
+			    check_boundary(term, term->curs.x, term->curs.y);
+			    check_boundary(term, term->curs.x+2, term->curs.y);
 			}
+			*term->cpos++ = c | term->curr_attr;
 			*term->cpos++ = UCSWIDE | term->curr_attr;
+			term->curs.x++;
 			break;
 		      case 1:
+			check_boundary(term, term->curs.x, term->curs.y);
+			check_boundary(term, term->curs.x+1, term->curs.y);
 			*term->cpos++ = c | term->curr_attr;
 			break;
 		      default:
@@ -2362,6 +2443,8 @@ void term_out(Terminal *term)
 				n = term->cols - term->curs.x;
 			    cursplus = term->curs;
 			    cursplus.x += n;
+			    check_boundary(term, term->curs.x, term->curs.y);
+			    check_boundary(term, term->curs.x+n, term->curs.y);
 			    check_selection(term, term->curs, cursplus);
 			    while (n--)
 				*p++ = term->erase_char;
@@ -2900,7 +2983,7 @@ static int linecmp(Terminal *term, unsigned long *a, unsigned long *b)
  */
 static void do_paint(Terminal *term, Context ctx, int may_optimise)
 {
-    int i, j, our_curs_y;
+    int i, j, our_curs_y, our_curs_x;
     unsigned long rv, cursor;
     pos scrpos;
     char ch[1024];
@@ -2939,13 +3022,27 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     } else
 	cursor = 0;
     our_curs_y = term->curs.y - term->disptop;
+    {
+	/*
+	 * Adjust the cursor position in the case where it's
+	 * resting on the right-hand half of a CJK wide character.
+	 * xterm's behaviour here, which seems adequate to me, is
+	 * to display the cursor covering the _whole_ character,
+	 * exactly as if it were one space to the left.
+	 */
+	unsigned long *ldata = lineptr(term->curs.y);
+	our_curs_x = term->curs.x;
+	if (our_curs_x > 0 &&
+	    (ldata[our_curs_x] & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
+	    our_curs_x--;
+    }
 
     if (term->dispcurs && (term->curstype != cursor ||
 			   term->dispcurs !=
 			   term->disptext + our_curs_y * (term->cols + 1) +
-			   term->curs.x)) {
+			   our_curs_x)) {
 	if (term->dispcurs > term->disptext && 
-		(*term->dispcurs & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
+	    (*term->dispcurs & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
 	    term->dispcurs[-1] |= ATTR_INVALID;
 	if ( (term->dispcurs[1] & (CHAR_MASK | CSET_MASK)) == UCSWIDE)
 	    term->dispcurs[1] |= ATTR_INVALID;
@@ -3033,7 +3130,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		tattr |= ATTR_NARROW;
 
 	    /* Cursor here ? Save the 'background' */
-	    if (i == our_curs_y && j == term->curs.x) {
+	    if (i == our_curs_y && j == our_curs_x) {
 		cursor_background = tattr | tchar;
 		term->dispcurs = term->disptext + idx;
 	    }
@@ -3078,11 +3175,12 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		if (++j < term->cols) {
 		    idx++;
 		    d++;
-		    /* Cursor is here ? Ouch! */
-		    if (i == our_curs_y && j == term->curs.x) {
-			cursor_background = *d;
-			term->dispcurs = term->disptext + idx;
-		    }
+		    /*
+		     * By construction above, the cursor should not
+		     * be on the right-hand half of this character.
+		     * Ever.
+		     */
+		    assert(!(i == our_curs_y && j == our_curs_x));
 		    if (term->disptext[idx] != *d)
 			dirty_run = TRUE;
 		    term->disptext[idx] = *d;
@@ -3098,7 +3196,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	if (i == our_curs_y && (term->curstype != cursor || updated_line)) {
 	    ch[0] = (char) (cursor_background & CHAR_MASK);
 	    attr = (cursor_background & ATTR_MASK) | cursor;
-	    do_cursor(ctx, term->curs.x, i, ch, 1, attr, lattr);
+	    do_cursor(ctx, our_curs_x, i, ch, 1, attr, lattr);
 	    term->curstype = cursor;
 	}
     }
@@ -3247,6 +3345,9 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 		decpos(nlpos);
 	    if (poslt(nlpos, bottom))
 		nl = TRUE;
+	} else if (ldata[term->cols] & LATTR_WRAPPED2) {
+	    /* Ignore the last char on the line in a WRAPPED2 line. */
+	    decpos(nlpos);
 	}
 
 	/*
@@ -3512,11 +3613,13 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 	 * In this mode, the units are maximal runs of characters
 	 * whose `wordness' has the same value.
 	 */
-	wvalue = wordtype(term, ldata[p.x]);
+	wvalue = wordtype(term, UCSGET(ldata, p.x));
 	if (dir == +1) {
 	    while (1) {
-		if (p.x < term->cols-1) {
-		    if (wordtype(term, ldata[p.x + 1]) == wvalue)
+		int maxcols = (ldata[term->cols] & LATTR_WRAPPED2 ?
+			       term->cols-1 : term->cols);
+		if (p.x < maxcols-1) {
+		    if (wordtype(term, UCSGET(ldata, p.x + 1)) == wvalue)
 			p.x++;
 		    else
 			break;
@@ -3524,7 +3627,7 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 		    if (ldata[term->cols] & LATTR_WRAPPED) {
 			unsigned long *ldata2;
 			ldata2 = lineptr(p.y+1);
-			if (wordtype(term, ldata2[0]) == wvalue) {
+			if (wordtype(term, UCSGET(ldata2, 0)) == wvalue) {
 			    p.x = 0;
 			    p.y++;
 			    ldata = ldata2;
@@ -3537,20 +3640,26 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 	} else {
 	    while (1) {
 		if (p.x > 0) {
-		    if (wordtype(term, ldata[p.x - 1]) == wvalue)
+		    if (wordtype(term, UCSGET(ldata, p.x - 1)) == wvalue)
 			p.x--;
 		    else
 			break;
 		} else {
 		    unsigned long *ldata2;
+		    int maxcols;
 		    if (p.y <= topy)
 			break;
 		    ldata2 = lineptr(p.y-1);
-		    if ((ldata2[term->cols] & LATTR_WRAPPED) &&
-			wordtype(term, ldata2[term->cols-1]) == wvalue) {
-			p.x = term->cols-1;
-			p.y--;
-			ldata = ldata2;
+		    maxcols = (ldata2[term->cols] & LATTR_WRAPPED2 ?
+			      term->cols-1 : term->cols);
+		    if (ldata2[term->cols] & LATTR_WRAPPED) {
+			if (wordtype(term, UCSGET(ldata2, maxcols-1))
+			    == wvalue) {
+			    p.x = maxcols-1;
+			    p.y--;
+			    ldata = ldata2;
+			} else
+			    break;
 		    } else
 			break;
 		}

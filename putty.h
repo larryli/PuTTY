@@ -51,6 +51,7 @@ typedef struct terminal_tag Terminal;
 #define LATTR_BOT    0x03000000UL
 #define LATTR_MODE   0x03000000UL
 #define LATTR_WRAPPED 0x10000000UL
+#define LATTR_WRAPPED2 0x20000000UL
 
 #define ATTR_INVALID 0x00FF0000UL
 
@@ -69,7 +70,15 @@ typedef struct terminal_tag Terminal;
 #define DIRECT_FONT(c) ((c&0xFE00)==0xF000)
 
 #define UCSERR	     (ATTR_LINEDRW|'a')	/* UCS Format error character. */
-#define UCSWIDE	     0x303F
+/*
+ * UCSWIDE is a special value used in the terminal data to signify
+ * the character cell containing the right-hand half of a CJK wide
+ * character. We use 0xDFFF because it's part of the surrogate
+ * range and hence won't be used for anything else (it's impossible
+ * to input it via UTF-8 because our UTF-8 decoder correctly
+ * rejects surrogates).
+ */
+#define UCSWIDE	     0xDFFF
 
 #define ATTR_NARROW  0x20000000UL
 #define ATTR_WIDE    0x10000000UL
