@@ -3170,8 +3170,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
-    /* keys is for ToAsciiEx; XXX do we know how big this needs to be? */
-    static BYTE keys[3];
+    /* keys is for ToAsciiEx. There's some ick here, see below. */
+    static WORD keys[3];
     static int compose_char = 0;
     static WPARAM compose_key = 0;
 
@@ -3862,12 +3862,27 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    keystate[VK_CAPITAL] = 0;
 	}
 
-	/* 'keys' parameter is declared in MSDN documentation as
-	 * 'LPWORD lpChar'. In 0.54 and below we took that to mean that
-	 * 'keys' should be an array of WORD, but an array of BYTE works
-	 * better on keyboard with dead keys, at least for Win2K/US-
-	 * International and WinXP/German. Bletch. */
-	r = ToAsciiEx(wParam, scan, keystate, (LPWORD)keys, 0, kbd_layout);
+	/* XXX how do we know what the max size of the keys array should
+	 * be is? There's indication on MS' website of an Inquire/InquireEx
+	 * functioning returning a KBINFO structure which tells us. */
+	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+	    /* XXX 'keys' parameter is declared in MSDN documentation as
+	     * 'LPWORD lpChar'.
+	     * The experience of a French user indicates that on
+	     * Win98, WORD[] should be passed in, but on Win2K, it should
+	     * be BYTE[]. German WinXP and my Win2K with "US International"
+	     * driver corroborate this.
+	     * Experimentally I've conditionalised the behaviour on the
+	     * Win9x/NT split, but I suspect it's worse than that.
+	     * See wishlist item `win-dead-keys' for more horrible detail
+	     * and speculations. */
+	    BYTE keybs[3];
+	    int i;
+	    r = ToAsciiEx(wParam, scan, keystate, (LPWORD)keybs, 0, kbd_layout);
+	    for (i=0; i<3; i++) keys[i] = keybs[i];
+	} else {
+	    r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
+	}
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
 	    if (alt_sum) {
