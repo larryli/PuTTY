@@ -3152,7 +3152,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_defer();
 		}
 		ssh2_pkt_defersend();
-		logevent("Sent password\r\n");
+		logevent("Sent password");
 		type = AUTH_TYPE_PASSWORD;
 	    } else {
 		c_write_str("No supported authentication methods left to try!\r\n");
