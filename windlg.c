@@ -437,6 +437,7 @@ enum { IDCX_ABOUT =
     IDC_TPASSIVE,
     IDC_TACTIVE,
     IDC_TELNETKEY,
+    IDC_TELNETRET,
     telnetpanelend,
 
     rloginpanelstart,
@@ -802,6 +803,7 @@ char *help_context_cmd(int id)
       case IDC_TACTIVE:
         return "JI(`',`telnet.passive')";
       case IDC_TELNETKEY:
+      case IDC_TELNETRET:
         return "JI(`',`telnet.specialkeys')";
 
       case IDC_R_TSSTATIC:
@@ -969,6 +971,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_COMPOSEKEY, cfg.compose_key);
     CheckDlgButton(hwnd, IDC_CTRLALTKEYS, cfg.ctrlaltkeys);
     CheckDlgButton(hwnd, IDC_TELNETKEY, cfg.telnet_keyboard);
+    CheckDlgButton(hwnd, IDC_TELNETRET, cfg.telnet_newline);
     CheckRadioButton(hwnd, IDC_ECHOBACKEND, IDC_ECHONO,
 		     cfg.localecho == LD_BACKEND ? IDC_ECHOBACKEND :
 		     cfg.localecho == LD_YES ? IDC_ECHOYES : IDC_ECHONO);
@@ -1580,6 +1583,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    beginbox(&cp, "Adjust telnet session.", IDC_BOX_CONNECTION1);
 	    checkbox(&cp, "Keyboard sends telnet Backspace and Interrupt",
 		     IDC_TELNETKEY);
+	    checkbox(&cp, "Return key sends telnet New Line instead of ^M",
+		     IDC_TELNETRET);
 	    endbox(&cp);
 	}
 	beginbox(&cp, "Sending of null packets to keep session active",
@@ -1620,6 +1625,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      IDC_TACTIVE, NULL);
 	    checkbox(&cp, "&Keyboard sends telnet Backspace and Interrupt",
 		     IDC_TELNETKEY);
+	    checkbox(&cp, "Return key sends telnet New Line instead of ^M",
+		     IDC_TELNETRET);
 	    endbox(&cp);
 	}
     }
@@ -2332,6 +2339,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.telnet_keyboard =
 			IsDlgButtonChecked(hwnd, IDC_TELNETKEY);
+		break;
+	      case IDC_TELNETRET:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.telnet_newline =
+			IsDlgButtonChecked(hwnd, IDC_TELNETRET);
 		break;
 	      case IDC_WRAPMODE:
 		if (HIWORD(wParam) == BN_CLICKED ||

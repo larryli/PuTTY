@@ -281,6 +281,7 @@ typedef struct {
     int app_keypad;
     int nethack_keypad;
     int telnet_keyboard;
+    int telnet_newline;
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
     int alt_only;		       /* is it special? */

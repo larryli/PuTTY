@@ -198,6 +198,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "ComposeKey", cfg->compose_key);
     write_setting_i(sesskey, "CtrlAltKeys", cfg->ctrlaltkeys);
     write_setting_i(sesskey, "TelnetKey", cfg->telnet_keyboard);
+    write_setting_i(sesskey, "TelnetRet", cfg->telnet_newline);
     write_setting_i(sesskey, "LocalEcho", cfg->localecho);
     write_setting_i(sesskey, "LocalEdit", cfg->localedit);
     write_setting_s(sesskey, "Answerback", cfg->answerback);
@@ -388,6 +389,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ComposeKey", 0, &cfg->compose_key);
     gppi(sesskey, "CtrlAltKeys", 1, &cfg->ctrlaltkeys);
     gppi(sesskey, "TelnetKey", 0, &cfg->telnet_keyboard);
+    gppi(sesskey, "TelnetRet", 1, &cfg->telnet_newline);
     gppi(sesskey, "LocalEcho", LD_BACKEND, &cfg->localecho);
     gppi(sesskey, "LocalEdit", LD_BACKEND, &cfg->localedit);
     gpps(sesskey, "Answerback", "PuTTY", cfg->answerback,

@@ -200,7 +200,7 @@ void ldisc_send(char *buf, int len, int interactive)
 			back->send(term_buf, term_buflen);
 		    if (cfg.protocol == PROT_RAW)
 			back->send("\r\n", 2);
-		    else if (cfg.protocol == PROT_TELNET)
+		    else if (cfg.protocol == PROT_TELNET && cfg.telnet_newline)
 			back->special(TS_EOL);
 		    else
 			back->send("\r", 1);
@@ -237,7 +237,10 @@ void ldisc_send(char *buf, int len, int interactive)
 	    if (keyflag && cfg.protocol == PROT_TELNET && len == 1) {
 		switch (buf[0]) {
 		  case CTRL('M'):
-		    back->special(TS_EOL);
+		    if (cfg.protocol == PROT_TELNET && cfg.telnet_newline)
+			back->special(TS_EOL);
+		    else
+			back->send("\r", 1);
 		    break;
 		  case CTRL('?'):
 		  case CTRL('H'):
