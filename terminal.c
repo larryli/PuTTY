@@ -2055,24 +2055,27 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 		}
 		while (q < nlpos && q < selend)
 		{
+#if 0
 		    /* VT Specials -> ISO8859-1  */
 		    static const char poorman2[] =
  "* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
+#endif
 
 		    int ch = (*q & CHAR_MASK);
 
-		    if ((*q & ATTR_LINEDRW) && ch >= 0x60 && ch <  0x7F )
-		    {
+#if 0
+		    if ((*q & ATTR_LINEDRW) && ch >= 0x60 && ch < 0x7F) {
 			int x;
 			*p++ = poorman2[2*(ch-0x60)];
 			if ( (x = poorman2[2*(ch-0x60)+1]) != ' ')
 			    *p++ = x;
-		    }
-#if 0
-		    else if ((*q & ATTR_GBCHR) && ch == '#')
-			*p++ = (unsigned char) 0xA3;
+		    } else
 #endif
+#if 0
+		    if ((*q & ATTR_GBCHR) && ch == '#')
+			*p++ = (unsigned char) 0xA3;
 		    else
+#endif
 			*p++ = (unsigned char) ch;
 		    q++;
 		}
