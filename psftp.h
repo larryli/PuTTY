@@ -25,4 +25,10 @@ char *psftp_lcd(char *newdir);
  */
 int ssh_sftp_loop_iteration(void);
 
+/*
+ * The main program in psftp.c. Called from main() in the platform-
+ * specific code, after doing any platform-specific initialisation.
+ */
+int psftp_main(int argc, char *argv[]);
+
 #endif /* PUTTY_PSFTP_H */

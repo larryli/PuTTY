@@ -159,7 +159,7 @@ puttytel : [X] UXTERM uxmisc misc ldisc settings pty uxsel be_nossh uxstore
 
 plink    : [U] uxplink uxcons NONSSH UXSSH be_all logging UXMISC signal ux_x11
 
-# psftp    : [U] psftp uxsftp console UXSSH be_none SFTP UXMISC
+psftp    : [U] psftp uxsftp uxcons UXSSH be_none SFTP UXMISC
 
 PuTTY    : [M] terminal wcwidth ldiscucs logging be_all mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACSSH MACMISC CHARSET

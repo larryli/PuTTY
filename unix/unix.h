@@ -51,8 +51,6 @@ unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define WCHAR wchar_t
 #define BYTE unsigned char
 
-GLOBAL void *logctx;
-
 /* Things pty.c needs from pterm.c */
 char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
@@ -127,5 +125,14 @@ int init_ucs(struct unicode_data *ucsdata,
  * Spare function exported directly from uxnet.c.
  */
 int sk_getxdmdata(void *sock, unsigned long *ip, int *port);
+
+/*
+ * General helpful Unix stuff: more helpful version of the FD_SET
+ * macro, which also handles maxfd.
+ */
+#define FD_SET_MAX(fd, max, set) do { \
+    FD_SET(fd, &set); \
+    if (max < fd + 1) max = fd + 1; \
+} while (0)
 
 #endif

@@ -894,20 +894,20 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 		  default:
 		    printf("chmod: file mode '%.*s' contains unrecognised"
 			   " user/group/other specifier '%c'\n",
-			   strcspn(modebegin, ","), modebegin, *mode);
+			   (int)strcspn(modebegin, ","), modebegin, *mode);
 		    return 0;
 		}
 		mode++;
 	    }
 	    if (!*mode || *mode == ',') {
 		printf("chmod: file mode '%.*s' is incomplete\n",
-		       strcspn(modebegin, ","), modebegin);
+		       (int)strcspn(modebegin, ","), modebegin);
 		return 0;
 	    }
 	    action = *mode++;
 	    if (!*mode || *mode == ',') {
 		printf("chmod: file mode '%.*s' is incomplete\n",
-		       strcspn(modebegin, ","), modebegin);
+		       (int)strcspn(modebegin, ","), modebegin);
 		return 0;
 	    }
 	    perms = 0;
@@ -922,7 +922,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 			(subset & 06777) != 02070) {
 			printf("chmod: file mode '%.*s': set[ug]id bit should"
 			       " be used with exactly one of u or g only\n",
-			       strcspn(modebegin, ","), modebegin);
+			       (int)strcspn(modebegin, ","), modebegin);
 			return 0;
 		    }
 		    perms |= 06000;
@@ -930,7 +930,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 		  default:
 		    printf("chmod: file mode '%.*s' contains unrecognised"
 			   " permission specifier '%c'\n",
-			   strcspn(modebegin, ","), modebegin, *mode);
+			   (int)strcspn(modebegin, ","), modebegin, *mode);
 		    return 0;
 		}
 		mode++;
@@ -938,7 +938,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 	    if (!(subset & 06777) && (perms &~ subset)) {
 		printf("chmod: file mode '%.*s' contains no user/group/other"
 		       " specifier and permissions other than 't' \n",
-		       strcspn(modebegin, ","), modebegin);
+		       (int)strcspn(modebegin, ","), modebegin);
 		return 0;
 	    }
 	    perms &= subset;
@@ -1740,6 +1740,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 {
     char *host, *realhost;
     const char *err;
+    void *logctx;
 
     /* Separate host and username */
     host = userhost;
@@ -1925,7 +1926,11 @@ int psftp_main(int argc, char *argv[])
     char *batchfile = NULL;
     int errors = 0;
 
-    flags = FLAG_STDERR | FLAG_INTERACTIVE | FLAG_SYNCAGENT;
+    flags = FLAG_STDERR | FLAG_INTERACTIVE
+#ifdef FLAG_SYNCAGENT
+	| FLAG_SYNCAGENT
+#endif
+	;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     ssh_get_line = &console_get_line;
     sk_init();

@@ -14,12 +14,6 @@
 #include <pwd.h>
 #include <sys/ioctl.h>
 
-/* More helpful version of the FD_SET macro, to also handle maxfd. */
-#define FD_SET_MAX(fd, max, set) do { \
-    FD_SET(fd, &set); \
-    if (max < fd + 1) max = fd + 1; \
-} while (0)
-
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
 #include "storage.h"
@@ -287,7 +281,7 @@ int main(int argc, char **argv)
     int connopen;
     int exitcode;
     int errors;
-    void *ldisc;
+    void *ldisc, *logctx;
 
     ssh_get_line = console_get_line;
 
@@ -573,6 +567,7 @@ int main(int argc, char **argv)
      * Start up the connection.
      */
     logctx = log_init(NULL, &cfg);
+    console_provide_logctx(logctx);
     {
 	const char *error;
 	char *realhost;
