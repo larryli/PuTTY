@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.8 2003/04/05 14:32:58 ben Exp $ */
+/* $Id: testback.c,v 1.9 2003/05/10 11:57:55 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -33,8 +33,10 @@
 
 #include "putty.h"
 
-static char *null_init(void *, void **, Config *, char *, int, char **, int);
-static char *loop_init(void *, void **, Config *, char *, int, char **, int);
+static const char *null_init(void *, void **, Config *, char *, int, char **,
+			     int);
+static const char *loop_init(void *, void **, Config *, char *, int, char **,
+			     int);
 static void null_free(void *);
 static void loop_free(void *);
 static void null_reconfig(void *, Config *);
@@ -68,16 +70,16 @@ struct loop_state {
     Terminal *term;
 };
 
-static char *null_init(void *frontend_handle, void **backend_handle,
-		       Config *cfg, char *host, int port, char **realhost,
-		       int nodelay) {
+static const char *null_init(void *frontend_handle, void **backend_handle,
+			     Config *cfg, char *host, int port,
+			     char **realhost, int nodelay) {
 
     return NULL;
 }
 
-static char *loop_init(void *frontend_handle, void **backend_handle,
-		       Config *cfg, char *host, int port, char **realhost,
-		       int nodelay) {
+static const char *loop_init(void *frontend_handle, void **backend_handle,
+			     Config *cfg, char *host, int port,
+			     char **realhost, int nodelay) {
     struct loop_state *st = snew(struct loop_state);
 
     st->term = frontend_handle;
