@@ -95,12 +95,12 @@ static void lz77_compress(struct LZ77Context *ctx,
 
 #define INVALID -1		       /* invalid hash _and_ invalid offset */
 struct WindowEntry {
-    int next, prev;		       /* array indices within the window */
-    int hashval;
+    short next, prev;		       /* array indices within the window */
+    short hashval;
 };
 
 struct HashEntry {
-    int first;			       /* window index of first in chain */
+    short first;		       /* window index of first in chain */
 };
 
 struct Match {
@@ -393,7 +393,8 @@ static const unsigned char mirrorbytes[256] = {
 };
 
 typedef struct {
-    int code, extrabits, min, max;
+    short code, extrabits;
+    int min, max;
 } coderecord;
 
 static const coderecord lencodes[] = {
@@ -760,7 +761,7 @@ struct zlib_tableentry;
 
 struct zlib_tableentry {
     unsigned char nbits;
-    int code;
+    short code;
     struct zlib_table *nexttable;
 };
 

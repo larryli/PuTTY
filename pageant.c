@@ -224,11 +224,11 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 static void keylist_update(void) {
     struct RSAKey *rkey;
     struct ssh2_userkey *skey;
-    enum234 e;
+    int i;
 
     if (keylist) {
         SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
-        for (rkey = first234(rsakeys, &e); rkey; rkey = next234(&e)) {
+        for (i = 0; NULL != (rkey = index234(rsakeys, i)); i++) {
             char listentry[512], *p;
             /*
              * Replace two spaces in the fingerprint with tabs, for
@@ -242,7 +242,7 @@ static void keylist_update(void) {
             SendDlgItemMessage (keylist, 100, LB_ADDSTRING,
                                 0, (LPARAM)listentry);
         }
-        for (skey = first234(ssh2keys, &e); skey; skey = next234(&e)) {
+        for (i = 0; NULL != (skey = index234(ssh2keys, i)); i++) {
             char listentry[512], *p;
 	    int len;
             /*
@@ -438,15 +438,15 @@ static void answer_msg(void *msg) {
          * Reply with SSH1_AGENT_RSA_IDENTITIES_ANSWER.
          */
         {
-            enum234 e;
             struct RSAKey *key;
             int len, nkeys;
+	    int i;
 
             /*
              * Count up the number and length of keys we hold.
              */
             len = nkeys = 0;
-            for (key = first234(rsakeys, &e); key; key = next234(&e)) {
+            for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
                 nkeys++;
                 len += 4;              /* length field */
                 len += ssh1_bignum_length(key->exponent);
@@ -465,7 +465,7 @@ static void answer_msg(void *msg) {
             ret[4] = SSH1_AGENT_RSA_IDENTITIES_ANSWER;
             PUT_32BIT(ret+5, nkeys);
             p = ret + 5 + 4;
-            for (key = first234(rsakeys, &e); key; key = next234(&e)) {
+            for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
                 PUT_32BIT(p, bignum_bitcount(key->modulus));
                 p += 4;
                 p += ssh1_write_bignum(p, key->exponent);
@@ -481,17 +481,17 @@ static void answer_msg(void *msg) {
          * Reply with SSH2_AGENT_IDENTITIES_ANSWER.
          */
         {
-            enum234 e;
             struct ssh2_userkey *key;
             int len, nkeys;
 	    unsigned char *blob;
 	    int bloblen;
+	    int i;
 
             /*
              * Count up the number and length of keys we hold.
              */
             len = nkeys = 0;
-            for (key = first234(ssh2keys, &e); key; key = next234(&e)) {
+            for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
                 nkeys++;
                 len += 4;              /* length field */
 		blob = key->alg->public_blob(key->data, &bloblen);
@@ -511,7 +511,7 @@ static void answer_msg(void *msg) {
             ret[4] = SSH2_AGENT_IDENTITIES_ANSWER;
             PUT_32BIT(ret+5, nkeys);
             p = ret + 5 + 4;
-            for (key = first234(ssh2keys, &e); key; key = next234(&e)) {
+            for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
 		blob = key->alg->public_blob(key->data, &bloblen);
                 PUT_32BIT(p, bloblen);
                 p += 4;
@@ -743,9 +743,8 @@ static void answer_msg(void *msg) {
          */
         {
 	    struct RSAKey *rkey;
-	    enum234 e;
 
-            while ( (rkey = first234(rsakeys, &e)) != NULL ) {
+            while ( (rkey = index234(rsakeys, 0)) != NULL ) {
                 del234(rsakeys, rkey);
 		freersakey(rkey);
 		sfree(rkey);
@@ -762,9 +761,8 @@ static void answer_msg(void *msg) {
          */
         {
             struct ssh2_userkey *skey;
-	    enum234 e;
 
-            while ( (skey = first234(ssh2keys, &e)) != NULL ) {
+            while ( (skey = index234(ssh2keys, 0)) != NULL ) {
                 del234(ssh2keys, skey);
 		skey->alg->freekey(skey->data);
 		sfree(skey);
@@ -925,7 +923,6 @@ static void prompt_add_keyfile(void) {
  */
 static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam) {
-    enum234 e;
     struct RSAKey *rkey;
     struct ssh2_userkey *skey;
 
@@ -970,11 +967,12 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int n = SendDlgItemMessage (hwnd, 100, LB_GETCURSEL, 0, 0);
+		int i;
 		if (n == LB_ERR) {
 		    MessageBeep(0);
 		    break;
 		}
-                for (rkey = first234(rsakeys, &e); rkey; rkey = next234(&e))
+                for (i = 0; NULL != (rkey = index234(rsakeys, i)); i++)
                     if (n-- == 0)
                         break;
 		if (rkey) {
@@ -982,7 +980,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		    freersakey(rkey);
 		    sfree(rkey);
 		} else {
-		    for (skey = first234(ssh2keys, &e); skey; skey = next234(&e))
+		    for (i = 0; NULL != (skey = index234(ssh2keys, i)); i++)
 			if (n-- == 0)
 			    break;
 		    if (skey) {

@@ -747,11 +747,13 @@ static char *sk_tcp_socket_error(Socket sock) {
 /*
  * For Plink: enumerate all sockets currently active.
  */
-SOCKET first_socket(enum234 *e) {
-    Actual_Socket s = first234(sktree, e);
+SOCKET first_socket(int *state) {
+    Actual_Socket s;
+    *state = 0;
+    s = index234(sktree, (*state)++);
     return s ? s->s : INVALID_SOCKET;
 }
-SOCKET next_socket(enum234 *e) {
-    Actual_Socket s = next234(e);
+SOCKET next_socket(int *state) {
+    Actual_Socket s = index234(sktree, (*state)++);
     return s ? s->s : INVALID_SOCKET;
 }

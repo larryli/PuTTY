@@ -365,6 +365,42 @@ static int ssh_channelfind(void *av, void *bv) {
     return 0;
 }
 
+static int alloc_channel_id(void) {
+    const int CHANNEL_NUMBER_OFFSET = 256;
+    int low, high, mid;
+    int tsize;
+    struct ssh_channel *c;
+
+    /*
+     * First-fit allocation of channel numbers: always pick the
+     * lowest unused one. To do this, binary-search using the
+     * counted B-tree to find the largest channel ID which is in a
+     * contiguous sequence from the beginning. (Precisely
+     * everything in that sequence must have ID equal to its tree
+     * index plus CHANNEL_NUMBER_OFFSET.)
+     */
+    tsize = count234(ssh_channels);
+
+    low = -1; high = tsize;
+    while (high - low > 1) {
+	mid = (high + low) / 2;
+	c = index234(ssh_channels, mid);
+	if (c->localid == mid + CHANNEL_NUMBER_OFFSET)
+	    low = mid;		       /* this one is fine */
+	else
+	    high = mid;		       /* this one is past it */
+    }
+    /*
+     * Now low points to either -1, or the tree index of the
+     * largest ID in the initial sequence.
+     */
+    {
+	unsigned i = low + 1 + CHANNEL_NUMBER_OFFSET;
+	assert(NULL == find234(ssh_channels, &i, ssh_channelfind));
+    }
+    return low + 1 + CHANNEL_NUMBER_OFFSET;
+}
+
 static void c_write (char *buf, int len) {
     if ((flags & FLAG_STDERR)) {
         int i;
@@ -2234,9 +2270,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             } else if (pktin.type == SSH1_SMSG_X11_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * X-Server. Give them back a local channel number. */
-                unsigned i;
                 struct ssh_channel *c, *d;
-                enum234 e;
 
 		logevent("Received X11 connect request");
 		/* Refuse if X11 forwarding is disabled. */
@@ -2256,13 +2290,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 				  PKT_END);
 		    } else {
 		      logevent("opening X11 forward connection succeeded");
-		      for (i=1, d = first234(ssh_channels, &e); d; d = next234(&e)) {
-                          if (d->localid > i)
-                              break;     /* found a free number */
-                          i = d->localid + 1;
-		      }
 		      c->remoteid = GET_32BIT(pktin.body);
-		      c->localid = i;
+		      c->localid = alloc_channel_id();
 		      c->closes = 0;
 		      c->type = CHAN_X11;   /* identify channel type */
 		      add234(ssh_channels, c);
@@ -2277,7 +2306,6 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                  * agent. Give them back a local channel number. */
                 unsigned i;
                 struct ssh_channel *c;
-                enum234 e;
 
 		/* Refuse if agent forwarding is disabled. */
 		if (!ssh_agentfwd_enabled) {
@@ -2285,15 +2313,9 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 				PKT_INT, GET_32BIT(pktin.body),
 				PKT_END);
 		} else {
-		    i = 1;
-		    for (c = first234(ssh_channels, &e); c; c = next234(&e)) {
-			if (c->localid > i)
-			    break;     /* found a free number */
-			i = c->localid + 1;
-		    }
 		    c = smalloc(sizeof(struct ssh_channel));
 		    c->remoteid = GET_32BIT(pktin.body);
-		    c->localid = i;
+		    c->localid = alloc_channel_id();
 		    c->closes = 0;
 		    c->type = CHAN_AGENT;   /* identify channel type */
 		    c->u.a.lensofar = 0;
@@ -3512,8 +3534,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * So now create a channel with a session in it.
      */
+    ssh_channels = newtree234(ssh_channelcmp);
     mainchan = smalloc(sizeof(struct ssh_channel));
-    mainchan->localid = 100;           /* as good as any */
+    mainchan->localid = alloc_channel_id();
     ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
     ssh2_pkt_addstring("session");
     ssh2_pkt_adduint32(mainchan->localid);
@@ -3537,7 +3560,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     mainchan->v2.remmaxpkt = ssh2_pkt_getuint32();
     mainchan->v2.outbuffer = NULL;
     mainchan->v2.outbuflen = mainchan->v2.outbufsize = 0;
-    ssh_channels = newtree234(ssh_channelcmp);
     add234(ssh_channels, mainchan);
     logevent("Opened channel for session");
 
@@ -3816,7 +3838,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_CLOSE) {
                 unsigned i = ssh2_pkt_getuint32();
                 struct ssh_channel *c;
-                enum234 e;
 
                 c = find234(ssh_channels, &i, ssh_channelfind);
                 if (!c)
@@ -3842,8 +3863,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 /*
                  * See if that was the last channel left open.
                  */
-                c = first234(ssh_channels, &e);
-                if (!c) {
+                if (count234(ssh_channels) == 0) {
                     logevent("All channels closed. Disconnecting");
                     ssh2_pkt_init(SSH2_MSG_DISCONNECT);
                     ssh2_pkt_adduint32(SSH2_DISCONNECT_BY_APPLICATION);
@@ -3902,15 +3922,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 } else {
                     struct ssh_channel *d;
                     unsigned i;
-                    enum234 e;
 
-                    for (i=1, d = first234(ssh_channels, &e); d;
-                         d = next234(&e)) {
-			if (d->localid > i)
-                            break;     /* found a free number */
-			i = d->localid + 1;
-                    }
-                    c->localid = i;
+                    c->localid = alloc_channel_id();
                     c->closes = 0;
                     c->v2.remwindow = ssh2_pkt_getuint32();
                     c->v2.remmaxpkt = ssh2_pkt_getuint32();
@@ -3936,12 +3949,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
             try_send = TRUE;
 	}
         if (try_send) {
-            enum234 e;
+            int i;
             struct ssh_channel *c;
             /*
              * Try to send data on all channels if we can.
              */
-            for (c = first234(ssh_channels, &e); c; c = next234(&e))
+            for (i = 0; NULL != (c = index234(ssh_channels, i)); i++)
                 ssh2_try_send(c);
         }
     }

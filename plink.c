@@ -568,11 +568,10 @@ int main(int argc, char **argv) {
         n = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
         if (n == 0) {
             WSANETWORKEVENTS things;
-	    enum234 e;
 	    SOCKET socket;
-	    extern SOCKET first_socket(enum234 *), next_socket(enum234 *);
+	    extern SOCKET first_socket(int *), next_socket(int *);
 	    extern int select_result(WPARAM, LPARAM);
-            int i;
+            int i, socketstate;
 
             /*
              * We must not call select_result() for any socket
@@ -582,8 +581,8 @@ int main(int argc, char **argv) {
              */
             /* Count the active sockets. */
             i = 0;
-            for (socket = first_socket(&e); socket != INVALID_SOCKET;
-		 socket = next_socket(&e))
+            for (socket = first_socket(&socketstate); socket != INVALID_SOCKET;
+		 socket = next_socket(&socketstate))
                 i++;
 
             /* Expand the buffer if necessary. */
@@ -594,8 +593,8 @@ int main(int argc, char **argv) {
 
             /* Retrieve the sockets into sklist. */
             skcount = 0;
-	    for (socket = first_socket(&e); socket != INVALID_SOCKET;
-		 socket = next_socket(&e)) {
+	    for (socket = first_socket(&socketstate); socket != INVALID_SOCKET;
+		 socket = next_socket(&socketstate)) {
                 sklist[skcount++] = socket;
             }
 
