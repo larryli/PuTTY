@@ -906,7 +906,8 @@ void connection_fatal(void *frontend, char *fmt, ...)
 	PostQuitMessage(1);
     else {
 	session_closed = TRUE;
-	SetWindowText(hwnd, "PuTTY (inactive)");
+	set_icon(NULL, "PuTTY (inactive)");
+	set_title(NULL, "PuTTY (inactive)");
     }
 }
 
@@ -950,7 +951,8 @@ static void enact_pending_netevent(void)
 	    cfg.close_on_exit == COE_NORMAL) PostQuitMessage(0);
 	else {
 	    session_closed = TRUE;
-	    SetWindowText(hwnd, "PuTTY (inactive)");
+	    set_icon(NULL, "PuTTY (inactive)");
+	    set_title(NULL, "PuTTY (inactive)");
 	    MessageBox(hwnd, "Connection closed by remote host",
 		       "PuTTY", MB_OK | MB_ICONINFORMATION);
 	}
