@@ -24,6 +24,7 @@
 
 #define IDM_CLOSE    0x0010
 #define IDM_VIEWKEYS 0x0020
+#define IDM_ABOUT    0x0030
 
 #define APPNAME "Pageant"
 
@@ -36,9 +37,12 @@
 #define SSH_AGENTC_ADD_RSA_IDENTITY          7
 #define SSH_AGENTC_REMOVE_RSA_IDENTITY       8
 
+extern char ver[];
+
 HINSTANCE instance;
 HWND hwnd;
 HWND keylist;
+HWND aboutbox;
 HMENU systray_menu;
 
 tree234 *rsakeys;
@@ -89,6 +93,59 @@ struct PassphraseProcStruct {
     char *passphrase;
     char *comment;
 };
+
+/*
+ * Dialog-box function for the Licence box.
+ */
+static int CALLBACK LicenceProc (HWND hwnd, UINT msg,
+				 WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+      case WM_INITDIALOG:
+	return 1;
+      case WM_COMMAND:
+	switch (LOWORD(wParam)) {
+	  case IDOK:
+            EndDialog(hwnd, 1);
+	    return 0;
+	}
+	return 0;
+      case WM_CLOSE:
+	EndDialog(hwnd, 1);
+	return 0;
+    }
+    return 0;
+}
+
+/*
+ * Dialog-box function for the About box.
+ */
+static int CALLBACK AboutProc (HWND hwnd, UINT msg,
+			       WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+      case WM_INITDIALOG:
+        SetDlgItemText (hwnd, 100, ver);
+	return 1;
+      case WM_COMMAND:
+	switch (LOWORD(wParam)) {
+	  case IDOK:
+	    aboutbox = NULL;
+	    DestroyWindow (hwnd);
+	    return 0;
+	  case 101:
+	    EnableWindow(hwnd, 0);
+	    DialogBox (instance, MAKEINTRESOURCE(214), NULL, LicenceProc);
+	    EnableWindow(hwnd, 1);
+            SetActiveWindow(hwnd);
+	    return 0;
+	}
+	return 0;
+      case WM_CLOSE:
+	aboutbox = NULL;
+	DestroyWindow (hwnd);
+	return 0;
+    }
+    return 0;
+}
 
 /*
  * Dialog-box function for the passphrase box.
@@ -192,7 +249,7 @@ void add_keyfile(char *filename) {
     } while (ret == -1);
     if (comment) free(comment);
     if (ret == 0) {
-        MessageBox(NULL, "Couldn't load public key.", APPNAME,
+        MessageBox(NULL, "Couldn't load private key.", APPNAME,
                    MB_OK | MB_ICONERROR);
         free(key);
         return;
@@ -453,7 +510,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 of.nMaxFile = sizeof(filename);
                 of.lpstrFileTitle = NULL;
                 of.lpstrInitialDir = NULL;
-                of.lpstrTitle = "Select Public Key File";
+                of.lpstrTitle = "Select Private Key File";
                 of.Flags = 0;
                 if (GetOpenFileName(&of)) {
                     add_keyfile(filename);
@@ -531,6 +588,20 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                  */
                 SetForegroundWindow(keylist);
                 SetWindowPos (keylist, HWND_TOP, 0, 0, 0, 0,
+                              SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            }
+            break;
+          case IDM_ABOUT:
+            if (!aboutbox) {
+                aboutbox = CreateDialog (instance, MAKEINTRESOURCE(213),
+                                         NULL, AboutProc);
+                ShowWindow (aboutbox, SW_SHOWNORMAL);
+                /* 
+                 * Sometimes the window comes up minimised / hidden
+                 * for no obvious reason. Prevent this.
+                 */
+                SetForegroundWindow(aboutbox);
+                SetWindowPos (aboutbox, HWND_TOP, 0, 0, 0, 0,
                               SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             }
             break;
@@ -717,7 +788,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
             DestroyIcon(hicon); 
 
         systray_menu = CreatePopupMenu();
+        /* accelerators used: vxa */
         AppendMenu (systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys");
+        AppendMenu (systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
         AppendMenu (systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
     }
 
