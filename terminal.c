@@ -4830,12 +4830,11 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    if (break_run) {
 		if ((dirty_run || last_run_dirty) && ccount > 0) {
+		    do_text(ctx, start, i, ch, ccount, attr,
+			    ldata->lattr);
 		    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
-			do_cursor(ctx, our_curs_x, i, ch, ccount, attr,
+			do_cursor(ctx, start, i, ch, ccount, attr,
 				  ldata->lattr);
-		    else
-			do_text(ctx, start, i, ch, ccount, attr,
-				ldata->lattr);
 
 		    updated_line = 1;
 		}
@@ -4917,12 +4916,11 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    }
 	}
 	if (dirty_run && ccount > 0) {
+	    do_text(ctx, start, i, ch, ccount, attr,
+		    ldata->lattr);
 	    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
-		do_cursor(ctx, our_curs_x, i, ch, ccount, attr,
+		do_cursor(ctx, start, i, ch, ccount, attr,
 			  ldata->lattr);
-	    else
-		do_text(ctx, start, i, ch, ccount, attr,
-			ldata->lattr);
 
 	    updated_line = 1;
 	}
