@@ -488,6 +488,7 @@ enum { IDCX_ABOUT =
     IDC_CCSTATIC2,
     IDC_CCEDIT,
     IDC_RAWCNP,
+    IDC_RTFPASTE,
     selectionpanelend,
 
     colourspanelstart,
@@ -772,6 +773,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.rect_select == 0 ? IDC_SELTYPELEX : IDC_SELTYPERECT);
     CheckDlgButton(hwnd, IDC_MOUSEOVERRIDE, cfg.mouse_override);
     CheckDlgButton(hwnd, IDC_RAWCNP, cfg.rawcnp);
+    CheckDlgButton(hwnd, IDC_RTFPASTE, cfg.rtf_paste);
     {
 	static int tabs[4] = { 25, 61, 96, 128 };
 	SendDlgItemMessage(hwnd, IDC_CCLIST, LB_SETTABSTOPS, 4,
@@ -1145,7 +1147,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == selectionpanelstart) {
-	/* The Selection panel. Accelerators used: [acgo] d wxp hst nr */
+	/* The Selection panel. Accelerators used: [acgo] df wxp hst nr */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling copy and paste",
@@ -1155,6 +1157,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	checkbox(&cp,
 		 "&Don't translate line drawing chars into +, - and |",
 		 IDC_RAWCNP);
+	checkbox(&cp,
+		 "Paste to clipboard in RT&F as well as plain text",
+		 IDC_RTFPASTE);
 	endbox(&cp);
 	beginbox(&cp, "Control which mouse button does which thing",
 		 IDC_BOX_SELECTION2);
@@ -2411,6 +2416,9 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		break;
 	      case IDC_RAWCNP:
 		cfg.rawcnp = IsDlgButtonChecked(hwnd, IDC_RAWCNP);
+		break;
+	      case IDC_RTFPASTE:
+		cfg.rtf_paste = IsDlgButtonChecked(hwnd, IDC_RTFPASTE);
 		break;
 	      case IDC_MBWINDOWS:
 	      case IDC_MBXTERM:

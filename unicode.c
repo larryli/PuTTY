@@ -8,8 +8,6 @@
 #include "putty.h"
 #include "misc.h"
 
-static void get_unitab(int codepage, wchar_t * unitab, int ftype);
-
 /* Character conversion arrays; they are usually taken from windows,
  * the xterm one has the four scanlines that have no unicode 2.0
  * equivalents mapped to their unicode 3.0 locations.
@@ -1218,7 +1216,7 @@ char *cp_enumerate(int index)
     return cp_list[index].name;
 }
 
-static void get_unitab(int codepage, wchar_t * unitab, int ftype)
+void get_unitab(int codepage, wchar_t * unitab, int ftype)
 {
     char tbuf[4];
     int i, max = 256, flg = MB_ERR_INVALID_CHARS;

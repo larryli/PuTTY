@@ -328,6 +328,7 @@ typedef struct {
     int mouse_is_xterm;
     int rect_select;
     int rawcnp;
+    int rtf_paste;
     int mouse_override;
     short wordness[256];
     /* translations */
@@ -539,6 +540,7 @@ int check_compose(int first, int second);
 int decode_codepage(char *cp_name);
 char *cp_enumerate (int index);
 char *cp_name(int codepage);
+void get_unitab(int codepage, wchar_t * unitab, int ftype);
 
 /*
  * Exports from mscrypto.c

@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <imm.h>
 #include <commctrl.h>
+#include <richedit.h>
 #include <mmsystem.h>
 #ifndef AUTO_WINSOCK
 #ifdef WINSOCK_TWO
@@ -14,6 +15,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
+#include <assert.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
@@ -3642,10 +3644,9 @@ void write_aclip(char *data, int len, int must_deselect)
  */
 void write_clip(wchar_t * data, int len, int must_deselect)
 {
-    HGLOBAL clipdata;
-    HGLOBAL clipdata2;
+    HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;
-    void *lock, *lock2;
+    void *lock, *lock2, *lock3;
 
     len2 = WideCharToMultiByte(CP_ACP, 0, data, len, 0, 0, NULL, NULL);
 
@@ -3653,11 +3654,13 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 			   len * sizeof(wchar_t));
     clipdata2 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, len2);
 
-    if (!clipdata || !clipdata2) {
+    if (!clipdata || !clipdata2 || !clipdata3) {
 	if (clipdata)
 	    GlobalFree(clipdata);
 	if (clipdata2)
 	    GlobalFree(clipdata2);
+	if (clipdata3)
+	    GlobalFree(clipdata3);
 	return;
     }
     if (!(lock = GlobalLock(clipdata)))
@@ -3667,6 +3670,119 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 
     memcpy(lock, data, len * sizeof(wchar_t));
     WideCharToMultiByte(CP_ACP, 0, data, len, lock2, len2, NULL, NULL);
+
+    if (cfg.rtf_paste) {
+	wchar_t unitab[256];
+	char *rtf = NULL;
+	unsigned char *tdata = (unsigned char *)lock2;
+	wchar_t *udata = (wchar_t *)lock;
+	int rtflen = 0, uindex = 0, tindex = 0;
+	int rtfsize = 0;
+	int multilen, blen, alen, totallen, i;
+	char before[16], after[4];
+
+	get_unitab(CP_ACP, unitab, 0);
+
+	rtfsize = 100 + strlen(cfg.font);
+	rtf = smalloc(rtfsize);
+	sprintf(rtf, "{\\rtf1\\ansi%d{\\fonttbl\\f0\\fmodern %s;}\\f0",
+		GetACP(), cfg.font);
+	rtflen = strlen(rtf);
+
+	/*
+	 * We want to construct a piece of RTF that specifies the
+	 * same Unicode text. To do this we will read back in
+	 * parallel from the Unicode data in `udata' and the
+	 * non-Unicode data in `tdata'. For each character in
+	 * `tdata' which becomes the right thing in `udata' when
+	 * looked up in `unitab', we just copy straight over from
+	 * tdata. For each one that doesn't, we must WCToMB it
+	 * individually and produce a \u escape sequence.
+	 * 
+	 * It would probably be more robust to just bite the bullet
+	 * and WCToMB each individual Unicode character one by one,
+	 * then MBToWC each one back to see if it was an accurate
+	 * translation; but that strikes me as a horrifying number
+	 * of Windows API calls so I want to see if this faster way
+	 * will work. If it screws up badly we can always revert to
+	 * the simple and slow way.
+	 */
+	while (tindex < len2 && uindex < len &&
+	       tdata[tindex] && udata[uindex]) {
+	    if (tindex + 1 < len2 &&
+		tdata[tindex] == '\r' &&
+		tdata[tindex+1] == '\n') {
+		tindex++;
+		uindex++;
+	    }
+	    if (unitab[tdata[tindex]] == udata[uindex]) {
+		multilen = 1;
+		before[0] = '\0';
+		after[0] = '\0';
+		blen = alen = 0;
+	    } else {
+		multilen = WideCharToMultiByte(CP_ACP, 0, unitab+uindex, 1,
+					       NULL, 0, NULL, NULL);
+		if (multilen != 1) {
+		    blen = sprintf(before, "{\\u%d", udata[uindex]);
+		    alen = 1; strcpy(after, "}");
+		} else {
+		    blen = sprintf(before, "\\u%d", udata[uindex]);
+		    alen = 0; after[0] = '\0';
+		}
+	    }
+	    assert(tindex + multilen <= len2);
+	    totallen = blen + alen;
+	    for (i = 0; i < multilen; i++) {
+		if (tdata[tindex+i] == '\\' ||
+		    tdata[tindex+i] == '{' ||
+		    tdata[tindex+i] == '}')
+		    totallen += 2;
+		else if (tdata[tindex+i] == 0x0D || tdata[tindex+i] == 0x0A)
+		    totallen += 6;     /* \par\r\n */
+		else if (tdata[tindex+i] > 0x7E || tdata[tindex+i] < 0x20)
+		    totallen += 4;
+		else
+		    totallen++;
+	    }
+
+	    if (rtfsize < rtflen + totallen + 3) {
+		rtfsize = rtflen + totallen + 512;
+		rtf = srealloc(rtf, rtfsize);
+	    }
+
+	    strcpy(rtf + rtflen, before); rtflen += blen;
+	    for (i = 0; i < multilen; i++) {
+		if (tdata[tindex+i] == '\\' ||
+		    tdata[tindex+i] == '{' ||
+		    tdata[tindex+i] == '}') {
+		    rtf[rtflen++] = '\\';
+		    rtf[rtflen++] = tdata[tindex+i];
+		} else if (tdata[tindex+i] == 0x0D || tdata[tindex+i] == 0x0A) {
+		    rtflen += sprintf(rtf+rtflen, "\\par\r\n");
+		} else if (tdata[tindex+i] > 0x7E || tdata[tindex+i] < 0x20) {
+		    rtflen += sprintf(rtf+rtflen, "\\'%02x", tdata[tindex+i]);
+		} else {
+		    rtf[rtflen++] = tdata[tindex+i];
+		}
+	    }
+	    strcpy(rtf + rtflen, after); rtflen += alen;
+
+	    tindex += multilen;
+	    uindex++;
+	}
+
+	strcpy(rtf + rtflen, "}");
+	rtflen += 2;
+
+	clipdata3 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, rtflen);
+	if (clipdata3 && (lock3 = GlobalLock(clipdata3)) != NULL) {
+	    strcpy(lock3, rtf);
+	    GlobalUnlock(clipdata3);
+	}
+	sfree(rtf);
+    } else
+	clipdata3 = NULL;
 
     GlobalUnlock(clipdata);
     GlobalUnlock(clipdata2);
@@ -3678,6 +3794,8 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 	EmptyClipboard();
 	SetClipboardData(CF_UNICODETEXT, clipdata);
 	SetClipboardData(CF_TEXT, clipdata2);
+	if (clipdata3)
+	    SetClipboardData(RegisterClipboardFormat(CF_RTF), clipdata3);
 	CloseClipboard();
     } else {
 	GlobalFree(clipdata);

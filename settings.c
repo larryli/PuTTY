@@ -234,6 +234,7 @@ void save_settings(char *section, int do_host, Config * cfg)
 	write_setting_s(sesskey, buf, buf2);
     }
     write_setting_i(sesskey, "RawCNP", cfg->rawcnp);
+    write_setting_i(sesskey, "PasteRTF", cfg->rtf_paste);
     write_setting_i(sesskey, "MouseIsXterm", cfg->mouse_is_xterm);
     write_setting_i(sesskey, "RectSelect", cfg->rect_select);
     write_setting_i(sesskey, "MouseOverride", cfg->mouse_override);
@@ -440,6 +441,7 @@ void load_settings(char *section, int do_host, Config * cfg)
 	}
     }
     gppi(sesskey, "RawCNP", 0, &cfg->rawcnp);
+    gppi(sesskey, "PasteRTF", 0, &cfg->rtf_paste);
     gppi(sesskey, "MouseIsXterm", 0, &cfg->mouse_is_xterm);
     gppi(sesskey, "RectSelect", 0, &cfg->rect_select);
     gppi(sesskey, "MouseOverride", 1, &cfg->mouse_override);
