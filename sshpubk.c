@@ -461,10 +461,9 @@ int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase)
  * with "PuTTY-User-Key-File-1" (version number differs). In this
  * format the Private-MAC: field only covers the private-plaintext
  * field and nothing else (and without the 4-byte string length on
- * the front too). Moreover, for RSA keys the Private-MAC: field
- * can be replaced with a Private-Hash: field which is a plain
- * SHA-1 hash instead of an HMAC. This is not allowable in DSA
- * keys. (Yes, the old format was a mess. Guess why it changed :-)
+ * the front too). Moreover, the Private-MAC: field can be replaced
+ * with a Private-Hash: field which is a plain SHA-1 hash instead of
+ * an HMAC (this was generated for unencrypted keys).
  */
 
 static int read_header(FILE * fp, char *header)
@@ -723,8 +722,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	if ((mac = read_body(fp)) == NULL)
 	    goto error;
 	is_mac = 1;
-    } else if (0 == strcmp(header, "Private-Hash") &&
-			   alg == &ssh_rsa && old_fmt) {
+    } else if (0 == strcmp(header, "Private-Hash") && old_fmt) {
 	if ((mac = read_body(fp)) == NULL)
 	    goto error;
 	is_mac = 0;
