@@ -142,6 +142,7 @@ of the tag.
     + The source archive should be signed with the release keys.
     + Don't forget to sign with both DSA and RSA keys for absolutely
       everything.
+      for i in <filenames>; do for t in DSA RSA; do gpg --load-extension=idea --detach-sign -u "Releases ($t)" -o $i.$t $i; done; done
 
  - Begin to pull together the release directory structure.
     + subdir `x86' containing the x86 binaries, x86 binary zip, x86
@@ -155,8 +156,11 @@ of the tag.
  - Create and sign md5sums files: one in the x86 subdir, one in the
    alpha subdir, and one in the parent dir of both of those.
     + The md5sums files need not list the .DSA and .RSA signatures,
-      and the top-level md5sums need not list the other two.
+      and the top-level md5sums need not list the other two. Easiest
+      thing is to run, in each directory, this command:
+      md5sum `\find * -name '*SA' -o -type f -print` > md5sums
     + Sign the md5sums files (gpg --clearsign).
+      for i in md5sums */md5sums; do for t in DSA RSA; do gpg --load-extension=idea --clearsign -u "Releases ($t)" -o $i.$t $i; done; done
 
  - Now double-check by verifying all the signatures on all the
    files, and running md5sum -c on all the md5sums files.
@@ -169,8 +173,16 @@ of the tag.
       zipped form should be self-contained).
 
  - Now the whole release directory should be present and correct.
-   Upload to ixion:www/putty/<ver>, upload to
-   chiark:ftp/putty-<ver>, and upload to the:www/putty/<ver>.
+   Upload to ixion:www/putty/<ver>.
+
+ - Do final checks on the release directory:
+    + verify all the signatures. In each directory:
+      for i in *.*SA; do case $i in md5sums*) gpg --verify $i;; *) gpg --verify $i `echo $i | sed 's/\..SA$//'`;; esac; done
+    + check the md5sums. In each directory:
+      md5sum -c md5sums
+
+ - Having double-checked the release, copy it from ixion to
+   chiark:ftp/putty-<ver> and to the:www/putty/<ver>.
 
  - Check the permissions! Actually try downloading from the, to make
    sure it really works.
@@ -205,6 +217,9 @@ of the tag.
  - Run webupdate, so that all the changes on ixion propagate to
    chiark. Important to do this _before_ announcing that the release
    is available.
+    * Don't forget to create the new directories on chiark -
+      ~/www/putty/<ver>{,/x86,/alpha,/htmldoc} - before running
+      webupdate.
 
  - After running webupdate, run update-rsync on chiark and verify
    that the rsync mirror package correctly identifies the new
