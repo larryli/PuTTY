@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.23 2003/01/25 15:15:40 ben Exp $ */
+/* $Id: mac_res.r,v 1.24 2003/01/27 23:46:03 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -1054,7 +1054,7 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
     "\n"
     "Portions copyright Robert de Bath, Joris van Rantwijk, Delian"
     "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,"
-    "Justin Bradford, and CORE SDI S.A.\n"
+    "Justin Bradford, Ben Harris, and CORE SDI S.A.\n"
     "\n"    
     "Permission is hereby granted, free of charge, to any person "
     "obtaining a copy of this software and associated documentation "
