@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.18 2003/03/29 18:32:36 ben Exp $ */
+/* $Id: macctrls.c,v 1.19 2003/03/29 20:16:51 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -76,10 +76,12 @@ union macctrl {
     struct {
 	struct macctrl_generic generic;
 	ControlRef tbctrl;
+	ControlRef tblabel;
     } editbox;
     struct {
 	struct macctrl_generic generic;
 	ControlRef *tbctrls;
+	ControlRef tblabel;
     } radio;
     struct {
 	struct macctrl_generic generic;
@@ -237,7 +239,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 1);
+    macctrl_switchtopanel(mcs, 14);
 }
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -319,10 +321,12 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
 		break;
 	      case MACCTRL_EDITBOX:
 		hideshow(mc->editbox.tbctrl);
+		hideshow(mc->editbox.tblabel);
 		break;
 	      case MACCTRL_RADIO:
 		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
 		    hideshow(mc->radio.tbctrls[j]);
+		hideshow(mc->radio.tblabel);
 		break;
 	      case MACCTRL_CHECKBOX:
 		hideshow(mc->checkbox.tbctrl);
@@ -454,7 +458,7 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 			    union control *ctrl)
 {
     union macctrl *mc = smalloc(sizeof *mc);
-    Rect bounds;
+    Rect lbounds, bounds;
 
     fprintf(stderr, "    label = %s\n", ctrl->editbox.label);
     fprintf(stderr, "    percentwidth = %d\n", ctrl->editbox.percentwidth);
@@ -463,19 +467,42 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
     mc->generic.type = MACCTRL_EDITBOX;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
-    bounds.left = curstate->pos.h;
-    bounds.right = bounds.left + curstate->width;
+    lbounds.left = curstate->pos.h;
+    lbounds.top = curstate->pos.v;
+    if (ctrl->editbox.percentwidth == 100) {
+	lbounds.right = lbounds.left + curstate->width;
+	lbounds.bottom = lbounds.top + 16;
+	bounds.left = curstate->pos.h;
+	bounds.right = bounds.left + curstate->width;
+	curstate->pos.v += 18;
+    } else {
+	lbounds.right = lbounds.left +
+	    curstate->width * (100 - ctrl->editbox.percentwidth) / 100;
+	lbounds.bottom = lbounds.top + 22;
+	bounds.left = lbounds.right;
+	bounds.right = lbounds.left + curstate->width;
+    }
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 22;
     if (mac_gestalts.apprvers >= 0x100) {
+	mc->editbox.tblabel = NewControl(window, &lbounds, NULL, TRUE, 0, 0, 0,
+					 kControlStaticTextProc, (long)mc);
+	SetControlData(mc->editbox.tblabel, kControlEntireControl,
+		       kControlStaticTextTextTag,
+		       strlen(ctrl->editbox.label), ctrl->editbox.label);
 	InsetRect(&bounds, 2, 2);
-	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
-				     ctrl->editbox.password ?
-				     kControlEditTextPasswordProc :
-				     kControlEditTextProc, (long)mc);
+	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+					ctrl->editbox.password ?
+					kControlEditTextPasswordProc :
+					kControlEditTextProc, (long)mc);
     } else {
-	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
-				     SYS7_EDITBOX_PROC, (long)mc);
+	Str255 title;
+
+	c2pstrcpy(title, ctrl->editbox.label);
+	mc->editbox.tblabel = NewControl(window, &lbounds, title, TRUE,
+					 0, 0, 0, SYS7_TEXT_PROC, (long)mc);
+	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+					SYS7_EDITBOX_PROC, (long)mc);
     }
     curstate->pos.v += 28;
     add234(mcs->byctrl, mc);
@@ -561,6 +588,24 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
     mc->radio.tbctrls =
 	smalloc(sizeof(*mc->radio.tbctrls) * ctrl->radio.nbuttons);
     colwidth = (curstate->width + 13) /	ctrl->radio.ncolumns;
+    bounds.top = curstate->pos.v;
+    bounds.bottom = bounds.top + 16;
+    bounds.left = curstate->pos.h;
+    bounds.right = bounds.left + curstate->width;
+    if (mac_gestalts.apprvers >= 0x100) {
+	mc->radio.tblabel = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+				       kControlStaticTextProc, (long)mc);
+	SetControlData(mc->radio.tblabel, kControlEntireControl,
+		       kControlStaticTextTextTag,
+		       strlen(ctrl->radio.label), ctrl->radio.label);
+    } else {
+	Str255 title;
+
+	c2pstrcpy(title, ctrl->radio.label);
+	mc->editbox.tblabel = NewControl(window, &bounds, title, TRUE,
+					 0, 0, 0, SYS7_TEXT_PROC, (long)mc);
+    }
+    curstate->pos.v += 18;
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
 	fprintf(stderr, "    button = %s\n", ctrl->radio.buttons[i]);
 	bounds.top = curstate->pos.v - 2;
@@ -779,10 +824,12 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 		break;
 	      case MACCTRL_EDITBOX:
 		HiliteControl(mc->editbox.tbctrl, state);
+		HiliteControl(mc->editbox.tblabel, state);
 		break;
 	      case MACCTRL_RADIO:
 		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
 		    HiliteControl(mc->radio.tbctrls[j], state);
+		HiliteControl(mc->radio.tblabel, state);
 		break;
 	      case MACCTRL_CHECKBOX:
 		HiliteControl(mc->checkbox.tbctrl, state);
