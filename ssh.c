@@ -1859,6 +1859,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     static unsigned char session_id[16];
     static int cipher_type;
     static char username[100];
+    static void *publickey_blob;
+    int publickey_bloblen;
 
     crBegin;
 
@@ -2105,6 +2107,12 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     tried_publickey = 0;
     tis_auth_refused = ccard_auth_refused = 0;
+    /* Load the public half of cfg.keyfile so we notice if it's in Pageant */
+    if (*cfg.keyfile) {
+	if (!rsakey_pubblob(cfg.keyfile, &publickey_blob, &publickey_bloblen))
+	    publickey_blob = NULL;
+    } else
+	publickey_blob = NULL;
 
     while (pktin.type == SSH1_SMSG_FAILURE) {
 	static char password[100];
@@ -2151,6 +2159,11 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 			char buf[64];
 			sprintf(buf, "Trying Pageant key #%d", i);
 			logevent(buf);
+		    }
+		    if (publickey_blob &&
+			!memcmp(p, publickey_blob, publickey_bloblen)) {
+			logevent("This key matches configured key file");
+			tried_publickey = 1;
 		    }
 		    p += 4;
 		    p += ssh1_read_bignum(p, &key.exponent);
@@ -3751,6 +3764,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     static char username[100];
     static char pwprompt[200];
     static char password[100];
+    static void *publickey_blob;
+    static int publickey_bloblen;
 
     crBegin;
 
@@ -3891,6 +3906,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	tried_agent = FALSE;
 	tried_keyb_inter = FALSE;
 	kbd_inter_running = FALSE;
+	/* Load the pub half of cfg.keyfile so we notice if it's in Pageant */
+	if (*cfg.keyfile) {
+	    publickey_blob = ssh2_userkey_loadpub(cfg.keyfile, NULL,
+						  &publickey_bloblen);
+	} else
+	    publickey_blob = NULL;
 
 	while (1) {
 	    /*
@@ -4046,6 +4067,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			}
 			pklen = GET_32BIT(p);
 			p += 4;
+			if (publickey_blob &&
+			    pklen == publickey_bloblen &&
+			    !memcmp(p, publickey_blob, publickey_bloblen)) {
+			    logevent("This key matches configured key file");
+			    tried_pubkey_config = 1;
+			}
 			pkblob = p;
 			p += pklen;
 			alglen = GET_32BIT(pkblob);
