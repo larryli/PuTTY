@@ -111,8 +111,9 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *window);
 #define strnicmp strncasecmp
 #define stricmp strcasecmp
 
-/* BSD-semantics version of signal() */
+/* BSD-semantics version of signal(), and another helpful function */
 void (*putty_signal(int sig, void (*func)(int)))(int);
+void block_signal(int sig, int block_it);
 
 /*
  * Exports from unicode.c.

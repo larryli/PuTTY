@@ -1,4 +1,6 @@
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /*
  * Calling signal() is a non-portable, as it varies in meaning between
@@ -21,6 +23,18 @@ void (*putty_signal(int sig, void (*func)(int)))(int) {
     if(sigaction(sig, &sa, &old) < 0)
 	return SIG_ERR;
     return old.sa_handler;
+}
+
+void block_signal(int sig, int block_it)
+{
+    sigset_t ss;
+
+    sigemptyset(&ss);
+    sigaddset(&ss, sig);
+    if(sigprocmask(block_it ? SIG_BLOCK : SIG_UNBLOCK, &ss, 0) < 0) {
+	perror("sigprocmask");
+	exit(1);
+    }
 }
 
 /*

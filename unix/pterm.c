@@ -2551,17 +2551,6 @@ int do_cmdline(int argc, char **argv, int do_everything,
     return err;
 }
 
-static void block_signal(int sig, int block_it) {
-  sigset_t ss;
-
-  sigemptyset(&ss);
-  sigaddset(&ss, sig);
-  if(sigprocmask(block_it ? SIG_BLOCK : SIG_UNBLOCK, &ss, 0) < 0) {
-    perror("sigprocmask");
-    exit(1);
-  }
-}
-
 /*
  * This function retrieves the character set encoding of a font. It
  * returns the character set without the X11 hack (in case the user
