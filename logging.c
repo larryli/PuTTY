@@ -80,7 +80,7 @@ static void logfopen_callback(void *handle, int mode)
     if (mode == 0) {
 	ctx->state = L_ERROR;	       /* disable logging */
     } else {
-	fmode = (mode == 1 ? "a" : "w");
+	fmode = (mode == 1 ? "ab" : "wb");
 	ctx->lgfp = f_open(ctx->currlogfilename, fmode);
 	if (ctx->lgfp)
 	    ctx->state = L_OPEN;
