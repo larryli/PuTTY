@@ -685,17 +685,19 @@ static char *colon(char *str)
 
 /*
  * Return a pointer to the portion of str that comes after the last
- * slash or backslash.
+ * slash (or backslash, if `local' is TRUE).
  */
-static char *stripslashes(char *str)
+static char *stripslashes(char *str, int local)
 {
     char *p;
 
     p = strrchr(str, '/');
     if (p) str = p+1;
 
-    p = strrchr(str, '\\');
-    if (p) str = p+1;
+    if (local) {
+	p = strrchr(str, '\\');
+	if (p) str = p+1;
+    }
 
     return str;
 }
@@ -833,8 +835,10 @@ static struct scp_sftp_dirstack {
     struct fxp_name *names;
     int namepos, namelen;
     char *dirpath;
+    char *wildcard;
 } *scp_sftp_dirstack_head;
 static char *scp_sftp_remotepath, *scp_sftp_currentname;
+static char *scp_sftp_wildcard;
 static int scp_sftp_targetisdir, scp_sftp_donethistarget;
 static int scp_sftp_preserve, scp_sftp_recursive;
 static unsigned long scp_sftp_mtime, scp_sftp_atime;
@@ -1058,15 +1062,71 @@ int scp_send_enddir(void)
  * right at the start, whereas scp_sink_init is called to
  * initialise every level of recursion in the protocol.
  */
-void scp_sink_setup(char *source, int preserve, int recursive)
+int scp_sink_setup(char *source, int preserve, int recursive)
 {
     if (using_sftp) {
-	scp_sftp_remotepath = dupstr(source);
+	char *newsource;
+	/*
+	 * It's possible that the source string we've been given
+	 * contains a wildcard. If so, we must split the directory
+	 * away from the wildcard itself (throwing an error if any
+	 * wildcardness comes before the final slash) and arrange
+	 * things so that a dirstack entry will be set up.
+	 */
+	newsource = smalloc(1+strlen(source));
+	if (!wc_unescape(newsource, source)) {
+	    /* Yes, here we go; it's a wildcard. Bah. */
+	    char *dupsource, *lastpart, *dirpart, *wildcard;
+	    dupsource = dupstr(source);
+	    lastpart = stripslashes(dupsource, 0);
+	    wildcard = dupstr(lastpart);
+	    *lastpart = '\0';
+	    if (*dupsource && dupsource[1]) {
+		/*
+		 * The remains of dupsource are at least two
+		 * characters long, meaning the pathname wasn't
+		 * empty or just `/'. Hence, we remove the trailing
+		 * slash.
+		 */
+		lastpart[-1] = '\0';
+	    }
+
+	    /*
+	     * Now we have separated our string into dupsource (the
+	     * directory part) and wildcard. Both of these will
+	     * need freeing at some point. Next step is to remove
+	     * wildcard escapes from the directory part, throwing
+	     * an error if it contains a real wildcard.
+	     */
+	    dirpart = smalloc(1+strlen(dupsource));
+	    if (!wc_unescape(dirpart, dupsource)) {
+		tell_user(stderr, "%s: multiple-level wildcards unsupported",
+			  source);
+		errs++;
+		sfree(dirpart);
+		sfree(wildcard);
+		sfree(dupsource);
+		return 1;
+	    }
+
+	    /*
+	     * Now we have dirpart (unescaped, ie a valid remote
+	     * path), and wildcard (a wildcard). This will be
+	     * sufficient to arrange a dirstack entry.
+	     */
+	    scp_sftp_remotepath = dirpart;
+	    scp_sftp_wildcard = wildcard;
+	    sfree(dupsource);
+	} else {
+	    scp_sftp_remotepath = newsource;
+	    scp_sftp_wildcard = NULL;
+	}
 	scp_sftp_preserve = preserve;
 	scp_sftp_recursive = recursive;
 	scp_sftp_donethistarget = 0;
 	scp_sftp_dirstack_head = NULL;
     }
+    return 0;
 }
 
 int scp_sink_init(void)
@@ -1080,6 +1140,7 @@ int scp_sink_init(void)
 #define SCP_SINK_FILE   1
 #define SCP_SINK_DIR    2
 #define SCP_SINK_ENDDIR 3
+#define SCP_SINK_RETRY  4	       /* not an action; just try again */
 struct scp_sink_action {
     int action;			       /* FILE, DIR, ENDDIR */
     char *buf;			       /* will need freeing after use */
@@ -1121,7 +1182,10 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	     */
 	    struct scp_sftp_dirstack *head = scp_sftp_dirstack_head;
 	    while (head->namepos < head->namelen &&
-		   is_dots(head->names[head->namepos].filename))
+		   (is_dots(head->names[head->namepos].filename) ||
+		    (head->wildcard &&
+		     !wc_match(head->wildcard,
+			       head->names[head->namepos].filename))))
 		head->namepos++;       /* skip . and .. */
 	    if (head->namepos < head->namelen) {
 		fname = dupcat(head->dirpath, "/",
@@ -1131,15 +1195,21 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    } else {
 		/*
 		 * We've come to the end of the list; pop it off
-		 * the stack and return an ENDDIR action.
+		 * the stack and return an ENDDIR action (or RETRY
+		 * if this was a wildcard match).
 		 */
-		
+		if (head->wildcard) {
+		    act->action = SCP_SINK_RETRY;
+		    sfree(head->wildcard);
+		} else {
+		    act->action = SCP_SINK_ENDDIR;
+		}
+
 		sfree(head->dirpath);
 		sfree(head->names);
 		scp_sftp_dirstack_head = head->next;
 		sfree(head);
 
-		act->action = SCP_SINK_ENDDIR;
 		return 0;
 	    }
 	}
@@ -1164,10 +1234,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    struct fxp_names *names;
 
 	    /*
-	     * It's a directory. If we're not in recursive
-	     * mode, this just merits a complaint.
+	     * It's a directory. If we're not in recursive mode and
+	     * we haven't been passed a wildcard from
+	     * scp_sink_setup, this just merits a complaint.
 	     */
-	    if (!scp_sftp_recursive) {
+	    if (!scp_sftp_recursive && !scp_sftp_wildcard) {
 		tell_user(stderr, "pscp: %s: is a directory", fname);
 		errs++;
 		if (must_free_fname) sfree(fname);
@@ -1177,9 +1248,10 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    /*
 	     * Otherwise, the fun begins. We must fxp_opendir() the
 	     * directory, slurp the filenames into memory, return
-	     * SCP_SINK_DIR, and set targetisdir. The next time
-	     * we're called, we will run through the list of
-	     * filenames one by one.
+	     * SCP_SINK_DIR (unless this is a wildcard match), and
+	     * set targetisdir. The next time we're called, we will
+	     * run through the list of filenames one by one,
+	     * matching them against a wildcard if present.
 	     * 
 	     * If targetisdir is _already_ set (meaning we're
 	     * already in the middle of going through another such
@@ -1235,20 +1307,30 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		newitem->dirpath = fname;
 	    else
 		newitem->dirpath = dupstr(fname);
+	    if (scp_sftp_wildcard) {
+		newitem->wildcard = scp_sftp_wildcard;
+		scp_sftp_wildcard = NULL;
+	    } else {
+		newitem->wildcard = NULL;
+	    }
 	    scp_sftp_dirstack_head = newitem;
 
-	    act->action = SCP_SINK_DIR;
-	    act->buf = dupstr(stripslashes(fname));
-	    act->name = act->buf;
-	    act->size = 0;	       /* duhh, it's a directory */
-	    act->mode = 07777 & attrs.permissions;
-	    if (scp_sftp_preserve &&
-		(attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
-		act->atime = attrs.atime;
-		act->mtime = attrs.mtime;
-		act->settime = 1;
-	    } else
-		act->settime = 0;
+	    if (newitem->wildcard) {
+		act->action = SCP_SINK_RETRY;
+	    } else {
+		act->action = SCP_SINK_DIR;
+		act->buf = dupstr(stripslashes(fname, 0));
+		act->name = act->buf;
+		act->size = 0;	       /* duhh, it's a directory */
+		act->mode = 07777 & attrs.permissions;
+		if (scp_sftp_preserve &&
+		    (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
+		    act->atime = attrs.atime;
+		    act->mtime = attrs.mtime;
+		    act->settime = 1;
+		} else
+		    act->settime = 0;
+	    }
 	    return 0;
 
 	} else {
@@ -1256,7 +1338,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	     * It's a file. Return SCP_SINK_FILE.
 	     */
 	    act->action = SCP_SINK_FILE;
-	    act->buf = dupstr(stripslashes(fname));
+	    act->buf = dupstr(stripslashes(fname, 0));
 	    act->name = act->buf;
 	    if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
 		if (uint64_compare(attrs.size,
@@ -1614,6 +1696,9 @@ static void sink(char *targ, char *src)
 	if (act.action == SCP_SINK_ENDDIR)
 	    return;
 
+	if (act.action == SCP_SINK_RETRY)
+	    continue;
+
 	if (targisdir) {
 	    /*
 	     * Prevent the remote side from maliciously writing to
@@ -1644,7 +1729,7 @@ static void sink(char *targ, char *src)
 	     */
 	    char *striptarget, *stripsrc;
 
-	    striptarget = stripslashes(act.name);
+	    striptarget = stripslashes(act.name, 1);
 	    if (striptarget != act.name) {
 		tell_user(stderr, "warning: remote host sent a compound"
 			  " pathname - possibly malicious! (ignored)");
@@ -1661,7 +1746,7 @@ static void sink(char *targ, char *src)
 	    }
 
 	    if (src) {
-		stripsrc = stripslashes(src);
+		stripsrc = stripslashes(src, 1);
 		if (!stripsrc[strcspn(stripsrc, "*?[]")] &&
 		    strcmp(striptarget, stripsrc)) {
 		    tell_user(stderr, "warning: remote host attempted to"
@@ -1715,7 +1800,7 @@ static void sink(char *targ, char *src)
 	stat_bytes = 0;
 	stat_starttime = time(NULL);
 	stat_lasttime = 0;
-	stat_name = stripslashes(destfname);
+	stat_name = stripslashes(destfname, 1);
 
 	received = 0;
 	while (received < act.size) {
@@ -1844,7 +1929,7 @@ static void toremote(int argc, char *argv[])
 	 * filenames returned from Find{First,Next}File.
 	 */
 	srcpath = dupstr(src);
-	last = stripslashes(srcpath);
+	last = stripslashes(srcpath, 1);
 	if (last == srcpath) {
 	    last = strchr(srcpath, ':');
 	    if (last)
@@ -1937,7 +2022,8 @@ static void tolocal(int argc, char *argv[])
     do_cmd(host, user, cmd);
     sfree(cmd);
 
-    scp_sink_setup(src, preserve, recursive);
+    if (scp_sink_setup(src, preserve, recursive))
+	return;
 
     sink(targ, src);
 }

@@ -88,7 +88,7 @@ TOBJS = be_nossh.$(OBJ)
 ##-- objects plink
 PLOBJS = plink.$(OBJ)
 ##-- objects pscp
-SOBJS = scp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
+SOBJS = scp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ) wildcard.$(OBJ)
 ##-- objects psftp
 FOBJS = psftp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
 ##-- objects pscp psftp

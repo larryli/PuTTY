@@ -555,5 +555,11 @@ void crypto_wrapup();
 void agent_query(void *in, int inlen, void **out, int *outlen);
 int agent_exists(void);
 
+/*
+ * Exports from wildcard.c
+ */
+const char *wc_error(int value);
+int wc_match(const char *wildcard, const char *target);
+int wc_unescape(char *output, const char *wildcard);
 
 #endif
