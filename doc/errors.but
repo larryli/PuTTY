@@ -244,15 +244,18 @@ of \c{su} do it automatically.
 \H{errors-connaborted} \q{Network error: Software caused connection
 abort}
 
-This error occurs when the Windows network code decides that your
-network connection is dead. For example, it will happen if you pull
-the network cable out of the back of an Ethernet-connected computer,
-or if Windows has any other similar reason to believe the entire
-network has become unreachable.
+This is a generic error produced by the Windows network code when it
+decides that your network connection is dead. For example, it might
+happen if you pull the network cable out of the back of an
+Ethernet-connected computer, or if Windows has any other similar
+reason to believe the entire network has become unreachable.
 
 We are not aware of any reason why this error might occur that would
 represent a bug in PuTTY. The problem is between you, your Windows
 system, your network and the remote system.
+
+Some people have reported that enabling keepalives (see
+\k{config-keepalive}) fixes this error for them.
 
 \H{errors-connreset} \q{Network error: Connection reset by peer}
 
