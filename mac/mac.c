@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.22 2003/01/09 22:39:47 ben Exp $ */
+/* $Id: mac.c,v 1.23 2003/01/10 18:33:35 simon Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -738,6 +738,12 @@ int platform_default_i(char *name, int def)
     if (!strcmp(name, "RawCNP"))
 	return 1;
     return def;
+}
+
+void platform_get_x11_auth(char *display, int *proto,
+                           unsigned char *data, int *datalen)
+{
+    /* SGT: I have no idea whether Mac X servers need anything here. */
 }
 
 /*

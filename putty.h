@@ -691,4 +691,14 @@ extern int cmdline_tooltype;
 
 void cmdline_error(char *, ...);
 
+/*
+ * X11 auth mechanisms we know about.
+ */
+enum {
+    X11_NO_AUTH,
+    X11_MIT,                           /* MIT-MAGIC-COOKIE-1 */
+    X11_NAUTHS
+};
+extern const char *const x11_authnames[];  /* declared in x11fwd.c */
+
 #endif

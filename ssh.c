@@ -3019,6 +3019,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
 				       data, sizeof(data));
+        x11_get_real_auth(ssh->x11auth, cfg.x11_display);
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, proto, PKT_STR, data,
@@ -5068,6 +5069,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
 				       data, sizeof(data));
+        x11_get_real_auth(ssh->x11auth, cfg.x11_display);
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
 	ssh2_pkt_addstring(ssh, "x11-req");

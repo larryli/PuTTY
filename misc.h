@@ -28,7 +28,7 @@ typedef struct bufchain_tag {
 void bufchain_init(bufchain *ch);
 void bufchain_clear(bufchain *ch);
 int bufchain_size(bufchain *ch);
-void bufchain_add(bufchain *ch, void *data, int len);
+void bufchain_add(bufchain *ch, const void *data, int len);
 void bufchain_prefix(bufchain *ch, void **data, int *len);
 void bufchain_consume(bufchain *ch, int len);
 void bufchain_fetch(bufchain *ch, void *data, int len);

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "putty.h"
 #include "ssh.h"
@@ -50,10 +51,18 @@
 #define PUT_16BIT(endian, cp, val) \
   (endian=='B' ? PUT_16BIT_MSB_FIRST(cp, val) : PUT_16BIT_LSB_FIRST(cp, val))
 
-struct X11Auth {
-    unsigned char data[64];
-    int len;
+const char *const x11_authnames[] = {
+    "", "MIT-MAGIC-COOKIE-1"
 };
+
+struct X11Auth {
+    unsigned char fakedata[64], realdata[64];
+    int fakeproto, realproto;
+    int fakelen, reallen;
+};
+
+extern void platform_get_x11_auth(char *display, int *proto,
+                                  unsigned char *data, int *datalen);
 
 struct X11Private {
     const struct plug_function_table *fn;
@@ -76,30 +85,51 @@ void *x11_invent_auth(char *proto, int protomaxlen,
     char ourdata[64];
     int i;
 
+    auth->fakeproto = X11_MIT;
+
     /* MIT-MAGIC-COOKIE-1. Cookie size is 128 bits (16 bytes). */
-    auth->len = 16;
+    auth->fakelen = 16;
     for (i = 0; i < 16; i++)
-	auth->data[i] = random_byte();
+	auth->fakedata[i] = random_byte();
 
     /* Now format for the recipient. */
-    strncpy(proto, "MIT-MAGIC-COOKIE-1", protomaxlen);
+    strncpy(proto, x11_authnames[auth->fakeproto], protomaxlen);
     ourdata[0] = '\0';
-    for (i = 0; i < auth->len; i++)
-	sprintf(ourdata + strlen(ourdata), "%02x", auth->data[i]);
+    for (i = 0; i < auth->fakelen; i++)
+	sprintf(ourdata + strlen(ourdata), "%02x", auth->fakedata[i]);
     strncpy(data, ourdata, datamaxlen);
 
     return auth;
 }
 
+/*
+ * Fetch the real auth data for a given display string, and store
+ * it in an X11Auth structure. Returns NULL on success, or an error
+ * string.
+ */
+void x11_get_real_auth(void *authv, char *display)
+{
+    struct X11Auth *auth = (struct X11Auth *)authv;
+
+    auth->realproto = X11_NO_AUTH;     /* in case next call does nothing */
+
+    auth->reallen = sizeof(auth->realdata);
+    platform_get_x11_auth(display, &auth->realproto,
+                          auth->realdata, &auth->reallen);
+}
+
 static int x11_verify(struct X11Auth *auth,
 		      char *proto, unsigned char *data, int dlen)
 {
-    if (strcmp(proto, "MIT-MAGIC-COOKIE-1") != 0)
+    if (strcmp(proto, x11_authnames[auth->fakeproto]) != 0)
 	return 0;		       /* wrong protocol attempted */
-    if (dlen != auth->len)
-	return 0;		       /* cookie was wrong length */
-    if (memcmp(auth->data, data, dlen) != 0)
-	return 0;		       /* cookie was wrong cookie! */
+    if (auth->fakeproto == X11_MIT) {
+        if (dlen != auth->fakelen)
+            return 0;		       /* cookie was wrong length */
+        if (memcmp(auth->fakedata, data, dlen) != 0)
+            return 0;		       /* cookie was wrong cookie! */
+    }
+    /* implement other protocols here if ever required */
     return 1;
 }
 
@@ -344,12 +374,36 @@ int x11_send(Socket s, char *data, int len)
 
 	/*
 	 * Now we know we're going to accept the connection. Strip
-	 * the auth data. (TODO: if we ever work out how, we should
-	 * replace some real auth data in here.)
+	 * the fake auth data, and optionally put real auth data in
+	 * instead.
 	 */
-	PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 6, 0);	/* auth proto */
-	PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 8, 0);	/* auth data */
-	sk_write(s, (char *)pr->firstpkt, 12);
+        {
+            char realauthdata[64];
+            int realauthlen = 0;
+            int authstrlen = strlen(x11_authnames[pr->auth->realproto]);
+            static const char zeroes[4] = { 0,0,0,0 };
+
+            if (pr->auth->realproto == X11_MIT) {
+                assert(pr->auth->reallen <= lenof(realauthdata));
+                realauthlen = pr->auth->reallen;
+                memcpy(realauthdata, pr->auth->realdata, realauthlen);
+            }
+            /* implement other auth methods here if required */
+
+            PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 6, authstrlen);
+            PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 8, realauthlen);
+        
+            sk_write(s, (char *)pr->firstpkt, 12);
+
+            if (authstrlen) {
+                sk_write(s, x11_authnames[pr->auth->realproto], authstrlen);
+                sk_write(s, zeroes, 3 & (-authstrlen));
+            }
+            if (realauthlen) {
+                sk_write(s, realauthdata, realauthlen);
+                sk_write(s, zeroes, 3 & (-realauthlen));
+            }
+        }
 	pr->verified = 1;
     }
 

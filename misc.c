@@ -174,9 +174,9 @@ int bufchain_size(bufchain *ch)
     return ch->buffersize;
 }
 
-void bufchain_add(bufchain *ch, void *data, int len)
+void bufchain_add(bufchain *ch, const void *data, int len)
 {
-    char *buf = (char *)data;
+    const char *buf = (const char *)data;
 
     ch->buffersize += len;
 

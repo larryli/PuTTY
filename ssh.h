@@ -273,6 +273,7 @@ extern void *x11_invent_auth(char *, int, char *, int);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 extern int x11_get_screen_number(char *display);
+void x11_get_real_auth(void *authv, char *display);
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);
