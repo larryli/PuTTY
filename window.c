@@ -944,6 +944,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     static int ignore_clip = FALSE;
     static int ignore_keymenu = TRUE;
     static int just_reconfigged = FALSE;
+    static int resizing = FALSE;
 
     switch (message) {
       case WM_TIMER:
@@ -1250,9 +1251,12 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	break;
       case WM_ENTERSIZEMOVE:
         EnableSizeTip(1);
+        resizing = TRUE;
         break;
       case WM_EXITSIZEMOVE:
         EnableSizeTip(0);
+        resizing = FALSE;
+        back->size();
         break;
       case WM_SIZING:
 	{
@@ -1321,7 +1325,13 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    if (w != cols || h != rows || just_reconfigged) {
 		term_invalidate();
 		term_size (h, w, cfg.savelines);
-		back->size();
+                /*
+                 * Don't call back->size in mid-resize. (To prevent
+                 * massive numbers of resize events getting sent
+                 * down the connection during an NT opaque drag.)
+                 */
+                if (!resizing)
+                    back->size();
 		just_reconfigged = FALSE;
 	    }
 	}
