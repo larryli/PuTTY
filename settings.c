@@ -287,8 +287,16 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_filename(sesskey, "BellWaveFile", cfg->bell_wavefile);
     write_setting_i(sesskey, "BellOverload", cfg->bellovl);
     write_setting_i(sesskey, "BellOverloadN", cfg->bellovl_n);
-    write_setting_i(sesskey, "BellOverloadT", cfg->bellovl_t);
-    write_setting_i(sesskey, "BellOverloadS", cfg->bellovl_s);
+    write_setting_i(sesskey, "BellOverloadT", cfg->bellovl_t
+#ifdef PUTTY_UNIX_H
+		    * 1000
+#endif
+		    );
+    write_setting_i(sesskey, "BellOverloadS", cfg->bellovl_s
+#ifdef PUTTY_UNIX_H
+		    * 1000
+#endif
+		    );
     write_setting_i(sesskey, "ScrollbackLines", cfg->savelines);
     write_setting_i(sesskey, "DECOriginMode", cfg->dec_om);
     write_setting_i(sesskey, "AutoWrapMode", cfg->wrap_mode);
@@ -574,8 +582,18 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppfile(sesskey, "BellWaveFile", &cfg->bell_wavefile);
     gppi(sesskey, "BellOverload", 1, &cfg->bellovl);
     gppi(sesskey, "BellOverloadN", 5, &cfg->bellovl_n);
-    gppi(sesskey, "BellOverloadT", 2*TICKSPERSEC, &cfg->bellovl_t);
-    gppi(sesskey, "BellOverloadS", 5*TICKSPERSEC, &cfg->bellovl_s);
+    gppi(sesskey, "BellOverloadT", 2*TICKSPERSEC, &i);
+    cfg->bellovl_t = i
+#ifdef PUTTY_UNIX_H
+		    / 1000
+#endif
+	;
+    gppi(sesskey, "BellOverloadS", 5*TICKSPERSEC, &i);
+    cfg->bellovl_s = i
+#ifdef PUTTY_UNIX_H
+		    / 1000
+#endif
+	;
     gppi(sesskey, "ScrollbackLines", 200, &cfg->savelines);
     gppi(sesskey, "DECOriginMode", 0, &cfg->dec_om);
     gppi(sesskey, "AutoWrapMode", 1, &cfg->wrap_mode);
