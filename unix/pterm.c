@@ -2251,18 +2251,18 @@ int main(int argc, char **argv)
 
     gtk_init(&argc, &argv);
 
-    if (do_cmdline(argc, argv, 0, &inst->cfg))
-	exit(1);		       /* pre-defaults pass to get -class */
-    do_defaults(NULL, &inst->cfg);
-    if (do_cmdline(argc, argv, 1, &inst->cfg))
-	exit(1);		       /* post-defaults, do everything */
-
     /*
      * Create an instance structure and initialise to zeroes
      */
     inst = smalloc(sizeof(*inst));
     memset(inst, 0, sizeof(*inst));
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
+
+    if (do_cmdline(argc, argv, 0, &inst->cfg))
+	exit(1);		       /* pre-defaults pass to get -class */
+    do_defaults(NULL, &inst->cfg);
+    if (do_cmdline(argc, argv, 1, &inst->cfg))
+	exit(1);		       /* post-defaults, do everything */
 
     inst->fonts[0] = gdk_font_load(inst->cfg.font);
     if (!inst->fonts[0]) {
