@@ -514,7 +514,7 @@ static char *read_body(FILE * fp)
 	    sfree(text);
 	    return NULL;
 	}
-	if (len + 1 > size) {
+	if (len + 1 >= size) {
 	    size += 128;
 	    text = sresize(text, size, char);
 	}
