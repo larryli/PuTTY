@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.92 2004/10/06 22:31:07 jacob Exp $
+\versionid $Id: config.but,v 1.93 2004/10/13 13:43:11 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1935,6 +1935,27 @@ Occasionally you might find you have a need to run a session \e{not}
 in a pseudo-terminal. In PuTTY, this is generally only useful for
 very specialist purposes; although in Plink (see \k{plink}) it is
 the usual way of working.
+
+\S{config-ssh-noshell} \q{Don't start a shell or command at all}
+
+\cfg{winhelp-topic}{ssh.noshell}
+
+If you tick this box, PuTTY will not attempt to run a shell or
+command after connecting to the remote server. You might want to use
+this option if you are only using the SSH connection for port
+forwarding, and your user account on the server does not have the
+ability to run a shell.
+
+This feature is only available in SSH protocol version 2 (since the
+version 1 protocol assumes you will always want to run a shell).
+
+This feature can also be enabled using the \c{-N} command-line
+option; see \k{using-cmdline-noshell}.
+
+If you use this feature in Plink, you will not be able to terminate
+the Plink process by any graceful means; the only way to kill it
+will be by pressing Control-C or sending a kill signal from another
+program.
 
 \S{config-ssh-comp} \q{Enable compression}
 

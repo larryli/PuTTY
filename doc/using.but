@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.33 2004/10/06 22:31:07 jacob Exp $
+\versionid $Id: using.but,v 1.34 2004/10/13 13:43:11 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -690,6 +690,24 @@ one. These options are only meaningful if you are using SSH.
 These options are equivalent to the \q{Don't allocate a
 pseudo-terminal} checkbox in the SSH panel of the PuTTY
 configuration box (see \k{config-ssh-pty}).
+
+These options are not available in the file transfer tools PSCP and
+PSFTP.
+
+\S2{using-cmdline-noshell} \I{-N-upper}\c{-N}: suppress starting a
+shell or command
+
+The \c{-N} option prevents PuTTY from attempting to start a shell or
+command on the remote server. You might want to use this option if
+you are only using the SSH connection for port forwarding, and your
+user account on the server does not have the ability to run a shell.
+
+This feature is only available in SSH protocol version 2 (since the
+version 1 protocol assumes you will always want to run a shell).
+
+This option is equivalent to the \q{Don't start a shell or command
+at all} checkbox in the SSH panel of the PuTTY configuration box
+(see \k{config-ssh-noshell}).
 
 These options are not available in the file transfer tools PSCP and
 PSFTP.

@@ -314,6 +314,13 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	cfg->nopty = 1;
     }
 
+    if (!strcmp(p, "-N")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+	cfg->ssh_no_shell = 1;
+    }
+
     if (!strcmp(p, "-C")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
