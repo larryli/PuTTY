@@ -321,8 +321,15 @@ void term_reconfig(Terminal *term, Config *cfg)
 	term->alt_wrap = term->wrap = term->cfg.wrap_mode;
     if (reset_decom)
 	term->alt_om = term->dec_om = term->cfg.dec_om;
-    if (reset_bce)
+    if (reset_bce) {
 	term->use_bce = term->cfg.bce;
+	if (term->use_bce)
+	    term->erase_char = (' ' | ATTR_ASCII |
+				(term->curr_attr &
+				 (ATTR_FGMASK | ATTR_BGMASK)));
+	else
+	    term->erase_char = ERASE_CHAR;
+    }
     if (reset_blink)
 	term->blink_is_real = term->cfg.blinktext;
     if (reset_charclass)
