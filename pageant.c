@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "putty.h" // FIXME
+
 #include "ssh.h"
 #include "tree234.h"
 

@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <windows.h> // FIXME
-#include "putty.h" // FIXME
 
 #include "ssh.h"
 
