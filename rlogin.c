@@ -25,6 +25,11 @@ static void c_write (char *buf, int len) {
 }
 
 static int rlogin_receive (Socket s, int urgent, char *data, int len) {
+    if (urgent==3) {
+        /* A socket error has occurred. */
+        connection_fatal(data);
+        len = 0;
+    }
     if (!len) {
 	/* Connection has closed. */
 	sk_close(s);

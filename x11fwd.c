@@ -106,6 +106,14 @@ static int x11_verify(char *proto, unsigned char *data, int dlen) {
 static int x11_receive (Socket s, int urgent, char *data, int len) {
     struct X11Private *pr = (struct X11Private *)sk_get_private_ptr(s);
 
+    if (urgent==3) {
+        /*
+         * A socket error has occurred. We have no way to
+         * communicate this down the forwarded connection, so we'll
+         * just treat it like a proper close.
+         */
+        len = 0;
+    }
     if (!len) {
 	/* Connection has closed. */
         sshfwd_close(pr->c);

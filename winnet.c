@@ -569,7 +569,11 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	return 1;		       /* boggle */
 
     if ((err = WSAGETSELECTERROR(lParam)) != 0) {
-	fatalbox(winsock_error_string(err));
+        /*
+         * An error has occurred on this socket. Pass it to the
+         * receiver function.
+         */
+        return s->receiver(s, 3, winsock_error_string(err), err);
     }
 
     noise_ultralight(lParam);
@@ -584,7 +588,7 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	    }
 	}
 	if (ret < 0) {
-	    fatalbox(winsock_error_string(err));
+	    return s->receiver(s, 3, winsock_error_string(err), err);
 	} else {
             int type = s->in_oob ? 2 : 0;
             s->in_oob = FALSE;

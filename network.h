@@ -8,10 +8,6 @@
  * send data without having to worry about blocking. The stuff
  * behind the abstraction takes care of selects and nonblocking
  * writes and all that sort of painful gubbins.
- * 
- * If urgent data comes in on a socket, the back end will read and
- * discard up to the urgent pointer, then read the urgent byte and
- * send _that_ to the receiver function with `urgent' set.
  */
 
 #ifndef PUTTY_NETWORK_H
@@ -19,6 +15,24 @@
 
 typedef struct Socket_tag *Socket;
 typedef struct SockAddr_tag *SockAddr;
+
+/*
+ * This is the function a client must register with each socket, to
+ * receive data coming in on that socket. The parameter `urgent'
+ * decides the meaning of `data' and `len':
+ * 
+ *  - urgent==0. `data' points to `len' bytes of perfectly ordinary
+ *    data.
+ * 
+ *  - urgent==1. `data' points to `len' bytes of data, which were
+ *    read from before an Urgent pointer.
+ * 
+ *  - urgent==2. `data' points to `len' bytes of data, the first of
+ *    which was the one at the Urgent mark.
+ * 
+ *  - urgent==3. An error has occurred on the socket. `data' points
+ *    to an error string, and `len' points to an error code.
+ */
 typedef int (*sk_receiver_t)(Socket s, int urgent, char *data, int len);
 
 void sk_init(void);		       /* called once at program startup */
