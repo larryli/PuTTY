@@ -85,6 +85,12 @@ GLOBAL int session_closed;
 GLOBAL char *logfile;
 
 /*
+ * Window handles for the dialog boxes that can be running during a
+ * PuTTY session.
+ */
+GLOBAL HWND logbox;
+
+/*
  * I've just looked in the windows standard headr files for WM_USER, there
  * are hundreds of flags defined using the form WM_USER+123 so I've 
  * renumbered this NETEVENT value and the two in window.c

@@ -13,8 +13,6 @@
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
-static HWND logbox = NULL, abtbox = NULL;
-
 static int readytogo;
 
 void force_normal(HWND hwnd)
@@ -56,6 +54,7 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
+	  case IDCANCEL:
 	    logbox = NULL;
 	    DestroyWindow (hwnd);
 	    return 0;
@@ -145,8 +144,8 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
-	    abtbox = NULL;
-	    DestroyWindow (hwnd);
+          case IDCANCEL:
+            EndDialog(hwnd, TRUE);
 	    return 0;
 	  case IDA_LICENCE:
 	    EnableWindow(hwnd, 0);
@@ -158,8 +157,7 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 	}
 	return 0;
       case WM_CLOSE:
-	abtbox = NULL;
-	DestroyWindow (hwnd);
+        EndDialog(hwnd, TRUE);
 	return 0;
     }
     return 0;
@@ -1996,11 +1994,7 @@ void showeventlog (HWND hwnd) {
 }
 
 void showabout (HWND hwnd) {
-    if (!abtbox) {
-	abtbox = CreateDialog (hinst, MAKEINTRESOURCE(IDD_ABOUTBOX),
-			       hwnd, AboutProc);
-	ShowWindow (abtbox, SW_SHOWNORMAL);
-    }
+    DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX),hwnd, AboutProc);
 }
 
 void verify_ssh_host_key(char *host, int port, char *keytype,

@@ -564,7 +564,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	    }
 	    if(!timer_id)
 		timer_id = SetTimer(hwnd, 1, 20, NULL);
-	    DispatchMessage (&msg);
+            if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
+                DispatchMessage (&msg);
 
 	    /* Make sure we blink everything that needs it. */
 	    term_blink(0);
