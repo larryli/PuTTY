@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/time.h>
 
 #include "putty.h"
@@ -40,3 +41,19 @@ int filename_is_null(Filename fn)
 {
     return !*fn.path;
 }
+
+#ifdef DEBUG
+static FILE *debug_fp = NULL;
+
+void dputs(char *buf)
+{
+    if (!debug_fp) {
+	debug_fp = fopen("debug.log", "w");
+    }
+
+    write(1, buf, strlen(buf));
+
+    fputs(buf, debug_fp);
+    fflush(debug_fp);
+}
+#endif

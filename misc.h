@@ -50,9 +50,9 @@ void bufchain_fetch(bufchain *ch, void *data, int len);
  */
 
 #ifdef DEBUG
-void dprintf(char *fmt, ...);
+void debug_printf(char *fmt, ...);
 void debug_memdump(void *buf, int len, int L);
-#define debug(x) (dprintf x)
+#define debug(x) (debug_printf x)
 #define dmemdump(buf,len) debug_memdump (buf, len, 0);
 #define dmemdumpl(buf,len) debug_memdump (buf, len, 1);
 #else
