@@ -866,7 +866,10 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText (hwnd, window_name);
 	if (!ignore_size) {
-	    int width, height, w, h, ew, eh;
+	    int width, height, w, h;
+#if 0 /* we have fixed this using WM_SIZING now */
+            int ew, eh;
+#endif
 
 	    width = LOWORD(lParam);
 	    height = HIWORD(lParam);
@@ -1084,18 +1087,24 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 	TextOut (hdc, x-1, y, text, len);
     }
     if (und_mode == UND_LINE && (attr & ATTR_UNDER)) {
-	SelectObject (hdc, CreatePen(PS_SOLID, 0, fg));
+        HPEN oldpen;
+	oldpen = SelectObject (hdc, CreatePen(PS_SOLID, 0, fg));
 	MoveToEx (hdc, x, y+descent, NULL);
 	LineTo (hdc, x+len*font_width, y+descent);
+        oldpen = SelectObject (hdc, oldpen);
+        DeleteObject (oldpen);
     }
     if (attr & ATTR_PASCURS) {
 	POINT pts[5];
+        HPEN oldpen;
 	pts[0].x = pts[1].x = pts[4].x = x;
 	pts[2].x = pts[3].x = x+font_width-1;
 	pts[0].y = pts[3].y = pts[4].y = y;
 	pts[1].y = pts[2].y = y+font_height-1;
-	SelectObject (hdc, CreatePen(PS_SOLID, 0, colours[23]));
+	oldpen = SelectObject (hdc, CreatePen(PS_SOLID, 0, colours[23]));
 	Polyline (hdc, pts, 5);
+        oldpen = SelectObject (hdc, oldpen);
+        DeleteObject (oldpen);
     }
 }
 
