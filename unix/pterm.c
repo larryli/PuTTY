@@ -1916,6 +1916,17 @@ void modalfatalbox(char *p, ...)
     exit(1);
 }
 
+void cmdline_error(char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "plink: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
+}
+
 char *get_x_display(void *frontend)
 {
     return gdk_get_display();
@@ -1988,6 +1999,20 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
     char *val;
     while (--argc > 0) {
 	char *p = *++argv;
+        int ret;
+
+        ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
+                                    do_everything ? 1 : -1, cfg);
+
+	if (ret == -2) {
+	    cmdline_error("option \"%s\" requires an argument", p);
+	} else if (ret == 2) {
+	    --argc, ++argv;            /* skip next argument */
+            continue;
+	} else if (ret == 1) {
+            continue;
+        }
+
 	if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
@@ -2135,6 +2160,10 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 	    help(stdout);
 	    exit(0);
 	    
+	} else if(p[0] != '-' && (!do_everything ||
+                                  process_nonoption_arg(p, cfg))) {
+            /* do nothing */
+
 	} else {
 	    err = 1;
 	    fprintf(stderr, "pterm: unrecognized option '%s'\n", p);
@@ -2257,7 +2286,9 @@ int pt_main(int argc, char **argv)
     if (do_cmdline(argc, argv, 1, &inst->cfg))
 	exit(1);		       /* post-defaults, do everything */
 
-    if (!cfgbox(&inst->cfg))
+    cmdline_run_saved(&inst->cfg);
+
+    if (!*inst->cfg.host && !cfgbox(&inst->cfg))
 	exit(0);		       /* config box hit Cancel */
 
     inst->fonts[0] = gdk_font_load(inst->cfg.font.name);

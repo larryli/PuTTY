@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
@@ -72,17 +73,6 @@
  *     - About (and uxcfg.c must also supply the about box)
  */
 
-void cmdline_error(char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "plink: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
-
 /*
  * Clean up and exit.
  */
@@ -142,6 +132,61 @@ int cfgbox(Config *cfg)
 {
     extern int do_config_box(const char *title, Config *cfg);
     return do_config_box("PuTTY Configuration", cfg);
+}
+
+static int got_host = 0;
+
+int process_nonoption_arg(char *arg, Config *cfg)
+{
+    char *p, *q = arg;
+
+    if (got_host) {
+        /*
+         * If we already have a host name, treat this argument as a
+         * port number. NB we have to treat this as a saved -P
+         * argument, so that it will be deferred until it's a good
+         * moment to run it.
+         */
+        int ret = cmdline_process_param("-P", arg, 1, cfg);
+        assert(ret == 2);
+    } else if (!strncmp(q, "telnet:", 7)) {
+        /*
+         * If the hostname starts with "telnet:",
+         * set the protocol to Telnet and process
+         * the string as a Telnet URL.
+         */
+        char c;
+
+        q += 7;
+        if (q[0] == '/' && q[1] == '/')
+            q += 2;
+        cfg->protocol = PROT_TELNET;
+        p = q;
+        while (*p && *p != ':' && *p != '/')
+            p++;
+        c = *p;
+        if (*p)
+            *p++ = '\0';
+        if (c == ':')
+            cfg->port = atoi(p);
+        else
+            cfg->port = -1;
+        strncpy(cfg->host, q, sizeof(cfg->host) - 1);
+        cfg->host[sizeof(cfg->host) - 1] = '\0';
+        got_host = 1;
+    } else {
+        /*
+         * Otherwise, treat this argument as a host name.
+         */
+        while (*p && !isspace((unsigned char)*p))
+            p++;
+        if (*p)
+            *p++ = '\0';
+        strncpy(cfg->host, q, sizeof(cfg->host) - 1);
+        cfg->host[sizeof(cfg->host) - 1] = '\0';
+        got_host = 1;
+    }
+    return 1;
 }
 
 char *make_default_wintitle(char *hostname)

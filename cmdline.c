@@ -111,6 +111,7 @@ static int cmdline_check_unavailable(int flag, char *p)
 #define RETURN(x) do { \
     if ((x) == 2 && !value) return -2; \
     ret = x; \
+    if (need_save < 0) return x; \
 } while (0)
 
 int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
@@ -126,7 +127,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-ssh")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_SSH;
 	default_port = cfg->port = 22;
@@ -134,7 +135,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-telnet")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_TELNET;
 	default_port = cfg->port = 23;
@@ -142,7 +143,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-rlogin")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_RLOGIN;
 	default_port = cfg->port = 513;
@@ -150,7 +151,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-raw")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_RAW;
     }
@@ -160,6 +161,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-l")) {
 	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	strncpy(cfg->username, value, sizeof(cfg->username));
 	cfg->username[sizeof(cfg->username) - 1] = '\0';
@@ -168,7 +170,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	char *fwd, *ptr, *q, *qq;
 	int i=0;
 	RETURN(2);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	fwd = value;
 	ptr = cfg->portfwd;
@@ -213,7 +215,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	int c, d;
 
 	RETURN(2);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 
 	filename = value;
@@ -243,11 +245,13 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-P")) {
 	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(1);		       /* lower priority than -ssh,-telnet */
 	cfg->port = atoi(value);
     }
     if (!strcmp(p, "-pw")) {
 	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	cmdline_password = value;
 	ssh_get_line = cmdline_get_line;
 	ssh_getline_pw_only = TRUE;
@@ -255,62 +259,66 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 
     if (!strcmp(p, "-A")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->agentfwd = 1;
     }
     if (!strcmp(p, "-a")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->agentfwd = 0;
     }
 
     if (!strcmp(p, "-X")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->x11_forward = 1;
     }
     if (!strcmp(p, "-x")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->x11_forward = 0;
     }
 
     if (!strcmp(p, "-t")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->nopty = 0;
     }
     if (!strcmp(p, "-T")) {
 	RETURN(1);
-	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->nopty = 1;
     }
 
     if (!strcmp(p, "-C")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->compression = 1;
     }
 
     if (!strcmp(p, "-1")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->sshprot = 0;	       /* ssh protocol 1 only */
     }
     if (!strcmp(p, "-2")) {
 	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->sshprot = 3;	       /* ssh protocol 2 only */
     }
 
     if (!strcmp(p, "-i")) {
 	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	cfg->keyfile = filename_from_str(value);
     }

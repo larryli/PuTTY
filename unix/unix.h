@@ -60,6 +60,7 @@ void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);
+int process_nonoption_arg(char *arg, Config *cfg);
 
 /* Things uxstore.c needs from pterm.c */
 char *x_get_default(const char *key);

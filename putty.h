@@ -773,6 +773,7 @@ int cmdline_process_param(char *, char *, int, Config *);
 void cmdline_run_saved(Config *);
 extern char *cmdline_password;
 #define TOOLTYPE_FILETRANSFER 1
+#define TOOLTYPE_NONNETWORK 2
 extern int cmdline_tooltype;
 
 void cmdline_error(char *, ...);

@@ -1911,8 +1911,6 @@ int do_config_box(const char *title, Config *cfg)
     struct selparam *selparams = NULL;
     int nselparams = 0, selparamsize = 0;
 
-    do_defaults(NULL, cfg);
-
     dlg_init(&dp);
 
     {
