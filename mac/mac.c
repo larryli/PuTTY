@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.21 2003/01/09 18:06:29 simon Exp $ */
+/* $Id: mac.c,v 1.22 2003/01/09 22:39:47 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -696,15 +696,40 @@ void old_keyfile_warning(void)
 
 char *platform_default_s(char *name)
 {
-    if (!strcmp(name, "Font"))
-	return "Monaco";
+    long smfs;
+    Str255 pname;
+    static char cname[256];
+
+    if (!strcmp(name, "Font")) {
+	smfs = GetScriptVariable(smSystemScript, smScriptMonoFondSize);
+	if (smfs == 0)
+	    smfs = GetScriptVariable(smRoman, smScriptMonoFondSize);
+	if (smfs != 0) {
+	    GetFontName(HiWord(smfs), pname);
+	    if (pname[0] == 0)
+		return "Monaco";
+	    p2cstrcpy(cname, pname);
+	    return cname;
+	} else
+	    return "Monaco";
+    }
     return NULL;
 }
 
 int platform_default_i(char *name, int def)
 {
-    if (!strcmp(name, "FontHeight"))
-	return 9;
+    long smfs;
+
+    if (!strcmp(name, "FontHeight")) {
+	smfs = GetScriptVariable(smSystemScript, smScriptMonoFondSize);
+	if (smfs == 0)
+	    smfs = GetScriptVariable(smRoman, smScriptMonoFondSize);
+	if (smfs != 0)
+	    return LoWord(smfs);
+	else
+	    return 9;
+    }
+
     /* Non-raw cut and paste of line-drawing chars works badly on the
      * current Unix stub implementation of the Unicode functions.
      * So I'm going to temporarily set the default to raw mode so
