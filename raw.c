@@ -23,8 +23,10 @@ static void c_write(char *buf, int len)
 static int raw_closing(Plug plug, char *error_msg, int error_code,
 		       int calling_back)
 {
-    sk_close(s);
-    s = NULL;
+    if (s) {
+        sk_close(s);
+        s = NULL;
+    }
     if (error_msg) {
 	/* A socket error has occurred. */
 	connection_fatal(error_msg);
