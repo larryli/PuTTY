@@ -1687,14 +1687,23 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_ABOUT:
 	    showabout(hwnd);
 	    break;
+	  case SC_MOUSEMENU:
+	    /*
+	     * We get this if the System menu has been activated
+	     * using the mouse.
+	     */
+	    show_mouseptr(1);
+	    break;
           case SC_KEYMENU:
 	    /*
-	     * We get this if the System menu has been activated.
-	     * This might happen from within TranslateKey, in which
-	     * case it really wants to be followed by a `space'
-	     * character to actually _bring the menu up_ rather
-	     * than just sitting there in `ready to appear' state.
+	     * We get this if the System menu has been activated
+	     * using the keyboard. This might happen from within
+	     * TranslateKey, in which case it really wants to be
+	     * followed by a `space' character to actually _bring
+	     * the menu up_ rather than just sitting there in
+	     * `ready to appear' state.
 	     */
+	    show_mouseptr(1);	       /* make sure pointer is visible */
 	    if( lParam == 0 )
 		PostMessage(hwnd, WM_CHAR, ' ', 0);
 	    break;
