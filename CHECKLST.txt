@@ -62,6 +62,16 @@ resources -- the strings are supplied by the usual means):
 
  - putty/mac/version.r
 
+It might also be worth going through the documentation looking for
+version numbers - we have a couple of transcripts showing the help
+text from the command-line tools, and it would be nice to ensure the
+whole transcripts (certainly including the version numbers) are up
+to date.
+
+ - putty/doc/pscp.but
+ - putty/doc/plink.but
+ - putty/doc/psftp.but (in case it ever acquires a similar thing)
+
 The actual release procedure
 ----------------------------
 
