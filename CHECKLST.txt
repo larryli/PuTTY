@@ -200,6 +200,10 @@ of the tag.
    chiark. Important to do this _before_ announcing that the release
    is available.
 
+ - After running webupdate, run update-rsync on chiark and verify
+   that the rsync mirror package correctly identifies the new
+   version.
+
  - Announce the release!
     + Mail the announcement to putty-announce.
     + Post it to comp.security.ssh.
