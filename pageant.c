@@ -390,13 +390,14 @@ static void add_keyfile(char *filename)
     int attempts;
     char *comment;
     struct PassphraseProcStruct pps;
-    int ver;
+    int type;
     int original_pass;
 	
-    ver = keyfile_version(filename);
-    if (ver == 0) {
-	MessageBox(NULL, "Couldn't load private key.", APPNAME,
-		   MB_OK | MB_ICONERROR);
+    type = key_type(filename);
+    if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
+	char msg[256];
+	sprintf(msg, "Couldn't load this key (%s)", key_type_to_str(type));
+	MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONERROR);
 	return;
     }
 
@@ -409,7 +410,7 @@ static void add_keyfile(char *filename)
 	unsigned char *keylist, *p;
 	int i, nkeys, bloblen;
 
-	if (ver == 1) {
+	if (type == SSH_KEYTYPE_SSH1) {
 	    if (!rsakey_pubblob(filename, &blob, &bloblen)) {
 		MessageBox(NULL, "Couldn't load private key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
@@ -445,7 +446,7 @@ static void add_keyfile(char *filename)
 		    return;
 		}
 		/* Now skip over public blob */
-		if (ver == 1)
+		if (type == SSH_KEYTYPE_SSH1)
 		    p += rsa_public_blob_len(p);
 		else
 		    p += 4 + GET_32BIT(p);
@@ -459,12 +460,12 @@ static void add_keyfile(char *filename)
 	sfree(blob);
     }
 
-    if (ver == 1)
+    if (type == SSH_KEYTYPE_SSH1)
 	needs_pass = rsakey_encrypted(filename, &comment);
     else
 	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     attempts = 0;
-    if (ver == 1)
+    if (type == SSH_KEYTYPE_SSH1)
 	rkey = smalloc(sizeof(*rkey));
     pps.passphrase = passphrase;
     pps.comment = comment;
@@ -484,14 +485,14 @@ static void add_keyfile(char *filename)
 		if (!dlgret) {
 		    if (comment)
 			sfree(comment);
-		    if (ver == 1)
+		    if (type == SSH_KEYTYPE_SSH1)
 			sfree(rkey);
 		    return;		       /* operation cancelled */
 		}
 	    }
 	} else
 	    *passphrase = '\0';
-	if (ver == 1)
+	if (type == SSH_KEYTYPE_SSH1)
 	    ret = loadrsakey(filename, rkey, passphrase);
 	else {
 	    skey = ssh2_load_userkey(filename, passphrase);
@@ -516,11 +517,11 @@ static void add_keyfile(char *filename)
     if (ret == 0) {
 	MessageBox(NULL, "Couldn't load private key.", APPNAME,
 		   MB_OK | MB_ICONERROR);
-	if (ver == 1)
+	if (type == SSH_KEYTYPE_SSH1)
 	    sfree(rkey);
 	return;
     }
-    if (ver == 1) {
+    if (type == SSH_KEYTYPE_SSH1) {
 	if (already_running) {
 	    unsigned char *request, *response;
 	    void *vresponse;

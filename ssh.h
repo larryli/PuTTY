@@ -297,7 +297,14 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm,
 int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
 		      char *passphrase);
 
-int keyfile_version(char *filename);
+enum {
+    SSH_KEYTYPE_UNOPENABLE,
+    SSH_KEYTYPE_UNKNOWN,
+    SSH_KEYTYPE_SSH1, SSH_KEYTYPE_SSH2,
+    SSH_KEYTYPE_OPENSSH, SSH_KEYTYPE_SSHCOM
+};
+int key_type(char *filename);
+char *key_type_to_str(int type);
 
 void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
 void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len);

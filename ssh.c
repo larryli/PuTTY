@@ -2430,8 +2430,22 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	}
 	if (pwpkt_type == SSH1_CMSG_AUTH_RSA) {
 	    char *comment = NULL;
+	    int type;
+	    char msgbuf[256];
 	    if (flags & FLAG_VERBOSE)
 		c_write_str("Trying public key authentication.\r\n");
+	    sprintf(msgbuf, "Trying public key \"%.200s\"", cfg.keyfile);
+	    logevent(msgbuf);
+	    type = key_type(cfg.keyfile);
+	    if (type != SSH_KEYTYPE_SSH1) {
+		sprintf(msgbuf, "Key is of wrong type (%s)",
+			key_type_to_str(type));
+		logevent(msgbuf);
+		c_write_str(msgbuf);
+		c_write_str("\r\n");
+		tried_publickey = 1;
+		continue;
+	    }
 	    if (!rsakey_encrypted(cfg.keyfile, &comment)) {
 		if (flags & FLAG_VERBOSE)
 		    c_write_str("No passphrase required.\r\n");
@@ -4085,8 +4099,21 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	kbd_inter_running = FALSE;
 	/* Load the pub half of cfg.keyfile so we notice if it's in Pageant */
 	if (*cfg.keyfile) {
-	    publickey_blob = ssh2_userkey_loadpub(cfg.keyfile, NULL,
-						  &publickey_bloblen);
+	    int keytype;
+	    logeventf("Reading private key file \"%.150s\"", cfg.keyfile);
+	    keytype = key_type(cfg.keyfile);
+	    if (keytype == SSH_KEYTYPE_SSH2)
+		publickey_blob = ssh2_userkey_loadpub(cfg.keyfile, NULL,
+						      &publickey_bloblen);
+	    else {
+		char msgbuf[256];
+		logeventf("Unable to use this key file (%s)",
+			key_type_to_str(keytype));
+		sprintf(msgbuf, "Unable to use key file \"%.150s\" (%s)\r\n",
+			cfg.keyfile, key_type_to_str(keytype));
+		c_write_str(msgbuf);
+		publickey_blob = NULL;
+	    }
 	} else
 	    publickey_blob = NULL;
 
@@ -4345,7 +4372,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		}
 	    }
 
-	    if (!method && can_pubkey && *cfg.keyfile
+	    if (!method && can_pubkey && publickey_blob
 		&& !tried_pubkey_config) {
 		unsigned char *pub_blob;
 		char *algorithm, *comment;

@@ -1122,22 +1122,51 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
 }
 
 /* ----------------------------------------------------------------------
- * A function to determine which version of SSH to try on a private
- * key file. Returns 0 on failure, 1 or 2 on success.
+ * A function to determine the type of a private key file. Returns
+ * 0 on failure, 1 or 2 on success.
  */
-int keyfile_version(char *filename)
+int key_type(char *filename)
 {
     FILE *fp;
+    char buf[32];
+    const char putty2_sig[] = "PuTTY-User-Key-File-";
+    const char sshcom_sig[] = "---- BEGIN SSH2 ENCRYPTED PRIVAT";
+    const char openssh_sig[] = "-----BEGIN ";
     int i;
 
     fp = fopen(filename, "r");
     if (!fp)
-	return 0;
-    i = fgetc(fp);
+	return SSH_KEYTYPE_UNOPENABLE;
+    i = fread(buf, 1, sizeof(buf), fp);
     fclose(fp);
-    if (i == 'S')
-	return 1;		       /* "SSH PRIVATE KEY FORMAT" etc */
-    if (i == 'P')		       /* "PuTTY-User-Key-File" etc */
-	return 2;
-    return 0;			       /* unrecognised or EOF */
+    if (i < 0)
+	return SSH_KEYTYPE_UNOPENABLE;
+    if (i < 32)
+	return SSH_KEYTYPE_UNKNOWN;
+    if (!memcmp(buf, rsa_signature, sizeof(rsa_signature)-1))
+	return SSH_KEYTYPE_SSH1;
+    if (!memcmp(buf, putty2_sig, sizeof(putty2_sig)-1))
+	return SSH_KEYTYPE_SSH2;
+    if (!memcmp(buf, openssh_sig, sizeof(openssh_sig)-1))
+	return SSH_KEYTYPE_OPENSSH;
+    if (!memcmp(buf, sshcom_sig, sizeof(sshcom_sig)-1))
+	return SSH_KEYTYPE_SSHCOM;
+    return SSH_KEYTYPE_UNKNOWN;	       /* unrecognised or EOF */
+}
+
+/*
+ * Convert the type word to a string, for `wrong type' error
+ * messages.
+ */
+char *key_type_to_str(int type)
+{
+    switch (type) {
+      case SSH_KEYTYPE_UNOPENABLE: return "unable to open file"; break;
+      case SSH_KEYTYPE_UNKNOWN: return "not a private key"; break;
+      case SSH_KEYTYPE_SSH1: return "SSH1 private key"; break;
+      case SSH_KEYTYPE_SSH2: return "PuTTY SSH2 private key"; break;
+      case SSH_KEYTYPE_OPENSSH: return "OpenSSH SSH2 private key"; break;
+      case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH2 private key"; break;
+      default: return "INTERNAL ERROR"; break;
+    }
 }

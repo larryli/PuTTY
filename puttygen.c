@@ -846,22 +846,25 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		if (prompt_keyfile(hwnd, "Load private key:", filename, 0)) {
 		    char passphrase[PASSPHRASE_MAXLEN];
 		    int needs_pass;
-		    int ver;
+		    int type;
 		    int ret;
 		    char *comment;
 		    struct PassphraseProcStruct pps;
 		    struct RSAKey newkey1;
 		    struct ssh2_userkey *newkey2 = NULL;
 
-		    ver = keyfile_version(filename);
-		    if (ver == 0) {
-			MessageBox(NULL, "Couldn't load private key.",
+		    type = key_type(filename);
+		    if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
+			char msg[256];
+			sprintf(msg, "Couldn't load private key (%s)",
+				key_type_to_str(type));
+			MessageBox(NULL, msg,
 				   "PuTTYgen Error", MB_OK | MB_ICONERROR);
 			break;
 		    }
 
 		    comment = NULL;
-		    if (ver == 1)
+		    if (type == SSH_KEYTYPE_SSH1)
 			needs_pass = rsakey_encrypted(filename, &comment);
 		    else
 			needs_pass =
@@ -881,7 +884,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			    }
 			} else
 			    *passphrase = '\0';
-			if (ver == 1)
+			if (type == SSH_KEYTYPE_SSH1)
 			    ret =
 				loadrsakey(filename, &newkey1, passphrase);
 			else {
@@ -918,7 +921,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 					   passphrase);
 			    SetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
 					   passphrase);
-			    if (ver == 1) {
+			    if (type == SSH_KEYTYPE_SSH1) {
 				char buf[128];
 				char *savecomment;
 
