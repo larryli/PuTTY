@@ -177,8 +177,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * the least we can do is ensure it never makes it to any other
      * platform (at least unless someone fixes it!).
      */
-    s = ctrl_getset(b, "Window/Translation", "input",
-		    "Enable character set translation on input data");
+    s = ctrl_getset(b, "Window/Translation", "tweaks", NULL);
     ctrl_checkbox(s, "Caps Lock acts as Cyrillic switch", 's',
 		  HELPCTX(translation_cyrillic),
 		  dlg_stdcheckbox_handler,

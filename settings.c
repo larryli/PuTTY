@@ -339,6 +339,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
 	write_setting_s(sesskey, buf, buf2);
     }
     write_setting_s(sesskey, "LineCodePage", cfg->line_codepage);
+    write_setting_i(sesskey, "CJKAmbigWide", cfg->cjk_ambig_wide);
     write_setting_i(sesskey, "UTF8Override", cfg->utf8_override);
     write_setting_s(sesskey, "Printer", cfg->printer);
     write_setting_i(sesskey, "CapsLockCyr", cfg->xlat_capslockcyr);
@@ -666,6 +667,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
      */
     gpps(sesskey, "LineCodePage", "", cfg->line_codepage,
 	 sizeof(cfg->line_codepage));
+    gppi(sesskey, "CJKAmbigWide", 0, &cfg->cjk_ambig_wide);
     gppi(sesskey, "UTF8Override", 1, &cfg->utf8_override);
     gpps(sesskey, "Printer", "", cfg->printer, sizeof(cfg->printer));
     gppi (sesskey, "CapsLockCyr", 0, &cfg->xlat_capslockcyr);

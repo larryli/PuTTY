@@ -525,6 +525,7 @@ struct config_tag {
     /* translations */
     int vtmode;
     char line_codepage[128];
+    int cjk_ambig_wide;
     int utf8_override;
     int xlat_capslockcyr;
     /* X11 forwarding */
@@ -869,6 +870,8 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype);
  */
 int wcwidth(wchar_t ucs);
 int wcswidth(const wchar_t *pwcs, size_t n);
+int wcwidth_cjk(wchar_t ucs);
+int wcswidth_cjk(const wchar_t *pwcs, size_t n);
 
 /*
  * Exports from mscrypto.c

@@ -1213,6 +1213,24 @@ its name manually (\c{CP866} for example) in the list box. If the
 underlying version of Windows has the appropriate translation table
 installed, PuTTY will use it.
 
+\S{config-cjk-ambig-wide} \q{Treat CJK ambiguous characters as wide}
+
+\cfg{winhelp-topic}{translation.cjkambigwide}
+
+There are \I{East Asian Ambiguous characters}some Unicode characters
+whose width is not well-defined. In most contexts, such characters
+should be treated as single-width for the purposes of wrapping and so
+on; however, in some CJK contexts, they are better treated as
+double-width for historical reasons, and some server-side applications
+may expect them to be displayed as such. Setting this option will
+cause PuTTY to take the double-width interpretation. 
+
+If you use legacy CJK applications, and you find your lines are
+wrapping in the wrong places, or you are having other display
+problems, you might want to play with this setting.
+
+This option only has any effect in UTF-8 mode (see \k{config-charset}).
+
 \S{config-cyr} \q{Caps Lock acts as Cyrillic switch}
 
 \cfg{winhelp-topic}{translation.cyrillic}

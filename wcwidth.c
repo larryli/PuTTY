@@ -146,7 +146,6 @@ int wcswidth(const wchar_t *pwcs, size_t n)
   return width;
 }
 
-#if 0 /* RDB: we don't need the cjk version */
 /*
  * The following function is the same as wcwidth(), except that
  * spacing characters in the East Asian Ambiguous (A) category as
@@ -155,7 +154,7 @@ int wcswidth(const wchar_t *pwcs, size_t n)
  * encodings who want to migrate to UCS. It is not otherwise
  * recommended for general use.
  */
-static int wcwidth_cjk(wchar_t ucs)
+int wcwidth_cjk(wchar_t ucs)
 {
   /* sorted list of non-overlapping intervals of East Asian Ambiguous
    * characters */
@@ -233,4 +232,3 @@ int wcswidth_cjk(const wchar_t *pwcs, size_t n)
 
   return width;
 }
-#endif

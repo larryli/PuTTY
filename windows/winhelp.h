@@ -112,6 +112,7 @@
 #define WINHELP_CTX_colours_logpal "colours.logpal"
 #define WINHELP_CTX_colours_config "colours.config"
 #define WINHELP_CTX_translation_codepage "translation.codepage"
+#define WINHELP_CTX_translation_cjk_ambig_wide "translation.cjkambigwide"
 #define WINHELP_CTX_translation_cyrillic "translation.cyrillic"
 #define WINHELP_CTX_translation_linedraw "translation.linedraw"
 #define WINHELP_CTX_ssh_tunnels_x11 "ssh.tunnels.x11"

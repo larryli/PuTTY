@@ -1282,6 +1282,11 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		  'r', 100, HELPCTX(translation_codepage),
 		  codepage_handler, P(NULL), P(NULL));
 
+    s = ctrl_getset(b, "Window/Translation", "tweaks", NULL);
+    ctrl_checkbox(s, "Treat CJK ambiguous characters as wide", 'w',
+		  HELPCTX(translation_cjk_ambig_wide),
+		  dlg_stdcheckbox_handler, I(offsetof(Config,cjk_ambig_wide)));
+
     str = dupprintf("Adjust how %s handles line drawing characters", appname);
     s = ctrl_getset(b, "Window/Translation", "linedraw", str);
     sfree(str);
