@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.24 2004/02/13 11:20:42 jacob Exp $
+\versionid $Id: pscp.but,v 1.25 2004/02/22 14:48:48 jacob Exp $
 
 \#FIXME: Need examples
 
@@ -44,7 +44,7 @@ use PSCP:
 \c Release 0.54
 \c Usage: pscp [options] [user@]host:source target
 \c        pscp [options] source [source...] [user@]host:target
-\c        pscp [options] -ls user@host:filespec
+\c        pscp [options] -ls [user@]host:filespec
 \c Options:
 \c   -p        preserve file attributes
 \c   -q        quiet, don't show statistics

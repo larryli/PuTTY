@@ -2049,7 +2049,7 @@ static void usage(void)
     printf("Usage: pscp [options] [user@]host:source target\n");
     printf
 	("       pscp [options] source [source...] [user@]host:target\n");
-    printf("       pscp [options] -ls user@host:filespec\n");
+    printf("       pscp [options] -ls [user@]host:filespec\n");
     printf("Options:\n");
     printf("  -p        preserve file attributes\n");
     printf("  -q        quiet, don't show statistics\n");
