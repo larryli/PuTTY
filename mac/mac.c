@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.30 2003/01/15 20:47:50 jacob Exp $ */
+/* $Id: mac.c,v 1.31 2003/01/15 22:37:58 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -203,8 +203,8 @@ static void mac_startup(void) {
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {
-	default_port = 0; /* illegal */
 	int i;
+	default_port = 0; /* illegal */
 	for (i = 0; backends[i].backend != NULL; i++)
 	    if (backends[i].protocol == default_protocol) {
 		default_port = backends[i].backend->default_port;
