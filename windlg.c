@@ -1353,7 +1353,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == featurespanelstart) {
-	/* The Features panel. Accelerators used: [acgoh] uksvatbr */
+	/* The Features panel. Accelerators used: [acgoh] ukswtbr */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Enabling and disabling advanced terminal features ",
@@ -1363,7 +1363,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	checkbox(&cp, "Disable application &keypad mode", IDC_NOAPPLICK);
 	checkbox(&cp, "Disable remote-controlled terminal re&sizing",
 		 IDC_NORESIZE);
-	checkbox(&cp, "Disable switching to &alternate terminal screen",
+	checkbox(&cp, "Disable s&witching to alternate terminal screen",
 		 IDC_NOALTSCREEN);
 	checkbox(&cp, "Disable remote-controlled window &title changing",
 		 IDC_NOWINTITLE);
@@ -1412,7 +1412,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == keyboardpanelstart) {
-	/* The Keyboard panel. Accelerators used: [acgoh] bef ruyntd */
+	/* The Keyboard panel. Accelerators used: [acgoh] bef rntd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the effects of keys",
