@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.17 2002/12/07 15:21:56 ben Exp $ */
+/* $Id: macterm.c,v 1.18 2002/12/08 01:17:31 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -35,6 +35,7 @@
 #include <ControlDefinitions.h>
 #include <Fonts.h>
 #include <Gestalt.h>
+#include <LowMem.h>
 #include <MacMemory.h>
 #include <MacWindows.h>
 #include <MixedMode.h>
@@ -78,6 +79,7 @@ static void mac_initpalette(Session *);
 static void mac_adjustwinbg(Session *);
 static void mac_adjustsize(Session *, int, int);
 static void mac_drawgrowicon(Session *s);
+static pascal void mac_growtermdraghook(void);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
 static pascal void mac_set_attr_mask(short, short, GDHandle, long);
@@ -709,21 +711,86 @@ void request_paste(void *frontend)
     term_do_paste(s->term);
 }
 
+static struct {
+    Rect msgrect;
+    Point msgorigin;
+    Point startmouse;
+    Session *s;
+    char oldmsg[20];
+} growterm_state;
+
 void mac_growterm(WindowPtr window, EventRecord *event) {
     Rect limits;
     long grow_result;
     int newrows, newcols;
     Session *s;
+    DragGrayRgnUPP draghooksave;
+    GrafPtr portsave;
+    FontInfo fi;
 
     s = (Session *)GetWRefCon(window);
+
+    draghooksave = LMGetDragHook();
+    growterm_state.oldmsg[0] = '\0';
+    growterm_state.startmouse = event->where;
+    growterm_state.s = s;
+    GetPort(&portsave);
+    SetPort(s->window);
+    BackColor(whiteColor);
+    ForeColor(blackColor);
+    TextFont(systemFont);
+    TextFace(0);
+    TextSize(12);
+    GetFontInfo(&fi);
+    SetRect(&growterm_state.msgrect, 0, 0,
+	    StringWidth("\p99999x99999") + 4, fi.ascent + fi.descent + 4);
+    SetPt(&growterm_state.msgorigin, 2, fi.ascent + 2);
+    LMSetDragHook(NewDragGrayRgnUPP(mac_growtermdraghook));
+
     SetRect(&limits, s->font_width + 15, s->font_height, SHRT_MAX, SHRT_MAX);
     grow_result = GrowWindow(window, event->where, &limits);
+
+    DisposeDragGrayRgnUPP(LMGetDragHook());
+    LMSetDragHook(draghooksave);
+    InvalRect(&growterm_state.msgrect);
+
+    SetPort(portsave);
+
     if (grow_result != 0) {
 	newrows = HiWord(grow_result) / s->font_height;
 	newcols = (LoWord(grow_result) - 15) / s->font_width;
 	mac_adjustsize(s, newrows, newcols);
 	term_size(s->term, newrows, newcols, s->cfg.savelines);
     }
+}
+
+static pascal void mac_growtermdraghook(void)
+{
+    Session *s = growterm_state.s;
+    GrafPtr portsave;
+    Point mouse;
+    char buf[20];
+    int newrows, newcols;
+    
+    GetMouse(&mouse);
+    newrows = (mouse.v - growterm_state.startmouse.v) / s->font_height +
+	s->term->rows;
+    if (newrows < 1) newrows = 1;
+    newcols = (mouse.h - growterm_state.startmouse.h) / s->font_width +
+	s->term->cols;
+    if (newcols < 1) newcols = 1;
+    sprintf(buf, "%dx%d", newcols, newrows);
+    if (strcmp(buf, growterm_state.oldmsg) == 0)
+	return;
+    strcpy(growterm_state.oldmsg, buf);
+    c2pstr(buf);
+
+    GetPort(&portsave);
+    SetPort(growterm_state.s->window);
+    EraseRect(&growterm_state.msgrect);
+    MoveTo(growterm_state.msgorigin.h, growterm_state.msgorigin.v);
+    DrawString((StringPtr)buf);
+    SetPort(portsave);
 }
 
 void mac_activateterm(WindowPtr window, Boolean active) {
