@@ -62,7 +62,7 @@ void debug_memdump(void *buf, int len, int L);
 #define min(x,y) ( (x) < (y) ? (x) : (y) )
 #endif
 #ifndef max
-#define max(x,y) ( (x) < (y) ? (x) : (y) )
+#define max(x,y) ( (x) > (y) ? (x) : (y) )
 #endif
 
 #endif
