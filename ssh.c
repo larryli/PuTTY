@@ -638,20 +638,29 @@ struct ssh_tag {
     int (*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
 };
 
-#define logevent(s) { logevent(ssh->frontend, s); \
-                      if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
-                      { fprintf(stderr, "%s\n", s); fflush(stderr); } }
+#define logevent(s) do { \
+    logevent(ssh->frontend, s); \
+    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) { \
+	fprintf(stderr, "%s\n", s); \
+	fflush(stderr); \
+    } \
+} while (0)
 
 /* logevent, only printf-formatted. */
 void logeventf(Ssh ssh, char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char *buf;
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    buf = dupvprintf(fmt, ap);
     va_end(ap);
-    logevent(stuff);
+    logevent(buf);
+    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) {
+	fprintf(stderr, "%s\n", buf);
+	fflush(stderr);
+    }
+    sfree(buf);
 }
 
 #define bombout(msg) ( ssh->state = SSH_STATE_CLOSED, \
@@ -1049,30 +1058,29 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
       case SSH2_MSG_DISCONNECT:
         {
             /* log reason code in disconnect message */
-            char buf[256];
+            char *buf;
+	    int nowlen;
             int reason = GET_32BIT(ssh->pktin.data + 6);
             unsigned msglen = GET_32BIT(ssh->pktin.data + 10);
-            unsigned nowlen;
+
             if (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) {
-                sprintf(buf, "Received disconnect message (%s)",
-                        ssh2_disconnect_reasons[reason]);
+                buf = dupprintf("Received disconnect message (%s)",
+				ssh2_disconnect_reasons[reason]);
             } else {
-                sprintf(buf, "Received disconnect message (unknown type %d)",
-                        reason);
+                buf = dupprintf("Received disconnect message (unknown"
+				" type %d)", reason);
             }
             logevent(buf);
-            strcpy(buf, "Disconnection message text: ");
-            nowlen = strlen(buf);
-            if (msglen > sizeof(buf) - nowlen - 1)
-                msglen = sizeof(buf) - nowlen - 1;
-            memcpy(buf + nowlen, ssh->pktin.data + 14, msglen);
-            buf[nowlen + msglen] = '\0';
+	    sfree(buf);
+            buf = dupprintf("Disconnection message text: %n%.*s",
+			    msglen, &nowlen, ssh->pktin.data + 14);
             logevent(buf);
             bombout((ssh,"Server sent disconnect message\ntype %d (%s):\n\"%s\"",
                      reason,
                      (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
                      ssh2_disconnect_reasons[reason] : "unknown",
                      buf+nowlen));
+	    sfree(buf);
             crReturn(0);
         }
         break;
@@ -1612,11 +1620,15 @@ static int ssh2_pkt_getbool(Ssh ssh)
 }
 static void ssh2_pkt_getstring(Ssh ssh, char **p, int *length)
 {
+    int len;
     *p = NULL;
     *length = 0;
     if (ssh->pktin.length - ssh->pktin.savedpos < 4)
 	return;
-    *length = GET_32BIT(ssh->pktin.data + ssh->pktin.savedpos);
+    len = GET_32BIT(ssh->pktin.data + ssh->pktin.savedpos);
+    if (len < 0)
+	return;
+    *length = len;
     ssh->pktin.savedpos += 4;
     if (ssh->pktin.length - ssh->pktin.savedpos < *length)
 	return;
@@ -2059,11 +2071,7 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
     /*
      * Try to find host.
      */
-    {
-	char buf[200];
-	sprintf(buf, "Looking up host \"%.170s\"", host);
-	logevent(buf);
-    }
+    logeventf(ssh, "Looking up host \"%s\"", host);
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
@@ -2072,10 +2080,9 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
      * Open socket.
      */
     {
-	char buf[200], addrbuf[100];
+	char addrbuf[100];
 	sk_getaddr(addr, addrbuf, 100);
-	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
-	logevent(buf);
+	logeventf(ssh, "Connecting to %s port %d", addrbuf, port);
     }
     ssh->fn = &fn_table;
     ssh->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) ssh);
@@ -2396,11 +2403,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		   &ssh_3des);
     ssh->v1_cipher_ctx = ssh->cipher->make_context();
     ssh->cipher->sesskey(ssh->v1_cipher_ctx, ssh->session_key);
-    {
-	char buf[256];
-	sprintf(buf, "Initialised %.200s encryption", ssh->cipher->text_name);
-	logevent(buf);
-    }
+    logeventf(ssh, "Initialised %s encryption", ssh->cipher->text_name);
 
     ssh->crcda_ctx = crcda_make_context();
     logevent("Installing CRC compensation attack detector");
@@ -2664,8 +2667,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    char msgbuf[256];
 	    if (flags & FLAG_VERBOSE)
 		c_write_str(ssh, "Trying public key authentication.\r\n");
-	    sprintf(msgbuf, "Trying public key \"%.200s\"", cfg.keyfile);
-	    logevent(msgbuf);
+	    logeventf(ssh, "Trying public key \"%s\"", cfg.keyfile);
 	    type = key_type(cfg.keyfile);
 	    if (type != SSH_KEYTYPE_SSH1) {
 		sprintf(msgbuf, "Key is of wrong type (%s)",
@@ -3070,7 +3072,6 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	int n;
 	int sport,dport,sserv,dserv;
 	char sports[256], dports[256], host[256];
-	char buf[1024];
 
 	ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
         /* Add port forwardings. */
@@ -3100,10 +3101,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		dserv = 1;
 		dport = net_service_lookup(dports);
 		if (!dport) {
-		    sprintf(buf,
-			    "Service lookup failed for destination port \"%s\"",
-			    dports);
-		    logevent(buf);
+		    logeventf(ssh, "Service lookup failed for"
+			      " destination port \"%s\"", dports);
 		}
 	    }
 	    sport = atoi(sports);
@@ -3112,43 +3111,38 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		sserv = 1;
 		sport = net_service_lookup(sports);
 		if (!sport) {
-		    sprintf(buf,
-			    "Service lookup failed for source port \"%s\"",
-			    sports);
-		    logevent(buf);
+		    logeventf(ssh, "Service lookup failed for source"
+			      " port \"%s\"", sports);
 		}
 	    }
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, sport, ssh);
-		    sprintf(buf, "Local port %.*s%.*s%d%.*s forwarding to"
-			    " %s:%.*s%.*s%d%.*s",
-			    (int)(sserv ? strlen(sports) : 0), sports,
-			    sserv, "(", sport, sserv, ")",
-			    host,
-			    (int)(dserv ? strlen(dports) : 0), dports,
-			    dserv, "(", dport, dserv, ")");
-		    logevent(buf);
+		    logeventf(ssh, "Local port %.*s%.*s%d%.*s forwarding to"
+			      " %s:%.*s%.*s%d%.*s",
+			      (int)(sserv ? strlen(sports) : 0), sports,
+			      sserv, "(", sport, sserv, ")",
+			      host,
+			      (int)(dserv ? strlen(dports) : 0), dports,
+			      dserv, "(", dport, dserv, ")");
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = smalloc(sizeof(*pf));
 		    strcpy(pf->dhost, host);
 		    pf->dport = dport;
 		    if (add234(ssh->rportfwds, pf) != pf) {
-			sprintf(buf, 
-				"Duplicate remote port forwarding to %s:%d",
-				host, dport);
-			logevent(buf);
+			logeventf(ssh, 
+				  "Duplicate remote port forwarding to %s:%d",
+				  host, dport);
 			sfree(pf);
 		    } else {
-			sprintf(buf, "Requesting remote port %.*s%.*s%d%.*s"
-				" forward to %s:%.*s%.*s%d%.*s",
-			    (int)(sserv ? strlen(sports) : 0), sports,
-			    sserv, "(", sport, sserv, ")",
-			    host,
-			    (int)(dserv ? strlen(dports) : 0), dports,
-			    dserv, "(", dport, dserv, ")");
-			logevent(buf);
+			logeventf(ssh, "Requesting remote port %.*s%.*s%d%.*s"
+				  " forward to %s:%.*s%.*s%d%.*s",
+				  (int)(sserv ? strlen(sports) : 0), sports,
+				  sserv, "(", sport, sserv, ")",
+				  host,
+				  (int)(dserv ? strlen(dports) : 0), dports,
+				  dserv, "(", dport, dserv, ")");
 			send_packet(ssh, SSH1_CMSG_PORT_FORWARD_REQUEST,
 				    PKT_INT, sport,
 				    PKT_STR, host,
@@ -3576,7 +3570,10 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
  */
 static int in_commasep_string(char *needle, char *haystack, int haylen)
 {
-    int needlen = strlen(needle);
+    int needlen;
+    if (!needle || !haystack)	       /* protect against null pointers */
+	return 0;
+    needlen = strlen(needle);
     while (1) {
 	/*
 	 * Is it at the start of the string?
@@ -3811,7 +3808,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
     if (!ispkt)
 	crWaitUntil(ispkt);
-    sha_string(&ssh->exhash, ssh->pktin.data + 5, ssh->pktin.length - 5);
+    if (ssh->pktin.length > 5)
+	sha_string(&ssh->exhash, ssh->pktin.data + 5, ssh->pktin.length - 5);
 
     /*
      * Now examine the other side's KEXINIT to see what we're up
@@ -3872,7 +3870,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	}
 	if (!s->cscipher_tobe) {
-	    bombout((ssh,"Couldn't agree a client-to-server cipher (available: %s)", str));
+	    bombout((ssh,"Couldn't agree a client-to-server cipher (available: %s)",
+		     str ? str : "(null)"));
 	    crReturn(0);
 	}
 
@@ -3897,7 +3896,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	}
 	if (!s->sccipher_tobe) {
-	    bombout((ssh,"Couldn't agree a server-to-client cipher (available: %s)", str));
+	    bombout((ssh,"Couldn't agree a server-to-client cipher (available: %s)",
+		     str ? str : "(null)"));
 	    crReturn(0);
 	}
 
@@ -4118,26 +4118,16 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'F',keyspace);
 	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
     }
-    {
-	char buf[256];
-	sprintf(buf, "Initialised %.200s client->server encryption",
-		ssh->cscipher->text_name);
-	logevent(buf);
-	sprintf(buf, "Initialised %.200s server->client encryption",
-		ssh->sccipher->text_name);
-	logevent(buf);
-	if (ssh->cscomp->text_name) {
-	    sprintf(buf, "Initialised %.200s compression",
-		    ssh->cscomp->text_name);
-	    logevent(buf);
-	}
-	if (ssh->sccomp->text_name) {
-	    sprintf(buf, "Initialised %.200s decompression",
-		    ssh->sccomp->text_name);
-	    logevent(buf);
-	}
-    }
-
+    logeventf(ssh, "Initialised %.200s client->server encryption",
+	      ssh->cscipher->text_name);
+    logeventf(ssh, "Initialised %.200s server->client encryption",
+	      ssh->sccipher->text_name);
+    if (ssh->cscomp->text_name)
+	logeventf(ssh, "Initialised %s compression",
+		  ssh->cscomp->text_name);
+    if (ssh->sccomp->text_name)
+	logeventf(ssh, "Initialised %s decompression",
+		  ssh->sccomp->text_name);
 
     /*
      * If this is the first key exchange phase, we must pass the
@@ -4351,12 +4341,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    s->username[strcspn(s->username, "\n\r")] = '\0';
 	} else {
-	    char stuff[200];
+	    char *stuff;
 	    strncpy(s->username, cfg.username, sizeof(s->username));
 	    s->username[sizeof(s->username)-1] = '\0';
 	    if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
-		sprintf(stuff, "Using username \"%s\".\r\n", s->username);
+		stuff = dupprintf("Using username \"%s\".\r\n", s->username);
 		c_write_str(ssh, stuff);
+		sfree(stuff);
 	    }
 	}
 	s->got_username = TRUE;
@@ -4392,13 +4383,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_userkey_loadpub(cfg.keyfile, NULL,
 					 &s->publickey_bloblen);
 	    } else {
-		char msgbuf[256];
+		char *msgbuf;
 		logeventf(ssh->frontend,
 			  "Unable to use this key file (%s)",
 			  key_type_to_str(keytype));
-		sprintf(msgbuf, "Unable to use key file \"%.150s\" (%s)\r\n",
-			cfg.keyfile, key_type_to_str(keytype));
+		msgbuf = dupprintf("Unable to use key file \"%.150s\""
+				   " (%s)\r\n", cfg.keyfile,
+				   key_type_to_str(keytype));
 		c_write_str(ssh, msgbuf);
+		sfree(msgbuf);
 		s->publickey_blob = NULL;
 	    }
 	} else
@@ -5112,7 +5105,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	int n;
 	int sport,dport,sserv,dserv;
 	char sports[256], dports[256], host[256];
-	char buf[1024];
 
 	ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
         /* Add port forwardings. */
@@ -5142,10 +5134,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		dserv = 1;
 		dport = net_service_lookup(dports);
 		if (!dport) {
-		    sprintf(buf,
-			    "Service lookup failed for destination port \"%s\"",
-			    dports);
-		    logevent(buf);
+		    logeventf(ssh, "Service lookup failed for destination"
+			      " port \"%s\"", dports);
 		}
 	    }
 	    sport = atoi(sports);
@@ -5154,23 +5144,20 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		sserv = 1;
 		sport = net_service_lookup(sports);
 		if (!sport) {
-		    sprintf(buf,
-			    "Service lookup failed for source port \"%s\"",
-			    sports);
-		    logevent(buf);
+		    logeventf(ssh, "Service lookup failed for source"
+			      " port \"%s\"", sports);
 		}
 	    }
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, sport, ssh);
-		    sprintf(buf, "Local port %.*s%.*s%d%.*s forwarding to"
-			    " %s:%.*s%.*s%d%.*s",
-			    (int)(sserv ? strlen(sports) : 0), sports,
-			    sserv, "(", sport, sserv, ")",
-			    host,
-			    (int)(dserv ? strlen(dports) : 0), dports,
-			    dserv, "(", dport, dserv, ")");
-		    logevent(buf);
+		    logeventf(ssh, "Local port %.*s%.*s%d%.*s forwarding to"
+			      " %s:%.*s%.*s%d%.*s",
+			      (int)(sserv ? strlen(sports) : 0), sports,
+			      sserv, "(", sport, sserv, ")",
+			      host,
+			      (int)(dserv ? strlen(dports) : 0), dports,
+			      dserv, "(", dport, dserv, ")");
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = smalloc(sizeof(*pf));
@@ -5178,20 +5165,17 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    pf->dport = dport;
 		    pf->sport = sport;
 		    if (add234(ssh->rportfwds, pf) != pf) {
-			sprintf(buf, 
-				"Duplicate remote port forwarding to %s:%d",
-				host, dport);
-			logevent(buf);
+			logeventf(ssh, "Duplicate remote port forwarding"
+				  " to %s:%d", host, dport);
 			sfree(pf);
 		    } else {
-			sprintf(buf, "Requesting remote port %.*s%.*s%d%.*s"
-				" forward to %s:%.*s%.*s%d%.*s",
-			    (int)(sserv ? strlen(sports) : 0), sports,
-			    sserv, "(", sport, sserv, ")",
-			    host,
-			    (int)(dserv ? strlen(dports) : 0), dports,
-			    dserv, "(", dport, dserv, ")");
-			logevent(buf);
+			logeventf(ssh, "Requesting remote port %.*s%.*s%d%.*s"
+				  " forward to %s:%.*s%.*s%d%.*s",
+				  (int)(sserv ? strlen(sports) : 0), sports,
+				  sserv, "(", sport, sserv, ")",
+				  host,
+				  (int)(dserv ? strlen(dports) : 0), dports,
+				  dserv, "(", dport, dserv, ")");
 			ssh2_pkt_init(ssh, SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring(ssh, "tcpip-forward");
 			ssh2_pkt_addbool(ssh, 1);/* want reply */
@@ -5728,13 +5712,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    } else {
 			char *e = pfd_newconnect(&c->u.pfd.s, realpf->dhost,
 						 realpf->dport, c);
-			char buf[1024];
-			sprintf(buf, "Received remote port open request for %s:%d",
-				realpf->dhost, realpf->dport);
-			logevent(buf);
+			logeventf(ssh, "Received remote port open request"
+				  " for %s:%d", realpf->dhost, realpf->dport);
 			if (e != NULL) {
-			    sprintf(buf, "Port open failed: %s", e);
-			    logevent(buf);
+			    logeventf(ssh, "Port open failed: %s", e);
 			    error = "Port open failed";
 			} else {
 			    logevent("Forwarded port opened successfully");
@@ -6092,10 +6073,8 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 {
     struct ssh_channel *c = (struct ssh_channel *)channel;
     Ssh ssh = c->ssh;
-    char buf[1024];
 
-    sprintf(buf, "Opening forwarded connection to %.512s:%d", hostname, port);
-    logevent(buf);
+    logeventf(ssh, "Opening forwarded connection to %s:%d", hostname, port);
 
     if (ssh->version == 1) {
 	send_packet(ssh, SSH1_MSG_PORT_OPEN,

@@ -459,13 +459,14 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	 * for this proxy method, it's just a simple HTTP
 	 * request
 	 */
-	char buf[256], dest[64];
+	char *buf, dest[64];
 
 	sk_getaddr(p->remote_addr, dest, 64);
 
-	sprintf(buf, "CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n",
-		dest, p->remote_port, dest, p->remote_port);
+	buf = dupprintf("CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n",
+			dest, p->remote_port, dest, p->remote_port);
 	sk_write(p->sub_socket, buf, strlen(buf));
+	sfree(buf);
 
 	if (cfg.proxy_username[0] || cfg.proxy_password[0]) {
 	    char buf[sizeof(cfg.proxy_username)+sizeof(cfg.proxy_password)];
@@ -556,14 +557,14 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    bufchain_consume(&p->pending_input_data, eol);
 	    if (data[status] != '2') {
 		/* error */
-		char buf[1024];
+		char *buf;
 		data[eol] = '\0';
 		while (eol > status &&
 		       (data[eol-1] == '\r' || data[eol-1] == '\n'))
 		    data[--eol] = '\0';
-		sprintf(buf, "Proxy error: %.900s",
-			data+status);
+		buf = dupprintf("Proxy error: %s", data+status);
 		plug_closing(p->plug, buf, PROXY_ERROR_GENERAL, 0);
+		sfree(buf);
 		sfree(data);
 		return 1;
 	    }

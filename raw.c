@@ -90,9 +90,10 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
      * Try to find host.
      */
     {
-	char buf[200];
-	sprintf(buf, "Looking up host \"%.170s\"", host);
+	char *buf;
+	buf = dupprintf("Looking up host \"%s\"", host);
 	logevent(raw->frontend, buf);
+	sfree(buf);
     }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
@@ -105,10 +106,11 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
      * Open socket.
      */
     {
-	char buf[200], addrbuf[100];
+	char *buf, addrbuf[100];
 	sk_getaddr(addr, addrbuf, 100);
-	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
+	buf = dupprintf("Connecting to %s port %d", addrbuf, port);
 	logevent(raw->frontend, buf);
+	sfree(buf);
     }
     raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) raw);
     if ((err = sk_socket_error(raw->s)))

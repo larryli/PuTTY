@@ -160,13 +160,15 @@ static void tell_str(FILE * stream, char *str)
 
 static void tell_user(FILE * stream, char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    vsprintf(str, fmt, ap);
+    str = dupvprintf(fmt, ap);
     va_end(ap);
-    strcat(str, "\n");
-    tell_str(stream, str);
+    str2 = dupcat(str, "\n", NULL);
+    sfree(str);
+    tell_str(stream, str2);
+    sfree(str2);
 }
 
 static void gui_update_stats(char *name, unsigned long size,
@@ -216,14 +218,15 @@ static void gui_update_stats(char *name, unsigned long size,
  */
 void fatalbox(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal: ");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Fatal: ", str, "\n", NULL);
+    sfree(str);
     va_end(ap);
-    strcat(str, "\n");
-    tell_str(stderr, str);
+    tell_str(stderr, str2);
+    sfree(str2);
     errs++;
 
     if (gui_mode) {
@@ -239,14 +242,15 @@ void fatalbox(char *fmt, ...)
 }
 void modalfatalbox(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal: ");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Fatal: ", str, "\n", NULL);
+    sfree(str);
     va_end(ap);
-    strcat(str, "\n");
-    tell_str(stderr, str);
+    tell_str(stderr, str2);
+    sfree(str2);
     errs++;
 
     if (gui_mode) {
@@ -262,14 +266,15 @@ void modalfatalbox(char *fmt, ...)
 }
 void connection_fatal(void *frontend, char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal: ");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Fatal: ", str, "\n", NULL);
+    sfree(str);
     va_end(ap);
-    strcat(str, "\n");
-    tell_str(stderr, str);
+    tell_str(stderr, str2);
+    sfree(str2);
     errs++;
 
     if (gui_mode) {
@@ -427,14 +432,15 @@ static void ssh_scp_init(void)
  */
 static void bump(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal: ");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
     va_end(ap);
-    strcat(str, "\n");
-    tell_str(stderr, str);
+    str2 = dupcat(str, "\n", NULL);
+    sfree(str);
+    tell_str(stderr, str2);
+    sfree(str2);
     errs++;
 
     if (back != NULL && back->socket(backhandle) != NULL) {
@@ -1503,16 +1509,17 @@ int scp_finish_filerecv(void)
  */
 static void run_err(const char *fmt, ...)
 {
-    char str[2048];
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
     errs++;
-    strcpy(str, "scp: ");
-    vsprintf(str + strlen(str), fmt, ap);
-    strcat(str, "\n");
-    scp_send_errmsg(str);
-    tell_user(stderr, "%s", str);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("scp: ", str, "\n", NULL);
+    sfree(str);
+    scp_send_errmsg(str2);
+    tell_user(stderr, "%s", str2);
     va_end(ap);
+    sfree(str2);
 }
 
 /*
@@ -1921,12 +1928,11 @@ static void toremote(int argc, char *argv[])
 	FindClose(fh);
     }
 
-    cmd = smalloc(strlen(targ) + 100);
-    sprintf(cmd, "scp%s%s%s%s -t %s",
-	    verbose ? " -v" : "",
-	    recursive ? " -r" : "",
-	    preserve ? " -p" : "",
-	    targetshouldbedirectory ? " -d" : "", targ);
+    cmd = dupprintf("scp%s%s%s%s -t %s",
+		    verbose ? " -v" : "",
+		    recursive ? " -r" : "",
+		    preserve ? " -p" : "",
+		    targetshouldbedirectory ? " -d" : "", targ);
     do_cmd(host, user, cmd);
     sfree(cmd);
 
@@ -2025,12 +2031,11 @@ static void tolocal(int argc, char *argv[])
 	    user = NULL;
     }
 
-    cmd = smalloc(strlen(src) + 100);
-    sprintf(cmd, "scp%s%s%s%s -f %s",
-	    verbose ? " -v" : "",
-	    recursive ? " -r" : "",
-	    preserve ? " -p" : "",
-	    targetshouldbedirectory ? " -d" : "", src);
+    cmd = dupprintf("scp%s%s%s%s -f %s",
+		    verbose ? " -v" : "",
+		    recursive ? " -r" : "",
+		    preserve ? " -p" : "",
+		    targetshouldbedirectory ? " -d" : "", src);
     do_cmd(host, user, cmd);
     sfree(cmd);
 

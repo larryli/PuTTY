@@ -225,17 +225,18 @@ static void c_write1(Telnet telnet, int c)
 
 static void log_option(Telnet telnet, char *sender, int cmd, int option)
 {
-    char buf[50];
+    char *buf;
     /*
      * The strange-looking "<?""?>" below is there to avoid a
      * trigraph - a double question mark followed by > maps to a
      * closing brace character!
      */
-    sprintf(buf, "%s:\t%s %s", sender,
-	    (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
-	     cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<?""?>"),
-	    telopt(option));
+    buf = dupprintf("%s:\t%s %s", sender,
+		    (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
+		     cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<?""?>"),
+		    telopt(option));
     logevent(telnet->frontend, buf);
+    sfree(buf);
 }
 
 static void send_opt(Telnet telnet, int cmd, int option)
@@ -372,7 +373,7 @@ static void process_subneg(Telnet telnet)
     switch (telnet->sb_opt) {
       case TELOPT_TSPEED:
 	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
-	    char logbuf[sizeof(cfg.termspeed) + 80];
+	    char *logbuf;
 	    b[0] = IAC;
 	    b[1] = SB;
 	    b[2] = TELOPT_TSPEED;
@@ -383,14 +384,15 @@ static void process_subneg(Telnet telnet)
 	    b[n + 1] = SE;
 	    telnet->bufsize = sk_write(telnet->s, b, n + 2);
 	    logevent(telnet->frontend, "server:\tSB TSPEED SEND");
-	    sprintf(logbuf, "client:\tSB TSPEED IS %s", cfg.termspeed);
+	    logbuf = dupprintf("client:\tSB TSPEED IS %s", cfg.termspeed);
 	    logevent(telnet->frontend, logbuf);
+	    sfree(logbuf);
 	} else
 	    logevent(telnet->frontend, "server:\tSB TSPEED <something weird>");
 	break;
       case TELOPT_TTYPE:
 	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
-	    char logbuf[sizeof(cfg.termtype) + 80];
+	    char *logbuf;
 	    b[0] = IAC;
 	    b[1] = SB;
 	    b[2] = TELOPT_TTYPE;
@@ -405,8 +407,9 @@ static void process_subneg(Telnet telnet)
 	    telnet->bufsize = sk_write(telnet->s, b, n + 6);
 	    b[n + 4] = 0;
 	    logevent(telnet->frontend, "server:\tSB TTYPE SEND");
-	    sprintf(logbuf, "client:\tSB TTYPE IS %s", b + 4);
+	    logbuf = dupprintf("client:\tSB TTYPE IS %s", b + 4);
 	    logevent(telnet->frontend, logbuf);
+	    sfree(logbuf);
 	} else
 	    logevent(telnet->frontend, "server:\tSB TTYPE <something weird>\r\n");
 	break;
@@ -415,10 +418,11 @@ static void process_subneg(Telnet telnet)
 	p = telnet->sb_buf;
 	q = p + telnet->sb_len;
 	if (p < q && *p == TELQUAL_SEND) {
-	    char logbuf[50];
+	    char *logbuf;
 	    p++;
-	    sprintf(logbuf, "server:\tSB %s SEND", telopt(telnet->sb_opt));
+	    logbuf = dupprintf("server:\tSB %s SEND", telopt(telnet->sb_opt));
 	    logevent(telnet->frontend, logbuf);
+	    sfree(logbuf);
 	    if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
 		if (cfg.rfc_environ) {
 		    value = RFC_VALUE;
@@ -479,9 +483,10 @@ static void process_subneg(Telnet telnet)
 	    b[n++] = IAC;
 	    b[n++] = SE;
 	    telnet->bufsize = sk_write(telnet->s, b, n);
-	    sprintf(logbuf, "client:\tSB %s IS %s", telopt(telnet->sb_opt),
-		    n == 6 ? "<nothing>" : "<stuff>");
+	    logbuf = dupprintf("client:\tSB %s IS %s", telopt(telnet->sb_opt),
+			       n == 6 ? "<nothing>" : "<stuff>");
 	    logevent(telnet->frontend, logbuf);
+	    sfree(logbuf);
 	}
 	break;
     }
@@ -668,9 +673,10 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
      * Try to find host.
      */
     {
-	char buf[200];
-	sprintf(buf, "Looking up host \"%.170s\"", host);
+	char *buf;
+	buf = dupprintf("Looking up host \"%s\"", host);
 	logevent(telnet->frontend, buf);
+	sfree(buf);
     }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
@@ -683,10 +689,11 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
      * Open socket.
      */
     {
-	char buf[200], addrbuf[100];
+	char *buf, addrbuf[100];
 	sk_getaddr(addr, addrbuf, 100);
-	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
+	buf = dupprintf("Connecting to %s port %d", addrbuf, port);
 	logevent(telnet->frontend, buf);
+	sfree(buf);
     }
     telnet->s = new_connection(addr, *realhost, port, 0, 1,
 			       nodelay, (Plug) telnet);
@@ -772,7 +779,7 @@ static void telnet_size(void *handle, int width, int height)
 {
     Telnet telnet = (Telnet) handle;
     unsigned char b[16];
-    char logbuf[50];
+    char *logbuf;
 
     telnet->term_width = width;
     telnet->term_height = height;
@@ -789,10 +796,11 @@ static void telnet_size(void *handle, int width, int height)
     b[7] = IAC;
     b[8] = SE;
     telnet->bufsize = sk_write(telnet->s, b, 9);
-    sprintf(logbuf, "client:\tSB NAWS %d,%d",
-	    ((unsigned char) b[3] << 8) + (unsigned char) b[4],
-	    ((unsigned char) b[5] << 8) + (unsigned char) b[6]);
+    logbuf = dupprintf("client:\tSB NAWS %d,%d",
+		       ((unsigned char) b[3] << 8) + (unsigned char) b[4],
+		       ((unsigned char) b[5] << 8) + (unsigned char) b[6]);
     logevent(telnet->frontend, logbuf);
+    sfree(logbuf);
 }
 
 /*

@@ -28,13 +28,14 @@ static char *cmdline_keyfile = NULL;
 void modalfatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char *stuff;
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    stuff = dupvprintf(fmt, ap);
     va_end(ap);
     MessageBox(NULL, stuff, "PuTTYgen Fatal Error",
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    sfree(stuff);
     exit(1);
 }
 
@@ -364,10 +365,8 @@ static void setupbigedit1(HWND hwnd, int id, int idstatic, struct RSAKey *key)
 
     dec1 = bignum_decimal(key->exponent);
     dec2 = bignum_decimal(key->modulus);
-    buffer = smalloc(strlen(dec1) + strlen(dec2) +
-		     strlen(key->comment) + 30);
-    sprintf(buffer, "%d %s %s %s",
-	    bignum_bitcount(key->modulus), dec1, dec2, key->comment);
+    buffer = dupprintf("%d %s %s %s", bignum_bitcount(key->modulus),
+		       dec1, dec2, key->comment);
     SetDlgItemText(hwnd, id, buffer);
     SetDlgItemText(hwnd, idstatic,
 		   "&Public key for pasting into authorized_keys file:");
@@ -1154,12 +1153,13 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
-			char buffer[FILENAME_MAX + 80];
+			char *buffer;
 			fclose(fp);
-			sprintf(buffer, "Overwrite existing file\n%.*s?",
-				FILENAME_MAX, filename);
+			buffer = dupprintf("Overwrite existing file\n%s?",
+					   filename);
 			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
 					 MB_YESNO | MB_ICONWARNING);
+			sfree(buffer);
 			if (ret != IDYES)
 			    break;
 		    }
@@ -1197,12 +1197,13 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
-			char buffer[FILENAME_MAX + 80];
+			char *buffer;
 			fclose(fp);
-			sprintf(buffer, "Overwrite existing file\n%.*s?",
-				FILENAME_MAX, filename);
+			buffer = dupprintf("Overwrite existing file\n%s?",
+					   filename);
 			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
 					 MB_YESNO | MB_ICONWARNING);
+			sfree(buffer);
 			if (ret != IDYES)
 			    break;
 		    }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include <assert.h>
 #include "putty.h"
 
@@ -8,7 +9,7 @@
  * String handling routines.
  */
 
-char *dupstr(char *s)
+char *dupstr(const char *s)
 {
     int len = strlen(s);
     char *p = smalloc(len + 1);
@@ -17,7 +18,7 @@ char *dupstr(char *s)
 }
 
 /* Allocate the concatenation of N strings. Terminate arg list with NULL. */
-char *dupcat(char *s1, ...)
+char *dupcat(const char *s1, ...)
 {
     int len;
     char *p, *q, *sn;
@@ -48,6 +49,56 @@ char *dupcat(char *s1, ...)
     va_end(ap);
 
     return p;
+}
+
+/*
+ * Do an sprintf(), but into a custom-allocated buffer.
+ * 
+ * Irritatingly, we don't seem to be able to do this portably using
+ * vsnprintf(), because there appear to be issues with re-using the
+ * same va_list for two calls, and the excellent C99 va_copy is not
+ * yet widespread. Bah. Instead I'm going to do a horrid, horrid
+ * hack, in which I trawl the format string myself, work out the
+ * maximum length of each format component, and resize the buffer
+ * before printing it.
+ */
+char *dupprintf(const char *fmt, ...)
+{
+    char *ret;
+    va_list ap;
+    va_start(ap, fmt);
+    ret = dupvprintf(fmt, ap);
+    va_end(ap);
+    return ret;
+}
+char *dupvprintf(const char *fmt, va_list ap)
+{
+    char *buf;
+    int len, size;
+
+    buf = smalloc(512);
+    size = 512;
+
+    while (1) {
+#ifdef _WINDOWS
+#define vsnprintf _vsnprintf
+#endif
+	len = vsnprintf(buf, size, fmt, ap);
+	if (len >= 0 && len < size) {
+	    /* This is the C99-specified criterion for snprintf to have
+	     * been completely successful. */
+	    return buf;
+	} else if (len > 0) {
+	    /* This is the C99 error condition: the returned length is
+	     * the required buffer size not counting the NUL. */
+	    size = len + 1;
+	} else {
+	    /* This is the pre-C99 glibc error condition: <0 means the
+	     * buffer wasn't big enough, so we enlarge it a bit and hope. */
+	    size += 512;
+	}
+	buf = srealloc(buf, size);
+    }
 }
 
 /* ----------------------------------------------------------------------
@@ -564,12 +615,13 @@ static void dputs(char *buf)
 
 void dprintf(char *fmt, ...)
 {
-    char buf[2048];
+    char *buf;
     va_list ap;
 
     va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    buf = dupvprintf(fmt, ap);
     dputs(buf);
+    sfree(buf);
     va_end(ap);
 }
 

@@ -65,13 +65,14 @@ static int initial_menuitems_count;
 void modalfatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char *buf;
 
     va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
+    buf = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(main_hwnd, stuff, "Pageant Fatal Error",
+    MessageBox(main_hwnd, buf, "Pageant Fatal Error",
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    sfree(buf);
     exit(1);
 }
 
@@ -1781,10 +1782,11 @@ void spawn_cmd(char *cmdline, char * args, int show)
 {
     if (ShellExecute(NULL, _T("open"), cmdline,
 		     args, NULL, show) <= (HINSTANCE) 32) {
-	TCHAR sMsg[140];
-	sprintf(sMsg, _T("Failed to run \"%.100s\", Error: %d"), cmdline,
-		(int)GetLastError());
-	MessageBox(NULL, sMsg, APPNAME, MB_OK | MB_ICONEXCLAMATION);
+	char *msg;
+	msg = dupprintf("Failed to run \"%.100s\", Error: %d", cmdline,
+			(int)GetLastError());
+	MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONEXCLAMATION);
+	sfree(msg);
     }
 }
 

@@ -1448,40 +1448,43 @@ static int verbose = 0;
  */
 void fatalbox(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal:");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Fatal: ", str, "\n", NULL);
+    sfree(str);
     va_end(ap);
-    strcat(str, "\n");
-    fputs(str, stderr);
+    fputs(str2, stderr);
+    sfree(str2);
 
     cleanup_exit(1);
 }
 void modalfatalbox(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal:");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Fatal: ", str, "\n", NULL);
+    sfree(str);
     va_end(ap);
-    strcat(str, "\n");
-    fputs(str, stderr);
+    fputs(str2, stderr);
+    sfree(str2);
 
     cleanup_exit(1);
 }
 void connection_fatal(void *frontend, char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
-    strcpy(str, "Fatal:");
-    vsprintf(str + strlen(str), fmt, ap);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Fatal: ", str, "\n", NULL);
+    sfree(str);
     va_end(ap);
-    strcat(str, "\n");
-    fputs(str, stderr);
+    fputs(str2, stderr);
+    sfree(str2);
 
     cleanup_exit(1);
 }

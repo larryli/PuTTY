@@ -3,6 +3,8 @@
 
 #include "puttymem.h"
 
+#include <stdarg.h>		       /* for va_list */
+
 #ifndef FALSE
 #define FALSE 0
 #endif
@@ -10,8 +12,10 @@
 #define TRUE 1
 #endif
 
-char *dupstr(char *s);
-char *dupcat(char *s1, ...);
+char *dupstr(const char *s);
+char *dupcat(const char *s1, ...);
+char *dupprintf(const char *fmt, ...);
+char *dupvprintf(const char *fmt, va_list ap);
 
 void base64_encode_atom(unsigned char *data, int n, char *out);
 
