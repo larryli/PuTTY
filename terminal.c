@@ -2640,6 +2640,7 @@ void term_out(Terminal *term)
 			    term->curs.y++;
 			term->curs.x = 0;
 			term->wrapnext = FALSE;
+			cline = scrlineptr(term->curs.y);
 		    }
 		    if (term->insert && width > 0)
 			insch(term, width);
