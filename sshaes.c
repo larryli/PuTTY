@@ -61,9 +61,23 @@ struct AESContext {
     int Nb, Nr;
 };
 
+/*
+ * Apple's SC 8.8.4f1 and MrC 4.1.0f1c1 refuse to handle these if
+ * they've got dimensions (they claim "already defined" when the
+ * arrays are actually defined).  Microsoft Visual C refuses to handle
+ * them without ("unknown size").  Bah.
+ *
+ * K&R2 A10.2 says both are OK, of course.
+ */
+#if defined __SC__ || defined __MRC__
 static const unsigned char Sbox[], Sboxinv[];
 static const word32 E0[], E1[], E2[], E3[];
 static const word32 D0[], D1[], D2[], D3[];
+#else
+static const unsigned char Sbox[256], Sboxinv[256];
+static const word32 E0[256], E1[256], E2[256], E3[256];
+static const word32 D0[256], D1[256], D2[256], D3[256];
+#endif
 
 /*
  * Common macros in both the encryption and decryption routines.
