@@ -4864,12 +4864,25 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		 * See if that was the last channel left open.
 		 */
 		if (count234(ssh_channels) == 0) {
+#if 0
+                    /*
+                     * We used to send SSH_MSG_DISCONNECT here,
+                     * because I'd believed that _every_ conforming
+                     * SSH2 connection had to end with a disconnect
+                     * being sent by at least one side; apparently
+                     * I was wrong and it's perfectly OK to
+                     * unceremoniously slam the connection shut
+                     * when you're done, and indeed OpenSSH feels
+                     * this is more polite than sending a
+                     * DISCONNECT. So now we don't.
+                     */
 		    logevent("All channels closed. Disconnecting");
 		    ssh2_pkt_init(SSH2_MSG_DISCONNECT);
 		    ssh2_pkt_adduint32(SSH2_DISCONNECT_BY_APPLICATION);
 		    ssh2_pkt_addstring("All open channels closed");
 		    ssh2_pkt_addstring("en");	/* language tag */
 		    ssh2_pkt_send();
+#endif
 		    ssh_state = SSH_STATE_CLOSED;
 		    crReturnV;
 		}
