@@ -34,34 +34,6 @@
 
 #define APPNAME "Pageant"
 
-/*
- * SSH1 agent messages.
- */
-#define SSH1_AGENTC_REQUEST_RSA_IDENTITIES    1
-#define SSH1_AGENT_RSA_IDENTITIES_ANSWER      2
-#define SSH1_AGENTC_RSA_CHALLENGE             3
-#define SSH1_AGENT_RSA_RESPONSE               4
-#define SSH1_AGENTC_ADD_RSA_IDENTITY          7
-#define SSH1_AGENTC_REMOVE_RSA_IDENTITY       8
-#define SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES 9   /* openssh private? */
-
-/*
- * Messages common to SSH1 and OpenSSH's SSH2.
- */
-#define SSH_AGENT_FAILURE                    5
-#define SSH_AGENT_SUCCESS                    6
-
-/*
- * OpenSSH's SSH2 agent messages.
- */
-#define SSH2_AGENTC_REQUEST_IDENTITIES          11
-#define SSH2_AGENT_IDENTITIES_ANSWER            12
-#define SSH2_AGENTC_SIGN_REQUEST                13
-#define SSH2_AGENT_SIGN_RESPONSE                14
-#define SSH2_AGENTC_ADD_IDENTITY                17
-#define SSH2_AGENTC_REMOVE_IDENTITY             18
-#define SSH2_AGENTC_REMOVE_ALL_IDENTITIES       19
-
 extern char ver[];
 
 static HINSTANCE instance;

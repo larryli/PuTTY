@@ -68,15 +68,6 @@
 #define SSH1_AUTH_TIS                             5    /* 0x5 */
 #define SSH1_AUTH_CCARD                           16   /* 0x10 */
 
-#define SSH_AGENTC_REQUEST_RSA_IDENTITIES         1    /* 0x1 */
-#define SSH_AGENT_RSA_IDENTITIES_ANSWER           2    /* 0x2 */
-#define SSH_AGENTC_RSA_CHALLENGE                  3    /* 0x3 */
-#define SSH_AGENT_RSA_RESPONSE                    4    /* 0x4 */
-#define SSH_AGENT_FAILURE                         5    /* 0x5 */
-#define SSH_AGENT_SUCCESS                         6    /* 0x6 */
-#define SSH_AGENTC_ADD_RSA_IDENTITY               7    /* 0x7 */
-#define SSH_AGENTC_REMOVE_RSA_IDENTITY            8    /* 0x8 */
-
 #define SSH2_MSG_DISCONNECT                       1    /* 0x1 */
 #define SSH2_MSG_IGNORE                           2    /* 0x2 */
 #define SSH2_MSG_UNIMPLEMENTED                    3    /* 0x3 */
@@ -1527,7 +1518,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
             /* Request the keys held by the agent. */
             PUT_32BIT(request, 1);
-            request[4] = SSH_AGENTC_REQUEST_RSA_IDENTITIES;
+            request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
             agent_query(request, 5, &r, &responselen);
             response = (unsigned char *)r;
             if (response) {
@@ -1569,7 +1560,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                         agentreq = smalloc(4 + len);
                         PUT_32BIT(agentreq, len);
                         q = agentreq + 4;
-                        *q++ = SSH_AGENTC_RSA_CHALLENGE;
+                        *q++ = SSH1_AGENTC_RSA_CHALLENGE;
                         PUT_32BIT(q, ssh1_bignum_bitcount(key.modulus));
                         q += 4;
                         q += ssh1_write_bignum(q, key.exponent);
@@ -1580,7 +1571,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                         agent_query(agentreq, len+4, &ret, &retlen);
                         sfree(agentreq);
                         if (ret) {
-                            if (ret[4] == SSH_AGENT_RSA_RESPONSE) {
+                            if (ret[4] == SSH1_AGENT_RSA_RESPONSE) {
                                 logevent("Sending Pageant's response");
                                 send_packet(SSH1_CMSG_AUTH_RSA_RESPONSE,
                                             PKT_DATA, ret+5, 16, PKT_END);
@@ -2638,7 +2629,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
         AUTH_TYPE_PUBLICKEY_OFFER_QUIET,
         AUTH_TYPE_PASSWORD
     } type;
-    static int gotit, need_pw, can_pubkey, can_passwd, tried_pubkey_config;
+    static int gotit, need_pw, can_pubkey, can_passwd;
+    static int tried_pubkey_config, tried_agent;
     static int we_are_in;
     static char username[100];
     static char pwprompt[200];
@@ -2752,6 +2744,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	we_are_in = FALSE;
 
 	tried_pubkey_config = FALSE;
+	tried_agent = FALSE;
 
 	while (1) {
 	    /*
@@ -2832,6 +2825,119 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    }
 
 	    method = 0;
+
+	    if (!method && can_pubkey && agent_exists && !tried_agent) {
+		/*
+		 * Attempt public-key authentication using Pageant.
+		 */
+		static unsigned char request[5], *response, *p;
+		static int responselen;
+		static int i, nkeys;
+		static int authed = FALSE;
+		void *r;
+
+		tried_agent = TRUE;
+
+		logevent("Pageant is running. Requesting keys.");
+
+		/* Request the keys held by the agent. */
+		PUT_32BIT(request, 1);
+		request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
+		agent_query(request, 5, &r, &responselen);
+		response = (unsigned char *)r;
+		if (response) {
+		    p = response + 5;
+		    nkeys = GET_32BIT(p); p += 4;
+		    { char buf[64]; sprintf(buf, "Pageant has %d keys", nkeys);
+			logevent(buf); }
+		    for (i = 0; i < nkeys; i++) {
+			static char *pkblob, *alg, *commentp;
+			static int pklen, alglen, commentlen;
+			static int siglen, retlen, len;
+			static char *q, *agentreq, *ret;
+
+			{ char buf[64]; sprintf(buf, "Trying Pageant key #%d", i);
+			    logevent(buf); }
+			pklen = GET_32BIT(p); p += 4;
+			pkblob = p; p += pklen;
+			alglen = GET_32BIT(pkblob);
+			alg = pkblob + 4;
+			commentlen = GET_32BIT(p); p += 4;
+			commentp = p; p += commentlen;
+			ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+			ssh2_pkt_addstring(username);
+			ssh2_pkt_addstring("ssh-connection");/* service requested */
+			ssh2_pkt_addstring("publickey");/* method */
+			ssh2_pkt_addbool(FALSE);   /* no signature included */
+			ssh2_pkt_addstring_start();
+			ssh2_pkt_addstring_data(alg, alglen);
+			ssh2_pkt_addstring_start();
+			ssh2_pkt_addstring_data(pkblob, pklen);
+			ssh2_pkt_send();
+
+			crWaitUntilV(ispkt);
+			if (pktin.type != SSH2_MSG_USERAUTH_PK_OK) {
+			    logevent("Key refused");
+			    continue;
+			}
+
+			c_write_str("Authenticating with public key \"");
+			c_write(commentp, commentlen);
+			c_write_str("\" from agent\r\n");
+
+			/*
+			 * Server is willing to accept the key.
+			 * Construct a SIGN_REQUEST.
+			 */
+			ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+			ssh2_pkt_addstring(username);
+			ssh2_pkt_addstring("ssh-connection");   /* service requested */
+			ssh2_pkt_addstring("publickey");    /* method */
+			ssh2_pkt_addbool(TRUE);
+			ssh2_pkt_addstring_start();
+			ssh2_pkt_addstring_data(alg, alglen);
+			ssh2_pkt_addstring_start();
+			ssh2_pkt_addstring_data(pkblob, pklen);
+
+			siglen = pktout.length - 5 + 4 + 20;
+			len = 1;   /* message type */
+			len += 4 + pklen;   /* key blob */
+			len += 4 + siglen;   /* data to sign */
+			len += 4;  /* flags */
+			agentreq = smalloc(4 + len);
+			PUT_32BIT(agentreq, len);
+			q = agentreq + 4;
+			*q++ = SSH2_AGENTC_SIGN_REQUEST;
+			PUT_32BIT(q, pklen); q += 4;
+			memcpy(q, pkblob, pklen); q += pklen;
+			PUT_32BIT(q, siglen); q += 4;
+			/* Now the data to be signed... */
+			PUT_32BIT(q, 20); q += 4;
+			memcpy(q, ssh2_session_id, 20); q += 20;
+			memcpy(q, pktout.data+5, pktout.length-5);
+			q += pktout.length-5;
+			/* And finally the (zero) flags word. */
+			PUT_32BIT(q, 0);
+			agent_query(agentreq, len+4, &ret, &retlen);
+			sfree(agentreq);
+			if (ret) {
+			    if (ret[4] == SSH2_AGENT_SIGN_RESPONSE) {
+				logevent("Sending Pageant's response");
+				ssh2_pkt_addstring_start();
+				ssh2_pkt_addstring_data(ret+9, GET_32BIT(ret+5));
+				ssh2_pkt_send();
+				authed = TRUE;
+				break;
+			    } else {
+				logevent("Pageant failed to answer challenge");
+				sfree(ret);
+			    }
+			}
+		    }
+		    if (authed)
+			continue;
+		}
+	    }
 
 	    if (!method && can_pubkey && *cfg.keyfile && !tried_pubkey_config) {
 		unsigned char *pub_blob;
@@ -3046,6 +3152,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_defer();
 		}
 		ssh2_pkt_defersend();
+		logevent("Sent password\r\n");
 		type = AUTH_TYPE_PASSWORD;
 	    } else {
 		c_write_str("No supported authentication methods left to try!\r\n");
