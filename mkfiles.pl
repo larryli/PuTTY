@@ -350,7 +350,7 @@ print
 "FORCE:\n".
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c version.c\n".
 "clean:\n".
-"\trm -f *.o *.exe *.res.o\n".
+"\trm -f *.o *.exe *.res.o *.map\n".
 "\n";
 select STDOUT; close OUT;
 
