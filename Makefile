@@ -255,6 +255,7 @@ plink.$(OBJ): plink.c putty.h puttymem.h network.h winstuff.h
 pageant.$(OBJ): pageant.c ssh.h puttymem.h tree234.h
 pageantc.$(OBJ): pageantc.c puttymem.h
 tree234.$(OBJ): tree234.c tree234.h puttymem.h
+puttygen.$(OBJ): puttygen.c putty.h ssh.h winstuff.h
 ##--
 
 # Hack to force version.obj to be rebuilt always
