@@ -384,6 +384,32 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/*
+	 * NetHack keypad mode.
+	 */
+	if (cfg.nethack_keypad) {
+	    char *keys = NULL;
+	    switch (event->keyval) {
+	      case GDK_KP_1: case GDK_KP_End: keys = "bB"; break;
+	      case GDK_KP_2: case GDK_KP_Down: keys = "jJ"; break;
+	      case GDK_KP_3: case GDK_KP_Page_Down: keys = "nN"; break;
+	      case GDK_KP_4: case GDK_KP_Left: keys = "hH"; break;
+	      case GDK_KP_5: case GDK_KP_Begin: keys = ".."; break;
+	      case GDK_KP_6: case GDK_KP_Right: keys = "lL"; break;
+	      case GDK_KP_7: case GDK_KP_Home: keys = "yY"; break;
+	      case GDK_KP_8: case GDK_KP_Up: keys = "kK"; break;
+	      case GDK_KP_9: case GDK_KP_Page_Up: keys = "uU"; break;
+	    }
+	    if (keys) {
+		end = 2;
+		if (event->state & GDK_SHIFT_MASK)
+		    output[1] = keys[1];
+		else
+		    output[1] = keys[0];
+		goto done;
+	    }
+	}
+
+	/*
 	 * Application keypad mode.
 	 */
 	if (app_keypad_keys && !cfg.no_applic_k) {
@@ -1196,6 +1222,9 @@ int main(int argc, char **argv)
 	}
 	if (!strcmp(p, "-hide")) {
 	    cfg.hide_mouseptr = 1;
+	}
+	if (!strcmp(p, "-nethack")) {
+	    cfg.nethack_keypad = 1;
 	}
     }
 
