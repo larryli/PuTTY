@@ -82,7 +82,7 @@ typedef struct {
 #define poslt(p1,p2) ( (p1).y < (p2).y || ( (p1).y == (p2).y && (p1).x < (p2).x ) )
 #define posle(p1,p2) ( (p1).y < (p2).y || ( (p1).y == (p2).y && (p1).x <= (p2).x ) )
 #define poseq(p1,p2) ( (p1).y == (p2).y && (p1).x == (p2).x )
-#define posdiff(p1,p2) ( ((p2).y - (p1).y) * (cols+1) + (p2).x - (p1).x )
+#define posdiff(p1,p2) ( ((p1).y - (p2).y) * (cols+1) + (p1).x - (p2).x )
 #define incpos(p) ( (p).x == cols ? ((p).x = 0, (p).y++, 1) : ((p).x++, 0) )
 #define decpos(p) ( (p).x == 0 ? ((p).x = cols, (p).y--, 1) : ((p).x--, 0) )
 
