@@ -13,7 +13,7 @@
 
 #define rol(x,y) ( ((x) << (y)) | (((uint32)x) >> (32-y)) )
 
-void SHA_Core_Init(uint32 h[5])
+static void SHA_Core_Init(uint32 h[5])
 {
     h[0] = 0x67452301;
     h[1] = 0xefcdab89;
