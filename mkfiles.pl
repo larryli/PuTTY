@@ -293,6 +293,9 @@ print
 "# TOOLPATH = /pkg/mingw32msvc/i386-mingw32msvc/bin/\n".
 "CC = \$(TOOLPATH)gcc\n".
 "RC = \$(TOOLPATH)windres\n".
+"# Uncomment the following two lines to compile under Winelib\n".
+"# CC = winegcc\n".
+"# RC = wrc\n".
 "# You may also need to tell windres where to find include files:\n".
 "# RCINC = --include-dir c:\\cygwin\\include\\\n".
 "\n".
