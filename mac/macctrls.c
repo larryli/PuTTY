@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.7 2003/03/20 23:15:25 ben Exp $ */
+/* $Id: macctrls.c,v 1.8 2003/03/21 00:24:17 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -35,6 +35,7 @@
 #include <Windows.h>
 
 #include <assert.h>
+#include <string.h>
 
 #include "putty.h"
 #include "mac.h"
@@ -52,6 +53,8 @@ union macctrl {
 	} type;
 	/* Template from which this was generated */
 	union control *ctrl;
+	/* Next control in this panel */
+	union macctrl *next;
     } generic;
     struct {
 	struct macctrl_generic generic;
@@ -74,6 +77,7 @@ union macctrl {
 struct mac_layoutstate {
     Point pos;
     unsigned int width;
+    unsigned int panelnum;
 };
 
 #define ctrlevent(mcs, mc, event) do {					\
@@ -87,6 +91,7 @@ struct mac_layoutstate {
 
 static void macctrl_layoutset(struct mac_layoutstate *, struct controlset *, 
 			      WindowPtr, struct macctrls *);
+static void macctrl_switchtopanel(struct macctrls *, unsigned int);
 static void macctrl_text(struct macctrls *, WindowPtr,
 			 struct mac_layoutstate *, union control *);
 static void macctrl_radio(struct macctrls *, WindowPtr,
@@ -174,13 +179,29 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     rect = window->portRect;
 #endif
     curstate.pos.h = rect.left + 13;
-    curstate.pos.v = rect.top + 13;
+    curstate.pos.v = rect.bottom - 59;
     curstate.width = rect.right - rect.left - (13 * 2);
     if (mac_gestalts.apprvers >= 0x100)
 	CreateRootControl(window, &root);
     mcs->byctrl = newtree234(macctrl_cmp_byctrl);
-    for (i = 0; i < cb->nctrlsets; i++)
+    /* Count the number of panels */
+    mcs->npanels = 1;
+    for (i = 1; i < cb->nctrlsets; i++)
+	if (strcmp(cb->ctrlsets[i]->pathname, cb->ctrlsets[i-1]->pathname))
+	    mcs->npanels++;
+    mcs->panels = smalloc(sizeof(*mcs->panels) * mcs->npanels);
+    memset(mcs->panels, 0, sizeof(*mcs->panels) * mcs->npanels);
+    curstate.panelnum = 0;
+    for (i = 0; i < cb->nctrlsets; i++) {
+	if (i > 0 && strcmp(cb->ctrlsets[i]->pathname,
+			    cb->ctrlsets[i-1]->pathname)) {
+	    curstate.pos.v = rect.top + 13;
+	    curstate.panelnum++;
+	    assert(curstate.panelnum < mcs->npanels);
+	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
+    }
+    macctrl_switchtopanel(mcs, 1);
 }
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -233,6 +254,44 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     }
 }
 
+static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
+{
+    unsigned int i, j;
+    union macctrl *mc;
+
+    /* Panel 0 is special and always visible. */
+    for (i = 1; i < mcs->npanels; i++)
+	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next)
+	    switch (mc->generic.type) {
+	      case MACCTRL_TEXT:
+		if (i == which)
+		    ShowControl(mc->text.tbctrl);
+		else
+		    HideControl(mc->text.tbctrl);
+		break;
+	      case MACCTRL_RADIO:
+		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
+		    if (i == which)
+			ShowControl(mc->radio.tbctrls[j]);
+		    else
+			HideControl(mc->radio.tbctrls[j]);
+		break;
+	      case MACCTRL_CHECKBOX:
+		if (i == which)
+		    ShowControl(mc->checkbox.tbctrl);
+		else
+		    HideControl(mc->checkbox.tbctrl);
+		break;
+	      case MACCTRL_BUTTON:
+		if (i == which)
+		    ShowControl(mc->button.tbctrl);
+		else
+		    HideControl(mc->button.tbctrl);
+		break;
+
+	    }
+}
+
 static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 			 struct mac_layoutstate *curstate,
 			 union control *ctrl)
@@ -270,6 +329,8 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 				     SYS7_TEXT_PROC, (long)mc);
     }
     add234(mcs->byctrl, mc);
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
 }
 
 #if !TARGET_API_MAC_CARBON
@@ -336,6 +397,8 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 					  0, 0, 1, radioButProc, (long)mc);
     }
     add234(mcs->byctrl, mc);
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
     ctrlevent(mcs, mc, EVENT_REFRESH);
 }
 
@@ -359,6 +422,8 @@ static void macctrl_checkbox(struct macctrls *mcs, WindowPtr window,
 				     checkBoxProc, (long)mc);
     add234(mcs->byctrl, mc);
     curstate->pos.v += 22;
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
     ctrlevent(mcs, mc, EVENT_REFRESH);
 }
 
@@ -401,6 +466,8 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 		       sizeof(iscancel), &iscancel);
     }
     add234(mcs->byctrl, mc);
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
     curstate->pos.v += 26;
 }
 
@@ -574,12 +641,8 @@ void macctrl_close(WindowPtr window)
 
     freetree234(mcs->byctrl);
     mcs->byctrl = NULL;
-
-/* XXX
-    DisposeWindow(window);
-    if (s->window == NULL)
-	sfree(s);
-*/
+    sfree(mcs->panels);
+    mcs->panels = NULL;
 }
 
 void dlg_update_start(union control *ctrl, void *dlg)

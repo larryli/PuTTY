@@ -67,9 +67,13 @@ typedef struct {
 #define mac_windowsession(w)	(((WinInfo *)GetWRefCon(w))->s)
 #define mac_winctrls(w)		(((WinInfo *)GetWRefCon(w))->mcs)
 
+union macctrl;
+
 struct macctrls {
     tree234		*byctrl;
     void		*data; /* private data for config box */
+    unsigned int	npanels;
+    union macctrl	**panels; /* lists of controls by panel */
 };    
 
 typedef struct Session {

@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.14 2003/03/17 22:38:18 ben Exp $ */
+/* $Id: macdlg.c,v 1.15 2003/03/21 00:24:17 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -46,10 +46,6 @@
 #include "macresid.h"
 #include "storage.h"
 
-static void mac_clickdlg(WindowPtr, EventRecord *);
-static void mac_activatedlg(WindowPtr, EventRecord *);
-static void mac_updatedlg(WindowPtr);
-static void mac_adjustdlgmenus(WindowPtr);
 static void mac_closedlg(WindowPtr);
 
 void mac_newsession(void)
@@ -84,10 +80,21 @@ void mac_newsession(void)
     wi->click = &macctrl_click;
     wi->activate = &macctrl_activate;
     wi->adjustmenus = &macctrl_adjustmenus;
-    wi->close = &macctrl_close;
+    wi->close = &mac_closedlg;
     SetWRefCon(s->settings_window, (long)wi);
     ShowWindow(s->settings_window);
 }
+
+static void mac_closedlg(WindowPtr window)
+{
+    Session *s = mac_windowsession(window);
+
+    macctrl_close(window);
+    DisposeWindow(window);
+    if (s->window == NULL)
+	sfree(s);
+}
+
 
 void mac_dupsession(void)
 {
