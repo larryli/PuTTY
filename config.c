@@ -396,7 +396,7 @@ static void charclass_handler(union control *ctrl, void *dlg,
 }
 
 struct colour_data {
-    union control *listbox, *rgbtext, *button;
+    union control *listbox, *redit, *gedit, *bedit, *button;
 };
 
 static const char *const colours[] = {
@@ -429,7 +429,9 @@ static void colour_handler(union control *ctrl, void *dlg,
 	    for (i = 0; i < lenof(colours); i++)
 		dlg_listbox_add(ctrl, dlg, colours[i]);
 	    dlg_update_done(ctrl, dlg);
-	    dlg_text_set(cd->rgbtext, dlg, "");
+	    dlg_editbox_set(cd->redit, dlg, "");
+	    dlg_editbox_set(cd->gedit, dlg, "");
+	    dlg_editbox_set(cd->bedit, dlg, "");
 	}
     } else if (event == EVENT_SELCHANGE) {
 	if (ctrl == cd->listbox) {
@@ -443,6 +445,25 @@ static void colour_handler(union control *ctrl, void *dlg,
 	    g = cfg->colours[i][1];
 	    b = cfg->colours[i][2];
 	    update = TRUE;
+	}
+    } else if (event == EVENT_VALCHANGE) {
+	if (ctrl == cd->redit || ctrl == cd->gedit || ctrl == cd->bedit) {
+	    /* The user has changed the colour using the edit boxes. */
+	    char buf[80];
+	    int i, cval;
+
+	    dlg_editbox_get(ctrl, dlg, buf, lenof(buf));
+	    cval = atoi(buf) & 255;
+
+	    i = dlg_listbox_index(cd->listbox, dlg);
+	    if (i >= 0) {
+		if (ctrl == cd->redit)
+		    cfg->colours[i][0] = cval;
+		else if (ctrl == cd->gedit)
+		    cfg->colours[i][1] = cval;
+		else if (ctrl == cd->bedit)
+		    cfg->colours[i][2] = cval;
+	    }
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == cd->button) {
@@ -480,8 +501,9 @@ static void colour_handler(union control *ctrl, void *dlg,
 
     if (update) {
 	char buf[40];
-	sprintf(buf, "%02x/%02x/%02x", r, g, b);
-	dlg_text_set(cd->rgbtext, dlg, buf);
+	sprintf(buf, "%d", r); dlg_editbox_set(cd->redit, dlg, buf);
+	sprintf(buf, "%d", g); dlg_editbox_set(cd->gedit, dlg, buf);
+	sprintf(buf, "%d", b); dlg_editbox_set(cd->bedit, dlg, buf);
     }
 }
 
@@ -1156,10 +1178,18 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     cd->listbox = ctrl_listbox(s, "Select a colour to adjust:", 'u',
 			       HELPCTX(colours_config), colour_handler, P(cd));
     cd->listbox->generic.column = 0;
+    cd->listbox->listbox.height = 7;
     c = ctrl_text(s, "RGB value:", HELPCTX(colours_config));
     c->generic.column = 1;
-    cd->rgbtext = ctrl_text(s, "00/00/00", HELPCTX(colours_config));
-    cd->rgbtext->generic.column = 1;
+    cd->redit = ctrl_editbox(s, "Red", 'r', 50, HELPCTX(colours_config),
+			     colour_handler, P(cd), P(NULL));
+    cd->redit->generic.column = 1;
+    cd->gedit = ctrl_editbox(s, "Green", 'n', 50, HELPCTX(colours_config),
+			     colour_handler, P(cd), P(NULL));
+    cd->gedit->generic.column = 1;
+    cd->bedit = ctrl_editbox(s, "Blue", 'e', 50, HELPCTX(colours_config),
+			     colour_handler, P(cd), P(NULL));
+    cd->bedit->generic.column = 1;
     cd->button = ctrl_pushbutton(s, "Modify", 'm', HELPCTX(colours_config),
 				 colour_handler, P(cd));
     cd->button->generic.column = 1;
