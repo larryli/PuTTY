@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.50 2003/11/19 19:03:24 jacob Exp $
+\versionid $Id: faq.but,v 1.51 2003/11/19 19:09:07 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -425,8 +425,10 @@ of quotes in the obvious way:
 \S{faq-incorrect-mac}{Question} Why do I see \q{Incorrect MAC
 received on packet}?
 
-This can be caused by a bug in old SSH 2 servers distributed by
-\cw{ssh.com}. Version 2.3.0 and below of their SSH 2 server
+One possible cause of this that used to be common is a bug in old
+SSH 2 servers distributed by \cw{ssh.com}. (This is not the only
+possible cause; see \k{errors-crc} in the documentation.)
+Version 2.3.0 and below of their SSH 2 server
 constructs Message Authentication Codes in the wrong way, and
 expects the client to construct them in the same wrong way. PuTTY
 constructs the MACs correctly by default, and hence these old
