@@ -277,6 +277,17 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
  *   http://www.chiark.greenend.org.uk/~sgtatham/coroutines.html
  * 
  * which explains the theory behind these macros.
+ * 
+ * In particular, if you are getting `case expression not constant'
+ * errors when building with MS Visual Studio, this is because MS's
+ * Edit and Continue debugging feature causes their compiler to
+ * violate ANSI C. To disable Edit and Continue debugging:
+ * 
+ *  - right-click ssh.c in the FileView
+ *  - click Settings
+ *  - select the C/C++ tab and the General category
+ *  - under `Debug info:', select anything _other_ than `Program
+ *    Database for Edit and Continue'.
  */
 #define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
 #define crState(t) \
