@@ -61,9 +61,9 @@ struct AESContext {
     int Nb, Nr;
 };
 
-static const unsigned char Sbox[256], Sboxinv[256];
-static const word32 E0[256], E1[256], E2[256], E3[256];
-static const word32 D0[256], D1[256], D2[256], D3[256];
+static const unsigned char Sbox[], Sboxinv[];
+static const word32 E0[], E1[], E2[], E3[];
+static const word32 D0[], D1[], D2[], D3[];
 
 /*
  * Common macros in both the encryption and decryption routines.
