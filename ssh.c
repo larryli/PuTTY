@@ -182,6 +182,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_NEEDS_SSH1_PLAIN_PASSWORD        	  4
 #define BUG_CHOKES_ON_RSA	        	  8
 #define BUG_SSH2_RSA_PADDING	        	 16
+#define BUG_SSH2_DERIVEKEY                       32
 
 static int ssh_pkt_ctx = 0;
 
@@ -1699,6 +1700,16 @@ static void ssh_detect_bugs(char *vstring)
 	 */
 	ssh_remote_bugs |= BUG_SSH2_HMAC;
 	logevent("We believe remote version has SSH2 HMAC bug");
+    }
+
+    if (!strncmp(imp, "2.0.", 4)) {
+	/*
+	 * These versions have the key-derivation bug (failing to
+	 * include the literal shared secret in the hashes that
+	 * generate the keys).
+	 */
+	ssh_remote_bugs |= BUG_SSH2_DERIVEKEY;
+	logevent("We believe remote version has SSH2 key-derivation bug");
     }
 
     if ((!strncmp(imp, "OpenSSH_2.", 10) && imp[10]>='5' && imp[10]<='9') ||
@@ -3497,14 +3508,16 @@ static void ssh2_mkkey(Bignum K, char *H, char *sessid, char chr,
     SHA_State s;
     /* First 20 bytes. */
     SHA_Init(&s);
-    sha_mpint(&s, K);
+    if (!(ssh_remote_bugs & BUG_SSH2_DERIVEKEY))
+	sha_mpint(&s, K);
     SHA_Bytes(&s, H, 20);
     SHA_Bytes(&s, &chr, 1);
     SHA_Bytes(&s, sessid, 20);
     SHA_Final(&s, keyspace);
     /* Next 20 bytes. */
     SHA_Init(&s);
-    sha_mpint(&s, K);
+    if (!(ssh_remote_bugs & BUG_SSH2_DERIVEKEY))
+	sha_mpint(&s, K);
     SHA_Bytes(&s, H, 20);
     SHA_Bytes(&s, keyspace, 20);
     SHA_Final(&s, keyspace + 20);
