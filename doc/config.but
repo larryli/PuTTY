@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.86 2004/07/22 11:18:08 jacob Exp $
+\versionid $Id: config.but,v 1.87 2004/09/01 10:12:41 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1674,6 +1674,18 @@ Authentication is not fully supported for all forms of proxy:
 
 \b Username and password authentication is supported for HTTP
 proxies and SOCKS 5 proxies.
+
+\lcont{
+
+\b With SOCKS 5, authentication is via \i{CHAP} if the proxy
+supports it (this is not supported in \i{PuTTYtel}); otherwise the
+password is sent to the proxy in plain text.
+
+\b With HTTP proxying, the only currently supported authentication
+method is \q{basic}, where the password is sent to proxy in plain
+text.
+
+}
 
 \b SOCKS 4 can use the \q{Username} field, but does not support
 passwords.
