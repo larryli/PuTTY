@@ -46,6 +46,15 @@ you want them saved. Then come back to the Session panel. Select the
 \q{Default Settings} entry in the saved sessions list, with a single
 click. Then press the \e{Save} button.
 
+Note that PuTTY does not allow you to save a host name into the
+Default Settings entry. This ensures that when PuTTY is started up,
+the host name box is always empty, so a user can always just type in
+a host name and connect.
+
+If there is a specific host you want to store the details of how to
+connect to, you should create a saved session, which will be
+separate from the Default Settings.
+
 \b To save a session: first go through the rest of the configuration
 box setting up all the options you want. Then come back to the
 Session panel. Enter a name for the saved session in the \e{Saved
