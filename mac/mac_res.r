@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.38 2003/04/05 22:03:06 ben Exp $ */
+/* $Id: mac_res.r,v 1.39 2003/04/14 21:15:39 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -1024,7 +1024,7 @@ resource 'CNTL' (cVScroll, "vscroll", purgeable) {
 /* Settings dialogue */
 
 resource 'WIND' (wSettings, "settings", purgeable) {
-    { 0, 0, 350, 500 },
+    { 0, 0, 432, 626 },
     noGrowDocProc,
     invisible,
     goAway,
@@ -1126,6 +1126,9 @@ data 'CDEF' (CDEF_EditBox) {
     $"4EF9 00000000"
 };
 data 'CDEF' (CDEF_Default) {
+    $"4EF9 00000000"
+};
+data 'CDEF' (CDEF_ListBox) {
     $"4EF9 00000000"
 };
 
