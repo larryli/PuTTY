@@ -281,7 +281,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	/*
 	 * NYI:
-	 *  - nethack mode
 	 *  - alt+numpad
 	 *  - Compose key (!!! requires Unicode faff before even trying)
 	 */
@@ -1047,7 +1046,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     /*
      * NYI:
      *  - Unicode, code pages, and ATTR_WIDE for CJK support.
-     *  - LATTR_* (ESC # 4 double-width and double-height stuff)
      *  - cursor shapes other than block
      *  - shadow bolding
      */
@@ -1066,6 +1064,12 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     if (attr & TATTR_ACTCURS) {
 	nfg = NCOLOURS-2;
 	nbg = NCOLOURS-1;
+    }
+
+    if (lattr != LATTR_NORM) {
+	if (x*2 >= cols)
+	    return;
+	x *= 2;
     }
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
@@ -1088,6 +1092,44 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 		      y*inst->font_height + uheight + cfg.window_border,
 		      (x+len)*inst->font_width-1+cfg.window_border,
 		      y*inst->font_height + uheight + cfg.window_border);
+    }
+
+    if (lattr != LATTR_NORM) {
+	/*
+	 * I can't find any plausible StretchBlt equivalent in the
+	 * X server, so I'm going to do this the slow and painful
+	 * way. This will involve repeated calls to
+	 * gdk_draw_pixmap() to stretch the text horizontally. It's
+	 * O(N^2) in time and O(N) in network bandwidth, but you
+	 * try thinking of a better way. :-(
+	 */
+	int i;
+	for (i = 0; i < len * inst->font_width; i++) {
+	    gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
+			    x*inst->font_width+cfg.window_border + 2*i,
+			    y*inst->font_height+cfg.window_border,
+			    x*inst->font_width+cfg.window_border + 2*i+1,
+			    y*inst->font_height+cfg.window_border,
+			    len * inst->font_width - i, inst->font_height);
+	}
+	len *= 2;
+	if (lattr != LATTR_WIDE) {
+	    int dt, db;
+	    /* Now stretch vertically, in the same way. */
+	    if (lattr == LATTR_BOT)
+		dt = 0, db = 1;
+	    else
+		dt = 1, db = 0;
+	    for (i = 0; i < inst->font_height; i+=2) {
+		gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
+				x*inst->font_width+cfg.window_border,
+				y*inst->font_height+cfg.window_border+dt*i+db,
+				x*inst->font_width+cfg.window_border,
+				y*inst->font_height+cfg.window_border+dt*(i+1),
+				len * inst->font_width, inst->font_height-i-1);
+	    }
+	}
+	len *= 2;
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
