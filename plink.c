@@ -238,6 +238,7 @@ static void usage(void)
     printf("  -ssh      force use of ssh protocol\n");
     printf("  -P port   connect to specified port\n");
     printf("  -pw passw login with specified password\n");
+    printf("  -m file   read remote command(s) from file\n");
     exit(1);
 }
 
@@ -319,6 +320,35 @@ int main(int argc, char **argv) {
                 --argc, username = *++argv;
                 strncpy(cfg.username, username, sizeof(cfg.username));
                 cfg.username[sizeof(cfg.username)-1] = '\0';
+            } else if (!strcmp(p, "-m") && argc > 1) {
+                char *filename, *command;
+                int cmdlen, cmdsize;
+                FILE *fp;
+                int c, d;
+
+                --argc, filename = *++argv;
+
+                cmdlen = cmdsize = 0;
+                command = NULL;
+                fp = fopen(filename, "r");
+                if (!fp) {
+                    fprintf(stderr, "plink: unable to open command "
+                            "file \"%s\"\n", filename);
+                    return 1;
+                }
+                do {
+                    c = fgetc(fp);
+                    d = c;
+                    if (c == EOF)
+                        d = 0;
+                    if (cmdlen >= cmdsize) {
+                        cmdsize = cmdlen + 512;
+                        command = srealloc(command, cmdsize);
+                    }
+                    command[cmdlen++] = d;
+                } while (c != EOF);
+                cfg.remote_cmd_ptr = command;
+                cfg.nopty = TRUE;      /* command => no terminal */
             } else if (!strcmp(p, "-P") && argc > 1) {
                 --argc, portnumber = atoi(*++argv);
             }
@@ -427,7 +457,7 @@ int main(int argc, char **argv) {
         usage();
     }
 
-    if (!*cfg.remote_cmd)
+    if (!*cfg.remote_cmd_ptr)
         flags |= FLAG_INTERACTIVE;
 
     /*

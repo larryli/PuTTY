@@ -72,7 +72,6 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "NoPTY", cfg->nopty);
     write_setting_i (sesskey, "Compression", cfg->compression);
     write_setting_i (sesskey, "AgentFwd", cfg->agentfwd);
-    write_setting_s (sesskey, "RemoteCmd", cfg->remote_cmd);
     write_setting_s (sesskey, "Cipher",
                      cfg->cipher == CIPHER_BLOWFISH ? "blowfish" :
                      cfg->cipher == CIPHER_DES ? "des" :
@@ -161,6 +160,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
     sesskey = open_settings_r(section);
 
     cfg->ssh_subsys = 0;               /* FIXME: load this properly */
+    cfg->remote_cmd_ptr = cfg->remote_cmd;
 
     gpps (sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
     gppi (sesskey, "PortNumber", default_port, &cfg->port);
@@ -213,7 +213,6 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "NoPTY", 0, &cfg->nopty);
     gppi (sesskey, "Compression", 0, &cfg->compression);
     gppi (sesskey, "AgentFwd", 0, &cfg->agentfwd);
-    gpps (sesskey, "RemoteCmd", "", cfg->remote_cmd, sizeof(cfg->remote_cmd));
     {
 	char cipher[10];
 	gpps (sesskey, "Cipher", "3des", cipher, 10);

@@ -2127,8 +2127,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	zlib_decompress_init();
     }
 
-    if (*cfg.remote_cmd)
-        send_packet(SSH1_CMSG_EXEC_CMD, PKT_STR, cfg.remote_cmd, PKT_END);
+    if (*cfg.remote_cmd_ptr)
+        send_packet(SSH1_CMSG_EXEC_CMD, PKT_STR, cfg.remote_cmd_ptr, PKT_END);
     else
         send_packet(SSH1_CMSG_EXEC_SHELL, PKT_END);
     logevent("Started session");
@@ -3578,11 +3578,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     if (cfg.ssh_subsys) {
         ssh2_pkt_addstring("subsystem");
         ssh2_pkt_addbool(1);           /* want reply */
-        ssh2_pkt_addstring(cfg.remote_cmd);
-    } else if (*cfg.remote_cmd) {
+        ssh2_pkt_addstring(cfg.remote_cmd_ptr);
+    } else if (*cfg.remote_cmd_ptr) {
         ssh2_pkt_addstring("exec");
         ssh2_pkt_addbool(1);           /* want reply */
-        ssh2_pkt_addstring(cfg.remote_cmd);
+        ssh2_pkt_addstring(cfg.remote_cmd_ptr);
     } else {
         ssh2_pkt_addstring("shell");
         ssh2_pkt_addbool(1);           /* want reply */

@@ -168,6 +168,8 @@ typedef struct {
     int ping_interval;                 /* in seconds */
     /* SSH options */
     char remote_cmd[512];
+    char *remote_cmd_ptr;              /* might point to a larger command
+                                        * but never for loading/saving */
     int nopty;
     int compression;
     int agentfwd;
