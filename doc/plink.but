@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.13 2001/12/31 16:15:19 simon Exp $
+\versionid $Id: plink.but,v 1.14 2002/02/04 13:29:04 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -202,6 +202,10 @@ A simple way to automate a remote login is to supply your password
 on the Plink command line. This is \e{not recommended} for reasons
 of security. If you possibly can, we recommend you set up public-key
 authentication instead. See \k{pubkey} for details.
+
+Note that the \c{-pw} option only works when you are using the SSH
+protocol. Due to fundamental limitations of Telnet and Rlogin, these
+protocols do not support automated password authentication.
 
 \S2{plink-usage-options-user}\c{-l username} login with specified
 username
