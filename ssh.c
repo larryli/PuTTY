@@ -1828,7 +1828,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
 	  !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
 	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25") ||
-	  !strcmp(imp, "OSU_1.4alpha3")))) {
+	  !strcmp(imp, "OSU_1.4alpha3") || !strcmp(imp, "OSU_1.5alpha4")))) {
 	/*
 	 * These versions don't support SSH1_MSG_IGNORE, so we have
 	 * to use a different defence against password length
