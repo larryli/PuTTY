@@ -1854,7 +1854,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     struct RSAKey servkey, hostkey;
     struct MD5Context md5c;
     static unsigned long supported_ciphers_mask, supported_auths_mask;
-    static int tried_publickey;
+    static int tried_publickey, tried_agent;
     static int tis_auth_refused, ccard_auth_refused;
     static unsigned char session_id[16];
     static int cipher_type;
@@ -2105,7 +2105,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     crWaitUntil(ispkt);
 
-    tried_publickey = 0;
+    tried_publickey = tried_agent = 0;
     tis_auth_refused = ccard_auth_refused = 0;
     /* Load the public half of cfg.keyfile so we notice if it's in Pageant */
     if (*cfg.keyfile) {
@@ -2122,7 +2122,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static int pwpkt_type;
 	pwpkt_type = SSH1_CMSG_AUTH_PASSWORD;
 
-	if (agent_exists()) {
+	if (agent_exists() && !tried_agent) {
 	    /*
 	     * Attempt RSA authentication using Pageant.
 	     */
@@ -2132,6 +2132,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    static int authed = FALSE;
 	    void *r;
 
+	    tried_agent = 1;
 	    logevent("Pageant is running. Requesting keys.");
 
 	    /* Request the keys held by the agent. */
