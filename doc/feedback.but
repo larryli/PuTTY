@@ -1,9 +1,10 @@
-\versionid $Id: feedback.but,v 1.1 2001/12/16 14:56:02 simon Exp $
+\versionid $Id: feedback.but,v 1.2 2001/12/16 15:14:36 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
-This section describes what to do if you want to contact the PuTTY
-development team.
+This is a guide to providing feedback to the PuTTY development team.
+It is provided as both a web page on the PuTTY site, and an appendix
+in the PuTTY manual.
 
 \K{feedback-general} gives some general guidelines for sending any
 kind of e-mail to the development team. Following sections give more
