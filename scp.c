@@ -470,7 +470,7 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 {
     float ratebs;
     unsigned long eta;
-    char etastr[10];
+    char *etastr;
     int pct;
     int len;
     int elap;
@@ -486,8 +486,8 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 	eta = size - done;
     else
 	eta = (unsigned long) ((size - done) / ratebs);
-    sprintf(etastr, "%02ld:%02ld:%02ld",
-	    eta / 3600, (eta % 3600) / 60, eta % 60);
+    etastr = dupprintf("%02ld:%02ld:%02ld",
+		       eta / 3600, (eta % 3600) / 60, eta % 60);
 
     pct = (int) (100 * (done * 1.0 / size));
 
@@ -506,6 +506,8 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 
 	fflush(stdout);
     }
+
+    free(etastr);
 }
 
 /*
