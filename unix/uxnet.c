@@ -521,6 +521,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     uxsel_tell(ret);
     add234(sktree, ret);
 
+    sk_addr_free(addr);
+
     return (Socket) ret;
 }
 

@@ -324,6 +324,8 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
 	ret->next->prev = &ret->next;
     ot.socklist = ret;
 
+    /* XXX: don't know whether we can sk_addr_free(addr); */
+
     return (Socket) ret;
 }
     

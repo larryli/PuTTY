@@ -517,6 +517,8 @@ Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
 	ret->next->prev = &ret->next;
     mactcp.socklist = ret;
 
+    sk_addr_free(addr); /* don't need this anymore */
+
     return (Socket)ret;
 }
 

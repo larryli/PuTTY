@@ -299,5 +299,8 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 
     uxsel_set(ret->from_cmd, 1, localproxy_select_result);
 
+    /* We are responsible for this and don't need it any more */
+    sk_addr_free(addr);
+
     return (Socket) ret;
 }
