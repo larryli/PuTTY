@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.30 2004/09/20 22:06:29 jacob Exp $
+\versionid $Id: using.but,v 1.31 2004/09/20 22:10:09 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -128,44 +128,50 @@ up to the server. Currently only Telnet and SSH have special commands.
 
 The following special commands are available in Telnet:
 
-\dt \I{Are You There, Telnet special command}Are You There
+\b \I{Are You There, Telnet special command}Are You There
 
-\dt \I{Break, Telnet special command}Break
+\b \I{Break, Telnet special command}Break
 
-\dt \I{Synch, Telnet special command}Synch
+\b \I{Synch, Telnet special command}Synch
 
-\dt \I{Erase Character, Telnet special command}Erase Character
+\b \I{Erase Character, Telnet special command}Erase Character
 
-\dt \I{Erase Line, Telnet special command}Erase Line
+\b \I{Erase Line, Telnet special command}Erase Line
 
-\dt \I{Go Ahead, Telnet special command}Go Ahead
+\b \I{Go Ahead, Telnet special command}Go Ahead
 
-\dt \I{No Operation, Telnet special command}No Operation
+\b \I{No Operation, Telnet special command}No Operation
 
-\dd Should have no effect.
+\lcont{
+Should have no effect.
+}
 
-\dt \I{Abort Process, Telnet special command}Abort Process
+\b \I{Abort Process, Telnet special command}Abort Process
 
-\dt \I{Abort Output, Telnet special command}Abort Output
+\b \I{Abort Output, Telnet special command}Abort Output
 
-\dt \I{Interrupt Process, Telnet special command}Interrupt Process
+\b \I{Interrupt Process, Telnet special command}Interrupt Process
 
-\dt \I{Suspend Process, Telnet special command}Suspend Process
+\b \I{Suspend Process, Telnet special command}Suspend Process
 
-\dt \I{End Of Record, Telnet special command}End Of Record
+\b \I{End Of Record, Telnet special command}End Of Record
 
-\dt \I{End Of File, Telnet special command}End Of File
+\b \I{End Of File, Telnet special command}End Of File
 
 In an SSH connection, the following special commands are available:
 
-\dt \I{Break, SSH special command}Break
+\b \I{Break, SSH special command}Break
 
-\dd Optional extension; may not be supported by server. PuTTY requests
-the server's default break length.
+\lcont{
+Optional extension; may not be supported by server. PuTTY requests the
+server's default break length.
+}
 
-\dt \I{IGNORE message, SSH special command}\I{No-op, in SSH}IGNORE message
+\b \I{IGNORE message, SSH special command}\I{No-op, in SSH}IGNORE message
 
-\dd Should have no effect.
+\lcont{
+Should have no effect.
+}
 
 \S2{using-newsession} Starting new sessions
 
