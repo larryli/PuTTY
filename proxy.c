@@ -269,7 +269,8 @@ static int proxy_for_destination (SockAddr addr, char *hostname, int port,
     if (addr) {
 	sk_getaddr(addr, hostip, 64);
 	hostip_len = strlen(hostip);
-    }
+    } else
+	hostip_len = 0;		       /* placate gcc; shouldn't be required */
 
     hostname_len = strlen(hostname);
 

@@ -4520,7 +4520,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      case PK_END:      xkey = 'E'; break;
 	      case PK_PAGEUP:   xkey = 'I'; break;
 	      case PK_PAGEDOWN: xkey = 'G'; break;
-	      default: break; /* else gcc warns `enum value not used' */
+	      default: xkey=0; break; /* else gcc warns `enum value not used'*/
 	    }
 	    p += sprintf((char *) p, "\x1B%c", xkey);
 	    goto done;
@@ -4533,7 +4533,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	  case PK_END:      code = 4; break;
 	  case PK_PAGEUP:   code = 5; break;
 	  case PK_PAGEDOWN: code = 6; break;
-	  default: break; /* else gcc warns `enum value not used' */
+	  default: code = 0; break; /* else gcc warns `enum value not used' */
 	}
 	p += sprintf((char *) p, "\x1B[%d~", code);
 	goto done;

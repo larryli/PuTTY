@@ -13,6 +13,7 @@ void platform_get_x11_auth(char *display, int *protocol,
     char *command;
     int maxsize = *datalen;
     char *localbuf;
+    int proto = -1;
 
     /*
      * Normally we should run `xauth list DISPLAYNAME'. However,
@@ -36,7 +37,7 @@ void platform_get_x11_auth(char *display, int *protocol,
          * Read a line from stdin, and attempt to parse it into a
          * display name (ignored), auth protocol, and auth string.
          */
-        int c, i, hexdigit, proto;
+        int c, i, hexdigit;
         char protoname[64];
 
         /* Skip the display name. */

@@ -489,6 +489,8 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
 
     if (uc->menu)
 	activeitem = gtk_menu_get_active(GTK_MENU(uc->menu));
+    else
+	activeitem = NULL;	       /* unnecessarily placate gcc */
 
     children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
 						    uc->list));

@@ -545,7 +545,7 @@ print
 "# TOOLPATH = /opt/gcc/bin\n".
 "CC = \$(TOOLPATH)cc\n".
 "\n".
-&splitline("CFLAGS = -Wall -Werror -g -I. -I.. -I../charset `gtk-config --cflags`")."\n".
+&splitline("CFLAGS = -O2 -Wall -Werror -g -I. -I.. -I../charset `gtk-config --cflags`")."\n".
 "XLDFLAGS = `gtk-config --libs`\n".
 "ULDFLAGS =#\n".
 "INSTALL=install\n",

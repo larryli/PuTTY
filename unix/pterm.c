@@ -442,6 +442,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
     /* By default, nothing is generated. */
     end = start = 0;
+    special = FALSE;
 
     /*
      * If Alt is being released after typing an Alt+numberpad
@@ -2669,7 +2670,7 @@ void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
     fork_and_exec_self(inst, pipefd[1], option, NULL);
     close(pipefd[0]);
 
-    i = 0;
+    i = ret = 0;
     while (i < size && (ret = write(pipefd[1], data + i, size - i)) > 0)
 	i += ret;
     if (ret < 0)
@@ -2689,7 +2690,7 @@ int read_dupsession_data(struct gui_data *inst, Config *cfg, char *arg)
     }
 
     data = snewn(size, char);
-    i = 0;
+    i = ret = 0;
     while (i < size && (ret = read(fd, data + i, size - i)) > 0)
 	i += ret;
     if (ret < 0) {

@@ -287,9 +287,9 @@ void panels_add(Panels *panels, GtkWidget *child)
 
 void panels_switch_to(Panels *panels, GtkWidget *target)
 {
-    GtkWidget *child;
+    GtkWidget *child = NULL;
     GList *children;
-    gboolean changed;
+    gboolean changed = FALSE;
 
     g_return_if_fail(panels != NULL);
     g_return_if_fail(IS_PANELS(panels));
