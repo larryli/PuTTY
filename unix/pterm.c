@@ -145,6 +145,8 @@ int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "CloseOnExit"))
 	return 2;  /* maps to FORCE_ON after painful rearrangement :-( */
+    if (!strcmp(name, "WinNameAlways"))
+	return 0;  /* X natively supports icon titles, so use 'em by default */
     return def;
 }
 
@@ -1465,12 +1467,24 @@ void get_clip(void *frontend, wchar_t ** p, int *len)
     }
 }
 
+static void set_window_titles(struct gui_data *inst)
+{
+    /*
+     * We must always call set_icon_name after calling set_title,
+     * since set_title will write both names. Irritating, but such
+     * is life.
+     */
+    gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
+    if (!inst->cfg.win_name_always)
+	gdk_window_set_icon_name(inst->window->window, inst->icontitle);
+}
+
 void set_title(void *frontend, char *title)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     strncpy(inst->wintitle, title, lenof(inst->wintitle));
     inst->wintitle[lenof(inst->wintitle)-1] = '\0';
-    gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
+    set_window_titles(inst);
 }
 
 void set_icon(void *frontend, char *title)
@@ -1478,7 +1492,7 @@ void set_icon(void *frontend, char *title)
     struct gui_data *inst = (struct gui_data *)frontend;
     strncpy(inst->icontitle, title, lenof(inst->icontitle));
     inst->icontitle[lenof(inst->icontitle)-1] = '\0';
-    gdk_window_set_icon_name(inst->window->window, inst->icontitle);
+    set_window_titles(inst);
 }
 
 void set_sbar(void *frontend, int total, int start, int page)
@@ -2507,6 +2521,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          */
         if (strcmp(oldcfg.wintitle, cfg2.wintitle))
             set_title(inst, cfg2.wintitle);
+	set_window_titles(inst);
 
         /*
          * Redo the whole tangled fonts and Unicode mess if
@@ -3035,11 +3050,13 @@ int pt_main(int argc, char **argv)
 	    return 0;
 	}
 
-        if (inst->cfg.wintitle[0])
+        if (inst->cfg.wintitle[0]) {
             set_title(inst, inst->cfg.wintitle);
-        else {
+            set_icon(inst, inst->cfg.wintitle);
+	} else {
             char *title = make_default_wintitle(realhost);
             set_title(inst, title);
+            set_icon(inst, title);
             sfree(title);
         }
     }
