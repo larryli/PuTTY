@@ -514,7 +514,7 @@ struct ssh_cipher ssh_blowfish_ssh1 = {
     blowfish_ssh1_encrypt_blk,
     blowfish_ssh1_decrypt_blk,
     "blowfish-cbc",
-    8
+    8, 256
 };
 
 struct ssh_cipher ssh_blowfish_ssh2 = {
@@ -524,5 +524,5 @@ struct ssh_cipher ssh_blowfish_ssh2 = {
     blowfish_ssh2_encrypt_blk,
     blowfish_ssh2_decrypt_blk,
     "blowfish-cbc",
-    8
+    8, 128
 };

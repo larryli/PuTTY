@@ -797,7 +797,7 @@ struct ssh_cipher ssh_3des_ssh2 = {
     des3_ssh2_encrypt_blk,
     des3_ssh2_decrypt_blk,
     "3des-cbc",
-    8
+    8, 168
 };
 
 struct ssh_cipher ssh_3des = {
@@ -806,7 +806,7 @@ struct ssh_cipher ssh_3des = {
     des3_encrypt_blk,
     des3_decrypt_blk,
     "3des-cbc",
-    8
+    8, 168
 };
 
 static void des_sesskey(unsigned char *key) {
@@ -829,5 +829,5 @@ struct ssh_cipher ssh_des = {
     des_encrypt_blk,
     des_decrypt_blk,
     "des-cbc", /* should never be used - not a valid cipher in ssh2 */
-    8
+    8, 56
 };

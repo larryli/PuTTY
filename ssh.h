@@ -103,6 +103,7 @@ struct ssh_cipher {
     void (*decrypt)(unsigned char *blk, int len);
     char *name;
     int blksize;
+    int keylen;
 };
 
 struct ssh_mac {
