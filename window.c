@@ -701,7 +701,7 @@ font_messup:
     }
 
 #ifdef CHECKOEMFONT
-    /* With the facist font painting it doesn't matter if the linedraw font
+    /* With the fascist font painting it doesn't matter if the linedraw font
      * isn't exactly the right size anymore so we don't have to check this.
      */
     if (cfg.vtmode == VT_OEMANSI && fsize[FONT_OEM] != fsize[FONT_NORMAL] ) {
