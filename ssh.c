@@ -3769,7 +3769,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 c = find234(ssh_channels, &i, ssh_channelfind);
                 if (!c)
                     continue;          /* nonexistent channel */
-                mainchan->v2.remwindow += ssh2_pkt_getuint32();
+                c->v2.remwindow += ssh2_pkt_getuint32();
                 try_send = TRUE;
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
                 char *type;
