@@ -166,7 +166,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname, int address_famil
     else
 	strncat(realhost, host, sizeof(realhost) - 1);
 #else
-    if ((a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
+    if ((a = inet_addr(host)) == (unsigned long)(in_addr_t)(-1)) {
 	/*
 	 * Otherwise use the IPv4-only gethostbyname... (NOTE:
 	 * we don't use gethostbyname as a fallback!)
@@ -678,7 +678,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 	 */
 	if (srcaddr) {
 	    a.sin_addr.s_addr = inet_addr(srcaddr);
-	    if (a.sin_addr.s_addr != INADDR_NONE) {
+	    if (a.sin_addr.s_addr != (in_addr_t)(-1)) {
 		/* Override localhost_only with specified listen addr. */
 		ret->localhost_only = ipv4_is_loopback(a.sin_addr);
 		got_addr = 1;
