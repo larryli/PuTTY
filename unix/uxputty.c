@@ -12,17 +12,6 @@
 #include "storage.h"
 
 /*
- * TODO:
- *
- *  - Better control of the individual config box features.
- *     + SSH packet logging shouldn't be mentioned in pterm, and in
- * 	 fact not PuTTYtel either.
- *     + Keepalives, and the Connection panel in general, shouldn't
- * 	 crop up in pterm. (And perhaps also not mid-session in
- * 	 rlogin and raw?)
- */
-
-/*
  * Clean up and exit.
  */
 void cleanup_exit(int code)
