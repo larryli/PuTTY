@@ -14,8 +14,7 @@ open IN, "Recipe" or die "unable to open Recipe file\n";
 @incdirs = ("", "unix/");
 
 $help = ""; # list of newline-free lines of help text
-%programs = (); # maps program name to listref of objects/resources
-%types = (); # maps program name to "G" or "C"
+%programs = (); # maps prog name + type letter to listref of objects/resources
 %groups = (); # maps group name to listref of objects/resources
 
 while (<IN>) {
@@ -46,8 +45,7 @@ while (<IN>) {
     $prog = undef;
     shift @objs; # eat the group name
   } elsif ($_[1] eq ":") {
-    $programs{$_[0]} = [] if !defined $programs{$_[0]};
-    $listref = $programs{$_[0]};
+    $listref = [];
     $prog = $_[0];
     shift @objs; # eat the program name
   } else {
@@ -60,10 +58,15 @@ while (<IN>) {
     if ($groups{$i}) {
       foreach $j (@{$groups{$i}}) { unshift @objs, $j; }
     } elsif (($i eq "[G]" or $i eq "[C]" or $i eq "[X]") and defined $prog) {
-      $types{$prog} = substr($i,1,1);
+      $type = substr($i,1,1);
     } else {
       push @$listref, $i;
     }
+  }
+  if ($prog and $type) {
+    die "multiple program entries for $prog [$type]\n"
+	if defined $programs{$prog . "," . $type};
+    $programs{$prog . "," . $type} = $listref;
   }
   $lastlistref = $listref;
 }
@@ -77,7 +80,7 @@ close IN;
 %depends = ();
 @scanlist = ();
 foreach $i (@prognames) {
-  if (!defined $types{$i}) { die "type not set for program $i\n"; }
+  ($prog, $type) = split ",", $i;
   # Strip duplicate object names.
   $prev = undef;
   @list = grep { $status = ($prev ne $_); $prev=$_; $status }
@@ -230,11 +233,24 @@ sub deps {
 
 sub prognames {
   my ($types) = @_;
-  my ($n);
+  my ($n, $prog, $type);
   my @ret;
   @ret = ();
   foreach $n (@prognames) {
-    push @ret, $n if index($types, $types{$n}) >= 0;
+    ($prog, $type) = split ",", $n;
+    push @ret, $n if index($types, $type) >= 0;
+  }
+  return @ret;
+}
+
+sub progrealnames {
+  my ($types) = @_;
+  my ($n, $prog, $type);
+  my @ret;
+  @ret = ();
+  foreach $n (@prognames) {
+    ($prog, $type) = split ",", $n;
+    push @ret, $prog if index($types, $type) >= 0;
   }
   return @ret;
 }
@@ -274,12 +290,13 @@ print
 "%.res.o: %.rc\n".
 "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
 "\n";
-print &splitline("all:" . join "", map { " $_.exe" } &prognames("GC"));
+print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
 print "\n\n";
 foreach $p (&prognames("GC")) {
+  ($prog, $type) = split ",", $p;
   $objstr = &objects($p, "X.o", "X.res.o", undef);
-  print &splitline($p . ".exe: " . $objstr), "\n";
-  my $mw = $types{$p} eq "G" ? " -mwindows" : "";
+  print &splitline($prog . ".exe: " . $objstr), "\n";
+  my $mw = $type eq "G" ? " -mwindows" : "";
   $libstr = &objects($p, undef, undef, "-lX");
   print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
                    $objstr . " $libstr", 69), "\n\n";
@@ -338,16 +355,18 @@ print
 &splitline("\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include -r".
   " -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401 \$*.rc",69)."\n".
 "\n";
-print &splitline("all:" . join "", map { " $_.exe" } &prognames("GC"));
+print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
 print "\n\n";
 foreach $p (&prognames("GC")) {
+  ($prog, $type) = split ",", $p;
   $objstr = &objects($p, "X.obj", "X.res", undef);
-  print &splitline("$p.exe: " . $objstr . " $p.rsp"), "\n";
-  my $ap = ($types{$p} eq "G") ? "-aa" : "-ap";
-  print "\tilink32 $ap -Gn -L\$(BCB)\\lib \@$p.rsp\n\n";
+  print &splitline("$prog.exe: " . $objstr . " $prog.rsp"), "\n";
+  my $ap = ($type eq "G") ? "-aa" : "-ap";
+  print "\tilink32 $ap -Gn -L\$(BCB)\\lib \@$prog.rsp\n\n";
 }
 foreach $p (&prognames("GC")) {
-  print $p, ".rsp: \$(MAKEFILE)\n";
+  ($prog, $type) = split ",", $p;
+  print $prog, ".rsp: \$(MAKEFILE)\n";
   $objstr = &objects($p, "X.obj", undef, undef);
   @objlist = split " ", $objstr;
   @objlines = ("");
@@ -357,20 +376,20 @@ foreach $p (&prognames("GC")) {
     }
     $objlines[$#objlines] .= " $i";
   }
-  $c0w = ($types{$p} eq "G") ? "c0w32" : "c0x32";
-  print "\techo $c0w + > $p.rsp\n";
+  $c0w = ($type eq "G") ? "c0w32" : "c0x32";
+  print "\techo $c0w + > $prog.rsp\n";
   for ($i=0; $i<=$#objlines; $i++) {
     $plus = ($i < $#objlines ? " +" : "");
-    print "\techo$objlines[$i]$plus >> $p.rsp\n";
+    print "\techo$objlines[$i]$plus >> $prog.rsp\n";
   }
-  print "\techo $p.exe >> $p.rsp\n";
+  print "\techo $prog.exe >> $prog.rsp\n";
   $objstr = &objects($p, "X.obj", "X.res", undef);
   @libs = split " ", &objects($p, undef, undef, "X");
   @libs = grep { !$stdlibs{$_} } @libs;
   unshift @libs, "cw32", "import32";
   $libstr = join ' ', @libs;
-  print "\techo nul,$libstr, >> $p.rsp\n";
-  print "\techo " . &objects($p, undef, "X.res", undef) . " >> $p.rsp\n";
+  print "\techo nul,$libstr, >> $prog.rsp\n";
+  print "\techo " . &objects($p, undef, "X.res", undef) . " >> $prog.rsp\n";
   print "\n";
 }
 &deps("X.obj", "X.res", "", "\\");
@@ -415,15 +434,17 @@ print
 ".rc.res:\n".
 "\trc \$(FWHACK) \$(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
 "\n";
-print &splitline("all:" . join "", map { " $_.exe" } &prognames("GC"));
+print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
 print "\n\n";
 foreach $p (&prognames("GC")) {
+  ($prog, $type) = split ",", $p;
   $objstr = &objects($p, "X.obj", "X.res", undef);
-  print &splitline("$p.exe: " . $objstr . " $p.rsp"), "\n";
-  print "\tlink \$(LFLAGS) -out:$p.exe -map:$p.map \@$p.rsp\n\n";
+  print &splitline("$prog.exe: " . $objstr . " $prog.rsp"), "\n";
+  print "\tlink \$(LFLAGS) -out:$prog.exe -map:$prog.map \@$prog.rsp\n\n";
 }
 foreach $p (&prognames("GC")) {
-  print $p, ".rsp: \$(MAKEFILE)\n";
+  ($prog, $type) = split ",", $p;
+  print $prog, ".rsp: \$(MAKEFILE)\n";
   $objstr = &objects($p, "X.obj", "X.res", "X.lib");
   @objlist = split " ", $objstr;
   @objlines = ("");
@@ -433,10 +454,10 @@ foreach $p (&prognames("GC")) {
     }
     $objlines[$#objlines] .= " $i";
   }
-  $subsys = ($types{$p} eq "G") ? "windows" : "console";
-  print "\techo /nologo /subsystem:$subsys > $p.rsp\n";
+  $subsys = ($type eq "G") ? "windows" : "console";
+  print "\techo /nologo /subsystem:$subsys > $prog.rsp\n";
   for ($i=0; $i<=$#objlines; $i++) {
-    print "\techo$objlines[$i] >> $p.rsp\n";
+    print "\techo$objlines[$i] >> $prog.rsp\n";
   }
   print "\n";
 }
@@ -489,11 +510,12 @@ print
 "%.o:\n".
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
 "\n";
-print &splitline("all:" . join "", map { " $_" } &prognames("X"));
+print &splitline("all:" . join "", map { " $_" } &progrealnames("X"));
 print "\n\n";
 foreach $p (&prognames("X")) {
+  ($prog, $type) = split ",", $p;
   $objstr = &objects($p, "X.o", undef, undef);
-  print &splitline($p . ": " . $objstr), "\n";
+  print &splitline($prog . ": " . $objstr), "\n";
   $libstr = &objects($p, undef, undef, "-lX");
   print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
                    $objstr . " $libstr", 69), "\n\n";
@@ -504,8 +526,8 @@ print
 "version.o: FORCE;\n".
 "# Hack to force version.o to be rebuilt always\n".
 "FORCE:\n".
-"\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c version.c\n".
+"\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c ../version.c\n".
 "clean:\n".
-"\trm -f *.o". (join "", map { " $_" } &prognames("X")) . "\n".
+"\trm -f *.o". (join "", map { " $_" } &progrealnames("X")) . "\n".
 "\n";
 select STDOUT; close OUT;
