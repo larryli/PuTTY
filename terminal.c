@@ -554,15 +554,39 @@ static void makeliteral_attr(struct buf *b, termchar *c, unsigned long *state)
      * store a two-byte value with the top bit clear (indicating
      * just that value), or a four-byte value with the top bit set
      * (indicating the same value with its top bit clear).
+     * 
+     * However, first I permute the bits of the attribute value, so
+     * that the eight bits of colour (four in each of fg and bg)
+     * which are never non-zero unless xterm 256-colour mode is in
+     * use are placed higher up the word than everything else. This
+     * ensures that attribute values remain 16-bit _unless_ the
+     * user uses extended colour.
      */
-    if (c->attr < 0x8000) {
-	add(b, (unsigned char)((c->attr >> 8) & 0xFF));
-	add(b, (unsigned char)(c->attr & 0xFF));
+    unsigned attr, colourbits;
+
+    attr = c->attr;
+
+    assert(ATTR_BGSHIFT > ATTR_FGSHIFT);
+
+    colourbits = (attr >> (ATTR_BGSHIFT + 4)) & 0xF;
+    colourbits <<= 4;
+    colourbits |= (attr >> (ATTR_FGSHIFT + 4)) & 0xF;
+
+    attr = (((attr >> (ATTR_BGSHIFT + 8)) << (ATTR_BGSHIFT + 4)) |
+	    (attr & ((1 << (ATTR_BGSHIFT + 4))-1)));
+    attr = (((attr >> (ATTR_FGSHIFT + 8)) << (ATTR_FGSHIFT + 4)) |
+	    (attr & ((1 << (ATTR_FGSHIFT + 4))-1)));
+
+    attr |= (colourbits << (32-9));
+
+    if (attr < 0x8000) {
+	add(b, (unsigned char)((attr >> 8) & 0xFF));
+	add(b, (unsigned char)(attr & 0xFF));
     } else {
-	add(b, (unsigned char)(((c->attr >> 24) & 0x7F) | 0x80));
-	add(b, (unsigned char)((c->attr >> 16) & 0xFF));
-	add(b, (unsigned char)((c->attr >> 8) & 0xFF));
-	add(b, (unsigned char)(c->attr & 0xFF));
+	add(b, (unsigned char)(((attr >> 24) & 0x7F) | 0x80));
+	add(b, (unsigned char)((attr >> 16) & 0xFF));
+	add(b, (unsigned char)((attr >> 8) & 0xFF));
+	add(b, (unsigned char)(attr & 0xFF));
     }
 }
 static void makeliteral_cc(struct buf *b, termchar *c, unsigned long *state)
@@ -758,18 +782,30 @@ static void readliteral_chr(struct buf *b, termchar *c, termline *ldata,
 static void readliteral_attr(struct buf *b, termchar *c, termline *ldata,
 			     unsigned long *state)
 {
-    int val;
+    unsigned val, attr, colourbits;
 
     val = get(b) << 8;
     val |= get(b);
 
     if (val >= 0x8000) {
+	val &= ~0x8000;
 	val <<= 16;
 	val |= get(b) << 8;
 	val |= get(b);
     }
 
-    c->attr = val;
+    colourbits = (val >> (32-9)) & 0xFF;
+    attr = (val & ((1<<(32-9))-1));
+
+    attr = (((attr >> (ATTR_FGSHIFT + 4)) << (ATTR_FGSHIFT + 8)) |
+	    (attr & ((1 << (ATTR_FGSHIFT + 4))-1)));
+    attr = (((attr >> (ATTR_BGSHIFT + 4)) << (ATTR_BGSHIFT + 8)) |
+	    (attr & ((1 << (ATTR_BGSHIFT + 4))-1)));
+
+    attr |= (colourbits >> 4) << (ATTR_BGSHIFT + 4);
+    attr |= (colourbits & 0xF) << (ATTR_FGSHIFT + 4);
+
+    c->attr = attr;
 }
 static void readliteral_cc(struct buf *b, termchar *c, termline *ldata,
 			   unsigned long *state)
@@ -1024,6 +1060,14 @@ static void term_timer(void *ctx, long now)
 	term_update(term);
 }
 
+static void term_schedule_update(Terminal *term)
+{
+    if (!term->window_update_pending) {
+	term->window_update_pending = TRUE;
+	term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
+    }
+}
+
 /*
  * Call this whenever the terminal window state changes, to queue
  * an update.
@@ -1031,10 +1075,7 @@ static void term_timer(void *ctx, long now)
 static void seen_disp_event(Terminal *term)
 {
     term->seen_disp_event = TRUE;      /* for scrollback-reset-on-activity */
-    if (!term->window_update_pending) {
-	term->window_update_pending = TRUE;
-	term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
-    }
+    term_schedule_update(term);
 }
 
 /*
@@ -3471,7 +3512,7 @@ static void term_out(Terminal *term)
 				    /* xterm-style bright foreground */
 				    term->curr_attr &= ~ATTR_FGMASK;
 				    term->curr_attr |=
-					((term->esc_args[i] - 90 + 16)
+					((term->esc_args[i] - 90 + 8)
                                          << ATTR_FGSHIFT);
 				    break;
 				  case 39:	/* default-foreground */
@@ -3502,12 +3543,32 @@ static void term_out(Terminal *term)
 				    /* xterm-style bright background */
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |=
-					((term->esc_args[i] - 100 + 16)
+					((term->esc_args[i] - 100 + 8)
                                          << ATTR_BGSHIFT);
 				    break;
 				  case 49:	/* default-background */
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |= ATTR_DEFBG;
+				    break;
+				  case 38:   /* xterm 256-colour mode */
+				    if (i+2 < term->esc_nargs &&
+					term->esc_args[i+1] == 5) {
+					term->curr_attr &= ~ATTR_FGMASK;
+					term->curr_attr |=
+					    ((term->esc_args[i+2] & 0xFF)
+					     << ATTR_FGSHIFT);
+					i += 2;
+				    }
+				    break;
+				  case 48:   /* xterm 256-colour mode */
+				    if (i+2 < term->esc_nargs &&
+					term->esc_args[i+1] == 5) {
+					term->curr_attr &= ~ATTR_BGMASK;
+					term->curr_attr |=
+					    ((term->esc_args[i+2] & 0xFF)
+					     << ATTR_BGSHIFT);
+					i += 2;
+				    }
 				    break;
 				}
 			    }
@@ -3801,7 +3862,7 @@ static void term_out(Terminal *term)
 			if (term->esc_args[0] >= 0 && term->esc_args[0] < 16) {
 			    long colour =
  				(sco2ansicolour[term->esc_args[0] & 0x7] |
-				 ((term->esc_args[0] & 0x8) << 1)) <<
+				 (term->esc_args[0] & 0x8)) <<
 				ATTR_FGSHIFT;
 			    term->curr_attr &= ~ATTR_FGMASK;
 			    term->curr_attr |= colour;
@@ -3814,7 +3875,7 @@ static void term_out(Terminal *term)
 			if (term->esc_args[0] >= 0 && term->esc_args[0] < 16) {
 			    long colour =
  				(sco2ansicolour[term->esc_args[0] & 0x7] |
-				 ((term->esc_args[0] & 0x8) << 1)) <<
+				 (term->esc_args[0] & 0x8)) <<
 				ATTR_BGSHIFT;
 			    term->curr_attr &= ~ATTR_BGMASK;
 			    term->curr_attr |= colour;
@@ -4255,22 +4316,14 @@ static void term_out(Terminal *term)
 		term->termstate = TOPLEVEL;
 		term->curr_attr &= ~ATTR_FGMASK;
 		term->curr_attr &= ~ATTR_BOLD;
-		term->curr_attr |= (c & 0x7) << ATTR_FGSHIFT;
-		if ((c & 0x8) || term->vt52_bold)
-		    term->curr_attr |= ATTR_BOLD;
-
+		term->curr_attr |= (c & 0xF) << ATTR_FGSHIFT;
 		set_erase_char(term);
 		break;
 	      case VT52_BG:
 		term->termstate = TOPLEVEL;
 		term->curr_attr &= ~ATTR_BGMASK;
 		term->curr_attr &= ~ATTR_BLINK;
-		term->curr_attr |= (c & 0x7) << ATTR_BGSHIFT;
-
-		/* Note: bold background */
-		if (c & 0x8)
-		    term->curr_attr |= ATTR_BLINK;
-
+		term->curr_attr |= (c & 0xF) << ATTR_BGSHIFT;
 		set_erase_char(term);
 		break;
 #endif
@@ -4612,6 +4665,16 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
                 tattr = (tattr & ~(ATTR_FGMASK | ATTR_BGMASK)) | 
                 ATTR_DEFFG | ATTR_DEFBG;
 
+	    if (!term->cfg.xterm_256_colour) {
+		int colour;
+		colour = (tattr & ATTR_FGMASK) >> ATTR_FGSHIFT;
+		if (colour >= 16 && colour < 256)
+		    tattr = (tattr &~ ATTR_FGMASK) | ATTR_DEFFG;
+		colour = (tattr & ATTR_BGMASK) >> ATTR_BGSHIFT;
+		if (colour >= 16 && colour < 256)
+		    tattr = (tattr &~ ATTR_BGMASK) | ATTR_DEFBG;
+	    }
+
 	    switch (tchar & CSET_MASK) {
 	      case CSET_ASCII:
 		tchar = term->ucsdata->unitab_line[tchar & 0xFF];
@@ -4849,6 +4912,8 @@ void term_invalidate(Terminal *term)
     for (i = 0; i < term->rows; i++)
 	for (j = 0; j < term->cols; j++)
 	    term->disptext[i]->chars[j].attr = ATTR_INVALID;
+
+    term_schedule_update(term);
 }
 
 /*
@@ -4875,10 +4940,7 @@ void term_paint(Terminal *term, Context ctx,
     if (immediately) {
         do_paint (term, ctx, FALSE);
     } else {
-	if (!term->window_update_pending) {
-	    term->window_update_pending = TRUE;
-	    term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
-	}
+	term_schedule_update(term);
     }
 }
 

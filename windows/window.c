@@ -158,11 +158,13 @@ static enum {
 } und_mode;
 static int descent;
 
-#define NCOLOURS 24
-static COLORREF colours[NCOLOURS];
+#define NCFGCOLOURS 24
+#define NEXTCOLOURS 240
+#define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
+static COLORREF colours[NALLCOLOURS];
 static HPALETTE pal;
 static LPLOGPALETTE logpal;
-static RGBTRIPLE defpal[NCOLOURS];
+static RGBTRIPLE defpal[NALLCOLOURS];
 
 static HWND hwnd;
 
@@ -1023,16 +1025,29 @@ static void cfgtopalette(void)
 {
     int i;
     static const int ww[] = {
-	6, 7, 8, 9, 10, 11, 12, 13,
-	14, 15, 16, 17, 18, 19, 20, 21,
-	0, 1, 2, 3, 4, 4, 5, 5
+	256, 257, 258, 259, 260, 261,
+	0, 8, 1, 9, 2, 10, 3, 11,
+	4, 12, 5, 13, 6, 14, 7, 15
     };
 
-    for (i = 0; i < 24; i++) {
+    for (i = 0; i < 22; i++) {
 	int w = ww[i];
-	defpal[i].rgbtRed = cfg.colours[w][0];
-	defpal[i].rgbtGreen = cfg.colours[w][1];
-	defpal[i].rgbtBlue = cfg.colours[w][2];
+	defpal[w].rgbtRed = cfg.colours[i][0];
+	defpal[w].rgbtGreen = cfg.colours[i][1];
+	defpal[w].rgbtBlue = cfg.colours[i][2];
+    }
+    for (i = 0; i < NEXTCOLOURS; i++) {
+	if (i < 216) {
+	    int r = i / 36, g = (i / 6) % 6, b = i % 6;
+	    defpal[i+16].rgbtRed = r * 0x33;
+	    defpal[i+16].rgbtGreen = g * 0x33;
+	    defpal[i+16].rgbtBlue = b * 0x33;
+	} else {
+	    int shade = i - 216;
+	    shade = (shade + 1) * 0xFF / (NEXTCOLOURS - 216 + 1);
+	    defpal[i+16].rgbtRed = defpal[i+16].rgbtGreen =
+		defpal[i+16].rgbtBlue = shade;
+	}
     }
 
     /* Override with system colours if appropriate */
@@ -1051,10 +1066,10 @@ static void systopalette(void)
     int i;
     static const struct { int nIndex; int norm; int bold; } or[] =
     {
-	{ COLOR_WINDOWTEXT,	16, 17 }, /* Default Foreground */
-	{ COLOR_WINDOW,		18, 19 }, /* Default Background */
-	{ COLOR_HIGHLIGHTTEXT,	20, 21 }, /* Cursor Text */
-	{ COLOR_HIGHLIGHT,	22, 23 }, /* Cursor Colour */
+	{ COLOR_WINDOWTEXT,	256, 257 }, /* Default Foreground */
+	{ COLOR_WINDOW,		258, 259 }, /* Default Background */
+	{ COLOR_HIGHLIGHTTEXT,	260, 260 }, /* Cursor Text */
+	{ COLOR_HIGHLIGHT,	261, 261 }, /* Cursor Colour */
     };
 
     for (i = 0; i < (sizeof(or)/sizeof(or[0])); i++) {
@@ -1083,10 +1098,10 @@ static void init_palette(void)
 	     */
 	    logpal = smalloc(sizeof(*logpal)
 			     - sizeof(logpal->palPalEntry)
-			     + NCOLOURS * sizeof(PALETTEENTRY));
+			     + NALLCOLOURS * sizeof(PALETTEENTRY));
 	    logpal->palVersion = 0x300;
-	    logpal->palNumEntries = NCOLOURS;
-	    for (i = 0; i < NCOLOURS; i++) {
+	    logpal->palNumEntries = NALLCOLOURS;
+	    for (i = 0; i < NALLCOLOURS; i++) {
 		logpal->palPalEntry[i].peRed = defpal[i].rgbtRed;
 		logpal->palPalEntry[i].peGreen = defpal[i].rgbtGreen;
 		logpal->palPalEntry[i].peBlue = defpal[i].rgbtBlue;
@@ -1102,12 +1117,12 @@ static void init_palette(void)
 	ReleaseDC(hwnd, hdc);
     }
     if (pal)
-	for (i = 0; i < NCOLOURS; i++)
+	for (i = 0; i < NALLCOLOURS; i++)
 	    colours[i] = PALETTERGB(defpal[i].rgbtRed,
 				    defpal[i].rgbtGreen,
 				    defpal[i].rgbtBlue);
     else
-	for (i = 0; i < NCOLOURS; i++)
+	for (i = 0; i < NALLCOLOURS; i++)
 	    colours[i] = RGB(defpal[i].rgbtRed,
 			     defpal[i].rgbtGreen, defpal[i].rgbtBlue);
 }
@@ -2905,8 +2920,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     y += offset_height;
 
     if ((attr & TATTR_ACTCURS) && (cfg.cursor_type == 0 || term->big_cursor)) {
-	attr &= ATTR_CUR_AND | (bold_mode != BOLD_COLOURS ? ATTR_BOLD : 0);
-	attr ^= ATTR_CUR_XOR;
+	attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS);
+	if (bold_mode == BOLD_COLOURS)
+	    attr &= ~ATTR_BOLD;
+
+	/* cursor fg and bg */
+	attr |= (260 << ATTR_FGSHIFT) | (261 << ATTR_BGSHIFT);
     }
 
     nfont = 0;
@@ -2964,9 +2983,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	nfont |= FONT_OEM;
 
     nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
-    nfg = 2 * (nfg & 0xF) + (nfg & 0x10 ? 1 : 0);
     nbg = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
-    nbg = 2 * (nbg & 0xF) + (nbg & 0x10 ? 1 : 0);
     if (bold_mode == BOLD_FONT && (attr & ATTR_BOLD))
 	nfont |= FONT_BOLD;
     if (und_mode == UND_FONT && (attr & ATTR_UNDER))
@@ -2987,10 +3004,14 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	nfg = nbg;
 	nbg = t;
     }
-    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BOLD))
-	nfg |= 1;
-    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BLINK))
-	nbg |= 1;
+    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BOLD)) {
+	if (nfg < 16) nfg |= 8;
+	else if (nfg >= 256) nfg |= 1;
+    }
+    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BLINK)) {
+	if (nbg < 16) nbg |= 8;
+	else if (nbg >= 256) nbg |= 1;
+    }
     fg = colours[nfg];
     bg = colours[nbg];
     SelectObject(hdc, fonts[nfont]);
@@ -3188,7 +3209,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	pts[2].x = pts[3].x = x + char_width - 1;
 	pts[0].y = pts[3].y = pts[4].y = y;
 	pts[1].y = pts[2].y = y + font_height - 1;
-	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[23]));
+	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[261]));
 	Polyline(hdc, pts, 5);
 	oldpen = SelectObject(hdc, oldpen);
 	DeleteObject(oldpen);
@@ -4221,21 +4242,18 @@ static void real_palette_set(int n, int r, int g, int b)
 	logpal->palPalEntry[n].peBlue = b;
 	logpal->palPalEntry[n].peFlags = PC_NOCOLLAPSE;
 	colours[n] = PALETTERGB(r, g, b);
-	SetPaletteEntries(pal, 0, NCOLOURS, logpal->palPalEntry);
+	SetPaletteEntries(pal, 0, NALLCOLOURS, logpal->palPalEntry);
     } else
 	colours[n] = RGB(r, g, b);
 }
 
 void palette_set(void *frontend, int n, int r, int g, int b)
 {
-    static const int first[21] = {
-	0, 2, 4, 6, 8, 10, 12, 14,
-	1, 3, 5, 7, 9, 11, 13, 15,
-	16, 17, 18, 20, 22
-    };
-    real_palette_set(first[n], r, g, b);
-    if (first[n] >= 18)
-	real_palette_set(first[n] + 1, r, g, b);
+    if (n >= 16)
+	n += 256 - 16;
+    if (n > NALLCOLOURS)
+	return;
+    real_palette_set(n, r, g, b);
     if (pal) {
 	HDC hdc = get_ctx(frontend);
 	UnrealizeObject(pal);
@@ -4248,7 +4266,8 @@ void palette_reset(void *frontend)
 {
     int i;
 
-    for (i = 0; i < NCOLOURS; i++) {
+    /* And this */
+    for (i = 0; i < NALLCOLOURS; i++) {
 	if (pal) {
 	    logpal->palPalEntry[i].peRed = defpal[i].rgbtRed;
 	    logpal->palPalEntry[i].peGreen = defpal[i].rgbtGreen;
@@ -4264,7 +4283,7 @@ void palette_reset(void *frontend)
 
     if (pal) {
 	HDC hdc;
-	SetPaletteEntries(pal, 0, NCOLOURS, logpal->palPalEntry);
+	SetPaletteEntries(pal, 0, NALLCOLOURS, logpal->palPalEntry);
 	hdc = get_ctx(frontend);
 	RealizePalette(hdc);
 	free_ctx(hdc);

@@ -33,7 +33,10 @@
 #define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
 
-#define NCOLOURS (lenof(((Config *)0)->colours))
+/* Colours come in two flavours: configurable, and xterm-extended. */
+#define NCFGCOLOURS (lenof(((Config *)0)->colours))
+#define NEXTCOLOURS 240 /* 216 colour-cube plus 24 shades of grey */
+#define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 
 GdkAtom compound_text_atom, utf8_string_atom;
 
@@ -62,7 +65,7 @@ struct gui_data {
     } fontinfo[4];
     int xpos, ypos, gotpos, gravity;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *currcursor;
-    GdkColor cols[NCOLOURS];
+    GdkColor cols[NALLCOLOURS];
     GdkColormap *colmap;
     wchar_t *pastein_data;
     int direct_to_font;
@@ -1336,15 +1339,12 @@ void set_window_background(struct gui_data *inst)
 void palette_set(void *frontend, int n, int r, int g, int b)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    static const int first[21] = {
-	0, 2, 4, 6, 8, 10, 12, 14,
-	1, 3, 5, 7, 9, 11, 13, 15,
-	16, 17, 18, 20, 22
-    };
-    real_palette_set(inst, first[n], r, g, b);
-    if (first[n] >= 18)
-	real_palette_set(inst, first[n] + 1, r, g, b);
-    if (first[n] == 18)
+    if (n >= 16)
+	n += 256 - 16;
+    if (n > NALLCOLOURS)
+	return;
+    real_palette_set(inst, n, r, g, b);
+    if (n == 258)
 	set_window_background(inst);
 }
 
@@ -1353,30 +1353,44 @@ void palette_reset(void *frontend)
     struct gui_data *inst = (struct gui_data *)frontend;
     /* This maps colour indices in inst->cfg to those used in inst->cols. */
     static const int ww[] = {
-	6, 7, 8, 9, 10, 11, 12, 13,
-        14, 15, 16, 17, 18, 19, 20, 21,
-	0, 1, 2, 3, 4, 5
+	256, 257, 258, 259, 260, 261,
+	0, 8, 1, 9, 2, 10, 3, 11,
+	4, 12, 5, 13, 6, 14, 7, 15
     };
-    gboolean success[NCOLOURS];
+    gboolean success[NALLCOLOURS];
     int i;
 
-    assert(lenof(ww) == NCOLOURS);
+    assert(lenof(ww) == NCFGCOLOURS);
 
     if (!inst->colmap) {
 	inst->colmap = gdk_colormap_get_system();
     } else {
-	gdk_colormap_free_colors(inst->colmap, inst->cols, NCOLOURS);
+	gdk_colormap_free_colors(inst->colmap, inst->cols, NALLCOLOURS);
     }
 
-    for (i = 0; i < NCOLOURS; i++) {
-	inst->cols[i].red = inst->cfg.colours[ww[i]][0] * 0x0101;
-	inst->cols[i].green = inst->cfg.colours[ww[i]][1] * 0x0101;
-	inst->cols[i].blue = inst->cfg.colours[ww[i]][2] * 0x0101;
+    for (i = 0; i < NCFGCOLOURS; i++) {
+	inst->cols[ww[i]].red = inst->cfg.colours[i][0] * 0x0101;
+	inst->cols[ww[i]].green = inst->cfg.colours[i][1] * 0x0101;
+	inst->cols[ww[i]].blue = inst->cfg.colours[i][2] * 0x0101;
     }
 
-    gdk_colormap_alloc_colors(inst->colmap, inst->cols, NCOLOURS,
+    for (i = 0; i < NEXTCOLOURS; i++) {
+	if (i < 216) {
+	    int r = i / 36, g = (i / 6) % 6, b = i % 6;
+	    inst->cols[i+16].red = r * 0x3333;
+	    inst->cols[i+16].green = g * 0x3333;
+	    inst->cols[i+16].blue = b * 0x3333;
+	} else {
+	    int shade = i - 216;
+	    shade = (shade + 1) * 0xFFFF / (NEXTCOLOURS - 216 + 1);
+	    inst->cols[i+16].red = inst->cols[i+16].green =
+		inst->cols[i+16].blue = shade;
+	}
+    }
+
+    gdk_colormap_alloc_colors(inst->colmap, inst->cols, NALLCOLOURS,
 			      FALSE, FALSE, success);
-    for (i = 0; i < NCOLOURS; i++) {
+    for (i = 0; i < NALLCOLOURS; i++) {
 	if (!success[i])
 	    g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
                     appname, i, inst->cfg.colours[i][0],
@@ -1849,21 +1863,23 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	ncombining = 1;
 
     nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
-    nfg = 2 * (nfg & 0xF) + (nfg & 0x10 ? 1 : 0);
     nbg = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
-    nbg = 2 * (nbg & 0xF) + (nbg & 0x10 ? 1 : 0);
     if (attr & ATTR_REVERSE) {
 	t = nfg;
 	nfg = nbg;
 	nbg = t;
     }
-    if (inst->cfg.bold_colour && (attr & ATTR_BOLD))
-	nfg |= 1;
-    if (inst->cfg.bold_colour && (attr & ATTR_BLINK))
-	nbg |= 1;
+    if (inst->cfg.bold_colour && (attr & ATTR_BOLD)) {
+	if (nfg < 16) nfg |= 8;
+	else if (nfg >= 256) nfg |= 1;
+    }
+    if (inst->cfg.bold_colour && (attr & ATTR_BLINK)) {
+	if (nbg < 16) nbg |= 8;
+	else if (nbg >= 256) nbg |= 1;
+    }
     if (attr & TATTR_ACTCURS) {
-	nfg = NCOLOURS-2;
-	nbg = NCOLOURS-1;
+	nfg = 260;
+	nbg = 261;
     }
 
     fontid = shadow = 0;
@@ -2109,7 +2125,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	 * if it's passive.
 	 */
 	if (passive) {
-	    gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
+	    gdk_gc_set_foreground(gc, &inst->cols[261]);
 	    gdk_draw_rectangle(inst->pixmap, gc, 0,
 			       x*inst->font_width+inst->cfg.window_border,
 			       y*inst->font_height+inst->cfg.window_border,
@@ -2147,7 +2163,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    length = inst->font_height;
 	}
 
-	gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
+	gdk_gc_set_foreground(gc, &inst->cols[NCFGCOLOURS-1]);
 	if (passive) {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
@@ -2839,14 +2855,16 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 {
     /* This maps colour indices in inst->cfg to those used in inst->cols. */
     static const int ww[] = {
-        6, 7, 8, 9, 10, 11, 12, 13,
-        14, 15, 16, 17, 18, 19, 20, 21,
-        0, 1, 2, 3, 4, 5
+	256, 257, 258, 259, 260, 261,
+	0, 8, 1, 9, 2, 10, 3, 11,
+	4, 12, 5, 13, 6, 14, 7, 15
     };
     struct gui_data *inst = (struct gui_data *)data;
     char *title = dupcat(appname, " Reconfiguration", NULL);
     Config cfg2, oldcfg;
     int i, need_size;
+
+    assert(lenof(ww) == NCFGCOLOURS);
 
     cfg2 = inst->cfg;                  /* structure copy */
 
@@ -2877,20 +2895,20 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          * have to the new default, on the assumption that the user
          * is most likely to want an immediate update.
          */
-        for (i = 0; i < NCOLOURS; i++) {
-            if (oldcfg.colours[ww[i]][0] != cfg2.colours[ww[i]][0] ||
-                oldcfg.colours[ww[i]][1] != cfg2.colours[ww[i]][1] ||
-                oldcfg.colours[ww[i]][2] != cfg2.colours[ww[i]][2]) {
-                real_palette_set(inst, i, cfg2.colours[ww[i]][0],
-                                 cfg2.colours[ww[i]][1],
-                                 cfg2.colours[ww[i]][2]);
+        for (i = 0; i < NCFGCOLOURS; i++) {
+            if (oldcfg.colours[i][0] != cfg2.colours[i][0] ||
+                oldcfg.colours[i][1] != cfg2.colours[i][1] ||
+                oldcfg.colours[i][2] != cfg2.colours[i][2]) {
+                real_palette_set(inst, ww[i], cfg2.colours[i][0],
+                                 cfg2.colours[i][1],
+                                 cfg2.colours[i][2]);
 
 		/*
 		 * If the default background has changed, we must
 		 * repaint the space in between the window border
 		 * and the text area.
 		 */
-		if (i == 18) {
+		if (i == 258) {
 		    set_window_background(inst);
 		    draw_backing_rect(inst);
 		}

@@ -1237,6 +1237,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_checkbox(s, "Allow terminal to specify ANSI colours", 'i',
 		  HELPCTX(colours_ansi),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,ansi_colour)));
+    ctrl_checkbox(s, "Allow terminal to use xterm 256-colour mode", '2',
+		  HELPCTX(colours_xterm256), dlg_stdcheckbox_handler,
+		  I(offsetof(Config,xterm_256_colour)));
     ctrl_checkbox(s, "Bolded text is a different colour", 'b',
 		  HELPCTX(colours_bold),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,bold_colour)));

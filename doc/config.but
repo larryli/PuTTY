@@ -1401,6 +1401,14 @@ If you have a particularly garish application, you might want to
 turn this option off and make PuTTY only use the default foreground
 and background colours.
 
+\S{config-xtermcolour} \q{Allow terminal to use xterm 256-colour mode}
+
+\cfg{winhelp-topic}{colours.xterm256}
+
+This option is enabled by default. If it is disabled, PuTTY will
+ignore any control sequences sent by the server which use the
+extended 256-colour mode supported by recent versions of \cw{xterm}.
+
 \S{config-boldcolour} \q{Bolded text is a different colour}
 
 \cfg{winhelp-topic}{colours.bold}

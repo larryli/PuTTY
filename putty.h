@@ -80,24 +80,40 @@ typedef struct terminal_tag Terminal;
  */
 #define UCSWIDE	     0xDFFF
 
-#define ATTR_NARROW  0x8000U
-#define ATTR_WIDE    0x4000U
-#define ATTR_BOLD    0x0400U
-#define ATTR_UNDER   0x0800U
-#define ATTR_REVERSE 0x1000U
-#define ATTR_BLINK   0x2000U
-#define ATTR_FGMASK  0x001FU
-#define ATTR_BGMASK  0x03E0U
-#define ATTR_COLOURS 0x03FFU
+#define ATTR_NARROW  0x800000U
+#define ATTR_WIDE    0x400000U
+#define ATTR_BOLD    0x040000U
+#define ATTR_UNDER   0x080000U
+#define ATTR_REVERSE 0x100000U
+#define ATTR_BLINK   0x200000U
+#define ATTR_FGMASK  0x0001FFU
+#define ATTR_BGMASK  0x03FE00U
+#define ATTR_COLOURS 0x03FFFFU
 #define ATTR_FGSHIFT 0
-#define ATTR_BGSHIFT 5
+#define ATTR_BGSHIFT 9
 
-#define ATTR_DEFAULT 0x0128U	       /* bg 9, fg 8 */
-#define ATTR_DEFFG   0x0008U
-#define ATTR_DEFBG   0x0120U
+/*
+ * The definitive list of colour numbers stored in terminal
+ * attribute words is kept here. It is:
+ * 
+ *  - 0-7 are ANSI colours (KRGYBMCW).
+ *  - 8-15 are the bold versions of those colours.
+ *  - 16-255 are the remains of the xterm 256-colour mode (a
+ *    216-colour cube with R at most significant and B at least,
+ *    followed by a uniform series of grey shades running between
+ *    black and white but not including either on grounds of
+ *    redundancy).
+ *  - 256 is default foreground
+ *  - 257 is default bold foreground
+ *  - 258 is default background
+ *  - 259 is default bold background
+ *  - 260 is cursor foreground
+ *  - 261 is cursor background
+ */
 
-#define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
-#define ATTR_CUR_XOR 0x016AU
+#define ATTR_DEFFG   (256 << ATTR_FGSHIFT)
+#define ATTR_DEFBG   (258 << ATTR_BGSHIFT)
+#define ATTR_DEFAULT (ATTR_DEFFG | ATTR_DEFBG)
 
 struct sesslist {
     int nsessions;
@@ -447,6 +463,7 @@ struct config_tag {
     int bidi;
     /* Colour options */
     int ansi_colour;
+    int xterm_256_colour;
     int system_colour;
     int try_palette;
     int bold_colour;
