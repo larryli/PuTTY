@@ -544,7 +544,7 @@ static void add_keyfile(Filename filename)
 		int dlgret;
 		original_pass = 1;
 		dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
-					NULL, PassphraseProc, (LPARAM) & pps);
+					NULL, PassphraseProc, (LPARAM) &pps);
 		passphrase_box = NULL;
 		if (!dlgret) {
 		    if (comment)
