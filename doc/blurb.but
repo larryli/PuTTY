@@ -1,12 +1,13 @@
 \title PuTTY User Manual
 
 \cfg{xhtml-leaf-level}{1}
-
 \cfg{xhtml-leaf-smallest-contents}{2}
-
 \cfg{xhtml-leaf-contains-contents}{true}
-
 \cfg{xhtml-body-end}{Comments to <a href='mailto:putty@projects.tartarus.org'>putty@projects.tartarus.org</a>}
+
+\cfg{xhtml-contents-filename}{index.html}
+\cfg{text-filename}{puttydoc.txt}
+\cfg{winhelp-filename}{putty.hlp}
 
 \preamble PuTTY is a free (MIT-licensed) Win32 Telnet and SSH
 client. This manual documents PuTTY, and its companion utilities
@@ -16,4 +17,4 @@ PSCP, Plink, Pageant and PuTTYgen.
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.
 
-\versionid $Id: blurb.but,v 1.9 2004/01/01 16:47:48 simon Exp $
+\versionid $Id: blurb.but,v 1.10 2004/04/01 17:34:18 simon Exp $
