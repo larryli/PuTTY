@@ -46,6 +46,11 @@
 #define WM_IGNORE_SIZE (WM_XUSER + 1)
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
 
+/* Needed for Chinese support and apparently not always defined. */
+#ifndef VK_PROCESSKEY
+#define VK_PROCESSKEY 0xE5
+#endif
+
 static LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned char *output);
 static void cfgtopalette(void);
@@ -357,14 +362,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     }
 
     {
-       int winmode = WS_OVERLAPPEDWINDOW|WS_VSCROLL;
-       if (!cfg.scrollbar) winmode &= ~(WS_VSCROLL);
-       if (cfg.locksize)   winmode &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
-       hwnd = CreateWindow (appname, appname,
-			    winmode,
-			    CW_USEDEFAULT, CW_USEDEFAULT,
-			    guess_width, guess_height,
-			    NULL, NULL, inst, NULL);
+	int winmode = WS_OVERLAPPEDWINDOW|WS_VSCROLL;
+	if (!cfg.scrollbar) winmode &= ~(WS_VSCROLL);
+	if (cfg.locksize)   winmode &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
+	hwnd = CreateWindow (appname, appname,
+			     winmode,
+			     CW_USEDEFAULT, CW_USEDEFAULT,
+			     guess_width, guess_height,
+			     NULL, NULL, inst, NULL);
     }
 
     /*
@@ -1488,12 +1493,29 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    unsigned char buf[20];
 	    int len;
 
-	    len = TranslateKey (message, wParam, lParam, buf);
-	    if (len == -1)
-		return DefWindowProc (hwnd, message, wParam, lParam);
-	    ldisc->send (buf, len);
+            if (wParam==VK_PROCESSKEY) {
+		MSG m;
+                m.hwnd = hwnd;
+                m.message = WM_KEYDOWN;
+                m.wParam = wParam;
+                m.lParam = lParam & 0xdfff;
+                TranslateMessage(&m);
+            } else {
+		len = TranslateKey (message, wParam, lParam, buf);
+		if (len == -1)
+		    return DefWindowProc (hwnd, message, wParam, lParam);
+		ldisc->send (buf, len);
+	    }
 	}
 	return 0;
+      case WM_IME_CHAR:
+	{
+	    unsigned char buf[2];
+
+	    buf[1] = wParam;
+	    buf[0] = wParam >> 8;
+	    ldisc->send (buf, 2);
+	}
       case WM_CHAR:
       case WM_SYSCHAR:
 	/*
@@ -1774,7 +1796,8 @@ static int check_compose(int first, int second) {
  * codes. Returns number of bytes used or zero to drop the message
  * or -1 to forward the message to windows.
  */
-static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned char *output) {
+static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
+			unsigned char *output) {
     BYTE keystate[256];
     int  scan, left_alt = 0, key_down, shift_state;
     int  r, i, code;
