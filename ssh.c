@@ -1358,10 +1358,12 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                                 crWaitUntil(ispkt);
                                 if (pktin.type == SSH1_SMSG_SUCCESS) {
                                     logevent("Pageant's response accepted");
-                                    c_write("Authenticated using RSA key \"",
-                                            29);
-                                    c_write(commentp, commentlen);
-                                    c_write("\" from agent\r\n", 14);
+                                    if (flags & FLAG_VERBOSE) {
+                                        c_write("Authenticated using RSA key \"",
+                                                29);
+                                        c_write(commentp, commentlen);
+                                        c_write("\" from agent\r\n", 14);
+                                    }
                                     authed = TRUE;
                                 } else
                                     logevent("Pageant's response not accepted");
