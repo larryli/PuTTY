@@ -530,8 +530,13 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                         sfree(*state->commentptr);
                     *state->commentptr = smalloc(len+1);
                     GetWindowText(editctl, *state->commentptr, len+1);
-                }                
-            }
+		    if (state->ssh2) {
+			setupbigedit2(hwnd, IDC_KEYDISPLAY, &state->ssh2key);
+		    } else {
+			setupbigedit1(hwnd, IDC_KEYDISPLAY, &state->key);
+		    }
+		}
+	    }
 	    break;
 	  case IDC_ABOUT:
 	    EnableWindow(hwnd, 0);
