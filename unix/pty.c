@@ -1,3 +1,16 @@
+/*
+ * Pseudo-tty backend for pterm.
+ * 
+ * Unlike the other backends, data for this one is not neatly
+ * encapsulated into a data structure, because it wouldn't make
+ * sense to do so - the utmp stuff has to be done before a backend
+ * is initialised, and starting a second pterm from the same
+ * process would therefore be infeasible because privileges would
+ * already have been dropped. Hence, I haven't bothered to keep the
+ * data dynamically allocated: instead, the backend handle is just
+ * a null pointer and ignored everywhere.
+ */
+
 #define _XOPEN_SOURCE
 #define _XOPEN_SOURCE_EXTENDED
 #include <features.h>
@@ -369,11 +382,13 @@ void pty_pre_init(void)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *pty_init(void *frontend,
+static char *pty_init(void *frontend, void **backend_handle,
 		      char *host, int port, char **realhost, int nodelay)
 {
     int slavefd;
     pid_t pid, pgrp;
+
+    *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
 
     pty_term_width = cfg.width;
     pty_term_height = cfg.height;
@@ -493,7 +508,7 @@ static char *pty_init(void *frontend,
 /*
  * Called to send data down the pty.
  */
-static int pty_send(char *buf, int len)
+static int pty_send(void *handle, char *buf, int len)
 {
     if (pty_master_fd < 0)
 	return 0;		       /* ignore all writes if fd closed */
@@ -522,7 +537,7 @@ void pty_close(void)
 /*
  * Called to query the current socket sendability status.
  */
-static int pty_sendbuffer(void)
+static int pty_sendbuffer(void *handle)
 {
     return 0;
 }
@@ -530,7 +545,7 @@ static int pty_sendbuffer(void)
 /*
  * Called to set the size of the window
  */
-static void pty_size(int width, int height)
+static void pty_size(void *handle, int width, int height)
 {
     struct winsize size;
 
@@ -548,33 +563,33 @@ static void pty_size(int width, int height)
 /*
  * Send special codes.
  */
-static void pty_special(Telnet_Special code)
+static void pty_special(void *handle, Telnet_Special code)
 {
     /* Do nothing! */
     return;
 }
 
-static Socket pty_socket(void)
+static Socket pty_socket(void *handle)
 {
     return NULL;		       /* shouldn't ever be needed */
 }
 
-static int pty_sendok(void)
+static int pty_sendok(void *handle)
 {
     return 1;
 }
 
-static void pty_unthrottle(int backlog)
+static void pty_unthrottle(void *handle, int backlog)
 {
     /* do nothing */
 }
 
-static int pty_ldisc(int option)
+static int pty_ldisc(void *handle, int option)
 {
     return 0;			       /* neither editing nor echoing */
 }
 
-static int pty_exitcode(void)
+static int pty_exitcode(void *handle)
 {
     if (!pty_child_dead)
 	return -1;		       /* not dead yet */

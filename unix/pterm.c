@@ -886,8 +886,8 @@ void done_with_pty(struct gui_data *inst)
 	gtk_input_remove(inst->master_func_id);
     }
 
-    if (!inst->exited && back->exitcode() >= 0) {
-	int exitcode = back->exitcode();
+    if (!inst->exited && back->exitcode(backhandle) >= 0) {
+	int exitcode = back->exitcode(backhandle);
 	int clean;
 
 	clean = WIFEXITED(exitcode) && (WEXITSTATUS(exitcode) == 0);
@@ -938,7 +938,7 @@ gint timer_func(gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (back->exitcode() >= 0) {
+    if (back->exitcode(backhandle) >= 0) {
 	/*
 	 * The primary child process died. We could keep the
 	 * terminal open for remaining subprocesses to output to,
@@ -1941,7 +1941,7 @@ int main(int argc, char **argv)
     term = term_init();
 
     back = &pty_backend;
-    back->init((void *)term, NULL, 0, NULL, 0);
+    back->init((void *)term, &backhandle, NULL, 0, NULL, 0);
 
     term_size(term, cfg.height, cfg.width, cfg.savelines);
     ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
