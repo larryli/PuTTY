@@ -179,14 +179,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
              * Telnet URL.
              */
             if (!strncmp(q, "telnet://", 9)) {
+                char c;
+
                 q += 9;
                 cfg.protocol = PROT_TELNET;
                 p = q;
-                while (*p && *p != ':') p++;
-                if (*p) {
+                while (*p && *p != ':' && *p != '/') p++;
+                c = *p;
+                if (*p)
                     *p++ = '\0';
+                if (c == ':')
                     cfg.port = atoi(p);
-                } else
+                else
                     cfg.port = -1;
                 strncpy (cfg.host, q, sizeof(cfg.host)-1);
                 cfg.host[sizeof(cfg.host)-1] = '\0';
