@@ -1013,7 +1013,9 @@ leave. You can do that automatically, by running the command
 the currently logged-in user on \i{multi-user systems}.)
 
 If PuTTY was installed from the installer package, it will also
-appear in \q{Add/Remove Programs}. Uninstallation does not currently
+appear in \q{Add/Remove Programs}.
+\#{XXX-REMOVE-BEFORE-RELEASE - replace with: Older versions of the uninstaller do not}
+Uninstallation does not currently
 remove the above-mentioned registry entries and file.
 
 \S{faq-dsa}{Question} How come PuTTY now supports \i{DSA}, when the
