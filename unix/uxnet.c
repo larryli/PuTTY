@@ -575,9 +575,11 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 #ifndef NO_IPV6
     struct addrinfo hints, *ai;
     char portstr[6];
+    struct sockaddr_in6 a6;
 #endif
+    struct sockaddr *addr;
+    int addrlen;
     struct sockaddr_in a;
-    int err;
     Actual_Socket ret;
     int retcode;
     int on = 1;
@@ -625,7 +627,6 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     	address_family = AF_INET;
     	s = socket(address_family, SOCK_STREAM, 0);
     }
-    ret->s = s;
 
     if (s < 0) {
 	ret->error = error_string(errno);
@@ -636,77 +637,70 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
-    /* BSD IP stacks need sockaddr_in zeroed before filling in */
-    memset(&a,'\0',sizeof(struct sockaddr_in));
+    retcode = -1;
+    addr = NULL; addrlen = -1;         /* placate optimiser */
+
+    if (srcaddr != NULL) {
 #ifndef NO_IPV6
-#if 0
-    memset(&a6,'\0',sizeof(struct sockaddr_in6));
+        hints.ai_flags = AI_NUMERICHOST;
+        hints.ai_family = address_family;
+        hints.ai_socktype = 0;
+        hints.ai_protocol = 0;
+        hints.ai_addrlen = 0;
+        hints.ai_addr = NULL;
+        hints.ai_canonname = NULL;
+        hints.ai_next = NULL;
+        sprintf(portstr, "%d", port);
+        retcode = getaddrinfo(srcaddr, portstr, &hints, &ai);
+        addr = ai->ai_addr;
+        addrlen = ai->ai_addrlen;
+#else
+        memset(&a,'\0',sizeof(struct sockaddr_in));
+        a.sin_family = AF_INET;
+        a.sin_port = htons(port);
+        a.sin_addr.s_addr = inet_addr(srcaddr);
+        if (a.sin_addr.s_addr != (in_addr_t)(-1)) {
+            /* Override localhost_only with specified listen addr. */
+            ret->localhost_only = ipv4_is_loopback(a.sin_addr);
+            got_addr = 1;
+        }
+        addr = (struct sockaddr *)a;
+        addrlen = sizeof(a);
+        retcode = 0;
 #endif
-    hints.ai_flags = AI_NUMERICHOST;
-    hints.ai_family = address_family;
-    hints.ai_socktype = 0;
-    hints.ai_protocol = 0;
-    hints.ai_addrlen = 0;
-    hints.ai_addr = NULL;
-    hints.ai_canonname = NULL;
-    hints.ai_next = NULL;
-    sprintf(portstr, "%d", port);
-    if (srcaddr != NULL && getaddrinfo(srcaddr, portstr, &hints, &ai) == 0)
-	retcode = bind(s, ai->ai_addr, ai->ai_addrlen);
-    else
-#if 0
-    {
-	/*
-	 * FIXME: Need two listening sockets, in principle, one for v4
-	 * and one for v6
-	 */
-	if (local_host_only)
-	    a6.sin6_addr = in6addr_loopback;
-	else
-	    a6.sin6_addr = in6addr_any;
-	a6.sin6_port = htons(port);
-    } else
-#endif
-#endif
-    {
-	int got_addr = 0;
-	a.sin_family = AF_INET;
+    }
 
-	/*
-	 * Bind to source address. First try an explicitly
-	 * specified one...
-	 */
-	if (srcaddr) {
-	    a.sin_addr.s_addr = inet_addr(srcaddr);
-	    if (a.sin_addr.s_addr != (in_addr_t)(-1)) {
-		/* Override localhost_only with specified listen addr. */
-		ret->localhost_only = ipv4_is_loopback(a.sin_addr);
-		got_addr = 1;
-	    }
-	}
-
-	/*
-	 * ... and failing that, go with one of the standard ones.
-	 */
-	if (!got_addr) {
+    if (retcode != 0) {
+#ifndef NO_IPV6
+        if (address_family == AF_INET6) {
+            memset(&a6,'\0',sizeof(struct sockaddr_in6));
+            a6.sin6_family = AF_INET6;
+            a6.sin6_port = htons(port);
+            if (local_host_only)
+                a6.sin6_addr = in6addr_loopback;
+            else
+                a6.sin6_addr = in6addr_any;
+            addr = (struct sockaddr *)&a6;
+            addrlen = sizeof(a6);
+        } else
+#endif
+        {
+            memset(&a,'\0',sizeof(struct sockaddr_in));
+            a.sin_family = AF_INET;
+            a.sin_port = htons(port);
 	    if (local_host_only)
 		a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	    else
 		a.sin_addr.s_addr = htonl(INADDR_ANY);
-	}
-
-	a.sin_port = htons((short)port);
-	retcode = bind(s, (struct sockaddr *) &a, sizeof(a));
+            addr = (struct sockaddr *)&a;
+            addrlen = sizeof(a);
+        }
     }
 
-    if (retcode >= 0) {
-	err = 0;
-    } else {
-	err = errno;
-    }
-
-    if (err) {
-	ret->error = error_string(err);
+    retcode = bind(s, addr, addrlen);
+    if (retcode < 0) {
+        close(s);
+	ret->error = error_string(errno);
 	return (Socket) ret;
     }
 
@@ -716,6 +710,8 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 	ret->error = error_string(errno);
 	return (Socket) ret;
     }
+
+    ret->s = s;
 
     uxsel_tell(ret);
     add234(sktree, ret);
