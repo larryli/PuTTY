@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.11 2003/01/16 15:43:18 jacob Exp $
+\versionid $Id: using.but,v 1.12 2003/01/23 12:30:26 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -71,7 +71,8 @@ look for it, you can use the scrollbar on the right side of the
 window to look back up the session history and find it again.
 
 As well as using the scrollbar, you can also page the scrollback up
-and down by pressing Shift-PgUp and Shift-PgDn. These are still
+and down by pressing Shift-PgUp and Shift-PgDn. You can scroll a
+line at a time using Ctrl-PgUp and Ctrl-PgDn. These are still
 available if you configure the scrollbar to be invisible.
 
 By default the last 200 lines scrolled off the top are
