@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.15 2003/03/25 23:45:56 ben Exp $ */
+/* $Id: macctrls.c,v 1.16 2003/03/28 00:06:17 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -31,8 +31,11 @@
 #include <ControlDefinitions.h>
 #include <Menus.h>
 #include <Resources.h>
+#include <Script.h>
 #include <Sound.h>
+#include <TextEdit.h>
 #include <TextUtils.h>
+#include <ToolUtils.h>
 #include <Windows.h>
 
 #include <assert.h>
@@ -129,6 +132,8 @@ static void macctrl_popup(struct macctrls *, WindowPtr,
 #if !TARGET_API_MAC_CARBON
 static pascal SInt32 macctrl_sys7_text_cdef(SInt16, ControlRef,
 					    ControlDefProcMessage, SInt32);
+static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16, ControlRef,
+					       ControlDefProcMessage, SInt32);
 static pascal SInt32 macctrl_sys7_default_cdef(SInt16, ControlRef,
 					       ControlDefProcMessage, SInt32);
 #endif
@@ -157,6 +162,8 @@ static void macctrl_init()
     if (inited) return;
     cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Text);
     (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_text_cdef);
+    cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_EditBox);
+    (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_editbox_cdef);
     cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Default);
     (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_default_cdef);
     inited = 1;
@@ -414,22 +421,78 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
     mc->generic.privdata = NULL;
     bounds.left = curstate->pos.h;
     bounds.right = bounds.left + curstate->width;
-    bounds.top = curstate->pos.v + 2;
-    bounds.bottom = bounds.top + 18;
+    bounds.top = curstate->pos.v;
+    bounds.bottom = bounds.top + 22;
     if (mac_gestalts.apprvers >= 0x100) {
+	InsetRect(&bounds, 2, 2);
 	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
 				     ctrl->editbox.password ?
 				     kControlEditTextPasswordProc :
 				     kControlEditTextProc, (long)mc);
-	curstate->pos.v += 28;
-	add234(mcs->byctrl, mc);
-	mc->generic.next = mcs->panels[curstate->panelnum];
-	mcs->panels[curstate->panelnum] = mc;
-	ctrlevent(mcs, mc, EVENT_REFRESH);
     } else {
-	/* Do a System 7 version */
+	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+				     SYS7_EDITBOX_PROC, (long)mc);
     }
+    curstate->pos.v += 28;
+    add234(mcs->byctrl, mc);
+    mc->generic.next = mcs->panels[curstate->panelnum];
+    mcs->panels[curstate->panelnum] = mc;
+    ctrlevent(mcs, mc, EVENT_REFRESH);
 }
+
+#if !TARGET_API_MAC_CARBON
+static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
+					       ControlRef control,
+					       ControlDefProcMessage msg,
+					       SInt32 param)
+{
+    RgnHandle rgn;
+    Rect rect;
+    TEHandle te;
+    long ssfs;
+
+    switch (msg) {
+      case initCntl:
+	rect = (*control)->contrlRect;
+	InsetRect(&rect, 3, 3); /* 2 if it's 20 pixels high */
+	te = TENew(&rect, &rect);
+	ssfs = GetScriptVariable(smSystemScript, smScriptSysFondSize);
+	(*te)->txSize = LoWord(ssfs);
+	(*te)->txFont = HiWord(ssfs);
+	(*control)->contrlData = (Handle)te;
+	return noErr;
+      case dispCntl:
+	TEDispose((TEHandle)(*control)->contrlData);
+	return 0;
+      case drawCntl:
+	if ((*control)->contrlVis) {
+	    rect = (*control)->contrlRect;
+	    PenNormal();
+	    FrameRect(&rect);
+	    InsetRect(&rect, 3, 3);
+	    TEUpdate(&rect, (TEHandle)(*control)->contrlData);
+	}
+	return 0;
+      case calcCRgns:
+	if (param & (1 << 31)) {
+	    param &= ~(1 << 31);
+	    goto calcthumbrgn;
+	}
+	/* FALLTHROUGH */
+      case calcCntlRgn:
+	rgn = (RgnHandle)param;
+	RectRgn(rgn, &(*control)->contrlRect);
+	return 0;
+      case calcThumbRgn:
+      calcthumbrgn:
+	rgn = (RgnHandle)param;
+	SetEmptyRgn(rgn);
+	return 0;
+    }
+
+    return 0;
+}
+#endif
 
 static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
@@ -1004,18 +1067,21 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
 
     assert(mc != NULL);
     assert(mc->generic.type == MACCTRL_EDITBOX);
+    GetPort(&saveport);
+    SetPort((GrafPtr)(GetWindowPort(mcs->window)));
     if (mac_gestalts.apprvers >= 0x100) {
 	SetControlData(mc->editbox.tbctrl, kControlEntireControl,
 		       ctrl->editbox.password ?
 		       kControlEditTextPasswordTag :
 		       kControlEditTextTextTag,
 		       strlen(text), text);
-	GetPort(&saveport);
-	SetPort((GrafPtr)(GetWindowPort(mcs->window)));
-	DrawOneControl(mc->editbox.tbctrl);
-	SetPort(saveport);
+    } else {
+	TESetText(text, strlen(text),
+		  (TEHandle)(*mc->editbox.tbctrl)->contrlData);
     }
-};
+	DrawOneControl(mc->editbox.tbctrl);
+    SetPort(saveport);
+}
 
 void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 {
