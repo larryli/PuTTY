@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.1 2002/11/19 02:13:46 ben Exp $ */
+/* $Id: macstore.c,v 1.2 2002/12/12 23:55:51 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -222,6 +222,7 @@ char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
     int fd;
     Handle h;
     OSErr error;
+    size_t len;
 
     if (handle == NULL) goto out;
     fd = *(int *)handle;
@@ -230,8 +231,11 @@ char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
     h = get1namedresource(FOUR_CHAR_CODE('TEXT'), key);
     if (h == NULL) goto out;
 
-    if (GetHandleSize(h) > buflen) goto out;
-    p2cstrcpy(buffer, (StringPtr)*h);
+    len = GetHandleSize(h);
+    if (len + 1 > buflen) goto out;
+    memcpy(buffer, *h, len);
+    buffer[len] = '\0';
+
     ReleaseResource(h);
     if (ResError() != noErr) goto out;
     return buffer;
