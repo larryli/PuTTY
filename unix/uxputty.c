@@ -20,12 +20,7 @@
  *    have uxcfg.c remove the drop-down list completely, since you
  *    can't sensibly provide an enumerated list of lpr commands!).
  * 
- *  - Ctrl+right-click for a context menu (also in Windows for
- *    consistency, I think). This should contain pretty much
- *    everything in the Windows PuTTY menu, and a subset of that in
- *    pterm:
- * 
- *     - Telnet special commands (not in pterm :-)
+ *  - Remainder of the context menu:
  * 
  *     - Event Log (this means we must implement the Event Log; not
  *       in pterm)
@@ -63,10 +58,6 @@
  *          to get hold of the application name.
  * 
  *     - Copy All to Clipboard (for what that's worth)
- * 
- *     - Clear Scrollback and Reset Terminal
- * 
- *     - About (and uxcfg.c must also supply the about box)
  */
 
 /*
@@ -110,6 +101,8 @@ printer_enum *printer_start_enum(int *nprinters_ptr) {
 char *printer_get_name(printer_enum *pe, int i) { return NULL;
 }
 void printer_finish_enum(printer_enum *pe) { }
+
+const char *const appname = "PuTTY";
 
 Backend *select_backend(Config *cfg)
 {

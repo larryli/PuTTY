@@ -2355,3 +2355,104 @@ void fatalbox(char *p, ...)
     sfree(msg);
     cleanup_exit(1);
 }
+
+static GtkWidget *aboutbox = NULL;
+
+static void about_close_clicked(GtkButton *button, gpointer data)
+{
+    gtk_widget_destroy(aboutbox);
+    aboutbox = NULL;
+}
+
+static void licence_clicked(GtkButton *button, gpointer data)
+{
+    char *title;
+
+    char *licence =
+	"Copyright 1997-2003 Simon Tatham.\n\n"
+
+	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
+	"Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas "
+	"Barry, Justin Bradford, Ben Harris, and CORE SDI S.A.\n\n"
+
+	"Permission is hereby granted, free of charge, to any person "
+	"obtaining a copy of this software and associated documentation "
+	"files (the ""Software""), to deal in the Software without restriction, "
+	"including without limitation the rights to use, copy, modify, merge, "
+	"publish, distribute, sublicense, and/or sell copies of the Software, "
+	"and to permit persons to whom the Software is furnished to do so, "
+	"subject to the following conditions:\n\n"
+
+	"The above copyright notice and this permission notice shall be "
+	"included in all copies or substantial portions of the Software.\n\n"
+
+	"THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT "
+	"WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, "
+	"INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF "
+	"MERCHANTABILITY, FITNESS FOR A PARTICULAR "
+	"PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE "
+	"COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES "
+	"OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, "
+	"TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN "
+	"CONNECTION WITH THE SOFTWARE OR THE USE OR "
+	"OTHER DEALINGS IN THE SOFTWARE.";
+
+    title = dupcat(appname, " Licence", NULL);
+    assert(aboutbox != NULL);
+    messagebox(aboutbox, title, licence,
+	       string_width("LONGISH LINE OF TEXT SO THE LICENCE"
+			    " BOX ISN'T EXCESSIVELY TALL AND THIN"),
+	       "OK", 'o', 1, 1, NULL);
+    sfree(title);
+}
+
+void about_box(void)
+{
+    GtkWidget *w;
+    char *title;
+
+    if (aboutbox) {
+        gtk_widget_grab_focus(aboutbox);
+	return;
+    }
+
+    aboutbox = gtk_dialog_new();
+    gtk_container_set_border_width(GTK_CONTAINER(aboutbox), 10);
+    title = dupcat("About ", appname, NULL);
+    gtk_window_set_title(GTK_WINDOW(aboutbox), title);
+    sfree(title);
+
+    w = gtk_button_new_with_label("Close");
+    GTK_WIDGET_SET_FLAGS(w, GTK_CAN_DEFAULT);
+    gtk_window_set_default(GTK_WINDOW(aboutbox), w);
+    gtk_box_pack_end(GTK_BOX(GTK_DIALOG(aboutbox)->action_area),
+		     w, FALSE, FALSE, 0);
+    gtk_signal_connect(GTK_OBJECT(w), "clicked",
+		       GTK_SIGNAL_FUNC(about_close_clicked), NULL);
+    gtk_widget_show(w);
+
+    w = gtk_button_new_with_label("View Licence");
+    GTK_WIDGET_SET_FLAGS(w, GTK_CAN_DEFAULT);
+    gtk_box_pack_end(GTK_BOX(GTK_DIALOG(aboutbox)->action_area),
+		     w, FALSE, FALSE, 0);
+    gtk_signal_connect(GTK_OBJECT(w), "clicked",
+		       GTK_SIGNAL_FUNC(licence_clicked), NULL);
+    gtk_widget_show(w);
+
+    w = gtk_label_new(appname);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
+		       w, FALSE, FALSE, 0);
+    gtk_widget_show(w);
+
+    w = gtk_label_new(ver);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
+		       w, FALSE, FALSE, 5);
+    gtk_widget_show(w);
+
+    w = gtk_label_new("Copyright 1997-2003 Simon Tatham. All rights reserved");
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
+		       w, FALSE, FALSE, 5);
+    gtk_widget_show(w);
+
+    gtk_widget_show(aboutbox);
+}

@@ -25,6 +25,9 @@ The resource files:
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
  - putty/mac/mac_res.r
+ - putty/unix/gtkdlg.c
+    + the copyright date appears twice, once in the About box and
+      once in the Licence box. Don't forget to change both!
 
 The documentation (both the preamble blurb and the licence appendix):
 
@@ -34,7 +37,7 @@ The documentation (both the preamble blurb and the licence appendix):
 The website:
 
  - putty-website/licence.html
- 
+
 Before tagging a release
 ------------------------
 

@@ -305,6 +305,12 @@ extern struct backend_list {
 extern const int be_default_protocol;
 
 /*
+ * Name of this particular application, for use in the config box
+ * and other pieces of text.
+ */
+extern const char *const appname;
+
+/*
  * IMPORTANT POLICY POINT: everything in this structure which wants
  * to be treated like an integer must be an actual, honest-to-
  * goodness `int'. No enum-typed variables. This is because parts

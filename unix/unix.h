@@ -60,6 +60,7 @@ void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 
 /* Things pterm.c needs from gtkdlg.c */
 void fatal_message_box(void *window, char *msg);
+void about_box(void);
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);

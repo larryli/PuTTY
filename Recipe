@@ -154,7 +154,7 @@ puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
          + logging uxprint settings pty uxsel be_none uxstore signal CHARSET
-	 + cmdline ptermm
+	 + cmdline ptermm UXCFG version
 putty    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
          + logging uxprint settings pty uxsel be_all uxstore signal CHARSET
 	 + uxputty NONSSH UXSSH UXMISC logging ux_x11 UXCFG

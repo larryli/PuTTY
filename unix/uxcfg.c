@@ -10,23 +10,29 @@
 #include "dialog.h"
 #include "storage.h"
 
+static void about_handler(union control *ctrl, void *dlg,
+			  void *data, int event)
+{
+    if (event == EVENT_ACTION) {
+	about_box();
+    }
+}
+
 void unix_setup_config_box(struct controlbox *b, int midsession)
 {
     struct controlset *s, *s2;
     union control *c;
     int i;
 
-#ifdef FIXME
     if (!midsession) {
 	/*
 	 * Add the About button to the standard panel.
 	 */
 	s = ctrl_getset(b, "", "", "");
 	c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
-			    about_handler, P(hwndp));
+			    about_handler, P(NULL));
 	c->generic.column = 0;
     }
-#endif
 
     /*
      * The Config structure contains two Unix-specific elements

@@ -38,6 +38,7 @@ struct gui_data {
     GtkWidget *window, *area, *sbar;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
+    GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2;
     GdkPixmap *pixmap;
     GdkFont *fonts[4];                 /* normal, bold, wide, widebold */
     struct {
@@ -145,14 +146,6 @@ void ldisc_update(void *frontend, int echo, int edit)
      * command-line ssh/telnet/rlogin client (i.e. a port of plink)
      * then it will require some termios manoeuvring analogous to
      * that in the Windows plink.c, but here it's meaningless.
-     */
-}
-
-void update_specials_menu(void *frontend)
-{
-    /*
-     * When I implement a context menu in pterm, I will need to
-     * support this function properly.
      */
 }
 
@@ -968,6 +961,13 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
     alt = event->state & GDK_MOD1_MASK;
+
+    if (event->button == 3 && ctrl) {
+	gtk_menu_popup(GTK_MENU(inst->menu), NULL, NULL, NULL, NULL,
+		       event->button, event->time);
+	return TRUE;
+    }
+
     if (event->button == 1)
 	button = MBT_LEFT;
     else if (event->button == 2)
@@ -2293,6 +2293,66 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
+void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    term_clrsb(inst->term);
+}
+
+void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    term_pwron(inst->term);
+    ldisc_send(inst->ldisc, NULL, 0, 0);
+}
+
+void special_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    int code = (int)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+
+    inst->back->special(inst->backhandle, code);
+}
+
+void about_menuitem(GtkMenuItem *item, gpointer data)
+{
+    /* struct gui_data *inst = (struct gui_data *)data; */
+    about_box();
+}
+
+void update_specials_menu(void *frontend)
+{
+    Terminal *term = (Terminal *)frontend;
+    struct gui_data *inst = (struct gui_data *)term->frontend;
+
+    const struct telnet_special *specials;
+
+    specials = inst->back->get_specials(inst->backhandle);
+    gtk_container_foreach(GTK_CONTAINER(inst->specialsmenu),
+			  (GtkCallback)gtk_widget_destroy, NULL);
+    if (specials) {
+	int i;
+	GtkWidget *menuitem;
+	for (i = 0; specials[i].name; i++) {
+	    if (*specials[i].name) {
+		menuitem = gtk_menu_item_new_with_label(specials[i].name);
+		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
+				    (gpointer)specials[i].code);
+		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
+				   GTK_SIGNAL_FUNC(special_menuitem), inst);
+	    } else
+		menuitem = gtk_menu_item_new();
+	    gtk_container_add(GTK_CONTAINER(inst->specialsmenu), menuitem);
+	    gtk_widget_show(menuitem);
+	}
+	gtk_widget_show(inst->specialsitem1);
+	gtk_widget_show(inst->specialsitem2);
+    } else {
+	gtk_widget_hide(inst->specialsitem1);
+	gtk_widget_hide(inst->specialsitem2);
+    }
+}
+
 int pt_main(int argc, char **argv)
 {
     extern Backend *select_backend(Config *cfg);
@@ -2457,6 +2517,39 @@ int pt_main(int argc, char **argv)
 
     set_window_background(inst);
 
+    /*
+     * Set up the Ctrl+rightclick context menu.
+     */
+    {
+	GtkWidget *menuitem;
+	char *s;
+
+	inst->menu = gtk_menu_new();
+
+#define MKMENUITEM(title, func) do { \
+    menuitem = title ? gtk_menu_item_new_with_label(title) : \
+    gtk_menu_item_new(); \
+    gtk_container_add(GTK_CONTAINER(inst->menu), menuitem); \
+    gtk_widget_show(menuitem); \
+    if (func != NULL) \
+	gtk_signal_connect(GTK_OBJECT(menuitem), "activate", \
+			       GTK_SIGNAL_FUNC(func), inst); \
+} while (0)
+	MKMENUITEM("Special Commands", NULL);
+	inst->specialsmenu = gtk_menu_new();
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), inst->specialsmenu);
+	inst->specialsitem1 = menuitem;
+	MKMENUITEM(NULL, NULL);
+	inst->specialsitem2 = menuitem;
+	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
+	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
+	MKMENUITEM(NULL, NULL);
+	s = dupcat("About ", appname, NULL);
+	MKMENUITEM(s, about_menuitem);
+	sfree(s);
+#undef MKMENUITEM
+    }
+
     inst->textcursor = make_mouse_ptr(inst, GDK_XTERM);
     inst->rawcursor = make_mouse_ptr(inst, GDK_LEFT_PTR);
     inst->blankcursor = make_mouse_ptr(inst, -1);
@@ -2498,6 +2591,7 @@ int pt_main(int argc, char **argv)
         }
     }
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
+    update_specials_menu(inst->term);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
 
