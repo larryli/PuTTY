@@ -79,6 +79,11 @@ static void mac_config(int midsession)
         s->hasfile = FALSE;
     }
 
+    /* Copy the configuration somewhere else in case this is a *
+     * reconfiguration and the user cancels the operation      */
+
+    s->temp_cfg = s->cfg;
+
     if (HAVE_COLOR_QD())
 	s->settings_window = GetNewCWindow(wSettings, NULL, (WindowPtr)-1);
     else
@@ -88,7 +93,7 @@ static void mac_config(int midsession)
     s->ctrlbox = ctrl_new_box();
     setup_config_box(s->ctrlbox, &sesslist, midsession, 0, 0);
 
-    s->settings_ctrls.data = &s->cfg;
+    s->settings_ctrls.data = &s->temp_cfg;
     if (midsession)
         s->settings_ctrls.end = &mac_enddlg_reconfig;
     else
@@ -135,6 +140,7 @@ static void mac_enddlg_config(WindowPtr window, int value)
     if (value == 0)
 	mac_closedlg(window);
     else {
+        s->cfg = s->temp_cfg;
 	mac_startsession(s);
 	mac_closedlg(window);
     }
@@ -147,7 +153,43 @@ static void mac_enddlg_reconfig(WindowPtr window, int value)
     if (value == 0)
 	mac_closedlg(window);
     else {
+        Config prev_cfg = s->cfg;
+        s->cfg = s->temp_cfg;
 	mac_closedlg(window);
+
+	/* Pass new config data to the logging module */
+	log_reconfig(s->logctx, &s->cfg);
+
+	/*
+	 * Flush the line discipline's edit buffer in the
+	 * case where local editing has just been disabled.
+	 */
+	if (s->ldisc)
+	    ldisc_send(s->ldisc, NULL, 0, 0);
+
+	/* Change the palette */
+	palette_reset(s);
+
+	/* Pass new config data to the terminal */
+	term_reconfig(s->term, &s->cfg);
+
+	/* Pass new config data to the back end */
+	if (s->back)
+            s->back->reconfig(s->backhandle, &s->cfg);
+
+	/* Screen size changed ? */
+	if (s->cfg.height != prev_cfg.height ||
+	    s->cfg.width != prev_cfg.width ||
+	    s->cfg.savelines != prev_cfg.savelines) {
+	    term_size(s->term, s->cfg.height, s->cfg.width, s->cfg.savelines);
+	    request_resize(s, s->cfg.width, s->cfg.height);
+	}
+
+	/* Set the window title */
+	if (s->cfg.wintitle[0])
+            set_title(s, s->cfg.wintitle);
+
+	/* TODO: zoom, scroll bar, font */
     }
 }
 

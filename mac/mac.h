@@ -89,6 +89,8 @@ typedef struct Session {
     struct Session **prev;
     /* Config that created this session */
     Config cfg;
+    /* Temporary config for passing to Change Settings */
+    Config temp_cfg;
     /* Terminal emulator internal state */
     Terminal *term;
     /* Display state */
