@@ -6085,7 +6085,18 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_send(ssh);
 		}
 	    } else if (ssh->pktin.type == SSH2_MSG_CHANNEL_OPEN_FAILURE) {
+                static const char *const reasons[] = {
+                    "<unknown reason code>",
+                    "Administratively prohibited",
+                    "Connect failed",
+                    "Unknown channel type",
+                    "Resource shortage",
+                };
 		unsigned i = ssh_pkt_getuint32(ssh);
+                unsigned reason_code;
+                char *reason_string;
+                int reason_length;
+                char *message;
 		struct ssh_channel *c;
 		c = find234(ssh->channels, &i, ssh_channelfind);
 		if (!c)
@@ -6093,7 +6104,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		if (c->type != CHAN_SOCKDATA_DORMANT)
 		    continue;	       /* dunno why they're failing this */
 
-		logevent("Forwarded connection refused by server");
+                reason_code = ssh_pkt_getuint32(ssh);
+                if (reason_code >= lenof(reasons))
+                    reason_code = 0; /* ensure reasons[reason_code] in range */
+                ssh_pkt_getstring(ssh, &reason_string, &reason_length);
+                message = dupprintf("Forwarded connection refused by"
+                                    " server: %s [%.*s]", reasons[reason_code],
+                                    reason_length, reason_string);
+		logevent(message);
+                sfree(message);
 
 		pfd_close(c->u.pfd.s);
 
