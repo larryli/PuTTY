@@ -1773,7 +1773,7 @@ static int do_ssh_init(unsigned char c)
     /* Anything strictly below "2.0" means protocol 1 is supported. */
     proto1 = ssh_versioncmp(version, "2.0") < 0;
     /* Anything greater or equal to "1.99" means protocol 2 is supported. */
-    proto2 = ssh_versioncmp(version, "1.99") > 0;
+    proto2 = ssh_versioncmp(version, "1.99") >= 0;
 
     if (cfg.sshprot == 0 && !proto1) {
 	bombout(("SSH protocol version 1 required by user but not provided by server"));
@@ -1784,7 +1784,7 @@ static int do_ssh_init(unsigned char c)
 	crReturn(0);
     }
 
-    if (proto2 && (cfg.sshprot == 2 || !proto1)) {
+    if (proto2 && (cfg.sshprot >= 2 || !proto1)) {
 	/*
 	 * Use v2 protocol.
 	 */
