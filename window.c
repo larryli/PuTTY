@@ -714,6 +714,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    und_mode = UND_FONT;
 	    init_fonts();
 	    sfree(logpal);
+	    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
 	    if (pal)
 		DeleteObject(pal);
 	    logpal = NULL;
