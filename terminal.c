@@ -649,12 +649,12 @@ void term_out(void) {
 	      case '\013':
 	      case '\014':
 	      case '\012':
-	      case 'IND':
+	      case IND:
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
 		    curs_y++;
-                if (lfhascr)
+                if (lfhascr && c != IND)
                     curs_x = 0;
 		fix_cpos;
 		wrapnext = FALSE;
@@ -1514,7 +1514,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 		back->send (q, p-q);
 		if (p <= data+len-sizeof(sel_nl) &&
 		    !memcmp(p, sel_nl, sizeof(sel_nl))) {
-		    back->send ("\n", 1);
+		    back->send ("\015", 1);
 		    p += sizeof(sel_nl);
 		}
 		q = p;
