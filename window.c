@@ -118,7 +118,6 @@ static int caret_x = -1, caret_y = -1;
 static void *ldisc;
 static Backend *back;
 static void *backhandle;
-static Terminal *term;
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -499,7 +498,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hwnd = NULL;
 
-    term = term_init();
+    term = term_init(NULL);
+    logctx = log_init(NULL);
+    term_provide_logctx(term, logctx);
 
     cfgtopalette();
 
@@ -608,6 +609,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	error = back->init((void *)term, &backhandle,
 			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
+	back->provide_logctx(backhandle, logctx);
 	if (error) {
 	    sprintf(msg, "Unable to open connection to\n"
 		    "%.800s\n" "%s", cfg.host, error);
@@ -622,8 +624,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    title = msg;
 	}
 	sfree(realhost);
-	set_title(title);
-	set_icon(title);
+	set_title(NULL, title);
+	set_icon(NULL, title);
     }
 
     /*
@@ -708,7 +710,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * Open the initial log file if there is one.
      */
-    logfopen();
+    logfopen(logctx);
 
     /*
      * Finally show the window!
@@ -866,7 +868,7 @@ char *do_select(SOCKET skt, int startup)
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(int activate)
+void set_raw_mouse_mode(void *frontend, int activate)
 {
     activate = activate && !cfg.no_mouse_rep;
     send_raw_mouse = activate;
@@ -876,7 +878,7 @@ void set_raw_mouse_mode(int activate)
 /*
  * Print a message box and close the connection.
  */
-void connection_fatal(char *fmt, ...)
+void connection_fatal(void *frontend, char *fmt, ...)
 {
     va_list ap;
     char stuff[200];
@@ -1257,7 +1259,7 @@ static void deinit_fonts(void)
     }
 }
 
-void request_resize(int w, int h)
+void request_resize(void *frontend, int w, int h)
 {
     int width, height;
 
@@ -1554,7 +1556,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
  * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
  * into a cooked one (SELECT, EXTEND, PASTE).
  */
-Mouse_Button translate_button(Mouse_Button button)
+Mouse_Button translate_button(void *frontend, Mouse_Button button)
 {
     if (button == MBT_LEFT)
 	return MBT_SELECT;
@@ -1750,8 +1752,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (strcmp(prev_cfg.logfilename, cfg.logfilename) ||
 		    prev_cfg.logtype != cfg.logtype) {
-		    logfclose();       /* reset logging */
-		    logfopen();
+		    logfclose(logctx); /* reset logging */
+		    logfopen(logctx);
 		}
 
 		sfree(logpal);
@@ -1841,7 +1843,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    init_lvl = 2;
 		}
 
-		set_title(cfg.wintitle);
+		set_title(NULL, cfg.wintitle);
 		if (IsIconic(hwnd)) {
 		    SetWindowText(hwnd,
 				  cfg.win_name_always ? window_name :
@@ -2391,7 +2393,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_PALETTECHANGED:
 	if ((HWND) wParam != hwnd && pal != NULL) {
-	    HDC hdc = get_ctx();
+	    HDC hdc = get_ctx(NULL);
 	    if (hdc) {
 		if (RealizePalette(hdc) > 0)
 		    UpdateColors(hdc);
@@ -2401,7 +2403,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_QUERYNEWPALETTE:
 	if (pal != NULL) {
-	    HDC hdc = get_ctx();
+	    HDC hdc = get_ctx(NULL);
 	    if (hdc) {
 		if (RealizePalette(hdc) > 0)
 		    UpdateColors(hdc);
@@ -2612,7 +2614,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
  * helper software tracks the system caret, so we should arrange to
  * have one.)
  */
-void sys_cursor(int x, int y)
+void sys_cursor(void *frontend, int x, int y)
 {
     int cx, cy;
 
@@ -3866,7 +3868,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     return -1;
 }
 
-void request_paste(void)
+void request_paste(void *frontend)
 {
     /*
      * In Windows, pasting is synchronous: we can read the
@@ -3876,7 +3878,7 @@ void request_paste(void)
     term_do_paste(term);
 }
 
-void set_title(char *title)
+void set_title(void *frontend, char *title)
 {
     sfree(window_name);
     window_name = smalloc(1 + strlen(title));
@@ -3885,7 +3887,7 @@ void set_title(char *title)
 	SetWindowText(hwnd, title);
 }
 
-void set_icon(char *title)
+void set_icon(void *frontend, char *title)
 {
     sfree(icon_name);
     icon_name = smalloc(1 + strlen(title));
@@ -3894,7 +3896,7 @@ void set_icon(char *title)
 	SetWindowText(hwnd, title);
 }
 
-void set_sbar(int total, int start, int page)
+void set_sbar(void *frontend, int total, int start, int page)
 {
     SCROLLINFO si;
 
@@ -3911,7 +3913,7 @@ void set_sbar(int total, int start, int page)
 	SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 }
 
-Context get_ctx(void)
+Context get_ctx(void *frontend)
 {
     HDC hdc;
     if (hwnd) {
@@ -3942,7 +3944,7 @@ static void real_palette_set(int n, int r, int g, int b)
 	colours[n] = RGB(r, g, b);
 }
 
-void palette_set(int n, int r, int g, int b)
+void palette_set(void *frontend, int n, int r, int g, int b)
 {
     static const int first[21] = {
 	0, 2, 4, 6, 8, 10, 12, 14,
@@ -3953,14 +3955,14 @@ void palette_set(int n, int r, int g, int b)
     if (first[n] >= 18)
 	real_palette_set(first[n] + 1, r, g, b);
     if (pal) {
-	HDC hdc = get_ctx();
+	HDC hdc = get_ctx(frontend);
 	UnrealizeObject(pal);
 	RealizePalette(hdc);
 	free_ctx(hdc);
     }
 }
 
-void palette_reset(void)
+void palette_reset(void *frontend)
 {
     int i;
 
@@ -3981,13 +3983,13 @@ void palette_reset(void)
     if (pal) {
 	HDC hdc;
 	SetPaletteEntries(pal, 0, NCOLOURS, logpal->palPalEntry);
-	hdc = get_ctx();
+	hdc = get_ctx(frontend);
 	RealizePalette(hdc);
 	free_ctx(hdc);
     }
 }
 
-void write_aclip(char *data, int len, int must_deselect)
+void write_aclip(void *frontend, char *data, int len, int must_deselect)
 {
     HGLOBAL clipdata;
     void *lock;
@@ -4019,7 +4021,7 @@ void write_aclip(char *data, int len, int must_deselect)
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
-void write_clip(wchar_t * data, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 {
     HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;
@@ -4182,7 +4184,7 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 	SendMessage(hwnd, WM_IGNORE_CLIP, FALSE, 0);
 }
 
-void get_clip(wchar_t ** p, int *len)
+void get_clip(void *frontend, wchar_t ** p, int *len)
 {
     static HGLOBAL clipdata = NULL;
     static wchar_t *converted = 0;
@@ -4229,7 +4231,7 @@ void get_clip(wchar_t ** p, int *len)
  * Move `lines' lines from position `from' to position `to' in the
  * window.
  */
-void optimised_move(int to, int from, int lines)
+void optimised_move(void *frontend, int to, int from, int lines)
 {
     RECT r;
     int min, max;
@@ -4315,7 +4317,7 @@ static void flash_window(int mode)
 /*
  * Beep.
  */
-void beep(int mode)
+void beep(void *frontend, int mode)
 {
     if (mode == BELL_DEFAULT) {
 	/*
@@ -4356,7 +4358,7 @@ void beep(int mode)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(int iconic)
+void set_iconic(void *frontend, int iconic)
 {
     if (IsIconic(hwnd)) {
 	if (!iconic)
@@ -4370,7 +4372,7 @@ void set_iconic(int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(int x, int y)
+void move_window(void *frontend, int x, int y)
 {
     if (cfg.resize_action == RESIZE_DISABLED || 
         cfg.resize_action == RESIZE_FONT ||
@@ -4384,7 +4386,7 @@ void move_window(int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(int top)
+void set_zorder(void *frontend, int top)
 {
     if (cfg.alwaysontop)
 	return;			       /* ignore */
@@ -4395,7 +4397,7 @@ void set_zorder(int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(void)
+void refresh_window(void *frontend)
 {
     InvalidateRect(hwnd, NULL, TRUE);
 }
@@ -4404,7 +4406,7 @@ void refresh_window(void)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(int zoomed)
+void set_zoomed(void *frontend, int zoomed)
 {
     if (IsZoomed(hwnd)) {
         if (!zoomed)
@@ -4418,7 +4420,7 @@ void set_zoomed(int zoomed)
 /*
  * Report whether the window is iconic, for terminal reports.
  */
-int is_iconic(void)
+int is_iconic(void *frontend)
 {
     return IsIconic(hwnd);
 }
@@ -4426,7 +4428,7 @@ int is_iconic(void)
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(int *x, int *y)
+void get_window_pos(void *frontend, int *x, int *y)
 {
     RECT r;
     GetWindowRect(hwnd, &r);
@@ -4437,7 +4439,7 @@ void get_window_pos(int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(int *x, int *y)
+void get_window_pixels(void *frontend, int *x, int *y)
 {
     RECT r;
     GetWindowRect(hwnd, &r);
@@ -4448,7 +4450,7 @@ void get_window_pixels(int *x, int *y)
 /*
  * Return the window or icon title.
  */
-char *get_window_title(int icon)
+char *get_window_title(void *frontend, int icon)
 {
     return icon ? icon_name : window_name;
 }

@@ -248,7 +248,7 @@ int random_byte(void);
 void random_add_noise(void *noise, int length);
 void random_add_heavynoise(void *noise, int length);
 
-void logevent(char *);
+void logevent(void *, char *);
 
 /* Allocate and register a new channel for port forwarding */
 void *new_sock_channel(void *handle, Socket s);

@@ -956,6 +956,7 @@ void *zlib_decompress_init(void)
     dctx->currlentable = dctx->currdisttable = dctx->lenlentable = NULL;
     dctx->bits = 0;
     dctx->nbits = 0;
+    dctx->winpos = 0;
 
     return dctx;
 }

@@ -41,7 +41,7 @@ static int raw_closing(Plug plug, char *error_msg, int error_code,
     }
     if (error_msg) {
 	/* A socket error has occurred. */
-	logevent(error_msg);
+	logevent(raw->frontend, error_msg);
 	connection_fatal("%s", error_msg);
     }				       /* Otherwise, the remote side closed the connection normally. */
     return 0;
@@ -93,7 +93,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
     {
 	char buf[200];
 	sprintf(buf, "Looking up host \"%.170s\"", host);
-	logevent(buf);
+	logevent(raw->frontend, buf);
     }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
@@ -109,7 +109,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
 	char buf[200], addrbuf[100];
 	sk_getaddr(addr, addrbuf, 100);
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
-	logevent(buf);
+	logevent(raw->frontend, buf);
     }
     raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) raw);
     if ((err = sk_socket_error(raw->s)))
@@ -191,6 +191,11 @@ static void raw_provide_ldisc(void *handle, void *ldisc)
     /* This is a stub. */
 }
 
+static void raw_provide_logctx(void *handle, void *logctx)
+{
+    /* This is a stub. */
+}
+
 static int raw_exitcode(void *handle)
 {
     /* Exit codes are a meaningless concept in the Raw protocol */
@@ -208,6 +213,7 @@ Backend raw_backend = {
     raw_sendok,
     raw_ldisc,
     raw_provide_ldisc,
+    raw_provide_logctx,
     raw_unthrottle,
     1
 };

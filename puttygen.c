@@ -222,14 +222,6 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
 }
 
 /*
- * This function is needed to link with the DES code. We need not
- * have it do anything at all.
- */
-void logevent(char *msg)
-{
-}
-
-/*
  * Dialog-box function for the Licence box.
  */
 static int CALLBACK LicenceProc(HWND hwnd, UINT msg,

@@ -153,14 +153,6 @@ struct blob {
 };
 static int cmpkeys_ssh2_asymm(void *av, void *bv);
 
-/*
- * This function is needed to link with the DES code. We need not
- * have it do anything at all.
- */
-void logevent(char *msg)
-{
-}
-
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
     ((unsigned long)(unsigned char)(cp)[1] << 16) | \

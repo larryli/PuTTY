@@ -18,6 +18,13 @@
 #endif
 #endif
 
+#ifndef DONE_TYPEDEFS
+#define DONE_TYPEDEFS
+typedef struct config_tag Config;
+typedef struct backend_tag Backend;
+typedef struct terminal_tag Terminal;
+#endif
+
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #define PUTTY_REG_PARENT "Software\\SimonTatham"
 #define PUTTY_REG_PARENT_CHILD "PuTTY"
@@ -48,6 +55,14 @@ GLOBAL HINSTANCE hinst;
  */
 GLOBAL char *help_path;
 GLOBAL int help_has_contents;
+
+/*
+ * The terminal and logging context are notionally local to the
+ * Windows front end, but they must be shared between window.c and
+ * windlg.c.
+ */
+GLOBAL Terminal *term;
+GLOBAL void *logctx;
 
 /*
  * I've just looked in the windows standard headr files for WM_USER, there

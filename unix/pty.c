@@ -68,6 +68,7 @@
 #endif
 
 int pty_master_fd;
+static void *pty_frontend;
 static char pty_name[FILENAME_MAX];
 static int pty_stamped_utmp = 0;
 static int pty_child_pid;
@@ -388,6 +389,7 @@ static char *pty_init(void *frontend, void **backend_handle,
     int slavefd;
     pid_t pid, pgrp;
 
+    pty_frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
 
     pty_term_width = cfg.width;
@@ -414,7 +416,7 @@ static char *pty_init(void *frontend, void **backend_handle,
     if (!cfg.stamp_utmp)
 	close(pty_utmp_helper_pipe);   /* just let the child process die */
     else {
-	char *location = get_x_display();
+	char *location = get_x_display(pty_frontend);
 	int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
 	while (pos < len) {
 	    int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);
@@ -554,8 +556,10 @@ static void pty_size(void *handle, int width, int height)
 
     size.ws_row = (unsigned short)pty_term_height;
     size.ws_col = (unsigned short)pty_term_width;
-    size.ws_xpixel = (unsigned short) pty_term_width * font_dimension(0);
-    size.ws_ypixel = (unsigned short) pty_term_height * font_dimension(1);
+    size.ws_xpixel = (unsigned short) pty_term_width *
+	font_dimension(pty_frontend, 0);
+    size.ws_ypixel = (unsigned short) pty_term_height *
+	font_dimension(pty_frontend, 1);
     ioctl(pty_master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }
@@ -594,6 +598,11 @@ static void pty_provide_ldisc(void *handle, void *ldisc)
     /* This is a stub. */
 }
 
+static void pty_provide_logctx(void *handle, void *logctx)
+{
+    /* This is a stub. */
+}
+
 static int pty_exitcode(void *handle)
 {
     if (!pty_child_dead)
@@ -613,6 +622,7 @@ Backend pty_backend = {
     pty_sendok,
     pty_ldisc,
     pty_provide_ldisc,
+    pty_provide_logctx,
     pty_unthrottle,
     1
 };

@@ -15,26 +15,6 @@
 #define TRUE 1
 #endif
 
-#define logevent(s) { logevent(s); \
-                      if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
-                      { fprintf(stderr, "%s\n", s); fflush(stderr); } }
-
-/* logevent, only printf-formatted. */
-void logeventf(char *fmt, ...)
-{
-    va_list ap;
-    char stuff[200];
-
-    va_start(ap, fmt);
-    vsprintf(stuff, fmt, ap);
-    va_end(ap);
-    logevent(stuff);
-}
-
-#define bombout(msg) ( ssh->state = SSH_STATE_CLOSED, \
-                          (ssh->s ? sk_close(ssh->s), ssh->s = NULL : 0), \
-                          logeventf msg, connection_fatal msg )
-
 #define SSH1_MSG_DISCONNECT                       1	/* 0x1 */
 #define SSH1_SMSG_PUBLIC_KEY                      2	/* 0x2 */
 #define SSH1_CMSG_SESSION_KEY                     3	/* 0x3 */
@@ -557,6 +537,7 @@ struct ssh_tag {
     Socket s;
 
     void *ldisc;
+    void *logctx;
 
     unsigned char session_key[32];
     int v1_compressing;
@@ -657,6 +638,26 @@ struct ssh_tag {
     void (*protocol) (Ssh ssh, unsigned char *in, int inlen, int ispkt);
     int (*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
 };
+
+#define logevent(s) { logevent(ssh->frontend, s); \
+                      if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
+                      { fprintf(stderr, "%s\n", s); fflush(stderr); } }
+
+/* logevent, only printf-formatted. */
+void logeventf(Ssh ssh, char *fmt, ...)
+{
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    logevent(stuff);
+}
+
+#define bombout(msg) ( ssh->state = SSH_STATE_CLOSED, \
+                          (ssh->s ? sk_close(ssh->s), ssh->s = NULL : 0), \
+                          logeventf msg, connection_fatal msg )
 
 static int ssh_channelcmp(void *av, void *bv)
 {
@@ -823,7 +824,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
     if (ssh->cipher && detect_attack(ssh->crcda_ctx, ssh->pktin.data,
 				     st->biglen, NULL)) {
-        bombout(("Network attack (CRC compensation) detected!"));
+        bombout((ssh,"Network attack (CRC compensation) detected!"));
         crReturn(0);
     }
 
@@ -833,7 +834,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->realcrc = crc32(ssh->pktin.data, st->biglen - 4);
     st->gotcrc = GET_32BIT(ssh->pktin.data + st->biglen - 4);
     if (st->gotcrc != st->realcrc) {
-	bombout(("Incorrect CRC received on packet"));
+	bombout((ssh,"Incorrect CRC received on packet"));
 	crReturn(0);
     }
 
@@ -860,8 +861,11 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
     ssh->pktin.type = ssh->pktin.body[-1];
 
-    log_packet(PKT_INCOMING, ssh->pktin.type, ssh1_pkt_type(ssh->pktin.type),
-	       ssh->pktin.body, ssh->pktin.length);
+    if (ssh->logctx)
+	log_packet(ssh->logctx,
+		   PKT_INCOMING, ssh->pktin.type,
+		   ssh1_pkt_type(ssh->pktin.type),
+		   ssh->pktin.body, ssh->pktin.length);
 
     if (ssh->pktin.type == SSH1_SMSG_STDOUT_DATA ||
 	ssh->pktin.type == SSH1_SMSG_STDERR_DATA ||
@@ -870,7 +874,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	ssh->pktin.type == SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
 	long stringlen = GET_32BIT(ssh->pktin.body);
 	if (stringlen + 4 != ssh->pktin.length) {
-	    bombout(("Received data packet with bogus string length"));
+	    bombout((ssh,"Received data packet with bogus string length"));
 	    crReturn(0);
 	}
     }
@@ -903,7 +907,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	memcpy(buf + nowlen, ssh->pktin.body + 4, msglen);
 	buf[nowlen + msglen] = '\0';
 	/* logevent(buf); (this is now done within the bombout macro) */
-	bombout(("Server sent disconnect message:\n\"%s\"", buf+nowlen));
+	bombout((ssh,"Server sent disconnect message:\n\"%s\"", buf+nowlen));
 	crReturn(0);
     }
 
@@ -957,7 +961,7 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
      * do us any more damage.
      */
     if (st->len < 0 || st->pad < 0 || st->len + st->pad < 0) {
-	bombout(("Incoming packet was garbled on decryption"));
+	bombout((ssh,"Incoming packet was garbled on decryption"));
 	crReturn(0);
     }
 
@@ -1005,7 +1009,7 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     if (ssh->scmac
 	&& !ssh->scmac->verify(ssh->sc_mac_ctx, ssh->pktin.data, st->len + 4,
 			       st->incoming_sequence)) {
-	bombout(("Incorrect MAC received on packet"));
+	bombout((ssh,"Incorrect MAC received on packet"));
 	crReturn(0);
     }
     st->incoming_sequence++;	       /* whether or not we MACed */
@@ -1034,9 +1038,10 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     ssh->pktin.savedpos = 6;
     ssh->pktin.type = ssh->pktin.data[5];
 
-    log_packet(PKT_INCOMING, ssh->pktin.type,
-	       ssh2_pkt_type(ssh->pkt_ctx, ssh->pktin.type),
-	       ssh->pktin.data+6, ssh->pktin.length-6);
+    if (ssh->logctx)
+	log_packet(ssh->logctx, PKT_INCOMING, ssh->pktin.type,
+		   ssh2_pkt_type(ssh->pkt_ctx, ssh->pktin.type),
+		   ssh->pktin.data+6, ssh->pktin.length-6);
 
     switch (ssh->pktin.type) {
         /*
@@ -1064,7 +1069,7 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
             memcpy(buf + nowlen, ssh->pktin.data + 14, msglen);
             buf[nowlen + msglen] = '\0';
             logevent(buf);
-            bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
+            bombout((ssh,"Server sent disconnect message\ntype %d (%s):\n\"%s\"",
                      reason,
                      (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
                      ssh2_disconnect_reasons[reason] : "unknown",
@@ -1177,8 +1182,10 @@ static int s_wrpkt_prepare(Ssh ssh)
 
     ssh->pktout.body[-1] = ssh->pktout.type;
 
-    log_packet(PKT_OUTGOING, ssh->pktout.type, ssh1_pkt_type(ssh->pktout.type),
-	       ssh->pktout.body, ssh->pktout.length);
+    if (ssh->logctx)
+	log_packet(ssh->logctx, PKT_OUTGOING, ssh->pktout.type,
+		   ssh1_pkt_type(ssh->pktout.type),
+		   ssh->pktout.body, ssh->pktout.length);
 
     if (ssh->v1_compressing) {
 	unsigned char *compblk;
@@ -1459,9 +1466,10 @@ static int ssh2_pkt_construct(Ssh ssh)
 {
     int cipherblk, maclen, padding, i;
 
-    log_packet(PKT_OUTGOING, ssh->pktout.data[5],
-	       ssh2_pkt_type(ssh->pkt_ctx, ssh->pktout.data[5]),
-	       ssh->pktout.data + 6, ssh->pktout.length - 6);
+    if (ssh->logctx)
+	log_packet(ssh->logctx, PKT_OUTGOING, ssh->pktout.data[5],
+		   ssh2_pkt_type(ssh->pkt_ctx, ssh->pktout.data[5]),
+		   ssh->pktout.data + 6, ssh->pktout.length - 6);
 
     /*
      * Compress packet payload.
@@ -1626,7 +1634,7 @@ static Bignum ssh2_pkt_getmp(Ssh ssh)
     if (!p)
 	return NULL;
     if (p[0] & 0x80) {
-	bombout(("internal error: Can't handle negative mpints"));
+	bombout((ssh,"internal error: Can't handle negative mpints"));
 	return NULL;
     }
     b = bignum_from_bytes(p, length);
@@ -1878,11 +1886,11 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     s->proto2 = ssh_versioncmp(s->version, "1.99") >= 0;
 
     if (cfg.sshprot == 0 && !s->proto1) {
-	bombout(("SSH protocol version 1 required by user but not provided by server"));
+	bombout((ssh,"SSH protocol version 1 required by user but not provided by server"));
 	crReturn(0);
     }
     if (cfg.sshprot == 3 && !s->proto2) {
-	bombout(("SSH protocol version 2 required by user but not provided by server"));
+	bombout((ssh,"SSH protocol version 2 required by user but not provided by server"));
 	crReturn(0);
     }
 
@@ -1989,7 +1997,7 @@ static int ssh_closing(Plug plug, char *error_msg, int error_code,
     if (error_msg) {
 	/* A socket error has occurred. */
 	logevent(error_msg);
-	connection_fatal(error_msg);
+	connection_fatal(ssh->frontend, error_msg);
     } else {
 	/* Otherwise, the remote side closed the connection normally. */
     }
@@ -2238,7 +2246,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	crWaitUntil(ispkt);
 
     if (ssh->pktin.type != SSH1_SMSG_PUBLIC_KEY) {
-	bombout(("Public key packet not received"));
+	bombout((ssh,"Public key packet not received"));
 	crReturn(0);
     }
 
@@ -2299,7 +2307,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    fatalbox("Out of memory");
 	rsastr_fmt(keystr, &hostkey);
 	rsa_fingerprint(fingerprint, sizeof(fingerprint), &hostkey);
-	verify_ssh_host_key(ssh->savedhost, ssh->savedport, "rsa", keystr,
+	verify_ssh_host_key(ssh->frontend,
+			    ssh->savedhost, ssh->savedport, "rsa", keystr,
 			    fingerprint);
 	sfree(keystr);
     }
@@ -2347,17 +2356,17 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
 	if (!cipher_chosen) {
 	    if ((s->supported_ciphers_mask & (1 << SSH_CIPHER_3DES)) == 0)
-		bombout(("Server violates SSH 1 protocol by not "
+		bombout((ssh,"Server violates SSH 1 protocol by not "
 			 "supporting 3DES encryption"));
 	    else
 		/* shouldn't happen */
-		bombout(("No supported ciphers found"));
+		bombout((ssh,"No supported ciphers found"));
 	    crReturn(0);
 	}
 
 	/* Warn about chosen cipher if necessary. */
 	if (warn)
-	    askcipher(cipher_string, 0);
+	    askcipher(ssh->frontend, cipher_string, 0);
     }
 
     switch (s->cipher_type) {
@@ -2400,7 +2409,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     crWaitUntil(ispkt);
 
     if (ssh->pktin.type != SSH1_SMSG_SUCCESS) {
-	bombout(("Encryption not successfully enabled"));
+	bombout((ssh,"Encryption not successfully enabled"));
 	crReturn(0);
     }
 
@@ -2694,7 +2703,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			    PKT_STR, "No more passwords available to try",
 			    PKT_END);
 		logevent("Unable to authenticate");
-		connection_fatal("Unable to authenticate");
+		connection_fatal(ssh->frontend, "Unable to authenticate");
 		ssh->state = SSH_STATE_CLOSED;
 		crReturn(1);
 	    }
@@ -2750,7 +2759,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		continue;	       /* go and try password */
 	    }
 	    if (ssh->pktin.type != SSH1_SMSG_AUTH_RSA_CHALLENGE) {
-		bombout(("Bizarre response to offer of public key"));
+		bombout((ssh,"Bizarre response to offer of public key"));
 		crReturn(0);
 	    }
 
@@ -2786,7 +2795,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				" our public key.\r\n");
 		continue;	       /* go and try password */
 	    } else if (ssh->pktin.type != SSH1_SMSG_SUCCESS) {
-		bombout(("Bizarre response to RSA authentication response"));
+		bombout((ssh,"Bizarre response to RSA authentication response"));
 		crReturn(0);
 	    }
 
@@ -2919,7 +2928,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		c_write_str(ssh, "Access denied\r\n");
 	    logevent("Authentication refused");
 	} else if (ssh->pktin.type != SSH1_SMSG_SUCCESS) {
-	    bombout(("Strange packet received, type %d", ssh->pktin.type));
+	    bombout((ssh,"Strange packet received, type %d", ssh->pktin.type));
 	    crReturn(0);
 	}
     }
@@ -3019,7 +3028,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	} while (!ispkt);
 	if (ssh->pktin.type != SSH1_SMSG_SUCCESS
 	    && ssh->pktin.type != SSH1_SMSG_FAILURE) {
-	    bombout(("Protocol confusion"));
+	    bombout((ssh,"Protocol confusion"));
 	    crReturnV;
 	} else if (ssh->pktin.type == SSH1_SMSG_FAILURE) {
 	    logevent("Agent forwarding refused");
@@ -3047,7 +3056,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	} while (!ispkt);
 	if (ssh->pktin.type != SSH1_SMSG_SUCCESS
 	    && ssh->pktin.type != SSH1_SMSG_FAILURE) {
-	    bombout(("Protocol confusion"));
+	    bombout((ssh,"Protocol confusion"));
 	    crReturnV;
 	} else if (ssh->pktin.type == SSH1_SMSG_FAILURE) {
 	    logevent("X11 forwarding refused");
@@ -3156,7 +3165,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			} while (!ispkt);
 			if (ssh->pktin.type != SSH1_SMSG_SUCCESS
 			    && ssh->pktin.type != SSH1_SMSG_FAILURE) {
-			    bombout(("Protocol confusion"));
+			    bombout((ssh,"Protocol confusion"));
 			    crReturnV;
 			} else if (ssh->pktin.type == SSH1_SMSG_FAILURE) {
 			    c_write_str(ssh, "Server refused port"
@@ -3181,7 +3190,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	} while (!ispkt);
 	if (ssh->pktin.type != SSH1_SMSG_SUCCESS
 	    && ssh->pktin.type != SSH1_SMSG_FAILURE) {
-	    bombout(("Protocol confusion"));
+	    bombout((ssh,"Protocol confusion"));
 	    crReturnV;
 	} else if (ssh->pktin.type == SSH1_SMSG_FAILURE) {
 	    c_write_str(ssh, "Server refused to allocate pty\r\n");
@@ -3199,7 +3208,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	} while (!ispkt);
 	if (ssh->pktin.type != SSH1_SMSG_SUCCESS
 	    && ssh->pktin.type != SSH1_SMSG_FAILURE) {
-	    bombout(("Protocol confusion"));
+	    bombout((ssh,"Protocol confusion"));
 	    crReturnV;
 	} else if (ssh->pktin.type == SSH1_SMSG_FAILURE) {
 	    c_write_str(ssh, "Server refused to compress\r\n");
@@ -3450,7 +3459,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			sfree(c);
 		    }
 		} else {
-		    bombout(("Received CHANNEL_CLOSE%s for %s channel %d\n",
+		    bombout((ssh,"Received CHANNEL_CLOSE%s for %s channel %d\n",
 			     ssh->pktin.type == SSH1_MSG_CHANNEL_CLOSE ? "" :
 			     "_CONFIRMATION", c ? "half-open" : "nonexistent",
 			     i));
@@ -3552,7 +3561,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
                 ssh->state = SSH_STATE_CLOSED;
                 crReturnV;
 	    } else {
-		bombout(("Strange packet received: type %d", ssh->pktin.type));
+		bombout((ssh,"Strange packet received: type %d", ssh->pktin.type));
 		crReturnV;
 	    }
 	} else {
@@ -3820,7 +3829,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	int i, j, len;
 
 	if (ssh->pktin.type != SSH2_MSG_KEXINIT) {
-	    bombout(("expected key exchange packet from server"));
+	    bombout((ssh,"expected key exchange packet from server"));
 	    crReturn(0);
 	}
 	ssh->kex = NULL;
@@ -3865,12 +3874,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (s->cscipher_tobe) {
 		if (s->warn)
-		    askcipher(s->cscipher_tobe->name, 1);
+		    askcipher(ssh->frontend, s->cscipher_tobe->name, 1);
 		break;
 	    }
 	}
 	if (!s->cscipher_tobe) {
-	    bombout(("Couldn't agree a client-to-server cipher (available: %s)", str));
+	    bombout((ssh,"Couldn't agree a client-to-server cipher (available: %s)", str));
 	    crReturn(0);
 	}
 
@@ -3890,12 +3899,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (s->sccipher_tobe) {
 		if (s->warn)
-		    askcipher(s->sccipher_tobe->name, 2);
+		    askcipher(ssh->frontend, s->sccipher_tobe->name, 2);
 		break;
 	    }
 	}
 	if (!s->sccipher_tobe) {
-	    bombout(("Couldn't agree a server-to-client cipher (available: %s)", str));
+	    bombout((ssh,"Couldn't agree a server-to-client cipher (available: %s)", str));
 	    crReturn(0);
 	}
 
@@ -3968,7 +3977,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	crWaitUntil(ispkt);
 	if (ssh->pktin.type != SSH2_MSG_KEX_DH_GEX_GROUP) {
-	    bombout(("expected key exchange group packet from server"));
+	    bombout((ssh,"expected key exchange group packet from server"));
 	    crReturn(0);
 	}
 	s->p = ssh2_pkt_getmp(ssh);
@@ -3994,7 +4003,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
     crWaitUntil(ispkt);
     if (ssh->pktin.type != s->kex_reply_value) {
-	bombout(("expected key exchange reply packet from server"));
+	bombout((ssh,"expected key exchange reply packet from server"));
 	crReturn(0);
     }
     ssh2_pkt_getstring(ssh, &s->hostkeydata, &s->hostkeylen);
@@ -4025,7 +4034,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     if (!s->hkey ||
 	!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
 				 s->exchange_hash, 20)) {
-	bombout(("Server's host key did not match the signature supplied"));
+	bombout((ssh,"Server's host key did not match the signature supplied"));
 	crReturn(0);
     }
 
@@ -4035,7 +4044,8 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      */
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
     s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
-    verify_ssh_host_key(ssh->savedhost, ssh->savedport, ssh->hostkey->keytype,
+    verify_ssh_host_key(ssh->frontend,
+			ssh->savedhost, ssh->savedport, ssh->hostkey->keytype,
 			s->keystr, s->fingerprint);
     if (s->first_kex) {		       /* don't bother logging this in rekeys */
 	logevent("Host key fingerprint is:");
@@ -4056,7 +4066,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      */
     crWaitUntil(ispkt);
     if (ssh->pktin.type != SSH2_MSG_NEWKEYS) {
-	bombout(("expected new-keys packet from server"));
+	bombout((ssh,"expected new-keys packet from server"));
 	crReturn(0);
     }
 
@@ -4281,7 +4291,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     ssh2_pkt_send(ssh);
     crWaitUntilV(ispkt);
     if (ssh->pktin.type != SSH2_MSG_SERVICE_ACCEPT) {
-	bombout(("Server refused user authentication protocol"));
+	bombout((ssh,"Server refused user authentication protocol"));
 	crReturnV;
     }
 
@@ -4381,7 +4391,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	/* Load the pub half of cfg.keyfile so we notice if it's in Pageant */
 	if (*cfg.keyfile) {
 	    int keytype;
-	    logeventf("Reading private key file \"%.150s\"", cfg.keyfile);
+	    logeventf(ssh->frontend,
+		      "Reading private key file \"%.150s\"", cfg.keyfile);
 	    keytype = key_type(cfg.keyfile);
 	    if (keytype == SSH_KEYTYPE_SSH2) {
 		s->publickey_blob =
@@ -4389,8 +4400,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 					 &s->publickey_bloblen);
 	    } else {
 		char msgbuf[256];
-		logeventf("Unable to use this key file (%s)",
-			key_type_to_str(keytype));
+		logeventf(ssh->frontend,
+			  "Unable to use this key file (%s)",
+			  key_type_to_str(keytype));
 		sprintf(msgbuf, "Unable to use key file \"%.150s\" (%s)\r\n",
 			cfg.keyfile, key_type_to_str(keytype));
 		c_write_str(ssh, msgbuf);
@@ -4441,7 +4453,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		if (!s->gotit)
 		    s->curr_prompt = 0;
 	    } else if (ssh->pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
-		bombout(("Strange packet received during authentication: type %d",
+		bombout((ssh,"Strange packet received during authentication: type %d",
 			 ssh->pktin.type));
 		crReturnV;
 	    }
@@ -4830,7 +4842,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_addstring(ssh, "en");	/* language tag */
 			ssh2_pkt_send(ssh);
 			logevent("Unable to authenticate");
-			connection_fatal("Unable to authenticate");
+			connection_fatal(ssh->frontend,
+					 "Unable to authenticate");
 			ssh->state = SSH_STATE_CLOSED;
 			crReturnV;
 		    }
@@ -5038,12 +5051,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     ssh2_pkt_send(ssh);
     crWaitUntilV(ispkt);
     if (ssh->pktin.type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-	bombout(("Server refused to open a session"));
+	bombout((ssh,"Server refused to open a session"));
 	crReturnV;
 	/* FIXME: error data comes back in FAILURE packet */
     }
     if (ssh2_pkt_getuint32(ssh) != ssh->mainchan->localid) {
-	bombout(("Server's channel confirmation cited wrong channel"));
+	bombout((ssh,"Server's channel confirmation cited wrong channel"));
 	crReturnV;
     }
     ssh->mainchan->remoteid = ssh2_pkt_getuint32(ssh);
@@ -5087,7 +5100,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	if (ssh->pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (ssh->pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to X11 forwarding request:"
+		bombout((ssh,"Unexpected response to X11 forwarding request:"
 			 " packet type %d", ssh->pktin.type));
 		crReturnV;
 	    }
@@ -5215,7 +5228,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 			if (ssh->pktin.type != SSH2_MSG_REQUEST_SUCCESS) {
 			    if (ssh->pktin.type != SSH2_MSG_REQUEST_FAILURE) {
-				bombout(("Unexpected response to port "
+				bombout((ssh,"Unexpected response to port "
 					 "forwarding request: packet type %d",
 					 ssh->pktin.type));
 				crReturnV;
@@ -5255,7 +5268,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	if (ssh->pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (ssh->pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to agent forwarding request:"
+		bombout((ssh,"Unexpected response to agent forwarding request:"
 			 " packet type %d", ssh->pktin.type));
 		crReturnV;
 	    }
@@ -5298,7 +5311,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 	if (ssh->pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (ssh->pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to pty request:"
+		bombout((ssh,"Unexpected response to pty request:"
 			 " packet type %d", ssh->pktin.type));
 		crReturnV;
 	    }
@@ -5356,7 +5369,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	} while (ssh->pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 	if (ssh->pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (ssh->pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to shell/command request:"
+		bombout((ssh,"Unexpected response to shell/command request:"
 			 " packet type %d", ssh->pktin.type));
 		crReturnV;
 	    }
@@ -5371,7 +5384,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		ssh->fallback_cmd = TRUE;
 		continue;
 	    }
-	    bombout(("Server refused to start a shell/command"));
+	    bombout((ssh,"Server refused to start a shell/command"));
 	    crReturnV;
 	} else {
 	    logevent("Started a shell/command");
@@ -5508,7 +5521,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 		c = find234(ssh->channels, &i, ssh_channelfind);
 		if (!c || ((int)c->remoteid) == -1) {
-		    bombout(("Received CHANNEL_CLOSE for %s channel %d\n",
+		    bombout((ssh,"Received CHANNEL_CLOSE for %s channel %d\n",
 			     c ? "half-open" : "nonexistent", i));
 		}
 		/* Do pre-close processing on the channel. */
@@ -5777,7 +5790,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_send(ssh);
 		}
 	    } else {
-		bombout(("Strange packet received: type %d", ssh->pktin.type));
+		bombout((ssh,"Strange packet received: type %d", ssh->pktin.type));
 		crReturnV;
 	    }
 	} else {
@@ -5851,7 +5864,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->sccipher = NULL;
     ssh->sc_cipher_ctx = NULL;
     ssh->csmac = NULL;
-    ssh->sc_mac_ctx = NULL;
+    ssh->cs_mac_ctx = NULL;
     ssh->scmac = NULL;
     ssh->sc_mac_ctx = NULL;
     ssh->cscomp = NULL;
@@ -5865,6 +5878,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->size_needed = FALSE;
     ssh->eof_needed = FALSE;
     ssh->ldisc = NULL;
+    ssh->logctx = NULL;
     {
 	static const struct Packet empty = { 0, 0, NULL, NULL, 0 };
 	ssh->pktin = ssh->pktout = empty;
@@ -6148,6 +6162,12 @@ static void ssh_provide_ldisc(void *handle, void *ldisc)
     ssh->ldisc = ldisc;
 }
 
+static void ssh_provide_logctx(void *handle, void *logctx)
+{
+    Ssh ssh = (Ssh) handle;
+    ssh->logctx = logctx;
+}
+
 static int ssh_return_exitcode(void *handle)
 {
     Ssh ssh = (Ssh) handle;
@@ -6176,6 +6196,7 @@ Backend ssh_backend = {
     ssh_sendok,
     ssh_ldisc,
     ssh_provide_ldisc,
+    ssh_provide_logctx,
     ssh_unthrottle,
     22
 };

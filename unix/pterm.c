@@ -57,10 +57,14 @@ struct gui_data {
     Backend *back;
     void *backhandle;
     Terminal *term;
+    void *logctx;
 };
 
-static struct gui_data the_inst;
-static struct gui_data *inst = &the_inst;   /* so we always write `inst->' */
+struct draw_ctx {
+    GdkGC *gc;
+    struct gui_data *inst;
+};
+
 static int send_raw_mouse;
 
 void ldisc_update(void *frontend, int echo, int edit)
@@ -73,7 +77,7 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
 }
 
-int askappend(char *filename)
+int askappend(void *frontend, char *filename)
 {
     /*
      * Logging in an xterm-alike is liable to be something you only
@@ -84,7 +88,7 @@ int askappend(char *filename)
     return 2;
 }
 
-void logevent(char *string)
+void logevent(void *frontend, char *string)
 {
     /*
      * This is not a very helpful function: events are logged
@@ -93,8 +97,10 @@ void logevent(char *string)
      */
 }
 
-int font_dimension(int which)	       /* 0 for width, 1 for height */
+int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
+
     if (which)
 	return inst->font_height;
     else
@@ -110,8 +116,10 @@ int font_dimension(int which)	       /* 0 for width, 1 for height */
  * mouse or a means of faking it, and there is no need to switch
  * buttons around at all.
  */
-Mouse_Button translate_button(Mouse_Button button)
+Mouse_Button translate_button(void *frontend, Mouse_Button button)
 {
+    /* struct gui_data *inst = (struct gui_data *)frontend; */
+
     if (button == MBT_LEFT)
 	return MBT_SELECT;
     if (button == MBT_MIDDLE)
@@ -125,12 +133,13 @@ Mouse_Button translate_button(Mouse_Button button)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(int iconic)
+void set_iconic(void *frontend, int iconic)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
+    struct gui_data *inst = (struct gui_data *)frontend;
     if (iconic)
 	gtk_window_iconify(GTK_WINDOW(inst->window));
     else
@@ -141,8 +150,9 @@ void set_iconic(int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(int x, int y)
+void move_window(void *frontend, int x, int y)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -159,8 +169,9 @@ void move_window(int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(int top)
+void set_zorder(void *frontend, int top)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     if (top)
 	gdk_window_raise(inst->window->window);
     else
@@ -170,8 +181,9 @@ void set_zorder(int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(void)
+void refresh_window(void *frontend)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     term_invalidate(inst->term);
 }
 
@@ -179,12 +191,13 @@ void refresh_window(void)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(int zoomed)
+void set_zoomed(void *frontend, int zoomed)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
+    struct gui_data *inst = (struct gui_data *)frontend;
     if (iconic)
 	gtk_window_maximize(GTK_WINDOW(inst->window));
     else
@@ -195,16 +208,18 @@ void set_zoomed(int zoomed)
 /*
  * Report whether the window is iconic, for terminal reports.
  */
-int is_iconic(void)
+int is_iconic(void *frontend)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     return !gdk_window_is_viewable(inst->window->window);
 }
 
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(int *x, int *y)
+void get_window_pos(void *frontend, int *x, int *y)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -220,8 +235,9 @@ void get_window_pos(int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(int *x, int *y)
+void get_window_pixels(void *frontend, int *x, int *y)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -237,8 +253,9 @@ void get_window_pixels(int *x, int *y)
 /*
  * Return the window or icon title.
  */
-char *get_window_title(int icon)
+char *get_window_title(void *frontend, int icon)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     return icon ? inst->wintitle : inst->icontitle;
 }
 
@@ -251,7 +268,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
     return FALSE;
 }
 
-void show_mouseptr(int show)
+static void show_mouseptr(struct gui_data *inst, int show)
 {
     if (!cfg.hide_mouseptr)
 	show = 1;
@@ -305,7 +322,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 
 gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    /* struct gui_data *inst = (struct gui_data *)data; */
+    struct gui_data *inst = (struct gui_data *)data;
 
     /*
      * Pass the exposed rectangle to terminal.c, which will call us
@@ -327,7 +344,7 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-    /* struct gui_data *inst = (struct gui_data *)data; */
+    struct gui_data *inst = (struct gui_data *)data;
     char output[32];
     int start, end;
 
@@ -433,7 +450,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * Neither does Shift-Ins.
 	 */
 	if (event->keyval == GDK_Insert && (event->state & GDK_SHIFT_MASK)) {
-	    request_paste();
+	    request_paste(inst);
 	    return TRUE;
 	}
 
@@ -797,7 +814,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #endif
 
 	ldisc_send(inst->ldisc, output+start, end-start, 1);
-	show_mouseptr(0);
+	show_mouseptr(inst, 0);
 	term_seen_key_event(inst->term);
 	term_out(inst->term);
     }
@@ -810,7 +827,7 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button, act;
 
-    show_mouseptr(1);
+    show_mouseptr(inst, 1);
 
     if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
 	term_scroll(inst->term, 0, -5);
@@ -858,7 +875,7 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button;
 
-    show_mouseptr(1);
+    show_mouseptr(inst, 1);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
@@ -993,29 +1010,32 @@ void destroy(GtkWidget *widget, gpointer data)
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
+    struct gui_data *inst = (struct gui_data *)data;
     inst->term->has_focus = event->in;
     term_out(inst->term);
     term_update(inst->term);
-    show_mouseptr(1);
+    show_mouseptr(inst, 1);
     return FALSE;
 }
 
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(int activate)
+void set_raw_mouse_mode(void *frontend, int activate)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     activate = activate && !cfg.no_mouse_rep;
     send_raw_mouse = activate;
     if (send_raw_mouse)
 	inst->currcursor = inst->rawcursor;
     else
 	inst->currcursor = inst->textcursor;
-    show_mouseptr(inst->mouseptr_visible);
+    show_mouseptr(inst, inst->mouseptr_visible);
 }
 
-void request_resize(int w, int h)
+void request_resize(void *frontend, int w, int h)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     int large_x, large_y;
     int offset_x, offset_y;
     int area_x, area_y;
@@ -1041,7 +1061,7 @@ void request_resize(int w, int h)
      * bogus size request which guarantees to be bigger than the
      * current size of the drawing area.
      */
-    get_window_pixels(&large_x, &large_y);
+    get_window_pixels(inst, &large_x, &large_y);
     large_x += 32;
     large_y += 32;
 
@@ -1080,7 +1100,7 @@ void request_resize(int w, int h)
 #endif
 }
 
-void real_palette_set(int n, int r, int g, int b)
+static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 {
     gboolean success[1];
 
@@ -1095,7 +1115,7 @@ void real_palette_set(int n, int r, int g, int b)
 		n, r, g, b);
 }
 
-void set_window_background(void)
+void set_window_background(struct gui_data *inst)
 {
     if (inst->area && inst->area->window)
 	gdk_window_set_background(inst->area->window, &inst->cols[18]);
@@ -1103,22 +1123,24 @@ void set_window_background(void)
 	gdk_window_set_background(inst->window->window, &inst->cols[18]);
 }
 
-void palette_set(int n, int r, int g, int b)
+void palette_set(void *frontend, int n, int r, int g, int b)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     static const int first[21] = {
 	0, 2, 4, 6, 8, 10, 12, 14,
 	1, 3, 5, 7, 9, 11, 13, 15,
 	16, 17, 18, 20, 22
     };
-    real_palette_set(first[n], r, g, b);
+    real_palette_set(inst, first[n], r, g, b);
     if (first[n] >= 18)
-	real_palette_set(first[n] + 1, r, g, b);
+	real_palette_set(inst, first[n] + 1, r, g, b);
     if (first[n] == 18)
-	set_window_background();
+	set_window_background(inst);
 }
 
-void palette_reset(void)
+void palette_reset(void *frontend)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     /* This maps colour indices in cfg to those used in inst->cols. */
     static const int ww[] = {
 	6, 7, 8, 9, 10, 11, 12, 13,
@@ -1150,11 +1172,12 @@ void palette_reset(void)
 		    i, cfg.colours[i][0], cfg.colours[i][1], cfg.colours[i][2]);
     }
 
-    set_window_background();
+    set_window_background(inst);
 }
 
-void write_clip(wchar_t * data, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
     inst->pasteout_data = smalloc(len);
@@ -1174,6 +1197,7 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 		   guint info, guint time_stamp, gpointer data)
 {
+    struct gui_data *inst = (struct gui_data *)data;
     gtk_selection_data_set(seldata, GDK_SELECTION_TYPE_STRING, 8,
 			   inst->pasteout_data, inst->pasteout_data_len);
 }
@@ -1181,6 +1205,7 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
 		     gpointer data)
 {
+    struct gui_data *inst = (struct gui_data *)data;
     term_deselect(inst->term);
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
@@ -1189,8 +1214,9 @@ gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     return TRUE;
 }
 
-void request_paste(void)
+void request_paste(void *frontend)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * In Unix, pasting is asynchronous: all we can do at the
      * moment is to call gtk_selection_convert(), and when the data
@@ -1205,6 +1231,8 @@ gint idle_paste_func(gpointer data);   /* forward ref */
 void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 			gpointer data)
 {
+    struct gui_data *inst = (struct gui_data *)data;
+
     if (seldata->length <= 0 ||
 	seldata->type != GDK_SELECTION_TYPE_STRING)
 	return;			       /* Nothing happens. */
@@ -1236,30 +1264,35 @@ gint idle_paste_func(gpointer data)
 }
 
 
-void get_clip(wchar_t ** p, int *len)
+void get_clip(void *frontend, wchar_t ** p, int *len)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
+
     if (p) {
 	*p = inst->pastein_data;
 	*len = inst->pastein_data_len;
     }
 }
 
-void set_title(char *title)
+void set_title(void *frontend, char *title)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     strncpy(inst->wintitle, title, lenof(inst->wintitle));
     inst->wintitle[lenof(inst->wintitle)-1] = '\0';
     gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
 }
 
-void set_icon(char *title)
+void set_icon(void *frontend, char *title)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     strncpy(inst->icontitle, title, lenof(inst->icontitle));
     inst->icontitle[lenof(inst->icontitle)-1] = '\0';
     gdk_window_set_icon_name(inst->window->window, inst->icontitle);
 }
 
-void set_sbar(int total, int start, int page)
+void set_sbar(void *frontend, int total, int start, int page)
 {
+    struct gui_data *inst = (struct gui_data *)frontend;
     if (!cfg.scrollbar)
 	return;
     inst->sbar_adjust->lower = 0;
@@ -1275,20 +1308,22 @@ void set_sbar(int total, int start, int page)
 
 void scrollbar_moved(GtkAdjustment *adj, gpointer data)
 {
+    struct gui_data *inst = (struct gui_data *)data;
+
     if (!cfg.scrollbar)
 	return;
     if (!inst->ignore_sbar)
 	term_scroll(inst->term, 1, (int)adj->value);
 }
 
-void sys_cursor(int x, int y)
+void sys_cursor(void *frontend, int x, int y)
 {
     /*
      * This is meaningless under X.
      */
 }
 
-void beep(int mode)
+void beep(void *frontend, int mode)
 {
     gdk_beep();
 }
@@ -1303,19 +1338,27 @@ int CharWidth(Context ctx, int uc)
     return 1;
 }
 
-Context get_ctx(void)
+Context get_ctx(void *frontend)
 {
-    GdkGC *gc;
+    struct gui_data *inst = (struct gui_data *)frontend;
+    struct draw_ctx *dctx;
+
     if (!inst->area->window)
 	return NULL;
-    gc = gdk_gc_new(inst->area->window);
-    return gc;
+
+    dctx = smalloc(sizeof(*dctx));
+    dctx->inst = inst;
+    dctx->gc = gdk_gc_new(inst->area->window);
+    return dctx;
 }
 
 void free_ctx(Context ctx)
 {
-    GdkGC *gc = (GdkGC *)ctx;
+    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
+    /* struct gui_data *inst = dctx->inst; */
+    GdkGC *gc = dctx->gc;
     gdk_gc_unref(gc);
+    sfree(dctx);
 }
 
 /*
@@ -1327,8 +1370,11 @@ void free_ctx(Context ctx)
 void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		      unsigned long attr, int lattr)
 {
+    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
+    struct gui_data *inst = dctx->inst;
+    GdkGC *gc = dctx->gc;
+
     int nfg, nbg, t, fontid, shadow;
-    GdkGC *gc = (GdkGC *)ctx;
 
     /*
      * NYI:
@@ -1437,7 +1483,9 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 void do_text(Context ctx, int x, int y, char *text, int len,
 	     unsigned long attr, int lattr)
 {
-    GdkGC *gc = (GdkGC *)ctx;
+    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
+    struct gui_data *inst = dctx->inst;
+    GdkGC *gc = dctx->gc;
 
     do_text_internal(ctx, x, y, text, len, attr, lattr);
 
@@ -1461,8 +1509,11 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 void do_cursor(Context ctx, int x, int y, char *text, int len,
 	       unsigned long attr, int lattr)
 {
+    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
+    struct gui_data *inst = dctx->inst;
+    GdkGC *gc = dctx->gc;
+
     int passive;
-    GdkGC *gc = (GdkGC *)ctx;
 
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
@@ -1551,7 +1602,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 		    len*inst->font_width, inst->font_height);
 }
 
-GdkCursor *make_mouse_ptr(int cursor_val)
+GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
 {
     /*
      * Truly hideous hack: GTK doesn't allow us to set the mouse
@@ -1654,7 +1705,7 @@ void modalfatalbox(char *p, ...)
     exit(1);
 }
 
-char *get_x_display(void)
+char *get_x_display(void *frontend)
 {
     return gdk_get_display();
 }
@@ -1827,6 +1878,7 @@ int main(int argc, char **argv)
 {
     extern int pty_master_fd;	       /* declared in pty.c */
     extern void pty_pre_init(void);    /* declared in pty.c */
+    struct gui_data *inst;
 
     pty_pre_init();
 
@@ -1839,8 +1891,9 @@ int main(int argc, char **argv)
 	exit(1);
 
     /*
-     * Initialise the whole instance structure to zeroes
+     * Create an instance structure and initialise to zeroes
      */
+    inst = smalloc(sizeof(*inst));
     memset(inst, 0, sizeof(*inst));
 
     inst->fonts[0] = gdk_font_load(cfg.font);
@@ -1868,14 +1921,14 @@ int main(int argc, char **argv)
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
     if (cfg.wintitle[0])
-	set_title(cfg.wintitle);
+	set_title(inst, cfg.wintitle);
     else
-	set_title("pterm");
+	set_title(inst, "pterm");
 
     /*
      * Set up the colour map.
      */
-    palette_reset();
+    palette_reset(inst);
 
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
@@ -1954,19 +2007,22 @@ int main(int argc, char **argv)
     gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(inst->window);
 
-    set_window_background();
+    set_window_background(inst);
 
-    inst->textcursor = make_mouse_ptr(GDK_XTERM);
-    inst->rawcursor = make_mouse_ptr(GDK_LEFT_PTR);
-    inst->blankcursor = make_mouse_ptr(-1);
-    make_mouse_ptr(-2);		       /* clean up cursor font */
+    inst->textcursor = make_mouse_ptr(inst, GDK_XTERM);
+    inst->rawcursor = make_mouse_ptr(inst, GDK_LEFT_PTR);
+    inst->blankcursor = make_mouse_ptr(inst, -1);
+    make_mouse_ptr(inst, -2);	       /* clean up cursor font */
     inst->currcursor = inst->textcursor;
-    show_mouseptr(1);
+    show_mouseptr(inst, 1);
 
-    inst->term = term_init();
+    inst->term = term_init(inst);
+    inst->logctx = log_init(inst);
+    term_provide_logctx(inst->term, inst->logctx);
 
     inst->back = &pty_backend;
     inst->back->init((void *)inst->term, &inst->backhandle, NULL, 0, NULL, 0);
+    inst->back->provide_logctx(inst->backhandle, inst->logctx);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
 

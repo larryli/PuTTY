@@ -42,7 +42,7 @@ static int rlogin_closing(Plug plug, char *error_msg, int error_code,
     }
     if (error_msg) {
 	/* A socket error has occurred. */
-	logevent(error_msg);
+	logevent(rlogin->frontend, error_msg);
 	connection_fatal("%s", error_msg);
     }				       /* Otherwise, the remote side closed the connection normally. */
     return 0;
@@ -124,7 +124,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
     {
 	char buf[200];
 	sprintf(buf, "Looking up host \"%.170s\"", host);
-	logevent(buf);
+	logevent(rlogin->frontend, buf);
     }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
@@ -140,7 +140,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	char buf[200], addrbuf[100];
 	sk_getaddr(addr, addrbuf, 100);
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
-	logevent(buf);
+	logevent(rlogin->frontend, buf);
     }
     rlogin->s = new_connection(addr, *realhost, port, 1, 0,
 			       nodelay, (Plug) rlogin);
@@ -255,6 +255,11 @@ static void rlogin_provide_ldisc(void *handle, void *ldisc)
     /* This is a stub. */
 }
 
+static void rlogin_provide_logctx(void *handle, void *logctx)
+{
+    /* This is a stub. */
+}
+
 static int rlogin_exitcode(void *handle)
 {
     Rlogin rlogin = (Rlogin) handle;
@@ -273,6 +278,7 @@ Backend rlogin_backend = {
     rlogin_sendok,
     rlogin_ldisc,
     rlogin_provide_ldisc,
+    rlogin_provide_logctx,
     rlogin_unthrottle,
     1
 };

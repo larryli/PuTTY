@@ -163,6 +163,10 @@ struct terminal_tag {
     void *resize_ctx;
 
     void *ldisc;
+
+    void *frontend;
+
+    void *logctx;
 };
 
 #define in_utf(term) ((term)->utf || line_codepage==CP_UTF8)

@@ -31,8 +31,8 @@ unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define BYTE unsigned char
 
 /* Things pty.c needs from pterm.c */
-char *get_x_display(void);
-int font_dimension(int which);	       /* 0 for width, 1 for height */
+char *get_x_display(void *frontend);
+int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
 
 /* Things uxstore.c needs from pterm.c */
 char *app_name;			       /* for doing resource lookups */

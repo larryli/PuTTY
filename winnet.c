@@ -833,7 +833,9 @@ void try_send(Actual_Socket s)
 		s->pending_error = err;
 		return;
 	    } else {
-		logevent(winsock_error_string(err));
+		/* We're inside the Windows frontend here, so we know
+		 * that the frontend handle is unnecessary. */
+		logevent(NULL, winsock_error_string(err));
 		fatalbox("%s", winsock_error_string(err));
 	    }
 	} else {
@@ -972,7 +974,9 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	if (ret <= 0) {
 	    char *str = (ret == 0 ? "Internal networking trouble" :
 			 winsock_error_string(WSAGetLastError()));
-	    logevent(str);
+	    /* We're inside the Windows frontend here, so we know
+	     * that the frontend handle is unnecessary. */
+	    logevent(NULL, str);
 	    fatalbox("%s", str);
 	} else {
 	    return plug_receive(s->plug, 2, buf, ret);

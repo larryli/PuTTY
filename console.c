@@ -36,7 +36,7 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-void verify_ssh_host_key(char *host, int port, char *keytype,
+void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
     int ret;
@@ -142,7 +142,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
  * below the configured 'warn' threshold).
  * cs: 0 = both ways, 1 = client->server, 2 = server->client
  */
-void askcipher(char *ciphername, int cs)
+void askcipher(void *frontend, char *ciphername, int cs)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -192,7 +192,7 @@ void askcipher(char *ciphername, int cs)
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(char *filename)
+int askappend(void *frontend, char *filename)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -240,6 +240,13 @@ int askappend(char *filename)
 
 /*
  * Warn about the obsolescent key file format.
+ * 
+ * Uniquely among these functions, this one does _not_ expect a
+ * frontend handle. This means that if PuTTY is ported to a
+ * platform which requires frontend handles, this function will be
+ * an anomaly. Fortunately, the problem it addresses will not have
+ * been present on that platform, so it can plausibly be
+ * implemented as an empty function.
  */
 void old_keyfile_warning(void)
 {
@@ -257,7 +264,7 @@ void old_keyfile_warning(void)
     fputs(message, stderr);
 }
 
-void logevent(char *string)
+void logevent(void *frontend, char *string)
 {
 }
 

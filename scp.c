@@ -260,7 +260,7 @@ void modalfatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
-void connection_fatal(char *fmt, ...)
+void connection_fatal(void *frontend, char *fmt, ...)
 {
     char str[0x100];		       /* Make the size big enough */
     va_list ap;
@@ -571,6 +571,8 @@ static void do_cmd(char *host, char *user, char *cmd)
     err = back->init(NULL, &backhandle, cfg.host, cfg.port, &realhost, 0);
     if (err != NULL)
 	bump("ssh_init: %s", err);
+    logctx = log_init(NULL);
+    back->provide_logctx(backhandle, logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL)
 	tell_user(stderr, "Connected to %s\n", realhost);

@@ -1472,7 +1472,7 @@ void modalfatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
-void connection_fatal(char *fmt, ...)
+void connection_fatal(void *frontend, char *fmt, ...)
 {
     char str[0x100];		       /* Make the size big enough */
     va_list ap;
@@ -1829,6 +1829,8 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
+    logctx = log_init(NULL);
+    back->provide_logctx(backhandle, logctx);
     ssh_sftp_init();
     if (verbose && realhost != NULL)
 	printf("Connected to %s\n", realhost);

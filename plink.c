@@ -40,7 +40,7 @@ void modalfatalbox(char *p, ...)
     WSACleanup();
     cleanup_exit(1);
 }
-void connection_fatal(char *p, ...)
+void connection_fatal(void *frontend, char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -538,6 +538,8 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
 	}
+	logctx = log_init(NULL);
+	back->provide_logctx(backhandle, logctx);
 	sfree(realhost);
     }
     connopen = 1;

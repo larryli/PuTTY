@@ -942,8 +942,6 @@ struct fxp_name *fxp_dup_name(struct fxp_name *name)
  */
 void fxp_free_name(struct fxp_name *name)
 {
-    int i;
-
     sfree(name->filename);
     sfree(name->longname);
     sfree(name);

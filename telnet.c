@@ -224,14 +224,14 @@ static void c_write1(Telnet telnet, int c)
     sk_set_frozen(telnet->s, backlog > TELNET_MAX_BACKLOG);
 }
 
-static void log_option(char *sender, int cmd, int option)
+static void log_option(Telnet telnet, char *sender, int cmd, int option)
 {
     char buf[50];
     sprintf(buf, "%s:\t%s %s", sender,
 	    (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
 	     cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<??>"),
 	    telopt(option));
-    logevent(buf);
+    logevent(telnet->frontend, buf);
 }
 
 static void send_opt(Telnet telnet, int cmd, int option)
@@ -242,7 +242,7 @@ static void send_opt(Telnet telnet, int cmd, int option)
     b[1] = cmd;
     b[2] = option;
     telnet->bufsize = sk_write(telnet->s, b, 3);
-    log_option("client", cmd, option);
+    log_option(telnet, "client", cmd, option);
 }
 
 static void deactivate_option(Telnet telnet, const struct Opt *o)
@@ -314,7 +314,7 @@ static void proc_rec_opt(Telnet telnet, int cmd, int option)
 {
     const struct Opt *const *o;
 
-    log_option("server", cmd, option);
+    log_option(telnet, "server", cmd, option);
     for (o = opts; *o; o++) {
 	if ((*o)->option == option && (*o)->ack == cmd) {
 	    switch (telnet->opt_states[(*o)->index]) {
@@ -378,11 +378,11 @@ static void process_subneg(Telnet telnet)
 	    b[n] = IAC;
 	    b[n + 1] = SE;
 	    telnet->bufsize = sk_write(telnet->s, b, n + 2);
-	    logevent("server:\tSB TSPEED SEND");
+	    logevent(telnet->frontend, "server:\tSB TSPEED SEND");
 	    sprintf(logbuf, "client:\tSB TSPEED IS %s", cfg.termspeed);
-	    logevent(logbuf);
+	    logevent(telnet->frontend, logbuf);
 	} else
-	    logevent("server:\tSB TSPEED <something weird>");
+	    logevent(telnet->frontend, "server:\tSB TSPEED <something weird>");
 	break;
       case TELOPT_TTYPE:
 	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
@@ -400,11 +400,11 @@ static void process_subneg(Telnet telnet)
 	    b[n + 5] = SE;
 	    telnet->bufsize = sk_write(telnet->s, b, n + 6);
 	    b[n + 4] = 0;
-	    logevent("server:\tSB TTYPE SEND");
+	    logevent(telnet->frontend, "server:\tSB TTYPE SEND");
 	    sprintf(logbuf, "client:\tSB TTYPE IS %s", b + 4);
-	    logevent(logbuf);
+	    logevent(telnet->frontend, logbuf);
 	} else
-	    logevent("server:\tSB TTYPE <something weird>\r\n");
+	    logevent(telnet->frontend, "server:\tSB TTYPE <something weird>\r\n");
 	break;
       case TELOPT_OLD_ENVIRON:
       case TELOPT_NEW_ENVIRON:
@@ -414,7 +414,7 @@ static void process_subneg(Telnet telnet)
 	    char logbuf[50];
 	    p++;
 	    sprintf(logbuf, "server:\tSB %s SEND", telopt(telnet->sb_opt));
-	    logevent(logbuf);
+	    logevent(telnet->frontend, logbuf);
 	    if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
 		if (cfg.rfc_environ) {
 		    value = RFC_VALUE;
@@ -477,7 +477,7 @@ static void process_subneg(Telnet telnet)
 	    telnet->bufsize = sk_write(telnet->s, b, n);
 	    sprintf(logbuf, "client:\tSB %s IS %s", telopt(telnet->sb_opt),
 		    n == 6 ? "<nothing>" : "<stuff>");
-	    logevent(logbuf);
+	    logevent(telnet->frontend, logbuf);
 	}
 	break;
     }
@@ -605,7 +605,7 @@ static int telnet_closing(Plug plug, char *error_msg, int error_code,
     }
     if (error_msg) {
 	/* A socket error has occurred. */
-	logevent(error_msg);
+	logevent(telnet->frontend, error_msg);
 	connection_fatal("%s", error_msg);
     }				       /* Otherwise, the remote side closed the connection normally. */
     return 0;
@@ -666,7 +666,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     {
 	char buf[200];
 	sprintf(buf, "Looking up host \"%.170s\"", host);
-	logevent(buf);
+	logevent(telnet->frontend, buf);
     }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
@@ -682,7 +682,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 	char buf[200], addrbuf[100];
 	sk_getaddr(addr, addrbuf, 100);
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
-	logevent(buf);
+	logevent(telnet->frontend, buf);
     }
     telnet->s = new_connection(addr, *realhost, port, 0, 1,
 			       nodelay, (Plug) telnet);
@@ -788,7 +788,7 @@ static void telnet_size(void *handle, int width, int height)
     sprintf(logbuf, "client:\tSB NAWS %d,%d",
 	    ((unsigned char) b[3] << 8) + (unsigned char) b[4],
 	    ((unsigned char) b[5] << 8) + (unsigned char) b[6]);
-    logevent(logbuf);
+    logevent(telnet->frontend, logbuf);
 }
 
 /*
@@ -916,6 +916,11 @@ static void telnet_provide_ldisc(void *handle, void *ldisc)
     telnet->ldisc = ldisc;
 }
 
+static void telnet_provide_logctx(void *handle, void *logctx)
+{
+    /* This is a stub. */
+}
+
 static int telnet_exitcode(void *handle)
 {
     Telnet telnet = (Telnet) handle;
@@ -934,6 +939,7 @@ Backend telnet_backend = {
     telnet_sendok,
     telnet_ldisc,
     telnet_provide_ldisc,
+    telnet_provide_logctx,
     telnet_unthrottle,
     23
 };

@@ -16,9 +16,12 @@
 #endif
 #endif
 
+#ifndef DONE_TYPEDEFS
+#define DONE_TYPEDEFS
 typedef struct config_tag Config;
 typedef struct backend_tag Backend;
 typedef struct terminal_tag Terminal;
+#endif
 
 #include "puttyps.h"
 #include "network.h"
@@ -187,6 +190,7 @@ struct backend_tag {
     int (*sendok) (void *handle);
     int (*ldisc) (void *handle, int);
     void (*provide_ldisc) (void *handle, void *ldisc);
+    void (*provide_logctx) (void *handle, void *logctx);
     /*
      * back->unthrottle() tells the back end that the front end
      * buffer is clearing.
@@ -388,43 +392,43 @@ struct RSAKey;			       /* be a little careful of scope */
 /*
  * Exports from window.c.
  */
-void request_resize(int, int);
+void request_resize(void *frontend, int, int);
 void do_text(Context, int, int, char *, int, unsigned long, int);
 void do_cursor(Context, int, int, char *, int, unsigned long, int);
 int CharWidth(Context ctx, int uc);
-void set_title(char *);
-void set_icon(char *);
-void set_sbar(int, int, int);
-Context get_ctx(void);
+void set_title(void *frontend, char *);
+void set_icon(void *frontend, char *);
+void set_sbar(void *frontend, int, int, int);
+Context get_ctx(void *frontend);
 void free_ctx(Context);
-void palette_set(int, int, int, int);
-void palette_reset(void);
-void write_aclip(char *, int, int);
-void write_clip(wchar_t *, int, int);
-void get_clip(wchar_t **, int *);
-void optimised_move(int, int, int);
-void set_raw_mouse_mode(int);
-Mouse_Button translate_button(Mouse_Button b);
-void connection_fatal(char *, ...);
+void palette_set(void *frontend, int, int, int, int);
+void palette_reset(void *frontend);
+void write_aclip(void *frontend, char *, int, int);
+void write_clip(void *frontend, wchar_t *, int, int);
+void get_clip(void *frontend, wchar_t **, int *);
+void optimised_move(void *frontend, int, int, int);
+void set_raw_mouse_mode(void *frontend, int);
+Mouse_Button translate_button(void *frontend, Mouse_Button b);
+void connection_fatal(void *frontend, char *, ...);
 void fatalbox(char *, ...);
 void modalfatalbox(char *, ...);
-void beep(int);
-void begin_session(void);
-void sys_cursor(int x, int y);
-void request_paste(void);
+void beep(void *frontend, int);
+void begin_session(void *frontend);
+void sys_cursor(void *frontend, int x, int y);
+void request_paste(void *frontend);
 void frontend_keypress(void *frontend);
 void ldisc_update(void *frontend, int echo, int edit);
 #define OPTIMISE_IS_SCROLL 1
 
-void set_iconic(int iconic);
-void move_window(int x, int y);
-void set_zorder(int top);
-void refresh_window(void);
-void set_zoomed(int zoomed);
-int is_iconic(void);
-void get_window_pos(int *x, int *y);
-void get_window_pixels(int *x, int *y);
-char *get_window_title(int icon);
+void set_iconic(void *frontend, int iconic);
+void move_window(void *frontend, int x, int y);
+void set_zorder(void *frontend, int top);
+void refresh_window(void *frontend);
+void set_zoomed(void *frontend, int zoomed);
+int is_iconic(void *frontend);
+void get_window_pos(void *frontend, int *x, int *y);
+void get_window_pixels(void *frontend, int *x, int *y);
+char *get_window_title(void *frontend, int icon);
 
 void cleanup_exit(int);
 
@@ -451,7 +455,7 @@ void registry_cleanup(void);
  * Exports from terminal.c.
  */
 
-Terminal *term_init(void);
+Terminal *term_init(void *frontend);
 void term_size(Terminal *, int, int, int);
 void term_out(Terminal *);
 void term_paint(Terminal *, Context, int, int, int, int);
@@ -475,16 +479,19 @@ int from_backend(void *, int is_stderr, char *data, int len);
 void term_provide_resize_fn(Terminal *term,
 			    void (*resize_fn)(void *, int, int),
 			    void *resize_ctx);
+void term_provide_logctx(Terminal *term, void *logctx);
 
 /*
  * Exports from logging.c.
  */
-void logfopen();
-void logfclose();
-void logtraffic(unsigned char c, int logmode);
+void *log_init(void *frontend);
+void logfopen(void *logctx);
+void logfclose(void *logctx);
+void logtraffic(void *logctx, unsigned char c, int logmode);
+void log_eventlog(void *logctx, char *string);
 enum { PKT_INCOMING, PKT_OUTGOING };
-void log_eventlog(char *string);
-void log_packet(int direction, int type, char *texttype, void *data, int len);
+void log_packet(void *logctx, int direction, int type,
+		char *texttype, void *data, int len);
 
 /*
  * Exports from raw.c.
@@ -591,11 +598,11 @@ int wc_unescape(char *output, const char *wildcard);
 /*
  * Exports from windlg.c
  */
-void logevent(char *);
-void verify_ssh_host_key(char *host, int port, char *keytype,
+void logevent(void *frontend, char *);
+void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint);
-void askcipher(char *ciphername, int cs);
-int askappend(char *filename);
+void askcipher(void *frontend, char *ciphername, int cs);
+int askappend(void *frontend, char *filename);
 
 /*
  * Exports from console.c (that aren't equivalents to things in

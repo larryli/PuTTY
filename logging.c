@@ -8,23 +8,27 @@
 #include "putty.h"
 
 /* log session to file stuff ... */
-static FILE *lgfp = NULL;
-static char currlogfilename[FILENAME_MAX];
+struct LogContext {
+    FILE *lgfp;
+    char currlogfilename[FILENAME_MAX];
+    void *frontend;
+};
 
 static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm);
 
 /*
  * Log session traffic.
  */
-void logtraffic(unsigned char c, int logmode)
+void logtraffic(void *handle, unsigned char c, int logmode)
 {
+    struct LogContext *ctx = (struct LogContext *)handle;
     if (cfg.logtype > 0) {
 	if (cfg.logtype == logmode) {
 	    /* deferred open file from pgm start? */
-	    if (!lgfp)
-		logfopen();
-	    if (lgfp)
-		fputc(c, lgfp);
+	    if (!ctx->lgfp)
+		logfopen(ctx);
+	    if (ctx->lgfp)
+		fputc(c, ctx->lgfp);
 	}
     }
 }
@@ -32,30 +36,33 @@ void logtraffic(unsigned char c, int logmode)
 /*
  * Log an Event Log entry (used in SSH packet logging mode).
  */
-void log_eventlog(char *event)
+void log_eventlog(void *handle, char *event)
 {
+    struct LogContext *ctx = (struct LogContext *)handle;
     if (cfg.logtype != LGTYP_PACKETS)
 	return;
-    if (!lgfp)
-	logfopen();
-    if (lgfp)
-	fprintf(lgfp, "Event Log: %s\n", event);
+    if (!ctx->lgfp)
+	logfopen(ctx);
+    if (ctx->lgfp)
+	fprintf(ctx->lgfp, "Event Log: %s\n", event);
 }
 
 /*
  * Log an SSH packet.
  */
-void log_packet(int direction, int type, char *texttype, void *data, int len)
+void log_packet(void *handle, int direction, int type,
+		char *texttype, void *data, int len)
 {
+    struct LogContext *ctx = (struct LogContext *)handle;
     int i, j;
     char dumpdata[80], smalldata[5];
 
     if (cfg.logtype != LGTYP_PACKETS)
 	return;
-    if (!lgfp)
-	logfopen();
-    if (lgfp) {
-	fprintf(lgfp, "%s packet type %d / 0x%02x (%s)\n",
+    if (!ctx->lgfp)
+	logfopen(ctx);
+    if (ctx->lgfp) {
+	fprintf(ctx->lgfp, "%s packet type %d / 0x%02x (%s)\n",
 		direction == PKT_INCOMING ? "Incoming" : "Outgoing",
 		type, type, texttype);
 	for (i = 0; i < len; i += 16) {
@@ -68,22 +75,23 @@ void log_packet(int direction, int type, char *texttype, void *data, int len)
 		dumpdata[10+1+3*16+2+j] = (isprint(c) ? c : '.');
 	    }
 	    strcpy(dumpdata + 10+1+3*16+2+j, "\n");
-	    fputs(dumpdata, lgfp);
+	    fputs(dumpdata, ctx->lgfp);
 	}
-	fflush(lgfp);
+	fflush(ctx->lgfp);
     }
 }
 
 /* open log file append/overwrite mode */
-void logfopen(void)
+void logfopen(void *handle)
 {
+    struct LogContext *ctx = (struct LogContext *)handle;
     char buf[256];
     time_t t;
     struct tm tm;
     char writemod[4];
 
     /* Prevent repeat calls */
-    if (lgfp)
+    if (ctx->lgfp)
 	return;
 
     if (!cfg.logtype)
@@ -94,29 +102,29 @@ void logfopen(void)
     tm = *localtime(&t);
 
     /* substitute special codes in file name */
-    xlatlognam(currlogfilename,cfg.logfilename,cfg.host, &tm);
+    xlatlognam(ctx->currlogfilename, cfg.logfilename,cfg.host, &tm);
 
-    lgfp = fopen(currlogfilename, "r");	/* file already present? */
-    if (lgfp) {
+    ctx->lgfp = fopen(ctx->currlogfilename, "r");  /* file already present? */
+    if (ctx->lgfp) {
 	int i;
-	fclose(lgfp);
-	i = askappend(currlogfilename);
+	fclose(ctx->lgfp);
+	i = askappend(ctx->frontend, ctx->currlogfilename);
 	if (i == 1)
 	    writemod[0] = 'a';	       /* set append mode */
 	else if (i == 0) {	       /* cancelled */
-	    lgfp = NULL;
+	    ctx->lgfp = NULL;
 	    cfg.logtype = 0;	       /* disable logging */
 	    return;
 	}
     }
 
-    lgfp = fopen(currlogfilename, writemod);
-    if (lgfp) {			       /* enter into event log */
+    ctx->lgfp = fopen(ctx->currlogfilename, writemod);
+    if (ctx->lgfp) {			       /* enter into event log */
 	/* --- write header line into log file */
-	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", lgfp);
+	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", ctx->lgfp);
 	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", &tm);
-	fputs(buf, lgfp);
-	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\r\n", lgfp);
+	fputs(buf, ctx->lgfp);
+	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\r\n", ctx->lgfp);
 
 	sprintf(buf, "%s session log (%s mode) to file: ",
 		(writemod[0] == 'a') ? "Appending" : "Writing new",
@@ -124,18 +132,27 @@ void logfopen(void)
 		 cfg.logtype == LGTYP_DEBUG ? "raw" :
 		 cfg.logtype == LGTYP_PACKETS ? "SSH packets" : "<ukwn>"));
 	/* Make sure we do not exceed the output buffer size */
-	strncat(buf, currlogfilename, 128);
+	strncat(buf, ctx->currlogfilename, 128);
 	buf[strlen(buf)] = '\0';
-	logevent(buf);
+	logevent(ctx->frontend, buf);
     }
 }
 
-void logfclose(void)
+void logfclose(void *handle)
 {
-    if (lgfp) {
-	fclose(lgfp);
-	lgfp = NULL;
+    struct LogContext *ctx = (struct LogContext *)handle;
+    if (ctx->lgfp) {
+	fclose(ctx->lgfp);
+	ctx->lgfp = NULL;
     }
+}
+
+void *log_init(void *frontend)
+{
+    struct LogContext *ctx = smalloc(sizeof(struct LogContext));
+    ctx->lgfp = NULL;
+    ctx->frontend = frontend;
+    return ctx;
 }
 
 /*

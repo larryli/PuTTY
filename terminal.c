@@ -188,7 +188,7 @@ static void power_on(Terminal *term)
 void term_update(Terminal *term)
 {
     Context ctx;
-    ctx = get_ctx();
+    ctx = get_ctx(term->frontend);
     if (ctx) {
 	int need_sbar_update = term->seen_disp_event;
 	if (term->seen_disp_event && cfg.scroll_on_disp) {
@@ -199,7 +199,7 @@ void term_update(Terminal *term)
 	if (need_sbar_update)
 	    update_sbar(term);
 	do_paint(term, ctx, TRUE);
-	sys_cursor(term->curs.x, term->curs.y - term->disptop);
+	sys_cursor(term->frontend, term->curs.x, term->curs.y - term->disptop);
 	free_ctx(ctx);
     }
 }
@@ -261,7 +261,7 @@ void term_reconfig(Terminal *term)
 	swap_screen(term, 0, FALSE, FALSE);
     if (cfg.no_mouse_rep) {
 	term->xterm_mouse = 0;
-	set_raw_mouse_mode(0);
+	set_raw_mouse_mode(term->frontend, 0);
     }
     if (cfg.no_remote_charset) {
 	term->cset_attr[0] = term->cset_attr[1] = ATTR_ASCII;
@@ -289,7 +289,7 @@ void term_clrsb(Terminal *term)
 /*
  * Initialise the terminal.
  */
-Terminal *term_init(void)
+Terminal *term_init(void *frontend)
 {
     Terminal *term;
 
@@ -298,6 +298,8 @@ Terminal *term_init(void)
      * that need it.
      */
     term = smalloc(sizeof(Terminal));
+    term->frontend = frontend;
+    term->logctx = NULL;
     term->compatibility_level = TM_PUTTY;
     strcpy(term->id_string, "\033[?6c");
     term->last_blink = term->last_tblink = 0;
@@ -558,7 +560,8 @@ static void update_sbar(Terminal *term)
 
     nscroll = count234(term->scrollback);
 
-    set_sbar(nscroll + term->rows, nscroll + term->disptop, term->rows);
+    set_sbar(term->frontend, nscroll + term->rows,
+	     nscroll + term->disptop, term->rows);
 }
 
 /*
@@ -873,7 +876,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 3:		       /* 80/132 columns */
 	    deselect(term);
 	    if (!cfg.no_remote_resize)
-		request_resize(state ? 132 : 80, term->rows);
+		request_resize(term->frontend, state ? 132 : 80, term->rows);
 	    term->reset_132 = state;
 	    break;
 	  case 5:		       /* reverse video */
@@ -932,11 +935,11 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    break;
 	  case 1000:		       /* xterm mouse 1 */
 	    term->xterm_mouse = state ? 1 : 0;
-	    set_raw_mouse_mode(state);
+	    set_raw_mouse_mode(term->frontend, state);
 	    break;
 	  case 1002:		       /* xterm mouse 2 */
 	    term->xterm_mouse = state ? 2 : 0;
-	    set_raw_mouse_mode(state);
+	    set_raw_mouse_mode(term->frontend, state);
 	    break;
 	  case 1047:                   /* alternate screen */
 	    compatibility(OTHER);
@@ -994,14 +997,14 @@ static void do_osc(Terminal *term)
 	  case 0:
 	  case 1:
 	    if (!cfg.no_remote_wintitle)
-		set_icon(term->osc_string);
+		set_icon(term->frontend, term->osc_string);
 	    if (term->esc_args[0] == 1)
 		break;
 	    /* fall through: parameter 0 means set both */
 	  case 2:
 	  case 21:
 	    if (!cfg.no_remote_wintitle)
-		set_title(term->osc_string);
+		set_title(term->frontend, term->osc_string);
 	    break;
 	}
     }
@@ -1087,8 +1090,8 @@ void term_out(Terminal *term)
 	     * Optionally log the session traffic to a file. Useful for
 	     * debugging and possibly also useful for actual logging.
 	     */
-	    if (cfg.logtype == LGTYP_DEBUG)
-		logtraffic((unsigned char) c, LGTYP_DEBUG);
+	    if (cfg.logtype == LGTYP_DEBUG && term->logctx)
+		logtraffic(term->logctx, (unsigned char) c, LGTYP_DEBUG);
 	} else {
 	    c = unget;
 	    unget = -1;
@@ -1374,7 +1377,7 @@ void term_out(Terminal *term)
 			    term->vbell_startpoint = ticks;
 			    term_update(term);
 			} else
-			    beep(cfg.beep);
+			    beep(term->frontend, cfg.beep);
 		    }
 		    term->disptop = 0;
 		}
@@ -1415,7 +1418,8 @@ void term_out(Terminal *term)
 		fix_cpos;
 		term->seen_disp_event = TRUE;
 		term->paste_hold = 0;
-		logtraffic((unsigned char) c, LGTYP_ASCII);
+		if (term->logctx)
+		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
 	      case '\014':
 		if (has_compat(SCOANSI)) {
@@ -1439,7 +1443,8 @@ void term_out(Terminal *term)
 		term->wrapnext = FALSE;
 		term->seen_disp_event = 1;
 		term->paste_hold = 0;
-		logtraffic((unsigned char) c, LGTYP_ASCII);
+		if (term->logctx)
+		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
 	      case '\t':
 		{
@@ -1487,8 +1492,9 @@ void term_out(Terminal *term)
 		    incpos(cursplus);
 		    check_selection(term, term->curs, cursplus);
 		}
-		if ((c & CSET_MASK) == ATTR_ASCII || (c & CSET_MASK) == 0)
-		    logtraffic((unsigned char) c, LGTYP_ASCII);
+		if (((c & CSET_MASK) == ATTR_ASCII || (c & CSET_MASK) == 0) &&
+		    term->logctx)
+		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		{
 		    extern int wcwidth(wchar_t ucs);
 		    int width = 0;
@@ -1632,7 +1638,7 @@ void term_out(Terminal *term)
 			ldisc_send(term->ldisc, NULL, 0, 0);
 		    if (term->reset_132) {
 			if (!cfg.no_remote_resize)
-			    request_resize(80, term->rows);
+			    request_resize(term->frontend, 80, term->rows);
 			term->reset_132 = 0;
 		    }
 		    fix_cpos;
@@ -2134,7 +2140,7 @@ void term_out(Terminal *term)
 				term->esc_args[0] >= 24)) {
 			    compatibility(VT340TEXT);
 			    if (!cfg.no_remote_resize)
-				request_resize(term->cols,
+				request_resize(term->frontend, term->cols,
 					       def(term->esc_args[0], 24));
 			    deselect(term);
 			} else if (term->esc_nargs >= 1 &&
@@ -2146,15 +2152,16 @@ void term_out(Terminal *term)
 				int x, y, len;
 				char buf[80], *p;
 			      case 1:
-				set_iconic(FALSE);
+				set_iconic(term->frontend, FALSE);
 				break;
 			      case 2:
-				set_iconic(TRUE);
+				set_iconic(term->frontend, TRUE);
 				break;
 			      case 3:
 				if (term->esc_nargs >= 3) {
 				    if (!cfg.no_remote_resize)
-					move_window(def(term->esc_args[1], 0),
+					move_window(term->frontend,
+						    def(term->esc_args[1], 0),
 						    def(term->esc_args[2], 0));
 				}
 				break;
@@ -2165,42 +2172,46 @@ void term_out(Terminal *term)
 				 * manage it. */
 				break;
 			      case 5:
-				set_zorder(TRUE);   /* move to top */
+				/* move to top */
+				set_zorder(term->frontend, TRUE);
 				break;
 			      case 6:
-				set_zorder(FALSE);  /* move to bottom */
+				/* move to bottom */
+				set_zorder(term->frontend, FALSE);
 				break;
 			      case 7:
-				refresh_window();
+				refresh_window(term->frontend);
 				break;
 			      case 8:
 				if (term->esc_nargs >= 3) {
 				    if (!cfg.no_remote_resize)
-					request_resize(def(term->esc_args[2], cfg.width),
+					request_resize(term->frontend,
+						       def(term->esc_args[2], cfg.width),
 						       def(term->esc_args[1], cfg.height));
 				}
 				break;
 			      case 9:
 				if (term->esc_nargs >= 2)
-				    set_zoomed(term->esc_args[1] ?
+				    set_zoomed(term->frontend,
+					       term->esc_args[1] ?
 					       TRUE : FALSE);
 				break;
 			      case 11:
 				if (term->ldisc)
 				    ldisc_send(term->ldisc,
-					       is_iconic() ? "\033[1t" :
-					       "\033[2t", 4, 0);
+					       is_iconic(term->frontend) ?
+					       "\033[1t" : "\033[2t", 4, 0);
 				break;
 			      case 13:
 				if (term->ldisc) {
-				    get_window_pos(&x, &y);
+				    get_window_pos(term->frontend, &x, &y);
 				    len = sprintf(buf, "\033[3;%d;%dt", x, y);
 				    ldisc_send(term->ldisc, buf, len, 0);
 				}
 				break;
 			      case 14:
 				if (term->ldisc) {
-				    get_window_pixels(&x, &y);
+				    get_window_pixels(term->frontend, &x, &y);
 				    len = sprintf(buf, "\033[4;%d;%dt", x, y);
 				    ldisc_send(term->ldisc, buf, len, 0);
 				}
@@ -2231,7 +2242,7 @@ void term_out(Terminal *term)
 				break;
 			      case 20:
 				if (term->ldisc) {
-				    p = get_window_title(TRUE);
+				    p = get_window_title(term->frontend, TRUE);
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]L", 3, 0);
 				    ldisc_send(term->ldisc, p, len, 0);
@@ -2240,7 +2251,7 @@ void term_out(Terminal *term)
 				break;
 			      case 21:
 				if (term->ldisc) {
-				    p = get_window_title(FALSE);
+				    p = get_window_title(term->frontend,FALSE);
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]l", 3, 0);
 				    ldisc_send(term->ldisc, p, len, 0);
@@ -2275,7 +2286,7 @@ void term_out(Terminal *term)
 			compatibility(VT420);
 			if (term->esc_nargs == 1 && term->esc_args[0] > 0) {
 			    if (!cfg.no_remote_resize)
-				request_resize(term->cols,
+				request_resize(term->frontend, term->cols,
 					       def(term->esc_args[0],
 						   cfg.height));
 			    deselect(term);
@@ -2289,7 +2300,8 @@ void term_out(Terminal *term)
 			compatibility(VT340TEXT);
 			if (term->esc_nargs <= 1) {
 			    if (!cfg.no_remote_resize)
-				request_resize(def(term->esc_args[0],
+				request_resize(term->frontend,
+					       def(term->esc_args[0],
 						   cfg.width), term->rows);
 			    deselect(term);
 			}
@@ -2441,7 +2453,7 @@ void term_out(Terminal *term)
 		    term->osc_strlen = 0;
 		    break;
 		  case 'R':	       /* Linux palette reset */
-		    palette_reset();
+		    palette_reset(term->frontend);
 		    term_invalidate(term);
 		    term->termstate = TOPLEVEL;
 		    break;
@@ -2520,7 +2532,7 @@ void term_out(Terminal *term)
 		    }
 		    term->osc_string[term->osc_strlen++] = val;
 		    if (term->osc_strlen >= 7) {
-			palette_set(term->osc_string[0],
+			palette_set(term->frontend, term->osc_string[0],
 				    term->osc_string[1] * 16 + term->osc_string[2],
 				    term->osc_string[3] * 16 + term->osc_string[4],
 				    term->osc_string[5] * 16 + term->osc_string[6]);
@@ -3286,7 +3298,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
     wblen++;
     *wbptr++ = 0;
 #endif
-    write_clip(workbuf, wblen, FALSE); /* transfer to clipboard */
+    write_clip(term->frontend, workbuf, wblen, FALSE); /* transfer to clipbd */
     if (buflen > 0)		       /* indicates we allocated this buffer */
 	sfree(workbuf);
 }
@@ -3515,7 +3527,7 @@ void term_do_paste(Terminal *term)
     wchar_t *data;
     int len;
 
-    get_clip(&data, &len);
+    get_clip(term->frontend, &data, &len);
     if (data && len > 0) {
         wchar_t *p, *q;
 
@@ -3558,7 +3570,7 @@ void term_do_paste(Terminal *term)
             term->paste_pos = term->paste_hold = term->paste_len = 0;
         }
     }
-    get_clip(NULL, NULL);
+    get_clip(term->frontend, NULL, NULL);
 }
 
 void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
@@ -3651,7 +3663,7 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 	return;
     }
 
-    b = translate_button(b);
+    b = translate_button(term->frontend, b);
 
     /*
      * Set the selection type (rectangular or normal) at the start
@@ -3762,7 +3774,7 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 		   || a == MA_2CLK || a == MA_3CLK
 #endif
 		   )) {
-	request_paste();
+	request_paste(term->frontend);
     }
 
     term_update(term);
@@ -3870,4 +3882,9 @@ int from_backend(void *vterm, int is_stderr, char *data, int len)
      * In practice, I can't imagine this causing serious trouble.
      */
     return 0;
+}
+
+void term_provide_logctx(Terminal *term, void *logctx)
+{
+    term->logctx = logctx;
 }

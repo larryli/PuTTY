@@ -140,7 +140,7 @@ static int CALLBACK LogProc(HWND hwnd, UINT msg,
 			    memcpy(p, sel_nl, sizeof(sel_nl));
 			    p += sizeof(sel_nl);
 			}
-			write_aclip(clipdata, size, TRUE);
+			write_aclip(NULL, clipdata, size, TRUE);
 			sfree(clipdata);
 		    }
 		    sfree(selitems);
@@ -3749,12 +3749,12 @@ int do_reconfig(HWND hwnd)
     return ret;
 }
 
-void logevent(char *string)
+void logevent(void *frontend, char *string)
 {
     char timebuf[40];
     time_t t;
 
-    log_eventlog(string);
+    log_eventlog(logctx, string);
 
     if (nevents >= negsize) {
 	negsize += 64;
@@ -3793,7 +3793,7 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
-void verify_ssh_host_key(char *host, int port, char *keytype,
+void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
     int ret;
@@ -3869,7 +3869,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
  * below the configured 'warn' threshold).
  * cs: 0 = both ways, 1 = client->server, 2 = server->client
  */
-void askcipher(char *ciphername, int cs)
+void askcipher(void *frontend, char *ciphername, int cs)
 {
     static const char mbtitle[] = "PuTTY Security Alert";
     static const char msg[] =
@@ -3898,7 +3898,7 @@ void askcipher(char *ciphername, int cs)
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(char *filename)
+int askappend(void *frontend, char *filename)
 {
     static const char mbtitle[] = "PuTTY Log to File";
     static const char msgtemplate[] =
@@ -3927,6 +3927,13 @@ int askappend(char *filename)
 
 /*
  * Warn about the obsolescent key file format.
+ * 
+ * Uniquely among these functions, this one does _not_ expect a
+ * frontend handle. This means that if PuTTY is ported to a
+ * platform which requires frontend handles, this function will be
+ * an anomaly. Fortunately, the problem it addresses will not have
+ * been present on that platform, so it can plausibly be
+ * implemented as an empty function.
  */
 void old_keyfile_warning(void)
 {
