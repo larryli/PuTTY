@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.11 2003/01/18 20:09:21 ben Exp $ */
+/* $Id: macstore.c,v 1.12 2003/01/21 00:27:24 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -99,7 +99,6 @@ static OSErr copy_resource(ResType restype, short resid)
     Handle h;
     Str255 resname;
 
-    fprintf(stderr, "getting resource %x, id %d\n", restype, resid);
     h = GetResource(restype, resid);
     if (h != NULL) {
 	GetResInfo(h, &resid, &restype, resname);
@@ -108,7 +107,6 @@ static OSErr copy_resource(ResType restype, short resid)
 	if (ResError() == noErr)
 	    WriteResource(h);
     }
-    fprintf(stderr, "ResError() == %d\n", ResError());
     return ResError();
 }
 
