@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.34 2003/04/14 21:34:46 ben Exp $ */
+/* $Id: macctrls.c,v 1.35 2003/04/14 22:42:44 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -27,6 +27,7 @@
 
 #include <MacTypes.h>
 #include <Appearance.h>
+#include <ColorPicker.h>
 #include <Controls.h>
 #include <ControlDefinitions.h>
 #include <Events.h>
@@ -1946,14 +1947,31 @@ void printer_finish_enum(printer_enum *pe)
 void dlg_coloursel_start(union control *ctrl, void *dlg,
 			 int r, int g, int b)
 {
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    Point where = {-1, -1}; /* Screen with greatest colour depth */
+    RGBColor incolour;
 
+    incolour.red = r * 0x0101;
+    incolour.green = g * 0x0101;
+    incolour.blue = b * 0x0101;
+    mcs->gotcolour = GetColor(where, "\pModify Colour:", &incolour,
+			      &mcs->thecolour);
+    ctrlevent(mcs, mc, EVENT_CALLBACK);
 }
 
 int dlg_coloursel_results(union control *ctrl, void *dlg,
 			  int *r, int *g, int *b)
 {
+    struct macctrls *mcs = dlg;
 
-    return 0;
+    if (mcs->gotcolour) {
+	*r = mcs->thecolour.red >> 8;
+	*g = mcs->thecolour.green >> 8;
+	*b = mcs->thecolour.blue >> 8;
+	return 1;
+    } else
+	return 0;
 }
 
 /*
