@@ -339,6 +339,7 @@ static void usage(void)
     printf("PuTTY Link: command-line connection utility\n");
     printf("%s\n", ver);
     printf("Usage: plink [options] [user@]host [command]\n");
+    printf("       (\"host\" can also be a PuTTY saved session name)\n");
     printf("Options:\n");
     printf("  -v        show verbose messages\n");
     printf("  -ssh      force use of ssh protocol\n");
