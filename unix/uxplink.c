@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 	error = back->init(NULL, &backhandle, cfg.host, cfg.port,
 			   &realhost, nodelay);
 	if (error) {
-	    fprintf(stderr, "Unable to open connection:\n%s", error);
+	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
 	    return 1;
 	}
 	logctx = log_init(NULL);
