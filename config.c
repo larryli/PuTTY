@@ -362,6 +362,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		    dlg_end(dlg, 1);
 		} else
 		    dlg_beep(dlg);
+                return;
 	    }
 
 	    /*
