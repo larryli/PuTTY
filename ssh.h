@@ -21,7 +21,7 @@ void rsastr_fmt(char *str, struct RSAKey *key);
 typedef unsigned int word32;
 typedef unsigned int uint32;
 
-unsigned long crc32(const unsigned char *s, unsigned int len);
+unsigned long crc32(const void *s, size_t len);
 
 struct MD5Context {
         uint32 buf[4];

@@ -261,7 +261,7 @@ BEGIN
     DEFPUSHBUTTON "OK", IDOK, 98, 211, 44, 14
 
     LTEXT "Copyright \251 1997-9 Simon Tatham", 1000, 10, 10, 206, 8
-    LTEXT "Portions copyright Gary S. Brown and Eric Young", 1100, 10, 18, 206, 8
+    LTEXT "Portions copyright Eric Young", 1100, 10, 18, 206, 8
 
     LTEXT "Permission is hereby granted, free of charge, to any person", 1002, 10, 34, 206, 8
     LTEXT "obtaining a copy of this software and associated documentation", 1003, 10, 42, 206, 8
