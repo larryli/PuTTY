@@ -2,6 +2,7 @@
 #define PUTTY_WIN_RES_H
 
 #define IDI_MAINICON     200
+#define IDI_CFGICON      201
 
 #define IDD_MAINBOX      102
 #define IDD_LOGBOX       110

@@ -1215,6 +1215,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
       case WM_INITDIALOG:
 	readytogo = 0;
 	SetWindowLong(hwnd, GWL_USERDATA, 0);
+	SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
+		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
 	/*
 	 * Centre the window.
 	 */
