@@ -76,12 +76,12 @@
  *
  *  - Compile with no special #defines. Will generate a table
  *    that's already initialised at compile time, and one function
- *    crc32(buf,len) that uses it. Normal usage.
+ *    crc32_compute(buf,len) that uses it. Normal usage.
  *
  *  - Compile with INITFUNC defined. Will generate an uninitialised
- *    array as the table, and as well as crc32(buf,len) it will
- *    also generate void crc32_init(void) which sets up the table
- *    at run time. Useful if binary size is important.
+ *    array as the table, and as well as crc32_compute(buf,len) it
+ *    will also generate void crc32_init(void) which sets up the
+ *    table at run time. Useful if binary size is important.
  *
  *  - Compile with GENPROGRAM defined. Will create a standalone
  *    program that does the initialisation and outputs the table as
@@ -224,7 +224,7 @@ unsigned long crc32_update(unsigned long crcword, const void *buf, size_t len)
     return crcword;
 }
 
-unsigned long crc32(const void *buf, size_t len)
+unsigned long crc32_compute(const void *buf, size_t len)
 {
     return crc32_update(0L, buf, len);
 }

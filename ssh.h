@@ -73,7 +73,7 @@ void freersakey(struct RSAKey *key);
 typedef unsigned int word32;
 typedef unsigned int uint32;
 
-unsigned long crc32(const void *s, size_t len);
+unsigned long crc32_compute(const void *s, size_t len);
 unsigned long crc32_update(unsigned long crc_input, const void *s, size_t len);
 
 /* SSH CRC compensation attack detector */

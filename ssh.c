@@ -856,7 +856,7 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     if (ssh->cipher)
 	ssh->cipher->decrypt(ssh->v1_cipher_ctx, ssh->pktin.data, st->biglen);
 
-    st->realcrc = crc32(ssh->pktin.data, st->biglen - 4);
+    st->realcrc = crc32_compute(ssh->pktin.data, st->biglen - 4);
     st->gotcrc = GET_32BIT(ssh->pktin.data + st->biglen - 4);
     if (st->gotcrc != st->realcrc) {
 	bombout(("Incorrect CRC received on packet"));
@@ -1244,7 +1244,7 @@ static int s_wrpkt_prepare(Ssh ssh)
 
     for (i = 0; i < pad; i++)
 	ssh->pktout.data[i + 4] = random_byte();
-    crc = crc32(ssh->pktout.data + 4, biglen - 4);
+    crc = crc32_compute(ssh->pktout.data + 4, biglen - 4);
     PUT_32BIT(ssh->pktout.data + biglen, crc);
     PUT_32BIT(ssh->pktout.data, len);
 
