@@ -78,7 +78,7 @@
 #define WHEEL_DELTA 120
 #endif
 
-static Mouse_Button translate_button(void *frontend, Mouse_Button button);
+static Mouse_Button translate_button(Mouse_Button button);
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			unsigned char *output);
@@ -1584,7 +1584,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
  * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
  * into a cooked one (SELECT, EXTEND, PASTE).
  */
-static Mouse_Button translate_button(void *frontend, Mouse_Button button)
+static Mouse_Button translate_button(Mouse_Button button)
 {
     if (button == MBT_LEFT)
 	return MBT_SELECT;
