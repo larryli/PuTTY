@@ -540,18 +540,24 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
 
 /*
  * Read an ssh1-format bignum from a data buffer. Return the number
- * of bytes consumed.
+ * of bytes consumed, or -1 if there wasn't enough data.
  */
-int ssh1_read_bignum(const unsigned char *data, Bignum * result)
+int ssh1_read_bignum(const unsigned char *data, int len, Bignum * result)
 {
     const unsigned char *p = data;
     int i;
     int w, b;
 
+    if (len < 2)
+	return -1;
+
     w = 0;
     for (i = 0; i < 2; i++)
 	w = (w << 8) + *p++;
     b = (w + 7) / 8;		       /* bits -> bytes */
+
+    if (len < b+2)
+	return -1;
 
     if (!result)		       /* just return length */
 	return b + 2;

@@ -55,10 +55,10 @@ struct dss_key {
     Bignum p, q, g, y, x;
 };
 
-int makekey(unsigned char *data, struct RSAKey *result,
+int makekey(unsigned char *data, int len, struct RSAKey *result,
 	    unsigned char **keystr, int order);
-int makeprivate(unsigned char *data, struct RSAKey *result);
-void rsaencrypt(unsigned char *data, int length, struct RSAKey *key);
+int makeprivate(unsigned char *data, int len, struct RSAKey *result);
+int rsaencrypt(unsigned char *data, int length, struct RSAKey *key);
 Bignum rsadecrypt(Bignum input, struct RSAKey *key);
 void rsasign(unsigned char *data, int length, struct RSAKey *key);
 void rsasanitise(struct RSAKey *key);
@@ -67,7 +67,7 @@ void rsastr_fmt(char *str, struct RSAKey *key);
 void rsa_fingerprint(char *str, int len, struct RSAKey *key);
 int rsa_verify(struct RSAKey *key);
 unsigned char *rsa_public_blob(struct RSAKey *key, int *len);
-int rsa_public_blob_len(void *data);
+int rsa_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
 typedef unsigned int word32;
@@ -301,7 +301,7 @@ Bignum modmul(Bignum a, Bignum b, Bignum mod);
 void decbn(Bignum n);
 extern Bignum Zero, One;
 Bignum bignum_from_bytes(const unsigned char *data, int nbytes);
-int ssh1_read_bignum(const unsigned char *data, Bignum * result);
+int ssh1_read_bignum(const unsigned char *data, int len, Bignum * result);
 int bignum_bitcount(Bignum bn);
 int ssh1_bignum_length(Bignum bn);
 int ssh2_bignum_length(Bignum bn);
