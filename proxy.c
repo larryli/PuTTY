@@ -314,7 +314,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 		      int port, int privport,
 		      int oobinline, int nodelay, Plug plug)
 {
-    static struct socket_function_table socket_fn_table = {
+    static const struct socket_function_table socket_fn_table = {
 	sk_proxy_plug,
 	sk_proxy_close,
 	sk_proxy_write,
@@ -326,7 +326,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	sk_proxy_socket_error
     };
 
-    static struct plug_function_table plug_fn_table = {
+    static const struct plug_function_table plug_fn_table = {
 	plug_proxy_closing,
 	plug_proxy_receive,
 	plug_proxy_sent,
