@@ -1569,9 +1569,13 @@ int main(int argc, char **argv)
 	inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     }
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+    if (cfg.scrollbar) {
+	if (cfg.scrollbar_on_left)
+	    gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
+	else
+	    gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
+    }
     gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
-    if (cfg.scrollbar)
-	gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
