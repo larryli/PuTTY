@@ -1029,7 +1029,7 @@ Partly, because we don't want to move the web site location (see
 Also, security reasons. PuTTY is a security product, and as such it
 is particularly important to guard the code and the web site against
 unauthorised modifications which might introduce subtle security
-flaws. Therefore, we prefer that the CVS repository, web site and
+flaws. Therefore, we prefer that the Subversion repository, web site and
 FTP site remain where they are, under the direct control of system
 administrators we know and trust personally, rather than being run
 by a large organisation full of people we've never met and which is
