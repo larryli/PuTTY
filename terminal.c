@@ -4577,7 +4577,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	  case PK_RIGHT: xkey = 'C'; break;
 	  case PK_LEFT:  xkey = 'D'; break;
 	  case PK_REST:  xkey = 'G'; break; /* centre key on number pad */
-	  default: break; /* else gcc warns `enum value not used' */
+	  default: xkey = 0; break; /* else gcc warns `enum value not used' */
 	}
 	if (term->vt52_mode)
 	    p += sprintf((char *) p, "\x1B%c", xkey);
