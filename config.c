@@ -919,13 +919,13 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_editbox(s, "... in this many seconds", 't', 20,
 		 HELPCTX(bell_overload),
 		 dlg_stdeditbox_handler, I(offsetof(Config,bellovl_t)),
-		 I(-1000));
+		 I(-TICKSPERSEC));
     ctrl_text(s, "The bell is re-enabled after a few seconds of silence.",
 	      HELPCTX(bell_overload));
     ctrl_editbox(s, "Seconds of silence required", 's', 20,
 		 HELPCTX(bell_overload),
 		 dlg_stdeditbox_handler, I(offsetof(Config,bellovl_s)),
-		 I(-1000));
+		 I(-TICKSPERSEC));
 
     /*
      * The Terminal/Features panel.
