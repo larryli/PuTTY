@@ -342,7 +342,7 @@ char *get_window_title(void *frontend, int icon)
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    if (inst->cfg.warn_on_close) {
+    if (!inst->exited && inst->cfg.warn_on_close) {
 	if (!reallyclose(inst))
 	    return TRUE;
     }

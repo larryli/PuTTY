@@ -623,20 +623,22 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     return NULL;
 }
 
-/*
- * Stub routine (we don't have any need to reconfigure this backend).
- */
 static void pty_reconfig(void *handle, Config *cfg)
 {
+    /*
+     * We don't have much need to reconfigure this backend, but
+     * unfortunately we do need to pick up the setting of Close On
+     * Exit so we know whether to give a `terminated' message.
+     */
+    pty_cfg = *cfg;		       /* structure copy */
 }
 
 /*
- * Stub routine (never called in pterm
+ * Stub routine (never called in pterm).
  */
 static void pty_free(void *handle)
 {
 }
-
 
 /*
  * Called to send data down the pty.
