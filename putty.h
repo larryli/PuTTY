@@ -196,6 +196,7 @@ typedef struct {
     int fontcharset;
     char logfilename[FILENAME_MAX];
     int logtype;
+    int hide_mouseptr;
     /* Colour options */
     int try_palette;
     int bold_colour;

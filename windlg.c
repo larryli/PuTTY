@@ -275,6 +275,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1,
     IDC_BOX_APPEARANCE2, IDC_BOXT_APPEARANCE2,
     IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3,
+    IDC_BOX_APPEARANCE4, IDC_BOXT_APPEARANCE4,
     IDC_CURSORSTATIC,
     IDC_CURBLOCK,
     IDC_CURUNDER,
@@ -285,6 +286,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_WINTITLE,
     IDC_WINEDIT,
     IDC_WINNAME,
+    IDC_HIDEMOUSE,
     appearancepanelend,
 
     connectionpanelstart,
@@ -496,6 +498,7 @@ static void init_dlg_ctrls(HWND hwnd) {
 
     SetDlgItemText (hwnd, IDC_WINEDIT, cfg.wintitle);
     CheckDlgButton (hwnd, IDC_WINNAME, cfg.win_name_always);
+    CheckDlgButton (hwnd, IDC_HIDEMOUSE, cfg.hide_mouseptr);
     CheckRadioButton (hwnd, IDC_CURBLOCK, IDC_CURVERT,
 		      cfg.cursor_type==0 ? IDC_CURBLOCK :
 		      cfg.cursor_type==1 ? IDC_CURUNDER : IDC_CURVERT);
@@ -891,6 +894,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                       "Window &title:", IDC_WINTITLE,
                       IDC_WINEDIT, 100, NULL);
 	    checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
+            endbox(&cp);
+            beginbox(&cp, "Adjust the use of the mouse pointer",
+                     IDC_BOX_APPEARANCE4, IDC_BOXT_APPEARANCE4);
+	    checkbox(&cp, "Hide mouse &pointer when typing in window",
+                     IDC_HIDEMOUSE);
             endbox(&cp);
 
             treeview_insert(&tvfaff, 1, "Appearance");
@@ -1501,6 +1509,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.win_name_always = IsDlgButtonChecked (hwnd, IDC_WINNAME);
+	    break;
+	  case IDC_HIDEMOUSE:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.hide_mouseptr = IsDlgButtonChecked (hwnd, IDC_HIDEMOUSE);
 	    break;
 	  case IDC_CURBLOCK:
 	    if (HIWORD(wParam) == BN_CLICKED ||

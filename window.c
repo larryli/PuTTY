@@ -1054,6 +1054,17 @@ static void click (Mouse_Button b, int x, int y) {
     lasttime = thistime;
 }
 
+static void show_mouseptr(int show) {
+    static int cursor_visible = 1;
+    if (!cfg.hide_mouseptr)            /* override if this feature disabled */
+        show = 1;
+    if (cursor_visible && !show)
+        ShowCursor(FALSE);
+    else if (!cursor_visible && show)
+        ShowCursor(TRUE);
+    cursor_visible = show;
+}
+
 static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                                  WPARAM wParam, LPARAM lParam) {
     HDC hdc;
@@ -1087,6 +1098,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
       case WM_CREATE:
 	break;
       case WM_CLOSE:
+        show_mouseptr(1);
 	if (!cfg.warn_on_close || session_closed ||
 	    MessageBox(hwnd, "Are you sure you want to close this session?",
 		       "PuTTY Exit Confirmation",
@@ -1094,6 +1106,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    DestroyWindow(hwnd);
 	return 0;
       case WM_DESTROY:
+        show_mouseptr(1);
 	PostQuitMessage (0);
 	return 0;
       case WM_SYSCOMMAND:
@@ -1329,40 +1342,47 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 #define TO_CHR_Y(y) (((y)<0 ? (y)-font_height+1: (y)) / font_height)
 
       case WM_LBUTTONDOWN:
+        show_mouseptr(1);
 	click (MB_SELECT, TO_CHR_X(X_POS(lParam)),
 	       TO_CHR_Y(Y_POS(lParam)));
         SetCapture(hwnd);
 	return 0;
       case WM_LBUTTONUP:
+        show_mouseptr(1);
 	term_mouse (MB_SELECT, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 		    TO_CHR_Y(Y_POS(lParam)));
         ReleaseCapture();
 	return 0;
       case WM_MBUTTONDOWN:
+        show_mouseptr(1);
         SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
 	       TO_CHR_X(X_POS(lParam)),
 	       TO_CHR_Y(Y_POS(lParam)));
 	return 0;
       case WM_MBUTTONUP:
+        show_mouseptr(1);
 	term_mouse (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
 		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 		    TO_CHR_Y(Y_POS(lParam)));
         ReleaseCapture();
 	return 0;
       case WM_RBUTTONDOWN:
+        show_mouseptr(1);
         SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
 	       TO_CHR_X(X_POS(lParam)),
 	       TO_CHR_Y(Y_POS(lParam)));
 	return 0;
       case WM_RBUTTONUP:
+        show_mouseptr(1);
 	term_mouse (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
 		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 		    TO_CHR_Y(Y_POS(lParam)));
         ReleaseCapture();
 	return 0;
       case WM_MOUSEMOVE:
+        show_mouseptr(1);
 	/*
 	 * Add the mouse position and message time to the random
 	 * number noise.
@@ -1428,6 +1448,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	term_update();
 	break;
       case WM_KILLFOCUS:
+        show_mouseptr(1);
 	has_focus = FALSE;
         DestroyCaret();
 	term_out();
@@ -1594,6 +1615,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		if (len == -1)
 		    return DefWindowProc (hwnd, message, wParam, lParam);
 		ldisc->send (buf, len);
+
+                if (len > 0)
+                    show_mouseptr(0);
 	    }
 	}
 	return 0;
