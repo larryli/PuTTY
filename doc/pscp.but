@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.3 2001/01/27 17:49:18 owen Exp $
+\versionid $Id: pscp.but,v 1.4 2001/01/28 14:27:08 owen Exp $
 
 \#FIXME: Need examples, index entries, links
 
@@ -102,6 +102,12 @@ these statistics.
 
 \S2{pscp-usage-options-r}\c{-r} copies directories recursively
 
+By default, PSCP will only copy files.  Any directories you specify to
+copy will be skipped, as will their contents.  The \c{-r} option tells
+PSCP to descend into any directories you specify, and to copy them and 
+their contents.  This allows you to use PSCP to transfer whole
+directory structures between machines.
+
 \S2{pscp-usage-options-v}\c{-v} show verbose messages
 
 The \c{-v} option to PSCP makes it print extra information about the
@@ -121,25 +127,24 @@ This information may be useful for debugging problems with PSCP.
 \S2{pscp-usage-options-P}\c{-P port} connect to specified port
 
 If the \c{host} you specify is a saved session, PSCP uses any port
-number specified in that saved session.  If not, PSCP uses the port
-specified for SSH in \e{Default Settings}, or the default SSH port,
-22. \#{Is this actually true?  Can you actually specify a different
-default port for a protocol in Default Settings?}
+number specified in that saved session.  If not, PSCP uses the default
+SSH port, 22.  The \c{-P} option allows you specify the port number to 
+connect to for PSCP's SSH connection.
 
 \S2{pscp-usage-options-pw}\c{-pw passw} login with specified password
 
 If a password is required to connect to the \c{host}, PSCP will
 interactively prompt you for it.  However, this may not always be
 appropriate.  If you are running PSCP as part of some automated job,
-it will not be possible to enter a password by hand.  The \c{-p}
+it will not be possible to enter a password by hand.  The \c{-pw}
 option to PSCP lets you specify the password to use on the command
 line.
 
 Since specifying passwords in scripts is a bad idea for security
 reasons, you might want instead to consider using public-key
-authentication.  PSCP will attempt to authenticate with any public key
-specified in a saved session's configuration before asking for a
-password.
+authentication (see \k{pubkey}).  PSCP will attempt to authenticate
+with any public key specified in a saved session's configuration
+before asking for a password.
 
 \H{pscp-ixplorer} Secure iXplorer
 
