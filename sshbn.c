@@ -814,7 +814,7 @@ unsigned short bignum_mod_short(Bignum number, unsigned short modulus)
     r = 0;
     mod = modulus;
     for (i = number[0]; i > 0; i--)
-	r = (r * 65536 + number[i]) % mod;
+	r = (r * (BIGNUM_TOP_BIT % mod) * 2 + number[i] % mod) % mod;
     return (unsigned short) r;
 }
 
