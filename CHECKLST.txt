@@ -65,7 +65,8 @@ orders them correctly with respect to releases):
 
  - putty/LATEST.VER
 
-The Windows installer script (_three_ times, on consecutive lines):
+The Windows installer script (_three_ times, on consecutive lines,
+and again in a subsequent comment):
 
  - putty/windows/putty.iss
 

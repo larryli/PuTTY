@@ -2,7 +2,7 @@
  * Current PuTTY version number.  Minor is in BCD
  */
 #define VERSION_MAJOR 0x00
-#define VERSION_MINOR 0x57
+#define VERSION_MINOR 0x58
 
 resource 'vers' (1, purgeable) {
 #ifdef RELEASE

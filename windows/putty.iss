@@ -15,12 +15,12 @@
 
 [Setup]
 AppName=PuTTY
-AppVerName=PuTTY version 0.57
-VersionInfoTextVersion=Release 0.57
-AppVersion=0.57
+AppVerName=PuTTY version 0.58
+VersionInfoTextVersion=Release 0.58
+AppVersion=0.58
 ;FIXME -- enable this when we've got it going for individual EXEs too
 ;         and are committed to the version numbering scheme.
-;VersionInfoVersion=0.57.0.0
+;VersionInfoVersion=0.58.0.0
 AppPublisher=Simon Tatham
 AppPublisherURL=http://www.chiark.greenend.org.uk/~sgtatham/putty/
 AppReadmeFile={app}\README.txt

@@ -12,13 +12,11 @@ accurate idea of what each signature guarantees.
 This description is provided as both a web page on the PuTTY site, and
 an appendix in the PuTTY manual.
 
-As of the next release, all of the PuTTY executables will contain
-\#{XXX-REMOVE-BEFORE-RELEASE: fix this up for forthcoming release
-As of release 0.58, all of the PuTTY executables contain}
-fingerprint material (usually accessed via the \i\c{-pgpfp}
-command-line option), such that if you have an executable you trust,
-you can use it to establish a trust path, for instance to a newer
-version downloaded from the Internet.
+As of release 0.58, all of the PuTTY executables contain fingerprint
+material (usually accessed via the \i\c{-pgpfp} command-line
+option), such that if you have an executable you trust, you can use
+it to establish a trust path, for instance to a newer version
+downloaded from the Internet.
 
 (Note that none of the keys, signatures, etc mentioned here have
 anything to do with keys used with SSH - they are purely for verifying
