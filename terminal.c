@@ -104,6 +104,8 @@ static int blink_is_real;	       /* Actually blink blinking text */
 static int term_echoing;               /* Does terminal want local echo? */
 static int term_editing;               /* Does terminal want local edit? */
 
+static int xterm_mouse;		/* send mouse messages to app */
+
 static unsigned long cset_attr[2];
 
 /*
@@ -725,6 +727,7 @@ static void insch (int n) {
  */
 static void toggle_mode (int mode, int query, int state) {
     long ticks;
+
     if (query) switch (mode) {
       case 1:			       /* application cursor keys */
 	app_cursor_keys = state;
@@ -781,6 +784,14 @@ static void toggle_mode (int mode, int query, int state) {
 	deselect();
 	swap_screen (state);
 	disptop = 0;
+	break;
+      case 1000:		       /* xterm mouse 1 */
+	xterm_mouse = state ? 1 : 0;
+	set_raw_mouse_mode(state);
+	break;
+      case 1002:		       /* xterm mouse 2 */
+	xterm_mouse = state ? 2: 0;
+	set_raw_mouse_mode(state);
 	break;
     } else switch (mode) {
       case 4:			       /* set insert mode */
@@ -1259,6 +1270,12 @@ void term_out(void) {
 		break;
 	      case 'a':      /* move right N cols */
 	        compatibility(ANSI);
+	      case ANSI('c', '>'):	/* report xterm version */
+		compatibility(OTHER);
+		/* this reports xterm version 136 so that VIM can
+		 use the drag messages from the mouse reporting */
+		ldisc_send("\033[>0;136;0c", 11);
+		break;
 	      case 'C':
 		move (curs.x + def(esc_args[0], 1), curs.y, 1);
 		seen_disp_event = TRUE;
@@ -2238,7 +2255,8 @@ static void sel_spread (void) {
     incpos(selend);
 }
 
-void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
+void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y,
+		 int shift, int ctrl) {
     pos selpoint;
     unsigned long *ldata;
     
@@ -2259,12 +2277,64 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
     if ((ldata[cols]&LATTR_MODE) != LATTR_NORM)
 	selpoint.x /= 2;
 
-    if (b == MB_SELECT && a == MA_CLICK) {
+    if (xterm_mouse) {
+	int encstate = 0, r, c;
+	char abuf[16];
+	static int is_down = 0;
+
+	switch(b) {
+	  case MBT_LEFT:
+	    encstate = 0x20;	/* left button down */
+	    break;
+	  case MBT_MIDDLE:
+	    encstate = 0x21;
+	    break;
+	  case MBT_RIGHT:
+	    encstate = 0x22;
+	    break;
+	  case MBT_WHEEL_UP:
+	    encstate = 0x60;
+	    break;
+	  case MBT_WHEEL_DOWN:
+	    encstate = 0x61;
+	    break;
+	}
+	switch(a) {
+	  case MA_DRAG:
+	    if (xterm_mouse == 1)
+		return;
+	    encstate += 0x20;
+	    break;
+	  case MA_RELEASE:
+	    encstate = 0x23;
+	    is_down = 0;
+	    break;
+	  case MA_CLICK:
+	    if (is_down == b)
+		return;
+	    is_down = b;
+	    break;
+	}
+	if (shift)
+	    encstate += 0x04;
+	if (ctrl)
+	    encstate += 0x10;
+	r = y + 33;
+	c = x + 33;
+
+	sprintf(abuf, "\033[M%c%c%c", encstate, c, r);
+	ldisc_send(abuf, 6);
+	return;
+    }
+
+    b = translate_button(b);
+
+    if (b == MBT_SELECT && a == MA_CLICK) {
 	deselect();
 	selstate = ABOUT_TO;
 	selanchor = selpoint;
 	selmode = SM_CHAR;
-    } else if (b == MB_SELECT && (a == MA_2CLK || a == MA_3CLK)) {
+    } else if (b == MBT_SELECT && (a == MA_2CLK || a == MA_3CLK)) {
 	deselect();
 	selmode = (a == MA_2CLK ? SM_WORD : SM_LINE);
 	selstate = DRAGGING;
@@ -2272,11 +2342,11 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 	selend = selstart;
 	incpos(selend);
 	sel_spread();
-    } else if ((b == MB_SELECT && a == MA_DRAG) ||
-	       (b == MB_EXTEND && a != MA_RELEASE)) {
+    } else if ((b == MBT_SELECT && a == MA_DRAG) ||
+	       (b == MBT_EXTEND && a != MA_RELEASE)) {
 	if (selstate == ABOUT_TO && poseq(selanchor, selpoint))
 	    return;
-	if (b == MB_EXTEND && a != MA_DRAG && selstate == SELECTED) {
+	if (b == MBT_EXTEND && a != MA_DRAG && selstate == SELECTED) {
 	    if (posdiff(selpoint,selstart) < posdiff(selend,selstart)/2) {
 		selanchor = selend;
 		decpos(selanchor);
@@ -2298,7 +2368,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 	    incpos(selend);
 	}
 	sel_spread();
-    } else if ((b == MB_SELECT || b == MB_EXTEND) && a == MA_RELEASE) {
+    } else if ((b == MBT_SELECT || b == MBT_EXTEND) && a == MA_RELEASE) {
 	if (selstate == DRAGGING) {
 	    /*
 	     * We've completed a selection. We now transfer the
@@ -2308,7 +2378,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 	    selstate = SELECTED;
 	} else
 	    selstate = NO_SELECTION;
-    } else if (b == MB_PASTE && (a==MA_CLICK || a==MA_2CLK || a==MA_3CLK)) {
+    } else if (b == MBT_PASTE && (a==MA_CLICK || a==MA_2CLK || a==MA_3CLK)) {
 	char *data;
 	int len;
 

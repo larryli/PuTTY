@@ -103,6 +103,10 @@ static HBITMAP caretbm;
 static int dbltime, lasttime, lastact;
 static Mouse_Button lastbtn;
 
+/* this allows xterm-style mouse handling. */
+static int send_raw_mouse = 0;
+static int wheel_accumulator = 0;
+
 static char *window_name, *icon_name;
 
 static int compose_state = 0;
@@ -475,7 +479,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
      * Prepare the mouse handler.
      */
     lastact = MA_NOTHING;
-    lastbtn = MB_NOTHING;
+    lastbtn = MBT_NOTHING;
     dbltime = GetDoubleClickTime();
 
     /*
@@ -664,6 +668,15 @@ char *do_select(SOCKET skt, int startup) {
         }
     }
     return NULL;
+}
+
+/*
+ * set or clear the "raw mouse message" mode
+ */
+void set_raw_mouse_mode(int activate)
+{
+    send_raw_mouse = activate;
+    SetCursor(LoadCursor(NULL, activate ? IDC_ARROW : IDC_IBEAM));
 }
 
 /*
@@ -1047,8 +1060,13 @@ void request_resize (int w, int h, int refont) {
 		  SWP_NOMOVE | SWP_NOZORDER);
 }
 
-static void click (Mouse_Button b, int x, int y) {
+static void click (Mouse_Button b, int x, int y, int shift, int ctrl) {
     int thistime = GetMessageTime();
+
+    if (send_raw_mouse) {
+	term_mouse(b, MA_CLICK, x, y, shift, ctrl);
+	return;
+    }
 
     if (lastbtn == b && thistime - lasttime < dbltime) {
 	lastact = (lastact == MA_CLICK ? MA_2CLK :
@@ -1059,8 +1077,21 @@ static void click (Mouse_Button b, int x, int y) {
 	lastact = MA_CLICK;
     }
     if (lastact != MA_NOTHING)
-	term_mouse (b, lastact, x, y);
+	term_mouse (b, lastact, x, y, shift, ctrl);
     lasttime = thistime;
+}
+
+/*
+ * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
+ * into a cooked one (SELECT, EXTEND, PASTE).
+ */
+Mouse_Button translate_button(Mouse_Button button) {
+    if (button == MBT_LEFT)
+	return MBT_SELECT;
+    if (button == MBT_MIDDLE)
+	return cfg.mouse_is_xterm ? MBT_PASTE : MBT_EXTEND;
+    if (button == MBT_RIGHT)
+	return cfg.mouse_is_xterm ? MBT_EXTEND : MBT_PASTE;
 }
 
 static void show_mouseptr(int show) {
@@ -1354,46 +1385,74 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 
 #define TO_CHR_X(x) (((x)<0 ? (x)-font_width+1 : (x)) / font_width)
 #define TO_CHR_Y(y) (((y)<0 ? (y)-font_height+1: (y)) / font_height)
+#define WHEEL_DELTA 120
+      case WM_MOUSEWHEEL:
+	{
+	    wheel_accumulator += (short)HIWORD(wParam);
+	    wParam = LOWORD(wParam);
 
+	    /* process events when the threshold is reached */
+	    while (abs(wheel_accumulator) >= WHEEL_DELTA) {
+		int b;
+
+		/* reduce amount for next time */
+		if (wheel_accumulator > 0) {
+		    b = MBT_WHEEL_UP;
+		    wheel_accumulator -= WHEEL_DELTA;
+		}
+		else if (wheel_accumulator < 0) {
+		    b = MBT_WHEEL_DOWN;
+		    wheel_accumulator += WHEEL_DELTA;
+		}
+		else
+		    break;
+
+		if (send_raw_mouse) {
+		    /* send a mouse-down followed by a mouse up */
+		    term_mouse(b,
+			       MA_CLICK,
+			       TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
+			       wParam & MK_SHIFT, wParam & MK_CONTROL);
+		    term_mouse(b,
+			       MA_RELEASE,
+			       TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
+			       wParam & MK_SHIFT, wParam & MK_CONTROL);
+		} else {
+		    /* trigger a scroll */
+		    term_scroll(0, b == MBT_WHEEL_UP ? -rows/2 : rows/2);
+		}
+	    }
+	    return 0;
+	}
       case WM_LBUTTONDOWN:
-        show_mouseptr(1);
-	click (MB_SELECT, TO_CHR_X(X_POS(lParam)),
-	       TO_CHR_Y(Y_POS(lParam)));
-        SetCapture(hwnd);
-	return 0;
-      case WM_LBUTTONUP:
-        show_mouseptr(1);
-	term_mouse (MB_SELECT, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
-		    TO_CHR_Y(Y_POS(lParam)));
-        ReleaseCapture();
-	return 0;
       case WM_MBUTTONDOWN:
-        show_mouseptr(1);
-        SetCapture(hwnd);
-	click (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
-	       TO_CHR_X(X_POS(lParam)),
-	       TO_CHR_Y(Y_POS(lParam)));
-	return 0;
-      case WM_MBUTTONUP:
-        show_mouseptr(1);
-	term_mouse (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
-		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
-		    TO_CHR_Y(Y_POS(lParam)));
-        ReleaseCapture();
-	return 0;
       case WM_RBUTTONDOWN:
-        show_mouseptr(1);
-        SetCapture(hwnd);
-	click (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
-	       TO_CHR_X(X_POS(lParam)),
-	       TO_CHR_Y(Y_POS(lParam)));
-	return 0;
+      case WM_LBUTTONUP:
+      case WM_MBUTTONUP:
       case WM_RBUTTONUP:
-        show_mouseptr(1);
-	term_mouse (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
-		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
-		    TO_CHR_Y(Y_POS(lParam)));
-        ReleaseCapture();
+	{
+	    int button, press;
+	    switch (message) {
+	      case WM_LBUTTONDOWN: button = MBT_LEFT;   press = 1; break;
+	      case WM_MBUTTONDOWN: button = MBT_MIDDLE; press = 1; break;
+	      case WM_RBUTTONDOWN: button = MBT_RIGHT;  press = 1; break;
+	      case WM_LBUTTONUP:   button = MBT_LEFT;   press = 0; break;
+	      case WM_MBUTTONUP:   button = MBT_MIDDLE; press = 0; break;
+	      case WM_RBUTTONUP:   button = MBT_RIGHT;  press = 0; break;
+	    }
+	    show_mouseptr(1);
+	    if (press) {
+		click (button,
+		       TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
+		       wParam & MK_SHIFT, wParam & MK_CONTROL);
+		SetCapture(hwnd);
+	    } else {
+		term_mouse (button, MA_RELEASE,
+			    TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
+			    wParam & MK_SHIFT, wParam & MK_CONTROL);
+		ReleaseCapture();
+	    }
+	}
 	return 0;
       case WM_MOUSEMOVE:
         show_mouseptr(1);
@@ -1406,13 +1465,13 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	if (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON)) {
 	    Mouse_Button b;
 	    if (wParam & MK_LBUTTON)
-		b = MB_SELECT;
+		b = MBT_SELECT;
 	    else if (wParam & MK_MBUTTON)
-		b = cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND;
+		b = cfg.mouse_is_xterm ? MBT_PASTE : MBT_EXTEND;
 	    else
-		b = cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE;
+		b = cfg.mouse_is_xterm ? MBT_EXTEND : MBT_PASTE;
 	    term_mouse (b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
-			TO_CHR_Y(Y_POS(lParam)));
+			TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT, wParam & MK_CONTROL);
 	}
 	return 0;
       case WM_NCMOUSEMOVE:
@@ -1655,11 +1714,16 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	 * post the things to us as part of a macro manoeuvre,
 	 * we're ready to cope.
 	 */
-	{
-	    char c = xlat_kbd2tty((unsigned char)wParam);
-	    ldisc_send (&c, 1);
+		{
+		    char c = xlat_kbd2tty((unsigned char)wParam);
+		    ldisc_send (&c, 1);
 	}
 	return 0;
+		case WM_SETCURSOR:
+		if (send_raw_mouse) {
+		    SetCursor(LoadCursor(NULL, IDC_ARROW));
+		    return TRUE;
+		}
     }
 
     return DefWindowProc (hwnd, message, wParam, lParam);
@@ -2157,8 +2221,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
             return 0;
 	}
         if (wParam == VK_INSERT && shift_state == 1) {
-            term_mouse (MB_PASTE, MA_CLICK, 0, 0);
-            term_mouse (MB_PASTE, MA_RELEASE, 0, 0);
+            term_mouse (MBT_PASTE, MA_CLICK, 0, 0, 0, 0);
+            term_mouse (MBT_PASTE, MA_RELEASE, 0, 0, 0, 0);
             return 0;
         }
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {

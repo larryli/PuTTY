@@ -111,7 +111,10 @@ typedef enum {
 } Telnet_Special;
 
 typedef enum {
-    MB_NOTHING, MB_SELECT, MB_EXTEND, MB_PASTE
+    MBT_NOTHING,
+    MBT_LEFT, MBT_MIDDLE, MBT_RIGHT,   /* `raw' button designations */
+    MBT_SELECT, MBT_EXTEND, MBT_PASTE, /* `cooked' button designations */
+    MBT_WHEEL_UP, MBT_WHEEL_DOWN       /* mouse wheel */
 } Mouse_Button;
 
 typedef enum {
@@ -314,6 +317,8 @@ void palette_reset (void);
 void write_clip (void *, int, int);
 void get_clip (void **, int *);
 void optimised_move (int, int, int);
+void set_raw_mouse_mode(int);
+Mouse_Button translate_button(Mouse_Button b);
 void connection_fatal(char *, ...);
 void fatalbox (char *, ...);
 void beep (int);
@@ -368,7 +373,7 @@ void term_paint (Context, int, int, int, int);
 void term_scroll (int, int);
 void term_pwron (void);
 void term_clrsb (void);
-void term_mouse (Mouse_Button, Mouse_Action, int, int);
+void term_mouse (Mouse_Button, Mouse_Action, int, int, int, int);
 void term_deselect (void);
 void term_update (void);
 void term_invalidate(void);

@@ -54,7 +54,7 @@
 # LFLAGS = /debug
 
 # Disable debug and incremental linking and compiling
-CFLAGS = /nologo /W3 /O1 /D_WINDOWS
+CFLAGS = /nologo /W3 /O1 /D_WINDOWS /D_WIN32_WINDOWS=0x401
 LFLAGS = /incremental:no /fixed
 
 # Use MSVC DLL
