@@ -823,7 +823,8 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    uheight = inst->font_height - 1;
 	gdk_draw_line(inst->pixmap, gc, x*inst->font_width+cfg.window_border,
 		      y*inst->font_height + uheight + cfg.window_border,
-		      (x+len)*inst->font_width-1, y*inst->font_height+uheight);
+		      (x+len)*inst->font_width-1+cfg.window_border,
+		      y*inst->font_height + uheight + cfg.window_border);
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
