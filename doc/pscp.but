@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.2 2001/01/27 16:26:55 owen Exp $
+\versionid $Id: pscp.but,v 1.3 2001/01/27 17:49:18 owen Exp $
 
 \#FIXME: Need examples, index entries, links
 
@@ -120,14 +120,26 @@ This information may be useful for debugging problems with PSCP.
 
 \S2{pscp-usage-options-P}\c{-P port} connect to specified port
 
-\# Defaults: Saved Session, or 22
+If the \c{host} you specify is a saved session, PSCP uses any port
+number specified in that saved session.  If not, PSCP uses the port
+specified for SSH in \e{Default Settings}, or the default SSH port,
+22. \#{Is this actually true?  Can you actually specify a different
+default port for a protocol in Default Settings?}
 
 \S2{pscp-usage-options-pw}\c{-pw passw} login with specified password
 
-\# Default is to ask.  (May not be appropriate when running PSCP from
-\# batch scripts etc.)
-\# But should be using RSA key authentication (qv.) and possibly
-\# Pageant (qv.) anyway.
+If a password is required to connect to the \c{host}, PSCP will
+interactively prompt you for it.  However, this may not always be
+appropriate.  If you are running PSCP as part of some automated job,
+it will not be possible to enter a password by hand.  The \c{-p}
+option to PSCP lets you specify the password to use on the command
+line.
+
+Since specifying passwords in scripts is a bad idea for security
+reasons, you might want instead to consider using public-key
+authentication.  PSCP will attempt to authenticate with any public key
+specified in a saved session's configuration before asking for a
+password.
 
 \H{pscp-ixplorer} Secure iXplorer
 
