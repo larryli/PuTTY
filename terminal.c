@@ -63,7 +63,7 @@ static unsigned long curstype;	       /* type of cursor on real screen */
 
 struct beeptime {
     struct beeptime *next;
-    long ticks;
+    unsigned long ticks;
 };
 static struct beeptime *beephead, *beeptail;
 int nbeeps;
@@ -97,7 +97,7 @@ static int cset;		       /* 0 or 1: which char set */
 static int save_cset, save_csattr;     /* saved with cursor position */
 static int save_utf;     	       /* saved with cursor position */
 static int rvideo;		       /* global reverse video flag */
-static int rvbell_timeout;	       /* for ESC[?5hESC[?5l vbell */
+static unsigned long rvbell_startpoint;/* for ESC[?5hESC[?5l vbell */
 static int cursor_on;		       /* cursor enabled flag */
 static int reset_132;		       /* Flag ESC c resets to 80 cols */
 static int use_bce;		       /* Use Background coloured erase */
@@ -848,7 +848,7 @@ static void insch(int n)
  */
 static void toggle_mode(int mode, int query, int state)
 {
-    long ticks;
+    unsigned long ticks;
 
     if (query)
 	switch (mode) {
@@ -877,14 +877,20 @@ static void toggle_mode(int mode, int query, int state)
 	     * always be an actually _visible_ visual bell.
 	     */
 	    ticks = GetTickCount();
-	    if (rvideo && !state &&    /* we're turning it off */
-		ticks < rvbell_timeout) {	/* and it's not long since it was turned on */
+	    /* turn off a previous vbell to avoid inconsistencies */
+	    if (ticks - vbell_startpoint >= VBELL_TIMEOUT)
+		in_vbell = FALSE;
+	    if (rvideo && !state &&    /* we're turning it off... */
+		(ticks - rvbell_startpoint) < VBELL_TIMEOUT) {	/* ...soon */
+		/* If there's no vbell timeout already, or this one lasts
+		 * longer, replace vbell_timeout with ours. */
+		if (!in_vbell ||
+		    (rvbell_startpoint - vbell_startpoint < VBELL_TIMEOUT))
+		    vbell_startpoint = rvbell_startpoint;
 		in_vbell = TRUE;       /* we may clear rvideo but we set in_vbell */
-		if (vbell_timeout < rvbell_timeout)	/* don't move vbell end forward */
-		    vbell_timeout = rvbell_timeout;	/* vbell end is at least then */
 	    } else if (!rvideo && state) {
 		/* This is an ON, so we notice the time and save it. */
-		rvbell_timeout = ticks + VBELL_TIMEOUT;
+		rvbell_startpoint = ticks;
 	    }
 	    rvideo = state;
 	    seen_disp_event = TRUE;
@@ -1194,7 +1200,7 @@ void term_out(void)
 	      case '\007':
 		{
 		    struct beeptime *newbeep;
-		    long ticks;
+		    unsigned long ticks;
 
 		    ticks = GetTickCount();
 
@@ -1225,7 +1231,7 @@ void term_out(void)
 		    }
 
 		    if (cfg.bellovl && beep_overloaded &&
-			ticks - lastbeep >= cfg.bellovl_s) {
+			ticks - lastbeep >= (unsigned)cfg.bellovl_s) {
 			/*
 			 * If we're currently overloaded and the
 			 * last beep was more than s seconds ago,
@@ -1250,7 +1256,7 @@ void term_out(void)
 			beep(cfg.beep);
 			if (cfg.beep == BELL_VISUAL) {
 			    in_vbell = TRUE;
-			    vbell_timeout = ticks + VBELL_TIMEOUT;
+			    vbell_startpoint = ticks;
 			    term_update();
 			}
 		    }
@@ -2528,16 +2534,16 @@ static void do_paint(Context ctx, int may_optimise)
     pos scrpos;
     char ch[1024];
     long cursor_background = ERASE_CHAR;
-    long ticks;
+    unsigned long ticks;
 
     /*
      * Check the visual bell state.
      */
     if (in_vbell) {
 	ticks = GetTickCount();
-	if (ticks - vbell_timeout >= 0)
-	    in_vbell = FALSE;
-    }
+	if (ticks - vbell_startpoint >= VBELL_TIMEOUT)
+	    in_vbell = FALSE; 
+   }
 
     rv = (!rvideo ^ !in_vbell ? ATTR_REVERSE : 0);
 

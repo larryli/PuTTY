@@ -96,7 +96,7 @@ GLOBAL int rows, cols, savelines;
 GLOBAL int has_focus;
 
 GLOBAL int in_vbell;
-GLOBAL long vbell_timeout;
+GLOBAL unsigned long vbell_startpoint;
 
 GLOBAL int app_cursor_keys, app_keypad_keys, vt52_mode;
 GLOBAL int repeat_off, cr_lf_return;
