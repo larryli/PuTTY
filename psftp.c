@@ -1710,6 +1710,32 @@ int main(int argc, char *argv[])
 	cfg.port = 22;
     }
 
+    /*
+     * Trim leading whitespace off the hostname if it's there.
+     */
+    {
+	int space = strspn(cfg.host, " \t");
+	memmove(cfg.host, cfg.host+space, 1+strlen(cfg.host)-space);
+    }
+
+    /* See if host is of the form user@host */
+    if (cfg.host[0] != '\0') {
+	char *atsign = strchr(cfg.host, '@');
+	/* Make sure we're not overflowing the user field */
+	if (atsign) {
+	    if (atsign - cfg.host < sizeof cfg.username) {
+		strncpy(cfg.username, cfg.host, atsign - cfg.host);
+		cfg.username[atsign - cfg.host] = '\0';
+	    }
+	    memmove(cfg.host, atsign + 1, 1 + strlen(atsign + 1));
+	}
+    }
+
+    /*
+     * Trim a colon suffix off the hostname if it's there.
+     */
+    cfg.host[strcspn(cfg.host, ":")] = '\0';
+
     /* Set username */
     if (user != NULL && user[0] != '\0') {
 	strncpy(cfg.username, user, sizeof(cfg.username) - 1);
