@@ -519,7 +519,11 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_BOLDCOLOUR, cfg.bold_colour);
     CheckDlgButton (hwnd, IDC_PALETTE, cfg.try_palette);
     {
-	int i;
+	int i, n;
+	n = SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_GETCOUNT, 0, 0);
+	for (i=n; i-- >0 ;)
+	    SendDlgItemMessage (hwnd, IDC_COLOURLIST,
+				    LB_DELETESTRING, i, 0);
 	for (i=0; i<22; i++)
 	    if (cfg.bold_colour || permcolour[i])
 		SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_ADDSTRING, 0,
@@ -1613,17 +1617,15 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		int n, i;
 		cfg.bold_colour = IsDlgButtonChecked (hwnd, IDC_BOLDCOLOUR);
 		n = SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_GETCOUNT, 0, 0);
-		if (cfg.bold_colour && n!=22) {
-		    for (i=0; i<22; i++)
-			if (!permcolour[i])
-			    SendDlgItemMessage (hwnd, IDC_COLOURLIST,
-						LB_INSERTSTRING, i,
-						(LPARAM) colours[i]);
-		} else if (!cfg.bold_colour && n!=12) {
-		    for (i=22; i-- ;)
-			if (!permcolour[i])
-			    SendDlgItemMessage (hwnd, IDC_COLOURLIST,
+		if (n != 12+10*cfg.bold_colour) {
+		    for (i=n; i-- >0 ;)
+			SendDlgItemMessage (hwnd, IDC_COLOURLIST,
 						LB_DELETESTRING, i, 0);
+	            for (i=0; i<22; i++)
+	                if (cfg.bold_colour || permcolour[i])
+		            SendDlgItemMessage (hwnd, IDC_COLOURLIST, 
+				                LB_ADDSTRING, 0,
+				                (LPARAM) colours[i]);
 		}
 	    }
 	    break;
