@@ -4665,7 +4665,7 @@ void term_paint(Terminal *term, Context ctx,
     if (bottom >= term->rows) bottom = term->rows-1;
 
     for (i = top; i <= bottom && i < term->rows; i++) {
-	if (term->disptext[i]->lattr == LATTR_NORM)
+	if ((term->disptext[i]->lattr & LATTR_MODE) == LATTR_NORM)
 	    for (j = left; j <= right && j < term->cols; j++)
 		term->disptext[i]->chars[j].attr = ATTR_INVALID;
 	else
