@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.29.2.1 2004/10/24 13:50:09 jacob Exp $
+\versionid $Id$
 
 \#FIXME: Need examples
 
@@ -41,7 +41,7 @@ use PSCP:
 
 \c Z:\owendadmin>pscp
 \c PuTTY Secure Copy client
-\c Release 0.56
+\c Release 0.57
 \c Usage: pscp [options] [user@]host:source target
 \c        pscp [options] source [source...] [user@]host:target
 \c        pscp [options] -ls [user@]host:filespec

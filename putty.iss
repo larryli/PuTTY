@@ -19,7 +19,7 @@
 
 [Setup]
 AppName=PuTTY
-AppVerName=PuTTY version 0.56
+AppVerName=PuTTY version 0.57
 DefaultDirName={pf}\PuTTY
 DefaultGroupName=PuTTY
 UninstallDisplayIcon={app}\putty.exe
