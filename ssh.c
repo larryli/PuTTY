@@ -179,9 +179,7 @@ const static struct ssh2_ciphers *ciphers[] = {
 };
 
 const static struct ssh_kex *kex_algs[] = {
-#ifdef DO_DIFFIE_HELLMAN_GEX
     &ssh_diffiehellman_gex,
-#endif
     &ssh_diffiehellman };
 
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
@@ -2331,7 +2329,7 @@ static void ssh2_mkkey(Bignum K, char *H, char *sessid, char chr, char *keyspace
  */
 static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 {
-    static int i, j, len, nbits;
+    static int i, j, len, nbits, pbits;
     static char *str;
     static Bignum p, g, e, f, K;
     static int kex_init_value, kex_reply_value;
@@ -2554,30 +2552,34 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
 
     /*
+     * Work out the number of bits of key we will need from the key
+     * exchange. We start with the maximum key length of either
+     * cipher...
+     */
+    {
+        int csbits, scbits;
+
+	csbits = cscipher_tobe->keylen;
+	scbits = sccipher_tobe->keylen;
+	nbits = (csbits > scbits ? csbits : scbits);
+    }
+    /* The keys only have 160-bit entropy, since they're based on
+     * a SHA-1 hash. So cap the key size at 160 bits. */
+    if (nbits > 160) nbits = 160;
+
+    /*
      * If we're doing Diffie-Hellman group exchange, start by
      * requesting a group.
      */
     if (kex == &ssh_diffiehellman_gex) {
-        int csbits, scbits;
-
         logevent("Doing Diffie-Hellman group exchange");
         /*
-         * Work out number of bits. We start with the maximum key
-         * length of either cipher...
-         */
-        csbits = cscipher_tobe->keylen;
-        scbits = sccipher_tobe->keylen;
-        nbits = (csbits > scbits ? csbits : scbits);
-        /* The keys only have 160-bit entropy, since they're based on
-         * a SHA-1 hash. So cap the key size at 160 bits. */
-        if (nbits > 160) nbits = 160;
-        /*
-         * ... and then work out how big a DH group we will need to
-         * allow that much data.
-         */
-        nbits = 512 << ((nbits-1) / 64);
+         * Work out how big a DH group we will need to allow that
+         * much data.
+	 */
+        pbits = 512 << ((nbits-1) / 64);
         ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST);
-        ssh2_pkt_adduint32(nbits);
+        ssh2_pkt_adduint32(pbits);
         ssh2_pkt_send();
 
         crWaitUntil(ispkt);
@@ -2600,7 +2602,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     /*
      * Now generate and send e for Diffie-Hellman.
      */
-    e = dh_create_e();
+    e = dh_create_e(nbits*2);
     ssh2_pkt_init(kex_init_value);
     ssh2_pkt_addmp(e);
     ssh2_pkt_send();
@@ -2618,7 +2620,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 
     sha_string(&exhash, hostkeydata, hostkeylen);
     if (kex == &ssh_diffiehellman_gex) {
-        sha_uint32(&exhash, nbits);
+        sha_uint32(&exhash, pbits);
         sha_mpint(&exhash, p);
         sha_mpint(&exhash, g);
     }

@@ -75,8 +75,19 @@ void dh_cleanup(void) {
 /*
  * DH stage 1: invent a number x between 1 and q, and compute e =
  * g^x mod p. Return e.
+ * 
+ * If `nbits' is greater than zero, it is used as an upper limit
+ * for the number of bits in x. This is safe provided that (a) you
+ * use twice as many bits in x as the number of bits you expect to
+ * use in your session key, and (b) the DH group is a safe prime
+ * (which SSH demands that it must be).
+ * 
+ * P. C. van Oorschot, M. J. Wiener
+ * "On Diffie-Hellman Key Agreement with Short Exponents".
+ * Advances in Cryptology: Proceedings of Eurocrypt '96
+ * Springer-Verlag, May 1996.
  */
-Bignum dh_create_e(void) {
+Bignum dh_create_e(int nbits) {
     int i;
 
     int nbytes;
@@ -91,10 +102,25 @@ Bignum dh_create_e(void) {
 	 * with qmask.
 	 */
         if (x) freebn(x);
-        ssh1_write_bignum(buf, qmask);
-	for (i = 2; i < nbytes; i++)
-            buf[i] &= random_byte();
-        ssh1_read_bignum(buf, &x);
+	if (nbits == 0 || nbits > ssh1_bignum_bitcount(qmask)) {
+	    ssh1_write_bignum(buf, qmask);
+	    for (i = 2; i < nbytes; i++)
+		buf[i] &= random_byte();
+	    ssh1_read_bignum(buf, &x);
+	} else {
+	    int b, nb;
+	    x = bn_power_2(nbits);
+	    nb = 0;
+	    for (i = 0; i < nbits; i++) {
+		if (nb == 0) {
+		    nb = 8;
+		    b = random_byte();
+		}
+		bignum_set_bit(x, i, b & 1);
+		b >>= 1;
+		nb--;
+	    }
+	}
     } while (bignum_cmp(x, One) <= 0 || bignum_cmp(x, q) >= 0);
 
     /*
@@ -109,5 +135,7 @@ Bignum dh_create_e(void) {
  * DH stage 2: given a number f, compute K = f^x mod p.
  */
 Bignum dh_find_K(Bignum f) {
-    return modpow(f, x, p);
+    Bignum ret;
+    ret = modpow(f, x, p);
+    return ret;
 }
