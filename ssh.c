@@ -1,4 +1,3 @@
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -5889,6 +5888,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->fallback_cmd = 0;
     ssh->pkt_ctx = 0;
     ssh->x11auth = NULL;
+    ssh->v1_compressing = FALSE;
     ssh->v2_outgoing_sequence = 0;
     ssh->ssh1_rdpkt_crstate = 0;
     ssh->ssh2_rdpkt_crstate = 0;
