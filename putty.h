@@ -349,7 +349,9 @@ struct config_tag {
     int stamp_utmp;
     int login_shell;
     int scrollbar_on_left;
-    char boldfont[64];
+    char boldfont[256];
+    char widefont[256];
+    char wideboldfont[256];
     int shadowboldoffset;
 };
 

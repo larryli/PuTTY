@@ -36,6 +36,13 @@ will be displayed in different colours instead of a different font,
 so this option will be ignored. If \fIBoldAsColour\fP is set to 0
 and you do not specify a bold font, \fIpterm\fP will overprint the
 normal font to make it look bolder.
+.IP "\fB\-fw\fP \fIfont-name\fP"
+Specify the font to use for double-width characters (typically
+Chinese, Japanese and Korean text) displayed in the terminal.
+.IP "\fB\-fwb\fP \fIfont-name\fP"
+Specify the font to use for bold double-width characters (typically
+Chinese, Japanese and Korean text) Like \fI-fb\fP, this will be
+ignored unless the \fIBoldAsColour\fP resource is set to 0.
 .IP "\fB\-geometry\fP \fIwidth\fPx\fIheight\fP"
 Specify the size of the terminal, in rows and columns of text.
 Unfortunately \fIpterm\fP does not currently support specifying the
@@ -306,6 +313,16 @@ This resource is the same as the \fI\-fb\fP command-line option: it
 controls the font used to display bold text when \fIBoldAsColour\fP
 is turned off. The default is unset (the font will be bolded by
 printing it twice at a one-pixel offset).
+.IP "\fBpterm.WideFont\fP"
+This resource is the same as the \fI\-fw\fP command-line option: it
+controls the font used to display double-width characters. The
+default is unset (double-width characters cannot be displayed).
+.IP "\fBpterm.WideBoldFont\fP"
+This resource is the same as the \fI\-fwb\fP command-line option: it
+controls the font used to display double-width characters in bold,
+when \fIBoldAsColour\fP is turned off. The default is unset
+(double-width characters are displayed in bold by printing them
+twice at a one-pixel offset).
 .IP "\fBpterm.ShadowBoldOffset\fP"
 This resource can be set to an integer; the default is \-1. It
 specifies the offset at which text is overprinted when using "shadow

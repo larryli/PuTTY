@@ -39,11 +39,11 @@ struct gui_data {
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GdkPixmap *pixmap;
-    GdkFont *fonts[2];                 /* normal and bold (for now!) */
+    GdkFont *fonts[4];                 /* normal, bold, wide, widebold */
     struct {
 	int charset;
 	int is_wide;
-    } fontinfo[2];
+    } fontinfo[4];
     GdkCursor *rawcursor, *textcursor, *blankcursor, *currcursor;
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
@@ -1469,12 +1469,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
 
-    int nfg, nbg, t, fontid, shadow, rlen;
-
-    /*
-     * NYI:
-     *  - Unicode, code pages, and ATTR_WIDE for CJK support.
-     */
+    int nfg, nbg, t, fontid, shadow, rlen, widefactor;
 
     nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
     nbg = 2 * ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
@@ -1493,9 +1488,17 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
     }
 
     fontid = shadow = 0;
+
+    if (attr & ATTR_WIDE) {
+	widefactor = 2;
+	fontid |= 2;
+    } else {
+	widefactor = 1;
+    }
+
     if ((attr & ATTR_BOLD) && !cfg.bold_colour) {
-	if (inst->fonts[1])
-	    fontid = 1;
+	if (inst->fonts[fontid | 1])
+	    fontid |= 1;
 	else
 	    shadow = 1;
     }
@@ -1504,8 +1507,8 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2 > inst->term->cols)
-	    len = (inst->term->cols-x)/2;    /* trim to LH half */
+	if (x + len*2*widefactor > inst->term->cols)
+	    len = (inst->term->cols-x)/2/widefactor;/* trim to LH half */
 	rlen = len * 2;
     } else
 	rlen = len;
@@ -1515,7 +1518,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 
 	r.x = x*inst->font_width+cfg.window_border;
 	r.y = y*inst->font_height+cfg.window_border;
-	r.width = rlen*inst->font_width;
+	r.width = rlen*widefactor*inst->font_width;
 	r.height = inst->font_height;
 	gdk_gc_set_clip_rectangle(gc, &r);
     }
@@ -1524,7 +1527,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
     gdk_draw_rectangle(inst->pixmap, gc, 1,
 		       x*inst->font_width+cfg.window_border,
 		       y*inst->font_height+cfg.window_border,
-		       rlen*inst->font_width, inst->font_height);
+		       rlen*widefactor*inst->font_width, inst->font_height);
 
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
     {
@@ -1538,7 +1541,14 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	    wcs[i] = (wchar_t) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
 	}
 
-	if (inst->fontinfo[fontid].is_wide) {
+	if (inst->fonts[fontid] == NULL) {
+	    /*
+	     * The font for this contingency does not exist.
+	     * Typically this means we've been given ATTR_WIDE
+	     * character and have no wide font. So we display
+	     * nothing at all; such is life.
+	     */
+	} else if (inst->fontinfo[fontid].is_wide) {
 	    gwcs = smalloc(sizeof(GdkWChar) * (len+1));
 	    /*
 	     * FIXME: when we have a wide-char equivalent of
@@ -1580,7 +1590,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	    uheight = inst->font_height - 1;
 	gdk_draw_line(inst->pixmap, gc, x*inst->font_width+cfg.window_border,
 		      y*inst->font_height + uheight + cfg.window_border,
-		      (x+len)*inst->font_width-1+cfg.window_border,
+		      (x+len)*widefactor*inst->font_width-1+cfg.window_border,
 		      y*inst->font_height + uheight + cfg.window_border);
     }
 
@@ -1594,7 +1604,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	 * try thinking of a better way. :-(
 	 */
 	int i;
-	for (i = 0; i < len * inst->font_width; i++) {
+	for (i = 0; i < len * widefactor * inst->font_width; i++) {
 	    gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
 			    x*inst->font_width+cfg.window_border + 2*i,
 			    y*inst->font_height+cfg.window_border,
@@ -1614,7 +1624,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
 				x*inst->font_width+cfg.window_border,
 				y*inst->font_height+cfg.window_border+dt*i+db,
-				x*inst->font_width+cfg.window_border,
+				x*widefactor*inst->font_width+cfg.window_border,
 				y*inst->font_height+cfg.window_border+dt*(i+1),
 				len * inst->font_width, inst->font_height-i-1);
 	    }
@@ -1628,15 +1638,22 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
+    int widefactor;
 
     do_text_internal(ctx, x, y, text, len, attr, lattr);
+
+    if (attr & ATTR_WIDE) {
+	widefactor = 2;
+    } else {
+	widefactor = 1;
+    }
 
     if (lattr != LATTR_NORM) {
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2 > inst->term->cols)
-	    len = (inst->term->cols-x)/2;    /* trim to LH half */
+	if (x + len*2*widefactor > inst->term->cols)
+	    len = (inst->term->cols-x)/2/widefactor;/* trim to LH half */
 	len *= 2;
     }
 
@@ -1645,7 +1662,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 		    y*inst->font_height+cfg.window_border,
 		    x*inst->font_width+cfg.window_border,
 		    y*inst->font_height+cfg.window_border,
-		    len*inst->font_width, inst->font_height);
+		    len*widefactor*inst->font_width, inst->font_height);
 }
 
 void do_cursor(Context ctx, int x, int y, char *text, int len,
@@ -1655,7 +1672,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
 
-    int passive;
+    int passive, widefactor;
 
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
@@ -1667,12 +1684,18 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     }
     do_text_internal(ctx, x, y, text, len, attr, lattr);
 
+    if (attr & ATTR_WIDE) {
+	widefactor = 2;
+    } else {
+	widefactor = 1;
+    }
+
     if (lattr != LATTR_NORM) {
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2 > inst->term->cols)
-	    len = (inst->term->cols-x)/2;    /* trim to LH half */
+	if (x + len*2*widefactor > inst->term->cols)
+	    len = (inst->term->cols-x)/2/widefactor;/* trim to LH half */
 	len *= 2;
     }
 
@@ -1741,7 +1764,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 		    y*inst->font_height+cfg.window_border,
 		    x*inst->font_width+cfg.window_border,
 		    y*inst->font_height+cfg.window_border,
-		    len*inst->font_width, inst->font_height);
+		    len*widefactor*inst->font_width, inst->font_height);
 }
 
 GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
@@ -1922,6 +1945,18 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	    SECOND_PASS_ONLY;
 	    strncpy(cfg.boldfont, val, sizeof(cfg.boldfont));
 	    cfg.boldfont[sizeof(cfg.boldfont)-1] = '\0';
+
+	} else if (!strcmp(p, "-fw")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    strncpy(cfg.widefont, val, sizeof(cfg.widefont));
+	    cfg.widefont[sizeof(cfg.widefont)-1] = '\0';
+
+	} else if (!strcmp(p, "-fwb")) {
+	    EXPECTS_ARG;
+	    SECOND_PASS_ONLY;
+	    strncpy(cfg.wideboldfont, val, sizeof(cfg.wideboldfont));
+	    cfg.wideboldfont[sizeof(cfg.wideboldfont)-1] = '\0';
 
 	} else if (!strcmp(p, "-cs")) {
 	    EXPECTS_ARG;
@@ -2171,6 +2206,26 @@ int main(int argc, char **argv)
 	set_font_info(inst, 1);
     } else
 	inst->fonts[1] = NULL;
+    if (cfg.widefont[0]) {
+	inst->fonts[2] = gdk_font_load(cfg.widefont);
+	if (!inst->fonts[2]) {
+	    fprintf(stderr, "pterm: unable to load wide font \"%s\"\n",
+		    cfg.boldfont);
+	    exit(1);
+	}
+	set_font_info(inst, 2);
+    } else
+	inst->fonts[2] = NULL;
+    if (cfg.wideboldfont[0]) {
+	inst->fonts[3] = gdk_font_load(cfg.wideboldfont);
+	if (!inst->fonts[3]) {
+	    fprintf(stderr, "pterm: unable to load wide/bold font \"%s\"\n",
+		    cfg.boldfont);
+	    exit(1);
+	}
+	set_font_info(inst, 3);
+    } else
+	inst->fonts[3] = NULL;
 
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
