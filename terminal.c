@@ -476,7 +476,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    line[0] = newcols;
 	    for (j = 0; j < newcols; j++)
 		line[j + 1] = ERASE_CHAR;
-            line[newcols] = LATTR_NORM;
+            line[newcols + 1] = LATTR_NORM;
 	}
 	addpos234(term->screen, line, 0);
     }
