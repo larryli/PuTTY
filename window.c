@@ -2061,6 +2061,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				    colours[(ATTR_DEFBG>>ATTR_BGSHIFT)*2]);
 		oldpen = SelectObject(hdc, edge);
 
+		/*
+		 * Jordan Russell reports that this apparently
+		 * ineffectual IntersectClipRect() call masks a
+		 * Windows NT/2K bug causing strange display
+		 * problems when the PuTTY window is taller than
+		 * the primary monitor. It seems harmless enough...
+		 */
+		IntersectClipRect(hdc,
+			p.rcPaint.left, p.rcPaint.top,
+			p.rcPaint.right, p.rcPaint.bottom);
+
 		ExcludeClipRect(hdc, 
 			offset_width, offset_height,
 			offset_width+font_width*cols,
