@@ -429,7 +429,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	int exwinmode = 0;
 	if (!cfg.scrollbar)
 	    winmode &= ~(WS_VSCROLL);
-	if (cfg.locksize && cfg.lockfont)
+	if (cfg.resize_action == RESIZE_DISABLED)
 	    winmode &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
 	if (cfg.alwaysontop)
 	    exwinmode |= WS_EX_TOPMOST;
@@ -1092,11 +1092,11 @@ void request_resize(int w, int h)
 
     /* If the window is maximized supress resizing attempts */
     if (IsZoomed(hwnd)) {
-	if (cfg.lockfont)
+	if (cfg.resize_action != RESIZE_FONT)
 	    return;
     }
 
-    if (cfg.lockfont && cfg.locksize) return;
+    if (cfg.resize_action == RESIZE_DISABLED) return;
     if (h == rows && w == cols) return;
 
     /* Sanity checks ... */
@@ -1129,7 +1129,7 @@ void request_resize(int w, int h)
 
     term_size(h, w, cfg.savelines);
 
-    if (cfg.lockfont) {
+    if (cfg.resize_action != RESIZE_FONT) {
 	width = extra_width + font_width * w;
 	height = extra_height + font_height * h;
 
@@ -1197,7 +1197,7 @@ static void reset_window(int reinit) {
 	extra_width = wr.right - wr.left - cr.right + cr.left;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
 
-	if (!cfg.lockfont) {
+	if (cfg.resize_action == RESIZE_FONT) {
 	    if (  font_width != win_width/cols || 
 		  font_height != win_height/rows) {
 		deinit_fonts();
@@ -1260,7 +1260,7 @@ static void reset_window(int reinit) {
      * window. But that may be too big for the screen which forces us
      * to change the terminal.
      */
-    if ((cfg.lockfont && reinit==0) || reinit>0) {
+    if ((cfg.resize_action != RESIZE_FONT  && reinit==0) || reinit>0) {
 	offset_width = offset_height = cfg.window_border;
 	extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
 	extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
@@ -1520,7 +1520,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (cfg.height != prev_cfg.height ||
 		    cfg.width != prev_cfg.width ||
 		    cfg.savelines != prev_cfg.savelines ||
-		    cfg.locksize )
+		    cfg.resize_action != RESIZE_TERM)
 		    term_size(cfg.height, cfg.width, cfg.savelines);
 
 		/* Enable or disable the scroll bar, etc */
@@ -1551,7 +1551,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			nflg |= WS_VSCROLL;
 		    else
 			nflg &= ~WS_VSCROLL;
-		    if (cfg.locksize && cfg.lockfont)
+		    if (cfg.resize_action == RESIZE_DISABLED)
 			nflg &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
 		    else
 			nflg |= (WS_THICKFRAME | WS_MAXIMIZEBOX);
@@ -1572,7 +1572,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		}
 
 		/* Oops */
-		if (cfg.locksize && cfg.lockfont && IsZoomed(hwnd)) {
+		if (cfg.resize_action == RESIZE_DISABLED && IsZoomed(hwnd)) {
 		    force_normal(hwnd);
 		    init_lvl = 2;
 		}
@@ -1591,7 +1591,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    cfg.fontcharset != prev_cfg.fontcharset ||
 		    cfg.vtmode != prev_cfg.vtmode ||
 		    cfg.bold_colour != prev_cfg.bold_colour ||
-		    (cfg.lockfont && !prev_cfg.lockfont))
+		    (cfg.resize_action != RESIZE_FONT &&
+		     prev_cfg.resize_action == RESIZE_FONT))
 		    init_lvl = 2;
 
 		InvalidateRect(hwnd, NULL, TRUE);
@@ -1902,7 +1903,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * 1) Keep the sizetip uptodate
 	 * 2) Make sure the window size is _stepped_ in units of the font size.
 	 */
-	if (!cfg.locksize && !alt_pressed) {
+	if (cfg.resize_action == RESIZE_TERM && !alt_pressed) {
 	    int width, height, w, h, ew, eh;
 	    LPRECT r = (LPRECT) lParam;
 
@@ -2002,7 +2003,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
 
-	if (cfg.lockfont && cfg.locksize) {
+	if (cfg.resize_action == RESIZE_DISABLED) {
 	    /* A resize, well it better be a minimize. */
 	    reset_window(-1);
 	} else {
@@ -2017,7 +2018,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    was_zoomed = 1;
 		    prev_rows = rows;
 		    prev_cols = cols;
-		    if (cfg.lockfont) {
+		    if (cfg.resize_action != RESIZE_FONT) {
 			w = width / font_width;
 			if (w < 1) w = 1;
 			h = height / font_height;
@@ -2028,7 +2029,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    reset_window(0);
 		} else if (wParam == SIZE_RESTORED && was_zoomed) {
 		    was_zoomed = 0;
-		    if (cfg.lockfont)
+		    if (cfg.resize_action != RESIZE_FONT)
 			term_size(prev_rows, prev_cols, cfg.savelines);
 		    reset_window(0);
 		}
@@ -2047,7 +2048,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * down the connection during an NT opaque drag.)
 	     */
 	    if (resizing) {
-		if (!cfg.locksize && !alt_pressed) {
+		if (cfg.resize_action == RESIZE_TERM && !alt_pressed) {
 		    need_backend_resize = TRUE;
 		    w = (width-cfg.window_border*2) / font_width;
 		    if (w < 1) w = 1;

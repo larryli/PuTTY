@@ -354,8 +354,10 @@ enum { IDCX_ABOUT =
     IDC_ROWSEDIT,
     IDC_COLSSTATIC,
     IDC_COLSEDIT,
-    IDC_LOCKSIZE,
-    IDC_LOCKFONT,
+    IDC_RESIZESTATIC,
+    IDC_RESIZETERM,
+    IDC_RESIZEFONT,
+    IDC_RESIZENONE,
     IDC_SCROLLBAR,
     IDC_CLOSEWARN,
     IDC_SAVESTATIC,
@@ -673,8 +675,10 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.cursor_type == 1 ? IDC_CURUNDER : IDC_CURVERT);
     CheckDlgButton(hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton(hwnd, IDC_SCROLLBAR, cfg.scrollbar);
-    CheckDlgButton(hwnd, IDC_LOCKSIZE, cfg.locksize);
-    CheckDlgButton(hwnd, IDC_LOCKFONT, cfg.lockfont);
+    CheckRadioButton(hwnd, IDC_RESIZETERM, IDC_RESIZENONE,
+		     cfg.resize_action == RESIZE_TERM ? IDC_RESIZETERM :
+		     cfg.resize_action == RESIZE_FONT ? IDC_RESIZEFONT :
+		     IDC_RESIZENONE);
     CheckRadioButton(hwnd, IDC_COEALWAYS, IDC_COENORMAL,
 		     cfg.close_on_exit == COE_NORMAL ? IDC_COENORMAL :
 		     cfg.close_on_exit ==
@@ -1045,8 +1049,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	multiedit(&cp,
 		  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
 		  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50, NULL);
-	checkbox(&cp, "Lock terminal size against resi&zing", IDC_LOCKSIZE);
-	checkbox(&cp, "Lock font size against resi&zing", IDC_LOCKFONT);
+	radioline(&cp, "Action when the window is resized:", IDC_RESIZESTATIC,
+		  3, "Resi&ze terminal", IDC_RESIZETERM,
+		  "Change fo&nt", IDC_RESIZEFONT,
+		  "Forb&id resizing", IDC_RESIZENONE, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Control the scrollback in the window",
 		 IDC_BOX_WINDOW2);
@@ -2108,17 +2114,18 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			cfg.scrollbar =
 			IsDlgButtonChecked(hwnd, IDC_SCROLLBAR);
 		break;
-	      case IDC_LOCKSIZE:
+	      case IDC_RESIZETERM:
+	      case IDC_RESIZEFONT:
+	      case IDC_RESIZENONE:
 		if (HIWORD(wParam) == BN_CLICKED ||
-		    HIWORD(wParam) == BN_DOUBLECLICKED)
-			cfg.locksize =
-			IsDlgButtonChecked(hwnd, IDC_LOCKSIZE);
-		break;
-	      case IDC_LOCKFONT:
-		if (HIWORD(wParam) == BN_CLICKED ||
-		    HIWORD(wParam) == BN_DOUBLECLICKED)
-			cfg.lockfont =
-			IsDlgButtonChecked(hwnd, IDC_LOCKFONT);
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    cfg.resize_action =
+			IsDlgButtonChecked(hwnd,
+					   IDC_RESIZETERM) ? RESIZE_TERM :
+			IsDlgButtonChecked(hwnd,
+					   IDC_RESIZEFONT) ? RESIZE_FONT :
+			RESIZE_DISABLED;
+		}
 		break;
 	      case IDC_WINEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)

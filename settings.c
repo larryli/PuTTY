@@ -252,8 +252,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "ScrollBar", cfg->scrollbar);
     write_setting_i(sesskey, "ScrollOnKey", cfg->scroll_on_key);
     write_setting_i(sesskey, "ScrollOnDisp", cfg->scroll_on_disp);
-    write_setting_i(sesskey, "LockSize", cfg->locksize);
-    write_setting_i(sesskey, "LockFont", cfg->lockfont);
+    write_setting_i(sesskey, "LockSize", cfg->resize_action);
     write_setting_i(sesskey, "BCE", cfg->bce);
     write_setting_i(sesskey, "BlinkText", cfg->blinktext);
     write_setting_i(sesskey, "X11Forward", cfg->x11_forward);
@@ -476,8 +475,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ScrollBar", 1, &cfg->scrollbar);
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
     gppi(sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
-    gppi(sesskey, "LockSize", 0, &cfg->locksize);
-    gppi(sesskey, "LockFont", cfg->locksize, &cfg->lockfont);
+    gppi(sesskey, "LockSize", 0, &cfg->resize_action);
     gppi(sesskey, "BCE", 0, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
