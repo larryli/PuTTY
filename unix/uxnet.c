@@ -34,7 +34,7 @@ struct Socket_tag {
     Plug plug;
     void *private_ptr;
     bufchain output_data;
-    int connected;
+    int connected;		       /* irrelevant for listening sockets */
     int writable;
     int frozen; /* this causes readability notifications to be ignored */
     int frozen_readable; /* this means we missed at least one readability
@@ -679,7 +679,6 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     ret->oobpending = FALSE;
     ret->listener = 1;
     ret->addr = NULL;
-    ret->connected = 0;
 
     /*
      * Translate address_family from platform-independent constants
@@ -1254,14 +1253,16 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 static void uxsel_tell(Actual_Socket s)
 {
     int rwx = 0;
-    if (!s->connected)
-	rwx |= 2;		       /* write == connect */
-    if (s->connected && !s->frozen)
-	rwx |= 1 | 4;		       /* read, except */
-    if (bufchain_size(&s->output_data))
-	rwx |= 2;		       /* write */
-    if (s->listener)
-	rwx |= 1;		       /* read == accept */
+    if (s->listener) {
+	rwx |= 1;			/* read == accept */
+    } else {
+	if (!s->connected)
+	    rwx |= 2;			/* write == connect */
+	if (s->connected && !s->frozen)
+	    rwx |= 1 | 4;		/* read, except */
+	if (bufchain_size(&s->output_data))
+	    rwx |= 2;			/* write */
+    }
     uxsel_set(s->s, rwx, net_select_result);
 }
 
