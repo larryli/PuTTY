@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.25 2002/02/04 13:18:54 simon Exp $
+\versionid $Id: config.but,v 1.26 2002/02/24 15:25:19 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1063,6 +1063,12 @@ box below, and press the \q{Set} button.
 
 This mechanism currently only covers ASCII characters, because it
 isn't feasible to expand the list to cover the whole of Unicode.
+
+Character class definitions can be modified by control sequences
+sent by the server. This configuration option only controls the
+\e{default} state. If you modify this option in mid-session using
+\q{Change Settings}, you will need to reset the terminal (see
+\k{reset-terminal}) before the change takes effect.
 
 \H{config-colours} The Colours panel
 
