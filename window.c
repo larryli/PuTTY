@@ -173,16 +173,35 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	    }
 	} else if (*p) {
 	    char *q = p;
-	    while (*p && !isspace(*p)) p++;
-	    if (*p)
-		*p++ = '\0';
-	    strncpy (cfg.host, q, sizeof(cfg.host)-1);
-	    cfg.host[sizeof(cfg.host)-1] = '\0';
-	    while (*p && isspace(*p)) p++;
-	    if (*p)
-		cfg.port = atoi(p);
-	    else
-		cfg.port = -1;
+            /*
+             * If the hostname starts with "telnet://", set the
+             * protocol to Telnet and process the string as a
+             * Telnet URL.
+             */
+            if (!strncmp(q, "telnet://", 9)) {
+                q += 9;
+                cfg.protocol = PROT_TELNET;
+                p = q;
+                while (*p && *p != ':') p++;
+                if (*p) {
+                    *p++ = '\0';
+                    cfg.port = atoi(p);
+                } else
+                    cfg.port = -1;
+                strncpy (cfg.host, q, sizeof(cfg.host)-1);
+                cfg.host[sizeof(cfg.host)-1] = '\0';
+            } else {
+                while (*p && !isspace(*p)) p++;
+                if (*p)
+                    *p++ = '\0';
+                strncpy (cfg.host, q, sizeof(cfg.host)-1);
+                cfg.host[sizeof(cfg.host)-1] = '\0';
+                while (*p && isspace(*p)) p++;
+                if (*p)
+                    cfg.port = atoi(p);
+                else
+                    cfg.port = -1;
+            }
 	} else {
 	    if (!do_config()) {
 		WSACleanup();
