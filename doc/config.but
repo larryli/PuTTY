@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.59 2003/03/07 09:03:11 simon Exp $
+\versionid $Id: config.but,v 1.60 2003/04/05 11:52:42 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1978,7 +1978,8 @@ To add a port forwarding:
 \b Set one of the \q{Local} or \q{Remote} radio buttons, depending
 on whether you want to forward a local port to a remote destination
 (\q{Local}) or forward a remote port to a local destination
-(\q{Remote}).
+(\q{Remote}). Alternatively, select \q{Dynamic} if you want PuTTY to
+provide a local SOCKS proxy on a local port.
 
 \b Enter a source port number into the \q{Source port} box. For
 local forwardings, PuTTY will listen on this port of your PC. For
@@ -1986,10 +1987,12 @@ remote forwardings, your SSH server will listen on this port of the
 remote machine. Note that most servers will not allow you to listen
 on port numbers less than 1024.
 
-\b Enter a hostname and port number separated by a colon, in the
-\q{Destination} box. Connections received on the source port will be
-directed to this destination. For example, to connect to a POP-3
-server, you might enter \c{popserver.example.com:110}.
+\b If you have selected \q{Local} or \q{Remote} (this step is not
+needed with \q{Dynamic}), enter a hostname and port number separated
+by a colon, in the \q{Destination} box. Connections received on the
+source port will be directed to this destination. For example, to
+connect to a POP-3 server, you might enter
+\c{popserver.example.com:110}.
 
 \b Click the \q{Add} button. Your forwarding details should appear
 in the list box.
@@ -2023,7 +2026,7 @@ controls in the Tunnels panel to change this:
 \b The \q{Local ports accept connections from other hosts} option
 allows you to set up local-to-remote port forwardings in such a way
 that machines other than your client PC can connect to the forwarded
-port.
+port. (This also applies to dynamic SOCKS forwarding.)
 
 \b The \q{Remote ports do the same} option does the same thing for
 remote-to-local port forwardings (so that machines other than the

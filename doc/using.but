@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.13 2003/03/20 22:12:12 ben Exp $
+\versionid $Id: using.but,v 1.14 2003/04/05 11:52:42 simon Exp $
 
 \C{using} Using PuTTY
 
@@ -300,15 +300,25 @@ To do this, just select the \q{Remote} radio button instead of the
 number on the \e{server} (note that most servers will not allow you
 to use port numbers under 1024 for this purpose).
 
+An alternative way to forward local connections to remote hosts is
+to use dynamic SOCKS proxying. For this, you will need to select the
+\q{Dynamic} radio button instead of \q{Local}, and then you should
+not enter anything into the \q{Destination} box (it will be
+ignored). This will cause PuTTY to listen on the port you have
+specified, and provide a SOCKS proxy service to any programs which
+connect to that port. So, in particular, you can forward other PuTTY
+connections through it by setting up the Proxy control panel (see
+\k{config-proxy} for details).
+
 The source port for a forwarded connection usually does not accept
 connections from any machine except the SSH client or server machine
 itself (for local and remote forwardings respectively). There are
 controls in the Tunnels panel to change this:
 
 \b The \q{Local ports accept connections from other hosts} option
-allows you to set up local-to-remote port forwardings in such a way
-that machines other than your client PC can connect to the forwarded
-port.
+allows you to set up local-to-remote port forwardings (including
+dynamic port forwardings) in such a way that machines other than
+your client PC can connect to the forwarded port.
 
 \b The \q{Remote ports do the same} option does the same thing for
 remote-to-local port forwardings (so that machines other than the
@@ -451,7 +461,7 @@ These options are equivalent to the username selection box in the
 Connection panel of the PuTTY configuration box (see
 \k{config-username}).
 
-\S2{using-cmdline-portfwd} \c{-L} and \c{-R}: set up port forwardings
+\S2{using-cmdline-portfwd} \c{-L}, \c{-R} and \c{-D}: set up port forwardings
 
 As well as setting up port forwardings in the PuTTY configuration
 (see \k{config-ssh-portfwd}), you can also set up forwardings on the
@@ -465,11 +475,17 @@ one of these:
 \c putty -L 5110:popserver.example.com:110 -load mysession
 \c plink mysession -L 5110:popserver.example.com:110
 
-And to forward a remote port to a local destination, just use the
-\c{-R} option instead of \c{-L}:
+To forward a remote port to a local destination, just use the \c{-R}
+option instead of \c{-L}:
 
 \c putty -R 5023:mytelnetserver.myhouse.org:23 -load mysession
 \c plink mysession -R 5023:mytelnetserver.myhouse.org:23
+
+To set up SOCKS-based dynamic port forwarding on a local port, use
+the \c{-D} option. For this one you only have to pass the port
+number:
+
+\c putty -D 4096 -load mysession
 
 For general information on port forwarding, see
 \k{using-port-forwarding}.
