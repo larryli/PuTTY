@@ -5020,6 +5020,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			logevent("Access denied");
 			if (s->type == AUTH_TYPE_PASSWORD &&
 			    ssh->cfg.change_username) {
+			    /* XXX perhaps we should allow
+			     * keyboard-interactive to do this too? */
 			    s->we_are_in = FALSE;
 			    break;
 			}
