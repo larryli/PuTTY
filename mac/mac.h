@@ -76,6 +76,7 @@ struct macctrls {
     unsigned int	npanels;
     unsigned int	curpanel;
     union macctrl	**panels; /* lists of controls by panel */
+    union macctrl	*focus; /* Input focus for System 7 */
 };    
 
 typedef struct Session {

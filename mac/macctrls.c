@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.17 2003/03/28 00:50:04 ben Exp $ */
+/* $Id: macctrls.c,v 1.18 2003/03/29 18:32:36 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -117,6 +117,7 @@ struct mac_layoutstate {
 static void macctrl_layoutset(struct mac_layoutstate *, struct controlset *, 
 			      WindowPtr, struct macctrls *);
 static void macctrl_switchtopanel(struct macctrls *, unsigned int);
+static void macctrl_setfocus(struct macctrls *, union macctrl *);
 static void macctrl_text(struct macctrls *, WindowPtr,
 			 struct mac_layoutstate *, union control *);
 static void macctrl_editbox(struct macctrls *, WindowPtr,
@@ -218,6 +219,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	CreateRootControl(window, &root);
     mcs->window = window;
     mcs->byctrl = newtree234(macctrl_cmp_byctrl);
+    mcs->focus = NULL;
     /* Count the number of panels */
     mcs->npanels = 1;
     for (i = 1; i < cb->nctrlsets; i++)
@@ -306,7 +308,11 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
     mcs->curpanel = which;
     /* Panel 0 is special and always visible. */
     for (i = 1; i < mcs->npanels; i++)
-	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next)
+	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next) {
+#if !TARGET_API_MAC_CARBON
+	    if (mcs->focus == mc)
+		macctrl_setfocus(mcs, NULL);
+#endif
 	    switch (mc->generic.type) {
 	      case MACCTRL_TEXT:
 		hideshow(mc->text.tbctrl);
@@ -328,7 +334,45 @@ static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
 		hideshow(mc->popup.tbctrl);
 		break;
 	    }
+	}
 }
+
+#if !TARGET_API_MAC_CARBON
+/*
+ * System 7 focus manipulation
+ */
+static void macctrl_defocus(union macctrl *mc)
+{
+
+    assert(mac_gestalts.apprvers < 0x100);
+    switch (mc->generic.type) {
+      case MACCTRL_EDITBOX:
+	TEDeactivate((TEHandle)(*mc->editbox.tbctrl)->contrlData);
+	break;
+    }
+}
+
+static void macctrl_enfocus(union macctrl *mc)
+{
+
+    assert(mac_gestalts.apprvers < 0x100);
+    switch (mc->generic.type) {
+      case MACCTRL_EDITBOX:
+	TEActivate((TEHandle)(*mc->editbox.tbctrl)->contrlData);
+	break;
+    }
+}
+
+static void macctrl_setfocus(struct macctrls *mcs, union macctrl *mc)
+{
+
+    if (mcs->focus != NULL)
+	macctrl_defocus(mcs->focus);
+    mcs->focus = mc;
+    if (mc != NULL)
+	macctrl_enfocus(mc);
+}
+#endif
 
 static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 			 struct mac_layoutstate *curstate,
@@ -450,6 +494,7 @@ static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
     Rect rect;
     TEHandle te;
     long ssfs;
+    Point mouse;
 
     switch (msg) {
       case initCntl:
@@ -473,6 +518,12 @@ static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
 	    TEUpdate(&rect, (TEHandle)(*control)->contrlData);
 	}
 	return 0;
+      case testCntl:
+	mouse.h = LoWord(param);
+	mouse.v = HiWord(param);
+	return
+	    PtInRect(mouse, &(*(TEHandle)(*control)->contrlData)->viewRect) ?
+	    kControlEditTextPart : kControlNoPart;
       case calcCRgns:
 	if (param & (1 << 31)) {
 	    param &= ~(1 << 31);
@@ -763,6 +814,7 @@ void macctrl_click(WindowPtr window, EventRecord *event)
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
     if (control != NULL) {
+	mc = (union macctrl *)GetControlReference(control);
 	if (mac_gestalts.apprvers >= 0x100) {
 	    if (GetControlFeatures(control, &features) == noErr &&
 		(features & kControlSupportsFocus) &&
@@ -770,9 +822,19 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 		SetKeyboardFocus(window, control, part);
 	    trackresult = HandleControlClick(control, mouse, event->modifiers,
 					     (ControlActionUPP)-1);
-	} else
+	} else {
+#if !TARGET_API_MAC_CARBON
+	    if (mc->generic.type == MACCTRL_EDITBOX &&
+		control == mc->editbox.tbctrl) {
+		TEHandle te = (TEHandle)(*control)->contrlData;
+
+		macctrl_setfocus(mcs, mc);
+		TEClick(mouse, !!(event->modifiers & shiftKey), te);
+		goto done;
+	    }
+#endif
 	    trackresult = TrackControl(control, mouse, (ControlActionUPP)-1);
-	mc = (union macctrl *)GetControlReference(control);
+	}
 	switch (mc->generic.type) {
 	  case MACCTRL_RADIO:
 	    if (trackresult != 0) {
@@ -801,6 +863,7 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 	    break;
 	}
     }
+  done:
     SetPort(saveport);
 }
 
@@ -1075,9 +1138,11 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
 		       kControlEditTextPasswordTag :
 		       kControlEditTextTextTag,
 		       strlen(text), text);
+#if !TARGET_API_MAC_CARBON
     else
 	TESetText(text, strlen(text),
 		  (TEHandle)(*mc->editbox.tbctrl)->contrlData);
+#endif
     DrawOneControl(mc->editbox.tbctrl);
     SetPort(saveport);
 }
@@ -1086,7 +1151,6 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
-    TEHandle te;
     Size olen;
 
     assert(mc != NULL);
@@ -1100,13 +1164,17 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 	    olen = 0;
 	if (olen > length - 1)
 	    olen = length - 1;
-    } else {
-	te = (TEHandle)(*mc->editbox.tbctrl)->contrlData;
+    }
+#if !TARGET_API_MAC_CARBON
+    else {
+	TEHandle te = (TEHandle)(*mc->editbox.tbctrl)->contrlData;
+
 	olen = (*te)->teLength;
 	if (olen > length - 1)
 	    olen = length - 1;
 	memcpy(buffer, *(*te)->hText, olen);
     }
+#endif
     buffer[olen] = '\0';
     fprintf(stderr, "dlg_editbox_get: %s\n", buffer);
 }
