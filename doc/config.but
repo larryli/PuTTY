@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.62 2003/04/12 08:59:06 simon Exp $
+\versionid $Id: config.but,v 1.63 2003/04/26 13:22:25 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1152,15 +1152,20 @@ characters
 \cfg{winhelp-topic}{selection.linedraw}
 
 By default, when you copy and paste a piece of the PuTTY screen that
-contains VT100 line and box drawing characters, PuTTY will translate
-them into the \q{poor man's} line-drawing characters \c{+}, \c{-}
-and \c{|}. The checkbox \q{Don't translate line drawing chars}
-disables this feature, so line-drawing characters will be pasted as
-if they were in the normal character set. This will typically mean
-they come out mostly as \c{q} and \c{x}, with a scattering of
-\c{jklmntuvw} at the corners. This might be useful if you were
-trying to recreate the same box layout in another program, for
-example.
+contains VT100 line and box drawing characters, PuTTY will paste
+them in the form they appear on the screen: either Unicode line
+drawing code points, or the \q{poor man's} line-drawing characters
+\c{+}, \c{-} and \c{|}. The checkbox \q{Paste VT100 line drawing
+chars as lqqqk} disables this feature, so line-drawing characters
+will be pasted as the ASCII characters that were printed to produce
+them. This will typically mean they come out mostly as \c{q} and
+\c{x}, with a scattering of \c{jklmntuvw} at the corners. This might
+be useful if you were trying to recreate the same box layout in
+another program, for example.
+
+Note that this option only applies to line-drawing characters which
+\e{were} printed by using the VT100 mechanism. Line-drawing
+characters displayed using Unicode will paste as Unicode always.
 
 \S{config-rtfpaste} Pasting in Rich Text Format
 

@@ -1154,7 +1154,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 
     s = ctrl_getset(b, "Window/Selection", "trans",
 		    "Translation of pasted characters");
-    ctrl_checkbox(s, "Don't translate line drawing chars into +, - and |",'d',
+    ctrl_checkbox(s, "Paste VT100 line drawing chars as lqqqk",'d',
 		  HELPCTX(selection_linedraw),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,rawcnp)));
 	
