@@ -1128,7 +1128,9 @@ static void ssh_detect_bugs(char *vstring) {
     char *imp;                         /* pointer to implementation part */
     imp = vstring;
     imp += strcspn(imp, "-");
+    if (*imp) imp++;
     imp += strcspn(imp, "-");
+    if (*imp) imp++;
 
     ssh_remote_bugs = 0;
 
