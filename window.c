@@ -302,6 +302,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    }
 	}
 
+	/*
+	 * Trim leading whitespace off the hostname if it's there.
+	 */
+	{
+	    int space = strspn(cfg.host, " \t");
+	    memmove(cfg.host, cfg.host+space, 1+strlen(cfg.host)-space);
+	}
+
 	/* See if host is of the form user@host */
 	if (cfg.host[0] != '\0') {
 	    char *atsign = strchr(cfg.host, '@');
