@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.14 1999/03/03 22:03:54 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.15 1999/03/07 23:22:23 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -43,6 +43,7 @@
 
 #include <limits.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "macresid.h"
 #include "putty.h"
@@ -52,6 +53,8 @@
 #define DEFAULT_FG_BOLD	17
 #define DEFAULT_BG	18
 #define DEFAULT_BG_BOLD	19
+#define CURSOR_FG	22
+#define CURSOR_FG_BOLD	23
 
 struct mac_session {
     short		fontnum;
@@ -66,6 +69,7 @@ static void mac_initpalette(struct mac_session *);
 static void mac_adjustsize(struct mac_session *, int, int);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
+static int mac_keytrans(struct mac_session *, EventRecord *, unsigned char *);
 
 /*
  * Temporary hack till I get the terminal emulator supporting multiple
@@ -110,6 +114,7 @@ void mac_newsession(void) {
 
     /* This should obviously be initialised by other means */
     mac_loadconfig(&cfg);
+/*    back = &loop_backend; */
     s = smalloc(sizeof(*s));
     onlysession = s;
 	
@@ -240,6 +245,197 @@ static pascal void mac_scrolltracker(ControlHandle control, short part) {
     }
 }
 
+#define K_SPACE	0x3100
+#define K_BS	0x3300
+#define K_F1	0x7a00
+#define K_F2	0x7800
+#define K_F3	0x6300
+#define K_F4	0x7600
+#define K_F5	0x6000
+#define K_F6	0x6100
+#define K_F7	0x6200
+#define K_F8	0x6400
+#define K_F9	0x6500
+#define K_F10	0x6d00
+#define K_F11	0x6700
+#define K_F12	0x6f00
+#define K_INSERT 0x7200
+#define K_HOME	0x7300
+#define K_PRIOR	0x7400
+#define K_DELETE 0x7500
+#define K_END	0x7700
+#define K_NEXT	0x7900
+#define K_LEFT	0x7b00
+#define K_RIGHT	0x7c00
+#define K_DOWN	0x7d00
+#define K_UP	0x7e00
+#define KP_0	0x5200
+#define KP_1	0x5300
+#define KP_2	0x5400
+#define KP_3	0x5500
+#define KP_4	0x5600
+#define KP_5	0x5700
+#define KP_6	0x5800
+#define KP_7	0x5900
+#define KP_8	0x5b00
+#define KP_9	0x5c00
+#define KP_CLEAR 0x4700
+#define KP_EQUAL 0x5100
+#define KP_SLASH 0x4b00
+#define KP_STAR	0x4300
+#define KP_PLUS	0x4500
+#define KP_MINUS 0x4e00
+#define KP_DOT	0x4100
+#define KP_ENTER 0x4c00
+
+void mac_keyterm(WindowPtr window, EventRecord *event) {
+    unsigned char buf[20];
+    int len;
+    struct mac_session *s;
+    int i;
+
+    s = (struct mac_session *)GetWRefCon(window);
+    len = mac_keytrans(s, event, buf);
+    /* XXX: I can't get the loopback backend to link, so we'll do this: */
+/*    back->send((char *)buf, len); */
+    for (i = 0; i < len; i++)
+	inbuf_putc(buf[i]);
+    term_out();
+    term_update();
+}
+
+static int mac_keytrans(struct mac_session *s, EventRecord *event,
+			unsigned char *output) {
+    unsigned char *p = output;
+    int code;
+
+    /* No meta key yet -- that'll be rather fun. */
+
+    /* Keys that we handle locally */
+    if (event->modifiers & shiftKey) {
+	switch (event->message & keyCodeMask) {
+	  case K_PRIOR: /* shift-pageup */
+	    term_scroll(0, -(rows - 1));
+	    return 0;
+	  case K_NEXT:  /* shift-pagedown */
+	    term_scroll(0, +(rows - 1));
+	    return 0;
+	}
+    }
+
+    /*
+     * Control-2 should return ^@ (0x00), Control-6 should return
+     * ^^ (0x1E), and Control-Minus should return ^_ (0x1F). Since
+     * the DOS keyboard handling did it, and we have nothing better
+     * to do with the key combo in question, we'll also map
+     * Control-Backquote to ^\ (0x1C).
+     */
+
+    if (event->modifiers & controlKey) {
+	switch (event->message & charCodeMask) {
+	  case ' ': case '2':
+	    *p++ = 0x00;
+	    return p - output;
+	  case '`':
+	    *p++ = 0x1c;
+	    return p - output;
+	  case '6':
+	    *p++ = 0x1e;
+	    return p - output;
+	  case '/':
+	    *p++ = 0x1f;
+	    return p - output;
+	}
+    }
+
+    /*
+     * First, all the keys that do tilde codes. (ESC '[' nn '~',
+     * for integer decimal nn.)
+     *
+     * We also deal with the weird ones here. Linux VCs replace F1
+     * to F5 by ESC [ [ A to ESC [ [ E. rxvt doesn't do _that_, but
+     * does replace Home and End (1~ and 4~) by ESC [ H and ESC O w
+     * respectively.
+     */
+    code = 0;
+    switch (event->message & keyCodeMask) {
+      case K_F1: code = (event->modifiers & shiftKey ? 23 : 11); break;
+      case K_F2: code = (event->modifiers & shiftKey ? 24 : 12); break;
+      case K_F3: code = (event->modifiers & shiftKey ? 25 : 13); break;
+      case K_F4: code = (event->modifiers & shiftKey ? 26 : 14); break;
+      case K_F5: code = (event->modifiers & shiftKey ? 28 : 15); break;
+      case K_F6: code = (event->modifiers & shiftKey ? 29 : 17); break;
+      case K_F7: code = (event->modifiers & shiftKey ? 31 : 18); break;
+      case K_F8: code = (event->modifiers & shiftKey ? 32 : 19); break;
+      case K_F9: code = (event->modifiers & shiftKey ? 33 : 20); break;
+      case K_F10: code = (event->modifiers & shiftKey ? 34 : 21); break;
+      case K_F11: code = 23; break;
+      case K_F12: code = 24; break;
+      case K_HOME: code = 1; break;
+      case K_INSERT: code = 2; break;
+      case K_DELETE: code = 3; break;
+      case K_END: code = 4; break;
+      case K_PRIOR: code = 5; break;
+      case K_NEXT: code = 6; break;
+    }
+    if (cfg.linux_funkeys && code >= 11 && code <= 15) {
+	p += sprintf((char *)p, "\x1B[[%c", code + 'A' - 11);
+	return p - output;
+    }
+    if (cfg.rxvt_homeend && (code == 1 || code == 4)) {
+	p += sprintf((char *)p, code == 1 ? "\x1B[H" : "\x1BOw");
+	return p - output;
+    }
+    if (code) {
+	p += sprintf((char *)p, "\x1B[%d~", code);
+	return p - output;
+    }
+
+    if (app_keypad_keys) {
+	switch (event->message & keyCodeMask) {
+	  case KP_ENTER: p += sprintf((char *)p, "\x1BOM"); return p - output;
+	  case KP_CLEAR: p += sprintf((char *)p, "\x1BOP"); return p - output;
+	  case KP_EQUAL: p += sprintf((char *)p, "\x1BOQ"); return p - output;
+	  case KP_SLASH: p += sprintf((char *)p, "\x1BOR"); return p - output;
+	  case KP_STAR:  p += sprintf((char *)p, "\x1BOS"); return p - output;
+	  case KP_PLUS:  p += sprintf((char *)p, "\x1BOl"); return p - output;
+	  case KP_MINUS: p += sprintf((char *)p, "\x1BOm"); return p - output;
+	  case KP_DOT:   p += sprintf((char *)p, "\x1BOn"); return p - output;
+	  case KP_0:     p += sprintf((char *)p, "\x1BOp"); return p - output;
+	  case KP_1:     p += sprintf((char *)p, "\x1BOq"); return p - output;
+	  case KP_2:     p += sprintf((char *)p, "\x1BOr"); return p - output;
+	  case KP_3:     p += sprintf((char *)p, "\x1BOs"); return p - output;
+	  case KP_4:     p += sprintf((char *)p, "\x1BOt"); return p - output;
+	  case KP_5:     p += sprintf((char *)p, "\x1BOu"); return p - output;
+	  case KP_6:     p += sprintf((char *)p, "\x1BOv"); return p - output;
+	  case KP_7:     p += sprintf((char *)p, "\x1BOw"); return p - output;
+	  case KP_8:     p += sprintf((char *)p, "\x1BOx"); return p - output;
+	  case KP_9:     p += sprintf((char *)p, "\x1BOy"); return p - output;
+	}
+    }
+
+    switch (event->message & keyCodeMask) {
+      case K_UP:
+	p += sprintf((char *)p, app_cursor_keys ? "\x1BOA" : "\x1B[A");
+	return p - output;
+      case K_DOWN:
+	p += sprintf((char *)p, app_cursor_keys ? "\x1BOB" : "\x1B[B");
+	return p - output;
+      case K_RIGHT:
+	p += sprintf((char *)p, app_cursor_keys ? "\x1BOC" : "\x1B[C");
+	return p - output;
+      case K_LEFT:
+	p += sprintf((char *)p, app_cursor_keys ? "\x1BOD" : "\x1B[D");
+	return p - output;
+      case K_BS:
+	*p++ = (cfg.bksp_is_delete ? 0x7f : 0x08);
+	return p - output;
+      default:
+	*p++ = event->message & charCodeMask;
+	return p - output;
+    }
+}
+
 void mac_growterm(WindowPtr window, EventRecord *event) {
     Rect limits;
     long grow_result;
@@ -261,6 +457,8 @@ void mac_activateterm(WindowPtr window, Boolean active) {
     struct mac_session *s;
 
     s = (struct mac_session *)GetWRefCon(window);
+    has_focus = active;
+    term_update();
     if (active)
 	ShowControl(s->scrollbar);
     else
@@ -367,7 +565,10 @@ static pascal void do_text_for_device(short depth, short devflags,
 	    PmForeColor(DEFAULT_FG_BOLD);
 	else
 	    PmForeColor(DEFAULT_FG);
-	PmBackColor(DEFAULT_BG);
+	if (a->attr & ATTR_ACTCURS)
+	    PmBackColor(CURSOR_FG);
+	else
+	    PmBackColor(DEFAULT_BG);
 	break;
       default:
 	fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
@@ -377,6 +578,8 @@ static pascal void do_text_for_device(short depth, short devflags,
 		bgcolour++;
 	    else
 		fgcolour++;
+	if (a->attr & ATTR_ACTCURS)
+	    bgcolour = CURSOR_FG;
 	PmForeColor(fgcolour);
 	PmBackColor(bgcolour);
 	break;
@@ -507,6 +710,7 @@ void do_scroll(int topline, int botline, int lines) {
     RgnHandle update;
 
     SetPort(s->window);
+    PmBackColor(DEFAULT_BG);
     update = NewRgn();
     SetRect(&r, 0, topline * font_height,
 	    cols * font_width, (botline + 1) * font_height);
