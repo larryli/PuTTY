@@ -271,7 +271,7 @@ int main(int argc, char **argv)
     HANDLE handles[4];
     DWORD in_threadid, out_threadid, err_threadid;
     struct input_data idata;
-    int reading;
+    int reading = FALSE;
     int sending;
     int portnumber = -1;
     SOCKET *sklist;
@@ -664,6 +664,7 @@ int main(int argc, char **argv)
 		cleanup_exit(1);
 	    }
 	    sending = TRUE;
+	    reading = TRUE;
 	}
 
 	if (run_timers(now, &next)) {
