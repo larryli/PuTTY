@@ -1550,7 +1550,7 @@ void showabout (HWND hwnd) {
     }
 }
 
-void verify_ssh_host_key(char *host, char *keytype,
+void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint) {
     int ret;
 
@@ -1593,7 +1593,7 @@ void verify_ssh_host_key(char *host, char *keytype,
     /*
      * Verify the key against the registry.
      */
-    ret = verify_host_key(host, keytype, keystr);
+    ret = verify_host_key(host, port, keytype, keystr);
 
     if (ret == 0)                      /* success - key matched OK */
         return;
@@ -1603,7 +1603,7 @@ void verify_ssh_host_key(char *host, char *keytype,
         mbret = MessageBox(NULL, message, mbtitle,
                            MB_ICONWARNING | MB_YESNOCANCEL);
         if (mbret == IDYES)
-            store_host_key(host, keytype, keystr);
+            store_host_key(host, port, keytype, keystr);
         if (mbret == IDCANCEL)
             exit(0);
     }
@@ -1614,6 +1614,6 @@ void verify_ssh_host_key(char *host, char *keytype,
                            MB_ICONWARNING | MB_YESNO);
         if (mbret == IDNO)
             exit(0);
-        store_host_key(host, keytype, keystr);
+        store_host_key(host, port, keytype, keystr);
     }
 }

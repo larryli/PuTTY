@@ -270,7 +270,7 @@ void do_defaults (char *);
 void logevent (char *);
 void showeventlog (HWND);
 void showabout (HWND);
-void verify_ssh_host_key(char *host, char *keytype,
+void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint);
 void get_sesslist(int allocate);
 void registry_cleanup(void);

@@ -203,6 +203,7 @@ static struct ssh_hostkey *hostkey = NULL;
 int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
 
 static char *savedhost;
+static int savedport;
 static int ssh_send_ok;
 
 /*
@@ -704,6 +705,7 @@ static char *connect_to_host(char *host, int port, char **realhost)
 
     if (port < 0)
 	port = 22;		       /* default ssh port */
+    savedport = port;
 
 #ifdef FWHACK
     FWhost = host;
@@ -1148,7 +1150,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             fatalbox("Out of memory");
         rsastr_fmt(keystr, &hostkey);
         rsa_fingerprint(fingerprint, sizeof(fingerprint), &hostkey);
-        verify_ssh_host_key(savedhost, "rsa", keystr, fingerprint);
+        verify_ssh_host_key(savedhost, savedport, "rsa", keystr, fingerprint);
         free(keystr);
     }
 
@@ -2056,7 +2058,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      */
     keystr = hostkey->fmtkey();
     fingerprint = hostkey->fingerprint();
-    verify_ssh_host_key(savedhost, hostkey->keytype, keystr, fingerprint);
+    verify_ssh_host_key(savedhost, savedport, hostkey->keytype,
+                        keystr, fingerprint);
     logevent("Host key fingerprint is:");
     logevent(fingerprint);
     free(fingerprint);

@@ -67,13 +67,13 @@ void enum_settings_finish(void *handle);
  * be 0 (entry matches database), 1 (entry is absent in database),
  * or 2 (entry exists in database and is different).
  */
-int verify_host_key(char *hostname, char *keytype, char *key);
+int verify_host_key(char *hostname, int port, char *keytype, char *key);
 
 /*
  * Write a host key into the database, overwriting any previous
  * entry that might have been there.
  */
-void store_host_key(char *hostname, char *keytype, char *key);
+void store_host_key(char *hostname, int port, char *keytype, char *key);
 
 /* ----------------------------------------------------------------------
  * Functions to access PuTTY's random number seed file.

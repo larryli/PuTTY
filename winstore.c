@@ -154,12 +154,6 @@ void del_settings (char *sessionname) {
     RegCloseKey(subkey1);
 }
 
-static void hostkey_regname(char *buffer, char *hostname, char *keytype) {
-    strcpy(buffer, keytype);
-    strcat(buffer, "@");
-    mungestr(hostname, buffer + strlen(buffer));
-}
-
 struct enumsettings {
     HKEY key;
     int i;
@@ -201,7 +195,17 @@ void enum_settings_finish(void *handle) {
     free(e);
 }
 
-int verify_host_key(char *hostname, char *keytype, char *key) {
+static void hostkey_regname(char *buffer, char *hostname,
+                            int port, char *keytype) {
+    int len;
+    strcpy(buffer, keytype);
+    strcat(buffer, "@");
+    len = strlen(buffer);
+    len += sprintf(buffer+len, "%d:", port);
+    mungestr(hostname, buffer + strlen(buffer));
+}
+
+int verify_host_key(char *hostname, int port, char *keytype, char *key) {
     char *otherstr, *regname;
     int len;
     HKEY rkey;
@@ -216,11 +220,11 @@ int verify_host_key(char *hostname, char *keytype, char *key) {
      * says.
      */
     otherstr = smalloc(len);
-    regname = smalloc(3*(strlen(hostname)+strlen(keytype))+5);
+    regname = smalloc(3*(strlen(hostname)+strlen(keytype))+15);
     if (!otherstr || !regname)
 	fatalbox("Out of memory");
 
-    hostkey_regname(regname, hostname, keytype);
+    hostkey_regname(regname, hostname, port, keytype);
 
     if (RegCreateKey(HKEY_CURRENT_USER, PUTTY_REG_POS "\\SshHostKeys",
 		     &rkey) != ERROR_SUCCESS)
@@ -236,7 +240,7 @@ int verify_host_key(char *hostname, char *keytype, char *key) {
          * another trick, which is to look up the _old_ key format
          * under just the hostname and translate that.
          */
-        char *justhost = regname + 1 + strlen(keytype);
+        char *justhost = regname + 1 + strcspn(regname, ":");
         char *oldstyle = smalloc(len + 10);   /* safety margin */
         readlen = len;
         ret = RegQueryValueEx(rkey, justhost, NULL, &type,
@@ -306,15 +310,15 @@ int verify_host_key(char *hostname, char *keytype, char *key) {
         return 0;                      /* key matched OK in registry */
 }
 
-void store_host_key(char *hostname, char *keytype, char *key) {
+void store_host_key(char *hostname, int port, char *keytype, char *key) {
     char *regname;
     HKEY rkey;
 
-    regname = smalloc(3*(strlen(hostname)+strlen(keytype))+5);
+    regname = smalloc(3*(strlen(hostname)+strlen(keytype))+15);
     if (!regname)
 	fatalbox("Out of memory");
 
-    hostkey_regname(regname, hostname, keytype);
+    hostkey_regname(regname, hostname, port, keytype);
 
     if (RegCreateKey(HKEY_CURRENT_USER, PUTTY_REG_POS "\\SshHostKeys",
 		     &rkey) != ERROR_SUCCESS)
