@@ -81,13 +81,13 @@ void write_clip (void *data, int len) { }
 void term_deselect(void) { }
 
 /* GUI Adaptation - Sept 2000 */
-void send_msg(HWND h, UINT message, WPARAM wParam)
+static void send_msg(HWND h, UINT message, WPARAM wParam)
 {
     while (!PostMessage( h, message, wParam, 0))
         SleepEx(1000,TRUE);
 }
 
-void tell_char(FILE *stream, char c)
+static void tell_char(FILE *stream, char c)
 {
     if (!gui_mode)
 	fputc(c, stream);
@@ -99,7 +99,7 @@ void tell_char(FILE *stream, char c)
     }
 }
 
-void tell_str(FILE *stream, char *str)
+static void tell_str(FILE *stream, char *str)
 {
     unsigned int i;
 
@@ -107,7 +107,7 @@ void tell_str(FILE *stream, char *str)
 	tell_char(stream, str[i]);
 }
 
-void tell_user(FILE *stream, char *fmt, ...)
+static void tell_user(FILE *stream, char *fmt, ...)
 {
     char str[0x100]; /* Make the size big enough */
     va_list ap;
@@ -118,7 +118,7 @@ void tell_user(FILE *stream, char *fmt, ...)
     tell_str(stream, str);
 }
 
-void gui_update_stats(char *name, unsigned long size, int percentage, time_t elapsed)
+static void gui_update_stats(char *name, unsigned long size, int percentage, time_t elapsed)
 {
     unsigned int i;
 

@@ -457,7 +457,7 @@ struct ctlpos {
 };
 
 /* Used on self-constructed dialogs. */
-void ctlposinit(struct ctlpos *cp, HWND hwnd) {
+static void ctlposinit(struct ctlpos *cp, HWND hwnd) {
     RECT r;
     cp->hwnd = hwnd;
     cp->units = GetWindowLong(hwnd, GWL_USERDATA);
@@ -468,7 +468,7 @@ void ctlposinit(struct ctlpos *cp, HWND hwnd) {
 }
 
 /* Used on kosher dialogs. */
-void ctlposinit2(struct ctlpos *cp, HWND hwnd) {
+static void ctlposinit2(struct ctlpos *cp, HWND hwnd) {
     RECT r;
     cp->hwnd = hwnd;
     r.left = r.top = 0;
@@ -482,8 +482,9 @@ void ctlposinit2(struct ctlpos *cp, HWND hwnd) {
     cp->width = (r.right * 4) / (cp->units & 0xFFFF) - 2*GAPBETWEEN;
 }
 
-void doctl(struct ctlpos *cp, RECT r, char *wclass, int wstyle, int exstyle,
-           char *wtext, int wid) {
+static void doctl(struct ctlpos *cp, RECT r,
+                  char *wclass, int wstyle, int exstyle,
+                  char *wtext, int wid) {
     HWND ctl;
     /*
      * Note nonstandard use of RECT. This is deliberate: by
@@ -507,7 +508,7 @@ void doctl(struct ctlpos *cp, RECT r, char *wclass, int wstyle, int exstyle,
  * Some edit boxes. Each one has a static above it. The percentages
  * of the horizontal space are provided.
  */
-void multiedit(struct ctlpos *cp, ...) {
+static void multiedit(struct ctlpos *cp, ...) {
     RECT r;
     va_list ap;
     int percent, xpos;
@@ -549,7 +550,8 @@ void multiedit(struct ctlpos *cp, ...) {
  * needed to line up some 2s and some 3s to look good in the same
  * panel).
  */
-void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...) {
+static void radioline(struct ctlpos *cp,
+                      char *text, int id, int nacross, ...) {
     RECT r;
     va_list ap;
     int group;
@@ -587,7 +589,7 @@ void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...) {
  * A set of radio buttons on multiple lines, with a static above
  * them.
  */
-void radiobig(struct ctlpos *cp, char *text, int id, ...) {
+static void radiobig(struct ctlpos *cp, char *text, int id, ...) {
     RECT r;
     va_list ap;
     int group;
@@ -621,7 +623,7 @@ void radiobig(struct ctlpos *cp, char *text, int id, ...) {
 /*
  * A single standalone checkbox.
  */
-void checkbox(struct ctlpos *cp, char *text, int id) {
+static void checkbox(struct ctlpos *cp, char *text, int id) {
     RECT r;
 
     r.left = GAPBETWEEN; r.top = cp->ypos;
@@ -635,7 +637,8 @@ void checkbox(struct ctlpos *cp, char *text, int id) {
 /*
  * A button on the right hand side, with a static to its left.
  */
-void staticbtn(struct ctlpos *cp, char *stext, int sid, char *btext, int bid) {
+static void staticbtn(struct ctlpos *cp, char *stext, int sid,
+                      char *btext, int bid) {
     const int height = (PUSHBTNHEIGHT > STATICHEIGHT ?
                         PUSHBTNHEIGHT : STATICHEIGHT);
     RECT r;
@@ -662,7 +665,7 @@ void staticbtn(struct ctlpos *cp, char *stext, int sid, char *btext, int bid) {
 /*
  * An edit control on the right hand side, with a static to its left.
  */
-void staticedit(struct ctlpos *cp, char *stext, int sid, int eid) {
+static void staticedit(struct ctlpos *cp, char *stext, int sid, int eid) {
     const int height = (EDITHEIGHT > STATICHEIGHT ?
                         EDITHEIGHT : STATICHEIGHT);
     RECT r;
@@ -689,7 +692,8 @@ void staticedit(struct ctlpos *cp, char *stext, int sid, int eid) {
 /*
  * A tab-control substitute when a real tab control is unavailable.
  */
-void ersatztab(struct ctlpos *cp, char *stext, int sid, int lid, int s2id) {
+static void ersatztab(struct ctlpos *cp, char *stext, int sid,
+                      int lid, int s2id) {
     const int height = (COMBOHEIGHT > STATICHEIGHT ?
                         COMBOHEIGHT : STATICHEIGHT);
     RECT r;
@@ -727,8 +731,8 @@ void ersatztab(struct ctlpos *cp, char *stext, int sid, int lid, int s2id) {
  * A static line, followed by an edit control on the left hand side
  * and a button on the right.
  */
-void editbutton(struct ctlpos *cp, char *stext, int sid,
-                int eid, char *btext, int bid) {
+static void editbutton(struct ctlpos *cp, char *stext, int sid,
+                       int eid, char *btext, int bid) {
     const int height = (EDITHEIGHT > PUSHBTNHEIGHT ?
                         EDITHEIGHT : PUSHBTNHEIGHT);
     RECT r;
@@ -766,8 +770,8 @@ void editbutton(struct ctlpos *cp, char *stext, int sid,
  * that a list box. To the right of the list box, a column of
  * buttons.
  */
-void sesssaver(struct ctlpos *cp, char *text,
-               int staticid, int editid, int listid, ...) {
+static void sesssaver(struct ctlpos *cp, char *text,
+                      int staticid, int editid, int listid, ...) {
     RECT r;
     va_list ap;
     int lwid, rwid, rpos;
@@ -832,10 +836,11 @@ void sesssaver(struct ctlpos *cp, char *text,
  * static line first; then a pair of edit boxes with associated
  * statics, and two buttons; then a list box.
  */
-void envsetter(struct ctlpos *cp, char *stext, int sid,
-               char *e1stext, int e1sid, int e1id,
-               char *e2stext, int e2sid, int e2id,
-               int listid, char *b1text, int b1id, char *b2text, int b2id) {
+static void envsetter(struct ctlpos *cp, char *stext, int sid,
+                      char *e1stext, int e1sid, int e1id,
+                      char *e2stext, int e2sid, int e2id,
+                      int listid,
+                      char *b1text, int b1id, char *b2text, int b2id) {
     RECT r;
     const int height = (STATICHEIGHT > EDITHEIGHT && STATICHEIGHT > PUSHBTNHEIGHT ?
                         STATICHEIGHT :
@@ -899,8 +904,8 @@ void envsetter(struct ctlpos *cp, char *stext, int sid,
  * static, then a list, then a line containing a
  * button-and-static-and-edit. 
  */
-void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
-               char *btext, int bid, int eid, char *s2text, int s2id) {
+static void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
+                      char *btext, int bid, int eid, char *s2text, int s2id) {
     RECT r;
     const int height = (STATICHEIGHT > EDITHEIGHT && STATICHEIGHT > PUSHBTNHEIGHT ?
                         STATICHEIGHT :
@@ -959,8 +964,8 @@ void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
  * then on the left, a list box, and on the right, a sequence of
  * two-part statics followed by a button.
  */
-void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
-                char *btext, int bid, ...) {
+static void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
+                       char *btext, int bid, ...) {
     RECT r;
     int y;
     va_list ap;

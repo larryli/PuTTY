@@ -39,20 +39,20 @@
 
 extern char ver[];
 
-HINSTANCE instance;
-HWND hwnd;
-HWND keylist;
-HWND aboutbox;
-HMENU systray_menu;
+static HINSTANCE instance;
+static HWND hwnd;
+static HWND keylist;
+static HWND aboutbox;
+static HMENU systray_menu;
 
-tree234 *rsakeys;
+static tree234 *rsakeys;
 
-int has_security;
+static int has_security;
 typedef DWORD (WINAPI *gsi_fn_t)
     (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
                                  PSID *, PSID *, PACL *, PACL *,
                                  PSECURITY_DESCRIPTOR *);
-gsi_fn_t getsecurityinfo;
+static gsi_fn_t getsecurityinfo;
 
 /*
  * We need this to link with the RSA code, because rsaencrypt()
@@ -192,7 +192,7 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 /*
  * Update the visible key list.
  */
-void keylist_update(void) {
+static void keylist_update(void) {
     struct RSAKey *key;
     enum234 e;
 
@@ -217,7 +217,7 @@ void keylist_update(void) {
 /*
  * This function loads a key from a file and adds it.
  */
-void add_keyfile(char *filename) {
+static void add_keyfile(char *filename) {
     char passphrase[PASSPHRASE_MAXLEN];
     struct RSAKey *key;
     int needs_pass;
@@ -261,7 +261,7 @@ void add_keyfile(char *filename) {
 /*
  * This is the main agent function that answers messages.
  */
-void answer_msg(void *msg) {
+static void answer_msg(void *msg) {
     unsigned char *p = msg;
     unsigned char *ret = msg;
     int type;
@@ -432,7 +432,7 @@ void answer_msg(void *msg) {
 /*
  * Key comparison function for the 2-3-4 tree of RSA keys.
  */
-int cmpkeys(void *av, void *bv) {
+static int cmpkeys(void *av, void *bv) {
     struct RSAKey *a = (struct RSAKey *)av;
     struct RSAKey *b = (struct RSAKey *)bv;
     Bignum am, bm;

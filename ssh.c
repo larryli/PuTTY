@@ -810,7 +810,7 @@ static int ssh_versioncmp(char *a, char *b) {
  * state.
  */
 #include <stdio.h>
-void sha_string(SHA_State *s, void *str, int len) {
+static void sha_string(SHA_State *s, void *str, int len) {
     unsigned char lenblk[4];
     PUT_32BIT(lenblk, len);
     SHA_Bytes(s, lenblk, 4);
@@ -820,7 +820,7 @@ void sha_string(SHA_State *s, void *str, int len) {
 /*
  * SSH2 packet construction functions.
  */
-void ssh2_pkt_adddata(void *data, int len) {
+static void ssh2_pkt_adddata(void *data, int len) {
     pktout.length += len;
     if (pktout.maxlen < pktout.length) {
         pktout.maxlen = pktout.length + 256;
@@ -831,40 +831,40 @@ void ssh2_pkt_adddata(void *data, int len) {
     }
     memcpy(pktout.data+pktout.length-len, data, len);
 }
-void ssh2_pkt_addbyte(unsigned char byte) {
+static void ssh2_pkt_addbyte(unsigned char byte) {
     ssh2_pkt_adddata(&byte, 1);
 }
-void ssh2_pkt_init(int pkt_type) {
+static void ssh2_pkt_init(int pkt_type) {
     pktout.length = 5;
     ssh2_pkt_addbyte((unsigned char)pkt_type);
 }
-void ssh2_pkt_addbool(unsigned char value) {
+static void ssh2_pkt_addbool(unsigned char value) {
     ssh2_pkt_adddata(&value, 1);
 }
-void ssh2_pkt_adduint32(unsigned long value) {
+static void ssh2_pkt_adduint32(unsigned long value) {
     unsigned char x[4];
     PUT_32BIT(x, value);
     ssh2_pkt_adddata(x, 4);
 }
-void ssh2_pkt_addstring_start(void) {
+static void ssh2_pkt_addstring_start(void) {
     ssh2_pkt_adduint32(0);
     pktout.savedpos = pktout.length;
 }
-void ssh2_pkt_addstring_str(char *data) {
+static void ssh2_pkt_addstring_str(char *data) {
     ssh2_pkt_adddata(data, strlen(data));
     PUT_32BIT(pktout.data + pktout.savedpos - 4,
               pktout.length - pktout.savedpos);
 }
-void ssh2_pkt_addstring_data(char *data, int len) {
+static void ssh2_pkt_addstring_data(char *data, int len) {
     ssh2_pkt_adddata(data, len);
     PUT_32BIT(pktout.data + pktout.savedpos - 4,
               pktout.length - pktout.savedpos);
 }
-void ssh2_pkt_addstring(char *data) {
+static void ssh2_pkt_addstring(char *data) {
     ssh2_pkt_addstring_start();
     ssh2_pkt_addstring_str(data);
 }
-char *ssh2_mpint_fmt(Bignum b, int *len) {
+static char *ssh2_mpint_fmt(Bignum b, int *len) {
     unsigned char *p;
     int i, n = b[0];
     p = malloc(n * 2 + 1);
@@ -882,7 +882,7 @@ char *ssh2_mpint_fmt(Bignum b, int *len) {
     *len = n*2+1-i;
     return p;
 }
-void ssh2_pkt_addmp(Bignum b) {
+static void ssh2_pkt_addmp(Bignum b) {
     unsigned char *p;
     int len;
     p = ssh2_mpint_fmt(b, &len);
@@ -890,7 +890,7 @@ void ssh2_pkt_addmp(Bignum b) {
     ssh2_pkt_addstring_data(p, len);
     free(p);
 }
-void ssh2_pkt_send(void) {
+static void ssh2_pkt_send(void) {
     int cipherblk, maclen, padding, i;
     static unsigned long outgoing_sequence = 0;
 
@@ -938,7 +938,7 @@ void bndebug(char *string, Bignum b) {
 }
 #endif
 
-void sha_mpint(SHA_State *s, Bignum b) {
+static void sha_mpint(SHA_State *s, Bignum b) {
     unsigned char *p;
     int len;
     p = ssh2_mpint_fmt(b, &len);
@@ -949,7 +949,7 @@ void sha_mpint(SHA_State *s, Bignum b) {
 /*
  * SSH2 packet decode functions.
  */
-unsigned long ssh2_pkt_getuint32(void) {
+static unsigned long ssh2_pkt_getuint32(void) {
     unsigned long value;
     if (pktin.length - pktin.savedpos < 4)
         return 0;                      /* arrgh, no way to decline (FIXME?) */
@@ -957,7 +957,7 @@ unsigned long ssh2_pkt_getuint32(void) {
     pktin.savedpos += 4;
     return value;
 }
-void ssh2_pkt_getstring(char **p, int *length) {
+static void ssh2_pkt_getstring(char **p, int *length) {
     *p = NULL;
     if (pktin.length - pktin.savedpos < 4)
         return;
@@ -968,7 +968,7 @@ void ssh2_pkt_getstring(char **p, int *length) {
     *p = pktin.data+pktin.savedpos;
     pktin.savedpos += *length;
 }
-Bignum ssh2_pkt_getmp(void) {
+static Bignum ssh2_pkt_getmp(void) {
     char *p;
     int i, j, length;
     Bignum b;
@@ -1776,7 +1776,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 /*
  * Utility routine for decoding comma-separated strings in KEXINIT.
  */
-int in_commasep_string(char *needle, char *haystack, int haylen) {
+static int in_commasep_string(char *needle, char *haystack, int haylen) {
     int needlen = strlen(needle);
     while (1) {
         /*
@@ -1803,7 +1803,7 @@ int in_commasep_string(char *needle, char *haystack, int haylen) {
 /*
  * SSH2 key creation method.
  */
-void ssh2_mkkey(Bignum K, char *H, char chr, char *keyspace) {
+static void ssh2_mkkey(Bignum K, char *H, char chr, char *keyspace) {
     SHA_State s;
     /* First 20 bytes. */
     SHA_Init(&s);

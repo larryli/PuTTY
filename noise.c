@@ -14,7 +14,7 @@
  * GetSystemPowerStatus function.
  */
 typedef BOOL (WINAPI *gsps_t)(LPSYSTEM_POWER_STATUS);
-gsps_t gsps;
+static gsps_t gsps;
 
 /*
  * This function is called once, at PuTTY startup, and will do some
