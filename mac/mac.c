@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.13 2003/01/01 11:45:43 ben Exp $ */
+/* $Id: mac.c,v 1.14 2003/01/02 00:33:40 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -157,6 +157,7 @@ static void mac_startup(void) {
 	mac_gestalts.encvvers = 0;
     else {
 	mac_gestalts.encvvers = (*ti)->tecVersion;
+	mac_gestalts.uncvattr = (*ti)->tecUnicodeConverterFeatures;
 	DisposeHandle((Handle)ti);
     }
 

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.30 2003/01/01 19:51:13 ben Exp $ */
+/* $Id: macterm.c,v 1.31 2003/01/02 00:33:40 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -212,6 +212,7 @@ static void mac_initfont(Session *s) {
     Str255 macfont;
     FontInfo fi;
     TextEncoding enc;
+    OptionBits fbflags;
 
     SetPort(s->window);
     macfont[0] = sprintf((char *)&macfont[1], "%s", s->cfg.font);
@@ -241,14 +242,16 @@ static void mac_initfont(Session *s) {
 	if (uni_to_font_fallback_upp == NULL)
 	    uni_to_font_fallback_upp =
 		NewUnicodeToTextFallbackProc(&uni_to_font_fallback);
+	fbflags = kUnicodeFallbackCustomOnly;
+	if (mac_gestalts.uncvattr & kTECAddFallbackInterruptMask)
+	    fbflags |= kUnicodeFallbackInterruptSafeMask;
 	if (SetFallbackUnicodeToText(s->uni_to_font,
-	    uni_to_font_fallback_upp, 
-	    kUnicodeFallbackCustomOnly | kUnicodeFallbackInterruptSafeMask,
-	    NULL) != noErr) {
+	    uni_to_font_fallback_upp, fbflags, NULL) != noErr) {
 	    DisposeUnicodeToTextInfo(&s->uni_to_font);
-	    s->uni_to_font = NULL;
+	    goto no_encv;
 	}
     } else {
+      no_encv:
 	s->uni_to_font = NULL;
 	s->font_charset =
 	    charset_from_macenc(FontToScript(s->fontnum),
@@ -983,15 +986,14 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 				       0, NULL, NULL, NULL,
 				       1024, &iread, &olen, mactextbuf);
 	if (err != noErr && err != kTECUsedFallbacksStatus)
-	    /* XXX Should handle this more sensibly */
-	    return;
+	    olen = 0;
     } else  if (s->font_charset != CS_NONE) {
 	/* XXX this is bogus if wchar_t and UniChar are different sizes. */
 	unitextptr = (wchar_t *)unitextbuf;
 	olen = charset_from_unicode(&unitextptr, &len, mactextbuf, 1024,
 				    s->font_charset, NULL, ".", 1);
     } else
-	return;
+	olen = 0;
 
     a.s = s;
     a.text = mactextbuf;

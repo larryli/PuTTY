@@ -21,7 +21,8 @@ struct mac_gestalts {
     long apprvers;
     long cntlattr;
     long windattr;
-    long encvvers;
+    long encvvers; /* TEC version (from TECGetInfo()) */
+    long uncvattr; /* Unicode Converter attributes (frem TECGetInfo()) */
 };
 
 extern struct mac_gestalts mac_gestalts;
