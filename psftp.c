@@ -1769,6 +1769,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     }
     if (!cfg.username[0]) {
 	printf("login as: ");
+	fflush(stdout);
 	if (!fgets(cfg.username, sizeof(cfg.username), stdin)) {
 	    fprintf(stderr, "psftp: aborting\n");
 	    cleanup_exit(1);
