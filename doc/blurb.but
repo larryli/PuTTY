@@ -25,6 +25,6 @@ features not described here; and the \cw{pterm} and command-line
 \cw{puttygen} utilities are not described at all. The only
 Unix-specific documentation that currently exists is the man pages.
 
-\copyright This manual is copyright 2001-2004 Simon Tatham. All
+\copyright This manual is copyright 2001-2005 Simon Tatham. All
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.
