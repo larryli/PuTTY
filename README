@@ -7,6 +7,11 @@ Makefiles:
  - Makefile.vc is for MS Visual C++ systems. Type `nmake -f
    Makefile.vc' to build all the PuTTY binaries.
 
+   (We've also had one report of success building with the
+   OpenWatcom compiler -- www.openwatcom.org -- using Makefile.vc
+   with `wmake -ms -f makefile.vc' and NO_MULTIMON, although we
+   haven't tried this ourselves.)
+
  - Makefile.bor is for the Borland C compiler. Type `make -f
    Makefile.bor' to build all the PuTTY binaries.
 
