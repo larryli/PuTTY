@@ -1331,9 +1331,9 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 void set_window_background(struct gui_data *inst)
 {
     if (inst->area && inst->area->window)
-	gdk_window_set_background(inst->area->window, &inst->cols[18]);
+	gdk_window_set_background(inst->area->window, &inst->cols[258]);
     if (inst->window && inst->window->window)
-	gdk_window_set_background(inst->window->window, &inst->cols[18]);
+	gdk_window_set_background(inst->window->window, &inst->cols[258]);
 }
 
 void palette_set(void *frontend, int n, int r, int g, int b)
