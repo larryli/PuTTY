@@ -2096,14 +2096,14 @@ static int in_commasep_string(char *needle, char *haystack, int haylen) {
 /*
  * SSH2 key creation method.
  */
-static void ssh2_mkkey(Bignum K, char *H, char chr, char *keyspace) {
+static void ssh2_mkkey(Bignum K, char *H, char *sessid, char chr, char *keyspace) {
     SHA_State s;
     /* First 20 bytes. */
     SHA_Init(&s);
     sha_mpint(&s, K);
     SHA_Bytes(&s, H, 20);
     SHA_Bytes(&s, &chr, 1);
-    SHA_Bytes(&s, H, 20);
+    SHA_Bytes(&s, sessid, 20);
     SHA_Final(&s, keyspace);
     /* Next 20 bytes. */
     SHA_Init(&s);
@@ -2133,6 +2133,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static int hostkeylen, siglen;
     static void *hkey;		       /* actual host key */
     static unsigned char exchange_hash[20];
+    static unsigned char first_exchange_hash[20];
     static unsigned char keyspace[40];
     static const struct ssh_cipher *preferred_cipher;
     static const struct ssh_compress *preferred_comp;
@@ -2389,8 +2390,10 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     fingerprint = hostkey->fingerprint(hkey);
     verify_ssh_host_key(savedhost, savedport, hostkey->keytype,
                         keystr, fingerprint);
-    logevent("Host key fingerprint is:");
-    logevent(fingerprint);
+    if (first_kex) {		       /* don't bother logging this in rekeys */
+	logevent("Host key fingerprint is:");
+	logevent(fingerprint);
+    }
     sfree(fingerprint);
     sfree(keystr);
     hostkey->freekey(hkey);
@@ -2413,14 +2416,23 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     cscomp->compress_init();
     sccomp->decompress_init();
     /*
-     * Set IVs after keys.
+     * Set IVs after keys. Here we use the exchange hash from the
+     * _first_ key exchange.
      */
-    ssh2_mkkey(K, exchange_hash, 'C', keyspace); cscipher->setcskey(keyspace);
-    ssh2_mkkey(K, exchange_hash, 'D', keyspace); sccipher->setsckey(keyspace);
-    ssh2_mkkey(K, exchange_hash, 'A', keyspace); cscipher->setcsiv(keyspace);
-    ssh2_mkkey(K, exchange_hash, 'B', keyspace); sccipher->setsciv(keyspace);
-    ssh2_mkkey(K, exchange_hash, 'E', keyspace); csmac->setcskey(keyspace);
-    ssh2_mkkey(K, exchange_hash, 'F', keyspace); scmac->setsckey(keyspace);
+    if (first_kex)
+	memcpy(first_exchange_hash, exchange_hash, sizeof(exchange_hash));
+    ssh2_mkkey(K, exchange_hash, first_exchange_hash, 'C', keyspace);
+    cscipher->setcskey(keyspace);
+    ssh2_mkkey(K, exchange_hash, first_exchange_hash, 'D', keyspace);
+    sccipher->setsckey(keyspace);
+    ssh2_mkkey(K, exchange_hash, first_exchange_hash, 'A', keyspace);
+    cscipher->setcsiv(keyspace);
+    ssh2_mkkey(K, exchange_hash, first_exchange_hash, 'B', keyspace);
+    sccipher->setsciv(keyspace);
+    ssh2_mkkey(K, exchange_hash, first_exchange_hash, 'E', keyspace);
+    csmac->setcskey(keyspace);
+    ssh2_mkkey(K, exchange_hash, first_exchange_hash, 'F', keyspace);
+    scmac->setsckey(keyspace);
 
     /*
      * If this is the first key exchange phase, we must pass the
@@ -2444,6 +2456,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     do {
         crReturn(1);
     } while (!(ispkt && pktin.type == SSH2_MSG_KEXINIT));
+    logevent("Server initiated key re-exchange");
     goto begin_key_exchange;
 
     crFinish(1);
