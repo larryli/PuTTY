@@ -607,7 +607,7 @@ static void add_keyfile(char *filename)
 	    agent_query(request, reqlen, &vresponse, &resplen);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "The already running Pageant"
+		MessageBox(NULL, "The already running Pageant "
 			   "refused to add the key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
 
