@@ -356,6 +356,46 @@ If you enable the \q{Application and AltGr act as Compose key}
 option, the Windows Application key and the AltGr key will both have
 this behaviour.
 
+\H{config-bell} The Bell panel
+
+The Bell configuration panel allows you to control how PuTTY should
+respond to a terminal bell.
+
+\S{config-bellstyle} Set the style of bell
+
+When a terminal bell occurs, PuTTY can do one of the following things:
+
+\b Nothing.  The bell is disabled.  Taskbar bell indication still
+works, however.
+
+\b Play Windows Default Sound.  The Windows Default Sound (which can
+be configured from the Sounds control panel) will be played.
+
+\b Play a custom sound file.  Select a \c{.wav} sound file using the
+\e{Custom sound file to play as a bell} text box, or browse for the
+file to play using the \e{Browse...} button.
+
+\b Flash the terminal window as a visual bell.  No sound will be
+played.
+
+In addition, the PuTTY window's title bar and its entry in the taskbar
+can be configured to flash or invert to indicate that a terminal bell
+has occurred.
+
+\S{config-belloverload} Control the bell overload behaviour
+
+Sometimes mistakes, for example trying to \c{cat} a binary file on a
+Unix machine, can lead to a large number of terminal bells being
+received by PuTTY.  It might take a long time for PuTTY to catch up
+with reacting to these bells, and the noise or flashing could be very
+irritating for the user.
+
+PuTTY's bell overload handling is designed to avoid this problem.  If
+turned on using the \e{Bell is temporarily disabled when over-used}
+tick box, the bell will be disabled if it occurs more than a specified 
+number of times in a specified number of seconds.  When no bells have
+occurred for a number of seconds, PuTTY re-enables the bell.
+
 \H{config-window} The Window panel
 
 The Window configuration panel allows you to control aspects of the
