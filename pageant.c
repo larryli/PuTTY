@@ -231,7 +231,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	    return 0;
 	  case 101:
 	    EnableWindow(hwnd, 0);
-	    DialogBox(instance, MAKEINTRESOURCE(214), NULL, LicenceProc);
+	    DialogBox(instance, MAKEINTRESOURCE(214), hwnd, LicenceProc);
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
 	    return 0;

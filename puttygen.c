@@ -297,7 +297,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	    return 0;
 	  case 101:
 	    EnableWindow(hwnd, 0);
-	    DialogBox(hinst, MAKEINTRESOURCE(214), NULL, LicenceProc);
+	    DialogBox(hinst, MAKEINTRESOURCE(214), hwnd, LicenceProc);
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
 	    return 0;
@@ -1035,7 +1035,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    break;
 	  case IDC_ABOUT:
 	    EnableWindow(hwnd, 0);
-	    DialogBox(hinst, MAKEINTRESOURCE(213), NULL, AboutProc);
+	    DialogBox(hinst, MAKEINTRESOURCE(213), hwnd, AboutProc);
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
 	    return 0;
