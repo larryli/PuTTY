@@ -166,44 +166,47 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	strncpy(cfg->username, value, sizeof(cfg->username));
 	cfg->username[sizeof(cfg->username) - 1] = '\0';
     }
-    if ((!strcmp(p, "-L") || !strcmp(p, "-R"))) {
+    if ((!strcmp(p, "-L") || !strcmp(p, "-R") || !strcmp(p, "-D"))) {
 	char *fwd, *ptr, *q, *qq;
-	int i=0;
+	int dynamic, i=0;
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
+	dynamic = !strcmp(p, "-D");
 	fwd = value;
 	ptr = cfg->portfwd;
 	/* if multiple forwards, find end of list */
-	if (ptr[0]=='R' || ptr[0]=='L') {
+	if (ptr[0]=='R' || ptr[0]=='L' || ptr[0] == 'D') {
 	    for (i = 0; i < sizeof(cfg->portfwd) - 2; i++)
 		if (ptr[i]=='\000' && ptr[i+1]=='\000')
 		    break;
 	    ptr = ptr + i + 1;  /* point to next forward slot */
 	}
-	ptr[0] = p[1];  /* insert a 'L' or 'R' at the start */
+	ptr[0] = p[1];  /* insert a 'L', 'R' or 'D' at the start */
 	if (strlen(fwd) > sizeof(cfg->portfwd) - i - 2) {
 	    cmdline_error("out of space for port forwardings");
 	    return ret;
 	}
 	strncpy(ptr+1, fwd, sizeof(cfg->portfwd) - i);
-	/*
-	 * We expect _at least_ two colons in this string. The
-	 * possible formats are `sourceport:desthost:destport', or
-	 * `sourceip:sourceport:desthost:destport' if you're
-	 * specifying a particular loopback address. We need to
-	 * replace the one between source and dest with a \t; this
-	 * means we must find the second-to-last colon in the
-	 * string.
-	 */
-	q = qq = strchr(ptr, ':');
-	while (qq) {
-	    char *qqq = strchr(qq+1, ':');
-	    if (qqq)
-		q = qq;
-	    qq = qqq;
+	if (!dynamic) {
+	    /*
+	     * We expect _at least_ two colons in this string. The
+	     * possible formats are `sourceport:desthost:destport',
+	     * or `sourceip:sourceport:desthost:destport' if you're
+	     * specifying a particular loopback address. We need to
+	     * replace the one between source and dest with a \t;
+	     * this means we must find the second-to-last colon in
+	     * the string.
+	     */
+	    q = qq = strchr(ptr, ':');
+	    while (qq) {
+		char *qqq = strchr(qq+1, ':');
+		if (qqq)
+		    q = qq;
+		qq = qqq;
+	    }
+	    if (q) *q = '\t';	       /* replace second-last colon with \t */
 	}
-	if (q) *q = '\t';	       /* replace second-last colon with \t */
 	cfg->portfwd[sizeof(cfg->portfwd) - 1] = '\0';
 	cfg->portfwd[sizeof(cfg->portfwd) - 2] = '\0';
 	ptr[strlen(ptr)+1] = '\000';    /* append two '\000' */

@@ -634,24 +634,31 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	if (ctrl == pfd->addbutton) {
 	    char str[sizeof(cfg->portfwd)];
 	    char *p;
-	    if (dlg_radiobutton_get(pfd->direction, dlg) == 0)
+	    int whichbutton = dlg_radiobutton_get(pfd->direction, dlg);
+	    if (whichbutton == 0)
 		str[0] = 'L';
-	    else
+	    else if (whichbutton == 1)
 		str[0] = 'R';
+	    else
+		str[0] = 'D';
 	    dlg_editbox_get(pfd->sourcebox, dlg, str+1, sizeof(str) - 2);
 	    if (!str[1]) {
 		dlg_error_msg(dlg, "You need to specify a source port number");
 		return;
 	    }
 	    p = str + strlen(str);
-	    *p++ = '\t';
-	    dlg_editbox_get(pfd->destbox, dlg, p, sizeof(str)-1 - (p - str));
-	    if (!*p || !strchr(p, ':')) {
-		dlg_error_msg(dlg,
-			      "You need to specify a destination address\n"
-			      "in the form \"host.name:port\"");
-		return;
-	    }
+	    if (str[0] != 'D') {
+		*p++ = '\t';
+		dlg_editbox_get(pfd->destbox, dlg, p,
+				sizeof(str)-1 - (p - str));
+		if (!*p || !strchr(p, ':')) {
+		    dlg_error_msg(dlg,
+				  "You need to specify a destination address\n"
+				  "in the form \"host.name:port\"");
+		    return;
+		}
+	    } else
+		*p = '\0';
 	    p = cfg->portfwd;
 	    while (*p) {
 		while (*p)
@@ -1550,11 +1557,13 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	pfd->destbox = ctrl_editbox(s, "Destination", 'i', 67,
 				    HELPCTX(ssh_tunnels_portfwd),
 				    portfwd_handler, P(pfd), P(NULL));
-	pfd->direction = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 2,
+	pfd->direction = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 					   HELPCTX(ssh_tunnels_portfwd),
 					   portfwd_handler, P(pfd),
 					   "Local", 'l', P(NULL),
-					   "Remote", 'm', P(NULL), NULL);
+					   "Remote", 'm', P(NULL),
+					   "Dynamic", 'y', P(NULL),
+					   NULL);
 	ctrl_tabdelay(s, pfd->addbutton);
 	ctrl_columns(s, 1, 100);
 

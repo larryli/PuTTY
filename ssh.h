@@ -259,6 +259,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 /* Exports from portfwd.c */
 extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c,
 			    const Config *cfg);
+/* desthost == NULL indicates dynamic (SOCKS) port forwarding */
 extern char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 			    int port, void *backhandle, const Config *cfg);
 extern void pfd_close(Socket s);

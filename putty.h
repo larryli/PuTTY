@@ -442,7 +442,18 @@ struct config_tag {
     /* port forwarding */
     int lport_acceptall; /* accept conns from hosts other than localhost */
     int rport_acceptall; /* same for remote forwarded ports (SSH2 only) */
-    char portfwd[1024]; /* [LR]localport\thost:port\000[LR]localport\thost:port\000\000 */
+    /*
+     * The port forwarding string contains a number of
+     * NUL-terminated substrings, terminated in turn by an empty
+     * string (i.e. a second NUL immediately after the previous
+     * one). Each string can be of one of the following forms:
+     * 
+     *   [LR]localport\thost:port
+     *   [LR]localaddr:localport\thost:port
+     *   Dlocalport
+     *   Dlocaladdr:localport
+     */
+    char portfwd[1024];
     /* SSH bug compatibility modes */
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,

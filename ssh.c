@@ -3149,30 +3149,34 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		if (n < 255) sports[n++] = *ssh->portfwd_strptr++;
 	    }
 	    sports[n] = 0;
-	    if (*ssh->portfwd_strptr == '\t')
-		ssh->portfwd_strptr++;
-	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
-		if (n < 255) host[n++] = *ssh->portfwd_strptr++;
-	    }
-	    host[n] = 0;
-	    if (*ssh->portfwd_strptr == ':')
-		ssh->portfwd_strptr++;
-	    n = 0;
-	    while (*ssh->portfwd_strptr) {
-		if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
-	    }
-	    dports[n] = 0;
-	    ssh->portfwd_strptr++;
-	    dport = atoi(dports);
-	    dserv = 0;
-	    if (dport == 0) {
-		dserv = 1;
-		dport = net_service_lookup(dports);
-		if (!dport) {
-		    logeventf(ssh, "Service lookup failed for"
-			      " destination port \"%s\"", dports);
+	    if (type != 'D') {
+		if (*ssh->portfwd_strptr == '\t')
+		    ssh->portfwd_strptr++;
+		n = 0;
+		while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
+		    if (n < 255) host[n++] = *ssh->portfwd_strptr++;
 		}
+		host[n] = 0;
+		if (*ssh->portfwd_strptr == ':')
+		    ssh->portfwd_strptr++;
+		n = 0;
+		while (*ssh->portfwd_strptr) {
+		    if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
+		}
+		dports[n] = 0;
+		ssh->portfwd_strptr++;
+		dport = atoi(dports);
+		dserv = 0;
+		if (dport == 0) {
+		    dserv = 1;
+		    dport = net_service_lookup(dports);
+		    if (!dport) {
+			logeventf(ssh, "Service lookup failed for"
+				  " destination port \"%s\"", dports);
+		    }
+		}
+	    } else {
+		while (*ssh->portfwd_strptr) ssh->portfwd_strptr++;
 	    }
 	    sport = atoi(sports);
 	    sserv = 0;
@@ -3197,6 +3201,15 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			      host,
 			      (int)(dserv ? strlen(dports) : 0), dports,
 			      dserv, "(", dport, dserv, ")");
+		} else if (type == 'D') {
+		    pfd_addforward(NULL, -1, *saddr ? saddr : NULL,
+				   sport, ssh, &ssh->cfg);
+		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
+			      " doing SOCKS dynamic forwarding",
+			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+			      (int)(*saddr?1:0), ":",
+			      (int)(sserv ? strlen(sports) : 0), sports,
+			      sserv, "(", sport, sserv, ")");
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = snew(struct ssh_rportfwd);
@@ -5230,30 +5243,34 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		if (n < 255) sports[n++] = *ssh->portfwd_strptr++;
 	    }
 	    sports[n] = 0;
-	    if (*ssh->portfwd_strptr == '\t')
-		ssh->portfwd_strptr++;
-	    n = 0;
-	    while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
-		if (n < 255) host[n++] = *ssh->portfwd_strptr++;
-	    }
-	    host[n] = 0;
-	    if (*ssh->portfwd_strptr == ':')
-		ssh->portfwd_strptr++;
-	    n = 0;
-	    while (*ssh->portfwd_strptr) {
-		if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
-	    }
-	    dports[n] = 0;
-	    ssh->portfwd_strptr++;
-	    dport = atoi(dports);
-	    dserv = 0;
-	    if (dport == 0) {
-		dserv = 1;
-		dport = net_service_lookup(dports);
-		if (!dport) {
-		    logeventf(ssh, "Service lookup failed for destination"
-			      " port \"%s\"", dports);
+	    if (type != 'D') {
+		if (*ssh->portfwd_strptr == '\t')
+		    ssh->portfwd_strptr++;
+		n = 0;
+		while (*ssh->portfwd_strptr && *ssh->portfwd_strptr != ':') {
+		    if (n < 255) host[n++] = *ssh->portfwd_strptr++;
 		}
+		host[n] = 0;
+		if (*ssh->portfwd_strptr == ':')
+		    ssh->portfwd_strptr++;
+		n = 0;
+		while (*ssh->portfwd_strptr) {
+		    if (n < 255) dports[n++] = *ssh->portfwd_strptr++;
+		}
+		dports[n] = 0;
+		ssh->portfwd_strptr++;
+		dport = atoi(dports);
+		dserv = 0;
+		if (dport == 0) {
+		    dserv = 1;
+		    dport = net_service_lookup(dports);
+		    if (!dport) {
+			logeventf(ssh, "Service lookup failed for destination"
+				  " port \"%s\"", dports);
+		    }
+		}
+	    } else {
+		while (*ssh->portfwd_strptr) ssh->portfwd_strptr++;
 	    }
 	    sport = atoi(sports);
 	    sserv = 0;
@@ -5278,6 +5295,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			      host,
 			      (int)(dserv ? strlen(dports) : 0), dports,
 			      dserv, "(", dport, dserv, ")");
+		} else if (type == 'D') {
+		    pfd_addforward(NULL, -1, *saddr ? saddr : NULL,
+				   sport, ssh, &ssh->cfg);
+		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
+			      " doing SOCKS dynamic forwarding",
+			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+			      (int)(*saddr?1:0), ":",
+			      (int)(sserv ? strlen(sports) : 0), sports,
+			      sserv, "(", sport, sserv, ")");
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = snew(struct ssh_rportfwd);
