@@ -24,7 +24,7 @@
 #define NCOLOURS (lenof(((Config *)0)->colours))
 
 struct gui_data {
-    GtkWidget *area, *sbar;
+    GtkWidget *window, *area, *sbar;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GdkPixmap *pixmap;
@@ -39,6 +39,7 @@ struct gui_data {
     int font_width, font_height;
     int ignore_sbar;
     GdkAtom compound_text_atom;
+    char wintitle[sizeof(((Config *)0)->wintitle)];
 };
 
 static struct gui_data the_inst;
@@ -163,7 +164,7 @@ void get_window_pixels(int *x, int *y)
  */
 char *get_window_title(int icon)
 {
-    return "FIXME: window title retrieval not yet implemented";
+    return inst->wintitle;
 }
 
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
@@ -855,7 +856,9 @@ void get_clip(wchar_t ** p, int *len)
 
 void set_title(char *title)
 {
-    /* FIXME: currently ignored */
+    strncpy(inst->wintitle, title, lenof(inst->wintitle));
+    inst->wintitle[lenof(inst->wintitle)-1] = '\0';
+    gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
 }
 
 void set_icon(char *title)
@@ -1112,7 +1115,6 @@ void modalfatalbox(char *p, ...)
 
 int main(int argc, char **argv)
 {
-    GtkWidget *window;
     extern int pty_master_fd;	       /* declared in pty.c */
     extern char **pty_argv;	       /* declared in pty.c */
     int err = 0;
@@ -1142,6 +1144,13 @@ int main(int argc, char **argv)
 	    } else
 		err = 1, fprintf(stderr, "pterm: -e expects an argument\n");
 	}
+	if (!strcmp(p, "-T")) {
+	    if (--argc > 0) {
+		strncpy(cfg.wintitle, *++argv, sizeof(cfg.wintitle));
+		cfg.wintitle[sizeof(cfg.wintitle)-1] = '\0';
+	    } else
+		err = 1, fprintf(stderr, "pterm: -T expects an argument\n");
+	}
     }
 
     inst->fonts[0] = gdk_font_load(cfg.font);
@@ -1156,7 +1165,13 @@ int main(int argc, char **argv)
     back = &pty_backend;
     back->init(NULL, 0, NULL, 0);
 
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+    if (cfg.wintitle[0])
+	set_title(cfg.wintitle);
+    else
+	set_title("pterm");
+
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
 			  inst->font_width * cfg.width + 2*cfg.window_border,
@@ -1167,7 +1182,7 @@ int main(int argc, char **argv)
     gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
     gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
-    gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(inst->hbox));
+    gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
     {
 	GdkGeometry geom;
@@ -1179,20 +1194,20 @@ int main(int argc, char **argv)
 	geom.width_inc = inst->font_width;
 	geom.height_inc = inst->font_height;
 	geom.min_aspect = geom.max_aspect = 0;
-	gtk_window_set_geometry_hints(GTK_WINDOW(window), inst->area, &geom,
+	gtk_window_set_geometry_hints(GTK_WINDOW(inst->window), inst->area, &geom,
 				      GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE |
 				      GDK_HINT_RESIZE_INC);
     }
 
-    gtk_signal_connect(GTK_OBJECT(window), "destroy",
+    gtk_signal_connect(GTK_OBJECT(inst->window), "destroy",
 		       GTK_SIGNAL_FUNC(destroy), inst);
-    gtk_signal_connect(GTK_OBJECT(window), "delete_event",
+    gtk_signal_connect(GTK_OBJECT(inst->window), "delete_event",
 		       GTK_SIGNAL_FUNC(delete_window), inst);
-    gtk_signal_connect(GTK_OBJECT(window), "key_press_event",
+    gtk_signal_connect(GTK_OBJECT(inst->window), "key_press_event",
 		       GTK_SIGNAL_FUNC(key_event), inst);
-    gtk_signal_connect(GTK_OBJECT(window), "focus_in_event",
+    gtk_signal_connect(GTK_OBJECT(inst->window), "focus_in_event",
 		       GTK_SIGNAL_FUNC(focus_event), inst);
-    gtk_signal_connect(GTK_OBJECT(window), "focus_out_event",
+    gtk_signal_connect(GTK_OBJECT(inst->window), "focus_out_event",
 		       GTK_SIGNAL_FUNC(focus_event), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "configure_event",
 		       GTK_SIGNAL_FUNC(configure_area), inst);
@@ -1222,7 +1237,7 @@ int main(int argc, char **argv)
     gtk_widget_show(inst->area);
     gtk_widget_show(inst->sbar);
     gtk_widget_show(GTK_WIDGET(inst->hbox));
-    gtk_widget_show(window);
+    gtk_widget_show(inst->window);
 
     inst->textcursor = make_mouse_ptr(GDK_XTERM);
     inst->rawcursor = make_mouse_ptr(GDK_LEFT_PTR);
