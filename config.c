@@ -845,38 +845,41 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			      "SSH", 's', I(PROT_SSH),
 			      NULL);
 	}
-
-	s = ctrl_getset(b, "Session", "savedsessions",
-			"Load, save or delete a stored session");
-	ctrl_columns(s, 2, 75, 25);
-	ssd->sesslist = sesslist;
-	ssd->editbox = ctrl_editbox(s, "Saved Sessions", 'e', 100,
-				    HELPCTX(session_saved),
-				    sessionsaver_handler, P(ssd), P(NULL));
-	ssd->editbox->generic.column = 0;
-	/* Reset columns so that the buttons are alongside the list, rather
-	 * than alongside that edit box. */
-	ctrl_columns(s, 1, 100);
-	ctrl_columns(s, 2, 75, 25);
-	ssd->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
-				    HELPCTX(session_saved),
-				    sessionsaver_handler, P(ssd));
-	ssd->listbox->generic.column = 0;
-	ssd->listbox->listbox.height = 7;
-	ssd->loadbutton = ctrl_pushbutton(s, "Load", 'l',
-					  HELPCTX(session_saved),
-					  sessionsaver_handler, P(ssd));
-	ssd->loadbutton->generic.column = 1;
-	ssd->savebutton = ctrl_pushbutton(s, "Save", 'v',
-					  HELPCTX(session_saved),
-					  sessionsaver_handler, P(ssd));
-	ssd->savebutton->generic.column = 1;
-	ssd->delbutton = ctrl_pushbutton(s, "Delete", 'd',
-					 HELPCTX(session_saved),
-					 sessionsaver_handler, P(ssd));
-	ssd->delbutton->generic.column = 1;
-	ctrl_columns(s, 1, 100);
     }
+
+    /*
+     * The Load/Save panel is available even in mid-session.
+     */
+    s = ctrl_getset(b, "Session", "savedsessions",
+		    "Load, save or delete a stored session");
+    ctrl_columns(s, 2, 75, 25);
+    ssd->sesslist = sesslist;
+    ssd->editbox = ctrl_editbox(s, "Saved Sessions", 'e', 100,
+				HELPCTX(session_saved),
+				sessionsaver_handler, P(ssd), P(NULL));
+    ssd->editbox->generic.column = 0;
+    /* Reset columns so that the buttons are alongside the list, rather
+     * than alongside that edit box. */
+    ctrl_columns(s, 1, 100);
+    ctrl_columns(s, 2, 75, 25);
+    ssd->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
+				HELPCTX(session_saved),
+				sessionsaver_handler, P(ssd));
+    ssd->listbox->generic.column = 0;
+    ssd->listbox->listbox.height = 7;
+    ssd->loadbutton = ctrl_pushbutton(s, "Load", 'l',
+				      HELPCTX(session_saved),
+				      sessionsaver_handler, P(ssd));
+    ssd->loadbutton->generic.column = 1;
+    ssd->savebutton = ctrl_pushbutton(s, "Save", 'v',
+				      HELPCTX(session_saved),
+				      sessionsaver_handler, P(ssd));
+    ssd->savebutton->generic.column = 1;
+    ssd->delbutton = ctrl_pushbutton(s, "Delete", 'd',
+				     HELPCTX(session_saved),
+				     sessionsaver_handler, P(ssd));
+    ssd->delbutton->generic.column = 1;
+    ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
     c = ctrl_radiobuttons(s, "Close window on exit:", 'w', 4,
