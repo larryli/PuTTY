@@ -488,6 +488,7 @@ int verify_host_key(const char *hostname, int port,
 	    break;
     }
 
+    fclose(fp);
     return ret;
 }
 
