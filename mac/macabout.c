@@ -1,4 +1,4 @@
-/* $Id: macabout.c,v 1.1 2003/02/15 16:22:15 ben Exp $ */
+/* $Id: macabout.c,v 1.2 2003/02/16 13:44:18 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -94,6 +94,13 @@ static void mac_updateabout(WindowPtr window)
     EndUpdate(window);
 }
 
+static void mac_closeabout(WindowPtr window)
+{
+
+    windows.about = NULL;
+    DisposeDialog(GetDialogFromWindow(window));
+}
+
 static void mac_updatelicence(WindowPtr window)
 {
     Handle h;
@@ -121,6 +128,13 @@ static void mac_updatelicence(WindowPtr window)
     EndUpdate(window);
 }
 
+static void mac_closelicence(WindowPtr window)
+{
+
+    windows.licence = NULL;
+    DisposeWindow(window);
+}
+
 void mac_openabout(void)
 {
     DialogItemType itemtype;
@@ -141,6 +155,7 @@ void mac_openabout(void)
 	wi->update = &mac_updateabout;
 	wi->click = &mac_clickabout;
 	wi->activate = &mac_activateabout;
+	wi->close = &mac_closeabout;
 	SetWRefCon(windows.about, (long)wi);
 	vers = (VersRecHndl)Get1Resource('vers', 1);
 	if (vers != NULL && *vers != NULL) {
@@ -166,6 +181,7 @@ static void mac_openlicence(void)
 	memset(wi, 0, sizeof(*wi));
 	wi->wtype = wLicence;
 	wi->update = &mac_updatelicence;
+	wi->close = &mac_closelicence;
 	SetWRefCon(windows.licence, (long)wi);
 	ShowWindow(windows.licence);
     }
