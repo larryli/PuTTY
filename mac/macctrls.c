@@ -1218,6 +1218,8 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 	      case MACCTRL_POPUP:
 		HiliteControl(mc->popup.tbctrl, state);
 		break;
+	      case MACCTRL_GROUPBOX:
+		HiliteControl(mc->popup.tbctrl, state);
 	    }
 #if !TARGET_API_MAC_CARBON
 	    if (mcs->focus == mc) {
