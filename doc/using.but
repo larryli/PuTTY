@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.5 2001/12/15 12:15:24 simon Exp $
+\versionid $Id: using.but,v 1.6 2002/04/18 20:45:01 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -336,3 +336,40 @@ you simply select the fourth protocol name, \q{Raw}, from the
 \q{Protocol} buttons in the \q{Session} configuration panel. (See
 \k{config-hostname}.) You can then enter a host name and a port
 number, and make the connection.
+
+\H{putty-cmdline} The PuTTY command line
+
+PuTTY can be made to do various things without user intervention by
+supplying command-line arguments (e.g., from a command prompt window,
+or a Windows shortcut).
+
+\S{putty-cmdline-session} Starting a session from the command line
+
+These options allow you to bypass the configuration window and launch
+straight into a session.
+
+To start a connection to \c{host}:
+
+\c putty.exe [-ssh] [user@]host[:port]
+
+If this syntax is used, settings are taken from the Default Settings
+(see \k{config-saving}); \c{user} and \c{port} override these settings
+if supplied. Also, \c{-ssh} overrides the default protocol, if
+specified.
+
+For telnet sessions, the following alternative syntax is supported
+(this makes PuTTY suitable for use as a URL handler for telnet URLs in
+web browsers):
+
+\c putty.exe telnet://host[:port]/
+
+In order to start an existing saved session called \c{sessionname},
+use the following syntax:
+
+\c putty.exe @sessionname
+
+\S{putty-cleanup} \c{-cleanup}
+
+If invoked with the \c{-cleanup} option, rather than running as
+normal, PuTTY will remove its registry entries and random seed file
+from the local machine (after confirming with the user).
