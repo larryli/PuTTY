@@ -41,6 +41,8 @@ void logevent(char *string) { }
 void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint) {
     int ret;
+    HANDLE hin;
+    DWORD savemode, i;
 
     static const char absentmsg[] =
         "The server's host key is not cached in the registry. You\n"
@@ -83,10 +85,21 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 
     if (ret == 0)                      /* success - key matched OK */
         return;
-    if (ret == 2) {                    /* key was different */
+
+    if (ret == 2)                      /* key was different */
         fprintf(stderr, wrongmsg, fingerprint);
-        if (fgets(line, sizeof(line), stdin) &&
-            line[0] != '\0' && line[0] != '\n') {
+    if (ret == 1)                      /* key was absent */
+        fprintf(stderr, absentmsg, fingerprint);
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+                         ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+    ReadFile(hin, line, sizeof(line)-1, &i, NULL);
+    SetConsoleMode(hin, savemode);
+
+    if (ret == 2) {                    /* key was different */
+        if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
             if (line[0] == 'y' || line[0] == 'Y')
                 store_host_key(host, port, keytype, keystr);
         } else {
@@ -95,9 +108,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
         }
     }
     if (ret == 1) {                    /* key was absent */
-        fprintf(stderr, absentmsg, fingerprint);
-        if (fgets(line, sizeof(line), stdin) &&
-            (line[0] == 'y' || line[0] == 'Y'))
+        if (line[0] == 'y' || line[0] == 'Y')
             store_host_key(host, port, keytype, keystr);
         else {
             fprintf(stderr, abandoned);
