@@ -391,6 +391,34 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     return term;
 }
 
+void term_free(Terminal *term)
+{
+    unsigned long *line;
+    struct beeptime *beep;
+
+    while ((line = delpos234(term->scrollback, 0)) != NULL)
+	sfree(line);
+    freetree234(term->scrollback);
+    while ((line = delpos234(term->screen, 0)) != NULL)
+	sfree(line);
+    freetree234(term->screen);
+    while ((line = delpos234(term->alt_screen, 0)) != NULL)
+	sfree(line);
+    freetree234(term->alt_screen);
+    sfree(term->disptext);
+    while (term->beephead) {
+	beep = term->beephead;
+	term->beephead = beep->next;
+	sfree(beep);
+    }
+    bufchain_clear(&term->inbuf);
+    if(term->print_job)
+	printer_finish_job(term->print_job);
+    bufchain_clear(&term->printer_buf);
+    sfree(term->paste_buffer);
+    sfree(term);
+}
+
 /*
  * Set up the terminal for a given size.
  */

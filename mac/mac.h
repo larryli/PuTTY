@@ -95,6 +95,7 @@ extern void mac_clickterm(WindowPtr, EventRecord *);
 extern void mac_growterm(WindowPtr, EventRecord *);
 extern void mac_keyterm(WindowPtr, EventRecord *);
 extern void mac_menuterm(WindowPtr, short, short);
+extern void mac_closeterm(WindowPtr);
 /* from macstore.c */
 extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);

@@ -112,6 +112,12 @@ void *x11_invent_auth(char *proto, int protomaxlen,
     return auth;
 }
 
+void x11_free_auth(void *auth)
+{
+
+    sfree(auth);
+}
+
 /*
  * Fetch the real auth data for a given display string, and store
  * it in an X11Auth structure. Returns NULL on success, or an error

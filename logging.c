@@ -170,6 +170,14 @@ void *log_init(void *frontend, Config *cfg)
     return ctx;
 }
 
+void log_free(void *handle)
+{
+    struct LogContext *ctx = (struct LogContext *)handle;
+
+    logfclose(ctx);
+    sfree(ctx);
+}
+
 void log_reconfig(void *handle, Config *cfg)
 {
     struct LogContext *ctx = (struct LogContext *)handle;

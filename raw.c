@@ -123,6 +123,15 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
     return NULL;
 }
 
+static void raw_free(void *handle)
+{
+    Raw raw = (Raw) handle;
+
+    if (raw->s)
+	sk_close(raw->s);
+    sfree(raw);
+}
+
 /*
  * Stub routine (we don't have any need to reconfigure this backend).
  */
@@ -214,6 +223,7 @@ static int raw_exitcode(void *handle)
 
 Backend raw_backend = {
     raw_init,
+    raw_free,
     raw_reconfig,
     raw_send,
     raw_sendbuffer,

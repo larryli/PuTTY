@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.5 2003/01/12 16:11:27 ben Exp $ */
+/* $Id: testback.c,v 1.6 2003/01/15 23:30:21 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -35,6 +35,8 @@
 
 static char *null_init(void *, void **, Config *, char *, int, char **, int);
 static char *loop_init(void *, void **, Config *, char *, int, char **, int);
+static void null_free(void *);
+static void loop_free(void *);
 static void null_reconfig(void *, Config *);
 static int null_send(void *, char *, int);
 static int loop_send(void *, char *, int);
@@ -50,13 +52,13 @@ static void null_provide_logctx(void *, void *);
 static void null_unthrottle(void *, int);
 
 Backend null_backend = {
-    null_init, null_reconfig, null_send, null_sendbuffer, null_size,
+    null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
     null_special, null_socket, null_exitcode, null_sendok, null_ldisc,
     null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
 };
 
 Backend loop_backend = {
-    loop_init, null_reconfig, loop_send, null_sendbuffer, null_size,
+    loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
     null_special, null_socket, null_exitcode, null_sendok, null_ldisc,
     null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
 };
@@ -80,6 +82,17 @@ static char *loop_init(void *frontend_handle, void **backend_handle,
     st->term = frontend_handle;
     *backend_handle = st;
     return NULL;
+}
+
+static void null_free(void *handle)
+{
+
+}
+
+static void loop_free(void *handle)
+{
+
+    sfree(handle);
 }
 
 static void null_reconfig(void *handle, Config *cfg) {

@@ -272,6 +272,7 @@ extern char *x11_init(Socket *, char *, void *, void *, const char *, int,
 extern void x11_close(Socket);
 extern int x11_send(Socket, char *, int);
 extern void *x11_invent_auth(char *, int, char *, int, int);
+extern void x11_free_auth(void *);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 extern int x11_get_screen_number(char *display);

@@ -189,6 +189,7 @@ enum {
 struct backend_tag {
     char *(*init) (void *frontend_handle, void **backend_handle, Config *cfg,
 		   char *host, int port, char **realhost, int nodelay);
+    void (*free) (void *handle);
     /* back->reconfig() passes in a replacement configuration. */
     void (*reconfig) (void *handle, Config *cfg);
     /* back->send() returns the current amount of buffered data. */
@@ -496,6 +497,7 @@ int platform_default_i(const char *name, int def);
  */
 
 Terminal *term_init(Config *, struct unicode_data *, void *);
+void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
 void term_out(Terminal *);
 void term_paint(Terminal *, Context, int, int, int, int, int);
@@ -525,6 +527,7 @@ void term_provide_logctx(Terminal *term, void *logctx);
  * Exports from logging.c.
  */
 void *log_init(void *frontend, Config *cfg);
+void log_free(void *logctx);
 void log_reconfig(void *logctx, Config *cfg);
 void logfopen(void *logctx);
 void logfclose(void *logctx);
@@ -574,6 +577,7 @@ extern Backend ssh_backend;
  * Exports from ldisc.c.
  */
 void *ldisc_create(Config *, Terminal *, Backend *, void *, void *);
+void ldisc_free(void *);
 void ldisc_send(void *handle, char *buf, int len, int interactive);
 
 /*

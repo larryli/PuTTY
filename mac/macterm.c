@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.49 2003/01/14 19:42:00 ben Exp $ */
+/* $Id: macterm.c,v 1.50 2003/01/15 23:30:21 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -190,7 +190,7 @@ void mac_startsession(Session *s)
 
     ShowWindow(s->window);
     s->next = sesslist;
-    s->prev = s->next->prev;
+    s->prev = &sesslist;
     if (s->next != NULL)
 	s->next->prev = &s->next;
     sesslist = s;
@@ -915,6 +915,25 @@ static pascal void mac_growtermdraghook(void)
     MoveTo(growterm_state.msgorigin.h, growterm_state.msgorigin.v);
     DrawString(pbuf);
     SetPort(portsave);
+}
+
+void mac_closeterm(WindowPtr window)
+{
+    Session *s = (Session *)GetWRefCon(window);
+
+    /* XXX warn on close */
+    HideWindow(s->window);
+    *s->prev = s->next;
+    s->next->prev = s->prev;
+    ldisc_free(s->ldisc);
+    s->back->free(s->backhandle);
+    log_free(s->logctx);
+    if (s->uni_to_font != NULL)
+	DisposeUnicodeToTextInfo(&s->uni_to_font);
+    term_free(s->term);
+    DisposeWindow(s->window);
+    DisposePalette(s->palette);
+    sfree(s);
 }
 
 void mac_activateterm(WindowPtr window, Boolean active) {

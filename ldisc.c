@@ -87,6 +87,19 @@ void *ldisc_create(Config *mycfg, Terminal *term,
     return ldisc;
 }
 
+void ldisc_free(void *handle)
+{
+    Ldisc ldisc = (Ldisc) handle;
+
+    if (ldisc->term)
+	ldisc->term->ldisc = NULL;
+    if (ldisc->back)
+	ldisc->back->provide_ldisc(ldisc->backhandle, NULL);
+    if (ldisc->buf)
+	sfree(ldisc->buf);
+    sfree(ldisc);
+}
+
 void ldisc_send(void *handle, char *buf, int len, int interactive)
 {
     Ldisc ldisc = (Ldisc) handle;

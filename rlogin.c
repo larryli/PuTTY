@@ -177,6 +177,15 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
     return NULL;
 }
 
+static void rlogin_free(void *handle)
+{
+    Rlogin rlogin = (Rlogin) handle;
+
+    if (rlogin->s)
+	sk_close(rlogin->s);
+    sfree(rlogin);
+}
+
 /*
  * Stub routine (we don't have any need to reconfigure this backend).
  */
@@ -282,6 +291,7 @@ static int rlogin_exitcode(void *handle)
 
 Backend rlogin_backend = {
     rlogin_init,
+    rlogin_free,
     rlogin_reconfig,
     rlogin_send,
     rlogin_sendbuffer,

@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.31 2003/01/15 22:37:58 ben Exp $ */
+/* $Id: mac.c,v 1.32 2003/01/15 23:30:21 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -541,18 +541,15 @@ static void mac_closewindow(WindowPtr window) {
 	CloseDeskAcc(((WindowPeek)window)->windowKind);
 	break;
       case wTerminal:
-	/* FIXME: end session and stuff */
+	mac_closeterm(window);
 	break;
       case wAbout:
 	windows.about = NULL;
-	CloseWindow(window);
+	DisposeDialog(window);
 	break;
       case wLicence:
 	windows.licence = NULL;
-	CloseWindow(window);
-	break;
-      default:
-	CloseWindow(window);
+	DisposeWindow(window);
 	break;
     }
 }

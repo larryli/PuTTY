@@ -4031,6 +4031,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     SHA_Final(&ssh->exhash, s->exchange_hash);
 
     dh_cleanup(ssh->kex_ctx);
+    ssh->kex_ctx = NULL;
 
 #if 0
     debug(("Exchange hash is:\n"));
@@ -5948,6 +5949,9 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->term_width = ssh->cfg.width;
     ssh->term_height = ssh->cfg.height;
 
+    ssh->channels = NULL;
+    ssh->rportfwds = NULL;
+
     ssh->send_ok = 0;
     ssh->editing = 0;
     ssh->echoing = 0;
@@ -5962,6 +5966,65 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
 	return p;
 
     return NULL;
+}
+
+static void ssh_free(void *handle)
+{
+    Ssh ssh = (Ssh) handle;
+    struct ssh_channel *c;
+    struct ssh_rportfwd *pf;
+
+    if (ssh->v1_cipher_ctx)
+	ssh->cipher->free_context(ssh->v1_cipher_ctx);
+    if (ssh->cs_cipher_ctx)
+	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
+    if (ssh->sc_cipher_ctx)
+	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
+    if (ssh->cs_mac_ctx)
+	ssh->csmac->free_context(ssh->cs_mac_ctx);
+    if (ssh->sc_mac_ctx)
+	ssh->scmac->free_context(ssh->sc_mac_ctx);
+    if (ssh->cs_comp_ctx)
+	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
+    if (ssh->sc_comp_ctx)
+	ssh->sccomp->compress_cleanup(ssh->sc_comp_ctx);
+    if (ssh->kex_ctx)
+	dh_cleanup(ssh->kex_ctx);
+    sfree(ssh->savedhost);
+
+    if (ssh->channels) {
+	while ((c = delpos234(ssh->channels, 0)) != NULL) {
+	    switch (c->type) {
+	      case CHAN_X11:
+		if (c->u.x11.s != NULL)
+		    x11_close(c->u.x11.s);
+		break;
+	      case CHAN_SOCKDATA:
+		if (c->u.pfd.s != NULL)
+		    pfd_close(c->u.pfd.s);
+		break;
+	    }
+	    sfree(c);
+	}
+	freetree234(ssh->channels);
+    }
+
+    if (ssh->rportfwds) {
+	while ((pf = delpos234(ssh->rportfwds, 0)) != NULL)
+	    sfree(pf);
+	freetree234(ssh->rportfwds);
+    }
+    sfree(ssh->deferred_send_data);
+    if (ssh->x11auth)
+	x11_free_auth(ssh->x11auth);
+    sfree(ssh->do_ssh_init_state);
+    sfree(ssh->do_ssh1_login_state);
+    sfree(ssh->do_ssh2_transport_state);
+    sfree(ssh->do_ssh2_authconn_state);
+    
+    if (ssh->s)
+	sk_close(ssh->s);
+    sfree(ssh);
 }
 
 /*
@@ -6236,6 +6299,7 @@ extern int ssh_fallback_cmd(void *handle)
 
 Backend ssh_backend = {
     ssh_init,
+    ssh_free,
     ssh_reconfig,
     ssh_send,
     ssh_sendbuffer,

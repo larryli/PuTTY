@@ -740,6 +740,15 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     return NULL;
 }
 
+static void telnet_free(void *handle)
+{
+    Telnet telnet = (Telnet) handle;
+
+    sfree(telnet->sb_buf);
+    if (telnet->s)
+	sk_close(telnet->s);
+    sfree(telnet);
+}
 /*
  * Reconfigure the Telnet backend. There's no immediate action
  * necessary, in this backend: we just save the fresh config for
@@ -974,6 +983,7 @@ static int telnet_exitcode(void *handle)
 
 Backend telnet_backend = {
     telnet_init,
+    telnet_free,
     telnet_reconfig,
     telnet_send,
     telnet_sendbuffer,
