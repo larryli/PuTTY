@@ -616,12 +616,13 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
 	    }
 	}
 
-	pktin = sftp_recv();
-	ret = xfer_upload_gotpkt(xfer, pktin);
-
-	if (!ret) {
-	    printf("error while writing: %s\n", fxp_error());
-	    err = 1;
+	if (!xfer_done(xfer)) {
+	    pktin = sftp_recv();
+	    ret = xfer_upload_gotpkt(xfer, pktin);
+	    if (!ret) {
+		printf("error while writing: %s\n", fxp_error());
+		err = 1;
+	    }
 	}
     }
 
