@@ -474,6 +474,7 @@ enum { IDCX_ABOUT =
     IDC_PKBUTTON,
     IDC_AGENTFWD,
     IDC_AUTHTIS,
+    IDC_AUTHKI,
     sshauthpanelend,
 
     selectionpanelstart,
@@ -740,6 +741,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
 		     cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
+    CheckDlgButton(hwnd, IDC_AUTHKI, cfg.try_ki_auth);
     SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
     SetDlgItemText(hwnd, IDC_CMDEDIT, cfg.remote_cmd);
 
@@ -1322,7 +1324,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshauthpanelstart) {
-	/* The SSH authentication panel. Accelerators used: [acgo] m fkw */
+	/* The SSH authentication panel. Accelerators used: [acgo] m fkiw */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1330,8 +1332,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		     IDC_TITLE_SSHAUTH);
 	    beginbox(&cp, "Authentication methods",
 		     IDC_BOX_SSHAUTH1);
-	    checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
+	    checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication (SSH1)",
 		     IDC_AUTHTIS);
+	    checkbox(&cp, "Attempt \"keyboard-&interactive\" authentication"
+		     " (SSH2)", IDC_AUTHKI);
 	    endbox(&cp);
 	    beginbox(&cp, "Authentication parameters",
 		     IDC_BOX_SSHAUTH2);
@@ -2400,6 +2404,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.try_tis_auth =
 			IsDlgButtonChecked(hwnd, IDC_AUTHTIS);
+		break;
+	      case IDC_AUTHKI:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.try_ki_auth =
+			IsDlgButtonChecked(hwnd, IDC_AUTHKI);
 		break;
 	      case IDC_PKEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)

@@ -3910,7 +3910,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    in_commasep_string("publickey", methods, methlen);
 		can_passwd =
 		    in_commasep_string("password", methods, methlen);
-		can_keyb_inter = 
+		can_keyb_inter = cfg.try_ki_auth &&
 		    in_commasep_string("keyboard-interactive", methods, methlen);
 	    }
 

@@ -174,6 +174,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX,
 	   cfg->ssh_cipherlist);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
+    write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_i(sesskey, "BuggyMAC", cfg->buggymac);
     write_setting_s(sesskey, "PublicKeyFile", cfg->keyfile);
@@ -360,6 +361,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "SshProt", 1, &cfg->sshprot);
     gppi(sesskey, "BuggyMAC", 0, &cfg->buggymac);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
+    gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
     gpps(sesskey, "PublicKeyFile", "", cfg->keyfile, sizeof(cfg->keyfile));
     gpps(sesskey, "RemoteCommand", "", cfg->remote_cmd,
 	 sizeof(cfg->remote_cmd));
