@@ -130,8 +130,9 @@ typedef CALLBACK_API_C(OSErr, AddrToStrProcPtr)(UInt32, unsigned long, char *);
 typedef STACK_UPP_TYPE(AddrToStrProcPtr) AddrToStrUPP;
 enum { uppAddrToStrProcInfo = kCStackBased
        | RESULT_SIZE(SIZE_CODE(sizeof(OSErr)))
-       | STACK_ROUTINE_PARAMETER(1, SIZE_CODE(sizeof(unsigned long)))
-       | STACK_ROUTINE_PARAMETER(2, SIZE_CODE(sizeof(char *)))
+       | STACK_ROUTINE_PARAMETER(1, SIZE_CODE(sizeof(UInt32)))
+       | STACK_ROUTINE_PARAMETER(2, SIZE_CODE(sizeof(unsigned long)))
+       | STACK_ROUTINE_PARAMETER(3, SIZE_CODE(sizeof(char *)))
 };
 #define InvokeAddrToStrUPP(selector, addr, addrStr, userUPP)		\
     CALL_THREE_PARAMETER_UPP((userUPP), uppAddrToStrProcInfo, (selector),\
