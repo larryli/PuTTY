@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.15 1999/03/07 23:22:23 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.16 1999/03/09 00:09:50 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -70,6 +70,7 @@ static void mac_adjustsize(struct mac_session *, int, int);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
 static int mac_keytrans(struct mac_session *, EventRecord *, unsigned char *);
+static void text_click(struct mac_session *, EventRecord *);
 
 /*
  * Temporary hack till I get the terminal emulator supporting multiple
@@ -222,7 +223,41 @@ void mac_clickterm(WindowPtr window, EventRecord *event) {
 	    TrackControl(control, mouse, mac_scrolltracker);
 	    break;
 	}
+    } else {
+	text_click(s, event);
     }
+}
+
+static void text_click(struct mac_session *s, EventRecord *event) {
+    Point localwhere;
+    int row, col;
+    static UInt32 lastwhen = 0;
+    static struct mac_session *lastsess = NULL;
+    static int lastrow = -1, lastcol = -1;
+    static Mouse_Action lastact = MA_NOTHING;
+
+    SetPort(s->window);
+    localwhere = event->where;
+    GlobalToLocal(&localwhere);
+
+    col = localwhere.h / font_width;
+    row = localwhere.v / font_height;
+    if (event->when - lastwhen < GetDblTime() &&
+	row == lastrow && col == lastcol && s == lastsess)
+	lastact = (lastact == MA_CLICK ? MA_2CLK :
+		   lastact == MA_2CLK ? MA_3CLK :
+		   lastact == MA_3CLK ? MA_CLICK : MA_NOTHING);
+    else
+	lastact = MA_CLICK;
+    term_mouse(event->modifiers & shiftKey ? MB_EXTEND : MB_SELECT, lastact,
+	       col, row);
+    while (StillDown()) {
+	/* XXX Do something */
+    }
+    lastsess = s;
+    lastrow = row;
+    lastcol = col;
+    lastwhen = event->when; /* XXX: should be time of mmouse _up_ */
 }
 
 static pascal void mac_scrolltracker(ControlHandle control, short part) {

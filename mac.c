@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.12 1999/03/07 23:20:20 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.13 1999/03/09 00:09:50 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -357,6 +357,16 @@ static void mac_adjustmenus(void) {
 static void mac_adjustcursor(void) {
 
     SetCursor(&qd.arrow);
+}
+
+void write_clip(void *data, int len) {
+
+    /* XXX: do something */
+}
+
+void get_clip(void **p, int *lenp) {
+
+    /* XXX: do something */
 }
 
 static void mac_shutdown(void) {
