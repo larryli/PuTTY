@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.27 2002/12/31 01:40:14 ben Exp $ */
+/* $Id: macterm.c,v 1.28 2002/12/31 20:11:38 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -261,7 +261,13 @@ static pascal OSStatus uni_to_font_fallback(UniChar *ucp,
 
     if (olen < 1)
 	return kTECOutputBufferFullStatus;
-    *obuf = '?';
+    /*
+     * What I'd _like_ to do here is to somehow generate the
+     * missing-character glyph that every font is required to have.
+     * Unfortunately (and somewhat surprisingly), I can't find any way
+     * to actually ask for it explicitly.  Bah.
+     */
+    *obuf = '.';
     *iusedp = ilen;
     *ousedp = 1;
     return noErr;
