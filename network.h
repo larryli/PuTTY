@@ -76,6 +76,7 @@ void sk_cleanup(void);		       /* called just before program exit */
 
 SockAddr sk_namelookup(char *host, char **canonicalname);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);
+enum { ADDRTYPE_IPV4, ADDRTYPE_IPV6 };
 int sk_addrtype(SockAddr addr);
 void sk_addrcopy(SockAddr addr, char *buf);
 void sk_addr_free(SockAddr addr);
@@ -142,6 +143,15 @@ char *sk_addr_error(SockAddr addr);
  * socket, to clean up any pending network errors.
  */
 void net_pending_errors(void);
+
+/*
+ * Simple wrapper on getservbyname(), needed by ssh.c. Returns the
+ * port number, in host byte order (suitable for printf and so on).
+ * Returns 0 on failure. Any platform not supporting getservbyname
+ * can just return 0 - this function is not required to handle
+ * numeric port specifications.
+ */
+int net_service_lookup(char *service);
 
 /********** SSL stuff **********/
 

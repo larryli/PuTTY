@@ -370,7 +370,7 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 
 int sk_addrtype(SockAddr addr)
 {
-    return addr->family;
+    return (addr->family == AF_INET ? ADDRTYPE_IPV4 : ADDRTYPE_IPV6);
 }
 
 void sk_addrcopy(SockAddr addr, char *buf)
@@ -1137,4 +1137,14 @@ SOCKET next_socket(int *state)
 {
     Actual_Socket s = index234(sktree, (*state)++);
     return s ? s->s : INVALID_SOCKET;
+}
+
+int net_service_lookup(char *service)
+{
+    struct servent *se;
+    se = getservbyname(service, NULL);
+    if (se != NULL)
+	return ntohs(se->s_port);
+    else
+	return 0;
 }

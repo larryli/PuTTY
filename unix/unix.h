@@ -42,4 +42,7 @@ void provide_xrm_string(char *string);
 
 #define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
 
+#define strnicmp strncasecmp
+#define stricmp strcasecmp
+
 #endif

@@ -1,4 +1,3 @@
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -234,7 +233,7 @@ static Socket rlogin_socket(void *handle)
 
 static int rlogin_sendok(void *handle)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    /* Rlogin rlogin = (Rlogin) handle; */
     return 1;
 }
 
@@ -246,7 +245,7 @@ static void rlogin_unthrottle(void *handle, int backlog)
 
 static int rlogin_ldisc(void *handle, int option)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    /* Rlogin rlogin = (Rlogin) handle; */
     return 0;
 }
 
@@ -262,7 +261,7 @@ static void rlogin_provide_logctx(void *handle, void *logctx)
 
 static int rlogin_exitcode(void *handle)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    /* Rlogin rlogin = (Rlogin) handle; */
     /* If we ever implement RSH, we'll probably need to do this properly */
     return 0;
 }

@@ -908,7 +908,7 @@ static const struct ssh2_cipher ssh_3des_ssh2 = {
  * only people to do so, so we sigh and implement it anyway.
  */
 static const struct ssh2_cipher ssh_des_ssh2 = {
-    des3_make_context, des3_free_context, des3_iv, des_key,
+    des_make_context, des3_free_context, des3_iv, des_key,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk,
     "des-cbc",
     8, 56, "single-DES"

@@ -5,8 +5,6 @@
  * code and the higher level backend.
  */
 
-#include <windows.h>
-
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
@@ -155,7 +153,7 @@ static void sk_proxy_set_frozen (Socket s, int is_frozen)
 	 * so we have to check each time.
 	 */
         while (!ps->freeze && bufchain_size(&ps->pending_input_data) > 0) {
-	    char * data;
+	    void *data;
 	    int len;
 	    bufchain_prefix(&ps->pending_input_data, &data, &len);
 	    plug_receive(ps->plug, 0, data, len);
@@ -641,7 +639,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	int length;
 	char * command;
 
-	if (sk_addrtype(p->remote_addr) != AF_INET) {
+	if (sk_addrtype(p->remote_addr) != ADDRTYPE_IPV4) {
 	    plug_closing(p->plug, "Proxy error: SOCKS version 4 does"
 			 " not support IPv6", PROXY_ERROR_GENERAL, 0);
 	    return 1;
@@ -931,7 +929,7 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	    char command[22];
 	    int len;
 
-	    if (sk_addrtype(p->remote_addr) == AF_INET) {
+	    if (sk_addrtype(p->remote_addr) == ADDRTYPE_IPV6) {
 		len = 10;
 		command[3] = 1; /* IPv4 */
 	    } else {

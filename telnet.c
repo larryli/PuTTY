@@ -1,4 +1,3 @@
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -890,7 +889,7 @@ static Socket telnet_socket(void *handle)
 
 static int telnet_sendok(void *handle)
 {
-    Telnet telnet = (Telnet) handle;
+    /* Telnet telnet = (Telnet) handle; */
     return 1;
 }
 
@@ -923,7 +922,7 @@ static void telnet_provide_logctx(void *handle, void *logctx)
 
 static int telnet_exitcode(void *handle)
 {
-    Telnet telnet = (Telnet) handle;
+    /* Telnet telnet = (Telnet) handle; */
     /* Telnet doesn't transmit exit codes back to the client */
     return 0;
 }

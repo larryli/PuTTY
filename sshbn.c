@@ -799,6 +799,7 @@ unsigned short bignum_mod_short(Bignum number, unsigned short modulus)
 
 void diagbn(char *prefix, Bignum md)
 {
+#ifdef DEBUG
     int i, nibbles, morenibbles;
     static const char hex[] = "0123456789ABCDEF";
 
@@ -816,6 +817,7 @@ void diagbn(char *prefix, Bignum md)
 
     if (prefix)
 	debug(("\n"));
+#endif
 }
 
 /*
