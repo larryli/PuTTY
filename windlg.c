@@ -1579,9 +1579,13 @@ void logevent (char *string) {
     events[nevents] = smalloc(1+strlen(string));
     strcpy (events[nevents], string);
     nevents++;
-    if (logbox)
+    if (logbox) {
+        int count;
 	SendDlgItemMessage (logbox, IDN_LIST, LB_ADDSTRING,
 			    0, (LPARAM)string);
+	count = SendDlgItemMessage (logbox, IDN_LIST, LB_GETCOUNT, 0, 0);
+	SendDlgItemMessage (logbox, IDN_LIST, LB_SETCURSEL, count-1, 0);
+    }
 }
 
 void showeventlog (HWND hwnd) {
