@@ -33,7 +33,6 @@ static int rlogin_receive (Socket s, int urgent, char *data, int len) {
     }
     if (urgent == 2) {
         char c;
-        int i;
         
         c = *data++; len--;
         if (c == 0x80)
@@ -118,7 +117,7 @@ static void rlogin_send (char *buf, int len) {
  * Called to set the size of the window
  */
 static void rlogin_size(void) {
-    char b[12] = { 0xFF, 0xFF, 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
+    char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     b[6] = cols >> 8; b[7] = cols & 0xFF;
     b[4] = rows >> 8; b[5] = rows & 0xFF;
