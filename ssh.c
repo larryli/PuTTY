@@ -5357,7 +5357,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c->type = CHAN_SOCKDATA;
 		c->v.v2.remwindow = ssh2_pkt_getuint32();
 		c->v.v2.remmaxpkt = ssh2_pkt_getuint32();
-		bufchain_init(&c->v.v2.outbuffer);
 		if (c->u.pfd.s)
 		    pfd_confirm(c->u.pfd.s);
 		if (c->closes) {
@@ -5759,6 +5758,7 @@ void *new_sock_channel(Socket s)
 	c->closes = 0;
 	c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
 	c->u.pfd.s = s;
+	bufchain_init(&c->v.v2.outbuffer);
 	add234(ssh_channels, c);
     }
     return c;
