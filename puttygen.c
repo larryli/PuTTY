@@ -202,11 +202,11 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
 #endif
     of.hwndOwner = hwnd;
     if (ppk) {
-	of.lpstrFilter = "PuTTY Private Key Files (*.ppk)\0*.PPK\0"
-	    "All Files\0*\0\0\0";
+	of.lpstrFilter = "PuTTY Private Key Files (*.ppk)\0*.ppk\0"
+	    "All Files (*.*)\0*\0\0\0";
 	of.lpstrDefExt = ".ppk";
     } else {
-	of.lpstrFilter = "All Files\0*\0\0\0";
+	of.lpstrFilter = "All Files (*.*)\0*\0\0\0";
     }
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
