@@ -97,7 +97,7 @@ typedef struct {
     int close_on_exit;
     /* SSH options */
     int nopty;
-    enum { CIPHER_3DES, CIPHER_BLOWFISH } cipher;
+    enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
     /* Telnet options */
     char termtype[32];
     char termspeed[32];

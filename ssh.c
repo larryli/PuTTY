@@ -213,6 +213,21 @@ static void s_wrpkt(void) {
     s_write(pktout.data, biglen+4);
 }
 
+static int ssh_versioncmp(char *a, char *b) {
+    char *ae, *be;
+    unsigned long av, bv;
+
+    av = strtoul(a, &ae);
+    bv = strtoul(b, &be);
+    if (av != bv) return (av < bv ? -1 : +1);
+    if (*ae == '.') ae++;
+    if (*be == '.') be++;
+    av = strtoul(ae, &ae);
+    bv = strtoul(be, &be);
+    if (av != bv) return (av < bv ? -1 : +1);
+    return 0;
+}
+
 static int do_ssh_init(void) {
     char c;
     char version[10];
@@ -248,8 +263,8 @@ static int do_ssh_init(void) {
 	    break;
     }
 
-    sprintf(vstring, "SSH-%s-7.7.7\n",
-	    (strcmp(version, "1.5") <= 0 ? version : "1.5"));
+    sprintf(vstring, "SSH-%s-PuTTY\n",
+	    (ssh_versioncmp(version, "1.5") <= 0 ? version : "1.5"));
     s_write(vstring, strlen(vstring));
     return 1;
 }
@@ -265,6 +280,7 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     int cipher_type;
 
     extern struct ssh_cipher ssh_3des;
+    extern struct ssh_cipher ssh_des;
     extern struct ssh_cipher ssh_blowfish;
 
     crBegin;
@@ -322,6 +338,7 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     }
 
     cipher_type = cfg.cipher == CIPHER_BLOWFISH ? SSH_CIPHER_BLOWFISH :
+                  cfg.cipher == CIPHER_DES ? SSH_CIPHER_DES : 
                   SSH_CIPHER_3DES;
     if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
 	c_write("Selected cipher not supported, falling back to 3DES\r\n", 53);
@@ -341,6 +358,7 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     free(rsabuf);
 
     cipher = cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish :
+             cipher_type == SSH_CIPHER_DES ? &ssh_des :
              &ssh_3des;
     cipher->sesskey(session_key);
 

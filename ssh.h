@@ -1,6 +1,7 @@
 #include <string.h>
 
 #define SSH_CIPHER_IDEA		1
+#define SSH_CIPHER_DES		2
 #define SSH_CIPHER_3DES		3
 #define SSH_CIPHER_BLOWFISH	6
 
