@@ -1,4 +1,4 @@
-/* $Id: putty.r,v 1.1.2.1 1999/02/19 20:52:58 ben Exp $ */
+/* $Id: putty.r,v 1.1.2.2 1999/02/19 22:06:36 ben Exp $ */
 /* PuTTY resources */
 
 #include "Types.r"
@@ -21,6 +21,27 @@ resource 'vers' (1, purgeable) {
     2,			/* Region code (2 = UK) */
     "Mac exp",		/* Short version (list views) */
     "Mac experimental",	/* Long version (get info) */
+};
+
+resource 'SIZE' (-1) {
+    reserved,
+    ignoreSuspendResumeEvents,
+    reserved,
+    cannotBackground,
+    needsActivateOnFGSwitch,
+    backgroundAndForeground,
+    dontGetFrontClicks,
+    ignoreAppDiedEvents,
+    is32BitCompatible,
+    notHighLevelEventAware,
+    onlyLocalHLEvents,
+    notStationeryAware,
+    useTextEditServices,
+    reserved,
+    reserved,
+    reserved,
+    65536,		/* Minimum size */
+    65536,		/* Preferred size */
 };
 
 resource 'FREF' (128, purgeable) {
