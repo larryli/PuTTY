@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.8 2002/12/28 22:22:43 ben Exp $ */
+/* $Id: mac.c,v 1.9 2002/12/29 19:14:56 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -559,8 +559,10 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
 
 static void mac_shutdown(void) {
 
+#if !TARGET_RT_MAC_CFM
     if (mac_gestalts.encvvers != 0)
 	TerminateUnicodeConverter();
+#endif
     exit(0);
 }
 
