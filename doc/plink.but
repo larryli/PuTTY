@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.22 2004/04/24 12:25:08 jacob Exp $
+\versionid $Id: plink.but,v 1.23 2004/05/22 11:09:31 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -226,7 +226,7 @@ start a backup on a remote machine, you might use a command like:
 Or perhaps you want to fetch all system log lines relating to a
 particular web area:
 
-\c plink mysession grep /~fjbloggs/ /var/log/httpd/access.log > fredlogs
+\c plink mysession grep /~fred/ /var/log/httpd/access.log > fredlog
 
 Any non-interactive command you could usefully run on the server
 command line, you can run in a batch file using Plink in this way.

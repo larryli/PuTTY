@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.27 2004/04/25 22:18:19 jacob Exp $
+\versionid $Id: pscp.but,v 1.28 2004/05/22 11:09:31 simon Exp $
 
 \#FIXME: Need examples
 
@@ -81,11 +81,11 @@ To send (a) file(s) to a remote server:
 
 \c pscp [options] source [source...] [user@]host:target
 
-So to copy the local file \c{c:\\documents\\csh-whynot.txt} to the
-server \c{example.com} as user \c{fred} to the file
-\c{/tmp/csh-whynot} you would type:
+So to copy the local file \c{c:\\documents\\foo.txt} to the server
+\c{example.com} as user \c{fred} to the file \c{/tmp/foo} you would
+type:
 
-\c pscp c:\documents\csh-whynot.txt fred@example.com:/tmp/csh-whynot
+\c pscp c:\documents\foo.txt fred@example.com:/tmp/foo
 
 You can use wildcards to transfer multiple files in either
 direction, like this:
@@ -94,12 +94,11 @@ direction, like this:
 \c pscp fred@example.com:source/*.c c:\source
 
 However, in the second case (using a wildcard for multiple remote
-files) you may see a warning like this:
-
-\c warning: remote host tried to write to a file called 'terminal.c'
-\c          when we requested a file called '*.c'.
-\c          If this is a wildcard, consider upgrading to SSH 2 or using
-\c          the '-unsafe' option. Renaming of this file has been disallowed.
+files) you may see a warning saying something like \q{warning:
+remote host tried to write to a file called 'terminal.c' when we
+requested a file called '*.c'. If this is a wildcard, consider
+upgrading to SSH 2 or using the '-unsafe' option. Renaming of this
+file has been disallowed}.
 
 This is due to a fundamental insecurity in the old-style SCP
 protocol: the client sends the wildcard string (\c{*.c}) to the
@@ -196,7 +195,7 @@ timestamp on copied files.
 By default, PSCP displays a meter displaying the progress of the
 current transfer:
 
-\c mibs.tar                  |        168 kB |  84.0 kB/s | ETA: 00:00:13 |  13%
+\c mibs.tar          |   168 kB |  84.0 kB/s | ETA: 00:00:13 |  13%
 
 The fields in this display are (from left to right), filename, size
 (in kilobytes) of file transferred so far, estimate of how fast the

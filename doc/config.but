@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.79 2004/05/22 11:04:35 simon Exp $
+\versionid $Id: config.but,v 1.80 2004/05/22 11:09:31 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2321,9 +2321,9 @@ line options, so it's all automatic. Here is what you need in
 \c regedit /s putty.reg
 \c regedit /s puttyrnd.reg
 \c start /w putty.exe
-\c regedit /ea puttynew.reg HKEY_CURRENT_USER\Software\SimonTatham\PuTTY
-\c copy puttynew.reg putty.reg
-\c del puttynew.reg
+\c regedit /ea new.reg HKEY_CURRENT_USER\Software\SimonTatham\PuTTY
+\c copy new.reg putty.reg
+\c del new.reg
 \c regedit /s puttydel.reg
 
 This batch file needs two auxiliary files: \c{PUTTYRND.REG} which

@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.69 2004/04/28 17:26:15 jacob Exp $
+\versionid $Id: faq.but,v 1.70 2004/05/22 11:09:31 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -565,8 +565,8 @@ In order to use Plink on these systems, you will need to download
 the
 \W{http://www.microsoft.com/windows95/downloads/contents/wuadmintools/s_wunetworkingtools/w95sockets2/}{WinSock 2 upgrade}:
 
-\c http://www.microsoft.com/windows95/downloads/contents/wuadmintools/
-\c   s_wunetworkingtools/w95sockets2/
+\c http://www.microsoft.com/windows95/downloads/contents/
+\c   wuadmintools/s_wunetworkingtools/w95sockets2/
 
 \S{faq-outofmem}{Question} After trying to establish an SSH 2
 connection, PuTTY says \q{Out of memory} and dies.
