@@ -885,6 +885,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      "Always overwrite it", I(LGXF_OVR),
 		      "Always append to the end of it", I(LGXF_APN),
 		      "Ask the user every time", I(LGXF_ASK), NULL);
+    ctrl_checkbox(s, "Flush log file frequently", 'u',
+		 HELPCTX(logging_flush),
+		 dlg_stdcheckbox_handler, I(offsetof(Config,logflush)));
 
     if ((midsession && protocol == PROT_SSH) ||
 	(!midsession && backends[3].name != NULL)) {

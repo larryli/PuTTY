@@ -167,6 +167,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_filename(sesskey, "LogFileName", cfg->logfilename);
     write_setting_i(sesskey, "LogType", cfg->logtype);
     write_setting_i(sesskey, "LogFileClash", cfg->logxfovr);
+    write_setting_i(sesskey, "LogFlush", cfg->logflush);
     write_setting_i(sesskey, "SSHLogOmitPasswords", cfg->logomitpass);
     write_setting_i(sesskey, "SSHLogOmitData", cfg->logomitdata);
     p = "raw";
@@ -395,6 +396,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppfile(sesskey, "LogFileName", &cfg->logfilename);
     gppi(sesskey, "LogType", 0, &cfg->logtype);
     gppi(sesskey, "LogFileClash", LGXF_ASK, &cfg->logxfovr);
+    gppi(sesskey, "LogFlush", 1, &cfg->logflush);
     gppi(sesskey, "SSHLogOmitPasswords", 1, &cfg->logomitpass);
     gppi(sesskey, "SSHLogOmitData", 0, &cfg->logomitdata);
 

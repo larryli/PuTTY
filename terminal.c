@@ -4337,7 +4337,8 @@ static void term_out(Terminal *term)
     }
 
     term_print_flush(term);
-    logflush(term->logctx);
+    if (term->cfg.logflush)
+	logflush(term->logctx);
 }
 
 /*

@@ -452,6 +452,7 @@ struct config_tag {
     Filename logfilename;
     int logtype;
     int logxfovr;
+    int logflush;
     int logomitpass;
     int logomitdata;
     int hide_mouseptr;

@@ -206,6 +206,22 @@ Finally (the default option), you might not want to have any
 automatic behaviour, but to ask the user every time the problem
 comes up.
 
+\S{config-logflush} \q{Flush log file frequently}
+
+\cfg{winhelp-topic}{logging.flush}
+
+This option allows you to control how frequently logged data is
+flushed to disc. By default, PuTTY will flush data as soon as it is
+displayed, so that if you view the log file while a session is still
+open, it will be up to date; and if the client system crashes, there's
+a greater chance that the data will be preserved.
+
+However, this can incur a performance penalty. If PuTTY is running
+slowly with logging enabled, you could try unchecking this option. Be
+warned that the log file may not always be up to date as a result
+(although it will of course be flushed when it is closed, for instance
+at the end of a session).
+
 \S{config-logssh} Options specific to SSH packet logging
 
 These options only apply if SSH packet data is being logged.
