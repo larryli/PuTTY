@@ -181,6 +181,14 @@ In an SSH connection, the following special commands are available:
 Should have no effect.
 }
 
+\b \I{Repeat key exchange, SSH special command}Repeat key exchange
+
+\lcont{
+Only available in SSH-2. Forces a repeat key exchange immediately (and
+resets associated timers and counters). \#{For more information about
+repeat key exchanges, see \k{FIXME}.}
+}
+
 \b \I{Break, SSH special command}Break
 
 \lcont{
