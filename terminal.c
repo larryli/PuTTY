@@ -578,13 +578,15 @@ void term_out(void) {
     int c;
 
     while ( (c = inbuf_getc()) != -1) {
-#ifdef LOG
-	{
+        /*
+         * Optionally log the session traffic to a file. Useful for
+         * debugging and possibly also useful for actual logging.
+         */
+	if (logfile) {
 	    static FILE *fp = NULL;
-	    if (!fp) fp = fopen("putty.log", "wb");
+	    if (!fp) fp = fopen(logfile, "wb");
 	    if (fp) fputc (c, fp);
 	}
-#endif
 	if( termstate < DO_CTRLS && (c&0x60) == 0 ) {
 	    switch (c) {
 	      case '\005':	       /* terminal type query */

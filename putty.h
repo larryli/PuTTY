@@ -71,6 +71,8 @@ typedef enum {
 
 GLOBAL Unscroll_Trigger unscroll_event;
 
+GLOBAL char *logfile;
+
 #define WM_NETEVENT  (WM_USER + 1)
 
 typedef enum {

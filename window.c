@@ -129,6 +129,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		tolower(p[2]) == 'h') {
 		default_protocol = cfg.protocol = PROT_SSH;
 		default_port = cfg.port = 22;
+	    } else if (q == p + 3 &&
+		tolower(p[0]) == 'l' &&
+		tolower(p[1]) == 'o' &&
+		tolower(p[2]) == 'g') {
+                logfile = "putty.log";
 	    }
 	    p = q + strspn(q, " \t");
 	}
