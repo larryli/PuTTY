@@ -465,9 +465,10 @@ static void do_telnet_read (char *buf, int len) {
     }
 }
 
-static int telnet_receive(Socket s, int urgent, char *data, int len) {
+static int telnet_receive(Socket skt, int urgent, char *data, int len) {
     if (urgent==3) {
         /* A socket error has occurred. */
+        s = NULL;
         connection_fatal(data);
         len = 0;
     }

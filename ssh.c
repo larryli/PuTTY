@@ -1151,6 +1151,8 @@ static void ssh_gotdata(unsigned char *data, int datalen)
 static int ssh_receive(Socket skt, int urgent, char *data, int len) {
     if (urgent==3) {
         /* A socket error has occurred. */
+        ssh_state = SSH_STATE_CLOSED;
+        s = NULL;
         connection_fatal(data);
         len = 0;
     }

@@ -24,9 +24,10 @@ static void c_write (char *buf, int len) {
     from_backend(0, buf, len);
 }
 
-static int raw_receive (Socket s, int urgent, char *data, int len) {
+static int raw_receive (Socket skt, int urgent, char *data, int len) {
     if (urgent==3) {
         /* A socket error has occurred. */
+        s = NULL;
         connection_fatal(data);
         len = 0;
     }
