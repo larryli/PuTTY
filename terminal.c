@@ -131,6 +131,11 @@ static void unlineptr(termline *line)
 /*
  * Diagnostic function: verify that a termline has a correct
  * combining character structure.
+ * 
+ * XXX-REMOVE-BEFORE-RELEASE: This is a performance-intensive
+ * check. Although it's currently really useful for getting all the
+ * bugs out of the new cc stuff, it will want to be absent when we
+ * make a proper release.
  */
 static void cc_check(termline *line)
 {
@@ -219,7 +224,7 @@ static void add_cc(termline *line, int col, unsigned long chr)
     line->chars[newcc].chr = chr;
     line->chars[col].cc_next = newcc - col;
 
-    cc_check(line);
+    cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
 }
 
 /*
@@ -245,7 +250,7 @@ static void clear_cc(termline *line, int col)
 
     line->chars[origcol].cc_next = 0;
 
-    cc_check(line);
+    cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
 }
 
 /*
@@ -292,6 +297,8 @@ static void copy_termchar(termline *destline, int x, termchar *src)
 	src += src->cc_next;
 	add_cc(destline, x, src->chr);
     }
+
+    cc_check(destline);		       /* XXX-REMOVE-BEFORE-RELEASE */
 }
 
 /*
@@ -309,6 +316,8 @@ static void move_termchar(termline *line, termchar *dest, termchar *src)
 
     /* Ensure the original cell doesn't have a cc list. */
     src->cc_next = 0;
+
+    cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
 }
 
 /*
@@ -887,7 +896,7 @@ static void resizeline(Terminal *term, termline *line, int cols)
 	for (i = oldlen; i < cols; i++)
 	    line->chars[i] = term->basic_erase_char;
 
-	cc_check(line);
+	cc_check(line);		       /* XXX-REMOVE-BEFORE-RELEASE */
     }
 }
 
@@ -1605,7 +1614,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
     } else {
 	while (lines > 0) {
 	    line = delpos234(term->screen, topline);
-	    cc_check(line);
+	    cc_check(line);	       /* XXX-REMOVE-BEFORE-RELEASE */
 	    if (sb && term->savelines > 0) {
 		int sblen = count234(term->scrollback);
 		/*
