@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "ssh.h"
+#include "misc.h"
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
@@ -16,11 +17,35 @@
     (cp)[2] = (unsigned char)((value) >> 8); \
     (cp)[3] = (unsigned char)(value); }
 
-#if 0
-#define DEBUG_DSS
-#else
-#define diagbn(x,y)
-#endif
+static void sha_mpint(SHA_State * s, Bignum b)
+{
+    unsigned char *p;
+    unsigned char lenbuf[4];
+    int len;
+    len = (bignum_bitcount(b) + 8) / 8;
+    PUT_32BIT(lenbuf, len);
+    SHA_Bytes(s, lenbuf, 4);
+    while (len-- > 0) {
+	lenbuf[0] = bignum_byte(b, len);
+	SHA_Bytes(s, lenbuf, 1);
+    }
+    memset(lenbuf, 0, sizeof(lenbuf));
+}
+
+static void sha512_mpint(SHA512_State * s, Bignum b)
+{
+    unsigned char *p;
+    unsigned char lenbuf[4];
+    int len;
+    len = (bignum_bitcount(b) + 8) / 8;
+    PUT_32BIT(lenbuf, len);
+    SHA512_Bytes(s, lenbuf, 4);
+    while (len-- > 0) {
+	lenbuf[0] = bignum_byte(b, len);
+	SHA512_Bytes(s, lenbuf, 1);
+    }
+    memset(lenbuf, 0, sizeof(lenbuf));
+}
 
 static void getstring(char **data, int *datalen, char **p, int *length)
 {
@@ -61,10 +86,6 @@ static Bignum get160(char **data, int *datalen)
 
     return b;
 }
-
-struct dss_key {
-    Bignum p, q, g, y;
-};
 
 static void *dss_newkey(char *data, int len)
 {
@@ -236,14 +257,8 @@ static int dss_verifysig(void *key, char *sig, int siglen,
 	}
 	sig += 4, siglen -= 4;	       /* skip yet another length field */
     }
-    diagbn("p=", dss->p);
-    diagbn("q=", dss->q);
-    diagbn("g=", dss->g);
-    diagbn("y=", dss->y);
     r = get160(&sig, &siglen);
-    diagbn("r=", r);
     s = get160(&sig, &siglen);
-    diagbn("s=", s);
     if (!r || !s)
 	return 0;
 
@@ -251,7 +266,6 @@ static int dss_verifysig(void *key, char *sig, int siglen,
      * Step 1. w <- s^-1 mod q.
      */
     w = modinv(s, dss->q);
-    diagbn("w=", w);
 
     /*
      * Step 2. u1 <- SHA(message) * w mod q.
@@ -260,28 +274,20 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     p = hash;
     slen = 20;
     sha = get160(&p, &slen);
-    diagbn("sha=", sha);
     u1 = modmul(sha, w, dss->q);
-    diagbn("u1=", u1);
 
     /*
      * Step 3. u2 <- r * w mod q.
      */
     u2 = modmul(r, w, dss->q);
-    diagbn("u2=", u2);
 
     /*
      * Step 4. v <- (g^u1 * y^u2 mod p) mod q.
      */
     gu1p = modpow(dss->g, u1, dss->p);
-    diagbn("gu1p=", gu1p);
     yu2p = modpow(dss->y, u2, dss->p);
-    diagbn("yu2p=", yu2p);
     gu1yu2p = modmul(gu1p, yu2p, dss->p);
-    diagbn("gu1yu2p=", gu1yu2p);
     v = modmul(gu1yu2p, One, dss->q);
-    diagbn("gu1yu2q=v=", v);
-    diagbn("r=", r);
 
     /*
      * Step 5. v should now be equal to r.
@@ -347,28 +353,281 @@ static unsigned char *dss_public_blob(void *key, int *len)
 
 static unsigned char *dss_private_blob(void *key, int *len)
 {
-    return NULL;		       /* can't handle DSS private keys */
+    struct dss_key *dss = (struct dss_key *) key;
+    int xlen, bloblen;
+    int i;
+    unsigned char *blob, *p;
+    SHA_State s;
+    unsigned char digest[20];
+
+    xlen = (bignum_bitcount(dss->x) + 8) / 8;
+
+    /*
+     * mpint x, string[20] the SHA of p||q||g. Total 28 + xlen.
+     * (two length fields and twenty bytes, 20+8=28).
+     */
+    bloblen = 28 + xlen;
+    blob = smalloc(bloblen);
+    p = blob;
+    PUT_32BIT(p, xlen);
+    p += 4;
+    for (i = xlen; i--;)
+	*p++ = bignum_byte(dss->x, i);
+    PUT_32BIT(p, 20);
+    SHA_Init(&s);
+    sha_mpint(&s, dss->p);
+    sha_mpint(&s, dss->q);
+    sha_mpint(&s, dss->g);
+    SHA_Final(&s, digest);
+    p += 4;
+    for (i = 0; i < 20; i++)
+	*p++ = digest[i];
+    assert(p == blob + bloblen);
+    *len = bloblen;
+    return blob;
 }
 
 static void *dss_createkey(unsigned char *pub_blob, int pub_len,
 			   unsigned char *priv_blob, int priv_len)
 {
-    return NULL;		       /* can't handle DSS private keys */
+    struct dss_key *dss;
+    char *pb = (char *) priv_blob;
+    char *hash;
+    int hashlen;
+    SHA_State s;
+    unsigned char digest[20];
+    Bignum ytest;
+
+    dss = dss_newkey((char *) pub_blob, pub_len);
+    dss->x = getmp(&pb, &priv_len);
+    getstring(&pb, &priv_len, &hash, &hashlen);
+
+    /*
+     * Verify details of the key. First check that the hash is
+     * indeed a hash of p||q||g.
+     */
+    if (hashlen != 20) {
+	dss_freekey(dss);
+	return NULL;
+    }
+    SHA_Init(&s);
+    sha_mpint(&s, dss->p);
+    sha_mpint(&s, dss->q);
+    sha_mpint(&s, dss->g);
+    SHA_Final(&s, digest);
+    if (0 != memcmp(hash, digest, 20)) {
+	dss_freekey(dss);
+	return NULL;
+    }
+
+    /*
+     * Now ensure g^x mod p really is y.
+     */
+    ytest = modpow(dss->g, dss->x, dss->p);
+    if (0 != bignum_cmp(ytest, dss->y)) {
+	dss_freekey(dss);
+	return NULL;
+    }
+    freebn(ytest);
+
+    return dss;
 }
 
 static void *dss_openssh_createkey(unsigned char **blob, int *len)
 {
-    return NULL;		       /* can't handle DSS private keys */
+    char **b = (char **) blob;
+    struct dss_key *dss;
+
+    dss = smalloc(sizeof(struct dss_key));
+    if (!dss)
+	return NULL;
+
+    dss->p = getmp(b, len);
+    dss->q = getmp(b, len);
+    dss->g = getmp(b, len);
+    dss->y = getmp(b, len);
+    dss->x = getmp(b, len);
+
+    if (!dss->p || !dss->q || !dss->g || !dss->y || !dss->x) {
+	sfree(dss->p);
+	sfree(dss->q);
+	sfree(dss->g);
+	sfree(dss->y);
+	sfree(dss->x);
+	sfree(dss);
+	return NULL;
+    }
+
+    return dss;
 }
 
 static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len)
 {
-    return -1;			       /* can't handle DSS private keys */
+    struct dss_key *dss = (struct dss_key *) key;
+    int bloblen, i;
+
+    bloblen =
+	ssh2_bignum_length(dss->p) +
+	ssh2_bignum_length(dss->q) +
+	ssh2_bignum_length(dss->g) +
+	ssh2_bignum_length(dss->y) +
+	ssh2_bignum_length(dss->x);
+
+    if (bloblen > len)
+	return bloblen;
+
+    bloblen = 0;
+#define ENC(x) \
+    PUT_32BIT(blob+bloblen, ssh2_bignum_length((x))-4); bloblen += 4; \
+    for (i = ssh2_bignum_length((x))-4; i-- ;) blob[bloblen++]=bignum_byte((x),i);
+    ENC(dss->p);
+    ENC(dss->q);
+    ENC(dss->g);
+    ENC(dss->y);
+    ENC(dss->x);
+
+    return bloblen;
 }
 
 unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
 {
-    return NULL;		       /* can't handle DSS private keys */
+    /*
+     * The basic DSS signing algorithm is:
+     * 
+     *  - invent a random k between 1 and q-1 (exclusive).
+     *  - Compute r = (g^k mod p) mod q.
+     *  - Compute s = k^-1 * (hash + x*r) mod q.
+     * 
+     * This has the dangerous properties that:
+     * 
+     *  - if an attacker in possession of the public key _and_ the
+     *    signature (for example, the host you just authenticated
+     *    to) can guess your k, he can reverse the computation of s
+     *    and work out x = r^-1 * (s*k - hash) mod q. That is, he
+     *    can deduce the private half of your key, and masquerade
+     *    as you for as long as the key is still valid.
+     * 
+     *  - since r is a function purely of k and the public key, if
+     *    the attacker only has a _range of possibilities_ for k
+     *    it's easy for him to work through them all and check each
+     *    one against r; he'll never be unsure of whether he's got
+     *    the right one.
+     * 
+     *  - if you ever sign two different hashes with the same k, it
+     *    will be immediately obvious because the two signatures
+     *    will have the same r, and moreover an attacker in
+     *    possession of both signatures (and the public key of
+     *    course) can compute k = (hash1-hash2) * (s1-s2)^-1 mod q,
+     *    and from there deduce x as before.
+     * 
+     *  - the Bleichenbacher attack on DSA makes use of methods of
+     *    generating k which are significantly non-uniformly
+     *    distributed; in particular, generating a 160-bit random
+     *    number and reducing it mod q is right out.
+     * 
+     * For this reason we must be pretty careful about how we
+     * generate our k. Since this code runs on Windows, with no
+     * particularly good system entropy sources, we can't trust our
+     * RNG itself to produce properly unpredictable data. Hence, we
+     * use a totally different scheme instead.
+     * 
+     * What we do is to take a SHA-512 (_big_) hash of the private
+     * key x, and then feed this into another SHA-512 hash that
+     * also includes the message hash being signed. That is:
+     * 
+     *   proto_k = SHA512 ( SHA512(x) || SHA160(message) )
+     * 
+     * This number is 512 bits long, so reducing it mod q won't be
+     * noticeably non-uniform. So
+     * 
+     *   k = proto_k mod q
+     * 
+     * This has the interesting property that it's _deterministic_:
+     * signing the same hash twice with the same key yields the
+     * same signature.
+     * 
+     * (It doesn't, _per se_, protect against reuse of k. Reuse of
+     * k is left to chance; all it does is prevent _excessively
+     * high_ chances of reuse of k due to entropy problems.)
+     * 
+     * Thanks to Colin Plumb for the general idea of using x to
+     * ensure k is hard to guess, and to the Cambridge University
+     * Computer Security Group for helping to argue out all the
+     * fine details.
+     */
+    struct dss_key *dss = (struct dss_key *) key;
+    SHA512_State ss;
+    unsigned char digest[20], digest512[64];
+    Bignum proto_k, k, gkp, hash, kinv, hxr, r, s;
+    unsigned char *bytes;
+    int nbytes, i;
+
+    SHA_Simple(data, datalen, digest);
+
+    /*
+     * Hash some identifying text plus x.
+     */
+    SHA512_Init(&ss);
+    SHA512_Bytes(&ss, "DSA deterministic k generator", 30);
+    sha512_mpint(&ss, dss->x);
+    SHA512_Final(&ss, digest512);
+
+    /*
+     * Now hash that digest plus the message hash.
+     */
+    SHA512_Init(&ss);
+    SHA512_Bytes(&ss, digest512, sizeof(digest512));
+    SHA512_Bytes(&ss, digest, sizeof(digest));
+    SHA512_Final(&ss, digest512);
+
+    memset(&ss, 0, sizeof(ss));
+
+    /*
+     * Now convert the result into a bignum, and reduce it mod q.
+     */
+    proto_k = bignum_from_bytes(digest512, 64);
+    k = bigmod(proto_k, dss->q);
+    freebn(proto_k);
+
+    memset(digest512, 0, sizeof(digest512));
+
+    /*
+     * Now we have k, so just go ahead and compute the signature.
+     */
+    gkp = modpow(dss->g, k, dss->p);   /* g^k mod p */
+    r = bigmod(gkp, dss->q);	       /* r = (g^k mod p) mod q */
+    freebn(gkp);
+
+    hash = bignum_from_bytes(digest, 20);
+    kinv = modinv(k, dss->q);	       /* k^-1 mod q */
+    hxr = bigmuladd(dss->x, r, hash);  /* hash + x*r */
+    s = modmul(kinv, hxr, dss->q);     /* s = k^-1 * (hash + x*r) mod q */
+    freebn(hxr);
+    freebn(kinv);
+    freebn(hash);
+
+    /*
+     * Signature blob is
+     * 
+     *   string  "ssh-dss"
+     *   string  two 20-byte numbers r and s, end to end
+     * 
+     * i.e. 4+7 + 4+40 bytes.
+     */
+    nbytes = 4 + 7 + 4 + 40;
+    bytes = smalloc(nbytes);
+    PUT_32BIT(bytes, 7);
+    memcpy(bytes + 4, "ssh-dss", 7);
+    PUT_32BIT(bytes + 4 + 7, 40);
+    for (i = 0; i < 20; i++) {
+	bytes[4 + 7 + 4 + i] = bignum_byte(r, 19 - i);
+	bytes[4 + 7 + 4 + 20 + i] = bignum_byte(s, 19 - i);
+    }
+    freebn(r);
+    freebn(s);
+
+    *siglen = nbytes;
+    return bytes;
 }
 
 const struct ssh_signkey ssh_dss = {

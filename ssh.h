@@ -2,6 +2,7 @@
 
 #include "puttymem.h"
 #include "network.h"
+#include "int64.h"
 
 struct ssh_channel;
 
@@ -48,6 +49,10 @@ struct RSAKey {
     char *comment;
 };
 
+struct dss_key {
+    Bignum p, q, g, y, x;
+};
+
 int makekey(unsigned char *data, struct RSAKey *result,
 	    unsigned char **keystr, int order);
 int makeprivate(unsigned char *data, struct RSAKey *result);
@@ -92,11 +97,24 @@ typedef struct {
     int blkused;
     uint32 lenhi, lenlo;
 } SHA_State;
-
 void SHA_Init(SHA_State * s);
 void SHA_Bytes(SHA_State * s, void *p, int len);
 void SHA_Final(SHA_State * s, unsigned char *output);
 void SHA_Simple(void *p, int len, unsigned char *output);
+
+void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
+		      unsigned char *output);
+
+typedef struct {
+    uint64 h[8];
+    unsigned char block[128];
+    int blkused;
+    uint32 len[4];
+} SHA512_State;
+void SHA512_Init(SHA512_State * s);
+void SHA512_Bytes(SHA512_State * s, const void *p, int len);
+void SHA512_Final(SHA512_State * s, unsigned char *output);
+void SHA512_Simple(const void *p, int len, unsigned char *output);
 
 struct ssh_cipher {
     void (*sesskey) (unsigned char *key);	/* for ssh 1 */
@@ -219,7 +237,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);
 void bn_restore_invariant(Bignum b);
-Bignum bignum_from_short(unsigned short n);
+Bignum bignum_from_long(unsigned long n);
 void freebn(Bignum b);
 Bignum modpow(Bignum base, Bignum exp, Bignum mod);
 Bignum modmul(Bignum a, Bignum b, Bignum mod);
@@ -238,6 +256,9 @@ Bignum biggcd(Bignum a, Bignum b);
 unsigned short bignum_mod_short(Bignum number, unsigned short modulus);
 Bignum bignum_add_long(Bignum number, unsigned long addend);
 Bignum bigmul(Bignum a, Bignum b);
+Bignum bigmuladd(Bignum a, Bignum b, Bignum addend);
+Bignum bigdiv(Bignum a, Bignum b);
+Bignum bigmod(Bignum a, Bignum b);
 Bignum modinv(Bignum number, Bignum modulus);
 Bignum bignum_bitmask(Bignum number);
 Bignum bignum_rshift(Bignum number, int shift);
@@ -280,12 +301,19 @@ void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk,
 /*
  * For progress updates in the key generation utility.
  */
-typedef void (*progfn_t) (void *param, int phase, int progress);
+#define PROGFN_LIN_PHASE 1
+#define PROGFN_EXP_PHASE 2
+#define PROGFN_PHASE_EXTENT 3
+#define PROGFN_READY 4
+#define PROGFN_PROGRESS 5
+typedef void (*progfn_t) (void *param, int action, int phase, int progress);
 
 int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
 		 void *pfnparam);
-Bignum primegen(int bits, int modulus, int residue, int phase,
-		progfn_t pfn, void *pfnparam);
+int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
+		 void *pfnparam);
+Bignum primegen(int bits, int modulus, int residue, Bignum factor,
+		int phase, progfn_t pfn, void *pfnparam);
 
 
 /*

@@ -65,7 +65,7 @@ int agent_exists(void);
  * pads its data with random bytes. Since we only use rsadecrypt()
  * and the signing functions, which are deterministic, this should
  * never be called.
- * 
+ *
  * If it _is_ called, there is a _serious_ problem, because it
  * won't generate true random numbers. So we must scream, panic,
  * and exit immediately if that should happen.
@@ -613,7 +613,7 @@ static void answer_msg(void *msg)
 	break;
       case SSH2_AGENTC_SIGN_REQUEST:
 	/*
-	 * Reply with either SSH2_AGENT_RSA_RESPONSE or
+	 * Reply with either SSH2_AGENT_SIGN_RESPONSE or
 	 * SSH_AGENT_FAILURE, depending on whether we have that key
 	 * or not.
 	 */
@@ -696,6 +696,8 @@ static void answer_msg(void *msg)
 	    /* Add further algorithm names here. */
 	    if (alglen == 7 && !memcmp(alg, "ssh-rsa", 7))
 		key->alg = &ssh_rsa;
+	    else if (alglen == 7 && !memcmp(alg, "ssh-dss", 7))
+		key->alg = &ssh_dss;
 	    else {
 		sfree(key);
 		goto failure;

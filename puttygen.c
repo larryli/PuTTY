@@ -21,72 +21,72 @@
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)
  */
-#define PHASE1TOTAL 0x10000
-#define PHASE2TOTAL 0x10000
-#define PHASE3TOTAL 0x04000
-#define PHASE1START 0
-#define PHASE2START (PHASE1TOTAL)
-#define PHASE3START (PHASE1TOTAL + PHASE2TOTAL)
-#define TOTALTOTAL  (PHASE1TOTAL + PHASE2TOTAL + PHASE3TOTAL)
-#define PROGRESSBIGRANGE 65535
-#define DIVISOR     ((TOTALTOTAL + PROGRESSBIGRANGE - 1) / PROGRESSBIGRANGE)
-#define PROGRESSRANGE (TOTALTOTAL / DIVISOR)
+#define PROGRESSRANGE 65535
+#define MAXPHASE 5
 struct progress {
-    unsigned phase1param, phase1current, phase1n;
-    unsigned phase2param, phase2current, phase2n;
-    unsigned phase3mult;
+    int nphases;
+    struct {
+	int exponential;
+	unsigned startpoint, total;
+	unsigned param, current, n;    /* if exponential */
+	unsigned mult;		       /* if linear */
+    } phases[MAXPHASE];
+    unsigned total, divisor, range;
     HWND progbar;
 };
 
-static void progress_update(void *param, int phase, int iprogress)
+static void progress_update(void *param, int action, int phase, int iprogress)
 {
     struct progress *p = (struct progress *) param;
     unsigned progress = iprogress;
     int position;
 
-    switch (phase) {
-      case -1:
-	p->phase1param = 0x10000 + progress;
-	p->phase1current = 0x10000;
-	p->phase1n = 0;
-	return;
-      case -2:
-	p->phase2param = 0x10000 + progress;
-	p->phase2current = 0x10000;
-	p->phase2n = 0;
-	return;
-      case -3:
-	p->phase3mult = PHASE3TOTAL / progress;
-	return;
-      case 1:
-	while (p->phase1n < progress) {
-	    p->phase1n++;
-	    p->phase1current *= p->phase1param;
-	    p->phase1current /= 0x10000;
+    if (action < PROGFN_READY && p->nphases < phase)
+	p->nphases = phase;
+    switch (action) {
+      case PROGFN_LIN_PHASE:
+	p->phases[phase-1].exponential = 0;
+	p->phases[phase-1].mult = p->phases[phase].total / progress;
+	break;
+      case PROGFN_EXP_PHASE:
+	p->phases[phase-1].exponential = 1;
+	p->phases[phase-1].param = 0x10000 + progress;
+	p->phases[phase-1].current = p->phases[phase-1].total;
+	p->phases[phase-1].n = 0;
+	break;
+      case PROGFN_PHASE_EXTENT:
+	p->phases[phase-1].total = progress;
+	break;
+      case PROGFN_READY:
+	{
+	    unsigned total = 0;
+	    int i;
+	    for (i = 0; i < p->nphases; i++) {
+		p->phases[i].startpoint = total;
+		total += p->phases[i].total;
+	    }
+	    p->total = total;
+	    p->divisor = ((p->total + PROGRESSRANGE - 1) / PROGRESSRANGE);
+	    p->range = p->total / p->divisor;
+	    SendMessage(p->progbar, PBM_SETRANGE, 0, MAKELPARAM(0, p->range));
 	}
-	position = PHASE1START + 0x10000 - p->phase1current;
 	break;
-      case 2:
-	while (p->phase2n < progress) {
-	    p->phase2n++;
-	    p->phase2current *= p->phase2param;
-	    p->phase2current /= 0x10000;
+      case PROGFN_PROGRESS:
+	if (p->phases[phase-1].exponential) {
+	    while (p->phases[phase-1].n < progress) {
+		p->phases[phase-1].n++;
+		p->phases[phase-1].current *= p->phases[phase-1].param;
+		p->phases[phase-1].current /= 0x10000;
+	    }
+	    position = (p->phases[phase-1].startpoint +
+			p->phases[phase-1].total - p->phases[phase-1].current);
+	} else {
+	    position = (p->phases[phase-1].startpoint +
+			progress * p->phases[phase-1].mult);
 	}
-	position = PHASE2START + 0x10000 - p->phase2current;
+	SendMessage(p->progbar, PBM_SETPOS, position / p->divisor, 0);
 	break;
-      case 3:
-	position = PHASE3START + progress * p->phase3mult;
-	break;
-      default:
-	/*
-	 * Shouldn't happen, but having a default clause placates
-	 * gcc -Wall, which would otherwise complain that
-	 * `position' might be used uninitialised.
-	 */
-	return;
     }
-
-    SendMessage(p->progbar, PBM_SETPOS, position / DIVISOR, 0);
 }
 
 extern char ver[];
@@ -291,7 +291,9 @@ struct rsa_key_thread_params {
     HWND progressbar;		       /* notify this with progress */
     HWND dialog;		       /* notify this on completion */
     int keysize;		       /* bits in key */
+    int is_dsa;
     struct RSAKey *key;
+    struct dss_key *dsskey;
 };
 static DWORD WINAPI generate_rsa_key_thread(void *param)
 {
@@ -300,7 +302,10 @@ static DWORD WINAPI generate_rsa_key_thread(void *param)
     struct progress prog;
     prog.progbar = params->progressbar;
 
-    rsa_generate(params->key, params->keysize, progress_update, &prog);
+    if (params->is_dsa)
+	dsa_generate(params->dsskey, params->keysize, progress_update, &prog);
+    else
+	rsa_generate(params->key, params->keysize, progress_update, &prog);
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
 
@@ -314,11 +319,12 @@ struct MainDlgState {
     int key_exists;
     int entropy_got, entropy_required, entropy_size;
     int keysize;
-    int ssh2;
+    int ssh2, is_dsa;
     char **commentptr;		       /* points to key.comment or ssh2key.comment */
     struct ssh2_userkey ssh2key;
     unsigned *entropy;
     struct RSAKey key;
+    struct dss_key dsskey;
 };
 
 static void hidemany(HWND hwnd, const int *ids, int hideit)
@@ -465,7 +471,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	IDC_LOADSTATIC, IDC_LOAD,
 	IDC_SAVESTATIC, IDC_SAVE, IDC_SAVEPUB,
 	IDC_BOX_PARAMS,
-	IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA,
+	IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
 	IDC_BITSSTATIC, IDC_BITS,
 	IDC_ABOUT,
     };
@@ -511,7 +517,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	{
 	    struct ctlpos cp, cp2;
 
-	    /* Accelerators used: acglops1rb */
+	    /* Accelerators used: acglops1rbd */
 
 	    ctlposinit(&cp, hwnd, 10, 10, 10);
 	    bartitle(&cp, "Public and private key generation for PuTTY",
@@ -547,9 +553,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		       "&Save private key", IDC_SAVE);
 	    endbox(&cp);
 	    beginbox(&cp, "Parameters", IDC_BOX_PARAMS);
-	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 2,
+	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 3,
 		      "SSH&1 (RSA)", IDC_KEYSSH1,
-		      "SSH2 &RSA", IDC_KEYSSH2RSA, NULL);
+		      "SSH2 &RSA", IDC_KEYSSH2RSA,
+		      "SSH2 &DSA", IDC_KEYSSH2DSA, NULL);
 	    staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
 	    endbox(&cp);
@@ -599,7 +606,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		params->progressbar = GetDlgItem(hwnd, IDC_PROGRESS);
 		params->dialog = hwnd;
 		params->keysize = state->keysize;
+		params->is_dsa = state->is_dsa;
 		params->key = &state->key;
+		params->dsskey = &state->dsskey;
 
 		if (!CreateThread(NULL, 0, generate_rsa_key_thread,
 				  params, 0, &threadid)) {
@@ -652,6 +661,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    state->keysize = DEFAULT_KEYSIZE;
 		/* If we ever introduce a new key type, check it here! */
 		state->ssh2 = !IsDlgButtonChecked(hwnd, IDC_KEYSSH1);
+		state->is_dsa = IsDlgButtonChecked(hwnd, IDC_KEYSSH2DSA);
 		if (state->keysize < 256) {
 		    int ret = MessageBox(hwnd,
 					 "PuTTYgen will not generate a key"
@@ -937,8 +947,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	state = (struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	state->generation_thread_exists = FALSE;
 	state->key_exists = TRUE;
-	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE,
-			   0);
+	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
+			   MAKELPARAM(0, PROGRESSRANGE));
+	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE, 0);
 	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
@@ -947,8 +958,13 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 	if (state->ssh2) {
-	    state->ssh2key.data = &state->key;
-	    state->ssh2key.alg = &ssh_rsa;
+	    if (state->is_dsa) {
+		state->ssh2key.data = &state->dsskey;
+		state->ssh2key.alg = &ssh_dss;
+	    } else {
+		state->ssh2key.data = &state->key;
+		state->ssh2key.alg = &ssh_rsa;
+	    }
 	    state->commentptr = &state->ssh2key.comment;
 	} else {
 	    state->commentptr = &state->key.comment;
@@ -965,7 +981,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    struct tm *tm;
 	    time(&t);
 	    tm = localtime(&t);
-	    strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", tm);
+	    if (state->is_dsa)
+		strftime(*state->commentptr, 30, "dsa-key-%Y%m%d", tm);
+	    else
+		strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", tm);
 	}
 
 	/*

@@ -6,28 +6,6 @@
 
 #define RSA_EXPONENT 37		       /* we like this prime */
 
-#if 0				       /* bignum diagnostic function */
-static void diagbn(char *prefix, Bignum md)
-{
-    int i, nibbles, morenibbles;
-    static const char hex[] = "0123456789ABCDEF";
-
-    printf("%s0x", prefix ? prefix : "");
-
-    nibbles = (3 + bignum_bitcount(md)) / 4;
-    if (nibbles < 1)
-	nibbles = 1;
-    morenibbles = 4 * md[0] - nibbles;
-    for (i = 0; i < morenibbles; i++)
-	putchar('-');
-    for (i = nibbles; i--;)
-	putchar(hex[(bignum_byte(md, i / 2) >> (4 * (i % 2))) & 0xF]);
-
-    if (prefix)
-	putchar('\n');
-}
-#endif
-
 int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
 		 void *pfnparam)
 {
@@ -61,14 +39,18 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
      * time. We do this in 16-bit fixed point, so 29.34 becomes
      * 0x1D.57C4.
      */
-    pfn(pfnparam, -1, -0x1D57C4 / (bits / 2));
-    pfn(pfnparam, -2, -0x1D57C4 / (bits - bits / 2));
-    pfn(pfnparam, -3, 5);
+    pfn(pfnparam, PROGFN_PHASE_EXTENT, 1, 0x10000);
+    pfn(pfnparam, PROGFN_EXP_PHASE, 1, -0x1D57C4 / (bits / 2));
+    pfn(pfnparam, PROGFN_PHASE_EXTENT, 2, 0x10000);
+    pfn(pfnparam, PROGFN_EXP_PHASE, 2, -0x1D57C4 / (bits - bits / 2));
+    pfn(pfnparam, PROGFN_PHASE_EXTENT, 3, 0x4000);
+    pfn(pfnparam, PROGFN_LIN_PHASE, 3, 5);
+    pfn(pfnparam, PROGFN_READY, 0, 0);
 
     /*
      * We don't generate e; we just use a standard one always.
      */
-    key->exponent = bignum_from_short(RSA_EXPONENT);
+    key->exponent = bignum_from_long(RSA_EXPONENT);
 
     /*
      * Generate p and q: primes with combined length `bits', not
@@ -77,8 +59,10 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
      * general that's slightly more fiddly to arrange. By choosing
      * a prime e, we can simplify the criterion.)
      */
-    key->p = primegen(bits / 2, RSA_EXPONENT, 1, 1, pfn, pfnparam);
-    key->q = primegen(bits - bits / 2, RSA_EXPONENT, 1, 2, pfn, pfnparam);
+    key->p = primegen(bits / 2, RSA_EXPONENT, 1, NULL,
+		      1, pfn, pfnparam);
+    key->q = primegen(bits - bits / 2, RSA_EXPONENT, 1, NULL,
+		      2, pfn, pfnparam);
 
     /*
      * Ensure p > q, by swapping them if not.
@@ -94,21 +78,21 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
      * the other helpful quantities: n=pq, d=e^-1 mod (p-1)(q-1),
      * and (q^-1 mod p).
      */
-    pfn(pfnparam, 3, 1);
+    pfn(pfnparam, PROGFN_PROGRESS, 3, 1);
     key->modulus = bigmul(key->p, key->q);
-    pfn(pfnparam, 3, 2);
+    pfn(pfnparam, PROGFN_PROGRESS, 3, 2);
     pm1 = copybn(key->p);
     decbn(pm1);
     qm1 = copybn(key->q);
     decbn(qm1);
     phi_n = bigmul(pm1, qm1);
-    pfn(pfnparam, 3, 3);
+    pfn(pfnparam, PROGFN_PROGRESS, 3, 3);
     freebn(pm1);
     freebn(qm1);
     key->private_exponent = modinv(key->exponent, phi_n);
-    pfn(pfnparam, 3, 4);
+    pfn(pfnparam, PROGFN_PROGRESS, 3, 4);
     key->iqmp = modinv(key->q, key->p);
-    pfn(pfnparam, 3, 5);
+    pfn(pfnparam, PROGFN_PROGRESS, 3, 5);
 
     /*
      * Clean up temporary numbers.

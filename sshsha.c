@@ -271,6 +271,19 @@ static int sha1_verify(unsigned char *blk, int len, unsigned long seq)
     return !memcmp(correct, blk + len, 20);
 }
 
+void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
+		      unsigned char *output) {
+    SHA_State s1, s2;
+    unsigned char intermediate[20];
+
+    sha1_key(&s1, &s2, key, keylen);
+    SHA_Bytes(&s1, data, datalen);
+    SHA_Final(&s1, intermediate);
+
+    SHA_Bytes(&s2, intermediate, 20);
+    SHA_Final(&s2, output);
+}
+
 const struct ssh_mac ssh_sha1 = {
     sha1_cskey, sha1_sckey,
     sha1_generate,

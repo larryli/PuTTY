@@ -6,13 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if 0				       // use PuTTY main debugging for diagbn()
-#include <windows.h>
-#include "putty.h"
-#define debugprint debug
-#else
-#define debugprint(x) printf x
-#endif
+#include "misc.h"
 
 #define BIGNUM_INTERNAL
 typedef unsigned short *Bignum;
@@ -409,9 +403,10 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
  * Compute p % mod.
  * The most significant word of mod MUST be non-zero.
  * We assume that the result array is the same size as the mod array.
- * We optionally write out a quotient.
+ * We optionally write out a quotient if `quotient' is non-NULL.
+ * We can avoid writing out the result if `result' is NULL.
  */
-void bigmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
+void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
 {
     unsigned short *n, *m;
     int mshift;
@@ -460,9 +455,11 @@ void bigmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     }
 
     /* Copy result to buffer */
-    for (i = 1; i <= result[0]; i++) {
-	int j = plen - i;
-	result[i] = j >= 0 ? n[j] : 0;
+    if (result) {
+	for (i = 1; i <= result[0]; i++) {
+	    int j = plen - i;
+	    result[i] = j >= 0 ? n[j] : 0;
+	}
     }
 
     /* Free temporary arrays */
@@ -749,16 +746,17 @@ Bignum bignum_bitmask(Bignum n)
 }
 
 /*
- * Convert a (max 16-bit) short into a bignum.
+ * Convert a (max 32-bit) long into a bignum.
  */
-Bignum bignum_from_short(unsigned short n)
+Bignum bignum_from_long(unsigned long n)
 {
     Bignum ret;
 
-    ret = newbn(2);
+    ret = newbn(3);
     ret[1] = n & 0xFFFF;
     ret[2] = (n >> 16) & 0xFFFF;
-    ret[0] = (ret[2] ? 2 : 1);
+    ret[3] = 0;
+    ret[0] = (ret[2]  ? 2 : 1);
     return ret;
 }
 
@@ -804,21 +802,40 @@ void diagbn(char *prefix, Bignum md)
     int i, nibbles, morenibbles;
     static const char hex[] = "0123456789ABCDEF";
 
-    debugprint(("%s0x", prefix ? prefix : ""));
+    debug(("%s0x", prefix ? prefix : ""));
 
     nibbles = (3 + bignum_bitcount(md)) / 4;
     if (nibbles < 1)
 	nibbles = 1;
     morenibbles = 4 * md[0] - nibbles;
     for (i = 0; i < morenibbles; i++)
-	debugprint(("-"));
+	debug(("-"));
     for (i = nibbles; i--;)
-	debugprint(
-		   ("%c",
-		    hex[(bignum_byte(md, i / 2) >> (4 * (i % 2))) & 0xF]));
+	debug(("%c",
+	       hex[(bignum_byte(md, i / 2) >> (4 * (i % 2))) & 0xF]));
 
     if (prefix)
-	debugprint(("\n"));
+	debug(("\n"));
+}
+
+/*
+ * Simple division.
+ */
+Bignum bigdiv(Bignum a, Bignum b)
+{
+    Bignum q = newbn(a[0]);
+    bigdivmod(a, b, NULL, q);
+    return q;
+}
+
+/*
+ * Simple remainder.
+ */
+Bignum bigmod(Bignum a, Bignum b)
+{
+    Bignum r = newbn(b[0]);
+    bigdivmod(a, b, r, NULL);
+    return r;
 }
 
 /*
@@ -829,12 +846,9 @@ Bignum biggcd(Bignum av, Bignum bv)
     Bignum a = copybn(av);
     Bignum b = copybn(bv);
 
-    diagbn("a = ", a);
-    diagbn("b = ", b);
     while (bignum_cmp(b, Zero) != 0) {
 	Bignum t = newbn(b[0]);
-	bigmod(a, b, t, NULL);
-	diagbn("t = ", t);
+	bigdivmod(a, b, t, NULL);
 	while (t[0] > 1 && t[t[0]] == 0)
 	    t[0]--;
 	freebn(a);
@@ -860,7 +874,7 @@ Bignum modinv(Bignum number, Bignum modulus)
     while (bignum_cmp(b, One) != 0) {
 	Bignum t = newbn(b[0]);
 	Bignum q = newbn(a[0]);
-	bigmod(a, b, t, q);
+	bigdivmod(a, b, t, q);
 	while (t[0] > 1 && t[t[0]] == 0)
 	    t[0]--;
 	freebn(a);

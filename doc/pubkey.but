@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.4 2001/09/22 15:36:44 simon Exp $
+\versionid $Id: pubkey.but,v 1.5 2001/09/22 20:52:21 simon Exp $
 
 \# FIXME: passphrases, examples (e.g what does a key for pasting into
 \# authorized_keys look like?), index entries, links.
@@ -59,7 +59,37 @@ shuts down, without ever having stored your decrypted private key on
 disk. Many people feel this is a good compromise between security
 and convenience. See \k{pageant} for further details.
 
-\H{pubkey-puttygen} PuTTYgen: RSA key generator for PuTTY
+\S{pubkey-types} Different types of public key
+
+The PuTTY key generator, described in \k{pubkey-puttygen}, offers
+you the opportunity to generate several types of key pair:
+
+\b An RSA key for use with the SSH 1 protocol.
+\b An RSA key for use with the SSH 2 protocol.
+\b A DSA key for use with the SSH 2 protocol.
+
+The SSH 1 protocol only supports RSA keys; if you will be connecting
+using the SSH 1 protocol, you must select the first key type or your
+key will be completely useless.
+
+SSH 2 supports more than one key type. The two types supported by
+PuTTY are RSA and DSA.
+
+The PuTTY developers \e{strongly} recommend you use RSA. DSA has an
+intrinsic weakness which makes it very easy to create a signature
+which contains enough information to give away the \e{private} key!
+This would allow an attacker to pretend to be you for any number of
+future sessions. PuTTY's implementation has taken very careful
+precautions to avoid this weakness, but we cannot be 100% certain we
+have managed it, and if you have the choice we strongly recommend
+using RSA keys instead.
+
+If you really need to connect to an SSH server which only supports
+DSA, then you probably have no choice but to use DSA. If you do use
+DSA, we recommend you do not use the same key to authenticate with
+more than one server.
+
+\H{pubkey-puttygen} PuTTYgen: Key generator for PuTTY
 
 PuTTYgen is a key generator. It generates pairs of public and private
 keys to be used with PuTTY, PSCP, and Plink, as well as the PuTTY
@@ -73,8 +103,9 @@ existing private key.
 \S{pubkey-puttygen-generate} Generate a new key
 
 Before generating a new key you have to choose the strength of the
-encryption. With \e{Parameters} you define the strength of the key. The
-default of 1024 should be OK for most users.
+encryption, and the type of the key (see \k{pubkey-types}). With
+\e{Parameters} you define the strength of the key. The default of
+1024 should be OK for most users.
 
 Pressing the \e{Generate} button starts the process of generating a
 new key pair. You then have to move the mouse over the blank area in
@@ -116,16 +147,36 @@ private key this way. Just modify the values and \e{Save} the key.
 
 Connect to your SSH server using PuTTY with the SSH protocol. When the
 connection succeeds you will be prompted for your user name and
-password to login. Once logged in change into the \c{.ssh} directory
-and open the file \c{authorized_keys} with your favorite editor (you
-may have to create this file if this is the first key to add).
+password to login. Once logged in, you must configure the server to
+accept your public key for authentication:
 
-Switch to the PuTTYgen window and select all of the content below
-\e{Public key for pasting into authorized_keys file}, copy it to the
-clipboard (\c{Ctrl+C}). Then, switch back to the PuTTY window and
-insert the data into the open file. Save the file.
+\b If your server is using the SSH 1 protocol, you should change
+into the \c{.ssh} directory and open the file \c{authorized_keys}
+with your favorite editor. (You may have to create this file if this
+is the first key you have put in it). Then switch to the PuTTYgen
+window, select all of the text in the \e{Public key for pasting into
+authorized_keys file} box, and copy it to the clipboard
+(\c{Ctrl+C}). Then, switch back to the PuTTY window and insert the
+data into the open file, making sure it ends up all on one line.
+Save the file.
 
-From now on you can use the private key for authentication to this
-host.  Either select the private key in PuTTY's \e{Connection},
-\e{SSH} panel: \e{Private key file for authentication} dialog or use
-it with Pageant as described in \k{pageant}.
+\b If your server is OpenSSH and is using the SSH 2 protocol, you
+should follow the same instructions except that the file will be
+called \c{authorized_keys2}.
+
+\b If your server is \cw{ssh.com}'s SSH 2 product, you need to save
+a \e{public} key file from PuTTYgen, and copy that into the
+\c{.ssh2} directory on the server. Then you should go into that
+\c{.ssh2} directory, and edit (or create) a file called
+\c{authorization}. In this file you should put a line like \c{Key
+mykey.pub}, with \c{mykey.pub} replaced by the name of your key
+file.
+
+\b For other SSH server software, you should refer to the manual for
+that server.
+
+From now on you should be able to use the private key for
+authentication to this host.  Either select the private key in
+PuTTY's \e{Connection}, \e{SSH} panel: \e{Private key file for
+authentication} dialog or use it with Pageant as described in
+\k{pageant}.
