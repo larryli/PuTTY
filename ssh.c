@@ -3903,6 +3903,9 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 		    if (epf->saddr) {
 			ssh2_pkt_addstring(pktout, epf->saddr);
 		    } else if (ssh->cfg.rport_acceptall) {
+			/* XXX: ssh->cfg.rport_acceptall may not represent
+			 * what was used to open the original connection,
+			 * since it's reconfigurable. */
 			ssh2_pkt_addstring(pktout, "0.0.0.0");
 		    } else {
 			ssh2_pkt_addstring(pktout, "127.0.0.1");
@@ -3949,7 +3952,7 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    if (epf->type == 'L') {
 		const char *err = pfd_addforward(epf->daddr, epf->dport,
 						 epf->saddr, epf->sport,
-						 ssh, &ssh->cfg,
+						 ssh, cfg,
 						 &epf->local,
 						 epf->addressfamily);
 
@@ -3961,7 +3964,7 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    } else if (epf->type == 'D') {
 		const char *err = pfd_addforward(NULL, -1,
 						 epf->saddr, epf->sport,
-						 ssh, &ssh->cfg,
+						 ssh, cfg,
 						 &epf->local,
 						 epf->addressfamily);
 
@@ -4017,7 +4020,7 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 			ssh2_pkt_addbool(pktout, 1);/* want reply */
 			if (epf->saddr) {
 			    ssh2_pkt_addstring(pktout, epf->saddr);
-			} else if (ssh->cfg.rport_acceptall) {
+			} else if (cfg->rport_acceptall) {
 			    ssh2_pkt_addstring(pktout, "0.0.0.0");
 			} else {
 			    ssh2_pkt_addstring(pktout, "127.0.0.1");
