@@ -1911,11 +1911,14 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
        }
 #endif
 
+	if (wParam == VK_MENU && (HIWORD(lParam)&KF_EXTENDED)) {
+	    keystate[VK_RMENU] = keystate[VK_MENU];
+	}
+
 	/* Note if AltGr was pressed and if it was used as a compose key */
 	if (cfg.compose_key) {
 	    if (wParam == VK_MENU && (HIWORD(lParam)&KF_EXTENDED))
 	    {
-		keystate[VK_RMENU] = keystate[VK_MENU];
 		if (!compose_state) compose_key = wParam;
 	    }
 	    if (wParam == VK_APPS && !compose_state)
@@ -1932,8 +1935,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    }
 	    else if (compose_state==1 && wParam != VK_CONTROL)
 		compose_state = 0;
-	} else
+	} else {
 	    compose_state = 0;
+	}
 
 	/* Nastyness with NUMLock - Shift-NUMLock is left alone though */
 	if ( (cfg.funky_type == 3 ||
