@@ -1833,11 +1833,12 @@ static void sink(char *targ, char *src)
 	received = 0;
 	while (received < act.size) {
 	    char transbuf[4096];
-	    int blksize, read;
+	    unsigned long blksize;
+	    int read;
 	    blksize = 4096;
-	    if (blksize > (int)(act.size - received))
+	    if (blksize > (act.size - received))
 		blksize = act.size - received;
-	    read = scp_recv_filedata(transbuf, blksize);
+	    read = scp_recv_filedata(transbuf, (int)blksize);
 	    if (read <= 0)
 		bump("Lost connection");
 	    if (wrerror)
