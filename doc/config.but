@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.24 2001/12/29 17:25:07 simon Exp $
+\versionid $Id: config.but,v 1.25 2002/02/04 13:18:54 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -329,6 +329,11 @@ character, and as a result your next command line will probably read
 multiple times at the keyboard. If you set the answerback string to
 be empty, this problem should go away, but doing so might cause
 other problems.
+
+Note that this is \e{not} the feature of PuTTY which the server will
+typically use to determine your terminal type. That feature is the
+\q{Terminal-type string} in the Connection panel; see
+\k{config-termtype} for details.
 
 \S{config-localecho} \q{Local echo}
 
