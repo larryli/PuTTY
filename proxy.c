@@ -191,6 +191,15 @@ static const char * sk_proxy_socket_error (Socket s)
 
 /* basic proxy plug functions */
 
+static void plug_proxy_log(Plug plug, int type, SockAddr addr, int port,
+			   const char *error_msg, int error_code)
+{
+    Proxy_Plug pp = (Proxy_Plug) plug;
+    Proxy_Socket ps = pp->proxy_socket;
+
+    plug_log(ps->plug, type, addr, port, error_msg, error_code);
+}
+
 static int plug_proxy_closing (Plug p, const char *error_msg,
 			       int error_code, int calling_back)
 {
@@ -372,6 +381,7 @@ Socket new_connection(SockAddr addr, char *hostname,
     };
 
     static const struct plug_function_table plug_fn_table = {
+	plug_proxy_log,
 	plug_proxy_closing,
 	plug_proxy_receive,
 	plug_proxy_sent,

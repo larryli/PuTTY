@@ -46,6 +46,20 @@ struct socket_function_table {
 };
 
 struct plug_function_table {
+    void (*log)(Plug p, int type, SockAddr addr, int port,
+		const char *error_msg, int error_code);
+    /*
+     * Passes the client progress reports on the process of setting
+     * up the connection.
+     * 
+     * 	- type==0 means we are about to try to connect to address
+     * 	  `addr' (error_msg and error_code are ignored)
+     * 	- type==1 means we have failed to connect to address `addr'
+     * 	  (error_msg and error_code are supplied). This is not a
+     * 	  fatal error - we may well have other candidate addresses
+     * 	  to fall back to. When it _is_ fatal, the closing()
+     * 	  function will be called.
+     */
     int (*closing)
      (Plug p, const char *error_msg, int error_code, int calling_back);
     /* error_msg is NULL iff it is not an error (ie it closed normally) */
@@ -123,6 +137,7 @@ Socket sk_register(OSSocket sock, Plug plug);
 #define sk_flush(s) (((*s)->flush) (s))
 
 #ifdef DEFINE_PLUG_METHOD_MACROS
+#define plug_log(p,type,addr,port,msg,code) (((*p)->log) (p, type, addr, port, msg, code))
 #define plug_closing(p,msg,code,callback) (((*p)->closing) (p, msg, code, callback))
 #define plug_receive(p,urgent,buf,len) (((*p)->receive) (p, urgent, buf, len))
 #define plug_sent(p,bufsize) (((*p)->sent) (p, bufsize))

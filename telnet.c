@@ -638,6 +638,22 @@ static void do_telnet_read(Telnet telnet, char *buf, int len)
     }
 }
 
+static void telnet_log(Plug plug, int type, SockAddr addr, int port,
+		       const char *error_msg, int error_code)
+{
+    Telnet telnet = (Telnet) plug;
+    char addrbuf[256], *msg;
+
+    sk_getaddr(addr, addrbuf, lenof(addrbuf));
+
+    if (type == 0)
+	msg = dupprintf("Connecting to %s port %d", addrbuf, port);
+    else
+	msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+
+    logevent(telnet->frontend, msg);
+}
+
 static int telnet_closing(Plug plug, const char *error_msg, int error_code,
 			  int calling_back)
 {
@@ -649,10 +665,10 @@ static int telnet_closing(Plug plug, const char *error_msg, int error_code,
 	notify_remote_exit(telnet->frontend);
     }
     if (error_msg) {
-	/* A socket error has occurred. */
 	logevent(telnet->frontend, error_msg);
 	connection_fatal(telnet->frontend, "%s", error_msg);
-    }				       /* Otherwise, the remote side closed the connection normally. */
+    }
+    /* Otherwise, the remote side closed the connection normally. */
     return 0;
 }
 
@@ -685,6 +701,7 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
 			       int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
+	telnet_log,
 	telnet_closing,
 	telnet_receive,
 	telnet_sent
@@ -734,13 +751,6 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
     /*
      * Open socket.
      */
-    {
-	char *buf, addrbuf[100];
-	sk_getaddr(addr, addrbuf, 100);
-	buf = dupprintf("Connecting to %s port %d", addrbuf, port);
-	logevent(telnet->frontend, buf);
-	sfree(buf);
-    }
     telnet->s = new_connection(addr, *realhost, port, 0, 1,
 			       nodelay, keepalive, (Plug) telnet, &telnet->cfg);
     if ((err = sk_socket_error(telnet->s)) != NULL)

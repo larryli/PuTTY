@@ -178,6 +178,12 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
     return NULL;
 }
 
+static void x11_log(Plug p, int type, SockAddr addr, int port,
+		    const char *error_msg, int error_code)
+{
+    /* We have no interface to the logging module here, so we drop these. */
+}
+
 static int x11_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
@@ -259,6 +265,7 @@ const char *x11_init(Socket * s, char *display, void *c, void *auth,
 		     const char *peeraddr, int peerport, const Config *cfg)
 {
     static const struct plug_function_table fn_table = {
+	x11_log,
 	x11_closing,
 	x11_receive,
 	x11_sent,

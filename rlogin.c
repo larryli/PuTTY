@@ -32,6 +32,22 @@ static void c_write(Rlogin rlogin, char *buf, int len)
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
+static void rlogin_log(Plug plug, int type, SockAddr addr, int port,
+		       const char *error_msg, int error_code)
+{
+    Rlogin rlogin = (Rlogin) plug;
+    char addrbuf[256], *msg;
+
+    sk_getaddr(addr, addrbuf, lenof(addrbuf));
+
+    if (type == 0)
+	msg = dupprintf("Connecting to %s port %d", addrbuf, port);
+    else
+	msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+
+    logevent(rlogin->frontend, msg);
+}
+
 static int rlogin_closing(Plug plug, const char *error_msg, int error_code,
 			  int calling_back)
 {
@@ -104,6 +120,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
 			       int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
+	rlogin_log,
 	rlogin_closing,
 	rlogin_receive,
 	rlogin_sent
@@ -145,13 +162,6 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     /*
      * Open socket.
      */
-    {
-	char *buf, addrbuf[100];
-	sk_getaddr(addr, addrbuf, 100);
-	buf = dupprintf("Connecting to %s port %d", addrbuf, port);
-	logevent(rlogin->frontend, buf);
-	sfree(buf);
-    }
     rlogin->s = new_connection(addr, *realhost, port, 1, 0,
 			       nodelay, keepalive, (Plug) rlogin, cfg);
     if ((err = sk_socket_error(rlogin->s)) != NULL)

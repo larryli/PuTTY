@@ -2408,6 +2408,22 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
     return ret;
 }
 
+static void ssh_log(Plug plug, int type, SockAddr addr, int port,
+		    const char *error_msg, int error_code)
+{
+    Ssh ssh = (Ssh) plug;
+    char addrbuf[256], *msg;
+
+    sk_getaddr(addr, addrbuf, lenof(addrbuf));
+
+    if (type == 0)
+	msg = dupprintf("Connecting to %s port %d", addrbuf, port);
+    else
+	msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+
+    logevent(msg);
+}
+
 static int ssh_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
@@ -2462,6 +2478,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 				   char **realhost, int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
+	ssh_log,
 	ssh_closing,
 	ssh_receive,
 	ssh_sent,
@@ -2496,11 +2513,6 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     /*
      * Open socket.
      */
-    {
-	char addrbuf[100];
-	sk_getaddr(addr, addrbuf, 100);
-	logeventf(ssh, "Connecting to %s port %d", addrbuf, port);
-    }
     ssh->fn = &fn_table;
     ssh->s = new_connection(addr, *realhost, port,
 			    0, 1, nodelay, keepalive, (Plug) ssh, &ssh->cfg);

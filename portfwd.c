@@ -86,6 +86,12 @@ struct PFwdPrivate {
     int buflen;
 };
 
+static void pfd_log(Plug plug, int type, SockAddr addr, int port,
+		    const char *error_msg, int error_code)
+{
+    /* we have to dump these since we have no interface to logging.c */
+}
+
 static int pfd_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
@@ -357,6 +363,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
 			   void *c, const Config *cfg, int addressfamily)
 {
     static const struct plug_function_table fn_table = {
+	pfd_log,
 	pfd_closing,
 	pfd_receive,
 	pfd_sent,
@@ -407,6 +414,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
 static int pfd_accepting(Plug p, OSSocket sock)
 {
     static const struct plug_function_table fn_table = {
+	pfd_log,
 	pfd_closing,
 	pfd_receive,
 	pfd_sent,
@@ -466,6 +474,7 @@ const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 			   void **sockdata, int address_family)
 {
     static const struct plug_function_table fn_table = {
+	pfd_log,
 	pfd_closing,
 	pfd_receive,		       /* should not happen... */
 	pfd_sent,		       /* also should not happen */

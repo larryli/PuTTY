@@ -50,7 +50,9 @@ struct Socket_tag {
     int localhost_only;		       /* for listening sockets */
     char oobdata[1];
     int sending_oob;
-    int oobinline;
+    int oobinline, nodelay, keepalive, privport;
+    SockAddr addr;
+    int port;
     int pending_error;		       /* in case send() returns error */
     /*
      * We sometimes need pairs of Socket structures to be linked:
@@ -75,10 +77,12 @@ struct SockAddr_tag {
      * on the commandline for selecting a default protocol.
      */
     int family;
-    unsigned long address;	       /* Address IPv4 style. */
 #ifndef NO_IPV6
-    struct addrinfo *ai;	       /* Address AF-independent (IPv4+IPv6) style. */
+    struct addrinfo *ais;	       /* Addresses IPv6 style. */
+    struct addrinfo *ai;	       /* steps along the linked list */
 #endif
+    unsigned long *addresses;	       /* Addresses IPv4 style. */
+    int naddresses, curraddr;
     char hostname[512];		       /* Store an unresolved host name. */
 };
 
@@ -110,8 +114,8 @@ static int cmpforsearch(void *av, void *bv)
 #define DECL_WINSOCK_FUNCTION(linkage, rettype, name, params) \
     typedef rettype (WINAPI *t_##name) params; \
     linkage t_##name p_##name
-#define GET_WINSOCK_FUNCTION(name) \
-    p_##name = (t_##name) GetProcAddress(winsock_module, #name)
+#define GET_WINSOCK_FUNCTION(module, name) \
+    p_##name = (t_##name) GetProcAddress(module, #name)
 
 DECL_WINSOCK_FUNCTION(NOTHING, int, WSAAsyncSelect,
 		      (SOCKET, HWND, u_int, long));
@@ -153,8 +157,21 @@ DECL_WINSOCK_FUNCTION(static, int, WSAIoctl,
 		      (SOCKET, DWORD, LPVOID, DWORD, LPVOID, DWORD,
 		       LPDWORD, LPWSAOVERLAPPED,
 		       LPWSAOVERLAPPED_COMPLETION_ROUTINE));
+#ifndef NO_IPV6
+DECL_WINSOCK_FUNCTION(static, int, getaddrinfo,
+		      (const char *nodename, const char *servname,
+		       const struct addrinfo *hints, struct addrinfo **res));
+DECL_WINSOCK_FUNCTION(static, void, freeaddrinfo, (struct addrinfo *res));
+DECL_WINSOCK_FUNCTION(static, int, getnameinfo,
+		      (const struct sockaddr FAR * sa, socklen_t salen,
+		       char FAR * host, size_t hostlen, char FAR * serv,
+		       size_t servlen, int flags));
+#endif
 
 static HMODULE winsock_module;
+#ifndef NO_IPV6
+static HMODULE wship6_module;
+#endif
 
 void sk_init(void)
 {
@@ -170,32 +187,41 @@ void sk_init(void)
     if (!winsock_module)
 	fatalbox("Unable to load any WinSock library");
 
-    GET_WINSOCK_FUNCTION(WSAAsyncSelect);
-    GET_WINSOCK_FUNCTION(WSAEventSelect);
-    GET_WINSOCK_FUNCTION(select);
-    GET_WINSOCK_FUNCTION(WSAGetLastError);
-    GET_WINSOCK_FUNCTION(WSAEnumNetworkEvents);
-    GET_WINSOCK_FUNCTION(WSAStartup);
-    GET_WINSOCK_FUNCTION(WSACleanup);
-    GET_WINSOCK_FUNCTION(closesocket);
-    GET_WINSOCK_FUNCTION(ntohl);
-    GET_WINSOCK_FUNCTION(htonl);
-    GET_WINSOCK_FUNCTION(htons);
-    GET_WINSOCK_FUNCTION(ntohs);
-    GET_WINSOCK_FUNCTION(gethostbyname);
-    GET_WINSOCK_FUNCTION(getservbyname);
-    GET_WINSOCK_FUNCTION(inet_addr);
-    GET_WINSOCK_FUNCTION(inet_ntoa);
-    GET_WINSOCK_FUNCTION(connect);
-    GET_WINSOCK_FUNCTION(bind);
-    GET_WINSOCK_FUNCTION(setsockopt);
-    GET_WINSOCK_FUNCTION(socket);
-    GET_WINSOCK_FUNCTION(listen);
-    GET_WINSOCK_FUNCTION(send);
-    GET_WINSOCK_FUNCTION(ioctlsocket);
-    GET_WINSOCK_FUNCTION(accept);
-    GET_WINSOCK_FUNCTION(recv);
-    GET_WINSOCK_FUNCTION(WSAIoctl);
+#ifndef NO_IPV6
+    wship6_module = LoadLibrary("wship6.dll");
+    if (wship6_module) {
+	GET_WINSOCK_FUNCTION(wship6_module, getaddrinfo);
+	GET_WINSOCK_FUNCTION(wship6_module, freeaddrinfo);
+	GET_WINSOCK_FUNCTION(wship6_module, getnameinfo);
+    }
+#endif
+
+    GET_WINSOCK_FUNCTION(winsock_module, WSAAsyncSelect);
+    GET_WINSOCK_FUNCTION(winsock_module, WSAEventSelect);
+    GET_WINSOCK_FUNCTION(winsock_module, select);
+    GET_WINSOCK_FUNCTION(winsock_module, WSAGetLastError);
+    GET_WINSOCK_FUNCTION(winsock_module, WSAEnumNetworkEvents);
+    GET_WINSOCK_FUNCTION(winsock_module, WSAStartup);
+    GET_WINSOCK_FUNCTION(winsock_module, WSACleanup);
+    GET_WINSOCK_FUNCTION(winsock_module, closesocket);
+    GET_WINSOCK_FUNCTION(winsock_module, ntohl);
+    GET_WINSOCK_FUNCTION(winsock_module, htonl);
+    GET_WINSOCK_FUNCTION(winsock_module, htons);
+    GET_WINSOCK_FUNCTION(winsock_module, ntohs);
+    GET_WINSOCK_FUNCTION(winsock_module, gethostbyname);
+    GET_WINSOCK_FUNCTION(winsock_module, getservbyname);
+    GET_WINSOCK_FUNCTION(winsock_module, inet_addr);
+    GET_WINSOCK_FUNCTION(winsock_module, inet_ntoa);
+    GET_WINSOCK_FUNCTION(winsock_module, connect);
+    GET_WINSOCK_FUNCTION(winsock_module, bind);
+    GET_WINSOCK_FUNCTION(winsock_module, setsockopt);
+    GET_WINSOCK_FUNCTION(winsock_module, socket);
+    GET_WINSOCK_FUNCTION(winsock_module, listen);
+    GET_WINSOCK_FUNCTION(winsock_module, send);
+    GET_WINSOCK_FUNCTION(winsock_module, ioctlsocket);
+    GET_WINSOCK_FUNCTION(winsock_module, accept);
+    GET_WINSOCK_FUNCTION(winsock_module, recv);
+    GET_WINSOCK_FUNCTION(winsock_module, WSAIoctl);
 
     if (p_WSAStartup(winsock_ver, &wsadata)) {
 	fatalbox("Unable to initialise WinSock");
@@ -225,6 +251,8 @@ void sk_cleanup(void)
     p_WSACleanup();
     if (winsock_module)
 	FreeLibrary(winsock_module);
+    if (wship6_module)
+	FreeLibrary(wship6_module);
 }
 
 char *winsock_error_string(int error)
@@ -328,30 +356,16 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 
     if ((a = p_inet_addr(host)) == (unsigned long) INADDR_NONE) {
 #ifndef NO_IPV6
-
-	/* Try to get the getaddrinfo() function from wship6.dll */
-	/* This way one doesn't need to have IPv6 dll's to use PuTTY and
-	 * it will fallback to IPv4. */
-	typedef int (CALLBACK * FGETADDRINFO) (const char *nodename,
-					       const char *servname,
-					       const struct addrinfo *hints,
-					       struct addrinfo **res);
-	FGETADDRINFO fGetAddrInfo = NULL;
-
-	HINSTANCE dllWSHIP6 = LoadLibrary("wship6.dll");
-	if (dllWSHIP6)
-	    fGetAddrInfo = (FGETADDRINFO) GetProcAddress(dllWSHIP6,
-							 "getaddrinfo");
-
 	/*
-	 * Use fGetAddrInfo when it's available
+	 * Use getaddrinfo when it's available
 	 */
-	if (fGetAddrInfo) {
+	if (p_getaddrinfo) {
 	    struct addrinfo hints;
 	    memset(&hints, 0, sizeof(hints));
 	    hints.ai_family = ret->family;
-	    if ((err = fGetAddrInfo(host, NULL, &hints, &ret->ai)) == 0)
-		ret_family = ret->ai->ai_family;
+	    if ((err = p_getaddrinfo(host, NULL, &hints, &ret->ais)) == 0)
+		ret_family = ret->ais->ai_family;
+	    ret->ai = ret->ais;
 	} else
 #endif
 	{
@@ -370,7 +384,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 			  err == WSAHOST_NOT_FOUND ? "Host does not exist" :
 			  err == WSATRY_AGAIN ? "Host not found" :
 #ifndef NO_IPV6
-			  fGetAddrInfo ? "getaddrinfo: unknown error" :
+			  p_getaddrinfo ? "getaddrinfo: unknown error" :
 #endif
 			  "gethostbyname: unknown error");
 	} else {
@@ -380,12 +394,6 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 #ifndef NO_IPV6
 	    /* If we got an address info use that... */
 	    if (ret->ai) {
-		typedef int (CALLBACK * FGETNAMEINFO)
-		 (const struct sockaddr FAR * sa, socklen_t salen,
-		  char FAR * host, size_t hostlen, char FAR * serv,
-		  size_t servlen, int flags);
-		FGETNAMEINFO fGetNameInfo = NULL;
-
 		/* Are we in IPv4 fallback mode? */
 		/* We put the IPv4 address into the a variable so we can further-on use the IPv4 code... */
 		if (ret->family == AF_INET)
@@ -394,11 +402,8 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 				      ai_addr)->sin_addr, sizeof(a));
 
 		/* Now let's find that canonicalname... */
-		if ((dllWSHIP6)
-		    && (fGetNameInfo =
-			(FGETNAMEINFO) GetProcAddress(dllWSHIP6,
-						      "getnameinfo"))) {
-		    if (fGetNameInfo
+		if (p_getnameinfo) {
+		    if (p_getnameinfo
 			((struct sockaddr *) ret->ai->ai_addr,
 			 ret->family ==
 			 AF_INET ? sizeof(SOCKADDR_IN) :
@@ -412,23 +417,32 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	    else
 #endif
 	    {
+		int n;
+		for (n = 0; h->h_addr_list[n]; n++);
+		ret->addresses = snewn(n, unsigned long);
+		ret->naddresses = n;
+		for (n = 0; n < ret->naddresses; n++) {
+		    memcpy(&a, h->h_addr_list[n], sizeof(a));
+		    ret->addresses[n] = p_ntohl(a);
+		}
+		ret->curraddr = 0;
 		memcpy(&a, h->h_addr, sizeof(a));
 		/* This way we are always sure the h->h_name is valid :) */
 		strncpy(realhost, h->h_name, sizeof(realhost));
 	    }
 	}
-#ifndef NO_IPV6
-	FreeLibrary(dllWSHIP6);
-#endif
     } else {
 	/*
 	 * This must be a numeric IPv4 address because it caused a
 	 * success return from inet_addr.
 	 */
+	ret->addresses = snewn(1, unsigned long);
+	ret->naddresses = 1;
+	ret->curraddr = 0;
+	ret->addresses[0] = p_ntohl(a);
 	ret->family = AF_INET;
 	strncpy(realhost, host, sizeof(realhost));
     }
-    ret->address = p_ntohl(a);
     realhost[lenof(realhost)-1] = '\0';
     *canonicalname = snewn(1+strlen(realhost), char);
     strcpy(*canonicalname, realhost);
@@ -445,10 +459,30 @@ SockAddr sk_nonamelookup(const char *host)
     return ret;
 }
 
+int sk_nextaddr(SockAddr addr)
+{
+#ifndef NO_IPV6
+    if (addr->ai) {
+	if (addr->ai->ai_next) {
+	    addr->ai = addr->ai->ai_next;
+	    addr->family = addr->ai->ai_family;
+	    return TRUE;
+	} else
+	    return FALSE;
+    }
+#endif
+    if (addr->curraddr+1 < addr->naddresses) {
+	addr->curraddr++;
+	return TRUE;
+    } else {
+	return FALSE;
+    }
+}
+
 void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
 #ifndef NO_IPV6
-    if (addr->family == AF_INET6) {
+    if (addr->ai) {
 	/* Try to get the WSAAddressToStringA() function from wship6.dll */
 	/* This way one doesn't need to have IPv6 dll's to use PuTTY and
 	 * it will fallback to IPv4. */
@@ -475,7 +509,8 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 #endif
     if (addr->family == AF_INET) {
 	struct in_addr a;
-	a.s_addr = p_htonl(addr->address);
+	assert(addr->addresses && addr->curraddr < addr->naddresses);
+	a.s_addr = p_htonl(addr->addresses[addr->curraddr]);
 	strncpy(buf, p_inet_ntoa(a), buflen);
 	buf[buflen-1] = '\0';
     } else {
@@ -529,7 +564,8 @@ int sk_address_is_local(SockAddr addr)
 #endif
     if (addr->family == AF_INET) {
 	struct in_addr a;
-	a.s_addr = p_htonl(addr->address);
+	assert(addr->addresses && addr->curraddr < addr->naddresses);
+	a.s_addr = p_htonl(addr->addresses[addr->curraddr]);
 	return ipv4_is_local_addr(a);
     } else {
 	assert(addr->family == AF_UNSPEC);
@@ -550,19 +586,33 @@ void sk_addrcopy(SockAddr addr, char *buf)
 {
     assert(addr->family != AF_UNSPEC);
 #ifndef NO_IPV6
-    if (addr->family == AF_INET6) {
-	memcpy(buf, (char*) addr->ai, 16);
+    if (addr->ai) {
+	if (addr->family == AF_INET)
+	    memcpy(buf, &((struct sockaddr_in *)addr->ai->ai_addr)->sin_addr,
+		   sizeof(struct in_addr));
+	else if (addr->family == AF_INET6)
+	    memcpy(buf, &((struct sockaddr_in6 *)addr->ai->ai_addr)->sin6_addr,
+		   sizeof(struct in6_addr));
+	else
+	    assert(FALSE);
     } else
 #endif
     if (addr->family == AF_INET) {
 	struct in_addr a;
-	a.s_addr = p_htonl(addr->address);
+	assert(addr->addresses && addr->curraddr < addr->naddresses);
+	a.s_addr = p_htonl(addr->addresses[addr->curraddr]);
 	memcpy(buf, (char*) &a.s_addr, 4);
     }
 }
 
 void sk_addr_free(SockAddr addr)
 {
+#ifndef NO_IPV6
+    if (addr->ais && p_freeaddrinfo)
+	p_freeaddrinfo(addr->ais);
+#endif
+    if (addr->addresses)
+	sfree(addr->addresses);
     sfree(addr);
 }
 
@@ -626,6 +676,7 @@ Socket sk_register(void *sock, Plug plug)
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
+    ret->addr = NULL;
 
     ret->s = (SOCKET)sock;
 
@@ -650,6 +701,192 @@ Socket sk_register(void *sock, Plug plug)
     return (Socket) ret;
 }
 
+static DWORD try_connect(Actual_Socket sock)
+{
+    SOCKET s;
+#ifndef NO_IPV6
+    SOCKADDR_IN6 a6;
+#endif
+    SOCKADDR_IN a;
+    DWORD err;
+    char *errstr;
+    short localport;
+    int family;
+
+    if (sock->s != INVALID_SOCKET) {
+	do_select(sock->s, 0);
+        p_closesocket(sock->s);
+    }
+
+    plug_log(sock->plug, 0, sock->addr, sock->port, NULL, 0);
+
+    /*
+     * Open socket.
+     */
+#ifndef NO_IPV6
+    /* Let's default to IPv6, this shouldn't hurt anybody
+     * If the stack supports IPv6 it will also allow IPv4 connections. */
+    if (sock->addr->ai) {
+	family = sock->addr->ai->ai_family;
+    } else
+#endif
+    {
+	/* Default to IPv4 */
+	family = AF_INET;
+    }
+
+    s = p_socket(family, SOCK_STREAM, 0);
+    sock->s = s;
+
+    if (s == INVALID_SOCKET) {
+	err = p_WSAGetLastError();
+	sock->error = winsock_error_string(err);
+	goto ret;
+    }
+
+    if (sock->oobinline) {
+	BOOL b = TRUE;
+	p_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (void *) &b, sizeof(b));
+    }
+
+    if (sock->nodelay) {
+	BOOL b = TRUE;
+	p_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
+    }
+
+    if (sock->keepalive) {
+	BOOL b = TRUE;
+	p_setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *) &b, sizeof(b));
+    }
+
+    /*
+     * Bind to local address.
+     */
+    if (sock->privport)
+	localport = 1023;	       /* count from 1023 downwards */
+    else
+	localport = 0;		       /* just use port 0 (ie winsock picks) */
+
+    /* Loop round trying to bind */
+    while (1) {
+	int sockcode;
+
+#ifndef NO_IPV6
+	if (family == AF_INET6) {
+	    memset(&a6, 0, sizeof(a6));
+	    a6.sin6_family = AF_INET6;
+          /*a6.sin6_addr = in6addr_any; */ /* == 0 done by memset() */
+	    a6.sin6_port = p_htons(localport);
+	} else
+#endif
+	{
+	    a.sin_family = AF_INET;
+	    a.sin_addr.s_addr = p_htonl(INADDR_ANY);
+	    a.sin_port = p_htons(localport);
+	}
+#ifndef NO_IPV6
+	sockcode = p_bind(s, (sock->addr->family == AF_INET6 ?
+			   (struct sockaddr *) &a6 :
+			   (struct sockaddr *) &a),
+		       (sock->addr->family ==
+			AF_INET6 ? sizeof(a6) : sizeof(a)));
+#else
+	sockcode = p_bind(s, (struct sockaddr *) &a, sizeof(a));
+#endif
+	if (sockcode != SOCKET_ERROR) {
+	    err = 0;
+	    break;		       /* done */
+	} else {
+	    err = p_WSAGetLastError();
+	    if (err != WSAEADDRINUSE)  /* failed, for a bad reason */
+		break;
+	}
+
+	if (localport == 0)
+	    break;		       /* we're only looping once */
+	localport--;
+	if (localport == 0)
+	    break;		       /* we might have got to the end */
+    }
+
+    if (err) {
+	sock->error = winsock_error_string(err);
+	goto ret;
+    }
+
+    /*
+     * Connect to remote address.
+     */
+#ifndef NO_IPV6
+    if (sock->addr->ai) {
+	if (family == AF_INET6) {
+	    a6.sin6_family = AF_INET6;
+	    a6.sin6_port = p_htons((short) sock->port);
+	    a6.sin6_addr =
+		((struct sockaddr_in6 *) sock->addr->ai->ai_addr)->sin6_addr;
+	} else {
+	    a.sin_family = AF_INET;
+	    a.sin_addr =
+		((struct sockaddr_in *) sock->addr->ai->ai_addr)->sin_addr;
+	    a.sin_port = p_htons((short) sock->port);
+	}
+    } else
+#endif
+    {
+	assert(sock->addr->addresses && sock->addr->curraddr < sock->addr->naddresses);
+	a.sin_family = AF_INET;
+	a.sin_addr.s_addr = p_htonl(sock->addr->addresses[sock->addr->curraddr]);
+	a.sin_port = p_htons((short) sock->port);
+    }
+
+    /* Set up a select mechanism. This could be an AsyncSelect on a
+     * window, or an EventSelect on an event object. */
+    errstr = do_select(s, 1);
+    if (errstr) {
+	sock->error = errstr;
+	err = 1;
+	goto ret;
+    }
+
+    if ((
+#ifndef NO_IPV6
+	    p_connect(s,
+		      ((family == AF_INET6) ? (struct sockaddr *) &a6 :
+		       (struct sockaddr *) &a),
+		      (family == AF_INET6) ? sizeof(a6) : sizeof(a))
+#else
+	    p_connect(s, (struct sockaddr *) &a, sizeof(a))
+#endif
+	) == SOCKET_ERROR) {
+	err = p_WSAGetLastError();
+	/*
+	 * We expect a potential EWOULDBLOCK here, because the
+	 * chances are the front end has done a select for
+	 * FD_CONNECT, so that connect() will complete
+	 * asynchronously.
+	 */
+	if ( err != WSAEWOULDBLOCK ) {
+	    sock->error = winsock_error_string(err);
+	    goto ret;
+	}
+    } else {
+	/*
+	 * If we _don't_ get EWOULDBLOCK, the connect has completed
+	 * and we should set the socket as writable.
+	 */
+	sock->writable = 1;
+    }
+
+    add234(sktree, sock);
+
+    err = 0;
+
+    ret:
+    if (err)
+	plug_log(sock->plug, 1, sock->addr, sock->port, sock->error, err);
+    return err;
+}
+
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, int keepalive, Plug plug)
 {
@@ -665,15 +902,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	sk_tcp_socket_error
     };
 
-    SOCKET s;
-#ifndef NO_IPV6
-    SOCKADDR_IN6 a6;
-#endif
-    SOCKADDR_IN a;
-    DWORD err;
-    char *errstr;
     Actual_Socket ret;
-    short localport;
+    DWORD err;
 
     /*
      * Create Socket structure.
@@ -691,156 +921,18 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
-
-    /*
-     * Open socket.
-     */
-#ifndef NO_IPV6
-    /* Let's default to IPv6, this shouldn't hurt anybody
-     * If the stack supports IPv6 it will also allow IPv4 connections. */
-    if (addr->family == AF_UNSPEC) addr->family = AF_INET6;
-#else
-    /* No other choice, default to IPv4 */
-    if (addr->family == AF_UNSPEC) addr->family = AF_INET;
-#endif
-    s = p_socket(addr->family, SOCK_STREAM, 0);
-    ret->s = s;
-
-    if (s == INVALID_SOCKET) {
-	err = p_WSAGetLastError();
-	ret->error = winsock_error_string(err);
-	return (Socket) ret;
-    }
-
     ret->oobinline = oobinline;
-    if (oobinline) {
-	BOOL b = TRUE;
-	p_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (void *) &b, sizeof(b));
-    }
+    ret->nodelay = nodelay;
+    ret->keepalive = keepalive;
+    ret->privport = privport;
+    ret->port = port;
+    ret->addr = addr;
+    ret->s = INVALID_SOCKET;
 
-    if (nodelay) {
-	BOOL b = TRUE;
-	p_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
-    }
-
-    if (keepalive) {
-	BOOL b = TRUE;
-	p_setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *) &b, sizeof(b));
-    }
-
-    /*
-     * Bind to local address.
-     */
-    if (privport)
-	localport = 1023;	       /* count from 1023 downwards */
-    else
-	localport = 0;		       /* just use port 0 (ie winsock picks) */
-
-    /* Loop round trying to bind */
-    while (1) {
-	int retcode;
-
-#ifndef NO_IPV6
-	if (addr->family == AF_INET6) {
-	    memset(&a6, 0, sizeof(a6));
-	    a6.sin6_family = AF_INET6;
-          /*a6.sin6_addr = in6addr_any; */ /* == 0 done by memset() */
-	    a6.sin6_port = p_htons(localport);
-	} else
-#endif
-	{
-	    a.sin_family = AF_INET;
-	    a.sin_addr.s_addr = p_htonl(INADDR_ANY);
-	    a.sin_port = p_htons(localport);
-	}
-#ifndef NO_IPV6
-	retcode = p_bind(s, (addr->family == AF_INET6 ?
-			   (struct sockaddr *) &a6 :
-			   (struct sockaddr *) &a),
-		       (addr->family ==
-			AF_INET6 ? sizeof(a6) : sizeof(a)));
-#else
-	retcode = p_bind(s, (struct sockaddr *) &a, sizeof(a));
-#endif
-	if (retcode != SOCKET_ERROR) {
-	    err = 0;
-	    break;		       /* done */
-	} else {
-	    err = p_WSAGetLastError();
-	    if (err != WSAEADDRINUSE)  /* failed, for a bad reason */
-		break;
-	}
-
-	if (localport == 0)
-	    break;		       /* we're only looping once */
-	localport--;
-	if (localport == 0)
-	    break;		       /* we might have got to the end */
-    }
-
-    if (err) {
-	ret->error = winsock_error_string(err);
-	return (Socket) ret;
-    }
-
-    /*
-     * Connect to remote address.
-     */
-#ifndef NO_IPV6
-    if (addr->family == AF_INET6) {
-	memset(&a, 0, sizeof(a));
-	a6.sin6_family = AF_INET6;
-	a6.sin6_port = p_htons((short) port);
-	a6.sin6_addr =
-	    ((struct sockaddr_in6 *) addr->ai->ai_addr)->sin6_addr;
-    } else
-#endif
-    {
-	a.sin_family = AF_INET;
-	a.sin_addr.s_addr = p_htonl(addr->address);
-	a.sin_port = p_htons((short) port);
-    }
-
-    /* Set up a select mechanism. This could be an AsyncSelect on a
-     * window, or an EventSelect on an event object. */
-    errstr = do_select(s, 1);
-    if (errstr) {
-	ret->error = errstr;
-	return (Socket) ret;
-    }
-
-    if ((
-#ifndef NO_IPV6
-	    p_connect(s, ((addr->family == AF_INET6) ?
-			(struct sockaddr *) &a6 : (struct sockaddr *) &a),
-		    (addr->family == AF_INET6) ? sizeof(a6) : sizeof(a))
-#else
-	    p_connect(s, (struct sockaddr *) &a, sizeof(a))
-#endif
-	) == SOCKET_ERROR) {
-	err = p_WSAGetLastError();
-	/*
-	 * We expect a potential EWOULDBLOCK here, because the
-	 * chances are the front end has done a select for
-	 * FD_CONNECT, so that connect() will complete
-	 * asynchronously.
-	 */
-	if ( err != WSAEWOULDBLOCK ) {
-	    ret->error = winsock_error_string(err);
-	    return (Socket) ret;
-	}
-    } else {
-	/*
-	 * If we _don't_ get EWOULDBLOCK, the connect has completed
-	 * and we should set the socket as writable.
-	 */
-	ret->writable = 1;
-    }
-
-    add234(sktree, ret);
-
-    /* We're done with 'addr' now. */
-    sk_addr_free(addr);
+    err = 0;
+    do {
+        err = try_connect(ret);
+    } while (err && sk_nextaddr(ret->addr));
 
     return (Socket) ret;
 }
@@ -889,6 +981,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
+    ret->addr = NULL;
 
     /*
      * Translate address_family from platform-independent constants
@@ -1045,6 +1138,8 @@ static void sk_tcp_close(Socket sock)
     del234(sktree, s);
     do_select(s->s, 0);
     p_closesocket(s->s);
+    if (s->addr)
+	sk_addr_free(s->addr);
     sfree(s);
 }
 
@@ -1180,7 +1275,17 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	 * An error has occurred on this socket. Pass it to the
 	 * plug.
 	 */
-	return plug_closing(s->plug, winsock_error_string(err), err, 0);
+	if (s->addr) {
+	    plug_log(s->plug, 1, s->addr, s->port,
+		     winsock_error_string(err), err);
+	    while (s->addr && sk_nextaddr(s->addr)) {
+		err = try_connect(s);
+	    }
+	}
+	if (err != 0)
+	    return plug_closing(s->plug, winsock_error_string(err), err, 0);
+	else
+	    return 1;
     }
 
     noise_ultralight(lParam);
@@ -1188,6 +1293,15 @@ int select_result(WPARAM wParam, LPARAM lParam)
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_CONNECT:
 	s->connected = s->writable = 1;
+	/*
+	 * Once a socket is connected, we can stop falling
+	 * back through the candidate addresses to connect
+	 * to.
+	 */
+	if (s->addr) {
+	    sk_addr_free(s->addr);
+	    s->addr = NULL;
+	}
 	break;
       case FD_READ:
 	/* In the case the socket is still frozen, we don't even bother */
