@@ -37,6 +37,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 {
     struct controlset *s;
     union control *c;
+    char *str;
 
     if (!midsession) {
 	/*
@@ -186,8 +187,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * additional options when working with line-drawing
      * characters.
      */
-    s = ctrl_getset(b, "Window/Translation", "linedraw",
-		    "Adjust how PuTTY displays line drawing characters");
+    str = dupprintf("Adjust how %s displays line drawing characters", appname);
+    s = ctrl_getset(b, "Window/Translation", "linedraw", str);
+    sfree(str);
     {
 	int i;
 	for (i = 0; i < s->ncontrols; i++) {

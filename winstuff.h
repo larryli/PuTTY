@@ -163,6 +163,7 @@ struct dlgparam {
     HWND hwnd;			       /* the hwnd of the dialog box */
     struct winctrls *controltrees[8];  /* can have several of these */
     int nctrltrees;
+    char *wintitle;		       /* title of actual window */
     char *errtitle;		       /* title of error sub-messageboxes */
     void *data;			       /* data to pass in refresh events */
     union control *focused, *lastfocused; /* which ctrl has focus now/before */

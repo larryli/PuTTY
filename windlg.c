@@ -74,6 +74,11 @@ static int CALLBACK LogProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
+	    char *str = dupprintf("%s Event Log", appname);
+	    SetWindowText(hwnd, str);
+	    sfree(str);
+	}
+	{
 	    static int tabs[4] = { 78, 108 };
 	    SendDlgItemMessage(hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
 			       (LPARAM) tabs);
@@ -161,6 +166,11 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG:
+	{
+	    char *str = dupprintf("%s Licence", appname);
+	    SetWindowText(hwnd, str);
+	    sfree(str);
+	}
 	return 1;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -179,8 +189,14 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 			      WPARAM wParam, LPARAM lParam)
 {
+    char *str;
+
     switch (msg) {
       case WM_INITDIALOG:
+	str = dupprintf("About %s", appname);
+	SetWindowText(hwnd, str);
+	sfree(str);
+	SetDlgItemText(hwnd, IDA_TEXT1, appname);
 	SetDlgItemText(hwnd, IDA_VERSION, ver);
 	return 1;
       case WM_COMMAND:
@@ -308,6 +324,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
       case WM_INITDIALOG:
 	dp.hwnd = hwnd;
 	create_controls(hwnd, "");     /* Open and Cancel buttons etc */
+	SetWindowText(hwnd, dp.wintitle);
 	SetWindowLong(hwnd, GWL_USERDATA, 0);
         if (help_path)
             SetWindowLong(hwnd, GWL_EXSTYLE,
@@ -587,7 +604,8 @@ int do_config(void)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.errtitle = "PuTTY Error";
+    dp.wintitle = dupprintf("%s Configuration", appname);
+    dp.errtitle = dupprintf("%s Error", appname);
     dp.data = &cfg;
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
@@ -620,7 +638,8 @@ int do_reconfig(HWND hwnd)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.errtitle = "PuTTY Error";
+    dp.wintitle = dupprintf("%s Reconfiguration", appname);
+    dp.errtitle = dupprintf("%s Error", appname);
     dp.data = &cfg;
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
@@ -631,6 +650,7 @@ int do_reconfig(HWND hwnd)
     ctrl_free_box(ctrlbox);
     winctrl_cleanup(&ctrls_base);
     winctrl_cleanup(&ctrls_panel);
+    sfree(dp.errtitle);
     dp_cleanup(&dp);
 
     if (!ret)
@@ -695,7 +715,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"The server's key fingerprint is:\n"
 	"%s\n"
 	"If you trust this host, hit Yes to add the key to\n"
-	"PuTTY's cache and carry on connecting.\n"
+	"%s's cache and carry on connecting.\n"
 	"If you want to carry on connecting just once, without\n"
 	"adding the key to the cache, hit No.\n"
 	"If you do not trust this host, hit Cancel to abandon the\n"
@@ -704,7 +724,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     static const char wrongmsg[] =
 	"WARNING - POTENTIAL SECURITY BREACH!\n"
 	"\n"
-	"The server's host key does not match the one PuTTY has\n"
+	"The server's host key does not match the one %s has\n"
 	"cached in the registry. This means that either the\n"
 	"server administrator has changed the host key, or you\n"
 	"have actually connected to another computer pretending\n"
@@ -712,18 +732,13 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	"The new key fingerprint is:\n"
 	"%s\n"
 	"If you were expecting this change and trust the new key,\n"
-	"hit Yes to update PuTTY's cache and continue connecting.\n"
+	"hit Yes to update %s's cache and continue connecting.\n"
 	"If you want to carry on connecting but without updating\n"
 	"the cache, hit No.\n"
 	"If you want to abandon the connection completely, hit\n"
 	"Cancel. Hitting Cancel is the ONLY guaranteed safe\n" "choice.\n";
 
-    static const char mbtitle[] = "PuTTY Security Alert";
-
-    char message[160 +
-	/* sensible fingerprint max size */
-	(sizeof(absentmsg) > sizeof(wrongmsg) ?
-	 sizeof(absentmsg) : sizeof(wrongmsg))];
+    static const char mbtitle[] = "%s Security Alert";
 
     /*
      * Verify the key against the registry.
@@ -734,9 +749,13 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	return;
     if (ret == 2) {		       /* key was different */
 	int mbret;
-	sprintf(message, wrongmsg, fingerprint);
-	mbret = MessageBox(NULL, message, mbtitle,
+	char *message, *title;
+	message = dupprintf(wrongmsg, appname, fingerprint, appname);
+	title = dupprintf(mbtitle, appname);
+	mbret = MessageBox(NULL, message, title,
 			   MB_ICONWARNING | MB_YESNOCANCEL);
+	sfree(message);
+	sfree(title);
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
 	if (mbret == IDCANCEL)
@@ -744,9 +763,13 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     }
     if (ret == 1) {		       /* key was absent */
 	int mbret;
-	sprintf(message, absentmsg, fingerprint);
-	mbret = MessageBox(NULL, message, mbtitle,
+	char *message, *title;
+	message = dupprintf(absentmsg, fingerprint, appname);
+	title = dupprintf(mbtitle, appname);
+	mbret = MessageBox(NULL, message, title,
 			   MB_ICONWARNING | MB_YESNOCANCEL);
+	sfree(message);
+	sfree(title);
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
 	if (mbret == IDCANCEL)
@@ -761,23 +784,23 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
  */
 void askcipher(void *frontend, char *ciphername, int cs)
 {
-    static const char mbtitle[] = "PuTTY Security Alert";
+    static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
 	"The first %.35scipher supported by the server\n"
 	"is %.64s, which is below the configured\n"
 	"warning threshold.\n"
 	"Do you want to continue with this connection?\n";
-    /* guessed cipher name + type max length */
-    char message[100 + sizeof(msg)];
+    char *message, *title;
     int mbret;
 
-    sprintf(message, msg,
-	    (cs == 0) ? "" :
-	    (cs == 1) ? "client-to-server " :
-		        "server-to-client ",
-	    ciphername);
-    mbret = MessageBox(NULL, message, mbtitle,
+    message = dupprintf(msg, ((cs == 0) ? "" :
+			      (cs == 1) ? "client-to-server " :
+			      "server-to-client "), ciphername);
+    title = dupprintf(mbtitle, appname);
+    mbret = MessageBox(NULL, message, title,
 		       MB_ICONWARNING | MB_YESNO);
+    sfree(message);
+    sfree(title);
     if (mbret == IDYES)
 	return;
     else
@@ -790,7 +813,6 @@ void askcipher(void *frontend, char *ciphername, int cs)
  */
 int askappend(void *frontend, Filename filename)
 {
-    static const char mbtitle[] = "PuTTY Log to File";
     static const char msgtemplate[] =
 	"The session log file \"%.*s\" already exists.\n"
 	"You can overwrite it with a new session log,\n"
@@ -798,13 +820,19 @@ int askappend(void *frontend, Filename filename)
 	"or disable session logging for this session.\n"
 	"Hit Yes to wipe the file, No to append to it,\n"
 	"or Cancel to disable logging.";
-    char message[sizeof(msgtemplate) + FILENAME_MAX];
+    char *message;
+    char *mbtitle;
     int mbret;
 
-    sprintf(message, msgtemplate, FILENAME_MAX, filename.path);
+    message = dupprintf(msgtemplate, FILENAME_MAX, filename.path);
+    mbtitle = dupprintf("%s Log to File", appname);
 
     mbret = MessageBox(NULL, message, mbtitle,
 		       MB_ICONQUESTION | MB_YESNOCANCEL);
+
+    sfree(message);
+    sfree(mbtitle);
+
     if (mbret == IDYES)
 	return 2;
     else if (mbret == IDNO)
@@ -825,17 +853,24 @@ int askappend(void *frontend, Filename filename)
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char mbtitle[] = "%s Key File Warning";
     static const char message[] =
 	"You are loading an SSH 2 private key which has an\n"
 	"old version of the file format. This means your key\n"
 	"file is not fully tamperproof. Future versions of\n"
-	"PuTTY may stop supporting this private key format,\n"
+	"%s may stop supporting this private key format,\n"
 	"so we recommend you convert your key to the new\n"
 	"format.\n"
 	"\n"
 	"You can perform this conversion by loading the key\n"
 	"into PuTTYgen and then saving it again.";
 
-    MessageBox(NULL, message, mbtitle, MB_OK);
+    char *msg, *title;
+    msg = dupprintf(message, appname);
+    title = dupprintf(mbtitle, appname);
+
+    MessageBox(NULL, msg, title, MB_OK);
+
+    sfree(msg);
+    sfree(title);
 }

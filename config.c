@@ -726,6 +726,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     struct environ_data *ed;
     struct portfwd_data *pfd;
     union control *c;
+    char *str;
 
     ssd = (struct sessionsaver_data *)
 	ctrl_alloc(b, sizeof(struct sessionsaver_data));
@@ -754,7 +755,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     /*
      * The Session panel.
      */
-    ctrl_settitle(b, "Session", "Basic options for your PuTTY session");
+    str = dupprintf("Basic options for your %s session", appname);
+    ctrl_settitle(b, "Session", str);
+    sfree(str);
 
     if (!midsession) {
 	s = ctrl_getset(b, "Session", "hostport",
@@ -1011,7 +1014,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     /*
      * The Window panel.
      */
-    ctrl_settitle(b, "Window", "Options controlling PuTTY's window");
+    str = dupprintf("Options controlling %s's window", appname);
+    ctrl_settitle(b, "Window", str);
+    sfree(str);
 
     s = ctrl_getset(b, "Window", "size", "Set the size of the window");
     ctrl_columns(s, 2, 50, 50);
@@ -1047,8 +1052,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     /*
      * The Window/Appearance panel.
      */
-    ctrl_settitle(b, "Window/Appearance",
-		  "Configure the appearance of PuTTY's window");
+    str = dupprintf("Configure the appearance of %s's window", appname);
+    ctrl_settitle(b, "Window/Appearance", str);
+    sfree(str);
 
     s = ctrl_getset(b, "Window/Appearance", "cursor",
 		    "Adjust the use of the cursor");
@@ -1085,8 +1091,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     /*
      * The Window/Behaviour panel.
      */
-    ctrl_settitle(b, "Window/Behaviour",
-		  "Configure the behaviour of PuTTY's window");
+    str = dupprintf("Configure the behaviour of %s's window", appname);
+    ctrl_settitle(b, "Window/Behaviour", str);
+    sfree(str);
 
     s = ctrl_getset(b, "Window/Behaviour", "title",
 		    "Adjust the behaviour of the window title");
@@ -1116,8 +1123,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		  'r', 100, HELPCTX(translation_codepage),
 		  codepage_handler, P(NULL), P(NULL));
 
-    s = ctrl_getset(b, "Window/Translation", "linedraw",
-		    "Adjust how PuTTY displays line drawing characters");
+    str = dupprintf("Adjust how %s displays line drawing characters", appname);
+    s = ctrl_getset(b, "Window/Translation", "linedraw", str);
+    sfree(str);
     ctrl_radiobuttons(s, "Handling of line drawing characters:", NO_SHORTCUT,1,
 		      HELPCTX(translation_linedraw),
 		      dlg_stdradiobutton_handler,
@@ -1187,8 +1195,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		  HELPCTX(colours_bold),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,bold_colour)));
 
-    s = ctrl_getset(b, "Window/Colours", "adjust",
-		    "Adjust the precise colours PuTTY displays");
+    str = dupprintf("Adjust the precise colours %s displays", appname);
+    s = ctrl_getset(b, "Window/Colours", "adjust", str);
+    sfree(str);
     ctrl_text(s, "Select a colour from the list, and then click the"
 	      " Modify button to change its appearance.",
 	      HELPCTX(colours_config));

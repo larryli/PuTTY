@@ -2458,7 +2458,7 @@ void dp_init(struct dlgparam *dp)
     dp->focused = dp->lastfocused = NULL;
     memset(dp->shortcuts, 0, sizeof(dp->shortcuts));
     dp->hwnd = NULL;
-    dp->errtitle = NULL;
+    dp->wintitle = dp->errtitle = NULL;
     dp->privdata = newtree234(perctrl_privdata_cmp);
 }
 
@@ -2482,6 +2482,8 @@ void dp_cleanup(struct dlgparam *dp)
 	freetree234(dp->privdata);
 	dp->privdata = NULL;
     }
+    sfree(dp->wintitle);
+    sfree(dp->errtitle);
 }
 
 void *dlg_get_privdata(union control *ctrl, void *dlg)

@@ -67,8 +67,6 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-const char *const appname = "PuTTY";
-
 Backend *select_backend(Config *cfg)
 {
     int i;

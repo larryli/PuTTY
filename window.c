@@ -182,7 +182,6 @@ void ldisc_update(void *frontend, int echo, int edit)
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    static char appname[] = "PuTTY";
     WORD winsock_ver;
     WSADATA wsadata;
     WNDCLASS wndclass;
@@ -218,8 +217,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	ZeroMemory(&osVersion, sizeof(osVersion));
 	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (!GetVersionEx ( (OSVERSIONINFO *) &osVersion)) {
+	    char *str = dupprintf("%s Fatal Error", appname);
             MessageBox(NULL, "Windows refuses to report a version",
-                       "PuTTY Fatal Error", MB_OK | MB_ICONEXCLAMATION);
+                       str, MB_OK | MB_ICONEXCLAMATION);
+	    sfree(str);
 	    return 1;
         }
     }
@@ -350,18 +351,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		     * entries associated with PuTTY, and also find
 		     * and delete the random seed file.
 		     */
-		    if (MessageBox(NULL,
-				   "This procedure will remove ALL Registry\n"
-				   "entries associated with PuTTY, and will\n"
-				   "also remove the PuTTY random seed file.\n"
+		    char *s1, *s2;
+		    s1 = dupprintf("This procedure will remove ALL Registry\n"
+				   "entries associated with %s, and will\n"
+				   "also remove the random seed file.\n"
 				   "\n"
 				   "THIS PROCESS WILL DESTROY YOUR SAVED\n"
 				   "SESSIONS. Are you really sure you want\n"
-				   "to continue?",
-				   "PuTTY Warning",
+				   "to continue?", appname);
+		    s2 = dupprintf("%s Warning", appname);
+		    if (MessageBox(NULL, s1, s2,
 				   MB_YESNO | MB_ICONWARNING) == IDYES) {
 			cleanup_all();
 		    }
+		    sfree(s1);
+		    sfree(s2);
 		    exit(0);
 		} else if (*p != '-') {
 		    char *q = p;
@@ -481,8 +485,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		break;
 	    }
 	if (back == NULL) {
+	    char *str = dupprintf("%s Internal Error", appname);
 	    MessageBox(NULL, "Unsupported protocol number found",
-		       "PuTTY Internal Error", MB_OK | MB_ICONEXCLAMATION);
+		       str, MB_OK | MB_ICONEXCLAMATION);
+	    sfree(str);
 	    WSACleanup();
 	    return 1;
 	}
@@ -490,8 +496,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     /* Check for invalid Port number (i.e. zero) */
     if (cfg.port == 0) {
+	char *str = dupprintf("%s Internal Error", appname);
 	MessageBox(NULL, "Invalid Port Number",
-		   "PuTTY Internal Error", MB_OK | MB_ICONEXCLAMATION);
+		   str, MB_OK | MB_ICONEXCLAMATION);
+	sfree(str);
 	WSACleanup();
 	return 1;
     }
@@ -628,16 +636,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
 	back->provide_logctx(backhandle, logctx);
 	if (error) {
+	    char *str = dupprintf("%s Error", appname);
 	    sprintf(msg, "Unable to open connection to\n"
 		    "%.800s\n" "%s", cfg.host, error);
-	    MessageBox(NULL, msg, "PuTTY Error", MB_ICONERROR | MB_OK);
+	    MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
+	    sfree(str);
 	    return 0;
 	}
 	window_name = icon_name = NULL;
 	if (*cfg.wintitle) {
 	    title = cfg.wintitle;
 	} else {
-	    sprintf(msg, "%s - PuTTY", realhost);
+	    sprintf(msg, "%s - %s", realhost, appname);
 	    title = msg;
 	}
 	sfree(realhost);
@@ -671,10 +681,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	HMENU m = GetSystemMenu(hwnd, FALSE);
 	HMENU s;
 	int i;
+	char *str;
 
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
 	specials_menu_position = GetMenuItemCount(m);
-	debug(("specials_menu_position = %d\n", specials_menu_position));
 	AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
 	AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
@@ -698,7 +708,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
         if (help_path)
             AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
-	AppendMenu(m, MF_ENABLED, IDM_ABOUT, "&About PuTTY");
+	str = dupprintf("&About %s", appname);
+	AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
+	sfree(str);
     }
 
     update_specials_menu(NULL);
@@ -910,18 +922,20 @@ void set_raw_mouse_mode(void *frontend, int activate)
 void connection_fatal(void *frontend, char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[200], morestuff[100];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, stuff, "PuTTY Fatal Error", MB_ICONERROR | MB_OK);
+    sprintf(morestuff, "%.70s Fatal Error", appname);
+    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
     if (cfg.close_on_exit == FORCE_ON)
 	PostQuitMessage(1);
     else {
 	session_closed = TRUE;
-	set_icon(NULL, "PuTTY (inactive)");
-	set_title(NULL, "PuTTY (inactive)");
+	sprintf(morestuff, "%.70s (inactive)", appname);
+	set_icon(NULL, morestuff);
+	set_title(NULL, morestuff);
     }
 }
 
@@ -931,12 +945,13 @@ void connection_fatal(void *frontend, char *fmt, ...)
 void cmdline_error(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[200], morestuff[100];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, stuff, "PuTTY Command Line Error", MB_ICONERROR | MB_OK);
+    sprintf(morestuff, "%.70s Command Line Error", appname);
+    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
     exit(1);
 }
 
@@ -964,11 +979,13 @@ static void enact_pending_netevent(void)
 	if (cfg.close_on_exit == FORCE_ON ||
 	    cfg.close_on_exit == AUTO) PostQuitMessage(0);
 	else {
+	    char morestuff[100];
 	    session_closed = TRUE;
-	    set_icon(NULL, "PuTTY (inactive)");
-	    set_title(NULL, "PuTTY (inactive)");
+	    sprintf(morestuff, "%.70s (inactive)", appname);
+	    set_icon(NULL, morestuff);
+	    set_title(NULL, morestuff);
 	    MessageBox(hwnd, "Connection closed by remote host",
-		       "PuTTY", MB_OK | MB_ICONINFORMATION);
+		       appname, MB_OK | MB_ICONINFORMATION);
 	}
     }
 }
@@ -1673,13 +1690,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_CREATE:
 	break;
       case WM_CLOSE:
-	show_mouseptr(1);
-	if (!cfg.warn_on_close || session_closed ||
-	    MessageBox(hwnd,
-		       "Are you sure you want to close this session?",
-		       "PuTTY Exit Confirmation",
-		       MB_ICONWARNING | MB_OKCANCEL) == IDOK)
-	    DestroyWindow(hwnd);
+	{
+	    char *str;
+	    show_mouseptr(1);
+	    str = dupprintf("%s Exit Confirmation", appname);
+	    if (!cfg.warn_on_close || session_closed ||
+		MessageBox(hwnd,
+			   "Are you sure you want to close this session?",
+			   str, MB_ICONWARNING | MB_OKCANCEL) == IDOK)
+		DestroyWindow(hwnd);
+	    sfree(str);
+	}
 	return 0;
       case WM_DESTROY:
 	show_mouseptr(1);
@@ -4265,12 +4286,13 @@ void optimised_move(void *frontend, int to, int from, int lines)
 void fatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[200], morestuff[100];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, stuff, "PuTTY Fatal Error", MB_ICONERROR | MB_OK);
+    sprintf(morestuff, "%.70s Fatal Error", appname);
+    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
     cleanup_exit(1);
 }
 
@@ -4280,12 +4302,13 @@ void fatalbox(char *fmt, ...)
 void modalfatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[200], morestuff[100];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, stuff, "PuTTY Fatal Error",
+    sprintf(morestuff, "%.70s Fatal Error", appname);
+    MessageBox(hwnd, stuff, morestuff,
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     cleanup_exit(1);
 }
@@ -4354,9 +4377,11 @@ void beep(void *frontend, int mode)
 	if (!PlaySound(cfg.bell_wavefile.path, NULL,
 		       SND_ASYNC | SND_FILENAME)) {
 	    char buf[sizeof(cfg.bell_wavefile) + 80];
+	    char otherbuf[100];
 	    sprintf(buf, "Unable to play sound file\n%s\n"
 		    "Using default sound instead", cfg.bell_wavefile);
-	    MessageBox(hwnd, buf, "PuTTY Sound Error",
+	    sprintf(otherbuf, "%.70s Sound Error", appname);
+	    MessageBox(hwnd, buf, otherbuf,
 		       MB_OK | MB_ICONEXCLAMATION);
 	    cfg.beep = BELL_DEFAULT;
 	}
