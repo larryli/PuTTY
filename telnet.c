@@ -166,6 +166,14 @@ static void deactivate_option (struct Opt *o) {
     o->state = REALLY_INACTIVE;
 }
 
+/*
+ * Generate side effects of enabling or disabling an option.
+ */
+static void option_side_effects(struct Opt *o, int enabled) {
+    if (o->option == TELOPT_ECHO && cfg.ldisc_term)
+	ldisc = enabled ? &ldisc_simple : &ldisc_term;
+}
+
 static void activate_option (struct Opt *o) {
     if (o->send == WILL && o->option == TELOPT_NAWS)
 	telnet_size();
@@ -178,8 +186,7 @@ static void activate_option (struct Opt *o) {
 	 */
 	deactivate_option (o->option==TELOPT_NEW_ENVIRON ? &o_oenv : &o_nenv);
     }
-    if (o->option == TELOPT_ECHO && cfg.ldisc_term)
-	ldisc = &ldisc_simple;
+    option_side_effects(o, 1);
 }
 
 static void refused_option (struct Opt *o) {
@@ -188,8 +195,7 @@ static void refused_option (struct Opt *o) {
 	send_opt (WILL, TELOPT_OLD_ENVIRON);
 	o_oenv.state = REQUESTED;
     }
-    if (o->option == TELOPT_ECHO && cfg.ldisc_term)
-	ldisc = &ldisc_term;
+    option_side_effects(o, 0);
 }
 
 static void proc_rec_opt (int cmd, int option) {
@@ -224,6 +230,7 @@ static void proc_rec_opt (int cmd, int option) {
 	      case ACTIVE:
 		(*o)->state = INACTIVE;
 		send_opt ((*o)->nsend, option);
+                option_side_effects(*o, 0);
 		break;
 	      case INACTIVE:
 	      case REALLY_INACTIVE:
