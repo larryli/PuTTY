@@ -84,6 +84,12 @@ Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only,
 SockAddr name_lookup(char *host, int port, char **canonicalname,
 		     const Config *cfg);
 
+/* platform-dependent callback from new_connection() */
+Socket platform_new_connection(SockAddr addr, char *hostname,
+			       int port, int privport,
+			       int oobinline, int nodelay, Plug plug,
+			       const Config *cfg);
+
 /* socket functions */
 
 void sk_init(void);		       /* called once at program startup */

@@ -349,11 +349,6 @@ SockAddr name_lookup(char *host, int port, char **canonicalname,
     return sk_namelookup(host, canonicalname);
 }
 
-Socket platform_new_connection(SockAddr addr, char *hostname,
-			       int port, int privport,
-			       int oobinline, int nodelay, Plug plug,
-			       const Config *cfg);
-
 Socket new_connection(SockAddr addr, char *hostname,
 		      int port, int privport,
 		      int oobinline, int nodelay, Plug plug,
