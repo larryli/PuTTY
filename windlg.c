@@ -431,6 +431,46 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
 	    logbox = NULL;
 	    DestroyWindow (hwnd);
 	    return 0;
+          case IDN_COPY:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+                int selcount;
+                int *selitems;
+                selcount = SendDlgItemMessage(hwnd, IDN_LIST,
+                                              LB_GETSELCOUNT, 0, 0);
+                selitems = malloc(selcount * sizeof(int));
+                if (selitems) {
+                    int count = SendDlgItemMessage(hwnd, IDN_LIST,
+                                                   LB_GETSELITEMS,
+                                                   selcount, (LPARAM)selitems);
+                    int i;
+                    int size;
+                    char *clipdata;
+                    static unsigned char sel_nl[] = SEL_NL;
+
+                    size = 0;
+                    for (i = 0; i < count; i++)
+                        size += strlen(events[selitems[i]]) + sizeof(sel_nl);
+
+                    clipdata = malloc(size);
+                    if (clipdata) {
+                        char *p = clipdata;
+                        for (i = 0; i < count; i++) {
+                            char *q = events[selitems[i]];
+                            int qlen = strlen(q);
+                            memcpy(p, q, qlen);
+                            p += qlen;
+                            memcpy(p, sel_nl, sizeof(sel_nl));
+                            p += sizeof(sel_nl);
+                        }
+                        write_clip(clipdata, size);
+                        term_deselect();
+                        free(clipdata);
+                    }
+                    free(selitems);
+                }
+            }
+            return 0;
 	}
 	return 0;
       case WM_CLOSE:
@@ -1584,7 +1624,7 @@ void logevent (char *string) {
 	SendDlgItemMessage (logbox, IDN_LIST, LB_ADDSTRING,
 			    0, (LPARAM)string);
 	count = SendDlgItemMessage (logbox, IDN_LIST, LB_GETCOUNT, 0, 0);
-	SendDlgItemMessage (logbox, IDN_LIST, LB_SETCURSEL, count-1, 0);
+	SendDlgItemMessage (logbox, IDN_LIST, LB_SETTOPINDEX, count-1, 0);
     }
 }
 

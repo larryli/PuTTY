@@ -74,14 +74,13 @@ static void send_str_msg(unsigned int msg_id, char *str);
 static void gui_update_stats(char *name, unsigned long size, int percentage, time_t elapsed);
 
 /*
- * These functions are needed to link with ssh.c, but never get called.
+ * These functions are needed to link with other modules, but
+ * (should) never get called.
  */
-void term_out(void)
-{
-    abort();
-}
-void begin_session(void) {
-}
+void term_out(void) { abort(); }
+void begin_session(void) { }
+void write_clip (void *data, int len) { }
+void term_deselect(void) { }
 
 /* GUI Adaptation - Sept 2000 */
 void send_msg(HWND h, UINT message, WPARAM wParam)

@@ -33,6 +33,12 @@ void connection_fatal (char *p, ...) {
     exit(1);
 }
 
+/*
+ * Stubs for linking with other modules.
+ */
+void write_clip (void *data, int len) { }
+void term_deselect(void) { }
+
 HANDLE outhandle;
 DWORD orig_console_mode;
 

@@ -18,6 +18,7 @@
 #define IDD_LICENCEBOX   113
 
 #define IDN_LIST        1001
+#define IDN_COPY        1002
 
 #define IDA_ICON        1001
 #define IDA_TEXT1       1002
