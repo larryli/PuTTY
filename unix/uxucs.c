@@ -101,9 +101,12 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
     }
 }
 
-void init_ucs(int font_charset)
+/*
+ * Return value is TRUE if pterm is to run in direct-to-font mode.
+ */
+int init_ucs(int font_charset)
 {
-    int i;
+    int i, ret = 0;
 
     /*
      * In the platform-independent parts of the code, font_codepage
@@ -130,6 +133,9 @@ void init_ucs(int font_charset)
      */
     if (line_codepage == CS_NONE)
 	line_codepage = font_charset;
+
+    if (line_codepage == CS_NONE)
+	ret = 1;
 
     /*
      * Set up unitab_line, by translating each individual character
@@ -206,4 +212,6 @@ void init_ucs(int font_charset)
 	else
 	    unitab_ctrl[i] = 0xFF;
     }
+
+    return ret;
 }

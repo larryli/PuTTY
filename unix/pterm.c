@@ -48,6 +48,7 @@ struct gui_data {
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
     wchar_t *pastein_data;
+    int direct_to_font;
     int pastein_data_len;
     char *pasteout_data, *pasteout_data_utf8;
     int pasteout_data_len, pasteout_data_utf8_len;
@@ -836,7 +837,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	printf("\n");
 #endif
 
-	if (inst->fontinfo[0].charset != CS_NONE) {
+	if (!inst->direct_to_font) {
 	    /*
 	     * The stuff we've just generated is assumed to be
 	     * ISO-8859-1! This sounds insane, but `man
@@ -1231,7 +1232,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
      * Set up UTF-8 paste data. This only happens if we aren't in
      * direct-to-font mode using the D800 hack.
      */
-    if (inst->fontinfo[0].charset != CS_NONE) {
+    if (!inst->direct_to_font) {
 	wchar_t *tmp = data;
 	int tmplen = len;
 
@@ -1241,18 +1242,31 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	    charset_from_unicode(&tmp, &tmplen, inst->pasteout_data_utf8,
 				 inst->pasteout_data_utf8_len,
 				 CS_UTF8, NULL, NULL, 0);
-	inst->pasteout_data_utf8 =
-	    srealloc(inst->pasteout_data_utf8, inst->pasteout_data_utf8_len);
+	if (inst->pasteout_data_utf8_len == 0) {
+	    sfree(inst->pasteout_data_utf8);
+	    inst->pasteout_data_utf8 = NULL;
+	} else {
+	    inst->pasteout_data_utf8 =
+		srealloc(inst->pasteout_data_utf8,
+			 inst->pasteout_data_utf8_len);
+	}
     } else {
 	inst->pasteout_data_utf8 = NULL;
 	inst->pasteout_data_utf8_len = 0;
     }
 
-    inst->pasteout_data = smalloc(len);
-    inst->pasteout_data_len = len;
-    wc_to_mb(line_codepage, 0, data, len,
-	     inst->pasteout_data, inst->pasteout_data_len,
-	     NULL, NULL);
+    inst->pasteout_data = smalloc(len*6);
+    inst->pasteout_data_len = len*6;
+    inst->pasteout_data_len = wc_to_mb(line_codepage, 0, data, len,
+				       inst->pasteout_data,
+				       inst->pasteout_data_len, NULL, NULL);
+    if (inst->pasteout_data_len == 0) {
+	sfree(inst->pasteout_data);
+	inst->pasteout_data = NULL;
+    } else {
+	inst->pasteout_data =
+	    srealloc(inst->pasteout_data, inst->pasteout_data_len);
+    }
 
     if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
 				GDK_CURRENT_TIME)) {
@@ -1304,7 +1318,7 @@ void request_paste(void *frontend)
      * comes back _then_ we can call term_do_paste().
      */
 
-    if (inst->fontinfo[0].charset != CS_NONE) {
+    if (!inst->direct_to_font) {
 	/*
 	 * First we attempt to retrieve the selection as a UTF-8
 	 * string (which we will convert to the correct code page
@@ -2260,7 +2274,7 @@ int main(int argc, char **argv)
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
-    init_ucs(font_charset);
+    inst->direct_to_font = init_ucs(font_charset);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 

@@ -69,6 +69,6 @@ void (*putty_signal(int sig, void (*func)(int)))(int);
 /*
  * Exports from unicode.c.
  */
-void init_ucs(int font_charset);
+int init_ucs(int font_charset);
 
 #endif
