@@ -1813,6 +1813,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_hmac2 == FORCE_ON ||
 	(ssh->cfg.sshbug_hmac2 == AUTO &&
+	 !wc_match("* VShell", imp) &&
 	 (wc_match("2.1.0*", imp) || wc_match("2.0.*", imp) ||
 	  wc_match("2.2.0*", imp) || wc_match("2.3.0*", imp) ||
 	  wc_match("2.1 *", imp)))) {
@@ -1825,6 +1826,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_derivekey2 == FORCE_ON ||
 	(ssh->cfg.sshbug_derivekey2 == AUTO &&
+	 !wc_match("* VShell", imp) &&
 	 (wc_match("2.0.0*", imp) || wc_match("2.0.10*", imp) ))) {
 	/*
 	 * These versions have the key-derivation bug (failing to
