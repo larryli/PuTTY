@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.24 2003/02/02 16:02:50 ben Exp $
+$Id: README.mac,v 1.25 2003/02/07 01:33:24 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -12,19 +12,27 @@ Compiling it:
  MPW
   <ftp://ftp.apple.com/developer/Tool_Chest/Core_Mac_OS_Tools/MPW_etc./
    MPW-GM_Images/MPW-GM.img.bin>
+  Install this in the usual way.
 
- Universal Headers (optional)
+ Universal Headers
   <ftp://ftp.apple.com/developer/Development_Kits/
    UniversalHeaders3.4.2.img.bin>
+  Install using the script in "Documentation:MPW Users - ReadMe".
 
  Text Encoding Converter SDK
   <ftp://ftp.apple.com/developer/Development_Kits/TEC_1.5.sit.hqx>
+  Copy contents of "68K Static Libraries" to
+   "Interfaces&Libraries:Libraries:Libraries".
+  Copy contents of "Stub Libraries" to
+   "Interfaces&Libraries:Libraries:SharedLibraries".
 
- Install MPW, install the new Universal Headers (optional), then put
- the contents of the "68K Static Libraries" directory of the Text
- Encoding Converter SDK into "Interfaces&Libraries:Libraries:Libraries",
- and the contents of the "Stub Libraries" directory into
- "Interfaces&Libraries:Libraries:SharedLibraries".
+ CarbonStdCLib.o
+  <ftp://ftp.apple.com/developer/Tool_Chest/Core_Mac_OS_Tools/
+   MPW_Website_Downloads/CarbonStdCLib.o-3.8d3.hqx>
+  Copy contents of "CIncludes" to
+   "Interfaces&Libraries:Interfaces:CIncludes".
+  Copy contents of "PPCLibraries" to
+   "Interfaces&Libraries:Libraries:PPCLibraries".
 
  The "mkputty.mpw" script does all the work, and currently producess a
  Classic 68K build of PuTTY called "PuTTY.68k", a non-Carbon PowerPC

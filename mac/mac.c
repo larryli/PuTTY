@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.45 2003/02/04 23:39:26 ben Exp $ */
+/* $Id: mac.c,v 1.46 2003/02/07 01:33:24 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -63,7 +63,15 @@
 #include "ssh.h"
 #include "mac.h"
 
-#if !TARGET_API_MAC_CARBON
+#if TARGET_API_MAC_CARBON
+/*
+ * This is used by (I think) CarbonStdCLib, but only exists in
+ * CarbonLib 1.1 and later.  Muppets.  Happily, it's documented to be
+ * a synonym for NULL.
+ */
+#include <CFBase.h>
+const CFAllocatorRef kCFAllocatorDefault = NULL;
+#else
 QDGlobals qd;
 #endif
 

@@ -617,7 +617,7 @@ LinkOptions = -c 'pTTY' -fragname PuTTY
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
 LinkOptions_CFM68K = {LinkOptions} -br 020 -model cfmseg -compact
 LinkOptions_PPC = {LinkOptions}
-LinkOptions_Carbon = {LinkOptions}
+LinkOptions_Carbon = -m __appstart -w {LinkOptions}
 
 Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MacRuntime.o" \xb6
@@ -660,7 +660,11 @@ Libs_PPC =	{Libs_CFM} \xb6
 		"{PPCLibraries}OpenTransportAppPPC.o" \xb6
 		"{PPCLibraries}OpenTptInetPPC.o"
 
-Libs_Carbon =	"{SharedLibraries}CarbonLib"
+Libs_Carbon =	"{PPCLibraries}CarbonStdCLib.o" \xb6
+		"{PPCLibraries}StdCRuntime.o" \xb6
+		"{PPCLibraries}PPCCRuntime.o" \xb6
+		"{SharedLibraries}CarbonLib" \xb6
+		"{SharedLibraries}StdCLib"
 
 END
 print &splitline("all \xc4 " . join(" ", &progrealnames("M")), undef, "\xb6");
