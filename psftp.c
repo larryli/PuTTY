@@ -1456,6 +1456,44 @@ void askcipher(char *ciphername, int cs)
 }
 
 /*
+ * Ask whether to wipe a session log file before writing to it.
+ * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
+ */
+int askappend(char *filename)
+{
+    HANDLE hin;
+    DWORD savemode, i;
+
+    static const char msgtemplate[] =
+	"The session log file \"%.*s\" already exists.\n"
+	"You can overwrite it with a new session log,\n"
+	"append your session log to the end of it,\n"
+	"or disable session logging for this session.\n"
+	"Enter \"y\" to wipe the file, \"n\" to append to it,\n"
+	"or just press Return to disable logging.\n"
+	"Wipe the log file? (y/n, Return cancels logging) ";
+
+    char line[32];
+
+    fprintf(stderr, msgtemplate, FILENAME_MAX, filename);
+    fflush(stderr);
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+			 ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
+    SetConsoleMode(hin, savemode);
+
+    if (line[0] == 'y' || line[0] == 'Y')
+	return 2;
+    else if (line[0] == 'n' || line[0] == 'N')
+	return 1;
+    else
+	return 0;
+}
+
+/*
  * Warn about the obsolescent key file format.
  */
 void old_keyfile_warning(void)

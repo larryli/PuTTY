@@ -130,7 +130,8 @@ GLOBAL unsigned char unitab_ctrl[256];
 #define LGXF_ASK -1		       /* existing logfile ask */
 #define LGTYP_NONE  0		       /* logmode: no logging */
 #define LGTYP_ASCII 1		       /* logmode: pure ascii */
-#define LGTYP_DEBUG 2		       /* logmode: all chars of taffic */
+#define LGTYP_DEBUG 2		       /* logmode: all chars of traffic */
+#define LGTYP_PACKETS 3		       /* logmode: SSH data packets */
 GLOBAL char *logfile;
 
 /*
@@ -484,6 +485,13 @@ int from_backend(int is_stderr, char *data, int len);
 void logfopen(void);
 void logfclose(void);
 void term_copyall(void);
+
+/*
+ * Exports from logging.c.
+ */
+void logtraffic(unsigned char c, int logmode);
+enum { PKT_INCOMING, PKT_OUTGOING };
+void log_packet(int direction, int type, char *texttype, void *data, int len);
 
 /*
  * Exports from raw.c.

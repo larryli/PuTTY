@@ -633,15 +633,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     set_input_locale(GetKeyboardLayout(0));
 
     /*
+     * Open the initial log file if there is one.
+     */
+    logfopen();
+
+    /*
      * Finally show the window!
      */
     ShowWindow(hwnd, show);
     SetForegroundWindow(hwnd);
-
-    /*
-     * Open the initial log file if there is one.
-     */
-    logfopen();
 
     /*
      * Set the palette up.

@@ -88,7 +88,7 @@ RES=res
 
 ##-- objects putty puttytel
 GOBJS1 = window.$(OBJ) windlg.$(OBJ) winctrls.$(OBJ) terminal.$(OBJ)
-GOBJS2 = sizetip.$(OBJ) wcwidth.$(OBJ) unicode.$(OBJ)
+GOBJS2 = sizetip.$(OBJ) wcwidth.$(OBJ) unicode.$(OBJ) logging.$(OBJ)
 ##-- objects putty puttytel plink
 LOBJS1 = telnet.$(OBJ) raw.$(OBJ) rlogin.$(OBJ) ldisc.$(OBJ) winnet.$(OBJ)
 ##-- objects putty plink
@@ -96,13 +96,13 @@ POBJS = be_all.$(OBJ)
 ##-- objects puttytel
 TOBJS = be_nossh.$(OBJ)
 ##-- objects plink
-PLOBJS = plink.$(OBJ)
+PLOBJS = plink.$(OBJ) logging.$(OBJ)
 ##-- objects pscp
 SOBJS = scp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ) wildcard.$(OBJ)
 ##-- objects psftp
 FOBJS = psftp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
 ##-- objects pscp psftp
-SFOBJS = sftp.$(OBJ) int64.$(OBJ)
+SFOBJS = sftp.$(OBJ) int64.$(OBJ) logging.$(OBJ)
 ##-- objects putty puttytel pscp psftp plink
 MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ) settings.$(OBJ)
 MOBJ2 = tree234.$(OBJ)
@@ -321,6 +321,7 @@ sshzlib.$(OBJ): sshzlib.c network.h int64.h puttymem.h ssh.h
 ssl.$(OBJ): ssl.c network.h asnerror.h misc.h cert.h crypto.h ssl.h int64.h puttymem.h 
 telnet.$(OBJ): telnet.c network.h misc.h puttymem.h putty.h 
 terminal.$(OBJ): terminal.c network.h misc.h puttymem.h putty.h tree234.h 
+logging.$(OBJ): logging.c misc.h puttymem.h putty.h
 test.$(OBJ): test.c network.h int64.h puttymem.h ssh.h 
 tree234.$(OBJ): tree234.c tree234.h 
 unicode.$(OBJ): unicode.c network.h misc.h puttymem.h putty.h 

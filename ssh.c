@@ -15,9 +15,6 @@
 #define TRUE 1
 #endif
 
-/* uncomment this for packet level debugging */
-/* #define DUMP_PACKETS */
-
 #define logevent(s) { logevent(s); \
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       { fprintf(stderr, "%s\n", s); fflush(stderr); } }
@@ -112,6 +109,17 @@
 #define SSH2_MSG_CHANNEL_SUCCESS                  99	/* 0x63 */
 #define SSH2_MSG_CHANNEL_FAILURE                  100	/* 0x64 */
 
+/*
+ * Packet type contexts, so that ssh2_pkt_type can correctly decode
+ * the ambiguous type numbers back into the correct type strings.
+ */
+#define SSH2_PKTCTX_DHGROUP1         0x0001
+#define SSH2_PKTCTX_DHGEX            0x0002
+#define SSH2_PKTCTX_PUBLICKEY        0x0010
+#define SSH2_PKTCTX_PASSWORD         0x0020
+#define SSH2_PKTCTX_KBDINTER         0x0040
+#define SSH2_PKTCTX_AUTH_MASK        0x00F0
+
 #define SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT 1	/* 0x1 */
 #define SSH2_DISCONNECT_PROTOCOL_ERROR            2	/* 0x2 */
 #define SSH2_DISCONNECT_KEY_EXCHANGE_FAILED       3	/* 0x3 */
@@ -161,6 +169,97 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_HMAC                             2
 #define BUG_NEEDS_SSH1_PLAIN_PASSWORD        	  4
 
+static int ssh_pkt_ctx = 0;
+
+#define translate(x) if (type == x) return #x
+#define translatec(x,ctx) if (type == x && (ssh_pkt_ctx & ctx)) return #x
+char *ssh1_pkt_type(int type)
+{
+    translate(SSH1_MSG_DISCONNECT);
+    translate(SSH1_SMSG_PUBLIC_KEY);
+    translate(SSH1_CMSG_SESSION_KEY);
+    translate(SSH1_CMSG_USER);
+    translate(SSH1_CMSG_AUTH_RSA);
+    translate(SSH1_SMSG_AUTH_RSA_CHALLENGE);
+    translate(SSH1_CMSG_AUTH_RSA_RESPONSE);
+    translate(SSH1_CMSG_AUTH_PASSWORD);
+    translate(SSH1_CMSG_REQUEST_PTY);
+    translate(SSH1_CMSG_WINDOW_SIZE);
+    translate(SSH1_CMSG_EXEC_SHELL);
+    translate(SSH1_CMSG_EXEC_CMD);
+    translate(SSH1_SMSG_SUCCESS);
+    translate(SSH1_SMSG_FAILURE);
+    translate(SSH1_CMSG_STDIN_DATA);
+    translate(SSH1_SMSG_STDOUT_DATA);
+    translate(SSH1_SMSG_STDERR_DATA);
+    translate(SSH1_CMSG_EOF);
+    translate(SSH1_SMSG_EXIT_STATUS);
+    translate(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
+    translate(SSH1_MSG_CHANNEL_OPEN_FAILURE);
+    translate(SSH1_MSG_CHANNEL_DATA);
+    translate(SSH1_MSG_CHANNEL_CLOSE);
+    translate(SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION);
+    translate(SSH1_SMSG_X11_OPEN);
+    translate(SSH1_CMSG_PORT_FORWARD_REQUEST);
+    translate(SSH1_MSG_PORT_OPEN);
+    translate(SSH1_CMSG_AGENT_REQUEST_FORWARDING);
+    translate(SSH1_SMSG_AGENT_OPEN);
+    translate(SSH1_MSG_IGNORE);
+    translate(SSH1_CMSG_EXIT_CONFIRMATION);
+    translate(SSH1_CMSG_X11_REQUEST_FORWARDING);
+    translate(SSH1_CMSG_AUTH_RHOSTS_RSA);
+    translate(SSH1_MSG_DEBUG);
+    translate(SSH1_CMSG_REQUEST_COMPRESSION);
+    translate(SSH1_CMSG_AUTH_TIS);
+    translate(SSH1_SMSG_AUTH_TIS_CHALLENGE);
+    translate(SSH1_CMSG_AUTH_TIS_RESPONSE);
+    translate(SSH1_CMSG_AUTH_CCARD);
+    translate(SSH1_SMSG_AUTH_CCARD_CHALLENGE);
+    translate(SSH1_CMSG_AUTH_CCARD_RESPONSE);
+    return "unknown";
+}
+char *ssh2_pkt_type(int type)
+{
+    translate(SSH2_MSG_DISCONNECT);
+    translate(SSH2_MSG_IGNORE);
+    translate(SSH2_MSG_UNIMPLEMENTED);
+    translate(SSH2_MSG_DEBUG);
+    translate(SSH2_MSG_SERVICE_REQUEST);
+    translate(SSH2_MSG_SERVICE_ACCEPT);
+    translate(SSH2_MSG_KEXINIT);
+    translate(SSH2_MSG_NEWKEYS);
+    translatec(SSH2_MSG_KEXDH_INIT, SSH2_PKTCTX_DHGROUP1);
+    translatec(SSH2_MSG_KEXDH_REPLY, SSH2_PKTCTX_DHGROUP1);
+    translatec(SSH2_MSG_KEX_DH_GEX_REQUEST, SSH2_PKTCTX_DHGEX);
+    translatec(SSH2_MSG_KEX_DH_GEX_GROUP, SSH2_PKTCTX_DHGEX);
+    translatec(SSH2_MSG_KEX_DH_GEX_INIT, SSH2_PKTCTX_DHGEX);
+    translatec(SSH2_MSG_KEX_DH_GEX_REPLY, SSH2_PKTCTX_DHGEX);
+    translate(SSH2_MSG_USERAUTH_REQUEST);
+    translate(SSH2_MSG_USERAUTH_FAILURE);
+    translate(SSH2_MSG_USERAUTH_SUCCESS);
+    translate(SSH2_MSG_USERAUTH_BANNER);
+    translatec(SSH2_MSG_USERAUTH_PK_OK, SSH2_PKTCTX_PUBLICKEY);
+    translatec(SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ, SSH2_PKTCTX_PASSWORD);
+    translatec(SSH2_MSG_USERAUTH_INFO_REQUEST, SSH2_PKTCTX_KBDINTER);
+    translatec(SSH2_MSG_USERAUTH_INFO_RESPONSE, SSH2_PKTCTX_KBDINTER);
+    translate(SSH2_MSG_GLOBAL_REQUEST);
+    translate(SSH2_MSG_REQUEST_SUCCESS);
+    translate(SSH2_MSG_REQUEST_FAILURE);
+    translate(SSH2_MSG_CHANNEL_OPEN);
+    translate(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
+    translate(SSH2_MSG_CHANNEL_OPEN_FAILURE);
+    translate(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+    translate(SSH2_MSG_CHANNEL_DATA);
+    translate(SSH2_MSG_CHANNEL_EXTENDED_DATA);
+    translate(SSH2_MSG_CHANNEL_EOF);
+    translate(SSH2_MSG_CHANNEL_CLOSE);
+    translate(SSH2_MSG_CHANNEL_REQUEST);
+    translate(SSH2_MSG_CHANNEL_SUCCESS);
+    translate(SSH2_MSG_CHANNEL_FAILURE);
+    return "unknown";
+}
+#undef translate
+#undef translatec
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
@@ -626,10 +725,6 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 
     if (cipher)
 	cipher->decrypt(pktin.data, st->biglen);
-#ifdef DUMP_PACKETS
-    debug(("Got packet len=%d pad=%d\n", st->len, st->pad));
-    dmemdump(pktin.data, st->biglen);
-#endif
 
     st->realcrc = crc32(pktin.data, st->biglen - 4);
     st->gotcrc = GET_32BIT(pktin.data + st->biglen - 4);
@@ -643,10 +738,6 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
     if (ssh1_compressing) {
 	unsigned char *decompblk;
 	int decomplen;
-#ifdef DUMP_PACKETS
-	debug(("Packet payload pre-decompression:\n"));
-	dmemdump(pktin.body - 1, pktin.length + 1);
-#endif
 	zlib_decompress_block(pktin.body - 1, pktin.length + 1,
 			      &decompblk, &decomplen);
 
@@ -661,11 +752,12 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	memcpy(pktin.body - 1, decompblk, decomplen);
 	sfree(decompblk);
 	pktin.length = decomplen - 1;
-#ifdef DUMP_PACKETS
-	debug(("Packet payload post-decompression:\n"));
-	dmemdump(pktin.body - 1, pktin.length + 1);
-#endif
     }
+
+    pktin.type = pktin.body[-1];
+
+    log_packet(PKT_INCOMING, pktin.type, ssh1_pkt_type(pktin.type),
+	       pktin.body, pktin.length);
 
     if (pktin.type == SSH1_SMSG_STDOUT_DATA ||
 	pktin.type == SSH1_SMSG_STDERR_DATA ||
@@ -678,8 +770,6 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	    crReturn(0);
 	}
     }
-
-    pktin.type = pktin.body[-1];
 
     if (pktin.type == SSH1_MSG_DEBUG) {
 	/* log debug message */
@@ -807,11 +897,6 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
 	sccipher->decrypt(pktin.data + st->cipherblk,
 			  st->packetlen - st->cipherblk);
 
-#ifdef DUMP_PACKETS
-    debug(("Got packet len=%d pad=%d\n", st->len, st->pad));
-    dmemdump(pktin.data, st->packetlen);
-#endif
-
     /*
      * Check the MAC.
      */
@@ -844,17 +929,15 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
 	    }
 	    pktin.length = 5 + newlen;
 	    memcpy(pktin.data + 5, newpayload, newlen);
-#ifdef DUMP_PACKETS
-	    debug(("Post-decompression payload:\n"));
-	    dmemdump(pktin.data + 5, newlen);
-#endif
-
 	    sfree(newpayload);
 	}
     }
 
     pktin.savedpos = 6;
     pktin.type = pktin.data[5];
+
+    log_packet(PKT_INCOMING, pktin.type, ssh2_pkt_type(pktin.type),
+	       pktin.data+6, pktin.length-6);
 
     if (pktin.type == SSH2_MSG_IGNORE || pktin.type == SSH2_MSG_DEBUG)
 	goto next_packet;	       /* FIXME: print DEBUG message */
@@ -930,13 +1013,12 @@ static int s_wrpkt_prepare(void)
 
     pktout.body[-1] = pktout.type;
 
+    log_packet(PKT_OUTGOING, pktout.type, ssh1_pkt_type(pktout.type),
+	       pktout.body, pktout.length);
+
     if (ssh1_compressing) {
 	unsigned char *compblk;
 	int complen;
-#ifdef DUMP_PACKETS
-	debug(("Packet payload pre-compression:\n"));
-	dmemdump(pktout.body - 1, pktout.length + 1);
-#endif
 	zlib_compress_block(pktout.body - 1, pktout.length + 1,
 			    &compblk, &complen);
 	ssh1_pktout_size(complen - 1);
@@ -954,10 +1036,6 @@ static int s_wrpkt_prepare(void)
     PUT_32BIT(pktout.data + biglen, crc);
     PUT_32BIT(pktout.data, len);
 
-#ifdef DUMP_PACKETS
-    debug(("Sending packet len=%d\n", biglen + 4));
-    dmemdump(pktout.data, biglen + 4);
-#endif
     if (cipher)
 	cipher->encrypt(pktout.data + 4, biglen);
 
@@ -1221,18 +1299,15 @@ static int ssh2_pkt_construct(void)
     int cipherblk, maclen, padding, i;
     static unsigned long outgoing_sequence = 0;
 
+    log_packet(PKT_OUTGOING, pktout.data[5], ssh2_pkt_type(pktout.data[5]),
+	       pktout.data + 6, pktout.length - 6);
+
     /*
      * Compress packet payload.
      */
     {
 	unsigned char *newpayload;
 	int newlen;
-#ifdef DUMP_PACKETS
-	if (cscomp && cscomp != &ssh_comp_none) {
-	    debug(("Pre-compression payload:\n"));
-	    dmemdump(pktout.data + 5, pktout.length - 5);
-	}
-#endif
 	if (cscomp && cscomp->compress(pktout.data + 5, pktout.length - 5,
 				       &newpayload, &newlen)) {
 	    pktout.length = 5;
@@ -1260,11 +1335,6 @@ static int ssh2_pkt_construct(void)
 	csmac->generate(pktout.data, pktout.length + padding,
 			outgoing_sequence);
     outgoing_sequence++;	       /* whether or not we MACed */
-
-#ifdef DUMP_PACKETS
-    debug(("Sending packet len=%d\n", pktout.length + padding));
-    dmemdump(pktout.data, pktout.length + padding);
-#endif
 
     if (cscipher)
 	cscipher->encrypt(pktout.data, pktout.length + padding);
@@ -3435,6 +3505,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      */
     if (kex == &ssh_diffiehellman_gex) {
 	logevent("Doing Diffie-Hellman group exchange");
+	ssh_pkt_ctx |= SSH2_PKTCTX_DHGEX;
 	/*
 	 * Work out how big a DH group we will need to allow that
 	 * much data.
@@ -3455,6 +3526,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
 	kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
     } else {
+	ssh_pkt_ctx |= SSH2_PKTCTX_DHGROUP1;
 	dh_setup_group1();
 	kex_init_value = SSH2_MSG_KEXDH_INIT;
 	kex_reply_value = SSH2_MSG_KEXDH_REPLY;
@@ -3798,6 +3870,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	 * just in case it succeeds, and (b) so that we know what
 	 * authentication methods we can usefully try next.
 	 */
+	ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
+
 	ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
 	ssh2_pkt_addstring(username);
 	ssh2_pkt_addstring("ssh-connection");	/* service requested */
@@ -3919,6 +3993,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    }
 
 	    method = 0;
+	    ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 
 	    if (!method && can_pubkey && agent_exists() && !tried_agent) {
 		/*
@@ -3929,6 +4004,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		static int i, nkeys;
 		static int authed = FALSE;
 		void *r;
+
+		ssh_pkt_ctx |= SSH2_PKTCTX_PUBLICKEY;
 
 		tried_agent = TRUE;
 
@@ -4066,6 +4143,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 		tried_pubkey_config = TRUE;
 
+		ssh_pkt_ctx |= SSH2_PKTCTX_PUBLICKEY;
+
 		/*
 		 * Try the public key supplied in the configuration.
 		 *
@@ -4118,6 +4197,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 		tried_keyb_inter = TRUE;
 
+		ssh_pkt_ctx |= SSH2_PKTCTX_KBDINTER;
+
 		ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
 		ssh2_pkt_addstring(username);
 		ssh2_pkt_addstring("ssh-connection");	/* service requested */
@@ -4142,6 +4223,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		method = AUTH_KEYBOARD_INTERACTIVE;
 		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 		tried_keyb_inter = TRUE;
+
+		ssh_pkt_ctx |= SSH2_PKTCTX_KBDINTER;
 
 		/* We've got packet with that "interactive" info
 		   dump banners, and set its prompt as ours */
@@ -4169,6 +4252,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	    if (!method && can_passwd) {
 		method = AUTH_PASSWORD;
+		ssh_pkt_ctx |= SSH2_PKTCTX_PASSWORD;
 		sprintf(pwprompt, "%.90s@%.90s's password: ", username,
 			savedhost);
 		need_pw = TRUE;

@@ -257,6 +257,7 @@ enum { IDCX_ABOUT =
     IDC_LSTATOFF,
     IDC_LSTATASCII,
     IDC_LSTATRAW,
+    IDC_LSTATPACKET,
     IDC_LGFSTATIC,
     IDC_LGFEDIT,
     IDC_LGFBUTTON,
@@ -621,6 +622,7 @@ char *help_context_cmd(int id)
       case IDC_LSTATOFF:
       case IDC_LSTATASCII:
       case IDC_LSTATRAW:
+      case IDC_LSTATPACKET:
         return "JI(`',`logging.main')";
       case IDC_LGFSTATIC:
       case IDC_LGFEDIT:
@@ -1032,9 +1034,11 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_RLLUSEREDIT, cfg.localusername);
     SetDlgItemText(hwnd, IDC_LOGEDIT, cfg.username);
     SetDlgItemText(hwnd, IDC_LGFEDIT, cfg.logfilename);
-    CheckRadioButton(hwnd, IDC_LSTATOFF, IDC_LSTATRAW,
-		     cfg.logtype == 0 ? IDC_LSTATOFF :
-		     cfg.logtype == 1 ? IDC_LSTATASCII : IDC_LSTATRAW);
+    CheckRadioButton(hwnd, IDC_LSTATOFF, IDC_LSTATPACKET,
+		     cfg.logtype == LGTYP_NONE ? IDC_LSTATOFF :
+		     cfg.logtype == LGTYP_ASCII ? IDC_LSTATASCII :
+		     cfg.logtype == LGTYP_DEBUG ? IDC_LSTATRAW :
+		     IDC_LSTATPACKET);
     CheckRadioButton(hwnd, IDC_LSTATXOVR, IDC_LSTATXASK,
 		     cfg.logxfovr == LGXF_OVR ? IDC_LSTATXOVR :
 		     cfg.logxfovr == LGXF_ASK ? IDC_LSTATXASK :
@@ -1254,7 +1258,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == loggingpanelstart) {
-	/* The Logging panel. Accelerators used: [acgo] tplfwe */
+	/* The Logging panel. Accelerators used: [acgo] tplsfwe */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling session logging",
@@ -1264,7 +1268,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 "Session logging:", IDC_LSTATSTATIC,
 		 "Logging &turned off completely", IDC_LSTATOFF,
 		 "Log &printable output only", IDC_LSTATASCII,
-		 "&Log all session output", IDC_LSTATRAW, NULL);
+		 "&Log all session output", IDC_LSTATRAW,
+		 "Log &SSH packet data", IDC_LSTATPACKET,
+		 NULL);
 	editbutton(&cp, "Log &file name:",
 		   IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
 		   IDC_LGFBUTTON);
@@ -2608,14 +2614,17 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_LSTATOFF:
 	      case IDC_LSTATASCII:
 	      case IDC_LSTATRAW:
+	      case IDC_LSTATPACKET:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    if (IsDlgButtonChecked(hwnd, IDC_LSTATOFF))
-			cfg.logtype = 0;
+			cfg.logtype = LGTYP_NONE;
 		    if (IsDlgButtonChecked(hwnd, IDC_LSTATASCII))
-			cfg.logtype = 1;
+			cfg.logtype = LGTYP_ASCII;
 		    if (IsDlgButtonChecked(hwnd, IDC_LSTATRAW))
-			cfg.logtype = 2;
+			cfg.logtype = LGTYP_DEBUG;
+		    if (IsDlgButtonChecked(hwnd, IDC_LSTATPACKET))
+			cfg.logtype = LGTYP_PACKETS;
 		}
 		break;
 	      case IDC_LSTATXASK:

@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.20 2001/12/14 12:48:24 simon Exp $
+\versionid $Id: config.but,v 1.21 2001/12/14 14:57:50 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -135,6 +135,14 @@ you are experiencing problems with PuTTY's terminal handling: you
 can record everything that went to the terminal, so that someone
 else can replay the session later in slow motion and watch to see
 what went wrong.
+
+\b \q{Log SSH packet data}. In this mode (which is only used by SSH
+connections), the SSH message packets sent over the encrypted
+connection are written to the log file. You might need this to debug
+a network-level problem, or more likely to send to the PuTTY authors
+as part of a bug report. \e{BE WARNED} that if you log in using a
+password, the password will appear in the log file, so be sure to
+edit it out before sending the log file to anyone else!
 
 \S{config-logfilename} \q{Log file name}
 
