@@ -2717,8 +2717,26 @@ void term_out(Terminal *term)
 
 			break;
 		      case 0:
-			add_cc(cline, term->curs.x - !term->wrapnext, c);
-			term->seen_disp_event = 1;
+			if (term->curs.x > 0) {
+			    int x = term->curs.x - 1;
+
+			    /* If we're in wrapnext state, the character
+			     * to combine with is _here_, not to our left. */
+			    if (term->wrapnext)
+				x++;
+
+			    /*
+			     * If the previous character is
+			     * UCSWIDE, back up another one.
+			     */
+			    if (cline->chars[x].chr == UCSWIDE) {
+				assert(x > 0);
+				x--;
+			    }
+
+			    add_cc(cline, x, c);
+			    term->seen_disp_event = 1;
+			}
 			continue;
 		      default:
 			continue;
