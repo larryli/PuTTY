@@ -696,10 +696,12 @@ static void enact_pending_netevent(void) {
 	if (cfg.close_on_exit)
 	    PostQuitMessage(0);
 	else {
-	    session_closed = TRUE;
-	    MessageBox(hwnd, "Connection closed by remote host",
-		       "PuTTY", MB_OK | MB_ICONINFORMATION);
-	    SetWindowText (hwnd, "PuTTY (inactive)");
+            if (!session_closed) {
+                session_closed = TRUE;
+                SetWindowText (hwnd, "PuTTY (inactive)");
+                MessageBox(hwnd, "Connection closed by remote host",
+                           "PuTTY", MB_OK | MB_ICONINFORMATION);
+            }
 	}
     }
 }
