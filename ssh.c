@@ -5646,6 +5646,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(ssh);
 	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
 	add234(ssh->channels, ssh->mainchan);
+	update_specials_menu(ssh->frontend);
 	logevent("Opened channel for session");
     } else
 	ssh->mainchan = NULL;
@@ -6227,7 +6228,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		/* Do pre-close processing on the channel. */
 		switch (c->type) {
 		  case CHAN_MAINSESSION:
-		    break;	       /* nothing to see here, move along */
+		    ssh->mainchan = NULL;
+		    update_specials_menu(ssh->frontend);
+		    break;
 		  case CHAN_X11:
 		    if (c->u.x11.s != NULL)
 			x11_close(c->u.x11.s);
@@ -6878,23 +6881,49 @@ static void ssh_size(void *handle, int width, int height)
  */
 static const struct telnet_special *ssh_get_specials(void *handle)
 {
+    static const struct telnet_special ignore_special[] = {
+	{"IGNORE message", TS_NOP},
+    };
+    static const struct telnet_special ssh2_session_specials[] = {
+	{"", 0},
+	{"Break", TS_BRK}
+	/* XXX we should also support signals */
+    };
+    static const struct telnet_special specials_end[] = {
+	{NULL, 0}
+    };
+    static struct telnet_special ssh_specials[lenof(ignore_special) +
+					      lenof(ssh2_session_specials) +
+					      lenof(specials_end)];
     Ssh ssh = (Ssh) handle;
+    int i = 0;
+#define ADD_SPECIALS(name) \
+    do { \
+	assert((i + lenof(name)) <= lenof(ssh_specials)); \
+	memcpy(&ssh_specials[i], name, sizeof name); \
+	i += lenof(name); \
+    } while(0)
 
     if (ssh->version == 1) {
-	static const struct telnet_special ssh1_specials[] = {
-	    {"IGNORE message", TS_NOP},
-	    {NULL, 0}
-	};
-	return ssh1_specials;
+	/* Don't bother offering IGNORE if we've decided the remote
+	 * won't cope with it, since we wouldn't bother sending it if
+	 * asked anyway. */
+	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
+	    ADD_SPECIALS(ignore_special);
     } else if (ssh->version == 2) {
-	static const struct telnet_special ssh2_specials[] = {
-	    {"Break", TS_BRK},
-	    {"IGNORE message", TS_NOP},
-	    {NULL, 0}
-	};
-	return ssh2_specials;
-    } else
+	/* XXX add rekey, when implemented */
+	ADD_SPECIALS(ignore_special);
+	if (ssh->mainchan)
+	    ADD_SPECIALS(ssh2_session_specials);
+    } /* else we're not ready yet */
+
+    if (i) {
+	ADD_SPECIALS(specials_end);
+	return ssh_specials;
+    } else {
 	return NULL;
+    }
+#undef ADD_SPECIALS
 }
 
 /*
