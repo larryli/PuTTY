@@ -786,7 +786,8 @@ static int telnet_sendbuffer(void *handle)
 static void telnet_size(void *handle, int width, int height)
 {
     Telnet telnet = (Telnet) handle;
-    unsigned char b[16];
+    unsigned char b[24];
+    int n;
     char *logbuf;
 
     telnet->term_width = width;
@@ -794,19 +795,23 @@ static void telnet_size(void *handle, int width, int height)
 
     if (telnet->s == NULL || telnet->opt_states[o_naws.index] != ACTIVE)
 	return;
-    b[0] = IAC;
-    b[1] = SB;
-    b[2] = TELOPT_NAWS;
-    b[3] = telnet->term_width >> 8;
-    b[4] = telnet->term_width & 0xFF;
-    b[5] = telnet->term_height >> 8;
-    b[6] = telnet->term_height & 0xFF;
-    b[7] = IAC;
-    b[8] = SE;
-    telnet->bufsize = sk_write(telnet->s, b, 9);
+    n = 0;
+    b[n++] = IAC;
+    b[n++] = SB;
+    b[n++] = TELOPT_NAWS;
+    b[n++] = telnet->term_width >> 8;
+    if (b[n-1] == IAC) b[n++] = IAC;   /* duplicate any IAC byte occurs */
+    b[n++] = telnet->term_width & 0xFF;
+    if (b[n-1] == IAC) b[n++] = IAC;   /* duplicate any IAC byte occurs */
+    b[n++] = telnet->term_height >> 8;
+    if (b[n-1] == IAC) b[n++] = IAC;   /* duplicate any IAC byte occurs */
+    b[n++] = telnet->term_height & 0xFF;
+    if (b[n-1] == IAC) b[n++] = IAC;   /* duplicate any IAC byte occurs */
+    b[n++] = IAC;
+    b[n++] = SE;
+    telnet->bufsize = sk_write(telnet->s, b, n);
     logbuf = dupprintf("client:\tSB NAWS %d,%d",
-		       ((unsigned char) b[3] << 8) + (unsigned char) b[4],
-		       ((unsigned char) b[5] << 8) + (unsigned char) b[6]);
+		       telnet->term_width, telnet->term_height);
     logevent(telnet->frontend, logbuf);
     sfree(logbuf);
 }
