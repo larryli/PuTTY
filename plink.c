@@ -679,21 +679,26 @@ int main(int argc, char **argv)
 		socket = sklist[i];
 		wp = (WPARAM) socket;
 		if (!WSAEnumNetworkEvents(socket, NULL, &things)) {
+                    static const struct { int bit, mask; } eventtypes[] = {
+                        {FD_CONNECT_BIT, FD_CONNECT},
+                        {FD_READ_BIT, FD_READ},
+                        {FD_CLOSE_BIT, FD_CLOSE},
+                        {FD_OOB_BIT, FD_OOB},
+                        {FD_WRITE_BIT, FD_WRITE},
+                        {FD_ACCEPT_BIT, FD_ACCEPT},
+                    };
+                    int e;
+
 		    noise_ultralight(socket);
 		    noise_ultralight(things.lNetworkEvents);
-		    if (things.lNetworkEvents & FD_CONNECT)
-			connopen &= select_result(wp, (LPARAM) FD_CONNECT);
-		    if (things.lNetworkEvents & FD_READ)
-			connopen &= select_result(wp, (LPARAM) FD_READ);
-		    if (things.lNetworkEvents & FD_CLOSE)
-			connopen &= select_result(wp, (LPARAM) FD_CLOSE);
-		    if (things.lNetworkEvents & FD_OOB)
-			connopen &= select_result(wp, (LPARAM) FD_OOB);
-		    if (things.lNetworkEvents & FD_WRITE)
-			connopen &= select_result(wp, (LPARAM) FD_WRITE);
-    		    if (things.lNetworkEvents & FD_ACCEPT)
-			connopen &= select_result(wp, (LPARAM) FD_ACCEPT);
 
+                    for (e = 0; e < lenof(eventtypes); e++)
+                        if (things.lNetworkEvents & eventtypes[e].mask) {
+                            LPARAM lp;
+                            int err = things.iErrorCode[eventtypes[e].bit];
+                            lp = WSAMAKESELECTREPLY(eventtypes[e].mask, err);
+                            connopen &= select_result(wp, lp);
+                        }
 		}
 	    }
 	} else if (n == 1) {
