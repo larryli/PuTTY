@@ -1743,14 +1743,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    {
 		int n = SendDlgItemMessage (hwnd, IDC_SESSLIST,
 					    LB_GETCURSEL, 0, 0);
+                int isdef;
 		if (n == LB_ERR) {
 		    MessageBeep(0);
 		    break;
 		}
-		load_settings (sessions[n],
-			       !!strcmp(sessions[n], "Default Settings"),
-                               &cfg);
+                isdef = !strcmp(sessions[n], "Default Settings");
+		load_settings (sessions[n], !isdef, &cfg);
 		init_dlg_ctrls(hwnd);
+                if (!isdef)
+                    SetDlgItemText(hwnd, IDC_SESSEDIT, sessions[n]);
 	    }
 	    if (LOWORD(wParam) == IDC_SESSLIST) {
 		/*
