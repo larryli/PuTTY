@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.37 2002/09/08 13:28:38 simon Exp $
+\versionid $Id: config.but,v 1.38 2002/09/10 12:30:45 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1692,6 +1692,12 @@ between the encryptions you consider secure and the ones you
 consider substandard. By default, PuTTY supplies a preference order
 intended to reflect a reasonable preference in terms of security and
 speed.
+
+In SSH-2, the encryption algorithm is negotiated independently for
+each direction of the connection, although PuTTY does not support
+separate configuration of the preference orders. As a result you may
+get two warnings similar to the one above, possibly with different
+encryptions.
 
 Single-DES is not supported natively in the SSH 2 draft protocol
 standards. One or two server implementations do support it, by a
