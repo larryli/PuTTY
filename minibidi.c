@@ -38,6 +38,14 @@
 #define OISL	0x80	/* Override is L */
 #define OISR	0x40	/* Override is R */
 
+/* For standalone compilation in a testing mode.
+ * Still depends on the PuTTY headers for snewn and sfree, but can avoid
+ * _linking_ with any other PuTTY code. */
+#ifdef TEST_GETTYPE
+#define safemalloc malloc
+#define safefree free
+#endif
+
 /* Shaping Helpers */
 #define STYPE(xh) ((((xh) >= SHAPE_FIRST) && ((xh) <= SHAPE_LAST)) ? \
 shapetypes[(xh)-SHAPE_FIRST].type : SU) /*))*/
@@ -848,7 +856,7 @@ unsigned char getType(int ch)
     i = -1;
     j = lenof(lookup);
 
-    while (j - i > 2) {
+    while (j - i > 1) {
 	k = (i + j) / 2;
 	if (ch < lookup[k].first)
 	    j = k;
@@ -1810,3 +1818,47 @@ void doMirror(wchar_t* ch)
 	}
     }
 }
+
+#ifdef TEST_GETTYPE
+
+#include <stdio.h>
+#include <assert.h>
+
+int main(int argc, char **argv)
+{
+    static const struct { int type; char *name; } typetoname[] = {
+#define TYPETONAME(X) { X , #X }
+	TYPETONAME(L),
+	TYPETONAME(LRE),
+	TYPETONAME(LRO),
+	TYPETONAME(R),
+	TYPETONAME(AL),
+	TYPETONAME(RLE),
+	TYPETONAME(RLO),
+	TYPETONAME(PDF),
+	TYPETONAME(EN),
+	TYPETONAME(ES),
+	TYPETONAME(ET),
+	TYPETONAME(AN),
+	TYPETONAME(CS),
+	TYPETONAME(NSM),
+	TYPETONAME(BN),
+	TYPETONAME(B),
+	TYPETONAME(S),
+	TYPETONAME(WS),
+	TYPETONAME(ON),
+#undef TYPETONAME
+    };
+    int i;
+
+    for (i = 1; i < argc; i++) {
+	unsigned long chr = strtoul(argv[i], NULL, 0);
+	int type = getType(chr);
+	assert(typetoname[type].type == type);
+	printf("U+%04x: %s\n", chr, typetoname[type].name);
+    }
+
+    return 0;
+}
+
+#endif
