@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.2 2002/12/12 23:55:51 ben Exp $ */
+/* $Id: macstore.c,v 1.3 2002/12/28 22:22:43 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -87,7 +87,6 @@ struct write_settings {
 void *open_settings_w(char *sessionname) {
     short sessVRefNum, tmpVRefNum;
     long sessDirID, tmpDirID;
-    FSSpec sessfile;
     OSErr error;
     Str255 psessionname;
     struct write_settings *ws;
@@ -247,7 +246,6 @@ char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
 int read_setting_i(void *handle, char *key, int defvalue) {
     int fd;
     Handle h;
-    OSErr error;
     int value;
 
     if (handle == NULL) goto out;

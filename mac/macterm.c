@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.23 2002/12/13 00:02:48 ben Exp $ */
+/* $Id: macterm.c,v 1.24 2002/12/28 22:22:43 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -119,7 +119,7 @@ static void inbuf_putstr(Session *s, const char *c) {
 
 static void display_resource(Session *s, unsigned long type, short id) {
     Handle h;
-    int len, i;
+    int len;
     char *t;
 
     h = GetResource(type, id);
@@ -140,7 +140,6 @@ void mac_newsession(void) {
     Session *s;
     UInt32 starttime;
     char msg[128];
-    OSErr err;
 
     /* This should obviously be initialised by other means */
     s = smalloc(sizeof(*s));
@@ -270,7 +269,6 @@ static void mac_adjustsize(Session *s, int newrows, int newcols) {
 }
 
 static void mac_initpalette(Session *s) {
-    int i;
 
     if (!HAVE_COLOR_QD())
 	return;

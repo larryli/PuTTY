@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.7 2002/12/13 00:02:48 ben Exp $ */
+/* $Id: mac.c,v 1.8 2002/12/28 22:22:43 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -456,11 +456,6 @@ static void mac_openabout(void) {
 }
 
 static void mac_openlicence(void) {
-    DialogItemType itemtype;
-    Handle item;
-    VersRecHndl vers;
-    Rect box;
-    StringPtr longvers;
 
     if (windows.licence)
 	SelectWindow(windows.licence);
