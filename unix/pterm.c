@@ -1927,11 +1927,26 @@ int do_cmdline(int argc, char **argv, int do_everything)
     return err;
 }
 
+static void block_signal(int sig, int block_it) {
+  sigset_t ss;
+
+  sigemptyset(&ss);
+  sigaddset(&ss, sig);
+  if(sigprocmask(block_it ? SIG_BLOCK : SIG_UNBLOCK, &ss, 0) < 0) {
+    perror("sigprocmask");
+    exit(1);
+  }
+}
+
 int main(int argc, char **argv)
 {
     extern int pty_master_fd;	       /* declared in pty.c */
     extern void pty_pre_init(void);    /* declared in pty.c */
     struct gui_data *inst;
+
+    /* defer any child exit handling until we're ready to deal with
+     * it */
+    block_signal(SIGCHLD, 1);
 
     pty_pre_init();
 
@@ -2090,6 +2105,10 @@ int main(int argc, char **argv)
     inst->master_func_id = gdk_input_add(pty_master_fd, GDK_INPUT_READ,
 					 pty_input_func, inst);
 
+    /* now we're reday to deal with the child exit handler being
+     * called */
+    block_signal(SIGCHLD, 0);
+    
     gtk_main();
 
     return 0;

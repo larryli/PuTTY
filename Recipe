@@ -137,6 +137,6 @@ puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshpubk sshaes sshsh512 import winutils puttygen.res LIBS
 
 pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
-         + logging uxprint settings pty be_none uxstore
+         + logging uxprint settings pty be_none uxstore signal
 
 plink    : [U] uxplink uxcons NONSSH UXSSH be_all logging UXMISC

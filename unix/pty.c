@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#include <errno.h>
 
 #include "putty.h"
 
@@ -74,8 +75,8 @@ static int pty_stamped_utmp = 0;
 static int pty_child_pid;
 static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
 static int pty_term_width, pty_term_height;
-static sig_atomic_t pty_child_dead;
-static int pty_exit_code;
+static volatile sig_atomic_t pty_child_dead;
+static volatile int pty_exit_code;
 #ifndef OMIT_UTMP
 static struct utmp utmp_entry;
 #endif
@@ -163,18 +164,21 @@ static void cleanup_utmp(void)
 
 static void sigchld_handler(int signum)
 {
+    int save_errno = errno;
     pid_t pid;
     int status;
+
     pid = waitpid(-1, &status, WNOHANG);
     if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
 	pty_exit_code = status;
 	pty_child_dead = TRUE;
     }
+    errno = save_errno;
 }
 
 static void fatal_sig_handler(int signum)
 {
-    signal(signum, SIG_DFL);
+    putty_signal(signum, SIG_DFL);
     cleanup_utmp();
     setuid(getuid());
     raise(signum);
@@ -254,6 +258,9 @@ void pty_pre_init(void)
     pid_t pid;
     int pipefd[2];
 
+    /* set the child signal handler straight away; it needs to be set
+     * before we ever fork. */
+    putty_signal(SIGCHLD, sigchld_handler);
     pty_master_fd = -1;
 
     if (geteuid() != getuid() || getegid() != getgid()) {
@@ -289,7 +296,7 @@ void pty_pre_init(void)
 	    ret = read(pipefd[0], buffer, lenof(buffer));
 	    if (ret <= 0) {
 		cleanup_utmp();
-		exit(0);
+		_exit(0);
 	    } else if (!pty_stamped_utmp) {
 		if (dlen < lenof(display))
 		    memcpy(display+dlen, buffer,
@@ -307,47 +314,45 @@ void pty_pre_init(void)
 		     * unfortunately unprotected against SIGKILL,
 		     * but that's life.
 		     */
-		    signal(SIGHUP, fatal_sig_handler);
-		    signal(SIGINT, fatal_sig_handler);
-		    signal(SIGQUIT, fatal_sig_handler);
-		    signal(SIGILL, fatal_sig_handler);
-		    signal(SIGABRT, fatal_sig_handler);
-		    signal(SIGFPE, fatal_sig_handler);
-		    signal(SIGPIPE, fatal_sig_handler);
-		    signal(SIGALRM, fatal_sig_handler);
-		    signal(SIGTERM, fatal_sig_handler);
-		    signal(SIGSEGV, fatal_sig_handler);
-		    signal(SIGUSR1, fatal_sig_handler);
-		    signal(SIGUSR2, fatal_sig_handler);
+		    putty_signal(SIGHUP, fatal_sig_handler);
+		    putty_signal(SIGINT, fatal_sig_handler);
+		    putty_signal(SIGQUIT, fatal_sig_handler);
+		    putty_signal(SIGILL, fatal_sig_handler);
+		    putty_signal(SIGABRT, fatal_sig_handler);
+		    putty_signal(SIGFPE, fatal_sig_handler);
+		    putty_signal(SIGPIPE, fatal_sig_handler);
+		    putty_signal(SIGALRM, fatal_sig_handler);
+		    putty_signal(SIGTERM, fatal_sig_handler);
+		    putty_signal(SIGSEGV, fatal_sig_handler);
+		    putty_signal(SIGUSR1, fatal_sig_handler);
+		    putty_signal(SIGUSR2, fatal_sig_handler);
 #ifdef SIGBUS
-		    signal(SIGBUS, fatal_sig_handler);
+		    putty_signal(SIGBUS, fatal_sig_handler);
 #endif
 #ifdef SIGPOLL
-		    signal(SIGPOLL, fatal_sig_handler);
+		    putty_signal(SIGPOLL, fatal_sig_handler);
 #endif
 #ifdef SIGPROF
-		    signal(SIGPROF, fatal_sig_handler);
+		    putty_signal(SIGPROF, fatal_sig_handler);
 #endif
 #ifdef SIGSYS
-		    signal(SIGSYS, fatal_sig_handler);
+		    putty_signal(SIGSYS, fatal_sig_handler);
 #endif
 #ifdef SIGTRAP
-		    signal(SIGTRAP, fatal_sig_handler);
+		    putty_signal(SIGTRAP, fatal_sig_handler);
 #endif
 #ifdef SIGVTALRM
-		    signal(SIGVTALRM, fatal_sig_handler);
+		    putty_signal(SIGVTALRM, fatal_sig_handler);
 #endif
 #ifdef SIGXCPU
-		    signal(SIGXCPU, fatal_sig_handler);
+		    putty_signal(SIGXCPU, fatal_sig_handler);
 #endif
 #ifdef SIGXFSZ
-		    signal(SIGXFSZ, fatal_sig_handler);
+		    putty_signal(SIGXFSZ, fatal_sig_handler);
 #endif
 #ifdef SIGIO
-		    signal(SIGIO, fatal_sig_handler);
+		    putty_signal(SIGIO, fatal_sig_handler);
 #endif
-		    /* Also clean up utmp on normal exit. */
-		    atexit(cleanup_utmp);
 		    setup_utmp(pty_name, display);
 		}
 	    }
@@ -356,7 +361,6 @@ void pty_pre_init(void)
 	close(pipefd[0]);
 	pty_utmp_helper_pid = pid;
 	pty_utmp_helper_pipe = pipefd[1];
-	signal(SIGCHLD, sigchld_handler);
     }
 #endif
 
@@ -447,7 +451,7 @@ static char *pty_init(void *frontend, void **backend_handle,
 	slavefd = open(pty_name, O_RDWR);
 	if (slavefd < 0) {
 	    perror("slave pty: open");
-	    exit(1);
+	    _exit(1);
 	}
 
 	close(pty_master_fd);
@@ -475,8 +479,8 @@ static char *pty_init(void *frontend, void **backend_handle,
 	 * parent, particularly by things like sh -c 'pterm &' and
 	 * some window managers. Reverse this for our child process.
 	 */
-	signal(SIGINT, SIG_DFL);
-	signal(SIGQUIT, SIG_DFL);
+	putty_signal(SIGINT, SIG_DFL);
+	putty_signal(SIGQUIT, SIG_DFL);
 	if (pty_argv)
 	    execvp(pty_argv[0], pty_argv);
 	else {
@@ -496,13 +500,11 @@ static char *pty_init(void *frontend, void **backend_handle,
 	 * If we're here, exec has gone badly foom.
 	 */
 	perror("exec");
-	exit(127);
+	_exit(127);
     } else {
-	close(slavefd);
 	pty_child_pid = pid;
 	pty_child_dead = FALSE;
-	signal(SIGCHLD, sigchld_handler);
-    }
+    }      
 
     return NULL;
 }

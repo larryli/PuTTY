@@ -50,4 +50,7 @@ int next_socket(int *state, int *rwx);
 #define strnicmp strncasecmp
 #define stricmp strcasecmp
 
+/* BSD-semantics version of signal() */
+void (*putty_signal(int sig, void (*func)(int)))(int);
+
 #endif
