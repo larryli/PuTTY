@@ -461,7 +461,11 @@ void load_settings(char *section, int do_host, Config * cfg)
     gpps(sesskey, "WinTitle", "", cfg->wintitle, sizeof(cfg->wintitle));
     gppi(sesskey, "TermWidth", 80, &cfg->width);
     gppi(sesskey, "TermHeight", 24, &cfg->height);
+#ifdef _WINDOWS
     gpps(sesskey, "Font", "Courier New", cfg->font, sizeof(cfg->font));
+#else
+    gpps(sesskey, "Font", "fixed", cfg->font, sizeof(cfg->font));
+#endif
     gppi(sesskey, "FontIsBold", 0, &cfg->fontisbold);
 #ifdef _WINDOWS
     gppi(sesskey, "FontCharSet", ANSI_CHARSET, &cfg->fontcharset);

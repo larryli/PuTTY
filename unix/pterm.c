@@ -31,6 +31,7 @@ struct gui_data {
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
     GdkGC *black_gc, *white_gc;
+    int font_width, font_height;
 };
 
 static struct gui_data the_inst;
@@ -173,10 +174,10 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     if (inst->pixmap)
 	gdk_pixmap_unref(inst->pixmap);
 
-    inst->pixmap = gdk_pixmap_new(widget->window, 9*80, 15*24, -1);
+    inst->pixmap = gdk_pixmap_new(widget->window,
+				  cfg.width * inst->font_width,
+				  cfg.height * inst->font_height, -1);
 
-    inst->fonts[0] = gdk_font_load("9x15t");   /* XXCONFIG */
-    inst->fonts[1] = NULL;             /* XXCONFIG */
     inst->black_gc = widget->style->black_gc;
     inst->white_gc = widget->style->white_gc;
 
@@ -222,9 +223,10 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
      * back to do the actual painting.
      */
     term_paint(NULL, 
-	       event->area.x / 9, event->area.y / 15,
-	       (event->area.x + event->area.width - 1) / 9,
-	       (event->area.y + event->area.height - 1) / 15);
+	       event->area.x / inst->font_width,
+	       event->area.y / inst->font_height,
+	       (event->area.x + event->area.width - 1) / inst->font_width,
+	       (event->area.y + event->area.height - 1) / inst->font_height);
     return TRUE;
 }
 
@@ -767,22 +769,27 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     }
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
-    gdk_draw_rectangle(inst->pixmap, gc, 1, x*9, y*15, len*9, 15);
+    gdk_draw_rectangle(inst->pixmap, gc, 1,
+		       x*inst->font_width, y*inst->font_height,
+		       len*inst->font_width, inst->font_height);
     
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
-    gdk_draw_text(inst->pixmap, inst->fonts[0], gc,
-		  x*9, y*15 + inst->fonts[0]->ascent, text, len);
+    gdk_draw_text(inst->pixmap, inst->fonts[0], gc, x*inst->font_width,
+		  y*inst->font_height + inst->fonts[0]->ascent, text, len);
 
     if (attr & ATTR_UNDER) {
 	int uheight = inst->fonts[0]->ascent + 1;
-	if (uheight >= 15)
-	    uheight = 14;
-	gdk_draw_line(inst->pixmap, gc, x*9, y*15 + uheight,
-		      (x+len)*9-1, y*15+uheight);
+	if (uheight >= inst->font_height)
+	    uheight = inst->font_height - 1;
+	gdk_draw_line(inst->pixmap, gc, x*inst->font_width,
+		      y*inst->font_height + uheight,
+		      (x+len)*inst->font_width-1, y*inst->font_height+uheight);
     }
 
     gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-		    x*9, y*15, x*9, y*15, len*9, 15);
+		    x*inst->font_width, y*inst->font_height,
+		    x*inst->font_width, y*inst->font_height,
+		    len*inst->font_width, inst->font_height);
 }
 
 void do_cursor(Context ctx, int x, int y, char *text, int len,
@@ -802,9 +809,13 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     do_text(ctx, x, y, text, len, attr, lattr);
     if (passive) {
 	gdk_gc_set_foreground(gc, &inst->cols[NCOLOURS-1]);
-	gdk_draw_rectangle(inst->pixmap, gc, 0, x*9, y*15, len*9-1, 15-1);
+	gdk_draw_rectangle(inst->pixmap, gc, 0,
+			   x*inst->font_width, y*inst->font_height,
+			   len*inst->font_width-1, inst->font_height-1);
 	gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
-			x*9, y*15, x*9, y*15, len*9, 15);
+			x*inst->font_width, y*inst->font_height,
+			x*inst->font_width, y*inst->font_height,
+			len*inst->font_width, inst->font_height);
     }
 }
 
@@ -828,6 +839,11 @@ int main(int argc, char **argv)
 
     do_defaults(NULL, &cfg);
 
+    inst->fonts[0] = gdk_font_load(cfg.font);
+    inst->fonts[1] = NULL;             /* FIXME: what about bold font? */
+    inst->font_width = gdk_char_width(inst->fonts[0], ' ');
+    inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
+
     init_ucs();
 
     back = &pty_backend;
@@ -836,7 +852,8 @@ int main(int argc, char **argv)
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
-			  9*80, 15*24);/* FIXME: proper resizing stuff */
+			  inst->font_width * cfg.width,
+			  inst->font_height * cfg.height);
 
     gtk_container_add(GTK_CONTAINER(window), inst->area);
 
