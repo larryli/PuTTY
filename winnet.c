@@ -901,6 +901,25 @@ int select_result(WPARAM wParam, LPARAM lParam)
     u_long atmark;
 
     /* wParam is the socket itself */
+
+    /*
+     * One user has reported an assertion failure in tree234 which
+     * indicates a null element pointer has been passed to a
+     * find*234 function. The following find234 is the only one in
+     * the whole program that I can see being capable of doing
+     * this, hence I'm forced to conclude that WinSock is capable
+     * of sending me netevent messages with wParam==0. I want to
+     * know what the rest of the message is if it does so!
+     */
+    if (wParam == 0) {
+	char *str;
+	str = dupprintf("Strange WinSock message: wp=%08x lp=%08x",
+			(int)wParam, (int)lParam);
+	logevent(NULL, str);
+	connection_fatal(NULL, str);
+	sfree(str);
+    }
+
     s = find234(sktree, (void *) wParam, cmpforsearch);
     if (!s)
 	return 1;		       /* boggle */
