@@ -2422,6 +2422,10 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		 * against password length sniffing.
 		 */
 		if (!(ssh_remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE)) {
+		    /*
+		     * The server can deal with SSH1_MSG_IGNORE, so
+		     * we can use the primary defence.
+		     */
 		    int bottom, top, pwlen, i;
 		    char *randomstr;
 
@@ -2457,6 +2461,11 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		    ssh_pkt_defersend();
 		} 
 		else if (!(ssh_remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
+		    /*
+		     * The server can't deal with SSH1_MSG_IGNORE
+		     * but can deal with padded passwords, so we
+		     * can use the secondary defence.
+		     */
 		    char string[64];
 		    char *s;
 		    int len;
