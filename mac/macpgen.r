@@ -1,4 +1,4 @@
-/* $Id: macpgen.r,v 1.2 2003/02/15 14:20:43 ben Exp $ */
+/* $Id: macpgen.r,v 1.3 2003/02/16 14:27:37 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -448,8 +448,8 @@ resource 'DLOG' (wKey, "key", purgeable) {
     noGrowDocProc,
     invisible,
     goAway,
-    wAbout,		/* RefCon -- identifies the window to PuTTY */
-    wAbout,		/* DITL ID */
+    wKey,		/* RefCon -- identifies the window to PuTTY */
+    wKey,		/* DITL ID */
     "untitled",
     staggerParentWindowScreen
 };
@@ -462,6 +462,8 @@ resource 'dlgx' (wKey, "key", purgeable) {
 
 resource 'DITL' (wKey, "key", purgeable) {
     {
+	{ 13, 13, 33, 227 },
+	Button { enabled, "Generate" },
     }
 };
 
