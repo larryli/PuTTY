@@ -211,6 +211,12 @@ extern const struct ssh_compress ssh_zlib;
 const static struct ssh_compress *compressions[] = {
     &ssh_zlib, &ssh_comp_none };
 
+enum {                                 /* channel types */
+    CHAN_MAINSESSION,
+    CHAN_X11,
+    CHAN_AGENT,
+};
+
 /*
  * 2-3-4 tree storing channels.
  */
@@ -218,6 +224,11 @@ struct ssh_channel {
     unsigned remoteid, localid;
     int type;
     int closes;
+    struct ssh2_data_channel {
+        unsigned char *outbuffer;
+        unsigned outbuflen, outbufsize;
+        unsigned remwindow, remmaxpkt;
+    } v2;
     union {
         struct ssh_agent_channel {
             unsigned char *message;
@@ -226,12 +237,7 @@ struct ssh_channel {
         } a;
         struct ssh_x11_channel {
             Socket s;
-        } x11;  
-        struct ssh2_data_channel {
-            unsigned char *outbuffer;
-            unsigned outbuflen, outbufsize;
-            unsigned remwindow, remmaxpkt;
-        } v2;
+        } x11;
     } u;
 };
 
@@ -289,6 +295,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh_size(void);
 static void ssh_special (Telnet_Special);
+static void ssh2_try_send(struct ssh_channel *c);
+static void ssh2_add_channel_data(struct ssh_channel *c, char *buf, int len);
 
 static int (*s_rdpkt)(unsigned char **data, int *datalen);
 
@@ -808,15 +816,18 @@ static void sha_string(SHA_State *s, void *str, int len) {
 /*
  * SSH2 packet construction functions.
  */
-static void ssh2_pkt_adddata(void *data, int len) {
-    pktout.length += len;
-    if (pktout.maxlen < pktout.length) {
-        pktout.maxlen = pktout.length + 256;
+static void ssh2_pkt_ensure(int length) {
+    if (pktout.maxlen < length) {
+        pktout.maxlen = length + 256;
 	pktout.data = (pktout.data == NULL ? smalloc(pktout.maxlen+APIEXTRA) :
                        srealloc(pktout.data, pktout.maxlen+APIEXTRA));
         if (!pktout.data)
             fatalbox("Out of memory");
     }
+}
+static void ssh2_pkt_adddata(void *data, int len) {
+    pktout.length += len;
+    ssh2_pkt_ensure(pktout.length);
     memcpy(pktout.data+pktout.length-len, data, len);
 }
 static void ssh2_pkt_addbyte(unsigned char byte) {
@@ -910,6 +921,8 @@ static void ssh2_pkt_send(void) {
     cipherblk = cipherblk < 8 ? 8 : cipherblk;   /* or 8 if blksize < 8 */
     padding = 4;
     padding += (cipherblk - (pktout.length + padding) % cipherblk) % cipherblk;
+    maclen = csmac ? csmac->len : 0;
+    ssh2_pkt_ensure(pktout.length + padding + maclen);
     pktout.data[4] = padding;
     for (i = 0; i < padding; i++)
         pktout.data[pktout.length + i] = random_byte();
@@ -928,7 +941,6 @@ static void ssh2_pkt_send(void) {
 
     if (cscipher)
         cscipher->encrypt(pktout.data, pktout.length + padding);
-    maclen = csmac ? csmac->len : 0;
 
     sk_write(s, pktout.data, pktout.length + padding + maclen);
 }
@@ -1734,22 +1746,33 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 }
 
 void sshfwd_close(struct ssh_channel *c) {
-
-  if (c) {
-    send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid, PKT_END);
-    logevent("X11 connection terminated");
-    c->closes = 1;
-    c->u.x11.s = NULL;
-  }
+    if (c) {
+        if (ssh_version == 1) {
+            send_packet(SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid, PKT_END);
+        } else {
+            ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+            ssh2_pkt_adduint32(c->remoteid);
+            ssh2_pkt_send();
+        }
+        c->closes = 1;
+        if (c->type == CHAN_X11) {
+            c->u.x11.s = NULL;
+            logevent("X11 connection terminated");
+        }
+    }
 }
 
 void sshfwd_write(struct ssh_channel *c, char *buf, int len) {
-
-  send_packet(SSH1_MSG_CHANNEL_DATA,
-	      PKT_INT, c->remoteid,
-	      PKT_INT, len,
-	      PKT_DATA, buf, len,
-	      PKT_END);
+    if (ssh_version == 1) {
+        send_packet(SSH1_MSG_CHANNEL_DATA,
+                    PKT_INT, c->remoteid,
+                    PKT_INT, len,
+                    PKT_DATA, buf, len,
+                    PKT_END);
+    } else {
+        ssh2_add_channel_data(c, buf, len);
+        ssh2_try_send(c);
+    }
 }
 
 static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
@@ -1886,14 +1909,14 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 		    } else {
 		      logevent("opening X11 forward connection succeeded");
 		      for (i=1, d = first234(ssh_channels, &e); d; d = next234(&e)) {
-			if (d->localid > i)
-			  break;     /* found a free number */
-			i = d->localid + 1;
+                          if (d->localid > i)
+                              break;     /* found a free number */
+                          i = d->localid + 1;
 		      }
 		      c->remoteid = GET_32BIT(pktin.body);
 		      c->localid = i;
 		      c->closes = 0;
-		      c->type = SSH1_SMSG_X11_OPEN;/* identify channel type */
+		      c->type = CHAN_X11;   /* identify channel type */
 		      add234(ssh_channels, c);
 		      send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
 				  PKT_INT, c->remoteid, PKT_INT, c->localid,
@@ -1924,7 +1947,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 		    c->remoteid = GET_32BIT(pktin.body);
 		    c->localid = i;
 		    c->closes = 0;
-		    c->type = SSH1_SMSG_AGENT_OPEN;/* identify channel type */
+		    c->type = CHAN_AGENT;   /* identify channel type */
 		    c->u.a.lensofar = 0;
 		    add234(ssh_channels, c);
 		    send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
@@ -1941,7 +1964,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                     int closetype;
                     closetype = (pktin.type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
                     send_packet(pktin.type, PKT_INT, c->remoteid, PKT_END);
-		    if ((c->closes == 0) && (c->type == SSH1_SMSG_X11_OPEN)) {
+		    if ((c->closes == 0) && (c->type == CHAN_X11)) {
 		        logevent("X11 connection closed");
 			assert(c->u.x11.s != NULL);
 			x11_close(c->u.x11.s);
@@ -1962,10 +1985,10 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 c = find234(ssh_channels, &i, ssh_channelfind);
                 if (c) {
                     switch(c->type) {
-                      case SSH1_SMSG_X11_OPEN:
+                      case CHAN_X11:
 			x11_send(c->u.x11.s, p, len);
 			break;
-                      case SSH1_SMSG_AGENT_OPEN:
+                      case CHAN_AGENT:
                         /* Data for an agent message. Buffer it. */
                         while (len > 0) {
                             if (c->u.a.lensofar < 4) {
@@ -2418,6 +2441,45 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 }
 
 /*
+ * Add data to an SSH2 channel output buffer.
+ */
+static void ssh2_add_channel_data(struct ssh_channel *c, char *buf, int len) {
+    if (c->v2.outbufsize <
+        c->v2.outbuflen + len) {
+        c->v2.outbufsize =
+            c->v2.outbuflen + len + 1024;
+        c->v2.outbuffer = srealloc(c->v2.outbuffer,
+                                   c->v2.outbufsize);
+    }
+    memcpy(c->v2.outbuffer + c->v2.outbuflen,
+           buf, len);
+    c->v2.outbuflen += len;
+}
+
+/*
+ * Attempt to send data on an SSH2 channel.
+ */
+static void ssh2_try_send(struct ssh_channel *c) {
+    while (c->v2.remwindow > 0 &&
+           c->v2.outbuflen > 0) {
+        unsigned len = c->v2.remwindow;
+        if (len > c->v2.outbuflen)
+            len = c->v2.outbuflen;
+        if (len > c->v2.remmaxpkt)
+            len = c->v2.remmaxpkt;
+        ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
+        ssh2_pkt_adduint32(c->remoteid);
+        ssh2_pkt_addstring_start();
+        ssh2_pkt_addstring_data(c->v2.outbuffer, len);
+        ssh2_pkt_send();
+        c->v2.outbuflen -= len;
+        memmove(c->v2.outbuffer, c->v2.outbuffer+len,
+                c->v2.outbuflen);
+        c->v2.remwindow -= len;
+    }
+}
+
+/*
  * Handle the SSH2 userauth and connection layers.
  */
 static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
@@ -2591,11 +2653,56 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
         crReturnV;
     }
     mainchan->remoteid = ssh2_pkt_getuint32();
-    mainchan->u.v2.remwindow = ssh2_pkt_getuint32();
-    mainchan->u.v2.remmaxpkt = ssh2_pkt_getuint32();
-    mainchan->u.v2.outbuffer = NULL;
-    mainchan->u.v2.outbuflen = mainchan->u.v2.outbufsize = 0;
+    mainchan->type = CHAN_MAINSESSION;
+    mainchan->closes = 0;
+    mainchan->v2.remwindow = ssh2_pkt_getuint32();
+    mainchan->v2.remmaxpkt = ssh2_pkt_getuint32();
+    mainchan->v2.outbuffer = NULL;
+    mainchan->v2.outbuflen = mainchan->v2.outbufsize = 0;
+    ssh_channels = newtree234(ssh_channelcmp);
+    add234(ssh_channels, mainchan);
     logevent("Opened channel for session");
+
+    /*
+     * Potentially enable X11 forwarding.
+     */
+    if (cfg.x11_forward) {
+        char proto[20], data[64];
+        logevent("Requesting X11 forwarding");
+        x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
+        ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+        ssh2_pkt_adduint32(mainchan->remoteid);
+        ssh2_pkt_addstring("x11-req");
+        ssh2_pkt_addbool(1);           /* want reply */
+        ssh2_pkt_addbool(0);           /* many connections */
+        ssh2_pkt_addstring(proto);
+        ssh2_pkt_addstring(data);
+        ssh2_pkt_adduint32(0);         /* screen number */
+        ssh2_pkt_send();
+
+        do {
+            crWaitUntilV(ispkt);
+            if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
+                c->v2.remwindow += ssh2_pkt_getuint32();
+            }
+        } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+
+        if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
+            if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
+                bombout(("Server got confused by X11 forwarding request"));
+                crReturnV;
+            }
+            logevent("X11 forwarding refused");
+        } else {
+            logevent("X11 forwarding enabled");
+	    ssh_X11_fwd_enabled = TRUE;
+        }
+    }
 
     /*
      * Now allocate a pty for the session.
@@ -2618,10 +2725,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
         do {
             crWaitUntilV(ispkt);
             if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
-                /* FIXME: be able to handle other channels here */
-                if (ssh2_pkt_getuint32() != mainchan->localid)
-                    continue;          /* wrong channel */
-                mainchan->u.v2.remwindow += ssh2_pkt_getuint32();
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
+                c->v2.remwindow += ssh2_pkt_getuint32();
             }
         } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 
@@ -2653,10 +2762,12 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     do {
         crWaitUntilV(ispkt);
         if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
-            /* FIXME: be able to handle other channels here */
-            if (ssh2_pkt_getuint32() != mainchan->localid)
-                continue;          /* wrong channel */
-            mainchan->u.v2.remwindow += ssh2_pkt_getuint32();
+            unsigned i = ssh2_pkt_getuint32();
+            struct ssh_channel *c;
+            c = find234(ssh_channels, &i, ssh_channelfind);
+            if (!c)
+                continue;              /* nonexistent channel */
+            c->v2.remwindow += ssh2_pkt_getuint32();
         }
     } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
     if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
@@ -2690,23 +2801,32 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA) {
                 char *data;
                 int length;
-                /* FIXME: be able to handle other channels here */
-                if (ssh2_pkt_getuint32() != mainchan->localid)
-                    continue;          /* wrong channel */
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
                 if (pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
                     ssh2_pkt_getuint32() != SSH2_EXTENDED_DATA_STDERR)
                     continue;          /* extended but not stderr */
                 ssh2_pkt_getstring(&data, &length);
                 if (data) {
-                    from_backend(pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA,
-				 data, length);
+                    switch (c->type) {
+                      case CHAN_MAINSESSION:
+                        from_backend(pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA,
+                                     data, length);
+                        break;
+                      case CHAN_X11:
+                        x11_send(c->u.x11.s, data, length);
+                        break;
+                    }
                     /*
-                     * Enlarge the window again at the remote side,
-                     * just in case it ever runs down and they fail
-                     * to send us any more data.
+                     * Enlarge the window again at the remote
+                     * side, just in case it ever runs down and
+                     * they fail to send us any more data.
                      */
                     ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
-                    ssh2_pkt_adduint32(mainchan->remoteid);
+                    ssh2_pkt_adduint32(c->remoteid);
                     ssh2_pkt_adduint32(length);
                     ssh2_pkt_send();
                 }
@@ -2717,16 +2837,50 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_REQUEST) {
                 continue;              /* exit status et al; ignore (FIXME?) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_EOF) {
-                continue;              /* remote sends EOF; ignore */
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
+                
+                if (c->type == CHAN_X11) {
+                    /*
+                     * Remote EOF on an X11 channel means we should
+                     * wrap up and close the channel ourselves.
+                     */
+                    x11_close(c->u.x11.s);
+                    sshfwd_close(c);
+                }
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_CLOSE) {
-                /* FIXME: be able to handle other channels here */
-                if (ssh2_pkt_getuint32() != mainchan->localid)
-                    continue;          /* wrong channel */
-                ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-                ssh2_pkt_adduint32(mainchan->remoteid);
-                ssh2_pkt_send();
-                /* FIXME: mark the channel as closed */
-                if (1 /* FIXME: "all channels are closed" */) {
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+                enum234 e;
+
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
+                if (c->closes == 0) {
+                    ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+                    ssh2_pkt_adduint32(c->remoteid);
+                    ssh2_pkt_send();
+                }
+                /* Do pre-close processing on the channel. */
+                switch (c->type) {
+                  case CHAN_MAINSESSION:
+                    break;             /* nothing to see here, move along */
+                  case CHAN_X11:
+                    break;
+                }
+                del234(ssh_channels, c);
+                sfree(c->v2.outbuffer);
+                sfree(c);
+
+                /*
+                 * See if that was the last channel left open.
+                 */
+                c = first234(ssh_channels, &e);
+                if (!c) {
                     logevent("All channels closed. Disconnecting");
                     ssh2_pkt_init(SSH2_MSG_DISCONNECT);
                     ssh2_pkt_adduint32(SSH2_DISCONNECT_BY_APPLICATION);
@@ -2738,11 +2892,68 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 }
                 continue;              /* remote sends close; ignore (FIXME) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
-                /* FIXME: be able to handle other channels here */
-                if (ssh2_pkt_getuint32() != mainchan->localid)
-                    continue;          /* wrong channel */
-                mainchan->u.v2.remwindow += ssh2_pkt_getuint32();
+                unsigned i = ssh2_pkt_getuint32();
+                struct ssh_channel *c;
+                c = find234(ssh_channels, &i, ssh_channelfind);
+                if (!c)
+                    continue;          /* nonexistent channel */
+                mainchan->v2.remwindow += ssh2_pkt_getuint32();
                 try_send = TRUE;
+	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
+                char *type;
+                int typelen;
+                char *error = NULL;
+                struct ssh_channel *c;
+                ssh2_pkt_getstring(&type, &typelen);
+                c = smalloc(sizeof(struct ssh_channel));
+
+                if (typelen == 3 && !memcmp(type, "x11", 3)) {
+                    char *rh;
+                    if (!ssh_X11_fwd_enabled)
+                        error = "X11 forwarding is not enabled";
+                    else if ( x11_init(&c->u.x11.s, cfg.x11_display, c, &rh) != NULL ) {
+                        error = "Unable to open an X11 connection";
+                    } else {
+                        c->type = CHAN_X11;
+                    }
+                } else {
+                    error = "Unsupported channel type requested";
+                }
+
+                c->remoteid = ssh2_pkt_getuint32();
+                if (error) {
+                    ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_FAILURE);
+                    ssh2_pkt_adduint32(c->remoteid);
+                    ssh2_pkt_adduint32(SSH2_OPEN_CONNECT_FAILED);
+                    ssh2_pkt_addstring(error);
+                    ssh2_pkt_addstring("en");   /* language tag */
+                    ssh2_pkt_send();
+                    sfree(c);
+                } else {
+                    struct ssh_channel *d;
+                    unsigned i;
+                    enum234 e;
+
+                    for (i=1, d = first234(ssh_channels, &e); d;
+                         d = next234(&e)) {
+			if (d->localid > i)
+                            break;     /* found a free number */
+			i = d->localid + 1;
+                    }
+                    c->localid = i;
+                    c->closes = 0;
+                    c->v2.remwindow = ssh2_pkt_getuint32();
+                    c->v2.remmaxpkt = ssh2_pkt_getuint32();
+                    c->v2.outbuffer = NULL;
+                    c->v2.outbuflen = c->v2.outbufsize = 0;
+                    add234(ssh_channels, c);
+                    ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
+                    ssh2_pkt_adduint32(c->remoteid);
+                    ssh2_pkt_adduint32(c->localid);
+                    ssh2_pkt_adduint32(0x8000UL);  /* our window size */
+                    ssh2_pkt_adduint32(0x4000UL);  /* our max pkt size */
+                    ssh2_pkt_send();
+                }
 	    } else {
 		bombout(("Strange packet received: type %d", pktin.type));
                 crReturnV;
@@ -2751,40 +2962,17 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
             /*
              * We have spare data. Add it to the channel buffer.
              */
-            if (mainchan->u.v2.outbufsize <
-                mainchan->u.v2.outbuflen + inlen) {
-                mainchan->u.v2.outbufsize =
-                    mainchan->u.v2.outbuflen + inlen + 1024;
-                mainchan->u.v2.outbuffer = srealloc(mainchan->u.v2.outbuffer,
-                                                    mainchan->u.v2.outbufsize);
-            }
-            memcpy(mainchan->u.v2.outbuffer + mainchan->u.v2.outbuflen,
-                   in, inlen);
-            mainchan->u.v2.outbuflen += inlen;
+            ssh2_add_channel_data(mainchan, in, inlen);
             try_send = TRUE;
 	}
         if (try_send) {
+            enum234 e;
+            struct ssh_channel *c;
             /*
-             * Try to send data on the channel if we can. (FIXME:
-             * on _all_ channels.)
+             * Try to send data on all channels if we can.
              */
-            while (mainchan->u.v2.remwindow > 0 &&
-                   mainchan->u.v2.outbuflen > 0) {
-                unsigned len = mainchan->u.v2.remwindow;
-                if (len > mainchan->u.v2.outbuflen)
-                    len = mainchan->u.v2.outbuflen;
-                if (len > mainchan->u.v2.remmaxpkt)
-                    len = mainchan->u.v2.remmaxpkt;
-                ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
-                ssh2_pkt_adduint32(mainchan->remoteid);
-                ssh2_pkt_addstring_start();
-                ssh2_pkt_addstring_data(mainchan->u.v2.outbuffer, len);
-                ssh2_pkt_send();
-                mainchan->u.v2.outbuflen -= len;
-                memmove(mainchan->u.v2.outbuffer, mainchan->u.v2.outbuffer+len,
-                        mainchan->u.v2.outbuflen);
-                mainchan->u.v2.remwindow -= len;
-            }
+            for (c = first234(ssh_channels, &e); c; c = next234(&e))
+                ssh2_try_send(c);
         }
     }
 
