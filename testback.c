@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.7 2003/03/29 16:14:26 simon Exp $ */
+/* $Id: testback.c,v 1.8 2003/04/05 14:32:58 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -43,6 +43,7 @@ static int loop_send(void *, char *, int);
 static int null_sendbuffer(void *);
 static void null_size(void *, int, int);
 static void null_special(void *, Telnet_Special);
+static const struct telnet_special *null_get_specials(void *handle);
 static Socket null_socket(void *);
 static int null_exitcode(void *);
 static int null_sendok(void *);
@@ -53,14 +54,14 @@ static void null_unthrottle(void *, int);
 
 Backend null_backend = {
     null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
-    null_special, null_socket, null_exitcode, null_sendok, null_ldisc,
-    null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
+    null_special, null_get_specials, null_socket, null_exitcode, null_sendok,
+    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
 };
 
 Backend loop_backend = {
     loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
-    null_special, null_socket, null_exitcode, null_sendok, null_ldisc,
-    null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
+    null_special, null_get_specials, null_socket, null_exitcode, null_sendok,
+    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
 };
 
 struct loop_state {
@@ -121,6 +122,11 @@ static void null_size(void *handle, int width, int height) {
 
 static void null_special(void *handle, Telnet_Special code) {
 
+}
+
+static const struct telnet_special *null_get_specials (void *handle) {
+
+    return NULL;
 }
 
 static Socket null_socket(void *handle) {
