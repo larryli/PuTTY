@@ -1905,14 +1905,8 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	      HIWORD(wParam) == BN_DOUBLECLICKED))) {
 	    OPENFILENAME of;
 	    char filename[FILENAME_MAX];
-	    int ret;
 
 	    memset(&of, 0, sizeof(of));
-#ifdef OPENFILENAME_SIZE_VERSION_400
-	    of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
-	    of.lStructSize = sizeof(of);
-#endif
 	    of.hwndOwner = dp->hwnd;
 	    if (ctrl->fileselect.filter)
 		of.lpstrFilter = ctrl->fileselect.filter;
@@ -1925,14 +1919,9 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	    filename[lenof(filename)-1] = '\0';
 	    of.nMaxFile = lenof(filename);
 	    of.lpstrFileTitle = NULL;
-	    of.lpstrInitialDir = NULL;
 	    of.lpstrTitle = ctrl->fileselect.title;
 	    of.Flags = 0;
-	    if (ctrl->fileselect.for_writing)
-		ret = GetSaveFileName(&of);
-	    else
-		ret = GetOpenFileName(&of);
-	    if (ret) {
+	    if (request_file(NULL, &of, FALSE, ctrl->fileselect.for_writing)) {
 		SetDlgItemText(dp->hwnd, c->base_id + 1, filename);
 		ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
 	    }
