@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.15 2002/05/15 20:07:11 simon Exp $
+\versionid $Id: pubkey.but,v 1.16 2002/05/16 22:36:36 jacob Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -68,7 +68,7 @@ supported by PuTTY are described in \k{puttygen-keytype}.
 PuTTYgen is a key generator. It generates pairs of public and private
 keys to be used with PuTTY, PSCP, and Plink, as well as the PuTTY
 authentication agent, Pageant (see \k{pageant}).  PuTTYgen generates
-RSA keys.
+RSA and DSA keys.
 
 When you run PuTTYgen you will see a window where you have two
 choices: \q{Generate}, to generate a new public/private key pair, or
