@@ -4797,8 +4797,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect message");
 		crReturnV;
-	    } else if (pktin.type == SSH2_MSG_CHANNEL_REQUEST) {
-		continue;	       /* exit status et al; ignore (FIXME?) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_EOF) {
 		unsigned i = ssh2_pkt_getuint32();
 		struct ssh_channel *c;
@@ -4917,6 +4915,46 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 		del234(ssh_channels, c);
 		sfree(c);
+	    } else if (pktin.type == SSH2_MSG_CHANNEL_REQUEST) {
+ 		unsigned localid;
+		char *type;
+		int typelen, want_reply;
+		struct ssh_channel *c;
+
+		localid = ssh2_pkt_getuint32();
+		ssh2_pkt_getstring(&type, &typelen);
+		want_reply = ssh2_pkt_getbool();
+
+		/*
+		 * First, check that the channel exists. Otherwise,
+		 * we can instantly disconnect with a rude message.
+		 */
+		c = find234(ssh_channels, &localid, ssh_channelfind);
+		if (!c) {
+		    char buf[80];
+		    sprintf(buf, "Received channel request for nonexistent"
+			    " channel %d", localid);
+		    logevent(buf);
+		    ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+		    ssh2_pkt_adduint32(SSH2_DISCONNECT_BY_APPLICATION);
+		    ssh2_pkt_addstring(buf);
+		    ssh2_pkt_addstring("en");	/* language tag */
+		    ssh2_pkt_send();
+		    connection_fatal(buf);
+		    ssh_state = SSH_STATE_CLOSED;
+		    crReturnV;
+		}
+
+		/*
+		 * We don't recognise any form of channel request,
+		 * so we now either ignore the request or respond
+		 * with CHANNEL_FAILURE, depending on want_reply.
+		 */
+		if (want_reply) {
+		    ssh2_pkt_init(SSH2_MSG_CHANNEL_FAILURE);
+		    ssh2_pkt_adduint32(c->remoteid);
+		    ssh2_pkt_send();
+		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
 		int typelen;
