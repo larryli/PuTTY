@@ -15,6 +15,10 @@ typedef unsigned long long BignumDblInt;
 #define BIGNUM_TOP_BIT   0x80000000UL
 #define BIGNUM_INT_BITS  32
 #define MUL_WORD(w1, w2) ((BignumDblInt)w1 * w2)
+#define DIVMOD_WORD(q, r, hi, lo, w) \
+    __asm__("div %2" : \
+	    "=d" (r), "=a" (q) : \
+	    "r" (w), "d" (hi), "a" (lo))
 #else
 typedef unsigned short BignumInt;
 typedef unsigned long BignumDblInt;
@@ -22,6 +26,11 @@ typedef unsigned long BignumDblInt;
 #define BIGNUM_TOP_BIT   0x8000U
 #define BIGNUM_INT_BITS  16
 #define MUL_WORD(w1, w2) ((BignumDblInt)w1 * w2)
+#define DIVMOD_WORD(q, r, hi, lo, w) do { \
+    BignumDblInt n = (((BignumDblInt)hi) << BIGNUM_INT_BITS) | lo; \
+    q = n / w; \
+    r = n % w; \
+} while (0)
 #endif
 
 #define BIGNUM_INT_BYTES (BIGNUM_INT_BITS / 8)
@@ -175,13 +184,11 @@ static void internal_mod(BignumInt *a, int alen,
 	    ai1 = a[i + 1];
 
 	/* Find q = h:a[i] / m0 */
-	t = ((BignumDblInt) h << BIGNUM_INT_BITS) + a[i];
-	q = t / m0;
-	r = t % m0;
+	DIVMOD_WORD(q, r, h, a[i], m0);
 
 	/* Refine our estimate of q by looking at
 	   h:a[i]:a[i+1] / m0:m1 */
-	t = (BignumDblInt) m1 * (BignumDblInt) q;
+	t = MUL_WORD(m1, q);
 	if (t > ((BignumDblInt) r << BIGNUM_INT_BITS) + ai1) {
 	    q--;
 	    t -= m1;
@@ -193,7 +200,7 @@ static void internal_mod(BignumInt *a, int alen,
 	/* Subtract q * m from a[i...] */
 	c = 0;
 	for (k = mlen - 1; k >= 0; k--) {
-	    t = (BignumDblInt) q * (BignumDblInt) m[k];
+	    t = MUL_WORD(q, m[k]);
 	    t += c;
 	    c = t >> BIGNUM_INT_BITS;
 	    if ((BignumInt) t > a[i + k])
