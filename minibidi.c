@@ -1,5 +1,5 @@
 /************************************************************************
- * $Id: minibidi.c,v 1.1 2004/05/22 10:36:50 simon Exp $
+ * $Id$
  *
  * ------------
  * Description:
@@ -14,9 +14,9 @@
  * -----------------
  * Revision Details:    (Updated by Revision Control System)
  * -----------------
- *  $Date: 2004/05/22 10:36:50 $
- *  $Author: simon $
- *  $Revision: 1.1 $
+ *  $Date$
+ *  $Author$
+ *  $Revision$
  *  $Source: /u1/simon/svn-migration/cvs/putty/minibidi.c,v $
  *
  * (www.arabeyes.org - under MIT license)
@@ -55,7 +55,7 @@ void flipThisRun(bidi_char *from, unsigned char *level, int max, int count)
 	tlevel = max;
 	i = j = findIndexOfRun(level, i, count, max);
 	/* find the end of the run */
-	while(tlevel <= level[i] && i<count)
+	while(i<count && tlevel <= level[i])
 	{
 	    i++;
 	}
@@ -711,7 +711,8 @@ int do_bidi(bidi_char *line, int count)
 	    {
 		j++;
 	    }
-	    if(getType(line[j].wc) == B || getType(line[j].wc) == S)
+	    if(j==count || getType(line[j].wc) == B ||
+	       getType(line[j].wc) == S)
 	    {
 		for(j--; j>=i ; j--)
 		{
