@@ -4155,6 +4155,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 		    ssh2_pkt_getstring(&prompt, &prompt_len);
 		    strncpy(pwprompt, prompt, sizeof(pwprompt));
+		    pwprompt[prompt_len < sizeof(pwprompt) ?
+			     prompt_len : sizeof(pwprompt)-1] = '\0';
 		    need_pw = TRUE;
 
 		    echo = ssh2_pkt_getbool();
