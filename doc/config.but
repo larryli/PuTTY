@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.70 2003/10/08 20:09:55 owen Exp $
+\versionid $Id: config.but,v 1.71 2003/10/08 21:39:54 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1853,7 +1853,7 @@ standards, but one or two server implementations do support it.
 PuTTY can use single-DES to interoperate with
 these servers if you enable the \q{Enable legacy use of single-DES in
 SSH 2} option; by default this is disabled and PuTTY will stick to
-the standard.
+recommended ciphers.
 
 \H{config-ssh-auth} The Auth panel
 
