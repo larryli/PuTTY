@@ -361,10 +361,10 @@ void x11_override_throttle(Socket s, int enable)
  */
 int x11_send(Socket s, char *data, int len)
 {
-    struct X11Private *pr = (struct X11Private *) sk_get_private_ptr(s);
-
-    if (s == NULL)
+    struct X11Private *pr;
+    if (!s)
 	return 0;
+    pr = (struct X11Private *) sk_get_private_ptr(s);
 
     /*
      * Read the first packet.
