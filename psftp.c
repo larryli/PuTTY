@@ -1457,7 +1457,6 @@ static int sftp_action_rm(void *vctx, char *fname)
 
     if (!result) {
 	printf("rm %s: %s\n", fname, fxp_error());
-	sfree(fname);
 	return 0;
     }
 
@@ -1624,7 +1623,6 @@ static int sftp_action_chmod(void *vctx, char *fname)
     if (!result || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
 	printf("get attrs for %s: %s\n", fname,
 	       result ? "file permissions not provided" : fxp_error());
-	sfree(fname);
 	return 0;
     }
 
@@ -1644,7 +1642,6 @@ static int sftp_action_chmod(void *vctx, char *fname)
 
     if (!result) {
 	printf("set attrs for %s: %s\n", fname, fxp_error());
-	sfree(fname);
 	return 0;
     }
 
