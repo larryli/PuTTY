@@ -424,12 +424,17 @@ PuTTY's appearance.
 
 \S{config-cursor} Controlling the appearance of the cursor
 
-\# this will look considerably less silly when we bring in
-\# underline-versus-block-versus-vertical-line cursor configuration
-\# and also allow the cursor to vanish on keypress a la Word. Until
-\# then, this box does look silly with only one thing in it. Deal.
+The \q{Cursor appearance} option lets you configure the cursor to be
+a block, an underline, or a vertical line. A block cursor becomes an
+empty box when the window loses focus; an underline or a vertical
+line becomes dotted.
+
+The \q{Cursor blinks} option makes the cursor blink on and off. This
+works in any of the cursor modes.
 
 \S{config-font} Controlling the font used in the terminal window
+
+
 
 \S{config-title} Controlling the window title
 
