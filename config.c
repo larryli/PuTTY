@@ -1589,7 +1589,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	ctrl_settitle(b, "Connection/SSH",
 		      "Options controlling SSH connections");
 
-	if (midsession) {
+	if (midsession && protcfginfo == 1) {
 	    s = ctrl_getset(b, "Connection/SSH", "disclaimer", NULL);
 	    ctrl_text(s, "Nothing on this panel may be reconfigured in mid-"
 		      "session; it is only here so that sub-panels of it can "
@@ -1614,10 +1614,20 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  HELPCTX(ssh_noshell),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,ssh_no_shell)));
+	}
+
+	if (!midsession || protcfginfo != 1) {
+	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
+
 	    ctrl_checkbox(s, "Enable compression", 'e',
 			  HELPCTX(ssh_compress),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,compression)));
+	}
+
+	if (!midsession) {
+	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
+
 	    ctrl_radiobuttons(s, "Preferred SSH protocol version:", NO_SHORTCUT, 4,
 			      HELPCTX(ssh_protocol),
 			      dlg_stdradiobutton_handler,
@@ -1626,7 +1636,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			      "1", '1', I(1),
 			      "2", '2', I(2),
 			      "2 only", 'y', I(3), NULL);
+	}
 
+	if (!midsession || protcfginfo != 1) {
 	    s = ctrl_getset(b, "Connection/SSH", "encryption", "Encryption options");
 	    c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
 			      HELPCTX(ssh_ciphers),

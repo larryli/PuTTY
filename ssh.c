@@ -750,6 +750,7 @@ struct ssh_tag {
     unsigned long max_data_size;
     int kex_in_progress;
     long next_rekey, last_rekey;
+    char *deferred_rekey_reason;    /* points to STATIC string; don't free */
 };
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -4649,7 +4650,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	int n_preferred_ciphers;
 	const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
 	const struct ssh_compress *preferred_comp;
-	int first_kex;
+	int got_session_id, activated_authconn;
 	struct Packet *pktout;
     };
     crState(do_ssh2_transport_state);
@@ -4660,10 +4661,20 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     s->csmac_tobe = s->scmac_tobe = NULL;
     s->cscomp_tobe = s->sccomp_tobe = NULL;
 
-    s->first_kex = 1;
+    s->got_session_id = s->activated_authconn = FALSE;
 
+    /*
+     * Be prepared to work around the buggy MAC problem.
+     */
+    if (ssh->remote_bugs & BUG_SSH2_HMAC)
+	s->maclist = buggymacs, s->nmacs = lenof(buggymacs);
+    else
+	s->maclist = macs, s->nmacs = lenof(macs);
+
+  begin_key_exchange:
     {
-	int i;
+	int i, j, commalist_started;
+
 	/*
 	 * Set up the preferred key exchange. (NULL => warn below here)
 	 */
@@ -4691,10 +4702,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 		break;
 	    }
 	}
-    }
 
-    {
-	int i;
 	/*
 	 * Set up the preferred ciphers. (NULL => warn below here)
 	 */
@@ -4724,27 +4732,14 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 		break;
 	    }
 	}
-    }
 
-    /*
-     * Set up preferred compression.
-     */
-    if (ssh->cfg.compression)
-	s->preferred_comp = &ssh_zlib;
-    else
-	s->preferred_comp = &ssh_comp_none;
-
-    /*
-     * Be prepared to work around the buggy MAC problem.
-     */
-    if (ssh->remote_bugs & BUG_SSH2_HMAC)
-	s->maclist = buggymacs, s->nmacs = lenof(buggymacs);
-    else
-	s->maclist = macs, s->nmacs = lenof(macs);
-
-  begin_key_exchange:
-    {
-	int i, j, commalist_started;
+	/*
+	 * Set up preferred compression.
+	 */
+	if (ssh->cfg.compression)
+	    s->preferred_comp = &ssh_zlib;
+	else
+	    s->preferred_comp = &ssh_comp_none;
 
 	/*
 	 * Enable queueing of outgoing auth- or connection-layer
@@ -5116,7 +5111,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     verify_ssh_host_key(ssh->frontend,
 			ssh->savedhost, ssh->savedport, ssh->hostkey->keytype,
 			s->keystr, s->fingerprint);
-    if (s->first_kex) {		       /* don't bother logging this in rekeys */
+    if (!s->got_session_id) {     /* don't bother logging this in rekeys */
 	logevent("Host key fingerprint is:");
 	logevent(s->fingerprint);
     }
@@ -5129,9 +5124,11 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * the session id, used in session key construction and
      * authentication.
      */
-    if (s->first_kex)
+    if (!s->got_session_id) {
 	memcpy(ssh->v2_session_id, s->exchange_hash,
 	       sizeof(s->exchange_hash));
+	s->got_session_id = TRUE;
+    }
 
     /*
      * Send SSH2_MSG_NEWKEYS.
@@ -5249,14 +5246,25 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     }
 
     /*
-     * Key exchange is over. Schedule a timer for our next rekey.
+     * Key exchange is over. Loop straight back round if we have a
+     * deferred rekey reason.
+     */
+    if (ssh->deferred_rekey_reason) {
+	logevent(ssh->deferred_rekey_reason);
+	pktin = NULL;
+	ssh->deferred_rekey_reason = NULL;
+	goto begin_key_exchange;
+    }
+
+    /*
+     * Otherwise, schedule a timer for our next rekey.
      */
     ssh->kex_in_progress = FALSE;
     ssh->last_rekey = GETTICKCOUNT();
     if (ssh->cfg.ssh_rekey_time != 0)
 	ssh->next_rekey = schedule_timer(ssh->cfg.ssh_rekey_time*60*TICKSPERSEC,
 					 ssh2_timer, ssh);
-    
+
     /*
      * If this is the first key exchange phase, we must pass the
      * SSH2_MSG_NEWKEYS packet to the next layer, not because it
@@ -5265,10 +5273,10 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * exchange phases, we don't pass SSH2_MSG_NEWKEYS on, because
      * it would only confuse the layer above.
      */
-    if (!s->first_kex) {
+    if (s->activated_authconn) {
 	crReturn(1);
     }
-    s->first_kex = 0;
+    s->activated_authconn = TRUE;
 
     /*
      * Now we're encrypting. Begin returning 1 to the protocol main
@@ -7366,6 +7374,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->queuelen = ssh->queuesize = 0;
     ssh->queueing = FALSE;
     ssh->qhead = ssh->qtail = NULL;
+    ssh->deferred_rekey_reason = NULL;
 
     *backend_handle = ssh;
 
@@ -7503,7 +7512,7 @@ static void ssh_free(void *handle)
 static void ssh_reconfig(void *handle, Config *cfg)
 {
     Ssh ssh = (Ssh) handle;
-    char *rekeying = NULL;
+    char *rekeying = NULL, rekey_mandatory = FALSE;
     unsigned long old_max_data_size;
 
     pinger_reconfig(ssh->pinger, &ssh->cfg, cfg);
@@ -7530,11 +7539,27 @@ static void ssh_reconfig(void *handle, Config *cfg)
 	    rekeying = "Initiating key re-exchange (data limit lowered)";
     }
 
-    if (rekeying && !ssh->kex_in_progress) {
-	do_ssh2_transport(ssh, rekeying, -1, NULL);
+    if (ssh->cfg.compression != cfg->compression) {
+	rekeying = "Initiating key re-exchange (compression setting changed)";
+	rekey_mandatory = TRUE;
+    }
+
+    if (ssh->cfg.ssh2_des_cbc != cfg->ssh2_des_cbc ||
+	memcmp(ssh->cfg.ssh_cipherlist, cfg->ssh_cipherlist,
+	       sizeof(ssh->cfg.ssh_cipherlist))) {
+	rekeying = "Initiating key re-exchange (cipher settings changed)";
+	rekey_mandatory = TRUE;
     }
 
     ssh->cfg = *cfg;		       /* STRUCTURE COPY */
+
+    if (rekeying) {
+	if (!ssh->kex_in_progress) {
+	    do_ssh2_transport(ssh, rekeying, -1, NULL);
+	} else if (rekey_mandatory) {
+	    ssh->deferred_rekey_reason = rekeying;
+	}
+    }
 }
 
 /*
