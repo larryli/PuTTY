@@ -3,6 +3,7 @@
  * generator.
  */
 
+#include <Processes.h>
 #include <Types.h>
 #include <Timer.h>
 
@@ -16,9 +17,27 @@
  * free space and a process snapshot.
  */
 
+static void noise_get_processes(void (*func) (void *, int))
+{
+    ProcessSerialNumber psn = {0, kNoProcess};
+    ProcessInfoRec info;
+
+    for (;;) {
+	GetNextProcess(&psn);
+	if (psn.highLongOfPSN == 0 && psn.lowLongOfPSN == kNoProcess) return;
+	info.processInfoLength = sizeof(info);
+	info.processName = NULL;
+	info.processAppSpec = NULL;
+	GetProcessInformation(&psn, &info);
+	func(&info, sizeof(info));
+    }
+}
+
 void noise_get_heavy(void (*func) (void *, int))
 {
 
+    noise_get_light(func);
+    noise_get_processes(func);
     read_random_seed(func);
     /* Update the seed immediately, in case another instance uses it. */
     random_save_seed();
