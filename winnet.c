@@ -101,6 +101,7 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     ret->head = ret->tail = NULL;
     ret->writable = 1;		       /* to start with */
     ret->in_oob = FALSE;
+    ret->sending_oob = 0;
 
     /*
      * Open socket.
