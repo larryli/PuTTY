@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.52 2003/01/27 23:03:30 simon Exp $
+\versionid $Id: config.but,v 1.53 2003/02/01 02:09:02 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1497,7 +1497,7 @@ and your SOCKS 4 server cannot deal with it, this might be why.
 If your proxy requires authentication, you can enter a username and
 a password in the \q{Username} and \q{Password} boxes.
 
-Authentication is not supported for all forms of proxy:
+Authentication is not fully supported for all forms of proxy:
 
 \b Username and password authentication is supported for HTTP
 proxies and SOCKS 5 proxies.
@@ -1531,7 +1531,7 @@ password you specify. To get a literal \c{%} sign, enter \c{%%}.
 If the Telnet proxy server prompts for a username and password
 before commands can be sent, you can use a command such as:
 
-\c %user\\n%pass\\nconnect %host %port\\n
+\c %user\n%pass\nconnect %host %port\n
 
 This will send your username and password as the first two lines to 
 the proxy, followed by a command to connect to the desired host and 
