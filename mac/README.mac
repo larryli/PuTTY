@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.6 2002/12/30 23:15:46 ben Exp $
+$Id: README.mac,v 1.7 2003/01/02 18:09:21 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -32,9 +32,15 @@ Compiling it:
 
 Runtime requirements:
 
- PuTTY should run on any Macintosh running System 7.0 or later.  The
- Classic 68K build seems not to run under Mac OS X (even with
- Classic.app).
+ The Classic 68K build of PuTTY should work on any Macintosh running
+ System 7.0 or later.  It runs in the Classic environment in Mac OS X.
+
+ The CFM-68K build of PuTTY should work on any Macintosh with a 68020,
+ 68030 or 68040 processor and with either the CFM-68K Runtime Enabler
+ or Mac OS 7.6.1 or later installed.
+
+ The PowerPC build of PuTTY should work on any Power Macintosh.  It
+ runs in the Classic environment in Mac OS X.
 
 Known bugs:
 
