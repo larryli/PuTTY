@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.14 2003/02/01 15:44:08 ben Exp $ */
+/* $Id: macstore.c,v 1.15 2003/02/01 21:44:05 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -360,12 +360,92 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec font)
 
 int read_setting_filename(void *handle, const char *name, Filename *result)
 {
-    return !!read_setting_s(handle, name, result->path, sizeof(result->path));
+    int fd;
+    AliasHandle h;
+    Boolean changed;
+    OSErr err;
+
+    if (handle == NULL) goto out;
+    fd = *(int *)handle;
+    UseResFile(fd);
+    if (ResError() != noErr) goto out;
+    h = (AliasHandle)get1namedresource(rAliasType, name);
+    if (h == NULL) goto out;
+    if ((*h)->userType == 'pTTY' && (*h)->aliasSize == sizeof(**h))
+	memset(result, 0, sizeof(*result));
+    else {
+	err = ResolveAlias(NULL, h, &result->fss, &changed);
+	if (err != noErr && err != fnfErr) goto out;
+	if ((*h)->userType == 'pTTY') {
+	    long dirid;
+	    StrFileName fname;
+
+	    /* Tail of record is pascal string contaning leafname */
+	    if (FSpGetDirID(&result->fss, &dirid, FALSE) != noErr) goto out;
+	    memcpy(fname, (char *)*h + (*h)->aliasSize,
+		   GetHandleSize((Handle)h) - (*h)->aliasSize);
+	    err = FSMakeFSSpec(result->fss.vRefNum, dirid, fname,
+			       &result->fss);
+	    if (err != noErr && err != fnfErr) goto out;
+	}
+    }
+    ReleaseResource((Handle)h);
+    if (ResError() != noErr) goto out;
+    return 1;
+
+  out:
+    return 0;
 }
 
-void write_setting_filename(void *handle, const char *name, Filename result)
+void write_setting_filename(void *handle, const char *name, Filename fn)
 {
-    write_setting_s(handle, name, result.path);
+    int fd = *(int *)handle;
+    AliasHandle h;
+    int id;
+    OSErr error;
+
+    UseResFile(fd);
+    if (ResError() != noErr)
+        fatalbox("Failed to open saved session (%d)", ResError());
+
+    if (filename_is_null(fn)) {
+	/* Generate a special "null" alias */
+	h = (AliasHandle)NewHandle(sizeof(**h));
+	if (h == NULL)
+	    fatalbox("Failed to create fake alias");
+	(*h)->userType = 'pTTY';
+	(*h)->aliasSize = sizeof(**h);
+    } else {
+	error = NewAlias(NULL, &fn.fss, &h);
+	if (error == fnfErr) {
+	    /*
+	     * NewAlias can't create an alias for a nonexistent file.
+	     * Create an alias for the directory, and record the
+	     * filename as well.
+	     */
+	    FSSpec tmpfss;
+
+	    FSMakeFSSpec(fn.fss.vRefNum, fn.fss.parID, NULL, &tmpfss);
+	    error = NewAlias(NULL, &tmpfss, &h);
+	    if (error != noErr)
+		fatalbox("Failed to create alias");
+	    (*h)->userType = 'pTTY';
+	    SetHandleSize((Handle)h, (*h)->aliasSize + fn.fss.name[0] + 1);
+	    if (MemError() != noErr)
+		fatalbox("Failed to create alias");
+	    memcpy((char *)*h + (*h)->aliasSize, fn.fss.name,
+		   fn.fss.name[0] + 1);
+	}
+	if (error != noErr)
+	    fatalbox("Failed to create alias");
+    }
+    /* Put the data in a resource. */
+    id = Unique1ID(rAliasType);
+    if (ResError() != noErr)
+	fatalbox("Failed to get ID for resource %s (%d)", name, ResError());
+    addresource((Handle)h, rAliasType, id, name);
+    if (ResError() != noErr)
+	fatalbox("Failed to add resource %s (%d)", name, ResError());
 }
 
 void close_settings_r(void *handle) {

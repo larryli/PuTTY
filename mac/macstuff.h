@@ -5,17 +5,21 @@
 typedef void *Context; /* FIXME */
 
 #include <MacTypes.h>
-#include <stdio.h>		       /* for FILENAME_MAX */
+#include <Files.h>
+
+#include <stdio.h>
 
 struct Filename {
-    char path[FILENAME_MAX];
+    FSSpec fss;
 };
-#define f_open(filename, mode) ( fopen((filename).path, (mode)) )
+
+extern FILE * f_open(struct Filename, char const *);
 
 /* Suspiciously similar to an ICFontRecord */
 struct FontSpec {
     short size;
     Style face;
+    char pad;
     Str255 name;
 };
 

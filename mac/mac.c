@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.40 2003/02/01 17:24:26 simon Exp $ */
+/* $Id: mac.c,v 1.41 2003/02/01 21:44:05 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -771,9 +771,9 @@ Filename platform_default_filename(const char *name)
 {
     Filename ret;
     if (!strcmp(name, "LogFileName"))
-	strcpy(ret.path, "putty.log");
+	FSMakeFSSpec(0, 0, "\pputty.log", &ret.fss);
     else
-	*ret.path = '\0';
+	memset(&ret, 0, sizeof(ret));
     return ret;
 }
 
@@ -804,24 +804,80 @@ void platform_get_x11_auth(char *display, int *proto,
 Filename filename_from_str(const char *str)
 {
     Filename ret;
-    strncpy(ret.path, str, sizeof(ret.path));
-    ret.path[sizeof(ret.path)-1] = '\0';
+    Str255 tmp;
+
+    /* XXX This fails for filenames over 255 characters long. */
+    c2pstrcpy(tmp, str);
+    FSMakeFSSpec(0, 0, tmp, &ret.fss);
     return ret;
 }
 
+/*
+ * Convert a filename to a string for display purposes.
+ * See pp 2-44--2-46 of IM:Files
+ *
+ * XXX static storage considered harmful
+ */
 const char *filename_to_str(const Filename *fn)
 {
-    return fn->path;
+    CInfoPBRec pb;
+    Str255 dirname;
+    OSErr err;
+    static char *path = NULL;
+    char *newpath;
+
+    if (path != NULL) sfree(path);
+    path = smalloc(fn->fss.name[0]);
+    p2cstrcpy(path, fn->fss.name);
+    pb.dirInfo.ioNamePtr = dirname;
+    pb.dirInfo.ioVRefNum = fn->fss.vRefNum;
+    pb.dirInfo.ioDrParID = fn->fss.parID;
+    pb.dirInfo.ioFDirIndex = -1;
+    do {
+	pb.dirInfo.ioDrDirID = pb.dirInfo.ioDrParID;
+	err = PBGetCatInfoSync(&pb);
+
+	/* XXX Assume not A/UX */
+	newpath = smalloc(strlen(path) + dirname[0] + 2);
+	p2cstrcpy(newpath, dirname);
+	strcat(newpath, ":");
+	strcat(newpath, path);
+	sfree(path);
+	path = newpath;
+    } while (pb.dirInfo.ioDrDirID != fsRtDirID);
+    return path;
 }
 
 int filename_equal(Filename f1, Filename f2)
 {
-    return !strcmp(f1.path, f2.path);
+
+    return f1.fss.vRefNum == f2.fss.vRefNum &&
+	f1.fss.parID == f2.fss.parID &&
+	f1.fss.name[0] == f2.fss.name[0] &&
+	memcmp(f1.fss.name + 1, f2.fss.name + 1, f1.fss.name[0]) == 0;
 }
 
 int filename_is_null(Filename fn)
 {
-    return !*fn.path;
+
+    return fn.fss.vRefNum == 0 && fn.fss.parID == 0 && fn.fss.name[0] == 0;
+}
+
+FILE *f_open(Filename fn, char const *mode)
+{
+    short savevol;
+    long savedir;
+    char tmp[256];
+    FILE *ret;
+
+    HGetVol(NULL, &savevol, &savedir);
+    if (HSetVol(NULL, fn.fss.vRefNum, fn.fss.parID) == noErr) {
+	p2cstrcpy(tmp, fn.fss.name);
+	ret = fopen(tmp, mode);
+    } else
+	ret = NULL;
+    HSetVol(NULL, savevol, savedir);
+    return ret;
 }
 
 /*
