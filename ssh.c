@@ -271,7 +271,8 @@ enum {				       /* channel types */
     CHAN_MAINSESSION,
     CHAN_X11,
     CHAN_AGENT,
-    CHAN_SOCKDATA
+    CHAN_SOCKDATA,
+    CHAN_SOCKDATA_DORMANT	       /* one the remote hasn't confirmed */
 };
 
 /*
@@ -302,13 +303,37 @@ struct ssh_channel {
 };
 
 /*
- * 2-3-4 tree storing remote->local port forwardings (so we can
- * reject any attempt to open a port we didn't explicitly ask to
- * have forwarded).
+ * 2-3-4 tree storing remote->local port forwardings. SSH 1 and SSH
+ * 2 use this structure in different ways, reflecting SSH 2's
+ * altogether saner approach to port forwarding.
+ * 
+ * In SSH 1, you arrange a remote forwarding by sending the server
+ * the remote port number, and the local destination host:port.
+ * When a connection comes in, the server sends you back that
+ * host:port pair, and you connect to it. This is a ready-made
+ * security hole if you're not on the ball: a malicious server
+ * could send you back _any_ host:port pair, so if you trustingly
+ * connect to the address it gives you then you've just opened the
+ * entire inside of your corporate network just by connecting
+ * through it to a dodgy SSH server. Hence, we must store a list of
+ * host:port pairs we _are_ trying to forward to, and reject a
+ * connection request from the server if it's not in the list.
+ * 
+ * In SSH 2, each side of the connection minds its own business and
+ * doesn't send unnecessary information to the other. You arrange a
+ * remote forwarding by sending the server just the remote port
+ * number. When a connection comes in, the server tells you which
+ * of its ports was connected to; and _you_ have to remember what
+ * local host:port pair went with that port number.
+ * 
+ * Hence: in SSH 1 this structure stores host:port pairs we intend
+ * to allow connections to, and is indexed by those host:port
+ * pairs. In SSH 2 it stores a mapping from source port to
+ * destination host:port pair, and is indexed by source port.
  */
 struct ssh_rportfwd {
-    unsigned port;
-    char host[256];
+    unsigned sport, dport;
+    char dhost[256];
 };
 
 struct Packet {
@@ -417,15 +442,29 @@ static int ssh_channelfind(void *av, void *bv)
     return 0;
 }
 
-static int ssh_rportcmp(void *av, void *bv)
+static int ssh_rportcmp_ssh1(void *av, void *bv)
 {
     struct ssh_rportfwd *a = (struct ssh_rportfwd *) av;
     struct ssh_rportfwd *b = (struct ssh_rportfwd *) bv;
     int i;
-    if ( (i = strcmp(a->host, b->host)) != 0)
+    if ( (i = strcmp(a->dhost, b->dhost)) != 0)
 	return i < 0 ? -1 : +1;
-    if (a->port > b->port)
+    if (a->dport > b->dport)
 	return +1;
+    if (a->dport < b->dport)
+	return -1;
+    return 0;
+}
+
+static int ssh_rportcmp_ssh2(void *av, void *bv)
+{
+    struct ssh_rportfwd *a = (struct ssh_rportfwd *) av;
+    struct ssh_rportfwd *b = (struct ssh_rportfwd *) bv;
+    int i;
+    if (a->sport > b->sport)
+	return +1;
+    if (a->sport < b->sport)
+	return -1;
     return 0;
 }
 
@@ -2383,7 +2422,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 	char sports[256], dports[256], host[256];
 	char buf[1024];
 
-	ssh_rportfwds = newtree234(ssh_rportcmp);
+	ssh_rportfwds = newtree234(ssh_rportcmp_ssh1);
         /* Add port forwardings. */
 	e = cfg.portfwd;
 	while (*e) {
@@ -2416,13 +2455,14 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = smalloc(sizeof(*pf));
-		    strcpy(pf->host, host);
-		    pf->port = dport;
+		    strcpy(pf->dhost, host);
+		    pf->dport = dport;
 		    if (add234(ssh_rportfwds, pf) != pf) {
 			sprintf(buf, 
 				"Duplicate remote port forwarding to %s:%s",
 				host, dport);
 			logevent(buf);
+			sfree(pf);
 		    } else {
 			sprintf(buf, "Requesting remote port %d forward to %s:%d",
 				sport, host, dport);
@@ -2580,8 +2620,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		*h = 0;
 		port = GET_32BIT(p);
 
-		strcpy(pf.host, host);
-		pf.port = port;
+		strcpy(pf.dhost, host);
+		pf.dport = port;
 
 		if (find234(ssh_rportfwds, &pf, NULL) == NULL) {
 		    sprintf(buf, "Rejected remote port open request for %s:%d",
@@ -2616,17 +2656,16 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		}
 
 	    } else if (pktin.type == SSH1_MSG_CHANNEL_OPEN_CONFIRMATION) {
-		    unsigned int remoteid = GET_32BIT(pktin.body);
-		    unsigned int localid = GET_32BIT(pktin.body+4);
-		    struct ssh_channel *c;
-		    
-		    c = find234(ssh_channels, &remoteid, ssh_channelfind);
-		    if (c) {
-			c->remoteid = localid;
-			pfd_confirm(c->u.pfd.s);
-		    } else {
-			sshfwd_close(c);
-		    }
+		unsigned int remoteid = GET_32BIT(pktin.body);
+		unsigned int localid = GET_32BIT(pktin.body+4);
+		struct ssh_channel *c;
+
+		c = find234(ssh_channels, &remoteid, ssh_channelfind);
+		if (c && c->type == CHAN_SOCKDATA_DORMANT) {
+		    c->remoteid = localid;
+		    c->type = CHAN_SOCKDATA;
+		    pfd_confirm(c->u.pfd.s);
+		}
 
 	    } else if (pktin.type == SSH1_MSG_CHANNEL_CLOSE ||
 		       pktin.type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
@@ -2672,8 +2711,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			x11_send(c->u.x11.s, p, len);
 			break;
 		      case CHAN_SOCKDATA:
-			      pfd_send(c->u.pfd.s, p, len);
-			      break;
+			pfd_send(c->u.pfd.s, p, len);
+			break;
 		      case CHAN_AGENT:
 			/* Data for an agent message. Buffer it. */
 			while (len > 0) {
@@ -4053,6 +4092,97 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     }
 
     /*
+     * Enable port forwardings.
+     */
+    {
+	static char *e;		       /* preserve across crReturn */
+	char type;
+	int n;
+	int sport,dport;
+	char sports[256], dports[256], host[256];
+	char buf[1024];
+
+	ssh_rportfwds = newtree234(ssh_rportcmp_ssh2);
+        /* Add port forwardings. */
+	e = cfg.portfwd;
+	while (*e) {
+	    type = *e++;
+	    n = 0;
+	    while (*e && *e != '\t')
+		sports[n++] = *e++;
+	    sports[n] = 0;
+	    if (*e == '\t')
+		e++;
+	    n = 0;
+	    while (*e && *e != ':')
+		host[n++] = *e++;
+	    host[n] = 0;
+	    if (*e == ':')
+		e++;
+	    n = 0;
+	    while (*e)
+		dports[n++] = *e++;
+	    dports[n] = 0;
+	    e++;
+	    dport = atoi(dports);
+	    sport = atoi(sports);
+	    if (sport && dport) {
+		if (type == 'L') {
+		    pfd_addforward(host, dport, sport);
+		    sprintf(buf, "Local port %d forwarding to %s:%d",
+			    sport, host, dport);
+		    logevent(buf);
+		} else {
+		    struct ssh_rportfwd *pf;
+		    pf = smalloc(sizeof(*pf));
+		    strcpy(pf->dhost, host);
+		    pf->dport = dport;
+		    pf->sport = sport;
+		    if (add234(ssh_rportfwds, pf) != pf) {
+			sprintf(buf, 
+				"Duplicate remote port forwarding to %s:%s",
+				host, dport);
+			logevent(buf);
+			sfree(pf);
+		    } else {
+			sprintf(buf, "Requesting remote port %d (forwarded to %s:%d)",
+				sport, host, dport);
+			logevent(buf);
+			ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
+			ssh2_pkt_addstring("tcpip-forward");
+			ssh2_pkt_addbool(1);/* want reply */
+			ssh2_pkt_addstring("127.0.0.1");
+			ssh2_pkt_adduint32(sport);
+			ssh2_pkt_send();
+
+			do {
+			    crWaitUntilV(ispkt);
+			    if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+				unsigned i = ssh2_pkt_getuint32();
+				struct ssh_channel *c;
+				c = find234(ssh_channels, &i, ssh_channelfind);
+				if (!c)
+				    continue;/* nonexistent channel */
+				c->v2.remwindow += ssh2_pkt_getuint32();
+			    }
+			} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+
+			if (pktin.type != SSH2_MSG_REQUEST_SUCCESS) {
+			    if (pktin.type != SSH2_MSG_REQUEST_FAILURE) {
+				bombout(("Server got confused by port forwarding request"));
+				crReturnV;
+			    }
+			    logevent("Server refused this port forwarding");
+			} else {
+			    logevent("Remote port forwarding enabled");
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    /*
      * Potentially enable agent forwarding.
      */
     if (cfg.agentfwd && agent_exists()) {
@@ -4212,8 +4342,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			x11_send(c->u.x11.s, data, length);
 			break;
 		      case CHAN_SOCKDATA:
-			      pfd_send(c->u.pfd.s, data, length);
-			      break;
+			pfd_send(c->u.pfd.s, data, length);
+			break;
 		      case CHAN_AGENT:
 			while (length > 0) {
 			    if (c->u.a.lensofar < 4) {
@@ -4298,8 +4428,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		} else if (c->type == CHAN_AGENT) {
 		    sshfwd_close(c);
 		} else if (c->type == CHAN_SOCKDATA) {
-			pfd_close(c->u.pfd.s);
-			sshfwd_close(c);
+		    pfd_close(c->u.pfd.s);
+		    sshfwd_close(c);
 		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_CLOSE) {
 		unsigned i = ssh2_pkt_getuint32();
@@ -4322,7 +4452,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		  case CHAN_AGENT:
 		    break;
 		  case CHAN_SOCKDATA:
-			  break;
+		    break;
 		}
 		del234(ssh_channels, c);
 		sfree(c->v2.outbuffer);
@@ -4350,13 +4480,34 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    continue;	       /* nonexistent channel */
 		c->v2.remwindow += ssh2_pkt_getuint32();
 		try_send = TRUE;
+	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
+		unsigned i = ssh2_pkt_getuint32();
+		struct ssh_channel *c;
+		c = find234(ssh_channels, &i, ssh_channelfind);
+		if (!c)
+		    continue;	       /* nonexistent channel */
+		if (c->type != CHAN_SOCKDATA_DORMANT)
+		    continue;	       /* dunno why they're confirming this */
+		c->remoteid = ssh2_pkt_getuint32();
+		c->type = CHAN_SOCKDATA;
+		c->closes = 0;
+		c->v2.remwindow = ssh2_pkt_getuint32();
+		c->v2.remmaxpkt = ssh2_pkt_getuint32();
+		c->v2.outbuffer = NULL;
+		c->v2.outbuflen = c->v2.outbufsize = 0;
+		pfd_confirm(c->u.pfd.s);
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
 		int typelen;
 		char *error = NULL;
 		struct ssh_channel *c;
+		unsigned remid, winsize, pktsize;
 		ssh2_pkt_getstring(&type, &typelen);
 		c = smalloc(sizeof(struct ssh_channel));
+
+		remid = ssh2_pkt_getuint32();
+		winsize = ssh2_pkt_getuint32();
+		pktsize = ssh2_pkt_getuint32();
 
 		if (typelen == 3 && !memcmp(type, "x11", 3)) {
 		    if (!ssh_X11_fwd_enabled)
@@ -4366,6 +4517,32 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			error = "Unable to open an X11 connection";
 		    } else {
 			c->type = CHAN_X11;
+		    }
+		} else if (typelen == 15 &&
+			   !memcmp(type, "forwarded-tcpip", 15)) {
+		    struct ssh_rportfwd pf, *realpf;
+		    char *dummy;
+		    int dummylen;
+		    ssh2_pkt_getstring(&dummy, &dummylen);/* skip address */
+		    pf.sport = ssh2_pkt_getuint32();
+		    realpf = find234(ssh_rportfwds, &pf, NULL);
+		    if (realpf == NULL) {
+			error = "Remote port is not recognised";
+		    } else {
+			char *e = pfd_newconnect(&c->u.pfd.s, realpf->dhost,
+						 realpf->dport, c);
+			char buf[1024];
+			sprintf(buf, "Received remote port open request for %s:%d",
+				realpf->dhost, realpf->dport);
+			logevent(buf);
+			if (e != NULL) {
+			    sprintf(buf, "Port open failed: %s", e);
+			    logevent(buf);
+			    error = "Port open failed";
+			} else {
+			    logevent("Forwarded port opened successfully");
+			    c->type = CHAN_SOCKDATA;
+			}
 		    }
 		} else if (typelen == 22 &&
 			   !memcmp(type, "auth-agent@openssh.com", 3)) {
@@ -4379,7 +4556,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    error = "Unsupported channel type requested";
 		}
 
-		c->remoteid = ssh2_pkt_getuint32();
+		c->remoteid = remid;
 		if (error) {
 		    ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_FAILURE);
 		    ssh2_pkt_adduint32(c->remoteid);
@@ -4391,8 +4568,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		} else {
 		    c->localid = alloc_channel_id();
 		    c->closes = 0;
-		    c->v2.remwindow = ssh2_pkt_getuint32();
-		    c->v2.remmaxpkt = ssh2_pkt_getuint32();
+		    c->v2.remwindow = winsize;
+		    c->v2.remmaxpkt = pktsize;
 		    c->v2.outbuffer = NULL;
 		    c->v2.outbuflen = c->v2.outbufsize = 0;
 		    add234(ssh_channels, c);
@@ -4555,10 +4732,10 @@ void *new_sock_channel(Socket s)
     c = smalloc(sizeof(struct ssh_channel));
 
     if (c) {
-	c->remoteid = GET_32BIT(pktin.body);
+	c->remoteid = -1;	       /* to be set when open confirmed */
 	c->localid = alloc_channel_id();
 	c->closes = 0;
-	c->type = CHAN_SOCKDATA;	/* identify channel type */
+	c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
 	c->u.pfd.s = s;
 	add234(ssh_channels, c);
     }
@@ -4573,12 +4750,31 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
     sprintf(buf, "Opening forwarded connection to %.512s:%d", hostname, port);
     logevent(buf);
 
-    send_packet(SSH1_MSG_PORT_OPEN,
-		PKT_INT, c->localid,
-		PKT_STR, hostname,
-		PKT_INT, port,
-		//PKT_STR, org,
-		PKT_END);
+    if (ssh_version == 1) {
+	send_packet(SSH1_MSG_PORT_OPEN,
+		    PKT_INT, c->localid,
+		    PKT_STR, hostname,
+		    PKT_INT, port,
+		    //PKT_STR, <org:orgport>,
+		    PKT_END);
+    } else {
+	ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
+	ssh2_pkt_addstring("direct-tcpip");
+	ssh2_pkt_adduint32(c->localid);
+	ssh2_pkt_adduint32(0x8000UL);      /* our window size */
+	ssh2_pkt_adduint32(0x4000UL);      /* our max pkt size */
+	ssh2_pkt_addstring(hostname);
+	ssh2_pkt_adduint32(port);
+	/*
+	 * We make up values for the originator data; partly it's
+	 * too much hassle to keep track, and partly I'm not
+	 * convinced the server should be told details like that
+	 * about my local network configuration.
+	 */
+	ssh2_pkt_addstring("client-side-connection");
+	ssh2_pkt_adduint32(0);
+	ssh2_pkt_send();
+    }
 }
 
 
