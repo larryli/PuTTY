@@ -156,6 +156,8 @@ static void ssh_gotdata(unsigned char *data, int datalen) {
 
 	if (pktin.type == 36) {	       /* SSH_MSG_DEBUG */
 	    /* FIXME: log it */
+	} else if (pktin.type == 32) { /* SSH_MSG_IGNORE */
+	    /* do nothing */;
 	} else
 	    ssh_protocol(NULL, 0, 1);
     }

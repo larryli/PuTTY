@@ -27,6 +27,7 @@
 #define SSH_CMSG_EOF		19
 #define SSH_SMSG_EXIT_STATUS	20
 #define SSH_CMSG_EXIT_CONFIRMATION	33
+#define SSH_MSG_IGNORE		32
 #define SSH_MSG_DEBUG		36
 
 #define GET_32BIT(cp) \
@@ -144,6 +145,9 @@ next_packet:
 	    fwrite(pktin.body + 4, len, 1, stderr);
 	    fprintf(stderr, "\n");
 	}
+	goto next_packet;
+    }
+    if (pktin.type == SSH_MSG_IGNORE) {
 	goto next_packet;
     }
 }
