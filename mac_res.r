@@ -1,9 +1,10 @@
-/* $Id: mac_res.r,v 1.1.2.2 1999/02/21 18:09:41 ben Exp $ */
+/* $Id: mac_res.r,v 1.1.2.3 1999/02/24 01:29:10 ben Exp $ */
 /* PuTTY resources */
 
 #define PICT_RezTemplateVersion 1
 
 #include "Types.r"
+#include "Palettes.r"
 
 /* Get resource IDs we share with C code */
 #include "macresid.h"
@@ -87,11 +88,11 @@ resource 'ICN#' (128, purgeable) {
 	{	/* array: 2 elements */
 		/* [1] */
 		$"0000 3FFE 0000 4001 0000 4FF9 0000 5005"
-		$"0000 5545 0000 5005 0000 5405 0000 5005"
-		$"0000 5505 0000 5005 0000 4FF9 0000 4001"
-		$"0000 4001 7FFC 407D 8002 4001 9FF2 4001"
-		$"A00A 3FFE AA8A 2002 A00A 3FFE A80A 0000"
-		$"A00A 0000 AA0A 0000 A00A 0000 9FF2 0000"
+		$"0000 5355 0000 4505 0000 5A05 0000 2405"
+		$"0000 4A85 0001 9005 0002 23F9 0004 7C01"
+		$"0018 0201 7FA0 0C7D 801F 1001 9FE2 2001"
+		$"A00C DFFE AA89 2002 A012 3FFE A82C 0000"
+		$"A052 0000 AA6A 0000 A00A 0000 9FF2 0000"
 		$"8002 0000 8002 0000 80FA 0000 8002 0000"
 		$"8002 0000 7FFC 0000 4004 0000 7FFC",
 		/* [2] */
@@ -105,7 +106,6 @@ resource 'ICN#' (128, purgeable) {
 		$"FFFE 0000 7FFC 0000 7FFC 0000 7FFC"
 	}
 };
-
 resource 'ics#' (128, purgeable) {
 	{	/* array: 2 elements */
 		/* [1] */
@@ -312,7 +312,7 @@ resource 'DITL' (wFatal, "fatalbox", purgeable) {
 
 /* Terminal window */
 
-resource 'WIND' (wTerminal, "terminal", purgeable) {
+resource 'WIND' (PREF_pltt_ID, "terminal", purgeable) {
     { 0, 0, 200, 200 },
     zoomDocProc,
     invisible,
@@ -320,6 +320,35 @@ resource 'WIND' (wTerminal, "terminal", purgeable) {
     0x0,
     "untitled",
     staggerParentWindowScreen
+};
+
+resource 'pltt' (wTerminal, "terminal", purgeable) {
+    {
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* black */
+	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright black */
+	0xbbbb, 0x0000, 0x0000, pmTolerant, 0x2000,	/* red */
+	0xffff, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright red */
+	0x0000, 0xbbbb, 0x0000, pmTolerant, 0x2000,	/* green */
+	0x5555, 0xffff, 0x5555, pmTolerant, 0x2000,	/* bright green */
+	0xbbbb, 0xbbbb, 0x0000, pmTolerant, 0x2000,	/* yellow */
+	0xffff, 0xffff, 0x0000, pmTolerant, 0x2000,	/* bright yellow */
+	0x0000, 0x0000, 0xbbbb, pmTolerant, 0x2000,	/* blue */
+	0x5555, 0x5555, 0xffff, pmTolerant, 0x2000,	/* bright blue */
+	0xbbbb, 0x0000, 0xbbbb, pmTolerant, 0x2000,	/* magenta */
+	0xffff, 0x5555, 0xffff, pmTolerant, 0x2000,	/* bright magenta */
+	0x0000, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* cyan */
+	0x5555, 0xffff, 0xffff, pmTolerant, 0x2000,	/* bright cyan */
+	0xbbbb, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* white */
+	0xffff, 0xffff, 0xffff, pmTolerant, 0x2000,	/* bright white */
+	0xbbbb, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* default fg */
+	0xffff, 0xffff, 0xffff, pmTolerant, 0x2000,	/* default bold fg */
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* default bg */
+	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* default bold bg */
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* cursor bg */
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* bold cursor bg */
+	0x0000, 0xffff, 0x0000, pmTolerant, 0x2000,	/* cursor fg */
+	0x0000, 0xffff, 0x0000, pmTolerant, 0x2000,	/* bold cursor fg */
+    }
 };
 
 /* "About" box */
@@ -337,25 +366,22 @@ resource 'DLOG' (wAbout, "about", purgeable) {
 
 resource 'DITL' (wAbout, "about", purgeable) {
     {
-	{ 87, 116, 107, 173 },
-	Button { enabled, "Close" },
-	{ 87, 13, 107, 103 },
+	{ 87, 13, 107, 173 },
 	Button { enabled, "View Licence" },
 	{ 13, 13, 29, 173 },
 	StaticText { disabled, "PuTTY"},
 	{ 42, 13, 74, 173 },
-	StaticText { disabled,"Experimantal Mac Port\n© 1997-9 Simon Tatham"},
+	StaticText { disabled,"Experimental Mac Port\n© 1997-9 Simon Tatham"},
     }
 };
 
 /* Licence box */
 
-resource 'DLOG' (wLicence, "licence", purgeable) {
+resource 'WIND' (wLicence, "licence", purgeable) {
     { 0, 0, 300, 300 },
     noGrowDocProc,
     visible,
     goAway,
-    wLicence,
     wLicence,
     "PuTTY Licence",
     alertPositionParentWindowScreen
@@ -390,22 +416,3 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
     "CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE."
 };
-
-#if 0
-resource 'DITL' (wLicence, "licence", purgeable) {
-    {
-	{ 13, 23, 287, 277 },
-	Picture { enabled, wLicence }
-    }
-};
-
-resource 'PICT' (wLicence, "licence", purgeable) {
-    { 0, 0, 274, 254 },
-     VersionTwo {
- 	{
-	    LongText { { 16, 0 }, "Copyright © 1997-9 Simon Tatham" },
- 	    LongText { { 32, 0 }, "Portions copyright Gary S. Brown and Eric Young" },
- 	}
-    }
-};
-#endif

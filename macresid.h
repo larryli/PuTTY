@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.1.2.2 1999/02/20 23:55:55 ben Exp $ */
+/* $Id: macresid.h,v 1.1.2.3 1999/02/24 01:29:10 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -24,10 +24,13 @@
 
 /* Window types (and resource IDs) */
 #define wNone		0 /* Dummy value for no window */
-#define wDA			1 /* DUmmy value for desk accessory */
+#define wDA		1 /* Dummy value for desk accessory */
 #define wFatal		128
 #define wAbout		129
-#define wiAboutClose		1
-#define wiAboutLicence		2
+#define wiAboutLicence		1
 #define wTerminal	130
 #define wLicence	131
+
+
+/* Preferences */
+#define PREF_pltt_ID	1024

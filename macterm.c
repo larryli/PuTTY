@@ -6,6 +6,7 @@
 #include <Fonts.h>
 #include <Gestalt.h>
 #include <MacWindows.h>
+#include <Palettes.h>
 #include <Quickdraw.h>
 #include <QuickdrawText.h>
 #include <Sound.h>
@@ -17,11 +18,10 @@
 #include "mac.h"
 
 struct mac_session {
-    short fontnum;
-    int font_ascent;
-    WindowPtr(window);
-    RGBColor defpal[24];
-    RGBColor palette[24];
+    short		fontnum;
+    int			font_ascent;
+    WindowPtr		window;
+    PaletteHandle	palette;
 };
 
 static void mac_initfont(struct mac_session *);
@@ -30,6 +30,16 @@ static void mac_initpalette(struct mac_session *);
 /* Temporary hack till I get the terminal emulator supporting multiple sessions */
 
 static struct mac_session *onlysession;
+
+static void inbuf_putc(int c) {
+    inbuf[inbuf_head] = c;
+    inbuf_head = (inbuf_head+1) & INBUF_MASK;
+}
+
+static void inbuf_putstr(const char *c) {
+    while (*c)
+	inbuf_putc(*c++);
+}
 
 void mac_newsession(void) {
     struct mac_session *s;
@@ -55,27 +65,10 @@ void mac_newsession(void) {
     cfg.vtmode = VT_POORMAN;
     cfg.try_palette = FALSE;
     cfg.bold_colour = TRUE;
-    for (i = 0; i < 22; i++) {
-        static char defaults[22][3] = {
-            {187, 187, 187}, {255, 255, 255},
-            {0, 0, 0}, {85, 85, 85},
-            {0, 0, 0}, {0, 255, 0},
-            {0, 0, 0}, {85, 85, 85},
-            {187, 0, 0}, {255, 85, 85},
-            {0, 187, 0}, {85, 255, 85},
-            {187, 187, 0}, {255, 255, 85},
-            {0, 0, 187}, {85, 85, 255},
-            {187, 0, 187}, {255, 85, 255},
-            {0, 187, 187}, {85, 255, 255},
-            {187, 187, 187}, {255, 255, 255}
-         };
-         cfg.colours[i][0] = defaults[i][0];
-         cfg.colours[i][1] = defaults[i][1];
-         cfg.colours[i][2] = defaults[i][2];
-    }
+    cfg.colours = GetNewPalette(PREF_pltt_ID);
     onlysession = s;
 	
-    /* XXX: non-Color-QuickDraw?  Own storage management? */
+    /* XXX: Own storage management? */
     if (mac_qdversion == gestaltOriginalQD)
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
     else
@@ -85,17 +78,22 @@ void mac_newsession(void) {
     term_size(24, 80, 100);
     mac_initfont(s);
     mac_initpalette(s);
+    /* Set to TRUE to get palette updates in the background. */
+    SetPalette(s->window, s->palette, FALSE); 
     ShowWindow(s->window);
-}
+    inbuf_putstr("\033[1mBold\033[m    \033[2mfaint\033[m   \033[3mitalic\033[m  \033[4mu_line\033[m  "
+                 "\033[5mslow bl\033[m \033[6mfast bl\033[m \033[7minverse\033[m \033[8mconceal\033[m "
+                 "\033[9mstruck\033[m  \033[21mdbl ul\033[m\015\012");
+    term_out();
+    inbuf_putstr("\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
+                 "\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
+    term_out();
+    inbuf_putstr("\033[1m\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
+                 "\033[1m\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
+    term_out();
+    inbuf_putstr("\033[37;44mwhite on blue     \033[32;41mgreen on red\015\012");
+    term_out();
 
-static void inbuf_putc(int c) {
-    inbuf[inbuf_head] = c;
-    inbuf_head = (inbuf_head+1) & INBUF_MASK;
-}
-
-static void inbuf_putstr(const char *c) {
-    while (*c)
-	inbuf_putc(*c++);
 }
 
 static void mac_initfont(struct mac_session *s) {
@@ -113,43 +111,13 @@ static void mac_initfont(struct mac_session *s) {
     font_height = fi.ascent + fi.descent + fi.leading;
     s->font_ascent = fi.ascent;
     SizeWindow(s->window, cols * font_width, rows * font_height, true);
-    inbuf_putstr("\033[1mBold\033[m    \033[2mfaint\033[m   \033[3mitalic\033[m  \033[4mu_line\033[m  "
-                 "\033[5mslow bl\033[m \033[6mfast bl\033[m \033[7minverse\033[m \033[8mconceal\033[m "
-                 "\033[9mstruck\033[m  \033[21mdbl ul\033[m\015\012");
-    term_out();
-    inbuf_putstr("\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
-                 "\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
-    term_out();
-    inbuf_putstr("\033[1m\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
-                 "\033[1m\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
-    term_out();
-    inbuf_putstr("\033[37;44mwhite on blue     \033[32;41mgreen on red\015\012");
-    term_out();
 }
 
-
-/*
- * Set up the default palette, then call palette_reset to transfer
- * it to the working palette (should the emulator do this at
- * startup?
- */
 static void mac_initpalette(struct mac_session *s) {
-    int i;
-    static const int ww[] = {
-	6, 7, 8, 9, 10, 11, 12, 13,
-	14, 15, 16, 17, 18, 19, 20, 21,
-	0, 1, 2, 3, 4, 4, 5, 5
-    };
 
-    for (i=0; i<24; i++) {
-	int w = ww[i];
-	s->defpal[i].red   = cfg.colours[w][0] * 0x0101;
-	s->defpal[i].green = cfg.colours[w][1] * 0x0101;
-	s->defpal[i].blue  = cfg.colours[w][2] * 0x0101;
-    }
-    palette_reset();
+    s->palette = NewPalette(0, NULL, 0, 0);
+    CopyPalette(cfg.colours, s->palette, 0, 0, (*cfg.colours)->pmEntries);
 }
-
 
 /*
  * Call from the terminal emulator to draw a bit of text
@@ -161,30 +129,18 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
     int style = 0;
     int bgcolour, fgcolour;
     RGBColor rgbfore, rgbback;
-    RgnHandle textregion, intersection;
     Rect textrect;
 
     SetPort(s->window);
-#if 0
+    
     /* First check this text is relevant */
-    textregion = NewRgn();
-    SetRectRgn(textregion, x * font_width, (x + len) * font_width,
-	       y * font_height, (y + 1) * font_height);
-    SectRgn(textregion, s->window->visRgn, textregion);
-    if (EmptyRgn(textregion)) {
-	DisposeRgn(textregion);
-	return;
-    }
-#else
-    /* alternatively */
     textrect.top = y * font_height;
     textrect.bottom = (y + 1) * font_height;
     textrect.left = x * font_width;
     textrect.right = (x + len) * font_width;
     if (!RectInRgn(&textrect, s->window->visRgn))
 	return;
-#endif
-
+	
     TextFont(s->fontnum);
     if (cfg.fontisbold || (attr & ATTR_BOLD) && !cfg.bold_colour)
     	style |= bold;
@@ -202,11 +158,16 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
     }
     if ((attr & ATTR_BOLD) && cfg.bold_colour)
     	fgcolour++;
-    RGBForeColor(&s->palette[fgcolour]);
-    RGBBackColor(&s->palette[bgcolour]);
+    /* RGBForeColor(&s->palette[fgcolour]); */ /* XXX Non-Color-QD version */
+    /* RGBBackColor(&s->palette[bgcolour]); */
+    PmForeColor(fgcolour);
+    PmBackColor(bgcolour);
     SetFractEnable(FALSE); /* We want characters on pixel boundaries */
-    MoveTo(x * font_width, y * font_height + s->font_ascent);
+    MoveTo(textrect.left, textrect.top + s->font_ascent);
     DrawText(text, 0, len);
+    
+    /* Tell the window manager about it in case this isn't an update */
+    ValidRect(&textrect);
 }
 
 /*
@@ -240,10 +201,14 @@ void set_sbar(int total, int start, int page) {
 void beep(void) {
 
     SysBeep(30);
+    /*
+     * XXX We should indicate the relevant window and/or use the
+     * Notification Manager
+     */
 }
 
 /*
- * Set icon string -- a no-op here (WIndowshade?)
+ * Set icon string -- a no-op here (Windowshade?)
  */
 void set_icon(char *icon) {
 
@@ -254,9 +219,10 @@ void set_icon(char *icon) {
  */
 void set_title(char *title) {
     Str255 mactitle;
+    struct mac_session *s = onlysession;
 
     mactitle[0] = sprintf((char *)&mactitle[1], "%s", title);
-    SetWTitle(onlysession->window, mactitle);
+    SetWTitle(s->window, mactitle);
 }
 
 /*
@@ -264,28 +230,41 @@ void set_title(char *title) {
  */
 void request_resize(int w, int h) {
 
-    /* XXX: Do something */
+    cols = w;
+    rows = h;
+    mac_initfont(onlysession);
 }
 
 /*
  * Set the logical palette
  */
 void palette_set(int n, int r, int g, int b) {
-
-    /* XXX: Do something */
+    RGBColor col;
+    struct mac_session *s = onlysession;
+    static const int first[21] = {
+	0, 2, 4, 6, 8, 10, 12, 14,
+	1, 3, 5, 7, 9, 11, 13, 15,
+	16, 17, 18, 20, 22
+    };
+    
+    col.red   = r * 0x0101;
+    col.green = g * 0x0101;
+    col.blue  = b * 0x0101;
+    SetEntryColor(s->palette, first[n], &col);
+    if (first[n] >= 18)
+	SetEntryColor(s->palette, first[n]+1, &col);
+    ActivatePalette(s->window);
 }
 
 /*
  * Reset to the default palette
  */
 void palette_reset(void) {
-    int i;
     struct mac_session *s = onlysession;
 
-    for (i = 0; i < 24; i++) {
-	s->palette[i].red   = s->defpal[i].red;
-	s->palette[i].green = s->defpal[i].green;
-	s->palette[i].blue  = s->defpal[i].blue;
-    }
-    term_invalidate();
+    if (mac_qdversion == gestaltOriginalQD)
+	return;
+    CopyPalette(cfg.colours, s->palette, 0, 0, (*cfg.colours)->pmEntries);
+    ActivatePalette(s->window);
+    /* Palette Manager will generate update events as required. */
 }

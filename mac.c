@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.6 1999/02/21 18:09:41 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.7 1999/02/24 01:29:10 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -166,9 +166,6 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
       case wAbout:
 	if (DialogSelect(event, &(DialogPtr)window, &item))
 	    switch (item) {
-	      case wiAboutClose:
-		mac_closewindow(window);
-		break;
 	      case wiAboutLicence:
 	        /* XXX: Do something */
 		break;
@@ -194,6 +191,9 @@ static void mac_updatewindow(WindowPtr window) {
 	UpdateDialog(window, window->visRgn);
 	EndUpdate(window);
 	break;
+      case wLicence:
+        /* Do something */
+        break;
     }
 }
 
@@ -209,10 +209,9 @@ static int mac_windowtype(WindowPtr window) {
     kind = ((WindowPeek)window)->windowKind;
     if (kind < 0)
 	return wDA;
-    else if (kind == userKind)
+    if (GetWVariant(window) == zoomDocProc)
 	return wTerminal;
-    else
-	return GetWRefCon(window);
+    return GetWRefCon(window);
 }
 
 /*

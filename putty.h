@@ -5,6 +5,7 @@
 
 #ifdef macintosh
 #include <MacTypes.h>
+#include <Palettes.h>
 typedef UInt32 DWORD;
 struct mac_session;
 #endif /* macintosh */
@@ -147,7 +148,11 @@ typedef struct {
     /* Colour options */
     int try_palette;
     int bold_colour;
+#ifdef macintosh
+    PaletteHandle colours;
+#else /* not macintosh */
     unsigned char colours[22][3];
+#endif /* not macintosh */
     /* Selection options */
     int mouse_is_xterm;
     short wordness[256];
