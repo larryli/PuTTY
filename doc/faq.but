@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.41 2003/01/23 17:01:27 jacob Exp $
+\versionid $Id: faq.but,v 1.42 2003/01/24 14:12:31 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -20,7 +20,7 @@ listed there, it's been implemented. If it's listed as a change made
 development snapshots, in which case testing will be very welcome.
 
 \b try the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist.html}{Wishlist
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/}{Wishlist
 page}, and see if you can find the feature there. If it's on there,
 it probably \e{hasn't} been implemented.
 
