@@ -1092,9 +1092,10 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
         if (dlgtype == 0) {
             treeview_insert(&tvfaff, 1, "Telnet");
             treeview_insert(&tvfaff, 1, "Rlogin");
-            if (backends[3].backend != NULL)
+            if (backends[3].backend != NULL) {
                 treeview_insert(&tvfaff, 1, "SSH");
-            treeview_insert(&tvfaff, 2, "Tunnels");
+                treeview_insert(&tvfaff, 2, "Tunnels");
+            }
         }
 
         /*
