@@ -561,7 +561,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		       IDC_BITSSTATIC, IDC_BITS, 20);
 	    endbox(&cp);
 	}
-	CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH1);
+	CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2DSA, IDC_KEYSSH1);
 	SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEYSIZE, FALSE);
 
 	/*
@@ -683,6 +683,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 0);
 		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 0);
 		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 0);
+		EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 0);
 		EnableWindow(GetDlgItem(hwnd, IDC_BITS), 0);
 		state->key_exists = FALSE;
 		SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
@@ -868,6 +869,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
 			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
 			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
+			EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
 			EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 			/*
 			 * Now update the key controls with all the
@@ -956,6 +958,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVEPUB), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH1), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
+	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 	if (state->ssh2) {
 	    if (state->is_dsa) {
