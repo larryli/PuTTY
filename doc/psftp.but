@@ -338,6 +338,12 @@ You can also list the contents of a different directory by typing
 \c dir /home/fred
 \c dir sources
 
+And you can list a subset of the contents of a directory by
+providing a wildcard:
+
+\c dir /home/fred/*.txt
+\c dir sources/*.c
+
 The \c{ls} command works exactly the same way as \c{dir}.
 
 \S{psftp-cmd-chmod} The \c{chmod} command: change permissions on

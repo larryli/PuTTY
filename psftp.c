@@ -777,7 +777,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     struct fxp_names *names;
     struct fxp_name **ournames;
     int nnames, namesize;
-    char *dir, *cdir;
+    char *dir, *cdir, *unwcdir, *wildcard;
     struct sftp_packet *pktin;
     struct sftp_request *req, *rreq;
     int i;
@@ -792,9 +792,35 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     else
 	dir = cmd->words[1];
 
+    unwcdir = snewn(1 + strlen(dir), char);
+    if (wc_unescape(unwcdir, dir)) {
+	dir = unwcdir;
+	wildcard = NULL;
+    } else {
+	char *tmpdir;
+	int len, check;
+
+	wildcard = stripslashes(dir, 0);
+	unwcdir = dupstr(dir);
+	len = wildcard - dir;
+	unwcdir[len] = '\0';
+	if (len > 0 && unwcdir[len-1] == '/')
+	    unwcdir[len-1] = '\0';
+	tmpdir = snewn(1 + len, char);
+	check = wc_unescape(tmpdir, unwcdir);
+	sfree(tmpdir);
+	if (!check) {
+	    printf("Multiple-level wildcards are not supported\n");
+	    sfree(unwcdir);
+	    return 0;
+	}
+	dir = unwcdir;
+    }
+
     cdir = canonify(dir);
     if (!cdir) {
 	printf("%s: %s\n", dir, fxp_error());
+	sfree(unwcdir);
 	return 0;
     }
 
@@ -835,7 +861,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	    }
 
 	    for (i = 0; i < names->nnames; i++)
-		ournames[nnames++] = fxp_dup_name(&names->names[i]);
+		if (!wildcard || wc_match(wildcard, names->names[i].filename))
+		    ournames[nnames++] = fxp_dup_name(&names->names[i]);
 
 	    fxp_free_names(names);
 	}
@@ -861,6 +888,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     }
 
     sfree(cdir);
+    sfree(unwcdir);
 
     return 1;
 }
@@ -987,7 +1015,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	    if (!multiple && i < cmd->nwords)
 		outfname = cmd->words[i++];
 	    else
-		outfname = stripslashes(origfname, 1);
+		outfname = stripslashes(origfname, 0);
 
 	    ret = sftp_get_file(fname, outfname, recurse, restart, NULL);
 
