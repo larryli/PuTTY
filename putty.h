@@ -184,8 +184,8 @@ void showabout (HWND);
 void verify_ssh_host_key(char *host, struct RSAKey *key);
 void get_sesslist(int allocate);
 
-int nsessions;
-char **sessions;
+GLOBAL int nsessions;
+GLOBAL char **sessions;
 
 /*
  * Exports from terminal.c.
