@@ -68,7 +68,7 @@ void freebn(Bignum b) {
 }
 
 Bignum bn_power_2(int n) {
-    Bignum ret = newbn((n+15)/16);
+    Bignum ret = newbn(n/16+1);
     bignum_set_bit(ret, n, 1);
     return ret;
 }
