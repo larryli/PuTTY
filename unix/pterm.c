@@ -2387,6 +2387,12 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
     ldisc_send(inst->ldisc, NULL, 0, 0);
 }
 
+void copy_all_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    term_copyall(inst->term);
+}
+
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
@@ -2698,6 +2704,7 @@ int pt_main(int argc, char **argv)
 	inst->specialsitem2 = menuitem;
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
+	MKMENUITEM("Copy All", copy_all_menuitem);
 	MKMENUITEM(NULL, NULL);
 	s = dupcat("About ", appname, NULL);
 	MKMENUITEM(s, about_menuitem);
