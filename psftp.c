@@ -1907,10 +1907,9 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	cfg.username[sizeof(cfg.username) - 1] = '\0';
     }
     if (!cfg.username[0]) {
-	printf("login as: ");
-	fflush(stdout);
-	if (!fgets(cfg.username, sizeof(cfg.username), stdin)) {
-	    fprintf(stderr, "psftp: aborting\n");
+	if (!console_get_line("login as: ",
+			      cfg.username, sizeof(cfg.username), FALSE)) {
+	    fprintf(stderr, "psftp: no username, aborting\n");
 	    cleanup_exit(1);
 	} else {
 	    int len = strlen(cfg.username);
