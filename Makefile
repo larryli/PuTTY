@@ -16,7 +16,7 @@ OBJS2 = ssh.obj sshcrc.obj sshdes.obj sshmd5.obj sshrsa.obj sshrand.obj
 OBJS3 = sshsha.obj version.obj
 RESRC = win_res.res
 LIBS1 = advapi32.lib user32.lib gdi32.lib
-LIBS2 = ws2_32.lib comctl32.lib comdlg32.lib
+LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
 
 putty.exe: $(PUTTYOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(RESRC) link.rsp
 	link /debug -out:putty.exe @link.rsp
