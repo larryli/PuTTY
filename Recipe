@@ -111,7 +111,7 @@ WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
 UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline
 
 # Character set library, for use in pterm.
-CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc
+CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc
 
 # Standard libraries, and the same with WinSocks 1 and 2.
 LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib

@@ -13,6 +13,8 @@
 #include <Palettes.h>
 #include <UnicodeConverter.h>
 
+#include "charset.h"
+
 struct mac_gestalts {
     long sysvers;
     long qdvers;
@@ -53,7 +55,8 @@ typedef struct {
     ControlHandle	scrollbar;
     WCTabHandle		wctab;
     int			raw_mouse;
-    UnicodeToTextInfo	uni_to_font;
+    UnicodeToTextInfo	uni_to_font;  /* Only one of uni_to_font and	 */
+    charset_t		font_charset; /* font_charset is used at a time. */
 } Session;
 
 /* from macdlg.c */

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.29 2002/12/31 22:49:03 ben Exp $ */
+/* $Id: macterm.c,v 1.30 2003/01/01 19:51:13 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -232,14 +232,12 @@ static void mac_initfont(Session *s) {
 
     if (s->uni_to_font != NULL)
 	DisposeUnicodeToTextInfo(&s->uni_to_font);
-    if (mac_gestalts.encvvers == 0 ||
+    if (mac_gestalts.encvvers != 0 &&
 	UpgradeScriptInfoToTextEncoding(kTextScriptDontCare,
 					kTextLanguageDontCare,
 					kTextRegionDontCare, macfont,
-					&enc) != noErr ||
-	CreateUnicodeToTextInfoByEncoding(enc, &s->uni_to_font) != noErr) {
-	s->uni_to_font = NULL;
-    } else {
+					&enc) == noErr &&
+	CreateUnicodeToTextInfoByEncoding(enc, &s->uni_to_font) == noErr) {
 	if (uni_to_font_fallback_upp == NULL)
 	    uni_to_font_fallback_upp =
 		NewUnicodeToTextFallbackProc(&uni_to_font_fallback);
@@ -250,6 +248,12 @@ static void mac_initfont(Session *s) {
 	    DisposeUnicodeToTextInfo(&s->uni_to_font);
 	    s->uni_to_font = NULL;
 	}
+    } else {
+	s->uni_to_font = NULL;
+	s->font_charset =
+	    charset_from_macenc(FontToScript(s->fontnum),
+				GetScriptManagerVariable(smRegionCode),
+				mac_gestalts.sysvers, s->cfg.font);
     }
 
     mac_adjustsize(s, s->term->rows, s->term->cols);
@@ -981,13 +985,13 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	if (err != noErr && err != kTECUsedFallbacksStatus)
 	    /* XXX Should handle this more sensibly */
 	    return;
-    } else {
+    } else  if (s->font_charset != CS_NONE) {
 	/* XXX this is bogus if wchar_t and UniChar are different sizes. */
 	unitextptr = (wchar_t *)unitextbuf;
-	/* XXX Should choose charset based on script, font etc. */
 	olen = charset_from_unicode(&unitextptr, &len, mactextbuf, 1024,
-				    CS_MAC_ROMAN, NULL, ".", 1);
-    }
+				    s->font_charset, NULL, ".", 1);
+    } else
+	return;
 
     a.s = s;
     a.text = mactextbuf;

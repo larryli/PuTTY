@@ -136,4 +136,10 @@ int charset_from_xenc(const char *name);
 const char *charset_to_mimeenc(int charset);
 int charset_from_mimeenc(const char *name);
 
+/*
+ * Convert Mac OS script/region/font to our charset identifiers.
+ */
+int charset_from_macenc(int script, int region, int sysvers,
+			const char *fontname);
+
 #endif /* charset_charset_h */
