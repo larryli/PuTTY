@@ -156,7 +156,9 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
 	}
     write_setting_s(sesskey, "Protocol", p);
     write_setting_i(sesskey, "PortNumber", cfg->port);
-    write_setting_i(sesskey, "CloseOnExit", cfg->close_on_exit);
+    /* The CloseOnExit numbers are arranged in a different order from
+     * the standard FORCE_ON / FORCE_OFF / AUTO. */
+    write_setting_i(sesskey, "CloseOnExit", (cfg->close_on_exit+2)%3);
     write_setting_i(sesskey, "WarnOnClose", !!cfg->warn_on_close);
     write_setting_i(sesskey, "PingInterval", cfg->ping_interval / 60);	/* minutes */
     write_setting_i(sesskey, "PingIntervalSecs", cfg->ping_interval % 60);	/* seconds */
@@ -166,7 +168,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
 
     /* proxy settings */
     write_setting_s(sesskey, "ProxyExcludeList", cfg->proxy_exclude_list);
-    write_setting_i(sesskey, "ProxyDNS", cfg->proxy_dns);
+    write_setting_i(sesskey, "ProxyDNS", (cfg->proxy_dns+2)%3);
     write_setting_i(sesskey, "ProxyLocalhost", cfg->even_proxy_localhost);
     write_setting_i(sesskey, "ProxyType", cfg->proxy_type);
     write_setting_s(sesskey, "ProxyHost", cfg->proxy_host);
@@ -321,13 +323,13 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
 	*p = '\0';
 	write_setting_s(sesskey, "PortForwardings", buf);
     }
-    write_setting_i(sesskey, "BugIgnore1", cfg->sshbug_ignore1);
-    write_setting_i(sesskey, "BugPlainPW1", cfg->sshbug_plainpw1);
-    write_setting_i(sesskey, "BugRSA1", cfg->sshbug_rsa1);
-    write_setting_i(sesskey, "BugHMAC2", cfg->sshbug_hmac2);
-    write_setting_i(sesskey, "BugDeriveKey2", cfg->sshbug_derivekey2);
-    write_setting_i(sesskey, "BugRSAPad2", cfg->sshbug_rsapad2);
-    write_setting_i(sesskey, "BugDHGEx2", cfg->sshbug_dhgex2);
+    write_setting_i(sesskey, "BugIgnore1", 2-cfg->sshbug_ignore1);
+    write_setting_i(sesskey, "BugPlainPW1", 2-cfg->sshbug_plainpw1);
+    write_setting_i(sesskey, "BugRSA1", 2-cfg->sshbug_rsa1);
+    write_setting_i(sesskey, "BugHMAC2", 2-cfg->sshbug_hmac2);
+    write_setting_i(sesskey, "BugDeriveKey2", 2-cfg->sshbug_derivekey2);
+    write_setting_i(sesskey, "BugRSAPad2", 2-cfg->sshbug_rsapad2);
+    write_setting_i(sesskey, "BugDHGEx2", 2-cfg->sshbug_dhgex2);
     write_setting_i(sesskey, "StampUtmp", cfg->stamp_utmp);
     write_setting_i(sesskey, "LoginShell", cfg->login_shell);
     write_setting_i(sesskey, "ScrollbarOnLeft", cfg->scrollbar_on_left);
@@ -373,7 +375,9 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	    break;
 	}
 
-    gppi(sesskey, "CloseOnExit", AUTO, &cfg->close_on_exit);
+    /* The CloseOnExit numbers are arranged in a different order from
+     * the standard FORCE_ON / FORCE_OFF / AUTO. */
+    gppi(sesskey, "CloseOnExit", 1, &i); cfg->close_on_exit = (i+1)%3;
     gppi(sesskey, "WarnOnClose", 1, &cfg->warn_on_close);
     {
 	/* This is two values for backward compatibility with 0.50/0.51 */
@@ -391,7 +395,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     /* proxy settings */
     gpps(sesskey, "ProxyExcludeList", "", cfg->proxy_exclude_list,
 	 sizeof(cfg->proxy_exclude_list));
-    gppi(sesskey, "ProxyDNS", AUTO, &cfg->proxy_dns);
+    gppi(sesskey, "ProxyDNS", 1, &i); cfg->proxy_dns = (i+1)%3;
     gppi(sesskey, "ProxyLocalhost", 0, &cfg->even_proxy_localhost);
     gppi(sesskey, "ProxyType", PROXY_NONE, &cfg->proxy_type);
     gpps(sesskey, "ProxyHost", "proxy", cfg->proxy_host,
@@ -603,21 +607,21 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	}
 	*q = '\0';
     }
-    gppi(sesskey, "BugIgnore1", AUTO, &cfg->sshbug_ignore1);
-    gppi(sesskey, "BugPlainPW1", AUTO, &cfg->sshbug_plainpw1);
-    gppi(sesskey, "BugRSA1", AUTO, &cfg->sshbug_rsa1);
+    gppi(sesskey, "BugIgnore1", 0, &i); cfg->sshbug_ignore1 = 2-i;
+    gppi(sesskey, "BugPlainPW1", 0, &i); cfg->sshbug_plainpw1 = 2-i;
+    gppi(sesskey, "BugRSA1", 0, &i); cfg->sshbug_rsa1 = 2-i;
     {
 	int i;
-	gppi(sesskey, "BugHMAC2", AUTO, &cfg->sshbug_hmac2);
+	gppi(sesskey, "BugHMAC2", 0, &i); cfg->sshbug_hmac2 = 2-i;
 	if (cfg->sshbug_hmac2 == AUTO) {
 	    gppi(sesskey, "BuggyMAC", 0, &i);
 	    if (i == 1)
 		cfg->sshbug_hmac2 = FORCE_ON;
 	}
     }
-    gppi(sesskey, "BugDeriveKey2", AUTO, &cfg->sshbug_derivekey2);
-    gppi(sesskey, "BugRSAPad2", AUTO, &cfg->sshbug_rsapad2);
-    gppi(sesskey, "BugDHGEx2", AUTO, &cfg->sshbug_dhgex2);
+    gppi(sesskey, "BugDeriveKey2", 0, &i); cfg->sshbug_derivekey2 = 2-i;
+    gppi(sesskey, "BugRSAPad2", 0, &i); cfg->sshbug_rsapad2 = 2-i;
+    gppi(sesskey, "BugDHGEx2", 0, &i); cfg->sshbug_dhgex2 = 2-i;
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);
