@@ -222,7 +222,7 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	cfg.remote_cmd_ptr2 = NULL;
 	cfg.nopty = TRUE;      /* command => no terminal */
     }
-    if (!strcmp(p, "-P") || !strcmp(p, "-p")) {
+    if (!strcmp(p, "-P")) {
 	RETURN(2);
 	SAVEABLE(2);		       /* lower priority than -ssh,-telnet */
 	cfg.port = atoi(value);
