@@ -1,16 +1,28 @@
 This is the README for PuTTY, a free Win32 Telnet and SSH client.
 
-The provided Makefile is for MS Visual C++ systems. Type `nmake' to
-build both putty.exe (the main program) and pscp.exe (an SCP
-client). The comment at the top of the Makefile gives extra build
-options you can use to build in limited Win32s compatibility, a hack
-to pass SSH through some types of firewall, and `official' version
-numbers.
+If you want to rebuild PuTTY from source, we provide three
+Makefiles:
 
-MS Visual Studio version 6 falls over on the nasty macros in ssh.c.
-This is a bug in Visual Studio. The culprit is the /ZI compiler
-option (debug info generation: Edit and Continue). To avoid this
-problem while compiling PuTTY under VS6, you should:
+ - Makefile.vc is for MS Visual C++ systems. Type `nmake -f
+   Makefile.vc' to build all the PuTTY binaries.
+
+ - Makefile.bor is for the Borland C compiler. Type `make -f
+   Makefile.bor' to build all the PuTTY binaries.
+
+ - Makefile.cyg is for Cygwin / mingw32 installations. Type `make -f
+   Makefile.cyg' to build all the PuTTY binaries. Note that by
+   default the Pageant WinNT security features and the multiple
+   monitor support are excluded from the Cygwin build, since at the
+   time of writing this Cygwin doesn't include the necessary
+   headers.
+
+If you have MS Visual Studio version 6 and you want to build a
+DevStudio project for GUI editing and debugging, you should be aware
+that the default GUI configuration of the compiler falls over on the
+nasty macros in ssh.c. This is a bug in Visual Studio. The culprit
+is the /ZI compiler option (debug info generation: Edit and
+Continue). To avoid this problem while compiling PuTTY under VS6,
+you should:
  - right-click ssh.c in the FileView
  - click Settings
  - select the C/C++ tab and the General category
@@ -19,11 +31,10 @@ problem while compiling PuTTY under VS6, you should:
 Alternatively disable the /ZI option, replacing it with a saner
 value, such as /Zi.
 
-For other compilers, some alternative Makefiles are provided. These
-Makefiles are generated automatically from the master `Makefile' by
-the Perl script `mkfiles.pl'. Additions and corrections to the
-script are more useful than additions and corrections to the
-alternative Makefiles themselves.
+All of the Makefiles are generated automatically from the file
+`Recipe' by the Perl script `mkfiles.pl'. Additions and corrections
+to Recipe and the mkfiles.pl are much more useful than additions and
+corrections to the alternative Makefiles themselves.
 
 The PuTTY home web site is
 
