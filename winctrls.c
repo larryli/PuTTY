@@ -343,7 +343,7 @@ void bigeditctrl(struct ctlpos *cp, char *stext,
     r.right = cp->width; r.bottom = EDITHEIGHT + (lines-1) * STATICHEIGHT;
     cp->ypos += r.bottom + GAPBETWEEN;
     doctl(cp, r, "EDIT",
-          WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE,
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE,
           WS_EX_CLIENTEDGE,
           "", eid);
 }

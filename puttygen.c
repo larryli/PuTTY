@@ -18,12 +18,11 @@
 
 #define WM_DONEKEY (WM_XUSER + 1)
 
-#define KEYSIZE 1024
+#define DEFAULT_KEYSIZE 1024
 
 /*
  * TODO:
  *  - test the generated keys for actual working-RSA-key-hood
- *  - variable key size
  */
 
 /* ----------------------------------------------------------------------
@@ -234,6 +233,7 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 struct rsa_key_thread_params {
     HWND progressbar;                  /* notify this with progress */
     HWND dialog;                       /* notify this on completion */
+    int keysize;		       /* bits in key */
     struct RSAKey *key;
     struct RSAAux *aux;
 };
@@ -243,7 +243,8 @@ static DWORD WINAPI generate_rsa_key_thread(void *param) {
     struct progress prog;
     prog.progbar = params->progressbar;
 
-    rsa_generate(params->key, params->aux, KEYSIZE, progress_update, &prog);
+    rsa_generate(params->key, params->aux,
+		 params->keysize, progress_update, &prog);
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
 
@@ -256,6 +257,7 @@ struct MainDlgState {
     int generation_thread_exists;
     int key_exists;
     int entropy_got, entropy_required, entropy_size;
+    int keysize;
     unsigned *entropy;
     struct RSAKey key;
     struct RSAAux aux;
@@ -305,6 +307,8 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         IDC_GENSTATIC, IDC_GENERATE,
         IDC_LOADSTATIC, IDC_LOAD,
         IDC_SAVESTATIC, IDC_SAVE,
+        IDC_BOX_PARAMS, IDC_BOXT_PARAMS,
+        IDC_BITSSTATIC, IDC_BITS,
         IDC_ABOUT,
     };
     static const int nokey_ids[] = { IDC_NOKEY, 0 };
@@ -366,7 +370,14 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             staticbtn(&cp, "Save the generated key to a new file",
                       IDC_SAVESTATIC, "&Save", IDC_SAVE);
             endbox(&cp);
+            beginbox(&cp, "Actions",
+                     IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS);
+            staticedit(&cp, "Length of generated keys in &bits:",
+		       IDC_BITSSTATIC, IDC_BITS, 20);
+            endbox(&cp);
         }
+	SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEYSIZE, FALSE);
+
         /*
          * Initially, hide the progress bar and the key display,
          * and show the no-key display. Also disable the Save
@@ -405,6 +416,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 params = malloc(sizeof(*params));
                 params->progressbar = GetDlgItem(hwnd, IDC_PROGRESS);
                 params->dialog = hwnd;
+		params->keysize = state->keysize;
                 params->key = &state->key;
                 params->aux = &state->aux;
 
@@ -455,6 +467,12 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                 state->key_exists = FALSE;
                 SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
                 state->collecting_entropy = TRUE;
+		{
+		    BOOL ok;
+		    state->keysize = GetDlgItemInt(hwnd, IDC_BITS,
+						   &ok, FALSE);
+		    if (!ok) state->keysize = DEFAULT_KEYSIZE;
+		}
 
                 /*
                  * My brief statistical tests on mouse movements
@@ -467,7 +485,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                  * stupidly cautious and knock that down to a nice
                  * round 4.
                  */
-                state->entropy_required = (KEYSIZE / 4) * 2;
+                state->entropy_required = (state->keysize / 4) * 2;
                 state->entropy_got = 0;
                 state->entropy_size = (state->entropy_required *
                                        sizeof(*state->entropy));
