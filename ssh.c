@@ -665,7 +665,11 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 		long len = 0;
 		for (i = 0; i < 4; i++)
 		    len = (len << 8) + pktin.body[i];
-		c_write(pktin.body+4, len);
+		if (len+4 != pktin.length) {
+		    logevent("Received data packet with bogus string length"
+			     ", ignoring");
+		} else
+		    c_write(pktin.body+4, len);
 	    } else if (pktin.type == SSH_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
