@@ -94,7 +94,7 @@ foreach $p (@projects) {
 print $store{"dependencies"};
 print
 "\n".
-"version.o: FORCE\n".
+"version.o: FORCE;\n".
 "# Hack to force version.o to be rebuilt always\n".
 "FORCE:\n".
 "\t\$(CC) \$(FWHACK) \$(CFLAGS) \$(VER) -c version.c\n\n".
