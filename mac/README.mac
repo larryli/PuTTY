@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.15 2003/01/24 00:28:57 ben Exp $
+$Id: README.mac,v 1.16 2003/01/24 00:37:27 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -62,6 +62,7 @@ Unimplemented features (should be done before release):
  * Listening sockets.
  * Clipping host resize requests to screen size.
  * Changing font size in reponse to resize requests.
+ * Full screen mode.
  * TEXT copy/paste.
  * Catching up with current keyboard mapping in other ports.
  * Session configuration.
