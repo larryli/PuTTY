@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.17 2002/09/11 17:30:36 jacob Exp $
+\versionid $Id: plink.but,v 1.18 2003/03/24 10:49:01 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -123,6 +123,19 @@ word \c{ssh}.
 Usually Plink is not invoked directly by a user, but run
 automatically by another process. Therefore you typically do not
 want Plink to prompt you for a user name or a password.
+
+Next, you are likely to need to avoid the various interactive
+prompts Plink can produce. You might be prompted to verify the host
+key of the server you're connecting to, to enter a user name, or to
+enter a password.
+
+To avoid being prompted for the server host key when using Plink for
+an automated connection, you should first make a \e{manual}
+connection (using either of PuTTY or Plink) to the same server,
+verify the host key (see \k{gs-hostkey} for more information), and
+select Yes to add the host key to the Registry. After that, Plink
+commands connecting to that server should not give a host key prompt
+unless the host key changes.
 
 To avoid being prompted for a user name, you can:
 
