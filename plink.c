@@ -458,6 +458,21 @@ int main(int argc, char **argv)
      */
     cfg.host[strcspn(cfg.host, ":")] = '\0';
 
+    /*
+     * Remove any remaining whitespace from the hostname.
+     */
+    {
+	int p1 = 0, p2 = 0;
+	while (cfg.host[p2] != '\0') {
+	    if (cfg.host[p2] != ' ' && cfg.host[p2] != '\t') {
+		cfg.host[p1] = cfg.host[p2];
+		p1++;
+	    }
+	    p2++;
+	}
+	cfg.host[p1] = '\0';
+    }
+
     if (!*cfg.remote_cmd_ptr)
 	flags |= FLAG_INTERACTIVE;
 
