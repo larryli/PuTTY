@@ -3469,7 +3469,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    pf = snew(struct ssh_rportfwd);
 		    strcpy(pf->dhost, host);
 		    pf->dport = dport;
-		    if (saddr) {
+		    if (*saddr) {
 			logeventf(ssh,
 				  "SSH1 cannot handle source address spec \"%s:%d\"; ignoring",
 				  saddr, sport);
