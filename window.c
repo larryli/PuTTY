@@ -3027,14 +3027,17 @@ void beep(int mode)
 	 * active one. So we limit the rate to one per 50ms or so.
 	 */
 	static long lastbeep = 0;
-	long now, beepdiff;
+	long beepdiff;
 
-	now = GetTickCount();
-	beepdiff = now - lastbeep;
+	beepdiff = GetTickCount() - lastbeep;
 	if (beepdiff >= 0 && beepdiff < 50)
 	    return;
 	MessageBeep(MB_OK);
-	lastbeep = now;
+	/*
+	 * The above MessageBeep call takes time, so we record the
+	 * time _after_ it finishes rather than before it starts.
+	 */
+	lastbeep = GetTickCount();
     } else if (mode == BELL_WAVEFILE) {
 	if (!PlaySound(cfg.bell_wavefile, NULL, SND_ASYNC | SND_FILENAME)) {
 	    char buf[sizeof(cfg.bell_wavefile) + 80];
