@@ -336,6 +336,7 @@ typedef struct {
     int sunken_edge;
     int window_border;
     char answerback[256];
+    char printer[128];
     /* Colour options */
     int try_palette;
     int bold_colour;
@@ -608,5 +609,17 @@ int wc_unescape(char *output, const char *wildcard);
 extern int console_batch_mode;
 extern char *console_password;
 int console_get_line(const char *prompt, char *str, int maxlen, int is_pw);
+
+/*
+ * Exports from printing.c.
+ */
+typedef struct printer_enum_tag printer_enum;
+typedef struct printer_job_tag printer_job;
+printer_enum *printer_start_enum(int *nprinters);
+char *printer_get_name(printer_enum *, int);
+void printer_finish_enum(printer_enum *);
+printer_job *printer_start_job(char *printer);
+void printer_job_data(printer_job *, void *, int);
+void printer_finish_job(printer_job *);
 
 #endif

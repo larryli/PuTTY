@@ -261,6 +261,7 @@ void save_settings(char *section, int do_host, Config * cfg)
 	write_setting_s(sesskey, buf, buf2);
     }
     write_setting_s(sesskey, "LineCodePage", cfg->line_codepage);
+    write_setting_s(sesskey, "Printer", cfg->printer);
     write_setting_i(sesskey, "CapsLockCyr", cfg->xlat_capslockcyr);
     write_setting_i(sesskey, "ScrollBar", cfg->scrollbar);
     write_setting_i(sesskey, "ScrollBarFullScreen", cfg->scrollbar_in_fullscreen);
@@ -503,6 +504,7 @@ void load_settings(char *section, int do_host, Config * cfg)
      */
     gpps(sesskey, "LineCodePage", "", cfg->line_codepage,
 	 sizeof(cfg->line_codepage));
+    gpps(sesskey, "Printer", "", cfg->printer, sizeof(cfg->printer));
     gppi (sesskey, "CapsLockCyr", 0, &cfg->xlat_capslockcyr);
     gppi(sesskey, "ScrollBar", 1, &cfg->scrollbar);
     gppi(sesskey, "ScrollBarFullScreen", 0, &cfg->scrollbar_in_fullscreen);

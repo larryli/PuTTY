@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.28 2002/03/09 11:47:39 simon Exp $
+\versionid $Id: config.but,v 1.29 2002/03/09 17:59:15 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -379,6 +379,38 @@ working in. If you find it has made the wrong decision, you can use
 this configuration option to override its choice: you can force
 local line editing to be turned on, or force it to be turned off,
 instead of relying on the automatic detection.
+
+\S{config-printing} Remote-controlled printing
+
+\cfg{winhelp-topic}{terminal.printing}
+
+A lot of VT100-compatible terminals support printing under control
+of the remote server. PuTTY supports this feature as well, but it is
+turned off by default.
+
+To enable remote-controlled printing, choose a printer from the
+\q{Printer to send ANSI printer output to} drop-down list box. This
+should allow you to select from all the printers you have installed
+drivers for on your computer. Alternatively, you can type the
+network name of a networked printer (for example,
+\c{\\\\printserver\\printer1}) even if you haven't already
+installed a driver for it on your own machine.
+
+When the remote server attempts to print some data, PuTTY will send
+that data to the printer \e{raw} - without translating it,
+attempting to format it, or doing anything else to it. It is up to
+you to ensure your remote server knows what type of printer it is
+talking to.
+
+Since PuTTY sends data to the printer raw, it cannot offer options
+such as portrait versus landscape, print quality, or paper tray
+selection. All these things would be done by your PC printer driver
+(which PuTTY bypasses); if you need them done, you will have to find
+a way to configure your remote server to do them.
+
+To disable remote printing again, choose \q{None (printing
+disabled)} from the printer selection list. This is the default
+state.
 
 \H{config-keyboard} The Keyboard panel
 

@@ -115,6 +115,10 @@ static int vt52_bold;		       /* Force bold on non-bold colours */
 static int utf_state;		       /* Is there a pending UTF-8 character */
 static int utf_char;		       /* and what is it so far. */
 static int utf_size;		       /* The size of the UTF character. */
+static int printing, only_printing;    /* Are we doing ANSI printing? */
+static int print_state;		       /* state of print-end-sequence scan */
+static bufchain printer_buf;	       /* buffered data for printer */
+static printer_job *print_job;
 
 static int xterm_mouse;		       /* send mouse messages to app */
 
@@ -206,6 +210,7 @@ static void erase_lots(int, int, int);
 static void swap_screen(int);
 static void update_sbar(void);
 static void deselect(void);
+static void term_print_finish(void);
 
 /*
  * Resize a line to make it `cols' columns wide.
@@ -302,6 +307,7 @@ static void power_on(void)
     blink_is_real = cfg.blinktext;
     erase_char = ERASE_CHAR;
     alt_which = 0;
+    term_print_finish();
     {
 	int i;
 	for (i = 0; i < 256; i++)
@@ -352,8 +358,9 @@ void term_pwron(void)
 
 /*
  * When the user reconfigures us, we need to check the forbidden-
- * alternate-screen config option, and also disable raw mouse mode
- * if the user has disabled mouse reporting.
+ * alternate-screen config option, disable raw mouse mode if the
+ * user has disabled mouse reporting, and abandon a print job if
+ * the user has disabled printing.
  */
 void term_reconfig(void)
 {
@@ -367,6 +374,9 @@ void term_reconfig(void)
 	cset_attr[0] = cset_attr[1] = ATTR_ASCII;
 	sco_acs = alt_sco_acs = 0;
 	utf = 0;
+    }
+    if (!*cfg.printer) {
+	term_print_finish();
     }
 }
 
@@ -1008,6 +1018,50 @@ static void do_osc(void)
 }
 
 /*
+ * ANSI printing routines.
+ */
+static void term_print_setup(void)
+{
+    bufchain_clear(&printer_buf);
+    print_job = printer_start_job(cfg.printer);
+}
+static void term_print_flush(void)
+{
+    void *data;
+    int len;
+    int size;
+    while ((size = bufchain_size(&printer_buf)) > 5) {
+	bufchain_prefix(&printer_buf, &data, &len);
+	if (len > size-5)
+	    len = size-5;
+	printer_job_data(print_job, data, len);
+	bufchain_consume(&printer_buf, len);
+    }
+}
+static void term_print_finish(void)
+{
+    void *data;
+    int len, size;
+    char c;
+
+    term_print_flush();
+    while ((size = bufchain_size(&printer_buf)) > 0) {
+	bufchain_prefix(&printer_buf, &data, &len);
+	c = *(char *)data;
+	if (c == '\033' || c == '\233') {
+	    bufchain_consume(&printer_buf, size);
+	    break;
+	} else {
+	    printer_job_data(print_job, &c, 1);
+	    bufchain_consume(&printer_buf, 1);
+	}
+    }
+    printer_finish_job(print_job);
+    print_job = NULL;
+    printing = only_printing = FALSE;
+}
+
+/*
  * Remove everything currently in `inbuf' and stick it up on the
  * in-memory display. There's a big state machine in here to
  * process escape sequences...
@@ -1050,6 +1104,40 @@ void term_out(void)
 	 * be able to display 8-bit characters, but I'll let that go 'cause
 	 * of i18n.
 	 */
+
+	/*
+	 * If we're printing, add the character to the printer
+	 * buffer.
+	 */
+	if (printing) {
+	    char cc = c;
+	    bufchain_add(&printer_buf, &c, 1);
+
+	    /*
+	     * If we're in print-only mode, we use a much simpler
+	     * state machine designed only to recognise the ESC[4i
+	     * termination sequence.
+	     */
+	    if (only_printing) {
+		if (c == '\033')
+		    print_state = 1;
+		else if (c == (unsigned char)'\233')
+		    print_state = 2;
+		else if (c == '[' && print_state == 1)
+		    print_state = 2;
+		else if (c == '4' && print_state == 2)
+		    print_state = 3;
+		else if (c == 'i' && print_state == 3)
+		    print_state = 4;
+		else
+		    print_state = 0;
+		if (print_state == 4) {
+		    printing = only_printing = FALSE;
+		    term_print_finish();
+		}
+		continue;
+	    }
+	}
 
 	/* First see about all those translations. */
 	if (termstate == TOPLEVEL) {
@@ -1815,6 +1903,24 @@ void term_out(void)
 				toggle_mode(esc_args[i], esc_query, TRUE);
 			}
 			break;
+		      case 'i':
+		      case ANSI_QUE('i'):
+			compatibility(VT100);
+			{
+			    int i;
+			    if (esc_nargs != 1) break;
+			    if (esc_args[0] == 5 && *cfg.printer) {
+				printing = TRUE;
+				only_printing = !esc_query;
+				print_state = 0;
+				term_print_setup();
+			    } else if (esc_args[0] == 4 && printing) {
+				printing = FALSE;
+				only_printing = FALSE;
+				term_print_finish();
+			    }
+			}
+			break;			
 		      case 'l':       /* toggle modes to low */
 		      case ANSI_QUE('l'):
 			compatibility(VT100);
@@ -2657,6 +2763,8 @@ void term_out(void)
 	    check_selection(curs, cursplus);
 	}
     }
+
+    term_print_flush();
 }
 
 #if 0

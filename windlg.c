@@ -27,6 +27,8 @@ static int requested_help;
 
 static struct prefslist cipherlist;
 
+#define PRINTER_DISABLED_STRING "None (printing disabled)"
+
 void force_normal(HWND hwnd)
 {
     static int recurse = 0;
@@ -307,6 +309,7 @@ enum { IDCX_ABOUT =
     IDC_TITLE_TERMINAL,
     IDC_BOX_TERMINAL1,
     IDC_BOX_TERMINAL2,
+    IDC_BOX_TERMINAL3,
     IDC_WRAPMODE,
     IDC_DECOM,
     IDC_LFHASCR,
@@ -322,6 +325,8 @@ enum { IDCX_ABOUT =
     IDC_EDITBACKEND,
     IDC_EDITYES,
     IDC_EDITNO,
+    IDC_PRINTERSTATIC,
+    IDC_PRINTER,
     terminalpanelend,
 
     featurespanelstart,
@@ -724,6 +729,9 @@ char *help_context_cmd(int id)
       case IDC_EDITYES:
       case IDC_EDITNO:
         return "JI(`',`terminal.localedit')";
+      case IDC_PRINTERSTATIC:
+      case IDC_PRINTER:
+	return "JI(`',`terminal.printing')";
 
       case IDC_BELLSTATIC:
       case IDC_BELL_DISABLED:
@@ -1203,7 +1211,25 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	}
 	SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
     }
-    
+
+    {
+	int i, nprinters;
+	printer_enum *pe;
+	pe = printer_start_enum(&nprinters);
+	strcpy(cfg.line_codepage, cp_name(decode_codepage(cfg.line_codepage)));
+	SendDlgItemMessage(hwnd, IDC_PRINTER, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hwnd, IDC_PRINTER, CB_ADDSTRING,
+			   0, (LPARAM) PRINTER_DISABLED_STRING);
+	for (i = 0; i < nprinters; i++) {
+	    char *printer_name = printer_get_name(pe, i);
+	    SendDlgItemMessage(hwnd, IDC_PRINTER, CB_ADDSTRING,
+			       0, (LPARAM) printer_name);
+	}
+	printer_finish_enum(pe);
+	SetDlgItemText(hwnd, IDC_PRINTER,
+		       *cfg.printer ? cfg.printer : PRINTER_DISABLED_STRING);
+    }
+
     CheckRadioButton(hwnd, IDC_VTXWINDOWS, IDC_VTUNICODE,
 		     cfg.vtmode == VT_XWINDOWS ? IDC_VTXWINDOWS :
 		     cfg.vtmode == VT_OEMANSI ? IDC_VTOEMANSI :
@@ -1330,7 +1356,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == terminalpanelstart) {
-	/* The Terminal panel. Accelerators used: [acgoh] wdren lts */
+	/* The Terminal panel. Accelerators used: [acgoh] wdren lts p */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the terminal emulation",
@@ -1353,6 +1379,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	radioline(&cp, "Local line edi&ting:", IDC_EDITSTATIC, 3,
 		  "Auto", IDC_EDITBACKEND,
 		  "Force on", IDC_EDITYES, "Force off", IDC_EDITNO, NULL);
+	endbox(&cp);
+
+	beginbox(&cp, "Remote-controlled printing", IDC_BOX_TERMINAL3);
+	combobox(&cp, "&Printer to send ANSI printer output to:",
+		 IDC_PRINTERSTATIC, IDC_PRINTER);
 	endbox(&cp);
     }
 
@@ -3108,6 +3139,19 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			   cp_name(decode_codepage(cfg.line_codepage)));
 		    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
 		}
+		break;
+	      case IDC_PRINTER:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_PRINTER,
+						   CB_GETCURSEL, 0, 0);
+		    SendDlgItemMessage(hwnd, IDC_PRINTER, CB_GETLBTEXT,
+				       index, (LPARAM)cfg.printer);
+		} else if (HIWORD(wParam) == CBN_EDITCHANGE) {
+		    GetDlgItemText(hwnd, IDC_PRINTER, cfg.printer,
+				   sizeof(cfg.printer) - 1);
+		}
+		if (!strcmp(cfg.printer, PRINTER_DISABLED_STRING))
+		    *cfg.printer = '\0';
 		break;
 	      case IDC_CAPSLOCKCYR:
 		if (HIWORD(wParam) == BN_CLICKED ||
