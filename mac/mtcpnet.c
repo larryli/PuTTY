@@ -233,7 +233,24 @@ OSErr mactcp_init(void)
 
 void mactcp_shutdown(void)
 {
+    Actual_Socket s, next;
 
+    /*
+     * Eventually, PuTTY should close down each session as it exits,
+     * so there should be no sockets left when we get here.  Still,
+     * better safe than sorry.
+     *
+     * XXX What about in-flight aync I/O (when we support that)?
+     */
+    for (s = mactcp.socklist; s != NULL; s = next) {
+	next = s->next; /* s is about to vanish */
+	mactcp_close(&s->fn);
+    }
+
+    /*
+     * When we get async DNS, we have to wait for any outstanding
+     * requests to complete here before exiting.
+     */
     CloseResolver();
     mactcp.initialised = FALSE;
 }
@@ -574,16 +591,21 @@ void mactcp_poll(void)
 
     for (s = mactcp.socklist; s != NULL; s = s->next) {
 	/* XXX above can't handle sockets being deleted. */
-	pb.ioCRefNum = mactcp.refnum;
-	pb.csCode = TCPStatus;
-	pb.tcpStream = s->s;
-	pb.csParam.status.userDataPtr = (Ptr)s;
-	s->err = PBControlSync((ParmBlkPtr)&pb);
-	if (s->err != noErr)
-	    continue;
-	if (pb.csParam.status.amtUnreadData > 0)
+	do {
+	    pb.ioCRefNum = mactcp.refnum;
+	    pb.csCode = TCPStatus;
+	    pb.tcpStream = s->s;
+	    pb.csParam.status.userDataPtr = (Ptr)s;
+	    s->err = PBControlSync((ParmBlkPtr)&pb);
+	    if (s->err != noErr)
+		goto next_socket;
+	    if (pb.csParam.status.amtUnreadData == 0)
+		break;
 	    mactcp_recv(s, pb.csParam.status.amtUnreadData);
-	/* Should check connectionState in case remote has closed */
+	    /* Should check connectionState in case remote has closed */
+	} while (TRUE);
+      next_socket:
+	;
     }
 }
 
