@@ -793,7 +793,7 @@ void askalg(void *frontend, const char *algtype, const char *algname)
     message = dupprintf(msg, algtype, algname);
     title = dupprintf(mbtitle, appname);
     mbret = MessageBox(NULL, message, title,
-		       MB_ICONWARNING | MB_YESNO);
+		       MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
     sfree(message);
     sfree(title);
     if (mbret == IDYES)
@@ -823,7 +823,7 @@ int askappend(void *frontend, Filename filename)
     mbtitle = dupprintf("%s Log to File", appname);
 
     mbret = MessageBox(NULL, message, mbtitle,
-		       MB_ICONQUESTION | MB_YESNOCANCEL);
+		       MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON3);
 
     sfree(message);
     sfree(mbtitle);
