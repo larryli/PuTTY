@@ -1663,7 +1663,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 
 	    s = ctrl_getset(b, "Connection/SSH/Kex", "main",
 			    "Key exchange algorithm options");
-	    c = ctrl_draglist(s, "Algorithm selection policy", 's',
+	    c = ctrl_draglist(s, "Algorithm selection policy:", 's',
 			      HELPCTX(ssh_kexlist),
 			      kexlist_handler, P(NULL));
 	    c->listbox.height = 5;
