@@ -1596,14 +1596,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		keylist = CreateDialog(instance, MAKEINTRESOURCE(211),
 				       NULL, KeyListProc);
 		ShowWindow(keylist, SW_SHOWNORMAL);
-		/* 
-		 * Sometimes the window comes up minimised / hidden
-		 * for no obvious reason. Prevent this.
-		 */
-		SetForegroundWindow(keylist);
-		SetWindowPos(keylist, HWND_TOP, 0, 0, 0, 0,
-			     SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 	    }
+	    /* 
+	     * Sometimes the window comes up minimised / hidden for
+	     * no obvious reason. Prevent this. This also brings it
+	     * to the front if it's already present (the user
+	     * selected View Keys because they wanted to _see_ the
+	     * thing).
+	     */
+	    SetForegroundWindow(keylist);
+	    SetWindowPos(keylist, HWND_TOP, 0, 0, 0, 0,
+			 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 	    break;
 	  case IDM_ADDKEY:
 	    if (passphrase_box) {
