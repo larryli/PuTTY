@@ -174,7 +174,7 @@ static void deactivate_option (struct Opt *o) {
 static void option_side_effects(struct Opt *o, int enabled) {
     if (o->option == TELOPT_ECHO && o->send == DO)
         echoing = !enabled;
-    else if (o->option = TELOPT_SGA && o->send == DO)
+    else if (o->option == TELOPT_SGA && o->send == DO)
         editing = !enabled;
     ldisc_send(NULL, 0);               /* cause ldisc to notice the change */
 }

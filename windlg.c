@@ -3,6 +3,7 @@
 #include <commdlg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "ssh.h"
 #include "putty.h"
@@ -1968,8 +1969,6 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 
 static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 				 WPARAM wParam, LPARAM lParam) {
-    static HWND page = NULL;
-
     if (msg == WM_COMMAND && LOWORD(wParam) == IDOK) {
     }
     if (msg == WM_COMMAND && LOWORD(wParam) == IDCX_ABOUT) {
@@ -1984,7 +1983,6 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 
 static int CALLBACK ReconfDlgProc (HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam) {
-    static HWND page;
     return GenericMainDlgProc (hwnd, msg, wParam, lParam, 1);
 }
 
