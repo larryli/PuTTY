@@ -304,10 +304,14 @@ match (unless you specified the \c{-unsafe} option). The following
 command will give an error message:
 
 \c c:\>pscp user@host:"\"oo er\"" .
-\c warning: remote host tried to write to a file called 'a b'
-\c          when we requested a file called '"a b"'.
+\c warning: remote host tried to write to a file called 'oo er'
+\c          when we requested a file called '"oo er"'.
 \c          If this is a wildcard, consider upgrading to SSH 2 or using
 \c          the '-unsafe' option. Renaming of this file has been disallowed.
+
+Instead, you need to specify the local file name in full:
+
+\c c:\>pscp user@host:"\"oo er\"" "oo er"
 
 If PSCP is using the newer SFTP protocol, none of this is a problem,
 and all filenames with spaces in are specified using a single pair
@@ -381,8 +385,8 @@ get this wrong.
 The bug has been fixed since version 0.51, so upgrading to a later
 version or snapshot should solve the problem.
 
-\S{faq-outofmem} After trying to establish an SSH connection, PuTTY
-says \q{Out of memory} and dies.
+\S{faq-outofmem} After trying to establish an SSH 2 connection,
+PuTTY says \q{Out of memory} and dies.
 
 If this happens just while the connection is starting up, this often
 indicates that for some reason the client and server have failed to
