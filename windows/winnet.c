@@ -353,6 +353,9 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 		   address_family == ADDRTYPE_IPV6 ? AF_INET6 :
 #endif
 		   AF_UNSPEC);
+#ifndef NO_IPV6
+    ret->ai = ret->ais = NULL;
+#endif
     ret_family = AF_UNSPEC;
     *realhost = '\0';
 
@@ -456,6 +459,10 @@ SockAddr sk_nonamelookup(const char *host)
     SockAddr ret = snew(struct SockAddr_tag);
     ret->error = NULL;
     ret->family = AF_UNSPEC;
+#ifndef NO_IPV6
+    ret->ai = ret->ais = NULL;
+#endif
+    ret->naddresses = 0;
     strncpy(ret->hostname, host, lenof(ret->hostname));
     ret->hostname[lenof(ret->hostname)-1] = '\0';
     return ret;
