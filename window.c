@@ -1591,11 +1591,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	if (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON)) {
 	    Mouse_Button b;
 	    if (wParam & MK_LBUTTON)
-		b = MBT_SELECT;
+		b = MBT_LEFT;
 	    else if (wParam & MK_MBUTTON)
-		b = cfg.mouse_is_xterm ? MBT_PASTE : MBT_EXTEND;
+		b = MBT_MIDDLE;
 	    else
-		b = cfg.mouse_is_xterm ? MBT_EXTEND : MBT_PASTE;
+		b = MBT_RIGHT;
 	    term_mouse(b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
 		       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
 		       wParam & MK_CONTROL);
