@@ -517,6 +517,7 @@ struct Packet {
     unsigned char *body;
     long savedpos;
     long maxlen;
+    long encrypted_len;		       /* for SSH2 total-size counting */
 
     /*
      * State associated with packet logging
@@ -543,6 +544,9 @@ static void ssh_do_close(Ssh ssh);
 static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
 static int ssh2_pkt_getbool(struct Packet *pkt);
 static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
+static void ssh2_timer(void *ctx, long now);
+static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
+			     struct Packet *pktin);
 
 struct rdpkt1_state_tag {
     long len, pad, biglen, to_read;
@@ -703,7 +707,18 @@ struct ssh_tag {
      * This module deals with sending keepalives.
      */
     Pinger pinger;
+
+    /*
+     * Track incoming and outgoing data sizes and time, for
+     * size-based rekeys.
+     */
+    unsigned long incoming_data_size, outgoing_data_size, deferred_data_size;
+    int kex_in_progress;
+    long next_rekey;
 };
+
+#define MAX_DATA_BEFORE_REKEY (0x40000000UL)
+#define REKEY_TIMEOUT (3600 * TICKSPERSEC)
 
 #define logevent(s) logevent(ssh->frontend, s)
 
@@ -1098,6 +1113,8 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
 			       st->pktin->data + st->cipherblk,
 			       st->packetlen - st->cipherblk);
+
+    st->pktin->encrypted_len = st->packetlen;
 
     /*
      * Check the MAC.
@@ -1592,6 +1609,8 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
 	ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
 			       pkt->data, pkt->length + padding);
 
+    pkt->encrypted_len = pkt->length + padding;
+
     /* Ready-to-send packet starts at pkt->data. We return length. */
     return pkt->length + padding + maclen;
 }
@@ -1636,6 +1655,13 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
     backlog = sk_write(ssh->s, (char *)pkt->data, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
+
+    ssh->outgoing_data_size += pkt->encrypted_len;
+    if (!ssh->kex_in_progress &&
+	ssh->outgoing_data_size > MAX_DATA_BEFORE_REKEY)
+	do_ssh2_transport(ssh, "Initiating key re-exchange "
+			  "(too much data sent)", -1, NULL);
+
     ssh_free_packet(pkt);
 }
 
@@ -1653,6 +1679,7 @@ static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt)
     }
     memcpy(ssh->deferred_send_data + ssh->deferred_len, pkt->data, len);
     ssh->deferred_len += len;
+    ssh->deferred_data_size += pkt->encrypted_len;
     ssh_free_packet(pkt);
 }
 
@@ -1718,6 +1745,13 @@ static void ssh_pkt_defersend(Ssh ssh)
     ssh->deferred_send_data = NULL;
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
+
+    ssh->outgoing_data_size += ssh->deferred_data_size;
+    if (!ssh->kex_in_progress &&
+	ssh->outgoing_data_size > MAX_DATA_BEFORE_REKEY)
+	do_ssh2_transport(ssh, "Initiating key re-exchange "
+			  "(too much data sent)", -1, NULL);
+    ssh->deferred_data_size = 0;
 }
 
 /*
@@ -4287,6 +4321,11 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	ssh->queueing = TRUE;
 
 	/*
+	 * Flag that KEX is in progress.
+	 */
+	ssh->kex_in_progress = TRUE;
+
+	/*
 	 * Construct and send our key exchange packet.
 	 */
 	s->pktout = ssh2_pkt_init(SSH2_MSG_KEXINIT);
@@ -4638,10 +4677,61 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     ssh->hostkey->freekey(s->hkey);
 
     /*
+     * The exchange hash from the very first key exchange is also
+     * the session id, used in session key construction and
+     * authentication.
+     */
+    if (s->first_kex)
+	memcpy(ssh->v2_session_id, s->exchange_hash,
+	       sizeof(s->exchange_hash));
+
+    /*
      * Send SSH2_MSG_NEWKEYS.
      */
     s->pktout = ssh2_pkt_init(SSH2_MSG_NEWKEYS);
     ssh2_pkt_send_noqueue(ssh, s->pktout);
+    ssh->outgoing_data_size = 0;       /* start counting from here */
+
+    /*
+     * We've sent client NEWKEYS, so create and initialise
+     * client-to-servere session keys.
+     */
+    if (ssh->cs_cipher_ctx)
+	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
+    ssh->cscipher = s->cscipher_tobe;
+    ssh->cs_cipher_ctx = ssh->cscipher->make_context();
+
+    if (ssh->cs_mac_ctx)
+	ssh->csmac->free_context(ssh->cs_mac_ctx);
+    ssh->csmac = s->csmac_tobe;
+    ssh->cs_mac_ctx = ssh->csmac->make_context();
+
+    if (ssh->cs_comp_ctx)
+	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
+    ssh->cscomp = s->cscomp_tobe;
+    ssh->cs_comp_ctx = ssh->cscomp->compress_init();
+
+    /*
+     * Set IVs on client-to-server keys. Here we use the exchange
+     * hash from the _first_ key exchange.
+     */
+    {
+	unsigned char keyspace[40];
+	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'C',keyspace);
+	ssh->cscipher->setkey(ssh->cs_cipher_ctx, keyspace);
+	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'A',keyspace);
+	ssh->cscipher->setiv(ssh->cs_cipher_ctx, keyspace);
+	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'E',keyspace);
+	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
+    }
+
+    logeventf(ssh, "Initialised %.200s client->server encryption",
+	      ssh->cscipher->text_name);
+    logeventf(ssh, "Initialised %.200s client->server MAC algorithm",
+	      ssh->csmac->text_name);
+    if (ssh->cscomp->text_name)
+	logeventf(ssh, "Initialised %s compression",
+		  ssh->cscomp->text_name);
 
     /*
      * Now our end of the key exchange is complete, we can send all
@@ -4658,34 +4748,21 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	bombout(("expected new-keys packet from server"));
 	crStop(0);
     }
+    ssh->incoming_data_size = 0;       /* start counting from here */
 
     /*
-     * Create and initialise session keys.
+     * We've seen server NEWKEYS, so create and initialise
+     * server-to-client session keys.
      */
-    if (ssh->cs_cipher_ctx)
-	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
-    ssh->cscipher = s->cscipher_tobe;
-    ssh->cs_cipher_ctx = ssh->cscipher->make_context();
-
     if (ssh->sc_cipher_ctx)
 	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
     ssh->sccipher = s->sccipher_tobe;
     ssh->sc_cipher_ctx = ssh->sccipher->make_context();
 
-    if (ssh->cs_mac_ctx)
-	ssh->csmac->free_context(ssh->cs_mac_ctx);
-    ssh->csmac = s->csmac_tobe;
-    ssh->cs_mac_ctx = ssh->csmac->make_context();
-
     if (ssh->sc_mac_ctx)
 	ssh->scmac->free_context(ssh->sc_mac_ctx);
     ssh->scmac = s->scmac_tobe;
     ssh->sc_mac_ctx = ssh->scmac->make_context();
-
-    if (ssh->cs_comp_ctx)
-	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
-    ssh->cscomp = s->cscomp_tobe;
-    ssh->cs_comp_ctx = ssh->cscomp->compress_init();
 
     if (ssh->sc_comp_ctx)
 	ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
@@ -4693,47 +4770,41 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     ssh->sc_comp_ctx = ssh->sccomp->decompress_init();
 
     /*
-     * Set IVs after keys. Here we use the exchange hash from the
-     * _first_ key exchange.
+     * Set IVs on server-to-client keys. Here we use the exchange
+     * hash from the _first_ key exchange.
      */
     {
 	unsigned char keyspace[40];
-	if (s->first_kex)
-	    memcpy(ssh->v2_session_id, s->exchange_hash,
-		   sizeof(s->exchange_hash));
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'C',keyspace);
-	ssh->cscipher->setkey(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'D',keyspace);
 	ssh->sccipher->setkey(ssh->sc_cipher_ctx, keyspace);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'A',keyspace);
-	ssh->cscipher->setiv(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'B',keyspace);
 	ssh->sccipher->setiv(ssh->sc_cipher_ctx, keyspace);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'E',keyspace);
-	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,ssh->v2_session_id,'F',keyspace);
 	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
     }
-    logeventf(ssh, "Initialised %.200s client->server encryption",
-	      ssh->cscipher->text_name);
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
-    logeventf(ssh, "Initialised %.200s client->server MAC algorithm",
-	      ssh->csmac->text_name);
     logeventf(ssh, "Initialised %.200s server->client MAC algorithm",
 	      ssh->scmac->text_name);
-    if (ssh->cscomp->text_name)
-	logeventf(ssh, "Initialised %s compression",
-		  ssh->cscomp->text_name);
     if (ssh->sccomp->text_name)
 	logeventf(ssh, "Initialised %s decompression",
 		  ssh->sccomp->text_name);
+
+    /*
+     * Free key exchange data.
+     */
     freebn(s->f);
     freebn(s->K);
     if (ssh->kex == &ssh_diffiehellman_gex) {
 	freebn(s->g);
 	freebn(s->p);
     }
+
+    /*
+     * Key exchange is over. Schedule a timer for our next rekey.
+     */
+    ssh->kex_in_progress = FALSE;
+    ssh->next_rekey = schedule_timer(REKEY_TIMEOUT, ssh2_timer, ssh);
 
     /*
      * If this is the first key exchange phase, we must pass the
@@ -4753,11 +4824,21 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * function so that other things can run on top of the
      * transport. If we ever see a KEXINIT, we must go back to the
      * start.
+     * 
+     * We _also_ go back to the start if we see pktin==NULL and
+     * inlen==-1, because this is a special signal meaning
+     * `initiate client-driven rekey', and `in' contains a message
+     * giving the reason for the rekey.
      */
-    while (!(pktin && pktin->type == SSH2_MSG_KEXINIT)) {
+    while (!((pktin && pktin->type == SSH2_MSG_KEXINIT) ||
+	     (!pktin && inlen == -1))) {
 	crReturn(1);
     }
-    logevent("Server initiated key re-exchange");
+    if (pktin) {
+	logevent("Server initiated key re-exchange");
+    } else {
+	logevent((char *)in);
+    }
     goto begin_key_exchange;
 
     crFinish(1);
@@ -6822,11 +6903,30 @@ static void ssh2_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;
 }
 
+static void ssh2_timer(void *ctx, long now)
+{
+    Ssh ssh = (Ssh)ctx;
+
+    if (!ssh->kex_in_progress &&
+	now - ssh->next_rekey >= 0) {
+	do_ssh2_transport(ssh, "Initiating key re-exchange (timeout)",
+			  -1, NULL);
+    }
+}
+
 static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen,
 			  struct Packet *pktin)
 {
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
+
+    if (pktin) {
+	ssh->incoming_data_size += pktin->encrypted_len;
+	if (!ssh->kex_in_progress &&
+	    ssh->incoming_data_size > MAX_DATA_BEFORE_REKEY)
+	    do_ssh2_transport(ssh, "Initiating key re-exchange "
+			      "(too much data received)", -1, NULL);
+    }
 
     if (pktin && ssh->packet_dispatch[pktin->type]) {
 	ssh->packet_dispatch[pktin->type](ssh, pktin);
@@ -6943,6 +7043,10 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh->pinger = NULL;
 
+    ssh->incoming_data_size = ssh->outgoing_data_size =
+	ssh->deferred_data_size = 0L;
+    ssh->kex_in_progress = FALSE;
+
     p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
     if (p != NULL)
 	return p;
@@ -7021,6 +7125,7 @@ static void ssh_free(void *handle)
     }
     if (ssh->s)
 	ssh_do_close(ssh);
+    expire_timer_context(ssh);
     sfree(ssh);
     if (ssh->pinger)
 	pinger_free(ssh->pinger);
@@ -7139,6 +7244,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 {
     static const struct telnet_special ignore_special[] = {
 	{"IGNORE message", TS_NOP},
+	{"Repeat key exchange", TS_REKEY},
     };
     static const struct telnet_special ssh2_session_specials[] = {
 	{NULL, TS_SEP},
@@ -7180,7 +7286,6 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
 	    ADD_SPECIALS(ignore_special);
     } else if (ssh->version == 2) {
-	/* XXX add rekey, when implemented */
 	ADD_SPECIALS(ignore_special);
 	if (ssh->mainchan)
 	    ADD_SPECIALS(ssh2_session_specials);
@@ -7233,6 +7338,11 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    pktout = ssh2_pkt_init(SSH2_MSG_IGNORE);
 	    ssh2_pkt_addstring_start(pktout);
 	    ssh2_pkt_send_noqueue(ssh, pktout);
+	}
+    } else if (code == TS_REKEY) {
+	if (!ssh->kex_in_progress && ssh->version == 2) {
+	    do_ssh2_transport(ssh, "Initiating key re-exchange at"
+			      " user request", -1, NULL);
 	}
     } else if (code == TS_BRK) {
 	if (ssh->state == SSH_STATE_CLOSED
