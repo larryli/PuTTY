@@ -8055,6 +8055,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    struct Packet *pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
 	    ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
 	    ssh2_pkt_send(ssh, pktout);
+            ssh->send_ok = 0;          /* now stop trying to read from stdin */
 	}
 	logevent("Sent EOF message");
     } else if (code == TS_PING || code == TS_NOP) {
