@@ -97,6 +97,7 @@ typedef struct {
     int port;
     enum { PROT_RAW, PROT_TELNET, PROT_SSH } protocol;
     int close_on_exit;
+    int warn_on_close;
     /* SSH options */
     int nopty;
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;

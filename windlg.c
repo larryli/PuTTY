@@ -120,6 +120,7 @@ static void save_settings (char *section, int do_host) {
 		  cfg.protocol == PROT_TELNET ? "telnet" : "raw" );
     }
     wppi (sesskey, "CloseOnExit", !!cfg.close_on_exit);
+    wppi (sesskey, "WarnOnClose", !!cfg.warn_on_close);
     wpps (sesskey, "TerminalType", cfg.termtype);
     wpps (sesskey, "TerminalSpeed", cfg.termspeed);
     {
@@ -235,6 +236,7 @@ static void load_settings (char *section, int do_host) {
 	cfg.protocol = default_protocol;
 
     gppi (sesskey, "CloseOnExit", 1, &cfg.close_on_exit);
+    gppi (sesskey, "WarnOnClose", 1, &cfg.warn_on_close);
     gpps (sesskey, "TerminalType", "xterm", cfg.termtype,
 	  sizeof(cfg.termtype));
     gpps (sesskey, "TerminalSpeed", "38400,38400", cfg.termspeed,
@@ -454,6 +456,7 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 			  cfg.protocol==PROT_SSH ? IDC0_PROTSSH : 
 			  cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW );
 	CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
+	CheckDlgButton (hwnd, IDC0_CLOSEWARN, cfg.warn_on_close);
 	break;
       case WM_LBUTTONUP:
         /*
@@ -494,6 +497,11 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC0_CLOSEEXIT);
+	    break;
+	  case IDC0_CLOSEWARN:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.warn_on_close = IsDlgButtonChecked (hwnd, IDC0_CLOSEWARN);
 	    break;
 	  case IDC0_SESSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
@@ -553,6 +561,7 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 				  (cfg.protocol==PROT_SSH ? IDC0_PROTSSH :
 				  cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW));
 		CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
+		CheckDlgButton (hwnd, IDC0_CLOSEWARN, cfg.warn_on_close);
 		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
 	    }

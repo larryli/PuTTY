@@ -617,7 +617,8 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
       case WM_CREATE:
 	break;
       case WM_CLOSE:
-	if (MessageBox(hwnd, "Are you sure you want to close this session?",
+	if (!cfg.warn_on_close ||
+	    MessageBox(hwnd, "Are you sure you want to close this session?",
 		       "PuTTY Exit Confirmation",
 		       MB_ICONWARNING | MB_OKCANCEL) == IDOK)
 	    DestroyWindow(hwnd);
