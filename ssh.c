@@ -168,6 +168,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_CHOKES_ON_SSH1_IGNORE                 1
 #define BUG_SSH2_HMAC                             2
 #define BUG_NEEDS_SSH1_PLAIN_PASSWORD        	  4
+#define BUG_CHOKES_ON_RSA	        	  8
 
 static int ssh_pkt_ctx = 0;
 
@@ -1590,6 +1591,16 @@ static void ssh_detect_bugs(char *vstring)
 	logevent("We believe remote version needs a plain SSH1 password");
     }
 
+    if (!strcmp(imp, "Cisco-1.25")) {
+	/*
+	 * These versions apparently have no clue whatever about
+	 * RSA authentication and will panic and die if they see
+	 * an AUTH_RSA message.
+	 */
+	ssh_remote_bugs |= BUG_CHOKES_ON_RSA;
+	logevent("We believe remote version can't handle RSA authentication");
+    }
+
     if (!strncmp(imp, "2.1.0", 5) || !strncmp(imp, "2.0.", 4) ||
 	!strncmp(imp, "2.2.0", 5) || !strncmp(imp, "2.3.0", 5) ||
 	!strncmp(imp, "2.1 ", 4)) {
@@ -2191,7 +2202,12 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     crWaitUntil(ispkt);
 
-    tried_publickey = tried_agent = 0;
+    if ((ssh_remote_bugs & BUG_CHOKES_ON_RSA)) {
+	/* We must not attempt PK auth. Pretend we've already tried it. */
+	tried_publickey = tried_agent = 1;
+    } else {
+	tried_publickey = tried_agent = 0;
+    }
     tis_auth_refused = ccard_auth_refused = 0;
     /* Load the public half of cfg.keyfile so we notice if it's in Pageant */
     if (*cfg.keyfile) {
