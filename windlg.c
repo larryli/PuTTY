@@ -385,6 +385,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_TITLE_SELECTION,
     IDC_BOX_SELECTION1,
     IDC_BOX_SELECTION2,
+    IDC_BOX_SELECTION3,
     IDC_MBSTATIC,
     IDC_MBWINDOWS,
     IDC_MBXTERM,
@@ -393,6 +394,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_CCSET,
     IDC_CCSTATIC2,
     IDC_CCEDIT,
+    IDC_RAWCNP,
     selectionpanelend,
 
     colourspanelstart,
@@ -591,6 +593,7 @@ static void init_dlg_ctrls(HWND hwnd) {
 
     CheckRadioButton (hwnd, IDC_MBWINDOWS, IDC_MBXTERM,
 		      cfg.mouse_is_xterm ? IDC_MBXTERM : IDC_MBWINDOWS);
+    CheckDlgButton (hwnd, IDC_RAWCNP, cfg.rawcnp);
     {
 	static int tabs[4] = {25, 61, 96, 128};
 	SendDlgItemMessage (hwnd, IDC_CCLIST, LB_SETTABSTOPS, 4,
@@ -906,20 +909,25 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == selectionpanelstart) {
-        /* The Selection panel. Accelerators used: [acgo] wx hst */
+        /* The Selection panel. Accelerators used: [acgo] d wx hst */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling copy and paste",
                  IDC_TITLE_SELECTION);
-        beginbox(&cp, "Control which mouse button does which thing",
+        beginbox(&cp, "Translation of pasted characters",
                  IDC_BOX_SELECTION1);
+        checkbox(&cp, "&Don't translate line drawing chars into +, - and |",
+                 IDC_RAWCNP);
+        endbox(&cp);
+        beginbox(&cp, "Control which mouse button does which thing",
+                 IDC_BOX_SELECTION2);
         radiobig(&cp, "Action of mouse buttons:", IDC_MBSTATIC,
                  "&Windows (Right pastes, Middle extends)", IDC_MBWINDOWS,
                  "&xterm (Right extends, Middle pastes)", IDC_MBXTERM,
                  NULL);
         endbox(&cp);
         beginbox(&cp, "Control the select-one-word-at-a-time mode",
-                 IDC_BOX_SELECTION2);
+                 IDC_BOX_SELECTION3);
         charclass(&cp, "C&haracter classes:", IDC_CCSTATIC, IDC_CCLIST,
                   "&Set", IDC_CCSET, IDC_CCEDIT,
                   "&to class", IDC_CCSTATIC2);
@@ -1842,6 +1850,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                 SetDlgItemText (hwnd, IDC_PKEDIT, cfg.keyfile);
             }
 	    break;
+	  case IDC_RAWCNP:
+	    cfg.rawcnp = IsDlgButtonChecked (hwnd, IDC_RAWCNP);
 	  case IDC_MBWINDOWS:
 	  case IDC_MBXTERM:
 	    cfg.mouse_is_xterm = IsDlgButtonChecked (hwnd, IDC_MBXTERM);

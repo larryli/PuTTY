@@ -124,6 +124,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
 		cfg->colours[i][1], cfg->colours[i][2]);
 	write_setting_s (sesskey, buf, buf2);
     }
+    write_setting_i (sesskey, "RawCNP", cfg->rawcnp);
     write_setting_i (sesskey, "MouseIsXterm", cfg->mouse_is_xterm);
     for (i=0; i<256; i+=32) {
 	char buf[20], buf2[256];
@@ -296,6 +297,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
 	    cfg->colours[i][2] = c2;
 	}
     }
+    gppi (sesskey, "RawCNP", 0, &cfg->rawcnp);
     gppi (sesskey, "MouseIsXterm", 0, &cfg->mouse_is_xterm);
     for (i=0; i<256; i+=32) {
 	static char *defaults[] = {

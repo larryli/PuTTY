@@ -52,6 +52,7 @@
 #define ERASE_CHAR   (ATTR_DEFAULT | ' ')
 #define ATTR_MASK    0xFFFFFF00UL
 #define CHAR_MASK    0x000000FFUL
+#define CSET_MASK    0x00F00000UL      /* mask for character set */
 
 typedef HDC Context;
 #define SEL_NL { 13, 10 }
@@ -232,6 +233,7 @@ typedef struct {
     unsigned char colours[22][3];
     /* Selection options */
     int mouse_is_xterm;
+    int rawcnp;
     short wordness[256];
     /* translations */
     VT_Mode vtmode;

@@ -1948,34 +1948,34 @@ static void clipme(unsigned long *top, unsigned long *bottom, char *workbuf) {
 	}
 	while (top < nlpos && top < bottom)
 	{
-#if 0
-	    /* VT Specials -> ISO8859-1  */
-	    static const char poorman2[] =
-"* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
-#endif
-
 	    int ch = (*top & CHAR_MASK);
+	    int set = (*top & CSET_MASK);
 
-#if 0
-	    if ((*top & ATTR_LINEDRW) && ch >= 0x60 && ch < 0x7F) {
-		int x;
-		*wbptr++ = poorman2[2*(ch-0x60)];
-		if ( (x = poorman2[2*(ch-0x60)+1]) != ' ')
-		    *wbptr++ = x;
-	    } else
-#endif
-#if 0
-	    if ((*top & ATTR_GBCHR) && ch == '#')
-		*wbptr++ = (unsigned char) 0xA3;
-	    else
-#endif
-	    if ( wblen == buflen )
-	    {
-		workbuf = srealloc(workbuf, buflen += 100);
-		wbptr = workbuf + wblen;
+	    /* VT Specials -> ISO8859-1 for Cut&Paste */
+	    static const unsigned char poorman2[] =
+"* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
+
+	    if (set && !cfg.rawcnp) {
+	        if (set == ATTR_LINEDRW && ch >= 0x60 && ch < 0x7F) {
+		    int x;
+		    if ((x = poorman2[2*(ch-0x60)+1]) == ' ')
+		        x = 0;
+		    ch = (x<<8) + poorman2[2*(ch-0x60)];
+	        }
 	    }
-	    wblen++;
-	    *wbptr++ = (unsigned char) ch;
+
+	    while(ch != 0) {
+		if (cfg.rawcnp || !!(ch&0xE0)) {
+		    if ( wblen == buflen )
+		    {
+		        workbuf = srealloc(workbuf, buflen += 100);
+		        wbptr = workbuf + wblen;
+		    }
+		    wblen++;
+		    *wbptr++ = (unsigned char) ch;
+		}
+		ch>>=8;
+	    }
 	    top++;
 	}
 	if (nl) {
