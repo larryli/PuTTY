@@ -2388,9 +2388,63 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
+char *guess_derived_font_name(GdkFont *font, int bold, int wide)
+{
+    XFontStruct *xfs = GDK_FONT_XFONT(font);
+    Display *disp = GDK_FONT_XDISPLAY(font);
+    Atom fontprop = XInternAtom(disp, "FONT", False);
+    unsigned long ret;
+    if (XGetFontProperty(xfs, fontprop, &ret)) {
+	char *name = XGetAtomName(disp, (Atom)ret);
+	if (name && name[0] == '-') {
+	    char *strings[13];
+	    char *dupname, *extrafree = NULL, *ret;
+	    char *p, *q;
+	    int nstr;
+
+	    p = q = dupname = dupstr(name); /* skip initial minus */
+	    nstr = 0;
+
+	    while (*p && nstr < lenof(strings)) {
+		if (*p == '-') {
+		    *p = '\0';
+		    strings[nstr++] = p+1;
+		}
+		p++;
+	    }
+
+	    if (nstr < lenof(strings))
+		return NULL;	       /* XLFD was malformed */
+
+	    if (bold)
+		strings[2] = "bold";
+
+	    if (wide) {
+		/* 4 is `wideness', which obviously may have changed. */
+		/* 5 is additional style, which may be e.g. `ja' or `ko'. */
+		strings[4] = strings[5] = "*";
+		strings[11] = extrafree = dupprintf("%d", 2*atoi(strings[11]));
+	    }
+
+	    ret = dupcat("-", strings[ 0], "-", strings[ 1], "-", strings[ 2],
+			 "-", strings[ 3], "-", strings[ 4], "-", strings[ 5],
+			 "-", strings[ 6], "-", strings[ 7], "-", strings[ 8],
+			 "-", strings[ 9], "-", strings[10], "-", strings[11],
+			 "-", strings[12], NULL);
+	    sfree(extrafree);
+	    sfree(dupname);
+
+	    return ret;
+	}
+    }
+    return NULL;
+}
+
 void setup_fonts_ucs(struct gui_data *inst)
 {
     int font_charset;
+    char *name;
+    int guessed;
 
     if (inst->fonts[0])
         gdk_font_unref(inst->fonts[0]);
@@ -2408,36 +2462,70 @@ void setup_fonts_ucs(struct gui_data *inst)
 	exit(1);
     }
     font_charset = set_font_info(inst, 0);
+
     if (inst->cfg.boldfont.name[0]) {
-	inst->fonts[1] = gdk_font_load(inst->cfg.boldfont.name);
-	if (!inst->fonts[1]) {
-	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
-		    inst->cfg.boldfont.name);
-	    exit(1);
-	}
+	name = inst->cfg.boldfont.name;
+	guessed = FALSE;
+    } else {
+	name = guess_derived_font_name(inst->fonts[0], TRUE, FALSE);
+	guessed = TRUE;
+    }
+    inst->fonts[1] = name ? gdk_font_load(name) : NULL;
+    if (inst->fonts[1]) {
 	set_font_info(inst, 1);
-    } else
-	inst->fonts[1] = NULL;
+    } else if (!guessed) {
+	fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
+		inst->cfg.boldfont.name);
+	exit(1);
+    }
+    if (guessed)
+	sfree(name);
+
     if (inst->cfg.widefont.name[0]) {
-	inst->fonts[2] = gdk_font_load(inst->cfg.widefont.name);
-	if (!inst->fonts[2]) {
-	    fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
-		    inst->cfg.widefont.name);
-	    exit(1);
-	}
+	name = inst->cfg.widefont.name;
+	guessed = FALSE;
+    } else {
+	name = guess_derived_font_name(inst->fonts[0], FALSE, TRUE);
+	guessed = TRUE;
+    }
+    inst->fonts[2] = name ? gdk_font_load(name) : NULL;
+    if (inst->fonts[2]) {
 	set_font_info(inst, 2);
-    } else
-	inst->fonts[2] = NULL;
+    } else if (!guessed) {
+	fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
+		inst->cfg.widefont.name);
+	exit(1);
+    }
+    if (guessed)
+	sfree(name);
+
     if (inst->cfg.wideboldfont.name[0]) {
-	inst->fonts[3] = gdk_font_load(inst->cfg.wideboldfont.name);
-	if (!inst->fonts[3]) {
-	    fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n",
-                    appname, inst->cfg.wideboldfont.name);
-	    exit(1);
-	}
+	name = inst->cfg.wideboldfont.name;
+	guessed = FALSE;
+    } else {
+	/*
+	 * Here we have some choices. We can widen the bold font,
+	 * bolden the wide font, or widen and bolden the standard
+	 * font. Try them all, in that order!
+	 */
+	if (inst->cfg.widefont.name[0])
+	    name = guess_derived_font_name(inst->fonts[2], TRUE, FALSE);
+	else if (inst->cfg.boldfont.name[0])
+	    name = guess_derived_font_name(inst->fonts[1], FALSE, TRUE);
+	else
+	    name = guess_derived_font_name(inst->fonts[0], TRUE, TRUE);
+	guessed = TRUE;
+    }
+    inst->fonts[3] = name ? gdk_font_load(name) : NULL;
+    if (inst->fonts[3]) {
 	set_font_info(inst, 3);
-    } else
-	inst->fonts[3] = NULL;
+    } else if (!guessed) {
+	fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n", appname,
+		inst->cfg.wideboldfont.name);
+	exit(1);
+    }
+    if (guessed)
+	sfree(name);
 
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
