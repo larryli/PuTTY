@@ -2955,8 +2955,9 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 #endif
 
     hkey = hostkey->newkey(hostkeydata, hostkeylen);
-    if (!hostkey->verifysig(hkey, sigdata, siglen, exchange_hash, 20)) {
-	bombout(("Server failed host key check"));
+    if (!hkey ||
+	!hostkey->verifysig(hkey, sigdata, siglen, exchange_hash, 20)) {
+	bombout(("Server's host key did not match the signature supplied"));
 	crReturn(0);
     }
 
