@@ -163,6 +163,7 @@ static struct ssh_hostkey *hostkey = NULL;
 int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
 
 static char *savedhost;
+static int ssh_send_ok;
 
 static enum {
     SSH_STATE_BEFORE_SIZE,
@@ -990,6 +991,7 @@ static int do_ssh_init(void) {
         ssh_version = 1;
         s_rdpkt = ssh1_rdpkt;
     }
+    ssh_send_ok = 0;
     return 1;
 }
 
@@ -1411,6 +1413,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
     if (size_needed)
 	ssh_size();
 
+    ssh_send_ok = 1;
     while (1) {
 	crReturnV;
 	if (ispkt) {
@@ -1976,6 +1979,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * Transfer data!
      */
+    ssh_send_ok = 1;
     while (1) {
 	crReturnV;
 	if (ispkt) {
@@ -2312,7 +2316,9 @@ char *ssh_scp_init(char *host, int port, char *cmd, char **realhost)
     return NULL;
 }
 
-SOCKET ssh_socket(void) { return s; }
+static SOCKET ssh_socket(void) { return s; }
+
+static int ssh_sendok(void) { return ssh_send_ok; }
 
 Backend ssh_backend = {
     ssh_init,
@@ -2320,5 +2326,6 @@ Backend ssh_backend = {
     ssh_send,
     ssh_size,
     ssh_special,
-    ssh_socket
+    ssh_socket,
+    ssh_sendok
 };

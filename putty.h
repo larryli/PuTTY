@@ -110,6 +110,7 @@ typedef struct {
     void (*size) (void);
     void (*special) (Telnet_Special code);
     SOCKET (*socket) (void);
+    int (*sendok) (void);
 } Backend;
 
 GLOBAL Backend *back;

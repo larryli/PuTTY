@@ -215,7 +215,9 @@ static void raw_special (Telnet_Special code) {
     return;
 }
 
-SOCKET raw_socket(void) { return s; }
+static SOCKET raw_socket(void) { return s; }
+
+static int raw_sendok(void) { return 1; }
 
 Backend raw_backend = {
     raw_init,
@@ -223,5 +225,6 @@ Backend raw_backend = {
     raw_send,
     raw_size,
     raw_special,
-    raw_socket
+    raw_socket,
+    raw_sendok
 };

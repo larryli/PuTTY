@@ -732,7 +732,9 @@ static void telnet_special (Telnet_Special code) {
     }
 }
 
-SOCKET telnet_socket(void) { return s; }
+static SOCKET telnet_socket(void) { return s; }
+
+static int telnet_sendok(void) { return 1; }
 
 Backend telnet_backend = {
     telnet_init,
@@ -740,5 +742,6 @@ Backend telnet_backend = {
     telnet_send,
     telnet_size,
     telnet_special,
-    telnet_socket
+    telnet_socket,
+    telnet_sendok
 };
