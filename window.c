@@ -25,9 +25,10 @@
 #define IDM_SHOWLOG   0x0010
 #define IDM_NEWSESS   0x0020
 #define IDM_DUPSESS   0x0030
-#define IDM_RECONF    0x0040
-#define IDM_CLRSB     0x0050
-#define IDM_RESET     0x0060
+#define IDM_RESTART   0x0040
+#define IDM_RECONF    0x0050
+#define IDM_CLRSB     0x0060
+#define IDM_RESET     0x0070
 #define IDM_HELP      0x0140
 #define IDM_ABOUT     0x0150
 #define IDM_SAVEDSESS 0x0160
@@ -180,6 +181,110 @@ static UINT wm_mousewheel = WM_MOUSEWHEEL;
 /* Dummy routine, only required in plink. */
 void ldisc_update(void *frontend, int echo, int edit)
 {
+}
+
+static void start_backend(void)
+{
+    const char *error;
+    char msg[1024], *title;
+    char *realhost;
+    int i;
+
+    /*
+     * Select protocol. This is farmed out into a table in a
+     * separate file to enable an ssh-free variant.
+     */
+    back = NULL;
+    for (i = 0; backends[i].backend != NULL; i++)
+	if (backends[i].protocol == cfg.protocol) {
+	    back = backends[i].backend;
+	    break;
+	}
+    if (back == NULL) {
+	char *str = dupprintf("%s Internal Error", appname);
+	MessageBox(NULL, "Unsupported protocol number found",
+		   str, MB_OK | MB_ICONEXCLAMATION);
+	sfree(str);
+	cleanup_exit(1);
+    }
+
+    error = back->init(NULL, &backhandle, &cfg,
+		       cfg.host, cfg.port, &realhost, cfg.tcp_nodelay,
+		       cfg.tcp_keepalives);
+    back->provide_logctx(backhandle, logctx);
+    if (error) {
+	char *str = dupprintf("%s Error", appname);
+	sprintf(msg, "Unable to open connection to\n"
+		"%.800s\n" "%s", cfg.host, error);
+	MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
+	sfree(str);
+	exit(0);
+    }
+    window_name = icon_name = NULL;
+    if (*cfg.wintitle) {
+	title = cfg.wintitle;
+    } else {
+	sprintf(msg, "%s - %s", realhost, appname);
+	title = msg;
+    }
+    sfree(realhost);
+    set_title(NULL, title);
+    set_icon(NULL, title);
+
+    /*
+     * Connect the terminal to the backend for resize purposes.
+     */
+    term_provide_resize_fn(term, back->size, backhandle);
+
+    /*
+     * Set up a line discipline.
+     */
+    ldisc = ldisc_create(&cfg, term, back, backhandle, NULL);
+
+    /*
+     * Destroy the Restart Session menu item. (This will return
+     * failure if it's already absent, as it will be the very first
+     * time we call this function. We ignore that, because as long
+     * as the menu item ends up not being there, we don't care
+     * whether it was us who removed it or not!)
+     */
+    for (i = 0; i < lenof(popup_menus); i++) {
+	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
+    }
+
+    session_closed = FALSE;
+}
+
+static void close_session(void)
+{
+    char morestuff[100];
+    int i;
+
+    session_closed = TRUE;
+    sprintf(morestuff, "%.70s (inactive)", appname);
+    set_icon(NULL, morestuff);
+    set_title(NULL, morestuff);
+
+    if (ldisc) {
+	ldisc_free(ldisc);
+	ldisc = NULL;
+    }
+    if (back) {
+	back->free(backhandle);
+	backhandle = NULL;
+	back = NULL;
+	update_specials_menu(NULL);
+    }
+
+    /*
+     * Show the Restart Session menu item. Do a precautionary
+     * delete first to ensure we never end up with more than one.
+     */
+    for (i = 0; i < lenof(popup_menus); i++) {
+	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
+	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
+		   IDM_RESTART, "&Restart Session");
+    }
 }
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
@@ -452,27 +557,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
-    /*
-     * Select protocol. This is farmed out into a table in a
-     * separate file to enable an ssh-free variant.
-     */
-    {
-	int i;
-	back = NULL;
-	for (i = 0; backends[i].backend != NULL; i++)
-	    if (backends[i].protocol == cfg.protocol) {
-		back = backends[i].backend;
-		break;
-	    }
-	if (back == NULL) {
-	    char *str = dupprintf("%s Internal Error", appname);
-	    MessageBox(NULL, "Unsupported protocol number found",
-		       str, MB_OK | MB_ICONEXCLAMATION);
-	    sfree(str);
-	    cleanup_exit(1);
-	}
-    }
-
     /* Check for invalid Port number (i.e. zero) */
     if (cfg.port == 0) {
 	char *str = dupprintf("%s Internal Error", appname);
@@ -602,49 +686,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	SetScrollInfo(hwnd, SB_VERT, &si, FALSE);
     }
 
-    /*
-     * Start up the telnet connection.
-     */
-    {
-	const char *error;
-	char msg[1024], *title;
-	char *realhost;
-
-	error = back->init(NULL, &backhandle, &cfg,
-			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay,
-			   cfg.tcp_keepalives);
-	back->provide_logctx(backhandle, logctx);
-	if (error) {
-	    char *str = dupprintf("%s Error", appname);
-	    sprintf(msg, "Unable to open connection to\n"
-		    "%.800s\n" "%s", cfg.host, error);
-	    MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
-	    sfree(str);
-	    return 0;
-	}
-	window_name = icon_name = NULL;
-	if (*cfg.wintitle) {
-	    title = cfg.wintitle;
-	} else {
-	    sprintf(msg, "%s - %s", realhost, appname);
-	    title = msg;
-	}
-	sfree(realhost);
-	set_title(NULL, title);
-	set_icon(NULL, title);
-    }
-
-    /*
-     * Connect the terminal to the backend for resize purposes.
-     */
-    term_provide_resize_fn(term, back->size, backhandle);
-
-    /*
-     * Set up a line discipline.
-     */
-    ldisc = ldisc_create(&cfg, term, back, backhandle, NULL);
-
-    session_closed = FALSE;
+    start_backend();
 
     /*
      * Prepare the mouse handler.
@@ -865,13 +907,17 @@ char *do_select(SOCKET skt, int startup)
  */
 void update_specials_menu(void *frontend)
 {
-    HMENU m = GetSystemMenu(hwnd, FALSE);
+    HMENU p;
     int menu_already_exists = (specials != NULL);
     int i, j;
 
-    specials = back->get_specials(backhandle);
+    if (back)
+	specials = back->get_specials(backhandle);
+    else
+	specials = NULL;
+
     if (specials) {
-	HMENU p = CreateMenu();
+	p = CreateMenu();
 	for (i = 0; specials[i].name; i++) {
 	    assert(IDM_SPECIAL_MIN + 0x10 * i < IDM_SPECIAL_MAX);
 	    if (*specials[i].name)
@@ -880,15 +926,22 @@ void update_specials_menu(void *frontend)
 	    else
 		AppendMenu(p, MF_SEPARATOR, 0, 0);
 	}
-	for (j = 0; j < lenof(popup_menus); j++) {
-	    if (menu_already_exists)
-		DeleteMenu(popup_menus[j].menu,
-			   popup_menus[j].specials_submenu_pos,
-			   MF_BYPOSITION);
-	    else
-		InsertMenu(popup_menus[j].menu,
-			   popup_menus[j].specials_submenu_pos,
-			   MF_BYPOSITION | MF_SEPARATOR, 0, 0);
+    } else
+	p = NULL;
+
+    for (j = 0; j < lenof(popup_menus); j++) {
+	if (menu_already_exists) {
+	    DeleteMenu(popup_menus[j].menu,
+		       popup_menus[j].specials_submenu_pos,
+		       MF_BYPOSITION);
+	    DeleteMenu(popup_menus[j].menu,
+		       popup_menus[j].specials_submenu_pos,
+		       MF_BYPOSITION);
+	}
+	if (specials) {
+	    InsertMenu(popup_menus[j].menu,
+		       popup_menus[j].specials_submenu_pos,
+		       MF_BYPOSITION | MF_SEPARATOR, 0, 0);
 	    InsertMenu(popup_menus[j].menu,
 		       popup_menus[j].specials_submenu_pos,
 		       MF_BYPOSITION | MF_POPUP | MF_ENABLED,
@@ -925,10 +978,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
     if (cfg.close_on_exit == FORCE_ON)
 	PostQuitMessage(1);
     else {
-	session_closed = TRUE;
-	sprintf(morestuff, "%.70s (inactive)", appname);
-	set_icon(NULL, morestuff);
-	set_title(NULL, morestuff);
+	close_session();
     }
 }
 
@@ -973,11 +1023,8 @@ static void enact_pending_netevent(void)
 	if (cfg.close_on_exit == FORCE_ON ||
 	    cfg.close_on_exit == AUTO) PostQuitMessage(0);
 	else {
-	    char morestuff[100];
+	    close_session();
 	    session_closed = TRUE;
-	    sprintf(morestuff, "%.70s (inactive)", appname);
-	    set_icon(NULL, morestuff);
-	    set_title(NULL, morestuff);
 	    MessageBox(hwnd, "Connection closed by remote host",
 		       appname, MB_OK | MB_ICONINFORMATION);
 	}
@@ -1738,7 +1785,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    time_t now;
 	    time(&now);
 	    if (now - last_movement > cfg.ping_interval) {
-		back->special(backhandle, TS_PING);
+		if (back)
+		    back->special(backhandle, TS_PING);
 		last_movement = now;
 	    }
 	}
@@ -1841,6 +1889,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    sfree(cl);
 	    }
 	    break;
+	  case IDM_RESTART:
+	    if (!back) {
+		logevent(NULL, "----- Session restarted -----");
+		start_backend();
+	    }
+
+	    break;
 	  case IDM_RECONF:
 	    {
 		Config prev_cfg;
@@ -1873,7 +1928,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * Flush the line discipline's edit buffer in the
 		 * case where local editing has just been disabled.
 		 */
-		ldisc_send(ldisc, NULL, 0, 0);
+		if (ldisc)
+		    ldisc_send(ldisc, NULL, 0, 0);
 		if (pal)
 		    DeleteObject(pal);
 		logpal = NULL;
@@ -1885,7 +1941,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		term_reconfig(term, &cfg);
 
 		/* Pass new config data to the back end */
-		back->reconfig(backhandle, &cfg);
+		if (back)
+		    back->reconfig(backhandle, &cfg);
 
 		/* Screen size changed ? */
 		if (cfg.height != prev_cfg.height ||
@@ -1993,7 +2050,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_RESET:
 	    term_pwron(term);
-	    ldisc_send(ldisc, NULL, 0, 0);
+	    if (ldisc)
+		ldisc_send(ldisc, NULL, 0, 0);
 	    break;
 	  case IDM_ABOUT:
 	    showabout(hwnd);
@@ -2041,7 +2099,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    if (!specials || !specials[j].name)
 			break;
 		if (j == i) {
-		    back->special(backhandle, specials[i].code);
+		    if (back)
+			back->special(backhandle, specials[i].code);
 		    net_pending_errors();
 		}
 	    }
@@ -2613,7 +2672,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * we're sent.
 		     */
 		    term_seen_key_event(term);
-		    ldisc_send(ldisc, buf, len, 1);
+		    if (ldisc)
+			ldisc_send(ldisc, buf, len, 1);
 		    show_mouseptr(0);
 		}
 	    }
@@ -2661,7 +2721,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 */
 		term_seen_key_event(term);
 		for (i = 0; i < n; i += 2) {
-		    luni_send(ldisc, (unsigned short *)(buff+i), 1, 1);
+		    if (ldisc)
+			luni_send(ldisc, (unsigned short *)(buff+i), 1, 1);
 		}
 		free(buff);
 	    }
@@ -2676,11 +2737,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
 	    term_seen_key_event(term);
-	    lpage_send(ldisc, kbd_codepage, buf, 2, 1);
+	    if (ldisc)
+		lpage_send(ldisc, kbd_codepage, buf, 2, 1);
 	} else {
 	    char c = (unsigned char) wParam;
 	    term_seen_key_event(term);
-	    lpage_send(ldisc, kbd_codepage, &c, 1, 1);
+	    if (ldisc)
+		lpage_send(ldisc, kbd_codepage, &c, 1, 1);
 	}
 	return (0);
       case WM_CHAR:
@@ -2694,7 +2757,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	{
 	    char c = (unsigned char)wParam;
 	    term_seen_key_event(term);
-	    lpage_send(ldisc, CP_ACP, &c, 1, 1);
+	    if (ldisc)
+		lpage_send(ldisc, CP_ACP, &c, 1, 1);
 	}
 	return 0;
       case WM_SETCURSOR:
@@ -3990,7 +4054,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    }
 		    keybuf = nc;
 		    term_seen_key_event(term);
-		    luni_send(ldisc, &keybuf, 1, 1);
+		    if (ldisc)
+			luni_send(ldisc, &keybuf, 1, 1);
 		    continue;
 		}
 
@@ -4001,7 +4066,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			if (in_utf(term) || ucsdata.dbcs_screenfont) {
 			    keybuf = alt_sum;
 			    term_seen_key_event(term);
-			    luni_send(ldisc, &keybuf, 1, 1);
+			    if (ldisc)
+				luni_send(ldisc, &keybuf, 1, 1);
 			} else {
 			    ch = (char) alt_sum;
 			    /*
@@ -4014,12 +4080,14 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * everything we're sent.
 			     */
 			    term_seen_key_event(term);
-			    ldisc_send(ldisc, &ch, 1, 1);
+			    if (ldisc)
+				ldisc_send(ldisc, &ch, 1, 1);
 			}
 			alt_sum = 0;
 		    } else {
 			term_seen_key_event(term);
-			lpage_send(ldisc, kbd_codepage, &ch, 1, 1);
+			if (ldisc)
+			    lpage_send(ldisc, kbd_codepage, &ch, 1, 1);
 		    }
 		} else {
 		    if(capsOn && ch < 0x80) {
@@ -4027,14 +4095,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(ch);
 			term_seen_key_event(term);
-			luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt, 1);
+			if (ldisc)
+			    luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt, 1);
 		    } else {
 			char cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = ch;
 			term_seen_key_event(term);
-			lpage_send(ldisc, kbd_codepage,
-				   cbuf+!left_alt, 1+!!left_alt, 1);
+			if (ldisc)
+			    lpage_send(ldisc, kbd_codepage,
+				       cbuf+!left_alt, 1+!!left_alt, 1);
 		    }
 		}
 		show_mouseptr(0);
