@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.2 2001/02/06 09:34:42 owen Exp $
+\versionid $Id: pubkey.but,v 1.3 2001/06/15 19:31:10 simon Exp $
 
 \# FIXME: passphrases, examples (e.g what does a key for pasting into
 \# authorized_keys look like?), index entries, links.
@@ -7,13 +7,57 @@
 
 \H{pubkey-intro} Public key authentication - an introduction
 
-\# Explain the basic principles of public key authentication. Many
-\# people don't have the faintest idea what it is or why it's good.
+Public key authentication is an alternative means of identifying
+yourself to a login server, instead of typing a password. It is more
+secure and more flexible, but more difficult to set up.
 
-\# Explain the dangers of leaving an unprotected private key around.
-\# Explain passphrases, and urge that people NEVER store
-\# unpassphrased keys unless they really need to or they can be sure
-\# the machine is secure.
+In conventional password authentication, you prove you are who you
+claim to be by proving that you know the correct password. The only
+way to prove you know the password is to tell the server what you
+think the password is. This means that if the server has been
+hacked, or \e{spoofed} (see \k{gs-hostkey}), an attacker can learn
+your password.
+
+Public key authentication solves this problem. You generate a \e{key
+pair}, consisting of a public key (which everybody is allowed to
+know) and a private key (which you keep secret and do not give to
+anybody). The private key is able to generate \e{signatures}.
+A signature created using your private key cannot be forged by
+anybody who does not have that key; but anybody who has your public
+key can verify that a particular signature is genuine.
+
+So you generate a key pair on your own computer, and you copy the
+public key to the server. Then, when the server asks you to prove
+who you are, PuTTY can generate a signature using your private key.
+The server can verify that signature (since it has your public key)
+and allow you to log in. Now if the server is hacked or spoofed, the
+attacker does not gain your private key or password; they only gain
+one signature. And signatures cannot be re-used, so they have gained
+nothing.
+
+There is a problem with this: if your private key is stored
+unprotected on your own computer, then anybody who gains access to
+\e{that} will be able to generate signatures as if they were you. So
+they will be able to log in to your server under your account. For
+this reason, your private key is usually \e{encrypted} when it is
+stored on your local machine, using a passphrase of your choice. In
+order to generate a signature, PuTTY must decrypt the key, so you
+have to type your passphrase.
+
+This can make public-key authentication less convenient than
+password authentication: every time you log in to the server,
+instead of typing a short password, you have to type a longer
+passphrase. One solution to this is to use an \e{authentication
+agent}, a separate program which holds decrypted private keys and
+generates signatures on request. PuTTY's authentication agent is
+called Pageant. When you begin a Windows session, you start Pageant
+and load your public key into it (typing your passphrase once). For
+the rest of your session, you can start PuTTY any number of times
+and Pageant will automatically generate signatures without you
+having to do anything. When you close your Windows session, Pageant
+shuts down, without ever having stored your decrypted private key on
+disk. Many people feel this is a good compromise between security
+and convenience. See \k{pageant} for further details.
 
 \H{pubkey-puttygen} PuTTYgen: RSA key generator for PuTTY
 
@@ -28,7 +72,7 @@ existing private key.
 
 \S{pubkey-puttygen-generate} Generate a new key
 
-Before generating a new key you have to chose the strength of the
+Before generating a new key you have to choose the strength of the
 encryption. With \e{Parameters} you define the strength of the key. The
 default of 1024 should be OK for most users.
 
@@ -37,8 +81,8 @@ new key pair. You then have to move the mouse over the blank area in
 order to generate random data for the algorithm. Continue until the
 progress bar is complete.
 
-As soon as enough random data is available the key is generated.  This 
-may take a little while, especially on slow machines.  Once the key is 
+As soon as enough random data is available the key is generated.  This
+may take a little while, especially on slow machines.  Once the key is
 generated, its details appear in the \e{Key} part of the PuTTYgen
 window.
 
@@ -85,5 +129,3 @@ From now on you can use the private key for authentication to this
 host.  Either select the private key in PuTTY's \e{Connection},
 \e{SSH} panel: \e{Private key file for authentication} dialog or use
 it with Pageant as described in \k{pageant}.
-
-

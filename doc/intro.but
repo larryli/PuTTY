@@ -49,7 +49,7 @@ be accessed using Telnet.
 
 You probably do \e{not} want to use SSH, Telnet or Rlogin if:
 
-\b you only use Windows machines. Windows machines have their own
+\b you only use Windows. Windows computers have their own
 ways of networking between themselves, and unless you are doing
 something fairly unusual, you will not need to use any of these
 remote login protocols.
@@ -75,8 +75,9 @@ it has been a constant source of security problems.
 \b SSH and Rlogin both allow you to log in to the server without
 having to type a password. (Rlogin's method of doing this is
 insecure, and can allow an attacker to access your account on the
-server. SSH's method is much more secure, and typically requires the
-attacker to have gained access to your actual client machine.)
+server. SSH's method is much more secure, and typically breaking the
+security requires the attacker to have gained access to your actual
+client machine.)
 
 \b SSH allows you to connect to the server and automatically send a
 command, so that the server will run that command and then
@@ -90,5 +91,3 @@ administrator to install it.
 
 If you are behind a good firewall, it is more likely to be safe to
 use Telnet or Rlogin, but we still recommend you use SSH.
-
-\# perhaps a section on terminal emulation?
