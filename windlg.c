@@ -235,6 +235,7 @@ static void load_settings (char *section, int do_host) {
 	else
 	    cfg.protocol = PROT_TELNET;
     } else {
+	cfg.protocol = PROT_TELNET;
 	cfg.port = 23;
 	*cfg.host = '\0';
     }
