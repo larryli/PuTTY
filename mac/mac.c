@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1 2002/11/19 02:13:46 ben Exp $ */
+/* $Id: mac.c,v 1.2 2002/11/23 15:11:13 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -41,7 +41,6 @@
 #include <DiskInit.h>
 #include <Gestalt.h>
 #include <Resources.h>
-#include <Threads.h>
 #include <ToolUtils.h>
 
 #include <assert.h>
@@ -115,13 +114,6 @@ static void mac_startup(void) {
     InitDialogs(nil);
     cold = 0;
     
-    /* Check for the Thread Manager.  Bail out if it's not there. */
-    if (Gestalt(gestaltThreadMgrAttr, &mac_gestalts.thdsattr) != noErr ||
-	!(mac_gestalts.thdsattr & (1 << gestaltThreadMgrPresent)) ||
-	&NewThread == kUnresolvedCFragSymbolAddress)
-	fatalbox("PuTTY requires the Thread Manager in order to operate.  "
-		 "The Thread Manager can be obtained from Apple Software "
-		 "Updates.");
     /* Find out if we've got Color Quickdraw */
     if (Gestalt(gestaltQuickdrawVersion, &mac_gestalts.qdvers) != noErr)
     	mac_gestalts.qdvers = gestaltOriginalQD;
@@ -173,7 +165,6 @@ static void mac_eventloop(void) {
 	mac_adjustcursor(cursrgn);
 	if (gotevent)
 	    mac_event(&event);
-	YieldToAnyThread();
     }
     DisposeRgn(cursrgn);
 }

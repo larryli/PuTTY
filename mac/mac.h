@@ -16,7 +16,6 @@ struct mac_gestalts {
     long apprvers;
     long cntlattr;
     long windattr;
-    long thdsattr;
 };
 
 extern struct mac_gestalts mac_gestalts;
@@ -65,7 +64,6 @@ typedef struct {
     PaletteHandle	palette;
     ControlHandle	scrollbar;
     WCTabHandle		wctab;
-    ThreadID		thread;
     int			raw_mouse;
 } Session;
 
