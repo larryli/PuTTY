@@ -6160,8 +6160,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
                     ssh_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
 		    addrstr = snewn(peeraddrlen+1, char);
 		    memcpy(addrstr, peeraddr, peeraddrlen);
-		    peeraddr[peeraddrlen] = '\0';
+		    addrstr[peeraddrlen] = '\0';
                     peerport = ssh_pkt_getuint32(ssh);
+
+		    logeventf(ssh, "Received X11 connect request from %s:%d",
+			      addrstr, peerport);
 
 		    if (!ssh->X11_fwd_enabled)
 			error = "X11 forwarding is not enabled";
@@ -6170,6 +6173,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				      &ssh->cfg) != NULL) {
 			error = "Unable to open an X11 connection";
 		    } else {
+			logevent("Opening X11 forward connection succeeded");
 			c->type = CHAN_X11;
 		    }
 
@@ -6184,6 +6188,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
                     ssh_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
                     peerport = ssh_pkt_getuint32(ssh);
 		    realpf = find234(ssh->rportfwds, &pf, NULL);
+		    logeventf(ssh, "Received remote port %d open request "
+			      "from %s:%d", pf.sport, peeraddr, peerport);
 		    if (realpf == NULL) {
 			error = "Remote port is not recognised";
 		    } else {
@@ -6191,8 +6197,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 						       realpf->dhost,
 						       realpf->dport, c,
 						       &ssh->cfg);
-			logeventf(ssh, "Received remote port open request"
-				  " for %s:%d", realpf->dhost, realpf->dport);
+			logeventf(ssh, "Attempting to forward remote port to "
+				  "%s:%d", realpf->dhost, realpf->dport);
 			if (e != NULL) {
 			    logeventf(ssh, "Port open failed: %s", e);
 			    error = "Port open failed";
@@ -6221,6 +6227,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addstring(ssh, error);
 		    ssh2_pkt_addstring(ssh, "en");	/* language tag */
 		    ssh2_pkt_send(ssh);
+		    logeventf(ssh, "Rejected channel open: %s", error);
 		    sfree(c);
 		} else {
 		    c->localid = alloc_channel_id(ssh);
