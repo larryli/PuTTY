@@ -204,8 +204,13 @@ void term_size(int newrows, int newcols, int newsavelines) {
     unsigned long *newtext, *newdisp, *newwant, *newalt;
     int i, j, crows, ccols;
 
+    int save_alt_which = alt_which;
+
     if (newrows == rows && newcols == cols && newsavelines == savelines)
 	return;			       /* nothing to do */
+
+    deselect();
+    swap_screen(0);
 
     alt_t = marg_t = 0;
     alt_b = marg_b = newrows - 1;
@@ -280,7 +285,8 @@ void term_size(int newrows, int newcols, int newsavelines) {
     savelines = newsavelines;
     fix_cpos;
 
-    deselect();
+    swap_screen(save_alt_which);
+
     update_sbar();
     term_update();
 }
