@@ -256,6 +256,7 @@ int main(int argc, char **argv)
     int skcount, sksize;
     int connopen;
     int exitcode;
+    int errors;
 
     ssh_get_line = console_get_line;
 
@@ -275,6 +276,7 @@ int main(int argc, char **argv)
     do_defaults(NULL, &cfg);
     default_protocol = cfg.protocol;
     default_port = cfg.port;
+    errors = 0;
     {
 	/*
 	 * Override the default protocol if PLINK_PROTOCOL is set.
@@ -299,12 +301,16 @@ int main(int argc, char **argv)
 	    if (ret == -2) {
 		fprintf(stderr,
 			"plink: option \"%s\" requires an argument\n", p);
+		errors = 1;
 	    } else if (ret == 2) {
 		--argc, ++argv;
 	    } else if (ret == 1) {
 		continue;
 	    } else if (!strcmp(p, "-batch")) {
 		console_batch_mode = 1;
+	    } else {
+		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
+		errors = 1;
 	    }
 	} else if (*p) {
 	    if (!*cfg.host) {
@@ -425,6 +431,9 @@ int main(int argc, char **argv)
 	    }
 	}
     }
+
+    if (errors)
+	return 1;
 
     if (!*cfg.host) {
 	usage();

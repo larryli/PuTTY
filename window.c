@@ -406,6 +406,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			cfg.host[sizeof(cfg.host) - 1] = '\0';
 			got_host = 1;
 		    }
+		} else {
+		    cmdline_error("unknown option \"%s\"", p);
 		}
 	    }
 	}

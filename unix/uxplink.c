@@ -186,6 +186,7 @@ int main(int argc, char **argv)
     int i, skcount, sksize, socketstate;
     int connopen;
     int exitcode;
+    int errors;
     void *ldisc;
 
     ssh_get_line = console_get_line;
@@ -206,6 +207,7 @@ int main(int argc, char **argv)
     do_defaults(NULL, &cfg);
     default_protocol = cfg.protocol;
     default_port = cfg.port;
+    errors = 0;
     {
 	/*
 	 * Override the default protocol if PLINK_PROTOCOL is set.
@@ -230,6 +232,7 @@ int main(int argc, char **argv)
 	    if (ret == -2) {
 		fprintf(stderr,
 			"plink: option \"%s\" requires an argument\n", p);
+		errors = 1;
 	    } else if (ret == 2) {
 		--argc, ++argv;
 	    } else if (ret == 1) {
@@ -237,11 +240,17 @@ int main(int argc, char **argv)
 	    } else if (!strcmp(p, "-batch")) {
 		console_batch_mode = 1;
 	    } else if (!strcmp(p, "-o")) {
-                if (argc <= 1)
+                if (argc <= 1) {
                     fprintf(stderr,
                             "plink: option \"-o\" requires an argument\n");
-                else
-                    --argc, provide_xrm_string(*++argv);
+		    errors = 1;
+		} else {
+                    --argc;
+		    provide_xrm_string(*++argv);
+		}
+	    } else {
+		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
+		errors = 1;
 	    }
 	} else if (*p) {
 	    if (!*cfg.host) {
@@ -365,6 +374,9 @@ int main(int argc, char **argv)
 	    }
 	}
     }
+
+    if (errors)
+	return 1;
 
     if (!*cfg.host) {
 	usage();

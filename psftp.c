@@ -1844,11 +1844,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 void cmdline_error(char *p, ...)
 {
     va_list ap;
-    fprintf(stderr, "pscp: ");
+    fprintf(stderr, "psftp: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
-    fputc('\n', stderr);
+    fprintf(stderr, "\n       try typing \"psftp -h\" for help\n");
     exit(1);
 }
 
@@ -1863,6 +1863,7 @@ int main(int argc, char *argv[])
     int mode = 0;
     int modeflags = 0;
     char *batchfile = NULL;
+    int errors = 0;
 
     flags = FLAG_STDERR | FLAG_INTERACTIVE;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
@@ -1872,6 +1873,7 @@ int main(int argc, char *argv[])
 
     userhost = user = NULL;
 
+    errors = 0;
     for (i = 1; i < argc; i++) {
 	int ret;
 	if (argv[i][0] != '-') {
@@ -1906,7 +1908,7 @@ int main(int argc, char *argv[])
 	    i++;
 	    break;
 	} else {
-	    usage();
+	    cmdline_error("unknown option \"%s\"", argv[i]);
 	}
     }
     argc -= i;

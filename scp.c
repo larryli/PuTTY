@@ -2166,7 +2166,7 @@ void cmdline_error(char *p, ...)
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
-    fputc('\n', stderr);
+    fprintf(stderr, "\n      try typing just \"pscp\" for help\n");
     exit(1);
 }
 
@@ -2219,8 +2219,9 @@ int main(int argc, char *argv[])
 	} else if (strcmp(argv[i], "--") == 0) {
 	    i++;
 	    break;
-	} else
-	    usage();
+	} else {
+	    cmdline_error("unknown option \"%s\"", argv[i]);
+	}
     }
     argc -= i;
     argv += i;
