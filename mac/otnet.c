@@ -467,7 +467,7 @@ void ot_recv(Actual_Socket s)
     do {
 	o = OTRcv(s->ep, buf, sizeof(buf), &flags);
 	if (o > 0)
-	    plug_receive(s->plug, 0, buf, sizeof(buf));
+	    plug_receive(s->plug, 0, buf, o);
 	if (o < 0 && o != kOTNoDataErr)
 	    plug_closing(s->plug, NULL, 0, 0); /* XXX Error msg */
     } while (o > 0);
