@@ -102,7 +102,7 @@ sub outcharset($$$) {
 	}
 	$j++;
     }
-    printf "\n    },\n    %d\n", scalar @sorted;
+    printf "\n    },\n    %d\n", $j;
     print "};\n";
     print "const charset_spec charset_$name = {\n" .
           "    $name, read_sbcs, write_sbcs, &data_$name\n};\n\n";
