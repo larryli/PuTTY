@@ -1433,6 +1433,16 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
     }
 
     /*
+     * Shift-Tab should send ESC [ Z.
+     */
+    if (ret && (keystate[VK_SHIFT] & 0x80) && wParam == '\t') {
+        *p++ = 0x1B;                   /* ESC */
+        *p++ = '[';
+        *p++ = 'Z';
+	return p - output;
+    }
+
+    /*
      * Before doing Windows charmap translation, remove LeftALT
      * from the keymap, since its sole effect should be to prepend
      * ESC, which we've already done. Note that removal of LeftALT
