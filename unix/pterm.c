@@ -1591,34 +1591,35 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	charset = CS_ISO8859_1;
 	free_required = 1;
     } else {
-    /*
-     * Convert COMPOUND_TEXT into UTF-8.
-     */
-    if (seldata->type == compound_text_atom) {
-	tp.value = seldata->data;
-	tp.encoding = (Atom) seldata->type;
-	tp.format = seldata->format;
-	tp.nitems = seldata->length;
-	ret = Xutf8TextPropertyToTextList(GDK_DISPLAY(), &tp, &list, &count);
-	if (ret != 0 || count != 1) {
-	    /*
-	     * Compound text failed; fall back to STRING.
-	     */
-	    gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-				  GDK_SELECTION_TYPE_STRING,
-				  inst->input_event_time);
-	    return;
+	/*
+	 * Convert COMPOUND_TEXT into UTF-8.
+	 */
+	if (seldata->type == compound_text_atom) {
+	    tp.value = seldata->data;
+	    tp.encoding = (Atom) seldata->type;
+	    tp.format = seldata->format;
+	    tp.nitems = seldata->length;
+	    ret = Xutf8TextPropertyToTextList(GDK_DISPLAY(), &tp,
+					      &list, &count);
+	    if (ret != 0 || count != 1) {
+		/*
+		 * Compound text failed; fall back to STRING.
+		 */
+		gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+				      GDK_SELECTION_TYPE_STRING,
+				      inst->input_event_time);
+		return;
+	    }
+	    text = list[0];
+	    length = strlen(list[0]);
+	    charset = CS_UTF8;
+	    free_list_required = 1;
+	} else {
+	    text = (char *)seldata->data;
+	    length = seldata->length;
+	    charset = (seldata->type == utf8_string_atom ?
+		       CS_UTF8 : inst->ucsdata.line_codepage);
 	}
-	text = list[0];
-	length = strlen(list[0]);
-	charset = CS_UTF8;
-	free_list_required = 1;
-    } else {
-	text = (char *)seldata->data;
-	length = seldata->length;
-	charset = (seldata->type == utf8_string_atom ?
-		   CS_UTF8 : inst->ucsdata.line_codepage);
-    }
     }
 
     if (inst->pastein_data)
