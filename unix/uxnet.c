@@ -949,7 +949,6 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
 static int net_select_result(int fd, int event)
 {
     int ret;
-    int err;
     char buf[20480];		       /* nice big buffer for plenty of speed */
     Actual_Socket s;
     u_long atmark;
@@ -1013,7 +1012,6 @@ static int net_select_result(int fd, int event)
 	    int t;  /* socket of connection */
 
 	    memset(&isa, 0, sizeof(struct sockaddr_in));
-	    err = 0;
 	    t = accept(s->s,(struct sockaddr *)&isa,(socklen_t *) &addrlen);
 	    if (t < 0) {
 		break;
