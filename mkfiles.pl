@@ -89,7 +89,7 @@ print
 ".SUFFIXES:\n".
 "\n".
 "%.o: %.c\n".
-"\t\$(CC) \$(FWHACK) \$(CFLAGS) -c \$<\n".
+"\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
 "\n".
 "%.res.o: %.rc\n".
 "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
@@ -135,7 +135,7 @@ print
 "!endif\n".
 "\n".
 ".c.obj:\n".
-"\tbcc32 \$(COMPAT) \$(FWHACK) \$(CFLAGS) /c \$*.c\n".
+"\tbcc32 \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) /c \$*.c\n".
 ".rc.res:\n".
 "\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include \\\n".
 "\t\t-r -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
