@@ -51,6 +51,7 @@ void rsasanitise(struct RSAKey *key);
 int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
 void rsa_fingerprint(char *str, int len, struct RSAKey *key);
+int rsa_verify(struct RSAKey *key);
 void freersakey(struct RSAKey *key);
 
 typedef unsigned int word32;

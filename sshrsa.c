@@ -180,6 +180,8 @@ int rsa_verify(struct RSAKey *key) {
     sfree(ed);
     if (cmp != 0)
 	return 0;
+
+    return 1;
 }
 
 void freersakey(struct RSAKey *key) {
