@@ -5847,10 +5847,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		pktsize = ssh2_pkt_getuint32(ssh);
 
 		if (typelen == 3 && !memcmp(type, "x11", 3)) {
-		    char *addrstr = snewn(peeraddrlen+1, char);
+		    char *addrstr;
+
+                    ssh2_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
+		    addrstr = snewn(peeraddrlen+1, char);
 		    memcpy(addrstr, peeraddr, peeraddrlen);
 		    peeraddr[peeraddrlen] = '\0';
-                    ssh2_pkt_getstring(ssh, &peeraddr, &peeraddrlen);
                     peerport = ssh2_pkt_getuint32(ssh);
 
 		    if (!ssh->X11_fwd_enabled)
