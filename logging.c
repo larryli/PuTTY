@@ -10,7 +10,7 @@
 /* log session to file stuff ... */
 struct LogContext {
     FILE *lgfp;
-    enum { CLOSED, OPENING, OPEN, ERROR } state;
+    enum { L_CLOSED, L_OPENING, L_OPEN, L_ERROR } state;
     bufchain queue;
     Filename currlogfilename;
     void *frontend;
@@ -28,19 +28,19 @@ static void xlatlognam(Filename *d, Filename s, char *hostname, struct tm *tm);
 static void logwrite(struct LogContext *ctx, void *data, int len)
 {
     /*
-     * In state CLOSED, we call logfopen, which will set the state
-     * to one of OPENING, OPEN or ERROR. Hence we process all of
-     * those three _after_ processing CLOSED.
+     * In state L_CLOSED, we call logfopen, which will set the state
+     * to one of L_OPENING, L_OPEN or L_ERROR. Hence we process all of
+     * those three _after_ processing L_CLOSED.
      */
-    if (ctx->state == CLOSED)
+    if (ctx->state == L_CLOSED)
 	logfopen(ctx);
 
-    if (ctx->state == OPENING) {
+    if (ctx->state == L_OPENING) {
 	bufchain_add(&ctx->queue, data, len);
-    } else if (ctx->state == OPEN) {
+    } else if (ctx->state == L_OPEN) {
 	assert(ctx->lgfp);
 	fwrite(data, 1, len, ctx->lgfp);
-    }				       /* else ERROR, so ignore the write */
+    }				       /* else L_ERROR, so ignore the write */
 }
 
 /*
@@ -66,7 +66,7 @@ static void logprintf(struct LogContext *ctx, const char *fmt, ...)
 void logflush(void *handle) {
     struct LogContext *ctx = (struct LogContext *)handle;
     if (ctx->cfg.logtype > 0)
-	if (ctx->state == OPEN)
+	if (ctx->state == L_OPEN)
 	    fflush(ctx->lgfp);
 }
 
@@ -78,17 +78,17 @@ static void logfopen_callback(void *handle, int mode)
     const char *fmode;
 
     if (mode == 0) {
-	ctx->state = ERROR;	       /* disable logging */
+	ctx->state = L_ERROR;	       /* disable logging */
     } else {
 	fmode = (mode == 1 ? "a" : "w");
 	ctx->lgfp = f_open(ctx->currlogfilename, fmode);
 	if (ctx->lgfp)
-	    ctx->state = OPEN;
+	    ctx->state = L_OPEN;
 	else
-	    ctx->state = ERROR;
+	    ctx->state = L_ERROR;
     }
 
-    if (ctx->state == OPEN) {
+    if (ctx->state == L_OPEN) {
 	/* Write header line into log file. */
 	tm = ltime();
 	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", &tm);
@@ -111,7 +111,7 @@ static void logfopen_callback(void *handle, int mode)
      * Having either succeeded or failed in opening the log file,
      * we should write any queued data out.
      */
-    assert(ctx->state != OPENING);     /* make _sure_ it won't be requeued */
+    assert(ctx->state != L_OPENING);   /* make _sure_ it won't be requeued */
     while (bufchain_size(&ctx->queue)) {
 	void *data;
 	int len;
@@ -133,7 +133,7 @@ void logfopen(void *handle)
     int mode;
 
     /* Prevent repeat calls */
-    if (ctx->state != CLOSED)
+    if (ctx->state != L_CLOSED)
 	return;
 
     if (!ctx->cfg.logtype)
@@ -156,7 +156,7 @@ void logfopen(void *handle)
 	mode = 2;		       /* create == overwrite */
 
     if (mode < 0)
-	ctx->state = OPENING;
+	ctx->state = L_OPENING;
     else
 	logfopen_callback(ctx, mode);  /* open the file */
 }
@@ -168,7 +168,7 @@ void logfclose(void *handle)
 	fclose(ctx->lgfp);
 	ctx->lgfp = NULL;
     }
-    ctx->state = CLOSED;
+    ctx->state = L_CLOSED;
 }
 
 /*
@@ -300,7 +300,7 @@ void *log_init(void *frontend, Config *cfg)
 {
     struct LogContext *ctx = snew(struct LogContext);
     ctx->lgfp = NULL;
-    ctx->state = CLOSED;
+    ctx->state = L_CLOSED;
     ctx->frontend = frontend;
     ctx->cfg = *cfg;		       /* STRUCTURE COPY */
     bufchain_init(&ctx->queue);
