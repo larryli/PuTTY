@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include "putty.h"
 
+const int be_default_protocol = PROT_TELNET;
+
 struct backend_list backends[] = {
     {PROT_TELNET, "telnet", &telnet_backend},
     {PROT_RLOGIN, "rlogin", &rlogin_backend},

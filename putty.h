@@ -217,6 +217,12 @@ extern struct backend_list {
     Backend *backend;
 } backends[];
 
+/*
+ * Suggested default protocol provided by the backend link module.
+ * The application is free to ignore this.
+ */
+extern const int be_default_protocol;
+
 struct config_tag {
     /* Basic options */
     char host[512];
@@ -369,18 +375,6 @@ struct config_tag {
     char wideboldfont[256];
     int shadowboldoffset;
 };
-
-/*
- * You can compile with -DTELNET_DEFAULT to have telnet by default
- * (otherwise SSH is the default).
- */
-#ifdef TELNET_DEFAULT
-#define DEFAULT_PROTOCOL PROT_TELNET
-#define DEFAULT_PORT 23
-#else
-#define DEFAULT_PROTOCOL PROT_SSH
-#define DEFAULT_PORT 22
-#endif
 
 /*
  * Some global flags denoting the type of application.
