@@ -1962,6 +1962,8 @@ int main(int argc, char **argv)
     back = &pty_backend;
     back->init((void *)term, &backhandle, NULL, 0, NULL, 0);
 
+    term_provide_resize_fn(term, back->size, backhandle);
+
     term_size(term, cfg.height, cfg.width, cfg.savelines);
     ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
 
