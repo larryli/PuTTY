@@ -290,7 +290,7 @@ int console_get_line(const char *prompt, char *str,
 	str[i] = '\0';
 
 	if (is_pw)
-	    fputs("\r\n", stdout);
+	    fputs("\n", stdout);
     }
     return 1;
 }
