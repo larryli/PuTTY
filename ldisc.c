@@ -164,8 +164,8 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 			bsb(ldisc, plen(ldisc, ldisc->buf[ldisc->buflen - 1]));
 		    ldisc->buflen--;
 		    if (ldisc->buflen > 0 &&
-			isspace(ldisc->buf[ldisc->buflen - 1]) &&
-			!isspace(ldisc->buf[ldisc->buflen]))
+			isspace((unsigned char)ldisc->buf[ldisc->buflen-1]) &&
+			!isspace((unsigned char)ldisc->buf[ldisc->buflen]))
 			break;
 		}
 		break;

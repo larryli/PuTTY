@@ -281,7 +281,7 @@ static int proxy_for_destination (SockAddr addr, char *hostname, int port,
 
     while (exclude_list[s]) {
 	while (exclude_list[s] &&
-	       (isspace(exclude_list[s]) ||
+	       (isspace((unsigned char)exclude_list[s]) ||
 		exclude_list[s] == ',')) s++;
 
 	if (!exclude_list[s]) break;
@@ -289,7 +289,7 @@ static int proxy_for_destination (SockAddr addr, char *hostname, int port,
 	e = s;
 
 	while (exclude_list[e] &&
-	       (isalnum(exclude_list[e]) ||
+	       (isalnum((unsigned char)exclude_list[e]) ||
 		exclude_list[e] == '-' ||
 		exclude_list[e] == '.' ||
 		exclude_list[e] == '*')) e++;
@@ -325,7 +325,7 @@ static int proxy_for_destination (SockAddr addr, char *hostname, int port,
 
 	/* Make sure we really have reached the next comma or end-of-string */
 	while (exclude_list[s] &&
-	       !isspace(exclude_list[s]) &&
+	       !isspace((unsigned char)exclude_list[s]) &&
 	       exclude_list[s] != ',') s++;
     }
 

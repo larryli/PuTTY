@@ -80,7 +80,7 @@ void provide_xrm_string(char *string)
     memcpy(key, p, q-p);
     key[q-p-1] = '\0';
     xrms->key = key;
-    while (*q && isspace(*q))
+    while (*q && isspace((unsigned char)*q))
 	q++;
     xrms->value = dupstr(q);
 
