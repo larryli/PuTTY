@@ -93,6 +93,7 @@ static void get_packet(void)
     unsigned char buf[4];
     int ret;
     int len, pad, biglen;
+    unsigned long realcrc, gotcrc;
 
 next_packet:
 
@@ -144,6 +145,15 @@ next_packet:
 
     pktin.type = pktin.data[pad];
     pktin.body = pktin.data + pad + 1;
+
+    realcrc = crc32(pktin.data, biglen-4);
+    gotcrc = (pktin.data[biglen-4] << 24);
+    gotcrc |= (pktin.data[biglen-3] << 16);
+    gotcrc |= (pktin.data[biglen-2] <<  8);
+    gotcrc |= (pktin.data[biglen-1] <<  0);
+    if (gotcrc != realcrc) {
+        fatalbox("Incorrect CRC received on packet");
+    }
 
     if (pktin.type == SSH_MSG_DEBUG) {
 	if (verbose) {
@@ -425,7 +435,10 @@ int ssh_recv(unsigned char *buf, int len)
 	    return 0;
 	if (pktin.type == SSH_SMSG_STDOUT_DATA) {
 	    int plen = GET_32BIT(pktin.body);
-	    if (plen <= to_read) {
+            if (plen+4 != pktin.length) {
+                fprintf(stderr, "Received data packet with bogus string length"
+                        ", ignoring\n");
+            } else if (plen <= to_read) {
 		memcpy(buf, pktin.body + 4, plen);
 		buf += plen;
 		to_read -= plen;
@@ -437,7 +450,11 @@ int ssh_recv(unsigned char *buf, int len)
 	    }
 	} else if (pktin.type == SSH_SMSG_STDERR_DATA) {
 	    int plen = GET_32BIT(pktin.body);
-	    fwrite(pktin.body + 4, plen, 1, stderr);
+            if (plen+4 != pktin.length) {
+                fprintf(stderr, "Received data packet with bogus string length"
+                        ", ignoring\n");
+            } else
+                fwrite(pktin.body + 4, plen, 1, stderr);
 	} else if (pktin.type == SSH_MSG_DISCONNECT) {
 	} else if (pktin.type == SSH_SMSG_SUCCESS ||
 	           pktin.type == SSH_SMSG_FAILURE) {
