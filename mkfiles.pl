@@ -352,7 +352,7 @@ print
 "MAKEFILE = Makefile.bor\n".
 "\n".
 "# C compilation flags\n".
-"CFLAGS = -DWINVER=0x0401\n".
+"CFLAGS = -D_WINDOWS -DWINVER=0x0401\n".
 "\n".
 "# Get include directory for resource compiler\n".
 "!if !\$d(BCB)\n".
