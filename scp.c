@@ -436,6 +436,7 @@ static int get_password(const char *prompt, char *str, int maxlen)
 static void do_cmd(char *host, char *user, char *cmd)
 {
     char *err, *realhost;
+    DWORD namelen;
 
     if (host == NULL || host[0] == '\0')
 	bump("Empty host name");
@@ -455,7 +456,15 @@ static void do_cmd(char *host, char *user, char *cmd)
 	strncpy(cfg.username, user, sizeof(cfg.username)-1);
 	cfg.username[sizeof(cfg.username)-1] = '\0';
     } else if (cfg.username[0] == '\0') {
-	bump("Empty user name");
+	namelen = 0;
+	if (GetUserName(user, &namelen) == FALSE)
+	    bump("Empty user name");
+	user = malloc(namelen * sizeof(char));
+	GetUserName(user, &namelen);
+	if (verbose) tell_user(stderr, "Guessing user name: %s", user);
+	strncpy(cfg.username, user, sizeof(cfg.username)-1);
+	cfg.username[sizeof(cfg.username)-1] = '\0';
+	free(user);
     }
 
     if (cfg.protocol != PROT_SSH)
