@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.6 2002/11/23 13:16:36 ben Exp $ */
+/* $Id: macterm.c,v 1.7 2002/11/23 14:22:11 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -554,7 +554,11 @@ void mac_keyterm(WindowPtr window, EventRecord *event) {
 
     s = (Session *)GetWRefCon(window);
     len = mac_keytrans(s, event, buf);
-    s->back->send(s, (char *)buf, len);
+    ldisc_send(s->ldisc, (char *)buf, len, 1);
+    ObscureCursor();
+    term_seen_key_event(s->term);
+    term_out(s->term);
+    term_update(s->term);
 }
 
 static int mac_keytrans(Session *s, EventRecord *event,
