@@ -6461,7 +6461,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 	    }
 
-	    if (!s->method && s->can_keyb_inter && !s->kbd_inter_refused) {
+	    if (!s->method && s->can_keyb_inter && !s->kbd_inter_refused &&
+		!s->kbd_inter_running) {
 		s->method = AUTH_KEYBOARD_INTERACTIVE;
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 
