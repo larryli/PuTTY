@@ -1003,14 +1003,14 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	} else if (!strcmp(cmd->words[i], "-r")) {
 	    recurse = TRUE;
 	} else {
-	    printf("get: unrecognised option '%s'\n", cmd->words[i]);
+	    printf("%s: unrecognised option '%s'\n", cmd->words[0], cmd->words[i]);
 	    return 0;
 	}
 	i++;
     }
 
     if (i >= cmd->nwords) {
-	printf("get: expects a filename\n");
+	printf("%s: expects a filename\n", cmd->words[0]);
 	return 0;
     }
 
@@ -1089,14 +1089,14 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 	} else if (!strcmp(cmd->words[i], "-r")) {
 	    recurse = TRUE;
 	} else {
-	    printf("put: unrecognised option '%s'\n", cmd->words[i]);
+	    printf("%s: unrecognised option '%s'\n", cmd->words[0], cmd->words[i]);
 	    return 0;
 	}
 	i++;
     }
 
     if (i >= cmd->nwords) {
-	printf("put: expects a filename\n");
+	printf("%s: expects a filename\n", cmd->words[0]);
 	return 0;
     }
 
@@ -1668,10 +1668,12 @@ static struct sftp_cmd_lookup {
     },
     {
 	"dir", TRUE, "list contents of a remote directory",
-	    " [ <directory-name> ]\n"
+	    " [ <directory-name> ]/[ <wildcard> ]\n"
 	    "  List the contents of a specified directory on the server.\n"
 	    "  If <directory-name> is not given, the current working directory\n"
-	    "  will be listed.\n",
+	    "  is assumed.\n"
+	    "  If <wildcard> is given, it is treated as a set of files to\n"
+	    "  list; otherwise, all files are listed.\n",
 	    sftp_cmd_ls
     },
     {
@@ -1679,10 +1681,11 @@ static struct sftp_cmd_lookup {
     },
     {
 	"get", TRUE, "download a file from the server to your local machine",
-	    " <filename> [ <local-filename> ]\n"
+	    " [ -r ] [ -- ] <filename> [ <local-filename> ]\n"
 	    "  Downloads a file on the server and stores it locally under\n"
 	    "  the same name, or under a different one if you supply the\n"
-	    "  argument <local-filename>.\n",
+	    "  argument <local-filename>.\n"
+	    "  If -r specified, recursively fetch a directory.\n",
 	    sftp_cmd_get
     },
     {
@@ -1713,10 +1716,11 @@ static struct sftp_cmd_lookup {
     },
     {
 	"mget", TRUE, "download multiple files at once",
-	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
+	    " [ -r ] [ -- ] <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Downloads many files from the server, storing each one under\n"
 	    "  the same name it has on the server side. You can use wildcards\n"
-	    "  such as \"*.c\" to specify lots of files at once.\n",
+	    "  such as \"*.c\" to specify lots of files at once.\n"
+	    "  If -r specified, recursively fetch files and directories.\n",
 	    sftp_cmd_mget
     },
     {
@@ -1730,7 +1734,8 @@ static struct sftp_cmd_lookup {
 	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Uploads many files to the server, storing each one under the\n"
 	    "  same name it has on the client side. You can use wildcards\n"
-	    "  such as \"*.c\" to specify lots of files at once.\n",
+	    "  such as \"*.c\" to specify lots of files at once.\n"
+	    "  If -r specified, recursively store files and directories.\n",
 	    sftp_cmd_mput
     },
     {
@@ -1750,10 +1755,11 @@ static struct sftp_cmd_lookup {
     },
     {
 	"put", TRUE, "upload a file from your local machine to the server",
-	    " <filename> [ <remote-filename> ]\n"
+	    " [ -r ] [ -- ] <filename> [ <remote-filename> ]\n"
 	    "  Uploads a file to the server and stores it there under\n"
 	    "  the same name, or under a different one if you supply the\n"
-	    "  argument <remote-filename>.\n",
+	    "  argument <remote-filename>.\n"
+	    "  If -r specified, recursively store a directory.\n",
 	    sftp_cmd_put
     },
     {
@@ -1768,10 +1774,11 @@ static struct sftp_cmd_lookup {
     },
     {
 	"reget", TRUE, "continue downloading a file",
-	    " <filename> [ <local-filename> ]\n"
+	    " [ -r ] [ -- ] <filename> [ <local-filename> ]\n"
 	    "  Works exactly like the \"get\" command, but the local file\n"
 	    "  must already exist. The download will begin at the end of the\n"
-	    "  file. This is for resuming a download that was interrupted.\n",
+	    "  file. This is for resuming a download that was interrupted.\n"
+	    "  If -r specified, resume interrupted \"get -r\".\n",
 	    sftp_cmd_reget
     },
     {
@@ -1784,10 +1791,11 @@ static struct sftp_cmd_lookup {
     },
     {
 	"reput", TRUE, "continue uploading a file",
-	    " <filename> [ <remote-filename> ]\n"
+	    " [ -r ] [ -- ] <filename> [ <remote-filename> ]\n"
 	    "  Works exactly like the \"put\" command, but the remote file\n"
 	    "  must already exist. The upload will begin at the end of the\n"
-	    "  file. This is for resuming an upload that was interrupted.\n",
+	    "  file. This is for resuming an upload that was interrupted.\n"
+	    "  If -r specified, resume interrupted \"put -r\".\n",
 	    sftp_cmd_reput
     },
     {
