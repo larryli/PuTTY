@@ -309,6 +309,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "BugHMAC2", cfg->sshbug_hmac2);
     write_setting_i(sesskey, "BugDeriveKey2", cfg->sshbug_derivekey2);
     write_setting_i(sesskey, "BugRSAPad2", cfg->sshbug_rsapad2);
+    write_setting_i(sesskey, "BugDHGEx2", cfg->sshbug_dhgex2);
     close_settings_w(sesskey);
 }
 
@@ -583,6 +584,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     }
     gppi(sesskey, "BugDeriveKey2", BUG_AUTO, &cfg->sshbug_derivekey2);
     gppi(sesskey, "BugRSAPad2", BUG_AUTO, &cfg->sshbug_rsapad2);
+    gppi(sesskey, "BugDHGEx2", BUG_AUTO, &cfg->sshbug_dhgex2);
 
     close_settings_r(sesskey);
 }

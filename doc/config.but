@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.41 2002/09/23 09:55:11 jacob Exp $
+\versionid $Id: config.but,v 1.42 2002/09/26 18:37:33 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2005,7 +2005,7 @@ server, communication will fail.
 
 This is an SSH2-specific bug.
 
-\S{config-ssh-bug-ssh} \q{Requires padding on SSH2 RSA signatures}
+\S{config-ssh-bug-sig} \q{Requires padding on SSH2 RSA signatures}
 
 \cfg{winhelp-topic}{ssh.bugs.rsapad2}
 
@@ -2021,6 +2021,23 @@ OpenSSH expects. If this bug is enabled when talking to a correct
 server, it is likely that no damage will be done, since correct
 servers usually still accept padded signatures because they're used
 to talking to OpenSSH.
+
+This is an SSH2-specific bug.
+
+\S{config-ssh-bug-dhgex} \q{Chokes on Diffie-Hellman group exchange}
+
+\cfg{winhelp-topic}{ssh.bugs.dhgex2}
+
+We have anecdotal evidence that some SSH servers claim to be able to
+perform Diffie-Hellman group exchange, but fail to actually do so
+when PuTTY tries to. If your SSH2 sessions spontaneously close
+immediately after opening the PuTTY window, it might be worth
+enabling the workaround for this bug to see if it helps.
+
+We have no hard evidence that any specific version of specific
+server software reliably demonstrates this bug. Therefore, PuTTY
+will never \e{assume} a server has this bug; if you want the
+workaround, you need to enable it manually.
 
 This is an SSH2-specific bug.
 

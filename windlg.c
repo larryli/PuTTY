@@ -548,6 +548,8 @@ enum { IDCX_ABOUT =
     IDC_BUGD_DERIVEKEY2,
     IDC_BUGS_RSAPAD2,
     IDC_BUGD_RSAPAD2,
+    IDC_BUGS_DHGEX2,
+    IDC_BUGD_DHGEX2,
     sshbugspanelend,
 
     selectionpanelstart,
@@ -1044,6 +1046,9 @@ char *help_context_cmd(int id)
       case IDC_BUGS_RSAPAD2:
       case IDC_BUGD_RSAPAD2:
 	return "JI(`',`ssh.bugs.rsapad2')";
+      case IDC_BUGS_DHGEX2:
+      case IDC_BUGD_DHGEX2:
+	return "JI(`',`ssh.bugs.dhgex2')";
 
       default:
         return NULL;
@@ -1391,6 +1396,13 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_SETCURSEL,
 		       cfg.sshbug_rsapad2 == BUG_ON ? 2 :
 		       cfg.sshbug_rsapad2 == BUG_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_SETCURSEL,
+		       cfg.sshbug_dhgex2 == BUG_ON ? 2 :
+		       cfg.sshbug_dhgex2 == BUG_OFF ? 1 : 0, 0);
 }
 
 struct treeview_faff {
@@ -1994,6 +2006,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      IDC_BUGS_DERIVEKEY2, IDC_BUGD_DERIVEKEY2, 20);
 	    staticddl(&cp, "Requires &padding on SSH2 RSA signatures",
 		      IDC_BUGS_RSAPAD2, IDC_BUGD_RSAPAD2, 20);
+	    staticddl(&cp, "Chokes on &Diffie-Hellman group exchange",
+		      IDC_BUGS_DHGEX2, IDC_BUGD_DHGEX2, 20);
 	    endbox(&cp);
 	}
     }
@@ -3610,6 +3624,14 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 						   CB_GETCURSEL, 0, 0);
 		    cfg.sshbug_rsapad2 = (index == 0 ? BUG_AUTO :
 					  index == 1 ? BUG_OFF : BUG_ON);
+		}
+		break;
+	      case IDC_BUGD_DHGEX2:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_dhgex2 = (index == 0 ? BUG_AUTO :
+					 index == 1 ? BUG_OFF : BUG_ON);
 		}
 		break;
 	    }

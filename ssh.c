@@ -183,6 +183,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_CHOKES_ON_RSA	        	  8
 #define BUG_SSH2_RSA_PADDING	        	 16
 #define BUG_SSH2_DERIVEKEY                       32
+#define BUG_SSH2_DH_GEX                          64
 
 static int ssh_pkt_ctx = 0;
 
@@ -1741,6 +1742,14 @@ static void ssh_detect_bugs(char *vstring)
 	 */
 	ssh_remote_bugs |= BUG_SSH2_RSA_PADDING;
 	logevent("We believe remote version has SSH2 RSA padding bug");
+    }
+
+    if (cfg.sshbug_dhgex2 == BUG_ON) {
+	/*
+	 * These versions have the SSH2 DH GEX bug.
+	 */
+	ssh_remote_bugs |= BUG_SSH2_DH_GEX;
+	logevent("We believe remote version has SSH2 DH group exchange bug");
     }
 }
 
@@ -3648,6 +3657,9 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     /* List key exchange algorithms. */
     ssh2_pkt_addstring_start();
     for (i = 0; i < lenof(kex_algs); i++) {
+	if (kex_algs[i] == &ssh_diffiehellman_gex &&
+	    (ssh_remote_bugs & BUG_SSH2_DH_GEX))
+	    continue;
 	ssh2_pkt_addstring_str(kex_algs[i]->name);
 	if (i < lenof(kex_algs) - 1)
 	    ssh2_pkt_addstring_str(",");
@@ -3754,6 +3766,9 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     pktin.savedpos += 16;	       /* skip garbage cookie */
     ssh2_pkt_getstring(&str, &len);    /* key exchange algorithms */
     for (i = 0; i < lenof(kex_algs); i++) {
+	if (kex_algs[i] == &ssh_diffiehellman_gex &&
+	    (ssh_remote_bugs & BUG_SSH2_DH_GEX))
+	    continue;
 	if (in_commasep_string(kex_algs[i]->name, str, len)) {
 	    kex = kex_algs[i];
 	    break;

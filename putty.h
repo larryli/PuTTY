@@ -372,7 +372,8 @@ typedef struct {
     enum {
 	BUG_AUTO, BUG_OFF, BUG_ON
     } sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
-	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2;
+	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
+	sshbug_dhgex2;
 } Config;
 
 /*
