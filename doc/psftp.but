@@ -408,17 +408,17 @@ The \c{ls} command works exactly the same way as \c{dir}.
 \S{psftp-cmd-chmod} The \c{chmod} command: change permissions on
 remote files
 
-PSFTP allows you to modify the file permissions on files on the
-server. You do this using the \c{chmod} command, which works very
-much like the Unix \c{chmod} command.
+PSFTP allows you to modify the file permissions on files and
+directories on the server. You do this using the \c{chmod} command,
+which works very much like the Unix \c{chmod} command.
 
 The basic syntax is \c{chmod modes file}, where \c{modes} represents
 a modification to the file permissions, and \c{file} is the filename
-to modify. For example:
+to modify. You can specify multiple files or wildcards. For example:
 
 \c chmod go-rwx,u+w privatefile
-\c chmod a+r publicfile
-\c chmod 640 groupfile
+\c chmod a+r public*
+\c chmod 640 groupfile1 groupfile2
 
 The \c{modes} parameter can be a set of octal digits in the Unix
 style. (If you don't know what this means, you probably don't want
@@ -445,7 +445,8 @@ permissions for members of the owning group and everybody else (so
 the only permissions left are the ones for the file owner). \c{u+w}
 adds write permission for the file owner.
 
-\b The second example: \c{a+r} adds read permission for everybody.
+\b The second example: \c{a+r} adds read permission for everybody to
+all files and directories starting with \q{public}.
 
 In addition to all this, there are a few extra special cases for
 Unix systems. On non-Unix systems these are unlikely to be useful:
@@ -467,9 +468,18 @@ normally only the owner of the \e{directory} would be allowed to).
 
 \S{psftp-cmd-del} The \c{del} command: delete remote files
 
-To delete a file on the server, type \c{del} and then the filename:
+To delete a file on the server, type \c{del} and then the filename
+or filenames:
 
 \c del oldfile.dat
+\c del file1.txt file2.txt
+\c del *.o
+
+Files will be deleted without further prompting, even if multiple files
+are specified.
+
+\c{del} will only delete files. You cannot use it to delete
+directories; use \c{rmdir} for that.
 
 The \c{rm} command works exactly the same way as \c{del}.
 
@@ -480,26 +490,47 @@ directory name:
 
 \c mkdir newstuff
 
+You can specify multiple directories to create at once:
+
+\c mkdir dir1 dir2 dir3
+
 \S{psftp-cmd-rmdir} The \c{rmdir} command: remove remote directories
 
 To remove a directory on the server, type \c{rmdir} and then the
-directory name:
+directory name or names:
 
 \c rmdir oldstuff
+\c rmdir *.old ancient
+
+Directories will be deleted without further prompting, even if
+multiple directories are specified.
 
 Most SFTP servers will probably refuse to remove a directory if the
 directory has anything in it, so you will need to delete the
 contents first.
 
-\S{psftp-cmd-ren} The \c{ren} command: rename remote files
+\S{psftp-cmd-mv} The \c{mv} command: move and rename remote files
 
-To rename a file on the server, type \c{ren}, then the current file
-name, and then the new file name:
+To rename a single file on the server, type \c{mv}, then the current
+file name, and then the new file name:
 
-\c ren oldfile newname
+\c mv oldfile newname
 
-The \c{rename} and \c{mv} commands work exactly the same way as
-\c{ren}.
+You can also move the file into a different directory and change the
+name:
+
+\c mv oldfile dir/newname
+
+To move one or more files into an existing subdirectory, specify the
+files (using wildcards if desired), and then the destination
+directory:
+
+\c mv file dir
+\c mv file1 dir1/file2 dir2
+\c mv *.c *.h ..
+
+The \c{rename} and \c{ren} commands work exactly the same way as
+\c{mv}.
 
 \S{psftp-cmd-pling} The \c{!} command: run a local Windows command
 

@@ -1891,7 +1891,7 @@ static struct sftp_cmd_lookup {
     },
     {
 	"cd", TRUE, "change your remote working directory",
-	    " [ <New working directory> ]\n"
+	    " [ <new working directory> ]\n"
 	    "  Change the remote working directory for your SFTP session.\n"
 	    "  If a new working directory is not supplied, you will be\n"
 	    "  returned to your home directory.\n",
@@ -1899,10 +1899,11 @@ static struct sftp_cmd_lookup {
     },
     {
 	"chmod", TRUE, "change file permissions and modes",
-	    " ( <octal-digits> | <modifiers> ) <filename>\n"
-	    "  Change the file permissions on a file or directory.\n"
-	    "  <octal-digits> can be any octal Unix permission specifier.\n"
-	    "  Alternatively, <modifiers> can include:\n"
+	    " <modes> <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
+	    "  Change the file permissions on one or more remote files or\n"
+	    "  directories.\n"
+	    "  <modes> can be any octal Unix permission specifier.\n"
+	    "  Alternatively, <modes> can include the following modifiers:\n"
 	    "    u+r     make file readable by owning user\n"
 	    "    u+w     make file writable by owning user\n"
 	    "    u+x     make file executable by owning user\n"
@@ -1933,16 +1934,16 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_close
     },
     {
-	"del", TRUE, "delete a file",
-	    " <filename>\n"
-	    "  Delete a file.\n",
+	"del", TRUE, "delete files on the remote server",
+	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
+	    "  Delete a file or files from the server.\n",
 	    sftp_cmd_rm
     },
     {
 	"delete", FALSE, "del", NULL, sftp_cmd_rm
     },
     {
-	"dir", TRUE, "list contents of a remote directory",
+	"dir", TRUE, "list remote files",
 	    " [ <directory-name> ]/[ <wildcard> ]\n"
 	    "  List the contents of a specified directory on the server.\n"
 	    "  If <directory-name> is not given, the current working directory\n"
@@ -1999,9 +2000,9 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mget
     },
     {
-	"mkdir", TRUE, "create a directory on the remote server",
-	    " <directory-name>\n"
-	    "  Creates a directory with the given name on the server.\n",
+	"mkdir", TRUE, "create directories on the remote server",
+	    " <directory-name> [ <directory-name>... ]\n"
+	    "  Creates directories with the given names on the server.\n",
 	    sftp_cmd_mkdir
     },
     {
@@ -2014,18 +2015,22 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mput
     },
     {
-	"mv", TRUE, "move or rename a file on the remote server",
-	    " <source-filename> <destination-filename>\n"
-	    "  Moves or renames the file <source-filename> on the server,\n"
-	    "  so that it is accessible under the name <destination-filename>.\n",
+	"mv", TRUE, "move or rename file(s) on the remote server",
+	    " <source> [ <source>... ] <destination>\n"
+	    "  Moves or renames <source>(s) on the server to <destination>,\n"
+	    "  also on the server.\n"
+	    "  If <destination> specifies an existing directory, then <source>\n"
+	    "  may be a wildcard, and multiple <source>s may be given; all\n"
+	    "  source files are moved into <destination>.\n"
+	    "  Otherwise, <source> must specify a single file, which is moved\n"
+	    "  or renamed so that it is accessible under the name <destination>.\n",
 	    sftp_cmd_mv
     },
     {
 	"open", TRUE, "connect to a host",
 	    " [<user>@]<hostname> [<port>]\n"
 	    "  Establishes an SFTP connection to a given host. Only usable\n"
-	    "  when you did not already specify a host name on the command\n"
-	    "  line.\n",
+	    "  when you are not already connected to a server.\n",
 	    sftp_cmd_open
     },
     {
@@ -2048,7 +2053,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_quit
     },
     {
-	"reget", TRUE, "continue downloading a file",
+	"reget", TRUE, "continue downloading files",
 	    " [ -r ] [ -- ] <filename> [ <local-filename> ]\n"
 	    "  Works exactly like the \"get\" command, but the local file\n"
 	    "  must already exist. The download will begin at the end of the\n"
@@ -2065,7 +2070,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mv
     },
     {
-	"reput", TRUE, "continue uploading a file",
+	"reput", TRUE, "continue uploading files",
 	    " [ -r ] [ -- ] <filename> [ <remote-filename> ]\n"
 	    "  Works exactly like the \"put\" command, but the remote file\n"
 	    "  must already exist. The upload will begin at the end of the\n"
@@ -2078,10 +2083,11 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_rm
     },
     {
-	"rmdir", TRUE, "remove a directory on the remote server",
-	    " <directory-name>\n"
+	"rmdir", TRUE, "remove directories on the remote server",
+	    " <directory-name> [ <directory-name>... ]\n"
 	    "  Removes the directory with the given name on the server.\n"
-	    "  The directory will not be removed unless it is empty.\n",
+	    "  The directory will not be removed unless it is empty.\n"
+	    "  Wildcards may be used to specify multiple directories.\n",
 	    sftp_cmd_rmdir
     }
 };
