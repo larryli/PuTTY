@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.36 2003/01/24 00:25:33 ben Exp $ */
+/* $Id: mac.c,v 1.37 2003/01/25 15:15:40 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -492,6 +492,9 @@ static void mac_menucommand(long result) {
 	  case iSaveAs:
 	    mac_savesessionas();
 	    goto done;
+	  case iDuplicate:
+	    mac_dupsession();
+	    goto done;
           case iQuit:
             cleanup_exit(0);
             goto done;
@@ -591,6 +594,7 @@ static void mac_adjustmenus(void) {
       case wSettings:
 	DisableItem(menu, iSave); /* XXX enable if modified */
 	EnableItem(menu, iSaveAs);
+	EnableItem(menu, iDuplicate);
 	menu = GetMenuHandle(mEdit);
 	DisableItem(menu, 0);
 	break;
@@ -600,6 +604,7 @@ static void mac_adjustmenus(void) {
       default:
 	DisableItem(menu, iSave);
 	DisableItem(menu, iSaveAs);
+	DisableItem(menu, iDuplicate);
 	menu = GetMenuHandle(mEdit);
 	DisableItem(menu, 0);
 	break;

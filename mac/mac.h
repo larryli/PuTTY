@@ -86,6 +86,7 @@ extern Session *sesslist;
 
 /* from macdlg.c */
 extern void mac_newsession(void);
+extern void mac_dupsession(void);
 extern void mac_savesession(void);
 extern void mac_savesessionas(void);
 extern void mac_clickdlg(WindowPtr, EventRecord *);

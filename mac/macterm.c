@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.52 2003/01/18 20:09:21 ben Exp $ */
+/* $Id: macterm.c,v 1.53 2003/01/25 15:15:40 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -110,8 +110,23 @@ static RoutineDescriptor do_text_for_device_upp =
 void mac_startsession(Session *s)
 {
     char *errmsg;
+    int i;
 
     init_ucs(s);
+
+    /*
+     * Select protocol. This is farmed out into a table in a
+     * separate file to enable an ssh-free variant.
+     */
+    s->back = NULL;
+    for (i = 0; backends[i].backend != NULL; i++)
+	if (backends[i].protocol == s->cfg.protocol) {
+	    s->back = backends[i].backend;
+	    break;
+	}
+    if (s->back == NULL)
+	fatalbox("Unsupported protocol number found");
+
     /* XXX: Own storage management? */
     if (HAVE_COLOR_QD())
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);
@@ -403,6 +418,7 @@ void mac_adjusttermmenus(WindowPtr window) {
     menu = GetMenuHandle(mFile);
     DisableItem(menu, iSave); /* XXX enable if modified */
     EnableItem(menu, iSaveAs);
+    EnableItem(menu, iDuplicate);
     menu = GetMenuHandle(mEdit);
     EnableItem(menu, 0);
     DisableItem(menu, iUndo);

@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.22 2003/01/25 14:09:47 ben Exp $ */
+/* $Id: mac_res.r,v 1.23 2003/01/25 15:15:40 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -893,15 +893,17 @@ resource 'MENU' (mApple, preload) {
 resource 'MENU' (mFile, preload) {
     mFile,
     textMenuProc,
-    0b11111111111111111111111111011111,
+    0b11111111111111111111111101111011,
     enabled,
     "Session",
     {
 	"New",			noicon, "N",   nomark, plain,
 	"Open\0xc9",		noicon, "O",   nomark, plain,
+	"-",			noicon, nokey, nomark, plain,
 	"Close",		noicon, "W",   nomark, plain,
 	"Save",			noicon, "S",   nomark, plain,
 	"Save As\0xc9",		noicon, nokey, nomark, plain,
+	"Duplicate",		noicon, "D",   nomark, plain,
 	"-",			noicon, nokey, nomark, plain,
 	"Quit",			noicon, "Q",   nomark, plain,
     }

@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.7 2003/01/25 14:04:47 ben Exp $ */
+/* $Id: macdlg.c,v 1.8 2003/01/25 15:15:40 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -53,7 +53,6 @@ void mac_newsession(void)
     s = smalloc(sizeof(*s));
     memset(s, 0, sizeof(*s));
     do_defaults(NULL, &s->cfg);
-    s->back = &loop_backend;
     s->hasfile = FALSE;
 
     s->settings_window = GetNewDialog(wSettings, NULL, (WindowPtr)-1);
@@ -62,12 +61,25 @@ void mac_newsession(void)
     ShowWindow(s->settings_window);
 }
 
+void mac_dupsession(void)
+{
+    Session *s1 = (Session *)GetWRefCon(FrontWindow());
+    Session *s2;
+
+    s2 = smalloc(sizeof(*s2));
+    memset(s2, 0, sizeof(*s2));
+    s2->cfg = s1->cfg;
+    s2->hasfile = s1->hasfile;
+    s2->savefile = s1->savefile;
+
+    mac_startsession(s2);
+}
+
 static OSErr mac_opensessionfrom(FSSpec *fss)
 {
     FInfo fi;
     Session *s;
     void *sesshandle;
-    int i;
     OSErr err;
 
     s = smalloc(sizeof(*s));
@@ -91,19 +103,6 @@ static OSErr mac_opensessionfrom(FSSpec *fss)
     load_open_settings(sesshandle, TRUE, &s->cfg);
     close_settings_r(sesshandle);
 
-    /*
-     * Select protocol. This is farmed out into a table in a
-     * separate file to enable an ssh-free variant.
-     */
-    s->back = NULL;
-    for (i = 0; backends[i].backend != NULL; i++)
-	if (backends[i].protocol == s->cfg.protocol) {
-	    s->back = backends[i].backend;
-	    break;
-	}
-    if (s->back == NULL) {
-	fatalbox("Unsupported protocol number found");
-    }
     mac_startsession(s);
     return noErr;
 
