@@ -2367,12 +2367,44 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		RealizePalette(hdc);
 	    }
 
+	    /*
+	     * We have to be careful about term_paint(). It will
+	     * set a bunch of character cells to INVALID and then
+	     * call do_paint(), which will redraw those cells and
+	     * _then mark them as done_. This may not be accurate:
+	     * when painting in WM_PAINT context we are restricted
+	     * to the rectangle which has just been exposed - so if
+	     * that only covers _part_ of a character cell and the
+	     * rest of it was already visible, that remainder will
+	     * not be redrawn at all. Accordingly, we must not
+	     * paint any character cell in a WM_PAINT context which
+	     * already has a pending update due to terminal output.
+	     * The simplest solution to this - and many, many
+	     * thanks to Hung-Te Lin for working all this out - is
+	     * not to do any actual painting at _all_ if there's a
+	     * pending terminal update: just mark the relevant
+	     * character cells as INVALID and wait for the
+	     * scheduled full update to sort it out.
+	     * 
+	     * I have a suspicion this isn't the _right_ solution.
+	     * An alternative approach would be to have terminal.c
+	     * separately track what _should_ be on the terminal
+	     * screen and what _is_ on the terminal screen, and
+	     * have two completely different types of redraw (one
+	     * for full updates, which syncs the former with the
+	     * terminal itself, and one for WM_PAINT which syncs
+	     * the latter with the former); yet another possibility
+	     * would be to have the Windows front end do what the
+	     * GTK one already does, and maintain a bitmap of the
+	     * current terminal appearance so that WM_PAINT becomes
+	     * completely trivial. However, this should do for now.
+	     */
 	    term_paint(term, hdc, 
 		       (p.rcPaint.left-offset_width)/font_width,
 		       (p.rcPaint.top-offset_height)/font_height,
 		       (p.rcPaint.right-offset_width-1)/font_width,
 		       (p.rcPaint.bottom-offset_height-1)/font_height,
-		       TRUE);
+		       !term->window_update_pending);
 
 	    if (p.fErase ||
 	        p.rcPaint.left  < offset_width  ||
