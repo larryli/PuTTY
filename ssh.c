@@ -426,6 +426,16 @@ enum {				       /* channel types */
 struct ssh_channel {
     unsigned remoteid, localid;
     int type;
+    /*
+     * In SSH1, this value contains four bits:
+     * 
+     *   1   We have sent SSH1_MSG_CHANNEL_CLOSE.
+     *   2   We have sent SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION.
+     *   4   We have received SSH1_MSG_CHANNEL_CLOSE.
+     *   8   We have received SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION.
+     * 
+     * A channel is completely finished with when all four bits are set.
+     */
     int closes;
     union {
 	struct ssh1_data_channel {
@@ -2888,7 +2898,7 @@ void sshfwd_close(struct ssh_channel *c)
 		ssh2_pkt_send();
 	    }
 	}
-	c->closes = 1;
+	c->closes = 1;		       /* sent MSG_CLOSE */
 	if (c->type == CHAN_X11) {
 	    c->u.x11.s = NULL;
 	    logevent("Forwarded X11 connection terminated");
@@ -3348,9 +3358,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		    int closetype;
 		    closetype =
 			(pktin.type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
-		    if (!(c->closes & closetype))
-			send_packet(pktin.type, PKT_INT, c->remoteid,
-				    PKT_END);
+
 		    if ((c->closes == 0) && (c->type == CHAN_X11)) {
 			logevent("Forwarded X11 connection terminated");
 			assert(c->u.x11.s != NULL);
@@ -3363,8 +3371,15 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			pfd_close(c->u.pfd.s);
 			c->u.pfd.s = NULL;
 		    }
-		    c->closes |= closetype;
-		    if (c->closes == 3) {
+
+		    c->closes |= (closetype << 2);   /* seen this message */
+		    if (!(c->closes & closetype)) {
+			send_packet(pktin.type, PKT_INT, c->remoteid,
+				    PKT_END);
+			c->closes |= closetype;      /* sent it too */
+		    }
+
+		    if (c->closes == 15) {
 			del234(ssh_channels, c);
 			sfree(c);
 		    }
