@@ -182,12 +182,12 @@ void log_reconfig(void *handle, Config *cfg)
 	reset_logging = FALSE;
 
     if (reset_logging)
-	logfclose(logctx);
+	logfclose(ctx);
 
     ctx->cfg = *cfg;		       /* STRUCTURE COPY */
 
     if (reset_logging)
-	logfopen(logctx);
+	logfopen(ctx);
 }
 
 /*
