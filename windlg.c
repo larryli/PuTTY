@@ -741,7 +741,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	static const struct { char *s; int c; } ciphers[] = {
 	    { "3DES",			CIPHER_3DES },
 	    { "Blowfish",		CIPHER_BLOWFISH },
-	    { "DES (SSH 1 only)",	CIPHER_DES },
+	    { "DES",			CIPHER_DES },
 	    { "AES (SSH 2 only)",	CIPHER_AES },
 	    { "-- warn below here --",	CIPHER_WARN }
 	};
