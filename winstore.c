@@ -198,14 +198,14 @@ char *enum_settings_next(void *handle, char *buffer, int buflen)
     struct enumsettings *e = (struct enumsettings *) handle;
     char *otherbuf;
     otherbuf = smalloc(3 * buflen);
-    if (otherbuf && RegEnumKey(e->key, e->i++, otherbuf,
-			       3 * buflen) == ERROR_SUCCESS) {
+    if (RegEnumKey(e->key, e->i++, otherbuf, 3 * buflen) == ERROR_SUCCESS) {
 	unmungestr(otherbuf, buffer, buflen);
 	sfree(otherbuf);
 	return buffer;
-    } else
+    } else {
+	sfree(otherbuf);
 	return NULL;
-
+    }
 }
 
 void enum_settings_finish(void *handle)
