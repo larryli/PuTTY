@@ -14,6 +14,10 @@
 #include "ssh.h"
 #include "winstuff.h"
 
+#ifdef MSVC4
+#define ICON_BIG        1
+#endif
+
 #define WM_DONEKEY (WM_XUSER + 1)
 
 #define DEFAULT_KEYSIZE 1024
@@ -813,6 +817,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
              */
         }
         requested_help = FALSE;
+	SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
+		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(200)));
 
 	state = smalloc(sizeof(*state));
 	state->generation_thread_exists = FALSE;
