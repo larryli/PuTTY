@@ -46,6 +46,8 @@ static int alt_which;
 static int esc_args[ARGS_MAX];
 static int esc_nargs;
 static int esc_query;
+#define ANSI(x,y)	((x)+((y)<<8))
+#define ANSI_QUE(x)	ANSI(x,TRUE)
 
 #define OSC_STR_MAX 2048
 static int osc_strlen;
@@ -662,31 +664,30 @@ void term_out(void) {
 	}
 	else switch (termstate) {
 	  case TOPLEVEL:
-	    if (c >= ' ' && c != 0234) {
-		if (wrapnext) {
-		    cpos[1] = ATTR_WRAPPED;
-		    if (curs_y == marg_b)
-			scroll (marg_t, marg_b, 1, TRUE);
-		    else if (curs_y < rows-1)
-			curs_y++;
-		    curs_x = 0;
-		    fix_cpos;
-		    wrapnext = FALSE;
-		    nl_count++;
-		}
-		if (insert)
-		    insch (1);
-		check_selection (cpos, cpos+1);
-		*cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
-		    (c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
-		curs_x++;
-		if (curs_x == cols) {
-		    cpos--;
-		    curs_x--;
-		    wrapnext = wrap;
-		}
-		seen_disp_event = 1;
+	  /* Only graphic characters get this far, ctrls are stripped above */
+	    if (wrapnext) {
+		cpos[1] = ATTR_WRAPPED;
+		if (curs_y == marg_b)
+		    scroll (marg_t, marg_b, 1, TRUE);
+		else if (curs_y < rows-1)
+		    curs_y++;
+		curs_x = 0;
+		fix_cpos;
+		wrapnext = FALSE;
+		nl_count++;
 	    }
+	    if (insert)
+		insch (1);
+	    check_selection (cpos, cpos+1);
+	    *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
+		(c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
+	    curs_x++;
+	    if (curs_x == cols) {
+		cpos--;
+		curs_x--;
+		wrapnext = wrap;
+	    }
+	    seen_disp_event = 1;
 	    break;
 
 	  case IGNORE_NEXT:
@@ -789,9 +790,8 @@ void term_out(void) {
 	    break;
 	  case SEEN_CSI:
 	    termstate = TOPLEVEL;      /* default */
-	    switch (c) {
-	      case '0': case '1': case '2': case '3': case '4':
-	      case '5': case '6': case '7': case '8': case '9':
+	    if( isdigit(c) )
+	    {
 		if (esc_nargs <= ARGS_MAX) {
 		    if (esc_args[esc_nargs-1] == ARG_DEFAULT)
 			esc_args[esc_nargs-1] = 0;
@@ -799,16 +799,21 @@ void term_out(void) {
 			10 * esc_args[esc_nargs-1] + c - '0';
 		}
 		termstate = SEEN_CSI;
-		break;
-	      case ';':
+	    }
+	    else if( c == ';' )
+	    {
 		if (++esc_nargs <= ARGS_MAX)
 		    esc_args[esc_nargs-1] = ARG_DEFAULT;
 		termstate = SEEN_CSI;
-		break;
-	      case '?':
-		esc_query = TRUE;
+	    }
+	    else if( c < '@' )
+	    {
+		if( esc_query )     esc_query = -1;
+		else if( c == '?' ) esc_query = TRUE;
+		else                esc_query = c;
 		termstate = SEEN_CSI;
-		break;
+	    }
+	    else switch (ANSI(c,esc_query)) {
 	      case 'A':		       /* move up N lines */
 		move (curs_x, curs_y - def(esc_args[0], 1), 1);
 		seen_disp_event = TRUE;
@@ -898,9 +903,11 @@ void term_out(void) {
 		}
 		break;
 	      case 'h':		       /* toggle a mode to high */
+	      case ANSI_QUE('h'):
 		toggle_mode (esc_args[0], esc_query, TRUE);
 		break;
 	      case 'l':		       /* toggle a mode to low */
+	      case ANSI_QUE('l'):
 		toggle_mode (esc_args[0], esc_query, FALSE);
 		break;
 	      case 'g':		       /* clear tabs */
@@ -915,7 +922,7 @@ void term_out(void) {
 		}
 		break;
 	      case 'r':		       /* set scroll margins */
-		if (!esc_query && esc_nargs <= 2) {
+		if (esc_nargs <= 2) {
 		    int top, bot;
 		    top = def(esc_args[0], 1) - 1;
 		    if (top < 0)
@@ -1033,7 +1040,8 @@ void term_out(void) {
 		cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_ASCII;
 		break;
 	    }
-	    termstate = TOPLEVEL;
+	    if( c != '%' )
+	        termstate = TOPLEVEL;
 	    break;
 	  case SEEN_OSC:
 	    osc_w = FALSE;
@@ -1071,7 +1079,19 @@ void term_out(void) {
 	    }
 	    break;
 	  case OSC_STRING:
-	    if (c == 0234 || c == '\007') {
+	    /*
+	     * This OSC stuff is EVIL. It takes just one character to get into
+	     * sysline mode and it's not initially obvious how to get out.
+	     * So I've added CR and LF as string aborts.
+	     * This shouldn't effect compatibility as I believe embedded 
+	     * control characters are supposed to be interpreted (maybe?) 
+	     * and they don't display anything useful anyway.
+	     *
+	     * -- RDB
+	     */
+	    if (c == '\n' || c == '\r') {
+		termstate = TOPLEVEL;
+	    } else if (c == 0234 || c == '\007' ) {
 		/*
 		 * These characters terminate the string; ST and BEL
 		 * terminate the sequence and trigger instant
