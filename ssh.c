@@ -2651,7 +2651,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    char msgbuf[256];
 	    if (flags & FLAG_VERBOSE)
 		c_write_str(ssh, "Trying public key authentication.\r\n");
-	    logeventf(ssh, "Trying public key \"%s\"", ssh->cfg.keyfile);
+	    logeventf(ssh, "Trying public key \"%s\"",
+		      filename_to_str(&ssh->cfg.keyfile));
 	    type = key_type(&ssh->cfg.keyfile);
 	    if (type != SSH_KEYTYPE_SSH1) {
 		sprintf(msgbuf, "Key is of wrong type (%s)",
@@ -4390,7 +4391,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	/* Load the pub half of ssh->cfg.keyfile so we notice if it's in Pageant */
 	if (!filename_is_null(ssh->cfg.keyfile)) {
 	    int keytype;
-	    logeventf(ssh, "Reading private key file \"%.150s\"", ssh->cfg.keyfile);
+	    logeventf(ssh, "Reading private key file \"%.150s\"",
+		      filename_to_str(&ssh->cfg.keyfile));
 	    keytype = key_type(&ssh->cfg.keyfile);
 	    if (keytype == SSH_KEYTYPE_SSH2) {
 		s->publickey_blob =
@@ -4401,7 +4403,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		logeventf(ssh, "Unable to use this key file (%s)",
 			  key_type_to_str(keytype));
 		msgbuf = dupprintf("Unable to use key file \"%.150s\""
-				   " (%s)\r\n", ssh->cfg.keyfile,
+				   " (%s)\r\n",
+				   filename_to_str(&ssh->cfg.keyfile),
 				   key_type_to_str(keytype));
 		c_write_str(ssh, msgbuf);
 		sfree(msgbuf);
