@@ -1,4 +1,4 @@
-\versionid $Id: pageant.but,v 1.6 2001/12/11 18:48:29 simon Exp $
+\versionid $Id: pageant.but,v 1.7 2001/12/20 15:27:40 simon Exp $
 
 \C{pageant} Using Pageant for authentication
 
@@ -114,6 +114,38 @@ the key from its memory.
 You can apply this to keys you added using the \q{Add Key} button,
 or to keys you added remotely using agent forwarding (see
 \k{pageant-forward}); it makes no difference.
+
+\H{pageant-cmdline} The Pageant command line
+
+Pageant can be made to do things automatically when it starts up, by
+specifying instructions on its command line. If you're starting
+Pageant from the Windows GUI, you can arrange this by editing the
+properties of the Windows shortcut that it was started from.
+
+\S{pageant-cmdline-loadkey} Making Pageant automatically load keys
+on startup
+
+Pageant can automatically load one or more private keys when it
+starts up, if you provide them on the Pageant command line. Your
+command line might then look like:
+
+\c C:\PuTTY\pageant.exe d:\main.key d:\secondary.key
+
+If the keys are stored encrypted, Pageant will request the
+passphrases on startup.
+
+\S{pageant-cmdline-command} Making Pageant run another program
+
+You can arrange for Pageant to start another program once it has
+initialised itself and loaded any keys specified on its command
+line. This program (perhaps a PuTTY, or a WinCVS making use of
+Plink, or whatever) will then be able to use the keys Pageant has
+loaded.
+
+You do this by specifying the \c{-c} option followed by the command,
+like this:
+
+\c C:\PuTTY\pageant.exe d:\main.key -c C:\PuTTY\putty.exe
 
 \H{pageant-forward} Using agent forwarding
 
