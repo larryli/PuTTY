@@ -1,3 +1,9 @@
+/*
+ * Portable implementation of ltime() for any ISO-C platform where
+ * time_t behaves. (In practice, we've found that platforms such as
+ * Windows and Mac have needed their own specialised implementations.)
+ */
+
 #include <time.h>
 #include <assert.h>
 
