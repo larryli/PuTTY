@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.9 2001/02/04 15:49:49 owen Exp $
+\versionid $Id: pscp.but,v 1.10 2001/02/19 10:54:18 simon Exp $
 
 \#FIXME: Need examples
 
@@ -185,9 +185,34 @@ line.
 
 Since specifying passwords in scripts is a bad idea for security
 reasons, you might want instead to consider using public-key
-authentication (see \k{pubkey}).  PSCP will attempt to authenticate
-with any key specified in a saved session's configuration or with a
-key stored in Pageant (see \k{pageant}) before asking for a password.
+authentication; see \k{pscp-pubkey}.
+
+\S{pscp-pubkey} Using public key authentication with PSCP
+
+Like PuTTY, PSCP can authenticate using a public key instead of a
+password. There are two ways you can do this.
+
+Firstly, PSCP can use PuTTY saved sessions in place of hostnames
+(see \k{pscp-usage-basics-host}). So you would do this:
+
+\b Run PuTTY, and create a PuTTY saved session (see
+\k{config-saving}) which specifies your private key file (see
+\k{config-auth}). You will probably also want to specify a username
+to log in as (see \k{config-username}).
+
+\b In PSCP, you can now use the name of the session instead of a
+hostname: \c{pscp sessionname:file localfile}.
+
+Secondly, PSCP will attempt to authenticate using Pageant if Pageant
+is running (see \k{pageant}). So you would do this:
+
+\b Ensure Pageant is running, and has your private key stored in it.
+
+\b Specify a user and host name to PSCP as normal. PSCP will
+automatically detect Pageant and try to use the keys within it.
+
+For more general information on public-key authentication, see
+\k{pubkey}.
 
 \H{pscp-ixplorer} \i{Secure iXplorer}
 
