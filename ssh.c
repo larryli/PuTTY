@@ -2291,7 +2291,7 @@ static int process_userpass_input(Ssh ssh, unsigned char *in, int inlen)
     return 0;
 }
 
-void ssh_agent_callback(void *sshv, void *reply, int replylen)
+static void ssh_agent_callback(void *sshv, void *reply, int replylen)
 {
     Ssh ssh = (Ssh) sshv;
 
@@ -2304,7 +2304,7 @@ void ssh_agent_callback(void *sshv, void *reply, int replylen)
 	do_ssh2_authconn(ssh, NULL, -1, 0);
 }
 
-void ssh_agentf_callback(void *cv, void *reply, int replylen)
+static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 {
     struct ssh_channel *c = (struct ssh_channel *)cv;
     Ssh ssh = c->ssh;
