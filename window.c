@@ -1824,7 +1824,7 @@ void do_text (Context ctx, int x, int y, char *text, int len,
         oldpen = SelectObject (hdc, oldpen);
         DeleteObject (oldpen);
     }
-    if ((attr & ATTR_PASCURS) && cfg.cursor.type == 0) {
+    if ((attr & ATTR_PASCURS) && cfg.cursor_type == 0) {
 	POINT pts[5];
         HPEN oldpen;
 	pts[0].x = pts[1].x = pts[4].x = x;
@@ -1837,25 +1837,32 @@ void do_text (Context ctx, int x, int y, char *text, int len,
         DeleteObject (oldpen);
     }
     if ((attr & (ATTR_ACTCURS | ATTR_PASCURS)) && cfg.cursor_type != 0) {
-        HPEN oldpen;
-	int pentype;
-	if (attr & ATTR_PASCURS)
-	    pentype = PS_DOTTED;
-	else
-	    pentype = PS_SOLID;
-	oldpen = SelectObject (hdc, CreatePen(pentype, 0, colours[23]));
+        int startx, starty, dx, dy, length, i;
 	if (cfg.cursor_type == 1) {
-	    MoveToEx (hdc, x, y+descent, NULL);
-	    LineTo (hdc, x+fnt_width-1, y+descent);
-	} else {
+            startx = x; starty = y+descent;
+            dx = 1; dy = 0; length = fnt_width;
+        } else {
 	    int xadjust = 0;
 	    if (attr & ATTR_RIGHTCURS)
 		xadjust = fnt_width-1;
-	    MoveToEx (hdc, x+xadjust, y, NULL);
-	    LineTo (hdc, x+xadjust, y+font_height-1);
+            startx = x+xadjust; starty = y;
+            dx = 0; dy = 1; length = font_height;
 	}
-        oldpen = SelectObject (hdc, oldpen);
-        DeleteObject (oldpen);
+        if (attr & ATTR_ACTCURS) {
+            HPEN oldpen;
+            oldpen = SelectObject (hdc, CreatePen(PS_SOLID, 0, colours[23]));
+            MoveToEx (hdc, startx, starty, NULL);
+            LineTo (hdc, startx+dx*length, starty+dy*length);
+            oldpen = SelectObject (hdc, oldpen);
+            DeleteObject (oldpen);
+        } else {
+            for (i = 0; i < length; i++) {
+                if (i % 2 == 0) {
+                    SetPixel(hdc, startx, starty, colours[23]);
+                }
+                startx += dx; starty += dy;
+            }
+        }
     }
 }
 
