@@ -104,7 +104,7 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 /*
  * Return value is TRUE if pterm is to run in direct-to-font mode.
  */
-int init_ucs(int font_charset)
+int init_ucs(char *linecharset, int font_charset)
 {
     int i, ret = 0;
 
@@ -120,9 +120,9 @@ int init_ucs(int font_charset)
      * line_codepage should be decoded from the specification in
      * cfg.
      */
-    line_codepage = charset_from_mimeenc(cfg.line_codepage);
+    line_codepage = charset_from_mimeenc(linecharset);
     if (line_codepage == CS_NONE)
-	line_codepage = charset_from_xenc(cfg.line_codepage);
+	line_codepage = charset_from_xenc(linecharset);
 
     /*
      * If line_codepage is _still_ CS_NONE, we assume we're using

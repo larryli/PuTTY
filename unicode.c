@@ -416,7 +416,7 @@ static const struct cp_list_item cp_list[] = {
 
 static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr);
 
-void init_ucs(void)
+void init_ucs(Config *cfg)
 {
     int i, j;
     int used_dtf = 0;
@@ -426,14 +426,14 @@ void init_ucs(void)
 	tbuf[i] = i;
 
     /* Decide on the Line and Font codepages */
-    line_codepage = decode_codepage(cfg.line_codepage);
+    line_codepage = decode_codepage(cfg->line_codepage);
 
     if (font_codepage <= 0) { 
 	font_codepage=0; 
 	dbcs_screenfont=0; 
     }
 
-    if (cfg.vtmode == VT_OEMONLY) {
+    if (cfg->vtmode == VT_OEMONLY) {
 	font_codepage = 437;
 	dbcs_screenfont = 0;
 	if (line_codepage <= 0)
@@ -453,7 +453,7 @@ void init_ucs(void)
 	if (font_codepage == 437)
 	    unitab_font[0] = unitab_font[255] = 0xFFFF;
     }
-    if (cfg.vtmode == VT_XWINDOWS)
+    if (cfg->vtmode == VT_XWINDOWS)
 	memcpy(unitab_font + 1, unitab_xterm_std,
 	       sizeof(unitab_xterm_std));
 
@@ -461,14 +461,14 @@ void init_ucs(void)
     get_unitab(CP_OEMCP, unitab_oemcp, 1);
 
     /* Collect CP437 ucs table for SCO acs */
-    if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_XWINDOWS)
+    if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS)
 	memcpy(unitab_scoacs, unitab_oemcp, sizeof(unitab_scoacs));
     else
 	get_unitab(437, unitab_scoacs, 1);
 
     /* Collect line set ucs table */
     if (line_codepage == font_codepage &&
-	(dbcs_screenfont || cfg.vtmode == VT_POORMAN || font_codepage==0)) {
+	(dbcs_screenfont || cfg->vtmode == VT_POORMAN || font_codepage==0)) {
 
 	/* For DBCS and POOR fonts force direct to font */
 	used_dtf = 1;
@@ -535,14 +535,14 @@ void init_ucs(void)
 	    unitab_ctrl[i] = 0xFF;
 
     /* Generate line->screen direct conversion links. */
-    if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_XWINDOWS)
+    if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS)
 	link_font(unitab_scoacs, unitab_oemcp, ATTR_OEMCP);
 
     link_font(unitab_line, unitab_font, ATTR_ACP);
     link_font(unitab_scoacs, unitab_font, ATTR_ACP);
     link_font(unitab_xterm, unitab_font, ATTR_ACP);
 
-    if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_XWINDOWS) {
+    if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS) {
 	link_font(unitab_line, unitab_oemcp, ATTR_OEMCP);
 	link_font(unitab_xterm, unitab_oemcp, ATTR_OEMCP);
     }
@@ -555,7 +555,7 @@ void init_ucs(void)
     }
 
     /* Last chance, if !unicode then try poorman links. */
-    if (cfg.vtmode != VT_UNICODE) {
+    if (cfg->vtmode != VT_UNICODE) {
 	static char poorman_scoacs[] = 
 	    "CueaaaaceeeiiiAAE**ooouuyOUc$YPsaiounNao?++**!<>###||||++||++++++--|-+||++--|-+----++++++++##||#aBTPEsyt******EN=+><++-=... n2* ";
 	static char poorman_latin1[] =

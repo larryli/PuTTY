@@ -2306,7 +2306,7 @@ int main(int argc, char **argv)
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
-    inst->direct_to_font = init_ucs(font_charset);
+    inst->direct_to_font = init_ucs(cfg.line_codepage, font_charset);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 

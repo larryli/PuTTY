@@ -1207,7 +1207,7 @@ static void init_fonts(int pick_width, int pick_height)
     }
     fontflag[0] = fontflag[1] = fontflag[2] = 1;
 
-    init_ucs();
+    init_ucs(&cfg);
 }
 
 static void another_font(int fontno)
