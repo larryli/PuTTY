@@ -162,9 +162,9 @@ int main(int argc, char **argv) {
     /*
      * Process the command line.
      */
-    default_protocol = DEFAULT_PROTOCOL;
-    default_port = DEFAULT_PORT;
     do_defaults(NULL);
+    default_protocol = cfg.protocol;
+    default_port = cfg.port;
     while (--argc) {
         char *p = *++argv;
         if (*p == '-') {
@@ -177,7 +177,11 @@ int main(int argc, char **argv) {
                 logfile = "putty.log";
             } else if (!strcmp(p, "-pw") && argc > 1) {
                 --argc, password = *++argv;
-                printf("pw is %s\n", password);
+            } else if (!strcmp(p, "-l") && argc > 1) {
+                char *username;
+                --argc, username = *++argv;
+                strncpy(cfg.username, username, sizeof(cfg.username));
+                cfg.username[sizeof(cfg.username)-1] = '\0';
             } else if (!strcmp(p, "-P") && argc > 1) {
                 --argc, portnumber = atoi(*++argv);
             }
