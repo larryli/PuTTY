@@ -6,6 +6,7 @@
 #define OTCARBONAPPLICATION 1
 #endif
 
+#include <Files.h> /* Needed by OpenTransportInternet.h */
 #include <OpenTransport.h>
 #include <OpenTptInternet.h>
 
