@@ -3808,6 +3808,8 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    }
 	} else {
 	    while (*portfwd_strptr) portfwd_strptr++;
+	    host[0] = 0;
+	    dports[0] = 0;
 	    dport = dserv = -1;
 	    portfwd_strptr++;	       /* eat the NUL and move to next one */
 	}
