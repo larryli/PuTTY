@@ -15,6 +15,8 @@ bug (see \k{feedback}) and we will add documentation for it.
 \H{errors-hostkey-absent} \q{The server's host key is not cached in
 the registry}
 
+\cfg{winhelp-topic}{errors.hostkey.absent}
+
 This error message occurs when PuTTY connects to a new SSH server.
 Every server identifies itself by means of a host key; once PuTTY
 knows the host key for a server, it will be able to detect if a
@@ -35,6 +37,8 @@ again. You should verify the correctness of the key as before.
 See \k{gs-hostkey} for more information on host keys.
 
 \H{errors-hostkey-wrong} \q{WARNING - POTENTIAL SECURITY BREACH!}
+
+\cfg{winhelp-topic}{errors.hostkey.changed}
 
 This message, followed by \q{The server's host key does not match
 the one PuTTY has cached in the registry}, means that PuTTY has

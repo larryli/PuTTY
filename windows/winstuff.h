@@ -66,9 +66,10 @@ typedef struct terminal_tag Terminal;
 typedef HDC Context;
 
 /*
- * Window handles for the dialog boxes that can be running during a
+ * Window handles for the windows that can be running during a
  * PuTTY session.
  */
+GLOBAL HWND hwnd;	/* the main terminal window */
 GLOBAL HWND logbox;
 
 /*

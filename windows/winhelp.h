@@ -1,7 +1,9 @@
 /*
- * winhelp.h - define Windows Help context names for the controls
- * in the PuTTY config box.
+ * winhelp.h - define Windows Help context names. These match up with
+ * the \cfg{winhelp-topic} directives in the Halibut source.
  */
+
+/* These are used in the cross-platform configuration dialog code. */
 
 #define HELPCTX(x) P(WINHELP_CTX_ ## x)
 
@@ -122,3 +124,13 @@
 #define WINHELP_CTX_ssh_bugs_rsapad2 "ssh.bugs.rsapad2"
 #define WINHELP_CTX_ssh_bugs_pksessid2 "ssh.bugs.pksessid2"
 #define WINHELP_CTX_ssh_bugs_rekey2 "ssh.bugs.rekey2"
+
+/* These are used in Windows-specific bits of the frontend.
+ * We (ab)use "help context identifiers" (dwContextId) to identify them. */
+
+#define HELPCTXID(x) WINHELP_CTXID_ ## x
+
+#define WINHELP_CTX_errors_hostkey_absent "errors.hostkey.absent"
+#define WINHELP_CTXID_errors_hostkey_absent 1
+#define WINHELP_CTX_errors_hostkey_changed "errors.hostkey.changed"
+#define WINHELP_CTXID_errors_hostkey_changed 2

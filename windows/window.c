@@ -166,8 +166,6 @@ static HPALETTE pal;
 static LPLOGPALETTE logpal;
 static RGBTRIPLE defpal[NALLCOLOURS];
 
-static HWND hwnd;
-
 static HBITMAP caretbm;
 
 static int dbltime, lasttime, lastact;
