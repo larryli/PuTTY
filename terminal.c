@@ -1000,7 +1000,7 @@ void term_out(void)
 	     * debugging and possibly also useful for actual logging.
 	     */
 	    if (cfg.logtype == LGTYP_DEBUG)
-		logtraffic((unsigned char) &c, LGTYP_DEBUG);
+		logtraffic((unsigned char) c, LGTYP_DEBUG);
 	} else {
 	    c = unget;
 	    unget = -1;
