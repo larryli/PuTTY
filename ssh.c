@@ -2304,6 +2304,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
         ssh2_pkt_addstring_start();
         ssh2_pkt_addstring_data("\0", 1);/* TTY_OP_END, no special options */
         ssh2_pkt_send();
+        ssh_state = SSH_STATE_INTERMED;
 
         do {
             crWaitUntilV(ispkt);
@@ -2359,6 +2360,10 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     } else {
         logevent("Started a shell/command");
     }
+
+    ssh_state = SSH_STATE_SESSION;
+    if (size_needed)
+	ssh_size();
 
     /*
      * Transfer data!
@@ -2515,7 +2520,7 @@ static void ssh_send (char *buf, int len) {
 }
 
 /*
- * Called to set the size of the window from Telnet's POV.
+ * Called to set the size of the window from SSH's POV.
  */
 static void ssh_size(void) {
     switch (ssh_state) {
@@ -2527,9 +2532,21 @@ static void ssh_size(void) {
 	break;
       case SSH_STATE_SESSION:
         if (!cfg.nopty) {
-	    send_packet(SSH1_CMSG_WINDOW_SIZE,
-	                PKT_INT, rows, PKT_INT, cols,
-	                PKT_INT, 0, PKT_INT, 0, PKT_END);
+            if (ssh_version == 1) {
+                send_packet(SSH1_CMSG_WINDOW_SIZE,
+                            PKT_INT, rows, PKT_INT, cols,
+                            PKT_INT, 0, PKT_INT, 0, PKT_END);
+            } else {
+                ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+                ssh2_pkt_adduint32(mainchan->remoteid);
+                ssh2_pkt_addstring("window-change");
+                ssh2_pkt_addbool(0);
+                ssh2_pkt_adduint32(cols);
+                ssh2_pkt_adduint32(rows);
+                ssh2_pkt_adduint32(0);
+                ssh2_pkt_adduint32(0);
+                ssh2_pkt_send();
+            }
         }
     }
 }
