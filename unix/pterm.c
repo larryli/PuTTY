@@ -1026,6 +1026,8 @@ void set_icon(char *title)
 
 void set_sbar(int total, int start, int page)
 {
+    if (!cfg.scrollbar)
+	return;
     inst->sbar_adjust->lower = 0;
     inst->sbar_adjust->upper = total;
     inst->sbar_adjust->value = start;
@@ -1039,6 +1041,8 @@ void set_sbar(int total, int start, int page)
 
 void scrollbar_moved(GtkAdjustment *adj, gpointer data)
 {
+    if (!cfg.scrollbar)
+	return;
     if (!inst->ignore_sbar)
 	term_scroll(1, (int)adj->value);
 }
@@ -1387,6 +1391,9 @@ int main(int argc, char **argv)
 	if (!strcmp(p, "-nethack")) {
 	    cfg.nethack_keypad = 1;
 	}
+	if (!strcmp(p, "-sb-")) {
+	    cfg.scrollbar = 0;
+	}
     }
 
     inst->fonts[0] = gdk_font_load(cfg.font);
@@ -1414,11 +1421,14 @@ int main(int argc, char **argv)
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
 			  inst->font_width * cfg.width + 2*cfg.window_border,
 			  inst->font_height * cfg.height + 2*cfg.window_border);
-    inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, 0, 0, 0, 0));
-    inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
+    if (cfg.scrollbar) {
+	inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
+	inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
+    }
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
     gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
-    gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
+    if (cfg.scrollbar)
+	gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
     gtk_window_set_policy(GTK_WINDOW(inst->window), FALSE, TRUE, TRUE);
 
@@ -1465,8 +1475,9 @@ int main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(selection_get), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "selection_clear_event",
 		       GTK_SIGNAL_FUNC(selection_clear), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
-		       GTK_SIGNAL_FUNC(scrollbar_moved), inst);
+    if (cfg.scrollbar)
+	gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
+			   GTK_SIGNAL_FUNC(scrollbar_moved), inst);
     gtk_timeout_add(20, timer_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
@@ -1474,7 +1485,8 @@ int main(int argc, char **argv)
 			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK);
 
     gtk_widget_show(inst->area);
-    gtk_widget_show(inst->sbar);
+    if (cfg.scrollbar)
+	gtk_widget_show(inst->sbar);
     gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(inst->window);
 
