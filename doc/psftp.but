@@ -82,15 +82,16 @@ and then you could run the script by typing
 
 When you run a batch script in this way, PSFTP will abort the script
 if any command fails to complete successfully. To change this
-behaviour, you can use the \c{-be} option (\k{psftp-option-be}).
+behaviour, you can add the \c{-be} option (\k{psftp-option-be}).
 
 \S{psftp-option-bc} \c{-bc}: display batch commands as they are run
 
 The \c{-bc} option alters what PSFTP displays while processing a
-batch script. With the \c{-bc} option, PSFTP will display prompts
-and commands just as if the commands had been typed at the keyboard.
-So instead of seeing this:
+batch script specified with \c{-b}. With the \c{-bc} option, PSFTP
+will display prompts and commands just as if the commands had been
+typed at the keyboard. So instead of seeing this:
 
+\c C:\>psftp fred@hostname -b batchfile
 \c Sent username "fred"
 \c Remote working directory is /home/fred
 \c Listing directory /home/fred/lib
@@ -102,6 +103,7 @@ So instead of seeing this:
 
 you might see this:
 
+\c C:\>psftp fred@hostname -bc -b batchfile
 \c Sent username "fred"
 \c Remote working directory is /home/fred
 \c psftp> dir lib
@@ -115,8 +117,8 @@ you might see this:
 
 \S{psftp-option-be} \c{-be}: continue batch processing on errors
 
-When running a batch file, this option causes PSFTP to continue
-processing even if a command fails to complete successfully.
+When running a batch file, this additional option causes PSFTP to
+continue processing even if a command fails to complete successfully.
 
 You might want this to happen if you wanted to delete a file and
 didn't care if it was already not present, for example.
