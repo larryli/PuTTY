@@ -27,6 +27,8 @@
  * mtcpnet.c - MacTCP interface
  */
 
+#if !TARGET_API_MAC_CARBON
+
 #include <MacTypes.h>
 #include <Devices.h>
 #include <Endian.h>
@@ -836,6 +838,7 @@ int net_service_lookup(char *service)
     return 0;
 }
 
+#endif
 
 /*
  * Local Variables:

@@ -27,12 +27,14 @@ static struct macnet_stack ot = {
     ot_register, ot_new, ot_newlistener, ot_addr_error, ot_poll, ot_cleanup
 };
 
+#if !TARGET_API_MAC_CARBON
 static struct macnet_stack mactcp = {
     mactcp_namelookup, mactcp_nonamelookup, mactcp_getaddr,
     mactcp_hostname_is_local, mactcp_address_is_local, mactcp_addrtype,
     mactcp_addrcopy, mactcp_addr_free, mactcp_register, mactcp_new,
     mactcp_newlistener, mactcp_addr_error, mactcp_poll, mactcp_cleanup
 };
+#endif
 
 void sk_init(void)
 {
@@ -42,9 +44,11 @@ void sk_init(void)
 	stack = &ot;
     else
 #endif
+#if !TARGET_API_MAC_CARBON
     if (mactcp_init() == noErr)
 	stack = &mactcp;
     else
+#endif
 	stack = NULL;
 }
 
