@@ -411,9 +411,11 @@ static void do_telnet_read (char *buf, int len) {
 	    else if (c == WONT) telnet_state = SEENWONT;
 	    else if (c == SB) telnet_state = SEENSB;
 	    else {
-		/* ignore (and print) everything else */
-		b[0] = c;
-		c_write(b,1);
+		/* ignore everything else; print it if it's IAC */
+		if (c == IAC) {
+		    b[0] = c;
+		    c_write(b,1);
+		}
 		telnet_state = TOPLEVEL;
 	    }
 	    break;
