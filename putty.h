@@ -276,8 +276,8 @@ typedef struct {
     char termtype[32];
     char termspeed[32];
     char environmt[1024];	       /* VAR\tvalue\0VAR\tvalue\0\0 */
-    char username[32];
-    char localusername[32];
+    char username[100];
+    char localusername[100];
     int rfc_environ;
     int passive_telnet;
     /* Keyboard options */

@@ -2362,8 +2362,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		c_write_str("\r\n");
 	    }
 	} else {
-	    strncpy(username, cfg.username, 99);
-	    username[99] = '\0';
+	    strncpy(username, cfg.username, sizeof(username));
+	    username[sizeof(username)-1] = '\0';
 	}
 
 	send_packet(SSH1_CMSG_USER, PKT_STR, username, PKT_END);
@@ -4182,8 +4182,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    username[strcspn(username, "\n\r")] = '\0';
 	} else {
 	    char stuff[200];
-	    strncpy(username, cfg.username, 99);
-	    username[99] = '\0';
+	    strncpy(username, cfg.username, sizeof(username));
+	    username[sizeof(username)-1] = '\0';
 	    if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
 		sprintf(stuff, "Using username \"%s\".\r\n", username);
 		c_write_str(stuff);
