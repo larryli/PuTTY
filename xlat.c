@@ -142,6 +142,8 @@ unsigned char xlat_tty2scr(unsigned char c)
 {
     if(cfg.xlat_enablekoiwin)
 	return koi2win[c];
+    else if (cfg.xlat_88592w1250)
+        return xlatISO88592toWIN1250[c];
     else if (cfg.xlat_88592cp852)
         return xlatISO88592toCP852[c];
     return c;
