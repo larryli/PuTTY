@@ -3806,65 +3806,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    in_commasep_string("publickey", methods, methlen);
 		can_passwd =
 		    in_commasep_string("password", methods, methlen);
-		can_passwd =
-		    in_commasep_string("password", methods, methlen);
 		can_keyb_inter = 
 		    in_commasep_string("keyboard-interactive", methods, methlen);
 	    }
 
 	    method = 0;
-
-	    if (!method && can_keyb_inter && !tried_keyb_inter) {
-		method = AUTH_KEYBOARD_INTERACTIVE;
-		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
-		tried_keyb_inter = TRUE;
-
-		ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
-		ssh2_pkt_addstring(username);
-		ssh2_pkt_addstring("ssh-connection");	/* service requested */
-		ssh2_pkt_addstring("keyboard-interactive");	/* method */
-		ssh2_pkt_addstring(""); /* lang */
-		ssh2_pkt_addstring("");
-		ssh2_pkt_send();
-
-		crWaitUntilV(ispkt);
-		if (pktin.type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
-		    if (pktin.type == SSH2_MSG_USERAUTH_FAILURE)
-			gotit = TRUE;
-		    logevent("Keyboard-interactive authentication refused");
-		    type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
-		    continue;
-		}
-
-		kbd_inter_running = TRUE;
-	    }
-
-	    if (kbd_inter_running) {
-		method = AUTH_KEYBOARD_INTERACTIVE;
-		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
-		tried_keyb_inter = TRUE;
-
-		/* We've got packet with that "interactive" info
-		   dump banners, and set its prompt as ours */
-		{
-		    char *name, *inst, *lang, *prompt;
-		    int name_len, inst_len, lang_len, prompt_len;
-		    ssh2_pkt_getstring(&name, &name_len);
-		    ssh2_pkt_getstring(&inst, &inst_len);
-		    ssh2_pkt_getstring(&lang, &lang_len);
-		    if (name_len > 0)
-			c_write_untrusted(name, name_len);
-		    if (inst_len > 0)
-			c_write_untrusted(inst, inst_len);
-		    num_prompts = ssh2_pkt_getuint32();
-
-		    ssh2_pkt_getstring(&prompt, &prompt_len);
-		    strncpy(pwprompt, prompt, sizeof(pwprompt));
-		    need_pw = TRUE;
-
-		    echo = ssh2_pkt_getbool();
-		}
-	    }
 
 	    if (!method && can_pubkey && agent_exists() && !tried_agent) {
 		/*
@@ -4056,6 +4002,58 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    c_write_str(comment);
 		    c_write_str("\"\r\n");
 		    method = AUTH_PUBLICKEY_FILE;
+		}
+	    }
+
+	    if (!method && can_keyb_inter && !tried_keyb_inter) {
+		method = AUTH_KEYBOARD_INTERACTIVE;
+		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		tried_keyb_inter = TRUE;
+
+		ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		ssh2_pkt_addstring(username);
+		ssh2_pkt_addstring("ssh-connection");	/* service requested */
+		ssh2_pkt_addstring("keyboard-interactive");	/* method */
+		ssh2_pkt_addstring(""); /* lang */
+		ssh2_pkt_addstring("");
+		ssh2_pkt_send();
+
+		crWaitUntilV(ispkt);
+		if (pktin.type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
+		    if (pktin.type == SSH2_MSG_USERAUTH_FAILURE)
+			gotit = TRUE;
+		    logevent("Keyboard-interactive authentication refused");
+		    type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
+		    continue;
+		}
+
+		kbd_inter_running = TRUE;
+	    }
+
+	    if (kbd_inter_running) {
+		method = AUTH_KEYBOARD_INTERACTIVE;
+		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		tried_keyb_inter = TRUE;
+
+		/* We've got packet with that "interactive" info
+		   dump banners, and set its prompt as ours */
+		{
+		    char *name, *inst, *lang, *prompt;
+		    int name_len, inst_len, lang_len, prompt_len;
+		    ssh2_pkt_getstring(&name, &name_len);
+		    ssh2_pkt_getstring(&inst, &inst_len);
+		    ssh2_pkt_getstring(&lang, &lang_len);
+		    if (name_len > 0)
+			c_write_untrusted(name, name_len);
+		    if (inst_len > 0)
+			c_write_untrusted(inst, inst_len);
+		    num_prompts = ssh2_pkt_getuint32();
+
+		    ssh2_pkt_getstring(&prompt, &prompt_len);
+		    strncpy(pwprompt, prompt, sizeof(pwprompt));
+		    need_pw = TRUE;
+
+		    echo = ssh2_pkt_getbool();
 		}
 	    }
 
