@@ -54,13 +54,14 @@ while (<IN>) {
   if ($_[0] eq "!specialobj" and &mfval($_[1])) { $specialobj{$_[1]}->{$_[2]} = 1; next;}
   if ($_[0] eq "!begin") {
       if (&mfval($_[1])) {
-	  $divert = \$makefile_extra{$_[1]};
+          $sect = $_[2] ? $_[2] : "end";
+	  $divert = \($makefile_extra{$_[1]}->{$sect});
       } else {
 	  $divert = \$dummy;
       }
       next;
   }
-  # If we're gathering help text, keep doing so.
+  # If we're gathering help/verbatim text, keep doing so.
   if (defined $divert) { ${$divert} .= "$_\n"; next; }
   # Ignore blank lines.
   next if scalar @_ == 0;
@@ -397,6 +398,8 @@ if (defined $makefiles{'cygwin'}) {
     &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1".
       " --define WINVER=0x0400 --define MINGW32_FIX=1")."\n".
     "\n".
+    $makefile_extra{'cygwin'}->{'vars'} .
+    "\n".
     ".SUFFIXES:\n".
     "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("G:C"));
@@ -421,7 +424,7 @@ if (defined $makefiles{'cygwin'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'cygwin'};
+    print $makefile_extra{'cygwin'}->{'end'};
     print "\nclean:\n".
     "\trm -f *.o *.exe *.res.o *.map\n".
     "\n";
@@ -466,6 +469,8 @@ if (defined $makefiles{'borland'}) {
     "!if !\$d(BCB)\n".
     "BCB = \$(MAKEDIR)\\..\n".
     "!endif\n".
+    "\n".
+    $makefile_extra{'borland'}->{'vars'} .
     "\n".
     ".c.obj:\n".
     &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT)".
@@ -518,7 +523,7 @@ if (defined $makefiles{'borland'}) {
         "\n";
     }
     print "\n";
-    print $makefile_extra{'borland'};
+    print $makefile_extra{'borland'}->{'end'};
     print "\nclean:\n".
     "\t-del *.obj\n".
     "\t-del *.exe\n".
@@ -554,6 +559,8 @@ if (defined $makefiles{'vc'}) {
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
       " /D_WINDOWS /D_WIN32_WINDOWS=0x401 /DWINVER=0x401\n".
       "LFLAGS = /incremental:no /fixed\n".
+      "\n".
+      $makefile_extra{'vc'}->{'vars'} .
       "\n".
       "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("G:C"));
@@ -593,7 +600,7 @@ if (defined $makefiles{'vc'}) {
 	}
     }
     print "\n";
-    print $makefile_extra{'vc'};
+    print $makefile_extra{'vc'}->{'end'};
     print "\nclean: tidy\n".
       "\t-del *.exe\n\n".
       "tidy:\n".
@@ -911,6 +918,8 @@ if (defined $makefiles{'gtk'}) {
     "mandir=\$(prefix)/man\n",
     "man1dir=\$(mandir)/man1\n",
     "\n".
+    $makefile_extra{'gtk'}->{'vars'} .
+    "\n".
     ".SUFFIXES:\n".
     "\n".
     "\n";
@@ -930,7 +939,7 @@ if (defined $makefiles{'gtk'}) {
       print &splitline("\t\$(CC) \$(COMPAT) \$(XFLAGS) \$(CFLAGS) -c $d->{deps}->[0]\n");
     }
     print "\n";
-    print $makefile_extra{'gtk'};
+    print $makefile_extra{'gtk'}->{'end'};
     print "\nclean:\n".
     "\trm -f *.o". (join "", map { " $_" } &progrealnames("X:U")) . "\n";
     select STDOUT; close OUT;
@@ -1100,6 +1109,8 @@ if (defined $makefiles{'lcc'}) {
       "\n".
     "\n".
     "# Get include directory for resource compiler\n".
+    "\n".
+    $makefile_extra{'lcc'}->{'vars'} .
     "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("G:C"));
     print "\n\n";
@@ -1125,7 +1136,7 @@ if (defined $makefiles{'lcc'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'lcc'};
+    print $makefile_extra{'lcc'}->{'end'};
     print "\nclean:\n".
     "\t-del *.obj\n".
     "\t-del *.exe\n".
@@ -1153,9 +1164,10 @@ if (defined $makefiles{'osx'}) {
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "MLDFLAGS = -framework Cocoa\n".
     "ULDFLAGS =\n".
-    &splitline("all:" . join "", map { " $_" } &progrealnames("MX:U")) .
     "\n" .
-    $makefile_extra{'osx'} .
+    $makefile_extra{'osx'}->{'vars'} .
+    "\n" .
+    &splitline("all:" . join "", map { " $_" } &progrealnames("MX:U")) .
     "\n";
     foreach $p (&prognames("MX")) {
       ($prog, $type) = split ",", $p;
@@ -1201,6 +1213,7 @@ if (defined $makefiles{'osx'}) {
 	  print "\t\$(CC) -x objective-c \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n";
       }
     }
+    print "\n".$makefile_extra{'osx'}->{'end'};
     print "\nclean:\n".
     "\trm -f *.o *.dmg". (join "", map { " $_" } &progrealnames("U")) . "\n";
     "\trm -rf *.app\n";

@@ -176,7 +176,7 @@ install:
 install-strip:
 	$(MAKE) install INSTALL_PROGRAM="$(INSTALL_PROGRAM) -s"
 !end
-!begin osx
+!begin osx vars
 CFLAGS += -DMACOSX
 !end
 
