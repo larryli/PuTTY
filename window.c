@@ -102,6 +102,8 @@ static char *window_name, *icon_name;
 
 static Ldisc *real_ldisc;
 
+static int compose_state = 0;
+
 void begin_session(void) {
     ldisc = real_ldisc;
 }
@@ -1363,6 +1365,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	has_focus = TRUE;
         CreateCaret(hwnd, caretbm, 0, 0);
         ShowCaret(hwnd);
+        compose_state = 0;
 	term_out();
 	term_update();
 	break;
@@ -1828,7 +1831,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     unsigned char * p = output;
 
     static WORD keys[3];
-    static int compose_state = 0;
     static int compose_char = 0;
     static WPARAM compose_key = 0;
 
