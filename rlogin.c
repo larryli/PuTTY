@@ -34,7 +34,8 @@ static int rlogin_closing(Plug plug, char *error_msg, int error_code,
     }
     if (error_msg) {
 	/* A socket error has occurred. */
-	connection_fatal(error_msg);
+	logevent(error_msg);
+	connection_fatal("%s", error_msg);
     }				       /* Otherwise, the remote side closed the connection normally. */
     return 0;
 }

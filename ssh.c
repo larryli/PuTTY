@@ -19,9 +19,21 @@
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       { fprintf(stderr, "%s\n", s); fflush(stderr); } }
 
+/* logevent, only printf-formatted. */
+void logeventf(char *fmt, ...)
+{
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    logevent(stuff);
+}
+
 #define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, \
                           (s ? sk_close(s), s = NULL : 0), \
-                          connection_fatal msg )
+                          logeventf msg, connection_fatal msg )
 
 #define SSH1_MSG_DISCONNECT                       1	/* 0x1 */
 #define SSH1_SMSG_PUBLIC_KEY                      2	/* 0x2 */
@@ -817,7 +829,7 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	    msglen = sizeof(buf) - nowlen - 1;
 	memcpy(buf + nowlen, pktin.body + 4, msglen);
 	buf[nowlen + msglen] = '\0';
-	logevent(buf);
+	/* logevent(buf); (this is now done within the bombout macro) */
 	bombout(("Server sent disconnect message:\n\"%s\"", buf+nowlen));
 	crReturn(0);
     }
@@ -1779,6 +1791,7 @@ static int ssh_closing(Plug plug, char *error_msg, int error_code,
     }
     if (error_msg) {
 	/* A socket error has occurred. */
+	logevent(error_msg);
 	connection_fatal(error_msg);
     } else {
 	/* Otherwise, the remote side closed the connection normally. */
@@ -2443,6 +2456,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		send_packet(SSH1_MSG_DISCONNECT,
 			    PKT_STR, "No more passwords available to try",
 			    PKT_END);
+		logevent("Unable to authenticate");
 		connection_fatal("Unable to authenticate");
 		ssh_state = SSH_STATE_CLOSED;
 		crReturn(1);
@@ -4420,6 +4434,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			    ("No more passwords available to try");
 			ssh2_pkt_addstring("en");	/* language tag */
 			ssh2_pkt_send();
+			logevent("Unable to authenticate");
 			connection_fatal("Unable to authenticate");
 			ssh_state = SSH_STATE_CLOSED;
 			crReturnV;
@@ -5200,7 +5215,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addstring(buf);
 		    ssh2_pkt_addstring("en");	/* language tag */
 		    ssh2_pkt_send();
-		    connection_fatal(buf);
+		    connection_fatal("%s", buf);
 		    ssh_state = SSH_STATE_CLOSED;
 		    crReturnV;
 		}

@@ -813,7 +813,8 @@ void try_send(Actual_Socket s)
 		s->pending_error = err;
 		return;
 	    } else {
-		fatalbox(winsock_error_string(err));
+		logevent(winsock_error_string(err));
+		fatalbox("%s", winsock_error_string(err));
 	    }
 	} else {
 	    if (s->sending_oob) {
@@ -949,8 +950,10 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
 	noise_ultralight(ret);
 	if (ret <= 0) {
-	    fatalbox(ret == 0 ? "Internal networking trouble" :
-		     winsock_error_string(WSAGetLastError()));
+	    char *str = (ret == 0 ? "Internal networking trouble" :
+			 winsock_error_string(WSAGetLastError()));
+	    logevent(str);
+	    fatalbox("%s", str);
 	} else {
 	    return plug_receive(s->plug, 2, buf, ret);
 	}
