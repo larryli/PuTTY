@@ -16,6 +16,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "winstuff.h"
 #include "misc.h"
@@ -94,7 +95,8 @@ HWND doctl(struct ctlpos *cp, RECT r,
 			 SWP_NOACTIVATE | SWP_NOCOPYBITS |
 			 SWP_NOMOVE | SWP_NOZORDER);
 	}
-    }
+    } else
+	ctl = NULL;
     return ctl;
 }
 
@@ -384,7 +386,6 @@ void checkbox(struct ctlpos *cp, char *text, int id)
  */
 char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
 {
-    HFONT font = (HFONT) cp->font;
     HDC hdc = GetDC(hwnd);
     int lpx = GetDeviceCaps(hdc, LOGPIXELSX);
     int width, nlines, j;
@@ -1040,7 +1041,7 @@ int handle_prefslist(struct prefslist *hdl,
 
         if ((int)wParam == hdl->listid) {
             DRAGLISTINFO *dlm = (DRAGLISTINFO *)lParam;
-            int dest;
+            int dest = 0;	       /* initialise to placate gcc */
             switch (dlm->uNotification) {
               case DL_BEGINDRAG:
 		hdl->dummyitem =
@@ -1321,9 +1322,10 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 
     struct ctlpos pos;
 
-    char shortcuts[MAX_SHORTCUTS_PER_CTRL], nshortcuts;
+    char shortcuts[MAX_SHORTCUTS_PER_CTRL];
+    int nshortcuts;
     char *escaped;
-    int i, base_id, num_ids, orig_tabdelay;
+    int i, base_id, num_ids;
     void *data;
 
     base_id = *id;
@@ -1364,8 +1366,6 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
     /* Loop over each control in the controlset. */
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
-
-	orig_tabdelay = FALSE;
 
 	/*
 	 * Generic processing that pertains to all control types.
@@ -1423,7 +1423,6 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 
 	    assert(!ctrl->generic.tabdelay);
 	    ctrl = ctrl->tabdelay.ctrl;
-	    orig_tabdelay = TRUE;
 
 	    for (i = 0; i < ntabdelays; i++)
 		if (tabdelayed[i] == ctrl)
@@ -1431,6 +1430,8 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    assert(i < ntabdelays);    /* we have to have found it */
 
 	    pos = tabdelays[i];	       /* structure copy */
+
+	    colstart = colspan = -1;   /* indicate this was tab-delayed */
 
 	} else {
 	    /*
@@ -1638,6 +1639,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    break;
 	  default:
 	    assert(!"Can't happen");
+	    num_ids = 0;	       /* placate gcc */
 	    break;
 	}
 
@@ -1659,7 +1661,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    base_id += num_ids;
 	}
 
-	if (!orig_tabdelay) {
+	if (colstart >= 0) {
 	    /*
 	     * Update the ypos in all columns crossed by this
 	     * control.
@@ -1728,6 +1730,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
     /*
      * Look up the control ID in our data.
      */
+    c = NULL;
     for (i = 0; i < dp->nctrltrees; i++) {
 	c = winctrl_findbyid(dp->controltrees[i], LOWORD(wParam));
 	if (c)
@@ -1823,8 +1826,8 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	 * checked before generating an event.
 	 */
 	if (msg == WM_COMMAND &&
-	    HIWORD(wParam) == BN_CLICKED ||
-	    HIWORD(wParam) == BN_DOUBLECLICKED &&
+	    (HIWORD(wParam) == BN_CLICKED ||
+	     HIWORD(wParam) == BN_DOUBLECLICKED) &&
 	    IsDlgButtonChecked(dp->hwnd, LOWORD(wParam))) {
 	    ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
 	}
@@ -2014,6 +2017,7 @@ int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
     /*
      * Look up the control ID in our data.
      */
+    c = NULL;
     for (i = 0; i < dp->nctrltrees; i++) {
 	c = winctrl_findbyid(dp->controltrees[i], id);
 	if (c)
@@ -2117,8 +2121,8 @@ void dlg_listbox_clear(union control *ctrl, void *dlg)
     int msg;
     assert(c &&
 	   (c->ctrl->generic.type == CTRL_LISTBOX ||
-	    c->ctrl->generic.type == CTRL_EDITBOX &&
-	    c->ctrl->editbox.has_list));
+	    (c->ctrl->generic.type == CTRL_EDITBOX &&
+	     c->ctrl->editbox.has_list)));
     msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
 	   LB_RESETCONTENT : CB_RESETCONTENT);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, 0);
@@ -2131,8 +2135,8 @@ void dlg_listbox_del(union control *ctrl, void *dlg, int index)
     int msg;
     assert(c &&
 	   (c->ctrl->generic.type == CTRL_LISTBOX ||
-	    c->ctrl->generic.type == CTRL_EDITBOX &&
-	    c->ctrl->editbox.has_list));
+	    (c->ctrl->generic.type == CTRL_EDITBOX &&
+	     c->ctrl->editbox.has_list)));
     msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
 	   LB_DELETESTRING : CB_DELETESTRING);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, index, 0);
@@ -2145,8 +2149,8 @@ void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
     int msg;
     assert(c &&
 	   (c->ctrl->generic.type == CTRL_LISTBOX ||
-	    c->ctrl->generic.type == CTRL_EDITBOX &&
-	    c->ctrl->editbox.has_list));
+	    (c->ctrl->generic.type == CTRL_EDITBOX &&
+	     c->ctrl->editbox.has_list)));
     msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
 	   LB_ADDSTRING : CB_ADDSTRING);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)text);
@@ -2167,8 +2171,8 @@ void dlg_listbox_addwithindex(union control *ctrl, void *dlg,
     int msg, msg2, index;
     assert(c &&
 	   (c->ctrl->generic.type == CTRL_LISTBOX ||
-	    c->ctrl->generic.type == CTRL_EDITBOX &&
-	    c->ctrl->editbox.has_list));
+	    (c->ctrl->generic.type == CTRL_EDITBOX &&
+	     c->ctrl->editbox.has_list)));
     msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
 	   LB_ADDSTRING : CB_ADDSTRING);
     msg2 = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?

@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #define DEFINE_INTORPTR_FNS
 
@@ -293,8 +294,8 @@ union control *ctrl_radiobuttons(struct controlset *s, char *label,
     while (va_arg(ap, char *) != NULL) {
 	i++;
 	if (c->radio.shortcut == NO_SHORTCUT)
-	    va_arg(ap, int);	       /* char promotes to int in arg lists */
-	va_arg(ap, intorptr);
+	    (void)va_arg(ap, int);     /* char promotes to int in arg lists */
+	(void)va_arg(ap, intorptr);
     }
     va_end(ap);
     c->radio.nbuttons = i;

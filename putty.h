@@ -777,6 +777,12 @@ extern int cmdline_tooltype;
 void cmdline_error(char *, ...);
 
 /*
+ * Exports from config.c.
+ */
+void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
+		      int midsession, int protocol);
+
+/*
  * X11 auth mechanisms we know about.
  */
 enum {

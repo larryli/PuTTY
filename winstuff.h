@@ -266,6 +266,9 @@ struct winctrl {
 struct winctrls {
     tree234 *byctrl, *byid;
 };
+struct controlset;
+struct controlbox;
+
 void winctrl_init(struct winctrls *);
 void winctrl_cleanup(struct winctrls *);
 void winctrl_add(struct winctrls *, struct winctrl *);
@@ -277,6 +280,14 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 		    struct ctlpos *cp, struct controlset *s, int *id);
 int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 			   WPARAM wParam, LPARAM lParam);
+void winctrl_rem_shortcuts(struct dlgparam *dp, struct winctrl *c);
+int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id);
+
+/*
+ * Exports from wincfg.c.
+ */
+void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
+			  int midsession);
 
 /*
  * Exports from windlg.c.
@@ -287,6 +298,8 @@ int do_reconfig(HWND);
 void showeventlog(HWND);
 void showabout(HWND);
 void force_normal(HWND hwnd);
+void modal_about_box(HWND hwnd);
+void show_help(HWND hwnd);
 
 /*
  * Exports from sizetip.c.
