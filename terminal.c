@@ -5,6 +5,7 @@
 #include <ctype.h>
 
 #include <time.h>
+#include <assert.h>
 #include "putty.h"
 #include "tree234.h"
 
@@ -48,14 +49,14 @@ static int compatibility_level = TM_PUTTY;
 static tree234 *scrollback;	       /* lines scrolled off top of screen */
 static tree234 *screen;		       /* lines on primary screen */
 static tree234 *alt_screen;	       /* lines on alternate screen */
-static int disptop;		       /* distance scrolled back (0 or negative) */
+static int disptop;		       /* distance scrolled back (0 or -ve) */
 
 static unsigned long *cpos;	       /* cursor position (convenience) */
 
 static unsigned long *disptext;	       /* buffer of text on real screen */
 static unsigned long *wanttext;	       /* buffer of text we want on screen */
 
-#define VBELL_TIMEOUT 100	       /* millisecond duration of visual bell */
+#define VBELL_TIMEOUT 100	       /* millisecond len of visual bell */
 
 struct beeptime {
     struct beeptime *next;
@@ -69,10 +70,7 @@ long lastbeep;
 static unsigned char *selspace;	       /* buffer for building selections in */
 
 #define TSIZE (sizeof(unsigned long))
-#define lineptr(x) ( (unsigned long *) \
-			((x) >= 0 ? index234(screen, x) : \
-			     index234(scrollback, (x)+count234(scrollback)) ) )
-#define fix_cpos  do { cpos = lineptr(curs.y) + curs.x; } while(0)
+#define fix_cpos do { cpos = lineptr(curs.y) + curs.x; } while(0)
 
 static unsigned long curr_attr, save_attr;
 static unsigned long erase_char = ERASE_CHAR;
@@ -96,7 +94,7 @@ static int insert;		       /* insert-mode flag */
 static int cset;		       /* 0 or 1: which char set */
 static int save_cset, save_csattr;     /* saved with cursor position */
 static int rvideo;		       /* global reverse video flag */
-static int rvbell_timeout;	       /* for explicit (ESC[?5hESC[?5l) vbell */
+static int rvbell_timeout;	       /* for ESC[?5hESC[?5l vbell */
 static int cursor_on;		       /* cursor enabled flag */
 static int reset_132;		       /* Flag ESC c resets to 80 cols */
 static int use_bce;		       /* Use Background coloured erase */
@@ -187,6 +185,51 @@ static void deselect (void);
 static FILE *lgfp = NULL;
 static void logtraffic(unsigned char c, int logmode);
 
+/*
+ * Retrieve a line of the screen or of the scrollback, according to
+ * whether the y coordinate is non-negative or negative
+ * (respectively).
+ */
+unsigned long *lineptr(int y, int lineno) {
+    unsigned long *line, lineattrs;
+    tree234 *whichtree;
+    int i, treeindex, oldlen;
+
+    if (y >= 0) {
+	whichtree = screen;
+	treeindex = y;
+    } else {
+	whichtree = scrollback;
+	treeindex = y + count234(scrollback);
+    }
+    line = index234(whichtree, treeindex);
+
+    /* We assume that we don't screw up and retrieve something out of range. */
+if (line == NULL) {
+debug(("line=%d y=%d treeindex=%d\n", lineno, y, treeindex));
+debug(("screen:%d scrollback:%d\n", count234(screen), count234(scrollback)));
+    assert(line != NULL);
+}
+
+    if (line[0] != cols) {
+	/*
+	 * This line is the wrong length, which probably means it
+	 * hasn't been accessed since a resize. Resize it now.
+	 */
+	oldlen = line[0];
+	lineattrs = line[oldlen+1];
+	delpos234(whichtree, treeindex);
+	line = srealloc(line, TSIZE * (2+cols));
+	line[0] = cols;
+	for (i = oldlen; i < cols; i++)
+	    line[i+1] = ERASE_CHAR;
+	line[cols+1] = lineattrs & LATTR_MODE;
+	addpos234(whichtree, line, treeindex);
+    }
+
+    return line+1;
+}
+#define lineptr(x) lineptr(x,__LINE__)
 /*
  * Set up power-on settings for the terminal.
  */
@@ -299,7 +342,7 @@ void term_size(int newrows, int newcols, int newsavelines) {
     tree234 *newsb, *newscreen, *newalt;
     unsigned long *newdisp, *newwant, *oldline, *line;
     int i, j, ccols;
-    int posn, oldposn, furthest_back, oldsbsize;
+    int sblen;
     int save_alt_which = alt_which;
 
     if (newrows == rows && newcols == cols && newsavelines == savelines)
@@ -311,48 +354,62 @@ void term_size(int newrows, int newcols, int newsavelines) {
     alt_t = marg_t = 0;
     alt_b = marg_b = newrows - 1;
 
-    newsb = newtree234(NULL);
-    newscreen = newtree234(NULL);
-    ccols = (cols < newcols ? cols : newcols);
-    oldsbsize = scrollback ? count234(scrollback) : 0;
-    furthest_back = newrows - rows - oldsbsize;
-    if (furthest_back > 0)
-	furthest_back = 0;
-    if (furthest_back < -newsavelines)
-	furthest_back = -newsavelines;
-    for (posn = newrows; posn-- > furthest_back ;) {
-	oldposn = posn - newrows + rows;
-	if (rows == -1 || oldposn < -oldsbsize) {
-	    line = smalloc(TSIZE * (newcols + 1));
-	    for (j = 0; j < newcols; j++)
-		line[j] = erase_char;
-	    line[newcols] = 0;
-	} else {
-	    oldline = (oldposn >= 0 ?
-		       delpos234(screen, count234(screen)-1) :
-		       delpos234(scrollback, count234(scrollback)-1));
-	    if (newcols != cols) {
-		line = smalloc(TSIZE * (newcols + 1));
-		for (j = 0; j < ccols; j++)
-		    line[j] = oldline[j];
-		for (j = ccols; j < newcols; j++)
-		    line[j] = erase_char;
-		line[newcols] = oldline[cols] & LATTR_MODE;
-		sfree(oldline);
-	    } else {
-		line = oldline;
-	    }
-	}
-	if (posn >= 0)
-	    addpos234(newscreen, line, 0);
-	else
-	    addpos234(newsb, line, 0);
+    if (rows == -1) {
+	scrollback = newtree234(NULL);
+	screen = newtree234(NULL);
+	rows = 0;
     }
+
+    /*
+     * Resize the screen and scrollback. We only need to shift
+     * lines around within our data structures, because lineptr()
+     * will take care of resizing each individual line if
+     * necessary. So:
+     * 
+     *  - If the new screen and the old screen differ in length, we
+     *    must shunt some lines in from the scrollback or out to
+     *    the scrollback.
+     * 
+     *  - If doing that fails to provide us with enough material to
+     *    fill the new screen (i.e. the number of rows needed in
+     *    the new screen exceeds the total number in the previous
+     *    screen+scrollback), we must invent some blank lines to
+     *    cover the gap.
+     * 
+     *  - Then, if the new scrollback length is less than the
+     *    amount of scrollback we actually have, we must throw some
+     *    away.
+     */
+    sblen = count234(scrollback);
+    debug(("resizing rows=%d sblen=%d newrows=%d newsb=%d\n",
+	   rows, sblen, newrows, newsavelines));
+    if (newrows > rows) {
+	for (i = rows; i < newrows; i++) {
+	    if (sblen > 0) {
+		line = delpos234(scrollback, --sblen);
+	    } else {
+		line = smalloc(TSIZE * (newcols+2));
+		line[0] = newcols;
+		for (j = 0; j <= newcols; j++)
+		    line[j+1] = ERASE_CHAR;
+	    }
+	    addpos234(screen, line, 0);
+	}
+    } else if (newrows < rows) {
+	for (i = newrows; i < rows; i++) {
+	    line = delpos234(screen, 0);
+	    addpos234(scrollback, line, sblen++);
+	}
+    }
+    assert(count234(screen) == newrows);
+    while (sblen > newsavelines) {
+	line = delpos234(scrollback, 0);
+	sfree(line);
+	sblen--;
+    }
+    assert(count234(scrollback) <= newsavelines);
+    debug(("screen:%d scrollback:%d\n", count234(screen), count234(scrollback)));
     disptop = 0;
-    if (scrollback) freetree234(scrollback);
-    if (screen) freetree234(screen);
-    scrollback = newsb;
-    screen = newscreen;
 
     newdisp = smalloc (newrows*(newcols+1)*TSIZE);
     for (i=0; i<newrows*(newcols+1); i++)
@@ -368,9 +425,10 @@ void term_size(int newrows, int newcols, int newsavelines) {
 
     newalt = newtree234(NULL);
     for (i=0; i<newrows; i++) {
-	line = smalloc(TSIZE * (newcols+1));
+	line = smalloc(TSIZE * (newcols+2));
+	line[0] = newcols;
 	for (j = 0; j <= newcols; j++)
-	    line[j] = erase_char;
+	    line[j+1] = erase_char;
 	addpos234(newalt, line, i);
     }
     if (alt_screen) {
@@ -479,8 +537,8 @@ static void scroll (int topline, int botline, int lines, int sb) {
 	while (lines < 0) {
 	    line = delpos234(screen, botline);
 	    for (i = 0; i < cols; i++)
-		line[i] = erase_char;
-	    line[cols] = 0;
+		line[i+1] = erase_char;
+	    line[cols+1] = 0;
 	    addpos234(screen, line, topline);
 
 	    if (selstart.y >= topline && selstart.y <= botline) {
@@ -503,7 +561,7 @@ static void scroll (int topline, int botline, int lines, int sb) {
     } else {
 	while (lines > 0) {
 	    line = delpos234(screen, topline);
-	    if (sb) {
+	    if (sb && savelines > 0) {
 		int sblen = count234(scrollback);
 		/*
 		 * We must add this line to the scrollback. We'll
@@ -511,16 +569,18 @@ static void scroll (int topline, int botline, int lines, int sb) {
 		 * replace it, or allocate a new one if the
 		 * scrollback isn't full.
 		 */
-		if (sblen == savelines)
+		if (sblen == savelines) {
 		    sblen--, line2 = delpos234(scrollback, 0);
-		else
-		    line2 = smalloc(TSIZE * (cols+1));
+		} else {
+		    line2 = smalloc(TSIZE * (cols+2));
+		    line2[0] = cols;
+		}
 		addpos234(scrollback, line, sblen);
 		line = line2;
 	    }
 	    for (i = 0; i < cols; i++)
-		line[i] = erase_char;
-	    line[cols] = 0;
+		line[i+1] = erase_char;
+	    line[cols+1] = 0;
 	    addpos234(screen, line, botline);
 
 	    if (selstart.y >= topline && selstart.y <= botline) {
@@ -633,7 +693,7 @@ static void erase_lots (int line_only, int from_begin, int to_end) {
 	    ldata[start.x] &= ~ATTR_WRAPPED;
 	else
 	    ldata[start.x] = erase_char;
-	if (incpos(start))
+	if (incpos(start) && start.y < rows)
 	    ldata = lineptr(start.y);
     }
 }
