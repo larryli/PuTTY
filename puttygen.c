@@ -287,7 +287,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
     enum {
         controlidstart = 100,
         IDC_TITLE,
-        IDC_BOX_KEY, IDC_BOXT_KEY,
+        IDC_BOX_KEY,
         IDC_NOKEY,
         IDC_GENERATING,
         IDC_PROGRESS,
@@ -296,11 +296,11 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
         IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
         IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT,
-        IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS,
+        IDC_BOX_ACTIONS,
         IDC_GENSTATIC, IDC_GENERATE,
         IDC_LOADSTATIC, IDC_LOAD,
         IDC_SAVESTATIC, IDC_SAVE,
-        IDC_BOX_PARAMS, IDC_BOXT_PARAMS,
+        IDC_BOX_PARAMS,
         IDC_BITSSTATIC, IDC_BITS,
         IDC_ABOUT,
     };
@@ -335,7 +335,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             bartitle(&cp, "Public and private key generation for PuTTY",
                     IDC_TITLE);
             beginbox(&cp, "Key",
-                     IDC_BOX_KEY, IDC_BOXT_KEY);
+                     IDC_BOX_KEY);
             cp2 = cp;
             statictext(&cp2, "No key.", IDC_NOKEY);
             cp2 = cp;
@@ -357,7 +357,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                            IDC_PASSPHRASE2EDIT, 70);
             endbox(&cp);
             beginbox(&cp, "Actions",
-                     IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS);
+                     IDC_BOX_ACTIONS);
             staticbtn(&cp, "Generate a public/private key pair",
                       IDC_GENSTATIC, "&Generate", IDC_GENERATE);
             staticbtn(&cp, "Load an existing private key file",
@@ -366,7 +366,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
                       IDC_SAVESTATIC, "&Save", IDC_SAVE);
             endbox(&cp);
             beginbox(&cp, "Parameters",
-                     IDC_BOX_PARAMS, IDC_BOXT_PARAMS);
+                     IDC_BOX_PARAMS);
             staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
             endbox(&cp);
