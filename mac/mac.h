@@ -21,6 +21,7 @@
 #define INTERNAL_CREATOR FOUR_CHAR_CODE('pTTI')
 #define SESS_TYPE	FOUR_CHAR_CODE('Sess')
 #define SEED_TYPE	FOUR_CHAR_CODE('Seed')
+#define HKYS_TYPE       FOUR_CHAR_CODE('Hkys')
 
 struct mac_gestalts {
     long sysvers;
@@ -167,6 +168,8 @@ extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
 extern void *open_settings_w_fsp(FSSpec *);
+extern int verify_host_key(const char *, int, const char *, const char*);
+extern void store_host_key(const char *, int, const char *, const char*);
 /* from macucs.c */
 extern void init_ucs(Session *);
 /* from macnet.c */

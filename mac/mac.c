@@ -696,6 +696,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 {
     Str255 stuff;
     Session *s = frontend;
+    int ret;
 
     /*
      * This function is horribly wrong.  For one thing, the alert
@@ -703,23 +704,40 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
      * Aqua.  Also, PuTTY might be in the background, in which case we
      * should use the Notification Manager to wake up the user.  In
      * any case, we shouldn't hold up processing of other connections'
-     * data just because this one's waiting for the user.  It should
-     * also handle a host key cache, of course, and see the note below
-     * about closing the connection.  All in all, a bit of a mess
-     * really.
+     * data just because this one's waiting for the user. Also see the
+     * note below about closing the connection.  All in all, a bit of
+     * a mess really.
      */
 
-    stuff[0] = sprintf((char *)(&stuff[1]),
-		       "The server's key fingerprint is: %s\n"
-		       "Continue connecting?", fingerprint);
-    ParamText(stuff, NULL, NULL, NULL);
+    /* Verify the key against the cache */
+
+    ret = verify_host_key(host, port, keytype, keystr);
+
+    if (ret == 0)		       /* success - key matched OK */
+	return;
+    if (ret == 2) {		       /* key was different */
+	stuff[0] = sprintf((char *)(&stuff[1]),
+			   "WARNING - POTENTIAL SECURITY BREACH\n",
+			   "The key fingerprint is: %s\n"
+			   "Continue connecting?", fingerprint);
+	ParamText(stuff, NULL, NULL, NULL);
+    }
+    if (ret == 1) {                     /* key was absent */
+	stuff[0] = sprintf((char *)(&stuff[1]),
+			   "The server's key fingerprint is: %s\n"
+			   "Continue connecting?", fingerprint);
+	ParamText(stuff, NULL, NULL, NULL);
+    }
+
     if (CautionAlert(wQuestion, NULL) == 2) {
 	/*
 	 * User chose "Cancel".  Unfortunately, if I tear the
 	 * connection down here, Bad Things happen when I return.  I
 	 * think this function should actually return something
 	 * telling the SSH code to abandon the connection.
-	 */
+	 */	
+    } else {
+	store_host_key(host, port, keytype, keystr);
     }
 }
 
