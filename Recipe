@@ -247,7 +247,8 @@ plink    : [C] winplink wincons NONSSH WINSSH BE_ALL logging WINMISC
          + plink.res LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + pscp.res LIBS
-psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP WINMISC pscp.res LIBS
+psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
+         + pscp.res LIBS
 
 pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
          + misc sshaes sshsha winpgntc sshdss sshsh512 winutils winmisc
@@ -273,7 +274,7 @@ puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + notiming
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
-psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP UXMISC
+psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 
 PuTTY    : [M] terminal wcwidth ldiscucs logging BE_ALL mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACSSH MACMISC CHARSET
