@@ -49,8 +49,22 @@ static int rlogin_receive (Socket skt, int urgent, char *data, int len) {
          * on 0x10 and 0x20 respectively. I'm not convinced it's
          * worth it...
          */
+    } else {
+        /*
+         * Main rlogin protocol. This is really simple: the first
+         * byte is expected to be NULL and is ignored, and the rest
+         * is printed.
+         */
+        static int firstbyte = 1;
+        if (firstbyte) {
+            if (data[0] == '\0') {
+                data++;
+                len--;
+            }
+            firstbyte = 0;
+        }
+        c_write(data, len);
     }
-    c_write(data, len);
     return 1;
 }
 
