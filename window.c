@@ -846,7 +846,7 @@ void set_raw_mouse_mode(int activate)
 void connection_fatal(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[512];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
@@ -866,7 +866,7 @@ void connection_fatal(char *fmt, ...)
 void cmdline_error(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[512];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
@@ -4192,7 +4192,7 @@ void optimised_move(int to, int from, int lines)
 void fatalbox(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[512];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
