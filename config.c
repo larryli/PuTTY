@@ -868,6 +868,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
      * The Load/Save panel is available even in mid-session.
      */
     s = ctrl_getset(b, "Session", "savedsessions",
+		    midsession ? "Save the current session settings" :
 		    "Load, save or delete a stored session");
     ctrl_columns(s, 2, 75, 25);
     ssd->sesslist = sesslist;
