@@ -1221,7 +1221,7 @@ resource 'DITL' (wAbout, "about", purgeable) {
 	StaticText { disabled, "PuTTY"},
 	{ 42, 13, 74, 227 },
 	StaticText { disabled, "Some version or other\n"
-			       "Copyright © 1997-9 Simon Tatham"},
+			       "Copyright © 1997-2005 Simon Tatham"},
     }
 };
 

@@ -1,4 +1,4 @@
-/* $Id: macpgen.r,v 1.6 2003/02/27 23:21:23 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -422,7 +422,7 @@ resource 'DITL' (wAbout, "about", purgeable) {
 	StaticText { disabled, "PuTTYgen"},
 	{ 42, 13, 74, 227 },
 	StaticText { disabled, "Some version or other\n"
-			       "Copyright © 1997-9 Simon Tatham"},
+			       "Copyright © 1997-2005 Simon Tatham"},
     }
 };
 
@@ -443,7 +443,7 @@ type 'TEXT' {
 };
 
 resource 'TEXT' (wLicence, "licence", purgeable) {
-    "Copyright 1997-2003 Simon Tatham.\n"
+    "Copyright 1997-2005 Simon Tatham.\n"
     "\n"
     "Portions copyright Robert de Bath, Joris van Rantwijk, Delian"
     "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,"

@@ -25,6 +25,11 @@ The resource files:
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
  - putty/mac/mac_res.r
+    + the copyright date appears twice, once in the About box and
+      once in the Licence box. Don't forget to change both!
+ - putty/mac/macpgen.r
+    + the copyright date appears twice, once in the About box and
+      once in the Licence box. Don't forget to change both!
  - putty/unix/gtkdlg.c
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
