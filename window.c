@@ -3290,8 +3290,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    SendMessage(hwnd, WM_VSCROLL, SB_PAGEUP, 0);
 	    return 0;
 	}
+	if (wParam == VK_PRIOR && shift_state == 2) {
+	    SendMessage(hwnd, WM_VSCROLL, SB_LINEUP, 0);
+	    return 0;
+	}
 	if (wParam == VK_NEXT && shift_state == 1) {
 	    SendMessage(hwnd, WM_VSCROLL, SB_PAGEDOWN, 0);
+	    return 0;
+	}
+	if (wParam == VK_NEXT && shift_state == 2) {
+	    SendMessage(hwnd, WM_VSCROLL, SB_LINEDOWN, 0);
 	    return 0;
 	}
 	if (wParam == VK_INSERT && shift_state == 1) {

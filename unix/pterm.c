@@ -483,8 +483,16 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    term_scroll(inst->term, 0, -inst->cfg.height/2);
 	    return TRUE;
 	}
+	if (event->keyval == GDK_Page_Up && (event->state & GDK_CONTROL_MASK)) {
+	    term_scroll(inst->term, 0, -1);
+	    return TRUE;
+	}
 	if (event->keyval == GDK_Page_Down && (event->state & GDK_SHIFT_MASK)) {
 	    term_scroll(inst->term, 0, +inst->cfg.height/2);
+	    return TRUE;
+	}
+	if (event->keyval == GDK_Page_Down && (event->state & GDK_CONTROL_MASK)) {
+	    term_scroll(inst->term, 0, +1);
 	    return TRUE;
 	}
 
