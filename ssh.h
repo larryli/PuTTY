@@ -105,7 +105,7 @@ void MD5Simple(void const *p, unsigned len, unsigned char output[16]);
 
 void *hmacmd5_make_context(void);
 void hmacmd5_free_context(void *handle);
-void hmacmd5_key(void *handle, unsigned char const *key, int len);
+void hmacmd5_key(void *handle, void const *key, int len);
 void hmacmd5_do_hmac(void *handle, unsigned char const *blk, int len,
 		     unsigned char *hmac);
 
