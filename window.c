@@ -4368,7 +4368,7 @@ static int get_fullscreen_rect(RECT * ss)
 	ss->right = GetSystemMetrics(SM_CXSCREEN);
 	ss->bottom = GetSystemMetrics(SM_CYSCREEN);
 */ 
-	return GetClientRect(GetDesktopWindow(), &ss);
+	return GetClientRect(GetDesktopWindow(), ss);
 #endif
 }
 
