@@ -832,7 +832,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 	    if (!(subset & 06777) && (perms &~ subset)) {
 		printf("chmod: file mode '%.*s' contains no user/group/other"
 		       " specifier and permissions other than 't' \n",
-		       strcspn(modebegin, ","), modebegin, *mode);
+		       strcspn(modebegin, ","), modebegin);
 		return 0;
 	    }
 	    perms &= subset;
