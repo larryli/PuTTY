@@ -13,8 +13,10 @@
 static FILE *fp = NULL;
 
 void mlog(char *file, int line) {
-    if (!fp)
+    if (!fp) {
 	fp = fopen("putty_mem.log", "w");
+	setvbuf(fp, NULL, _IONBF, BUFSIZ);
+    }
     if (fp)
 	fprintf (fp, "%s:%d: ", file, line);
 }
