@@ -341,7 +341,7 @@ void dlg_listbox_addwithindex(union control *ctrl, void *dlg,
 	 * are tabs in the thing.
 	 */
 	GtkWidget *listitem = gtk_list_item_new();
-	GtkWidget *cols = columns_new(0);
+	GtkWidget *cols = columns_new(10);
 	gint *percents;
 	int i, ncols;
 
