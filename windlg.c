@@ -16,6 +16,7 @@ static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
 static int readytogo;
+static int sesslist_has_focus;
 
 void force_normal(HWND hwnd)
 {
@@ -538,14 +539,16 @@ static void fmtfont(char *buf)
 		(cfg.fontheight < 0 ? -cfg.fontheight : cfg.fontheight));
 }
 
-static void init_dlg_ctrls(HWND hwnd)
+/* 2nd arg: NZ => don't redraw session list (use when loading
+ * a new session) */
+static void init_dlg_ctrls(HWND hwnd, int keepsess)
 {
     int i;
     char fontstatic[256];
 
     SetDlgItemText(hwnd, IDC_HOST, cfg.host);
     SetDlgItemText(hwnd, IDC_SESSEDIT, savedsession);
-    {
+    if (!keepsess) {
 	int i, n;
 	n = SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_GETCOUNT, 0, 0);
 	for (i = n; i-- > 0;)
@@ -1193,6 +1196,33 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 }
 
+/* 
+ * Helper function to load the session selected in SESSLIST
+ * if any, as this is done in more than one place in
+ * GenericMainDlgProc(). 0 => failure.
+ */
+static int load_selected_session(HWND hwnd)
+{
+    int n = SendDlgItemMessage(hwnd, IDC_SESSLIST,
+			       LB_GETCURSEL, 0, 0);
+    int isdef;
+    if (n == LB_ERR) {
+	MessageBeep(0);
+	return 0;
+    }
+    isdef = !strcmp(sessions[n], "Default Settings");
+    load_settings(sessions[n], !isdef, &cfg);
+    init_dlg_ctrls(hwnd, TRUE);
+    if (!isdef)
+	SetDlgItemText(hwnd, IDC_SESSEDIT, sessions[n]);
+    else
+	SetDlgItemText(hwnd, IDC_SESSEDIT, "");
+    /* Restore the selection, which will have been clobbered by
+     * SESSEDIT handling. */
+    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_SETCURSEL, n, 0);
+    return 1;
+}
+
 /*
  * This function is the configuration box.
  */
@@ -1373,7 +1403,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	    if (!strcmp(buffer, "Translation"))
 		create_controls(hwnd, dlgtype, translationpanelstart);
 
-	    init_dlg_ctrls(hwnd);
+	    init_dlg_ctrls(hwnd, FALSE);
 
 	    SetFocus(((LPNMHDR) lParam)->hwndFrom);	/* ensure focus stays */
 	    return 0;
@@ -1386,6 +1416,16 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	if (GetWindowLong(hwnd, GWL_USERDATA) == 1)
 	    switch (LOWORD(wParam)) {
 	      case IDOK:
+		/* Behaviour of the "Open" button is different if the
+		 * session list has focus, *unless* the user just
+		 * double-clicked... */
+		if (sesslist_has_focus && !readytogo) {
+		    if (!load_selected_session(hwnd)) {
+			MessageBeep(0);
+			return 0;
+		    }
+		}
+		/* If at this point we have a valid session, go! */
 		if (*cfg.host)
 		    EndDialog(hwnd, 1);
 		else
@@ -1465,6 +1505,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 				  &cfg);
 		    get_sesslist(FALSE);
 		    get_sesslist(TRUE);
+		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
+				       FALSE, 0);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_RESETCONTENT,
 				       0, 0);
 		    for (i = 0; i < nsessions; i++)
@@ -1473,32 +1515,28 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 					   (LPARAM) (sessions[i]));
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				       (WPARAM) - 1, 0);
+		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
+				       TRUE, 0);
+		    InvalidateRect(GetDlgItem(hwnd, IDC_SESSLIST), NULL,
+				   TRUE);
 		}
 		break;
 	      case IDC_SESSLIST:
 	      case IDC_SESSLOAD:
+		if (LOWORD(wParam) == IDC_SESSLIST) {
+		    if (HIWORD(wParam) == LBN_SETFOCUS)
+			sesslist_has_focus = 1;
+		    else if (HIWORD(wParam) == LBN_KILLFOCUS)
+			sesslist_has_focus = 0;
+		}
 		if (LOWORD(wParam) == IDC_SESSLOAD &&
 		    HIWORD(wParam) != BN_CLICKED &&
 		    HIWORD(wParam) != BN_DOUBLECLICKED) break;
 		if (LOWORD(wParam) == IDC_SESSLIST &&
 		    HIWORD(wParam) != LBN_DBLCLK) break;
-		{
-		    int n = SendDlgItemMessage(hwnd, IDC_SESSLIST,
-					       LB_GETCURSEL, 0, 0);
-		    int isdef;
-		    if (n == LB_ERR) {
-			MessageBeep(0);
-			break;
-		    }
-		    isdef = !strcmp(sessions[n], "Default Settings");
-		    load_settings(sessions[n], !isdef, &cfg);
-		    init_dlg_ctrls(hwnd);
-		    if (!isdef)
-			SetDlgItemText(hwnd, IDC_SESSEDIT, sessions[n]);
-		    else
-			SetDlgItemText(hwnd, IDC_SESSEDIT, "");
-		}
-		if (LOWORD(wParam) == IDC_SESSLIST) {
+		/* Load the session selected in SESSLIST. */
+		if (load_selected_session(hwnd) &&
+		    LOWORD(wParam) == IDC_SESSLIST) {
 		    /*
 		     * A double-click on a saved session should
 		     * actually start the session, not just load it.
@@ -1523,6 +1561,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    del_settings(sessions[n]);
 		    get_sesslist(FALSE);
 		    get_sesslist(TRUE);
+		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
+				       FALSE, 0);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_RESETCONTENT,
 				       0, 0);
 		    for (i = 0; i < nsessions; i++)
@@ -1531,6 +1571,10 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 					   (LPARAM) (sessions[i]));
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				       (WPARAM) - 1, 0);
+		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
+				       TRUE, 0);
+		    InvalidateRect(GetDlgItem(hwnd, IDC_SESSLIST), NULL,
+				   TRUE);
 		}
 	      case IDC_PINGEDIT:
 		if (HIWORD(wParam) == EN_CHANGE)
@@ -2203,6 +2247,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    int n, i;
 		    cfg.bold_colour =
 			IsDlgButtonChecked(hwnd, IDC_BOLDCOLOUR);
+		    SendDlgItemMessage(hwnd, IDC_COLOURLIST, WM_SETREDRAW,
+				       FALSE, 0);
 		    n =
 			SendDlgItemMessage(hwnd, IDC_COLOURLIST,
 					   LB_GETCOUNT, 0, 0);
@@ -2216,6 +2262,10 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 						   LB_ADDSTRING, 0,
 						   (LPARAM) colours[i]);
 		    }
+		    SendDlgItemMessage(hwnd, IDC_COLOURLIST, WM_SETREDRAW,
+				       TRUE, 0);
+		    InvalidateRect(GetDlgItem(hwnd, IDC_COLOURLIST), NULL,
+				   TRUE);
 		}
 		break;
 	      case IDC_PALETTE:
@@ -2227,9 +2277,10 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_COLOURLIST:
 		if (HIWORD(wParam) == LBN_DBLCLK ||
 		    HIWORD(wParam) == LBN_SELCHANGE) {
-		    int i = SendDlgItemMessage(hwnd, IDC_COLOURLIST,
-					       LB_GETCURSEL,
-					       0, 0);
+		    int i =
+			SendDlgItemMessage(hwnd, IDC_COLOURLIST,
+					   LB_GETCURSEL,
+					   0, 0);
 		    if (!cfg.bold_colour)
 			i = (i < 3 ? i * 2 : i == 3 ? 5 : i * 2 - 2);
 		    SetDlgItemInt(hwnd, IDC_RVALUE, cfg.colours[i][0],
@@ -2245,9 +2296,10 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    static CHOOSECOLOR cc;
 		    static DWORD custom[16] = { 0 };	/* zero initialisers */
-		    int i = SendDlgItemMessage(hwnd, IDC_COLOURLIST,
-					       LB_GETCURSEL,
-					       0, 0);
+		    int i =
+			SendDlgItemMessage(hwnd, IDC_COLOURLIST,
+					   LB_GETCURSEL,
+					   0, 0);
 		    if (!cfg.bold_colour)
 			i = (i < 3 ? i * 2 : i == 3 ? 5 : i * 2 - 2);
 		    cc.lStructSize = sizeof(cc);
@@ -2483,7 +2535,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 
 
     char message[160 +
-		 /* sensible fingerprint max size */
+	/* sensible fingerprint max size */
 	(sizeof(absentmsg) > sizeof(wrongmsg) ?
 	 sizeof(absentmsg) : sizeof(wrongmsg))];
 
