@@ -608,16 +608,28 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 
     /*
      * Process the command line and add RSA keys as listed on it.
-     * FIXME: we don't support spaces in filenames here. We should.
      */
     {
-        char *p = cmdline;
+        char *p;
+        int inquotes = 0;
+        p = cmdline;
         while (*p) {
             while (*p && isspace(*p)) p++;
             if (*p && !isspace(*p)) {
-                char *q = p;
-                while (*p && !isspace(*p)) p++;
-                if (*p) *p++ = '\0';
+                char *q = p, *pp = p;
+                while (*p && (inquotes || !isspace(*p)))
+                {
+                    if (*p == '"') {
+                        inquotes = !inquotes;
+                        p++;
+                        continue;
+                    }
+                    *pp++ = *p++;
+                }
+                if (*pp) {
+                    if (*p) p++;
+                    *pp++ = '\0';
+                }
                 add_keyfile(q);
             }
         }
