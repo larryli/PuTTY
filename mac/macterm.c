@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.41 2003/01/12 13:50:04 ben Exp $ */
+/* $Id: macterm.c,v 1.42 2003/01/12 14:23:00 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -188,7 +188,7 @@ void mac_startsession(Session *s)
     ShowWindow(s->window);
     s->next = sesslist;
     s->prev = s->next->prev;
-    if (ret->next != NULL)
+    if (s->next != NULL)
 	s->next->prev = &s->next;
     sesslist = s;
 }
