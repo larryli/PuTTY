@@ -207,6 +207,12 @@ struct fxp_name *fxp_dup_name(struct fxp_name *name);
 void fxp_free_name(struct fxp_name *name);
 
 /*
+ * Store user data in an sftp_request structure.
+ */
+void *fxp_get_userdata(struct sftp_request *req);
+void fxp_set_userdata(struct sftp_request *req, void *data);
+
+/*
  * These functions might well be temporary placeholders to be
  * replaced with more useful similar functions later. They form the
  * main dispatch loop for processing incoming SFTP responses.
@@ -214,3 +220,19 @@ void fxp_free_name(struct fxp_name *name);
 void sftp_register(struct sftp_request *req);
 struct sftp_request *sftp_find_request(struct sftp_packet *pktin);
 struct sftp_packet *sftp_recv(void);
+
+/*
+ * A wrapper to go round fxp_read_* and fxp_write_*, which manages
+ * the queueing of multiple read/write requests.
+ */
+
+struct fxp_xfer;
+
+struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64 offset);
+int xfer_download_done(struct fxp_xfer *xfer);
+void xfer_download_queue(struct fxp_xfer *xfer);
+int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
+int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len);
+
+void xfer_set_error(struct fxp_xfer *xfer);
+void xfer_cleanup(struct fxp_xfer *xfer);

@@ -370,6 +370,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
     struct fxp_handle *fh;
     struct sftp_packet *pktin;
     struct sftp_request *req, *rreq;
+    struct fxp_xfer *xfer;
     char *fname, *outfname;
     uint64 offset;
     FILE *fp;
@@ -439,40 +440,42 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
      * thus put up a progress bar.
      */
     ret = 1;
-    while (1) {
-	char buffer[4096];
-	int len;
+    xfer = xfer_download_init(fh, offset);
+    while (!xfer_download_done(xfer)) {
+	void *vbuf;
+	int ret, len;
 	int wpos, wlen;
 
-	sftp_register(req = fxp_read_send(fh, offset, sizeof(buffer)));
-	rreq = sftp_find_request(pktin = sftp_recv());
-	assert(rreq == req);
-	len = fxp_read_recv(pktin, rreq, buffer, sizeof(buffer));
+	xfer_download_queue(xfer);
+	pktin = sftp_recv();
+	ret = xfer_download_gotpkt(xfer, pktin);
 
-	if ((len == -1 && fxp_error_type() == SSH_FX_EOF) || len == 0)
-	    break;
-	if (len == -1) {
-	    printf("error while reading: %s\n", fxp_error());
-	    ret = 0;
-	    break;
+	if (ret < 0) {
+            printf("error while reading: %s\n", fxp_error());
+            ret = 0;
 	}
 
-	wpos = 0;
-	while (wpos < len) {
-	    wlen = fwrite(buffer, 1, len - wpos, fp);
-	    if (wlen <= 0) {
-		printf("error while writing local file\n");
-		ret = 0;
-		break;
+	while (xfer_download_data(xfer, &vbuf, &len)) {
+	    unsigned char *buf = (unsigned char *)vbuf;
+
+	    wpos = 0;
+	    while (wpos < len) {
+		wlen = fwrite(buf + wpos, 1, len - wpos, fp);
+		if (wlen <= 0) {
+		    printf("error while writing local file\n");
+		    ret = 0;
+		    xfer_set_error(xfer);
+		}
+		wpos += wlen;
 	    }
-	    wpos += wlen;
+	    if (wpos < len) {	       /* we had an error */
+		ret = 0;
+		xfer_set_error(xfer);
+	    }
 	}
-	if (wpos < len) {	       /* we had an error */
-	    ret = 0;
-	    break;
-	}
-	offset = uint64_add32(offset, len);
     }
+
+    xfer_cleanup(xfer);
 
     fclose(fp);
 
