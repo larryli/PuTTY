@@ -1075,13 +1075,51 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+/* Set up a system tray icon */
+static BOOL AddTrayIcon(HWND hwnd)
+{
+    BOOL res;
+    NOTIFYICONDATA tnid;
+    HICON hicon;
+
+#ifdef NIM_SETVERSION
+    tnid.uVersion = 0;
+    res = Shell_NotifyIcon(NIM_SETVERSION, &tnid);
+#endif
+
+    tnid.cbSize = sizeof(NOTIFYICONDATA);
+    tnid.hWnd = hwnd;
+    tnid.uID = 1;	       /* unique within this systray use */
+    tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    tnid.uCallbackMessage = WM_SYSTRAY;
+    tnid.hIcon = hicon = LoadIcon(instance, MAKEINTRESOURCE(201));
+    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
+
+    res = Shell_NotifyIcon(NIM_ADD, &tnid);
+
+    if (hicon) DestroyIcon(hicon);
+    
+    return res;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
     int ret;
     static int menuinprogress;
+    static UINT msgTaskbarCreated = 0;
 
     switch (message) {
+      case WM_CREATE:
+        msgTaskbarCreated = RegisterWindowMessage(_T("TaskbarCreated"));
+        break;
+      default:
+        if (message==msgTaskbarCreated) {
+            // Explorer has been restarted, so the tray icon will have been lost
+            AddTrayIcon(hwnd);
+        }
+        break;
+        
       case WM_SYSTRAY:
 	if (lParam == WM_RBUTTONUP) {
 	    POINT cursorpos;
@@ -1342,37 +1380,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			    100, 100, NULL, NULL, inst, NULL);
 
 	/* Set up a system tray icon */
-	{
-	    BOOL res;
-	    NOTIFYICONDATA tnid;
-	    HICON hicon;
+	AddTrayIcon(hwnd);
 
-#ifdef NIM_SETVERSION
-	    tnid.uVersion = 0;
-	    res = Shell_NotifyIcon(NIM_SETVERSION, &tnid);
-#endif
-
-	    tnid.cbSize = sizeof(NOTIFYICONDATA);
-	    tnid.hWnd = hwnd;
-	    tnid.uID = 1;	       /* unique within this systray use */
-	    tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-	    tnid.uCallbackMessage = WM_SYSTRAY;
-	    tnid.hIcon = hicon = LoadIcon(instance, MAKEINTRESOURCE(201));
-	    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
-
-	    res = Shell_NotifyIcon(NIM_ADD, &tnid);
-
-	    if (hicon)
-		DestroyIcon(hicon);
-
-	    systray_menu = CreatePopupMenu();
-	    /* accelerators used: vkxa */
-	    AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-		       "&View Keys");
-	    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-	    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
-	    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
-	}
+        systray_menu = CreatePopupMenu();
+        /* accelerators used: vkxa */
+        AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
+               "&View Keys");
+        AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+        AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+        AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
 
 	ShowWindow(hwnd, SW_HIDE);
 
