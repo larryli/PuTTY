@@ -26,11 +26,16 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
 		     buffer, 512, &needed, &nprinters) == 0)
 	goto error;
 
-    buffer = srealloc(buffer, needed);
+    if (needed) {
+        buffer = srealloc(buffer, needed);
 
-    if (EnumPrinters(PRINTER_ENUM_LOCAL, NULL, 5,
-		     (LPBYTE)buffer, needed, &needed, &nprinters) == 0)
-	goto error;
+        if (EnumPrinters(PRINTER_ENUM_LOCAL, NULL, 5,
+                         (LPBYTE)buffer, needed, &needed, &nprinters) == 0)
+            goto error;
+    } else {
+        nprinters = 0;
+        ret->info = NULL;
+    }
 
     ret->info = (LPPRINTER_INFO_5)buffer;
     ret->nprinters = *nprinters_ptr = nprinters;
