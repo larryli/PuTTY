@@ -178,14 +178,13 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
 
-    assert(len > 0);
-
     /*
      * stderr data is just spouted to local stderr and otherwise
      * ignored.
      */
     if (is_stderr) {
-	fwrite(data, 1, len, stderr);
+	if (len > 0)
+	    fwrite(data, 1, len, stderr);
 	return 0;
     }
 
@@ -195,7 +194,7 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
     if (!outptr)
 	return 0;
 
-    if (outlen > 0) {
+    if ((outlen > 0) && (len > 0)) {
 	unsigned used = outlen;
 	if (used > len)
 	    used = len;

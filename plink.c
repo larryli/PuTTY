@@ -180,8 +180,6 @@ int from_backend(void *frontend_handle, int is_stderr,
 {
     int osize, esize;
 
-    assert(len > 0);
-
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);
 	try_output(1);
