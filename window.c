@@ -78,6 +78,7 @@
 #define WHEEL_DELTA 120
 #endif
 
+static Mouse_Button translate_button(void *frontend, Mouse_Button button);
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			unsigned char *output);
@@ -1560,7 +1561,8 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
 
     if (send_raw_mouse && !(cfg.mouse_override && shift)) {
 	lastbtn = MBT_NOTHING;
-	term_mouse(term, b, MA_CLICK, x, y, shift, ctrl, alt);
+	term_mouse(term, b, translate_button(b), MA_CLICK,
+		   x, y, shift, ctrl, alt);
 	return;
     }
 
@@ -1573,7 +1575,8 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
 	lastact = MA_CLICK;
     }
     if (lastact != MA_NOTHING)
-	term_mouse(term, b, lastact, x, y, shift, ctrl, alt);
+	term_mouse(term, b, translate_button(b), lastact,
+		   x, y, shift, ctrl, alt);
     lasttime = thistime;
 }
 
@@ -1581,7 +1584,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
  * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
  * into a cooked one (SELECT, EXTEND, PASTE).
  */
-Mouse_Button translate_button(void *frontend, Mouse_Button button)
+static Mouse_Button translate_button(void *frontend, Mouse_Button button)
 {
     if (button == MBT_LEFT)
 	return MBT_SELECT;
@@ -2052,7 +2055,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		      is_alt_pressed());
 		SetCapture(hwnd);
 	    } else {
-		term_mouse(term, button, MA_RELEASE,
+		term_mouse(term, button, translate_button(button), MA_RELEASE,
 			   TO_CHR_X(X_POS(lParam)),
 			   TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
 			   wParam & MK_CONTROL, is_alt_pressed());
@@ -2077,7 +2080,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		b = MBT_MIDDLE;
 	    else
 		b = MBT_RIGHT;
-	    term_mouse(term, b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
+	    term_mouse(term, b, translate_button(b), MA_DRAG,
+		       TO_CHR_X(X_POS(lParam)),
 		       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
 		       wParam & MK_CONTROL, is_alt_pressed());
 	}
@@ -2612,12 +2616,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (send_raw_mouse &&
 		    !(cfg.mouse_override && shift_pressed)) {
 		    /* send a mouse-down followed by a mouse up */
-		    term_mouse(term, b,
+		    term_mouse(term, b, translate_button(b),
 			       MA_CLICK,
 			       TO_CHR_X(X_POS(lParam)),
 			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
 			       control_pressed, is_alt_pressed());
-		    term_mouse(term, b, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
+		    term_mouse(term, b, translate_button(b),
+			       MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
 			       control_pressed, is_alt_pressed());
 		} else {

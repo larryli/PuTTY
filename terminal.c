@@ -3802,8 +3802,8 @@ void term_do_paste(Terminal *term)
     get_clip(term->frontend, NULL, NULL);
 }
 
-void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
-		int shift, int ctrl, int alt)
+void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
+		Mouse_Action a, int x, int y, int shift, int ctrl, int alt)
 {
     pos selpoint;
     unsigned long *ldata;
@@ -3844,7 +3844,7 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 
 	if (term->ldisc) {
 
-	    switch (b) {
+	    switch (braw) {
 	      case MBT_LEFT:
 		encstate = 0x20;	       /* left button down */
 		break;
@@ -3873,9 +3873,9 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 		term->mouse_is_down = 0;
 		break;
 	      case MA_CLICK:
-		if (term->mouse_is_down == b)
+		if (term->mouse_is_down == braw)
 		    return;
-		term->mouse_is_down = b;
+		term->mouse_is_down = braw;
 		break;
 	      default: break;	       /* placate gcc warning about enum use */
 	    }
@@ -3892,8 +3892,6 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 	return;
     }
 
-    b = translate_button(term->frontend, b);
-
     /*
      * Set the selection type (rectangular or normal) at the start
      * of a selection attempt, from the state of Alt.
@@ -3907,13 +3905,13 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 	term->seltype = default_seltype;
     }
 
-    if (b == MBT_SELECT && a == MA_CLICK) {
+    if (bcooked == MBT_SELECT && a == MA_CLICK) {
 	deselect(term);
 	term->selstate = ABOUT_TO;
 	term->seltype = default_seltype;
 	term->selanchor = selpoint;
 	term->selmode = SM_CHAR;
-    } else if (b == MBT_SELECT && (a == MA_2CLK || a == MA_3CLK)) {
+    } else if (bcooked == MBT_SELECT && (a == MA_2CLK || a == MA_3CLK)) {
 	deselect(term);
 	term->selmode = (a == MA_2CLK ? SM_WORD : SM_LINE);
 	term->selstate = DRAGGING;
@@ -3921,11 +3919,12 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 	term->selend = term->selstart;
 	incpos(term->selend);
 	sel_spread(term);
-    } else if ((b == MBT_SELECT && a == MA_DRAG) ||
-	       (b == MBT_EXTEND && a != MA_RELEASE)) {
+    } else if ((bcooked == MBT_SELECT && a == MA_DRAG) ||
+	       (bcooked == MBT_EXTEND && a != MA_RELEASE)) {
 	if (term->selstate == ABOUT_TO && poseq(term->selanchor, selpoint))
 	    return;
-	if (b == MBT_EXTEND && a != MA_DRAG && term->selstate == SELECTED) {
+	if (bcooked == MBT_EXTEND && a != MA_DRAG &&
+	    term->selstate == SELECTED) {
 	    if (term->seltype == LEXICOGRAPHIC) {
 		/*
 		 * For normal selection, we extend by moving
@@ -3986,7 +3985,8 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 	    term->selend.y =   max(term->selanchor.y, selpoint.y);
 	}
 	sel_spread(term);
-    } else if ((b == MBT_SELECT || b == MBT_EXTEND) && a == MA_RELEASE) {
+    } else if ((bcooked == MBT_SELECT || bcooked == MBT_EXTEND) &&
+	       a == MA_RELEASE) {
 	if (term->selstate == DRAGGING) {
 	    /*
 	     * We've completed a selection. We now transfer the
@@ -3997,7 +3997,7 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
 	    term->selstate = SELECTED;
 	} else
 	    term->selstate = NO_SELECTION;
-    } else if (b == MBT_PASTE
+    } else if (bcooked == MBT_PASTE
 	       && (a == MA_CLICK
 #if MULTICLICK_ONLY_EVENT
 		   || a == MA_2CLK || a == MA_3CLK

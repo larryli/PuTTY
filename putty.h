@@ -432,7 +432,6 @@ void write_clip(void *frontend, wchar_t *, int, int);
 void get_clip(void *frontend, wchar_t **, int *);
 void optimised_move(void *frontend, int, int, int);
 void set_raw_mouse_mode(void *frontend, int);
-Mouse_Button translate_button(void *frontend, Mouse_Button b);
 void connection_fatal(void *frontend, char *, ...);
 void fatalbox(char *, ...);
 void modalfatalbox(char *, ...);
@@ -505,7 +504,8 @@ void term_paint(Terminal *, Context, int, int, int, int, int);
 void term_scroll(Terminal *, int, int);
 void term_pwron(Terminal *);
 void term_clrsb(Terminal *);
-void term_mouse(Terminal *, Mouse_Button, Mouse_Action, int,int,int,int,int);
+void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,
+		int,int,int,int,int);
 void term_deselect(Terminal *);
 void term_update(Terminal *);
 void term_invalidate(Terminal *);

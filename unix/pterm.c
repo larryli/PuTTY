@@ -151,7 +151,7 @@ int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
  * mouse or a means of faking it, and there is no need to switch
  * buttons around at all.
  */
-Mouse_Button translate_button(void *frontend, Mouse_Button button)
+static Mouse_Button translate_button(void *frontend, Mouse_Button button)
 {
     /* struct gui_data *inst = (struct gui_data *)frontend; */
 
@@ -937,7 +937,8 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
     x = (event->x - inst->cfg.window_border) / inst->font_width;
     y = (event->y - inst->cfg.window_border) / inst->font_height;
 
-    term_mouse(inst->term, button, act, x, y, shift, ctrl, alt);
+    term_mouse(inst->term, button, translate_button(button), act,
+	       x, y, shift, ctrl, alt);
 
     return TRUE;
 }
@@ -964,7 +965,8 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     x = (event->x - inst->cfg.window_border) / inst->font_width;
     y = (event->y - inst->cfg.window_border) / inst->font_height;
 
-    term_mouse(inst->term, button, MA_DRAG, x, y, shift, ctrl, alt);
+    term_mouse(inst->term, button, translate_button(button), MA_DRAG,
+	       x, y, shift, ctrl, alt);
 
     return TRUE;
 }

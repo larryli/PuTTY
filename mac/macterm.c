@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.53 2003/01/25 15:15:40 ben Exp $ */
+/* $Id: macterm.c,v 1.54 2003/01/25 16:16:44 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -502,8 +502,8 @@ static void text_click(Session *s, EventRecord *event) {
 		   lastact == MA_3CLK ? MA_CLICK : MA_NOTHING);
     else
 	lastact = MA_CLICK;
-    /* Fake right button with shift key */
-    term_mouse(s->term, event->modifiers & shiftKey ? MBT_RIGHT : MBT_LEFT,
+    term_mouse(s->term, MBT_LEFT,
+	       event->modifiers & shiftKey ? MBT_EXTEND : MBT_SELECT,
 	       lastact, col, row, event->modifiers & shiftKey,
 	       event->modifiers & controlKey, event->modifiers & optionKey);
     lastsess = s;
@@ -513,8 +513,8 @@ static void text_click(Session *s, EventRecord *event) {
 	GetMouse(&localwhere);
 	col = PTOCC(localwhere.h);
 	row = PTOCR(localwhere.v);
-	term_mouse(s->term,
-		   event->modifiers & shiftKey ? MBT_RIGHT : MBT_LEFT,
+	term_mouse(s->term, MBT_LEFT, 
+		   event->modifiers & shiftKey ? MBT_EXTEND : MBT_SELECT,
 		   MA_DRAG, col, row, event->modifiers & shiftKey,
 		   event->modifiers & controlKey,
 		   event->modifiers & optionKey);
@@ -523,23 +523,11 @@ static void text_click(Session *s, EventRecord *event) {
 	else if (row < 0)
 	    term_scroll(s->term, 0, row);
     }
-    term_mouse(s->term, event->modifiers & shiftKey ? MBT_RIGHT : MBT_LEFT,
+    term_mouse(s->term, MBT_LEFT,
+	       event->modifiers & shiftKey ? MBT_EXTEND : MBT_SELECT,
 	       MA_RELEASE, col, row, event->modifiers & shiftKey,
 	       event->modifiers & controlKey, event->modifiers & optionKey);
     lastwhen = TickCount();
-}
-
-Mouse_Button translate_button(void *frontend, Mouse_Button button)
-{
-
-    switch (button) {
-      case MBT_LEFT:
-	return MBT_SELECT;
-      case MBT_RIGHT:
-	return MBT_EXTEND;
-      default:
-	return 0;
-    }
 }
 
 void write_clip(void *cookie, wchar_t *data, int len, int must_deselect) {
