@@ -490,6 +490,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	a.sin_port = htons((short) port);
     }
 
+    {
+	int i = 1;
+	ioctl(s, FIONBIO, &i);
+    }
+
     if ((
 #ifdef IPV6
 	    connect(s, ((addr->family == AF_INET6) ?
@@ -499,13 +504,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	    connect(s, (struct sockaddr *) &a, sizeof(a))
 #endif
 	) < 0) {
-	/*
-	 * FIXME: We are prepared to receive EWOULDBLOCK here,
-	 * because we might want the connection to be made
-	 * asynchronously; but how do we actually arrange this in
-	 * Unix? I forget.
-	 */
-	if ( errno != EWOULDBLOCK ) {
+	if ( errno != EINPROGRESS ) {
 	    ret->error = error_string(errno);
 	    return (Socket) ret;
 	}
@@ -782,11 +781,6 @@ int select_result(int fd, int event)
     noise_ultralight(event);
 
     switch (event) {
-#ifdef FIXME_NONBLOCKING_CONNECTIONS
-      case FIXME:		       /* connected */
-	s->connected = s->writable = 1;
-	break;
-#endif
       case 4:			       /* exceptional */
 	if (!s->oobinline) {
 	    /*
@@ -883,7 +877,14 @@ int select_result(int fd, int event)
 	}
 	break;
       case 2:			       /* writable */
-	{
+	if (!s->connected) {
+	    /*
+	     * select() reports a socket as _writable_ when an
+	     * asynchronous connection is completed.
+	     */
+	    s->connected = s->writable = 1;
+	    break;
+	} else {
 	    int bufsize_before, bufsize_after;
 	    s->writable = 1;
 	    bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
@@ -988,6 +989,8 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 static void set_rwx(Actual_Socket s, int *rwx)
 {
     int val = 0;
+    if (!s->connected)
+	val |= 2;		       /* write == connect */
     if (s->connected && !s->frozen)
 	val |= 1 | 4;		       /* read, except */
     if (bufchain_size(&s->output_data))
