@@ -1455,7 +1455,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             free(comment);
         }
 
-	if (!(flags & FLAG_INTERACTIVE)) {
+	if (ssh_get_password) {
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
                 /*
                  * get_password failed to get a password (for
@@ -2193,7 +2193,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    }
 	}
 
-	if (!(flags & FLAG_INTERACTIVE)) {
+	if (ssh_get_password) {
 	    char prompt[200];
 	    sprintf(prompt, "%.90s@%.90s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {

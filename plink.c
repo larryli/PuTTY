@@ -33,6 +33,8 @@ void connection_fatal (char *p, ...) {
     exit(1);
 }
 
+static char *password = NULL;
+
 /*
  * Stubs for linking with other modules.
  */
@@ -73,7 +75,6 @@ static int get_password(const char *prompt, char *str, int maxlen)
     HANDLE hin, hout;
     DWORD savemode, i;
 
-#if 0 /* this allows specifying a password some other way */
     if (password) {
         static int tried_once = 0;
 
@@ -86,7 +87,6 @@ static int get_password(const char *prompt, char *str, int maxlen)
             return 1;
         }
     }
-#endif
 
     hin = GetStdHandle(STD_INPUT_HANDLE);
     hout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -129,6 +129,22 @@ int WINAPI stdin_read_thread(void *param) {
     return 0;
 }
 
+/*
+ *  Short description of parameters.
+ */
+static void usage(void)
+{
+    printf("PuTTY Link: command-line connection utility\n");
+    printf("%s\n", ver);
+    printf("Usage: plink [options] [user@]host [command]\n");
+    printf("Options:\n");
+    printf("  -v        show verbose messages\n");
+    printf("  -ssh      force use of ssh protocol\n");
+    printf("  -P port   connect to specified port\n");
+    printf("  -pw passw login with specified password\n");
+    exit(1);
+}
+
 int main(int argc, char **argv) {
     WSADATA wsadata;
     WORD winsock_ver;
@@ -138,6 +154,7 @@ int main(int argc, char **argv) {
     DWORD threadid;
     struct input_data idata;
     int sending;
+    int portnumber = -1;
 
     ssh_get_password = get_password;
 
@@ -158,7 +175,12 @@ int main(int argc, char **argv) {
                 flags |= FLAG_VERBOSE;
 	    } else if (!strcmp(p, "-log")) {
                 logfile = "putty.log";
-	    }
+            } else if (!strcmp(p, "-pw") && argc > 1) {
+                --argc, password = *++argv;
+                printf("pw is %s\n", password);
+            } else if (!strcmp(p, "-P") && argc > 1) {
+                --argc, portnumber = atoi(*++argv);
+            }
 	} else if (*p) {
             if (!*cfg.host) {
                 char *q = p;
@@ -237,6 +259,12 @@ int main(int argc, char **argv) {
             }
 	}
     }
+
+    if (!*cfg.host) {
+        usage();
+    }
+    if (portnumber != -1)
+        cfg.port = portnumber;
 
     if (!*cfg.remote_cmd)
         flags |= FLAG_INTERACTIVE;
