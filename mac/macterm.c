@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.59 2003/01/28 00:25:20 ben Exp $ */
+/* $Id: macterm.c,v 1.60 2003/01/28 00:35:54 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -692,7 +692,9 @@ void mac_keyterm(WindowPtr window, EventRecord *event) {
 
     ObscureCursor();
 
+#if 0
     fprintf(stderr, "Got key event %08x\n", event->message);
+#endif
 
     /* No meta key yet -- that'll be rather fun. */
 
