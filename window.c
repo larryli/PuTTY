@@ -1171,8 +1171,11 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
             {
                 int prev_alwaysontop = cfg.alwaysontop;
 		int need_setwpos = FALSE;
+		int old_fwidth, old_fheight;
 		cfg.width = cols;
 		cfg.height = rows;
+		old_fwidth = font_width;
+		old_fheight = font_height;
                 if (!do_reconfig(hwnd))
                     break;
                 just_reconfigged = TRUE;
@@ -1250,6 +1253,8 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 
 		if (cfg.height != rows ||
 		    cfg.width != cols ||
+		    old_fwidth != font_width ||
+		    old_fheight != font_height ||
 		    cfg.savelines != savelines)
 		    need_setwpos = TRUE;
                 term_size(cfg.height, cfg.width, cfg.savelines);
