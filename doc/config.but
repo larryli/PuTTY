@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.32 2002/05/11 13:03:47 owen Exp $
+\versionid $Id: config.but,v 1.33 2002/05/22 21:18:06 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -334,6 +334,9 @@ Note that this is \e{not} the feature of PuTTY which the server will
 typically use to determine your terminal type. That feature is the
 \q{Terminal-type string} in the Connection panel; see
 \k{config-termtype} for details.
+
+You can include control characters in the answerback string using
+\c{^C} notation. (Use \c{^~} to get a literal \c{^}.)
 
 \S{config-localecho} \q{Local echo}
 
