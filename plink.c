@@ -558,7 +558,7 @@ int main(int argc, char **argv)
      */
     netevent = CreateEvent(NULL, FALSE, FALSE, NULL);
     {
-	char *error;
+	const char *error;
 	char *realhost;
 	/* nodelay is only useful if stdin is a character device (console) */
 	int nodelay = cfg.tcp_nodelay &&

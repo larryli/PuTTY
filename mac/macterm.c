@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.74 2003/04/12 21:07:25 ben Exp $ */
+/* $Id: macterm.c,v 1.75 2003/05/04 14:18:18 simon Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -105,7 +105,7 @@ void post_paint(Session *s);
 
 void mac_startsession(Session *s)
 {
-    char *errmsg;
+    const char *errmsg;
     int i;
     WinInfo *wi;
 

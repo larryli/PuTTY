@@ -476,7 +476,8 @@ static void bump(char *fmt, ...)
  */
 static void do_cmd(char *host, char *user, char *cmd)
 {
-    char *err, *realhost;
+    const char *err;
+    char *realhost;
     DWORD namelen;
 
     if (host == NULL || host[0] == '\0')

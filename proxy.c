@@ -173,7 +173,7 @@ static void sk_proxy_set_frozen (Socket s, int is_frozen)
     sk_set_frozen(ps->sub_socket, is_frozen);
 }
 
-static char * sk_proxy_socket_error (Socket s)
+static const char * sk_proxy_socket_error (Socket s)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
     if (ps->error != NULL || ps->sub_socket == NULL) {
@@ -184,7 +184,7 @@ static char * sk_proxy_socket_error (Socket s)
 
 /* basic proxy plug functions */
 
-static int plug_proxy_closing (Plug p, char *error_msg,
+static int plug_proxy_closing (Plug p, const char *error_msg,
 			       int error_code, int calling_back)
 {
     Proxy_Plug pp = (Proxy_Plug) p;
@@ -377,7 +377,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	Proxy_Socket ret;
 	Proxy_Plug pplug;
 	SockAddr proxy_addr;
-	char *proxy_canonical_name, *err;
+	char *proxy_canonical_name;
 
 	ret = snew(struct Socket_proxy_tag);
 	ret->fn = &socket_fn_table;
@@ -421,7 +421,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	/* look-up proxy */
 	proxy_addr = sk_namelookup(cfg->proxy_host,
 				   &proxy_canonical_name);
-	if ((err = sk_addr_error(proxy_addr)) != NULL) {
+	if (sk_addr_error(proxy_addr) != NULL) {
 	    ret->error = "Proxy error: Unable to resolve proxy host name";
 	    return (Socket)ret;
 	}

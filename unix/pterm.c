@@ -166,7 +166,7 @@ int from_backend(void *frontend, int is_stderr, const char *data, int len)
     return term_data(inst->term, is_stderr, data, len);
 }
 
-void logevent(void *frontend, char *string)
+void logevent(void *frontend, const char *string)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
 
@@ -3075,7 +3075,8 @@ int pt_main(int argc, char **argv)
 
     inst->back = select_backend(&inst->cfg);
     {
-	char *realhost, *error;
+	char *realhost;
+	const char *error;
 
 	error = inst->back->init((void *)inst, &inst->backhandle,
                                  &inst->cfg, inst->cfg.host, inst->cfg.port,

@@ -1691,7 +1691,7 @@ static void usage(void)
 static int psftp_connect(char *userhost, char *user, int portnumber)
 {
     char *host, *realhost;
-    char *err;
+    const char *err;
 
     /* Separate host and username */
     host = userhost;

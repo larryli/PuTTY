@@ -32,7 +32,7 @@ static void c_write(Rlogin rlogin, char *buf, int len)
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
-static int rlogin_closing(Plug plug, char *error_msg, int error_code,
+static int rlogin_closing(Plug plug, const char *error_msg, int error_code,
 			  int calling_back)
 {
     Rlogin rlogin = (Rlogin) plug;
@@ -97,9 +97,10 @@ static void rlogin_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *rlogin_init(void *frontend_handle, void **backend_handle,
-			 Config *cfg,
-			 char *host, int port, char **realhost, int nodelay)
+static const char *rlogin_init(void *frontend_handle, void **backend_handle,
+			       Config *cfg,
+			       char *host, int port, char **realhost,
+			       int nodelay)
 {
     static const struct plug_function_table fn_table = {
 	rlogin_closing,
@@ -107,7 +108,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	rlogin_sent
     };
     SockAddr addr;
-    char *err;
+    const char *err;
     Rlogin rlogin;
 
     rlogin = snew(struct rlogin_tag);

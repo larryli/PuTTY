@@ -64,7 +64,7 @@ struct Socket_proxy_tag {
      */
 
     /* closing */
-    char *closing_error_msg;
+    const char *closing_error_msg;
     int closing_error_code;
     int closing_calling_back;
 

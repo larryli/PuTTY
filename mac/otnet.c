@@ -185,7 +185,7 @@ static int ot_tcp_write_oob(Socket s, char const *data, int len);
 static void ot_tcp_set_private_ptr(Socket s, void *ptr);
 static void *ot_tcp_get_private_ptr(Socket s);
 static void ot_tcp_set_frozen(Socket s, int is_frozen);
-static char *ot_tcp_socket_error(Socket s);
+static const char *ot_tcp_socket_error(Socket s);
 static void ot_recv(Actual_Socket s);
 void ot_poll(void);
 
@@ -420,7 +420,7 @@ char *ot_addr_error(SockAddr addr)
     sprintf(buf, "error %d", addr->error);
     return buf;
 }
-static char *ot_tcp_socket_error(Socket sock)
+static const char *ot_tcp_socket_error(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
     static char buf[128];

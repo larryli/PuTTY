@@ -465,7 +465,7 @@ static int sk_tcp_write_oob(Socket s, const char *data, int len);
 static void sk_tcp_set_private_ptr(Socket s, void *ptr);
 static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
-static char *sk_tcp_socket_error(Socket s);
+static const char *sk_tcp_socket_error(Socket s);
 
 extern char *do_select(SOCKET skt, int startup);
 
@@ -1173,11 +1173,11 @@ static void *sk_tcp_get_private_ptr(Socket sock)
  * if there's a problem. These functions extract an error message,
  * or return NULL if there's no problem.
  */
-char *sk_addr_error(SockAddr addr)
+const char *sk_addr_error(SockAddr addr)
 {
     return addr->error;
 }
-static char *sk_tcp_socket_error(Socket sock)
+static const char *sk_tcp_socket_error(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
     return s->error;

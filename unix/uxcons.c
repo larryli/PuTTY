@@ -258,7 +258,7 @@ void old_keyfile_warning(void)
     fputs(message, stderr);
 }
 
-void logevent(void *frontend, char *string)
+void logevent(void *frontend, const char *string)
 {
     log_eventlog(logctx, string);
 }

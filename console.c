@@ -270,7 +270,7 @@ void console_provide_logctx(void *logctx)
     console_logctx = logctx;
 }
 
-void logevent(void *frontend, char *string)
+void logevent(void *frontend, const char *string)
 {
     if (console_logctx)
 	log_eventlog(console_logctx, string);

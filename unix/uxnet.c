@@ -26,7 +26,7 @@
 struct Socket_tag {
     struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
-    char *error;
+    const char *error;
     int s;
     Plug plug;
     void *private_ptr;
@@ -56,7 +56,7 @@ struct Socket_tag {
 typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
-    char *error;
+    const char *error;
     /*
      * Which address family this address belongs to. AF_INET for
      * IPv4; AF_INET6 for IPv6; AF_UNSPEC indicates that name
@@ -115,7 +115,7 @@ void sk_cleanup(void)
     }
 }
 
-char *error_string(int error)
+const char *error_string(int error)
 {
     return strerror(error);
 }
@@ -322,7 +322,7 @@ static int sk_tcp_write_oob(Socket s, const char *data, int len);
 static void sk_tcp_set_private_ptr(Socket s, void *ptr);
 static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
-static char *sk_tcp_socket_error(Socket s);
+static const char *sk_tcp_socket_error(Socket s);
 
 static struct socket_function_table tcp_fn_table = {
     sk_tcp_plug,
@@ -837,8 +837,8 @@ static int net_select_result(int fd, int event)
 	    ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
 	    noise_ultralight(ret);
 	    if (ret <= 0) {
-		char *str = (ret == 0 ? "Internal networking trouble" :
-			     error_string(errno));
+		const char *str = (ret == 0 ? "Internal networking trouble" :
+				   error_string(errno));
 		/* We're inside the Unix frontend here, so we know
 		 * that the frontend handle is unnecessary. */
 		logevent(NULL, str);
@@ -1003,11 +1003,11 @@ static void *sk_tcp_get_private_ptr(Socket sock)
  * if there's a problem. These functions extract an error message,
  * or return NULL if there's no problem.
  */
-char *sk_addr_error(SockAddr addr)
+const char *sk_addr_error(SockAddr addr)
 {
     return addr->error;
 }
-static char *sk_tcp_socket_error(Socket sock)
+static const char *sk_tcp_socket_error(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
     return s->error;

@@ -144,7 +144,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
     return NULL;
 }
 
-char *sk_addr_error(SockAddr addr)
+const char *sk_addr_error(SockAddr addr)
 {
 
     if (stack != NULL)

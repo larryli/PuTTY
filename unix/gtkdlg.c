@@ -2720,7 +2720,7 @@ void *eventlogstuff_new(void)
     return es;
 }
 
-void logevent_dlg(void *estuff, char *string)
+void logevent_dlg(void *estuff, const char *string)
 {
     struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
 

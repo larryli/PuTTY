@@ -266,8 +266,9 @@ enum {
 };
 
 struct backend_tag {
-    char *(*init) (void *frontend_handle, void **backend_handle, Config *cfg,
-		   char *host, int port, char **realhost, int nodelay);
+    const char *(*init) (void *frontend_handle, void **backend_handle,
+			 Config *cfg,
+			 char *host, int port, char **realhost, int nodelay);
     void (*free) (void *handle);
     /* back->reconfig() passes in a replacement configuration. */
     void (*reconfig) (void *handle, Config *cfg);
@@ -643,7 +644,7 @@ void log_reconfig(void *logctx, Config *cfg);
 void logfopen(void *logctx);
 void logfclose(void *logctx);
 void logtraffic(void *logctx, unsigned char c, int logmode);
-void log_eventlog(void *logctx, char *string);
+void log_eventlog(void *logctx, const char *string);
 enum { PKT_INCOMING, PKT_OUTGOING };
 void log_packet(void *logctx, int direction, int type,
 		char *texttype, void *data, int len);
@@ -778,7 +779,7 @@ int wc_unescape(char *output, const char *wildcard);
 /*
  * Exports from windlg.c
  */
-void logevent(void *frontend, char *);
+void logevent(void *frontend, const char *);
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint);
 void askcipher(void *frontend, char *ciphername, int cs);

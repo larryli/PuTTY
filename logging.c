@@ -43,7 +43,7 @@ void logtraffic(void *handle, unsigned char c, int logmode)
  * platforms. Platforms which don't have a meaningful stderr can
  * just avoid defining FLAG_STDERR.
  */
-void log_eventlog(void *handle, char *event)
+void log_eventlog(void *handle, const char *event)
 {
     struct LogContext *ctx = (struct LogContext *)handle;
     if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) {

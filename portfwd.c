@@ -86,7 +86,7 @@ struct PFwdPrivate {
     int buflen;
 };
 
-static int pfd_closing(Plug plug, char *error_msg, int error_code,
+static int pfd_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
     struct PFwdPrivate *pr = (struct PFwdPrivate *) plug;
@@ -331,8 +331,8 @@ static void pfd_sent(Plug plug, int bufsize)
 /*
  * Called when receiving a PORT OPEN from the server
  */
-char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
-		     const Config *cfg)
+const char *pfd_newconnect(Socket *s, char *hostname, int port,
+			   void *c, const Config *cfg)
 {
     static const struct plug_function_table fn_table = {
 	pfd_closing,
@@ -342,7 +342,8 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
     };
 
     SockAddr addr;
-    char *err, *dummy_realhost;
+    const char *err;
+    char *dummy_realhost;
     struct PFwdPrivate *pr;
 
     /*
@@ -390,7 +391,7 @@ static int pfd_accepting(Plug p, void *sock)
     };
     struct PFwdPrivate *pr, *org;
     Socket s;
-    char *err;
+    const char *err;
 
     org = (struct PFwdPrivate *)p;
     pr = snew(struct PFwdPrivate);
@@ -437,8 +438,8 @@ static int pfd_accepting(Plug p, void *sock)
 /* Add a new forwarding from port -> desthost:destport
  sets up a listener on the local machine on (srcaddr:)port
  */
-char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
-		     void *backhandle, const Config *cfg)
+const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
+			   int port, void *backhandle, const Config *cfg)
 {
     static const struct plug_function_table fn_table = {
 	pfd_closing,
@@ -447,7 +448,7 @@ char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
 	pfd_accepting
     };
 
-    char *err;
+    const char *err;
     struct PFwdPrivate *pr;
     Socket s;
 

@@ -662,7 +662,7 @@ struct ssh_tag {
 #define logevent(s) logevent(ssh->frontend, s)
 
 /* logevent, only printf-formatted. */
-static void logeventf(Ssh ssh, char *fmt, ...)
+static void logeventf(Ssh ssh, const char *fmt, ...)
 {
     va_list ap;
     char *buf;
@@ -2077,7 +2077,7 @@ static void ssh_do_close(Ssh ssh)
     }
 }
 
-static int ssh_closing(Plug plug, char *error_msg, int error_code,
+static int ssh_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
     Ssh ssh = (Ssh) plug;
@@ -2120,8 +2120,8 @@ static void ssh_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *connect_to_host(Ssh ssh, char *host, int port,
-			     char **realhost, int nodelay)
+static const char *connect_to_host(Ssh ssh, char *host, int port,
+				   char **realhost, int nodelay)
 {
     static const struct plug_function_table fn_table = {
 	ssh_closing,
@@ -2131,7 +2131,7 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
     };
 
     SockAddr addr;
-    char *err;
+    const char *err;
 
     ssh->savedhost = snewn(1 + strlen(host), char);
     if (!ssh->savedhost)
@@ -3528,7 +3528,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		struct ssh_rportfwd pf;
 		int hostsize, port;
 		char host[256], buf[1024];
-		char *p, *h, *e;
+		char *p, *h;
+		const char *e;
 		c = snew(struct ssh_channel);
 		c->ssh = ssh;
 
@@ -6000,8 +6001,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    if (realpf == NULL) {
 			error = "Remote port is not recognised";
 		    } else {
-			char *e = pfd_newconnect(&c->u.pfd.s, realpf->dhost,
-						 realpf->dport, c, &ssh->cfg);
+			const char *e = pfd_newconnect(&c->u.pfd.s,
+						       realpf->dhost,
+						       realpf->dport, c,
+						       &ssh->cfg);
 			logeventf(ssh, "Received remote port open request"
 				  " for %s:%d", realpf->dhost, realpf->dport);
 			if (e != NULL) {
@@ -6110,11 +6113,11 @@ static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
  *
  * Returns an error message, or NULL on success.
  */
-static char *ssh_init(void *frontend_handle, void **backend_handle,
-		      Config *cfg,
-		      char *host, int port, char **realhost, int nodelay)
+static const char *ssh_init(void *frontend_handle, void **backend_handle,
+			    Config *cfg,
+			    char *host, int port, char **realhost, int nodelay)
 {
-    char *p;
+    const char *p;
     Ssh ssh;
 
     ssh = snew(struct ssh_tag);

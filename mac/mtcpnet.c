@@ -217,7 +217,7 @@ static int mactcp_write(Socket, char const *, int);
 static int mactcp_write_oob(Socket, char const*, int);
 static void mactcp_set_private_ptr(Socket, void *);
 static void *mactcp_get_private_ptr(Socket);
-static char *mactcp_socket_error(Socket);
+static const char *mactcp_socket_error(Socket);
 static void mactcp_set_frozen(Socket, int);
 
 static void mactcp_recv(Actual_Socket s, size_t len);
@@ -714,7 +714,7 @@ char *mactcp_addr_error(SockAddr addr)
     }
 }
 
-static char *mactcp_socket_error(Socket sock)
+static const char *mactcp_socket_error(Socket sock)
 {
     static char buf[64];
     Actual_Socket s = (Actual_Socket) sock;

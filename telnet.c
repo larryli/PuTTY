@@ -631,7 +631,7 @@ static void do_telnet_read(Telnet telnet, char *buf, int len)
     }
 }
 
-static int telnet_closing(Plug plug, char *error_msg, int error_code,
+static int telnet_closing(Plug plug, const char *error_msg, int error_code,
 			  int calling_back)
 {
     Telnet telnet = (Telnet) plug;
@@ -671,9 +671,10 @@ static void telnet_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *telnet_init(void *frontend_handle, void **backend_handle,
-			 Config *cfg,
-			 char *host, int port, char **realhost, int nodelay)
+static const char *telnet_init(void *frontend_handle, void **backend_handle,
+			       Config *cfg,
+			       char *host, int port, char **realhost,
+			       int nodelay)
 {
     static const struct plug_function_table fn_table = {
 	telnet_closing,
@@ -681,7 +682,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 	telnet_sent
     };
     SockAddr addr;
-    char *err;
+    const char *err;
     Telnet telnet;
 
     telnet = snew(struct telnet_tag);

@@ -659,7 +659,7 @@ int do_reconfig(HWND hwnd)
     return ret;
 }
 
-void logevent(void *frontend, char *string)
+void logevent(void *frontend, const char *string)
 {
     char timebuf[40];
     time_t t;

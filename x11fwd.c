@@ -174,7 +174,7 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
     return NULL;
 }
 
-static int x11_closing(Plug plug, char *error_msg, int error_code,
+static int x11_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
     struct X11Private *pr = (struct X11Private *) plug;
@@ -232,8 +232,8 @@ int x11_get_screen_number(char *display)
  * Returns an error message, or NULL on success.
  * also, fills the SocketsStructure
  */
-char *x11_init(Socket * s, char *display, void *c, void *auth,
-	       const char *peeraddr, int peerport, const Config *cfg)
+const char *x11_init(Socket * s, char *display, void *c, void *auth,
+		     const char *peeraddr, int peerport, const Config *cfg)
 {
     static const struct plug_function_table fn_table = {
 	x11_closing,
@@ -244,7 +244,8 @@ char *x11_init(Socket * s, char *display, void *c, void *auth,
 
     SockAddr addr;
     int port;
-    char *err, *dummy_realhost;
+    const char *err;
+    char *dummy_realhost;
     char host[128];
     int n, displaynum;
     struct X11Private *pr;

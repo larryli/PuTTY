@@ -29,7 +29,7 @@ static void c_write(Raw raw, char *buf, int len)
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
-static int raw_closing(Plug plug, char *error_msg, int error_code,
+static int raw_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
     Raw raw = (Raw) plug;
@@ -67,9 +67,9 @@ static void raw_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *raw_init(void *frontend_handle, void **backend_handle,
-		      Config *cfg,
-		      char *host, int port, char **realhost, int nodelay)
+static const char *raw_init(void *frontend_handle, void **backend_handle,
+			    Config *cfg,
+			    char *host, int port, char **realhost, int nodelay)
 {
     static const struct plug_function_table fn_table = {
 	raw_closing,
@@ -77,7 +77,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
 	raw_sent
     };
     SockAddr addr;
-    char *err;
+    const char *err;
     Raw raw;
 
     raw = snew(struct raw_backend_data);

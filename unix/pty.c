@@ -485,8 +485,8 @@ static void pty_uxsel_setup(void)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
-		      char *host, int port, char **realhost, int nodelay)
+static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
+			    char *host, int port, char **realhost, int nodelay)
 {
     int slavefd;
     pid_t pid, pgrp;

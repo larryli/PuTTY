@@ -636,7 +636,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Start up the telnet connection.
      */
     {
-	char *error;
+	const char *error;
 	char msg[1024], *title;
 	char *realhost;
 

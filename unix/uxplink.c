@@ -574,7 +574,7 @@ int main(int argc, char **argv)
      */
     logctx = log_init(NULL, &cfg);
     {
-	char *error;
+	const char *error;
 	char *realhost;
 	/* nodelay is only useful if stdin is a terminal device */
 	int nodelay = cfg.tcp_nodelay && isatty(0);

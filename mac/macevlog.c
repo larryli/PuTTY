@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.7 2003/04/12 21:06:34 ben Exp $ */
+/* $Id: macevlog.c,v 1.8 2003/05/04 14:18:18 simon Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -101,7 +101,7 @@ void mac_freeeventlog(Session *s)
     }
 }
 
-void logevent(void *frontend, char *str)
+void logevent(void *frontend, const char *str)
 {
     Session *s = frontend;
     ListBounds bounds, visible;

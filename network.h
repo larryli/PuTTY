@@ -38,12 +38,12 @@ struct socket_function_table {
     void *(*get_private_ptr) (Socket s);
     void (*set_frozen) (Socket s, int is_frozen);
     /* ignored by tcp, but vital for ssl */
-    char *(*socket_error) (Socket s);
+    const char *(*socket_error) (Socket s);
 };
 
 struct plug_function_table {
     int (*closing)
-     (Plug p, char *error_msg, int error_code, int calling_back);
+     (Plug p, const char *error_msg, int error_code, int calling_back);
     /* error_msg is NULL iff it is not an error (ie it closed normally) */
     /* calling_back != 0 iff there is a Plug function */
     /* currently running (would cure the fixme in try_send()) */
@@ -130,7 +130,7 @@ Socket sk_register(void *sock, Plug plug);
  * if there's a problem. These functions extract an error message,
  * or return NULL if there's no problem.
  */
-char *sk_addr_error(SockAddr addr);
+const char *sk_addr_error(SockAddr addr);
 #define sk_socket_error(s) (((*s)->socket_error) (s))
 
 /*
