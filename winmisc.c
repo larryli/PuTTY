@@ -39,6 +39,21 @@ int filename_is_null(Filename fn)
     return !*fn.path;
 }
 
+char *get_username(void)
+{
+    DWORD namelen;
+    char *user;
+
+    namelen = 0;
+    if (GetUserName(NULL, &namelen) == FALSE)
+	return NULL;
+
+    user = snewn(namelen, char);
+    GetUserName(user, &namelen);
+
+    return user;
+}
+
 int SaneDialogBox(HINSTANCE hinst,
 		  LPCTSTR tmpl,
 		  HWND hwndparent,

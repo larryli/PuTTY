@@ -845,5 +845,6 @@ Filename filename_from_str(const char *string);
 const char *filename_to_str(const Filename *fn);
 int filename_equal(Filename f1, Filename f2);
 int filename_is_null(Filename fn);
+char *get_username(void);	       /* return value needs freeing */
 
 #endif

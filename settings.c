@@ -29,6 +29,7 @@ static void gpps(void *handle, const char *name, const char *def,
 	pdef = platform_default_s(name);
 	if (pdef) {
 	    strncpy(val, pdef, len);
+	    sfree(pdef);
 	} else {
 	    strncpy(val, def, len);
 	}

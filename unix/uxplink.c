@@ -74,48 +74,11 @@ static Config cfg;
 char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "X11Display"))
-	return getenv("DISPLAY");
+	return dupstr(getenv("DISPLAY"));
     if (!strcmp(name, "TermType"))
-	return getenv("TERM");
-    if (!strcmp(name, "UserName")) {
-	/*
-	 * Remote login username will default to the local username.
-	 */
-	struct passwd *p;
-	uid_t uid = getuid();
-	char *user, *ret = NULL;
-
-	/*
-	 * First, find who we think we are using getlogin. If this
-	 * agrees with our uid, we'll go along with it. This should
-	 * allow sharing of uids between several login names whilst
-	 * coping correctly with people who have su'ed.
-	 */
-	user = getlogin();
-	setpwent();
-	if (user)
-	    p = getpwnam(user);
-	else
-	    p = NULL;
-	if (p && p->pw_uid == uid) {
-	    /*
-	     * The result of getlogin() really does correspond to
-	     * our uid. Fine.
-	     */
-	    ret = user;
-	} else {
-	    /*
-	     * If that didn't work, for whatever reason, we'll do
-	     * the simpler version: look up our uid in the password
-	     * file and map it straight to a name.
-	     */
-	    p = getpwuid(uid);
-	    ret = p->pw_name;
-	}
-	endpwent();
-
-	return ret;
-    }
+	return dupstr(getenv("TERM"));
+    if (!strcmp(name, "UserName"))
+	return get_username();
     return NULL;
 }
 

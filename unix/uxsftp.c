@@ -1,12 +1,11 @@
 /*
- * uxsftp.c: the Unix-specific parts of PSFTP.
+ * uxsftp.c: the Unix-specific parts of PSFTP and PSCP.
  */
 
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
-#include <pwd.h>
 
 #include "putty.h"
 #include "psftp.h"
@@ -34,45 +33,6 @@ void platform_get_x11_auth(char *display, int *protocol,
  */
 char *platform_default_s(const char *name)
 {
-    if (!strcmp(name, "UserName")) {
-	/*
-	 * Remote login username will default to the local username.
-	 */
-	struct passwd *p;
-	uid_t uid = getuid();
-	char *user, *ret = NULL;
-
-	/*
-	 * First, find who we think we are using getlogin. If this
-	 * agrees with our uid, we'll go along with it. This should
-	 * allow sharing of uids between several login names whilst
-	 * coping correctly with people who have su'ed.
-	 */
-	user = getlogin();
-	setpwent();
-	if (user)
-	    p = getpwnam(user);
-	else
-	    p = NULL;
-	if (p && p->pw_uid == uid) {
-	    /*
-	     * The result of getlogin() really does correspond to
-	     * our uid. Fine.
-	     */
-	    ret = user;
-	} else {
-	    /*
-	     * If that didn't work, for whatever reason, we'll do
-	     * the simpler version: look up our uid in the password
-	     * file and map it straight to a name.
-	     */
-	    p = getpwuid(uid);
-	    ret = p->pw_name;
-	}
-	endpwent();
-
-	return ret;
-    }
     return NULL;
 }
 
@@ -97,6 +57,18 @@ Filename platform_default_filename(const char *name)
 	*ret.path = '\0';
     return ret;
 }
+
+/*
+ * Stubs for the GUI feedback mechanism in Windows PSCP.
+ */
+void gui_update_stats(char *name, unsigned long size,
+		      int percentage, unsigned long elapsed,
+		      unsigned long done, unsigned long eta,
+		      unsigned long ratebs) {}
+void gui_send_errcount(int list, int errs) {}
+void gui_send_char(int is_stderr, int c) {}
+void gui_enable(char *arg) {}
+
 
 /*
  * Set local current directory. Returns NULL on success, or else an

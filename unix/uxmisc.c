@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #include "putty.h"
 
@@ -18,6 +20,8 @@ unsigned long getticks(void)
      */
     return tv.tv_sec * 1000000 + tv.tv_usec;
 }
+
+
 
 Filename filename_from_str(const char *str)
 {
@@ -57,3 +61,43 @@ void dputs(char *buf)
     fflush(debug_fp);
 }
 #endif
+
+char *get_username(void)
+{
+    struct passwd *p;
+    uid_t uid = getuid();
+    char *user, *ret = NULL;
+
+    /*
+     * First, find who we think we are using getlogin. If this
+     * agrees with our uid, we'll go along with it. This should
+     * allow sharing of uids between several login names whilst
+     * coping correctly with people who have su'ed.
+     */
+    user = getlogin();
+    setpwent();
+    if (user)
+	p = getpwnam(user);
+    else
+	p = NULL;
+    if (p && p->pw_uid == uid) {
+	/*
+	 * The result of getlogin() really does correspond to
+	 * our uid. Fine.
+	 */
+	ret = user;
+    } else {
+	/*
+	 * If that didn't work, for whatever reason, we'll do
+	 * the simpler version: look up our uid in the password
+	 * file and map it straight to a name.
+	 */
+	p = getpwuid(uid);
+	if (!p)
+	    return NULL;
+	ret = p->pw_name;
+    }
+    endpwent();
+
+    return dupstr(ret);
+}
