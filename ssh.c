@@ -5921,8 +5921,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET
 	} type;
 	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
-	int tried_pubkey_config, tried_agent, tried_keyb_inter;
-	int kbd_inter_running;
+	int tried_pubkey_config, tried_agent;
+	int kbd_inter_running, kbd_inter_refused;
 	int we_are_in;
 	int num_prompts, curr_prompt, echo;
 	char username[100];
@@ -6051,8 +6051,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 	s->tried_pubkey_config = FALSE;
 	s->tried_agent = FALSE;
-	s->tried_keyb_inter = FALSE;
 	s->kbd_inter_running = FALSE;
+	s->kbd_inter_refused = FALSE;
 	/* Load the pub half of ssh->cfg.keyfile so we notice if it's in Pageant */
 	if (!filename_is_null(ssh->cfg.keyfile)) {
 	    int keytype;
@@ -6443,10 +6443,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 	    }
 
-	    if (!s->method && s->can_keyb_inter && !s->tried_keyb_inter) {
+	    if (!s->method && s->can_keyb_inter && !s->kbd_inter_refused) {
 		s->method = AUTH_KEYBOARD_INTERACTIVE;
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
-		s->tried_keyb_inter = TRUE;
 
 		ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh->pkt_ctx |= SSH2_PKTCTX_KBDINTER;
@@ -6465,6 +6464,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			s->gotit = TRUE;
 		    logevent("Keyboard-interactive authentication refused");
 		    s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
+		    s->kbd_inter_refused = TRUE; /* don't try it again */
 		    continue;
 		}
 
@@ -6475,7 +6475,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    if (s->kbd_inter_running) {
 		s->method = AUTH_KEYBOARD_INTERACTIVE;
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
-		s->tried_keyb_inter = TRUE;
 
 		ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh->pkt_ctx |= SSH2_PKTCTX_KBDINTER;
