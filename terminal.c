@@ -1858,8 +1858,8 @@ static void do_paint (Context ctx, int may_optimise){
  */
 
 void term_blink(int flg) {
-static long last_blink = 0;
-static long last_tblink = 0;
+    static long last_blink = 0;
+    static long last_tblink = 0;
     long now, blink_diff;
 
     now = GetTickCount();
@@ -1880,8 +1880,8 @@ static long last_tblink = 0;
 
     blink_diff = now-last_blink;
 
-    /* Make sure the cursor blinks no more than 2Hz */
-    if (blink_diff>=0 && blink_diff<450)
+    /* Make sure the cursor blinks no faster than GetCaretBlinkTime() */
+    if (blink_diff>=0 && blink_diff<(long)GetCaretBlinkTime())
        return;
  
     last_blink = now;
