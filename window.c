@@ -474,8 +474,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	DeleteObject(pal);
     WSACleanup();
 
-    if (cfg.protocol == PROT_SSH)
+    if (cfg.protocol == PROT_SSH) {
 	random_save_seed();
+#ifdef MSCRYPTOAPI
+	crypto_wrapup();
+#endif
+    }
 
     return msg.wParam;
 }

@@ -324,6 +324,14 @@ unsigned char xlat_tty2scr(unsigned char c);
 unsigned char xlat_latkbd2win(unsigned char c);
 
 /*
+ * Exports from mscrypto.c
+ */
+#ifdef MSCRYPTOAPI
+int crypto_startup();
+void crypto_wrapup();
+#endif
+
+/*
  * A debug system.
  */
 #ifdef DEBUG

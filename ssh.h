@@ -8,8 +8,13 @@
 struct RSAKey {
     int bits;
     int bytes;
+#ifdef MSCRYPTOAPI
+    unsigned long exponent;
+    unsigned char *modulus;
+#else
     void *modulus;
     void *exponent;
+#endif
 };
 
 int makekey(unsigned char *data, struct RSAKey *result,
@@ -24,9 +29,13 @@ typedef unsigned int uint32;
 unsigned long crc32(const void *s, size_t len);
 
 struct MD5Context {
-        uint32 buf[4];
-        uint32 bits[2];
-        unsigned char in[64];
+#ifdef MSCRYPTOAPI
+    unsigned long hHash;
+#else
+    uint32 buf[4];
+    uint32 bits[2];
+    unsigned char in[64];
+#endif
 };
 
 void MD5Init(struct MD5Context *context);
@@ -40,7 +49,9 @@ struct ssh_cipher {
     void (*decrypt)(unsigned char *blk, int len);
 };
 
+#ifndef MSCRYPTOAPI
 void SHATransform(word32 *digest, word32 *data);
+#endif
 
 int random_byte(void);
 void random_add_noise(void *noise, int length);

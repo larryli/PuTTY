@@ -152,8 +152,15 @@ static void ssh_gotdata(unsigned char *data, int datalen) {
 	pktin.length = len;
 	if (pktin.maxlen < biglen) {
 	    pktin.maxlen = biglen;
+#ifdef MSCRYPTOAPI
+	    /* Allocate enough buffer space for extra block
+	     * for MS CryptEncrypt() */
+	    pktin.data = (pktin.data == NULL ? malloc(biglen+8) :
+			  realloc(pktin.data, biglen+8));
+#else
 	    pktin.data = (pktin.data == NULL ? malloc(biglen) :
-			realloc(pktin.data, biglen));
+			  realloc(pktin.data, biglen));
+#endif
 	    if (!pktin.data)
 		fatalbox("Out of memory");
 	}
@@ -199,8 +206,15 @@ static void s_wrpkt_start(int type, int len) {
     pktout.length = len-5;
     if (pktout.maxlen < biglen) {
 	pktout.maxlen = biglen;
+#ifdef MSCRYPTOAPI
+	/* Allocate enough buffer space for extra block 
+	 * for MS CryptEncrypt() */
+	pktout.data = (pktout.data == NULL ? malloc(biglen+8) :
+		       realloc(pktout.data, biglen+8));
+#else
 	pktout.data = (pktout.data == NULL ? malloc(biglen+4) :
 		       realloc(pktout.data, biglen+4));
+#endif
 	if (!pktout.data)
 	    fatalbox("Out of memory");
     }
@@ -684,6 +698,11 @@ static char *ssh_init (HWND hwnd, char *host, int port, char **realhost) {
 #ifdef FWHACK
     char *FWhost;
     int FWport;
+#endif
+	
+#ifdef MSCRYPTOAPI
+    if(crypto_startup() == 0)
+	return "Microsoft high encryption pack not installed!";
 #endif
 
     savedhost = malloc(1+strlen(host));

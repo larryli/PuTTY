@@ -814,6 +814,9 @@ int main(int argc, char *argv[])
 	ssh_send_eof();
 	ssh_recv(&ch, 1);
     }
+#ifdef MSCRYPTOAPI
+    crypto_wrapup();
+#endif
     WSACleanup();
     random_save_seed();
 
