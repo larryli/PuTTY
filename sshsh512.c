@@ -45,7 +45,7 @@
 #define smallsigma1(r,t,x) ( rorL(r,x,19), rorB(t,x,61), xor(r,r,t), \
 			     shrL(t,x,6), xor(r,r,t) )
 
-void SHA512_Core_Init(SHA512_State *s) {
+static void SHA512_Core_Init(SHA512_State *s) {
     static const uint64 iv[] = {
 	INIT(0x6a09e667, 0xf3bcc908),
 	INIT(0xbb67ae85, 0x84caa73b),
@@ -61,7 +61,7 @@ void SHA512_Core_Init(SHA512_State *s) {
 	s->h[i] = iv[i];
 }
 
-void SHA512_Block(SHA512_State *s, uint64 *block) {
+static void SHA512_Block(SHA512_State *s, uint64 *block) {
     uint64 w[80];
     uint64 a,b,c,d,e,f,g,h;
     static const uint64 k[] = {
