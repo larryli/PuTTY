@@ -748,6 +748,12 @@ void scp_source_setup(char *target, int shouldbedir)
 	 */
 	struct fxp_attrs attrs;
 
+	if (!fxp_init()) {
+	    tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
+	    errs++;
+	    return 1;
+	}
+
 	if (!fxp_stat(target, &attrs) ||
 	    !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS))
 	    scp_sftp_targetisdir = 0;
@@ -959,6 +965,12 @@ int scp_sink_setup(char *source, int preserve, int recursive)
 {
     if (using_sftp) {
 	char *newsource;
+
+	if (!fxp_init()) {
+	    tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
+	    errs++;
+	    return 1;
+	}
 	/*
 	 * It's possible that the source string we've been given
 	 * contains a wildcard. If so, we must split the directory
