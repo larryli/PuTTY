@@ -199,7 +199,8 @@ MAC received on packet}
 This error occurs when PuTTY decrypts an SSH packet and its checksum
 is not correct. This probably means something has gone wrong in the
 encryption or decryption process. It's difficult to tell from this
-error message whether the problem is in the client or in the server.
+error message whether the problem is in the client, in the server,
+or in between.
 
 A known server problem which can cause this error is described in
 \k{faq-openssh-bad-openssl} in the FAQ.
