@@ -198,12 +198,20 @@ enum {
 
 typedef struct {
     char *(*init) (char *host, int port, char **realhost);
-    void (*send) (char *buf, int len);
+    /* back->send() returns the current amount of buffered data. */
+    int (*send) (char *buf, int len);
+    /* back->sendbuffer() does the same thing but without attempting a send */
+    int (*sendbuffer) (void);
     void (*size) (void);
     void (*special) (Telnet_Special code);
-     Socket(*socket) (void);
+    Socket(*socket) (void);
     int (*sendok) (void);
     int (*ldisc) (int);
+    /*
+     * back->unthrottle() tells the back end that the front end
+     * buffer is clearing.
+     */
+    void (*unthrottle) (int);
     int default_port;
 } Backend;
 
@@ -436,7 +444,7 @@ void term_do_paste(void);
 void term_paste(void);
 void term_nopaste(void);
 int term_ldisc(int option);
-void from_backend(int is_stderr, char *data, int len);
+int from_backend(int is_stderr, char *data, int len);
 void logfopen(void);
 void logfclose(void);
 void term_copyall(void);

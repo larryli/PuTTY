@@ -195,14 +195,43 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 
 extern char *x11_init(Socket *, char *, void *);
 extern void x11_close(Socket);
-extern void x11_send(Socket, char *, int);
+extern int x11_send(Socket, char *, int);
 extern void x11_invent_auth(char *, int, char *, int);
+extern void x11_unthrottle(Socket s);
+extern void x11_override_throttle(Socket s, int enable);
 
 extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
 extern char *pfd_addforward(char *desthost, int destport, int port);
 extern void pfd_close(Socket s);
-extern void pfd_send(Socket s, char *data, int len);
+extern int pfd_send(Socket s, char *data, int len);
 extern void pfd_confirm(Socket s);
+extern void pfd_unthrottle(Socket s);
+extern void pfd_override_throttle(Socket s, int enable);
+
+/*
+ * Buffer management constants. There are several of these for
+ * various different purposes:
+ * 
+ *  - SSH1_BUFFER_LIMIT is the amount of backlog that must build up
+ *    on a local data stream before we throttle the whole SSH
+ *    connection (in SSH1 only). Throttling the whole connection is
+ *    pretty drastic so we set this high in the hope it won't
+ *    happen very often.
+ * 
+ *  - SSH_MAX_BACKLOG is the amount of backlog that must build up
+ *    on the SSH connection itself before we defensively throttle
+ *    _all_ local data streams. This is pretty drastic too (though
+ *    thankfully unlikely in SSH2 since the window mechanism should
+ *    ensure that the server never has any need to throttle its end
+ *    of the connection), so we set this high as well.
+ * 
+ *  - OUR_V2_WINSIZE is the maximum window size we present on SSH2
+ *    channels.
+ */
+
+#define SSH1_BUFFER_LIMIT 32768
+#define SSH_MAX_BACKLOG 32768
+#define OUR_V2_WINSIZE 16384
 
 /*
  * Ciphers for SSH2. We miss out single-DES because it isn't
@@ -282,11 +311,16 @@ struct ssh_channel {
     unsigned remoteid, localid;
     int type;
     int closes;
-    struct ssh2_data_channel {
-	unsigned char *outbuffer;
-	unsigned outbuflen, outbufsize;
-	unsigned remwindow, remmaxpkt;
-    } v2;
+    union {
+	struct ssh1_data_channel {
+	    int throttling;
+	} v1;
+	struct ssh2_data_channel {
+	    bufchain outbuffer;
+	    unsigned remwindow, remmaxpkt;
+	    unsigned locwindow;
+	} v2;
+    } v;
     union {
 	struct ssh_agent_channel {
 	    unsigned char *message;
@@ -395,16 +429,22 @@ static unsigned char *deferred_send_data = NULL;
 static int deferred_len = 0, deferred_size = 0;
 
 static int ssh_version;
+static int ssh1_throttle_count;
+static int ssh_overall_bufsize;
+static int ssh_throttled_all;
+static int ssh1_stdout_throttling;
 static void (*ssh_protocol) (unsigned char *in, int inlen, int ispkt);
 static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh_size(void);
 static void ssh_special(Telnet_Special);
-static void ssh2_try_send(struct ssh_channel *c);
+static int ssh2_try_send(struct ssh_channel *c);
 static void ssh2_add_channel_data(struct ssh_channel *c, char *buf,
 				  int len);
-
+static void ssh_throttle_all(int enable, int bufsize);
+static void ssh2_set_window(struct ssh_channel *c, unsigned newwin);
 static int (*s_rdpkt) (unsigned char **data, int *datalen);
+static int ssh_sendbuffer(void);
 
 static struct rdpkt1_state_tag {
     long len, pad, biglen, to_read;
@@ -936,9 +976,11 @@ static int s_wrpkt_prepare(void)
 
 static void s_wrpkt(void)
 {
-    int len;
+    int len, backlog;
     len = s_wrpkt_prepare();
-    sk_write(s, pktout.data, len);
+    backlog = sk_write(s, pktout.data, len);
+    if (backlog > SSH_MAX_BACKLOG)
+	ssh_throttle_all(1, backlog);
 }
 
 static void s_wrpkt_defer(void)
@@ -1244,8 +1286,12 @@ static int ssh2_pkt_construct(void)
  */
 static void ssh2_pkt_send(void)
 {
-    int len = ssh2_pkt_construct();
-    sk_write(s, pktout.data, len);
+    int len;
+    int backlog;
+    len = ssh2_pkt_construct();
+    backlog = sk_write(s, pktout.data, len);
+    if (backlog > SSH_MAX_BACKLOG)
+	ssh_throttle_all(1, backlog);
 }
 
 /*
@@ -1276,10 +1322,13 @@ static void ssh2_pkt_defer(void)
  */
 static void ssh_pkt_defersend(void)
 {
-    sk_write(s, deferred_send_data, deferred_len);
+    int backlog;
+    backlog = sk_write(s, deferred_send_data, deferred_len);
     deferred_len = deferred_size = 0;
     sfree(deferred_send_data);
     deferred_send_data = NULL;
+    if (backlog > SSH_MAX_BACKLOG)
+	ssh_throttle_all(1, backlog);
 }
 
 #if 0
@@ -1579,6 +1628,16 @@ static int ssh_receive(Plug plug, int urgent, char *data, int len)
     return 1;
 }
 
+static void ssh_sent(Plug plug, int bufsize)
+{
+    /*
+     * If the send backlog on the SSH socket itself clears, we
+     * should unthrottle the whole world if it was throttled.
+     */
+    if (bufsize < SSH_MAX_BACKLOG)
+	ssh_throttle_all(0, bufsize);
+}
+
 /*
  * Connect to specified host and port.
  * Returns an error message, or NULL on success.
@@ -1589,7 +1648,9 @@ static char *connect_to_host(char *host, int port, char **realhost)
 {
     static struct plug_function_table fn_table = {
 	ssh_closing,
-	ssh_receive
+	ssh_receive,
+	ssh_sent,
+	NULL
     }, *fn_table_ptr = &fn_table;
 
     SockAddr addr;
@@ -1644,6 +1705,56 @@ static char *connect_to_host(char *host, int port, char **realhost)
 #endif
 
     return NULL;
+}
+
+/*
+ * Throttle or unthrottle the SSH connection.
+ */
+static void ssh1_throttle(int adjust)
+{
+    int old_count = ssh1_throttle_count;
+    ssh1_throttle_count += adjust;
+    assert(ssh1_throttle_count >= 0);
+    if (ssh1_throttle_count && !old_count) {
+	sk_set_frozen(s, 1);
+    } else if (!ssh1_throttle_count && old_count) {
+	sk_set_frozen(s, 0);
+    }
+}
+
+/*
+ * Throttle or unthrottle _all_ local data streams (for when sends
+ * on the SSH connection itself back up).
+ */
+static void ssh_throttle_all(int enable, int bufsize)
+{
+    int i;
+    struct ssh_channel *c;
+
+    if (enable == ssh_throttled_all)
+	return;
+    ssh_throttled_all = enable;
+    ssh_overall_bufsize = bufsize;
+    if (!ssh_channels)
+	return;
+    for (i = 0; NULL != (c = index234(ssh_channels, i)); i++) {
+	switch (c->type) {
+	  case CHAN_MAINSESSION:
+	    /*
+	     * This is treated separately, outside the switch.
+	     */
+	    break;
+	  case CHAN_X11:
+	    x11_override_throttle(c->u.x11.s, enable);
+	    break;
+	  case CHAN_AGENT:
+	    /* Agent channels require no buffer management. */
+	    break;
+	  case CHAN_SOCKDATA:
+	    pfd_override_throttle(c->u.x11.s, enable);
+	    break;
+	}
+    }
 }
 
 /*
@@ -2346,15 +2457,35 @@ void sshfwd_close(struct ssh_channel *c)
     }
 }
 
-void sshfwd_write(struct ssh_channel *c, char *buf, int len)
+int sshfwd_write(struct ssh_channel *c, char *buf, int len)
 {
     if (ssh_version == 1) {
 	send_packet(SSH1_MSG_CHANNEL_DATA,
 		    PKT_INT, c->remoteid,
 		    PKT_INT, len, PKT_DATA, buf, len, PKT_END);
+	/*
+	 * In SSH1 we can return 0 here - implying that forwarded
+	 * connections are never individually throttled - because
+	 * the only circumstance that can cause throttling will be
+	 * the whole SSH connection backing up, in which case
+	 * _everything_ will be throttled as a whole.
+	 */
+	return 0;
     } else {
 	ssh2_add_channel_data(c, buf, len);
-	ssh2_try_send(c);
+	return ssh2_try_send(c);
+    }
+}
+
+void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
+{
+    if (ssh_version == 1) {
+	if (c->v.v1.throttling && bufsize < SSH1_BUFFER_LIMIT) {
+	    c->v.v1.throttling = 0;
+	    ssh1_throttle(-1);
+	}
+    } else {
+	ssh2_set_window(c, OUR_V2_WINSIZE - bufsize);
     }
 }
 
@@ -2540,8 +2671,13 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 	    if (pktin.type == SSH1_SMSG_STDOUT_DATA ||
 		pktin.type == SSH1_SMSG_STDERR_DATA) {
 		long len = GET_32BIT(pktin.body);
-		from_backend(pktin.type == SSH1_SMSG_STDERR_DATA,
-			     pktin.body + 4, len);
+		int bufsize =
+		    from_backend(pktin.type == SSH1_SMSG_STDERR_DATA,
+				 pktin.body + 4, len);
+		if (bufsize > SSH1_BUFFER_LIMIT) {
+		    ssh1_stdout_throttling = 1;
+		    ssh1_throttle(+1);
+		}
 	    } else if (pktin.type == SSH1_MSG_DISCONNECT) {
 		ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
@@ -2572,6 +2708,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			c->remoteid = GET_32BIT(pktin.body);
 			c->localid = alloc_channel_id();
 			c->closes = 0;
+			c->v.v1.throttling = 0;
 			c->type = CHAN_X11;	/* identify channel type */
 			add234(ssh_channels, c);
 			send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
@@ -2594,6 +2731,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		    c->remoteid = GET_32BIT(pktin.body);
 		    c->localid = alloc_channel_id();
 		    c->closes = 0;
+		    c->v.v1.throttling = 0;
 		    c->type = CHAN_AGENT;	/* identify channel type */
 		    c->u.a.lensofar = 0;
 		    add234(ssh_channels, c);
@@ -2646,6 +2784,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			c->remoteid = GET_32BIT(pktin.body);
 			c->localid = alloc_channel_id();
 			c->closes = 0;
+			c->v.v1.throttling = 0;
 			c->type = CHAN_SOCKDATA;	/* identify channel type */
 			add234(ssh_channels, c);
 			send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
@@ -2706,12 +2845,13 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		struct ssh_channel *c;
 		c = find234(ssh_channels, &i, ssh_channelfind);
 		if (c) {
+		    int bufsize;
 		    switch (c->type) {
 		      case CHAN_X11:
-			x11_send(c->u.x11.s, p, len);
+			bufsize = x11_send(c->u.x11.s, p, len);
 			break;
 		      case CHAN_SOCKDATA:
-			pfd_send(c->u.pfd.s, p, len);
+			bufsize = pfd_send(c->u.pfd.s, p, len);
 			break;
 		      case CHAN_AGENT:
 			/* Data for an agent message. Buffer it. */
@@ -2764,7 +2904,12 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 				c->u.a.lensofar = 0;
 			    }
 			}
+			bufsize = 0;   /* agent channels never back up */
 			break;
+		    }
+		    if (bufsize > SSH1_BUFFER_LIMIT) {
+			c->v.v1.throttling = 1;
+			ssh1_throttle(+1);
 		    }
 		}
 	    } else if (pktin.type == SSH1_SMSG_SUCCESS) {
@@ -3272,33 +3417,49 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 static void ssh2_add_channel_data(struct ssh_channel *c, char *buf,
 				  int len)
 {
-    if (c->v2.outbufsize < c->v2.outbuflen + len) {
-	c->v2.outbufsize = c->v2.outbuflen + len + 1024;
-	c->v2.outbuffer = srealloc(c->v2.outbuffer, c->v2.outbufsize);
-    }
-    memcpy(c->v2.outbuffer + c->v2.outbuflen, buf, len);
-    c->v2.outbuflen += len;
+    bufchain_add(&c->v.v2.outbuffer, buf, len);
 }
 
 /*
  * Attempt to send data on an SSH2 channel.
  */
-static void ssh2_try_send(struct ssh_channel *c)
+static int ssh2_try_send(struct ssh_channel *c)
 {
-    while (c->v2.remwindow > 0 && c->v2.outbuflen > 0) {
-	unsigned len = c->v2.remwindow;
-	if (len > c->v2.outbuflen)
-	    len = c->v2.outbuflen;
-	if (len > c->v2.remmaxpkt)
-	    len = c->v2.remmaxpkt;
+    while (c->v.v2.remwindow > 0 && bufchain_size(&c->v.v2.outbuffer) > 0) {
+	int len;
+	void *data;
+	bufchain_prefix(&c->v.v2.outbuffer, &data, &len);
+	if ((unsigned)len > c->v.v2.remwindow)
+	    len = c->v.v2.remwindow;
+	if ((unsigned)len > c->v.v2.remmaxpkt)
+	    len = c->v.v2.remmaxpkt;
 	ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
 	ssh2_pkt_adduint32(c->remoteid);
 	ssh2_pkt_addstring_start();
-	ssh2_pkt_addstring_data(c->v2.outbuffer, len);
+	ssh2_pkt_addstring_data(data, len);
 	ssh2_pkt_send();
-	c->v2.outbuflen -= len;
-	memmove(c->v2.outbuffer, c->v2.outbuffer + len, c->v2.outbuflen);
-	c->v2.remwindow -= len;
+	bufchain_consume(&c->v.v2.outbuffer, len);
+	c->v.v2.remwindow -= len;
+    }
+
+    /*
+     * After having sent as much data as we can, return the amount
+     * still buffered.
+     */
+    return bufchain_size(&c->v.v2.outbuffer);
+}
+
+/*
+ * Potentially enlarge the window on an SSH2 channel.
+ */
+static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
+{
+    if (newwin > c->v.v2.locwindow) {
+	ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+	ssh2_pkt_adduint32(c->remoteid);
+	ssh2_pkt_adduint32(newwin - c->v.v2.locwindow);
+	ssh2_pkt_send();
+	c->v.v2.locwindow = newwin;
     }
 }
 
@@ -4047,7 +4208,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
     ssh2_pkt_addstring("session");
     ssh2_pkt_adduint32(mainchan->localid);
-    ssh2_pkt_adduint32(0x8000UL);      /* our window size */
+    mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
+    ssh2_pkt_adduint32(mainchan->v.v2.locwindow);      /* our window size */
     ssh2_pkt_adduint32(0x4000UL);      /* our max pkt size */
     ssh2_pkt_send();
     crWaitUntilV(ispkt);
@@ -4063,10 +4225,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     mainchan->remoteid = ssh2_pkt_getuint32();
     mainchan->type = CHAN_MAINSESSION;
     mainchan->closes = 0;
-    mainchan->v2.remwindow = ssh2_pkt_getuint32();
-    mainchan->v2.remmaxpkt = ssh2_pkt_getuint32();
-    mainchan->v2.outbuffer = NULL;
-    mainchan->v2.outbuflen = mainchan->v2.outbufsize = 0;
+    mainchan->v.v2.remwindow = ssh2_pkt_getuint32();
+    mainchan->v.v2.remmaxpkt = ssh2_pkt_getuint32();
+    bufchain_init(&mainchan->v.v2.outbuffer);
     add234(ssh_channels, mainchan);
     logevent("Opened channel for session");
 
@@ -4095,7 +4256,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c = find234(ssh_channels, &i, ssh_channelfind);
 		if (!c)
 		    continue;	       /* nonexistent channel */
-		c->v2.remwindow += ssh2_pkt_getuint32();
+		c->v.v2.remwindow += ssh2_pkt_getuint32();
 	    }
 	} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 
@@ -4183,7 +4344,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 				c = find234(ssh_channels, &i, ssh_channelfind);
 				if (!c)
 				    continue;/* nonexistent channel */
-				c->v2.remwindow += ssh2_pkt_getuint32();
+				c->v.v2.remwindow += ssh2_pkt_getuint32();
 			    }
 			} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 
@@ -4221,7 +4382,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c = find234(ssh_channels, &i, ssh_channelfind);
 		if (!c)
 		    continue;	       /* nonexistent channel */
-		c->v2.remwindow += ssh2_pkt_getuint32();
+		c->v.v2.remwindow += ssh2_pkt_getuint32();
 	    }
 	} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 
@@ -4264,7 +4425,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c = find234(ssh_channels, &i, ssh_channelfind);
 		if (!c)
 		    continue;	       /* nonexistent channel */
-		c->v2.remwindow += ssh2_pkt_getuint32();
+		c->v.v2.remwindow += ssh2_pkt_getuint32();
 	    }
 	} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 
@@ -4308,7 +4469,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    c = find234(ssh_channels, &i, ssh_channelfind);
 	    if (!c)
 		continue;	       /* nonexistent channel */
-	    c->v2.remwindow += ssh2_pkt_getuint32();
+	    c->v.v2.remwindow += ssh2_pkt_getuint32();
 	}
     } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
     if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
@@ -4352,17 +4513,20 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    continue;	       /* extended but not stderr */
 		ssh2_pkt_getstring(&data, &length);
 		if (data) {
+		    int bufsize;
+		    c->v.v2.locwindow -= length;
 		    switch (c->type) {
 		      case CHAN_MAINSESSION:
-			from_backend(pktin.type ==
-				     SSH2_MSG_CHANNEL_EXTENDED_DATA, data,
-				     length);
+			bufsize =
+			    from_backend(pktin.type ==
+					 SSH2_MSG_CHANNEL_EXTENDED_DATA,
+					 data, length);
 			break;
 		      case CHAN_X11:
-			x11_send(c->u.x11.s, data, length);
+			bufsize = x11_send(c->u.x11.s, data, length);
 			break;
 		      case CHAN_SOCKDATA:
-			pfd_send(c->u.pfd.s, data, length);
+			bufsize = pfd_send(c->u.pfd.s, data, length);
 			break;
 		      case CHAN_AGENT:
 			while (length > 0) {
@@ -4412,17 +4576,15 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 				c->u.a.lensofar = 0;
 			    }
 			}
+			bufsize = 0;
 			break;
 		    }
 		    /*
-		     * Enlarge the window again at the remote
-		     * side, just in case it ever runs down and
-		     * they fail to send us any more data.
+		     * If we are not buffering too much data,
+		     * enlarge the window again at the remote side.
 		     */
-		    ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
-		    ssh2_pkt_adduint32(c->remoteid);
-		    ssh2_pkt_adduint32(length);
-		    ssh2_pkt_send();
+		    if (bufsize < OUR_V2_WINSIZE)
+			ssh2_set_window(c, OUR_V2_WINSIZE - bufsize);
 		}
 	    } else if (pktin.type == SSH2_MSG_DISCONNECT) {
 		ssh_state = SSH_STATE_CLOSED;
@@ -4475,7 +4637,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    break;
 		}
 		del234(ssh_channels, c);
-		sfree(c->v2.outbuffer);
+		bufchain_clear(&c->v.v2.outbuffer);
 		sfree(c);
 
 		/*
@@ -4498,7 +4660,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c = find234(ssh_channels, &i, ssh_channelfind);
 		if (!c)
 		    continue;	       /* nonexistent channel */
-		c->v2.remwindow += ssh2_pkt_getuint32();
+		c->v.v2.remwindow += ssh2_pkt_getuint32();
 		try_send = TRUE;
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
 		unsigned i = ssh2_pkt_getuint32();
@@ -4511,10 +4673,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c->remoteid = ssh2_pkt_getuint32();
 		c->type = CHAN_SOCKDATA;
 		c->closes = 0;
-		c->v2.remwindow = ssh2_pkt_getuint32();
-		c->v2.remmaxpkt = ssh2_pkt_getuint32();
-		c->v2.outbuffer = NULL;
-		c->v2.outbuflen = c->v2.outbufsize = 0;
+		c->v.v2.remwindow = ssh2_pkt_getuint32();
+		c->v.v2.remmaxpkt = ssh2_pkt_getuint32();
+		bufchain_init(&c->v.v2.outbuffer);
 		pfd_confirm(c->u.pfd.s);
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
@@ -4588,15 +4749,15 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		} else {
 		    c->localid = alloc_channel_id();
 		    c->closes = 0;
-		    c->v2.remwindow = winsize;
-		    c->v2.remmaxpkt = pktsize;
-		    c->v2.outbuffer = NULL;
-		    c->v2.outbuflen = c->v2.outbufsize = 0;
+		    c->v.v2.locwindow = OUR_V2_WINSIZE;
+		    c->v.v2.remwindow = winsize;
+		    c->v.v2.remmaxpkt = pktsize;
+		    bufchain_init(&c->v.v2.outbuffer);
 		    add234(ssh_channels, c);
 		    ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
 		    ssh2_pkt_adduint32(c->remoteid);
 		    ssh2_pkt_adduint32(c->localid);
-		    ssh2_pkt_adduint32(0x8000UL);	/* our window size */
+		    ssh2_pkt_adduint32(c->v.v2.locwindow);
 		    ssh2_pkt_adduint32(0x4000UL);	/* our max pkt size */
 		    ssh2_pkt_send();
 		}
@@ -4617,8 +4778,27 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    /*
 	     * Try to send data on all channels if we can.
 	     */
-	    for (i = 0; NULL != (c = index234(ssh_channels, i)); i++)
-		ssh2_try_send(c);
+	    for (i = 0; NULL != (c = index234(ssh_channels, i)); i++) {
+		int bufsize = ssh2_try_send(c);
+		if (bufsize == 0) {
+		    switch (c->type) {
+		      case CHAN_MAINSESSION:
+			/* stdin need not receive an unthrottle
+			 * notification since it will be polled */
+			break;
+		      case CHAN_X11:
+			x11_unthrottle(c->u.x11.s);
+			break;
+		      case CHAN_AGENT:
+			/* agent sockets are request/response and need no
+			 * buffer management */
+			break;
+		      case CHAN_SOCKDATA:
+			pfd_unthrottle(c->u.pfd.s);
+			break;
+		    }
+		}
+	    }
 	}
     }
 
@@ -4652,6 +4832,8 @@ static char *ssh_init(char *host, int port, char **realhost)
     ssh_send_ok = 0;
     ssh_editing = 0;
     ssh_echoing = 0;
+    ssh1_throttle_count = 0;
+    ssh_overall_bufsize = 0;
 
     p = connect_to_host(host, port, realhost);
     if (p != NULL)
@@ -4663,12 +4845,44 @@ static char *ssh_init(char *host, int port, char **realhost)
 /*
  * Called to send data down the Telnet connection.
  */
-static void ssh_send(char *buf, int len)
+static int ssh_send(char *buf, int len)
 {
     if (s == NULL || ssh_protocol == NULL)
-	return;
+	return 0;
 
     ssh_protocol(buf, len, 0);
+
+    return ssh_sendbuffer();
+}
+
+/*
+ * Called to query the current amount of buffered stdin data.
+ */
+static int ssh_sendbuffer(void)
+{
+    int override_value;
+
+    if (s == NULL || ssh_protocol == NULL)
+	return 0;
+
+    /*
+     * If the SSH socket itself has backed up, add the total backup
+     * size on that to any individual buffer on the stdin channel.
+     */
+    override_value = 0;
+    if (ssh_throttled_all)
+	override_value = ssh_overall_bufsize;
+
+    if (ssh_version == 1) {
+	return override_value;
+    } else if (ssh_version == 2) {
+	if (!mainchan || mainchan->closes > 0)
+	    return override_value;
+	else
+	    return override_value + bufchain_size(&mainchan->v.v2.outbuffer);
+    }
+
+    return 0;
 }
 
 /*
@@ -4762,6 +4976,23 @@ void *new_sock_channel(Socket s)
     return c;
 }
 
+/*
+ * This is called when stdout/stderr (the entity to which
+ * from_backend sends data) manages to clear some backlog.
+ */
+void ssh_unthrottle(int bufsize)
+{
+    if (ssh_version == 1) {
+	if (bufsize < SSH1_BUFFER_LIMIT) {
+	    ssh1_stdout_throttling = 0;
+	    ssh1_throttle(-1);
+	}
+    } else {
+	if (mainchan && mainchan->closes == 0)
+	    ssh2_set_window(mainchan, OUR_V2_WINSIZE - bufsize);
+    }
+}
+
 void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 {
     struct ssh_channel *c = (struct ssh_channel *)channel;
@@ -4781,7 +5012,8 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 	ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring("direct-tcpip");
 	ssh2_pkt_adduint32(c->localid);
-	ssh2_pkt_adduint32(0x8000UL);      /* our window size */
+	c->v.v2.locwindow = OUR_V2_WINSIZE;
+	ssh2_pkt_adduint32(c->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(0x4000UL);      /* our max pkt size */
 	ssh2_pkt_addstring(hostname);
 	ssh2_pkt_adduint32(port);
@@ -4820,10 +5052,12 @@ static int ssh_ldisc(int option)
 Backend ssh_backend = {
     ssh_init,
     ssh_send,
+    ssh_sendbuffer,
     ssh_size,
     ssh_special,
     ssh_socket,
     ssh_sendok,
     ssh_ldisc,
+    ssh_unthrottle,
     22
 };

@@ -1,7 +1,103 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "putty.h"
+
+/*
+ * Generic routines to deal with send buffers: a linked list of
+ * smallish blocks, with the operations
+ * 
+ *  - add an arbitrary amount of data to the end of the list
+ *  - remove the first N bytes from the list
+ *  - return a (pointer,length) pair giving some initial data in
+ *    the list, suitable for passing to a send or write system
+ *    call
+ *  - return the current size of the buffer chain in bytes
+ */
+
+#define BUFFER_GRANULE  512
+
+struct bufchain_granule {
+    struct bufchain_granule *next;
+    int buflen, bufpos;
+    char buf[BUFFER_GRANULE];
+};
+
+void bufchain_init(bufchain *ch)
+{
+    ch->head = ch->tail = NULL;
+    ch->buffersize = 0;
+}
+
+void bufchain_clear(bufchain *ch)
+{
+    struct bufchain_granule *b;
+    while (ch->head) {
+	b = ch->head;
+	ch->head = ch->head->next;
+	sfree(b);
+    }
+    ch->tail = NULL;
+    ch->buffersize = 0;
+}
+
+int bufchain_size(bufchain *ch)
+{
+    return ch->buffersize;
+}
+
+void bufchain_add(bufchain *ch, void *data, int len)
+{
+    char *buf = (char *)data;
+
+    ch->buffersize += len;
+
+    if (ch->tail && ch->tail->buflen < BUFFER_GRANULE) {
+	int copylen = min(len, BUFFER_GRANULE - ch->tail->buflen);
+	memcpy(ch->tail->buf + ch->tail->buflen, buf, copylen);
+	buf += copylen;
+	len -= copylen;
+	ch->tail->buflen += copylen;
+    }
+    while (len > 0) {
+	int grainlen = min(len, BUFFER_GRANULE);
+	struct bufchain_granule *newbuf;
+	newbuf = smalloc(sizeof(struct bufchain_granule));
+	newbuf->bufpos = 0;
+	newbuf->buflen = grainlen;
+	memcpy(newbuf->buf, buf, grainlen);
+	buf += grainlen;
+	len -= grainlen;
+	if (ch->tail)
+	    ch->tail->next = newbuf;
+	else
+	    ch->head = ch->tail = newbuf;
+	newbuf->next = NULL;
+	ch->tail = newbuf;
+    }
+}
+
+void bufchain_consume(bufchain *ch, int len)
+{
+    assert(ch->buffersize >= len);
+    assert(ch->head != NULL && ch->head->bufpos + len <= ch->head->buflen);
+    ch->head->bufpos += len;
+    ch->buffersize -= len;
+    if (ch->head->bufpos >= ch->head->buflen) {
+	struct bufchain_granule *tmp = ch->head;
+	ch->head = tmp->next;
+	sfree(tmp);
+	if (!ch->head)
+	    ch->tail = NULL;
+    }
+}
+
+void bufchain_prefix(bufchain *ch, void **data, int *len)
+{
+    *len = ch->head->buflen - ch->head->bufpos;
+    *data = ch->head->buf + ch->head->bufpos;
+}
 
 /*
  * My own versions of malloc, realloc and free. Because I want

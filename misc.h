@@ -3,6 +3,18 @@
 
 #include "puttymem.h"
 
+struct bufchain_granule;
+typedef struct bufchain_tag {
+    struct bufchain_granule *head, *tail;
+    int buffersize;		       /* current amount of buffered data */
+} bufchain;
+
+void bufchain_init(bufchain *ch);
+void bufchain_clear(bufchain *ch);
+int bufchain_size(bufchain *ch);
+void bufchain_add(bufchain *ch, void *data, int len);
+void bufchain_prefix(bufchain *ch, void **data, int *len);
+void bufchain_consume(bufchain *ch, int len);
 
 /*
  * Debugging functions.

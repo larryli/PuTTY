@@ -11,13 +11,17 @@
 #define TRUE 1
 #endif
 
+#define RAW_MAX_BACKLOG 4096
+
 static Socket s = NULL;
+static int raw_bufsize;
 
 static void raw_size(void);
 
 static void c_write(char *buf, int len)
 {
-    from_backend(0, buf, len);
+    int backlog = from_backend(0, buf, len);
+    sk_set_frozen(s, backlog > RAW_MAX_BACKLOG);
 }
 
 static int raw_closing(Plug plug, char *error_msg, int error_code,
@@ -83,13 +87,23 @@ static char *raw_init(char *host, int port, char **realhost)
 /*
  * Called to send data down the raw connection.
  */
-static void raw_send(char *buf, int len)
+static int raw_send(char *buf, int len)
 {
 
     if (s == NULL)
 	return;
 
-    sk_write(s, buf, len);
+    raw_bufsize = sk_write(s, buf, len);
+
+    return raw_bufsize;
+}
+
+/*
+ * Called to query the current socket sendability status.
+ */
+static int raw_sendbuffer(void)
+{
+    return raw_bufsize;
 }
 
 /*
@@ -120,6 +134,11 @@ static int raw_sendok(void)
     return 1;
 }
 
+static void raw_unthrottle(int backlog)
+{
+    sk_set_frozen(s, backlog > RAW_MAX_BACKLOG);
+}
+
 static int raw_ldisc(int option)
 {
     if (option == LD_EDIT || option == LD_ECHO)
@@ -130,10 +149,12 @@ static int raw_ldisc(int option)
 Backend raw_backend = {
     raw_init,
     raw_send,
+    raw_sendbuffer,
     raw_size,
     raw_special,
     raw_socket,
     raw_sendok,
     raw_ldisc,
+    raw_unthrottle,
     1
 };

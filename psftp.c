@@ -16,6 +16,13 @@
 #include "sftp.h"
 #include "int64.h"
 
+/*
+ * Since SFTP is a request-response oriented protocol, it requires
+ * no buffer management: when we send data, we stop and wait for an
+ * acknowledgement _anyway_, and so we can't possibly overfill our
+ * send buffer.
+ */
+
 /* ----------------------------------------------------------------------
  * String handling routines.
  */
@@ -912,7 +919,7 @@ static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-void from_backend(int is_stderr, char *data, int datalen)
+int from_backend(int is_stderr, char *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
@@ -923,14 +930,14 @@ void from_backend(int is_stderr, char *data, int datalen)
      */
     if (is_stderr) {
 	fwrite(data, 1, len, stderr);
-	return;
+	return 0;
     }
 
     /*
      * If this is before the real session begins, just return.
      */
     if (!outptr)
-	return;
+	return 0;
 
     if (outlen > 0) {
 	unsigned used = outlen;
@@ -954,6 +961,8 @@ void from_backend(int is_stderr, char *data, int datalen)
 	memcpy(pending + pendlen, p, len);
 	pendlen += len;
     }
+
+    return 0;
 }
 int sftp_recvdata(char *buf, int len)
 {

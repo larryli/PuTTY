@@ -24,8 +24,8 @@ struct socket_function_table {
     /* if p is NULL, it doesn't change the plug */
     /* but it does return the one it's using */
     void (*close) (Socket s);
-    void (*write) (Socket s, char *data, int len);
-    void (*write_oob) (Socket s, char *data, int len);
+    int (*write) (Socket s, char *data, int len);
+    int (*write_oob) (Socket s, char *data, int len);
     void (*flush) (Socket s);
     /* ignored by tcp, but vital for ssl */
     char *(*socket_error) (Socket s);
@@ -47,6 +47,12 @@ struct plug_function_table {
      * 
      *  - urgent==2. `data' points to `len' bytes of data,
      *    the first of which was the one at the Urgent mark.
+     */
+    void (*sent) (Plug p, int bufsize);
+    /*
+     * The `sent' function is called when the pending send backlog
+     * on a socket is cleared or partially cleared. The new backlog
+     * size is passed in the `bufsize' parameter.
      */
     int (*accepting)(Plug p, struct sockaddr *addr, void *sock);
     /*
@@ -76,6 +82,7 @@ Socket sk_register(void *sock, Plug plug);
 #ifdef DEFINE_PLUG_METHOD_MACROS
 #define plug_closing(p,msg,code,callback) (((*p)->closing) (p, msg, code, callback))
 #define plug_receive(p,urgent,buf,len) (((*p)->receive) (p, urgent, buf, len))
+#define plug_sent(p,bufsize) (((*p)->sent) (p, bufsize))
 #define plug_accepting(p, addr, sock) (((*p)->accepting)(p, addr, sock))
 #endif
 
@@ -99,10 +106,20 @@ char *sk_addr_error(SockAddr addr);
 
 /*
  * Set the `frozen' flag on a socket. A frozen socket is one in
- * which all sends are buffered and receives are ignored. This is
- * so that (for example) a new port-forwarding can sit in limbo
- * until its associated SSH channel is ready, and then pending data
- * can be sent on.
+ * which all READABLE notifications are ignored, so that data is
+ * not accepted from the peer until the socket is unfrozen. This
+ * exists for two purposes:
+ * 
+ *  - Port forwarding: when a local listening port receives a
+ *    connection, we do not want to receive data from the new
+ *    socket until we have somewhere to send it. Hence, we freeze
+ *    the socket until its associated SSH channel is ready; then we
+ *    unfreeze it and pending data is delivered.
+ * 
+ *  - Socket buffering: if an SSH channel (or the whole connection)
+ *    backs up or presents a zero window, we must freeze the
+ *    associated local socket in order to avoid unbounded buffer
+ *    growth.
  */
 void sk_set_frozen(Socket sock, int is_frozen);
 

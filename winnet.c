@@ -48,13 +48,12 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 #include "tree234.h"
-
-#define BUFFER_GRANULE  512
 
 struct Socket_tag {
     struct socket_function_table *fn;
@@ -63,9 +62,12 @@ struct Socket_tag {
     SOCKET s;
     Plug plug;
     void *private_ptr;
-    struct buffer *head, *tail;
+    bufchain output_data;
     int writable;
-    int frozen; /* this tells the write stuff not to even bother trying to send at this point */
+    int frozen; /* this causes readability notifications to be ignored */
+    int frozen_readable; /* this means we missed at least one readability
+			  * notification while we were frozen */
+    char oobdata[1];
     int sending_oob;
     int oobinline;
 };
@@ -88,12 +90,6 @@ struct SockAddr_tag {
 #ifdef IPV6
     struct addrinfo *ai;	       /* Address IPv6 style. */
 #endif
-};
-
-struct buffer {
-    struct buffer *next;
-    int buflen, bufpos;
-    char buf[BUFFER_GRANULE];
 };
 
 static tree234 *sktree;
@@ -365,8 +361,8 @@ static void sk_tcp_flush(Socket s)
 }
 
 static void sk_tcp_close(Socket s);
-static void sk_tcp_write(Socket s, char *data, int len);
-static void sk_tcp_write_oob(Socket s, char *data, int len);
+static int sk_tcp_write(Socket s, char *data, int len);
+static int sk_tcp_write_oob(Socket s, char *data, int len);
 static char *sk_tcp_socket_error(Socket s);
 
 extern char *do_select(SOCKET skt, int startup);
@@ -393,10 +389,11 @@ Socket sk_register(void *sock, Plug plug)
     ret->fn = &fn_table;
     ret->error = NULL;
     ret->plug = plug;
-    ret->head = ret->tail = NULL;
+    bufchain_init(&ret->output_data);
     ret->writable = 1;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 1;
+    ret->frozen_readable = 0;
 
     ret->s = (SOCKET)sock;
 
@@ -450,10 +447,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->fn = &fn_table;
     ret->error = NULL;
     ret->plug = plug;
-    ret->head = ret->tail = NULL;
+    bufchain_init(&ret->output_data);
     ret->writable = 1;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 0;
+    ret->frozen_readable = 0;
 
     /*
      * Open socket.
@@ -601,10 +599,11 @@ Socket sk_newlistenner(int port, Plug plug)
     ret->fn = &fn_table;
     ret->error = NULL;
     ret->plug = plug;
-    ret->head = ret->tail = NULL;
+    bufchain_init(&ret->output_data);
     ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 0;
+    ret->frozen_readable = 0;
 
     /*
      * Open socket.
@@ -694,22 +693,22 @@ static void sk_tcp_close(Socket sock)
  */
 void try_send(Actual_Socket s)
 {
-    if (s->frozen) return;
-    while (s->head) {
+    while (s->sending_oob || bufchain_size(&s->output_data) > 0) {
 	int nsent;
 	DWORD err;
+	void *data;
 	int len, urgentflag;
 
 	if (s->sending_oob) {
 	    urgentflag = MSG_OOB;
 	    len = s->sending_oob;
+	    data = &s->oobdata;
 	} else {
 	    urgentflag = 0;
-	    len = s->head->buflen - s->head->bufpos;
+	    bufchain_prefix(&s->output_data, &data, &len);
 	}
 
-	nsent =
-	    send(s->s, s->head->buf + s->head->bufpos, len, urgentflag);
+	nsent = send(s->s, data, len, urgentflag);
 	noise_ultralight(nsent);
 	if (nsent <= 0) {
 	    err = (nsent < 0 ? WSAGetLastError() : 0);
@@ -742,83 +741,48 @@ void try_send(Actual_Socket s)
 		fatalbox(winsock_error_string(err));
 	    }
 	} else {
-	    s->head->bufpos += nsent;
-	    if (s->sending_oob)
-		s->sending_oob -= nsent;
-	    if (s->head->bufpos >= s->head->buflen) {
-		struct buffer *tmp = s->head;
-		s->head = tmp->next;
-		sfree(tmp);
-		if (!s->head)
-		    s->tail = NULL;
+	    if (s->sending_oob) {
+		if (nsent < len) {
+		    memmove(s->oobdata, s->oobdata+nsent, len-nsent);
+		    s->sending_oob = len - nsent;
+		} else {
+		    s->sending_oob = 0;
+		}
+	    } else {
+		bufchain_consume(&s->output_data, nsent);
 	    }
 	}
     }
 }
 
-static void sk_tcp_write(Socket sock, char *buf, int len)
+static int sk_tcp_write(Socket sock, char *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
 
     /*
      * Add the data to the buffer list on the socket.
      */
-    if (s->tail && s->tail->buflen < BUFFER_GRANULE) {
-	int copylen = min(len, BUFFER_GRANULE - s->tail->buflen);
-	memcpy(s->tail->buf + s->tail->buflen, buf, copylen);
-	buf += copylen;
-	len -= copylen;
-	s->tail->buflen += copylen;
-    }
-    while (len > 0) {
-	int grainlen = min(len, BUFFER_GRANULE);
-	struct buffer *newbuf;
-	newbuf = smalloc(sizeof(struct buffer));
-	newbuf->bufpos = 0;
-	newbuf->buflen = grainlen;
-	memcpy(newbuf->buf, buf, grainlen);
-	buf += grainlen;
-	len -= grainlen;
-	if (s->tail)
-	    s->tail->next = newbuf;
-	else
-	    s->head = s->tail = newbuf;
-	newbuf->next = NULL;
-	s->tail = newbuf;
-    }
+    bufchain_add(&s->output_data, buf, len);
 
     /*
      * Now try sending from the start of the buffer list.
      */
     if (s->writable)
 	try_send(s);
+
+    return bufchain_size(&s->output_data);
 }
 
-static void sk_tcp_write_oob(Socket sock, char *buf, int len)
+static int sk_tcp_write_oob(Socket sock, char *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
 
     /*
      * Replace the buffer list on the socket with the data.
      */
-    if (!s->head) {
-	s->head = smalloc(sizeof(struct buffer));
-    } else {
-	struct buffer *walk = s->head->next;
-	while (walk) {
-	    struct buffer *tmp = walk;
-	    walk = tmp->next;
-	    sfree(tmp);
-	}
-    }
-    s->head->next = NULL;
-    s->tail = s->head;
-    s->head->buflen = len;
-    memcpy(s->head->buf, buf, len);
-
-    /*
-     * Set the Urgent marker.
-     */
+    bufchain_clear(&s->output_data);
+    assert(len <= sizeof(s->oobdata));
+    memcpy(s->oobdata, buf, len);
     s->sending_oob = len;
 
     /*
@@ -826,6 +790,8 @@ static void sk_tcp_write_oob(Socket sock, char *buf, int len)
      */
     if (s->writable)
 	try_send(s);
+
+    return s->sending_oob;
 }
 
 int select_result(WPARAM wParam, LPARAM lParam)
@@ -853,10 +819,11 @@ int select_result(WPARAM wParam, LPARAM lParam)
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
-
 	/* In the case the socket is still frozen, we don't even bother */
-	if (s->frozen)
+	if (s->frozen) {
+	    s->frozen_readable = 1;
 	    break;
+	}
 
 	/*
 	 * We have received data on the socket. For an oobinline
@@ -911,8 +878,15 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	}
 	break;
       case FD_WRITE:
-	s->writable = 1;
-	try_send(s);
+	{
+	    int bufsize_before, bufsize_after;
+	    s->writable = 1;
+	    bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
+	    try_send(s);
+	    bufsize_after = s->sending_oob + bufchain_size(&s->output_data);
+	    if (bufsize_after < bufsize_before)
+		plug_sent(s->plug, bufsize_after);
+	}
 	break;
       case FD_CLOSE:
 	/* Signal a close on the socket. First read any outstanding data. */
@@ -992,11 +966,14 @@ static char *sk_tcp_socket_error(Socket sock)
 void sk_set_frozen(Socket sock, int is_frozen)
 {
     Actual_Socket s = (Actual_Socket) sock;
+    if (s->frozen == is_frozen)
+	return;
     s->frozen = is_frozen;
-    if (!is_frozen) {
+    if (!is_frozen && s->frozen_readable) {
 	char c;
 	recv(s->s, &c, 1, MSG_PEEK);
     }
+    s->frozen_readable = 0;
 }
 
 /*

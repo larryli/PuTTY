@@ -3281,13 +3281,33 @@ int term_ldisc(int option)
 /*
  * from_backend(), to get data from the backend for the terminal.
  */
-void from_backend(int is_stderr, char *data, int len)
+int from_backend(int is_stderr, char *data, int len)
 {
     while (len--) {
 	if (inbuf_head >= INBUF_SIZE)
 	    term_out();
 	inbuf[inbuf_head++] = *data++;
     }
+
+    /*
+     * We process all stdout/stderr data immediately we receive it,
+     * and don't return until it's all gone. Therefore, there's no
+     * reason at all to return anything other than zero from this
+     * function.
+     * 
+     * This is a slightly suboptimal way to deal with SSH2 - in
+     * principle, the window mechanism would allow us to continue
+     * to accept data on forwarded ports and X connections even
+     * while the terminal processing was going slowly - but we
+     * can't do the 100% right thing without moving the terminal
+     * processing into a separate thread, and that might hurt
+     * portability. So we manage stdout buffering the old SSH1 way:
+     * if the terminal processing goes slowly, the whole SSH
+     * connection stops accepting data until it's ready.
+     * 
+     * In practice, I can't imagine this causing serious trouble.
+     */
+    return 0;
 }
 
 /*

@@ -1863,6 +1863,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		len = TranslateKey(message, wParam, lParam, buf);
 		if (len == -1)
 		    return DefWindowProc(hwnd, message, wParam, lParam);
+
+		/*
+		 * We need not bother about stdin backlogs here,
+		 * because in GUI PuTTY we can't do anything about
+		 * it anyway; there's no means of asking Windows to
+		 * hold off on KEYDOWN messages. We _have_ to
+		 * buffer everything we're sent.
+		 */
 		ldisc_send(buf, len);
 
 		if (len > 0)
@@ -2998,6 +3006,15 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			    luni_send(&keybuf, 1);
 			} else {
 			    ch = (char) alt_sum;
+			    /*
+			     * We need not bother about stdin
+			     * backlogs here, because in GUI PuTTY
+			     * we can't do anything about it
+			     * anyway; there's no means of asking
+			     * Windows to hold off on KEYDOWN
+			     * messages. We _have_ to buffer
+			     * everything we're sent.
+			     */
 			    ldisc_send(&ch, 1);
 			}
 			alt_sum = 0;

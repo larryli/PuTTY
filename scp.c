@@ -75,6 +75,12 @@ static void tell_user(FILE * stream, char *fmt, ...);
 static void gui_update_stats(char *name, unsigned long size,
 			     int percentage, unsigned long elapsed);
 
+/*
+ * The maximum amount of queued data we accept before we stop and
+ * wait for the server to process some.
+ */
+#define MAX_SCP_BUFSIZE 16384
+
 void logevent(char *string)
 {
 }
@@ -309,7 +315,7 @@ static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-void from_backend(int is_stderr, char *data, int datalen)
+int from_backend(int is_stderr, char *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
@@ -320,7 +326,7 @@ void from_backend(int is_stderr, char *data, int datalen)
      */
     if (is_stderr) {
 	fwrite(data, 1, len, stderr);
-	return;
+	return 0;
     }
 
     inbuf_head = 0;
@@ -329,7 +335,7 @@ void from_backend(int is_stderr, char *data, int datalen)
      * If this is before the real session begins, just return.
      */
     if (!outptr)
-	return;
+	return 0;
 
     if (outlen > 0) {
 	unsigned used = outlen;
@@ -353,6 +359,19 @@ void from_backend(int is_stderr, char *data, int datalen)
 	memcpy(pending + pendlen, p, len);
 	pendlen += len;
     }
+
+    return 0;
+}
+static int scp_process_network_event(void)
+{
+    fd_set readfds;
+
+    FD_ZERO(&readfds);
+    FD_SET(scp_ssh_socket, &readfds);
+    if (select(1, &readfds, NULL, NULL, NULL) < 0)
+	return 0;		       /* doom */
+    select_result((WPARAM) scp_ssh_socket, (LPARAM) FD_READ);
+    return 1;
 }
 static int ssh_scp_recv(unsigned char *buf, int len)
 {
@@ -382,13 +401,8 @@ static int ssh_scp_recv(unsigned char *buf, int len)
     }
 
     while (outlen > 0) {
-	fd_set readfds;
-
-	FD_ZERO(&readfds);
-	FD_SET(scp_ssh_socket, &readfds);
-	if (select(1, &readfds, NULL, NULL, NULL) < 0)
+	if (!scp_process_network_event())
 	    return 0;		       /* doom */
-	select_result((WPARAM) scp_ssh_socket, (LPARAM) FD_READ);
     }
 
     return len;
@@ -759,6 +773,8 @@ static void source(char *src)
     for (i = 0; i < size; i += 4096) {
 	char transbuf[4096];
 	DWORD j, k = 4096;
+	int bufsize;
+
 	if (i + k > size)
 	    k = size - i;
 	if (!ReadFile(f, transbuf, k, &j, NULL) || j != k) {
@@ -766,7 +782,7 @@ static void source(char *src)
 		printf("\n");
 	    bump("%s: Read error", src);
 	}
-	back->send(transbuf, k);
+	bufsize = back->send(transbuf, k);
 	if (statistics) {
 	    stat_bytes += k;
 	    if (time(NULL) != stat_lasttime || i + k == size) {
@@ -774,6 +790,18 @@ static void source(char *src)
 		print_stats(last, size, stat_bytes,
 			    stat_starttime, stat_lasttime);
 	    }
+	}
+
+	/*
+	 * If the network transfer is backing up - that is, the
+	 * remote site is not accepting data as fast as we can
+	 * produce it - then we must loop on network events until
+	 * we have space in the buffer again.
+	 */
+	while (bufsize > MAX_SCP_BUFSIZE) {
+	    if (!scp_process_network_event())
+		bump("%s: Network error occurred", src);
+	    bufsize = back->sendbuffer();
 	}
     }
     CloseHandle(f);

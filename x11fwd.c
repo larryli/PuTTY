@@ -58,9 +58,6 @@
 #define PUT_16BIT(endian, cp, val) \
   (endian=='B' ? PUT_16BIT_MSB_FIRST(cp, val) : PUT_16BIT_LSB_FIRST(cp, val))
 
-extern void sshfwd_close(void *);
-extern void sshfwd_write(void *, char *, int);
-
 struct X11Private {
     struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
@@ -69,6 +66,7 @@ struct X11Private {
     unsigned char *auth_data;
     int data_read, auth_plen, auth_psize, auth_dlen, auth_dsize;
     int verified;
+    int throttled, throttle_override;
     void *c;			       /* data used by ssh.c */
     Socket s;
 };
@@ -127,8 +125,19 @@ static int x11_receive(Plug plug, int urgent, char *data, int len)
 {
     struct X11Private *pr = (struct X11Private *) plug;
 
-    sshfwd_write(pr->c, data, len);
+    if (sshfwd_write(pr->c, data, len) > 0) {
+	pr->throttled = 1;
+	sk_set_frozen(pr->s, 1);
+    }
+
     return 1;
+}
+
+static void x11_sent(Plug plug, int bufsize)
+{
+    struct X11Private *pr = (struct X11Private *) plug;
+
+    sshfwd_unthrottle(pr->c, bufsize);
 }
 
 /*
@@ -141,7 +150,9 @@ char *x11_init(Socket * s, char *display, void *c)
 {
     static struct plug_function_table fn_table = {
 	x11_closing,
-	x11_receive
+	x11_receive,
+	x11_sent,
+	NULL
     };
 
     SockAddr addr;
@@ -181,6 +192,7 @@ char *x11_init(Socket * s, char *display, void *c)
     pr->auth_protocol = NULL;
     pr->verified = 0;
     pr->data_read = 0;
+    pr->throttled = pr->throttle_override = 0;
     pr->c = c;
 
     pr->s = *s = sk_new(addr, port, 0, 1, (Plug) pr);
@@ -210,15 +222,37 @@ void x11_close(Socket s)
     sk_close(s);
 }
 
+void x11_unthrottle(Socket s)
+{
+    struct X11Private *pr;
+    if (!s)
+	return;
+    pr = (struct X11Private *) sk_get_private_ptr(s);
+
+    pr->throttled = 0;
+    sk_set_frozen(s, pr->throttled || pr->throttle_override);
+}
+
+void x11_override_throttle(Socket s, int enable)
+{
+    struct X11Private *pr;
+    if (!s)
+	return;
+    pr = (struct X11Private *) sk_get_private_ptr(s);
+
+    pr->throttle_override = enable;
+    sk_set_frozen(s, pr->throttled || pr->throttle_override);
+}
+
 /*
  * Called to send data down the raw connection.
  */
-void x11_send(Socket s, char *data, int len)
+int x11_send(Socket s, char *data, int len)
 {
     struct X11Private *pr = (struct X11Private *) sk_get_private_ptr(s);
 
     if (s == NULL)
-	return;
+	return 0;
 
     /*
      * Read the first packet.
@@ -226,7 +260,7 @@ void x11_send(Socket s, char *data, int len)
     while (len > 0 && pr->data_read < 12)
 	pr->firstpkt[pr->data_read++] = (unsigned char) (len--, *data++);
     if (pr->data_read < 12)
-	return;
+	return 0;
 
     /*
      * If we have not allocated the auth_protocol and auth_data
@@ -251,7 +285,7 @@ void x11_send(Socket s, char *data, int len)
 	pr->auth_data[pr->data_read++ - 12 -
 		      pr->auth_psize] = (unsigned char) (len--, *data++);
     if (pr->data_read < 12 + pr->auth_psize + pr->auth_dsize)
-	return;
+	return 0;
 
     /*
      * If we haven't verified the authentication, do so now.
@@ -280,7 +314,7 @@ void x11_send(Socket s, char *data, int len)
 	    sshfwd_write(pr->c, reply, 8 + msgsize);
 	    sshfwd_close(pr->c);
 	    x11_close(s);
-	    return;
+	    return 0;
 	}
 
 	/*
@@ -298,5 +332,5 @@ void x11_send(Socket s, char *data, int len)
      * After initialisation, just copy data simply.
      */
 
-    sk_write(s, data, len);
+    return sk_write(s, data, len);
 }

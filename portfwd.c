@@ -52,9 +52,6 @@
   (cp)[0] = (value) >> 8, \
   (cp)[1] = (value) )
 
-extern void sshfwd_close(void *);
-extern void sshfwd_write(void *, char *, int);
-
 struct pfwd_queue {
     struct pfwd_queue *next;
     char *buf;
@@ -66,6 +63,7 @@ struct PFwdPrivate {
     void *c;			       /* (channel) data used by ssh.c */
     Socket s;
     char hostname[128];
+    int throttled, throttle_override;
     int port;
     int ready;
     struct pfwd_queue *waiting;
@@ -92,10 +90,20 @@ static int pfd_closing(Plug plug, char *error_msg, int error_code,
 static int pfd_receive(Plug plug, int urgent, char *data, int len)
 {
     struct PFwdPrivate *pr = (struct PFwdPrivate *) plug;
-
-    if (pr->ready)
-	sshfwd_write(pr->c, data, len);
+    if (pr->ready) {
+	if (sshfwd_write(pr->c, data, len) > 0) {
+	    pr->throttled = 1;
+	    sk_set_frozen(pr->s, 1);
+	}
+    }
     return 1;
+}
+
+static void pfd_sent(Plug plug, int bufsize)
+{
+    struct PFwdPrivate *pr = (struct PFwdPrivate *) plug;
+
+    sshfwd_unthrottle(pr->c, bufsize);
 }
 
 /*
@@ -106,6 +114,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     static struct plug_function_table fn_table = {
 	pfd_closing,
 	pfd_receive,
+	pfd_sent,
 	NULL
     };
 
@@ -125,6 +134,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
      */
     pr = (struct PFwdPrivate *) smalloc(sizeof(struct PFwdPrivate));
     pr->fn = &fn_table;
+    pr->throttled = pr->throttle_override = 0;
     pr->ready = 1;
     pr->c = c;
 
@@ -149,6 +159,7 @@ static int pfd_accepting(Plug p, struct sockaddr *addr, void *sock)
     static struct plug_function_table fn_table = {
 	pfd_closing,
 	pfd_receive,
+	pfd_sent,
 	NULL
     };
     struct PFwdPrivate *pr, *org;
@@ -175,6 +186,7 @@ static int pfd_accepting(Plug p, struct sockaddr *addr, void *sock)
 
     strcpy(pr->hostname, org->hostname);
     pr->port = org->port;
+    pr->throttled = pr->throttle_override = 0;
     pr->ready = 0;
     pr->waiting = NULL;
 
@@ -199,7 +211,8 @@ char *pfd_addforward(char *desthost, int destport, int port)
 {
     static struct plug_function_table fn_table = {
 	pfd_closing,
-	pfd_receive, /* should not happen... */
+	pfd_receive,		       /* should not happen... */
+	pfd_sent,		       /* also should not happen */
 	pfd_accepting
     };
 
@@ -215,6 +228,7 @@ char *pfd_addforward(char *desthost, int destport, int port)
     pr->c = NULL;
     strcpy(pr->hostname, desthost);
     pr->port = destport;
+    pr->throttled = pr->throttle_override = 0;
     pr->ready = 0;
     pr->waiting = NULL;
 
@@ -243,15 +257,36 @@ void pfd_close(Socket s)
     sk_close(s);
 }
 
+void pfd_unthrottle(Socket s)
+{
+    struct PFwdPrivate *pr;
+    if (!s)
+	return;
+    pr = (struct PFwdPrivate *) sk_get_private_ptr(s);
+
+    pr->throttled = 0;
+    sk_set_frozen(s, pr->throttled || pr->throttle_override);
+}
+
+void pfd_override_throttle(Socket s, int enable)
+{
+    struct PFwdPrivate *pr;
+    if (!s)
+	return;
+    pr = (struct PFwdPrivate *) sk_get_private_ptr(s);
+
+    pr->throttle_override = enable;
+    sk_set_frozen(s, pr->throttled || pr->throttle_override);
+}
+
 /*
  * Called to send data down the raw connection.
  */
-void pfd_send(Socket s, char *data, int len)
+int pfd_send(Socket s, char *data, int len)
 {
     if (s == NULL)
-	return;
-
-    sk_write(s, data, len);
+	return 0;
+    return sk_write(s, data, len);
 }
 
 

@@ -12,13 +12,17 @@
 #define TRUE 1
 #endif
 
+#define RLOGIN_MAX_BACKLOG 4096
+
 static Socket s = NULL;
+static int rlogin_bufsize;
 
 static void rlogin_size(void);
 
 static void c_write(char *buf, int len)
 {
-    from_backend(0, buf, len);
+    int backlog = from_backend(0, buf, len);
+    sk_set_frozen(s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
 static int rlogin_closing(Plug plug, char *error_msg, int error_code,
@@ -122,7 +126,7 @@ static char *rlogin_init(char *host, int port, char **realhost)
 	sk_write(s, "/", 1);
 	for (p = cfg.termspeed; isdigit(*p); p++);
 	sk_write(s, cfg.termspeed, p - cfg.termspeed);
-	sk_write(s, &z, 1);
+	rlogin_bufsize = sk_write(s, &z, 1);
     }
 
     return NULL;
@@ -131,13 +135,23 @@ static char *rlogin_init(char *host, int port, char **realhost)
 /*
  * Called to send data down the rlogin connection.
  */
-static void rlogin_send(char *buf, int len)
+static int rlogin_send(char *buf, int len)
 {
 
     if (s == NULL)
 	return;
 
-    sk_write(s, buf, len);
+    rlogin_bufsize = sk_write(s, buf, len);
+
+    return rlogin_bufsize;
+}
+
+/*
+ * Called to query the current socket sendability status.
+ */
+static int rlogin_sendbuffer(void)
+{
+    return rlogin_bufsize;
 }
 
 /*
@@ -151,7 +165,7 @@ static void rlogin_size(void)
     b[7] = cols & 0xFF;
     b[4] = rows >> 8;
     b[5] = rows & 0xFF;
-    sk_write(s, b, 12);
+    rlogin_bufsize = sk_write(s, b, 12);
     return;
 }
 
@@ -174,6 +188,11 @@ static int rlogin_sendok(void)
     return 1;
 }
 
+static void rlogin_unthrottle(int backlog)
+{
+    sk_set_frozen(s, backlog > RLOGIN_MAX_BACKLOG);
+}
+
 static int rlogin_ldisc(int option)
 {
     return 0;
@@ -182,10 +201,12 @@ static int rlogin_ldisc(int option)
 Backend rlogin_backend = {
     rlogin_init,
     rlogin_send,
+    rlogin_sendbuffer,
     rlogin_size,
     rlogin_special,
     rlogin_socket,
     rlogin_sendok,
     rlogin_ldisc,
+    rlogin_unthrottle,
     1
 };
