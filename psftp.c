@@ -472,6 +472,8 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
 		ret = 0;
 		xfer_set_error(xfer);
 	    }
+
+	    sfree(vbuf);
 	}
     }
 
