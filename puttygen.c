@@ -1384,7 +1384,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     int argc;
     char **argv;
 
-    split_into_argv(cmdline, &argc, &argv);
+    split_into_argv(cmdline, &argc, &argv, NULL);
 
     if (argc > 0) {
 	/*

@@ -4,8 +4,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
-#define lenof(x) ( sizeof((x)) / sizeof(*(x)) )
+#include "misc.h"
 
 #ifdef TESTMODE
 /* Definitions to allow this module to be compiled standalone for testing. */
@@ -20,13 +21,22 @@
  * utilities which get a whole command line and must break it
  * themselves).
  * 
- * Does not modify the input command line (just in case).
+ * Does not modify the input command line.
+ * 
+ * The final parameter (argstart) is used to return a second array
+ * of char * pointers, the same length as argv, each one pointing
+ * at the start of the corresponding element of argv in the
+ * original command line. So if you get half way through processing
+ * your command line in argc/argv form and then decide you want to
+ * treat the rest as a raw string, you can. If you don't want to,
+ * `argstart' can be safely left NULL.
  */
-void split_into_argv(const char *cmdline, int *argc, char ***argv)
+void split_into_argv(char *cmdline, int *argc, char ***argv,
+		     char ***argstart)
 {
-    const char *p;
+    char *p;
     char *outputline, *q;
-    char **outputargv;
+    char **outputargv, **outputargstart;
     int outputargc;
 
     /*
@@ -124,8 +134,9 @@ void split_into_argv(const char *cmdline, int *argc, char ***argv)
      * This will guaranteeably be big enough; we can realloc it
      * down later.
      */
-    outputline = malloc(1+strlen(cmdline));
-    outputargv = malloc(sizeof(char *) * (strlen(cmdline)+1 / 2));
+    outputline = smalloc(1+strlen(cmdline));
+    outputargv = smalloc(sizeof(char *) * (strlen(cmdline)+1 / 2));
+    outputargstart = smalloc(sizeof(char *) * (strlen(cmdline)+1 / 2));
 
     p = cmdline; q = outputline; outputargc = 0;
 
@@ -137,7 +148,9 @@ void split_into_argv(const char *cmdline, int *argc, char ***argv)
 	if (!*p) break;
 
 	/* We have an argument; start it. */
-	outputargv[outputargc++] = q;
+	outputargv[outputargc] = q;
+	outputargstart[outputargc] = p;
+	outputargc++;
 	quote = 0;
 
 	/* Copy data into the argument until it's finished. */
@@ -190,10 +203,12 @@ void split_into_argv(const char *cmdline, int *argc, char ***argv)
 	*q++ = '\0';
     }
 
-    outputargv = realloc(outputargv, sizeof(char *) * outputargc);
+    outputargv = srealloc(outputargv, sizeof(char *) * outputargc);
+    outputargstart = srealloc(outputargstart, sizeof(char *) * outputargc);
 
     if (argc) *argc = outputargc;
-    if (argv) *argv = outputargv;
+    if (argv) *argv = outputargv; else sfree(outputargv);
+    if (argstart) *argstart = outputargstart; else sfree(outputargstart);
 }
 
 #ifdef TESTMODE

@@ -15,6 +15,7 @@
 #include "ssh.h"
 #include "misc.h"
 #include "tree234.h"
+#include "winstuff.h"
 
 #define IDI_MAINICON 200
 #define IDI_TRAYICON 201
@@ -1786,6 +1787,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     HMODULE advapi;
     char *command = NULL;
     int added_keys = 0;
+    int argc, i;
+    char **argv, **argstart;
 
     /*
      * Determine whether we're an NT system (should have security
@@ -1936,46 +1939,23 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     /*
      * Process the command line and add keys as listed on it.
-     * If we already determined that we need to spawn a program from above we
-     * need to ignore the first two arguments. [DBW]
      */
-    {
-	char *p;
-	int inquotes = 0;
-	p = cmdline;
-	while (*p) {
-	    while (*p && isspace(*p))
-		p++;
-		if (*p && !isspace(*p)) {
-		char *q = p, *pp = p;
-		while (*p && (inquotes || !isspace(*p))) {
-			if (*p == '"') {
-			inquotes = !inquotes;
-			p++;
-			continue;
-		    }
-		    *pp++ = *p++;
-		}
-		if (*pp) {
-		    if (*p)
-			p++;
-		    *pp++ = '\0';
-		}
-		if (!strcmp(q, "-c")) {
-		    /*
-		     * If we see `-c', then the rest of the
-		     * command line should be treated as a
-		     * command to be spawned.
-		     */
-		    while (*p && isspace(*p))
-			p++;
-		    command = p;
-		    break;
-		} else {
-		    add_keyfile(q);
-		    added_keys = TRUE;
-		}
-	    }
+    split_into_argv(cmdline, &argc, &argv, &argstart);
+    for (i = 0; i < argc; i++) {
+	if (!strcmp(argv[i], "-c")) {
+	    /*
+	     * If we see `-c', then the rest of the
+	     * command line should be treated as a
+	     * command to be spawned.
+	     */
+	    if (i < argc-1)
+		command = argstart[i+1];
+	    else
+		command = "";
+	    break;
+	} else {
+	    add_keyfile(argv[i]);
+	    added_keys = TRUE;
 	}
     }
 
