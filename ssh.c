@@ -4279,7 +4279,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
     /* Data sent down one of our channels. */
     int i = ssh_pkt_getuint32(pktin);
     char *p;
-    unsigned int len;
+    int len;
     struct ssh_channel *c;
 
     ssh_pkt_getstring(pktin, &p, &len);
@@ -5480,7 +5480,7 @@ static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
 static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     char *data;
-    unsigned int length;
+    int length;
     unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
