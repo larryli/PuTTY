@@ -98,6 +98,8 @@ static void sk_localproxy_close (Socket s)
     del234(localproxy_by_fromfd, ps);
     del234(localproxy_by_tofd, ps);
 
+    uxsel_del(ps->to_cmd);
+    uxsel_del(ps->from_cmd);
     close(ps->to_cmd);
     close(ps->from_cmd);
 
