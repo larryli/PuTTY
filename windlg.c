@@ -478,6 +478,7 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 	    DialogBox (hinst, MAKEINTRESOURCE(IDD_LICENCEBOX),
 		       NULL, LicenceProc);
 	    EnableWindow(hwnd, 1);
+            SetActiveWindow(hwnd);
 	    return 0;
 	}
 	return 0;
@@ -1467,6 +1468,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 	DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX),
 		  GetParent(hwnd), AboutProc);
 	EnableWindow(hwnd, 1);
+        SetActiveWindow(hwnd);
     }
     return GenericMainDlgProc (hwnd, msg, wParam, lParam,
 			       MAIN_NPANELS, mainp, &page);
