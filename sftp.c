@@ -99,7 +99,7 @@ static void sftp_pkt_addstring(struct sftp_packet *pkt, char *data) {
  */
 
 static unsigned char sftp_pkt_getbyte(struct sftp_packet *pkt) {
-    unsigned long value;
+    unsigned char value;
     if (pkt->length - pkt->savedpos < 1)
         return 0;                      /* arrgh, no way to decline (FIXME?) */
     value = (unsigned char) pkt->data[pkt->savedpos];
@@ -182,7 +182,6 @@ int sftp_send(struct sftp_packet *pkt) {
 struct sftp_packet *sftp_recv(void) {
     struct sftp_packet *pkt;
     char x[4];
-    int p, ret;
 
     if (!sftp_recvdata(x, 4))
 	return NULL;
@@ -372,7 +371,6 @@ struct fxp_handle *fxp_open(char *path, int type) {
 	return NULL;
     }
     if (pktin->type == SSH_FXP_HANDLE) {
-	int count;
 	char *hstring;
 	struct fxp_handle *handle;
 	int len;
@@ -411,7 +409,6 @@ struct fxp_handle *fxp_opendir(char *path) {
 	return NULL;
     }
     if (pktin->type == SSH_FXP_HANDLE) {
-	int count;
 	char *hstring;
 	struct fxp_handle *handle;
 	int len;
@@ -557,7 +554,7 @@ int fxp_write(struct fxp_handle *handle, char *buffer, uint64 offset, int len) {
     id = sftp_pkt_getuint32(pktin);
     if (id != 0xDCB) {
 	fxp_internal_error("request ID mismatch\n");
-	return NULL;
+	return 0;
     }
     fxp_got_status(pktin);
     return fxp_errtype == SSH_FX_OK;

@@ -310,8 +310,6 @@ static void *rsa2_createkey(unsigned char *pub_blob, int pub_len,
 static void *rsa2_openssh_createkey(unsigned char **blob, int *len) {
     char **b = (char **)blob;
     struct RSAKey *rsa;
-    char *p;
-    int slen;
 
     rsa = smalloc(sizeof(struct RSAKey));
     if (!rsa) return NULL;
@@ -392,6 +390,8 @@ static unsigned char asn1_weird_stuff[] = {
     0x0E,0x03,0x02,0x1A,0x05,0x00,0x04,0x14,
 };
 
+#define ASN1_LEN ( (int) sizeof(asn1_weird_stuff) )
+
 static int rsa2_verifysig(void *key, char *sig, int siglen,
 			 char *data, int datalen) {
     struct RSAKey *rsa = (struct RSAKey *)key;
@@ -419,12 +419,12 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
     if (bignum_byte(out, bytes-2) != 1)
         ret = 0;
     /* Most of the rest should be FF. */
-    for (i = bytes-3; i >= 20 + sizeof(asn1_weird_stuff); i--) {
+    for (i = bytes-3; i >= 20 + ASN1_LEN; i--) {
         if (bignum_byte(out, i) != 0xFF)
             ret = 0;
     }
     /* Then we expect to see the asn1_weird_stuff. */
-    for (i = 20 + sizeof(asn1_weird_stuff) - 1, j=0; i >= 20; i--,j++) {
+    for (i = 20 + ASN1_LEN - 1, j=0; i >= 20; i--,j++) {
         if (bignum_byte(out, i) != asn1_weird_stuff[j])
             ret = 0;
     }
@@ -452,9 +452,9 @@ unsigned char *rsa2_sign(void *key, char *data, int datalen, int *siglen) {
     bytes = smalloc(nbytes);
 
     bytes[0] = 1;
-    for (i = 1; i < nbytes-20-sizeof(asn1_weird_stuff); i++)
+    for (i = 1; i < nbytes-20-ASN1_LEN; i++)
 	bytes[i] = 0xFF;
-    for (i = nbytes-20-sizeof(asn1_weird_stuff), j=0; i < nbytes-20; i++,j++)
+    for (i = nbytes-20-ASN1_LEN, j=0; i < nbytes-20; i++,j++)
 	bytes[i] = asn1_weird_stuff[j];
     for (i = nbytes-20, j=0; i < nbytes; i++,j++)
 	bytes[i] = hash[j];

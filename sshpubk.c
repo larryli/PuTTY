@@ -591,7 +591,6 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase) {
     {
 	char realhash[41];
 	unsigned char binary[20];
-	SHA_State s;
 
 	SHA_Simple(private_blob, private_blob_len, binary);
 	for (i = 0; i < 20; i++)
@@ -634,7 +633,6 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm, int *pub_blob_len) 
     FILE *fp;
     char header[40], *b;
     const struct ssh_signkey *alg;
-    int cipher, cipherblk;
     unsigned char *public_blob;
     int public_blob_len;
     int i;
