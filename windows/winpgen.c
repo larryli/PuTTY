@@ -1445,7 +1445,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             help_path = NULL;
     }
 
-    random_init();
+    random_ref();
     return DialogBox(hinst, MAKEINTRESOURCE(201), NULL,
 		     MainDlgProc) != IDOK;
 }

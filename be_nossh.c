@@ -31,7 +31,3 @@ void random_destroy_seed(void)
 void noise_ultralight(unsigned long data)
 {
 }
-
-void noise_regular(void)
-{
-}

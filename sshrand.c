@@ -5,6 +5,9 @@
 #include "putty.h"
 #include "ssh.h"
 
+/* Collect environmental noise every 5 minutes */
+#define NOISE_REGULAR_INTERVAL (5*60*TICKSPERSEC)
+
 void noise_get_heavy(void (*func) (void *, int));
 void noise_get_light(void (*func) (void *, int));
 
@@ -41,6 +44,7 @@ struct RandPool {
 
 static struct RandPool pool;
 int random_active = 0;
+long next_noise_collection;
 
 static void random_stir(void)
 {
@@ -182,16 +186,33 @@ static void random_add_heavynoise_bitbybit(void *noise, int length)
     pool.poolpos = i;
 }
 
-void random_init(void)
+static void random_timer(void *ctx, long now)
+{
+    if (random_active > 0 && now - next_noise_collection >= 0) {
+	noise_regular();
+	next_noise_collection =
+	    schedule_timer(NOISE_REGULAR_INTERVAL, random_timer, &pool);
+    }
+}
+
+void random_ref(void)
 {
     if (!random_active) {
 	memset(&pool, 0, sizeof(pool));    /* just to start with */
 
-	random_active = 1;
-
 	noise_get_heavy(random_add_heavynoise_bitbybit);
 	random_stir();
+
+	next_noise_collection =
+	    schedule_timer(NOISE_REGULAR_INTERVAL, random_timer, &pool);
     }
+
+    random_active++;
+}
+
+void random_unref(void)
+{
+    random_active--;
 }
 
 int random_byte(void)

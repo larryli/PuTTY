@@ -616,7 +616,7 @@ int main(int argc, char **argv)
 	else
 	    strftime(default_comment, 30, "rsa-key-%Y%m%d", tm);
 
-	random_init();
+	random_ref();
 	entropy = get_random_data(bits / 8);
 	random_add_heavynoise(entropy, bits / 8);
 	memset(entropy, 0, bits/8);

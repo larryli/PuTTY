@@ -239,7 +239,8 @@ pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
-         + sshpubk sshaes sshsh512 import winutils puttygen.res tree234 LIBS
+         + sshpubk sshaes sshsh512 import winutils puttygen.res tree234
+	 + notiming LIBS
 
 pterm    : [X] UXTERM uxmisc misc ldisc settings pty uxsel BE_NONE uxstore
          + signal CHARSET cmdline ptermm version
@@ -252,7 +253,7 @@ plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC signal ux_x11
 
 puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
-         + sshpubk sshaes sshsh512 import puttygen.res tree234 uxgen
+         + sshpubk sshaes sshsh512 import puttygen.res tree234 uxgen notiming
 
 pscp     : [U] scp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP UXMISC

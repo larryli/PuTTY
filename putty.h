@@ -742,10 +742,14 @@ void luni_send(void *, wchar_t * widebuf, int len, int interactive);
  */
 
 void random_add_noise(void *noise, int length);
-void random_init(void);
 int random_byte(void);
 void random_get_savedata(void **data, int *len);
 extern int random_active;
+/* The random number subsystem is activated if at least one other entity
+ * within the program expresses an interest in it. So each SSH session
+ * calls random_ref on startup and random_unref on shutdown. */
+void random_ref(void);
+void random_unref(void);
 
 /*
  * Exports from pinger.c.

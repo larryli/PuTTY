@@ -2576,8 +2576,6 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 
     crBegin(ssh->do_ssh1_login_crstate);
 
-    random_init();
-
     if (!pktin)
 	crWaitUntil(pktin);
 
@@ -4299,7 +4297,6 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     s->csmac_tobe = s->scmac_tobe = NULL;
     s->cscomp_tobe = s->sccomp_tobe = NULL;
 
-    random_init();
     s->first_kex = 1;
 
     {
@@ -7145,6 +7142,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     if (p != NULL)
 	return p;
 
+    random_ref();
+
     return NULL;
 }
 
@@ -7223,6 +7222,8 @@ static void ssh_free(void *handle)
     sfree(ssh);
     if (ssh->pinger)
 	pinger_free(ssh->pinger);
+
+    random_unref();
 }
 
 /*
