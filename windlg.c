@@ -328,6 +328,10 @@ enum { IDCX_ABOUT =
     IDC_BELL_WAVESTATIC,
     IDC_BELL_WAVEEDIT,
     IDC_BELL_WAVEBROWSE,
+    IDC_B_IND_STATIC,
+    IDC_B_IND_DISABLED,
+    IDC_B_IND_FLASH,
+    IDC_B_IND_STEADY,
     IDC_BELLOVL,
     IDC_BELLOVLNSTATIC,
     IDC_BELLOVLN,
@@ -614,6 +618,11 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.beep == BELL_WAVEFILE ? IDC_BELL_WAVEFILE :
 		     cfg.beep ==
 		     BELL_VISUAL ? IDC_BELL_VISUAL : IDC_BELL_DEFAULT);
+    CheckRadioButton(hwnd, IDC_B_IND_DISABLED, IDC_B_IND_STEADY,
+		     cfg.beep_ind ==
+		     B_IND_DISABLED ? IDC_B_IND_DISABLED : cfg.beep_ind ==
+		     B_IND_FLASH ? IDC_B_IND_FLASH : cfg.beep_ind ==
+		     B_IND_STEADY ? IDC_B_IND_STEADY : IDC_B_IND_DISABLED);
     SetDlgItemText(hwnd, IDC_BELL_WAVEEDIT, cfg.bell_wavefile);
     CheckDlgButton(hwnd, IDC_BELLOVL, cfg.bellovl);
     SetDlgItemInt(hwnd, IDC_BELLOVLN, cfg.bellovl_n, FALSE);
@@ -861,7 +870,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == bellpanelstart) {
-	/* The Bell panel. Accelerators used: [acgo] bdsm wt */
+	/* The Bell panel. Accelerators used: [acgo] bdsm wit */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the terminal bell",
@@ -876,6 +885,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	editbutton(&cp, "Custom sound file to play as a bell:",
 		   IDC_BELL_WAVESTATIC, IDC_BELL_WAVEEDIT,
 		   "Bro&wse...", IDC_BELL_WAVEBROWSE);
+	radioline(&cp, "Taskbar/caption &indication on bell:",
+		  IDC_B_IND_STATIC, 3, "Disabled", IDC_B_IND_DISABLED,
+		  "Flashing", IDC_B_IND_FLASH, "Steady", IDC_B_IND_STEADY,
+		  NULL);
 	endbox(&cp);
 	beginbox(&cp, "Control the bell overload behaviour",
 		 IDC_BOX_BELL2);
@@ -1823,6 +1836,19 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			cfg.beep = BELL_WAVEFILE;
 		    if (LOWORD(wParam) == IDC_BELL_VISUAL)
 			cfg.beep = BELL_VISUAL;
+		}
+		break;
+	      case IDC_B_IND_DISABLED:
+	      case IDC_B_IND_FLASH:
+	      case IDC_B_IND_STEADY:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    if (LOWORD(wParam) == IDC_B_IND_DISABLED)
+			cfg.beep_ind = B_IND_DISABLED;
+		    if (LOWORD(wParam) == IDC_B_IND_FLASH)
+			cfg.beep_ind = B_IND_FLASH;
+		    if (LOWORD(wParam) == IDC_B_IND_STEADY)
+			cfg.beep_ind = B_IND_STEADY;
 		}
 		break;
 	      case IDC_BELL_WAVEBROWSE:

@@ -272,6 +272,9 @@ typedef struct {
     enum {
 	BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE
     } beep;
+    enum {
+	B_IND_DISABLED, B_IND_FLASH, B_IND_STEADY
+    } beep_ind;
     int bellovl;		       /* bell overload protection active? */
     int bellovl_n;		       /* number of bells to cause overload */
     int bellovl_t;		       /* time interval for overload (seconds) */

@@ -77,6 +77,7 @@ static int pending_netevent = 0;
 static WPARAM pend_netevent_wParam = 0;
 static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
+static void flash_window(int mode);
 
 static time_t last_movement = 0;
 
@@ -644,11 +645,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		term_out();
 	    term_update();
 	    ShowCaret(hwnd);
+
+	    flash_window(1);	       /* maintain */
+
 	    if (in_vbell)
 		/* Hmm, term_update didn't want to do an update too soon ... */
 		timer_id = SetTimer(hwnd, 1, 50, NULL);
 	    else if (!has_focus)
-		timer_id = SetTimer(hwnd, 1, 2000, NULL);
+		timer_id = SetTimer(hwnd, 1, 500, NULL);
 	    else
 		timer_id = SetTimer(hwnd, 1, 100, NULL);
 	    long_timer = 1;
@@ -1643,6 +1647,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	has_focus = TRUE;
 	CreateCaret(hwnd, caretbm, font_width, font_height);
 	ShowCaret(hwnd);
+	flash_window(0);	       /* stop */
 	compose_state = 0;
 	term_out();
 	term_update();
@@ -3239,6 +3244,42 @@ void fatalbox(char *fmt, ...)
 }
 
 /*
+ * Manage window caption / taskbar flashing, if enabled.
+ * 0 = stop, 1 = maintain, 2 = start
+ */
+static void flash_window(int mode)
+{
+    static long last_flash = 0;
+    static int flashing = 0;
+    if ((mode == 0) || (cfg.beep_ind == B_IND_DISABLED)) {
+	/* stop */
+	if (flashing) {
+	    FlashWindow(hwnd, FALSE);
+	    flashing = 0;
+	}
+
+    } else if (mode == 2) {
+	/* start */
+	if (!flashing) {
+	    last_flash = GetTickCount();
+	    flashing = 1;
+	    FlashWindow(hwnd, TRUE);
+	}
+
+    } else if ((mode == 1) && (cfg.beep_ind == B_IND_FLASH)) {
+	/* maintain */
+	if (flashing) {
+	    long now = GetTickCount();
+	    long fdiff = now - last_flash;
+	    if (fdiff < 0 || fdiff > 450) {
+		last_flash = now;
+		FlashWindow(hwnd, TRUE);	/* toggle */
+	    }
+	}
+    }
+}
+
+/*
  * Beep.
  */
 void beep(int mode)
@@ -3271,5 +3312,9 @@ void beep(int mode)
 		       MB_OK | MB_ICONEXCLAMATION);
 	    cfg.beep = BELL_DEFAULT;
 	}
+    }
+    /* Otherwise, either visual bell or disabled; do nothing here */
+    if (!has_focus) {
+	flash_window(2);	       /* start */
     }
 }

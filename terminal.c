@@ -1142,11 +1142,9 @@ void term_out(void)
 		    /*
 		     * Perform an actual beep if we're not overloaded.
 		     */
-		    if ((!cfg.bellovl || !beep_overloaded)
-			&& cfg.beep != 0) {
-			if (cfg.beep != 2)
-			    beep(cfg.beep);
-			else if (cfg.beep == 2) {
+		    if (!cfg.bellovl || !beep_overloaded) {
+			beep(cfg.beep);
+			if (cfg.beep == BELL_VISUAL) {
 			    in_vbell = TRUE;
 			    vbell_timeout = ticks + VBELL_TIMEOUT;
 			    term_update();
