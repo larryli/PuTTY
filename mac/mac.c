@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.4 2002/11/24 15:08:52 ben Exp $ */
+/* $Id: mac.c,v 1.5 2002/12/06 00:09:34 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -41,6 +41,7 @@
 #include <DiskInit.h>
 #include <Gestalt.h>
 #include <Resources.h>
+#include <Script.h>
 #include <ToolUtils.h>
 
 #include <assert.h>
@@ -306,11 +307,13 @@ static void mac_updatelicence(WindowPtr window)
 {
     Handle h;
     int len;
+    long fondsize;
 
     SetPort(window);
     BeginUpdate(window);
-    TextFont(applFont);
-    TextSize(9);
+    fondsize = GetScriptVariable(smRoman, smScriptSmallFondSize);
+    TextFont(HiWord(fondsize));
+    TextSize(LoWord(fondsize));
     h = Get1Resource('TEXT', wLicence);
     len = GetResourceSizeOnDisk(h);
     if (h != NULL) {
