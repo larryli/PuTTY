@@ -331,8 +331,6 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
 	    SendDlgItemMessage (hwnd, IDN_LIST, LB_ADDSTRING,
 				0, (LPARAM)events[i]);
 	return 1;
-/*      case WM_CTLCOLORDLG: */
-/*	return (int) GetStockObject (LTGRAY_BRUSH); */
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
@@ -414,11 +412,6 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
         SetDlgItemText (hwnd, IDA_VERSION, ver);
 	return 1;
-/*      case WM_CTLCOLORDLG: */
-/*	return (int) GetStockObject (LTGRAY_BRUSH); */
-/*      case WM_CTLCOLORSTATIC: */
-/*	SetBkColor ((HDC)wParam, RGB(192,192,192)); */
-/*	return (int) GetStockObject (LTGRAY_BRUSH); */
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
@@ -828,7 +821,8 @@ void sesssaver(struct ctlpos *cp, char *text,
     r.right = lwid; r.bottom = y;
     cp->ypos += y + GAPBETWEEN;
     doctl(cp, r, "LISTBOX",
-          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS,
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | 
+          LBS_STANDARD | LBS_HASSTRINGS,
           WS_EX_CLIENTEDGE,
           "", listid);
 }
