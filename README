@@ -7,10 +7,17 @@ options you can use to build in limited Win32s compatibility, a hack
 to pass SSH through some types of firewall, and `official' version
 numbers.
 
-Setting up a project file in the Visual C++ IDE sometimes fails to
-work. In particular, Visual Studio 6 falls over on the odd macro
-usage in ssh.c. This is a bug in Visual Studio, since the VC++6
-command line compiler works fine. If in doubt, just use `nmake'.
+MS Visual Studio version 6 falls over on the nasty macros in ssh.c.
+This is a bug in Visual Studio. The culprit is the /ZI compiler
+option (debug info generation: Edit and Continue). To avoid this
+problem while compiling PuTTY under VS6, you should:
+ - right-click ssh.c in the FileView
+ - click Settings
+ - select the C/C++ tab and the General category
+ - under `Debug info:', select anything _other_ than `Program
+   Database for Edit and Continue'.
+Alternatively disable the /ZI option, replacing it with a saner
+value, such as /Zi.
 
 The PuTTY home web site is
 
