@@ -72,7 +72,8 @@ It might also be worth going through the documentation looking for
 version numbers - we have a couple of transcripts showing the help
 text from the command-line tools, and it would be nice to ensure the
 whole transcripts (certainly including the version numbers) are up
-to date.
+to date. Sometimes these are marked in between releases as `0.XX', so
+it's worth grepping for that too.
 
  - putty/doc/pscp.but
  - putty/doc/plink.but
@@ -230,4 +231,13 @@ of the tag.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
- - All done.
+ - Relax (slightly).
+
+After the release
+-----------------
+
+The following want doing some time soon after a release has been made:
+
+ - If the release was made from a branch, make sure the version number
+   in _trunk_ CVS is up to date in all the locations listed above, so
+   that (e.g.) Unix snapshots come out right.
