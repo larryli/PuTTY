@@ -328,7 +328,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * there was a session selected in that which had a
 	     * valid host name in it, then load it and go.
 	     */
-	    if (dlg_last_focused(dlg) == ssd->listbox && !*cfg->host) {
+	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox && !*cfg->host) {
 		Config cfg2;
 		if (!load_selected_session(ssd, savedsession, dlg, &cfg2)) {
 		    dlg_beep(dlg);
@@ -700,6 +700,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ssd->okbutton->generic.column = 3;
     ssd->cancelbutton = ctrl_pushbutton(s, "Cancel", 'c', HELPCTX(no_help),
 					sessionsaver_handler, P(ssd));
+    ssd->cancelbutton->button.iscancel = TRUE;
     ssd->cancelbutton->generic.column = 4;
     /* We carefully don't close the 5-column part, so that platform-
      * specific add-ons can put extra buttons alongside Open and Cancel. */
@@ -754,6 +755,11 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	 * than alongside that edit box. */
 	ctrl_columns(s, 1, 100);
 	ctrl_columns(s, 2, 75, 25);
+	ssd->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
+				    HELPCTX(session_saved),
+				    sessionsaver_handler, P(ssd));
+	ssd->listbox->generic.column = 0;
+	ssd->listbox->listbox.height = 7;
 	ssd->loadbutton = ctrl_pushbutton(s, "Load", 'l',
 					  HELPCTX(session_saved),
 					  sessionsaver_handler, P(ssd));
@@ -766,11 +772,6 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 					 HELPCTX(session_saved),
 					 sessionsaver_handler, P(ssd));
 	ssd->delbutton->generic.column = 1;
-	ssd->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
-				    HELPCTX(session_saved),
-				    sessionsaver_handler, P(ssd));
-	ssd->listbox->generic.column = 0;
-	ssd->listbox->listbox.height = 7;
 	ctrl_columns(s, 1, 100);
     }
 

@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.2 2003/03/18 00:35:40 ben Exp $ */
+/* $Id: macctrls.c,v 1.3 2003/03/18 19:06:51 simon Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -529,7 +529,7 @@ void dlg_set_focus(union control *ctrl, void *dlg)
     }
 }
 
-union control *dlg_last_focused(void *dlg)
+union control *dlg_last_focused(union control *ctrl, void *dlg)
 {
 
     return NULL;

@@ -282,6 +282,11 @@ union control {
 	 * Return even if it doesn't have the input focus.
 	 */
 	int isdefault;
+	/*
+	 * Also, the reverse of this: a default cancel-type button,
+	 * which is implicitly pressed when you hit Escape.
+	 */
+	int iscancel;
     } button;
     struct {
 	STANDARD_PREFIX;
@@ -599,11 +604,12 @@ void dlg_update_done(union control *ctrl, void *dlg);
  */
 void dlg_set_focus(union control *ctrl, void *dlg);
 /*
- * Return the `ctrl' structure for the control that had the input
- * focus before this one. This is NOT GUARANTEED to work on all
- * platforms, so don't base any critical functionality on it!
+ * Return the `ctrl' structure for the most recent control that had
+ * the input focus apart from the one mentioned. This is NOT
+ * GUARANTEED to work on all platforms, so don't base any critical
+ * functionality on it!
  */
-union control *dlg_last_focused(void *dlg);
+union control *dlg_last_focused(union control *ctrl, void *dlg);
 /*
  * During event processing, you might well want to give an error
  * indication to the user. dlg_beep() is a quick and easy generic

@@ -1331,7 +1331,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
     char shortcuts[MAX_SHORTCUTS_PER_CTRL];
     int nshortcuts;
     char *escaped;
-    int i, base_id, num_ids;
+    int i, actual_base_id, base_id, num_ids;
     void *data;
 
     base_id = *id;
@@ -1479,6 +1479,9 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	memset(shortcuts, NO_SHORTCUT, lenof(shortcuts));
 	nshortcuts = 0;
 
+	/* Almost all controls start at base_id. */
+	actual_base_id = base_id;
+
 	/*
 	 * Now we're ready to actually create the control, by
 	 * switching on its type.
@@ -1569,8 +1572,10 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    escaped = shortcut_escape(ctrl->button.label,
 				      ctrl->button.shortcut);
 	    shortcuts[nshortcuts++] = ctrl->button.shortcut;
+	    if (ctrl->button.iscancel)
+		actual_base_id = IDCANCEL;
 	    num_ids = 1;
-	    button(&pos, escaped, base_id, ctrl->button.isdefault);
+	    button(&pos, escaped, actual_base_id, ctrl->button.isdefault);
 	    sfree(escaped);
 	    break;
 	  case CTRL_LISTBOX:
@@ -1658,13 +1663,14 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    struct winctrl *c = smalloc(sizeof(struct winctrl));
 
 	    c->ctrl = ctrl;
-	    c->base_id = base_id;
+	    c->base_id = actual_base_id;
 	    c->num_ids = num_ids;
 	    c->data = data;
 	    memcpy(c->shortcuts, shortcuts, sizeof(shortcuts));
 	    winctrl_add(wc, c);
 	    winctrl_add_shortcuts(dp, c);
-	    base_id += num_ids;
+	    if (actual_base_id == base_id)
+		base_id += num_ids;
 	}
 
 	if (colstart >= 0) {
@@ -1705,10 +1711,10 @@ static void winctrl_set_focus(union control *ctrl, struct dlgparam *dp,
     }
 }
 
-union control *dlg_last_focused(void *dlg)
+union control *dlg_last_focused(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
-    return dp->lastfocused;
+    return dp->focused == ctrl ? dp->lastfocused : dp->focused;
 }
 
 /*

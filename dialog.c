@@ -329,6 +329,7 @@ union control *ctrl_pushbutton(struct controlset *s,char *label,char shortcut,
     c->button.label = label ? dupstr(label) : NULL;
     c->button.shortcut = shortcut;
     c->button.isdefault = 0;
+    c->button.iscancel = 0;
     return c;
 }
 
