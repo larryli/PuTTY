@@ -57,6 +57,7 @@ static int targetshouldbedirectory = 0;
 static int statistics = 1;
 static int portnumber = 0;
 static int prev_stats_len = 0;
+static int scp_unsafe_mode = 0;
 static char *password = NULL;
 static int errs = 0;
 /* GUI Adaptation - Sept 2000 */
@@ -1173,7 +1174,6 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		 * Simple case: we are only dealing with one file.
 		 */
 		fname = scp_sftp_remotepath;
-printf("oi :%s:\n", fname);
 		must_free_fname = 0;
 		scp_sftp_donethistarget = 1;
 	    } else {
@@ -1196,12 +1196,10 @@ printf("oi :%s:\n", fname);
 		     !wc_match(head->wildcard,
 			       head->names[head->namepos].filename))))
 		head->namepos++;       /* skip . and .. */
-printf("ooh\n");
 	    if (head->namepos < head->namelen) {
 		fname = dupcat(head->dirpath, "/",
 			       head->names[head->namepos++].filename,
 			       NULL);
-printf("got :%s:\n", fname);
 		must_free_fname = 1;
 	    } else {
 		/*
@@ -1224,7 +1222,7 @@ printf("got :%s:\n", fname);
 		return 0;
 	    }
 	}
-printf("filename :%s:\n", fname);
+
 	/*
 	 * Now we have a filename. Stat it, and see if it's a file
 	 * or a directory.
@@ -1739,16 +1737,18 @@ static void sink(char *targ, char *src)
 	     * and the last component of that will fail to match
 	     * (the last component of) the name sent.
 	     * 
-	     * (Well, not always; if `src' is a wildcard, we do
+	     * Well, not always; if `src' is a wildcard, we do
 	     * expect to get back filenames that don't correspond
-	     * exactly to it. So we skip this check if `src'
-	     * contains a *, a ? or a []. This is non-ideal - we
-	     * would like to ensure that the returned filename
-	     * actually matches the wildcard pattern - but one of
-	     * SCP's protocol infelicities is that wildcard
-	     * matching is done at the server end _by the server's
-	     * rules_ and so in general this is infeasible. Live
-	     * with it, or upgrade to SFTP.)
+	     * exactly to it. Ideally in this case, we would like
+	     * to ensure that the returned filename actually
+	     * matches the wildcard pattern - but one of SCP's
+	     * protocol infelicities is that wildcard matching is
+	     * done at the server end _by the server's rules_ and
+	     * so in general this is infeasible. Hence, we only
+	     * accept filenames that don't correspond to `src' if
+	     * unsafe mode is enabled or we are using SFTP (which
+	     * resolves remote wildcards on the client side and can
+	     * be trusted).
 	     */
 	    char *striptarget, *stripsrc;
 
@@ -1770,10 +1770,16 @@ static void sink(char *targ, char *src)
 
 	    if (src) {
 		stripsrc = stripslashes(src, 1);
-		if (!stripsrc[strcspn(stripsrc, "*?[]")] &&
-		    strcmp(striptarget, stripsrc)) {
-		    tell_user(stderr, "warning: remote host attempted to"
-			      " write to a different filename: disallowing");
+		if (strcmp(striptarget, stripsrc) &&
+		    !using_sftp && !scp_unsafe_mode) {
+		    tell_user(stderr, "warning: remote host tried to write "
+			      "to a file called '%s'", striptarget);
+		    tell_user(stderr, "         when we requested a file "
+			      "called '%s'.", stripsrc);
+		    tell_user(stderr, "         If this is a wildcard, "
+			      "consider upgrading to SSH 2 or using");
+		    tell_user(stderr, "         the '-unsafe' option. Renaming"
+			      " of this file has been disallowed.");
 		    /* Override the name the server provided with our own. */
 		    striptarget = stripsrc;
 		}
@@ -2144,6 +2150,7 @@ static void usage(void)
     printf("  -v        show verbose messages\n");
     printf("  -P port   connect to specified port\n");
     printf("  -pw passw login with specified password\n");
+    printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
 #if 0
     /*
      * -gui is an internal option, used by GUI front ends to get
@@ -2194,6 +2201,8 @@ int main(int argc, char *argv[])
 	    gui_mode = 1;
 	} else if (strcmp(argv[i], "-ls") == 0)
 	    list = 1;
+	else if (strcmp(argv[i], "-unsafe") == 0)
+	    scp_unsafe_mode = 1;
 	else if (strcmp(argv[i], "--") == 0) {
 	    i++;
 	    break;
