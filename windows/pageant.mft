@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!-- This is present purely to make Visual Styles in XP work better.
-     See 20020104174954.A12067@imsa.edu. -->
+     See 20020104174954.A12067@imsa.edu.
+     Do not attempt to do anything clever with it, as some versions of
+     Windows are very sensitive to the exact format.
+     Hence, some facts below are fibs. -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 <assemblyIdentity
-   type="win32"
+   version="0.0.0.0"
+   processorArchitecture="x86"
    name="Pageant"
-   version="0.0.0.0"/>
+   type="win32" />
+   <description>PuTTY SSH authentication agent</description>
    <dependency>
    <dependentAssembly>
         <!-- Load Common Controls 6 instead of 5 to get WinXP native-
