@@ -61,7 +61,7 @@ OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ)
 ##-- resources putty
 PRESRC = win_res.$(RES)
 ##-- resources puttytel
-TRESRC = nossh_res.$(RES)
+TRESRC = nosshres.$(RES)
 ##-- resources pscp
 SRESRC = scp.$(RES)
 ##--
@@ -84,7 +84,7 @@ putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(PRESRC) put
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
 	link $(LFLAGS) -out:puttytel.exe @puttytel.rsp
 
-pscp.exe: $(SOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
+pscp.exe: $(SOBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe @pscp.rsp
 
 putty.rsp: makefile
@@ -159,10 +159,10 @@ win_res.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
 
 ##-- dependencies
-nossh_res.$(RES): nossh_res.rc win_res.rc win_res.h putty.ico
+nosshres.$(RES): nosshres.rc win_res.rc win_res.h putty.ico
 ##--
-nossh_res.$(RES):
-	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 nossh_res.rc
+nosshres.$(RES):
+	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 nosshres.rc
 
 ##-- dependencies
 scp.$(RES): scp.rc scp.ico
