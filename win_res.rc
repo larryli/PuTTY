@@ -1,6 +1,9 @@
 #include <winresrc.h>
 
+/* Some systems don't define this, so I do it myself if necessary */
+#ifndef TCS_MULTILINE
 #define TCS_MULTILINE 0x0200
+#endif
 
 #include "win_res.h"
 
