@@ -1728,6 +1728,33 @@ char *get_x_display(void *frontend)
 
 char *app_name = "pterm";
 
+static void help(FILE *fp) {
+    if(fprintf(fp,
+"pterm option summary:\n"
+"\n"
+"  --display DISPLAY         Specify X display to use (note '--')\n"
+"  -name PREFIX              Prefix when looking up resources (default: pterm)\n"
+"  -fn FONT                  Normal text font\n"
+"  -fb FONT                  Bold text font\n"
+"  -geometry WIDTHxHEIGHT    Size of terminal in characters\n"
+"  -sl LINES                 Number of lines of scrollback\n"
+"  -fg COLOUR, -bg COLOUR    Foreground/background colour\n"
+"  -bfg COLOUR, -bbg COLOUR  Foreground/background bold colour\n"
+"  -cfg COLOUR, -bfg COLOUR  Foreground/background cursor colour\n"
+"  -T TITLE                  Window title\n"
+"  -ut, +ut                  Do(default) or do not update utmp\n"
+"  -ls, +ls                  Do(default) or do not make shell a login shell\n"
+"  -sb, +sb                  Do(default) or do not display a scrollbar\n"
+"  -log PATH                 Log all output to a file\n"
+"  -nethack                  Map numeric keypad to hjklyubn direction keys\n"
+"  -xrm RESOURCE-STRING      Set an X resource\n"
+"  -e COMMAND [ARGS...]      Execute command (consumes all remaining args)\n"
+	 ) < 0 || fflush(fp) < 0) {
+	perror("output error");
+	exit(1);
+    }
+}
+
 int do_cmdline(int argc, char **argv, int do_everything)
 {
     int err = 0;
@@ -1881,6 +1908,10 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	    EXPECTS_ARG;
 	    provide_xrm_string(val);
 
+	} else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
+	    help(stdout);
+	    exit(0);
+	    
 	} else {
 	    err = 1;
 	    fprintf(stderr, "pterm: unrecognized option '%s'\n", p);
