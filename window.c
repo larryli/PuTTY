@@ -1077,7 +1077,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
         {
            time_t now;
            time(&now);
-           if (now-last_movement > cfg.ping_interval * 60 - 10)
+           if (now-last_movement > cfg.ping_interval)
            {
               back->special(TS_PING);
               last_movement = now;

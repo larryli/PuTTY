@@ -140,7 +140,7 @@ typedef struct {
     enum { PROT_RAW, PROT_TELNET, PROT_SSH } protocol;
     int close_on_exit;
     int warn_on_close;
-    int ping_interval;
+    int ping_interval;                 /* in seconds */
     /* SSH options */
     char remote_cmd[512];
     int nopty;

@@ -960,7 +960,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             }
             beginbox(&cp, "Sending of null packets to keep session active",
                      IDC_BOX_CONNECTION2, IDC_BOXT_CONNECTION2);
-            staticedit(&cp, "Minutes between &keepalives (0 to turn off)",
+            staticedit(&cp, "Seconds between &keepalives (0 to turn off)",
                        IDC_PINGSTATIC, IDC_PINGEDIT, 25);
             endbox(&cp);
 
