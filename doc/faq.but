@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.42 2003/01/24 14:12:31 jacob Exp $
+\versionid $Id: faq.but,v 1.43 2003/02/01 00:29:38 ben Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -897,13 +897,11 @@ general-subscription mailing list, what is?
 
 There isn't one, that we know of.
 
-If someone else wants to set up a mailing list for PuTTY users to
-help each other with common problems, that would be fine with us;
-but the PuTTY team would almost certainly not have the time to read
-it, so any questions the list couldn't answer would have to be
-forwarded on to us by the questioner. In any case, it's probably
-better to use the established newsgroup \cw{comp.security.ssh} for
-this purpose.
+If someone else wants to set up a mailing list or other forum for
+PuTTY users to help each other with common problems, that would be
+fine with us, though the PuTTY team would almost certainly not have the
+time to read it.  It's probably better to use the established
+newsgroup \cw{comp.security.ssh} for this purpose.
 
 \S{faq-donations}{Question} How can I donate to PuTTY development?
 
