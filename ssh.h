@@ -274,8 +274,9 @@ extern const char *pfd_newconnect(Socket * s, char *hostname, int port,
 /* desthost == NULL indicates dynamic (SOCKS) port forwarding */
 extern const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 				  int port, void *backhandle,
-				  const Config *cfg);
+				  const Config *cfg, void **sockdata);
 extern void pfd_close(Socket s);
+extern void pfd_terminate(void *sockdata);
 extern int pfd_send(Socket s, char *data, int len);
 extern void pfd_confirm(Socket s);
 extern void pfd_unthrottle(Socket s);

@@ -2399,6 +2399,26 @@ address to listen on, by specifying (for instance) \c{127.0.0.5:79}.
 See \k{using-port-forwarding} for more information on how this
 works and its restrictions.
 
+You can modify the currently active set of port forwardings in
+mid-session using \q{Change Settings}. If you delete a local or
+dynamic port forwarding in mid-session, PuTTY will stop listening
+for connections on that port, so it can be re-used by another
+program. If you delete a remote port forwarding, note that:
+
+\b The SSHv1 protocol contains no mechanism for asking the server to
+stop listening on a remote port.
+
+\b The SSHv2 protocol does contain such a mechanism, but not all SSH
+servers support it. (In particular, OpenSSH does not support it in
+any version earlier than 3.9.)
+
+If you ask to delete a remote port forwarding and PuTTY cannot make
+the server actually stop listening on the port, it will instead just
+start refusing incoming connections on that port. Therefore,
+although the port cannot be reused by another program, you can at
+least be reasonably sure that server-side programs can no longer
+access the service at your end of the port forwarding.
+
 \S{config-ssh-portfwd-localhost} Controlling the visibility of
 forwarded ports
 

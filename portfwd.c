@@ -462,7 +462,8 @@ static int pfd_accepting(Plug p, OSSocket sock)
  sets up a listener on the local machine on (srcaddr:)port
  */
 const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
-			   int port, void *backhandle, const Config *cfg)
+			   int port, void *backhandle, const Config *cfg,
+			   void **sockdata)
 {
     static const struct plug_function_table fn_table = {
 	pfd_closing,
@@ -501,6 +502,8 @@ const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 
     sk_set_private_ptr(s, pr);
 
+    *sockdata = (void *)s;
+
     return NULL;
 }
 
@@ -517,6 +520,14 @@ void pfd_close(Socket s)
     sfree(pr);
 
     sk_close(s);
+}
+
+/*
+ * Terminate a listener.
+ */
+void pfd_terminate(void *sv)
+{
+    pfd_close((Socket)sv);
 }
 
 void pfd_unthrottle(Socket s)

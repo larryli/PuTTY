@@ -1516,10 +1516,11 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     }
 
     /*
-     * All the SSH stuff is omitted in PuTTYtel.
+     * All the SSH stuff is omitted in PuTTYtel, or in a reconfig
+     * when we're not doing SSH.
      */
 
-    if (!midsession && backends[3].name != NULL) {
+    if (backends[3].name != NULL && (!midsession || protocol == PROT_SSH)) {
 
 	/*
 	 * The Connection/SSH panel.
@@ -1527,128 +1528,141 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	ctrl_settitle(b, "Connection/SSH",
 		      "Options controlling SSH connections");
 
-	s = ctrl_getset(b, "Connection/SSH", "data",
-			"Data to send to the server");
-	ctrl_editbox(s, "Remote command:", 'r', 100,
-		     HELPCTX(ssh_command),
-		     dlg_stdeditbox_handler, I(offsetof(Config,remote_cmd)),
-		     I(sizeof(((Config *)0)->remote_cmd)));
+	if (midsession) {
+	    s = ctrl_getset(b, "Connection/SSH", "disclaimer", NULL);
+	    ctrl_text(s, "Nothing on this panel may be reconfigured in mid-"
+		      "session; it is only here so that sub-panels of it can "
+		      "exist without looking strange.", HELPCTX(no_help));
+	}
 
-	s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
-	ctrl_checkbox(s, "Don't allocate a pseudo-terminal", 'p',
-		      HELPCTX(ssh_nopty),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,nopty)));
-	ctrl_checkbox(s, "Don't start a shell or command at all", 'n',
-		      HELPCTX(ssh_noshell),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,ssh_no_shell)));
-	ctrl_checkbox(s, "Enable compression", 'e',
-		      HELPCTX(ssh_compress),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,compression)));
-	ctrl_radiobuttons(s, "Preferred SSH protocol version:", NO_SHORTCUT, 4,
-			  HELPCTX(ssh_protocol),
-			  dlg_stdradiobutton_handler,
-			  I(offsetof(Config, sshprot)),
-			  "1 only", 'l', I(0),
-			  "1", '1', I(1),
-			  "2", '2', I(2),
-			  "2 only", 'y', I(3), NULL);
+	if (!midsession) {
 
-	s = ctrl_getset(b, "Connection/SSH", "encryption", "Encryption options");
-	c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
+	    s = ctrl_getset(b, "Connection/SSH", "data",
+			    "Data to send to the server");
+	    ctrl_editbox(s, "Remote command:", 'r', 100,
+			 HELPCTX(ssh_command),
+			 dlg_stdeditbox_handler, I(offsetof(Config,remote_cmd)),
+			 I(sizeof(((Config *)0)->remote_cmd)));
+
+	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
+	    ctrl_checkbox(s, "Don't allocate a pseudo-terminal", 'p',
+			  HELPCTX(ssh_nopty),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,nopty)));
+	    ctrl_checkbox(s, "Don't start a shell or command at all", 'n',
+			  HELPCTX(ssh_noshell),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh_no_shell)));
+	    ctrl_checkbox(s, "Enable compression", 'e',
+			  HELPCTX(ssh_compress),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,compression)));
+	    ctrl_radiobuttons(s, "Preferred SSH protocol version:", NO_SHORTCUT, 4,
+			      HELPCTX(ssh_protocol),
+			      dlg_stdradiobutton_handler,
+			      I(offsetof(Config, sshprot)),
+			      "1 only", 'l', I(0),
+			      "1", '1', I(1),
+			      "2", '2', I(2),
+			      "2 only", 'y', I(3), NULL);
+
+	    s = ctrl_getset(b, "Connection/SSH", "encryption", "Encryption options");
+	    c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
+			      HELPCTX(ssh_ciphers),
+			      cipherlist_handler, P(NULL));
+	    c->listbox.height = 6;
+
+	    ctrl_checkbox(s, "Enable legacy use of single-DES in SSH 2", 'i',
 			  HELPCTX(ssh_ciphers),
-			  cipherlist_handler, P(NULL));
-	c->listbox.height = 6;
-	
-	ctrl_checkbox(s, "Enable legacy use of single-DES in SSH 2", 'i',
-		      HELPCTX(ssh_ciphers),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,ssh2_des_cbc)));
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh2_des_cbc)));
+
+	    /*
+	     * The Connection/SSH/Kex panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Kex",
+			  "Options controlling SSH key exchange");
+
+	    s = ctrl_getset(b, "Connection/SSH/Kex", "main",
+			    "Key exchange algorithm options");
+	    c = ctrl_draglist(s, "Algorithm selection policy", 's',
+			      HELPCTX(ssh_kexlist),
+			      kexlist_handler, P(NULL));
+	    c->listbox.height = 5;
+
+	    s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
+			    "Options controlling key re-exchange");
+
+	    /* FIXME: these could usefully be configured mid-session in SSH-2.
+	     *        (So could cipher/compression/kex, now we have rekey.) */
+	    ctrl_editbox(s, "Max minutes before rekey (0 for no limit)", 't', 20,
+			 HELPCTX(ssh_kex_repeat),
+			 dlg_stdeditbox_handler,
+			 I(offsetof(Config,ssh_rekey_time)),
+			 I(-1));
+	    ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'd', 20,
+			 HELPCTX(ssh_kex_repeat),
+			 dlg_stdeditbox_handler,
+			 I(offsetof(Config,ssh_rekey_data)),
+			 I(16));
+	    ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
+		      HELPCTX(ssh_kex_repeat));
+
+	    /*
+	     * The Connection/SSH/Auth panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Auth",
+			  "Options controlling SSH authentication");
+
+	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
+			    "Authentication methods");
+	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH1)", 'm',
+			  HELPCTX(ssh_auth_tis),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_tis_auth)));
+	    ctrl_checkbox(s, "Attempt \"keyboard-interactive\" auth (SSH2)",
+			  'i', HELPCTX(ssh_auth_ki),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_ki_auth)));
+
+	    s = ctrl_getset(b, "Connection/SSH/Auth", "params",
+			    "Authentication parameters");
+	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
+			  HELPCTX(ssh_auth_agentfwd),
+			  dlg_stdcheckbox_handler, I(offsetof(Config,agentfwd)));
+	    ctrl_checkbox(s, "Allow attempted changes of username in SSH2", 'u',
+			  HELPCTX(ssh_auth_changeuser),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,change_username)));
+	    ctrl_filesel(s, "Private key file for authentication:", 'k',
+			 FILTER_KEY_FILES, FALSE, "Select private key file",
+			 HELPCTX(ssh_auth_privkey),
+			 dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
+	}
 
 	/*
-	 * The Connection/SSH/Kex panel.
-	 */
-	ctrl_settitle(b, "Connection/SSH/Kex",
-		      "Options controlling SSH key exchange");
-
-	s = ctrl_getset(b, "Connection/SSH/Kex", "main", 
-			"Key exchange algorithm options");
-	c = ctrl_draglist(s, "Algorithm selection policy", 's',
-			  HELPCTX(ssh_kexlist),
-			  kexlist_handler, P(NULL));
-	c->listbox.height = 5;
-
-	s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
-			"Options controlling key re-exchange");
-
-	/* FIXME: these could usefully be configured mid-session in SSH-2.
-	 *        (So could cipher/compression/kex, now we have rekey.) */
-	ctrl_editbox(s, "Max minutes before rekey (0 for no limit)", 't', 20,
-		     HELPCTX(ssh_kex_repeat),
-		     dlg_stdeditbox_handler,
-		     I(offsetof(Config,ssh_rekey_time)),
-		     I(-1));
-	ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'd', 20,
-		     HELPCTX(ssh_kex_repeat),
-		     dlg_stdeditbox_handler,
-		     I(offsetof(Config,ssh_rekey_data)),
-		     I(16));
-	ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
-		  HELPCTX(ssh_kex_repeat));
-
-	/*
-	 * The Connection/SSH/Auth panel.
-	 */
-	ctrl_settitle(b, "Connection/SSH/Auth",
-		      "Options controlling SSH authentication");
-
-	s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
-			"Authentication methods");
-	ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH1)", 'm',
-		      HELPCTX(ssh_auth_tis),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,try_tis_auth)));
-	ctrl_checkbox(s, "Attempt \"keyboard-interactive\" auth (SSH2)",
-		      'i', HELPCTX(ssh_auth_ki),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,try_ki_auth)));
-
-	s = ctrl_getset(b, "Connection/SSH/Auth", "params",
-			"Authentication parameters");
-	ctrl_checkbox(s, "Allow agent forwarding", 'f',
-		      HELPCTX(ssh_auth_agentfwd),
-		      dlg_stdcheckbox_handler, I(offsetof(Config,agentfwd)));
-	ctrl_checkbox(s, "Allow attempted changes of username in SSH2", 'u',
-		      HELPCTX(ssh_auth_changeuser),
-		      dlg_stdcheckbox_handler,
-		      I(offsetof(Config,change_username)));
-	ctrl_filesel(s, "Private key file for authentication:", 'k',
-		     FILTER_KEY_FILES, FALSE, "Select private key file",
-		     HELPCTX(ssh_auth_privkey),
-		     dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
-
-	/*
-	 * The Connection/SSH/Tunnels panel.
+	 * The Connection/SSH/Tunnels panel. Some of this _is_
+	 * still available in mid-session.
 	 */
 	ctrl_settitle(b, "Connection/SSH/Tunnels",
 		      "Options controlling SSH tunnelling");
 
-	s = ctrl_getset(b, "Connection/SSH/Tunnels", "x11", "X11 forwarding");
-	ctrl_checkbox(s, "Enable X11 forwarding", 'e',
-		      HELPCTX(ssh_tunnels_x11),
-		      dlg_stdcheckbox_handler,I(offsetof(Config,x11_forward)));
-	ctrl_editbox(s, "X display location", 'x', 50,
-		     HELPCTX(ssh_tunnels_x11),
-		     dlg_stdeditbox_handler, I(offsetof(Config,x11_display)),
-		     I(sizeof(((Config *)0)->x11_display)));
-	ctrl_radiobuttons(s, "Remote X11 authentication protocol", 'u', 2,
-			  HELPCTX(ssh_tunnels_x11auth),
-			  dlg_stdradiobutton_handler,
-			  I(offsetof(Config, x11_auth)),
-			  "MIT-Magic-Cookie-1", I(X11_MIT),
-			  "XDM-Authorization-1", I(X11_XDM), NULL);
+	if (!midsession) {
+	    s = ctrl_getset(b, "Connection/SSH/Tunnels", "x11", "X11 forwarding");
+	    ctrl_checkbox(s, "Enable X11 forwarding", 'e',
+			  HELPCTX(ssh_tunnels_x11),
+			  dlg_stdcheckbox_handler,I(offsetof(Config,x11_forward)));
+	    ctrl_editbox(s, "X display location", 'x', 50,
+			 HELPCTX(ssh_tunnels_x11),
+			 dlg_stdeditbox_handler, I(offsetof(Config,x11_display)),
+			 I(sizeof(((Config *)0)->x11_display)));
+	    ctrl_radiobuttons(s, "Remote X11 authentication protocol", 'u', 2,
+			      HELPCTX(ssh_tunnels_x11auth),
+			      dlg_stdradiobutton_handler,
+			      I(offsetof(Config, x11_auth)),
+			      "MIT-Magic-Cookie-1", I(X11_MIT),
+			      "XDM-Authorization-1", I(X11_XDM), NULL);
+	}
 
 	s = ctrl_getset(b, "Connection/SSH/Tunnels", "portfwd",
 			"Port forwarding");
@@ -1706,34 +1720,36 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	ctrl_tabdelay(s, pfd->addbutton);
 	ctrl_columns(s, 1, 100);
 
-	/*
-	 * The Connection/SSH/Bugs panel.
-	 */
-	ctrl_settitle(b, "Connection/SSH/Bugs",
-		      "Workarounds for SSH server bugs");
+	if (!midsession) {
+	    /*
+	     * The Connection/SSH/Bugs panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Bugs",
+			  "Workarounds for SSH server bugs");
 
-	s = ctrl_getset(b, "Connection/SSH/Bugs", "main",
-			"Detection of known bugs in SSH servers");
-	ctrl_droplist(s, "Chokes on SSH1 ignore messages", 'i', 20,
-		      HELPCTX(ssh_bugs_ignore1),
-		      sshbug_handler, I(offsetof(Config,sshbug_ignore1)));
-	ctrl_droplist(s, "Refuses all SSH1 password camouflage", 's', 20,
-		      HELPCTX(ssh_bugs_plainpw1),
-		      sshbug_handler, I(offsetof(Config,sshbug_plainpw1)));
-	ctrl_droplist(s, "Chokes on SSH1 RSA authentication", 'r', 20,
-		      HELPCTX(ssh_bugs_rsa1),
-		      sshbug_handler, I(offsetof(Config,sshbug_rsa1)));
-	ctrl_droplist(s, "Miscomputes SSH2 HMAC keys", 'm', 20,
-		      HELPCTX(ssh_bugs_hmac2),
-		      sshbug_handler, I(offsetof(Config,sshbug_hmac2)));
-	ctrl_droplist(s, "Miscomputes SSH2 encryption keys", 'e', 20,
-		      HELPCTX(ssh_bugs_derivekey2),
-		      sshbug_handler, I(offsetof(Config,sshbug_derivekey2)));
-	ctrl_droplist(s, "Requires padding on SSH2 RSA signatures", 'p', 20,
-		      HELPCTX(ssh_bugs_rsapad2),
-		      sshbug_handler, I(offsetof(Config,sshbug_rsapad2)));
-	ctrl_droplist(s, "Misuses the session ID in PK auth", 'n', 20,
-		      HELPCTX(ssh_bugs_pksessid2),
-		      sshbug_handler, I(offsetof(Config,sshbug_pksessid2)));
+	    s = ctrl_getset(b, "Connection/SSH/Bugs", "main",
+			    "Detection of known bugs in SSH servers");
+	    ctrl_droplist(s, "Chokes on SSH1 ignore messages", 'i', 20,
+			  HELPCTX(ssh_bugs_ignore1),
+			  sshbug_handler, I(offsetof(Config,sshbug_ignore1)));
+	    ctrl_droplist(s, "Refuses all SSH1 password camouflage", 's', 20,
+			  HELPCTX(ssh_bugs_plainpw1),
+			  sshbug_handler, I(offsetof(Config,sshbug_plainpw1)));
+	    ctrl_droplist(s, "Chokes on SSH1 RSA authentication", 'r', 20,
+			  HELPCTX(ssh_bugs_rsa1),
+			  sshbug_handler, I(offsetof(Config,sshbug_rsa1)));
+	    ctrl_droplist(s, "Miscomputes SSH2 HMAC keys", 'm', 20,
+			  HELPCTX(ssh_bugs_hmac2),
+			  sshbug_handler, I(offsetof(Config,sshbug_hmac2)));
+	    ctrl_droplist(s, "Miscomputes SSH2 encryption keys", 'e', 20,
+			  HELPCTX(ssh_bugs_derivekey2),
+			  sshbug_handler, I(offsetof(Config,sshbug_derivekey2)));
+	    ctrl_droplist(s, "Requires padding on SSH2 RSA signatures", 'p', 20,
+			  HELPCTX(ssh_bugs_rsapad2),
+			  sshbug_handler, I(offsetof(Config,sshbug_rsapad2)));
+	    ctrl_droplist(s, "Misuses the session ID in PK auth", 'n', 20,
+			  HELPCTX(ssh_bugs_pksessid2),
+			  sshbug_handler, I(offsetof(Config,sshbug_pksessid2)));
+	}
     }
 }

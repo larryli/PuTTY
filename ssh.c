@@ -497,11 +497,34 @@ struct ssh_channel {
  * Hence, in SSH 1 this structure is indexed by destination
  * host:port pair, whereas in SSH 2 it is indexed by source port.
  */
+struct ssh_portfwd; /* forward declaration */
+
 struct ssh_rportfwd {
     unsigned sport, dport;
     char dhost[256];
     char *sportdesc;
+    struct ssh_portfwd *pfrec;
 };
+#define free_rportfwd(pf) ( \
+    ((pf) ? (sfree((pf)->sportdesc)) : (void)0 ), sfree(pf) )
+
+/*
+ * Separately to the rportfwd tree (which is for looking up port
+ * open requests from the server), a tree of _these_ structures is
+ * used to keep track of all the currently open port forwardings,
+ * so that we can reconfigure in mid-session if the user requests
+ * it.
+ */
+struct ssh_portfwd {
+    int keep;
+    int type;
+    unsigned sport, dport;
+    char *saddr, *daddr;
+    struct ssh_rportfwd *remote;
+    void *local;
+};
+#define free_portfwd(pf) ( \
+    ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr)) : (void)0 ), sfree(pf) )
 
 struct Packet {
     long length;
@@ -616,7 +639,7 @@ struct ssh_tag {
     struct ssh_channel *mainchan;      /* primary session channel */
     int exitcode;
 
-    tree234 *rportfwds;
+    tree234 *rportfwds, *portfwds;
 
     enum {
 	SSH_STATE_PREPACKET,
@@ -813,6 +836,47 @@ static int ssh_rportcmp_ssh2(void *av, void *bv)
 	return +1;
     if (a->sport < b->sport)
 	return -1;
+    return 0;
+}
+
+/*
+ * Special form of strcmp which can cope with NULL inputs. NULL is
+ * defined to sort before even the empty string.
+ */
+static int nullstrcmp(const char *a, const char *b)
+{
+    if (a == NULL && b == NULL)
+	return 0;
+    if (a == NULL)
+	return -1;
+    if (b == NULL)
+	return +1;
+    return strcmp(a, b);
+}
+
+static int ssh_portcmp(void *av, void *bv)
+{
+    struct ssh_portfwd *a = (struct ssh_portfwd *) av;
+    struct ssh_portfwd *b = (struct ssh_portfwd *) bv;
+    int i;
+    if (a->type > b->type)
+	return +1;
+    if (a->type < b->type)
+	return -1;
+    if ( (i = nullstrcmp(a->saddr, b->saddr)) != 0)
+	return i < 0 ? -1 : +1;
+    if (a->sport > b->sport)
+	return +1;
+    if (a->sport < b->sport)
+	return -1;
+    if (a->type != 'D') {
+	if ( (i = nullstrcmp(a->daddr, b->daddr)) != 0)
+	    return i < 0 ? -1 : +1;
+	if (a->dport > b->dport)
+	    return +1;
+	if (a->dport < b->dport)
+	    return -1;
+    }
     return 0;
 }
 
@@ -3596,8 +3660,7 @@ static void ssh_rportfwd_succfail(Ssh ssh, struct Packet *pktin, void *ctx)
 
 	rpf = del234(ssh->rportfwds, pf);
 	assert(rpf == pf);
-	sfree(pf->sportdesc);
-	sfree(pf);
+	free_rportfwd(pf);
     }
 }
 
@@ -3610,6 +3673,21 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
     const char *portfwd_strptr;
 
     portfwd_strptr = cfg->portfwd;
+
+    if (!ssh->portfwds) {
+	ssh->portfwds = newtree234(ssh_portcmp);
+    } else {
+	/*
+	 * Go through the existing port forwardings and tag them
+	 * with keep==FALSE. Any that we want to keep will be
+	 * re-enabled as we go through the configuration and find
+	 * out which bits are the same as they were before.
+	 */
+	struct ssh_portfwd *epf;
+	int i;
+	for (i = 0; (epf = index234(ssh->portfwds, i)) != NULL; i++)
+	    epf->keep = FALSE;
+    }
 
     while (*portfwd_strptr) {
 	type = *portfwd_strptr++;
@@ -3680,13 +3758,33 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	}
 	if (sport && dport) {
 	    /* Set up a description of the source port. */
-	    static char *sportdesc;
+	    struct ssh_portfwd *pfrec, *epfrec;
+	    char *sportdesc;
 	    sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
 				  (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
 				  (int)(*saddr?1:0), ":",
 				  (int)(sserv ? strlen(sports) : 0), sports,
 				  sserv, "(", sport, sserv, ")");
-	    if (type == 'L') {
+
+	    pfrec = snew(struct ssh_portfwd);
+	    pfrec->type = type;
+	    pfrec->saddr = *saddr ? dupstr(saddr) : NULL;
+	    pfrec->sport = sport;
+	    pfrec->daddr = dupstr(host);
+	    pfrec->dport = dport;
+	    pfrec->local = NULL;
+	    pfrec->remote = NULL;
+
+	    epfrec = add234(ssh->portfwds, pfrec);
+	    if (epfrec != pfrec) {
+		/*
+		 * We already have a port forwarding with precisely
+		 * these parameters. Hence, no need to do anything;
+		 * simply tag the existing one as `keep'.
+		 */
+		epfrec->keep = TRUE;
+		free_portfwd(pfrec);
+	    } else if (type == 'L') {
 		/* Verbose description of the destination port */
 		char *dportdesc = dupprintf("%s:%.*s%.*s%d%.*s",
 					    host,
@@ -3694,7 +3792,8 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 					    dserv, "(", dport, dserv, ")");
 		const char *err = pfd_addforward(host, dport,
 						 *saddr ? saddr : NULL,
-						 sport, ssh, &ssh->cfg);
+						 sport, ssh, &ssh->cfg,
+						 &pfrec->local);
 		if (err) {
 		    logeventf(ssh, "Local port %s forward to %s"
 			      " failed: %s", sportdesc, dportdesc, err);
@@ -3706,7 +3805,8 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    } else if (type == 'D') {
 		const char *err = pfd_addforward(NULL, -1,
 						 *saddr ? saddr : NULL,
-						 sport, ssh, &ssh->cfg);
+						 sport, ssh, &ssh->cfg,
+						 &pfrec->local);
 		if (err) {
 		    logeventf(ssh, "Local port %s SOCKS dynamic forward"
 			      " setup failed: %s", sportdesc, err);
@@ -3744,6 +3844,8 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 
 		    pf->sportdesc = sportdesc;
 		    sportdesc = NULL;
+		    pfrec->remote = pf;
+		    pf->pfrec = pfrec;
 
 		    if (ssh->version == 1) {
 			send_packet(ssh, SSH1_CMSG_PORT_FORWARD_REQUEST,
@@ -3777,6 +3879,78 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    }
 	    sfree(sportdesc);
 	}
+    }
+
+    /*
+     * Now go through and destroy any port forwardings which were
+     * not re-enabled.
+     */
+    {
+	struct ssh_portfwd *epf;
+	int i;
+	for (i = 0; (epf = index234(ssh->portfwds, i)) != NULL; i++)
+	    if (!epf->keep) {
+		char *message;
+
+		message = dupprintf("%s port forwarding from %s%s%d",
+				    epf->type == 'L' ? "local" :
+				    epf->type == 'R' ? "remote" : "dynamic",
+				    epf->saddr ? epf->saddr : "",
+				    epf->saddr ? ":" : "",
+				    epf->sport);
+
+		if (epf->type != 'D') {
+		    char *msg2 = dupprintf("%s to %s:%d", message,
+					   epf->daddr, epf->dport);
+		    sfree(message);
+		    message = msg2;
+		}
+
+		logeventf(ssh, "Cancelling %s", message);
+		sfree(message);
+
+		if (epf->remote) {
+		    struct ssh_rportfwd *rpf = epf->remote;
+		    struct Packet *pktout;
+
+		    /*
+		     * Cancel the port forwarding at the server
+		     * end.
+		     */
+		    if (ssh->version == 1) {
+			/*
+			 * We cannot cancel listening ports on the
+			 * server side in SSH1! There's no message
+			 * to support it. Instead, we simply remove
+			 * the rportfwd record from the local end
+			 * so that any connections the server tries
+			 * to make on it are rejected.
+			 */
+		    } else {
+			pktout = ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
+			ssh2_pkt_addstring(pktout, "cancel-tcpip-forward");
+			ssh2_pkt_addbool(pktout, 0);/* _don't_ want reply */
+			if (epf->saddr) {
+			    ssh2_pkt_addstring(pktout, epf->saddr);
+			} else if (ssh->cfg.rport_acceptall) {
+			    ssh2_pkt_addstring(pktout, "0.0.0.0");
+			} else {
+			    ssh2_pkt_addstring(pktout, "127.0.0.1");
+			}
+			ssh2_pkt_adduint32(pktout, epf->sport);
+			ssh2_pkt_send(ssh, pktout);
+		    }
+
+		    del234(ssh->rportfwds, rpf);
+		    free_rportfwd(rpf);
+		} else if (epf->local) {
+		    pfd_terminate(epf->local);
+		}
+
+		delpos234(ssh->portfwds, i);
+		free_portfwd(epf);
+		i--;		       /* so we don't skip one in the list */
+	    }
     }
 }
 
@@ -7281,17 +7455,12 @@ static void ssh_free(void *handle)
 
 /*
  * Reconfigure the SSH backend.
- * 
- * Currently, this function does nothing very useful. In future,
- * however, we could do some handy things with it. For example, we
- * could make the port forwarding configurer active in the Change
- * Settings box, and this routine could close down existing
- * forwardings and open up new ones in response to changes.
  */
 static void ssh_reconfig(void *handle, Config *cfg)
 {
     Ssh ssh = (Ssh) handle;
     pinger_reconfig(ssh->pinger, &ssh->cfg, cfg);
+    ssh_setup_portfwd(ssh, cfg);
     ssh->cfg = *cfg;		       /* STRUCTURE COPY */
 }
 
