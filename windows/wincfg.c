@@ -185,6 +185,16 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		  I(offsetof(Config,xlat_capslockcyr)));
 
     /*
+     * On Windows we can use but not enumerate translation tables
+     * from the operating system. Briefly document this.
+     */
+    s = ctrl_getset(b, "Window/Translation", "trans",
+		    "Character set translation on received data");
+    ctrl_text(s, "(Codepages supported by Windows but not listed here, "
+	      "such as CP866 on many systems, can be entered manually)",
+	      HELPCTX(translation_codepage));
+
+    /*
      * Windows has the weird OEM font mode, which gives us some
      * additional options when working with line-drawing
      * characters.
