@@ -14,7 +14,6 @@
 #define _XOPEN_SOURCE
 #define _XOPEN_SOURCE_EXTENDED
 #define _GNU_SOURCE
-#include <features.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +27,7 @@
 #include <pwd.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -74,23 +74,22 @@ static int pty_master_fd;
 static void *pty_frontend;
 static char pty_name[FILENAME_MAX];
 static int pty_signal_pipe[2];
-static int pty_stamped_utmp = 0;
 static int pty_child_pid;
-static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
 static int pty_term_width, pty_term_height;
 static int pty_child_dead, pty_finished;
 static int pty_exit_code;
-#ifndef OMIT_UTMP
-static struct utmp utmp_entry;
-#endif
 char **pty_argv;
 int use_pty_argv = TRUE;
 
 static void pty_close(void);
 
+#ifndef OMIT_UTMP
+static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
+static int pty_stamped_utmp = 0;
+static struct utmp utmp_entry;
+
 static void setup_utmp(char *ttyname, char *location)
 {
-#ifndef OMIT_UTMP
 #ifdef HAVE_LASTLOG
     struct lastlog lastlog_entry;
     FILE *lastlog;
@@ -138,12 +137,10 @@ static void setup_utmp(char *ttyname, char *location)
 
     pty_stamped_utmp = 1;
 
-#endif
 }
 
 static void cleanup_utmp(void)
 {
-#ifndef OMIT_UTMP
     FILE *wtmp;
     time_t uttime;
 
@@ -171,14 +168,15 @@ static void cleanup_utmp(void)
 #endif
 
     pty_stamped_utmp = 0;	       /* ensure we never double-cleanup */
-#endif
 }
+#endif
 
 static void sigchld_handler(int signum)
 {
     write(pty_signal_pipe[1], "x", 1);
 }
 
+#ifndef OMIT_UTMP
 static void fatal_sig_handler(int signum)
 {
     putty_signal(signum, SIG_DFL);
@@ -186,6 +184,7 @@ static void fatal_sig_handler(int signum)
     setuid(getuid());
     raise(signum);
 }
+#endif
 
 static void pty_open_master(void)
 {
@@ -258,8 +257,10 @@ static void pty_open_master(void)
  */
 void pty_pre_init(void)
 {
+#ifndef OMIT_UTMP
     pid_t pid;
     int pipefd[2];
+#endif
 
     /* set the child signal handler straight away; it needs to be set
      * before we ever fork. */
@@ -369,8 +370,8 @@ void pty_pre_init(void)
 
     /* Drop privs. */
     {
-	int gid = getgid(), uid = getuid();
 #ifndef HAVE_NO_SETRESUID
+	int gid = getgid(), uid = getuid();
 	int setresgid(gid_t, gid_t, gid_t);
 	int setresuid(uid_t, uid_t, uid_t);
 	setresgid(gid, gid, gid);
@@ -520,6 +521,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	tcsetattr(pty_master_fd, TCSANOW, &attrs);
     }
 
+#ifndef OMIT_UTMP
     /*
      * Stamp utmp (that is, tell the utmp helper process to do so),
      * or not.
@@ -541,6 +543,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	    pos += ret;
 	}
     }
+#endif
 
     windowid = get_windowid(pty_frontend);
 
@@ -574,9 +577,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	ioctl(slavefd, TIOCSCTTY, 1);
 	pgrp = getpid();
 	tcsetpgrp(slavefd, pgrp);
-	setpgrp();
+	setpgrp(pgrp, pgrp);
 	close(open(pty_name, O_WRONLY, 0));
-	setpgrp();
+	setpgrp(pgrp, pgrp);
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
@@ -698,10 +701,12 @@ static void pty_close(void)
 	close(pty_master_fd);
 	pty_master_fd = -1;
     }
+#ifndef OMIT_UTMP
     if (pty_utmp_helper_pipe >= 0) {
 	close(pty_utmp_helper_pipe);   /* this causes utmp to be cleaned up */
 	pty_utmp_helper_pipe = -1;
     }
+#endif
 }
 
 /*

@@ -26,8 +26,9 @@ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
 {
     if (codepage == DEFAULT_CODEPAGE) {
 	int n = 0;
-	mbstate_t state = { 0 };
+	mbstate_t state;
 
+	memset(&state, 0, sizeof state);
 	setlocale(LC_CTYPE, "");
 
 	while (mblen > 0) {
@@ -68,9 +69,10 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 
     if (codepage == DEFAULT_CODEPAGE) {
 	char output[MB_LEN_MAX];
-	mbstate_t state = { 0 };
+	mbstate_t state;
 	int n = 0;
 
+	memset(&state, 0, sizeof state);
 	setlocale(LC_CTYPE, "");
 
 	while (wclen > 0) {
