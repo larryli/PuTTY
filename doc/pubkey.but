@@ -405,13 +405,13 @@ of OpenSSH 2 the file might be called \c{authorized_keys2}. (In
 modern versions the same \c{authorized_keys} file is used for both
 SSH-1 and SSH-2 keys.)
 
-\b If your server is \cw{ssh.com}'s SSH 2 product, you need to save
-a \e{public} key file from PuTTYgen (see \k{puttygen-savepub}), and
-copy that into the \c{.ssh2} directory on the server. Then you
-should go into that \c{.ssh2} directory, and edit (or create) a file
-called \c{authorization}. In this file you should put a line like
-\c{Key mykey.pub}, with \c{mykey.pub} replaced by the name of your
-key file.
+\b If your server is \cw{ssh.com}'s product and is using SSH-2, you
+need to save a \e{public} key file from PuTTYgen (see
+\k{puttygen-savepub}), and copy that into the \c{.ssh2} directory on
+the server. Then you should go into that \c{.ssh2} directory, and edit
+(or create) a file called \c{authorization}. In this file you should
+put a line like \c{Key mykey.pub}, with \c{mykey.pub} replaced by the
+name of your key file.
 
 \b For other SSH server software, you should refer to the manual for
 that server.
