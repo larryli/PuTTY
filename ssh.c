@@ -2018,7 +2018,10 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		 * because one was supplied on the command line
 		 * which has already failed to work). Terminate.
 		 */
-		logevent("No more passwords to try");
+		send_packet(SSH1_MSG_DISCONNECT,
+			    PKT_STR, "No more passwords available to try",
+			    PKT_END);
+		connection_fatal("Unable to authenticate");
 		ssh_state = SSH_STATE_CLOSED;
 		crReturn(1);
 	    }
@@ -3537,7 +3540,13 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			 * command line which has already failed to
 			 * work). Terminate.
 			 */
-			logevent("No more passwords to try");
+			ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+			ssh2_pkt_adduint32(SSH2_DISCONNECT_BY_APPLICATION);
+			ssh2_pkt_addstring
+			    ("No more passwords available to try");
+			ssh2_pkt_addstring("en");	/* language tag */
+			ssh2_pkt_send();
+			connection_fatal("Unable to authenticate");
 			ssh_state = SSH_STATE_CLOSED;
 			crReturnV;
 		    }

@@ -46,6 +46,7 @@
 #define   WM_RET_ERR_CNT	( WM_APP_BASE+406 )
 #define   WM_LS_RET_ERR_CNT	( WM_APP_BASE+407 )
 
+static int list = 0;
 static int verbose = 0;
 static int recursive = 0;
 static int preserve = 0;
@@ -239,6 +240,16 @@ void fatalbox(char *fmt, ...)
     va_end(ap);
     strcat(str, "\n");
     tell_str(stderr, str);
+    errs++;
+
+    if (gui_mode) {
+	unsigned int msg_id = WM_RET_ERR_CNT;
+	if (list)
+	    msg_id = WM_LS_RET_ERR_CNT;
+	while (!PostMessage
+	       ((HWND) atoi(gui_hwnd), msg_id, (WPARAM) errs,
+		0 /*lParam */ ))SleepEx(1000, TRUE);
+    }
 
     exit(1);
 }
@@ -252,6 +263,16 @@ void connection_fatal(char *fmt, ...)
     va_end(ap);
     strcat(str, "\n");
     tell_str(stderr, str);
+    errs++;
+
+    if (gui_mode) {
+	unsigned int msg_id = WM_RET_ERR_CNT;
+	if (list)
+	    msg_id = WM_LS_RET_ERR_CNT;
+	while (!PostMessage
+	       ((HWND) atoi(gui_hwnd), msg_id, (WPARAM) errs,
+		0 /*lParam */ ))SleepEx(1000, TRUE);
+    }
 
     exit(1);
 }
@@ -398,12 +419,23 @@ static void bump(char *fmt, ...)
     va_end(ap);
     strcat(str, "\n");
     tell_str(stderr, str);
+    errs++;
 
     if (back != NULL && back->socket() != NULL) {
 	char ch;
 	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
     }
+
+    if (gui_mode) {
+	unsigned int msg_id = WM_RET_ERR_CNT;
+	if (list)
+	    msg_id = WM_LS_RET_ERR_CNT;
+	while (!PostMessage
+	       ((HWND) atoi(gui_hwnd), msg_id, (WPARAM) errs,
+		0 /*lParam */ ))SleepEx(1000, TRUE);
+    }
+
     exit(1);
 }
 
@@ -1236,7 +1268,6 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
     int i;
-    int list = 0;
 
     default_protocol = PROT_TELNET;
 
