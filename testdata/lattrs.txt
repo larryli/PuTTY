@@ -1,0 +1,6 @@
+Test of line attributes:
+
+#3Double-height top
+#4Double-height bottom
+#5Normal text (#5)
+#6Double-width only

@@ -4543,11 +4543,14 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 #ifdef OPTIMISE_SCROLL
     struct scrollregion *sr;
 #endif /* OPTIMISE_SCROLL */
+    termchar *newline;
 
     cursor_background = term->basic_erase_char;
 
     chlen = 1024;
     ch = snewn(chlen, wchar_t);
+
+    newline = snewn(term->cols, termchar);
 
     rv = (!term->rvideo ^ !term->in_vbell ? ATTR_REVERSE : 0);
 
@@ -4648,10 +4651,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	scrpos.y = i + term->disptop;
 	ldata = lineptr(scrpos.y);
 
-	dirty_run = dirty_line = (ldata->lattr !=
-				  term->disptext[i]->lattr);
-	term->disptext[i]->lattr = ldata->lattr;
-
 	/* Do Arabic shaping and bidi. */
 	lchars = term_bidi_line(term, ldata, i);
 	if (lchars) {
@@ -4661,10 +4660,13 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    backward = NULL;
 	}
 
+	/*
+	 * First loop: work along the line deciding what we want
+	 * each character cell to look like.
+	 */
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
 	    termchar *d = lchars + j;
-	    int break_run, do_copy;
 	    scrpos.x = backward ? backward[j] : j;
 
 	    tchar = d->chr;
@@ -4744,6 +4746,39 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		term->dispcursx = j;
 		term->dispcursy = i;
 	    }
+
+	    /* FULL-TERMCHAR */
+	    newline[j].attr = tattr;
+	    newline[j].chr = tchar;
+	    /* Combining characters are still read from lchars */
+	    newline[j].cc_next = 0;
+	}
+
+	/*
+	 * Now loop over the line again, noting where things have
+	 * changed.
+	 */
+	for (j = 0; j < term->cols; j++) {
+	    if (term->disptext[i]->chars[j].chr != newline[j].chr ||
+		term->disptext[i]->chars[j].attr != newline[j].attr) {
+		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
+	    }
+	}
+
+	/*
+	 * Finally, loop once more and actually do the drawing.
+	 */
+	dirty_run = dirty_line = (ldata->lattr !=
+				  term->disptext[i]->lattr);
+	term->disptext[i]->lattr = ldata->lattr;
+
+	for (j = 0; j < term->cols; j++) {
+	    unsigned long tattr, tchar;
+	    int break_run, do_copy;
+	    termchar *d = lchars + j;
+
+	    tattr = newline[j].attr;
+	    tchar = newline[j].chr;
 
 	    if ((term->disptext[i]->chars[j].attr ^ tattr) & ATTR_WIDE)
 		dirty_line = TRUE;
@@ -4908,6 +4943,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	unlineptr(ldata);
     }
 
+    sfree(newline);
     sfree(ch);
 }
 
@@ -4920,7 +4956,7 @@ void term_invalidate(Terminal *term)
 
     for (i = 0; i < term->rows; i++)
 	for (j = 0; j < term->cols; j++)
-	    term->disptext[i]->chars[j].attr = ATTR_INVALID;
+	    term->disptext[i]->chars[j].attr |= ATTR_INVALID;
 
     term_schedule_update(term);
 }
@@ -4940,10 +4976,10 @@ void term_paint(Terminal *term, Context ctx,
     for (i = top; i <= bottom && i < term->rows; i++) {
 	if ((term->disptext[i]->lattr & LATTR_MODE) == LATTR_NORM)
 	    for (j = left; j <= right && j < term->cols; j++)
-		term->disptext[i]->chars[j].attr = ATTR_INVALID;
+		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
 	else
 	    for (j = left / 2; j <= right / 2 + 1 && j < term->cols; j++)
-		term->disptext[i]->chars[j].attr = ATTR_INVALID;
+		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
     }
 
     if (immediately) {
