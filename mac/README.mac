@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.28 2003/02/23 00:13:17 ben Exp $
+$Id$
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -85,7 +85,6 @@ Unimplemented features (should be done before release):
  * Warn-on-close.
  * Close-on-exit.
  * Warn-on-quit.
- * Flashing things.
  * Non-block cursors.
 
 Wishlist (after release):
