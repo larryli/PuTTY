@@ -1181,10 +1181,6 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    if (!term->cfg.no_remote_resize)
 		request_resize(term->frontend, state ? 132 : 80, term->rows);
 	    term->reset_132 = state;
-	    erase_lots(term, FALSE, TRUE, TRUE);
-	    /* XXX Interaction with DECOM?  DECSTBM? */
-	    move(term, 0, 0, 0);
-	    term->seen_disp_event = 1;
 	    break;
 	  case 5:		       /* reverse video */
 	    /*
