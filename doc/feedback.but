@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.18 2004/08/18 10:24:40 jacob Exp $
+\versionid $Id: feedback.but,v 1.19 2004/09/19 23:49:46 jacob Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -353,9 +353,10 @@ need to bother. You already have permission.
 
 \H{feedback-mirrors} Mirroring the PuTTY web site
 
-All mirrors of the PuTTY web site are welcome. Please don't bother
-asking us for permission before setting up a mirror. You already
-have permission. We are always happy to have more mirrors.
+Mirrors of the PuTTY web site are welcome, especially in regions not
+well covered by existing mirrors. Please don't bother asking us for
+permission before setting up a mirror. You already have permission. We
+are always happy to have more mirrors.
 
 If you mail us \e{after} you have set up the mirror and checked that
 it works, and remember to let us know which country your mirror is in,
