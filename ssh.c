@@ -2067,6 +2067,29 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
     }
 }
 
+/*
+ * The `software version' part of an SSH version string is required
+ * to contain no spaces or minus signs.
+ */
+static void ssh_fix_verstring(char *str)
+{
+    /* Eat "SSH-<protoversion>-". */
+    assert(*str == 'S'); str++;
+    assert(*str == 'S'); str++;
+    assert(*str == 'H'); str++;
+    assert(*str == '-'); str++;
+    while (*str && *str != '-') str++;
+    assert(*str == '-'); str++;
+
+    /* Convert minus signs and spaces in the remaining string into
+     * underscores. */
+    while (*str) {
+        if (*str == '-' || *str == ' ')
+            *str = '_';
+        str++;
+    }
+}
+
 static int do_ssh_init(Ssh ssh, unsigned char c)
 {
     struct do_ssh_init_state {
@@ -2154,46 +2177,58 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	crStop(0);
     }
 
-    if (s->proto2 && (ssh->cfg.sshprot >= 2 || !s->proto1)) {
-	/*
-	 * Use v2 protocol.
-	 */
-	char verstring[80], vlog[100];
-	sprintf(verstring, "SSH-2.0-%s", sshver);
-	SHA_Init(&ssh->exhashbase);
-	/*
-	 * Hash our version string and their version string.
-	 */
-	sha_string(&ssh->exhashbase, verstring, strlen(verstring));
-	sha_string(&ssh->exhashbase, s->vstring, strcspn(s->vstring, "\r\n"));
-	sprintf(vlog, "We claim version: %s", verstring);
-	logevent(vlog);
-	strcat(verstring, "\012");
-	logevent("Using SSH protocol version 2");
-	sk_write(ssh->s, verstring, strlen(verstring));
-	ssh->protocol = ssh2_protocol;
-	ssh2_protocol_setup(ssh);
-	ssh->version = 2;
-	ssh->s_rdpkt = ssh2_rdpkt;
-    } else {
-	/*
-	 * Use v1 protocol.
-	 */
-	char verstring[80], vlog[100];
-	sprintf(verstring, "SSH-%s-%s",
-		(ssh_versioncmp(s->version, "1.5") <= 0 ? s->version : "1.5"),
-		sshver);
-	sprintf(vlog, "We claim version: %s", verstring);
-	logevent(vlog);
-	strcat(verstring, "\012");
+    {
+        char *verstring;
 
-	logevent("Using SSH protocol version 1");
+        if (s->proto2 && (ssh->cfg.sshprot >= 2 || !s->proto1)) {
+            /*
+             * Construct a v2 version string.
+             */
+            verstring = dupprintf("SSH-2.0-%s\n", sshver);
+            ssh->version = 2;
+        } else {
+            /*
+             * Construct a v1 version string.
+             */
+            verstring = dupprintf("SSH-%s-%s\n",
+                                  (ssh_versioncmp(s->version, "1.5") <= 0 ?
+                                   s->version : "1.5"),
+                                  sshver);
+            ssh->version = 1;
+        }
+
+        ssh_fix_verstring(verstring);
+
+        if (ssh->version == 2) {
+            /*
+             * Hash our version string and their version string.
+             */
+            SHA_Init(&ssh->exhashbase);
+            sha_string(&ssh->exhashbase, verstring, strlen(verstring)-1);
+            sha_string(&ssh->exhashbase, s->vstring, strcspn(s->vstring, "\r\n"));
+
+            /*
+             * Initialise SSHv2 protocol.
+             */
+            ssh->protocol = ssh2_protocol;
+            ssh2_protocol_setup(ssh);
+            ssh->s_rdpkt = ssh2_rdpkt;
+        } else {
+            /*
+             * Initialise SSHv1 protocol.
+             */
+            ssh->protocol = ssh1_protocol;
+            ssh1_protocol_setup(ssh);
+            ssh->s_rdpkt = ssh1_rdpkt;
+        }
+        logeventf(ssh, "We claim version: %.*s",
+                  strlen(verstring)-1, verstring);
 	sk_write(ssh->s, verstring, strlen(verstring));
-	ssh->protocol = ssh1_protocol;
-	ssh1_protocol_setup(ssh);
-	ssh->version = 1;
-	ssh->s_rdpkt = ssh1_rdpkt;
+        sfree(verstring);
     }
+
+    logeventf(ssh, "Using SSH protocol version %d", ssh->version);
+
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
     ssh->pinger = pinger_new(&ssh->cfg, &ssh_backend, ssh);
