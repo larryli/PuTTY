@@ -985,6 +985,8 @@ static void mac_growterm(WindowPtr window, EventRecord *event)
 	newcols = (LoWord(grow_result) - 15) / s->font_width;
 	mac_adjustsize(s, newrows, newcols);
 	term_size(s->term, newrows, newcols, s->cfg.savelines);
+	s->cfg.height=s->term->rows;
+	s->cfg.width=s->term->cols;
     }
 }
 
