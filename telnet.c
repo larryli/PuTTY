@@ -507,7 +507,7 @@ static char *telnet_init (char *host, int port, char **realhost) {
     /*
      * Open socket.
      */
-    s = sk_new(addr, port, 0, telnet_receive);
+    s = sk_new(addr, port, 0, 1, telnet_receive);
     if ( (err = sk_socket_error(s)) )
 	return err;
 

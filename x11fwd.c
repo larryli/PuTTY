@@ -163,7 +163,7 @@ char *x11_init (Socket *s, char *display, void *c) {
     /*
      * Open socket.
      */
-    *s = sk_new(addr, port, 0, x11_receive);
+    *s = sk_new(addr, port, 0, 1, x11_receive);
     if ( (err = sk_socket_error(*s)) )
 	return err;
 

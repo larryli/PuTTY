@@ -66,7 +66,7 @@ static char *raw_init (char *host, int port, char **realhost) {
     /*
      * Open socket.
      */
-    s = sk_new(addr, port, 0, raw_receive);
+    s = sk_new(addr, port, 0, 1, raw_receive);
     if ( (err = sk_socket_error(s)) )
 	return err;
 

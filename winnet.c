@@ -63,6 +63,7 @@ struct Socket_tag {
     struct buffer *head, *tail;
     int writable;
     int sending_oob;
+    int oobinline;
 };
 
 struct SockAddr_tag {
@@ -288,7 +289,8 @@ void sk_addr_free(SockAddr addr) {
     sfree(addr);
 }
 
-Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver) {
+Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
+              sk_receiver_t receiver) {
     SOCKET s;
 #ifdef IPV6
     SOCKADDR_IN6 a6;
@@ -321,7 +323,9 @@ Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver) {
         ret->error = winsock_error_string(err);
 	return ret;
     }
-    {
+
+    ret->oobinline = oobinline;
+    if (oobinline) {
 	BOOL b = TRUE;
 	setsockopt (s, SOL_SOCKET, SO_OOBINLINE, (void *)&b, sizeof(b));
     }
@@ -583,13 +587,27 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
-        atmark = 1;
-        /* Some WinSock wrappers don't support this call, so we
-         * deliberately don't check the return value. If the call
-         * fails and does nothing, we will get back atmark==1,
-         * which is good enough to keep going at least. */
-        ioctlsocket(s->s, SIOCATMARK, &atmark);
+        /*
+         * We have received data on the socket. For an oobinline
+         * socket, this might be data _before_ an urgent pointer,
+         * in which case we send it to the back end with type==1
+         * (data prior to urgent).
+         */
+        if (s->oobinline) {
+            atmark = 1;
+            ioctlsocket(s->s, SIOCATMARK, &atmark);
+            /*
+             * Avoid checking the return value from ioctlsocket(),
+             * on the grounds that some WinSock wrappers don't
+             * support it. If it does nothing, we get atmark==1,
+             * which is equivalent to `no OOB pending', so the
+             * effect will be to non-OOB-ify any OOB data.
+             */
+        } else
+            atmark = 1;
+
 	ret = recv(s->s, buf, sizeof(buf), 0);
+        noise_ultralight(ret);
 	if (ret < 0) {
 	    err = WSAGetLastError();
 	    if (err == WSAEWOULDBLOCK) {
@@ -599,19 +617,16 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	if (ret < 0) {
 	    return s->receiver(s, 3, winsock_error_string(err), err);
 	} else {
-            int type = 0;
-	    if (atmark==0) {
-		ioctlsocket(s->s, SIOCATMARK, &atmark);
-		if(atmark) type = 2; else type = 1;
-	    }
-	    return s->receiver(s, type, buf, ret);
+	    return s->receiver(s, atmark ? 0 : 1, buf, ret);
 	}
 	break;
       case FD_OOB:
-	/*
-	 * Read all data up to the OOB marker, and send it to the
-	 * receiver with urgent==1 (OOB pending).
-	 */
+        /*
+         * This will only happen on a non-oobinline socket. It
+         * indicates that we can immediately perform an OOB read
+         * and get back OOB data, which we will send to the back
+         * end with type==2 (urgent data).
+         */
         ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
         noise_ultralight(ret);
         if (ret <= 0) {

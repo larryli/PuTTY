@@ -92,7 +92,7 @@ static char *rlogin_init (char *host, int port, char **realhost) {
     /*
      * Open socket.
      */
-    s = sk_new(addr, port, 1, rlogin_receive);
+    s = sk_new(addr, port, 1, 0, rlogin_receive);
     if ( (err = sk_socket_error(s)) )
 	return err;
 

@@ -40,7 +40,8 @@ void sk_init(void);		       /* called once at program startup */
 SockAddr sk_namelookup(char *host, char **canonicalname);
 void sk_addr_free(SockAddr addr);
 
-Socket sk_new(SockAddr addr, int port, int privport, sk_receiver_t receiver);
+Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
+              sk_receiver_t receiver);
 void sk_close(Socket s);
 void sk_write(Socket s, char *buf, int len);
 void sk_write_oob(Socket s, char *buf, int len);
