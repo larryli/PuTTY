@@ -108,86 +108,92 @@ int fxp_init(void);
  * with a separating slash, unless the second is NULL.
  */
 struct sftp_request *fxp_realpath_send(char *path);
-char *fxp_realpath_recv(struct sftp_packet *pktin);
+char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Open a file.
  */
 struct sftp_request *fxp_open_send(char *path, int type);
-struct fxp_handle *fxp_open_recv(struct sftp_packet *pktin);
+struct fxp_handle *fxp_open_recv(struct sftp_packet *pktin,
+				 struct sftp_request *req);
 
 /*
  * Open a directory.
  */
 struct sftp_request *fxp_opendir_send(char *path);
-struct fxp_handle *fxp_opendir_recv(struct sftp_packet *pktin);
+struct fxp_handle *fxp_opendir_recv(struct sftp_packet *pktin,
+				    struct sftp_request *req);
 
 /*
  * Close a file/dir.
  */
 struct sftp_request *fxp_close_send(struct fxp_handle *handle);
-void fxp_close_recv(struct sftp_packet *pktin);
+void fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Make a directory.
  */
 struct sftp_request *fxp_mkdir_send(char *path);
-int fxp_mkdir_recv(struct sftp_packet *pktin);
+int fxp_mkdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Remove a directory.
  */
 struct sftp_request *fxp_rmdir_send(char *path);
-int fxp_rmdir_recv(struct sftp_packet *pktin);
+int fxp_rmdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Remove a file.
  */
 struct sftp_request *fxp_remove_send(char *fname);
-int fxp_remove_recv(struct sftp_packet *pktin);
+int fxp_remove_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Rename a file.
  */
 struct sftp_request *fxp_rename_send(char *srcfname, char *dstfname);
-int fxp_rename_recv(struct sftp_packet *pktin);
+int fxp_rename_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Return file attributes.
  */
 struct sftp_request *fxp_stat_send(char *fname);
-int fxp_stat_recv(struct sftp_packet *pktin, struct fxp_attrs *attrs);
+int fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
+		  struct fxp_attrs *attrs);
 struct sftp_request *fxp_fstat_send(struct fxp_handle *handle);
-int fxp_fstat_recv(struct sftp_packet *pktin, struct fxp_attrs *attrs);
+int fxp_fstat_recv(struct sftp_packet *pktin, struct sftp_request *req,
+		   struct fxp_attrs *attrs);
 
 /*
  * Set file attributes.
  */
 struct sftp_request *fxp_setstat_send(char *fname, struct fxp_attrs attrs);
-int fxp_setstat_recv(struct sftp_packet *pktin);
+int fxp_setstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 struct sftp_request *fxp_fsetstat_send(struct fxp_handle *handle,
 				       struct fxp_attrs attrs);
-int fxp_fsetstat_recv(struct sftp_packet *pktin);
+int fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Read from a file.
  */
 struct sftp_request *fxp_read_send(struct fxp_handle *handle,
 				   uint64 offset, int len);
-int fxp_read_recv(struct sftp_packet *pktin, char *buffer, int len);
+int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
+		  char *buffer, int len);
 
 /*
  * Write to a file. Returns 0 on error, 1 on OK.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
 				    char *buffer, uint64 offset, int len);
-int fxp_write_recv(struct sftp_packet *pktin);
+int fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Read from a directory.
  */
 struct sftp_request *fxp_readdir_send(struct fxp_handle *handle);
-struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin);
+struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
+				   struct sftp_request *req);
 
 /*
  * Free up an fxp_names structure.
