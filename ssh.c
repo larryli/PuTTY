@@ -1167,8 +1167,18 @@ static void s_wrpkt_start(Ssh ssh, int type, int len)
 
 static int s_wrpkt_prepare(Ssh ssh)
 {
-    int pad, len, biglen, i;
+    int pad, biglen, i;
     unsigned long crc;
+#ifdef __SC__
+    /*
+     * XXX various versions of SC (including 8.8.4) screw up the
+     * register allocation in this function and use the same register
+     * (D6) for len and as a temporary, with predictable results.  The
+     * following sledgehammer prevents this.
+     */
+    volatile
+#endif
+    int len;
 
     ssh->pktout.body[-1] = ssh->pktout.type;
 
