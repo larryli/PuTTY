@@ -3488,7 +3488,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = "\000\033\034\035\036\037\177"[wParam - '2'];
 	    return p - output;
 	}
-	if (shift_state == 2 && wParam == 0xBD) {
+	if (shift_state == 2 && (wParam == 0xBD || wParam == 0xBF)) {
 	    *p++ = 0x1F;
 	    return p - output;
 	}
