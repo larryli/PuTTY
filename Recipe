@@ -186,7 +186,7 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
          + winutils wincfg
 
 # Same thing on Unix.
-UXTERM   = TERMINAL pterm uxcfg gtkdlg gtkcols gtkpanel uxucs uxprint xkeysym
+UXTERM   = TERMINAL gtkwin gtkdlg gtkcols gtkpanel uxcfg uxucs uxprint xkeysym
          + timing
 
 # Non-SSH back ends (putty, puttytel, plink).
@@ -247,14 +247,14 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshpubk sshaes sshsh512 import winutils puttygen.res tree234
 	 + notiming LIBS
 
-pterm    : [X] UXTERM uxmisc misc ldisc settings pty uxsel BE_NONE uxstore
-         + signal CHARSET cmdline ptermm version
-putty    : [X] UXTERM uxmisc misc ldisc settings pty uxsel BE_ALL uxstore
-         + signal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
-puttytel : [X] UXTERM uxmisc misc ldisc settings pty uxsel BE_NOSSH
-	 + uxstore signal CHARSET uxputty NONSSH UXMISC
+pterm    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
+         + uxsignal CHARSET cmdline uxpterm version
+putty    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_ALL uxstore
+         + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
+puttytel : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NOSSH
+	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC
 
-plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC signal ux_x11
+plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC uxsignal ux_x11
 
 puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc

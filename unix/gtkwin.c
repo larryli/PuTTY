@@ -1,6 +1,6 @@
 /*
- * pterm - a fusion of the PuTTY terminal emulator with a Unix pty
- * back end, all running as a GTK application. Wish me luck.
+ * gtkwin.c: the main code that runs a PuTTY terminal emulator and
+ * backend in a GTK window.
  */
 
 #define _GNU_SOURCE

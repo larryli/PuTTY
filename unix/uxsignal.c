@@ -3,14 +3,14 @@
 #include <stdlib.h>
 
 /*
- * Calling signal() is a non-portable, as it varies in meaning between
- * platforms and depending on feature macros, and has stupid semantics
- * at least some of the time.
+ * Calling signal() is non-portable, as it varies in meaning
+ * between platforms and depending on feature macros, and has
+ * stupid semantics at least some of the time.
  *
- * This function provides the same interface as the libc function, but
- * provides consistent semantics.  It assumes POSIX semantics for
- * sigaction() (so you might need to do some more work if you port to
- * something ancient like SunOS 4)
+ * This function provides the same interface as the libc function,
+ * but provides consistent semantics.  It assumes POSIX semantics
+ * for sigaction() (so you might need to do some more work if you
+ * port to something ancient like SunOS 4)
  */
 void (*putty_signal(int sig, void (*func)(int)))(int) {
     struct sigaction sa;
