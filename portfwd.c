@@ -107,6 +107,10 @@ static int pfd_receive(Plug plug, int urgent, char *data, int len)
     struct PFwdPrivate *pr = (struct PFwdPrivate *) plug;
     if (pr->dynamic) {
 	while (len--) {
+	    /*
+	     * Throughout SOCKS negotiation, "hostname" is re-used as a
+	     * random protocol buffer with "port" storing the length.
+	     */ 
 	    if (pr->port >= lenof(pr->hostname)) {
 		/* Request too long. */
 		if ((pr->dynamic >> 12) == 4) {
@@ -134,6 +138,7 @@ static int pfd_receive(Plug plug, int urgent, char *data, int len)
 		    pr->dynamic = 0x4000;
 		if (pr->port < 2) continue;/* don't have command code yet */
 		if (pr->hostname[1] != 1) {
+		    /* Not CONNECT. */
 		    /* Send back a SOCKS 4 error before closing. */
 		    char data[8];
 		    memset(data, 0, sizeof(data));
@@ -142,9 +147,9 @@ static int pfd_receive(Plug plug, int urgent, char *data, int len)
 		    pfd_close(pr->s);
 		    return 1;
 		}
-		if (pr->port < 8) continue;   /* haven't started username */
+		if (pr->port <= 8) continue; /* haven't started user/hostname */
 		if (pr->hostname[pr->port-1] != 0)
-		    continue;	       /* haven't _finished_ username */
+		    continue;	       /* haven't _finished_ user/hostname */
 		/*
 		 * Now we have a full SOCKS 4 request. Check it to
 		 * see if it's a SOCKS 4A request.
@@ -166,7 +171,7 @@ static int pfd_receive(Plug plug, int urgent, char *data, int len)
 		    pr->hostname[0] = 0;   /* reply version code */
 		    pr->hostname[1] = 90;   /* request granted */
 		    sk_write(pr->s, pr->hostname, 8);
-		    len= pr->port;
+		    len= pr->port - 8;
 		    pr->port = GET_16BIT_MSB_FIRST(pr->hostname+2);
 		    memmove(pr->hostname, pr->hostname + 8, len);
 		    goto connect;
@@ -432,7 +437,7 @@ static int pfd_accepting(Plug p, OSSocket sock)
 
     if (org->dynamic) {
 	pr->dynamic = 1;
-	pr->port = 0;		       /* hostname buffer is so far empty */
+	pr->port = 0;		       /* "hostname" buffer is so far empty */
 	sk_set_frozen(s, 0);	       /* we want to receive SOCKS _now_! */
     } else {
 	pr->dynamic = 0;
