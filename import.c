@@ -89,6 +89,29 @@ struct ssh2_userkey *import_ssh2(char *filename, int type, char *passphrase)
     return NULL;
 }
 
+/*
+ * Export an SSH1 key.
+ */
+int export_ssh1(char *filename, int type, struct RSAKey *key, char *passphrase)
+{
+    return 0;
+}
+
+/*
+ * Export an SSH2 key.
+ */
+int export_ssh2(char *filename, int type,
+                struct ssh2_userkey *key, char *passphrase)
+{
+#if 0
+    if (type == SSH_KEYTYPE_OPENSSH)
+	return openssh_write(filename, key, passphrase);
+    if (type == SSH_KEYTYPE_SSHCOM)
+	return sshcom_write(filename, key, passphrase);
+#endif
+    return 0;
+}
+
 /* ----------------------------------------------------------------------
  * Helper routines. (The base64 ones are defined in sshpubk.c.)
  */

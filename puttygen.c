@@ -800,12 +800,39 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    }
 	    break;
 	  case IDC_SAVE:
+          case IDC_EXPORT_OPENSSH:
+          case IDC_EXPORT_SSHCOM:
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
 		char passphrase[PASSPHRASE_MAXLEN];
 		char passphrase2[PASSPHRASE_MAXLEN];
+                int type, realtype;
+
+                if (state->ssh2)
+                    realtype = SSH_KEYTYPE_SSH2;
+                else
+                    realtype = SSH_KEYTYPE_SSH1;
+
+                if (LOWORD(wParam) == IDC_EXPORT_OPENSSH)
+                    type = SSH_KEYTYPE_OPENSSH;
+                else if (LOWORD(wParam) == IDC_EXPORT_SSHCOM)
+                    type = SSH_KEYTYPE_SSHCOM;
+                else
+                    type = realtype;
+
+                if (type != realtype &&
+                    import_target_type(type) != realtype) {
+                    char msg[256];
+                    sprintf(msg, "Cannot export an SSH%d key in an SSH%d"
+                            " format", (state->ssh2 ? 2 : 1),
+                            (state->ssh2 ? 1 : 2));
+		    MessageBox(hwnd, msg,
+                               "PuTTYgen Error", MB_OK | MB_ICONERROR);
+		    break;
+                }
+
 		GetDlgItemText(hwnd, IDC_PASSPHRASE1EDIT,
 			       passphrase, sizeof(passphrase));
 		GetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
@@ -840,13 +867,22 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			if (ret != IDYES)
 			    break;
 		    }
+
 		    if (state->ssh2) {
-			ret = ssh2_save_userkey(filename, &state->ssh2key,
-						*passphrase ? passphrase :
-						NULL);
+                        if (type != realtype)
+                            ret = export_ssh2(filename, type, &state->ssh2key,
+                                              *passphrase ? passphrase : NULL);
+                        else
+                            ret = ssh2_save_userkey(filename, &state->ssh2key,
+                                                    *passphrase ? passphrase :
+                                                    NULL);
 		    } else {
-			ret = saversakey(filename, &state->key,
-					 *passphrase ? passphrase : NULL);
+                        if (type != realtype)
+                            ret = export_ssh1(filename, type, &state->key,
+                                              *passphrase ? passphrase : NULL);
+                        else
+                            ret = saversakey(filename, &state->key,
+                                             *passphrase ? passphrase : NULL);
 		    }
 		    if (ret <= 0) {
 			MessageBox(hwnd, "Unable to save key file",
