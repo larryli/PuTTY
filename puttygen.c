@@ -404,7 +404,7 @@ static void setupbigedit2(HWND hwnd, int id, int idstatic,
     strcpy(p, key->comment);
     SetDlgItemText(hwnd, id, buffer);
     SetDlgItemText(hwnd, idstatic, "&Public key for pasting into "
-		   "OpenSSH authorized_keys2 file:");
+		   "OpenSSH authorized_keys file:");
     sfree(pub_blob);
     sfree(buffer);
 }
