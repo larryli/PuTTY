@@ -4389,12 +4389,18 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 		term->post_bidi_cache[j].chars = NULL;
 	    term->pre_bidi_cache[j].width =
 		term->post_bidi_cache[j].width = -1;
+	    term->pre_bidi_cache[j].forward =
+		term->post_bidi_cache[j].forward = NULL;
+	    term->pre_bidi_cache[j].backward =
+		term->post_bidi_cache[j].backward = NULL;
 	    j++;
 	}
     }
 
     sfree(term->pre_bidi_cache[line].chars);
     sfree(term->post_bidi_cache[line].chars);
+    sfree(term->post_bidi_cache[line].forward);
+    sfree(term->post_bidi_cache[line].backward);
 
     term->pre_bidi_cache[line].width = width;
     term->pre_bidi_cache[line].chars = snewn(width, termchar);
