@@ -3504,11 +3504,24 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    p += sprintf((char *) p, "\x1B%c", xkey);
 		else {
 		    int app_flg = (app_cursor_keys && !cfg.no_applic_c);
-		    /* VT100 & VT102 manuals both state the app cursor keys
-		     * only work if the app keypad is on.
+#if 0
+		    /*
+		     * RDB: VT100 & VT102 manuals both state the
+		     * app cursor keys only work if the app keypad
+		     * is on.
+		     * 
+		     * SGT: That may well be true, but xterm
+		     * disagrees and so does at least one
+		     * application, so I've #if'ed this out and the
+		     * behaviour is back to PuTTY's original: app
+		     * cursor and app keypad are independently
+		     * switchable modes. If anyone complains about
+		     * _this_ I'll have to put in a configurable
+		     * option.
 		     */
 		    if (!app_keypad_keys)
 			app_flg = 0;
+#endif
 		    /* Useful mapping of Ctrl-arrows */
 		    if (shift_state == 2)
 			app_flg = !app_flg;
