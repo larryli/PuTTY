@@ -1711,7 +1711,7 @@ static void sink(char *targ, char *src)
 	    }
 
 	    if (targ[0] != '\0')
-		destfname = dupcat(targ, "\\", striptarget, NULL);
+		destfname = dir_file_cat(targ, striptarget);
 	    else
 		destfname = dupstr(striptarget);
 	} else {

@@ -141,4 +141,10 @@ void finish_wildcard_matching(WildcardMatcher *dir);
  */
 int create_directory(char *name);
 
+/*
+ * Concatenate a directory name and a file name. The way this is
+ * done will depend on the OS.
+ */
+char *dir_file_cat(char *dir, char *file);
+
 #endif /* PUTTY_PSFTP_H */

@@ -4,8 +4,13 @@
 
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <dirent.h>
 #include <unistd.h>
+#include <utime.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "putty.h"
 #include "psftp.h"
@@ -107,6 +112,211 @@ char *psftp_getcwd(void)
 	size = size * 3 / 2;
 	buffer = sresize(buffer, size, char);
     }
+}
+
+struct RFile {
+    int fd;
+};
+
+RFile *open_existing_file(char *name, unsigned long *size,
+			  unsigned long *mtime, unsigned long *atime)
+{
+    int fd;
+    RFile *ret;
+
+    fd = open(name, O_RDONLY);
+    if (fd < 0)
+	return NULL;
+
+    ret = snew(RFile);
+    ret->fd = fd;
+
+    if (size || mtime || atime) {
+	struct stat statbuf;
+	if (fstat(fd, &statbuf) < 0) {
+	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
+	    memset(&statbuf, 0, sizeof(statbuf));
+	}
+
+	if (size)
+	    *size = statbuf.st_size;
+
+	if (mtime)
+	    *mtime = statbuf.st_mtime;
+
+	if (atime)
+	    *atime = statbuf.st_atime;
+    }
+
+    return ret;
+}
+
+int read_from_file(RFile *f, void *buffer, int length)
+{
+    return read(f->fd, buffer, length);
+}
+
+void close_rfile(RFile *f)
+{
+    close(f->fd);
+    sfree(f);
+}
+
+struct WFile {
+    int fd;
+    char *name;
+};
+
+WFile *open_new_file(char *name)
+{
+    int fd;
+    WFile *ret;
+
+    fd = open(name, O_CREAT | O_TRUNC | O_WRONLY, 0666);
+    if (fd < 0)
+	return NULL;
+
+    ret = snew(WFile);
+    ret->fd = fd;
+    ret->name = dupstr(name);
+
+    return ret;
+}
+
+int write_to_file(WFile *f, void *buffer, int length)
+{
+    char *p = (char *)buffer;
+    int so_far = 0;
+
+    /* Keep trying until we've really written as much as we can. */
+    while (length > 0) {
+	int ret = write(f->fd, p, length);
+
+	if (ret < 0)
+	    return ret;
+
+	if (ret == 0)
+	    break;
+
+	p += ret;
+	length -= ret;
+	so_far += ret;
+    }
+
+    return so_far;
+}
+
+void set_file_times(WFile *f, unsigned long mtime, unsigned long atime)
+{
+    struct utimbuf ut;
+
+    ut.actime = atime;
+    ut.modtime = mtime;
+
+    utime(f->name, &ut);
+}
+
+/* Closes and frees the WFile */
+void close_wfile(WFile *f)
+{
+    close(f->fd);
+    sfree(f->name);
+    sfree(f);
+}
+
+int file_type(char *name)
+{
+    struct stat statbuf;
+
+    if (stat(name, &statbuf) < 0) {
+	if (errno != ENOENT)
+	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
+	return FILE_TYPE_NONEXISTENT;
+    }
+
+    if (S_ISREG(statbuf.st_mode))
+	return FILE_TYPE_FILE;
+
+    if (S_ISDIR(statbuf.st_mode))
+	return FILE_TYPE_DIRECTORY;
+
+    return FILE_TYPE_WEIRD;
+}
+
+struct DirHandle {
+    DIR *dir;
+};
+
+DirHandle *open_directory(char *name)
+{
+    DIR *dir;
+    DirHandle *ret;
+
+    dir = opendir(name);
+    if (!dir)
+	return NULL;
+
+    ret = snew(DirHandle);
+    ret->dir = dir;
+    return ret;
+}
+
+char *read_filename(DirHandle *dir)
+{
+    struct dirent *de;
+
+    do {
+	de = readdir(dir->dir);
+	if (de == NULL)
+	    return NULL;
+    } while ((de->d_name[0] == '.' &&
+	      (de->d_name[1] == '\0' ||
+	       (de->d_name[1] == '.' && de->d_name[2] == '\0'))));
+
+    return dupstr(de->d_name);
+}
+
+void close_directory(DirHandle *dir)
+{
+    closedir(dir->dir);
+    sfree(dir);
+}
+
+int test_wildcard(char *name, int cmdline)
+{
+    /*
+     * On Unix, we currently don't support local wildcards at all.
+     * We will have to do so (FIXME) once PSFTP starts implementing
+     * mput, but until then we can assume `cmdline' is always set.
+     */
+    struct stat statbuf;
+
+    assert(cmdline);
+    if (stat(name, &statbuf) < 0)
+	return WCTYPE_NONEXISTENT;
+    else
+	return WCTYPE_FILENAME;
+}
+
+/*
+ * Actually return matching file names for a local wildcard. FIXME:
+ * we currently don't support this at all.
+ */
+struct WildcardMatcher {
+    int x;
+};
+WildcardMatcher *begin_wildcard_matching(char *name) { return NULL; }
+char *wildcard_get_filename(WildcardMatcher *dir) { return NULL; }
+void finish_wildcard_matching(WildcardMatcher *dir) {}
+
+int create_directory(char *name)
+{
+    return mkdir(name, 0777) == 0;
+}
+
+char *dir_file_cat(char *dir, char *file)
+{
+    return dupcat(dir, "/", file, NULL);
 }
 
 /*

@@ -303,6 +303,7 @@ DirHandle *open_directory(char *name)
     h = FindFirstFile(findfile, &fdat);
     if (h == INVALID_HANDLE_VALUE)
 	return NULL;
+    sfree(findfile);
 
     ret = snew(DirHandle);
     ret->h = h;
@@ -312,11 +313,18 @@ DirHandle *open_directory(char *name)
 
 char *read_filename(DirHandle *dir)
 {
-    if (!dir->name) {
+    while (!dir->name) {
 	WIN32_FIND_DATA fdat;
 	int ok = FindNextFile(dir->h, &fdat);
 
-	if (ok)
+	if (!ok)
+	    return NULL;
+
+	if (fdat.cFileName[0] == '.' &&
+	    (fdat.cFileName[1] == '\0' ||
+	     (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
+	    dir->name = NULL;
+	else
 	    dir->name = dupstr(fdat.cFileName);
     }
 
@@ -447,6 +455,11 @@ void finish_wildcard_matching(WildcardMatcher *dir)
 int create_directory(char *name)
 {
     return CreateDirectory(name, NULL) != 0;
+}
+
+char *dir_file_cat(char *dir, char *file)
+{
+    return dupcat(dir, "\\", file, NULL);
 }
 
 /* ----------------------------------------------------------------------
