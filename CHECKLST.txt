@@ -1,0 +1,171 @@
+Checklists for PuTTY administrative procedures
+==============================================
+
+Locations of the licence
+------------------------
+
+The PuTTY copyright notice and licence are stored in quite a few
+places. At the start of a new year, the copyright year needs
+updating in all of them; and when someone sends a massive patch,
+their name needs adding in all of them too.
+
+The LICENCE file in the main source distribution:
+
+ - putty/LICENCE
+
+The resource files:
+
+ - putty/pageant.rc
+    + the copyright date appears twice, once in the About box and
+      once in the Licence box. Don't forget to change both!
+ - putty/puttygen.rc
+    + the copyright date appears twice, once in the About box and
+      once in the Licence box. Don't forget to change both!
+ - putty/win_res.rc
+    + the copyright date appears twice, once in the About box and
+      once in the Licence box. Don't forget to change both!
+ - putty/mac/mac_res.r
+
+The documentation (both the preamble blurb and the licence appendix):
+
+ - putty/doc/blurb.but
+ - putty/doc/licence.but
+
+The website:
+
+ - putty-website/licence.html
+ 
+Before tagging a release
+------------------------
+
+For a long time we got away with never checking the current version
+number into CVS at all - all version numbers were passed into the
+build system on the compiler command line, and the _only_ place
+version numbers showed up in CVS was in the tag information.
+
+Unfortunately, those halcyon days are gone, and we do need the
+version number in CVS in a couple of places. These must be updated
+_before_ tagging a new release.
+
+The file used to generate the Unix snapshot version numbers (which
+are <previousrelease>-<date> so that the Debian versioning system
+orders them correctly with respect to releases):
+
+ - putty/LATEST.VER
+
+And the Windows installer script:
+
+ - putty/putty.iss
+
+The actual release procedure
+----------------------------
+
+This is the procedure I (SGT) currently follow (or _should_ follow
+:-) when actually making a release, once I'm happy with the position
+of the tag.
+
+ - Write a release announcement (basically a summary of the changes
+   since the last release). Squirrel it away in
+   ixion:src/putty/local/announce-<ver> in case it's needed again
+   within days of the release going out.
+
+ - On my local machines, check out the release-tagged version of the
+   sources.
+
+ - Build the Windows/x86 release binaries. Don't forget to supply
+   VER=/DRELEASE=<ver>. Run them, or at least one or two of them, to
+   ensure that they really do report their version number correctly.
+
+ - Acquire the Windows/alpha release binaries from Owen.
+    + Verify the snapshot-key signatures on these, to ensure they're
+      really the ones he built. If I'm going to snapshot-sign a zip
+      file I make out of these, I'm damn well going to make sure the
+      binaries that go _into_ it were snapshot-signed themselves.
+
+ - Run Halibut to build the docs.
+
+ - Build the .zip files.
+    + The binary archive putty.zip just contains all the .exe files
+      except PuTTYtel, and the .hlp and .cnt files.
+    + The source archive putty-src.zip is built by puttysnap.sh (my
+      cron script that also builds the nightly snapshot source
+      archive).
+    + The docs archive puttydoc.zip contains all the HTML files
+      output from Halibut.
+
+ - Build the installer.
+
+ - Sign the release (gpg --detach-sign).
+    + Sign the locally built x86 binaries, the locally built x86
+      binary zipfile, and the locally built x86 installer, with the
+      release keys.
+    + The Alpha binaries should already have been signed with the
+      snapshot keys. Having checked that, sign the Alpha binary
+      zipfile with the snapshot keys too.
+    + The source archive should be signed with the release keys.
+      This was the most fiddly bit of the last release I did: the
+      script that built the source archive was on ixion, so I had to
+      bring the archive back to my local machine, check everything
+      in it was untampered-with, and _then_ sign it. Perhaps next
+      time I should arrange that puttysnap.sh can run on my local
+      box; it'd be a lot easier.
+    + Don't forget to sign with both DSA and RSA keys for absolutely
+      everything.
+
+ - Begin to pull together the release directory structure.
+    + subdir `x86' containing the x86 binaries, x86 binary zip, x86
+      installer, and all signatures on the above.
+    + subdir `alpha' containing the Alpha binaries, Alpha binary
+      zip, and all signatures on the above.
+    + top-level dir contains the source zip (plus signatures),
+      puttydoc.txt, the .hlp and .cnt files, and puttydoc.zip.
+
+ - Create and sign md5sums files: one in the x86 subdir, one in the
+   alpha subdir, and one in the parent dir of both of those.
+    + The md5sums files need not list the .DSA and .RSA signatures,
+      and the top-level md5sums need not list the other two.
+    + Sign the md5sums files (gpg --clearsign). The Alpha md5sums
+      should be signed with the snapshot keys, but the other two
+      with the release keys (yes, the top-level one includes some
+      Alpha files, but I think people will understand).
+
+ - Now double-check by verifying all the signatures on all the
+   files.
+
+ - Create subdir `htmldoc' in the release directory, which should
+   contain exactly the same set of HTML files that went into
+   puttydoc.zip.
+
+ - Now the whole release directory should be present and correct.
+   Upload to ixion:www/putty/<ver>, upload to
+   chiark:ftp/putty-<ver>, and upload to the:www/putty/<ver>.
+
+ - Update the HTTP redirects.
+    + Update the one at the:www/putty/htaccess which points the
+      virtual subdir `latest' at the actual latest release dir. TEST
+      THIS ONE - it's quite important.
+    + ixion:www/putty/.htaccess has an individual redirect for each
+      version number. Add a new one.
+
+ - Update the FTP symlink (chiark:ftp/putty-latest -> putty-<ver>).
+
+ - Update web site.
+   + Adjust front page (`the latest version is <ver>').
+   + Adjust filename of installer on links in Download page.
+   + Adjust header text on Changelog page. (That includes changing
+     `are new' in previous version to `were new'!)
+
+ - Check the Docs page links correctly to the release docs. (It
+   should do this automatically, owing to the `latest' HTTP
+   redirect.)
+
+ - Check that the web server attaches the right content type to .HLP
+   and .CNT files.
+
+ - Announce the release!
+    + Mail the announcement to putty-announce.
+    + Post it to comp.security.ssh.
+    + Mention it in <TDHIS> on mono.
+
+ - All done. Probably best to run `cvs up -A' now, or I'll only
+   forget in a few days' time and get confused...
