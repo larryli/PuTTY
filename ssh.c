@@ -4136,21 +4136,25 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
 	/* List client->server compression algorithms. */
 	ssh2_pkt_addstring_start(ssh);
-	for (i = 0; i < lenof(compressions) + 1; i++) {
-	    const struct ssh_compress *c =
-		i == 0 ? s->preferred_comp : compressions[i - 1];
-	    ssh2_pkt_addstring_str(ssh, c->name);
-	    if (i < lenof(compressions))
+	assert(lenof(compressions) > 1);
+	ssh2_pkt_addstring_str(ssh, s->preferred_comp->name);
+	for (i = 0; i < lenof(compressions); i++) {
+	    const struct ssh_compress *c = compressions[i];
+	    if (c != s->preferred_comp) {
 		ssh2_pkt_addstring_str(ssh, ",");
+		ssh2_pkt_addstring_str(ssh, c->name);
+	    }
 	}
 	/* List server->client compression algorithms. */
 	ssh2_pkt_addstring_start(ssh);
-	for (i = 0; i < lenof(compressions) + 1; i++) {
-	    const struct ssh_compress *c =
-		i == 0 ? s->preferred_comp : compressions[i - 1];
-	    ssh2_pkt_addstring_str(ssh, c->name);
-	    if (i < lenof(compressions))
+	assert(lenof(compressions) > 1);
+	ssh2_pkt_addstring_str(ssh, s->preferred_comp->name);
+	for (i = 0; i < lenof(compressions); i++) {
+	    const struct ssh_compress *c = compressions[i];
+	    if (c != s->preferred_comp) {
 		ssh2_pkt_addstring_str(ssh, ",");
+		ssh2_pkt_addstring_str(ssh, c->name);
+	    }
 	}
 	/* List client->server languages. Empty list. */
 	ssh2_pkt_addstring_start(ssh);
