@@ -83,10 +83,8 @@ static int recursive = 0;
 static int preserve = 0;
 static int targetshouldbedirectory = 0;
 static int statistics = 1;
-static int portnumber = 0;
 static int prev_stats_len = 0;
 static int scp_unsafe_mode = 0;
-static char *password = NULL;
 static int errs = 0;
 /* GUI Adaptation - Sept 2000 */
 #define NAME_STR_MAX 2048
@@ -449,7 +447,15 @@ static void do_cmd(char *host, char *user, char *cmd)
 	do_defaults(NULL, &cfg);
 	strncpy(cfg.host, host, sizeof(cfg.host) - 1);
 	cfg.host[sizeof(cfg.host) - 1] = '\0';
-	cfg.port = 22;
+    }
+
+    /*
+     * Force use of SSH. (If they got the protocol wrong we assume the
+     * port is useless too.)
+     */
+    if (cfg.protocol != PROT_SSH) {
+        cfg.protocol = PROT_SSH;
+        cfg.port = 22;
     }
 
     /*
@@ -499,12 +505,6 @@ static void do_cmd(char *host, char *user, char *cmd)
 	cfg.username[sizeof(cfg.username) - 1] = '\0';
 	free(user);
     }
-
-    if (cfg.protocol != PROT_SSH)
-	cfg.port = 22;
-
-    if (portnumber)
-	cfg.port = portnumber;
 
     /*
      * Disable scary things which shouldn't be enabled for simple
