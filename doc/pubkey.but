@@ -1,0 +1,16 @@
+\C{pubkey} Using public keys for SSH authentication
+
+\# Explain the basic principles of public key authentication. Many
+\# people don't have the faintest idea what it is or why it's good.
+
+\# Explain the dangers of leaving an unprotected private key around.
+\# Explain passphrases, and urge that people NEVER store
+\# unpassphrased keys unless they really need to or they can be sure
+\# the machine is secure.
+
+\# Mention a good length for a passphrase. (I think Schneier
+\# said something about this on counterpane.com once.)
+
+\# In case people don't like the idea of exchanging a short password
+\# typed every time for a longer passphrase typed every time, link
+\# to the Pageant chapter.

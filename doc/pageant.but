@@ -1,0 +1,63 @@
+\C{pageant} Using Pageant for authentication
+
+Pageant is an SSH authentication agent. It holds your private keys
+in memory, already decoded, so that you can use them often without
+needing to type a passphrase.
+
+Currently, Pageant only works with SSH v1.
+
+\H{pageant-start} Getting started with Pageant
+
+Before you run Pageant, you need to have a private key. See [FIXME:
+chapter unwritten] to find out how to generate and use one.
+
+When you run Pageant, it will put an icon of a computer wearing a
+hat into the System tray. It will then sit and do nothing.
+
+If you click the Pageant icon with the right mouse button, you will
+see a menu. Select \e{View Keys} from this menu. The Pageant main
+window will appear. (You can also bring this window up by
+double-clicking on the Pageant icon.)
+
+The Pageant window contains a list box. This shows the private keys
+Pageant is holding. When you start Pageant, it has no keys, so the
+list box will be empty.
+
+To add a key to Pageant, press the \e{Add Key} button. Pageant will
+bring up a file dialog, labelled \q{Select Private Key File}. Find
+your private key file in this dialog, and press \e{Open}.
+
+Pageant will now load the private key. If the key is protected by a
+passphrase, Pageant will ask you to type the passphrase. When the
+key has been loaded, it will appear in the list in the Pageant
+window.
+
+Now start PuTTY and open an SSH session to a site that accepts your
+key. PuTTY will notice that Pageant is running, retrieve the key
+automatically from Pageant, and use it to authenticate. You can now
+open as many PuTTY sessions as you like without having to type your
+passphrase again.
+
+When you want to shut down Pageant, click the right button on the
+Pageant icon in the System tray, and select \e{Exit} from the menu.
+Closing the Pageant main window does \e{not} shut down Pageant.
+
+\H{pageant-forward} Using agent forwarding
+
+\# Walk the user through enabling agent forwarding and starting a
+\# second-level session.
+
+\# Demonstrate the use of ssh-add at the remote end.
+
+\H{pageant-security} Security considerations
+
+\# Explain that local use of Pageant allows you convenient one-touch
+\# authentication without ever storing a decrypted key on disk
+
+\# Explain that, despite this, it still doesn't protect you against
+\# your local machine being hacked (swap files, but more importantly
+\# trojans)
+
+\# Explain that forwarding agent connections to a remote site
+\# can be abused by the sysadmin of that site, so you'd better know
+\# you can trust them

@@ -1,0 +1,12 @@
+\C{plink} Using the command-line connection tool Plink
+
+\# Explain Plink
+
+\# Explain that Plink is probably not what you want if you want to
+\# run an interactive session in a Command Prompt window
+
+\# Explain that Plink is really for batch-file use, and that
+\# therefore it works best with public-key authentication; link to
+\# that chapter
+
+\# Give instructions on how to set up Plink with CVS

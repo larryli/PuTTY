@@ -1,0 +1,11 @@
+\C{intro} Introduction to PuTTY
+
+\# PuTTY is an SSH and Telnet client
+
+\# Section on `what is Telnet? what is SSH?' for the people who
+\# don't have the first clue what they are. Explain what they're
+\# good for and why you might want to use one, and explain under
+\# what conditions you might _not_ want to use one.
+
+\# Section on `what's the difference between Telnet and SSH?' where
+\# we evangelise - POLITELY! - about SSH and security

@@ -1,0 +1,12 @@
+\title PuTTY User Manual
+
+\cfg{xhtml-leaf-smallest-contents}{2}
+
+\cfg{xhtml-leaf-contains-contents}{true}
+
+\preamble PuTTY is a free (MIT-licensed) Win32 Telnet and SSH
+client. This manual documents PuTTY, and its companion utilities
+PSCP, Plink, Pageant and PuTTYgen.
+
+\copyright Copyright 2001 Simon Tatham. All rights reserved. You may
+distribute this documentation under the MIT licence.

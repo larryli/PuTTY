@@ -1,0 +1,6 @@
+\C{pscp} Using PSCP to transfer files securely
+
+\# Explain PSCP: the command line, the modes of use (local->remote
+\# and remote->local, recursive, wildcards).
+
+\# Link to iXplorer.
