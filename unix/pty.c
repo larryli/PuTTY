@@ -97,6 +97,7 @@ static void setup_utmp(char *ttyname, char *location)
 #endif
     struct passwd *pw;
     FILE *wtmp;
+    time_t uttime;
 
     pw = getpwuid(getuid());
     memset(&utmp_entry, 0, sizeof(utmp_entry));
@@ -106,7 +107,10 @@ static void setup_utmp(char *ttyname, char *location)
     strncpy(utmp_entry.ut_id, ttyname+8, lenof(utmp_entry.ut_id));
     strncpy(utmp_entry.ut_user, pw->pw_name, lenof(utmp_entry.ut_user));
     strncpy(utmp_entry.ut_host, location, lenof(utmp_entry.ut_host));
-    time(&utmp_entry.ut_time);
+    /* Apparently there are some architectures where (struct utmp).ut_time
+     * is not essentially time_t (e.g. Linux amd64). Hence the temporary. */
+    time(&uttime);
+    utmp_entry.ut_time = uttime; /* may truncate */
 
 #if defined HAVE_PUTUTLINE
     utmpname(UTMP_FILE);
@@ -141,13 +145,15 @@ static void cleanup_utmp(void)
 {
 #ifndef OMIT_UTMP
     FILE *wtmp;
+    time_t uttime;
 
     if (!pty_stamped_utmp)
 	return;
 
     utmp_entry.ut_type = DEAD_PROCESS;
     memset(utmp_entry.ut_user, 0, lenof(utmp_entry.ut_user));
-    time(&utmp_entry.ut_time);
+    time(&uttime);
+    utmp_entry.ut_time = uttime;
 
     if ((wtmp = fopen(WTMP_FILE, "a")) != NULL) {
 	fwrite(&utmp_entry, 1, sizeof(utmp_entry), wtmp);
