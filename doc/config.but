@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.94 2004/10/16 10:56:54 simon Exp $
+\versionid $Id: config.but,v 1.95 2004/10/19 13:54:50 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1199,11 +1199,22 @@ native keyboard layout is not US or UK.
 
 \cfg{winhelp-topic}{translation.linedraw}
 
-VT100-series terminals allow the server to send control sequences
-that shift temporarily into a separate character set for drawing
-lines and boxes. PuTTY has a variety of ways to support this
-capability. In general you should probably try lots of options until
-you find one that your particular font supports.
+VT100-series terminals allow the server to send control sequences that
+shift temporarily into a separate character set for drawing simple
+lines and boxes. However, there are a variety of ways in which PuTTY
+can attempt to find appropriate characters, and the right one to use
+depends on the locally configured font. In general you should probably
+try lots of options until you find one that your particular font
+supports.
+
+\b \q{Use Unicode line drawing code points} tries to use the box
+characters that are present in Unicode. For good Unicode-supporting
+fonts this is probably the most reliable and functional option.
+
+\b \q{Poor man's line drawing} assumes that the font \e{cannot}
+generate the line and box characters at all, so it will use the
+\c{+}, \c{-} and \c{|} characters to draw approximations to boxes.
+You should use this option if none of the other options works.
 
 \b \q{Font has XWindows encoding} is for use with fonts that have a
 special encoding, where the lowest 32 character positions (below the
@@ -1219,15 +1230,6 @@ different size depending on which character set you try to use.
 
 \b \q{Use font in OEM mode only} is more reliable than that, but can
 miss out other characters from the main character set.
-
-\b \q{Poor man's line drawing} assumes that the font \e{cannot}
-generate the line and box characters at all, so it will use the
-\c{+}, \c{-} and \c{|} characters to draw approximations to boxes.
-You should use this option if none of the other options works.
-
-\b \q{Unicode mode} tries to use the box characters that are present
-in Unicode. For good Unicode-supporting fonts this is probably the
-most reliable and functional option.
 
 \S{config-linedrawpaste} Controlling copy and paste of line drawing
 characters
@@ -1248,7 +1250,8 @@ layout in another program, for example.
 
 Note that this option only applies to line-drawing characters which
 \e{were} printed by using the VT100 mechanism. Line-drawing
-characters displayed using Unicode will paste as Unicode always.
+characters that were received as Unicode code points will paste as
+Unicode always.
 
 \H{config-selection} The Selection panel
 

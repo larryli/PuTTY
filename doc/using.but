@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.35 2004/10/17 21:22:22 jacob Exp $
+\versionid $Id: using.but,v 1.36 2004/10/19 13:54:50 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -286,15 +286,17 @@ See \k{config-logging} for more details and options.
 \H{using-translation} Altering your \i{character set} configuration
 
 If you find that special characters (\i{accented characters}, for
-example) are not being displayed correctly in your PuTTY session, it
-may be that PuTTY is interpreting the characters sent by the server
-according to the wrong \e{character set}. There are a lot of
-different character sets available, so it's entirely possible for
-this to happen.
+example, or \i{line-drawing characters}) are not being displayed
+correctly in your PuTTY session, it may be that PuTTY is interpreting
+the characters sent by the server according to the wrong \e{character
+set}. There are a lot of different character sets available, so it's
+entirely possible for this to happen.
 
 If you click \q{Change Settings} and look at the \i{\q{Translation}
-panel}, you should see a large number of character sets which you
-can select. Now all you need is to find out which of them you want!
+panel}, you should see a large number of character sets which you can
+select, and other related options. Now all you need is to find out
+which of them you want! (See \k{config-translation} for more
+information.)
 
 \H{using-x-forwarding} Using \i{X11 forwarding} in SSH
 
