@@ -67,9 +67,12 @@
 #define VK_PROCESSKEY 0xE5
 #endif
 
-/* Needed for mouse wheel support and not defined in earlier SDKs. */
+/* Mouse wheel support. */
 #ifndef WM_MOUSEWHEEL
-#define WM_MOUSEWHEEL 0x020A
+#define WM_MOUSEWHEEL 0x020A	       /* not defined in earlier SDKs */
+#endif
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
 #endif
 
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
