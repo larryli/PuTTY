@@ -18,7 +18,7 @@
 
 #define NPANELS 9
 #define MAIN_NPANELS 9
-#define RECONF_NPANELS 6
+#define RECONF_NPANELS 7
 
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
@@ -822,30 +822,32 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
         /* Accelerators used: [aco] dehlnprstwx */
         ctlposinit(&cp, hwnd);
-        multiedit(&cp,
-                  "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
-                  "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
-        if (backends[2].backend == NULL) {
-            /* this is PuTTYtel, so only two protocols available */
-            radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
-                      "&Raw", IDC_PROTRAW,
-                      "&Telnet", IDC_PROTTELNET, NULL);
-        } else {
-            radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
-                      "&Raw", IDC_PROTRAW,
-                      "&Telnet", IDC_PROTTELNET,
+        if (wParam == 0) {
+            multiedit(&cp,
+                      "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
+                      "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
+            if (backends[2].backend == NULL) {
+                /* this is PuTTYtel, so only two protocols available */
+                radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
+                          "&Raw", IDC_PROTRAW,
+                          "&Telnet", IDC_PROTTELNET, NULL);
+            } else {
+                radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
+                          "&Raw", IDC_PROTRAW,
+                          "&Telnet", IDC_PROTTELNET,
 #ifdef FWHACK
-                      "SS&H/hack",
+                          "SS&H/hack",
 #else
-                      "SS&H",
+                          "SS&H",
 #endif
-                      IDC_PROTSSH, NULL);
+                          IDC_PROTSSH, NULL);
+            }
+            sesssaver(&cp, "Stor&ed Sessions",
+                      IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
+                      "&Load", IDC_SESSLOAD,
+                      "&Save", IDC_SESSSAVE,
+                      "&Delete", IDC_SESSDEL, NULL);
         }
-        sesssaver(&cp, "Stor&ed Sessions",
-                  IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
-                  "&Load", IDC_SESSLOAD,
-                  "&Save", IDC_SESSSAVE,
-                  "&Delete", IDC_SESSDEL, NULL);
         checkbox(&cp, "Close Window on E&xit", IDC_CLOSEEXIT);
         checkbox(&cp, "&Warn on Close", IDC_CLOSEWARN);
 
@@ -1300,9 +1302,10 @@ static int CALLBACK WindowProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
         /* Accelerators used: [aco] bikty */
         ctlposinit(&cp, hwnd);
-        multiedit(&cp,
-                  "Initial window &title:", IDC_WINTITLE, IDC_WINEDIT, 100,
-                  NULL);
+        if (wParam == 0)
+            multiedit(&cp,
+                      "Initial window &title:", IDC_WINTITLE, IDC_WINEDIT, 100,
+                      NULL);
         checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
         checkbox(&cp, "&Blinking cursor", IDC_BLINKCUR);
         checkbox(&cp, "Displa&y scrollbar", IDC_SCROLLBAR);
@@ -1375,17 +1378,19 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
         /* Accelerators used: [aco] bdflrstuv */
         ctlposinit(&cp, hwnd);
-        staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT);
-        staticedit(&cp, "Terminal-&speed string", IDC_TSSTATIC, IDC_TSEDIT);
-        staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT);
-        envsetter(&cp, "Environment variables:", IDC_ENVSTATIC,
-                  "&Variable", IDC_VARSTATIC, IDC_VAREDIT,
-                  "Va&lue", IDC_VALSTATIC, IDC_VALEDIT,
-                  IDC_ENVLIST,
-                  "A&dd", IDC_ENVADD, "&Remove", IDC_ENVREMOVE);
-        radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC_EMSTATIC, 2,
-                  "&BSD (commonplace)", IDC_EMBSD,
-                  "R&FC 1408 (unusual)", IDC_EMRFC, NULL);
+        if (wParam == 0) {
+            staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT);
+            staticedit(&cp, "Terminal-&speed string", IDC_TSSTATIC, IDC_TSEDIT);
+            staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT);
+            envsetter(&cp, "Environment variables:", IDC_ENVSTATIC,
+                      "&Variable", IDC_VARSTATIC, IDC_VAREDIT,
+                      "Va&lue", IDC_VALSTATIC, IDC_VALEDIT,
+                      IDC_ENVLIST,
+                      "A&dd", IDC_ENVADD, "&Remove", IDC_ENVREMOVE);
+            radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC_EMSTATIC, 2,
+                      "&BSD (commonplace)", IDC_EMBSD,
+                      "R&FC 1408 (unusual)", IDC_EMRFC, NULL);
+        }
 
 	SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
 	SetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed);
@@ -1528,24 +1533,26 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
         /* Accelerators used: [aco] 123abdkmprtuw */
         ctlposinit(&cp, hwnd);
-        staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT);
-        staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT);
-        multiedit(&cp,
-                  "&Remote command:", IDC_CMDSTATIC, IDC_CMDEDIT, 100,
-                  NULL);
-        checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
-        checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
-                 IDC_AUTHTIS);
-        checkbox(&cp, "Allow &agent forwarding", IDC_AGENTFWD);
-        editbutton(&cp, "Private &key file for authentication:",
-                    IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...", IDC_PKBUTTON);
-        radioline(&cp, "Preferred SSH protocol version:",
-                  IDC_SSHPROTSTATIC, 2,
-                  "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
-        radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 3,
-                  "&3DES", IDC_CIPHER3DES,
-                  "&Blowfish", IDC_CIPHERBLOWF,
-                  "&DES", IDC_CIPHERDES, NULL);    
+        if (wParam == 0) {
+            staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT);
+            staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT);
+            multiedit(&cp,
+                      "&Remote command:", IDC_CMDSTATIC, IDC_CMDEDIT, 100,
+                      NULL);
+            checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
+            checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
+                     IDC_AUTHTIS);
+            checkbox(&cp, "Allow &agent forwarding", IDC_AGENTFWD);
+            editbutton(&cp, "Private &key file for authentication:",
+                       IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...", IDC_PKBUTTON);
+            radioline(&cp, "Preferred SSH protocol version:",
+                      IDC_SSHPROTSTATIC, 2,
+                      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
+            radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 3,
+                      "&3DES", IDC_CIPHER3DES,
+                      "&Blowfish", IDC_CIPHERBLOWF,
+                      "&DES", IDC_CIPHERDES, NULL);
+        }
 
 	SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
 	SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
@@ -1959,9 +1966,10 @@ static char *names[NPANELS] = {
 };
 
 static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6, 7, 8};
-static int reconfp[RECONF_NPANELS] = { 1, 2, 3, 6, 7, 8};
+static int reconfp[RECONF_NPANELS] = { 0, 1, 2, 3, 6, 7, 8};
 
-static HWND makesubdialog(HWND hwnd, int x, int y, int w, int h, int n) {
+static HWND makesubdialog(HWND hwnd, int x, int y, int w, int h,
+                          int n, int dlgtype) {
     RECT r;
     HWND ret;
     WPARAM font;
@@ -1978,13 +1986,14 @@ static HWND makesubdialog(HWND hwnd, int x, int y, int w, int h, int n) {
     SetWindowLong (ret, DWL_DLGPROC, (LONG)panelproc[n]);
     font = SendMessage(hwnd, WM_GETFONT, 0, 0);
     SendMessage (ret, WM_SETFONT, font, MAKELPARAM(0, 0));
-    SendMessage (ret, WM_INITDIALOG, 0, 0);
+    SendMessage (ret, WM_INITDIALOG, dlgtype, 0);
     return ret;
 }
 
 static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam,
-			       int npanels, int *panelnums, HWND *page) {
+			       int npanels, int dlgtype,
+                               int *panelnums, HWND *page) {
     HWND hw, tabctl;
 
     switch (msg) {
@@ -2039,7 +2048,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    }
             SendDlgItemMessage(hwnd, IDC_TABLIST, CB_SETCURSEL, 0, 0);
         }
-        *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[0]);
+        *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[0], dlgtype);
 	SetFocus (*page);
 	return 0;
       case WM_NOTIFY:
@@ -2048,7 +2057,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    int i = TabCtrl_GetCurSel(((LPNMHDR)lParam)->hwndFrom);
 	    if (*page)
 		DestroyWindow (*page);
-            *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[i]);
+            *page = makesubdialog(hwnd, 6, 30, 168, 163,
+                                  panelnums[i], dlgtype);
 	    SetFocus (((LPNMHDR)lParam)->hwndFrom);   /* ensure focus stays */
 	    return 0;
 	}
@@ -2061,7 +2071,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                 int i = SendMessage (tablist, CB_GETCURSEL, 0, 0);
                 if (*page)
                     DestroyWindow (*page);
-                *page = makesubdialog(hwnd, 6, 30, 168, 163, panelnums[i]);
+                *page = makesubdialog(hwnd, 6, 30, 168, 163,
+                                      panelnums[i], dlgtype);
                 SetFocus(tablist);     /* ensure focus stays */
                 return 0;
             }
@@ -2104,14 +2115,14 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         SetActiveWindow(hwnd);
     }
     return GenericMainDlgProc (hwnd, msg, wParam, lParam,
-			       MAIN_NPANELS, mainp, &page);
+			       MAIN_NPANELS, 0, mainp, &page);
 }
 
 static int CALLBACK ReconfDlgProc (HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam) {
     static HWND page;
     return GenericMainDlgProc (hwnd, msg, wParam, lParam,
-			       RECONF_NPANELS, reconfp, &page);
+			       RECONF_NPANELS, 1, reconfp, &page);
 }
 
 int do_config (void) {
