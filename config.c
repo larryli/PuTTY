@@ -294,7 +294,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    dlg_refresh(ssd->editbox, dlg);
 	    dlg_refresh(ssd->listbox, dlg);
 	} else if (ctrl == ssd->delbutton) {
-	    int i = dlg_listbox_index(ctrl, dlg);
+	    int i = dlg_listbox_index(ssd->listbox, dlg);
 	    if (i <= 0) {
 		dlg_beep(dlg);
 	    } else {
