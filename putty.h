@@ -268,17 +268,23 @@ void random_destroy_seed(void);
  */
 int do_config (void);
 int do_reconfig (HWND);
-void do_defaults (char *);
+void do_defaults (char *, Config *);
 void logevent (char *);
 void showeventlog (HWND);
 void showabout (HWND);
 void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint);
-void get_sesslist(int allocate);
 void registry_cleanup(void);
 
 GLOBAL int nsessions;
 GLOBAL char **sessions;
+
+/*
+ * Exports from settings.c.
+ */
+void save_settings (char *section, int do_host, Config *cfg);
+void load_settings (char *section, int do_host, Config *cfg);
+void get_sesslist(int allocate);
 
 /*
  * Exports from terminal.c.

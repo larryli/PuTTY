@@ -132,7 +132,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	default_protocol = DEFAULT_PROTOCOL;
 	default_port = DEFAULT_PORT;
 
-	do_defaults(NULL);
+	do_defaults(NULL, &cfg);
 
 	p = cmdline;
 	while (*p && isspace(*p)) p++;
@@ -190,7 +190,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	 * An initial @ means to activate a saved session.
 	 */
 	if (*p == '@') {
-	    do_defaults (p+1);
+	    do_defaults (p+1, &cfg);
 	    if (!*cfg.host && !do_config()) {
 		WSACleanup();
 		return 0;

@@ -60,11 +60,11 @@ POBJS = be_all.$(OBJ)
 ##-- objects puttytel
 TOBJS = be_nossh.$(OBJ)
 ##-- objects plink
-PLOBJS = plink.$(OBJ) windlg.$(OBJ)
+PLOBJS = plink.$(OBJ)
 ##-- objects pscp
-SOBJS = scp.$(OBJ) windlg.$(OBJ) be_none.$(OBJ)
+SOBJS = scp.$(OBJ) be_none.$(OBJ)
 ##-- objects putty puttytel pscp plink
-MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ)
+MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ) settings.$(OBJ)
 ##-- objects putty pscp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
@@ -178,7 +178,8 @@ plink.rsp: makefile
 
 ##-- dependencies
 window.$(OBJ): window.c putty.h win_res.h storage.h
-windlg.$(OBJ): windlg.c putty.h ssh.h win_res.h storage.h
+windlg.$(OBJ): windlg.c putty.h ssh.h win_res.h
+settings.$(OBJ): settings.c putty.h storage.h
 winstore.$(OBJ): winstore.c putty.h storage.h
 terminal.$(OBJ): terminal.c putty.h
 sizetip.$(OBJ): sizetip.c putty.h

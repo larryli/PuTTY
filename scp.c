@@ -26,6 +26,7 @@
 
 #define PUTTY_DO_GLOBALS
 #include "putty.h"
+#include "storage.h"
 
 #define TIME_POSIX_TO_WIN(t, ft) (*(LONGLONG*)&(ft) = \
 	((LONGLONG) (t) + (LONGLONG) 11644473600) * (LONGLONG) 10000000)
@@ -72,13 +73,76 @@ static void send_char_msg(unsigned int msg_id, char c);
 static void send_str_msg(unsigned int msg_id, char *str);
 static void gui_update_stats(char *name, unsigned long size, int percentage, time_t elapsed);
 
-/*
- * These functions are needed to link with other modules, but
- * (should) never get called.
- */
 void begin_session(void) { }
-void write_clip (void *data, int len, int must_deselect) { }
-void term_deselect(void) { }
+void logevent(char *string) { }
+
+void verify_ssh_host_key(char *host, int port, char *keytype,
+                         char *keystr, char *fingerprint) {
+    int ret;
+
+    static const char absentmsg[] =
+        "The server's host key is not cached in the registry. You\n"
+        "have no guarantee that the server is the computer you\n"
+        "think it is.\n"
+        "The server's key fingerprint is:\n"
+        "%s\n"
+        "If you trust this host, enter \"y\" to add the key to\n"
+        "PuTTY's cache and carry on connecting.\n"
+        "If you do not trust this host, enter \"n\" to abandon the\n"
+        "connection.\n"
+        "Continue connecting? (y/n) ";
+
+    static const char wrongmsg[] =
+        "WARNING - POTENTIAL SECURITY BREACH!\n"
+        "The server's host key does not match the one PuTTY has\n"
+        "cached in the registry. This means that either the\n"
+        "server administrator has changed the host key, or you\n"
+        "have actually connected to another computer pretending\n"
+        "to be the server.\n"
+        "The new key fingerprint is:\n"
+        "%s\n"
+        "If you were expecting this change and trust the new key,\n"
+        "enter Yes to update PuTTY's cache and continue connecting.\n"
+        "If you want to carry on connecting but without updating\n"
+        "the cache, enter No.\n"
+        "If you want to abandon the connection completely, press\n"
+        "Return to cancel. Pressing Return is the ONLY guaranteed\n"
+        "safe choice.\n"
+        "Update cached key? (y/n, Return cancels connection) ";
+
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+
+    /*
+     * Verify the key against the registry.
+     */
+    ret = verify_host_key(host, port, keytype, keystr);
+
+    if (ret == 0)                      /* success - key matched OK */
+        return;
+    if (ret == 2) {                    /* key was different */
+        fprintf(stderr, wrongmsg, fingerprint);
+        if (fgets(line, sizeof(line), stdin) &&
+            line[0] != '\0' && line[0] != '\n') {
+            if (line[0] == 'y' || line[0] == 'Y')
+                store_host_key(host, port, keytype, keystr);
+        } else {
+            fprintf(stderr, abandoned);
+            exit(0);
+        }
+    }
+    if (ret == 1) {                    /* key was absent */
+        fprintf(stderr, absentmsg, fingerprint);
+        if (fgets(line, sizeof(line), stdin) &&
+            (line[0] == 'y' || line[0] == 'Y'))
+            store_host_key(host, port, keytype, keystr);
+        else {
+            fprintf(stderr, abandoned);
+            exit(0);
+        }
+    }
+}
 
 /* GUI Adaptation - Sept 2000 */
 static void send_msg(HWND h, UINT message, WPARAM wParam)
@@ -368,7 +432,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 	bump("Empty host name");
 
     /* Try to load settings for this host */
-    do_defaults(host);
+    do_defaults(host, &cfg);
     if (cfg.host[0] == '\0') {
 	/* No settings for this host; use defaults */
 	strncpy(cfg.host, host, sizeof(cfg.host)-1);

@@ -11,6 +11,7 @@
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
+#include "storage.h"
 
 void fatalbox (char *p, ...) {
     va_list ap;
@@ -35,11 +36,75 @@ void connection_fatal (char *p, ...) {
 
 static char *password = NULL;
 
-/*
- * Stubs for linking with other modules.
- */
-void write_clip (void *data, int len, int must_deselect) { }
-void term_deselect(void) { }
+void logevent(char *string) { }
+
+void verify_ssh_host_key(char *host, int port, char *keytype,
+                         char *keystr, char *fingerprint) {
+    int ret;
+
+    static const char absentmsg[] =
+        "The server's host key is not cached in the registry. You\n"
+        "have no guarantee that the server is the computer you\n"
+        "think it is.\n"
+        "The server's key fingerprint is:\n"
+        "%s\n"
+        "If you trust this host, enter \"y\" to add the key to\n"
+        "PuTTY's cache and carry on connecting.\n"
+        "If you do not trust this host, enter \"n\" to abandon the\n"
+        "connection.\n"
+        "Continue connecting? (y/n) ";
+
+    static const char wrongmsg[] =
+        "WARNING - POTENTIAL SECURITY BREACH!\n"
+        "The server's host key does not match the one PuTTY has\n"
+        "cached in the registry. This means that either the\n"
+        "server administrator has changed the host key, or you\n"
+        "have actually connected to another computer pretending\n"
+        "to be the server.\n"
+        "The new key fingerprint is:\n"
+        "%s\n"
+        "If you were expecting this change and trust the new key,\n"
+        "enter \"y\" to update PuTTY's cache and continue connecting.\n"
+        "If you want to carry on connecting but without updating\n"
+        "the cache, enter \"n\".\n"
+        "If you want to abandon the connection completely, press\n"
+        "Return to cancel. Pressing Return is the ONLY guaranteed\n"
+        "safe choice.\n"
+        "Update cached key? (y/n, Return cancels connection) ";
+
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+
+    /*
+     * Verify the key against the registry.
+     */
+    ret = verify_host_key(host, port, keytype, keystr);
+
+    if (ret == 0)                      /* success - key matched OK */
+        return;
+    if (ret == 2) {                    /* key was different */
+        fprintf(stderr, wrongmsg, fingerprint);
+        if (fgets(line, sizeof(line), stdin) &&
+            line[0] != '\0' && line[0] != '\n') {
+            if (line[0] == 'y' || line[0] == 'Y')
+                store_host_key(host, port, keytype, keystr);
+        } else {
+            fprintf(stderr, abandoned);
+            exit(0);
+        }
+    }
+    if (ret == 1) {                    /* key was absent */
+        fprintf(stderr, absentmsg, fingerprint);
+        if (fgets(line, sizeof(line), stdin) &&
+            (line[0] == 'y' || line[0] == 'Y'))
+            store_host_key(host, port, keytype, keystr);
+        else {
+            fprintf(stderr, abandoned);
+            exit(0);
+        }
+    }
+}
 
 HANDLE outhandle;
 DWORD orig_console_mode;
@@ -162,7 +227,7 @@ int main(int argc, char **argv) {
     /*
      * Process the command line.
      */
-    do_defaults(NULL);
+    do_defaults(NULL, &cfg);
     default_protocol = cfg.protocol;
     default_port = cfg.port;
     {
@@ -270,7 +335,7 @@ int main(int argc, char **argv) {
                         /*
                          * One string.
                          */
-                        do_defaults (p);
+                        do_defaults (p, &cfg);
                         if (cfg.host[0] == '\0') {
                             /* No settings for this host; use defaults */
                             strncpy(cfg.host, p, sizeof(cfg.host)-1);
