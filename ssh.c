@@ -2933,6 +2933,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
         if (s->dlgret == 0) {
             ssh->close_expected = TRUE;
             ssh_closing((Plug)ssh, NULL, 0, 0);
+	    crStop(0);
         }
     }
 
