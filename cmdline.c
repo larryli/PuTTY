@@ -16,9 +16,14 @@
  * local modifications such as -L are evaluated; and if you specify
  * a protocol and a port, the protocol is set up first so that the
  * port can override its choice of port number.
+ * 
+ * (In fact -load is not saved at all, since in at least Plink the
+ * processing of further command-line options depends on whether or
+ * not the loaded session contained a hostname. So it must be
+ * executed immediately.)
  */
 
-#define NPRIORITIES 3
+#define NPRIORITIES 2
 
 struct cmdline_saved_param {
     char *p, *value;
@@ -115,14 +120,15 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 
     if (!strcmp(p, "-load")) {
 	RETURN(2);
-	SAVEABLE(0);		       /* very high priority */
+	/* This parameter must be processed immediately rather than being
+	 * saved. */
 	do_defaults(value, cfg);
 	return 2;
     }
     if (!strcmp(p, "-ssh")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_SSH;
 	default_port = cfg->port = 22;
 	return 1;
@@ -130,7 +136,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     if (!strcmp(p, "-telnet")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_TELNET;
 	default_port = cfg->port = 23;
 	return 1;
@@ -138,7 +144,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     if (!strcmp(p, "-rlogin")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_RLOGIN;
 	default_port = cfg->port = 513;
 	return 1;
@@ -146,7 +152,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     if (!strcmp(p, "-raw")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_RAW;
     }
     if (!strcmp(p, "-v")) {
@@ -155,7 +161,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-l")) {
 	RETURN(2);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	strncpy(cfg->username, value, sizeof(cfg->username));
 	cfg->username[sizeof(cfg->username) - 1] = '\0';
     }
@@ -164,7 +170,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	int i=0;
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	fwd = value;
 	ptr = cfg->portfwd;
 	/* if multiple forwards, find end of list */
@@ -209,7 +215,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 
 	filename = value;
 
@@ -238,7 +244,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     }
     if (!strcmp(p, "-P")) {
 	RETURN(2);
-	SAVEABLE(2);		       /* lower priority than -ssh,-telnet */
+	SAVEABLE(1);		       /* lower priority than -ssh,-telnet */
 	cfg->port = atoi(value);
     }
     if (!strcmp(p, "-pw")) {
@@ -251,62 +257,62 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     if (!strcmp(p, "-A")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->agentfwd = 1;
     }
     if (!strcmp(p, "-a")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->agentfwd = 0;
     }
 
     if (!strcmp(p, "-X")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->x11_forward = 1;
     }
     if (!strcmp(p, "-x")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->x11_forward = 0;
     }
 
     if (!strcmp(p, "-t")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->nopty = 0;
     }
     if (!strcmp(p, "-T")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->nopty = 1;
     }
 
     if (!strcmp(p, "-C")) {
 	RETURN(1);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->compression = 1;
     }
 
     if (!strcmp(p, "-1")) {
 	RETURN(1);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->sshprot = 0;	       /* ssh protocol 1 only */
     }
     if (!strcmp(p, "-2")) {
 	RETURN(1);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->sshprot = 3;	       /* ssh protocol 2 only */
     }
 
     if (!strcmp(p, "-i")) {
 	RETURN(2);
-	SAVEABLE(1);
+	SAVEABLE(0);
 	cfg->keyfile = filename_from_str(value);
     }
 
