@@ -789,8 +789,24 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
     return 0;
 }
 
+static int sftp_cmd_help(struct sftp_command *cmd);
+
 static struct sftp_cmd_lookup {
     char *name;
+    /*
+     * For help purposes, there are two kinds of command:
+     * 
+     *  - primary commands, in which `longhelp' is non-NULL. In
+     *    this case `shorthelp' is descriptive text, and `longhelp'
+     *    is longer descriptive text intended to be printed after
+     *    the command name.
+     * 
+     *  - alias commands, in which `longhelp' is NULL. In this case
+     *    `shorthelp' is the name of a primary command, which
+     *    contains the help that should double up for this command.
+     */
+    char *shorthelp;
+    char *longhelp;
     int (*obey) (struct sftp_command *);
 } sftp_lookup[] = {
     /*
@@ -798,25 +814,212 @@ static struct sftp_cmd_lookup {
      * in ASCII order.
      */
     {
-    "bye", sftp_cmd_quit}, {
-    "cd", sftp_cmd_cd}, {
-    "chmod", sftp_cmd_chmod}, {
-    "del", sftp_cmd_rm}, {
-    "delete", sftp_cmd_rm}, {
-    "dir", sftp_cmd_ls}, {
-    "exit", sftp_cmd_quit}, {
-    "get", sftp_cmd_get}, {
-    "ls", sftp_cmd_ls}, {
-    "mkdir", sftp_cmd_mkdir}, {
-    "mv", sftp_cmd_mv}, {
-    "put", sftp_cmd_put}, {
-    "quit", sftp_cmd_quit}, {
-    "reget", sftp_cmd_reget}, {
-    "ren", sftp_cmd_mv}, {
-    "rename", sftp_cmd_mv}, {
-    "reput", sftp_cmd_reput}, {
-    "rm", sftp_cmd_rm}, {
-    "rmdir", sftp_cmd_rmdir},};
+	"bye", "finish your SFTP session",
+	    "\n"
+	    "  Terminates your SFTP session and quits the PSFTP program.\n",
+	    sftp_cmd_quit
+    },
+    {
+	"cd", "change your remote working directory",
+	    " [ <New working directory> ]\n"
+	    "  Change the remote working directory for your SFTP session.\n"
+	    "  If a new working directory is not supplied, you will be\n"
+	    "  returned to your home directory.\n",
+	    sftp_cmd_cd
+    },
+    {
+	"chmod", "change file permissions and modes",
+	    " ( <octal-digits> | <modifiers> ) <filename>\n"
+	    "  Change the file permissions on a file or directory.\n"
+	    "  <octal-digits> can be any octal Unix permission specifier.\n"
+	    "  Alternatively, <modifiers> can include:\n"
+	    "    u+r     make file readable by owning user\n"
+	    "    u+w     make file writable by owning user\n"
+	    "    u+x     make file executable by owning user\n"
+	    "    u-r     make file not readable by owning user\n"
+	    "    [also u-w, u-x]\n"
+	    "    g+r     make file readable by members of owning group\n"
+	    "    [also g+w, g+x, g-r, g-w, g-x]\n"
+	    "    o+r     make file readable by all other users\n"
+	    "    [also o+w, o+x, o-r, o-w, o-x]\n"
+	    "    a+r     make file readable by absolutely everybody\n"
+	    "    [also a+w, a+x, a-r, a-w, a-x]\n"
+	    "    u+s     enable the Unix set-user-ID bit\n"
+	    "    u-s     disable the Unix set-user-ID bit\n"
+	    "    g+s     enable the Unix set-group-ID bit\n"
+	    "    g-s     disable the Unix set-group-ID bit\n"
+	    "    +t      enable the Unix \"sticky bit\"\n"
+	    "  You can give more than one modifier for the same user (\"g-rwx\"), and\n"
+	    "  more than one user for the same modifier (\"ug+w\"). You can\n"
+	    "  use commas to separate different modifiers (\"u+rwx,g+s\").\n",
+	    sftp_cmd_chmod
+    },
+    {
+	"del", "delete a file",
+	    " <filename>\n"
+	    "  Delete a file.\n",
+	    sftp_cmd_rm
+    },
+    {
+	"delete", "delete a file",
+	    "\n"
+	    "  Delete a file.\n",
+	    sftp_cmd_rm
+    },
+    {
+	"dir", "list contents of a remote directory",
+	    " [ <directory-name> ]\n"
+	    "  List the contents of a specified directory on the server.\n"
+	    "  If <directory-name> is not given, the current working directory\n"
+	    "  will be listed.\n",
+	    sftp_cmd_ls
+    },
+    {
+	"exit", "bye", NULL, sftp_cmd_quit
+    },
+    {
+	"get", "download a file from the server to your local machine",
+	    " <filename> [ <local-filename> ]\n"
+	    "  Downloads a file on the server and stores it locally under\n"
+	    "  the same name, or under a different one if you supply the\n"
+	    "  argument <local-filename>.\n",
+	    sftp_cmd_get
+    },
+    {
+	"help", "give help",
+	    " [ <command> [ <command> ... ] ]\n"
+	    "  Give general help if no commands are specified.\n"
+	    "  If one or more commands are specified, give specific help on\n"
+	    "  those particular commands.\n",
+	    sftp_cmd_help
+    },
+    {
+	"ls", "dir", NULL,
+	    sftp_cmd_ls
+    },
+    {
+	"mkdir", "create a directory on the remote server",
+	    " <directory-name>\n"
+	    "  Creates a directory with the given name on the server.\n",
+	    sftp_cmd_mkdir
+    },
+    {
+	"mv", "move or rename a file on the remote server",
+	    " <source-filename> <destination-filename>\n"
+	    "  Moves or renames the file <source-filename> on the server,\n"
+	    "  so that it is accessible under the name <destination-filename>.\n",
+	    sftp_cmd_mv
+    },
+    {
+	"put", "upload a file from your local machine to the server",
+	    " <filename> [ <remote-filename> ]\n"
+	    "  Uploads a file to the server and stores it there under\n"
+	    "  the same name, or under a different one if you supply the\n"
+	    "  argument <remote-filename>.\n",
+	    sftp_cmd_put
+    },
+    {
+	"quit", "bye", NULL,
+	    sftp_cmd_quit
+    },
+    {
+	"reget", "continue downloading a file",
+	    " <filename> [ <local-filename> ]\n"
+	    "  Works exactly like the \"get\" command, but the local file\n"
+	    "  must already exist. The download will begin at the end of the\n"
+	    "  file. This is for resuming a download that was interrupted.\n",
+	    sftp_cmd_reget
+    },
+    {
+	"ren", "mv", NULL,
+	    sftp_cmd_mv
+    },
+    {
+	"rename", "mv", NULL,
+	    sftp_cmd_mv
+    },
+    {
+	"reput", "continue uploading a file",
+	    " <filename> [ <remote-filename> ]\n"
+	    "  Works exactly like the \"put\" command, but the remote file\n"
+	    "  must already exist. The upload will begin at the end of the\n"
+	    "  file. This is for resuming an upload that was interrupted.\n",
+	    sftp_cmd_reput
+    },
+    {
+	"rm", "del", NULL,
+	    sftp_cmd_rm
+    },
+    {
+	"rmdir", "remove a directory on the remote server",
+	    " <directory-name>\n"
+	    "  Removes the directory with the given name on the server.\n"
+	    "  The directory will not be removed unless it is empty.\n",
+	    sftp_cmd_rmdir
+    }
+};
+
+const struct sftp_cmd_lookup *lookup_command(char *name)
+{
+    int i, j, k, cmp;
+
+    i = -1;
+    j = sizeof(sftp_lookup) / sizeof(*sftp_lookup);
+    while (j - i > 1) {
+	k = (j + i) / 2;
+	cmp = strcmp(name, sftp_lookup[k].name);
+	if (cmp < 0)
+	    j = k;
+	else if (cmp > 0)
+	    i = k;
+	else {
+	    return &sftp_lookup[k];
+	}
+    }
+    return NULL;
+}
+
+static int sftp_cmd_help(struct sftp_command *cmd)
+{
+    int i;
+    if (cmd->nwords == 1) {
+	/*
+	 * Give short help on each command.
+	 */
+	int maxlen;
+	maxlen = 0;
+	for (i = 0; i < sizeof(sftp_lookup) / sizeof(*sftp_lookup); i++) {
+	    int len = strlen(sftp_lookup[i].name);
+	    if (maxlen < len)
+		maxlen = len;
+	}
+	for (i = 0; i < sizeof(sftp_lookup) / sizeof(*sftp_lookup); i++) {
+	    const struct sftp_cmd_lookup *lookup;
+	    lookup = &sftp_lookup[i];
+	    printf("%-*s", maxlen+2, lookup->name);
+	    if (lookup->longhelp == NULL)
+		lookup = lookup_command(lookup->shorthelp);
+	    printf("%s\n", lookup->shorthelp);
+	}
+    } else {
+	/*
+	 * Give long help on specific commands.
+	 */
+	for (i = 1; i < cmd->nwords; i++) {
+	    const struct sftp_cmd_lookup *lookup;
+	    lookup = lookup_command(cmd->words[i]);
+	    if (!lookup) {
+		printf("help: %s: command not found\n", cmd->words[i]);
+	    } else {
+		printf("%s", lookup->name);
+		if (lookup->longhelp == NULL)
+		    lookup = lookup_command(lookup->shorthelp);
+		printf("%s", lookup->longhelp);
+	    }
+	}
+    }
+    return 0;
+}
 
 /* ----------------------------------------------------------------------
  * Command line reading and parsing.
@@ -918,24 +1121,12 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     if (cmd->nwords == 0)
 	cmd->obey = sftp_cmd_null;
     else {
-	int i, j, k, cmp;
-
-	cmd->obey = sftp_cmd_unknown;
-
-	i = -1;
-	j = sizeof(sftp_lookup) / sizeof(*sftp_lookup);
-	while (j - i > 1) {
-	    k = (j + i) / 2;
-	    cmp = strcmp(cmd->words[0], sftp_lookup[k].name);
-	    if (cmp < 0)
-		j = k;
-	    else if (cmp > 0)
-		i = k;
-	    else {
-		cmd->obey = sftp_lookup[k].obey;
-		break;
-	    }
-	}
+	const struct sftp_cmd_lookup *lookup;
+	lookup = lookup_command(cmd->words[0]);
+	if (!lookup)
+	    cmd->obey = sftp_cmd_unknown;
+	else
+	    cmd->obey = lookup->obey;
     }
 
     return cmd;
@@ -983,26 +1174,26 @@ void do_sftp(int mode, int modeflags, char *batchfile)
     	    break;
 		if (cmd->obey(cmd) < 0)
 		    break;
-	    }
+	}
     } else {
         fp = fopen(batchfile, "r");
         if (!fp) {
-        printf("Fatal: unable to open %s\n", batchfile);
-        return;
+	    printf("Fatal: unable to open %s\n", batchfile);
+	    return;
         }
         while (1) {
-    	struct sftp_command *cmd;
-    	cmd = sftp_getcmd(fp, mode, modeflags);
-    	if (!cmd)
-    	    break;
-		if (cmd->obey(cmd) < 0)
+	    struct sftp_command *cmd;
+	    cmd = sftp_getcmd(fp, mode, modeflags);
+	    if (!cmd)
+		break;
+	    if (cmd->obey(cmd) < 0)
+		break;
+	    if (fxp_error() != NULL) {
+		if (!(modeflags & 2))
 		    break;
-		if (fxp_error() != NULL) {
-			if (!(modeflags & 2))
-				break;
-		}
+	    }
         }
-	    fclose(fp);
+	fclose(fp);
 
     }
 }
