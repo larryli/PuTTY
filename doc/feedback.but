@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.10 2003/01/10 15:23:01 ben Exp $
+\versionid $Id: feedback.but,v 1.11 2003/01/17 13:32:51 jacob Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -241,7 +241,8 @@ on the Wishlist, or we might think you haven't even \e{read} the
 Wishlist). This probably won't have very \e{much} effect; if a huge
 number of people vote for something then it may make a difference,
 but one or two extra votes for a particular feature are unlikely to
-change our priority list immediately. Also, don't expect a reply.
+change our priority list immediately. Offering a new and compelling
+justification might help. Also, don't expect a reply.
 
 \b Offer us money if we do the work sooner rather than later. This
 sometimes works, but not always. The PuTTY team all have full-time
