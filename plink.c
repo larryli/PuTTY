@@ -787,10 +787,12 @@ int main(int argc, char **argv)
 	} else if (n == 1) {
 	    reading = 0;
 	    noise_ultralight(idata.len);
-	    if (idata.len > 0) {
-		back->send(idata.buffer, idata.len);
-	    } else {
-		back->special(TS_EOF);
+	    if (connopen && back->socket() != NULL) {
+		if (idata.len > 0) {
+		    back->send(idata.buffer, idata.len);
+		} else {
+		    back->special(TS_EOF);
+		}
 	    }
 	} else if (n == 2) {
 	    odata.busy = 0;
@@ -801,8 +803,10 @@ int main(int argc, char **argv)
 	    bufchain_consume(&stdout_data, odata.lenwritten);
 	    if (bufchain_size(&stdout_data) > 0)
 		try_output(0);
-	    back->unthrottle(bufchain_size(&stdout_data) +
-			     bufchain_size(&stderr_data));
+	    if (connopen && back->socket() != NULL) {
+		back->unthrottle(bufchain_size(&stdout_data) +
+				 bufchain_size(&stderr_data));
+	    }
 	} else if (n == 3) {
 	    edata.busy = 0;
 	    if (!edata.writeret) {
@@ -812,14 +816,18 @@ int main(int argc, char **argv)
 	    bufchain_consume(&stderr_data, edata.lenwritten);
 	    if (bufchain_size(&stderr_data) > 0)
 		try_output(1);
-	    back->unthrottle(bufchain_size(&stdout_data) +
-			     bufchain_size(&stderr_data));
+	    if (connopen && back->socket() != NULL) {
+		back->unthrottle(bufchain_size(&stdout_data) +
+				 bufchain_size(&stderr_data));
+	    }
 	}
 	if (!reading && back->sendbuffer() < MAX_STDIN_BACKLOG) {
 	    SetEvent(idata.eventback);
 	    reading = 1;
 	}
-	if (!connopen || back->socket() == NULL)
+	if ((!connopen || back->socket() == NULL) &&
+	    bufchain_size(&stdout_data) == 0 &&
+	    bufchain_size(&stderr_data) == 0)
 	    break;		       /* we closed the connection */
     }
     WSACleanup();
