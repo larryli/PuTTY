@@ -58,7 +58,6 @@ void noise_get_light(void (*func) (void *, int))
     SYSTEMTIME systime;
     DWORD adjust[2];
     BOOL rubbish;
-    SYSTEM_POWER_STATUS pwrstat;
 
     GetSystemTime(&systime);
     func(&systime, sizeof(systime));
