@@ -77,16 +77,22 @@ static void bump(char *fmt, ...)
     exit(1);
 }
 
-static void get_password(const char *prompt, char *str, int maxlen)
+static int get_password(const char *prompt, char *str, int maxlen)
 {
     HANDLE hin, hout;
     DWORD savemode, i;
 
     if (password) {
-	strncpy(str, password, maxlen);
-	str[maxlen-1] = '\0';
-	password = NULL;
-	return;
+        static int tried_once = 0;
+
+        if (tried_once) {
+            return 0;
+        } else {
+            strncpy(str, password, maxlen);
+            str[maxlen-1] = '\0';
+            tried_once = 1;
+            return 1;
+        }
     }
 
     hin = GetStdHandle(STD_INPUT_HANDLE);
@@ -107,6 +113,8 @@ static void get_password(const char *prompt, char *str, int maxlen)
     str[i] = '\0';
 
     WriteFile(hout, "\r\n", 2, &i, NULL);
+
+    return 1;
 }
 
 /*
