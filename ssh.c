@@ -5677,6 +5677,32 @@ static int ssh2_try_send(struct ssh_channel *c)
     return bufchain_size(&c->v.v2.outbuffer);
 }
 
+static void ssh2_try_send_and_unthrottle(struct ssh_channel *c)
+{
+    int bufsize;
+    if (c->closes)
+	return;			       /* don't send on closing channels */
+    bufsize = ssh2_try_send(c);
+    if (bufsize == 0) {
+	switch (c->type) {
+	  case CHAN_MAINSESSION:
+	    /* stdin need not receive an unthrottle
+	     * notification since it will be polled */
+	    break;
+	  case CHAN_X11:
+	    x11_unthrottle(c->u.x11.s);
+	    break;
+	  case CHAN_AGENT:
+	    /* agent sockets are request/response and need no
+	     * buffer management */
+	    break;
+	  case CHAN_SOCKDATA:
+	    pfd_unthrottle(c->u.pfd.s);
+	    break;
+	}
+    }
+}
+
 /*
  * Potentially enlarge the window on an SSH-2 channel.
  */
@@ -5715,8 +5741,10 @@ static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
     unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
-    if (c && !c->closes)
+    if (c && !c->closes) {
 	c->v.v2.remwindow += ssh_pkt_getuint32(pktin);
+	ssh2_try_send_and_unthrottle(c);
+    }
 }
 
 static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
@@ -7414,30 +7442,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    /*
 	     * Try to send data on all channels if we can.
 	     */
-	    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++) {
-		int bufsize;
-		if (c->closes)
-		    continue;	       /* don't send on closing channels */
-		bufsize = ssh2_try_send(c);
-		if (bufsize == 0) {
-		    switch (c->type) {
-		      case CHAN_MAINSESSION:
-			/* stdin need not receive an unthrottle
-			 * notification since it will be polled */
-			break;
-		      case CHAN_X11:
-			x11_unthrottle(c->u.x11.s);
-			break;
-		      case CHAN_AGENT:
-			/* agent sockets are request/response and need no
-			 * buffer management */
-			break;
-		      case CHAN_SOCKDATA:
-			pfd_unthrottle(c->u.pfd.s);
-			break;
-		    }
-		}
-	    }
+	    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++)
+		ssh2_try_send_and_unthrottle(c);
 	}
     }
 
