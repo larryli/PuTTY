@@ -529,7 +529,8 @@ void term_provide_logctx(Terminal *term, void *logctx);
 /*
  * Exports from logging.c.
  */
-void *log_init(void *frontend);
+void *log_init(void *frontend, Config *cfg);
+void log_reconfig(void *logctx, Config *cfg);
 void logfopen(void *logctx);
 void logfclose(void *logctx);
 void logtraffic(void *logctx, unsigned char c, int logmode);

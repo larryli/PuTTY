@@ -545,7 +545,7 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
 	}
-	logctx = log_init(NULL);
+	logctx = log_init(NULL, &cfg);
 	back->provide_logctx(backhandle, logctx);
 	sfree(realhost);
     }

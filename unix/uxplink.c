@@ -544,7 +544,7 @@ int main(int argc, char **argv)
     /*
      * Start up the connection.
      */
-    logctx = log_init(NULL);
+    logctx = log_init(NULL, &cfg);
     {
 	char *error;
 	char *realhost;

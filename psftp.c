@@ -1833,7 +1833,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
-    logctx = log_init(NULL);
+    logctx = log_init(NULL, &cfg);
     back->provide_logctx(backhandle, logctx);
     ssh_sftp_init();
     if (verbose && realhost != NULL)

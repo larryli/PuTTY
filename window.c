@@ -507,7 +507,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     hwnd = NULL;
 
     term = term_init(&cfg, NULL);
-    logctx = log_init(NULL);
+    logctx = log_init(NULL, &cfg);
     term_provide_logctx(term, logctx);
 
     cfgtopalette();
@@ -1760,11 +1760,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    }
 		}
 
-		if (strcmp(prev_cfg.logfilename, cfg.logfilename) ||
-		    prev_cfg.logtype != cfg.logtype) {
-		    logfclose(logctx); /* reset logging */
-		    logfopen(logctx);
-		}
+		/* Pass new config data to the logging module */
+		log_reconfig(logctx, &cfg);
 
 		sfree(logpal);
 		/*

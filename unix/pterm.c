@@ -2407,7 +2407,7 @@ int main(int argc, char **argv)
     show_mouseptr(inst, 1);
 
     inst->term = term_init(&cfg, inst);
-    inst->logctx = log_init(inst);
+    inst->logctx = log_init(inst, &cfg);
     term_provide_logctx(inst->term, inst->logctx);
 
     inst->back = &pty_backend;

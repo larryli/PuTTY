@@ -577,7 +577,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     err = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port, &realhost,0);
     if (err != NULL)
 	bump("ssh_init: %s", err);
-    logctx = log_init(NULL);
+    logctx = log_init(NULL, &cfg);
     back->provide_logctx(backhandle, logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL)

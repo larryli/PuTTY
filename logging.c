@@ -12,6 +12,7 @@ struct LogContext {
     FILE *lgfp;
     char currlogfilename[FILENAME_MAX];
     void *frontend;
+    Config cfg;
 };
 
 static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm);
@@ -22,8 +23,8 @@ static void xlatlognam(char *d, char *s, char *hostname, struct tm *tm);
 void logtraffic(void *handle, unsigned char c, int logmode)
 {
     struct LogContext *ctx = (struct LogContext *)handle;
-    if (cfg.logtype > 0) {
-	if (cfg.logtype == logmode) {
+    if (ctx->cfg.logtype > 0) {
+	if (ctx->cfg.logtype == logmode) {
 	    /* deferred open file from pgm start? */
 	    if (!ctx->lgfp)
 		logfopen(ctx);
@@ -49,7 +50,7 @@ void log_eventlog(void *handle, char *event)
 	fprintf(stderr, "%s\n", event);
 	fflush(stderr);
     }
-    if (cfg.logtype != LGTYP_PACKETS)
+    if (ctx->cfg.logtype != LGTYP_PACKETS)
 	return;
     if (!ctx->lgfp)
 	logfopen(ctx);
@@ -67,7 +68,7 @@ void log_packet(void *handle, int direction, int type,
     int i, j;
     char dumpdata[80], smalldata[5];
 
-    if (cfg.logtype != LGTYP_PACKETS)
+    if (ctx->cfg.logtype != LGTYP_PACKETS)
 	return;
     if (!ctx->lgfp)
 	logfopen(ctx);
@@ -104,7 +105,7 @@ void logfopen(void *handle)
     if (ctx->lgfp)
 	return;
 
-    if (!cfg.logtype)
+    if (!ctx->cfg.logtype)
 	return;
     sprintf(writemod, "wb");	       /* default to rewrite */
 
@@ -112,21 +113,21 @@ void logfopen(void *handle)
     tm = *localtime(&t);
 
     /* substitute special codes in file name */
-    xlatlognam(ctx->currlogfilename, cfg.logfilename,cfg.host, &tm);
+    xlatlognam(ctx->currlogfilename, ctx->cfg.logfilename,ctx->cfg.host, &tm);
 
     ctx->lgfp = fopen(ctx->currlogfilename, "r");  /* file already present? */
     if (ctx->lgfp) {
 	int i;
 	fclose(ctx->lgfp);
-	if (cfg.logxfovr != LGXF_ASK) {
-	    i = ((cfg.logxfovr == LGXF_OVR) ? 2 : 1);
+	if (ctx->cfg.logxfovr != LGXF_ASK) {
+	    i = ((ctx->cfg.logxfovr == LGXF_OVR) ? 2 : 1);
 	} else
 	    i = askappend(ctx->frontend, ctx->currlogfilename);
 	if (i == 1)
 	    writemod[0] = 'a';	       /* set append mode */
 	else if (i == 0) {	       /* cancelled */
 	    ctx->lgfp = NULL;
-	    cfg.logtype = 0;	       /* disable logging */
+	    ctx->cfg.logtype = 0;	       /* disable logging */
 	    return;
 	}
     }
@@ -141,9 +142,9 @@ void logfopen(void *handle)
 
 	sprintf(buf, "%s session log (%s mode) to file: ",
 		(writemod[0] == 'a') ? "Appending" : "Writing new",
-		(cfg.logtype == LGTYP_ASCII ? "ASCII" :
-		 cfg.logtype == LGTYP_DEBUG ? "raw" :
-		 cfg.logtype == LGTYP_PACKETS ? "SSH packets" : "<ukwn>"));
+		(ctx->cfg.logtype == LGTYP_ASCII ? "ASCII" :
+		 ctx->cfg.logtype == LGTYP_DEBUG ? "raw" :
+		 ctx->cfg.logtype == LGTYP_PACKETS ? "SSH packets" : "<ukwn>"));
 	/* Make sure we do not exceed the output buffer size */
 	strncat(buf, ctx->currlogfilename, 128);
 	buf[strlen(buf)] = '\0';
@@ -160,12 +161,33 @@ void logfclose(void *handle)
     }
 }
 
-void *log_init(void *frontend)
+void *log_init(void *frontend, Config *cfg)
 {
     struct LogContext *ctx = smalloc(sizeof(struct LogContext));
     ctx->lgfp = NULL;
     ctx->frontend = frontend;
+    ctx->cfg = *cfg;		       /* STRUCTURE COPY */
     return ctx;
+}
+
+void log_reconfig(void *handle, Config *cfg)
+{
+    struct LogContext *ctx = (struct LogContext *)handle;
+    int reset_logging;
+
+    if (strcmp(ctx->cfg.logfilename, cfg->logfilename) ||
+	ctx->cfg.logtype != cfg->logtype)
+	reset_logging = TRUE;
+    else
+	reset_logging = FALSE;
+
+    if (reset_logging)
+	logfclose(logctx);
+
+    ctx->cfg = *cfg;		       /* STRUCTURE COPY */
+
+    if (reset_logging)
+	logfopen(logctx);
 }
 
 /*
