@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.8 2002/12/31 01:40:14 ben Exp $ */
+/* $Id: mac_res.r,v 1.9 2003/01/03 00:40:52 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -36,6 +36,7 @@
 # include "Types.r"
 # include "Dialogs.r"
 # include "Palettes.r"
+# include "Script.r"
 
 /* Get resource IDs we share with C code */
 #include "macresid.h"
@@ -351,7 +352,7 @@ resource 'vers' (1, purgeable) {
     development,
 #endif
     0, /* No prerelease version */
-    2, /* Region code 2 = UK */
+    verBritain,
 #ifdef RELEASESTR
     RELEASESTR,
     "Release " RELEASESTR,
@@ -375,7 +376,7 @@ resource 'vers' (2, purgeable) {
     development,
 #endif
     0, /* No prerelease version */
-    2, /* Region code 2 = UK */
+    verBritain,
 #ifdef RELEASESTR
     RELEASESTR,
     "PuTTY " RELEASESTR,
