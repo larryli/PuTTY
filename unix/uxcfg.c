@@ -89,7 +89,7 @@ void unix_setup_config_box(struct controlbox *b, int midsession)
     ctrl_settitle(b, "Window/Fonts", "Options controlling font usage");
     s = ctrl_getset(b, "Window/Fonts", "font",
                     "Fonts for displaying non-bold text");
-    ctrl_fontsel(s, "Font used for ordinary text", 'w',
+    ctrl_fontsel(s, "Font used for ordinary text", 'f',
 		 HELPCTX(no_help),
 		 dlg_stdfontsel_handler, I(offsetof(Config,font)));
     ctrl_fontsel(s, "Font used for wide (CJK) text", 'w',
