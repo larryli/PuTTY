@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.23 2003/03/30 14:24:20 ben Exp $ */
+/* $Id: macctrls.c,v 1.24 2003/04/03 23:18:06 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -211,7 +211,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     rect = window->portRect;
 #endif
     curstate.pos.h = rect.left + 13;
-    curstate.pos.v = rect.bottom - 59;
+    curstate.pos.v = rect.bottom - 33;
     curstate.width = rect.right - rect.left - (13 * 2);
     if (mac_gestalts.apprvers >= 0x100)
 	CreateRootControl(window, &root);
@@ -235,15 +235,18 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 14);
+    macctrl_switchtopanel(mcs, 1);
     /* 14 = proxies, 20 = SSH bugs */
 }
+
+#define MAXCOLS 16
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
 			      struct controlset *s,
 			      WindowPtr window, struct macctrls *mcs)
 {
-    unsigned int i;
+    unsigned int i, j, ncols, colstart;
+    struct mac_layoutstate cols[MAXCOLS];
 
     fprintf(stderr, "--- begin set ---\n");
     fprintf(stderr, "pathname = %s\n", s->pathname);
@@ -252,11 +255,14 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     if (s->boxtitle)
 	fprintf(stderr, "boxtitle = %s\n", s->boxtitle);
 
+    cols[0] = *curstate;
+    ncols = 1;
 
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
 	char const *s;
 
+	colstart = COLUMN_START(ctrl->generic.column);
 	switch (ctrl->generic.type) {
 	  case CTRL_TEXT: s = "text"; break;
 	  case CTRL_EDITBOX: s = "editbox"; break;
@@ -272,27 +278,55 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 	}
 	fprintf(stderr, "  control: %s\n", s);
 	switch (ctrl->generic.type) {
+	  case CTRL_COLUMNS:
+	    if (ctrl->columns.ncols != 1) {
+		ncols = ctrl->columns.ncols;
+		fprintf(stderr, "  split to %d\n", ncols);
+		assert(ncols <= MAXCOLS);
+		for (j = 0; j < ncols; j++) {
+		    cols[j] = cols[0];
+ 		    if (j > 0)
+			cols[j].pos.h = cols[j-1].pos.h + cols[j-1].width + 6;
+		    if (j == ncols - 1)
+			cols[j].width = curstate->width -
+			    (cols[j].pos.h - curstate->pos.h);
+		    else
+			cols[j].width = (curstate->width + 6) * 
+			    ctrl->columns.percentages[j] / 100 - 6;
+		}
+	    } else {
+		fprintf(stderr, "  join\n");
+		for (j = 0; j < ncols; j++)
+		    if (cols[j].pos.v > cols[0].pos.v)
+			cols[0].pos.v = cols[j].pos.v;
+		cols[0].width = curstate->width;
+		ncols = 1;
+	    }
+	    break;
 	  case CTRL_TEXT:
-	    macctrl_text(mcs, window, curstate, ctrl);
+	    macctrl_text(mcs, window, &cols[colstart], ctrl);
 	    break;
 	  case CTRL_EDITBOX:
-	    macctrl_editbox(mcs, window, curstate, ctrl);
+	    macctrl_editbox(mcs, window, &cols[colstart], ctrl);
 	    break;
 	  case CTRL_RADIO:
-	    macctrl_radio(mcs, window, curstate, ctrl);
+	    macctrl_radio(mcs, window, &cols[colstart], ctrl);
 	    break;
 	  case CTRL_CHECKBOX:
-	    macctrl_checkbox(mcs, window, curstate, ctrl);
+	    macctrl_checkbox(mcs, window, &cols[colstart], ctrl);
 	    break;
 	  case CTRL_BUTTON:
-	    macctrl_button(mcs, window, curstate, ctrl);
+	    macctrl_button(mcs, window, &cols[colstart], ctrl);
 	    break;
 	  case CTRL_LISTBOX:
 	    if (ctrl->listbox.height == 0)
-		macctrl_popup(mcs, window, curstate, ctrl);
+		macctrl_popup(mcs, window, &cols[colstart], ctrl);
 	    break;
 	}
     }
+    for (j = 0; j < ncols; j++)
+	if (cols[j].pos.v > curstate->pos.v)
+	    curstate->pos.v = cols[j].pos.v;
 }
 
 static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
@@ -647,7 +681,7 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
     bounds.left = curstate->pos.h;
-    bounds.right = bounds.left + 100; /* XXX measure string */
+    bounds.right = bounds.left + curstate->width;
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 20;
     c2pstrcpy(title, ctrl->button.label);
@@ -906,7 +940,6 @@ void macctrl_key(WindowPtr window, EventRecord *event)
     ControlRef control;
     struct macctrls *mcs = mac_winctrls(window);
     union macctrl *mc;
-    TEHandle te;
 
     if (mac_gestalts.apprvers >= 0x100) {
 	if (GetKeyboardFocus(window, &control) == noErr && control != NULL) {
@@ -915,7 +948,11 @@ void macctrl_key(WindowPtr window, EventRecord *event)
 	    mc = (union macctrl *)GetControlReference(control);
 	    ctrlevent(mcs, mc, EVENT_VALCHANGE);
 	}
-    } else {
+    }
+#if !TARGET_API_MAC_CARBON
+    else {
+	TEHandle te;
+
 	if (mcs->focus != NULL) {
 	    switch (mcs->focus->generic.type) {
 	      case MACCTRL_EDITBOX:
@@ -925,6 +962,7 @@ void macctrl_key(WindowPtr window, EventRecord *event)
 	    }
 	}
     }
+#endif
 }
 
 void macctrl_update(WindowPtr window)
