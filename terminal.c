@@ -1017,7 +1017,7 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
     }
 
     /* We assume that we don't screw up and retrieve something out of range. */
-    if (line != NULL) {
+    if (line == NULL) {
 	fatalbox("line==NULL in terminal.c\n"
 		 "lineno=%d y=%d w=%d h=%d\n"
 		 "count(scrollback=%p)=%d\n"
