@@ -71,6 +71,8 @@ of the tag.
 
  - On my local machines, check out the release-tagged version of the
    sources.
+    + Make sure to run mkfiles.pl _after_ this checkout, just in
+      case.
 
  - Build the Windows/x86 release binaries. Don't forget to supply
    VER=/DRELEASE=<ver>. Run them, or at least one or two of them, to
@@ -161,6 +163,10 @@ of the tag.
 
  - Check that the web server attaches the right content type to .HLP
    and .CNT files.
+
+ - Run webupdate, so that all the changes on ixion propagate to
+   chiark. Important to do this _before_ announcing that the release
+   is available.
 
  - Announce the release!
     + Mail the announcement to putty-announce.
