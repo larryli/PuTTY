@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.93 2004/10/13 13:43:11 simon Exp $
+\versionid $Id: config.but,v 1.94 2004/10/16 10:56:54 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1502,6 +1502,30 @@ it explicitly every time. (Some Telnet servers don't support this.)
 
 In this box you can type that user name.
 
+\S{config-environ} Setting environment variables on the server
+
+\cfg{winhelp-topic}{telnet.environ}
+
+The Telnet protocol provides a means for the client to pass
+environment variables to the server. Many Telnet servers have
+stopped supporting this feature due to security flaws, but PuTTY
+still supports it for the benefit of any servers which have found
+other ways around the security problems than just disabling the
+whole mechanism.
+
+Version 2 of the SSH protocol also provides a similar mechanism,
+which is easier to implement without security flaws. Newer SSH2
+servers are more likely to support it than older ones.
+
+This configuration data is not used in the SSHv1, rlogin or raw
+protocols.
+
+To add an environment variable to the list transmitted down the
+connection, you enter the variable name in the \q{Variable} box,
+enter its value in the \q{Value} box, and press the \q{Add} button.
+To remove one from the list, select it in the list box and press
+\q{Remove}.
+
 \S{config-keepalive} Using keepalives to prevent disconnection
 
 \cfg{winhelp-topic}{connection.keepalive}
@@ -1767,23 +1791,6 @@ configuration fields will be ignored.
 
 The Telnet panel allows you to configure options that only apply to
 Telnet sessions.
-
-\S{config-environ} Setting environment variables on the server
-
-\cfg{winhelp-topic}{telnet.environ}
-
-The Telnet protocol provides a means for the client to pass
-environment variables to the server. Many Telnet servers have
-stopped supporting this feature due to security flaws, but PuTTY
-still supports it for the benefit of any servers which have found
-other ways around the security problems than just disabling the
-whole mechanism.
-
-To add an environment variable to the list transmitted down the
-connection, you enter the variable name in the \q{Variable} box,
-enter its value in the \q{Value} box, and press the \q{Add} button.
-To remove one from the list, select it in the list box and press
-\q{Remove}.
 
 \S{config-oldenviron} \q{Handling of OLD_ENVIRON ambiguity}
 

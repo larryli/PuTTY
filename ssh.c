@@ -4788,6 +4788,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	int siglen, retlen, len;
 	char *q, *agentreq, *ret;
 	int try_send;
+	int num_env, env_left, env_ok;
     };
     crState(do_ssh2_authconn_state);
 
@@ -5951,6 +5952,82 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
     } else {
 	ssh->editing = ssh->echoing = 1;
+    }
+
+    /*
+     * Send environment variables.
+     * 
+     * Simplest thing here is to send all the requests at once, and
+     * then wait for a whole bunch of successes or failures.
+     */
+    if (ssh->mainchan && *ssh->cfg.environmt) {
+	char *e = ssh->cfg.environmt;
+	char *var, *varend, *val;
+
+	s->num_env = 0;
+
+	while (*e) {
+	    var = e;
+	    while (*e && *e != '\t') e++;
+	    varend = e;
+	    if (*e == '\t') e++;
+	    val = e;
+	    while (*e) e++;
+	    e++;
+
+	    ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
+	    ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
+	    ssh2_pkt_addstring(ssh, "env");
+	    ssh2_pkt_addbool(ssh, 1);	       /* want reply */
+	    ssh2_pkt_addstring_start(ssh);
+	    ssh2_pkt_addstring_data(ssh, var, varend-var);
+	    ssh2_pkt_addstring(ssh, val);
+	    ssh2_pkt_send(ssh);
+
+	    s->num_env++;
+	}
+
+	logeventf(ssh, "Sent %d environment variables", s->num_env);
+
+	s->env_ok = 0;
+	s->env_left = s->num_env;
+
+	while (s->env_left > 0) {
+	    do {
+		crWaitUntilV(ispkt);
+		if (ssh->pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+		    unsigned i = ssh_pkt_getuint32(ssh);
+		    struct ssh_channel *c;
+		    c = find234(ssh->channels, &i, ssh_channelfind);
+		    if (!c)
+			continue;	       /* nonexistent channel */
+		    c->v.v2.remwindow += ssh_pkt_getuint32(ssh);
+		}
+	    } while (ssh->pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+
+	    if (ssh->pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
+		if (ssh->pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
+		    bombout(("Unexpected response to environment request:"
+			     " packet type %d", ssh->pktin.type));
+		    crStopV;
+		}
+	    } else {
+		s->env_ok++;
+	    }
+
+	    s->env_left--;
+	}
+
+	if (s->env_ok == s->num_env) {
+	    logevent("All environment variables successfully set");
+	} else if (s->env_ok == 0) {
+	    logevent("All environment variables refused");
+	    c_write_str(ssh, "Server refused to set environment variables\r\n");
+	} else {
+	    logeventf(ssh, "%d environment variables refused",
+		      s->num_env - s->env_ok);
+	    c_write_str(ssh, "Server refused to set all environment variables\r\n");
+	}
     }
 
     /*

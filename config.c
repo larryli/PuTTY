@@ -1288,6 +1288,36 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			 HELPCTX(connection_username),
 			 dlg_stdeditbox_handler, I(offsetof(Config,username)),
 			 I(sizeof(((Config *)0)->username)));
+
+	    ctrl_text(s, "Environment variables:", HELPCTX(telnet_environ));
+	    ctrl_columns(s, 2, 80, 20);
+	    ed = (struct environ_data *)
+		ctrl_alloc(b, sizeof(struct environ_data));
+	    ed->varbox = ctrl_editbox(s, "Variable", 'v', 60,
+				      HELPCTX(telnet_environ),
+				      environ_handler, P(ed), P(NULL));
+	    ed->varbox->generic.column = 0;
+	    ed->valbox = ctrl_editbox(s, "Value", 'l', 60,
+				      HELPCTX(telnet_environ),
+				      environ_handler, P(ed), P(NULL));
+	    ed->valbox->generic.column = 0;
+	    ed->addbutton = ctrl_pushbutton(s, "Add", 'd',
+					    HELPCTX(telnet_environ),
+					    environ_handler, P(ed));
+	    ed->addbutton->generic.column = 1;
+	    ed->rembutton = ctrl_pushbutton(s, "Remove", 'r',
+					    HELPCTX(telnet_environ),
+					    environ_handler, P(ed));
+	    ed->rembutton->generic.column = 1;
+	    ctrl_columns(s, 1, 100);
+	    ed->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
+				       HELPCTX(telnet_environ),
+				       environ_handler, P(ed));
+	    ed->listbox->listbox.height = 3;
+	    ed->listbox->listbox.ncols = 2;
+	    ed->listbox->listbox.percentages = snewn(2, int);
+	    ed->listbox->listbox.percentages[0] = 30;
+	    ed->listbox->listbox.percentages[1] = 70;
 	}
 
 	s = ctrl_getset(b, "Connection", "keepalive",
@@ -1388,40 +1418,6 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	 */
 	ctrl_settitle(b, "Connection/Telnet",
 		      "Options controlling Telnet connections");
-
-	if (!midsession) {
-	    s = ctrl_getset(b, "Connection/Telnet", "data",
-			    "Data to send to the server");
-	    ctrl_text(s, "Environment variables:", HELPCTX(telnet_environ));
-	    ctrl_columns(s, 2, 80, 20);
-	    ed = (struct environ_data *)
-		ctrl_alloc(b, sizeof(struct environ_data));
-	    ed->varbox = ctrl_editbox(s, "Variable", 'v', 60,
-				      HELPCTX(telnet_environ),
-				      environ_handler, P(ed), P(NULL));
-	    ed->varbox->generic.column = 0;
-	    ed->valbox = ctrl_editbox(s, "Value", 'l', 60,
-				      HELPCTX(telnet_environ),
-				      environ_handler, P(ed), P(NULL));
-	    ed->valbox->generic.column = 0;
-	    ed->addbutton = ctrl_pushbutton(s, "Add", 'd',
-					    HELPCTX(telnet_environ),
-					    environ_handler, P(ed));
-	    ed->addbutton->generic.column = 1;
-	    ed->rembutton = ctrl_pushbutton(s, "Remove", 'r',
-					    HELPCTX(telnet_environ),
-					    environ_handler, P(ed));
-	    ed->rembutton->generic.column = 1;
-	    ctrl_columns(s, 1, 100);
-	    ed->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
-				       HELPCTX(telnet_environ),
-				       environ_handler, P(ed));
-	    ed->listbox->listbox.height = 3;
-	    ed->listbox->listbox.ncols = 2;
-	    ed->listbox->listbox.percentages = snewn(2, int);
-	    ed->listbox->listbox.percentages[0] = 30;
-	    ed->listbox->listbox.percentages[1] = 70;
-	}
 
 	s = ctrl_getset(b, "Connection/Telnet", "protocol",
 			"Telnet protocol adjustments");
