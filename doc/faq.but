@@ -487,6 +487,17 @@ your terminal runs the risk of sending the same control sequence by
 accident, and cause unexpected changes in the window title. Don't do
 it.
 
+\S{faq-password} My keyboard stops working once PuTTY displays the
+password prompt.
+
+No, it doesn't. PuTTY just doesn't display the password you type, so
+that someone looking at your screen can't see what it is.
+
+Unlike the Windows login prompts, PuTTY doesn't display the password
+as a row of asterisks either. This is so that someone looking at
+your screen can't even tell how \e{long} your password is, which
+might be valuable information.
+
 \H{faq-secure} Security questions
 
 \S{faq-publicpc} Is it safe for me to download PuTTY and use it on a
