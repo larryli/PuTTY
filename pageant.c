@@ -650,16 +650,19 @@ static void answer_msg(void *msg)
 	{
 	    struct RSAKey *key;
 	    char *comment;
+            int commentlen;
 	    key = smalloc(sizeof(struct RSAKey));
 	    memset(key, 0, sizeof(key));
 	    p += makekey(p, key, NULL, 1);
 	    p += makeprivate(p, key);
-	    p += ssh1_read_bignum(p, key->iqmp);	/* p^-1 mod q */
-	    p += ssh1_read_bignum(p, key->p);	/* p */
-	    p += ssh1_read_bignum(p, key->q);	/* q */
-	    comment = smalloc(GET_32BIT(p));
+	    p += ssh1_read_bignum(p, &key->iqmp);	/* p^-1 mod q */
+	    p += ssh1_read_bignum(p, &key->p);	/* p */
+	    p += ssh1_read_bignum(p, &key->q);	/* q */
+            commentlen = GET_32BIT(p);
+	    comment = smalloc(commentlen+1);
 	    if (comment) {
-		memcpy(comment, p + 4, GET_32BIT(p));
+		memcpy(comment, p + 4, commentlen);
+                comment[commentlen] = '\0';
 		key->comment = comment;
 	    }
 	    PUT_32BIT(ret, 1);
