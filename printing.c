@@ -11,7 +11,7 @@
  * under PRINTER_ENUM_CONNECTIONS on NT 4. I don't pretend to
  * understand this...
  */
-#if 1
+#if 0
 #define ENUM_LEVEL 5
 #define ENUM_PTR LPPRINTER_INFO_5
 #define ENUM_TYPE PRINTER_INFO_5
@@ -39,9 +39,13 @@ static char *printer_add_enum(int param, char *buffer,
 
     buffer = srealloc(buffer, offset+512);
 
-    if (EnumPrinters(param, NULL, ENUM_LEVEL, buffer+offset,
-                     512, &needed, &nprinters) == 0)
-        return NULL;
+    /*
+     * Exploratory call to EnumPrinters to determine how much space
+     * we'll need for the output. Discard the return value since it
+     * will almost certainly be a failure due to lack of space.
+     */
+    EnumPrinters(param, NULL, ENUM_LEVEL, buffer+offset, 512,
+		 &needed, &nprinters);
 
     if (needed < 512)
         needed = 512;
