@@ -156,3 +156,195 @@ void freersakey(struct RSAKey *key) {
     if (key->private_exponent) freebn(key->private_exponent);
     if (key->comment) sfree(key->comment);
 }
+
+/* ----------------------------------------------------------------------
+ * Implementation of the ssh-rsa signing key type. 
+ */
+
+#define GET_32BIT(cp) \
+    (((unsigned long)(unsigned char)(cp)[0] << 24) | \
+    ((unsigned long)(unsigned char)(cp)[1] << 16) | \
+    ((unsigned long)(unsigned char)(cp)[2] << 8) | \
+    ((unsigned long)(unsigned char)(cp)[3]))
+
+#define PUT_32BIT(cp, value) { \
+    (cp)[0] = (unsigned char)((value) >> 24); \
+    (cp)[1] = (unsigned char)((value) >> 16); \
+    (cp)[2] = (unsigned char)((value) >> 8); \
+    (cp)[3] = (unsigned char)(value); }
+
+static void getstring(char **data, int *datalen, char **p, int *length) {
+    *p = NULL;
+    if (*datalen < 4)
+        return;
+    *length = GET_32BIT(*data);
+    *datalen -= 4; *data += 4;
+    if (*datalen < *length)
+        return;
+    *p = *data;
+    *data += *length; *datalen -= *length;
+}
+static Bignum getmp(char **data, int *datalen) {
+    char *p;
+    int length;
+    Bignum b;
+
+    getstring(data, datalen, &p, &length);
+    if (!p)
+        return NULL;
+    b = bignum_from_bytes(p, length);
+    return b;
+}
+
+static void *rsa2_newkey(char *data, int len) {
+    char *p;
+    int slen;
+    struct RSAKey *rsa;
+
+    rsa = smalloc(sizeof(struct RSAKey));
+    if (!rsa) return NULL;
+    getstring(&data, &len, &p, &slen);
+
+    if (!p || memcmp(p, "ssh-rsa", 7)) {
+	sfree(rsa);
+	return NULL;
+    }
+    rsa->exponent = getmp(&data, &len);
+    rsa->modulus = getmp(&data, &len);
+    rsa->private_exponent = NULL;
+    rsa->comment = NULL;
+
+    return rsa;
+}
+
+static void rsa2_freekey(void *key) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    freersakey(rsa);
+    sfree(rsa);
+}
+
+static char *rsa2_fmtkey(void *key) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    char *p;
+    int len;
+    
+    len = rsastr_len(rsa);
+    p = smalloc(len);
+    rsastr_fmt(p, rsa);
+    return p;
+}
+
+static char *rsa2_fingerprint(void *key) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    struct MD5Context md5c;
+    unsigned char digest[16], lenbuf[4];
+    char buffer[16*3+40];
+    char *ret;
+    int numlen, i;
+
+    MD5Init(&md5c);
+    MD5Update(&md5c, "\0\0\0\7ssh-rsa", 11);
+
+#define ADD_BIGNUM(bignum) \
+    numlen = (ssh1_bignum_bitcount(bignum)+8)/8; \
+    PUT_32BIT(lenbuf, numlen); MD5Update(&md5c, lenbuf, 4); \
+    for (i = numlen; i-- ;) { \
+        unsigned char c = bignum_byte(bignum, i); \
+        MD5Update(&md5c, &c, 1); \
+    }
+    ADD_BIGNUM(rsa->exponent);
+    ADD_BIGNUM(rsa->modulus);
+#undef ADD_BIGNUM
+
+    MD5Final(digest, &md5c);
+
+    sprintf(buffer, "%d ", ssh1_bignum_bitcount(rsa->modulus));
+    for (i = 0; i < 16; i++)
+        sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
+    ret = smalloc(strlen(buffer)+1);
+    if (ret)
+        strcpy(ret, buffer);
+    return ret;
+}
+
+/*
+ * This is the magic ASN.1/DER prefix that goes in the decoded
+ * signature, between the string of FFs and the actual SHA hash
+ * value. As closely as I can tell, the meaning of it is:
+ * 
+ * 00 -- this marks the end of the FFs; not part of the ASN.1 bit itself
+ * 
+ * 30 21 -- a constructed SEQUENCE of length 0x21
+ *    30 09 -- a constructed sub-SEQUENCE of length 9
+ *       06 05 -- an object identifier, length 5
+ *          2B 0E 03 02 1A -- 
+ *       05 00 -- NULL
+ *    04 14 -- a primitive OCTET STRING of length 0x14
+ *       [0x14 bytes of hash data follows]
+ */
+static unsigned char asn1_weird_stuff[] = {
+    0x00,0x30,0x21,0x30,0x09,0x06,0x05,0x2B,
+    0x0E,0x03,0x02,0x1A,0x05,0x00,0x04,0x14,
+};
+
+static int rsa2_verifysig(void *key, char *sig, int siglen,
+			 char *data, int datalen) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    Bignum in, out;
+    char *p;
+    int slen;
+    int bytes, i, j, ret;
+    unsigned char hash[20];
+
+    getstring(&sig, &siglen, &p, &slen);
+    if (!p || slen != 7 || memcmp(p, "ssh-rsa", 7)) {
+        return 0;
+    }
+    in = getmp(&sig, &siglen);
+    out = modpow(in, rsa->exponent, rsa->modulus);
+    freebn(in);
+
+    ret = 1;
+
+    bytes = ssh1_bignum_bitcount(rsa->modulus) / 8;
+    /* Top (partial) byte should be zero. */
+    if (bignum_byte(out, bytes-1) != 0)
+        ret = 0;
+    /* First whole byte should be 1. */
+    if (bignum_byte(out, bytes-2) != 1)
+        ret = 0;
+    /* Most of the rest should be FF. */
+    for (i = bytes-3; i >= 20 + sizeof(asn1_weird_stuff); i--) {
+        if (bignum_byte(out, i) != 0xFF)
+            ret = 0;
+    }
+    /* Then we expect to see the asn1_weird_stuff. */
+    for (i = 20 + sizeof(asn1_weird_stuff) - 1, j=0; i >= 20; i--,j++) {
+        if (bignum_byte(out, i) != asn1_weird_stuff[j])
+            ret = 0;
+    }
+    /* Finally, we expect to see the SHA-1 hash of the signed data. */
+    SHA_Simple(data, datalen, hash);
+    for (i = 19, j=0; i >= 0; i--,j++) {
+        if (bignum_byte(out, i) != hash[j])
+            ret = 0;
+    }
+
+    return ret;
+}
+
+int rsa2_sign(void *key, char *sig, int siglen,
+	     char *data, int datalen) {
+    return 0;			       /* FIXME */
+}
+
+struct ssh_signkey ssh_rsa = {
+    rsa2_newkey,
+    rsa2_freekey,
+    rsa2_fmtkey,
+    rsa2_fingerprint,
+    rsa2_verifysig,
+    rsa2_sign,
+    "ssh-rsa",
+    "rsa2"
+};

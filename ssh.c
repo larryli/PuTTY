@@ -197,7 +197,8 @@ const static struct ssh_kex *kex_algs[] = {
     &ssh_diffiehellman };
 
 extern const struct ssh_signkey ssh_dss;
-const static struct ssh_signkey *hostkey_algs[] = { &ssh_dss };
+extern const struct ssh_signkey ssh_rsa;
+const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
 extern const struct ssh_mac ssh_md5, ssh_sha1, ssh_sha1_buggy;
 
