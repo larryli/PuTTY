@@ -90,10 +90,15 @@ foreach $i (@prognames) {
   foreach $j (@list) {
     # Dependencies for "x" start with "x.c".
     # Dependencies for "x.res" start with "x.rc".
+    # Dependencies for "x.rsrc" start with "x.r".
     # Both types of file are pushed on the list of files to scan.
     # Libraries (.lib) don't have dependencies at all.
     if ($j =~ /^(.*)\.res$/) {
       $file = "$1.rc";
+      $depends{$j} = [$file];
+      push @scanlist, $file;
+    } elsif ($j =~ /^(.*)\.rsrc$/) {
+      $file = "$1.r";
       $depends{$j} = [$file];
       push @scanlist, $file;
     } elsif ($j =~ /\.lib$/) {
@@ -183,7 +188,7 @@ sub objects {
   @ret = ();
   foreach $i (@{$programs{$prog}}) {
     $x = "";
-    if ($i =~ /^(.*)\.res/) {
+    if ($i =~ /^(.*)\.(res|rsrc)/) {
       $y = $1;
       ($x = $rtmpl) =~ s/X/$y/;
     } elsif ($i =~ /^(.*)\.lib/) {
@@ -218,7 +223,7 @@ sub deps {
   @ret = ();
   $depchar ||= ':';
   foreach $i (sort keys %depends) {
-    if ($i =~ /^(.*)\.res/) {
+    if ($i =~ /^(.*)\.(res|rsrc)/) {
       next if !defined $rtmpl;
       $y = $1;
       ($x = $rtmpl) =~ s/X/$y/;
@@ -634,35 +639,49 @@ foreach $p (&prognames("M")) {
   print &splitline("$prog \xc4 $prog.68k $prog.cfm68k $prog.ppc",
 		   undef, "\xb6"), "\n\n";
 
-  $objstr = &objects($p, "X.68k.o", undef, undef);
-  print &splitline("$prog.68k \xc4 $objstr", undef, "\xb6"), "\n";
+  $rsrc = &objects($p, "", "X.rsrc", undef);
+
+  $objstr = &objects($p, "X.68k.o", "", undef);
+  print &splitline("$prog.68k \xc4 $objstr $rsrc", undef, "\xb6"), "\n";
+  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_68K} " .
                    $objstr . " {Libs_68K}", 69, "\xb6"), "\n";
   print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 
-  $objstr = &objects($p, "X.cfm68k.o", undef, undef);
+  $objstr = &objects($p, "X.cfm68k.o", "", undef);
   print &splitline("$prog.cfm68k \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_CFM68K} " .
                    $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n";
   print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 
-  $objstr = &objects($p, "X.ppc.o", undef, undef);
+  $objstr = &objects($p, "X.ppc.o", "", undef);
   print &splitline("$prog.ppc \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
   print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
                    $objstr . " {Libs_PPC}", 69, "\xb6"), "\n";
   print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 }
-foreach $d (&deps("X.68k.o", undef, "::", ":")) {
+foreach $d (&deps("", "X.rsrc", "::", ":")) {
+  next unless $d->{obj};
+  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
+		   undef, "\xb6"), "\n";
+  print "\tRez ", $d->{deps}->[0], " -o {Targ} {ROptions}\n\n";
+} 
+foreach $d (&deps("X.68k.o", "", "::", ":")) {
+  next unless $d->{obj};
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_68K}\n\n";
 }
-foreach $d (&deps("X.cfm68k.o", undef, "::", ":")) {
+foreach $d (&deps("X.cfm68k.o", "", "::", ":")) {
+  next unless $d->{obj};
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_CFM68K}\n\n";
 }
-foreach $d (&deps("X.ppc.o", undef, "::", ":")) {
+foreach $d (&deps("X.ppc.o", "", "::", ":")) {
+  next unless $d->{obj};
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   # The odd stuff here seems to stop afpd getting confused.
