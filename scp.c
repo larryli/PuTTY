@@ -686,11 +686,16 @@ static char *colon(char *str)
 
 /*
  * Return a pointer to the portion of str that comes after the last
- * slash (or backslash, if `local' is TRUE).
+ * slash (or backslash or colon, if `local' is TRUE).
  */
 static char *stripslashes(char *str, int local)
 {
     char *p;
+
+    if (local) {
+        p = strchr(str, ':');
+        if (p) str = p+1;
+    }
 
     p = strrchr(str, '/');
     if (p) str = p+1;
@@ -1722,9 +1727,10 @@ static void sink(char *targ, char *src)
 	     * Prevent the remote side from maliciously writing to
 	     * files outside the target area by sending a filename
 	     * containing `../'. In fact, it shouldn't be sending
-	     * filenames with any slashes in at all; so we'll find
-	     * the last slash or backslash in the filename and use
-	     * only the part after that. (And warn!)
+	     * filenames with any slashes or colons in at all; so
+	     * we'll find the last slash, backslash or colon in the
+	     * filename and use only the part after that. (And
+	     * warn!)
 	     * 
 	     * In addition, we also ensure here that if we're
 	     * copying a single file and the target is a directory
@@ -1752,7 +1758,9 @@ static void sink(char *targ, char *src)
 	    striptarget = stripslashes(act.name, 1);
 	    if (striptarget != act.name) {
 		tell_user(stderr, "warning: remote host sent a compound"
-			  " pathname - possibly malicious! (ignored)");
+			  " pathname '%s'", act.name);
+		tell_user(stderr, "         renaming local file to '%s'",
+                          striptarget);
 	    }
 
 	    /*
@@ -1956,13 +1964,6 @@ static void toremote(int argc, char *argv[])
 	 */
 	srcpath = dupstr(src);
 	last = stripslashes(srcpath, 1);
-	if (last == srcpath) {
-	    last = strchr(srcpath, ':');
-	    if (last)
-		last++;
-	    else
-		last = srcpath;
-	}
 	*last = '\0';
 
 	dir = FindFirstFile(src, &fdat);
