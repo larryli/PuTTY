@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.25 2003/04/05 15:01:16 ben Exp $ */
+/* $Id: macctrls.c,v 1.26 2003/04/05 15:08:17 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -954,10 +954,12 @@ void macctrl_key(WindowPtr window, EventRecord *event)
 	TEHandle te;
 
 	if (mcs->focus != NULL) {
-	    switch (mcs->focus->generic.type) {
+	    mc = mcs->focus;
+	    switch (mc->generic.type) {
 	      case MACCTRL_EDITBOX:
-		te = (TEHandle)(*mcs->focus->editbox.tbctrl)->contrlData;
+		te = (TEHandle)(*mc->editbox.tbctrl)->contrlData;
 		TEKey(event->message & charCodeMask, te);
+		ctrlevent(mcs, mc, EVENT_VALCHANGE);
 		break;
 	    }
 	}
