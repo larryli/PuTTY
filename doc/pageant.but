@@ -1,4 +1,4 @@
-\versionid $Id: pageant.but,v 1.7 2001/12/20 15:27:40 simon Exp $
+\versionid $Id: pageant.but,v 1.8 2002/09/11 17:30:36 jacob Exp $
 
 \C{pageant} Using Pageant for authentication
 
@@ -162,7 +162,9 @@ secret.
 
 To enable agent forwarding, first start Pageant. Then set up a PuTTY
 SSH session in which \q{Allow agent forwarding} is enabled (see
-\k{config-ssh-agentfwd}). Open the session as normal.
+\k{config-ssh-agentfwd}). Open the session as normal. (Alternatively,
+you can use the \c{-A} command line option; see
+\k{using-cmdline-agent} for details.)
 
 If this has worked, your applications on the server should now have
 access to a Unix domain socket which the SSH server will forward

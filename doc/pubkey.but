@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.17 2002/05/18 09:20:41 simon Exp $
+\versionid $Id: pubkey.but,v 1.18 2002/09/11 17:30:36 jacob Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -413,11 +413,14 @@ such as
 
 Your server should now be configured to accept authentication using
 your private key. Now you need to configure PuTTY to \e{attempt}
-authentication using your private key. You can do this in either of
-two ways:
+authentication using your private key. You can do this in any of
+three ways:
 
 \b Select the private key in PuTTY's configuration. See
 \k{config-ssh-privkey} for details.
+
+\b Specify the key file on the command line with the \c{-i} option.
+See \k{using-cmdline-identity} for details.
 
 \b Load the private key into Pageant (see \k{pageant}). In this case
 PuTTY will automatically try to use it for authentication if it can.

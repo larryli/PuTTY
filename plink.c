@@ -185,14 +185,25 @@ static void usage(void)
     printf("       (\"host\" can also be a PuTTY saved session name)\n");
     printf("Options:\n");
     printf("  -v        show verbose messages\n");
-    printf("  -ssh      force use of ssh protocol\n");
+    printf("  -load sessname  Load settings from saved session\n");
+    printf("  -ssh -telnet -rlogin -raw\n");
+    printf("            force use of a particular protocol (default SSH)\n");
     printf("  -P port   connect to specified port\n");
-    printf("  -pw passw login with specified password\n");
+    printf("  -l user   connect with specified username\n");
     printf("  -m file   read remote command(s) from file\n");
+    printf("  -batch    disable all interactive prompts\n");
+    printf("The following options only apply to SSH connections:\n");
+    printf("  -pw passw login with specified password\n");
     printf("  -L listen-port:host:port   Forward local port to "
 	   "remote address\n");
     printf("  -R listen-port:host:port   Forward remote port to"
 	   " local address\n");
+    printf("  -X -x     enable / disable X11 forwarding\n");
+    printf("  -A -a     enable / disable agent forwarding\n");
+    printf("  -t -T     enable / disable pty allocation\n");
+    printf("  -1 -2     force use of particular protocol version\n");
+    printf("  -C        enable compression\n");
+    printf("  -i key    private key file for authentication\n");
     exit(1);
 }
 

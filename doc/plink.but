@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.16 2002/08/07 19:20:06 simon Exp $
+\versionid $Id: plink.but,v 1.17 2002/09/11 17:30:36 jacob Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -43,13 +43,28 @@ use Plink:
 
 \c Z:\sysosd>plink
 \c PuTTY Link: command-line connection utility
-\c Release 0.50
+\c Release 0.53
 \c Usage: plink [options] [user@]host [command]
+\c        ("host" can also be a PuTTY saved session name)
 \c Options:
 \c   -v        show verbose messages
-\c   -ssh      force use of ssh protocol
+\c   -load sessname  Load settings from saved session
+\c   -ssh -telnet -rlogin -raw
+\c             force use of a particular protocol (default SSH)
 \c   -P port   connect to specified port
+\c   -l user   connect with specified username
+\c   -m file   read remote command(s) from file
+\c   -batch    disable all interactive prompts
+\c The following options only apply to SSH connections:
 \c   -pw passw login with specified password
+\c   -L listen-port:host:port   Forward local port to remote address
+\c   -R listen-port:host:port   Forward remote port to local address
+\c   -X -x     enable / disable X11 forwarding
+\c   -A -a     enable / disable agent forwarding
+\c   -t -T     enable / disable pty allocation
+\c   -1 -2     force use of particular protocol version
+\c   -C        enable compression
+\c   -i key    private key file for authentication
 
 Once this works, you are ready to use Plink.
 

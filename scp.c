@@ -2088,8 +2088,14 @@ static void usage(void)
     printf("  -q        quiet, don't show statistics\n");
     printf("  -r        copy directories recursively\n");
     printf("  -v        show verbose messages\n");
+    printf("  -load sessname  Load settings from saved session\n");
     printf("  -P port   connect to specified port\n");
+    printf("  -l user   connect with specified username\n");
     printf("  -pw passw login with specified password\n");
+    printf("  -1 -2     force use of particular SSH protocol version\n");
+    printf("  -C        enable compression\n");
+    printf("  -i key    private key file for authentication\n");
+    printf("  -batch    disable all interactive prompts\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
 #if 0
     /*

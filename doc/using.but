@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.7 2002/08/07 19:20:06 simon Exp $
+\versionid $Id: using.but,v 1.8 2002/09/11 17:30:36 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -350,12 +350,12 @@ straight into a session.
 
 To start a connection to a server called \c{host}:
 
-\c putty.exe [-ssh | -telnet | -rlogin | -raw] [user@]host[:port]
+\c putty.exe [-ssh | -telnet | -rlogin | -raw] [user@]host
 
 If this syntax is used, settings are taken from the Default Settings
-(see \k{config-saving}); \c{user} and \c{port} override these
-settings if supplied. Also, you can specify a protocol, which will
-override the default protocol (see \k{using-cmdline-protocol}).
+(see \k{config-saving}); \c{user} overrides these settings if
+supplied. Also, you can specify a protocol, which will override the
+default protocol (see \k{using-cmdline-protocol}).
 
 For telnet sessions, the following alternative syntax is supported
 (this makes PuTTY suitable for use as a URL handler for telnet URLs in
@@ -481,14 +481,14 @@ more than one command in sequence, or a whole shell script.
 This option is not available in the file transfer tools PSCP and
 PSFTP.
 
-\S2{using-cmdline-p} \c{-p} or \c{-P}: specify a port number
+\S2{using-cmdline-p} \c{-P}: specify a port number
 
-The \c{-p} option (you can also write it as \c{-P}) is used to
-specify the port number to connect to. If you have a Telnet server
-running on port 9696 of a machine instead of port 23, for example:
+The \c{-P} option is used to specify the port number to connect to. If
+you have a Telnet server running on port 9696 of a machine instead of
+port 23, for example:
 
-\c putty -telnet -p 9696 host.name
-\c plink -telnet -p 9696 host.name
+\c putty -telnet -P 9696 host.name
+\c plink -telnet -P 9696 host.name
 
 (Note that this option is more useful in Plink than in PuTTY,
 because in PuTTY you can write \c{putty -telnet host.name 9696} in
