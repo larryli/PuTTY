@@ -993,6 +993,13 @@ static int ssh_receive(Socket s, int urgent, char *data, int len) {
 	return 0;
     }
     ssh_gotdata (data, len);
+    if (ssh_state == SSH_STATE_CLOSED) {
+        if (s) {
+            sk_close(s);
+            s = NULL;
+        }
+        return 0;
+    }
     return 1;
 }
 
@@ -1641,6 +1648,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	    } else if (pktin.type == SSH1_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
+                crReturnV;
             } else if (pktin.type == SSH1_SMSG_AGENT_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * agent. Give them back a local channel number. */
@@ -2402,6 +2410,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    } else if (pktin.type == SSH2_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect message");
+                crReturnV;
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_REQUEST) {
                 continue;              /* exit status et al; ignore (FIXME?) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_EOF) {
@@ -2419,8 +2428,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                     ssh2_pkt_init(SSH2_MSG_DISCONNECT);
                     ssh2_pkt_send();
                     ssh_state = SSH_STATE_CLOSED;
-                    sk_close(s);
-                    s = NULL;
+                    crReturnV;
                 }
                 continue;              /* remote sends close; ignore (FIXME) */
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
