@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.12 1999/03/02 21:51:55 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.13 1999/03/02 23:19:20 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -46,6 +46,11 @@
 #include "macresid.h"
 #include "putty.h"
 #include "mac.h"
+
+#define DEFAULT_FG	16
+#define DEFAULT_FG_BOLD	17
+#define DEFAULT_BG	18
+#define DEFAULT_BG_BOLD	19
 
 struct mac_session {
     short		fontnum;
@@ -261,10 +266,7 @@ void mac_updateterm(WindowPtr window) {
 	EraseRect(&(*s->scrollbar)->contrlRect);
     UpdateControls(window, window->visRgn);
     /* Stop DrawGrowIcon giving us space for a horizontal scrollbar */
-    clip.left = window->portRect.right - 15;
-    clip.right = SHRT_MAX;
-    clip.top = SHRT_MIN;
-    clip.bottom = SHRT_MAX;
+    SetRect(&clip, window->portRect.right - 15, SHRT_MIN, SHRT_MAX, SHRT_MAX);
     ClipRect(&clip);
     DrawGrowIcon(window);
     clip.left = SHRT_MIN;
@@ -340,6 +342,13 @@ static pascal void do_text_for_device(short depth, short devflags,
 	/* XXX This should be done with a _little_ more configurability */
 	ForeColor(whiteColor);
 	BackColor(blackColor);
+	break;
+      case 2:
+	if ((a->attr & ATTR_BOLD) && cfg.bold_colour)
+	    PmForeColor(DEFAULT_FG_BOLD);
+	else
+	    PmForeColor(DEFAULT_FG);
+	PmBackColor(DEFAULT_BG);
 	break;
       default:
 	fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
@@ -468,33 +477,6 @@ void palette_reset(void) {
     ActivatePalette(s->window);
     /* Palette Manager will generate update events as required. */
 }
-
-/*
- * Move `lines' lines from position `from' to position `to' in the
- * window.
- * Note that this is currently broken if "from" and "to" are more
- * than "lines" lines apart.
- */
-void optimised_move(int to, int from, int lines) {
-    Rect r;
-    RgnHandle update;
-    struct mac_session *s = onlysession;
-    int min, max, d;
-
-    SetPort(s->window);
-
-    min = (to < from ? to : from);
-    max = to + from - min;
-    d = max - min;
-
-    update = NewRgn();
-    r.left = 0; r.right = cols * font_width;
-    r.top = min * font_height; r.bottom = (max+lines) * font_height;
-    ScrollRect(&r, 0, (to - from) * font_height, update);
-    InvalRgn(update); /* XXX: necessary?  probably harmless anyway */
-    DisposeRgn(update);
-}
-
 
 /*
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve

@@ -59,8 +59,6 @@ static unsigned char *tabs;
 #define MAXNL 5
 static int nl_count;
 
-static int scroll_heuristic;
-
 static enum {
     TOPLEVEL, IGNORE_NEXT,
     SEEN_ESC, SEEN_CSI, SET_GL, SET_GR,
@@ -147,7 +145,6 @@ void term_update(void) {
 	do_paint (ctx, TRUE);
 	free_ctx (ctx);
 	nl_count = 0;
-	scroll_heuristic = 0;
     }
 }
 
