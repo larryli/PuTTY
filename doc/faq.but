@@ -700,7 +700,7 @@ Set the key's value to something like 10. This will cause Windows to
 try harder to keep connections alive instead of abandoning them.
 
 \S{faq-puttyputty}{Question} When I \cw{cat} a binary file, I get
-`PuTTYPuTTYPuTTY' on my command line.
+\q{PuTTYPuTTYPuTTY} on my command line.
 
 Don't do that, then.
 
