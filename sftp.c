@@ -33,6 +33,9 @@ struct sftp_packet {
     int type;
 };
 
+static const char *fxp_error_message;
+static int fxp_errtype;
+
 /* ----------------------------------------------------------------------
  * SFTP packet construction functions.
  */
@@ -62,6 +65,7 @@ static struct sftp_packet *sftp_pkt_init(int pkt_type)
     pkt->length = 0;
     pkt->maxlen = 0;
     sftp_pkt_addbyte(pkt, (unsigned char) pkt_type);
+    fxp_error_message = NULL;
     return pkt;
 }
 static void sftp_pkt_addbool(struct sftp_packet *pkt, unsigned char value)
@@ -233,9 +237,6 @@ static char *mkstr(char *s, int len)
 /* ----------------------------------------------------------------------
  * SFTP primitives.
  */
-
-static const char *fxp_error_message;
-static int fxp_errtype;
 
 /*
  * Deal with (and free) an FXP_STATUS packet. Return 1 if
@@ -478,6 +479,76 @@ void fxp_close(struct fxp_handle *handle)
     fxp_got_status(pktin);
     sfree(handle->hstring);
     sfree(handle);
+}
+
+int fxp_mkdir(char *path)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_MKDIR);
+    sftp_pkt_adduint32(pktout, 0x234); /* request id */
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, path, strlen(path));
+    sftp_pkt_adduint32(pktout, 0);     /* (FIXME) empty ATTRS structure */
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x234) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+    id = fxp_got_status(pktin);
+    if (id != 1) {
+    	return 0;
+    }
+    return 1;
+}
+
+int fxp_rmdir(char *path)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_RMDIR);
+    sftp_pkt_adduint32(pktout, 0x345); /* request id */
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, path, strlen(path));
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x345) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+    id = fxp_got_status(pktin);
+    if (id != 1) {
+    	return 0;
+    }
+    return 1;
+}
+
+int fxp_rm(char *fname)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_REMOVE);
+    sftp_pkt_adduint32(pktout, 0x678); /* request id */
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, fname, strlen(fname));
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x678) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+    id = fxp_got_status(pktin);
+    if (id != 1) {
+    	return 0;
+    }
+    return 1;
 }
 
 /*

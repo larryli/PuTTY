@@ -460,6 +460,94 @@ int sftp_cmd_put(struct sftp_command *cmd)
     return 0;
 }
 
+int sftp_cmd_mkdir(struct sftp_command *cmd)
+{
+    char *dir;
+    int result;
+
+
+    if (cmd->nwords < 2) {
+	printf("mkdir: expects a directory\n");
+	return 0;
+    }
+
+    dir = canonify(cmd->words[1]);
+    if (!dir) {
+	printf("%s: %s\n", dir, fxp_error());
+	return 0;
+    }
+
+    result = fxp_mkdir(dir);
+    if (!result) {
+	printf("mkdir %s: %s\n", dir, fxp_error());
+	sfree(dir);
+	return 0;
+    }
+
+	sfree(dir);
+	return 0;
+
+}
+
+int sftp_cmd_rmdir(struct sftp_command *cmd)
+{
+    char *dir;
+    int result;
+
+
+    if (cmd->nwords < 2) {
+	printf("rmdir: expects a directory\n");
+	return 0;
+    }
+
+    dir = canonify(cmd->words[1]);
+    if (!dir) {
+	printf("%s: %s\n", dir, fxp_error());
+	return 0;
+    }
+
+    result = fxp_rmdir(dir);
+    if (!result) {
+	printf("rmdir %s: %s\n", dir, fxp_error());
+	sfree(dir);
+	return 0;
+    }
+
+	sfree(dir);
+	return 0;
+
+}
+
+int sftp_cmd_rm(struct sftp_command *cmd)
+{
+    char *fname;
+    int result;
+
+
+    if (cmd->nwords < 2) {
+	printf("rm: expects a filename\n");
+	return 0;
+    }
+
+    fname = canonify(cmd->words[1]);
+    if (!fname) {
+	printf("%s: %s\n", fname, fxp_error());
+	return 0;
+    }
+
+    result = fxp_rm(fname);
+    if (!result) {
+	printf("rm %s: %s\n", fname, fxp_error());
+	sfree(fname);
+	return 0;
+    }
+
+	sfree(fname);
+	return 0;
+
+}
+
+
 static struct sftp_cmd_lookup {
     char *name;
     int (*obey) (struct sftp_command *);
@@ -475,13 +563,16 @@ static struct sftp_cmd_lookup {
     "exit", sftp_cmd_quit}, {
     "get", sftp_cmd_get}, {
     "ls", sftp_cmd_ls}, {
+    "mkdir", sftp_cmd_mkdir}, {
     "put", sftp_cmd_put}, {
-"quit", sftp_cmd_quit},};
+	"quit", sftp_cmd_quit}, {
+	"rm", sftp_cmd_rm}, {
+	"rmdir", sftp_cmd_rmdir},};
 
 /* ----------------------------------------------------------------------
  * Command line reading and parsing.
  */
-struct sftp_command *sftp_getcmd(void)
+struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 {
     char *line;
     int linelen, linesize;
@@ -489,7 +580,9 @@ struct sftp_command *sftp_getcmd(void)
     char *p, *q, *r;
     int quoting;
 
-    printf("psftp> ");
+	if ((mode == 0) || (modeflags & 1)) {
+	    printf("psftp> ");
+	}
     fflush(stdout);
 
     cmd = smalloc(sizeof(struct sftp_command));
@@ -505,7 +598,10 @@ struct sftp_command *sftp_getcmd(void)
 
 	linesize += 512;
 	line = srealloc(line, linesize);
-	ret = fgets(line + linelen, linesize - linelen, stdin);
+	ret = fgets(line + linelen, linesize - linelen, fp);
+	if (modeflags & 1) {
+		printf("%s", ret);
+	}
 
 	if (!ret || (linelen == 0 && line[0] == '\0')) {
 	    cmd->obey = sftp_cmd_quit;
@@ -596,8 +692,10 @@ struct sftp_command *sftp_getcmd(void)
     return cmd;
 }
 
-void do_sftp(void)
+void do_sftp(int mode, int modeflags, char *batchfile)
 {
+    FILE *fp;
+
     /*
      * Do protocol initialisation. 
      */
@@ -621,16 +719,42 @@ void do_sftp(void)
     }
     pwd = dupstr(homedir);
 
-    /* ------------------------------------------------------------------
-     * Now we're ready to do Real Stuff.
+    /*
+     * Batch mode?
      */
-    while (1) {
-	struct sftp_command *cmd;
-	cmd = sftp_getcmd();
-	if (!cmd)
-	    break;
-	if (cmd->obey(cmd) < 0)
-	    break;
+    if (mode == 0) {
+
+        /* ------------------------------------------------------------------
+         * Now we're ready to do Real Stuff.
+         */
+        while (1) {
+    	struct sftp_command *cmd;
+    	cmd = sftp_getcmd(stdin, 0, 0);
+    	if (!cmd)
+    	    break;
+		if (cmd->obey(cmd) < 0)
+		    break;
+	    }
+    } else {
+        fp = fopen(batchfile, "r");
+        if (!fp) {
+        printf("Fatal: unable to open %s\n", batchfile);
+        return;
+        }
+        while (1) {
+    	struct sftp_command *cmd;
+    	cmd = sftp_getcmd(fp, mode, modeflags);
+    	if (!cmd)
+    	    break;
+		if (cmd->obey(cmd) < 0)
+		    break;
+		if (fxp_error() != NULL) {
+			if (!(modeflags & 2))
+				break;
+		}
+        }
+	    fclose(fp);
+
     }
 }
 
@@ -972,6 +1096,9 @@ static void usage(void)
     printf("%s\n", ver);
     printf("Usage: psftp [options] user@host\n");
     printf("Options:\n");
+    printf("  -b file   use specified batchfile\n");
+    printf("  -bc       output batchfile commands\n");
+    printf("  -be       don't stop batchfile processing if errors\n");
     printf("  -v        show verbose messages\n");
     printf("  -P port   connect to specified port\n");
     printf("  -pw passw login with specified password\n");
@@ -987,6 +1114,9 @@ int main(int argc, char *argv[])
     int portnumber = 0;
     char *user, *host, *userhost, *realhost;
     char *err;
+    int mode = 0;
+    int modeflags = 0;
+    char *batchfile = NULL;
 
     flags = FLAG_STDERR;
     ssh_get_line = &get_line;
@@ -1012,6 +1142,13 @@ int main(int argc, char *argv[])
 	    portnumber = atoi(argv[++i]);
 	} else if (strcmp(argv[i], "-pw") == 0 && i + 1 < argc) {
 	    password = argv[++i];
+    } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+	    mode = 1;
+        batchfile = argv[++i];
+    } else if (strcmp(argv[i], "-bc") == 0 && i + 1 < argc) {
+	    modeflags = modeflags | 1;
+    } else if (strcmp(argv[i], "-be") == 0 && i + 1 < argc) {
+	    modeflags = modeflags | 2;
 	} else if (strcmp(argv[i], "--") == 0) {
 	    i++;
 	    break;
@@ -1092,7 +1229,7 @@ int main(int argc, char *argv[])
     if (verbose && realhost != NULL)
 	printf("Connected to %s\n", realhost);
 
-    do_sftp();
+    do_sftp(mode, modeflags, batchfile);
 
     if (back != NULL && back->socket() != NULL) {
 	char ch;

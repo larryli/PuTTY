@@ -122,6 +122,21 @@ struct fxp_handle *fxp_opendir(char *path);
 void fxp_close(struct fxp_handle *handle);
 
 /*
+ * Makes a directory
+ */
+int fxp_mkdir(char *path);
+
+/*
+ * Removes a directory
+ */
+int fxp_rmdir(char *path);
+
+/*
+ * Removes a file
+ */
+int fxp_rm(char *fname);
+
+/*
  * Read from a file.
  */
 int fxp_read(struct fxp_handle *handle, char *buffer, uint64 offset,
