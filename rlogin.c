@@ -303,6 +303,14 @@ static int rlogin_exitcode(void *handle)
         return 0;
 }
 
+/*
+ * cfg_info for rlogin does nothing at all.
+ */
+static int rlogin_cfg_info(void *handle)
+{
+    return 0;
+}
+
 Backend rlogin_backend = {
     rlogin_init,
     rlogin_free,
@@ -319,5 +327,6 @@ Backend rlogin_backend = {
     rlogin_provide_ldisc,
     rlogin_provide_logctx,
     rlogin_unthrottle,
+    rlogin_cfg_info,
     1
 };

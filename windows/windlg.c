@@ -598,7 +598,7 @@ int do_config(void)
     int ret;
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, &sesslist, FALSE, 0);
+    setup_config_box(ctrlbox, &sesslist, FALSE, 0, 0);
     win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), FALSE);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
@@ -624,7 +624,7 @@ int do_config(void)
     return ret;
 }
 
-int do_reconfig(HWND hwnd)
+int do_reconfig(HWND hwnd, int protcfginfo)
 {
     Config backup_cfg;
     int ret;
@@ -632,7 +632,7 @@ int do_reconfig(HWND hwnd)
     backup_cfg = cfg;		       /* structure copy */
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, &sesslist, TRUE, cfg.protocol);
+    setup_config_box(ctrlbox, &sesslist, TRUE, cfg.protocol, protcfginfo);
     win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), TRUE);
     dp_init(&dp);
     winctrl_init(&ctrls_base);

@@ -40,7 +40,7 @@ Backend *select_backend(Config *cfg)
 
 int cfgbox(Config *cfg)
 {
-    return do_config_box("PuTTY Configuration", cfg, 0);
+    return do_config_box("PuTTY Configuration", cfg, 0, 0);
 }
 
 static int got_host = 0;

@@ -1900,7 +1900,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		GetWindowText(hwnd, cfg.wintitle, sizeof(cfg.wintitle));
 		prev_cfg = cfg;
 
-		if (!do_reconfig(hwnd))
+		if (!do_reconfig(hwnd, back ? back->cfg_info(backhandle) : 0))
 		    break;
 
 		{

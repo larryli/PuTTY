@@ -7861,6 +7861,16 @@ static int ssh_return_exitcode(void *handle)
 }
 
 /*
+ * cfg_info for SSH is the currently running version of the
+ * protocol. (1 for 1; 2 for 2; 0 for not-decided-yet.)
+ */
+static int ssh_cfg_info(void *handle)
+{
+    Ssh ssh = (Ssh) handle;
+    return ssh->version;
+}
+
+/*
  * Gross hack: pscp will try to start SFTP but fall back to scp1 if
  * that fails. This variable is the means by which scp.c can reach
  * into the SSH code and find out which one it got.
@@ -7887,5 +7897,6 @@ Backend ssh_backend = {
     ssh_provide_ldisc,
     ssh_provide_logctx,
     ssh_unthrottle,
+    ssh_cfg_info,
     22
 };

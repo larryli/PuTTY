@@ -236,6 +236,14 @@ static int raw_exitcode(void *handle)
         return 0;
 }
 
+/*
+ * cfg_info for Raw does nothing at all.
+ */
+static int raw_cfg_info(void *handle)
+{
+    return 0;
+}
+
 Backend raw_backend = {
     raw_init,
     raw_free,
@@ -252,5 +260,6 @@ Backend raw_backend = {
     raw_provide_ldisc,
     raw_provide_logctx,
     raw_unthrottle,
+    raw_cfg_info,
     1
 };

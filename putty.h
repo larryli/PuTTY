@@ -340,6 +340,7 @@ struct backend_tag {
      * buffer is clearing.
      */
     void (*unthrottle) (void *handle, int);
+    int (*cfg_info) (void *handle);
     int default_port;
 };
 
@@ -920,7 +921,7 @@ void cmdline_error(char *, ...);
  */
 struct controlbox;
 void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
-		      int midsession, int protocol);
+		      int midsession, int protocol, int protcfginfo);
 
 /*
  * Exports from minibidi.c.

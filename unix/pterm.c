@@ -2857,7 +2857,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 
     cfg2 = inst->cfg;                  /* structure copy */
 
-    if (do_config_box(title, &cfg2, 1)) {
+    if (do_config_box(title, &cfg2, 1,
+		      inst->back?inst->back->cfg_info(inst->backhandle):0)) {
 
         oldcfg = inst->cfg;            /* structure copy */
         inst->cfg = cfg2;              /* structure copy */

@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.10 2004/06/20 17:07:32 jacob Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -57,13 +57,15 @@ static void null_unthrottle(void *, int);
 Backend null_backend = {
     null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_socket, null_exitcode, null_sendok,
-    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
+    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
+    null_cfg_info, 0
 };
 
 Backend loop_backend = {
     loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_socket, null_exitcode, null_sendok,
-    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle, 0
+    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
+    null_cfg_info, 0
 };
 
 struct loop_state {
@@ -162,6 +164,12 @@ static void null_provide_ldisc (void *handle, void *ldisc) {
 static void null_provide_logctx(void *handle, void *logctx) {
 
 }
+
+static int null_cfg_info(void *handle)
+{
+    return 0;
+}
+
 
 /*
  * Emacs magic:

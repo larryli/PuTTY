@@ -1050,6 +1050,14 @@ static int telnet_exitcode(void *handle)
         return 0;
 }
 
+/*
+ * cfg_info for Telnet does nothing at all.
+ */
+static int telnet_cfg_info(void *handle)
+{
+    return 0;
+}
+
 Backend telnet_backend = {
     telnet_init,
     telnet_free,
@@ -1066,5 +1074,6 @@ Backend telnet_backend = {
     telnet_provide_ldisc,
     telnet_provide_logctx,
     telnet_unthrottle,
+    telnet_cfg_info,
     23
 };

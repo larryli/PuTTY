@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.18 2003/04/05 15:01:16 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -67,7 +67,7 @@ void mac_newsession(void)
 
     get_sesslist(&sesslist, TRUE);
     s->ctrlbox = ctrl_new_box();
-    setup_config_box(s->ctrlbox, &sesslist, FALSE, 0);
+    setup_config_box(s->ctrlbox, &sesslist, FALSE, 0, 0);
 
     s->settings_ctrls.data = &s->cfg;
     s->settings_ctrls.end = &mac_enddlg;

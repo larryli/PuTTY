@@ -804,6 +804,11 @@ static int pty_exitcode(void *handle)
 	return pty_exit_code;
 }
 
+static int pty_cfg_info(void *handle)
+{
+    return 0;
+}
+
 Backend pty_backend = {
     pty_init,
     pty_free,
@@ -820,5 +825,6 @@ Backend pty_backend = {
     pty_provide_ldisc,
     pty_provide_logctx,
     pty_unthrottle,
+    pty_cfg_info,
     1
 };
