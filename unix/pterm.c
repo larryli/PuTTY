@@ -1540,6 +1540,10 @@ int main(int argc, char **argv)
     }
 
     inst->fonts[0] = gdk_font_load(cfg.font);
+    if (!inst->fonts[0]) {
+	fprintf(stderr, "pterm: unable to load font \"%s\"\n", cfg.font);
+	exit(1);
+    }
     inst->fonts[1] = NULL;             /* FIXME: what about bold font? */
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
