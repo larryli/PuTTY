@@ -294,7 +294,7 @@ static int sockaddr_is_loopback(struct sockaddr *sa)
 	sin6 = (struct sockaddr_in6 *)sa;
 	return IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr);
 #endif
-      case AF_LOCAL:
+      case AF_UNIX:
 	return TRUE;
       default:
 	return FALSE;
