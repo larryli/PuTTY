@@ -514,6 +514,7 @@ enum { IDCX_ABOUT =
     IDC_SSHPROTSTATIC,
     IDC_SSHPROT1,
     IDC_SSHPROT2,
+    IDC_SSHPROT2ONLY,
     IDC_CMDSTATIC,
     IDC_CMDEDIT,
     IDC_COMPRESS,
@@ -892,6 +893,7 @@ char *help_context_cmd(int id)
       case IDC_SSHPROTSTATIC:
       case IDC_SSHPROT1:
       case IDC_SSHPROT2:
+      case IDC_SSHPROT2ONLY:
         return "JI(`',`ssh.protocol')";
       case IDC_CMDSTATIC:
       case IDC_CMDEDIT:
@@ -1149,8 +1151,11 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_SSH2DES, cfg.ssh2_des_cbc);
     CheckDlgButton(hwnd, IDC_AGENTFWD, cfg.agentfwd);
     CheckDlgButton(hwnd, IDC_CHANGEUSER, cfg.change_username);
-    CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
-		     cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
+    CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2ONLY,
+		     cfg.sshprot == 1 ? IDC_SSHPROT1 :
+		     cfg.sshprot == 2 ? IDC_SSHPROT2 :
+		     cfg.sshprot == 3 ? IDC_SSHPROT2ONLY :
+		     IDC_SSHPROT1); /* Should we make the default 2? */
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
     CheckDlgButton(hwnd, IDC_AUTHKI, cfg.try_ki_auth);
     SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
@@ -1808,7 +1813,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshpanelstart) {
-	/* The SSH panel. Accelerators used: [acgoh] r pe12i sd */
+	/* The SSH panel. Accelerators used: [acgoh] r pe12ni sd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1823,8 +1828,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
 	    checkbox(&cp, "Enable compr&ession", IDC_COMPRESS);
 	    radioline(&cp, "Preferred SSH protocol version:",
-		      IDC_SSHPROTSTATIC, 2,
-		      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
+		      IDC_SSHPROTSTATIC, 3,
+		      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2,
+		      "2 o&nly", IDC_SSHPROT2ONLY, NULL);
 	    checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
 		     IDC_BUGGYMAC);
 	    endbox(&cp);
@@ -3088,12 +3094,15 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		break;
 	      case IDC_SSHPROT1:
 	      case IDC_SSHPROT2:
+      	      case IDC_SSHPROT2ONLY:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
 		    if (IsDlgButtonChecked(hwnd, IDC_SSHPROT1))
 			cfg.sshprot = 1;
 		    else if (IsDlgButtonChecked(hwnd, IDC_SSHPROT2))
 			cfg.sshprot = 2;
+		    else if (IsDlgButtonChecked(hwnd, IDC_SSHPROT2ONLY))
+			cfg.sshprot = 3;
 		}
 		break;
 	      case IDC_AUTHTIS:

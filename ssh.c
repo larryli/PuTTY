@@ -1722,6 +1722,12 @@ static int do_ssh_init(unsigned char c)
 	sprintf(vlog, "We claim version: %s", verstring);
 	logevent(vlog);
 	strcat(verstring, "\n");
+	
+	if (cfg.sshprot == 3) {
+	    bombout(("SSH protocol version 2 required by user but not provided by server"));
+	    crReturn(0);
+	}
+
 	logevent("Using SSH protocol version 1");
 	sk_write(s, verstring, strlen(verstring));
 	ssh_protocol = ssh1_protocol;
