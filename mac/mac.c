@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.12 2002/12/31 01:40:14 ben Exp $ */
+/* $Id: mac.c,v 1.13 2003/01/01 11:45:43 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -273,7 +273,7 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
 	mac_clickterm(window, event);
 	break;
       case wAbout:
-	if (DialogSelect(event, &(DialogPtr)window, &item))
+	if (DialogSelect(event, &window, &item))
 	    switch (item) {
 	      case wiAboutLicence:
 		mac_openlicence();

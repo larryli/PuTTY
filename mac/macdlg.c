@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.1 2002/12/31 01:40:14 ben Exp $ */
+/* $Id: macdlg.c,v 1.2 2003/01/01 11:45:43 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -74,7 +74,7 @@ void mac_clickdlg(WindowPtr window, EventRecord *event)
     short item;
     Session *s = (Session *)GetWRefCon(window);
 
-    if (DialogSelect(event, &(DialogPtr)window, &item))
+    if (DialogSelect(event, &window, &item))
 	switch (item) {
 	  case wiSettingsOpen:
 	    CloseWindow(window);
