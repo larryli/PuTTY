@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.24 2002/04/01 15:18:29 simon Exp $
+\versionid $Id: faq.but,v 1.25 2002/05/11 16:45:29 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -37,10 +37,10 @@ version 0.52.
 \S{faq-ssh2-keyfmt}{Question} Does PuTTY support reading OpenSSH or
 \cw{ssh.com} SSHv2 private key files?
 
-Not at present. OpenSSH and \cw{ssh.com} have totally different
-formats for private key files, and neither one is particularly
-pleasant, so PuTTY has its own. We do plan to write a converter at
-some stage.
+Version 0.52 doesn't, but in the latest development snapshots
+PuTTYgen can load OpenSSH private keys. We plan to add an export
+feature so that it can save them as well, and we also plan to
+support the \cw{ssh.com} key format.
 
 \S{faq-ssh1}{Question} Does PuTTY support SSH v1?
 

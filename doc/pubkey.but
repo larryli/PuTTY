@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.13 2001/12/14 09:58:07 simon Exp $
+\versionid $Id: pubkey.but,v 1.14 2002/05/11 16:45:29 simon Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -62,6 +62,8 @@ DSS), the USA's federal Digital Signature Standard. The key types
 supported by PuTTY are described in \k{puttygen-keytype}.
 
 \H{pubkey-puttygen} Using PuTTYgen, the PuTTY key generator
+
+\cfg{winhelp-topic}{puttygen.general}
 
 PuTTYgen is a key generator. It generates pairs of public and private
 keys to be used with PuTTY, PSCP, and Plink, as well as the PuTTY

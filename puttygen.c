@@ -501,6 +501,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
 	IDC_BITSSTATIC, IDC_BITS,
 	IDC_ABOUT,
+	IDC_GIVEHELP,
+	IDC_IMPORT, IDC_EXPORT_OPENSSH, IDC_EXPORT_SSHCOM
     };
     static const int nokey_ids[] = { IDC_NOKEY, 0 };
     static const int generating_ids[] =
@@ -531,6 +533,44 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         }
         requested_help = FALSE;
 
+	{
+	    HMENU menu, menu1;
+
+	    menu = CreateMenu();
+
+	    menu1 = CreateMenu();
+	    AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "&Generate key pair");
+	    AppendMenu(menu1, MF_ENABLED, IDC_LOAD, "&Load private key");
+	    AppendMenu(menu1, MF_ENABLED, IDC_SAVEPUB, "Save p&ublic key");
+	    AppendMenu(menu1, MF_ENABLED, IDC_SAVE, "&Save private key");
+
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&File");
+
+#if 0
+	    /*
+	     * Exporting not yet supported, but when we do it we
+	     * should just put this lot back in.
+	     */
+	    menu1 = CreateMenu();
+	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH,
+		       "Export &OpenSSH key");
+	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
+		       "Export &ssh.com key");
+
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
+		       "&Export");
+#endif
+
+	    menu1 = CreateMenu();
+	    AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");
+	    if (help_path)
+		AppendMenu(menu1, MF_ENABLED, IDC_GIVEHELP, "&Help");
+
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Help");
+
+	    SetMenu(hwnd, menu);
+	}
+
 	/*
 	 * Centre the window.
 	 */
@@ -558,8 +598,6 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    /* Accelerators used: acglops1rbd */
 
 	    ctlposinit(&cp, hwnd, 4, 4, 4);
-	    bartitle(&cp, "Public and private key generation for PuTTY",
-		     IDC_TITLE);
 	    beginbox(&cp, "Key", IDC_BOX_KEY);
 	    cp2 = cp;
 	    statictext(&cp2, "No key.", 1, IDC_NOKEY);
@@ -688,6 +726,16 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    DialogBox(hinst, MAKEINTRESOURCE(213), NULL, AboutProc);
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
+	    return 0;
+	  case IDC_GIVEHELP:
+            if (HIWORD(wParam) == BN_CLICKED ||
+                HIWORD(wParam) == BN_DOUBLECLICKED) {
+                if (help_path) {
+                    WinHelp(hwnd, help_path, HELP_COMMAND,
+                            (DWORD)"JI(`',`puttygen.general')");
+                    requested_help = TRUE;
+                }
+            }
 	    return 0;
 	  case IDC_GENERATE:
 	    state =
@@ -846,15 +894,17 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		if (prompt_keyfile(hwnd, "Load private key:", filename, 0)) {
 		    char passphrase[PASSPHRASE_MAXLEN];
 		    int needs_pass;
-		    int type;
+		    int type, realtype;
 		    int ret;
 		    char *comment;
 		    struct PassphraseProcStruct pps;
 		    struct RSAKey newkey1;
 		    struct ssh2_userkey *newkey2 = NULL;
 
-		    type = key_type(filename);
-		    if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
+		    type = realtype = key_type(filename);
+		    if (type != SSH_KEYTYPE_SSH1 &&
+			type != SSH_KEYTYPE_SSH2 &&
+			!import_possible(type)) {
 			char msg[256];
 			sprintf(msg, "Couldn't load private key (%s)",
 				key_type_to_str(type));
@@ -863,12 +913,21 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			break;
 		    }
 
+		    if (type != SSH_KEYTYPE_SSH1 &&
+			type != SSH_KEYTYPE_SSH2) {
+			realtype = type;
+			type = import_target_type(type);
+		    }
+
 		    comment = NULL;
-		    if (type == SSH_KEYTYPE_SSH1)
+		    if (realtype == SSH_KEYTYPE_SSH1)
 			needs_pass = rsakey_encrypted(filename, &comment);
-		    else
+		    else if (realtype == SSH_KEYTYPE_SSH2)
 			needs_pass =
 			    ssh2_userkey_encrypted(filename, &comment);
+		    else
+			needs_pass = import_encrypted(filename, realtype,
+						      &comment);
 		    pps.passphrase = passphrase;
 		    pps.comment = comment;
 		    do {
@@ -884,12 +943,20 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			    }
 			} else
 			    *passphrase = '\0';
-			if (type == SSH_KEYTYPE_SSH1)
-			    ret =
-				loadrsakey(filename, &newkey1, passphrase);
-			else {
-			    newkey2 =
-				ssh2_load_userkey(filename, passphrase);
+			if (type == SSH_KEYTYPE_SSH1) {
+			    if (realtype == type)
+				ret = loadrsakey(filename, &newkey1,
+						 passphrase);
+			    else
+				ret = import_ssh1(filename, realtype,
+						  &newkey1, passphrase);
+			} else {
+			    if (realtype == type)
+				newkey2 = ssh2_load_userkey(filename,
+							    passphrase);
+			    else
+				newkey2 = import_ssh2(filename, realtype,
+						      passphrase);
 			    if (newkey2 == SSH2_WRONG_PASSPHRASE)
 				ret = -1;
 			    else if (!newkey2)

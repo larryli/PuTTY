@@ -306,8 +306,18 @@ enum {
 int key_type(char *filename);
 char *key_type_to_str(int type);
 
+int import_possible(int type);
+int import_target_type(int type);
+int import_encrypted(char *filename, int type, char **comment);
+int import_ssh1(char *filename, int type, struct RSAKey *key,char *passphrase);
+struct ssh2_userkey *import_ssh2(char *filename, int type, char *passphrase);
+
 void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
 void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
+void des3_decrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
+			      unsigned char *blk, int len);
+void des3_encrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
+			      unsigned char *blk, int len);
 void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk,
 			   int len);
 void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk,
