@@ -2,4 +2,5 @@ make.out
 *.NJ
 Makefile.mpw
 PuTTY.68k PuTTY.cfm68k PuTTY.ppc
+PuTTYtel.68k PuTTYtel.cfm68k PuTTYtel.ppc
 *.rsrc
