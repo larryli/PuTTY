@@ -16,18 +16,18 @@ void read_sbcs(charset_spec const *charset, long int input_chr,
 	       charset_state *state,
 	       void (*emit)(void *ctx, long int output), void *emitctx)
 {
-    wchar_t const *table = (wchar_t const *)charset->data;
+    const struct sbcs_data *sd = charset->data;
 
     UNUSEDARG(state);
 
-    emit(emitctx, table[input_chr]);
+    emit(emitctx, sd->sbcs2ucs[input_chr]);
 }
 
 void write_sbcs(charset_spec const *charset, long int input_chr,
 		charset_state *state,
 		void (*emit)(void *ctx, long int output), void *emitctx)
 {
-    wchar_t const *table = (wchar_t const *)charset->data;
+    const struct sbcs_data *sd = charset->data;
     int i;
 
     UNUSEDARG(state);
@@ -37,7 +37,7 @@ void write_sbcs(charset_spec const *charset, long int input_chr,
      * We should be using the ucs2sbcs table.
      */
     for (i = 0; i < 256; i++)
-	if (table[i] == input_chr) {
+	if (sd->sbcs2ucs[i] == input_chr) {
 	    emit(emitctx, i);
 	    return;
 	}
