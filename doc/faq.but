@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.78 2004/08/27 13:33:25 jacob Exp $
+\versionid $Id: faq.but,v 1.79 2004/09/09 10:37:17 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -879,10 +879,10 @@ This is apparently an issue with SP2 that is acknowledged by Microsoft
 in MS Knowledge Base article
 \W{http://support.microsoft.com/default.aspx?scid=kb;en-us;884020}{884020}.
 
-For a fix, you'll need to contact Microsoft support. We've been told
-that the process is reasonably easy, and is free of charge; and that
-the fix will be included in the next Windows XP Service Pack (but
-probably not before).
+For a fix, you'll need to contact Microsoft support, as mentioned in
+the KB article. We've been told that the process is reasonably easy,
+and is free of charge; and that the fix will be included in the next
+Windows XP Service Pack (but probably not before).
 
 (\e{However}, we've been told that SP2 \e{also} fixes the bug that
 means you need to use non-\cw{127.0.0.1} addresses to forward
