@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.15 2001/09/22 15:37:51 simon Exp $
+\versionid $Id: pscp.but,v 1.16 2001/09/22 17:34:10 simon Exp $
 
 \#FIXME: Need examples
 
@@ -245,8 +245,8 @@ Firstly, PSCP can use PuTTY saved sessions in place of hostnames
 
 \b Run PuTTY, and create a PuTTY saved session (see
 \k{config-saving}) which specifies your private key file (see
-\k{config-auth}). You will probably also want to specify a username
-to log in as (see \k{config-username}).
+\k{config-ssh-privkey}). You will probably also want to specify a
+username to log in as (see \k{config-username}).
 
 \b In PSCP, you can now use the name of the session instead of a
 hostname: type \c{pscp sessionname:file localfile}, where
