@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.16 2002/11/29 00:32:03 ben Exp $ */
+/* $Id: macterm.c,v 1.17 2002/12/07 15:21:56 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1269,20 +1269,46 @@ void palette_reset(void *frontend) {
 void do_scroll(void *frontend, int topline, int botline, int lines) {
     Session *s = frontend;
     Rect r;
-    RgnHandle update;
+    RgnHandle scrollrgn = NewRgn();
+    RgnHandle movedupdate = NewRgn();
+    RgnHandle update = NewRgn();
+    Point g2l = { 0, 0 };
 
     SetPort(s->window);
+
+    /*
+     * Work out the part of the update region that will scrolled by
+     * this operation.
+     */
+    if (lines > 0)
+	SetRectRgn(scrollrgn, 0, (topline + lines) * s->font_height,
+		   s->term->cols * s->font_width,
+		   (botline + 1) * s->font_height);
+    else
+	SetRectRgn(scrollrgn, 0, topline * s->font_height,
+		   s->term->cols * s->font_width,
+		   (botline - lines + 1) * s->font_height);
+    CopyRgn(((WindowPeek)s->window)->updateRgn, movedupdate);
+    GlobalToLocal(&g2l);
+    OffsetRgn(movedupdate, g2l.h, g2l.v); /* Convert to local co-ords. */
+    SectRgn(scrollrgn, movedupdate, movedupdate); /* Clip scrolled section. */
+    ValidRgn(movedupdate);
+    OffsetRgn(movedupdate, 0, -lines * s->font_height); /* Scroll it. */
+
     PenNormal();
     if (HAVE_COLOR_QD())
 	PmBackColor(DEFAULT_BG);
     else
 	BackColor(blackColor); /* XXX make configurable */
-    update = NewRgn();
     SetRect(&r, 0, topline * s->font_height,
 	    s->term->cols * s->font_width, (botline + 1) * s->font_height);
     ScrollRect(&r, 0, - lines * s->font_height, update);
-    /* XXX: move update region? */
+
     InvalRgn(update);
+    InvalRgn(movedupdate);
+
+    DisposeRgn(scrollrgn);
+    DisposeRgn(movedupdate);
     DisposeRgn(update);
 }
 
