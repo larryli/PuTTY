@@ -21,7 +21,7 @@ BEGIN
     PUSHBUTTON "View &Licence", IDA_LICENCE, 6, 52, 70, 14
     CTEXT "PuTTY", IDA_TEXT1, 10, 6, 120, 8
     CTEXT "", IDA_VERSION, 10, 16, 120, 16
-    CTEXT "\251 1997-9 Simon Tatham. All rights reserved.",
+    CTEXT "\251 1997-2000 Simon Tatham. All rights reserved.",
           IDA_TEXT2, 10, 34, 120, 16
 END
 
