@@ -38,6 +38,7 @@ struct gui_data {
     int pasteout_data_len;
     int font_width, font_height;
     int ignore_sbar;
+    GdkAtom compound_text_atom;
 };
 
 static struct gui_data the_inst;
@@ -792,6 +793,8 @@ void write_clip(wchar_t * data, int len, int must_deselect)
 				GDK_CURRENT_TIME)) {
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				 GDK_SELECTION_TYPE_STRING, 1);
+	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+				 inst->compound_text_atom, 1);
     }
 }
 
@@ -1145,6 +1148,8 @@ int main(int argc, char **argv)
     inst->fonts[1] = NULL;             /* FIXME: what about bold font? */
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
+
+    inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
 
     init_ucs();
 
