@@ -253,10 +253,8 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
 
-printf("configure %d x %d\n", event->width, event->height);
     w = (event->width - 2*cfg.window_border) / inst->font_width;
     h = (event->height - 2*cfg.window_border) / inst->font_height;
-printf("        = %d x %d\n", w, h);
 
     if (w != cfg.width || h != cfg.height) {
 	if (inst->pixmap) {
@@ -266,7 +264,6 @@ printf("        = %d x %d\n", w, h);
 	cfg.width = w;
 	cfg.height = h;
 	need_size = 1;
-printf("need size\n");
     }
     if (!inst->pixmap) {
 	GdkGC *gc;
