@@ -103,10 +103,10 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		  dlg_stdcheckbox_handler, I(offsetof(Config,ctrlaltkeys)));
 
     /*
-     * Windows allows an arbitrary .WAV to be played as a bell. For
-     * this we must search the existing controlset for the
-     * radio-button set controlling the `beep' option, and add an
-     * extra button to it.
+     * Windows allows an arbitrary .WAV to be played as a bell, and
+     * also the use of the PC speaker. For this we must search the
+     * existing controlset for the radio-button set controlling the
+     * `beep' option, and add extra buttons to it.
      * 
      * Note that although this _looks_ like a hideous hack, it's
      * actually all above board. The well-defined interface to the
@@ -127,18 +127,22 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	    if (c->generic.type == CTRL_RADIO &&
 		c->generic.context.i == offsetof(Config, beep)) {
 		assert(c->generic.handler == dlg_stdradiobutton_handler);
-		c->radio.nbuttons++;
+		c->radio.nbuttons += 2;
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
 		    dupstr("Play a custom sound file");
+		c->radio.buttons[c->radio.nbuttons-2] =
+		    dupstr("Beep using the PC speaker");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(BELL_WAVEFILE);
+		c->radio.buttondata[c->radio.nbuttons-2] = I(BELL_PCSPEAKER);
 		if (c->radio.shortcuts) {
 		    c->radio.shortcuts =
 			sresize(c->radio.shortcuts, c->radio.nbuttons, char);
 		    c->radio.shortcuts[c->radio.nbuttons-1] = NO_SHORTCUT;
+		    c->radio.shortcuts[c->radio.nbuttons-2] = NO_SHORTCUT;
 		}
 		break;
 	    }

@@ -243,7 +243,7 @@ enum {
 
 enum {
     /* Bell settings (cfg.beep) */
-    BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE
+    BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE, BELL_PCSPEAKER
 };
 
 enum {

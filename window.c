@@ -4406,6 +4406,23 @@ void beep(void *frontend, int mode)
 		       MB_OK | MB_ICONEXCLAMATION);
 	    cfg.beep = BELL_DEFAULT;
 	}
+    } else if (mode == BELL_PCSPEAKER) {
+	static long lastbeep = 0;
+	long beepdiff;
+
+	beepdiff = GetTickCount() - lastbeep;
+	if (beepdiff >= 0 && beepdiff < 50)
+	    return;
+
+	/*
+	 * We must beep in different ways depending on whether this
+	 * is a 95-series or NT-series OS.
+	 */
+	if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
+	    Beep(800, 100);
+	else
+	    MessageBeep(-1);
+	lastbeep = GetTickCount();
     }
     /* Otherwise, either visual bell or disabled; do nothing here */
     if (!term->has_focus) {
