@@ -59,7 +59,8 @@ struct node234_Tag {
 /*
  * Create a 2-3-4 tree.
  */
-tree234 *newtree234(cmpfn234 cmp) {
+tree234 *newtree234(cmpfn234 cmp)
+{
     tree234 *ret = mknew(tree234);
     LOG(("created tree %p\n", ret));
     ret->root = NULL;
@@ -70,7 +71,8 @@ tree234 *newtree234(cmpfn234 cmp) {
 /*
  * Free a 2-3-4 tree (not including freeing the elements).
  */
-static void freenode234(node234 *n) {
+static void freenode234(node234 * n)
+{
     if (!n)
 	return;
     freenode234(n->kids[0]);
@@ -79,7 +81,9 @@ static void freenode234(node234 *n) {
     freenode234(n->kids[3]);
     sfree(n);
 }
-void freetree234(tree234 *t) {
+
+void freetree234(tree234 * t)
+{
     freenode234(t->root);
     sfree(t);
 }
@@ -87,7 +91,8 @@ void freetree234(tree234 *t) {
 /*
  * Internal function to count a node.
  */
-static int countnode234(node234 *n) {
+static int countnode234(node234 * n)
+{
     int count = 0;
     int i;
     if (!n)
@@ -103,7 +108,8 @@ static int countnode234(node234 *n) {
 /*
  * Count the elements in a tree.
  */
-int count234(tree234 *t) {
+int count234(tree234 * t)
+{
     if (t->root)
 	return countnode234(t->root);
     else
@@ -114,7 +120,8 @@ int count234(tree234 *t) {
  * Add an element e to a 2-3-4 tree t. Returns e on success, or if
  * an existing element compares equal, returns that.
  */
-static void *add234_internal(tree234 *t, void *e, int index) {
+static void *add234_internal(tree234 * t, void *e, int index)
+{
     node234 *n, **np, *left, *right;
     void *orig_e = e;
     int c, lcount, rcount;
@@ -158,7 +165,7 @@ static void *add234_internal(tree234 *t, void *e, int index) {
 		 * always starts at the bottom, never in the
 		 * middle).
 		 */
-		do { /* this is a do ... while (0) to allow `break' */
+		do {		       /* this is a do ... while (0) to allow `break' */
 		    if (index <= n->counts[0]) {
 			childnum = 0;
 			break;
@@ -185,15 +192,15 @@ static void *add234_internal(tree234 *t, void *e, int index) {
 	    if ((c = t->cmp(e, n->elems[0])) < 0)
 		childnum = 0;
 	    else if (c == 0)
-		return n->elems[0];	       /* already exists */
-	    else if (n->elems[1] == NULL || (c = t->cmp(e, n->elems[1])) < 0)
-		childnum = 1;
+		return n->elems[0];    /* already exists */
+	    else if (n->elems[1] == NULL
+		     || (c = t->cmp(e, n->elems[1])) < 0) childnum = 1;
 	    else if (c == 0)
-		return n->elems[1];	       /* already exists */
-	    else if (n->elems[2] == NULL || (c = t->cmp(e, n->elems[2])) < 0)
-		childnum = 2;
+		return n->elems[1];    /* already exists */
+	    else if (n->elems[2] == NULL
+		     || (c = t->cmp(e, n->elems[2])) < 0) childnum = 2;
 	    else if (c == 0)
-		return n->elems[2];	       /* already exists */
+		return n->elems[2];    /* already exists */
 	    else
 		childnum = 3;
 	}
@@ -204,8 +211,10 @@ static void *add234_internal(tree234 *t, void *e, int index) {
     /*
      * We need to insert the new element in n at position np.
      */
-    left = NULL;  lcount = 0;
-    right = NULL; rcount = 0;
+    left = NULL;
+    lcount = 0;
+    right = NULL;
+    rcount = 0;
     while (n) {
 	LOG(("  at %p: %p/%d [%p] %p/%d [%p] %p/%d [%p] %p/%d\n",
 	     n,
@@ -221,20 +230,28 @@ static void *add234_internal(tree234 *t, void *e, int index) {
 	     */
 	    if (np == &n->kids[0]) {
 		LOG(("  inserting on left of 2-node\n"));
-		n->kids[2] = n->kids[1];     n->counts[2] = n->counts[1];
+		n->kids[2] = n->kids[1];
+		n->counts[2] = n->counts[1];
 		n->elems[1] = n->elems[0];
-		n->kids[1] = right;          n->counts[1] = rcount;
+		n->kids[1] = right;
+		n->counts[1] = rcount;
 		n->elems[0] = e;
-		n->kids[0] = left;           n->counts[0] = lcount;
-	    } else { /* np == &n->kids[1] */
+		n->kids[0] = left;
+		n->counts[0] = lcount;
+	    } else {		       /* np == &n->kids[1] */
 		LOG(("  inserting on right of 2-node\n"));
-		n->kids[2] = right;          n->counts[2] = rcount;
+		n->kids[2] = right;
+		n->counts[2] = rcount;
 		n->elems[1] = e;
-		n->kids[1] = left;           n->counts[1] = lcount;
+		n->kids[1] = left;
+		n->counts[1] = lcount;
 	    }
-	    if (n->kids[0]) n->kids[0]->parent = n;
-	    if (n->kids[1]) n->kids[1]->parent = n;
-	    if (n->kids[2]) n->kids[2]->parent = n;
+	    if (n->kids[0])
+		n->kids[0]->parent = n;
+	    if (n->kids[1])
+		n->kids[1]->parent = n;
+	    if (n->kids[2])
+		n->kids[2]->parent = n;
 	    LOG(("  done\n"));
 	    break;
 	} else if (n->elems[2] == NULL) {
@@ -243,30 +260,43 @@ static void *add234_internal(tree234 *t, void *e, int index) {
 	     */
 	    if (np == &n->kids[0]) {
 		LOG(("  inserting on left of 3-node\n"));
-		n->kids[3] = n->kids[2];    n->counts[3] = n->counts[2];
+		n->kids[3] = n->kids[2];
+		n->counts[3] = n->counts[2];
 		n->elems[2] = n->elems[1];
-		n->kids[2] = n->kids[1];    n->counts[2] = n->counts[1];
+		n->kids[2] = n->kids[1];
+		n->counts[2] = n->counts[1];
 		n->elems[1] = n->elems[0];
-		n->kids[1] = right;         n->counts[1] = rcount;
+		n->kids[1] = right;
+		n->counts[1] = rcount;
 		n->elems[0] = e;
-		n->kids[0] = left;          n->counts[0] = lcount;
+		n->kids[0] = left;
+		n->counts[0] = lcount;
 	    } else if (np == &n->kids[1]) {
 		LOG(("  inserting in middle of 3-node\n"));
-		n->kids[3] = n->kids[2];    n->counts[3] = n->counts[2];
+		n->kids[3] = n->kids[2];
+		n->counts[3] = n->counts[2];
 		n->elems[2] = n->elems[1];
-		n->kids[2] = right;         n->counts[2] = rcount;
+		n->kids[2] = right;
+		n->counts[2] = rcount;
 		n->elems[1] = e;
-		n->kids[1] = left;          n->counts[1] = lcount;
-	    } else { /* np == &n->kids[2] */
+		n->kids[1] = left;
+		n->counts[1] = lcount;
+	    } else {		       /* np == &n->kids[2] */
 		LOG(("  inserting on right of 3-node\n"));
-		n->kids[3] = right;         n->counts[3] = rcount;
+		n->kids[3] = right;
+		n->counts[3] = rcount;
 		n->elems[2] = e;
-		n->kids[2] = left;          n->counts[2] = lcount;
+		n->kids[2] = left;
+		n->counts[2] = lcount;
 	    }
-	    if (n->kids[0]) n->kids[0]->parent = n;
-	    if (n->kids[1]) n->kids[1]->parent = n;
-	    if (n->kids[2]) n->kids[2]->parent = n;
-	    if (n->kids[3]) n->kids[3]->parent = n;
+	    if (n->kids[0])
+		n->kids[0]->parent = n;
+	    if (n->kids[1])
+		n->kids[1]->parent = n;
+	    if (n->kids[2])
+		n->kids[2]->parent = n;
+	    if (n->kids[3])
+		n->kids[3]->parent = n;
 	    LOG(("  done\n"));
 	    break;
 	} else {
@@ -282,54 +312,79 @@ static void *add234_internal(tree234 *t, void *e, int index) {
 	     * always.
 	     */
 	    if (np == &n->kids[0]) {
-		m->kids[0] = left;          m->counts[0] = lcount;
+		m->kids[0] = left;
+		m->counts[0] = lcount;
 		m->elems[0] = e;
-		m->kids[1] = right;         m->counts[1] = rcount;
+		m->kids[1] = right;
+		m->counts[1] = rcount;
 		m->elems[1] = n->elems[0];
-		m->kids[2] = n->kids[1];    m->counts[2] = n->counts[1];
+		m->kids[2] = n->kids[1];
+		m->counts[2] = n->counts[1];
 		e = n->elems[1];
-		n->kids[0] = n->kids[2];    n->counts[0] = n->counts[2];
+		n->kids[0] = n->kids[2];
+		n->counts[0] = n->counts[2];
 		n->elems[0] = n->elems[2];
-		n->kids[1] = n->kids[3];    n->counts[1] = n->counts[3];
+		n->kids[1] = n->kids[3];
+		n->counts[1] = n->counts[3];
 	    } else if (np == &n->kids[1]) {
-		m->kids[0] = n->kids[0];    m->counts[0] = n->counts[0];
+		m->kids[0] = n->kids[0];
+		m->counts[0] = n->counts[0];
 		m->elems[0] = n->elems[0];
-		m->kids[1] = left;          m->counts[1] = lcount;
+		m->kids[1] = left;
+		m->counts[1] = lcount;
 		m->elems[1] = e;
-		m->kids[2] = right;         m->counts[2] = rcount;
+		m->kids[2] = right;
+		m->counts[2] = rcount;
 		e = n->elems[1];
-		n->kids[0] = n->kids[2];    n->counts[0] = n->counts[2];
+		n->kids[0] = n->kids[2];
+		n->counts[0] = n->counts[2];
 		n->elems[0] = n->elems[2];
-		n->kids[1] = n->kids[3];    n->counts[1] = n->counts[3];
+		n->kids[1] = n->kids[3];
+		n->counts[1] = n->counts[3];
 	    } else if (np == &n->kids[2]) {
-		m->kids[0] = n->kids[0];    m->counts[0] = n->counts[0];
+		m->kids[0] = n->kids[0];
+		m->counts[0] = n->counts[0];
 		m->elems[0] = n->elems[0];
-		m->kids[1] = n->kids[1];    m->counts[1] = n->counts[1];
+		m->kids[1] = n->kids[1];
+		m->counts[1] = n->counts[1];
 		m->elems[1] = n->elems[1];
-		m->kids[2] = left;          m->counts[2] = lcount;
+		m->kids[2] = left;
+		m->counts[2] = lcount;
 		/* e = e; */
-		n->kids[0] = right;         n->counts[0] = rcount;
+		n->kids[0] = right;
+		n->counts[0] = rcount;
 		n->elems[0] = n->elems[2];
-		n->kids[1] = n->kids[3];    n->counts[1] = n->counts[3];
-	    } else { /* np == &n->kids[3] */
-		m->kids[0] = n->kids[0];    m->counts[0] = n->counts[0];
+		n->kids[1] = n->kids[3];
+		n->counts[1] = n->counts[3];
+	    } else {		       /* np == &n->kids[3] */
+		m->kids[0] = n->kids[0];
+		m->counts[0] = n->counts[0];
 		m->elems[0] = n->elems[0];
-		m->kids[1] = n->kids[1];    m->counts[1] = n->counts[1];
+		m->kids[1] = n->kids[1];
+		m->counts[1] = n->counts[1];
 		m->elems[1] = n->elems[1];
-		m->kids[2] = n->kids[2];    m->counts[2] = n->counts[2];
-		n->kids[0] = left;          n->counts[0] = lcount;
+		m->kids[2] = n->kids[2];
+		m->counts[2] = n->counts[2];
+		n->kids[0] = left;
+		n->counts[0] = lcount;
 		n->elems[0] = e;
-		n->kids[1] = right;         n->counts[1] = rcount;
+		n->kids[1] = right;
+		n->counts[1] = rcount;
 		e = n->elems[2];
 	    }
 	    m->kids[3] = n->kids[3] = n->kids[2] = NULL;
 	    m->counts[3] = n->counts[3] = n->counts[2] = 0;
 	    m->elems[2] = n->elems[2] = n->elems[1] = NULL;
-	    if (m->kids[0]) m->kids[0]->parent = m;
-	    if (m->kids[1]) m->kids[1]->parent = m;
-	    if (m->kids[2]) m->kids[2]->parent = m;
-	    if (n->kids[0]) n->kids[0]->parent = n;
-	    if (n->kids[1]) n->kids[1]->parent = n;
+	    if (m->kids[0])
+		m->kids[0]->parent = m;
+	    if (m->kids[1])
+		m->kids[1]->parent = m;
+	    if (m->kids[2])
+		m->kids[2]->parent = m;
+	    if (n->kids[0])
+		n->kids[0]->parent = n;
+	    if (n->kids[1])
+		n->kids[1]->parent = n;
 	    LOG(("  left (%p): %p/%d [%p] %p/%d [%p] %p/%d\n", m,
 		 m->kids[0], m->counts[0], m->elems[0],
 		 m->kids[1], m->counts[1], m->elems[1],
@@ -337,8 +392,10 @@ static void *add234_internal(tree234 *t, void *e, int index) {
 	    LOG(("  right (%p): %p/%d [%p] %p/%d\n", n,
 		 n->kids[0], n->counts[0], n->elems[0],
 		 n->kids[1], n->counts[1]));
-	    left = m;  lcount = countnode234(left);
-	    right = n; rcount = countnode234(right);
+	    left = m;
+	    lcount = countnode234(left);
+	    right = n;
+	    rcount = countnode234(right);
 	}
 	if (n->parent)
 	    np = (n->parent->kids[0] == n ? &n->parent->kids[0] :
@@ -367,44 +424,52 @@ static void *add234_internal(tree234 *t, void *e, int index) {
     } else {
 	LOG(("  root is overloaded, split into two\n"));
 	t->root = mknew(node234);
-	t->root->kids[0] = left;     t->root->counts[0] = lcount;
+	t->root->kids[0] = left;
+	t->root->counts[0] = lcount;
 	t->root->elems[0] = e;
-	t->root->kids[1] = right;    t->root->counts[1] = rcount;
+	t->root->kids[1] = right;
+	t->root->counts[1] = rcount;
 	t->root->elems[1] = NULL;
-	t->root->kids[2] = NULL;     t->root->counts[2] = 0;
+	t->root->kids[2] = NULL;
+	t->root->counts[2] = 0;
 	t->root->elems[2] = NULL;
-	t->root->kids[3] = NULL;     t->root->counts[3] = 0;
+	t->root->kids[3] = NULL;
+	t->root->counts[3] = 0;
 	t->root->parent = NULL;
-	if (t->root->kids[0]) t->root->kids[0]->parent = t->root;
-	if (t->root->kids[1]) t->root->kids[1]->parent = t->root;
+	if (t->root->kids[0])
+	    t->root->kids[0]->parent = t->root;
+	if (t->root->kids[1])
+	    t->root->kids[1]->parent = t->root;
 	LOG(("  new root is %p/%d [%p] %p/%d\n",
 	     t->root->kids[0], t->root->counts[0],
-	     t->root->elems[0],
-	     t->root->kids[1], t->root->counts[1]));
+	     t->root->elems[0], t->root->kids[1], t->root->counts[1]));
     }
 
     return orig_e;
 }
 
-void *add234(tree234 *t, void *e) {
+void *add234(tree234 * t, void *e)
+{
     if (!t->cmp)		       /* tree is unsorted */
 	return NULL;
 
     return add234_internal(t, e, -1);
 }
-void *addpos234(tree234 *t, void *e, int index) {
+void *addpos234(tree234 * t, void *e, int index)
+{
     if (index < 0 ||		       /* index out of range */
 	t->cmp)			       /* tree is sorted */
 	return NULL;		       /* return failure */
 
-    return add234_internal(t, e, index);  /* this checks the upper bound */
+    return add234_internal(t, e, index);	/* this checks the upper bound */
 }
 
 /*
  * Look up the element at a given numeric index in a 2-3-4 tree.
  * Returns NULL if the index is out of range.
  */
-void *index234(tree234 *t, int index) {
+void *index234(tree234 * t, int index)
+{
     node234 *n;
 
     if (!t->root)
@@ -414,7 +479,7 @@ void *index234(tree234 *t, int index) {
 	return NULL;		       /* out of range */
 
     n = t->root;
-    
+
     while (n) {
 	if (index < n->counts[0])
 	    n = n->kids[0];
@@ -443,8 +508,9 @@ void *index234(tree234 *t, int index) {
  * as NULL, in which case the compare function from the tree proper
  * will be used.
  */
-void *findrelpos234(tree234 *t, void *e, cmpfn234 cmp,
-		    int relation, int *index) {
+void *findrelpos234(tree234 * t, void *e, cmpfn234 cmp,
+		    int relation, int *index)
+{
     node234 *n;
     void *ret;
     int c;
@@ -479,7 +545,8 @@ void *findrelpos234(tree234 *t, void *e, cmpfn234 cmp,
 		(c = cmpret ? cmpret : cmp(e, n->elems[kcount])) < 0) {
 		break;
 	    }
-	    if (n->kids[kcount]) idx += n->counts[kcount];
+	    if (n->kids[kcount])
+		idx += n->counts[kcount];
 	    if (c == 0) {
 		ecount = kcount;
 		break;
@@ -501,7 +568,8 @@ void *findrelpos234(tree234 *t, void *e, cmpfn234 cmp,
 	 * relation is EQ, LE or GE we can now go home.
 	 */
 	if (relation != REL234_LT && relation != REL234_GT) {
-	    if (index) *index = idx;
+	    if (index)
+		*index = idx;
 	    return n->elems[ecount];
 	}
 
@@ -544,16 +612,20 @@ void *findrelpos234(tree234 *t, void *e, cmpfn234 cmp,
      * bounds, which is exactly what we want.
      */
     ret = index234(t, idx);
-    if (ret && index) *index = idx;
+    if (ret && index)
+	*index = idx;
     return ret;
 }
-void *find234(tree234 *t, void *e, cmpfn234 cmp) {
+void *find234(tree234 * t, void *e, cmpfn234 cmp)
+{
     return findrelpos234(t, e, cmp, REL234_EQ, NULL);
 }
-void *findrel234(tree234 *t, void *e, cmpfn234 cmp, int relation) {
+void *findrel234(tree234 * t, void *e, cmpfn234 cmp, int relation)
+{
     return findrelpos234(t, e, cmp, relation, NULL);
 }
-void *findpos234(tree234 *t, void *e, cmpfn234 cmp, int *index) {
+void *findpos234(tree234 * t, void *e, cmpfn234 cmp, int *index)
+{
     return findrelpos234(t, e, cmp, REL234_EQ, index);
 }
 
@@ -561,7 +633,8 @@ void *findpos234(tree234 *t, void *e, cmpfn234 cmp, int *index) {
  * Delete an element e in a 2-3-4 tree. Does not free the element,
  * merely removes all links to it from the tree nodes.
  */
-static void *delpos234_internal(tree234 *t, int index) {
+static void *delpos234_internal(tree234 * t, int index)
+{
     node234 *n;
     void *retval;
     int ei = -1;
@@ -575,25 +648,26 @@ static void *delpos234_internal(tree234 *t, int index) {
 	    int ki;
 	    node234 *sub;
 
-	    LOG(("  node %p: %p/%d [%p] %p/%d [%p] %p/%d [%p] %p/%d index=%d\n",
-		 n,
-		 n->kids[0], n->counts[0], n->elems[0],
-		 n->kids[1], n->counts[1], n->elems[1],
-		 n->kids[2], n->counts[2], n->elems[2],
-		 n->kids[3], n->counts[3],
-		 index));
+	    LOG(
+		("  node %p: %p/%d [%p] %p/%d [%p] %p/%d [%p] %p/%d index=%d\n",
+		 n, n->kids[0], n->counts[0], n->elems[0], n->kids[1],
+		 n->counts[1], n->elems[1], n->kids[2], n->counts[2],
+		 n->elems[2], n->kids[3], n->counts[3], index));
 	    if (index < n->counts[0]) {
 		ki = 0;
-	    } else if (index -= n->counts[0]+1, index < 0) {
-		ei = 0; break;
+	    } else if (index -= n->counts[0] + 1, index < 0) {
+		ei = 0;
+		break;
 	    } else if (index < n->counts[1]) {
 		ki = 1;
-	    } else if (index -= n->counts[1]+1, index < 0) {
-		ei = 1; break;
+	    } else if (index -= n->counts[1] + 1, index < 0) {
+		ei = 1;
+		break;
 	    } else if (index < n->counts[2]) {
 		ki = 2;
-	    } else if (index -= n->counts[2]+1, index < 0) {
-		ei = 2; break;
+	    } else if (index -= n->counts[2] + 1, index < 0) {
+		ei = 2;
+		break;
 	    } else {
 		ki = 3;
 	    }
@@ -605,7 +679,7 @@ static void *delpos234_internal(tree234 *t, int index) {
 	    sub = n->kids[ki];
 	    if (!sub->elems[1]) {
 		LOG(("  subtree has only one element!\n", ki));
-		if (ki > 0 && n->kids[ki-1]->elems[1]) {
+		if (ki > 0 && n->kids[ki - 1]->elems[1]) {
 		    /*
 		     * Case 3a, left-handed variant. Child ki has
 		     * only one element, but child ki-1 has two or
@@ -616,7 +690,7 @@ static void *delpos234_internal(tree234 *t, int index) {
 		     *               /     \     ->            /     \
 		     * [more] a A b B c   d D e      [more] a A b   c C d D e
 		     */
-		    node234 *sib = n->kids[ki-1];
+		    node234 *sib = n->kids[ki - 1];
 		    int lastelem = (sib->elems[2] ? 2 :
 				    sib->elems[1] ? 1 : 0);
 		    sub->kids[2] = sub->kids[1];
@@ -624,25 +698,28 @@ static void *delpos234_internal(tree234 *t, int index) {
 		    sub->elems[1] = sub->elems[0];
 		    sub->kids[1] = sub->kids[0];
 		    sub->counts[1] = sub->counts[0];
-		    sub->elems[0] = n->elems[ki-1];
-		    sub->kids[0] = sib->kids[lastelem+1];
-		    sub->counts[0] = sib->counts[lastelem+1];
-		    if (sub->kids[0]) sub->kids[0]->parent = sub;
-		    n->elems[ki-1] = sib->elems[lastelem];
-		    sib->kids[lastelem+1] = NULL;
-		    sib->counts[lastelem+1] = 0;
+		    sub->elems[0] = n->elems[ki - 1];
+		    sub->kids[0] = sib->kids[lastelem + 1];
+		    sub->counts[0] = sib->counts[lastelem + 1];
+		    if (sub->kids[0])
+			sub->kids[0]->parent = sub;
+		    n->elems[ki - 1] = sib->elems[lastelem];
+		    sib->kids[lastelem + 1] = NULL;
+		    sib->counts[lastelem + 1] = 0;
 		    sib->elems[lastelem] = NULL;
 		    n->counts[ki] = countnode234(sub);
 		    LOG(("  case 3a left\n"));
-		    LOG(("  index and left subtree count before adjustment: %d, %d\n",
-			 index, n->counts[ki-1]));
-		    index += n->counts[ki-1];
-		    n->counts[ki-1] = countnode234(sib);
-		    index -= n->counts[ki-1];
-		    LOG(("  index and left subtree count after adjustment: %d, %d\n",
-			 index, n->counts[ki-1]));
-		} else if (ki < 3 && n->kids[ki+1] &&
-			   n->kids[ki+1]->elems[1]) {
+		    LOG(
+			("  index and left subtree count before adjustment: %d, %d\n",
+			 index, n->counts[ki - 1]));
+		    index += n->counts[ki - 1];
+		    n->counts[ki - 1] = countnode234(sib);
+		    index -= n->counts[ki - 1];
+		    LOG(
+			("  index and left subtree count after adjustment: %d, %d\n",
+			 index, n->counts[ki - 1]));
+		} else if (ki < 3 && n->kids[ki + 1]
+			   && n->kids[ki + 1]->elems[1]) {
 		    /*
 		     * Case 3a, right-handed variant. ki has only
 		     * one element but ki+1 has two or more. Move a
@@ -652,25 +729,26 @@ static void *delpos234_internal(tree234 *t, int index) {
 		     *     /     \                ->         /     \
 		     *  a A b   c C d D e [more]      a A b B c   d D e [more]
 		     */
-		    node234 *sib = n->kids[ki+1];
+		    node234 *sib = n->kids[ki + 1];
 		    int j;
 		    sub->elems[1] = n->elems[ki];
 		    sub->kids[2] = sib->kids[0];
 		    sub->counts[2] = sib->counts[0];
-		    if (sub->kids[2]) sub->kids[2]->parent = sub;
+		    if (sub->kids[2])
+			sub->kids[2]->parent = sub;
 		    n->elems[ki] = sib->elems[0];
 		    sib->kids[0] = sib->kids[1];
 		    sib->counts[0] = sib->counts[1];
-		    for (j = 0; j < 2 && sib->elems[j+1]; j++) {
-			sib->kids[j+1] = sib->kids[j+2];
-			sib->counts[j+1] = sib->counts[j+2];
-			sib->elems[j] = sib->elems[j+1];
+		    for (j = 0; j < 2 && sib->elems[j + 1]; j++) {
+			sib->kids[j + 1] = sib->kids[j + 2];
+			sib->counts[j + 1] = sib->counts[j + 2];
+			sib->elems[j] = sib->elems[j + 1];
 		    }
-		    sib->kids[j+1] = NULL;
-		    sib->counts[j+1] = 0;
+		    sib->kids[j + 1] = NULL;
+		    sib->counts[j + 1] = 0;
 		    sib->elems[j] = NULL;
 		    n->counts[ki] = countnode234(sub);
-		    n->counts[ki+1] = countnode234(sib);
+		    n->counts[ki + 1] = countnode234(sib);
 		    LOG(("  case 3a right\n"));
 		} else {
 		    /*
@@ -700,7 +778,7 @@ static void *delpos234_internal(tree234 *t, int index) {
 			index += n->counts[ki] + 1;
 		    }
 		    sib = n->kids[ki];
-		    sub = n->kids[ki+1];
+		    sub = n->kids[ki + 1];
 
 		    sub->kids[3] = sub->kids[1];
 		    sub->counts[3] = sub->counts[1];
@@ -710,13 +788,15 @@ static void *delpos234_internal(tree234 *t, int index) {
 		    sub->elems[1] = n->elems[ki];
 		    sub->kids[1] = sib->kids[1];
 		    sub->counts[1] = sib->counts[1];
-		    if (sub->kids[1]) sub->kids[1]->parent = sub;
+		    if (sub->kids[1])
+			sub->kids[1]->parent = sub;
 		    sub->elems[0] = sib->elems[0];
 		    sub->kids[0] = sib->kids[0];
 		    sub->counts[0] = sib->counts[0];
-		    if (sub->kids[0]) sub->kids[0]->parent = sub;
+		    if (sub->kids[0])
+			sub->kids[0]->parent = sub;
 
-		    n->counts[ki+1] = countnode234(sub);
+		    n->counts[ki + 1] = countnode234(sub);
 
 		    sfree(sib);
 
@@ -724,14 +804,15 @@ static void *delpos234_internal(tree234 *t, int index) {
 		     * That's built the big node in sub. Now we
 		     * need to remove the reference to sib in n.
 		     */
-		    for (j = ki; j < 3 && n->kids[j+1]; j++) {
-			n->kids[j] = n->kids[j+1];
-			n->counts[j] = n->counts[j+1];
-			n->elems[j] = j<2 ? n->elems[j+1] : NULL;
+		    for (j = ki; j < 3 && n->kids[j + 1]; j++) {
+			n->kids[j] = n->kids[j + 1];
+			n->counts[j] = n->counts[j + 1];
+			n->elems[j] = j < 2 ? n->elems[j + 1] : NULL;
 		    }
 		    n->kids[j] = NULL;
 		    n->counts[j] = 0;
-		    if (j < 3) n->elems[j] = NULL;
+		    if (j < 3)
+			n->elems[j] = NULL;
 		    LOG(("  case 3b ki=%d\n", ki));
 
 		    if (!n->elems[0]) {
@@ -751,7 +832,7 @@ static void *delpos234_internal(tree234 *t, int index) {
 	if (!retval)
 	    retval = n->elems[ei];
 
-	if (ei==-1)
+	if (ei == -1)
 	    return NULL;	       /* although this shouldn't happen */
 
 	/*
@@ -780,8 +861,8 @@ static void *delpos234_internal(tree234 *t, int index) {
 	     */
 	    int i;
 	    LOG(("  case 1\n"));
-	    for (i = ei; i < 2 && n->elems[i+1]; i++)
-		n->elems[i] = n->elems[i+1];
+	    for (i = ei; i < 2 && n->elems[i + 1]; i++)
+		n->elems[i] = n->elems[i + 1];
 	    n->elems[i] = NULL;
 	    /*
 	     * Having done that to the leaf node, we now go back up
@@ -811,19 +892,19 @@ static void *delpos234_internal(tree234 *t, int index) {
 	    while (m->kids[0]) {
 		m = (m->kids[3] ? m->kids[3] :
 		     m->kids[2] ? m->kids[2] :
-		     m->kids[1] ? m->kids[1] : m->kids[0]);		     
+		     m->kids[1] ? m->kids[1] : m->kids[0]);
 	    }
 	    target = (m->elems[2] ? m->elems[2] :
 		      m->elems[1] ? m->elems[1] : m->elems[0]);
 	    n->elems[ei] = target;
-	    index = n->counts[ei]-1;
+	    index = n->counts[ei] - 1;
 	    n = n->kids[ei];
-	} else if (n->kids[ei+1]->elems[1]) {
+	} else if (n->kids[ei + 1]->elems[1]) {
 	    /*
 	     * Case 2b, symmetric to 2a but s/left/right/ and
 	     * s/predecessor/successor/. (And s/largest/smallest/).
 	     */
-	    node234 *m = n->kids[ei+1];
+	    node234 *m = n->kids[ei + 1];
 	    void *target;
 	    LOG(("  case 2b\n"));
 	    while (m->kids[0]) {
@@ -831,7 +912,7 @@ static void *delpos234_internal(tree234 *t, int index) {
 	    }
 	    target = m->elems[0];
 	    n->elems[ei] = target;
-	    n = n->kids[ei+1];
+	    n = n->kids[ei + 1];
 	    index = 0;
 	} else {
 	    /*
@@ -842,43 +923,45 @@ static void *delpos234_internal(tree234 *t, int index) {
 	     * in the middle, then restart the deletion process on
 	     * that subtree, with e still as target.
 	     */
-	    node234 *a = n->kids[ei], *b = n->kids[ei+1];
+	    node234 *a = n->kids[ei], *b = n->kids[ei + 1];
 	    int j;
 
 	    LOG(("  case 2c\n"));
 	    a->elems[1] = n->elems[ei];
 	    a->kids[2] = b->kids[0];
 	    a->counts[2] = b->counts[0];
-	    if (a->kids[2]) a->kids[2]->parent = a;
+	    if (a->kids[2])
+		a->kids[2]->parent = a;
 	    a->elems[2] = b->elems[0];
 	    a->kids[3] = b->kids[1];
 	    a->counts[3] = b->counts[1];
-	    if (a->kids[3]) a->kids[3]->parent = a;
+	    if (a->kids[3])
+		a->kids[3]->parent = a;
 	    sfree(b);
 	    n->counts[ei] = countnode234(a);
 	    /*
 	     * That's built the big node in a, and destroyed b. Now
 	     * remove the reference to b (and e) in n.
 	     */
-	    for (j = ei; j < 2 && n->elems[j+1]; j++) {
-		n->elems[j] = n->elems[j+1];
-		n->kids[j+1] = n->kids[j+2];
-		n->counts[j+1] = n->counts[j+2];
+	    for (j = ei; j < 2 && n->elems[j + 1]; j++) {
+		n->elems[j] = n->elems[j + 1];
+		n->kids[j + 1] = n->kids[j + 2];
+		n->counts[j + 1] = n->counts[j + 2];
 	    }
 	    n->elems[j] = NULL;
-	    n->kids[j+1] = NULL;
-	    n->counts[j+1] = 0;
-            /*
-             * It's possible, in this case, that we've just removed
-             * the only element in the root of the tree. If so,
-             * shift the root.
-             */
-            if (n->elems[0] == NULL) {
-                LOG(("  shifting root!\n"));
-                t->root = a;
-                a->parent = NULL;
-                sfree(n);
-            }
+	    n->kids[j + 1] = NULL;
+	    n->counts[j + 1] = 0;
+	    /*
+	     * It's possible, in this case, that we've just removed
+	     * the only element in the root of the tree. If so,
+	     * shift the root.
+	     */
+	    if (n->elems[0] == NULL) {
+		LOG(("  shifting root!\n"));
+		t->root = a;
+		a->parent = NULL;
+		sfree(n);
+	    }
 	    /*
 	     * Now go round the deletion process again, with n
 	     * pointing at the new big node and e still the same.
@@ -888,16 +971,18 @@ static void *delpos234_internal(tree234 *t, int index) {
 	}
     }
 }
-void *delpos234(tree234 *t, int index) {
+void *delpos234(tree234 * t, int index)
+{
     if (index < 0 || index >= countnode234(t->root))
 	return NULL;
     return delpos234_internal(t, index);
 }
-void *del234(tree234 *t, void *e) {
+void *del234(tree234 * t, void *e)
+{
     int index;
     if (!findrelpos234(t, e, NULL, REL234_EQ, &index))
 	return NULL;		       /* it wasn't in there anyway */
-    return delpos234_internal(t, index); /* it's there; delete it. */
+    return delpos234_internal(t, index);	/* it's there; delete it. */
 }
 
 #ifdef TEST
@@ -932,7 +1017,8 @@ void *del234(tree234 *t, void *e) {
 /*
  * Error reporting function.
  */
-void error(char *fmt, ...) {
+void error(char *fmt, ...)
+{
     va_list ap;
     printf("ERROR: ");
     va_start(ap, fmt);
@@ -954,8 +1040,9 @@ typedef struct {
     int elemcount;
 } chkctx;
 
-int chknode(chkctx *ctx, int level, node234 *node,
-             void *lowbound, void *highbound) {
+int chknode(chkctx * ctx, int level, node234 * node,
+	    void *lowbound, void *highbound)
+{
     int nkids, nelems;
     int i;
     int count;
@@ -964,51 +1051,51 @@ int chknode(chkctx *ctx, int level, node234 *node,
     for (nkids = 0; nkids < 4 && node->kids[nkids]; nkids++);
     /* Ensure no kids beyond the first NULL are non-NULL. */
     for (i = nkids; i < 4; i++)
-        if (node->kids[i]) {
-            error("node %p: nkids=%d but kids[%d] non-NULL",
-                   node, nkids, i);
-        } else if (node->counts[i]) {
-            error("node %p: kids[%d] NULL but count[%d]=%d nonzero",
-                   node, i, i, node->counts[i]);
+	if (node->kids[i]) {
+	    error("node %p: nkids=%d but kids[%d] non-NULL",
+		  node, nkids, i);
+	} else if (node->counts[i]) {
+	    error("node %p: kids[%d] NULL but count[%d]=%d nonzero",
+		  node, i, i, node->counts[i]);
 	}
 
     /* Count the non-NULL elements. */
     for (nelems = 0; nelems < 3 && node->elems[nelems]; nelems++);
     /* Ensure no elements beyond the first NULL are non-NULL. */
     for (i = nelems; i < 3; i++)
-        if (node->elems[i]) {
-            error("node %p: nelems=%d but elems[%d] non-NULL",
-                   node, nelems, i);
-        }
+	if (node->elems[i]) {
+	    error("node %p: nelems=%d but elems[%d] non-NULL",
+		  node, nelems, i);
+	}
 
     if (nkids == 0) {
-        /*
-         * If nkids==0, this is a leaf node; verify that the tree
-         * depth is the same everywhere.
-         */
-        if (ctx->treedepth < 0)
-            ctx->treedepth = level;    /* we didn't know the depth yet */
-        else if (ctx->treedepth != level)
-            error("node %p: leaf at depth %d, previously seen depth %d",
-                   node, level, ctx->treedepth);
+	/*
+	 * If nkids==0, this is a leaf node; verify that the tree
+	 * depth is the same everywhere.
+	 */
+	if (ctx->treedepth < 0)
+	    ctx->treedepth = level;    /* we didn't know the depth yet */
+	else if (ctx->treedepth != level)
+	    error("node %p: leaf at depth %d, previously seen depth %d",
+		  node, level, ctx->treedepth);
     } else {
-        /*
-         * If nkids != 0, then it should be nelems+1, unless nelems
-         * is 0 in which case nkids should also be 0 (and so we
-         * shouldn't be in this condition at all).
-         */
-        int shouldkids = (nelems ? nelems+1 : 0);
-        if (nkids != shouldkids) {
-            error("node %p: %d elems should mean %d kids but has %d",
-                   node, nelems, shouldkids, nkids);
-        }
+	/*
+	 * If nkids != 0, then it should be nelems+1, unless nelems
+	 * is 0 in which case nkids should also be 0 (and so we
+	 * shouldn't be in this condition at all).
+	 */
+	int shouldkids = (nelems ? nelems + 1 : 0);
+	if (nkids != shouldkids) {
+	    error("node %p: %d elems should mean %d kids but has %d",
+		  node, nelems, shouldkids, nkids);
+	}
     }
 
     /*
      * nelems should be at least 1.
      */
     if (nelems == 0) {
-        error("node %p: no elems", node, nkids);
+	error("node %p: no elems", node, nkids);
     }
 
     /*
@@ -1026,10 +1113,11 @@ int chknode(chkctx *ctx, int level, node234 *node,
     if (cmp) {
 	for (i = -1; i < nelems; i++) {
 	    void *lower = (i == -1 ? lowbound : node->elems[i]);
-	    void *higher = (i+1 == nelems ? highbound : node->elems[i+1]);
+	    void *higher =
+		(i + 1 == nelems ? highbound : node->elems[i + 1]);
 	    if (lower && higher && cmp(lower, higher) >= 0) {
 		error("node %p: kid comparison [%d=%s,%d=%s] failed",
-		      node, i, lower, i+1, higher);
+		      node, i, lower, i + 1, higher);
 	    }
 	}
     }
@@ -1039,10 +1127,10 @@ int chknode(chkctx *ctx, int level, node234 *node,
      * parent pointer coming back to this node.
      */
     for (i = 0; i < nkids; i++)
-        if (node->kids[i]->parent != node) {
-            error("node %p kid %d: parent ptr is %p not %p",
-                   node, i, node->kids[i]->parent, node);
-        }
+	if (node->kids[i]->parent != node) {
+	    error("node %p kid %d: parent ptr is %p not %p",
+		  node, i, node->kids[i]->parent, node);
+	}
 
 
     /*
@@ -1051,85 +1139,89 @@ int chknode(chkctx *ctx, int level, node234 *node,
     count = nelems;
 
     for (i = 0; i < nkids; i++) {
-        void *lower = (i == 0 ? lowbound : node->elems[i-1]);
-        void *higher = (i >= nelems ? highbound : node->elems[i]);
-	int subcount = chknode(ctx, level+1, node->kids[i], lower, higher);
+	void *lower = (i == 0 ? lowbound : node->elems[i - 1]);
+	void *higher = (i >= nelems ? highbound : node->elems[i]);
+	int subcount =
+	    chknode(ctx, level + 1, node->kids[i], lower, higher);
 	if (node->counts[i] != subcount) {
 	    error("node %p kid %d: count says %d, subtree really has %d",
 		  node, i, node->counts[i], subcount);
 	}
-        count += subcount;
+	count += subcount;
     }
 
     return count;
 }
 
-void verify(void) {
+void verify(void)
+{
     chkctx ctx;
     int i;
     void *p;
 
-    ctx.treedepth = -1;                /* depth unknown yet */
-    ctx.elemcount = 0;                 /* no elements seen yet */
+    ctx.treedepth = -1;		       /* depth unknown yet */
+    ctx.elemcount = 0;		       /* no elements seen yet */
     /*
      * Verify validity of tree properties.
      */
     if (tree->root) {
 	if (tree->root->parent != NULL)
 	    error("root->parent is %p should be null", tree->root->parent);
-        chknode(&ctx, 0, tree->root, NULL, NULL);
+	chknode(&ctx, 0, tree->root, NULL, NULL);
     }
     printf("tree depth: %d\n", ctx.treedepth);
     /*
      * Enumerate the tree and ensure it matches up to the array.
      */
     for (i = 0; NULL != (p = index234(tree, i)); i++) {
-        if (i >= arraylen)
-            error("tree contains more than %d elements", arraylen);
-        if (array[i] != p)
-            error("enum at position %d: array says %s, tree says %s",
-                   i, array[i], p);
+	if (i >= arraylen)
+	    error("tree contains more than %d elements", arraylen);
+	if (array[i] != p)
+	    error("enum at position %d: array says %s, tree says %s",
+		  i, array[i], p);
     }
     if (ctx.elemcount != i) {
-        error("tree really contains %d elements, enum gave %d",
-               ctx.elemcount, i);
+	error("tree really contains %d elements, enum gave %d",
+	      ctx.elemcount, i);
     }
     if (i < arraylen) {
-        error("enum gave only %d elements, array has %d", i, arraylen);
+	error("enum gave only %d elements, array has %d", i, arraylen);
     }
     i = count234(tree);
     if (ctx.elemcount != i) {
-        error("tree really contains %d elements, count234 gave %d",
+	error("tree really contains %d elements, count234 gave %d",
 	      ctx.elemcount, i);
     }
 }
 
-void internal_addtest(void *elem, int index, void *realret) {
+void internal_addtest(void *elem, int index, void *realret)
+{
     int i, j;
     void *retval;
 
-    if (arraysize < arraylen+1) {
-        arraysize = arraylen+1+256;
-        array = (array == NULL ? smalloc(arraysize*sizeof(*array)) :
-                 srealloc(array, arraysize*sizeof(*array)));
+    if (arraysize < arraylen + 1) {
+	arraysize = arraylen + 1 + 256;
+	array = (array == NULL ? smalloc(arraysize * sizeof(*array)) :
+		 srealloc(array, arraysize * sizeof(*array)));
     }
 
     i = index;
     /* now i points to the first element >= elem */
-    retval = elem;                  /* expect elem returned (success) */
+    retval = elem;		       /* expect elem returned (success) */
     for (j = arraylen; j > i; j--)
-	array[j] = array[j-1];
-    array[i] = elem;                /* add elem to array */
+	array[j] = array[j - 1];
+    array[i] = elem;		       /* add elem to array */
     arraylen++;
 
     if (realret != retval) {
-        error("add: retval was %p expected %p", realret, retval);
+	error("add: retval was %p expected %p", realret, retval);
     }
 
     verify();
 }
 
-void addtest(void *elem) {
+void addtest(void *elem)
+{
     int i;
     void *realret;
 
@@ -1137,9 +1229,9 @@ void addtest(void *elem) {
 
     i = 0;
     while (i < arraylen && cmp(elem, array[i]) > 0)
-        i++;
+	i++;
     if (i < arraylen && !cmp(elem, array[i])) {
-        void *retval = array[i];       /* expect that returned not elem */
+	void *retval = array[i];       /* expect that returned not elem */
 	if (realret != retval) {
 	    error("add: retval was %p expected %p", realret, retval);
 	}
@@ -1147,7 +1239,8 @@ void addtest(void *elem) {
 	internal_addtest(elem, i, realret);
 }
 
-void addpostest(void *elem, int i) {
+void addpostest(void *elem, int i)
+{
     void *realret;
 
     realret = addpos234(tree, elem, i);
@@ -1155,13 +1248,14 @@ void addpostest(void *elem, int i) {
     internal_addtest(elem, i, realret);
 }
 
-void delpostest(int i) {
+void delpostest(int i)
+{
     int index = i;
     void *elem = array[i], *ret;
 
     /* i points to the right element */
-    while (i < arraylen-1) {
-	array[i] = array[i+1];
+    while (i < arraylen - 1) {
+	array[i] = array[i + 1];
 	i++;
     }
     arraylen--;			       /* delete elem from array */
@@ -1178,14 +1272,15 @@ void delpostest(int i) {
     verify();
 }
 
-void deltest(void *elem) {
+void deltest(void *elem)
+{
     int i;
 
     i = 0;
     while (i < arraylen && cmp(elem, array[i]) > 0)
-        i++;
+	i++;
     if (i >= arraylen || cmp(elem, array[i]) != 0)
-        return;                        /* don't do it! */
+	return;			       /* don't do it! */
     delpostest(i);
 }
 
@@ -1197,15 +1292,17 @@ void deltest(void *elem) {
  * given in ANSI C99 draft N869. It assumes `unsigned' is 32 bits;
  * change it if not.
  */
-int randomnumber(unsigned *seed) {
+int randomnumber(unsigned *seed)
+{
     *seed *= 1103515245;
     *seed += 12345;
     return ((*seed) / 65536) % 32768;
 }
 
-int mycmp(void *av, void *bv) {
-    char const *a = (char const *)av;
-    char const *b = (char const *)bv;
+int mycmp(void *av, void *bv)
+{
+    char const *a = (char const *) av;
+    char const *b = (char const *) bv;
     return strcmp(a, b);
 }
 
@@ -1227,7 +1324,8 @@ char *strings[] = {
 
 #define NSTR lenof(strings)
 
-int findtest(void) {
+int findtest(void)
+{
     const static int rels[] = {
 	REL234_EQ, REL234_GE, REL234_LE, REL234_LT, REL234_GT
     };
@@ -1240,17 +1338,18 @@ int findtest(void) {
 
     for (i = 0; i < NSTR; i++) {
 	p = strings[i];
-	for (j = 0; j < sizeof(rels)/sizeof(*rels); j++) {
+	for (j = 0; j < sizeof(rels) / sizeof(*rels); j++) {
 	    rel = rels[j];
 
-	    lo = 0; hi = arraylen-1;
+	    lo = 0;
+	    hi = arraylen - 1;
 	    while (lo <= hi) {
 		mid = (lo + hi) / 2;
 		c = strcmp(p, array[mid]);
 		if (c < 0)
-		    hi = mid-1;
+		    hi = mid - 1;
 		else if (c > 0)
-		    lo = mid+1;
+		    lo = mid + 1;
 		else
 		    break;
 	    }
@@ -1259,11 +1358,11 @@ int findtest(void) {
 		if (rel == REL234_LT)
 		    ret = (mid > 0 ? array[--mid] : NULL);
 		else if (rel == REL234_GT)
-		    ret = (mid < arraylen-1 ? array[++mid] : NULL);
+		    ret = (mid < arraylen - 1 ? array[++mid] : NULL);
 		else
 		    ret = array[mid];
 	    } else {
-		assert(lo == hi+1);
+		assert(lo == hi + 1);
 		if (rel == REL234_LT || rel == REL234_LE) {
 		    mid = hi;
 		    ret = (hi >= 0 ? array[hi] : NULL);
@@ -1302,26 +1401,27 @@ int findtest(void) {
 	error("find(NULL,GT) gave %s(%d) should be %s(0)",
 	      realret, index, array[0]);
     } else if (!arraylen && (realret != NULL)) {
-	error("find(NULL,GT) gave %s(%d) should be NULL",
-	      realret, index);
+	error("find(NULL,GT) gave %s(%d) should be NULL", realret, index);
     }
 
     realret = findrelpos234(tree, NULL, NULL, REL234_LT, &index);
-    if (arraylen && (realret != array[arraylen-1] || index != arraylen-1)) {
-	error("find(NULL,LT) gave %s(%d) should be %s(0)",
-	      realret, index, array[arraylen-1]);
+    if (arraylen
+	&& (realret != array[arraylen - 1] || index != arraylen - 1)) {
+	error("find(NULL,LT) gave %s(%d) should be %s(0)", realret, index,
+	      array[arraylen - 1]);
     } else if (!arraylen && (realret != NULL)) {
-	error("find(NULL,LT) gave %s(%d) should be NULL",
-	      realret, index);
+	error("find(NULL,LT) gave %s(%d) should be NULL", realret, index);
     }
 }
 
-int main(void) {
+int main(void)
+{
     int in[NSTR];
     int i, j, k;
     unsigned seed = 0;
 
-    for (i = 0; i < NSTR; i++) in[i] = 0;
+    for (i = 0; i < NSTR; i++)
+	in[i] = 0;
     array = NULL;
     arraylen = arraysize = 0;
     tree = newtree234(mycmp);
@@ -1329,25 +1429,25 @@ int main(void) {
 
     verify();
     for (i = 0; i < 10000; i++) {
-        j = randomnumber(&seed);
-        j %= NSTR;
-        printf("trial: %d\n", i);
-        if (in[j]) {
-            printf("deleting %s (%d)\n", strings[j], j);
-            deltest(strings[j]);
-            in[j] = 0;
-        } else {
-            printf("adding %s (%d)\n", strings[j], j);
-            addtest(strings[j]);
-            in[j] = 1;
-        }
+	j = randomnumber(&seed);
+	j %= NSTR;
+	printf("trial: %d\n", i);
+	if (in[j]) {
+	    printf("deleting %s (%d)\n", strings[j], j);
+	    deltest(strings[j]);
+	    in[j] = 0;
+	} else {
+	    printf("adding %s (%d)\n", strings[j], j);
+	    addtest(strings[j]);
+	    in[j] = 1;
+	}
 	findtest();
     }
 
     while (arraylen > 0) {
-        j = randomnumber(&seed);
-        j %= arraylen;
-        deltest(array[j]);
+	j = randomnumber(&seed);
+	j %= arraylen;
+	deltest(array[j]);
     }
 
     freetree234(tree);
@@ -1367,7 +1467,7 @@ int main(void) {
 	j = randomnumber(&seed);
 	j %= NSTR;
 	k = randomnumber(&seed);
-	k %= count234(tree)+1;
+	k %= count234(tree) + 1;
 	printf("adding string %s at index %d\n", strings[j], k);
 	addpostest(strings[j], k);
     }

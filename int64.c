@@ -10,7 +10,8 @@ typedef struct {
     unsigned long hi, lo;
 } uint64, int64;
 
-uint64 uint64_div10(uint64 x, int *remainder) {
+uint64 uint64_div10(uint64 x, int *remainder)
+{
     uint64 y;
     int rem, r2;
     y.hi = x.hi / 10;
@@ -30,7 +31,8 @@ uint64 uint64_div10(uint64 x, int *remainder) {
     return y;
 }
 
-void uint64_decimal(uint64 x, char *buffer) {
+void uint64_decimal(uint64 x, char *buffer)
+{
     char buf[20];
     int start = 20;
     int d;
@@ -41,24 +43,27 @@ void uint64_decimal(uint64 x, char *buffer) {
 	buf[--start] = d + '0';
     }
 
-    memcpy(buffer, buf+start, sizeof(buf)-start);
-    buffer[sizeof(buf)-start] = '\0';
+    memcpy(buffer, buf + start, sizeof(buf) - start);
+    buffer[sizeof(buf) - start] = '\0';
 }
 
-uint64 uint64_make(unsigned long hi, unsigned long lo) {
+uint64 uint64_make(unsigned long hi, unsigned long lo)
+{
     uint64 y;
     y.hi = hi;
     y.lo = lo;
     return y;
 }
 
-uint64 uint64_add(uint64 x, uint64 y) {
+uint64 uint64_add(uint64 x, uint64 y)
+{
     x.lo += y.lo;
     x.hi += y.hi + (x.lo < y.lo ? 1 : 0);
     return x;
 }
 
-uint64 uint64_add32(uint64 x, unsigned long y) {
+uint64 uint64_add32(uint64 x, unsigned long y)
+{
     uint64 yy;
     yy.hi = 0;
     yy.lo = y;

@@ -43,21 +43,23 @@ static long minefield_curpos = 0;
 static unsigned short *minefield_admin = NULL;
 static void *minefield_pages = NULL;
 
-static void minefield_admin_hide(int hide) {
+static void minefield_admin_hide(int hide)
+{
     int access = hide ? PAGE_NOACCESS : PAGE_READWRITE;
-    VirtualProtect(minefield_admin, minefield_npages*2, access, NULL);
+    VirtualProtect(minefield_admin, minefield_npages * 2, access, NULL);
 }
 
-static void minefield_init(void) {
+static void minefield_init(void)
+{
     int size;
     int admin_size;
     int i;
 
-    for (size = 0x40000000; size > 0; size = ((size >> 3) * 7) &~ 0xFFF) {
-        minefield_region = VirtualAlloc(NULL, size,
-                                        MEM_RESERVE, PAGE_NOACCESS);
-        if (minefield_region)
-            break;
+    for (size = 0x40000000; size > 0; size = ((size >> 3) * 7) & ~0xFFF) {
+	minefield_region = VirtualAlloc(NULL, size,
+					MEM_RESERVE, PAGE_NOACCESS);
+	if (minefield_region)
+	    break;
     }
     minefield_size = size;
 
@@ -67,21 +69,21 @@ static void minefield_init(void) {
      */
     minefield_admin = minefield_region;
     minefield_npages = minefield_size / PAGESIZE;
-    admin_size = (minefield_npages * 2 + PAGESIZE-1) &~ (PAGESIZE-1);
+    admin_size = (minefield_npages * 2 + PAGESIZE - 1) & ~(PAGESIZE - 1);
     minefield_npages = (minefield_size - admin_size) / PAGESIZE;
-    minefield_pages = (char *)minefield_region + admin_size;
+    minefield_pages = (char *) minefield_region + admin_size;
 
     /*
      * Commit the admin region.
      */
     VirtualAlloc(minefield_admin, minefield_npages * 2,
-                 MEM_COMMIT, PAGE_READWRITE);
+		 MEM_COMMIT, PAGE_READWRITE);
 
     /*
      * Mark all pages as unused (0xFFFF).
      */
     for (i = 0; i < minefield_npages; i++)
-        minefield_admin[i] = 0xFFFF;
+	minefield_admin[i] = 0xFFFF;
 
     /*
      * Hide the admin region.
@@ -91,17 +93,19 @@ static void minefield_init(void) {
     minefield_initialised = 1;
 }
 
-static void minefield_bomb(void) {
-    div(1, *(int*)minefield_pages);
+static void minefield_bomb(void)
+{
+    div(1, *(int *) minefield_pages);
 }
 
-static void *minefield_alloc(int size) {
+static void *minefield_alloc(int size)
+{
     int npages;
     int pos, lim, region_end, region_start;
     int start;
     int i;
 
-    npages = (size + PAGESIZE-1) / PAGESIZE;
+    npages = (size + PAGESIZE - 1) / PAGESIZE;
 
     minefield_admin_hide(0);
 
@@ -112,96 +116,102 @@ static void *minefield_alloc(int size) {
     pos = minefield_curpos;
     lim = minefield_npages;
     while (1) {
-        /* Skip over used pages. */
-        while (pos < lim && minefield_admin[pos] != 0xFFFF)
-            pos++;
-        /* Count unused pages. */
-        start = pos;
-        while (pos < lim && pos - start < npages+2 &&
-               minefield_admin[pos] == 0xFFFF)
-            pos++;
-        if (pos - start == npages+2)
-            break;
-        /* If we've reached the limit, reset the limit or stop. */
-        if (pos >= lim) {
-            if (lim == minefield_npages) {
-                /* go round and start again at zero */
-                lim = minefield_curpos;
-                pos = 0;
-            } else {
-                minefield_admin_hide(1);
-                return NULL;
-            }
-        }
+	/* Skip over used pages. */
+	while (pos < lim && minefield_admin[pos] != 0xFFFF)
+	    pos++;
+	/* Count unused pages. */
+	start = pos;
+	while (pos < lim && pos - start < npages + 2 &&
+	       minefield_admin[pos] == 0xFFFF)
+	    pos++;
+	if (pos - start == npages + 2)
+	    break;
+	/* If we've reached the limit, reset the limit or stop. */
+	if (pos >= lim) {
+	    if (lim == minefield_npages) {
+		/* go round and start again at zero */
+		lim = minefield_curpos;
+		pos = 0;
+	    } else {
+		minefield_admin_hide(1);
+		return NULL;
+	    }
+	}
     }
 
-    minefield_curpos = pos-1;
+    minefield_curpos = pos - 1;
 
     /*
      * We have npages+2 unused pages starting at start. We leave
      * the first and last of these alone and use the rest.
      */
-    region_end = (start + npages+1) * PAGESIZE;
+    region_end = (start + npages + 1) * PAGESIZE;
     region_start = region_end - size;
     /* FIXME: could align here if we wanted */
 
     /*
      * Update the admin region.
      */
-    for (i = start + 2; i < start + npages-1; i++)
-        minefield_admin[i] = 0xFFFE;   /* used but no region starts here */
-    minefield_admin[start+1] = region_start % PAGESIZE;
+    for (i = start + 2; i < start + npages - 1; i++)
+	minefield_admin[i] = 0xFFFE;   /* used but no region starts here */
+    minefield_admin[start + 1] = region_start % PAGESIZE;
 
     minefield_admin_hide(1);
 
-    VirtualAlloc((char *)minefield_pages + region_start, size,
-                 MEM_COMMIT, PAGE_READWRITE);
-    return (char *)minefield_pages + region_start;
+    VirtualAlloc((char *) minefield_pages + region_start, size,
+		 MEM_COMMIT, PAGE_READWRITE);
+    return (char *) minefield_pages + region_start;
 }
 
-static void minefield_free(void *ptr) {
+static void minefield_free(void *ptr)
+{
     int region_start, i, j;
 
     minefield_admin_hide(0);
 
-    region_start = (char *)ptr - (char *)minefield_pages;
+    region_start = (char *) ptr - (char *) minefield_pages;
     i = region_start / PAGESIZE;
     if (i < 0 || i >= minefield_npages ||
-        minefield_admin[i] != region_start % PAGESIZE)
-        minefield_bomb();
+	minefield_admin[i] != region_start % PAGESIZE)
+	minefield_bomb();
     for (j = i; j < minefield_npages && minefield_admin[j] != 0xFFFF; j++) {
-        minefield_admin[j] = 0xFFFF;
+	minefield_admin[j] = 0xFFFF;
     }
 
-    VirtualFree(ptr, j*PAGESIZE - region_start, MEM_DECOMMIT);
+    VirtualFree(ptr, j * PAGESIZE - region_start, MEM_DECOMMIT);
 
     minefield_admin_hide(1);
 }
 
-static int minefield_get_size(void *ptr) {
+static int minefield_get_size(void *ptr)
+{
     int region_start, i, j;
 
     minefield_admin_hide(0);
 
-    region_start = (char *)ptr - (char *)minefield_pages;
+    region_start = (char *) ptr - (char *) minefield_pages;
     i = region_start / PAGESIZE;
     if (i < 0 || i >= minefield_npages ||
-        minefield_admin[i] != region_start % PAGESIZE)
-        minefield_bomb();
+	minefield_admin[i] != region_start % PAGESIZE)
+	minefield_bomb();
     for (j = i; j < minefield_npages && minefield_admin[j] != 0xFFFF; j++);
 
     minefield_admin_hide(1);
 
-    return j*PAGESIZE - region_start;
+    return j * PAGESIZE - region_start;
 }
 
-static void *minefield_c_malloc(size_t size) {
-    if (!minefield_initialised) minefield_init();
+static void *minefield_c_malloc(size_t size)
+{
+    if (!minefield_initialised)
+	minefield_init();
     return minefield_alloc(size);
 }
 
-static void minefield_c_free(void *p) {
-    if (!minefield_initialised) minefield_init();
+static void minefield_c_free(void *p)
+{
+    if (!minefield_initialised)
+	minefield_init();
     minefield_free(p);
 }
 
@@ -209,10 +219,12 @@ static void minefield_c_free(void *p) {
  * realloc _always_ moves the chunk, for rapid detection of code
  * that assumes it won't.
  */
-static void *minefield_c_realloc(void *p, size_t size) {
+static void *minefield_c_realloc(void *p, size_t size)
+{
     size_t oldsize;
     void *q;
-    if (!minefield_initialised) minefield_init();
+    if (!minefield_initialised)
+	minefield_init();
     q = minefield_alloc(size);
     oldsize = minefield_get_size(p);
     memcpy(q, p, (oldsize < size ? oldsize : size));
@@ -220,27 +232,29 @@ static void *minefield_c_realloc(void *p, size_t size) {
     return q;
 }
 
-#endif /* MINEFIELD */
+#endif				/* MINEFIELD */
 
 #ifdef MALLOC_LOG
 static FILE *fp = NULL;
 
-void mlog(char *file, int line) {
+void mlog(char *file, int line)
+{
     if (!fp) {
 	fp = fopen("putty_mem.log", "w");
 	setvbuf(fp, NULL, _IONBF, BUFSIZ);
     }
     if (fp)
-	fprintf (fp, "%s:%d: ", file, line);
+	fprintf(fp, "%s:%d: ", file, line);
 }
 #endif
 
-void *safemalloc(size_t size) {
+void *safemalloc(size_t size)
+{
     void *p;
 #ifdef MINEFIELD
-    p = minefield_c_malloc (size);
+    p = minefield_c_malloc(size);
 #else
-    p = malloc (size);
+    p = malloc(size);
 #endif
     if (!p) {
 	MessageBox(NULL, "Out of memory!", "PuTTY Fatal Error",
@@ -254,19 +268,20 @@ void *safemalloc(size_t size) {
     return p;
 }
 
-void *saferealloc(void *ptr, size_t size) {
+void *saferealloc(void *ptr, size_t size)
+{
     void *p;
     if (!ptr) {
 #ifdef MINEFIELD
-	p = minefield_c_malloc (size);
+	p = minefield_c_malloc(size);
 #else
-	p = malloc (size);
+	p = malloc(size);
 #endif
     } else {
 #ifdef MINEFIELD
-	p = minefield_c_realloc (ptr, size);
+	p = minefield_c_realloc(ptr, size);
 #else
-	p = realloc (ptr, size);
+	p = realloc(ptr, size);
 #endif
     }
     if (!p) {
@@ -281,16 +296,17 @@ void *saferealloc(void *ptr, size_t size) {
     return p;
 }
 
-void safefree(void *ptr) {
+void safefree(void *ptr)
+{
     if (ptr) {
 #ifdef MALLOC_LOG
 	if (fp)
 	    fprintf(fp, "free(%p)\n", ptr);
 #endif
 #ifdef MINEFIELD
-	minefield_c_free (ptr);
+	minefield_c_free(ptr);
 #else
-	free (ptr);
+	free(ptr);
 #endif
     }
 #ifdef MALLOC_LOG
@@ -303,7 +319,8 @@ void safefree(void *ptr) {
 static FILE *debug_fp = NULL;
 static int debug_got_console = 0;
 
-static void dputs (char *buf) {
+static void dputs(char *buf)
+{
     DWORD dw;
 
     if (!debug_got_console) {
@@ -314,56 +331,58 @@ static void dputs (char *buf) {
 	debug_fp = fopen("debug.log", "w");
     }
 
-    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &dw, NULL);
+    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &dw,
+	      NULL);
     fputs(buf, debug_fp);
     fflush(debug_fp);
 }
 
 
-void dprintf(char *fmt, ...) {
+void dprintf(char *fmt, ...)
+{
     char buf[2048];
     va_list ap;
 
     va_start(ap, fmt);
     vsprintf(buf, fmt, ap);
-    dputs (buf);
+    dputs(buf);
     va_end(ap);
 }
 
 
-void debug_memdump (void *buf, int len, int L) {
+void debug_memdump(void *buf, int len, int L)
+{
     int i;
     unsigned char *p = buf;
     char foo[17];
     if (L) {
 	int delta;
-        dprintf ("\t%d (0x%x) bytes:\n", len, len);
+	dprintf("\t%d (0x%x) bytes:\n", len, len);
 	delta = 15 & (int) p;
 	p -= delta;
 	len += delta;
     }
     for (; 0 < len; p += 16, len -= 16) {
-	dputs ("  ");
-	if (L) dprintf ("%p: ", p);
-	strcpy(foo, "................");   /* sixteen dots */
+	dputs("  ");
+	if (L)
+	    dprintf("%p: ", p);
+	strcpy(foo, "................");	/* sixteen dots */
 	for (i = 0; i < 16 && i < len; ++i) {
 	    if (&p[i] < (unsigned char *) buf) {
-		dputs ("   "); /* 3 spaces */
+		dputs("   ");	       /* 3 spaces */
 		foo[i] = ' ';
 	    } else {
-		dprintf (
-		    "%c%02.2x",
-		    &p[i] != (unsigned char *) buf && i % 4 ? '.' : ' ',
-		    p[i]
-		);
+		dprintf("%c%02.2x",
+			&p[i] != (unsigned char *) buf
+			&& i % 4 ? '.' : ' ', p[i]
+		    );
 		if (p[i] >= ' ' && p[i] <= '~')
-		    foo[i] = (char)p[i];
+		    foo[i] = (char) p[i];
 	    }
 	}
 	foo[i] = '\0';
-	dprintf("%*s%s\n", (16-i)*3+2, "", foo);
+	dprintf("%*s%s\n", (16 - i) * 3 + 2, "", foo);
     }
 }
 
-#endif /* def DEBUG */
-
+#endif				/* def DEBUG */

@@ -4,31 +4,31 @@
 
 #include "int64.h"
 
-#define SSH_FXP_INIT                              1    /* 0x1 */
-#define SSH_FXP_VERSION                           2    /* 0x2 */
-#define SSH_FXP_OPEN                              3    /* 0x3 */
-#define SSH_FXP_CLOSE                             4    /* 0x4 */
-#define SSH_FXP_READ                              5    /* 0x5 */
-#define SSH_FXP_WRITE                             6    /* 0x6 */
-#define SSH_FXP_LSTAT                             7    /* 0x7 */
-#define SSH_FXP_FSTAT                             8    /* 0x8 */
-#define SSH_FXP_SETSTAT                           9    /* 0x9 */
-#define SSH_FXP_FSETSTAT                          10   /* 0xa */
-#define SSH_FXP_OPENDIR                           11   /* 0xb */
-#define SSH_FXP_READDIR                           12   /* 0xc */
-#define SSH_FXP_REMOVE                            13   /* 0xd */
-#define SSH_FXP_MKDIR                             14   /* 0xe */
-#define SSH_FXP_RMDIR                             15   /* 0xf */
-#define SSH_FXP_REALPATH                          16   /* 0x10 */
-#define SSH_FXP_STAT                              17   /* 0x11 */
-#define SSH_FXP_RENAME                            18   /* 0x12 */
-#define SSH_FXP_STATUS                            101  /* 0x65 */
-#define SSH_FXP_HANDLE                            102  /* 0x66 */
-#define SSH_FXP_DATA                              103  /* 0x67 */
-#define SSH_FXP_NAME                              104  /* 0x68 */
-#define SSH_FXP_ATTRS                             105  /* 0x69 */
-#define SSH_FXP_EXTENDED                          200  /* 0xc8 */
-#define SSH_FXP_EXTENDED_REPLY                    201  /* 0xc9 */
+#define SSH_FXP_INIT                              1	/* 0x1 */
+#define SSH_FXP_VERSION                           2	/* 0x2 */
+#define SSH_FXP_OPEN                              3	/* 0x3 */
+#define SSH_FXP_CLOSE                             4	/* 0x4 */
+#define SSH_FXP_READ                              5	/* 0x5 */
+#define SSH_FXP_WRITE                             6	/* 0x6 */
+#define SSH_FXP_LSTAT                             7	/* 0x7 */
+#define SSH_FXP_FSTAT                             8	/* 0x8 */
+#define SSH_FXP_SETSTAT                           9	/* 0x9 */
+#define SSH_FXP_FSETSTAT                          10	/* 0xa */
+#define SSH_FXP_OPENDIR                           11	/* 0xb */
+#define SSH_FXP_READDIR                           12	/* 0xc */
+#define SSH_FXP_REMOVE                            13	/* 0xd */
+#define SSH_FXP_MKDIR                             14	/* 0xe */
+#define SSH_FXP_RMDIR                             15	/* 0xf */
+#define SSH_FXP_REALPATH                          16	/* 0x10 */
+#define SSH_FXP_STAT                              17	/* 0x11 */
+#define SSH_FXP_RENAME                            18	/* 0x12 */
+#define SSH_FXP_STATUS                            101	/* 0x65 */
+#define SSH_FXP_HANDLE                            102	/* 0x66 */
+#define SSH_FXP_DATA                              103	/* 0x67 */
+#define SSH_FXP_NAME                              104	/* 0x68 */
+#define SSH_FXP_ATTRS                             105	/* 0x69 */
+#define SSH_FXP_EXTENDED                          200	/* 0xc8 */
+#define SSH_FXP_EXTENDED_REPLY                    201	/* 0xc9 */
 
 #define SSH_FX_OK                                 0
 #define SSH_FX_EOF                                1
@@ -124,12 +124,14 @@ void fxp_close(struct fxp_handle *handle);
 /*
  * Read from a file.
  */
-int fxp_read(struct fxp_handle *handle, char *buffer, uint64 offset, int len);
+int fxp_read(struct fxp_handle *handle, char *buffer, uint64 offset,
+	     int len);
 
 /*
  * Write to a file. Returns 0 on error, 1 on OK.
  */
-int fxp_write(struct fxp_handle *handle, char *buffer, uint64 offset, int len);
+int fxp_write(struct fxp_handle *handle, char *buffer, uint64 offset,
+	      int len);
 
 /*
  * Read from a directory.

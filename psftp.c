@@ -20,15 +20,17 @@
  * String handling routines.
  */
 
-char *dupstr(char *s) {
+char *dupstr(char *s)
+{
     int len = strlen(s);
-    char *p = smalloc(len+1);
+    char *p = smalloc(len + 1);
     strcpy(p, s);
     return p;
 }
 
 /* Allocate the concatenation of N strings. Terminate arg list with NULL. */
-char *dupcat(char *s1, ...) {
+char *dupcat(char *s1, ...)
+{
     int len;
     char *p, *q, *sn;
     va_list ap;
@@ -43,7 +45,7 @@ char *dupcat(char *s1, ...) {
     }
     va_end(ap);
 
-    p = smalloc(len+1);
+    p = smalloc(len + 1);
     strcpy(p, s1);
     q = p + strlen(p);
 
@@ -75,14 +77,15 @@ char *pwd, *homedir;
  * canonification fails, at least fall back to returning a _valid_
  * pathname (though it may be ugly, eg /home/simon/../foobar).
  */
-char *canonify(char *name) {
+char *canonify(char *name)
+{
     char *fullname, *canonname;
 
     if (name[0] == '/') {
 	fullname = dupstr(name);
     } else {
 	char *slash;
-	if (pwd[strlen(pwd)-1] == '/')
+	if (pwd[strlen(pwd) - 1] == '/')
 	    slash = "";
 	else
 	    slash = "/";
@@ -95,73 +98,73 @@ char *canonify(char *name) {
 	sfree(fullname);
 	return canonname;
     } else {
-        /*
-         * Attempt number 2. Some FXP_REALPATH implementations
-         * (glibc-based ones, in particular) require the _whole_
-         * path to point to something that exists, whereas others
-         * (BSD-based) only require all but the last component to
-         * exist. So if the first call failed, we should strip off
-         * everything from the last slash onwards and try again,
-         * then put the final component back on.
-         * 
-         * Special cases:
-         * 
-         *  - if the last component is "/." or "/..", then we don't
-         *    bother trying this because there's no way it can work.
-         * 
-         *  - if the thing actually ends with a "/", we remove it
-         *    before we start. Except if the string is "/" itself
-         *    (although I can't see why we'd have got here if so,
-         *    because surely "/" would have worked the first
-         *    time?), in which case we don't bother.
-         * 
-         *  - if there's no slash in the string at all, give up in
-         *    confusion (we expect at least one because of the way
-         *    we constructed the string).
-         */
-        
-        int i;
-        char *returnname;
+	/*
+	 * Attempt number 2. Some FXP_REALPATH implementations
+	 * (glibc-based ones, in particular) require the _whole_
+	 * path to point to something that exists, whereas others
+	 * (BSD-based) only require all but the last component to
+	 * exist. So if the first call failed, we should strip off
+	 * everything from the last slash onwards and try again,
+	 * then put the final component back on.
+	 * 
+	 * Special cases:
+	 * 
+	 *  - if the last component is "/." or "/..", then we don't
+	 *    bother trying this because there's no way it can work.
+	 * 
+	 *  - if the thing actually ends with a "/", we remove it
+	 *    before we start. Except if the string is "/" itself
+	 *    (although I can't see why we'd have got here if so,
+	 *    because surely "/" would have worked the first
+	 *    time?), in which case we don't bother.
+	 * 
+	 *  - if there's no slash in the string at all, give up in
+	 *    confusion (we expect at least one because of the way
+	 *    we constructed the string).
+	 */
 
-        i = strlen(fullname);
-        if (i > 2 && fullname[i-1] == '/')
-            fullname[--i] = '\0';      /* strip trailing / unless at pos 0 */
-        while (i > 0 && fullname[--i] != '/');
+	int i;
+	char *returnname;
 
-        /*
-         * Give up on special cases.
-         */
-        if (fullname[i] != '/' ||      /* no slash at all */
-            !strcmp(fullname+i, "/.") ||   /* ends in /. */
-            !strcmp(fullname+i, "/..") ||   /* ends in /.. */
-            !strcmp(fullname, "/")) {
-            return fullname;
-        }
+	i = strlen(fullname);
+	if (i > 2 && fullname[i - 1] == '/')
+	    fullname[--i] = '\0';      /* strip trailing / unless at pos 0 */
+	while (i > 0 && fullname[--i] != '/');
 
-        /*
-         * Now i points at the slash. Deal with the final special
-         * case i==0 (ie the whole path was "/nonexistentfile").
-         */
-        fullname[i] = '\0';            /* separate the string */
-        if (i == 0) {
-            canonname = fxp_realpath("/");
-        } else {
-            canonname = fxp_realpath(fullname);
-        }
+	/*
+	 * Give up on special cases.
+	 */
+	if (fullname[i] != '/' ||      /* no slash at all */
+	    !strcmp(fullname + i, "/.") ||	/* ends in /. */
+	    !strcmp(fullname + i, "/..") ||	/* ends in /.. */
+	    !strcmp(fullname, "/")) {
+	    return fullname;
+	}
 
-        if (!canonname)
-            return fullname;           /* even that failed; give up */
+	/*
+	 * Now i points at the slash. Deal with the final special
+	 * case i==0 (ie the whole path was "/nonexistentfile").
+	 */
+	fullname[i] = '\0';	       /* separate the string */
+	if (i == 0) {
+	    canonname = fxp_realpath("/");
+	} else {
+	    canonname = fxp_realpath(fullname);
+	}
 
-        /*
-         * We have a canonical name for all but the last path
-         * component. Concatenate the last component and return.
-         */
-        returnname = dupcat(canonname,
-                            canonname[strlen(canonname)-1] == '/' ? "" : "/",
-                            fullname+i+1, NULL);
-        sfree(fullname);
-        sfree(canonname);
-        return returnname;
+	if (!canonname)
+	    return fullname;	       /* even that failed; give up */
+
+	/*
+	 * We have a canonical name for all but the last path
+	 * component. Concatenate the last component and return.
+	 */
+	returnname = dupcat(canonname,
+			    canonname[strlen(canonname) - 1] ==
+			    '/' ? "" : "/", fullname + i + 1, NULL);
+	sfree(fullname);
+	sfree(canonname);
+	return returnname;
     }
 }
 
@@ -171,19 +174,22 @@ char *canonify(char *name) {
 struct sftp_command {
     char **words;
     int nwords, wordssize;
-    int (*obey)(struct sftp_command *);/* returns <0 to quit */
+    int (*obey) (struct sftp_command *);	/* returns <0 to quit */
 };
 
-int sftp_cmd_null(struct sftp_command *cmd) {
+int sftp_cmd_null(struct sftp_command *cmd)
+{
     return 0;
 }
 
-int sftp_cmd_unknown(struct sftp_command *cmd) {
+int sftp_cmd_unknown(struct sftp_command *cmd)
+{
     printf("psftp: unknown command \"%s\"\n", cmd->words[0]);
     return 0;
 }
 
-int sftp_cmd_quit(struct sftp_command *cmd) {
+int sftp_cmd_quit(struct sftp_command *cmd)
+{
     return -1;
 }
 
@@ -191,12 +197,14 @@ int sftp_cmd_quit(struct sftp_command *cmd) {
  * List a directory. If no arguments are given, list pwd; otherwise
  * list the directory given in words[1].
  */
-static int sftp_ls_compare(const void *av, const void *bv) {
-    const struct fxp_name *a = (const struct fxp_name *)av;
-    const struct fxp_name *b = (const struct fxp_name *)bv;
+static int sftp_ls_compare(const void *av, const void *bv)
+{
+    const struct fxp_name *a = (const struct fxp_name *) av;
+    const struct fxp_name *b = (const struct fxp_name *) bv;
     return strcmp(a->filename, b->filename);
 }
-int sftp_cmd_ls(struct sftp_command *cmd) {
+int sftp_cmd_ls(struct sftp_command *cmd)
+{
     struct fxp_handle *dirh;
     struct fxp_names *names;
     struct fxp_name *ournames;
@@ -240,7 +248,8 @@ int sftp_cmd_ls(struct sftp_command *cmd) {
 
 	    if (nnames + names->nnames >= namesize) {
 		namesize += names->nnames + 128;
-		ournames = srealloc(ournames, namesize * sizeof(*ournames));
+		ournames =
+		    srealloc(ournames, namesize * sizeof(*ournames));
 	    }
 
 	    for (i = 0; i < names->nnames; i++)
@@ -273,7 +282,8 @@ int sftp_cmd_ls(struct sftp_command *cmd) {
  * Change directories. We do this by canonifying the new name, then
  * trying to OPENDIR it. Only if that succeeds do we set the new pwd.
  */
-int sftp_cmd_cd(struct sftp_command *cmd) {
+int sftp_cmd_cd(struct sftp_command *cmd)
+{
     struct fxp_handle *dirh;
     char *dir;
 
@@ -306,7 +316,8 @@ int sftp_cmd_cd(struct sftp_command *cmd) {
 /*
  * Get a file and save it at the local end.
  */
-int sftp_cmd_get(struct sftp_command *cmd) {
+int sftp_cmd_get(struct sftp_command *cmd)
+{
     struct fxp_handle *fh;
     char *fname, *outfname;
     uint64 offset;
@@ -333,14 +344,14 @@ int sftp_cmd_get(struct sftp_command *cmd) {
     fp = fopen(outfname, "wb");
     if (!fp) {
 	printf("local: unable to open %s\n", outfname);
-        fxp_close(fh);
+	fxp_close(fh);
 	sfree(fname);
 	return 0;
     }
 
     printf("remote:%s => local:%s\n", fname, outfname);
 
-    offset = uint64_make(0,0);
+    offset = uint64_make(0, 0);
 
     /*
      * FIXME: we can use FXP_FSTAT here to get the file size, and
@@ -352,17 +363,16 @@ int sftp_cmd_get(struct sftp_command *cmd) {
 	int wpos, wlen;
 
 	len = fxp_read(fh, buffer, offset, sizeof(buffer));
-	if ((len == -1 && fxp_error_type() == SSH_FX_EOF) ||
-	    len == 0)
+	if ((len == -1 && fxp_error_type() == SSH_FX_EOF) || len == 0)
 	    break;
 	if (len == -1) {
 	    printf("error while reading: %s\n", fxp_error());
 	    break;
 	}
-	
+
 	wpos = 0;
 	while (wpos < len) {
-	    wlen = fwrite(buffer, 1, len-wpos, fp);
+	    wlen = fwrite(buffer, 1, len - wpos, fp);
 	    if (wlen <= 0) {
 		printf("error while writing local file\n");
 		break;
@@ -384,7 +394,8 @@ int sftp_cmd_get(struct sftp_command *cmd) {
 /*
  * Send a file and store it at the remote end.
  */
-int sftp_cmd_put(struct sftp_command *cmd) {
+int sftp_cmd_put(struct sftp_command *cmd)
+{
     struct fxp_handle *fh;
     char *fname, *origoutfname, *outfname;
     uint64 offset;
@@ -418,7 +429,7 @@ int sftp_cmd_put(struct sftp_command *cmd) {
 
     printf("local:%s => remote:%s\n", fname, outfname);
 
-    offset = uint64_make(0,0);
+    offset = uint64_make(0, 0);
 
     /*
      * FIXME: we can use FXP_FSTAT here to get the file size, and
@@ -451,26 +462,27 @@ int sftp_cmd_put(struct sftp_command *cmd) {
 
 static struct sftp_cmd_lookup {
     char *name;
-    int (*obey)(struct sftp_command *);
+    int (*obey) (struct sftp_command *);
 } sftp_lookup[] = {
     /*
      * List of sftp commands. This is binary-searched so it MUST be
      * in ASCII order.
      */
-    {"bye", sftp_cmd_quit},
-    {"cd", sftp_cmd_cd},
-    {"dir", sftp_cmd_ls},
-    {"exit", sftp_cmd_quit},
-    {"get", sftp_cmd_get},
-    {"ls", sftp_cmd_ls},
-    {"put", sftp_cmd_put},
-    {"quit", sftp_cmd_quit},
-};
+    {
+    "bye", sftp_cmd_quit}, {
+    "cd", sftp_cmd_cd}, {
+    "dir", sftp_cmd_ls}, {
+    "exit", sftp_cmd_quit}, {
+    "get", sftp_cmd_get}, {
+    "ls", sftp_cmd_ls}, {
+    "put", sftp_cmd_put}, {
+"quit", sftp_cmd_quit},};
 
 /* ----------------------------------------------------------------------
  * Command line reading and parsing.
  */
-struct sftp_command *sftp_getcmd(void) {
+struct sftp_command *sftp_getcmd(void)
+{
     char *line;
     int linelen, linesize;
     struct sftp_command *cmd;
@@ -493,16 +505,16 @@ struct sftp_command *sftp_getcmd(void) {
 
 	linesize += 512;
 	line = srealloc(line, linesize);
-	ret = fgets(line+linelen, linesize-linelen, stdin);
+	ret = fgets(line + linelen, linesize - linelen, stdin);
 
 	if (!ret || (linelen == 0 && line[0] == '\0')) {
 	    cmd->obey = sftp_cmd_quit;
 	    printf("quit\n");
 	    return cmd;		       /* eof */
 	}
-	len = linelen + strlen(line+linelen);
+	len = linelen + strlen(line + linelen);
 	linelen += len;
-	if (line[linelen-1] == '\n') {
+	if (line[linelen - 1] == '\n') {
 	    linelen--;
 	    line[linelen] = '\0';
 	    break;
@@ -528,7 +540,8 @@ struct sftp_command *sftp_getcmd(void) {
     p = line;
     while (*p) {
 	/* skip whitespace */
-	while (*p && (*p == ' ' || *p == '\t')) p++;
+	while (*p && (*p == ' ' || *p == '\t'))
+	    p++;
 	/* mark start of word */
 	q = r = p;		       /* q sits at start, r writes word */
 	quoting = 0;
@@ -536,17 +549,19 @@ struct sftp_command *sftp_getcmd(void) {
 	    if (!quoting && (*p == ' ' || *p == '\t'))
 		break;		       /* reached end of word */
 	    else if (*p == '"' && p[1] == '"')
-		p+=2, *r++ = '"';      /* a literal quote */
+		p += 2, *r++ = '"';    /* a literal quote */
 	    else if (*p == '"')
 		p++, quoting = !quoting;
 	    else
 		*r++ = *p++;
 	}
-	if (*p) p++;			       /* skip over the whitespace */
+	if (*p)
+	    p++;		       /* skip over the whitespace */
 	*r = '\0';
 	if (cmd->nwords >= cmd->wordssize) {
 	    cmd->wordssize = cmd->nwords + 16;
-	    cmd->words = srealloc(cmd->words, cmd->wordssize*sizeof(char *));
+	    cmd->words =
+		srealloc(cmd->words, cmd->wordssize * sizeof(char *));
 	}
 	cmd->words[cmd->nwords++] = q;
     }
@@ -581,14 +596,14 @@ struct sftp_command *sftp_getcmd(void) {
     return cmd;
 }
 
-void do_sftp(void) {
+void do_sftp(void)
+{
     /*
      * Do protocol initialisation. 
      */
     if (!fxp_init()) {
 	fprintf(stderr,
-		"Fatal: unable to initialise SFTP: %s\n",
-		fxp_error());
+		"Fatal: unable to initialise SFTP: %s\n", fxp_error());
 	return;
     }
 
@@ -626,38 +641,38 @@ void do_sftp(void) {
 static int verbose = 0;
 
 void verify_ssh_host_key(char *host, int port, char *keytype,
-                         char *keystr, char *fingerprint) {
+			 char *keystr, char *fingerprint)
+{
     int ret;
 
     static const char absentmsg[] =
-        "The server's host key is not cached in the registry. You\n"
-        "have no guarantee that the server is the computer you\n"
-        "think it is.\n"
-        "The server's key fingerprint is:\n"
-        "%s\n"
-        "If you trust this host, enter \"y\" to add the key to\n"
-        "PuTTY's cache and carry on connecting.\n"
-        "If you do not trust this host, enter \"n\" to abandon the\n"
-        "connection.\n"
-        "Continue connecting? (y/n) ";
+	"The server's host key is not cached in the registry. You\n"
+	"have no guarantee that the server is the computer you\n"
+	"think it is.\n"
+	"The server's key fingerprint is:\n"
+	"%s\n"
+	"If you trust this host, enter \"y\" to add the key to\n"
+	"PuTTY's cache and carry on connecting.\n"
+	"If you do not trust this host, enter \"n\" to abandon the\n"
+	"connection.\n" "Continue connecting? (y/n) ";
 
     static const char wrongmsg[] =
-        "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "The server's host key does not match the one PuTTY has\n"
-        "cached in the registry. This means that either the\n"
-        "server administrator has changed the host key, or you\n"
-        "have actually connected to another computer pretending\n"
-        "to be the server.\n"
-        "The new key fingerprint is:\n"
-        "%s\n"
-        "If you were expecting this change and trust the new key,\n"
-        "enter Yes to update PuTTY's cache and continue connecting.\n"
-        "If you want to carry on connecting but without updating\n"
-        "the cache, enter No.\n"
-        "If you want to abandon the connection completely, press\n"
-        "Return to cancel. Pressing Return is the ONLY guaranteed\n"
-        "safe choice.\n"
-        "Update cached key? (y/n, Return cancels connection) ";
+	"WARNING - POTENTIAL SECURITY BREACH!\n"
+	"The server's host key does not match the one PuTTY has\n"
+	"cached in the registry. This means that either the\n"
+	"server administrator has changed the host key, or you\n"
+	"have actually connected to another computer pretending\n"
+	"to be the server.\n"
+	"The new key fingerprint is:\n"
+	"%s\n"
+	"If you were expecting this change and trust the new key,\n"
+	"enter Yes to update PuTTY's cache and continue connecting.\n"
+	"If you want to carry on connecting but without updating\n"
+	"the cache, enter No.\n"
+	"If you want to abandon the connection completely, press\n"
+	"Return to cancel. Pressing Return is the ONLY guaranteed\n"
+	"safe choice.\n"
+	"Update cached key? (y/n, Return cancels connection) ";
 
     static const char abandoned[] = "Connection abandoned.\n";
 
@@ -668,28 +683,28 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
      */
     ret = verify_host_key(host, port, keytype, keystr);
 
-    if (ret == 0)                      /* success - key matched OK */
-        return;
-    if (ret == 2) {                    /* key was different */
-        fprintf(stderr, wrongmsg, fingerprint);
-        if (fgets(line, sizeof(line), stdin) &&
-            line[0] != '\0' && line[0] != '\n') {
-            if (line[0] == 'y' || line[0] == 'Y')
-                store_host_key(host, port, keytype, keystr);
-        } else {
-            fprintf(stderr, abandoned);
-            exit(0);
-        }
+    if (ret == 0)		       /* success - key matched OK */
+	return;
+    if (ret == 2) {		       /* key was different */
+	fprintf(stderr, wrongmsg, fingerprint);
+	if (fgets(line, sizeof(line), stdin) &&
+	    line[0] != '\0' && line[0] != '\n') {
+	    if (line[0] == 'y' || line[0] == 'Y')
+		store_host_key(host, port, keytype, keystr);
+	} else {
+	    fprintf(stderr, abandoned);
+	    exit(0);
+	}
     }
-    if (ret == 1) {                    /* key was absent */
-        fprintf(stderr, absentmsg, fingerprint);
-        if (fgets(line, sizeof(line), stdin) &&
-            (line[0] == 'y' || line[0] == 'Y'))
-            store_host_key(host, port, keytype, keystr);
-        else {
-            fprintf(stderr, abandoned);
-            exit(0);
-        }
+    if (ret == 1) {		       /* key was absent */
+	fprintf(stderr, absentmsg, fingerprint);
+	if (fgets(line, sizeof(line), stdin) &&
+	    (line[0] == 'y' || line[0] == 'Y'))
+	    store_host_key(host, port, keytype, keystr);
+	else {
+	    fprintf(stderr, abandoned);
+	    exit(0);
+	}
     }
 }
 
@@ -698,11 +713,11 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
  */
 void fatalbox(char *fmt, ...)
 {
-    char str[0x100]; /* Make the size big enough */
+    char str[0x100];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal:");
-    vsprintf(str+strlen(str), fmt, ap);
+    vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
     fprintf(stderr, str);
@@ -711,11 +726,11 @@ void fatalbox(char *fmt, ...)
 }
 void connection_fatal(char *fmt, ...)
 {
-    char str[0x100]; /* Make the size big enough */
+    char str[0x100];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal:");
-    vsprintf(str+strlen(str), fmt, ap);
+    vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
     fprintf(stderr, str);
@@ -723,9 +738,12 @@ void connection_fatal(char *fmt, ...)
     exit(1);
 }
 
-void logevent(char *string) { }
+void logevent(char *string)
+{
+}
 
-void ldisc_send(char *buf, int len) {
+void ldisc_send(char *buf, int len)
+{
     /*
      * This is only here because of the calls to ldisc_send(NULL,
      * 0) in ssh.c. Nothing in PSFTP actually needs to use the
@@ -739,7 +757,8 @@ void ldisc_send(char *buf, int len) {
  * Be told what socket we're supposed to be using.
  */
 static SOCKET sftp_ssh_socket;
-char *do_select(SOCKET skt, int startup) {
+char *do_select(SOCKET skt, int startup)
+{
     if (startup)
 	sftp_ssh_socket = skt;
     else
@@ -757,13 +776,14 @@ extern int select_result(WPARAM, LPARAM);
  * do this until we have enough data.
  */
 
-static unsigned char *outptr;          /* where to put the data */
-static unsigned outlen;                /* how much data required */
+static unsigned char *outptr;	       /* where to put the data */
+static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
-static unsigned pendlen=0, pendsize=0; /* length and phys. size of buffer */
-void from_backend(int is_stderr, char *data, int datalen) {
-    unsigned char *p = (unsigned char *)data;
-    unsigned len = (unsigned)datalen;
+static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
+void from_backend(int is_stderr, char *data, int datalen)
+{
+    unsigned char *p = (unsigned char *) data;
+    unsigned len = (unsigned) datalen;
 
     /*
      * stderr data is just spouted to local stderr and otherwise
@@ -778,30 +798,34 @@ void from_backend(int is_stderr, char *data, int datalen) {
      * If this is before the real session begins, just return.
      */
     if (!outptr)
-        return;
+	return;
 
     if (outlen > 0) {
-        unsigned used = outlen;
-        if (used > len) used = len;
-        memcpy(outptr, p, used);
-        outptr += used; outlen -= used;
-        p += used; len -= used;
+	unsigned used = outlen;
+	if (used > len)
+	    used = len;
+	memcpy(outptr, p, used);
+	outptr += used;
+	outlen -= used;
+	p += used;
+	len -= used;
     }
 
     if (len > 0) {
-        if (pendsize < pendlen + len) {
-            pendsize = pendlen + len + 4096;
-            pending = (pending ? srealloc(pending, pendsize) :
-                       smalloc(pendsize));
-            if (!pending)
-                fatalbox("Out of memory");
-        }
-        memcpy(pending+pendlen, p, len);
-        pendlen += len;
+	if (pendsize < pendlen + len) {
+	    pendsize = pendlen + len + 4096;
+	    pending = (pending ? srealloc(pending, pendsize) :
+		       smalloc(pendsize));
+	    if (!pending)
+		fatalbox("Out of memory");
+	}
+	memcpy(pending + pendlen, p, len);
+	pendlen += len;
     }
 }
-int sftp_recvdata(char *buf, int len) {
-    outptr = (unsigned char *)buf;
+int sftp_recvdata(char *buf, int len)
+{
+    outptr = (unsigned char *) buf;
     outlen = len;
 
     /*
@@ -809,53 +833,55 @@ int sftp_recvdata(char *buf, int len) {
      * need.
      */
     if (pendlen > 0) {
-        unsigned pendused = pendlen;
-        if (pendused > outlen)
-            pendused = outlen;
+	unsigned pendused = pendlen;
+	if (pendused > outlen)
+	    pendused = outlen;
 	memcpy(outptr, pending, pendused);
-        memmove(pending, pending+pendused, pendlen-pendused);
+	memmove(pending, pending + pendused, pendlen - pendused);
 	outptr += pendused;
 	outlen -= pendused;
-        pendlen -= pendused;
-        if (pendlen == 0) {
-            pendsize = 0;
-            sfree(pending);
-            pending = NULL;
-        }
-        if (outlen == 0)
-            return 1;
+	pendlen -= pendused;
+	if (pendlen == 0) {
+	    pendsize = 0;
+	    sfree(pending);
+	    pending = NULL;
+	}
+	if (outlen == 0)
+	    return 1;
     }
 
     while (outlen > 0) {
-        fd_set readfds;
+	fd_set readfds;
 
-        FD_ZERO(&readfds);
-        FD_SET(sftp_ssh_socket, &readfds);
-        if (select(1, &readfds, NULL, NULL, NULL) < 0)
-            return 0;                  /* doom */
-        select_result((WPARAM)sftp_ssh_socket, (LPARAM)FD_READ);
+	FD_ZERO(&readfds);
+	FD_SET(sftp_ssh_socket, &readfds);
+	if (select(1, &readfds, NULL, NULL, NULL) < 0)
+	    return 0;		       /* doom */
+	select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_READ);
     }
 
     return 1;
 }
-int sftp_senddata(char *buf, int len) {
-    back->send((unsigned char *)buf, len);
+int sftp_senddata(char *buf, int len)
+{
+    back->send((unsigned char *) buf, len);
     return 1;
 }
 
 /*
  * Loop through the ssh connection and authentication process.
  */
-static void ssh_sftp_init(void) {
+static void ssh_sftp_init(void)
+{
     if (sftp_ssh_socket == INVALID_SOCKET)
 	return;
     while (!back->sendok()) {
-        fd_set readfds;
-        FD_ZERO(&readfds);
-        FD_SET(sftp_ssh_socket, &readfds);
-        if (select(1, &readfds, NULL, NULL, NULL) < 0)
-            return;                    /* doom */
-        select_result((WPARAM)sftp_ssh_socket, (LPARAM)FD_READ);
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	FD_SET(sftp_ssh_socket, &readfds);
+	if (select(1, &readfds, NULL, NULL, NULL) < 0)
+	    return;		       /* doom */
+	select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_READ);
     }
 }
 
@@ -866,16 +892,16 @@ static int get_line(const char *prompt, char *str, int maxlen, int is_pw)
     DWORD savemode, newmode, i;
 
     if (password) {
-        static int tried_once = 0;
+	static int tried_once = 0;
 
-        if (tried_once) {
-            return 0;
-        } else {
-            strncpy(str, password, maxlen);
-            str[maxlen-1] = '\0';
-            tried_once = 1;
-            return 1;
-        }
+	if (tried_once) {
+	    return 0;
+	} else {
+	    strncpy(str, password, maxlen);
+	    str[maxlen - 1] = '\0';
+	    tried_once = 1;
+	    return 1;
+	}
     }
 
     hin = GetStdHandle(STD_INPUT_HANDLE);
@@ -888,21 +914,24 @@ static int get_line(const char *prompt, char *str, int maxlen, int is_pw)
     GetConsoleMode(hin, &savemode);
     newmode = savemode | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT;
     if (is_pw)
-        newmode &= ~ENABLE_ECHO_INPUT;
+	newmode &= ~ENABLE_ECHO_INPUT;
     else
-        newmode |= ENABLE_ECHO_INPUT;
+	newmode |= ENABLE_ECHO_INPUT;
     SetConsoleMode(hin, newmode);
 
     WriteFile(hout, prompt, strlen(prompt), &i, NULL);
-    ReadFile(hin, str, maxlen-1, &i, NULL);
+    ReadFile(hin, str, maxlen - 1, &i, NULL);
 
     SetConsoleMode(hin, savemode);
 
-    if ((int)i > maxlen) i = maxlen-1; else i = i - 2;
+    if ((int) i > maxlen)
+	i = maxlen - 1;
+    else
+	i = i - 2;
     str[i] = '\0';
 
     if (is_pw)
-        WriteFile(hout, "\r\n", 2, &i, NULL);
+	WriteFile(hout, "\r\n", 2, &i, NULL);
 
     return 1;
 }
@@ -920,8 +949,7 @@ static void init_winsock(void)
 	fprintf(stderr, "Unable to initialise WinSock");
 	exit(1);
     }
-    if (LOBYTE(wsadata.wVersion) != 1 ||
-	HIBYTE(wsadata.wVersion) != 1) {
+    if (LOBYTE(wsadata.wVersion) != 1 || HIBYTE(wsadata.wVersion) != 1) {
 	fprintf(stderr, "WinSock version is incompatible with 1.1");
 	exit(1);
     }
@@ -970,11 +998,11 @@ int main(int argc, char *argv[])
 	} else if (strcmp(argv[i], "-h") == 0 ||
 		   strcmp(argv[i], "-?") == 0) {
 	    usage();
-	} else if (strcmp(argv[i], "-l") == 0 && i+1 < argc) {
+	} else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
 	    user = argv[++i];
-	} else if (strcmp(argv[i], "-P") == 0 && i+1 < argc) {
+	} else if (strcmp(argv[i], "-P") == 0 && i + 1 < argc) {
 	    portnumber = atoi(argv[++i]);
-	} else if (strcmp(argv[i], "-pw") == 0 && i+1 < argc) {
+	} else if (strcmp(argv[i], "-pw") == 0 && i + 1 < argc) {
 	    password = argv[++i];
 	} else if (strcmp(argv[i], "--") == 0) {
 	    i++;
@@ -998,7 +1026,8 @@ int main(int argc, char *argv[])
     } else {
 	*host++ = '\0';
 	if (user) {
-	    printf("psftp: multiple usernames specified; using \"%s\"\n", user);
+	    printf("psftp: multiple usernames specified; using \"%s\"\n",
+		   user);
 	} else
 	    user = userhost;
     }
@@ -1007,16 +1036,16 @@ int main(int argc, char *argv[])
     do_defaults(host, &cfg);
     if (cfg.host[0] == '\0') {
 	/* No settings for this host; use defaults */
-        do_defaults(NULL, &cfg);
-	strncpy(cfg.host, host, sizeof(cfg.host)-1);
-	cfg.host[sizeof(cfg.host)-1] = '\0';
+	do_defaults(NULL, &cfg);
+	strncpy(cfg.host, host, sizeof(cfg.host) - 1);
+	cfg.host[sizeof(cfg.host) - 1] = '\0';
 	cfg.port = 22;
     }
 
     /* Set username */
     if (user != NULL && user[0] != '\0') {
-	strncpy(cfg.username, user, sizeof(cfg.username)-1);
-	cfg.username[sizeof(cfg.username)-1] = '\0';
+	strncpy(cfg.username, user, sizeof(cfg.username) - 1);
+	cfg.username[sizeof(cfg.username) - 1] = '\0';
     }
     if (!cfg.username[0]) {
 	printf("login as: ");
@@ -1025,8 +1054,8 @@ int main(int argc, char *argv[])
 	    exit(1);
 	} else {
 	    int len = strlen(cfg.username);
-	    if (cfg.username[len-1] == '\n')
-		cfg.username[len-1] = '\0';
+	    if (cfg.username[len - 1] == '\n')
+		cfg.username[len - 1] = '\0';
 	}
     }
 

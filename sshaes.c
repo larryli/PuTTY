@@ -53,10 +53,10 @@
 typedef struct AESContext AESContext;
 
 struct AESContext {
-    word32 keysched[(MAX_NR+1) * MAX_NB];
-    word32 invkeysched[(MAX_NR+1) * MAX_NB];
-    void (*encrypt)(AESContext *ctx, word32 *block);
-    void (*decrypt)(AESContext *ctx, word32 *block);
+    word32 keysched[(MAX_NR + 1) * MAX_NB];
+    word32 invkeysched[(MAX_NR + 1) * MAX_NB];
+    void (*encrypt) (AESContext * ctx, word32 * block);
+    void (*decrypt) (AESContext * ctx, word32 * block);
     word32 iv[MAX_NB];
     int Nb, Nr;
 };
@@ -96,59 +96,115 @@ static const word32 D0[256], D1[256], D2[256], D3[256];
  * Core encrypt routines, expecting word32 inputs read big-endian
  * from the byte-oriented input stream.
  */
-static void aes_encrypt_nb_4(AESContext *ctx, word32 *block) {
+static void aes_encrypt_nb_4(AESContext * ctx, word32 * block)
+{
     int i;
     static const int C1 = 1, C2 = 2, C3 = 3, Nb = 4;
     word32 *keysched = ctx->keysched;
     word32 newstate[4];
-    for (i = 0; i < ctx->Nr-1; i++) {
+    for (i = 0; i < ctx->Nr - 1; i++) {
 	ADD_ROUND_KEY_4;
-	MAKEWORD(0); MAKEWORD(1); MAKEWORD(2); MAKEWORD(3);
-	MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
     }
     ADD_ROUND_KEY_4;
-    LASTWORD(0); LASTWORD(1); LASTWORD(2); LASTWORD(3);
-    MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
     ADD_ROUND_KEY_4;
 }
-static void aes_encrypt_nb_6(AESContext *ctx, word32 *block) {
+static void aes_encrypt_nb_6(AESContext * ctx, word32 * block)
+{
     int i;
     static const int C1 = 1, C2 = 2, C3 = 3, Nb = 6;
     word32 *keysched = ctx->keysched;
     word32 newstate[6];
-    for (i = 0; i < ctx->Nr-1; i++) {
+    for (i = 0; i < ctx->Nr - 1; i++) {
 	ADD_ROUND_KEY_6;
-	MAKEWORD(0); MAKEWORD(1); MAKEWORD(2);
-	MAKEWORD(3); MAKEWORD(4); MAKEWORD(5);
-	MOVEWORD(0); MOVEWORD(1); MOVEWORD(2);
-	MOVEWORD(3); MOVEWORD(4); MOVEWORD(5);
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
     }
     ADD_ROUND_KEY_6;
-    LASTWORD(0); LASTWORD(1); LASTWORD(2);
-    LASTWORD(3); LASTWORD(4); LASTWORD(5);
-    MOVEWORD(0); MOVEWORD(1); MOVEWORD(2);
-    MOVEWORD(3); MOVEWORD(4); MOVEWORD(5);
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
     ADD_ROUND_KEY_6;
 }
-static void aes_encrypt_nb_8(AESContext *ctx, word32 *block) {
+static void aes_encrypt_nb_8(AESContext * ctx, word32 * block)
+{
     int i;
     static const int C1 = 1, C2 = 3, C3 = 4, Nb = 8;
     word32 *keysched = ctx->keysched;
     word32 newstate[8];
-    for (i = 0; i < ctx->Nr-1; i++) {
+    for (i = 0; i < ctx->Nr - 1; i++) {
 	ADD_ROUND_KEY_8;
-	MAKEWORD(0); MAKEWORD(1); MAKEWORD(2); MAKEWORD(3);
-	MAKEWORD(4); MAKEWORD(5); MAKEWORD(6); MAKEWORD(7);
-	MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
-	MOVEWORD(4); MOVEWORD(5); MOVEWORD(6); MOVEWORD(7);
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MAKEWORD(6);
+	MAKEWORD(7);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
+	MOVEWORD(6);
+	MOVEWORD(7);
     }
     ADD_ROUND_KEY_8;
-    LASTWORD(0); LASTWORD(1); LASTWORD(2); LASTWORD(3);
-    LASTWORD(4); LASTWORD(5); LASTWORD(6); LASTWORD(7);
-    MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
-    MOVEWORD(4); MOVEWORD(5); MOVEWORD(6); MOVEWORD(7);
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    LASTWORD(6);
+    LASTWORD(7);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
+    MOVEWORD(6);
+    MOVEWORD(7);
     ADD_ROUND_KEY_8;
 }
+
 #undef MAKEWORD
 #undef LASTWORD
 
@@ -169,59 +225,115 @@ static void aes_encrypt_nb_8(AESContext *ctx, word32 *block) {
  * Core decrypt routines, expecting word32 inputs read big-endian
  * from the byte-oriented input stream.
  */
-static void aes_decrypt_nb_4(AESContext *ctx, word32 *block) {
+static void aes_decrypt_nb_4(AESContext * ctx, word32 * block)
+{
     int i;
-    static const int C1 = 4-1, C2 = 4-2, C3 = 4-3, Nb = 4;
+    static const int C1 = 4 - 1, C2 = 4 - 2, C3 = 4 - 3, Nb = 4;
     word32 *keysched = ctx->invkeysched;
     word32 newstate[4];
-    for (i = 0; i < ctx->Nr-1; i++) {
+    for (i = 0; i < ctx->Nr - 1; i++) {
 	ADD_ROUND_KEY_4;
-	MAKEWORD(0); MAKEWORD(1); MAKEWORD(2); MAKEWORD(3);
-	MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
     }
     ADD_ROUND_KEY_4;
-    LASTWORD(0); LASTWORD(1); LASTWORD(2); LASTWORD(3);
-    MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
     ADD_ROUND_KEY_4;
 }
-static void aes_decrypt_nb_6(AESContext *ctx, word32 *block) {
+static void aes_decrypt_nb_6(AESContext * ctx, word32 * block)
+{
     int i;
-    static const int C1 = 6-1, C2 = 6-2, C3 = 6-3, Nb = 6;
+    static const int C1 = 6 - 1, C2 = 6 - 2, C3 = 6 - 3, Nb = 6;
     word32 *keysched = ctx->invkeysched;
     word32 newstate[6];
-    for (i = 0; i < ctx->Nr-1; i++) {
+    for (i = 0; i < ctx->Nr - 1; i++) {
 	ADD_ROUND_KEY_6;
-	MAKEWORD(0); MAKEWORD(1); MAKEWORD(2);
-	MAKEWORD(3); MAKEWORD(4); MAKEWORD(5);
-	MOVEWORD(0); MOVEWORD(1); MOVEWORD(2);
-	MOVEWORD(3); MOVEWORD(4); MOVEWORD(5);
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
     }
     ADD_ROUND_KEY_6;
-    LASTWORD(0); LASTWORD(1); LASTWORD(2);
-    LASTWORD(3); LASTWORD(4); LASTWORD(5);
-    MOVEWORD(0); MOVEWORD(1); MOVEWORD(2);
-    MOVEWORD(3); MOVEWORD(4); MOVEWORD(5);
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
     ADD_ROUND_KEY_6;
 }
-static void aes_decrypt_nb_8(AESContext *ctx, word32 *block) {
+static void aes_decrypt_nb_8(AESContext * ctx, word32 * block)
+{
     int i;
-    static const int C1 = 8-1, C2 = 8-3, C3 = 8-4, Nb = 8;
+    static const int C1 = 8 - 1, C2 = 8 - 3, C3 = 8 - 4, Nb = 8;
     word32 *keysched = ctx->invkeysched;
     word32 newstate[8];
-    for (i = 0; i < ctx->Nr-1; i++) {
+    for (i = 0; i < ctx->Nr - 1; i++) {
 	ADD_ROUND_KEY_8;
-	MAKEWORD(0); MAKEWORD(1); MAKEWORD(2); MAKEWORD(3);
-	MAKEWORD(4); MAKEWORD(5); MAKEWORD(6); MAKEWORD(7);
-	MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
-	MOVEWORD(4); MOVEWORD(5); MOVEWORD(6); MOVEWORD(7);
+	MAKEWORD(0);
+	MAKEWORD(1);
+	MAKEWORD(2);
+	MAKEWORD(3);
+	MAKEWORD(4);
+	MAKEWORD(5);
+	MAKEWORD(6);
+	MAKEWORD(7);
+	MOVEWORD(0);
+	MOVEWORD(1);
+	MOVEWORD(2);
+	MOVEWORD(3);
+	MOVEWORD(4);
+	MOVEWORD(5);
+	MOVEWORD(6);
+	MOVEWORD(7);
     }
     ADD_ROUND_KEY_8;
-    LASTWORD(0); LASTWORD(1); LASTWORD(2); LASTWORD(3);
-    LASTWORD(4); LASTWORD(5); LASTWORD(6); LASTWORD(7);
-    MOVEWORD(0); MOVEWORD(1); MOVEWORD(2); MOVEWORD(3);
-    MOVEWORD(4); MOVEWORD(5); MOVEWORD(6); MOVEWORD(7);
+    LASTWORD(0);
+    LASTWORD(1);
+    LASTWORD(2);
+    LASTWORD(3);
+    LASTWORD(4);
+    LASTWORD(5);
+    LASTWORD(6);
+    LASTWORD(7);
+    MOVEWORD(0);
+    MOVEWORD(1);
+    MOVEWORD(2);
+    MOVEWORD(3);
+    MOVEWORD(4);
+    MOVEWORD(5);
+    MOVEWORD(6);
+    MOVEWORD(7);
     ADD_ROUND_KEY_8;
 }
+
 #undef MAKEWORD
 #undef LASTWORD
 
@@ -829,8 +941,9 @@ static const word32 D3[256] = {
  * bytes; each can be either 16 (128-bit), 24 (192-bit), or 32
  * (256-bit).
  */
-void aes_setup(AESContext *ctx, int blocklen,
-	       unsigned char *key, int keylen) {
+void aes_setup(AESContext * ctx, int blocklen,
+	       unsigned char *key, int keylen)
+{
     int i, j, Nk, rconst;
 
     assert(blocklen == 16 || blocklen == 24 || blocklen == 32);
@@ -857,16 +970,16 @@ void aes_setup(AESContext *ctx, int blocklen,
      * Now do the key setup itself.
      */
     rconst = 1;
-    for (i = 0; i < (ctx->Nr+1) * ctx->Nb; i++) {
+    for (i = 0; i < (ctx->Nr + 1) * ctx->Nb; i++) {
 	if (i < Nk)
-	    ctx->keysched[i] = GET_32BIT_MSB_FIRST(key + 4*i);
+	    ctx->keysched[i] = GET_32BIT_MSB_FIRST(key + 4 * i);
 	else {
-	    word32 temp = ctx->keysched[i-1];
+	    word32 temp = ctx->keysched[i - 1];
 	    if (i % Nk == 0) {
 		int a, b, c, d;
 		a = (temp >> 16) & 0xFF;
-		b = (temp >>  8) & 0xFF;
-		c = (temp >>  0) & 0xFF;
+		b = (temp >> 8) & 0xFF;
+		c = (temp >> 0) & 0xFF;
 		d = (temp >> 24) & 0xFF;
 		temp = Sbox[a] ^ rconst;
 		temp = (temp << 8) | Sbox[b];
@@ -877,14 +990,14 @@ void aes_setup(AESContext *ctx, int blocklen,
 		int a, b, c, d;
 		a = (temp >> 24) & 0xFF;
 		b = (temp >> 16) & 0xFF;
-		c = (temp >>  8) & 0xFF;
-		d = (temp >>  0) & 0xFF;
+		c = (temp >> 8) & 0xFF;
+		d = (temp >> 0) & 0xFF;
 		temp = Sbox[a];
 		temp = (temp << 8) | Sbox[b];
 		temp = (temp << 8) | Sbox[c];
-		temp = (temp << 8) | Sbox[d];		
+		temp = (temp << 8) | Sbox[d];
 	    }
-	    ctx->keysched[i] = ctx->keysched[i-Nk] ^ temp;
+	    ctx->keysched[i] = ctx->keysched[i - Nk] ^ temp;
 	}
     }
 
@@ -905,8 +1018,8 @@ void aes_setup(AESContext *ctx, int blocklen,
 		int a, b, c, d;
 		a = (temp >> 24) & 0xFF;
 		b = (temp >> 16) & 0xFF;
-		c = (temp >>  8) & 0xFF;
-		d = (temp >>  0) & 0xFF;
+		c = (temp >> 8) & 0xFF;
+		d = (temp >> 0) & 0xFF;
 		temp = D0[Sbox[a]];
 		temp ^= D1[Sbox[b]];
 		temp ^= D2[Sbox[c]];
@@ -917,15 +1030,18 @@ void aes_setup(AESContext *ctx, int blocklen,
     }
 }
 
-static void aes_encrypt(AESContext *ctx, word32 *block) {
+static void aes_encrypt(AESContext * ctx, word32 * block)
+{
     ctx->encrypt(ctx, block);
 }
 
-static void aes_decrypt(AESContext *ctx, word32 *block) {
+static void aes_decrypt(AESContext * ctx, word32 * block)
+{
     ctx->decrypt(ctx, block);
 }
 
-static void aes_encrypt_cbc(unsigned char *blk, int len, AESContext *ctx) {
+static void aes_encrypt_cbc(unsigned char *blk, int len, AESContext * ctx)
+{
     word32 iv[4];
     int i;
 
@@ -935,18 +1051,19 @@ static void aes_encrypt_cbc(unsigned char *blk, int len, AESContext *ctx) {
 
     while (len > 0) {
 	for (i = 0; i < 4; i++)
-            iv[i] ^= GET_32BIT_MSB_FIRST(blk+4*i);
+	    iv[i] ^= GET_32BIT_MSB_FIRST(blk + 4 * i);
 	aes_encrypt(ctx, iv);
-        for (i = 0; i < 4; i++)
-            PUT_32BIT_MSB_FIRST(blk+4*i, iv[i]);
-        blk += 16;
-        len -= 16;
+	for (i = 0; i < 4; i++)
+	    PUT_32BIT_MSB_FIRST(blk + 4 * i, iv[i]);
+	blk += 16;
+	len -= 16;
     }
 
     memcpy(ctx->iv, iv, sizeof(iv));
 }
 
-static void aes_decrypt_cbc(unsigned char *blk, int len, AESContext *ctx) {
+static void aes_decrypt_cbc(unsigned char *blk, int len, AESContext * ctx)
+{
     word32 iv[4], x[4], ct[4];
     int i;
 
@@ -956,14 +1073,14 @@ static void aes_decrypt_cbc(unsigned char *blk, int len, AESContext *ctx) {
 
     while (len > 0) {
 	for (i = 0; i < 4; i++)
-            x[i] = ct[i] = GET_32BIT_MSB_FIRST(blk+4*i);
+	    x[i] = ct[i] = GET_32BIT_MSB_FIRST(blk + 4 * i);
 	aes_decrypt(ctx, x);
 	for (i = 0; i < 4; i++) {
-            PUT_32BIT_MSB_FIRST(blk+4*i, iv[i] ^ x[i]);
-            iv[i] = ct[i];
-        }
-        blk += 16;
-        len -= 16;
+	    PUT_32BIT_MSB_FIRST(blk + 4 * i, iv[i] ^ x[i]);
+	    iv[i] = ct[i];
+	}
+	blk += 16;
+	len -= 16;
     }
 
     memcpy(ctx->iv, iv, sizeof(iv));
@@ -971,64 +1088,76 @@ static void aes_decrypt_cbc(unsigned char *blk, int len, AESContext *ctx) {
 
 static AESContext csctx, scctx;
 
-static void aes128_cskey(unsigned char *key) {
+static void aes128_cskey(unsigned char *key)
+{
     aes_setup(&csctx, 16, key, 16);
     logevent("Initialised AES-128 client->server encryption");
 }
 
-static void aes128_sckey(unsigned char *key) {
+static void aes128_sckey(unsigned char *key)
+{
     aes_setup(&scctx, 16, key, 16);
     logevent("Initialised AES-128 server->client encryption");
 }
 
-static void aes192_cskey(unsigned char *key) {
+static void aes192_cskey(unsigned char *key)
+{
     aes_setup(&csctx, 16, key, 24);
     logevent("Initialised AES-192 client->server encryption");
 }
 
-static void aes192_sckey(unsigned char *key) {
+static void aes192_sckey(unsigned char *key)
+{
     aes_setup(&scctx, 16, key, 24);
     logevent("Initialised AES-192 server->client encryption");
 }
 
-static void aes256_cskey(unsigned char *key) {
+static void aes256_cskey(unsigned char *key)
+{
     aes_setup(&csctx, 16, key, 32);
     logevent("Initialised AES-256 client->server encryption");
 }
 
-static void aes256_sckey(unsigned char *key) {
+static void aes256_sckey(unsigned char *key)
+{
     aes_setup(&scctx, 16, key, 32);
     logevent("Initialised AES-256 server->client encryption");
 }
 
-static void aes_csiv(unsigned char *iv) {
+static void aes_csiv(unsigned char *iv)
+{
     int i;
     for (i = 0; i < 4; i++)
-        csctx.iv[i] = GET_32BIT_MSB_FIRST(iv+4*i);
+	csctx.iv[i] = GET_32BIT_MSB_FIRST(iv + 4 * i);
 }
 
-static void aes_sciv(unsigned char *iv) {
+static void aes_sciv(unsigned char *iv)
+{
     int i;
     for (i = 0; i < 4; i++)
-        scctx.iv[i] = GET_32BIT_MSB_FIRST(iv+4*i);
+	scctx.iv[i] = GET_32BIT_MSB_FIRST(iv + 4 * i);
 }
 
-static void aes_ssh2_encrypt_blk(unsigned char *blk, int len) {
+static void aes_ssh2_encrypt_blk(unsigned char *blk, int len)
+{
     aes_encrypt_cbc(blk, len, &csctx);
 }
 
-static void aes_ssh2_decrypt_blk(unsigned char *blk, int len) {
+static void aes_ssh2_decrypt_blk(unsigned char *blk, int len)
+{
     aes_decrypt_cbc(blk, len, &scctx);
 }
 
-void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len) {
+void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
+{
     AESContext ctx;
     aes_setup(&ctx, 16, key, 32);
     memset(ctx.iv, 0, sizeof(ctx.iv));
     aes_encrypt_cbc(blk, len, &ctx);
 }
 
-void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len) {
+void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
+{
     AESContext ctx;
     aes_setup(&ctx, 16, key, 32);
     memset(ctx.iv, 0, sizeof(ctx.iv));

@@ -19,17 +19,22 @@
 #define subround(f,w,x,y,z,k,s,ti) \
        w = x + rol(w + f(x,y,z) + block[k] + ti, s)
 
-void MD5_Core_Init(MD5_Core_State *s) {
+void MD5_Core_Init(MD5_Core_State * s)
+{
     s->h[0] = 0x67452301;
     s->h[1] = 0xefcdab89;
     s->h[2] = 0x98badcfe;
     s->h[3] = 0x10325476;
 }
 
-void MD5_Block(MD5_Core_State *s, uint32 *block) {
-    uint32 a,b,c,d;
+void MD5_Block(MD5_Core_State * s, uint32 * block)
+{
+    uint32 a, b, c, d;
 
-    a = s->h[0]; b = s->h[1]; c = s->h[2]; d = s->h[3];
+    a = s->h[0];
+    b = s->h[1];
+    c = s->h[2];
+    d = s->h[3];
 
     subround(F, a, b, c, d, 0, 7, 0xd76aa478);
     subround(F, d, a, b, c, 1, 12, 0xe8c7b756);
@@ -96,7 +101,10 @@ void MD5_Block(MD5_Core_State *s, uint32 *block) {
     subround(I, c, d, a, b, 2, 15, 0x2ad7d2bb);
     subround(I, b, c, d, a, 9, 21, 0xeb86d391);
 
-    s->h[0] += a; s->h[1] += b; s->h[2] += c; s->h[3] += d;
+    s->h[0] += a;
+    s->h[1] += b;
+    s->h[2] += c;
+    s->h[3] += d;
 }
 
 /* ----------------------------------------------------------------------
@@ -107,15 +115,16 @@ void MD5_Block(MD5_Core_State *s, uint32 *block) {
 
 #define BLKSIZE 64
 
-void MD5Init(struct MD5Context *s) {
+void MD5Init(struct MD5Context *s)
+{
     MD5_Core_Init(&s->core);
     s->blkused = 0;
     s->lenhi = s->lenlo = 0;
 }
 
-void MD5Update(struct MD5Context *s, unsigned char const *p,
-               unsigned len) {
-    unsigned char *q = (unsigned char *)p;
+void MD5Update(struct MD5Context *s, unsigned char const *p, unsigned len)
+{
+    unsigned char *q = (unsigned char *) p;
     uint32 wordblock[16];
     uint32 lenw = len;
     int i;
@@ -126,48 +135,49 @@ void MD5Update(struct MD5Context *s, unsigned char const *p,
     s->lenlo += lenw;
     s->lenhi += (s->lenlo < lenw);
 
-    if (s->blkused+len < BLKSIZE) {
-        /*
-         * Trivial case: just add to the block.
-         */
-        memcpy(s->block + s->blkused, q, len);
-        s->blkused += len;
+    if (s->blkused + len < BLKSIZE) {
+	/*
+	 * Trivial case: just add to the block.
+	 */
+	memcpy(s->block + s->blkused, q, len);
+	s->blkused += len;
     } else {
-        /*
-         * We must complete and process at least one block.
-         */
-        while (s->blkused + len >= BLKSIZE) {
-            memcpy(s->block + s->blkused, q, BLKSIZE - s->blkused);
-            q += BLKSIZE - s->blkused;
-            len -= BLKSIZE - s->blkused;
-            /* Now process the block. Gather bytes little-endian into words */
-            for (i = 0; i < 16; i++) {
-                wordblock[i] =
-                    ( ((uint32)s->block[i*4+3]) << 24 ) |
-                    ( ((uint32)s->block[i*4+2]) << 16 ) |
-                    ( ((uint32)s->block[i*4+1]) <<  8 ) |
-                    ( ((uint32)s->block[i*4+0]) <<  0 );
-            }
-            MD5_Block(&s->core, wordblock);
-            s->blkused = 0;
-        }
-        memcpy(s->block, q, len);
-        s->blkused = len;
+	/*
+	 * We must complete and process at least one block.
+	 */
+	while (s->blkused + len >= BLKSIZE) {
+	    memcpy(s->block + s->blkused, q, BLKSIZE - s->blkused);
+	    q += BLKSIZE - s->blkused;
+	    len -= BLKSIZE - s->blkused;
+	    /* Now process the block. Gather bytes little-endian into words */
+	    for (i = 0; i < 16; i++) {
+		wordblock[i] =
+		    (((uint32) s->block[i * 4 + 3]) << 24) |
+		    (((uint32) s->block[i * 4 + 2]) << 16) |
+		    (((uint32) s->block[i * 4 + 1]) << 8) |
+		    (((uint32) s->block[i * 4 + 0]) << 0);
+	    }
+	    MD5_Block(&s->core, wordblock);
+	    s->blkused = 0;
+	}
+	memcpy(s->block, q, len);
+	s->blkused = len;
     }
 }
 
-void MD5Final(unsigned char output[16], struct MD5Context *s) {
+void MD5Final(unsigned char output[16], struct MD5Context *s)
+{
     int i;
     unsigned pad;
     unsigned char c[64];
     uint32 lenhi, lenlo;
 
     if (s->blkused >= 56)
-        pad = 56 + 64 - s->blkused;
+	pad = 56 + 64 - s->blkused;
     else
-        pad = 56 - s->blkused;
+	pad = 56 - s->blkused;
 
-    lenhi = (s->lenhi << 3) | (s->lenlo >> (32-3));
+    lenhi = (s->lenhi << 3) | (s->lenlo >> (32 - 3));
     lenlo = (s->lenlo << 3);
 
     memset(c, 0, pad);
@@ -176,20 +186,20 @@ void MD5Final(unsigned char output[16], struct MD5Context *s) {
 
     c[7] = (lenhi >> 24) & 0xFF;
     c[6] = (lenhi >> 16) & 0xFF;
-    c[5] = (lenhi >>  8) & 0xFF;
-    c[4] = (lenhi >>  0) & 0xFF;
+    c[5] = (lenhi >> 8) & 0xFF;
+    c[4] = (lenhi >> 0) & 0xFF;
     c[3] = (lenlo >> 24) & 0xFF;
     c[2] = (lenlo >> 16) & 0xFF;
-    c[1] = (lenlo >>  8) & 0xFF;
-    c[0] = (lenlo >>  0) & 0xFF;
+    c[1] = (lenlo >> 8) & 0xFF;
+    c[0] = (lenlo >> 0) & 0xFF;
 
     MD5Update(s, c, 8);
 
     for (i = 0; i < 4; i++) {
-        output[4*i+3] = (s->core.h[i] >> 24) & 0xFF;
-        output[4*i+2] = (s->core.h[i] >> 16) & 0xFF;
-        output[4*i+1] = (s->core.h[i] >>  8) & 0xFF;
-        output[4*i+0] = (s->core.h[i] >>  0) & 0xFF;
+	output[4 * i + 3] = (s->core.h[i] >> 24) & 0xFF;
+	output[4 * i + 2] = (s->core.h[i] >> 16) & 0xFF;
+	output[4 * i + 1] = (s->core.h[i] >> 8) & 0xFF;
+	output[4 * i + 0] = (s->core.h[i] >> 0) & 0xFF;
     }
 }
 
@@ -202,61 +212,67 @@ static struct MD5Context md5_cs_mac_s1, md5_cs_mac_s2;
 static struct MD5Context md5_sc_mac_s1, md5_sc_mac_s2;
 
 static void md5_key(struct MD5Context *s1, struct MD5Context *s2,
-                    unsigned char *key, int len) {
+		    unsigned char *key, int len)
+{
     unsigned char foo[64];
     int i;
 
     memset(foo, 0x36, 64);
     for (i = 0; i < len && i < 64; i++)
-        foo[i] ^= key[i];
+	foo[i] ^= key[i];
     MD5Init(s1);
     MD5Update(s1, foo, 64);
 
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
-        foo[i] ^= key[i];
+	foo[i] ^= key[i];
     MD5Init(s2);
     MD5Update(s2, foo, 64);
 
-    memset(foo, 0, 64);                /* burn the evidence */
+    memset(foo, 0, 64);		       /* burn the evidence */
 }
 
-static void md5_cskey(unsigned char *key) {
+static void md5_cskey(unsigned char *key)
+{
     md5_key(&md5_cs_mac_s1, &md5_cs_mac_s2, key, 16);
 }
 
-static void md5_sckey(unsigned char *key) {
+static void md5_sckey(unsigned char *key)
+{
     md5_key(&md5_sc_mac_s1, &md5_sc_mac_s2, key, 16);
 }
 
 static void md5_do_hmac(struct MD5Context *s1, struct MD5Context *s2,
-                         unsigned char *blk, int len, unsigned long seq,
-                         unsigned char *hmac) {
+			unsigned char *blk, int len, unsigned long seq,
+			unsigned char *hmac)
+{
     struct MD5Context s;
     unsigned char intermediate[16];
 
-    intermediate[0] = (unsigned char)((seq >> 24) & 0xFF);
-    intermediate[1] = (unsigned char)((seq >> 16) & 0xFF);
-    intermediate[2] = (unsigned char)((seq >>  8) & 0xFF);
-    intermediate[3] = (unsigned char)((seq      ) & 0xFF);
+    intermediate[0] = (unsigned char) ((seq >> 24) & 0xFF);
+    intermediate[1] = (unsigned char) ((seq >> 16) & 0xFF);
+    intermediate[2] = (unsigned char) ((seq >> 8) & 0xFF);
+    intermediate[3] = (unsigned char) ((seq) & 0xFF);
 
-    s = *s1;                           /* structure copy */
+    s = *s1;			       /* structure copy */
     MD5Update(&s, intermediate, 4);
     MD5Update(&s, blk, len);
     MD5Final(intermediate, &s);
-    s = *s2;                           /* structure copy */
+    s = *s2;			       /* structure copy */
     MD5Update(&s, intermediate, 16);
     MD5Final(hmac, &s);
 }
 
-static void md5_generate(unsigned char *blk, int len, unsigned long seq) {
-    md5_do_hmac(&md5_cs_mac_s1, &md5_cs_mac_s2, blk, len, seq, blk+len);
+static void md5_generate(unsigned char *blk, int len, unsigned long seq)
+{
+    md5_do_hmac(&md5_cs_mac_s1, &md5_cs_mac_s2, blk, len, seq, blk + len);
 }
 
-static int md5_verify(unsigned char *blk, int len, unsigned long seq) {
+static int md5_verify(unsigned char *blk, int len, unsigned long seq)
+{
     unsigned char correct[16];
     md5_do_hmac(&md5_sc_mac_s1, &md5_sc_mac_s2, blk, len, seq, correct);
-    return !memcmp(correct, blk+len, 16);
+    return !memcmp(correct, blk + len, 16);
 }
 
 const struct ssh_mac ssh_md5 = {

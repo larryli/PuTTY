@@ -13,7 +13,7 @@
 /*
  * GetSystemPowerStatus function.
  */
-typedef BOOL (WINAPI *gsps_t)(LPSYSTEM_POWER_STATUS);
+typedef BOOL(WINAPI * gsps_t) (LPSYSTEM_POWER_STATUS);
 static gsps_t gsps;
 
 /*
@@ -22,10 +22,11 @@ static gsps_t gsps;
  * free space and a process snapshot.
  */
 
-void noise_get_heavy(void (*func) (void *, int)) {
+void noise_get_heavy(void (*func) (void *, int))
+{
     HANDLE srch;
     WIN32_FIND_DATA finddata;
-    char winpath[MAX_PATH+3];
+    char winpath[MAX_PATH + 3];
     HMODULE mod;
 
     GetWindowsDirectory(winpath, sizeof(winpath));
@@ -43,11 +44,12 @@ void noise_get_heavy(void (*func) (void *, int)) {
     gsps = NULL;
     mod = GetModuleHandle("KERNEL32");
     if (mod) {
-        gsps = (gsps_t)GetProcAddress(mod, "GetSystemPowerStatus");
+	gsps = (gsps_t) GetProcAddress(mod, "GetSystemPowerStatus");
     }
 }
 
-void random_save_seed(void) {
+void random_save_seed(void)
+{
     int len;
     void *data;
 
@@ -60,7 +62,8 @@ void random_save_seed(void) {
  * stirring, and will acquire the system time in all available
  * forms and the battery status.
  */
-void noise_get_light(void (*func) (void *, int)) {
+void noise_get_light(void (*func) (void *, int))
+{
     SYSTEMTIME systime;
     DWORD adjust[2];
     BOOL rubbish;
@@ -76,8 +79,8 @@ void noise_get_light(void (*func) (void *, int)) {
      * Call GetSystemPowerStatus if present.
      */
     if (gsps) {
-        if (gsps(&pwrstat))
-            func(&pwrstat, sizeof(pwrstat));
+	if (gsps(&pwrstat))
+	    func(&pwrstat, sizeof(pwrstat));
     }
 }
 
@@ -87,25 +90,34 @@ void noise_get_light(void (*func) (void *, int)) {
  * virtual memory, the state of the process's message queue, which
  * window is in the foreground, which owns the clipboard, etc.
  */
-void noise_regular(void) {
+void noise_regular(void)
+{
     HWND w;
     DWORD z;
     POINT pt;
     MEMORYSTATUS memstat;
     FILETIME times[4];
 
-    w = GetForegroundWindow(); random_add_noise(&w, sizeof(w));
-    w = GetCapture(); random_add_noise(&w, sizeof(w));
-    w = GetClipboardOwner(); random_add_noise(&w, sizeof(w));
-    z = GetQueueStatus(QS_ALLEVENTS); random_add_noise(&z, sizeof(z));
+    w = GetForegroundWindow();
+    random_add_noise(&w, sizeof(w));
+    w = GetCapture();
+    random_add_noise(&w, sizeof(w));
+    w = GetClipboardOwner();
+    random_add_noise(&w, sizeof(w));
+    z = GetQueueStatus(QS_ALLEVENTS);
+    random_add_noise(&z, sizeof(z));
 
-    GetCursorPos(&pt); random_add_noise(&pt, sizeof(pt));
+    GetCursorPos(&pt);
+    random_add_noise(&pt, sizeof(pt));
 
-    GlobalMemoryStatus(&memstat); random_add_noise(&memstat, sizeof(memstat));
+    GlobalMemoryStatus(&memstat);
+    random_add_noise(&memstat, sizeof(memstat));
 
-    GetThreadTimes(GetCurrentThread(), times, times+1, times+2, times+3);
+    GetThreadTimes(GetCurrentThread(), times, times + 1, times + 2,
+		   times + 3);
     random_add_noise(&times, sizeof(times));
-    GetProcessTimes(GetCurrentProcess(), times, times+1, times+2, times+3);
+    GetProcessTimes(GetCurrentProcess(), times, times + 1, times + 2,
+		    times + 3);
     random_add_noise(&times, sizeof(times));
 }
 
@@ -115,7 +127,8 @@ void noise_regular(void) {
  * counter to the noise pool. It gets the scan code or mouse
  * position passed in.
  */
-void noise_ultralight(DWORD data) {
+void noise_ultralight(DWORD data)
+{
     DWORD wintime;
     LARGE_INTEGER perftime;
 

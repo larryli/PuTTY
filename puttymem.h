@@ -5,8 +5,8 @@
 #ifndef PUTTY_PUTTYMEM_H
 #define PUTTY_PUTTYMEM_H
 
-#include <stddef.h> /* for size_t */
-#include <string.h> /* for memcpy() */
+#include <stddef.h>		       /* for size_t */
+#include <string.h>		       /* for memcpy() */
 
 
 /* #define MALLOC_LOG  do this if you suspect putty of leaking memory */

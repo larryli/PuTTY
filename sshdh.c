@@ -39,7 +39,8 @@ static int need_to_free_pg;
 /*
  * Common DH initialisation.
  */
-static void dh_init(void) {
+static void dh_init(void)
+{
     q = bignum_rshift(p, 1);
     qmask = bignum_bitmask(q);
 }
@@ -47,7 +48,8 @@ static void dh_init(void) {
 /*
  * Initialise DH for the standard group1.
  */
-void dh_setup_group1(void) {
+void dh_setup_group1(void)
+{
     p = bignum_from_bytes(P, sizeof(P));
     g = bignum_from_bytes(G, sizeof(G));
     dh_init();
@@ -56,7 +58,8 @@ void dh_setup_group1(void) {
 /*
  * Initialise DH for an alternative group.
  */
-void dh_setup_group(Bignum pval, Bignum gval) {
+void dh_setup_group(Bignum pval, Bignum gval)
+{
     p = copybn(pval);
     g = copybn(gval);
     dh_init();
@@ -65,7 +68,8 @@ void dh_setup_group(Bignum pval, Bignum gval) {
 /*
  * Clean up.
  */
-void dh_cleanup(void) {
+void dh_cleanup(void)
+{
     freebn(p);
     freebn(g);
     freebn(q);
@@ -87,7 +91,8 @@ void dh_cleanup(void) {
  * Advances in Cryptology: Proceedings of Eurocrypt '96
  * Springer-Verlag, May 1996.
  */
-Bignum dh_create_e(int nbits) {
+Bignum dh_create_e(int nbits)
+{
     int i;
 
     int nbytes;
@@ -101,7 +106,8 @@ Bignum dh_create_e(int nbits) {
 	 * Create a potential x, by ANDing a string of random bytes
 	 * with qmask.
 	 */
-        if (x) freebn(x);
+	if (x)
+	    freebn(x);
 	if (nbits == 0 || nbits > bignum_bitcount(qmask)) {
 	    ssh1_write_bignum(buf, qmask);
 	    for (i = 2; i < nbytes; i++)
@@ -134,7 +140,8 @@ Bignum dh_create_e(int nbits) {
 /*
  * DH stage 2: given a number f, compute K = f^x mod p.
  */
-Bignum dh_find_K(Bignum f) {
+Bignum dh_find_K(Bignum f)
+{
     Bignum ret;
     ret = modpow(f, x, p);
     return ret;

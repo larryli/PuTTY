@@ -30,40 +30,36 @@ struct ctlpos {
 };
 
 void ctlposinit(struct ctlpos *cp, HWND hwnd,
-                int leftborder, int rightborder, int topborder);
+		int leftborder, int rightborder, int topborder);
 void doctl(struct ctlpos *cp, RECT r,
-           char *wclass, int wstyle, int exstyle,
-           char *wtext, int wid);
+	   char *wclass, int wstyle, int exstyle, char *wtext, int wid);
 void bartitle(struct ctlpos *cp, char *name, int id);
 void beginbox(struct ctlpos *cp, char *name, int idbox);
 void endbox(struct ctlpos *cp);
 void multiedit(struct ctlpos *cp, ...);
-void radioline(struct ctlpos *cp,
-               char *text, int id, int nacross, ...);
+void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...);
 void radiobig(struct ctlpos *cp, char *text, int id, ...);
 void checkbox(struct ctlpos *cp, char *text, int id);
 void statictext(struct ctlpos *cp, char *text, int id);
 void staticbtn(struct ctlpos *cp, char *stext, int sid,
-               char *btext, int bid);
+	       char *btext, int bid);
 void staticedit(struct ctlpos *cp, char *stext,
-                int sid, int eid, int percentedit);
+		int sid, int eid, int percentedit);
 void staticpassedit(struct ctlpos *cp, char *stext,
-                    int sid, int eid, int percentedit);
+		    int sid, int eid, int percentedit);
 void bigeditctrl(struct ctlpos *cp, char *stext,
-                 int sid, int eid, int lines);
-void ersatztab(struct ctlpos *cp, char *stext, int sid,
-               int lid, int s2id);
+		 int sid, int eid, int lines);
+void ersatztab(struct ctlpos *cp, char *stext, int sid, int lid, int s2id);
 void editbutton(struct ctlpos *cp, char *stext, int sid,
-                int eid, char *btext, int bid);
+		int eid, char *btext, int bid);
 void sesssaver(struct ctlpos *cp, char *text,
-               int staticid, int editid, int listid, ...);
+	       int staticid, int editid, int listid, ...);
 void envsetter(struct ctlpos *cp, char *stext, int sid,
-               char *e1stext, int e1sid, int e1id,
-               char *e2stext, int e2sid, int e2id,
-               int listid,
-               char *b1text, int b1id, char *b2text, int b2id);
+	       char *e1stext, int e1sid, int e1id,
+	       char *e2stext, int e2sid, int e2id,
+	       int listid, char *b1text, int b1id, char *b2text, int b2id);
 void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
-               char *btext, int bid, int eid, char *s2text, int s2id);
+	       char *btext, int bid, int eid, char *s2text, int s2id);
 void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
-                char *btext, int bid, ...);
+		char *btext, int bid, ...);
 void progressbar(struct ctlpos *cp, int id);

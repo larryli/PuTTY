@@ -285,26 +285,28 @@ typedef struct {
 #define rotl(x, c) ( (x << c) | (x >> (32-c)) )
 #define rotl28(x, c) ( ( (x << c) | (x >> (28-c)) ) & 0x0FFFFFFF)
 
-static word32 bitsel(word32 *input, const int *bitnums, int size) {
+static word32 bitsel(word32 * input, const int *bitnums, int size)
+{
     word32 ret = 0;
     while (size--) {
-        int bitpos = *bitnums++;
-        ret <<= 1;
-        if (bitpos >= 0)
-            ret |= 1 & (input[bitpos / 32] >> (bitpos % 32));
+	int bitpos = *bitnums++;
+	ret <<= 1;
+	if (bitpos >= 0)
+	    ret |= 1 & (input[bitpos / 32] >> (bitpos % 32));
     }
     return ret;
 }
 
-void des_key_setup(word32 key_msw, word32 key_lsw, DESContext *sched) {
+void des_key_setup(word32 key_msw, word32 key_lsw, DESContext * sched)
+{
 
     static const int PC1_Cbits[] = {
-        7, 15, 23, 31, 39, 47, 55, 63, 6, 14, 22, 30, 38, 46,
-        54, 62, 5, 13, 21, 29, 37, 45, 53, 61, 4, 12, 20, 28
+	7, 15, 23, 31, 39, 47, 55, 63, 6, 14, 22, 30, 38, 46,
+	54, 62, 5, 13, 21, 29, 37, 45, 53, 61, 4, 12, 20, 28
     };
     static const int PC1_Dbits[] = {
-        1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26, 34, 42,
-        50, 58, 3, 11, 19, 27, 35, 43, 51, 59, 36, 44, 52, 60
+	1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26, 34, 42,
+	50, 58, 3, 11, 19, 27, 35, 43, 51, 59, 36, 44, 52, 60
     };
     /*
      * The bit numbers in the two lists below don't correspond to
@@ -315,14 +317,15 @@ void des_key_setup(word32 key_msw, word32 key_lsw, DESContext *sched) {
      * 0 of C is addressed by writing `32' here.
      */
     static const int PC2_0246[] = {
-        49, 36, 59, 55, -1, -1, 37, 41, 48, 56, 34, 52, -1, -1, 15, 4,
-        25, 19, 9, 1, -1, -1, 12, 7, 17, 0, 22, 3, -1, -1, 46, 43
+	49, 36, 59, 55, -1, -1, 37, 41, 48, 56, 34, 52, -1, -1, 15, 4,
+	25, 19, 9, 1, -1, -1, 12, 7, 17, 0, 22, 3, -1, -1, 46, 43
     };
     static const int PC2_1357[] = {
-        -1, -1, 57, 32, 45, 54, 39, 50, -1, -1, 44, 53, 33, 40, 47, 58,
-        -1, -1, 26, 16, 5, 11, 23, 8, -1, -1, 10, 14, 6, 20, 27, 24
+	-1, -1, 57, 32, 45, 54, 39, 50, -1, -1, 44, 53, 33, 40, 47, 58,
+	-1, -1, 26, 16, 5, 11, 23, 8, -1, -1, 10, 14, 6, 20, 27, 24
     };
-    static const int leftshifts[] = {1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1};
+    static const int leftshifts[] =
+	{ 1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1 };
 
     word32 C, D;
     word32 buf[2];
@@ -335,154 +338,154 @@ void des_key_setup(word32 key_msw, word32 key_lsw, DESContext *sched) {
     D = bitsel(buf, PC1_Dbits, 28);
 
     for (i = 0; i < 16; i++) {
-        C = rotl28(C, leftshifts[i]);
-        D = rotl28(D, leftshifts[i]);
-        buf[0] = D;
-        buf[1] = C;
-        sched->k0246[i] = bitsel(buf, PC2_0246, 32);
-        sched->k1357[i] = bitsel(buf, PC2_1357, 32);
+	C = rotl28(C, leftshifts[i]);
+	D = rotl28(D, leftshifts[i]);
+	buf[0] = D;
+	buf[1] = C;
+	sched->k0246[i] = bitsel(buf, PC2_0246, 32);
+	sched->k1357[i] = bitsel(buf, PC2_1357, 32);
     }
 
     sched->eiv0 = sched->eiv1 = 0;
-    sched->div0 = sched->div1 = 0;       /* for good measure */
+    sched->div0 = sched->div1 = 0;     /* for good measure */
 }
 
 static const word32 SPboxes[8][64] = {
     {0x01010400, 0x00000000, 0x00010000, 0x01010404,
-    0x01010004, 0x00010404, 0x00000004, 0x00010000,
-    0x00000400, 0x01010400, 0x01010404, 0x00000400,
-    0x01000404, 0x01010004, 0x01000000, 0x00000004,
-    0x00000404, 0x01000400, 0x01000400, 0x00010400,
-    0x00010400, 0x01010000, 0x01010000, 0x01000404,
-    0x00010004, 0x01000004, 0x01000004, 0x00010004,
-    0x00000000, 0x00000404, 0x00010404, 0x01000000,
-    0x00010000, 0x01010404, 0x00000004, 0x01010000,
-    0x01010400, 0x01000000, 0x01000000, 0x00000400,
-    0x01010004, 0x00010000, 0x00010400, 0x01000004,
-    0x00000400, 0x00000004, 0x01000404, 0x00010404,
-    0x01010404, 0x00010004, 0x01010000, 0x01000404,
-    0x01000004, 0x00000404, 0x00010404, 0x01010400,
-    0x00000404, 0x01000400, 0x01000400, 0x00000000,
-    0x00010004, 0x00010400, 0x00000000, 0x01010004L},
+     0x01010004, 0x00010404, 0x00000004, 0x00010000,
+     0x00000400, 0x01010400, 0x01010404, 0x00000400,
+     0x01000404, 0x01010004, 0x01000000, 0x00000004,
+     0x00000404, 0x01000400, 0x01000400, 0x00010400,
+     0x00010400, 0x01010000, 0x01010000, 0x01000404,
+     0x00010004, 0x01000004, 0x01000004, 0x00010004,
+     0x00000000, 0x00000404, 0x00010404, 0x01000000,
+     0x00010000, 0x01010404, 0x00000004, 0x01010000,
+     0x01010400, 0x01000000, 0x01000000, 0x00000400,
+     0x01010004, 0x00010000, 0x00010400, 0x01000004,
+     0x00000400, 0x00000004, 0x01000404, 0x00010404,
+     0x01010404, 0x00010004, 0x01010000, 0x01000404,
+     0x01000004, 0x00000404, 0x00010404, 0x01010400,
+     0x00000404, 0x01000400, 0x01000400, 0x00000000,
+     0x00010004, 0x00010400, 0x00000000, 0x01010004L},
 
     {0x80108020, 0x80008000, 0x00008000, 0x00108020,
-    0x00100000, 0x00000020, 0x80100020, 0x80008020,
-    0x80000020, 0x80108020, 0x80108000, 0x80000000,
-    0x80008000, 0x00100000, 0x00000020, 0x80100020,
-    0x00108000, 0x00100020, 0x80008020, 0x00000000,
-    0x80000000, 0x00008000, 0x00108020, 0x80100000,
-    0x00100020, 0x80000020, 0x00000000, 0x00108000,
-    0x00008020, 0x80108000, 0x80100000, 0x00008020,
-    0x00000000, 0x00108020, 0x80100020, 0x00100000,
-    0x80008020, 0x80100000, 0x80108000, 0x00008000,
-    0x80100000, 0x80008000, 0x00000020, 0x80108020,
-    0x00108020, 0x00000020, 0x00008000, 0x80000000,
-    0x00008020, 0x80108000, 0x00100000, 0x80000020,
-    0x00100020, 0x80008020, 0x80000020, 0x00100020,
-    0x00108000, 0x00000000, 0x80008000, 0x00008020,
-    0x80000000, 0x80100020, 0x80108020, 0x00108000L},
+     0x00100000, 0x00000020, 0x80100020, 0x80008020,
+     0x80000020, 0x80108020, 0x80108000, 0x80000000,
+     0x80008000, 0x00100000, 0x00000020, 0x80100020,
+     0x00108000, 0x00100020, 0x80008020, 0x00000000,
+     0x80000000, 0x00008000, 0x00108020, 0x80100000,
+     0x00100020, 0x80000020, 0x00000000, 0x00108000,
+     0x00008020, 0x80108000, 0x80100000, 0x00008020,
+     0x00000000, 0x00108020, 0x80100020, 0x00100000,
+     0x80008020, 0x80100000, 0x80108000, 0x00008000,
+     0x80100000, 0x80008000, 0x00000020, 0x80108020,
+     0x00108020, 0x00000020, 0x00008000, 0x80000000,
+     0x00008020, 0x80108000, 0x00100000, 0x80000020,
+     0x00100020, 0x80008020, 0x80000020, 0x00100020,
+     0x00108000, 0x00000000, 0x80008000, 0x00008020,
+     0x80000000, 0x80100020, 0x80108020, 0x00108000L},
 
     {0x00000208, 0x08020200, 0x00000000, 0x08020008,
-    0x08000200, 0x00000000, 0x00020208, 0x08000200,
-    0x00020008, 0x08000008, 0x08000008, 0x00020000,
-    0x08020208, 0x00020008, 0x08020000, 0x00000208,
-    0x08000000, 0x00000008, 0x08020200, 0x00000200,
-    0x00020200, 0x08020000, 0x08020008, 0x00020208,
-    0x08000208, 0x00020200, 0x00020000, 0x08000208,
-    0x00000008, 0x08020208, 0x00000200, 0x08000000,
-    0x08020200, 0x08000000, 0x00020008, 0x00000208,
-    0x00020000, 0x08020200, 0x08000200, 0x00000000,
-    0x00000200, 0x00020008, 0x08020208, 0x08000200,
-    0x08000008, 0x00000200, 0x00000000, 0x08020008,
-    0x08000208, 0x00020000, 0x08000000, 0x08020208,
-    0x00000008, 0x00020208, 0x00020200, 0x08000008,
-    0x08020000, 0x08000208, 0x00000208, 0x08020000,
-    0x00020208, 0x00000008, 0x08020008, 0x00020200L},
+     0x08000200, 0x00000000, 0x00020208, 0x08000200,
+     0x00020008, 0x08000008, 0x08000008, 0x00020000,
+     0x08020208, 0x00020008, 0x08020000, 0x00000208,
+     0x08000000, 0x00000008, 0x08020200, 0x00000200,
+     0x00020200, 0x08020000, 0x08020008, 0x00020208,
+     0x08000208, 0x00020200, 0x00020000, 0x08000208,
+     0x00000008, 0x08020208, 0x00000200, 0x08000000,
+     0x08020200, 0x08000000, 0x00020008, 0x00000208,
+     0x00020000, 0x08020200, 0x08000200, 0x00000000,
+     0x00000200, 0x00020008, 0x08020208, 0x08000200,
+     0x08000008, 0x00000200, 0x00000000, 0x08020008,
+     0x08000208, 0x00020000, 0x08000000, 0x08020208,
+     0x00000008, 0x00020208, 0x00020200, 0x08000008,
+     0x08020000, 0x08000208, 0x00000208, 0x08020000,
+     0x00020208, 0x00000008, 0x08020008, 0x00020200L},
 
     {0x00802001, 0x00002081, 0x00002081, 0x00000080,
-    0x00802080, 0x00800081, 0x00800001, 0x00002001,
-    0x00000000, 0x00802000, 0x00802000, 0x00802081,
-    0x00000081, 0x00000000, 0x00800080, 0x00800001,
-    0x00000001, 0x00002000, 0x00800000, 0x00802001,
-    0x00000080, 0x00800000, 0x00002001, 0x00002080,
-    0x00800081, 0x00000001, 0x00002080, 0x00800080,
-    0x00002000, 0x00802080, 0x00802081, 0x00000081,
-    0x00800080, 0x00800001, 0x00802000, 0x00802081,
-    0x00000081, 0x00000000, 0x00000000, 0x00802000,
-    0x00002080, 0x00800080, 0x00800081, 0x00000001,
-    0x00802001, 0x00002081, 0x00002081, 0x00000080,
-    0x00802081, 0x00000081, 0x00000001, 0x00002000,
-    0x00800001, 0x00002001, 0x00802080, 0x00800081,
-    0x00002001, 0x00002080, 0x00800000, 0x00802001,
-    0x00000080, 0x00800000, 0x00002000, 0x00802080L},
+     0x00802080, 0x00800081, 0x00800001, 0x00002001,
+     0x00000000, 0x00802000, 0x00802000, 0x00802081,
+     0x00000081, 0x00000000, 0x00800080, 0x00800001,
+     0x00000001, 0x00002000, 0x00800000, 0x00802001,
+     0x00000080, 0x00800000, 0x00002001, 0x00002080,
+     0x00800081, 0x00000001, 0x00002080, 0x00800080,
+     0x00002000, 0x00802080, 0x00802081, 0x00000081,
+     0x00800080, 0x00800001, 0x00802000, 0x00802081,
+     0x00000081, 0x00000000, 0x00000000, 0x00802000,
+     0x00002080, 0x00800080, 0x00800081, 0x00000001,
+     0x00802001, 0x00002081, 0x00002081, 0x00000080,
+     0x00802081, 0x00000081, 0x00000001, 0x00002000,
+     0x00800001, 0x00002001, 0x00802080, 0x00800081,
+     0x00002001, 0x00002080, 0x00800000, 0x00802001,
+     0x00000080, 0x00800000, 0x00002000, 0x00802080L},
 
     {0x00000100, 0x02080100, 0x02080000, 0x42000100,
-    0x00080000, 0x00000100, 0x40000000, 0x02080000,
-    0x40080100, 0x00080000, 0x02000100, 0x40080100,
-    0x42000100, 0x42080000, 0x00080100, 0x40000000,
-    0x02000000, 0x40080000, 0x40080000, 0x00000000,
-    0x40000100, 0x42080100, 0x42080100, 0x02000100,
-    0x42080000, 0x40000100, 0x00000000, 0x42000000,
-    0x02080100, 0x02000000, 0x42000000, 0x00080100,
-    0x00080000, 0x42000100, 0x00000100, 0x02000000,
-    0x40000000, 0x02080000, 0x42000100, 0x40080100,
-    0x02000100, 0x40000000, 0x42080000, 0x02080100,
-    0x40080100, 0x00000100, 0x02000000, 0x42080000,
-    0x42080100, 0x00080100, 0x42000000, 0x42080100,
-    0x02080000, 0x00000000, 0x40080000, 0x42000000,
-    0x00080100, 0x02000100, 0x40000100, 0x00080000,
-    0x00000000, 0x40080000, 0x02080100, 0x40000100L},
+     0x00080000, 0x00000100, 0x40000000, 0x02080000,
+     0x40080100, 0x00080000, 0x02000100, 0x40080100,
+     0x42000100, 0x42080000, 0x00080100, 0x40000000,
+     0x02000000, 0x40080000, 0x40080000, 0x00000000,
+     0x40000100, 0x42080100, 0x42080100, 0x02000100,
+     0x42080000, 0x40000100, 0x00000000, 0x42000000,
+     0x02080100, 0x02000000, 0x42000000, 0x00080100,
+     0x00080000, 0x42000100, 0x00000100, 0x02000000,
+     0x40000000, 0x02080000, 0x42000100, 0x40080100,
+     0x02000100, 0x40000000, 0x42080000, 0x02080100,
+     0x40080100, 0x00000100, 0x02000000, 0x42080000,
+     0x42080100, 0x00080100, 0x42000000, 0x42080100,
+     0x02080000, 0x00000000, 0x40080000, 0x42000000,
+     0x00080100, 0x02000100, 0x40000100, 0x00080000,
+     0x00000000, 0x40080000, 0x02080100, 0x40000100L},
 
     {0x20000010, 0x20400000, 0x00004000, 0x20404010,
-    0x20400000, 0x00000010, 0x20404010, 0x00400000,
-    0x20004000, 0x00404010, 0x00400000, 0x20000010,
-    0x00400010, 0x20004000, 0x20000000, 0x00004010,
-    0x00000000, 0x00400010, 0x20004010, 0x00004000,
-    0x00404000, 0x20004010, 0x00000010, 0x20400010,
-    0x20400010, 0x00000000, 0x00404010, 0x20404000,
-    0x00004010, 0x00404000, 0x20404000, 0x20000000,
-    0x20004000, 0x00000010, 0x20400010, 0x00404000,
-    0x20404010, 0x00400000, 0x00004010, 0x20000010,
-    0x00400000, 0x20004000, 0x20000000, 0x00004010,
-    0x20000010, 0x20404010, 0x00404000, 0x20400000,
-    0x00404010, 0x20404000, 0x00000000, 0x20400010,
-    0x00000010, 0x00004000, 0x20400000, 0x00404010,
-    0x00004000, 0x00400010, 0x20004010, 0x00000000,
-    0x20404000, 0x20000000, 0x00400010, 0x20004010L},
+     0x20400000, 0x00000010, 0x20404010, 0x00400000,
+     0x20004000, 0x00404010, 0x00400000, 0x20000010,
+     0x00400010, 0x20004000, 0x20000000, 0x00004010,
+     0x00000000, 0x00400010, 0x20004010, 0x00004000,
+     0x00404000, 0x20004010, 0x00000010, 0x20400010,
+     0x20400010, 0x00000000, 0x00404010, 0x20404000,
+     0x00004010, 0x00404000, 0x20404000, 0x20000000,
+     0x20004000, 0x00000010, 0x20400010, 0x00404000,
+     0x20404010, 0x00400000, 0x00004010, 0x20000010,
+     0x00400000, 0x20004000, 0x20000000, 0x00004010,
+     0x20000010, 0x20404010, 0x00404000, 0x20400000,
+     0x00404010, 0x20404000, 0x00000000, 0x20400010,
+     0x00000010, 0x00004000, 0x20400000, 0x00404010,
+     0x00004000, 0x00400010, 0x20004010, 0x00000000,
+     0x20404000, 0x20000000, 0x00400010, 0x20004010L},
 
     {0x00200000, 0x04200002, 0x04000802, 0x00000000,
-    0x00000800, 0x04000802, 0x00200802, 0x04200800,
-    0x04200802, 0x00200000, 0x00000000, 0x04000002,
-    0x00000002, 0x04000000, 0x04200002, 0x00000802,
-    0x04000800, 0x00200802, 0x00200002, 0x04000800,
-    0x04000002, 0x04200000, 0x04200800, 0x00200002,
-    0x04200000, 0x00000800, 0x00000802, 0x04200802,
-    0x00200800, 0x00000002, 0x04000000, 0x00200800,
-    0x04000000, 0x00200800, 0x00200000, 0x04000802,
-    0x04000802, 0x04200002, 0x04200002, 0x00000002,
-    0x00200002, 0x04000000, 0x04000800, 0x00200000,
-    0x04200800, 0x00000802, 0x00200802, 0x04200800,
-    0x00000802, 0x04000002, 0x04200802, 0x04200000,
-    0x00200800, 0x00000000, 0x00000002, 0x04200802,
-    0x00000000, 0x00200802, 0x04200000, 0x00000800,
-    0x04000002, 0x04000800, 0x00000800, 0x00200002L},
+     0x00000800, 0x04000802, 0x00200802, 0x04200800,
+     0x04200802, 0x00200000, 0x00000000, 0x04000002,
+     0x00000002, 0x04000000, 0x04200002, 0x00000802,
+     0x04000800, 0x00200802, 0x00200002, 0x04000800,
+     0x04000002, 0x04200000, 0x04200800, 0x00200002,
+     0x04200000, 0x00000800, 0x00000802, 0x04200802,
+     0x00200800, 0x00000002, 0x04000000, 0x00200800,
+     0x04000000, 0x00200800, 0x00200000, 0x04000802,
+     0x04000802, 0x04200002, 0x04200002, 0x00000002,
+     0x00200002, 0x04000000, 0x04000800, 0x00200000,
+     0x04200800, 0x00000802, 0x00200802, 0x04200800,
+     0x00000802, 0x04000002, 0x04200802, 0x04200000,
+     0x00200800, 0x00000000, 0x00000002, 0x04200802,
+     0x00000000, 0x00200802, 0x04200000, 0x00000800,
+     0x04000002, 0x04000800, 0x00000800, 0x00200002L},
 
     {0x10001040, 0x00001000, 0x00040000, 0x10041040,
-    0x10000000, 0x10001040, 0x00000040, 0x10000000,
-    0x00040040, 0x10040000, 0x10041040, 0x00041000,
-    0x10041000, 0x00041040, 0x00001000, 0x00000040,
-    0x10040000, 0x10000040, 0x10001000, 0x00001040,
-    0x00041000, 0x00040040, 0x10040040, 0x10041000,
-    0x00001040, 0x00000000, 0x00000000, 0x10040040,
-    0x10000040, 0x10001000, 0x00041040, 0x00040000,
-    0x00041040, 0x00040000, 0x10041000, 0x00001000,
-    0x00000040, 0x10040040, 0x00001000, 0x00041040,
-    0x10001000, 0x00000040, 0x10000040, 0x10040000,
-    0x10040040, 0x10000000, 0x00040000, 0x10001040,
-    0x00000000, 0x10041040, 0x00040040, 0x10000040,
-    0x10040000, 0x10001000, 0x10001040, 0x00000000,
-    0x10041040, 0x00041000, 0x00041000, 0x00001040,
-    0x00001040, 0x00040040, 0x10000000, 0x10041000L}
+     0x10000000, 0x10001040, 0x00000040, 0x10000000,
+     0x00040040, 0x10040000, 0x10041040, 0x00041000,
+     0x10041000, 0x00041040, 0x00001000, 0x00000040,
+     0x10040000, 0x10000040, 0x10001000, 0x00001040,
+     0x00041000, 0x00040040, 0x10040040, 0x10041000,
+     0x00001040, 0x00000000, 0x00000000, 0x10040040,
+     0x10000040, 0x10001000, 0x00041040, 0x00040000,
+     0x00041040, 0x00040000, 0x10041000, 0x00001000,
+     0x00000040, 0x10040040, 0x00001000, 0x00041040,
+     0x10001000, 0x00000040, 0x10000040, 0x10040000,
+     0x10040040, 0x10000000, 0x00040000, 0x10001040,
+     0x00000000, 0x10041040, 0x00040040, 0x10000040,
+     0x10040000, 0x10001000, 0x10001040, 0x00000000,
+     0x10041040, 0x00041000, 0x00041000, 0x00001040,
+     0x00001040, 0x00040040, 0x10000000, 0x10041000L}
 };
 
 #define f(R, K0246, K1357) (\
@@ -519,7 +522,8 @@ static const word32 SPboxes[8][64] = {
     bitswap(R, L, 16, 0x0000FFFF), \
     bitswap(R, L,  4, 0x0F0F0F0F))
 
-void des_encipher(word32 *output, word32 L, word32 R, DESContext *sched) {
+void des_encipher(word32 * output, word32 L, word32 R, DESContext * sched)
+{
     word32 swap, s0246, s1357;
 
     IP(L, R);
@@ -527,16 +531,16 @@ void des_encipher(word32 *output, word32 L, word32 R, DESContext *sched) {
     L = rotl(L, 1);
     R = rotl(R, 1);
 
-    L ^= f(R, sched->k0246[ 0], sched->k1357[ 0]);
-    R ^= f(L, sched->k0246[ 1], sched->k1357[ 1]);
-    L ^= f(R, sched->k0246[ 2], sched->k1357[ 2]);
-    R ^= f(L, sched->k0246[ 3], sched->k1357[ 3]);
-    L ^= f(R, sched->k0246[ 4], sched->k1357[ 4]);
-    R ^= f(L, sched->k0246[ 5], sched->k1357[ 5]);
-    L ^= f(R, sched->k0246[ 6], sched->k1357[ 6]);
-    R ^= f(L, sched->k0246[ 7], sched->k1357[ 7]);
-    L ^= f(R, sched->k0246[ 8], sched->k1357[ 8]);
-    R ^= f(L, sched->k0246[ 9], sched->k1357[ 9]);
+    L ^= f(R, sched->k0246[0], sched->k1357[0]);
+    R ^= f(L, sched->k0246[1], sched->k1357[1]);
+    L ^= f(R, sched->k0246[2], sched->k1357[2]);
+    R ^= f(L, sched->k0246[3], sched->k1357[3]);
+    L ^= f(R, sched->k0246[4], sched->k1357[4]);
+    R ^= f(L, sched->k0246[5], sched->k1357[5]);
+    L ^= f(R, sched->k0246[6], sched->k1357[6]);
+    R ^= f(L, sched->k0246[7], sched->k1357[7]);
+    L ^= f(R, sched->k0246[8], sched->k1357[8]);
+    R ^= f(L, sched->k0246[9], sched->k1357[9]);
     L ^= f(R, sched->k0246[10], sched->k1357[10]);
     R ^= f(L, sched->k0246[11], sched->k1357[11]);
     L ^= f(R, sched->k0246[12], sched->k1357[12]);
@@ -547,7 +551,9 @@ void des_encipher(word32 *output, word32 L, word32 R, DESContext *sched) {
     L = rotl(L, 31);
     R = rotl(R, 31);
 
-    swap = L; L = R; R = swap;
+    swap = L;
+    L = R;
+    R = swap;
 
     FP(L, R);
 
@@ -555,7 +561,8 @@ void des_encipher(word32 *output, word32 L, word32 R, DESContext *sched) {
     output[1] = R;
 }
 
-void des_decipher(word32 *output, word32 L, word32 R, DESContext *sched) {
+void des_decipher(word32 * output, word32 L, word32 R, DESContext * sched)
+{
     word32 swap, s0246, s1357;
 
     IP(L, R);
@@ -569,21 +576,23 @@ void des_decipher(word32 *output, word32 L, word32 R, DESContext *sched) {
     R ^= f(L, sched->k0246[12], sched->k1357[12]);
     L ^= f(R, sched->k0246[11], sched->k1357[11]);
     R ^= f(L, sched->k0246[10], sched->k1357[10]);
-    L ^= f(R, sched->k0246[ 9], sched->k1357[ 9]);
-    R ^= f(L, sched->k0246[ 8], sched->k1357[ 8]);
-    L ^= f(R, sched->k0246[ 7], sched->k1357[ 7]);
-    R ^= f(L, sched->k0246[ 6], sched->k1357[ 6]);
-    L ^= f(R, sched->k0246[ 5], sched->k1357[ 5]);
-    R ^= f(L, sched->k0246[ 4], sched->k1357[ 4]);
-    L ^= f(R, sched->k0246[ 3], sched->k1357[ 3]);
-    R ^= f(L, sched->k0246[ 2], sched->k1357[ 2]);
-    L ^= f(R, sched->k0246[ 1], sched->k1357[ 1]);
-    R ^= f(L, sched->k0246[ 0], sched->k1357[ 0]);
+    L ^= f(R, sched->k0246[9], sched->k1357[9]);
+    R ^= f(L, sched->k0246[8], sched->k1357[8]);
+    L ^= f(R, sched->k0246[7], sched->k1357[7]);
+    R ^= f(L, sched->k0246[6], sched->k1357[6]);
+    L ^= f(R, sched->k0246[5], sched->k1357[5]);
+    R ^= f(L, sched->k0246[4], sched->k1357[4]);
+    L ^= f(R, sched->k0246[3], sched->k1357[3]);
+    R ^= f(L, sched->k0246[2], sched->k1357[2]);
+    L ^= f(R, sched->k0246[1], sched->k1357[1]);
+    R ^= f(L, sched->k0246[0], sched->k1357[0]);
 
     L = rotl(L, 31);
     R = rotl(R, 31);
 
-    swap = L; L = R; R = swap;
+    swap = L;
+    L = R;
+    R = swap;
 
     FP(L, R);
 
@@ -604,7 +613,8 @@ void des_decipher(word32 *output, word32 L, word32 R, DESContext *sched) {
   (cp)[0] = (value) >> 24; } while (0)
 
 static void des_cbc_encrypt(unsigned char *dest, const unsigned char *src,
-                            unsigned int len, DESContext *sched) {
+			    unsigned int len, DESContext * sched)
+{
     word32 out[2], iv0, iv1;
     unsigned int i;
 
@@ -613,20 +623,25 @@ static void des_cbc_encrypt(unsigned char *dest, const unsigned char *src,
     iv0 = sched->eiv0;
     iv1 = sched->eiv1;
     for (i = 0; i < len; i += 8) {
-        iv0 ^= GET_32BIT_MSB_FIRST(src); src += 4;
-        iv1 ^= GET_32BIT_MSB_FIRST(src); src += 4;
-        des_encipher(out, iv0, iv1, sched);
-        iv0 = out[0];
-        iv1 = out[1];
-        PUT_32BIT_MSB_FIRST(dest, iv0); dest += 4;
-        PUT_32BIT_MSB_FIRST(dest, iv1); dest += 4;
+	iv0 ^= GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	iv1 ^= GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	des_encipher(out, iv0, iv1, sched);
+	iv0 = out[0];
+	iv1 = out[1];
+	PUT_32BIT_MSB_FIRST(dest, iv0);
+	dest += 4;
+	PUT_32BIT_MSB_FIRST(dest, iv1);
+	dest += 4;
     }
     sched->eiv0 = iv0;
     sched->eiv1 = iv1;
 }
 
 static void des_cbc_decrypt(unsigned char *dest, const unsigned char *src,
-                            unsigned int len, DESContext *sched) {
+			    unsigned int len, DESContext * sched)
+{
     word32 out[2], iv0, iv1, xL, xR;
     unsigned int i;
 
@@ -635,29 +650,35 @@ static void des_cbc_decrypt(unsigned char *dest, const unsigned char *src,
     iv0 = sched->div0;
     iv1 = sched->div1;
     for (i = 0; i < len; i += 8) {
-        xL = GET_32BIT_MSB_FIRST(src); src += 4;
-        xR = GET_32BIT_MSB_FIRST(src); src += 4;
-        des_decipher(out, xL, xR, sched);
-        iv0 ^= out[0];
-        iv1 ^= out[1];
-        PUT_32BIT_MSB_FIRST(dest, iv0); dest += 4;
-        PUT_32BIT_MSB_FIRST(dest, iv1); dest += 4;
-        iv0 = xL;
-        iv1 = xR;
+	xL = GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	xR = GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	des_decipher(out, xL, xR, sched);
+	iv0 ^= out[0];
+	iv1 ^= out[1];
+	PUT_32BIT_MSB_FIRST(dest, iv0);
+	dest += 4;
+	PUT_32BIT_MSB_FIRST(dest, iv1);
+	dest += 4;
+	iv0 = xL;
+	iv1 = xR;
     }
     sched->div0 = iv0;
     sched->div1 = iv1;
 }
 
 static void des_3cbc_encrypt(unsigned char *dest, const unsigned char *src,
-                             unsigned int len, DESContext *scheds) {
+			     unsigned int len, DESContext * scheds)
+{
     des_cbc_encrypt(dest, src, len, &scheds[0]);
     des_cbc_decrypt(dest, src, len, &scheds[1]);
     des_cbc_encrypt(dest, src, len, &scheds[2]);
 }
 
 static void des_cbc3_encrypt(unsigned char *dest, const unsigned char *src,
-                             unsigned int len, DESContext *scheds) {
+			     unsigned int len, DESContext * scheds)
+{
     word32 out[2], iv0, iv1;
     unsigned int i;
 
@@ -666,29 +687,35 @@ static void des_cbc3_encrypt(unsigned char *dest, const unsigned char *src,
     iv0 = scheds->eiv0;
     iv1 = scheds->eiv1;
     for (i = 0; i < len; i += 8) {
-        iv0 ^= GET_32BIT_MSB_FIRST(src); src += 4;
-        iv1 ^= GET_32BIT_MSB_FIRST(src); src += 4;
-        des_encipher(out, iv0, iv1, &scheds[0]);
-        des_decipher(out, out[0], out[1], &scheds[1]);
-        des_encipher(out, out[0], out[1], &scheds[2]);
-        iv0 = out[0];
-        iv1 = out[1];
-        PUT_32BIT_MSB_FIRST(dest, iv0); dest += 4;
-        PUT_32BIT_MSB_FIRST(dest, iv1); dest += 4;
+	iv0 ^= GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	iv1 ^= GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	des_encipher(out, iv0, iv1, &scheds[0]);
+	des_decipher(out, out[0], out[1], &scheds[1]);
+	des_encipher(out, out[0], out[1], &scheds[2]);
+	iv0 = out[0];
+	iv1 = out[1];
+	PUT_32BIT_MSB_FIRST(dest, iv0);
+	dest += 4;
+	PUT_32BIT_MSB_FIRST(dest, iv1);
+	dest += 4;
     }
     scheds->eiv0 = iv0;
     scheds->eiv1 = iv1;
 }
 
 static void des_3cbc_decrypt(unsigned char *dest, const unsigned char *src,
-                             unsigned int len, DESContext *scheds) {
+			     unsigned int len, DESContext * scheds)
+{
     des_cbc_decrypt(dest, src, len, &scheds[2]);
     des_cbc_encrypt(dest, src, len, &scheds[1]);
     des_cbc_decrypt(dest, src, len, &scheds[0]);
 }
 
 static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
-                             unsigned int len, DESContext *scheds) {
+			     unsigned int len, DESContext * scheds)
+{
     word32 out[2], iv0, iv1, xL, xR;
     unsigned int i;
 
@@ -697,17 +724,21 @@ static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
     iv0 = scheds->div0;
     iv1 = scheds->div1;
     for (i = 0; i < len; i += 8) {
-        xL = GET_32BIT_MSB_FIRST(src); src += 4;
-        xR = GET_32BIT_MSB_FIRST(src); src += 4;
-        des_decipher(out, xL, xR, &scheds[2]);
-        des_encipher(out, out[0], out[1], &scheds[1]);
-        des_decipher(out, out[0], out[1], &scheds[0]);
-        iv0 ^= out[0];
-        iv1 ^= out[1];
-        PUT_32BIT_MSB_FIRST(dest, iv0); dest += 4;
-        PUT_32BIT_MSB_FIRST(dest, iv1); dest += 4;
-        iv0 = xL;
-        iv1 = xR;
+	xL = GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	xR = GET_32BIT_MSB_FIRST(src);
+	src += 4;
+	des_decipher(out, xL, xR, &scheds[2]);
+	des_encipher(out, out[0], out[1], &scheds[1]);
+	des_decipher(out, out[0], out[1], &scheds[0]);
+	iv0 ^= out[0];
+	iv1 ^= out[1];
+	PUT_32BIT_MSB_FIRST(dest, iv0);
+	dest += 4;
+	PUT_32BIT_MSB_FIRST(dest, iv1);
+	dest += 4;
+	iv0 = xL;
+	iv1 = xR;
     }
     scheds->div0 = iv0;
     scheds->div1 = iv1;
@@ -715,78 +746,87 @@ static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
 
 static DESContext cskeys[3], sckeys[3];
 
-static void des3_cskey(unsigned char *key) {
+static void des3_cskey(unsigned char *key)
+{
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &cskeys[0]);
-    des_key_setup(GET_32BIT_MSB_FIRST(key+8),
-                  GET_32BIT_MSB_FIRST(key+12), &cskeys[1]);
-    des_key_setup(GET_32BIT_MSB_FIRST(key+16),
-                  GET_32BIT_MSB_FIRST(key+20), &cskeys[2]);
+		  GET_32BIT_MSB_FIRST(key + 4), &cskeys[0]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key + 8),
+		  GET_32BIT_MSB_FIRST(key + 12), &cskeys[1]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key + 16),
+		  GET_32BIT_MSB_FIRST(key + 20), &cskeys[2]);
     logevent("Initialised triple-DES client->server encryption");
 }
 
-static void des3_csiv(unsigned char *key) {
+static void des3_csiv(unsigned char *key)
+{
     cskeys[0].eiv0 = GET_32BIT_MSB_FIRST(key);
-    cskeys[0].eiv1 = GET_32BIT_MSB_FIRST(key+4);
+    cskeys[0].eiv1 = GET_32BIT_MSB_FIRST(key + 4);
 }
 
-static void des3_sciv(unsigned char *key) {
+static void des3_sciv(unsigned char *key)
+{
     sckeys[0].div0 = GET_32BIT_MSB_FIRST(key);
-    sckeys[0].div1 = GET_32BIT_MSB_FIRST(key+4);
+    sckeys[0].div1 = GET_32BIT_MSB_FIRST(key + 4);
 }
 
-static void des3_sckey(unsigned char *key) {
+static void des3_sckey(unsigned char *key)
+{
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &sckeys[0]);
-    des_key_setup(GET_32BIT_MSB_FIRST(key+8),
-                  GET_32BIT_MSB_FIRST(key+12), &sckeys[1]);
-    des_key_setup(GET_32BIT_MSB_FIRST(key+16),
-                  GET_32BIT_MSB_FIRST(key+20), &sckeys[2]);
+		  GET_32BIT_MSB_FIRST(key + 4), &sckeys[0]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key + 8),
+		  GET_32BIT_MSB_FIRST(key + 12), &sckeys[1]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key + 16),
+		  GET_32BIT_MSB_FIRST(key + 20), &sckeys[2]);
     logevent("Initialised triple-DES server->client encryption");
 }
 
-static void des3_sesskey(unsigned char *key) {
+static void des3_sesskey(unsigned char *key)
+{
     des3_cskey(key);
     des3_sckey(key);
 }
 
-static void des3_encrypt_blk(unsigned char *blk, int len) {
+static void des3_encrypt_blk(unsigned char *blk, int len)
+{
     des_3cbc_encrypt(blk, blk, len, cskeys);
 }
 
-static void des3_decrypt_blk(unsigned char *blk, int len) {
+static void des3_decrypt_blk(unsigned char *blk, int len)
+{
     des_3cbc_decrypt(blk, blk, len, sckeys);
 }
 
-static void des3_ssh2_encrypt_blk(unsigned char *blk, int len) {
+static void des3_ssh2_encrypt_blk(unsigned char *blk, int len)
+{
     des_cbc3_encrypt(blk, blk, len, cskeys);
 }
 
-static void des3_ssh2_decrypt_blk(unsigned char *blk, int len) {
+static void des3_ssh2_decrypt_blk(unsigned char *blk, int len)
+{
     des_cbc3_decrypt(blk, blk, len, sckeys);
 }
 
-void des3_decrypt_pubkey(unsigned char *key,
-                         unsigned char *blk, int len) {
+void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
+{
     DESContext ourkeys[3];
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &ourkeys[0]);
-    des_key_setup(GET_32BIT_MSB_FIRST(key+8),
-                  GET_32BIT_MSB_FIRST(key+12), &ourkeys[1]);
+		  GET_32BIT_MSB_FIRST(key + 4), &ourkeys[0]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key + 8),
+		  GET_32BIT_MSB_FIRST(key + 12), &ourkeys[1]);
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &ourkeys[2]);
+		  GET_32BIT_MSB_FIRST(key + 4), &ourkeys[2]);
     des_3cbc_decrypt(blk, blk, len, ourkeys);
 }
 
-void des3_encrypt_pubkey(unsigned char *key,
-                         unsigned char *blk, int len) {
+void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
+{
     DESContext ourkeys[3];
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &ourkeys[0]);
-    des_key_setup(GET_32BIT_MSB_FIRST(key+8),
-                  GET_32BIT_MSB_FIRST(key+12), &ourkeys[1]);
+		  GET_32BIT_MSB_FIRST(key + 4), &ourkeys[0]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key + 8),
+		  GET_32BIT_MSB_FIRST(key + 12), &ourkeys[1]);
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &ourkeys[2]);
+		  GET_32BIT_MSB_FIRST(key + 4), &ourkeys[2]);
     des_3cbc_encrypt(blk, blk, len, ourkeys);
 }
 
@@ -815,17 +855,20 @@ const struct ssh_cipher ssh_3des = {
     8
 };
 
-static void des_sesskey(unsigned char *key) {
+static void des_sesskey(unsigned char *key)
+{
     des_key_setup(GET_32BIT_MSB_FIRST(key),
-                  GET_32BIT_MSB_FIRST(key+4), &cskeys[0]);
+		  GET_32BIT_MSB_FIRST(key + 4), &cskeys[0]);
     logevent("Initialised single-DES encryption");
 }
 
-static void des_encrypt_blk(unsigned char *blk, int len) {
+static void des_encrypt_blk(unsigned char *blk, int len)
+{
     des_cbc_encrypt(blk, blk, len, cskeys);
 }
 
-static void des_decrypt_blk(unsigned char *blk, int len) {
+static void des_decrypt_blk(unsigned char *blk, int len)
+{
     des_cbc_decrypt(blk, blk, len, cskeys);
 }
 

@@ -41,14 +41,15 @@ struct RandPool {
 static struct RandPool pool;
 static int random_active = 0;
 
-void random_stir(void) {
-    word32 block[HASHINPUT/sizeof(word32)];
-    word32 digest[HASHSIZE/sizeof(word32)];
+void random_stir(void)
+{
+    word32 block[HASHINPUT / sizeof(word32)];
+    word32 digest[HASHSIZE / sizeof(word32)];
     int i, j, k;
 
     noise_get_light(random_add_noise);
 
-    SHATransform((word32 *)pool.incoming, (word32 *)pool.incomingb);
+    SHATransform((word32 *) pool.incoming, (word32 *) pool.incomingb);
     pool.incomingpos = 0;
 
     /*
@@ -77,14 +78,14 @@ void random_stir(void) {
 	 * things will be that much less predictable that way
 	 * round, when we subsequently return bytes ...
 	 */
-	for (j = POOLSIZE; (j -= HASHSIZE) >= 0 ;) {
+	for (j = POOLSIZE; (j -= HASHSIZE) >= 0;) {
 	    /*
 	     * XOR the bit of the pool we're processing into the
 	     * digest.
 	     */
 
-	    for (k = 0; k < sizeof(digest)/sizeof(*digest); k++)
-		digest[k] ^= ((word32 *)(pool.pool+j))[k];
+	    for (k = 0; k < sizeof(digest) / sizeof(*digest); k++)
+		digest[k] ^= ((word32 *) (pool.pool + j))[k];
 
 	    /*
 	     * Munge our unrevealed first block of the pool into
@@ -96,8 +97,8 @@ void random_stir(void) {
 	     * Stick the result back into the pool.
 	     */
 
-	    for (k = 0; k < sizeof(digest)/sizeof(*digest); k++)
-		((word32 *)(pool.pool+j))[k] = digest[k];
+	    for (k = 0; k < sizeof(digest) / sizeof(*digest); k++)
+		((word32 *) (pool.pool + j))[k] = digest[k];
 	}
     }
 
@@ -111,12 +112,13 @@ void random_stir(void) {
     pool.poolpos = sizeof(pool.incoming);
 }
 
-void random_add_noise(void *noise, int length) {
+void random_add_noise(void *noise, int length)
+{
     unsigned char *p = noise;
     int i;
 
     if (!random_active)
-        return;
+	return;
 
     /*
      * This function processes HASHINPUT bytes into only HASHSIZE
@@ -128,14 +130,14 @@ void random_add_noise(void *noise, int length) {
 	       HASHINPUT - pool.incomingpos);
 	p += HASHINPUT - pool.incomingpos;
 	length -= HASHINPUT - pool.incomingpos;
-	SHATransform((word32 *)pool.incoming, (word32 *)pool.incomingb);
-        for (i = 0; i < HASHSIZE; i++) {
-            pool.pool[pool.poolpos++] ^= pool.incomingb[i];
-            if (pool.poolpos >= POOLSIZE)
-                pool.poolpos = 0;
-        }
-        if (pool.poolpos < HASHSIZE)
-            random_stir();
+	SHATransform((word32 *) pool.incoming, (word32 *) pool.incomingb);
+	for (i = 0; i < HASHSIZE; i++) {
+	    pool.pool[pool.poolpos++] ^= pool.incomingb[i];
+	    if (pool.poolpos >= POOLSIZE)
+		pool.poolpos = 0;
+	}
+	if (pool.poolpos < HASHSIZE)
+	    random_stir();
 
 	pool.incomingpos = 0;
     }
@@ -144,40 +146,43 @@ void random_add_noise(void *noise, int length) {
     pool.incomingpos += length;
 }
 
-void random_add_heavynoise(void *noise, int length) {
+void random_add_heavynoise(void *noise, int length)
+{
     unsigned char *p = noise;
     int i;
 
     while (length >= POOLSIZE) {
-        for (i = 0; i < POOLSIZE; i++)
-            pool.pool[i] ^= *p++;
+	for (i = 0; i < POOLSIZE; i++)
+	    pool.pool[i] ^= *p++;
 	random_stir();
 	length -= POOLSIZE;
     }
 
     for (i = 0; i < length; i++)
-        pool.pool[i] ^= *p++;
+	pool.pool[i] ^= *p++;
     random_stir();
 }
 
-static void random_add_heavynoise_bitbybit(void *noise, int length) {
+static void random_add_heavynoise_bitbybit(void *noise, int length)
+{
     unsigned char *p = noise;
     int i;
 
     while (length >= POOLSIZE - pool.poolpos) {
-        for (i = 0; i < POOLSIZE - pool.poolpos; i++)
-            pool.pool[pool.poolpos + i] ^= *p++;
+	for (i = 0; i < POOLSIZE - pool.poolpos; i++)
+	    pool.pool[pool.poolpos + i] ^= *p++;
 	random_stir();
 	length -= POOLSIZE - pool.poolpos;
-        pool.poolpos = 0;
+	pool.poolpos = 0;
     }
 
     for (i = 0; i < length; i++)
-        pool.pool[i] ^= *p++;
+	pool.pool[i] ^= *p++;
     pool.poolpos = i;
 }
 
-void random_init(void) {
+void random_init(void)
+{
     memset(&pool, 0, sizeof(pool));    /* just to start with */
 
     random_active = 1;
@@ -186,15 +191,17 @@ void random_init(void) {
     random_stir();
 }
 
-int random_byte(void) {
+int random_byte(void)
+{
     if (pool.poolpos >= POOLSIZE)
 	random_stir();
 
     return pool.pool[pool.poolpos++];
 }
 
-void random_get_savedata(void **data, int *len) {
+void random_get_savedata(void **data, int *len)
+{
     random_stir();
-    *data = pool.pool+pool.poolpos;
-    *len = POOLSIZE/2;
+    *data = pool.pool + pool.poolpos;
+    *len = POOLSIZE / 2;
 }

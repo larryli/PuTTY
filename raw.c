@@ -20,21 +20,25 @@ static char *sb_buf = NULL;
 static int sb_size = 0;
 #define SB_DELTA 1024
 
-static void c_write (char *buf, int len) {
+static void c_write(char *buf, int len)
+{
     from_backend(0, buf, len);
 }
 
-static int raw_closing (Plug plug, char *error_msg, int error_code, int calling_back) {
+static int raw_closing(Plug plug, char *error_msg, int error_code,
+		       int calling_back)
+{
     sk_close(s);
     s = NULL;
     if (error_msg) {
-        /* A socket error has occurred. */
-        connection_fatal (error_msg);
-    } /* Otherwise, the remote side closed the connection normally. */
+	/* A socket error has occurred. */
+	connection_fatal(error_msg);
+    }				       /* Otherwise, the remote side closed the connection normally. */
     return 0;
 }
 
-static int raw_receive (Plug plug, int urgent, char *data, int len) {
+static int raw_receive(Plug plug, int urgent, char *data, int len)
+{
     c_write(data, len);
     return 1;
 }
@@ -46,7 +50,8 @@ static int raw_receive (Plug plug, int urgent, char *data, int len) {
  *
  * Also places the canonical host name into `realhost'.
  */
-static char *raw_init (char *host, int port, char **realhost) {
+static char *raw_init(char *host, int port, char **realhost)
+{
     static struct plug_function_table fn_table = {
 	raw_closing,
 	raw_receive
@@ -59,7 +64,7 @@ static char *raw_init (char *host, int port, char **realhost) {
      * Try to find host.
      */
     addr = sk_namelookup(host, realhost);
-    if ( (err = sk_addr_error(addr)) )
+    if ((err = sk_addr_error(addr)))
 	return err;
 
     if (port < 0)
@@ -69,7 +74,7 @@ static char *raw_init (char *host, int port, char **realhost) {
      * Open socket.
      */
     s = sk_new(addr, port, 0, 1, &fn_table_ptr);
-    if ( (err = sk_socket_error(s)) )
+    if ((err = sk_socket_error(s)))
 	return err;
 
     sk_addr_free(addr);
@@ -80,7 +85,8 @@ static char *raw_init (char *host, int port, char **realhost) {
 /*
  * Called to send data down the raw connection.
  */
-static void raw_send (char *buf, int len) {
+static void raw_send(char *buf, int len)
+{
 
     if (s == NULL)
 	return;
@@ -91,7 +97,8 @@ static void raw_send (char *buf, int len) {
 /*
  * Called to set the size of the window
  */
-static void raw_size(void) {
+static void raw_size(void)
+{
     /* Do nothing! */
     return;
 }
@@ -99,18 +106,26 @@ static void raw_size(void) {
 /*
  * Send raw special codes.
  */
-static void raw_special (Telnet_Special code) {
+static void raw_special(Telnet_Special code)
+{
     /* Do nothing! */
     return;
 }
 
-static Socket raw_socket(void) { return s; }
+static Socket raw_socket(void)
+{
+    return s;
+}
 
-static int raw_sendok(void) { return 1; }
+static int raw_sendok(void)
+{
+    return 1;
+}
 
-static int raw_ldisc(int option) {
+static int raw_ldisc(int option)
+{
     if (option == LD_EDIT || option == LD_ECHO)
-        return 1;
+	return 1;
     return 0;
 }
 

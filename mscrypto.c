@@ -11,15 +11,14 @@ static HCRYPTKEY create_des_key(unsigned char *key);
 
 
 HCRYPTPROV hCryptProv;
-HCRYPTKEY hDESKey[2][3] = {{0,0,0},{0,0,0}}; /* global for now */
+HCRYPTKEY hDESKey[2][3] = { {0, 0, 0}, {0, 0, 0} };	/* global for now */
 
 
 /* use Microsoft Enhanced Cryptographic Service Provider */
 #define CSP MS_ENHANCED_PROV
 
 
-static BYTE PrivateKeyWithExponentOfOne[] =
-{
+static BYTE PrivateKeyWithExponentOfOne[] = {
     0x07, 0x02, 0x00, 0x00, 0x00, 0xA4, 0x00, 0x00,
     0x52, 0x53, 0x41, 0x32, 0x00, 0x02, 0x00, 0x00,
     0x01, 0x00, 0x00, 0x00, 0xAB, 0xEF, 0xFA, 0xC6,
@@ -73,33 +72,35 @@ static BYTE PrivateKeyWithExponentOfOne[] =
  * ---------------------------------------------------------*/
 
 
-int crypto_startup() {
-    if(CryptAcquireContext(&hCryptProv, "Putty", CSP, PROV_RSA_FULL,
-			   CRYPT_NEWKEYSET) == 0) {
-	if(GetLastError() == NTE_EXISTS) {
-	    if(CryptAcquireContext(&hCryptProv, "Putty", CSP,
-				   PROV_RSA_FULL, 0) == 0) {
-		return FALSE; /* failed to acquire context - probably
-			       * don't have high encryption installed! */
+int crypto_startup()
+{
+    if (CryptAcquireContext(&hCryptProv, "Putty", CSP, PROV_RSA_FULL,
+			    CRYPT_NEWKEYSET) == 0) {
+	if (GetLastError() == NTE_EXISTS) {
+	    if (CryptAcquireContext(&hCryptProv, "Putty", CSP,
+				    PROV_RSA_FULL, 0) == 0) {
+		return FALSE;	       /* failed to acquire context - probably
+				        * don't have high encryption installed! */
 	    }
 	} else
-	    return FALSE; /* failed to acquire context - probably
-			   * don't have high encryption installed! */
+	    return FALSE;	       /* failed to acquire context - probably
+				        * don't have high encryption installed! */
     }
     return TRUE;
 }
 
 
-void crypto_wrapup() {
+void crypto_wrapup()
+{
     int i, j;
-    for(i=0; i<2; i++) {
-	for(j=0; j<3; j++) {
-	    if(hDESKey[i][j])
+    for (i = 0; i < 2; i++) {
+	for (j = 0; j < 3; j++) {
+	    if (hDESKey[i][j])
 		CryptDestroyKey(hDESKey[i][j]);
 	    hDESKey[i][j] = 0;
 	}
     }
-    if(hCryptProv)
+    if (hCryptProv)
 	CryptReleaseContext(hCryptProv, 0);
     hCryptProv = 0;
 }
@@ -109,32 +110,40 @@ void crypto_wrapup() {
  * Random number functions                                  *
  * ---------------------------------------------------------*/
 
-int random_byte(void) {
+int random_byte(void)
+{
     unsigned char b;
-    if(!CryptGenRandom(hCryptProv, 1, &b))
+    if (!CryptGenRandom(hCryptProv, 1, &b))
 	fatalbox("random number generator failure!");
     return b;
 }
 
-void random_add_noise(void *noise, int length) {
+void random_add_noise(void *noise, int length)
+{
     /* do nothing */
 }
-void random_init(void) {
+void random_init(void)
+{
     /* do nothing */
 }
-void random_get_savedata(void **data, int *len) {
+void random_get_savedata(void **data, int *len)
+{
     /* do nothing */
 }
-void noise_get_heavy(void (*func) (void *, int)) {
+void noise_get_heavy(void (*func) (void *, int))
+{
     /* do nothing */
 }
-void noise_get_light(void (*func) (void *, int)) {
+void noise_get_light(void (*func) (void *, int))
+{
     /* do nothing */
 }
-void noise_ultralight(DWORD data) {
+void noise_ultralight(DWORD data)
+{
     /* do nothing */
 }
-void random_save_seed(void) {
+void random_save_seed(void)
+{
     /* do nothing */
 }
 
@@ -144,24 +153,27 @@ void random_save_seed(void) {
  * ---------------------------------------------------------*/
 
 
-void MD5Init(struct MD5Context *ctx) {
-    if(!CryptCreateHash(hCryptProv, CALG_MD5, 0, 0, &ctx->hHash))
+void MD5Init(struct MD5Context *ctx)
+{
+    if (!CryptCreateHash(hCryptProv, CALG_MD5, 0, 0, &ctx->hHash))
 	fatalbox("Error during CryptBeginHash!\n");
 }
 
 
 void MD5Update(struct MD5Context *ctx,
-	       unsigned char const *buf, unsigned len) {
-    if(CryptHashData(ctx->hHash, buf, len, 0) == 0)
+	       unsigned char const *buf, unsigned len)
+{
+    if (CryptHashData(ctx->hHash, buf, len, 0) == 0)
 	fatalbox("Error during CryptHashSessionKey!\n");
 }
 
 
-void MD5Final(unsigned char digest[16], struct MD5Context *ctx) {
+void MD5Final(unsigned char digest[16], struct MD5Context *ctx)
+{
     DWORD cb = 16;
-    if(CryptGetHashParam(ctx->hHash, HP_HASHVAL, digest, &cb, 0) == 0)
+    if (CryptGetHashParam(ctx->hHash, HP_HASHVAL, digest, &cb, 0) == 0)
 	fatalbox("Error during CryptGetHashParam!\n");
-    if(ctx->hHash)
+    if (ctx->hHash)
 	CryptDestroyHash(ctx->hHash);
     ctx->hHash = 0;
 }
@@ -172,7 +184,8 @@ void MD5Final(unsigned char digest[16], struct MD5Context *ctx) {
  * ---------------------------------------------------------*/
 
 int makekey(unsigned char *data, struct RSAKey *result,
-	    unsigned char **keystr) {
+	    unsigned char **keystr)
+{
 
     unsigned char *p = data;
     int i;
@@ -180,38 +193,40 @@ int makekey(unsigned char *data, struct RSAKey *result,
 
     /* get size (bits) of modulus */
     result->bits = 0;
-    for(i=0; i<4; i++)
+    for (i = 0; i < 4; i++)
 	result->bits = (result->bits << 8) + *p++;
 
     /* get size (bits) of public exponent */
     w = 0;
-    for (i=0; i<2; i++)
+    for (i = 0; i < 2; i++)
 	w = (w << 8) + *p++;
-    b = (w+7)/8;   /* bits -> bytes */
+    b = (w + 7) / 8;		       /* bits -> bytes */
 
     /* convert exponent to DWORD */
     result->exponent = 0;
-    for (i=0; i<b; i++)
+    for (i = 0; i < b; i++)
 	result->exponent = (result->exponent << 8) + *p++;
 
     /* get size (bits) of modulus */
     w = 0;
-    for (i=0; i<2; i++)
+    for (i = 0; i < 2; i++)
 	w = (w << 8) + *p++;
-    result->bytes = b = (w+7)/8;   /* bits -> bytes */
+    result->bytes = b = (w + 7) / 8;   /* bits -> bytes */
 
     /* allocate buffer for modulus & copy it */
     result->modulus = malloc(b);
     memcpy(result->modulus, p, b);
 
     /* update callers pointer */
-    if (keystr) *keystr = p;       /* point at key string, second time */
+    if (keystr)
+	*keystr = p;		       /* point at key string, second time */
 
     return (p - data) + b;
 }
 
 
-void rsaencrypt(unsigned char *data, int length, struct RSAKey *rsakey) {
+void rsaencrypt(unsigned char *data, int length, struct RSAKey *rsakey)
+{
 
     int i;
     unsigned char *pKeybuf, *pKeyin;
@@ -223,35 +238,36 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *rsakey) {
     DWORD bufsize;
 
     /* allocate buffer for public key blob */
-    if((pBlob = malloc(sizeof(PUBLICKEYSTRUC) + sizeof(RSAPUBKEY) +
-		       rsakey->bytes)) == NULL)
+    if ((pBlob = malloc(sizeof(PUBLICKEYSTRUC) + sizeof(RSAPUBKEY) +
+			rsakey->bytes)) == NULL)
 	fatalbox("Out of memory");
 
     /* allocate buffer for message encryption block */
     bufsize = (length + rsakey->bytes) << 1;
-    if((buf = malloc(bufsize)) == NULL)
+    if ((buf = malloc(bufsize)) == NULL)
 	fatalbox("Out of memory");
 
     /* construct public key blob from host public key */
-    pKeybuf = ((unsigned char*)pBlob) + sizeof(PUBLICKEYSTRUC) +
+    pKeybuf = ((unsigned char *) pBlob) + sizeof(PUBLICKEYSTRUC) +
 	sizeof(RSAPUBKEY);
-    pKeyin = ((unsigned char*)rsakey->modulus);
+    pKeyin = ((unsigned char *) rsakey->modulus);
     /* change big endian to little endian */
-    for(i=0; i<rsakey->bytes; i++)
-	pKeybuf[i] = pKeyin[rsakey->bytes-i-1];
+    for (i = 0; i < rsakey->bytes; i++)
+	pKeybuf[i] = pKeyin[rsakey->bytes - i - 1];
     pBlob->bType = PUBLICKEYBLOB;
     pBlob->bVersion = 0x02;
     pBlob->reserved = 0;
     pBlob->aiKeyAlg = CALG_RSA_KEYX;
-    pRPK = (RSAPUBKEY*)(((unsigned char*)pBlob) + sizeof(PUBLICKEYSTRUC));
-    pRPK->magic = 0x31415352; /* "RSA1" */
+    pRPK =
+	(RSAPUBKEY *) (((unsigned char *) pBlob) + sizeof(PUBLICKEYSTRUC));
+    pRPK->magic = 0x31415352;	       /* "RSA1" */
     pRPK->bitlen = rsakey->bits;
     pRPK->pubexp = rsakey->exponent;
 
     /* import public key blob into key container */
-    if(CryptImportKey(hCryptProv, (void*)pBlob,
-		      sizeof(PUBLICKEYSTRUC)+sizeof(RSAPUBKEY)+rsakey->bytes,
-		      0, 0, &hRsaKey) == 0)
+    if (CryptImportKey(hCryptProv, (void *) pBlob,
+		       sizeof(PUBLICKEYSTRUC) + sizeof(RSAPUBKEY) +
+		       rsakey->bytes, 0, 0, &hRsaKey) == 0)
 	fatalbox("Error importing RSA key!");
 
     /* copy message into buffer */
@@ -259,7 +275,7 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *rsakey) {
     dlen = length;
 
     /* using host public key, encrypt the message */
-    if(CryptEncrypt(hRsaKey, 0, TRUE, 0, buf, &dlen, bufsize) == 0)
+    if (CryptEncrypt(hRsaKey, 0, TRUE, 0, buf, &dlen, bufsize) == 0)
 	fatalbox("Error encrypting using RSA key!");
 
     /*
@@ -267,8 +283,8 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *rsakey) {
      * key, returns the cyphertext in backwards (little endian)
      * order, so reverse it!
      */
-    for(i = 0; i < (int)dlen; i++)
-	data[i] = buf[dlen - i - 1]; /* make it big endian */
+    for (i = 0; i < (int) dlen; i++)
+	data[i] = buf[dlen - i - 1];   /* make it big endian */
 
     CryptDestroyKey(hRsaKey);
     free(buf);
@@ -277,22 +293,24 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *rsakey) {
 }
 
 
-int rsastr_len(struct RSAKey *key) {
+int rsastr_len(struct RSAKey *key)
+{
     return 2 * (sizeof(DWORD) + key->bytes) + 10;
 }
 
 
-void rsastr_fmt(char *str, struct RSAKey *key) {
+void rsastr_fmt(char *str, struct RSAKey *key)
+{
 
     int len = 0, i;
 
-    sprintf(str+len, "%04x", key->exponent);
-    len += strlen(str+len);
+    sprintf(str + len, "%04x", key->exponent);
+    len += strlen(str + len);
 
     str[len++] = '/';
-    for (i=1; i<key->bytes; i++) {
-	sprintf(str+len, "%02x", key->modulus[i]);
-	len += strlen(str+len);
+    for (i = 1; i < key->bytes; i++) {
+	sprintf(str + len, "%02x", key->modulus[i]);
+	len += strlen(str + len);
     }
     str[len] = '\0';
 }
@@ -304,39 +322,42 @@ void rsastr_fmt(char *str, struct RSAKey *key) {
  * ---------------------------------------------------------*/
 
 
-void des3_sesskey(unsigned char *key) {
+void des3_sesskey(unsigned char *key)
+{
     int i, j;
-    for(i = 0; i < 2; i++) {
-	for(j = 0; j < 3; j++) {
+    for (i = 0; i < 2; i++) {
+	for (j = 0; j < 3; j++) {
 	    hDESKey[i][j] = create_des_key(key + (j * 8));
 	}
     }
 }
 
 
-void des3_encrypt_blk(unsigned char *blk, int len) {
+void des3_encrypt_blk(unsigned char *blk, int len)
+{
 
     DWORD dlen;
     dlen = len;
 
-    if(CryptEncrypt(hDESKey[0][0], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
+    if (CryptEncrypt(hDESKey[0][0], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
 	fatalbox("Error encrypting block!\n");
-    if(CryptDecrypt(hDESKey[0][1], 0, FALSE, 0, blk, &dlen) == 0)
+    if (CryptDecrypt(hDESKey[0][1], 0, FALSE, 0, blk, &dlen) == 0)
 	fatalbox("Error encrypting block!\n");
-    if(CryptEncrypt(hDESKey[0][2], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
+    if (CryptEncrypt(hDESKey[0][2], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
 	fatalbox("Error encrypting block!\n");
 }
 
 
-void des3_decrypt_blk(unsigned char *blk, int len) {
+void des3_decrypt_blk(unsigned char *blk, int len)
+{
     DWORD dlen;
     dlen = len;
 
-    if(CryptDecrypt(hDESKey[1][2], 0, FALSE, 0, blk, &dlen) == 0)
+    if (CryptDecrypt(hDESKey[1][2], 0, FALSE, 0, blk, &dlen) == 0)
 	fatalbox("Error decrypting block!\n");
-    if(CryptEncrypt(hDESKey[1][1], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
+    if (CryptEncrypt(hDESKey[1][1], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
 	fatalbox("Error decrypting block!\n");
-    if(CryptDecrypt(hDESKey[1][0], 0, FALSE, 0, blk, &dlen) == 0)
+    if (CryptDecrypt(hDESKey[1][0], 0, FALSE, 0, blk, &dlen) == 0)
 	fatalbox("Error decrypting block!\n");
 }
 
@@ -348,26 +369,29 @@ struct ssh_cipher ssh_3des = {
 };
 
 
-void des_sesskey(unsigned char *key) {
+void des_sesskey(unsigned char *key)
+{
     int i;
-    for(i = 0; i < 2; i++) {
+    for (i = 0; i < 2; i++) {
 	hDESKey[i][0] = create_des_key(key);
     }
 }
 
 
-void des_encrypt_blk(unsigned char *blk, int len) {
+void des_encrypt_blk(unsigned char *blk, int len)
+{
     DWORD dlen;
     dlen = len;
-    if(CryptEncrypt(hDESKey[0][0], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
+    if (CryptEncrypt(hDESKey[0][0], 0, FALSE, 0, blk, &dlen, len + 8) == 0)
 	fatalbox("Error encrypting block!\n");
 }
 
 
-void des_decrypt_blk(unsigned char *blk, int len) {
+void des_decrypt_blk(unsigned char *blk, int len)
+{
     DWORD dlen;
     dlen = len;
-    if(CryptDecrypt(hDESKey[1][0], 0, FALSE, 0, blk, &dlen) == 0)
+    if (CryptDecrypt(hDESKey[1][0], 0, FALSE, 0, blk, &dlen) == 0)
 	fatalbox("Error decrypting block!\n");
 }
 
@@ -378,7 +402,8 @@ struct ssh_cipher ssh_des = {
 };
 
 
-static HCRYPTKEY create_des_key(unsigned char *key) {
+static HCRYPTKEY create_des_key(unsigned char *key)
+{
 
     HCRYPTKEY hSessionKey, hPrivateKey;
     DWORD dlen = 8;
@@ -390,33 +415,33 @@ static HCRYPTKEY create_des_key(unsigned char *key) {
      * import session key, since only encrypted session keys can be
      * imported
      */
-    if(CryptImportKey(hCryptProv, PrivateKeyWithExponentOfOne,
-		      sizeof(PrivateKeyWithExponentOfOne),
-		      0, 0, &hPrivateKey) == 0)
+    if (CryptImportKey(hCryptProv, PrivateKeyWithExponentOfOne,
+		       sizeof(PrivateKeyWithExponentOfOne),
+		       0, 0, &hPrivateKey) == 0)
 	return 0;
 
     /* now encrypt session key using special private key */
     memcpy(buf + sizeof(BLOBHEADER) + sizeof(ALG_ID), key, 8);
-    if(CryptEncrypt(hPrivateKey, 0, TRUE, 0,
-		    buf + sizeof(BLOBHEADER) + sizeof(ALG_ID),
-		    &dlen, 256) == 0)
+    if (CryptEncrypt(hPrivateKey, 0, TRUE, 0,
+		     buf + sizeof(BLOBHEADER) + sizeof(ALG_ID),
+		     &dlen, 256) == 0)
 	return 0;
 
     /* build session key blob */
-    pbh = (BLOBHEADER*)buf;
+    pbh = (BLOBHEADER *) buf;
     pbh->bType = SIMPLEBLOB;
     pbh->bVersion = 0x02;
     pbh->reserved = 0;
     pbh->aiKeyAlg = CALG_DES;
-    *((ALG_ID*)(buf+sizeof(BLOBHEADER))) = CALG_RSA_KEYX;
+    *((ALG_ID *) (buf + sizeof(BLOBHEADER))) = CALG_RSA_KEYX;
 
     /* import session key into key container */
-    if(CryptImportKey(hCryptProv, buf,
-		      dlen + sizeof(BLOBHEADER) + sizeof(ALG_ID),
-		      hPrivateKey, 0, &hSessionKey) == 0)
+    if (CryptImportKey(hCryptProv, buf,
+		       dlen + sizeof(BLOBHEADER) + sizeof(ALG_ID),
+		       hPrivateKey, 0, &hSessionKey) == 0)
 	return 0;
 
-    if(hPrivateKey)
+    if (hPrivateKey)
 	CryptDestroyKey(hPrivateKey);
 
     return hSessionKey;

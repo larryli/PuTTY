@@ -23,16 +23,18 @@
     ((unsigned long)(unsigned char)(cp)[2] << 8) | \
     ((unsigned long)(unsigned char)(cp)[3]))
 
-int agent_exists(void) {
+int agent_exists(void)
+{
     HWND hwnd;
     hwnd = FindWindow("Pageant", "Pageant");
     if (!hwnd)
-        return FALSE;
+	return FALSE;
     else
-        return TRUE;
+	return TRUE;
 }
 
-void agent_query(void *in, int inlen, void **out, int *outlen) {
+void agent_query(void *in, int inlen, void **out, int *outlen)
+{
     HWND hwnd;
     char mapname[64];
     HANDLE filemap;
@@ -46,28 +48,28 @@ void agent_query(void *in, int inlen, void **out, int *outlen) {
     hwnd = FindWindow("Pageant", "Pageant");
     debug(("hwnd is %p\n", hwnd));
     if (!hwnd)
-        return;
+	return;
     sprintf(mapname, "PageantRequest%08x", GetCurrentThreadId());
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
-                                0, AGENT_MAX_MSGLEN, mapname);
+				0, AGENT_MAX_MSGLEN, mapname);
     if (!filemap)
-        return;
+	return;
     p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
     memcpy(p, in, inlen);
     cds.dwData = AGENT_COPYDATA_ID;
-    cds.cbData = 1+strlen(mapname);
+    cds.cbData = 1 + strlen(mapname);
     cds.lpData = mapname;
-    id = SendMessage(hwnd, WM_COPYDATA, (WPARAM)NULL, (LPARAM)&cds);
+    id = SendMessage(hwnd, WM_COPYDATA, (WPARAM) NULL, (LPARAM) & cds);
     debug(("return is %d\n", id));
     if (id > 0) {
-        retlen = 4 + GET_32BIT(p);
-        debug(("len is %d\n", retlen));
-        ret = smalloc(retlen);
-        if (ret) {
-            memcpy(ret, p, retlen);
-            *out = ret;
-            *outlen = retlen;
-        }
+	retlen = 4 + GET_32BIT(p);
+	debug(("len is %d\n", retlen));
+	ret = smalloc(retlen);
+	if (ret) {
+	    memcpy(ret, p, retlen);
+	    *out = ret;
+	    *outlen = retlen;
+	}
     }
     UnmapViewOfFile(p);
     CloseHandle(filemap);
@@ -75,7 +77,8 @@ void agent_query(void *in, int inlen, void **out, int *outlen) {
 
 #ifdef TESTMODE
 
-int main(void) {
+int main(void)
+{
     void *msg;
     int len;
     int i;
@@ -83,7 +86,7 @@ int main(void) {
     agent_query("\0\0\0\1\1", 5, &msg, &len);
     debug(("%d:", len));
     for (i = 0; i < len; i++)
-        debug((" %02x", ((unsigned char *)msg)[i]));
+	debug((" %02x", ((unsigned char *) msg)[i]));
     debug(("\n"));
     return 0;
 }

@@ -83,12 +83,12 @@ GLOBAL int seen_disp_event;
 
 GLOBAL int session_closed;
 
-#define LGXF_OVR  1 /* existing logfile overwrite */
-#define LGXF_APN  0 /* existing logfile append */
-#define LGXF_ASK -1 /* existing logfile ask */
-#define LGTYP_NONE  0  /* logmode: no logging */
-#define LGTYP_ASCII 1  /* logmode: pure ascii */
-#define LGTYP_DEBUG 2  /* logmode: all chars of taffic */
+#define LGXF_OVR  1		       /* existing logfile overwrite */
+#define LGXF_APN  0		       /* existing logfile append */
+#define LGXF_ASK -1		       /* existing logfile ask */
+#define LGTYP_NONE  0		       /* logmode: no logging */
+#define LGTYP_ASCII 1		       /* logmode: pure ascii */
+#define LGTYP_DEBUG 2		       /* logmode: all chars of taffic */
 GLOBAL char *logfile;
 
 /*
@@ -136,17 +136,17 @@ enum {
     /*
      * Line discipline options which the backend might try to control.
      */
-    LD_EDIT,                           /* local line editing */
-    LD_ECHO                            /* local echo */
+    LD_EDIT,			       /* local line editing */
+    LD_ECHO			       /* local echo */
 };
 
 enum {
     /*
      * Close On Exit behaviours. (cfg.close_on_exit)
      */
-    COE_NEVER,      /* Never close the window */
-    COE_NORMAL,     /* Close window on "normal" (non-error) exits only */
-    COE_ALWAYS      /* Always close the window */
+    COE_NEVER,			       /* Never close the window */
+    COE_NORMAL,			       /* Close window on "normal" (non-error) exits only */
+    COE_ALWAYS			       /* Always close the window */
 };
 
 typedef struct {
@@ -154,7 +154,7 @@ typedef struct {
     void (*send) (char *buf, int len);
     void (*size) (void);
     void (*special) (Telnet_Special code);
-    Socket (*socket) (void);
+     Socket(*socket) (void);
     int (*sendok) (void);
     int (*ldisc) (int);
     int default_port;
@@ -175,24 +175,24 @@ typedef struct {
     enum { PROT_RAW, PROT_TELNET, PROT_RLOGIN, PROT_SSH } protocol;
     int close_on_exit;
     int warn_on_close;
-    int ping_interval;                 /* in seconds */
+    int ping_interval;		       /* in seconds */
     /* SSH options */
     char remote_cmd[512];
-    char *remote_cmd_ptr;              /* might point to a larger command
-                                        * but never for loading/saving */
+    char *remote_cmd_ptr;	       /* might point to a larger command
+				        * but never for loading/saving */
     int nopty;
     int compression;
     int agentfwd;
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES, CIPHER_AES } cipher;
     char keyfile[FILENAME_MAX];
-    int sshprot;                       /* use v1 or v2 when both available */
-    int buggymac;                      /* MAC bug commmercial <=v2.3.x SSH2 */
+    int sshprot;		       /* use v1 or v2 when both available */
+    int buggymac;		       /* MAC bug commmercial <=v2.3.x SSH2 */
     int try_tis_auth;
     int ssh_subsys;		       /* run a subsystem rather than a command */
     /* Telnet options */
     char termtype[32];
     char termspeed[32];
-    char environmt[1024];                    /* VAR\tvalue\0VAR\tvalue\0\0 */
+    char environmt[1024];	       /* VAR\tvalue\0VAR\tvalue\0\0 */
     char username[32];
     char localusername[32];
     int rfc_environ;
@@ -200,8 +200,8 @@ typedef struct {
     int bksp_is_delete;
     int rxvt_homeend;
     int funky_type;
-    int no_applic_c;                   /* totally disable app cursor keys */
-    int no_applic_k;                   /* totally disable app keypad */
+    int no_applic_c;		       /* totally disable app cursor keys */
+    int no_applic_k;		       /* totally disable app keypad */
     int app_cursor;
     int app_keypad;
     int nethack_keypad;
@@ -215,7 +215,7 @@ typedef struct {
     int scroll_on_disp;
     int compose_key;
     int ctrlaltkeys;
-    char wintitle[256];                /* initial window title */
+    char wintitle[256];		       /* initial window title */
     /* Terminal options */
     int savelines;
     int dec_om;
@@ -305,23 +305,23 @@ struct RSAKey;			       /* be a little careful of scope */
 /*
  * Exports from window.c.
  */
-void request_resize (int, int, int);
-void do_text (Context, int, int, char *, int, unsigned long, int);
-void set_title (char *);
-void set_icon (char *);
-void set_sbar (int, int, int);
+void request_resize(int, int, int);
+void do_text(Context, int, int, char *, int, unsigned long, int);
+void set_title(char *);
+void set_icon(char *);
+void set_sbar(int, int, int);
 Context get_ctx(void);
-void free_ctx (Context);
-void palette_set (int, int, int, int);
-void palette_reset (void);
-void write_clip (void *, int, int);
-void get_clip (void **, int *);
-void optimised_move (int, int, int);
+void free_ctx(Context);
+void palette_set(int, int, int, int);
+void palette_reset(void);
+void write_clip(void *, int, int);
+void get_clip(void **, int *);
+void optimised_move(int, int, int);
 void set_raw_mouse_mode(int);
 Mouse_Button translate_button(Mouse_Button b);
 void connection_fatal(char *, ...);
-void fatalbox (char *, ...);
-void beep (int);
+void fatalbox(char *, ...);
+void beep(int);
 void begin_session(void);
 void sys_cursor(int x, int y);
 #define OPTIMISE_IS_SCROLL 1
@@ -329,8 +329,8 @@ void sys_cursor(int x, int y);
 /*
  * Exports from noise.c.
  */
-void noise_get_heavy(void (*func)(void *, int));
-void noise_get_light(void (*func)(void *, int));
+void noise_get_heavy(void (*func) (void *, int));
+void noise_get_light(void (*func) (void *, int));
 void noise_regular(void);
 void noise_ultralight(DWORD data);
 void random_save_seed(void);
@@ -340,14 +340,14 @@ void random_destroy_seed(void);
  * Exports from windlg.c.
  */
 void defuse_showwindow(void);
-int do_config (void);
-int do_reconfig (HWND);
-void do_defaults (char *, Config *);
-void logevent (char *);
-void showeventlog (HWND);
-void showabout (HWND);
+int do_config(void);
+int do_reconfig(HWND);
+void do_defaults(char *, Config *);
+void logevent(char *);
+void showeventlog(HWND);
+void showabout(HWND);
 void verify_ssh_host_key(char *host, int port, char *keytype,
-                         char *keystr, char *fingerprint);
+			 char *keystr, char *fingerprint);
 int askappend(char *filename);
 void registry_cleanup(void);
 void force_normal(HWND hwnd);
@@ -358,32 +358,32 @@ GLOBAL char **sessions;
 /*
  * Exports from settings.c.
  */
-void save_settings (char *section, int do_host, Config *cfg);
-void load_settings (char *section, int do_host, Config *cfg);
+void save_settings(char *section, int do_host, Config * cfg);
+void load_settings(char *section, int do_host, Config * cfg);
 void get_sesslist(int allocate);
 
 /*
  * Exports from terminal.c.
  */
 
-void term_init (void);
-void term_size (int, int, int);
-void term_out (void);
-void term_paint (Context, int, int, int, int);
-void term_scroll (int, int);
-void term_pwron (void);
-void term_clrsb (void);
-void term_mouse (Mouse_Button, Mouse_Action, int, int, int, int);
-void term_deselect (void);
-void term_update (void);
+void term_init(void);
+void term_size(int, int, int);
+void term_out(void);
+void term_paint(Context, int, int, int, int);
+void term_scroll(int, int);
+void term_pwron(void);
+void term_clrsb(void);
+void term_mouse(Mouse_Button, Mouse_Action, int, int, int, int);
+void term_deselect(void);
+void term_update(void);
 void term_invalidate(void);
 void term_blink(int set_cursor);
 void term_paste(void);
 void term_nopaste(void);
 int term_ldisc(int option);
 void from_backend(int is_stderr, char *data, int len);
-void logfopen (void); 
-void logfclose (void);
+void logfopen(void);
+void logfclose(void);
 void term_copyall(void);
 
 /*
@@ -408,8 +408,8 @@ extern Backend telnet_backend;
  * Exports from ssh.c.
  */
 
-extern int (*ssh_get_line)(const char *prompt, char *str, int maxlen,
-                           int is_pw);
+extern int (*ssh_get_line) (const char *prompt, char *str, int maxlen,
+			    int is_pw);
 extern Backend ssh_backend;
 
 /*

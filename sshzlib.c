@@ -57,8 +57,8 @@ struct LZ77InternalContext;
 struct LZ77Context {
     struct LZ77InternalContext *ictx;
     void *userdata;
-    void (*literal)(struct LZ77Context *ctx, unsigned char c);
-    void (*match)(struct LZ77Context *ctx, int distance, int len);
+    void (*literal) (struct LZ77Context * ctx, unsigned char c);
+    void (*match) (struct LZ77Context * ctx, int distance, int len);
 };
 
 /*
@@ -74,7 +74,7 @@ static int lz77_init(struct LZ77Context *ctx);
  * instead call literal() for everything.
  */
 static void lz77_compress(struct LZ77Context *ctx,
-                          unsigned char *data, int len, int compress);
+			  unsigned char *data, int len, int compress);
 
 /*
  * Modifiable parameters.
@@ -116,15 +116,17 @@ struct LZ77InternalContext {
     int npending;
 };
 
-static int lz77_hash(unsigned char *data) {
-    return (257*data[0] + 263*data[1] + 269*data[2]) % HASHMAX;
+static int lz77_hash(unsigned char *data)
+{
+    return (257 * data[0] + 263 * data[1] + 269 * data[2]) % HASHMAX;
 }
 
-static int lz77_init(struct LZ77Context *ctx) {
+static int lz77_init(struct LZ77Context *ctx)
+{
     struct LZ77InternalContext *st;
     int i;
 
-    st = (struct LZ77InternalContext *)smalloc(sizeof(*st));
+    st = (struct LZ77InternalContext *) smalloc(sizeof(*st));
     if (!st)
 	return 0;
 
@@ -142,7 +144,8 @@ static int lz77_init(struct LZ77Context *ctx) {
 }
 
 static void lz77_advance(struct LZ77InternalContext *st,
-			 unsigned char c, int hash) {
+			 unsigned char c, int hash)
+{
     int off;
 
     /*
@@ -170,13 +173,14 @@ static void lz77_advance(struct LZ77InternalContext *st,
     /*
      * Advance the window pointer.
      */
-    st->winpos = (st->winpos + 1) & (WINSIZE-1);
+    st->winpos = (st->winpos + 1) & (WINSIZE - 1);
 }
 
 #define CHARAT(k) ( (k)<0 ? st->data[(st->winpos+k)&(WINSIZE-1)] : data[k] )
 
 static void lz77_compress(struct LZ77Context *ctx,
-                          unsigned char *data, int len, int compress) {
+			  unsigned char *data, int len, int compress)
+{
     struct LZ77InternalContext *st = ctx->ictx;
     int i, hash, distance, off, nmatch, matchlen, advance;
     struct Match defermatch, matches[MAXMATCH];
@@ -192,11 +196,11 @@ static void lz77_compress(struct LZ77Context *ctx,
 	if (len + st->npending - i < HASHCHARS) {
 	    /* Update the pending array. */
 	    for (j = i; j < st->npending; j++)
-		st->pending[j-i] = st->pending[j];
+		st->pending[j - i] = st->pending[j];
 	    break;
 	}
 	for (j = 0; j < HASHCHARS; j++)
-	    foo[j] = (i + j < st->npending ? st->pending[i+j] :
+	    foo[j] = (i + j < st->npending ? st->pending[i + j] :
 		      data[i + j - st->npending]);
 	lz77_advance(st, foo[0], lz77_hash(foo));
     }
@@ -205,35 +209,36 @@ static void lz77_compress(struct LZ77Context *ctx,
     defermatch.len = 0;
     while (len > 0) {
 
-        /* Don't even look for a match, if we're not compressing. */
-        if (compress && len >= HASHCHARS) {
-            /*
-             * Hash the next few characters.
-             */
-            hash = lz77_hash(data);
+	/* Don't even look for a match, if we're not compressing. */
+	if (compress && len >= HASHCHARS) {
+	    /*
+	     * Hash the next few characters.
+	     */
+	    hash = lz77_hash(data);
 
-            /*
-             * Look the hash up in the corresponding hash chain and see
-             * what we can find.
-             */
-            nmatch = 0;
-            for (off = st->hashtab[hash].first;
-                 off != INVALID; off = st->win[off].next) {
-                /* distance = 1       if off == st->winpos-1 */
-                /* distance = WINSIZE if off == st->winpos   */
-                distance = WINSIZE - (off + WINSIZE - st->winpos) % WINSIZE;
-                for (i = 0; i < HASHCHARS; i++)
-                    if (CHARAT(i) != CHARAT(i-distance))
-                        break;
-                if (i == HASHCHARS) {
-                    matches[nmatch].distance = distance;
-                    matches[nmatch].len = 3;
-                    if (++nmatch >= MAXMATCH)
-                        break;
-                }
-            }
-        } else {
-            nmatch = 0;
+	    /*
+	     * Look the hash up in the corresponding hash chain and see
+	     * what we can find.
+	     */
+	    nmatch = 0;
+	    for (off = st->hashtab[hash].first;
+		 off != INVALID; off = st->win[off].next) {
+		/* distance = 1       if off == st->winpos-1 */
+		/* distance = WINSIZE if off == st->winpos   */
+		distance =
+		    WINSIZE - (off + WINSIZE - st->winpos) % WINSIZE;
+		for (i = 0; i < HASHCHARS; i++)
+		    if (CHARAT(i) != CHARAT(i - distance))
+			break;
+		if (i == HASHCHARS) {
+		    matches[nmatch].distance = distance;
+		    matches[nmatch].len = 3;
+		    if (++nmatch >= MAXMATCH)
+			break;
+		}
+	    }
+	} else {
+	    nmatch = 0;
 	    hash = INVALID;
 	}
 
@@ -269,7 +274,7 @@ static void lz77_compress(struct LZ77Context *ctx,
 		if (matches[0].len > defermatch.len + 1) {
 		    /* We have a better match. Emit the deferred char,
 		     * and defer this match. */
-		    ctx->literal(ctx, (unsigned char)deferchr);
+		    ctx->literal(ctx, (unsigned char) deferchr);
 		    defermatch = matches[0];
 		    deferchr = data[0];
 		    advance = 1;
@@ -284,7 +289,7 @@ static void lz77_compress(struct LZ77Context *ctx,
 		defermatch = matches[0];
 		deferchr = data[0];
 		advance = 1;
-	    }	    
+	    }
 	} else {
 	    /*
 	     * We found no matches. Emit the deferred match, if
@@ -342,18 +347,19 @@ struct Outbuf {
     int comp_disabled;
 };
 
-static void outbits(struct Outbuf *out, unsigned long bits, int nbits) {
+static void outbits(struct Outbuf *out, unsigned long bits, int nbits)
+{
     assert(out->noutbits + nbits <= 32);
     out->outbits |= bits << out->noutbits;
     out->noutbits += nbits;
     while (out->noutbits >= 8) {
-        if (out->outlen >= out->outsize) {
-            out->outsize = out->outlen + 64;
-            out->outbuf = srealloc(out->outbuf, out->outsize);
-        }
-        out->outbuf[out->outlen++] = (unsigned char)(out->outbits & 0xFF);
-        out->outbits >>= 8;
-        out->noutbits -= 8;
+	if (out->outlen >= out->outsize) {
+	    out->outsize = out->outlen + 64;
+	    out->outbuf = srealloc(out->outbuf, out->outsize);
+	}
+	out->outbuf[out->outlen++] = (unsigned char) (out->outbits & 0xFF);
+	out->outbits >>= 8;
+	out->noutbits -= 8;
     }
 }
 
@@ -398,100 +404,102 @@ typedef struct {
 } coderecord;
 
 static const coderecord lencodes[] = {
-    {257, 0, 3,3},
-    {258, 0, 4,4},
-    {259, 0, 5,5},
-    {260, 0, 6,6},
-    {261, 0, 7,7},
-    {262, 0, 8,8},
-    {263, 0, 9,9},
-    {264, 0, 10,10},
-    {265, 1, 11,12},
-    {266, 1, 13,14},
-    {267, 1, 15,16},
-    {268, 1, 17,18},
-    {269, 2, 19,22},
-    {270, 2, 23,26},
-    {271, 2, 27,30},
-    {272, 2, 31,34},
-    {273, 3, 35,42},
-    {274, 3, 43,50},
-    {275, 3, 51,58},
-    {276, 3, 59,66},
-    {277, 4, 67,82},
-    {278, 4, 83,98},
-    {279, 4, 99,114},
-    {280, 4, 115,130},
-    {281, 5, 131,162},
-    {282, 5, 163,194},
-    {283, 5, 195,226},
-    {284, 5, 227,257},
-    {285, 0, 258,258},
+    {257, 0, 3, 3},
+    {258, 0, 4, 4},
+    {259, 0, 5, 5},
+    {260, 0, 6, 6},
+    {261, 0, 7, 7},
+    {262, 0, 8, 8},
+    {263, 0, 9, 9},
+    {264, 0, 10, 10},
+    {265, 1, 11, 12},
+    {266, 1, 13, 14},
+    {267, 1, 15, 16},
+    {268, 1, 17, 18},
+    {269, 2, 19, 22},
+    {270, 2, 23, 26},
+    {271, 2, 27, 30},
+    {272, 2, 31, 34},
+    {273, 3, 35, 42},
+    {274, 3, 43, 50},
+    {275, 3, 51, 58},
+    {276, 3, 59, 66},
+    {277, 4, 67, 82},
+    {278, 4, 83, 98},
+    {279, 4, 99, 114},
+    {280, 4, 115, 130},
+    {281, 5, 131, 162},
+    {282, 5, 163, 194},
+    {283, 5, 195, 226},
+    {284, 5, 227, 257},
+    {285, 0, 258, 258},
 };
 
 static const coderecord distcodes[] = {
-    {0, 0, 1,1},
-    {1, 0, 2,2},
-    {2, 0, 3,3},
-    {3, 0, 4,4},
-    {4, 1, 5,6},
-    {5, 1, 7,8},
-    {6, 2, 9,12},
-    {7, 2, 13,16},
-    {8, 3, 17,24},
-    {9, 3, 25,32},
-    {10, 4, 33,48},
-    {11, 4, 49,64},
-    {12, 5, 65,96},
-    {13, 5, 97,128},
-    {14, 6, 129,192},
-    {15, 6, 193,256},
-    {16, 7, 257,384},
-    {17, 7, 385,512},
-    {18, 8, 513,768},
-    {19, 8, 769,1024},
-    {20, 9, 1025,1536},
-    {21, 9, 1537,2048},
-    {22, 10, 2049,3072},
-    {23, 10, 3073,4096},
-    {24, 11, 4097,6144},
-    {25, 11, 6145,8192},
-    {26, 12, 8193,12288},
-    {27, 12, 12289,16384},
-    {28, 13, 16385,24576},
-    {29, 13, 24577,32768},
+    {0, 0, 1, 1},
+    {1, 0, 2, 2},
+    {2, 0, 3, 3},
+    {3, 0, 4, 4},
+    {4, 1, 5, 6},
+    {5, 1, 7, 8},
+    {6, 2, 9, 12},
+    {7, 2, 13, 16},
+    {8, 3, 17, 24},
+    {9, 3, 25, 32},
+    {10, 4, 33, 48},
+    {11, 4, 49, 64},
+    {12, 5, 65, 96},
+    {13, 5, 97, 128},
+    {14, 6, 129, 192},
+    {15, 6, 193, 256},
+    {16, 7, 257, 384},
+    {17, 7, 385, 512},
+    {18, 8, 513, 768},
+    {19, 8, 769, 1024},
+    {20, 9, 1025, 1536},
+    {21, 9, 1537, 2048},
+    {22, 10, 2049, 3072},
+    {23, 10, 3073, 4096},
+    {24, 11, 4097, 6144},
+    {25, 11, 6145, 8192},
+    {26, 12, 8193, 12288},
+    {27, 12, 12289, 16384},
+    {28, 13, 16385, 24576},
+    {29, 13, 24577, 32768},
 };
 
-static void zlib_literal(struct LZ77Context *ectx, unsigned char c) {
-    struct Outbuf *out = (struct Outbuf *)ectx->userdata;
+static void zlib_literal(struct LZ77Context *ectx, unsigned char c)
+{
+    struct Outbuf *out = (struct Outbuf *) ectx->userdata;
 
     if (out->comp_disabled) {
-        /*
-         * We're in an uncompressed block, so just output the byte.
-         */
-        outbits(out, c, 8);
-        return;
+	/*
+	 * We're in an uncompressed block, so just output the byte.
+	 */
+	outbits(out, c, 8);
+	return;
     }
 
     if (c <= 143) {
-        /* 0 through 143 are 8 bits long starting at 00110000. */
-        outbits(out, mirrorbytes[0x30 + c], 8);
+	/* 0 through 143 are 8 bits long starting at 00110000. */
+	outbits(out, mirrorbytes[0x30 + c], 8);
     } else {
-        /* 144 through 255 are 9 bits long starting at 110010000. */
-        outbits(out, 1 + 2*mirrorbytes[0x90 - 144 + c], 9);
+	/* 144 through 255 are 9 bits long starting at 110010000. */
+	outbits(out, 1 + 2 * mirrorbytes[0x90 - 144 + c], 9);
     }
 }
 
-static void zlib_match(struct LZ77Context *ectx, int distance, int len) {
+static void zlib_match(struct LZ77Context *ectx, int distance, int len)
+{
     const coderecord *d, *l;
     int i, j, k;
-    struct Outbuf *out = (struct Outbuf *)ectx->userdata;
+    struct Outbuf *out = (struct Outbuf *) ectx->userdata;
 
     assert(!out->comp_disabled);
 
     while (len > 0) {
-        int thislen;
-	
+	int thislen;
+
 	/*
 	 * We can transmit matches of lengths 3 through 258
 	 * inclusive. So if len exceeds 258, we must transmit in
@@ -502,74 +510,77 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len) {
 	 * len <= 258, we can just transmit len. But if len == 259
 	 * or 260, we must transmit len-3.
 	 */
-	thislen = (len > 260 ? 258 : len <= 258 ? len : len-3);
-        len -= thislen;
+	thislen = (len > 260 ? 258 : len <= 258 ? len : len - 3);
+	len -= thislen;
 
-        /*
-         * Binary-search to find which length code we're
-         * transmitting.
-         */
-        i = -1; j = sizeof(lencodes)/sizeof(*lencodes);
-        while (j - i >= 2) {
-            k = (j+i)/2;
-            if (thislen < lencodes[k].min)
-                j = k;
-            else if (thislen > lencodes[k].max)
-                i = k;
-            else {
-                l = &lencodes[k];
-                break;                 /* found it! */
-            }
-        }
+	/*
+	 * Binary-search to find which length code we're
+	 * transmitting.
+	 */
+	i = -1;
+	j = sizeof(lencodes) / sizeof(*lencodes);
+	while (j - i >= 2) {
+	    k = (j + i) / 2;
+	    if (thislen < lencodes[k].min)
+		j = k;
+	    else if (thislen > lencodes[k].max)
+		i = k;
+	    else {
+		l = &lencodes[k];
+		break;		       /* found it! */
+	    }
+	}
 
-        /*
-         * Transmit the length code. 256-279 are seven bits
-         * starting at 0000000; 280-287 are eight bits starting at
-         * 11000000.
-         */
-        if (l->code <= 279) {
-            outbits(out, mirrorbytes[(l->code-256)*2], 7);
-        } else {
-            outbits(out, mirrorbytes[0xc0 - 280 + l->code], 8);
-        }
+	/*
+	 * Transmit the length code. 256-279 are seven bits
+	 * starting at 0000000; 280-287 are eight bits starting at
+	 * 11000000.
+	 */
+	if (l->code <= 279) {
+	    outbits(out, mirrorbytes[(l->code - 256) * 2], 7);
+	} else {
+	    outbits(out, mirrorbytes[0xc0 - 280 + l->code], 8);
+	}
 
-        /*
-         * Transmit the extra bits.
-         */
-        if (l->extrabits)
-            outbits(out, thislen - l->min, l->extrabits);
+	/*
+	 * Transmit the extra bits.
+	 */
+	if (l->extrabits)
+	    outbits(out, thislen - l->min, l->extrabits);
 
-        /*
-         * Binary-search to find which distance code we're
-         * transmitting.
-         */
-        i = -1; j = sizeof(distcodes)/sizeof(*distcodes);
-        while (j - i >= 2) {
-            k = (j+i)/2;
-            if (distance < distcodes[k].min)
-                j = k;
-            else if (distance > distcodes[k].max)
-                i = k;
-            else {
-                d = &distcodes[k];
-                break;                 /* found it! */
-            }
-        }
+	/*
+	 * Binary-search to find which distance code we're
+	 * transmitting.
+	 */
+	i = -1;
+	j = sizeof(distcodes) / sizeof(*distcodes);
+	while (j - i >= 2) {
+	    k = (j + i) / 2;
+	    if (distance < distcodes[k].min)
+		j = k;
+	    else if (distance > distcodes[k].max)
+		i = k;
+	    else {
+		d = &distcodes[k];
+		break;		       /* found it! */
+	    }
+	}
 
-        /*
-         * Transmit the distance code. Five bits starting at 00000.
-         */
-        outbits(out, mirrorbytes[d->code*8], 5);
+	/*
+	 * Transmit the distance code. Five bits starting at 00000.
+	 */
+	outbits(out, mirrorbytes[d->code * 8], 5);
 
-        /*
-         * Transmit the extra bits.
-         */
-        if (d->extrabits)
-            outbits(out, distance - d->min, d->extrabits);
+	/*
+	 * Transmit the extra bits.
+	 */
+	if (d->extrabits)
+	    outbits(out, distance - d->min, d->extrabits);
     }
 }
 
-void zlib_compress_init(void) {
+void zlib_compress_init(void)
+{
     struct Outbuf *out;
 
     lz77_init(&ectx);
@@ -591,8 +602,9 @@ void zlib_compress_init(void) {
  * length adjustment (which is only valid for packets < 65536
  * bytes, but that seems reasonable enough).
  */
-int zlib_disable_compression(void) {
-    struct Outbuf *out = (struct Outbuf *)ectx.userdata;
+int zlib_disable_compression(void)
+{
+    struct Outbuf *out = (struct Outbuf *) ectx.userdata;
     int n;
 
     out->comp_disabled = TRUE;
@@ -605,15 +617,15 @@ int zlib_disable_compression(void) {
      * a byte boundary, this is certain).
      */
     if (out->firstblock) {
-        n = 3;
+	n = 3;
     } else {
-        /*
-         * Otherwise, we will output seven bits to close the
-         * previous static block, and _then_ three bits to begin an
-         * uncompressed block, and then flush the current byte.
-         * This may cost two bytes or three, depending on noutbits.
-         */
-        n += (out->noutbits + 10) / 8;
+	/*
+	 * Otherwise, we will output seven bits to close the
+	 * previous static block, and _then_ three bits to begin an
+	 * uncompressed block, and then flush the current byte.
+	 * This may cost two bytes or three, depending on noutbits.
+	 */
+	n += (out->noutbits + 10) / 8;
     }
 
     /*
@@ -626,8 +638,9 @@ int zlib_disable_compression(void) {
 }
 
 int zlib_compress_block(unsigned char *block, int len,
-			unsigned char **outblock, int *outlen) {
-    struct Outbuf *out = (struct Outbuf *)ectx.userdata;
+			unsigned char **outblock, int *outlen)
+{
+    struct Outbuf *out = (struct Outbuf *) ectx.userdata;
     int in_block;
 
     out->outbuf = NULL;
@@ -639,100 +652,100 @@ int zlib_compress_block(unsigned char *block, int len,
      * algorithm.)
      */
     if (out->firstblock) {
-        outbits(out, 0x9C78, 16);
-        out->firstblock = 0;
+	outbits(out, 0x9C78, 16);
+	out->firstblock = 0;
 
-        in_block = FALSE;
+	in_block = FALSE;
     }
 
     if (out->comp_disabled) {
-        if (in_block)
-            outbits(out, 0, 7);		       /* close static block */
+	if (in_block)
+	    outbits(out, 0, 7);	       /* close static block */
 
-        while (len > 0) {
-            int blen = (len < 65535 ? len : 65535);
+	while (len > 0) {
+	    int blen = (len < 65535 ? len : 65535);
 
-            /*
-             * Start a Deflate (RFC1951) uncompressed block. We
-             * transmit a zero bit (BFINAL=0), followed by a zero
-             * bit and a one bit (BTYPE=00). Of course these are in
-             * the wrong order (00 0).
-             */
-            outbits(out, 0, 3);
+	    /*
+	     * Start a Deflate (RFC1951) uncompressed block. We
+	     * transmit a zero bit (BFINAL=0), followed by a zero
+	     * bit and a one bit (BTYPE=00). Of course these are in
+	     * the wrong order (00 0).
+	     */
+	    outbits(out, 0, 3);
 
-            /*
-             * Output zero bits to align to a byte boundary.
-             */
-            if (out->noutbits)
-                outbits(out, 0, 8 - out->noutbits);
+	    /*
+	     * Output zero bits to align to a byte boundary.
+	     */
+	    if (out->noutbits)
+		outbits(out, 0, 8 - out->noutbits);
 
-            /*
-             * Output the block length, and then its one's
-             * complement. They're little-endian, so all we need to
-             * do is pass them straight to outbits() with bit count
-             * 16.
-             */
-            outbits(out, blen, 16);
-            outbits(out, blen ^ 0xFFFF, 16);
+	    /*
+	     * Output the block length, and then its one's
+	     * complement. They're little-endian, so all we need to
+	     * do is pass them straight to outbits() with bit count
+	     * 16.
+	     */
+	    outbits(out, blen, 16);
+	    outbits(out, blen ^ 0xFFFF, 16);
 
-            /*
-             * Do the `compression': we need to pass the data to
-             * lz77_compress so that it will be taken into account
-             * for subsequent (distance,length) pairs. But
-             * lz77_compress is passed FALSE, which means it won't
-             * actually find (or even look for) any matches; so
-             * every character will be passed straight to
-             * zlib_literal which will spot out->comp_disabled and
-             * emit in the uncompressed format.
-             */
-            lz77_compress(&ectx, block, blen, FALSE);
+	    /*
+	     * Do the `compression': we need to pass the data to
+	     * lz77_compress so that it will be taken into account
+	     * for subsequent (distance,length) pairs. But
+	     * lz77_compress is passed FALSE, which means it won't
+	     * actually find (or even look for) any matches; so
+	     * every character will be passed straight to
+	     * zlib_literal which will spot out->comp_disabled and
+	     * emit in the uncompressed format.
+	     */
+	    lz77_compress(&ectx, block, blen, FALSE);
 
-            len -= blen;
-            block += blen;
-        }
-        outbits(out, 2, 3);		       /* open new block */
+	    len -= blen;
+	    block += blen;
+	}
+	outbits(out, 2, 3);	       /* open new block */
     } else {
-        if (!in_block) {
-            /*
-             * Start a Deflate (RFC1951) fixed-trees block. We
-             * transmit a zero bit (BFINAL=0), followed by a zero
-             * bit and a one bit (BTYPE=01). Of course these are in
-             * the wrong order (01 0).
-             */
-            outbits(out, 2, 3);
-        }
+	if (!in_block) {
+	    /*
+	     * Start a Deflate (RFC1951) fixed-trees block. We
+	     * transmit a zero bit (BFINAL=0), followed by a zero
+	     * bit and a one bit (BTYPE=01). Of course these are in
+	     * the wrong order (01 0).
+	     */
+	    outbits(out, 2, 3);
+	}
 
-        /*
-         * Do the compression.
-         */
-        lz77_compress(&ectx, block, len, TRUE);
+	/*
+	 * Do the compression.
+	 */
+	lz77_compress(&ectx, block, len, TRUE);
 
-        /*
-         * End the block (by transmitting code 256, which is
-         * 0000000 in fixed-tree mode), and transmit some empty
-         * blocks to ensure we have emitted the byte containing the
-         * last piece of genuine data. There are three ways we can
-         * do this:
-         *
-         *  - Minimal flush. Output end-of-block and then open a
-         *    new static block. This takes 9 bits, which is
-         *    guaranteed to flush out the last genuine code in the
-         *    closed block; but allegedly zlib can't handle it.
-         *
-         *  - Zlib partial flush. Output EOB, open and close an
-         *    empty static block, and _then_ open the new block.
-         *    This is the best zlib can handle.
-         *
-         *  - Zlib sync flush. Output EOB, then an empty
-         *    _uncompressed_ block (000, then sync to byte
-         *    boundary, then send bytes 00 00 FF FF). Then open the
-         *    new block.
-         *
-         * For the moment, we will use Zlib partial flush.
-         */
-        outbits(out, 0, 7);		       /* close block */
-        outbits(out, 2, 3+7);	       /* empty static block */
-        outbits(out, 2, 3);		       /* open new block */
+	/*
+	 * End the block (by transmitting code 256, which is
+	 * 0000000 in fixed-tree mode), and transmit some empty
+	 * blocks to ensure we have emitted the byte containing the
+	 * last piece of genuine data. There are three ways we can
+	 * do this:
+	 *
+	 *  - Minimal flush. Output end-of-block and then open a
+	 *    new static block. This takes 9 bits, which is
+	 *    guaranteed to flush out the last genuine code in the
+	 *    closed block; but allegedly zlib can't handle it.
+	 *
+	 *  - Zlib partial flush. Output EOB, open and close an
+	 *    empty static block, and _then_ open the new block.
+	 *    This is the best zlib can handle.
+	 *
+	 *  - Zlib sync flush. Output EOB, then an empty
+	 *    _uncompressed_ block (000, then sync to byte
+	 *    boundary, then send bytes 00 00 FF FF). Then open the
+	 *    new block.
+	 *
+	 * For the moment, we will use Zlib partial flush.
+	 */
+	outbits(out, 0, 7);	       /* close block */
+	outbits(out, 2, 3 + 7);	       /* empty static block */
+	outbits(out, 2, 3);	       /* open new block */
     }
 
     out->comp_disabled = FALSE;
@@ -766,7 +779,7 @@ struct zlib_tableentry {
 };
 
 struct zlib_table {
-    int mask;                          /* mask applied to input bit stream */
+    int mask;			       /* mask applied to input bit stream */
     struct zlib_tableentry *table;
 };
 
@@ -779,8 +792,9 @@ struct zlib_table {
  * recurse to build subtables.
  */
 static struct zlib_table *zlib_mkonetab(int *codes, unsigned char *lengths,
-                                        int nsyms,
-                                        int pfx, int pfxbits, int bits) {
+					int nsyms,
+					int pfx, int pfxbits, int bits)
+{
     struct zlib_table *tab = smalloc(sizeof(struct zlib_table));
     int pfxmask = (1 << pfxbits) - 1;
     int nbits, i, j, code;
@@ -789,34 +803,34 @@ static struct zlib_table *zlib_mkonetab(int *codes, unsigned char *lengths,
     tab->mask = (1 << bits) - 1;
 
     for (code = 0; code <= tab->mask; code++) {
-        tab->table[code].code = -1;
-        tab->table[code].nbits = 0;
-        tab->table[code].nexttable = NULL;
+	tab->table[code].code = -1;
+	tab->table[code].nbits = 0;
+	tab->table[code].nexttable = NULL;
     }
 
     for (i = 0; i < nsyms; i++) {
-        if (lengths[i] <= pfxbits || (codes[i] & pfxmask) != pfx)
-            continue;
-        code = (codes[i] >> pfxbits) & tab->mask;
-        for (j = code; j <= tab->mask; j += 1 << (lengths[i]-pfxbits)) {
-            tab->table[j].code = i;
-            nbits = lengths[i] - pfxbits;
-            if (tab->table[j].nbits < nbits)
-                tab->table[j].nbits = nbits;
-        }
+	if (lengths[i] <= pfxbits || (codes[i] & pfxmask) != pfx)
+	    continue;
+	code = (codes[i] >> pfxbits) & tab->mask;
+	for (j = code; j <= tab->mask; j += 1 << (lengths[i] - pfxbits)) {
+	    tab->table[j].code = i;
+	    nbits = lengths[i] - pfxbits;
+	    if (tab->table[j].nbits < nbits)
+		tab->table[j].nbits = nbits;
+	}
     }
     for (code = 0; code <= tab->mask; code++) {
-        if (tab->table[code].nbits <= bits)
-            continue;
-        /* Generate a subtable. */
-        tab->table[code].code = -1;
-        nbits = tab->table[code].nbits - bits;
-        if (nbits > 7)
-            nbits = 7;
-        tab->table[code].nbits = bits;
-        tab->table[code].nexttable = zlib_mkonetab(codes, lengths, nsyms,
-                                                   pfx | (code << pfxbits),
-                                                   pfxbits + bits, nbits);
+	if (tab->table[code].nbits <= bits)
+	    continue;
+	/* Generate a subtable. */
+	tab->table[code].code = -1;
+	nbits = tab->table[code].nbits - bits;
+	if (nbits > 7)
+	    nbits = 7;
+	tab->table[code].nbits = bits;
+	tab->table[code].nexttable = zlib_mkonetab(codes, lengths, nsyms,
+						   pfx | (code << pfxbits),
+						   pfxbits + bits, nbits);
     }
 
     return tab;
@@ -825,34 +839,37 @@ static struct zlib_table *zlib_mkonetab(int *codes, unsigned char *lengths,
 /*
  * Build a decode table, given a set of Huffman tree lengths.
  */
-static struct zlib_table *zlib_mktable(unsigned char *lengths, int nlengths) {
+static struct zlib_table *zlib_mktable(unsigned char *lengths,
+				       int nlengths)
+{
     int count[MAXCODELEN], startcode[MAXCODELEN], codes[MAXSYMS];
     int code, maxlen;
     int i, j;
 
     /* Count the codes of each length. */
     maxlen = 0;
-    for (i = 1; i < MAXCODELEN; i++) count[i] = 0;
+    for (i = 1; i < MAXCODELEN; i++)
+	count[i] = 0;
     for (i = 0; i < nlengths; i++) {
-        count[lengths[i]]++;
-        if (maxlen < lengths[i])
-            maxlen = lengths[i];
+	count[lengths[i]]++;
+	if (maxlen < lengths[i])
+	    maxlen = lengths[i];
     }
     /* Determine the starting code for each length block. */
     code = 0;
     for (i = 1; i < MAXCODELEN; i++) {
-        startcode[i] = code;
-        code += count[i];
-        code <<= 1;
+	startcode[i] = code;
+	code += count[i];
+	code <<= 1;
     }
     /* Determine the code for each symbol. Mirrored, of course. */
     for (i = 0; i < nlengths; i++) {
-        code = startcode[lengths[i]]++;
-        codes[i] = 0;
-        for (j = 0; j < lengths[i]; j++) {
-            codes[i] = (codes[i] << 1) | (code & 1);
-            code >>= 1;
-        }
+	code = startcode[lengths[i]]++;
+	codes[i] = 0;
+	for (j = 0; j < lengths[i]; j++) {
+	    codes[i] = (codes[i] << 1) | (code & 1);
+	    code >>= 1;
+	}
     }
 
     /*
@@ -860,10 +877,11 @@ static struct zlib_table *zlib_mktable(unsigned char *lengths, int nlengths) {
      * table.
      */
     return zlib_mkonetab(codes, lengths, nlengths, 0, 0,
-                         maxlen < 9 ? maxlen : 9);
+			 maxlen < 9 ? maxlen : 9);
 }
 
-static int zlib_freetable(struct zlib_table ** ztab) {
+static int zlib_freetable(struct zlib_table **ztab)
+{
     struct zlib_table *tab;
     int code;
 
@@ -885,22 +903,23 @@ static int zlib_freetable(struct zlib_table ** ztab) {
     sfree(tab);
     *ztab = NULL;
 
-    return(0);
+    return (0);
 }
 
 static struct zlib_decompress_ctx {
     struct zlib_table *staticlentable, *staticdisttable;
     struct zlib_table *currlentable, *currdisttable, *lenlentable;
     enum {
-        START, OUTSIDEBLK,
-        TREES_HDR, TREES_LENLEN, TREES_LEN, TREES_LENREP,
-        INBLK, GOTLENSYM, GOTLEN, GOTDISTSYM,
-        UNCOMP_LEN, UNCOMP_NLEN, UNCOMP_DATA
+	START, OUTSIDEBLK,
+	TREES_HDR, TREES_LENLEN, TREES_LEN, TREES_LENREP,
+	INBLK, GOTLENSYM, GOTLEN, GOTDISTSYM,
+	UNCOMP_LEN, UNCOMP_NLEN, UNCOMP_DATA
     } state;
-    int sym, hlit, hdist, hclen, lenptr, lenextrabits, lenaddon, len, lenrep;
+    int sym, hlit, hdist, hclen, lenptr, lenextrabits, lenaddon, len,
+	lenrep;
     int uncomplen;
     unsigned char lenlen[19];
-    unsigned char lengths[286+32];
+    unsigned char lengths[286 + 32];
     unsigned long bits;
     int nbits;
     unsigned char window[WINSIZE];
@@ -909,45 +928,49 @@ static struct zlib_decompress_ctx {
     int outlen, outsize;
 } dctx;
 
-void zlib_decompress_init(void) {
+void zlib_decompress_init(void)
+{
     unsigned char lengths[288];
     memset(lengths, 8, 144);
-    memset(lengths+144, 9, 256-144);
-    memset(lengths+256, 7, 280-256);
-    memset(lengths+280, 8, 288-280);
+    memset(lengths + 144, 9, 256 - 144);
+    memset(lengths + 256, 7, 280 - 256);
+    memset(lengths + 280, 8, 288 - 280);
     dctx.staticlentable = zlib_mktable(lengths, 288);
     memset(lengths, 5, 32);
     dctx.staticdisttable = zlib_mktable(lengths, 32);
-    dctx.state = START;                /* even before header */
+    dctx.state = START;		       /* even before header */
     dctx.currlentable = dctx.currdisttable = dctx.lenlentable = NULL;
     dctx.bits = 0;
     dctx.nbits = 0;
     logevent("Initialised zlib (RFC1950) decompression");
 }
 
-int zlib_huflookup(unsigned long *bitsp, int *nbitsp, struct zlib_table *tab) {
+int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
+		   struct zlib_table *tab)
+{
     unsigned long bits = *bitsp;
     int nbits = *nbitsp;
     while (1) {
-        struct zlib_tableentry *ent;
-        ent = &tab->table[bits & tab->mask];
-        if (ent->nbits > nbits)
-            return -1;                 /* not enough data */
-        bits >>= ent->nbits;
-        nbits -= ent->nbits;
-        if (ent->code == -1)
-            tab = ent->nexttable;
-        else {
-            *bitsp = bits;
-            *nbitsp = nbits;
-            return ent->code;
-        }
+	struct zlib_tableentry *ent;
+	ent = &tab->table[bits & tab->mask];
+	if (ent->nbits > nbits)
+	    return -1;		       /* not enough data */
+	bits >>= ent->nbits;
+	nbits -= ent->nbits;
+	if (ent->code == -1)
+	    tab = ent->nexttable;
+	else {
+	    *bitsp = bits;
+	    *nbitsp = nbits;
+	    return ent->code;
+	}
     }
 }
 
-static void zlib_emit_char(int c) {
+static void zlib_emit_char(int c)
+{
     dctx.window[dctx.winpos] = c;
-    dctx.winpos = (dctx.winpos + 1) & (WINSIZE-1);
+    dctx.winpos = (dctx.winpos + 1) & (WINSIZE - 1);
     if (dctx.outlen >= dctx.outsize) {
 	dctx.outsize = dctx.outlen + 512;
 	dctx.outblk = srealloc(dctx.outblk, dctx.outsize);
@@ -958,152 +981,164 @@ static void zlib_emit_char(int c) {
 #define EATBITS(n) ( dctx.nbits -= (n), dctx.bits >>= (n) )
 
 int zlib_decompress_block(unsigned char *block, int len,
-			  unsigned char **outblock, int *outlen) {
+			  unsigned char **outblock, int *outlen)
+{
     const coderecord *rec;
     int code, blktype, rep, dist, nlen;
     static const unsigned char lenlenmap[] = {
-        16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
+	16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
     };
 
     dctx.outblk = NULL;
     dctx.outsize = dctx.outlen = 0;
 
     while (len > 0 || dctx.nbits > 0) {
-        while (dctx.nbits < 24 && len > 0) {
-            dctx.bits |= (*block++) << dctx.nbits;
-            dctx.nbits += 8;
-            len--;
-        }
-        switch (dctx.state) {
-          case START:
-            /* Expect 16-bit zlib header, which we'll dishonourably ignore. */
-            if (dctx.nbits < 16)
-                goto finished;	       /* done all we can */
-            EATBITS(16);
-            dctx.state = OUTSIDEBLK;
-            break;
-          case OUTSIDEBLK:
-            /* Expect 3-bit block header. */
-            if (dctx.nbits < 3)
-                goto finished;	       /* done all we can */
-            EATBITS(1);
-            blktype = dctx.bits & 3;
-            EATBITS(2);
-            if (blktype == 0) {
+	while (dctx.nbits < 24 && len > 0) {
+	    dctx.bits |= (*block++) << dctx.nbits;
+	    dctx.nbits += 8;
+	    len--;
+	}
+	switch (dctx.state) {
+	  case START:
+	    /* Expect 16-bit zlib header, which we'll dishonourably ignore. */
+	    if (dctx.nbits < 16)
+		goto finished;	       /* done all we can */
+	    EATBITS(16);
+	    dctx.state = OUTSIDEBLK;
+	    break;
+	  case OUTSIDEBLK:
+	    /* Expect 3-bit block header. */
+	    if (dctx.nbits < 3)
+		goto finished;	       /* done all we can */
+	    EATBITS(1);
+	    blktype = dctx.bits & 3;
+	    EATBITS(2);
+	    if (blktype == 0) {
 		int to_eat = dctx.nbits & 7;
-                dctx.state = UNCOMP_LEN;
+		dctx.state = UNCOMP_LEN;
 		EATBITS(to_eat);       /* align to byte boundary */
-            } else if (blktype == 1) {
-                dctx.currlentable = dctx.staticlentable;
-                dctx.currdisttable = dctx.staticdisttable;
-                dctx.state = INBLK;
-            } else if (blktype == 2) {
-                dctx.state = TREES_HDR;
-            }
-            break;
-          case TREES_HDR:
-            /*
-             * Dynamic block header. Five bits of HLIT, five of
-             * HDIST, four of HCLEN.
-             */
-            if (dctx.nbits < 5+5+4)
-                goto finished;	       /* done all we can */
-            dctx.hlit = 257 + (dctx.bits & 31); EATBITS(5);
-            dctx.hdist = 1 + (dctx.bits & 31); EATBITS(5);
-            dctx.hclen = 4 + (dctx.bits & 15); EATBITS(4);
-            dctx.lenptr = 0;
-            dctx.state = TREES_LENLEN;
-            memset(dctx.lenlen, 0, sizeof(dctx.lenlen));
-            break;
-          case TREES_LENLEN:
-            if (dctx.nbits < 3)
-                goto finished;
-            while (dctx.lenptr < dctx.hclen && dctx.nbits >= 3) {
-                dctx.lenlen[lenlenmap[dctx.lenptr++]] =
-		    (unsigned char)(dctx.bits & 7);
-                EATBITS(3);
-            }
-            if (dctx.lenptr == dctx.hclen) {
-                dctx.lenlentable = zlib_mktable(dctx.lenlen, 19);
-                dctx.state = TREES_LEN;
-                dctx.lenptr = 0;
-            }
-            break;
-          case TREES_LEN:
-            if (dctx.lenptr >= dctx.hlit+dctx.hdist) {
-                dctx.currlentable = zlib_mktable(dctx.lengths, dctx.hlit);
-                dctx.currdisttable = zlib_mktable(dctx.lengths + dctx.hlit,
-                                                  dctx.hdist);
+	    } else if (blktype == 1) {
+		dctx.currlentable = dctx.staticlentable;
+		dctx.currdisttable = dctx.staticdisttable;
+		dctx.state = INBLK;
+	    } else if (blktype == 2) {
+		dctx.state = TREES_HDR;
+	    }
+	    break;
+	  case TREES_HDR:
+	    /*
+	     * Dynamic block header. Five bits of HLIT, five of
+	     * HDIST, four of HCLEN.
+	     */
+	    if (dctx.nbits < 5 + 5 + 4)
+		goto finished;	       /* done all we can */
+	    dctx.hlit = 257 + (dctx.bits & 31);
+	    EATBITS(5);
+	    dctx.hdist = 1 + (dctx.bits & 31);
+	    EATBITS(5);
+	    dctx.hclen = 4 + (dctx.bits & 15);
+	    EATBITS(4);
+	    dctx.lenptr = 0;
+	    dctx.state = TREES_LENLEN;
+	    memset(dctx.lenlen, 0, sizeof(dctx.lenlen));
+	    break;
+	  case TREES_LENLEN:
+	    if (dctx.nbits < 3)
+		goto finished;
+	    while (dctx.lenptr < dctx.hclen && dctx.nbits >= 3) {
+		dctx.lenlen[lenlenmap[dctx.lenptr++]] =
+		    (unsigned char) (dctx.bits & 7);
+		EATBITS(3);
+	    }
+	    if (dctx.lenptr == dctx.hclen) {
+		dctx.lenlentable = zlib_mktable(dctx.lenlen, 19);
+		dctx.state = TREES_LEN;
+		dctx.lenptr = 0;
+	    }
+	    break;
+	  case TREES_LEN:
+	    if (dctx.lenptr >= dctx.hlit + dctx.hdist) {
+		dctx.currlentable = zlib_mktable(dctx.lengths, dctx.hlit);
+		dctx.currdisttable = zlib_mktable(dctx.lengths + dctx.hlit,
+						  dctx.hdist);
 		zlib_freetable(&dctx.lenlentable);
 		dctx.state = INBLK;
-                break;
-            }
-            code = zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.lenlentable);
-            if (code == -1)
-                goto finished;
-            if (code < 16)
-                dctx.lengths[dctx.lenptr++] = code;
-            else {
-                dctx.lenextrabits = (code == 16 ? 2 : code == 17 ? 3 : 7);
-                dctx.lenaddon = (code == 18 ? 11 : 3);
-                dctx.lenrep = (code == 16 && dctx.lenptr > 0 ?
-                               dctx.lengths[dctx.lenptr-1] : 0);
-                dctx.state = TREES_LENREP;
-            }
-            break;
-          case TREES_LENREP:
-            if (dctx.nbits < dctx.lenextrabits)
-                goto finished;
-            rep = dctx.lenaddon + (dctx.bits & ((1<<dctx.lenextrabits)-1));
-            EATBITS(dctx.lenextrabits);
-            while (rep > 0 && dctx.lenptr < dctx.hlit+dctx.hdist) {
-                dctx.lengths[dctx.lenptr] = dctx.lenrep;
-                dctx.lenptr++;
-                rep--;
-            }
-            dctx.state = TREES_LEN;
-            break;
-          case INBLK:
-            code = zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.currlentable);
-            if (code == -1)
-                goto finished;
-            if (code < 256)
+		break;
+	    }
+	    code =
+		zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.lenlentable);
+	    if (code == -1)
+		goto finished;
+	    if (code < 16)
+		dctx.lengths[dctx.lenptr++] = code;
+	    else {
+		dctx.lenextrabits = (code == 16 ? 2 : code == 17 ? 3 : 7);
+		dctx.lenaddon = (code == 18 ? 11 : 3);
+		dctx.lenrep = (code == 16 && dctx.lenptr > 0 ?
+			       dctx.lengths[dctx.lenptr - 1] : 0);
+		dctx.state = TREES_LENREP;
+	    }
+	    break;
+	  case TREES_LENREP:
+	    if (dctx.nbits < dctx.lenextrabits)
+		goto finished;
+	    rep =
+		dctx.lenaddon +
+		(dctx.bits & ((1 << dctx.lenextrabits) - 1));
+	    EATBITS(dctx.lenextrabits);
+	    while (rep > 0 && dctx.lenptr < dctx.hlit + dctx.hdist) {
+		dctx.lengths[dctx.lenptr] = dctx.lenrep;
+		dctx.lenptr++;
+		rep--;
+	    }
+	    dctx.state = TREES_LEN;
+	    break;
+	  case INBLK:
+	    code =
+		zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.currlentable);
+	    if (code == -1)
+		goto finished;
+	    if (code < 256)
 		zlib_emit_char(code);
-            else if (code == 256) {
-                dctx.state = OUTSIDEBLK;
+	    else if (code == 256) {
+		dctx.state = OUTSIDEBLK;
 		if (dctx.currlentable != dctx.staticlentable)
 		    zlib_freetable(&dctx.currlentable);
 		if (dctx.currdisttable != dctx.staticdisttable)
 		    zlib_freetable(&dctx.currdisttable);
-            } else if (code < 286) {   /* static tree can give >285; ignore */
-                dctx.state = GOTLENSYM;
-                dctx.sym = code;
-            }
-            break;
-          case GOTLENSYM:
-            rec = &lencodes[dctx.sym - 257];
-            if (dctx.nbits < rec->extrabits)
-                goto finished;
-            dctx.len = rec->min + (dctx.bits & ((1<<rec->extrabits)-1));
-            EATBITS(rec->extrabits);
-            dctx.state = GOTLEN;
-            break;
-          case GOTLEN:
-            code = zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.currdisttable);
-            if (code == -1)
-                goto finished;
-            dctx.state = GOTDISTSYM;
-            dctx.sym = code;
-            break;
-          case GOTDISTSYM:
-            rec = &distcodes[dctx.sym];
-            if (dctx.nbits < rec->extrabits)
-                goto finished;
-            dist = rec->min + (dctx.bits & ((1<<rec->extrabits)-1));
-            EATBITS(rec->extrabits);
-            dctx.state = INBLK;
+	    } else if (code < 286) {   /* static tree can give >285; ignore */
+		dctx.state = GOTLENSYM;
+		dctx.sym = code;
+	    }
+	    break;
+	  case GOTLENSYM:
+	    rec = &lencodes[dctx.sym - 257];
+	    if (dctx.nbits < rec->extrabits)
+		goto finished;
+	    dctx.len =
+		rec->min + (dctx.bits & ((1 << rec->extrabits) - 1));
+	    EATBITS(rec->extrabits);
+	    dctx.state = GOTLEN;
+	    break;
+	  case GOTLEN:
+	    code =
+		zlib_huflookup(&dctx.bits, &dctx.nbits,
+			       dctx.currdisttable);
+	    if (code == -1)
+		goto finished;
+	    dctx.state = GOTDISTSYM;
+	    dctx.sym = code;
+	    break;
+	  case GOTDISTSYM:
+	    rec = &distcodes[dctx.sym];
+	    if (dctx.nbits < rec->extrabits)
+		goto finished;
+	    dist = rec->min + (dctx.bits & ((1 << rec->extrabits) - 1));
+	    EATBITS(rec->extrabits);
+	    dctx.state = INBLK;
 	    while (dctx.len--)
-		zlib_emit_char(dctx.window[(dctx.winpos-dist) & (WINSIZE-1)]);
+		zlib_emit_char(dctx.window[(dctx.winpos - dist) &
+					   (WINSIZE - 1)]);
 	    break;
 	  case UNCOMP_LEN:
 	    /*
@@ -1133,12 +1168,12 @@ int zlib_decompress_block(unsigned char *block, int len,
 	    zlib_emit_char(dctx.bits & 0xFF);
 	    EATBITS(8);
 	    if (--dctx.uncomplen == 0)
-		dctx.state = OUTSIDEBLK;   /* end of uncompressed block */
+		dctx.state = OUTSIDEBLK;	/* end of uncompressed block */
 	    break;
-        }
+	}
     }
 
-    finished:
+  finished:
     *outblock = dctx.outblk;
     *outlen = dctx.outlen;
 

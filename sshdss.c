@@ -22,36 +22,42 @@
 #define diagbn(x,y)
 #endif
 
-static void getstring(char **data, int *datalen, char **p, int *length) {
+static void getstring(char **data, int *datalen, char **p, int *length)
+{
     *p = NULL;
     if (*datalen < 4)
-        return;
+	return;
     *length = GET_32BIT(*data);
-    *datalen -= 4; *data += 4;
+    *datalen -= 4;
+    *data += 4;
     if (*datalen < *length)
-        return;
+	return;
     *p = *data;
-    *data += *length; *datalen -= *length;
+    *data += *length;
+    *datalen -= *length;
 }
-static Bignum getmp(char **data, int *datalen) {
+static Bignum getmp(char **data, int *datalen)
+{
     char *p;
     int length;
     Bignum b;
 
     getstring(data, datalen, &p, &length);
     if (!p)
-        return NULL;
+	return NULL;
     if (p[0] & 0x80)
-        return NULL;                   /* negative mp */
+	return NULL;		       /* negative mp */
     b = bignum_from_bytes(p, length);
     return b;
 }
 
-static Bignum get160(char **data, int *datalen) {
+static Bignum get160(char **data, int *datalen)
+{
     Bignum b;
 
     b = bignum_from_bytes(*data, 20);
-    *data += 20; *datalen -= 20;
+    *data += 20;
+    *datalen -= 20;
 
     return b;
 }
@@ -60,22 +66,24 @@ struct dss_key {
     Bignum p, q, g, y;
 };
 
-static void *dss_newkey(char *data, int len) {
+static void *dss_newkey(char *data, int len)
+{
     char *p;
     int slen;
     struct dss_key *dss;
 
     dss = smalloc(sizeof(struct dss_key));
-    if (!dss) return NULL;
+    if (!dss)
+	return NULL;
     getstring(&data, &len, &p, &slen);
 
 #ifdef DEBUG_DSS
     {
-        int i;
-        printf("key:");
-        for (i=0;i<len;i++)
-            printf("  %02x", (unsigned char)(data[i]));
-        printf("\n");
+	int i;
+	printf("key:");
+	for (i = 0; i < len; i++)
+	    printf("  %02x", (unsigned char) (data[i]));
+	printf("\n");
     }
 #endif
 
@@ -91,8 +99,9 @@ static void *dss_newkey(char *data, int len) {
     return dss;
 }
 
-static void dss_freekey(void *key) {
-    struct dss_key *dss = (struct dss_key *)key;
+static void dss_freekey(void *key)
+{
+    struct dss_key *dss = (struct dss_key *) key;
     freebn(dss->p);
     freebn(dss->q);
     freebn(dss->g);
@@ -100,47 +109,62 @@ static void dss_freekey(void *key) {
     sfree(dss);
 }
 
-static char *dss_fmtkey(void *key) {
-    struct dss_key *dss = (struct dss_key *)key;
+static char *dss_fmtkey(void *key)
+{
+    struct dss_key *dss = (struct dss_key *) key;
     char *p;
     int len, i, pos, nibbles;
     static const char hex[] = "0123456789abcdef";
     if (!dss->p)
-        return NULL;
-    len = 8 + 4 + 1;                   /* 4 x "0x", punctuation, \0 */
-    len += 4 * (bignum_bitcount(dss->p)+15)/16;
-    len += 4 * (bignum_bitcount(dss->q)+15)/16;
-    len += 4 * (bignum_bitcount(dss->g)+15)/16;
-    len += 4 * (bignum_bitcount(dss->y)+15)/16;
+	return NULL;
+    len = 8 + 4 + 1;		       /* 4 x "0x", punctuation, \0 */
+    len += 4 * (bignum_bitcount(dss->p) + 15) / 16;
+    len += 4 * (bignum_bitcount(dss->q) + 15) / 16;
+    len += 4 * (bignum_bitcount(dss->g) + 15) / 16;
+    len += 4 * (bignum_bitcount(dss->y) + 15) / 16;
     p = smalloc(len);
-    if (!p) return NULL;
+    if (!p)
+	return NULL;
 
     pos = 0;
-    pos += sprintf(p+pos, "0x");
-    nibbles = (3 + bignum_bitcount(dss->p))/4; if (nibbles<1) nibbles=1;
-    for (i=nibbles; i-- ;)
-        p[pos++] = hex[(bignum_byte(dss->p, i/2) >> (4*(i%2))) & 0xF];
-    pos += sprintf(p+pos, ",0x");
-    nibbles = (3 + bignum_bitcount(dss->q))/4; if (nibbles<1) nibbles=1;
-    for (i=nibbles; i-- ;)
-        p[pos++] = hex[(bignum_byte(dss->q, i/2) >> (4*(i%2))) & 0xF];
-    pos += sprintf(p+pos, ",0x");
-    nibbles = (3 + bignum_bitcount(dss->g))/4; if (nibbles<1) nibbles=1;
-    for (i=nibbles; i-- ;)
-        p[pos++] = hex[(bignum_byte(dss->g, i/2) >> (4*(i%2))) & 0xF];
-    pos += sprintf(p+pos, ",0x");
-    nibbles = (3 + bignum_bitcount(dss->y))/4; if (nibbles<1) nibbles=1;
-    for (i=nibbles; i-- ;)
-        p[pos++] = hex[(bignum_byte(dss->y, i/2) >> (4*(i%2))) & 0xF];
+    pos += sprintf(p + pos, "0x");
+    nibbles = (3 + bignum_bitcount(dss->p)) / 4;
+    if (nibbles < 1)
+	nibbles = 1;
+    for (i = nibbles; i--;)
+	p[pos++] =
+	    hex[(bignum_byte(dss->p, i / 2) >> (4 * (i % 2))) & 0xF];
+    pos += sprintf(p + pos, ",0x");
+    nibbles = (3 + bignum_bitcount(dss->q)) / 4;
+    if (nibbles < 1)
+	nibbles = 1;
+    for (i = nibbles; i--;)
+	p[pos++] =
+	    hex[(bignum_byte(dss->q, i / 2) >> (4 * (i % 2))) & 0xF];
+    pos += sprintf(p + pos, ",0x");
+    nibbles = (3 + bignum_bitcount(dss->g)) / 4;
+    if (nibbles < 1)
+	nibbles = 1;
+    for (i = nibbles; i--;)
+	p[pos++] =
+	    hex[(bignum_byte(dss->g, i / 2) >> (4 * (i % 2))) & 0xF];
+    pos += sprintf(p + pos, ",0x");
+    nibbles = (3 + bignum_bitcount(dss->y)) / 4;
+    if (nibbles < 1)
+	nibbles = 1;
+    for (i = nibbles; i--;)
+	p[pos++] =
+	    hex[(bignum_byte(dss->y, i / 2) >> (4 * (i % 2))) & 0xF];
     p[pos] = '\0';
     return p;
 }
 
-static char *dss_fingerprint(void *key) {
-    struct dss_key *dss = (struct dss_key *)key;
+static char *dss_fingerprint(void *key)
+{
+    struct dss_key *dss = (struct dss_key *) key;
     struct MD5Context md5c;
     unsigned char digest[16], lenbuf[4];
-    char buffer[16*3+40];
+    char buffer[16 * 3 + 40];
     char *ret;
     int numlen, i;
 
@@ -164,16 +188,18 @@ static char *dss_fingerprint(void *key) {
 
     sprintf(buffer, "ssh-dss %d ", bignum_bitcount(dss->p));
     for (i = 0; i < 16; i++)
-        sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
-    ret = smalloc(strlen(buffer)+1);
+	sprintf(buffer + strlen(buffer), "%s%02x", i ? ":" : "",
+		digest[i]);
+    ret = smalloc(strlen(buffer) + 1);
     if (ret)
-        strcpy(ret, buffer);
+	strcpy(ret, buffer);
     return ret;
 }
 
 static int dss_verifysig(void *key, char *sig, int siglen,
-			 char *data, int datalen) {
-    struct dss_key *dss = (struct dss_key *)key;
+			 char *data, int datalen)
+{
+    struct dss_key *dss = (struct dss_key *) key;
     char *p;
     int slen;
     char hash[20];
@@ -181,15 +207,15 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     int ret;
 
     if (!dss->p)
-        return 0;
+	return 0;
 
 #ifdef DEBUG_DSS
     {
-        int i;
-        printf("sig:");
-        for (i=0;i<siglen;i++)
-            printf("  %02x", (unsigned char)(sig[i]));
-        printf("\n");
+	int i;
+	printf("sig:");
+	for (i = 0; i < siglen; i++)
+	    printf("  %02x", (unsigned char) (sig[i]));
+	printf("\n");
     }
 #endif
     /*
@@ -203,12 +229,12 @@ static int dss_verifysig(void *key, char *sig, int siglen,
      * the length: length 40 means the commercial-SSH bug, anything
      * else is assumed to be IETF-compliant.
      */
-    if (siglen != 40) {                /* bug not present; read admin fields */
-        getstring(&sig, &siglen, &p, &slen);
-        if (!p || slen != 7 || memcmp(p, "ssh-dss", 7)) {
-            return 0;
-        }
-        sig += 4, siglen -= 4;             /* skip yet another length field */
+    if (siglen != 40) {		       /* bug not present; read admin fields */
+	getstring(&sig, &siglen, &p, &slen);
+	if (!p || slen != 7 || memcmp(p, "ssh-dss", 7)) {
+	    return 0;
+	}
+	sig += 4, siglen -= 4;	       /* skip yet another length field */
     }
     diagbn("p=", dss->p);
     diagbn("q=", dss->q);
@@ -219,7 +245,7 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     s = get160(&sig, &siglen);
     diagbn("s=", s);
     if (!r || !s)
-        return 0;
+	return 0;
 
     /*
      * Step 1. w <- s^-1 mod q.
@@ -231,7 +257,9 @@ static int dss_verifysig(void *key, char *sig, int siglen,
      * Step 2. u1 <- SHA(message) * w mod q.
      */
     SHA_Simple(data, datalen, hash);
-    p = hash; slen = 20; sha = get160(&p, &slen);
+    p = hash;
+    slen = 20;
+    sha = get160(&p, &slen);
     diagbn("sha=", sha);
     u1 = modmul(sha, w, dss->q);
     diagbn("u1=", u1);
@@ -273,57 +301,73 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     return ret;
 }
 
-static unsigned char *dss_public_blob(void *key, int *len) {
-    struct dss_key *dss = (struct dss_key *)key;
+static unsigned char *dss_public_blob(void *key, int *len)
+{
+    struct dss_key *dss = (struct dss_key *) key;
     int plen, qlen, glen, ylen, bloblen;
     int i;
     unsigned char *blob, *p;
 
-    plen = (bignum_bitcount(dss->p)+8)/8;
-    qlen = (bignum_bitcount(dss->q)+8)/8;
-    glen = (bignum_bitcount(dss->g)+8)/8;
-    ylen = (bignum_bitcount(dss->y)+8)/8;
+    plen = (bignum_bitcount(dss->p) + 8) / 8;
+    qlen = (bignum_bitcount(dss->q) + 8) / 8;
+    glen = (bignum_bitcount(dss->g) + 8) / 8;
+    ylen = (bignum_bitcount(dss->y) + 8) / 8;
 
     /*
      * string "ssh-dss", mpint p, mpint q, mpint g, mpint y. Total
      * 27 + sum of lengths. (five length fields, 20+7=27).
      */
-    bloblen = 27+plen+qlen+glen+ylen;
+    bloblen = 27 + plen + qlen + glen + ylen;
     blob = smalloc(bloblen);
     p = blob;
-    PUT_32BIT(p, 7); p += 4;
-    memcpy(p, "ssh-dss", 7); p += 7;
-    PUT_32BIT(p, plen); p += 4;
-    for (i = plen; i-- ;) *p++ = bignum_byte(dss->p, i);
-    PUT_32BIT(p, qlen); p += 4;
-    for (i = qlen; i-- ;) *p++ = bignum_byte(dss->q, i);
-    PUT_32BIT(p, glen); p += 4;
-    for (i = glen; i-- ;) *p++ = bignum_byte(dss->g, i);
-    PUT_32BIT(p, ylen); p += 4;
-    for (i = ylen; i-- ;) *p++ = bignum_byte(dss->y, i);
+    PUT_32BIT(p, 7);
+    p += 4;
+    memcpy(p, "ssh-dss", 7);
+    p += 7;
+    PUT_32BIT(p, plen);
+    p += 4;
+    for (i = plen; i--;)
+	*p++ = bignum_byte(dss->p, i);
+    PUT_32BIT(p, qlen);
+    p += 4;
+    for (i = qlen; i--;)
+	*p++ = bignum_byte(dss->q, i);
+    PUT_32BIT(p, glen);
+    p += 4;
+    for (i = glen; i--;)
+	*p++ = bignum_byte(dss->g, i);
+    PUT_32BIT(p, ylen);
+    p += 4;
+    for (i = ylen; i--;)
+	*p++ = bignum_byte(dss->y, i);
     assert(p == blob + bloblen);
     *len = bloblen;
     return blob;
 }
 
-static unsigned char *dss_private_blob(void *key, int *len) {
+static unsigned char *dss_private_blob(void *key, int *len)
+{
     return NULL;		       /* can't handle DSS private keys */
 }
 
 static void *dss_createkey(unsigned char *pub_blob, int pub_len,
-			   unsigned char *priv_blob, int priv_len) {
+			   unsigned char *priv_blob, int priv_len)
+{
     return NULL;		       /* can't handle DSS private keys */
 }
 
-static void *dss_openssh_createkey(unsigned char **blob, int *len) {
+static void *dss_openssh_createkey(unsigned char **blob, int *len)
+{
     return NULL;		       /* can't handle DSS private keys */
 }
 
-static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len) {
+static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len)
+{
     return -1;			       /* can't handle DSS private keys */
 }
 
-unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen) {
+unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
+{
     return NULL;		       /* can't handle DSS private keys */
 }
 

@@ -4,26 +4,33 @@
 
 #include "ssh.h"
 
-#define RSA_EXPONENT 37                /* we like this prime */
+#define RSA_EXPONENT 37		       /* we like this prime */
 
-#if 0                                  /* bignum diagnostic function */
-static void diagbn(char *prefix, Bignum md) {
+#if 0				       /* bignum diagnostic function */
+static void diagbn(char *prefix, Bignum md)
+{
     int i, nibbles, morenibbles;
     static const char hex[] = "0123456789ABCDEF";
 
     printf("%s0x", prefix ? prefix : "");
 
-    nibbles = (3 + bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
-    morenibbles = 4*md[0] - nibbles;
-    for (i=0; i<morenibbles; i++) putchar('-');
-    for (i=nibbles; i-- ;)
-        putchar(hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF]);
+    nibbles = (3 + bignum_bitcount(md)) / 4;
+    if (nibbles < 1)
+	nibbles = 1;
+    morenibbles = 4 * md[0] - nibbles;
+    for (i = 0; i < morenibbles; i++)
+	putchar('-');
+    for (i = nibbles; i--;)
+	putchar(hex[(bignum_byte(md, i / 2) >> (4 * (i % 2))) & 0xF]);
 
-    if (prefix) putchar('\n');
+    if (prefix)
+	putchar('\n');
 }
 #endif
 
-int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn, void *pfnparam) {
+int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
+		 void *pfnparam)
+{
     Bignum pm1, qm1, phi_n;
 
     /*
@@ -54,8 +61,8 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn, void *pfnparam) {
      * time. We do this in 16-bit fixed point, so 29.34 becomes
      * 0x1D.57C4.
      */
-    pfn(pfnparam, -1, -0x1D57C4/(bits/2));
-    pfn(pfnparam, -2, -0x1D57C4/(bits-bits/2));
+    pfn(pfnparam, -1, -0x1D57C4 / (bits / 2));
+    pfn(pfnparam, -2, -0x1D57C4 / (bits - bits / 2));
     pfn(pfnparam, -3, 5);
 
     /*
@@ -70,16 +77,16 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn, void *pfnparam) {
      * general that's slightly more fiddly to arrange. By choosing
      * a prime e, we can simplify the criterion.)
      */
-    key->p = primegen(bits/2, RSA_EXPONENT, 1, 1, pfn, pfnparam);
-    key->q = primegen(bits - bits/2, RSA_EXPONENT, 1, 2, pfn, pfnparam);
+    key->p = primegen(bits / 2, RSA_EXPONENT, 1, 1, pfn, pfnparam);
+    key->q = primegen(bits - bits / 2, RSA_EXPONENT, 1, 2, pfn, pfnparam);
 
     /*
      * Ensure p > q, by swapping them if not.
      */
     if (bignum_cmp(key->p, key->q) < 0) {
-        Bignum t = key->p;
-        key->p = key->q;
-        key->q = t;
+	Bignum t = key->p;
+	key->p = key->q;
+	key->q = t;
     }
 
     /*
