@@ -365,6 +365,7 @@ enum { IDCX_ABOUT =
     IDC_SCROLLKEY,
     IDC_SCROLLDISP,
     IDC_ALWAYSONTOP,
+    IDC_FULLSCREENONALTENTER,
     windowpanelend,
 
     appearancepanelstart,
@@ -625,6 +626,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.localedit == LD_YES ? IDC_EDITYES : IDC_EDITNO);
     SetDlgItemText(hwnd, IDC_ANSWEREDIT, cfg.answerback);
     CheckDlgButton(hwnd, IDC_ALWAYSONTOP, cfg.alwaysontop);
+    CheckDlgButton(hwnd, IDC_FULLSCREENONALTENTER, cfg.fullscreenonaltenter);
     CheckDlgButton(hwnd, IDC_SCROLLKEY, cfg.scroll_on_key);
     CheckDlgButton(hwnd, IDC_SCROLLDISP, cfg.scroll_on_disp);
 
@@ -1026,7 +1028,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == windowpanelstart) {
-	/* The Window panel. Accelerators used: [acgo] rmz sdkp w4ylt */
+	/* The Window panel. Accelerators used: [acgo] rmz sdkp w4ylt f */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling PuTTY's window",
@@ -1052,6 +1054,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
 	checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
 	checkbox(&cp, "Ensure window is always on &top", IDC_ALWAYSONTOP);
+	checkbox(&cp, "&Full screen on Alt-Enter", IDC_FULLSCREENONALTENTER);
 	endbox(&cp);
     }
 
@@ -1090,14 +1093,14 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == translationpanelstart) {
-	/* The Translation panel. Accelerators used: [acgo] xbep t s */
+	/* The Translation panel. Accelerators used: [acgo] rxbepu */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling character set translation",
 		 IDC_TITLE_TRANSLATION);
 	beginbox(&cp, "Character set translation on received data",
 		 IDC_BOX_TRANSLATION2);
-	combobox(&cp, "Received data assumed to be in which character set:",
+	combobox(&cp, "&Received data assumed to be in which character set:",
 		 IDC_CODEPAGESTATIC, IDC_CODEPAGE);
 	endbox(&cp);
 	beginbox(&cp, "Adjust how PuTTY displays line drawing characters",
@@ -1237,7 +1240,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshpanelstart) {
-	/* The SSH panel. Accelerators used: [acgo] r pe12i sud */
+	/* The SSH panel. Accelerators used: [acgo] r pe12i s */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1845,6 +1848,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.alwaysontop =
 			IsDlgButtonChecked(hwnd, IDC_ALWAYSONTOP);
+		break;
+	      case IDC_FULLSCREENONALTENTER:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.fullscreenonaltenter =
+			IsDlgButtonChecked(hwnd, IDC_FULLSCREENONALTENTER);
 		break;
 	      case IDC_SCROLLKEY:
 		if (HIWORD(wParam) == BN_CLICKED ||

@@ -71,13 +71,16 @@ static void init_fonts(int);
 static void another_font(int);
 static void deinit_fonts(void);
 
-static int extra_width, extra_height;
+static int full_screen = 0, extra_width, extra_height;
+static LONG old_wind_style;
+static WINDOWPLACEMENT old_wind_placement;
 
 static int pending_netevent = 0;
 static WPARAM pend_netevent_wParam = 0;
 static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
+static void flip_full_screen(void);
 
 static time_t last_movement = 0;
 
@@ -2552,6 +2555,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    SendMessage(hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
 	    return -1;
 	}
+	if (left_alt && wParam == VK_RETURN && cfg.fullscreenonaltenter) {
+	    flip_full_screen();
+	    return -1;
+	}
 	/* Control-Numlock for app-keypad mode switch */
 	if (wParam == VK_PAUSE && shift_state == 2) {
 	    app_keypad_keys ^= 1;
@@ -3413,5 +3420,29 @@ void beep(int mode)
     /* Otherwise, either visual bell or disabled; do nothing here */
     if (!has_focus) {
 	flash_window(2);	       /* start */
+    }
+}
+
+/*
+ * Toggle full screen mode. Thanks to cwis@nerim.fr for the
+ * implementation.
+ */
+static void flip_full_screen(void)
+{
+    if (!full_screen) {
+	int cx, cy;
+
+	cx = GetSystemMetrics(SM_CXSCREEN);
+	cy = GetSystemMetrics(SM_CYSCREEN);
+	GetWindowPlacement(hwnd, &old_wind_placement);
+	old_wind_style = GetWindowLong(hwnd, GWL_STYLE);
+	SetWindowLong(hwnd, GWL_STYLE,
+		      old_wind_style & ~(WS_CAPTION | WS_BORDER | WS_THICKFRAME));
+	SetWindowPos(hwnd, HWND_TOP, 0, 0, cx, cy, SWP_SHOWWINDOW);
+	full_screen = 1;
+    } else {
+	SetWindowLong(hwnd, GWL_STYLE, old_wind_style);
+	SetWindowPlacement(hwnd,&old_wind_placement);
+	full_screen = 0;
     }
 }

@@ -287,6 +287,7 @@ typedef struct {
     int localecho;
     int localedit;
     int alwaysontop;
+    int fullscreenonaltenter;
     int scroll_on_key;
     int scroll_on_disp;
     int compose_key;
