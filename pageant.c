@@ -1115,8 +1115,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         break;
       default:
         if (message==msgTaskbarCreated) {
-            // Explorer has been restarted, so the tray icon will have been lost
-            AddTrayIcon(hwnd);
+            /*
+	     * Explorer has been restarted, so the tray icon will
+	     * have been lost.
+	     */
+	    AddTrayIcon(hwnd);
         }
         break;
         
