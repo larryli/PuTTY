@@ -689,7 +689,7 @@ struct ssh_tag {
     int overall_bufsize;
     int throttled_all;
     int v1_stdout_throttling;
-    int v2_outgoing_sequence;
+    unsigned long v2_outgoing_sequence;
 
     int ssh1_rdpkt_crstate;
     int ssh2_rdpkt_crstate;
