@@ -284,9 +284,12 @@ static void rlogin_provide_logctx(void *handle, void *logctx)
 
 static int rlogin_exitcode(void *handle)
 {
-    /* Rlogin rlogin = (Rlogin) handle; */
-    /* If we ever implement RSH, we'll probably need to do this properly */
-    return 0;
+    Rlogin rlogin = (Rlogin) handle;
+    if (rlogin->s != NULL)
+        return -1;                     /* still connected */
+    else
+        /* If we ever implement RSH, we'll probably need to do this properly */
+        return 0;
 }
 
 Backend rlogin_backend = {

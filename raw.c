@@ -217,8 +217,12 @@ static void raw_provide_logctx(void *handle, void *logctx)
 
 static int raw_exitcode(void *handle)
 {
-    /* Exit codes are a meaningless concept in the Raw protocol */
-    return 0;
+    Raw raw = (Raw) handle;
+    if (raw->s != NULL)
+        return -1;                     /* still connected */
+    else
+        /* Exit codes are a meaningless concept in the Raw protocol */
+        return 0;
 }
 
 Backend raw_backend = {

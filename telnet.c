@@ -996,9 +996,12 @@ static void telnet_provide_logctx(void *handle, void *logctx)
 
 static int telnet_exitcode(void *handle)
 {
-    /* Telnet telnet = (Telnet) handle; */
-    /* Telnet doesn't transmit exit codes back to the client */
-    return 0;
+    Telnet telnet = (Telnet) handle;
+    if (telnet->s != NULL)
+        return -1;                     /* still connected */
+    else
+        /* Telnet doesn't transmit exit codes back to the client */
+        return 0;
 }
 
 Backend telnet_backend = {
