@@ -4984,7 +4984,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    sigdata_len = ssh->pktout.length - 5 + 4 + 20;
                     if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
                         sigdata_len -= 4;
-		    sigdata = snewn(sigdata_len, char);
+		    sigdata = snewn(sigdata_len, unsigned char);
                     p = 0;
                     if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
                         PUT_32BIT(sigdata+p, 20);

@@ -385,7 +385,7 @@ int x11_send(Socket s, char *data, int len)
 	pr->auth_dsize = (pr->auth_dlen + 3) & ~3;
 	/* Leave room for a terminating zero, to make our lives easier. */
 	pr->auth_protocol = snewn(pr->auth_psize + 1, char);
-	pr->auth_data = snewn(pr->auth_dsize, char);
+	pr->auth_data = snewn(pr->auth_dsize, unsigned char);
     }
 
     /*
