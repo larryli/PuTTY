@@ -4827,7 +4827,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 {
     unsigned char *in = (unsigned char *)vin;
     struct do_ssh2_transport_state {
-	int nbits, pbits, warn;
+	int nbits, pbits, warn_kex, warn_cscipher, warn_sccipher;
 	Bignum p, g, e, f, K;
 	int kex_init_value, kex_reply_value;
 	const struct ssh_mac **maclist;
@@ -4851,6 +4851,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	struct Packet *pktout;
         int dlgret;
 	int guessok;
+	int ignorepkt;
     };
     crState(do_ssh2_transport_state);
 
@@ -5063,7 +5064,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      * to.
      */
     {
-	char *str;
+	char *str, *preferred;
 	int i, j, len;
 
 	if (pktin->type != SSH2_MSG_KEXINIT) {
@@ -5078,41 +5079,23 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	s->scmac_tobe = NULL;
 	s->cscomp_tobe = NULL;
 	s->sccomp_tobe = NULL;
+	s->warn_kex = s->warn_cscipher = s->warn_sccipher = FALSE;
+
 	pktin->savedpos += 16;	        /* skip garbage cookie */
 	ssh_pkt_getstring(pktin, &str, &len);    /* key exchange algorithms */
-	s->warn = 0;
+
+	preferred = NULL;
 	for (i = 0; i < s->n_preferred_kex; i++) {
 	    const struct ssh_kex *k = s->preferred_kex[i];
 	    if (!k) {
-		s->warn = 1;
-	    } else if (in_commasep_string(k->name, str, len)) {
-		ssh->kex = k;
+		s->warn_kex = TRUE;
+	    } else {
+		if (!preferred) preferred = k->name;
+		if (in_commasep_string(k->name, str, len))
+		    ssh->kex = k;
 	    }
-	    if (ssh->kex) {
-		if (s->warn) {
-		    ssh_set_frozen(ssh, 1);
-		    s->dlgret = askalg(ssh->frontend, "key-exchange algorithm",
-				       ssh->kex->name,
-				       ssh_dialog_callback, ssh);
-		    if (s->dlgret < 0) {
-			do {
-			    crReturn(0);
-			    if (pktin) {
-				bombout(("Unexpected data from server while"
-					 " waiting for user response"));
-				crStop(0);
-			    }
-			} while (pktin || inlen > 0);
-			s->dlgret = ssh->user_response;
-		    }
-		    ssh_set_frozen(ssh, 0);
-		    if (s->dlgret == 0) {
-			ssh->close_expected = TRUE;
-			ssh_closing((Plug)ssh, NULL, 0, 0);
-		    }
-                }
+	    if (ssh->kex)
 		break;
-	    }
 	}
 	if (!ssh->kex) {
 	    bombout(("Couldn't agree a key exchange algorithm (available: %s)",
@@ -5124,8 +5107,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	 * the first algorithm in our list, even if it's still the algorithm
 	 * we end up using.
 	 */
-	s->guessok =
-	    first_in_commasep_string(s->preferred_kex[0]->name, str, len);
+	s->guessok = first_in_commasep_string(preferred, str, len);
 	ssh_pkt_getstring(pktin, &str, &len);    /* host key algorithms */
 	for (i = 0; i < lenof(hostkey_algs); i++) {
 	    if (in_commasep_string(hostkey_algs[i]->name, str, len)) {
@@ -5136,11 +5118,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	s->guessok = s->guessok &&
 	    first_in_commasep_string(hostkey_algs[0]->name, str, len);
 	ssh_pkt_getstring(pktin, &str, &len);    /* client->server cipher */
-	s->warn = 0;
 	for (i = 0; i < s->n_preferred_ciphers; i++) {
 	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
 	    if (!c) {
-		s->warn = 1;
+		s->warn_cscipher = TRUE;
 	    } else {
 		for (j = 0; j < c->nciphers; j++) {
 		    if (in_commasep_string(c->list[j]->name, str, len)) {
@@ -5149,32 +5130,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		    }
 		}
 	    }
-	    if (s->cscipher_tobe) {
-		if (s->warn) {
-		    ssh_set_frozen(ssh, 1);
-		    s->dlgret = askalg(ssh->frontend,
-				       "client-to-server cipher",
-				       s->cscipher_tobe->name,
-				       ssh_dialog_callback, ssh);
-		    if (s->dlgret < 0) {
-			do {
-			    crReturn(0);
-			    if (pktin) {
-				bombout(("Unexpected data from server while"
-					 " waiting for user response"));
-				crStop(0);
-			    }
-			} while (pktin || inlen > 0);
-			s->dlgret = ssh->user_response;
-		    }
-		    ssh_set_frozen(ssh, 0);
-		    if (s->dlgret == 0) {
-			ssh->close_expected = TRUE;
-			ssh_closing((Plug)ssh, NULL, 0, 0);
-		    }
-                }
+	    if (s->cscipher_tobe)
 		break;
-	    }
 	}
 	if (!s->cscipher_tobe) {
 	    bombout(("Couldn't agree a client-to-server cipher (available: %s)",
@@ -5183,11 +5140,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	}
 
 	ssh_pkt_getstring(pktin, &str, &len);    /* server->client cipher */
-	s->warn = 0;
 	for (i = 0; i < s->n_preferred_ciphers; i++) {
 	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
 	    if (!c) {
-		s->warn = 1;
+		s->warn_sccipher = TRUE;
 	    } else {
 		for (j = 0; j < c->nciphers; j++) {
 		    if (in_commasep_string(c->list[j]->name, str, len)) {
@@ -5196,32 +5152,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		    }
 		}
 	    }
-	    if (s->sccipher_tobe) {
-		if (s->warn) {
-		    ssh_set_frozen(ssh, 1);
-		    s->dlgret = askalg(ssh->frontend,
-				       "server-to-client cipher",
-				       s->sccipher_tobe->name,
-				       ssh_dialog_callback, ssh);
-		    if (s->dlgret < 0) {
-			do {
-			    crReturn(0);
-			    if (pktin) {
-				bombout(("Unexpected data from server while"
-					 " waiting for user response"));
-				crStop(0);
-			    }
-			} while (pktin || inlen > 0);
-			s->dlgret = ssh->user_response;
-		    }
-		    ssh_set_frozen(ssh, 0);
-		    if (s->dlgret == 0) {
-			ssh->close_expected = TRUE;
-			ssh_closing((Plug)ssh, NULL, 0, 0);
-		    }
-                }
+	    if (s->sccipher_tobe)
 		break;
-	    }
 	}
 	if (!s->sccipher_tobe) {
 	    bombout(("Couldn't agree a server-to-client cipher (available: %s)",
@@ -5263,7 +5195,80 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	}
 	ssh_pkt_getstring(pktin, &str, &len);  /* client->server language */
 	ssh_pkt_getstring(pktin, &str, &len);  /* server->client language */
-	if (ssh2_pkt_getbool(pktin) && !s->guessok) /* first_kex_packet_follows */
+	s->ignorepkt = ssh2_pkt_getbool(pktin) && !s->guessok;
+
+	if (s->warn_kex) {
+	    ssh_set_frozen(ssh, 1);
+	    s->dlgret = askalg(ssh->frontend, "key-exchange algorithm",
+			       ssh->kex->name,
+			       ssh_dialog_callback, ssh);
+	    if (s->dlgret < 0) {
+		do {
+		    crReturn(0);
+		    if (pktin) {
+			bombout(("Unexpected data from server while"
+				 " waiting for user response"));
+			crStop(0);
+		    }
+		} while (pktin || inlen > 0);
+		s->dlgret = ssh->user_response;
+	    }
+	    ssh_set_frozen(ssh, 0);
+	    if (s->dlgret == 0) {
+		ssh->close_expected = TRUE;
+		ssh_closing((Plug)ssh, NULL, 0, 0);
+	    }
+	}
+
+	if (s->warn_cscipher) {
+	    ssh_set_frozen(ssh, 1);
+	    s->dlgret = askalg(ssh->frontend,
+			       "client-to-server cipher",
+			       s->cscipher_tobe->name,
+			       ssh_dialog_callback, ssh);
+	    if (s->dlgret < 0) {
+		do {
+		    crReturn(0);
+		    if (pktin) {
+			bombout(("Unexpected data from server while"
+				 " waiting for user response"));
+			crStop(0);
+		    }
+		} while (pktin || inlen > 0);
+		s->dlgret = ssh->user_response;
+	    }
+	    ssh_set_frozen(ssh, 0);
+	    if (s->dlgret == 0) {
+		ssh->close_expected = TRUE;
+		ssh_closing((Plug)ssh, NULL, 0, 0);
+	    }
+	}
+
+	if (s->warn_sccipher) {
+	    ssh_set_frozen(ssh, 1);
+	    s->dlgret = askalg(ssh->frontend,
+			       "server-to-client cipher",
+			       s->sccipher_tobe->name,
+			       ssh_dialog_callback, ssh);
+	    if (s->dlgret < 0) {
+		do {
+		    crReturn(0);
+		    if (pktin) {
+			bombout(("Unexpected data from server while"
+				 " waiting for user response"));
+			crStop(0);
+		    }
+		} while (pktin || inlen > 0);
+		s->dlgret = ssh->user_response;
+	    }
+	    ssh_set_frozen(ssh, 0);
+	    if (s->dlgret == 0) {
+		ssh->close_expected = TRUE;
+		ssh_closing((Plug)ssh, NULL, 0, 0);
+	    }
+	}
+
+	if (s->ignorepkt) /* first_kex_packet_follows */
 	    crWaitUntil(pktin);                /* Ignore packet */
     }
 

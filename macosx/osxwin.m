@@ -794,8 +794,28 @@ printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
 - (void)alertSheetDidEnd:(NSAlert *)alert returnCode:(int)returnCode
     contextInfo:(void *)contextInfo
 {
-    alert_callback(alert_ctx, returnCode);   /* transfers ownership of ctx */
+    [self performSelectorOnMainThread:
+     @selector(alertSheetDidFinishEnding:)
+     withObject:[NSNumber numberWithInt:returnCode]
+     waitUntilDone:NO];
+}
+
+- (void)alertSheetDidFinishEnding:(id)object
+{
+    int returnCode = [object intValue];
+    void (*this_callback)(void *, int);
+    void *this_ctx;
+
+    /*
+     * We must save the values of our alert_callback and alert_ctx
+     * fields, in case they are set up again by the callback
+     * function!
+     */
+    this_callback = alert_callback;
+    this_ctx = alert_ctx;
     alert_ctx = NULL;
+
+    this_callback(this_ctx, returnCode);   /* transfers ownership of ctx */
 }
 
 @end

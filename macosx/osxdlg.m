@@ -320,7 +320,7 @@ static void askalg_callback(void *ctx, int result)
 {
     struct algstate *state = (struct algstate *)ctx;
 
-    state->callback(state->ctx, result == 0);
+    state->callback(state->ctx, result == NSAlertFirstButtonReturn);
     sfree(state);
 }
 
@@ -343,7 +343,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     state->callback = callback;
     state->ctx = ctx;
 
-    alert = [NSAlert alloc];
+    alert = [[NSAlert alloc] init];
     [alert setInformativeText:[NSString stringWithCString:text]];
     [alert addButtonWithTitle:@"Yes"];
     [alert addButtonWithTitle:@"No"];
