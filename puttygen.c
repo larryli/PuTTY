@@ -1050,6 +1050,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             }
 	    return 0;
 	  case IDC_GENERATE:
+            if (HIWORD(wParam) != BN_CLICKED &&
+                HIWORD(wParam) != BN_DOUBLECLICKED)
+		break;
 	    state =
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (!state->generation_thread_exists) {
