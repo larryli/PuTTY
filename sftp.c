@@ -185,6 +185,8 @@ int io_init(void) {
 	close(0); dup2(to[0], 0); close(to[1]);
 	close(1); dup2(from[1], 1); close(from[0]);
 	execl("/home/simon/src/openssh/openssh_cvs/prefix/bin/ssh", "ssh", "-2", "simon@localhost", "-s", "sftp", NULL);
+	//execl("/root/ssh-research/ssh-2.4.0/apps/ssh/sftp-server2", "sftp-server2", NULL);
+	//execl("/usr/lib/sftp-server", "sftp-server", NULL);
 	assert(0);		       /* bomb out if not */
     } else {
 	/* We are parent. Close wrong end of each pipe, assign to glob vars. */
@@ -343,10 +345,9 @@ int fxp_init(void) {
 }
 
 /*
- * Canonify a pathname. Concatenate the two given path elements
- * with a separating slash, unless the second is NULL.
+ * Canonify a pathname.
  */
-char *fxp_realpath(char *path, char *path2) {
+char *fxp_realpath(char *path) {
     struct sftp_packet *pktin, *pktout;
     int id;
 
@@ -354,10 +355,6 @@ char *fxp_realpath(char *path, char *path2) {
     sftp_pkt_adduint32(pktout, 0x123); /* request id */
     sftp_pkt_addstring_start(pktout);
     sftp_pkt_addstring_str(pktout, path);
-    if (path2) {
-	sftp_pkt_addstring_str(pktout, "/");
-	sftp_pkt_addstring_str(pktout, path2);
-    }
     sftp_send(pktout);
     pktin = sftp_recv();
     id = sftp_pkt_getuint32(pktin);
@@ -421,6 +418,7 @@ struct fxp_handle *fxp_open(char *path, int type) {
 	}
 	handle = smalloc(sizeof(struct fxp_handle));
 	handle->hstring = mkstr(hstring, len);
+	handle->hlen = len;
 	sftp_pkt_free(pktin);
 	return handle;
     } else {
@@ -459,6 +457,7 @@ struct fxp_handle *fxp_opendir(char *path) {
 	}
 	handle = smalloc(sizeof(struct fxp_handle));
 	handle->hstring = mkstr(hstring, len);
+	handle->hlen = len;
 	sftp_pkt_free(pktin);
 	return handle;
     } else {
@@ -476,7 +475,8 @@ void fxp_close(struct fxp_handle *handle) {
 
     pktout = sftp_pkt_init(SSH_FXP_CLOSE);
     sftp_pkt_adduint32(pktout, 0x789); /* request id */
-    sftp_pkt_addstring(pktout, handle->hstring);
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
     sftp_send(pktout);
     pktin = sftp_recv();
     id = sftp_pkt_getuint32(pktin);
@@ -501,7 +501,8 @@ int fxp_read(struct fxp_handle *handle, char *buffer, uint64 offset, int len) {
 
     pktout = sftp_pkt_init(SSH_FXP_READ);
     sftp_pkt_adduint32(pktout, 0xBCD); /* request id */
-    sftp_pkt_addstring(pktout, handle->hstring);
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
     sftp_pkt_adduint64(pktout, offset);
     sftp_pkt_adduint32(pktout, len);
     sftp_send(pktout);
@@ -540,7 +541,8 @@ struct fxp_names *fxp_readdir(struct fxp_handle *handle) {
 
     pktout = sftp_pkt_init(SSH_FXP_READDIR);
     sftp_pkt_adduint32(pktout, 0xABC); /* request id */
-    sftp_pkt_addstring(pktout, handle->hstring);
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
     sftp_send(pktout);
     pktin = sftp_recv();
     id = sftp_pkt_getuint32(pktin);
@@ -579,7 +581,8 @@ int fxp_write(struct fxp_handle *handle, char *buffer, uint64 offset, int len) {
 
     pktout = sftp_pkt_init(SSH_FXP_WRITE);
     sftp_pkt_adduint32(pktout, 0xDCB); /* request id */
-    sftp_pkt_addstring(pktout, handle->hstring);
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
     sftp_pkt_adduint64(pktout, offset);
     sftp_pkt_addstring_start(pktout);
     sftp_pkt_addstring_data(pktout, buffer, len);

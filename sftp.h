@@ -67,6 +67,7 @@ struct fxp_attrs {
 
 struct fxp_handle {
     char *hstring;
+    int hlen;
 };
 
 struct fxp_name {
@@ -91,7 +92,7 @@ int fxp_init(void);
  * Canonify a pathname. Concatenate the two given path elements
  * with a separating slash, unless the second is NULL.
  */
-char *fxp_realpath(char *path, char *path2);
+char *fxp_realpath(char *path);
 
 /*
  * Open a file.

@@ -4,8 +4,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <assert.h>
-#include <unistd.h>
 
 #include "sftp.h"
 #include "int64.h"
@@ -25,6 +25,39 @@ char *dupstr(char *s) {
     return p;
 }
 
+/* Allocate the concatenation of N strings. Terminate arg list with NULL. */
+char *dupcat(char *s1, ...) {
+    int len;
+    char *p, *q, *sn;
+    va_list ap;
+
+    len = strlen(s1);
+    va_start(ap, s1);
+    while (1) {
+	sn = va_arg(ap, char *);
+	if (!sn)
+	    break;
+	len += strlen(sn);
+    }
+    va_end(ap);
+
+    p = smalloc(len+1);
+    strcpy(p, s1);
+    q = p + strlen(p);
+
+    va_start(ap, s1);
+    while (1) {
+	sn = va_arg(ap, char *);
+	if (!sn)
+	    break;
+	strcpy(q, sn);
+	q += strlen(q);
+    }
+    va_end(ap);
+
+    return p;
+}
+
 /* ----------------------------------------------------------------------
  * sftp client state.
  */
@@ -36,13 +69,23 @@ char *pwd, *homedir;
  */
 
 /*
- * Canonify a pathname starting from the pwd.
+ * Attempt to canonify a pathname starting from the pwd. If
+ * canonification fails, at least fall back to returning a _valid_
+ * pathname (though it may be ugly, eg /home/simon/../foobar).
  */
 char *canonify(char *name) {
-    if (name[0] == '/')
-	return fxp_realpath(name, NULL);
-    else
-	return fxp_realpath(pwd, name);
+    char *fullname, *canonname;
+    if (name[0] == '/') {
+	fullname = dupstr(name);
+    } else {
+	fullname = dupcat(pwd, "/", name, NULL);
+    }
+    canonname = fxp_realpath(name);
+    if (canonname) {
+	sfree(fullname);
+	return canonname;
+    } else
+	return fullname;
 }
 
 /* ----------------------------------------------------------------------
@@ -158,7 +201,7 @@ int sftp_cmd_cd(struct sftp_command *cmd) {
     char *dir;
 
     if (cmd->nwords < 2)
-	dir = fxp_realpath(".", NULL);
+	dir = dupstr(homedir);
     else
 	dir = canonify(cmd->words[1]);
 
@@ -278,7 +321,7 @@ int sftp_cmd_put(struct sftp_command *cmd) {
     fname = cmd->words[1];
     origoutfname = (cmd->nwords == 2 ? cmd->words[1] : cmd->words[2]);
     outfname = canonify(origoutfname);
-~|~    if (!outfname) {
+    if (!outfname) {
 	printf("%s: %s\n", origoutfname, fxp_error());
 	return 0;
     }
@@ -309,14 +352,14 @@ int sftp_cmd_put(struct sftp_command *cmd) {
 	char buffer[4096];
 	int len;
 
-	len = fread(buffer, 1, len, fp);
+	len = fread(buffer, 1, sizeof(buffer), fp);
 	if (len == -1) {
 	    printf("error while reading local file\n");
 	    break;
 	} else if (len == 0) {
 	    break;
 	}
-	if (!fxp_write(fh, buffer, offset, sizeof(buffer))) {
+	if (!fxp_write(fh, buffer, offset, len)) {
 	    printf("error while writing: %s\n", fxp_error());
 	    break;
 	}
@@ -474,7 +517,7 @@ void do_sftp(void) {
     /*
      * Find out where our home directory is.
      */
-    homedir = fxp_realpath(".", NULL);
+    homedir = fxp_realpath(".");
     if (!homedir) {
 	fprintf(stderr,
 		"Warning: failed to resolve home directory: %s\n",
