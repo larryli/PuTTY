@@ -45,7 +45,6 @@ typedef struct {
     Terminal *term;
     /* Display state */
     int font_width, font_height;
-    int has_focus;
     /* Line discipline */
     void *ldisc;
     /* Backend */

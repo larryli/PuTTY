@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.3 2002/11/19 23:59:27 ben Exp $ */
+/* $Id: macterm.c,v 1.4 2002/11/20 00:11:05 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -729,7 +729,7 @@ void mac_activateterm(WindowPtr window, Boolean active) {
     Session *s;
 
     s = (Session *)GetWRefCon(window);
-    s->has_focus = active;
+    s->term->has_focus = active;
     term_update(s->term);
     if (active)
 	ShowControl(s->scrollbar);
