@@ -25,7 +25,7 @@ struct ctlpos {
     int dlu4inpix;
     int ypos, width;
     int xoff;
-    int boxystart, boxid, boxtextid;
+    int boxystart, boxid;
     char *boxtext;
 };
 
@@ -35,7 +35,7 @@ void doctl(struct ctlpos *cp, RECT r,
            char *wclass, int wstyle, int exstyle,
            char *wtext, int wid);
 void bartitle(struct ctlpos *cp, char *name, int id);
-void beginbox(struct ctlpos *cp, char *name, int idbox, int idtext);
+void beginbox(struct ctlpos *cp, char *name, int idbox);
 void endbox(struct ctlpos *cp);
 void multiedit(struct ctlpos *cp, ...);
 void radioline(struct ctlpos *cp,

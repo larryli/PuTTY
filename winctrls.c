@@ -72,17 +72,16 @@ void bartitle(struct ctlpos *cp, char *name, int id) {
 /*
  * Begin a grouping box, with or without a group title.
  */
-void beginbox(struct ctlpos *cp, char *name, int idbox, int idtext) {
-    if (name)
-        cp->ypos += STATICHEIGHT/2;
+void beginbox(struct ctlpos *cp, char *name, int idbox) {
     cp->boxystart = cp->ypos;
+    if (!name)
+        cp->boxystart -= STATICHEIGHT/2;
     if (name)
-        cp->ypos += STATICHEIGHT - (STATICHEIGHT/2);
+        cp->ypos += STATICHEIGHT;
     cp->ypos += GAPYBOX;
     cp->width -= 2*GAPXBOX;
     cp->xoff += GAPXBOX;
     cp->boxid = idbox;
-    cp->boxtextid = idtext;
     cp->boxtext = name;
 }
 
@@ -96,25 +95,8 @@ void endbox(struct ctlpos *cp) {
     cp->ypos += GAPYBOX - GAPBETWEEN;
     r.left = GAPBETWEEN; r.right = cp->width;
     r.top = cp->boxystart; r.bottom = cp->ypos - cp->boxystart;
-    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE | SS_ETCHEDFRAME, 0,
-          "", cp->boxid);
-    if (cp->boxtext) {
-        SIZE s;
-        HDC hdc;
-        HFONT oldfont, dlgfont;
-        hdc = GetDC(cp->hwnd);
-        dlgfont = (HFONT)cp->font;
-        oldfont = SelectObject(hdc, dlgfont);
-        GetTextExtentPoint32(hdc, cp->boxtext, strlen(cp->boxtext), &s);
-        SelectObject(hdc, oldfont);
-        DeleteDC(hdc);
-        r.left = GAPXBOX + GAPBETWEEN;
-        r.right = (s.cx * 4 + cp->dlu4inpix-1) / cp->dlu4inpix;
-        
-        r.top = cp->boxystart - STATICHEIGHT/2; r.bottom = STATICHEIGHT;
-        doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0,
-              cp->boxtext, cp->boxtextid);
-    }
+    doctl(cp, r, "BUTTON", BS_GROUPBOX | WS_CHILD | WS_VISIBLE, 0,
+          cp->boxtext ? cp->boxtext : "", cp->boxid);
     cp->ypos += GAPYBOX;
 }
 

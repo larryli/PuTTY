@@ -179,8 +179,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     sessionpanelstart,
     IDC_TITLE_SESSION,
-    IDC_BOX_SESSION1, IDC_BOXT_SESSION1,
-    IDC_BOX_SESSION2, IDC_BOXT_SESSION2,
+    IDC_BOX_SESSION1,
+    IDC_BOX_SESSION2,
     IDC_BOX_SESSION3,
     IDC_HOSTSTATIC,
     IDC_HOST,
@@ -202,9 +202,9 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     keyboardpanelstart,
     IDC_TITLE_KEYBOARD,
-    IDC_BOX_KEYBOARD1, IDC_BOXT_KEYBOARD1,
-    IDC_BOX_KEYBOARD2, IDC_BOXT_KEYBOARD2,
-    IDC_BOX_KEYBOARD3, IDC_BOXT_KEYBOARD3,
+    IDC_BOX_KEYBOARD1,
+    IDC_BOX_KEYBOARD2,
+    IDC_BOX_KEYBOARD3,
     IDC_DELSTATIC,
     IDC_DEL008,
     IDC_DEL127,
@@ -230,8 +230,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     terminalpanelstart,
     IDC_TITLE_TERMINAL,
-    IDC_BOX_TERMINAL1, IDC_BOXT_TERMINAL1,
-    IDC_BOX_TERMINAL2, IDC_BOXT_TERMINAL2,
+    IDC_BOX_TERMINAL1,
+    IDC_BOX_TERMINAL2,
     IDC_WRAPMODE,
     IDC_DECOM,
     IDC_LFHASCR,
@@ -250,8 +250,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     windowpanelstart,
     IDC_TITLE_WINDOW,
-    IDC_BOX_WINDOW1, IDC_BOXT_WINDOW1,
-    IDC_BOX_WINDOW2, IDC_BOXT_WINDOW2,
+    IDC_BOX_WINDOW1,
+    IDC_BOX_WINDOW2,
     IDC_BOX_WINDOW3,
     IDC_ROWSSTATIC,
     IDC_ROWSEDIT,
@@ -272,10 +272,10 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     appearancepanelstart,
     IDC_TITLE_APPEARANCE,
-    IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1,
-    IDC_BOX_APPEARANCE2, IDC_BOXT_APPEARANCE2,
-    IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3,
-    IDC_BOX_APPEARANCE4, IDC_BOXT_APPEARANCE4,
+    IDC_BOX_APPEARANCE1,
+    IDC_BOX_APPEARANCE2,
+    IDC_BOX_APPEARANCE3,
+    IDC_BOX_APPEARANCE4,
     IDC_CURSORSTATIC,
     IDC_CURBLOCK,
     IDC_CURUNDER,
@@ -291,8 +291,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     connectionpanelstart,
     IDC_TITLE_CONNECTION,
-    IDC_BOX_CONNECTION1, IDC_BOXT_CONNECTION1,
-    IDC_BOX_CONNECTION2, IDC_BOXT_CONNECTION2,
+    IDC_BOX_CONNECTION1,
+    IDC_BOX_CONNECTION2,
     IDC_TTSTATIC,
     IDC_TTEDIT,
     IDC_LOGSTATIC,
@@ -303,8 +303,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     telnetpanelstart,
     IDC_TITLE_TELNET,
-    IDC_BOX_TELNET1, IDC_BOXT_TELNET1,
-    IDC_BOX_TELNET2, IDC_BOXT_TELNET2,
+    IDC_BOX_TELNET1,
+    IDC_BOX_TELNET2,
     IDC_TSSTATIC,
     IDC_TSEDIT,
     IDC_ENVSTATIC,
@@ -322,8 +322,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     rloginpanelstart,
     IDC_TITLE_RLOGIN,
-    IDC_BOX_RLOGIN1, IDC_BOXT_RLOGIN1,
-    IDC_BOX_RLOGIN2, IDC_BOXT_RLOGIN2,
+    IDC_BOX_RLOGIN1,
+    IDC_BOX_RLOGIN2,
     IDC_R_TSSTATIC,
     IDC_R_TSEDIT,
     IDC_RLLUSERSTATIC,
@@ -332,9 +332,9 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     sshpanelstart,
     IDC_TITLE_SSH,
-    IDC_BOX_SSH1, IDC_BOXT_SSH1,
-    IDC_BOX_SSH2, IDC_BOXT_SSH2,
-    IDC_BOX_SSH3, IDC_BOXT_SSH3,
+    IDC_BOX_SSH1,
+    IDC_BOX_SSH2,
+    IDC_BOX_SSH3,
     IDC_NOPTY,
     IDC_CIPHERSTATIC,
     IDC_CIPHER3DES,
@@ -356,8 +356,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     selectionpanelstart,
     IDC_TITLE_SELECTION,
-    IDC_BOX_SELECTION1, IDC_BOXT_SELECTION1,
-    IDC_BOX_SELECTION2, IDC_BOXT_SELECTION2,
+    IDC_BOX_SELECTION1,
+    IDC_BOX_SELECTION2,
     IDC_MBSTATIC,
     IDC_MBWINDOWS,
     IDC_MBXTERM,
@@ -370,8 +370,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     colourspanelstart,
     IDC_TITLE_COLOURS,
-    IDC_BOX_COLOURS1, IDC_BOXT_COLOURS1,
-    IDC_BOX_COLOURS2, IDC_BOXT_COLOURS2,
+    IDC_BOX_COLOURS1,
+    IDC_BOX_COLOURS2,
     IDC_BOLDCOLOUR,
     IDC_PALETTE,
     IDC_COLOURSTATIC,
@@ -387,9 +387,9 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     translationpanelstart,
     IDC_TITLE_TRANSLATION,
-    IDC_BOX_TRANSLATION1, IDC_BOXT_TRANSLATION1,
-    IDC_BOX_TRANSLATION2, IDC_BOXT_TRANSLATION2,
-    IDC_BOX_TRANSLATION3, IDC_BOXT_TRANSLATION3,
+    IDC_BOX_TRANSLATION1,
+    IDC_BOX_TRANSLATION2,
+    IDC_BOX_TRANSLATION3,
     IDC_XLATSTATIC,
     IDC_NOXLAT,
     IDC_KOI8WIN1251,
@@ -405,7 +405,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
 
     tunnelspanelstart,
     IDC_TITLE_TUNNELS,
-    IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS,
+    IDC_BOX_TUNNELS,
     IDC_X11_FORWARD,
     IDC_X11_DISPSTATIC,
     IDC_X11_DISPLAY,
@@ -451,6 +451,16 @@ static void init_dlg_ctrls(HWND hwnd) {
 
     SetDlgItemText (hwnd, IDC_HOST, cfg.host);
     SetDlgItemText (hwnd, IDC_SESSEDIT, savedsession);
+    {
+	int i, n;
+	n = SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_GETCOUNT, 0, 0);
+	for (i=n; i-- >0 ;)
+	    SendDlgItemMessage (hwnd, IDC_SESSLIST,
+				    LB_DELETESTRING, i, 0);
+        for (i = 0; i < nsessions; i++)
+            SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
+                                0, (LPARAM) (sessions[i]));
+    }
     SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
     CheckRadioButton (hwnd, IDC_PROTRAW, IDC_PROTSSH,
 		      cfg.protocol==PROT_SSH ? IDC_PROTSSH :
@@ -595,20 +605,6 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_X11_DISPLAY, cfg.x11_display);
 }
 
-static void hide(HWND hwnd, int hide, int minid, int maxid) {
-    int i;
-    for (i = minid; i < maxid; i++) {
-	HWND ctl = GetDlgItem(hwnd, i);
-	if (ctl) {
-            if (!hide)
-                EnableWindow(ctl, 1);
-	    ShowWindow(ctl, hide ? SW_HIDE : SW_SHOW);
-            if (hide)
-                EnableWindow(ctl, 0);
-	}
-    }
-}
-
 struct treeview_faff {
     HWND treeview;
     HTREEITEM lastat[4];
@@ -637,7 +633,381 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
 }
 
 /*
- * This _huge_ function is the configuration box.
+ * Create the panelfuls of controls in the configuration box.
+ */
+static void create_controls(HWND hwnd, int dlgtype, int panel) {
+    if (panel == sessionpanelstart) {
+	/* The Session panel. Accelerators used: [acgo] nprthelsdx */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Basic options for your PuTTY session",
+                 IDC_TITLE_SESSION);
+        if (dlgtype == 0) {
+            beginbox(&cp, "Specify your connection by host name",
+                     IDC_BOX_SESSION1);
+            multiedit(&cp,
+                      "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
+                      "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
+            if (backends[3].backend == NULL) {
+                /* this is PuTTYtel, so only three protocols available */
+                radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
+                          "&Raw", IDC_PROTRAW,
+                          "&Telnet", IDC_PROTTELNET,
+                          "R&login", IDC_PROTRLOGIN, NULL);
+            } else {
+                radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
+                          "&Raw", IDC_PROTRAW,
+                          "&Telnet", IDC_PROTTELNET,
+                          "R&login", IDC_PROTRLOGIN,
+#ifdef FWHACK
+                          "SS&H/hack",
+#else
+                          "SS&H",
+#endif
+                          IDC_PROTSSH, NULL);
+            }
+            endbox(&cp);
+            beginbox(&cp, "Load, save or delete a stored session",
+                     IDC_BOX_SESSION2);
+            sesssaver(&cp, "Sav&ed Sessions",
+                      IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
+                      "&Load", IDC_SESSLOAD,
+                      "&Save", IDC_SESSSAVE,
+                      "&Delete", IDC_SESSDEL, NULL);
+            endbox(&cp);
+        }
+        beginbox(&cp, NULL, IDC_BOX_SESSION3);
+        checkbox(&cp, "Close Window on E&xit", IDC_CLOSEEXIT);
+        endbox(&cp);
+    }
+
+    if (panel == terminalpanelstart) {
+        /* The Terminal panel. Accelerators used: [acgo] &dflbenuw */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling the terminal emulation",
+                 IDC_TITLE_TERMINAL);
+        beginbox(&cp, "Set various terminal options",
+                 IDC_BOX_TERMINAL1);
+        checkbox(&cp, "Auto &wrap mode initially on", IDC_WRAPMODE);
+        checkbox(&cp, "&DEC Origin Mode initially on", IDC_DECOM);
+        checkbox(&cp, "Implicit CR in every &LF", IDC_LFHASCR);
+        checkbox(&cp, "&Beep enabled", IDC_BEEP);
+        checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
+        checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
+        checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
+        endbox(&cp);
+
+        beginbox(&cp, "Control session logging",
+                 IDC_BOX_TERMINAL2);
+        radiobig(&cp,
+                 "Session logging:", IDC_LSTATSTATIC,
+                 "Logging turned &off completely", IDC_LSTATOFF,
+                 "Log printable output only", IDC_LSTATASCII,
+                 "Log all session output", IDC_LSTATRAW, NULL);
+        editbutton(&cp, "Log &file name:",
+                   IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
+                   IDC_LGFBUTTON);
+        endbox(&cp);
+    }
+
+    if (panel == keyboardpanelstart) {
+        /* The Keyboard panel. Accelerators used: [acgo] h?srvlxvnpmietu */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling the effects of keys",
+                 IDC_TITLE_KEYBOARD);
+        beginbox(&cp, "Change the sequences sent by:",
+                 IDC_BOX_KEYBOARD1);
+        radioline(&cp, "The Backspace key", IDC_DELSTATIC, 2,
+                  "Control-&H", IDC_DEL008,
+                  "Control-&? (127)", IDC_DEL127, NULL);
+        radioline(&cp, "The Home and End keys", IDC_HOMESTATIC, 2,
+                  "&Standard", IDC_HOMETILDE,
+                  "&rxvt", IDC_HOMERXVT, NULL);
+        radioline(&cp, "The Function keys and keypad", IDC_FUNCSTATIC, 4,
+                  "ESC[n&~", IDC_FUNCTILDE,
+                  "&Linux", IDC_FUNCLINUX,
+                  "&Xterm R6", IDC_FUNCXTERM,
+                  "&VT400", IDC_FUNCVT400, NULL);
+        endbox(&cp);
+        beginbox(&cp, "Application keypad settings:",
+                 IDC_BOX_KEYBOARD2);
+        checkbox(&cp,
+                 "Application c&ursor keys totally disabled",
+                 IDC_NOAPPLICC);
+        radioline(&cp, "Initial state of cursor keys:", IDC_CURSTATIC, 2,
+                  "&Normal", IDC_CURNORMAL,
+                  "A&pplication", IDC_CURAPPLIC, NULL);
+        checkbox(&cp,
+                 "Application ke&ypad keys totally disabled",
+                 IDC_NOAPPLICK);
+        radioline(&cp, "Initial state of numeric keypad:", IDC_KPSTATIC, 3,
+                  "Nor&mal", IDC_KPNORMAL,
+                  "Appl&ication", IDC_KPAPPLIC,
+                  "N&etHack", IDC_KPNH, NULL);
+        endbox(&cp);
+        beginbox(&cp, "Enable extra keyboard features:",
+                 IDC_BOX_KEYBOARD3);
+        checkbox(&cp, "Application and AltGr ac&t as Compose key",
+                 IDC_COMPOSEKEY);
+        endbox(&cp);
+    }
+
+    if (panel == windowpanelstart) {
+        /* The Window panel. Accelerators used: [acgo] bsdkw4ylpt */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling PuTTY's window",
+                 IDC_TITLE_WINDOW);
+        beginbox(&cp, "Set the size of the window",
+                 IDC_BOX_WINDOW1);
+        multiedit(&cp,
+                  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
+                  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50,
+                  NULL);
+        checkbox(&cp, "Loc&k window size against resizing", IDC_LOCKSIZE);
+        endbox(&cp);
+        beginbox(&cp, "Control the scrollback in the window",
+                 IDC_BOX_WINDOW2);
+        staticedit(&cp, "Lines of &scrollback",
+                   IDC_SAVESTATIC, IDC_SAVEEDIT, 50);
+        checkbox(&cp, "&Display scrollbar", IDC_SCROLLBAR);
+        checkbox(&cp, "Reset scrollback on &keypress", IDC_SCROLLKEY);
+        checkbox(&cp, "Reset scrollback on dis&play activity",
+                 IDC_SCROLLDISP);
+        endbox(&cp);
+        beginbox(&cp, NULL, IDC_BOX_WINDOW3);
+        checkbox(&cp, "&Warn before closing window", IDC_CLOSEWARN);
+        checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
+        checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
+        checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
+        checkbox(&cp, "Ensure window is always on &top", IDC_ALWAYSONTOP);
+        endbox(&cp);
+    }
+
+    if (panel == appearancepanelstart) {
+        /* The Appearance panel. Accelerators used: [acgo] rmkhtibluv */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling PuTTY's appearance",
+                 IDC_TITLE_APPEARANCE);
+        beginbox(&cp, "Adjust the use of the cursor",
+                 IDC_BOX_APPEARANCE1);
+        radioline(&cp, "Cursor appearance:", IDC_CURSORSTATIC, 3,
+                  "B&lock", IDC_CURBLOCK,
+                  "&Underline", IDC_CURUNDER,
+                  "&Vertical line", IDC_CURVERT,
+                  NULL);
+        checkbox(&cp, "Cursor &blinks", IDC_BLINKCUR);
+        endbox(&cp);
+        beginbox(&cp, "Set the font used in the terminal window",
+                 IDC_BOX_APPEARANCE2);
+        staticbtn(&cp, "", IDC_FONTSTATIC, "C&hange...", IDC_CHOOSEFONT);
+        endbox(&cp);
+        beginbox(&cp, "Adjust the use of the window title",
+                 IDC_BOX_APPEARANCE3);
+        multiedit(&cp,
+                  "Window &title:", IDC_WINTITLE,
+                  IDC_WINEDIT, 100, NULL);
+        checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
+        endbox(&cp);
+        beginbox(&cp, "Adjust the use of the mouse pointer",
+                 IDC_BOX_APPEARANCE4);
+        checkbox(&cp, "Hide mouse &pointer when typing in window",
+                 IDC_HIDEMOUSE);
+        endbox(&cp);
+    }
+
+    if (panel == translationpanelstart) {
+        /* The Translation panel. Accelerators used: [acgo] xbepnkis */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling character set translation",
+                 IDC_TITLE_TRANSLATION);
+        beginbox(&cp, "Adjust how PuTTY displays line drawing characters",
+                 IDC_BOX_TRANSLATION1);
+        radiobig(&cp,
+                 "Handling of line drawing characters:", IDC_VTSTATIC,
+                 "Font has &XWindows encoding", IDC_VTXWINDOWS,
+                 "Use font in &both ANSI and OEM modes", IDC_VTOEMANSI,
+                 "Use font in O&EM mode only", IDC_VTOEMONLY,
+                 "&Poor man's line drawing (""+"", ""-"" and ""|"")",
+                 IDC_VTPOORMAN, NULL);
+        endbox(&cp);
+        beginbox(&cp, "Enable character set translation on received data",
+                 IDC_BOX_TRANSLATION2);
+        radiobig(&cp,
+                 "Character set translation:", IDC_XLATSTATIC,
+                 "&None", IDC_NOXLAT,
+                 "&KOI8 / Win-1251", IDC_KOI8WIN1251,
+                 "&ISO-8859-2 / Win-1250", IDC_88592WIN1250,
+                 "&ISO-8859-2 / CP852", IDC_88592CP852, NULL);
+        endbox(&cp);
+        beginbox(&cp, "Enable character set translation on input data",
+                 IDC_BOX_TRANSLATION3);
+        checkbox(&cp, "CAP&S LOCK acts as cyrillic switch",
+                 IDC_CAPSLOCKCYR);
+        endbox(&cp);
+    }
+
+    if (panel == selectionpanelstart) {
+        /* The Selection panel. Accelerators used: [acgo] wxst */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling copy and paste",
+                 IDC_TITLE_SELECTION);
+        beginbox(&cp, "Control which mouse button does which thing",
+                 IDC_BOX_SELECTION1);
+        radiobig(&cp, "Action of mouse buttons:", IDC_MBSTATIC,
+                 "&Windows (Right pastes, Middle extends)", IDC_MBWINDOWS,
+                 "&xterm (Right extends, Middle pastes)", IDC_MBXTERM,
+                 NULL);
+        endbox(&cp);
+        beginbox(&cp, "Control the select-one-word-at-a-time mode",
+                 IDC_BOX_SELECTION2);
+        charclass(&cp, "Character classes:", IDC_CCSTATIC, IDC_CCLIST,
+                  "&Set", IDC_CCSET, IDC_CCEDIT,
+                  "&to class", IDC_CCSTATIC2);
+        endbox(&cp);
+    }
+
+    if (panel == colourspanelstart) {
+        /* The Colours panel. Accelerators used: [acgo] blum */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling use of colours",
+                 IDC_TITLE_COLOURS);
+        beginbox(&cp, "General options for colour usage",
+                 IDC_BOX_COLOURS1);
+        checkbox(&cp, "&Bolded text is a different colour", IDC_BOLDCOLOUR);
+        checkbox(&cp, "Attempt to use &logical palettes", IDC_PALETTE);
+        endbox(&cp);
+        beginbox(&cp, "Adjust the precise colours PuTTY displays",
+                 IDC_BOX_COLOURS2);
+        colouredit(&cp, "Select a colo&ur and then click to modify it:",
+                   IDC_COLOURSTATIC, IDC_COLOURLIST,
+                   "&Modify...", IDC_CHANGE,
+                   "Red:", IDC_RSTATIC, IDC_RVALUE,
+                   "Green:", IDC_GSTATIC, IDC_GVALUE,
+                   "Blue:", IDC_BSTATIC, IDC_BVALUE, NULL);
+        endbox(&cp);
+    }
+
+    if (panel == connectionpanelstart) {
+        /* The Connection panel. Accelerators used: [acgo] tuk */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        bartitle(&cp, "Options controlling the connection", IDC_TITLE_CONNECTION);
+        if (dlgtype == 0) {
+            beginbox(&cp, "Data to send to the server",
+                     IDC_BOX_CONNECTION1);
+            staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT, 50);
+            staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT, 50);
+            endbox(&cp);
+        }
+        beginbox(&cp, "Sending of null packets to keep session active",
+                 IDC_BOX_CONNECTION2);
+        staticedit(&cp, "Seconds between &keepalives (0 to turn off)",
+                   IDC_PINGSTATIC, IDC_PINGEDIT, 25);
+        endbox(&cp);
+    }
+
+    if (panel == telnetpanelstart) {
+        /* The Telnet panel. Accelerators used: [acgo] svldrbf */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        if (dlgtype == 0) {
+            bartitle(&cp, "Options controlling Telnet connections", IDC_TITLE_TELNET);
+            beginbox(&cp, "Data to send to the server",
+                     IDC_BOX_TELNET1);
+            staticedit(&cp, "Terminal-&speed string", IDC_TSSTATIC, IDC_TSEDIT, 50);
+            envsetter(&cp, "Environment variables:", IDC_ENVSTATIC,
+                      "&Variable", IDC_VARSTATIC, IDC_VAREDIT,
+                      "Va&lue", IDC_VALSTATIC, IDC_VALEDIT,
+                      IDC_ENVLIST,
+                      "A&dd", IDC_ENVADD, "&Remove", IDC_ENVREMOVE);
+            endbox(&cp);
+            beginbox(&cp, "Telnet protocol adjustments",
+                     IDC_BOX_TELNET2);
+            radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC_EMSTATIC, 2,
+                      "&BSD (commonplace)", IDC_EMBSD,
+                      "R&FC 1408 (unusual)", IDC_EMRFC, NULL);
+            endbox(&cp);
+        }
+    }
+
+    if (panel == rloginpanelstart) {
+        /* The Rlogin panel. Accelerators used: [acgo] sl */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        if (dlgtype == 0) {
+            bartitle(&cp, "Options controlling Rlogin connections", IDC_TITLE_RLOGIN);
+            beginbox(&cp, "Data to send to the server",
+                     IDC_BOX_RLOGIN1);
+            staticedit(&cp, "Terminal-&speed string", IDC_R_TSSTATIC, IDC_R_TSEDIT, 50);
+            staticedit(&cp, "&Local username:", IDC_RLLUSERSTATIC, IDC_RLLUSEREDIT, 50);
+            endbox(&cp);
+        }
+    }
+
+    if (panel == sshpanelstart) {
+        /* The SSH panel. Accelerators used: [acgo] rmakwp123bd */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        if (dlgtype == 0) {
+            bartitle(&cp, "Options controlling SSH connections", IDC_TITLE_SSH);
+            beginbox(&cp, "Data to send to the server",
+                     IDC_BOX_SSH1);
+            multiedit(&cp,
+                      "&Remote command:", IDC_CMDSTATIC, IDC_CMDEDIT, 100,
+                      NULL);
+            endbox(&cp);
+            beginbox(&cp, "Authentication options",
+                     IDC_BOX_SSH2);
+            checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
+                     IDC_AUTHTIS);
+            checkbox(&cp, "Allow &agent forwarding", IDC_AGENTFWD);
+            editbutton(&cp, "Private &key file for authentication:",
+                       IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...", IDC_PKBUTTON);
+            endbox(&cp);
+            beginbox(&cp, "Protocol options",
+                     IDC_BOX_SSH3);
+            checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
+            checkbox(&cp, "Enable compr&ession", IDC_COMPRESS);
+            radioline(&cp, "Preferred SSH protocol version:",
+                      IDC_SSHPROTSTATIC, 2,
+                      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
+            radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 3,
+                      "&3DES", IDC_CIPHER3DES,
+                      "&Blowfish", IDC_CIPHERBLOWF,
+                      "&DES", IDC_CIPHERDES, NULL);
+            checkbox(&cp, "Imitate SSH 2 MAC bug in commercial <= v2.3.x",
+                     IDC_BUGGYMAC);
+            endbox(&cp);
+        }
+    }
+
+    if (panel == tunnelspanelstart) {
+        /* The Tunnels panel. Accelerators used: [acgo] ex */
+        struct ctlpos cp;
+        ctlposinit(&cp, hwnd, 80, 3, 13);
+        if (dlgtype == 0) {
+            bartitle(&cp, "Options controlling SSH tunnelling",
+                     IDC_TITLE_TUNNELS);
+            beginbox(&cp, "X11 forwarding options",
+                     IDC_BOX_TUNNELS);
+            checkbox(&cp, "&Enable X11 forwarding",
+                     IDC_X11_FORWARD);
+            multiedit(&cp, "&X display location", IDC_X11_DISPSTATIC,
+                      IDC_X11_DISPLAY, 50, NULL);
+            endbox(&cp);
+        }
+    }
+}
+
+/*
+ * This function is the configuration box.
  */
 static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam,
@@ -708,417 +1078,28 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
         }
 
 	/*
-	 * Create the various panelfuls of controls.
+	 * Set up the tree view contents.
 	 */
-
-	/* The Session panel. Accelerators used: [acgo] nprthelsdx */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Basic options for your PuTTY session",
-                     IDC_TITLE_SESSION);
-	    if (dlgtype == 0) {
-                beginbox(&cp, "Specify your connection by host name",
-                         IDC_BOX_SESSION1, IDC_BOXT_SESSION1);
-		multiedit(&cp,
-			  "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
-			  "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
-		if (backends[3].backend == NULL) {
-		    /* this is PuTTYtel, so only two protocols available */
-		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
-			      "&Raw", IDC_PROTRAW,
-			      "&Telnet", IDC_PROTTELNET,
-			      "R&login", IDC_PROTRLOGIN, NULL);
-		} else {
-		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
-			      "&Raw", IDC_PROTRAW,
-			      "&Telnet", IDC_PROTTELNET,
-			      "R&login", IDC_PROTRLOGIN,
-#ifdef FWHACK
-			      "SS&H/hack",
-#else
-			      "SS&H",
-#endif
-			      IDC_PROTSSH, NULL);
-		}
-                endbox(&cp);
-                beginbox(&cp, "Load, save or delete a stored session",
-                         IDC_BOX_SESSION2, IDC_BOXT_SESSION2);
-		sesssaver(&cp, "Sav&ed Sessions",
-			  IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
-			  "&Load", IDC_SESSLOAD,
-			  "&Save", IDC_SESSSAVE,
-			  "&Delete", IDC_SESSDEL, NULL);
-                endbox(&cp);
-	    }
-            beginbox(&cp, NULL, IDC_BOX_SESSION3, 0);
-	    checkbox(&cp, "Close Window on E&xit", IDC_CLOSEEXIT);
-            endbox(&cp);
-
-            hsession = treeview_insert(&tvfaff, 0, "Session");
-	}
-
-        /* The Terminal panel. Accelerators used: [acgo] &dflbenuw */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling the terminal emulation",
-                     IDC_TITLE_TERMINAL);
-            beginbox(&cp, "Set various terminal options",
-                     IDC_BOX_TERMINAL1, IDC_BOXT_TERMINAL1);
-	    checkbox(&cp, "Auto &wrap mode initially on", IDC_WRAPMODE);
-	    checkbox(&cp, "&DEC Origin Mode initially on", IDC_DECOM);
-	    checkbox(&cp, "Implicit CR in every &LF", IDC_LFHASCR);
-	    checkbox(&cp, "&Beep enabled", IDC_BEEP);
-	    checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
-	    checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
-            checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
-            endbox(&cp);
-
-	    beginbox(&cp, "Control session logging",
-		     IDC_BOX_TERMINAL2, IDC_BOXT_TERMINAL2);
-	    radiobig(&cp,
-		     "Session logging:", IDC_LSTATSTATIC,
-		     "Logging turned &off completely", IDC_LSTATOFF,
-		     "Log printable output only", IDC_LSTATASCII,
-		     "Log all session output", IDC_LSTATRAW, NULL);
-	    editbutton(&cp, "Log &file name:",
-		       IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
-		       IDC_LGFBUTTON);
-	    endbox(&cp);
-
-            treeview_insert(&tvfaff, 0, "Terminal");
-	}
-
-	/* The Keyboard panel. Accelerators used: [acgo] h?srvlxvnpmietu */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling the effects of keys",
-                     IDC_TITLE_KEYBOARD);
-            beginbox(&cp, "Change the sequences sent by:",
-                     IDC_BOX_KEYBOARD1, IDC_BOXT_KEYBOARD1);
-	    radioline(&cp, "The Backspace key", IDC_DELSTATIC, 2,
-		      "Control-&H", IDC_DEL008,
-		      "Control-&? (127)", IDC_DEL127, NULL);
-	    radioline(&cp, "The Home and End keys", IDC_HOMESTATIC, 2,
-		      "&Standard", IDC_HOMETILDE,
-		      "&rxvt", IDC_HOMERXVT, NULL);
-	    radioline(&cp, "The Function keys and keypad", IDC_FUNCSTATIC, 4,
-		      "ESC[n&~", IDC_FUNCTILDE,
-		      "&Linux", IDC_FUNCLINUX,
-		      "&Xterm R6", IDC_FUNCXTERM,
-                      "&VT400", IDC_FUNCVT400, NULL);
-            endbox(&cp);
-            beginbox(&cp, "Application keypad settings:",
-                     IDC_BOX_KEYBOARD2, IDC_BOXT_KEYBOARD2);
-            checkbox(&cp,
-                     "Application c&ursor keys totally disabled",
-                     IDC_NOAPPLICC);
-	    radioline(&cp, "Initial state of cursor keys:", IDC_CURSTATIC, 2,
-		      "&Normal", IDC_CURNORMAL,
-		      "A&pplication", IDC_CURAPPLIC, NULL);
-            checkbox(&cp,
-                     "Application ke&ypad keys totally disabled",
-                     IDC_NOAPPLICK);
-	    radioline(&cp, "Initial state of numeric keypad:", IDC_KPSTATIC, 3,
-		      "Nor&mal", IDC_KPNORMAL,
-		      "Appl&ication", IDC_KPAPPLIC,
-		      "N&etHack", IDC_KPNH, NULL);
-            endbox(&cp);
-            beginbox(&cp, "Enable extra keyboard features:",
-                     IDC_BOX_KEYBOARD3, IDC_BOXT_KEYBOARD3);
-	    checkbox(&cp, "Application and AltGr ac&t as Compose key",
-		     IDC_COMPOSEKEY);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 1, "Keyboard");
-	}
-
-        /* The Window panel. Accelerators used: [acgo] bsdkw4ylpt */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling PuTTY's window",
-                     IDC_TITLE_WINDOW);
-            beginbox(&cp, "Set the size of the window",
-                     IDC_BOX_WINDOW1, IDC_BOXT_WINDOW1);
-	    multiedit(&cp,
-		      "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
-		      "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50,
-		      NULL);
-	    checkbox(&cp, "Loc&k window size against resizing", IDC_LOCKSIZE);
-            endbox(&cp);
-            beginbox(&cp, "Control the scrollback in the window",
-                     IDC_BOX_WINDOW2, IDC_BOXT_WINDOW2);
-            staticedit(&cp, "Lines of &scrollback",
-                       IDC_SAVESTATIC, IDC_SAVEEDIT, 50);
-	    checkbox(&cp, "&Display scrollbar", IDC_SCROLLBAR);
-	    checkbox(&cp, "Reset scrollback on &keypress", IDC_SCROLLKEY);
-	    checkbox(&cp, "Reset scrollback on dis&play activity",
-		     IDC_SCROLLDISP);
-            endbox(&cp);
-            beginbox(&cp, NULL, IDC_BOX_WINDOW3, 0);
-	    checkbox(&cp, "&Warn before closing window", IDC_CLOSEWARN);
-	    checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
-	    checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
-	    checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
-            checkbox(&cp, "Ensure window is always on &top", IDC_ALWAYSONTOP);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 0, "Window");
-	}
-
-        /* The Appearance panel. Accelerators used: [acgo] rmkhtibluv */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling PuTTY's appearance",
-                     IDC_TITLE_APPEARANCE);
-            beginbox(&cp, "Adjust the use of the cursor",
-                     IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1);
-	    radioline(&cp, "Cursor appearance:", IDC_CURSORSTATIC, 3,
-		      "B&lock", IDC_CURBLOCK,
-		      "&Underline", IDC_CURUNDER,
-		      "&Vertical line", IDC_CURVERT,
-		      NULL);
-	    checkbox(&cp, "Cursor &blinks", IDC_BLINKCUR);
-            endbox(&cp);
-            beginbox(&cp, "Set the font used in the terminal window",
-                     IDC_BOX_APPEARANCE2, IDC_BOXT_APPEARANCE2);
-	    staticbtn(&cp, "", IDC_FONTSTATIC, "C&hange...", IDC_CHOOSEFONT);
-            endbox(&cp);
-            beginbox(&cp, "Adjust the use of the window title",
-                     IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3);
-            multiedit(&cp,
-                      "Window &title:", IDC_WINTITLE,
-                      IDC_WINEDIT, 100, NULL);
-	    checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
-            endbox(&cp);
-            beginbox(&cp, "Adjust the use of the mouse pointer",
-                     IDC_BOX_APPEARANCE4, IDC_BOXT_APPEARANCE4);
-	    checkbox(&cp, "Hide mouse &pointer when typing in window",
-                     IDC_HIDEMOUSE);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 1, "Appearance");
-	}
-
-	/* The Translation panel. Accelerators used: [acgo] xbepnkis */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling character set translation",
-                     IDC_TITLE_TRANSLATION);
-            beginbox(&cp, "Adjust how PuTTY displays line drawing characters",
-                     IDC_BOX_TRANSLATION1, IDC_BOXT_TRANSLATION1);
-	    radiobig(&cp,
-		     "Handling of line drawing characters:", IDC_VTSTATIC,
-		     "Font has &XWindows encoding", IDC_VTXWINDOWS,
-		     "Use font in &both ANSI and OEM modes", IDC_VTOEMANSI,
-		     "Use font in O&EM mode only", IDC_VTOEMONLY,
-		     "&Poor man's line drawing (""+"", ""-"" and ""|"")",
-		     IDC_VTPOORMAN, NULL);
-            endbox(&cp);
-            beginbox(&cp, "Enable character set translation on received data",
-                     IDC_BOX_TRANSLATION2, IDC_BOXT_TRANSLATION2);
-	    radiobig(&cp,
-		     "Character set translation:", IDC_XLATSTATIC,
-		     "&None", IDC_NOXLAT,
-		     "&KOI8 / Win-1251", IDC_KOI8WIN1251,
-		     "&ISO-8859-2 / Win-1250", IDC_88592WIN1250,
-                     "&ISO-8859-2 / CP852", IDC_88592CP852, NULL);
-            endbox(&cp);
-            beginbox(&cp, "Enable character set translation on input data",
-                     IDC_BOX_TRANSLATION3, IDC_BOXT_TRANSLATION3);
-	    checkbox(&cp, "CAP&S LOCK acts as cyrillic switch",
-                     IDC_CAPSLOCKCYR);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 1, "Translation");
-	}
-
-        /* The Selection panel. Accelerators used: [acgo] wxst */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling copy and paste",
-                     IDC_TITLE_SELECTION);
-            beginbox(&cp, "Control which mouse button does which thing",
-                     IDC_BOX_SELECTION1, IDC_BOXT_SELECTION1);
-	    radiobig(&cp, "Action of mouse buttons:", IDC_MBSTATIC,
-		     "&Windows (Right pastes, Middle extends)", IDC_MBWINDOWS,
-		     "&xterm (Right extends, Middle pastes)", IDC_MBXTERM,
-		     NULL);
-            endbox(&cp);
-            beginbox(&cp, "Control the select-one-word-at-a-time mode",
-                     IDC_BOX_SELECTION2, IDC_BOXT_SELECTION2);
-	    charclass(&cp, "Character classes:", IDC_CCSTATIC, IDC_CCLIST,
-		      "&Set", IDC_CCSET, IDC_CCEDIT,
-		      "&to class", IDC_CCSTATIC2);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 1, "Selection");
-	}
-
-        /* The Colours panel. Accelerators used: [acgo] blum */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling use of colours",
-                     IDC_TITLE_COLOURS);
-            beginbox(&cp, "General options for colour usage",
-                     IDC_BOX_COLOURS1, IDC_BOXT_COLOURS1);
-	    checkbox(&cp, "&Bolded text is a different colour", IDC_BOLDCOLOUR);
-	    checkbox(&cp, "Attempt to use &logical palettes", IDC_PALETTE);
-            endbox(&cp);
-            beginbox(&cp, "Adjust the precise colours PuTTY displays",
-                     IDC_BOX_COLOURS2, IDC_BOXT_COLOURS2);
-	    colouredit(&cp, "Select a colo&ur and then click to modify it:",
-		       IDC_COLOURSTATIC, IDC_COLOURLIST,
-		       "&Modify...", IDC_CHANGE,
-		       "Red:", IDC_RSTATIC, IDC_RVALUE,
-		       "Green:", IDC_GSTATIC, IDC_GVALUE,
-		       "Blue:", IDC_BSTATIC, IDC_BVALUE, NULL);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 1, "Colours");
-	}
-
-        /* The Connection panel. Accelerators used: [acgo] tuk */
-        {
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-            bartitle(&cp, "Options controlling the connection", IDC_TITLE_CONNECTION);
-	    if (dlgtype == 0) {
-                beginbox(&cp, "Data to send to the server",
-                         IDC_BOX_CONNECTION1, IDC_BOXT_CONNECTION1);
-                staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT, 50);
-                staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT, 50);
-                endbox(&cp);
-            }
-            beginbox(&cp, "Sending of null packets to keep session active",
-                     IDC_BOX_CONNECTION2, IDC_BOXT_CONNECTION2);
-            staticedit(&cp, "Seconds between &keepalives (0 to turn off)",
-                       IDC_PINGSTATIC, IDC_PINGEDIT, 25);
-            endbox(&cp);
-
-            treeview_insert(&tvfaff, 0, "Connection");
-        }
-
-        /* The Telnet panel. Accelerators used: [acgo] svldrbf */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-	    if (dlgtype == 0) {
-                bartitle(&cp, "Options controlling Telnet connections", IDC_TITLE_TELNET);
-                beginbox(&cp, "Data to send to the server",
-                         IDC_BOX_TELNET1, IDC_BOXT_TELNET1);
-		staticedit(&cp, "Terminal-&speed string", IDC_TSSTATIC, IDC_TSEDIT, 50);
-		envsetter(&cp, "Environment variables:", IDC_ENVSTATIC,
-			  "&Variable", IDC_VARSTATIC, IDC_VAREDIT,
-			  "Va&lue", IDC_VALSTATIC, IDC_VALEDIT,
-			  IDC_ENVLIST,
-			  "A&dd", IDC_ENVADD, "&Remove", IDC_ENVREMOVE);
-                endbox(&cp);
-                beginbox(&cp, "Telnet protocol adjustments",
-                         IDC_BOX_TELNET2, IDC_BOXT_TELNET2);
-		radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC_EMSTATIC, 2,
-			  "&BSD (commonplace)", IDC_EMBSD,
-			  "R&FC 1408 (unusual)", IDC_EMRFC, NULL);
-                endbox(&cp);
-
-                treeview_insert(&tvfaff, 1, "Telnet");
-	    }
-	}
-
-
-	/* The Rlogin Panel */
-	{
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-	    if (dlgtype == 0) {
-                bartitle(&cp, "Options controlling Rlogin connections", IDC_TITLE_RLOGIN);
-                beginbox(&cp, "Data to send to the server",
-                         IDC_BOX_RLOGIN1, IDC_BOXT_RLOGIN1);
-		staticedit(&cp, "Terminal-&speed string", IDC_R_TSSTATIC, IDC_R_TSEDIT, 50);
-		staticedit(&cp, "&Local username:", IDC_RLLUSERSTATIC, IDC_RLLUSEREDIT, 50);
-                endbox(&cp);
-
-                treeview_insert(&tvfaff, 1, "Rlogin");
-	    }
-	}
-
-	/* The SSH panel. Accelerators used: [acgo] rmakwp123bd */
-        if (backends[3].backend != NULL) {
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-	    if (dlgtype == 0) {
-                bartitle(&cp, "Options controlling SSH connections", IDC_TITLE_SSH);
-                beginbox(&cp, "Data to send to the server",
-                         IDC_BOX_SSH1, IDC_BOXT_SSH1);
-		multiedit(&cp,
-			  "&Remote command:", IDC_CMDSTATIC, IDC_CMDEDIT, 100,
-			  NULL);
-                endbox(&cp);
-                beginbox(&cp, "Authentication options",
-                         IDC_BOX_SSH2, IDC_BOXT_SSH2);
-		checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
-			 IDC_AUTHTIS);
-		checkbox(&cp, "Allow &agent forwarding", IDC_AGENTFWD);
-		editbutton(&cp, "Private &key file for authentication:",
-			   IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...", IDC_PKBUTTON);
-                endbox(&cp);
-                beginbox(&cp, "Protocol options",
-                         IDC_BOX_SSH3, IDC_BOXT_SSH3);
-		checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
-		checkbox(&cp, "Enable compr&ession", IDC_COMPRESS);
-		radioline(&cp, "Preferred SSH protocol version:",
-			  IDC_SSHPROTSTATIC, 2,
-			  "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
-		radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 3,
-			  "&3DES", IDC_CIPHER3DES,
-			  "&Blowfish", IDC_CIPHERBLOWF,
-			  "&DES", IDC_CIPHERDES, NULL);
-		checkbox(&cp, "Imitate SSH 2 MAC bug in commercial <= v2.3.x",
-                         IDC_BUGGYMAC);
-                endbox(&cp);
-
+        hsession = treeview_insert(&tvfaff, 0, "Session");
+        treeview_insert(&tvfaff, 0, "Terminal");
+        treeview_insert(&tvfaff, 1, "Keyboard");
+        treeview_insert(&tvfaff, 0, "Window");
+        treeview_insert(&tvfaff, 1, "Appearance");
+        treeview_insert(&tvfaff, 1, "Translation");
+        treeview_insert(&tvfaff, 1, "Selection");
+        treeview_insert(&tvfaff, 1, "Colours");
+        treeview_insert(&tvfaff, 0, "Connection");
+        if (dlgtype == 0) {
+            treeview_insert(&tvfaff, 1, "Telnet");
+            treeview_insert(&tvfaff, 1, "Rlogin");
+            if (backends[3].backend != NULL)
                 treeview_insert(&tvfaff, 1, "SSH");
-	    }
-	}
-        /* The Tunnels panel. Accelerators used: [acgo] ex */
-        {
-	    struct ctlpos cp;
-	    ctlposinit(&cp, hwnd, 80, 3, 13);
-	    if (dlgtype == 0) {
-                bartitle(&cp, "Options controlling SSH tunnelling",
-                         IDC_TITLE_TUNNELS);
-                beginbox(&cp, "X11 forwarding options",
-                         IDC_BOX_TUNNELS, IDC_BOXT_TUNNELS);
-                checkbox(&cp, "&Enable X11 forwarding",
-                         IDC_X11_FORWARD);
-                multiedit(&cp, "&X display location", IDC_X11_DISPSTATIC,
-                          IDC_X11_DISPLAY, 50, NULL);
-                endbox(&cp);
-
-                treeview_insert(&tvfaff, 2, "Tunnels");
-	    }
+            treeview_insert(&tvfaff, 2, "Tunnels");
         }
-
-	init_dlg_ctrls(hwnd);
-        for (i = 0; i < nsessions; i++)
-            SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
-                                0, (LPARAM) (sessions[i]));
-
-        /*
-         * Hide all the controls to start with.
-         */
-	hide(hwnd, TRUE, controlstartvalue, controlendvalue);
 
         /*
          * Put the treeview selection on to the Session panel. This
-         * should also cause unhiding of the relevant controls.
+         * should also cause creation of the relevant controls.
          */
         TreeView_SelectItem(treeview, hsession);
 
@@ -1148,39 +1129,46 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    ((LPNMHDR)lParam)->code == TVN_SELCHANGED) {
 	    HTREEITEM i = TreeView_GetSelection(((LPNMHDR)lParam)->hwndFrom);
 	    TVITEM item;
+            int j;
 	    char buffer[64];
             item.hItem = i;
 	    item.pszText = buffer;
 	    item.cchTextMax = sizeof(buffer);
 	    item.mask = TVIF_TEXT;
 	    TreeView_GetItem(((LPNMHDR)lParam)->hwndFrom, &item);
-	    hide(hwnd, TRUE, controlstartvalue, controlendvalue);
+	    for (j = controlstartvalue; j < controlendvalue; j++) {
+                HWND item = GetDlgItem(hwnd, j);
+                if (item)
+                    DestroyWindow(item);
+            }
 	    if (!strcmp(buffer, "Session"))
-		hide(hwnd, FALSE, sessionpanelstart, sessionpanelend);
+		create_controls(hwnd, dlgtype, sessionpanelstart);
 	    if (!strcmp(buffer, "Keyboard"))
-		hide(hwnd, FALSE, keyboardpanelstart, keyboardpanelend);
+		create_controls(hwnd, dlgtype, keyboardpanelstart);
 	    if (!strcmp(buffer, "Terminal"))
-		hide(hwnd, FALSE, terminalpanelstart, terminalpanelend);
+		create_controls(hwnd, dlgtype, terminalpanelstart);
 	    if (!strcmp(buffer, "Window"))
-		hide(hwnd, FALSE, windowpanelstart, windowpanelend);
+		create_controls(hwnd, dlgtype, windowpanelstart);
 	    if (!strcmp(buffer, "Appearance"))
-		hide(hwnd, FALSE, appearancepanelstart, appearancepanelend);
+		create_controls(hwnd, dlgtype, appearancepanelstart);
 	    if (!strcmp(buffer, "Tunnels"))
-		hide(hwnd, FALSE, tunnelspanelstart, tunnelspanelend);
+		create_controls(hwnd, dlgtype, tunnelspanelstart);
 	    if (!strcmp(buffer, "Connection"))
-		hide(hwnd, FALSE, connectionpanelstart, connectionpanelend);
+		create_controls(hwnd, dlgtype, connectionpanelstart);
 	    if (!strcmp(buffer, "Telnet"))
-		hide(hwnd, FALSE, telnetpanelstart, telnetpanelend);
+		create_controls(hwnd, dlgtype, telnetpanelstart);
 	    if (!strcmp(buffer, "Rlogin"))
-		hide(hwnd, FALSE, rloginpanelstart, rloginpanelend);
+		create_controls(hwnd, dlgtype, rloginpanelstart);
 	    if (!strcmp(buffer, "SSH"))
-		hide(hwnd, FALSE, sshpanelstart, sshpanelend);
+		create_controls(hwnd, dlgtype, sshpanelstart);
 	    if (!strcmp(buffer, "Selection"))
-		hide(hwnd, FALSE, selectionpanelstart, selectionpanelend);
+		create_controls(hwnd, dlgtype, selectionpanelstart);
 	    if (!strcmp(buffer, "Colours"))
-		hide(hwnd, FALSE, colourspanelstart, colourspanelend);
+		create_controls(hwnd, dlgtype, colourspanelstart);
 	    if (!strcmp(buffer, "Translation"))
-		hide(hwnd, FALSE, translationpanelstart, translationpanelend);
+		create_controls(hwnd, dlgtype, translationpanelstart);
+
+            init_dlg_ctrls(hwnd);
 
 	    SetFocus (((LPNMHDR)lParam)->hwndFrom);   /* ensure focus stays */
 	    return 0;
