@@ -11,6 +11,11 @@
 #endif
 #endif
 
+#if WINVER < 0x0500
+#define COMPILE_MULTIMON_STUBS
+#include <multimon.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -55,6 +60,7 @@
 #define IDM_SAVED_MAX 0x2000
 
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
+#define WM_FULLSCR_ON_MAX (WM_XUSER + 3)
 
 /* Needed for Chinese support and apparently not always defined. */
 #ifndef VK_PROCESSKEY
@@ -76,9 +82,13 @@ static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
 
+static int is_full_screen(void);
+static void make_full_screen(void);
+static void clear_full_screen(void);
+static void flip_full_screen(void);
+
 /* Window layout information */
 static void reset_window(int);
-static int full_screen = 0;
 static int extra_width, extra_height;
 static int font_width, font_height, font_dualwidth;
 static int offset_width, offset_height;
@@ -90,7 +100,6 @@ static WPARAM pend_netevent_wParam = 0;
 static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
-static void flip_full_screen(void);
 
 static time_t last_movement = 0;
 
@@ -1483,6 +1492,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     HDC hdc;
     static int ignore_clip = FALSE;
     static int need_backend_resize = FALSE;
+    static int fullscr_on_max = FALSE;
 
     switch (message) {
       case WM_TIMER:
@@ -1613,9 +1623,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				   (cfg.resize_action == RESIZE_DISABLED)
 				   ? MF_GRAYED : MF_ENABLED);
 		    /* Gracefully unzoom if necessary */
-		    if (full_screen &&
+		    if (IsZoomed(hwnd) &&
 			(cfg.resize_action == RESIZE_DISABLED)) {
-			flip_full_screen();
+			ShowWindow(hwnd, SW_RESTORE);
 		    }
 		}
 
@@ -1670,7 +1680,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			nexflag &= ~(WS_EX_CLIENTEDGE);
 
 		    nflg = flag;
-		    if (full_screen ?
+		    if (is_full_screen() ?
 			cfg.scrollbar_in_fullscreen : cfg.scrollbar)
 			nflg |= WS_VSCROLL;
 		    else
@@ -1814,8 +1824,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		PostMessage(hwnd, WM_CHAR, ' ', 0);
 	    break;
 	  case IDM_FULLSCREEN:
-		flip_full_screen();	
-		break;
+	    flip_full_screen();
+	    break;
 	  default:
 	    if (wParam >= IDM_SAVED_MIN && wParam <= IDM_SAVED_MAX) {
 		SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
@@ -1911,7 +1921,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * window, we put up the System menu instead of doing
 	     * selection.
 	     */
-	    if (full_screen && press && button == MBT_LEFT &&
+	    if (is_full_screen() && press && button == MBT_LEFT &&
 		X_POS(lParam) == 0 && Y_POS(lParam) == 0) {
 		SendMessage(hwnd, WM_SYSCOMMAND, SC_MOUSEMENU, 0);
 		return 0;
@@ -2041,7 +2051,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	term_update();
 	break;
       case WM_KILLFOCUS:
-	if (full_screen) flip_full_screen();
 	show_mouseptr(1);
 	has_focus = FALSE;
 	DestroyCaret();
@@ -2158,6 +2167,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    return rv;
 	}
 	/* break;  (never reached) */
+      case WM_FULLSCR_ON_MAX:
+	fullscr_on_max = TRUE;
+	break;
       case WM_SIZE:
 #ifdef RDB_DEBUG_PATCH
 	debug((27, "WM_SIZE %s (%d,%d)",
@@ -2197,9 +2209,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 			term_size(h, w, cfg.savelines);
 		    }
+		    if (fullscr_on_max)
+			make_full_screen();
+		    fullscr_on_max = FALSE;
 		    reset_window(0);
 		} else if (wParam == SIZE_RESTORED && was_zoomed) {
 		    was_zoomed = 0;
+		    clear_full_screen();
 		    if (cfg.resize_action == RESIZE_TERM)
 			term_size(prev_rows, prev_cols, cfg.savelines);
 		    if (cfg.resize_action != RESIZE_FONT)
@@ -3654,8 +3670,7 @@ void set_sbar(int total, int start, int page)
 {
     SCROLLINFO si;
 
-    if ((full_screen && !cfg.scrollbar_in_fullscreen) ||
-	(!full_screen && !cfg.scrollbar))
+    if (is_full_screen() ? !cfg.scrollbar_in_fullscreen : !cfg.scrollbar)
 	return;
 
     si.cbSize = sizeof(si);
@@ -4096,68 +4111,6 @@ void beep(int mode)
 }
 
 /*
- * Toggle full screen mode. Thanks to cwis@nerim.fr for the
- * implementation.
- * Revised by <wez@thebrainroom.com>
- */
-static void flip_full_screen(void)
-{
-    WINDOWPLACEMENT wp;
-    LONG style;
-
-    wp.length = sizeof(wp);
-    GetWindowPlacement(hwnd, &wp);
-
-    full_screen = !full_screen;
-
-    if (full_screen) {
-	if (wp.showCmd == SW_SHOWMAXIMIZED) {
-	    /* Ooops it was already 'zoomed' we have to unzoom it before
-	     * everything will work right.
-	     */
-	    wp.showCmd = SW_SHOWNORMAL;
-	    SetWindowPlacement(hwnd, &wp);
-	}
-
-	style = GetWindowLong(hwnd, GWL_STYLE) & ~(WS_CAPTION|WS_THICKFRAME);
-	style &= ~WS_VSCROLL;
-	if (cfg.scrollbar_in_fullscreen)
-	    style |= WS_VSCROLL;
-	SetWindowLong(hwnd, GWL_STYLE, style);
-
-	/* Some versions of explorer get confused and don't take
-	 * notice of us going fullscreen, so go topmost too.
-	 */
-	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-		     SWP_NOACTIVATE | SWP_NOCOPYBITS |
-		     SWP_NOMOVE | SWP_NOSIZE |
-		     SWP_FRAMECHANGED);
-
-	wp.showCmd = SW_SHOWMAXIMIZED;
-	SetWindowPlacement(hwnd, &wp);
-    } else {
-	style = GetWindowLong(hwnd, GWL_STYLE) | WS_CAPTION;
-	if (cfg.resize_action != RESIZE_DISABLED)
-	    style |= WS_THICKFRAME;
-	style &= ~WS_VSCROLL;
-	if (cfg.scrollbar)
-	    style |= WS_VSCROLL;
-	SetWindowLong(hwnd, GWL_STYLE, style);
-
-	SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
-		     SWP_NOACTIVATE | SWP_NOCOPYBITS |
-		     SWP_NOMOVE | SWP_NOSIZE |
-		     SWP_FRAMECHANGED);
-
-	wp.showCmd = SW_SHOWNORMAL;
-	SetWindowPlacement(hwnd, &wp);
-    }
-
-    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
-		  MF_BYCOMMAND| full_screen ? MF_CHECKED : MF_UNCHECKED);
-}
-
-/*
  * Minimise or restore the window in response to a server-side
  * request.
  */
@@ -4186,7 +4139,7 @@ void move_window(int x, int y)
  */
 void set_zorder(int top)
 {
-    if (cfg.alwaysontop || full_screen)
+    if (cfg.alwaysontop)
 	return;			       /* ignore */
     SetWindowPos(hwnd, top ? HWND_TOP : HWND_BOTTOM, 0, 0, 0, 0,
 		 SWP_NOMOVE | SWP_NOSIZE);
@@ -4206,13 +4159,9 @@ void refresh_window(void)
  */
 void set_zoomed(int zoomed)
 {
-    if (IsZoomed(hwnd) || full_screen) {
-	if (!zoomed) {
-	    if (full_screen)
-		flip_full_screen();
-	    else
-		ShowWindow(hwnd, SW_RESTORE);
-	}
+    if (IsZoomed(hwnd)) {
+        if (!zoomed)
+	    ShowWindow(hwnd, SW_RESTORE);
     } else {
 	if (zoomed)
 	    ShowWindow(hwnd, SW_MAXIMIZE);
@@ -4255,4 +4204,102 @@ void get_window_pixels(int *x, int *y)
 char *get_window_title(int icon)
 {
     return icon ? icon_name : window_name;
+}
+
+/*
+ * See if we're in full-screen mode.
+ */
+int is_full_screen()
+{
+    if (!IsZoomed(hwnd))
+	return FALSE;
+    if (GetWindowLong(hwnd, GWL_STYLE) & WS_CAPTION)
+	return FALSE;
+    return TRUE;
+}
+
+/*
+ * Go full-screen. This should only be called when we are already
+ * maximised.
+ */
+void make_full_screen()
+{
+    DWORD style;
+    int x, y, w, h;
+
+    assert(IsZoomed(hwnd));
+
+    /* Remove the window furniture. */
+    style = GetWindowLong(hwnd, GWL_STYLE);
+    style &= ~(WS_CAPTION | WS_BORDER | WS_THICKFRAME);
+    if (cfg.scrollbar_in_fullscreen)
+	style |= WS_VSCROLL;
+    else
+	style &= ~WS_VSCROLL;
+    SetWindowLong(hwnd, GWL_STYLE, style);
+
+    /* Resize ourselves to exactly cover the nearest monitor. */
+#ifdef MONITOR_DEFAULTTONEAREST
+    {
+	HMONITOR mon;
+	MONITORINFO mi;
+	mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfo(mon, &mi);
+	x = mi.rcMonitor.left;
+	y = mi.rcMonitor.top;
+	w = mi.rcMonitor.right;
+	h = mi.rcMonitor.bottom;
+    }
+#else
+    x = y = 0;
+    w = GetSystemMetrics(SM_CXSCREEN);
+    h = GetSystemMetrics(SM_CYSCREEN);
+#endif
+    SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
+
+    /* Tick the menu item in the System menu. */
+    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
+		  MF_CHECKED);
+}
+
+/*
+ * Clear the full-screen attributes.
+ */
+void clear_full_screen()
+{
+    DWORD oldstyle, style;
+
+    /* Reinstate the window furniture. */
+    style = oldstyle = GetWindowLong(hwnd, GWL_STYLE);
+    style |= WS_CAPTION | WS_BORDER | WS_THICKFRAME;
+    if (cfg.scrollbar)
+	style |= WS_VSCROLL;
+    else
+	style &= ~WS_VSCROLL;
+    if (style != oldstyle) {
+	SetWindowLong(hwnd, GWL_STYLE, style);
+	SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+		     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+		     SWP_FRAMECHANGED);
+    }
+
+    /* Untick the menu item in the System menu. */
+    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
+		  MF_UNCHECKED);
+}
+
+/*
+ * Toggle full-screen mode.
+ */
+void flip_full_screen()
+{
+    if (is_full_screen()) {
+	ShowWindow(hwnd, SW_RESTORE);
+    } else if (IsZoomed(hwnd)) {
+	make_full_screen();
+    } else {
+	SendMessage(hwnd, WM_FULLSCR_ON_MAX, 0, 0);
+	ShowWindow(hwnd, SW_MAXIMIZE);
+    }
 }
