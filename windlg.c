@@ -1546,7 +1546,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	}
 
 	/* The SSH panel. Accelerators used: [acgo] rmakwp123bd */
-	{
+        if (backends[2].backend != NULL) {
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
 	    if (dlgtype == 0) {
