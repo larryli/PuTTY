@@ -1653,6 +1653,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    cfg.width != prev_cfg.width ||
 		    cfg.savelines != prev_cfg.savelines ||
 		    cfg.resize_action == RESIZE_FONT ||
+		    (cfg.resize_action == RESIZE_EITHER && IsZoomed(hwnd)) ||
 		    cfg.resize_action == RESIZE_DISABLED)
 		    term_size(cfg.height, cfg.width, cfg.savelines);
 
@@ -1685,10 +1686,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			nflg |= WS_VSCROLL;
 		    else
 			nflg &= ~WS_VSCROLL;
-		    if (cfg.resize_action == RESIZE_DISABLED)
-			nflg &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+
+		    if (cfg.resize_action == RESIZE_DISABLED ||
+                        is_full_screen())
+			nflg &= ~WS_THICKFRAME;
 		    else
-			nflg |= (WS_THICKFRAME | WS_MAXIMIZEBOX);
+			nflg |= WS_THICKFRAME;
+
+		    if (cfg.resize_action == RESIZE_DISABLED)
+			nflg &= ~WS_MAXIMIZEBOX;
+		    else
+			nflg |= WS_MAXIMIZEBOX;
 
 		    if (nflg != flag || nexflag != exflag) {
 			if (nflg != flag)
@@ -2185,6 +2193,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			  cfg.win_name_always ? window_name : icon_name);
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
+        if (wParam == SIZE_RESTORED)
+            clear_full_screen();
+        if (wParam == SIZE_MAXIMIZED && fullscr_on_max) {
+            make_full_screen();
+            fullscr_on_max = FALSE;
+        }
 
 	if (cfg.resize_action == RESIZE_DISABLED) {
 	    /* A resize, well it better be a minimize. */
@@ -2209,13 +2223,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 			term_size(h, w, cfg.savelines);
 		    }
-		    if (fullscr_on_max)
-			make_full_screen();
-		    fullscr_on_max = FALSE;
 		    reset_window(0);
 		} else if (wParam == SIZE_RESTORED && was_zoomed) {
 		    was_zoomed = 0;
-		    clear_full_screen();
 		    if (cfg.resize_action == RESIZE_TERM)
 			term_size(prev_rows, prev_cols, cfg.savelines);
 		    if (cfg.resize_action != RESIZE_FONT)
@@ -4270,7 +4280,11 @@ void clear_full_screen()
 
     /* Reinstate the window furniture. */
     style = oldstyle = GetWindowLong(hwnd, GWL_STYLE);
-    style |= WS_CAPTION | WS_BORDER | WS_THICKFRAME;
+    style |= WS_CAPTION | WS_BORDER;
+    if (cfg.resize_action == RESIZE_DISABLED)
+        style &= ~WS_THICKFRAME;
+    else
+        style |= WS_THICKFRAME;
     if (cfg.scrollbar)
 	style |= WS_VSCROLL;
     else
