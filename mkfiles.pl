@@ -94,6 +94,9 @@ print
 "%.res.o: %.rc\n".
 "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
 "\n";
+print "all:";
+print map { " $_.exe" } @projects;
+print "\n\n";
 foreach $p (@projects) {
   print $p, ".exe: ", &project($p), "\n";
   my $mw = $gui{$p} ? " -mwindows" : "";
