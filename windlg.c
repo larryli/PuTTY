@@ -1056,7 +1056,7 @@ static void init_dlg_ctrls(HWND hwnd) {
 		      cfg.bksp_is_delete ? IDC_DEL127 : IDC_DEL008);
     CheckRadioButton (hwnd, IDC_HOMETILDE, IDC_HOMERXVT,
 		      cfg.rxvt_homeend ? IDC_HOMERXVT : IDC_HOMETILDE);
-    CheckRadioButton (hwnd, IDC_FUNCTILDE, IDC_FUNCXTERM,
+    CheckRadioButton (hwnd, IDC_FUNCTILDE, IDC_FUNCVT400,
                       cfg.funky_type == 0 ? IDC_FUNCTILDE :
                       cfg.funky_type == 1 ? IDC_FUNCLINUX :
                       cfg.funky_type == 2 ? IDC_FUNCXTERM :
