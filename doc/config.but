@@ -530,6 +530,48 @@ more than one type of connection.
 
 \S{config-keepalive} Using keepalives to prevent disconnection
 
+If you find your sessions are closing unexpectedly (\q{Connection
+reset by peer}) after they have been idle for a while, you might
+want to try using this option.
+
+Some network routers and firewalls need keep track of all
+connections through them. Usually, these firewalls will assume a
+connection is dead if no data is transferred in either direction
+after a certain time interval. This can cause PuTTY sessions to be
+unexpectedly closed by the firewall if no traffic is seen in the
+session for some time.
+
+The keepalive option (\q{Seconds between keepalives}) allows you to
+configure PuTTY to send data through the session at regular
+intervals, in a way that does not disrupt the actual terminal
+session. If you find your firewall is cutting idle connections off,
+you can try entering a non-zero value in this field. The value is
+measured in seconds; so, for example, if your firewall cuts
+connections off after ten minutes then you might want to enter 300
+seconds (5 minutes) in the box.
+
+Note that keepalives are not always helpful. They help if you have a
+firewall which drops your connection after an idle period; but if
+the network between you and the server suffers from breaks in
+connectivity then keepalives can actually make things worse. If a
+session is idle, and connectivity is temporarily lost between the
+endpoints, but the connectivity is restored before either side tries
+to send anything, then there will be no problem - neither endpoint
+will notice that anything was wrong. However, if one side does send
+something during the break, it will repeatedly try to re-send, and
+eventually give up and abandon the connection. Then when
+connectivity is restored, the other side will find that the first
+side doesn't believe there is an open connection any more.
+Keepalives can make this sort of problem worse, because they
+increase the probability that PuTTY will attempt to send data during
+a break in connectivity. Therefore, you might find they help
+connection loss, or you might find they make it worse, depending on
+what \e{kind} of network problems you have between you and the
+server.
+
+Keepalives are only supported in Telnet and SSH; the Rlogin and Raw
+protocols offer no way of implementing them.
+
 \H{config-telnet} The Telnet panel
 
 The Telnet panel allows you to configure options that only apply to
