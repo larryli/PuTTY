@@ -73,8 +73,6 @@ static Config cfg;
  */
 char *platform_default_s(const char *name)
 {
-    if (!strcmp(name, "X11Display"))
-	return dupstr(getenv("DISPLAY"));
     if (!strcmp(name, "TermType"))
 	return dupstr(getenv("TERM"));
     if (!strcmp(name, "UserName"))

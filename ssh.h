@@ -298,6 +298,8 @@ extern const char platform_x11_best_transport[];
 /* best X11 hostname for this platform if none specified */
 SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname);
 /* make up a SockAddr naming the address for displaynum */
+char *platform_get_x_display(void);
+/* allocated local X display string, if any */
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);

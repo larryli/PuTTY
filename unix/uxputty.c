@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <gdk/gdk.h>
 
 #include "putty.h"
 #include "storage.h"
@@ -103,6 +104,21 @@ int process_nonoption_arg(char *arg, Config *cfg)
 char *make_default_wintitle(char *hostname)
 {
     return dupcat(hostname, " - PuTTY", NULL);
+}
+
+/*
+ * X11-forwarding-related things suitable for Gtk app.
+ */
+
+const char platform_x11_best_transport[] = "unix";
+
+char *platform_get_x_display(void) {
+    const char *display;
+    /* Try to take account of --display and what have you. */
+    if (!(display = gdk_get_display()))
+	/* fall back to traditional method */
+	display = getenv("DISPLAY");
+    return dupstr(display);
 }
 
 int main(int argc, char **argv)

@@ -119,5 +119,3 @@ void platform_get_x11_auth(char *display, int *protocol,
     pclose(fp);
     sfree(localbuf);
 }
-
-const char platform_x11_best_transport[] = "unix";

@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.91 2004/10/02 00:33:27 jacob Exp $
+\versionid $Id: config.but,v 1.92 2004/10/06 22:31:07 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2106,10 +2106,10 @@ forwarding allows you to securely give those applications access to
 a local X display on your PC.
 
 To enable X11 forwarding, check the \q{Enable X11 forwarding} box.
-If your X display is not the primary display on your local machine
-(which it almost certainly will be unless you have deliberately
-arranged otherwise), you need to enter its location in the \q{X
-display location} box.
+If your X display is somewhere unusual, you will need to enter its
+location in the \q{X display location} box; if this is left blank,
+PuTTY try to find a sensible default in the environment, or use the
+primary local display (\c{:0}) if that fails.
 
 See \k{using-x-forwarding} for more information about X11
 forwarding.

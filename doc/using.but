@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.32 2004/09/22 22:15:25 jacob Exp $
+\versionid $Id: using.but,v 1.33 2004/10/06 22:31:07 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -304,9 +304,10 @@ does do.
 
 You should then tick the \q{Enable X11 forwarding} box in the
 Tunnels panel (see \k{config-ssh-x11}) before starting your SSH
-session. The \q{X display location} box reads \c{localhost:0} by
-default, which is the usual display location where your X server
-will be installed. If that needs changing, then change it.
+session. The \q{X display location} box is blank by default, which
+means that PuTTY will try to use a sensible default such as \c{:0},
+which is the usual display location where your X server will be
+installed. If that needs changing, then change it.
 
 Now you should be able to log in to the SSH server as normal. To
 check that X forwarding has been successfully negotiated during

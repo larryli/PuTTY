@@ -318,3 +318,13 @@ int is_interactive(void)
 {
     return isatty(0);
 }
+
+/*
+ * X11-forwarding-related things suitable for console.
+ */
+
+const char platform_x11_best_transport[] = "unix";
+
+char *platform_get_x_display(void) {
+    return dupstr(getenv("DISPLAY"));
+}
