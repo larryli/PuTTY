@@ -1890,10 +1890,12 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     int  r, i, code;
     unsigned char * p = output;
 
+    HKL kbd_layout = GetKeyboardLayout(0);
+
     static WORD keys[3];
     static int compose_char = 0;
     static WPARAM compose_key = 0;
-
+    
     r = GetKeyboardState(keystate);
     if (!r) memset(keystate, 0, sizeof(keystate));
     else
@@ -1926,7 +1928,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		debug(("*"));
 	     debug((", S%02x", scan=(HIWORD(lParam) & 0xFF) ));
 
-	     ch = MapVirtualKey(wParam, 2);
+	     ch = MapVirtualKeyEx(wParam, 2, kbd_layout);
 	     if (ch>=' ' && ch<='~') debug((", '%c'", ch));
 	     else if (ch)            debug((", $%02x", ch));
 
@@ -2310,7 +2312,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if(cfg.xlat_capslockcyr)
 	    keystate[VK_CAPITAL] = 0;
 
-	r = ToAscii (wParam, scan, keystate, keys, 0);
+	r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
 	if(r>0)
 	{
 	    p = output;
