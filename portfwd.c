@@ -248,8 +248,6 @@ void pfd_close(Socket s)
  */
 void pfd_send(Socket s, char *data, int len)
 {
-    struct PFwdPrivate *pr = (struct PFwdPrivate *) sk_get_private_ptr(s);
-
     if (s == NULL)
 	return;
 
@@ -259,11 +257,12 @@ void pfd_send(Socket s, char *data, int len)
 
 void pfd_confirm(Socket s)
 {
-    struct PFwdPrivate *pr = (struct PFwdPrivate *) sk_get_private_ptr(s);
+    struct PFwdPrivate *pr;
 
     if (s == NULL)
 	return;
 
+    pr = (struct PFwdPrivate *) sk_get_private_ptr(s);
     pr->ready = 1;
     sk_set_frozen(s, 0);
     sk_write(s, NULL, 0);
