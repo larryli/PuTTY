@@ -1,6 +1,6 @@
-/* $Id: mac_res.r,v 1.28 2003/02/23 11:58:59 ben Exp $ */
+/* $Id: mac_res.r,v 1.29 2003/02/27 23:21:23 ben Exp $ */
 /*
- * Copyright (c) 1999, 2002 Ben Harris
+ * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person
@@ -161,6 +161,36 @@ resource 'kind' (129) {
 	'Seed', "PuTTY random number seed",
     }
 };
+
+#if TARGET_API_MAC_CARBON
+/*
+ * Mac OS X Info.plist.
+ * See Tech Note TN2013 for details.
+ * We don't bother with things that Mac OS X seems to be able to get from
+ * other resources.
+ */
+type 'plst' as 'TEXT';
+
+resource 'plst' (0) {
+    "<?xml version='1.0' encoding='UTF-8'?>\n"
+    "<!DOCTYPE plist PUBLIC '-//Apple Computer//DTD PLIST 1.0//EN'\n"
+    " 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>\n"
+    "<plist version='1.0'>\n"
+    "  <dict>\n"
+    "    <key>CFBundleInfoDictionaryVersion</key> <string>6.0</string>\n"
+    "    <key>CFBundleIdentifier</key>\n"
+    "      <string>org.tartarus.projects.putty.putty</string>\n"
+    "    <key>CFBundleName</key>                  <string>PuTTY</string>\n"
+    "    <key>CFBundlePackageType</key>           <string>APPL</string>\n"
+    "    <key>CFBundleSignature</key>             <string>pTTY</string>\n"
+    "  </dict>\n"
+    "</plist>\n"
+};
+
+/* Mac OS X doesn't use this, but Mac OS 9 does. */
+type 'carb' as 'TEXT';
+resource 'carb' (0) { "" };
+#endif
 
 /* Icons, courtesy of DeRez */
 
