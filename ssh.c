@@ -1911,7 +1911,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
                     pwlen = strlen(password);
                     if (pwlen < 16) {
-                        bottom = 1;
+                        bottom = 0;    /* zero length passwords are OK! :-) */
                         top = 15;
                     } else {
                         bottom = pwlen &~ 7;
