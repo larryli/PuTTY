@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.28 2003/01/14 19:09:24 ben Exp $ */
+/* $Id: mac.c,v 1.29 2003/01/14 19:42:00 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -215,7 +215,6 @@ static void mac_startup(void) {
 	    LMSetCurDirStore(dirid);
 	}
     }
-    init_ucs();
 }
 
 static void mac_eventloop(void) {

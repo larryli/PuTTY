@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.48 2003/01/14 18:44:34 ben Exp $ */
+/* $Id: macterm.c,v 1.49 2003/01/14 19:42:00 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -152,6 +152,7 @@ void mac_startsession(Session *s)
 {
     char *errmsg;
 
+    init_ucs(s);
     /* XXX: Own storage management? */
     if (HAVE_COLOR_QD())
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);
@@ -159,7 +160,7 @@ void mac_startsession(Session *s)
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
     SetWRefCon(s->window, (long)s);
     s->scrollbar = GetNewControl(cVScroll, s->window);
-    s->term = term_init(&s->cfg, s);
+    s->term = term_init(&s->cfg, &s->ucsdata, s);
 
     mac_initfont(s);
     mac_initpalette(s);

@@ -53,6 +53,8 @@ typedef struct Session {
     char *realhost;
     /* Logging */
     void *logctx;
+    /* Unicode stuff */
+    struct unicode_data ucsdata;
 
     /* Mac-specific elements */
     short		fontnum;
@@ -98,7 +100,7 @@ extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
 /* from macucs.c */
-extern void init_ucs(void);
+extern void init_ucs(Session *);
 /* from mtcpnet.c */
 extern OSErr mactcp_init(void);
 extern void mactcp_cleanup(void);

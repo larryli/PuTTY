@@ -1,4 +1,4 @@
-/* $Id: macucs.c,v 1.3 2003/01/02 23:39:53 ben Exp $ */
+/* $Id: macucs.c,v 1.4 2003/01/14 19:42:00 ben Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +54,8 @@ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
  * to convert Unicode into the line character set.
  */
 int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused)
+	     char *mbstr, int mblen, char *defchr, int *defused,
+	     struct unicode_data *ucsdata)
 {
     int ret = 0;
     if (defused)
@@ -75,18 +76,20 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
     return ret;			       /* FIXME: check error codes! */
 }
 
-void init_ucs(void)
+void init_ucs(Session *s)
 {
     int i;
+
     /* Find the line control characters. FIXME: this is not right. */
     for (i = 0; i < 256; i++)
 	if (i < ' ' || (i >= 0x7F && i < 0xA0))
-	    unitab_ctrl[i] = i;
+	    s->ucsdata.unitab_ctrl[i] = i;
 	else
-	    unitab_ctrl[i] = 0xFF;
+	    s->ucsdata.unitab_ctrl[i] = 0xFF;
 
     for (i = 0; i < 256; i++) {
-	unitab_line[i] = unitab_scoacs[i] = i;
-	unitab_xterm[i] = (i >= 0x5F && i < 0x7F) ? ((i+1) & 0x1F) : i;
+	s->ucsdata.unitab_line[i] = s->ucsdata.unitab_scoacs[i] = i;
+	s->ucsdata.unitab_xterm[i] =
+	    (i >= 0x5F && i < 0x7F) ? ((i+1) & 0x1F) : i;
     }
 }
