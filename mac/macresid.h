@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.10 2003/03/06 23:46:06 ben Exp $ */
+/* $Id: macresid.h,v 1.11 2003/03/18 00:35:40 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -58,3 +58,7 @@
 
 /* Controls */
 #define cVScroll	128
+
+/* xDEFs */
+#define CDEF_Text	128
+#define SYS7_TEXT_PROC	(CDEF_Text << 4)

@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.32 2003/03/17 21:40:37 ben Exp $ */
+/* $Id: mac_res.r,v 1.33 2003/03/18 00:35:40 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -1118,4 +1118,10 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
     "CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN "
     "CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE."
+};
+
+/* Custom xDEFs */
+
+data 'CDEF' (CDEF_Text) {
+    $"4EF9 00000000"
 };

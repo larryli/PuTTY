@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.1 2003/03/17 21:40:37 ben Exp $ */
+/* $Id: macctrls.c,v 1.2 2003/03/18 00:35:40 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -29,6 +29,7 @@
 #include <Appearance.h>
 #include <Controls.h>
 #include <ControlDefinitions.h>
+#include <Resources.h>
 #include <Sound.h>
 #include <TextUtils.h>
 #include <Windows.h>
@@ -89,6 +90,39 @@ static void macctrl_checkbox(struct macctrls *, WindowPtr,
 			     struct mac_layoutstate *, union control *);
 static void macctrl_button(struct macctrls *, WindowPtr,
 			   struct mac_layoutstate *, union control *);
+#if !TARGET_API_MAC_CARBON
+static pascal SInt32 macctrl_sys7_text_cdef(SInt16, ControlRef,
+					    ControlDefProcMessage, SInt32);
+#endif
+
+#if !TARGET_API_MAC_CARBON
+/*
+ * This trick enables us to keep all the CDEF code in the main
+ * application, which makes life easier.  For details, see
+ * <http://developer.apple.com/technotes/tn/tn2003.html#custom_code_base>.
+ */
+
+#pragma options align=mac68k
+typedef struct {
+    short		jmpabs;	/* 4EF9 */
+    ControlDefUPP	theUPP;
+} **PatchCDEF;
+#pragma options align=reset
+#endif
+
+static void macctrl_init()
+{
+#if !TARGET_API_MAC_CARBON
+    static int inited = 0;
+    PatchCDEF cdef;
+
+    if (inited) return;
+    cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Text);
+    (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_text_cdef);
+    inited = 1;
+#endif
+}
+
 
 static int macctrl_cmp_byctrl(void *av, void *bv)
 {
@@ -110,7 +144,8 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     struct mac_layoutstate curstate;
     ControlRef root;
     Rect rect;
-    
+
+    macctrl_init();
 #if TARGET_API_MAC_CARBON
     GetPortBounds(GetWindowPort(window), &rect);
 #else
@@ -205,10 +240,47 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 	SizeControl(mc->text.tbctrl, curstate->width, height);
 	curstate->pos.v += height + 6;
     } else {
-	/* Do something useful */
+	Str255 title;
+
+	c2pstrcpy(title, ctrl->text.label);
+	mc->text.tbctrl = NewControl(window, &bounds, title, TRUE, 0, 0, 0,
+				     SYS7_TEXT_PROC, (long)mc);
     }
     add234(mcs->byctrl, mc);
 }
+
+#if !TARGET_API_MAC_CARBON
+static pascal SInt32 macctrl_sys7_text_cdef(SInt16 variant, ControlRef control,
+				     ControlDefProcMessage msg, SInt32 param)
+{
+    RgnHandle rgn;
+
+    switch (msg) {
+      case drawCntl:
+	if ((*control)->contrlVis)
+	    TETextBox((*control)->contrlTitle + 1, (*control)->contrlTitle[0],
+		      &(*control)->contrlRect, teFlushDefault);
+	return 0;
+      case calcCRgns:
+	if (param & (1 << 31)) {
+	    param &= ~(1 << 31);
+	    goto calcthumbrgn;
+	}
+	/* FALLTHROUGH */
+      case calcCntlRgn:
+	rgn = (RgnHandle)param;
+	RectRgn(rgn, &(*control)->contrlRect);
+	return 0;
+      case calcThumbRgn:
+      calcthumbrgn:
+	rgn = (RgnHandle)param;
+	SetEmptyRgn(rgn);
+	return 0;
+    }
+
+    return 0;
+}
+#endif
 
 static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
