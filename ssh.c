@@ -2149,7 +2149,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     ssh->rdpkt2_state.incoming_sequence = 0;
 
     s->vstring[s->vslen] = 0;
-    s->vstring[strcspn(s->vstring, "\r\n")] = '\0';/* remove EOL chars */
+    s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
     {
 	char *vlog;
 	vlog = snewn(20 + s->vslen, char);
@@ -2184,13 +2184,13 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
             /*
              * Construct a v2 version string.
              */
-            verstring = dupprintf("SSH-2.0-%s\r\n", sshver);
+            verstring = dupprintf("SSH-2.0-%s\015\012", sshver);
             ssh->version = 2;
         } else {
             /*
              * Construct a v1 version string.
              */
-            verstring = dupprintf("SSH-%s-%s\r\n",
+            verstring = dupprintf("SSH-%s-%s\012",
                                   (ssh_versioncmp(s->version, "1.5") <= 0 ?
                                    s->version : "1.5"),
                                   sshver);
@@ -2205,9 +2205,9 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
              */
             SHA_Init(&ssh->exhashbase);
             sha_string(&ssh->exhashbase, verstring,
-                       strcspn(verstring, "\r\n"));
+                       strcspn(verstring, "\015\012"));
             sha_string(&ssh->exhashbase, s->vstring,
-                       strcspn(s->vstring, "\r\n"));
+                       strcspn(s->vstring, "\015\012"));
 
             /*
              * Initialise SSHv2 protocol.
@@ -2224,7 +2224,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
             ssh->s_rdpkt = ssh1_rdpkt;
         }
         logeventf(ssh, "We claim version: %.*s",
-                  strcspn(verstring, "\r\n"), verstring);
+                  strcspn(verstring, "\015\012"), verstring);
 	sk_write(ssh->s, verstring, strlen(verstring));
         sfree(verstring);
     }
