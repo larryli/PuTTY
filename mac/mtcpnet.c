@@ -197,8 +197,8 @@ static pascal void mactcp_asr(StreamPtr, unsigned short, Ptr, unsigned short,
 static Plug mactcp_plug(Socket, Plug);
 static void mactcp_flush(Socket);
 static void mactcp_close(Socket);
-static int mactcp_write(Socket, char *, int);
-static int mactcp_write_oob(Socket, char *, int);
+static int mactcp_write(Socket, char const *, int);
+static int mactcp_write_oob(Socket, char const*, int);
 static void mactcp_set_private_ptr(Socket, void *);
 static void *mactcp_get_private_ptr(Socket);
 static char *mactcp_socket_error(Socket);
@@ -545,14 +545,18 @@ static void mactcp_close(Socket sock)
     sfree(s);
 }
 
-static int mactcp_write(Socket sock, char *buf, int len)
+static int mactcp_write(Socket sock, char const *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
     wdsEntry wds[2];
     TCPiopb pb;
 
+    /* 
+     * Casting away const from buf should be safe -- MacTCP won't
+     * write to it.
+     */
     wds[0].length = len;
-    wds[0].ptr = buf;
+    wds[0].ptr = (char *)buf;
     wds[1].length = 0;
 
     pb.ioCRefNum = mactcp.refnum;
@@ -567,7 +571,7 @@ static int mactcp_write(Socket sock, char *buf, int len)
     return 0;
 }
 
-static int mactcp_write_oob(Socket sock, char *buf, int len)
+static int mactcp_write_oob(Socket sock, char const *buf, int len)
 {
 
     fatalbox("mactcp_write_oob");
