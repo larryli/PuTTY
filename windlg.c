@@ -1242,7 +1242,6 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	int i, nprinters;
 	printer_enum *pe;
 	pe = printer_start_enum(&nprinters);
-	strcpy(cfg.line_codepage, cp_name(decode_codepage(cfg.line_codepage)));
 	SendDlgItemMessage(hwnd, IDC_PRINTER, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hwnd, IDC_PRINTER, CB_ADDSTRING,
 			   0, (LPARAM) PRINTER_DISABLED_STRING);
