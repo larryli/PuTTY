@@ -1453,7 +1453,17 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 
     if (seldata->target == utf8_string_atom && seldata->length <= 0) {
 	/*
-	 * Failed to get a UTF-8 selection string. Try an ordinary
+	 * Failed to get a UTF-8 selection string. Try compound
+	 * text next.
+	 */
+	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+			      compound_text_atom, GDK_CURRENT_TIME);
+	return;
+    }
+
+    if (seldata->target == compound_text_atom && seldata->length <= 0) {
+	/*
+	 * Failed to get UTF-8 or compound text. Try an ordinary
 	 * string.
 	 */
 	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
@@ -1466,6 +1476,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
      */
     if (seldata->length <= 0 ||
 	(seldata->type != GDK_SELECTION_TYPE_STRING &&
+	 seldata->type != compound_text_atom &&
 	 seldata->type != utf8_string_atom))
 	return;			       /* Nothing happens. */
 
