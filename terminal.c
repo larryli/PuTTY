@@ -668,6 +668,10 @@ static void scroll(int topline, int botline, int lines, int sb)
 	     * of course, if the line _hasn't_ moved into the
 	     * scrollback then we don't do this, and cut them off
 	     * at the top of the scroll region.
+	     * 
+	     * This applies to selstart and selend (for an existing
+	     * selection), and also selanchor (for one being
+	     * selected as we speak).
 	     */
 	    seltop = sb ? -savelines : 0;
 
@@ -683,6 +687,13 @@ static void scroll(int topline, int botline, int lines, int sb)
 		if (selend.y < seltop) {
 		    selend.y = seltop;
 		    selend.x = 0;
+		}
+	    }
+	    if (selanchor.y >= seltop && selanchor.y <= botline) {
+		selanchor.y--;
+		if (selanchor.y < seltop) {
+		    selanchor.y = seltop;
+		    selanchor.x = 0;
 		}
 	    }
 
