@@ -68,6 +68,10 @@
 #define SSH1_AUTH_TIS                             5    /* 0x5 */
 #define SSH1_AUTH_CCARD                           16   /* 0x10 */
 
+#define SSH1_PROTOFLAG_SCREEN_NUMBER              1    /* 0x1 */
+/* Mask for protoflags we will echo back to server if seen */
+#define SSH1_PROTOFLAGS_SUPPORTED                 0    /* 0x1 */
+
 #define SSH2_MSG_DISCONNECT                       1    /* 0x1 */
 #define SSH2_MSG_IGNORE                           2    /* 0x2 */
 #define SSH2_MSG_UNIMPLEMENTED                    3    /* 0x3 */
@@ -256,6 +260,8 @@ static Socket s = NULL;
 
 static unsigned char session_key[32];
 static int ssh1_compressing;
+static int ssh1_remote_protoflags;
+static int ssh1_local_protoflags;
 static int ssh_agentfwd_enabled;
 static int ssh_X11_fwd_enabled;
 static int ssh_remote_bugs;
@@ -442,11 +448,13 @@ next_packet:
 	unsigned char *decompblk;
 	int decomplen;
 #if 0
-	int i;
-	debug(("Packet payload pre-decompression:\n"));
-	for (i = -1; i < pktin.length; i++)
-	    debug(("  %02x", (unsigned char)pktin.body[i]));
-	debug(("\r\n"));
+        {
+            int i;
+            debug(("Packet payload pre-decompression:\n"));
+            for (i = -1; i < pktin.length; i++)
+                debug(("  %02x", (unsigned char)pktin.body[i]));
+            debug(("\r\n"));
+        }
 #endif
 	zlib_decompress_block(pktin.body-1, pktin.length+1,
 			      &decompblk, &decomplen);
@@ -463,10 +471,13 @@ next_packet:
 	sfree(decompblk);
 	pktin.length = decomplen-1;
 #if 0
-	debug(("Packet payload post-decompression:\n"));
-	for (i = -1; i < pktin.length; i++)
-	    debug(("  %02x", (unsigned char)pktin.body[i]));
-	debug(("\r\n"));
+        {
+            int i;
+            debug(("Packet payload post-decompression:\n"));
+            for (i = -1; i < pktin.length; i++)
+                debug(("  %02x", (unsigned char)pktin.body[i]));
+            debug(("\r\n"));
+        }
 #endif
     }
 
@@ -1418,8 +1429,12 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	logevent(logmsg);
     }
 
+    ssh1_remote_protoflags = GET_32BIT(pktin.body+8+i+j);
     supported_ciphers_mask = GET_32BIT(pktin.body+12+i+j);
     supported_auths_mask = GET_32BIT(pktin.body+16+i+j);
+
+    ssh1_local_protoflags = ssh1_remote_protoflags & SSH1_PROTOFLAGS_SUPPORTED;
+    ssh1_local_protoflags |= SSH1_PROTOFLAG_SCREEN_NUMBER;
 
     MD5Init(&md5c);
     MD5Update(&md5c, keystr2, hostkey.bytes);
@@ -1494,7 +1509,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                 PKT_DATA, cookie, 8,
                 PKT_CHAR, (len*8) >> 8, PKT_CHAR, (len*8) & 0xFF,
                 PKT_DATA, rsabuf, len,
-                PKT_INT, 0,
+                PKT_INT, ssh1_local_protoflags,
                 PKT_END);
 
     logevent("Trying to enable encryption...");
@@ -2054,10 +2069,16 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
         char proto[20], data[64];
         logevent("Requesting X11 forwarding");
         x11_invent_auth(proto, sizeof(proto), data, sizeof(data));
-        send_packet(SSH1_CMSG_X11_REQUEST_FORWARDING, 
-		    PKT_STR, proto, PKT_STR, data,
-		    PKT_INT, 0,
-		    PKT_END);
+        if (ssh1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
+            send_packet(SSH1_CMSG_X11_REQUEST_FORWARDING,
+                        PKT_STR, proto, PKT_STR, data,
+                        PKT_INT, 0,
+                        PKT_END);
+        } else {
+            send_packet(SSH1_CMSG_X11_REQUEST_FORWARDING,
+                        PKT_STR, proto, PKT_STR, data,
+                        PKT_END);
+        }
         do { crReturnV; } while (!ispkt);
         if (pktin.type != SSH1_SMSG_SUCCESS && pktin.type != SSH1_SMSG_FAILURE) {
             bombout(("Protocol confusion"));
