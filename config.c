@@ -1491,6 +1491,10 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      HELPCTX(ssh_nopty),
 		      dlg_stdcheckbox_handler,
 		      I(offsetof(Config,nopty)));
+	ctrl_checkbox(s, "Don't start a shell or command at all", 'n',
+		      HELPCTX(ssh_noshell),
+		      dlg_stdcheckbox_handler,
+		      I(offsetof(Config,ssh_no_shell)));
 	ctrl_checkbox(s, "Enable compression", 'e',
 		      HELPCTX(ssh_compress),
 		      dlg_stdcheckbox_handler,
@@ -1502,7 +1506,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  "1 only", 'l', I(0),
 			  "1", '1', I(1),
 			  "2", '2', I(2),
-			  "2 only", 'n', I(3), NULL);
+			  "2 only", 'y', I(3), NULL);
 
 	s = ctrl_getset(b, "Connection/SSH", "encryption", "Encryption options");
 	c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',

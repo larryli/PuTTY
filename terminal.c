@@ -1626,8 +1626,11 @@ void term_out(Terminal *term)
 		term->curs.x--;
 	    term->wrapnext = FALSE;
 	    fix_cpos;
-	    if (!term->cfg.no_dbackspace)    /* destructive bksp might be disabled */
+	    if (!term->cfg.no_dbackspace) {    /* destructive bksp might be disabled */
+		check_boundary(term, term->curs.x, term->curs.y);
+		check_boundary(term, term->curs.x+1, term->curs.y);
 		*term->cpos = (' ' | term->curr_attr | ATTR_ASCII);
+	    }
 	} else
 	    /* Or normal C0 controls. */
 	if ((c & -32) == 0 && term->termstate < DO_CTRLS) {

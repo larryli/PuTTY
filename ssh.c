@@ -5612,43 +5612,47 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      * point; there's no need to send SERVICE_REQUEST.
      */
 
-    /*
-     * So now create a channel with a session in it.
-     */
     ssh->channels = newtree234(ssh_channelcmp);
-    ssh->mainchan = snew(struct ssh_channel);
-    ssh->mainchan->ssh = ssh;
-    ssh->mainchan->localid = alloc_channel_id(ssh);
-    ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_OPEN);
-    ssh2_pkt_addstring(ssh, "session");
-    ssh2_pkt_adduint32(ssh, ssh->mainchan->localid);
-    ssh->mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
-    ssh2_pkt_adduint32(ssh, ssh->mainchan->v.v2.locwindow);/* our window size */
-    ssh2_pkt_adduint32(ssh, 0x4000UL);      /* our max pkt size */
-    ssh2_pkt_send(ssh);
-    crWaitUntilV(ispkt);
-    if (ssh->pktin.type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-	bombout(("Server refused to open a session"));
-	crStopV;
-	/* FIXME: error data comes back in FAILURE packet */
-    }
-    if (ssh_pkt_getuint32(ssh) != ssh->mainchan->localid) {
-	bombout(("Server's channel confirmation cited wrong channel"));
-	crStopV;
-    }
-    ssh->mainchan->remoteid = ssh_pkt_getuint32(ssh);
-    ssh->mainchan->type = CHAN_MAINSESSION;
-    ssh->mainchan->closes = 0;
-    ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(ssh);
-    ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(ssh);
-    bufchain_init(&ssh->mainchan->v.v2.outbuffer);
-    add234(ssh->channels, ssh->mainchan);
-    logevent("Opened channel for session");
+
+    /*
+     * Create the main session channel.
+     */
+    if (!ssh->cfg.ssh_no_shell) {
+	ssh->mainchan = snew(struct ssh_channel);
+	ssh->mainchan->ssh = ssh;
+	ssh->mainchan->localid = alloc_channel_id(ssh);
+	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_OPEN);
+	ssh2_pkt_addstring(ssh, "session");
+	ssh2_pkt_adduint32(ssh, ssh->mainchan->localid);
+	ssh->mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
+	ssh2_pkt_adduint32(ssh, ssh->mainchan->v.v2.locwindow);/* our window size */
+	ssh2_pkt_adduint32(ssh, 0x4000UL);      /* our max pkt size */
+	ssh2_pkt_send(ssh);
+	crWaitUntilV(ispkt);
+	if (ssh->pktin.type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
+	    bombout(("Server refused to open a session"));
+	    crStopV;
+	    /* FIXME: error data comes back in FAILURE packet */
+	}
+	if (ssh_pkt_getuint32(ssh) != ssh->mainchan->localid) {
+	    bombout(("Server's channel confirmation cited wrong channel"));
+	    crStopV;
+	}
+	ssh->mainchan->remoteid = ssh_pkt_getuint32(ssh);
+	ssh->mainchan->type = CHAN_MAINSESSION;
+	ssh->mainchan->closes = 0;
+	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(ssh);
+	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(ssh);
+	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
+	add234(ssh->channels, ssh->mainchan);
+	logevent("Opened channel for session");
+    } else
+	ssh->mainchan = NULL;
 
     /*
      * Potentially enable X11 forwarding.
      */
-    if (ssh->cfg.x11_forward) {
+    if (ssh->mainchan && ssh->cfg.x11_forward) {
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
@@ -5861,7 +5865,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Potentially enable agent forwarding.
      */
-    if (ssh->cfg.agentfwd && agent_exists()) {
+    if (ssh->mainchan && ssh->cfg.agentfwd && agent_exists()) {
 	logevent("Requesting OpenSSH-style agent forwarding");
 	ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
@@ -5897,7 +5901,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Now allocate a pty for the session.
      */
-    if (!ssh->cfg.nopty) {
+    if (ssh->mainchan && !ssh->cfg.nopty) {
 	/* Unpick the terminal-speed string. */
 	/* XXX perhaps we should allow no speeds to be sent. */
         ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
@@ -5954,7 +5958,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      * this twice if the config data has provided a second choice
      * of command.
      */
-    while (1) {
+    if (ssh->mainchan) while (1) {
 	int subsys;
 	char *cmd;
 
@@ -6028,7 +6032,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      */
     if (ssh->ldisc)
 	ldisc_send(ssh->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
-    ssh->send_ok = 1;
+    if (ssh->mainchan)
+	ssh->send_ok = 1;
     while (1) {
 	crReturnV;
 	s->try_send = FALSE;
@@ -6171,8 +6176,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 		/*
 		 * See if that was the last channel left open.
+		 * (This is only our termination condition if we're
+		 * not running in -N mode.)
 		 */
-		if (count234(ssh->channels) == 0) {
+		if (!ssh->cfg.ssh_no_shell && count234(ssh->channels) == 0) {
 		    logevent("All channels closed. Disconnecting");
 #if 0
                     /*
@@ -6452,7 +6459,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		bombout(("Strange packet received: type %d", ssh->pktin.type));
 		crStopV;
 	    }
-	} else {
+	} else if (ssh->mainchan) {
 	    /*
 	     * We have spare data. Add it to the channel buffer.
 	     */
@@ -6772,7 +6779,7 @@ static void ssh_size(void *handle, int width, int height)
 			    PKT_INT, ssh->term_height,
 			    PKT_INT, ssh->term_width,
 			    PKT_INT, 0, PKT_INT, 0, PKT_END);
-	    } else {
+	    } else if (ssh->mainchan) {
 		ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 		ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
 		ssh2_pkt_addstring(ssh, "window-change");
@@ -6834,7 +6841,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	}
 	if (ssh->version == 1) {
 	    send_packet(ssh, SSH1_CMSG_EOF, PKT_END);
-	} else {
+	} else if (ssh->mainchan) {
 	    ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_EOF);
 	    ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
 	    ssh2_pkt_send(ssh);
@@ -6856,7 +6863,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    || ssh->state == SSH_STATE_PREPACKET) return;
 	if (ssh->version == 1) {
 	    logevent("Unable to send BREAK signal in SSH1");
-	} else {
+	} else if (ssh->mainchan) {
 	    ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
 	    ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
 	    ssh2_pkt_addstring(ssh, "break");

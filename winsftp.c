@@ -289,7 +289,7 @@ DirHandle *open_directory(char *name)
     char *findfile;
     DirHandle *ret;
 
-    /* To enumerate files in dir `foo', we search for `foo/*'. */
+    /* Enumerate files in dir `foo'. */
     findfile = dupcat(name, "/*", NULL);
     h = FindFirstFile(findfile, &fdat);
     if (h == INVALID_HANDLE_VALUE)
