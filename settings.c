@@ -95,6 +95,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "AltSpace", cfg->alt_space);
     write_setting_i (sesskey, "AltOnly", cfg->alt_only);
     write_setting_i (sesskey, "ComposeKey", cfg->compose_key);
+    write_setting_i (sesskey, "CtrlAltKeys", cfg->ctrlaltkeys);
     write_setting_i (sesskey, "LocalEcho", cfg->localecho);
     write_setting_i (sesskey, "LocalEdit", cfg->localedit);
     write_setting_s (sesskey, "Answerback", cfg->answerback);
@@ -246,6 +247,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "AltSpace", 0, &cfg->alt_space);
     gppi (sesskey, "AltOnly", 0, &cfg->alt_only);
     gppi (sesskey, "ComposeKey", 0, &cfg->compose_key);
+    gppi (sesskey, "CtrlAltKeys", 1, &cfg->ctrlaltkeys);
     gppi (sesskey, "LocalEcho", LD_BACKEND, &cfg->localecho);
     gppi (sesskey, "LocalEdit", LD_BACKEND, &cfg->localedit);
     gpps (sesskey, "Answerback", "PuTTY", cfg->answerback, sizeof(cfg->answerback));

@@ -2018,29 +2018,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    keystate[VK_RMENU] = keystate[VK_MENU];
 	}
 
-	/* Note if AltGr was pressed and if it was used as a compose key */
-	if (cfg.compose_key) {
-	    if (wParam == VK_MENU && (HIWORD(lParam)&KF_EXTENDED))
-	    {
-		if (!compose_state) compose_key = wParam;
-	    }
-	    if (wParam == VK_APPS && !compose_state)
-		compose_key = wParam;
-
-	    if (wParam == compose_key)
-	    {
-		if (compose_state == 0 && (HIWORD(lParam)&(KF_UP|KF_REPEAT))==0)
-		    compose_state = 1;
-		else if (compose_state == 1 && (HIWORD(lParam)&KF_UP))
-		    compose_state = 2;
-		else
-		    compose_state = 0;
-	    }
-	    else if (compose_state==1 && wParam != VK_CONTROL)
-		compose_state = 0;
-	} else {
-	    compose_state = 0;
-	}
 
 	/* Nastyness with NUMLock - Shift-NUMLock is left alone though */
 	if ( (cfg.funky_type == 3 ||
@@ -2067,13 +2044,42 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
     key_down = ((HIWORD(lParam)&KF_UP)==0);
 
-    /* Make sure Ctrl-ALT is not the same as AltGr for ToAscii */
-    if (left_alt && (keystate[VK_CONTROL]&0x80))
-	keystate[VK_MENU] = 0;
+    /* Make sure Ctrl-ALT is not the same as AltGr for ToAscii unless told. */
+    if (left_alt && (keystate[VK_CONTROL]&0x80)) {
+	if (cfg.ctrlaltkeys)
+	    keystate[VK_MENU] = 0;
+	else {
+	    keystate[VK_RMENU] = 0x80;
+	    left_alt = 0;
+	}
+    }
 
     scan = (HIWORD(lParam) & (KF_UP | KF_EXTENDED | 0xFF));
     shift_state = ((keystate[VK_SHIFT]&0x80)!=0)
                 + ((keystate[VK_CONTROL]&0x80)!=0)*2;
+
+    /* Note if AltGr was pressed and if it was used as a compose key */
+    if (!compose_state) {
+	compose_key = -1;
+	if (cfg.compose_key) {
+	    if (wParam == VK_MENU && (HIWORD(lParam)&KF_EXTENDED))
+		compose_key = wParam;
+	}
+	if (wParam == VK_APPS)
+	    compose_key = wParam;
+    }
+
+    if (wParam == compose_key)
+    {
+	if (compose_state == 0 && (HIWORD(lParam)&(KF_UP|KF_REPEAT))==0)
+	    compose_state = 1;
+	else if (compose_state == 1 && (HIWORD(lParam)&KF_UP))
+	    compose_state = 2;
+	else
+	    compose_state = 0;
+    }
+    else if (compose_state==1 && wParam != VK_CONTROL)
+	compose_state = 0;
 
     /* 
      * Record that we pressed key so the scroll window can be reset, but
@@ -2244,6 +2250,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (wParam == VK_CANCEL && shift_state == 2 )	/* Ctrl-Break */
 	{
 	    *p++ = 3; return p - output;
+	}
+	if (wParam == VK_PAUSE)				/* Break/Pause */
+	{
+	    *p++ = 26; *p++ = 0; return -2;
 	}
 	/* Control-2 to Control-8 are special */
 	if (shift_state == 2 && wParam >= '2' && wParam <= '8')
@@ -2428,6 +2438,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
         } else
 	    return 0;
     }
+    else alt_state = 0;
 
     return -1;
 }

@@ -205,6 +205,7 @@ typedef struct {
     int scroll_on_key;
     int scroll_on_disp;
     int compose_key;
+    int ctrlaltkeys;
     char wintitle[256];                /* initial window title */
     /* Terminal options */
     int savelines;

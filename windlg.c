@@ -259,6 +259,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_CURNORMAL,
     IDC_CURAPPLIC,
     IDC_COMPOSEKEY,
+    IDC_CTRLALTKEYS,
     keyboardpanelend,
 
     terminalpanelstart,
@@ -526,6 +527,7 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_ALTSPACE, cfg.alt_space);
     CheckDlgButton (hwnd, IDC_ALTONLY, cfg.alt_only);
     CheckDlgButton (hwnd, IDC_COMPOSEKEY, cfg.compose_key);
+    CheckDlgButton (hwnd, IDC_CTRLALTKEYS, cfg.ctrlaltkeys);
     CheckRadioButton (hwnd, IDC_ECHOBACKEND, IDC_ECHONO,
 		      cfg.localecho == LD_BACKEND ? IDC_ECHOBACKEND:
                       cfg.localecho == LD_YES ? IDC_ECHOYES : IDC_ECHONO);
@@ -782,7 +784,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == keyboardpanelstart) {
-        /* The Keyboard panel. Accelerators used: [acgo] h?sr~lxv unpymie t */
+        /* The Keyboard panel. Accelerators used: [acgo] h?sr~lxvunpymietd */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the effects of keys",
@@ -819,8 +821,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         endbox(&cp);
         beginbox(&cp, "Enable extra keyboard features:",
                  IDC_BOX_KEYBOARD3);
-        checkbox(&cp, "Application and AltGr ac&t as Compose key",
+        checkbox(&cp, "AltGr ac&ts as Compose key",
                  IDC_COMPOSEKEY);
+        checkbox(&cp, "Control-Alt is &different from AltGr",
+                 IDC_CTRLALTKEYS);
         endbox(&cp);
     }
 
@@ -1522,6 +1526,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.compose_key = IsDlgButtonChecked (hwnd, IDC_COMPOSEKEY);
+	    break;
+	  case IDC_CTRLALTKEYS:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.ctrlaltkeys = IsDlgButtonChecked (hwnd, IDC_CTRLALTKEYS);
 	    break;
 	  case IDC_WRAPMODE:
 	    if (HIWORD(wParam) == BN_CLICKED ||
