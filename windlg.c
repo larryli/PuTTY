@@ -467,9 +467,8 @@ static void fmtfont (char *buf) {
     if (cfg.fontheight == 0)
 	strcat (buf, "default height");
     else
-	sprintf (buf+strlen(buf), "%d-%s",
-		 (cfg.fontheight < 0 ? -cfg.fontheight : cfg.fontheight),
-		 (cfg.fontheight < 0 ? "pixel" : "point"));
+	sprintf (buf+strlen(buf), "%d-point",
+		 (cfg.fontheight < 0 ? -cfg.fontheight : cfg.fontheight));
 }
 
 static void init_dlg_ctrls(HWND hwnd) {
@@ -1549,7 +1548,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		cfg.font[sizeof(cfg.font)-1] = '\0';
 		cfg.fontisbold = (lf.lfWeight == FW_BOLD);
 		cfg.fontcharset = lf.lfCharSet;
-		cfg.fontheight = lf.lfHeight;
+		cfg.fontheight = cf.iPointSize / 10;
 		fmtfont (fontstatic);
 		SetDlgItemText (hwnd, IDC_FONTSTATIC, fontstatic);
 	    }

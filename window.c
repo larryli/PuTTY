@@ -808,6 +808,9 @@ font_messup:
     hdc = GetDC(hwnd);
 
     font_height = cfg.fontheight;
+    if (font_height > 0) {
+        font_height = -MulDiv(font_height, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+    }
     font_width = pick_width;
 
 #define f(i,c,w,u) \

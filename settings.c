@@ -264,6 +264,18 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "FontIsBold", 0, &cfg->fontisbold);
     gppi (sesskey, "FontCharSet", ANSI_CHARSET, &cfg->fontcharset);
     gppi (sesskey, "FontHeight", 10, &cfg->fontheight);
+    if (cfg->fontheight < 0) {
+        int oldh, newh;
+        HDC hdc = GetDC(NULL);
+        int logpix = GetDeviceCaps(hdc, LOGPIXELSY);
+        ReleaseDC(NULL, hdc);
+
+        oldh = -cfg->fontheight;
+        newh = MulDiv(oldh, 72, logpix) + 1;
+        if (MulDiv(newh, logpix, 72) > oldh)
+            newh--;
+        cfg->fontheight = newh;
+    }
     gppi (sesskey, "FontVTMode", VT_OEMANSI, (int *)&cfg->vtmode);
     gppi (sesskey, "TryPalette", 0, &cfg->try_palette);
     gppi (sesskey, "BoldAsColour", 1, &cfg->bold_colour);
