@@ -310,6 +310,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     inbuf_reap = inbuf_head = 0;
     outbuf_reap = outbuf_head = 0;
 
+    /* 
+     * Choose unscroll method
+     */
+    unscroll_event = US_DISP;
+
     /*
      * Prepare the mouse handler.
      */
@@ -1223,6 +1228,14 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
      * times shortly.
      */
     ret = GetKeyboardState(keystate);
+
+    /* 
+     * Record that we pressed key so the scroll window can be reset, but
+     * be careful to avoid Shift-UP/Down
+     */
+    if( wParam != VK_SHIFT && wParam != VK_PRIOR && wParam != VK_NEXT ) {
+        seen_key_event = 1; 
+    }
 
     /* 
      * Windows does not always want to distinguish left and right

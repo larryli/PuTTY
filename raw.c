@@ -56,6 +56,9 @@ static void c_write (char *buf, int len) {
 	if (new_head != inbuf_reap) {
 	    inbuf[inbuf_head] = *buf++;
 	    inbuf_head = new_head;
+	} else {
+            term_out();
+            if( inbuf_head == inbuf_reap ) len++; else break;
 	}
     }
 }

@@ -1,3 +1,4 @@
+++ terminal.c.new	Mon Nov 22 15:02:03 1999
 #include <windows.h>
 
 #include <stdio.h>
@@ -60,9 +61,18 @@ static int nl_count;
 static int scroll_heuristic;
 
 static enum {
-    TOPLEVEL, IGNORE_NEXT,
-    SEEN_ESC, SEEN_CSI, SET_GL, SET_GR,
-    SEEN_OSC, SEEN_OSC_P, SEEN_OSC_W, OSC_STRING, OSC_MAYBE_ST,
+    TOPLEVEL,
+    SEEN_ESC,
+    SEEN_CSI,
+    SEEN_OSC,
+    SEEN_OSC_W,
+
+    DO_CTRLS,
+
+    IGNORE_NEXT,
+    SET_GL, SET_GR,
+    SEEN_OSC_P,
+    OSC_STRING, OSC_MAYBE_ST,
     SEEN_ESCHASH
 } termstate;
 
@@ -141,6 +151,11 @@ void term_update(void) {
     Context ctx;
     ctx = get_ctx();
     if (ctx) {
+        if ( (seen_key_event && (unscroll_event & US_KEY)) &&
+	     (seen_disp_event && (unscroll_event & US_DISP)) ) {
+	    disptop = scrtop;
+	    seen_disp_event = seen_key_event = 0;
+	}
 	do_paint (ctx, TRUE);
 	free_ctx (ctx);
 	nl_count = 0;
@@ -345,10 +360,10 @@ static void scroll (int topline, int botline, int lines, int sb) {
     size = (lines < 0 ? -lines : lines) * (cols+1);
     scroll_size = (botline - topline + 1) * (cols+1) - size;
 
-    if (lines > 0 && topline == 0 && botline == (rows-1) && sb) {
+    if (lines > 0 && topline == 0 && alt_which == 0 && sb) {
 	/*
-	 * Since we're going to scroll the whole screen upwards,
-	 * let's also affect the scrollback buffer.
+	 * Since we're going to scroll the top line and we're on the 
+	 * scrolling screen let's also affect the scrollback buffer.
 	 */
 	sbtop -= lines * (cols+1);
 	if (sbtop < text)
@@ -511,7 +526,7 @@ static void toggle_mode (int mode, int query, int state) {
 	break;
       case 5:			       /* reverse video */
 	rvideo = state;
-	disptop = scrtop;
+	seen_disp_event = TRUE;
 	break;
       case 6:			       /* DEC origin mode */
 	dec_om = state;
@@ -562,7 +577,6 @@ static void do_osc(void) {
  */
 void term_out(void) {
     int c;
-    int must_update = FALSE;
 
     while ( (c = inbuf_getc()) != -1) {
 #ifdef LOG
@@ -572,17 +586,14 @@ void term_out(void) {
 	    if (fp) fputc (c, fp);
 	}
 #endif
-	switch (termstate) {
-	  case TOPLEVEL:
-	    do_toplevel:
+	if( termstate < DO_CTRLS && (c&0x60) == 0 ) {
 	    switch (c) {
 	      case '\005':	       /* terminal type query */
-		ldisc->send ("\033[?1;2c", 7);
+		ldisc->send ("PuTTY\r", 6);
 		break;
 	      case '\007':
 		beep();
 		disptop = scrtop;
-		must_update = TRUE;
 		break;
 	      case '\b':
 		if (curs_x == 0 && curs_y > 0)
@@ -592,8 +603,7 @@ void term_out(void) {
 		else
 		    curs_x--;
 		fix_cpos;
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case '\016':
 		cset = 1;
@@ -618,8 +628,7 @@ void term_out(void) {
 		curs_x = 0;
 		wrapnext = FALSE;
 		fix_cpos;
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case '\013':
 	      case '\014':
@@ -628,11 +637,11 @@ void term_out(void) {
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
 		    curs_y++;
-                if (cfg.lfhascr)
-                    curs_x = 0;
+		if (cfg.lfhascr)
+		    curs_x = 0;
 		fix_cpos;
 		wrapnext = FALSE;
-		disptop = scrtop;
+		seen_disp_event = 1;
 		nl_count++;
 		break;
 	      case '\t':
@@ -646,37 +655,39 @@ void term_out(void) {
 		    fix_cpos;
 		    check_selection (old_cpos, cpos);
 		}
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
-	      default:
-		if (c >= ' ' && c != 0234) {
-		    if (wrapnext) {
-			cpos[1] = ATTR_WRAPPED;
-			if (curs_y == marg_b)
-			    scroll (marg_t, marg_b, 1, TRUE);
-			else if (curs_y < rows-1)
-			    curs_y++;
-			curs_x = 0;
-			fix_cpos;
-			wrapnext = FALSE;
-			nl_count++;
-		    }
-		    if (insert)
-			insch (1);
-		    check_selection (cpos, cpos+1);
-		    *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
-			(c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
-		    curs_x++;
-		    if (curs_x == cols) {
-			cpos--;
-			curs_x--;
-			wrapnext = wrap;
-		    }
-		    disptop = scrtop;
+	    }
+	}
+	else switch (termstate) {
+	  case TOPLEVEL:
+	    if (c >= ' ' && c != 0234) {
+		if (wrapnext) {
+		    cpos[1] = ATTR_WRAPPED;
+		    if (curs_y == marg_b)
+			scroll (marg_t, marg_b, 1, TRUE);
+		    else if (curs_y < rows-1)
+			curs_y++;
+		    curs_x = 0;
+		    fix_cpos;
+		    wrapnext = FALSE;
+		    nl_count++;
 		}
+		if (insert)
+		    insch (1);
+		check_selection (cpos, cpos+1);
+		*cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
+		    (c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
+		curs_x++;
+		if (curs_x == cols) {
+		    cpos--;
+		    curs_x--;
+		    wrapnext = wrap;
+		}
+		seen_disp_event = 1;
 	    }
 	    break;
+
 	  case IGNORE_NEXT:
 	    termstate = TOPLEVEL;
 	    break;
@@ -695,11 +706,6 @@ void term_out(void) {
 	  case SEEN_ESC:
 	    termstate = TOPLEVEL;
 	    switch (c) {
-	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
-		termstate = TOPLEVEL;
-		goto do_toplevel;      /* hack... */
 	      case ' ':		       /* some weird sequence? */
 		termstate = IGNORE_NEXT;
 		break;
@@ -724,8 +730,7 @@ void term_out(void) {
 		break;
 	      case '8':		       /* restore cursor */
 		save_cursor (FALSE);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case '=':
 		app_keypad_keys = TRUE;
@@ -740,7 +745,7 @@ void term_out(void) {
 		    curs_y++;
 		fix_cpos;
 		wrapnext = FALSE;
-		disptop = scrtop;
+		seen_disp_event = TRUE;
 		nl_count++;
 		break;
 	      case 'E':		       /* exactly equivalent to CR-LF */
@@ -753,7 +758,7 @@ void term_out(void) {
 		fix_cpos;
 		wrapnext = FALSE;
 		nl_count++;
-		disptop = scrtop;
+		seen_disp_event = TRUE;
 		break;
 	      case 'M':		       /* reverse index - backwards LF */
 		if (curs_y == marg_t)
@@ -762,8 +767,7 @@ void term_out(void) {
 		    curs_y--;
 		fix_cpos;
 		wrapnext = FALSE;
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'Z':		       /* terminal type query */
 		ldisc->send ("\033[?6c", 5);
@@ -772,7 +776,7 @@ void term_out(void) {
 		power_on();
 		fix_cpos;
 		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case '#':		       /* ESC # 8 fills screen with Es :-) */
 		termstate = SEEN_ESCHASH;
@@ -785,11 +789,6 @@ void term_out(void) {
 	  case SEEN_CSI:
 	    termstate = TOPLEVEL;      /* default */
 	    switch (c) {
-	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
-		termstate = TOPLEVEL;
-		goto do_toplevel;      /* hack... */
 	      case '0': case '1': case '2': case '3': case '4':
 	      case '5': case '6': case '7': case '8': case '9':
 		if (esc_nargs <= ARGS_MAX) {
@@ -811,44 +810,36 @@ void term_out(void) {
 		break;
 	      case 'A':		       /* move up N lines */
 		move (curs_x, curs_y - def(esc_args[0], 1), 1);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'B': case 'e':      /* move down N lines */
 		move (curs_x, curs_y + def(esc_args[0], 1), 1);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'C': case 'a':      /* move right N cols */
 		move (curs_x + def(esc_args[0], 1), curs_y, 1);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'D':		       /* move left N cols */
 		move (curs_x - def(esc_args[0], 1), curs_y, 1);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'E':		       /* move down N lines and CR */
 		move (0, curs_y + def(esc_args[0], 1), 1);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'F':		       /* move up N lines and CR */
 		move (0, curs_y - def(esc_args[0], 1), 1);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'G': case '`':      /* set horizontal posn */
 		move (def(esc_args[0], 1) - 1, curs_y, 0);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'd':		       /* set vertical posn */
 		move (curs_x, (dec_om ? marg_t : 0) + def(esc_args[0], 1) - 1,
 		      (dec_om ? 2 : 0));
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'H': case 'f':      /* set horz and vert posns at once */
 		if (esc_nargs < 2)
@@ -856,8 +847,7 @@ void term_out(void) {
 		move (def(esc_args[1], 1) - 1,
 		      (dec_om ? marg_t : 0) + def(esc_args[0], 1) - 1,
 		      (dec_om ? 2 : 0));
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'J':		       /* erase screen or parts of it */
 		{
@@ -867,7 +857,7 @@ void term_out(void) {
 		    erase_lots(FALSE, !!(i & 2), !!(i & 1));
 		}
 		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'K':		       /* erase line or parts of it */
 		{
@@ -876,30 +866,25 @@ void term_out(void) {
 			i = 0;
 		    erase_lots(TRUE, !!(i & 2), !!(i & 1));
 		}
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'L':		       /* insert lines */
 		if (curs_y <= marg_b)
 		    scroll (curs_y, marg_b, -def(esc_args[0], 1), FALSE);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'M':		       /* delete lines */
 		if (curs_y <= marg_b)
-		    scroll (curs_y, marg_b, def(esc_args[0], 1), FALSE);
-		disptop = scrtop;
-		must_update = TRUE;
+		    scroll (curs_y, marg_b, def(esc_args[0], 1), TRUE);
+		seen_disp_event = TRUE;
 		break;
 	      case '@':		       /* insert chars */
 		insch (def(esc_args[0], 1));
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'P':		       /* delete chars */
 		insch (-def(esc_args[0], 1));
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 'c':		       /* terminal type query */
 		ldisc->send ("\033[?6c", 5);
@@ -950,8 +935,7 @@ void term_out(void) {
 			 */
 			curs_y = 0;
 			fix_cpos;
-			disptop = scrtop;
-			must_update = TRUE;
+			seen_disp_event = TRUE;
 		    }
 		}
 		break;
@@ -1004,8 +988,7 @@ void term_out(void) {
 		break;
 	      case 'u':		       /* restore cursor */
 		save_cursor (FALSE);
-		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		break;
 	      case 't':		       /* set page size - ie window height */
 		request_resize (cols, def(esc_args[0], 24));
@@ -1020,8 +1003,7 @@ void term_out(void) {
 		    check_selection (cpos, cpos+n);
 		    while (n--)
 			*p++ = ERASE_CHAR;
-		    disptop = scrtop;
-		    must_update = TRUE;
+		    seen_disp_event = TRUE;
 		}
 		break;
 	      case 'x':		       /* report terminal characteristics */
@@ -1055,11 +1037,6 @@ void term_out(void) {
 	  case SEEN_OSC:
 	    osc_w = FALSE;
 	    switch (c) {
-	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
-		termstate = TOPLEVEL;
-		goto do_toplevel;      /* hack... */
 	      case 'P':		       /* Linux palette sequence */
 		termstate = SEEN_OSC_P;
 		osc_strlen = 0;
@@ -1133,11 +1110,6 @@ void term_out(void) {
 	    break;
 	  case SEEN_OSC_W:
 	    switch (c) {
-	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
-		termstate = TOPLEVEL;
-		goto do_toplevel;      /* hack... */
 	      case '0': case '1': case '2': case '3': case '4':
 	      case '5': case '6': case '7': case '8': case '9':
 		esc_args[0] = 10 * esc_args[0] + c - '0';
@@ -1154,7 +1126,7 @@ void term_out(void) {
 		while (n--)
 		    *p++ = ATTR_DEFAULT | 'E';
 		disptop = scrtop;
-		must_update = TRUE;
+		seen_disp_event = TRUE;
 		check_selection (scrtop, scrtop + rows * (cols+1));
 	    }
 	    termstate = TOPLEVEL;
@@ -1163,7 +1135,7 @@ void term_out(void) {
 	check_selection (cpos, cpos+1);
     }
 	
-    if (must_update || nl_count > MAXNL)
+    if (nl_count > MAXNL)
 	term_update();
 }
 
