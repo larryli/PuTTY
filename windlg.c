@@ -1048,7 +1048,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == windowpanelstart) {
-	/* The Window panel. Accelerators used: [acgo] rmznb sdikp w4ylt f */
+	/* The Window panel. Accelerators used: [acgo] rmz sdikp w4ylt f */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling PuTTY's window",
@@ -1057,10 +1057,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	multiedit(&cp,
 		  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
 		  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50, NULL);
-	radioline(&cp, "Action when the window is resized:", IDC_RESIZESTATIC,
-		  3, "Resi&ze terminal", IDC_RESIZETERM,
-		  "Change fo&nt", IDC_RESIZEFONT,
-		  "For&bid resizing", IDC_RESIZENONE, NULL);
+	radioline(&cp, "When window is resi&zed, change:", IDC_RESIZESTATIC,
+		  3, "Terminal size", IDC_RESIZETERM,
+ 		  "Font size", IDC_RESIZEFONT,
+ 		  "Forbid resize", IDC_RESIZENONE, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Control the scrollback in the window",
 		 IDC_BOX_WINDOW2);
