@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.20 2004/03/11 10:59:52 jacob Exp $
+\versionid $Id: using.but,v 1.21 2004/03/25 11:33:17 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -65,9 +65,10 @@ somewhere else.
 
 It's possible for the server to ask to handle mouse clicks in the
 PuTTY window itself.  If this happens, the mouse cursor will turn
-into an arrow, and copy and paste will only work if you hold down
-Shift.  See \k{config-features-mouse} and \k{config-mouseshift} for
-details of this feature and how to configure it.
+into an arrow, and using the mouse to copy and paste will only work if
+you hold down Shift.  See \k{config-features-mouse} and
+\k{config-mouseshift} for details of this feature and how to configure
+it.
 
 \S{using-scrollback} Scrolling the screen back
 
