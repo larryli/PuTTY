@@ -628,6 +628,8 @@ void term_out(void) {
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
 		    curs_y++;
+                if (cfg.lfhascr)
+                    curs_x = 0;
 		fix_cpos;
 		wrapnext = FALSE;
 		disptop = scrtop;

@@ -95,6 +95,8 @@ typedef struct {
     int port;
     enum { PROT_TELNET, PROT_SSH } protocol;
     int close_on_exit;
+    /* SSH options */
+    int nopty;
     /* Telnet options */
     char termtype[32];
     char termspeed[32];
@@ -111,6 +113,7 @@ typedef struct {
     int savelines;
     int dec_om;
     int wrap_mode;
+    int lfhascr;
     int win_name_always;
     int width, height;
     char font[64];

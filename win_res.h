@@ -73,6 +73,7 @@
 #define IDC2_VTOEMANSI  1015
 #define IDC2_VTOEMONLY  1016
 #define IDC2_VTPOORMAN  1017
+#define IDC2_LFHASCR    1018
 
 #define IDC3_TTSTATIC   1001
 #define IDC3_TTEDIT     1002
@@ -91,6 +92,8 @@
 #define IDC3_EMSTATIC   1015
 #define IDC3_EMBSD      1016
 #define IDC3_EMRFC      1017
+
+#define IDC3_NOPTY      1018
 
 #define IDC4_MBSTATIC   1001
 #define IDC4_MBWINDOWS  1002

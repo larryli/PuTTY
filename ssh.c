@@ -251,6 +251,7 @@ static int do_ssh_init(void) {
     sprintf(vstring, "SSH-%s-7.7.7\n",
 	    (strcmp(version, "1.5") <= 0 ? version : "1.5"));
     s_write(vstring, strlen(vstring));
+    return 1;
 }
 
 static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
@@ -433,30 +434,32 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 	}
     }
 
-    i = strlen(cfg.termtype);
-    s_wrpkt_start(10, i+5*4+1);
-    pktout.body[0] = (i >> 24) & 0xFF;
-    pktout.body[1] = (i >> 16) & 0xFF;
-    pktout.body[2] = (i >> 8) & 0xFF;
-    pktout.body[3] = i & 0xFF;
-    memcpy(pktout.body+4, cfg.termtype, i);
-    i += 4;
-    pktout.body[i++] = (rows >> 24) & 0xFF;
-    pktout.body[i++] = (rows >> 16) & 0xFF;
-    pktout.body[i++] = (rows >> 8) & 0xFF;
-    pktout.body[i++] = rows & 0xFF;
-    pktout.body[i++] = (cols >> 24) & 0xFF;
-    pktout.body[i++] = (cols >> 16) & 0xFF;
-    pktout.body[i++] = (cols >> 8) & 0xFF;
-    pktout.body[i++] = cols & 0xFF;
-    memset(pktout.body+i, 0, 9);       /* 0 pixwidth, 0 pixheight, 0.b endofopt */
-    s_wrpkt();
-    ssh_state = SSH_STATE_INTERMED;
-    do { crReturnV; } while (!ispkt);
-    if (pktin.type != 14 && pktin.type != 15) {
-	fatalbox("Protocol confusion");
-    } else if (pktin.type == 15) {
-	c_write("Server refused to allocate pty\r\n", 32);
+    if (!cfg.nopty) {
+        i = strlen(cfg.termtype);
+        s_wrpkt_start(10, i+5*4+1);
+        pktout.body[0] = (i >> 24) & 0xFF;
+        pktout.body[1] = (i >> 16) & 0xFF;
+        pktout.body[2] = (i >> 8) & 0xFF;
+        pktout.body[3] = i & 0xFF;
+        memcpy(pktout.body+4, cfg.termtype, i);
+        i += 4;
+        pktout.body[i++] = (rows >> 24) & 0xFF;
+        pktout.body[i++] = (rows >> 16) & 0xFF;
+        pktout.body[i++] = (rows >> 8) & 0xFF;
+        pktout.body[i++] = rows & 0xFF;
+        pktout.body[i++] = (cols >> 24) & 0xFF;
+        pktout.body[i++] = (cols >> 16) & 0xFF;
+        pktout.body[i++] = (cols >> 8) & 0xFF;
+        pktout.body[i++] = cols & 0xFF;
+        memset(pktout.body+i, 0, 9);       /* 0 pixwidth, 0 pixheight, 0.b endofopt */
+        s_wrpkt();
+        ssh_state = SSH_STATE_INTERMED;
+        do { crReturnV; } while (!ispkt);
+        if (pktin.type != 14 && pktin.type != 15) {
+            fatalbox("Protocol confusion");
+        } else if (pktin.type == 15) {
+            c_write("Server refused to allocate pty\r\n", 32);
+        }
     }
 
     s_wrpkt_start(12, 0);
@@ -670,17 +673,19 @@ static void ssh_size(void) {
 	size_needed = TRUE;	       /* buffer for later */
 	break;
       case SSH_STATE_SESSION:
-	s_wrpkt_start(11, 16);
-	pktout.body[0] = (rows >> 24) & 0xFF;
-	pktout.body[1] = (rows >> 16) & 0xFF;
-	pktout.body[2] = (rows >> 8) & 0xFF;
-	pktout.body[3] = rows & 0xFF;
-	pktout.body[4] = (cols >> 24) & 0xFF;
-	pktout.body[5] = (cols >> 16) & 0xFF;
-	pktout.body[6] = (cols >> 8) & 0xFF;
-	pktout.body[7] = cols & 0xFF;
-	memset(pktout.body+8, 0, 8);
-	s_wrpkt();
+        if (!cfg.nopty) {
+            s_wrpkt_start(11, 16);
+            pktout.body[0] = (rows >> 24) & 0xFF;
+            pktout.body[1] = (rows >> 16) & 0xFF;
+            pktout.body[2] = (rows >> 8) & 0xFF;
+            pktout.body[3] = rows & 0xFF;
+            pktout.body[4] = (cols >> 24) & 0xFF;
+            pktout.body[5] = (cols >> 16) & 0xFF;
+            pktout.body[6] = (cols >> 8) & 0xFF;
+            pktout.body[7] = cols & 0xFF;
+            memset(pktout.body+8, 0, 8);
+            s_wrpkt();
+        }
     }
 }
 

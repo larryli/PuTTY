@@ -14,7 +14,7 @@ BEGIN
     DEFPUSHBUTTON "&Close", IDOK, 82, 40, 48, 14
     PUSHBUTTON "View &Licence", IDA_LICENCE, 6, 40, 70, 14
     ICON IDI_MAINICON, IDA_ICON, 10, 10, 0, 0
-    LTEXT "PuTTY Beta 0.43\n\251 1997-8 Simon Tatham\nAll rights reserved.",
+    LTEXT "PuTTY Beta 0.44\n\251 1997-8 Simon Tatham\nAll rights reserved.",
           IDA_TEXT, 40, 6, 96, 24
 END
 
@@ -103,13 +103,14 @@ BEGIN
     AUTOCHECKBOX "Auto wrap mode initially on", IDC2_WRAPMODE, 3, 3, 162, 10
     AUTOCHECKBOX "DEC Origin Mode initially on", IDC2_DECOM, 3, 13, 162, 10
     AUTOCHECKBOX "Avoid ever using icon title", IDC2_WINNAME, 3, 23, 162, 10
-    LTEXT "Terminal screen dimensions:", IDC2_DIMSTATIC, 3, 33, 162, 8
-    RTEXT "Rows", IDC2_ROWSSTATIC, 20, 44, 90, 8
-    EDITTEXT IDC2_ROWSEDIT, 118, 42, 30, 12
-    RTEXT "Columns", IDC2_COLSSTATIC, 20, 59, 90, 8
-    EDITTEXT IDC2_COLSEDIT, 118, 57, 30, 12
-    RTEXT "Saved lines of scrollback", IDC2_SAVESTATIC, 20, 74, 90, 8
-    EDITTEXT IDC2_SAVEEDIT, 118, 72, 30, 12
+    AUTOCHECKBOX "Implicit CR in every LF", IDC2_LFHASCR, 3, 33, 162, 10
+    LTEXT "Terminal screen dimensions:", IDC2_DIMSTATIC, 3, 48, 162, 8
+    RTEXT "Rows", IDC2_ROWSSTATIC, 10, 59, 32, 8
+    EDITTEXT IDC2_ROWSEDIT, 50, 57, 30, 12
+    RTEXT "Columns", IDC2_COLSSTATIC, 95, 59, 32, 8
+    EDITTEXT IDC2_COLSEDIT, 135, 57, 30, 12
+    RTEXT "Saved lines of scrollback", IDC2_SAVESTATIC, 20, 74, 107, 8
+    EDITTEXT IDC2_SAVEEDIT, 135, 72, 30, 12
     LTEXT "Font:", IDC2_FONTSTATIC, 3, 93, 99, 8
     PUSHBUTTON "Change...", IDC2_CHOOSEFONT, 105, 90, 60, 14
     LTEXT "Handling of VT100 line drawing characters:",IDC2_VTSTATIC, 3, 111, 162, 8
@@ -153,6 +154,8 @@ FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT "Terminal-type string", IDC3_TTSTATIC, 3, 5, 90, 8
     EDITTEXT IDC3_TTEDIT, 96, 3, 69, 12, ES_AUTOHSCROLL
+    AUTOCHECKBOX "Don't allocate a pseudo-terminal", IDC3_NOPTY,
+	3, 19, 162, 10
     LTEXT "Auto-login username", IDC3_LOGSTATIC, 3, 35, 90, 8
     EDITTEXT IDC3_LOGEDIT, 96, 33, 69, 12, ES_AUTOHSCROLL
 END

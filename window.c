@@ -703,9 +703,9 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 #define Y_POS(l) ((int)(short)HIWORD(l))
 
       case WM_LBUTTONDOWN:
-        SetCapture(hwnd);
 	click (MB_SELECT, X_POS(lParam) / font_width,
 	       Y_POS(lParam) / font_height);
+        SetCapture(hwnd);
 	return 0;
       case WM_LBUTTONUP:
 	term_mouse (MB_SELECT, MA_RELEASE, X_POS(lParam) / font_width,

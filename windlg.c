@@ -153,6 +153,7 @@ static void save_settings (char *section, int do_host) {
 	wpps (sesskey, "Environment", buf);
     }
     wpps (sesskey, "UserName", cfg.username);
+    wppi (sesskey, "NoPTY", cfg.nopty);
     wppi (sesskey, "RFCEnviron", cfg.rfc_environ);
     wppi (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
     wppi (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
@@ -162,6 +163,7 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "ScrollbackLines", cfg.savelines);
     wppi (sesskey, "DECOriginMode", cfg.dec_om);
     wppi (sesskey, "AutoWrapMode", cfg.wrap_mode);
+    wppi (sesskey, "LFImpliesCR", cfg.lfhascr);
     wppi (sesskey, "WinNameAlways", cfg.win_name_always);
     wppi (sesskey, "TermWidth", cfg.width);
     wppi (sesskey, "TermHeight", cfg.height);
@@ -264,6 +266,7 @@ static void load_settings (char *section, int do_host) {
 	*q = '\0';
     }
     gpps (sesskey, "UserName", "", cfg.username, sizeof(cfg.username));
+    gppi (sesskey, "NoPTY", 0, &cfg.nopty);
     gppi (sesskey, "RFCEnviron", 0, &cfg.rfc_environ);
     gppi (sesskey, "BackspaceIsDelete", 1, &cfg.bksp_is_delete);
     gppi (sesskey, "RXVTHomeEnd", 0, &cfg.rxvt_homeend);
@@ -273,6 +276,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "ScrollbackLines", 200, &cfg.savelines);
     gppi (sesskey, "DECOriginMode", 0, &cfg.dec_om);
     gppi (sesskey, "AutoWrapMode", 1, &cfg.wrap_mode);
+    gppi (sesskey, "LFImpliesCR", 0, &cfg.lfhascr);
     gppi (sesskey, "WinNameAlways", 0, &cfg.win_name_always);
     gppi (sesskey, "TermWidth", 80, &cfg.width);
     gppi (sesskey, "TermHeight", 24, &cfg.height);
@@ -618,6 +622,7 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 	CheckDlgButton (hwnd, IDC2_WRAPMODE, cfg.wrap_mode);
 	CheckDlgButton (hwnd, IDC2_WINNAME, cfg.win_name_always);
 	CheckDlgButton (hwnd, IDC2_DECOM, cfg.dec_om);
+	CheckDlgButton (hwnd, IDC2_LFHASCR, cfg.lfhascr);
 	SetDlgItemInt (hwnd, IDC2_ROWSEDIT, cfg.height, FALSE);
 	SetDlgItemInt (hwnd, IDC2_COLSEDIT, cfg.width, FALSE);
 	SetDlgItemInt (hwnd, IDC2_SAVEEDIT, cfg.savelines, FALSE);
@@ -645,6 +650,11 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.dec_om = IsDlgButtonChecked (hwnd, IDC2_DECOM);
+	    break;
+	  case IDC2_LFHASCR:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.lfhascr = IsDlgButtonChecked (hwnd, IDC2_LFHASCR);
 	    break;
 	  case IDC2_ROWSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
@@ -824,6 +834,7 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
       case WM_INITDIALOG:
 	SetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype);
 	SetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username);
+	CheckDlgButton (hwnd, IDC3_NOPTY, cfg.nopty);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -836,6 +847,11 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == EN_CHANGE)
 		GetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username,
 				sizeof(cfg.username)-1);
+	    break;
+	  case IDC3_NOPTY:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.nopty = IsDlgButtonChecked (hwnd, IDC3_NOPTY);
 	    break;
 	}
 	break;
