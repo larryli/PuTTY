@@ -67,6 +67,9 @@ void *open_settings_w(const char *sessionname)
     int ret;
     char *p;
 
+    if (!sessionname || !*sessionname)
+	sessionname = "Default Settings";
+
     p = smalloc(3 * strlen(sessionname) + 1);
     mungestr(sessionname, p);
 
@@ -106,6 +109,9 @@ void *open_settings_r(const char *sessionname)
 {
     HKEY subkey1, sesskey;
     char *p;
+
+    if (!sessionname || !*sessionname)
+	sessionname = "Default Settings";
 
     p = smalloc(3 * strlen(sessionname) + 1);
     mungestr(sessionname, p);

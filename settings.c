@@ -631,10 +631,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 
 void do_defaults(char *session, Config * cfg)
 {
-    if (session)
-	load_settings(session, TRUE, cfg);
-    else
-	load_settings("Default Settings", FALSE, cfg);
+    load_settings(session, (session != NULL && *session), cfg);
 }
 
 static int sessioncmp(const void *av, const void *bv)
