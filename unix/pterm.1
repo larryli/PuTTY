@@ -43,10 +43,10 @@ Chinese, Japanese and Korean text) displayed in the terminal.
 Specify the font to use for bold double-width characters (typically
 Chinese, Japanese and Korean text) Like \fI-fb\fP, this will be
 ignored unless the \fIBoldAsColour\fP resource is set to 0.
-.IP "\fB\-geometry\fP \fIwidth\fPx\fIheight\fP"
-Specify the size of the terminal, in rows and columns of text.
-Unfortunately \fIpterm\fP does not currently support specifying the
-initial position of the window.
+.IP "\fB\-geometry\fP \fIgeometry\fP"
+Specify the size of the terminal, in rows and columns of text. See
+\fIX(7)\fP for more information on the syntax of geometry
+specifications.
 .IP "\fB\-sl\fP \fIlines\fP"
 Specify the number of lines of scrollback to save off the top of the
 terminal.
