@@ -468,18 +468,16 @@ void ot_poll(void)
 void ot_recv(Actual_Socket s)
 {
     OTResult o;
-    char buf[20480];
+    char buf[2048];
     OTFlags flags;
 
     if (s->frozen) return;
 
-    do {
-	o = OTRcv(s->ep, buf, sizeof(buf), &flags);
-	if (o > 0)
-	    plug_receive(s->plug, 0, buf, o);
-	if (o < 0 && o != kOTNoDataErr)
-	    plug_closing(s->plug, NULL, 0, 0); /* XXX Error msg */
-    } while (o > 0);
+    o = OTRcv(s->ep, buf, sizeof(buf), &flags);
+    if (o > 0)
+        plug_receive(s->plug, 0, buf, o);
+    if (o < 0 && o != kOTNoDataErr)
+        plug_closing(s->plug, NULL, 0, 0); /* XXX Error msg */
 }
 
 
