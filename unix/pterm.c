@@ -1182,7 +1182,7 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
     gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
 			      FALSE, FALSE, success);
     if (!success[0])
-	g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
+	g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n", appname,
 		n, r, g, b);
 }
 
@@ -1239,8 +1239,9 @@ void palette_reset(void *frontend)
 			      FALSE, FALSE, success);
     for (i = 0; i < NCOLOURS; i++) {
 	if (!success[i])
-	    g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
-		    i, inst->cfg.colours[i][0], inst->cfg.colours[i][1], inst->cfg.colours[i][2]);
+	    g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
+                    appname, i, inst->cfg.colours[i][0],
+                    inst->cfg.colours[i][1], inst->cfg.colours[i][2]);
     }
 
     set_window_background(inst);
@@ -1955,7 +1956,7 @@ void modalfatalbox(char *p, ...)
 void cmdline_error(char *p, ...)
 {
     va_list ap;
-    fprintf(stderr, "plink: ");
+    fprintf(stderr, "%s: ", appname);
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
@@ -2020,7 +2021,7 @@ int do_cmdline(int argc, char **argv, int do_everything,
 #define EXPECTS_ARG { \
     if (--argc <= 0) { \
 	err = 1; \
-	fprintf(stderr, "pterm: %s expects an argument\n", p); \
+	fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
         continue; \
     } else \
 	val = *++argv; \
@@ -2107,7 +2108,8 @@ int do_cmdline(int argc, char **argv, int do_everything,
 	    SECOND_PASS_ONLY;
 	    if (!gdk_color_parse(val, &col)) {
 		err = 1;
-		fprintf(stderr, "pterm: unable to parse colour \"%s\"\n", val);
+		fprintf(stderr, "%s: unable to parse colour \"%s\"\n",
+                        appname, val);
 	    } else {
 		int index;
 		index = (!strcmp(p, "-fg") ? 0 :
@@ -2136,7 +2138,8 @@ int do_cmdline(int argc, char **argv, int do_everything,
 		pty_argv[argc] = NULL;
 		break;		       /* finished command-line processing */
 	    } else
-		err = 1, fprintf(stderr, "pterm: -e expects an argument\n");
+		err = 1, fprintf(stderr, "%s: -e expects an argument\n",
+                                 appname);
 
 	} else if (!strcmp(p, "-title")) {
 	    EXPECTS_ARG;
@@ -2197,7 +2200,7 @@ int do_cmdline(int argc, char **argv, int do_everything,
 
 	} else {
 	    err = 1;
-	    fprintf(stderr, "pterm: unrecognized option '%s'\n", p);
+	    fprintf(stderr, "%s: unrecognized option '%s'\n", appname, p);
 	}
     }
 
@@ -2390,7 +2393,7 @@ int pt_main(int argc, char **argv)
 
     inst->fonts[0] = gdk_font_load(inst->cfg.font.name);
     if (!inst->fonts[0]) {
-	fprintf(stderr, "pterm: unable to load font \"%s\"\n",
+	fprintf(stderr, "%s: unable to load font \"%s\"\n", appname,
 		inst->cfg.font.name);
 	exit(1);
     }
@@ -2398,7 +2401,7 @@ int pt_main(int argc, char **argv)
     if (inst->cfg.boldfont.name[0]) {
 	inst->fonts[1] = gdk_font_load(inst->cfg.boldfont.name);
 	if (!inst->fonts[1]) {
-	    fprintf(stderr, "pterm: unable to load bold font \"%s\"\n",
+	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
 		    inst->cfg.boldfont.name);
 	    exit(1);
 	}
@@ -2408,7 +2411,7 @@ int pt_main(int argc, char **argv)
     if (inst->cfg.widefont.name[0]) {
 	inst->fonts[2] = gdk_font_load(inst->cfg.widefont.name);
 	if (!inst->fonts[2]) {
-	    fprintf(stderr, "pterm: unable to load wide font \"%s\"\n",
+	    fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
 		    inst->cfg.widefont.name);
 	    exit(1);
 	}
@@ -2418,8 +2421,8 @@ int pt_main(int argc, char **argv)
     if (inst->cfg.wideboldfont.name[0]) {
 	inst->fonts[3] = gdk_font_load(inst->cfg.wideboldfont.name);
 	if (!inst->fonts[3]) {
-	    fprintf(stderr, "pterm: unable to load wide/bold font \"%s\"\n",
-		    inst->cfg.wideboldfont.name);
+	    fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n",
+                    appname, inst->cfg.wideboldfont.name);
 	    exit(1);
 	}
 	set_font_info(inst, 3);
