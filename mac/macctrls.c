@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.30 2003/04/05 22:00:57 ben Exp $ */
+/* $Id: macctrls.c,v 1.31 2003/04/06 13:27:40 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -439,6 +439,8 @@ static void macctrl_enfocus(union macctrl *mc)
 static void macctrl_setfocus(struct macctrls *mcs, union macctrl *mc)
 {
 
+    if (mcs->focus == mc)
+	return;
     if (mcs->focus != NULL)
 	macctrl_defocus(mcs->focus);
     mcs->focus = mc;
@@ -999,7 +1001,7 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 void macctrl_click(WindowPtr window, EventRecord *event)
 {
     Point mouse;
-    ControlHandle control;
+    ControlHandle control, oldfocus;
     int part, trackresult;
     GrafPtr saveport;
     union macctrl *mc;
@@ -1017,7 +1019,9 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 	if (mac_gestalts.apprvers >= 0x100) {
 	    if (GetControlFeatures(control, &features) == noErr &&
 		(features & kControlSupportsFocus) &&
-		(features & kControlGetsFocusOnClick))
+		(features & kControlGetsFocusOnClick) &&
+		GetKeyboardFocus(window, &oldfocus) == noErr &&
+		control != oldfocus)
 		SetKeyboardFocus(window, control, part);
 	    trackresult = HandleControlClick(control, mouse, event->modifiers,
 					     (ControlActionUPP)-1);
