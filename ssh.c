@@ -262,8 +262,11 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     unsigned char cookie[8];
     struct RSAKey servkey, hostkey;
     struct MD5Context md5c;
+    unsigned long supported_ciphers_mask;
+    int cipher_type;
 
     extern struct ssh_cipher ssh_3des;
+    extern struct ssh_cipher ssh_blowfish;
 
     crBegin;
 
@@ -282,6 +285,11 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     i = makekey(pktin.body+8, &servkey, &keystr1);
 
     j = makekey(pktin.body+8+i, &hostkey, &keystr2);
+
+    supported_ciphers_mask = (pktin.body[12+i+j] << 24) |
+                             (pktin.body[13+i+j] << 16) |
+                             (pktin.body[14+i+j] << 8) |
+                             (pktin.body[15+i+j]);
 
     MD5Update(&md5c, keystr2, hostkey.bytes);
     MD5Update(&md5c, keystr1, servkey.bytes);
@@ -314,8 +322,15 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 	rsaencrypt(rsabuf, hostkey.bytes, &servkey);
     }
 
+    cipher_type = cfg.cipher == CIPHER_BLOWFISH ? SSH_CIPHER_BLOWFISH :
+                  SSH_CIPHER_3DES;
+    if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
+	c_write("Selected cipher not supported, falling back to 3DES\r\n", 53);
+	cipher_type = SSH_CIPHER_3DES;
+    }
+
     s_wrpkt_start(3, len+15);
-    pktout.body[0] = 3;		       /* SSH_CIPHER_3DES */
+    pktout.body[0] = cipher_type;
     memcpy(pktout.body+1, cookie, 8);
     pktout.body[9] = (len*8) >> 8;
     pktout.body[10] = (len*8) & 0xFF;
@@ -326,7 +341,8 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 
     free(rsabuf);
 
-    cipher = &ssh_3des;
+    cipher = cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish :
+             &ssh_3des;
     cipher->sesskey(session_key);
 
     do { crReturnV; } while (!ispkt);
