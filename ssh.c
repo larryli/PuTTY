@@ -1153,11 +1153,11 @@ static int ssh_receive(Socket skt, int urgent, char *data, int len) {
     if (urgent==3) {
         /* A socket error has occurred. */
         ssh_state = SSH_STATE_CLOSED;
+        sk_close(s);
         s = NULL;
         connection_fatal(data);
-        len = 0;
-    }
-    if (!len) {
+        return 0;
+    } else if (!len) {
 	/* Connection has closed. */
 	ssh_state = SSH_STATE_CLOSED;
 	sk_close(s);
