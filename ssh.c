@@ -1876,18 +1876,18 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
     /* List client->server encryption algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = -1; i < lenof(ciphers); i++) {
-        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+    for (i = 0; i < lenof(ciphers)+1; i++) {
+        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
         ssh2_pkt_addstring_str(c->name);
-        if (i < lenof(ciphers)-1)
+        if (i < lenof(ciphers))
             ssh2_pkt_addstring_str(",");
     }
     /* List server->client encryption algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = -1; i < lenof(ciphers); i++) {
-        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+    for (i = 0; i < lenof(ciphers)+1; i++) {
+        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
         ssh2_pkt_addstring_str(c->name);
-        if (i < lenof(ciphers)-1)
+        if (i < lenof(ciphers))
             ssh2_pkt_addstring_str(",");
     }
     /* List client->server MAC algorithms. */
@@ -1958,18 +1958,18 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
         }
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server cipher */
-    for (i = -1; i < lenof(ciphers); i++) {
-        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+    for (i = 0; i < lenof(ciphers)+1; i++) {
+        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
         if (in_commasep_string(c->name, str, len)) {
-            cscipher_tobe = ciphers[i];
+            cscipher_tobe = c;
             break;
         }
     }
     ssh2_pkt_getstring(&str, &len);    /* server->client cipher */
-    for (i = -1; i < lenof(ciphers); i++) {
-        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+    for (i = 0; i < lenof(ciphers)+1; i++) {
+        const struct ssh_cipher *c = i==0 ? preferred_cipher : ciphers[i-1];
         if (in_commasep_string(c->name, str, len)) {
-            sccipher_tobe = ciphers[i];
+            sccipher_tobe = c;
             break;
         }
     }
