@@ -95,16 +95,12 @@ static void gppi(HKEY key, LPCTSTR name, int def, int *i) {
 	*i = val;
 }
 
-typedef struct {
-    void *posn;
-    void *temp;
-    char dataspace[2048];
-} DTemplate;
-
 static HINSTANCE hinst;
 
 static char **sessions;
 static int nsessions;
+
+static int readytogo;
 
 static void save_settings (char *section, int do_host) {
     int i;
@@ -428,6 +424,15 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 			  cfg.protocol==PROT_SSH ? IDC0_PROTSSH : IDC0_PROTTELNET);
 	CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
 	break;
+      case WM_LBUTTONUP:
+        /*
+         * Button release should trigger WM_OK if there was a
+         * previous double click on the session list.
+         */
+        ReleaseCapture();
+        if (readytogo)
+            SendMessage (GetParent(hwnd), WM_COMMAND, IDOK, 0);
+        break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDC0_PROTTELNET:
@@ -525,8 +530,10 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 		 * Unless it's Default Settings or some other
 		 * host-less set of saved settings.
 		 */
-		if (*cfg.host)
-		    SendMessage (GetParent(hwnd), WM_COMMAND, IDOK, 0);
+		if (*cfg.host) {
+                    readytogo = TRUE;
+                    SetCapture(hwnd);
+                }
 	    }
 	    break;
 	  case IDC0_SESSDEL:
@@ -1031,7 +1038,6 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
     return GeneralPanelProc (hwnd, msg, wParam, lParam);
 }
 
-static DTemplate negot, main, reconf, panels[NPANELS];
 static DLGPROC panelproc[NPANELS] = {
     ConnectionProc, KeyboardProc, TerminalProc,
     TelnetProc, SshProc, SelectionProc, ColourProc
