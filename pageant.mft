@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- This is present purely to make Visual Styles in XP work better.
+     See 20020104174954.A12067@imsa.edu. -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 <assemblyIdentity
    version="1.0.0.0"
