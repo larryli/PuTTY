@@ -145,6 +145,7 @@ typedef struct {
     short wordness[256];
     /* russian language translation */
     int xlat_enablekoiwin;
+    int xlat_88592w1250;
     int xlat_capslockcyr;
 } Config;
 

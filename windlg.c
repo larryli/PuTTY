@@ -192,6 +192,7 @@ static void save_settings (char *section, int do_host) {
 	wpps (sesskey, buf, buf2);
     }
     wppi (sesskey, "KoiWinXlat", cfg.xlat_enablekoiwin);
+    wppi (sesskey, "88592Xlat", cfg.xlat_88592w1250);
     wppi (sesskey, "CapsLockCyr", cfg.xlat_capslockcyr);
 
     RegCloseKey(sesskey);
@@ -345,6 +346,7 @@ static void load_settings (char *section, int do_host) {
 	}
     }
     gppi (sesskey, "KoiWinXlat", 0, &cfg.xlat_enablekoiwin);
+    gppi (sesskey, "88592Xlat", 0, &cfg.xlat_88592w1250);
     gppi (sesskey, "CapsLockCyr", 0, &cfg.xlat_capslockcyr);
 
     RegCloseKey(sesskey);
@@ -1151,16 +1153,20 @@ static int CALLBACK LanguageProc (HWND hwnd, UINT msg,
 				  WPARAM wParam, LPARAM lParam) {
     switch (msg) {
       case WM_INITDIALOG:
-	CheckDlgButton (hwnd, IDC6_ENABLEKOIWINXLAT, cfg.xlat_enablekoiwin);
+	CheckRadioButton (hwnd, IDC6_NOXLAT, IDC6_88592WIN1250,
+			  cfg.xlat_88592w1250 ? IDC6_88592WIN1250 :
+			  cfg.xlat_enablekoiwin ? IDC6_KOI8WIN1251 :
+			  IDC6_NOXLAT);
 	CheckDlgButton (hwnd, IDC6_CAPSLOCKCYR, cfg.xlat_capslockcyr);
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC6_ENABLEKOIWINXLAT:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		cfg.xlat_enablekoiwin =
-		    IsDlgButtonChecked (hwnd, IDC6_ENABLEKOIWINXLAT);
-	    }
+	  case IDC6_NOXLAT:
+	  case IDC6_KOI8WIN1251:
+	  case IDC6_88592WIN1250:
+	    cfg.xlat_enablekoiwin =
+		IsDlgButtonChecked (hwnd, IDC6_KOI8WIN1251);
+	    cfg.xlat_88592w1250 =
+		IsDlgButtonChecked (hwnd, IDC6_88592WIN1250);
 	    break;
 	  case IDC6_CAPSLOCKCYR:
 	    if (HIWORD(wParam) == BN_CLICKED ||
