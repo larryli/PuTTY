@@ -43,5 +43,5 @@ if test "x$ver" != "x"; then
    md5sum `find . -name '*.[ch]' -print` > manifest;
    echo "$ver" > version.def)
 fi
-tar -C uxarc -chzf - $arcname > $arcname.tar.gz
+tar -C uxarc -chzof $arcname.tar.gz $arcname
 rm -rf uxarc
