@@ -472,6 +472,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    output[1] = cfg.bksp_is_delete ? '\x7F' : '\x08';
 	    end = 2;
 	}
+	/* For Shift Backspace, do opposite of what is configured. */
+	if (event->keyval == GDK_BackSpace &&
+	    (event->state & GDK_SHIFT_MASK)) {
+	    output[1] = cfg.bksp_is_delete ? '\x08' : '\x7F';
+	    end = 2;
+	}
 
 	/* Shift-Tab is ESC [ Z */
 	if (event->keyval == GDK_ISO_Left_Tab ||
