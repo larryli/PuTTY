@@ -672,7 +672,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                 endbox(&cp);
                 beginbox(&cp, "Load, save or delete a stored session",
                          IDC_BOX_SESSION2, IDC_BOXT_SESSION2);
-		sesssaver(&cp, "Stor&ed Sessions",
+		sesssaver(&cp, "Sav&ed Sessions",
 			  IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
 			  "&Load", IDC_SESSLOAD,
 			  "&Save", IDC_SESSSAVE,
