@@ -1,3 +1,5 @@
+\versionid: $Id: plink.but,v 1.2 2001/02/04 15:47:01 owen Exp $
+
 \C{plink} Using the command-line connection tool Plink
 
 \# Explain Plink
@@ -10,3 +12,60 @@
 \# that chapter
 
 \# Give instructions on how to set up Plink with CVS
+
+Plink (PuTTY Link), is a command-line connection tool similar to UNIX
+\c{ssh}.  It is probably not what you want if you want to run an
+interactive session in a console window.
+
+\H{plink-starting} Starting Plink
+
+Plink is a command line application.  This means that you cannot just
+double-click on its icon to run it and instead you have to bring up a
+\i{console window}.  With Windows 95, 98, and ME, this is called an
+\q{MS-DOS Prompt} and with Windows NT and 2000 it is called a
+\q{Command Prompt}.  It should be available from the Programs section
+of your Start Menu.
+
+To start Plink it will need either to be on your \i{\c{PATH}} or in your
+current directory.  To add the directory containing Plink to your
+\c{PATH} environment variable, type into the console window:
+
+\c set PATH C:\path\to\putty\directory;%PATH%
+
+This will only work for the lifetime of that particular console
+window.  To set your \c{PATH} more permanently on Windows NT, use the
+Environment tab of the System Control Panel.  On Windows 95, 98, and
+ME, you will need to edit your \c{AUTOEXEC.BAT} to include a \c{set}
+command like the one above.
+
+\H{plink-usage} Plink Usage
+
+Once you've got a console window to type into, you can just type
+\c{plink} on its own to bring up a usage message.  This tells you the
+version of Plink you're using, and gives you a brief summary of how to
+use Plink:
+
+\c Z:\sysosd>plink
+\c PuTTY Link: command-line connection utility
+\c Release 0.50
+\c Usage: plink [options] [user@]host [command]
+\c Options:
+\c   -v        show verbose messages
+\c   -ssh      force use of ssh protocol
+\c   -P port   connect to specified port
+\c   -pw passw login with specified password
+
+\S{plink-usage-basics} The basics
+
+\S{plink-usage-options} Options
+
+These are the command line options that Plink accepts.
+
+\H{plink-pubkey} Public key authentication
+
+\H{plink-batch} Using Plink in batch files and scripts
+
+\H{plink-cvs} Using Plink with CVS
+
+\H{plink-whatelse} Using Plink with... ?
+
