@@ -364,39 +364,44 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
+    GdkGC *gc;
 
+    /*
+     * See if the terminal size has changed, in which case we must
+     * let the terminal know.
+     */
     w = (event->width - 2*inst->cfg.window_border) / inst->font_width;
     h = (event->height - 2*inst->cfg.window_border) / inst->font_height;
-
     if (w != inst->width || h != inst->height) {
-	if (inst->pixmap) {
-	    gdk_pixmap_unref(inst->pixmap);
-	    inst->pixmap = NULL;
-	}
 	inst->cfg.width = inst->width = w;
 	inst->cfg.height = inst->height = h;
 	need_size = 1;
     }
-    if (!inst->pixmap) {
-	GdkGC *gc;
 
-	inst->pixmap = gdk_pixmap_new(widget->window,
-				      (inst->cfg.width * inst->font_width +
-				       2*inst->cfg.window_border),
-				      (inst->cfg.height * inst->font_height +
-				       2*inst->cfg.window_border), -1);
-
-	gc = gdk_gc_new(inst->area->window);
-	gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
-	gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
-			   inst->cfg.width * inst->font_width + 2*inst->cfg.window_border,
-			   inst->cfg.height * inst->font_height + 2*inst->cfg.window_border);
-	gdk_gc_unref(gc);
+    if (inst->pixmap) {
+	gdk_pixmap_unref(inst->pixmap);
+	inst->pixmap = NULL;
     }
 
-    if (need_size) {
+    inst->pixmap = gdk_pixmap_new(widget->window,
+				  (inst->cfg.width * inst->font_width +
+				   2*inst->cfg.window_border),
+				  (inst->cfg.height * inst->font_height +
+				   2*inst->cfg.window_border), -1);
+
+    gc = gdk_gc_new(inst->area->window);
+    gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
+    gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
+		       inst->cfg.width * inst->font_width + 2*inst->cfg.window_border,
+		       inst->cfg.height * inst->font_height + 2*inst->cfg.window_border);
+    gdk_gc_unref(gc);
+
+    if (need_size && inst->term) {
 	term_size(inst->term, h, w, inst->cfg.savelines);
     }
+
+    if (inst->term)
+	term_invalidate(inst->term);
 
     return TRUE;
 }
