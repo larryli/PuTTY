@@ -678,6 +678,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     ret->oobpending = FALSE;
     ret->listener = 1;
     ret->addr = NULL;
+    ret->connected = 0;
 
     /*
      * Translate address_family from platform-independent constants
