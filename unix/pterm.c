@@ -151,7 +151,7 @@ int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
  * mouse or a means of faking it, and there is no need to switch
  * buttons around at all.
  */
-static Mouse_Button translate_button(void *frontend, Mouse_Button button)
+static Mouse_Button translate_button(Mouse_Button button)
 {
     /* struct gui_data *inst = (struct gui_data *)frontend; */
 
