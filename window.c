@@ -4584,7 +4584,7 @@ int is_full_screen()
  * one monitor is present. */
 static int get_fullscreen_rect(RECT * ss)
 {
-#ifdef MONITOR_DEFAULTTONEAREST
+#if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
 	HMONITOR mon;
 	MONITORINFO mi;
 	mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
