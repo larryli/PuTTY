@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.70 2004/05/22 11:09:31 simon Exp $
+\versionid $Id: faq.but,v 1.71 2004/05/26 09:19:48 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -673,12 +673,16 @@ This is a Windows problem, not a PuTTY problem. The timeout value
 can't be set on per application or per session basis. To increase
 the TCP timeout globally, you need to tinker with the Registry.
 
-On Windows 95, 98 or ME, the registry key you need to change is
+On Windows 95, 98 or ME, the registry key you need to create or
+change is
 
 \c HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\
 \c   MSTCP\MaxDataRetries
 
 (it must be of type DWORD in Win95, or String in Win98/ME).
+(See MS Knowledge Base article
+\W{http://support.microsoft.com/default.aspx?scid=kb;en-us;158474}{158474}
+for more information.)
 
 On Windows NT or 2000, the registry key is
 
@@ -686,6 +690,9 @@ On Windows NT or 2000, the registry key is
 \c   Parameters\TcpMaxDataRetransmissions
 
 and it must be of type DWORD.
+(See MS Knowledge Base article
+\W{http://support.microsoft.com/default.aspx?scid=kb;en-us;120642}{120642}
+for more information.)
 
 Set the key's value to something like 10. This will cause Windows to
 try harder to keep connections alive instead of abandoning them.
