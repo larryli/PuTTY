@@ -423,8 +423,10 @@ int main(int argc, char **argv) {
                             strncpy(cfg.host, p, sizeof(cfg.host)-1);
                             cfg.host[sizeof(cfg.host)-1] = '\0';
                             cfg.port = default_port;
-                        } else
+                        } else {
                             cfg = cfg2;
+                            cfg.remote_cmd_ptr = cfg.remote_cmd;
+                        }
                     } else {
                         *r++ = '\0';
                         strncpy(cfg.username, p, sizeof(cfg.username)-1);
