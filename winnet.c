@@ -54,7 +54,7 @@
 #include "network.h"
 #include "tree234.h"
 
-#define BUFFER_GRANULE 512
+#define BUFFER_GRANULE  512
 
 struct Socket_tag {
     struct socket_function_table *fn;
@@ -621,7 +621,7 @@ static void sk_tcp_write_oob(Socket sock, char *buf, int len) {
 int select_result(WPARAM wParam, LPARAM lParam) {
     int ret, open;
     DWORD err;
-    char buf[BUFFER_GRANULE];
+    char buf[20480];		       /* nice big buffer for plenty of speed */
     Actual_Socket s;
     u_long atmark;
 
