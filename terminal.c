@@ -1209,7 +1209,11 @@ void term_out(void) {
 		 */
 		compatibility(VT340TEXT);
 		if (esc_nargs<=1 && (esc_args[0]<1 || esc_args[0]>=24)) {
-		    request_resize (cols, def(esc_args[0], 24), 0);
+		    unsigned int newrows = def(esc_args[0], 24);
+		    /* Hack: prevent big-resize DoS attack. */
+		    if (newrows > max(512, cfg.height))
+			newrows = max(512, cfg.height);
+		    request_resize (cols, newrows, 0);
 		    deselect();
 		}
 		break;
@@ -1221,7 +1225,11 @@ void term_out(void) {
 		 */
 		compatibility(VT420);
 		if (esc_nargs==1 && esc_args[0]>=24) {
-		    request_resize (cols, def(esc_args[0], cfg.height), 0);
+		    unsigned int newrows = def(esc_args[0], cfg.height);
+		    /* Hack: prevent big-resize DoS attack. */
+		    if (newrows > max(512, cfg.height))
+			newrows = max(512, cfg.height);
+		    request_resize (cols, newrows, 0);
 		    deselect();
 		}
 		break;
@@ -1232,7 +1240,11 @@ void term_out(void) {
 		 */
 		compatibility(VT340TEXT);
 		if (esc_nargs<=1) {
-		    request_resize (cols, def(esc_args[0], cfg.width), 0);
+		    unsigned int newcols = def(esc_args[0], cfg.width);
+		    /* Hack: prevent big-resize DoS attack. */
+		    if (newcols > max(512, cfg.width))
+			newcols = max(512, cfg.width);
+		    request_resize (newcols, rows, 0);
 		    deselect();
 		}
 		break;
