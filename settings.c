@@ -150,6 +150,7 @@ void save_settings(char *section, int do_host, Config * cfg)
 
     /* proxy settings */
     write_setting_s(sesskey, "ProxyExcludeList", cfg->proxy_exclude_list);
+    write_setting_i(sesskey, "ProxyDNS", cfg->proxy_dns);
     write_setting_i(sesskey, "ProxyLocalhost", cfg->even_proxy_localhost);
     write_setting_i(sesskey, "ProxyType", cfg->proxy_type);
     write_setting_s(sesskey, "ProxyHost", cfg->proxy_host);
@@ -384,6 +385,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     /* proxy settings */
     gpps(sesskey, "ProxyExcludeList", "", cfg->proxy_exclude_list,
 	 sizeof(cfg->proxy_exclude_list));
+    gppi(sesskey, "ProxyDNS", PROXYDNS_AUTO, &i); cfg->proxy_dns = i;
     gppi(sesskey, "ProxyLocalhost", 0, &cfg->even_proxy_localhost);
     gppi(sesskey, "ProxyType", PROXY_NONE, &i); cfg->proxy_type = i;
     gpps(sesskey, "ProxyHost", "proxy", cfg->proxy_host,

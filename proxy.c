@@ -14,6 +14,10 @@
 #include "network.h"
 #include "proxy.h"
 
+#define do_proxy_dns \
+    (cfg.proxy_dns == 2 || \
+	 (cfg.proxy_dns == 1 && cfg.proxy_type != PROXY_SOCKS))
+
 /*
  * Call this when proxy negotiation is complete, so that this
  * socket can begin working normally.
@@ -240,6 +244,10 @@ static int plug_proxy_accepting (Plug p, void *sock)
     return plug_accepting(ps->plug, sock);
 }
 
+/*
+ * This function can accept a NULL pointer as `addr', in which case
+ * it will only check the host name.
+ */
 static int proxy_for_destination (SockAddr addr, char * hostname, int port)
 {
     int s = 0, e = 0;
@@ -252,13 +260,16 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
      * representations of `localhost'.
      */
     if (!cfg.even_proxy_localhost &&
-	(sk_hostname_is_local(hostname) || sk_address_is_local(addr)))
+	(sk_hostname_is_local(hostname) ||
+	 (addr && sk_address_is_local(addr))))
 	return 0;		       /* do not proxy */
 
     /* we want a string representation of the IP address for comparisons */
-    sk_getaddr(addr, hostip, 64);
+    if (addr) {
+	sk_getaddr(addr, hostip, 64);
+	hostip_len = strlen(hostip);
+    }
 
-    hostip_len = strlen(hostip);
     hostname_len = strlen(hostname);
 
     exclude_list = cfg.proxy_exclude_list;
@@ -285,8 +296,8 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
 	if (exclude_list[s] == '*') {
 	    /* wildcard at beginning of entry */
 
-	    if (strnicmp(hostip + hostip_len - (e - s - 1),
-			 exclude_list + s + 1, e - s - 1) == 0 ||
+	    if ((addr && strnicmp(hostip + hostip_len - (e - s - 1),
+				  exclude_list + s + 1, e - s - 1) == 0) ||
 		strnicmp(hostname + hostname_len - (e - s - 1),
 			 exclude_list + s + 1, e - s - 1) == 0)
 		return 0; /* IP/hostname range excluded. do not use proxy. */
@@ -294,7 +305,7 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
 	} else if (exclude_list[e-1] == '*') {
 	    /* wildcard at end of entry */
 
-	    if (strnicmp(hostip, exclude_list + s, e - s - 1) == 0 ||
+	    if ((addr && strnicmp(hostip, exclude_list + s, e - s - 1) == 0) ||
 		strnicmp(hostname, exclude_list + s, e - s - 1) == 0)
 		return 0; /* IP/hostname range excluded. do not use proxy. */
 
@@ -303,7 +314,7 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
 	     * match (ie. a specific IP)
 	     */
 
-	    if (stricmp(hostip, exclude_list + s) == 0)
+	    if (addr && stricmp(hostip, exclude_list + s) == 0)
 		return 0; /* IP/hostname excluded. do not use proxy. */
 	    if (stricmp(hostname, exclude_list + s) == 0)
 		return 0; /* IP/hostname excluded. do not use proxy. */
@@ -314,6 +325,17 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
 
     /* no matches in the exclude list, so use the proxy */
     return 1;
+}
+
+SockAddr name_lookup(char *host, int port, char **canonicalname)
+{
+    if (cfg.proxy_type != PROXY_NONE &&
+	do_proxy_dns && proxy_for_destination(NULL, host, port)) {
+	*canonicalname = dupstr(host);
+	return sk_nonamelookup(host);
+    }
+
+    return sk_namelookup(host, canonicalname);
 }
 
 Socket new_connection(SockAddr addr, char *hostname,
@@ -471,9 +493,9 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	 * for this proxy method, it's just a simple HTTP
 	 * request
 	 */
-	char *buf, dest[64];
+	char *buf, dest[512];
 
-	sk_getaddr(p->remote_addr, dest, 64);
+	sk_getaddr(p->remote_addr, dest, lenof(dest));
 
 	buf = dupprintf("CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n",
 			dest, p->remote_port, dest, p->remote_port);
@@ -649,16 +671,25 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	 *  user ID (variable length, null terminated string)
 	 */
 
-	int length;
-	char * command;
+	int length, type, namelen;
+	char *command, addr[4], hostname[512];
 
-	if (sk_addrtype(p->remote_addr) != ADDRTYPE_IPV4) {
+	type = sk_addrtype(p->remote_addr);
+	if (type == ADDRTYPE_IPV6) {
 	    plug_closing(p->plug, "Proxy error: SOCKS version 4 does"
 			 " not support IPv6", PROXY_ERROR_GENERAL, 0);
 	    return 1;
+	} else if (type == ADDRTYPE_IPV4) {
+	    namelen = 0;
+	    sk_addrcopy(p->remote_addr, addr);
+	} else {		       /* type == ADDRTYPE_NAME */
+	    sk_getaddr(p->remote_addr, hostname, lenof(hostname));
+	    namelen = strlen(hostname) + 1;   /* include the NUL */
+	    addr[0] = addr[1] = addr[2] = 0;
+	    addr[3] = 1;
 	}
 
-	length = strlen(cfg.proxy_username) + 9;
+	length = strlen(cfg.proxy_username) + namelen + 9;
 	command = (char*) smalloc(length);
 	strcpy(command + 8, cfg.proxy_username);
 
@@ -670,7 +701,11 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	command[3] = (char) p->remote_port & 0xff;
 
 	/* address */
-	sk_addrcopy(p->remote_addr, command + 4);
+	memcpy(command + 4, addr, 4);
+
+	/* hostname */
+	memcpy(command + 8 + strlen(cfg.proxy_username) + 1,
+	       hostname, namelen);
 
 	sk_write(p->sub_socket, command, length);
 	sfree(command);
@@ -939,23 +974,29 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	     *  dest. port (2 bytes) [network order]
 	     */
 
-	    char command[22];
+	    char command[512];
 	    int len;
+	    int type;
 
-	    if (sk_addrtype(p->remote_addr) == ADDRTYPE_IPV4) {
-		len = 10;
+	    type = sk_addrtype(p->remote_addr);
+	    if (type == ADDRTYPE_IPV4) {
+		len = 10;	       /* 4 hdr + 4 addr + 2 trailer */
 		command[3] = 1; /* IPv4 */
-	    } else {
-		len = 22;
+		sk_addrcopy(p->remote_addr, command+4);
+	    } else if (type == ADDRTYPE_IPV6) {
+		len = 22;	       /* 4 hdr + 16 addr + 2 trailer */
 		command[3] = 4; /* IPv6 */
+		sk_addrcopy(p->remote_addr, command+4);
+	    } else if (type == ADDRTYPE_NAME) {
+		command[3] = 3;
+		sk_getaddr(p->remote_addr, command+5, 256);
+		command[4] = strlen(command+5);
+		len = 7 + command[4];  /* 4 hdr, 1 len, N addr, 2 trailer */
 	    }
 
 	    command[0] = 5; /* version 5 */
 	    command[1] = 1; /* CONNECT command */
 	    command[2] = 0x00;
-
-	    /* address */
-	    sk_addrcopy(p->remote_addr, command+4);
 
 	    /* port */
 	    command[len-2] = (char) (p->remote_port >> 8) & 0xff;
@@ -1230,8 +1271,8 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 		}
 		else if (strnicmp(cfg.proxy_telnet_command + eo,
 				  "host", 4) == 0) {
-		    char dest[64];
-		    sk_getaddr(p->remote_addr, dest, 64);
+		    char dest[512];
+		    sk_getaddr(p->remote_addr, dest, lenof(dest));
 		    sk_write(p->sub_socket, dest, strlen(dest));
 		    eo += 4;
 		}

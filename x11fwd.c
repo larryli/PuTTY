@@ -177,7 +177,7 @@ char *x11_init(Socket * s, char *display, void *c, void *auth)
     /*
      * Try to find host.
      */
-    addr = sk_namelookup(host, &dummy_realhost);
+    addr = name_lookup(host, port, &dummy_realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
 

@@ -126,7 +126,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	logevent(rlogin->frontend, buf);
 	sfree(buf);
     }
-    addr = sk_namelookup(host, realhost);
+    addr = name_lookup(host, port, realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
 

@@ -455,6 +455,10 @@ enum { IDCX_ABOUT =
     IDC_PROXYEXCLUDESTATIC,
     IDC_PROXYEXCLUDEEDIT,
     IDC_PROXYLOCALHOST,
+    IDC_PROXYDNSSTATIC,
+    IDC_PROXYDNSNO,
+    IDC_PROXYDNSAUTO,
+    IDC_PROXYDNSYES,
     IDC_PROXYUSERSTATIC,
     IDC_PROXYUSEREDIT,
     IDC_PROXYPASSSTATIC,
@@ -885,6 +889,11 @@ char *help_context_cmd(int id)
       case IDC_PROXYEXCLUDEEDIT:
       case IDC_PROXYLOCALHOST:
         return "JI(`',`proxy.exclude')";
+      case IDC_PROXYDNSSTATIC:
+      case IDC_PROXYDNSNO:
+      case IDC_PROXYDNSAUTO:
+      case IDC_PROXYDNSYES:
+	return "JI(`',`proxy.dns')";
       case IDC_PROXYUSERSTATIC:
       case IDC_PROXYUSEREDIT:
       case IDC_PROXYPASSSTATIC:
@@ -1352,6 +1361,10 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemInt(hwnd, IDC_PROXYPORTEDIT, cfg.proxy_port, FALSE);
     SetDlgItemText(hwnd, IDC_PROXYEXCLUDEEDIT, cfg.proxy_exclude_list);
     CheckDlgButton(hwnd, IDC_PROXYLOCALHOST, cfg.even_proxy_localhost);
+    CheckRadioButton(hwnd, IDC_PROXYDNSNO, IDC_PROXYDNSYES,
+		     cfg.proxy_dns == PROXYDNS_NO ? IDC_PROXYDNSNO :
+		     cfg.proxy_dns == PROXYDNS_YES ? IDC_PROXYDNSYES :
+		     IDC_PROXYDNSAUTO);
     SetDlgItemText(hwnd, IDC_PROXYTELNETCMDEDIT, cfg.proxy_telnet_command);
     SetDlgItemText(hwnd, IDC_PROXYUSEREDIT, cfg.proxy_username);
     SetDlgItemText(hwnd, IDC_PROXYPASSEDIT, cfg.proxy_password);
@@ -1853,7 +1866,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == proxypanelstart) {
-	/* The Proxy panel. Accelerators used: [acgoh] ntslypeuwmv */
+	/* The Proxy panel. Accelerators used: [acgoh] ntslypeuwmvxd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1873,6 +1886,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      IDC_PROXYEXCLUDEEDIT, 100, NULL);
 	    checkbox(&cp, "Consider pro&xying local host connections",
 		     IDC_PROXYLOCALHOST);
+	    radioline(&cp, "Do &DNS name lookup at proxy end:",
+		      IDC_PROXYDNSSTATIC, 3,
+		      "No", IDC_PROXYDNSNO,
+		      "Auto", IDC_PROXYDNSAUTO,
+		      "Yes", IDC_PROXYDNSYES, NULL);
 	    staticedit(&cp, "&Username", IDC_PROXYUSERSTATIC,
 		       IDC_PROXYUSEREDIT, 60);
 	    staticpassedit(&cp, "Pass&word", IDC_PROXYPASSSTATIC,
@@ -3033,6 +3051,17 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 		    cfg.even_proxy_localhost =
 		    IsDlgButtonChecked(hwnd, IDC_PROXYLOCALHOST);
+		break;
+	      case IDC_PROXYDNSNO:
+	      case IDC_PROXYDNSAUTO:
+	      case IDC_PROXYDNSYES:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    cfg.proxy_dns =
+			IsDlgButtonChecked(hwnd, IDC_PROXYDNSNO) ? PROXYDNS_NO :
+			IsDlgButtonChecked(hwnd, IDC_PROXYDNSYES) ? PROXYDNS_YES :
+			PROXYDNS_AUTO;
+		}
 		break;
 	      case IDC_PROXYTYPENONE:
 	      case IDC_PROXYTYPEHTTP:

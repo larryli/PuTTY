@@ -2072,7 +2072,7 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
      * Try to find host.
      */
     logeventf(ssh, "Looking up host \"%s\"", host);
-    addr = sk_namelookup(host, realhost);
+    addr = name_lookup(host, port, realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
 

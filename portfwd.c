@@ -126,7 +126,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     /*
      * Try to find host.
      */
-    addr = sk_namelookup(hostname, &dummy_realhost);
+    addr = name_lookup(hostname, port, &dummy_realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
 

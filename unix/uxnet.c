@@ -57,12 +57,18 @@ typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
     char *error;
-    /* address family this belongs to, AF_INET for IPv4, AF_INET6 for IPv6. */
+    /*
+     * Which address family this address belongs to. AF_INET for
+     * IPv4; AF_INET6 for IPv6; AF_UNSPEC indicates that name
+     * resolution has not been done and a simple host name is held
+     * in this SockAddr structure.
+     */
     int family;
     unsigned long address;	       /* Address IPv4 style. */
 #ifdef IPV6
     struct addrinfo *ai;	       /* Address IPv6 style. */
 #endif
+    char hostname[512];		       /* Store an unresolved host name. */
 };
 
 static tree234 *sktree;
@@ -194,19 +200,32 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     return ret;
 }
 
+SockAddr sk_nonamelookup(char *host)
+{
+    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    ret->family = AF_UNSPEC;
+    strncpy(ret->hostname, host, lenof(ret->hostname));
+    ret->hostname[lenof(ret->hostname)-1] = '\0';
+    return ret;
+}
+
 void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
 #ifdef IPV6
-    if (addr->family == AF_INET) {
+    if (addr->family == AF_INET6) {
+	FIXME; /* I don't know how to get a text form of an IPv6 address. */
+    } else
 #endif
+    if (addr->family == AF_INET) {
 	struct in_addr a;
 	a.s_addr = htonl(addr->address);
 	strncpy(buf, inet_ntoa(a), buflen);
-#ifdef IPV6
+	buf[buflen-1] = '\0';
     } else {
-	FIXME; /* I don't know how to get a text form of an IPv6 address. */
+	assert(addr->family == AF_UNSPEC);
+	strncpy(buf, addr->hostname, buflen);
+	buf[buflen-1] = '\0';
     }
-#endif
 }
 
 int sk_hostname_is_local(char *name)
@@ -217,36 +236,42 @@ int sk_hostname_is_local(char *name)
 int sk_address_is_local(SockAddr addr)
 {
 #ifdef IPV6
-    if (addr->family == AF_INET) {
+    if (addr->family == AF_INET6) {
+	FIXME;  /* someone who can compile for IPV6 had better do this bit */
+    } else
 #endif
+    if (addr->family == AF_INET) {
 	struct in_addr a;
 	a.s_addr = htonl(addr->address);
 	return ipv4_is_loopback(a);
-#ifdef IPV6
     } else {
-	FIXME;  /* someone who can compile for IPV6 had better do this bit */
+	assert(addr->family == AF_UNSPEC);
+	return 0;                      /* we don't know; assume not */
     }
-#endif
 }
 
 int sk_addrtype(SockAddr addr)
 {
-    return (addr->family == AF_INET ? ADDRTYPE_IPV4 : ADDRTYPE_IPV6);
+    return (addr->family == AF_INET ? ADDRTYPE_IPV4 :
+#ifdef IPV6
+	    addr->family == AF_INET6 ? ADDRTYPE_IPV6 :
+#endif
+	    ADDRTYPE_NAME);
 }
 
 void sk_addrcopy(SockAddr addr, char *buf)
 {
+    assert(addr->family != AF_UNSPEC);
 #ifdef IPV6
-    if (addr->family == AF_INET) {
+    if (addr->family == AF_INET6) {
+	memcpy(buf, (char*) addr->ai, 16);
+    } else
 #endif
+    if (addr->family == AF_INET) {
 	struct in_addr a;
 	a.s_addr = htonl(addr->address);
 	memcpy(buf, (char*) &a.s_addr, 4);
-#ifdef IPV6
-    } else {
-	memcpy(buf, (char*) addr->ai, 16);
     }
-#endif
 }
 
 void sk_addr_free(SockAddr addr)
@@ -371,6 +396,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     /*
      * Open socket.
      */
+    assert(addr->family != AF_UNSPEC);
     s = socket(addr->family, SOCK_STREAM, 0);
     ret->s = s;
 
