@@ -520,12 +520,14 @@ struct ssh_portfwd {
     int type;
     unsigned sport, dport;
     char *saddr, *daddr;
+    char *sserv, *dserv;
     struct ssh_rportfwd *remote;
     int addressfamily;
     void *local;
 };
 #define free_portfwd(pf) ( \
-    ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr)) : (void)0 ), sfree(pf) )
+    ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr), \
+	     sfree((pf)->sserv), sfree((pf)->dserv)) : (void)0 ), sfree(pf) )
 
 struct Packet {
     long length;
@@ -3784,8 +3786,10 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    pfrec = snew(struct ssh_portfwd);
 	    pfrec->type = type;
 	    pfrec->saddr = *saddr ? dupstr(saddr) : NULL;
+	    pfrec->sserv = sserv ? dupstr(sports) : NULL;
 	    pfrec->sport = sport;
 	    pfrec->daddr = *host ? dupstr(host) : NULL;
+	    pfrec->dserv = dserv ? dupstr(dports) : NULL;
 	    pfrec->dport = dport;
 	    pfrec->local = NULL;
 	    pfrec->remote = NULL;
@@ -3882,14 +3886,22 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
     for (i = 0; (epf = index234(ssh->portfwds, i)) != NULL; i++)
 	if (epf->status == CREATE) {
 	    char *sportdesc, *dportdesc;
-	    sportdesc = dupprintf("%s%s%d",
+	    sportdesc = dupprintf("%s%s%s%s%d%s",
 				  epf->saddr ? epf->saddr : "",
 				  epf->saddr ? ":" : "",
-				  epf->sport);
+				  epf->sserv ? epf->sserv : "",
+				  epf->sserv ? "(" : "",
+				  epf->sport,
+				  epf->sserv ? ")" : "");
 	    if (epf->type == 'D') {
 		dportdesc = NULL;
 	    } else {
-		dportdesc = dupprintf("%s:%d", epf->daddr, epf->dport);
+		dportdesc = dupprintf("%s:%s%s%d%s",
+				      epf->daddr,
+				      epf->dserv ? epf->dserv : "",
+				      epf->dserv ? "(" : "",
+				      epf->dport,
+				      epf->dserv ? ")" : "");
 	    }
 
 	    if (epf->type == 'L') {
