@@ -171,7 +171,6 @@ static struct utmp utmp_entry;
  * make sense outside a one-pty-per-process setup.
  */
 char **pty_argv;
-int use_pty_argv;
 
 static void pty_close(Pty pty);
 

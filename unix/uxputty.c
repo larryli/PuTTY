@@ -13,6 +13,12 @@
 #include "storage.h"
 
 /*
+ * Stubs to avoid uxpty.c needing to be linked in.
+ */
+const int use_pty_argv = FALSE;
+char **pty_argv;		       /* never used */
+
+/*
  * Clean up and exit.
  */
 void cleanup_exit(int code)

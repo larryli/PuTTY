@@ -253,9 +253,9 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time
-putty    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_ALL uxstore
+putty    : [X] UXTERM uxmisc misc ldisc settings uxsel BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
-puttytel : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NOSSH
+puttytel : [X] UXTERM uxmisc misc ldisc settings uxsel BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC
 
 plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC uxsignal ux_x11
