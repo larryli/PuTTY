@@ -953,6 +953,33 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    back->send (buf, len);
 	}
 	return 0;
+      case WM_KEYUP:
+      case WM_SYSKEYUP:
+	/*
+	 * We handle KEYUP ourselves in order to distinghish left
+	 * and right Alt or Control keys, which Windows won't do
+	 * right if left to itself. See also the special processing
+	 * at the top of TranslateKey.
+	 */
+	{
+            BYTE keystate[256];
+            int ret = GetKeyboardState(keystate);
+            if (ret && wParam == VK_MENU) {
+		if (lParam & 0x1000000) keystate[VK_RMENU] = 0;
+		else keystate[VK_LMENU] = 0;
+                SetKeyboardState (keystate);
+            }
+            if (ret && wParam == VK_CONTROL) {
+		if (lParam & 0x1000000) keystate[VK_RCONTROL] = 0;
+		else keystate[VK_LCONTROL] = 0;
+                SetKeyboardState (keystate);
+            }
+	}
+        /*
+         * We don't return here, in order to allow Windows to do
+         * its own KEYUP processing as well.
+         */
+	break;
       case WM_CHAR:
       case WM_SYSCHAR:
 	/*
@@ -1116,18 +1143,40 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
     unsigned char *p = output;
     BYTE keystate[256];
     int ret, code;
-
-    /*
-     * Prepend ESC if ALT was pressed at the time.
-     */
-    if (lParam & 0x20000000)
-        *p++ = 0x1B;
+    int cancel_alt = FALSE;
 
     /*
      * Get hold of the keyboard state, because we'll need it a few
      * times shortly.
      */
     ret = GetKeyboardState(keystate);
+
+    /* 
+     * Windows does not always want to distinguish left and right
+     * Alt or Control keys. Thus we keep track of them ourselves.
+     * See also the WM_KEYUP handler.
+     */
+    if (wParam == VK_MENU) {
+        if (lParam & 0x1000000) keystate[VK_RMENU] = 0x80;
+        else keystate[VK_LMENU] = 0x80;
+        SetKeyboardState (keystate);
+        return 0;
+    }
+    if (wParam == VK_CONTROL) {
+        if (lParam & 0x1000000) keystate[VK_RCONTROL] = 0x80;
+        else keystate[VK_LCONTROL] = 0x80;
+        SetKeyboardState (keystate);
+        return 0;
+    }
+
+    /*
+     * Prepend ESC, and cancel ALT, if ALT was pressed at the time
+     * and it wasn't AltGr.
+     */
+    if (lParam & 0x20000000 && (keystate[VK_LMENU] & 0x80)) {
+        *p++ = 0x1B;
+        cancel_alt = TRUE;
+    }
 
     /*
      * Shift-PgUp, Shift-PgDn, and Alt-F4 all produce window
@@ -1212,13 +1261,16 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
     }
 
     /*
-     * Before doing Windows charmap translation, remove ALT from
-     * the keymap, since its sole effect should be to prepend ESC,
-     * which we've already done. Note that removal of ALT has to
-     * happen _after_ the above call to SetKeyboardState, or dire
-     * things will befall.
+     * Before doing Windows charmap translation, remove LeftALT
+     * from the keymap, since its sole effect should be to prepend
+     * ESC, which we've already done. Note that removal of LeftALT
+     * has to happen _after_ the above call to SetKeyboardState, or
+     * dire things will befall.
      */
-    keystate[VK_MENU] = keystate[VK_LMENU] = keystate[VK_RMENU] = 0;
+    if (cancel_alt) {
+        keystate[VK_MENU] = keystate[VK_RMENU];
+        keystate[VK_LMENU] = 0;
+    }
 
     /*
      * Attempt the Windows char-map translation.
