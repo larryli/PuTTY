@@ -2067,6 +2067,15 @@ int psftp_main(int argc, char *argv[])
     back = NULL;
 
     /*
+     * If the loaded session provides a hostname, and a hostname has not
+     * otherwise been specified, pop it in `userhost' so that
+     * `psftp -load sessname' is sufficient to start a session.
+     */
+    if (!userhost && cfg.host[0] != '\0') {
+	userhost = dupstr(cfg.host);
+    }
+
+    /*
      * If a user@host string has already been provided, connect to
      * it now.
      */
