@@ -635,7 +635,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Initialise the terminal. (We have to do this _after_
      * creating the window, since the terminal is the first thing
      * which will call schedule_timer(), which will in turn call
-     * timer_change_notify() which will expect hwnd to exist.
+     * timer_change_notify() which will expect hwnd to exist.)
      */
     term = term_init(&cfg, &ucsdata, NULL);
     logctx = log_init(NULL, &cfg);
