@@ -1,4 +1,3 @@
-++ terminal.c.new	Mon Nov 22 15:02:03 1999
 #include <windows.h>
 
 #include <stdio.h>

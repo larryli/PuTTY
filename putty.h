@@ -69,7 +69,7 @@ typedef enum {
     US_NONE = 0, US_KEY = 1, US_DISP = 2, US_BOTH = 3
 } Unscroll_Trigger;
 
-GLOBAL Unscroll_trigger unscroll_event;
+GLOBAL Unscroll_Trigger unscroll_event;
 
 #define WM_NETEVENT  (WM_USER + 1)
 
