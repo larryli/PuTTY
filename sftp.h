@@ -174,3 +174,9 @@ struct fxp_names *fxp_readdir(struct fxp_handle *handle);
  * Free up an fxp_names structure.
  */
 void fxp_free_names(struct fxp_names *names);
+
+/*
+ * Duplicate and free fxp_name structures.
+ */
+struct fxp_name *fxp_dup_name(struct fxp_name *name);
+void fxp_free_name(struct fxp_name *name);

@@ -188,15 +188,15 @@ int sftp_cmd_quit(struct sftp_command *cmd)
  */
 static int sftp_ls_compare(const void *av, const void *bv)
 {
-    const struct fxp_name *a = (const struct fxp_name *) av;
-    const struct fxp_name *b = (const struct fxp_name *) bv;
-    return strcmp(a->filename, b->filename);
+    const struct fxp_name *const *a = (const struct fxp_name *const *) av;
+    const struct fxp_name *const *b = (const struct fxp_name *const *) bv;
+    return strcmp((*a)->filename, (*b)->filename);
 }
 int sftp_cmd_ls(struct sftp_command *cmd)
 {
     struct fxp_handle *dirh;
     struct fxp_names *names;
-    struct fxp_name *ournames;
+    struct fxp_name **ournames;
     int nnames, namesize;
     char *dir, *cdir;
     int i;
@@ -247,9 +247,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	    }
 
 	    for (i = 0; i < names->nnames; i++)
-		ournames[nnames++] = names->names[i];
+		ournames[nnames++] = fxp_dup_name(&names->names[i]);
 
-	    names->nnames = 0;	       /* prevent free_names */
 	    fxp_free_names(names);
 	}
 	fxp_close(dirh);
@@ -263,8 +262,11 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	/*
 	 * And print them.
 	 */
-	for (i = 0; i < nnames; i++)
-	    printf("%s\n", ournames[i].longname);
+	for (i = 0; i < nnames; i++) {
+	    printf("%s\n", ournames[i]->longname);
+	    fxp_free_name(ournames[i]);
+	}
+	sfree(ournames);
     }
 
     sfree(cdir);

@@ -923,3 +923,28 @@ void fxp_free_names(struct fxp_names *names)
     sfree(names->names);
     sfree(names);
 }
+
+/*
+ * Duplicate an fxp_name structure.
+ */
+struct fxp_name *fxp_dup_name(struct fxp_name *name)
+{
+    struct fxp_name *ret;
+    ret = smalloc(sizeof(struct fxp_name));
+    ret->filename = dupstr(name->filename);
+    ret->longname = dupstr(name->longname);
+    ret->attrs = name->attrs;	       /* structure copy */
+    return ret;
+}
+
+/*
+ * Free up an fxp_name structure.
+ */
+void fxp_free_name(struct fxp_name *name)
+{
+    int i;
+
+    sfree(name->filename);
+    sfree(name->longname);
+    sfree(name);
+}
