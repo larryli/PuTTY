@@ -181,7 +181,7 @@ void *enum_settings_start(void)
     struct enumsettings *ret;
     HKEY key;
 
-    if (RegCreateKey(HKEY_CURRENT_USER, puttystr, &key) != ERROR_SUCCESS)
+    if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &key) != ERROR_SUCCESS)
 	return NULL;
 
     ret = smalloc(sizeof(*ret));
@@ -246,8 +246,8 @@ int verify_host_key(char *hostname, int port, char *keytype, char *key)
 
     hostkey_regname(regname, hostname, port, keytype);
 
-    if (RegCreateKey(HKEY_CURRENT_USER, PUTTY_REG_POS "\\SshHostKeys",
-		     &rkey) != ERROR_SUCCESS)
+    if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_POS "\\SshHostKeys",
+		   &rkey) != ERROR_SUCCESS)
 	return 1;		       /* key does not exist in registry */
 
     readlen = len;

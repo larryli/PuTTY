@@ -565,24 +565,23 @@ void get_sesslist(int allocate)
 
     if (allocate) {
 
-	if ((handle = enum_settings_start()) == NULL)
-	    return;
-
 	buflen = bufsize = 0;
 	buffer = NULL;
-	do {
-	    ret = enum_settings_next(handle, otherbuf, sizeof(otherbuf));
-	    if (ret) {
-		int len = strlen(otherbuf) + 1;
-		if (bufsize < buflen + len) {
-		    bufsize = buflen + len + 2048;
-		    buffer = srealloc(buffer, bufsize);
+	if ((handle = enum_settings_start())) {
+	    do {
+		ret = enum_settings_next(handle, otherbuf, sizeof(otherbuf));
+		if (ret) {
+		    int len = strlen(otherbuf) + 1;
+		    if (bufsize < buflen + len) {
+			bufsize = buflen + len + 2048;
+			buffer = srealloc(buffer, bufsize);
+		    }
+		    strcpy(buffer + buflen, otherbuf);
+		    buflen += strlen(buffer + buflen) + 1;
 		}
-		strcpy(buffer + buflen, otherbuf);
-		buflen += strlen(buffer + buflen) + 1;
-	    }
-	} while (ret);
-	enum_settings_finish(handle);
+	    } while (ret);
+	    enum_settings_finish(handle);
+	}
 	buffer = srealloc(buffer, buflen + 1);
 	buffer[buflen] = '\0';
 
