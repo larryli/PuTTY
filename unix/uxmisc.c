@@ -3,12 +3,15 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <pwd.h>
 
 #include "putty.h"
+
+long tickcount_offset = 0;
 
 unsigned long getticks(void)
 {
@@ -19,7 +22,7 @@ unsigned long getticks(void)
      * because we need a decent number of them to fit into a 32-bit
      * word so it can be used for keepalives.
      */
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000 + tickcount_offset;
 }
 
 Filename filename_from_str(const char *str)
