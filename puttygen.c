@@ -549,10 +549,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH,
 		       "Export &OpenSSH key");
-#if 0
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
-#endif
 
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
 		       "&Export");

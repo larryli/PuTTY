@@ -12,10 +12,10 @@
 #include "misc.h"
 
 #define PUT_32BIT(cp, value) do { \
-  (cp)[3] = (value); \
-  (cp)[2] = (value) >> 8; \
-  (cp)[1] = (value) >> 16; \
-  (cp)[0] = (value) >> 24; } while (0)
+  (cp)[3] = (unsigned char)(value); \
+  (cp)[2] = (unsigned char)((value) >> 8); \
+  (cp)[1] = (unsigned char)((value) >> 16); \
+  (cp)[0] = (unsigned char)((value) >> 24); } while (0)
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
@@ -29,6 +29,7 @@ int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase);
 
 int sshcom_encrypted(char *filename, char **comment);
 struct ssh2_userkey *sshcom_read(char *filename, char *passphrase);
+int sshcom_write(char *filename, struct ssh2_userkey *key, char *passphrase);
 
 /*
  * Given a key type, determine whether we know how to import it.
@@ -106,10 +107,8 @@ int export_ssh2(char *filename, int type,
 {
     if (type == SSH_KEYTYPE_OPENSSH)
 	return openssh_write(filename, key, passphrase);
-#if 0
     if (type == SSH_KEYTYPE_SSHCOM)
 	return sshcom_write(filename, key, passphrase);
-#endif
     return 0;
 }
 
@@ -126,7 +125,7 @@ int export_ssh2(char *filename, int type,
 extern int base64_decode_atom(char *atom, unsigned char *out);
 extern int base64_lines(int datalen);
 extern void base64_encode_atom(unsigned char *data, int n, char *out);
-extern void base64_encode(FILE *fp, unsigned char *data, int datalen);
+extern void base64_encode(FILE *fp, unsigned char *data, int datalen, int cpl);
 
 /*
  * Read an ASN.1/BER identifier and length pair.
@@ -854,7 +853,7 @@ int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
 	    fprintf(fp, "%02X", iv[i]);
 	fprintf(fp, "\n\n");
     }
-    base64_encode(fp, outblob, outlen);
+    base64_encode(fp, outblob, outlen, 64);
     fputs(footer, fp);
     fclose(fp);
     ret = 1;
@@ -952,6 +951,8 @@ int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
  *  - if there were more, they'd be MD5(passphrase || first 32),
  *    and so on.
  */
+
+#define SSHCOM_MAGIC_NUMBER 0x3f6ff9eb
 
 struct sshcom_key {
     char comment[256];                 /* allowing any length is overkill */
@@ -1141,6 +1142,24 @@ int sshcom_read_mpint(void *data, int len, struct mpint_pos *ret)
     return len;                        /* ensure further calls fail as well */
 }
 
+static int sshcom_put_mpint(void *target, void *data, int len)
+{
+    unsigned char *d = (unsigned char *)target;
+    unsigned char *i = (unsigned char *)data;
+    int bits = len * 8 - 1;
+
+    while (bits > 0) {
+	if (*i & (1 << (bits & 7)))
+	    break;
+	if (!(bits-- & 7))
+	    i++, len--;
+    }
+
+    PUT_32BIT(d, bits+1);
+    memcpy(d+4, i, len);
+    return len+4;
+}
+
 struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
 {
     struct sshcom_key *key = load_sshcom_key(filename);
@@ -1163,7 +1182,7 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
     /*
      * Check magic number.
      */
-    if (GET_32BIT(key->keyblob) != 0x3f6ff9eb) {
+    if (GET_32BIT(key->keyblob) != SSHCOM_MAGIC_NUMBER) {
         errmsg = "Key does not begin with magic number";
         goto error;
     }
@@ -1368,5 +1387,211 @@ struct ssh2_userkey *sshcom_read(char *filename, char *passphrase)
     sfree(key->keyblob);
     memset(&key, 0, sizeof(key));
     sfree(key);
+    return ret;
+}
+
+int sshcom_write(char *filename, struct ssh2_userkey *key, char *passphrase)
+{
+    unsigned char *pubblob, *privblob;
+    int publen, privlen;
+    unsigned char *outblob;
+    int outlen;
+    struct mpint_pos numbers[6];
+    int nnumbers, initial_zero, pos, lenpos, i;
+    char *type;
+    char *ciphertext;
+    int cipherlen;
+    int ret = 0;
+    FILE *fp;
+
+    /*
+     * Fetch the key blobs.
+     */
+    pubblob = key->alg->public_blob(key->data, &publen);
+    privblob = key->alg->private_blob(key->data, &privlen);
+    outblob = NULL;
+
+    /*
+     * Find the sequence of integers to be encoded into the OpenSSH
+     * key blob, and also decide on the header line.
+     */
+    if (key->alg == &ssh_rsa) {
+        int pos;
+        struct mpint_pos n, e, d, p, q, iqmp;
+
+        pos = 4 + GET_32BIT(pubblob);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &e);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &n);
+        pos = 0;
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &d);
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &p);
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &q);
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &iqmp);
+
+        assert(e.start && iqmp.start); /* can't go wrong */
+
+        numbers[0] = e;
+        numbers[1] = d;
+        numbers[2] = n;
+        numbers[3] = iqmp;
+        numbers[4] = q;
+        numbers[5] = p;
+
+        nnumbers = 6;
+	initial_zero = 0;
+	type = "if-modn{sign{rsa-pkcs1-sha1},encrypt{rsa-pkcs1v2-oaep}}";
+    } else if (key->alg == &ssh_dss) {
+        int pos;
+        struct mpint_pos p, q, g, y, x;
+
+        pos = 4 + GET_32BIT(pubblob);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &p);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &q);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &g);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &y);
+        pos = 0;
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &x);
+
+        assert(y.start && x.start); /* can't go wrong */
+
+        numbers[0] = p;
+        numbers[1] = g;
+        numbers[2] = q;
+        numbers[3] = y;
+        numbers[4] = x;
+
+        nnumbers = 5;
+	initial_zero = 1;
+	type = "dl-modp{sign{dsa-nist-sha1},dh{plain}}";
+    } else {
+        assert(0);                     /* zoinks! */
+    }
+
+    /*
+     * Total size of key blob will be somewhere under 512 plus
+     * combined length of integers. We'll calculate the more
+     * precise size as we construct the blob.
+     */
+    outlen = 512;
+    for (i = 0; i < nnumbers; i++)
+	outlen += 4 + numbers[i].bytes;
+    outblob = smalloc(outlen);
+
+    /*
+     * Create the unencrypted key blob.
+     */
+    pos = 0;
+    PUT_32BIT(outblob+pos, SSHCOM_MAGIC_NUMBER); pos += 4;
+    pos += 4;			       /* length field, fill in later */
+    pos += put_string(outblob+pos, type, strlen(type));
+    {
+	char *ciphertype = passphrase ? "3des-cbc" : "none";
+	pos += put_string(outblob+pos, ciphertype, strlen(ciphertype));
+    }
+    lenpos = pos;		       /* remember this position */
+    pos += 4;			       /* encrypted-blob size */
+    pos += 4;			       /* encrypted-payload size */
+    if (initial_zero) {
+	PUT_32BIT(outblob+pos, 0);
+	pos += 4;
+    }
+    for (i = 0; i < nnumbers; i++)
+	pos += sshcom_put_mpint(outblob+pos,
+				numbers[i].start, numbers[i].bytes);
+    /* Now wrap up the encrypted payload. */
+    PUT_32BIT(outblob+lenpos+4, pos - (lenpos+8));
+    /* Pad encrypted blob to a multiple of cipher block size. */
+    if (passphrase) {
+	int padding = -(pos - (lenpos+4)) & 7;
+	while (padding--)
+	    outblob[pos++] = random_byte();
+    }
+    ciphertext = outblob+lenpos+4;
+    cipherlen = pos - (lenpos+4);
+    assert(!passphrase || cipherlen % 8 == 0);
+    /* Wrap up the encrypted blob string. */
+    PUT_32BIT(outblob+lenpos, cipherlen);
+    /* And finally fill in the total length field. */
+    PUT_32BIT(outblob+4, pos);
+
+    assert(pos < outlen);
+
+    /*
+     * Encrypt the key.
+     */
+    if (passphrase) {
+	/*
+	 * Derive encryption key from passphrase and iv/salt:
+	 * 
+	 *  - let block A equal MD5(passphrase)
+	 *  - let block B equal MD5(passphrase || A)
+	 *  - block C would be MD5(passphrase || A || B) and so on
+	 *  - encryption key is the first N bytes of A || B
+	 */
+	struct MD5Context md5c;
+	unsigned char keybuf[32], iv[8];
+
+	MD5Init(&md5c);
+	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Final(keybuf, &md5c);
+
+	MD5Init(&md5c);
+	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, keybuf, 16);
+	MD5Final(keybuf+16, &md5c);
+
+	/*
+	 * Now decrypt the key blob.
+	 */
+        memset(iv, 0, sizeof(iv));
+	des3_encrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
+
+        memset(&md5c, 0, sizeof(md5c));
+        memset(keybuf, 0, sizeof(keybuf));
+    }
+
+    /*
+     * And save it. We'll use Unix line endings just in case it's
+     * subsequently transferred in binary mode.
+     */
+    fp = fopen(filename, "wb");	       /* ensure Unix line endings */
+    if (!fp)
+	goto error;
+    fputs("---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);
+    fprintf(fp, "Comment: \"");
+    /*
+     * Comment header is broken with backslash-newline if it goes
+     * over 70 chars. Although it's surrounded by quotes, it
+     * _doesn't_ escape backslashes or quotes within the string.
+     * Don't ask me, I didn't design it.
+     */
+    {
+	int slen = 60;		       /* starts at 60 due to "Comment: " */
+	char *c = key->comment;
+	while (strlen(c) > slen) {
+	    fprintf(fp, "%.*s\\\n", slen, c);
+	    c += slen;
+	    slen = 70;		       /* allow 70 chars on subsequent lines */
+	}
+	fprintf(fp, "%s\"\n", c);
+    }
+    base64_encode(fp, outblob, pos, 70);
+    fputs("---- END SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);
+    fclose(fp);
+    ret = 1;
+
+    error:
+    if (outblob) {
+        memset(outblob, 0, outlen);
+        sfree(outblob);
+    }
+    if (privblob) {
+        memset(privblob, 0, privlen);
+        sfree(privblob);
+    }
+    if (pubblob) {
+        memset(pubblob, 0, publen);
+        sfree(pubblob);
+    }
     return ret;
 }

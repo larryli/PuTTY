@@ -973,23 +973,25 @@ void base64_encode_atom(unsigned char *data, int n, char *out)
 	out[3] = '=';
 }
 
-void base64_encode(FILE * fp, unsigned char *data, int datalen)
+void base64_encode(FILE * fp, unsigned char *data, int datalen, int cpl)
 {
     int linelen = 0;
     char out[4];
-    int n;
+    int n, i;
 
     while (datalen > 0) {
-	if (linelen >= 64) {
-	    linelen = 0;
-	    fputc('\n', fp);
-	}
 	n = (datalen < 3 ? datalen : 3);
 	base64_encode_atom(data, n, out);
 	data += n;
 	datalen -= n;
-	fwrite(out, 1, 4, fp);
-	linelen += 4;
+	for (i = 0; i < 4; i++) {
+	    if (linelen >= cpl) {
+		linelen = 0;
+		fputc('\n', fp);
+	    }
+	    fputc(out[i], fp);
+	    linelen++;
+	}
     }
     fputc('\n', fp);
 }
@@ -1105,9 +1107,9 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
     fprintf(fp, "Encryption: %s\n", cipherstr);
     fprintf(fp, "Comment: %s\n", key->comment);
     fprintf(fp, "Public-Lines: %d\n", base64_lines(pub_blob_len));
-    base64_encode(fp, pub_blob, pub_blob_len);
+    base64_encode(fp, pub_blob, pub_blob_len, 64);
     fprintf(fp, "Private-Lines: %d\n", base64_lines(priv_encrypted_len));
-    base64_encode(fp, priv_blob_encrypted, priv_encrypted_len);
+    base64_encode(fp, priv_blob_encrypted, priv_encrypted_len, 64);
     fprintf(fp, "Private-MAC: ");
     for (i = 0; i < 20; i++)
 	fprintf(fp, "%02x", priv_mac[i]);
