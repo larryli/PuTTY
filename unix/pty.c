@@ -1,5 +1,11 @@
+#define _XOPEN_SOURCE
+#include <features.h>
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "putty.h"
 
@@ -9,6 +15,8 @@
 #ifndef TRUE
 #define TRUE 1
 #endif
+
+int pty_master_fd;
 
 static void pty_size(void);
 
@@ -27,7 +35,74 @@ static void c_write(char *buf, int len)
  */
 static char *pty_init(char *host, int port, char **realhost, int nodelay)
 {
-    /* FIXME: do nothing for now */
+    int slavefd;
+    char name[FILENAME_MAX];
+    pid_t pid;
+
+    pty_master_fd = open("/dev/ptmx", O_RDWR);
+
+    if (pty_master_fd < 0) {
+	perror("/dev/ptmx: open");
+	exit(1);
+    }
+
+    if (grantpt(pty_master_fd) < 0) {
+	perror("grantpt");
+	exit(1);
+    }
+    
+    if (unlockpt(pty_master_fd) < 0) {
+	perror("unlockpt");
+	exit(1);
+    }
+
+    name[FILENAME_MAX-1] = '\0';
+    strncpy(name, ptsname(pty_master_fd), FILENAME_MAX-1);
+
+    slavefd = open(name, O_RDWR);
+    if (slavefd < 0) {
+	perror("slave pty: open");
+	return 1;
+    }
+
+    /*
+     * Fork and execute the command.
+     */
+    pid = fork();
+    if (pid < 0) {
+	perror("fork");
+	return 1;
+    }
+
+    if (pid == 0) {
+	int i;
+	/*
+	 * We are the child.
+	 */
+	close(pty_master_fd);
+	close(0);
+	close(1);
+	close(2);
+	fcntl(slavefd, F_SETFD, 0);    /* don't close on exec */
+	dup2(slavefd, 0);
+	dup2(slavefd, 1);
+	dup2(slavefd, 2);
+	setsid();
+	setpgrp();
+	tcsetpgrp(0, getpgrp());
+	/* Close everything _else_, for tidiness. */
+	for (i = 3; i < 1024; i++)
+	    close(i);
+	execl(getenv("SHELL"), getenv("SHELL"), NULL);
+	/*
+	 * If we're here, exec has gone badly foom.
+	 */
+	perror("exec");
+	exit(127);
+    } else {
+	close(slavefd);
+    }
+
     return NULL;
 }
 
@@ -36,7 +111,15 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
  */
 static int pty_send(char *buf, int len)
 {
-    c_write(buf, len);		       /* FIXME: diagnostic thingy */
+    while (len > 0) {
+	int ret = write(pty_master_fd, buf, len);
+	if (ret < 0) {
+	    perror("write pty master");
+	    exit(1);
+	}
+	buf += ret;
+	len -= ret;
+    }
     return 0;
 }
 

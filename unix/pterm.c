@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
@@ -593,6 +596,32 @@ gint timer_func(gpointer data)
     return TRUE;
 }
 
+void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
+{
+    /* struct gui_data *inst = (struct gui_data *)data; */
+    char buf[4096];
+    int ret;
+
+    ret = read(sourcefd, buf, sizeof(buf));
+
+    /*
+     * Clean termination condition is that either ret == 0, or ret
+     * < 0 and errno == EIO. Not sure why the latter, but it seems
+     * to happen. Boo.
+     */
+    if (ret == 0 || (ret < 0 && errno == EIO)) {
+	exit(0);
+    }
+
+    if (ret < 0) {
+	perror("read pty master");
+	exit(1);
+    }
+    if (ret > 0)
+	from_backend(0, buf, ret);
+    term_out();
+}
+
 void destroy(GtkWidget *widget, gpointer data)
 {
     gtk_main_quit();
@@ -793,6 +822,7 @@ void modalfatalbox(char *p, ...)
 int main(int argc, char **argv)
 {
     GtkWidget *window;
+    extern int pty_master_fd;	       /* declared in pty.c */
 
     gtk_init(&argc, &argv);
 
@@ -825,6 +855,7 @@ int main(int argc, char **argv)
     gtk_signal_connect(GTK_OBJECT(inst->area), "expose_event",
 		       GTK_SIGNAL_FUNC(expose_area), inst);
     gtk_timeout_add(20, timer_func, inst);
+    gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK);
 
