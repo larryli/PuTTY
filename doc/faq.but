@@ -550,7 +550,7 @@ to work with them.
 
 If you are using PuTTY version 0.51 or below, you can enable the
 workaround by going to the SSH panel and ticking the box labelled
-\q{Imitate SSH-2 MAC bug}. It's possible that you might have to do
+\q{Imitate SSH2 MAC bug}. It's possible that you might have to do
 this with 0.52 as well, if a buggy server exists that PuTTY doesn't
 know about.
 
