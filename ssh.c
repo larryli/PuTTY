@@ -5892,6 +5892,8 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->do_ssh2_transport_state = NULL;
     ssh->do_ssh2_authconn_state = NULL;
     ssh->mainchan = NULL;
+    ssh->throttled_all = 0;
+    ssh->v1_stdout_throttling = 0;
 
     *backend_handle = ssh;
 
