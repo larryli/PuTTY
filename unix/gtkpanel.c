@@ -225,7 +225,7 @@ static void panels_forall(GtkContainer *container, gboolean include_internals,
 {
     Panels *panels;
     GtkWidget *child;
-    GList *children;
+    GList *children, *next;
 
     g_return_if_fail(container != NULL);
     g_return_if_fail(IS_PANELS(container));
@@ -235,9 +235,19 @@ static void panels_forall(GtkContainer *container, gboolean include_internals,
 
     for (children = panels->children;
          children && (child = children->data);
-         children = children->next)
+         children = next) {
+        /*
+         * We can't wait until after the callback to assign
+         * `children = children->next', because the callback might
+         * be gtk_widget_destroy, which would remove the link
+         * `children' from the list! So instead we must get our
+         * hands on the value of the `next' pointer _before_ the
+         * callback.
+         */
+        next = children->next;
 	if (child)
 	    callback(child, callback_data);
+    }
 }
 
 static GtkType panels_child_type(GtkContainer *container)

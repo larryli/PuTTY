@@ -250,7 +250,7 @@ static void columns_forall(GtkContainer *container, gboolean include_internals,
 {
     Columns *cols;
     ColumnsChild *child;
-    GList *children;
+    GList *children, *next;
 
     g_return_if_fail(container != NULL);
     g_return_if_fail(IS_COLUMNS(container));
@@ -260,9 +260,19 @@ static void columns_forall(GtkContainer *container, gboolean include_internals,
 
     for (children = cols->children;
          children && (child = children->data);
-         children = children->next)
+         children = next) {
+        /*
+         * We can't wait until after the callback to assign
+         * `children = children->next', because the callback might
+         * be gtk_widget_destroy, which would remove the link
+         * `children' from the list! So instead we must get our
+         * hands on the value of the `next' pointer _before_ the
+         * callback.
+         */
+        next = children->next;
 	if (child->widget)
 	    callback(child->widget, callback_data);
+    }
 }
 
 static GtkType columns_child_type(GtkContainer *container)
