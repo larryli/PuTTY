@@ -313,6 +313,8 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     /* Add this to the list of all sockets */
     ret->next = ot.socklist;
     ret->prev = &ot.socklist;
+    if (ret->next != NULL)
+	ret->next->prev = &ret->next;
     ot.socklist = ret;
 
     return (Socket) ret;
@@ -462,9 +464,13 @@ void ot_recv(Actual_Socket s)
 
     if (s->frozen) return;
 
-    while ((o = OTRcv(s->ep, buf, sizeof(buf), &flags)) != kOTNoDataErr) {
-	plug_receive(s->plug, 0, buf, sizeof(buf));
-    }
+    do {
+	o = OTRcv(s->ep, buf, sizeof(buf), &flags);
+	if (o > 0)
+	    plug_receive(s->plug, 0, buf, sizeof(buf));
+	if (o < 0 && o != kOTNoDataErr)
+	    plug_closing(s->plug, NULL, 0, 0); /* XXX Error msg */
+    } while (o > 0);
 }
 
 

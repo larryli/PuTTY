@@ -504,7 +504,8 @@ Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
     /* Add this to the list of all sockets */
     ret->next = mactcp.socklist;
     ret->prev = &mactcp.socklist;
-    ret->next->prev = &ret->next;
+    if (ret->next != NULL)
+	ret->next->prev = &ret->next;
     mactcp.socklist = ret;
 
     return (Socket)ret;
