@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.30 2002/07/09 11:34:10 jacob Exp $
+\versionid $Id: faq.but,v 1.31 2002/08/09 09:11:09 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -795,6 +795,16 @@ all. For this reason we now believe PuTTY's DSA implementation is
 probably OK. However, if you have the choice, we still recommend you
 use RSA instead.
 
+\S{faq-virtuallock}{Question} Couldn't Pageant use \c{VirtualLock()}
+to stop private keys being written to disk?
+
+Unfortunately not. The \c{VirtualLock()} function in the Windows API
+doesn't do a proper job: it may prevent small pieces of a process's
+memory from being paged to disk while the process is running, but it
+doesn't stop the process's memory as a whole from being swapped
+completely out to disk when the process is long-term inactive. And
+Pageant spends most of its time inactive.
+
 \H{faq-admin} Administrative questions
 
 \S{faq-domain}{Question} Would you like me to register you a nicer
@@ -891,6 +901,15 @@ find anything then we'll just distribute the money among the
 developers. If you want to be sure your donation is going towards
 something worthwhile, ask us first. If you don't like these terms,
 feel perfectly free not to donate. We don't mind.
+
+\H{faq-misc} Miscellaneous questions
+
+\S{faq-openssh}{Question} Is PuTTY a port of OpenSSH, or based on
+OpenSSH?
+
+No, it isn't. PuTTY is almost completely composed of code written
+from scratch for PuTTY. The only code we share with OpenSSH is the
+detector for SSH1 CRC compensation attacks, written by CORE SDI S.A.
 
 \S{faq-sillyputty}{Question} Where can I buy silly putty?
 
