@@ -592,11 +592,13 @@ static void check_selection(Terminal *term, pos from, pos to)
 static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 {
     unsigned long *line, *line2;
-    int i, seltop;
+    int i, seltop, olddisptop, shift;
 
     if (topline != 0 || term->alt_which != 0)
 	sb = FALSE;
 
+    olddisptop = term->disptop;
+    shift = lines;
     if (lines < 0) {
 	while (lines < 0) {
 	    line = delpos234(term->screen, botline);
@@ -705,6 +707,11 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	    lines--;
 	}
     }
+#ifdef OPTIMISE_SCROLL
+    shift += term->disptop - olddisptop;
+    if (shift < term->rows && shift > -term->rows && shift != 0)
+	scroll_display(term, topline, botline, shift);
+#endif /* OPTIMISE_SCROLL */
 }
 
 #ifdef OPTIMISE_SCROLL
@@ -722,10 +729,15 @@ static void scroll_display(Terminal *term, int topline, int botline, int lines)
     size = end - start - distance;
     if (lines > 0) {
 	memmove(start, start + distance, size * TSIZE);
+	if (term->dispcurs >= start + distance &&
+	    term->dispcurs <= start + distance + size)
+	    term->dispcurs -= distance;
 	for (i = 0; i < distance; i++)
 	    (start + size)[i] |= ATTR_INVALID;
     } else {
 	memmove(start + distance, start, size * TSIZE);
+	if (term->dispcurs >= start && term->dispcurs <= start + size)
+	    term->dispcurs += distance;
 	for (i = 0; i < distance; i++)
 	    start[i] |= ATTR_INVALID;
     }
