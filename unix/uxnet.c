@@ -209,6 +209,9 @@ SockAddr sk_nonamelookup(const char *host)
     ret->family = AF_UNSPEC;
     strncpy(ret->hostname, host, lenof(ret->hostname));
     ret->hostname[lenof(ret->hostname)-1] = '\0';
+#ifndef NO_IPV6
+    ret->ai = NULL;
+#endif
     return ret;
 }
 
