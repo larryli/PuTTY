@@ -506,6 +506,6 @@ print
 "FORCE:\n".
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c version.c\n".
 "clean:\n".
-"\trm -f *.o *.exe\n".
+"\trm -f *.o". (join "", map { " $_" } &prognames("X")) . "\n".
 "\n";
 select STDOUT; close OUT;
