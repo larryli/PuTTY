@@ -208,13 +208,15 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 		if ( (h = gethostbyname(host)) )
 		    ret->family = AF_INET;
 	    }
-	    if (ret->family == 0)
+	    if (ret->family == 0) {
 		ret->error = (h_errno == HOST_NOT_FOUND ||
 			      h_errno == NO_DATA ||
 			      h_errno == NO_ADDRESS ? "Host does not exist" :
 			      h_errno == TRY_AGAIN ?
 			      "Temporary name service failure" :
 			      "gethostbyname: unknown error");
+		return ret;
+	    }
 	}
 
 #ifdef IPV6
