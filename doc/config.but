@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.30 2002/03/27 21:09:16 simon Exp $
+\versionid $Id: config.but,v 1.31 2002/04/03 18:24:59 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1028,6 +1028,11 @@ line-drawing characters, you can select \q{CP437}.
 the server is interpreted as being in the UTF-8 encoding of Unicode.
 If you select \q{UTF-8} as a character set you can use this mode.
 Not all server-side applications will support it.
+
+If you need support for a numeric code page which is not listed in
+the drop-down list, such as code page 866, then you should be able
+to enter its name manually (\c{CP866} for example) in the list box
+and get the right result.
 
 \S{config-cyr} \q{Caps Lock acts as Cyrillic switch}
 
