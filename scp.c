@@ -435,6 +435,12 @@ static void ssh_scp_init(void)
 	select_result((WPARAM) scp_ssh_socket, (LPARAM) FD_READ);
     }
     using_sftp = !ssh_fallback_cmd(backhandle);
+    if (verbose) {
+	if (using_sftp)
+	    tell_user(stderr, "Using SFTP");
+	else
+	    tell_user(stderr, "Using SCP1");
+    }
 }
 
 /*
