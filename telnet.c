@@ -226,9 +226,14 @@ static void c_write1(Telnet telnet, int c)
 static void log_option(Telnet telnet, char *sender, int cmd, int option)
 {
     char buf[50];
+    /*
+     * The strange-looking "<?""?>" below is there to avoid a
+     * trigraph - a double question mark followed by > maps to a
+     * closing brace character!
+     */
     sprintf(buf, "%s:\t%s %s", sender,
 	    (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
-	     cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<??>"),
+	     cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<?""?>"),
 	    telopt(option));
     logevent(telnet->frontend, buf);
 }
