@@ -1,5 +1,5 @@
 This is the README for the source archive of PuTTY, a free Win32
-Telnet and SSH client.
+and Unix Telnet and SSH client.
 
 If you want to rebuild PuTTY from source, we provide a variety of
 Makefiles and equivalents. (If you have fetched the source from CVS,
@@ -31,8 +31,7 @@ For building on Windows:
    Makefile.cyg' to build all the PuTTY binaries. Note that by
    default the Pageant WinNT security features and the multiple
    monitor support are excluded from the Cygwin build, since at the
-   time of writing this Cygwin doesn't include the necessary
-   headers.
+   time of writing Cygwin doesn't include the necessary headers.
 
  - Makefile.lcc is for lcc-win32. Type `make -f Makefile.lcc'. (You
    will probably need to specify COMPAT=-DNO_MULTIMON.)
@@ -46,6 +45,9 @@ For building on Unix:
    Makefile.gtk'. Note that Unix PuTTY has mostly only been tested
    on Linux so far; portability problems such as BSD-style ptys or
    different header file requirements are expected.
+
+   For the graphical utilities, Gtk+-1.2 is required. Gtk+-2.0 is not
+   yet supported.
 
    There is an `install' target; note that by default it tries to
    install `man' pages, which need to be built using Halibut first --
