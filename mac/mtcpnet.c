@@ -187,10 +187,13 @@ static struct {
     Handle dnr_handle;
     int initialised;
     short refnum;
+    ProcessSerialNumber self;
     Actual_Socket socklist;
 } mactcp;
 
 static pascal void mactcp_lookupdone(struct hostInfo *hi, char *cookie);
+static pascal void mactcp_asr(StreamPtr, unsigned short, Ptr, unsigned short,
+			      struct ICMPReport *);
 static Plug mactcp_plug(Socket, Plug);
 static void mactcp_flush(Socket);
 static void mactcp_close(Socket);
@@ -365,6 +368,8 @@ Socket sk_register(void *sock, Plug plug)
     fatalbox("sk_register");
 }
 
+static TCPNotifyUPP mactcp_asr_upp;
+
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, Plug plug)
 {
@@ -424,11 +429,14 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
     buflen = upb.csParam.mtu.mtuSize * 4 + 1024;
     if (buflen < 4096) buflen = 4096;
+    if (mactcp_asr_upp == NULL)
+	mactcp_asr_upp = NewTCPNotifyUPP(&mactcp_asr);
+    GetCurrentProcess(&mactcp.self);
     pb.ioCRefNum = mactcp.refnum;
     pb.csCode = TCPCreate;
     pb.csParam.create.rcvBuff = smalloc(buflen);
     pb.csParam.create.rcvBuffLen = buflen;
-    pb.csParam.create.notifyProc = NULL;
+    pb.csParam.create.notifyProc = mactcp_asr_upp;
     pb.csParam.create.userDataPtr = (Ptr)ret;
     ret->err = PBControlSync((ParmBlkPtr)&pb);
     if (ret->err != noErr) return (Socket)ret;
@@ -548,6 +556,14 @@ static int mactcp_write_oob(Socket sock, char *buf, int len)
     fatalbox("mactcp_write_oob");
 }
 
+static pascal void mactcp_asr(StreamPtr str, unsigned short event, Ptr cookie, 
+			      unsigned short termin_reason,
+			      struct ICMPReport *icmp)
+{
+
+    WakeUpProcess(&mactcp.self);
+}
+			      
 /*
  * Called from our event loop if there's work to do.
  */
