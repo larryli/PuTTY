@@ -1,7 +1,3 @@
-#include <stdarg.h> /* FIXME */
-#include <windows.h> /* FIXME */
-#include "putty.h" /* FIXME */
-
 /*
  * SHA1 hash algorithm. Used in SSH2 as a MAC, and the transform is
  * also used as a `stirring' function for the PuTTY random number
@@ -181,11 +177,6 @@ static void sha1_key(SHA_State *s1, SHA_State *s2,
                      unsigned char *key, int len) {
     unsigned char foo[64];
     int i;
-    {int j;
-        debug(("Key supplied is:\r\n"));
-        for (j=0; j<len; j++) debug(("  %02X", key[j]));
-        debug(("\r\n"));
-    }
 
     memset(foo, 0x36, 64);
     for (i = 0; i < len && i < 64; i++)
@@ -231,32 +222,12 @@ static void sha1_do_hmac(SHA_State *s1, SHA_State *s2,
 }
 
 static void sha1_generate(unsigned char *blk, int len, unsigned long seq) {
-    {int i;
-        debug(("Gen HMAC on block len=%d seq=%d:\r\n", len, seq));
-        for (i=0; i<len; i++) debug(("  %02X", blk[i]));
-        debug(("\r\n"));
-    }
     sha1_do_hmac(&sha1_cs_mac_s1, &sha1_cs_mac_s2, blk, len, seq, blk+len);
-    {int i;
-        debug(("We compute HMAC as:\r\n"));
-        for (i=0; i<20; i++) debug(("  %02X", blk[len+i]));
-        debug(("\r\n"));
-    }
 }
 
 static int sha1_verify(unsigned char *blk, int len, unsigned long seq) {
     unsigned char correct[20];
-    {int i;
-        debug(("HMAC on block len=%d seq=%d:\r\n", len, seq));
-        for (i=0; i<len; i++) debug(("  %02X", blk[i]));
-        debug(("\r\n"));
-    }
     sha1_do_hmac(&sha1_sc_mac_s1, &sha1_sc_mac_s2, blk, len, seq, correct);
-    {int i;
-        debug(("We compute HMAC as:\r\n"));
-        for (i=0; i<20; i++) debug(("  %02X", correct[i]));
-        debug(("\r\n"));
-    }
     return !memcmp(correct, blk+len, 20);
 }
 

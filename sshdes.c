@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h> /* FIXME */
 #include <stdarg.h> /* FIXME */
 #include <windows.h> /* FIXME */
 #include "putty.h" /* FIXME */
@@ -767,6 +768,18 @@ static void des3_ssh2_encrypt_blk(unsigned char *blk, int len) {
 
 static void des3_ssh2_decrypt_blk(unsigned char *blk, int len) {
     des_cbc3_decrypt(blk, blk, len, sckeys);
+}
+
+void des3_decrypt_pubkey(unsigned char *key,
+                         unsigned char *blk, int len) {
+    DESContext ourkeys[3];
+    des_key_setup(GET_32BIT_MSB_FIRST(key),
+                  GET_32BIT_MSB_FIRST(key+4), &ourkeys[0]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key+8),
+                  GET_32BIT_MSB_FIRST(key+12), &ourkeys[1]);
+    des_key_setup(GET_32BIT_MSB_FIRST(key),
+                  GET_32BIT_MSB_FIRST(key+4), &ourkeys[2]);
+    des_3cbc_decrypt(blk, blk, len, ourkeys);
 }
 
 struct ssh_cipher ssh_3des_ssh2 = {

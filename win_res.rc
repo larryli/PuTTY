@@ -236,6 +236,12 @@ BEGIN
     
     
     AUTOCHECKBOX "Attempt TIS authentication", IDC3_AUTHTIS, 3, 55, 162, 8
+    
+    
+    LTEXT "Public key file:", IDC3_PKSTATIC, 3, 75, 119, 8
+    EDITTEXT IDC3_PKEDIT,  3, 83, 119, 12, ES_AUTOHSCROLL
+    
+    PUSHBUTTON "C&hange...", IDC3_PKBUTTON,  129, 83, 35, 12
 END
 
 IDD_PANEL4 DIALOG DISCARDABLE 6, 30, 168, 163

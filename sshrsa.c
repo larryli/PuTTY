@@ -39,47 +39,33 @@ static void bndebug(char *name, Bignum b) {
 #include "ssh.h"
 
 int makekey(unsigned char *data, struct RSAKey *result,
-	    unsigned char **keystr) {
+	    unsigned char **keystr, int order) {
     unsigned char *p = data;
-    Bignum bn[2];
-    int i, j;
-    int w, b;
+    int i;
 
     result->bits = 0;
     for (i=0; i<4; i++)
 	result->bits = (result->bits << 8) + *p++;
 
-    for (j=0; j<2; j++) {
+    /*
+     * order=0 means exponent then modulus (the keys sent by the
+     * server). order=1 means modulus then exponent (the keys
+     * stored in a keyfile).
+     */
 
-	w = 0;
-	for (i=0; i<2; i++)
-	    w = (w << 8) + *p++;
-
-	result->bytes = b = (w+7)/8;   /* bits -> bytes */
-	w = (w+15)/16;		       /* bits -> words */
-
-	bn[j] = newbn(w);
-
-	if (keystr) *keystr = p;       /* point at key string, second time */
-
-	for (i=1; i<=w; i++)
-	    bn[j][i] = 0;
-	for (i=b; i-- ;) {
-	    unsigned char byte = *p++;
-	    if (i & 1)
-		bn[j][1+i/2] |= byte<<8;
-	    else
-		bn[j][1+i/2] |= byte;
-	}
-
-	debug(bn[j]);
-
-    }
-
-    result->exponent = bn[0];
-    result->modulus = bn[1];
+    if (order == 0)
+        p += ssh1_read_bignum(p, &result->exponent);
+    result->bytes = (((p[0] << 8) + p[1]) + 7) / 8;
+    if (keystr) *keystr = p+2;
+    p += ssh1_read_bignum(p, &result->modulus);
+    if (order == 1)
+        p += ssh1_read_bignum(p, &result->exponent);
 
     return p - data;
+}
+
+int makeprivate(unsigned char *data, struct RSAKey *result) {
+    return ssh1_read_bignum(data, &result->private_exponent);
 }
 
 void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
@@ -134,6 +120,13 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
 
     freebn(b1);
     freebn(b2);
+}
+
+Bignum rsadecrypt(Bignum input, struct RSAKey *key) {
+    Bignum ret;
+    ret = newbn(key->modulus[0]);
+    modpow(input, key->private_exponent, key->modulus, ret);
+    return ret;
 }
 
 int rsastr_len(struct RSAKey *key) {

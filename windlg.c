@@ -152,6 +152,7 @@ static void save_settings (char *section, int do_host) {
     wpps (sesskey, "Cipher", cfg.cipher == CIPHER_BLOWFISH ? "blowfish" :
                              cfg.cipher == CIPHER_DES ? "des" : "3des");
     wppi (sesskey, "AuthTIS", cfg.try_tis_auth);
+    wpps (sesskey, "PublicKeyFile", cfg.keyfile);
     wppi (sesskey, "RFCEnviron", cfg.rfc_environ);
     wppi (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
     wppi (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
@@ -293,6 +294,7 @@ static void load_settings (char *section, int do_host) {
 	    cfg.cipher = CIPHER_3DES;
     }
     gppi (sesskey, "AuthTIS", 0, &cfg.try_tis_auth);
+    gpps (sesskey, "PublicKeyFile", "", cfg.keyfile, sizeof(cfg.keyfile));
     gppi (sesskey, "RFCEnviron", 0, &cfg.rfc_environ);
     gppi (sesskey, "BackspaceIsDelete", 1, &cfg.bksp_is_delete);
     gppi (sesskey, "RXVTHomeEnd", 0, &cfg.rxvt_homeend);
@@ -995,6 +997,9 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 
 static int CALLBACK SshProc (HWND hwnd, UINT msg,
 			     WPARAM wParam, LPARAM lParam) {
+    OPENFILENAME of;
+    char filename[sizeof(cfg.keyfile)];
+
     switch (msg) {
       case WM_INITDIALOG:
 	SetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype);
@@ -1006,6 +1011,7 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 
 			  IDC3_CIPHER3DES);
 	CheckDlgButton (hwnd, IDC3_AUTHTIS, cfg.try_tis_auth);
+	SetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -1041,6 +1047,36 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.try_tis_auth = IsDlgButtonChecked (hwnd, IDC3_AUTHTIS);
+	    break;
+	  case IDC3_PKEDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+		GetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile,
+				sizeof(cfg.keyfile)-1);
+	    break;
+	  case IDC3_PKBUTTON:
+            /*
+             * FIXME: this crashes. Find out why.
+             */
+            memset(&of, 0, sizeof(of));
+#ifdef OPENFILENAME_SIZE_VERSION_400
+            of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
+#else
+            of.lStructSize = sizeof(of);
+#endif
+            of.hwndOwner = hwnd;
+            of.lpstrFilter = "All Files\0*\0\0\0";
+            of.lpstrCustomFilter = NULL;
+            of.nFilterIndex = 1;
+            of.lpstrFile = filename; strcpy(filename, cfg.keyfile);
+            of.nMaxFile = sizeof(filename);
+            of.lpstrFileTitle = NULL;
+            of.lpstrInitialDir = NULL;
+            of.lpstrTitle = "Select Public Key File";
+            of.Flags = 0;
+            if (GetOpenFileName(&of)) {
+                strcpy(cfg.keyfile, filename);
+                SetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile);
+            }
 	    break;
 	}
 	break;

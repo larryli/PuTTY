@@ -58,7 +58,7 @@ MOBJS = misc.$(OBJ) version.$(OBJ)
 ##-- objects putty pscp
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
-OBJS3 = sshbn.$(OBJ)
+OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ)
 ##-- resources putty
 PRESRC = win_res.$(RES)
 ##-- resources puttytel
@@ -144,6 +144,7 @@ sshblowf.$(OBJ): sshblowf.c ssh.h
 sshdh.$(OBJ): sshdh.c ssh.h
 sshdss.$(OBJ): sshdss.c ssh.h
 sshbn.$(OBJ): sshbn.c ssh.h
+sshpubk.$(OBJ): sshpubk.c ssh.h
 scp.$(OBJ): scp.c putty.h scp.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c
