@@ -642,15 +642,17 @@ void *next234(enum234 *e) {
  * Test code for the 2-3-4 tree. This code maintains an alternative
  * representation of the data in the tree, in an array (using the
  * obvious and slow insert and delete functions). After each tree
- * operation, the tree_valid() function is called, which ensures
- * all the tree properties are preserved (node->child->parent
- * always equals node; number of kids == number of elements + 1;
- * all tree nodes are distinct; ordering property between elements
- * of a node and elements of its children is preserved) and also
- * ensures the list represented by the tree is the same list it
- * should be. (This last check also verifies the ordering
- * properties, because the `same list it should be' is by
- * definition correctly ordered.)
+ * operation, the verify() function is called, which ensures all
+ * the tree properties are preserved (node->child->parent always
+ * equals node; number of kids == 0 or number of elements + 1;
+ * ordering property between elements of a node and elements of its
+ * children is preserved; tree has the same depth everywhere; every
+ * node has at least one element) and also ensures the list
+ * represented by the tree is the same list it should be. (This
+ * last check also verifies the ordering properties, because the
+ * `same list it should be' is by definition correctly ordered. It
+ * also ensures all nodes are distinct, because the enum functions
+ * would get caught in a loop if not.)
  */
 
 #include <stdarg.h>
