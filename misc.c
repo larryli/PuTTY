@@ -334,6 +334,7 @@ void dprintf(char *fmt, ...) {
 void debug_memdump (void *buf, int len, int L) {
     int i;
     unsigned char *p = buf;
+    char foo[17];
     if (L) {
 	int delta;
         dprintf ("\t%d (0x%x) bytes:\n", len, len);
@@ -342,20 +343,25 @@ void debug_memdump (void *buf, int len, int L) {
 	len += delta;
     }
     for (; 0 < len; p += 16, len -= 16) {
-	dputs ("\t");
-	if (L) dprintf ("%p:  ", p);
+	dputs ("  ");
+	if (L) dprintf ("%p: ", p);
+	strcpy(foo, "................");   /* sixteen dots */
 	for (i = 0; i < 16 && i < len; ++i) {
 	    if (&p[i] < (unsigned char *) buf) {
 		dputs ("   "); /* 3 spaces */
+		foo[i] = ' ';
 	    } else {
 		dprintf (
 		    "%c%02.2x",
 		    &p[i] != (unsigned char *) buf && i % 4 ? '.' : ' ',
 		    p[i]
 		);
+		if (p[i] >= ' ' && p[i] <= '~')
+		    foo[i] = (char)p[i];
 	    }
 	}
-	dputs ("\n");
+	foo[i] = '\0';
+	dprintf("%*s%s\n", (16-i)*3+2, "", foo);
     }
 }
 

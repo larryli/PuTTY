@@ -15,6 +15,9 @@
 #define TRUE 1
 #endif
 
+/* uncomment this for packet level debugging */
+/* #define DUMP_PACKETS */
+
 #define logevent(s) { logevent(s); \
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       { fprintf(stderr, "%s\n", s); fflush(stderr); } }
@@ -487,11 +490,9 @@ next_packet:
 
     if (cipher)
 	cipher->decrypt(pktin.data, st->biglen);
-#if 0
-    debug(("Got packet len=%d pad=%d\r\n", st->len, st->pad));
-    for (st->i = 0; st->i < st->biglen; st->i++)
-        debug(("  %02x", (unsigned char)pktin.data[st->i]));
-    debug(("\r\n"));
+#ifdef DUMP_PACKETS
+    debug(("Got packet len=%d pad=%d\n", st->len, st->pad));
+    dmemdump(pktin.data, st->biglen);
 #endif
 
     st->realcrc = crc32(pktin.data, st->biglen-4);
@@ -506,14 +507,9 @@ next_packet:
     if (ssh1_compressing) {
 	unsigned char *decompblk;
 	int decomplen;
-#if 0
-        {
-            int i;
-            debug(("Packet payload pre-decompression:\n"));
-            for (i = -1; i < pktin.length; i++)
-                debug(("  %02x", (unsigned char)pktin.body[i]));
-            debug(("\r\n"));
-        }
+#ifdef DUMP_PACKETS
+	debug(("Packet payload pre-decompression:\n"));
+	dmemdump(pktin.body-1, pktin.length+1);
 #endif
 	zlib_decompress_block(pktin.body-1, pktin.length+1,
 			      &decompblk, &decomplen);
@@ -529,14 +525,9 @@ next_packet:
 	memcpy(pktin.body-1, decompblk, decomplen);
 	sfree(decompblk);
 	pktin.length = decomplen-1;
-#if 0
-        {
-            int i;
-            debug(("Packet payload post-decompression:\n"));
-            for (i = -1; i < pktin.length; i++)
-                debug(("  %02x", (unsigned char)pktin.body[i]));
-            debug(("\r\n"));
-        }
+#ifdef DUMP_PACKETS
+	debug(("Packet payload post-decompression:\n"));
+	dmemdump(pktin.body-1, pktin.length+1);
 #endif
     }
 
@@ -672,11 +663,9 @@ next_packet:
         sccipher->decrypt(pktin.data + st->cipherblk,
                           st->packetlen - st->cipherblk);
 
-#if 0
-    debug(("Got packet len=%d pad=%d\r\n", st->len, st->pad));
-    for (st->i = 0; st->i < st->packetlen; st->i++)
-        debug(("  %02x", (unsigned char)pktin.data[st->i]));
-    debug(("\r\n"));
+#ifdef DUMP_PACKETS
+    debug(("Got packet len=%d pad=%d\n", st->len, st->pad));
+    dmemdump(pktin.data, st->packetlen);
 #endif
 
     /*
@@ -705,11 +694,9 @@ next_packet:
 	    }
 	    pktin.length = 5 + newlen;
 	    memcpy(pktin.data+5, newpayload, newlen);
-#if 0
-	    debug(("Post-decompression payload:\r\n"));
-	    for (st->i = 0; st->i < newlen; st->i++)
-		debug(("  %02x", (unsigned char)pktin.data[5+st->i]));
-	    debug(("\r\n"));
+#ifdef DUMP_PACKETS
+	    debug(("Post-decompression payload:\n"));
+	    dmemdump(pktin.data+5, newlen);
 #endif
 
 	    sfree(newpayload);
@@ -783,11 +770,9 @@ static int s_wrpkt_prepare(void) {
 
     pktout.body[-1] = pktout.type;
 
-#if 0
+#ifdef DUMP_PACKETS
     debug(("Packet payload pre-compression:\n"));
-    for (i = -1; i < pktout.length; i++)
-        debug(("  %02x", (unsigned char)pktout.body[i]));
-    debug(("\r\n"));
+    dmemdump(pktout.body-1, pktout.length+1);
 #endif
 
     if (ssh1_compressing) {
@@ -798,11 +783,9 @@ static int s_wrpkt_prepare(void) {
 	ssh1_pktout_size(complen-1);
 	memcpy(pktout.body-1, compblk, complen);
 	sfree(compblk);
-#if 0
+#ifdef DUMP_PACKETS
 	debug(("Packet payload post-compression:\n"));
-	for (i = -1; i < pktout.length; i++)
-	    debug(("  %02x", (unsigned char)pktout.body[i]));
-	debug(("\r\n"));
+	dmemdump(pktout.body-1, pktout.length+1);
 #endif
     }
 
@@ -816,11 +799,9 @@ static int s_wrpkt_prepare(void) {
     PUT_32BIT(pktout.data+biglen, crc);
     PUT_32BIT(pktout.data, len);
 
-#if 0
-    debug(("Sending packet len=%d\r\n", biglen+4));
-    for (i = 0; i < biglen+4; i++)
-        debug(("  %02x", (unsigned char)pktout.data[i]));
-    debug(("\r\n"));
+#ifdef DUMP_PACKETS
+    debug(("Sending packet len=%d\n", biglen+4));
+    dmemdump(pktout.data, biglen+4);
 #endif
     if (cipher)
 	cipher->encrypt(pktout.data+4, biglen);
@@ -1058,11 +1039,9 @@ static int ssh2_pkt_construct(void) {
     /*
      * Compress packet payload.
      */
-#if 0
-    debug(("Pre-compression payload:\r\n"));
-    for (i = 5; i < pktout.length; i++)
-	debug(("  %02x", (unsigned char)pktout.data[i]));
-    debug(("\r\n"));
+#ifdef DUMP_PACKETS
+    debug(("Pre-compression payload:\n"));
+    dmemdump(pktout.data+5, pktout.length-5);
 #endif
     {
 	unsigned char *newpayload;
@@ -1094,11 +1073,9 @@ static int ssh2_pkt_construct(void) {
                         outgoing_sequence);
     outgoing_sequence++;               /* whether or not we MACed */
 
-#if 0
-    debug(("Sending packet len=%d\r\n", pktout.length+padding));
-    for (i = 0; i < pktout.length+padding; i++)
-        debug(("  %02x", (unsigned char)pktout.data[i]));
-    debug(("\r\n"));
+#ifdef DUMP_PACKETS
+    debug(("Sending packet len=%d\n", pktout.length+padding));
+    dmemdump(pktout.data, pktout.length+padding);
 #endif
 
     if (cscipher)
@@ -1156,7 +1133,7 @@ void bndebug(char *string, Bignum b) {
     debug(("%s", string));
     for (i = 0; i < len; i++)
         debug((" %02x", p[i]));
-    debug(("\r\n"));
+    debug(("\n"));
     sfree(p);
 }
 #endif
@@ -2782,10 +2759,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     dh_cleanup();
 
 #if 0
-    debug(("Exchange hash is:\r\n"));
-    for (i = 0; i < 20; i++)
-        debug((" %02x", exchange_hash[i]));
-    debug(("\r\n"));
+    debug(("Exchange hash is:\n"));
+    dmemdump(exchange_hash, 20);
 #endif
 
     hkey = hostkey->newkey(hostkeydata, hostkeylen);

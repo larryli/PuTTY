@@ -1095,11 +1095,11 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
             if (mapname[cds->cbData - 1] != '\0')
                 return 0;              /* failure to be ASCIZ! */
 #ifdef DEBUG_IPC
-            debug(("mapname is :%s:\r\n", mapname));
+            debug(("mapname is :%s:\n", mapname));
 #endif
             filemap = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, mapname);
 #ifdef DEBUG_IPC
-            debug(("filemap is %p\r\n", filemap));
+            debug(("filemap is %p\n", filemap));
 #endif
             if (filemap != NULL && filemap != INVALID_HANDLE_VALUE) {
                 int rc;
@@ -1108,7 +1108,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                     if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
                                             GetCurrentProcessId())) == NULL) {
 #ifdef DEBUG_IPC
-                        debug(("couldn't get handle for process\r\n"));
+                        debug(("couldn't get handle for process\n"));
 #endif
                         return 0;
                     }
@@ -1117,7 +1117,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                                         &procowner, NULL, NULL, NULL,
                                         &psd2) != ERROR_SUCCESS) {
 #ifdef DEBUG_IPC
-                        debug(("couldn't get owner info for process\r\n"));
+                        debug(("couldn't get owner info for process\n"));
 #endif
                         CloseHandle(proc);
                         return 0;          /* unable to get security info */
@@ -1128,30 +1128,30 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                                               &mapowner, NULL, NULL, NULL,
                                               &psd1) != ERROR_SUCCESS)) {
 #ifdef DEBUG_IPC
-                        debug(("couldn't get owner info for filemap: %d\r\n", rc));
+                        debug(("couldn't get owner info for filemap: %d\n", rc));
 #endif
                         return 0;
                     }
 #ifdef DEBUG_IPC
-                    debug(("got security stuff\r\n"));
+                    debug(("got security stuff\n"));
 #endif
                     if (!EqualSid(mapowner, procowner))
                         return 0;          /* security ID mismatch! */
 #ifdef DEBUG_IPC
-                    debug(("security stuff matched\r\n"));
+                    debug(("security stuff matched\n"));
 #endif
                     LocalFree(psd1);
                     LocalFree(psd2);
                 } else {
 #ifdef DEBUG_IPC
-                    debug(("security APIs not present\r\n"));
+                    debug(("security APIs not present\n"));
 #endif
                 }
 #endif
                 p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
 #ifdef DEBUG_IPC
-                debug(("p is %p\r\n", p));
-                {int i; for(i=0;i<5;i++)debug(("p[%d]=%02x\r\n", i, ((unsigned char *)p)[i]));}
+                debug(("p is %p\n", p));
+                {int i; for(i=0;i<5;i++)debug(("p[%d]=%02x\n", i, ((unsigned char *)p)[i]));}
 #endif
                 answer_msg(p);
                 ret = 1;
