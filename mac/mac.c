@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.52 2003/02/27 23:34:59 ben Exp $ */
+/* $Id: mac.c,v 1.53 2003/03/01 15:12:03 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -68,6 +68,7 @@ Session *sesslist;
 static int cold = 1;
 static int borednow = FALSE;
 struct mac_gestalts mac_gestalts;
+UInt32 sleeptime;
 
 static void mac_startup(void);
 static void mac_eventloop(void);
@@ -244,16 +245,26 @@ static void mac_eventloop(void) {
     RgnHandle cursrgn;
 
     cursrgn = NewRgn();
+    sleeptime = 0;
     for (;;) {
     	mac_adjustcursor(cursrgn);
-	gotevent = WaitNextEvent(everyEvent, &event, LONG_MAX, cursrgn);
+	gotevent = WaitNextEvent(everyEvent, &event, sleeptime, cursrgn);
+	/*
+	 * XXX For now, limit sleep time to 1/10 s to work around
+	 * wake-before-sleep race in MacTCP code.
+	 */
+	sleeptime = 6;
 	mac_adjustcursor(cursrgn);
-	if (gotevent)
+	if (gotevent) {
+	    /* Ensure we get a null event when the real ones run out. */
+	    sleeptime = 0;
 	    mac_event(&event);
-	if (borednow)
-	    cleanup_exit(0);
+	    if (borednow)
+		cleanup_exit(0);
+	}
 	sk_poll();
-	mac_pollterm();
+	if (!gotevent)
+	    mac_pollterm();
     }
     DisposeRgn(cursrgn);
 }

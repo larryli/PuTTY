@@ -34,6 +34,7 @@ struct mac_gestalts {
 };
 
 extern struct mac_gestalts mac_gestalts;
+extern UInt32 sleeptime;
 
 #if TARGET_RT_MAC_CFM
 /* All systems that can use CFM have Color QuickDraw */
