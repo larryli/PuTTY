@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.32 2003/01/04 00:13:18 ben Exp $ */
+/* $Id: macterm.c,v 1.33 2003/01/04 00:48:13 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -792,7 +792,7 @@ void request_paste(void *frontend)
 static struct {
     Rect msgrect;
     Point msgorigin;
-    Point startmouse;
+    Point zeromouse;
     Session *s;
     char oldmsg[20];
 } growterm_state;
@@ -810,7 +810,9 @@ void mac_growterm(WindowPtr window, EventRecord *event) {
 
     draghooksave = LMGetDragHook();
     growterm_state.oldmsg[0] = '\0';
-    growterm_state.startmouse = event->where;
+    growterm_state.zeromouse = event->where;
+    growterm_state.zeromouse.h -= s->term->cols * s->font_width;
+    growterm_state.zeromouse.v -= s->term->rows * s->font_height;
     growterm_state.s = s;
     GetPort(&portsave);
     SetPort(s->window);
@@ -851,11 +853,9 @@ static pascal void mac_growtermdraghook(void)
     int newrows, newcols;
     
     GetMouse(&mouse);
-    newrows = (mouse.v - growterm_state.startmouse.v) / s->font_height +
-	s->term->rows;
+    newrows = (mouse.v - growterm_state.zeromouse.v) / s->font_height;
     if (newrows < 1) newrows = 1;
-    newcols = (mouse.h - growterm_state.startmouse.h) / s->font_width +
-	s->term->cols;
+    newcols = (mouse.h - growterm_state.zeromouse.h) / s->font_width;
     if (newcols < 1) newcols = 1;
     sprintf(buf, "%dx%d", newcols, newrows);
     if (strcmp(buf, growterm_state.oldmsg) == 0)
