@@ -188,27 +188,28 @@ enum {
 };
 
 struct backend_tag {
-    char *(*init) (void *frontend_handle,
+    char *(*init) (void *frontend_handle, void **backend_handle,
 		   char *host, int port, char **realhost, int nodelay);
     /* back->send() returns the current amount of buffered data. */
-    int (*send) (char *buf, int len);
+    int (*send) (void *handle, char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */
-    int (*sendbuffer) (void);
-    void (*size) (int width, int height);
-    void (*special) (Telnet_Special code);
-    Socket(*socket) (void);
-    int (*exitcode) (void);
-    int (*sendok) (void);
-    int (*ldisc) (int);
+    int (*sendbuffer) (void *handle);
+    void (*size) (void *handle, int width, int height);
+    void (*special) (void *handle, Telnet_Special code);
+    Socket(*socket) (void *handle);
+    int (*exitcode) (void *handle);
+    int (*sendok) (void *handle);
+    int (*ldisc) (void *handle, int);
     /*
      * back->unthrottle() tells the back end that the front end
      * buffer is clearing.
      */
-    void (*unthrottle) (int);
+    void (*unthrottle) (void *handle, int);
     int default_port;
 };
 
 GLOBAL Backend *back;
+GLOBAL void *backhandle;
 
 extern struct backend_list {
     int protocol;
@@ -488,6 +489,9 @@ void term_copyall(Terminal *);
 void term_reconfig(Terminal *);
 void term_seen_key_event(Terminal *); 
 int from_backend(void *, int is_stderr, char *data, int len);
+void term_provide_resize_fn(Terminal *term,
+			    void (*resize_fn)(void *, int, int),
+			    void *resize_ctx);
 
 /*
  * Exports from logging.c.

@@ -227,7 +227,7 @@ extern char sshver[];
  * that fails. This variable is the means by which scp.c can reach
  * into the SSH code and find out which one it got.
  */
-extern int ssh_fallback_cmd;
+extern int ssh_fallback_cmd(void *handle);
 
 #ifndef MSCRYPTOAPI
 void SHATransform(word32 * digest, word32 * data);
@@ -238,8 +238,11 @@ void random_add_noise(void *noise, int length);
 void random_add_heavynoise(void *noise, int length);
 
 void logevent(char *);
-void *new_sock_channel(Socket s); // allocates and register a new channel for port forwarding
-void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
+
+/* Allocate and register a new channel for port forwarding */
+void *new_sock_channel(void *handle, Socket s);
+void ssh_send_port_open(void *handle, void *channel,
+			char *hostname, int port, char *org);
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);

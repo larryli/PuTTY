@@ -177,7 +177,7 @@ static int pfd_accepting(Plug p, void *sock)
 	return err != NULL;
     }
 
-    pr->c = new_sock_channel(s);
+    pr->c = new_sock_channel(backhandle, s);
 
     strcpy(pr->hostname, org->hostname);
     pr->port = org->port;
@@ -192,7 +192,8 @@ static int pfd_accepting(Plug p, void *sock)
 	return 1;
     } else {
 	/* asks to forward to the specified host/port for this */
-	ssh_send_port_open(pr->c, pr->hostname, pr->port, "forwarding");
+	ssh_send_port_open(backhandle, pr->c, pr->hostname,
+			   pr->port, "forwarding");
     }
 
     return 0;

@@ -1610,7 +1610,7 @@ int sftp_recvdata(char *buf, int len)
 }
 int sftp_senddata(char *buf, int len)
 {
-    back->send((unsigned char *) buf, len);
+    back->send(backhandle, (unsigned char *) buf, len);
     return 1;
 }
 
@@ -1621,7 +1621,7 @@ static void ssh_sftp_init(void)
 {
     if (sftp_ssh_socket == INVALID_SOCKET)
 	return;
-    while (!back->sendok()) {
+    while (!back->sendok(backhandle)) {
 	fd_set readfds;
 	FD_ZERO(&readfds);
 	FD_SET(sftp_ssh_socket, &readfds);
@@ -1822,7 +1822,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     back = &ssh_backend;
 
-    err = back->init(NULL, cfg.host, cfg.port, &realhost, 0);
+    err = back->init(NULL, &backhandle, cfg.host, cfg.port, &realhost, 0);
     if (err != NULL) {
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
@@ -1921,9 +1921,9 @@ int main(int argc, char *argv[])
 
     do_sftp(mode, modeflags, batchfile);
 
-    if (back != NULL && back->socket() != NULL) {
+    if (back != NULL && back->socket(backhandle) != NULL) {
 	char ch;
-	back->special(TS_EOF);
+	back->special(backhandle, TS_EOF);
 	sftp_recvdata(&ch, 1);
     }
     WSACleanup();

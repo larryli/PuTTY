@@ -600,7 +600,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	char msg[1024], *title;
 	char *realhost;
 
-	error = back->init((void *)term,
+	error = back->init((void *)term, &backhandle,
 			   cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
 	if (error) {
 	    sprintf(msg, "Unable to open connection to\n"
@@ -619,6 +619,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	set_title(title);
 	set_icon(title);
     }
+
+    /*
+     * Connect the terminal to the backend for resize purposes.
+     */
+    term_provide_resize_fn(term, back->size, backhandle);
 
     session_closed = FALSE;
 
@@ -1610,7 +1615,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    time_t now;
 	    time(&now);
 	    if (now - last_movement > cfg.ping_interval) {
-		back->special(TS_PING);
+		back->special(backhandle, TS_PING);
 		last_movement = now;
 	    }
 	}
@@ -1860,55 +1865,55 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    ldisc_send(NULL, 0, 0);
 	    break;
 	  case IDM_TEL_AYT:
-	    back->special(TS_AYT);
+	    back->special(backhandle, TS_AYT);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_BRK:
-	    back->special(TS_BRK);
+	    back->special(backhandle, TS_BRK);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_SYNCH:
-	    back->special(TS_SYNCH);
+	    back->special(backhandle, TS_SYNCH);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EC:
-	    back->special(TS_EC);
+	    back->special(backhandle, TS_EC);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EL:
-	    back->special(TS_EL);
+	    back->special(backhandle, TS_EL);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_GA:
-	    back->special(TS_GA);
+	    back->special(backhandle, TS_GA);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_NOP:
-	    back->special(TS_NOP);
+	    back->special(backhandle, TS_NOP);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_ABORT:
-	    back->special(TS_ABORT);
+	    back->special(backhandle, TS_ABORT);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_AO:
-	    back->special(TS_AO);
+	    back->special(backhandle, TS_AO);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_IP:
-	    back->special(TS_IP);
+	    back->special(backhandle, TS_IP);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_SUSP:
-	    back->special(TS_SUSP);
+	    back->special(backhandle, TS_SUSP);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EOR:
-	    back->special(TS_EOR);
+	    back->special(backhandle, TS_EOR);
 	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EOF:
-	    back->special(TS_EOF);
+	    back->special(backhandle, TS_EOF);
 	    net_pending_errors();
 	    break;
 	  case IDM_ABOUT:

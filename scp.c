@@ -408,7 +408,7 @@ static void ssh_scp_init(void)
 {
     if (scp_ssh_socket == INVALID_SOCKET)
 	return;
-    while (!back->sendok()) {
+    while (!back->sendok(backhandle)) {
 	fd_set readfds;
 	FD_ZERO(&readfds);
 	FD_SET(scp_ssh_socket, &readfds);
@@ -416,7 +416,7 @@ static void ssh_scp_init(void)
 	    return;		       /* doom */
 	select_result((WPARAM) scp_ssh_socket, (LPARAM) FD_READ);
     }
-    using_sftp = !ssh_fallback_cmd;
+    using_sftp = !ssh_fallback_cmd(backhandle);
 }
 
 /*
@@ -434,9 +434,9 @@ static void bump(char *fmt, ...)
     tell_str(stderr, str);
     errs++;
 
-    if (back != NULL && back->socket() != NULL) {
+    if (back != NULL && back->socket(backhandle) != NULL) {
 	char ch;
-	back->special(TS_EOF);
+	back->special(backhandle, TS_EOF);
 	ssh_scp_recv(&ch, 1);
     }
 
@@ -565,7 +565,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     back = &ssh_backend;
 
-    err = back->init(NULL, cfg.host, cfg.port, &realhost, 0);
+    err = back->init(NULL, &backhandle, cfg.host, cfg.port, &realhost, 0);
     if (err != NULL)
 	bump("ssh_init: %s", err);
     ssh_scp_init();
@@ -712,7 +712,7 @@ int sftp_recvdata(char *buf, int len)
 }
 int sftp_senddata(char *buf, int len)
 {
-    back->send((unsigned char *) buf, len);
+    back->send(backhandle, (unsigned char *) buf, len);
     return 1;
 }
 
@@ -824,7 +824,7 @@ void scp_source_setup(char *target, int shouldbedir)
 	if (!fxp_init()) {
 	    tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
 	    errs++;
-	    return 1;
+	    return;
 	}
 
 	if (!fxp_stat(target, &attrs) ||
@@ -850,8 +850,8 @@ int scp_send_errmsg(char *str)
     if (using_sftp) {
 	/* do nothing; we never need to send our errors to the server */
     } else {
-	back->send("\001", 1);	       /* scp protocol error prefix */
-	back->send(str, strlen(str));
+	back->send(backhandle, "\001", 1);/* scp protocol error prefix */
+	back->send(backhandle, str, strlen(str));
     }
     return 0;			       /* can't fail */
 }
@@ -866,7 +866,7 @@ int scp_send_filetimes(unsigned long mtime, unsigned long atime)
     } else {
 	char buf[80];
 	sprintf(buf, "T%lu 0 %lu 0\n", mtime, atime);
-	back->send(buf, strlen(buf));
+	back->send(backhandle, buf, strlen(buf));
 	return response();
     }
 }
@@ -894,9 +894,9 @@ int scp_send_filename(char *name, unsigned long size, int modes)
     } else {
 	char buf[40];
 	sprintf(buf, "C%04o %lu ", modes, size);
-	back->send(buf, strlen(buf));
-	back->send(name, strlen(name));
-	back->send("\n", 1);
+	back->send(backhandle, buf, strlen(buf));
+	back->send(backhandle, name, strlen(name));
+	back->send(backhandle, "\n", 1);
 	return response();
     }
 }
@@ -915,7 +915,7 @@ int scp_send_filedata(char *data, int len)
 	scp_sftp_fileoffset = uint64_add32(scp_sftp_fileoffset, len);
 	return 0;
     } else {
-	int bufsize = back->send(data, len);
+	int bufsize = back->send(backhandle, data, len);
 
 	/*
 	 * If the network transfer is backing up - that is, the
@@ -926,7 +926,7 @@ int scp_send_filedata(char *data, int len)
 	while (bufsize > MAX_SCP_BUFSIZE) {
 	    if (!scp_process_network_event())
 		return 1;
-	    bufsize = back->sendbuffer();
+	    bufsize = back->sendbuffer(backhandle);
 	}
 
 	return 0;
@@ -953,7 +953,7 @@ int scp_send_finish(void)
 	scp_has_times = 0;
 	return 0;
     } else {
-	back->send("", 1);
+	back->send(backhandle, "", 1);
 	return response();
     }
 }
@@ -1010,9 +1010,9 @@ int scp_send_dirname(char *name, int modes)
     } else {
 	char buf[40];
 	sprintf(buf, "D%04o 0 ", modes);
-	back->send(buf, strlen(buf));
-	back->send(name, strlen(name));
-	back->send("\n", 1);
+	back->send(backhandle, buf, strlen(buf));
+	back->send(backhandle, name, strlen(name));
+	back->send(backhandle, "\n", 1);
 	return response();
     }
 }
@@ -1023,7 +1023,7 @@ int scp_send_enddir(void)
 	sfree(scp_sftp_remotepath);
 	return 0;
     } else {
-	back->send("E\n", 2);
+	back->send(backhandle, "E\n", 2);
 	return response();
     }
 }
@@ -1118,7 +1118,7 @@ int scp_sink_setup(char *source, int preserve, int recursive)
 int scp_sink_init(void)
 {
     if (!using_sftp) {
-	back->send("", 1);
+	back->send(backhandle, "", 1);
     }
     return 0;
 }
@@ -1404,14 +1404,14 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	      case '\02':		       /* fatal error */
 		bump("%s", act->buf);
 	      case 'E':
-		back->send("", 1);
+		back->send(backhandle, "", 1);
 		act->action = SCP_SINK_ENDDIR;
 		return 0;
 	      case 'T':
 		if (sscanf(act->buf, "%ld %*d %ld %*d",
 			   &act->mtime, &act->atime) == 2) {
 		    act->settime = 1;
-		    back->send("", 1);
+		    back->send(backhandle, "", 1);
 		    continue;	       /* go round again */
 		}
 		bump("Protocol error: Illegal time format");
@@ -1455,7 +1455,7 @@ int scp_accept_filexfer(void)
 	sfree(scp_sftp_currentname);
 	return 0;
     } else {
-	back->send("", 1);
+	back->send(backhandle, "", 1);
 	return 0;		       /* can't fail */
     }
 }
@@ -1487,7 +1487,7 @@ int scp_finish_filerecv(void)
 	fxp_close(scp_sftp_filehandle);
 	return 0;
     } else {
-	back->send("", 1);
+	back->send(backhandle, "", 1);
 	return response();
     }
 }
@@ -2234,9 +2234,9 @@ int main(int argc, char *argv[])
 	    tolocal(argc, argv);
     }
 
-    if (back != NULL && back->socket() != NULL) {
+    if (back != NULL && back->socket(backhandle) != NULL) {
 	char ch;
-	back->special(TS_EOF);
+	back->special(backhandle, TS_EOF);
 	ssh_scp_recv(&ch, 1);
     }
     WSACleanup();

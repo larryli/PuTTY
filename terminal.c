@@ -328,6 +328,8 @@ Terminal *term_init(void)
     term->nbeeps = 0;
     term->lastbeep = FALSE;
     term->beep_overloaded = FALSE;
+    term->resize_fn = NULL;
+    term->resize_ctx = NULL;
 
     return term;
 }
@@ -455,7 +457,22 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 
     update_sbar(term);
     term_update(term);
-    back->size(term->cols, term->rows);
+    if (term->resize_fn)
+	term->resize_fn(term->resize_ctx, term->cols, term->rows);
+}
+
+/*
+ * Hand a function and context pointer to the terminal which it can
+ * use to notify a back end of resizes.
+ */
+void term_provide_resize_fn(Terminal *term,
+			    void (*resize_fn)(void *, int, int),
+			    void *resize_ctx)
+{
+    term->resize_fn = resize_fn;
+    term->resize_ctx = resize_ctx;
+    if (term->cols > 0 && term->rows > 0)
+	resize_fn(resize_ctx, term->cols, term->rows);
 }
 
 /*

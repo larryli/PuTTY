@@ -13,10 +13,12 @@
 
 #define ECHOING (cfg.localecho == LD_YES || \
                  (cfg.localecho == LD_BACKEND && \
-                      (back->ldisc(LD_ECHO) || term_ldisc(term, LD_ECHO))))
+                      (back->ldisc(backhandle, LD_ECHO) || \
+			   term_ldisc(term, LD_ECHO))))
 #define EDITING (cfg.localedit == LD_YES || \
                  (cfg.localedit == LD_BACKEND && \
-                      (back->ldisc(LD_EDIT) || term_ldisc(term, LD_EDIT))))
+                      (back->ldisc(backhandle, LD_EDIT) || \
+			   term_ldisc(term, LD_EDIT))))
 
 static void c_write(char *buf, int len)
 {
@@ -138,7 +140,7 @@ void ldisc_send(char *buf, int len, int interactive)
 			bsb(plen(term_buf[term_buflen - 1]));
 		    term_buflen--;
 		}
-		back->special(TS_EL);
+		back->special(backhandle, TS_EL);
                 /*
                  * We don't send IP, SUSP or ABORT if the user has
                  * configured telnet specials off! This breaks
@@ -147,11 +149,11 @@ void ldisc_send(char *buf, int len, int interactive)
                 if (!cfg.telnet_keyboard)
                     goto default_case;
 		if (c == CTRL('C'))
-		    back->special(TS_IP);
+		    back->special(backhandle, TS_IP);
 		if (c == CTRL('Z'))
-		    back->special(TS_SUSP);
+		    back->special(backhandle, TS_SUSP);
 		if (c == CTRL('\\'))
-		    back->special(TS_ABORT);
+		    back->special(backhandle, TS_ABORT);
 		break;
 	      case CTRL('R'):	       /* redraw line */
 		if (ECHOING) {
@@ -166,9 +168,9 @@ void ldisc_send(char *buf, int len, int interactive)
 		break;
 	      case CTRL('D'):	       /* logout or send */
 		if (term_buflen == 0) {
-		    back->special(TS_EOF);
+		    back->special(backhandle, TS_EOF);
 		} else {
-		    back->send(term_buf, term_buflen);
+		    back->send(backhandle, term_buf, term_buflen);
 		    term_buflen = 0;
 		}
 		break;
@@ -204,13 +206,13 @@ void ldisc_send(char *buf, int len, int interactive)
 		    /* FALLTHROUGH */
 	      case KCTRL('M'):	       /* send with newline */
 		    if (term_buflen > 0)
-			back->send(term_buf, term_buflen);
+			back->send(backhandle, term_buf, term_buflen);
 		    if (cfg.protocol == PROT_RAW)
-			back->send("\r\n", 2);
+			back->send(backhandle, "\r\n", 2);
 		    else if (cfg.protocol == PROT_TELNET && cfg.telnet_newline)
-			back->special(TS_EOL);
+			back->special(backhandle, TS_EOL);
 		    else
-			back->send("\r", 1);
+			back->send(backhandle, "\r", 1);
 		    if (ECHOING)
 			c_write("\r\n", 2);
 		    term_buflen = 0;
@@ -232,7 +234,7 @@ void ldisc_send(char *buf, int len, int interactive)
 	}
     } else {
 	if (term_buflen != 0) {
-	    back->send(term_buf, term_buflen);
+	    back->send(backhandle, term_buf, term_buflen);
 	    while (term_buflen > 0) {
 		bsb(plen(term_buf[term_buflen - 1]));
 		term_buflen--;
@@ -245,33 +247,33 @@ void ldisc_send(char *buf, int len, int interactive)
 		switch (buf[0]) {
 		  case CTRL('M'):
 		    if (cfg.protocol == PROT_TELNET && cfg.telnet_newline)
-			back->special(TS_EOL);
+			back->special(backhandle, TS_EOL);
 		    else
-			back->send("\r", 1);
+			back->send(backhandle, "\r", 1);
 		    break;
 		  case CTRL('?'):
 		  case CTRL('H'):
 		    if (cfg.telnet_keyboard) {
-			back->special(TS_EC);
+			back->special(backhandle, TS_EC);
 			break;
 		    }
 		  case CTRL('C'):
 		    if (cfg.telnet_keyboard) {
-			back->special(TS_IP);
+			back->special(backhandle, TS_IP);
 			break;
 		    }
 		  case CTRL('Z'):
 		    if (cfg.telnet_keyboard) {
-			back->special(TS_SUSP);
+			back->special(backhandle, TS_SUSP);
 			break;
 		    }
 
 		  default:
-		    back->send(buf, len);
+		    back->send(backhandle, buf, len);
 		    break;
 		}
 	    } else
-		back->send(buf, len);
+		back->send(backhandle, buf, len);
 	}
     }
 }

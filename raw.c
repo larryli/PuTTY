@@ -13,24 +13,31 @@
 
 #define RAW_MAX_BACKLOG 4096
 
-static Socket s = NULL;
-static int raw_bufsize;
-static void *frontend;
+typedef struct raw_backend_data {
+    const struct plug_function_table *fn;
+    /* the above field _must_ be first in the structure */
 
-static void raw_size(int width, int height);
+    Socket s;
+    int bufsize;
+    void *frontend;
+} *Raw;
 
-static void c_write(char *buf, int len)
+static void raw_size(void *handle, int width, int height);
+
+static void c_write(Raw raw, char *buf, int len)
 {
-    int backlog = from_backend(frontend, 0, buf, len);
-    sk_set_frozen(s, backlog > RAW_MAX_BACKLOG);
+    int backlog = from_backend(raw->frontend, 0, buf, len);
+    sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
 static int raw_closing(Plug plug, char *error_msg, int error_code,
 		       int calling_back)
 {
-    if (s) {
-        sk_close(s);
-        s = NULL;
+    Raw raw = (Raw) plug;
+
+    if (raw->s) {
+        sk_close(raw->s);
+        raw->s = NULL;
     }
     if (error_msg) {
 	/* A socket error has occurred. */
@@ -42,13 +49,15 @@ static int raw_closing(Plug plug, char *error_msg, int error_code,
 
 static int raw_receive(Plug plug, int urgent, char *data, int len)
 {
-    c_write(data, len);
+    Raw raw = (Raw) plug;
+    c_write(raw, data, len);
     return 1;
 }
 
 static void raw_sent(Plug plug, int bufsize)
 {
-    raw_bufsize = bufsize;
+    Raw raw = (Raw) plug;
+    raw->bufsize = bufsize;
 }
 
 /*
@@ -59,19 +68,24 @@ static void raw_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *raw_init(void *frontend_handle, char *host, int port,
-		      char **realhost, int nodelay)
+static char *raw_init(void *frontend_handle, void **backend_handle,
+		      char *host, int port, char **realhost, int nodelay)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	raw_closing,
 	raw_receive,
 	raw_sent
-    }, *fn_table_ptr = &fn_table;
-
+    };
     SockAddr addr;
     char *err;
+    Raw raw;
 
-    frontend = frontend_handle;
+    raw = smalloc(sizeof(*raw));
+    raw->fn = &fn_table;
+    raw->s = NULL;
+    *backend_handle = raw;
+
+    raw->frontend = frontend_handle;
 
     /*
      * Try to find host.
@@ -97,8 +111,8 @@ static char *raw_init(void *frontend_handle, char *host, int port,
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
 	logevent(buf);
     }
-    s = new_connection(addr, *realhost, port, 0, 1, nodelay, &fn_table_ptr);
-    if ((err = sk_socket_error(s)))
+    raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) raw);
+    if ((err = sk_socket_error(raw->s)))
 	return err;
 
     sk_addr_free(addr);
@@ -109,28 +123,31 @@ static char *raw_init(void *frontend_handle, char *host, int port,
 /*
  * Called to send data down the raw connection.
  */
-static int raw_send(char *buf, int len)
+static int raw_send(void *handle, char *buf, int len)
 {
-    if (s == NULL)
+    Raw raw = (Raw) handle;
+
+    if (raw->s == NULL)
 	return 0;
 
-    raw_bufsize = sk_write(s, buf, len);
+    raw->bufsize = sk_write(raw->s, buf, len);
 
-    return raw_bufsize;
+    return raw->bufsize;
 }
 
 /*
  * Called to query the current socket sendability status.
  */
-static int raw_sendbuffer(void)
+static int raw_sendbuffer(void *handle)
 {
-    return raw_bufsize;
+    Raw raw = (Raw) handle;
+    return raw->bufsize;
 }
 
 /*
  * Called to set the size of the window
  */
-static void raw_size(int width, int height)
+static void raw_size(void *handle, int width, int height)
 {
     /* Do nothing! */
     return;
@@ -139,35 +156,37 @@ static void raw_size(int width, int height)
 /*
  * Send raw special codes.
  */
-static void raw_special(Telnet_Special code)
+static void raw_special(void *handle, Telnet_Special code)
 {
     /* Do nothing! */
     return;
 }
 
-static Socket raw_socket(void)
+static Socket raw_socket(void *handle)
 {
-    return s;
+    Raw raw = (Raw) handle;
+    return raw->s;
 }
 
-static int raw_sendok(void)
+static int raw_sendok(void *handle)
 {
     return 1;
 }
 
-static void raw_unthrottle(int backlog)
+static void raw_unthrottle(void *handle, int backlog)
 {
-    sk_set_frozen(s, backlog > RAW_MAX_BACKLOG);
+    Raw raw = (Raw) handle;
+    sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
-static int raw_ldisc(int option)
+static int raw_ldisc(void *handle, int option)
 {
     if (option == LD_EDIT || option == LD_ECHO)
 	return 1;
     return 0;
 }
 
-static int raw_exitcode(void)
+static int raw_exitcode(void *handle)
 {
     /* Exit codes are a meaningless concept in the Raw protocol */
     return 0;

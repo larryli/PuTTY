@@ -529,7 +529,8 @@ int main(int argc, char **argv)
 	int nodelay = cfg.tcp_nodelay &&
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
-	error = back->init(NULL, cfg.host, cfg.port, &realhost, nodelay);
+	error = back->init(NULL, &backhandle, cfg.host, cfg.port,
+			   &realhost, nodelay);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
@@ -585,7 +586,7 @@ int main(int argc, char **argv)
     while (1) {
 	int n;
 
-	if (!sending && back->sendok()) {
+	if (!sending && back->sendok(backhandle)) {
 	    /*
 	     * Create a separate thread to read from stdin. This is
 	     * a total pain, but I can't find another way to do it:
@@ -677,11 +678,11 @@ int main(int argc, char **argv)
 	} else if (n == 1) {
 	    reading = 0;
 	    noise_ultralight(idata.len);
-	    if (connopen && back->socket() != NULL) {
+	    if (connopen && back->socket(backhandle) != NULL) {
 		if (idata.len > 0) {
-		    back->send(idata.buffer, idata.len);
+		    back->send(backhandle, idata.buffer, idata.len);
 		} else {
-		    back->special(TS_EOF);
+		    back->special(backhandle, TS_EOF);
 		}
 	    }
 	} else if (n == 2) {
@@ -693,8 +694,8 @@ int main(int argc, char **argv)
 	    bufchain_consume(&stdout_data, odata.lenwritten);
 	    if (bufchain_size(&stdout_data) > 0)
 		try_output(0);
-	    if (connopen && back->socket() != NULL) {
-		back->unthrottle(bufchain_size(&stdout_data) +
+	    if (connopen && back->socket(backhandle) != NULL) {
+		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
 				 bufchain_size(&stderr_data));
 	    }
 	} else if (n == 3) {
@@ -706,22 +707,22 @@ int main(int argc, char **argv)
 	    bufchain_consume(&stderr_data, edata.lenwritten);
 	    if (bufchain_size(&stderr_data) > 0)
 		try_output(1);
-	    if (connopen && back->socket() != NULL) {
-		back->unthrottle(bufchain_size(&stdout_data) +
+	    if (connopen && back->socket(backhandle) != NULL) {
+		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
 				 bufchain_size(&stderr_data));
 	    }
 	}
-	if (!reading && back->sendbuffer() < MAX_STDIN_BACKLOG) {
+	if (!reading && back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
 	    SetEvent(idata.eventback);
 	    reading = 1;
 	}
-	if ((!connopen || back->socket() == NULL) &&
+	if ((!connopen || back->socket(backhandle) == NULL) &&
 	    bufchain_size(&stdout_data) == 0 &&
 	    bufchain_size(&stderr_data) == 0)
 	    break;		       /* we closed the connection */
     }
     WSACleanup();
-    exitcode = back->exitcode();
+    exitcode = back->exitcode(backhandle);
     if (exitcode < 0) {
 	fprintf(stderr, "Remote process exit code unavailable\n");
 	exitcode = 1;		       /* this is an error condition */

@@ -14,25 +14,31 @@
 
 #define RLOGIN_MAX_BACKLOG 4096
 
-static Socket s = NULL;
-static int rlogin_bufsize;
-static int rlogin_term_width, rlogin_term_height;
-static void *frontend;
+typedef struct rlogin_tag {
+    const struct plug_function_table *fn;
+    /* the above field _must_ be first in the structure */
 
-static void rlogin_size(int width, int height);
+    Socket s;
+    int bufsize;
+    int term_width, term_height;
+    void *frontend;
+} *Rlogin;
 
-static void c_write(char *buf, int len)
+static void rlogin_size(void *handle, int width, int height);
+
+static void c_write(Rlogin rlogin, char *buf, int len)
 {
-    int backlog = from_backend(frontend, 0, buf, len);
-    sk_set_frozen(s, backlog > RLOGIN_MAX_BACKLOG);
+    int backlog = from_backend(rlogin->frontend, 0, buf, len);
+    sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
 static int rlogin_closing(Plug plug, char *error_msg, int error_code,
 			  int calling_back)
 {
-    if (s) {
-        sk_close(s);
-        s = NULL;
+    Rlogin rlogin = (Rlogin) plug;
+    if (rlogin->s) {
+        sk_close(rlogin->s);
+        rlogin->s = NULL;
     }
     if (error_msg) {
 	/* A socket error has occurred. */
@@ -44,13 +50,14 @@ static int rlogin_closing(Plug plug, char *error_msg, int error_code,
 
 static int rlogin_receive(Plug plug, int urgent, char *data, int len)
 {
+    Rlogin rlogin = (Rlogin) plug;
     if (urgent == 2) {
 	char c;
 
 	c = *data++;
 	len--;
 	if (c == '\x80')
-	    rlogin_size(rlogin_term_width, rlogin_term_height);
+	    rlogin_size(rlogin, rlogin->term_width, rlogin->term_height);
 	/*
 	 * We should flush everything (aka Telnet SYNCH) if we see
 	 * 0x02, and we should turn off and on _local_ flow control
@@ -72,14 +79,15 @@ static int rlogin_receive(Plug plug, int urgent, char *data, int len)
 	    firstbyte = 0;
 	}
 	if (len > 0)
-            c_write(data, len);
+            c_write(rlogin, data, len);
     }
     return 1;
 }
 
 static void rlogin_sent(Plug plug, int bufsize)
 {
-    rlogin_bufsize = bufsize;
+    Rlogin rlogin = (Rlogin) plug;
+    rlogin->bufsize = bufsize;
 }
 
 /*
@@ -90,21 +98,25 @@ static void rlogin_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *rlogin_init(void *frontend_handle,
+static char *rlogin_init(void *frontend_handle, void **backend_handle,
 			 char *host, int port, char **realhost, int nodelay)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	rlogin_closing,
 	rlogin_receive,
 	rlogin_sent
-    }, *fn_table_ptr = &fn_table;
-
+    };
     SockAddr addr;
     char *err;
+    Rlogin rlogin;
 
-    frontend = frontend_handle;
-    rlogin_term_width = cfg.width;
-    rlogin_term_height = cfg.height;
+    rlogin = smalloc(sizeof(*rlogin));
+    rlogin->fn = &fn_table;
+    rlogin->s = NULL;
+    rlogin->frontend = frontend_handle;
+    rlogin->term_width = cfg.width;
+    rlogin->term_height = cfg.height;
+    *backend_handle = rlogin;
 
     /*
      * Try to find host.
@@ -130,8 +142,9 @@ static char *rlogin_init(void *frontend_handle,
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
 	logevent(buf);
     }
-    s = new_connection(addr, *realhost, port, 1, 0, nodelay, &fn_table_ptr);
-    if ((err = sk_socket_error(s)))
+    rlogin->s = new_connection(addr, *realhost, port, 1, 0,
+			       nodelay, (Plug) rlogin);
+    if ((err = sk_socket_error(rlogin->s)))
 	return err;
 
     sk_addr_free(addr);
@@ -143,16 +156,16 @@ static char *rlogin_init(void *frontend_handle,
     {
 	char z = 0;
 	char *p;
-	sk_write(s, &z, 1);
-	sk_write(s, cfg.localusername, strlen(cfg.localusername));
-	sk_write(s, &z, 1);
-	sk_write(s, cfg.username, strlen(cfg.username));
-	sk_write(s, &z, 1);
-	sk_write(s, cfg.termtype, strlen(cfg.termtype));
-	sk_write(s, "/", 1);
+	sk_write(rlogin->s, &z, 1);
+	sk_write(rlogin->s, cfg.localusername, strlen(cfg.localusername));
+	sk_write(rlogin->s, &z, 1);
+	sk_write(rlogin->s, cfg.username, strlen(cfg.username));
+	sk_write(rlogin->s, &z, 1);
+	sk_write(rlogin->s, cfg.termtype, strlen(cfg.termtype));
+	sk_write(rlogin->s, "/", 1);
 	for (p = cfg.termspeed; isdigit(*p); p++);
-	sk_write(s, cfg.termspeed, p - cfg.termspeed);
-	rlogin_bufsize = sk_write(s, &z, 1);
+	sk_write(rlogin->s, cfg.termspeed, p - cfg.termspeed);
+	rlogin->bufsize = sk_write(rlogin->s, &z, 1);
     }
 
     return NULL;
@@ -161,76 +174,85 @@ static char *rlogin_init(void *frontend_handle,
 /*
  * Called to send data down the rlogin connection.
  */
-static int rlogin_send(char *buf, int len)
+static int rlogin_send(void *handle, char *buf, int len)
 {
-    if (s == NULL)
+    Rlogin rlogin = (Rlogin) handle;
+
+    if (rlogin->s == NULL)
 	return 0;
 
-    rlogin_bufsize = sk_write(s, buf, len);
+    rlogin->bufsize = sk_write(rlogin->s, buf, len);
 
-    return rlogin_bufsize;
+    return rlogin->bufsize;
 }
 
 /*
  * Called to query the current socket sendability status.
  */
-static int rlogin_sendbuffer(void)
+static int rlogin_sendbuffer(void *handle)
 {
-    return rlogin_bufsize;
+    Rlogin rlogin = (Rlogin) handle;
+    return rlogin->bufsize;
 }
 
 /*
  * Called to set the size of the window
  */
-static void rlogin_size(int width, int height)
+static void rlogin_size(void *handle, int width, int height)
 {
+    Rlogin rlogin = (Rlogin) handle;
     char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    rlogin_term_width = width;
-    rlogin_term_height = height;
+    rlogin->term_width = width;
+    rlogin->term_height = height;
 
-    if (s == NULL)
+    if (rlogin->s == NULL)
 	return;
 
-    b[6] = rlogin_term_width >> 8;
-    b[7] = rlogin_term_width & 0xFF;
-    b[4] = rlogin_term_height >> 8;
-    b[5] = rlogin_term_height & 0xFF;
-    rlogin_bufsize = sk_write(s, b, 12);
+    b[6] = rlogin->term_width >> 8;
+    b[7] = rlogin->term_width & 0xFF;
+    b[4] = rlogin->term_height >> 8;
+    b[5] = rlogin->term_height & 0xFF;
+    rlogin->bufsize = sk_write(rlogin->s, b, 12);
     return;
 }
 
 /*
  * Send rlogin special codes.
  */
-static void rlogin_special(Telnet_Special code)
+static void rlogin_special(void *handle, Telnet_Special code)
 {
     /* Do nothing! */
     return;
 }
 
-static Socket rlogin_socket(void)
+static Socket rlogin_socket(void *handle)
 {
-    return s;
+    Rlogin rlogin = (Rlogin) handle;
+    return rlogin->s;
 }
 
-static int rlogin_sendok(void)
+static int rlogin_sendok(void *handle)
 {
+    Rlogin rlogin = (Rlogin) handle;
     return 1;
 }
 
-static void rlogin_unthrottle(int backlog)
+static void rlogin_unthrottle(void *handle, int backlog)
 {
-    sk_set_frozen(s, backlog > RLOGIN_MAX_BACKLOG);
+    Rlogin rlogin = (Rlogin) handle;
+    sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
-static int rlogin_ldisc(int option)
+static int rlogin_ldisc(void *handle, int option)
 {
+    Rlogin rlogin = (Rlogin) handle;
     return 0;
 }
 
-static int rlogin_exitcode(void)
+static int rlogin_exitcode(void *handle)
 {
+    Rlogin rlogin = (Rlogin) handle;
     /* If we ever implement RSH, we'll probably need to do this properly */
     return 0;
 }

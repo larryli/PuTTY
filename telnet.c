@@ -11,11 +11,6 @@
 #define TRUE 1
 #endif
 
-static Socket s = NULL;
-
-static void *frontend;
-static int telnet_term_width, telnet_term_height;
-
 #define	IAC	255		       /* interpret as command: */
 #define	DONT	254		       /* you are not to use option */
 #define	DO	253		       /* please, you use option */
@@ -141,59 +136,91 @@ static char *telopt(int opt)
     return "<unknown>";
 }
 
-static void telnet_size(int width, int height);
+static void telnet_size(void *handle, int width, int height);
 
 struct Opt {
     int send;			       /* what we initially send */
     int nsend;			       /* -ve send if requested to stop it */
     int ack, nak;		       /* +ve and -ve acknowledgements */
     int option;			       /* the option code */
+    int index;			       /* index into telnet->opt_states[] */
     enum {
 	REQUESTED, ACTIVE, INACTIVE, REALLY_INACTIVE
-    } state;
+    } initial_state;
 };
 
-static struct Opt o_naws =
-    { WILL, WONT, DO, DONT, TELOPT_NAWS, REQUESTED };
-static struct Opt o_tspeed =
-    { WILL, WONT, DO, DONT, TELOPT_TSPEED, REQUESTED };
-static struct Opt o_ttype =
-    { WILL, WONT, DO, DONT, TELOPT_TTYPE, REQUESTED };
-static struct Opt o_oenv = { WILL, WONT, DO, DONT, TELOPT_OLD_ENVIRON,
-    INACTIVE
+enum {
+    OPTINDEX_NAWS,
+    OPTINDEX_TSPEED,
+    OPTINDEX_TTYPE,
+    OPTINDEX_OENV,
+    OPTINDEX_NENV,
+    OPTINDEX_ECHO,
+    OPTINDEX_WE_SGA,
+    OPTINDEX_THEY_SGA,
+    NUM_OPTS
 };
-static struct Opt o_nenv = { WILL, WONT, DO, DONT, TELOPT_NEW_ENVIRON,
-    REQUESTED
-};
-static struct Opt o_echo =
-    { DO, DONT, WILL, WONT, TELOPT_ECHO, REQUESTED };
-static struct Opt o_we_sga =
-    { WILL, WONT, DO, DONT, TELOPT_SGA, REQUESTED };
-static struct Opt o_they_sga =
-    { DO, DONT, WILL, WONT, TELOPT_SGA, REQUESTED };
 
-static struct Opt *opts[] = {
+static const struct Opt o_naws =
+    { WILL, WONT, DO, DONT, TELOPT_NAWS, OPTINDEX_NAWS, REQUESTED };
+static const struct Opt o_tspeed =
+    { WILL, WONT, DO, DONT, TELOPT_TSPEED, OPTINDEX_TSPEED, REQUESTED };
+static const struct Opt o_ttype =
+    { WILL, WONT, DO, DONT, TELOPT_TTYPE, OPTINDEX_TTYPE, REQUESTED };
+static const struct Opt o_oenv = { WILL, WONT, DO, DONT, TELOPT_OLD_ENVIRON,
+    OPTINDEX_OENV, INACTIVE
+};
+static const struct Opt o_nenv = { WILL, WONT, DO, DONT, TELOPT_NEW_ENVIRON,
+    OPTINDEX_NENV, REQUESTED
+};
+static const struct Opt o_echo =
+    { DO, DONT, WILL, WONT, TELOPT_ECHO, OPTINDEX_ECHO, REQUESTED };
+static const struct Opt o_we_sga =
+    { WILL, WONT, DO, DONT, TELOPT_SGA, OPTINDEX_WE_SGA, REQUESTED };
+static const struct Opt o_they_sga =
+    { DO, DONT, WILL, WONT, TELOPT_SGA, OPTINDEX_THEY_SGA, REQUESTED };
+
+static const struct Opt *const opts[] = {
     &o_naws, &o_tspeed, &o_ttype, &o_oenv, &o_nenv, &o_echo,
     &o_we_sga, &o_they_sga, NULL
 };
 
+typedef struct telnet_tag {
+    const struct plug_function_table *fn;
+    /* the above field _must_ be first in the structure */
+
+    Socket s;
+
+    void *frontend;
+    int term_width, term_height;
+
+    int opt_states[NUM_OPTS];
+
+    int echoing, editing;
+    int activated;
+    int bufsize;
+    int in_synch;
+    int sb_opt, sb_len;
+    char *sb_buf;
+    int sb_size;
+
+    enum {
+	TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
+	    SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
+    } state;
+
+} *Telnet;
+
 #define TELNET_MAX_BACKLOG 4096
 
-static int echoing = TRUE, editing = TRUE;
-static int activated = FALSE;
-static int telnet_bufsize;
-static int in_synch;
-static int sb_opt, sb_len;
-static char *sb_buf = NULL;
-static int sb_size = 0;
 #define SB_DELTA 1024
 
-static void c_write1(int c)
+static void c_write1(Telnet telnet, int c)
 {
     int backlog;
     char cc = (char) c;
-    backlog = from_backend(frontend, 0, &cc, 1);
-    sk_set_frozen(s, backlog > TELNET_MAX_BACKLOG);
+    backlog = from_backend(telnet->frontend, 0, &cc, 1);
+    sk_set_frozen(telnet->s, backlog > TELNET_MAX_BACKLOG);
 }
 
 static void log_option(char *sender, int cmd, int option)
@@ -206,57 +233,58 @@ static void log_option(char *sender, int cmd, int option)
     logevent(buf);
 }
 
-static void send_opt(int cmd, int option)
+static void send_opt(Telnet telnet, int cmd, int option)
 {
     unsigned char b[3];
 
     b[0] = IAC;
     b[1] = cmd;
     b[2] = option;
-    telnet_bufsize = sk_write(s, b, 3);
+    telnet->bufsize = sk_write(telnet->s, b, 3);
     log_option("client", cmd, option);
 }
 
-static void deactivate_option(struct Opt *o)
+static void deactivate_option(Telnet telnet, const struct Opt *o)
 {
-    if (o->state == REQUESTED || o->state == ACTIVE)
-	send_opt(o->nsend, o->option);
-    o->state = REALLY_INACTIVE;
+    if (telnet->opt_states[o->index] == REQUESTED ||
+	telnet->opt_states[o->index] == ACTIVE)
+	send_opt(telnet, o->nsend, o->option);
+    telnet->opt_states[o->index] = REALLY_INACTIVE;
 }
 
 /*
  * Generate side effects of enabling or disabling an option.
  */
-static void option_side_effects(struct Opt *o, int enabled)
+static void option_side_effects(Telnet telnet, const struct Opt *o, int enabled)
 {
     if (o->option == TELOPT_ECHO && o->send == DO)
-	echoing = !enabled;
+	telnet->echoing = !enabled;
     else if (o->option == TELOPT_SGA && o->send == DO)
-	editing = !enabled;
+	telnet->editing = !enabled;
     ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice the change */
 
     /* Ensure we get the minimum options */
-    if (!activated) {
-	if (o_echo.state == INACTIVE) {
-	    o_echo.state = REQUESTED;
-	    send_opt(o_echo.send, o_echo.option);
+    if (!telnet->activated) {
+	if (telnet->opt_states[o_echo.index] == INACTIVE) {
+	    telnet->opt_states[o_echo.index] = REQUESTED;
+	    send_opt(telnet, o_echo.send, o_echo.option);
 	}
-	if (o_we_sga.state == INACTIVE) {
-	    o_we_sga.state = REQUESTED;
-	    send_opt(o_we_sga.send, o_we_sga.option);
+	if (telnet->opt_states[o_we_sga.index] == INACTIVE) {
+	    telnet->opt_states[o_we_sga.index] = REQUESTED;
+	    send_opt(telnet, o_we_sga.send, o_we_sga.option);
 	}
-	if (o_they_sga.state == INACTIVE) {
-	    o_they_sga.state = REQUESTED;
-	    send_opt(o_they_sga.send, o_they_sga.option);
+	if (telnet->opt_states[o_they_sga.index] == INACTIVE) {
+	    telnet->opt_states[o_they_sga.index] = REQUESTED;
+	    send_opt(telnet, o_they_sga.send, o_they_sga.option);
 	}
-	activated = TRUE;
+	telnet->activated = TRUE;
     }
 }
 
-static void activate_option(struct Opt *o)
+static void activate_option(Telnet telnet, const struct Opt *o)
 {
     if (o->send == WILL && o->option == TELOPT_NAWS)
-	telnet_size(telnet_term_width, telnet_term_height);
+	telnet_size(telnet, telnet->term_width, telnet->term_height);
     if (o->send == WILL &&
 	(o->option == TELOPT_NEW_ENVIRON ||
 	 o->option == TELOPT_OLD_ENVIRON)) {
@@ -264,56 +292,56 @@ static void activate_option(struct Opt *o)
 	 * We may only have one kind of ENVIRON going at a time.
 	 * This is a hack, but who cares.
 	 */
-	deactivate_option(o->option ==
+	deactivate_option(telnet, o->option ==
 			  TELOPT_NEW_ENVIRON ? &o_oenv : &o_nenv);
     }
-    option_side_effects(o, 1);
+    option_side_effects(telnet, o, 1);
 }
 
-static void refused_option(struct Opt *o)
+static void refused_option(Telnet telnet, const struct Opt *o)
 {
     if (o->send == WILL && o->option == TELOPT_NEW_ENVIRON &&
-	o_oenv.state == INACTIVE) {
-	send_opt(WILL, TELOPT_OLD_ENVIRON);
-	o_oenv.state = REQUESTED;
+	telnet->opt_states[o_oenv.index] == INACTIVE) {
+	send_opt(telnet, WILL, TELOPT_OLD_ENVIRON);
+	telnet->opt_states[o_oenv.index] = REQUESTED;
     }
-    option_side_effects(o, 0);
+    option_side_effects(telnet, o, 0);
 }
 
-static void proc_rec_opt(int cmd, int option)
+static void proc_rec_opt(Telnet telnet, int cmd, int option)
 {
-    struct Opt **o;
+    const struct Opt *const *o;
 
     log_option("server", cmd, option);
     for (o = opts; *o; o++) {
 	if ((*o)->option == option && (*o)->ack == cmd) {
-	    switch ((*o)->state) {
+	    switch (telnet->opt_states[(*o)->index]) {
 	      case REQUESTED:
-		(*o)->state = ACTIVE;
-		activate_option(*o);
+		telnet->opt_states[(*o)->index] = ACTIVE;
+		activate_option(telnet, *o);
 		break;
 	      case ACTIVE:
 		break;
 	      case INACTIVE:
-		(*o)->state = ACTIVE;
-		send_opt((*o)->send, option);
-		activate_option(*o);
+		telnet->opt_states[(*o)->index] = ACTIVE;
+		send_opt(telnet, (*o)->send, option);
+		activate_option(telnet, *o);
 		break;
 	      case REALLY_INACTIVE:
-		send_opt((*o)->nsend, option);
+		send_opt(telnet, (*o)->nsend, option);
 		break;
 	    }
 	    return;
 	} else if ((*o)->option == option && (*o)->nak == cmd) {
-	    switch ((*o)->state) {
+	    switch (telnet->opt_states[(*o)->index]) {
 	      case REQUESTED:
-		(*o)->state = INACTIVE;
-		refused_option(*o);
+		telnet->opt_states[(*o)->index] = INACTIVE;
+		refused_option(telnet, *o);
 		break;
 	      case ACTIVE:
-		(*o)->state = INACTIVE;
-		send_opt((*o)->nsend, option);
-		option_side_effects(*o, 0);
+		telnet->opt_states[(*o)->index] = INACTIVE;
+		send_opt(telnet, (*o)->nsend, option);
+		option_side_effects(telnet, *o, 0);
 		break;
 	      case INACTIVE:
 	      case REALLY_INACTIVE:
@@ -326,18 +354,18 @@ static void proc_rec_opt(int cmd, int option)
      * If we reach here, the option was one we weren't prepared to
      * cope with. So send a negative ack.
      */
-    send_opt((cmd == WILL ? DONT : WONT), option);
+    send_opt(telnet, (cmd == WILL ? DONT : WONT), option);
 }
 
-static void process_subneg(void)
+static void process_subneg(Telnet telnet)
 {
     unsigned char b[2048], *p, *q;
     int var, value, n;
     char *e;
 
-    switch (sb_opt) {
+    switch (telnet->sb_opt) {
       case TELOPT_TSPEED:
-	if (sb_len == 1 && sb_buf[0] == TELQUAL_SEND) {
+	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
 	    char logbuf[sizeof(cfg.termspeed) + 80];
 	    b[0] = IAC;
 	    b[1] = SB;
@@ -347,7 +375,7 @@ static void process_subneg(void)
 	    n = 4 + strlen(cfg.termspeed);
 	    b[n] = IAC;
 	    b[n + 1] = SE;
-	    telnet_bufsize = sk_write(s, b, n + 2);
+	    telnet->bufsize = sk_write(telnet->s, b, n + 2);
 	    logevent("server:\tSB TSPEED SEND");
 	    sprintf(logbuf, "client:\tSB TSPEED IS %s", cfg.termspeed);
 	    logevent(logbuf);
@@ -355,7 +383,7 @@ static void process_subneg(void)
 	    logevent("server:\tSB TSPEED <something weird>");
 	break;
       case TELOPT_TTYPE:
-	if (sb_len == 1 && sb_buf[0] == TELQUAL_SEND) {
+	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
 	    char logbuf[sizeof(cfg.termtype) + 80];
 	    b[0] = IAC;
 	    b[1] = SB;
@@ -368,7 +396,7 @@ static void process_subneg(void)
 			    'a' : cfg.termtype[n]);
 	    b[n + 4] = IAC;
 	    b[n + 5] = SE;
-	    telnet_bufsize = sk_write(s, b, n + 6);
+	    telnet->bufsize = sk_write(telnet->s, b, n + 6);
 	    b[n + 4] = 0;
 	    logevent("server:\tSB TTYPE SEND");
 	    sprintf(logbuf, "client:\tSB TTYPE IS %s", b + 4);
@@ -378,14 +406,14 @@ static void process_subneg(void)
 	break;
       case TELOPT_OLD_ENVIRON:
       case TELOPT_NEW_ENVIRON:
-	p = sb_buf;
-	q = p + sb_len;
+	p = telnet->sb_buf;
+	q = p + telnet->sb_len;
 	if (p < q && *p == TELQUAL_SEND) {
 	    char logbuf[50];
 	    p++;
-	    sprintf(logbuf, "server:\tSB %s SEND", telopt(sb_opt));
+	    sprintf(logbuf, "server:\tSB %s SEND", telopt(telnet->sb_opt));
 	    logevent(logbuf);
-	    if (sb_opt == TELOPT_OLD_ENVIRON) {
+	    if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
 		if (cfg.rfc_environ) {
 		    value = RFC_VALUE;
 		    var = RFC_VAR;
@@ -416,7 +444,7 @@ static void process_subneg(void)
 	    }
 	    b[0] = IAC;
 	    b[1] = SB;
-	    b[2] = sb_opt;
+	    b[2] = telnet->sb_opt;
 	    b[3] = TELQUAL_IS;
 	    n = 4;
 	    e = cfg.environmt;
@@ -444,8 +472,8 @@ static void process_subneg(void)
 	    }
 	    b[n++] = IAC;
 	    b[n++] = SE;
-	    telnet_bufsize = sk_write(s, b, n);
-	    sprintf(logbuf, "client:\tSB %s IS %s", telopt(sb_opt),
+	    telnet->bufsize = sk_write(telnet->s, b, n);
+	    sprintf(logbuf, "client:\tSB %s IS %s", telopt(telnet->sb_opt),
 		    n == 6 ? "<nothing>" : "<stuff>");
 	    logevent(logbuf);
 	}
@@ -453,27 +481,22 @@ static void process_subneg(void)
     }
 }
 
-static enum {
-    TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
-    SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
-} telnet_state = TOP_LEVEL;
-
-static void do_telnet_read(char *buf, int len)
+static void do_telnet_read(Telnet telnet, char *buf, int len)
 {
 
     while (len--) {
 	int c = (unsigned char) *buf++;
 
-	switch (telnet_state) {
+	switch (telnet->state) {
 	  case TOP_LEVEL:
 	  case SEENCR:
-	    if (c == NUL && telnet_state == SEENCR)
-		telnet_state = TOP_LEVEL;
+	    if (c == NUL && telnet->state == SEENCR)
+		telnet->state = TOP_LEVEL;
 	    else if (c == IAC)
-		telnet_state = SEENIAC;
+		telnet->state = SEENIAC;
 	    else {
-		if (!in_synch)
-		    c_write1(c);
+		if (!telnet->in_synch)
+		    c_write1(telnet, c);
 
 #if 1
 		/* I can't get the F***ing winsock to insert the urgent IAC
@@ -485,84 +508,84 @@ static void do_telnet_read(char *buf, int len)
 		 * just stop hiding on the next 0xf2 and hope for the best.
 		 */
 		else if (c == DM)
-		    in_synch = 0;
+		    telnet->in_synch = 0;
 #endif
 		if (c == CR)
-		    telnet_state = SEENCR;
+		    telnet->state = SEENCR;
 		else
-		    telnet_state = TOP_LEVEL;
+		    telnet->state = TOP_LEVEL;
 	    }
 	    break;
 	  case SEENIAC:
 	    if (c == DO)
-		telnet_state = SEENDO;
+		telnet->state = SEENDO;
 	    else if (c == DONT)
-		telnet_state = SEENDONT;
+		telnet->state = SEENDONT;
 	    else if (c == WILL)
-		telnet_state = SEENWILL;
+		telnet->state = SEENWILL;
 	    else if (c == WONT)
-		telnet_state = SEENWONT;
+		telnet->state = SEENWONT;
 	    else if (c == SB)
-		telnet_state = SEENSB;
+		telnet->state = SEENSB;
 	    else if (c == DM) {
-		in_synch = 0;
-		telnet_state = TOP_LEVEL;
+		telnet->in_synch = 0;
+		telnet->state = TOP_LEVEL;
 	    } else {
 		/* ignore everything else; print it if it's IAC */
 		if (c == IAC) {
-		    c_write1(c);
+		    c_write1(telnet, c);
 		}
-		telnet_state = TOP_LEVEL;
+		telnet->state = TOP_LEVEL;
 	    }
 	    break;
 	  case SEENWILL:
-	    proc_rec_opt(WILL, c);
-	    telnet_state = TOP_LEVEL;
+	    proc_rec_opt(telnet, WILL, c);
+	    telnet->state = TOP_LEVEL;
 	    break;
 	  case SEENWONT:
-	    proc_rec_opt(WONT, c);
-	    telnet_state = TOP_LEVEL;
+	    proc_rec_opt(telnet, WONT, c);
+	    telnet->state = TOP_LEVEL;
 	    break;
 	  case SEENDO:
-	    proc_rec_opt(DO, c);
-	    telnet_state = TOP_LEVEL;
+	    proc_rec_opt(telnet, DO, c);
+	    telnet->state = TOP_LEVEL;
 	    break;
 	  case SEENDONT:
-	    proc_rec_opt(DONT, c);
-	    telnet_state = TOP_LEVEL;
+	    proc_rec_opt(telnet, DONT, c);
+	    telnet->state = TOP_LEVEL;
 	    break;
 	  case SEENSB:
-	    sb_opt = c;
-	    sb_len = 0;
-	    telnet_state = SUBNEGOT;
+	    telnet->sb_opt = c;
+	    telnet->sb_len = 0;
+	    telnet->state = SUBNEGOT;
 	    break;
 	  case SUBNEGOT:
 	    if (c == IAC)
-		telnet_state = SUBNEG_IAC;
+		telnet->state = SUBNEG_IAC;
 	    else {
 	      subneg_addchar:
-		if (sb_len >= sb_size) {
+		if (telnet->sb_len >= telnet->sb_size) {
 		    char *newbuf;
-		    sb_size += SB_DELTA;
-		    newbuf = (sb_buf ?
-			      srealloc(sb_buf, sb_size) :
-			      smalloc(sb_size));
+		    telnet->sb_size += SB_DELTA;
+		    newbuf = (telnet->sb_buf ?
+			      srealloc(telnet->sb_buf, telnet->sb_size) :
+			      smalloc(telnet->sb_size));
 		    if (newbuf)
-			sb_buf = newbuf;
+			telnet->sb_buf = newbuf;
 		    else
-			sb_size -= SB_DELTA;
+			telnet->sb_size -= SB_DELTA;
 		}
-		if (sb_len < sb_size)
-		    sb_buf[sb_len++] = c;
-		telnet_state = SUBNEGOT;	/* in case we came here by goto */
+		if (telnet->sb_len < telnet->sb_size)
+		    telnet->sb_buf[telnet->sb_len++] = c;
+		telnet->state = SUBNEGOT;	/* in case we came here by goto */
 	    }
 	    break;
 	  case SUBNEG_IAC:
 	    if (c != SE)
 		goto subneg_addchar;   /* yes, it's a hack, I know, but... */
 	    else {
-		process_subneg();
-		telnet_state = TOP_LEVEL;
+		process_subneg(telnet);
+		telnet->state = TOP_LEVEL;
 	    }
 	    break;
 	}
@@ -572,9 +595,11 @@ static void do_telnet_read(char *buf, int len)
 static int telnet_closing(Plug plug, char *error_msg, int error_code,
 			  int calling_back)
 {
-    if (s) {
-        sk_close(s);
-        s = NULL;
+    Telnet telnet = (Telnet) plug;
+
+    if (telnet->s) {
+        sk_close(telnet->s);
+        telnet->s = NULL;
     }
     if (error_msg) {
 	/* A socket error has occurred. */
@@ -586,15 +611,17 @@ static int telnet_closing(Plug plug, char *error_msg, int error_code,
 
 static int telnet_receive(Plug plug, int urgent, char *data, int len)
 {
+    Telnet telnet = (Telnet) plug;
     if (urgent)
-	in_synch = TRUE;
-    do_telnet_read(data, len);
+	telnet->in_synch = TRUE;
+    do_telnet_read(telnet, data, len);
     return 1;
 }
 
 static void telnet_sent(Plug plug, int bufsize)
 {
-    telnet_bufsize = bufsize;
+    Telnet telnet = (Telnet) plug;
+    telnet->bufsize = bufsize;
 }
 
 /*
@@ -605,21 +632,31 @@ static void telnet_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *telnet_init(void *frontend_handle,
+static char *telnet_init(void *frontend_handle, void **backend_handle,
 			 char *host, int port, char **realhost, int nodelay)
 {
-    static struct plug_function_table fn_table = {
+    static const struct plug_function_table fn_table = {
 	telnet_closing,
 	telnet_receive,
 	telnet_sent
-    }, *fn_table_ptr = &fn_table;
-
+    };
     SockAddr addr;
     char *err;
+    Telnet telnet;
 
-    frontend = frontend_handle;
-    telnet_term_width = cfg.width;
-    telnet_term_height = cfg.height;
+    telnet = smalloc(sizeof(*telnet));
+    telnet->fn = &fn_table;
+    telnet->s = NULL;
+    telnet->echoing = TRUE;
+    telnet->editing = TRUE;
+    telnet->activated = FALSE;
+    telnet->sb_buf = NULL;
+    telnet->sb_size = 0;
+    telnet->frontend = frontend_handle;
+    telnet->term_width = cfg.width;
+    telnet->term_height = cfg.height;
+    telnet->state = TOP_LEVEL;
+    *backend_handle = telnet;
 
     /*
      * Try to find host.
@@ -645,8 +682,9 @@ static char *telnet_init(void *frontend_handle,
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
 	logevent(buf);
     }
-    s = new_connection(addr, *realhost, port, 0, 1, nodelay, &fn_table_ptr);
-    if ((err = sk_socket_error(s)))
+    telnet->s = new_connection(addr, *realhost, port, 0, 1,
+			       nodelay, (Plug) telnet);
+    if ((err = sk_socket_error(telnet->s)))
 	return err;
 
     sk_addr_free(addr);
@@ -655,24 +693,25 @@ static char *telnet_init(void *frontend_handle,
      * Initialise option states.
      */
     if (cfg.passive_telnet) {
-	struct Opt **o;
+	const struct Opt *const *o;
 
 	for (o = opts; *o; o++)
-	    if ((*o)->state == REQUESTED)
-		(*o)->state = INACTIVE;
+	    telnet->opt_states[(*o)->index] = INACTIVE;
     } else {
-	struct Opt **o;
+	const struct Opt *const *o;
 
-	for (o = opts; *o; o++)
-	    if ((*o)->state == REQUESTED)
-		send_opt((*o)->send, (*o)->option);
-	activated = TRUE;
+	for (o = opts; *o; o++) {
+	    telnet->opt_states[(*o)->index] = (*o)->initial_state;
+	    if (telnet->opt_states[(*o)->index] == REQUESTED)
+		send_opt(telnet, (*o)->send, (*o)->option);
+	}
+	telnet->activated = TRUE;
     }
 
     /*
      * Set up SYNCH state.
      */
-    in_synch = FALSE;
+    telnet->in_synch = FALSE;
 
     return NULL;
 }
@@ -680,8 +719,9 @@ static char *telnet_init(void *frontend_handle,
 /*
  * Called to send data down the Telnet connection.
  */
-static int telnet_send(char *buf, int len)
+static int telnet_send(void *handle, char *buf, int len)
 {
+    Telnet telnet = (Telnet) handle;
     char *p;
     static unsigned char iac[2] = { IAC, IAC };
     static unsigned char cr[2] = { CR, NUL };
@@ -689,7 +729,7 @@ static int telnet_send(char *buf, int len)
     static unsigned char nl[2] = { CR, LF };
 #endif
 
-    if (s == NULL)
+    if (telnet->s == NULL)
 	return 0;
 
     p = buf;
@@ -698,49 +738,51 @@ static int telnet_send(char *buf, int len)
 
 	while (iswritable((unsigned char) *p) && p < buf + len)
 	    p++;
-	telnet_bufsize = sk_write(s, q, p - q);
+	telnet->bufsize = sk_write(telnet->s, q, p - q);
 
 	while (p < buf + len && !iswritable((unsigned char) *p)) {
-	    telnet_bufsize = 
-		sk_write(s, (unsigned char) *p == IAC ? iac : cr, 2);
+	    telnet->bufsize = 
+		sk_write(telnet->s, (unsigned char) *p == IAC ? iac : cr, 2);
 	    p++;
 	}
     }
 
-    return telnet_bufsize;
+    return telnet->bufsize;
 }
 
 /*
  * Called to query the current socket sendability status.
  */
-static int telnet_sendbuffer(void)
+static int telnet_sendbuffer(void *handle)
 {
-    return telnet_bufsize;
+    Telnet telnet = (Telnet) handle;
+    return telnet->bufsize;
 }
 
 /*
  * Called to set the size of the window from Telnet's POV.
  */
-static void telnet_size(int width, int height)
+static void telnet_size(void *handle, int width, int height)
 {
+    Telnet telnet = (Telnet) handle;
     unsigned char b[16];
     char logbuf[50];
 
-    telnet_term_width = width;
-    telnet_term_height = height;
+    telnet->term_width = width;
+    telnet->term_height = height;
 
-    if (s == NULL || o_naws.state != ACTIVE)
+    if (telnet->s == NULL || telnet->opt_states[o_naws.index] != ACTIVE)
 	return;
     b[0] = IAC;
     b[1] = SB;
     b[2] = TELOPT_NAWS;
-    b[3] = telnet_term_width >> 8;
-    b[4] = telnet_term_width & 0xFF;
-    b[5] = telnet_term_height >> 8;
-    b[6] = telnet_term_height & 0xFF;
+    b[3] = telnet->term_width >> 8;
+    b[4] = telnet->term_width & 0xFF;
+    b[5] = telnet->term_height >> 8;
+    b[6] = telnet->term_height & 0xFF;
     b[7] = IAC;
     b[8] = SE;
-    telnet_bufsize = sk_write(s, b, 9);
+    telnet->bufsize = sk_write(telnet->s, b, 9);
     sprintf(logbuf, "client:\tSB NAWS %d,%d",
 	    ((unsigned char) b[3] << 8) + (unsigned char) b[4],
 	    ((unsigned char) b[5] << 8) + (unsigned char) b[6]);
@@ -750,118 +792,125 @@ static void telnet_size(int width, int height)
 /*
  * Send Telnet special codes.
  */
-static void telnet_special(Telnet_Special code)
+static void telnet_special(void *handle, Telnet_Special code)
 {
+    Telnet telnet = (Telnet) handle;
     unsigned char b[2];
 
-    if (s == NULL)
+    if (telnet->s == NULL)
 	return;
 
     b[0] = IAC;
     switch (code) {
       case TS_AYT:
 	b[1] = AYT;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_BRK:
 	b[1] = BREAK;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_EC:
 	b[1] = EC;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_EL:
 	b[1] = EL;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_GA:
 	b[1] = GA;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_NOP:
 	b[1] = NOP;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_ABORT:
 	b[1] = ABORT;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_AO:
 	b[1] = AO;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_IP:
 	b[1] = IP;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_SUSP:
 	b[1] = SUSP;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_EOR:
 	b[1] = EOR;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_EOF:
 	b[1] = xEOF;
-	telnet_bufsize = sk_write(s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_EOL:
-	telnet_bufsize = sk_write(s, "\r\n", 2);
+	telnet->bufsize = sk_write(telnet->s, "\r\n", 2);
 	break;
       case TS_SYNCH:
 	b[1] = DM;
-	telnet_bufsize = sk_write(s, b, 1);
-	telnet_bufsize = sk_write_oob(s, b + 1, 1);
+	telnet->bufsize = sk_write(telnet->s, b, 1);
+	telnet->bufsize = sk_write_oob(telnet->s, b + 1, 1);
 	break;
       case TS_RECHO:
-	if (o_echo.state == INACTIVE || o_echo.state == REALLY_INACTIVE) {
-	    o_echo.state = REQUESTED;
-	    send_opt(o_echo.send, o_echo.option);
+	if (telnet->opt_states[o_echo.index] == INACTIVE ||
+	    telnet->opt_states[o_echo.index] == REALLY_INACTIVE) {
+	    telnet->opt_states[o_echo.index] = REQUESTED;
+	    send_opt(telnet, o_echo.send, o_echo.option);
 	}
 	break;
       case TS_LECHO:
-	if (o_echo.state == ACTIVE) {
-	    o_echo.state = REQUESTED;
-	    send_opt(o_echo.nsend, o_echo.option);
+	if (telnet->opt_states[o_echo.index] == ACTIVE) {
+	    telnet->opt_states[o_echo.index] = REQUESTED;
+	    send_opt(telnet, o_echo.nsend, o_echo.option);
 	}
 	break;
       case TS_PING:
-	if (o_they_sga.state == ACTIVE) {
+	if (telnet->opt_states[o_they_sga.index] == ACTIVE) {
 	    b[1] = NOP;
-	    telnet_bufsize = sk_write(s, b, 2);
+	    telnet->bufsize = sk_write(telnet->s, b, 2);
 	}
 	break;
     }
 }
 
-static Socket telnet_socket(void)
+static Socket telnet_socket(void *handle)
 {
-    return s;
+    Telnet telnet = (Telnet) handle;
+    return telnet->s;
 }
 
-static int telnet_sendok(void)
+static int telnet_sendok(void *handle)
 {
+    Telnet telnet = (Telnet) handle;
     return 1;
 }
 
-static void telnet_unthrottle(int backlog)
+static void telnet_unthrottle(void *handle, int backlog)
 {
-    sk_set_frozen(s, backlog > TELNET_MAX_BACKLOG);
+    Telnet telnet = (Telnet) handle;
+    sk_set_frozen(telnet->s, backlog > TELNET_MAX_BACKLOG);
 }
 
-static int telnet_ldisc(int option)
+static int telnet_ldisc(void *handle, int option)
 {
+    Telnet telnet = (Telnet) handle;
     if (option == LD_ECHO)
-	return echoing;
+	return telnet->echoing;
     if (option == LD_EDIT)
-	return editing;
+	return telnet->editing;
     return FALSE;
 }
 
-static int telnet_exitcode(void)
+static int telnet_exitcode(void *handle)
 {
+    Telnet telnet = (Telnet) handle;
     /* Telnet doesn't transmit exit codes back to the client */
     return 0;
 }

@@ -157,6 +157,9 @@ struct terminal_tag {
     wchar_t *paste_buffer;
     int paste_len, paste_pos, paste_hold;
     long last_paste;
+
+    void (*resize_fn)(void *, int, int);
+    void *resize_ctx;
 };
 
 #define in_utf(term) ((term)->utf || line_codepage==CP_UTF8)
