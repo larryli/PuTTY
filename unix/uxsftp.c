@@ -355,7 +355,7 @@ char *dir_file_cat(char *dir, char *file)
  * Do a select() between all currently active network fds and
  * optionally stdin.
  */
-static int ssh_sftp_do_select(int include_stdin)
+static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
 {
     fd_set rset, wset, xset;
     int i, fdcount, fdsize, *fdlist;
@@ -372,7 +372,7 @@ static int ssh_sftp_do_select(int include_stdin)
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) i++;
 
-	if (i < 1)
+	if (i < 1 && !no_fds_ok)
 	    return -1;		       /* doom */
 
 	/* Expand the fdlist buffer if necessary. */
@@ -457,13 +457,13 @@ static int ssh_sftp_do_select(int include_stdin)
  */
 int ssh_sftp_loop_iteration(void)
 {
-    return ssh_sftp_do_select(FALSE);
+    return ssh_sftp_do_select(FALSE, FALSE);
 }
 
 /*
  * Read a PSFTP command line from stdin.
  */
-char *ssh_sftp_get_cmdline(char *prompt)
+char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
 {
     char *buf;
     int buflen, bufsize, ret;
@@ -475,7 +475,7 @@ char *ssh_sftp_get_cmdline(char *prompt)
     buflen = bufsize = 0;
 
     while (1) {
-	ret = ssh_sftp_do_select(TRUE);
+	ret = ssh_sftp_do_select(TRUE, no_fds_ok);
 	if (ret < 0) {
 	    printf("connection died\n");
 	    return NULL;	       /* woop woop */

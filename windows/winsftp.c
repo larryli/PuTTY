@@ -462,7 +462,7 @@ char *dir_file_cat(char *dir, char *file)
 /*
  * Be told what socket we're supposed to be using.
  */
-static SOCKET sftp_ssh_socket;
+static SOCKET sftp_ssh_socket = INVALID_SOCKET;
 static HANDLE netevent = NULL;
 char *do_select(SOCKET skt, int startup)
 {
@@ -676,7 +676,7 @@ static DWORD WINAPI command_read_thread(void *param)
     return 0;
 }
 
-char *ssh_sftp_get_cmdline(char *prompt)
+char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
 {
     int ret;
     struct command_read_ctx actx, *ctx = &actx;
@@ -685,7 +685,8 @@ char *ssh_sftp_get_cmdline(char *prompt)
     fputs(prompt, stdout);
     fflush(stdout);
 
-    if (sftp_ssh_socket == INVALID_SOCKET || p_WSAEventSelect == NULL) {
+    if ((sftp_ssh_socket == INVALID_SOCKET && no_fds_ok) ||
+	p_WSAEventSelect == NULL) {
 	return fgetline(stdin);	       /* very simple */
     }
 

@@ -35,8 +35,15 @@ int ssh_sftp_loop_iteration(void);
 /*
  * Read a command line for PSFTP from standard input. Caller must
  * free.
+ * 
+ * If `backend_required' is TRUE, should also listen for activity
+ * at the backend (rekeys, clientalives, unexpected closures etc)
+ * and respond as necessary, and if the backend closes it should
+ * treat this as a failure condition. If `backend_required' is
+ * FALSE, a back end is not (intentionally) active at all (e.g.
+ * psftp before an `open' command).
  */
-char *ssh_sftp_get_cmdline(char *prompt);
+char *ssh_sftp_get_cmdline(char *prompt, int backend_required);
 
 /*
  * The main program in psftp.c. Called from main() in the platform-

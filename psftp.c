@@ -1866,7 +1866,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	    printf("psftp> ");
 	line = fgetline(fp);
     } else {
-	line = ssh_sftp_get_cmdline("psftp> ");
+	line = ssh_sftp_get_cmdline("psftp> ", back == NULL);
     }
 
     if (!line || !*line) {
@@ -2004,6 +2004,8 @@ void do_sftp_cleanup()
 	sftp_recvdata(&ch, 1);
 	back->free(backhandle);
 	sftp_cleanup_request();
+	back = NULL;
+	backhandle = NULL;
     }
     if (pwd) {
 	sfree(pwd);
