@@ -792,7 +792,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
             bartitle(&cp, "Options controlling PuTTY's appearance",
-                     IDC_TITLE_WINDOW);
+                     IDC_TITLE_APPEARANCE);
             beginbox(&cp, "Adjust the use of the cursor",
                      IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1);
 	    checkbox(&cp, "Cursor &blinks", IDC_BLINKCUR);
