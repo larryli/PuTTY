@@ -258,7 +258,7 @@ static char *rsa2_fingerprint(void *key) {
 
     MD5Final(digest, &md5c);
 
-    sprintf(buffer, "%d ", ssh1_bignum_bitcount(rsa->modulus));
+    sprintf(buffer, "ssh-rsa %d ", ssh1_bignum_bitcount(rsa->modulus));
     for (i = 0; i < 16; i++)
         sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
     ret = smalloc(strlen(buffer)+1);

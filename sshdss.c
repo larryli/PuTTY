@@ -161,7 +161,7 @@ static char *dss_fingerprint(void *key) {
 
     MD5Final(digest, &md5c);
 
-    sprintf(buffer, "%d ", ssh1_bignum_bitcount(dss->p));
+    sprintf(buffer, "ssh-dss %d ", ssh1_bignum_bitcount(dss->p));
     for (i = 0; i < 16; i++)
         sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
     ret = smalloc(strlen(buffer)+1);
