@@ -1111,10 +1111,35 @@ int main(int argc, char **argv)
 {
     GtkWidget *window;
     extern int pty_master_fd;	       /* declared in pty.c */
+    extern char **pty_argv;	       /* declared in pty.c */
+    int err = 0;
 
     gtk_init(&argc, &argv);
 
     do_defaults(NULL, &cfg);
+
+    while (--argc > 0) {
+	char *p = *++argv;
+	if (!strcmp(p, "-fn")) {
+	    if (--argc > 0) {
+		strncpy(cfg.font, *++argv, sizeof(cfg.font));
+		cfg.font[sizeof(cfg.font)-1] = '\0';
+	    } else
+		err = 1, fprintf(stderr, "pterm: -fn expects an argument\n");
+	}
+	if (!strcmp(p, "-e")) {
+	    if (--argc > 0) {
+		int i;
+		pty_argv = smalloc((argc+1) * sizeof(char *));
+		++argv;
+		for (i = 0; i < argc; i++)
+		    pty_argv[i] = argv[i];
+		pty_argv[argc] = NULL;
+		break;		       /* finished command-line processing */
+	    } else
+		err = 1, fprintf(stderr, "pterm: -e expects an argument\n");
+	}
+    }
 
     inst->fonts[0] = gdk_font_load(cfg.font);
     inst->fonts[1] = NULL;             /* FIXME: what about bold font? */

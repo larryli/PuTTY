@@ -20,6 +20,7 @@
 #endif
 
 int pty_master_fd;
+char **pty_argv;
 
 static void pty_size(void);
 
@@ -87,11 +88,14 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	dup2(slavefd, 2);
 	setsid();
 	setpgrp();
-	tcsetpgrp(0, getpgrp());
+	tcsetpgrp(slavefd, getpgrp());
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
-	execl(getenv("SHELL"), getenv("SHELL"), NULL);
+	if (pty_argv)
+	    execvp(pty_argv[0], pty_argv);
+	else
+	    execl(getenv("SHELL"), getenv("SHELL"), NULL);
 	/*
 	 * If we're here, exec has gone badly foom.
 	 */
