@@ -3082,11 +3082,18 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 {
     pos selpoint;
     unsigned long *ldata;
+    int raw_mouse = xterm_mouse && !(cfg.mouse_override && shift);
 
-    if (y < 0)
+    if (y < 0) {
 	y = 0;
-    if (y >= rows)
+	if (a == MA_DRAG && !raw_mouse)
+	    term_scroll(0, -1);
+    }
+    if (y >= rows) {
 	y = rows - 1;
+	if (a == MA_DRAG && !raw_mouse)
+	    term_scroll(0, +1);
+    }
     if (x < 0) {
 	if (y > 0) {
 	    x = cols - 1;
@@ -3103,7 +3110,7 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
     if ((ldata[cols] & LATTR_MODE) != LATTR_NORM)
 	selpoint.x /= 2;
 
-    if (xterm_mouse && !(cfg.mouse_override && shift)) {
+    if (raw_mouse) {
 	int encstate = 0, r, c;
 	char abuf[16];
 	static int is_down = 0;
