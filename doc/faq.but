@@ -292,11 +292,17 @@ testing in this area would be very welcome!
 
 \S{faq-mac-port}{Question} Will there be a port to the Mac?
 
-There is a port to the Mac OS in progress. It's just about usable, but
-has an awful lot of gaps and rough edges that will need cleaning up
-before release (such as useful random numbers).
+There are several answers to this question:
 
-A separate port to Mac OS X is also underway.
+\b The Unix/Gtk port is already fully working under Mac OS X as an X11
+application.
+
+\b A native (Cocoa) Mac OS X port is in progress. It's just about
+usable, but is of nowhere near release quality yet, and is likely to
+behave in unexpected ways.
+
+\b A separate port to the classic Mac OS (pre-OSX) is also in
+progress; it too is not ready yet.
 
 \S{faq-epoc}{Question} Will there be a port to EPOC?
 
