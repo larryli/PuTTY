@@ -127,13 +127,23 @@ struct unicode_data {
 #define LGTYP_PACKETS 3		       /* logmode: SSH data packets */
 
 typedef enum {
+    /* Actual special commands. Originally Telnet, but some codes have
+     * been re-used for similar specials in other protocols. */
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
     TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO, TS_PING,
-    TS_EOL
+    TS_EOL,
+    /* POSIX-style signals. (not Telnet) */
+    TS_SIGABRT, TS_SIGALRM, TS_SIGFPE,  TS_SIGHUP,  TS_SIGILL,
+    TS_SIGINT,  TS_SIGKILL, TS_SIGPIPE, TS_SIGQUIT, TS_SIGSEGV,
+    TS_SIGTERM, TS_SIGUSR1, TS_SIGUSR2,
+    /* Pseudo-specials used for constructing the specials menu. */
+    TS_SEP,	    /* Separator */
+    TS_SUBMENU,	    /* Start a new submenu with specified name */
+    TS_EXITMENU	    /* Exit current submenu or end of specials */
 } Telnet_Special;
 
 struct telnet_special {
-    const char *name;		       /* NULL==end, ""==separator */
+    const char *name;
     int code;
 };
 

@@ -3160,22 +3160,51 @@ void update_specials_menu(void *frontend)
     else
 	specials = NULL;
 
+    /* I believe this disposes of submenus too. */
     gtk_container_foreach(GTK_CONTAINER(inst->specialsmenu),
 			  (GtkCallback)gtk_widget_destroy, NULL);
     if (specials) {
 	int i;
-	GtkWidget *menuitem;
-	for (i = 0; specials[i].name; i++) {
-	    if (*specials[i].name) {
+	GtkWidget *menu = inst->specialsmenu;
+	/* A lame "stack" for submenus that will do for now. */
+	GtkWidget *saved_menu = NULL;
+	int nesting = 1;
+	for (i = 0; nesting > 0; i++) {
+	    GtkWidget *menuitem = NULL;
+	    switch (specials[i].code) {
+	      case TS_SUBMENU:
+		assert (nesting < 2);
+		saved_menu = menu; /* XXX lame stacking */
+		menu = gtk_menu_new();
+		menuitem = gtk_menu_item_new_with_label(specials[i].name);
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), menu);
+		gtk_container_add(GTK_CONTAINER(saved_menu), menuitem);
+		gtk_widget_show(menuitem);
+		menuitem = NULL;
+		nesting++;
+		break;
+	      case TS_EXITMENU:
+		nesting--;
+		if (nesting) {
+		    menu = saved_menu; /* XXX lame stacking */
+		    saved_menu = NULL;
+		}
+		break;
+	      case TS_SEP:
+		menuitem = gtk_menu_item_new();
+		break;
+	      default:
 		menuitem = gtk_menu_item_new_with_label(specials[i].name);
 		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
 				    GINT_TO_POINTER(specials[i].code));
 		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
 				   GTK_SIGNAL_FUNC(special_menuitem), inst);
-	    } else
-		menuitem = gtk_menu_item_new();
-	    gtk_container_add(GTK_CONTAINER(inst->specialsmenu), menuitem);
-	    gtk_widget_show(menuitem);
+		break;
+	    }
+	    if (menuitem) {
+		gtk_container_add(GTK_CONTAINER(menu), menuitem);
+		gtk_widget_show(menuitem);
+	    }
 	}
 	gtk_widget_show(inst->specialsitem1);
 	gtk_widget_show(inst->specialsitem2);

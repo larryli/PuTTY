@@ -6885,12 +6885,25 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 	{"IGNORE message", TS_NOP},
     };
     static const struct telnet_special ssh2_session_specials[] = {
-	{"", 0},
-	{"Break", TS_BRK}
-	/* XXX we should also support signals */
+	{NULL, TS_SEP},
+	{"Break", TS_BRK},
+	/* These are the signal names defined by draft-ietf-secsh-connect-19.
+	 * They include all the ISO C signals, but are a subset of the POSIX
+	 * required signals. */
+	{"SIGINT (Interrupt)", TS_SIGINT},
+	{"SIGTERM (Terminate)", TS_SIGTERM},
+	{"SIGKILL (Kill)", TS_SIGKILL},
+	{"SIGQUIT (Quit)", TS_SIGQUIT},
+	{"SIGHUP (Hangup)", TS_SIGHUP},
+	{"More signals", TS_SUBMENU},
+	  {"SIGABRT", TS_SIGABRT}, {"SIGALRM", TS_SIGALRM},
+	  {"SIGFPE",  TS_SIGFPE},  {"SIGILL",  TS_SIGILL},
+	  {"SIGPIPE", TS_SIGPIPE}, {"SIGSEGV", TS_SIGSEGV},
+	  {"SIGUSR1", TS_SIGUSR1}, {"SIGUSR2", TS_SIGUSR2},
+	{NULL, TS_EXITMENU}
     };
     static const struct telnet_special specials_end[] = {
-	{NULL, 0}
+	{NULL, TS_EXITMENU}
     };
     static struct telnet_special ssh_specials[lenof(ignore_special) +
 					      lenof(ssh2_session_specials) +
@@ -6978,7 +6991,37 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    ssh2_pkt_send(ssh);
 	}
     } else {
-	/* do nothing */
+	/* Is is a POSIX signal? */
+	char *signame = NULL;
+	if (code == TS_SIGABRT) signame = "ABRT";
+	if (code == TS_SIGALRM) signame = "ALRM";
+	if (code == TS_SIGFPE)  signame = "FPE";
+	if (code == TS_SIGHUP)  signame = "HUP";
+	if (code == TS_SIGILL)  signame = "ILL";
+	if (code == TS_SIGINT)  signame = "INT";
+	if (code == TS_SIGKILL) signame = "KILL";
+	if (code == TS_SIGPIPE) signame = "PIPE";
+	if (code == TS_SIGQUIT) signame = "QUIT";
+	if (code == TS_SIGSEGV) signame = "SEGV";
+	if (code == TS_SIGTERM) signame = "TERM";
+	if (code == TS_SIGUSR1) signame = "USR1";
+	if (code == TS_SIGUSR2) signame = "USR2";
+	/* The SSH-2 protocol does in principle support arbitrary named
+	 * signals, including signame@domain, but we don't support those. */
+	if (signame) {
+	    /* It's a signal. */
+	    if (ssh->version == 2 && ssh->mainchan) {
+		ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
+		ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
+		ssh2_pkt_addstring(ssh, "signal");
+		ssh2_pkt_addbool(ssh, 0);
+		ssh2_pkt_addstring(ssh, signame);
+		ssh2_pkt_send(ssh);
+		logeventf(ssh, "Sent signal SIG%s", signame);
+	    }
+	} else {
+	    /* Never heard of it. Do nothing */
+	}
     }
 }
 

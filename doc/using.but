@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.34 2004/10/13 13:43:11 simon Exp $
+\versionid $Id: using.but,v 1.35 2004/10/17 21:22:22 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -175,17 +175,25 @@ PuTTY can also be configured to send this when Ctrl-Z is typed; see
 
 In an SSH connection, the following special commands are available:
 
-\b \I{Break, SSH special command}Break
-
-\lcont{
-Optional extension; may not be supported by server. PuTTY requests the
-server's default break length.
-}
-
 \b \I{IGNORE message, SSH special command}\I{No-op, in SSH}IGNORE message
 
 \lcont{
 Should have no effect.
+}
+
+\b \I{Break, SSH special command}Break
+
+\lcont{
+Only available in SSH-2, and only during a session. Optional
+extension; may not be supported by server. PuTTY requests the server's
+default break length.
+}
+
+\b \I{Signal, SSH special command}Signals (SIGINT, SIGTERM etc)
+
+\lcont{
+Only available in SSH-2, and only during a session. Sends various
+POSIX signals. Not honoured by all servers.
 }
 
 \S2{using-newsession} Starting new sessions

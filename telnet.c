@@ -963,6 +963,8 @@ static void telnet_special(void *handle, Telnet_Special code)
 	    telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	}
 	break;
+      default:
+	break;	/* never heard of it */
     }
 }
 
@@ -976,15 +978,15 @@ static const struct telnet_special *telnet_get_specials(void *handle)
 	{"Erase Line", TS_EL},
 	{"Go Ahead", TS_GA},
 	{"No Operation", TS_NOP},
-	{"", 0},
+	{NULL, TS_SEP},
 	{"Abort Process", TS_ABORT},
 	{"Abort Output", TS_AO},
 	{"Interrupt Process", TS_IP},
 	{"Suspend Process", TS_SUSP},
-	{"", 0},
+	{NULL, TS_SEP},
 	{"End Of Record", TS_EOR},
 	{"End Of File", TS_EOF},
-	{NULL, 0}
+	{NULL, TS_EXITMENU}
     };
     return specials;
 }

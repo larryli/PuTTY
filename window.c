@@ -111,6 +111,7 @@ static struct unicode_data ucsdata;
 static int session_closed;
 
 static const struct telnet_special *specials;
+static int n_specials;
 
 static struct {
     HMENU menu;
@@ -915,20 +916,48 @@ void update_specials_menu(void *frontend)
 	specials = NULL;
 
     if (specials) {
-	p = CreateMenu();
-	for (i = 0; specials[i].name; i++) {
+	/* We can't use Windows to provide a stack for submenus, so
+	 * here's a lame "stack" that will do for now. */
+	HMENU saved_menu = NULL;
+	int nesting = 1;
+	p = CreatePopupMenu();
+	for (i = 0; nesting > 0; i++) {
 	    assert(IDM_SPECIAL_MIN + 0x10 * i < IDM_SPECIAL_MAX);
-	    if (*specials[i].name)
+	    switch (specials[i].code) {
+	      case TS_SEP:
+		AppendMenu(p, MF_SEPARATOR, 0, 0);
+		break;
+	      case TS_SUBMENU:
+		assert(nesting < 2);
+		nesting++;
+		saved_menu = p; /* XXX lame stacking */
+		p = CreatePopupMenu();
+		AppendMenu(saved_menu, MF_POPUP | MF_ENABLED,
+			   (UINT) p, specials[i].name);
+		break;
+	      case TS_EXITMENU:
+		nesting--;
+		if (nesting) {
+		    p = saved_menu; /* XXX lame stacking */
+		    saved_menu = NULL;
+		}
+		break;
+	      default:
 		AppendMenu(p, MF_ENABLED, IDM_SPECIAL_MIN + 0x10 * i,
 			   specials[i].name);
-	    else
-		AppendMenu(p, MF_SEPARATOR, 0, 0);
+		break;
+	    }
 	}
-    } else
+	/* Squirrel the highest special. */
+	n_specials = i - 1;
+    } else {
 	p = NULL;
+	n_specials = 0;
+    }
 
     for (j = 0; j < lenof(popup_menus); j++) {
 	if (menu_already_exists) {
+	    /* XXX does this free up all submenus? */
 	    DeleteMenu(popup_menus[j].menu,
 		       popup_menus[j].specials_submenu_pos,
 		       MF_BYPOSITION);
@@ -2088,20 +2117,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    if (wParam >= IDM_SPECIAL_MIN && wParam <= IDM_SPECIAL_MAX) {
 		int i = (wParam - IDM_SPECIAL_MIN) / 0x10;
-		int j;
 		/*
 		 * Ensure we haven't been sent a bogus SYSCOMMAND
 		 * which would cause us to reference invalid memory
 		 * and crash. Perhaps I'm just too paranoid here.
 		 */
-		for (j = 0; j < i; j++)
-		    if (!specials || !specials[j].name)
-			break;
-		if (j == i) {
-		    if (back)
-			back->special(backhandle, specials[i].code);
-		    net_pending_errors();
-		}
+		if (i >= n_specials)
+		    break;
+		if (back)
+		    back->special(backhandle, specials[i].code);
+		net_pending_errors();
 	    }
 	}
 	break;
