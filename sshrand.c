@@ -184,12 +184,14 @@ static void random_add_heavynoise_bitbybit(void *noise, int length)
 
 void random_init(void)
 {
-    memset(&pool, 0, sizeof(pool));    /* just to start with */
+    if (!random_active) {
+	memset(&pool, 0, sizeof(pool));    /* just to start with */
 
-    random_active = 1;
+	random_active = 1;
 
-    noise_get_heavy(random_add_heavynoise_bitbybit);
-    random_stir();
+	noise_get_heavy(random_add_heavynoise_bitbybit);
+	random_stir();
+    }
 }
 
 int random_byte(void)
