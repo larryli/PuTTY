@@ -218,6 +218,11 @@ not drive you crazy.
 The bell overload mode is activated by receiving N bells in time T;
 after a further time S without any bells, overload mode will turn
 itself off again.
+
+Bell overload mode is always deactivated by any keypress in the
+terminal. This means it can respond to large unexpected streams of
+data, but does not interfere with ordinary command-line activities
+that generate beeps (such as filename completion).
 .IP "\fBpterm.BellOverloadN\fP"
 This option counts the number of bell characters which will activate
 bell overload if they are received within a length of time T. The

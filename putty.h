@@ -109,7 +109,6 @@ GLOBAL unsigned long vbell_startpoint;
 GLOBAL int app_cursor_keys, app_keypad_keys, vt52_mode;
 GLOBAL int repeat_off, cr_lf_return;
 
-GLOBAL int seen_key_event;
 GLOBAL int seen_disp_event;
 GLOBAL int alt_pressed;
 
@@ -499,6 +498,7 @@ void logfopen(void);
 void logfclose(void);
 void term_copyall(void);
 void term_reconfig(void);
+void term_seen_key_event(void);
 
 /*
  * Exports from logging.c.

@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.42 2002/09/26 18:37:33 simon Exp $
+\versionid $Id: config.but,v 1.43 2002/10/20 13:23:30 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -685,6 +685,11 @@ with the settings, you can configure the details: how many bells
 constitute an overload, how short a time period they have to arrive
 in to do so, and how much silent time is required before the
 overload feature will deactivate itself.
+
+Bell overload mode is always deactivated by any keypress in the
+terminal. This means it can respond to large unexpected streams of
+data, but does not interfere with ordinary command-line activities
+that generate beeps (such as filename completion).
 
 \H{config-features} The Features panel
 

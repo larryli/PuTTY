@@ -328,10 +328,9 @@ void term_update(void)
     ctx = get_ctx();
     if (ctx) {
 	int need_sbar_update = seen_disp_event;
-	if ((seen_key_event && (cfg.scroll_on_key)) ||
-	    (seen_disp_event && (cfg.scroll_on_disp))) {
+	if (seen_disp_event && cfg.scroll_on_disp) {
 	    disptop = 0;	       /* return to main screen */
-	    seen_disp_event = seen_key_event = 0;
+	    seen_disp_event = 0;
 	    need_sbar_update = TRUE;
 	}
 	if (need_sbar_update)
@@ -339,6 +338,37 @@ void term_update(void)
 	do_paint(ctx, TRUE);
 	sys_cursor(curs.x, curs.y - disptop);
 	free_ctx(ctx);
+    }
+}
+
+/*
+ * Called from front end when a keypress occurs, to trigger
+ * anything magical that needs to happen in that situation.
+ */
+void term_seen_key_event(void)
+{
+    /*
+     * On any keypress, clear the bell overload mechanism
+     * completely, on the grounds that large numbers of
+     * beeps coming from deliberate key action are likely
+     * to be intended (e.g. beeps from filename completion
+     * blocking repeatedly).
+     */
+    beep_overloaded = FALSE;
+    while (beephead) {
+	struct beeptime *tmp = beephead;
+	beephead = tmp->next;
+	sfree(tmp);
+    }
+    beeptail = NULL;
+    nbeeps = 0;
+
+    /*
+     * Reset the scrollback on keypress, if we're doing that.
+     */
+    if (cfg.scroll_on_key) {
+	disptop = 0;		       /* return to main screen */
+	seen_disp_event = 1;
     }
 }
 
@@ -3450,8 +3480,10 @@ void term_do_paste(void)
     int len;
 
     get_clip(&data, &len);
-    if (data) {
+    if (data && len > 0) {
         wchar_t *p, *q;
+
+	term_seen_key_event();	       /* pasted data counts */
 
         if (paste_buffer)
             sfree(paste_buffer);

@@ -2439,6 +2439,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * messages. We _have_ to buffer everything
 		     * we're sent.
 		     */
+		    term_seen_key_event();
 		    ldisc_send(buf, len, 1);
 		    show_mouseptr(0);
 		}
@@ -2485,8 +2486,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * luni_send() covering the whole of buff. So
 		 * instead we luni_send the characters one by one.
 		 */
-		for (i = 0; i < n; i += 2)
+		term_seen_key_event();
+		for (i = 0; i < n; i += 2) {
 		    luni_send((unsigned short *)(buff+i), 1, 1);
+		}
 		free(buff);
 	    }
 	    ImmReleaseContext(hwnd, hIMC);
@@ -2499,9 +2502,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
+	    term_seen_key_event();
 	    lpage_send(kbd_codepage, buf, 2, 1);
 	} else {
 	    char c = (unsigned char) wParam;
+	    term_seen_key_event();
 	    lpage_send(kbd_codepage, &c, 1, 1);
 	}
 	return (0);
@@ -2515,6 +2520,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 */
 	{
 	    char c = (unsigned char)wParam;
+	    term_seen_key_event();
 	    lpage_send(CP_ACP, &c, 1, 1);
 	}
 	return 0;
@@ -3184,15 +3190,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     } else if (compose_state == 1 && wParam != VK_CONTROL)
 	compose_state = 0;
 
-    /* 
-     * Record that we pressed key so the scroll window can be reset, but
-     * be careful to avoid Shift-UP/Down
-     */
-    if (wParam != VK_SHIFT && wParam != VK_PRIOR && wParam != VK_NEXT &&
-	wParam != VK_MENU && wParam != VK_CONTROL) {
-	seen_key_event = 1;
-    }
-
     if (compose_state > 1 && left_alt)
 	compose_state = 0;
 
@@ -3769,6 +3766,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			return 0;
 		    }
 		    keybuf = nc;
+		    term_seen_key_event();
 		    luni_send(&keybuf, 1, 1);
 		    continue;
 		}
@@ -3779,6 +3777,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    if (alt_sum) {
 			if (in_utf || dbcs_screenfont) {
 			    keybuf = alt_sum;
+			    term_seen_key_event();
 			    luni_send(&keybuf, 1, 1);
 			} else {
 			    ch = (char) alt_sum;
@@ -3791,21 +3790,25 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * messages. We _have_ to buffer
 			     * everything we're sent.
 			     */
+			    term_seen_key_event();
 			    ldisc_send(&ch, 1, 1);
 			}
 			alt_sum = 0;
 		    } else
+			term_seen_key_event();
 			lpage_send(kbd_codepage, &ch, 1, 1);
 		} else {
 		    if(capsOn && ch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(ch);
+			term_seen_key_event();
 			luni_send(cbuf+!left_alt, 1+!!left_alt, 1);
 		    } else {
 			char cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = ch;
+			term_seen_key_event();
 			lpage_send(kbd_codepage, cbuf+!left_alt, 1+!!left_alt, 1);
 		    }
 		}
