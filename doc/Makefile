@@ -41,7 +41,7 @@ CHAPTERS += index $(VERSIONIDS)
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
 
 # This is temporary. Hack it locally or something.
-HALIBUT = $(HOME)/src/halibut/build/halibut
+HALIBUT = halibut
 
 index.html: $(INPUTS)
 	$(HALIBUT) --text --html --winhelp $(INPUTS)
