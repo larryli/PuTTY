@@ -333,6 +333,7 @@ typedef struct {
     /* Selection options */
     int mouse_is_xterm;
     int rawcnp;
+    int mouse_override;
     short wordness[256];
     /* translations */
     VT_Mode vtmode;

@@ -470,6 +470,7 @@ enum { IDCX_ABOUT =
     IDC_MBSTATIC,
     IDC_MBWINDOWS,
     IDC_MBXTERM,
+    IDC_MOUSEOVERRIDE,
     IDC_CCSTATIC,
     IDC_CCLIST,
     IDC_CCSET,
@@ -749,6 +750,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 
     CheckRadioButton(hwnd, IDC_MBWINDOWS, IDC_MBXTERM,
 		     cfg.mouse_is_xterm ? IDC_MBXTERM : IDC_MBWINDOWS);
+    CheckDlgButton(hwnd, IDC_MOUSEOVERRIDE, cfg.mouse_override);
     CheckDlgButton(hwnd, IDC_RAWCNP, cfg.rawcnp);
     {
 	static int tabs[4] = { 25, 61, 96, 128 };
@@ -1108,7 +1110,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == selectionpanelstart) {
-	/* The Selection panel. Accelerators used: [acgo] d wx hst */
+	/* The Selection panel. Accelerators used: [acgo] d wxp hst */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling copy and paste",
@@ -1125,6 +1127,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 "&Windows (Right pastes, Middle extends)", IDC_MBWINDOWS,
 		 "&xterm (Right extends, Middle pastes)", IDC_MBXTERM,
 		 NULL);
+	checkbox(&cp,
+		 "Shift overrides a&pplication's use of mouse",
+		 IDC_MOUSEOVERRIDE);
 	endbox(&cp);
 	beginbox(&cp, "Control the select-one-word-at-a-time mode",
 		 IDC_BOX_SELECTION3);
@@ -2334,9 +2339,13 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		break;
 	      case IDC_RAWCNP:
 		cfg.rawcnp = IsDlgButtonChecked(hwnd, IDC_RAWCNP);
+		break;
 	      case IDC_MBWINDOWS:
 	      case IDC_MBXTERM:
 		cfg.mouse_is_xterm = IsDlgButtonChecked(hwnd, IDC_MBXTERM);
+		break;
+	      case IDC_MOUSEOVERRIDE:
+		cfg.mouse_override = IsDlgButtonChecked(hwnd, IDC_MOUSEOVERRIDE);
 		break;
 	      case IDC_CCSET:
 		{

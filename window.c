@@ -1129,7 +1129,8 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl)
 {
     int thistime = GetMessageTime();
 
-    if (send_raw_mouse) {
+    if (send_raw_mouse && !(cfg.mouse_override && shift)) {
+	lastbtn = MBT_NOTHING;
 	term_mouse(b, MA_CLICK, x, y, shift, ctrl);
 	return;
     }

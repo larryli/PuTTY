@@ -3100,7 +3100,7 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
     if ((ldata[cols] & LATTR_MODE) != LATTR_NORM)
 	selpoint.x /= 2;
 
-    if (xterm_mouse) {
+    if (xterm_mouse && !(cfg.mouse_override && shift)) {
 	int encstate = 0, r, c;
 	char abuf[16];
 	static int is_down = 0;
