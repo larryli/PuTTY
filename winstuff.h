@@ -23,18 +23,15 @@ struct FontSpec {
     int charset;
 };
 
-struct dlgboxinfo {
-    int result;
-    int flags;
-};
-
+#define BOXFLAGS DLGWINDOWEXTRA
+#define BOXRESULT DLGWINDOWEXTRA + 4
 #define DF_END 0x0001
 
 /*
  * Global variables. Most modules declare these `extern', but
  * window.c will do `#define PUTTY_DO_GLOBALS' before including this
  * module, and so will get them properly defined.
- */
+*/
 #ifndef GLOBAL
 #ifdef PUTTY_DO_GLOBALS
 #define GLOBAL
@@ -69,11 +66,6 @@ typedef HDC Context;
  * PuTTY session.
  */
 GLOBAL HWND logbox;
-
-/*
- * Global structure to hold return values from the config box.
- */
-GLOBAL struct dlgboxinfo boxinfo;
 
 /*
  * The all-important instance handle.

@@ -42,24 +42,46 @@ int SaneDialogBox(HINSTANCE hinst,
 		  HWND hwndparent,
 		  DLGPROC lpDialogFunc)
 {
-    HWND boxhwnd;
+    WNDCLASS wc;
+    HWND hwnd;
     MSG msg;
-    
-    boxhwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
+    int flags;
+    int ret;
+
+    wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
+    wc.lpfnWndProc = DefDlgProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = DLGWINDOWEXTRA + 8;
+    wc.hInstance = hinst;
+    wc.hIcon = NULL;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH) (COLOR_BACKGROUND +1);
+    wc.lpszMenuName = NULL;
+    wc.lpszClassName = "PuTTYConfigBox";
+    RegisterClass(&wc);
+
+    hwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
+
+    SetWindowLong(hwnd, BOXFLAGS, 0); /* flags */
+    SetWindowLong(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
+
     while (GetMessage(&msg, NULL, 0, 0)) {
-	if (!(boxinfo.flags & DF_END) && !IsDialogMessage(boxhwnd, &msg))
+	flags=GetWindowLong(hwnd, BOXFLAGS);
+	if (!(flags & DF_END) && !IsDialogMessage(hwnd, &msg))
 	    DispatchMessage(&msg);
-	if (boxinfo.flags & DF_END) break;
+	if (flags & DF_END)
+	    break;
     }
-    boxinfo.flags=0;
-    return boxinfo.result;
+
+    ret=GetWindowLong(hwnd, BOXRESULT);
+    DestroyWindow(hwnd);
+    return ret;
 }
 
 void SaneEndDialog(HWND hwnd, int ret)
 {
-    boxinfo.result = ret;
-    boxinfo.flags |= DF_END;
-    DestroyWindow(hwnd);
+    SetWindowLong(hwnd, BOXRESULT, ret);
+    SetWindowLong(hwnd, BOXFLAGS, DF_END);
 }
 
 #ifdef DEBUG
