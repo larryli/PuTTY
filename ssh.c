@@ -4347,8 +4347,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		} while (ret == 0);
 		if (ret < 0)
 		    cleanup_exit(0);
+		c_write_str(ssh, "\r\n");
 	    }
-	    c_write_str(ssh, "\r\n");
 	    s->username[strcspn(s->username, "\n\r")] = '\0';
 	} else {
 	    char stuff[200];
