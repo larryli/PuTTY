@@ -174,7 +174,7 @@ plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OB
 	link $(LFLAGS) -out:plink.exe -map:plink.map @plink.rsp
 
 ssh.obj:
-	cl $(FWHACK) $(VER) $(CFLAGS) /Gi- /c ssh.c
+	cl $(COMPAT) $(FWHACK) $(VER) $(XFLAGS) $(CFLAGS) /Gi- /c ssh.c
 
 putty.rsp: makefile
 	echo /nologo /subsystem:windows > putty.rsp
