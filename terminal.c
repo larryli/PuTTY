@@ -3067,6 +3067,7 @@ static pos sel_spread_half(pos p, int dir)
 {
     unsigned long *ldata;
     short wvalue;
+    int topy = -count234(scrollback);
 
     ldata = lineptr(p.y);
 
@@ -3093,11 +3094,47 @@ static pos sel_spread_half(pos p, int dir)
 	 */
 	wvalue = wordtype(ldata[p.x]);
 	if (dir == +1) {
-	    while (p.x < cols && wordtype(ldata[p.x + 1]) == wvalue)
-		p.x++;
+	    while (1) {
+		if (p.x < cols-1) {
+		    if (wordtype(ldata[p.x + 1]) == wvalue)
+			p.x++;
+		    else
+			break;
+		} else {
+		    if (ldata[cols] & LATTR_WRAPPED) {
+			unsigned long *ldata2;
+			ldata2 = lineptr(p.y+1);
+			if (wordtype(ldata2[0]) == wvalue) {
+			    p.x = 0;
+			    p.y++;
+			    ldata = ldata2;
+			} else
+			    break;
+		    } else
+			break;
+		}
+	    }
 	} else {
-	    while (p.x > 0 && wordtype(ldata[p.x - 1]) == wvalue)
-		p.x--;
+	    while (1) {
+		if (p.x > 0) {
+		    if (wordtype(ldata[p.x - 1]) == wvalue)
+			p.x--;
+		    else
+			break;
+		} else {
+		    unsigned long *ldata2;
+		    if (p.y <= topy)
+			break;
+		    ldata2 = lineptr(p.y-1);
+		    if ((ldata2[cols] & LATTR_WRAPPED) &&
+			wordtype(ldata2[cols-1]) == wvalue) {
+			p.x = cols-1;
+			p.y--;
+			ldata = ldata2;
+		    } else
+			break;
+		}
+	    }
 	}
 	break;
       case SM_LINE:
