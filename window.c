@@ -1156,92 +1156,102 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    }
 	    break;
           case IDM_RECONF:
-	    if (!do_reconfig(hwnd))
-		break;
-	    just_reconfigged = TRUE;
-	    {
-		int i;
-		for (i=0; i<8; i++)
-		    if (fonts[i])
-			DeleteObject(fonts[i]);
-	    }
-	    bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
-	    und_mode = UND_FONT;
-	    init_fonts(0);
-	    sfree(logpal);
-	    /* Telnet will change local echo -> remote if the remote asks */
-	    if (cfg.protocol != PROT_TELNET)
-	        ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
-	    if (pal)
-		DeleteObject(pal);
-	    logpal = NULL;
-	    pal = NULL;
-	    cfgtopalette();
-            init_palette();
+            {
+                int prev_alwaysontop = cfg.alwaysontop;
+                if (!do_reconfig(hwnd))
+                    break;
+                just_reconfigged = TRUE;
+                {
+                    int i;
+                    for (i=0; i<8; i++)
+                        if (fonts[i])
+                            DeleteObject(fonts[i]);
+                }
+                bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
+                und_mode = UND_FONT;
+                init_fonts(0);
+                sfree(logpal);
+                /*
+                 * Telnet will change local echo -> remote if the
+                 * remote asks.
+                 */
+                if (cfg.protocol != PROT_TELNET)
+                    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
+                if (pal)
+                    DeleteObject(pal);
+                logpal = NULL;
+                pal = NULL;
+                cfgtopalette();
+                init_palette();
 
-	    /* Enable or disable the scroll bar, etc */
-	    {
-		LONG nflg, flag = GetWindowLong(hwnd, GWL_STYLE);
-                LONG nexflag, exflag = GetWindowLong(hwnd, GWL_EXSTYLE);
+                /* Enable or disable the scroll bar, etc */
+                {
+                    LONG nflg, flag = GetWindowLong(hwnd, GWL_STYLE);
+                    LONG nexflag, exflag = GetWindowLong(hwnd, GWL_EXSTYLE);
 
-                nexflag = exflag;
-                if (cfg.alwaysontop) {
-                    nexflag = WS_EX_TOPMOST;
-                    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE);
-                } else {
-                    nexflag = 0;
-                    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE);
+                    nexflag = exflag;
+                    if (cfg.alwaysontop != prev_alwaysontop) {
+                        if (cfg.alwaysontop) {
+                            nexflag = WS_EX_TOPMOST;
+                            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                                         SWP_NOMOVE | SWP_NOSIZE);
+                        } else {
+                            nexflag = 0;
+                            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+                                         SWP_NOMOVE | SWP_NOSIZE);
+                        }
+                    }
+
+                    nflg = flag;
+                    if (cfg.scrollbar) nflg |=  WS_VSCROLL;
+                    else               nflg &= ~WS_VSCROLL;
+                    if (cfg.locksize)
+                        nflg &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
+                    else
+                        nflg |= (WS_THICKFRAME|WS_MAXIMIZEBOX);
+
+                    if (nflg != flag || nexflag != exflag)
+                    {
+                        RECT cr, wr;
+
+                        if (nflg != flag)
+                            SetWindowLong(hwnd, GWL_STYLE, nflg);
+                        if (nexflag != exflag)
+                            SetWindowLong(hwnd, GWL_EXSTYLE, nexflag);
+
+                        SendMessage (hwnd, WM_IGNORE_SIZE, 0, 0);
+                        SetWindowPos(hwnd, NULL, 0,0,0,0,
+                                     SWP_NOACTIVATE|SWP_NOCOPYBITS|
+                                     SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|
+                                     SWP_FRAMECHANGED);
+
+                        GetWindowRect (hwnd, &wr);
+                        GetClientRect (hwnd, &cr);
+                        extra_width = wr.right - wr.left - cr.right + cr.left;
+                        extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
+                    }
                 }
 
-		nflg = flag;
-		if (cfg.scrollbar) nflg |=  WS_VSCROLL;
-		else               nflg &= ~WS_VSCROLL;
-		if (cfg.locksize) 
-		   nflg &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
-		else              
-		   nflg |= (WS_THICKFRAME|WS_MAXIMIZEBOX);
-
-                if (nflg != flag || nexflag != exflag)
-		{
-		    RECT cr, wr;
-
-                    if (nflg != flag) 
-                        SetWindowLong(hwnd, GWL_STYLE, nflg);
-                    if (nexflag != exflag)
-                        SetWindowLong(hwnd, GWL_EXSTYLE, nexflag);
-
-		    SendMessage (hwnd, WM_IGNORE_SIZE, 0, 0);
-	            SetWindowPos(hwnd, NULL, 0,0,0,0,
-		         SWP_NOACTIVATE|SWP_NOCOPYBITS|
-                         SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|
-			 SWP_FRAMECHANGED);
-
-		    GetWindowRect (hwnd, &wr);
-		    GetClientRect (hwnd, &cr);
-		    extra_width = wr.right - wr.left - cr.right + cr.left;
-		    extra_height = wr.bottom - wr.top - cr.bottom + cr.top;
-		}
-	    }
-
-	    term_size(cfg.height, cfg.width, cfg.savelines);
-	    InvalidateRect(hwnd, NULL, TRUE);
-	    SetWindowPos (hwnd, NULL, 0, 0,
-			  extra_width + font_width * cfg.width,
-			  extra_height + font_height * cfg.height,
-			  SWP_NOACTIVATE | SWP_NOCOPYBITS |
-			  SWP_NOMOVE | SWP_NOZORDER);
-	    if (IsIconic(hwnd)) {
-		SetWindowText (hwnd,
-			       cfg.win_name_always ? window_name : icon_name);
-	    }
+                term_size(cfg.height, cfg.width, cfg.savelines);
+                InvalidateRect(hwnd, NULL, TRUE);
+                SetWindowPos (hwnd, NULL, 0, 0,
+                              extra_width + font_width * cfg.width,
+                              extra_height + font_height * cfg.height,
+                              SWP_NOACTIVATE | SWP_NOCOPYBITS |
+                              SWP_NOMOVE | SWP_NOZORDER);
+                if (IsIconic(hwnd)) {
+                    SetWindowText (hwnd,
+                                   cfg.win_name_always ? window_name : icon_name);
+                }
+            }
             break;
-	  case IDM_CLRSB:
-	    term_clrsb();
-	    break;
-	  case IDM_RESET:
-	    term_pwron();
-	    break;
-	  case IDM_TEL_AYT: back->special (TS_AYT); break;
+          case IDM_CLRSB:
+            term_clrsb();
+            break;
+          case IDM_RESET:
+            term_pwron();
+            break;
+          case IDM_TEL_AYT: back->special (TS_AYT); break;
 	  case IDM_TEL_BRK: back->special (TS_BRK); break;
 	  case IDM_TEL_SYNCH: back->special (TS_SYNCH); break;
 	  case IDM_TEL_EC: back->special (TS_EC); break;
