@@ -744,9 +744,8 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
         if (a.sin_addr.s_addr != (in_addr_t)(-1)) {
             /* Override localhost_only with specified listen addr. */
             ret->localhost_only = ipv4_is_loopback(a.sin_addr);
-            got_addr = 1;
         }
-        addr = (struct sockaddr *)a;
+        addr = (struct sockaddr *)&a;
         addrlen = sizeof(a);
         retcode = 0;
 #endif
