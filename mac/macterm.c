@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.55 2003/01/25 17:20:54 ben Exp $ */
+/* $Id: macterm.c,v 1.56 2003/01/25 19:23:03 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -593,26 +593,76 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
 void get_clip(void *frontend, wchar_t **p, int *lenp) {
     Session *s = frontend;
     static Handle h = NULL;
+    static wchar_t *data = NULL;
+    Handle texth;
     long offset;
+    int textlen;
+    TextEncoding enc;
+    TextToUnicodeInfo scrap_to_uni;
+    ByteCount iread, olen;
+    int charset;
+    char *tptr;
+    OSErr err;
 
     if (p == NULL) {
 	/* release memory */
 	if (h != NULL)
 	    DisposeHandle(h);
 	h = NULL;
-    } else
-	/* XXX Support TEXT-format scrap as well. */
+	if (data != NULL)
+	    sfree(data);
+	data = NULL;
+    } else {
 	if (GetScrap(NULL, 'utxt', &offset) > 0) {
-	    h = NewHandle(0);
+	    if (h == NULL)
+		h = NewHandle(0);
 	    *lenp = GetScrap(h, 'utxt', &offset) / sizeof(**p);
 	    HLock(h);
 	    *p = (wchar_t *)*h;
-	    if (*p == NULL || *lenp <= 0)
-		fatalbox("Empty scrap");
+	} else if (GetScrap(NULL, 'TEXT', &offset) > 0) {
+	    texth = NewHandle(0);
+	    textlen = GetScrap(texth, 'TEXT', &offset);
+	    HLock(texth);
+	    data = smalloc(textlen * 2);
+	    /* XXX should use 'styl' scrap if it's there. */
+	    if (mac_gestalts.encvvers != 0 &&
+		UpgradeScriptInfoToTextEncoding(smSystemScript,
+						kTextLanguageDontCare,
+						kTextRegionDontCare, NULL,
+						&enc) == noErr &&
+		CreateTextToUnicodeInfoByEncoding(enc, &scrap_to_uni) ==
+		noErr) {
+		err = ConvertFromTextToUnicode(scrap_to_uni, textlen,
+					       *texth, 0, 0, NULL, NULL, NULL,
+					       textlen * 2,
+					       &iread, &olen, data);
+		DisposeTextToUnicodeInfo(&scrap_to_uni);
+		if (err == noErr) {
+		    *p = data;
+		    *lenp = olen / sizeof(**p);
+		} else {
+		    *p = NULL;
+		    *lenp = 0;
+		}
+	    } else {
+		charset =
+		    charset_from_macenc(GetScriptManagerVariable(smSysScript),
+					GetScriptManagerVariable(smRegionCode),
+					mac_gestalts.sysvers, NULL);
+		if (charset != CS_NONE) {
+		    tptr = *texth;
+		    *lenp = charset_to_unicode(&tptr, &textlen, data,
+					       textlen * 2, charset, NULL,
+					       NULL, 0);
+		}
+		*p = data;
+	    }
+	    DisposeHandle(texth);
 	} else {
 	    *p = NULL;
 	    *lenp = 0;
 	}
+    }
 }
 
 static pascal void mac_scrolltracker(ControlHandle control, short part) {
