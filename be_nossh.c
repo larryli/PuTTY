@@ -19,5 +19,9 @@ struct backend_list backends[] = {
 void random_save_seed(void) {
 }
 
+void random_destroy_seed(void) {
+}
+
 void noise_ultralight(DWORD data) {
 }
+
