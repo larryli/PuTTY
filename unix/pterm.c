@@ -1585,7 +1585,10 @@ int main(int argc, char **argv)
 {
     extern int pty_master_fd;	       /* declared in pty.c */
     extern char **pty_argv;	       /* declared in pty.c */
+    extern void pty_pre_init(void);    /* declared in pty.c */
     int err = 0;
+
+    pty_pre_init();
 
     gtk_init(&argc, &argv);
 

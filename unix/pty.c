@@ -55,8 +55,10 @@
 #endif
 
 int pty_master_fd;
+static char pty_name[FILENAME_MAX];
 static int pty_stamped_utmp = 0;
 static int pty_child_pid;
+static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
 static sig_atomic_t pty_child_dead;
 #ifndef OMIT_UTMP
 static struct utmp utmp_entry;
@@ -70,7 +72,7 @@ int pty_child_is_dead(void)
 
 static void pty_size(void);
 
-static void setup_utmp(char *ttyname)
+static void setup_utmp(char *ttyname, char *location)
 {
 #ifndef OMIT_UTMP
 #ifdef HAVE_LASTLOG
@@ -78,14 +80,9 @@ static void setup_utmp(char *ttyname)
     FILE *lastlog;
 #endif
     struct passwd *pw;
-    char *location;
     FILE *wtmp;
 
-    if (!cfg.stamp_utmp)
-	return;
-
     pw = getpwuid(getuid());
-    location = get_x_display();
     memset(&utmp_entry, 0, sizeof(utmp_entry));
     utmp_entry.ut_type = USER_PROCESS;
     utmp_entry.ut_pid = getpid();
@@ -129,7 +126,7 @@ static void cleanup_utmp(void)
 #ifndef OMIT_UTMP
     FILE *wtmp;
 
-    if (!cfg.stamp_utmp || !pty_stamped_utmp)
+    if (!pty_stamped_utmp)
 	return;
 
     utmp_entry.ut_type = DEAD_PROCESS;
@@ -172,47 +169,39 @@ static void fatal_sig_handler(int signum)
     raise(signum);
 }
 
-/*
- * Called to set up the pty.
- * 
- * Returns an error message, or NULL on success.
- *
- * Also places the canonical host name into `realhost'. It must be
- * freed by the caller.
- */
-static char *pty_init(char *host, int port, char **realhost, int nodelay)
+static void pty_open_master(void)
 {
-    int slavefd;
-    char name[FILENAME_MAX];
-    pid_t pid, pgrp;
-
 #ifdef BSD_PTYS
-    {
-	const char chars1[] = "pqrstuvwxyz";
-	const char chars2[] = "0123456789abcdef";
-	const char *p1, *p2;
-	char master_name[20];
+    const char chars1[] = "pqrstuvwxyz";
+    const char chars2[] = "0123456789abcdef";
+    const char *p1, *p2;
+    char master_name[20];
+    struct group *gp;
 
-	for (p1 = chars1; *p1; p1++)
-	    for (p2 = chars2; *p2; p2++) {
-		sprintf(master_name, "/dev/pty%c%c", *p1, *p2);
-		pty_master_fd = open(master_name, O_RDWR);
-		if (pty_master_fd >= 0) {
-		    if (geteuid() == 0 ||
-			access(master_name, R_OK | W_OK) == 0)
-			goto got_one;
-		    close(pty_master_fd);
-		}
+    for (p1 = chars1; *p1; p1++)
+	for (p2 = chars2; *p2; p2++) {
+	    sprintf(master_name, "/dev/pty%c%c", *p1, *p2);
+	    pty_master_fd = open(master_name, O_RDWR);
+	    if (pty_master_fd >= 0) {
+		if (geteuid() == 0 ||
+		    access(master_name, R_OK | W_OK) == 0)
+		    goto got_one;
+		close(pty_master_fd);
 	    }
+	}
 
-	/* If we get here, we couldn't get a tty at all. */
-	fprintf(stderr, "pterm: unable to open a pseudo-terminal device\n");
-	exit(1);
+    /* If we get here, we couldn't get a tty at all. */
+    fprintf(stderr, "pterm: unable to open a pseudo-terminal device\n");
+    exit(1);
 
-	got_one:
-	strcpy(name, master_name);
-	name[5] = 't';		       /* /dev/ptyXX -> /dev/ttyXX */
-    }
+    got_one:
+    strcpy(pty_name, master_name);
+    pty_name[5] = 't';		       /* /dev/ptyXX -> /dev/ttyXX */
+
+    /* We need to chown/chmod the /dev/ttyXX device. */
+    gp = getgrnam("tty");
+    chown(pty_name, getuid(), gp ? gp->gr_gid : -1);
+    chmod(pty_name, 0600);
 #else
     pty_master_fd = open("/dev/ptmx", O_RDWR);
 
@@ -231,9 +220,164 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	exit(1);
     }
 
-    name[FILENAME_MAX-1] = '\0';
-    strncpy(name, ptsname(pty_master_fd), FILENAME_MAX-1);
+    pty_name[FILENAME_MAX-1] = '\0';
+    strncpy(pty_name, ptsname(pty_master_fd), FILENAME_MAX-1);
 #endif
+}
+
+/*
+ * Pre-initialisation. This is here to get around the fact that GTK
+ * doesn't like being run in setuid/setgid programs (probably
+ * sensibly). So before we initialise GTK - and therefore before we
+ * even process the command line - we check to see if we're running
+ * set[ug]id. If so, we open our pty master _now_, chown it as
+ * necessary, and drop privileges. We can always close it again
+ * later. If we're potentially going to be doing utmp as well, we
+ * also fork off a utmp helper process and communicate with it by
+ * means of a pipe; the utmp helper will keep privileges in order
+ * to clean up utmp when we exit (i.e. when its end of our pipe
+ * closes).
+ */
+void pty_pre_init(void)
+{
+    pid_t pid;
+    int pipefd[2];
+
+    pty_master_fd = -1;
+
+    if (geteuid() != getuid() || getegid() != getgid()) {
+	pty_open_master();
+    }
+
+#ifndef OMIT_UTMP
+    /*
+     * Fork off the utmp helper.
+     */
+    if (pipe(pipefd) < 0) {
+	perror("pterm: pipe");
+	exit(1);
+    }
+    pid = fork();
+    if (pid < 0) {
+	perror("pterm: fork");
+	exit(1);
+    } else if (pid == 0) {
+	char display[128], buffer[128];
+	int dlen, ret;
+
+	close(pipefd[1]);
+	/*
+	 * Now sit here until we receive a display name from the
+	 * other end of the pipe, and then stamp utmp. Unstamp utmp
+	 * again, and exit, when the pipe closes.
+	 */
+
+	dlen = 0;
+	while (1) {
+	    
+	    ret = read(pipefd[0], buffer, lenof(buffer));
+	    if (ret <= 0) {
+		cleanup_utmp();
+		exit(0);
+	    } else if (!pty_stamped_utmp) {
+		if (dlen < lenof(display))
+		    memcpy(display+dlen, buffer,
+			   min(ret, lenof(display)-dlen));
+		if (buffer[ret-1] == '\0') {
+		    /*
+		     * Now we have a display name. NUL-terminate
+		     * it, and stamp utmp.
+		     */
+		    display[lenof(display)-1] = '\0';
+		    /*
+		     * Trap as many fatal signals as we can in the
+		     * hope of having the best possible chance to
+		     * clean up utmp before termination. We are
+		     * unfortunately unprotected against SIGKILL,
+		     * but that's life.
+		     */
+		    signal(SIGHUP, fatal_sig_handler);
+		    signal(SIGINT, fatal_sig_handler);
+		    signal(SIGQUIT, fatal_sig_handler);
+		    signal(SIGILL, fatal_sig_handler);
+		    signal(SIGABRT, fatal_sig_handler);
+		    signal(SIGFPE, fatal_sig_handler);
+		    signal(SIGPIPE, fatal_sig_handler);
+		    signal(SIGALRM, fatal_sig_handler);
+		    signal(SIGTERM, fatal_sig_handler);
+		    signal(SIGSEGV, fatal_sig_handler);
+		    signal(SIGUSR1, fatal_sig_handler);
+		    signal(SIGUSR2, fatal_sig_handler);
+#ifdef SIGBUS
+		    signal(SIGBUS, fatal_sig_handler);
+#endif
+#ifdef SIGPOLL
+		    signal(SIGPOLL, fatal_sig_handler);
+#endif
+#ifdef SIGPROF
+		    signal(SIGPROF, fatal_sig_handler);
+#endif
+#ifdef SIGSYS
+		    signal(SIGSYS, fatal_sig_handler);
+#endif
+#ifdef SIGTRAP
+		    signal(SIGTRAP, fatal_sig_handler);
+#endif
+#ifdef SIGVTALRM
+		    signal(SIGVTALRM, fatal_sig_handler);
+#endif
+#ifdef SIGXCPU
+		    signal(SIGXCPU, fatal_sig_handler);
+#endif
+#ifdef SIGXFSZ
+		    signal(SIGXFSZ, fatal_sig_handler);
+#endif
+#ifdef SIGIO
+		    signal(SIGIO, fatal_sig_handler);
+#endif
+		    /* Also clean up utmp on normal exit. */
+		    atexit(cleanup_utmp);
+		    setup_utmp(pty_name, display);
+		}
+	    }
+	}
+    } else {
+	close(pipefd[0]);
+	pty_utmp_helper_pid = pid;
+	pty_utmp_helper_pipe = pipefd[1];
+    }
+#endif
+
+    /* Drop privs. */
+    {
+	int gid = getgid(), uid = getuid();
+#ifndef HAVE_NO_SETRESUID
+	int setresgid(gid_t, gid_t, gid_t);
+	int setresuid(uid_t, uid_t, uid_t);
+	setresgid(gid, gid, gid);
+	setresuid(uid, uid, uid);
+#else
+	setgid(getgid());
+	setuid(getuid());
+#endif
+    }
+}
+
+/*
+ * Called to set up the pty.
+ * 
+ * Returns an error message, or NULL on success.
+ *
+ * Also places the canonical host name into `realhost'. It must be
+ * freed by the caller.
+ */
+static char *pty_init(char *host, int port, char **realhost, int nodelay)
+{
+    int slavefd;
+    pid_t pid, pgrp;
+
+    if (pty_master_fd < 0)
+	pty_open_master();
 
     /*
      * Set the backspace character to be whichever of ^H and ^? is
@@ -247,51 +391,24 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
     }
 
     /*
-     * Trap as many fatal signals as we can in the hope of having
-     * the best chance to clean up utmp before termination.
+     * Stamp utmp (that is, tell the utmp helper process to do so),
+     * or not.
      */
-    signal(SIGHUP, fatal_sig_handler);
-    signal(SIGINT, fatal_sig_handler);
-    signal(SIGQUIT, fatal_sig_handler);
-    signal(SIGILL, fatal_sig_handler);
-    signal(SIGABRT, fatal_sig_handler);
-    signal(SIGFPE, fatal_sig_handler);
-    signal(SIGPIPE, fatal_sig_handler);
-    signal(SIGALRM, fatal_sig_handler);
-    signal(SIGTERM, fatal_sig_handler);
-    signal(SIGSEGV, fatal_sig_handler);
-    signal(SIGUSR1, fatal_sig_handler);
-    signal(SIGUSR2, fatal_sig_handler);
-#ifdef SIGBUS
-    signal(SIGBUS, fatal_sig_handler);
-#endif
-#ifdef SIGPOLL
-    signal(SIGPOLL, fatal_sig_handler);
-#endif
-#ifdef SIGPROF
-    signal(SIGPROF, fatal_sig_handler);
-#endif
-#ifdef SIGSYS
-    signal(SIGSYS, fatal_sig_handler);
-#endif
-#ifdef SIGTRAP
-    signal(SIGTRAP, fatal_sig_handler);
-#endif
-#ifdef SIGVTALRM
-    signal(SIGVTALRM, fatal_sig_handler);
-#endif
-#ifdef SIGXCPU
-    signal(SIGXCPU, fatal_sig_handler);
-#endif
-#ifdef SIGXFSZ
-    signal(SIGXFSZ, fatal_sig_handler);
-#endif
-#ifdef SIGIO
-    signal(SIGIO, fatal_sig_handler);
-#endif
-    /* Also clean up utmp on normal exit. */
-    atexit(cleanup_utmp);
-    setup_utmp(name);
+    if (!cfg.stamp_utmp)
+	close(pty_utmp_helper_pipe);   /* just let the child process die */
+    else {
+	char *location = get_x_display();
+	int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
+	while (pos < len) {
+	    int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);
+	    if (ret < 0) {
+		perror("pterm: writing to utmp helper process");
+		close(pty_utmp_helper_pipe);   /* arrgh, just give up */
+		break;
+	    }
+	    pos += ret;
+	}
+    }
 
     /*
      * Fork and execute the command.
@@ -308,20 +425,11 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	 * We are the child.
 	 */
 
-	slavefd = open(name, O_RDWR);
+	slavefd = open(pty_name, O_RDWR);
 	if (slavefd < 0) {
 	    perror("slave pty: open");
 	    exit(1);
 	}
-
-#ifdef BSD_PTYS
-	/* We need to chown/chmod the /dev/ttyXX device. */
-	{
-	    struct group *gp = getgrnam("tty");
-	    fchown(slavefd, getuid(), gp ? gp->gr_gid : -1);
-	    fchmod(slavefd, 0600);
-	}
-#endif
 
 	close(pty_master_fd);
 	close(0);
@@ -336,11 +444,8 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	pgrp = getpid();
 	tcsetpgrp(slavefd, pgrp);
 	setpgrp();
-	close(open(name, O_WRONLY, 0));
+	close(open(pty_name, O_WRONLY, 0));
 	setpgrp();
-	/* In case we were setgid-utmp or setuid-root, drop privs. */
-	setgid(getgid());
-	setuid(getuid());
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
