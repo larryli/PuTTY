@@ -368,11 +368,20 @@ static void show_mouseptr(struct gui_data *inst, int show)
     inst->mouseptr_visible = show;
 }
 
+void draw_backing_rect(struct gui_data *inst)
+{
+    GdkGC *gc = gdk_gc_new(inst->area->window);
+    gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
+    gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
+		       inst->cfg.width * inst->font_width + 2*inst->cfg.window_border,
+		       inst->cfg.height * inst->font_height + 2*inst->cfg.window_border);
+    gdk_gc_unref(gc);
+}
+
 gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
-    GdkGC *gc;
 
     /*
      * See if the terminal size has changed, in which case we must
@@ -397,12 +406,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 				  (inst->cfg.height * inst->font_height +
 				   2*inst->cfg.window_border), -1);
 
-    gc = gdk_gc_new(inst->area->window);
-    gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
-    gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
-		       inst->cfg.width * inst->font_width + 2*inst->cfg.window_border,
-		       inst->cfg.height * inst->font_height + 2*inst->cfg.window_border);
-    gdk_gc_unref(gc);
+    draw_backing_rect(inst);
 
     if (need_size && inst->term) {
 	term_size(inst->term, h, w, inst->cfg.savelines);
@@ -2634,10 +2638,21 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
         for (i = 0; i < NCOLOURS; i++) {
             if (oldcfg.colours[ww[i]][0] != cfg2.colours[ww[i]][0] ||
                 oldcfg.colours[ww[i]][1] != cfg2.colours[ww[i]][1] ||
-                oldcfg.colours[ww[i]][2] != cfg2.colours[ww[i]][2])
+                oldcfg.colours[ww[i]][2] != cfg2.colours[ww[i]][2]) {
                 real_palette_set(inst, i, cfg2.colours[ww[i]][0],
                                  cfg2.colours[ww[i]][1],
                                  cfg2.colours[ww[i]][2]);
+
+		/*
+		 * If the default background has changed, we must
+		 * repaint the space in between the window border
+		 * and the text area.
+		 */
+		if (i == 18) {
+		    set_window_background(inst);
+		    draw_backing_rect(inst);
+		}
+	    }
         }
 
         /*
@@ -2698,6 +2713,12 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	}
 
         term_invalidate(inst->term);
+
+	/*
+	 * We do an explicit full redraw here to ensure the window
+	 * border has been redrawn as well as the text area.
+	 */
+	gtk_widget_queue_draw(inst->area);
     }
     sfree(title);
 }
