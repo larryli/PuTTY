@@ -885,6 +885,15 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
     st->pad = pktin.data[4];
 
     /*
+     * _Completely_ silly lengths should be stomped on before they
+     * do us any more damage.
+     */
+    if (st->len < 0 || st->pad < 0 || st->len + st->pad < 0) {
+	bombout(("Incoming packet was garbled on decryption"));
+	crReturn(0);
+    }
+
+    /*
      * This enables us to deduce the payload length.
      */
     st->payload = st->len - st->pad - 1;
