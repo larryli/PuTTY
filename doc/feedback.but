@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.3 2002/03/23 18:59:46 simon Exp $
+\versionid $Id: feedback.but,v 1.4 2002/04/27 16:20:16 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -19,17 +19,18 @@ FAQ, reading the web site, asking a fellow user, perhaps posting on
 the newsgroup \W{news:comp.security.ssh}\c{comp.security.ssh}, or
 some other means, then it would make our lives much easier.
 
-If the volume of e-mail really gets on top of us and we can't find
-time to answer it all, then the first e-mails we discard will be the
-ones from people who don't look as if they have made a reasonable
-effort to solve their own problems. This is not intended to cause
-offence; it's occasionally a necessary response to a serious
-problem. We get a \e{lot} of e-mail. Really.
+We get so much e-mail that we literally do not have time to answer
+it all. We regret this, but there's nothing we can do about it. So
+if you can \e{possibly} avoid sending mail to the PuTTY team, we
+recommend you do so. In particular, support requests
+(\k{feedback-support}) are probably better sent to
+\W{news:comp.security.ssh}\c{comp.security.ssh} or passed to a local
+expert if possible.
 
-Also, the PuTTY contact email address is a mailing list. For this
-reason, e-mails larger than 40Kb will be held for inspection by the
-list administrator, and will not be allowed through unless they
-really appear to be worth their large size. Therefore:
+The PuTTY contact email address is a mailing list. For this reason,
+e-mails larger than 40Kb will be held for inspection by the list
+administrator, and will not be allowed through unless they really
+appear to be worth their large size. Therefore:
 
 \b Don't send your bug report as a Word document. Word documents are
 roughly fifty times larger than writing the same report in plain
@@ -144,6 +145,17 @@ is an article on how to report bugs effectively in general. If your
 bug report is \e{particularly} unclear, we may ask you to go away,
 read this article, and then report the bug again.
 
+It is reasonable to report bugs in PuTTY's documentation, if you
+think the documentation is unclear or unhelpful. But we do need to
+be given exact details of \e{what} you think the documentation has
+failed to tell you, or \e{how} you think it could be made clearer.
+If your problem is simply that you don't \e{understand} the
+documentation, we suggest posting to the newsgroup
+\W{news:comp.security.ssh}\c{comp.security.ssh} and see if someone
+will explain what you need to know. \e{Then}, if you think the
+documentation could usefully have told you that, send us a bug
+report and explain how you think we should change it.
+
 \H{feedback-features} Requesting extra features 
 
 If you want to request a new feature in PuTTY, the very first things
@@ -217,6 +229,41 @@ high-quality software to the users comes first.)
 \b Offer to help us write the code. This is probably the \e{only}
 way to get a feature implemented quickly, if it's a big one that we
 don't have time to do ourselves.
+
+\H{feedback-support} Support requests
+
+If you're trying to make PuTTY do something for you and it isn't
+working, but you're not sure whether it's a bug or not, then
+\e{please} consider looking for help somewhere else. This is one of
+the most common types of mail the PuTTY team receives, and we simply
+don't have time to answer all the questions. Questions of this type
+include:
+
+\b If you want to do something with PuTTY but have no idea where to
+start, and reading the manual hasn't helped, try posting to the
+newsgroup \W{news:comp.security.ssh}\c{comp.security.ssh} and see if
+someone can explain it to you.
+
+\b If you have tried to do something with PuTTY but it hasn't
+worked, and you aren't sure whether it's a bug in PuTTY or a bug in
+your SSH server or simply that you're not doing it right, then try
+posting to \W{news:comp.security.ssh}\c{comp.security.ssh} and see
+if someone can solve your problem. Or try doing the same thing with
+a different SSH client and see if it works with that. Please do not
+report it as a PuTTY bug unless you are really sure it \e{is} a bug
+in PuTTY.
+
+\b If you have successfully made a connection to your server and now
+need to know what to type at the server's command prompt, or other
+details of how to use the server-end software, talk to your server's
+system administrator. This is not the PuTTY team's problem. PuTTY is
+only a communications tool, like a telephone; if you can't speak the
+same language as the person at the other end of the phone, it isn't
+the telephone company's job to teach it to you.
+
+If you absolutely cannot get a support question answered any other
+way, you can try mailing it to us, but we can't guarantee to have
+time to answer it.
 
 \H{feedback-webadmin} Web server administration
 
