@@ -1590,7 +1590,22 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	     * nothing at all; such is life.
 	     */
 	} else if (inst->fontinfo[fontid].is_wide) {
-	    gwcs = smalloc(sizeof(GdkWChar) * (len+1));
+	    /*
+	     * At least one version of gdk_draw_text_wc() has a
+	     * weird bug whereby it reads `len' elements of the
+	     * input string, but only draws `len/2'. Hence I'm
+	     * going to make its input array twice as long as it
+	     * theoretically needs to be, and pass in twice the
+	     * actual number of characters. If a fixed gdk actually
+	     * takes the doubled length seriously, then (a) the
+	     * array will stand scrutiny up to the full length, (b)
+	     * the spare elements of the array are full of zeroes
+	     * which will probably be an empty glyph in the font,
+	     * and (c) the clip rectangle should prevent it causing
+	     * trouble anyway.
+	     */
+	    gwcs = smalloc(sizeof(GdkWChar) * (len*2+1));
+	    memset(gwcs, 0, sizeof(GdkWChar) * (len*2+1));
 	    /*
 	     * FIXME: when we have a wide-char equivalent of
 	     * from_unicode, use it instead of this.
