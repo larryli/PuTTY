@@ -34,16 +34,21 @@
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x2000
 
-#define WM_IGNORE_SIZE (WM_USER + 2)
-#define WM_IGNORE_CLIP (WM_USER + 3)
+#define WM_IGNORE_SIZE (WM_XUSER + 1)
+#define WM_IGNORE_CLIP (WM_XUSER + 2)
 
 static LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output);
 static void cfgtopalette(void);
 static void init_palette(void);
-static void init_fonts(void);
+static void init_fonts(int);
 
 static int extra_width, extra_height;
+
+static int pending_netevent = 0;
+static WPARAM pend_netevent_wParam = 0;
+static LPARAM pend_netevent_lParam = 0;
+static void enact_pending_netevent(void);
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -267,7 +272,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
      */
     bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
     und_mode = UND_FONT;
-    init_fonts();
+    init_fonts(0);
 
     /*
      * Correct the guesses for extra_{width,height}.
@@ -407,13 +412,52 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     has_focus = (GetForegroundWindow() == hwnd);
     UpdateWindow (hwnd);
 
-    while (GetMessage (&msg, NULL, 0, 0)) {
-	DispatchMessage (&msg);
-	if (inbuf_reap != inbuf_head)
-	    term_out();
-	/* In idle moments, do a full screen update */
-	if (!PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE))
-	    term_update();
+    {
+	int timer_id = 0, long_timer = 0;
+
+	while (GetMessage (&msg, NULL, 0, 0) == 1) {
+	    /* Sometimes DispatchMessage calls routines that use their own
+	     * GetMessage loop, setup this timer so we get some control back.
+	     *
+	     * Also call term_update() from the timer so that if the host
+	     * is sending data flat out we still do redraws.
+	     */
+	    if(timer_id && long_timer) {
+		KillTimer(hwnd, timer_id);
+		long_timer = timer_id = 0;
+	    }
+	    if(!timer_id)
+		timer_id = SetTimer(hwnd, 1, 20, NULL);
+	    DispatchMessage (&msg);
+
+	    /* This is too fast, but I'll leave it for now 'cause it shows
+	     * how often term_update is called (far too often at times!)
+	     */
+	    term_blink(0);
+
+	    /* If there's nothing new in the queue then we can do everything
+	     * we've delayed, reading the socket, writing, and repainting
+	     * the window.
+	     */
+	    if (!PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE)) {
+		if (pending_netevent) {
+		    enact_pending_netevent();
+
+		    term_blink(1);
+		}
+	    } else continue;
+	    if (!PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE)) {
+		if (timer_id) {
+		    KillTimer(hwnd, timer_id);
+		    timer_id = 0;
+		}
+		if (inbuf_reap != inbuf_head)
+		    term_out();
+		term_update();
+		timer_id = SetTimer(hwnd, 1, 500, NULL);
+		long_timer = 1;
+	    }
+	}
     }
 
     /*
@@ -434,6 +478,39 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	random_save_seed();
 
     return msg.wParam;
+}
+
+/*
+ * Actually do the job requested by a WM_NETEVENT
+ */
+static void enact_pending_netevent(void) {
+    int i;
+    pending_netevent = FALSE;
+    i = back->msg (pend_netevent_wParam, pend_netevent_lParam);
+
+    if (i < 0) {
+	char buf[1024];
+	switch (WSABASEERR + (-i) % 10000) {
+	  case WSAECONNRESET:
+	    sprintf(buf, "Connection reset by peer");
+	    break;
+	  default:
+	    sprintf(buf, "Unexpected network error %d", -i);
+	    break;
+	}
+	MessageBox(hwnd, buf, "PuTTY Fatal Error",
+		   MB_ICONERROR | MB_OK);
+	PostQuitMessage(1);
+    } else if (i == 0) {
+	if (cfg.close_on_exit)
+	    PostQuitMessage(0);
+	else {
+	    session_closed = TRUE;
+	    MessageBox(hwnd, "Connection closed by remote host",
+		       "PuTTY", MB_OK | MB_ICONINFORMATION);
+	    SetWindowText (hwnd, "PuTTY (inactive)");
+	}
+    }
 }
 
 /*
@@ -511,19 +588,18 @@ static void init_palette(void) {
  * - verify that the underlined font is the same width as the
  *   ordinary one (manual underlining by means of line drawing can
  *   be done in a pinch).
- *
- * - verify, in OEM/ANSI combined mode, that the OEM and ANSI base
- *   fonts are the same size, and shift to OEM-only mode if not.
  */
-static void init_fonts(void) {
+static void init_fonts(int pick_width) {
     TEXTMETRIC tm;
     int i;
-    int fsize[5];
+    int fsize[8];
     HDC hdc;
     int fw_dontcare, fw_bold;
     int firstchar = ' ';
 
+#ifdef CHECKOEMFONT
 font_messup:
+#endif
     for (i=0; i<8; i++)
 	fonts[i] = NULL;
 
@@ -538,7 +614,7 @@ font_messup:
     hdc = GetDC(hwnd);
 
     font_height = cfg.fontheight;
-    font_width = 0;
+    font_width = pick_width;
 
 #define f(i,c,w,u) \
     fonts[i] = CreateFont (font_height, font_width, 0, 0, w, FALSE, u, FALSE, \
@@ -594,19 +670,19 @@ font_messup:
 	descent = font_height - 1;
     firstchar = tm.tmFirstChar;
 
-    if( cfg.vtmode == VT_XWINDOWS && firstchar >= ' ' )
-	cfg.vtmode = VT_POORMAN;
-
     for (i=0; i<8; i++) {
 	if (fonts[i]) {
-	    SelectObject (hdc, fonts[i]);
-	    GetTextMetrics(hdc, &tm);
-	    fsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
+	    if (SelectObject (hdc, fonts[i]) &&
+	        GetTextMetrics(hdc, &tm) )
+	         fsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
+	    else fsize[i] = -i;
 	}
+	else fsize[i] = -i;
     }
 
     ReleaseDC (hwnd, hdc);
 
+    /* ... This is wrong in OEM only mode */
     if (fsize[FONT_UNDERLINE] != fsize[FONT_NORMAL] ||
 	(bold_mode == BOLD_FONT &&
 	 fsize[FONT_BOLDUND] != fsize[FONT_BOLD])) {
@@ -614,11 +690,6 @@ font_messup:
 	DeleteObject (fonts[FONT_UNDERLINE]);
 	if (bold_mode == BOLD_FONT)
 	    DeleteObject (fonts[FONT_BOLDUND]);
-
-#if 0
-	MessageBox(NULL, "Disabling underline font",
-		"Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
-#endif
     }
 
     if (bold_mode == BOLD_FONT &&
@@ -627,13 +698,12 @@ font_messup:
 	DeleteObject (fonts[FONT_BOLD]);
 	if (und_mode == UND_FONT)
 	    DeleteObject (fonts[FONT_BOLDUND]);
-
-#if 0
-	MessageBox(NULL, "Disabling bold font",
-		"Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
-#endif
     }
 
+#ifdef CHECKOEMFONT
+    /* With the facist font painting it doesn't matter if the linedraw font
+     * isn't exactly the right size anymore so we don't have to check this.
+     */
     if (cfg.vtmode == VT_OEMANSI && fsize[FONT_OEM] != fsize[FONT_NORMAL] ) {
 	if( cfg.fontcharset == OEM_CHARSET )
 	{
@@ -662,11 +732,38 @@ font_messup:
 		DeleteObject (fonts[i]);
 	goto font_messup;
     }
+#endif
 }
 
-void request_resize (int w, int h) {
-    int width = extra_width + font_width * w;
-    int height = extra_height + font_height * h;
+void request_resize (int w, int h, int refont) {
+    int width, height;
+    
+#ifdef CHECKOEMFONT
+    /* Don't do this in OEMANSI, you may get disable messages */
+    if (refont && w != cols && (cols==80 || cols==132)
+	  && cfg.vtmode != VT_OEMANSI)
+#else
+    if (refont && w != cols && (cols==80 || cols==132))
+#endif
+    {
+       /* If font width too big for screen should we shrink the font more ? */
+        if (w==132)
+            font_width = ((font_width*cols+w/2)/w);
+        else
+	    font_width = 0;
+	{
+	    int i;
+	    for (i=0; i<8; i++)
+		if (fonts[i])
+		    DeleteObject(fonts[i]);
+	}
+        bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
+        und_mode = UND_FONT;
+        init_fonts(font_width);
+    }
+
+    width = extra_width + font_width * w;
+    height = extra_height + font_height * h;
 
     SetWindowPos (hwnd, NULL, 0, 0, width, height,
 		  SWP_NOACTIVATE | SWP_NOCOPYBITS |
@@ -697,6 +794,13 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     static int just_reconfigged = FALSE;
 
     switch (message) {
+      case WM_TIMER:
+	if (pending_netevent)
+	    enact_pending_netevent();
+	if (inbuf_reap != inbuf_head)
+	    term_out();
+	term_update();
+	return 0;
       case WM_CREATE:
 	break;
       case WM_CLOSE:
@@ -794,10 +898,11 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    }
 	    bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
 	    und_mode = UND_FONT;
-	    init_fonts();
+	    init_fonts(0);
 	    sfree(logpal);
-	    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
-	    back->special (cfg.ldisc_term ? TS_LECHO : TS_RECHO);
+	    /* Telnet will change local echo -> remote if the remote asks */
+	    if (cfg.protocol != PROT_TELNET)
+	        ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
 	    if (pal)
 		DeleteObject(pal);
 	    logpal = NULL;
@@ -929,32 +1034,16 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_NETEVENT:
-	{
-	    int i = back->msg (wParam, lParam);
-	    if (i < 0) {
-		char buf[1024];
-		switch (WSABASEERR + (-i) % 10000) {
-		  case WSAECONNRESET:
-		    sprintf(buf, "Connection reset by peer");
-		    break;
-		  default:
-		    sprintf(buf, "Unexpected network error %d", -i);
-		    break;
-		}
-		MessageBox(hwnd, buf, "PuTTY Fatal Error",
-			   MB_ICONERROR | MB_OK);
-		PostQuitMessage(1);
-	    } else if (i == 0) {
-		if (cfg.close_on_exit)
-		    PostQuitMessage(0);
-		else {
-                    session_closed = TRUE;
-		    MessageBox(hwnd, "Connection closed by remote host",
-			       "PuTTY", MB_OK | MB_ICONINFORMATION);
-		    SetWindowText (hwnd, "PuTTY (inactive)");
-		}
-	    }
-	}
+	/* Notice we can get multiple netevents, FD_READ, FD_WRITE etc
+	 * but the only one that's likely to try to overload us is FD_READ.
+	 * This means buffering just one is fine.
+	 */
+	if (pending_netevent)
+	    enact_pending_netevent();
+
+	pending_netevent = TRUE;
+	pend_netevent_wParam=wParam;
+	pend_netevent_lParam=lParam;
 	return 0;
       case WM_SETFOCUS:
 	has_focus = TRUE;
@@ -1160,12 +1249,29 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
  */
 void do_text (Context ctx, int x, int y, char *text, int len,
 	      unsigned long attr) {
+    int lattr = 0;	/* Will be arg later for line attribute type */
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
     HDC hdc = ctx;
+    RECT line_box;
+    int force_manual_underline = 0;
+static int *IpDx = 0, IpDxLEN = 0;;
+
+    if (len>IpDxLEN || IpDx[0] != font_width*(1+!lattr)) {
+	int i;
+	if (len>IpDxLEN) {
+	    sfree(IpDx);
+	    IpDx = smalloc((len+16)*sizeof(int));
+	    IpDxLEN = (len+16);
+	}
+	for(i=0; i<len; i++)
+	    IpDx[i] = font_width;
+    }
 
     x *= font_width;
     y *= font_height;
+
+    if (lattr) x *= 2;
 
     if (attr & ATTR_ACTCURS) {
 	attr &= (bold_mode == BOLD_COLOURS ? 0x200 : 0x300);
@@ -1178,20 +1284,22 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 
     /*
      * Map high-half characters in order to approximate ISO using
-     * OEM character set. Characters missing are 0xC3 (Atilde) and
-     * 0xCC (Igrave).
+     * OEM character set. No characters are missing if the OEM codepage
+     * is CP850.
      */
     if (nfont & FONT_OEM) {
 	int i;
 	for (i=0; i<len; i++)
 	    if (text[i] >= '\xA0' && text[i] <= '\xFF') {
+#if 0
+		/* This is CP850 ... perfect translation */
 		static const char oemhighhalf[] =
 		    "\x20\xAD\xBD\x9C\xCF\xBE\xDD\xF5" /* A0-A7 */
 		    "\xF9\xB8\xA6\xAE\xAA\xF0\xA9\xEE" /* A8-AF */
 		    "\xF8\xF1\xFD\xFC\xEF\xE6\xF4\xFA" /* B0-B7 */
 		    "\xF7\xFB\xA7\xAF\xAC\xAB\xF3\xA8" /* B8-BF */
-		    "\xB7\xB5\xB6\x41\x8E\x8F\x92\x80" /* C0-C7 */
-		    "\xD4\x90\xD2\xD3\x49\xD6\xD7\xD8" /* C8-CF */
+		    "\xB7\xB5\xB6\xC7\x8E\x8F\x92\x80" /* C0-C7 */
+		    "\xD4\x90\xD2\xD3\xDE\xD6\xD7\xD8" /* C8-CF */
 		    "\xD1\xA5\xE3\xE0\xE2\xE5\x99\x9E" /* D0-D7 */
 		    "\x9D\xEB\xE9\xEA\x9A\xED\xE8\xE1" /* D8-DF */
 		    "\x85\xA0\x83\xC6\x84\x86\x91\x87" /* E0-E7 */
@@ -1199,6 +1307,23 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 		    "\xD0\xA4\x95\xA2\x93\xE4\x94\xF6" /* F0-F7 */
 		    "\x9B\x97\xA3\x96\x81\xEC\xE7\x98" /* F8-FF */
 		    ;
+#endif
+		/* This is CP437 ... junk translation */
+		static const unsigned char oemhighhalf[] = {
+		    0xff, 0xad, 0x9b, 0x9c, 0x6f, 0x9d, 0x7c, 0x15,
+		    0x22, 0x43, 0xa6, 0xae, 0xaa, 0x2d, 0x52, 0xc4,
+		    0xf8, 0xf1, 0xfd, 0x33, 0x27, 0xe6, 0x14, 0xfa,
+		    0x2c, 0x31, 0xa7, 0xaf, 0xac, 0xab, 0x2f, 0xa8,
+		    0x41, 0x41, 0x41, 0x41, 0x8e, 0x8f, 0x92, 0x80,
+		    0x45, 0x90, 0x45, 0x45, 0x49, 0x49, 0x49, 0x49,
+		    0x44, 0xa5, 0x4f, 0x4f, 0x4f, 0x4f, 0x99, 0x78,
+		    0xed, 0x55, 0x55, 0x55, 0x9a, 0x59, 0x50, 0xe1,
+		    0x85, 0xa0, 0x83, 0x61, 0x84, 0x86, 0x91, 0x87,
+		    0x8a, 0x82, 0x88, 0x89, 0x8d, 0xa1, 0x8c, 0x8b,
+		    0x0b, 0xa4, 0x95, 0xa2, 0x93, 0x6f, 0x94, 0xf6,
+		    0xed, 0x97, 0xa3, 0x96, 0x81, 0x79, 0x70, 0x98
+		};
+
 		text[i] = oemhighhalf[(unsigned char)text[i] - 0xA0];
 	    }
     }
@@ -1214,11 +1339,24 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 		text[i] = cfg.vtmode == VT_OEMONLY ? '\x9C' : '\xA3';
     } else if (attr & ATTR_LINEDRW) {
 	int i;
+	/* ISO 8859-1 */
 	static const char poorman[] =
 	    "*#****\xB0\xB1**+++++-----++++|****\xA3\xB7";
-	static const char oemmap[] =
+
+	/* CP437 */
+	static const char oemmap_437[] =
 	    "\x04\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
 	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3\xF3\xF2\xE3*\x9C\xFA";
+
+	/* CP850 */
+	static const char oemmap_850[] =
+	    "\x04\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
+	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3****\x9C\xFA";
+
+	/* Poor windows font ... eg: windows courier */
+	static const char oemmap[] =
+	    "*\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
+	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3****\x9C\xFA";
 
 	/*
 	 * Line drawing mapping: map ` thru ~ (0x60 thru 0x7E) to
@@ -1231,12 +1369,15 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 		    text[i] += '\x01' - '\x60';
 	    break;
 	  case VT_OEMANSI:
+	    /* Make sure we actually have an OEM font */
+	    if (fonts[nfont|FONT_OEM]) { 
 	  case VT_OEMONLY:
-	    nfont |= FONT_OEM;
-	    for (i=0; i<len; i++)
-		if (text[i] >= '\x60' && text[i] <= '\x7E')
-		    text[i] = oemmap[(unsigned char)text[i] - 0x60];
-	    break;
+	        nfont |= FONT_OEM;
+	        for (i=0; i<len; i++)
+		    if (text[i] >= '\x60' && text[i] <= '\x7E')
+		        text[i] = oemmap[(unsigned char)text[i] - 0x60];
+	        break;
+	    }
 	  case VT_POORMAN:
 	    for (i=0; i<len; i++)
 		if (text[i] >= '\x60' && text[i] <= '\x7E')
@@ -1251,23 +1392,42 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 	nfont |= FONT_BOLD;
     if (und_mode == UND_FONT && (attr & ATTR_UNDER))
 	nfont |= FONT_UNDERLINE;
+    if (!fonts[nfont]) 
+    {
+	if (nfont&FONT_UNDERLINE)
+	    force_manual_underline = 1;
+	/* Don't do the same for manual bold, it could be bad news. */
+
+	nfont &= ~(FONT_BOLD|FONT_UNDERLINE);
+    }
     if (attr & ATTR_REVERSE) {
 	t = nfg; nfg = nbg; nbg = t;
     }
     if (bold_mode == BOLD_COLOURS && (attr & ATTR_BOLD))
 	nfg++;
+    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BLINK))
+	nbg++;
     fg = colours[nfg];
     bg = colours[nbg];
     SelectObject (hdc, fonts[nfont]);
     SetTextColor (hdc, fg);
     SetBkColor (hdc, bg);
     SetBkMode (hdc, OPAQUE);
-    TextOut (hdc, x, y, text, len);
+    line_box.left   = x;
+    line_box.top    = y;
+    line_box.right  = x+font_width*len;
+    line_box.bottom = y+font_height;
+    ExtTextOut (hdc, x, y, ETO_CLIPPED|ETO_OPAQUE, &line_box, text, len, IpDx);
     if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
 	SetBkMode (hdc, TRANSPARENT);
-	TextOut (hdc, x-1, y, text, len);
+
+       /* GRR: This draws the character outside it's box and can leave
+	* 'droppings' even with the clip box! I suppose I could loop it
+	* one character at a time ... yuk. */
+        ExtTextOut (hdc, x-1, y, ETO_CLIPPED, &line_box, text, len, IpDx);
     }
-    if (und_mode == UND_LINE && (attr & ATTR_UNDER)) {
+    if (force_manual_underline || 
+	    (und_mode == UND_LINE && (attr & ATTR_UNDER))) {
         HPEN oldpen;
 	oldpen = SelectObject (hdc, CreatePen(PS_SOLID, 0, fg));
 	MoveToEx (hdc, x, y+descent, NULL);
@@ -1508,13 +1668,35 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
      * the DOS keyboard handling did it, and we have nothing better
      * to do with the key combo in question, we'll also map
      * Control-Backquote to ^\ (0x1C).
+     *
+     * In addition a real VT100 maps Ctrl-3/4/5/7 and 8.
      */
     if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '2') {
 	*p++ = 0x00;
 	return p - output;
     }
+    if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '3') {
+	*p++ = 0x1B;
+	return p - output;
+    }
+    if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '4') {
+	*p++ = 0x1C;
+	return p - output;
+    }
+    if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '5') {
+	*p++ = 0x1D;
+	return p - output;
+    }
     if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '6') {
 	*p++ = 0x1E;
+	return p - output;
+    }
+    if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '7') {
+	*p++ = 0x1F;
+	return p - output;
+    }
+    if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == '8') {
+	*p++ = 0x7F;
 	return p - output;
     }
     if (ret && (keystate[VK_CONTROL] & 0x80) && wParam == 0xBD) {
