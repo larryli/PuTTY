@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.14 2003/03/29 22:04:21 ben Exp $ */
+/* $Id: macresid.h,v 1.15 2003/04/05 22:03:06 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -58,6 +58,9 @@
 
 /* Controls */
 #define cVScroll	128
+
+/* ldes for list box controls */
+#define ldes_Default	128
 
 /* xDEFs */
 #define CDEF_EditBox	129

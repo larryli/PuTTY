@@ -78,6 +78,8 @@ struct macctrls {
     unsigned int	curpanel;
     union macctrl	**panels; /* lists of controls by panel */
     union macctrl	*focus; /* Input focus for System 7 */
+    union macctrl	*defbutton; /* Default button */
+    union macctrl	*canbutton; /* Cancel button */
 };    
 
 typedef struct Session {

@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.37 2003/03/29 22:04:21 ben Exp $ */
+/* $Id: mac_res.r,v 1.38 2003/04/05 22:03:06 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -1127,4 +1127,17 @@ data 'CDEF' (CDEF_EditBox) {
 };
 data 'CDEF' (CDEF_Default) {
     $"4EF9 00000000"
+};
+
+/* List box template */
+
+resource 'ldes' (ldes_Default) {
+    versionZero {
+	0, /* rows */
+	1, /* cols */
+	0, 0, /* default cell size */
+	hasVertScroll, noHorizScroll,
+	0, /* LDEF number */
+	noGrowSpace
+    }
 };
