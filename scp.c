@@ -690,6 +690,12 @@ void scp_sftp_listdir(char *dirname)
     int nnames, namesize;
     int i;
 
+    if (!fxp_init()) {
+	tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
+	errs++;
+	return;
+    }
+
     printf("Listing directory %s\n", dirname);
 
     dirh = fxp_opendir(dirname);
