@@ -156,7 +156,8 @@ typedef struct {
     int bksp_is_delete;
     int rxvt_homeend;
     int funky_type;
-    int no_applic;                     /* totally disable application modes */
+    int no_applic_c;                   /* totally disable app cursor keys */
+    int no_applic_k;                   /* totally disable app keypad */
     int app_cursor;
     int app_keypad;
     int nethack_keypad;

@@ -79,7 +79,8 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "BackspaceIsDelete", cfg->bksp_is_delete);
     write_setting_i (sesskey, "RXVTHomeEnd", cfg->rxvt_homeend);
     write_setting_i (sesskey, "LinuxFunctionKeys", cfg->funky_type);
-    write_setting_i (sesskey, "NoApplicationKeys", cfg->no_applic);
+    write_setting_i (sesskey, "NoApplicationKeys", cfg->no_applic_k);
+    write_setting_i (sesskey, "NoApplicationCursors", cfg->no_applic_c);
     write_setting_i (sesskey, "ApplicationCursorKeys", cfg->app_cursor);
     write_setting_i (sesskey, "ApplicationKeypad", cfg->app_keypad);
     write_setting_i (sesskey, "NetHackKeypad", cfg->nethack_keypad);
@@ -206,7 +207,8 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "BackspaceIsDelete", 1, &cfg->bksp_is_delete);
     gppi (sesskey, "RXVTHomeEnd", 0, &cfg->rxvt_homeend);
     gppi (sesskey, "LinuxFunctionKeys", 0, &cfg->funky_type);
-    gppi (sesskey, "NoApplicationKeys", 0, &cfg->no_applic);
+    gppi (sesskey, "NoApplicationKeys", 0, &cfg->no_applic_k);
+    gppi (sesskey, "NoApplicationCursors", 0, &cfg->no_applic_c);
     gppi (sesskey, "ApplicationCursorKeys", 0, &cfg->app_cursor);
     gppi (sesskey, "ApplicationKeypad", 0, &cfg->app_keypad);
     gppi (sesskey, "NetHackKeypad", 0, &cfg->nethack_keypad);
