@@ -18,8 +18,6 @@
 #endif
 #endif
 
-typedef struct config_tag Config;      /* duplicated from putty.h */
-
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #define PUTTY_REG_PARENT "Software\\SimonTatham"
 #define PUTTY_REG_PARENT_CHILD "PuTTY"
