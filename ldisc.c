@@ -132,6 +132,13 @@ void ldisc_send(char *buf, int len, int interactive)
 		    term_buflen--;
 		}
 		back->special(TS_EL);
+                /*
+                 * We don't send IP, SUSP or ABORT if the user has
+                 * configured telnet specials off! This breaks
+                 * talkers otherwise.
+                 */
+                if (!cfg.telnet_keyboard)
+                    goto default_case;
 		if (c == CTRL('C'))
 		    back->special(TS_IP);
 		if (c == CTRL('Z'))
@@ -204,6 +211,7 @@ void ldisc_send(char *buf, int len, int interactive)
 		}
 		/* FALLTHROUGH */
 	      default:		       /* get to this label from ^V handler */
+                default_case:
 		if (term_buflen >= term_bufsiz) {
 		    term_bufsiz = term_buflen + 256;
 		    term_buf = saferealloc(term_buf, term_bufsiz);
