@@ -231,7 +231,7 @@ struct Packet {
     long maxlen;
 };
 
-static SHA_State exhash;
+static SHA_State exhash, exhashbase;
 
 static Socket s = NULL;
 
@@ -1043,12 +1043,12 @@ static int do_ssh_init(unsigned char c) {
          * This is a v2 server. Begin v2 protocol.
          */
         char *verstring = "SSH-2.0-PuTTY";
-        SHA_Init(&exhash);
+        SHA_Init(&exhashbase);
         /*
          * Hash our version string and their version string.
          */
-        sha_string(&exhash, verstring, strlen(verstring));
-        sha_string(&exhash, vstring, strcspn(vstring, "\r\n"));
+        sha_string(&exhashbase, verstring, strlen(verstring));
+        sha_string(&exhashbase, vstring, strcspn(vstring, "\r\n"));
         sprintf(vstring, "%s\n", verstring);
         sprintf(vlog, "We claim version: %s", verstring);
         logevent(vlog);
@@ -1993,9 +1993,11 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static unsigned char keyspace[40];
     static const struct ssh_cipher *preferred_cipher;
     static const struct ssh_compress *preferred_comp;
+    static int first_kex;
 
     crBegin;
     random_init();
+    first_kex = 1;
 
     /*
      * Set up the preferred cipher and compression.
@@ -2099,7 +2101,10 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     ssh2_pkt_addbool(FALSE);
     /* Reserved. */
     ssh2_pkt_adduint32(0);
+
+    exhash = exhashbase;
     sha_string(&exhash, pktout.data+5, pktout.length-5);
+
     ssh2_pkt_send();
 
     if (!ispkt) crWaitUntil(ispkt);
@@ -2273,6 +2278,19 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     ssh2_mkkey(K, exchange_hash, 'B', keyspace); sccipher->setsciv(keyspace);
     ssh2_mkkey(K, exchange_hash, 'E', keyspace); csmac->setcskey(keyspace);
     ssh2_mkkey(K, exchange_hash, 'F', keyspace); scmac->setsckey(keyspace);
+
+    /*
+     * If this is the first key exchange phase, we must pass the
+     * SSH2_MSG_NEWKEYS packet to the next layer, not because it
+     * wants to see it but because it will need time to initialise
+     * itself before it sees an actual packet. In subsequent key
+     * exchange phases, we don't pass SSH2_MSG_NEWKEYS on, because
+     * it would only confuse the layer above.
+     */
+    if (!first_kex) {
+        crReturn(0);
+    }
+    first_kex = 0;
 
     /*
      * Now we're encrypting. Begin returning 1 to the protocol main
