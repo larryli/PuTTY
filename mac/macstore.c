@@ -602,6 +602,15 @@ void write_random_seed(void *data, int len)
     return;
 }
 
+/*
+ * This host key cache uses a file in the PuTTY Preferences folder and
+ * stores keys as individual TEXT resources in the resource fork of
+ * that file.  This has two problems.  Firstly, a resource fork can
+ * contain no more than 2727 resources.  Secondly, the Resource
+ * Manager uses a linear search to find a particular resource, which
+ * could make having lots of host keys quite slow.
+ */
+
 int verify_host_key(const char *hostname, int port,
 		    const char *keytype, const char *key)
 {
@@ -716,8 +725,6 @@ void store_host_key(const char *hostname, int port,
     sfree(resname);
 }
   
-
-
 /*
  * Emacs magic:
  * Local Variables:
