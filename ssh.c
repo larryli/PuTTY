@@ -827,6 +827,12 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->biglen = st->len + st->pad;
     ssh->pktin.length = st->len - 5;
 
+    if (st->biglen < 0) {
+        bombout(("Extremely large packet length from server suggests"
+		 " data stream corruption"));
+        crStop(0);
+    }
+
     if (ssh->pktin.maxlen < st->biglen) {
 	ssh->pktin.maxlen = st->biglen;
 	ssh->pktin.data = sresize(ssh->pktin.data, st->biglen + APIEXTRA,
@@ -2435,7 +2441,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
     if (!ssh1_pkt_getrsakey(ssh, &servkey, &s->keystr1) ||
 	!ssh1_pkt_getrsakey(ssh, &hostkey, &s->keystr2)) {	
-	bombout(("SSH1 public key packet stopped before public keys"));
+	bombout(("Failed to read SSH1 public keys from public key packet"));
 	crStop(0);
     }
 
