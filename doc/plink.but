@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.3 2001/02/07 11:20:15 owen Exp $
+\versionid $Id: plink.but,v 1.4 2001/02/19 23:24:01 owen Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -61,27 +61,90 @@ use Plink:
 
 These are the command line options that Plink accepts.
 
-\H{plink-pubkey} Public key authentication
+\S2{plink-usage-options-v}\c{-v} show verbose messages
+
+By default, Plink only displays any password prompts and the output of
+the remote command.  The \c{-v} option makes it print extra
+information about the connection being made, for example:
+
+\c Server version: SSH-1.5-OpenSSH-1.2.3
+\c We claim version: SSH-1.5-PuTTY
+\c Using SSH protocol version 1
+\c Received public keys
+\c Host key fingerprint is:
+\c       1023 e3:65:44:44:bd:b1:04:59:bc:e2:3d:a1:4d:09:ce:99
+\c Encrypted session key
+\c Using 3DES encryption
+\c Trying to enable encryption...
+\c Successfully started encryption
+\c Sent username "fred".
+\c Sent username "fred"
+\c fred@example.com's password:
+
+This information can be useful for diagnosing problems.
+
+\S2{plink-usage-options-ssh}\c{-ssh} force use of ssh protocol
+
+\S2{plink-usage-options-P}\c{-P port} connect to specified port
+
+\S2{plink-usage-options-pw}\c{-pw passw} login with specified password
+
+\H{plink-pubkey} Using public key authentication with Plink
 
 \H{plink-batch} Using Plink in \i{batch files} and \i{scripts}
 
 \H{plink-cvs} Using Plink with \i{CVS}
 
-To use Plink with CVS, you need to do something like the following:
+To use Plink with CVS, you need to set the environment variable
+\c{CVS_RSH} to point to Plink:
 
 \c set CVS_RSH=\path\to\plink.exe
+
+You also need to arrange to be able to connect to a remote host
+without a password.  To do this, either:
+
+\b Run PuTTY, and create a PuTTY saved session (see
+\k{config-saving}) which specifies your private key file (see
+\k{config-auth}). You will probably also want to specify a username
+to log in as (see \k{config-username}).  You should then be able to
+run CVS as follows:
+
+\c cvs -d :ext:user@sessionname:/path/to/repository co module
+
+If you specified a username in your saved session, you can just say:
+
+\c cvs -d :ext:sessionname:/path/to/repository co module
+
+Alternatively, you can use Pageant if Pageant is running (see
+\k{pageant}).  To do this, you would:
+
+\b Ensure Pageant is running, and has your private key stored in it.
+
+\b Run CVS as follows:
+
 \c cvs -d :ext:user@hostname:/path/to/repository co module
 
-This should work, provided the command \c{plink hostname -l user} works
-without requiring a password.
+\H{plink-wincvs} Using Plink with \i{WinCVS}
 
-You can arrange for that to be the case by:
+Plink can also be used with WinCVS.  Firstly, arrange for Plink to be
+able to connect to a remote host without a password.  \k{plink-cvs}
+has instructions on this.
 
-\b running Pageant (see \k{pageant}) and putting a valid RSA key in it
+In WinCVS, bring up the \e{Preferences} dialogue box from the
+\e{Admin} menu, and switch to the \e{Ports} tab. Tick the box there
+labelled \e{Check for an alternate rsh name} and in the text entry
+field to the right enter the full path to \c{plink.exe}.  Select
+\e{OK} on the \e{Preferences} dialogue box.
 
-\b using a saved session name in place of \c{hostname}, and having that saved
-   session specify a valid RSA key. (If you do this, you can also leave out
-   \c{user@}, provided you specify it in the saved session.)
+Next, select \e{Command Line} from the WinCVS \e{Admin} menu, and type 
+a CVS command as in \k{plink-cvs}, for example:
+
+\c cvs -d :ext:user@hostname:/path/to/repository co module
+
+Select the folder you want to check out to with the \e{Change Folder}
+button, and click \e{OK} to check out your module.  Once you've got
+modules checked out, WinCVS will happily invoke plink from the GUI for
+CVS operations.
 
 \H{plink-whatelse} Using Plink with... ?
 
