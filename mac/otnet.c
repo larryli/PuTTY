@@ -13,7 +13,7 @@
 struct Socket_tag {
     struct socket_function_table *fn;
     /* other stuff... */
-    char *error;
+    OSStatus error;
     EndpointRef ep;
     Plug plug;
     void *private_ptr;
@@ -37,7 +37,7 @@ struct Socket_tag {
 typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
-    char *error;
+    OSStatus error;
     DNSAddress address;
 };
 
@@ -64,15 +64,11 @@ void ot_cleanup(void)
     CloseOpenTransport();
 }
 
-static char *error_string(int error)
-{
-    return "An error...";
-}
-
 SockAddr ot_namelookup(char *host, char **canonicalname)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     
+    ret->error = kOTNoError;
     OTInitDNSAddress(&(ret->address), host);
   
     /* for now we'll pretend canonicalname is always just host */
@@ -172,7 +168,7 @@ Socket ot_register(void *sock, Plug plug)
 
     ret = smalloc(sizeof(struct Socket_tag));
     ret->fn = &fn_table;
-    ret->error = NULL;
+    ret->error = kOTNoError;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
     ret->writable = 1;                 /* to start with */
@@ -220,7 +216,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
 
     ret = smalloc(sizeof(struct Socket_tag));
     ret->fn = &fn_table;
-    ret->error = NULL;
+    ret->error = kOTNoError;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
     ret->connected = 0;                /* to start with */
@@ -241,7 +237,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     ret->ep = ep;
 
     if (err) {
-	ret->error = error_string(err);
+	ret->error = err;
 	return (Socket) ret;
     }
 
@@ -256,7 +252,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     err = OTBind(ep, NULL, NULL); /* OpenTransport always picks our address */
 
     if (err) {
-	ret->error = error_string(err);
+	ret->error = err;
 	return (Socket) ret;
     }
 
@@ -273,7 +269,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     err = OTConnect(ep, &connectCall, nil);
   
     if (err) {
-	ret->error = error_string(err);
+	ret->error = err;
 	return (Socket) ret;
     } else {
 	ret->connected = 1;
@@ -374,12 +370,22 @@ static void *ot_tcp_get_private_ptr(Socket sock)
  */
 char *ot_addr_error(SockAddr addr)
 {
-    return addr->error;
+    static char buf[128];
+
+    if (addr->error == kOTNoError)
+	return NULL;
+    sprintf(buf, "error %d", addr->error);
+    return buf;
 }
 static char *ot_tcp_socket_error(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
-    return s->error;
+    static char buf[128];
+
+    if (s->error == kOTNoError)
+	return NULL;
+    sprintf(buf, "error %d", s->error);
+    return buf;
 }
 
 static void ot_tcp_set_frozen(Socket sock, int is_frozen)
