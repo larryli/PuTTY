@@ -174,6 +174,7 @@ int process_nonoption_arg(char *arg, Config *cfg)
         /*
          * Otherwise, treat this argument as a host name.
          */
+        p = arg;
         while (*p && !isspace((unsigned char)*p))
             p++;
         if (*p)
