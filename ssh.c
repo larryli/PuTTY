@@ -2757,7 +2757,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
     fflush(stdout);
     {
-	if ((flags & FLAG_INTERACTIVE) && !*ssh->cfg.username) {
+	if (!*ssh->cfg.username) {
 	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
 				  s->username, sizeof(s->username), FALSE)) {
@@ -4841,7 +4841,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	     * with change_username turned off we don't try to get
 	     * it again.
 	     */
-	} else if ((flags & FLAG_INTERACTIVE) && !*ssh->cfg.username) {
+	} else if (!*ssh->cfg.username) {
 	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
 				  s->username, sizeof(s->username), FALSE)) {
