@@ -269,7 +269,15 @@ static char *ssh2_pkt_type(int pkt_ctx, int type)
 
 enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 
-/* Coroutine mechanics for the sillier bits of the code */
+/*
+ * Coroutine mechanics for the sillier bits of the code. If these
+ * macros look impenetrable to you, you might find it helpful to
+ * read
+ * 
+ *   http://www.chiark.greenend.org.uk/~sgtatham/coroutines.html
+ * 
+ * which explains the theory behind these macros.
+ */
 #define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
 #define crState(t) \
     struct t *s; \
