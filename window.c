@@ -727,8 +727,8 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	term_mouse (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
 		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
 		    TO_CHR_Y(Y_POS(lParam)));
-	return 0;
         ReleaseCapture();
+	return 0;
       case WM_RBUTTONDOWN:
         SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
