@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.66 2003/02/04 02:03:53 ben Exp $ */
+/* $Id: macterm.c,v 1.67 2003/02/04 02:08:03 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -451,7 +451,7 @@ void mac_adjusttermmenus(WindowPtr window) {
 #if TARGET_API_MAC_CARBON
     if (1)
 #else
-    if (GetScrap(NULL, 'TEXT', &offset) == noTypeErr)
+    if (GetScrap(NULL, kScrapFlavorTypeText, &offset) == noTypeErr)
 #endif
 	DisableItem(menu, iPaste);
     else
@@ -579,7 +579,7 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
      */
     if (ZeroScrap() != noErr)
 	return;
-    PutScrap(len * sizeof(*data), 'utxt', data);
+    PutScrap(len * sizeof(*data), kScrapFlavorTypeUnicode, data);
 
     /* Replace LINE SEPARATORs with CR for TEXT output. */
     for (i = 0; i < len; i++)
@@ -601,7 +601,7 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
 				    s->font_charset, NULL, ".", 1);
     } else
 	return;
-    PutScrap(olen, 'TEXT', mactextbuf);
+    PutScrap(olen, kScrapFlavorTypeText, mactextbuf);
     sfree(mactextbuf);
 
     stsz = offsetof(StScrpRec, scrpStyleTab) + sizeof(ScrpSTElement);
@@ -616,7 +616,7 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
     stsc->scrpStyleTab[0].scrpColor.red = 0;
     stsc->scrpStyleTab[0].scrpColor.green = 0;
     stsc->scrpStyleTab[0].scrpColor.blue = 0;
-    PutScrap(stsz, 'styl', stsc);
+    PutScrap(stsz, kScrapFlavorTypeTextStyle, stsc);
     sfree(stsc);
 #endif
 }
@@ -647,15 +647,16 @@ void get_clip(void *frontend, wchar_t **p, int *lenp) {
 	    sfree(data);
 	data = NULL;
     } else {
-	if (GetScrap(NULL, 'utxt', &offset) > 0) {
+	if (GetScrap(NULL, kScrapFlavorTypeUnicode, &offset) > 0) {
 	    if (h == NULL)
 		h = NewHandle(0);
-	    *lenp = GetScrap(h, 'utxt', &offset) / sizeof(**p);
+	    *lenp =
+		GetScrap(h, kScrapFlavorTypeUnicode, &offset) / sizeof(**p);
 	    HLock(h);
 	    *p = (wchar_t *)*h;
-	} else if (GetScrap(NULL, 'TEXT', &offset) > 0) {
+	} else if (GetScrap(NULL, kScrapFlavorTypeText, &offset) > 0) {
 	    texth = NewHandle(0);
-	    textlen = GetScrap(texth, 'TEXT', &offset);
+	    textlen = GetScrap(texth, kScrapFlavorTypeText, &offset);
 	    HLock(texth);
 	    data = smalloc(textlen * 2);
 	    /* XXX should use 'styl' scrap if it's there. */
