@@ -11,7 +11,7 @@
  * a null pointer and ignored everywhere.
  */
 
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
 #define _XOPEN_SOURCE_EXTENDED
 #define _GNU_SOURCE
 
