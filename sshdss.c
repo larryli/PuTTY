@@ -15,6 +15,29 @@
     (cp)[2] = (unsigned char)((value) >> 8); \
     (cp)[3] = (unsigned char)(value); }
 
+#if 0
+#define DEBUG_DSS
+/*
+ * Condition this section in for debugging of DSS.
+ */
+static void diagbn(char *prefix, Bignum md) {
+    int i, nibbles, morenibbles;
+    static const char hex[] = "0123456789ABCDEF";
+
+    printf("%s0x", prefix ? prefix : "");
+
+    nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
+    morenibbles = 4*md[0] - nibbles;
+    for (i=0; i<morenibbles; i++) putchar('-');
+    for (i=nibbles; i-- ;)
+        putchar(hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF]);
+
+    if (prefix) putchar('\n');
+}
+#else
+#define diagbn(x,y)
+#endif
+
 static void getstring(char **data, int *datalen, char **p, int *length) {
     *p = NULL;
     if (*datalen < 4)
@@ -44,6 +67,7 @@ static Bignum getmp(char **data, int *datalen) {
         else
             b[j/2+1] |= ((unsigned char)p[i]);
     }
+    while (b[0] > 1 && b[b[0]] == 0) b[0]--;
     return b;
 }
 
@@ -75,6 +99,17 @@ static void dss_setkey(char *data, int len) {
     char *p;
     int slen;
     getstring(&data, &len, &p, &slen);
+
+#ifdef DEBUG_DSS
+    {
+        int i;
+        printf("key:");
+        for (i=0;i<len;i++)
+            printf("  %02x", (unsigned char)(data[i]));
+        printf("\n");
+    }
+#endif
+
     if (!p || memcmp(p, "ssh-dss", 7)) {
         dss_p = NULL;
         return;
@@ -161,6 +196,15 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     if (!dss_p)
         return 0;
 
+#ifdef DEBUG_DSS
+    {
+        int i;
+        printf("sig:");
+        for (i=0;i<siglen;i++)
+            printf("  %02xf", (unsigned char)(sig[i]));
+        printf("\n");
+    }
+#endif
     /*
      * Commercial SSH (2.0.13) and OpenSSH disagree over the format
      * of a DSA signature. OpenSSH is in line with the IETF drafts:
@@ -179,8 +223,14 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
         }
         sig += 4, siglen -= 4;             /* skip yet another length field */
     }
+    diagbn("p=", dss_p);
+    diagbn("q=", dss_q);
+    diagbn("g=", dss_g);
+    diagbn("y=", dss_y);
     r = get160(&sig, &siglen);
+    diagbn("r=", r);
     s = get160(&sig, &siglen);
+    diagbn("s=", s);
     if (!r || !s)
         return 0;
 
@@ -190,9 +240,11 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     w = newbn(dss_q[0]);
     qm2 = copybn(dss_q);
     decbn(qm2); decbn(qm2);
+    diagbn("qm2=", qm2);
     /* Now qm2 is q-2, and by Fermat's Little Theorem, s^qm2 == s^-1 (mod q).
      * This is a silly way to do it; may fix it later. */
     modpow(s, qm2, dss_q, w);
+    diagbn("w=", w);
 
     /*
      * Step 2. u1 <- SHA(message) * w mod q.
@@ -200,13 +252,16 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     u1 = newbn(dss_q[0]);
     SHA_Simple(data, datalen, hash);
     p = hash; slen = 20; sha = get160(&p, &slen);
+    diagbn("sha=", sha);
     modmul(sha, w, dss_q, u1);
+    diagbn("u1=", u1);
 
     /*
      * Step 3. u2 <- r * w mod q.
      */
     u2 = newbn(dss_q[0]);
     modmul(r, w, dss_q, u2);
+    diagbn("u2=", u2);
 
     /*
      * Step 4. v <- (g^u1 * y^u2 mod p) mod q.
@@ -216,9 +271,14 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     i3 = newbn(dss_p[0]);
     v = newbn(dss_q[0]);
     modpow(dss_g, u1, dss_p, i1);
+    diagbn("gu1p=", i1);
     modpow(dss_y, u2, dss_p, i2);
+    diagbn("yu2p=", i2);
     modmul(i1, i2, dss_p, i3);
+    diagbn("gu1yu2p=", i3);
     modmul(i3, One, dss_q, v);
+    diagbn("gu1yu2q=v=", v);
+    diagbn("r=", r);
 
     /*
      * Step 5. v should now be equal to r.
