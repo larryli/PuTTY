@@ -344,7 +344,7 @@ void get_window_pixels(void *frontend, int *x, int *y)
 char *get_window_title(void *frontend, int icon)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    return icon ? inst->wintitle : inst->icontitle;
+    return icon ? inst->icontitle : inst->wintitle;
 }
 
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
