@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.29 2004/09/16 15:44:58 jacob Exp $
+\versionid $Id: using.but,v 1.30 2004/09/20 22:06:29 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -123,12 +123,49 @@ Event Log into your bug report.
 Depending on the protocol used for the current session, there may be
 a submenu of \q{special commands}. These are protocol-specific
 tokens, such as a \i{\q{break} signal}, that can be sent down a
-connection in addition to normal data. Currently only Telnet and SSH
-have special commands.
+connection in addition to normal data. Their precise effect is usually
+up to the server. Currently only Telnet and SSH have special commands.
 
-\# FIXME: possibly the full list of special commands should be
-\# given here, if only so that it can be sensibly indexed and
-\# someone looking up (e.g.) AYT can find out how to send one?
+The following special commands are available in Telnet:
+
+\dt \I{Are You There, Telnet special command}Are You There
+
+\dt \I{Break, Telnet special command}Break
+
+\dt \I{Synch, Telnet special command}Synch
+
+\dt \I{Erase Character, Telnet special command}Erase Character
+
+\dt \I{Erase Line, Telnet special command}Erase Line
+
+\dt \I{Go Ahead, Telnet special command}Go Ahead
+
+\dt \I{No Operation, Telnet special command}No Operation
+
+\dd Should have no effect.
+
+\dt \I{Abort Process, Telnet special command}Abort Process
+
+\dt \I{Abort Output, Telnet special command}Abort Output
+
+\dt \I{Interrupt Process, Telnet special command}Interrupt Process
+
+\dt \I{Suspend Process, Telnet special command}Suspend Process
+
+\dt \I{End Of Record, Telnet special command}End Of Record
+
+\dt \I{End Of File, Telnet special command}End Of File
+
+In an SSH connection, the following special commands are available:
+
+\dt \I{Break, SSH special command}Break
+
+\dd Optional extension; may not be supported by server. PuTTY requests
+the server's default break length.
+
+\dt \I{IGNORE message, SSH special command}\I{No-op, in SSH}IGNORE message
+
+\dd Should have no effect.
 
 \S2{using-newsession} Starting new sessions
 
