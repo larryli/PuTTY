@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "putty.h" // FIXME
 #include "ssh.h"
 #include "tree234.h"
 
@@ -33,14 +34,33 @@
 
 #define APPNAME "Pageant"
 
-#define SSH_AGENTC_REQUEST_RSA_IDENTITIES    1
-#define SSH_AGENT_RSA_IDENTITIES_ANSWER      2
-#define SSH_AGENTC_RSA_CHALLENGE             3
-#define SSH_AGENT_RSA_RESPONSE               4
+/*
+ * SSH1 agent messages.
+ */
+#define SSH1_AGENTC_REQUEST_RSA_IDENTITIES    1
+#define SSH1_AGENT_RSA_IDENTITIES_ANSWER      2
+#define SSH1_AGENTC_RSA_CHALLENGE             3
+#define SSH1_AGENT_RSA_RESPONSE               4
+#define SSH1_AGENTC_ADD_RSA_IDENTITY          7
+#define SSH1_AGENTC_REMOVE_RSA_IDENTITY       8
+#define SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES 9   /* openssh private? */
+
+/*
+ * Messages common to SSH1 and OpenSSH's SSH2.
+ */
 #define SSH_AGENT_FAILURE                    5
 #define SSH_AGENT_SUCCESS                    6
-#define SSH_AGENTC_ADD_RSA_IDENTITY          7
-#define SSH_AGENTC_REMOVE_RSA_IDENTITY       8
+
+/*
+ * OpenSSH's SSH2 agent messages.
+ */
+#define SSH2_AGENTC_REQUEST_IDENTITIES          11
+#define SSH2_AGENT_IDENTITIES_ANSWER            12
+#define SSH2_AGENTC_SIGN_REQUEST                13
+#define SSH2_AGENT_SIGN_RESPONSE                14
+#define SSH2_AGENTC_ADD_IDENTITY                17
+#define SSH2_AGENTC_REMOVE_IDENTITY             18
+#define SSH2_AGENTC_REMOVE_ALL_IDENTITIES       19
 
 extern char ver[];
 
@@ -50,7 +70,7 @@ static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu;
 
-static tree234 *rsakeys;
+static tree234 *rsakeys, *ssh2keys;
 
 static int has_security;
 #ifndef NO_SECURITY
@@ -63,9 +83,10 @@ static gsi_fn_t getsecurityinfo;
 
 /*
  * We need this to link with the RSA code, because rsaencrypt()
- * pads its data with random bytes. Since we only use rsadecrypt(),
- * which is deterministic, this should never be called.
- *
+ * pads its data with random bytes. Since we only use rsadecrypt()
+ * and the signing functions, which are deterministic, this should
+ * never be called.
+ * 
  * If it _is_ called, there is a _serious_ problem, because it
  * won't generate true random numbers. So we must scream, panic,
  * and exit immediately if that should happen.
@@ -74,6 +95,16 @@ int random_byte(void) {
     MessageBox(hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
     exit(0);
 }
+
+/*
+ * Blob structure for passing to the asymmetric SSH2 key compare
+ * function, prototyped here.
+ */
+struct blob {
+    unsigned char *blob;
+    int len;
+};
+static int cmpkeys_ssh2_asymm(void *av, void *bv);
 
 /*
  * This function is needed to link with the DES code. We need not
@@ -164,6 +195,20 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+	/*
+	 * Centre the window.
+	 */
+	{			       /* centre the window */
+	    RECT rs, rd;
+	    HWND hw;
+
+	    hw = GetDesktopWindow();
+	    if (GetWindowRect (hw, &rs) && GetWindowRect (hwnd, &rd))
+		MoveWindow (hwnd, (rs.right + rs.left + rd.left - rd.right)/2,
+			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
+			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
+	}
+
         SetForegroundWindow(hwnd);
         SetWindowPos (hwnd, HWND_TOP, 0, 0, 0, 0,
                       SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
@@ -203,20 +248,42 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
  * Update the visible key list.
  */
 static void keylist_update(void) {
-    struct RSAKey *key;
+    struct RSAKey *rkey;
+    struct ssh2_userkey *skey;
     enum234 e;
 
     if (keylist) {
         SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
-        for (key = first234(rsakeys, &e); key; key = next234(&e)) {
+        for (rkey = first234(rsakeys, &e); rkey; rkey = next234(&e)) {
             char listentry[512], *p;
             /*
              * Replace two spaces in the fingerprint with tabs, for
              * nice alignment in the box.
              */
-            rsa_fingerprint(listentry, sizeof(listentry), key);
+	    strcpy(listentry, "ssh1\t");
+	    p = listentry+strlen(listentry);
+            rsa_fingerprint(p, sizeof(listentry)-(p-listentry), rkey);
             p = strchr(listentry, ' '); if (p) *p = '\t';
             p = strchr(listentry, ' '); if (p) *p = '\t';
+            SendDlgItemMessage (keylist, 100, LB_ADDSTRING,
+                                0, (LPARAM)listentry);
+        }
+        for (skey = first234(ssh2keys, &e); skey; skey = next234(&e)) {
+            char listentry[512], *p;
+	    int len;
+            /*
+             * Replace two spaces in the fingerprint with tabs, for
+             * nice alignment in the box.
+             */
+	    p = skey->alg->fingerprint(skey->data);
+	    strncpy(listentry, p, sizeof(listentry));
+            p = strchr(listentry, ' '); if (p) *p = '\t';
+            p = strchr(listentry, ' '); if (p) *p = '\t';
+	    len = strlen(listentry);
+	    if (len < sizeof(listentry)-2) {
+		listentry[len] = '\t';
+		strncpy(listentry+len+1, skey->comment, sizeof(listentry)-len-1);
+	    }
             SendDlgItemMessage (keylist, 100, LB_ADDSTRING,
                                 0, (LPARAM)listentry);
         }
@@ -229,16 +296,29 @@ static void keylist_update(void) {
  */
 static void add_keyfile(char *filename) {
     char passphrase[PASSPHRASE_MAXLEN];
-    struct RSAKey *key;
+    struct RSAKey *rkey;
+    struct ssh2_userkey *skey;
     int needs_pass;
     int ret;
     int attempts;
     char *comment;
     struct PassphraseProcStruct pps;
+    int ver;
 
-    needs_pass = rsakey_encrypted(filename, &comment);
+    ver = keyfile_version(filename);
+    if (ver == 0) {
+        MessageBox(NULL, "Couldn't load private key.", APPNAME,
+                   MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    if (ver == 1)
+	needs_pass = rsakey_encrypted(filename, &comment);
+    else
+	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     attempts = 0;
-    key = smalloc(sizeof(*key));
+    if (ver == 1)
+	rkey = smalloc(sizeof(*rkey));
     pps.passphrase = passphrase;
     pps.comment = comment;
     do {
@@ -249,23 +329,42 @@ static void add_keyfile(char *filename) {
                                     (LPARAM)&pps);
             if (!dlgret) {
                 if (comment) sfree(comment);
-                sfree(key);
+                if (ver == 1)
+		    sfree(rkey);
                 return;                /* operation cancelled */
             }
         } else
             *passphrase = '\0';
-        ret = loadrsakey(filename, key, passphrase);
+	if (ver == 1)
+	    ret = loadrsakey(filename, rkey, passphrase);
+	else {
+	    skey = ssh2_load_userkey(filename, passphrase);
+	    if (skey == SSH2_WRONG_PASSPHRASE)
+		ret = -1;
+	    else if (!skey)
+		ret = 0;
+	    else
+		ret = 1;
+	}
         attempts++;
     } while (ret == -1);
     if (comment) sfree(comment);
     if (ret == 0) {
         MessageBox(NULL, "Couldn't load private key.", APPNAME,
                    MB_OK | MB_ICONERROR);
-        sfree(key);
+        if (ver == 1)
+	    sfree(rkey);
         return;
     }
-    if (add234(rsakeys, key) != key)
-        sfree(key);                     /* already present, don't waste RAM */
+    if (ver == 1) {
+	if (add234(rsakeys, rkey) != rkey)
+	    sfree(rkey);	       /* already present, don't waste RAM */
+    } else {
+	if (add234(ssh2keys, skey) != skey) {
+	    skey->alg->freekey(skey->data);
+	    sfree(skey);	       /* already present, don't waste RAM */
+	}
+    }
 }
 
 /*
@@ -283,9 +382,9 @@ static void answer_msg(void *msg) {
 
     p += 5;
     switch (type) {
-      case SSH_AGENTC_REQUEST_RSA_IDENTITIES:
+      case SSH1_AGENTC_REQUEST_RSA_IDENTITIES:
         /*
-         * Reply with SSH_AGENT_RSA_IDENTITIES_ANSWER.
+         * Reply with SSH1_AGENT_RSA_IDENTITIES_ANSWER.
          */
         {
             enum234 e;
@@ -312,7 +411,7 @@ static void answer_msg(void *msg) {
             if (len > AGENT_MAX_MSGLEN)
                 goto failure;          /* aaargh! too much stuff! */
             PUT_32BIT(ret, len-4);
-            ret[4] = SSH_AGENT_RSA_IDENTITIES_ANSWER;
+            ret[4] = SSH1_AGENT_RSA_IDENTITIES_ANSWER;
             PUT_32BIT(ret+5, nkeys);
             p = ret + 5 + 4;
             for (key = first234(rsakeys, &e); key; key = next234(&e)) {
@@ -326,9 +425,57 @@ static void answer_msg(void *msg) {
             }
         }
         break;
-      case SSH_AGENTC_RSA_CHALLENGE:
+      case SSH2_AGENTC_REQUEST_IDENTITIES:
         /*
-         * Reply with either SSH_AGENT_RSA_RESPONSE or
+         * Reply with SSH2_AGENT_IDENTITIES_ANSWER.
+         */
+        {
+            enum234 e;
+            struct ssh2_userkey *key;
+            int len, nkeys;
+	    unsigned char *blob;
+	    int bloblen;
+
+            /*
+             * Count up the number and length of keys we hold.
+             */
+            len = nkeys = 0;
+            for (key = first234(ssh2keys, &e); key; key = next234(&e)) {
+                nkeys++;
+                len += 4;              /* length field */
+		blob = key->alg->public_blob(key->data, &bloblen);
+		len += bloblen;
+		sfree(blob);
+                len += 4 + strlen(key->comment);
+            }
+
+            /*
+             * Packet header is the obvious five bytes, plus four
+             * bytes for the key count.
+             */
+            len += 5 + 4;
+            if (len > AGENT_MAX_MSGLEN)
+                goto failure;          /* aaargh! too much stuff! */
+            PUT_32BIT(ret, len-4);
+            ret[4] = SSH2_AGENT_IDENTITIES_ANSWER;
+            PUT_32BIT(ret+5, nkeys);
+            p = ret + 5 + 4;
+            for (key = first234(ssh2keys, &e); key; key = next234(&e)) {
+		blob = key->alg->public_blob(key->data, &bloblen);
+                PUT_32BIT(p, bloblen);
+                p += 4;
+		memcpy(p, blob, bloblen);
+		p += bloblen;
+		sfree(blob);
+                PUT_32BIT(p, strlen(key->comment));
+                memcpy(p+4, key->comment, strlen(key->comment));
+                p += 4 + strlen(key->comment);
+            }
+        }
+        break;
+      case SSH1_AGENTC_RSA_CHALLENGE:
+        /*
+         * Reply with either SSH1_AGENT_RSA_RESPONSE or
          * SSH_AGENT_FAILURE, depending on whether we have that key
          * or not.
          */
@@ -370,11 +517,42 @@ static void answer_msg(void *msg) {
              */
             len = 5 + 16;
             PUT_32BIT(ret, len-4);
-            ret[4] = SSH_AGENT_RSA_RESPONSE;
+            ret[4] = SSH1_AGENT_RSA_RESPONSE;
             memcpy(ret+5, response_md5, 16);
         }
         break;
-      case SSH_AGENTC_ADD_RSA_IDENTITY:
+      case SSH2_AGENTC_SIGN_REQUEST:
+        /*
+         * Reply with either SSH2_AGENT_RSA_RESPONSE or
+         * SSH_AGENT_FAILURE, depending on whether we have that key
+         * or not.
+         */
+	{
+	    struct ssh2_userkey *key;
+	    struct blob b;
+	    unsigned char *data, *signature;
+	    int datalen, siglen, len;
+
+	    b.len = GET_32BIT(p);
+	    p += 4;
+	    b.blob = p;
+	    p += b.len;
+	    datalen = GET_32BIT(p);
+	    p += 4;
+	    data = p;
+	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
+	    if (!key)
+		goto failure;
+	    signature = key->alg->sign(key->data, data, datalen, &siglen);
+	    len = 5+4+siglen;
+            PUT_32BIT(ret, len-4);
+            ret[4] = SSH2_AGENT_SIGN_RESPONSE;
+            PUT_32BIT(ret+5, siglen);
+	    memcpy(ret+5+4, signature, siglen);
+	    sfree(signature);
+	}
+	break;
+      case SSH1_AGENTC_ADD_RSA_IDENTITY:
         /*
          * Add to the list and return SSH_AGENT_SUCCESS, or
          * SSH_AGENT_FAILURE if the key was malformed.
@@ -386,9 +564,9 @@ static void answer_msg(void *msg) {
             memset(key, 0, sizeof(key));
             p += makekey(p, key, NULL, 1);
             p += makeprivate(p, key);
-            p += ssh1_read_bignum(p, NULL);    /* p^-1 mod q */
-            p += ssh1_read_bignum(p, NULL);    /* p */
-            p += ssh1_read_bignum(p, NULL);    /* q */
+            p += ssh1_read_bignum(p, key->iqmp); /* p^-1 mod q */
+            p += ssh1_read_bignum(p, key->p);    /* p */
+            p += ssh1_read_bignum(p, key->q);    /* q */
             comment = smalloc(GET_32BIT(p));
             if (comment) {
                 memcpy(comment, p+4, GET_32BIT(p));
@@ -405,7 +583,57 @@ static void answer_msg(void *msg) {
             }
         }
         break;
-      case SSH_AGENTC_REMOVE_RSA_IDENTITY:
+      case SSH2_AGENTC_ADD_IDENTITY:
+        /*
+         * Add to the list and return SSH_AGENT_SUCCESS, or
+         * SSH_AGENT_FAILURE if the key was malformed.
+         */
+        {
+            struct ssh2_userkey *key;
+            char *comment, *alg;
+	    int alglen, commlen;
+	    int bloblen;
+
+	    key = smalloc(sizeof(struct ssh2_userkey));
+
+	    alglen = GET_32BIT(p); p += 4;
+	    alg = p; p += alglen;
+	    /* Add further algorithm names here. */
+	    if (alglen == 7 && !memcmp(alg, "ssh-rsa", 7))
+		key->alg = &ssh_rsa;
+	    else {
+		sfree(key);
+		goto failure;
+	    }
+
+	    bloblen = GET_32BIT((unsigned char *)msg) - (p-(unsigned char *)msg-4);
+	    key->data = key->alg->openssh_createkey(&p, &bloblen);
+	    if (!key->data) {
+		sfree(key);
+		goto failure;
+	    }
+	    commlen = GET_32BIT(p); p += 4;
+
+            comment = smalloc(commlen+1);
+            if (comment) {
+                memcpy(comment, p, commlen);
+		comment[commlen] = '\0';
+            }
+	    key->comment = comment;
+
+            PUT_32BIT(ret, 1);
+            ret[4] = SSH_AGENT_FAILURE;
+            if (add234(ssh2keys, key) == key) {
+                keylist_update();
+                ret[4] = SSH_AGENT_SUCCESS;
+            } else {
+		key->alg->freekey(key->data);
+		sfree(key->comment);
+                sfree(key);
+            }
+        }
+        break;
+      case SSH1_AGENTC_REMOVE_RSA_IDENTITY:
         /*
          * Remove from the list and return SSH_AGENT_SUCCESS, or
          * perhaps SSH_AGENT_FAILURE if it wasn't in the list to
@@ -424,8 +652,76 @@ static void answer_msg(void *msg) {
                 del234(rsakeys, key);
                 keylist_update();
                 freersakey(key);
+		sfree(key);
                 ret[4] = SSH_AGENT_SUCCESS;
             }
+        }
+        break;
+      case SSH2_AGENTC_REMOVE_IDENTITY:
+        /*
+         * Remove from the list and return SSH_AGENT_SUCCESS, or
+         * perhaps SSH_AGENT_FAILURE if it wasn't in the list to
+         * start with.
+         */
+        {
+            struct ssh2_userkey *key;
+	    struct blob b;
+
+	    b.len = GET_32BIT(p);
+	    p += 4;
+	    b.blob = p;
+	    p += b.len;
+	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
+	    if (!key)
+		goto failure;
+
+            PUT_32BIT(ret, 1);
+            ret[4] = SSH_AGENT_FAILURE;
+            if (key) {
+                del234(ssh2keys, key);
+                keylist_update();
+		key->alg->freekey(key->data);
+		sfree(key);
+                ret[4] = SSH_AGENT_SUCCESS;
+            }
+        }
+        break;
+      case SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES:
+        /*
+         * Remove all SSH1 keys. Always returns success.
+         */
+        {
+	    struct RSAKey *rkey;
+	    enum234 e;
+
+            while ( (rkey = first234(rsakeys, &e)) != NULL ) {
+                del234(rsakeys, rkey);
+		freersakey(rkey);
+		sfree(rkey);
+            }
+	    keylist_update();
+
+	    PUT_32BIT(ret, 1);
+	    ret[4] = SSH_AGENT_SUCCESS;
+        }
+        break;
+      case SSH2_AGENTC_REMOVE_ALL_IDENTITIES:
+        /*
+         * Remove all SSH2 keys. Always returns success.
+         */
+        {
+            struct ssh2_userkey *skey;
+	    enum234 e;
+
+            while ( (skey = first234(ssh2keys, &e)) != NULL ) {
+                del234(ssh2keys, skey);
+		skey->alg->freekey(skey->data);
+		sfree(skey);
+            }
+	    keylist_update();
+
+	    PUT_32BIT(ret, 1);
+	    ret[4] = SSH_AGENT_SUCCESS;
         }
         break;
       default:
@@ -442,7 +738,7 @@ static void answer_msg(void *msg) {
 /*
  * Key comparison function for the 2-3-4 tree of RSA keys.
  */
-static int cmpkeys(void *av, void *bv) {
+static int cmpkeys_rsa(void *av, void *bv) {
     struct RSAKey *a = (struct RSAKey *)av;
     struct RSAKey *b = (struct RSAKey *)bv;
     Bignum am, bm;
@@ -470,6 +766,75 @@ static int cmpkeys(void *av, void *bv) {
      * Give up.
      */
     return 0;
+}
+
+/*
+ * Key comparison function for the 2-3-4 tree of SSH2 keys.
+ */
+static int cmpkeys_ssh2(void *av, void *bv) {
+    struct ssh2_userkey *a = (struct ssh2_userkey *)av;
+    struct ssh2_userkey *b = (struct ssh2_userkey *)bv;
+    int i;
+    int alen, blen;
+    unsigned char *ablob, *bblob;
+    int c;
+    
+    /*
+     * Compare purely by public blob.
+     */
+    ablob = a->alg->public_blob(a->data, &alen);
+    bblob = b->alg->public_blob(b->data, &blen);
+
+    c = 0;
+    for (i = 0; i < alen && i < blen; i++) {
+	if (ablob[i] < bblob[i]) {
+	    c = -1; break;
+	} else if (ablob[i] > bblob[i]) {
+	    c = +1; break;
+	}
+    }
+    if (c == 0 && i < alen) c = +1;    /* a is longer */
+    if (c == 0 && i < blen) c = -1;    /* a is longer */
+
+    sfree(ablob);
+    sfree(bblob);
+
+    return c;
+}
+
+/*
+ * Key comparison function for looking up a blob in the 2-3-4 tree
+ * of SSH2 keys.
+ */
+static int cmpkeys_ssh2_asymm(void *av, void *bv) {
+    struct blob *a = (struct blob *)av;
+    struct ssh2_userkey *b = (struct ssh2_userkey *)bv;
+    int i;
+    int alen, blen;
+    unsigned char *ablob, *bblob;
+    int c;
+    
+    /*
+     * Compare purely by public blob.
+     */
+    ablob = a->blob;
+    alen = a->len;
+    bblob = b->alg->public_blob(b->data, &blen);
+
+    c = 0;
+    for (i = 0; i < alen && i < blen; i++) {
+	if (ablob[i] < bblob[i]) {
+	    c = -1; break;
+	} else if (ablob[i] > bblob[i]) {
+	    c = +1; break;
+	}
+    }
+    if (c == 0 && i < alen) c = +1;    /* a is longer */
+    if (c == 0 && i < blen) c = -1;    /* a is longer */
+
+    sfree(bblob);
+
+    return c;
 }
 
 static void error(char *s) {
@@ -510,15 +875,30 @@ static void prompt_add_keyfile(void) {
 static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam) {
     enum234 e;
-    struct RSAKey *key;
+    struct RSAKey *rkey;
+    struct ssh2_userkey *skey;
 
     switch (msg) {
       case WM_INITDIALOG:
+	/*
+	 * Centre the window.
+	 */
+	{			       /* centre the window */
+	    RECT rs, rd;
+	    HWND hw;
+
+	    hw = GetDesktopWindow();
+	    if (GetWindowRect (hw, &rs) && GetWindowRect (hwnd, &rd))
+		MoveWindow (hwnd, (rs.right + rs.left + rd.left - rd.right)/2,
+			    (rs.bottom + rs.top + rd.top - rd.bottom)/2,
+			    rd.right-rd.left, rd.bottom-rd.top, TRUE);
+	}
+
         keylist = hwnd;
 	{
-	    static int tabs[2] = {25, 175};
-	    SendDlgItemMessage (hwnd, 100, LB_SETTABSTOPS, 2,
-				(LPARAM) tabs);
+	    static int tabs[] = {35, 60, 210};
+	    SendDlgItemMessage (hwnd, 100, LB_SETTABSTOPS,
+				sizeof(tabs)/sizeof(*tabs), (LPARAM) tabs);
 	}
         keylist_update();
         return 0;
@@ -543,11 +923,23 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		    MessageBeep(0);
 		    break;
 		}
-                for (key = first234(rsakeys, &e); key; key = next234(&e))
+                for (rkey = first234(rsakeys, &e); rkey; rkey = next234(&e))
                     if (n-- == 0)
                         break;
-                del234(rsakeys, key);
-                freersakey(key); free(key);
+		if (rkey) {
+		    del234(rsakeys, rkey);
+		    freersakey(rkey);
+		    sfree(rkey);
+		} else {
+		    for (skey = first234(ssh2keys, &e); skey; skey = next234(&e))
+			if (n-- == 0)
+			    break;
+		    if (skey) {
+			del234(ssh2keys, skey);
+			skey->alg->freekey(skey->data);
+			sfree(skey);
+		    }
+		}
                 keylist_update();
             }
             return 0;
@@ -830,10 +1222,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     /*
      * Initialise storage for RSA keys.
      */
-    rsakeys = newtree234(cmpkeys);
+    rsakeys = newtree234(cmpkeys_rsa);
+    ssh2keys = newtree234(cmpkeys_ssh2);
 
     /*
-     * Process the command line and add RSA keys as listed on it.
+     * Process the command line and add keys as listed on it.
      */
     {
         char *p;

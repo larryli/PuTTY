@@ -208,7 +208,7 @@ static void *rsa2_newkey(char *data, int len) {
     if (!rsa) return NULL;
     getstring(&data, &len, &p, &slen);
 
-    if (!p || memcmp(p, "ssh-rsa", 7)) {
+    if (!p || slen != 7 || memcmp(p, "ssh-rsa", 7)) {
 	sfree(rsa);
 	return NULL;
     }
@@ -305,6 +305,38 @@ static void *rsa2_createkey(unsigned char *pub_blob, int pub_len,
     rsa->p = getmp(&pb, &priv_len);
     rsa->q = getmp(&pb, &priv_len);
     rsa->iqmp = getmp(&pb, &priv_len);
+
+    return rsa;
+}
+
+static void *rsa2_openssh_createkey(unsigned char **blob, int *len) {
+    char **b = (char **)blob;
+    struct RSAKey *rsa;
+    char *p;
+    int slen;
+
+    rsa = smalloc(sizeof(struct RSAKey));
+    if (!rsa) return NULL;
+    rsa->comment = NULL;
+
+    rsa->modulus = getmp(b, len);
+    rsa->exponent = getmp(b, len);
+    rsa->private_exponent = getmp(b, len);
+    rsa->iqmp = getmp(b, len);
+    rsa->p = getmp(b, len);
+    rsa->q = getmp(b, len);
+
+    if (!rsa->modulus || !rsa->exponent || !rsa->private_exponent ||
+	!rsa->iqmp || !rsa->p || !rsa->q) {
+	sfree(rsa->modulus);
+	sfree(rsa->exponent);
+	sfree(rsa->private_exponent);
+	sfree(rsa->iqmp);
+	sfree(rsa->p);
+	sfree(rsa->q);
+	sfree(rsa);
+	return NULL;
+    }
 
     return rsa;
 }
@@ -455,6 +487,7 @@ const struct ssh_signkey ssh_rsa = {
     rsa2_public_blob,
     rsa2_private_blob,
     rsa2_createkey,
+    rsa2_openssh_createkey,
     rsa2_fingerprint,
     rsa2_verifysig,
     rsa2_sign,

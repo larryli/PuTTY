@@ -315,6 +315,10 @@ static void *dss_createkey(unsigned char *pub_blob, int pub_len,
     return NULL;		       /* can't handle DSS private keys */
 }
 
+static void *dss_openssh_createkey(unsigned char **blob, int *len) {
+    return NULL;		       /* can't handle DSS private keys */
+}
+
 unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen) {
     return NULL;		       /* can't handle DSS private keys */
 }
@@ -326,6 +330,7 @@ const struct ssh_signkey ssh_dss = {
     dss_public_blob,
     dss_private_blob,
     dss_createkey,
+    dss_openssh_createkey,
     dss_fingerprint,
     dss_verifysig,
     dss_sign,

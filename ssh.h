@@ -142,6 +142,7 @@ struct ssh_signkey {
     unsigned char *(*private_blob)(void *key, int *len);
     void *(*createkey)(unsigned char *pub_blob, int pub_len,
 		       unsigned char *priv_blob, int priv_len);
+    void *(*openssh_createkey)(unsigned char **blob, int *len);
     char *(*fingerprint)(void *key);
     int (*verifysig)(void *key, char *sig, int siglen,
 		     char *data, int datalen);
