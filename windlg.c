@@ -663,7 +663,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     IDC_LSTATXAPN);
     {
 	char *p = cfg.environmt;
-	SendDlgItemMessage(hwnd, IDV_ENVLIST, LB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hwnd, IDC_ENVLIST, LB_RESETCONTENT, 0, 0);
 	while (*p) {
 	    SendDlgItemMessage(hwnd, IDC_ENVLIST, LB_ADDSTRING, 0,
 			       (LPARAM) p);
