@@ -650,6 +650,9 @@ static void enact_pending_netevent(void) {
 	  case WSAECONNRESET:
 	    sprintf(buf, "Connection reset by peer");
 	    break;
+	  case WSAECONNABORTED:
+	    sprintf(buf, "Connection aborted");
+	    break;
 	  default:
 	    sprintf(buf, "Unexpected network error %d", -i);
 	    break;
