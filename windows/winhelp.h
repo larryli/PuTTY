@@ -3,6 +3,8 @@
  * the \cfg{winhelp-topic} directives in the Halibut source.
  */
 
+#define WINHELP_CTX_MAXLEN 80
+
 /* These are used in the cross-platform configuration dialog code. */
 
 #define HELPCTX(x) P(WINHELP_CTX_ ## x)
@@ -130,6 +132,7 @@
 
 #define HELPCTXID(x) WINHELP_CTXID_ ## x
 
+#define WINHELP_CTXID_no_help 0
 #define WINHELP_CTX_errors_hostkey_absent "errors.hostkey.absent"
 #define WINHELP_CTXID_errors_hostkey_absent 1
 #define WINHELP_CTX_errors_hostkey_changed "errors.hostkey.changed"

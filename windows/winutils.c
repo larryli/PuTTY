@@ -89,6 +89,57 @@ void filereq_free(filereq *state)
 }
 
 /*
+ * Message box with optional context help.
+ */
+
+/* Callback function to launch context help. */
+static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
+{
+    if (help_path) {
+	char *context = NULL;
+#define CHECK_CTX(name) \
+	do { \
+	    if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
+		context = WINHELP_CTX_ ## name; \
+	} while (0)
+	CHECK_CTX(errors_hostkey_absent);
+	CHECK_CTX(errors_hostkey_changed);
+#undef CHECK_CTX
+	if (context) {
+	    /* We avoid using malloc, in case we're in a situation where
+	     * it would be awkward to do so. */
+	    char cmd[WINHELP_CTX_MAXLEN+10];
+	    sprintf(cmd, "JI(`',`%.*s')", WINHELP_CTX_MAXLEN, context);
+	    WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+	    requested_help = TRUE;
+	}
+    }
+}
+
+int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
+{
+    MSGBOXPARAMS mbox;
+    
+    /*
+     * We use MessageBoxIndirect() because it allows us to specify a
+     * callback function for the Help button.
+     */
+    mbox.cbSize = sizeof(mbox);
+    /* FIXME: assumes global hwnd and hinst are always the Right Thing;
+     * are they? */
+    mbox.hInstance = hinst;
+    mbox.hwndOwner = hwnd;
+    mbox.lpfnMsgBoxCallback = &message_box_help_callback;
+    mbox.dwLanguageId = LANG_NEUTRAL;
+    mbox.lpszText = text;
+    mbox.lpszCaption = caption;
+    mbox.dwContextHelpId = helpctxid;
+    mbox.dwStyle = style;
+    if (helpctxid != 0 && help_path) mbox.dwStyle |= MB_HELP;
+    return MessageBoxIndirect(&mbox);
+}
+
+/*
  * Split a complete command line into argc/argv, attempting to do
  * it exactly the same way Windows itself would do it (so that
  * console utilities, which receive argc and argv from Windows,

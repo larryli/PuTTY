@@ -8,6 +8,8 @@
 #include <assert.h>
 #include <tchar.h>
 
+#define PUTTY_DO_GLOBALS
+
 #include "putty.h"
 #include "ssh.h"
 #include "misc.h"
@@ -54,9 +56,7 @@ static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
 static int already_running;
-static int requested_help;
 
-char *help_path;
 static char *putty_path;
 
 /* CWD for "add key" file requester. */

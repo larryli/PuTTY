@@ -85,6 +85,7 @@ GLOBAL HINSTANCE hinst;
  */
 GLOBAL char *help_path;
 GLOBAL int help_has_contents;
+GLOBAL int requested_help;
 
 /*
  * The terminal and logging context are notionally local to the
@@ -177,6 +178,7 @@ typedef struct filereq_tag filereq; /* cwd for file requester */
 BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save);
 filereq *filereq_new(void);
 void filereq_free(filereq *state);
+int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid);
 void split_into_argv(char *, int *, char ***, char ***);
 
 /*

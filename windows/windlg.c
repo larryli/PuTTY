@@ -40,8 +40,6 @@ static struct dlgparam dp;
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
-static int requested_help;
-
 extern Config cfg;		       /* defined in window.c */
 
 struct sesslist sesslist;	       /* exported to window.c */
@@ -752,28 +750,6 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
-/* Helper function for verify_ssh_host_key(). */
-static VOID CALLBACK verify_ssh_host_key_help(LPHELPINFO lpHelpInfo)
-{
-    if (help_path) {
-	char *context = NULL;
-#define CHECK_CTX(name) \
-	do { \
-	    if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
-		context = WINHELP_CTX_ ## name; \
-	} while (0)
-	CHECK_CTX(errors_hostkey_absent);
-	CHECK_CTX(errors_hostkey_changed);
-#undef CHECK_CTX
-	if (context) {
-	    char *cmd = dupprintf("JI(`',`%s')", context);
-	    WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
-	    sfree(cmd);
-	    requested_help = TRUE;
-	}
-    }
-}
-
 int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
                         char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
@@ -812,23 +788,6 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 
     static const char mbtitle[] = "%s Security Alert";
 
-    UINT help_button = 0;
-    MSGBOXPARAMS mbox;
-
-    /*
-     * We use MessageBoxIndirect() because it allows us to specify a
-     * callback function for the Help button.
-     */
-    mbox.cbSize = sizeof(mbox);
-    mbox.hInstance = hinst;
-    mbox.hwndOwner = hwnd;
-    mbox.lpfnMsgBoxCallback = &verify_ssh_host_key_help;
-    mbox.dwLanguageId = LANG_NEUTRAL;
-
-    /* Do we have a help file? */
-    if (help_path)
-	help_button = MB_HELP;
-
     /*
      * Verify the key against the registry.
      */
@@ -838,16 +797,15 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	return 1;
     if (ret == 2) {		       /* key was different */
 	int mbret;
-	mbox.lpszText = dupprintf(wrongmsg, appname, keytype, fingerprint,
-				  appname);
-	mbox.lpszCaption = dupprintf(mbtitle, appname);
-	mbox.dwContextHelpId = HELPCTXID(errors_hostkey_changed);
-	mbox.dwStyle = MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3 |
-	    help_button;
-	mbret = MessageBoxIndirect(&mbox);
+	char *text = dupprintf(wrongmsg, appname, keytype, fingerprint,
+			       appname);
+	char *caption = dupprintf(mbtitle, appname);
+	mbret = message_box(text, caption,
+			    MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
+			    HELPCTXID(errors_hostkey_changed));
 	assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
-	sfree((void *)mbox.lpszText);
-	sfree((void *)mbox.lpszCaption);
+	sfree(text);
+	sfree(caption);
 	if (mbret == IDYES) {
 	    store_host_key(host, port, keytype, keystr);
 	    return 1;
@@ -857,18 +815,18 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     }
     if (ret == 1) {		       /* key was absent */
 	int mbret;
-	mbox.lpszText = dupprintf(absentmsg, keytype, fingerprint, appname);
-	mbox.lpszCaption = dupprintf(mbtitle, appname);
-	mbox.dwContextHelpId = HELPCTXID(errors_hostkey_absent);
-	mbox.dwStyle = MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3 |
-	    help_button;
-	mbret = MessageBoxIndirect(&mbox);
+	char *text = dupprintf(absentmsg, keytype, fingerprint, appname);
+	char *caption = dupprintf(mbtitle, appname);
+	mbret = message_box(text, caption,
+			    MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
+			    HELPCTXID(errors_hostkey_absent));
 	assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
-	sfree((void *)mbox.lpszText);
-	sfree((void *)mbox.lpszCaption);
-	if (mbret == IDYES)
+	sfree(text);
+	sfree(caption);
+	if (mbret == IDYES) {
 	    store_host_key(host, port, keytype, keystr);
-	if (mbret == IDNO)
+	    return 1;
+	} else if (mbret == IDNO)
 	    return 1;
         return 0;
     }

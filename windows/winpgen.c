@@ -21,8 +21,6 @@
 
 #define DEFAULT_KEYSIZE 1024
 
-static int requested_help;
-
 static char *cmdline_keyfile = NULL;
 
 /*
