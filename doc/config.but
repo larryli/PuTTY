@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.64 2003/05/07 12:07:23 simon Exp $
+\versionid $Id: config.but,v 1.65 2003/06/21 20:21:29 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1803,6 +1803,16 @@ using the Up and Down buttons) to specify a preference order. When
 you make an SSH connection, PuTTY will search down the list from the
 top until it finds an algorithm supported by the server, and then
 use that.
+
+PuTTY currently supports the following algorithms:
+
+\b AES (Rijndael) - 256, 192, or 128-bit CBC (SSH-2 only)
+
+\b Blowfish - 128-bit CBC
+
+\b Triple-DES - 168-bit CBC
+
+\b Single-DES - 56-bit CBC (see below for SSH-2)
 
 If the algorithm PuTTY finds is below the \q{warn below here} line,
 you will see a warning box when you make the connection:
