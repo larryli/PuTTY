@@ -296,7 +296,7 @@ static word32 bitsel(word32 * input, const int *bitnums, int size)
     return ret;
 }
 
-void des_key_setup(word32 key_msw, word32 key_lsw, DESContext * sched)
+static void des_key_setup(word32 key_msw, word32 key_lsw, DESContext * sched)
 {
 
     static const int PC1_Cbits[] = {
@@ -520,7 +520,8 @@ static const word32 SPboxes[8][64] = {
     bitswap(R, L, 16, 0x0000FFFF), \
     bitswap(R, L,  4, 0x0F0F0F0F))
 
-void des_encipher(word32 * output, word32 L, word32 R, DESContext * sched)
+static void des_encipher(word32 * output, word32 L, word32 R,
+			 DESContext * sched)
 {
     word32 swap, s0246, s1357;
 
@@ -559,7 +560,8 @@ void des_encipher(word32 * output, word32 L, word32 R, DESContext * sched)
     output[1] = R;
 }
 
-void des_decipher(word32 * output, word32 L, word32 R, DESContext * sched)
+static void des_decipher(word32 * output, word32 L, word32 R,
+			 DESContext * sched)
 {
     word32 swap, s0246, s1357;
 
