@@ -153,10 +153,11 @@ void rsa_fingerprint(char *str, int len, struct RSAKey *key) {
 
 /*
  * Verify that the public data in an RSA key matches the private
- * data.
+ * data. We also check the private data itself: we ensure that p >
+ * q and that iqmp really is the inverse of q mod p.
  */
 int rsa_verify(struct RSAKey *key) {
-    Bignum n, ed, pm1, qm1, pm1qm1;
+    Bignum n, ed, pm1, qm1;
     int cmp;
 
     /* n must equal pq. */
@@ -166,20 +167,37 @@ int rsa_verify(struct RSAKey *key) {
     if (cmp != 0)
 	return 0;
 
-    /* e * d must be congruent to 1, modulo (p-1)(q-1). */
+    /* e * d must be congruent to 1, modulo (p-1) and modulo (q-1). */
     pm1 = copybn(key->p);
     decbn(pm1);
-    qm1 = copybn(key->q);
-    decbn(qm1);
-    pm1qm1 = bigmul(pm1, qm1);
-    freebn(pm1);
-    freebn(qm1);
-    ed = modmul(key->exponent, key->private_exponent, pm1qm1);
-    sfree(pm1qm1);
+    ed = modmul(key->exponent, key->private_exponent, pm1);
     cmp = bignum_cmp(ed, One);
     sfree(ed);
     if (cmp != 0)
 	return 0;
+
+    qm1 = copybn(key->q);
+    decbn(qm1);
+    ed = modmul(key->exponent, key->private_exponent, qm1);
+    cmp = bignum_cmp(ed, One);
+    sfree(ed);
+    if (cmp != 0)
+	return 0;
+
+    /*
+     * Ensure p > q.
+     */
+    if (bignum_cmp(key->p, key->q) <= 0)
+        return 0;
+
+    /*
+     * Ensure iqmp * q is congruent to 1, modulo p.
+     */
+    n = modmul(key->iqmp, key->q, key->p);
+    cmp = bignum_cmp(n, One);
+    sfree(n);
+    if (cmp != 0)
+        return 0;
 
     return 1;
 }
