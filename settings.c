@@ -197,6 +197,9 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_s(sesskey, "TerminalType", cfg->termtype);
     write_setting_s(sesskey, "TerminalSpeed", cfg->termspeed);
 
+    /* Address family selection */
+    write_setting_i(sesskey, "AddressFamily", cfg->addressfamily);
+
     /* proxy settings */
     write_setting_s(sesskey, "ProxyExcludeList", cfg->proxy_exclude_list);
     write_setting_i(sesskey, "ProxyDNS", (cfg->proxy_dns+2)%3);
@@ -419,6 +422,9 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	    gppi(sesskey, "PortNumber", default_port, &cfg->port);
 	    break;
 	}
+
+    /* Address family selection */
+    gppi(sesskey, "AddressFamily", ADDRTYPE_UNSPEC, &cfg->addressfamily);
 
     /* The CloseOnExit numbers are arranged in a different order from
      * the standard FORCE_ON / FORCE_OFF / AUTO. */

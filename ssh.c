@@ -521,6 +521,7 @@ struct ssh_portfwd {
     unsigned sport, dport;
     char *saddr, *daddr;
     struct ssh_rportfwd *remote;
+    int addressfamily;
     void *local;
 };
 #define free_portfwd(pf) ( \
@@ -2449,8 +2450,11 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     /*
      * Try to find host.
      */
-    logeventf(ssh, "Looking up host \"%s\"", host);
-    addr = name_lookup(host, port, realhost, &ssh->cfg);
+    logeventf(ssh, "Looking up host \"%s\"%s", host,
+	      (ssh->cfg.addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
+	       (ssh->cfg.addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" : "")));
+    addr = name_lookup(host, port, realhost, &ssh->cfg,
+		       ssh->cfg.addressfamily);
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;
@@ -3666,7 +3670,7 @@ static void ssh_rportfwd_succfail(Ssh ssh, struct Packet *pktin, void *ctx)
 
 static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 {
-    char type;
+    char address_family, type;
     int n;
     int sport,dport,sserv,dserv;
     char sports[256], dports[256], saddr[256], host[256];
@@ -3690,8 +3694,22 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
     }
 
     while (*portfwd_strptr) {
-	type = *portfwd_strptr++;
+	address_family = 'A';
+	type = 'L';
+	while (*portfwd_strptr && *portfwd_strptr != '\t') {
+	    if (*portfwd_strptr == 'A' ||
+		*portfwd_strptr == '4' ||
+		*portfwd_strptr == '6')
+		address_family = *portfwd_strptr;
+	    else if (*portfwd_strptr == 'L' ||
+		*portfwd_strptr == 'R' ||
+		*portfwd_strptr == 'D')
+		type = *portfwd_strptr;
+	    portfwd_strptr++;
+	}
+
 	saddr[0] = '\0';
+
 	n = 0;
 	while (*portfwd_strptr && *portfwd_strptr != '\t') {
 	    if (*portfwd_strptr == ':') {
@@ -3774,6 +3792,9 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    pfrec->dport = dport;
 	    pfrec->local = NULL;
 	    pfrec->remote = NULL;
+	    pfrec->addressfamily = (address_family == '4' ? ADDRTYPE_IPV4 :
+				    address_family == '6' ? ADDRTYPE_IPV6 :
+				    ADDRTYPE_UNSPEC);
 
 	    epfrec = add234(ssh->portfwds, pfrec);
 	    if (epfrec != pfrec) {
@@ -3793,27 +3814,28 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 		const char *err = pfd_addforward(host, dport,
 						 *saddr ? saddr : NULL,
 						 sport, ssh, &ssh->cfg,
-						 &pfrec->local);
-		if (err) {
-		    logeventf(ssh, "Local port %s forward to %s"
-			      " failed: %s", sportdesc, dportdesc, err);
-		} else {
-		    logeventf(ssh, "Local port %s forwarding to %s",
-			      sportdesc, dportdesc);
-		}
+						 &pfrec->local,
+						 pfrec->addressfamily);
+
+		logeventf(ssh, "Local %sport %s forward to %s%s%s",
+			  pfrec->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
+			  pfrec->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
+			  sportdesc, dportdesc,
+			  err ? " failed: " : "", err);
+
 		sfree(dportdesc);
 	    } else if (type == 'D') {
 		const char *err = pfd_addforward(NULL, -1,
 						 *saddr ? saddr : NULL,
 						 sport, ssh, &ssh->cfg,
-						 &pfrec->local);
-		if (err) {
-		    logeventf(ssh, "Local port %s SOCKS dynamic forward"
-			      " setup failed: %s", sportdesc, err);
-		} else {
-		    logeventf(ssh, "Local port %s doing SOCKS"
-			      " dynamic forwarding", sportdesc);
-		}
+						 &pfrec->local,
+						 pfrec->addressfamily);
+
+			logeventf(ssh, "Local %sport %s SOCKS dynamic forward%s%s",
+				  pfrec->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
+				  pfrec->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
+				  sportdesc,
+				  err ? " setup failed: " : "", err);
 	    } else {
 		struct ssh_rportfwd *pf;
 
@@ -4045,7 +4067,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     /* Remote side is trying to open a channel to talk to a
      * forwarded port. Give them back a local channel number. */
     struct ssh_channel *c;
-    struct ssh_rportfwd pf;
+    struct ssh_rportfwd pf, *pfp;
     int remoteid;
     int hostsize, port;
     char *host, buf[1024];
@@ -4062,8 +4084,9 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     memcpy(pf.dhost, host, hostsize);
     pf.dhost[hostsize] = '\0';
     pf.dport = port;
+    pfp = find234(ssh->rportfwds, &pf, NULL);
 
-    if (find234(ssh->rportfwds, &pf, NULL) == NULL) {
+    if (pfp == NULL) {
 	sprintf(buf, "Rejected remote port open request for %s:%d",
 		pf.dhost, port);
 	logevent(buf);
@@ -4074,7 +4097,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 		pf.dhost, port);
 	logevent(buf);
 	e = pfd_newconnect(&c->u.pfd.s, pf.dhost, port,
-			   c, &ssh->cfg);
+			   c, &ssh->cfg, pfp->pfrec->addressfamily);
 	if (e != NULL) {
 	    char buf[256];
 	    sprintf(buf, "Port open failed: %s", e);
@@ -5799,7 +5822,8 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	    const char *e = pfd_newconnect(&c->u.pfd.s,
 					   realpf->dhost,
 					   realpf->dport, c,
-					   &ssh->cfg);
+					   &ssh->cfg,
+					   realpf->pfrec->addressfamily);
 	    logeventf(ssh, "Attempting to forward remote port to "
 		      "%s:%d", realpf->dhost, realpf->dport);
 	    if (e != NULL) {

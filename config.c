@@ -666,6 +666,7 @@ static void environ_handler(union control *ctrl, void *dlg,
 struct portfwd_data {
     union control *addbutton, *rembutton, *listbox;
     union control *sourcebox, *destbox, *direction;
+    union control *addressfamily;
 };
 
 static void portfwd_handler(union control *ctrl, void *dlg,
@@ -690,25 +691,39 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	     * Default is Local.
 	     */
 	    dlg_radiobutton_set(ctrl, dlg, 0);
+	 } else if (ctrl == pfd->addressfamily) {
+	    dlg_radiobutton_set(ctrl, dlg, 0);
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
 	    char str[sizeof(cfg->portfwd)];
 	    char *p;
-	    int whichbutton = dlg_radiobutton_get(pfd->direction, dlg);
+	    int i, type;
+	    int whichbutton;
+
+	    i = 0;
+	    whichbutton = dlg_radiobutton_get(pfd->addressfamily, dlg);
+	    if (whichbutton == 1)
+		str[i++] = '4';
+	    else if (whichbutton == 2)
+		str[i++] = '6';
+
+	    whichbutton = dlg_radiobutton_get(pfd->direction, dlg);
 	    if (whichbutton == 0)
-		str[0] = 'L';
+		type = 'L';
 	    else if (whichbutton == 1)
-		str[0] = 'R';
+		type = 'R';
 	    else
-		str[0] = 'D';
-	    dlg_editbox_get(pfd->sourcebox, dlg, str+1, sizeof(str) - 2);
-	    if (!str[1]) {
+		type = 'D';
+	    str[i++] = type;
+
+	    dlg_editbox_get(pfd->sourcebox, dlg, str+i, sizeof(str) - i);
+	    if (!str[2]) {
 		dlg_error_msg(dlg, "You need to specify a source port number");
 		return;
 	    }
 	    p = str + strlen(str);
-	    if (str[0] != 'D') {
+	    if (type != 'D') {
 		*p++ = '\t';
 		dlg_editbox_get(pfd->destbox, dlg, p,
 				sizeof(str)-1 - (p - str));
@@ -1344,9 +1359,59 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     if (protocol >= 0) {
 	ctrl_settitle(b, "Connection", "Options controlling the connection");
 
+	s = ctrl_getset(b, "Connection", "keepalive",
+			"Sending of null packets to keep session active");
+	ctrl_editbox(s, "Seconds between keepalives (0 to turn off)", 'k', 20,
+		     HELPCTX(connection_keepalive),
+		     dlg_stdeditbox_handler, I(offsetof(Config,ping_interval)),
+		     I(-1));
+
 	if (!midsession) {
-	    s = ctrl_getset(b, "Connection", "data",
-			    "Data to send to the server");
+	    s = ctrl_getset(b, "Connection", "tcp",
+			    "Low-level TCP connection options");
+	    ctrl_checkbox(s, "Disable Nagle's algorithm (TCP_NODELAY option)",
+			  'n', HELPCTX(connection_nodelay),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,tcp_nodelay)));
+	    ctrl_checkbox(s, "Enable TCP keepalives (SO_KEEPALIVE option)",
+			  'p', HELPCTX(connection_tcpkeepalive),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,tcp_keepalives)));
+	    s = ctrl_getset(b, "Connection", "ipversion",
+			  "Internet protocol version");
+	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT,
+#ifndef NO_IPV6
+			  3,
+#else
+			  2,
+#endif
+			  HELPCTX(connection_ipversion),
+			  dlg_stdradiobutton_handler,
+			  I(offsetof(Config, addressfamily)),
+			  "Auto", NO_SHORTCUT, I(ADDRTYPE_UNSPEC),
+			  "IPv4", NO_SHORTCUT, I(ADDRTYPE_IPV4),
+#ifndef NO_IPV6
+			  "IPv6", NO_SHORTCUT, I(ADDRTYPE_IPV6),
+#endif
+			  NULL);
+	}
+
+	/*
+	 * A sub-panel Connection/Data, containing options that
+	 * decide on data to send to the server.
+	 */
+	if (!midsession) {
+	    ctrl_settitle(b, "Connection/Data", "Data to send to the server");
+
+	    s = ctrl_getset(b, "Connection/Data", "login",
+			    "Login details");
+	    ctrl_editbox(s, "Auto-login username", 'u', 50,
+			 HELPCTX(connection_username),
+			 dlg_stdeditbox_handler, I(offsetof(Config,username)),
+			 I(sizeof(((Config *)0)->username)));
+
+	    s = ctrl_getset(b, "Connection/Data", "term",
+			    "Terminal details");
 	    ctrl_editbox(s, "Terminal-type string", 't', 50,
 			 HELPCTX(connection_termtype),
 			 dlg_stdeditbox_handler, I(offsetof(Config,termtype)),
@@ -1355,12 +1420,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			 HELPCTX(connection_termspeed),
 			 dlg_stdeditbox_handler, I(offsetof(Config,termspeed)),
 			 I(sizeof(((Config *)0)->termspeed)));
-	    ctrl_editbox(s, "Auto-login username", 'u', 50,
-			 HELPCTX(connection_username),
-			 dlg_stdeditbox_handler, I(offsetof(Config,username)),
-			 I(sizeof(((Config *)0)->username)));
 
-	    ctrl_text(s, "Environment variables:", HELPCTX(telnet_environ));
+	    s = ctrl_getset(b, "Connection/Data", "env",
+			    "Environment variables");
 	    ctrl_columns(s, 2, 80, 20);
 	    ed = (struct environ_data *)
 		ctrl_alloc(b, sizeof(struct environ_data));
@@ -1389,26 +1451,6 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	    ed->listbox->listbox.percentages = snewn(2, int);
 	    ed->listbox->listbox.percentages[0] = 30;
 	    ed->listbox->listbox.percentages[1] = 70;
-	}
-
-	s = ctrl_getset(b, "Connection", "keepalive",
-			"Sending of null packets to keep session active");
-	ctrl_editbox(s, "Seconds between keepalives (0 to turn off)", 'k', 20,
-		     HELPCTX(connection_keepalive),
-		     dlg_stdeditbox_handler, I(offsetof(Config,ping_interval)),
-		     I(-1));
-
-	if (!midsession) {
-	    s = ctrl_getset(b, "Connection", "tcp",
-			    "Low-level TCP connection options");
-	    ctrl_checkbox(s, "Disable Nagle's algorithm (TCP_NODELAY option)",
-			  'n', HELPCTX(connection_nodelay),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,tcp_nodelay)));
-	    ctrl_checkbox(s, "Enable TCP keepalives (SO_KEEPALIVE option)",
-			  'p', HELPCTX(connection_tcpkeepalive),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,tcp_keepalives)));
 	}
 
     }
@@ -1664,15 +1706,14 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			 dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
 	}
 
-	/*
-	 * The Connection/SSH/Tunnels panel. Some of this _is_
-	 * still available in mid-session.
-	 */
-	ctrl_settitle(b, "Connection/SSH/Tunnels",
-		      "Options controlling SSH tunnelling");
-
 	if (!midsession) {
-	    s = ctrl_getset(b, "Connection/SSH/Tunnels", "x11", "X11 forwarding");
+	    /*
+	     * The Connection/SSH/X11 panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/X11",
+			  "Options controlling SSH X11 forwarding");
+
+	    s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
 	    ctrl_checkbox(s, "Enable X11 forwarding", 'e',
 			  HELPCTX(ssh_tunnels_x11),
 			  dlg_stdcheckbox_handler,I(offsetof(Config,x11_forward)));
@@ -1687,6 +1728,12 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			      "MIT-Magic-Cookie-1", I(X11_MIT),
 			      "XDM-Authorization-1", I(X11_XDM), NULL);
 	}
+
+	/*
+	 * The Tunnels panel _is_ still available in mid-session.
+	 */
+	ctrl_settitle(b, "Connection/SSH/Tunnels",
+		      "Options controlling SSH port forwarding");
 
 	s = ctrl_getset(b, "Connection/SSH/Tunnels", "portfwd",
 			"Port forwarding");
@@ -1741,6 +1788,21 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 					   "Remote", 'm', P(NULL),
 					   "Dynamic", 'y', P(NULL),
 					   NULL);
+	pfd->addressfamily =
+	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT,
+#ifndef NO_IPV6
+			      3,
+#else
+			      2,
+#endif
+			      HELPCTX(ssh_tunnels_portfwd_ipversion),
+			      portfwd_handler, P(pfd),
+			      "Auto", NO_SHORTCUT, I(ADDRTYPE_UNSPEC),
+			      "IPv4", NO_SHORTCUT, I(ADDRTYPE_IPV4),
+#ifndef NO_IPV6
+			      "IPv6", NO_SHORTCUT, I(ADDRTYPE_IPV6),
+#endif
+			      NULL);
 	ctrl_tabdelay(s, pfd->addbutton);
 	ctrl_columns(s, 1, 100);
 

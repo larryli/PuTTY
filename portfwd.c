@@ -354,7 +354,7 @@ static void pfd_sent(Plug plug, int bufsize)
  * Called when receiving a PORT OPEN from the server
  */
 const char *pfd_newconnect(Socket *s, char *hostname, int port,
-			   void *c, const Config *cfg)
+			   void *c, const Config *cfg, int addressfamily)
 {
     static const struct plug_function_table fn_table = {
 	pfd_closing,
@@ -371,7 +371,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
     /*
      * Try to find host.
      */
-    addr = name_lookup(hostname, port, &dummy_realhost, cfg);
+    addr = name_lookup(hostname, port, &dummy_realhost, cfg, addressfamily);
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;
@@ -463,7 +463,7 @@ static int pfd_accepting(Plug p, OSSocket sock)
  */
 const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 			   int port, void *backhandle, const Config *cfg,
-			   void **sockdata)
+			   void **sockdata, int address_family)
 {
     static const struct plug_function_table fn_table = {
 	pfd_closing,
@@ -494,7 +494,7 @@ const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
     pr->backhandle = backhandle;
 
     pr->s = s = new_listener(srcaddr, port, (Plug) pr,
-			     !cfg->lport_acceptall, cfg);
+			     !cfg->lport_acceptall, cfg, address_family);
     if ((err = sk_socket_error(s)) != NULL) {
 	sfree(pr);
 	return err;

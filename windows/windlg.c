@@ -300,7 +300,7 @@ static void create_controls(HWND hwnd, char *path)
 	 * Otherwise, we're creating the controls for a particular
 	 * panel.
 	 */
-	ctlposinit(&cp, hwnd, 80, 3, 13);
+	ctlposinit(&cp, hwnd, 100, 3, 13);
 	wc = &ctrls_panel;
 	base_id = IDCX_PANELBASE;
     }
@@ -361,7 +361,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    HWND tvstatic;
 
 	    r.left = 3;
-	    r.right = r.left + 75;
+	    r.right = r.left + 95;
 	    r.top = 3;
 	    r.bottom = r.top + 10;
 	    MapDialogRect(hwnd, &r);
@@ -375,7 +375,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    SendMessage(tvstatic, WM_SETFONT, font, MAKELPARAM(TRUE, 0));
 
 	    r.left = 3;
-	    r.right = r.left + 75;
+	    r.right = r.left + 95;
 	    r.top = 13;
 	    r.bottom = r.top + 219;
 	    MapDialogRect(hwnd, &r);

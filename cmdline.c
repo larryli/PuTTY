@@ -348,6 +348,17 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	cfg->keyfile = filename_from_str(value);
     }
 
+    if (!strcmp(p, "-4") || !strcmp(p, "-ipv4")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg->addressfamily = ADDRTYPE_IPV4;
+    }
+    if (!strcmp(p, "-6") || !strcmp(p, "-ipv6")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg->addressfamily = ADDRTYPE_IPV6;
+    }
+
     return ret;			       /* unrecognised */
 }
 

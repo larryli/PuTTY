@@ -69,7 +69,7 @@ struct SockAddr_tag {
      * in this SockAddr structure.
      */
     int family;
-#ifdef IPV6
+#ifndef NO_IPV6
     struct addrinfo *ai;	       /* Address IPv6 style. */
 #else
     unsigned long address;	       /* Address IPv4 style. */
@@ -125,10 +125,10 @@ const char *error_string(int error)
     return strerror(error);
 }
 
-SockAddr sk_namelookup(const char *host, char **canonicalname)
+SockAddr sk_namelookup(const char *host, char **canonicalname, int address_family)
 {
     SockAddr ret = snew(struct SockAddr_tag);
-#ifdef IPV6
+#ifndef NO_IPV6
     struct addrinfo hints;
     int err;
 #else
@@ -143,9 +143,9 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
     *realhost = '\0';
     ret->error = NULL;
 
-#ifdef IPV6
+#ifndef NO_IPV6
     hints.ai_flags = AI_CANONNAME;
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = address_family;
     hints.ai_socktype = 0;
     hints.ai_protocol = 0;
     hints.ai_addrlen = 0;
@@ -219,7 +219,7 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 	strncpy(buf, addr->hostname, buflen);
 	buf[buflen-1] = '\0';
     } else {
-#ifdef IPV6
+#ifndef NO_IPV6
 	if (getnameinfo(addr->ai->ai_addr, addr->ai->ai_addrlen, buf, buflen,
 			NULL, 0, NI_NUMERICHOST) != 0) {
 	    buf[0] = '\0';
@@ -246,7 +246,7 @@ int sk_address_is_local(SockAddr addr)
     if (addr->family == AF_UNSPEC)
 	return 0;                      /* we don't know; assume not */
     else {
-#ifdef IPV6
+#ifndef NO_IPV6
 	if (addr->family == AF_INET)
 	    return ipv4_is_loopback(
 		((struct sockaddr_in *)addr->ai->ai_addr)->sin_addr);
@@ -267,7 +267,7 @@ int sk_address_is_local(SockAddr addr)
 int sk_addrtype(SockAddr addr)
 {
     return (addr->family == AF_INET ? ADDRTYPE_IPV4 :
-#ifdef IPV6
+#ifndef NO_IPV6
 	    addr->family == AF_INET6 ? ADDRTYPE_IPV6 :
 #endif
 	    ADDRTYPE_NAME);
@@ -276,7 +276,7 @@ int sk_addrtype(SockAddr addr)
 void sk_addrcopy(SockAddr addr, char *buf)
 {
 
-#ifdef IPV6
+#ifndef NO_IPV6
     if (addr->family == AF_INET)
 	memcpy(buf, &((struct sockaddr_in *)addr->ai->ai_addr)->sin_addr,
 	       sizeof(struct in_addr));
@@ -297,7 +297,7 @@ void sk_addrcopy(SockAddr addr, char *buf)
 void sk_addr_free(SockAddr addr)
 {
 
-#ifdef IPV6
+#ifndef NO_IPV6
     if (addr->ai != NULL)
 	freeaddrinfo(addr->ai);
 #endif
@@ -381,7 +381,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, int keepalive, Plug plug)
 {
     int s;
-#ifdef IPV6
+#ifndef NO_IPV6
     struct sockaddr_in6 a6;
 #endif
     struct sockaddr_in a;
@@ -448,7 +448,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
     /* BSD IP stacks need sockaddr_in zeroed before filling in */
     memset(&a,'\0',sizeof(struct sockaddr_in));
-#ifdef IPV6
+#ifndef NO_IPV6
     memset(&a6,'\0',sizeof(struct sockaddr_in6));
 #endif
 
@@ -459,7 +459,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	while (1) {
 	    int retcode;
 
-#ifdef IPV6
+#ifndef NO_IPV6
 	    if (addr->family == AF_INET6) {
 		/* XXX use getaddrinfo to get a local address? */
 		a6.sin6_family = AF_INET6;
@@ -501,7 +501,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
      * Connect to remote address.
      */
     switch(addr->family) {
-#ifdef IPV6
+#ifndef NO_IPV6
       case AF_INET:
 	/* XXX would be better to have got getaddrinfo() to fill in the port. */
 	((struct sockaddr_in *)addr->ai->ai_addr)->sin_port =
@@ -564,13 +564,10 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int address_family)
 {
     int s;
-#ifdef IPV6
-#if 0
-    struct sockaddr_in6 a6;
-#endif
+#ifndef NO_IPV6
     struct addrinfo hints, *ai;
     char portstr[6];
 #endif
@@ -598,9 +595,31 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
     ret->listener = 1;
 
     /*
+     * Translate address_family from platform-independent constants
+     * into local reality.
+     */
+    address_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+		      address_family == ADDRTYPE_IPV6 ? AF_INET6 : AF_UNSPEC);
+
+#ifndef NO_IPV6
+    /* Let's default to IPv6.
+     * If the stack doesn't support IPv6, we will fall back to IPv4. */
+    if (address_family == AF_UNSPEC) address_family = AF_INET6;
+#else
+    /* No other choice, default to IPv4 */
+    if (address_family == AF_UNSPEC)  address_family = AF_INET;
+#endif
+
+    /*
      * Open socket.
      */
-    s = socket(AF_INET, SOCK_STREAM, 0);
+    s = socket(address_family, SOCK_STREAM, 0);
+
+    /* If the host doesn't support IPv6 try fallback to IPv4. */
+    if (s < 0 && address_family == AF_INET6) {
+    	address_family = AF_INET;
+    	s = socket(address_family, SOCK_STREAM, 0);
+    }
     ret->s = s;
 
     if (s < 0) {
@@ -614,12 +633,12 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 
     /* BSD IP stacks need sockaddr_in zeroed before filling in */
     memset(&a,'\0',sizeof(struct sockaddr_in));
-#ifdef IPV6
+#ifndef NO_IPV6
 #if 0
     memset(&a6,'\0',sizeof(struct sockaddr_in6));
 #endif
     hints.ai_flags = AI_NUMERICHOST;
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = address_family;
     hints.ai_socktype = 0;
     hints.ai_protocol = 0;
     hints.ai_addrlen = 0;

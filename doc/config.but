@@ -1506,86 +1506,6 @@ background.)
 The Connection panel allows you to configure options that apply to
 more than one type of connection.
 
-\S{config-termtype} \q{Terminal-type string}
-
-\cfg{winhelp-topic}{connection.termtype}
-
-Most servers you might connect to with PuTTY are designed to be
-connected to from lots of different types of terminal. In order to
-send the right control sequences to each one, the server will need
-to know what type of terminal it is dealing with. Therefore, each of
-the SSH, Telnet and Rlogin protocols allow a text string to be sent
-down the connection describing the terminal.
-
-PuTTY attempts to emulate the Unix \c{xterm} program, and by default
-it reflects this by sending \c{xterm} as a terminal-type string. If
-you find this is not doing what you want - perhaps the remote
-system reports \q{Unknown terminal type} - you could try setting
-this to something different, such as \c{vt220}.
-
-If you're not sure whether a problem is due to the terminal type
-setting or not, you probably need to consult the manual for your
-application or your server.
-
-\S{config-termspeed} \q{Terminal speeds}
-
-\cfg{winhelp-topic}{connection.termspeed}
-
-The Telnet, Rlogin, and SSH protocols allow the client to specify
-terminal speeds to the server.
-
-This parameter does \e{not} affect the actual speed of the connection,
-which is always \q{as fast as possible}; it is just a hint that is
-sometimes used by server software to modify its behaviour. For
-instance, if a slow speed is indicated, the server may switch to a
-less bandwidth-hungry display mode.
-
-The value is usually meaningless in a network environment, but
-PuTTY lets you configure it, in case you find the server is reacting
-badly to the default value.
-
-The format is a pair of numbers separated by a comma, for instance,
-\c{38400,38400}. The first number represents the output speed
-(\e{from} the server) in bits per second, and the second is the input
-speed (\e{to} the server). (Only the first is used in the Rlogin
-protocol.)
-
-This option has no effect on Raw connections.
-
-\S{config-username} \q{Auto-login username}
-
-\cfg{winhelp-topic}{connection.username}
-
-All three of the SSH, Telnet and Rlogin protocols allow you to
-specify what user name you want to log in as, without having to type
-it explicitly every time. (Some Telnet servers don't support this.)
-
-In this box you can type that user name.
-
-\S{config-environ} Setting environment variables on the server
-
-\cfg{winhelp-topic}{telnet.environ}
-
-The Telnet protocol provides a means for the client to pass
-environment variables to the server. Many Telnet servers have
-stopped supporting this feature due to security flaws, but PuTTY
-still supports it for the benefit of any servers which have found
-other ways around the security problems than just disabling the
-whole mechanism.
-
-Version 2 of the SSH protocol also provides a similar mechanism,
-which is easier to implement without security flaws. Newer SSH2
-servers are more likely to support it than older ones.
-
-This configuration data is not used in the SSHv1, rlogin or raw
-protocols.
-
-To add an environment variable to the list transmitted down the
-connection, you enter the variable name in the \q{Variable} box,
-enter its value in the \q{Value} box, and press the \q{Add} button.
-To remove one from the list, select it in the list box and press
-\q{Remove}.
-
 \S{config-keepalive} Using keepalives to prevent disconnection
 
 \cfg{winhelp-topic}{connection.keepalive}
@@ -1677,6 +1597,111 @@ TCP keepalives may be more useful for ensuring that half-open connections
 are terminated than for keeping a connection alive.
 
 TCP keepalives are disabled by default.
+
+\S{config-address-family} \q{Internet protocol}
+
+\cfg{winhelp-topic}{connection.ipversion}
+
+This option allows the user to select between the old and new
+Internet protocols and addressing schemes (IPv4 and IPv6). The
+default setting is \q{Auto}, which means PuTTY will do something
+sensible and try to guess which protocol you wanted. (If you specify
+a literal Internet address, it will use whichever protocol that
+address implies. If you provide a hostname, it will see what kinds
+of address exist for that hostname; it will use IPv6 if there is an
+IPv6 address available, and fall back to IPv4 if not.)
+
+If you need to force PuTTY to use a particular protocol, you can
+explicitly set this to \q{IPv4} or \q{IPv6}.
+
+\H{config-data} The Data panel
+
+The Data panel allows you to configure various pieces of data which
+can be sent to the server to affect your connection at the far end.
+
+Each options on this panel applies to more than one protocol.
+Options which apply to only one protocol appear on that protocol's
+configuration panels.
+
+\S{config-username} \q{Auto-login username}
+
+\cfg{winhelp-topic}{connection.username}
+
+All three of the SSH, Telnet and Rlogin protocols allow you to
+specify what user name you want to log in as, without having to type
+it explicitly every time. (Some Telnet servers don't support this.)
+
+In this box you can type that user name.
+
+\S{config-termtype} \q{Terminal-type string}
+
+\cfg{winhelp-topic}{connection.termtype}
+
+Most servers you might connect to with PuTTY are designed to be
+connected to from lots of different types of terminal. In order to
+send the right control sequences to each one, the server will need
+to know what type of terminal it is dealing with. Therefore, each of
+the SSH, Telnet and Rlogin protocols allow a text string to be sent
+down the connection describing the terminal.
+
+PuTTY attempts to emulate the Unix \c{xterm} program, and by default
+it reflects this by sending \c{xterm} as a terminal-type string. If
+you find this is not doing what you want - perhaps the remote
+system reports \q{Unknown terminal type} - you could try setting
+this to something different, such as \c{vt220}.
+
+If you're not sure whether a problem is due to the terminal type
+setting or not, you probably need to consult the manual for your
+application or your server.
+
+\S{config-termspeed} \q{Terminal speeds}
+
+\cfg{winhelp-topic}{connection.termspeed}
+
+The Telnet, Rlogin, and SSH protocols allow the client to specify
+terminal speeds to the server.
+
+This parameter does \e{not} affect the actual speed of the connection,
+which is always \q{as fast as possible}; it is just a hint that is
+sometimes used by server software to modify its behaviour. For
+instance, if a slow speed is indicated, the server may switch to a
+less bandwidth-hungry display mode.
+
+The value is usually meaningless in a network environment, but
+PuTTY lets you configure it, in case you find the server is reacting
+badly to the default value.
+
+The format is a pair of numbers separated by a comma, for instance,
+\c{38400,38400}. The first number represents the output speed
+(\e{from} the server) in bits per second, and the second is the input
+speed (\e{to} the server). (Only the first is used in the Rlogin
+protocol.)
+
+This option has no effect on Raw connections.
+
+\S{config-environ} Setting environment variables on the server
+
+\cfg{winhelp-topic}{telnet.environ}
+
+The Telnet protocol provides a means for the client to pass
+environment variables to the server. Many Telnet servers have
+stopped supporting this feature due to security flaws, but PuTTY
+still supports it for the benefit of any servers which have found
+other ways around the security problems than just disabling the
+whole mechanism.
+
+Version 2 of the SSH protocol also provides a similar mechanism,
+which is easier to implement without security flaws. Newer SSH2
+servers are more likely to support it than older ones.
+
+This configuration data is not used in the SSHv1, rlogin or raw
+protocols.
+
+To add an environment variable to the list transmitted down the
+connection, you enter the variable name in the \q{Variable} box,
+enter its value in the \q{Value} box, and press the \q{Add} button.
+To remove one from the list, select it in the list box and press
+\q{Remove}.
 
 \H{config-proxy} The Proxy panel
 
@@ -2298,14 +2323,12 @@ about public key authentication in SSH.
 
 This key must be in PuTTY's native format (\c{*.PPK}).
 
-\H{config-ssh-tunnels} The Tunnels panel
-
-The Tunnels panel allows you to configure tunnelling of other
-connection types through an SSH connection.
-
-\S{config-ssh-x11} X11 forwarding
+\H{config-ssh-x11} The X11 panel
 
 \cfg{winhelp-topic}{ssh.tunnels.x11}
+
+The X11 panel allows you to configure forwarding of X11 over an
+SSH connection.
 
 If your server lets you run X Window System applications, X11
 forwarding allows you to securely give those applications access to
@@ -2320,7 +2343,7 @@ primary local display (\c{:0}) if that fails.
 See \k{using-x-forwarding} for more information about X11
 forwarding.
 
-\S2{config-ssh-x11auth} Remote X11 authentication
+\S{config-ssh-x11auth} Remote X11 authentication
 
 \cfg{winhelp-topic}{ssh.tunnels.x11auth}
 
@@ -2367,9 +2390,12 @@ connections fail.
 PuTTY's default is \cw{MIT-MAGIC-COOKIE-1}. If you change it, you
 should be sure you know what you're doing.
 
-\S{config-ssh-portfwd} Port forwarding
+\H{config-ssh-portfwd} The Tunnels panel
 
 \cfg{winhelp-topic}{ssh.tunnels.portfwd}
+
+The Tunnels panel allows you to configure tunnelling of arbitrary
+connection types through an SSH connection.
 
 Port forwarding allows you to tunnel other types of network
 connection down an SSH session. See \k{using-port-forwarding} for a
@@ -2452,6 +2478,28 @@ remote-to-local port forwardings (so that machines other than the
 SSH server machine can connect to the forwarded port.) Note that
 this feature is only available in the SSH 2 protocol, and not all
 SSH 2 servers support it (OpenSSH 3.0 does not, for example).
+
+\S{config-ssh-portfwd-address-family} Selecting Internet protocol
+version for forwarded ports
+
+\cfg{winhelp-topic}{ssh.tunnels.portfwd.ipversion}
+
+This switch allows you to select a specific Internet protocol (IPv4
+or IPv6) for the local end of a forwarded port. By default, it is
+set on \q{Auto}, which means that:
+
+\b for a local-to-remote port forwarding, PuTTY will listen for
+incoming connections in both IPv4 and (if available) IPv6
+
+\b for a remote-to-local port forwarding, PuTTY will choose a
+sensible protocol for the outgoing connection.
+
+\# FIXME: work out what this paragraph means, reword it for clarity,
+\# and reinstate it.
+Note that on Windows the address space for IPv4 and IPv6 is
+completely disjunct, so listening on IPv6 won't make PuTTY listen on
+IPv4. This behaviour may be different on most remote hosts when they
+are not operating Windows.
 
 \H{config-ssh-bugs} The Bugs panel
 

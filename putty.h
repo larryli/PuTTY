@@ -314,6 +314,16 @@ enum {
     FUNKY_SCO
 };
 
+enum {
+    /*
+     * Network address types. Used for specifying choice of IPv4/v6
+     * in config; also used in proxy.c to indicate whether a given
+     * host name has already been resolved or will be resolved at
+     * the proxy end.
+     */
+    ADDRTYPE_UNSPEC, ADDRTYPE_IPV4, ADDRTYPE_IPV6, ADDRTYPE_NAME
+};
+
 struct backend_tag {
     const char *(*init) (void *frontend_handle, void **backend_handle,
 			 Config *cfg,
@@ -375,6 +385,7 @@ struct config_tag {
     char host[512];
     int port;
     int protocol;
+    int addressfamily;
     int close_on_exit;
     int warn_on_close;
     int ping_interval;		       /* in seconds */

@@ -55,6 +55,7 @@ use PSCP:
 \c   -l user   connect with specified username
 \c   -pw passw login with specified password
 \c   -1 -2     force use of particular SSH protocol version
+\c   -4 -6     force use of IPv4 or IPv6
 \c   -C        enable compression
 \c   -i key    private key file for authentication
 \c   -batch    disable all interactive prompts

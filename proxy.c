@@ -342,7 +342,7 @@ static int proxy_for_destination (SockAddr addr, char *hostname, int port,
 }
 
 SockAddr name_lookup(char *host, int port, char **canonicalname,
-		     const Config *cfg)
+		     const Config *cfg, int addressfamily)
 {
     if (cfg->proxy_type != PROXY_NONE &&
 	do_proxy_dns(cfg) &&
@@ -351,7 +351,7 @@ SockAddr name_lookup(char *host, int port, char **canonicalname,
 	return sk_nonamelookup(host);
     }
 
-    return sk_namelookup(host, canonicalname);
+    return sk_namelookup(host, canonicalname, addressfamily);
 }
 
 Socket new_connection(SockAddr addr, char *hostname,
@@ -433,7 +433,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 
 	/* look-up proxy */
 	proxy_addr = sk_namelookup(cfg->proxy_host,
-				   &proxy_canonical_name);
+				   &proxy_canonical_name, cfg->addressfamily);
 	if (sk_addr_error(proxy_addr) != NULL) {
 	    ret->error = "Proxy error: Unable to resolve proxy host name";
 	    return (Socket)ret;
@@ -461,13 +461,13 @@ Socket new_connection(SockAddr addr, char *hostname,
 }
 
 Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only,
-		    const Config *cfg)
+		    const Config *cfg, int addressfamily)
 {
     /* TODO: SOCKS (and potentially others) support inbound
      * TODO: connections via the proxy. support them.
      */
 
-    return sk_newlistener(srcaddr, port, plug, local_host_only);
+    return sk_newlistener(srcaddr, port, plug, local_host_only, addressfamily);
 }
 
 /* ----------------------------------------------------------------------

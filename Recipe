@@ -72,6 +72,11 @@
 #      build, since at the time of writing this <multimon.h> is
 #      known not to be available in Cygwin.
 #
+#  - COMPAT=/DNO_IPV6
+#      Disables PuTTY's ability to make IPv6 connections, enabling
+#      it to compile under development environments which do not
+#      support IPv6 in their header files.
+#
 #  - COMPAT=/DMSVC4
 #  - RCFL=/DMSVC4
 #      Makes a couple of minor changes so that PuTTY compiles using

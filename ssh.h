@@ -270,11 +270,13 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 
 /* Exports from portfwd.c */
 extern const char *pfd_newconnect(Socket * s, char *hostname, int port,
-				  void *c, const Config *cfg);
+				  void *c, const Config *cfg,
+				  int addressfamily);
 /* desthost == NULL indicates dynamic (SOCKS) port forwarding */
 extern const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 				  int port, void *backhandle,
-				  const Config *cfg, void **sockdata);
+				  const Config *cfg, void **sockdata,
+				  int address_family);
 extern void pfd_close(Socket s);
 extern void pfd_terminate(void *sockdata);
 extern int pfd_send(Socket s, char *data, int len);

@@ -1,42 +1,9 @@
 /*
  * Windows networking abstraction.
  *
- * Due to this clean abstraction it was possible
- * to easily implement IPv6 support :)
- *
- * IPv6 patch 1 (27 October 2000) Jeroen Massar <jeroen@unfix.org>
- *  - Preliminary hacked IPv6 support.
- *    - Connecting to IPv6 address (eg fec0:4242:4242:100:2d0:b7ff:fe8f:5d42) works.
- *    - Connecting to IPv6 hostname (eg heaven.ipv6.unfix.org) works.
- *  - Compiles as either IPv4 or IPv6.
- *
- * IPv6 patch 2 (29 October 2000) Jeroen Massar <jeroen@unfix.org>
- *  - When compiled as IPv6 it also allows connecting to IPv4 hosts.
- *  - Added some more documentation.
- *
- * IPv6 patch 3 (18 November 2000) Jeroen Massar <jeroen@unfix.org>
- *  - It now supports dynamically loading the IPv6 resolver dll's.
- *    This way we should be able to distribute one (1) binary
- *    which supports both IPv4 and IPv6.
- *  - getaddrinfo() and getnameinfo() are loaded dynamicaly if possible.
- *  - in6addr_any is defined in this file so we don't need to link to wship6.lib
- *  - The patch is now more unified so that we can still
- *    remove all IPv6 support by undef'ing IPV6.
- *    But where it fallsback to IPv4 it uses the IPv4 code which is already in place...
- *  - Canonical name resolving works.
- *
- * IPv6 patch 4 (07 January 2001) Jeroen Massar <jeroen@unfix.org>
- *  - patch against CVS of today, will be submitted to the bugs list
- *    as a 'cvs diff -u' on Simon's request...
- *
+ * For the IPv6 code in here I am indebted to Jeroen Massar and
+ * unfix.org.
  */
-
-/*
- * Define IPV6 to have IPv6 on-the-fly-loading support.
- * This means that one doesn't have to have an IPv6 stack to use it.
- * But if an IPv6 stack is found it is used with a fallback to IPv4.
- */
-/* #define IPV6 1 */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,8 +15,10 @@
 #include "tree234.h"
 
 #include <ws2tcpip.h>
-#ifdef IPV6
-#include <tpipv6.h>
+
+#ifndef NO_IPV6
+const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
+const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 #endif
 
 #define ipv4_is_loopback(addr) \
@@ -92,11 +61,16 @@ struct SockAddr_tag {
      * IPv4; AF_INET6 for IPv6; AF_UNSPEC indicates that name
      * resolution has not been done and a simple host name is held
      * in this SockAddr structure.
+     * The hostname field is also used when the hostname has both
+     * an IPv6 and IPv4 address and the IPv6 connection attempt
+     * fails. We then try the IPv4 address.
+     * This 'family' should become an option in the GUI and
+     * on the commandline for selecting a default protocol.
      */
     int family;
     unsigned long address;	       /* Address IPv4 style. */
-#ifdef IPV6
-    struct addrinfo *ai;	       /* Address IPv6 style. */
+#ifndef NO_IPV6
+    struct addrinfo *ai;	       /* Address AF-independent (IPv4+IPv6) style. */
 #endif
     char hostname[512];		       /* Store an unresolved host name. */
 };
@@ -325,7 +299,8 @@ char *winsock_error_string(int error)
     }
 }
 
-SockAddr sk_namelookup(const char *host, char **canonicalname)
+SockAddr sk_namelookup(const char *host, char **canonicalname,
+		       int address_family)
 {
     SockAddr ret = snew(struct SockAddr_tag);
     unsigned long a;
@@ -334,11 +309,15 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
 
     /* Clear the structure and default to IPv4. */
     memset(ret, 0, sizeof(struct SockAddr_tag));
-    ret->family = 0;		       /* We set this one when we have resolved the host. */
+    ret->family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+#ifndef NO_IPV6
+		   address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+#endif
+		   AF_UNSPEC);
     *realhost = '\0';
 
     if ((a = p_inet_addr(host)) == (unsigned long) INADDR_NONE) {
-#ifdef IPV6
+#ifndef NO_IPV6
 
 	/* Try to get the getaddrinfo() function from wship6.dll */
 	/* This way one doesn't need to have IPv6 dll's to use PuTTY and
@@ -356,56 +335,41 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
 							 "getaddrinfo");
 
 	/*
-	 * Use fGetAddrInfo when it's available (which usually also
-	 * means IPv6 is installed...)
+	 * Use fGetAddrInfo when it's available
 	 */
 	if (fGetAddrInfo) {
-	    /*debug(("Resolving \"%s\" with getaddrinfo()  (IPv4+IPv6 capable)...\n", host)); */
-	    if (fGetAddrInfo(host, NULL, NULL, &ret->ai) == 0)
-		ret->family = ret->ai->ai_family;
+		struct addrinfo hints;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = ret->family;
+		if (fGetAddrInfo(host, NULL, &hints, &ret->ai) == 0)
+			ret->family = ret->ai->ai_family;
 	} else
 #endif
 	{
 	    /*
 	     * Otherwise use the IPv4-only gethostbyname...
-	     * (NOTE: we don't use gethostbyname as a
-	     * fallback!)
+	     * (NOTE: we don't use gethostbyname as a fallback!)
 	     */
 	    if (ret->family == 0) {
-		/*debug(("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host)); */
 		if ( (h = p_gethostbyname(host)) )
 		    ret->family = AF_INET;
 	    }
 	}
-	/*debug(("Done resolving...(family is %d) AF_INET = %d, AF_INET6 = %d\n", ret->family, AF_INET, AF_INET6)); */
 
-	if (ret->family == 0) {
+	if (ret->family == AF_UNSPEC) {
 	    DWORD err = p_WSAGetLastError();
 	    ret->error = (err == WSAENETDOWN ? "Network is down" :
 			  err ==
 			  WSAHOST_NOT_FOUND ? "Host does not exist" : err
 			  == WSATRY_AGAIN ? "Host not found" :
-#ifdef IPV6
+#ifndef NO_IPV6
 			  fGetAddrInfo ? "getaddrinfo: unknown error" :
 #endif
 			  "gethostbyname: unknown error");
-#ifdef DEBUG
-	    {
-		LPVOID lpMsgBuf;
-		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			      FORMAT_MESSAGE_FROM_SYSTEM |
-			      FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err,
-			      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			      (LPTSTR) & lpMsgBuf, 0, NULL);
-		/*debug(("Error %ld: %s (h=%lx)\n", err, lpMsgBuf, h)); */
-		/* Free the buffer. */
-		LocalFree(lpMsgBuf);
-	    }
-#endif
 	} else {
 	    ret->error = NULL;
 
-#ifdef IPV6
+#ifndef NO_IPV6
 	    /* If we got an address info use that... */
 	    if (ret->ai) {
 		typedef int (CALLBACK * FGETNAMEINFO)
@@ -445,7 +409,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
 		strncpy(realhost, h->h_name, sizeof(realhost));
 	    }
 	}
-#ifdef IPV6
+#ifndef NO_IPV6
 	FreeLibrary(dllWSHIP6);
 #endif
     } else {
@@ -475,9 +439,30 @@ SockAddr sk_nonamelookup(const char *host)
 
 void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
-#ifdef IPV6
+#ifndef NO_IPV6
     if (addr->family == AF_INET6) {
-	FIXME; /* I don't know how to get a text form of an IPv6 address. */
+	/* Try to get the WSAAddressToStringA() function from wship6.dll */
+	/* This way one doesn't need to have IPv6 dll's to use PuTTY and
+	 * it will fallback to IPv4. */
+	typedef int (CALLBACK * FADDRTOSTR) (LPSOCKADDR lpsaAddress,
+		DWORD dwAddressLength,
+		LPWSAPROTOCOL_INFO lpProtocolInfo,
+		OUT LPTSTR lpszAddressString,
+		IN OUT LPDWORD lpdwAddressStringLength
+	);
+	FADDRTOSTR fAddrToStr = NULL;
+
+	HINSTANCE dllWS2 = LoadLibrary("ws2_32.dll");
+	if (dllWS2) {
+	    fAddrToStr = (FADDRTOSTR)GetProcAddress(dllWS2,
+						    "WSAAddressToStringA");
+	    if (fAddrToStr) {
+		fAddrToStr(addr->ai->ai_addr, addr->ai->ai_addrlen,
+			   NULL, buf, &buflen);
+	    }
+	    else strncpy(buf, "IPv6", buflen);
+	    FreeLibrary(dllWS2);
+	}
     } else
 #endif
     if (addr->family == AF_INET) {
@@ -486,7 +471,6 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 	strncpy(buf, p_inet_ntoa(a), buflen);
 	buf[buflen-1] = '\0';
     } else {
-	assert(addr->family == AF_UNSPEC);
 	strncpy(buf, addr->hostname, buflen);
 	buf[buflen-1] = '\0';
     }
@@ -530,9 +514,9 @@ static int ipv4_is_local_addr(struct in_addr addr)
 
 int sk_address_is_local(SockAddr addr)
 {
-#ifdef IPV6
+#ifndef NO_IPV6
     if (addr->family == AF_INET6) {
-	FIXME;  /* someone who can compile for IPV6 had better do this bit */
+    	return IN6_IS_ADDR_LOOPBACK((const struct in6_addr *)addr->ai->ai_addr);
     } else
 #endif
     if (addr->family == AF_INET) {
@@ -548,7 +532,7 @@ int sk_address_is_local(SockAddr addr)
 int sk_addrtype(SockAddr addr)
 {
     return (addr->family == AF_INET ? ADDRTYPE_IPV4 :
-#ifdef IPV6
+#ifndef NO_IPV6
 	    addr->family == AF_INET6 ? ADDRTYPE_IPV6 :
 #endif
 	    ADDRTYPE_NAME);
@@ -557,7 +541,7 @@ int sk_addrtype(SockAddr addr)
 void sk_addrcopy(SockAddr addr, char *buf)
 {
     assert(addr->family != AF_UNSPEC);
-#ifdef IPV6
+#ifndef NO_IPV6
     if (addr->family == AF_INET6) {
 	memcpy(buf, (char*) addr->ai, 16);
     } else
@@ -673,7 +657,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     };
 
     SOCKET s;
-#ifdef IPV6
+#ifndef NO_IPV6
     SOCKADDR_IN6 a6;
 #endif
     SOCKADDR_IN a;
@@ -701,7 +685,14 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     /*
      * Open socket.
      */
-    assert(addr->family != AF_UNSPEC);
+#ifndef NO_IPV6
+    /* Let's default to IPv6, this shouldn't hurt anybody
+     * If the stack supports IPv6 it will also allow IPv4 connections. */
+    if (addr->family == AF_UNSPEC) addr->family = AF_INET6;
+#else
+    /* No other choice, default to IPv4 */
+    if (addr->family == AF_UNSPEC) addr->family = AF_INET;
+#endif
     s = p_socket(addr->family, SOCK_STREAM, 0);
     ret->s = s;
 
@@ -739,11 +730,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     while (1) {
 	int retcode;
 
-#ifdef IPV6
+#ifndef NO_IPV6
 	if (addr->family == AF_INET6) {
 	    memset(&a6, 0, sizeof(a6));
 	    a6.sin6_family = AF_INET6;
-/*a6.sin6_addr      = in6addr_any; *//* == 0 */
+          /*a6.sin6_addr = in6addr_any; */ /* == 0 done by memset() */
 	    a6.sin6_port = p_htons(localport);
 	} else
 #endif
@@ -752,7 +743,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	    a.sin_addr.s_addr = p_htonl(INADDR_ANY);
 	    a.sin_port = p_htons(localport);
 	}
-#ifdef IPV6
+#ifndef NO_IPV6
 	retcode = p_bind(s, (addr->family == AF_INET6 ?
 			   (struct sockaddr *) &a6 :
 			   (struct sockaddr *) &a),
@@ -785,7 +776,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     /*
      * Connect to remote address.
      */
-#ifdef IPV6
+#ifndef NO_IPV6
     if (addr->family == AF_INET6) {
 	memset(&a, 0, sizeof(a));
 	a6.sin6_family = AF_INET6;
@@ -809,7 +800,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     }
 
     if ((
-#ifdef IPV6
+#ifndef NO_IPV6
 	    p_connect(s, ((addr->family == AF_INET6) ?
 			(struct sockaddr *) &a6 : (struct sockaddr *) &a),
 		    (addr->family == AF_INET6) ? sizeof(a6) : sizeof(a))
@@ -844,7 +835,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
+		      int address_family)
 {
     static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -859,10 +851,11 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
     };
 
     SOCKET s;
-#ifdef IPV6
+#ifndef NO_IPV6
     SOCKADDR_IN6 a6;
 #endif
     SOCKADDR_IN a;
+
     DWORD err;
     char *errstr;
     Actual_Socket ret;
@@ -885,9 +878,28 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
     ret->pending_error = 0;
 
     /*
+     * Translate address_family from platform-independent constants
+     * into local reality.
+     */
+    address_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+#ifndef NO_IPV6
+		      address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+#endif
+		      AF_UNSPEC);
+ 
+#ifndef NO_IPV6
+    /* Let's default to IPv6, this shouldn't hurt anybody
+     * If the stack supports IPv6 it will also allow IPv4 connections. */
+    if (address_family == AF_UNSPEC) address_family = AF_INET6;
+#else
+    /* No other choice, default to IPv4 */
+    if (address_family == AF_UNSPEC)  address_family = AF_INET;
+#endif
+
+    /*
      * Open socket.
      */
-    s = p_socket(AF_INET, SOCK_STREAM, 0);
+    s = p_socket(address_family, SOCK_STREAM, 0);
     ret->s = s;
 
     if (s == INVALID_SOCKET) {
@@ -900,12 +912,15 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 
     p_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
-#ifdef IPV6
-	if (addr->family == AF_INET6) {
+#ifndef NO_IPV6
+	if (address_family == AF_INET6) {
 	    memset(&a6, 0, sizeof(a6));
 	    a6.sin6_family = AF_INET6;
 	    /* FIXME: srcaddr is ignored for IPv6, because I (SGT) don't
-	     * know how to do it. :-) */
+	     * know how to do it. :-)
+	     * (jeroen:) saddr is specified as an address.. eg 2001:db8::1
+	     * Thus we need either a parser that understands [2001:db8::1]:80
+	     * style addresses and/or enhance this to understand hostnames too. */
 	    if (local_host_only)
 		a6.sin6_addr = in6addr_loopback;
 	    else
@@ -942,11 +957,11 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 
 	    a.sin_port = p_htons((short)port);
 	}
-#ifdef IPV6
-	retcode = p_bind(s, (addr->family == AF_INET6 ?
+#ifndef NO_IPV6
+	retcode = p_bind(s, (address_family == AF_INET6 ?
 			   (struct sockaddr *) &a6 :
 			   (struct sockaddr *) &a),
-		       (addr->family ==
+		       (address_family ==
 			AF_INET6 ? sizeof(a6) : sizeof(a)));
 #else
 	retcode = p_bind(s, (struct sockaddr *) &a, sizeof(a));
@@ -1229,11 +1244,15 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	return open;
        case FD_ACCEPT:
 	{
+#ifdef NO_IPV6
 	    struct sockaddr_in isa;
-	    int addrlen = sizeof(struct sockaddr_in);
+#else
+            struct sockaddr_storage isa;
+#endif
+	    int addrlen = sizeof(isa);
 	    SOCKET t;  /* socket of connection */
 
-	    memset(&isa, 0, sizeof(struct sockaddr_in));
+	    memset(&isa, 0, sizeof(isa));
 	    err = 0;
 	    t = p_accept(s->s,(struct sockaddr *)&isa,&addrlen);
 	    if (t == INVALID_SOCKET)
@@ -1242,8 +1261,13 @@ int select_result(WPARAM wParam, LPARAM lParam)
 		if (err == WSATRY_AGAIN)
 		    break;
 	    }
-
+#ifndef NO_IPV6
+            if (isa.ss_family == AF_INET &&
+                s->localhost_only &&
+                !ipv4_is_local_addr(((struct sockaddr_in *)&isa)->sin_addr)) {
+#else
 	    if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr)) {
+#endif
 		p_closesocket(t);      /* dodgy WinSock let nonlocal through */
 	    } else if (plug_accepting(s->plug, (void*)t)) {
 		p_closesocket(t);      /* denied or error */

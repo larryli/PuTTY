@@ -231,6 +231,7 @@ static void usage(void)
     printf("  -A -a     enable / disable agent forwarding\n");
     printf("  -t -T     enable / disable pty allocation\n");
     printf("  -1 -2     force use of particular protocol version\n");
+    printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");

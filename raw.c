@@ -94,11 +94,14 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
      */
     {
 	char *buf;
-	buf = dupprintf("Looking up host \"%s\"", host);
+	buf = dupprintf("Looking up host \"%s\"%s", host,
+			(cfg->addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
+			 (cfg->addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
+			  "")));
 	logevent(raw->frontend, buf);
 	sfree(buf);
     }
-    addr = name_lookup(host, port, realhost, cfg);
+    addr = name_lookup(host, port, realhost, cfg, cfg->addressfamily);
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;

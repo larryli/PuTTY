@@ -68,6 +68,7 @@ use Plink:
 \c   -A -a     enable / disable agent forwarding
 \c   -t -T     enable / disable pty allocation
 \c   -1 -2     force use of particular protocol version
+\c   -4 -6     force use of IPv4 or IPv6
 \c   -C        enable compression
 \c   -i key    private key file for authentication
 \c   -s        remote command is an SSH subsystem (SSH-2 only)

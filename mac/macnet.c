@@ -56,7 +56,7 @@ void sk_init(void)
  * Network functions exported to the world.  These choose whether to call
  * MacTCP or OpenTransport and behave accordingly.
  */
-SockAddr sk_namelookup(char const *host, char **canonicalname)
+SockAddr sk_namelookup(char const *host, char **canonicalname, int address_family)
 {
 
     if (stack != NULL)
@@ -137,7 +137,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return NULL;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int address_family)
 {
 
     if (stack != NULL)

@@ -82,9 +82,9 @@ Socket new_connection(SockAddr addr, char *hostname,
 		      int oobinline, int nodelay, int keepalive,
 		      Plug plug, const Config *cfg);
 Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only,
-		    const Config *cfg);
+		    const Config *cfg, int addressfamily);
 SockAddr name_lookup(char *host, int port, char **canonicalname,
-		     const Config *cfg);
+		     const Config *cfg, int addressfamily);
 
 /* platform-dependent callback from new_connection() */
 /* (same caveat about addr as new_connection()) */
@@ -98,12 +98,11 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 void sk_init(void);		       /* called once at program startup */
 void sk_cleanup(void);		       /* called just before program exit */
 
-SockAddr sk_namelookup(const char *host, char **canonicalname);
+SockAddr sk_namelookup(const char *host, char **canonicalname, int address_family);
 SockAddr sk_nonamelookup(const char *host);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);
 int sk_hostname_is_local(char *name);
 int sk_address_is_local(SockAddr addr);
-enum { ADDRTYPE_IPV4, ADDRTYPE_IPV6, ADDRTYPE_NAME };
 int sk_addrtype(SockAddr addr);
 void sk_addrcopy(SockAddr addr, char *buf);
 void sk_addr_free(SockAddr addr);
@@ -113,7 +112,7 @@ void sk_addr_free(SockAddr addr);
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, int keepalive, Plug p);
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only);
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int address_family);
 
 Socket sk_register(OSSocket sock, Plug plug);
 

@@ -754,6 +754,16 @@ These options are equivalent to selecting your preferred SSH
 protocol version as \q{1 only} or \q{2 only} in the SSH panel of the
 PuTTY configuration box (see \k{config-ssh-prot}).
 
+\S2{using-cmdline-ipversion} \i\c{-4} and \i\c{-6}: specify an
+\i{Internet protocol version}
+
+The \c{-4} and \c{-6} options force PuTTY to use the older Internet
+protocol \i{IPv4} or the newer \i{IPv6}.
+
+These options are equivalent to selecting your preferred Internet
+protocol version as \q{IPv4} or \q{IPv6} in the Connection panel of
+the PuTTY configuration box (see \k{config-address-family}).
+
 \S2{using-cmdline-identity} \i\c{-i}: specify an SSH \i{private key}
 
 The \c{-i} option allows you to specify the name of a private key

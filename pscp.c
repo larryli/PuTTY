@@ -322,6 +322,17 @@ static void do_cmd(char *host, char *user, char *cmd)
 	bump("Empty host name");
 
     /*
+     * Remove fiddly bits of address: remove a colon suffix, and
+     * the square brackets around an IPv6 literal address.
+     */
+    if (host[0] == '[') {
+	host++;
+	host[strcspn(host, "]")] = '\0';
+    } else {
+	host[strcspn(host, ":")] = '\0';
+    }
+
+    /*
      * If we haven't loaded session details already (e.g., from -load),
      * try looking for a session called "host".
      */
@@ -380,11 +391,6 @@ static void do_cmd(char *host, char *user, char *cmd)
 	    memmove(cfg.host, atsign + 1, 1 + strlen(atsign + 1));
 	}
     }
-
-    /*
-     * Trim a colon suffix off the hostname if it's there.
-     */
-    cfg.host[strcspn(cfg.host, ":")] = '\0';
 
     /*
      * Remove any remaining whitespace from the hostname.
@@ -533,6 +539,19 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
  */
 static char *colon(char *str)
 {
+    /* Check and process IPv6 literal addresses
+     * (eg: 'jeroen@[2001:db8::1]:myfile.txt') */
+    char *ipv6 = strchr(str, '[');
+    if (ipv6) {
+	str = strchr(str, ']');
+	if (str) {
+	    /* Terminate on the closing bracket */
+	    *str++ = '\0';
+	    return (str);
+	}
+	return (NULL);
+    }
+
     /* We ignore a leading colon, since the hostname cannot be
        empty. We also ignore a colon as second character because
        of filenames like f:myfile.txt. */
@@ -1928,7 +1947,7 @@ static void toremote(int argc, char *argv[])
     *targ++ = '\0';
     if (*targ == '\0')
 	targ = ".";
-    /* Substitute "." for emtpy target */
+    /* Substitute "." for empty target */
 
     /* Separate host and username */
     user = host;
@@ -2129,6 +2148,7 @@ static void usage(void)
     printf("  -l user   connect with specified username\n");
     printf("  -pw passw login with specified password\n");
     printf("  -1 -2     force use of particular SSH protocol version\n");
+    printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
     printf("  -batch    disable all interactive prompts\n");

@@ -301,7 +301,7 @@ const char *x11_init(Socket * s, char *display, void *c, void *auth,
 	/*
 	 * Try to find host.
 	 */
-	addr = name_lookup(host, port, &dummy_realhost, cfg);
+	addr = name_lookup(host, port, &dummy_realhost, cfg, ADDRTYPE_UNSPEC);
 	if ((err = sk_addr_error(addr)) != NULL) {
 	    sk_addr_free(addr);
 	    return err;
