@@ -50,7 +50,7 @@
 ##--
 
 # Enable debug and incremental linking and compiling
-# CFLAGS = /nologo /W3 /YX /Yd /O1 /Gi /D_WINDOWS /DDEBUG
+# CFLAGS = /nologo /W3 /YX /Yd /O1 /Gi /D_WINDOWS /DDEBUG /D_WIN32_WINDOWS=0x401
 # LFLAGS = /debug
 
 # Disable debug and incremental linking and compiling
@@ -58,7 +58,7 @@ CFLAGS = /nologo /W3 /O1 /D_WINDOWS /D_WIN32_WINDOWS=0x401
 LFLAGS = /incremental:no /fixed
 
 # Use MSVC DLL
-# CFLAGS = /nologo /W3 /O1 /MD /D_WINDOWS
+# CFLAGS = /nologo /W3 /O1 /MD /D_WINDOWS /D_WIN32_WINDOWS=0x401
 # LFLAGS = /incremental:no
 
 .c.obj:
