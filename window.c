@@ -267,7 +267,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	    return 0;
 	}
 	window_name = icon_name = NULL;
-	sprintf(msg, "PuTTY: %s", realhost);
+	sprintf(msg, "%s - PuTTY", realhost);
 	set_title (msg);
 	set_icon (msg);
     }
