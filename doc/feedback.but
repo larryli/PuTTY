@@ -242,7 +242,9 @@ if you confer with us first; there may be design issues you haven't
 thought of, or we may be about to make big changes to the code which
 your patch would clash with, or something. If you check with the
 maintainers first, there is a better chance of your code actually
-being usable.
+being usable. Also, read the design principles listed in \k{udp}: if
+you do not conform to them, we will probably not be able to accept
+your patch.
 
 \H{feedback-feature-priority} Requesting features that have already
 been requested

@@ -35,7 +35,7 @@ VERSIONIDS=vids
 endif
 
 CHAPTERS := $(SITE) blurb intro gs using config pscp psftp plink pubkey
-CHAPTERS += pageant errors faq feedback licence
+CHAPTERS += pageant errors faq feedback licence udp
 CHAPTERS += index $(VERSIONIDS)
 
 INPUTS = $(patsubst %,%.but,$(CHAPTERS))
