@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.48 2003/01/12 14:11:38 simon Exp $
+\versionid $Id: config.but,v 1.49 2003/01/12 14:30:02 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -214,10 +214,11 @@ find the screen scrolling up when it looks as if it shouldn't, you
 could try turning this option off.
 
 Auto wrap mode can be turned on and off by control sequences sent by
-the server. This configuration option only controls the \e{default}
-state. If you modify this option in mid-session using \q{Change
-Settings}, you will need to reset the terminal (see
-\k{reset-terminal}) before the change takes effect.
+the server. This configuration option controls the \e{default}
+state, which will be restored when you reset the terminal (see
+\k{reset-terminal}). However, if you modify this option in
+mid-session using \q{Change Settings}, it will take effect
+immediately.
 
 \S{config-decom} \q{DEC Origin Mode initially on}
 
@@ -243,10 +244,11 @@ like the wrong part of the screen, you could try turning DEC Origin
 Mode on to see whether that helps.
 
 DEC Origin Mode can be turned on and off by control sequences sent
-by the server. This configuration option only controls the
-\e{default} state. If you modify this option in mid-session using
-\q{Change Settings}, you will need to reset the terminal (see
-\k{reset-terminal}) before the change takes effect.
+by the server. This configuration option controls the \e{default}
+state, which will be restored when you reset the terminal (see
+\k{reset-terminal}). However, if you modify this option in
+mid-session using \q{Change Settings}, it will take effect
+immediately.
 
 \S{config-crlf} \q{Implicit CR in every LF}
 
@@ -291,10 +293,11 @@ default background colour. With this option enabled, it is done in
 the \e{current} background colour.
 
 Background-colour erase can be turned on and off by control
-sequences sent by the server. This configuration option only
-controls the \e{default} state. If you modify this option in
-mid-session using \q{Change Settings}, you will need to reset the
-terminal (see \k{reset-terminal}) before the change takes effect.
+sequences sent by the server. This configuration option controls the
+\e{default} state, which will be restored when you reset the
+terminal (see \k{reset-terminal}). However, if you modify this
+option in mid-session using \q{Change Settings}, it will take effect
+immediately.
 
 \S{config-blink} \q{Enable blinking text}
 
@@ -309,10 +312,11 @@ text blink, PuTTY will instead display the text with a bolded
 background colour.
 
 Blinking text can be turned on and off by control sequences sent by
-the server. This configuration option only controls the \e{default}
-state. If you modify this option in mid-session using \q{Change
-Settings}, you will need to reset the terminal (see
-\k{reset-terminal}) before the change takes effect.
+the server. This configuration option controls the \e{default}
+state, which will be restored when you reset the terminal (see
+\k{reset-terminal}). However, if you modify this option in
+mid-session using \q{Change Settings}, it will take effect
+immediately.
 
 \S{config-answerback} \q{Answerback to ^E}
 
@@ -1224,10 +1228,11 @@ This mechanism currently only covers ASCII characters, because it
 isn't feasible to expand the list to cover the whole of Unicode.
 
 Character class definitions can be modified by control sequences
-sent by the server. This configuration option only controls the
-\e{default} state. If you modify this option in mid-session using
-\q{Change Settings}, you will need to reset the terminal (see
-\k{reset-terminal}) before the change takes effect.
+sent by the server. This configuration option controls the
+\e{default} state, which will be restored when you reset the
+terminal (see \k{reset-terminal}). However, if you modify this
+option in mid-session using \q{Change Settings}, it will take effect
+immediately.
 
 \H{config-colours} The Colours panel
 

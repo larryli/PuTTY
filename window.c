@@ -1779,8 +1779,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		cfgtopalette();
 		init_palette();
 
-		/* Give terminal a heads-up on miscellaneous stuff */
-		term_reconfig(term);
+		/* Pass new config data to the terminal */
+		term_reconfig(term, &cfg);
 
 		/* Screen size changed ? */
 		if (cfg.height != prev_cfg.height ||

@@ -516,7 +516,7 @@ void term_paste(Terminal *);
 void term_nopaste(Terminal *);
 int term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *);
-void term_reconfig(Terminal *);
+void term_reconfig(Terminal *, Config *);
 void term_seen_key_event(Terminal *); 
 int from_backend(void *, int is_stderr, char *data, int len);
 void term_provide_resize_fn(Terminal *term,

@@ -171,7 +171,14 @@ struct terminal_tag {
 
     void *logctx;
 
-    Config *cfg;
+    /*
+     * We maintain a full _copy_ of a Config structure here, not
+     * merely a pointer to it. That way, when we're passed a new
+     * one for reconfiguration, we can check the differences and
+     * adjust the _current_ setting of (e.g.) auto wrap mode rather
+     * than only the default.
+     */
+    Config cfg;
 };
 
 #define in_utf(term) ((term)->utf || line_codepage==CP_UTF8)
