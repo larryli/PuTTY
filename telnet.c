@@ -175,6 +175,7 @@ static struct Opt *opts[] = {
 };
 
 static int echoing = TRUE, editing = TRUE;
+static int activated = FALSE;
 
 static int in_synch;
 static int sb_opt, sb_len;
@@ -226,6 +227,23 @@ static void option_side_effects(struct Opt *o, int enabled)
     else if (o->option == TELOPT_SGA && o->send == DO)
 	editing = !enabled;
     ldisc_send(NULL, 0);	       /* cause ldisc to notice the change */
+
+    /* Ensure we get the minimum options */
+    if (!activated) {
+	if (o_echo.state == INACTIVE) {
+	    o_echo.state = REQUESTED;
+	    send_opt(o_echo.send, o_echo.option);
+	}
+	if (o_we_sga.state == INACTIVE) {
+	    o_we_sga.state = REQUESTED;
+	    send_opt(o_we_sga.send, o_we_sga.option);
+	}
+	if (o_they_sga.state == INACTIVE) {
+	    o_they_sga.state = REQUESTED;
+	    send_opt(o_they_sga.send, o_they_sga.option);
+	}
+	activated = TRUE;
+    }
 }
 
 static void activate_option(struct Opt *o)
@@ -603,12 +621,19 @@ static char *telnet_init(char *host, int port, char **realhost)
     /*
      * Initialise option states.
      */
-    {
+    if (cfg.passive_telnet) {
+	struct Opt **o;
+
+	for (o = opts; *o; o++)
+	    if ((*o)->state == REQUESTED)
+		(*o)->state = INACTIVE;
+    } else {
 	struct Opt **o;
 
 	for (o = opts; *o; o++)
 	    if ((*o)->state == REQUESTED)
 		send_opt((*o)->send, (*o)->option);
+	activated = TRUE;
     }
 
     /*

@@ -408,6 +408,9 @@ enum { IDCX_ABOUT =
     IDC_EMSTATIC,
     IDC_EMBSD,
     IDC_EMRFC,
+    IDC_ACTSTATIC,
+    IDC_TPASSIVE,
+    IDC_TACTIVE,
     telnetpanelend,
 
     rloginpanelstart,
@@ -658,6 +661,8 @@ static void init_dlg_ctrls(HWND hwnd)
     }
     CheckRadioButton(hwnd, IDC_EMBSD, IDC_EMRFC,
 		     cfg.rfc_environ ? IDC_EMRFC : IDC_EMBSD);
+    CheckRadioButton(hwnd, IDC_TPASSIVE, IDC_TACTIVE,
+		     cfg.passive_telnet ? IDC_TPASSIVE : IDC_TACTIVE);
 
     SetDlgItemText(hwnd, IDC_TTEDIT, cfg.termtype);
     SetDlgItemText(hwnd, IDC_LOGEDIT, cfg.username);
@@ -1102,7 +1107,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == telnetpanelstart) {
-	/* The Telnet panel. Accelerators used: [acgo] svldr bf */
+	/* The Telnet panel. Accelerators used: [acgo] svldr bft */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1120,6 +1125,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    radioline(&cp, "Handling of OLD_ENVIRON ambiguity:",
 		      IDC_EMSTATIC, 2, "&BSD (commonplace)", IDC_EMBSD,
 		      "R&FC 1408 (unusual)", IDC_EMRFC, NULL);
+	    radioline(&cp, "&Telnet negotiation mode:", IDC_ACTSTATIC, 2,
+		      "Passive", IDC_TPASSIVE, "Active",
+		      IDC_TACTIVE, NULL);
 	    endbox(&cp);
 	}
     }
@@ -1986,6 +1994,11 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	      case IDC_EMBSD:
 	      case IDC_EMRFC:
 		cfg.rfc_environ = IsDlgButtonChecked(hwnd, IDC_EMRFC);
+		break;
+	      case IDC_TPASSIVE:
+	      case IDC_TACTIVE:
+		cfg.passive_telnet =
+		    IsDlgButtonChecked(hwnd, IDC_TPASSIVE);
 		break;
 	      case IDC_ENVADD:
 		if (HIWORD(wParam) == BN_CLICKED ||

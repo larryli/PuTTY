@@ -196,6 +196,7 @@ typedef struct {
     char username[32];
     char localusername[32];
     int rfc_environ;
+    int passive_telnet;
     /* Keyboard options */
     int bksp_is_delete;
     int rxvt_homeend;
