@@ -4729,21 +4729,28 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		c = find234(ssh_channels, &i, ssh_channelfind);
 		if (!c)
 		    continue;	       /* nonexistent channel */
-		if (c->closes == 0) {
-		    ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-		    ssh2_pkt_adduint32(c->remoteid);
-		    ssh2_pkt_send();
-		}
 		/* Do pre-close processing on the channel. */
 		switch (c->type) {
 		  case CHAN_MAINSESSION:
 		    break;	       /* nothing to see here, move along */
 		  case CHAN_X11:
+		    if (c->u.x11.s != NULL)
+			x11_close(c->u.x11.s);
+		    sshfwd_close(c);
 		    break;
 		  case CHAN_AGENT:
+		    sshfwd_close(c);
 		    break;
 		  case CHAN_SOCKDATA:
+		    if (c->u.pfd.s != NULL)
+			pfd_close(c->u.pfd.s);
+		    sshfwd_close(c);
 		    break;
+		}
+		if (c->closes == 0) {
+		    ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+		    ssh2_pkt_adduint32(c->remoteid);
+		    ssh2_pkt_send();
 		}
 		del234(ssh_channels, c);
 		bufchain_clear(&c->v.v2.outbuffer);
