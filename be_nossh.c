@@ -3,7 +3,6 @@
  * including ssh.
  */
 
-#include <windows.h>
 #include <stdio.h>
 #include "putty.h"
 
@@ -29,7 +28,7 @@ void random_destroy_seed(void)
 {
 }
 
-void noise_ultralight(DWORD data)
+void noise_ultralight(unsigned long data)
 {
 }
 
