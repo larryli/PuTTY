@@ -1183,7 +1183,8 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 
 	if (!ret || (linelen == 0 && line[0] == '\0')) {
 	    cmd->obey = sftp_cmd_quit;
-	    printf("quit\n");
+	    if ((mode == 0) || (modeflags & 1))
+		printf("quit\n");
 	    return cmd;		       /* eof */
 	}
 	len = linelen + strlen(line + linelen);
@@ -1913,9 +1914,9 @@ int main(int argc, char *argv[])
 	} else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
 	    mode = 1;
 	    batchfile = argv[++i];
-	} else if (strcmp(argv[i], "-bc") == 0 && i + 1 < argc) {
+	} else if (strcmp(argv[i], "-bc") == 0) {
 	    modeflags = modeflags | 1;
-	} else if (strcmp(argv[i], "-be") == 0 && i + 1 < argc) {
+	} else if (strcmp(argv[i], "-be") == 0) {
 	    modeflags = modeflags | 2;
 	} else if (strcmp(argv[i], "--") == 0) {
 	    i++;
