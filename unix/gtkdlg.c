@@ -307,15 +307,18 @@ void dlg_listbox_clear(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    GtkContainer *cont;
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
     assert(uc->menu != NULL || uc->list != NULL);
 
-    cont = (uc->menu ? GTK_CONTAINER(uc->menu) : GTK_CONTAINER(uc->list));
-
-    gtk_container_foreach(cont, container_remove_and_destroy, cont);
+    if (uc->menu) {
+	gtk_container_foreach(GTK_CONTAINER(uc->menu),
+			      container_remove_and_destroy,
+			      GTK_CONTAINER(uc->menu));
+    } else {
+	gtk_list_clear_items(GTK_LIST(uc->list), 0, -1);
+    }
 }
 
 void dlg_listbox_del(union control *ctrl, void *dlg, int index)
