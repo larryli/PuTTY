@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.27 2004/08/12 20:55:58 jacob Exp $
+\versionid $Id: using.but,v 1.28 2004/08/19 12:58:14 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -365,6 +365,10 @@ doesn't allow you to change the port number it uses. This feature is
 available for local-to-remote forwarded ports; SSH1 is unable to
 support it for remote-to-local ports, while SSH2 can support it in
 theory but servers will not necessarily cooperate.
+
+(Note that if you're using Windows XP Service Pack 2, you may need
+to obtain a fix from Microsoft in order to use addresses like
+\cw{127.0.0.5} - see \k{faq-alternate-localhost}.)
 
 \H{using-rawprot} Making \i{raw TCP connections}
 

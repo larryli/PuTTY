@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.74 2004/08/10 16:50:30 jacob Exp $
+\versionid $Id: faq.but,v 1.75 2004/08/19 12:58:14 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -866,6 +866,23 @@ The reason why this only started to be a problem in 0.54 is because
 \c{screen} typically uses an unusual control sequence to switch to
 the alternate screen, and previous versions of PuTTY did not support
 this sequence.
+
+\S{faq-alternate-localhost}{Question} Since I upgraded Windows XP
+to Service Pack 2, I can't use addresses like \cw{127.0.0.2}.
+
+Some people who ask PuTTY to listen on localhost addresses other
+than \cw{127.0.0.1} to forward services such as SMB and Windows
+Terminal Services have found that doing so no longer works since
+they upgraded to WinXP SP2.
+
+This is an issue with SP2 that is acknowledged by Microsoft in
+MS Knowledge Base article
+\W{http://support.microsoft.com/default.aspx?scid=kb;en-us;884020}{884020}.
+
+For a fix, you'll need to contact Microsoft support. We've been told
+that the process is reasonably easy, and is free of charge; and that
+the fix will be included in the next Windows XP Service Pack (but
+probably not before).
 
 \H{faq-secure} Security questions
 
