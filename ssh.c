@@ -942,23 +942,18 @@ static int s_wrpkt_prepare(void)
 
     pktout.body[-1] = pktout.type;
 
-#ifdef DUMP_PACKETS
-    debug(("Packet payload pre-compression:\n"));
-    dmemdump(pktout.body - 1, pktout.length + 1);
-#endif
-
     if (ssh1_compressing) {
 	unsigned char *compblk;
 	int complen;
+#ifdef DUMP_PACKETS
+	debug(("Packet payload pre-compression:\n"));
+	dmemdump(pktout.body - 1, pktout.length + 1);
+#endif
 	zlib_compress_block(pktout.body - 1, pktout.length + 1,
 			    &compblk, &complen);
 	ssh1_pktout_size(complen - 1);
 	memcpy(pktout.body - 1, compblk, complen);
 	sfree(compblk);
-#ifdef DUMP_PACKETS
-	debug(("Packet payload post-compression:\n"));
-	dmemdump(pktout.body - 1, pktout.length + 1);
-#endif
     }
 
     len = pktout.length + 5;	       /* type and CRC */
@@ -1241,13 +1236,15 @@ static int ssh2_pkt_construct(void)
     /*
      * Compress packet payload.
      */
-#ifdef DUMP_PACKETS
-    debug(("Pre-compression payload:\n"));
-    dmemdump(pktout.data + 5, pktout.length - 5);
-#endif
     {
 	unsigned char *newpayload;
 	int newlen;
+#ifdef DUMP_PACKETS
+	if (cscomp && cscomp != &ssh_comp_none) {
+	    debug(("Pre-compression payload:\n"));
+	    dmemdump(pktout.data + 5, pktout.length - 5);
+	}
+#endif
 	if (cscomp && cscomp->compress(pktout.data + 5, pktout.length - 5,
 				       &newpayload, &newlen)) {
 	    pktout.length = 5;
