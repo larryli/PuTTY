@@ -5343,7 +5343,6 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
             goto wait_for_rekey;       /* this is utterly horrid */
         } else {
             logeventf(ssh, "Initiating key re-exchange (%s)", (char *)in);
-            logevent((char *)in);
         }
     }
     goto begin_key_exchange;
