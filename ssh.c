@@ -1156,10 +1156,11 @@ static void ssh_detect_bugs(char *vstring) {
 }
 
 static int do_ssh_init(unsigned char c) {
-    static char *vsp;
+    static char vslen;
     static char version[10];
-    static char vstring[80];
-    static char vlog[sizeof(vstring)+20];
+    static char *vstring;
+    static int vstrsize;
+    static char *vlog;
     static int i;
 
     crBegin;
@@ -1179,13 +1180,18 @@ static int do_ssh_init(unsigned char c) {
 	crReturn(1);		       /* get another character */
     }
 
+    vstring = smalloc(16);
+    vstrsize = 16;
     strcpy(vstring, "SSH-");
-    vsp = vstring+4;
+    vslen = 4;
     i = 0;
     while (1) {
 	crReturn(1);		       /* get another char */
-	if (vsp < vstring+sizeof(vstring)-1)
-	    *vsp++ = c;
+	if (vslen >= vstrsize-1) {
+            vstrsize += 16;
+            vstring = srealloc(vstring, vstrsize);
+        }
+        vstring[vslen++] = c;
 	if (i >= 0) {
 	    if (c == '-') {
 		version[i] = '\0';
@@ -1200,7 +1206,11 @@ static int do_ssh_init(unsigned char c) {
     ssh_agentfwd_enabled = FALSE;
     rdpkt2_state.incoming_sequence = 0;
 
-    *vsp = 0;
+    vstring[vslen] = 0;
+    if (vslen > 80)
+        vlog = smalloc(20 + vslen);
+    else
+        vlog = smalloc(100);
     sprintf(vlog, "Server version: %s", vstring);
     ssh_detect_bugs(vstring);
     vlog[strcspn(vlog, "\r\n")] = '\0';
@@ -1247,6 +1257,9 @@ static int do_ssh_init(unsigned char c) {
         s_rdpkt = ssh1_rdpkt;
     }
     ssh_state = SSH_STATE_BEFORE_SIZE;
+
+    sfree(vstring);
+    sfree(vlog);
 
     crFinish(0);
 }
