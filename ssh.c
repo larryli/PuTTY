@@ -4992,9 +4992,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    } else {
 			s->need_pw = FALSE;
 		    }
-		    c_write_str(ssh, "Authenticating with public key \"");
-		    c_write_str(ssh, comment);
-		    c_write_str(ssh, "\"\r\n");
+		    if (flags & FLAG_VERBOSE) {
+			c_write_str(ssh, "Authenticating with public key \"");
+			c_write_str(ssh, comment);
+			c_write_str(ssh, "\"\r\n");
+		    }
 		    s->method = AUTH_PUBLICKEY_FILE;
 		}
 	    }
