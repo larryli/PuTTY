@@ -3582,7 +3582,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		/* Set up a description of the source port. */
-		char *sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+		static char *sportdesc;
+		sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
 			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
 			(int)(*saddr?1:0), ":",
 			(int)(sserv ? strlen(sports) : 0), sports,
