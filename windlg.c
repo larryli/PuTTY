@@ -27,6 +27,8 @@ static int requested_help;
 
 static struct prefslist cipherlist;
 
+struct sesslist sesslist;	       /* exported to window.c */
+
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
 void force_normal(HWND hwnd)
@@ -1069,9 +1071,9 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	n = SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_GETCOUNT, 0, 0);
 	for (i = n; i-- > 0;)
 	    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_DELETESTRING, i, 0);
-	for (i = 0; i < nsessions; i++)
+	for (i = 0; i < sesslist.nsessions; i++)
 	    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_ADDSTRING,
-			       0, (LPARAM) (sessions[i]));
+			       0, (LPARAM) (sesslist.sessions[i]));
     }
     SetDlgItemInt(hwnd, IDC_PORT, cfg.port, FALSE);
     CheckRadioButton(hwnd, IDC_PROTRAW, IDC_PROTSSH,
@@ -2059,11 +2061,11 @@ static int load_selected_session(HWND hwnd)
 	MessageBeep(0);
 	return 0;
     }
-    isdef = !strcmp(sessions[n], "Default Settings");
-    load_settings(sessions[n], !isdef, &cfg);
+    isdef = !strcmp(sesslist.sessions[n], "Default Settings");
+    load_settings(sesslist.sessions[n], !isdef, &cfg);
     init_dlg_ctrls(hwnd, TRUE);
     if (!isdef)
-	SetDlgItemText(hwnd, IDC_SESSEDIT, sessions[n]);
+	SetDlgItemText(hwnd, IDC_SESSEDIT, sesslist.sessions[n]);
     else
 	SetDlgItemText(hwnd, IDC_SESSEDIT, "");
     /* Restore the selection, which will have been clobbered by
@@ -2413,20 +2415,20 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			    MessageBeep(0);
 			    break;
 			}
-			strcpy(str, sessions[n]);
+			strcpy(str, sesslist.sessions[n]);
 		    }
 		    save_settings(str, !!strcmp(str, "Default Settings"),
 				  &cfg);
-		    get_sesslist(FALSE);
-		    get_sesslist(TRUE);
+		    get_sesslist(&sesslist, FALSE);
+		    get_sesslist(&sesslist, TRUE);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
 				       FALSE, 0);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_RESETCONTENT,
 				       0, 0);
-		    for (i = 0; i < nsessions; i++)
+		    for (i = 0; i < sesslist.nsessions; i++)
 			SendDlgItemMessage(hwnd, IDC_SESSLIST,
 					   LB_ADDSTRING, 0,
-					   (LPARAM) (sessions[i]));
+					   (LPARAM) (sesslist.sessions[i]));
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				       (WPARAM) - 1, 0);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
@@ -2472,17 +2474,17 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			MessageBeep(0);
 			break;
 		    }
-		    del_settings(sessions[n]);
-		    get_sesslist(FALSE);
-		    get_sesslist(TRUE);
+		    del_settings(sesslist.sessions[n]);
+		    get_sesslist(&sesslist, FALSE);
+		    get_sesslist(&sesslist, TRUE);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
 				       FALSE, 0);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_RESETCONTENT,
 				       0, 0);
-		    for (i = 0; i < nsessions; i++)
+		    for (i = 0; i < sesslist.nsessions; i++)
 			SendDlgItemMessage(hwnd, IDC_SESSLIST,
 					   LB_ADDSTRING, 0,
-					   (LPARAM) (sessions[i]));
+					   (LPARAM) (sesslist.sessions[i]));
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				       (WPARAM) - 1, 0);
 		    SendDlgItemMessage(hwnd, IDC_SESSLIST, WM_SETREDRAW,
@@ -3726,11 +3728,11 @@ int do_config(void)
 {
     int ret;
 
-    get_sesslist(TRUE);
+    get_sesslist(&sesslist, TRUE);
     savedsession[0] = '\0';
     ret =
 	DialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL, MainDlgProc);
-    get_sesslist(FALSE);
+    get_sesslist(&sesslist, FALSE);
 
     return ret;
 }

@@ -659,10 +659,9 @@ static int sessioncmp(const void *av, const void *bv)
     return strcmp(a, b);	       /* otherwise, compare normally */
 }
 
-void get_sesslist(int allocate)
+void get_sesslist(struct sesslist *list, int allocate)
 {
-    static char otherbuf[2048];
-    static char *buffer;
+    char otherbuf[2048];
     int buflen, bufsize, i;
     char *p, *ret;
     void *handle;
@@ -670,7 +669,7 @@ void get_sesslist(int allocate)
     if (allocate) {
 
 	buflen = bufsize = 0;
-	buffer = NULL;
+	list->buffer = NULL;
 	if ((handle = enum_settings_start())) {
 	    do {
 		ret = enum_settings_next(handle, otherbuf, sizeof(otherbuf));
@@ -678,16 +677,16 @@ void get_sesslist(int allocate)
 		    int len = strlen(otherbuf) + 1;
 		    if (bufsize < buflen + len) {
 			bufsize = buflen + len + 2048;
-			buffer = srealloc(buffer, bufsize);
+			list->buffer = srealloc(list->buffer, bufsize);
 		    }
-		    strcpy(buffer + buflen, otherbuf);
-		    buflen += strlen(buffer + buflen) + 1;
+		    strcpy(list->buffer + buflen, otherbuf);
+		    buflen += strlen(list->buffer + buflen) + 1;
 		}
 	    } while (ret);
 	    enum_settings_finish(handle);
 	}
-	buffer = srealloc(buffer, buflen + 1);
-	buffer[buflen] = '\0';
+	list->buffer = srealloc(list->buffer, buflen + 1);
+	list->buffer[buflen] = '\0';
 
 	/*
 	 * Now set up the list of sessions. Note that "Default
@@ -695,31 +694,31 @@ void get_sesslist(int allocate)
 	 * doesn't really.
 	 */
 
-	p = buffer;
-	nsessions = 1;		       /* "Default Settings" counts as one */
+	p = list->buffer;
+	list->nsessions = 1;	       /* "Default Settings" counts as one */
 	while (*p) {
 	    if (strcmp(p, "Default Settings"))
-		nsessions++;
+		list->nsessions++;
 	    while (*p)
 		p++;
 	    p++;
 	}
 
-	sessions = smalloc((nsessions + 1) * sizeof(char *));
-	sessions[0] = "Default Settings";
-	p = buffer;
+	list->sessions = smalloc((list->nsessions + 1) * sizeof(char *));
+	list->sessions[0] = "Default Settings";
+	p = list->buffer;
 	i = 1;
 	while (*p) {
 	    if (strcmp(p, "Default Settings"))
-		sessions[i++] = p;
+		list->sessions[i++] = p;
 	    while (*p)
 		p++;
 	    p++;
 	}
 
-	qsort(sessions, i, sizeof(char *), sessioncmp);
+	qsort(list->sessions, i, sizeof(char *), sessioncmp);
     } else {
-	sfree(buffer);
-	sfree(sessions);
+	sfree(list->buffer);
+	sfree(list->sessions);
     }
 }

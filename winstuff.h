@@ -59,7 +59,7 @@ GLOBAL int help_has_contents;
 /*
  * The terminal and logging context are notionally local to the
  * Windows front end, but they must be shared between window.c and
- * windlg.c.
+ * windlg.c. Likewise the saved-sessions list.
  */
 GLOBAL Terminal *term;
 GLOBAL void *logctx;

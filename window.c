@@ -115,9 +115,15 @@ static time_t last_movement = 0;
 
 static int caret_x = -1, caret_y = -1;
 
+static int kbd_codepage;
+
 static void *ldisc;
 static Backend *back;
 static void *backhandle;
+
+static int session_closed;
+
+extern struct sesslist sesslist;       /* imported from windlg.c */
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -683,10 +689,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
 	AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
 	s = CreateMenu();
-	get_sesslist(TRUE);
-	for (i = 1; i < ((nsessions < 256) ? nsessions : 256); i++)
+	get_sesslist(&sesslist, TRUE);
+	for (i = 1;
+	     i < ((sesslist.nsessions < 256) ? sesslist.nsessions : 256);
+	     i++)
 	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + (16 * i),
-		       sessions[i]);
+		       sesslist.sessions[i]);
 	AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) s, "Sa&ved Sessions");
 	AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
@@ -1692,9 +1700,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    sprintf(c, "putty &%p", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
-		    if ((lParam - IDM_SAVED_MIN) / 16 < nsessions) {
+		    if ((lParam - IDM_SAVED_MIN) / 16 < sesslist.nsessions) {
 			char *session =
-			    sessions[(lParam - IDM_SAVED_MIN) / 16];
+			    sesslist.sessions[(lParam - IDM_SAVED_MIN) / 16];
 			cl = smalloc(16 + strlen(session));
 				       /* 8, but play safe */
 			if (!cl)

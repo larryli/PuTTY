@@ -92,15 +92,14 @@ typedef struct terminal_tag Terminal;
 #define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
 #define ATTR_CUR_XOR 0x00BA0000UL
 
-GLOBAL int session_closed;
+struct sesslist {
+    int nsessions;
+    char **sessions;
+    char *buffer;		       /* so memory can be freed later */
+};
 
-GLOBAL int nsessions;
-GLOBAL char **sessions;
-
-GLOBAL int utf;
 GLOBAL int dbcs_screenfont;
 GLOBAL int font_codepage;
-GLOBAL int kbd_codepage;
 GLOBAL int line_codepage;
 GLOBAL wchar_t unitab_scoacs[256];
 GLOBAL wchar_t unitab_line[256];
@@ -375,15 +374,26 @@ struct config_tag {
  * being run, _either_ because no remote command has been provided
  * _or_ because the application is GUI and can't run non-
  * interactively.
+ * 
+ * These flags describe the type of _application_ - they wouldn't
+ * vary between individual sessions - and so it's OK to have this
+ * variable be GLOBAL.
  */
 #define FLAG_VERBOSE     0x0001
 #define FLAG_STDERR      0x0002
 #define FLAG_INTERACTIVE 0x0004
 GLOBAL int flags;
 
-GLOBAL Config cfg;
+/*
+ * Likewise, these two variables are set up when the application
+ * initialises, and inform all default-settings accesses after
+ * that.
+ */
 GLOBAL int default_protocol;
 GLOBAL int default_port;
+
+/* This variable, OTOH, needs to be made non-global ASAP. FIXME. */
+GLOBAL Config cfg;
 
 struct RSAKey;			       /* be a little careful of scope */
 
@@ -445,7 +455,7 @@ void random_destroy_seed(void);
  */
 void save_settings(char *section, int do_host, Config * cfg);
 void load_settings(char *section, int do_host, Config * cfg);
-void get_sesslist(int allocate);
+void get_sesslist(struct sesslist *, int allocate);
 void do_defaults(char *, Config *);
 void registry_cleanup(void);
 
