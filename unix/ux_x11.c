@@ -14,7 +14,15 @@ void platform_get_x11_auth(char *display, int *protocol,
     int maxsize = *datalen;
     char *localbuf;
 
-    command = dupprintf("xauth list %s 2>/dev/null", display);
+    /*
+     * Normally we should run `xauth list DISPLAYNAME'. However,
+     * there's an oddity when the display is local: the display
+     * `localhost:0' (or `:0') should become just `:0'.
+     */
+    if (!strncmp(display, "localhost:", 10))
+	command = dupprintf("xauth list %s 2>/dev/null", display+9);
+    else
+	command = dupprintf("xauth list %s 2>/dev/null", display);
     fp = popen(command, "r");
     sfree(command);
 
