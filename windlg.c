@@ -345,8 +345,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BOX_COLOURS2, IDC_BOXT_COLOURS2,
     IDC_BOLDCOLOUR,
     IDC_PALETTE,
-    IDC_STATIC,
-    IDC_LIST,
+    IDC_COLOURSTATIC,
+    IDC_COLOURLIST,
     IDC_RSTATIC,
     IDC_GSTATIC,
     IDC_BSTATIC,
@@ -511,10 +511,10 @@ static void init_dlg_ctrls(HWND hwnd) {
 	int i;
 	for (i=0; i<22; i++)
 	    if (cfg.bold_colour || permcolour[i])
-		SendDlgItemMessage (hwnd, IDC_LIST, LB_ADDSTRING, 0,
+		SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_ADDSTRING, 0,
 				    (LPARAM) colours[i]);
     }
-    SendDlgItemMessage (hwnd, IDC_LIST, LB_SETCURSEL, 0, 0);
+    SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_SETCURSEL, 0, 0);
     SetDlgItemInt (hwnd, IDC_RVALUE, cfg.colours[0][0], FALSE);
     SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[0][1], FALSE);
     SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[0][2], FALSE);
@@ -857,7 +857,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             beginbox(&cp, "Adjust the precise colours PuTTY displays",
                      IDC_BOX_COLOURS2, IDC_BOXT_COLOURS2);
 	    colouredit(&cp, "Select a colo&ur and then click to modify it:",
-		       IDC_STATIC, IDC_LIST,
+		       IDC_COLOURSTATIC, IDC_COLOURLIST,
 		       "&Modify...", IDC_CHANGE,
 		       "Red:", IDC_RSTATIC, IDC_RVALUE,
 		       "Green:", IDC_GSTATIC, IDC_GVALUE,
@@ -1535,17 +1535,17 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int n, i;
 		cfg.bold_colour = IsDlgButtonChecked (hwnd, IDC_BOLDCOLOUR);
-		n = SendDlgItemMessage (hwnd, IDC_LIST, LB_GETCOUNT, 0, 0);
+		n = SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_GETCOUNT, 0, 0);
 		if (cfg.bold_colour && n!=22) {
 		    for (i=0; i<22; i++)
 			if (!permcolour[i])
-			    SendDlgItemMessage (hwnd, IDC_LIST,
+			    SendDlgItemMessage (hwnd, IDC_COLOURLIST,
 						LB_INSERTSTRING, i,
 						(LPARAM) colours[i]);
 		} else if (!cfg.bold_colour && n!=12) {
 		    for (i=22; i-- ;)
 			if (!permcolour[i])
-			    SendDlgItemMessage (hwnd, IDC_LIST,
+			    SendDlgItemMessage (hwnd, IDC_COLOURLIST,
 						LB_DELETESTRING, i, 0);
 		}
 	    }
@@ -1555,13 +1555,14 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.try_palette = IsDlgButtonChecked (hwnd, IDC_PALETTE);
 	    break;
-	  case IDC_LIST:
+	  case IDC_COLOURLIST:
 	    if (HIWORD(wParam) == LBN_DBLCLK ||
 		HIWORD(wParam) == LBN_SELCHANGE) {
-		int i = SendDlgItemMessage (hwnd, IDC_LIST, LB_GETCURSEL,
+		int i = SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_GETCURSEL,
 					    0, 0);
 		if (!cfg.bold_colour)
 		    i = (i < 3 ? i*2 : i == 3 ? 5 : i*2-2);
+debug(("ooh\n"));
 		SetDlgItemInt (hwnd, IDC_RVALUE, cfg.colours[i][0], FALSE);
 		SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[i][1], FALSE);
 		SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[i][2], FALSE);
@@ -1572,7 +1573,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		static CHOOSECOLOR cc;
 		static DWORD custom[16] = {0};   /* zero initialisers */
-		int i = SendDlgItemMessage (hwnd, IDC_LIST, LB_GETCURSEL,
+		int i = SendDlgItemMessage (hwnd, IDC_COLOURLIST, LB_GETCURSEL,
 					    0, 0);
 		if (!cfg.bold_colour)
 		    i = (i < 3 ? i*2 : i == 3 ? 5 : i*2-2);
