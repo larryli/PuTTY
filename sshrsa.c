@@ -126,7 +126,8 @@ static void bigmod(unsigned short *a, unsigned short *m, int len)
 	    q--;
 	    t -= m1;
 	    r = (r + m0) & 0xffff; /* overflow? */
-	    if (r >= m0 && t > ((unsigned long) r << 16) + a[i+1])
+	    if (r >= (unsigned long)m0 &&
+                t > ((unsigned long) r << 16) + a[i+1])
 		q--;
 	}
 

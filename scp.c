@@ -270,7 +270,7 @@ static void source(char *src)
     time_t stat_starttime, stat_lasttime;
 
     attr = GetFileAttributes(src);
-    if (attr == -1) {
+    if (attr == (DWORD)-1) {
 	run_err("%s: No such file or directory", src);
 	return;
     }
@@ -425,7 +425,7 @@ static void sink(char *targ)
     char namebuf[2048];
     char ch;
     int targisdir = 0;
-    int settime = 0;
+    int settime;
     int exists;
     DWORD attr;
     HANDLE f;
@@ -438,7 +438,7 @@ static void sink(char *targ)
     char *stat_name;
 
     attr = GetFileAttributes(targ);
-    if (attr != -1 && (attr & FILE_ATTRIBUTE_DIRECTORY) != 0)
+    if (attr != (DWORD)-1 && (attr & FILE_ATTRIBUTE_DIRECTORY) != 0)
 	targisdir = 1;
 
     if (targetshouldbedirectory && !targisdir)
@@ -498,7 +498,7 @@ static void sink(char *targ)
 	    strcpy(namebuf, targ);
 	}
 	attr = GetFileAttributes(namebuf);
-	exists = (attr != -1);
+	exists = (attr != (DWORD)-1);
 
 	if (buf[0] == 'D') {
 	    if (exists && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0) {
@@ -540,7 +540,7 @@ static void sink(char *targ)
 
 	for (i = 0; i < size; i += 4096) {
 	    char transbuf[4096];
-	    int j, k = 4096;
+	    DWORD j, k = 4096;
 	    if (i + k > size) k = size - i;
 	    if (ssh_recv(transbuf, k) == 0)
 		bump("Lost connection");
@@ -732,7 +732,7 @@ static void tolocal(int argc, char *argv[])
 /*
  *  Initialize the Win$ock driver.
  */
-static void init_winsock()
+static void init_winsock(void)
 {
     WORD winsock_ver;
     WSADATA wsadata;
@@ -748,7 +748,7 @@ static void init_winsock()
 /*
  *  Short description of parameters.
  */
-static void usage()
+static void usage(void)
 {
     printf("PuTTY Secure Copy client\n");
     printf("%s\n", ver);

@@ -52,7 +52,6 @@ static void s_write (void *buf, int len) {
 static void c_write (char *buf, int len) {
     while (len--) {
 	int new_head = (inbuf_head + 1) & INBUF_MASK;
-	int c = (unsigned char) *buf;
 	if (new_head != inbuf_reap) {
 	    inbuf[inbuf_head] = *buf++;
 	    inbuf_head = new_head;

@@ -88,7 +88,7 @@ static int s_read (char *buf, int len) {
 /*
  * Read and decrypt one incoming SSH packet.
  */
-static void get_packet()
+static void get_packet(void)
 {
     unsigned char buf[4];
     int ret;

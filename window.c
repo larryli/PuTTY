@@ -37,7 +37,7 @@
 #define WM_IGNORE_SIZE (WM_USER + 2)
 #define WM_IGNORE_CLIP (WM_USER + 3)
 
-static int WINAPI WndProc (HWND, UINT, WPARAM, LPARAM);
+static LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output);
 static void cfgtopalette(void);
 static void init_palette(void);
@@ -622,8 +622,8 @@ static void click (Mouse_Button b, int x, int y) {
     lasttime = thistime;
 }
 
-static int WINAPI WndProc (HWND hwnd, UINT message,
-			   WPARAM wParam, LPARAM lParam) {
+static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
+                                 WPARAM wParam, LPARAM lParam) {
     HDC hdc;
     static int ignore_size = FALSE;
     static int ignore_clip = FALSE;
@@ -902,11 +902,11 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	ignore_size = TRUE;	       /* don't panic on next WM_SIZE msg */
 	break;
       case WM_ENTERSIZEMOVE:
-          EnableSizeTip(1);
-          break;
+        EnableSizeTip(1);
+        break;
       case WM_EXITSIZEMOVE:
-          EnableSizeTip(0);
-          break;
+        EnableSizeTip(0);
+        break;
       case WM_SIZING:
 	{
 	    int width, height, w, h, ew, eh;
@@ -916,7 +916,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    height = r->bottom - r->top - extra_height;
 	    w = (width + font_width/2) / font_width; if (w < 1) w = 1;
 	    h = (height + font_height/2) / font_height; if (h < 1) h = 1;
-        UpdateSizeTip(hwnd, w, h);
+            UpdateSizeTip(hwnd, w, h);
 	    ew = width - w * font_width;
 	    eh = height - h * font_height;
 	    if (ew != 0) {
@@ -940,7 +940,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    else
 		return 0;
 	}
-	break;
+        /* break;  (never reached) */
       case WM_SIZE:
 	if (wParam == SIZE_MINIMIZED) {
 	    SetWindowText (hwnd,
