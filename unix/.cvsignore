@@ -1,3 +1,4 @@
 Makefile.gtk Makefile
+local
 plink pterm putty
 *.log
