@@ -89,6 +89,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     int guess_width, guess_height;
 
     putty_inst = inst;
+    flags = FLAG_VERBOSE | FLAG_WINDOWED | FLAG_CONNECTION;
 
     winsock_ver = MAKEWORD(1, 1);
     if (WSAStartup(winsock_ver, &wsadata)) {

@@ -45,17 +45,21 @@ OBJ=obj
 RES=res
 
 ##-- objects putty puttytel
-GOBJS1 = window.$(OBJ) windlg.$(OBJ) terminal.$(OBJ) telnet.$(OBJ) raw.$(OBJ)
-GOBJS2 = xlat.$(OBJ) ldisc.$(OBJ) sizetip.$(OBJ)
-##-- objects putty
+GOBJS1 = window.$(OBJ) windlg.$(OBJ) terminal.$(OBJ)
+GOBJS2 = xlat.$(OBJ) sizetip.$(OBJ)
+##-- objects putty puttytel plink
+LOBJS1 = telnet.$(OBJ) raw.$(OBJ) ldisc.$(OBJ)
+##-- objects putty plink
 POBJS = ssh.$(OBJ) be_all.$(OBJ)
 ##-- objects puttytel
 TOBJS = be_nossh.$(OBJ)
+##-- objects plink
+PLOBJS = plink.$(OBJ) windlg.$(OBJ)
 ##-- objects pscp
 SOBJS = scp.$(OBJ) windlg.$(OBJ) ssh.$(OBJ) be_none.$(OBJ)
-##-- objects putty puttytel pscp
+##-- objects putty puttytel pscp plink
 MOBJS = misc.$(OBJ) version.$(OBJ)
-##-- objects putty pscp
+##-- objects putty pscp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
 OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ)
@@ -65,6 +69,8 @@ PRESRC = win_res.$(RES)
 TRESRC = nosshres.$(RES)
 ##-- resources pscp
 SRESRC = scp.$(RES)
+##-- resources plink
+LRESRC = plink.$(RES)
 ##--
 
 ##-- gui-apps
@@ -75,23 +81,29 @@ SRESRC = scp.$(RES)
 ##--
 
 LIBS1 = advapi32.lib user32.lib gdi32.lib
-LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
+LIBS2 = comctl32.lib comdlg32.lib
+SOCK1 = wsock32.lib
+SOCK2 = ws2_32.lib
 
-all: putty.exe puttytel.exe pscp.exe
+all: putty.exe puttytel.exe pscp.exe plink.exe
 
-putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
+putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe @putty.rsp
 
-puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
+puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
 	link $(LFLAGS) -out:puttytel.exe @puttytel.rsp
 
 pscp.exe: $(SOBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe @pscp.rsp
 
+plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(LRESRC) plink.rsp
+	link $(LFLAGS) -out:plink.exe @plink.rsp
+
 putty.rsp: makefile
 	echo /nologo /subsystem:windows > putty.rsp
 	echo $(GOBJS1) >> putty.rsp
 	echo $(GOBJS2) >> putty.rsp
+	echo $(LOBJS1) >> putty.rsp
 	echo $(POBJS) >> putty.rsp
 	echo $(MOBJS) >> putty.rsp
 	echo $(OBJS1) >> putty.rsp
@@ -100,16 +112,19 @@ putty.rsp: makefile
 	echo $(PRESRC) >> putty.rsp
 	echo $(LIBS1) >> putty.rsp
 	echo $(LIBS2) >> putty.rsp
+	echo $(SOCK1) >> putty.rsp
 
 puttytel.rsp: makefile
 	echo /nologo /subsystem:windows > puttytel.rsp
 	echo $(GOBJS1) >> puttytel.rsp
 	echo $(GOBJS2) >> puttytel.rsp
+	echo $(LOBJS1) >> puttytel.rsp
 	echo $(TOBJS) >> puttytel.rsp
 	echo $(MOBJS) >> puttytel.rsp
 	echo $(TRESRC) >> puttytel.rsp
 	echo $(LIBS1) >> puttytel.rsp
 	echo $(LIBS2) >> puttytel.rsp
+	echo $(SOCK1) >> puttytel.rsp
 
 pscp.rsp: makefile
 	echo /nologo /subsystem:console > pscp.rsp
@@ -121,6 +136,21 @@ pscp.rsp: makefile
 	echo $(SRESRC) >> pscp.rsp
 	echo $(LIBS1) >> pscp.rsp
 	echo $(LIBS2) >> pscp.rsp
+	echo $(SOCK1) >> pscp.rsp
+
+plink.rsp: makefile
+	echo /nologo /subsystem:console > plink.rsp
+	echo $(LOBJS1) >> plink.rsp
+	echo $(POBJS) >> plink.rsp
+	echo $(PLOBJS) >> plink.rsp
+	echo $(MOBJS) >> plink.rsp
+	echo $(OBJS1) >> plink.rsp
+	echo $(OBJS2) >> plink.rsp
+	echo $(OBJS3) >> plink.rsp
+	echo $(LRESRC) >> plink.rsp
+	echo $(LIBS1) >> plink.rsp
+ 	echo $(LIBS2) >> plink.rsp
+ 	echo $(SOCK2) >> plink.rsp
 
 ##-- dependencies
 window.$(OBJ): window.c putty.h win_res.h
@@ -150,6 +180,7 @@ version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c
 be_nossh.$(OBJ): be_nossh.c
 be_none.$(OBJ): be_none.c
+plink.$(OBJ): plink.c putty.h
 ##--
 
 # Hack to force version.obj to be rebuilt always

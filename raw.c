@@ -124,7 +124,7 @@ static char *raw_init (HWND hwnd, char *host, int port, char **realhost) {
 	  default: return "connect(): unknown error";
 	}
 
-    if (WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ |
+    if (hwnd && WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ |
 			FD_WRITE | FD_OOB | FD_CLOSE) == SOCKET_ERROR)
 	switch (WSAGetLastError()) {
 	  case WSAENETDOWN: return "Network is down";
@@ -215,10 +215,13 @@ static void raw_special (Telnet_Special code) {
     return;
 }
 
+SOCKET raw_socket(void) { return s; }
+
 Backend raw_backend = {
     raw_init,
     raw_msg,
     raw_send,
     raw_size,
-    raw_special
+    raw_special,
+    raw_socket
 };

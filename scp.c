@@ -844,7 +844,7 @@ int main(int argc, char *argv[])
 
     default_protocol = PROT_TELNET;
 
-    scp_flags = SCP_FLAG;
+    flags = 0;
     ssh_get_password = &get_password;
     init_winsock();
 
@@ -852,7 +852,7 @@ int main(int argc, char *argv[])
 	if (argv[i][0] != '-')
 	    break;
 	if (strcmp(argv[i], "-v") == 0)
-	    verbose = 1, scp_flags |= SCP_VERBOSE;
+	    verbose = 1, flags |= FLAG_VERBOSE;
 	else if (strcmp(argv[i], "-r") == 0)
 	    recursive = 1;
 	else if (strcmp(argv[i], "-p") == 0)

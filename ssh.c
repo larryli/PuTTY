@@ -16,7 +16,7 @@
 #endif
 
 #define logevent(s) { logevent(s); \
-                      if (IS_SCP && (scp_flags & SCP_VERBOSE) != 0) \
+                      if (!(flags & FLAG_CONNECTION) && (flags & FLAG_VERBOSE)) \
                       fprintf(stderr, "%s\n", s); }
 
 #define SSH1_MSG_DISCONNECT	1
@@ -160,7 +160,6 @@ static struct ssh_compress *cscomp = NULL;
 static struct ssh_compress *sccomp = NULL;
 static struct ssh_kex *kex = NULL;
 static struct ssh_hostkey *hostkey = NULL;
-int scp_flags = 0;
 int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
 
 static char *savedhost;
@@ -177,11 +176,9 @@ static int size_needed = FALSE;
 static void s_write (char *buf, int len) {
     while (len > 0) {
 	int i = send (s, buf, len, 0);
-	if (IS_SCP) {
-	    noise_ultralight(i);
-	    if (i <= 0)
-		fatalbox("Lost connection while sending");
-	}
+        noise_ultralight(i);
+        if (i <= 0)
+            fatalbox("Lost connection while sending");
 	if (i > 0)
 	    len -= i, buf += i;
     }
@@ -191,8 +188,7 @@ static int s_read (char *buf, int len) {
     int ret = 0;
     while (len > 0) {
 	int i = recv (s, buf, len, 0);
-	if (IS_SCP)
-	    noise_ultralight(i);
+        noise_ultralight(i);
 	if (i > 0)
 	    len -= i, buf += i, ret += i;
 	else
@@ -202,10 +198,11 @@ static int s_read (char *buf, int len) {
 }
 
 static void c_write (char *buf, int len) {
-    if (IS_SCP) {
-	if (len > 0 && buf[len-1] == '\n') len--;
-	if (len > 0 && buf[len-1] == '\r') len--;
-	if (len > 0) { fwrite(buf, len, 1, stderr); fputc('\n', stderr); }
+    if (!(flags & FLAG_CONNECTION)) {
+        int i;
+        for (i = 0; i < len; i++)
+            if (buf[i] != '\r')
+                fputc(buf[i], stderr);
 	return;
     }
     while (len--) 
@@ -1133,7 +1130,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static char username[100];
 	static int pos = 0;
 	static char c;
-	if (!IS_SCP && !*cfg.username) {
+	if (!(flags & FLAG_CONNECTION) && !*cfg.username) {
 	    c_write("login as: ", 10);
 	    while (pos >= 0) {
 		crWaitUntil(!ispkt);
@@ -1173,9 +1170,9 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    char stuff[200];
 	    strncpy(username, cfg.username, 99);
 	    username[99] = '\0';
-	    if (!IS_SCP) {
+            if (flags & FLAG_VERBOSE) {
 		sprintf(stuff, "Sent username \"%s\".\r\n", username);
-		c_write(stuff, strlen(stuff));
+                c_write(stuff, strlen(stuff));
 	    }
 	}
 
@@ -1204,7 +1201,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
         if (*cfg.keyfile && !tried_publickey)
             pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
-	if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD && IS_SCP) {
+	if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD && !FLAG_WINDOWED) {
 	    char prompt[200];
 	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
@@ -1242,9 +1239,11 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD)
                 c_write("password: ", 10);
             if (pwpkt_type == SSH1_CMSG_AUTH_RSA) {
-                c_write("Trying public key authentication.\r\n", 35);
+                if (flags & FLAG_VERBOSE)
+                    c_write("Trying public key authentication.\r\n", 35);
                 if (!rsakey_encrypted(cfg.keyfile)) {
-                    c_write("No passphrase required.\r\n", 25);
+                    if (flags & FLAG_VERBOSE)
+                        c_write("No passphrase required.\r\n", 25);
                     goto tryauth;
                 }
                 c_write("passphrase: ", 12);
@@ -1313,7 +1312,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
             crWaitUntil(ispkt);
             if (pktin.type == SSH1_SMSG_FAILURE) {
-                c_write("Server refused our public key.\r\n", 32);
+                if (flags & FLAG_VERBOSE)
+                    c_write("Server refused our public key.\r\n", 32);
                 continue;              /* go and try password */
             }
             if (pktin.type != SSH1_SMSG_AUTH_RSA_CHALLENGE)
@@ -1337,7 +1337,9 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
             crWaitUntil(ispkt);
             if (pktin.type == SSH1_SMSG_FAILURE) {
-                c_write("Failed to authenticate with our public key.\r\n", 45);
+                if (flags & FLAG_VERBOSE)
+                    c_write("Failed to authenticate with our public key.\r\n",
+                            45);
                 continue;              /* go and try password */
             } else if (pktin.type != SSH1_SMSG_SUCCESS) {
                 fatalbox("Bizarre response to RSA authentication response");
@@ -1351,7 +1353,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	memset(password, 0, strlen(password));
 	crWaitUntil(ispkt);
 	if (pktin.type == SSH1_SMSG_FAILURE) {
-	    c_write("Access denied\r\n", 15);
+            if (flags & FLAG_VERBOSE)
+                c_write("Access denied\r\n", 15);
 	    logevent("Authentication refused");
 	} else if (pktin.type == SSH1_MSG_DISCONNECT) {
 	    logevent("Received disconnect request");
@@ -1775,7 +1778,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	static int pos = 0;
 	static char c;
 
-	if (!IS_SCP && !*cfg.username) {
+	if ((flags & FLAG_CONNECTION) && !*cfg.username) {
 	    c_write("login as: ", 10);
 	    while (pos >= 0) {
 		crWaitUntilV(!ispkt);
@@ -1815,13 +1818,13 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    char stuff[200];
 	    strncpy(username, cfg.username, 99);
 	    username[99] = '\0';
-	    if (!IS_SCP) {
+	    if (flags & FLAG_VERBOSE) {
 		sprintf(stuff, "Using username \"%s\".\r\n", username);
 		c_write(stuff, strlen(stuff));
 	    }
 	}
 
-	if (IS_SCP) {
+	if (!(flags & FLAG_WINDOWED)) {
 	    char prompt[200];
 	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
@@ -2033,7 +2036,7 @@ static char *ssh_init (HWND hwnd, char *host, int port, char **realhost) {
     if (!do_ssh_init())
 	return "Protocol initialisation error";
 
-    if (WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ | FD_CLOSE) == SOCKET_ERROR)
+    if (hwnd && WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ | FD_CLOSE) == SOCKET_ERROR)
 	switch (WSAGetLastError()) {
 	  case WSAENETDOWN: return "Network is down";
 	  default: return "WSAAsyncSelect(): unknown error";
@@ -2134,8 +2137,6 @@ static void get_packet(void)
     long to_read;
     int len;
 
-    assert(IS_SCP);
-
     p = NULL;
     len = 0;
 
@@ -2163,8 +2164,6 @@ int ssh_scp_recv(unsigned char *buf, int len)
     static int pending_input_len = 0;
     static unsigned char *pending_input_ptr;
     int to_read = len;
-
-    assert(IS_SCP);
 
     if (pending_input_len >= to_read) {
 	memcpy(buf, pending_input_ptr, to_read);
@@ -2229,7 +2228,6 @@ int ssh_scp_recv(unsigned char *buf, int len)
  */
 void ssh_scp_send(unsigned char *buf, int len)
 {
-    assert(IS_SCP);
     if (s == INVALID_SOCKET)
 	return;
     send_packet(SSH1_CMSG_STDIN_DATA,
@@ -2242,7 +2240,6 @@ void ssh_scp_send(unsigned char *buf, int len)
  */
 void ssh_scp_send_eof(void)
 {
-    assert(IS_SCP);
     if (s == INVALID_SOCKET)
 	return;
     send_packet(SSH1_CMSG_EOF, PKT_END);
@@ -2257,8 +2254,6 @@ void ssh_scp_send_eof(void)
 char *ssh_scp_init(char *host, int port, char *cmd, char **realhost)
 {
     char buf[160], *p;
-
-    assert(IS_SCP);
 
 #ifdef MSCRYPTOAPI
     if (crypto_startup() == 0)
@@ -2295,11 +2290,13 @@ char *ssh_scp_init(char *host, int port, char *cmd, char **realhost)
     return NULL;
 }
 
+SOCKET ssh_socket(void) { return s; }
 
 Backend ssh_backend = {
     ssh_init,
     ssh_msg,
     ssh_send,
     ssh_size,
-    ssh_special
+    ssh_special,
+    ssh_socket
 };

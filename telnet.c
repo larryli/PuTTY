@@ -552,7 +552,7 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
 	  default: return "connect(): unknown error";
 	}
 
-    if (WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ |
+    if (hwnd && WSAAsyncSelect (s, hwnd, WM_NETEVENT, FD_READ |
 			FD_WRITE | FD_OOB | FD_CLOSE) == SOCKET_ERROR)
 	switch (WSAGetLastError()) {
 	  case WSAENETDOWN: return "Network is down";
@@ -631,7 +631,6 @@ static int telnet_msg (WPARAM wParam, LPARAM lParam) {
 		    s = INVALID_SOCKET;
 		    return 0;
 		}
-
 	        do_telnet_read (buf, ret);
 	    } while (in_synch);
 	}
@@ -733,10 +732,13 @@ static void telnet_special (Telnet_Special code) {
     }
 }
 
+SOCKET telnet_socket(void) { return s; }
+
 Backend telnet_backend = {
     telnet_init,
     telnet_msg,
     telnet_send,
     telnet_size,
-    telnet_special
+    telnet_special,
+    telnet_socket
 };

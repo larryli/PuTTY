@@ -109,6 +109,7 @@ typedef struct {
     void (*send) (char *buf, int len);
     void (*size) (void);
     void (*special) (Telnet_Special code);
+    SOCKET (*socket) (void);
 } Backend;
 
 GLOBAL Backend *back;
@@ -195,6 +196,14 @@ typedef struct {
 #define DEFAULT_PROTOCOL PROT_SSH
 #define DEFAULT_PORT 22
 #endif
+
+/*
+ * Some global flags denoting the type of application.
+ */
+#define FLAG_VERBOSE  0x0001
+#define FLAG_WINDOWED 0x0002
+#define FLAG_CONNECTION 0x0004
+GLOBAL int flags;
 
 GLOBAL Config cfg;
 GLOBAL int default_protocol;
