@@ -2377,7 +2377,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		of.nMaxFile = sizeof(filename);
 		of.lpstrFileTitle = NULL;
 		of.lpstrInitialDir = NULL;
-		of.lpstrTitle = "Select Public Key File";
+		of.lpstrTitle = "Select Private Key File";
 		of.Flags = 0;
 		if (GetOpenFileName(&of)) {
 		    strcpy(cfg.keyfile, filename);
