@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.34 2002/09/02 13:04:46 jacob Exp $
+\versionid $Id: faq.but,v 1.35 2002/09/14 10:24:27 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -742,6 +742,10 @@ packet")
 \e{OpenSSH 3.4p1:} as of 3.4p1, only the problem with SSH 1 and
 Blowfish remains. Rebuild your server, apply the patch linked to from
 bug 138 above, or use another cipher (e.g., 3DES) instead.
+
+\e{Other versions:} we occasionally get reports of the same symptom
+and workarounds with older versions of OpenSSH, although it's not
+clear the underlying cause is the same.
 
 \S{faq-ssh2key-ssh1conn}{Question} Why do I see "Couldn't load private
 key from ..."? Why can PuTTYgen load my key but not PuTTY?
