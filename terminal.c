@@ -1254,8 +1254,8 @@ void term_paint (Context ctx, int l, int t, int r, int b) {
     right = (r - 1) / font_width;
     top = t / font_height;
     bottom = (b - 1) / font_height;
-    for (i = top; i <= bottom && j<rows ; i++)
-      for (j = left; j <= right && j<cols ; j++)
+    for (i = top; i <= bottom && i < rows ; i++)
+      for (j = left; j <= right && j < cols ; j++)
 	    disptext[i*(cols+1)+j] = ATTR_INVALID;
 
     do_paint (ctx, FALSE);
