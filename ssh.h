@@ -315,6 +315,10 @@ Bignum bignum_rshift(Bignum number, int shift);
 int bignum_cmp(Bignum a, Bignum b);
 char *bignum_decimal(Bignum x);
 
+#ifdef DEBUG
+void diagbn(char *prefix, Bignum md);
+#endif
+
 void *dh_setup_group1(void);
 void *dh_setup_group(Bignum pval, Bignum gval);
 void dh_cleanup(void *);
