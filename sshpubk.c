@@ -8,10 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <stdarg.h> /* FIXME */
-#include <windows.h> /* FIXME */
-
-#include "putty.h"
 #include "ssh.h"
 
 #define GET_32BIT(cp) \
@@ -21,7 +17,6 @@
     ((unsigned long)(unsigned char)(cp)[3]))
 
 #define rsa_signature "SSH PRIVATE KEY FILE FORMAT 1.1\n"
-#define dss_signature "-----BEGIN DSA PRIVATE KEY-----\n"
 
 #define BASE64_TOINT(x) ( (x)-'A'<26 ? (x)-'A'+0 :\
                           (x)-'a'<26 ? (x)-'a'+26 :\
