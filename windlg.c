@@ -1224,7 +1224,7 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
 static void create_controls(HWND hwnd, int dlgtype, int panel)
 {
     if (panel == sessionpanelstart) {
-	/* The Session panel. Accelerators used: [acgo] nprtih elsd w */
+	/* The Session panel. Accelerators used: [acgoh] nprtis elvd w */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Basic options for your PuTTY session",
@@ -1248,9 +1248,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 			  "&Telnet", IDC_PROTTELNET,
 			  "Rlog&in", IDC_PROTRLOGIN,
 #ifdef FWHACK
-			  "SS&H/hack",
+			  "&SSH/hack",
 #else
-			  "SS&H",
+			  "&SSH",
 #endif
 			  IDC_PROTSSH, NULL);
 	    }
@@ -1260,7 +1260,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    sesssaver(&cp, "Sav&ed Sessions",
 		      IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
 		      "&Load", IDC_SESSLOAD,
-		      "&Save", IDC_SESSSAVE, "&Delete", IDC_SESSDEL, NULL);
+		      "Sa&ve", IDC_SESSSAVE, "&Delete", IDC_SESSDEL, NULL);
 	    endbox(&cp);
 	}
 	beginbox(&cp, NULL, IDC_BOX_SESSION3);
@@ -1272,7 +1272,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == loggingpanelstart) {
-	/* The Logging panel. Accelerators used: [acgo] tplsfwe */
+	/* The Logging panel. Accelerators used: [acgoh] tplsfwe */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling session logging",
@@ -1299,7 +1299,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == terminalpanelstart) {
-	/* The Terminal panel. Accelerators used: [acgo] wdlen hts */
+	/* The Terminal panel. Accelerators used: [acgoh] wdren lts */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the terminal emulation",
@@ -1307,7 +1307,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	beginbox(&cp, "Set various terminal options", IDC_BOX_TERMINAL1);
 	checkbox(&cp, "Auto &wrap mode initially on", IDC_WRAPMODE);
 	checkbox(&cp, "&DEC Origin Mode initially on", IDC_DECOM);
-	checkbox(&cp, "Implicit CR in every &LF", IDC_LFHASCR);
+	checkbox(&cp, "Implicit C&R in every LF", IDC_LFHASCR);
 	checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
 	checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
 	multiedit(&cp,
@@ -1316,7 +1316,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	endbox(&cp);
 
 	beginbox(&cp, "Line discipline options", IDC_BOX_TERMINAL2);
-	radioline(&cp, "Local ec&ho:", IDC_ECHOSTATIC, 3,
+	radioline(&cp, "&Local echo:", IDC_ECHOSTATIC, 3,
 		  "Auto", IDC_ECHOBACKEND,
 		  "Force on", IDC_ECHOYES, "Force off", IDC_ECHONO, NULL);
 	radioline(&cp, "Local line edi&ting:", IDC_EDITSTATIC, 3,
@@ -1326,7 +1326,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == bellpanelstart) {
-	/* The Bell panel. Accelerators used: [acgo] bdsm wit */
+	/* The Bell panel. Accelerators used: [acgoh] bdsm wit */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the terminal bell",
@@ -1363,7 +1363,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == keyboardpanelstart) {
-	/* The Keyboard panel. Accelerators used: [acgo] bhf ruyntd */
+	/* The Keyboard panel. Accelerators used: [acgoh] bef ruyntd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the effects of keys",
@@ -1372,7 +1372,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	radioline(&cp, "The &Backspace key", IDC_DELSTATIC, 2,
 		  "Control-H", IDC_DEL008,
 		  "Control-? (127)", IDC_DEL127, NULL);
-	radioline(&cp, "The &Home and End keys", IDC_HOMESTATIC, 2,
+	radioline(&cp, "The Home and &End keys", IDC_HOMESTATIC, 2,
 		  "Standard", IDC_HOMETILDE, "rxvt", IDC_HOMERXVT, NULL);
 	radioline(&cp, "The &Function keys and keypad", IDC_FUNCSTATIC, 3,
 		  "ESC[n~", IDC_FUNCTILDE,
@@ -1404,7 +1404,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == windowpanelstart) {
-	/* The Window panel. Accelerators used: [acgo] rmz sdikp */
+	/* The Window panel. Accelerators used: [acgoh] rmz sdikp */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling PuTTY's window",
@@ -1432,7 +1432,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == appearancepanelstart) {
-	/* The Appearance panel. Accelerators used: [acgo] luvb h ti p s */
+	/* The Appearance panel. Accelerators used: [acgoh] luvb n ti p s */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Configure the appearance of PuTTY's window",
@@ -1446,7 +1446,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	endbox(&cp);
 	beginbox(&cp, "Set the font used in the terminal window",
 		 IDC_BOX_APPEARANCE2);
-	staticbtn(&cp, "", IDC_FONTSTATIC, "C&hange...", IDC_CHOOSEFONT);
+	staticbtn(&cp, "", IDC_FONTSTATIC, "Cha&nge...", IDC_CHOOSEFONT);
 	endbox(&cp);
 	beginbox(&cp, "Adjust the use of the window title",
 		 IDC_BOX_APPEARANCE3);
@@ -1468,7 +1468,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == behaviourpanelstart) {
-	/* The Behaviour panel. Accelerators used: [acgo] w4yltf */
+	/* The Behaviour panel. Accelerators used: [acgoh] w4yltf */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Configure the behaviour of PuTTY's window",
@@ -1484,7 +1484,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == translationpanelstart) {
-	/* The Translation panel. Accelerators used: [acgo] rxbepus */
+	/* The Translation panel. Accelerators used: [acgoh] rxbepus */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling character set translation",
@@ -1512,7 +1512,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == selectionpanelstart) {
-	/* The Selection panel. Accelerators used: [acgo] df wxp hst nr */
+	/* The Selection panel. Accelerators used: [acgoh] df wxp est nr */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling copy and paste",
@@ -1543,14 +1543,14 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	endbox(&cp);
 	beginbox(&cp, "Control the select-one-word-at-a-time mode",
 		 IDC_BOX_SELECTION3);
-	charclass(&cp, "C&haracter classes:", IDC_CCSTATIC, IDC_CCLIST,
+	charclass(&cp, "Charact&er classes:", IDC_CCSTATIC, IDC_CCLIST,
 		  "&Set", IDC_CCSET, IDC_CCEDIT,
 		  "&to class", IDC_CCSTATIC2);
 	endbox(&cp);
     }
 
     if (panel == colourspanelstart) {
-	/* The Colours panel. Accelerators used: [acgo] blum */
+	/* The Colours panel. Accelerators used: [acgoh] blum */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling use of colours",
@@ -1573,7 +1573,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == connectionpanelstart) {
-	/* The Connection panel. Accelerators used: [acgo] tukn */
+	/* The Connection panel. Accelerators used: [acgoh] tukn */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the connection",
@@ -1609,7 +1609,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == telnetpanelstart) {
-	/* The Telnet panel. Accelerators used: [acgo] svldr bftk */
+	/* The Telnet panel. Accelerators used: [acgoh] svldr bftk */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1639,7 +1639,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == rloginpanelstart) {
-	/* The Rlogin panel. Accelerators used: [acgo] sl */
+	/* The Rlogin panel. Accelerators used: [acgoh] sl */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1655,7 +1655,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshpanelstart) {
-	/* The SSH panel. Accelerators used: [acgo] r pe12i sd */
+	/* The SSH panel. Accelerators used: [acgoh] r pe12i sd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1686,7 +1686,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshauthpanelstart) {
-	/* The SSH authentication panel. Accelerators used: [acgo] m fkiuw */
+	/* The SSH authentication panel. Accelerators used: [acgoh] m fkiuw */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1712,7 +1712,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == tunnelspanelstart) {
-	/* The Tunnels panel. Accelerators used: [acgo] deilmrsthx */
+	/* The Tunnels panel. Accelerators used: [acgoh] deilmrstxp */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1726,7 +1726,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     	    beginbox(&cp, "Port forwarding", IDC_BOX_TUNNELS2);
 	    checkbox(&cp, "Local ports accept connections from o&ther hosts",
 		     IDC_LPORT_ALL);
-	    checkbox(&cp, "Remote ports do t&he same (SSH v2 only)",
+	    checkbox(&cp, "Remote &ports do the same (SSH v2 only)",
 		     IDC_RPORT_ALL);
 	    staticbtn(&cp, "Forwarded ports:", IDC_PFWDSTATIC,
 		      "&Remove", IDC_PFWDREMOVE);
