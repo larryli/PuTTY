@@ -2179,8 +2179,8 @@ void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
  * strings in any listbox then you MUST not assign them different
  * IDs and expect to get meaningful results back.
  */
-void dlg_listbox_addwithindex(union control *ctrl, void *dlg,
-			      char const *text, int id)
+void dlg_listbox_addwithid(union control *ctrl, void *dlg,
+			   char const *text, int id)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);

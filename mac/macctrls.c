@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.14 2003/03/25 23:23:03 ben Exp $ */
+/* $Id: macctrls.c,v 1.15 2003/03/25 23:45:56 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -1114,8 +1114,8 @@ void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
 	dlg_macpopup_add(ctrl, dlg, text);
 }
 
-static void dlg_macpopup_addwithindex(union control *ctrl, void *dlg,
-				      char const *text, int id)
+static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
+				   char const *text, int id)
 {
     struct macctrls *mcs = dlg;
     union macctrl *mc = findbyctrl(mcs, ctrl);
@@ -1133,12 +1133,12 @@ static void dlg_macpopup_addwithindex(union control *ctrl, void *dlg,
     mc->popup.ids[index] = id;
 }
 
-void dlg_listbox_addwithindex(union control *ctrl, void *dlg,
-			      char const *text, int id)
+void dlg_listbox_addwithid(union control *ctrl, void *dlg,
+			   char const *text, int id)
 {
 
     if (ctrl->listbox.height == 0)
-	dlg_macpopup_addwithindex(ctrl, dlg, text, id);
+	dlg_macpopup_addwithid(ctrl, dlg, text, id);
 }
 
 int dlg_listbox_getid(union control *ctrl, void *dlg, int index)

@@ -323,7 +323,7 @@ void dlg_listbox_del(union control *ctrl, void *dlg, int index)
 
 void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
 {
-    dlg_listbox_addwithindex(ctrl, dlg, text, 0);
+    dlg_listbox_addwithid(ctrl, dlg, text, 0);
 }
 
 /*
@@ -333,8 +333,8 @@ void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
  * strings in any listbox then you MUST not assign them different
  * IDs and expect to get meaningful results back.
  */
-void dlg_listbox_addwithindex(union control *ctrl, void *dlg,
-			      char const *text, int id)
+void dlg_listbox_addwithid(union control *ctrl, void *dlg,
+			   char const *text, int id)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);

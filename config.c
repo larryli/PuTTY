@@ -110,7 +110,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 		    break;
 		}
 	    }
-	    dlg_listbox_addwithindex(ctrl, dlg, cstr, c);
+	    dlg_listbox_addwithid(ctrl, dlg, cstr, c);
 	}
 	dlg_update_done(ctrl, dlg);
 
@@ -179,9 +179,9 @@ static void sshbug_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
-	dlg_listbox_addwithindex(ctrl, dlg, "Auto", AUTO);
-	dlg_listbox_addwithindex(ctrl, dlg, "Off", FORCE_OFF);
-	dlg_listbox_addwithindex(ctrl, dlg, "On", FORCE_ON);
+	dlg_listbox_addwithid(ctrl, dlg, "Auto", AUTO);
+	dlg_listbox_addwithid(ctrl, dlg, "Off", FORCE_OFF);
+	dlg_listbox_addwithid(ctrl, dlg, "On", FORCE_ON);
 	switch (*(int *)ATOFFSET(data, ctrl->listbox.context.i)) {
 	  case AUTO:      dlg_listbox_select(ctrl, dlg, 0); break;
 	  case FORCE_OFF: dlg_listbox_select(ctrl, dlg, 1); break;
