@@ -1255,6 +1255,10 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
     moduli[NPRIMES] = modulus;
     residues[NPRIMES] = (bignum_mod_short(p, (unsigned short) modulus)
 			 + modulus - residue);
+    if (factor)
+	multipliers[NPRIMES] = bignum_mod_short(factor, modulus);
+    else
+	multipliers[NPRIMES] = 1;
     delta = 0;
     while (1) {
 	for (i = 0; i < (sizeof(moduli) / sizeof(*moduli)); i++)
