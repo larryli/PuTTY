@@ -1,4 +1,4 @@
-\versionid $Id: intro.but,v 1.4 2001/11/25 16:57:45 simon Exp $
+\versionid $Id: intro.but,v 1.5 2004/04/08 12:38:53 simon Exp $
 
 \C{intro} Introduction to PuTTY
 
@@ -15,18 +15,18 @@ logging in to a multi-user computer from another computer, over a
 network.
 
 Multi-user operating systems, such as Unix and VMS, usually present
-a command-line interface to the user, much like the \q{Command
-Prompt} or \q{MS-DOS Prompt} in Windows. The system prints a prompt,
-and you type commands which the system will obey.
+a command-line interface to the user, much like the \q{\i{Command
+Prompt}} or \q{\i{MS-DOS Prompt}} in Windows. The system prints a
+prompt, and you type commands which the system will obey.
 
 Using this type of interface, there is no need for you to be sitting
 at the same machine you are typing commands to. The commands, and
 responses, can be sent over a network, so you can sit at one
 computer and give commands to another one, or even to more than one.
 
-SSH, Telnet and Rlogin are \e{network protocols} that allow you to
-do this. On the computer you sit at, you run a \e{client}, which
-makes a network connection to the other computer (the \e{server}).
+SSH, Telnet and Rlogin are \i\e{network protocols} that allow you to
+do this. On the computer you sit at, you run a \i\e{client}, which
+makes a network connection to the other computer (the \i\e{server}).
 The network connection carries your keystrokes and commands from the
 client to the server, and carries the server's responses back to
 you.
@@ -42,7 +42,7 @@ You might want to use SSH, Telnet or Rlogin if:
 able to access from somewhere else
 
 \b your Internet Service Provider provides you with a login account
-on a web server. (This might also be known as a \e{shell account}.
+on a web server. (This might also be known as a \i\e{shell account}.
 A \e{shell} is the program that runs on the server and interprets
 your commands for you.)
 
@@ -58,8 +58,8 @@ remote login protocols.
 
 \H{which-one} How do SSH, Telnet and Rlogin differ?
 
-This list summarises some of the differences between SSH, Telnet and
-Rlogin.
+This list summarises some of the \i{differences between SSH, Telnet
+and Rlogin}.
 
 \b SSH is a recently designed, high-security protocol. It uses
 strong cryptography to protect your connection against
@@ -91,5 +91,6 @@ we recommend you use SSH. If the server you want to connect to
 doesn't support SSH, it might be worth trying to persuade the
 administrator to install it.
 
-If you are behind a good firewall, it is more likely to be safe to
-use Telnet or Rlogin, but we still recommend you use SSH.
+If your client and server are both behind the same (good) firewall,
+it is more likely to be safe to use Telnet or Rlogin, but we still
+recommend you use SSH.
