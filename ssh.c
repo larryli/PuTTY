@@ -4502,6 +4502,10 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	      ssh->cscipher->text_name);
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
+    logeventf(ssh, "Initialised %.200s client->server MAC algorithm",
+	      ssh->csmac->text_name);
+    logeventf(ssh, "Initialised %.200s server->client MAC algorithm",
+	      ssh->scmac->text_name);
     if (ssh->cscomp->text_name)
 	logeventf(ssh, "Initialised %s compression",
 		  ssh->cscomp->text_name);

@@ -311,5 +311,6 @@ const struct ssh_mac ssh_md5 = {
     hmacmd5_make_context, hmacmd5_free_context, hmacmd5_key_16,
     hmacmd5_generate, hmacmd5_verify,
     "hmac-md5",
-    16
+    16,
+    "HMAC-MD5"
 };

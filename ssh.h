@@ -170,6 +170,7 @@ struct ssh_mac {
     int (*verify) (void *, unsigned char *blk, int len, unsigned long seq);
     char *name;
     int len;
+    char *text_name;
 };
 
 struct ssh_kex {
