@@ -15,8 +15,9 @@
 
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
-static char **negots = NULL;
-static int nnegots = 0, negsize = 0;
+static char **events = NULL;
+static int nevents = 0, negsize = 0;
+
 static HWND logbox = NULL, abtbox = NULL;
 
 static char hex[16] = "0123456789ABCDEF";
@@ -153,6 +154,9 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "LinuxFunctionKeys", cfg.linux_funkeys);
     wppi (sesskey, "ApplicationCursorKeys", cfg.app_cursor);
     wppi (sesskey, "ApplicationKeypad", cfg.app_keypad);
+    wppi (sesskey, "NetHackKeypad", cfg.nethack_keypad);
+    wppi (sesskey, "AltF4", cfg.alt_f4);
+    wppi (sesskey, "AltSpace", cfg.alt_space);
     wppi (sesskey, "ScrollbackLines", cfg.savelines);
     wppi (sesskey, "DECOriginMode", cfg.dec_om);
     wppi (sesskey, "AutoWrapMode", cfg.wrap_mode);
@@ -283,6 +287,9 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "LinuxFunctionKeys", 0, &cfg.linux_funkeys);
     gppi (sesskey, "ApplicationCursorKeys", 0, &cfg.app_cursor);
     gppi (sesskey, "ApplicationKeypad", 0, &cfg.app_keypad);
+    gppi (sesskey, "NetHackKeypad", 0, &cfg.nethack_keypad);
+    gppi (sesskey, "AltF4", 1, &cfg.alt_f4);
+    gppi (sesskey, "AltSpace", 0, &cfg.alt_space);
     gppi (sesskey, "ScrollbackLines", 200, &cfg.savelines);
     gppi (sesskey, "DECOriginMode", 0, &cfg.dec_om);
     gppi (sesskey, "AutoWrapMode", 1, &cfg.wrap_mode);
@@ -355,9 +362,9 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-	for (i=0; i<nnegots; i++)
+	for (i=0; i<nevents; i++)
 	    SendDlgItemMessage (hwnd, IDN_LIST, LB_ADDSTRING,
-				0, (LPARAM)negots[i]);
+				0, (LPARAM)events[i]);
 	return 1;
 /*      case WM_CTLCOLORDLG: */
 /*	return (int) GetStockObject (LTGRAY_BRUSH); */
@@ -624,8 +631,11 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 			  cfg.linux_funkeys ? IDC1_FUNCLINUX : IDC1_FUNCTILDE);
 	CheckRadioButton (hwnd, IDC1_CURNORMAL, IDC1_CURAPPLIC,
 			  cfg.app_cursor ? IDC1_CURAPPLIC : IDC1_CURNORMAL);
-	CheckRadioButton (hwnd, IDC1_KPNORMAL, IDC1_KPAPPLIC,
+	CheckRadioButton (hwnd, IDC1_KPNORMAL, IDC1_KPNH,
+			  cfg.nethack_keypad ? IDC1_KPNH :
 			  cfg.app_keypad ? IDC1_KPAPPLIC : IDC1_KPNORMAL);
+	CheckDlgButton (hwnd, IDC1_ALTF4, cfg.alt_f4);
+	CheckDlgButton (hwnd, IDC1_ALTSPACE, cfg.alt_space);
 	break;
       case WM_COMMAND:
 	if (HIWORD(wParam) == BN_CLICKED ||
@@ -646,10 +656,25 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 	      case IDC1_KPNORMAL:
 	      case IDC1_KPAPPLIC:
 		cfg.app_keypad = IsDlgButtonChecked (hwnd, IDC1_KPAPPLIC);
+		cfg.nethack_keypad = FALSE;
+		break;
+	      case IDC1_KPNH:
+		cfg.app_keypad = FALSE;
+		cfg.nethack_keypad = TRUE;
 		break;
 	      case IDC1_CURNORMAL:
 	      case IDC1_CURAPPLIC:
 		cfg.app_cursor = IsDlgButtonChecked (hwnd, IDC1_CURAPPLIC);
+		break;
+	      case IDC1_ALTF4:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		    cfg.alt_f4 = IsDlgButtonChecked (hwnd, IDC1_ALTF4);
+		break;
+	      case IDC1_ALTSPACE:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		    cfg.alt_space = IsDlgButtonChecked (hwnd, IDC1_ALTSPACE);
 		break;
 	    }
     }
@@ -1361,20 +1386,20 @@ void do_defaults (char *session) {
 	load_settings ("Default Settings", FALSE);
 }
 
-void lognegot (char *string) {
-    if (nnegots >= negsize) {
+void logevent (char *string) {
+    if (nevents >= negsize) {
 	negsize += 64;
-	negots = srealloc (negots, negsize * sizeof(*negots));
+	events = srealloc (events, negsize * sizeof(*events));
     }
-    negots[nnegots] = smalloc(1+strlen(string));
-    strcpy (negots[nnegots], string);
-    nnegots++;
+    events[nevents] = smalloc(1+strlen(string));
+    strcpy (events[nevents], string);
+    nevents++;
     if (logbox)
 	SendDlgItemMessage (logbox, IDN_LIST, LB_ADDSTRING,
 			    0, (LPARAM)string);
 }
 
-void shownegot (HWND hwnd) {
+void showeventlog (HWND hwnd) {
     if (!logbox) {
 	logbox = CreateDialog (hinst, MAKEINTRESOURCE(IDD_LOGBOX),
 			       hwnd, LogProc);

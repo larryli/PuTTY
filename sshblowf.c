@@ -396,6 +396,7 @@ static void blowfish_sesskey(unsigned char *key)
     ectx.iv0 = 0;
     ectx.iv1 = 0;
     dctx = ectx;
+    logevent("Initialised Blowfish encryption");
 }
 
 static void blowfish_encrypt_blk(unsigned char *blk, int len)

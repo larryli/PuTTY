@@ -184,7 +184,7 @@ static void log_option (char *sender, int cmd, int option) {
 	    (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
 	     cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<??>"),
 	    telopt(option));
-    lognegot(buf);
+    logevent(buf);
 }
 
 static void send_opt (int cmd, int option) {
@@ -285,11 +285,11 @@ static void process_subneg (void) {
 	    n = 4 + strlen(cfg.termspeed);
 	    b[n] = IAC; b[n+1] = SE;
 	    s_write (b, n+2);
-	    lognegot("server:\tSB TSPEED SEND");
+	    logevent("server:\tSB TSPEED SEND");
 	    sprintf(logbuf, "client:\tSB TSPEED IS %s", cfg.termspeed);
-	    lognegot (logbuf);
+	    logevent (logbuf);
 	} else
-	    lognegot ("server:\tSB TSPEED <something weird>");
+	    logevent ("server:\tSB TSPEED <something weird>");
 	break;
       case TELOPT_TTYPE:
 	if (sb_len == 1 && sb_buf[0] == TELQUAL_SEND) {
@@ -302,11 +302,11 @@ static void process_subneg (void) {
 	    b[n+4] = IAC; b[n+5] = SE;
 	    s_write (b, n+6);
 	    b[n+4] = 0;
-	    lognegot("server:\tSB TTYPE SEND");
+	    logevent("server:\tSB TTYPE SEND");
 	    sprintf(logbuf, "client:\tSB TTYPE IS %s", b+4);
-	    lognegot(logbuf);
+	    logevent(logbuf);
 	} else
-	    lognegot("server:\tSB TTYPE <something weird>\r\n");
+	    logevent("server:\tSB TTYPE <something weird>\r\n");
 	break;
       case TELOPT_OLD_ENVIRON:
       case TELOPT_NEW_ENVIRON:	
@@ -316,7 +316,7 @@ static void process_subneg (void) {
 	    char logbuf[50];
 	    p++;
 	    sprintf (logbuf, "server:\tSB %s SEND", telopt(sb_opt));
-	    lognegot (logbuf);
+	    logevent (logbuf);
 	    if (sb_opt == TELOPT_OLD_ENVIRON) {
 		if (cfg.rfc_environ) {
 		    value = RFC_VALUE;
@@ -368,7 +368,7 @@ static void process_subneg (void) {
 	    s_write (b, n);
 	    sprintf(logbuf, "client:\tSB %s IS %s", telopt(sb_opt),
 		    n==6 ? "<nothing>" : "<stuff>");
-	    lognegot (logbuf);
+	    logevent (logbuf);
 	}
 	break;
     }
@@ -681,7 +681,7 @@ static void telnet_size(void) {
     sprintf(logbuf, "client:\tSB NAWS %d,%d",
 	    ((unsigned char)b[3] << 8) + (unsigned char)b[4],
 	    ((unsigned char)b[5] << 8) + (unsigned char)b[6]);
-    lognegot (logbuf);
+    logevent (logbuf);
 }
 
 /*

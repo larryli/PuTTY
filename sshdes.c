@@ -657,6 +657,7 @@ static void des3_sesskey(unsigned char *key) {
     memset(div1, 0, sizeof(div1));
     memset(div2, 0, sizeof(div2));
     memset(div3, 0, sizeof(div3));
+    logevent("Initialised triple-DES encryption");
 }
 
 static void des3_encrypt_blk(unsigned char *blk, int len) {
@@ -678,6 +679,7 @@ static void des_sesskey(unsigned char *key) {
     memset(eiv1, 0, sizeof(eiv1));
     des_set_key(key, &dkey1);
     memset(div1, 0, sizeof(div1));
+    logevent("Initialised single-DES encryption");
 }
 
 static void des_encrypt_blk(unsigned char *blk, int len) {

@@ -44,3 +44,5 @@ void SHATransform(word32 *digest, word32 *data);
 
 int random_byte(void);
 void random_add_noise(void *noise, int length);
+
+void logevent (char *);

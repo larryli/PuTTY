@@ -114,6 +114,9 @@ typedef struct {
     int linux_funkeys;
     int app_cursor;
     int app_keypad;
+    int nethack_keypad;
+    int alt_f4;			       /* is it special? */
+    int alt_space;		       /* is it special? */
     /* Terminal options */
     int savelines;
     int dec_om;
@@ -186,8 +189,8 @@ void random_save_seed(void);
 int do_config (void);
 int do_reconfig (HWND);
 void do_defaults (char *);
-void lognegot (char *);
-void shownegot (HWND);
+void logevent (char *);
+void showeventlog (HWND);
 void showabout (HWND);
 void verify_ssh_host_key(char *host, struct RSAKey *key);
 void get_sesslist(int allocate);

@@ -341,9 +341,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	    AppendMenu (p, MF_ENABLED, IDM_TEL_EOR, "End Of Record");
 	    AppendMenu (p, MF_ENABLED, IDM_TEL_EOF, "End Of File");
 	    AppendMenu (m, MF_POPUP | MF_ENABLED, (UINT) p, "Telnet Command");
-	    AppendMenu (m, MF_ENABLED, IDM_SHOWLOG, "Show Negotiation");
 	    AppendMenu (m, MF_SEPARATOR, 0, 0);
 	}
+	AppendMenu (m, MF_ENABLED, IDM_SHOWLOG, "Event Log");
+	AppendMenu (m, MF_SEPARATOR, 0, 0);
 	AppendMenu (m, MF_ENABLED, IDM_NEWSESS, "New Session");
 	AppendMenu (m, MF_ENABLED, IDM_DUPSESS, "Duplicate Session");
 	s = CreateMenu();
@@ -628,7 +629,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
 	  case IDM_SHOWLOG:
-	    shownegot(hwnd);
+	    showeventlog(hwnd);
 	    break;
 	  case IDM_NEWSESS:
 	  case IDM_DUPSESS:
@@ -1013,6 +1014,8 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    int len;
 
 	    len = TranslateKey (wParam, lParam, buf);
+	    if (len == -1)
+		return DefWindowProc (hwnd, message, wParam, lParam);
 	    back->send (buf, len);
 	}
 	return 0;
@@ -1253,9 +1256,12 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
 	SendMessage (hwnd, WM_VSCROLL, SB_PAGEDOWN, 0);
 	return 0;
     }
-    if ((lParam & 0x20000000) && wParam == VK_F4) {
-	SendMessage (hwnd, WM_CLOSE, 0, 0);
-	return 0;
+    if ((lParam & 0x20000000) && wParam == VK_F4 && cfg.alt_f4) {
+	return -1;
+    }
+    if ((lParam & 0x20000000) && wParam == VK_SPACE && cfg.alt_space) {
+	SendMessage (hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
+	return -1;
     }
 
     /*
@@ -1281,12 +1287,29 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
 	return p - output;
     }
 
-    /*
-     * If we're in applications keypad mode, we have to process it
-     * before char-map translation, because it will pre-empt lots
-     * of stuff, even if NumLock is off.
-     */
-    if (app_keypad_keys) {
+    if (cfg.nethack_keypad) {
+	int shift = keystate[VK_SHIFT] & 0x80;
+        /*
+         * NB the shifted versions only work with numlock off.
+         */
+	switch ( (lParam >> 16) & 0x1FF ) {
+	  case 0x047: *p++ = shift ? 'Y' : 'y'; return p - output;
+	  case 0x048: *p++ = shift ? 'K' : 'k'; return p - output;
+	  case 0x049: *p++ = shift ? 'U' : 'u'; return p - output;
+	  case 0x04B: *p++ = shift ? 'H' : 'h'; return p - output;
+	  case 0x04C: *p++ = '.'; return p - output;
+	  case 0x04D: *p++ = shift ? 'L' : 'l'; return p - output;
+	  case 0x04F: *p++ = shift ? 'B' : 'b'; return p - output;
+	  case 0x050: *p++ = shift ? 'J' : 'j'; return p - output;
+	  case 0x051: *p++ = shift ? 'N' : 'n'; return p - output;
+	  case 0x053: *p++ = '.'; return p - output;
+	}
+    } else if (app_keypad_keys) {
+	/*
+	 * If we're in applications keypad mode, we have to process it
+	 * before char-map translation, because it will pre-empt lots
+	 * of stuff, even if NumLock is off.
+	 */
 	if (ret) {
 	    /*
 	     * Hack to ensure NumLock doesn't interfere with

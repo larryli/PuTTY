@@ -77,28 +77,34 @@ STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT "Action of Backspace:", IDC1_DELSTATIC, 3, 3, 162, 8
-    AUTORADIOBUTTON "Control-&H (ASCII 8)", IDC1_DEL008, 3, 12, 162, 10, WS_GROUP
-    AUTORADIOBUTTON "Control-&? (ASCII 127)", IDC1_DEL127, 3, 22, 162, 10
-    LTEXT "Action of Home and End:", IDC1_HOMESTATIC, 3, 35, 162, 8
-    AUTORADIOBUTTON "&Standard (ESC [ 1 ~ and ESC [ 4 ~)",
-	IDC1_HOMETILDE, 3, 44, 162, 10, WS_GROUP
-    AUTORADIOBUTTON "&rxvt (ESC [ H and ESC O w)",
-	IDC1_HOMERXVT, 3, 54, 162, 10
-    LTEXT "Action of F1 through F5:", IDC1_FUNCSTATIC, 3, 67, 162, 8
-    AUTORADIOBUTTON "S&tandard (ESC [ 11 ~ through ESC [ 15 ~)",
-	IDC1_FUNCTILDE, 3, 76, 162, 10, WS_GROUP
-    AUTORADIOBUTTON "&Linux (ESC [ [ A through ESC [ [ E)",
-	IDC1_FUNCLINUX, 3, 86, 162, 10
-    LTEXT "Initial state of numeric keypad:", IDC1_KPSTATIC, 3, 99, 162, 8
-    AUTORADIOBUTTON "&Normal (depends on NumLock)",
-	IDC1_KPNORMAL, 3, 108, 162, 10, WS_GROUP
-    AUTORADIOBUTTON "A&pplication (ESC O P etc)",
-	IDC1_KPAPPLIC, 3, 118, 162, 10
-    LTEXT "Initial state of cursor keys:", IDC1_CURSTATIC, 3, 131, 162, 8
-    AUTORADIOBUTTON "Nor&mal (ESC [ A through ESC [ D)",
-	IDC1_CURNORMAL, 3, 140, 162, 10, WS_GROUP
-    AUTORADIOBUTTON "Appl&ication (ESC O A through ESC O D)",
-	IDC1_CURAPPLIC, 3, 150, 162, 10
+    AUTORADIOBUTTON "Control-&H", IDC1_DEL008, 3, 12, 50, 10, WS_GROUP
+    AUTORADIOBUTTON "Control-&? (127)", IDC1_DEL127, 62, 12, 100, 10
+    LTEXT "Action of Home and End:", IDC1_HOMESTATIC, 3, 25, 162, 8
+    AUTORADIOBUTTON "&Standard",
+	IDC1_HOMETILDE, 3, 34, 50, 10, WS_GROUP
+    AUTORADIOBUTTON "&rxvt",
+	IDC1_HOMERXVT, 62, 34, 50, 10
+    LTEXT "Action of F1 through F5:", IDC1_FUNCSTATIC, 3, 47, 162, 8
+    AUTORADIOBUTTON "S&tandard",
+	IDC1_FUNCTILDE, 3, 56, 50, 10, WS_GROUP
+    AUTORADIOBUTTON "&Linux console",
+	IDC1_FUNCLINUX, 62, 56, 100, 10
+    LTEXT "Initial state of cursor keys:", IDC1_CURSTATIC, 3, 69, 162, 8
+    AUTORADIOBUTTON "&Normal",
+	IDC1_CURNORMAL, 3, 78, 50, 10, WS_GROUP
+    AUTORADIOBUTTON "A&pplication",
+	IDC1_CURAPPLIC, 62, 78, 50, 10
+    LTEXT "Initial state of numeric keypad:", IDC1_KPSTATIC, 3, 91, 162, 8
+    AUTORADIOBUTTON "Nor&mal",
+	IDC1_KPNORMAL, 3, 100, 50, 10, WS_GROUP
+    AUTORADIOBUTTON "Appl&ication",
+	IDC1_KPAPPLIC, 62, 100, 50, 10
+    AUTORADIOBUTTON "N&etHack",
+	IDC1_KPNH, 121, 100, 50, 10
+    AUTOCHECKBOX "ALT-F&4 is special (closes window)",
+        IDC1_ALTF4, 3, 113, 162, 10
+    AUTOCHECKBOX "ALT-Space is special (S&ystem menu)",
+        IDC1_ALTSPACE, 3, 123, 162, 10
 END
 
 IDD_PANEL2 DIALOG DISCARDABLE 6, 30, 168, 163
@@ -217,7 +223,7 @@ END
 
 IDD_LOGBOX DIALOG DISCARDABLE 100, 20, 160, 119
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "PuTTY Negotiation Log"
+CAPTION "PuTTY Event Log"
 FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON "&Close", IDOK, 58, 102, 44, 14
