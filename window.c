@@ -2063,7 +2063,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
     /* Note if AltGr was pressed and if it was used as a compose key */
     if (!compose_state) {
-	compose_key = -1;
+	compose_key = 0x100;
 	if (cfg.compose_key) {
 	    if (wParam == VK_MENU && (HIWORD(lParam)&KF_EXTENDED))
 		compose_key = wParam;
@@ -2427,6 +2427,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	    return p-output;
 	}
+	/* If we're definitly not building up an ALT-54321 then clear it */
+	if (!left_alt) keys[0] = 0;
     }
 
     /* ALT alone may or may not want to bring up the System menu */
