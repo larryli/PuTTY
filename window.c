@@ -33,6 +33,7 @@
 #define IDM_SAVEDSESS 0x0160
 #define IDM_COPYALL   0x0170
 #define IDM_FULLSCREEN	0x0180
+#define IDM_PASTE     0x0190
 
 #define IDM_SESSLGP   0x0250	       /* log type printable */
 #define IDM_SESSLGA   0x0260	       /* log type all chars */
@@ -110,6 +111,12 @@ static int session_closed;
 
 static const struct telnet_special *specials;
 static int specials_menu_position;
+
+static struct {
+    HMENU menu;
+    int specials_submenu_pos;
+} popup_menus[2];
+enum { SYSMENU, CTXMENU };
 
 Config cfg;			       /* exported to windlg.c */
 
@@ -650,17 +657,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Set up the session-control options on the system menu.
      */
     {
-	HMENU m = GetSystemMenu(hwnd, FALSE);
-	HMENU s;
-	int i;
+	HMENU s, m;
+	int i, j;
 	char *str;
 
-	AppendMenu(m, MF_SEPARATOR, 0, 0);
-	specials_menu_position = GetMenuItemCount(m);
-	AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
-	AppendMenu(m, MF_SEPARATOR, 0, 0);
-	AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
-	AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+	popup_menus[SYSMENU].menu = GetSystemMenu(hwnd, FALSE);
+	popup_menus[CTXMENU].menu = CreatePopupMenu();
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "&Paste");
+
 	s = CreateMenu();
 	get_sesslist(&sesslist, TRUE);
 	for (i = 1;
@@ -668,21 +672,32 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	     i++)
 	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + (16 * i),
 		       sesslist.sessions[i]);
-	AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) s, "Sa&ved Sessions");
-	AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
-	AppendMenu(m, MF_SEPARATOR, 0, 0);
-	AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
-	AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
-	AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
-	AppendMenu(m, MF_SEPARATOR, 0, 0);
-	AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
-		   MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
-	AppendMenu(m, MF_SEPARATOR, 0, 0);
-        if (help_path)
-            AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
-	str = dupprintf("&About %s", appname);
-	AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
-	sfree(str);
+
+	for (j = 0; j < lenof(popup_menus); j++) {
+	    m = popup_menus[j].menu;
+
+	    AppendMenu(m, MF_SEPARATOR, 0, 0);
+	    popup_menus[j].specials_submenu_pos = GetMenuItemCount(m);
+	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
+	    AppendMenu(m, MF_SEPARATOR, 0, 0);
+	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
+	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) s, "Sa&ved Sessions");
+	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
+	    AppendMenu(m, MF_SEPARATOR, 0, 0);
+	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
+	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
+	    AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
+	    AppendMenu(m, MF_SEPARATOR, 0, 0);
+	    AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
+		       MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
+	    AppendMenu(m, MF_SEPARATOR, 0, 0);
+	    if (help_path)
+		AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
+	    str = dupprintf("&About %s", appname);
+	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
+	    sfree(str);
+	}
     }
 
     update_specials_menu(NULL);
@@ -852,7 +867,7 @@ void update_specials_menu(void *frontend)
 {
     HMENU m = GetSystemMenu(hwnd, FALSE);
     int menu_already_exists = (specials != NULL);
-    int i;
+    int i, j;
 
     specials = back->get_specials(backhandle);
     if (specials) {
@@ -865,14 +880,20 @@ void update_specials_menu(void *frontend)
 	    else
 		AppendMenu(p, MF_SEPARATOR, 0, 0);
 	}
-	if (menu_already_exists)
-	    DeleteMenu(m, specials_menu_position, MF_BYPOSITION);
-	else
-	    InsertMenu(m, specials_menu_position,
-		       MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-	InsertMenu(m, specials_menu_position,
-		   MF_BYPOSITION | MF_POPUP | MF_ENABLED,
-		   (UINT) p, "Special Command");
+	for (j = 0; j < lenof(popup_menus); j++) {
+	    if (menu_already_exists)
+		DeleteMenu(popup_menus[j].menu,
+			   popup_menus[j].specials_submenu_pos,
+			   MF_BYPOSITION);
+	    else
+		InsertMenu(popup_menus[j].menu,
+			   popup_menus[j].specials_submenu_pos,
+			   MF_BYPOSITION | MF_SEPARATOR, 0, 0);
+	    InsertMenu(popup_menus[j].menu,
+		       popup_menus[j].specials_submenu_pos,
+		       MF_BYPOSITION | MF_POPUP | MF_ENABLED,
+		       (UINT) p, "Special Command");
+	}
     }
 }
 
@@ -1711,6 +1732,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	show_mouseptr(1);
 	PostQuitMessage(0);
 	return 0;
+      case WM_COMMAND:
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
 	  case IDM_SHOWLOG:
@@ -1932,6 +1954,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_COPYALL:
 	    term_copyall(term);
 	    break;
+	  case IDM_PASTE:
+	    term_do_paste(term);
+	    break;
 	  case IDM_CLRSB:
 	    term_clrsb(term);
 	    break;
@@ -2003,6 +2028,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_LBUTTONUP:
       case WM_MBUTTONUP:
       case WM_RBUTTONUP:
+	if (message == WM_RBUTTONDOWN && (wParam & MK_CONTROL)) {
+	    POINT cursorpos;
+
+	    GetCursorPos(&cursorpos);
+	    TrackPopupMenu(popup_menus[CTXMENU].menu,
+			   TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
+			   cursorpos.x, cursorpos.y,
+			   0, hwnd, NULL);
+	    break;
+	}
 	{
 	    int button, press;
 
