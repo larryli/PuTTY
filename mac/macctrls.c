@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.39 2003/04/14 23:47:07 ben Exp $ */
+/* $Id: macctrls.c,v 1.40 2003/05/10 11:26:33 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -221,6 +221,7 @@ static void panellist_handler(union control *ctrl, void *dlg, void *data,
 {
     struct macctrls *mcs = dlg;
 
+    /* XXX what if there's no selection? */
     if (event == EVENT_SELCHANGE)
 	macctrl_switchtopanel(mcs, dlg_listbox_index(ctrl, dlg) + 1);
 }
@@ -263,6 +264,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     panellist.listbox.height = 20;
     panellist.listbox.percentwidth = 100;
     macctrl_listbox(mcs, window, &curstate, &panellist);
+    /* XXX Start with panel 1 active */
 
     curstate.pos.h = rect.left + 13 + 160 + 13;
     curstate.pos.v = rect.bottom - 33;
@@ -815,6 +817,7 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
     Rect bounds;
     Size olen;
 
+    /* XXX Use label */
     assert(ctrl->listbox.percentwidth == 100);
     mc->generic.type = MACCTRL_LISTBOX;
     mc->generic.ctrl = ctrl;
