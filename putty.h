@@ -406,6 +406,16 @@ void begin_session(void);
 void sys_cursor(int x, int y);
 #define OPTIMISE_IS_SCROLL 1
 
+void set_iconic(int iconic);
+void move_window(int x, int y);
+void set_zorder(int top);
+void refresh_window(void);
+void set_zoomed(int zoomed);
+int is_iconic(void);
+void get_window_pos(int *x, int *y);
+void get_window_pixels(int *x, int *y);
+char *get_window_title(int icon);
+
 /*
  * Exports from noise.c.
  */

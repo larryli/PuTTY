@@ -1407,12 +1407,13 @@ static int is_alt_pressed(void)
     return FALSE;
 }
 
+static int resizing;
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
     HDC hdc;
     static int ignore_clip = FALSE;
-    static int resizing = FALSE;
     static int need_backend_resize = FALSE;
 
     switch (message) {
@@ -4073,4 +4074,104 @@ static void flip_full_screen(void)
 
     CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
 		  MF_BYCOMMAND| full_screen ? MF_CHECKED : MF_UNCHECKED);
+}
+
+/*
+ * Minimise or restore the window in response to a server-side
+ * request.
+ */
+void set_iconic(int iconic)
+{
+    if (IsIconic(hwnd)) {
+	if (!iconic)
+	    ShowWindow(hwnd, SW_RESTORE);
+    } else {
+	if (iconic)
+	    ShowWindow(hwnd, SW_MINIMIZE);
+    }
+}
+
+/*
+ * Move the window in response to a server-side request.
+ */
+void move_window(int x, int y)
+{
+    SetWindowPos(hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+}
+
+/*
+ * Move the window to the top or bottom of the z-order in response
+ * to a server-side request.
+ */
+void set_zorder(int top)
+{
+    if (cfg.alwaysontop || full_screen)
+	return;			       /* ignore */
+    SetWindowPos(hwnd, top ? HWND_TOP : HWND_BOTTOM, 0, 0, 0, 0,
+		 SWP_NOMOVE | SWP_NOSIZE);
+}
+
+/*
+ * Refresh the window in response to a server-side request.
+ */
+void refresh_window(void)
+{
+    InvalidateRect(hwnd, NULL, TRUE);
+}
+
+/*
+ * Maximise or restore the window in response to a server-side
+ * request.
+ */
+void set_zoomed(int zoomed)
+{
+    if (IsZoomed(hwnd) || full_screen) {
+	if (!zoomed) {
+	    if (full_screen)
+		flip_full_screen();
+	    else
+		ShowWindow(hwnd, SW_RESTORE);
+	}
+    } else {
+	if (zoomed)
+	    ShowWindow(hwnd, SW_MAXIMIZE);
+    }
+}
+
+/*
+ * Report whether the window is iconic, for terminal reports.
+ */
+int is_iconic(void)
+{
+    return IsIconic(hwnd);
+}
+
+/*
+ * Report the window's position, for terminal reports.
+ */
+void get_window_pos(int *x, int *y)
+{
+    RECT r;
+    GetWindowRect(hwnd, &r);
+    *x = r.left;
+    *y = r.top;
+}
+
+/*
+ * Report the window's pixel size, for terminal reports.
+ */
+void get_window_pixels(int *x, int *y)
+{
+    RECT r;
+    GetWindowRect(hwnd, &r);
+    *x = r.right - r.left;
+    *y = r.bottom - r.top;
+}
+
+/*
+ * Return the window or icon title.
+ */
+char *get_window_title(int icon)
+{
+    return icon ? icon_name : window_name;
 }

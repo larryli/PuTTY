@@ -1955,11 +1955,107 @@ void term_out(void)
 			 * illegal values (eg first arg 1..9) for window changing 
 			 * and reports.
 			 */
-			compatibility(VT340TEXT);
 			if (esc_nargs <= 1
 			    && (esc_args[0] < 1 || esc_args[0] >= 24)) {
+			    compatibility(VT340TEXT);
 			    request_resize(cols, def(esc_args[0], 24));
 			    deselect();
+			} else if (esc_nargs >= 1 &&
+				   esc_args[0] >= 1 &&
+				   esc_args[0] < 24) {
+			    compatibility(OTHER);
+
+			    switch (esc_args[0]) {
+				int x, y, len;
+				char buf[80], *p;
+			      case 1:
+				set_iconic(FALSE);
+				break;
+			      case 2:
+				set_iconic(TRUE);
+				break;
+			      case 3:
+				if (esc_nargs >= 3) {
+				    move_window(def(esc_args[1], 0),
+						def(esc_args[2], 0));
+				}
+				break;
+			      case 4:
+				/* We should resize the window to a given
+				 * size in pixels here, but currently our
+				 * resizing code isn't healthy enough to
+				 * manage it. */
+				break;
+			      case 5:
+				set_zorder(TRUE);   /* move to top */
+				break;
+			      case 6:
+				set_zorder(FALSE);  /* move to bottom */
+				break;
+			      case 7:
+				refresh_window();
+				break;
+			      case 8:
+				if (esc_nargs >= 3) {
+				    request_resize(def(esc_args[1], cfg.width),
+						   def(esc_args[2], cfg.height));
+				}
+				break;
+			      case 9:
+				if (esc_nargs >= 2)
+				    set_zoomed(esc_args[1] ? TRUE : FALSE);
+				break;
+			      case 11:
+				ldisc_send(is_iconic() ? "\033[1t" : "\033[2t",
+					   4, 0);
+				break;
+			      case 13:
+				get_window_pos(&x, &y);
+				len = sprintf(buf, "\033[3;%d;%dt", x, y);
+				ldisc_send(buf, len, 0);
+				break;
+			      case 14:
+				get_window_pixels(&x, &y);
+				len = sprintf(buf, "\033[4;%d;%dt", x, y);
+				ldisc_send(buf, len, 0);
+				break;
+			      case 18:
+				len = sprintf(buf, "\033[8;%d;%dt",
+					      cols, rows);
+				ldisc_send(buf, len, 0);
+				break;
+			      case 19:
+				/*
+				 * Hmmm. Strictly speaking we
+				 * should return `the size of the
+				 * screen in characters', but
+				 * that's not easy: (a) window
+				 * furniture being what it is it's
+				 * hard to compute, and (b) in
+				 * resize-font mode maximising the
+				 * window wouldn't change the
+				 * number of characters. *shrug*. I
+				 * think we'll ignore it for the
+				 * moment and see if anyone
+				 * complains, and then ask them
+				 * what they would like it to do.
+				 */
+				break;
+			      case 20:
+				p = get_window_title(TRUE);
+				len = strlen(p);
+				ldisc_send("\033]L", 3, 0);
+				ldisc_send(p, len, 0);
+				ldisc_send("\033\\", 2, 0);
+				break;
+			      case 21:
+				p = get_window_title(FALSE);
+				len = strlen(p);
+				ldisc_send("\033]l", 3, 0);
+				ldisc_send(p, len, 0);
+				ldisc_send("\033\\", 2, 0);
+				break;
+			    }
 			}
 			break;
 		      case 'S':
