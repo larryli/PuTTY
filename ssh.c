@@ -3480,10 +3480,338 @@ void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
     }
 }
 
+static void ssh1_smsg_stdout_stderr_data(Ssh ssh, struct Packet *pktin)
+{
+    char *string;
+    int stringlen, bufsize;
+
+    ssh_pkt_getstring(pktin, &string, &stringlen);
+    if (string == NULL) {
+	bombout(("Incoming terminal data packet was badly formed"));
+	return;
+    }
+
+    bufsize = from_backend(ssh->frontend, pktin->type == SSH1_SMSG_STDERR_DATA,
+			   string, stringlen);
+    if (!ssh->v1_stdout_throttling && bufsize > SSH1_BUFFER_LIMIT) {
+	ssh->v1_stdout_throttling = 1;
+	ssh1_throttle(ssh, +1);
+    }
+}
+
+static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
+{
+    /* Remote side is trying to open a channel to talk to our
+     * X-Server. Give them back a local channel number. */
+    struct ssh_channel *c;
+    int remoteid = ssh_pkt_getuint32(pktin);
+
+    logevent("Received X11 connect request");
+    /* Refuse if X11 forwarding is disabled. */
+    if (!ssh->X11_fwd_enabled) {
+	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
+		    PKT_INT, remoteid, PKT_END);
+	logevent("Rejected X11 connect request");
+    } else {
+	c = snew(struct ssh_channel);
+	c->ssh = ssh;
+
+	if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
+		     ssh->x11auth, NULL, -1, &ssh->cfg) != NULL) {
+	    logevent("Opening X11 forward connection failed");
+	    sfree(c);
+	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
+			PKT_INT, remoteid, PKT_END);
+	} else {
+	    logevent
+		("Opening X11 forward connection succeeded");
+	    c->remoteid = remoteid;
+	    c->localid = alloc_channel_id(ssh);
+	    c->closes = 0;
+	    c->v.v1.throttling = 0;
+	    c->type = CHAN_X11;	/* identify channel type */
+	    add234(ssh->channels, c);
+	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+			PKT_INT, c->remoteid, PKT_INT,
+			c->localid, PKT_END);
+	    logevent("Opened X11 forward channel");
+	}
+    }
+}
+
+static void ssh1_smsg_agent_open(Ssh ssh, struct Packet *pktin)
+{
+    /* Remote side is trying to open a channel to talk to our
+     * agent. Give them back a local channel number. */
+    struct ssh_channel *c;
+    int remoteid = ssh_pkt_getuint32(pktin);
+
+    /* Refuse if agent forwarding is disabled. */
+    if (!ssh->agentfwd_enabled) {
+	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
+		    PKT_INT, remoteid, PKT_END);
+    } else {
+	c = snew(struct ssh_channel);
+	c->ssh = ssh;
+	c->remoteid = remoteid;
+	c->localid = alloc_channel_id(ssh);
+	c->closes = 0;
+	c->v.v1.throttling = 0;
+	c->type = CHAN_AGENT;	/* identify channel type */
+	c->u.a.lensofar = 0;
+	add234(ssh->channels, c);
+	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+		    PKT_INT, c->remoteid, PKT_INT, c->localid,
+		    PKT_END);
+    }
+}
+
+static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
+{
+    /* Remote side is trying to open a channel to talk to a
+     * forwarded port. Give them back a local channel number. */
+    struct ssh_channel *c;
+    struct ssh_rportfwd pf;
+    int remoteid;
+    int hostsize, port;
+    char *host, buf[1024];
+    const char *e;
+    c = snew(struct ssh_channel);
+    c->ssh = ssh;
+
+    remoteid = ssh_pkt_getuint32(pktin);
+    ssh_pkt_getstring(pktin, &host, &hostsize);
+    port = ssh_pkt_getuint32(pktin);
+
+    if (hostsize >= lenof(pf.dhost))
+	hostsize = lenof(pf.dhost)-1;
+    memcpy(pf.dhost, host, hostsize);
+    pf.dhost[hostsize] = '\0';
+    pf.dport = port;
+
+    if (find234(ssh->rportfwds, &pf, NULL) == NULL) {
+	sprintf(buf, "Rejected remote port open request for %s:%d",
+		pf.dhost, port);
+	logevent(buf);
+	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
+		    PKT_INT, remoteid, PKT_END);
+    } else {
+	sprintf(buf, "Received remote port open request for %s:%d",
+		pf.dhost, port);
+	logevent(buf);
+	e = pfd_newconnect(&c->u.pfd.s, pf.dhost, port,
+			   c, &ssh->cfg);
+	if (e != NULL) {
+	    char buf[256];
+	    sprintf(buf, "Port open failed: %s", e);
+	    logevent(buf);
+	    sfree(c);
+	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
+			PKT_INT, remoteid, PKT_END);
+	} else {
+	    c->remoteid = remoteid;
+	    c->localid = alloc_channel_id(ssh);
+	    c->closes = 0;
+	    c->v.v1.throttling = 0;
+	    c->type = CHAN_SOCKDATA;	/* identify channel type */
+	    add234(ssh->channels, c);
+	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+			PKT_INT, c->remoteid, PKT_INT,
+			c->localid, PKT_END);
+	    logevent("Forwarded port opened successfully");
+	}
+    }
+}
+
+static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
+{
+    unsigned int remoteid = ssh_pkt_getuint32(pktin);
+    unsigned int localid = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+
+    c = find234(ssh->channels, &remoteid, ssh_channelfind);
+    if (c && c->type == CHAN_SOCKDATA_DORMANT) {
+	c->remoteid = localid;
+	c->type = CHAN_SOCKDATA;
+	c->v.v1.throttling = 0;
+	pfd_confirm(c->u.pfd.s);
+    }
+
+    if (c && c->closes) {
+	/*
+	 * We have a pending close on this channel,
+	 * which we decided on before the server acked
+	 * the channel open. So now we know the
+	 * remoteid, we can close it again.
+	 */
+	send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE,
+		    PKT_INT, c->remoteid, PKT_END);
+    }
+}
+
+static void ssh1_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
+{
+    unsigned int remoteid = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+
+    c = find234(ssh->channels, &remoteid, ssh_channelfind);
+    if (c && c->type == CHAN_SOCKDATA_DORMANT) {
+	logevent("Forwarded connection refused by server");
+	pfd_close(c->u.pfd.s);
+	del234(ssh->channels, c);
+	sfree(c);
+    }
+}
+
+static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
+{
+    /* Remote side closes a channel. */
+    unsigned i = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (c && ((int)c->remoteid) != -1) {
+	int closetype;
+	closetype =
+	    (pktin->type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
+
+	if ((c->closes == 0) && (c->type == CHAN_X11)) {
+	    logevent("Forwarded X11 connection terminated");
+	    assert(c->u.x11.s != NULL);
+	    x11_close(c->u.x11.s);
+	    c->u.x11.s = NULL;
+	}
+	if ((c->closes == 0) && (c->type == CHAN_SOCKDATA)) {
+	    logevent("Forwarded port closed");
+	    assert(c->u.pfd.s != NULL);
+	    pfd_close(c->u.pfd.s);
+	    c->u.pfd.s = NULL;
+	}
+
+	c->closes |= (closetype << 2);   /* seen this message */
+	if (!(c->closes & closetype)) {
+	    send_packet(ssh, pktin->type, PKT_INT, c->remoteid,
+			PKT_END);
+	    c->closes |= closetype;      /* sent it too */
+	}
+
+	if (c->closes == 15) {
+	    del234(ssh->channels, c);
+	    sfree(c);
+	}
+    } else {
+	bombout(("Received CHANNEL_CLOSE%s for %s channel %d\n",
+		 pktin->type == SSH1_MSG_CHANNEL_CLOSE ? "" :
+		 "_CONFIRMATION", c ? "half-open" : "nonexistent",
+		 i));
+    }
+}
+
+static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
+{
+    /* Data sent down one of our channels. */
+    int i = ssh_pkt_getuint32(pktin);
+    char *p;
+    int len;
+    struct ssh_channel *c;
+
+    ssh_pkt_getstring(pktin, &p, &len);
+
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (c) {
+	int bufsize = 0;
+	switch (c->type) {
+	  case CHAN_X11:
+	    bufsize = x11_send(c->u.x11.s, p, len);
+	    break;
+	  case CHAN_SOCKDATA:
+	    bufsize = pfd_send(c->u.pfd.s, p, len);
+	    break;
+	  case CHAN_AGENT:
+	    /* Data for an agent message. Buffer it. */
+	    while (len > 0) {
+		if (c->u.a.lensofar < 4) {
+		    int l = min(4 - c->u.a.lensofar, len);
+		    memcpy(c->u.a.msglen + c->u.a.lensofar, p,
+			   l);
+		    p += l;
+		    len -= l;
+		    c->u.a.lensofar += l;
+		}
+		if (c->u.a.lensofar == 4) {
+		    c->u.a.totallen =
+			4 + GET_32BIT(c->u.a.msglen);
+		    c->u.a.message = snewn(c->u.a.totallen,
+					   unsigned char);
+		    memcpy(c->u.a.message, c->u.a.msglen, 4);
+		}
+		if (c->u.a.lensofar >= 4 && len > 0) {
+		    int l =
+			min(c->u.a.totallen - c->u.a.lensofar,
+			    len);
+		    memcpy(c->u.a.message + c->u.a.lensofar, p,
+			   l);
+		    p += l;
+		    len -= l;
+		    c->u.a.lensofar += l;
+		}
+		if (c->u.a.lensofar == c->u.a.totallen) {
+		    void *reply;
+		    int replylen;
+		    if (agent_query(c->u.a.message,
+				    c->u.a.totallen,
+				    &reply, &replylen,
+				    ssh_agentf_callback, c))
+			ssh_agentf_callback(c, reply, replylen);
+		    sfree(c->u.a.message);
+		    c->u.a.lensofar = 0;
+		}
+	    }
+	    bufsize = 0;   /* agent channels never back up */
+	    break;
+	}
+	if (!c->v.v1.throttling && bufsize > SSH1_BUFFER_LIMIT) {
+	    c->v.v1.throttling = 1;
+	    ssh1_throttle(ssh, +1);
+	}
+    }
+}
+
+static void ssh1_smsg_exit_status(Ssh ssh, struct Packet *pktin)
+{
+    char buf[100];
+    ssh->exitcode = ssh_pkt_getuint32(pktin);
+    sprintf(buf, "Server sent command exit status %d",
+	    ssh->exitcode);
+    logevent(buf);
+    send_packet(ssh, SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
+    /*
+     * In case `helpful' firewalls or proxies tack
+     * extra human-readable text on the end of the
+     * session which we might mistake for another
+     * encrypted packet, we close the session once
+     * we've sent EXIT_CONFIRMATION.
+     */
+    ssh_closing((Plug)ssh, NULL, 0, 0);
+}
+
 static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 			       struct Packet *pktin)
 {
     crBegin(ssh->do_ssh1_connection_crstate);
+
+    ssh->packet_dispatch[SSH1_SMSG_STDOUT_DATA] = 
+	ssh->packet_dispatch[SSH1_SMSG_STDERR_DATA] =
+	ssh1_smsg_stdout_stderr_data;
+
+    ssh->packet_dispatch[SSH1_MSG_CHANNEL_OPEN_CONFIRMATION] =
+	ssh1_msg_channel_open_confirmation;
+    ssh->packet_dispatch[SSH1_MSG_CHANNEL_OPEN_FAILURE] =
+	ssh1_msg_channel_open_failure;
+    ssh->packet_dispatch[SSH1_MSG_CHANNEL_CLOSE] =
+	ssh->packet_dispatch[SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION] =
+	ssh1_msg_channel_close;
+    ssh->packet_dispatch[SSH1_MSG_CHANNEL_DATA] = ssh1_msg_channel_data;
+    ssh->packet_dispatch[SSH1_SMSG_EXIT_STATUS] = ssh1_smsg_exit_status;
 
     if (ssh->cfg.agentfwd && agent_exists()) {
 	logevent("Requesting agent forwarding");
@@ -3500,6 +3828,7 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	} else {
 	    logevent("Agent forwarding enabled");
 	    ssh->agentfwd_enabled = TRUE;
+	    ssh->packet_dispatch[SSH1_SMSG_AGENT_OPEN] = ssh1_smsg_agent_open;
 	}
     }
 
@@ -3530,6 +3859,7 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	} else {
 	    logevent("X11 forwarding enabled");
 	    ssh->X11_fwd_enabled = TRUE;
+	    ssh->packet_dispatch[SSH1_SMSG_X11_OPEN] = ssh1_smsg_x11_open;
 	}
     }
 
@@ -3679,8 +4009,12 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 			} else if (pktin->type == SSH1_SMSG_FAILURE) {
 			    c_write_str(ssh, "Server refused port"
 					" forwarding\r\n");
+			    logevent("Server refused this port forwarding");
+			} else {
+			    logevent("Remote port forwarding enabled");
+			    ssh->packet_dispatch[SSH1_MSG_PORT_OPEN] =
+				ssh1_msg_port_open;
 			}
-			logevent("Remote port forwarding enabled");
 		    }
 		}
 		sfree(sportdesc);
@@ -3772,313 +4106,20 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
     ssh->send_ok = 1;
     ssh->channels = newtree234(ssh_channelcmp);
     while (1) {
+
+	/*
+	 * By this point, most incoming packets are already being
+	 * handled by the dispatch table, and we need only pay
+	 * attention to the unusual ones.
+	 */
+
 	crReturnV;
 	if (pktin) {
-	    if (pktin->type == SSH1_SMSG_STDOUT_DATA ||
-		pktin->type == SSH1_SMSG_STDERR_DATA) {
-		char *string;
-		int stringlen, bufsize;
-
-		ssh_pkt_getstring(pktin, &string, &stringlen);
-		if (string == NULL) {
-		    bombout(("Incoming terminal data packet was badly formed"));
-		    crStopV;
-		}
-
-		bufsize =
-		    from_backend(ssh->frontend,
-				 pktin->type == SSH1_SMSG_STDERR_DATA,
-				 string, stringlen);
-		if (!ssh->v1_stdout_throttling && bufsize > SSH1_BUFFER_LIMIT) {
-		    ssh->v1_stdout_throttling = 1;
-		    ssh1_throttle(ssh, +1);
-		}
-	    } else if (pktin->type == SSH1_MSG_DISCONNECT) {
-                ssh_closing((Plug)ssh, NULL, 0, 0);
-		logevent("Received disconnect request");
-		crStopV;
-	    } else if (pktin->type == SSH1_SMSG_X11_OPEN) {
-		/* Remote side is trying to open a channel to talk to our
-		 * X-Server. Give them back a local channel number. */
-		struct ssh_channel *c;
-		int remoteid = ssh_pkt_getuint32(pktin);
-
-		logevent("Received X11 connect request");
-		/* Refuse if X11 forwarding is disabled. */
-		if (!ssh->X11_fwd_enabled) {
-		    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-				PKT_INT, remoteid, PKT_END);
-		    logevent("Rejected X11 connect request");
-		} else {
-		    c = snew(struct ssh_channel);
-		    c->ssh = ssh;
-
-		    if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-				 ssh->x11auth, NULL, -1, &ssh->cfg) != NULL) {
-			logevent("Opening X11 forward connection failed");
-			sfree(c);
-			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-				    PKT_INT, remoteid, PKT_END);
-		    } else {
-			logevent
-			    ("Opening X11 forward connection succeeded");
-			c->remoteid = remoteid;
-			c->localid = alloc_channel_id(ssh);
-			c->closes = 0;
-			c->v.v1.throttling = 0;
-			c->type = CHAN_X11;	/* identify channel type */
-			add234(ssh->channels, c);
-			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-				    PKT_INT, c->remoteid, PKT_INT,
-				    c->localid, PKT_END);
-			logevent("Opened X11 forward channel");
-		    }
-		}
-	    } else if (pktin->type == SSH1_SMSG_AGENT_OPEN) {
-		/* Remote side is trying to open a channel to talk to our
-		 * agent. Give them back a local channel number. */
-		struct ssh_channel *c;
-		int remoteid = ssh_pkt_getuint32(pktin);
-
-		/* Refuse if agent forwarding is disabled. */
-		if (!ssh->agentfwd_enabled) {
-		    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-				PKT_INT, remoteid, PKT_END);
-		} else {
-		    c = snew(struct ssh_channel);
-		    c->ssh = ssh;
-		    c->remoteid = remoteid;
-		    c->localid = alloc_channel_id(ssh);
-		    c->closes = 0;
-		    c->v.v1.throttling = 0;
-		    c->type = CHAN_AGENT;	/* identify channel type */
-		    c->u.a.lensofar = 0;
-		    add234(ssh->channels, c);
-		    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-				PKT_INT, c->remoteid, PKT_INT, c->localid,
-				PKT_END);
-		}
-	    } else if (pktin->type == SSH1_MSG_PORT_OPEN) {
-   		/* Remote side is trying to open a channel to talk to a
-		 * forwarded port. Give them back a local channel number. */
-		struct ssh_channel *c;
-		struct ssh_rportfwd pf;
-		int remoteid;
-		int hostsize, port;
-		char *host, buf[1024];
-		const char *e;
-		c = snew(struct ssh_channel);
-		c->ssh = ssh;
-
-		remoteid = ssh_pkt_getuint32(pktin);
-		ssh_pkt_getstring(pktin, &host, &hostsize);
-		port = ssh_pkt_getuint32(pktin);
-
-		if (hostsize >= lenof(pf.dhost))
-		    hostsize = lenof(pf.dhost)-1;
-		memcpy(pf.dhost, host, hostsize);
-		pf.dhost[hostsize] = '\0';
-		pf.dport = port;
-
-		if (find234(ssh->rportfwds, &pf, NULL) == NULL) {
-		    sprintf(buf, "Rejected remote port open request for %s:%d",
-			    pf.dhost, port);
-		    logevent(buf);
-                    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-                                PKT_INT, remoteid, PKT_END);
-		} else {
-		    sprintf(buf, "Received remote port open request for %s:%d",
-			    pf.dhost, port);
-		    logevent(buf);
-		    e = pfd_newconnect(&c->u.pfd.s, pf.dhost, port,
-				       c, &ssh->cfg);
-		    if (e != NULL) {
-			char buf[256];
-			sprintf(buf, "Port open failed: %s", e);
-			logevent(buf);
-			sfree(c);
-			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-				    PKT_INT, remoteid, PKT_END);
-		    } else {
-			c->remoteid = remoteid;
-			c->localid = alloc_channel_id(ssh);
-			c->closes = 0;
-			c->v.v1.throttling = 0;
-			c->type = CHAN_SOCKDATA;	/* identify channel type */
-			add234(ssh->channels, c);
-			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-				    PKT_INT, c->remoteid, PKT_INT,
-				    c->localid, PKT_END);
-			logevent("Forwarded port opened successfully");
-		    }
-		}
-
-	    } else if (pktin->type == SSH1_MSG_CHANNEL_OPEN_CONFIRMATION) {
-		unsigned int remoteid = ssh_pkt_getuint32(pktin);
-		unsigned int localid = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
-
-		c = find234(ssh->channels, &remoteid, ssh_channelfind);
-		if (c && c->type == CHAN_SOCKDATA_DORMANT) {
-		    c->remoteid = localid;
-		    c->type = CHAN_SOCKDATA;
-		    c->v.v1.throttling = 0;
-		    pfd_confirm(c->u.pfd.s);
-		}
-
-		if (c && c->closes) {
-		    /*
-		     * We have a pending close on this channel,
-		     * which we decided on before the server acked
-		     * the channel open. So now we know the
-		     * remoteid, we can close it again.
-		     */
-		    send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE,
-				PKT_INT, c->remoteid, PKT_END);
-		}
-
-	    } else if (pktin->type == SSH1_MSG_CHANNEL_OPEN_FAILURE) {
-		unsigned int remoteid = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
-
-		c = find234(ssh->channels, &remoteid, ssh_channelfind);
-		if (c && c->type == CHAN_SOCKDATA_DORMANT) {
-		    logevent("Forwarded connection refused by server");
-		    pfd_close(c->u.pfd.s);
-		    del234(ssh->channels, c);
-		    sfree(c);
-		}
-
-	    } else if (pktin->type == SSH1_MSG_CHANNEL_CLOSE ||
-		       pktin->type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION) {
-		/* Remote side closes a channel. */
-		unsigned i = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (c && ((int)c->remoteid) != -1) {
-		    int closetype;
-		    closetype =
-			(pktin->type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
-
-		    if ((c->closes == 0) && (c->type == CHAN_X11)) {
-			logevent("Forwarded X11 connection terminated");
-			assert(c->u.x11.s != NULL);
-			x11_close(c->u.x11.s);
-			c->u.x11.s = NULL;
-		    }
-		    if ((c->closes == 0) && (c->type == CHAN_SOCKDATA)) {
-			logevent("Forwarded port closed");
-			assert(c->u.pfd.s != NULL);
-			pfd_close(c->u.pfd.s);
-			c->u.pfd.s = NULL;
-		    }
-
-		    c->closes |= (closetype << 2);   /* seen this message */
-		    if (!(c->closes & closetype)) {
-			send_packet(ssh, pktin->type, PKT_INT, c->remoteid,
-				    PKT_END);
-			c->closes |= closetype;      /* sent it too */
-		    }
-
-		    if (c->closes == 15) {
-			del234(ssh->channels, c);
-			sfree(c);
-		    }
-		} else {
-		    bombout(("Received CHANNEL_CLOSE%s for %s channel %d\n",
-			     pktin->type == SSH1_MSG_CHANNEL_CLOSE ? "" :
-			     "_CONFIRMATION", c ? "half-open" : "nonexistent",
-			     i));
-		    crStopV;
-		}
-	    } else if (pktin->type == SSH1_MSG_CHANNEL_DATA) {
-		/* Data sent down one of our channels. */
-		int i = ssh_pkt_getuint32(pktin);
-		char *p;
-		int len;
-		struct ssh_channel *c;
-
-		ssh_pkt_getstring(pktin, &p, &len);
-
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (c) {
-		    int bufsize = 0;
-		    switch (c->type) {
-		      case CHAN_X11:
-			bufsize = x11_send(c->u.x11.s, p, len);
-			break;
-		      case CHAN_SOCKDATA:
-			bufsize = pfd_send(c->u.pfd.s, p, len);
-			break;
-		      case CHAN_AGENT:
-			/* Data for an agent message. Buffer it. */
-			while (len > 0) {
-			    if (c->u.a.lensofar < 4) {
-				int l = min(4 - c->u.a.lensofar, len);
-				memcpy(c->u.a.msglen + c->u.a.lensofar, p,
-				       l);
-				p += l;
-				len -= l;
-				c->u.a.lensofar += l;
-			    }
-			    if (c->u.a.lensofar == 4) {
-				c->u.a.totallen =
-				    4 + GET_32BIT(c->u.a.msglen);
-				c->u.a.message = snewn(c->u.a.totallen,
-						       unsigned char);
-				memcpy(c->u.a.message, c->u.a.msglen, 4);
-			    }
-			    if (c->u.a.lensofar >= 4 && len > 0) {
-				int l =
-				    min(c->u.a.totallen - c->u.a.lensofar,
-					len);
-				memcpy(c->u.a.message + c->u.a.lensofar, p,
-				       l);
-				p += l;
-				len -= l;
-				c->u.a.lensofar += l;
-			    }
-			    if (c->u.a.lensofar == c->u.a.totallen) {
-				void *reply;
-				int replylen;
-				if (agent_query(c->u.a.message,
-						c->u.a.totallen,
-						&reply, &replylen,
-						ssh_agentf_callback, c))
-				    ssh_agentf_callback(c, reply, replylen);
-				sfree(c->u.a.message);
-				c->u.a.lensofar = 0;
-			    }
-			}
-			bufsize = 0;   /* agent channels never back up */
-			break;
-		    }
-		    if (!c->v.v1.throttling && bufsize > SSH1_BUFFER_LIMIT) {
-			c->v.v1.throttling = 1;
-			ssh1_throttle(ssh, +1);
-		    }
-		}
-	    } else if (pktin->type == SSH1_SMSG_SUCCESS) {
+	    if (pktin->type == SSH1_SMSG_SUCCESS) {
 		/* may be from EXEC_SHELL on some servers */
 	    } else if (pktin->type == SSH1_SMSG_FAILURE) {
 		/* may be from EXEC_SHELL on some servers
 		 * if no pty is available or in other odd cases. Ignore */
-	    } else if (pktin->type == SSH1_SMSG_EXIT_STATUS) {
-		char buf[100];
-		ssh->exitcode = ssh_pkt_getuint32(pktin);
-		sprintf(buf, "Server sent command exit status %d",
-			ssh->exitcode);
-		logevent(buf);
-		send_packet(ssh, SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
-                /*
-                 * In case `helpful' firewalls or proxies tack
-                 * extra human-readable text on the end of the
-                 * session which we might mistake for another
-                 * encrypted packet, we close the session once
-                 * we've sent EXIT_CONFIRMATION.
-                 */
-                ssh_closing((Plug)ssh, NULL, 0, 0);
-                crStopV;
 	    } else {
 		bombout(("Strange packet received: type %d", pktin->type));
 		crStopV;
@@ -4913,13 +4954,530 @@ static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
     }
 }
 
-void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
+static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
 {
     unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
     if (c && !c->closes)
 	c->v.v2.remwindow += ssh_pkt_getuint32(pktin);
+}
+
+static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
+{
+    char *data;
+    int length;
+    unsigned i = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (!c)
+	return;			       /* nonexistent channel */
+    if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
+	ssh_pkt_getuint32(pktin) != SSH2_EXTENDED_DATA_STDERR)
+	return;			       /* extended but not stderr */
+    ssh_pkt_getstring(pktin, &data, &length);
+    if (data) {
+	int bufsize = 0;
+	c->v.v2.locwindow -= length;
+	switch (c->type) {
+	  case CHAN_MAINSESSION:
+	    bufsize =
+		from_backend(ssh->frontend, pktin->type ==
+			     SSH2_MSG_CHANNEL_EXTENDED_DATA,
+			     data, length);
+	    break;
+	  case CHAN_X11:
+	    bufsize = x11_send(c->u.x11.s, data, length);
+	    break;
+	  case CHAN_SOCKDATA:
+	    bufsize = pfd_send(c->u.pfd.s, data, length);
+	    break;
+	  case CHAN_AGENT:
+	    while (length > 0) {
+		if (c->u.a.lensofar < 4) {
+		    int l = min(4 - c->u.a.lensofar, length);
+		    memcpy(c->u.a.msglen + c->u.a.lensofar,
+			   data, l);
+		    data += l;
+		    length -= l;
+		    c->u.a.lensofar += l;
+		}
+		if (c->u.a.lensofar == 4) {
+		    c->u.a.totallen =
+			4 + GET_32BIT(c->u.a.msglen);
+		    c->u.a.message = snewn(c->u.a.totallen,
+					   unsigned char);
+		    memcpy(c->u.a.message, c->u.a.msglen, 4);
+		}
+		if (c->u.a.lensofar >= 4 && length > 0) {
+		    int l =
+			min(c->u.a.totallen - c->u.a.lensofar,
+			    length);
+		    memcpy(c->u.a.message + c->u.a.lensofar,
+			   data, l);
+		    data += l;
+		    length -= l;
+		    c->u.a.lensofar += l;
+		}
+		if (c->u.a.lensofar == c->u.a.totallen) {
+		    void *reply;
+		    int replylen;
+		    if (agent_query(c->u.a.message,
+				    c->u.a.totallen,
+				    &reply, &replylen,
+				    ssh_agentf_callback, c))
+			ssh_agentf_callback(c, reply, replylen);
+		    sfree(c->u.a.message);
+		    c->u.a.lensofar = 0;
+		}
+	    }
+	    bufsize = 0;
+	    break;
+	}
+	/*
+	 * If we are not buffering too much data,
+	 * enlarge the window again at the remote side.
+	 */
+	if (bufsize < OUR_V2_WINSIZE)
+	    ssh2_set_window(c, OUR_V2_WINSIZE - bufsize);
+    }
+}
+
+static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
+{
+    unsigned i = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (!c)
+	return;			       /* nonexistent channel */
+
+    if (c->type == CHAN_X11) {
+	/*
+	 * Remote EOF on an X11 channel means we should
+	 * wrap up and close the channel ourselves.
+	 */
+	x11_close(c->u.x11.s);
+	sshfwd_close(c);
+    } else if (c->type == CHAN_AGENT) {
+	sshfwd_close(c);
+    } else if (c->type == CHAN_SOCKDATA) {
+	pfd_close(c->u.pfd.s);
+	sshfwd_close(c);
+    }
+}
+
+static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
+{
+    unsigned i = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+    struct Packet *pktout;
+
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (!c || ((int)c->remoteid) == -1) {
+	bombout(("Received CHANNEL_CLOSE for %s channel %d\n",
+		 c ? "half-open" : "nonexistent", i));
+	return;
+    }
+    /* Do pre-close processing on the channel. */
+    switch (c->type) {
+      case CHAN_MAINSESSION:
+	ssh->mainchan = NULL;
+	update_specials_menu(ssh->frontend);
+	break;
+      case CHAN_X11:
+	if (c->u.x11.s != NULL)
+	    x11_close(c->u.x11.s);
+	sshfwd_close(c);
+	break;
+      case CHAN_AGENT:
+	sshfwd_close(c);
+	break;
+      case CHAN_SOCKDATA:
+	if (c->u.pfd.s != NULL)
+	    pfd_close(c->u.pfd.s);
+	sshfwd_close(c);
+	break;
+    }
+    if (c->closes == 0) {
+	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+	ssh2_pkt_adduint32(pktout, c->remoteid);
+	ssh2_pkt_send(ssh, pktout);
+    }
+    del234(ssh->channels, c);
+    bufchain_clear(&c->v.v2.outbuffer);
+    sfree(c);
+
+    /*
+     * See if that was the last channel left open.
+     * (This is only our termination condition if we're
+     * not running in -N mode.)
+     */
+    if (!ssh->cfg.ssh_no_shell && count234(ssh->channels) == 0) {
+	logevent("All channels closed. Disconnecting");
+#if 0
+	/*
+	 * We used to send SSH_MSG_DISCONNECT here,
+	 * because I'd believed that _every_ conforming
+	 * SSH2 connection had to end with a disconnect
+	 * being sent by at least one side; apparently
+	 * I was wrong and it's perfectly OK to
+	 * unceremoniously slam the connection shut
+	 * when you're done, and indeed OpenSSH feels
+	 * this is more polite than sending a
+	 * DISCONNECT. So now we don't.
+	 */
+	s->pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+	ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
+	ssh2_pkt_addstring(s->pktout, "All open channels closed");
+	ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
+	ssh2_pkt_send_noqueue(ssh, s->pktout);
+#endif
+	ssh_closing((Plug)ssh, NULL, 0, 0);
+    }
+}
+
+static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
+{
+    unsigned i = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+    struct Packet *pktout;
+
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (!c)
+	return;			       /* nonexistent channel */
+    if (c->type != CHAN_SOCKDATA_DORMANT)
+	return;			       /* dunno why they're confirming this */
+    c->remoteid = ssh_pkt_getuint32(pktin);
+    c->type = CHAN_SOCKDATA;
+    c->v.v2.remwindow = ssh_pkt_getuint32(pktin);
+    c->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
+    if (c->u.pfd.s)
+	pfd_confirm(c->u.pfd.s);
+    if (c->closes) {
+	/*
+	 * We have a pending close on this channel,
+	 * which we decided on before the server acked
+	 * the channel open. So now we know the
+	 * remoteid, we can close it again.
+	 */
+	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+	ssh2_pkt_adduint32(pktout, c->remoteid);
+	ssh2_pkt_send(ssh, pktout);
+    }
+}
+
+static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
+{
+    static const char *const reasons[] = {
+	"<unknown reason code>",
+	    "Administratively prohibited",
+	    "Connect failed",
+	    "Unknown channel type",
+	    "Resource shortage",
+    };
+    unsigned i = ssh_pkt_getuint32(pktin);
+    unsigned reason_code;
+    char *reason_string;
+    int reason_length;
+    char *message;
+    struct ssh_channel *c;
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (!c)
+	return;			       /* nonexistent channel */
+    if (c->type != CHAN_SOCKDATA_DORMANT)
+	return;			       /* dunno why they're failing this */
+
+    reason_code = ssh_pkt_getuint32(pktin);
+    if (reason_code >= lenof(reasons))
+	reason_code = 0; /* ensure reasons[reason_code] in range */
+    ssh_pkt_getstring(pktin, &reason_string, &reason_length);
+    message = dupprintf("Forwarded connection refused by"
+			" server: %s [%.*s]", reasons[reason_code],
+			reason_length, reason_string);
+    logevent(message);
+    sfree(message);
+
+    pfd_close(c->u.pfd.s);
+
+    del234(ssh->channels, c);
+    sfree(c);
+}
+
+static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
+{
+    unsigned localid;
+    char *type;
+    int typelen, want_reply;
+    int reply = SSH2_MSG_CHANNEL_FAILURE; /* default */
+    struct ssh_channel *c;
+    struct Packet *pktout;
+
+    localid = ssh_pkt_getuint32(pktin);
+    ssh_pkt_getstring(pktin, &type, &typelen);
+    want_reply = ssh2_pkt_getbool(pktin);
+
+    /*
+     * First, check that the channel exists. Otherwise,
+     * we can instantly disconnect with a rude message.
+     */
+    c = find234(ssh->channels, &localid, ssh_channelfind);
+    if (!c) {
+	char buf[80];
+	sprintf(buf, "Received channel request for nonexistent"
+		" channel %d", localid);
+	logevent(buf);
+	pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+	ssh2_pkt_adduint32(pktout, SSH2_DISCONNECT_BY_APPLICATION);
+	ssh2_pkt_addstring(pktout, buf);
+	ssh2_pkt_addstring(pktout, "en");	/* language tag */
+	ssh2_pkt_send_noqueue(ssh, pktout);
+	connection_fatal(ssh->frontend, "%s", buf);
+	ssh_closing((Plug)ssh, NULL, 0, 0);
+	return;
+    }
+
+    /*
+     * Having got the channel number, we now look at
+     * the request type string to see if it's something
+     * we recognise.
+     */
+    if (c == ssh->mainchan) {
+	/*
+	 * We recognise "exit-status" and "exit-signal" on
+	 * the primary channel.
+	 */
+	if (typelen == 11 &&
+	    !memcmp(type, "exit-status", 11)) {
+
+	    ssh->exitcode = ssh_pkt_getuint32(pktin);
+	    logeventf(ssh, "Server sent command exit status %d",
+		      ssh->exitcode);
+	    reply = SSH2_MSG_CHANNEL_SUCCESS;
+
+	} else if (typelen == 11 &&
+		   !memcmp(type, "exit-signal", 11)) {
+
+	    int is_plausible = TRUE, is_int = FALSE;
+	    char *fmt_sig = "", *fmt_msg = "";
+	    char *msg;
+	    int msglen = 0, core = FALSE;
+	    /* ICK: older versions of OpenSSH (e.g. 3.4p1)
+	     * provide an `int' for the signal, despite its
+	     * having been a `string' in the drafts since at
+	     * least 2001. (Fixed in session.c 1.147.) Try to
+	     * infer which we can safely parse it as. */
+	    {
+		unsigned char *p = pktin->body +
+		    pktin->savedpos;
+		long len = pktin->length - pktin->savedpos;
+		unsigned long num = GET_32BIT(p); /* what is it? */
+		/* If it's 0, it hardly matters; assume string */
+		if (num == 0) {
+		    is_int = FALSE;
+		} else {
+		    int maybe_int = FALSE, maybe_str = FALSE;
+#define CHECK_HYPOTHESIS(offset, result) \
+    do { \
+	long q = offset; \
+	if (q >= 0 && q+4 <= len) { \
+	    q = q + 4 + GET_32BIT(p+q); \
+	    if (q >= 0 && q+4 <= len && \
+		    (q = q + 4 + GET_32BIT(p+q)) && q == len) \
+		result = TRUE; \
+	} \
+    } while(0)
+		    CHECK_HYPOTHESIS(4+1, maybe_int);
+		    CHECK_HYPOTHESIS(4+num+1, maybe_str);
+#undef CHECK_HYPOTHESIS
+		    if (maybe_int && !maybe_str)
+			is_int = TRUE;
+		    else if (!maybe_int && maybe_str)
+			is_int = FALSE;
+		    else
+			/* Crikey. Either or neither. Panic. */
+			is_plausible = FALSE;
+		}
+	    }
+	    if (is_plausible) {
+		if (is_int) {
+		    /* Old non-standard OpenSSH. */
+		    int signum = ssh_pkt_getuint32(pktin);
+		    fmt_sig = dupprintf(" %d", signum);
+		} else {
+		    /* As per the drafts. */
+		    char *sig;
+		    int siglen;
+		    ssh_pkt_getstring(pktin, &sig, &siglen);
+		    /* Signal name isn't supposed to be blank, but
+		     * let's cope gracefully if it is. */
+		    if (siglen) {
+			fmt_sig = dupprintf(" \"%.*s\"",
+					    siglen, sig);
+		    }
+		}
+		core = ssh2_pkt_getbool(pktin);
+		ssh_pkt_getstring(pktin, &msg, &msglen);
+		if (msglen) {
+		    fmt_msg = dupprintf(" (\"%.*s\")", msglen, msg);
+		}
+		/* ignore lang tag */
+	    } /* else don't attempt to parse */
+	    logeventf(ssh, "Server exited on signal%s%s%s",
+		      fmt_sig, core ? " (core dumped)" : "",
+		      fmt_msg);
+	    if (*fmt_sig) sfree(fmt_sig);
+	    if (*fmt_msg) sfree(fmt_msg);
+	    reply = SSH2_MSG_CHANNEL_SUCCESS;
+
+	}
+    } else {
+	/*
+	 * This is a channel request we don't know
+	 * about, so we now either ignore the request
+	 * or respond with CHANNEL_FAILURE, depending
+	 * on want_reply.
+	 */
+	reply = SSH2_MSG_CHANNEL_FAILURE;
+    }
+    if (want_reply) {
+	pktout = ssh2_pkt_init(reply);
+	ssh2_pkt_adduint32(pktout, c->remoteid);
+	ssh2_pkt_send(ssh, pktout);
+    }
+}
+
+static void ssh2_msg_global_request(Ssh ssh, struct Packet *pktin)
+{
+    char *type;
+    int typelen, want_reply;
+    struct Packet *pktout;
+
+    ssh_pkt_getstring(pktin, &type, &typelen);
+    want_reply = ssh2_pkt_getbool(pktin);
+
+    /*
+     * We currently don't support any global requests
+     * at all, so we either ignore the request or
+     * respond with REQUEST_FAILURE, depending on
+     * want_reply.
+     */
+    if (want_reply) {
+	pktout = ssh2_pkt_init(SSH2_MSG_REQUEST_FAILURE);
+	ssh2_pkt_send(ssh, pktout);
+    }
+}
+
+static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
+{
+    char *type;
+    int typelen;
+    char *peeraddr;
+    int peeraddrlen;
+    int peerport;
+    char *error = NULL;
+    struct ssh_channel *c;
+    unsigned remid, winsize, pktsize;
+    struct Packet *pktout;
+
+    ssh_pkt_getstring(pktin, &type, &typelen);
+    c = snew(struct ssh_channel);
+    c->ssh = ssh;
+
+    remid = ssh_pkt_getuint32(pktin);
+    winsize = ssh_pkt_getuint32(pktin);
+    pktsize = ssh_pkt_getuint32(pktin);
+
+    if (typelen == 3 && !memcmp(type, "x11", 3)) {
+	char *addrstr;
+
+	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
+	addrstr = snewn(peeraddrlen+1, char);
+	memcpy(addrstr, peeraddr, peeraddrlen);
+	addrstr[peeraddrlen] = '\0';
+	peerport = ssh_pkt_getuint32(pktin);
+
+	logeventf(ssh, "Received X11 connect request from %s:%d",
+		  addrstr, peerport);
+
+	if (!ssh->X11_fwd_enabled)
+	    error = "X11 forwarding is not enabled";
+	else if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
+			  ssh->x11auth, addrstr, peerport,
+			  &ssh->cfg) != NULL) {
+	    error = "Unable to open an X11 connection";
+	} else {
+	    logevent("Opening X11 forward connection succeeded");
+	    c->type = CHAN_X11;
+	}
+
+	sfree(addrstr);
+    } else if (typelen == 15 &&
+	       !memcmp(type, "forwarded-tcpip", 15)) {
+	struct ssh_rportfwd pf, *realpf;
+	char *dummy;
+	int dummylen;
+	ssh_pkt_getstring(pktin, &dummy, &dummylen);/* skip address */
+	pf.sport = ssh_pkt_getuint32(pktin);
+	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
+	peerport = ssh_pkt_getuint32(pktin);
+	realpf = find234(ssh->rportfwds, &pf, NULL);
+	logeventf(ssh, "Received remote port %d open request "
+		  "from %s:%d", pf.sport, peeraddr, peerport);
+	if (realpf == NULL) {
+	    error = "Remote port is not recognised";
+	} else {
+	    const char *e = pfd_newconnect(&c->u.pfd.s,
+					   realpf->dhost,
+					   realpf->dport, c,
+					   &ssh->cfg);
+	    logeventf(ssh, "Attempting to forward remote port to "
+		      "%s:%d", realpf->dhost, realpf->dport);
+	    if (e != NULL) {
+		logeventf(ssh, "Port open failed: %s", e);
+		error = "Port open failed";
+	    } else {
+		logevent("Forwarded port opened successfully");
+		c->type = CHAN_SOCKDATA;
+	    }
+	}
+    } else if (typelen == 22 &&
+	       !memcmp(type, "auth-agent@openssh.com", 3)) {
+	if (!ssh->agentfwd_enabled)
+	    error = "Agent forwarding is not enabled";
+	else {
+	    c->type = CHAN_AGENT;	/* identify channel type */
+	    c->u.a.lensofar = 0;
+	}
+    } else {
+	error = "Unsupported channel type requested";
+    }
+
+    c->remoteid = remid;
+    if (error) {
+	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_FAILURE);
+	ssh2_pkt_adduint32(pktout, c->remoteid);
+	ssh2_pkt_adduint32(pktout, SSH2_OPEN_CONNECT_FAILED);
+	ssh2_pkt_addstring(pktout, error);
+	ssh2_pkt_addstring(pktout, "en");	/* language tag */
+	ssh2_pkt_send(ssh, pktout);
+	logeventf(ssh, "Rejected channel open: %s", error);
+	sfree(c);
+    } else {
+	c->localid = alloc_channel_id(ssh);
+	c->closes = 0;
+	c->v.v2.locwindow = OUR_V2_WINSIZE;
+	c->v.v2.remwindow = winsize;
+	c->v.v2.remmaxpkt = pktsize;
+	bufchain_init(&c->v.v2.outbuffer);
+	add234(ssh->channels, c);
+	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
+	ssh2_pkt_adduint32(pktout, c->remoteid);
+	ssh2_pkt_adduint32(pktout, c->localid);
+	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);
+	ssh2_pkt_adduint32(pktout, 0x4000UL);	/* our max pkt size */
+	ssh2_pkt_send(ssh, pktout);
+    }
 }
 
 /*
@@ -5802,6 +6360,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      */
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] =
 	ssh2_msg_channel_window_adjust;
+    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] =
+	ssh2_msg_global_request;
 
     /*
      * Create the main session channel.
@@ -5838,6 +6398,24 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	logevent("Opened channel for session");
     } else
 	ssh->mainchan = NULL;
+
+    /*
+     * Now we have a channel, make dispatch table entries for
+     * general channel-based messages.
+     */
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] =
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] =
+	ssh2_msg_channel_data;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_channel_eof;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_channel_close;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] =
+	ssh2_msg_channel_open_confirmation;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] =
+	ssh2_msg_channel_open_failure;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] =
+	ssh2_msg_channel_request;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] =
+	ssh2_msg_channel_open;
 
     /*
      * Potentially enable X11 forwarding.
@@ -6248,499 +6826,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	crReturnV;
 	s->try_send = FALSE;
 	if (pktin) {
-	    if (pktin->type == SSH2_MSG_CHANNEL_DATA ||
-		pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA) {
-		char *data;
-		int length;
-		unsigned i = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (!c)
-		    continue;	       /* nonexistent channel */
-		if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
-		    ssh_pkt_getuint32(pktin) != SSH2_EXTENDED_DATA_STDERR)
-		    continue;	       /* extended but not stderr */
-		ssh_pkt_getstring(pktin, &data, &length);
-		if (data) {
-		    int bufsize = 0;
-		    c->v.v2.locwindow -= length;
-		    switch (c->type) {
-		      case CHAN_MAINSESSION:
-			bufsize =
-			    from_backend(ssh->frontend, pktin->type ==
-					 SSH2_MSG_CHANNEL_EXTENDED_DATA,
-					 data, length);
-			break;
-		      case CHAN_X11:
-			bufsize = x11_send(c->u.x11.s, data, length);
-			break;
-		      case CHAN_SOCKDATA:
-			bufsize = pfd_send(c->u.pfd.s, data, length);
-			break;
-		      case CHAN_AGENT:
-			while (length > 0) {
-			    if (c->u.a.lensofar < 4) {
-				int l = min(4 - c->u.a.lensofar, length);
-				memcpy(c->u.a.msglen + c->u.a.lensofar,
-				       data, l);
-				data += l;
-				length -= l;
-				c->u.a.lensofar += l;
-			    }
-			    if (c->u.a.lensofar == 4) {
-				c->u.a.totallen =
-				    4 + GET_32BIT(c->u.a.msglen);
-				c->u.a.message = snewn(c->u.a.totallen,
-						       unsigned char);
-				memcpy(c->u.a.message, c->u.a.msglen, 4);
-			    }
-			    if (c->u.a.lensofar >= 4 && length > 0) {
-				int l =
-				    min(c->u.a.totallen - c->u.a.lensofar,
-					length);
-				memcpy(c->u.a.message + c->u.a.lensofar,
-				       data, l);
-				data += l;
-				length -= l;
-				c->u.a.lensofar += l;
-			    }
-			    if (c->u.a.lensofar == c->u.a.totallen) {
-				void *reply;
-				int replylen;
-				if (agent_query(c->u.a.message,
-						c->u.a.totallen,
-						&reply, &replylen,
-						ssh_agentf_callback, c))
-				    ssh_agentf_callback(c, reply, replylen);
-				sfree(c->u.a.message);
-				c->u.a.lensofar = 0;
-			    }
-			}
-			bufsize = 0;
-			break;
-		    }
-		    /*
-		     * If we are not buffering too much data,
-		     * enlarge the window again at the remote side.
-		     */
-		    if (bufsize < OUR_V2_WINSIZE)
-			ssh2_set_window(c, OUR_V2_WINSIZE - bufsize);
-		}
-	    } else if (pktin->type == SSH2_MSG_CHANNEL_EOF) {
-		unsigned i = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
 
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (!c)
-		    continue;	       /* nonexistent channel */
+	    /*
+	     * _All_ the connection-layer packets we expect to
+	     * receive are now handled by the dispatch table.
+	     * Anything that reaches here must be bogus.
+	     */
 
-		if (c->type == CHAN_X11) {
-		    /*
-		     * Remote EOF on an X11 channel means we should
-		     * wrap up and close the channel ourselves.
-		     */
-		    x11_close(c->u.x11.s);
-		    sshfwd_close(c);
-		} else if (c->type == CHAN_AGENT) {
-		    sshfwd_close(c);
-		} else if (c->type == CHAN_SOCKDATA) {
-		    pfd_close(c->u.pfd.s);
-		    sshfwd_close(c);
-		}
-	    } else if (pktin->type == SSH2_MSG_CHANNEL_CLOSE) {
-		unsigned i = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
-
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (!c || ((int)c->remoteid) == -1) {
-		    bombout(("Received CHANNEL_CLOSE for %s channel %d\n",
-			     c ? "half-open" : "nonexistent", i));
-		    crStopV;
-		}
-		/* Do pre-close processing on the channel. */
-		switch (c->type) {
-		  case CHAN_MAINSESSION:
-		    ssh->mainchan = NULL;
-		    update_specials_menu(ssh->frontend);
-		    break;
-		  case CHAN_X11:
-		    if (c->u.x11.s != NULL)
-			x11_close(c->u.x11.s);
-		    sshfwd_close(c);
-		    break;
-		  case CHAN_AGENT:
-		    sshfwd_close(c);
-		    break;
-		  case CHAN_SOCKDATA:
-		    if (c->u.pfd.s != NULL)
-			pfd_close(c->u.pfd.s);
-		    sshfwd_close(c);
-		    break;
-		}
-		if (c->closes == 0) {
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-		    ssh2_pkt_adduint32(s->pktout, c->remoteid);
-		    ssh2_pkt_send(ssh, s->pktout);
-		}
-		del234(ssh->channels, c);
-		bufchain_clear(&c->v.v2.outbuffer);
-		sfree(c);
-
-		/*
-		 * See if that was the last channel left open.
-		 * (This is only our termination condition if we're
-		 * not running in -N mode.)
-		 */
-		if (!ssh->cfg.ssh_no_shell && count234(ssh->channels) == 0) {
-		    logevent("All channels closed. Disconnecting");
-#if 0
-                    /*
-                     * We used to send SSH_MSG_DISCONNECT here,
-                     * because I'd believed that _every_ conforming
-                     * SSH2 connection had to end with a disconnect
-                     * being sent by at least one side; apparently
-                     * I was wrong and it's perfectly OK to
-                     * unceremoniously slam the connection shut
-                     * when you're done, and indeed OpenSSH feels
-                     * this is more polite than sending a
-                     * DISCONNECT. So now we don't.
-                     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
-		    ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
-		    ssh2_pkt_addstring(s->pktout, "All open channels closed");
-		    ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		    ssh2_pkt_send_noqueue(ssh, s->pktout);
-#endif
-                    ssh_closing((Plug)ssh, NULL, 0, 0);
-		    crStopV;
-		}
-		continue;	       /* remote sends close; ignore (FIXME) */
-	    } else if (pktin->type == SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-		unsigned i = ssh_pkt_getuint32(pktin);
-		struct ssh_channel *c;
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (!c)
-		    continue;	       /* nonexistent channel */
-		if (c->type != CHAN_SOCKDATA_DORMANT)
-		    continue;	       /* dunno why they're confirming this */
-		c->remoteid = ssh_pkt_getuint32(pktin);
-		c->type = CHAN_SOCKDATA;
-		c->v.v2.remwindow = ssh_pkt_getuint32(pktin);
-		c->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
-		if (c->u.pfd.s)
-		    pfd_confirm(c->u.pfd.s);
-		if (c->closes) {
-		    /*
-		     * We have a pending close on this channel,
-		     * which we decided on before the server acked
-		     * the channel open. So now we know the
-		     * remoteid, we can close it again.
-		     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-		    ssh2_pkt_adduint32(s->pktout, c->remoteid);
-		    ssh2_pkt_send(ssh, s->pktout);
-		}
-	    } else if (pktin->type == SSH2_MSG_CHANNEL_OPEN_FAILURE) {
-                static const char *const reasons[] = {
-                    "<unknown reason code>",
-                    "Administratively prohibited",
-                    "Connect failed",
-                    "Unknown channel type",
-                    "Resource shortage",
-                };
-		unsigned i = ssh_pkt_getuint32(pktin);
-                unsigned reason_code;
-                char *reason_string;
-                int reason_length;
-                char *message;
-		struct ssh_channel *c;
-		c = find234(ssh->channels, &i, ssh_channelfind);
-		if (!c)
-		    continue;	       /* nonexistent channel */
-		if (c->type != CHAN_SOCKDATA_DORMANT)
-		    continue;	       /* dunno why they're failing this */
-
-                reason_code = ssh_pkt_getuint32(pktin);
-                if (reason_code >= lenof(reasons))
-                    reason_code = 0; /* ensure reasons[reason_code] in range */
-                ssh_pkt_getstring(pktin, &reason_string, &reason_length);
-                message = dupprintf("Forwarded connection refused by"
-                                    " server: %s [%.*s]", reasons[reason_code],
-                                    reason_length, reason_string);
-		logevent(message);
-                sfree(message);
-
-		pfd_close(c->u.pfd.s);
-
-		del234(ssh->channels, c);
-		sfree(c);
-	    } else if (pktin->type == SSH2_MSG_CHANNEL_REQUEST) {
- 		unsigned localid;
-		char *type;
-		int typelen, want_reply;
-		int reply = SSH2_MSG_CHANNEL_FAILURE; /* default */
-		struct ssh_channel *c;
-
-		localid = ssh_pkt_getuint32(pktin);
-		ssh_pkt_getstring(pktin, &type, &typelen);
-		want_reply = ssh2_pkt_getbool(pktin);
-
-		/*
-		 * First, check that the channel exists. Otherwise,
-		 * we can instantly disconnect with a rude message.
-		 */
-		c = find234(ssh->channels, &localid, ssh_channelfind);
-		if (!c) {
-		    char buf[80];
-		    sprintf(buf, "Received channel request for nonexistent"
-			    " channel %d", localid);
-		    logevent(buf);
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
-		    ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
-		    ssh2_pkt_addstring(s->pktout, buf);
-		    ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		    ssh2_pkt_send_noqueue(ssh, s->pktout);
-		    connection_fatal(ssh->frontend, "%s", buf);
-                    ssh_closing((Plug)ssh, NULL, 0, 0);
-		    crStopV;
-		}
-
-		/*
-		 * Having got the channel number, we now look at
-		 * the request type string to see if it's something
-		 * we recognise.
-		 */
-		if (c == ssh->mainchan) {
-		    /*
-		     * We recognise "exit-status" and "exit-signal" on
-		     * the primary channel.
-		     */
-		    if (typelen == 11 &&
-			!memcmp(type, "exit-status", 11)) {
-
-			ssh->exitcode = ssh_pkt_getuint32(pktin);
-			logeventf(ssh, "Server sent command exit status %d",
-				  ssh->exitcode);
-			reply = SSH2_MSG_CHANNEL_SUCCESS;
-
-		    } else if (typelen == 11 &&
-			       !memcmp(type, "exit-signal", 11)) {
-
-			int is_plausible = TRUE, is_int = FALSE;
-			char *fmt_sig = "", *fmt_msg = "";
-			char *msg;
-			int msglen = 0, core = FALSE;
-			/* ICK: older versions of OpenSSH (e.g. 3.4p1)
-			 * provide an `int' for the signal, despite its
-			 * having been a `string' in the drafts since at
-			 * least 2001. (Fixed in session.c 1.147.) Try to
-			 * infer which we can safely parse it as. */
-			{
-			    unsigned char *p = pktin->body +
-				               pktin->savedpos;
-			    long len = pktin->length - pktin->savedpos;
-			    unsigned long num = GET_32BIT(p); /* what is it? */
-			    /* If it's 0, it hardly matters; assume string */
-			    if (num == 0) {
-				is_int = FALSE;
-			    } else {
-				int maybe_int = FALSE, maybe_str = FALSE;
-#define CHECK_HYPOTHESIS(offset, result) \
-    do { \
-	long q = offset; \
-	if (q >= 0 && q+4 <= len) { \
-	    q = q + 4 + GET_32BIT(p+q); \
-	    if (q >= 0 && q+4 <= len && \
-		    (q = q + 4 + GET_32BIT(p+q)) && q == len) \
-		result = TRUE; \
-	} \
-    } while(0)
-				CHECK_HYPOTHESIS(4+1, maybe_int);
-				CHECK_HYPOTHESIS(4+num+1, maybe_str);
-#undef CHECK_HYPOTHESIS
-				if (maybe_int && !maybe_str)
-				    is_int = TRUE;
-				else if (!maybe_int && maybe_str)
-				    is_int = FALSE;
-				else
-				    /* Crikey. Either or neither. Panic. */
-				    is_plausible = FALSE;
-			    }
-			}
-			if (is_plausible) {
-			    if (is_int) {
-				/* Old non-standard OpenSSH. */
-				int signum = ssh_pkt_getuint32(pktin);
-				fmt_sig = dupprintf(" %d", signum);
-			    } else {
-				/* As per the drafts. */
-				char *sig;
-				int siglen;
-				ssh_pkt_getstring(pktin, &sig, &siglen);
-				/* Signal name isn't supposed to be blank, but
-				 * let's cope gracefully if it is. */
-				if (siglen) {
-				    fmt_sig = dupprintf(" \"%.*s\"",
-							siglen, sig);
-				}
-			    }
-			    core = ssh2_pkt_getbool(pktin);
-			    ssh_pkt_getstring(pktin, &msg, &msglen);
-			    if (msglen) {
-				fmt_msg = dupprintf(" (\"%.*s\")", msglen, msg);
-			    }
-			    /* ignore lang tag */
-			} /* else don't attempt to parse */
-			logeventf(ssh, "Server exited on signal%s%s%s",
-				  fmt_sig, core ? " (core dumped)" : "",
-				  fmt_msg);
-			if (*fmt_sig) sfree(fmt_sig);
-			if (*fmt_msg) sfree(fmt_msg);
-			reply = SSH2_MSG_CHANNEL_SUCCESS;
-
-		    }
-		} else {
-		    /*
-		     * This is a channel request we don't know
-		     * about, so we now either ignore the request
-		     * or respond with CHANNEL_FAILURE, depending
-		     * on want_reply.
-		     */
-		    reply = SSH2_MSG_CHANNEL_FAILURE;
-		}
-		if (want_reply) {
-		    s->pktout = ssh2_pkt_init(reply);
-		    ssh2_pkt_adduint32(s->pktout, c->remoteid);
-		    ssh2_pkt_send(ssh, s->pktout);
-		}
-	    } else if (pktin->type == SSH2_MSG_GLOBAL_REQUEST) {
-		char *type;
-		int typelen, want_reply;
-
-		ssh_pkt_getstring(pktin, &type, &typelen);
-		want_reply = ssh2_pkt_getbool(pktin);
-
-                /*
-                 * We currently don't support any global requests
-                 * at all, so we either ignore the request or
-                 * respond with REQUEST_FAILURE, depending on
-                 * want_reply.
-                 */
-                if (want_reply) {
-                    s->pktout = ssh2_pkt_init(SSH2_MSG_REQUEST_FAILURE);
-                    ssh2_pkt_send(ssh, s->pktout);
-		}
-	    } else if (pktin->type == SSH2_MSG_CHANNEL_OPEN) {
-		char *type;
-		int typelen;
-		char *peeraddr;
-		int peeraddrlen;
-		int peerport;
-		char *error = NULL;
-		struct ssh_channel *c;
-		unsigned remid, winsize, pktsize;
-		ssh_pkt_getstring(pktin, &type, &typelen);
-		c = snew(struct ssh_channel);
-		c->ssh = ssh;
-
-		remid = ssh_pkt_getuint32(pktin);
-		winsize = ssh_pkt_getuint32(pktin);
-		pktsize = ssh_pkt_getuint32(pktin);
-
-		if (typelen == 3 && !memcmp(type, "x11", 3)) {
-		    char *addrstr;
-
-                    ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
-		    addrstr = snewn(peeraddrlen+1, char);
-		    memcpy(addrstr, peeraddr, peeraddrlen);
-		    addrstr[peeraddrlen] = '\0';
-                    peerport = ssh_pkt_getuint32(pktin);
-
-		    logeventf(ssh, "Received X11 connect request from %s:%d",
-			      addrstr, peerport);
-
-		    if (!ssh->X11_fwd_enabled)
-			error = "X11 forwarding is not enabled";
-		    else if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-				      ssh->x11auth, addrstr, peerport,
-				      &ssh->cfg) != NULL) {
-			error = "Unable to open an X11 connection";
-		    } else {
-			logevent("Opening X11 forward connection succeeded");
-			c->type = CHAN_X11;
-		    }
-
-		    sfree(addrstr);
-		} else if (typelen == 15 &&
-			   !memcmp(type, "forwarded-tcpip", 15)) {
-		    struct ssh_rportfwd pf, *realpf;
-		    char *dummy;
-		    int dummylen;
-		    ssh_pkt_getstring(pktin, &dummy, &dummylen);/* skip address */
-		    pf.sport = ssh_pkt_getuint32(pktin);
-                    ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
-                    peerport = ssh_pkt_getuint32(pktin);
-		    realpf = find234(ssh->rportfwds, &pf, NULL);
-		    logeventf(ssh, "Received remote port %d open request "
-			      "from %s:%d", pf.sport, peeraddr, peerport);
-		    if (realpf == NULL) {
-			error = "Remote port is not recognised";
-		    } else {
-			const char *e = pfd_newconnect(&c->u.pfd.s,
-						       realpf->dhost,
-						       realpf->dport, c,
-						       &ssh->cfg);
-			logeventf(ssh, "Attempting to forward remote port to "
-				  "%s:%d", realpf->dhost, realpf->dport);
-			if (e != NULL) {
-			    logeventf(ssh, "Port open failed: %s", e);
-			    error = "Port open failed";
-			} else {
-			    logevent("Forwarded port opened successfully");
-			    c->type = CHAN_SOCKDATA;
-			}
-		    }
-		} else if (typelen == 22 &&
-			   !memcmp(type, "auth-agent@openssh.com", 3)) {
-		    if (!ssh->agentfwd_enabled)
-			error = "Agent forwarding is not enabled";
-		    else {
-			c->type = CHAN_AGENT;	/* identify channel type */
-			c->u.a.lensofar = 0;
-		    }
-		} else {
-		    error = "Unsupported channel type requested";
-		}
-
-		c->remoteid = remid;
-		if (error) {
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_FAILURE);
-		    ssh2_pkt_adduint32(s->pktout, c->remoteid);
-		    ssh2_pkt_adduint32(s->pktout, SSH2_OPEN_CONNECT_FAILED);
-		    ssh2_pkt_addstring(s->pktout, error);
-		    ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		    ssh2_pkt_send(ssh, s->pktout);
-		    logeventf(ssh, "Rejected channel open: %s", error);
-		    sfree(c);
-		} else {
-		    c->localid = alloc_channel_id(ssh);
-		    c->closes = 0;
-		    c->v.v2.locwindow = OUR_V2_WINSIZE;
-		    c->v.v2.remwindow = winsize;
-		    c->v.v2.remmaxpkt = pktsize;
-		    bufchain_init(&c->v.v2.outbuffer);
-		    add234(ssh->channels, c);
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
-		    ssh2_pkt_adduint32(s->pktout, c->remoteid);
-		    ssh2_pkt_adduint32(s->pktout, c->localid);
-		    ssh2_pkt_adduint32(s->pktout, c->v.v2.locwindow);
-		    ssh2_pkt_adduint32(s->pktout, 0x4000UL);	/* our max pkt size */
-		    ssh2_pkt_send(ssh, s->pktout);
-		}
-	    } else {
-		bombout(("Strange packet received: type %d", pktin->type));
-		crStopV;
-	    }
+	    bombout(("Strange packet received: type %d", pktin->type));
+	    crStopV;
 	} else if (ssh->mainchan) {
 	    /*
 	     * We have spare data. Add it to the channel buffer.
