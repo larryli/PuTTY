@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.21 2003/03/29 23:07:55 ben Exp $ */
+/* $Id: macctrls.c,v 1.22 2003/03/30 00:45:00 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -235,7 +235,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 2);
+    macctrl_switchtopanel(mcs, 14);
     /* 14 = proxies, 20 = SSH bugs */
 }
 
@@ -906,13 +906,24 @@ void macctrl_key(WindowPtr window, EventRecord *event)
     ControlRef control;
     struct macctrls *mcs = mac_winctrls(window);
     union macctrl *mc;
+    TEHandle te;
 
-    if (mac_gestalts.apprvers >= 0x100 &&
-	GetKeyboardFocus(window, &control) == noErr && control != NULL) {
-	HandleControlKey(control, (event->message & keyCodeMask) >> 8,
-			 event->message & charCodeMask, event->modifiers);
-	mc =  (union macctrl *)GetControlReference(control);
-	ctrlevent(mcs, mc, EVENT_VALCHANGE);
+    if (mac_gestalts.apprvers >= 0x100) {
+	if (GetKeyboardFocus(window, &control) == noErr && control != NULL) {
+	    HandleControlKey(control, (event->message & keyCodeMask) >> 8,
+			     event->message & charCodeMask, event->modifiers);
+	    mc = (union macctrl *)GetControlReference(control);
+	    ctrlevent(mcs, mc, EVENT_VALCHANGE);
+	}
+    } else {
+	if (mcs->focus != NULL) {
+	    switch (mcs->focus->generic.type) {
+	      case MACCTRL_EDITBOX:
+		te = (TEHandle)(*mcs->focus->editbox.tbctrl)->contrlData;
+		TEKey(event->message & charCodeMask, te);
+		break;
+	    }
+	}
     }
 }
 
