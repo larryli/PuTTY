@@ -1,4 +1,4 @@
-/* $Id: macenc.c,v 1.1 2003/01/01 19:51:12 ben Exp $ */
+/* $Id: macenc.c,v 1.2 2003/01/25 19:21:56 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -162,7 +162,7 @@ int charset_from_macenc(int script, int region, int sysvers,
 	    (macencs[i].region < 0 || macencs[i].region == region) &&
 	    (macencs[i].sysvermin <= sysvers) &&
 	    (macencs[i].fontname == NULL ||
-	     strcmp(macencs[i].fontname, fontname) == 0))
+	     (fontname != NULL && strcmp(macencs[i].fontname, fontname) == 0)))
 	    return macencs[i].charset;
 
     return CS_NONE;
