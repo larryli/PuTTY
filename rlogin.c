@@ -127,7 +127,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	sfree(buf);
     }
     addr = name_lookup(host, port, realhost);
-    if ((err = sk_addr_error(addr)))
+    if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
     if (port < 0)
@@ -145,7 +145,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
     }
     rlogin->s = new_connection(addr, *realhost, port, 1, 0,
 			       nodelay, (Plug) rlogin);
-    if ((err = sk_socket_error(rlogin->s)))
+    if ((err = sk_socket_error(rlogin->s)) != NULL)
 	return err;
 
     sk_addr_free(addr);
@@ -164,7 +164,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	sk_write(rlogin->s, &z, 1);
 	sk_write(rlogin->s, cfg.termtype, strlen(cfg.termtype));
 	sk_write(rlogin->s, "/", 1);
-	for (p = cfg.termspeed; isdigit(*p); p++);
+	for (p = cfg.termspeed; isdigit(*p); p++) continue;
 	sk_write(rlogin->s, cfg.termspeed, p - cfg.termspeed);
 	rlogin->bufsize = sk_write(rlogin->s, &z, 1);
     }

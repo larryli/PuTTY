@@ -96,7 +96,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
 	sfree(buf);
     }
     addr = name_lookup(host, port, realhost);
-    if ((err = sk_addr_error(addr)))
+    if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
     if (port < 0)
@@ -113,7 +113,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
 	sfree(buf);
     }
     raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) raw);
-    if ((err = sk_socket_error(raw->s)))
+    if ((err = sk_socket_error(raw->s)) != NULL)
 	return err;
 
     sk_addr_free(addr);
