@@ -63,7 +63,7 @@ struct terminal_tag {
     struct scrollregion *scrollhead, *scrolltail;
 #endif /* OPTIMISE_SCROLL */
 
-    unsigned long curr_attr, save_attr;
+    unsigned long default_attr, curr_attr, save_attr;
     unsigned long erase_char;
 
     bufchain inbuf;		       /* terminal input buffer */
