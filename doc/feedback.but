@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.14 2003/09/23 10:05:06 jacob Exp $
+\versionid $Id: feedback.but,v 1.15 2003/09/23 10:12:02 jacob Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -197,7 +197,7 @@ the list. If it is, it probably won't achieve very much to repeat
 the request. (But see \k{feedback-feature-priority} if you want to
 persuade us to give your particular feature higher priority.)
 
-\b Check the
+\b Check the Wishlist and
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html}{Change
 Log} on the PuTTY website, and see if we have already added your
 feature in the development snapshots. If it isn't clear, download
