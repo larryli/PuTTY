@@ -74,6 +74,12 @@ void init_ucs_tables(void)
     /* Collect OEMCP ucs table */
     get_unitab(CP_OEMCP, unitab_oemcp, 1);
 
+    /* Collect CP437 ucs table for SCO acs */
+    if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_XWINDOWS)
+	memcpy(unitab_scoacs, unitab_oemcp, sizeof(unitab_scoacs));
+    else
+	get_unitab(437, unitab_scoacs, 1);
+
     /* Collect line set ucs table */
     if (line_codepage == font_codepage &&
 	(dbcs_screenfont || cfg.vtmode == VT_POORMAN)) {
@@ -143,7 +149,11 @@ void init_ucs_tables(void)
 	    unitab_ctrl[i] = 0xFF;
 
     /* Generate line->screen direct conversion links. */
+    if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_XWINDOWS)
+	link_font(unitab_scoacs, unitab_oemcp, ATTR_OEMCP);
+
     link_font(unitab_line, unitab_font, ATTR_ACP);
+    link_font(unitab_scoacs, unitab_font, ATTR_ACP);
     link_font(unitab_xterm, unitab_font, ATTR_ACP);
 
     if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_XWINDOWS) {
@@ -153,6 +163,8 @@ void init_ucs_tables(void)
 
     /* Last chance, if !unicode then try poorman links. */
     if (cfg.vtmode != VT_UNICODE) {
+	static char poorman_scoacs[] = 
+	    "CueaaaaceeeiiiAAE**ooouuyOUc$YPsaiounNao?++**!<>###||||++||++++++--|-+||++--|-+----++++++++##||#aBTPEsyt******EN=+><++-=... n2* ";
 	static char poorman_latin1[] =
 	    " !cL.Y|S\"Ca<--R~o+23'u|.,1o>///?AAAAAAACEEEEIIIIDNOOOOOxOUUUUYPBaaaaaaaceeeeiiiionooooo/ouuuuypy";
 	static char poorman_vt100[] = "*#****o~**+++++-----++++|****L.";
@@ -167,6 +179,10 @@ void init_ucs_tables(void)
 	    if (!DIRECT_FONT(unitab_xterm[i]))
 		unitab_xterm[i] =
 		    (WCHAR) (ATTR_ACP + poorman_vt100[i - 96]);
+	for(i=128;i<256;i++) 
+	    if (!DIRECT_FONT(unitab_scoacs[i]))
+		unitab_scoacs[i] = 
+		    (WCHAR) (ATTR_ACP + poorman_scoacs[i - 128]);
     }
 }
 

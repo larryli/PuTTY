@@ -104,6 +104,7 @@ static int tblinker;		       /* When the blinking text is on */
 static int blink_is_real;	       /* Actually blink blinking text */
 static int term_echoing;	       /* Does terminal want local echo? */
 static int term_editing;	       /* Does terminal want local edit? */
+static int sco_acs, save_sco_acs;      /* CSI 10,11,12m -> OEM charset */
 static int vt52_bold;		       /* Force bold on non-bold colours */
 static int utf_state;		       /* Is there a pending UTF-8 character */
 static int utf_char;		       /* and what is it so far. */
@@ -116,7 +117,7 @@ static unsigned long cset_attr[2];
 /*
  * Saved settings on the alternate screen.
  */
-static int alt_x, alt_y, alt_om, alt_wrap, alt_wnext, alt_ins, alt_cset;
+static int alt_x, alt_y, alt_om, alt_wrap, alt_wnext, alt_ins, alt_cset, alt_sco_acs;
 static int alt_t, alt_b;
 static int alt_which;
 
@@ -278,6 +279,7 @@ static void power_on(void)
     alt_wnext = wrapnext = alt_ins = insert = FALSE;
     alt_wrap = wrap = cfg.wrap_mode;
     alt_cset = cset = 0;
+    alt_sco_acs = sco_acs = 0;
     cset_attr[0] = cset_attr[1] = ATTR_ASCII;
     rvideo = 0;
     in_vbell = FALSE;
@@ -536,6 +538,9 @@ static void swap_screen(int which)
     t = cset;
     cset = alt_cset;
     alt_cset = t;
+    t = sco_acs;
+    sco_acs = alt_sco_acs;
+    alt_sco_acs = t;
 
     fix_cpos;
 }
@@ -690,6 +695,7 @@ static void save_cursor(int save)
 	save_attr = curr_attr;
 	save_cset = cset;
 	save_csattr = cset_attr[cset];
+	save_sco_acs = sco_acs;
     } else {
 	curs = savecurs;
 	/* Make sure the window hasn't shrunk since the save */
@@ -701,6 +707,7 @@ static void save_cursor(int save)
 	curr_attr = save_attr;
 	cset = save_cset;
 	cset_attr[cset] = save_csattr;
+	sco_acs = save_sco_acs;
 	fix_cpos;
 	if (use_bce)
 	    erase_char = (' ' | (curr_attr & (ATTR_FGMASK | ATTR_BGMASK)));
@@ -1024,6 +1031,13 @@ void term_out(void)
 		    if (c >= 0x10000)
 			c = 0xFFFD;
 		    break;
+	    }
+	    /* Are we in the nasty ACS mode? Note: no sco in utf mode. */
+	    else if(sco_acs && 
+		    (c!='\033' && c!='\n' && c!='\r' && c!='\b'))
+	    {
+	       if (sco_acs == 2) c ^= 0x80;
+	       c |= ATTR_SCOACS;
 	    } else {
 	      evil_jump:;
 		switch (cset_attr[cset]) {
@@ -1051,6 +1065,9 @@ void term_out(void)
 			c = unitab_ctrl[c];
 		    else
 			c = ((unsigned char) c) | ATTR_ASCII;
+		    break;
+		case ATTR_SCOACS:
+		    if (c>=' ') c = ((unsigned char)c) | ATTR_SCOACS;
 		    break;
 		}
 	    }
@@ -1483,6 +1500,10 @@ void term_out(void)
 		    compatibility(VT100);
 		    cset_attr[0] = ATTR_LINEDRW;
 		    break;
+		  case ANSI('U', '('): 
+		    compatibility(OTHER);
+		    cset_attr[0] = ATTR_SCOACS; 
+		    break;
 
 		  case ANSI('A', ')'):
 		    compatibility(VT100);
@@ -1495,6 +1516,10 @@ void term_out(void)
 		  case ANSI('0', ')'):
 		    compatibility(VT100);
 		    cset_attr[1] = ATTR_LINEDRW;
+		    break;
+		  case ANSI('U', ')'): 
+		    compatibility(OTHER);
+		    cset_attr[1] = ATTR_SCOACS; 
 		    break;
 
 		  case ANSI('8', '%'):	/* Old Linux code */
@@ -1763,6 +1788,15 @@ void term_out(void)
 				  case 7:	/* enable reverse video */
 				    curr_attr |= ATTR_REVERSE;
 				    break;
+				  case 10:      /* SCO acs off */
+				    compatibility(SCOANSI);
+				    sco_acs = 0; break;
+				  case 11:      /* SCO acs on */
+				    compatibility(SCOANSI);
+				    sco_acs = 1; break;
+				  case 12:      /* SCO acs on flipped */
+				    compatibility(SCOANSI);
+				    sco_acs = 2; break;
 				  case 22:	/* disable bold */
 				    compatibility2(OTHER, VT220);
 				    curr_attr &= ~ATTR_BOLD;
@@ -2499,6 +2533,9 @@ static void do_paint(Context ctx, int may_optimise)
 	      case ATTR_LINEDRW:
 		tchar = unitab_xterm[tchar & 0xFF];
 		break;
+	      case ATTR_SCOACS:  
+		tchar = unitab_scoacs[tchar&0xFF]; 
+		break;
 	    }
 	    tattr |= (tchar & CSET_MASK);
 	    tchar &= CHAR_MASK;
@@ -2733,6 +2770,9 @@ static void clipme(pos top, pos bottom)
 	      case ATTR_ASCII:
 		uc = unitab_line[uc & 0xFF];
 		break;
+	      case ATTR_SCOACS:  
+		uc = unitab_scoacs[uc&0xFF]; 
+		break;
 	    }
 	    switch (uc & CSET_MASK) {
 	      case ATTR_ACP:
@@ -2892,6 +2932,9 @@ static int wordtype(int uc)
 	break;
       case ATTR_ASCII:
 	uc = unitab_line[uc & 0xFF];
+	break;
+      case ATTR_SCOACS:  
+	uc = unitab_scoacs[uc&0xFF]; 
 	break;
     }
     switch (uc & CSET_MASK) {

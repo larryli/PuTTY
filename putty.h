@@ -54,6 +54,7 @@
 /* These are internal use overlapping with the UTF-16 surrogates */
 #define ATTR_ASCII   0x0000D800UL      /* normal ASCII charset ESC ( B */
 #define ATTR_LINEDRW 0x0000D900UL      /* line drawing charset ESC ( 0 */
+#define ATTR_SCOACS  0x0000DA00UL      /* SCO Alternate charset */
 #define ATTR_GBCHR   0x0000DB00UL      /* UK variant   charset ESC ( A */
 #define CSET_MASK    0x0000FF00UL      /* Character set mask; MUST be 0xFF00 */
 
@@ -120,6 +121,7 @@ GLOBAL int dbcs_screenfont;
 GLOBAL int font_codepage;
 GLOBAL int kbd_codepage;
 GLOBAL int line_codepage;
+GLOBAL WCHAR unitab_scoacs[256];
 GLOBAL WCHAR unitab_line[256];
 GLOBAL WCHAR unitab_font[256];
 GLOBAL WCHAR unitab_xterm[256];
