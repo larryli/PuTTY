@@ -177,6 +177,7 @@ int rsakey_encrypted(char *filename, char **comment) {
         !strcmp(buf, rsa_signature)) {
         return loadrsakey_main(fp, NULL, NULL, comment, NULL);
     }
+    fclose(fp);
     return 0;                          /* wasn't the right kind of file */
 }
 
