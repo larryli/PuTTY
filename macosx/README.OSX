@@ -49,8 +49,6 @@ Missing input features
  - use of Alt+numberpad to enter arbitrary numeric character codes
    is not yet supported
 
- - cut and paste isn't supported
-
  - there's no Meta key yet. (I'd like to at least have the
    possibility of using Command rather than Option as the Meta key,
    since the latter is necessary to send some characters, including
@@ -63,6 +61,9 @@ Missing input features
 
  - there's no specials menu
 
+ - mouse activity isn't supported (neither cut-and-paste nor xterm
+   mouse tracking)
+
 Missing terminal emulation features
 -----------------------------------
 
@@ -74,8 +75,6 @@ Missing terminal emulation features
 
 Other missing features
 ----------------------
-
- - SessionWindow's dealloc method does nothing yet, so leaks memory
 
  - no Event Log
 

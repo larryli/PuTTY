@@ -313,14 +313,16 @@
      * Do so.
      */
     sfree(alert_ctx);
-    if (term)
-	term_free(term);
-    if (logctx)
-	log_free(logctx);
     if (back)
 	back->free(backhandle);
     if (ldisc)
 	ldisc_free(ldisc);
+    /* ldisc must be freed before term, since ldisc_free expects term
+     * still to be around. */
+    if (logctx)
+	log_free(logctx);
+    if (term)
+	term_free(term);
     [super dealloc];
 }
 
