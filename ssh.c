@@ -3224,15 +3224,29 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		 * reason, we don't do this trick at all because we gain
 		 * nothing by it.
 		 */
-		if (cscipher) {
-		    int i, j;
+                if (cscipher) {
+                    int stringlen, i;
+
+                    stringlen = (256 - deferred_len);
+                    stringlen += cscipher->blksize - 1;
+                    stringlen -= (stringlen % cscipher->blksize);
+                    if (cscomp) {
+                        /*
+                         * Temporarily disable actual compression,
+                         * so we can guarantee to get this string
+                         * exactly the length we want it. The
+                         * compression-disabling routine should
+                         * return an integer indicating how many
+                         * bytes we should adjust our string length
+                         * by.
+                         */
+                        stringlen -= cscomp->disable_compression();
+                    }
 		    ssh2_pkt_init(SSH2_MSG_IGNORE);
 		    ssh2_pkt_addstring_start();
-		    for (i = deferred_len; i <= 256; i += cscipher->blksize) {
-			for (j = 0; j < cscipher->blksize; j++) {
-			    char c = (char)random_byte();
-			    ssh2_pkt_addstring_data(&c, 1);
-			}
+		    for (i = 0; i < stringlen; i++) {
+                        char c = (char)random_byte();
+                        ssh2_pkt_addstring_data(&c, 1);
 		    }
 		    ssh2_pkt_defer();
 		}

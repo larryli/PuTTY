@@ -159,6 +159,7 @@ struct ssh_compress {
     void (*decompress_init)(void);
     int (*decompress)(unsigned char *block, int len,
 		      unsigned char **outblock, int *outlen);
+    int (*disable_compression)(void);
 };
 
 struct ssh2_userkey {
