@@ -33,6 +33,11 @@
  */
 #define AGENT_MAX_MSGLEN  8192
 
+/* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
+ * wParam are used by Windows, and should be masked off, so we shouldn't
+ * attempt to store information in them. Hence all these identifiers have
+ * the low 4 bits clear. */
+
 #define IDM_CLOSE    0x0010
 #define IDM_VIEWKEYS 0x0020
 #define IDM_ADDKEY   0x0030

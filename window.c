@@ -22,6 +22,11 @@
 #include <richedit.h>
 #include <mmsystem.h>
 
+/* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
+ * wParam are used by Windows, and should be masked off, so we shouldn't
+ * attempt to store information in them. Hence all these identifiers have
+ * the low 4 bits clear. */
+
 #define IDM_SHOWLOG   0x0010
 #define IDM_NEWSESS   0x0020
 #define IDM_DUPSESS   0x0030
