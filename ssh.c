@@ -998,7 +998,7 @@ static void ssh_gotdata(unsigned char *data, int datalen)
     crFinishV;
 }
 
-static int ssh_receive(Socket s, int urgent, char *data, int len) {
+static int ssh_receive(Socket skt, int urgent, char *data, int len) {
     if (!len) {
 	/* Connection has closed. */
 	sk_close(s);

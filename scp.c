@@ -53,7 +53,6 @@ static int statistics = 1;
 static int portnumber = 0;
 static char *password = NULL;
 static int errs = 0;
-static int connection_open = 0;
 /* GUI Adaptation - Sept 2000 */
 #define NAME_STR_MAX 2048
 static char statname[NAME_STR_MAX+1];
@@ -377,7 +376,7 @@ static void bump(char *fmt, ...)
     strcat(str, "\n");
     tell_str(stderr, str);
 
-    if (connection_open) {
+    if (back->socket() != NULL) {
 	char ch;
 	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
@@ -476,8 +475,6 @@ static void do_cmd(char *host, char *user, char *cmd)
     ssh_scp_init();
     if (verbose && realhost != NULL)
 	tell_user(stderr, "Connected to %s\n", realhost);
-
-    connection_open = 1;
 }
 
 /*
@@ -1235,7 +1232,7 @@ int main(int argc, char *argv[])
 	    tolocal(argc, argv);
     }
 
-    if (connection_open) {
+    if (back->socket() != NULL) {
 	char ch;
 	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
