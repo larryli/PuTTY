@@ -62,7 +62,7 @@ int import_target_type(int type)
 int import_encrypted(char *filename, int type, char **comment)
 {
     if (type == SSH_KEYTYPE_OPENSSH) {
-	*comment = filename;	       /* OpenSSH doesn't do key comments */
+	*comment = dupstr(filename);   /* OpenSSH doesn't do key comments */
 	return openssh_encrypted(filename);
     }
     if (type == SSH_KEYTYPE_SSHCOM) {
