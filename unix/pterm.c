@@ -38,6 +38,7 @@ struct gui_data {
     int pasteout_data_len;
     int font_width, font_height;
     int ignore_sbar;
+    int mouseptr_visible;
     guint term_paste_idle_id;
     GdkAtom compound_text_atom;
     char wintitle[sizeof(((Config *)0)->wintitle)];
@@ -189,6 +190,7 @@ void show_mouseptr(int show)
 	gdk_window_set_cursor(inst->area->window, inst->currcursor);
     else
 	gdk_window_set_cursor(inst->area->window, inst->blankcursor);
+    inst->mouseptr_visible = show;
 }
 
 gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
@@ -802,7 +804,7 @@ void set_raw_mouse_mode(int activate)
 	inst->currcursor = inst->rawcursor;
     else
 	inst->currcursor = inst->textcursor;
-    show_mouseptr(1);
+    show_mouseptr(inst->mouseptr_visible);
 }
 
 void request_resize(int w, int h)
