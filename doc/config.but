@@ -219,37 +219,208 @@ Settings}.
 
 \H{config-keyboard} The Keyboard panel
 
+The Keyboard configuration panel allows you to control the behaviour
+of the keyboard in PuTTY.
+
 \S{config-backspace} Changing the action of the Backspace key
+
+Some terminals believe that the Backspace key should send the same
+thing to the server as Control-H (ASCII code 8). Other terminals
+believe that the Backspace key should send ASCII code 127 (usually
+known as Control-?) so that it can be distinguished from Control-H.
+This option allows you to choose which code PuTTY generates when you
+press Backspace.
+
+If you are connecting to a Unix system, you will probably find that
+the Unix \c{stty} command lets you configure which the server
+expects to see, so you might not need to change which one PuTTY
+generates. On other systems, the server's expectation might be fixed
+and you might have no choice but to configure PuTTY.
+
+If you do have the choice, we recommend configuring PuTTY to
+generate Control-? and configuring the server to expect it, because
+that allows applications such as \c{emacs} to use Control-H for
+help.
 
 \S{config-homeend} Changing the action of the Home and End keys
 
+The Unix terminal emulator \c{rxvt} disagrees with the rest of the
+world about what character sequences should be sent to the server by
+the Home and End keys.
+
+\c{xterm}, and other terminals, send \c{ESC [1~} for the Home key,
+and \c{ESC [4~} for the End key. \c{rxvt} sends \c{ESC [H} for the
+Home key and \c{ESC [Ow} for the End key.
+
+If you find an application on which the Home and End keys aren't
+working, you could try switching this option to see if it helps.
+
 \S{config-funkeys} Changing the action of the function keys and keypad
+
+This option affects the function keys (F1 to F12) and the top row of
+the numeric keypad.
+
+\b In the default mode, labelled \c{ESC [n~}, the function keys
+generate sequences like \c{ESC [11~}, \c{ESC [12~} and so on. This
+matches the general behaviour of Digital's terminals.
+
+\b In Linux mode, F6 to F12 behave just like the default mode, but
+F1 to F5 generate \c{ESC [[A} through to \c{ESC [[E}. This mimics the
+Linux virtual console.
+
+\b In Xterm R6 mode, F5 to F12 behave like the default mode, but F1
+to F4 generate \c{ESC OP} through to \c{ESC OS}, which are the
+sequences produced by the top row of the \e{keypad} on Digital's
+terminals.
+
+\b In VT400 mode, all the function keys behave like the default
+mode, but the actual top row of the numeric keypad generates \c{ESC
+OP} through to \c{ESC OS}.
+
+If you don't know what any of this means, you probably don't need to
+fiddle with it.
 
 \S{config-appcursor} Controlling Application Cursor Keys mode
 
+Application Cursor Keys mode is a way for the server to change the
+control sequences sent by the arrow keys. In normal mode, the arrow
+keys send \c{ESC [A} through to \c{ESC [D}. In application mode,
+they send \c{ESC OA} through to \c{ESC OD}.
+
+Application Cursor Keys mode can be turned on and off by the server,
+depending on the application. PuTTY allows you to configure the
+initial state, and also allows you to disable application mode
+completely.
+
 \S{config-appkeypad} Controlling Application Keypad mode
+
+Application Keypad mode is a way for the server to change the
+behaviour of the numeric keypad.
+
+In normal mode, the keypad behaves like a normal Windows keypad:
+with NumLock on, the number keys generate numbers, and with NumLock
+off they act like the arrow keys and Home, End etc.
+
+In application mode, all the keypad keys send special control
+sequences, \e{including} Num Lock. Num Lock stops behaving like Num
+Lock and becomes another function key.
+
+Depending on which version of Windows you run, you may find the Num
+Lock light still flashes on and off every time you press Num Lock,
+even when application mode is active and Num Lock is acting like a
+function key. This is unavoidable.
+
+Application keypad mode can be turned on and off by the server,
+depending on the application. PuTTY allows you to configure the
+initial state, and also allows you to disable application mode
+completely.
 
 \S{config-nethack} Using NetHack keypad mode
 
+PuTTY has a special mode for playing NetHack. You can enable it by
+selecting \q{NetHack} in the \q{Initial state of numeric keypad}
+control.
+
+In this mode, the numeric keypad keys 1-9 generate the NetHack
+movement commands (\cw{hjklyubn}). The 5 key generates the \c{.}
+command (do nothing).
+
+Better still, pressing Shift with the keypad keys generates the
+capital forms of the commands (\cw{HJKLYUBN}), which tells NetHack
+to keep moving you in the same direction until you encounter
+something interesting.
+
+For some reason, this feature only works properly when Num Lock is
+on. We don't know why.
+
 \S{config-compose} Enabling a DEC-like Compose key
+
+DEC terminals have a Compose key, which provides an easy-to-remember
+way of typing accented characters. You press Compose and then type
+two more characters. The two characters are \q{combined} to produce
+an accented character. The choices of character are designed to be
+easy to remember; for example, composing \q{e} and \q{`} produces
+the \q{\u00e8{e-grave}} character.
+
+If you enable the \q{Application and AltGr act as Compose key}
+option, the Windows Application key and the AltGr key will both have
+this behaviour.
 
 \H{config-window} The Window panel
 
+The Window configuration panel allows you to control aspects of the
+PuTTY window and its behaviour.
+
 \S{config-winsize} Setting the size of the PuTTY window
+
+The \e{Rows} and \e{Columns} boxes let you set the PuTTY window to a
+precise size. Of course you can also drag the window to a new size
+while a session is running.
+
+If you are running an application which is unable to deal with
+changes in window size, you might want to enable the \q{Lock window
+size against resizing} option, which prevents the user from
+accidentally changing the size of the window.
 
 \S{config-scrollback} Controlling scrollback
 
+Text that scrolls off the top of the PuTTY terminal window is kept
+for reference. The scrollbar on the right of the window lets you
+view the scrolled-off text. You can also page through the scrollback
+using the keyboard, by pressing Shift-PgUp and Shift-PgDn.
+
+The \q{Lines of scrollback} box lets you configure how many lines of
+text PuTTY keeps. The \q{Display scrollbar} option allows you to
+hide the scrollbar (although you can still view the scrollback using
+Shift-PgUp and Shift-PgDn).
+
+If you are viewing part of the scrollback when the server sends more
+text to PuTTY, the screen will revert to showing the current
+terminal contents. You can disable this behaviour by turning off
+\q{Reset scrollback on display activity}. You can also make the
+screen revert when you press a key, by turning on \q{Reset
+scrollback on keypress}.
+
 \S{config-warnonclose} \q{Warn before closing window}
+
+If you press the Close button in a PuTTY window that contains a
+running session, PuTTY will put up a warning window asking if you
+really meant to close the window. A window whose session has already
+terminated can always be closed without a warning.
+
+If you want to be able to close a window quickly, you can disable
+the \q{Warn before closing window} option.
 
 \S{config-altf4} \q{Window closes on ALT-F4}
 
+By default, pressing ALT-F4 causes the window to close (or a warning
+box to appear; see \k{config-warnonclose}). If you disable the
+\q{Window closes on ALT-F4} option, then pressing ALT-F4 will simply
+send a key sequence to the server.
+
 \S{config-altspace} \q{System menu appears on ALT-Space}
+
+If this option is enabled, then pressing ALT-Space will bring up the
+PuTTY window's menu, like clicking on the top left corner. If it is
+disabled, then pressing ALT-Space will just send \c{ESC SPACE} to
+the server.
 
 \S{config-altonly} \q{System menu appears on Alt alone}
 
+If this option is enabled, then pressing and releasing ALT will
+bring up the PuTTY window's menu, like clicking on the top left
+corner. If it is disabled, then pressing and releasing ALT will have
+no effect.
+
 \S{config-alwaysontop} \q{Ensure window is always on top}
 
+If this option is enabled, the PuTTY window will stay on top of all
+other windows.
+
 \H{config-appearance} The Appearance panel
+
+The Appearance configuration panel allows you to control aspects of
+PuTTY's appearance.
 
 \S{config-cursor} Controlling the appearance of the cursor
 
@@ -264,6 +435,10 @@ Settings}.
 
 \H{config-translation} The Translation panel
 
+The Translation configuration panel allows you to control the
+translation between the character set understood by the server and
+the character set understood by PuTTY.
+
 \S{config-linedraw} Line drawing characters
 
 \S{config-outputtrans} Character set translation of output data
@@ -272,11 +447,16 @@ Settings}.
 
 \H{config-selection} The Selection panel
 
+The Selection panel allows you to control the way copy and paste
+work in the PuTTY window.
+
 \S{config-mouse} Changing the actions of the mouse buttons
 
 \S{config-charclasses} Configuring word-by-word selection
 
 \H{config-colours} The Colours panel
+
+The Colours panel allows you to control PuTTY's use of colour.
 
 \S{config-boldcolour} \q{Bolded text is a different colour}
 
@@ -286,6 +466,9 @@ Settings}.
 
 \H{config-connection} The Connection panel
 
+The Connection panel allows you to configure options that apply to
+more than one type of connection.
+
 \S{config-termtype} \q{Terminal-type string}
 
 \S{config-username} \q{Auto-login username}
@@ -294,6 +477,9 @@ Settings}.
 
 \H{config-telnet} The Telnet panel
 
+The Telnet panel allows you to configure options that only apply to
+Telnet sessions.
+
 \S{config-termspeed} \q{Terminal-speed string}
 
 \S{config-environ} Setting environment variables on the server
@@ -301,6 +487,9 @@ Settings}.
 \S{config-oldenviron} \q{Handling of OLD_ENVIRON ambiguity}
 
 \H{config-ssh} The SSH panel
+
+The SSH panel allows you to configure options that only apply to
+SSH sessions.
 
 \S{config-command} Executing a specific command on the server
 
