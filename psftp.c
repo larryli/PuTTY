@@ -1765,7 +1765,7 @@ static void usage(void)
 {
     printf("PuTTY Secure File Transfer (SFTP) client\n");
     printf("%s\n", ver);
-    printf("Usage: psftp [options] user@host\n");
+    printf("Usage: psftp [options] [user@]host\n");
     printf("Options:\n");
     printf("  -b file   use specified batchfile\n");
     printf("  -bc       output batchfile commands\n");
