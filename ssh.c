@@ -401,23 +401,27 @@ const static struct ssh_mac *buggymacs[] = {
     &ssh_sha1_buggy, &ssh_md5, &ssh_mac_none
 };
 
-static void ssh_comp_none_init(void)
+static void *ssh_comp_none_init(void)
+{
+    return NULL;
+}
+static void ssh_comp_none_cleanup(void *handle)
 {
 }
-static int ssh_comp_none_block(unsigned char *block, int len,
+static int ssh_comp_none_block(void *handle, unsigned char *block, int len,
 			       unsigned char **outblock, int *outlen)
 {
     return 0;
 }
-static int ssh_comp_none_disable(void)
+static int ssh_comp_none_disable(void *handle)
 {
     return 0;
 }
 const static struct ssh_compress ssh_comp_none = {
     "none",
-    ssh_comp_none_init, ssh_comp_none_block,
-    ssh_comp_none_init, ssh_comp_none_block,
-    ssh_comp_none_disable
+    ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
+    ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
+    ssh_comp_none_disable, NULL
 };
 extern const struct ssh_compress ssh_zlib;
 const static struct ssh_compress *compressions[] = {
@@ -566,6 +570,7 @@ struct ssh_tag {
     const struct ssh_mac *csmac, *scmac;
     void *cs_mac_ctx, *sc_mac_ctx;
     const struct ssh_compress *cscomp, *sccomp;
+    void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
     const struct ssh_signkey *hostkey;
     unsigned char v2_session_id[20];
@@ -832,7 +837,8 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     if (ssh->v1_compressing) {
 	unsigned char *decompblk;
 	int decomplen;
-	zlib_decompress_block(ssh->pktin.body - 1, ssh->pktin.length + 1,
+	zlib_decompress_block(ssh->sc_comp_ctx,
+			      ssh->pktin.body - 1, ssh->pktin.length + 1,
 			      &decompblk, &decomplen);
 
 	if (ssh->pktin.maxlen < st->pad + decomplen) {
@@ -1006,7 +1012,8 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	unsigned char *newpayload;
 	int newlen;
 	if (ssh->sccomp &&
-	    ssh->sccomp->decompress(ssh->pktin.data + 5, ssh->pktin.length - 5,
+	    ssh->sccomp->decompress(ssh->sc_comp_ctx,
+				    ssh->pktin.data + 5, ssh->pktin.length - 5,
 				    &newpayload, &newlen)) {
 	    if (ssh->pktin.maxlen < newlen + 5) {
 		ssh->pktin.maxlen = newlen + 5;
@@ -1171,7 +1178,8 @@ static int s_wrpkt_prepare(Ssh ssh)
     if (ssh->v1_compressing) {
 	unsigned char *compblk;
 	int complen;
-	zlib_compress_block(ssh->pktout.body - 1, ssh->pktout.length + 1,
+	zlib_compress_block(ssh->cs_comp_ctx,
+			    ssh->pktout.body - 1, ssh->pktout.length + 1,
 			    &compblk, &complen);
 	ssh1_pktout_size(ssh, complen - 1);
 	memcpy(ssh->pktout.body - 1, compblk, complen);
@@ -1457,7 +1465,8 @@ static int ssh2_pkt_construct(Ssh ssh)
 	unsigned char *newpayload;
 	int newlen;
 	if (ssh->cscomp &&
-	    ssh->cscomp->compress(ssh->pktout.data + 5, ssh->pktout.length - 5,
+	    ssh->cscomp->compress(ssh->cs_comp_ctx, ssh->pktout.data + 5,
+				  ssh->pktout.length - 5,
 				  &newpayload, &newlen)) {
 	    ssh->pktout.length = 5;
 	    ssh2_pkt_adddata(ssh, newpayload, newlen);
@@ -3191,8 +3200,10 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	}
 	logevent("Started compression");
 	ssh->v1_compressing = TRUE;
-	zlib_compress_init();
-	zlib_decompress_init();
+	ssh->cs_comp_ctx = zlib_compress_init();
+	logevent("Initialised zlib (RFC1950) compression");
+	ssh->sc_comp_ctx = zlib_decompress_init();
+	logevent("Initialised zlib (RFC1950) decompression");
     }
 
     /*
@@ -4064,10 +4075,16 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     ssh->scmac = s->scmac_tobe;
     ssh->sc_mac_ctx = ssh->scmac->make_context();
 
+    if (ssh->cs_comp_ctx)
+	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
     ssh->cscomp = s->cscomp_tobe;
+    ssh->cs_comp_ctx = ssh->cscomp->compress_init();
+
+    if (ssh->sc_comp_ctx)
+	ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
     ssh->sccomp = s->sccomp_tobe;
-    ssh->cscomp->compress_init();
-    ssh->sccomp->decompress_init();
+    ssh->sc_comp_ctx = ssh->sccomp->decompress_init();
+
     /*
      * Set IVs after keys. Here we use the exchange hash from the
      * _first_ key exchange.
@@ -4098,6 +4115,16 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	sprintf(buf, "Initialised %.200s server->client encryption",
 		ssh->sccipher->text_name);
 	logevent(buf);
+	if (ssh->cscomp->text_name) {
+	    sprintf(buf, "Initialised %.200s compression",
+		    ssh->cscomp->text_name);
+	    logevent(buf);
+	}
+	if (ssh->sccomp->text_name) {
+	    sprintf(buf, "Initialised %.200s decompression",
+		    ssh->sccomp->text_name);
+	    logevent(buf);
+	}
     }
 
 
@@ -4926,7 +4953,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			 * bytes we should adjust our string length
 			 * by.
 			 */
-			stringlen -= ssh->cscomp->disable_compression();
+			stringlen -= 
+			    ssh->cscomp->disable_compression(ssh->cs_comp_ctx);
 		    }
 		    ssh2_pkt_init(ssh, SSH2_MSG_IGNORE);
 		    ssh2_pkt_addstring_start(ssh);
@@ -5817,7 +5845,9 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->scmac = NULL;
     ssh->sc_mac_ctx = NULL;
     ssh->cscomp = NULL;
+    ssh->cs_comp_ctx = NULL;
     ssh->sccomp = NULL;
+    ssh->sc_comp_ctx = NULL;
     ssh->kex = NULL;
     ssh->hostkey = NULL;
     ssh->exitcode = -1;

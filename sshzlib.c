@@ -337,8 +337,6 @@ static void lz77_compress(struct LZ77Context *ctx,
  * having to transmit the trees.
  */
 
-static struct LZ77Context ectx;
-
 struct Outbuf {
     unsigned char *outbuf;
     int outlen, outsize;
@@ -582,21 +580,28 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len)
     }
 }
 
-void zlib_compress_init(void)
+void *zlib_compress_init(void)
 {
     struct Outbuf *out;
+    struct LZ77Context *ectx = smalloc(sizeof(struct LZ77Context));
 
-    lz77_init(&ectx);
-    ectx.literal = zlib_literal;
-    ectx.match = zlib_match;
+    lz77_init(ectx);
+    ectx->literal = zlib_literal;
+    ectx->match = zlib_match;
 
     out = smalloc(sizeof(struct Outbuf));
     out->outbits = out->noutbits = 0;
     out->firstblock = 1;
     out->comp_disabled = FALSE;
-    ectx.userdata = out;
+    ectx->userdata = out;
 
-    logevent("Initialised zlib (RFC1950) compression");
+    return ectx;
+}
+
+void zlib_compress_cleanup(void *handle)
+{
+    struct LZ77Context *ectx = (struct LZ77Context *)handle;
+    sfree(ectx->userdata);
 }
 
 /*
@@ -605,9 +610,10 @@ void zlib_compress_init(void)
  * length adjustment (which is only valid for packets < 65536
  * bytes, but that seems reasonable enough).
  */
-int zlib_disable_compression(void)
+int zlib_disable_compression(void *handle)
 {
-    struct Outbuf *out = (struct Outbuf *) ectx.userdata;
+    struct LZ77Context *ectx = (struct LZ77Context *)handle;
+    struct Outbuf *out = (struct Outbuf *) ectx->userdata;
     int n;
 
     out->comp_disabled = TRUE;
@@ -640,10 +646,11 @@ int zlib_disable_compression(void)
     return n;
 }
 
-int zlib_compress_block(unsigned char *block, int len,
+int zlib_compress_block(void *handle, unsigned char *block, int len,
 			unsigned char **outblock, int *outlen)
 {
-    struct Outbuf *out = (struct Outbuf *) ectx.userdata;
+    struct LZ77Context *ectx = (struct LZ77Context *)handle;
+    struct Outbuf *out = (struct Outbuf *) ectx->userdata;
     int in_block;
 
     out->outbuf = NULL;
@@ -702,7 +709,7 @@ int zlib_compress_block(unsigned char *block, int len,
 	     * zlib_literal which will spot out->comp_disabled and
 	     * emit in the uncompressed format.
 	     */
-	    lz77_compress(&ectx, block, blen, FALSE);
+	    lz77_compress(ectx, block, blen, FALSE);
 
 	    len -= blen;
 	    block += blen;
@@ -722,7 +729,7 @@ int zlib_compress_block(unsigned char *block, int len,
 	/*
 	 * Do the compression.
 	 */
-	lz77_compress(&ectx, block, len, TRUE);
+	lz77_compress(ectx, block, len, TRUE);
 
 	/*
 	 * End the block (by transmitting code 256, which is
@@ -910,7 +917,7 @@ static int zlib_freetable(struct zlib_table **ztab)
     return (0);
 }
 
-static struct zlib_decompress_ctx {
+struct zlib_decompress_ctx {
     struct zlib_table *staticlentable, *staticdisttable;
     struct zlib_table *currlentable, *currdisttable, *lenlentable;
     enum {
@@ -930,23 +937,40 @@ static struct zlib_decompress_ctx {
     int winpos;
     unsigned char *outblk;
     int outlen, outsize;
-} dctx;
+};
 
-void zlib_decompress_init(void)
+void *zlib_decompress_init(void)
 {
+    struct zlib_decompress_ctx *dctx =
+	smalloc(sizeof(struct zlib_decompress_ctx));
     unsigned char lengths[288];
+
     memset(lengths, 8, 144);
     memset(lengths + 144, 9, 256 - 144);
     memset(lengths + 256, 7, 280 - 256);
     memset(lengths + 280, 8, 288 - 280);
-    dctx.staticlentable = zlib_mktable(lengths, 288);
+    dctx->staticlentable = zlib_mktable(lengths, 288);
     memset(lengths, 5, 32);
-    dctx.staticdisttable = zlib_mktable(lengths, 32);
-    dctx.state = START;		       /* even before header */
-    dctx.currlentable = dctx.currdisttable = dctx.lenlentable = NULL;
-    dctx.bits = 0;
-    dctx.nbits = 0;
-    logevent("Initialised zlib (RFC1950) decompression");
+    dctx->staticdisttable = zlib_mktable(lengths, 32);
+    dctx->state = START;		       /* even before header */
+    dctx->currlentable = dctx->currdisttable = dctx->lenlentable = NULL;
+    dctx->bits = 0;
+    dctx->nbits = 0;
+
+    return dctx;
+}
+
+void zlib_decompress_cleanup(void *handle)
+{
+    struct zlib_decompress_ctx *dctx = (struct zlib_decompress_ctx *)handle;
+    
+    if (dctx->currlentable && dctx->currlentable != dctx->staticlentable)
+	zlib_freetable(&dctx->currlentable);
+    if (dctx->currdisttable && dctx->currdisttable != dctx->staticdisttable)
+	zlib_freetable(&dctx->currdisttable);
+    if (dctx->lenlentable)
+	zlib_freetable(&dctx->lenlentable);
+    sfree(dctx);
 }
 
 int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
@@ -971,62 +995,63 @@ int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
     }
 }
 
-static void zlib_emit_char(int c)
+static void zlib_emit_char(struct zlib_decompress_ctx *dctx, int c)
 {
-    dctx.window[dctx.winpos] = c;
-    dctx.winpos = (dctx.winpos + 1) & (WINSIZE - 1);
-    if (dctx.outlen >= dctx.outsize) {
-	dctx.outsize = dctx.outlen + 512;
-	dctx.outblk = srealloc(dctx.outblk, dctx.outsize);
+    dctx->window[dctx->winpos] = c;
+    dctx->winpos = (dctx->winpos + 1) & (WINSIZE - 1);
+    if (dctx->outlen >= dctx->outsize) {
+	dctx->outsize = dctx->outlen + 512;
+	dctx->outblk = srealloc(dctx->outblk, dctx->outsize);
     }
-    dctx.outblk[dctx.outlen++] = c;
+    dctx->outblk[dctx->outlen++] = c;
 }
 
-#define EATBITS(n) ( dctx.nbits -= (n), dctx.bits >>= (n) )
+#define EATBITS(n) ( dctx->nbits -= (n), dctx->bits >>= (n) )
 
-int zlib_decompress_block(unsigned char *block, int len,
+int zlib_decompress_block(void *handle, unsigned char *block, int len,
 			  unsigned char **outblock, int *outlen)
 {
+    struct zlib_decompress_ctx *dctx = (struct zlib_decompress_ctx *)handle;
     const coderecord *rec;
     int code, blktype, rep, dist, nlen;
     static const unsigned char lenlenmap[] = {
 	16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
     };
 
-    dctx.outblk = NULL;
-    dctx.outsize = dctx.outlen = 0;
+    dctx->outblk = NULL;
+    dctx->outsize = dctx->outlen = 0;
 
-    while (len > 0 || dctx.nbits > 0) {
-	while (dctx.nbits < 24 && len > 0) {
-	    dctx.bits |= (*block++) << dctx.nbits;
-	    dctx.nbits += 8;
+    while (len > 0 || dctx->nbits > 0) {
+	while (dctx->nbits < 24 && len > 0) {
+	    dctx->bits |= (*block++) << dctx->nbits;
+	    dctx->nbits += 8;
 	    len--;
 	}
-	switch (dctx.state) {
+	switch (dctx->state) {
 	  case START:
 	    /* Expect 16-bit zlib header, which we'll dishonourably ignore. */
-	    if (dctx.nbits < 16)
+	    if (dctx->nbits < 16)
 		goto finished;	       /* done all we can */
 	    EATBITS(16);
-	    dctx.state = OUTSIDEBLK;
+	    dctx->state = OUTSIDEBLK;
 	    break;
 	  case OUTSIDEBLK:
 	    /* Expect 3-bit block header. */
-	    if (dctx.nbits < 3)
+	    if (dctx->nbits < 3)
 		goto finished;	       /* done all we can */
 	    EATBITS(1);
-	    blktype = dctx.bits & 3;
+	    blktype = dctx->bits & 3;
 	    EATBITS(2);
 	    if (blktype == 0) {
-		int to_eat = dctx.nbits & 7;
-		dctx.state = UNCOMP_LEN;
+		int to_eat = dctx->nbits & 7;
+		dctx->state = UNCOMP_LEN;
 		EATBITS(to_eat);       /* align to byte boundary */
 	    } else if (blktype == 1) {
-		dctx.currlentable = dctx.staticlentable;
-		dctx.currdisttable = dctx.staticdisttable;
-		dctx.state = INBLK;
+		dctx->currlentable = dctx->staticlentable;
+		dctx->currdisttable = dctx->staticdisttable;
+		dctx->state = INBLK;
 	    } else if (blktype == 2) {
-		dctx.state = TREES_HDR;
+		dctx->state = TREES_HDR;
 	    }
 	    break;
 	  case TREES_HDR:
@@ -1034,125 +1059,130 @@ int zlib_decompress_block(unsigned char *block, int len,
 	     * Dynamic block header. Five bits of HLIT, five of
 	     * HDIST, four of HCLEN.
 	     */
-	    if (dctx.nbits < 5 + 5 + 4)
+	    if (dctx->nbits < 5 + 5 + 4)
 		goto finished;	       /* done all we can */
-	    dctx.hlit = 257 + (dctx.bits & 31);
+	    dctx->hlit = 257 + (dctx->bits & 31);
 	    EATBITS(5);
-	    dctx.hdist = 1 + (dctx.bits & 31);
+	    dctx->hdist = 1 + (dctx->bits & 31);
 	    EATBITS(5);
-	    dctx.hclen = 4 + (dctx.bits & 15);
+	    dctx->hclen = 4 + (dctx->bits & 15);
 	    EATBITS(4);
-	    dctx.lenptr = 0;
-	    dctx.state = TREES_LENLEN;
-	    memset(dctx.lenlen, 0, sizeof(dctx.lenlen));
+	    dctx->lenptr = 0;
+	    dctx->state = TREES_LENLEN;
+	    memset(dctx->lenlen, 0, sizeof(dctx->lenlen));
 	    break;
 	  case TREES_LENLEN:
-	    if (dctx.nbits < 3)
+	    if (dctx->nbits < 3)
 		goto finished;
-	    while (dctx.lenptr < dctx.hclen && dctx.nbits >= 3) {
-		dctx.lenlen[lenlenmap[dctx.lenptr++]] =
-		    (unsigned char) (dctx.bits & 7);
+	    while (dctx->lenptr < dctx->hclen && dctx->nbits >= 3) {
+		dctx->lenlen[lenlenmap[dctx->lenptr++]] =
+		    (unsigned char) (dctx->bits & 7);
 		EATBITS(3);
 	    }
-	    if (dctx.lenptr == dctx.hclen) {
-		dctx.lenlentable = zlib_mktable(dctx.lenlen, 19);
-		dctx.state = TREES_LEN;
-		dctx.lenptr = 0;
+	    if (dctx->lenptr == dctx->hclen) {
+		dctx->lenlentable = zlib_mktable(dctx->lenlen, 19);
+		dctx->state = TREES_LEN;
+		dctx->lenptr = 0;
 	    }
 	    break;
 	  case TREES_LEN:
-	    if (dctx.lenptr >= dctx.hlit + dctx.hdist) {
-		dctx.currlentable = zlib_mktable(dctx.lengths, dctx.hlit);
-		dctx.currdisttable = zlib_mktable(dctx.lengths + dctx.hlit,
-						  dctx.hdist);
-		zlib_freetable(&dctx.lenlentable);
-		dctx.state = INBLK;
+	    if (dctx->lenptr >= dctx->hlit + dctx->hdist) {
+		dctx->currlentable = zlib_mktable(dctx->lengths, dctx->hlit);
+		dctx->currdisttable = zlib_mktable(dctx->lengths + dctx->hlit,
+						  dctx->hdist);
+		zlib_freetable(&dctx->lenlentable);
+		dctx->lenlentable = NULL;
+		dctx->state = INBLK;
 		break;
 	    }
 	    code =
-		zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.lenlentable);
+		zlib_huflookup(&dctx->bits, &dctx->nbits, dctx->lenlentable);
 	    if (code == -1)
 		goto finished;
 	    if (code < 16)
-		dctx.lengths[dctx.lenptr++] = code;
+		dctx->lengths[dctx->lenptr++] = code;
 	    else {
-		dctx.lenextrabits = (code == 16 ? 2 : code == 17 ? 3 : 7);
-		dctx.lenaddon = (code == 18 ? 11 : 3);
-		dctx.lenrep = (code == 16 && dctx.lenptr > 0 ?
-			       dctx.lengths[dctx.lenptr - 1] : 0);
-		dctx.state = TREES_LENREP;
+		dctx->lenextrabits = (code == 16 ? 2 : code == 17 ? 3 : 7);
+		dctx->lenaddon = (code == 18 ? 11 : 3);
+		dctx->lenrep = (code == 16 && dctx->lenptr > 0 ?
+			       dctx->lengths[dctx->lenptr - 1] : 0);
+		dctx->state = TREES_LENREP;
 	    }
 	    break;
 	  case TREES_LENREP:
-	    if (dctx.nbits < dctx.lenextrabits)
+	    if (dctx->nbits < dctx->lenextrabits)
 		goto finished;
 	    rep =
-		dctx.lenaddon +
-		(dctx.bits & ((1 << dctx.lenextrabits) - 1));
-	    EATBITS(dctx.lenextrabits);
-	    while (rep > 0 && dctx.lenptr < dctx.hlit + dctx.hdist) {
-		dctx.lengths[dctx.lenptr] = dctx.lenrep;
-		dctx.lenptr++;
+		dctx->lenaddon +
+		(dctx->bits & ((1 << dctx->lenextrabits) - 1));
+	    EATBITS(dctx->lenextrabits);
+	    while (rep > 0 && dctx->lenptr < dctx->hlit + dctx->hdist) {
+		dctx->lengths[dctx->lenptr] = dctx->lenrep;
+		dctx->lenptr++;
 		rep--;
 	    }
-	    dctx.state = TREES_LEN;
+	    dctx->state = TREES_LEN;
 	    break;
 	  case INBLK:
 	    code =
-		zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.currlentable);
+		zlib_huflookup(&dctx->bits, &dctx->nbits, dctx->currlentable);
 	    if (code == -1)
 		goto finished;
 	    if (code < 256)
-		zlib_emit_char(code);
+		zlib_emit_char(dctx, code);
 	    else if (code == 256) {
-		dctx.state = OUTSIDEBLK;
-		if (dctx.currlentable != dctx.staticlentable)
-		    zlib_freetable(&dctx.currlentable);
-		if (dctx.currdisttable != dctx.staticdisttable)
-		    zlib_freetable(&dctx.currdisttable);
+		dctx->state = OUTSIDEBLK;
+		if (dctx->currlentable != dctx->staticlentable) {
+		    zlib_freetable(&dctx->currlentable);
+		    dctx->currlentable = NULL;
+		}
+		if (dctx->currdisttable != dctx->staticdisttable) {
+		    zlib_freetable(&dctx->currdisttable);
+		    dctx->currdisttable = NULL;
+		}
 	    } else if (code < 286) {   /* static tree can give >285; ignore */
-		dctx.state = GOTLENSYM;
-		dctx.sym = code;
+		dctx->state = GOTLENSYM;
+		dctx->sym = code;
 	    }
 	    break;
 	  case GOTLENSYM:
-	    rec = &lencodes[dctx.sym - 257];
-	    if (dctx.nbits < rec->extrabits)
+	    rec = &lencodes[dctx->sym - 257];
+	    if (dctx->nbits < rec->extrabits)
 		goto finished;
-	    dctx.len =
-		rec->min + (dctx.bits & ((1 << rec->extrabits) - 1));
+	    dctx->len =
+		rec->min + (dctx->bits & ((1 << rec->extrabits) - 1));
 	    EATBITS(rec->extrabits);
-	    dctx.state = GOTLEN;
+	    dctx->state = GOTLEN;
 	    break;
 	  case GOTLEN:
 	    code =
-		zlib_huflookup(&dctx.bits, &dctx.nbits,
-			       dctx.currdisttable);
+		zlib_huflookup(&dctx->bits, &dctx->nbits,
+			       dctx->currdisttable);
 	    if (code == -1)
 		goto finished;
-	    dctx.state = GOTDISTSYM;
-	    dctx.sym = code;
+	    dctx->state = GOTDISTSYM;
+	    dctx->sym = code;
 	    break;
 	  case GOTDISTSYM:
-	    rec = &distcodes[dctx.sym];
-	    if (dctx.nbits < rec->extrabits)
+	    rec = &distcodes[dctx->sym];
+	    if (dctx->nbits < rec->extrabits)
 		goto finished;
-	    dist = rec->min + (dctx.bits & ((1 << rec->extrabits) - 1));
+	    dist = rec->min + (dctx->bits & ((1 << rec->extrabits) - 1));
 	    EATBITS(rec->extrabits);
-	    dctx.state = INBLK;
-	    while (dctx.len--)
-		zlib_emit_char(dctx.window[(dctx.winpos - dist) &
-					   (WINSIZE - 1)]);
+	    dctx->state = INBLK;
+	    while (dctx->len--)
+		zlib_emit_char(dctx, dctx->window[(dctx->winpos - dist) &
+						  (WINSIZE - 1)]);
 	    break;
 	  case UNCOMP_LEN:
 	    /*
 	     * Uncompressed block. We expect to see a 16-bit LEN.
 	     */
-	    if (dctx.nbits < 16)
+	    if (dctx->nbits < 16)
 		goto finished;
-	    dctx.uncomplen = dctx.bits & 0xFFFF;
+	    dctx->uncomplen = dctx->bits & 0xFFFF;
 	    EATBITS(16);
-	    dctx.state = UNCOMP_NLEN;
+	    dctx->state = UNCOMP_NLEN;
 	    break;
 	  case UNCOMP_NLEN:
 	    /*
@@ -1160,29 +1190,29 @@ int zlib_decompress_block(unsigned char *block, int len,
 	     * which should be the one's complement of the previous
 	     * LEN.
 	     */
-	    if (dctx.nbits < 16)
+	    if (dctx->nbits < 16)
 		goto finished;
-	    nlen = dctx.bits & 0xFFFF;
+	    nlen = dctx->bits & 0xFFFF;
 	    EATBITS(16);
-	    if (dctx.uncomplen == 0)
-		dctx.state = OUTSIDEBLK;	/* block is empty */
+	    if (dctx->uncomplen == 0)
+		dctx->state = OUTSIDEBLK;	/* block is empty */
 	    else
-		dctx.state = UNCOMP_DATA;
+		dctx->state = UNCOMP_DATA;
 	    break;
 	  case UNCOMP_DATA:
-	    if (dctx.nbits < 8)
+	    if (dctx->nbits < 8)
 		goto finished;
-	    zlib_emit_char(dctx.bits & 0xFF);
+	    zlib_emit_char(dctx, dctx->bits & 0xFF);
 	    EATBITS(8);
-	    if (--dctx.uncomplen == 0)
-		dctx.state = OUTSIDEBLK;	/* end of uncompressed block */
+	    if (--dctx->uncomplen == 0)
+		dctx->state = OUTSIDEBLK;	/* end of uncompressed block */
 	    break;
 	}
     }
 
   finished:
-    *outblock = dctx.outblk;
-    *outlen = dctx.outlen;
+    *outblock = dctx->outblk;
+    *outlen = dctx->outlen;
 
     return 1;
 }
@@ -1190,8 +1220,11 @@ int zlib_decompress_block(unsigned char *block, int len,
 const struct ssh_compress ssh_zlib = {
     "zlib",
     zlib_compress_init,
+    zlib_compress_cleanup,
     zlib_compress_block,
     zlib_decompress_init,
+    zlib_decompress_cleanup,
     zlib_decompress_block,
-    zlib_disable_compression
+    zlib_disable_compression,
+    "zlib (RFC1950)"
 };

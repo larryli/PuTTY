@@ -195,13 +195,16 @@ struct ssh_signkey {
 
 struct ssh_compress {
     char *name;
-    void (*compress_init) (void);
-    int (*compress) (unsigned char *block, int len,
+    void *(*compress_init) (void);
+    void (*compress_cleanup) (void *);
+    int (*compress) (void *, unsigned char *block, int len,
 		     unsigned char **outblock, int *outlen);
-    void (*decompress_init) (void);
-    int (*decompress) (unsigned char *block, int len,
+    void *(*decompress_init) (void);
+    void (*decompress_cleanup) (void *);
+    int (*decompress) (void *, unsigned char *block, int len,
 		       unsigned char **outblock, int *outlen);
-    int (*disable_compression) (void);
+    int (*disable_compression) (void *);
+    char *text_name;
 };
 
 struct ssh2_userkey {
@@ -359,11 +362,13 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
 /*
  * zlib compression.
  */
-void zlib_compress_init(void);
-void zlib_decompress_init(void);
-int zlib_compress_block(unsigned char *block, int len,
+void *zlib_compress_init(void);
+void zlib_compress_cleanup(void *);
+void *zlib_decompress_init(void);
+void zlib_decompress_cleanup(void *);
+int zlib_compress_block(void *, unsigned char *block, int len,
 			unsigned char **outblock, int *outlen);
-int zlib_decompress_block(unsigned char *block, int len,
+int zlib_decompress_block(void *, unsigned char *block, int len,
 			  unsigned char **outblock, int *outlen);
 
 /*
