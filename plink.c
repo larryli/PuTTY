@@ -165,6 +165,22 @@ int main(int argc, char **argv) {
     do_defaults(NULL);
     default_protocol = cfg.protocol;
     default_port = cfg.port;
+    {
+        /*
+         * Override the default protocol if PLINK_PROTOCOL is set.
+         */
+        char *p = getenv("PLINK_PROTOCOL");
+        int i;
+        if (p) {
+            for (i = 0; backends[i].backend != NULL; i++) {
+                if (!strcmp(backends[i].name, p)) {
+                    default_protocol = cfg.protocol = backends[i].protocol;
+                    default_port = cfg.port = backends[i].backend->default_port;
+                    break;
+                }
+            }
+        }
+    }
     while (--argc) {
         char *p = *++argv;
         if (*p == '-') {
@@ -293,8 +309,6 @@ int main(int argc, char **argv) {
     if (!*cfg.host) {
         usage();
     }
-    if (portnumber != -1)
-        cfg.port = portnumber;
 
     if (!*cfg.remote_cmd)
         flags |= FLAG_INTERACTIVE;
@@ -316,6 +330,12 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
+
+    /*
+     * Select port.
+     */
+    if (portnumber != -1)
+        cfg.port = portnumber;
 
     /*
      * Initialise WinSock.
@@ -369,6 +389,33 @@ int main(int argc, char **argv) {
     sending = FALSE;
     while (1) {
         int n;
+
+        if (!sending && back->sendok()) {
+            /*
+             * Create a separate thread to read from stdin. This is
+             * a total pain, but I can't find another way to do it:
+             *
+             *  - an overlapped ReadFile or ReadFileEx just doesn't
+             *    happen; we get failure from ReadFileEx, and
+             *    ReadFile blocks despite being given an OVERLAPPED
+             *    structure. Perhaps we can't do overlapped reads
+             *    on consoles. WHY THE HELL NOT?
+             * 
+             *  - WaitForMultipleObjects(netevent, console) doesn't
+             *    work, because it signals the console when
+             *    _anything_ happens, including mouse motions and
+             *    other things that don't cause data to be readable
+             *    - so we're back to ReadFile blocking.
+             */
+            idata.event = stdinevent;
+            if (!CreateThread(NULL, 0, stdin_read_thread,
+                              &idata, 0, &threadid)) {
+                fprintf(stderr, "Unable to create second thread\n");
+                exit(1);
+            }
+            sending = TRUE;
+        }
+
         n = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
         if (n == 0) {
             WSANETWORKEVENTS things;
@@ -381,34 +428,6 @@ int main(int argc, char **argv) {
                 }
             }
             term_out();
-            if (!sending && back->sendok()) {
-                /*
-                 * Create a separate thread to read from stdin.
-                 * This is a total pain, but I can't find another
-                 * way to do it:
-                 *
-                 *  - an overlapped ReadFile or ReadFileEx just
-                 *    doesn't happen; we get failure from
-                 *    ReadFileEx, and ReadFile blocks despite being
-                 *    given an OVERLAPPED structure. Perhaps we
-                 *    can't do overlapped reads on consoles. WHY
-                 *    THE HELL NOT?
-                 * 
-                 *  - WaitForMultipleObjects(netevent, console)
-                 *    doesn't work, because it signals the console
-                 *    when _anything_ happens, including mouse
-                 *    motions and other things that don't cause
-                 *    data to be readable - so we're back to
-                 *    ReadFile blocking.
-                 */
-                idata.event = stdinevent;
-                if (!CreateThread(NULL, 0, stdin_read_thread,
-                                  &idata, 0, &threadid)) {
-                    fprintf(stderr, "Unable to create second thread\n");
-                    exit(1);
-                }
-                sending = TRUE;
-            }
         } else if (n == 1) {
             if (idata.len > 0) {
                 back->send(idata.buffer, idata.len);
