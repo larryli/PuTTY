@@ -174,6 +174,10 @@ void radioline(struct ctlpos *cp,
         int bid;
         if (!btext)
             break;
+	if (i==nacross) {
+	    cp->ypos += r.bottom + GAPBETWEEN;
+	    i=0;
+	}
         bid = va_arg(ap, int);
         nextbtext = va_arg(ap, char *);
         r.left = GAPBETWEEN + i * (cp->width+GAPBETWEEN)/nacross;

@@ -2321,6 +2321,24 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	/* Reorder edit keys to physical order */
 	if (cfg.funky_type == 3 && code <= 6 ) code = "\0\2\1\4\5\3\6"[code];
 
+	if (vt52_mode && code > 0 && code <= 6) {
+	    p += sprintf((char *)p, "\x1B%c", " HLMEIG"[code]);
+	    return p - output;
+	}
+
+	if (cfg.funky_type == 5 && code >= 11 && code <= 24) {
+	    p += sprintf((char *)p, "\x1B[%c", code + 'M' - 11);
+	    return p - output;
+	}
+	if ((vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
+	    int offt = 0;
+	    if (code>15) offt++; if (code>21) offt++;
+	    if (vt52_mode)
+	        p += sprintf((char *)p, "\x1B%c", code + 'P' - 11 - offt);
+	    else
+	        p += sprintf((char *)p, "\x1BO%c", code + 'P' - 11 - offt);
+	    return p - output;
+	}
 	if (cfg.funky_type == 1 && code >= 11 && code <= 15) {
 	    p += sprintf((char *)p, "\x1B[[%c", code + 'A' - 11);
 	    return p - output;

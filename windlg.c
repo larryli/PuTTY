@@ -254,6 +254,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_FUNCLINUX,
     IDC_FUNCXTERM,
     IDC_FUNCVT400,
+    IDC_FUNCVT100P,
+    IDC_FUNCSCO,
     IDC_KPSTATIC,
     IDC_KPNORMAL,
     IDC_KPAPPLIC,
@@ -536,11 +538,13 @@ static void init_dlg_ctrls(HWND hwnd) {
 		      cfg.bksp_is_delete ? IDC_DEL127 : IDC_DEL008);
     CheckRadioButton (hwnd, IDC_HOMETILDE, IDC_HOMERXVT,
 		      cfg.rxvt_homeend ? IDC_HOMERXVT : IDC_HOMETILDE);
-    CheckRadioButton (hwnd, IDC_FUNCTILDE, IDC_FUNCVT400,
+    CheckRadioButton (hwnd, IDC_FUNCTILDE, IDC_FUNCSCO,
                       cfg.funky_type == 0 ? IDC_FUNCTILDE :
                       cfg.funky_type == 1 ? IDC_FUNCLINUX :
                       cfg.funky_type == 2 ? IDC_FUNCXTERM :
                       cfg.funky_type == 3 ? IDC_FUNCVT400 :
+                      cfg.funky_type == 4 ? IDC_FUNCVT100P :
+                      cfg.funky_type == 5 ? IDC_FUNCSCO :
                       IDC_FUNCTILDE );
     CheckDlgButton (hwnd, IDC_NOAPPLICC, cfg.no_applic_c);
     CheckDlgButton (hwnd, IDC_NOAPPLICK, cfg.no_applic_k);
@@ -861,40 +865,44 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == keyboardpanelstart) {
-        /* The Keyboard panel. Accelerators used: [acgo] h?sr~lxvunpymietd */
+        /* The Keyboard panel. Accelerators used: [acgo] bhf ruyntd */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
+	/*
         bartitle(&cp, "Options controlling the effects of keys",
                  IDC_TITLE_KEYBOARD);
+		 */
         beginbox(&cp, "Change the sequences sent by:",
                  IDC_BOX_KEYBOARD1);
-        radioline(&cp, "The Backspace key", IDC_DELSTATIC, 2,
-                  "Control-&H", IDC_DEL008,
-                  "Control-&? (127)", IDC_DEL127, NULL);
-        radioline(&cp, "The Home and End keys", IDC_HOMESTATIC, 2,
-                  "&Standard", IDC_HOMETILDE,
-                  "&rxvt", IDC_HOMERXVT, NULL);
-        radioline(&cp, "The Function keys and keypad", IDC_FUNCSTATIC, 4,
-                  "ESC[n&~", IDC_FUNCTILDE,
-                  "&Linux", IDC_FUNCLINUX,
-                  "&Xterm R6", IDC_FUNCXTERM,
-                  "&VT400", IDC_FUNCVT400, NULL);
+        radioline(&cp, "The &Backspace key", IDC_DELSTATIC, 2,
+                  "Control-H", IDC_DEL008,
+                  "Control-? (127)", IDC_DEL127, NULL);
+        radioline(&cp, "The &Home and End keys", IDC_HOMESTATIC, 2,
+                  "Standard", IDC_HOMETILDE,
+                  "rxvt", IDC_HOMERXVT, NULL);
+        radioline(&cp, "The &Function keys and keypad", IDC_FUNCSTATIC, 3,
+                  "ESC[n~", IDC_FUNCTILDE,
+                  "Linux", IDC_FUNCLINUX,
+                  "Xterm R6", IDC_FUNCXTERM,
+		  "VT400", IDC_FUNCVT400,
+                  "VT100+", IDC_FUNCVT100P,
+		  "SCO", IDC_FUNCSCO, NULL);
         endbox(&cp);
         beginbox(&cp, "Application keypad settings:",
                  IDC_BOX_KEYBOARD2);
         checkbox(&cp,
                  "Application c&ursor keys totally disabled",
                  IDC_NOAPPLICC);
-        radioline(&cp, "Initial state of cursor keys:", IDC_CURSTATIC, 2,
-                  "&Normal", IDC_CURNORMAL,
-                  "A&pplication", IDC_CURAPPLIC, NULL);
+        radioline(&cp, "Initial state of cu&rsor keys:", IDC_CURSTATIC, 2,
+                  "Normal", IDC_CURNORMAL,
+                  "Application", IDC_CURAPPLIC, NULL);
         checkbox(&cp,
                  "Application ke&ypad keys totally disabled",
                  IDC_NOAPPLICK);
-        radioline(&cp, "Initial state of numeric keypad:", IDC_KPSTATIC, 3,
-                  "Nor&mal", IDC_KPNORMAL,
-                  "Appl&ication", IDC_KPAPPLIC,
-                  "N&etHack", IDC_KPNH, NULL);
+        radioline(&cp, "Initial state of &numeric keypad:", IDC_KPSTATIC, 3,
+                  "Normal", IDC_KPNORMAL,
+                  "Application", IDC_KPAPPLIC,
+                  "NetHack", IDC_KPNH, NULL);
         endbox(&cp);
         beginbox(&cp, "Enable extra keyboard features:",
                  IDC_BOX_KEYBOARD3);
@@ -1500,21 +1508,22 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.rxvt_homeend = IsDlgButtonChecked (hwnd, IDC_HOMERXVT);
 	    break;
-	  case IDC_FUNCXTERM:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.funky_type = 2;
-	    break;
-	  case IDC_FUNCVT400:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.funky_type = 3;
-	    break;
 	  case IDC_FUNCTILDE:
 	  case IDC_FUNCLINUX:
+	  case IDC_FUNCXTERM:
+	  case IDC_FUNCVT400:
+	  case IDC_FUNCVT100P:
+	  case IDC_FUNCSCO:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.funky_type = IsDlgButtonChecked (hwnd, IDC_FUNCLINUX);
+		switch (LOWORD(wParam)) {
+		  case IDC_FUNCTILDE: cfg.funky_type = 0; break;
+		  case IDC_FUNCLINUX: cfg.funky_type = 1; break;
+		  case IDC_FUNCXTERM: cfg.funky_type = 2; break;
+		  case IDC_FUNCVT400: cfg.funky_type = 3; break;
+		  case IDC_FUNCVT100P: cfg.funky_type = 4; break;
+		  case IDC_FUNCSCO: cfg.funky_type = 5; break;
+		}
 	    break;
 	  case IDC_KPNORMAL:
 	  case IDC_KPAPPLIC:
