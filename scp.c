@@ -828,12 +828,6 @@ static void sink(char *targ, char *src)
 	if (sscanf(buf+1, "%u %lu %[^\n]", &mode, &size, namebuf) != 3)
 	    bump("Protocol error: Illegal file descriptor format");
 	/* Security fix: ensure the file ends up where we asked for it. */
-	if (src) {
-	    char *p = src + strlen(src);
-	    while (p > src && p[-1] != '/' && p[-1] != '\\')
-		p--;
-	    strcpy(namebuf, p);
-	}
 	if (targisdir) {
 	    char t[2048];
 	    char *p;
