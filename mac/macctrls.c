@@ -298,6 +298,22 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     cols[0] = *curstate;
     ncols = 1;
 
+    /* Draw a title, if we have one. */
+    if (!s->boxname && s->boxtitle) {
+	union control c;
+	c.text.label = dupstr(s->boxtitle);
+	macctrl_text(mcs, window, &cols[0], &c);
+	/* FIXME: should be highlighted, centred or boxed */
+    }
+
+    /* Start a containing box, if we have a boxname. */
+    /* FIXME: draw a box, not just its title */
+    if (s->boxname && *s->boxname && s->boxtitle) {
+	union control c;
+	c.text.label = dupstr(s->boxtitle);
+	macctrl_text(mcs, window, &cols[0], &c);
+    }
+
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
 
