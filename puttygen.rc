@@ -34,7 +34,7 @@ BEGIN
     PUSHBUTTON "View &Licence", 101, 6, 52, 70, 14
     CTEXT "PuTTYgen", 102, 10, 6, 120, 8
     CTEXT "", 100, 10, 16, 120, 16
-    CTEXT "\251 1997-2000 Simon Tatham. All rights reserved.",
+    CTEXT "\251 1997-2001 Simon Tatham. All rights reserved.",
           103, 10, 34, 120, 16
 END
 
@@ -46,7 +46,7 @@ FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON "OK", IDOK, 98, 203, 44, 14
 
-    LTEXT "Copyright \251 1997-2000 Simon Tatham", 1000, 10, 10, 206, 8
+    LTEXT "Copyright \251 1997-2001 Simon Tatham", 1000, 10, 10, 206, 8
 
     LTEXT "Permission is hereby granted, free of charge, to any person", 1002, 10, 26, 206, 8
     LTEXT "obtaining a copy of this software and associated documentation", 1003, 10, 34, 206, 8
