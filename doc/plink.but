@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.23 2004/05/22 11:09:31 simon Exp $
+\versionid $Id: plink.but,v 1.24 2004/08/03 13:23:48 jacob Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -47,7 +47,7 @@ use Plink:
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
-\c   -V        show version information
+\c   -V        print version information
 \c   -v        show verbose messages
 \c   -load sessname  Load settings from saved session
 \c   -ssh -telnet -rlogin -raw

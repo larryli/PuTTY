@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.28 2004/05/22 11:09:31 simon Exp $
+\versionid $Id: pscp.but,v 1.29 2004/08/03 13:23:48 jacob Exp $
 
 \#FIXME: Need examples
 
@@ -60,8 +60,8 @@ use PSCP:
 \c   -batch    disable all interactive prompts
 \c   -unsafe   allow server-side wildcards (DANGEROUS)
 \c   -V        print version information
-\c   -scp      force use of SCP protocol
 \c   -sftp     force use of SFTP protocol
+\c   -scp      force use of SCP protocol
 
 (PSCP's interface is much like the Unix \c{scp} command, if you're
 familiar with that.)
