@@ -590,6 +590,7 @@ void do_sftp(void) {
 	fprintf(stderr,
 		"Fatal: unable to initialise SFTP: %s\n",
 		fxp_error());
+	return;
     }
 
     /*

@@ -286,6 +286,10 @@ int fxp_init(void) {
     sftp_send(pktout);
 
     pktin = sftp_recv();
+    if (!pktin) {
+	fxp_internal_error("could not connect");
+	return 0;
+    }
     if (pktin->type != SSH_FXP_VERSION) {
 	fxp_internal_error("did not receive FXP_VERSION");
 	return 0;
