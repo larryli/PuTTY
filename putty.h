@@ -344,7 +344,7 @@ void term_invalidate(void);
 void term_blink(int set_cursor);
 void term_paste(void);
 void term_nopaste(void);
-int telnet_ldisc(int option);
+int term_ldisc(int option);
 void from_backend(int is_stderr, char *data, int len);
 void logfopen (void); 
 void logfclose (void);

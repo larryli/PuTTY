@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 /* GUI Adaptation - Sept 2000 */
 #include <winuser.h>
 #include <winbase.h>
@@ -75,6 +76,16 @@ static void gui_update_stats(char *name, unsigned long size,
                              int percentage, unsigned long elapsed);
 
 void logevent(char *string) { }
+
+void ldisc_send(char *buf, int len) {
+    /*
+     * This is only here because of the calls to ldisc_send(NULL,
+     * 0) in ssh.c. Nothing in PSCP actually needs to use the ldisc
+     * as an ldisc. So if we get called with any real data, I want
+     * to know about it.
+     */
+    assert(len == 0);
+}
 
 void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint) {
