@@ -81,6 +81,7 @@ static void init_fonts(int, int);
 static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
+static int do_mouse_wheel_msg(UINT message, WPARAM wParam, LPARAM lParam);
 
 static int is_full_screen(void);
 static void make_full_screen(void);
@@ -152,6 +153,8 @@ static int compose_state = 0;
 
 static OSVERSIONINFO osVersion;
 
+static UINT wm_mousewheel = WM_MOUSEWHEEL;
+
 /* Dummy routine, only required in plink. */
 void ldisc_update(int echo, int edit)
 {
@@ -199,6 +202,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    return 1;
         }
     }
+
+    /*
+     * If we're running a version of Windows that doesn't support
+     * WM_MOUSEWHEEL, find out what message number we should be
+     * using instead.
+     */
+    if (osVersion.dwMajorVersion < 4 ||
+	(osVersion.dwMajorVersion == 4 && 
+	 osVersion.dwPlatformId != VER_PLATFORM_WIN32_NT))
+	wm_mousewheel = RegisterWindowMessage("MSWHEEL_ROLLMSG");
 
     /*
      * See if we can find our Help file.
@@ -1846,45 +1859,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 #define TO_CHR_X(x) ((((x)<0 ? (x)-font_width+1 : (x))-offset_width) / font_width)
 #define TO_CHR_Y(y) ((((y)<0 ? (y)-font_height+1: (y))-offset_height) / font_height)
-#define WHEEL_DELTA 120
-      case WM_MOUSEWHEEL:
-	{
-	    wheel_accumulator += (short) HIWORD(wParam);
-	    wParam = LOWORD(wParam);
-
-	    /* process events when the threshold is reached */
-	    while (abs(wheel_accumulator) >= WHEEL_DELTA) {
-		int b;
-
-		/* reduce amount for next time */
-		if (wheel_accumulator > 0) {
-		    b = MBT_WHEEL_UP;
-		    wheel_accumulator -= WHEEL_DELTA;
-		} else if (wheel_accumulator < 0) {
-		    b = MBT_WHEEL_DOWN;
-		    wheel_accumulator += WHEEL_DELTA;
-		} else
-		    break;
-
-		if (send_raw_mouse) {
-		    /* send a mouse-down followed by a mouse up */
-		    
-		    term_mouse(b,
-			       MA_CLICK,
-			       TO_CHR_X(X_POS(lParam)),
-			       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
-			       wParam & MK_CONTROL, is_alt_pressed());
-		    term_mouse(b, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
-			       TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
-			       wParam & MK_CONTROL, is_alt_pressed());
-		} else {
-		    /* trigger a scroll */
-		    term_scroll(0,
-				b == MBT_WHEEL_UP ? -rows / 2 : rows / 2);
-		}
-	    }
-	    return 0;
-	}
       case WM_LBUTTONDOWN:
       case WM_MBUTTONDOWN:
       case WM_RBUTTONDOWN:
@@ -2441,6 +2415,56 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	if (send_raw_mouse && LOWORD(lParam) == HTCLIENT) {
 	    SetCursor(LoadCursor(NULL, IDC_ARROW));
 	    return TRUE;
+	}
+      default:
+	if (message == wm_mousewheel) {
+	    int shift_pressed=0, control_pressed=0, alt_pressed=0;
+
+	    if (message == WM_MOUSEWHEEL) {
+		wheel_accumulator += (short)HIWORD(wParam);
+		shift_pressed=LOWORD(wParam) & MK_SHIFT;
+		control_pressed=LOWORD(wParam) & MK_CONTROL;
+	    } else {
+		BYTE keys[256];
+		wheel_accumulator += (int)wParam;
+		if (GetKeyboardState(keys)!=0) {
+		    shift_pressed=keys[VK_SHIFT]&0x80;
+		    control_pressed=keys[VK_CONTROL]&0x80;
+		}
+	    }
+
+	    /* process events when the threshold is reached */
+	    while (abs(wheel_accumulator) >= WHEEL_DELTA) {
+		int b;
+
+		/* reduce amount for next time */
+		if (wheel_accumulator > 0) {
+		    b = MBT_WHEEL_UP;
+		    wheel_accumulator -= WHEEL_DELTA;
+		} else if (wheel_accumulator < 0) {
+		    b = MBT_WHEEL_DOWN;
+		    wheel_accumulator += WHEEL_DELTA;
+		} else
+		    break;
+
+		if (send_raw_mouse &&
+		    !(cfg.mouse_override && shift_pressed)) {
+		    /* send a mouse-down followed by a mouse up */
+		    term_mouse(b,
+			       MA_CLICK,
+			       TO_CHR_X(X_POS(lParam)),
+			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
+			       control_pressed, is_alt_pressed());
+		    term_mouse(b, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
+			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
+			       control_pressed, is_alt_pressed());
+		} else {
+		    /* trigger a scroll */
+		    term_scroll(0,
+				b == MBT_WHEEL_UP ? -rows / 2 : rows / 2);
+		}
+	    }
+	    return 0;
 	}
     }
 
