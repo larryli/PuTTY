@@ -7,6 +7,11 @@
 #include "charset.h"
 #include "internal.h"
 
+void read_utf8(charset_spec const *, long int, charset_state *,
+	       void (*)(void *, long int), void *);
+void write_utf8(charset_spec const *, long int,
+		charset_state *, void (*)(void *, long int), void *);
+
 /*
  * UTF-8 has no associated data, so `charset' may be ignored.
  */
