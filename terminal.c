@@ -735,6 +735,7 @@ static void erase_lots(int line_only, int from_begin, int to_end)
     }
     if (!to_end) {
 	end = curs;
+	incpos(end);
     }
     check_selection(start, end);
 
