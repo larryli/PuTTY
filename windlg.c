@@ -1116,7 +1116,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	endbox(&cp);
         beginbox(&cp, "Enable character set translation on input data",
                  IDC_BOX_TRANSLATION2);
-        checkbox(&cp, "CAP&S LOCK acts as cyrillic switch",
+        checkbox(&cp, "Cap&s Lock acts as Cyrillic switch",
                  IDC_CAPSLOCKCYR);
         endbox(&cp);
 	beginbox(&cp, "Adjust how PuTTY displays line drawing characters",
