@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.40 2002/09/21 16:07:43 simon Exp $
+\versionid $Id: config.but,v 1.41 2002/09/23 09:55:11 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1375,6 +1375,8 @@ The Nagle algorithm is disabled by default.
 
 \H{config-proxy} The Proxy panel
 
+\cfg{winhelp-topic}{proxy.main}
+
 The Proxy panel allows you to configure PuTTY to use various types
 of proxy in order to make its network connections. The settings in
 this panel affect the primary network connection forming your PuTTY
@@ -1382,6 +1384,8 @@ session, but also any extra connections made as a result of SSH port
 forwarding (see \k{using-port-forwarding}).
 
 \S{config-proxy-type} Setting the proxy type
+
+\cfg{winhelp-topic}{proxy.type}
 
 The \q{Proxy type} radio buttons allow you to configure what type of
 proxy you want PuTTY to use for its network connections. The default
@@ -1402,6 +1406,8 @@ through to an external host. Selecting \q{Telnet} allows you to tell
 PuTTY to use this type of proxy.
 
 \S{config-proxy-exclude} Excluding parts of the network from proxying
+
+\cfg{winhelp-topic}{proxy.exclude}
 
 Typically you will only need to use a proxy to connect to non-local
 parts of your network; for example, your proxy might be required for
@@ -1430,6 +1436,8 @@ This excludes both of the above ranges at once.
 
 \S{config-proxy-auth} Username and password
 
+\cfg{winhelp-topic}{proxy.auth}
+
 If your proxy requires authentication, you can enter a username and
 a password in the \q{Username} and \q{Password} boxes.
 
@@ -1444,6 +1452,8 @@ passwords.
 \b Authentication is meaningless in Telnet proxies.
 
 \S{config-proxy-command} Specifying the Telnet proxy command
+
+\cfg{winhelp-topic}{proxy.command}
 
 If you are using the Telnet proxy type, the usual command required
 by the firewall's Telnet server is \c{connect}, followed by a host
@@ -1461,6 +1471,8 @@ by the host name and port number you want to connect to. To get a
 literal \c{%} sign, enter \c{%%}.
 
 \S{config-proxy-socksver} Selecting the version of the SOCKS protocol
+
+\cfg{winhelp-topic}{proxy.socksver}
 
 SOCKS servers exist in two versions: version 5
 (\W{http://www.ietf.org/rfc/rfc1928.txt}{RFC 1928}) and the earlier

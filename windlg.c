@@ -865,6 +865,33 @@ char *help_context_cmd(int id)
       case IDC_NODELAY:
         return "JI(`',`connection.nodelay')";
 
+      case IDC_PROXYTYPESTATIC:
+      case IDC_PROXYTYPENONE:
+      case IDC_PROXYTYPEHTTP:
+      case IDC_PROXYTYPESOCKS:
+      case IDC_PROXYTYPETELNET:
+        return "JI(`',`proxy.type')";
+      case IDC_PROXYHOSTSTATIC:
+      case IDC_PROXYHOSTEDIT:
+      case IDC_PROXYPORTSTATIC:
+      case IDC_PROXYPORTEDIT:
+        return "JI(`',`proxy.main')";
+      case IDC_PROXYEXCLUDESTATIC:
+      case IDC_PROXYEXCLUDEEDIT:
+        return "JI(`',`proxy.exclude')";
+      case IDC_PROXYUSERSTATIC:
+      case IDC_PROXYUSEREDIT:
+      case IDC_PROXYPASSSTATIC:
+      case IDC_PROXYPASSEDIT:
+        return "JI(`',`proxy.auth')";
+      case IDC_PROXYTELNETCMDSTATIC:
+      case IDC_PROXYTELNETCMDEDIT:
+        return "JI(`',`proxy.command')";
+      case IDC_PROXYSOCKSVERSTATIC:
+      case IDC_PROXYSOCKSVER5:
+      case IDC_PROXYSOCKSVER4:
+        return "JI(`',`proxy.socksver')";
+
       case IDC_TSSTATIC:
       case IDC_TSEDIT:
         return "JI(`',`telnet.termspeed')";
