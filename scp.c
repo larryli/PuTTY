@@ -459,7 +459,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 	namelen = 0;
 	if (GetUserName(user, &namelen) == FALSE)
 	    bump("Empty user name");
-	user = malloc(namelen * sizeof(char));
+	user = smalloc(namelen * sizeof(char));
 	GetUserName(user, &namelen);
 	if (verbose) tell_user(stderr, "Guessing user name: %s", user);
 	strncpy(cfg.username, user, sizeof(cfg.username)-1);
