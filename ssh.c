@@ -2444,6 +2444,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
     struct ssh_channel *c;
 
     ssh->state = SSH_STATE_CLOSED;
+    expire_timer_context(ssh);
     if (ssh->s) {
         sk_close(ssh->s);
         ssh->s = NULL;
@@ -7570,6 +7571,9 @@ static void ssh2_protocol_setup(Ssh ssh)
 static void ssh2_timer(void *ctx, long now)
 {
     Ssh ssh = (Ssh)ctx;
+
+    if (ssh->state == SSH_STATE_CLOSED)
+	return;
 
     if (!ssh->kex_in_progress && ssh->cfg.ssh_rekey_time != 0 &&
 	now - ssh->next_rekey >= 0) {
