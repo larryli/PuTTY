@@ -661,7 +661,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
 void logevent(void *frontend, const char *string)
 {
     char timebuf[40];
-    time_t t;
+    struct tm tm;
 
     log_eventlog(logctx, string);
 
@@ -670,9 +670,8 @@ void logevent(void *frontend, const char *string)
 	events = sresize(events, negsize, char *);
     }
 
-    time(&t);
-    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t",
-	     localtime(&t));
+    tm=ltime();
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", &tm);
 
     events[nevents] = snewn(strlen(timebuf) + strlen(string) + 1, char);
     strcpy(events[nevents], timebuf);

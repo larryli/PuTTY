@@ -1279,14 +1279,12 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	 */
 	*state->commentptr = snewn(30, char);
 	{
-	    time_t t;
-	    struct tm *tm;
-	    time(&t);
-	    tm = localtime(&t);
+	    struct tm tm;
+	    tm = ltime();
 	    if (state->is_dsa)
-		strftime(*state->commentptr, 30, "dsa-key-%Y%m%d", tm);
+		strftime(*state->commentptr, 30, "dsa-key-%Y%m%d", &tm);
 	    else
-		strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", tm);
+		strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", &tm);
 	}
 
 	/*

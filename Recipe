@@ -206,8 +206,8 @@ SFTP     = sftp int64 logging
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
 MISC     = timing misc version settings tree234 proxy
-WINMISC  = MISC winstore winnet cmdline windefs winmisc pproxy
-UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy
+WINMISC  = MISC winstore winnet cmdline windefs winmisc pproxy wintime
+UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time
 MACMISC  = MISC macstore macnet mtcpnet otnet macmisc macabout pproxy
 
 # Character set library, for use in pterm.
@@ -245,10 +245,10 @@ pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh512 import winutils puttygen.res tree234
-	 + notiming LIBS
+	 + notiming LIBS wintime
 
 pterm    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
-         + uxsignal CHARSET cmdline uxpterm version
+         + uxsignal CHARSET cmdline uxpterm version time
 putty    : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
 puttytel : [X] UXTERM uxmisc misc ldisc settings uxpty uxsel BE_NOSSH
@@ -258,7 +258,8 @@ plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC uxsignal ux_x11
 
 puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
-         + sshpubk sshaes sshsh512 import puttygen.res tree234 uxgen notiming
+         + sshpubk sshaes sshsh512 import puttygen.res time tree234 uxgen
+         + notiming
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP UXMISC

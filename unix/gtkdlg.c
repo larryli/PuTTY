@@ -2728,16 +2728,15 @@ void logevent_dlg(void *estuff, const char *string)
     struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
 
     char timebuf[40];
-    time_t t;
+    struct tm tm;
 
     if (es->nevents >= es->negsize) {
 	es->negsize += 64;
 	es->events = sresize(es->events, es->negsize, char *);
     }
 
-    time(&t);
-    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t",
-	     localtime(&t));
+    tm=ltime();
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", &tm);
 
     es->events[es->nevents] = snewn(strlen(timebuf) + strlen(string) + 1, char);
     strcpy(es->events[es->nevents], timebuf);

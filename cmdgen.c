@@ -602,19 +602,17 @@ int main(int argc, char **argv)
     if (keytype != NOKEYGEN) {
 	char *entropy;
 	char default_comment[80];
-	time_t t;
-	struct tm *tm;
+	struct tm tm;
 	struct progress prog;
 
 	prog.phase = -1;
 	prog.current = -1;
 
-	time(&t);
-	tm = localtime(&t);
+	tm = ltime();
 	if (keytype == DSA)
-	    strftime(default_comment, 30, "dsa-key-%Y%m%d", tm);
+	    strftime(default_comment, 30, "dsa-key-%Y%m%d", &tm);
 	else
-	    strftime(default_comment, 30, "rsa-key-%Y%m%d", tm);
+	    strftime(default_comment, 30, "rsa-key-%Y%m%d", &tm);
 
 	random_ref();
 	entropy = get_random_data(bits / 8);
