@@ -90,7 +90,7 @@ int tip_enabled = 0;
 
 void UpdateSizeTip(HWND src, int cx, int cy)
 {
-    TCHAR str[16];
+    TCHAR str[32];
 
     if (!tip_enabled) return;
 
@@ -136,8 +136,7 @@ void UpdateSizeTip(HWND src, int cx, int cy)
 
     /* Generate the tip text */
 
-    _sntprintf(str, 16, "%dx%d", cx, cy);
-
+    sprintf(str, "%dx%d", cx, cy);
 
     if (!tip_wnd) {
         HDC hdc;
