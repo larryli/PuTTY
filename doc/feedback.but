@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.2 2001/12/16 15:14:36 simon Exp $
+\versionid $Id: feedback.but,v 1.3 2002/03/23 18:59:46 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -55,6 +55,10 @@ automatically sent to everyone on the mailing list.
 file. \cw{BMP}s have no compression and they are \e{much} larger
 than other image formats such as PNG, TIFF and GIF. Convert the file
 to a properly compressed image format before sending it.
+
+(Note that although the PuTTY contact address is a mailing list, the
+archives aren't publicly available, so you shouldn't be letting
+yourself in for any spam by sending us mail.)
 
 \H{feedback-bugs} Reporting bugs
 
