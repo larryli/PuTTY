@@ -122,6 +122,12 @@
 
 #define SSH2_EXTENDED_DATA_STDERR                 1    /* 0x1 */
 
+/*
+ * Various remote-bug flags.
+ */
+#define BUG_CHOKES_ON_SSH1_IGNORE                 1
+#define BUG_SSH2_HMAC                             2
+
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
     ((unsigned long)(unsigned char)(cp)[1] << 16) | \
@@ -252,6 +258,7 @@ static unsigned char session_key[32];
 static int ssh1_compressing;
 static int ssh_agentfwd_enabled;
 static int ssh_X11_fwd_enabled;
+static int ssh_remote_bugs;
 static const struct ssh_cipher *cipher = NULL;
 static const struct ssh2_cipher *cscipher = NULL;
 static const struct ssh2_cipher *sccipher = NULL;
@@ -659,15 +666,16 @@ static int s_wrpkt_prepare(void) {
 
     pktout.body[-1] = pktout.type;
 
+#if 0
+    debug(("Packet payload pre-compression:\n"));
+    for (i = -1; i < pktout.length; i++)
+        debug(("  %02x", (unsigned char)pktout.body[i]));
+    debug(("\r\n"));
+#endif
+
     if (ssh1_compressing) {
 	unsigned char *compblk;
 	int complen;
-#if 0
-	debug(("Packet payload pre-compression:\n"));
-	for (i = -1; i < pktout.length; i++)
-	    debug(("  %02x", (unsigned char)pktout.body[i]));
-	debug(("\r\n"));
-#endif
 	zlib_compress_block(pktout.body-1, pktout.length+1,
 			    &compblk, &complen);
 	ssh1_pktout_size(complen-1);
@@ -1090,6 +1098,41 @@ static Bignum ssh2_pkt_getmp(void) {
     return b;
 }
 
+/*
+ * Examine the remote side's version string and compare it against
+ * a list of known buggy implementations.
+ */
+static void ssh_detect_bugs(char *vstring) {
+    char *imp;                         /* pointer to implementation part */
+    imp = vstring;
+    imp += strcspn(imp, "-");
+    imp += strcspn(imp, "-");
+
+    ssh_remote_bugs = 0;
+
+    if (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
+        !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
+        !strcmp(imp, "1.2.22")) {
+        /*
+         * These versions don't support SSH1_MSG_IGNORE, so we have
+         * to use a different defence against password length
+         * sniffing.
+         */
+        ssh_remote_bugs |= BUG_CHOKES_ON_SSH1_IGNORE;
+        logevent("We believe remote version has SSH1 ignore bug");
+    }
+
+    if (!strncmp(imp, "2.1.0", 5) || !strncmp(imp, "2.0.", 4) ||
+        !strncmp(imp, "2.2.0", 5) || !strncmp(imp, "2.3.0", 5) ||
+        !strncmp(imp, "2.1 ", 4)) {
+        /*
+         * These versions have the HMAC bug.
+         */
+        ssh_remote_bugs |= BUG_SSH2_HMAC;
+        logevent("We believe remote version has SSH2 HMAC bug");
+    }
+}
+
 static int do_ssh_init(unsigned char c) {
     static char *vsp;
     static char version[10];
@@ -1137,6 +1180,7 @@ static int do_ssh_init(unsigned char c) {
 
     *vsp = 0;
     sprintf(vlog, "Server version: %s", vstring);
+    ssh_detect_bugs(vstring);
     vlog[strcspn(vlog, "\r\n")] = '\0';
     logevent(vlog);
 
@@ -1835,38 +1879,65 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                  *    N+7. This won't obscure the order of
                  *    magnitude of the password length, but it will
                  *    introduce a bit of extra uncertainty.
+                 * 
+                 * A few servers (the old 1.2.18 through 1.2.22)
+                 * can't deal with SSH1_MSG_IGNORE. For these
+                 * servers, we need an alternative defence. We make
+                 * use of the fact that the password is interpreted
+                 * as a C string: so we can append a NUL, then some
+                 * random data.
                  */
-                int bottom, top, pwlen, i;
-                char *randomstr;
+                if (ssh_remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE) {
+                    char string[64];
+                    char *s;
+                    int len;
 
-                pwlen = strlen(password);
-                if (pwlen < 16) {
-                    bottom = 1;
-                    top = 15;
-                } else {
-                    bottom = pwlen &~ 7;
-                    top = bottom + 7;
-                }
-
-                assert(pwlen >= bottom && pwlen <= top);
-
-                randomstr = smalloc(top+1);
-
-                for (i = bottom; i <= top; i++) {
-                    if (i == pwlen)
-                        defer_packet(pwpkt_type, PKT_STR, password, PKT_END);
-                    else {
-                        for (j = 0; j < i; j++) {
-                            do {
-                                randomstr[j] = random_byte();
-                            } while (randomstr[j] == '\0');
+                    len = strlen(password);
+                    if (len < sizeof(string)) {
+                        s = string;
+                        strcpy(string, password);
+                        len++;         /* cover the zero byte */
+                        while (len < sizeof(string)) {
+                            string[len++] = (char)random_byte();
                         }
-                        randomstr[i] = '\0';
-                        defer_packet(SSH1_MSG_IGNORE,
-                                     PKT_STR, randomstr, PKT_END);
+                    } else {
+                        s = password;
                     }
+                    send_packet(pwpkt_type, PKT_INT, len,
+                                PKT_DATA, s, len, PKT_END);
+                } else {
+                    int bottom, top, pwlen, i;
+                    char *randomstr;
+
+                    pwlen = strlen(password);
+                    if (pwlen < 16) {
+                        bottom = 1;
+                        top = 15;
+                    } else {
+                        bottom = pwlen &~ 7;
+                        top = bottom + 7;
+                    }
+
+                    assert(pwlen >= bottom && pwlen <= top);
+
+                    randomstr = smalloc(top+1);
+
+                    for (i = bottom; i <= top; i++) {
+                        if (i == pwlen)
+                            defer_packet(pwpkt_type, PKT_STR, password, PKT_END);
+                        else {
+                            for (j = 0; j < i; j++) {
+                                do {
+                                    randomstr[j] = random_byte();
+                                } while (randomstr[j] == '\0');
+                            }
+                            randomstr[i] = '\0';
+                            defer_packet(SSH1_MSG_IGNORE,
+                                         PKT_STR, randomstr, PKT_END);
+                        }
+                    }
+                    ssh_pkt_defersend();
                 }
-                ssh_pkt_defersend();
             } else {
                 send_packet(pwpkt_type, PKT_STR, password, PKT_END);
             }
@@ -2307,7 +2378,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     /*
      * Be prepared to work around the buggy MAC problem.
      */
-    if (cfg.buggymac)
+    if (cfg.buggymac || (ssh_remote_bugs & BUG_SSH2_HMAC))
         maclist = buggymacs, nmacs = lenof(buggymacs);
     else
         maclist = macs, nmacs = lenof(macs);
