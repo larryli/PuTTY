@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.32 2002/08/09 09:14:04 simon Exp $
+\versionid $Id: faq.but,v 1.33 2002/08/15 14:59:48 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -712,17 +712,22 @@ You should still read the
 page} on the PuTTY website (also provided as \k{feedback} in the
 manual), and follow the guidelines contained in that.
 
-\S{faq-broken-openssh31}{Question} Since my SSH server was upgraded to
-OpenSSH 3.1p1, I can no longer connect with PuTTY.
+\S{faq-openssh-bad-openssl}{Question} Since my SSH server was upgraded
+to OpenSSH 3.1p1/3.4p1, I can no longer connect with PuTTY.
 
 There is a known problem when OpenSSH has been built against an
 incorrect version of OpenSSL; the quick workaround is to configure
 PuTTY to use SSH protocol 2 and the Blowfish cipher.
 
-This is not a PuTTY-specific problem; if you try to connect with
-another client you'll likely have similar problems.
+For more details and OpenSSH patches, see
+\W{http://bugzilla.mindrot.org/show_bug.cgi?id=138}{bug 138} in the
+OpenSSH BTS.
 
-Configurations known to be broken (and symptoms):
+This is not a PuTTY-specific problem; if you try to connect with
+another client you'll likely have similar problems. (Although PuTTY's
+default cipher differs from many other clients.)
+
+\e{OpenSSH 3.1p1:} configurations known to be broken (and symptoms):
 
 \b SSH 2 with AES cipher (PuTTY says "Assertion failed! Expression:
 (len & 15) == 0" in sshaes.c, or "Out of memory", or crashes)
@@ -734,13 +739,9 @@ packet")
 
 \b SSH 1 with 3DES
 
-For more details and OpenSSH patches, see
-\W{http://bugzilla.mindrot.org/show_bug.cgi?id=138}{bug 138} in the
-OpenSSH BTS.
-
-\e{Update:} As of OpenSSH 3.4p1 the problem with SSH 1 and Blowfish
-remains. Apply the patch linked to from bug 138, or use another cipher
-(e.g., 3DES) instead.
+\e{OpenSSH 3.4p1:} as of 3.4p1, only the problem with SSH 1 and
+Blowfish remains. Rebuild your server, apply the patch linked to from
+bug 138 above, or use another cipher (e.g., 3DES) instead.
 
 \S{faq-ssh2key-ssh1conn}{Question} Why do I see "Couldn't load private
 key from ..."? Why can PuTTYgen load my key but not PuTTY?
