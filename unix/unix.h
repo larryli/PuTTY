@@ -37,6 +37,8 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 	     char *mbstr, int mblen, char *defchr, int *defused);
 void init_ucs(void);
 
+char *get_x_display(void);
+
 #define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
 
 #endif

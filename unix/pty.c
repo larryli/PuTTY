@@ -10,6 +10,9 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <grp.h>
+#include <utmp.h>
+#include <pwd.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
@@ -23,9 +26,26 @@
 #define TRUE 1
 #endif
 
+#ifndef UTMP_FILE
+#define UTMP_FILE "/var/run/utmp"
+#endif
+#ifndef WTMP_FILE
+#define WTMP_FILE "/var/log/wtmp"
+#endif
+#ifndef LASTLOG_FILE
+#ifdef _PATH_LASTLOG
+#define LASTLOG_FILE _PATH_LASTLOG
+#else
+#define LASTLOG_FILE "/var/log/lastlog"
+#endif
+#endif
+
 int pty_master_fd;
 static int pty_child_pid;
 static sig_atomic_t pty_child_dead;
+#ifndef OMIT_UTMP
+static struct utmp utmp_entry;
+#endif
 char **pty_argv;
 
 int pty_child_is_dead(void)
@@ -35,6 +55,81 @@ int pty_child_is_dead(void)
 
 static void pty_size(void);
 
+static void setup_utmp(char *ttyname)
+{
+#ifndef OMIT_UTMP
+#ifdef HAVE_LASTLOG
+    struct lastlog lastlog_entry;
+    FILE *lastlog;
+#endif
+    struct passwd *pw;
+    char *location = get_x_display();
+    FILE *wtmp;
+
+    pw = getpwuid(getuid());
+    memset(&utmp_entry, 0, sizeof(utmp_entry));
+    utmp_entry.ut_type = USER_PROCESS;
+    utmp_entry.ut_pid = getpid();
+    strncpy(utmp_entry.ut_line, ttyname+5, lenof(utmp_entry.ut_line));
+    strncpy(utmp_entry.ut_id, ttyname+8, lenof(utmp_entry.ut_id));
+    strncpy(utmp_entry.ut_user, pw->pw_name, lenof(utmp_entry.ut_user));
+    strncpy(utmp_entry.ut_host, location, lenof(utmp_entry.ut_host));
+    time(&utmp_entry.ut_time);
+
+#if defined HAVE_PUTUTLINE
+    utmpname(UTMP_FILE);
+    setutent();
+    pututline(&utmp_entry);
+    endutent();
+#endif
+
+    if ((wtmp = fopen(WTMP_FILE, "a")) != NULL) {
+	fwrite(&utmp_entry, 1, sizeof(utmp_entry), wtmp);
+	fclose(wtmp);
+    }
+
+#ifdef HAVE_LASTLOG
+    memset(&lastlog_entry, 0, sizeof(lastlog_entry));
+    strncpy(lastlog_entry.ll_line, ttyname+5, lenof(lastlog_entry.ll_line));
+    strncpy(lastlog_entry.ll_host, location, lenof(lastlog_entry.ll_host));
+    time(&lastlog_entry.ll_time);
+    if ((lastlog = fopen(LASTLOG_FILE, "r+")) != NULL) {
+	fseek(lastlog, sizeof(lastlog_entry) * getuid(), SEEK_SET);
+	fwrite(&lastlog_entry, 1, sizeof(lastlog_entry), lastlog);
+	fclose(lastlog);
+    }
+#endif
+
+#endif
+}
+
+static void cleanup_utmp(void)
+{
+#ifndef OMIT_UTMP
+    FILE *wtmp;
+
+    utmp_entry.ut_type = DEAD_PROCESS;
+    memset(utmp_entry.ut_user, 0, lenof(utmp_entry.ut_user));
+    time(&utmp_entry.ut_time);
+
+    if ((wtmp = fopen(WTMP_FILE, "a")) != NULL) {
+	fwrite(&utmp_entry, 1, sizeof(utmp_entry), wtmp);
+	fclose(wtmp);
+    }
+
+    memset(utmp_entry.ut_line, 0, lenof(utmp_entry.ut_line));
+    utmp_entry.ut_time = 0;
+
+#if defined HAVE_PUTUTLINE
+    utmpname(UTMP_FILE);
+    setutent();
+    pututline(&utmp_entry);
+    endutent();
+#endif
+
+#endif
+}
+
 static void sigchld_handler(int signum)
 {
     pid_t pid;
@@ -42,6 +137,14 @@ static void sigchld_handler(int signum)
     pid = waitpid(-1, &status, WNOHANG);
     if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status)))
 	pty_child_dead = TRUE;	
+}
+
+static void fatal_sig_handler(int signum)
+{
+    signal(signum, SIG_DFL);
+    cleanup_utmp();
+    setuid(getuid());
+    raise(signum);
 }
 
 /*
@@ -106,6 +209,53 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
     name[FILENAME_MAX-1] = '\0';
     strncpy(name, ptsname(pty_master_fd), FILENAME_MAX-1);
 #endif
+
+    /*
+     * Trap as many fatal signals as we can in the hope of having
+     * the best chance to clean up utmp before termination.
+     */
+    signal(SIGHUP, fatal_sig_handler);
+    signal(SIGINT, fatal_sig_handler);
+    signal(SIGQUIT, fatal_sig_handler);
+    signal(SIGILL, fatal_sig_handler);
+    signal(SIGABRT, fatal_sig_handler);
+    signal(SIGFPE, fatal_sig_handler);
+    signal(SIGPIPE, fatal_sig_handler);
+    signal(SIGALRM, fatal_sig_handler);
+    signal(SIGTERM, fatal_sig_handler);
+    signal(SIGSEGV, fatal_sig_handler);
+    signal(SIGUSR1, fatal_sig_handler);
+    signal(SIGUSR2, fatal_sig_handler);
+#ifdef SIGBUS
+    signal(SIGBUS, fatal_sig_handler);
+#endif
+#ifdef SIGPOLL
+    signal(SIGPOLL, fatal_sig_handler);
+#endif
+#ifdef SIGPROF
+    signal(SIGPROF, fatal_sig_handler);
+#endif
+#ifdef SIGSYS
+    signal(SIGSYS, fatal_sig_handler);
+#endif
+#ifdef SIGTRAP
+    signal(SIGTRAP, fatal_sig_handler);
+#endif
+#ifdef SIGVTALRM
+    signal(SIGVTALRM, fatal_sig_handler);
+#endif
+#ifdef SIGXCPU
+    signal(SIGXCPU, fatal_sig_handler);
+#endif
+#ifdef SIGXFSZ
+    signal(SIGXFSZ, fatal_sig_handler);
+#endif
+#ifdef SIGIO
+    signal(SIGIO, fatal_sig_handler);
+#endif
+    /* Also clean up utmp on normal exit. */
+    atexit(cleanup_utmp);
+    setup_utmp(name);
 
     /*
      * Fork and execute the command.

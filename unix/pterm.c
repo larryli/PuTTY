@@ -1275,6 +1275,11 @@ void modalfatalbox(char *p, ...)
     exit(1);
 }
 
+char *get_x_display(void)
+{
+    return gdk_get_display();
+}
+
 int main(int argc, char **argv)
 {
     extern int pty_master_fd;	       /* declared in pty.c */
@@ -1337,9 +1342,6 @@ int main(int argc, char **argv)
     inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
 
     init_ucs();
-
-    back = &pty_backend;
-    back->init(NULL, 0, NULL, 0);
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
@@ -1404,7 +1406,6 @@ int main(int argc, char **argv)
     gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
 		       GTK_SIGNAL_FUNC(scrollbar_moved), inst);
     gtk_timeout_add(20, timer_func, inst);
-    gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
@@ -1421,6 +1422,11 @@ int main(int argc, char **argv)
     make_mouse_ptr(-2);		       /* clean up cursor font */
     inst->currcursor = inst->textcursor;
     show_mouseptr(1);
+
+    back = &pty_backend;
+    back->init(NULL, 0, NULL, 0);
+
+    gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
 
     term_init();
     term_size(24, 80, 2000);
