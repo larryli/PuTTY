@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.73 2004/07/29 10:23:48 jacob Exp $
+\versionid $Id: faq.but,v 1.74 2004/08/10 16:50:30 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -307,7 +307,7 @@ a new system and doing the port for that.
 
 However, some of the work has been done by other people, and a beta
 port of PuTTY for the Nokia 9200 Communicator series is available
-from \W{http://www.s2.org/putty/}\cw{http://www.s2.org/putty/}
+from \W{http://s2putty.sourceforge.net/}\cw{http://s2putty.sourceforge.net/}
 
 \H{faq-embedding} Embedding PuTTY in other programs
 
