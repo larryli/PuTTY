@@ -42,8 +42,6 @@ static void mungestr(char *in, char *out) {
 }
 
 static void unmungestr(char *in, char *out) {
-    int candot = 0;
-
     while (*in) {
 	if (*in == '%' && in[1] && in[2]) {
 	    int i, j;
