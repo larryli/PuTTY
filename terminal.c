@@ -3555,7 +3555,7 @@ void term_scroll(Terminal *term, int rel, int where)
     term_update(term);
 }
 
-static void clipme(Terminal *term, pos top, pos bottom, int rect)
+static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 {
     wchar_t *workbuf;
     wchar_t *wbptr;		       /* where next char goes within workbuf */
@@ -3703,7 +3703,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
     wblen++;
     *wbptr++ = 0;
 #endif
-    write_clip(term->frontend, workbuf, wblen, FALSE); /* transfer to clipbd */
+    write_clip(term->frontend, workbuf, wblen, desel); /* transfer to clipbd */
     if (buflen > 0)		       /* indicates we allocated this buffer */
 	sfree(workbuf);
 }
@@ -3713,7 +3713,7 @@ void term_copyall(Terminal *term)
     pos top;
     top.y = -sblines(term);
     top.x = 0;
-    clipme(term, top, term->curs, 0);
+    clipme(term, top, term->curs, 0, TRUE);
 }
 
 /*
@@ -4178,7 +4178,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	     * data to the clipboard.
 	     */
 	    clipme(term, term->selstart, term->selend,
-		   (term->seltype == RECTANGULAR));
+		   (term->seltype == RECTANGULAR), FALSE);
 	    term->selstate = SELECTED;
 	} else
 	    term->selstate = NO_SELECTION;

@@ -1312,6 +1312,9 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				     utf8_string_atom, 1);
     }
+
+    if (must_deselect)
+	term_deselect(inst->term);
 }
 
 void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
