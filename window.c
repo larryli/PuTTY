@@ -128,6 +128,8 @@ static char *window_name, *icon_name;
 
 static int compose_state = 0;
 
+static OSVERSIONINFOEX osVersion;
+
 /* Dummy routine, only required in plink. */
 void ldisc_update(int echo, int edit)
 {
@@ -165,6 +167,19 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /* Ensure a Maximize setting in Explorer doesn't maximise the
      * config box. */
     defuse_showwindow();
+
+    {
+	ZeroMemory(&osVersion, sizeof(osVersion));
+	osVersion.dwOSVersionInfoSize = sizeof(osVersion);
+
+	if(!GetVersionEx ((OSVERSIONINFO *) &osVersion)) {
+	// If OSVERSIONINFOEX doesn't work, try OSVERSIONINFO.
+
+	osVersion.dwOSVersionInfoSize = sizeof (osVersion);
+	if (!GetVersionEx ( (OSVERSIONINFO *) &osVersion))
+	    return FALSE;
+	}
+    }
 
     /*
      * Process the command line.
@@ -1873,6 +1888,31 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    kbd_codepage = atoi(lbuf);
 	}
 	break;
+      case WM_IME_COMPOSITION:
+	{
+	    HIMC hIMC;
+	    int n;
+	    char *buff;
+   
+	    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS || 
+	        osVersion.dwPlatformId == VER_PLATFORM_WIN32s) break; /* no Unicode */
+
+	    if ((lParam & GCS_RESULTSTR) == 0) /* Composition unfinished. */
+		break; /* fall back to DefWindowProc */
+
+	    hIMC = ImmGetContext(hwnd);
+	    n = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
+
+	    if (n > 0) {
+		buff = (char*) smalloc(n);
+		ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, buff, n);
+		luni_send((unsigned short *)buff, n / 2);
+		free(buff);
+	    }
+	    ImmReleaseContext(hwnd, hIMC);
+	    return 1;
+	}
+
       case WM_IME_CHAR:
 	if (wParam & 0xFF00) {
 	    unsigned char buf[2];
@@ -1916,8 +1956,27 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
  */
 void sys_cursor(int x, int y)
 {
-    if (has_focus)
-	SetCaretPos(x * font_width, y * font_height);
+    COMPOSITIONFORM cf;
+    HIMC hIMC;
+
+    if (!has_focus) return;
+    
+    SetCaretPos(x * font_width, y * font_height);
+
+    /* IMM calls on Win98 and beyond only */
+    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32s) return; /* 3.11 */
+    
+    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS &&
+	    osVersion.dwMinorVersion == 0) return; /* 95 */
+
+    /* we should have the IMM functions */
+    hIMC = ImmGetContext(hwnd);
+    cf.dwStyle = CFS_POINT;
+    cf.ptCurrentPos.x = x * font_width;
+    cf.ptCurrentPos.y = y * font_height;
+    ImmSetCompositionWindow(hIMC, &cf);
+
+    ImmReleaseContext(hwnd, hIMC);
 }
 
 /*
