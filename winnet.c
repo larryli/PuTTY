@@ -47,8 +47,8 @@
 #include "network.h"
 #include "tree234.h"
 
-#ifdef IPV6
 #include <ws2tcpip.h>
+#ifdef IPV6
 #include <tpipv6.h>
 #endif
 
@@ -168,6 +168,10 @@ DECL_WINSOCK_FUNCTION(static, int, ioctlsocket,
 DECL_WINSOCK_FUNCTION(static, SOCKET, accept,
 		      (SOCKET, struct sockaddr FAR *, int FAR *));
 DECL_WINSOCK_FUNCTION(static, int, recv, (SOCKET, char FAR *, int, int));
+DECL_WINSOCK_FUNCTION(static, int, WSAIoctl,
+		      (SOCKET, DWORD, LPVOID, DWORD, LPVOID, DWORD,
+		       LPDWORD, LPWSAOVERLAPPED,
+		       LPWSAOVERLAPPED_COMPLETION_ROUTINE));
 
 static HMODULE winsock_module;
 
@@ -210,6 +214,7 @@ void sk_init(void)
     GET_WINSOCK_FUNCTION(ioctlsocket);
     GET_WINSOCK_FUNCTION(accept);
     GET_WINSOCK_FUNCTION(recv);
+    GET_WINSOCK_FUNCTION(WSAIoctl);
 
     if (p_WSAStartup(winsock_ver, &wsadata)) {
 	fatalbox("Unable to initialise WinSock");
@@ -490,6 +495,37 @@ int sk_hostname_is_local(char *name)
     return !strcmp(name, "localhost");
 }
 
+static INTERFACE_INFO local_interfaces[16];
+static int n_local_interfaces;       /* 0=not yet, -1=failed, >0=number */
+
+static int ipv4_is_local_addr(struct in_addr addr)
+{
+    if (ipv4_is_loopback(addr))
+	return 1;		       /* loopback addresses are local */
+    if (!n_local_interfaces) {
+	SOCKET s = p_socket(AF_INET, SOCK_DGRAM, 0);
+	DWORD retbytes;
+
+	if (p_WSAIoctl &&
+	    p_WSAIoctl(s, SIO_GET_INTERFACE_LIST, NULL, 0,
+		       local_interfaces, sizeof(local_interfaces),
+		       &retbytes, NULL, NULL) == 0)
+	    n_local_interfaces = retbytes / sizeof(INTERFACE_INFO);
+	else
+	    logevent(NULL, "Unable to get list of local IP addresses");
+    }
+    if (n_local_interfaces > 0) {
+	int i;
+	for (i = 0; i < n_local_interfaces; i++) {
+	    SOCKADDR_IN *address =
+		(SOCKADDR_IN *)&local_interfaces[i].iiAddress;
+	    if (address->sin_addr.s_addr == addr.s_addr)
+		return 1;	       /* this address is local */
+	}
+    }
+    return 0;		       /* this address is not local */
+}
+
 int sk_address_is_local(SockAddr addr)
 {
 #ifdef IPV6
@@ -500,7 +536,7 @@ int sk_address_is_local(SockAddr addr)
     if (addr->family == AF_INET) {
 	struct in_addr a;
 	a.s_addr = p_htonl(addr->address);
-	return ipv4_is_loopback(a);
+	return ipv4_is_local_addr(a);
     } else {
 	assert(addr->family == AF_UNSPEC);
 	return 0;		       /* we don't know; assume not */
@@ -1200,7 +1236,7 @@ int select_result(WPARAM wParam, LPARAM lParam)
 		    break;
 	    }
 
-	    if (s->localhost_only && !ipv4_is_loopback(isa.sin_addr)) {
+	    if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr)) {
 		p_closesocket(t);      /* dodgy WinSock let nonlocal through */
 	    } else if (plug_accepting(s->plug, (void*)t)) {
 		p_closesocket(t);      /* denied or error */
