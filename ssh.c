@@ -638,13 +638,7 @@ struct ssh_tag {
     int (*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
 };
 
-#define logevent(s) do { \
-    logevent(ssh->frontend, s); \
-    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) { \
-	fprintf(stderr, "%s\n", s); \
-	fflush(stderr); \
-    } \
-} while (0)
+#define logevent(s) logevent(ssh->frontend, s)
 
 /* logevent, only printf-formatted. */
 void logeventf(Ssh ssh, char *fmt, ...)
