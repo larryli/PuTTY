@@ -505,8 +505,10 @@ enum { IDCX_ABOUT =
     IDC_TITLE_TRANSLATION,
     IDC_BOX_TRANSLATION1,
     IDC_BOX_TRANSLATION2,
+    IDC_BOX_TRANSLATION3,
     IDC_CODEPAGESTATIC,
     IDC_CODEPAGE,
+    IDC_CAPSLOCKCYR,
     IDC_VTSTATIC,
     IDC_VTXWINDOWS,
     IDC_VTOEMANSI,
@@ -796,6 +798,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	char *cp;
 	strcpy(cfg.line_codepage, cp_name(decode_codepage(cfg.line_codepage)));
 	SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_RESETCONTENT, 0, 0);
+	CheckDlgButton (hwnd, IDC_CAPSLOCKCYR, cfg.xlat_capslockcyr);
 	for (i = 0; (cp = cp_enumerate(i)) != NULL; i++) {
 	    SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_ADDSTRING,
 			       0, (LPARAM) cp);
@@ -1101,18 +1104,23 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == translationpanelstart) {
-	/* The Translation panel. Accelerators used: [acgo] rxbepu */
+	/* The Translation panel. Accelerators used: [acgo] rxbepus */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling character set translation",
 		 IDC_TITLE_TRANSLATION);
 	beginbox(&cp, "Character set translation on received data",
-		 IDC_BOX_TRANSLATION2);
+		 IDC_BOX_TRANSLATION1);
 	combobox(&cp, "&Received data assumed to be in which character set:",
 		 IDC_CODEPAGESTATIC, IDC_CODEPAGE);
 	endbox(&cp);
+        beginbox(&cp, "Enable character set translation on input data",
+                 IDC_BOX_TRANSLATION2);
+        checkbox(&cp, "CAP&S LOCK acts as cyrillic switch",
+                 IDC_CAPSLOCKCYR);
+        endbox(&cp);
 	beginbox(&cp, "Adjust how PuTTY displays line drawing characters",
-		 IDC_BOX_TRANSLATION1);
+		 IDC_BOX_TRANSLATION3);
 	radiobig(&cp,
 		 "Handling of line drawing characters:", IDC_VTSTATIC,
 		 "Font has &XWindows encoding", IDC_VTXWINDOWS,
@@ -2510,6 +2518,13 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    strcpy(cfg.line_codepage,
 			   cp_name(decode_codepage(cfg.line_codepage)));
 		    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
+		}
+		break;
+	      case IDC_CAPSLOCKCYR:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    cfg.xlat_capslockcyr =
+			IsDlgButtonChecked (hwnd, IDC_CAPSLOCKCYR);
 		}
 		break;
 	      case IDC_VTXWINDOWS:

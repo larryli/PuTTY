@@ -3334,6 +3334,14 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     /* Okay we've done everything interesting; let windows deal with 
      * the boring stuff */
     {
+	BOOL capsOn=0;
+
+	/* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
+	if(cfg.xlat_capslockcyr && keystate[VK_CAPITAL] != 0) {
+	    capsOn= !left_alt;
+	    keystate[VK_CAPITAL] = 0;
+	}
+
 	r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
@@ -3402,10 +3410,17 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    } else
 			lpage_send(kbd_codepage, &ch, 1);
 		} else {
-		    static char cbuf[] = "\033 ";
-		    cbuf[1] = ch;
-		    lpage_send(kbd_codepage, cbuf + !left_alt,
-			       1 + !!left_alt);
+		    if(capsOn && ch < 0x80) {
+			WCHAR cbuf[2];
+			cbuf[0] = 27;
+			cbuf[1] = xlat_uskbd2cyrllic(ch);
+			luni_send(cbuf+!left_alt, 1+!!left_alt);
+		    } else {
+			char cbuf[2];
+			cbuf[0] = '\033';
+			cbuf[1] = ch;
+			lpage_send(kbd_codepage, cbuf+!left_alt, 1+!!left_alt);
+		    }
 		}
 		show_mouseptr(0);
 	    }

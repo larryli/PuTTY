@@ -341,6 +341,7 @@ typedef struct {
     /* translations */
     VT_Mode vtmode;
     char line_codepage[32];
+    int xlat_capslockcyr;
     /* X11 forwarding */
     int x11_forward;
     char x11_display[128];
@@ -541,6 +542,7 @@ void EnableSizeTip(int bEnable);
 void init_ucs_tables(void);
 void lpage_send(int codepage, char *buf, int len);
 void luni_send(wchar_t * widebuf, int len);
+wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);
 char *cp_enumerate (int index);
