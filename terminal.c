@@ -115,8 +115,10 @@ static termline *newline(Terminal *term, int cols, int bce)
 
 static void freeline(termline *line)
 {
-    sfree(line->chars);
-    sfree(line);
+    if (line) {
+	sfree(line->chars);
+	sfree(line);
+    }
 }
 
 static void unlineptr(termline *line)
@@ -1003,7 +1005,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 {
     tree234 *newalt;
     termline **newdisp, *line;
-    int i, j;
+    int i, j, oldrows = term->rows;
     int sblen;
     int save_alt_which = term->alt_which;
 
@@ -1105,7 +1107,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    newdisp[i]->chars[i].attr = ATTR_INVALID;
     }
     if (term->disptext) {
-	for (i = 0; i < term->rows; i++)
+	for (i = 0; i < oldrows; i++)
 	    freeline(term->disptext[i]);
     }
     sfree(term->disptext);
