@@ -1010,7 +1010,7 @@ void term_out(void)
 		}
 		break;
 	      case '\b':
-		if (curs.x == 0 && curs.y == 0);
+		if (curs.x == 0 && (curs.y == 0 || wrap == 0));
 		else if (curs.x == 0 && curs.y > 0)
 		    curs.x = cols - 1, curs.y--;
 		else if (wrapnext)
