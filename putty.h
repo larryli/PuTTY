@@ -331,7 +331,7 @@ typedef struct {
     short wordness[256];
     /* translations */
     VT_Mode vtmode;
-    char line_codepage[32];
+    char line_codepage[128];
     int xlat_capslockcyr;
     /* X11 forwarding */
     int x11_forward;
