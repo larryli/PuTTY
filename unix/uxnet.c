@@ -106,10 +106,7 @@ void sk_cleanup(void)
 
 char *error_string(int error)
 {
-    char *ret = smalloc(strlen(strerror(error)) +
-			strlen("Network error: "));
-    sprintf(ret, "Network error: %s",strerror(error));
-    return ret;
+    return strerror(error);
 }
 
 SockAddr sk_namelookup(char *host, char **canonicalname)
