@@ -124,8 +124,9 @@ pscp     : [C] scp console SSH be_none SFTP wildcard MISC scp.res LIBS1
 psftp    : [C] psftp console SSH be_none SFTP MISC scp.res LIBS1
 
 pageant  : [G] pageant sshrsa sshpubk sshdes sshbn sshmd5 version tree234
-         + misc sshaes sshsha pageantc sshdss sshsh512 pageant.res LIBS
+         + misc sshaes sshsha pageantc sshdss sshsh512 winutils
+         + pageant.res LIBS
 
 puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand noise sshsha winstore misc winctrls sshrsa sshdss
-         + sshpubk sshaes sshsh512 import puttygen.res LIBS
+         + sshpubk sshaes sshsh512 import winutils puttygen.res LIBS
