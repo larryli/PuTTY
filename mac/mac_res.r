@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.1 2002/11/19 02:14:35 ben Exp $ */
+/* $Id: mac_res.r,v 1.2 2002/11/24 15:08:52 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -435,7 +435,7 @@ resource 'DITL' (wAbout, "about", purgeable) {
 /* Licence box */
 
 resource 'WIND' (wLicence, "licence", purgeable) {
-    { 0, 0, 300, 300 },
+    { 0, 0, 250, 400 },
     noGrowDocProc,
     visible,
     goAway,
@@ -451,8 +451,8 @@ type 'TEXT' {
 resource 'TEXT' (wLicence, "licence", purgeable) {
     "PuTTY is copyright 1997-2001 Simon Tatham.\n"
     "\n"
-    "Portions copyright Robert de Bath, Joris van Rantwijk, Delian\n"
-    "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,\n"
+    "Portions copyright Robert de Bath, Joris van Rantwijk, Delian"
+    "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,"
     "Justin Bradford, and CORE SDI S.A.\n"
     "\n"    
     "Permission is hereby granted, free of charge, to any person "

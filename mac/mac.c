@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.3 2002/11/23 18:22:47 ben Exp $ */
+/* $Id: mac.c,v 1.4 2002/11/24 15:08:52 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -69,10 +69,12 @@ static void mac_growwindow(WindowPtr, EventRecord *);
 static void mac_activatewindow(WindowPtr, EventRecord *);
 static void mac_activateabout(WindowPtr, EventRecord *);
 static void mac_updatewindow(WindowPtr);
+static void mac_updatelicence(WindowPtr);
 static void mac_keypress(EventRecord *);
 static int mac_windowtype(WindowPtr);
 static void mac_menucommand(long);
 static void mac_openabout(void);
+static void mac_openlicence(void);
 static void mac_adjustcursor(RgnHandle);
 static void mac_adjustmenus(void);
 static void mac_closewindow(WindowPtr);
@@ -240,7 +242,7 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
 	if (DialogSelect(event, &(DialogPtr)window, &item))
 	    switch (item) {
 	      case wiAboutLicence:
-	        /* XXX: Do something */
+		mac_openlicence();
 		break;
 	    }
 	break;
@@ -295,9 +297,28 @@ static void mac_updatewindow(WindowPtr window) {
 	EndUpdate(window);
 	break;
       case wLicence:
-        /* Do something */
-        break;
+	mac_updatelicence(window);
+	break;
     }
+}
+
+static void mac_updatelicence(WindowPtr window)
+{
+    Handle h;
+    int len;
+
+    SetPort(window);
+    BeginUpdate(window);
+    TextFont(applFont);
+    TextSize(9);
+    h = Get1Resource('TEXT', wLicence);
+    len = GetResourceSizeOnDisk(h);
+    if (h != NULL) {
+	HLock(h);
+	TETextBox(*h, len, &window->portRect, teFlushDefault);
+	HUnlock(h);
+    }
+    EndUpdate(window);
 }
 
 /*
@@ -410,6 +431,21 @@ static void mac_openabout(void) {
     }
 }
 
+static void mac_openlicence(void) {
+    DialogItemType itemtype;
+    Handle item;
+    VersRecHndl vers;
+    Rect box;
+    StringPtr longvers;
+
+    if (windows.licence)
+	SelectWindow(windows.licence);
+    else {
+	windows.licence = GetNewWindow(wLicence, NULL, (WindowPtr)-1);
+	ShowWindow(windows.licence);
+    }
+}
+
 static void mac_closewindow(WindowPtr window) {
 
     switch (mac_windowtype(window)) {
@@ -421,6 +457,10 @@ static void mac_closewindow(WindowPtr window) {
 	break;
       case wAbout:
 	windows.about = NULL;
+	CloseWindow(window);
+	break;
+      case wLicence:
+	windows.licence = NULL;
 	CloseWindow(window);
 	break;
       default:
