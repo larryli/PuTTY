@@ -1,4 +1,4 @@
-/* $Id: putty.r,v 1.1.2.5 1999/02/20 22:10:34 ben Exp $ */
+/* $Id: putty.r,v 1.1.2.6 1999/02/20 23:55:55 ben Exp $ */
 /* PuTTY resources */
 
 #define PICT_RezTemplateVersion 1
@@ -271,9 +271,10 @@ resource 'MENU' (mFile, preload) {
     enabled,
     "File",
     {
-	"Close",		noicon, "W", nomark, plain,
+	"New Session"		noicon, "N",   nomark, plain,
+	"Close",		noicon, "W",   nomark, plain,
 	"-",			noicon, nokey, nomark, plain,
-	"Quit",			noicon, "Q", nomark, plain,
+	"Quit",			noicon, "Q",   nomark, plain,
     }
 };
 
@@ -307,6 +308,18 @@ resource 'DITL' (wFatal, "fatalbox", purgeable) {
 			"^0"
 		}
 	}
+};
+
+/* Terminal window */
+
+resource 'WIND' (wTerminal, "terminal", purgeable) {
+    { 0, 0, 0, 0 },
+    zoomDocProc,
+    invisible,
+    goAway,
+    0x0,
+    "untitled"
+    staggerParentWindowScreen
 };
 
 /* "About" box */

@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.4 1999/02/20 22:10:33 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.5 1999/02/20 23:55:55 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -38,6 +38,8 @@ static void mac_adjustmenus(void);
 static void mac_closewindow(WindowPtr);
 static void mac_zoomwindow(WindowPtr, short);
 static void mac_shutdown(void);
+
+static void mac_newsession(void);
 
 int main (int argc, char **argv) {
 
@@ -230,6 +232,9 @@ static void mac_menucommand(long result) {
         break;
       case mFile:
         switch (item) {
+          case iNew:
+            mac_newsession();
+            break;
           case iClose:
             mac_closewindow(FrontWindow());
             break;

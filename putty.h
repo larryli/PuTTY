@@ -59,6 +59,24 @@ typedef HDC Context;
 #define GLOBAL extern
 #endif
 
+struct session {
+    /* Display state */
+    int rows, cols, savelines;
+    int font_width, font_height;
+    int has_focus;
+    /* Buffers */
+    unsigned char inbuf[INBUF_SIZE];
+    int inbuf_head, inbuf_reap;
+    unsigned char outbuf[OUTBUF_SIZE];
+    int outbuf_head, outbuf_reap;
+    /* Emulator state */
+    int app_cursor_keys, app_keypad_keys;
+    /* Backend */
+    Backend *back;
+    /* Config that created this session */
+    Config cfg;
+}
+
 GLOBAL int rows, cols, savelines;
 
 GLOBAL int font_width, font_height;
