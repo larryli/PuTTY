@@ -591,4 +591,12 @@ const char *wc_error(int value);
 int wc_match(const char *wildcard, const char *target);
 int wc_unescape(char *output, const char *wildcard);
 
+/*
+ * Exports from console.c (that aren't equivalents to things in
+ * windlg.c).
+ */
+extern int console_batch_mode;
+extern char *console_password;
+int console_get_line(const char *prompt, char *str, int maxlen, int is_pw);
+
 #endif

@@ -106,6 +106,8 @@ SFOBJS = sftp.$(OBJ) int64.$(OBJ) logging.$(OBJ)
 ##-- objects putty puttytel pscp psftp plink
 MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ) settings.$(OBJ)
 MOBJ2 = tree234.$(OBJ)
+##-- objects pscp psftp plink
+COBJS = console.$(OBJ)
 ##-- objects putty pscp psftp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
@@ -164,13 +166,13 @@ pageant.exe: $(PAGE1) $(PAGE2) $(PAGE3) $(PAGERC) pageant.rsp
 puttygen.exe: $(GEN1) $(GEN2) $(GEN3) $(GEN4) $(GENRC) puttygen.rsp
 	link $(LFLAGS) -out:puttygen.exe -map:puttygen.map @puttygen.rsp
 
-pscp.exe: $(SOBJS) $(SFOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) pscp.rsp
+pscp.exe: $(SOBJS) $(SFOBJS) $(COBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe -map:pscp.map @pscp.rsp
 
-psftp.exe: $(FOBJS) $(SFOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) psftp.rsp
+psftp.exe: $(FOBJS) $(SFOBJS) $(COBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) psftp.rsp
 	link $(LFLAGS) -out:psftp.exe -map:psftp.map @psftp.rsp
 
-plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(LRESRC) plink.rsp
+plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(COBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(LRESRC) plink.rsp
 	link $(LFLAGS) -out:plink.exe -map:plink.map @plink.rsp
 
 ssh.obj:
@@ -233,6 +235,7 @@ pscp.rsp: makefile
 	echo /nologo /subsystem:console > pscp.rsp
 	echo $(SOBJS) >> pscp.rsp
 	echo $(SFOBJS) >> pscp.rsp
+	echo $(COBJS) >> pscp.rsp
 	echo $(MOBJS) >> pscp.rsp
 	echo $(MOBJ2) >> pscp.rsp
 	echo $(OBJS1) >> pscp.rsp
@@ -248,6 +251,7 @@ psftp.rsp: makefile
 	echo /nologo /subsystem:console > psftp.rsp
 	echo $(FOBJS) >> psftp.rsp
 	echo $(SFOBJS) >> psftp.rsp
+	echo $(COBJS) >> psftp.rsp
 	echo $(MOBJS) >> psftp.rsp
 	echo $(MOBJ2) >> psftp.rsp
 	echo $(OBJS1) >> psftp.rsp
@@ -264,6 +268,7 @@ plink.rsp: makefile
 	echo $(LOBJS1) >> plink.rsp
 	echo $(POBJS) >> plink.rsp
 	echo $(PLOBJS) >> plink.rsp
+	echo $(COBJS) >> plink.rsp
 	echo $(MOBJS) >> plink.rsp
 	echo $(MOBJ2) >> plink.rsp
 	echo $(OBJS1) >> plink.rsp

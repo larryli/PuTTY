@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.12 2001/12/06 20:05:39 simon Exp $
+\versionid $Id: plink.but,v 1.13 2001/12/31 16:15:19 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -151,6 +151,9 @@ details:
 Then you can set up other programs to run this Plink command and
 talk to it as if it were a process on the server machine.
 
+You may also find it useful to use the \c{-batch} command-line
+option; see \k{plink-usage-options-batch}.
+
 \S{plink-usage-options} Options
 
 This section describes the command line options that Plink accepts.
@@ -206,6 +209,18 @@ username
 As described in \k{plink-usage-batch}, you can specify the user name
 to log in as on the remote server using the \c{-l} option. For
 example, \c{plink login.example.com -l fred}.
+
+\S2{plink-usage-options-batch}\c{-batch} avoid interactive prompts
+
+If you use the \c{-batch} option, Plink will never give an
+interactive prompt while establishing the connection. If the
+server's host key is invalid, for example (see \k{gs-hostkey}), then
+the connection will simply be abandoned instead of asking you what
+to do next.
+
+This may help Plink's behaviour when it is used in automated
+scripts: using \c{-batch}, if something goes wrong at connection
+time, the batch job will fail rather than hang.
 
 \S2{plink-usage-options-cmdfile} \c{-m filename} read command from a
 file

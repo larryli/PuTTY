@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.19 2001/12/14 12:19:14 simon Exp $
+\versionid $Id: pscp.but,v 1.20 2001/12/31 16:15:19 simon Exp $
 
 \#FIXME: Need examples
 
@@ -229,6 +229,18 @@ line.
 Since specifying passwords in scripts is a bad idea for security
 reasons, you might want instead to consider using public-key
 authentication; see \k{pscp-pubkey}.
+
+\S2{pscp-usage-options-batch}\c{-batch} avoid interactive prompts
+
+If you use the \c{-batch} option, PSCP will never give an
+interactive prompt while establishing the connection. If the
+server's host key is invalid, for example (see \k{gs-hostkey}), then
+the connection will simply be abandoned instead of asking you what
+to do next.
+
+This may help PSCP's behaviour when it is used in automated
+scripts: using \c{-batch}, if something goes wrong at connection
+time, the batch job will fail rather than hang.
 
 \S{pscp-retval} Return value
 
