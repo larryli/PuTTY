@@ -656,10 +656,6 @@ void logeventf(Ssh ssh, char *fmt, ...)
     buf = dupvprintf(fmt, ap);
     va_end(ap);
     logevent(buf);
-    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) {
-	fprintf(stderr, "%s\n", buf);
-	fflush(stderr);
-    }
     sfree(buf);
 }
 
