@@ -338,19 +338,28 @@ void get_sesslist(int allocate) {
 	buffer = srealloc(buffer, buflen+1);
 	buffer[buflen] = '\0';
 
+	/*
+	 * Now set up the list of sessions. Note that "Default
+	 * Settings" must always be claimed to exist, even if it
+	 * doesn't really.
+	 */
+
 	p = buffer;
-	nsessions = 0;
+	nsessions = 1;		       /* "Default Settings" counts as one */
 	while (*p) {
-            nsessions++;
+            if (strcmp(p, "Default Settings"))
+		nsessions++;
 	    while (*p) p++;
 	    p++;
 	}
 
-	sessions = smalloc(nsessions * sizeof(char *));
+	sessions = smalloc((nsessions+1) * sizeof(char *));
+	sessions[0] = "Default Settings";
 	p = buffer;
-	i = 0;
+	i = 1;
 	while (*p) {
-            sessions[i++] = p;
+            if (strcmp(p, "Default Settings"))
+		sessions[i++] = p;
 	    while (*p) p++;
 	    p++;
 	}
