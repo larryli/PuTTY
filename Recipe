@@ -119,7 +119,7 @@ LIBS2    = LIBS ws2_32.lib
 # Definitions of actual programs. The program name, followed by a
 # colon, followed by a list of objects. Also in the list may be the
 # keywords [G] for Windows GUI app, [C] for Console app, [X] for
-# X/GTK Unix app.
+# X/GTK Unix app, [U] for command-line Unix app.
 
 putty    : [G] GUITERM NONSSH WINSSH be_all WINMISC win_res.res LIBS1
 puttytel : [G] GUITERM NONSSH be_nossh WINMISC win_res.res LIBS1
@@ -139,4 +139,4 @@ puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
          + logging uxprint settings pty be_none uxstore
 
-plink    : [X] uxplink uxcons NONSSH UXSSH be_all logging UXMISC
+plink    : [U] uxplink uxcons NONSSH UXSSH be_all logging UXMISC

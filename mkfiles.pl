@@ -57,7 +57,8 @@ while (<IN>) {
     $i = shift @objs;
     if ($groups{$i}) {
       foreach $j (@{$groups{$i}}) { unshift @objs, $j; }
-    } elsif (($i eq "[G]" or $i eq "[C]" or $i eq "[X]") and defined $prog) {
+    } elsif (($i eq "[G]" or $i eq "[C]" or
+	      $i eq "[X]" or $i eq "[U]") and defined $prog) {
       $type = substr($i,1,1);
     } else {
       push @$listref, $i;
@@ -513,7 +514,8 @@ print
 "CC = \$(TOOLPATH)cc\n".
 "\n".
 &splitline("CFLAGS = -Wall -g -I. -I.. `gtk-config --cflags`")."\n".
-"LDFLAGS = `gtk-config --libs`\n".
+"XLDFLAGS = `gtk-config --libs`\n".
+"ULDFLAGS =#\n".
 "INSTALL=install\n",
 "INSTALL_PROGRAM=\$(INSTALL)\n",
 "INSTALL_DATA=\$(INSTALL)\n",
@@ -528,14 +530,14 @@ print
 "%.o:\n".
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
 "\n";
-print &splitline("all:" . join "", map { " $_" } &progrealnames("X"));
+print &splitline("all:" . join "", map { " $_" } &progrealnames("XU"));
 print "\n\n";
-foreach $p (&prognames("X")) {
+foreach $p (&prognames("XU")) {
   ($prog, $type) = split ",", $p;
   $objstr = &objects($p, "X.o", undef, undef);
   print &splitline($prog . ": " . $objstr), "\n";
   $libstr = &objects($p, undef, undef, "-lX");
-  print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
+  print &splitline("\t\$(CC)" . $mw . " \$(${type}LDFLAGS) -o \$@ " .
                    $objstr . " $libstr", 69), "\n\n";
 }
 &deps("X.o", undef, "../", "/");
@@ -546,11 +548,11 @@ print
 "FORCE:\n".
 "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c ../version.c\n".
 "clean:\n".
-"\trm -f *.o". (join "", map { " $_" } &progrealnames("X")) . "\n".
+"\trm -f *.o". (join "", map { " $_" } &progrealnames("XU")) . "\n".
 "\n",
 "install:\n",
-map("\t\$(INSTALL_PROGRAM) -m 755 $_ \$(bindir)/$_\n", &progrealnames("X")),
-map("\t\$(INSTALL_DATA) -m 644 $_ \$(man1dir)/$_\n", &manpages("X", "1")),
+map("\t\$(INSTALL_PROGRAM) -m 755 $_ \$(bindir)/$_\n", &progrealnames("XU")),
+map("\t\$(INSTALL_DATA) -m 644 $_ \$(man1dir)/$_\n", &manpages("XU", "1")),
 "\n",
 "install-strip:\n",
 "\t\$(MAKE) install INSTALL_PROGRAM=\"\$(INSTALL_PROGRAM) -s\"\n",
