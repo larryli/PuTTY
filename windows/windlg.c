@@ -769,6 +769,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
      * callback function for the Help button.
      */
     mbox.cbSize = sizeof(mbox);
+    mbox.hInstance = hinst;
     mbox.hwndOwner = hwnd;
     mbox.lpfnMsgBoxCallback = &verify_ssh_host_key_help;
     mbox.dwLanguageId = LANG_NEUTRAL;
@@ -793,13 +794,14 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	mbox.dwStyle = MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3 |
 	    help_button;
 	mbret = MessageBoxIndirect(&mbox);
+	assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
 	sfree((void *)mbox.lpszText);
 	sfree((void *)mbox.lpszCaption);
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
-	if (mbret == IDCANCEL)
-	    return 0;
-        return 1;
+	if (mbret == IDNO)
+	    return 1;
+        return 0;
     }
     if (ret == 1) {		       /* key was absent */
 	int mbret;
@@ -809,13 +811,14 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	mbox.dwStyle = MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3 |
 	    help_button;
 	mbret = MessageBoxIndirect(&mbox);
+	assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
 	sfree((void *)mbox.lpszText);
 	sfree((void *)mbox.lpszCaption);
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
-	if (mbret == IDCANCEL)
-	    return 0;
-        return 1;
+	if (mbret == IDNO)
+	    return 1;
+        return 0;
     }
 }
 
