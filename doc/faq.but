@@ -912,8 +912,8 @@ reported to us).
 There is a patch for OpenSSH attached to that bug; it's also fixed in
 recent versions of portable OpenSSH (from around 3.8).
 
-\S{faq-connaborted} Do you want to hear about \q{Software caused
-connection abort}?
+\S{faq-connaborted}{Question} Do you want to hear about \q{Software
+caused connection abort}?
 
 In the documentation for PuTTY 0.53 and 0.53b, we mentioned that we'd
 like to hear about any occurrences of this error.  Since the release
