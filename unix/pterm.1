@@ -151,6 +151,10 @@ zero), but the window will stay around if the process exits with a
 non-zero code or on a signal. This enables you to see what went
 wrong if the process suffers an error, but not to have to bother
 closing the window in normal circumstances.
+.IP "\fBpterm.WarnOnClose\fP"
+This option should be set to either 0 or 1; the default is 1.
+When set to 1, \fIpterm\fP will ask for confirmation before closing
+its window when you press the close button.
 .IP "\fBpterm.TerminalType\fP"
 This controls the value set in the TERM environment variable inside
 the new terminal. The default is "xterm".
