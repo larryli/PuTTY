@@ -734,7 +734,7 @@ static int alloc_channel_id(Ssh ssh)
     return low + 1 + CHANNEL_NUMBER_OFFSET;
 }
 
-static void c_write(Ssh ssh, char *buf, int len)
+static void c_write(Ssh ssh, const char *buf, int len)
 {
     if ((flags & FLAG_STDERR)) {
 	int i;
@@ -746,7 +746,7 @@ static void c_write(Ssh ssh, char *buf, int len)
     from_backend(ssh->frontend, 1, buf, len);
 }
 
-static void c_write_untrusted(Ssh ssh, char *buf, int len)
+static void c_write_untrusted(Ssh ssh, const char *buf, int len)
 {
     int i;
     for (i = 0; i < len; i++) {
@@ -757,7 +757,7 @@ static void c_write_untrusted(Ssh ssh, char *buf, int len)
     }
 }
 
-static void c_write_str(Ssh ssh, char *buf)
+static void c_write_str(Ssh ssh, const char *buf)
 {
     c_write(ssh, buf, strlen(buf));
 }
@@ -2721,7 +2721,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		int ret = loadrsakey(&ssh->cfg.keyfile, &s->key, s->password);
 		if (ret == 0) {
 		    c_write_str(ssh, "Couldn't load private key from ");
-		    c_write_str(ssh, filename_to_str(ssh->cfg.keyfile));
+		    c_write_str(ssh, filename_to_str(&ssh->cfg.keyfile));
 		    c_write_str(ssh, ".\r\n");
 		    continue;	       /* go and try password */
 		}

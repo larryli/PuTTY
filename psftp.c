@@ -1528,7 +1528,7 @@ static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-int from_backend(void *frontend, int is_stderr, char *data, int datalen)
+int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;

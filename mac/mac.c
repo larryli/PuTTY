@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.39 2003/02/01 15:44:08 ben Exp $ */
+/* $Id: mac.c,v 1.40 2003/02/01 17:24:26 simon Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -801,7 +801,7 @@ void platform_get_x11_auth(char *display, int *proto,
     /* SGT: I have no idea whether Mac X servers need anything here. */
 }
 
-Filename filename_from_str(char *str)
+Filename filename_from_str(const char *str)
 {
     Filename ret;
     strncpy(ret.path, str, sizeof(ret.path));
@@ -809,11 +809,9 @@ Filename filename_from_str(char *str)
     return ret;
 }
 
-char *filename_to_str(Filename fn)
+const char *filename_to_str(const Filename *fn)
 {
-    /* FIXME: Memory leak! */
-
-    return dupstr(fn.path);
+    return fn->path;
 }
 
 int filename_equal(Filename f1, Filename f2)

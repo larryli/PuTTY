@@ -4602,7 +4602,7 @@ int term_ldisc(Terminal *term, int option)
 /*
  * from_backend(), to get data from the backend for the terminal.
  */
-int from_backend(void *vterm, int is_stderr, char *data, int len)
+int from_backend(void *vterm, int is_stderr, const char *data, int len)
 {
     Terminal *term = (Terminal *)vterm;
 

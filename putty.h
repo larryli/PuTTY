@@ -597,7 +597,7 @@ int term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *);
 void term_reconfig(Terminal *, Config *);
 void term_seen_key_event(Terminal *); 
-int from_backend(void *, int is_stderr, char *data, int len);
+int from_backend(void *, int is_stderr, const char *data, int len);
 void term_provide_resize_fn(Terminal *term,
 			    void (*resize_fn)(void *, int, int),
 			    void *resize_ctx);
@@ -790,8 +790,8 @@ extern const char *const x11_authnames[];  /* declared in x11fwd.c */
 /*
  * Miscellaneous exports from the platform-specific code.
  */
-Filename filename_from_str(char *string);
-char *filename_to_str(Filename fn);
+Filename filename_from_str(const char *string);
+const char *filename_to_str(const Filename *fn);
 int filename_equal(Filename f1, Filename f2);
 int filename_is_null(Filename fn);
 

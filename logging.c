@@ -146,7 +146,7 @@ void logfopen(void *handle)
 		 ctx->cfg.logtype == LGTYP_DEBUG ? "raw" :
 		 ctx->cfg.logtype == LGTYP_PACKETS ? "SSH packets" : "<ukwn>"));
 	/* Make sure we do not exceed the output buffer size */
-	strncat(buf, filename_to_str(ctx->currlogfilename), 128);
+	strncat(buf, filename_to_str(&ctx->currlogfilename), 128);
 	buf[strlen(buf)] = '\0';
 	logevent(ctx->frontend, buf);
     }
@@ -210,10 +210,11 @@ static void xlatlognam(Filename *dest, Filename src,
     int size;
     char buffer[FILENAME_MAX];
     int len = sizeof(buffer)-1;
-    char *d, *s;
+    char *d;
+    const char *s;
 
     d = buffer;
-    s = filename_to_str(src);
+    s = filename_to_str(&src);
 
     while (*s) {
 	/* Let (bufp, len) be the string to append. */
@@ -257,5 +258,5 @@ static void xlatlognam(Filename *dest, Filename src,
     }
     *d = '\0';
 
-    *dest = filename_from_str(s);
+    *dest = filename_from_str(d);
 }

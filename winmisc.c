@@ -13,7 +13,7 @@ void platform_get_x11_auth(char *display, int *proto,
     /* We don't support this at all under Windows. */
 }
 
-Filename filename_from_str(char *str)
+Filename filename_from_str(const char *str)
 {
     Filename ret;
     strncpy(ret.path, str, sizeof(ret.path));
@@ -21,9 +21,9 @@ Filename filename_from_str(char *str)
     return ret;
 }
 
-char *filename_to_str(Filename fn)
+const char *filename_to_str(const Filename *fn)
 {
-    return fn.path;
+    return fn->path;
 }
 
 int filename_equal(Filename f1, Filename f2)

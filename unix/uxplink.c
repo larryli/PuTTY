@@ -208,7 +208,8 @@ void try_output(int is_stderr)
     }
 }
 
-int from_backend(void *frontend_handle, int is_stderr, char *data, int len)
+int from_backend(void *frontend_handle, int is_stderr,
+		 const char *data, int len)
 {
     int osize, esize;
 

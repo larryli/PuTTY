@@ -18,7 +18,7 @@ unsigned long getticks(void)
     return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
-Filename filename_from_str(char *str)
+Filename filename_from_str(const char *str)
 {
     Filename ret;
     strncpy(ret.path, str, sizeof(ret.path));
@@ -26,9 +26,9 @@ Filename filename_from_str(char *str)
     return ret;
 }
 
-char *filename_to_str(Filename fn)
+const char *filename_to_str(const Filename *fn)
 {
-    return fn.path;
+    return fn->path;
 }
 
 int filename_equal(Filename f1, Filename f2)
