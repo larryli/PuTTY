@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.16 2003/01/24 00:37:27 ben Exp $
+$Id: README.mac,v 1.17 2003/01/25 14:07:50 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -71,16 +71,18 @@ Unimplemented features (should be done before release):
  * Entropy collection.
  * Private key files.
  * Pageant and PuTTYgen.
- * Apple Events.
+ * Do something with Open Application Apple Events.
  * Warn-on-close.
  * Close-on-exit.
  * Warn-on-quit.
  * Event log.
+ * Duplicate session.
 
 Wishlist (after release):
  * SFTP client (GUI?)
  * Carbon compatibility (requires Open Transport and Navigation Services).
  * 'styl' copy (and paste, for script codes?).
+ * Handle 'gurl' Apple Events.
 
 Local Variables:
 mode: text
