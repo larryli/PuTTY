@@ -129,7 +129,7 @@ void noise_regular(void)
  * counter to the noise pool. It gets the scan code or mouse
  * position passed in.
  */
-void noise_ultralight(DWORD data)
+void noise_ultralight(unsigned long data)
 {
     DWORD wintime;
     LARGE_INTEGER perftime;

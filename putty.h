@@ -3,13 +3,23 @@
 
 #include <stdio.h>		       /* for FILENAME_MAX */
 
-#include "network.h"
+/*
+ * Global variables. Most modules declare these `extern', but
+ * window.c will do `#define PUTTY_DO_GLOBALS' before including this
+ * module, and so will get them properly defined.
+ */
+#ifndef GLOBAL
+#ifdef PUTTY_DO_GLOBALS
+#define GLOBAL
+#else
+#define GLOBAL extern
+#endif
+#endif
 
-#define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
-#define PUTTY_REG_PARENT "Software\\SimonTatham"
-#define PUTTY_REG_PARENT_CHILD "PuTTY"
-#define PUTTY_REG_GPARENT "Software"
-#define PUTTY_REG_GPARENT_CHILD "SimonTatham"
+typedef struct config_tag Config;
+
+#include "puttyps.h"
+#include "network.h"
 
 /*
  * Global variables. Most modules declare these `extern', but
@@ -88,7 +98,6 @@
 #define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
 #define ATTR_CUR_XOR 0x00BA0000UL
 
-typedef HDC Context;
 #define SEL_NL { 13, 10 }
 
 GLOBAL int rows, cols, savelines;
@@ -117,11 +126,11 @@ GLOBAL int dbcs_screenfont;
 GLOBAL int font_codepage;
 GLOBAL int kbd_codepage;
 GLOBAL int line_codepage;
-GLOBAL WCHAR unitab_scoacs[256];
-GLOBAL WCHAR unitab_line[256];
-GLOBAL WCHAR unitab_font[256];
-GLOBAL WCHAR unitab_xterm[256];
-GLOBAL WCHAR unitab_oemcp[256];
+GLOBAL wchar_t unitab_scoacs[256];
+GLOBAL wchar_t unitab_line[256];
+GLOBAL wchar_t unitab_font[256];
+GLOBAL wchar_t unitab_xterm[256];
+GLOBAL wchar_t unitab_oemcp[256];
 GLOBAL unsigned char unitab_ctrl[256];
 #define in_utf (utf || line_codepage==CP_UTF8)
 
@@ -133,20 +142,6 @@ GLOBAL unsigned char unitab_ctrl[256];
 #define LGTYP_DEBUG 2		       /* logmode: all chars of traffic */
 #define LGTYP_PACKETS 3		       /* logmode: SSH data packets */
 GLOBAL char *logfile;
-
-/*
- * Window handles for the dialog boxes that can be running during a
- * PuTTY session.
- */
-GLOBAL HWND logbox;
-
-/*
- * I've just looked in the windows standard headr files for WM_USER, there
- * are hundreds of flags defined using the form WM_USER+123 so I've 
- * renumbered this NETEVENT value and the two in window.c
- */
-#define WM_XUSER     (WM_USER + 0x2000)
-#define WM_NETEVENT  (WM_XUSER + 5)
 
 typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
@@ -233,7 +228,7 @@ extern struct backend_list {
     Backend *backend;
 } backends[];
 
-typedef struct {
+struct config_tag {
     /* Basic options */
     char host[512];
     int port;
@@ -373,7 +368,7 @@ typedef struct {
     } sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
 	sshbug_dhgex2;
-} Config;
+};
 
 /*
  * You can compile with -DSSH_DEFAULT to have ssh by default.
@@ -456,29 +451,9 @@ void cleanup_exit(int);
 void noise_get_heavy(void (*func) (void *, int));
 void noise_get_light(void (*func) (void *, int));
 void noise_regular(void);
-void noise_ultralight(DWORD data);
+void noise_ultralight(unsigned long data);
 void random_save_seed(void);
 void random_destroy_seed(void);
-
-/*
- * Exports from windlg.c.
- */
-void defuse_showwindow(void);
-int do_config(void);
-int do_reconfig(HWND);
-void do_defaults(char *, Config *);
-void logevent(char *);
-void showeventlog(HWND);
-void showabout(HWND);
-void verify_ssh_host_key(char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint);
-void askcipher(char *ciphername, int cs);
-int askappend(char *filename);
-void registry_cleanup(void);
-void force_normal(HWND hwnd);
-
-GLOBAL int nsessions;
-GLOBAL char **sessions;
 
 /*
  * Exports from settings.c.
@@ -576,12 +551,6 @@ extern int random_active;
  * Exports from version.c.
  */
 extern char ver[];
-
-/*
- * Exports from sizetip.c.
- */
-void UpdateSizeTip(HWND src, int cx, int cy);
-void EnableSizeTip(int bEnable);
 
 /*
  * Exports from unicode.c.

@@ -1,5 +1,3 @@
-#include <windows.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -59,7 +57,7 @@ static unsigned long *disptext;	       /* buffer of text on real screen */
 static unsigned long *dispcurs;	       /* location of cursor on real screen */
 static unsigned long curstype;	       /* type of cursor on real screen */
 
-#define VBELL_TIMEOUT 100	       /* millisecond len of visual bell */
+#define VBELL_TIMEOUT (TICKSPERSEC/10) /* visual bell lasts 1/10 sec */
 
 struct beeptime {
     struct beeptime *next;
@@ -918,7 +916,7 @@ static void toggle_mode(int mode, int query, int state)
 	     * effective visual bell, so that ESC[?5hESC[?5l will
 	     * always be an actually _visible_ visual bell.
 	     */
-	    ticks = GetTickCount();
+	    ticks = GETTICKCOUNT();
 	    /* turn off a previous vbell to avoid inconsistencies */
 	    if (ticks - vbell_startpoint >= VBELL_TIMEOUT)
 		in_vbell = FALSE;
@@ -1110,7 +1108,6 @@ void term_out(void)
 	 * buffer.
 	 */
 	if (printing) {
-	    char cc = c;
 	    bufchain_add(&printer_buf, &c, 1);
 
 	    /*
@@ -1317,7 +1314,7 @@ void term_out(void)
 			} else
 			    *d++ = *s;
 		    }
-		    lpage_send(CP_ACP, abuf, d - abuf, 0);
+		    lpage_send(DEFAULT_CODEPAGE, abuf, d - abuf, 0);
 		}
 		break;
 	      case '\007':
@@ -1325,7 +1322,7 @@ void term_out(void)
 		    struct beeptime *newbeep;
 		    unsigned long ticks;
 
-		    ticks = GetTickCount();
+		    ticks = GETTICKCOUNT();
 
 		    if (!beep_overloaded) {
 			newbeep = smalloc(sizeof(struct beeptime));
@@ -1907,7 +1904,6 @@ void term_out(void)
 		      case ANSI_QUE('i'):
 			compatibility(VT100);
 			{
-			    int i;
 			    if (esc_nargs != 1) break;
 			    if (esc_args[0] == 5 && *cfg.printer) {
 				printing = TRUE;
@@ -2800,7 +2796,7 @@ static void do_paint(Context ctx, int may_optimise)
      * Check the visual bell state.
      */
     if (in_vbell) {
-	ticks = GetTickCount();
+	ticks = GETTICKCOUNT();
 	if (ticks - vbell_startpoint >= VBELL_TIMEOUT)
 	    in_vbell = FALSE; 
    }
@@ -2995,7 +2991,7 @@ void term_blink(int flg)
     static long last_tblink = 0;
     long now, blink_diff;
 
-    now = GetTickCount();
+    now = GETTICKCOUNT();
     blink_diff = now - last_tblink;
 
     /* Make sure the text blinks no more than 2Hz */
@@ -3012,8 +3008,8 @@ void term_blink(int flg)
 
     blink_diff = now - last_blink;
 
-    /* Make sure the cursor blinks no faster than GetCaretBlinkTime() */
-    if (blink_diff >= 0 && blink_diff < (long) GetCaretBlinkTime())
+    /* Make sure the cursor blinks no faster than system blink rate */
+    if (blink_diff >= 0 && blink_diff < (long) CURSORBLINK)
 	return;
 
     last_blink = now;
@@ -3714,7 +3710,7 @@ void term_paste()
 
     /* Don't wait forever to paste */
     if (paste_hold) {
-	now = GetTickCount();
+	now = GETTICKCOUNT();
 	paste_diff = now - last_paste;
 	if (paste_diff >= 0 && paste_diff < 450)
 	    return;

@@ -2,18 +2,56 @@
  * winstuff.h: Windows-specific inter-module stuff.
  */
 
+#ifndef PUTTY_WINSTUFF_H
+#define PUTTY_WINSTUFF_H
+
 /*
  * Global variables. Most modules declare these `extern', but
  * window.c will do `#define PUTTY_DO_GLOBALS' before including this
  * module, and so will get them properly defined.
  */
+#ifndef GLOBAL
 #ifdef PUTTY_DO_GLOBALS
 #define GLOBAL
 #else
 #define GLOBAL extern
 #endif
+#endif
 
+typedef struct config_tag Config;      /* duplicated from putty.h */
+
+#define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
+#define PUTTY_REG_PARENT "Software\\SimonTatham"
+#define PUTTY_REG_PARENT_CHILD "PuTTY"
+#define PUTTY_REG_GPARENT "Software"
+#define PUTTY_REG_GPARENT_CHILD "SimonTatham"
+
+#define GETTICKCOUNT GetTickCount
+#define CURSORBLINK GetCaretBlinkTime()
+#define TICKSPERSEC 1000	       /* GetTickCount returns milliseconds */
+
+#define DEFAULT_CODEPAGE CP_ACP
+
+typedef HDC Context;
+
+/*
+ * Window handles for the dialog boxes that can be running during a
+ * PuTTY session.
+ */
+GLOBAL HWND logbox;
+
+/*
+ * The all-important instance handle.
+ */
 GLOBAL HINSTANCE hinst;
+
+/*
+ * I've just looked in the windows standard headr files for WM_USER, there
+ * are hundreds of flags defined using the form WM_USER+123 so I've 
+ * renumbered this NETEVENT value and the two in window.c
+ */
+#define WM_XUSER     (WM_USER + 0x2000)
+#define WM_NETEVENT  (WM_XUSER + 5)
 
 /*
  * Exports from winctrls.c.
@@ -45,6 +83,9 @@ struct prefslist {
     int dragging;
 };
 
+/*
+ * Exports from winctrls.c.
+ */
 void ctlposinit(struct ctlpos *cp, HWND hwnd,
 		int leftborder, int rightborder, int topborder);
 HWND doctl(struct ctlpos *cp, RECT r,
@@ -95,3 +136,31 @@ void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *e1stext, int e1sid, int e1id,
 	       char *e2stext, int e2sid, int e2id,
 	       char *btext, int bid);
+
+/*
+ * Exports from windlg.c.
+ */
+void defuse_showwindow(void);
+int do_config(void);
+int do_reconfig(HWND);
+void do_defaults(char *, Config *);
+void logevent(char *);
+void showeventlog(HWND);
+void showabout(HWND);
+void verify_ssh_host_key(char *host, int port, char *keytype,
+			 char *keystr, char *fingerprint);
+void askcipher(char *ciphername, int cs);
+int askappend(char *filename);
+void registry_cleanup(void);
+void force_normal(HWND hwnd);
+
+GLOBAL int nsessions;
+GLOBAL char **sessions;
+
+/*
+ * Exports from sizetip.c.
+ */
+void UpdateSizeTip(HWND src, int cx, int cy);
+void EnableSizeTip(int bEnable);
+
+#endif

@@ -7,7 +7,11 @@
 # files to compute #include dependencies. Finally, writes out the
 # various target Makefiles.
 
+use FileHandle;
+
 open IN, "Recipe" or die "unable to open Recipe file\n";
+
+@incdirs = ("", "unix/");
 
 $help = ""; # list of newline-free lines of help text
 %programs = (); # maps program name to listref of objects/resources
@@ -55,7 +59,7 @@ while (<IN>) {
     $i = shift @objs;
     if ($groups{$i}) {
       foreach $j (@{$groups{$i}}) { unshift @objs, $j; }
-    } elsif (($i eq "[G]" or $i eq "[C]") and defined $prog) {
+    } elsif (($i eq "[G]" or $i eq "[C]" or $i eq "[X]") and defined $prog) {
       $types{$prog} = substr($i,1,1);
     } else {
       push @$listref, $i;
@@ -118,7 +122,8 @@ while (scalar @scanlist > 0) {
   next if defined $further{$file}; # skip if we've already done it
   $resource = ($file =~ /\.rc$/ ? 1 : 0);
   $further{$file} = [];
-  open IN, $file or die "unable to open source file $file\n";
+  $dirfile = &findfile($file);
+  open IN, "$dirfile" or die "unable to open source file $file\n";
   while (<IN>) {
     chomp;
     /^\s*#include\s+\"([^\"]+)\"/ and do {
@@ -156,24 +161,34 @@ foreach $i (keys %depends) {
 
 # Utility routines while writing out the Makefiles.
 
+sub findfile {
+  my ($name) = @_;
+  my $dir, $i, $outdir = "";
+  $i = 0;
+  foreach $dir (@incdirs) {
+    $outdir = $dir, $i++ if -f "$dir$name";
+  }
+  die "multiple instances of source file $name\n" if $i > 1;
+  return "$outdir$name";
+}
+
 sub objects {
-  my ($prog, $otmpl, $rtmpl, $ltmpl) = @_;
+  my ($prog, $otmpl, $rtmpl, $ltmpl, $prefix, $dirsep) = @_;
   my @ret;
   my ($i, $x, $y);
   @ret = ();
   foreach $i (@{$programs{$prog}}) {
+    $x = "";
     if ($i =~ /^(.*)\.res/) {
       $y = $1;
       ($x = $rtmpl) =~ s/X/$y/;
-      push @ret, $x if $x ne "";
     } elsif ($i =~ /^(.*)\.lib/) {
       $y = $1;
       ($x = $ltmpl) =~ s/X/$y/;
-      push @ret, $x if $x ne "";
     } else {
       ($x = $otmpl) =~ s/X/$i/;
-      push @ret, $x if $x ne "";
     }
+    push @ret, $x if $x ne "";
   }
   return join " ", @ret;
 }
@@ -192,17 +207,36 @@ sub splitline {
 }
 
 sub deps {
-  my ($otmpl, $rtmpl) = @_;
+  my ($otmpl, $rtmpl, $prefix, $dirsep) = @_;
   my ($i, $x, $y);
+  my @deps;
   foreach $i (sort keys %depends) {
     if ($i =~ /^(.*)\.res/) {
+      next if !defined $rtmpl;
       $y = $1;
       ($x = $rtmpl) =~ s/X/$y/;
     } else {
       ($x = $otmpl) =~ s/X/$i/;
     }
-    print &splitline(sprintf "%s: %s", $x, join " ", @{$depends{$i}}), "\n";
+    @deps = @{$depends{$i}};
+    @deps = map {
+      $_ = &findfile($_);
+      s/\//$dirsep/g;
+      $_ = $prefix . $_;
+    } @deps;
+    print &splitline(sprintf "%s: %s", $x, join " ", @deps), "\n";
   }
+}
+
+sub prognames {
+  my ($types) = @_;
+  my ($n);
+  my @ret;
+  @ret = ();
+  foreach $n (@prognames) {
+    push @ret, $n if index($types, $types{$n}) >= 0;
+  }
+  return @ret;
 }
 
 # Now we're ready to output the actual Makefiles.
@@ -240,9 +274,9 @@ print
 "%.res.o: %.rc\n".
 "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
 "\n";
-print &splitline("all:" . join "", map { " $_.exe" } @prognames);
+print &splitline("all:" . join "", map { " $_.exe" } &prognames("GC"));
 print "\n\n";
-foreach $p (@prognames) {
+foreach $p (&prognames("GC")) {
   $objstr = &objects($p, "X.o", "X.res.o", undef);
   print &splitline($p . ".exe: " . $objstr), "\n";
   my $mw = $types{$p} eq "G" ? " -mwindows" : "";
@@ -250,7 +284,7 @@ foreach $p (@prognames) {
   print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
                    $objstr . " $libstr", 69), "\n\n";
 }
-&deps("X.o", "X.res.o");
+&deps("X.o", "X.res.o", "", "\\");
 print
 "\n".
 "version.o: FORCE;\n".
@@ -304,15 +338,15 @@ print
 &splitline("\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include -r".
   " -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401 \$*.rc",69)."\n".
 "\n";
-print &splitline("all:" . join "", map { " $_.exe" } @prognames);
+print &splitline("all:" . join "", map { " $_.exe" } &prognames("GC"));
 print "\n\n";
-foreach $p (@prognames) {
+foreach $p (&prognames("GC")) {
   $objstr = &objects($p, "X.obj", "X.res", undef);
   print &splitline("$p.exe: " . $objstr . " $p.rsp"), "\n";
   my $ap = ($types{$p} eq "G") ? "-aa" : "-ap";
   print "\tilink32 $ap -Gn -L\$(BCB)\\lib \@$p.rsp\n\n";
 }
-foreach $p (@prognames) {
+foreach $p (&prognames("GC")) {
   print $p, ".rsp: \$(MAKEFILE)\n";
   $objstr = &objects($p, "X.obj", undef, undef);
   @objlist = split " ", $objstr;
@@ -339,7 +373,7 @@ foreach $p (@prognames) {
   print "\techo " . &objects($p, undef, "X.res", undef) . " >> $p.rsp\n";
   print "\n";
 }
-&deps("X.obj", "X.res");
+&deps("X.obj", "X.res", "", "\\");
 print
 "\n".
 "version.o: FORCE\n".
@@ -381,14 +415,14 @@ print
 ".rc.res:\n".
 "\trc \$(FWHACK) \$(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
 "\n";
-print &splitline("all:" . join "", map { " $_.exe" } @prognames);
+print &splitline("all:" . join "", map { " $_.exe" } &prognames("GC"));
 print "\n\n";
-foreach $p (@prognames) {
+foreach $p (&prognames("GC")) {
   $objstr = &objects($p, "X.obj", "X.res", undef);
   print &splitline("$p.exe: " . $objstr . " $p.rsp"), "\n";
   print "\tlink \$(LFLAGS) -out:$p.exe -map:$p.map \@$p.rsp\n\n";
 }
-foreach $p (@prognames) {
+foreach $p (&prognames("GC")) {
   print $p, ".rsp: \$(MAKEFILE)\n";
   $objstr = &objects($p, "X.obj", "X.res", "X.lib");
   @objlist = split " ", $objstr;
@@ -406,7 +440,7 @@ foreach $p (@prognames) {
   }
   print "\n";
 }
-&deps("X.obj", "X.res");
+&deps("X.obj", "X.res", "", "\\");
 print
 "\n".
 "# Hack to force version.o to be rebuilt always\n".
@@ -430,4 +464,48 @@ print
 "\t-del *.map\n".
 "\t-del *.idb\n".
 "\t-del debug.log\n";
+select STDOUT; close OUT;
+
+##-- X/GTK/Unix makefile
+open OUT, ">unix/Makefile.gtk"; select OUT;
+print
+"# Makefile for PuTTY under X/GTK and Unix.\n".
+"#\n# This file was created by `mkfiles.pl' from the `Recipe' file.\n".
+"# DO NOT EDIT THIS FILE DIRECTLY; edit Recipe or mkfiles.pl instead.\n";
+# gcc command line option is -D not /D
+($_ = $help) =~ s/=\/D/=-D/gs;
+print $_;
+print
+"\n".
+"# You can define this path to point at your tools if you need to\n".
+"# TOOLPATH = /opt/gcc/bin\n".
+"CC = \$(TOOLPATH)cc\n".
+"\n".
+&splitline("CFLAGS = -Wall -O2 -I. -I.. `gtk-config --cflags`")."\n".
+"LDFLAGS = -s `gtk-config --libs`\n".
+"\n".
+".SUFFIXES:\n".
+"\n".
+"%.o: %.c\n".
+"\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
+"\n";
+print &splitline("all:" . join "", map { " $_" } &prognames("X"));
+print "\n\n";
+foreach $p (&prognames("X")) {
+  $objstr = &objects($p, "X.o", undef, undef);
+  print &splitline($p . ": " . $objstr), "\n";
+  $libstr = &objects($p, undef, undef, "-lX");
+  print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
+                   $objstr . " $libstr", 69), "\n\n";
+}
+&deps("X.o", undef, "../", "/");
+print
+"\n".
+"version.o: FORCE;\n".
+"# Hack to force version.o to be rebuilt always\n".
+"FORCE:\n".
+"\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c version.c\n".
+"clean:\n".
+"\trm -f *.o *.exe\n".
+"\n";
 select STDOUT; close OUT;
