@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.35 2002/09/14 10:24:27 jacob Exp $
+\versionid $Id: faq.but,v 1.36 2002/10/10 14:39:35 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -37,9 +37,9 @@ version 0.52.
 \S{faq-ssh2-keyfmt}{Question} Does PuTTY support reading OpenSSH or
 \cw{ssh.com} SSHv2 private key files?
 
-Version 0.52 doesn't, but in the latest development snapshots
-PuTTYgen can load and save both OpenSSH and \cw{ssh.com} private key
-files.
+PuTTY doesn't support this natively, but as of 0.53
+PuTTYgen can convert both OpenSSH and \cw{ssh.com} private key
+files into PuTTY's format.
 
 \S{faq-ssh1}{Question} Does PuTTY support SSH v1?
 
@@ -330,7 +330,10 @@ To run a PuTTY session saved under the name \q{\cw{mysession}},
 create a Windows shortcut that invokes PuTTY with a command line
 like
 
-\c \path\name\to\putty.exe @mysession
+\c \path\name\to\putty.exe -load mysession
+
+(Note: prior to 0.53, the syntax was \c{@session}. This is now
+deprecated and may be removed at some point.)
 
 \S{faq-startssh}{Question} How can I start an SSH session straight
 from the command line?
@@ -365,10 +368,13 @@ forwarding? I can't find the Tunnels panel.
 This is a new feature in version 0.52. You should upgrade.
 
 \S{faq-options}{Question} How do I use all PuTTY's features (public
-keys, port forwarding, SSH v2, etc.) in PSCP, PSFTP and Plink?
+keys, proxying, cipher selection, etc.) in PSCP, PSFTP and Plink?
 
-The command-line tools are currently rather short of command line
-options to enable this sort of thing. However, you can use most of
+Most major features (e.g., public keys, port forwarding) are available
+through command line options. See the documentation.
+
+Not all features are accessible from the command line yet, although
+we'd like to fix this. In the meantime, you can use most of
 PuTTY's features if you create a PuTTY saved session, and then use
 the name of the saved session on the command line in place of a
 hostname. This works for PSCP, PSFTP and Plink (but don't expect
@@ -506,7 +512,7 @@ v2 servers from \cw{ssh.com} will require the key exchange to be
 repeated one hour after the start of the connection, and PuTTY will
 get this wrong.
 
-Upgrade to version 0.52 and the problem should go away.
+Upgrade to version 0.52 or better and the problem should go away.
 
 \S{faq-outofmem}{Question} After trying to establish an SSH 2
 connection, PuTTY says \q{Out of memory} and dies.
@@ -587,7 +593,7 @@ effect. It will only take effect once you reset the terminal.
 AltGr key.
 
 In PuTTY version 0.51, the AltGr key was broken. Upgrade to version
-0.52.
+0.52 or better.
 
 \S{faq-idleout}{Question} My PuTTY sessions unexpectedly close after
 they are idle for a while.
