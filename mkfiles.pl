@@ -51,6 +51,7 @@ while (<IN>) {
   if ($_[0] eq "!name") { $project_name = $_[1]; next; }
   if ($_[0] eq "!srcdir") { push @srcdirs, $_[1]; next; }
   if ($_[0] eq "!makefile" and &mfval($_[1])) { $makefiles{$_[1]}=$_[2]; next;}
+  if ($_[0] eq "!specialobj" and &mfval($_[1])) { $specialobj{$_[1]}->{$_[2]} = 1; next;}
   if ($_[0] eq "!begin") {
       if (&mfval($_[1])) {
 	  $divert = \$makefile_extra{$_[1]};
@@ -221,8 +222,14 @@ sub dirpfx {
     my ($path) = shift @_;
     my ($sep) = shift @_;
     my $ret = "", $i;
-    while (($i = index $path, $sep) >= 0) {
-	$path = substr $path, ($i + length $sep);
+
+    while (($i = index $path, $sep) >= 0 ||
+	   ($j = index $path, "/") >= 0) {
+        if ($i >= 0 and ($j < 0 or $i < $j)) {
+	    $path = substr $path, ($i + length $sep);
+	} else {
+	    $path = substr $path, ($j + 1);
+	}
 	$ret .= "..$sep";
     }
     return $ret;
@@ -278,12 +285,13 @@ sub splitline {
 }
 
 sub deps {
-  my ($otmpl, $rtmpl, $prefix, $dirsep, $depchar, $splitchar) = @_;
+  my ($otmpl, $rtmpl, $prefix, $dirsep, $mftyp, $depchar, $splitchar) = @_;
   my ($i, $x, $y);
   my @deps, @ret;
   @ret = ();
   $depchar ||= ':';
   foreach $i (sort keys %depends) {
+    next if $specialobj{$mftyp}->{$i};
     if ($i =~ /^(.*)\.(res|rsrc)/) {
       next if !defined $rtmpl;
       $y = $1;
@@ -372,12 +380,6 @@ if (defined $makefiles{'cygwin'}) {
       " --define WINVER=0x0400 --define MINGW32_FIX=1")."\n".
     "\n".
     ".SUFFIXES:\n".
-    "\n".
-    "%.o: %.c\n".
-    "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n".
-    "\n".
-    "%.res.o: %.rc\n".
-    "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
     "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
     print "\n\n";
@@ -391,9 +393,14 @@ if (defined $makefiles{'cygwin'}) {
                        "-Wl,-Map,$prog.map " .
                        $objstr . " $libstr", 69), "\n\n";
     }
-    foreach $d (&deps("X.o", "X.res.o", $dirpfx, "/")) {
+    foreach $d (&deps("X.o", "X.res.o", $dirpfx, "/", "cygwin")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
+      if ($d->{obj} =~ /\.res\.o$/) {
+	  print "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) ".$d->{deps}->[0]." ".$d->{obj}."\n\n";
+      } else {
+	  print "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c ".$d->{deps}->[0]."\n\n";
+      }
     }
     print "\n";
     print $makefile_extra{'cygwin'};
@@ -488,7 +495,7 @@ if (defined $makefiles{'borland'}) {
       print "\techo " . &objects($p, undef, "X.res", undef) . " >> $prog.rsp\n";
       print "\n";
     }
-    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\")) {
+    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\", "borland")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
     }
@@ -525,13 +532,11 @@ if (defined $makefiles{'vc'}) {
       "MAKEFILE = Makefile.vc\n".
       "\n".
       "# C compilation flags\n".
-      "CFLAGS = /nologo /W3 /O1 /D_WINDOWS /D_WIN32_WINDOWS=0x401 /DWINVER=0x401\n".
+      "CFLAGS = /nologo /W3 /O1 " .
+      (join " ", map {"-I$dirpfx$_"} @srcdirs) .
+      " /D_WINDOWS /D_WIN32_WINDOWS=0x401 /DWINVER=0x401\n".
       "LFLAGS = /incremental:no /fixed\n".
       "\n".
-      ".c.obj:\n".
-      "\tcl \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) /c \$*.c\n".
-      ".rc.res:\n".
-      "\trc \$(FWHACK) \$(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
       "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
     print "\n\n";
@@ -560,9 +565,14 @@ if (defined $makefiles{'vc'}) {
 	}
 	print "\n";
     }
-    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\")) {
+    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\", "vc")) {
 	print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
 	  "\n";
+        if ($d->{obj} =~ /.obj$/) {
+	    print "\tcl \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) /c ".$d->{deps}->[0],"\n\n";
+	} else {
+	    print "\trc \$(FWHACK) \$(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 ".$d->{deps}->[0],"\n\n";
+	}
     }
     print "\n";
     print $makefile_extra{'vc'};
@@ -588,6 +598,7 @@ if (defined $makefiles{'vc'}) {
 }
 
 if (defined $makefiles{'vcproj'}) {
+    $dirpfx = &dirpfx($makefiles{'vcproj'}, "\\");
 
     $orig_dir = cwd;
 
@@ -604,7 +615,7 @@ if (defined $makefiles{'vcproj'}) {
     mkdir $makefiles{'vcproj'}
         if(! -d $makefiles{'vcproj'});
     chdir $makefiles{'vcproj'};
-    @deps = &deps("X.obj", "X.res", "", "\\");
+    @deps = &deps("X.obj", "X.res", $dirpfx, "\\", "vcproj");
     %all_object_deps = map {$_->{obj} => $_->{deps}} @deps;
     # Create the project files
     # Get names of all Windows projects (GUI and console)
@@ -739,8 +750,12 @@ if (defined $makefiles{'vcproj'}) {
     	"# PROP Intermediate_Dir \"Release\"\r\n".
     	"# PROP Ignore_Export_Lib 0\r\n".
     	"# PROP Target_Dir \"\"\r\n".
-    	"# ADD BASE CPP /nologo /W3 /GX /O2 /D \"WIN32\" /D \"NDEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /c\r\n".
-    	"# ADD CPP /nologo /W3 /GX /O2 /D \"WIN32\" /D \"NDEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /c\r\n".
+    	"# ADD BASE CPP /nologo /W3 /GX /O2 ".
+	  (join " ", map {"/I \"..\\..\\$dirpfx$_\""} @srcdirs) .
+	  " /D \"WIN32\" /D \"NDEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /c\r\n".
+    	"# ADD CPP /nologo /W3 /GX /O2 ".
+	  (join " ", map {"/I \"..\\..\\$dirpfx$_\""} @srcdirs) .
+	  " /D \"WIN32\" /D \"NDEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /c\r\n".
     	"# ADD BASE MTL /nologo /D \"NDEBUG\" /mktyplib203 /win32\r\n".
     	"# ADD MTL /nologo /D \"NDEBUG\" /mktyplib203 /win32\r\n".
     	"# ADD BASE RSC /l 0x809 /d \"NDEBUG\"\r\n".
@@ -766,8 +781,12 @@ if (defined $makefiles{'vcproj'}) {
     	"# PROP Intermediate_Dir \"Debug\"\r\n".
     	"# PROP Ignore_Export_Lib 0\r\n".
     	"# PROP Target_Dir \"\"\r\n".
-    	"# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D \"WIN32\" /D \"_DEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /GZ /c\r\n".
-    	"# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /D \"WIN32\" /D \"_DEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /GZ /c\r\n".
+    	"# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od ".
+	  (join " ", map {"/I \"..\\..\\$dirpfx$_\""} @srcdirs) .
+	  " /D \"WIN32\" /D \"_DEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /GZ /c\r\n".
+    	"# ADD CPP /nologo /W3 /Gm /GX /ZI /Od ".
+	  (join " ", map {"/I \"..\\..\\$dirpfx$_\""} @srcdirs) .
+	  " /D \"WIN32\" /D \"_DEBUG\" /D \"_WINDOWS\" /D \"_MBCS\" /YX /FD /GZ /c\r\n".
     	"# ADD BASE MTL /nologo /D \"_DEBUG\" /mktyplib203 /win32\r\n".
     	"# ADD MTL /nologo /D \"_DEBUG\" /mktyplib203 /win32\r\n".
     	"# ADD BASE RSC /l 0x809 /d \"_DEBUG\"\r\n".
@@ -889,7 +908,7 @@ if (defined $makefiles{'gtk'}) {
       print &splitline("\t\$(CC)" . $mw . " \$(${type}LDFLAGS) -o \$@ " .
                        $objstr . " $libstr", 69), "\n\n";
     }
-    foreach $d (&deps("X.o", undef, $dirpfx, "/")) {
+    foreach $d (&deps("X.o", undef, $dirpfx, "/", "gtk")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
           "\n";
     }
@@ -1008,14 +1027,14 @@ if (defined $makefiles{'mpw'}) {
       }
 
     }
-    foreach $d (&deps("", "X.rsrc", "::", ":")) {
+    foreach $d (&deps("", "X.rsrc", "::", ":", "mpw")) {
       next unless $d->{obj};
       print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
     		   undef, "\xb6"), "\n";
       print "\tRez ", $d->{deps}->[0], " -o {Targ} {ROptions}\n\n";
     }
     foreach $arch (qw(68K CFM68K)) {
-        foreach $d (&deps("X.\L$arch\E.o", "", "::", ":")) {
+        foreach $d (&deps("X.\L$arch\E.o", "", "::", ":", "mpw")) {
     	 next unless $d->{obj};
     	print &splitline(sprintf("%s \xc4 %s", $d->{obj},
     				 join " ", @{$d->{deps}}),
@@ -1025,7 +1044,7 @@ if (defined $makefiles{'mpw'}) {
          }
     }
     foreach $arch (qw(PPC Carbon)) {
-        foreach $d (&deps("X.\L$arch\E.o", "", "::", ":")) {
+        foreach $d (&deps("X.\L$arch\E.o", "", "::", ":", "mpw")) {
     	 next unless $d->{obj};
     	print &splitline(sprintf("%s \xc4 %s", $d->{obj},
     				 join " ", @{$d->{deps}}),
@@ -1064,12 +1083,6 @@ if (defined $makefiles{'lcc'}) {
       "\n".
     "\n".
     "# Get include directory for resource compiler\n".
-    "\n".
-    ".c.obj:\n".
-    &splitline("\tlcc -O -p6 \$(COMPAT) \$(FWHACK)".
-      " \$(XFLAGS) \$(CFLAGS)  \$*.c",69)."\n".
-    ".rc.res:\n".
-    &splitline("\tlrc \$(FWHACK) \$(RCFL) -r \$*.rc",69)."\n".
     "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
     print "\n\n";
@@ -1084,9 +1097,15 @@ if (defined $makefiles{'lcc'}) {
       print "\n\n";
     }
 
-    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\")) {
+    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\", "lcc")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
+      if ($d->{obj} =~ /\.obj$/) {
+	  print &splitline("\tlcc -O -p6 \$(COMPAT) \$(FWHACK)".
+			   " \$(XFLAGS) \$(CFLAGS) ".$d->{deps}->[0],69)."\n";
+      } else {
+	  print &splitline("\tlrc \$(FWHACK) \$(RCFL) -r ".$d->{deps}->[0],69)."\n";
+      }
     }
     print "\n";
     print $makefile_extra{'lcc'};

@@ -12,15 +12,16 @@
 # Overall project name.
 !name putty
 # Locations and types of output Makefiles.
-!makefile vc Makefile.vc
-!makefile vcproj MSVC
-!makefile cygwin Makefile.cyg
-!makefile borland Makefile.bor
-!makefile lcc Makefile.lcc
+!makefile vc windows/Makefile.vc
+!makefile vcproj windows/MSVC
+!makefile cygwin windows/Makefile.cyg
+!makefile borland windows/Makefile.bor
+!makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile mpw mac/Makefile.mpw
 # Source directories.
 !srcdir charset/
+!srcdir windows/
 !srcdir unix/
 !srcdir mac/
 
@@ -109,23 +110,27 @@
 # Hack to force version.o to be rebuilt always.
 !begin vc
 version.obj: *.c *.h *.rc
-	cl $(FWHACK) $(VER) $(CFLAGS) /c version.c
+	cl $(FWHACK) $(VER) $(CFLAGS) /c ..\version.c
 !end
+!specialobj vc version
 !begin cygwin
-version.o: FORCE;
+version.o: FORCE
 FORCE:
-	$(CC) $(COMPAT) $(FWHACK) $(XFLAGS) $(CFLAGS) $(VER) -c version.c
+	$(CC) $(COMPAT) $(FWHACK) $(XFLAGS) $(CFLAGS) $(VER) -c ../version.c
 !end
+!specialobj cygwin version
 !begin borland
 version.obj: FORCE
 FORCE:
-	bcc32 $(FWHACK) $(VER) $(CFLAGS) /c version.c
+	bcc32 $(FWHACK) $(VER) $(CFLAGS) /c ..\version.c
 !end
+!specialobj borland version
 !begin lcc
 version.o: FORCE
 FORCE:
-	lcc $(FWHACK) $(VER) $(CFLAGS) /c version.c
+	lcc $(FWHACK) $(VER) $(CFLAGS) /c ..\version.c
 !end
+!specialobj lcc version
 # For Unix, we also need the gross MD5 hack that causes automatic
 # version number selection in release source archives.
 !begin gtk
@@ -137,6 +142,7 @@ FORCE:
 		$(CC) $(COMPAT) $(FWHACK) $(XFLAGS) $(CFLAGS) $(VER) -c ../version.c; \
 	fi
 !end
+!specialobj gtk version
 
 # `make install' target for Unix.
 !begin gtk
@@ -171,7 +177,7 @@ TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
          + config dialog
 
 # GUI front end and terminal emulator (putty, puttytel).
-GUITERM  = TERMINAL window windlg winctrls sizetip unicode printing
+GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
          + winutils wincfg
 
 # Same thing on Unix.
@@ -184,7 +190,7 @@ NONSSH   = telnet raw rlogin ldisc
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh512 sshbn wildcard
-WINSSH   = SSH noise pageantc
+WINSSH   = SSH winnoise winpgntc
 UXSSH    = SSH uxnoise uxagentc
 MACSSH   = SSH macnoise
 
@@ -222,18 +228,18 @@ BE_NONE  = be_none nocproxy
 
 putty    : [G] GUITERM NONSSH WINSSH BE_ALL WINMISC win_res.res LIBS
 puttytel : [G] GUITERM NONSSH BE_NOSSH WINMISC win_res.res LIBS
-plink    : [C] plink console NONSSH WINSSH BE_ALL logging WINMISC
+plink    : [C] winplink wincons NONSSH WINSSH BE_ALL logging WINMISC
          + plink.res LIBS
-pscp     : [C] scp winsftp console WINSSH BE_SSH SFTP wildcard WINMISC
+pscp     : [C] scp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + scp.res LIBS
-psftp    : [C] psftp winsftp console WINSSH BE_SSH SFTP WINMISC scp.res LIBS
+psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP WINMISC scp.res LIBS
 
-pageant  : [G] pageant sshrsa sshpubk sshdes sshbn sshmd5 version tree234
-         + misc sshaes sshsha pageantc sshdss sshsh512 winutils winmisc
+pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
+         + misc sshaes sshsha winpgntc sshdss sshsh512 winutils winmisc
          + pageant.res LIBS
 
-puttygen : [G] puttygen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
-         + sshrand noise sshsha winstore misc winctrls sshrsa sshdss winmisc
+puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
+         + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh512 import winutils puttygen.res tree234 LIBS
 
 pterm    : [X] UXTERM uxmisc misc ldisc settings pty uxsel BE_NONE uxstore

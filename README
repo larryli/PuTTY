@@ -8,34 +8,37 @@ below.)
 
 For building on Windows:
 
- - Makefile.vc is for command-line builds on MS Visual C++ systems.
-   Type `nmake -f Makefile.vc' to build all the PuTTY binaries.
+ - windows/Makefile.vc is for command-line builds on MS Visual C++
+   systems. Change into the `windows' subdirectory and type `nmake
+   -f Makefile.vc' to build all the PuTTY binaries.
 
    (We've also had one report of success building with the
    OpenWatcom compiler -- www.openwatcom.org -- using Makefile.vc
    with `wmake -ms -f makefile.vc' and NO_MULTIMON, although we
    haven't tried this ourselves.)
 
- - Inside the MSVC subdirectory are MS Visual Studio project files
-   for doing GUI-based builds of the various PuTTY utilities. These
-   have been tested on Visual Studio 6.
+ - Inside the windows/MSVC subdirectory are MS Visual Studio project
+   files for doing GUI-based builds of the various PuTTY utilities.
+   These have been tested on Visual Studio 6.
 
    You should be able to build each PuTTY utility by loading the
    corresponding .dsp file in Visual Studio. For example,
    MSVC/putty/putty.dsp builds PuTTY itself, MSVC/plink/plink.dsp
    builds Plink, and so on.
 
- - Makefile.bor is for the Borland C compiler. Type `make -f
-   Makefile.bor' to build all the PuTTY binaries.
+ - windows/Makefile.bor is for the Borland C compiler. Type `make -f
+   Makefile.bor' while in the `windows' subdirectory to build all
+   the PuTTY binaries.
 
- - Makefile.cyg is for Cygwin / mingw32 installations. Type `make -f
-   Makefile.cyg' to build all the PuTTY binaries. Note that by
-   default the Pageant WinNT security features and the multiple
-   monitor support are excluded from the Cygwin build, since at the
+ - windows/Makefile.cyg is for Cygwin / mingw32 installations. Type
+   `make -f Makefile.cyg' while in the `windows' subdirectory to
+   build all the PuTTY binaries. Note that by default the multiple
+   monitor support is excluded from the Cygwin build, since at the
    time of writing Cygwin doesn't include the necessary headers.
 
- - Makefile.lcc is for lcc-win32. Type `make -f Makefile.lcc'. (You
-   will probably need to specify COMPAT=-DNO_MULTIMON.)
+ - windows/Makefile.lcc is for lcc-win32. Type `make -f
+   Makefile.lcc' while in the `windows' subdirectory. (You will
+   probably need to specify COMPAT=-DNO_MULTIMON.)
 
 For building on Unix:
 
