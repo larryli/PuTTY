@@ -934,7 +934,7 @@ void term_out(void) {
 		    top = def(esc_args[0], 1) - 1;
 		    if (top < 0)
 			top = 0;
-		    bot = (esc_nargs == 1 ? rows :
+		    bot = (esc_nargs <= 1 || esc_args[1] == 0 ? rows :
 			   def(esc_args[1], rows)) - 1;
 		    if (bot >= rows)
 			bot = rows-1;
