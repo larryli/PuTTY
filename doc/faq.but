@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.40 2002/12/15 11:51:21 jacob Exp $
+\versionid $Id: faq.but,v 1.41 2003/01/23 17:01:27 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -560,7 +560,7 @@ Bourne shell derivative) or \c{.login} (if you use a C shell).
 Putting them in more general files such as \c{.bashrc} or \c{.cshrc}
 is liable to lead to problems.
 
-\S{faq-psftp-slow} PSFTP transfers files much slower than PSCP.
+\S{faq-psftp-slow}{Question} PSFTP transfers files much slower than PSCP.
 
 We believe this is because the SFTP and SSH2 protocols are less
 efficient at bulk data transfer than SCP and SSH1, because every
