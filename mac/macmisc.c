@@ -38,6 +38,7 @@
 
 #include "putty.h"
 #include "mac.h"
+#include "ssh.h"
 
 #if TARGET_API_MAC_CARBON
 /*

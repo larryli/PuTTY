@@ -1,6 +1,7 @@
 #include "putty.h"
 #include "network.h"
 #include "mac.h"
+#include "ssh.h"
 
 struct macnet_stack {
     SockAddr (*namelookup)(char const *, char **);
