@@ -432,9 +432,6 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	}
 
 	close(pty_master_fd);
-	close(0);
-	close(1);
-	close(2);
 	fcntl(slavefd, F_SETFD, 0);    /* don't close on exec */
 	dup2(slavefd, 0);
 	dup2(slavefd, 1);
