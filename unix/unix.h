@@ -126,7 +126,7 @@ int init_ucs(struct unicode_data *ucsdata, char *line_codepage,
 /*
  * Spare function exported directly from uxnet.c.
  */
-int sk_getxdmdata(void *sock, unsigned long *ip, int *port);
+void *sk_getxdmdata(void *sock, int *lenp);
 
 /*
  * General helpful Unix stuff: more helpful version of the FD_SET

@@ -48,9 +48,9 @@ struct FontSpec {
 /*
  * sk_getxdmdata() does not exist under the Mac (SGT: I have no
  * idea whatsoever how to write it, and furthermore I'm unconvinced
- * it's necessary), so it's a macro which always returns FALSE.
+ * it's necessary), so it's a macro which always returns NULL.
  */
-#define sk_getxdmdata(socket, ip, port) (0)
+#define sk_getxdmdata(socket, lenp) (NULL)
 
 /* To make it compile */
 

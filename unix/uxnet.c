@@ -811,42 +811,73 @@ static void sk_tcp_close(Socket sock)
     sfree(s);
 }
 
-int sk_getxdmdata(void *sock, unsigned long *ip, int *port)
+#define PUT_32BIT_MSB_FIRST(cp, value) ( \
+  (cp)[0] = (char)((value) >> 24), \
+  (cp)[1] = (char)((value) >> 16), \
+  (cp)[2] = (char)((value) >> 8), \
+  (cp)[3] = (char)(value) )
+
+#define PUT_16BIT_MSB_FIRST(cp, value) ( \
+  (cp)[0] = (char)((value) >> 8), \
+  (cp)[1] = (char)(value) )
+
+void *sk_getxdmdata(void *sock, int *lenp)
 {
     Actual_Socket s = (Actual_Socket) sock;
+#ifdef NO_IPV6
     struct sockaddr_in addr;
+#else
+    struct sockaddr_storage addr;
+    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&addr;
+#endif
+    struct sockaddr *sa = (struct sockaddr *)&addr;
+    struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
     socklen_t addrlen;
+    char *buf;
+    static unsigned int unix_addr = 0xFFFFFFFF;
 
     /*
      * We must check that this socket really _is_ an Actual_Socket.
      */
     if (s->fn != &tcp_fn_table)
-	return 0;		       /* failure */
+	return NULL;		       /* failure */
 
     addrlen = sizeof(addr);
-    if (getsockname(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
-	return 0;
-    switch(addr.sin_family) {
+    if (getsockname(s->s, sa, &addrlen) < 0)
+	return NULL;
+    switch(sa->sa_family) {
       case AF_INET:
-	*ip = ntohl(addr.sin_addr.s_addr);
-	*port = ntohs(addr.sin_port);
+	*lenp = 6;
+	buf = snewn(*lenp, char);
+	PUT_32BIT_MSB_FIRST(buf, ntohl(sin->sin_addr.s_addr));
+	PUT_16BIT_MSB_FIRST(buf+4, ntohs(sin->sin_port));
 	break;
+#ifndef NO_IPV6
+    case AF_INET6:
+	*lenp = 6;
+	buf = snewn(*lenp, char);
+	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+	    memcpy(buf, sin6->sin6_addr.s6_addr + 12, 4);
+	    PUT_16BIT_MSB_FIRST(buf+4, ntohs(sin6->sin6_port));
+	} else
+	    /* This is stupid, but it's what XLib does. */
+	    memset(buf, 0, 6);
+	break;
+#endif
       case AF_UNIX:
-	/*
-	 * For a Unix socket, we return 0xFFFFFFFF for the IP address and
-	 * our current pid for the port. Bizarre, but such is life.
-	 */
-	*ip = ntohl(0xFFFFFFFF);
-	*port = getpid();
+	*lenp = 6;
+	buf = snewn(*lenp, char);
+	PUT_32BIT_MSB_FIRST(buf, unix_addr--);
+        PUT_16BIT_MSB_FIRST(buf+4, getpid());
 	break;
 
 	/* XXX IPV6 */
 
       default:
-	return 0;
+	return NULL;
     }
 
-    return 1;
+    return buf;
 }
 
 /*

@@ -481,9 +481,9 @@ int x11_send(Socket s, char *data, int len)
             char realauthdata[64];
             int realauthlen = 0;
             int authstrlen = strlen(x11_authnames[pr->auth->realproto]);
-	    unsigned long ip;
-	    int port;
+	    int buflen;
             static const char zeroes[4] = { 0,0,0,0 };
+	    void *buf;
 
             if (pr->auth->realproto == X11_MIT) {
                 assert(pr->auth->reallen <= lenof(realauthdata));
@@ -491,17 +491,19 @@ int x11_send(Socket s, char *data, int len)
                 memcpy(realauthdata, pr->auth->realdata, realauthlen);
             } else if (pr->auth->realproto == X11_XDM &&
 		       pr->auth->reallen == 16 &&
-		       sk_getxdmdata(s, &ip, &port)) {
+		       (buf = sk_getxdmdata(s, &buflen))) {
 		time_t t;
-                realauthlen = 24;
-		memset(realauthdata, 0, 24);
+                realauthlen = (buflen+12+7) & ~7;
+		assert(realauthlen <= lenof(realauthdata));
+		memset(realauthdata, 0, realauthlen);
 		memcpy(realauthdata, pr->auth->realdata, 8);
-		PUT_32BIT_MSB_FIRST(realauthdata+8, ip);
-		PUT_16BIT_MSB_FIRST(realauthdata+12, port);
+		memcpy(realauthdata+8, buf, buflen);
 		t = time(NULL);
-		PUT_32BIT_MSB_FIRST(realauthdata+14, t);
+		PUT_32BIT_MSB_FIRST(realauthdata+8+buflen, t);
 		des_encrypt_xdmauth(pr->auth->realdata+9,
-				    (unsigned char *)realauthdata, 24);
+				    (unsigned char *)realauthdata,
+				    realauthlen);
+		sfree(buf);
 	    }
             /* implement other auth methods here if required */
 
