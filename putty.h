@@ -868,10 +868,10 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype);
 /*
  * Exports from wcwidth.c
  */
-int wcwidth(wchar_t ucs);
-int wcswidth(const wchar_t *pwcs, size_t n);
-int wcwidth_cjk(wchar_t ucs);
-int wcswidth_cjk(const wchar_t *pwcs, size_t n);
+int mk_wcwidth(wchar_t ucs);
+int mk_wcswidth(const wchar_t *pwcs, size_t n);
+int mk_wcwidth_cjk(wchar_t ucs);
+int mk_wcswidth_cjk(const wchar_t *pwcs, size_t n);
 
 /*
  * Exports from mscrypto.c

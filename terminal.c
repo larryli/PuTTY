@@ -2846,8 +2846,8 @@ static void term_out(Terminal *term)
 			width = 1;
 		    if (!width)
 			width = (term->cfg.cjk_ambig_wide ?
-				 wcwidth_cjk((wchar_t) c) :
-				 wcwidth((wchar_t) c));
+				 mk_wcwidth_cjk((wchar_t) c) :
+				 mk_wcwidth((wchar_t) c));
 
 		    if (term->wrapnext && term->wrap && width > 0) {
 			cline->lattr |= LATTR_WRAPPED;
