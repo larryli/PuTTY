@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
@@ -230,9 +231,354 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     /* struct gui_data *inst = (struct gui_data *)data; */
+    char output[32];
+    int start, end;
 
     if (event->type == GDK_KEY_PRESS) {
-	ldisc_send(event->string, strlen(event->string), 1);
+#ifdef KEY_DEBUGGING
+	{
+	    int i;
+	    printf("keypress: keyval = %04x, state = %08x; string =",
+		   event->keyval, event->state);
+	    for (i = 0; event->string[i]; i++)
+		printf(" %02x", (unsigned char) event->string[i]);
+	    printf("\n");
+	}
+#endif
+
+	/*
+	 * NYI:
+	 *  - Shift-PgUp/PgDn for scrollbar
+	 *  - nethack mode
+	 *  - alt+numpad
+	 *  - Compose key (!!! requires Unicode faff before even trying)
+	 *  - Shift-Ins for paste (need to deal with pasting first)
+	 */
+
+	/* ALT+things gives leading Escape. */
+	output[0] = '\033';
+	strncpy(output+1, event->string, 31);
+	output[31] = '\0';
+	end = strlen(output);
+	if (event->state & GDK_MOD1_MASK)
+	    start = 0;
+	else
+	    start = 1;
+
+	/* Control-` is the same as Control-\ (unless gtk has a better idea) */
+	if (!event->string[0] && event->keyval == '`' &&
+	    (event->state & GDK_CONTROL_MASK)) {
+	    output[1] = '\x1C';
+	    end = 2;
+	}
+
+	/* Control-Break is the same as Control-C */
+	if (event->keyval == GDK_Break &&
+	    (event->state & GDK_CONTROL_MASK)) {
+	    output[1] = '\003';
+	    end = 2;
+	}
+
+	/* Control-2, Control-Space and Control-@ are NUL */
+	if (!event->string[0] &&
+	    (event->keyval == ' ' || event->keyval == '2' ||
+	     event->keyval == '@') &&
+	    (event->state & (GDK_SHIFT_MASK |
+			     GDK_CONTROL_MASK)) == GDK_CONTROL_MASK) {
+	    output[1] = '\0';
+	    end = 2;
+	}
+
+	/* Control-Shift-Space is 160 (ISO8859 nonbreaking space) */
+	if (!event->string[0] && event->keyval == ' ' &&
+	    (event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) ==
+	    (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) {
+	    output[1] = '\240';
+	    end = 2;
+	}
+
+	/* We don't let GTK tell us what Backspace is! We know better. */
+	if (event->keyval == GDK_BackSpace &&
+	    !(event->state & GDK_SHIFT_MASK)) {
+	    output[1] = cfg.bksp_is_delete ? '\x7F' : '\x08';
+	    end = 2;
+	}
+
+	/* Shift-Tab is ESC [ Z */
+	if (event->keyval == GDK_ISO_Left_Tab ||
+	    (event->keyval == GDK_Tab && (event->state & GDK_SHIFT_MASK))) {
+	    end = 1 + sprintf(output+1, "\033[Z");
+	}
+
+	/*
+	 * Application keypad mode.
+	 */
+	if (app_keypad_keys && !cfg.no_applic_k) {
+	    int xkey = 0;
+	    switch (event->keyval) {
+	      case GDK_Num_Lock: xkey = 'P'; break;
+	      case GDK_KP_Divide: xkey = 'Q'; break;
+	      case GDK_KP_Multiply: xkey = 'R'; break;
+	      case GDK_KP_Subtract: xkey = 'S'; break;
+		/*
+		 * Keypad + is tricky. It covers a space that would
+		 * be taken up on the VT100 by _two_ keys; so we
+		 * let Shift select between the two. Worse still,
+		 * in xterm function key mode we change which two...
+		 */
+	      case GDK_KP_Add:
+		if (cfg.funky_type == 2) {
+		    if (event->state & GDK_SHIFT_MASK)
+			xkey = 'l';
+		    else
+			xkey = 'k';
+		} else if (event->state & GDK_SHIFT_MASK)
+			xkey = 'm';
+		else
+		    xkey = 'l';
+		break;
+	      case GDK_KP_Enter: xkey = 'M'; break;
+	      case GDK_KP_0: case GDK_KP_Insert: xkey = 'p'; break;
+	      case GDK_KP_1: case GDK_KP_End: xkey = 'q'; break;
+	      case GDK_KP_2: case GDK_KP_Down: xkey = 'r'; break;
+	      case GDK_KP_3: case GDK_KP_Page_Down: xkey = 's'; break;
+	      case GDK_KP_4: case GDK_KP_Left: xkey = 't'; break;
+	      case GDK_KP_5: case GDK_KP_Begin: xkey = 'u'; break;
+	      case GDK_KP_6: case GDK_KP_Right: xkey = 'v'; break;
+	      case GDK_KP_7: case GDK_KP_Home: xkey = 'w'; break;
+	      case GDK_KP_8: case GDK_KP_Up: xkey = 'x'; break;
+	      case GDK_KP_9: case GDK_KP_Page_Up: xkey = 'y'; break;
+	      case GDK_KP_Decimal: case GDK_KP_Delete: xkey = 'n'; break;
+	    }
+	    if (xkey) {
+		if (vt52_mode) {
+		    if (xkey >= 'P' && xkey <= 'S')
+			end = 1 + sprintf(output+1, "\033%c", xkey);
+		    else
+			end = 1 + sprintf(output+1, "\033?%c", xkey);
+		} else
+		    end = 1 + sprintf(output+1, "\033O%c", xkey);
+		goto done;
+	    }
+	}
+
+	/*
+	 * Next, all the keys that do tilde codes. (ESC '[' nn '~',
+	 * for integer decimal nn.)
+	 *
+	 * We also deal with the weird ones here. Linux VCs replace F1
+	 * to F5 by ESC [ [ A to ESC [ [ E. rxvt doesn't do _that_, but
+	 * does replace Home and End (1~ and 4~) by ESC [ H and ESC O w
+	 * respectively.
+	 */
+	{
+	    int code = 0;
+	    switch (event->keyval) {
+	      case GDK_F1:
+		code = (event->state & GDK_SHIFT_MASK ? 23 : 11);
+		break;
+	      case GDK_F2:
+		code = (event->state & GDK_SHIFT_MASK ? 24 : 12);
+		break;
+	      case GDK_F3:
+		code = (event->state & GDK_SHIFT_MASK ? 25 : 13);
+		break;
+	      case GDK_F4:
+		code = (event->state & GDK_SHIFT_MASK ? 26 : 14);
+		break;
+	      case GDK_F5:
+		code = (event->state & GDK_SHIFT_MASK ? 28 : 15);
+		break;
+	      case GDK_F6:
+		code = (event->state & GDK_SHIFT_MASK ? 29 : 17);
+		break;
+	      case GDK_F7:
+		code = (event->state & GDK_SHIFT_MASK ? 31 : 18);
+		break;
+	      case GDK_F8:
+		code = (event->state & GDK_SHIFT_MASK ? 32 : 19);
+		break;
+	      case GDK_F9:
+		code = (event->state & GDK_SHIFT_MASK ? 33 : 20);
+		break;
+	      case GDK_F10:
+		code = (event->state & GDK_SHIFT_MASK ? 34 : 21);
+		break;
+	      case GDK_F11:
+		code = 23;
+		break;
+	      case GDK_F12:
+		code = 24;
+		break;
+	      case GDK_F13:
+		code = 25;
+		break;
+	      case GDK_F14:
+		code = 26;
+		break;
+	      case GDK_F15:
+		code = 28;
+		break;
+	      case GDK_F16:
+		code = 29;
+		break;
+	      case GDK_F17:
+		code = 31;
+		break;
+	      case GDK_F18:
+		code = 32;
+		break;
+	      case GDK_F19:
+		code = 33;
+		break;
+	      case GDK_F20:
+		code = 34;
+		break;
+	    }
+	    if (!(event->state & GDK_CONTROL_MASK)) switch (event->keyval) {
+	      case GDK_Home: case GDK_KP_Home:
+		code = 1;
+		break;
+	      case GDK_Insert: case GDK_KP_Insert:
+		code = 2;
+		break;
+	      case GDK_Delete: case GDK_KP_Delete:
+		code = 3;
+		break;
+	      case GDK_End: case GDK_KP_End:
+		code = 4;
+		break;
+	      case GDK_Page_Up: case GDK_KP_Page_Up:
+		code = 5;
+		break;
+	      case GDK_Page_Down: case GDK_KP_Page_Down:
+		code = 6;
+		break;
+	    }
+	    /* Reorder edit keys to physical order */
+	    if (cfg.funky_type == 3 && code <= 6)
+		code = "\0\2\1\4\5\3\6"[code];
+
+	    if (vt52_mode && code > 0 && code <= 6) {
+		end = 1 + sprintf(output+1, "\x1B%c", " HLMEIG"[code]);
+		goto done;
+	    }
+
+	    if (cfg.funky_type == 5 &&     /* SCO function keys */
+		code >= 11 && code <= 34) {
+		char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
+		int index = 0;
+		switch (event->keyval) {
+		  case GDK_F1: index = 0; break;
+		  case GDK_F2: index = 1; break;
+		  case GDK_F3: index = 2; break;
+		  case GDK_F4: index = 3; break;
+		  case GDK_F5: index = 4; break;
+		  case GDK_F6: index = 5; break;
+		  case GDK_F7: index = 6; break;
+		  case GDK_F8: index = 7; break;
+		  case GDK_F9: index = 8; break;
+		  case GDK_F10: index = 9; break;
+		  case GDK_F11: index = 10; break;
+		  case GDK_F12: index = 11; break;
+		}
+		if (event->state & GDK_SHIFT_MASK) index += 12;
+		if (event->state & GDK_CONTROL_MASK) index += 24;
+		end = 1 + sprintf(output+1, "\x1B[%c", codes[index]);
+		goto done;
+	    }
+	    if (cfg.funky_type == 5 &&     /* SCO small keypad */
+		code >= 1 && code <= 6) {
+		char codes[] = "HL.FIG";
+		if (code == 3) {
+		    output[1] = '\x7F';
+		    end = 2;
+		} else {
+		    end = 1 + sprintf(output+1, "\x1B[%c", codes[code-1]);
+		}
+		goto done;
+	    }
+	    if ((vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
+		int offt = 0;
+		if (code > 15)
+		    offt++;
+		if (code > 21)
+		    offt++;
+		if (vt52_mode)
+		    end = 1 + sprintf(output+1,
+				      "\x1B%c", code + 'P' - 11 - offt);
+		else
+		    end = 1 + sprintf(output+1,
+				      "\x1BO%c", code + 'P' - 11 - offt);
+		goto done;
+	    }
+	    if (cfg.funky_type == 1 && code >= 11 && code <= 15) {
+		end = 1 + sprintf(output+1, "\x1B[[%c", code + 'A' - 11);
+		goto done;
+	    }
+	    if (cfg.funky_type == 2 && code >= 11 && code <= 14) {
+		if (vt52_mode)
+		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
+		else
+		    end = 1 + sprintf(output+1, "\x1BO%c", code + 'P' - 11);
+		goto done;
+	    }
+	    if (cfg.rxvt_homeend && (code == 1 || code == 4)) {
+		end = 1 + sprintf(output+1, code == 1 ? "\x1B[H" : "\x1BOw");
+		goto done;
+	    }
+	    if (code) {
+		end = 1 + sprintf(output+1, "\x1B[%d~", code);
+		goto done;
+	    }
+	}
+
+	/*
+	 * Cursor keys. (This includes the numberpad cursor keys,
+	 * if we haven't already done them due to app keypad mode.)
+	 * 
+	 * Here we also process un-numlocked un-appkeypadded KP5,
+	 * which sends ESC [ G.
+	 */
+	{
+	    int xkey = 0;
+	    switch (event->keyval) {
+	      case GDK_Up: case GDK_KP_Up: xkey = 'A'; break;
+	      case GDK_Down: case GDK_KP_Down: xkey = 'B'; break;
+	      case GDK_Right: case GDK_KP_Right: xkey = 'C'; break;
+	      case GDK_Left: case GDK_KP_Left: xkey = 'D'; break;
+	      case GDK_Begin: case GDK_KP_Begin: xkey = 'G'; break;
+	    }
+	    if (xkey) {
+		/*
+		 * The arrow keys normally do ESC [ A and so on. In
+		 * app cursor keys mode they do ESC O A instead.
+		 * Ctrl toggles the two modes.
+		 */
+		if (vt52_mode) {
+		    end = 1 + sprintf(output+1, "\033%c", xkey);
+		} else if (!app_cursor_keys ^
+			   !(event->state & GDK_CONTROL_MASK)) {
+		    end = 1 + sprintf(output+1, "\033O%c", xkey);
+		} else {		    
+		    end = 1 + sprintf(output+1, "\033[%c", xkey);
+		}
+		goto done;
+	    }
+	}
+
+	done:
+
+#ifdef KEY_DEBUGGING
+	{
+	    int i;
+	    printf("generating sequence:");
+	    for (i = start; i < end; i++)
+		printf(" %02x", (unsigned char) output[i]);
+	    printf("\n");
+	}
+#endif
+	ldisc_send(output+start, end-start, 1);
 	term_out();
     }
 
