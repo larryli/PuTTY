@@ -1067,9 +1067,11 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     }
 
     if (lattr != LATTR_NORM) {
-	if (x*2 >= cols)
-	    return;
 	x *= 2;
+	if (x >= cols)
+	    return;
+	if (x + len*2 > cols)
+	    len = (cols-x)/2;	       /* trim to LH half */
     }
 
     gdk_gc_set_foreground(gc, &inst->cols[nbg]);
