@@ -2061,7 +2061,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 
 	} else if (!strcmp(p, "-fg") || !strcmp(p, "-bg") ||
 		   !strcmp(p, "-bfg") || !strcmp(p, "-bbg") ||
-		   !strcmp(p, "-inst->cfg") || !strcmp(p, "-cbg")) {
+		   !strcmp(p, "-cfg") || !strcmp(p, "-cbg")) {
 	    GdkColor col;
 
 	    EXPECTS_ARG;
@@ -2075,7 +2075,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 			 !strcmp(p, "-bg") ? 2 :
 			 !strcmp(p, "-bfg") ? 1 :
 			 !strcmp(p, "-bbg") ? 3 :
-			 !strcmp(p, "-inst->cfg") ? 4 :
+			 !strcmp(p, "-cfg") ? 4 :
 			 !strcmp(p, "-cbg") ? 5 : -1);
 		assert(index != -1);
 		cfg->colours[index][0] = col.red / 256;
