@@ -2495,6 +2495,9 @@ struct eventlog_stuff {
     union control *listctrl;
     char **events;
     int nevents, negsize;
+    char *seldata;
+    int sellen;
+    int ignore_selchange;
 };
 
 static void eventlog_destroy(GtkWidget *widget, gpointer data)
@@ -2502,6 +2505,7 @@ static void eventlog_destroy(GtkWidget *widget, gpointer data)
     struct eventlog_stuff *es = (struct eventlog_stuff *)data;
 
     es->window = NULL;
+    sfree(es->seldata);
     dlg_cleanup(&es->dp);
     ctrl_free_box(es->eventbox);
 }
@@ -2525,8 +2529,82 @@ static void eventlog_list_handler(union control *ctrl, void *dlg,
 	    dlg_listbox_add(ctrl, dlg, es->events[i]);
 	}
 	dlg_update_done(ctrl, dlg);
+    } else if (event == EVENT_SELCHANGE) {
+        int i;
+        int selsize = 0;
+
+        /*
+         * If this SELCHANGE event is happening as a result of
+         * deliberate deselection because someone else has grabbed
+         * the selection, the last thing we want to do is pre-empt
+         * them.
+         */
+        if (es->ignore_selchange)
+            return;
+
+        /*
+         * Construct the data to use as the selection.
+         */
+        sfree(es->seldata);
+        es->seldata = NULL;
+        es->sellen = 0;
+        for (i = 0; i < es->nevents; i++) {
+            if (dlg_listbox_issel(ctrl, dlg, i)) {
+                int extralen = strlen(es->events[i]);
+
+                if (es->sellen + extralen + 2 > selsize) {
+                    selsize = es->sellen + extralen + 512;
+                    es->seldata = sresize(es->seldata, selsize, char);
+                }
+
+                strcpy(es->seldata + es->sellen, es->events[i]);
+                es->sellen += extralen;
+                es->seldata[es->sellen++] = '\n';
+            }
+        }
+
+        if (gtk_selection_owner_set(es->window, GDK_SELECTION_PRIMARY,
+                                    GDK_CURRENT_TIME)) {
+            extern GdkAtom compound_text_atom;
+
+            gtk_selection_add_target(es->window, GDK_SELECTION_PRIMARY,
+                                     GDK_SELECTION_TYPE_STRING, 1);
+            gtk_selection_add_target(es->window, GDK_SELECTION_PRIMARY,
+                                     compound_text_atom, 1);
+        }
+
     }
 }
+
+void eventlog_selection_get(GtkWidget *widget, GtkSelectionData *seldata,
+                            guint info, guint time_stamp, gpointer data)
+{
+    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+
+    gtk_selection_data_set(seldata, seldata->target, 8,
+                           es->seldata, es->sellen);
+}
+
+gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
+                              gpointer data)
+{
+    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+    struct uctrl *uc;
+
+    /*
+     * Deselect everything in the list box.
+     */
+    uc = dlg_find_byctrl(&es->dp, es->listctrl);
+    es->ignore_selchange = 1;
+    gtk_list_unselect_all(GTK_LIST(uc->list));
+    es->ignore_selchange = 0;
+
+    sfree(es->seldata);
+    es->sellen = 0;
+    es->seldata = NULL;
+    return TRUE;
+}
+
 void showeventlog(void *estuff, void *parentwin)
 {
     struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
@@ -2610,6 +2688,10 @@ void showeventlog(void *estuff, void *parentwin)
 		       GTK_SIGNAL_FUNC(eventlog_destroy), es);
     gtk_signal_connect(GTK_OBJECT(window), "key_press_event",
 		       GTK_SIGNAL_FUNC(win_key_press), &es->dp);
+    gtk_signal_connect(GTK_OBJECT(window), "selection_get",
+		       GTK_SIGNAL_FUNC(eventlog_selection_get), es);
+    gtk_signal_connect(GTK_OBJECT(window), "selection_clear_event",
+		       GTK_SIGNAL_FUNC(eventlog_selection_clear), es);
 }
 
 void *eventlogstuff_new(void)

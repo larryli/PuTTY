@@ -34,6 +34,8 @@
 
 #define NCOLOURS (lenof(((Config *)0)->colours))
 
+GdkAtom compound_text_atom, utf8_string_atom;
+
 struct gui_data {
     GtkWidget *window, *area, *sbar;
     GtkBox *hbox;
@@ -59,7 +61,6 @@ struct gui_data {
     int ignore_sbar;
     int mouseptr_visible;
     guint term_paste_idle_id;
-    GdkAtom compound_text_atom, utf8_string_atom;
     int alt_keycode;
     int alt_digits;
     char wintitle[sizeof(((Config *)0)->wintitle)];
@@ -1306,10 +1307,10 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				 GDK_SELECTION_TYPE_STRING, 1);
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
-				 inst->compound_text_atom, 1);
+				 compound_text_atom, 1);
 	if (inst->pasteout_data_utf8)
 	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
-				     inst->utf8_string_atom, 1);
+				     utf8_string_atom, 1);
     }
 }
 
@@ -1317,7 +1318,7 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 		   guint info, guint time_stamp, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    if (seldata->target == inst->utf8_string_atom)
+    if (seldata->target == utf8_string_atom)
 	gtk_selection_data_set(seldata, seldata->target, 8,
 			       inst->pasteout_data_utf8,
 			       inst->pasteout_data_utf8_len);
@@ -1360,7 +1361,7 @@ void request_paste(void *frontend)
 	 * fall back to an ordinary string.
 	 */
 	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      inst->utf8_string_atom, GDK_CURRENT_TIME);
+			      utf8_string_atom, GDK_CURRENT_TIME);
     } else {
 	/*
 	 * If we're in direct-to-font mode, we disable UTF-8
@@ -1378,7 +1379,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (seldata->target == inst->utf8_string_atom && seldata->length <= 0) {
+    if (seldata->target == utf8_string_atom && seldata->length <= 0) {
 	/*
 	 * Failed to get a UTF-8 selection string. Try an ordinary
 	 * string.
@@ -1393,7 +1394,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
      */
     if (seldata->length <= 0 ||
 	(seldata->type != GDK_SELECTION_TYPE_STRING &&
-	 seldata->type != inst->utf8_string_atom))
+	 seldata->type != utf8_string_atom))
 	return;			       /* Nothing happens. */
 
     if (inst->pastein_data)
@@ -1402,7 +1403,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     inst->pastein_data = snewn(seldata->length, wchar_t);
     inst->pastein_data_len = seldata->length;
     inst->pastein_data_len =
-	mb_to_wc((seldata->type == inst->utf8_string_atom ?
+	mb_to_wc((seldata->type == utf8_string_atom ?
 		  CS_UTF8 : inst->ucsdata.line_codepage),
 		 0, seldata->data, seldata->length,
 		 inst->pastein_data, inst->pastein_data_len);
@@ -2569,8 +2570,10 @@ int pt_main(int argc, char **argv)
     if (!*inst->cfg.host && !cfgbox(&inst->cfg))
 	exit(0);		       /* config box hit Cancel */
 
-    inst->compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
-    inst->utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
+    if (!compound_text_atom)
+        compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
+    if (!utf8_string_atom)
+        utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
     setup_fonts_ucs(inst);
 
