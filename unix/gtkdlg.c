@@ -716,7 +716,7 @@ void dlg_end(void *dlg, int value)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     dp->retval = value;
-    gtk_main_quit();
+    gtk_widget_destroy(dp->window);
 }
 
 void dlg_refresh(union control *ctrl, void *dlg)
@@ -910,7 +910,6 @@ static int listitem_key(GtkWidget *item, GdkEventKey *event, gpointer data,
                  event->keyval==GDK_Page_Up || event->keyval==GDK_KP_Page_Up)
                 ? 2 : 1;
             int i, n;
-            GtkWidget *thisitem;
             GList *children, *chead;
 
             chead = children = gtk_container_children(GTK_CONTAINER(list));
@@ -964,13 +963,13 @@ static int listitem_key(GtkWidget *item, GdkEventKey *event, gpointer data,
 static int listitem_single_key(GtkWidget *item, GdkEventKey *event,
                                gpointer data)
 {
-    listitem_key(item, event, data, FALSE);
+    return listitem_key(item, event, data, FALSE);
 }
 
 static int listitem_multi_key(GtkWidget *item, GdkEventKey *event,
                                  gpointer data)
 {
-    listitem_key(item, event, data, TRUE);
+    return listitem_key(item, event, data, TRUE);
 }
 
 static int listitem_button(GtkWidget *item, GdkEventButton *event,
@@ -1043,7 +1042,7 @@ static void draglist_down(GtkButton *button, gpointer data)
 
 static void filesel_ok(GtkButton *button, gpointer data)
 {
-    struct dlgparam *dp = (struct dlgparam *)data;
+    /* struct dlgparam *dp = (struct dlgparam *)data; */
     gpointer filesel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(filesel), "user-data");
     char *name = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filesel));
@@ -1052,7 +1051,7 @@ static void filesel_ok(GtkButton *button, gpointer data)
 
 static void fontsel_ok(GtkButton *button, gpointer data)
 {
-    struct dlgparam *dp = (struct dlgparam *)data;
+    /* struct dlgparam *dp = (struct dlgparam *)data; */
     gpointer fontsel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(fontsel), "user-data");
     char *name = gtk_font_selection_dialog_get_font_name
@@ -1808,7 +1807,7 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		{
 		    GtkWidget *w = dp->treeitems[i];
 		    int vis = TRUE;
-		    while (w && GTK_IS_TREE_ITEM(w) || GTK_IS_TREE(w)) {
+		    while (w && (GTK_IS_TREE_ITEM(w) || GTK_IS_TREE(w))) {
 			if (!GTK_WIDGET_VISIBLE(w)) {
 			    vis = FALSE;
 			    break;
@@ -1825,7 +1824,6 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
         gtk_signal_emit_stop_by_name(GTK_OBJECT(widget),
                                      "key_press_event");
         if (j >= 0) {
-            gint return_val;
             gtk_signal_emit_by_name(GTK_OBJECT(dp->treeitems[j]), "toggle");
             gtk_widget_grab_focus(dp->treeitems[j]);
         }
@@ -1892,7 +1890,7 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 	}
 }
 
-int do_config_box(const char *title)
+int do_config_box(const char *title, Config *cfg)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
 	*tree, *treescroll, *panels, *panelvbox;
@@ -1901,7 +1899,6 @@ int do_config_box(const char *title)
     char *path;
     GtkTreeItem *treeitemlevels[8];
     GtkTree *treelevels[8];
-    Config cfg;
     struct dlgparam dp;
     struct sesslist sl;
     struct Shortcuts scs;
@@ -1909,7 +1906,7 @@ int do_config_box(const char *title)
     struct selparam *selparams = NULL;
     int nselparams = 0, selparamsize = 0;
 
-    do_defaults(NULL, &cfg);
+    do_defaults(NULL, cfg);
 
     dlg_init(&dp);
 
@@ -2072,7 +2069,7 @@ int do_config_box(const char *title)
         dp.treeitems[index] = selparams[index].treeitem;
     }
 
-    dp.data = &cfg;
+    dp.data = cfg;
     dlg_refresh(NULL, &dp);
 
     dp.shortcuts = &selparams[0].shortcuts;
@@ -2218,8 +2215,9 @@ char *x_get_default(const char *key)
 
 int main(int argc, char **argv)
 {
+    Config cfg;
     gtk_init(&argc, &argv);
-    printf("returned %d\n", do_config_box("PuTTY Configuration"));
+    printf("returned %d\n", do_config_box("PuTTY Configuration", &cfg));
     return 0;
 }
 

@@ -1948,6 +1948,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 {
     int err = 0;
     extern char **pty_argv;	       /* declared in pty.c */
+    extern int use_pty_argv;
 
     /*
      * Macros to make argument handling easier. Note that because
@@ -2054,7 +2055,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 		cfg->colours[index][2] = col.blue / 256;
 	    }
 
-	} else if (!strcmp(p, "-e")) {
+	} else if (use_pty_argv && !strcmp(p, "-e")) {
 	    /* This option swallows all further arguments. */
 	    if (!do_everything)
 		break;
@@ -2219,17 +2220,16 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
-int main(int argc, char **argv)
+int pt_main(int argc, char **argv)
 {
-    extern void pty_pre_init(void);    /* declared in pty.c */
+    extern Backend *select_backend(Config *cfg);
+    extern int cfgbox(Config *cfg);
     struct gui_data *inst;
     int font_charset;
 
     /* defer any child exit handling until we're ready to deal with
      * it */
     block_signal(SIGCHLD, 1);
-
-    pty_pre_init();
 
     gtk_init(&argc, &argv);
 
@@ -2245,6 +2245,9 @@ int main(int argc, char **argv)
     do_defaults(NULL, &inst->cfg);
     if (do_cmdline(argc, argv, 1, &inst->cfg))
 	exit(1);		       /* post-defaults, do everything */
+
+    if (!cfgbox(&inst->cfg))
+	exit(0);		       /* config box hit Cancel */
 
     inst->fonts[0] = gdk_font_load(inst->cfg.font.name);
     if (!inst->fonts[0]) {
@@ -2397,9 +2400,13 @@ int main(int argc, char **argv)
 
     uxsel_init();
 
-    inst->back = &pty_backend;
-    inst->back->init((void *)inst->term, &inst->backhandle, &inst->cfg,
-		     NULL, 0, NULL, 0);
+    inst->back = select_backend(&inst->cfg);
+    {
+	char *realhost;		       /* FIXME: don't ignore this! */
+	inst->back->init((void *)inst->term, &inst->backhandle, &inst->cfg,
+			 inst->cfg.host, inst->cfg.port, &realhost,
+			 inst->cfg.tcp_nodelay);
+    }
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);

@@ -84,6 +84,7 @@ static int pty_exit_code;
 static struct utmp utmp_entry;
 #endif
 char **pty_argv;
+int use_pty_argv = TRUE;
 
 static void pty_close(void);
 
