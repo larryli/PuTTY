@@ -804,7 +804,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
  * If the scroll is on the same area as the last scroll in the list,
  * merge them.
  */
-void save_scroll(Terminal *term, int topline, int botline, int lines)
+static void save_scroll(Terminal *term, int topline, int botline, int lines)
 {
     struct scrollregion *newscroll;
     if (term->scrolltail &&
