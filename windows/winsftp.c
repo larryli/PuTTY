@@ -306,20 +306,26 @@ DirHandle *open_directory(char *name)
 
 char *read_filename(DirHandle *dir)
 {
-    while (!dir->name) {
-	WIN32_FIND_DATA fdat;
-	int ok = FindNextFile(dir->h, &fdat);
+    do {
 
-	if (!ok)
-	    return NULL;
+	if (!dir->name) {
+	    WIN32_FIND_DATA fdat;
+	    int ok = FindNextFile(dir->h, &fdat);
+	    if (!ok)
+		return NULL;
+	    else
+		dir->name = dupstr(fdat.cFileName);
+	}
 
-	if (fdat.cFileName[0] == '.' &&
-	    (fdat.cFileName[1] == '\0' ||
-	     (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
+	assert(dir->name);
+	if (dir->name[0] == '.' &&
+	    (dir->name[1] == '\0' ||
+	     (dir->name[1] == '.' && dir->name[2] == '\0'))) {
+	    sfree(dir->name);
 	    dir->name = NULL;
-	else
-	    dir->name = dupstr(fdat.cFileName);
-    }
+	}
+
+    } while (!dir->name);
 
     if (dir->name) {
 	char *ret = dir->name;
