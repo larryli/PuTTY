@@ -209,7 +209,7 @@ typedef struct telnet_tag {
     int bufsize;
     int in_synch;
     int sb_opt, sb_len;
-    char *sb_buf;
+    unsigned char *sb_buf;
     int sb_size;
 
     enum {
@@ -254,7 +254,7 @@ static void send_opt(Telnet telnet, int cmd, int option)
     b[0] = IAC;
     b[1] = cmd;
     b[2] = option;
-    telnet->bufsize = sk_write(telnet->s, b, 3);
+    telnet->bufsize = sk_write(telnet->s, (char *)b, 3);
     log_option(telnet, "client", cmd, option);
 }
 
@@ -386,11 +386,11 @@ static void process_subneg(Telnet telnet)
 	    b[1] = SB;
 	    b[2] = TELOPT_TSPEED;
 	    b[3] = TELQUAL_IS;
-	    strcpy(b + 4, cfg.termspeed);
+	    strcpy((char *)(b + 4), cfg.termspeed);
 	    n = 4 + strlen(cfg.termspeed);
 	    b[n] = IAC;
 	    b[n + 1] = SE;
-	    telnet->bufsize = sk_write(telnet->s, b, n + 2);
+	    telnet->bufsize = sk_write(telnet->s, (char *)b, n + 2);
 	    logevent(telnet->frontend, "server:\tSB TSPEED SEND");
 	    logbuf = dupprintf("client:\tSB TSPEED IS %s", cfg.termspeed);
 	    logevent(telnet->frontend, logbuf);
@@ -412,7 +412,7 @@ static void process_subneg(Telnet telnet)
 			    'a' : cfg.termtype[n]);
 	    b[n + 4] = IAC;
 	    b[n + 5] = SE;
-	    telnet->bufsize = sk_write(telnet->s, b, n + 6);
+	    telnet->bufsize = sk_write(telnet->s, (char *)b, n + 6);
 	    b[n + 4] = 0;
 	    logevent(telnet->frontend, "server:\tSB TTYPE SEND");
 	    logbuf = dupprintf("client:\tSB TTYPE IS %s", b + 4);
@@ -490,7 +490,7 @@ static void process_subneg(Telnet telnet)
 	    }
 	    b[n++] = IAC;
 	    b[n++] = SE;
-	    telnet->bufsize = sk_write(telnet->s, b, n);
+	    telnet->bufsize = sk_write(telnet->s, (char *)b, n);
 	    logbuf = dupprintf("client:\tSB %s IS %s", telopt(telnet->sb_opt),
 			       n == 6 ? "<nothing>" : "<stuff>");
 	    logevent(telnet->frontend, logbuf);
@@ -584,7 +584,7 @@ static void do_telnet_read(Telnet telnet, char *buf, int len)
 	    else {
 	      subneg_addchar:
 		if (telnet->sb_len >= telnet->sb_size) {
-		    char *newbuf;
+		    unsigned char *newbuf;
 		    telnet->sb_size += SB_DELTA;
 		    newbuf = (telnet->sb_buf ?
 			      srealloc(telnet->sb_buf, telnet->sb_size) :
@@ -687,7 +687,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 	sfree(buf);
     }
     addr = name_lookup(host, port, realhost);
-    if ((err = sk_addr_error(addr)))
+    if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
     if (port < 0)
@@ -705,7 +705,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     }
     telnet->s = new_connection(addr, *realhost, port, 0, 1,
 			       nodelay, (Plug) telnet);
-    if ((err = sk_socket_error(telnet->s)))
+    if ((err = sk_socket_error(telnet->s)) != NULL)
 	return err;
 
     sk_addr_free(addr);
@@ -743,7 +743,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 static int telnet_send(void *handle, char *buf, int len)
 {
     Telnet telnet = (Telnet) handle;
-    char *p;
+    unsigned char *p, *end;
     static unsigned char iac[2] = { IAC, IAC };
     static unsigned char cr[2] = { CR, NUL };
 #if 0
@@ -753,17 +753,18 @@ static int telnet_send(void *handle, char *buf, int len)
     if (telnet->s == NULL)
 	return 0;
 
-    p = buf;
-    while (p < buf + len) {
-	char *q = p;
+    p = (unsigned char *)buf;
+    end = (unsigned char *)(buf + len);
+    while (p < end) {
+	unsigned char *q = p;
 
-	while (p < buf + len && iswritable((unsigned char) *p))
+	while (p < end && iswritable(*p))
 	    p++;
-	telnet->bufsize = sk_write(telnet->s, q, p - q);
+	telnet->bufsize = sk_write(telnet->s, (char *)q, p - q);
 
-	while (p < buf + len && !iswritable((unsigned char) *p)) {
+	while (p < end && !iswritable(*p)) {
 	    telnet->bufsize = 
-		sk_write(telnet->s, (unsigned char) *p == IAC ? iac : cr, 2);
+		sk_write(telnet->s, (char *)(*p == IAC ? iac : cr), 2);
 	    p++;
 	}
     }
@@ -809,7 +810,7 @@ static void telnet_size(void *handle, int width, int height)
     if (b[n-1] == IAC) b[n++] = IAC;   /* duplicate any IAC byte occurs */
     b[n++] = IAC;
     b[n++] = SE;
-    telnet->bufsize = sk_write(telnet->s, b, n);
+    telnet->bufsize = sk_write(telnet->s, (char *)b, n);
     logbuf = dupprintf("client:\tSB NAWS %d,%d",
 		       telnet->term_width, telnet->term_height);
     logevent(telnet->frontend, logbuf);
@@ -831,51 +832,51 @@ static void telnet_special(void *handle, Telnet_Special code)
     switch (code) {
       case TS_AYT:
 	b[1] = AYT;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_BRK:
 	b[1] = BREAK;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_EC:
 	b[1] = EC;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_EL:
 	b[1] = EL;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_GA:
 	b[1] = GA;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_NOP:
 	b[1] = NOP;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_ABORT:
 	b[1] = ABORT;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_AO:
 	b[1] = AO;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_IP:
 	b[1] = IP;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_SUSP:
 	b[1] = SUSP;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_EOR:
 	b[1] = EOR;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_EOF:
 	b[1] = xEOF;
-	telnet->bufsize = sk_write(telnet->s, b, 2);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_EOL:
 	/* In BINARY mode, CR-LF becomes just CR. */
@@ -886,8 +887,8 @@ static void telnet_special(void *handle, Telnet_Special code)
 	break;
       case TS_SYNCH:
 	b[1] = DM;
-	telnet->bufsize = sk_write(telnet->s, b, 1);
-	telnet->bufsize = sk_write_oob(telnet->s, b + 1, 1);
+	telnet->bufsize = sk_write(telnet->s, (char *)b, 1);
+	telnet->bufsize = sk_write_oob(telnet->s, (char *)(b + 1), 1);
 	break;
       case TS_RECHO:
 	if (telnet->opt_states[o_echo.index] == INACTIVE ||
@@ -905,7 +906,7 @@ static void telnet_special(void *handle, Telnet_Special code)
       case TS_PING:
 	if (telnet->opt_states[o_they_sga.index] == ACTIVE) {
 	    b[1] = NOP;
-	    telnet->bufsize = sk_write(telnet->s, b, 2);
+	    telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	}
 	break;
     }
