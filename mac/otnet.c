@@ -74,12 +74,14 @@ void ot_cleanup(void)
     CloseOpenTransport();
 }
 
-SockAddr ot_namelookup(char *host, char **canonicalname)
+SockAddr ot_namelookup(char const *host, char **canonicalname)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     char *realhost;
-    
-    ret->error = OTInetStringToAddress(ot.inetsvc, host, &ret->hostinfo);
+
+    /* Casting away const -- hope OTInetStringToAddress is sensible */
+    ret->error = OTInetStringToAddress(ot.inetsvc, (char *)host,
+				       &ret->hostinfo);
     ret->resolved = TRUE;
 
     if (ret->error == kOTNoError)
@@ -91,7 +93,7 @@ SockAddr ot_namelookup(char *host, char **canonicalname)
     return ret;
 }
 
-SockAddr ot_nonamelookup(char *host)
+SockAddr ot_nonamelookup(char const *host)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     

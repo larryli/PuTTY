@@ -270,7 +270,7 @@ void mactcp_cleanup(void)
 
 static ResultUPP mactcp_lookupdone_upp;
 
-SockAddr mactcp_namelookup(char *host, char **canonicalname)
+SockAddr mactcp_namelookup(char const *host, char **canonicalname)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     OSErr err;
@@ -281,7 +281,8 @@ SockAddr mactcp_namelookup(char *host, char **canonicalname)
     memset(ret, 0, sizeof(struct SockAddr_tag));
     if (mactcp_lookupdone_upp == NULL)
 	mactcp_lookupdone_upp = NewResultUPP(&mactcp_lookupdone);
-    err = StrToAddr(host, &ret->hostinfo, mactcp_lookupdone_upp,
+    /* Casting away const -- hope StrToAddr is sensible */
+    err = StrToAddr((char *)host, &ret->hostinfo, mactcp_lookupdone_upp,
 		    (char *)&done);
     /*
      * PuTTY expects DNS lookups to be synchronous (see bug
@@ -308,7 +309,7 @@ static pascal void mactcp_lookupdone(struct hostInfo *hi, char *cookie)
     *donep = TRUE;
 }
 
-SockAddr mactcp_nonamelookup(char *host)
+SockAddr mactcp_nonamelookup(char const *host)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
 

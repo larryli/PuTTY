@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.43 2003/01/12 14:44:12 ben Exp $ */
+/* $Id: macterm.c,v 1.44 2003/01/12 16:11:27 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -169,11 +169,11 @@ void mac_startsession(Session *s)
 	ActivatePalette(s->window);
     }
 
-    s->logctx = log_init(s);
+    s->logctx = log_init(s, &s->cfg);
     term_provide_logctx(s->term, s->logctx);
 
-    errmsg = s->back->init(s->term, &s->backhandle, s->cfg.host, s->cfg.port,
-		  &s->realhost, s->cfg.tcp_nodelay);
+    errmsg = s->back->init(s->term, &s->backhandle, &s->cfg, s->cfg.host,
+			   s->cfg.port, &s->realhost, s->cfg.tcp_nodelay);
     if (errmsg != NULL)
 	fatalbox("%s", errmsg);
     s->back->provide_logctx(s->backhandle, s->logctx);

@@ -6,7 +6,7 @@
  * Network functions exported to the world.  These choose whether to call
  * MacTCP or OpenTransport and behave accordingly.
  */
-SockAddr sk_namelookup(char *host, char **canonicalname)
+SockAddr sk_namelookup(char const *host, char **canonicalname)
 {
 
     if (mac_gestalts.otptattr != 0)
@@ -17,7 +17,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	return NULL;
 }
 
-SockAddr sk_nonamelookup(char *host)
+SockAddr sk_nonamelookup(char const *host)
 {
 
     if (mac_gestalts.otptattr != 0)

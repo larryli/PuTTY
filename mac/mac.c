@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.26 2003/01/12 14:45:33 ben Exp $ */
+/* $Id: mac.c,v 1.27 2003/01/12 16:11:27 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -203,14 +203,6 @@ static void mac_startup(void) {
     default_protocol = DEFAULT_PROTOCOL;
     default_port = DEFAULT_PORT;
     flags = FLAG_INTERACTIVE;
-
-    /*
-     * Really grotty hack to ensure that anything that looks at the
-     * global "cfg" variable gets something vaguely sensible.
-     * Obviously, nothing should actually be using it, but that will
-     * take a while to arrange.
-     */
-    do_defaults(NULL, &cfg);
 
     {
 	short vol;
