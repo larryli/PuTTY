@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.12 2003/01/23 12:30:26 jacob Exp $
+\versionid $Id: using.but,v 1.13 2003/03/20 22:12:12 ben Exp $
 
 \C{using} Using PuTTY
 
@@ -61,6 +61,12 @@ have configured the middle mouse button to paste, then the right
 mouse button does this instead.) Click the button on the screen, and
 you can pick up the nearest end of the selection and drag it to
 somewhere else.
+
+It's possible for the server to ask to handle mouse clicks in the
+PuTTY window itself.  If this happens, the mouse cursor will turn
+into an arrow, and copy and paste will only work if you hold down
+Shift.  See \k{config-features-mouse} and \k{config-mouseshift} for
+details of this feature and how to configure it.
 
 \S{using-scrollback} Scrolling the screen back
 
