@@ -27,6 +27,15 @@
 #      <winsock.h>, except Plink which _needs_ WinSock 2 so it already
 #      does this.
 #
+#  - COMPAT=/DNO_SECURITY
+#      Disables Pageant's use of <aclapi.h>, which is not available
+#      with some development environments. This means that Pageant
+#      won't care about the local user ID of processes accessing it; a
+#      version of Pageant built with this option will therefore refuse
+#      to run under NT-series OSes on security grounds (although it
+#      will run fine on Win95-series OSes where there is no access
+#      control anyway).
+#
 #  - RCFL=/DASCIICTLS
 #      Uses ASCII rather than Unicode to specify the tab control in
 #      the resource file. Probably most useful when compiling with
