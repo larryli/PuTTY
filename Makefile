@@ -270,9 +270,11 @@ puttygen.$(RES): puttygen.rc puttygen.ico
 puttygen.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 puttygen.rc
 
-clean:
-	del *.obj
+clean: tidy
 	del *.exe
+
+tidy:
+	del *.obj
 	del *.res
 	del *.pch
 	del *.aps
@@ -284,3 +286,4 @@ clean:
 	del *.ncb
 	del *.opt
 	del *.plg
+	del *.map
