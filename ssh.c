@@ -2051,19 +2051,21 @@ static void ssh_do_close(Ssh ssh)
      * Now we must shut down any port and X forwardings going
      * through this connection.
      */
-    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++) {
-	switch (c->type) {
-	  case CHAN_X11:
-	    x11_close(c->u.x11.s);
-	    break;
-	  case CHAN_SOCKDATA:
-	    pfd_close(c->u.pfd.s);
-	    break;
+    if (ssh->channels) {
+	for (i = 0; NULL != (c = index234(ssh->channels, i)); i++) {
+	    switch (c->type) {
+	      case CHAN_X11:
+		x11_close(c->u.x11.s);
+		break;
+	      case CHAN_SOCKDATA:
+		pfd_close(c->u.pfd.s);
+		break;
+	    }
+	    del234(ssh->channels, c);
+	    if (ssh->version == 2)
+		bufchain_clear(&c->v.v2.outbuffer);
+	    sfree(c);
 	}
-	del234(ssh->channels, c);
-	if (ssh->version == 2)
-	    bufchain_clear(&c->v.v2.outbuffer);
-	sfree(c);
     }
 }
 
