@@ -1,4 +1,4 @@
-\versionid $Id: intro.but,v 1.5 2004/04/08 12:38:53 simon Exp $
+\versionid $Id: intro.but,v 1.6 2004/06/15 11:00:28 jacob Exp $
 
 \C{intro} Introduction to PuTTY
 
@@ -61,10 +61,10 @@ remote login protocols.
 This list summarises some of the \i{differences between SSH, Telnet
 and Rlogin}.
 
-\b SSH is a recently designed, high-security protocol. It uses
-strong cryptography to protect your connection against
-eavesdropping, hijacking and other attacks. Telnet and Rlogin are
-both older protocols offering minimal security.
+\b SSH (which stands for \q{\i{secure shell}}) is a recently designed,
+high-security protocol. It uses strong cryptography to protect your
+connection against eavesdropping, hijacking and other attacks. Telnet
+and Rlogin are both older protocols offering minimal security.
 
 \b Telnet allows you to pass some settings on to the server, such as
 environment variables. (These control various aspects of the
