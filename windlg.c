@@ -1686,7 +1686,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshauthpanelstart) {
-	/* The SSH authentication panel. Accelerators used: [acgo] m fkiw */
+	/* The SSH authentication panel. Accelerators used: [acgo] m fkiuw */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
