@@ -380,10 +380,10 @@ void sk_addrcopy(SockAddr addr, char *buf)
 #endif
 	struct in_addr a;
 	a.s_addr = htonl(addr->address);
-	strncpy(buf, (char*) &a.s_addr, 4);
+	memcpy(buf, (char*) &a.s_addr, 4);
 #ifdef IPV6
     } else {
-	strncpy(buf, (char*) addr->ai, 16);
+	memcpy(buf, (char*) addr->ai, 16);
     }
 #endif
 }
