@@ -94,7 +94,7 @@ void tell_char(FILE *stream, char c)
     else
     {
 	unsigned int msg_id = WM_STD_OUT_CHAR;
-	if (stream = stderr) msg_id = WM_STD_ERR_CHAR;
+	if (stream == stderr) msg_id = WM_STD_ERR_CHAR;
 	send_msg( (HWND)atoi(gui_hwnd), msg_id, (WPARAM)c );
     }
 }
