@@ -19,7 +19,7 @@ static int rlogin_bufsize;
 static int rlogin_term_width, rlogin_term_height;
 static void *frontend;
 
-static void rlogin_size(void);
+static void rlogin_size(int width, int height);
 
 static void c_write(char *buf, int len)
 {
@@ -50,7 +50,7 @@ static int rlogin_receive(Plug plug, int urgent, char *data, int len)
 	c = *data++;
 	len--;
 	if (c == '\x80')
-	    rlogin_size();
+	    rlogin_size(rlogin_term_width, rlogin_term_height);
 	/*
 	 * We should flush everything (aka Telnet SYNCH) if we see
 	 * 0x02, and we should turn off and on _local_ flow control

@@ -17,7 +17,7 @@ static Socket s = NULL;
 static int raw_bufsize;
 static void *frontend;
 
-static void raw_size(void);
+static void raw_size(int width, int height);
 
 static void c_write(char *buf, int len)
 {
@@ -130,7 +130,7 @@ static int raw_sendbuffer(void)
 /*
  * Called to set the size of the window
  */
-static void raw_size(void)
+static void raw_size(int width, int height)
 {
     /* Do nothing! */
     return;

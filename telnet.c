@@ -141,7 +141,7 @@ static char *telopt(int opt)
     return "<unknown>";
 }
 
-static void telnet_size(void);
+static void telnet_size(int width, int height);
 
 struct Opt {
     int send;			       /* what we initially send */
@@ -256,7 +256,7 @@ static void option_side_effects(struct Opt *o, int enabled)
 static void activate_option(struct Opt *o)
 {
     if (o->send == WILL && o->option == TELOPT_NAWS)
-	telnet_size();
+	telnet_size(telnet_term_width, telnet_term_height);
     if (o->send == WILL &&
 	(o->option == TELOPT_NEW_ENVIRON ||
 	 o->option == TELOPT_OLD_ENVIRON)) {

@@ -573,7 +573,7 @@ static int ssh1_stdout_throttling;
 static void (*ssh_protocol) (unsigned char *in, int inlen, int ispkt);
 static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
-static void ssh_size(void);
+static void ssh_size(int width, int height);
 static void ssh_special(Telnet_Special);
 static int ssh2_try_send(struct ssh_channel *c);
 static void ssh2_add_channel_data(struct ssh_channel *c, char *buf,
@@ -3189,7 +3189,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 
     ssh_state = SSH_STATE_SESSION;
     if (size_needed)
-	ssh_size();
+	ssh_size(ssh_term_width, ssh_term_height);
     if (eof_needed)
 	ssh_special(TS_EOF);
 
@@ -5253,7 +5253,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
     ssh_state = SSH_STATE_SESSION;
     if (size_needed)
-	ssh_size();
+	ssh_size(ssh_term_width, ssh_term_height);
     if (eof_needed)
 	ssh_special(TS_EOF);
 
