@@ -308,7 +308,7 @@ int x11_send(Socket s, char *data, int len)
 	    reply[0] = 0;	       /* failure */
 	    reply[1] = msglen;	       /* length of reason string */
 	    memcpy(reply + 2, pr->firstpkt + 2, 4);	/* major/minor proto vsn */
-	    PUT_16BIT(pr->firstpkt[0], reply + 6, msglen >> 2);	/* data len */
+	    PUT_16BIT(pr->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
 	    memset(reply + 8, 0, msgsize);
 	    memcpy(reply + 8, message, msglen);
 	    sshfwd_write(pr->c, reply, 8 + msgsize);
