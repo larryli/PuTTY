@@ -62,7 +62,6 @@ static struct sftp_packet *sftp_pkt_init(int pkt_type)
     pkt->length = 0;
     pkt->maxlen = 0;
     sftp_pkt_addbyte(pkt, (unsigned char) pkt_type);
-    fxp_error_message = NULL;
     return pkt;
 }
 static void sftp_pkt_addbool(struct sftp_packet *pkt, unsigned char value)
