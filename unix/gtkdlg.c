@@ -5,19 +5,24 @@
 /*
  * TODO:
  * 
- *  - keyboard stuff
- *     + accelerators
- *     + default button
+ *  - keyboard shortcuts on list boxes and the treeview
+ *     + find the currently selected item and focus it?
+ *     + what if there are many selected items, or none?
+ *     + none of this is any use unless Up and Down are made to do
+ *       something plausibly sane anyway
  * 
  *  - focus stuff
  *     + `last focused' for nasty sessionsaver hack
  *     + set focus into a sensible control to start with
  *     + perhaps we need uc->primary as the right widget to
  *       forcibly focus?
+ *        * no, because I think the right widget to focus with
+ * 	    radio buttons is the currently selected one. Hmm.
  * 
  *  - dlg_error_msg
  * 
  *  - must return a value from the dialog box!
+ *     + easy, just put it in dp.
  * 
  *  - font selection hiccup: the default `fixed' is not
  *    automatically translated into its expanded XLFD form when the
@@ -28,10 +33,30 @@
  *     + wrapping text widgets, the horror, the horror
  *     + labels and their associated edit boxes don't line up
  *       properly
+ *     + IWBNI arrows in list boxes didn't do such a bloody silly
+ *       thing (moving focus without moving selection, and
+ *       furthermore not feeding back to the scrollbar). And arrows
+ *       in the treeview doubly so. Gah.
+ *     + don't suppose we can fix the vertical offset labels get
+ *       from their underlines?
+ *     + why the hell are the Up/Down focus movement keys sorting
+ *       things by _width_? (See the Logging and Features panels
+ *       for good examples.)
+ */
+
+/*
+ * TODO when porting to GTK 2.0:
+ * 
+ *  - GtkTree is apparently deprecated and we should switch to
+ *    GtkTreeView instead.
+ *  - GtkLabel has a built-in mnemonic scheme, so we should at
+ *    least consider switching to that from the current adhockery.
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
 
 #include "gtkcols.h"
 #include "gtkpanel.h"
@@ -44,6 +69,16 @@
 #include "dialog.h"
 #include "tree234.h"
 
+struct Shortcut {
+    GtkWidget *widget;
+    struct uctrl *uc;
+    int action;
+};
+
+struct Shortcuts {
+    struct Shortcut sc[128];
+};
+
 struct uctrl {
     union control *ctrl;
     GtkWidget *toplevel;
@@ -51,6 +86,7 @@ struct uctrl {
     int privdata_needs_free;
     GtkWidget **buttons; int nbuttons; /* for radio buttons */
     GtkWidget *entry;         /* for editbox, combobox, filesel, fontsel */
+    GtkWidget *button;        /* for filesel, fontsel */
     GtkWidget *list;	      /* for combobox, listbox */
     GtkWidget *menu;	      /* for optionmenu (==droplist) */
     GtkWidget *optmenu;	      /* also for optionmenu */
@@ -64,12 +100,23 @@ struct dlgparam {
     /* `flags' are set to indicate when a GTK signal handler is being called
      * due to automatic processing and should not flag a user event. */
     int flags;
+    struct Shortcuts *shortcuts;
 };
 #define FLAG_UPDATING_COMBO_LIST 1
+
+enum {				       /* values for Shortcut.action */
+    SHORTCUT_EMPTY,		       /* no shortcut on this key */
+    SHORTCUT_FOCUS,		       /* focus the supplied widget */
+    SHORTCUT_UCTRL,		       /* do something sane with uctrl */
+    SHORTCUT_UCTRL_UP,		       /* uctrl is a draglist, move Up */
+    SHORTCUT_UCTRL_DOWN,	       /* uctrl is a draglist, move Down */
+};
 
 /*
  * Forward references.
  */
+static void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
+			 int chr, int action, void *ptr);
 static void listitem_button(GtkWidget *item, GdkEventButton *event,
 			    gpointer data);
 static void menuitem_activate(GtkMenuItem *item, gpointer data);
@@ -685,6 +732,27 @@ static void button_toggled(GtkToggleButton *tb, gpointer data)
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
 }
 
+static int editbox_key(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+    /*
+     * GtkEntry has a nasty habit of eating the Return key, which
+     * is unhelpful since it doesn't actually _do_ anything with it
+     * (it calls gtk_widget_activate, but our edit boxes never need
+     * activating). So I catch Return before GtkEntry sees it, and
+     * pass it straight on to the parent widget. Effect: hitting
+     * Return in an edit box will now activate the default button
+     * in the dialog just like it will everywhere else.
+     */
+    if (event->keyval == GDK_Return && widget->parent != NULL) {
+	gint return_val;
+	gtk_signal_emit_stop_by_name (GTK_OBJECT(widget), "key_press_event");
+	gtk_signal_emit_by_name(GTK_OBJECT(widget->parent), "key_press_event",
+				event, &return_val);
+	return return_val;
+    }
+    return FALSE;
+}
+
 static void editbox_changed(GtkEditable *ed, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
@@ -874,9 +942,17 @@ static void filefont_clicked(GtkButton *button, gpointer data)
  * might be a GtkFrame containing a Columns; whatever it is, it's
  * definitely a GtkWidget and should probably be added to a
  * GtkVbox.)
+ * 
+ * `listitemheight' is used to calculate a usize for list boxes: it
+ * should be the height from the size request of a GtkListItem.
+ * 
+ * `win' is required for setting the default button. If it is
+ * non-NULL, all buttons created will be default-capable (so they
+ * have extra space round them for the default highlight).
  */
-GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
-			int listitemheight)
+GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
+			struct controlset *s, int listitemheight,
+			GtkWindow *win)
 {
     Columns *cols;
     GtkWidget *ret;
@@ -911,14 +987,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
      */
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
-	struct uctrl uc;
+	struct uctrl *uc;
+	int left = FALSE;
         GtkWidget *w = NULL;
-
-	uc.ctrl = ctrl;
-	uc.privdata = NULL;
-	uc.privdata_needs_free = FALSE;
-	uc.buttons = NULL;
-	uc.entry = uc.list = uc.menu = uc.optmenu = uc.text = NULL;
 
         switch (ctrl->generic.type) {
           case CTRL_COLUMNS:
@@ -936,15 +1007,36 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
 		    columns_taborder_last(cols, uc->toplevel);
 	    }
             continue;                  /* no actual control created */
+	}
+
+	uc = smalloc(sizeof(struct uctrl));
+	uc->ctrl = ctrl;
+	uc->privdata = NULL;
+	uc->privdata_needs_free = FALSE;
+	uc->buttons = NULL;
+	uc->entry = uc->list = uc->menu = NULL;
+	uc->button = uc->optmenu = uc->text = NULL;
+
+        switch (ctrl->generic.type) {
           case CTRL_BUTTON:
             w = gtk_button_new_with_label(ctrl->generic.label);
+	    if (win) {
+		GTK_WIDGET_SET_FLAGS(w, GTK_CAN_DEFAULT);
+		if (ctrl->button.isdefault)
+		    gtk_window_set_default(win, w);
+	    }
 	    gtk_signal_connect(GTK_OBJECT(w), "clicked",
 			       GTK_SIGNAL_FUNC(button_clicked), dp);
+	    shortcut_add(scs, GTK_BIN(w)->child, ctrl->button.shortcut,
+			 SHORTCUT_UCTRL, uc);
             break;
           case CTRL_CHECKBOX:
             w = gtk_check_button_new_with_label(ctrl->generic.label);
 	    gtk_signal_connect(GTK_OBJECT(w), "toggled",
 			       GTK_SIGNAL_FUNC(button_toggled), dp);
+	    shortcut_add(scs, GTK_BIN(w)->child, ctrl->checkbox.shortcut,
+			 SHORTCUT_UCTRL, uc);
+	    left = TRUE;
             break;
           case CTRL_RADIO:
             /*
@@ -961,6 +1053,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
                     columns_add(COLUMNS(w), label, 0, 1);
 		    columns_force_left_align(COLUMNS(w), label);
                     gtk_widget_show(label);
+		    shortcut_add(scs, label, ctrl->radio.shortcut,
+				 SHORTCUT_UCTRL, uc);
                 }
                 percentages = g_new(gint, ctrl->radio.ncolumns);
                 for (i = 0; i < ctrl->radio.ncolumns; i++) {
@@ -973,8 +1067,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
                 g_free(percentages);
                 group = NULL;
 
-		uc.nbuttons = ctrl->radio.nbuttons;
-		uc.buttons = smalloc(uc.nbuttons * sizeof(GtkWidget *));
+		uc->nbuttons = ctrl->radio.nbuttons;
+		uc->buttons = smalloc(uc->nbuttons * sizeof(GtkWidget *));
 
                 for (i = 0; i < ctrl->radio.nbuttons; i++) {
                     GtkWidget *b;
@@ -982,15 +1076,21 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
 
                     b = (gtk_radio_button_new_with_label
                          (group, ctrl->radio.buttons[i]));
-		    uc.buttons[i] = b;
+		    uc->buttons[i] = b;
                     group = gtk_radio_button_group(GTK_RADIO_BUTTON(b));
                     colstart = i % ctrl->radio.ncolumns;
                     columns_add(COLUMNS(w), b, colstart,
                                 (i == ctrl->radio.nbuttons-1 ?
                                  ctrl->radio.ncolumns - colstart : 1));
+		    columns_force_left_align(COLUMNS(w), b);
                     gtk_widget_show(b);
 		    gtk_signal_connect(GTK_OBJECT(b), "toggled",
 				       GTK_SIGNAL_FUNC(button_toggled), dp);
+		    if (ctrl->radio.shortcuts) {
+			shortcut_add(scs, GTK_BIN(b)->child,
+				     ctrl->radio.shortcuts[i],
+				     SHORTCUT_UCTRL, uc);
+		    }
                 }
             }
             break;
@@ -998,16 +1098,18 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
             if (ctrl->editbox.has_list) {
                 w = gtk_combo_new();
 		gtk_combo_set_value_in_list(GTK_COMBO(w), FALSE, TRUE);
-		uc.entry = GTK_COMBO(w)->entry;
-                uc.list = GTK_COMBO(w)->list;
+		uc->entry = GTK_COMBO(w)->entry;
+                uc->list = GTK_COMBO(w)->list;
             } else {
                 w = gtk_entry_new();
                 if (ctrl->editbox.password)
                     gtk_entry_set_visibility(GTK_ENTRY(w), FALSE);
-		uc.entry = w;
+		uc->entry = w;
             }
-	    gtk_signal_connect(GTK_OBJECT(uc.entry), "changed",
+	    gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
 			       GTK_SIGNAL_FUNC(editbox_changed), dp);
+	    gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
+			       GTK_SIGNAL_FUNC(editbox_key), dp);
             /*
              * Edit boxes, for some strange reason, have a minimum
              * width of 150 in GTK 1.2. We don't want this - we'd
@@ -1023,6 +1125,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
                 GtkWidget *label, *container;
 
                 label = gtk_label_new(ctrl->generic.label);
+		shortcut_add(scs, label, ctrl->editbox.shortcut,
+			     SHORTCUT_FOCUS, uc->entry);
 
 		container = columns_new(4);
                 if (ctrl->editbox.percentwidth == 100) {
@@ -1043,7 +1147,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
 
                 w = container;
             }
-	    gtk_signal_connect(GTK_OBJECT(uc.entry), "focus_out_event",
+	    gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_out_event",
 			       GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
             break;
           case CTRL_FILESELECT:
@@ -1064,19 +1168,26 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
                     columns_add(COLUMNS(w), ww, 0, 2);
 		    columns_force_left_align(COLUMNS(w), ww);
                     gtk_widget_show(ww);
+		    shortcut_add(scs, ww,
+				 (ctrl->generic.type == CTRL_FILESELECT ?
+				  ctrl->fileselect.shortcut :
+				  ctrl->fontselect.shortcut),
+				 SHORTCUT_UCTRL, uc);
                 }
 
-                uc.entry = ww = gtk_entry_new();
+                uc->entry = ww = gtk_entry_new();
                 gtk_widget_size_request(ww, &req);
                 gtk_widget_set_usize(ww, 10, req.height);
                 columns_add(COLUMNS(w), ww, 0, 1);
                 gtk_widget_show(ww);
 
-                ww = gtk_button_new_with_label(browsebtn);
+                uc->button = ww = gtk_button_new_with_label(browsebtn);
                 columns_add(COLUMNS(w), ww, 1, 1);
                 gtk_widget_show(ww);
 
-		gtk_signal_connect(GTK_OBJECT(uc.entry), "changed",
+		gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
+				   GTK_SIGNAL_FUNC(editbox_key), dp);
+		gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
 				   GTK_SIGNAL_FUNC(editbox_changed), dp);
 		gtk_signal_connect(GTK_OBJECT(ww), "clicked",
 				   GTK_SIGNAL_FUNC(filefont_clicked), dp);
@@ -1084,25 +1195,25 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
             break;
           case CTRL_LISTBOX:
             if (ctrl->listbox.height == 0) {
-                uc.optmenu = w = gtk_option_menu_new();
-		uc.menu = gtk_menu_new();
-		gtk_option_menu_set_menu(GTK_OPTION_MENU(w), uc.menu);
-		gtk_object_set_data(GTK_OBJECT(uc.menu), "user-data",
-				    (gpointer)uc.optmenu);
+                uc->optmenu = w = gtk_option_menu_new();
+		uc->menu = gtk_menu_new();
+		gtk_option_menu_set_menu(GTK_OPTION_MENU(w), uc->menu);
+		gtk_object_set_data(GTK_OBJECT(uc->menu), "user-data",
+				    (gpointer)uc->optmenu);
             } else {
-                uc.list = gtk_list_new();
-                gtk_list_set_selection_mode(GTK_LIST(uc.list),
+                uc->list = gtk_list_new();
+                gtk_list_set_selection_mode(GTK_LIST(uc->list),
                                             (ctrl->listbox.multisel ?
                                              GTK_SELECTION_MULTIPLE :
                                              GTK_SELECTION_SINGLE));
                 w = gtk_scrolled_window_new(NULL, NULL);
                 gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(w),
-                                                      uc.list);
+                                                      uc->list);
                 gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w),
                                                GTK_POLICY_NEVER,
                                                GTK_POLICY_AUTOMATIC);
-                gtk_widget_show(uc.list);
-		gtk_signal_connect(GTK_OBJECT(uc.list), "selection-changed",
+                gtk_widget_show(uc->list);
+		gtk_signal_connect(GTK_OBJECT(uc->list), "selection-changed",
 				   GTK_SIGNAL_FUNC(list_selchange), dp);
 
                 /*
@@ -1118,7 +1229,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
                  * upgrades, I'd be grateful.
                  */
 		{
-		    int edge = GTK_WIDGET(uc.list)->style->klass->ythickness;
+		    int edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
                     gtk_widget_set_usize(w, 10,
                                          2*edge + (ctrl->listbox.height *
 						   listitemheight));
@@ -1175,37 +1286,39 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct controlset *s,
                 }
                 gtk_widget_show(label);
                 gtk_widget_show(w);
-
+		shortcut_add(scs, label, ctrl->listbox.shortcut,
+			     SHORTCUT_UCTRL, uc);
                 w = container;
             }
             break;
           case CTRL_TEXT:
-            uc.text = w = gtk_label_new(ctrl->generic.label);
+            uc->text = w = gtk_label_new(ctrl->generic.label);
             gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
             /* FIXME: deal with wrapping! */
             break;
         }
-        if (w) {
-	    struct uctrl *ucptr;
 
-            columns_add(cols, w,
-                        COLUMN_START(ctrl->generic.column),
-                        COLUMN_SPAN(ctrl->generic.column));
-            gtk_widget_show(w);
+	assert(w != NULL);
 
-	    ucptr = smalloc(sizeof(struct uctrl));
-	    *ucptr = uc;	       /* structure copy */
-	    ucptr->toplevel = w;
-	    dlg_add_uctrl(dp, ucptr);
-        }
+	columns_add(cols, w,
+		    COLUMN_START(ctrl->generic.column),
+		    COLUMN_SPAN(ctrl->generic.column));
+	if (left)
+	    columns_force_left_align(cols, w);
+	gtk_widget_show(w);
+
+	uc->toplevel = w;
+	dlg_add_uctrl(dp, uc);
     }
 
     return ret;
 }
 
 struct selparam {
+    struct dlgparam *dp;
     Panels *panels;
     GtkWidget *panel, *treeitem;
+    struct Shortcuts shortcuts;
 };
 
 static void treeitem_sel(GtkItem *item, gpointer data)
@@ -1213,11 +1326,150 @@ static void treeitem_sel(GtkItem *item, gpointer data)
     struct selparam *sp = (struct selparam *)data;
 
     panels_switch_to(sp->panels, sp->panel);
+
+    sp->dp->shortcuts = &sp->shortcuts;
 }
 
 void destroy(GtkWidget *widget, gpointer data)
 {
     gtk_main_quit();
+}
+
+int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+
+    if (event->keyval == GDK_Escape) {
+	gtk_main_quit();
+	return TRUE;
+    }
+
+    if ((event->state & GDK_MOD1_MASK) &&
+	(unsigned char)event->string[0] > 0 &&
+	(unsigned char)event->string[0] <= 127) {
+	int schr = (unsigned char)event->string[0];
+	struct Shortcut *sc = &dp->shortcuts->sc[schr];
+
+	switch (sc->action) {
+	  case SHORTCUT_FOCUS:
+	    gtk_widget_grab_focus(sc->widget);
+	    break;
+	  case SHORTCUT_UCTRL:
+	    /*
+	     * We must do something sensible with a uctrl.
+	     * Precisely what this is depends on the type of
+	     * control.
+	     */
+	    switch (sc->uc->ctrl->generic.type) {
+	      case CTRL_CHECKBOX:
+	      case CTRL_BUTTON:
+		/* Check boxes and buttons get the focus _and_ get toggled. */
+		gtk_widget_grab_focus(sc->uc->toplevel);
+		gtk_signal_emit_by_name(GTK_OBJECT(sc->uc->toplevel),
+					"clicked");
+		break;
+	      case CTRL_FILESELECT:
+	      case CTRL_FONTSELECT:
+		/* File/font selectors have their buttons pressed (ooer),
+		 * and focus transferred to the edit box. */
+		gtk_signal_emit_by_name(GTK_OBJECT(sc->uc->button),
+					"clicked");
+		gtk_widget_grab_focus(sc->uc->entry);
+		break;
+	      case CTRL_RADIO:
+		/*
+		 * Radio buttons are fun, because they have
+		 * multiple shortcuts. We must find whether the
+		 * activated shortcut is the shortcut for the whole
+		 * group, or for a particular button. In the former
+		 * case, we find the currently selected button and
+		 * focus it; in the latter, we focus-and-click the
+		 * button whose shortcut was pressed.
+		 */
+		if (schr == sc->uc->ctrl->radio.shortcut) {
+		    int i;
+		    for (i = 0; i < sc->uc->ctrl->radio.nbuttons; i++)
+			if (gtk_toggle_button_get_active
+			    (GTK_TOGGLE_BUTTON(sc->uc->buttons[i]))) {
+			    gtk_widget_grab_focus(sc->uc->buttons[i]);
+			}
+		} else if (sc->uc->ctrl->radio.shortcuts) {
+		    int i;
+		    for (i = 0; i < sc->uc->ctrl->radio.nbuttons; i++)
+			if (schr == sc->uc->ctrl->radio.shortcuts[i]) {
+			    gtk_widget_grab_focus(sc->uc->buttons[i]);
+			    gtk_signal_emit_by_name
+				(GTK_OBJECT(sc->uc->buttons[i]), "clicked");
+			}
+		}
+		break;
+	      case CTRL_LISTBOX:
+		/*
+		 * List boxes are fun too. If the list is really an
+		 * option menu, we simply focus and click it.
+		 * Otherwise we must do something clever (FIXME).
+		 */
+		if (sc->uc->optmenu) {
+		    GdkEventButton bev;
+		    gint returnval;
+
+		    gtk_widget_grab_focus(sc->uc->optmenu);
+		    /* Option menus don't work using the "clicked" signal.
+		     * We need to manufacture a button press event :-/ */
+		    bev.type = GDK_BUTTON_PRESS;
+		    bev.button = 1;
+		    gtk_signal_emit_by_name(GTK_OBJECT(sc->uc->optmenu),
+					    "button_press_event",
+					    &bev, &returnval);
+		} else {
+		}
+		break;
+	    }
+	    break;
+	}
+    }
+
+    return FALSE;
+}
+
+void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
+		  int chr, int action, void *ptr)
+{
+    GtkLabel *label = GTK_LABEL(labelw);
+    gchar *currstr, *pattern;
+    int i;
+
+    if (chr == NO_SHORTCUT)
+	return;
+
+    chr = tolower((unsigned char)chr);
+
+    assert(scs->sc[chr].action == SHORTCUT_EMPTY);
+
+    scs->sc[chr].action = action;
+
+    if (action == SHORTCUT_FOCUS) {
+	scs->sc[chr].uc = NULL;
+	scs->sc[chr].widget = (GtkWidget *)ptr;
+    } else {
+	scs->sc[chr].widget = NULL;
+	scs->sc[chr].uc = (struct uctrl *)ptr;
+    }
+
+    gtk_label_get(label, &currstr);
+    for (i = 0; currstr[i]; i++)
+	if (tolower((unsigned char)currstr[i]) == chr) {
+	    GtkRequisition req;
+
+	    pattern = dupprintf("%*s_", i, "");
+
+	    gtk_widget_size_request(GTK_WIDGET(label), &req);
+	    gtk_label_set_pattern(label, pattern);
+	    gtk_widget_set_usize(GTK_WIDGET(label), -1, req.height);
+
+	    sfree(pattern);
+	    break;
+	}
 }
 
 void do_config_box(void)
@@ -1232,6 +1484,7 @@ void do_config_box(void)
     Config cfg;
     struct dlgparam dp;
     struct sesslist sl;
+    struct Shortcuts scs;
 
     struct selparam *selparams = NULL;
     int nselparams = 0, selparamsize = 0;
@@ -1249,6 +1502,10 @@ void do_config_box(void)
     }
 
     sl.nsessions = 0;
+
+    for (index = 0; index < lenof(scs.sc); index++) {
+	scs.sc[index].action = SHORTCUT_EMPTY;
+    }
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, &sl, FALSE, 0);
@@ -1271,6 +1528,8 @@ void do_config_box(void)
     gtk_widget_show(label);
     treescroll = gtk_scrolled_window_new(NULL, NULL);
     tree = gtk_tree_new();
+    /* FIXME: focusing treescroll doesn't help */
+    shortcut_add(&scs, label, 'g', SHORTCUT_FOCUS, tree);
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
     gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
@@ -1290,9 +1549,10 @@ void do_config_box(void)
     level = 0;
     for (index = 0; index < ctrlbox->nctrlsets; index++) {
 	struct controlset *s = ctrlbox->ctrlsets[index];
-	GtkWidget *w = layout_ctrls(&dp, s, listitemheight);
+	GtkWidget *w;
 
 	if (!*s->pathname) {
+	    w = layout_ctrls(&dp, &scs, s, listitemheight, GTK_WINDOW(window));
 	    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
 			       w, TRUE, TRUE, 0);
 	} else {
@@ -1356,13 +1616,18 @@ void do_config_box(void)
 		    selparams = srealloc(selparams,
 					 selparamsize * sizeof(*selparams));
 		}
+		selparams[nselparams].dp = &dp;
 		selparams[nselparams].panels = PANELS(panels);
 		selparams[nselparams].panel = panelvbox;
+		selparams[nselparams].shortcuts = scs;   /* structure copy */
 		selparams[nselparams].treeitem = treeitem;
 		nselparams++;
 
 	    }
 
+	    w = layout_ctrls(&dp,
+			     &selparams[nselparams-1].shortcuts,
+			     s, listitemheight, NULL);
 	    gtk_box_pack_start(GTK_BOX(panelvbox), w, FALSE, FALSE, 0);
             gtk_widget_show(w);
 	}
@@ -1377,10 +1642,14 @@ void do_config_box(void)
     dp.data = &cfg;
     dlg_refresh(NULL, &dp);
 
+    dp.shortcuts = &selparams[0].shortcuts;
+
     gtk_widget_show(window);
 
     gtk_signal_connect(GTK_OBJECT(window), "destroy",
 		       GTK_SIGNAL_FUNC(destroy), NULL);
+    gtk_signal_connect(GTK_OBJECT(window), "key_press_event",
+		       GTK_SIGNAL_FUNC(win_key_press), &dp);
 
     gtk_main();
 
