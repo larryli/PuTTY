@@ -159,7 +159,6 @@ void multiedit(struct ctlpos *cp, ...)
 void dropdownlist(struct ctlpos *cp, char *text, int staticid, int listid)
 {
     RECT r;
-    va_list ap;
 
     r.left = GAPBETWEEN;
     r.right = cp->width;
@@ -995,7 +994,7 @@ int handle_prefslist(struct prefslist *hdl,
 
     if (is_dlmsg) {
 
-        if (wParam == hdl->listid) {
+        if ((int)wParam == hdl->listid) {
             DRAGLISTINFO *dlm = (DRAGLISTINFO *)lParam;
             int dest;
             switch (dlm->uNotification) {

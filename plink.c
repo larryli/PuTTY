@@ -314,11 +314,7 @@ void try_output(int is_stderr)
 
 int from_backend(int is_stderr, char *data, int len)
 {
-    int pos;
-    DWORD ret;
     HANDLE h = (is_stderr ? errhandle : outhandle);
-    void *writedata;
-    int writelen;
     int osize, esize;
 
     if (is_stderr) {

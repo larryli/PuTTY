@@ -772,14 +772,13 @@ void scp_sftp_listdir(char *dirname)
     struct fxp_names *names;
     struct fxp_name *ournames;
     int nnames, namesize;
-    char *dir;
     int i;
 
     printf("Listing directory %s\n", dirname);
 
     dirh = fxp_opendir(dirname);
     if (dirh == NULL) {
-	printf("Unable to open %s: %s\n", dir, fxp_error());
+	printf("Unable to open %s: %s\n", dirname, fxp_error());
     } else {
 	nnames = namesize = 0;
 	ournames = NULL;
@@ -790,7 +789,7 @@ void scp_sftp_listdir(char *dirname)
 	    if (names == NULL) {
 		if (fxp_error_type() == SSH_FX_EOF)
 		    break;
-		printf("Reading directory %s: %s\n", dir, fxp_error());
+		printf("Reading directory %s: %s\n", dirname, fxp_error());
 		break;
 	    }
 	    if (names->nnames == 0) {
@@ -1689,9 +1688,7 @@ static void rsource(char *src)
 static void sink(char *targ, char *src)
 {
     char *destfname;
-    char ch;
     int targisdir = 0;
-    int settime;
     int exists;
     DWORD attr;
     HANDLE f;
@@ -1974,7 +1971,6 @@ static void toremote(int argc, char *argv[])
 	    continue;
 	}
 	do {
-	    char *last;
 	    char *filename;
 	    /*
 	     * Ensure that . and .. are never matched by wildcards,

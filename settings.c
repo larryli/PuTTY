@@ -81,7 +81,7 @@ static void gprefs(void *sesskey, char *name, char *def,
     } while (n < nvals);
     /* Add any missing values (backward compatibility ect). */
     {
-	int i, j;
+	int i;
 	for (i = 0; i < nvals; i++) {
 	    if (!(seen & 1<<mapping[i].v)) {
 		array[n] = mapping[i].v;

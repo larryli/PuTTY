@@ -74,6 +74,8 @@ int random_byte(void)
 {
     MessageBox(hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
     exit(0);
+    /* this line can't be reached but it placates MSVC's warnings :-) */
+    return 0;
 }
 
 /*
