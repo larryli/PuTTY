@@ -6418,9 +6418,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 #define CHECK_HYPOTHESIS(offset, result) \
     do { \
 	long q = offset; \
-	if (q+4 <= len) { \
+	if (q >= 0 && q+4 <= len) { \
 	    q = q + 4 + GET_32BIT(p+q); \
-	    if (q+4 <= len && (q = q + 4 + GET_32BIT(p+q)) && q == len) \
+	    if (q >= 0 && q+4 <= len && \
+		    (q = q + 4 + GET_32BIT(p+q)) && q == len) \
 		result = TRUE; \
 	} \
     } while(0)
