@@ -371,9 +371,10 @@ struct config_tag {
 };
 
 /*
- * You can compile with -DSSH_DEFAULT to have ssh by default.
+ * You can compile with -DTELNET_DEFAULT to have telnet by default
+ * (otherwise SSH is the default).
  */
-#ifndef SSH_DEFAULT
+#ifdef TELNET_DEFAULT
 #define DEFAULT_PROTOCOL PROT_TELNET
 #define DEFAULT_PORT 23
 #else

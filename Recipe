@@ -67,6 +67,11 @@
 #      Cygnus/mingw32, whose resource compiler may have less of a
 #      problem with it.
 #
+#  - XFLAGS=/DTELNET_DEFAULT
+#      Causes PuTTY to default to the Telnet protocol (in the absence
+#      of Default Settings and so on to the contrary). Normally PuTTY
+#      will default to SSH.
+#
 #  - XFLAGS=/DDEBUG
 #      Causes PuTTY to enable internal debugging.
 #
