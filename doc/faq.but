@@ -287,6 +287,21 @@ Windows users don't have a middle button at all.
 
 You can also paste by pressing Shift-Ins.
 
+\S{faq-tunnels} How do I use X forwarding and port forwarding? I
+can't find the Tunnels panel.
+
+If you're looking in the 0.51 release or earlier, the Tunnels panel
+isn't there. It was added in the development snapshots after 0.51,
+and releases 0.52 and onwards will contain it.
+
+\S{faq-options} How do I use all PuTTY's features (port forwarding,
+SSH v2 etc) in Plink?
+
+Plink is currently rather short of command line options to enable
+this sort of thing. You can use these features if you create a PuTTY
+saved session, and then use the name of the saved session on Plink's
+command line in place of a hostname.
+
 \S{faq-pscp} How do I use PSCP.EXE? When I double-click it gives me
 a command prompt window which then closes instantly.
 
