@@ -258,5 +258,5 @@ static void xlatlognam(Filename *dest, Filename src,
     }
     *d = '\0';
 
-    *dest = filename_from_str(d);
+    *dest = filename_from_str(buffer);
 }
