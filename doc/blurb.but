@@ -12,12 +12,19 @@ page</a>.</p>}
 \cfg{text-filename}{puttydoc.txt}
 \cfg{winhelp-filename}{putty.hlp}
 
-\preamble PuTTY is a free (MIT-licensed) Win32 Telnet and SSH
-client. This manual documents PuTTY, and its companion utilities
-PSCP, PSFTP, Plink, Pageant and PuTTYgen.
+PuTTY is a free (MIT-licensed) Win32 Telnet and SSH client. This
+manual documents PuTTY, and its companion utilities PSCP, PSFTP,
+Plink, Pageant and PuTTYgen.
+
+\e{Note to Unix users:} this manual currently primarily documents the
+Windows versions of the PuTTY utilities. Some options are therefore
+mentioned that are absent from the Unix version; the Unix version has
+features not described here; and the \cw{pterm} and command-line
+\cw{puttygen} utilities are not described at all. The only
+Unix-specific documentation that currently exists is the man pages.
 
 \copyright This manual is copyright 2001-2004 Simon Tatham. All
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.
 
-\versionid $Id: blurb.but,v 1.12 2004/10/24 15:41:44 jacob Exp $
+\versionid $Id: blurb.but,v 1.13 2004/10/24 22:57:36 jacob Exp $
