@@ -1,8 +1,5 @@
 /*
- * RSA implementation just sufficient for ssh client-side
- * initialisation step
- *
- * Rewritten for more speed by Joris van Rantwijk, Jun 1999.
+ * RSA implementation for PuTTY.
  */
 
 #include <stdio.h>
@@ -92,11 +89,92 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key)
     freebn(b2);
 }
 
+/*
+ * This function is a wrapper on modpow(). It has the same effect
+ * as modpow(), but employs RSA blinding to protect against timing
+ * attacks.
+ */
+static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
+{
+    Bignum random, random_encrypted, random_inverse;
+    Bignum input_blinded, ret_blinded;
+    Bignum ret;
+
+    /*
+     * Start by inventing a random number chosen uniformly from the
+     * range 2..modulus-1. (We do this by preparing a random number
+     * of the right length and retrying if it's greater than the
+     * modulus, to prevent any potential Bleichenbacher-like
+     * attacks making use of the uneven distribution within the
+     * range that would arise from just reducing our number mod n.
+     * There are timing implications to the potential retries, of
+     * course, but all they tell you is the modulus, which you
+     * already knew.)
+     */
+    while (1) {
+	int bits, byte, bitsleft, v;
+	random = copybn(key->modulus);
+	/*
+	 * Find the topmost set bit. (This function will return its
+	 * index plus one.) Then we'll set all bits from that one
+	 * downwards randomly.
+	 */
+	bits = bignum_bitcount(random);
+	byte = 0;
+	bitsleft = 0;
+	while (bits--) {
+	    if (bitsleft <= 0)
+		bitsleft = 8, byte = random_byte();
+	    v = byte & 1;
+	    byte >>= 1;
+	    bitsleft--;
+	    bignum_set_bit(random, bits, v);
+	}
+
+	/*
+	 * Now check that this number is strictly greater than
+	 * zero, and strictly less than modulus.
+	 */
+	if (bignum_cmp(random, Zero) <= 0 ||
+	    bignum_cmp(random, key->modulus) >= 0) {
+	    freebn(random);
+	    continue;
+	} else {
+	    break;
+	}
+    }
+
+    /*
+     * RSA blinding relies on the fact that (xy)^d mod n is equal
+     * to (x^d mod n) * (y^d mod n) mod n. We invent a random pair
+     * y and y^d; then we multiply x by y, raise to the power e mod
+     * n as usual, and divide by y^d to recover x^d. Thus the
+     * timing of the modpow does not reveal information about x,
+     * but only about xy, which is unpredictable to an attacker.
+     * 
+     * The clever bit is that we don't have to do a huge modpow to
+     * get y and y^d; we will use the number we just invented as
+     * _y^d_, and use the RSA public exponent to compute y from it,
+     * which is much faster.
+     */
+    random_encrypted = modpow(random, key->exponent, key->modulus);
+    random_inverse = modinv(random, key->modulus);
+    input_blinded = modmul(input, random_encrypted, key->modulus);
+    ret_blinded = modpow(input_blinded, key->private_exponent, key->modulus);
+    ret = modmul(ret_blinded, random_inverse, key->modulus);
+
+    freebn(ret_blinded);
+    freebn(input_blinded);
+    freebn(random_inverse);
+    freebn(random_encrypted);
+    freebn(random);
+
+    return ret;
+}
+
 Bignum rsadecrypt(Bignum input, struct RSAKey *key)
 {
-    Bignum ret;
-    ret = modpow(input, key->private_exponent, key->modulus);
-    return ret;
+    return rsa_privkey_op(input, key);
 }
 
 int rsastr_len(struct RSAKey *key)
@@ -639,7 +717,7 @@ static unsigned char *rsa2_sign(void *key, char *data, int datalen,
     in = bignum_from_bytes(bytes, nbytes);
     sfree(bytes);
 
-    out = modpow(in, rsa->private_exponent, rsa->modulus);
+    out = rsa_privkey_op(in, rsa);
     freebn(in);
 
     nbytes = (bignum_bitcount(out) + 7) / 8;
