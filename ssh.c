@@ -2831,7 +2831,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
     }
 
     {
-	char type, *e;
+	char type;
+	static char *e;
 	int n;
 	int sport,dport,sserv,dserv;
 	char sports[256], dports[256], host[256];
@@ -2924,6 +2925,18 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 				    PKT_STR, host,
 				    PKT_INT, dport,
 				    PKT_END);
+			do {
+			    crReturnV;
+			} while (!ispkt);
+			if (pktin.type != SSH1_SMSG_SUCCESS
+			    && pktin.type != SSH1_SMSG_FAILURE) {
+			    bombout(("Protocol confusion"));
+			    crReturnV;
+			} else if (pktin.type == SSH1_SMSG_FAILURE) {
+			    c_write_str("Server refused port forwarding\r\n");
+			    ssh_editing = ssh_echoing = 1;
+			}
+			logevent("Remote port forwarding enabled");
 		    }
 		}
 	    }
