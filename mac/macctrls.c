@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.13 2003/03/25 23:18:59 ben Exp $ */
+/* $Id: macctrls.c,v 1.14 2003/03/25 23:23:03 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -1055,13 +1055,13 @@ static void dlg_macpopup_clear(union control *ctrl, void *dlg)
     unsigned int i, n;
 
     fprintf(stderr, "      popup_clear\n");
-    n = CountMItems(menu);
+    n = CountMenuItems(menu);
     for (i = 0; i < n; i++)
 	DeleteMenuItem(menu, n - i);
     mc->popup.nids = 0;
     sfree(mc->popup.ids);
     mc->popup.ids = NULL;
-    SetControlMaximum(mc->popup.tbctrl, CountMItems(menu));
+    SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
 void dlg_listbox_clear(union control *ctrl, void *dlg)
@@ -1082,7 +1082,7 @@ static void dlg_macpopup_del(union control *ctrl, void *dlg, int index)
     if (mc->popup.ids != NULL)
 	memcpy(mc->popup.ids + index, mc->popup.ids + index + 1,
 	       (mc->popup.nids - index - 1) * sizeof(*mc->popup.ids));
-    SetControlMaximum(mc->popup.tbctrl, CountMItems(menu));
+    SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
 void dlg_listbox_del(union control *ctrl, void *dlg, int index)
@@ -1103,8 +1103,8 @@ static void dlg_macpopup_add(union control *ctrl, void *dlg, char const *text)
     assert(text[0] != '\0');
     c2pstrcpy(itemstring, text);
     AppendMenu(menu, "\pdummy");
-    SetMenuItemText(menu, CountMItems(menu), itemstring);
-    SetControlMaximum(mc->popup.tbctrl, CountMItems(menu));
+    SetMenuItemText(menu, CountMenuItems(menu), itemstring);
+    SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
 void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
@@ -1124,7 +1124,7 @@ static void dlg_macpopup_addwithindex(union control *ctrl, void *dlg,
 
     fprintf(stderr, "      popup_addwthindex %s, %d\n", text, id);
     dlg_macpopup_add(ctrl, dlg, text);
-    index = CountMItems(menu) - 1;
+    index = CountMenuItems(menu) - 1;
     if (mc->popup.nids <= index) {
 	mc->popup.nids = index + 1;
 	mc->popup.ids = srealloc(mc->popup.ids,
