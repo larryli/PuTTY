@@ -3251,12 +3251,12 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 
 	    if (DIRECT_FONT(uc)) {
 		if (c >= ' ' && c != 0x7F) {
-		    unsigned char buf[4];
+		    char buf[4];
 		    WCHAR wbuf[4];
 		    int rv;
 		    if (is_dbcs_leadbyte(font_codepage, (BYTE) c)) {
 			buf[0] = c;
-			buf[1] = (unsigned char) ldata[top.x + 1];
+			buf[1] = ldata[top.x + 1];
 			rv = mb_to_wc(font_codepage, 0, buf, 2, wbuf, 4);
 			top.x++;
 		    } else {
