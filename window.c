@@ -501,14 +501,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	}
 	AppendMenu (m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
 	AppendMenu (m, MF_SEPARATOR, 0, 0);
-	AppendMenu (m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session");
+	AppendMenu (m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
 	AppendMenu (m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
 	s = CreateMenu();
 	get_sesslist(TRUE);
 	for (i = 1 ; i < ((nsessions < 256) ? nsessions : 256) ; i++)
 	  AppendMenu (s, MF_ENABLED, IDM_SAVED_MIN + (16 * i) , sessions[i]);
 	AppendMenu (m, MF_POPUP | MF_ENABLED, (UINT) s, "Sa&ved Sessions");
-	AppendMenu (m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings");
+	AppendMenu (m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
 	AppendMenu (m, MF_SEPARATOR, 0, 0);
 	AppendMenu (m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
 	AppendMenu (m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
