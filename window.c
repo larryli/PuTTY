@@ -36,6 +36,7 @@
 
 #define WM_IGNORE_SIZE (WM_XUSER + 1)
 #define WM_IGNORE_CLIP (WM_XUSER + 2)
+#define WM_IGNORE_KEYMENU (WM_XUSER + 3)
 
 static LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned char *output);
@@ -855,7 +856,11 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     HDC hdc;
     static int ignore_size = FALSE;
     static int ignore_clip = FALSE;
+    static int ignore_keymenu = TRUE;
     static int just_reconfigged = FALSE;
+
+    if (message != 275)
+    debug(("msg=%d wParam=%08x lParam=%08x\r\n", message, wParam, lParam));
 
     switch (message) {
       case WM_TIMER:
@@ -879,6 +884,10 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	return 0;
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
+          case SC_KEYMENU:
+            if (ignore_keymenu)
+                return 0;              /* don't put up system menu on Alt */
+            break;
 	  case IDM_SHOWLOG:
 	    showeventlog(hwnd);
 	    break;
@@ -1107,6 +1116,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	return 0;
       case WM_IGNORE_CLIP:
 	ignore_clip = wParam;	       /* don't panic on DESTROYCLIPBOARD */
+	break;
+      case WM_IGNORE_KEYMENU:
+	ignore_keymenu = wParam;       /* do or don't ignore SC_KEYMENU */
 	break;
       case WM_DESTROYCLIPBOARD:
 	if (!ignore_clip)
@@ -1695,19 +1707,22 @@ static WPARAM compose_key = 0;
 
 	/* Lets see if it's a pattern we know all about ... */
 	if (wParam == VK_PRIOR && shift_state == 1) {
-	   SendMessage (hwnd, WM_VSCROLL, SB_PAGEUP, 0);
-	   return 0;
+            SendMessage (hwnd, WM_VSCROLL, SB_PAGEUP, 0);
+            return 0;
 	}
 	if (wParam == VK_NEXT && shift_state == 1) {
-	   SendMessage (hwnd, WM_VSCROLL, SB_PAGEDOWN, 0);
-	   return 0;
+            SendMessage (hwnd, WM_VSCROLL, SB_PAGEDOWN, 0);
+            return 0;
 	}
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {
-	   return -1;
+            return -1;
 	}
 	if (left_alt && wParam == VK_SPACE && cfg.alt_space) {
-	   SendMessage (hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
-	   return -1;
+            
+            SendMessage (hwnd, WM_IGNORE_KEYMENU, FALSE, 0);
+            SendMessage (hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
+            SendMessage (hwnd, WM_IGNORE_KEYMENU, TRUE, 0);
+            return -1;
 	}
 
 	/* Nethack keypad */
