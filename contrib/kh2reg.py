@@ -1,9 +1,13 @@
 #! /usr/bin/env python
 
-# $Id: kh2reg.py,v 1.1 2002/03/10 22:00:06 jacob Exp $
+# $Id: kh2reg.py,v 1.2 2003/10/14 23:23:28 jacob Exp $
 # Convert OpenSSH known_hosts and known_hosts2 files to "new format" PuTTY
-# host keys in a Windows .REG file (double-click to install).
-#   usage: hosts2reg.py known_hosts1 2 3 4 ... > hosts.reg
+# host keys.
+#   usage:
+#     kh2reg.py [ -win ] known_hosts1 2 3 4 ... > hosts.reg
+#       Creates a Windows .REG file (double-click to install).
+#     kh2reg.py -unix    known_hosts1 2 3 4 ... > sshhostkeys
+#       Creates data suitable for storing in ~/.putty/sshhostkeys (Unix).
 # Line endings are someone else's problem as is traditional.
 # Developed for Python 1.5.2.
 
@@ -13,8 +17,9 @@ import struct
 import string
 import re
 import sys
+import getopt
 
-def mungestr(s):
+def winmungestr(s):
     "Duplicate of PuTTY's mungestr() in winstore.c:1.10 for Registry keys"
     candot = 0
     r = ""
@@ -42,14 +47,25 @@ def longtohex(n):
     plain=string.lower(re.match(r"0x([0-9A-Fa-f]*)l?$", hex(n), re.I).group(1))
     return "0x" + plain
 
-# Output REG file header.
-sys.stdout.write("""REGEDIT4
+output_type = 'windows'
+
+try:
+    optlist, args = getopt.getopt(sys.argv[1:], '', [ 'win', 'unix' ])
+    if filter(lambda x: x[0] == '--unix', optlist):
+        output_type = 'unix'
+except getopt.error, e:
+    sys.stderr.write(str(e) + "\n")
+    sys.exit(1)
+
+if output_type == 'windows':
+    # Output REG file header.
+    sys.stdout.write("""REGEDIT4
 
 [HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\SshHostKeys]
 """)
 
 # Now process all known_hosts input.
-for line in fileinput.input():
+for line in fileinput.input(args):
 
     try:
         # Remove leading/trailing whitespace (should zap CR and LF)
@@ -113,14 +129,20 @@ for line in fileinput.input():
                                  % host)
                 continue
             else:
-                # Slightly bizarre registry key format: 'type@port:hostname'
+                # Slightly bizarre key format: 'type@port:hostname'
                 # As far as I know, the input never specifies a port.
                 port = 22
                 # XXX: does PuTTY do anything useful with literal IP[v4]s?
                 key = keytype + ("@%d:%s" % (port, host))
                 value = string.join (map (longtohex, magicnumbers), ',')
-                # XXX: worry about double quotes?
-                sys.stdout.write("\"%s\"=\"%s\"\n" % (mungestr(key), value))
+                if output_type == 'unix':
+                    # Unix format.
+                    sys.stdout.write('%s %s\n' % (key, value))
+                else:
+                    # Windows format.
+                    # XXX: worry about double quotes?
+                    sys.stdout.write("\"%s\"=\"%s\"\n"
+                                     % (winmungestr(key), value))
 
     except "Unknown SSH key type", k:
         sys.stderr.write("Unknown SSH key type '%s', skipping\n" % k)
