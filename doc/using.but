@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.15 2003/07/16 08:28:31 jacob Exp $
+\versionid $Id: using.but,v 1.16 2004/01/19 00:19:32 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -246,7 +246,8 @@ remote session and have them display their windows on your PC.
 
 Note that if your PC X server requires authentication to connect,
 then PuTTY cannot currently support it. If this is a problem for
-you, you should mail the authors \#{FIXME} and give details.
+you, you should mail the PuTTY authors \#{FIXME} and give details
+(see \k{feedback}).
 
 \H{using-port-forwarding} Using port forwarding in SSH
 
