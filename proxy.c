@@ -481,7 +481,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    sk_write(p->sub_socket, buf2, strlen(buf2));
 	}
 
-	sk_write(p->sub_socket, "\r\n", strlen(buf));
+	sk_write(p->sub_socket, "\r\n", 2);
 
 	p->state = 1;
 	return 0;
@@ -594,6 +594,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    {
 		bufchain_consume(&p->pending_input_data, eol);
 		datap += eol;
+		len   -= eol;
 		eol = get_line_end(datap, len);
 	    }
 
