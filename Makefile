@@ -33,6 +33,9 @@
 #      Cygnus/mingw32, whose resource compiler may have less of a
 #      problem with it.
 #
+#  - XFLAGS=/DDEBUG
+#      Causes PuTTY to enable internal debugging.
+#
 #  - XFLAGS=/DMALLOC_LOG
 #      Causes PuTTY to emit a file called putty_mem.log, logging every
 #      memory allocation and free, so you can track memory leaks.
@@ -46,14 +49,17 @@
 #
 ##--
 
-CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
+# Enable debug and incremental linking and compiling
+# CFLAGS = /nologo /W3 /YX /Yd /O1 /Gi /D_WINDOWS /DDEBUG
 # LFLAGS = /debug
 
-# Use MSVC DLL
-# CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /MD /Fd
+# Disable debug and incremental linking and compiling
+CFLAGS = /nologo /W3 /O1 /D_WINDOWS
+LFLAGS = /incremental:no /fixed
 
-# Disable debug and incremental linking
-LFLAGS = /incremental:no
+# Use MSVC DLL
+# CFLAGS = /nologo /W3 /O1 /MD /D_WINDOWS
+# LFLAGS = /incremental:no
 
 .c.obj:
 	cl $(COMPAT) $(FWHACK) $(XFLAGS) $(CFLAGS) /c $*.c
@@ -145,6 +151,9 @@ psftp.exe: $(FOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRES
 
 plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(LRESRC) plink.rsp
 	link $(LFLAGS) -out:plink.exe -map:plink.map @plink.rsp
+
+ssh.obj:
+	cl $(FWHACK) $(VER) $(CFLAGS) /Gi- /c ssh.c
 
 putty.rsp: makefile
 	echo /nologo /subsystem:windows > putty.rsp
@@ -289,9 +298,7 @@ x11fwd.$(OBJ): x11fwd.c putty.h network.h puttymem.h ssh.h
 ##--
 
 # Hack to force version.obj to be rebuilt always
-version.obj: versionpseudotarget
-	@echo (built version.obj)
-versionpseudotarget:
+version.obj: *.c *.h *.rc
 	cl $(FWHACK) $(VER) $(CFLAGS) /c version.c
 
 ##-- dependencies
@@ -319,19 +326,21 @@ puttygen.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 puttygen.rc
 
 clean: tidy
-	del *.exe
+	-del *.exe
 
 tidy:
-	del *.obj
-	del *.res
-	del *.pch
-	del *.aps
-	del *.ilk
-	del *.pdb
-	del *.rsp
-	del *.dsp
-	del *.dsw
-	del *.ncb
-	del *.opt
-	del *.plg
-	del *.map
+	-del *.obj
+	-del *.res
+	-del *.pch
+	-del *.aps
+	-del *.ilk
+	-del *.pdb
+	-del *.rsp
+	-del *.dsp
+	-del *.dsw
+	-del *.ncb
+	-del *.opt
+	-del *.plg
+	-del *.map
+	-del *.idb
+	-del debug.log
