@@ -37,10 +37,10 @@
     ((unsigned long)(unsigned char)(cp)[3]))
 
 #define PUT_32BIT(cp, value) { \
-    (cp)[0] = (value) >> 24; \
-    (cp)[1] = (value) >> 16; \
-    (cp)[2] = (value) >> 8; \
-    (cp)[3] = (value); }
+    (cp)[0] = (unsigned char)((value) >> 24); \
+    (cp)[1] = (unsigned char)((value) >> 16); \
+    (cp)[2] = (unsigned char)((value) >> 8); \
+    (cp)[3] = (unsigned char)(value); }
 
 static SOCKET s = INVALID_SOCKET;
 
