@@ -1042,7 +1042,7 @@ static void mac_activateterm(WindowPtr window, EventRecord *event)
     Boolean active = (event->modifiers & activeFlag) != 0;
 
     s = mac_windowsession(window);
-    s->term->has_focus = active;
+    term_set_focus(s->term, active);
     term_update(s->term);
     if (active)
 	ShowControl(s->scrollbar);

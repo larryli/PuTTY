@@ -664,6 +664,7 @@ void term_provide_resize_fn(Terminal *term,
 			    void (*resize_fn)(void *, int, int),
 			    void *resize_ctx);
 void term_provide_logctx(Terminal *term, void *logctx);
+void term_set_focus(Terminal *term, int has_focus);
 
 /*
  * Exports from logging.c.

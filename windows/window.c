@@ -770,7 +770,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     logpal = NULL;
     init_palette();
 
-    term->has_focus = (GetForegroundWindow() == hwnd);
+    term_set_focus(term, GetForegroundWindow() == hwnd);
     UpdateWindow(hwnd);
 
     if (GetMessage(&msg, NULL, 0, 0) == 1) {
@@ -787,7 +787,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		continue;
 
 	    /* The messages seem unreliable; especially if we're being tricky */
-	    term->has_focus = (GetForegroundWindow() == hwnd);
+	    term_set_focus(term, GetForegroundWindow() == hwnd);
 
 	    net_pending_errors();
 
@@ -2317,7 +2317,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	net_pending_errors();
 	return 0;
       case WM_SETFOCUS:
-	term->has_focus = TRUE;
+	term_set_focus(term, TRUE);
 	CreateCaret(hwnd, caretbm, font_width, font_height);
 	ShowCaret(hwnd);
 	flash_window(0);	       /* stop */
@@ -2326,7 +2326,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_KILLFOCUS:
 	show_mouseptr(1);
-	term->has_focus = FALSE;
+	term_set_focus(term, FALSE);
 	DestroyCaret();
 	caret_x = caret_y = -1;	       /* ensure caret is replaced next time */
 	term_update(term);

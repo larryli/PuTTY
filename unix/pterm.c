@@ -1218,7 +1218,7 @@ void destroy(GtkWidget *widget, gpointer data)
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    inst->term->has_focus = event->in;
+    term_set_focus(inst->term, event->in);
     term_update(inst->term);
     show_mouseptr(inst, 1);
     return FALSE;

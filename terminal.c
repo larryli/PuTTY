@@ -1043,10 +1043,9 @@ static void seen_disp_event(Terminal *term)
  */
 static void term_schedule_tblink(Terminal *term)
 {
-    if (term->tblink_pending)
-	return;			       /* already well in hand */
     if (term->blink_is_real) {
-	term->next_tblink = schedule_timer(TBLINK_DELAY, term_timer, term);
+	if (!term->tblink_pending)
+	    term->next_tblink = schedule_timer(TBLINK_DELAY, term_timer, term);
 	term->tblink_pending = TRUE;
     } else {
 	term->tblinker = 1;	       /* reset when not in use */
@@ -1059,10 +1058,9 @@ static void term_schedule_tblink(Terminal *term)
  */
 static void term_schedule_cblink(Terminal *term)
 {
-    if (term->cblink_pending)
-	return;			       /* already well in hand */
-    if (term->cfg.blink_cur) {
-	term->next_cblink = schedule_timer(CBLINK_DELAY, term_timer, term);
+    if (term->cfg.blink_cur && term->has_focus) {
+	if (!term->cblink_pending)
+	    term->next_cblink = schedule_timer(CBLINK_DELAY, term_timer, term);
 	term->cblink_pending = TRUE;
     } else {
 	term->cblinker = 1;	       /* reset when not in use */
@@ -6073,4 +6071,10 @@ int term_data(Terminal *term, int is_stderr, const char *data, int len)
 void term_provide_logctx(Terminal *term, void *logctx)
 {
     term->logctx = logctx;
+}
+
+void term_set_focus(Terminal *term, int has_focus)
+{
+    term->has_focus = has_focus;
+    term_schedule_cblink(term);
 }
