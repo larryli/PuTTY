@@ -117,6 +117,7 @@ WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
          + windefs winmisc
 UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline uxmisc
 MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
+         + macmisc
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc
@@ -158,3 +159,6 @@ PuTTY    : [M] terminal wcwidth ldiscucs logging be_all mac macdlg macevlog
 PuTTYtel : [M] terminal wcwidth ldiscucs logging be_nossh mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACMISC CHARSET
          + stricmp vsnprint
+PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
+         + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
+         + sshaes sshsh512 import macpgen.rsrc

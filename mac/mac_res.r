@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.26 2003/02/07 01:38:12 ben Exp $ */
+/* $Id: mac_res.r,v 1.27 2003/02/12 23:53:15 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -41,11 +41,7 @@
 /* Get resource IDs we share with C code */
 #include "macresid.h"
 
-/*
- * Current PuTTY version number.  Minor is in BCD
- */
-#define VERSION_MAJOR 0x00
-#define VERSION_MINOR 0x53
+#include "version.r"
 
 /*
  * Finder-related resources
@@ -812,54 +808,6 @@ resource 'ics8' (FREF_Seed) {
 	$"00FFF5F5F5FFF5FFFFF5F5FFFFFF0000"
 	$"00FFF5F5F5FFF5F5F5F5FFF5F5FF0000"
 	$"00FFFFFFFFFFFFFFFFFFFFFFFFFF"
-};
-
-resource 'vers' (1, purgeable) {
-#ifdef RELEASE
-    VERSION_MAJOR, VERSION_MINOR,
-    beta,
-#else
-    VERSION_MAJOR, VERSION_MINOR + 1,
-    development,
-#endif
-    0, /* No prerelease version */
-    verBritain,
-#ifdef RELEASESTR
-    RELEASESTR,
-    "Release " RELEASESTR,
-#else
-#ifdef SNAPSHOTSTR
-    SNAPSHOTSTR,
-    "Development snapshot " SNAPSHOTSTR,
-#else
-    "unknown",
-    "Unidentified build, " $$Date " " $$Time,
-#endif
-#endif
-};
-
-resource 'vers' (2, purgeable) {
-#ifdef RELEASE
-    VERSION_MAJOR, VERSION_MINOR,
-    beta,
-#else
-    VERSION_MAJOR, VERSION_MINOR + 1,
-    development,
-#endif
-    0, /* No prerelease version */
-    verBritain,
-#ifdef RELEASESTR
-    RELEASESTR,
-    "PuTTY " RELEASESTR,
-#else
-#ifdef SNAPSHOTSTR
-    SNAPSHOTSTR,
-    "PuTTY snapshot " SNAPSHOTSTR,
-#else
-    "unknown",
-    "PuTTY",
-#endif
-#endif
 };
 
 /*
