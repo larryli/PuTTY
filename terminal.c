@@ -398,9 +398,12 @@ static void scroll (int topline, int botline, int lines, int sb) {
 		selend = scroll_top + size + scroll_size;
 	}
     }
+#ifdef OPTIMISE_SCROLL
     scroll_display(topline, botline, lines);
+#endif
 }
 
+#ifdef OPTIMISE_SCROLL
 static void scroll_display(int topline, int botline, int lines) {
     unsigned long *start, *end;
     int distance, size, i;
@@ -420,6 +423,7 @@ static void scroll_display(int topline, int botline, int lines) {
     }
     do_scroll(topline, botline, lines);
 }
+#endif /* OPTIMISE_SCROLL */
     
 
 /*
@@ -1292,6 +1296,10 @@ void term_paint (Context ctx, int l, int t, int r, int b) {
  */
 void term_scroll (int rel, int where) {
     int n = where * (cols+1);
+#ifdef OPTIMISE_SCROLL
+    unsigned long *olddisptop = disptop;
+    int shift;
+#endif /* OPTIMISE_SCROLL */
 
     disptop = (rel < 0 ? scrtop :
 	       rel > 0 ? sbtop : disptop) + n;
@@ -1300,8 +1308,11 @@ void term_scroll (int rel, int where) {
     if (disptop > scrtop)
 	disptop = scrtop;
     update_sbar();
-    if (rel == 0 && where < rows && where > -rows)
-	scroll_display(0, rows - 1, where);
+#ifdef OPTIMISE_SCROLL
+    shift = (disptop - olddisptop) / (cols + 1);
+    if (shift < rows && shift > -rows)
+	scroll_display(0, rows - 1, shift);
+#endif /* OPTIMISE_SCROLL */
     term_update();
 }
 

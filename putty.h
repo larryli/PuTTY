@@ -4,6 +4,10 @@
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 
 #ifdef macintosh
+#define OPTIMISE_SCROLL
+#endif
+
+#ifdef macintosh
 #include <MacTypes.h>
 #include <Palettes.h>
 typedef UInt32 DWORD;
