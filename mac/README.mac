@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.23 2003/01/28 11:57:08 ben Exp $
+$Id: README.mac,v 1.24 2003/02/02 16:02:50 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -31,7 +31,7 @@ Compiling it:
  build called "PuTTY.ppc", and similar builds of PuTTYtel called
  "PuTTYtel.68k" and "PuTTYtel.ppc".  The CFM-68K build is currently
  disabled because it overflows the global data space and I can't work
- out how to stop this happening.
+ out how to stop this happening.  The Carbon build doesn't work yet.
 
 Runtime requirements:
 
@@ -44,6 +44,10 @@ Runtime requirements:
 
  The PowerPC build of PuTTY should work on any Power Macintosh.  It
  runs in the Classic environment in Mac OS X.
+
+ The Carbon build of PuTTY (when it works) should work on any Power
+ Macintosh with CarbonLib (and Mac OS 8.1 or later), Mac OS 9 or
+ Mac OS X installed.
 
 Known bugs:
  * Display is far too slow.
@@ -68,9 +72,7 @@ Unimplemented features (should be done before release):
  * Clipping host resize requests to screen size.
  * Changing font size in reponse to resize requests.
  * Full screen mode.
- * Catching up with current keyboard mapping in other ports.
  * Session configuration.
- * Filename abstraction (we want to use alias records).
  * Host key database.
  * Entropy collection.
  * Private key files.
