@@ -387,7 +387,7 @@ int main(int argc, char **argv) {
                             /* No settings for this host; use defaults */
                             strncpy(cfg.host, p, sizeof(cfg.host)-1);
                             cfg.host[sizeof(cfg.host)-1] = '\0';
-                            cfg.port = 22;
+                            cfg.port = default_port;
                         } else
                             cfg = cfg2;
                     } else {
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
                         cfg.username[sizeof(cfg.username)-1] = '\0';
                         strncpy(cfg.host, r, sizeof(cfg.host)-1);
                         cfg.host[sizeof(cfg.host)-1] = '\0';
-                        cfg.port = 22;
+                        cfg.port = default_port;
                     }
                 }
             } else {
