@@ -1005,7 +1005,7 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 
 	if (p->state == 4) {
 	    /* TODO: Handle GSSAPI authentication */
-	    plug_closing(p->plug, "Network error: We don't support GSSAPI authentication",
+	    plug_closing(p->plug, "Proxy error: We don't support GSSAPI authentication",
 			 PROXY_ERROR_GENERAL, 0);
 	    return 1;
 	}
@@ -1026,7 +1026,7 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 		sk_write(p->sub_socket, userpwbuf, ulen + plen + 3);
 		p->state = 7;
 	    } else 
-		plug_closing(p->plug, "Network error: Server chose "
+		plug_closing(p->plug, "Proxy error: Server chose "
 			     "username/password authentication but we "
 			     "didn't offer it!",
 			 PROXY_ERROR_GENERAL, 0);
@@ -1035,14 +1035,14 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 
 	if (p->state == 6) {
 	    /* TODO: Handle CHAP authentication */
-	    plug_closing(p->plug, "Network error: We don't support CHAP authentication",
+	    plug_closing(p->plug, "Proxy error: We don't support CHAP authentication",
 			 PROXY_ERROR_GENERAL, 0);
 	    return 1;
 	}
 
     }
 
-    plug_closing(p->plug, "Network error: Unexpected proxy error",
+    plug_closing(p->plug, "Proxy error: Unexpected proxy error",
 		 PROXY_ERROR_UNEXPECTED, 0);
     return 1;
 }
@@ -1256,7 +1256,7 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 	return 1;
     }
 
-    plug_closing(p->plug, "Network error: Unexpected proxy error",
+    plug_closing(p->plug, "Proxy error: Unexpected proxy error",
 		 PROXY_ERROR_UNEXPECTED, 0);
     return 1;
 }
