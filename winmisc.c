@@ -47,6 +47,7 @@ int SaneDialogBox(HINSTANCE hinst,
     MSG msg;
     int flags;
     int ret;
+    int gm;
 
     wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
     wc.lpfnWndProc = DefDlgProc;
@@ -65,13 +66,16 @@ int SaneDialogBox(HINSTANCE hinst,
     SetWindowLong(hwnd, BOXFLAGS, 0); /* flags */
     SetWindowLong(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
 
-    while (GetMessage(&msg, NULL, 0, 0)) {
+    while ((gm=GetMessage(&msg, NULL, 0, 0)) > 0) {
 	flags=GetWindowLong(hwnd, BOXFLAGS);
 	if (!(flags & DF_END) && !IsDialogMessage(hwnd, &msg))
 	    DispatchMessage(&msg);
 	if (flags & DF_END)
 	    break;
     }
+
+    if (gm == 0)
+        PostQuitMessage(msg.wParam); /* We got a WM_QUIT, pass it on */
 
     ret=GetWindowLong(hwnd, BOXRESULT);
     DestroyWindow(hwnd);
