@@ -137,6 +137,12 @@ struct ssh_hostkey {
 
 struct ssh_compress {
     char *name;
+    void (*compress_init)(void);
+    int (*compress)(unsigned char *block, int len,
+		    unsigned char **outblock, int *outlen);
+    void (*decompress_init)(void);
+    int (*decompress)(unsigned char *block, int len,
+		      unsigned char **outblock, int *outlen);
 };
 
 #ifndef MSCRYPTOAPI
@@ -197,3 +203,13 @@ int rsa_generate(struct RSAKey *key, struct RSAAux *aux, int bits,
                  progfn_t pfn, void *pfnparam);
 Bignum primegen(int bits, int modulus, int residue,
                 int phase, progfn_t pfn, void *pfnparam);
+
+/*
+ * zlib compression.
+ */
+void zlib_compress_init(void);
+void zlib_decompress_init(void);
+int zlib_compress_block(unsigned char *block, int len,
+			unsigned char **outblock, int *outlen);
+int zlib_decompress_block(unsigned char *block, int len,
+			  unsigned char **outblock, int *outlen);

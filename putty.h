@@ -140,6 +140,7 @@ typedef struct {
     /* SSH options */
     char remote_cmd[512];
     int nopty;
+    int compression;
     int agentfwd;
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
     char keyfile[FILENAME_MAX];

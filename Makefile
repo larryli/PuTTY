@@ -69,7 +69,7 @@ MOBJ2 = tree234.$(OBJ)
 ##-- objects putty pscp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
-OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ)
+OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ)
@@ -229,6 +229,7 @@ sshdh.$(OBJ): sshdh.c ssh.h
 sshdss.$(OBJ): sshdss.c ssh.h
 sshbn.$(OBJ): sshbn.c ssh.h
 sshpubk.$(OBJ): sshpubk.c ssh.h
+sshzlib.$(OBJ): sshzlib.c ssh.h
 scp.$(OBJ): scp.c putty.h network.h winstuff.h
 version.$(OBJ): version.c
 be_all.$(OBJ): be_all.c

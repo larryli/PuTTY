@@ -326,6 +326,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_AGENTFWD,
     IDC_CMDSTATIC,
     IDC_CMDEDIT,
+    IDC_COMPRESS,
     sshpanelend,
 
     selectionpanelstart,
@@ -486,6 +487,7 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
     SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
     CheckDlgButton (hwnd, IDC_NOPTY, cfg.nopty);
+    CheckDlgButton (hwnd, IDC_COMPRESS, cfg.compression);
     CheckDlgButton (hwnd, IDC_BUGGYMAC, cfg.buggymac);
     CheckDlgButton (hwnd, IDC_AGENTFWD, cfg.agentfwd);
     CheckRadioButton (hwnd, IDC_CIPHER3DES, IDC_CIPHERDES,
@@ -631,7 +633,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    SendMessage(tvstatic, WM_SETFONT, font, MAKELPARAM(TRUE, 0));
 
             r.left = 3; r.right = r.left + 75;
-            r.top = 13; r.bottom = r.top + 196;
+            r.top = 13; r.bottom = r.top + 206;
             MapDialogRect(hwnd, &r);
             treeview = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREEVIEW, "",
                                       WS_CHILD | WS_VISIBLE |
@@ -972,6 +974,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                 beginbox(&cp, "Protocol options",
                          IDC_BOX_SSH3, IDC_BOXT_SSH3);
 		checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
+		checkbox(&cp, "Enable compr&ession", IDC_COMPRESS);
 		radioline(&cp, "Preferred SSH protocol version:",
 			  IDC_SSHPROTSTATIC, 2,
 			  "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
@@ -1496,6 +1499,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.nopty = IsDlgButtonChecked (hwnd, IDC_NOPTY);
+	    break;
+	  case IDC_COMPRESS:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.compression = IsDlgButtonChecked (hwnd, IDC_COMPRESS);
 	    break;
 	  case IDC_BUGGYMAC:
 	    if (HIWORD(wParam) == BN_CLICKED ||
