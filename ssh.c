@@ -2305,7 +2305,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    tried_publickey = 1;
 	    i = loadrsakey(cfg.keyfile, &pubkey, password);
 	    if (i == 0) {
-		c_write_str("Couldn't load public key from ");
+		c_write_str("Couldn't load private key from ");
 		c_write_str(cfg.keyfile);
 		c_write_str(".\r\n");
 		continue;	       /* go and try password */
