@@ -108,6 +108,16 @@ void random_save_seed(void) {
 }
 
 /*
+ * This function is called from `putty -cleanup'. It removes the
+ * random seed file.
+ */
+void random_destroy_seed(void) {
+    if (!seedpath[0])
+	get_seedpath();
+    remove(seedpath);
+}
+
+/*
  * This function is called every time the random pool needs
  * stirring, and will acquire the system time in all available
  * forms and the battery status.

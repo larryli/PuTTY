@@ -2,6 +2,10 @@
 #define PUTTY_PUTTY_H
 
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
+#define PUTTY_REG_PARENT "Software\\SimonTatham"
+#define PUTTY_REG_PARENT_CHILD "PuTTY"
+#define PUTTY_REG_GPARENT "Software"
+#define PUTTY_REG_GPARENT_CHILD "SimonTatham"
 
 /*
  * Global variables. Most modules declare these `extern', but
@@ -254,6 +258,7 @@ void noise_get_heavy(void (*func) (void *, int));
 void noise_get_light(void (*func) (void *, int));
 void noise_ultralight(DWORD data);
 void random_save_seed(void);
+void random_destroy_seed(void);
 
 /*
  * Exports from windlg.c.
@@ -266,6 +271,7 @@ void showeventlog (HWND);
 void showabout (HWND);
 void verify_ssh_host_key(char *host, char *keystr);
 void get_sesslist(int allocate);
+void registry_cleanup(void);
 
 GLOBAL int nsessions;
 GLOBAL char **sessions;

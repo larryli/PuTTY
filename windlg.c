@@ -1708,3 +1708,64 @@ void verify_ssh_host_key(char *host, char *keystr) {
 	RegCloseKey(rkey);
     }
 }
+
+/*
+ * Recursively delete a registry key and everything under it.
+ */
+static void registry_recursive_remove(HKEY key) {
+    DWORD i;
+    char name[MAX_PATH+1];
+    HKEY subkey;
+
+    i = 0;
+    while (RegEnumKey(key, i, name, sizeof(name)) == ERROR_SUCCESS) {
+        if (RegOpenKey(key, name, &subkey) == ERROR_SUCCESS) {
+            registry_recursive_remove(subkey);
+            RegCloseKey(subkey);
+        }
+        RegDeleteKey(key, name);
+    }
+}
+
+/*
+ * Destroy all registry information associated with PuTTY.
+ */
+void registry_cleanup(void) {
+    HKEY key;
+    int ret;
+    char name[MAX_PATH+1];
+
+    /*
+     * Open the main PuTTY registry key and remove everything in it.
+     */
+    if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_POS, &key) == ERROR_SUCCESS) {
+        registry_recursive_remove(key);
+        RegCloseKey(key);
+    }
+    /*
+     * Now open the parent key and remove the PuTTY main key. Once
+     * we've done that, see if the parent key has any other
+     * children.
+     */
+    if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_PARENT,
+                   &key) == ERROR_SUCCESS) {
+        RegDeleteKey(key, PUTTY_REG_PARENT_CHILD);
+        ret = RegEnumKey(key, 0, name, sizeof(name));
+        RegCloseKey(key);
+        /*
+         * If the parent key had no other children, we must delete
+         * it in its turn. That means opening the _grandparent_
+         * key.
+         */
+        if (ret != ERROR_SUCCESS) {
+            if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_GPARENT,
+                           &key) == ERROR_SUCCESS) {
+                RegDeleteKey(key, PUTTY_REG_GPARENT_CHILD);
+                RegCloseKey(key);
+            }
+        }
+    }
+    /*
+     * Now we're done.
+     */
+}

@@ -153,6 +153,33 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		tolower(p[1]) == 'o' &&
 		tolower(p[2]) == 'g') {
                 logfile = "putty.log";
+	    } else if (q == p + 7 &&
+		tolower(p[0]) == 'c' &&
+		tolower(p[1]) == 'l' &&
+		tolower(p[2]) == 'e' &&
+		tolower(p[3]) == 'a' &&
+		tolower(p[4]) == 'n' &&
+		tolower(p[5]) == 'u' &&
+		tolower(p[6]) == 'p') {
+                /*
+                 * `putty -cleanup'. Remove all registry entries
+                 * associated with PuTTY, and also find and delete
+                 * the random seed file.
+                 */
+                if (MessageBox(NULL,
+                               "This procedure will remove ALL Registry\n"
+                               "entries associated with PuTTY, and will\n"
+                               "also remove the PuTTY random seed file.\n"
+                               "\n"
+                               "THIS PROCESS WILL DESTROY YOUR SAVED\n"
+                               "SESSIONS. Are you really sure you want\n"
+                               "to continue?",
+                               "PuTTY Warning",
+                               MB_YESNO | MB_ICONWARNING) == IDYES) {
+                    random_destroy_seed();
+                    registry_cleanup();
+                }
+                exit(0);
 	    }
 	    p = q + strspn(q, " \t");
 	}
