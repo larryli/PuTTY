@@ -616,6 +616,12 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
     switch (message) {
       case WM_CREATE:
 	break;
+      case WM_CLOSE:
+	if (MessageBox(hwnd, "Are you sure you want to close this session?",
+		       "PuTTY Exit Confirmation",
+		       MB_ICONWARNING | MB_OKCANCEL) == IDOK)
+	    DestroyWindow(hwnd);
+	return 0;
       case WM_DESTROY:
 	PostQuitMessage (0);
 	return 0;
@@ -1248,7 +1254,7 @@ static int TranslateKey(WPARAM wParam, LPARAM lParam, unsigned char *output) {
 	return 0;
     }
     if ((lParam & 0x20000000) && wParam == VK_F4) {
-	SendMessage (hwnd, WM_DESTROY, 0, 0);
+	SendMessage (hwnd, WM_CLOSE, 0, 0);
 	return 0;
     }
 
