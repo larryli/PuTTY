@@ -858,9 +858,68 @@ void set_raw_mouse_mode(int activate)
 
 void request_resize(int w, int h)
 {
-    gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
-			  inst->font_width * w + 2*cfg.window_border,
-			  inst->font_height * h + 2*cfg.window_border);
+    int large_x, large_y;
+    int offset_x, offset_y;
+    int area_x, area_y;
+    GtkRequisition inner, outer;
+
+    /*
+     * This is a heinous hack dreamed up by the gnome-terminal
+     * people to get around a limitation in gtk. The problem is
+     * that in order to set the size correctly we really need to be
+     * calling gtk_window_resize - but that needs to know the size
+     * of the _whole window_, not the drawing area. So what we do
+     * is to set an artificially huge size request on the drawing
+     * area, recompute the resulting size request on the window,
+     * and look at the difference between the two. That gives us
+     * the x and y offsets we need to translate drawing area size
+     * into window size for real, and then we call
+     * gtk_window_resize.
+     */
+
+    /*
+     * We start by retrieving the current size of the whole window.
+     * Adding a bit to _that_ will give us a value we can use as a
+     * bogus size request which guarantees to be bigger than the
+     * current size of the drawing area.
+     */
+    get_window_pixels(&large_x, &large_y);
+    large_x += 32;
+    large_y += 32;
+
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_widget_set_size_request(inst->area, large_x, large_y);
+#else
+    gtk_widget_set_usize(inst->area, large_x, large_y);
+#endif
+    gtk_widget_size_request(inst->area, &inner);
+    gtk_widget_size_request(inst->window, &outer);
+
+    offset_x = outer.width - inner.width;
+    offset_y = outer.height - inner.height;
+
+    area_x = inst->font_width * w + 2*cfg.window_border;
+    area_y = inst->font_height * h + 2*cfg.window_border;
+
+    /*
+     * Now we must set the size request on the drawing area back to
+     * something sensible before we commit the real resize. Best
+     * way to do this, I think, is to set it to what the size is
+     * really going to end up being.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_widget_set_size_request(inst->area, area_x, area_y);
+#else
+    gtk_widget_set_usize(inst->area, area_x, area_y);
+#endif
+
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_resize(GTK_WINDOW(inst->window),
+		      area_x + offset_x, area_y + offset_y);
+#else
+    gdk_window_resize(inst->window->window,
+		      area_x + offset_x, area_y + offset_y);
+#endif
 }
 
 void real_palette_set(int n, int r, int g, int b)
@@ -1434,8 +1493,6 @@ int main(int argc, char **argv)
     gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
     if (cfg.scrollbar)
 	gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
-
-    gtk_window_set_policy(GTK_WINDOW(inst->window), FALSE, TRUE, TRUE);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
