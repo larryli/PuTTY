@@ -57,6 +57,11 @@
 #define VK_PROCESSKEY 0xE5
 #endif
 
+/* Needed for mouse wheel support and not defined in earlier SDKs. */
+#ifndef WM_MOUSEWHEEL
+#define WM_MOUSEWHEEL 0x020A
+#endif
+
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			unsigned char *output);
