@@ -202,10 +202,12 @@ static int ssh_comp_none_block(unsigned char *block, int len,
 			       unsigned char **outblock, int *outlen) {
     return 0;
 }
+static int ssh_comp_none_disable(void) { return 0; }
 const static struct ssh_compress ssh_comp_none = {
     "none",
     ssh_comp_none_init, ssh_comp_none_block,
-    ssh_comp_none_init, ssh_comp_none_block
+    ssh_comp_none_init, ssh_comp_none_block,
+    ssh_comp_none_disable
 };
 extern const struct ssh_compress ssh_zlib;
 const static struct ssh_compress *compressions[] = {
