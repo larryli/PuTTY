@@ -3951,9 +3951,7 @@ int askappend(void *frontend, char *filename)
 	"or Cancel to disable logging.";
     char message[sizeof(msgtemplate) + FILENAME_MAX];
     int mbret;
-    if (cfg.logxfovr != LGXF_ASK) {
-	return ((cfg.logxfovr == LGXF_OVR) ? 2 : 1);
-    }
+
     sprintf(message, msgtemplate, FILENAME_MAX, filename);
 
     mbret = MessageBox(NULL, message, mbtitle,

@@ -204,9 +204,6 @@ int askappend(void *frontend, char *filename)
 
     char line[32];
 
-    if (cfg.logxfovr != LGXF_ASK) {
-	return ((cfg.logxfovr == LGXF_OVR) ? 2 : 1);
-    }
     if (console_batch_mode) {
 	fprintf(stderr, msgtemplate_batch, FILENAME_MAX, filename);
 	fflush(stderr);

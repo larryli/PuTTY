@@ -26,12 +26,10 @@ void cleanup_exit(int code)
     sk_cleanup();
     WSACleanup();
 
-    if (cfg.protocol == PROT_SSH) {
-	random_save_seed();
+    random_save_seed();
 #ifdef MSCRYPTOAPI
-	crypto_wrapup();
+    crypto_wrapup();
 #endif
-    }
 
     exit(code);
 }
@@ -212,9 +210,6 @@ int askappend(void *frontend, char *filename)
 
     char line[32];
 
-    if (cfg.logxfovr != LGXF_ASK) {
-	return ((cfg.logxfovr == LGXF_OVR) ? 2 : 1);
-    }
     if (console_batch_mode) {
 	fprintf(stderr, msgtemplate_batch, FILENAME_MAX, filename);
 	fflush(stderr);

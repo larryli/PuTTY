@@ -118,7 +118,10 @@ void logfopen(void *handle)
     if (ctx->lgfp) {
 	int i;
 	fclose(ctx->lgfp);
-	i = askappend(ctx->frontend, ctx->currlogfilename);
+	if (cfg.logxfovr != LGXF_ASK) {
+	    i = ((cfg.logxfovr == LGXF_OVR) ? 2 : 1);
+	} else
+	    i = askappend(ctx->frontend, ctx->currlogfilename);
 	if (i == 1)
 	    writemod[0] = 'a';	       /* set append mode */
 	else if (i == 0) {	       /* cancelled */
