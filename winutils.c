@@ -11,6 +11,8 @@
 #ifdef TESTMODE
 /* Definitions to allow this module to be compiled standalone for testing. */
 #define smalloc malloc
+#define srealloc realloc
+#define sfree free
 #endif
 
 /*
@@ -129,6 +131,18 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      *    but three quotes would open and close a segment and then
      *    produce a literal quote.
      */
+
+    /*
+     * First deal with the simplest of all special cases: if there
+     * aren't any arguments, return 0,NULL,NULL.
+     */
+    while (*cmdline && isspace(*cmdline)) cmdline++;
+    if (!*cmdline) {
+	if (argc) *argc = 0;
+	if (argv) *argv = NULL;
+	if (argstart) *argstart = NULL;
+	return;
+    }
 
     /*
      * This will guaranteeably be big enough; we can realloc it
