@@ -598,6 +598,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
     CHOOSEFONT cf;
     LOGFONT lf;
     char fontstatic[256];
+    char portname[32];
+    struct servent * service;
     int i;
 
     switch (msg) {
@@ -1105,8 +1107,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 				sizeof(cfg.host)-1);
 	    break;
 	  case IDC_PORT:
-	    if (HIWORD(wParam) == EN_CHANGE)
-		MyGetDlgItemInt (hwnd, IDC_PORT, &cfg.port);
+	    if (HIWORD(wParam) == EN_CHANGE) {
+		GetDlgItemText (hwnd, IDC_PORT, portname, 31);
+		if (isdigit(portname[0]))
+		    MyGetDlgItemInt (hwnd, IDC_PORT, &cfg.port);
+		else {
+		    service = getservbyname(portname, NULL);
+		    if (service) cfg.port = ntohs(service->s_port);
+		    else cfg.port = 0;
+		}
+	    }
 	    break;
 	  case IDC_SESSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE) {

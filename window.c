@@ -314,6 +314,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         }
     }
 
+    /* Check for invalid Port number (i.e. zero) */
+    if (cfg.port == 0) {
+        MessageBox(NULL, "Invalid Port Number",
+		   "PuTTY Internal Error", MB_OK |MB_ICONEXCLAMATION);
+        WSACleanup();
+        return 1;
+    }
+
     real_ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
     /* To start with, we use the simple line discipline, so we can
      * type passwords etc without fear of them being echoed... */
