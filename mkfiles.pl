@@ -152,9 +152,11 @@ foreach $i (@prognames) {
 # added back on to @scanlist to be scanned in turn (if not already
 # done).
 #
-# Resource scripts (.rc) can also include a file by means of a line
-# ending `ICON "filename"'. Files included by this method are not
-# added to @scanlist because they can never include further files.
+# Resource scripts (.rc) can also include a file by means of:
+#  - a line # ending `ICON "filename"';
+#  - a line ending `RT_MANIFEST "filename"'.
+# Files included by this method are not added to @scanlist because
+# they can never include further files.
 #
 # In this pass we write out a hash %further which maps a source
 # file name into a listref containing further source file names.
@@ -174,8 +176,8 @@ while (scalar @scanlist > 0) {
       push @scanlist, $1;
       next;
     };
-    /ICON\s+\"([^\"]+)\"\s*$/ and do {
-      push @{$further{$file}}, $1;
+    /(RT_MANIFEST|ICON)\s+\"([^\"]+)\"\s*$/ and do {
+      push @{$further{$file}}, $2;
       next;
     }
   }
