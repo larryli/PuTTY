@@ -152,6 +152,8 @@ static void dlg_init(struct dlgparam *dp)
     dp->coloursel_result.ok = FALSE;
     dp->treeitems = NULL;
     dp->window = dp->cancelbutton = dp->currtreeitem = NULL;
+    dp->flags = 0;
+    dp->currfocus = NULL;
 }
 
 static void dlg_cleanup(struct dlgparam *dp)
