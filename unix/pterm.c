@@ -29,7 +29,7 @@ struct gui_data {
     GtkAdjustment *sbar_adjust;
     GdkPixmap *pixmap;
     GdkFont *fonts[2];                 /* normal and bold (for now!) */
-    GdkCursor *rawcursor, *textcursor;
+    GdkCursor *rawcursor, *textcursor, *blankcursor, *currcursor;
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
     wchar_t *pastein_data;
@@ -68,7 +68,9 @@ int askappend(char *filename)
 void logevent(char *string)
 {
     /*
-     * FIXME: event log entries are currently ignored.
+     * This is not a very helpful function: events are logged
+     * pretty much exclusively by the back end, and our pty back
+     * end is self-contained. So we need do nothing.
      */
 }
 
@@ -170,9 +172,20 @@ char *get_window_title(int icon)
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
     /*
-     * FIXME: warn on close?
+     * We could implement warn-on-close here if we really wanted
+     * to.
      */
     return FALSE;
+}
+
+void show_mouseptr(int show)
+{
+    if (!cfg.hide_mouseptr)
+	show = 1;
+    if (show)
+	gdk_window_set_cursor(inst->area->window, inst->currcursor);
+    else
+	gdk_window_set_cursor(inst->area->window, inst->blankcursor);
 }
 
 gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
@@ -638,8 +651,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    printf("\n");
 	}
 #endif
-	ldisc_send(output+start, end-start, 1);
-	term_out();
+	if (end-start > 0) {
+	    ldisc_send(output+start, end-start, 1);
+	    show_mouseptr(0);
+	    term_out();
+	}
     }
 
     return TRUE;
@@ -649,6 +665,8 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button, act;
+
+    show_mouseptr(1);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
@@ -686,6 +704,8 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button;
+
+    show_mouseptr(1);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
@@ -764,6 +784,7 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
     has_focus = event->in;
     term_out();
     term_update();
+    show_mouseptr(1);
     return FALSE;
 }
 
@@ -775,9 +796,10 @@ void set_raw_mouse_mode(int activate)
     activate = activate && !cfg.no_mouse_rep;
     send_raw_mouse = activate;
     if (send_raw_mouse)
-	gdk_window_set_cursor(inst->area->window, inst->rawcursor);
+	inst->currcursor = inst->rawcursor;
     else
-	gdk_window_set_cursor(inst->area->window, inst->textcursor);
+	inst->currcursor = inst->textcursor;
+    show_mouseptr(1);
 }
 
 void request_resize(int w, int h)
@@ -949,10 +971,9 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
     /*
      * NYI:
-     *  - ATTR_WIDE (is this for Unicode CJK? I hope so)
+     *  - Unicode, code pages, and ATTR_WIDE for CJK support.
      *  - LATTR_* (ESC # 4 double-width and double-height stuff)
      *  - cursor shapes other than block
-     *  - VT100 line drawing stuff; code pages in general!
      *  - shadow bolding
      */
 
@@ -1056,12 +1077,12 @@ GdkCursor *make_mouse_ptr(int cursor_val)
     gchar text[2];
     gint lb, rb, wid, asc, desc, w, h, x, y;
 
-    if (cursor_val < 0) {
+    if (cursor_val == -2) {
 	gdk_font_unref(cursor_font);
 	return NULL;
     }
 
-    if (!cursor_font)
+    if (cursor_val >= 0 && !cursor_font)
 	cursor_font = gdk_font_load("cursor");
 
     /*
@@ -1069,10 +1090,15 @@ GdkCursor *make_mouse_ptr(int cursor_val)
      * mask character for this, because it's typically slightly
      * bigger than the main character.
      */
-    text[1] = '\0';
-    text[0] = (char)cursor_val + 1;
-    gdk_string_extents(cursor_font, text, &lb, &rb, &wid, &asc, &desc);
-    w = rb-lb; h = asc+desc; x = -lb; y = asc;
+    if (cursor_val >= 0) {
+	text[1] = '\0';
+	text[0] = (char)cursor_val + 1;
+	gdk_string_extents(cursor_font, text, &lb, &rb, &wid, &asc, &desc);
+	w = rb-lb; h = asc+desc; x = -lb; y = asc;
+    } else {
+	w = h = 1;
+	x = y = 0;
+    }
 
     source = gdk_pixmap_new(NULL, w, h, 1);
     mask = gdk_pixmap_new(NULL, w, h, 1);
@@ -1080,25 +1106,29 @@ GdkCursor *make_mouse_ptr(int cursor_val)
     /*
      * Draw the mask character on the mask pixmap.
      */
-    text[1] = '\0';
-    text[0] = (char)cursor_val + 1;
     gc = gdk_gc_new(mask);
     gdk_gc_set_foreground(gc, &dbg);
     gdk_draw_rectangle(mask, gc, 1, 0, 0, w, h);
-    gdk_gc_set_foreground(gc, &dfg);
-    gdk_draw_text(mask, cursor_font, gc, x, y, text, 1);
+    if (cursor_val >= 0) {
+	text[1] = '\0';
+	text[0] = (char)cursor_val + 1;
+	gdk_gc_set_foreground(gc, &dfg);
+	gdk_draw_text(mask, cursor_font, gc, x, y, text, 1);
+    }
     gdk_gc_unref(gc);
 
     /*
      * Draw the main character on the source pixmap.
      */
-    text[1] = '\0';
-    text[0] = (char)cursor_val;
     gc = gdk_gc_new(source);
     gdk_gc_set_foreground(gc, &dbg);
     gdk_draw_rectangle(source, gc, 1, 0, 0, w, h);
-    gdk_gc_set_foreground(gc, &dfg);
-    gdk_draw_text(source, cursor_font, gc, x, y, text, 1);
+    if (cursor_val >= 0) {
+	text[1] = '\0';
+	text[0] = (char)cursor_val;
+	gdk_gc_set_foreground(gc, &dfg);
+	gdk_draw_text(source, cursor_font, gc, x, y, text, 1);
+    }
     gdk_gc_unref(gc);
 
     /*
@@ -1163,6 +1193,9 @@ int main(int argc, char **argv)
 		cfg.wintitle[sizeof(cfg.wintitle)-1] = '\0';
 	    } else
 		err = 1, fprintf(stderr, "pterm: -T expects an argument\n");
+	}
+	if (!strcmp(p, "-hide")) {
+	    cfg.hide_mouseptr = 1;
 	}
     }
 
@@ -1245,7 +1278,7 @@ int main(int argc, char **argv)
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			  GDK_BUTTON_MOTION_MASK);
+			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK);
 
     gtk_widget_show(inst->area);
     gtk_widget_show(inst->sbar);
@@ -1254,8 +1287,10 @@ int main(int argc, char **argv)
 
     inst->textcursor = make_mouse_ptr(GDK_XTERM);
     inst->rawcursor = make_mouse_ptr(GDK_LEFT_PTR);
-    make_mouse_ptr(-1);		       /* clean up cursor font */
-    gdk_window_set_cursor(inst->area->window, inst->textcursor);
+    inst->blankcursor = make_mouse_ptr(-1);
+    make_mouse_ptr(-2);		       /* clean up cursor font */
+    inst->currcursor = inst->textcursor;
+    show_mouseptr(1);
 
     term_init();
     term_size(24, 80, 2000);
