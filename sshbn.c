@@ -406,7 +406,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
  * We optionally write out a quotient if `quotient' is non-NULL.
  * We can avoid writing out the result if `result' is NULL.
  */
-void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
+static void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
 {
     unsigned short *n, *m;
     int mshift;
@@ -797,6 +797,7 @@ unsigned short bignum_mod_short(Bignum number, unsigned short modulus)
     return (unsigned short) r;
 }
 
+#if 0
 void diagbn(char *prefix, Bignum md)
 {
 #ifdef DEBUG
@@ -819,6 +820,7 @@ void diagbn(char *prefix, Bignum md)
 	debug(("\n"));
 #endif
 }
+#endif
 
 /*
  * Simple division.
