@@ -1253,7 +1253,7 @@ static void construct_packet(Ssh ssh, int pkttype, va_list ap1, va_list ap2)
 	    pktlen += 4;
 	    break;
 	  case PKT_CHAR:
-	    (void) va_arg(ap1, char);
+	    (void) va_arg(ap1, int);
 	    pktlen++;
 	    break;
 	  case PKT_DATA:
@@ -1286,7 +1286,7 @@ static void construct_packet(Ssh ssh, int pkttype, va_list ap1, va_list ap2)
 	    p += 4;
 	    break;
 	  case PKT_CHAR:
-	    argchar = va_arg(ap2, unsigned char);
+	    argchar = (unsigned char) va_arg(ap2, int);
 	    *p = argchar;
 	    p++;
 	    break;
