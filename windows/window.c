@@ -108,6 +108,7 @@ static void *backhandle;
 
 static struct unicode_data ucsdata;
 static int session_closed;
+static int reconfiguring;
 
 static const struct telnet_special *specials;
 static int n_specials;
@@ -1978,6 +1979,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		Config prev_cfg;
 		int init_lvl = 1;
 
+		if (reconfiguring)
+		  break;
+		else
+		  reconfiguring = TRUE;
+
 		GetWindowText(hwnd, cfg.wintitle, sizeof(cfg.wintitle));
 		prev_cfg = cfg;
 
@@ -2114,6 +2120,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		InvalidateRect(hwnd, NULL, TRUE);
 		reset_window(init_lvl);
 		net_pending_errors();
+		reconfiguring = FALSE;
 	    }
 	    break;
 	  case IDM_COPYALL:
