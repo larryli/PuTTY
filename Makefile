@@ -21,6 +21,15 @@
 #  - COMPAT=/DWIN32S_COMPAT
 #      Generates a binary that works (minimally) with Win32s.
 #
+#  - COMPAT=/DAUTO_WINSOCK
+#      Causes PuTTY to assume that <windows.h> includes its own WinSock
+#      header file, so that it won't try to include <winsock.h>.
+#
+#  - COMPAT=/DWINSOCK_TWO
+#      Causes the PuTTY utilities to include <winsock2.h> instead of
+#      <winsock.h>, except Plink which _needs_ WinSock 2 so it already
+#      does this.
+#
 #  - RCFL=/DASCIICTLS
 #      Uses ASCII rather than Unicode to specify the tab control in
 #      the resource file. Probably most useful when compiling with

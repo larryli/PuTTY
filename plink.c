@@ -2,7 +2,9 @@
  * PLink - a command-line (stdin/stdout) variant of PuTTY.
  */
 
+#ifndef AUTO_WINSOCK
 #include <winsock2.h>
+#endif
 #include <windows.h>
 #include <stdio.h>
 #include <stdarg.h>
