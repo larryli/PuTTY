@@ -11,20 +11,23 @@ case "$1" in
     case "$1" in *[!-0-9]*) echo "Malformed snapshot ID '$1'" >&2;exit 1;;esac
     arcsuffix="-`cat LATEST.VER`-$1"
     ver="-DSNAPSHOT=$1"
+    docver=
     ;;
   '')
     arcsuffix=
     ver=
+    docver=
     ;;
   *)
     case "$1" in *[!.0-9a-z]*) echo "Malformed release ID '$1'">&2;exit 1;;esac
     arcsuffix="-$1"
     ver="-DRELEASE=$1"
+    docver="VERSION=\"PuTTY release $1\""
     ;;
 esac
 
 perl mkfiles.pl
-(cd doc && make -s)
+(cd doc && make -s ${docver:+"$docver"})
 
 relver=`cat LATEST.VER`
 arcname="putty$arcsuffix"
