@@ -37,7 +37,7 @@ struct MD5Context {
     unsigned long hHash;
 #else
     MD5_Core_State core;
-    unsigned char block[BLKSIZE];
+    unsigned char block[64];
     int blkused;
     uint32 lenhi, lenlo;
 #endif

@@ -19,10 +19,6 @@
 #define subround(f,w,x,y,z,k,s,ti) \
        w = x + rol(w + f(x,y,z) + block[k] + ti, s)
 
-typedef struct {
-    uint32 h[4];
-} MD5_Core_State;
-
 void MD5_Core_Init(MD5_Core_State *s) {
     s->h[0] = 0x67452301;
     s->h[1] = 0xefcdab89;
@@ -162,7 +158,7 @@ void MD5Update(struct MD5Context *s, unsigned char const *p,
 
 void MD5Final(unsigned char output[16], struct MD5Context *s) {
     int i;
-    int pad;
+    unsigned pad;
     unsigned char c[64];
     uint32 lenhi, lenlo;
 
@@ -176,7 +172,7 @@ void MD5Final(unsigned char output[16], struct MD5Context *s) {
 
     memset(c, 0, pad);
     c[0] = 0x80;
-    MD5_Bytes(s, &c, pad);
+    MD5Update(s, c, pad);
 
     c[7] = (lenhi >> 24) & 0xFF;
     c[6] = (lenhi >> 16) & 0xFF;
@@ -187,7 +183,7 @@ void MD5Final(unsigned char output[16], struct MD5Context *s) {
     c[1] = (lenlo >>  8) & 0xFF;
     c[0] = (lenlo >>  0) & 0xFF;
 
-    MD5_Bytes(s, &c, 8);
+    MD5Update(s, c, 8);
 
     for (i = 0; i < 4; i++) {
         output[4*i+3] = (s->core.h[i] >> 24) & 0xFF;
