@@ -183,6 +183,7 @@ void random_init(void) {
     random_active = 1;
 
     noise_get_heavy(random_add_heavynoise_bitbybit);
+    random_stir();
 }
 
 int random_byte(void) {
