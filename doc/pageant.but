@@ -8,8 +8,8 @@ Currently, Pageant only works with SSH v1.
 
 \H{pageant-start} Getting started with Pageant
 
-Before you run Pageant, you need to have a private key. See [FIXME:
-chapter unwritten] to find out how to generate and use one.
+Before you run Pageant, you need to have a private key. See
+\k{pubkey} to find out how to generate and use one.
 
 When you run Pageant, it will put an icon of a computer wearing a
 hat into the System tray. It will then sit and do nothing.

@@ -1,4 +1,309 @@
 \C{config} Configuring PuTTY
 
-\# Walk the user through the whole config box explaining all the
-\# options.
+This chapter describes all the configuration options in PuTTY.
+
+PuTTY is configured using the control panel that comes up before you
+start a session. Some options can also be changed in the middle of a
+session, by selecting \e{Change Settings} from the window menu.
+
+\H{config-session} The Session panel
+
+The Session configuration panel contains the basic options you need
+to specify in order to open a session at all, and also allows you to
+save your settings to be reloaded later.
+
+\S{config-hostname} The host name section
+
+The top box on the Session panel, labelled \q{Specify your
+connection by host name}, contains the details that need to be
+filled in before PuTTY can open a session at all.
+
+\b The \e{Host Name} box is where you type the name, or the IP
+address, of the server you want to connect to.
+
+\b The \e{Protocol} radio buttons let you choose what type of
+connection you want to make: a raw connection, a Telnet connection,
+or an SSH connection. \#{ FIXME: link to sections on these? }
+
+\b The \e{Port} box lets you specify which port number on the server
+to connect to. If you select Telnet or SSH, this box will be filled
+in automatically to the usual value, and you will only need to
+change it if you have an unusual server. If you select Raw mode, you
+will almost certainly need to fill in the \e{Port} box.
+
+\S{config-saving} Loading and storing saved sessions
+
+The next part of the Session configuration panel allows you to save
+your preferred PuTTY options so they will appear automatically the
+next time you start PuTTY. It also allows you to create \e{saved
+sessions}, which contain a full set of configuration options plus a
+host name and protocol. A saved session contains all the information
+PuTTY needs to start exactly the session you want.
+
+\b To save your default settings: first set up the settings the way
+you want them saved. Then come back to the Session panel. Select the
+\q{Default Settings} entry in the saved sessions list, with a single
+click. Then press the \e{Save} button.
+
+\b To save a session: first go through the rest of the configuration
+box setting up all the options you want. Then come back to the
+Session panel. Enter a name for the saved session in the \e{Saved
+Sessions} input box. (The server name is often a good choice for a
+saved session name.) Then press the \e{Save} button. Your saved
+session name should now appear in the list box.
+
+\b To reload a saved session: single-click to select the session
+name in the list box, and then press the \e{Load} button. Your saved
+settings should all appear in the configuration panel.
+
+\b To modify a saved session: first load it as described above. Then
+make the changes you want. Come back to the Session panel,
+single-click to select the session name in the list box, and press
+the \e{Save} button. The new settings will be saved over the top of
+the old ones.
+
+\b To start a saved session immediately: double-click on the session
+name in the list box.
+
+\b To delete a saved session: single-click to select the session
+name in the list box, and then press the \e{Delete} button.
+
+Each saved session is independent of the Default Settings
+configuration. If you change your preferences and update Default
+Settings, you must also update every saved session separately.
+
+\S{config-closeonexit} \q{Close Window on Exit}
+
+Finally in the Session panel, there is a check box labelled \q{Close
+Window on Exit}. If this is turned on, the PuTTY session window will
+disappear as soon as the session inside it terminates. Otherwise,
+the window will remain on the desktop until you close it yourself,
+so you can still read and copy text out of it.
+
+\H{config-terminal} The Terminal panel
+
+The Terminal configuration panel allows you to control the behaviour
+of PuTTY's terminal emulation.
+
+\S{config-autowrap} \q{Auto wrap mode initially on}
+
+Auto wrap mode controls what happens when text printed in a PuTTY
+window reaches the right-hand edge of the window.
+
+With auto wrap mode on, if a long line of text reaches the
+right-hand edge, it will wrap over on to the next line so you can
+still see all the text. With auto wrap mode off, the cursor will
+stay at the right-hand edge of the screen, and all the characters in
+the line will be printed on top of each other.
+
+If you are running a full-screen application and you occasionally
+find the screen scrolling up when it looks as if it shouldn't, you
+could try turning this option off.
+
+Auto wrap mode can be turned on and off by control sequences sent by
+the server. This configuration option only controls the \e{default}
+state. If you modify this option in mid-session using \e{Change
+Settings}, you will need to reset the terminal \#{ FIXME } before
+the change takes effect.
+
+\S{config-decom} \q{DEC Origin Mode initially on}
+
+DEC Origin Mode is a minor option which controls how PuTTY
+interprets cursor-position control sequences sent by the server.
+
+The server can send a control sequence that restricts the scrolling
+region of the display. For example, in an editor, the server might
+reserve a line at the top of the screen and a line at the bottom,
+and might send a control sequence that causes scrolling operations
+to affect only the remaining lines.
+
+With DEC Origin Mode on, cursor coordinates are counted from the top
+of the scrolling region. With it turned off, cursor coordinates are
+counted from the top of the whole screen regardless of the scrolling
+region.
+
+It is unlikely you would need to change this option, but if you find
+a full-screen application is displaying pieces of text in what looks
+like the wrong part of the screen, you could try turning DEC Origin
+Mode on to see whether that helps.
+
+DEC Origin Mode can be turned on and off by control sequences sent by
+the server. This configuration option only controls the \e{default}
+state. If you modify this option in mid-session using \e{Change
+Settings}, you will need to reset the terminal \#{ FIXME } before
+the change takes effect.
+
+\S{config-crlf} \q{Implicit CR in every LF}
+
+Most servers send two control characters, CR and LF, to start a new
+line of the screen. The CR character makes the cursor return to the
+left-hand side of the screen. The LF character makes the cursor move
+one line down (and might make the screen scroll).
+
+Some servers only send LF, and expect the terminal to move the
+cursor over to the left automatically. If you come across a server
+that does this, you will see a stepped effect on the screen, like
+this:
+
+\c First line of text
+\c                   Second line
+\c                              Third line
+
+If this happens to you, try enabling the \q{Implicit CR in every LF}
+option, and things might go back to normal:
+
+\c First line of text
+\c Second line
+\c Third line
+
+\S{config-beep} \q{Beep enabled}
+
+This option lets you turn off beeps in PuTTY. If your server is
+beeping too much or attracting unwelcome attention, you can turn the
+beeps off.
+
+\S{config-erase} \q{Use background colour to erase screen}
+
+Not all terminals agree on what colour to turn the screen when the
+server sends a \q{clear screen} sequence. Some terminals believe the
+screen should always be cleared to the \e{default} background
+colour. Others believe the screen should be cleared to whatever the
+server has selected as a background colour.
+
+There exist applications that expect both kinds of behaviour.
+Therefore, PuTTY can be configured to do either.
+
+With this option disabled, screen clearing is always done in the
+default background colour. With this option enabled, it is done in
+the \e{current} background colour.
+
+\S{config-blink} \q{Enable blinking text}
+
+The server can ask PuTTY to display text that blinks on and off.
+This is very distracting, so PuTTY allows you to turn blinking text
+off completely.
+
+\S{config-localterm} \q{Use local terminal line discipline}
+
+Normally, every character you type into the PuTTY window is sent
+straight to the server.
+
+If you enable local terminal line discipline, this changes. PuTTY
+will let you edit a whole line at a time locally, and the line will
+only be sent to the server when you press Return. If you make a
+mistake, you can use the Backspace key to correct it before you
+press Return, and the server will never see the mistake.
+
+Since it would be hard to edit a line locally without being able to
+see it, local terminal line discipline also makes PuTTY echo what
+you type. This makes it ideal for use in raw mode \#{ FIXME } or
+when connecting to MUDs or talkers.
+
+\S{config-logging} Controlling session logging
+
+PuTTY has the ability to log the output from your session into a
+file. You might want this if you were saving a particular piece of
+output to mail to somebody, for example in a bug report.
+
+You can choose between:
+
+\b not logging anything (the default)
+
+\b logging only the printable characters in a session (ignoring
+control sequences to change colours or clear the screen)
+
+\b logging everything sent to the terminal by the server.
+
+You can turn logging on and off in mid-session using \e{Change
+Settings}.
+
+\H{config-keyboard} The Keyboard panel
+
+\S{config-backspace} Changing the action of the Backspace key
+
+\S{config-homeend} Changing the action of the Home and End keys
+
+\S{config-funkeys} Changing the action of the function keys and keypad
+
+\S{config-appcursor} Controlling Application Cursor Keys mode
+
+\S{config-appkeypad} Controlling Application Keypad mode
+
+\S{config-nethack} Using NetHack keypad mode
+
+\S{config-compose} Enabling a DEC-like Compose key
+
+\H{config-window} The Window panel
+
+\S{config-winsize} Setting the size of the PuTTY window
+
+\S{config-scrollback} Controlling scrollback
+
+\S{config-warnonclose} \q{Warn before closing window}
+
+\S{config-altf4} \q{Window closes on ALT-F4}
+
+\S{config-altspace} \q{System menu appears on ALT-Space}
+
+\S{config-altonly} \q{System menu appears on Alt alone}
+
+\S{config-alwaysontop} \q{Ensure window is always on top}
+
+\H{config-appearance} The Appearance panel
+
+\S{config-cursor} Controlling the appearance of the cursor
+
+\# this will look considerably less silly when we bring in
+\# underline-versus-block-versus-vertical-line cursor configuration
+\# and also allow the cursor to vanish on keypress a la Word. Until
+\# then, this box does look silly with only one thing in it. Deal.
+
+\S{config-font} Controlling the font used in the terminal window
+
+\S{config-title} Controlling the window title
+
+\H{config-translation} The Translation panel
+
+\S{config-linedraw} Line drawing characters
+
+\S{config-outputtrans} Character set translation of output data
+
+\S{config-inputtrans} Character set translation of input data
+
+\H{config-selection} The Selection panel
+
+\S{config-mouse} Changing the actions of the mouse buttons
+
+\S{config-charclasses} Configuring word-by-word selection
+
+\H{config-colours} The Colours panel
+
+\S{config-boldcolour} \q{Bolded text is a different colour}
+
+\S{config-logpalette} \q{Attempt to use logical palettes}
+
+\S{config-colourcfg} Adjusting the colours in the terminal window
+
+\H{config-connection} The Connection panel
+
+\S{config-termtype} \q{Terminal-type string}
+
+\S{config-username} \q{Auto-login username}
+
+\S{config-keepalive} Using keepalives to prevent disconnection
+
+\H{config-telnet} The Telnet panel
+
+\S{config-termspeed} \q{Terminal-speed string}
+
+\S{config-environ} Setting environment variables on the server
+
+\S{config-oldenviron} \q{Handling of OLD_ENVIRON ambiguity}
+
+\H{config-ssh} The SSH panel
+
+\S{config-command} Executing a specific command on the server
+
+\S{config-auth} SSH authentication options
+
+\S{config-protocol} SSH protocol options
