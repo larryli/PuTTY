@@ -6231,13 +6231,13 @@ int term_data(Terminal *term, int is_stderr, const char *data, int len)
      * the remote side needing to wait until term_out() has cleared
      * a backlog.
      *
-     * This is a slightly suboptimal way to deal with SSH2 - in
+     * This is a slightly suboptimal way to deal with SSH-2 - in
      * principle, the window mechanism would allow us to continue
      * to accept data on forwarded ports and X connections even
      * while the terminal processing was going slowly - but we
      * can't do the 100% right thing without moving the terminal
      * processing into a separate thread, and that might hurt
-     * portability. So we manage stdout buffering the old SSH1 way:
+     * portability. So we manage stdout buffering the old SSH-1 way:
      * if the terminal processing goes slowly, the whole SSH
      * connection stops accepting data until it's ready.
      *

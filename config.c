@@ -92,7 +92,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 	    { "3DES",			CIPHER_3DES },
 	    { "Blowfish",		CIPHER_BLOWFISH },
 	    { "DES",			CIPHER_DES },
-	    { "AES (SSH 2 only)",	CIPHER_AES },
+	    { "AES (SSH-2 only)",	CIPHER_AES },
 	    { "-- warn below here --",	CIPHER_WARN }
 	};
 
@@ -1647,7 +1647,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			      cipherlist_handler, P(NULL));
 	    c->listbox.height = 6;
 
-	    ctrl_checkbox(s, "Enable legacy use of single-DES in SSH 2", 'i',
+	    ctrl_checkbox(s, "Enable legacy use of single-DES in SSH-2", 'i',
 			  HELPCTX(ssh_ciphers),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,ssh2_des_cbc)));
@@ -1656,7 +1656,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	/*
 	 * The Connection/SSH/Kex panel. (Owing to repeat key
 	 * exchange, this is all meaningful in mid-session _if_
-	 * we're using SSH2 or haven't decided yet.)
+	 * we're using SSH-2 or haven't decided yet.)
 	 */
 	if (protcfginfo != 1) {
 	    ctrl_settitle(b, "Connection/SSH/Kex",
@@ -1696,11 +1696,11 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
 			    "Authentication methods");
-	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH1)", 'm',
+	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH-1)", 'm',
 			  HELPCTX(ssh_auth_tis),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,try_tis_auth)));
-	    ctrl_checkbox(s, "Attempt \"keyboard-interactive\" auth (SSH2)",
+	    ctrl_checkbox(s, "Attempt \"keyboard-interactive\" auth (SSH-2)",
 			  'i', HELPCTX(ssh_auth_ki),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,try_ki_auth)));
@@ -1710,7 +1710,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
 			  HELPCTX(ssh_auth_agentfwd),
 			  dlg_stdcheckbox_handler, I(offsetof(Config,agentfwd)));
-	    ctrl_checkbox(s, "Allow attempted changes of username in SSH2", 'u',
+	    ctrl_checkbox(s, "Allow attempted changes of username in SSH-2", 'u',
 			  HELPCTX(ssh_auth_changeuser),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,change_username)));
@@ -1755,7 +1755,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      HELPCTX(ssh_tunnels_portfwd_localhost),
 		      dlg_stdcheckbox_handler,
 		      I(offsetof(Config,lport_acceptall)));
-	ctrl_checkbox(s, "Remote ports do the same (SSH v2 only)", 'p',
+	ctrl_checkbox(s, "Remote ports do the same (SSH-2 only)", 'p',
 		      HELPCTX(ssh_tunnels_portfwd_localhost),
 		      dlg_stdcheckbox_handler,
 		      I(offsetof(Config,rport_acceptall)));
@@ -1824,22 +1824,22 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 
 	    s = ctrl_getset(b, "Connection/SSH/Bugs", "main",
 			    "Detection of known bugs in SSH servers");
-	    ctrl_droplist(s, "Chokes on SSH1 ignore messages", 'i', 20,
+	    ctrl_droplist(s, "Chokes on SSH-1 ignore messages", 'i', 20,
 			  HELPCTX(ssh_bugs_ignore1),
 			  sshbug_handler, I(offsetof(Config,sshbug_ignore1)));
-	    ctrl_droplist(s, "Refuses all SSH1 password camouflage", 's', 20,
+	    ctrl_droplist(s, "Refuses all SSH-1 password camouflage", 's', 20,
 			  HELPCTX(ssh_bugs_plainpw1),
 			  sshbug_handler, I(offsetof(Config,sshbug_plainpw1)));
-	    ctrl_droplist(s, "Chokes on SSH1 RSA authentication", 'r', 20,
+	    ctrl_droplist(s, "Chokes on SSH-1 RSA authentication", 'r', 20,
 			  HELPCTX(ssh_bugs_rsa1),
 			  sshbug_handler, I(offsetof(Config,sshbug_rsa1)));
-	    ctrl_droplist(s, "Miscomputes SSH2 HMAC keys", 'm', 20,
+	    ctrl_droplist(s, "Miscomputes SSH-2 HMAC keys", 'm', 20,
 			  HELPCTX(ssh_bugs_hmac2),
 			  sshbug_handler, I(offsetof(Config,sshbug_hmac2)));
-	    ctrl_droplist(s, "Miscomputes SSH2 encryption keys", 'e', 20,
+	    ctrl_droplist(s, "Miscomputes SSH-2 encryption keys", 'e', 20,
 			  HELPCTX(ssh_bugs_derivekey2),
 			  sshbug_handler, I(offsetof(Config,sshbug_derivekey2)));
-	    ctrl_droplist(s, "Requires padding on SSH2 RSA signatures", 'p', 20,
+	    ctrl_droplist(s, "Requires padding on SSH-2 RSA signatures", 'p', 20,
 			  HELPCTX(ssh_bugs_rsapad2),
 			  sshbug_handler, I(offsetof(Config,sshbug_rsapad2)));
 	    ctrl_droplist(s, "Misuses the session ID in PK auth", 'n', 20,

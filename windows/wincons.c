@@ -258,7 +258,7 @@ int askappend(void *frontend, Filename filename,
 void old_keyfile_warning(void)
 {
     static const char message[] =
-	"You are loading an SSH 2 private key which has an\n"
+	"You are loading an SSH-2 private key which has an\n"
 	"old version of the file format. This means your key\n"
 	"file is not fully tamperproof. Future versions of\n"
 	"PuTTY may stop supporting this private key format,\n"

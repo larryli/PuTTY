@@ -147,7 +147,7 @@ int random_byte(void)
 }
 
 /*
- * Blob structure for passing to the asymmetric SSH2 key compare
+ * Blob structure for passing to the asymmetric SSH-2 key compare
  * function, prototyped here.
  */
 struct blob {
@@ -321,7 +321,7 @@ void old_keyfile_warning(void)
 {
     static const char mbtitle[] = "PuTTY Key File Warning";
     static const char message[] =
-	"You are loading an SSH 2 private key which has an\n"
+	"You are loading an SSH-2 private key which has an\n"
 	"old version of the file format. This means your key\n"
 	"file is not fully tamperproof. Future versions of\n"
 	"PuTTY may stop supporting this private key format,\n"
@@ -692,7 +692,7 @@ static void add_keyfile(Filename filename)
 }
 
 /*
- * Create an SSH1 key list in a malloc'ed buffer; return its
+ * Create an SSH-1 key list in a malloc'ed buffer; return its
  * length.
  */
 static void *make_keylist1(int *length)
@@ -736,7 +736,7 @@ static void *make_keylist1(int *length)
 }
 
 /*
- * Create an SSH2 key list in a malloc'ed buffer; return its
+ * Create an SSH-2 key list in a malloc'ed buffer; return its
  * length.
  */
 static void *make_keylist2(int *length)
@@ -1246,7 +1246,7 @@ static void answer_msg(void *msg)
 	break;
       case SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES:
 	/*
-	 * Remove all SSH1 keys. Always returns success.
+	 * Remove all SSH-1 keys. Always returns success.
 	 */
 	{
 	    struct RSAKey *rkey;
@@ -1264,7 +1264,7 @@ static void answer_msg(void *msg)
 	break;
       case SSH2_AGENTC_REMOVE_ALL_IDENTITIES:
 	/*
-	 * Remove all SSH2 keys. Always returns success.
+	 * Remove all SSH-2 keys. Always returns success.
 	 */
 	{
 	    struct ssh2_userkey *skey;
@@ -1332,7 +1332,7 @@ static int cmpkeys_rsa(void *av, void *bv)
 }
 
 /*
- * Key comparison function for the 2-3-4 tree of SSH2 keys.
+ * Key comparison function for the 2-3-4 tree of SSH-2 keys.
  */
 static int cmpkeys_ssh2(void *av, void *bv)
 {
@@ -1372,7 +1372,7 @@ static int cmpkeys_ssh2(void *av, void *bv)
 
 /*
  * Key comparison function for looking up a blob in the 2-3-4 tree
- * of SSH2 keys.
+ * of SSH-2 keys.
  */
 static int cmpkeys_ssh2_asymm(void *av, void *bv)
 {

@@ -342,18 +342,18 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
  * 
  *  - SSH1_BUFFER_LIMIT is the amount of backlog that must build up
  *    on a local data stream before we throttle the whole SSH
- *    connection (in SSH1 only). Throttling the whole connection is
+ *    connection (in SSH-1 only). Throttling the whole connection is
  *    pretty drastic so we set this high in the hope it won't
  *    happen very often.
  * 
  *  - SSH_MAX_BACKLOG is the amount of backlog that must build up
  *    on the SSH connection itself before we defensively throttle
  *    _all_ local data streams. This is pretty drastic too (though
- *    thankfully unlikely in SSH2 since the window mechanism should
+ *    thankfully unlikely in SSH-2 since the window mechanism should
  *    ensure that the server never has any need to throttle its end
  *    of the connection), so we set this high as well.
  * 
- *  - OUR_V2_WINSIZE is the maximum window size we present on SSH2
+ *  - OUR_V2_WINSIZE is the maximum window size we present on SSH-2
  *    channels.
  */
 
@@ -439,7 +439,7 @@ struct ssh_channel {
     /* True if we opened this channel but server hasn't confirmed. */
     int halfopen;
     /*
-     * In SSH1, this value contains four bits:
+     * In SSH-1, this value contains four bits:
      * 
      *   1   We have sent SSH1_MSG_CHANNEL_CLOSE.
      *   2   We have sent SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION.
@@ -475,11 +475,11 @@ struct ssh_channel {
 };
 
 /*
- * 2-3-4 tree storing remote->local port forwardings. SSH 1 and SSH
- * 2 use this structure in different ways, reflecting SSH 2's
+ * 2-3-4 tree storing remote->local port forwardings. SSH-1 and SSH-2
+ * use this structure in different ways, reflecting SSH-2's
  * altogether saner approach to port forwarding.
  * 
- * In SSH 1, you arrange a remote forwarding by sending the server
+ * In SSH-1, you arrange a remote forwarding by sending the server
  * the remote port number, and the local destination host:port.
  * When a connection comes in, the server sends you back that
  * host:port pair, and you connect to it. This is a ready-made
@@ -491,15 +491,15 @@ struct ssh_channel {
  * host:port pairs we _are_ trying to forward to, and reject a
  * connection request from the server if it's not in the list.
  * 
- * In SSH 2, each side of the connection minds its own business and
+ * In SSH-2, each side of the connection minds its own business and
  * doesn't send unnecessary information to the other. You arrange a
  * remote forwarding by sending the server just the remote port
  * number. When a connection comes in, the server tells you which
  * of its ports was connected to; and _you_ have to remember what
  * local host:port pair went with that port number.
  * 
- * Hence, in SSH 1 this structure is indexed by destination
- * host:port pair, whereas in SSH 2 it is indexed by source port.
+ * Hence, in SSH-1 this structure is indexed by destination
+ * host:port pair, whereas in SSH-2 it is indexed by source port.
  */
 struct ssh_portfwd; /* forward declaration */
 
@@ -542,7 +542,7 @@ struct Packet {
     unsigned char *body;
     long savedpos;
     long maxlen;
-    long encrypted_len;		       /* for SSH2 total-size counting */
+    long encrypted_len;		       /* for SSH-2 total-size counting */
 
     /*
      * State associated with packet logging
@@ -710,7 +710,7 @@ struct ssh_tag {
     struct rdpkt1_state_tag rdpkt1_state;
     struct rdpkt2_state_tag rdpkt2_state;
 
-    /* ssh1 and ssh2 use this for different things, but both use it */
+    /* SSH-1 and SSH-2 use this for different things, but both use it */
     int protocol_initial_phase_done;
 
     void (*protocol) (Ssh ssh, void *vin, int inlen,
@@ -1558,7 +1558,7 @@ static void sha_uint32(SHA_State * s, unsigned i)
 }
 
 /*
- * SSH2 packet construction functions.
+ * SSH-2 packet construction functions.
  */
 static void ssh2_pkt_ensure(struct Packet *pkt, int length)
 {
@@ -1650,7 +1650,7 @@ static void ssh2_pkt_addmp(struct Packet *pkt, Bignum b)
 }
 
 /*
- * Construct an SSH2 final-form packet: compress it, encrypt it,
+ * Construct an SSH-2 final-form packet: compress it, encrypt it,
  * put the MAC on it. Final packet, ready to be sent, is stored in
  * pkt->data. Total length is returned.
  */
@@ -1748,7 +1748,7 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
  */
 
 /*
- * Send an SSH2 packet immediately, without queuing or deferring.
+ * Send an SSH-2 packet immediately, without queuing or deferring.
  */
 static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 {
@@ -1769,7 +1769,7 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 }
 
 /*
- * Defer an SSH2 packet.
+ * Defer an SSH-2 packet.
  */
 static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt)
 {
@@ -1787,7 +1787,7 @@ static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt)
 }
 
 /*
- * Queue an SSH2 packet.
+ * Queue an SSH-2 packet.
  */
 static void ssh2_pkt_queue(Ssh ssh, struct Packet *pkt)
 {
@@ -1829,7 +1829,7 @@ static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
 
 /*
  * Send the whole deferred data block constructed by
- * ssh2_pkt_defer() or SSH1's defer_packet().
+ * ssh2_pkt_defer() or SSH-1's defer_packet().
  * 
  * The expected use of the defer mechanism is that you call
  * ssh2_pkt_defer() a few times, then call ssh_pkt_defersend(). If
@@ -1860,7 +1860,7 @@ static void ssh_pkt_defersend(Ssh ssh)
 }
 
 /*
- * Send all queued SSH2 packets. We send them by means of
+ * Send all queued SSH-2 packets. We send them by means of
  * ssh2_pkt_defer_noqueue(), in case they included a pair of
  * packets that needed to be lumped together.
  */
@@ -1901,7 +1901,7 @@ static void sha_mpint(SHA_State * s, Bignum b)
 }
 
 /*
- * Packet decode functions for both SSH1 and SSH2.
+ * Packet decode functions for both SSH-1 and SSH-2.
  */
 static unsigned long ssh_pkt_getuint32(struct Packet *pkt)
 {
@@ -1992,7 +1992,7 @@ static Bignum ssh2_pkt_getmp(struct Packet *pkt)
 }
 
 /*
- * Helper function to add an SSH2 signature blob to a packet.
+ * Helper function to add an SSH-2 signature blob to a packet.
  * Expects to be shown the public key blob as well as the signature
  * blob. Normally works just like ssh2_pkt_addstring, but will
  * fiddle with the signature packet if necessary for
@@ -2088,7 +2088,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 * sniffing.
 	 */
 	ssh->remote_bugs |= BUG_CHOKES_ON_SSH1_IGNORE;
-	logevent("We believe remote version has SSH1 ignore bug");
+	logevent("We believe remote version has SSH-1 ignore bug");
     }
 
     if (ssh->cfg.sshbug_plainpw1 == FORCE_ON ||
@@ -2100,7 +2100,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 * the password.
 	 */
 	ssh->remote_bugs |= BUG_NEEDS_SSH1_PLAIN_PASSWORD;
-	logevent("We believe remote version needs a plain SSH1 password");
+	logevent("We believe remote version needs a plain SSH-1 password");
     }
 
     if (ssh->cfg.sshbug_rsa1 == FORCE_ON ||
@@ -2125,7 +2125,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 * These versions have the HMAC bug.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_HMAC;
-	logevent("We believe remote version has SSH2 HMAC bug");
+	logevent("We believe remote version has SSH-2 HMAC bug");
     }
 
     if (ssh->cfg.sshbug_derivekey2 == FORCE_ON ||
@@ -2138,7 +2138,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 * generate the keys).
 	 */
 	ssh->remote_bugs |= BUG_SSH2_DERIVEKEY;
-	logevent("We believe remote version has SSH2 key-derivation bug");
+	logevent("We believe remote version has SSH-2 key-derivation bug");
     }
 
     if (ssh->cfg.sshbug_rsapad2 == FORCE_ON ||
@@ -2146,21 +2146,21 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 (wc_match("OpenSSH_2.[5-9]*", imp) ||
 	  wc_match("OpenSSH_3.[0-2]*", imp)))) {
 	/*
-	 * These versions have the SSH2 RSA padding bug.
+	 * These versions have the SSH-2 RSA padding bug.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_RSA_PADDING;
-	logevent("We believe remote version has SSH2 RSA padding bug");
+	logevent("We believe remote version has SSH-2 RSA padding bug");
     }
 
     if (ssh->cfg.sshbug_pksessid2 == FORCE_ON ||
 	(ssh->cfg.sshbug_pksessid2 == AUTO &&
 	 wc_match("OpenSSH_2.[0-2]*", imp))) {
 	/*
-	 * These versions have the SSH2 session-ID bug in
+	 * These versions have the SSH-2 session-ID bug in
 	 * public-key authentication.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_PK_SESSIONID;
-	logevent("We believe remote version has SSH2 public-key-session-ID bug");
+	logevent("We believe remote version has SSH-2 public-key-session-ID bug");
     }
 
     if (ssh->cfg.sshbug_rekey2 == FORCE_ON ||
@@ -2170,10 +2170,10 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	  wc_match("Sun_SSH_1.0", imp) ||
 	  wc_match("Sun_SSH_1.0.1", imp)))) {
 	/*
-	 * These versions have the SSH2 rekey bug.
+	 * These versions have the SSH-2 rekey bug.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_REKEY;
-	logevent("We believe remote version has SSH2 rekey bug");
+	logevent("We believe remote version has SSH-2 rekey bug");
     }
 }
 
@@ -2314,14 +2314,14 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
                        strcspn(s->vstring, "\015\012"));
 
             /*
-             * Initialise SSHv2 protocol.
+             * Initialise SSH-2 protocol.
              */
             ssh->protocol = ssh2_protocol;
             ssh2_protocol_setup(ssh);
             ssh->s_rdpkt = ssh2_rdpkt;
         } else {
             /*
-             * Initialise SSHv1 protocol.
+             * Initialise SSH-1 protocol.
              */
             ssh->protocol = ssh1_protocol;
             ssh1_protocol_setup(ssh);
@@ -2661,7 +2661,7 @@ static void ssh_throttle_all(Ssh ssh, int enable, int bufsize)
 
 /*
  * Username and password input, abstracted off into routines
- * reusable in several places - even between SSH1 and SSH2.
+ * reusable in several places - even between SSH-1 and SSH-2.
  */
 
 /* Set up a username or password input loop on a given buffer. */
@@ -2841,14 +2841,14 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 
     ptr = ssh_pkt_getdata(pktin, 8);
     if (!ptr) {
-	bombout(("SSH1 public key packet stopped before random cookie"));
+	bombout(("SSH-1 public key packet stopped before random cookie"));
 	crStop(0);
     }
     memcpy(cookie, ptr, 8);
 
     if (!ssh1_pkt_getrsakey(pktin, &servkey, &s->keystr1) ||
 	!ssh1_pkt_getrsakey(pktin, &hostkey, &s->keystr2)) {	
-	bombout(("Failed to read SSH1 public keys from public key packet"));
+	bombout(("Failed to read SSH-1 public keys from public key packet"));
 	crStop(0);
     }
 
@@ -2887,7 +2887,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
      */
     if (hostkey.bits > hostkey.bytes * 8 ||
 	servkey.bits > servkey.bytes * 8) {
-	bombout(("SSH1 public keys were badly formatted"));
+	bombout(("SSH-1 public keys were badly formatted"));
 	crStop(0);
     }
 
@@ -2954,7 +2954,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    ret = rsaencrypt(s->rsabuf, hostkey.bytes, &servkey);
     }
     if (!ret) {
-	bombout(("SSH1 public key encryptions failed due to bad formatting"));
+	bombout(("SSH-1 public key encryptions failed due to bad formatting"));
 	crStop(0);	
     }
 
@@ -2971,7 +2971,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		warn = 1;
 	    } else if (next_cipher == CIPHER_AES) {
 		/* XXX Probably don't need to mention this. */
-		logevent("AES not supported in SSH1, skipping");
+		logevent("AES not supported in SSH-1, skipping");
 	    } else {
 		switch (next_cipher) {
 		  case CIPHER_3DES:     s->cipher_type = SSH_CIPHER_3DES;
@@ -2987,7 +2987,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	}
 	if (!cipher_chosen) {
 	    if ((s->supported_ciphers_mask & (1 << SSH_CIPHER_3DES)) == 0)
-		bombout(("Server violates SSH 1 protocol by not "
+		bombout(("Server violates SSH-1 protocol by not "
 			 "supporting 3DES encryption"));
 	    else
 		/* shouldn't happen */
@@ -3177,7 +3177,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		s->p = s->response + 5;
 		s->nkeys = GET_32BIT(s->p);
 		s->p += 4;
-		logeventf(ssh, "Pageant has %d SSH1 keys", s->nkeys);
+		logeventf(ssh, "Pageant has %d SSH-1 keys", s->nkeys);
 		for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
 		    logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 		    if (s->publickey_blob &&
@@ -3732,7 +3732,7 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
 		    PKT_INT, len, PKT_DATA, buf, len,
 		    PKTT_OTHER, PKT_END);
 	/*
-	 * In SSH1 we can return 0 here - implying that forwarded
+	 * In SSH-1 we can return 0 here - implying that forwarded
 	 * connections are never individually throttled - because
 	 * the only circumstance that can cause throttling will be
 	 * the whole SSH connection backing up, in which case
@@ -3902,7 +3902,7 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 		portfwd_strptr++;
 		sports[n] = '\0';
 		if (ssh->version == 1 && type == 'R') {
-		    logeventf(ssh, "SSH1 cannot handle remote source address "
+		    logeventf(ssh, "SSH-1 cannot handle remote source address "
 			      "spec \"%s\"; ignoring", sports);
 		} else
 		    strcpy(saddr, sports);
@@ -4023,7 +4023,7 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 		if (ssh->version == 1) {
 		    /*
 		     * We cannot cancel listening ports on the
-		     * server side in SSH1! There's no message
+		     * server side in SSH-1! There's no message
 		     * to support it. Instead, we simply remove
 		     * the rportfwd record from the local end
 		     * so that any connections the server tries
@@ -4612,7 +4612,7 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Start the shell or command.
      * 
-     * Special case: if the first-choice command is an SSH2
+     * Special case: if the first-choice command is an SSH-2
      * subsystem (hence not usable here) and the second choice
      * exists, we fall straight back to that.
      */
@@ -4677,7 +4677,7 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 }
 
 /*
- * Handle the top-level SSH2 protocol.
+ * Handle the top-level SSH-2 protocol.
  */
 static void ssh1_msg_debug(Ssh ssh, struct Packet *pktin)
 {
@@ -4797,7 +4797,7 @@ static int first_in_commasep_string(char *needle, char *haystack, int haylen)
 
 
 /*
- * SSH2 key creation method.
+ * SSH-2 key creation method.
  */
 static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
 		       unsigned char *sessid, char chr,
@@ -4822,7 +4822,7 @@ static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
 }
 
 /*
- * Handle the SSH2 transport layer.
+ * Handle the SSH-2 transport layer.
  */
 static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			     struct Packet *pktin)
@@ -5635,7 +5635,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 }
 
 /*
- * Add data to an SSH2 channel output buffer.
+ * Add data to an SSH-2 channel output buffer.
  */
 static void ssh2_add_channel_data(struct ssh_channel *c, char *buf,
 				  int len)
@@ -5644,7 +5644,7 @@ static void ssh2_add_channel_data(struct ssh_channel *c, char *buf,
 }
 
 /*
- * Attempt to send data on an SSH2 channel.
+ * Attempt to send data on an SSH-2 channel.
  */
 static int ssh2_try_send(struct ssh_channel *c)
 {
@@ -5678,7 +5678,7 @@ static int ssh2_try_send(struct ssh_channel *c)
 }
 
 /*
- * Potentially enlarge the window on an SSH2 channel.
+ * Potentially enlarge the window on an SSH-2 channel.
  */
 static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
 {
@@ -5875,7 +5875,7 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
 	/*
 	 * We used to send SSH_MSG_DISCONNECT here,
 	 * because I'd believed that _every_ conforming
-	 * SSH2 connection had to end with a disconnect
+	 * SSH-2 connection had to end with a disconnect
 	 * being sent by at least one side; apparently
 	 * I was wrong and it's perfectly OK to
 	 * unceremoniously slam the connection shut
@@ -6238,7 +6238,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 }
 
 /*
- * Handle the SSH2 userauth and connection layers.
+ * Handle the SSH-2 userauth and connection layers.
  */
 static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			     struct Packet *pktin)
@@ -6585,7 +6585,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    s->p = s->response + 5;
 		    s->nkeys = GET_32BIT(s->p);
 		    s->p += 4;
-		    logeventf(ssh, "Pageant has %d SSH2 keys", s->nkeys);
+		    logeventf(ssh, "Pageant has %d SSH-2 keys", s->nkeys);
 		    for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
 			void *vret;
 
@@ -7445,7 +7445,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 }
 
 /*
- * Handlers for SSH2 messages that might arrive at any moment.
+ * Handlers for SSH-2 messages that might arrive at any moment.
  */
 static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
 {
@@ -7503,7 +7503,7 @@ static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin)
 }
 
 /*
- * Handle the top-level SSH2 protocol.
+ * Handle the top-level SSH-2 protocol.
  */
 static void ssh2_protocol_setup(Ssh ssh)
 {
@@ -7557,7 +7557,7 @@ static void ssh2_protocol_setup(Ssh ssh)
      * These special message types we install handlers for.
      */
     ssh->packet_dispatch[SSH2_MSG_DISCONNECT] = ssh2_msg_disconnect;
-    ssh->packet_dispatch[SSH2_MSG_IGNORE] = ssh_msg_ignore; /* shared with ssh1 */
+    ssh->packet_dispatch[SSH2_MSG_IGNORE] = ssh_msg_ignore; /* shared with SSH-1 */
     ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;
 }
 
@@ -8070,7 +8070,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	if (ssh->state == SSH_STATE_CLOSED
 	    || ssh->state == SSH_STATE_PREPACKET) return;
 	if (ssh->version == 1) {
-	    logevent("Unable to send BREAK signal in SSH1");
+	    logevent("Unable to send BREAK signal in SSH-1");
 	} else if (ssh->mainchan) {
 	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	    ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);

@@ -2743,7 +2743,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     cfg.nopty = TRUE;
 
     /*
-     * Set up fallback option, for SSH1 servers or servers with the
+     * Set up fallback option, for SSH-1 servers or servers with the
      * sftp subsystem not enabled but the server binary installed
      * in the usual place. We only support fallback on Unix
      * systems, and we use a kludgy piece of shellery which should

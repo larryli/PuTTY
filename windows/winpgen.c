@@ -425,7 +425,7 @@ void old_keyfile_warning(void)
 {
     static const char mbtitle[] = "PuTTY Key File Warning";
     static const char message[] =
-	"You are loading an SSH 2 private key which has an\n"
+	"You are loading an SSH-2 private key which has an\n"
 	"old version of the file format. This means your key\n"
 	"file is not fully tamperproof. Future versions of\n"
 	"PuTTY may stop supporting this private key format,\n"
@@ -836,9 +836,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "&Generate key pair");
 	    AppendMenu(menu1, MF_SEPARATOR, 0, 0);
-	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH&1 key (RSA)");
-	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH2 &RSA key");
-	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH2 &DSA key");
+	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH-&1 key (RSA)");
+	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 &RSA key");
+	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA key");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Key");
 	    state->keymenu = menu1;
 
@@ -915,9 +915,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    endbox(&cp);
 	    beginbox(&cp, "Parameters", IDC_BOX_PARAMS);
 	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 3,
-		      "SSH&1 (RSA)", IDC_KEYSSH1,
-		      "SSH2 &RSA", IDC_KEYSSH2RSA,
-		      "SSH2 &DSA", IDC_KEYSSH2DSA, NULL);
+		      "SSH-&1 (RSA)", IDC_KEYSSH1,
+		      "SSH-2 &RSA", IDC_KEYSSH2RSA,
+		      "SSH-2 &DSA", IDC_KEYSSH2DSA, NULL);
 	    staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
 	    endbox(&cp);
@@ -1125,7 +1125,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 if (type != realtype &&
                     import_target_type(type) != realtype) {
                     char msg[256];
-                    sprintf(msg, "Cannot export an SSH%d key in an SSH%d"
+                    sprintf(msg, "Cannot export an SSH-%d key in an SSH-%d"
                             " format", (state->ssh2 ? 2 : 1),
                             (state->ssh2 ? 1 : 2));
 		    MessageBox(hwnd, msg,

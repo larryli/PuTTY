@@ -245,12 +245,12 @@ enum {
 
 enum {
     /*
-     * SSH ciphers (both SSH1 and SSH2)
+     * SSH ciphers (both SSH-1 and SSH-2)
      */
     CIPHER_WARN,		       /* pseudo 'cipher' */
     CIPHER_3DES,
     CIPHER_BLOWFISH,
-    CIPHER_AES,			       /* (SSH 2 only) */
+    CIPHER_AES,			       /* (SSH-2 only) */
     CIPHER_DES,
     CIPHER_MAX			       /* no. ciphers (inc warn) */
 };
@@ -415,11 +415,11 @@ struct config_tag {
     int ssh_rekey_time;		       /* in minutes */
     char ssh_rekey_data[16];
     int agentfwd;
-    int change_username;	       /* allow username switching in SSH2 */
+    int change_username;	       /* allow username switching in SSH-2 */
     int ssh_cipherlist[CIPHER_MAX];
     Filename keyfile;
     int sshprot;		       /* use v1 or v2 when both available */
-    int ssh2_des_cbc;		       /* "des-cbc" nonstandard SSH2 cipher */
+    int ssh2_des_cbc;		       /* "des-cbc" unrecommended SSH-2 cipher */
     int try_tis_auth;
     int try_ki_auth;
     int ssh_subsys;		       /* run a subsystem rather than a command */
@@ -524,7 +524,7 @@ struct config_tag {
     int x11_auth;
     /* port forwarding */
     int lport_acceptall; /* accept conns from hosts other than localhost */
-    int rport_acceptall; /* same for remote forwarded ports (SSH2 only) */
+    int rport_acceptall; /* same for remote forwarded ports (SSH-2 only) */
     /*
      * The port forwarding string contains a number of
      * NUL-terminated substrings, terminated in turn by an empty

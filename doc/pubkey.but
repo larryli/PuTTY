@@ -114,17 +114,17 @@ Before generating a key pair using PuTTYgen, you need to select
 which type of key you need. PuTTYgen currently supports three types
 of key:
 
-\b An RSA key for use with the SSH 1 protocol.
+\b An RSA key for use with the SSH-1 protocol.
 
-\b An RSA key for use with the SSH 2 protocol.
+\b An RSA key for use with the SSH-2 protocol.
 
-\b A DSA key for use with the SSH 2 protocol.
+\b A DSA key for use with the SSH-2 protocol.
 
-The SSH 1 protocol only supports RSA keys; if you will be connecting
-using the SSH 1 protocol, you must select the first key type or your
+The SSH-1 protocol only supports RSA keys; if you will be connecting
+using the SSH-1 protocol, you must select the first key type or your
 key will be completely useless.
 
-The SSH 2 protocol supports more than one key type. The two types
+The SSH-2 protocol supports more than one key type. The two types
 supported by PuTTY are RSA and DSA.
 
 The PuTTY developers \e{strongly} recommend you use RSA. DSA has an
@@ -289,13 +289,13 @@ will need to tell PuTTY to use for authentication (see
 
 \cfg{winhelp-topic}{puttygen.savepub}
 
-The SSH 2 protocol drafts specify a standard format for storing
+The SSH-2 protocol drafts specify a standard format for storing
 public keys on disk. Some SSH servers (such as \cw{ssh.com}'s)
 require a public key in this format in order to accept
 authentication with the corresponding private key. (Others, such as
 OpenSSH, use a different format; see \k{puttygen-pastekey}.)
 
-To save your public key in the SSH 2 standard format, press the
+To save your public key in the SSH-2 standard format, press the
 \q{Save public key} button in PuTTYgen. PuTTYgen will put up a
 dialog box asking you where to save the file. Select a directory,
 type in a file name, and press \q{Save}.
@@ -305,9 +305,9 @@ server machine. See \k{pubkey-gettingready} for general instructions
 on configuring public-key authentication once you have generated a
 key.
 
-If you use this option with an SSH 1 key, the file PuTTYgen saves
+If you use this option with an SSH-1 key, the file PuTTYgen saves
 will contain exactly the same text that appears in the \q{Public key
-for pasting} box. This is the only existing standard for SSH 1
+for pasting} box. This is the only existing standard for SSH-1
 public keys.
 
 \S{puttygen-pastekey} \q{Public key for pasting into authorized_keys
@@ -315,9 +315,9 @@ file}
 
 \cfg{winhelp-topic}{puttygen.pastekey}
 
-All SSH 1 servers require your public key to be given to it in a
+All SSH-1 servers require your public key to be given to it in a
 one-line format before it will accept authentication with your
-private key. The OpenSSH server also requires this for SSH 2.
+private key. The OpenSSH server also requires this for SSH-2.
 
 The \q{Public key for pasting into authorized_keys file} gives the
 public-key data in the correct one-line format. Typically you will
@@ -352,23 +352,23 @@ for information about importing foreign key formats.
 
 \cfg{winhelp-topic}{puttygen.conversions}
 
-Most SSH1 clients use a standard format for storing private keys on
+Most SSH-1 clients use a standard format for storing private keys on
 disk. PuTTY uses this format as well; so if you have generated an
-SSH1 private key using OpenSSH or \cw{ssh.com}'s client, you can use
+SSH-1 private key using OpenSSH or \cw{ssh.com}'s client, you can use
 it with PuTTY, and vice versa.
 
-However, SSH2 private keys have no standard format. OpenSSH and
+However, SSH-2 private keys have no standard format. OpenSSH and
 \cw{ssh.com} have different formats, and PuTTY's is different again.
 So a key generated with one client cannot immediately be used with
 another.
 
 Using the \q{Import} command from the \q{Conversions} menu, PuTTYgen
-can load SSH2 private keys in OpenSSH's format and \cw{ssh.com}'s
+can load SSH-2 private keys in OpenSSH's format and \cw{ssh.com}'s
 format. Once you have loaded one of these key types, you can then
 save it back out as a PuTTY-format key (\c{*.PPK}) so that you can use
 it with the PuTTY suite. The passphrase will be unchanged by this
 process (unless you deliberately change it). You may want to change
-the key comment before you save the key, since OpenSSH's SSH2 key
+the key comment before you save the key, since OpenSSH's SSH-2 key
 format contains no space for a comment and \cw{ssh.com}'s default
 comment format is long and verbose.
 
@@ -379,8 +379,8 @@ saving it (see \k{puttygen-savepriv}) - you need to have typed your
 passphrase in beforehand, and you will be warned if you are about to
 save a key without a passphrase.
 
-Note that since only SSH2 keys come in different formats, the export
-options are not available if you have generated an SSH1 key.
+Note that since only SSH-2 keys come in different formats, the export
+options are not available if you have generated an SSH-1 key.
 
 \H{pubkey-gettingready} Getting ready for public key authentication
 
@@ -389,7 +389,7 @@ connection succeeds you will be prompted for your user name and
 password to login. Once logged in, you must configure the server to
 accept your public key for authentication:
 
-\b If your server is using the SSH 1 protocol, you should change
+\b If your server is using the SSH-1 protocol, you should change
 into the \c{.ssh} directory and open the file \c{authorized_keys}
 with your favourite editor. (You may have to create this file if
 this is the first key you have put in it). Then switch to the
@@ -399,11 +399,11 @@ and copy it to the clipboard (\c{Ctrl+C}). Then, switch back to the
 PuTTY window and insert the data into the open file, making sure it
 ends up all on one line. Save the file.
 
-\b If your server is OpenSSH and is using the SSH 2 protocol, you
+\b If your server is OpenSSH and is using the SSH-2 protocol, you
 should follow the same instructions, except that in earlier versions
 of OpenSSH 2 the file might be called \c{authorized_keys2}. (In
 modern versions the same \c{authorized_keys} file is used for both
-SSH 1 and SSH 2 keys.)
+SSH-1 and SSH-2 keys.)
 
 \b If your server is \cw{ssh.com}'s SSH 2 product, you need to save
 a \e{public} key file from PuTTYgen (see \k{puttygen-savepub}), and

@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-# $Id: kh2reg.py,v 1.3 2003/10/21 13:26:12 jacob Exp $
+# $Id$
 # Convert OpenSSH known_hosts and known_hosts2 files to "new format" PuTTY
 # host keys.
 #   usage:
@@ -87,7 +87,7 @@ for line in fileinput.input(args):
         # is second field entirely decimal digits?
         if re.match (r"\d*$", fields[1]):
 
-            # Treat as SSH1-type host key.
+            # Treat as SSH-1-type host key.
             # Format: hostpat bits10 exp10 mod10 comment...
             # (PuTTY doesn't store the number of bits.)
             magicnumbers = map (long, fields[2:4])
@@ -95,7 +95,7 @@ for line in fileinput.input(args):
 
         else:
 
-            # Treat as SSH2-type host key.
+            # Treat as SSH-2-type host key.
             # Format: hostpat keytype keyblob64 comment...
             sshkeytype, blob = fields[1], base64.decodestring (fields[2])
 

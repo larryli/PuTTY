@@ -431,8 +431,8 @@ your client PC can connect to the forwarded port.
 \b The \q{Remote ports do the same} option does the same thing for
 remote-to-local port forwardings (so that machines other than the
 SSH server machine can connect to the forwarded port.) Note that
-this feature is only available in the SSH 2 protocol, and not all
-SSH 2 servers honour it (in OpenSSH, for example, it's usually
+this feature is only available in the SSH-2 protocol, and not all
+SSH-2 servers honour it (in OpenSSH, for example, it's usually
 disabled by default).
 
 You can also specify an \i{IP address} to listen on. Typically a
@@ -443,8 +443,8 @@ available only to the local machine. So if you forward (for example)
 should be able to run commands such as \c{finger fred@127.0.0.5}.
 This can be useful if the program connecting to the forwarded port
 doesn't allow you to change the port number it uses. This feature is
-available for local-to-remote forwarded ports; SSH1 is unable to
-support it for remote-to-local ports, while SSH2 can support it in
+available for local-to-remote forwarded ports; SSH-1 is unable to
+support it for remote-to-local ports, while SSH-2 can support it in
 theory but servers will not necessarily cooperate.
 
 (Note that if you're using Windows XP Service Pack 2, you may need
@@ -752,8 +752,8 @@ the SSH panel of the PuTTY configuration box (see
 \S2{using-cmdline-sshprot} \i\c{-1} and \i\c{-2}: specify an \i{SSH
 protocol version}
 
-The \c{-1} and \c{-2} options force PuTTY to use version \I{SSH1}1
-or version \I{SSH2}2 of the SSH protocol. These options are only
+The \c{-1} and \c{-2} options force PuTTY to use version \I{SSH-1}1
+or version \I{SSH-2}2 of the SSH protocol. These options are only
 meaningful if you are using SSH.
 
 These options are equivalent to selecting your preferred SSH

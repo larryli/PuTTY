@@ -193,7 +193,7 @@ tunnel all their connections. Only works in SSH.
 \dt \cw{\-A}, \cw{\-a}
 
 \dd Enable (\cw{\-A}) or disable (\cw{\-a}) SSH agent forwarding.
-Currently this only works with OpenSSH and SSH1.
+Currently this only works with OpenSSH and SSH-1.
 
 \dt \cw{\-X}, \cw{\-x}
 
@@ -214,7 +214,7 @@ pseudo-terminal at the server end.
 
 \dt \cw{\-i} \e{keyfile}
 
-\dd Specify a private key file to use for authentication. For SSH2
+\dd Specify a private key file to use for authentication. For SSH-2
 keys, this key file must be in PuTTY's format, not OpenSSH's or
 anyone else's.
 

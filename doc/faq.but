@@ -45,23 +45,23 @@ page}, and see if you can find the feature there. If it's on there,
 and not in the \q{Recently fixed} section, it probably \e{hasn't} been
 implemented.
 
-\S{faq-ssh2}{Question} Does PuTTY support SSH v2?
+\S{faq-ssh2}{Question} Does PuTTY support SSH-2?
 
-Yes. SSH v2 support has been available in PuTTY since version 0.50.
+Yes. SSH-2 support has been available in PuTTY since version 0.50.
 
-Public key authentication (both RSA and DSA) in SSH v2 is new in
+Public key authentication (both RSA and DSA) in SSH-2 is new in
 version 0.52.
 
 \S{faq-ssh2-keyfmt}{Question} Does PuTTY support reading OpenSSH or
-\cw{ssh.com} SSHv2 private key files?
+\cw{ssh.com} SSH-2 private key files?
 
 PuTTY doesn't support this natively, but as of 0.53
 PuTTYgen can convert both OpenSSH and \cw{ssh.com} private key
 files into PuTTY's format.
 
-\S{faq-ssh1}{Question} Does PuTTY support SSH v1?
+\S{faq-ssh1}{Question} Does PuTTY support SSH-1?
 
-Yes. SSH 1 support has always been available in PuTTY.
+Yes. SSH-1 support has always been available in PuTTY.
 
 \S{faq-localecho}{Question} Does PuTTY support local echo?
 
@@ -534,9 +534,9 @@ of quotes in the obvious way:
 received on packet}?
 
 One possible cause of this that used to be common is a bug in old
-SSH 2 servers distributed by \cw{ssh.com}. (This is not the only
+SSH-2 servers distributed by \cw{ssh.com}. (This is not the only
 possible cause; see \k{errors-crc} in the documentation.)
-Version 2.3.0 and below of their SSH 2 server
+Version 2.3.0 and below of their SSH-2 server
 constructs Message Authentication Codes in the wrong way, and
 expects the client to construct them in the same wrong way. PuTTY
 constructs the MACs correctly by default, and hence these old
@@ -550,7 +550,7 @@ to work with them.
 
 If you are using PuTTY version 0.51 or below, you can enable the
 workaround by going to the SSH panel and ticking the box labelled
-\q{Imitate SSH 2 MAC bug}. It's possible that you might have to do
+\q{Imitate SSH-2 MAC bug}. It's possible that you might have to do
 this with 0.52 as well, if a buggy server exists that PuTTY doesn't
 know about.
 
@@ -608,7 +608,7 @@ the
 \c http://www.microsoft.com/windows95/downloads/contents/
 \c   wuadmintools/s_wunetworkingtools/w95sockets2/
 
-\S{faq-outofmem}{Question} After trying to establish an SSH 2
+\S{faq-outofmem}{Question} After trying to establish an SSH-2
 connection, PuTTY says \q{Out of memory} and dies.
 
 If this happens just while the connection is starting up, this often
@@ -838,17 +838,17 @@ default cipher differs from many other clients.)
 
 \e{OpenSSH 3.1p1:} configurations known to be broken (and symptoms):
 
-\b SSH 2 with AES cipher (PuTTY says "Assertion failed! Expression:
+\b SSH-2 with AES cipher (PuTTY says "Assertion failed! Expression:
 (len & 15) == 0" in sshaes.c, or "Out of memory", or crashes)
 
-\b SSH 2 with 3DES (PuTTY says "Incorrect MAC received on packet")
+\b SSH-2 with 3DES (PuTTY says "Incorrect MAC received on packet")
 
-\b SSH 1 with Blowfish (PuTTY says "Incorrect CRC received on
+\b SSH-1 with Blowfish (PuTTY says "Incorrect CRC received on
 packet")
 
-\b SSH 1 with 3DES
+\b SSH-1 with 3DES
 
-\e{OpenSSH 3.4p1:} as of 3.4p1, only the problem with SSH 1 and
+\e{OpenSSH 3.4p1:} as of 3.4p1, only the problem with SSH-1 and
 Blowfish remains. Rebuild your server, apply the patch linked to from
 bug 138 above, or use another cipher (e.g., 3DES) instead.
 
@@ -860,11 +860,11 @@ clear the underlying cause is the same.
 key from ..."? Why can PuTTYgen load my key but not PuTTY?
 
 It's likely that you've generated an SSH protocol 2 key with PuTTYgen,
-but you're trying to use it in an SSH 1 connection. SSH1 and SSH2 keys
+but you're trying to use it in an SSH-1 connection. SSH-1 and SSH-2 keys
 have different formats, and (at least in 0.52) PuTTY's reporting of a
 key in the wrong format isn't optimal.
 
-To connect using SSH 2 to a server that supports both versions, you
+To connect using SSH-2 to a server that supports both versions, you
 need to change the configuration from the default (see \k{faq-ssh2}).
 
 \S{faq-rh8-utf8}{Question} When I'm connected to a Red Hat Linux 8.0
@@ -1177,7 +1177,7 @@ OpenSSH?
 
 No, it isn't. PuTTY is almost completely composed of code written
 from scratch for PuTTY. The only code we share with OpenSSH is the
-detector for SSH1 CRC compensation attacks, written by CORE SDI S.A.
+detector for SSH-1 CRC compensation attacks, written by CORE SDI S.A.
 
 \S{faq-sillyputty}{Question} Where can I buy silly putty?
 

@@ -56,7 +56,7 @@ int import_possible(int type)
 int import_target_type(int type)
 {
     /*
-     * There are no known foreign SSH1 key formats.
+     * There are no known foreign SSH-1 key formats.
      */
     return SSH_KEYTYPE_SSH2;
 }
@@ -78,7 +78,7 @@ int import_encrypted(const Filename *filename, int type, char **comment)
 }
 
 /*
- * Import an SSH1 key.
+ * Import an SSH-1 key.
  */
 int import_ssh1(const Filename *filename, int type,
 		struct RSAKey *key, char *passphrase, const char **errmsg_p)
@@ -87,7 +87,7 @@ int import_ssh1(const Filename *filename, int type,
 }
 
 /*
- * Import an SSH2 key.
+ * Import an SSH-2 key.
  */
 struct ssh2_userkey *import_ssh2(const Filename *filename, int type,
 				 char *passphrase, const char **errmsg_p)
@@ -100,7 +100,7 @@ struct ssh2_userkey *import_ssh2(const Filename *filename, int type,
 }
 
 /*
- * Export an SSH1 key.
+ * Export an SSH-1 key.
  */
 int export_ssh1(const Filename *filename, int type, struct RSAKey *key,
 		char *passphrase)
@@ -109,7 +109,7 @@ int export_ssh1(const Filename *filename, int type, struct RSAKey *key,
 }
 
 /*
- * Export an SSH2 key.
+ * Export an SSH-2 key.
  */
 int export_ssh2(const Filename *filename, int type,
                 struct ssh2_userkey *key, char *passphrase)
@@ -918,9 +918,9 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
  */
 
 /*
- * The format of the base64 blob is largely ssh2-packet-formatted,
+ * The format of the base64 blob is largely SSH-2-packet-formatted,
  * except that mpints are a bit different: they're more like the
- * old ssh1 mpint. You have a 32-bit bit count N, followed by
+ * old SSH-1 mpint. You have a 32-bit bit count N, followed by
  * (N+7)/8 bytes of data.
  * 
  * So. The blob contains:
@@ -932,7 +932,7 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
  *  - string encrypted-blob
  * 
  * (The first size field includes the size field itself and the
- * magic number before it. All other size fields are ordinary ssh2
+ * magic number before it. All other size fields are ordinary SSH-2
  * strings, so the size field indicates how much data is to
  * _follow_.)
  * 
@@ -977,7 +977,7 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
  * `dl-modp{sign{dsa' prefixes.
  * 
  * Finally, the encryption. The cipher-type string appears to be
- * either `none' or `3des-cbc'. Looks as if this is SSH2-style
+ * either `none' or `3des-cbc'. Looks as if this is SSH-2-style
  * 3des-cbc (i.e. outer cbc rather than inner). The key is created
  * from the passphrase by means of yet another hashing faff:
  * 

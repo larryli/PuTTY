@@ -1827,7 +1827,7 @@ static void sink(char *targ, char *src)
 		    tell_user(stderr, "         when we requested a file "
 			      "called '%s'.", stripsrc);
 		    tell_user(stderr, "         If this is a wildcard, "
-			      "consider upgrading to SSH 2 or using");
+			      "consider upgrading to SSH-2 or using");
 		    tell_user(stderr, "         the '-unsafe' option. Renaming"
 			      " of this file has been disallowed.");
 		    /* Override the name the server provided with our own. */

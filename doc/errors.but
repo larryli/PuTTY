@@ -30,8 +30,8 @@ asking the machine's administrator.
 If you see this message and you know that your installation of PuTTY
 \e{has} connected to the same server before, it may have been
 recently upgraded to SSH protocol version 2. SSH protocols 1 and 2
-use separate host keys, so when you first use SSH 2 with a server
-you have only used SSH 1 with before, you will see this message
+use separate host keys, so when you first use SSH-2 with a server
+you have only used SSH-1 with before, you will see this message
 again. You should verify the correctness of the key as before.
 
 See \k{gs-hostkey} for more information on host keys.
@@ -100,7 +100,7 @@ PuTTY is not able to recover from running out of memory; it will
 terminate immediately after giving this error.
 
 However, this error can also occur when memory is not running out at
-all, because PuTTY receives data in the wrong format. In SSH 2 and
+all, because PuTTY receives data in the wrong format. In SSH-2 and
 also in SFTP, the server sends the length of each message before the
 message itself; so PuTTY will receive the length, try to allocate
 space for the message, and then receive the rest of the message. If
@@ -108,7 +108,7 @@ the length PuTTY receives is garbage, it will try to allocate a
 ridiculous amount of memory, and will terminate with an \q{Out of
 memory} error.
 
-This can happen in SSH 2, if PuTTY and the server have not enabled
+This can happen in SSH-2, if PuTTY and the server have not enabled
 encryption in the same way (see \k{faq-outofmem} in the FAQ). Some
 versions of OpenSSH have a known problem with this: see
 \k{faq-openssh-bad-openssl}.
@@ -213,7 +213,7 @@ to tell from this error message whether the problem is in the client,
 in the server, or in between.
 
 If you get this error, one thing you could try would be to fiddle
-with the setting of \q{Miscomputes SSH2 encryption keys} on the Bugs
+with the setting of \q{Miscomputes SSH-2 encryption keys} on the Bugs
 panel (see \k{config-ssh-bug-derivekey2}).
 
 Another known server problem which can cause this error is described

@@ -1563,8 +1563,8 @@ Keepalives are only supported in Telnet and SSH; the Rlogin and Raw
 protocols offer no way of implementing them. (For an alternative, see
 \k{config-tcp-keepalives}.)
 
-Note that if you are using SSH1 and the server has a bug that makes
-it unable to deal with SSH1 ignore messages (see
+Note that if you are using SSH-1 and the server has a bug that makes
+it unable to deal with SSH-1 ignore messages (see
 \k{config-ssh-bug-ignore1}), enabling keepalives will have no effect.
 
 \S{config-nodelay} \q{Disable Nagle's algorithm}
@@ -1701,10 +1701,10 @@ other ways around the security problems than just disabling the
 whole mechanism.
 
 Version 2 of the SSH protocol also provides a similar mechanism,
-which is easier to implement without security flaws. Newer SSH2
+which is easier to implement without security flaws. Newer SSH-2
 servers are more likely to support it than older ones.
 
-This configuration data is not used in the SSHv1, rlogin or raw
+This configuration data is not used in the SSH-1, rlogin or raw
 protocols.
 
 To add an environment variable to the list transmitted down the
@@ -2126,11 +2126,11 @@ separate configuration of the preference orders. As a result you may
 get two warnings similar to the one above, possibly with different
 encryptions.
 
-Single-DES is not recommended in the SSH 2 draft protocol
+Single-DES is not recommended in the SSH-2 draft protocol
 standards, but one or two server implementations do support it.
 PuTTY can use single-DES to interoperate with
 these servers if you enable the \q{Enable legacy use of single-DES in
-SSH 2} option; by default this is disabled and PuTTY will stick to
+SSH-2} option; by default this is disabled and PuTTY will stick to
 recommended ciphers.
 
 \H{config-ssh-kex} The Kex panel
@@ -2283,7 +2283,7 @@ responses take.
 
 \cfg{winhelp-topic}{ssh.auth.ki}
 
-The SSH 2 equivalent of TIS authentication is called
+The SSH-2 equivalent of TIS authentication is called
 \q{keyboard-interactive}. It is a flexible authentication method
 using an arbitrary sequence of requests and responses; so it is not
 only useful for challenge/response mechanisms such as S/Key, but it
@@ -2306,17 +2306,17 @@ See \k{pageant} for general information on Pageant, and
 there is a security risk involved with enabling this option; see
 \k{pageant-security} for details.
 
-\S{config-ssh-changeuser} \q{Allow attempted changes of username in SSH2}
+\S{config-ssh-changeuser} \q{Allow attempted changes of username in SSH-2}
 
 \cfg{winhelp-topic}{ssh.auth.changeuser}
 
-In the SSH 1 protocol, it is impossible to change username after
+In the SSH-1 protocol, it is impossible to change username after
 failing to authenticate. So if you mis-type your username at the
 PuTTY \q{login as:} prompt, you will not be able to change it except
 by restarting PuTTY.
 
-The SSH 2 protocol \e{does} allow changes of username, in principle,
-but does not make it mandatory for SSH 2 servers to accept them. In
+The SSH-2 protocol \e{does} allow changes of username, in principle,
+but does not make it mandatory for SSH-2 servers to accept them. In
 particular, OpenSSH does not accept a change of username; once you
 have sent one username, it will reject attempts to try to
 authenticate as another user. (Depending on the version of OpenSSH,
@@ -2391,7 +2391,7 @@ experimental feature, and may encounter several problems:
 \cw{XDM-AUTHORIZATION-1}, so they will not know what to do with the
 data PuTTY has provided.
 
-\b This authentication mechanism will only work in SSH v2. In SSH
+\b This authentication mechanism will only work in SSH-2. In SSH
 v1, the SSH server does not tell the client the source address of
 a forwarded connection in a machine-readable format, so it's
 impossible to verify the \cw{XDM-AUTHORIZATION-1} data.
@@ -2465,10 +2465,10 @@ If you delete a local or dynamic port forwarding in mid-session, PuTTY
 will stop listening for connections on that port, so it can be re-used
 by another program. If you delete a remote port forwarding, note that:
 
-\b The SSHv1 protocol contains no mechanism for asking the server to
+\b The SSH-1 protocol contains no mechanism for asking the server to
 stop listening on a remote port.
 
-\b The SSHv2 protocol does contain such a mechanism, but not all SSH
+\b The SSH-2 protocol does contain such a mechanism, but not all SSH
 servers support it. (In particular, OpenSSH does not support it in
 any version earlier than 3.9.)
 
@@ -2502,8 +2502,8 @@ port. (This also applies to dynamic SOCKS forwarding.)
 \b The \q{Remote ports do the same} option does the same thing for
 remote-to-local port forwardings (so that machines other than the
 SSH server machine can connect to the forwarded port.) Note that
-this feature is only available in the SSH 2 protocol, and not all
-SSH 2 servers support it (OpenSSH 3.0 does not, for example).
+this feature is only available in the SSH-2 protocol, and not all
+SSH-2 servers support it (OpenSSH 3.0 does not, for example).
 
 \S{config-ssh-portfwd-address-family} Selecting Internet protocol
 version for forwarded ports
@@ -2555,7 +2555,7 @@ states:
 \b \q{Auto}: PuTTY will use the server's version number announcement
 to try to guess whether or not the server has the bug.
 
-\S{config-ssh-bug-ignore1} \q{Chokes on SSH1 ignore messages}
+\S{config-ssh-bug-ignore1} \q{Chokes on SSH-1 ignore messages}
 
 \cfg{winhelp-topic}{ssh.bugs.ignore1}
 
@@ -2563,30 +2563,30 @@ An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
 which can be sent from the client to the server, or from the server
 to the client, at any time. Either side is required to ignore the
 message whenever it receives it. PuTTY uses ignore messages to hide
-the password packet in SSH1, so that a listener cannot tell the
+the password packet in SSH-1, so that a listener cannot tell the
 length of the user's password; it also uses ignore messages for
 connection keepalives (see \k{config-keepalive}).
 
 If this bug is detected, PuTTY will stop using ignore messages. This
 means that keepalives will stop working, and PuTTY will have to fall
-back to a secondary defence against SSH1 password-length
+back to a secondary defence against SSH-1 password-length
 eavesdropping. See \k{config-ssh-bug-plainpw1}. If this bug is
 enabled when talking to a correct server, the session will succeed,
 but keepalives will not work and the session might be more
 vulnerable to eavesdroppers than it could be.
 
-This is an SSH1-specific bug. No known SSH2 server fails to deal
-with SSH2 ignore messages.
+This is an SSH-1-specific bug. No known SSH-2 server fails to deal
+with SSH-2 ignore messages.
 
-\S{config-ssh-bug-plainpw1} \q{Refuses all SSH1 password camouflage}
+\S{config-ssh-bug-plainpw1} \q{Refuses all SSH-1 password camouflage}
 
 \cfg{winhelp-topic}{ssh.bugs.plainpw1}
 
-When talking to an SSH1 server which cannot deal with ignore
+When talking to an SSH-1 server which cannot deal with ignore
 messages (see \k{config-ssh-bug-ignore1}), PuTTY will attempt to
 disguise the length of the user's password by sending additional
 padding \e{within} the password packet. This is technically a
-violation of the SSH1 specification, and so PuTTY will only do it
+violation of the SSH-1 specification, and so PuTTY will only do it
 when it cannot use standards-compliant ignore messages as
 camouflage. In this sense, for a server to refuse to accept a padded
 password packet is not really a bug, but it does make life
@@ -2599,15 +2599,15 @@ of the password. If this bug is enabled when talking to a correct
 server, the session will succeed, but will be more vulnerable to
 eavesdroppers than it could be.
 
-This is an SSH1-specific bug. SSH2 is secure against this type of
+This is an SSH-1-specific bug. SSH-2 is secure against this type of
 attack.
 
-\S{config-ssh-bug-rsa1} \q{Chokes on SSH1 RSA authentication}
+\S{config-ssh-bug-rsa1} \q{Chokes on SSH-1 RSA authentication}
 
 \cfg{winhelp-topic}{ssh.bugs.rsa1}
 
-Some SSH1 servers cannot deal with RSA authentication messages at
-all. If Pageant is running and contains any SSH1 keys, PuTTY will
+Some SSH-1 servers cannot deal with RSA authentication messages at
+all. If Pageant is running and contains any SSH-1 keys, PuTTY will
 normally automatically try RSA authentication before falling back to
 passwords, so these servers will crash when they see the RSA attempt.
 
@@ -2616,9 +2616,9 @@ authentication. If this bug is enabled when talking to a correct
 server, the session will succeed, but of course RSA authentication
 will be impossible.
 
-This is an SSH1-specific bug.
+This is an SSH-1-specific bug.
 
-\S{config-ssh-bug-hmac2} \q{Miscomputes SSH2 HMAC keys}
+\S{config-ssh-bug-hmac2} \q{Miscomputes SSH-2 HMAC keys}
 
 \cfg{winhelp-topic}{ssh.bugs.hmac2}
 
@@ -2633,9 +2633,9 @@ same way as the buggy server, so that communication will still be
 possible. If this bug is enabled when talking to a correct server,
 communication will fail.
 
-This is an SSH2-specific bug.
+This is an SSH-2-specific bug.
 
-\S{config-ssh-bug-derivekey2} \q{Miscomputes SSH2 encryption keys}
+\S{config-ssh-bug-derivekey2} \q{Miscomputes SSH-2 encryption keys}
 
 \cfg{winhelp-topic}{ssh.bugs.derivekey2}
 
@@ -2649,15 +2649,15 @@ the same way as the buggy server, so that communication will still
 be possible. If this bug is enabled when talking to a correct
 server, communication will fail.
 
-This is an SSH2-specific bug.
+This is an SSH-2-specific bug.
 
-\S{config-ssh-bug-sig} \q{Requires padding on SSH2 RSA signatures}
+\S{config-ssh-bug-sig} \q{Requires padding on SSH-2 RSA signatures}
 
 \cfg{winhelp-topic}{ssh.bugs.rsapad2}
 
-Versions below 3.3 of OpenSSH require SSH2 RSA signatures to be
+Versions below 3.3 of OpenSSH require SSH-2 RSA signatures to be
 padded with zero bytes to the same length as the RSA key modulus.
-The SSH2 draft specification says that an unpadded signature MUST be
+The SSH-2 draft specification says that an unpadded signature MUST be
 accepted, so this is a bug. A typical symptom of this problem is
 that PuTTY mysteriously fails RSA authentication once in every few
 hundred attempts, and falls back to passwords.
@@ -2668,13 +2668,13 @@ server, it is likely that no damage will be done, since correct
 servers usually still accept padded signatures because they're used
 to talking to OpenSSH.
 
-This is an SSH2-specific bug.
+This is an SSH-2-specific bug.
 
 \S{config-ssh-bug-pksessid2} \q{Misuses the session ID in PK auth}
 
 \cfg{winhelp-topic}{ssh.bugs.pksessid2}
 
-Versions below 2.3 of OpenSSH require SSH2 public-key authentication
+Versions below 2.3 of OpenSSH require SSH-2 public-key authentication
 to be done slightly differently: the data to be signed by the client
 contains the session ID formatted in a different way. If public-key
 authentication mysteriously does not work but the Event Log (see
@@ -2684,9 +2684,9 @@ helps.
 
 If this bug is detected, PuTTY will sign data in the way OpenSSH
 expects. If this bug is enabled when talking to a correct server,
-SSH2 public-key authentication will fail.
+SSH-2 public-key authentication will fail.
 
-This is an SSH2-specific bug.
+This is an SSH-2-specific bug.
 
 \S{config-ssh-bug-rekey} \q{Handles key re-exchange badly}
 
@@ -2706,7 +2706,7 @@ exchange. If this bug is enabled when talking to a correct server,
 the session should still function, but may be less secure than you
 would expect.
 
-This is an SSH2-specific bug.
+This is an SSH-2-specific bug.
 
 \H{config-file} Storing configuration in a file
 

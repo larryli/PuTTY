@@ -7,8 +7,8 @@
 \i{PSCP}, the PuTTY Secure Copy client, is a tool for transferring files
 securely between computers using an SSH connection.
 
-If you have an SSH 2 server, you might prefer PSFTP (see \k{psftp})
-for interactive use. PSFTP does not in general work with SSH 1
+If you have an SSH-2 server, you might prefer PSFTP (see \k{psftp})
+for interactive use. PSFTP does not in general work with SSH-1
 servers, however.
 
 \H{pscp-starting} Starting PSCP
@@ -98,7 +98,7 @@ However, in the second case (using a wildcard for multiple remote
 files) you may see a warning saying something like \q{warning:
 remote host tried to write to a file called \cq{terminal.c} when we
 requested a file called \cq{*.c}. If this is a wildcard, consider
-upgrading to SSH 2 or using the \cq{-unsafe} option. Renaming of
+upgrading to SSH-2 or using the \cq{-unsafe} option. Renaming of
 this file has been disallowed}.
 
 This is due to a fundamental insecurity in the old-style SCP
@@ -112,13 +112,13 @@ the wildcard matching rules are decided by the server, the client
 cannot reliably verify that the filenames sent back match the
 pattern.
 
-PSCP will attempt to use the newer SFTP protocol (part of SSH 2)
+PSCP will attempt to use the newer SFTP protocol (part of SSH-2)
 where possible, which does not suffer from this security flaw. If
-you are talking to an SSH 2 server which supports SFTP, you will
+you are talking to an SSH-2 server which supports SFTP, you will
 never see this warning. (You can force use of the SFTP protocol,
 if available, with \c{-sftp} - see \k{pscp-usage-options-backend}.)
 
-If you really need to use a server-side wildcard with an SSH 1
+If you really need to use a server-side wildcard with an SSH-1
 server, you can use the \c{-unsafe} command line option with PSCP:
 
 \c pscp -unsafe fred@example.com:source/*.c c:\source
@@ -244,7 +244,7 @@ used, but also leads to interoperability issues such as with filename
 quoting (for instance, where filenames contain spaces), and also the
 security issue described in \k{pscp-usage-basics}.
 
-The newer SFTP protocol, which is usually associated with SSH 2
+The newer SFTP protocol, which is usually associated with SSH-2
 servers, is specified in a more platform independent way, and leaves
 issues such as wildcard syntax up to the client. (PuTTY's SFTP
 wildcard syntax is described in \k{psftp-wildcards}.) This makes it
@@ -258,7 +258,7 @@ The \c{-scp} option forces PSCP to use the SCP protocol or quit.
 
 The \c{-sftp} option forces PSCP to use the SFTP protocol or quit.
 When this option is specified, PSCP looks harder for an SFTP server,
-which may allow use of SFTP with SSH 1 depending on server setup.
+which may allow use of SFTP with SSH-1 depending on server setup.
 
 \S{pscp-retval} Return value
 

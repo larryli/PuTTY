@@ -8,8 +8,8 @@ securely between computers using an SSH connection.
 PSFTP differs from PSCP in the following ways:
 
 \b PSCP should work on virtually every SSH server. PSFTP uses the
-new SFTP protocol, which is a feature of SSH 2 only. (PSCP will also
-use this protocol if it can, but there is an SSH 1 equivalent it can
+new SFTP protocol, which is a feature of SSH-2 only. (PSCP will also
+use this protocol if it can, but there is an SSH-1 equivalent it can
 fall back to if it cannot.)
 
 \b PSFTP allows you to run an interactive file transfer session,
