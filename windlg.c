@@ -232,6 +232,10 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_LGFSTATIC,
     IDC_LGFEDIT,
     IDC_LGFBUTTON,
+    IDC_LSTATXIST,
+    IDC_LSTATXOVR,
+    IDC_LSTATXAPN,
+    IDC_LSTATXASK,
     loggingpanelend,
 
     keyboardpanelstart,
@@ -607,6 +611,10 @@ static void init_dlg_ctrls(HWND hwnd) {
 		     cfg.logtype == 0 ? IDC_LSTATOFF :
 		     cfg.logtype == 1 ? IDC_LSTATASCII :
 		     IDC_LSTATRAW);
+    CheckRadioButton(hwnd, IDC_LSTATXOVR, IDC_LSTATXASK,
+		     cfg.logxfovr == LGXF_OVR ? IDC_LSTATXOVR :
+		     cfg.logxfovr == LGXF_ASK ? IDC_LSTATXASK :
+		     IDC_LSTATXAPN);
     {
 	char *p = cfg.environmt;
 	while (*p) {
@@ -766,7 +774,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == loggingpanelstart) {
-        /* The Logging panel. Accelerators used: [acgo] tplfw */
+        /* The Logging panel. Accelerators used: [acgo] tplfwes */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling session logging",
@@ -780,6 +788,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         editbutton(&cp, "Log &file name:",
                    IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
                    IDC_LGFBUTTON);
+        radiobig(&cp,
+                 "What to do if the log file already &exists:", IDC_LSTATXIST,
+                 "Always overwrite it", IDC_LSTATXOVR,
+                 "Always append to the end of it", IDC_LSTATXAPN,
+                 "Ask the user every time", IDC_LSTATXASK, NULL);
         endbox(&cp);
     }
 
@@ -815,7 +828,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == bellpanelstart) {
-        /* The Bell panel. Accelerators used: [acgo] bdsm w */
+        /* The Bell panel. Accelerators used: [acgo] bdsm wt */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the terminal bell",
@@ -838,11 +851,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
 		 IDC_BELLOVL);
 	staticedit(&cp, "Over-use means this &many bells...",
 		   IDC_BELLOVLNSTATIC, IDC_BELLOVLN, 20);
-	staticedit(&cp, "... in this many &seconds",
+	staticedit(&cp, "... in &this many seconds",
 		   IDC_BELLOVLTSTATIC, IDC_BELLOVLT, 20);
 	statictext(&cp, "The bell is re-enabled after a few seconds of silence.",
 		   IDC_BELLOVLEXPLAIN);
-	staticedit(&cp, "Seconds of silence required",
+	staticedit(&cp, "Seconds of &silence required",
 		   IDC_BELLOVLSSTATIC, IDC_BELLOVLS, 20);
         endbox(&cp);
     }
@@ -1823,6 +1836,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		if (IsDlgButtonChecked (hwnd, IDC_LSTATRAW)) cfg.logtype = 2;
 	    }
 	    break;
+	  case IDC_LSTATXASK:
+	  case IDC_LSTATXAPN:
+	  case IDC_LSTATXOVR:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (IsDlgButtonChecked (hwnd, IDC_LSTATXASK)) cfg.logxfovr = LGXF_ASK;
+		if (IsDlgButtonChecked (hwnd, IDC_LSTATXAPN)) cfg.logxfovr = LGXF_APN;
+		if (IsDlgButtonChecked (hwnd, IDC_LSTATXOVR)) cfg.logxfovr = LGXF_OVR;
+	    }
+	    break;
 	  case IDC_TSEDIT:
 	  case IDC_R_TSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
@@ -2325,6 +2348,9 @@ int askappend(char *filename) {
 	"or Cancel to disable logging.";
     char message[sizeof(msgtemplate) + FILENAME_MAX];
     int mbret;
+    if ( cfg.logxfovr != LGXF_ASK ) {
+	return ( (cfg.logxfovr==LGXF_OVR) ? 2 : 1);
+    }
     sprintf(message, msgtemplate, FILENAME_MAX, filename);
 
     mbret = MessageBox(NULL, message, mbtitle,

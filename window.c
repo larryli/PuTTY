@@ -42,6 +42,9 @@
 #define IDM_SAVEDSESS 0x0150
 #define IDM_COPYALL   0x0160
 
+#define IDM_SESSLGP   0x0250  /* log type printable */
+#define IDM_SESSLGA   0x0260  /* log type all chars */
+#define IDM_SESSLGE   0x0270  /* log end */
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x2000
 
