@@ -355,6 +355,7 @@ void term_clrsb(Terminal *term)
     while ((line = delpos234(term->scrollback, 0)) != NULL) {
 	sfree(line);
     }
+    term->tempsblines = 0;
     term->alt_sblines = 0;
     update_sbar(term);
 }
@@ -399,6 +400,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->curstype = 0;
 
     term->screen = term->alt_screen = term->scrollback = NULL;
+    term->tempsblines = 0;
     term->alt_sblines = 0;
     term->disptop = 0;
     term->disptext = term->dispcurs = NULL;
@@ -472,6 +474,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     if (term->rows == -1) {
 	term->scrollback = newtree234(NULL);
 	term->screen = newtree234(NULL);
+	term->tempsblines = 0;
 	term->rows = 0;
     }
 
@@ -481,15 +484,14 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
      * will take care of resizing each individual line if
      * necessary. So:
      * 
-     *  - If the new screen and the old screen differ in length, we
-     *    must shunt some lines in from the scrollback or out to
-     *    the scrollback.
-     * 
-     *  - If doing that fails to provide us with enough material to
-     *    fill the new screen (i.e. the number of rows needed in
-     *    the new screen exceeds the total number in the previous
-     *    screen+scrollback), we must invent some blank lines to
-     *    cover the gap.
+     *  - If the new screen is longer, we shunt lines in from temporary
+     *    scrollback if possible, otherwise we add new blank lines at
+     *    the bottom.
+     *
+     *  - If the new screen is shorter, we remove any blank lines at
+     *    the bottom if possible, otherwise shunt lines above the cursor
+     *    to scrollback if possible, otherwise delete lines below the
+     *    cursor.
      * 
      *  - Then, if the new scrollback length is less than the
      *    amount of scrollback we actually have, we must throw some
@@ -497,32 +499,58 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
      */
     sblen = count234(term->scrollback);
     /* Do this loop to expand the screen if newrows > rows */
-    for (i = term->rows; i < newrows; i++) {
-	if (sblen > 0) {
+    assert(term->rows == count234(term->screen));
+    while (term->rows < newrows) {
+	if (term->tempsblines > 0) {
+	    /* Insert a line from the scrollback at the top of the screen. */
+	    assert(sblen >= term->tempsblines);
 	    line = delpos234(term->scrollback, --sblen);
+	    term->tempsblines -= 1;
+	    addpos234(term->screen, line, 0);
+	    term->curs.y += 1;
+	    term->savecurs.y += 1;
 	} else {
+	    /* Add a new blank line at the bottom of the screen. */
 	    line = smalloc(TSIZE * (newcols + 2));
 	    line[0] = newcols;
 	    for (j = 0; j < newcols; j++)
 		line[j + 1] = ERASE_CHAR;
             line[newcols + 1] = LATTR_NORM;
+	    addpos234(term->screen, line, count234(term->screen));
 	}
-	addpos234(term->screen, line, 0);
+	term->rows += 1;
     }
     /* Do this loop to shrink the screen if newrows < rows */
-    for (i = newrows; i < term->rows; i++) {
-	line = delpos234(term->screen, 0);
-	addpos234(term->scrollback, line, sblen++);
+    while (term->rows > newrows) {
+	if (term->curs.y < term->rows - 1) {
+	    /* delete bottom row, unless it contains the cursor */
+	    sfree(delpos234(term->screen, term->rows - 1));
+	} else {
+	    /* push top row to scrollback */
+	    line = delpos234(term->screen, 0);
+	    addpos234(term->scrollback, line, sblen++);
+	    term->tempsblines += 1;
+	    term->curs.y -= 1;
+	    term->savecurs.y -= 1;
+	}
+	term->rows -= 1;
     }
+    assert(term->rows == newrows);
     assert(count234(term->screen) == newrows);
+
+    /* Delete any excess lines from the scrollback. */
     while (sblen > newsavelines) {
 	line = delpos234(term->scrollback, 0);
 	sfree(line);
 	sblen--;
     }
+    if (sblen < term->tempsblines)
+	term->tempsblines = sblen;
     assert(count234(term->scrollback) <= newsavelines);
+    assert(count234(term->scrollback) >= term->tempsblines);
     term->disptop = 0;
 
+    /* Make a new displayed text buffer. */
     newdisp = smalloc(newrows * (newcols + 1) * TSIZE);
     for (i = 0; i < newrows * (newcols + 1); i++)
 	newdisp[i] = ATTR_INVALID;
@@ -530,6 +558,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     term->disptext = newdisp;
     term->dispcurs = NULL;
 
+    /* Make a new alternate screen. */
     newalt = newtree234(NULL);
     for (i = 0; i < newrows; i++) {
 	line = smalloc(TSIZE * (newcols + 2));
@@ -554,8 +583,11 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    term->tabs[i] = (i % 8 == 0 ? TRUE : FALSE);
     }
 
-    if (term->rows > 0)
-	term->curs.y += newrows - term->rows;
+    /* Check that the cursor positions are still valid. */
+    if (term->savecurs.y < 0)
+	term->savecurs.y = 0;
+    if (term->savecurs.y >= newrows)
+	term->savecurs.y = newrows - 1;
     if (term->curs.y < 0)
 	term->curs.y = 0;
     if (term->curs.y >= newrows)
@@ -755,7 +787,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	while (lines > 0) {
 	    line = delpos234(term->screen, topline);
 	    if (sb && term->savelines > 0) {
-		int sblen = sblines(term);
+		int sblen = count234(term->scrollback);
 		/*
 		 * We must add this line to the scrollback. We'll
 		 * remove a line from the top of the scrollback to
@@ -767,6 +799,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 		} else {
 		    line2 = smalloc(TSIZE * (term->cols + 2));
 		    line2[0] = term->cols;
+		    term->tempsblines += 1;
 		}
 		addpos234(term->scrollback, line, sblen);
 		line = line2;
@@ -1018,6 +1051,7 @@ static void erase_lots(Terminal *term,
 {
     pos start, end;
     int erase_lattr;
+    int erasing_lines_from_top = 0;
 
     if (line_only) {
 	start.y = term->curs.y;
@@ -1047,8 +1081,12 @@ static void erase_lots(Terminal *term,
     if (start.y == 0 && start.x == 0 && end.y == term->rows)
 	term_invalidate(term);
 
-    if (term->cfg.erase_to_scrollback &&
-	start.y == 0 && start.x == 0 && end.x == 0 && erase_lattr) {
+    /* Lines scrolled away shouldn't be brought back on if the terminal
+     * resizes. */
+    if (start.y == 0 && start.x == 0 && end.x == 0 && erase_lattr)
+	erasing_lines_from_top = 1;
+
+    if (term->cfg.erase_to_scrollback && erasing_lines_from_top) {
 	/* If it's a whole number of lines, starting at the top, and
 	 * we're fully erasing them, erase by scrolling and keep the
 	 * lines in the scrollback. */
@@ -1075,6 +1113,12 @@ static void erase_lots(Terminal *term,
 		ldata = lineptr(start.y);
 	}
     }
+
+    /* After an erase of lines from the top of the screen, we shouldn't
+     * bring the lines back again if the terminal enlarges (since the user or
+     * application has explictly thrown them away). */
+    if (erasing_lines_from_top && !(term->alt_which))
+	term->tempsblines = 0;
 }
 
 /*

@@ -37,6 +37,8 @@ struct terminal_tag {
     tree234 *screen;		       /* lines on primary screen */
     tree234 *alt_screen;	       /* lines on alternate screen */
     int disptop;		       /* distance scrolled back (0 or -ve) */
+    int tempsblines;		       /* number of lines in temporary
+					  scrollback */
 
     unsigned long *cpos;	       /* cursor position (convenience) */
 
