@@ -687,7 +687,7 @@ foreach $p (&prognames("M")) {
 
   $rsrc = &objects($p, "", "X.rsrc", undef);
 
-  foreach $arch qw(68K CFM68K PPC Carbon) {
+  foreach $arch (qw(68K CFM68K PPC Carbon)) {
       $objstr = &objects($p, "X.\L$arch\E.o", "", undef);
       print &splitline("$prog.\L$arch\E \xc4 $objstr $rsrc", undef, "\xb6");
       print "\n";
@@ -705,7 +705,7 @@ foreach $d (&deps("", "X.rsrc", "::", ":")) {
 		   undef, "\xb6"), "\n";
   print "\tRez ", $d->{deps}->[0], " -o {Targ} {ROptions}\n\n";
 }
-foreach $arch qw(68K CFM68K) {
+foreach $arch (qw(68K CFM68K)) {
     foreach $d (&deps("X.\L$arch\E.o", "", "::", ":")) {
 	 next unless $d->{obj};
 	print &splitline(sprintf("%s \xc4 %s", $d->{obj},
@@ -715,7 +715,7 @@ foreach $arch qw(68K CFM68K) {
 	       " -o {Targ} {COptions_$arch}\n\n";
      }
 }
-foreach $arch qw(PPC Carbon) {
+foreach $arch (qw(PPC Carbon)) {
     foreach $d (&deps("X.\L$arch\E.o", "", "::", ":")) {
 	 next unless $d->{obj};
 	print &splitline(sprintf("%s \xc4 %s", $d->{obj},
