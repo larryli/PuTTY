@@ -72,6 +72,19 @@
 #define	TELOPT_AUTHENTICATION 37       /* Authenticate */
 #define	TELOPT_ENCRYPT	38	       /* Encryption option */
 #define TELOPT_NEW_ENVIRON 39	       /* New - Environment variables */
+#define TELOPT_TN3270E	40	       /* TN3270 enhancements */
+#define TELOPT_XAUTH	41
+#define TELOPT_CHARSET	42	       /* Character set */
+#define TELOPT_RSP	43	       /* Remote serial port */
+#define TELOPT_COM_PORT_OPTION 44      /* Com port control */
+#define TELOPT_SLE	45	       /* Suppress local echo */
+#define TELOPT_STARTTLS	46	       /* Start TLS */
+#define TELOPT_KERMIT	47	       /* Automatic Kermit file transfer */
+#define TELOPT_SEND_URL	48
+#define TELOPT_FORWARD_X 49
+#define TELOPT_PRAGMA_LOGON	138
+#define TELOPT_SSPI_LOGON	139
+#define TELOPT_PRAGMA_HEARTBEAT	140
 #define	TELOPT_EXOPL	255	       /* extended-options-list */
 
 #define	TELQUAL_IS	0	       /* option is... */
@@ -132,6 +145,19 @@ static char *telopt(int opt)
     i(AUTHENTICATION);
     i(ENCRYPT);
     i(NEW_ENVIRON);
+    i(TN3270E);
+    i(XAUTH);
+    i(CHARSET);
+    i(RSP);
+    i(COM_PORT_OPTION);
+    i(SLE);
+    i(STARTTLS);
+    i(KERMIT);
+    i(SEND_URL);
+    i(FORWARD_X);
+    i(PRAGMA_LOGON);
+    i(SSPI_LOGON);
+    i(PRAGMA_HEARTBEAT);
     i(EXOPL);
 #undef i
     return "<unknown>";
