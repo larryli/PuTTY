@@ -25,7 +25,8 @@ extern void mac_activateterm(WindowPtr, Boolean);
 extern void mac_updateterm(WindowPtr);
 extern void mac_clickterm(WindowPtr, EventRecord *);
 extern void mac_growterm(WindowPtr, EventRecord *);
-
+extern void mac_keyterm(WindowPtr, EventRecord *);
+/* from maccfg.c */
 extern void mac_loadconfig(Config *);
 
 #endif

@@ -284,6 +284,13 @@ void *saferealloc(void *, size_t);
 void safefree(void *);
 
 /*
+ * Exports from testback.c
+ */
+
+extern Backend null_backend;
+extern Backend loop_backend;
+
+/*
  * Exports from version.c.
  */
 extern char ver[];
