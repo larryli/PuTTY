@@ -436,6 +436,8 @@ struct ssh_channel {
     Ssh ssh;			       /* pointer back to main context */
     unsigned remoteid, localid;
     int type;
+    /* True if we opened this channel but server hasn't confirmed. */
+    int halfopen;
     /*
      * In SSH1, this value contains four bits:
      * 
@@ -3565,13 +3567,13 @@ void sshfwd_close(struct ssh_channel *c)
 
     if (c && !c->closes) {
 	/*
-	 * If the channel's remoteid is -1, we have sent
+	 * If halfopen is true, we have sent
 	 * CHANNEL_OPEN for this channel, but it hasn't even been
 	 * acknowledged by the server. So we must set a close flag
 	 * on it now, and then when the server acks the channel
 	 * open, we can close it then.
 	 */
-	if (((int)c->remoteid) != -1) {
+	if (!c->halfopen) {
 	    if (ssh->version == 1) {
 		send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
 			    PKT_END);
@@ -4093,6 +4095,7 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 	    logevent
 		("Opening X11 forward connection succeeded");
 	    c->remoteid = remoteid;
+	    c->halfopen = FALSE;
 	    c->localid = alloc_channel_id(ssh);
 	    c->closes = 0;
 	    c->v.v1.throttling = 0;
@@ -4121,6 +4124,7 @@ static void ssh1_smsg_agent_open(Ssh ssh, struct Packet *pktin)
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
 	c->remoteid = remoteid;
+	c->halfopen = FALSE;
 	c->localid = alloc_channel_id(ssh);
 	c->closes = 0;
 	c->v.v1.throttling = 0;
@@ -4178,6 +4182,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 			PKT_INT, remoteid, PKT_END);
 	} else {
 	    c->remoteid = remoteid;
+	    c->halfopen = FALSE;
 	    c->localid = alloc_channel_id(ssh);
 	    c->closes = 0;
 	    c->v.v1.throttling = 0;
@@ -4200,6 +4205,7 @@ static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     c = find234(ssh->channels, &remoteid, ssh_channelfind);
     if (c && c->type == CHAN_SOCKDATA_DORMANT) {
 	c->remoteid = localid;
+	c->halfopen = FALSE;
 	c->type = CHAN_SOCKDATA;
 	c->v.v1.throttling = 0;
 	pfd_confirm(c->u.pfd.s);
@@ -4237,7 +4243,7 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
     unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
-    if (c && ((int)c->remoteid) != -1) {
+    if (c && !c->halfopen) {
 	int closetype;
 	closetype =
 	    (pktin->type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
@@ -5623,7 +5629,7 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
     struct Packet *pktout;
 
     c = find234(ssh->channels, &i, ssh_channelfind);
-    if (!c || ((int)c->remoteid) == -1) {
+    if (!c || c->halfopen) {
 	bombout(("Received CHANNEL_CLOSE for %s channel %d\n",
 		 c ? "half-open" : "nonexistent", i));
 	return;
@@ -5699,6 +5705,7 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     if (c->type != CHAN_SOCKDATA_DORMANT)
 	return;			       /* dunno why they're confirming this */
     c->remoteid = ssh_pkt_getuint32(pktin);
+    c->halfopen = FALSE;
     c->type = CHAN_SOCKDATA;
     c->v.v2.remwindow = ssh_pkt_getuint32(pktin);
     c->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
@@ -6006,6 +6013,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     }
 
     c->remoteid = remid;
+    c->halfopen = FALSE;
     if (error) {
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_FAILURE);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
@@ -6910,6 +6918,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    crStopV;
 	}
 	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
+	ssh->mainchan->halfopen = FALSE;
 	ssh->mainchan->type = CHAN_MAINSESSION;
 	ssh->mainchan->closes = 0;
 	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
@@ -7921,7 +7930,7 @@ void *new_sock_channel(void *handle, Socket s)
     c->ssh = ssh;
 
     if (c) {
-	c->remoteid = -1;	       /* to be set when open confirmed */
+	c->halfopen = TRUE;
 	c->localid = alloc_channel_id(ssh);
 	c->closes = 0;
 	c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
