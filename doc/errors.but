@@ -162,7 +162,9 @@ this user.
 
 This is almost certainly not a problem with PuTTY. If you see this
 type of message, the first thing you should do is check your
-\e{server} configuration carefully. Also, read the PuTTY Event Log;
+\e{server} configuration carefully. Common errors include having
+the wrong permissions or ownership set on the public key or the
+user's home directory on the server. Also, read the PuTTY Event Log;
 the server may have sent diagnostic messages explaining exactly what
 problem it had with your setup.
 
