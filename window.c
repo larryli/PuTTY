@@ -1060,6 +1060,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     static int ignore_clip = FALSE;
     static int just_reconfigged = FALSE;
     static int resizing = FALSE;
+    static int need_backend_resize = FALSE;
 
     switch (message) {
       case WM_TIMER:
@@ -1422,11 +1423,13 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
       case WM_ENTERSIZEMOVE:
         EnableSizeTip(1);
         resizing = TRUE;
+	need_backend_resize = FALSE;
         break;
       case WM_EXITSIZEMOVE:
         EnableSizeTip(0);
         resizing = FALSE;
-        back->size();
+	if (need_backend_resize)
+	    back->size();
         break;
       case WM_SIZING:
 	{
@@ -1502,6 +1505,8 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                  */
                 if (!resizing)
                     back->size();
+		else
+		    need_backend_resize = TRUE;
 		just_reconfigged = FALSE;
 	    }
 	}
