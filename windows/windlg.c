@@ -797,9 +797,10 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
 	sfree((void *)mbox.lpszText);
 	sfree((void *)mbox.lpszCaption);
-	if (mbret == IDYES)
+	if (mbret == IDYES) {
 	    store_host_key(host, port, keytype, keystr);
-	if (mbret == IDNO)
+	    return 1;
+	} else if (mbret == IDNO)
 	    return 1;
         return 0;
     }
