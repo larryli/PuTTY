@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.74 2004/02/07 23:49:21 jacob Exp $
+\versionid $Id: config.but,v 1.75 2004/03/01 18:17:34 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1563,6 +1563,10 @@ and your SOCKS 4 server cannot deal with it, this might be why.
 
 If your proxy requires authentication, you can enter a username and
 a password in the \q{Username} and \q{Password} boxes.
+
+Note that if you save your session, the proxy password will be
+saved in plain text, so anyone who can access your PuTTY
+configuration data will be able to discover it.
 
 Authentication is not fully supported for all forms of proxy:
 
