@@ -42,7 +42,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
             }
         write_setting_s (sesskey, "Protocol", p);
     }
-    write_setting_i (sesskey, "CloseOnExit", !!cfg->close_on_exit);
+    write_setting_i (sesskey, "CloseOnExit", cfg->close_on_exit);
     write_setting_i (sesskey, "WarnOnClose", !!cfg->warn_on_close);
     write_setting_i (sesskey, "PingInterval", cfg->ping_interval / 60);     /* minutes */
     write_setting_i (sesskey, "PingIntervalSecs", cfg->ping_interval % 60); /* seconds */
@@ -171,7 +171,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
             break;
         }
 
-    gppi (sesskey, "CloseOnExit", 1, &cfg->close_on_exit);
+    gppi (sesskey, "CloseOnExit", COE_NORMAL, &cfg->close_on_exit);
     gppi (sesskey, "WarnOnClose", 1, &cfg->warn_on_close);
     {
       /* This is two values for backward compatibility with 0.50/0.51 */

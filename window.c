@@ -667,7 +667,7 @@ void connection_fatal(char *fmt, ...) {
     vsprintf(stuff, fmt, ap);
     va_end(ap);
     MessageBox(hwnd, stuff, "PuTTY Fatal Error", MB_ICONERROR | MB_OK);
-    if (cfg.close_on_exit)
+    if (cfg.close_on_exit == COE_ALWAYS)
         PostQuitMessage(1);
     else {
         session_closed = TRUE;
@@ -692,16 +692,17 @@ static void enact_pending_netevent(void) {
     ret = select_result (pend_netevent_wParam, pend_netevent_lParam);
     reentering = 0;
 
-    if (ret == 0) {
-	if (cfg.close_on_exit)
+    if (ret == 0 && !session_closed) {
+        /* Abnormal exits will already have set session_closed and taken
+         * appropriate action. */
+	if (cfg.close_on_exit == COE_ALWAYS ||
+            cfg.close_on_exit == COE_NORMAL)
 	    PostQuitMessage(0);
 	else {
-            if (!session_closed) {
-                session_closed = TRUE;
-                SetWindowText (hwnd, "PuTTY (inactive)");
-                MessageBox(hwnd, "Connection closed by remote host",
-                           "PuTTY", MB_OK | MB_ICONINFORMATION);
-            }
+            session_closed = TRUE;
+            SetWindowText (hwnd, "PuTTY (inactive)");
+            MessageBox(hwnd, "Connection closed by remote host",
+                       "PuTTY", MB_OK | MB_ICONINFORMATION);
 	}
     }
 }

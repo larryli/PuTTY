@@ -130,6 +130,15 @@ enum {
     LD_ECHO                            /* local echo */
 };
 
+enum {
+    /*
+     * Close On Exit behaviours. (cfg.close_on_exit)
+     */
+    COE_NEVER,      /* Never close the window */
+    COE_ALWAYS,     /* Always close the window */
+    COE_NORMAL      /* Close window on "normal" (non-error) exits only */
+};
+
 typedef struct {
     char *(*init) (char *host, int port, char **realhost);
     void (*send) (char *buf, int len);

@@ -204,6 +204,9 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_SESSSAVE,
     IDC_SESSDEL,
     IDC_CLOSEEXIT,
+    IDC_COEALWAYS,
+    IDC_COENORMAL,
+    IDC_COENEVER,
     sessionpanelend,
 
     loggingpanelstart,
@@ -537,7 +540,9 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton (hwnd, IDC_SCROLLBAR, cfg.scrollbar);
     CheckDlgButton (hwnd, IDC_LOCKSIZE, cfg.locksize);
-    CheckDlgButton (hwnd, IDC_CLOSEEXIT, cfg.close_on_exit);
+    CheckRadioButton (hwnd, IDC_COEALWAYS, IDC_COENEVER,
+                      cfg.close_on_exit==COE_NEVER ? IDC_COENEVER :
+                      cfg.close_on_exit==COE_NORMAL ? IDC_COENORMAL : IDC_COEALWAYS);
     CheckDlgButton (hwnd, IDC_CLOSEWARN, cfg.warn_on_close);
 
     SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
@@ -659,7 +664,7 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
  */
 static void create_controls(HWND hwnd, int dlgtype, int panel) {
     if (panel == sessionpanelstart) {
-	/* The Session panel. Accelerators used: [acgo] nprtih elsd x */
+	/* The Session panel. Accelerators used: [acgo] nprtih elsd w */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Basic options for your PuTTY session",
@@ -699,7 +704,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
             endbox(&cp);
         }
         beginbox(&cp, NULL, IDC_BOX_SESSION3);
-        checkbox(&cp, "Close Window on E&xit", IDC_CLOSEEXIT);
+        radioline(&cp, "At session end, close &window:", IDC_CLOSEEXIT, 3,
+                  "Always", IDC_COEALWAYS,
+                  "On clean exit", IDC_COENORMAL,
+                  "Never", IDC_COENEVER, NULL);
         endbox(&cp);
     }
 
@@ -1596,11 +1604,16 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		GetDlgItemText (hwnd, IDC_WINEDIT, cfg.wintitle,
 				sizeof(cfg.wintitle)-1);
 	    break;
-	  case IDC_CLOSEEXIT:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC_CLOSEEXIT);
-	    break;
+          case IDC_COEALWAYS:
+          case IDC_COENORMAL:
+          case IDC_COENEVER:
+            if (HIWORD(wParam) == BN_CLICKED ||
+                HIWORD(wParam) == BN_DOUBLECLICKED) {
+                cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC_COEALWAYS) ? COE_ALWAYS :
+                                    IsDlgButtonChecked (hwnd, IDC_COENORMAL) ? COE_NORMAL :
+                                    COE_NEVER;
+            }
+            break;
 	  case IDC_CLOSEWARN:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
