@@ -187,6 +187,7 @@ static void *ot_tcp_get_private_ptr(Socket s);
 static void ot_tcp_set_frozen(Socket s, int is_frozen);
 static const char *ot_tcp_socket_error(Socket s);
 static void ot_recv(Actual_Socket s);
+static void ot_listenaccept(Actual_Socket s);
 void ot_poll(void);
 
 Socket ot_register(void *sock, Plug plug)
@@ -329,11 +330,79 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
     
-Socket ot_newlistener(char *foobar, int port, Plug plug, int local_host_only)
+Socket ot_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
+		      int address_family)
 {
-    Actual_Socket s;
+    static struct socket_function_table fn_table = {
+	ot_tcp_plug,
+	ot_tcp_close,
+	ot_tcp_write,
+	ot_tcp_write_oob,
+	ot_tcp_flush,
+	ot_tcp_set_private_ptr,
+	ot_tcp_get_private_ptr,
+	ot_tcp_set_frozen,
+	ot_tcp_socket_error
+    };
 
-    return (Socket) s;
+    Actual_Socket ret;
+    EndpointRef ep;
+    OSStatus err;
+    InetAddress addr;
+    TBind tbind;
+
+    ret = snew(struct Socket_tag);
+    ret->fn = &fn_table;
+    ret->error = kOTNoError;
+    ret->plug = plug;
+    bufchain_init(&ret->output_data);
+    ret->writable = 0;                 /* to start with */
+    ret->sending_oob = 0;
+    ret->frozen = 0;
+    ret->frozen_readable = 0;
+    ret->localhost_only = local_host_only;
+    ret->pending_error = 0;
+    ret->oobinline = 0;
+    ret->oobpending = FALSE;
+    ret->listener = 1;
+
+    /* Open Endpoint, configure it for TCP over anything, and load the
+     * tilisten module to serialize multiple simultaneous
+     * connections. */
+
+    ep = OTOpenEndpoint(OTCreateConfiguration("tilisten,tcp"), 0, NULL, &err);
+
+    ret->ep = ep;
+
+    if (err) {
+	ret->error = err;
+	return (Socket) ret;
+    }
+
+    /* TODO: set SO_REUSEADDR */
+
+    OTInitInetAddress(&addr, port, kOTAnyInetAddress);
+    /* XXX: pay attention to local_host_only */
+
+    tbind.addr.buf = (UInt8 *) &addr;
+    tbind.addr.len = sizeof(addr);
+    tbind.qlen = 10;
+
+    err = OTBind(ep, &tbind, NULL); /* XXX: check qlen we got */
+    
+    if (err) {
+	ret->error = err;
+	return (Socket) ret;
+    }
+	
+    /* Add this to the list of all sockets */
+    ret->next = ot.socklist;
+    ret->prev = &ot.socklist;
+    if (ret->next != NULL)
+	ret->next->prev = &ret->next;
+    ot.socklist = ret;
+
+    return (Socket) ret;
 }
 
 static void ot_tcp_close(Socket sock)
@@ -461,6 +530,9 @@ void ot_poll(void)
 	  case T_EXDATA: /* Expedited Data (urgent?) */
 	    ot_recv(s);
 	    break;
+	  case T_LISTEN: /* Connection attempt */
+	    ot_listenaccept(s);
+	    break;
 	}
     }
 }
@@ -480,7 +552,36 @@ void ot_recv(Actual_Socket s)
         plug_closing(s->plug, NULL, 0, 0); /* XXX Error msg */
 }
 
+void ot_listenaccept(Actual_Socket s)
+{
+    OTResult o;
+    OSStatus err;
+    InetAddress remoteaddr;
+    TCall tcall;
+    EndpointRef ep;
 
+    tcall.addr.maxlen = sizeof(InetAddress);
+    tcall.addr.buf = (unsigned char *)&remoteaddr;
+    tcall.opt.maxlen = 0;
+    tcall.opt.buf = NULL;
+    tcall.udata.maxlen = 0;
+    tcall.udata.buf = NULL;
+
+    o = OTListen(s->ep, &tcall);
+    
+    if (o != kOTNoError)
+	return;
+
+    /* We've found an incoming connection, accept it */
+
+    ep = OTOpenEndpoint(OTCreateConfiguration("tcp"), 0, NULL, &err);
+    o = OTAccept(s->ep, ep, &tcall);
+    if (plug_accepting(s->plug, ep)) {
+	OTUnbind(ep);
+	OTCloseProvider(ep);
+    }
+}
+    
 /*
  * Local Variables:
  * c-file-style: "simon"

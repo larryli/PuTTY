@@ -506,10 +506,10 @@ void *enum_settings_start(void) {
     OSErr error;
     struct enum_settings_state *state;
 
-    state = safemalloc(sizeof(*state));
+    state = snew(struct enum_settings_state);
     error = get_session_dir(kDontCreateFolder, &state->vRefNum, &state->dirID);
     if (error != noErr) {
-	safefree(state);
+	sfree(state);
 	return NULL;
     }
     state->index = 1;

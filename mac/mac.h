@@ -188,7 +188,7 @@ extern void mactcp_addrcopy(SockAddr, char *);
 extern void mactcp_addr_free(SockAddr);
 extern Socket mactcp_register(void *, Plug);
 extern Socket mactcp_new(SockAddr addr, int, int, int, int, int, Plug);
-extern Socket mactcp_newlistener(char *, int, Plug, int);
+extern Socket mactcp_newlistener(char *, int, Plug, int, int);
 extern char *mactcp_addr_error(SockAddr);
 /* from otnet.c */
 extern OSErr ot_init(void);
@@ -204,7 +204,7 @@ extern void ot_addrcopy(SockAddr, char *);
 extern void ot_addr_free(SockAddr);
 extern Socket ot_register(void *, Plug);
 extern Socket ot_new(SockAddr addr, int, int, int, int, int, Plug);
-extern Socket ot_newlistener(char *, int, Plug, int);
+extern Socket ot_newlistener(char *, int, Plug, int, int);
 extern char *ot_addr_error(SockAddr);
 /* from macabout.c */
 extern void mac_openabout(void);

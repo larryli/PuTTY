@@ -14,7 +14,7 @@ struct macnet_stack {
     void (*addr_free)(SockAddr);
     Socket (*skregister)(void *, Plug); /* "register" is a reserved word */
     Socket (*new)(SockAddr, int, int, int, int, int, Plug);
-    Socket (*newlistener)(char *, int, Plug, int);
+    Socket (*newlistener)(char *, int, Plug, int, int);
     char *(*addr_error)(SockAddr);
     void (*poll)(void);
     void (*cleanup)(void);
@@ -142,7 +142,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 {
 
     if (stack != NULL)
-	return stack->newlistener(srcaddr, port, plug, local_host_only);
+	return stack->newlistener(srcaddr, port, plug, local_host_only, address_family);
     return NULL;
 }
 

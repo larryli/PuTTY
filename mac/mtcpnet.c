@@ -523,7 +523,7 @@ Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
 }
 
 Socket mactcp_newlistener(char *srcaddr, int port, Plug plug,
-			  int local_host_only)
+			  int local_host_only, int address_family)
 {
 
     fatalbox("mactcp_newlistener");
