@@ -11,7 +11,7 @@
  * under PRINTER_ENUM_CONNECTIONS on NT 4. I don't pretend to
  * understand this...
  */
-#if 0
+#if 1
 #define ENUM_LEVEL 5
 #define ENUM_PTR LPPRINTER_INFO_5
 #define ENUM_TYPE PRINTER_INFO_5
