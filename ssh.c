@@ -726,6 +726,7 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	buf[nowlen + msglen] = '\0';
 	logevent(buf);
 	bombout(("Server sent disconnect message:\n\"%s\"", buf+nowlen));
+	crReturn(0);
     }
 
     crFinish(0);
@@ -904,6 +905,7 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
 		 (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
 		 ssh2_disconnect_reasons[reason] : "unknown",
 		 buf+nowlen));
+	crReturn(0);
     }
 
     crFinish(0);
@@ -1600,6 +1602,9 @@ static void ssh_gotdata(unsigned char *data, int datalen)
     while (1) {
 	while (datalen > 0) {
 	    if (s_rdpkt(&data, &datalen) == 0) {
+		if (ssh_state == SSH_STATE_CLOSED) {
+		    return;
+		}
 		ssh_protocol(NULL, 0, 1);
 		if (ssh_state == SSH_STATE_CLOSED) {
 		    return;
