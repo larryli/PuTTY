@@ -227,7 +227,7 @@ int x11_get_screen_number(char *display)
  * also, fills the SocketsStructure
  */
 char *x11_init(Socket * s, char *display, void *c, void *auth,
-	       const char *peeraddr, int peerport)
+	       const char *peeraddr, int peerport, const Config *cfg)
 {
     static const struct plug_function_table fn_table = {
 	x11_closing,
@@ -269,7 +269,7 @@ char *x11_init(Socket * s, char *display, void *c, void *auth,
     /*
      * Try to find host.
      */
-    addr = name_lookup(host, port, &dummy_realhost);
+    addr = name_lookup(host, port, &dummy_realhost, cfg);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
@@ -285,7 +285,8 @@ char *x11_init(Socket * s, char *display, void *c, void *auth,
     pr->throttled = pr->throttle_override = 0;
     pr->c = c;
 
-    pr->s = *s = new_connection(addr, dummy_realhost, port, 0, 1, 0, (Plug) pr);
+    pr->s = *s = new_connection(addr, dummy_realhost, port,
+				0, 1, 0, (Plug) pr, cfg);
     if ((err = sk_socket_error(*s)) != NULL) {
 	sfree(pr);
 	return err;

@@ -117,7 +117,7 @@ char *error_string(int error)
     return strerror(error);
 }
 
-SockAddr sk_namelookup(char *host, char **canonicalname)
+SockAddr sk_namelookup(const char *host, char **canonicalname)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     unsigned long a;
@@ -200,7 +200,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     return ret;
 }
 
-SockAddr sk_nonamelookup(char *host)
+SockAddr sk_nonamelookup(const char *host)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     ret->error = NULL;

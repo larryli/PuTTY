@@ -127,7 +127,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	logevent(rlogin->frontend, buf);
 	sfree(buf);
     }
-    addr = name_lookup(host, port, realhost);
+    addr = name_lookup(host, port, realhost, cfg);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
@@ -145,7 +145,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
 	sfree(buf);
     }
     rlogin->s = new_connection(addr, *realhost, port, 1, 0,
-			       nodelay, (Plug) rlogin);
+			       nodelay, (Plug) rlogin, cfg);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
 	return err;
 

@@ -108,7 +108,8 @@ static void pfd_sent(Plug plug, int bufsize)
 /*
  * Called when receiving a PORT OPEN from the server
  */
-char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
+char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
+		     const Config *cfg)
 {
     static struct plug_function_table fn_table = {
 	pfd_closing,
@@ -124,7 +125,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     /*
      * Try to find host.
      */
-    addr = name_lookup(hostname, port, &dummy_realhost);
+    addr = name_lookup(hostname, port, &dummy_realhost, cfg);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
@@ -138,7 +139,8 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     pr->c = c;
     pr->backhandle = NULL;	       /* we shouldn't need this */
 
-    pr->s = *s = new_connection(addr, dummy_realhost, port, 0, 1, 0, (Plug) pr);
+    pr->s = *s = new_connection(addr, dummy_realhost, port,
+				0, 1, 0, (Plug) pr, cfg);
     if ((err = sk_socket_error(*s)) != NULL) {
 	sfree(pr);
 	return err;
@@ -204,7 +206,7 @@ static int pfd_accepting(Plug p, void *sock)
  sets up a listener on the local machine on (srcaddr:)port
  */
 char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
-		     void *backhandle, int acceptall)
+		     void *backhandle, const Config *cfg)
 {
     static struct plug_function_table fn_table = {
 	pfd_closing,
@@ -230,7 +232,8 @@ char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
     pr->waiting = NULL;
     pr->backhandle = backhandle;
 
-    pr->s = s = new_listener(srcaddr, port, (Plug) pr, !acceptall);
+    pr->s = s = new_listener(srcaddr, port, (Plug) pr,
+			     !cfg->lport_acceptall, cfg);
     if ((err = sk_socket_error(s)) != NULL) {
 	sfree(pr);
 	return err;

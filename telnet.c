@@ -689,7 +689,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 	logevent(telnet->frontend, buf);
 	sfree(buf);
     }
-    addr = name_lookup(host, port, realhost);
+    addr = name_lookup(host, port, realhost, &telnet->cfg);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
@@ -707,7 +707,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
 	sfree(buf);
     }
     telnet->s = new_connection(addr, *realhost, port, 0, 1,
-			       nodelay, (Plug) telnet);
+			       nodelay, (Plug) telnet, &telnet->cfg);
     if ((err = sk_socket_error(telnet->s)) != NULL)
 	return err;
 

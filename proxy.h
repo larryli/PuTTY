@@ -79,6 +79,8 @@ struct Socket_proxy_tag {
     /* accepting */
     void *accepting_sock;
 
+    /* configuration, used to look up proxy settings */
+    Config cfg;
 };
 
 typedef struct Plug_proxy_tag * Proxy_Plug;

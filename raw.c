@@ -96,7 +96,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
 	logevent(raw->frontend, buf);
 	sfree(buf);
     }
-    addr = name_lookup(host, port, realhost);
+    addr = name_lookup(host, port, realhost, cfg);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
@@ -113,7 +113,8 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
 	logevent(raw->frontend, buf);
 	sfree(buf);
     }
-    raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) raw);
+    raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay,
+			    (Plug) raw, cfg);
     if ((err = sk_socket_error(raw->s)) != NULL)
 	return err;
 

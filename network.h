@@ -13,6 +13,13 @@
 #ifndef PUTTY_NETWORK_H
 #define PUTTY_NETWORK_H
 
+#ifndef DONE_TYPEDEFS
+#define DONE_TYPEDEFS
+typedef struct config_tag Config;
+typedef struct backend_tag Backend;
+typedef struct terminal_tag Terminal;
+#endif
+
 typedef struct SockAddr_tag *SockAddr;
 /* pay attention to levels of indirection */
 typedef struct socket_function_table **Socket;
@@ -66,17 +73,20 @@ struct plug_function_table {
 /* proxy indirection layer */
 Socket new_connection(SockAddr addr, char *hostname,
 		      int port, int privport,
-		      int oobinline, int nodelay, Plug plug);
-Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only);
-SockAddr name_lookup(char *host, int port, char **canonicalname);
+		      int oobinline, int nodelay, Plug plug,
+		      const Config *cfg);
+Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only,
+		    const Config *cfg);
+SockAddr name_lookup(char *host, int port, char **canonicalname,
+		     const Config *cfg);
 
 /* socket functions */
 
 void sk_init(void);		       /* called once at program startup */
 void sk_cleanup(void);		       /* called just before program exit */
 
-SockAddr sk_namelookup(char *host, char **canonicalname);
-SockAddr sk_nonamelookup(char *host);
+SockAddr sk_namelookup(const char *host, char **canonicalname);
+SockAddr sk_nonamelookup(const char *host);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);
 int sk_hostname_is_local(char *name);
 int sk_address_is_local(SockAddr addr);

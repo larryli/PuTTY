@@ -2055,7 +2055,7 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
      * Try to find host.
      */
     logeventf(ssh, "Looking up host \"%s\"", host);
-    addr = name_lookup(host, port, realhost);
+    addr = name_lookup(host, port, realhost, &ssh->cfg);
     if ((err = sk_addr_error(addr)) != NULL)
 	return err;
 
@@ -2068,7 +2068,8 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
 	logeventf(ssh, "Connecting to %s port %d", addrbuf, port);
     }
     ssh->fn = &fn_table;
-    ssh->s = new_connection(addr, *realhost, port, 0, 1, nodelay, (Plug) ssh);
+    ssh->s = new_connection(addr, *realhost, port,
+			    0, 1, nodelay, (Plug) ssh, &ssh->cfg);
     if ((err = sk_socket_error(ssh->s)) != NULL) {
 	ssh->s = NULL;
 	return err;
@@ -3121,7 +3122,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
-				   sport, ssh, ssh->cfg.lport_acceptall);
+				   sport, ssh, &ssh->cfg);
 		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
 			      " forwarding to %s:%.*s%.*s%d%.*s",
 			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
@@ -3285,7 +3286,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    c->ssh = ssh;
 
 		    if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-				 ssh->x11auth, NULL, -1) != NULL) {
+				 ssh->x11auth, NULL, -1, &ssh->cfg) != NULL) {
 			logevent("opening X11 forward connection failed");
 			sfree(c);
 			send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
@@ -3363,7 +3364,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    sprintf(buf, "Received remote port open request for %s:%d",
 			    host, port);
 		    logevent(buf);
-		    e = pfd_newconnect(&c->u.pfd.s, host, port, c);
+		    e = pfd_newconnect(&c->u.pfd.s, host, port, c, &ssh->cfg);
 		    if (e != NULL) {
 			char buf[256];
 			sprintf(buf, "Port open failed: %s", e);
@@ -5185,7 +5186,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    if (sport && dport) {
 		if (type == 'L') {
 		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
-				   sport, ssh, ssh->cfg.lport_acceptall);
+				   sport, ssh, &ssh->cfg);
 		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
 			      " forwarding to %s:%.*s%.*s%d%.*s",
 			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
@@ -5746,7 +5747,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    if (!ssh->X11_fwd_enabled)
 			error = "X11 forwarding is not enabled";
 		    else if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-				      ssh->x11auth, addrstr, port) != NULL) {
+				      ssh->x11auth, addrstr, port,
+				      &ssh->cfg) != NULL) {
 			error = "Unable to open an X11 connection";
 		    } else {
 			c->type = CHAN_X11;
@@ -5765,7 +5767,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			error = "Remote port is not recognised";
 		    } else {
 			char *e = pfd_newconnect(&c->u.pfd.s, realpf->dhost,
-						 realpf->dport, c);
+						 realpf->dport, c, &ssh->cfg);
 			logeventf(ssh, "Received remote port open request"
 				  " for %s:%d", realpf->dhost, realpf->dport);
 			if (e != NULL) {
