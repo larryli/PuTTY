@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.18 2001/12/14 12:15:43 simon Exp $
+\versionid $Id: pscp.but,v 1.19 2001/12/14 12:19:14 simon Exp $
 
 \#FIXME: Need examples
 
@@ -230,7 +230,7 @@ Since specifying passwords in scripts is a bad idea for security
 reasons, you might want instead to consider using public-key
 authentication; see \k{pscp-pubkey}.
 
-\S{pscp-pubkey} Return value
+\S{pscp-retval} Return value
 
 PSCP returns an \cw{ERRORLEVEL} of zero (success) only if the files
 were correctly transferred. You can test for this in a batch file,
