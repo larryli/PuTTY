@@ -1937,7 +1937,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 */
 	noise_ultralight(lParam);
 
-	if (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON)) {
+	if (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON) &&
+	    GetCapture() == hwnd) {
 	    Mouse_Button b;
 	    if (wParam & MK_LBUTTON)
 		b = MBT_LEFT;
