@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.19 2004/02/08 00:14:57 jacob Exp $
+\versionid $Id: using.but,v 1.20 2004/03/11 10:59:52 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -155,8 +155,8 @@ options which don't make sense to change in the middle of a session
 \S2{using-copyall} Copy All to Clipboard
 
 This system menu option provides a convenient way to copy the whole
-contents of the terminal screen and scrollback to the clipboard in
-one go.
+contents of the terminal screen (up to the last nonempty line) and
+scrollback to the clipboard in one go.
 
 \S2{reset-terminal} Clearing and resetting the terminal
 
