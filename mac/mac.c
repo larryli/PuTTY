@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.18 2003/01/05 10:52:56 ben Exp $ */
+/* $Id: mac.c,v 1.19 2003/01/05 12:53:38 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -213,6 +213,7 @@ static void mac_eventloop(void) {
 	mac_adjustcursor(cursrgn);
 	if (gotevent)
 	    mac_event(&event);
+	mactcp_poll();
     }
     DisposeRgn(cursrgn);
 }

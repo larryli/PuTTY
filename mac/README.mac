@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.7 2003/01/02 18:09:21 ben Exp $
+$Id: README.mac,v 1.8 2003/01/05 12:53:38 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -54,6 +54,7 @@ Known bugs:
 
 Features we need (and aren't entirely obvious):
 
+ * TCP urgent data.
  * Scroll-conflation -- scroll_display should change the in-memory
    display and remember the scroll, then do_scroll should be called
    only when scroll_display gets called for a different rectangle or

@@ -88,6 +88,7 @@ extern void init_ucs(void);
 /* from mtcpnet.c */
 extern OSErr mactcp_init(void);
 extern void mactcp_shutdown(void);
+extern void mactcp_poll(void);
 
 #endif
 

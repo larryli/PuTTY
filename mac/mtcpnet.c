@@ -37,6 +37,7 @@
 
 #include <assert.h>
 
+#define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 #include "mac.h"
@@ -161,6 +162,8 @@ struct Socket_tag {
     int oobinline;
     int pending_error;		       /* in case send() returns error */
     int listener;
+    struct Socket_tag *next;
+    struct Socket_tag **prev;
 };
 
 /*
@@ -184,6 +187,7 @@ static struct {
     Handle dnr_handle;
     int initialised;
     short refnum;
+    Actual_Socket socklist;
 } mactcp;
 
 static pascal void mactcp_lookupdone(struct hostInfo *hi, char *cookie);
@@ -196,6 +200,8 @@ static void mactcp_set_private_ptr(Socket, void *);
 static void *mactcp_get_private_ptr(Socket);
 static char *mactcp_socket_error(Socket);
 static void mactcp_set_frozen(Socket, int);
+
+static void mactcp_recv(Actual_Socket s, size_t len);
 
 /*
  * Initialise MacTCP.
@@ -287,11 +293,16 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
     char mybuf[16];
     OSErr err;
 
-    /* XXX only return first address */
-    err = AddrToStr(addr->hostinfo.addr[0], mybuf);
-    buf[0] = '\0';
-    if (err != noErr)
-	strncat(buf, mybuf, buflen - 1);
+    if (addr->resolved) {
+	/* XXX only return first address */
+	err = AddrToStr(addr->hostinfo.addr[0], mybuf);
+	buf[0] = '\0';
+	if (err != noErr)
+	    strncat(buf, mybuf, buflen - 1);
+    } else {
+	buf[0] = '\0';
+	strncat(buf, addr->hostname, buflen - 1);
+    }
 }
 
 /* I think "local" here really means "loopback" */
@@ -387,6 +398,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
+    ret->oobinline = oobinline;
     ret->oobpending = FALSE;
     ret->listener = 0;
 
@@ -451,6 +463,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->connected = TRUE;
     ret->writable = TRUE;
 
+    /* Add this to the list of all sockets */
+    ret->next = mactcp.socklist;
+    ret->prev = &mactcp.socklist;
+    mactcp.socklist = ret;
+
     fprintf(stderr, "Socket connected\n");
     return (Socket)ret;
 }
@@ -488,6 +505,12 @@ static void mactcp_close(Socket sock)
     s->err = PBControlSync((ParmBlkPtr)&pb);
     if (s->err == noErr)
 	sfree(pb.csParam.create.rcvBuff);
+
+    /* Unhitch from list of sockets */
+    *s->prev = s->next;
+    if (s->next != NULL)
+	s->next->prev = s->prev;
+
     sfree(s);
 }
 
@@ -496,8 +519,6 @@ static int mactcp_write(Socket sock, char *buf, int len)
     Actual_Socket s = (Actual_Socket) sock;
     wdsEntry wds[2];
     TCPiopb pb;
-
-    fprintf(stderr, "Write data, %d bytes\n", len);
 
     wds[0].length = len;
     wds[0].ptr = buf;
@@ -519,6 +540,56 @@ static int mactcp_write_oob(Socket sock, char *buf, int len)
 {
 
     fatalbox("mactcp_write_oob");
+}
+
+/*
+ * Called from our event loop if there's work to do.
+ */
+void mactcp_poll(void)
+{
+    Actual_Socket s;
+    TCPiopb pb;
+
+    for (s = mactcp.socklist; s != NULL; s = s->next) {
+	/* XXX above can't handle sockets being deleted. */
+	pb.ioCRefNum = mactcp.refnum;
+	pb.csCode = TCPStatus;
+	pb.tcpStream = s->s;
+	pb.csParam.status.userDataPtr = (Ptr)s;
+	s->err = PBControlSync((ParmBlkPtr)&pb);
+	if (s->err != noErr)
+	    continue;
+	if (pb.csParam.status.amtUnreadData > 0)
+	    mactcp_recv(s, pb.csParam.status.amtUnreadData);
+	/* Should check connectionState in case remote has closed */
+    }
+}
+
+static void mactcp_recv(Actual_Socket s, size_t len)
+{
+    rdsEntry rds[2];
+    TCPiopb pb;
+
+    if (s->frozen) return;
+
+    while (len > 0) {
+	pb.ioCRefNum = mactcp.refnum;
+	pb.csCode = TCPNoCopyRcv;
+	pb.tcpStream = s->s;
+	pb.csParam.receive.commandTimeoutValue = 0;
+	pb.csParam.receive.rdsPtr = (Ptr)rds;
+	pb.csParam.receive.rdsLength = lenof(rds) - 1;
+	pb.csParam.receive.userDataPtr = (Ptr)s;
+	s->err = PBControlSync((ParmBlkPtr)&pb);
+	if (s->err != noErr)
+	    return;
+	plug_receive(s->plug, 0, rds[0].ptr, rds[0].length);
+	len -= rds[0].length;
+	pb.csCode = TCPRcvBfrReturn;
+	s->err = PBControlSync((ParmBlkPtr)&pb);
+	if (s->err != noErr)
+	    return;
+    }	
 }
 
 /*
@@ -589,8 +660,11 @@ static char *mactcp_socket_error(Socket sock)
 
 static void mactcp_set_frozen(Socket sock, int is_frozen)
 {
+    Actual_Socket s = (Actual_Socket) sock;
 
-    fatalbox("mactcp_set_frozen");
+    if (s->frozen == is_frozen)
+	return;
+    s->frozen = is_frozen;
 }
 
 /*
