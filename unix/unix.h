@@ -37,7 +37,9 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 	     char *mbstr, int mblen, char *defchr, int *defused);
 void init_ucs(void);
 
+/* Things pty.c needs from pterm.c */
 char *get_x_display(void);
+int font_dimension(int which);	       /* 0 for width, 1 for height */
 
 #define DEFAULT_CODEPAGE 0	       /* FIXME: no idea how to do this */
 

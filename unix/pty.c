@@ -402,6 +402,8 @@ static void pty_size(void)
 
     size.ws_row = (unsigned short)rows;
     size.ws_col = (unsigned short)cols;
+    size.ws_xpixel = (unsigned short) cols * font_dimension(0);
+    size.ws_ypixel = (unsigned short) rows * font_dimension(1);
     ioctl(pty_master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }

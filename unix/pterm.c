@@ -79,6 +79,14 @@ void logevent(char *string)
      */
 }
 
+int font_dimension(int which)	       /* 0 for width, 1 for height */
+{
+    if (which)
+	return inst->font_height;
+    else
+	return inst->font_width;
+}
+
 /*
  * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
  * into a cooked one (SELECT, EXTEND, PASTE).
