@@ -662,7 +662,7 @@ static void des_3cbc_decrypt(unsigned char *dest, const unsigned char *src,
     des_cbc_decrypt(dest, src, len, &scheds[0]);
 }
 
-DESContext keys[3];
+static DESContext keys[3];
 
 static void des3_sesskey(unsigned char *key) {
     des_key_setup(GET_32BIT_MSB_FIRST(key),
