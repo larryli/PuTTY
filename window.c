@@ -179,8 +179,6 @@ static int compose_state = 0;
 
 static int wsa_started = 0;
 
-static OSVERSIONINFO osVersion;
-
 static UINT wm_mousewheel = WM_MOUSEWHEEL;
 
 /* Dummy routine, only required in plink. */
@@ -221,16 +219,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * config box. */
     defuse_showwindow();
 
+    if (!init_winver())
     {
-	ZeroMemory(&osVersion, sizeof(osVersion));
-	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-	if (!GetVersionEx ( (OSVERSIONINFO *) &osVersion)) {
-	    char *str = dupprintf("%s Fatal Error", appname);
-            MessageBox(NULL, "Windows refuses to report a version",
-                       str, MB_OK | MB_ICONEXCLAMATION);
-	    sfree(str);
-	    return 1;
-        }
+	char *str = dupprintf("%s Fatal Error", appname);
+	MessageBox(NULL, "Windows refuses to report a version",
+		   str, MB_OK | MB_ICONEXCLAMATION);
+	sfree(str);
+	return 1;
     }
 
     /*

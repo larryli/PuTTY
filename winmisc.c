@@ -8,6 +8,8 @@
 #include "putty.h"
 #include "winstuff.h"
 
+OSVERSIONINFO osVersion;
+
 void platform_get_x11_auth(char *display, int *proto,
                            unsigned char *data, int *datalen)
 {
@@ -86,6 +88,13 @@ void SaneEndDialog(HWND hwnd, int ret)
 {
     SetWindowLong(hwnd, BOXRESULT, ret);
     SetWindowLong(hwnd, BOXFLAGS, DF_END);
+}
+
+BOOL init_winver(void)
+{
+    ZeroMemory(&osVersion, sizeof(osVersion));
+    osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
+    return GetVersionEx ( (OSVERSIONINFO *) &osVersion);
 }
 
 #ifdef DEBUG
