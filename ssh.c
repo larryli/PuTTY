@@ -607,12 +607,6 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	(*data)++, (*datalen)--;
     }
 
-#ifdef FWHACK
-    if (st->len == 0x52656d6f) {       /* "Remo"te server has closed ... */
-	st->len = 0x300;	       /* big enough to carry to end */
-    }
-#endif
-
     st->pad = 8 - (st->len % 8);
     st->biglen = st->len + st->pad;
     pktin.length = st->len - 5;
@@ -770,11 +764,7 @@ static int ssh2_rdpkt(unsigned char **data, int *datalen)
 	pktin.data[st->i] = *(*data)++;
 	(*datalen)--;
     }
-#ifdef FWHACK
-    if (!memcmp(pktin.data, "Remo", 4)) {	/* "Remo"te server has closed ... */
-	/* FIXME */
-    }
-#endif
+
     if (sccipher)
 	sccipher->decrypt(pktin.data, st->cipherblk);
 
@@ -3005,6 +2995,15 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		 * if no pty is available or in other odd cases. Ignore */
 	    } else if (pktin.type == SSH1_SMSG_EXIT_STATUS) {
 		send_packet(SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
+                /*
+                 * In case `helpful' firewalls or proxies tack
+                 * extra human-readable text on the end of the
+                 * session which we might mistake for another
+                 * encrypted packet, we close the session once
+                 * we've sent EXIT_CONFIRMATION.
+                 */
+                ssh_state = SSH_STATE_CLOSED;
+                crReturnV;
 	    } else {
 		bombout(("Strange packet received: type %d", pktin.type));
 		crReturnV;
