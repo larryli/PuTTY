@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.39 2003/04/14 21:15:39 ben Exp $ */
+/* $Id: mac_res.r,v 1.40 2004/01/01 16:47:48 simon Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -1092,7 +1092,7 @@ type 'TEXT' {
 };
 
 resource 'TEXT' (wLicence, "licence", purgeable) {
-    "PuTTY is copyright 1997-2003 Simon Tatham.\n"
+    "PuTTY is copyright 1997-2004 Simon Tatham.\n"
     "\n"
     "Portions copyright Robert de Bath, Joris van Rantwijk, Delian"
     "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,"

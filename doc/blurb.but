@@ -12,8 +12,8 @@
 client. This manual documents PuTTY, and its companion utilities
 PSCP, Plink, Pageant and PuTTYgen.
 
-\copyright This manual is copyright 2001-2003 Simon Tatham. All
+\copyright This manual is copyright 2001-2004 Simon Tatham. All
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.
 
-\versionid $Id: blurb.but,v 1.8 2003/10/30 10:30:23 simon Exp $
+\versionid $Id: blurb.but,v 1.9 2004/01/01 16:47:48 simon Exp $
