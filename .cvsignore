@@ -1,6 +1,6 @@
 *.pdb *.ilk *.res *.RES *.pch *.rsp *.obj *.exe *.ncb *.plg *.dsw *.opt *.dsp
 *.tds *.td2 *.map
-Makefile.bor Makefile.cyg Makefile.vc
+Makefile.bor Makefile.cyg Makefile.vc Makefile.lcc MSVC
 *.log *.GID
 local
 Output
