@@ -2391,8 +2391,8 @@ experimental feature, and may encounter several problems:
 \cw{XDM-AUTHORIZATION-1}, so they will not know what to do with the
 data PuTTY has provided.
 
-\b This authentication mechanism will only work in SSH-2. In SSH
-v1, the SSH server does not tell the client the source address of
+\b This authentication mechanism will only work in SSH-2. In SSH-1,
+the SSH server does not tell the client the source address of
 a forwarded connection in a machine-readable format, so it's
 impossible to verify the \cw{XDM-AUTHORIZATION-1} data.
 
