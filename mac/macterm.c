@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.9 2002/11/23 20:02:38 ben Exp $ */
+/* $Id: macterm.c,v 1.10 2002/11/23 22:36:56 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -228,6 +228,8 @@ static void mac_adjustsize(Session *s, int newrows, int newcols) {
 static void mac_initpalette(Session *s) {
     int i;
 
+    if (!HAVE_COLOR_QD())
+	return;
     /*
      * Most colours should be inhibited on 2bpp displays.
      * Palette manager documentation suggests inhibiting all tolerant colours
