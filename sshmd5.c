@@ -233,8 +233,8 @@ static void md5_key_internal(void *handle, unsigned char *key, int len)
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
-    MD5Init(&keys[0]);
-    MD5Update(&keys[0], foo, 64);
+    MD5Init(&keys[1]);
+    MD5Update(&keys[1], foo, 64);
 
     memset(foo, 0, 64);		       /* burn the evidence */
 }
