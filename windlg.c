@@ -471,7 +471,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	 */
 	ReleaseCapture();
 	if (dp.ended)
-	    EndDialog(hwnd, dp.endresult ? 1 : 0);
+	    SaneEndDialog(hwnd, dp.endresult ? 1 : 0);
 	break;
       case WM_NOTIFY:
 	if (LOWORD(wParam) == IDCX_TREEVIEW &&
@@ -526,7 +526,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	if (GetWindowLong(hwnd, GWL_USERDATA) == 1) {
 	    ret = winctrl_handle_command(&dp, msg, wParam, lParam);
 	    if (dp.ended && GetCapture() != hwnd)
-		EndDialog(hwnd, dp.endresult ? 1 : 0);
+		SaneEndDialog(hwnd, dp.endresult ? 1 : 0);
 	} else
 	    ret = 0;
 	return ret;
@@ -544,7 +544,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
             WinHelp(hwnd, help_path, HELP_QUIT, 0);
             requested_help = FALSE;
         }
-	EndDialog(hwnd, 0);
+	SaneEndDialog(hwnd, 0);
 	return 0;
 
 	/* Grrr Explorer will maximize Dialogs! */
@@ -611,7 +611,7 @@ int do_config(void)
 
     get_sesslist(&sesslist, TRUE);
     ret =
-	DialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
+	SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
 		  GenericMainDlgProc);
     get_sesslist(&sesslist, FALSE);
 
@@ -643,8 +643,7 @@ int do_reconfig(HWND hwnd)
     dp.data = &cfg;
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
-    ret =
-	DialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
+    ret = SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
 		  GenericMainDlgProc);
 
     ctrl_free_box(ctrlbox);

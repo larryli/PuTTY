@@ -23,6 +23,13 @@ struct FontSpec {
     int charset;
 };
 
+struct dlgboxinfo {
+    int result;
+    int flags;
+};
+
+#define DF_END 0x0001
+
 /*
  * Global variables. Most modules declare these `extern', but
  * window.c will do `#define PUTTY_DO_GLOBALS' before including this
@@ -62,6 +69,11 @@ typedef HDC Context;
  * PuTTY session.
  */
 GLOBAL HWND logbox;
+
+/*
+ * Global structure to hold return values from the config box.
+ */
+GLOBAL struct dlgboxinfo boxinfo;
 
 /*
  * The all-important instance handle.
@@ -306,6 +318,17 @@ void showabout(HWND);
 void force_normal(HWND hwnd);
 void modal_about_box(HWND hwnd);
 void show_help(HWND hwnd);
+
+/*
+ * Exports from winmisc.c.
+ */
+
+int SaneDialogBox(HINSTANCE hinst,
+		  LPCTSTR tmpl,
+		  HWND hwndparent,
+		  DLGPROC lpDialogFunc);
+
+void SaneEndDialog(HWND hwnd, int ret);
 
 /*
  * Exports from sizetip.c.

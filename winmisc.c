@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "putty.h"
+#include "winstuff.h"
 
 void platform_get_x11_auth(char *display, int *proto,
                            unsigned char *data, int *datalen)
@@ -34,6 +35,31 @@ int filename_equal(Filename f1, Filename f2)
 int filename_is_null(Filename fn)
 {
     return !*fn.path;
+}
+
+int SaneDialogBox(HINSTANCE hinst,
+		  LPCTSTR tmpl,
+		  HWND hwndparent,
+		  DLGPROC lpDialogFunc)
+{
+    HWND boxhwnd;
+    MSG msg;
+    
+    boxhwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
+    while (GetMessage(&msg, NULL, 0, 0)) {
+	if (!(boxinfo.flags & DF_END) && !IsDialogMessage(boxhwnd, &msg))
+	    DispatchMessage(&msg);
+	if (boxinfo.flags & DF_END) break;
+    }
+    boxinfo.flags=0;
+    return boxinfo.result;
+}
+
+void SaneEndDialog(HWND hwnd, int ret)
+{
+    boxinfo.result = ret;
+    boxinfo.flags |= DF_END;
+    DestroyWindow(hwnd);
 }
 
 #ifdef DEBUG
