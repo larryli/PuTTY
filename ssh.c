@@ -6354,6 +6354,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
  		unsigned localid;
 		char *type;
 		int typelen, want_reply;
+		int reply = SSH2_MSG_CHANNEL_FAILURE; /* default */
 		struct ssh_channel *c;
 
 		localid = ssh_pkt_getuint32(ssh);
@@ -6385,18 +6386,93 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 * the request type string to see if it's something
 		 * we recognise.
 		 */
-		if (typelen == 11 && !memcmp(type, "exit-status", 11) &&
-		    c == ssh->mainchan) {
-		    /* We recognise "exit-status" on the primary channel. */
-		    char buf[100];
-		    ssh->exitcode = ssh_pkt_getuint32(ssh);
-		    sprintf(buf, "Server sent command exit status %d",
-			    ssh->exitcode);
-		    logevent(buf);
-		    if (want_reply) {
-			ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_SUCCESS);
-			ssh2_pkt_adduint32(ssh, c->remoteid);
-			ssh2_pkt_send(ssh);
+		if (c == ssh->mainchan) {
+		    /*
+		     * We recognise "exit-status" and "exit-signal" on
+		     * the primary channel.
+		     */
+		    if (typelen == 11 &&
+			!memcmp(type, "exit-status", 11)) {
+
+			ssh->exitcode = ssh_pkt_getuint32(ssh);
+			logeventf(ssh, "Server sent command exit status %d",
+				  ssh->exitcode);
+			reply = SSH2_MSG_CHANNEL_SUCCESS;
+
+		    } else if (typelen == 11 &&
+			       !memcmp(type, "exit-signal", 11)) {
+
+			int is_plausible = TRUE, is_int = FALSE;
+			char *fmt_sig = "", *fmt_msg = "";
+			char *msg;
+			int msglen = 0, core = FALSE;
+			/* ICK: older versions of OpenSSH (e.g. 3.4p1)
+			 * provide an `int' for the signal, despite its
+			 * having been a `string' in the drafts since at
+			 * least 2001. (Fixed in session.c 1.147.) Try to
+			 * infer which we can safely parse it as. */
+			{
+			    unsigned char *p = ssh->pktin.body +
+				               ssh->pktin.savedpos;
+			    long len = ssh->pktin.length - ssh->pktin.savedpos;
+			    unsigned long num = GET_32BIT(p); /* what is it? */
+			    /* If it's 0, it hardly matters; assume string */
+			    if (num == 0) {
+				is_int = FALSE;
+			    } else {
+				int maybe_int = FALSE, maybe_str = FALSE;
+#define CHECK_HYPOTHESIS(offset, result) \
+    do { \
+	long q = offset; \
+	if (q+4 <= len) { \
+	    q = q + 4 + GET_32BIT(p+q); \
+	    if (q+4 <= len && (q = q + 4 + GET_32BIT(p+q)) && q == len) \
+		result = TRUE; \
+	} \
+    } while(0)
+				CHECK_HYPOTHESIS(4+1, maybe_int);
+				CHECK_HYPOTHESIS(4+num+1, maybe_str);
+#undef CHECK_HYPOTHESIS
+				if (maybe_int && !maybe_str)
+				    is_int = TRUE;
+				else if (!maybe_int && maybe_str)
+				    is_int = FALSE;
+				else
+				    /* Crikey. Either or neither. Panic. */
+				    is_plausible = FALSE;
+			    }
+			}
+			if (is_plausible) {
+			    if (is_int) {
+				/* Old non-standard OpenSSH. */
+				int signum = ssh_pkt_getuint32(ssh);
+				fmt_sig = dupprintf(" %d", signum);
+			    } else {
+				/* As per the drafts. */
+				char *sig;
+				int siglen;
+				ssh_pkt_getstring(ssh, &sig, &siglen);
+				/* Signal name isn't supposed to be blank, but
+				 * let's cope gracefully if it is. */
+				if (siglen) {
+				    fmt_sig = dupprintf(" \"%.*s\"",
+							siglen, sig);
+				}
+			    }
+			    core = ssh2_pkt_getbool(ssh);
+			    ssh_pkt_getstring(ssh, &msg, &msglen);
+			    if (msglen) {
+				fmt_msg = dupprintf(" (\"%.*s\")", msglen, msg);
+			    }
+			    /* ignore lang tag */
+			} /* else don't attempt to parse */
+			logeventf(ssh, "Server exited on signal%s%s%s",
+				  fmt_sig, core ? " (core dumped)" : "",
+				  fmt_msg);
+			if (*fmt_sig) sfree(fmt_sig);
+			if (*fmt_msg) sfree(fmt_msg);
+			reply = SSH2_MSG_CHANNEL_SUCCESS;
+
 		    }
 		} else {
 		    /*
@@ -6405,11 +6481,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * or respond with CHANNEL_FAILURE, depending
 		     * on want_reply.
 		     */
-		    if (want_reply) {
-			ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_FAILURE);
-			ssh2_pkt_adduint32(ssh, c->remoteid);
-			ssh2_pkt_send(ssh);
-		    }
+		    reply = SSH2_MSG_CHANNEL_FAILURE;
+		}
+		if (want_reply) {
+		    ssh2_pkt_init(ssh, reply);
+		    ssh2_pkt_adduint32(ssh, c->remoteid);
+		    ssh2_pkt_send(ssh);
 		}
 	    } else if (ssh->pktin.type == SSH2_MSG_GLOBAL_REQUEST) {
 		char *type;
