@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.64 2003/02/04 00:01:33 ben Exp $ */
+/* $Id: macterm.c,v 1.65 2003/02/04 01:53:50 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -80,7 +80,7 @@
 static void mac_initfont(Session *);
 static pascal OSStatus uni_to_font_fallback(UniChar *, ByteCount, ByteCount *,
 					    TextPtr, ByteCount, ByteCount *,
-					    LogicalAddress *,
+					    LogicalAddress,
 					    ConstUnicodeMappingPtr);
 static void mac_initpalette(Session *);
 static void mac_adjustwinbg(Session *);
@@ -93,18 +93,6 @@ static void text_click(Session *, EventRecord *);
 
 void pre_paint(Session *s);
 void post_paint(Session *s);
-
-#if TARGET_RT_MAC_CFM
-static RoutineDescriptor mac_scrolltracker_upp =
-    BUILD_ROUTINE_DESCRIPTOR(uppControlActionProcInfo,
-			     (ProcPtr)mac_scrolltracker);
-static RoutineDescriptor do_text_for_device_upp =
-    BUILD_ROUTINE_DESCRIPTOR(uppDeviceLoopDrawingProcInfo,
-			     (ProcPtr)do_text_for_device);
-#else /* not TARGET_RT_MAC_CFM */
-#define mac_scrolltracker_upp	mac_scrolltracker
-#define do_text_for_device_upp	do_text_for_device
-#endif /* not TARGET_RT_MAC_CFM */
 
 void mac_startsession(Session *s)
 {
@@ -181,15 +169,20 @@ static void mac_workoutfontscale(Session *s, int wantwidth,
     int gotwidth, i;
     const char text = 'W';
     FontInfo fi;
+#if TARGET_API_MAC_CARBON
+    CQDProcsPtr gp = GetPortGrafProcs(GetWindowPort(s->window));;
+#else
+    QDProcsPtr gp = s->window->grafProcs;;
+#endif
 
     numer.v = denom.v = 1; /* always */
     numer.h = denom.h = 1;
     for (i = 0; i < 3; i++) {
 	tmpnumer = numer;
 	tmpdenom = denom;
-	if (s->window->grafProcs != NULL)
+	if (gp != NULL)
 	    gotwidth = InvokeQDTxMeasUPP(1, &text, &tmpnumer, &tmpdenom, &fi,
-					 s->window->grafProcs->txMeasProc);
+					 gp->txMeasProc);
 	else
 	    gotwidth = StdTxMeas(1, &text, &tmpnumer, &tmpdenom, &fi);
 	/* The result of StdTxMeas must be scaled by the factors it returns. */
@@ -211,7 +204,7 @@ static void mac_initfont(Session *s) {
     TextEncoding enc;
     OptionBits fbflags;
 
-    SetPort(s->window);
+    SetPort(GetWindowPort(s->window));
     GetFNum(s->cfg.font.name, &s->fontnum);
     TextFont(s->fontnum);
     TextFace(s->cfg.font.face);
@@ -245,7 +238,7 @@ static void mac_initfont(Session *s) {
 	CreateUnicodeToTextInfoByEncoding(enc, &s->uni_to_font) == noErr) {
 	if (uni_to_font_fallback_upp == NULL)
 	    uni_to_font_fallback_upp =
-		NewUnicodeToTextFallbackProc(&uni_to_font_fallback);
+		NewUnicodeToTextFallbackUPP(&uni_to_font_fallback);
 	fbflags = kUnicodeFallbackCustomOnly;
 	if (mac_gestalts.uncvattr & kTECAddFallbackInterruptMask)
 	    fbflags |= kUnicodeFallbackInterruptSafeMask;
@@ -271,7 +264,7 @@ static void mac_initfont(Session *s) {
 
 static pascal OSStatus uni_to_font_fallback(UniChar *ucp,
     ByteCount ilen, ByteCount *iusedp, TextPtr obuf, ByteCount olen,
-    ByteCount *ousedp, LogicalAddress *cookie, ConstUnicodeMappingPtr mapping)
+    ByteCount *ousedp, LogicalAddress cookie, ConstUnicodeMappingPtr mapping)
 {
 
     if (olen < 1)
@@ -362,6 +355,7 @@ static void mac_adjustwinbg(Session *s) {
     else
 #endif
     {
+#if !TARGET_API_MAC_CARBON
 	if (s->wctab == NULL)
 	    s->wctab = (WCTabHandle)NewHandle(sizeof(**s->wctab));
 	if (s->wctab == NULL)
@@ -372,6 +366,7 @@ static void mac_adjustwinbg(Session *s) {
 	(*s->wctab)->ctTable[0].value = wContentColor;
 	(*s->wctab)->ctTable[0].rgb = (*s->palette)->pmInfo[DEFAULT_BG].ciRGB;
 	SetWinColor(s->window, s->wctab);
+#endif
     }
 }
 
@@ -383,36 +378,62 @@ void mac_adjusttermcursor(WindowPtr window, Point mouse, RgnHandle cursrgn) {
     ControlHandle control;
     short part;
     int x, y;
+#if TARGET_API_MAC_CARBON
+    Cursor arrow;
+    Rect rect;
+    RgnHandle visrgn;
+#endif
 
-    SetPort(window);
+    SetPort(GetWindowPort(window));
     s = (Session *)GetWRefCon(window);
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
     if (control == s->scrollbar) {
+#if TARGET_API_MAC_CARBON
+	SetCursor(GetQDGlobalsArrow(&arrow));
+	RectRgn(cursrgn, GetControlBounds(s->scrollbar, &rect));
+#else
 	SetCursor(&qd.arrow);
 	RectRgn(cursrgn, &(*s->scrollbar)->contrlRect);
-	SectRgn(cursrgn, window->visRgn, cursrgn);
+#endif
     } else {
 	x = mouse.h / s->font_width;
 	y = mouse.v / s->font_height;
-	if (s->raw_mouse)
+	if (s->raw_mouse) {
+#if TARGET_API_MAC_CARBON
+	    SetCursor(GetQDGlobalsArrow(&arrow));
+#else
 	    SetCursor(&qd.arrow);
-	else
+#endif
+	} else
 	    SetCursor(*GetCursor(iBeamCursor));
 	/* Ask for shape changes if we leave this character cell. */
 	SetRectRgn(cursrgn, x * s->font_width, y * s->font_height,
 		   (x + 1) * s->font_width, (y + 1) * s->font_height);
-	SectRgn(cursrgn, window->visRgn, cursrgn);
     }
+#if TARGET_API_MAC_CARBON
+    visrgn = NewRgn();
+    GetPortVisibleRegion(GetWindowPort(window), visrgn);
+    SectRgn(cursrgn, visrgn, cursrgn);
+    DisposeRgn(visrgn);
+#else	
+    SectRgn(cursrgn, window->visRgn, cursrgn);
+#endif
 }
 
 /*
  * Enable/disable menu items based on the active terminal window.
  */
+#if TARGET_API_MAC_CARBON
+#define DisableItem DisableMenuItem
+#define EnableItem EnableMenuItem
+#endif
 void mac_adjusttermmenus(WindowPtr window) {
     Session *s;
     MenuHandle menu;
+#if !TARGET_API_MAC_CARBON
     long offset;
+#endif
 
     s = (Session *)GetWRefCon(window);
     menu = GetMenuHandle(mFile);
@@ -427,7 +448,11 @@ void mac_adjusttermmenus(WindowPtr window) {
 	EnableItem(menu, iCopy);
     else
 	DisableItem(menu, iCopy);
+#if TARGET_API_MAC_CARBON
+    if (1)
+#else
     if (GetScrap(NULL, 'TEXT', &offset) == noTypeErr)
+#endif
 	DisableItem(menu, iPaste);
     else
 	EnableItem(menu, iPaste);
@@ -457,9 +482,10 @@ void mac_clickterm(WindowPtr window, EventRecord *event) {
     Point mouse;
     ControlHandle control;
     int part;
+    static ControlActionUPP mac_scrolltracker_upp = NULL;
 
     s = (Session *)GetWRefCon(window);
-    SetPort(window);
+    SetPort(GetWindowPort(window));
     mouse = event->where;
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
@@ -473,7 +499,10 @@ void mac_clickterm(WindowPtr window, EventRecord *event) {
 	  case kControlDownButtonPart:
 	  case kControlPageUpPart:
 	  case kControlPageDownPart:
-	    TrackControl(control, mouse, &mac_scrolltracker_upp);
+	    if (mac_scrolltracker_upp == NULL)
+		mac_scrolltracker_upp =
+		    NewControlActionUPP(&mac_scrolltracker);
+	    TrackControl(control, mouse, mac_scrolltracker_upp);
 	    break;
 	}
     } else {
@@ -489,7 +518,7 @@ static void text_click(Session *s, EventRecord *event) {
     static int lastrow = -1, lastcol = -1;
     static Mouse_Action lastact = MA_NOTHING;
 
-    SetPort(s->window);
+    SetPort(GetWindowPort(s->window));
     localwhere = event->where;
     GlobalToLocal(&localwhere);
 
@@ -532,6 +561,7 @@ static void text_click(Session *s, EventRecord *event) {
 
 void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
 {
+#if !TARGET_API_MAC_CARBON
     Session *s = cookie;
     char *mactextbuf;
     ByteCount iread, olen;
@@ -588,9 +618,13 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
     stsc->scrpStyleTab[0].scrpColor.blue = 0;
     PutScrap(stsz, 'styl', stsc);
     sfree(stsc);
+#endif
 }
 
 void get_clip(void *frontend, wchar_t **p, int *lenp) {
+#if TARGET_API_MAC_CARBON
+    *lenp = 0;
+#else
     Session *s = frontend;
     static Handle h = NULL;
     static wchar_t *data = NULL;
@@ -663,12 +697,17 @@ void get_clip(void *frontend, wchar_t **p, int *lenp) {
 	    *lenp = 0;
 	}
     }
+#endif
 }
 
 static pascal void mac_scrolltracker(ControlHandle control, short part) {
     Session *s;
 
+#if TARGET_API_MAC_CARBON
+    s = (Session *)GetWRefCon(GetControlOwner(control));
+#else
     s = (Session *)GetWRefCon((*control)->contrlOwner);
+#endif
     switch (part) {
       case kControlUpButtonPart:
 	term_scroll(s->term, 0, -1);
@@ -850,12 +889,15 @@ void mac_growterm(WindowPtr window, EventRecord *event) {
     long grow_result;
     int newrows, newcols;
     Session *s;
+#if !TARGET_API_MAC_CARBON
     DragGrayRgnUPP draghooksave;
     GrafPtr portsave;
     FontInfo fi;
+#endif
 
     s = (Session *)GetWRefCon(window);
 
+#if !TARGET_API_MAC_CARBON
     draghooksave = LMGetDragHook();
     growterm_state.oldmsg[0] = '\0';
     growterm_state.zeromouse = event->where;
@@ -874,15 +916,18 @@ void mac_growterm(WindowPtr window, EventRecord *event) {
 	    StringWidth("\p99999x99999") + 4, fi.ascent + fi.descent + 4);
     SetPt(&growterm_state.msgorigin, 2, fi.ascent + 2);
     LMSetDragHook(NewDragGrayRgnUPP(mac_growtermdraghook));
+#endif
 
     SetRect(&limits, s->font_width + 15, s->font_height, SHRT_MAX, SHRT_MAX);
     grow_result = GrowWindow(window, event->where, &limits);
 
+#if !TARGET_API_MAC_CARBON
     DisposeDragGrayRgnUPP(LMGetDragHook());
     LMSetDragHook(draghooksave);
     InvalRect(&growterm_state.msgrect);
 
     SetPort(portsave);
+#endif
 
     if (grow_result != 0) {
 	newrows = HiWord(grow_result) / s->font_height;
@@ -892,6 +937,7 @@ void mac_growterm(WindowPtr window, EventRecord *event) {
     }
 }
 
+#if !TARGET_API_MAC_CARBON
 static pascal void mac_growtermdraghook(void)
 {
     Session *s = growterm_state.s;
@@ -919,6 +965,7 @@ static pascal void mac_growtermdraghook(void)
     DrawString(pbuf);
     SetPort(portsave);
 }
+#endif
 
 void mac_closeterm(WindowPtr window)
 {
@@ -959,16 +1006,24 @@ void mac_activateterm(WindowPtr window, Boolean active) {
 
 void mac_updateterm(WindowPtr window) {
     Session *s;
+    Rect bbox;
+#if TARGET_API_MAC_CARBON
+    RgnHandle visrgn;
+#endif
 
     s = (Session *)GetWRefCon(window);
-    SetPort(window);
+    SetPort(GetWindowPort(window));
     BeginUpdate(window);
     pre_paint(s);
-    term_paint(s->term, s,
-	       PTOCC((*window->visRgn)->rgnBBox.left),
-	       PTOCR((*window->visRgn)->rgnBBox.top),
-	       PTOCC((*window->visRgn)->rgnBBox.right),
-	       PTOCR((*window->visRgn)->rgnBBox.bottom), 1);
+#if TARGET_API_MAC_CARBON
+    visrgn = NewRgn();
+    GetPortVisibleRegion(GetWindowPort(window), visrgn);
+    GetRegionBounds(visrgn, &bbox);
+#else
+    bbox = (*window->visRgn)->rgnBBox;
+#endif
+    term_paint(s->term, s, PTOCC(bbox.left), PTOCR(bbox.top),
+	       PTOCC(bbox.right), PTOCR(bbox.bottom), 1);
     /* Restore default colours in case the Window Manager uses them */
     if (HAVE_COLOR_QD()) {
 	PmForeColor(DEFAULT_FG);
@@ -978,8 +1033,14 @@ void mac_updateterm(WindowPtr window) {
 	BackColor(blackColor);
     }
     if (FrontWindow() != window)
+#if TARGET_API_MAC_CARBON
+	EraseRect(GetControlBounds(s->scrollbar, &bbox));
+    UpdateControls(window, visrgn);
+    DisposeRgn(visrgn);
+#else
 	EraseRect(&(*s->scrollbar)->contrlRect);
     UpdateControls(window, window->visRgn);
+#endif
     mac_drawgrowicon(s);
     post_paint(s);
     EndUpdate(window);
@@ -989,12 +1050,16 @@ static void mac_drawgrowicon(Session *s) {
     Rect clip;
     RgnHandle savergn;
 
-    SetPort(s->window);
+    SetPort(GetWindowPort(s->window));
     /*
      * Stop DrawGrowIcon giving us space for a horizontal scrollbar
      * See Tech Note TB575 for details.
      */
+#if TARGET_API_MAC_CARBON
+    GetPortBounds(GetWindowPort(s->window), &clip);
+#else
     clip = s->window->portRect;
+#endif
     clip.left = clip.right - 15;
     savergn = NewRgn();
     GetClip(savergn);
@@ -1025,16 +1090,20 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     int style;
     struct do_text_args a;
     RgnHandle textrgn, saveclip;
+#if TARGET_API_MAC_CARBON
+    RgnHandle visrgn;
+#endif
     char mactextbuf[1024];
     UniChar unitextbuf[1024];
     wchar_t *unitextptr;
     int i, fontwidth;
     ByteCount iread, olen;
     OSStatus err;
+    static DeviceLoopDrawingUPP do_text_for_device_upp = NULL;
 
     assert(len <= 1024);
 
-    SetPort(s->window);
+    SetPort(GetWindowPort(s->window));
 
     fontwidth = s->font_width;
     if ((lattr & LATTR_MODE) != LATTR_NORM)
@@ -1047,8 +1116,18 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.textrect.right = (x + len) * fontwidth;
     if (a.textrect.right > s->term->cols * s->font_width)
 	a.textrect.right = s->term->cols * s->font_width;
+#if TARGET_API_MAC_CARBON
+    visrgn = NewRgn();
+    GetPortVisibleRegion(GetWindowPort(s->window), visrgn);
+    if (!RectInRgn(&a.textrect, visrgn)) {
+	DisposeRgn(visrgn);
+	return;
+    }
+    DisposeRgn(visrgn);
+#else
     if (!RectInRgn(&a.textrect, s->window->visRgn))
 	return;
+#endif
 
     /* Unpack Unicode from the mad format we get passed */
     for (i = 0; i < len; i++)
@@ -1092,7 +1171,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	a.denom = s->font_bigdenom;
 	break;
     }
-    SetPort(s->window);
+    SetPort(GetWindowPort(s->window));
     TextFont(s->fontnum);
     style = s->cfg.font.face;
     if ((attr & ATTR_BOLD) && !s->cfg.bold_colour)
@@ -1114,21 +1193,33 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     ClipRect(&a.textrect);
     textrgn = NewRgn();
     RectRgn(textrgn, &a.textrect);
-    if (HAVE_COLOR_QD())
-	DeviceLoop(textrgn, &do_text_for_device_upp, (long)&a, 0);
-    else
+    if (HAVE_COLOR_QD()) {
+	if (do_text_for_device_upp == NULL)
+	    do_text_for_device_upp =
+		NewDeviceLoopDrawingUPP(&do_text_for_device);
+	DeviceLoop(textrgn, do_text_for_device_upp, (long)&a, 0);
+    } else
 	do_text_for_device(1, 0, NULL, (long)&a);
     SetClip(saveclip);
     DisposeRgn(saveclip);
     DisposeRgn(textrgn);
     /* Tell the window manager about it in case this isn't an update */
+#if TARGET_API_MAC_CARBON
+    ValidWindowRect(s->window, &a.textrect);
+#else
     ValidRect(&a.textrect);
+#endif
 }
 
 static pascal void do_text_for_device(short depth, short devflags,
 				      GDHandle device, long cookie) {
     struct do_text_args *a;
     int bgcolour, fgcolour, bright, reverse, tmp;
+#if TARGET_API_MAC_CARBON
+    CQDProcsPtr gp = GetPortGrafProcs(GetWindowPort(a->s->window));
+#else
+    QDProcsPtr gp = a->s->window->grafProcs;
+#endif
 
     a = (struct do_text_args *)cookie;
 
@@ -1191,9 +1282,8 @@ static pascal void do_text_for_device(short depth, short devflags,
 	break;
     }
     /* FIXME: Sort out bold width adjustments on Original QuickDraw. */
-    if (a->s->window->grafProcs != NULL)
-	InvokeQDTextUPP(a->len, a->text, a->numer, a->denom,
-			a->s->window->grafProcs->textProc);
+    if (gp != NULL)
+	InvokeQDTextUPP(a->len, a->text, a->numer, a->denom, gp->textProc);
     else
 	StdText(a->len, a->text, a->numer, a->denom);
 
@@ -1225,11 +1315,21 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 void pre_paint(Session *s) {
     GDHandle gdh;
     Rect myrect, tmprect;
+#if TARGET_API_MAC_CARBON
+    RgnHandle visrgn;
+#endif
 
     if (HAVE_COLOR_QD()) {
 	s->term->attr_mask = 0;
-	SetPort(s->window);
+	SetPort(GetWindowPort(s->window));
+#if TARGET_API_MAC_CARBON
+	visrgn = NewRgn();
+	GetPortVisibleRegion(GetWindowPort(s->window), visrgn);
+	GetRegionBounds(visrgn, &myrect);
+	DisposeRgn(visrgn);
+#else
 	myrect = (*s->window->visRgn)->rgnBBox;
+#endif
 	LocalToGlobal((Point *)&myrect.top);
 	LocalToGlobal((Point *)&myrect.bottom);
 	for (gdh = GetDeviceList();
@@ -1287,8 +1387,8 @@ void set_sbar(void *frontend, int total, int start, int page) {
     Session *s = frontend;
 
     /* We don't redraw until we've set everything up, to avoid glitches */
-    (*s->scrollbar)->contrlMin = 0;
-    (*s->scrollbar)->contrlMax = total - page;
+    SetControlMinimum(s->scrollbar, 0);
+    SetControlMaximum(s->scrollbar, total - page);
     SetControlValue(s->scrollbar, start);
 #if !TARGET_CPU_68K
     if (mac_gestalts.cntlattr & gestaltControlMgrPresent)
@@ -1453,9 +1553,15 @@ int is_iconic(void *frontend)
 void get_window_pos(void *frontend, int *x, int *y)
 {
     Session *s = frontend;
+    Rect rect;
 
-    *x = s->window->portRect.left;
-    *y = s->window->portRect.top;
+#if TARGET_API_MAC_CARBON
+    GetPortBounds(GetWindowPort(s->window), &rect);
+#else
+    rect = s->window->portRect;
+#endif
+    *x = rect.left;
+    *y = rect.top;
 }
 
 /*
@@ -1464,9 +1570,15 @@ void get_window_pos(void *frontend, int *x, int *y)
 void get_window_pixels(void *frontend, int *x, int *y)
 {
     Session *s = frontend;
+    Rect rect;
 
-    *x = s->window->portRect.right - s->window->portRect.left;
-    *y = s->window->portRect.bottom - s->window->portRect.top;
+#if TARGET_API_MAC_CARBON
+    GetPortBounds(GetWindowPort(s->window), &rect);
+#else
+    rect = s->window->portRect;
+#endif
+    *x = rect.right - rect.left;
+    *y = rect.bottom - rect.top;
 }
 
 /*
@@ -1562,7 +1674,7 @@ void do_scroll(Context ctx, int topline, int botline, int lines) {
     RgnHandle update = NewRgn();
     Point g2l = { 0, 0 };
 
-    SetPort(s->window);
+    SetPort(GetWindowPort(s->window));
 
     /*
      * Work out the part of the update region that will scrolled by
@@ -1576,11 +1688,19 @@ void do_scroll(Context ctx, int topline, int botline, int lines) {
 	SetRectRgn(scrollrgn, 0, topline * s->font_height,
 		   s->term->cols * s->font_width,
 		   (botline - lines + 1) * s->font_height);
-    CopyRgn(((WindowPeek)s->window)->updateRgn, movedupdate);
+#if TARGET_API_MAC_CARBON
+    GetWindowRegion(s->window, kWindowUpdateRgn, movedupdate);
+#else
+    GetWindowUpdateRgn(s->window, movedupdate);
+#endif
     GlobalToLocal(&g2l);
     OffsetRgn(movedupdate, g2l.h, g2l.v); /* Convert to local co-ords. */
     SectRgn(scrollrgn, movedupdate, movedupdate); /* Clip scrolled section. */
+#if TARGET_API_MAC_CARBON
+    ValidWindowRgn(s->window, movedupdate);
+#else
     ValidRgn(movedupdate);
+#endif
     OffsetRgn(movedupdate, 0, -lines * s->font_height); /* Scroll it. */
 
     PenNormal();
@@ -1592,8 +1712,13 @@ void do_scroll(Context ctx, int topline, int botline, int lines) {
 	    s->term->cols * s->font_width, (botline + 1) * s->font_height);
     ScrollRect(&r, 0, - lines * s->font_height, update);
 
+#if TARGET_API_MAC_CARBON
+    InvalWindowRgn(s->window, update);
+    InvalWindowRgn(s->window, movedupdate);
+#else
     InvalRgn(update);
     InvalRgn(movedupdate);
+#endif
 
     DisposeRgn(scrollrgn);
     DisposeRgn(movedupdate);
