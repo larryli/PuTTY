@@ -16,18 +16,19 @@
 
 IDI_MAINICON ICON "putty.ico"
 
-/* Accelerators used: cl */
-IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 136, 70
+/* Accelerators used: clw */
+IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 214, 70
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About PuTTY"
 FONT 8, "MS Sans Serif"
 BEGIN
-    DEFPUSHBUTTON "&Close", IDOK, 82, 52, 48, 14
+    DEFPUSHBUTTON "&Close", IDOK, 160, 52, 48, 14
     PUSHBUTTON "View &Licence", IDA_LICENCE, 6, 52, 70, 14
-    CTEXT "PuTTY", IDA_TEXT1, 10, 6, 120, 8
-    CTEXT "", IDA_VERSION, 10, 16, 120, 16
+    PUSHBUTTON "Visit &Web Site", IDA_WEB, 84, 52, 70, 14
+    CTEXT "PuTTY", IDA_TEXT1, 10, 6, 194, 8
+    CTEXT "", IDA_VERSION, 10, 16, 194, 16
     CTEXT "\251 1997-2001 Simon Tatham. All rights reserved.",
-          IDA_TEXT2, 10, 34, 120, 16
+          IDA_TEXT2, 10, 34, 194, 16
 END
 
 /* Accelerators used: aco */

@@ -161,6 +161,7 @@ putty.rsp: makefile
 	echo $(PRESRC) >> putty.rsp
 	echo $(LIBS1) >> putty.rsp
 	echo $(LIBS2) >> putty.rsp
+	echo $(LIBS3) >> putty.rsp
 	echo $(SOCK1) >> putty.rsp
 
 puttytel.rsp: makefile
@@ -174,6 +175,7 @@ puttytel.rsp: makefile
 	echo $(PRESRC) >> puttytel.rsp
 	echo $(LIBS1) >> puttytel.rsp
 	echo $(LIBS2) >> puttytel.rsp
+	echo $(LIBS3) >> puttytel.rsp
 	echo $(SOCK1) >> puttytel.rsp
 
 pageant.rsp: makefile

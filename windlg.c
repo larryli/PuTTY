@@ -168,6 +168,13 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 	    EnableWindow(hwnd, 1);
             SetActiveWindow(hwnd);
 	    return 0;
+
+          case IDA_WEB:
+            /* Load web browser */
+            ShellExecute(hwnd, "open",
+                         "http://www.chiark.greenend.org.uk/~sgtatham/putty/",
+                         0, 0, SW_SHOWDEFAULT);
+            return 0;
 	}
 	return 0;
       case WM_CLOSE:
