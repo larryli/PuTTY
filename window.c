@@ -229,6 +229,19 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		return 0;
 	    }
 	}
+
+	/* See if host is of the form user@host */
+	if (cfg.host[0] != '\0') {
+	    char *atsign = strchr(cfg.host, '@');
+	    /* Make sure we're not overflowing the user field */
+	    if (atsign) {
+		if (atsign-cfg.host < sizeof cfg.username) {
+		    strncpy (cfg.username, cfg.host, atsign-cfg.host);
+		    cfg.username[atsign-cfg.host] = '\0';
+		}
+		memmove(cfg.host, atsign+1, 1+strlen(atsign+1));
+	    }
+	}
     }
 
     /*
