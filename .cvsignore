@@ -1,3 +1,7 @@
 *.pdb *.ilk *.res *.RES *.pch *.rsp *.obj *.exe *.ncb *.plg *.dsw *.opt *.dsp
 *.tds *.map
 Makefile.bor Makefile.cyg Makefile.vc
+*.log
+pageant plink pscp psftp putty puttytel puttygen
+*.DSA *.RSA
+*.cnt *.hlp

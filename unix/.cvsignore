@@ -1,2 +1,3 @@
-Makefile.gtk
-plink pterm
+Makefile.gtk Makefile
+plink pterm putty
+*.log
