@@ -5,10 +5,9 @@
  */
 
 #include <assert.h>
+#include <string.h>
 
-typedef struct {
-    unsigned long hi, lo;
-} uint64, int64;
+#include "int64.h"
 
 uint64 uint64_div10(uint64 x, int *remainder)
 {
@@ -68,4 +67,13 @@ uint64 uint64_add32(uint64 x, unsigned long y)
     yy.hi = 0;
     yy.lo = y;
     return uint64_add(x, yy);
+}
+
+int uint64_compare(uint64 x, uint64 y)
+{
+    if (x.hi != y.hi)
+	return x.hi < y.hi ? -1 : +1;
+    if (x.lo != y.lo)
+	return x.lo < y.lo ? -1 : +1;
+    return 0;
 }

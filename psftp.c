@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <limits.h>
 
 #define PUTTY_DO_GLOBALS
 #include "putty.h"
@@ -321,9 +322,12 @@ int sftp_cmd_cd(struct sftp_command *cmd)
 }
 
 /*
- * Get a file and save it at the local end.
+ * Get a file and save it at the local end. We have two very
+ * similar commands here: `get' and `reget', which differ in that
+ * `reget' checks for the existence of the destination file and
+ * starts from where a previous aborted transfer left off.
  */
-int sftp_cmd_get(struct sftp_command *cmd)
+int sftp_general_get(struct sftp_command *cmd, int restart)
 {
     struct fxp_handle *fh;
     char *fname, *outfname;
@@ -348,7 +352,13 @@ int sftp_cmd_get(struct sftp_command *cmd)
 	sfree(fname);
 	return 0;
     }
-    fp = fopen(outfname, "wb");
+
+    if (restart) {
+	fp = fopen(outfname, "rb+");
+    } else {
+	fp = fopen(outfname, "wb");
+    }
+
     if (!fp) {
 	printf("local: unable to open %s\n", outfname);
 	fxp_close(fh);
@@ -356,9 +366,17 @@ int sftp_cmd_get(struct sftp_command *cmd)
 	return 0;
     }
 
-    printf("remote:%s => local:%s\n", fname, outfname);
+    if (restart) {
+	long posn;
+	fseek(fp, 0L, SEEK_END);
+	posn = ftell(fp);
+	printf("reget: restarting at file position %ld\n", posn);
+	offset = uint64_make(0, posn);
+    } else {
+	offset = uint64_make(0, 0);
+    }
 
-    offset = uint64_make(0, 0);
+    printf("remote:%s => local:%s\n", fname, outfname);
 
     /*
      * FIXME: we can use FXP_FSTAT here to get the file size, and
@@ -397,11 +415,22 @@ int sftp_cmd_get(struct sftp_command *cmd)
 
     return 0;
 }
+int sftp_cmd_get(struct sftp_command *cmd)
+{
+    return sftp_general_get(cmd, 0);
+}
+int sftp_cmd_reget(struct sftp_command *cmd)
+{
+    return sftp_general_get(cmd, 1);
+}
 
 /*
- * Send a file and store it at the remote end.
+ * Send a file and store it at the remote end. We have two very
+ * similar commands here: `put' and `reput', which differ in that
+ * `reput' checks for the existence of the destination file and
+ * starts from where a previous aborted transfer left off.
  */
-int sftp_cmd_put(struct sftp_command *cmd)
+int sftp_general_put(struct sftp_command *cmd, int restart)
 {
     struct fxp_handle *fh;
     char *fname, *origoutfname, *outfname;
@@ -427,16 +456,47 @@ int sftp_cmd_put(struct sftp_command *cmd)
 	sfree(outfname);
 	return 0;
     }
-    fh = fxp_open(outfname, SSH_FXF_WRITE | SSH_FXF_CREAT | SSH_FXF_TRUNC);
+    if (restart) {
+	fh = fxp_open(outfname,
+		      SSH_FXF_WRITE);
+    } else {
+	fh = fxp_open(outfname,
+		      SSH_FXF_WRITE | SSH_FXF_CREAT | SSH_FXF_TRUNC);
+    }
     if (!fh) {
 	printf("%s: %s\n", outfname, fxp_error());
 	sfree(outfname);
 	return 0;
     }
 
-    printf("local:%s => remote:%s\n", fname, outfname);
+    if (restart) {
+	char decbuf[30];
+	struct fxp_attrs attrs;
+	if (!fxp_fstat(fh, &attrs)) {
+	    printf("read size of %s: %s\n", outfname, fxp_error());
+	    sfree(outfname);
+	    return 0;
+	}
+	if (!(attrs.flags & SSH_FILEXFER_ATTR_SIZE)) {
+	    printf("read size of %s: size was not given\n", outfname);
+	    sfree(outfname);
+	    return 0;
+	}
+	offset = attrs.size;
+	uint64_decimal(offset, decbuf);
+	printf("reput: restarting at file position %s\n", decbuf);
+	if (uint64_compare(offset, uint64_make(0, LONG_MAX)) > 0) {
+	    printf("reput: remote file is larger than we can deal with\n");
+	    sfree(outfname);
+	    return 0;
+	}
+	if (fseek(fp, offset.lo, SEEK_SET) != 0)
+	    fseek(fp, 0, SEEK_END);    /* *shrug* */
+    } else {
+	offset = uint64_make(0, 0);
+    }
 
-    offset = uint64_make(0, 0);
+    printf("local:%s => remote:%s\n", fname, outfname);
 
     /*
      * FIXME: we can use FXP_FSTAT here to get the file size, and
@@ -466,6 +526,14 @@ int sftp_cmd_put(struct sftp_command *cmd)
 
     return 0;
 }
+int sftp_cmd_put(struct sftp_command *cmd)
+{
+    return sftp_general_put(cmd, 0);
+}
+int sftp_cmd_reput(struct sftp_command *cmd)
+{
+    return sftp_general_put(cmd, 1);
+}
 
 int sftp_cmd_mkdir(struct sftp_command *cmd)
 {
@@ -491,9 +559,8 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
 	return 0;
     }
 
-	sfree(dir);
-	return 0;
-
+    sfree(dir);
+    return 0;
 }
 
 int sftp_cmd_rmdir(struct sftp_command *cmd)
@@ -520,16 +587,14 @@ int sftp_cmd_rmdir(struct sftp_command *cmd)
 	return 0;
     }
 
-	sfree(dir);
-	return 0;
-
+    sfree(dir);
+    return 0;
 }
 
 int sftp_cmd_rm(struct sftp_command *cmd)
 {
     char *fname;
     int result;
-
 
     if (cmd->nwords < 2) {
 	printf("rm: expects a filename\n");
@@ -542,18 +607,233 @@ int sftp_cmd_rm(struct sftp_command *cmd)
 	return 0;
     }
 
-    result = fxp_rm(fname);
+    result = fxp_remove(fname);
     if (!result) {
 	printf("rm %s: %s\n", fname, fxp_error());
 	sfree(fname);
 	return 0;
     }
 
-	sfree(fname);
-	return 0;
+    sfree(fname);
+    return 0;
 
 }
 
+int sftp_cmd_mv(struct sftp_command *cmd)
+{
+    char *srcfname, *dstfname;
+    int result;
+
+    if (cmd->nwords < 3) {
+	printf("mv: expects two filenames\n");
+	return 0;
+    }
+    srcfname = canonify(cmd->words[1]);
+    if (!srcfname) {
+	printf("%s: %s\n", srcfname, fxp_error());
+	return 0;
+    }
+
+    dstfname = canonify(cmd->words[2]);
+    if (!dstfname) {
+	printf("%s: %s\n", dstfname, fxp_error());
+	return 0;
+    }
+
+    result = fxp_rename(srcfname, dstfname);
+    if (!result) {
+	char const *error = fxp_error();
+	struct fxp_attrs attrs;
+
+	/*
+	 * The move might have failed because dstfname pointed at a
+	 * directory. We check this possibility now: if dstfname
+	 * _is_ a directory, we re-attempt the move by appending
+	 * the basename of srcfname to dstfname.
+	 */
+	result = fxp_stat(dstfname, &attrs);
+	if (result &&
+	    (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
+	    (attrs.permissions & 0040000)) {
+	    char *p;
+	    char *newname, *newcanon;
+	    printf("(destination %s is a directory)\n", dstfname);
+	    p = srcfname + strlen(srcfname);
+	    while (p > srcfname && p[-1] != '/') p--;
+	    newname = dupcat(dstfname, "/", p, NULL);
+	    newcanon = canonify(newname);
+	    sfree(newname);
+	    if (newcanon) {
+		sfree(dstfname);
+		dstfname = newcanon;
+		result = fxp_rename(srcfname, dstfname);
+		error = result ? NULL : fxp_error();
+	    }
+	}
+	if (error) {
+	    printf("mv %s %s: %s\n", srcfname, dstfname, error);
+	    sfree(srcfname);
+	    sfree(dstfname);
+	    return 0;
+	}
+    }
+    printf("%s -> %s\n", srcfname, dstfname);
+
+    sfree(srcfname);
+    sfree(dstfname);
+    return 0;
+}
+
+int sftp_cmd_chmod(struct sftp_command *cmd)
+{
+    char *fname, *mode;
+    int result;
+    struct fxp_attrs attrs;
+    unsigned attrs_clr, attrs_xor, oldperms, newperms;
+
+    if (cmd->nwords < 3) {
+	printf("chmod: expects a mode specifier and a filename\n");
+	return 0;
+    }
+
+    /*
+     * Attempt to parse the mode specifier in cmd->words[1]. We
+     * don't support the full horror of Unix chmod; instead we
+     * support a much simpler syntax in which the user can either
+     * specify an octal number, or a comma-separated sequence of
+     * [ugoa]*[-+=][rwxst]+. (The initial [ugoa] sequence may
+     * _only_ be omitted if the only attribute mentioned is t,
+     * since all others require a user/group/other specification.
+     * Additionally, the s attribute may not be specified for any
+     * [ugoa] specifications other than exactly u or exactly g.
+     */
+    attrs_clr = attrs_xor = 0;
+    mode = cmd->words[1];
+    if (mode[0] >= '0' && mode[0] <= '9') {
+	if (mode[strspn(mode, "01234567")]) {
+	    printf("chmod: numeric file modes should"
+		   " contain digits 0-7 only\n");
+	    return 0;
+	}
+	attrs_clr = 07777;
+	sscanf(mode, "%o", &attrs_xor);
+	attrs_xor &= attrs_clr;
+    } else {
+	while (*mode) {
+	    char *modebegin = mode;
+	    unsigned subset, perms;
+	    int action;
+
+	    subset = 0;
+	    while (*mode && *mode != ',' &&
+		   *mode != '+' && *mode != '-' && *mode != '=') {
+		switch (*mode) {
+		  case 'u': subset |= 04700; break; /* setuid, user perms */
+		  case 'g': subset |= 02070; break; /* setgid, group perms */
+		  case 'o': subset |= 00007; break; /* just other perms */
+		  case 'a': subset |= 06777; break; /* all of the above */
+		  default:
+		    printf("chmod: file mode '%.*s' contains unrecognised"
+			   " user/group/other specifier '%c'\n",
+			   strcspn(modebegin, ","), modebegin, *mode);
+		    return 0;
+		}
+		mode++;
+	    }
+	    if (!*mode || *mode == ',') {
+		printf("chmod: file mode '%.*s' is incomplete\n",
+		       strcspn(modebegin, ","), modebegin);
+		return 0;
+	    }
+	    action = *mode++;
+	    if (!*mode || *mode == ',') {
+		printf("chmod: file mode '%.*s' is incomplete\n",
+		       strcspn(modebegin, ","), modebegin);
+		return 0;
+	    }
+	    perms = 0;
+	    while (*mode && *mode != ',') {
+		switch (*mode) {
+		  case 'r': perms |= 00444; break;
+		  case 'w': perms |= 00222; break;
+		  case 'x': perms |= 00111; break;
+		  case 't': perms |= 01000; subset |= 01000; break;
+		  case 's':
+		    if ((subset & 06777) != 04700 &&
+			(subset & 06777) != 02070) {
+			printf("chmod: file mode '%.*s': set[ug]id bit should"
+			       " be used with exactly one of u or g only\n",
+			       strcspn(modebegin, ","), modebegin);
+			return 0;
+		    }
+		    perms |= 06000;
+		    break;
+		  default:
+		    printf("chmod: file mode '%.*s' contains unrecognised"
+			   " permission specifier '%c'\n",
+			   strcspn(modebegin, ","), modebegin, *mode);
+		    return 0;
+		}
+		mode++;
+	    }
+	    if (!(subset & 06777) && (perms &~ subset)) {
+		printf("chmod: file mode '%.*s' contains no user/group/other"
+		       " specifier and permissions other than 't' \n",
+		       strcspn(modebegin, ","), modebegin, *mode);
+		return 0;
+	    }
+	    perms &= subset;
+	    switch (action) {
+	      case '+':
+		attrs_clr |= perms;
+		attrs_xor |= perms;
+		break;
+	      case '-':
+		attrs_clr |= perms;
+		attrs_xor &= ~perms;
+		break;
+	      case '=':
+		attrs_clr |= subset;
+		attrs_xor |= perms;
+		break;
+	    }
+	    if (*mode) mode++;	       /* eat comma */
+	}
+    }
+
+    fname = canonify(cmd->words[2]);
+    if (!fname) {
+	printf("%s: %s\n", fname, fxp_error());
+	return 0;
+    }
+
+    result = fxp_stat(fname, &attrs);
+    if (!result || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
+	printf("get attrs for %s: %s\n", fname,
+	       result ? "file permissions not provided" : fxp_error());
+	sfree(fname);
+	return 0;
+    }
+
+    attrs.flags = SSH_FILEXFER_ATTR_PERMISSIONS;   /* perms _only_ */
+    oldperms = attrs.permissions & 07777;
+    attrs.permissions &= ~attrs_clr;
+    attrs.permissions ^= attrs_xor;
+    newperms = attrs.permissions & 07777;
+
+    result = fxp_setstat(fname, attrs);
+
+    if (!result) {
+	printf("set attrs for %s: %s\n", fname, fxp_error());
+	sfree(fname);
+	return 0;
+    }
+
+    printf("%s: %04o -> %04o\n", fname, oldperms, newperms);
+
+    sfree(fname);
+    return 0;
+}
 
 static struct sftp_cmd_lookup {
     char *name;
@@ -566,15 +846,23 @@ static struct sftp_cmd_lookup {
     {
     "bye", sftp_cmd_quit}, {
     "cd", sftp_cmd_cd}, {
+    "chmod", sftp_cmd_chmod}, {
+    "del", sftp_cmd_rm}, {
+    "delete", sftp_cmd_rm}, {
     "dir", sftp_cmd_ls}, {
     "exit", sftp_cmd_quit}, {
     "get", sftp_cmd_get}, {
     "ls", sftp_cmd_ls}, {
     "mkdir", sftp_cmd_mkdir}, {
+    "mv", sftp_cmd_mv}, {
     "put", sftp_cmd_put}, {
-	"quit", sftp_cmd_quit}, {
-	"rm", sftp_cmd_rm}, {
-	"rmdir", sftp_cmd_rmdir},};
+    "quit", sftp_cmd_quit}, {
+    "reget", sftp_cmd_reget}, {
+    "ren", sftp_cmd_mv}, {
+    "rename", sftp_cmd_mv}, {
+    "reput", sftp_cmd_reput}, {
+    "rm", sftp_cmd_rm}, {
+    "rmdir", sftp_cmd_rmdir},};
 
 /* ----------------------------------------------------------------------
  * Command line reading and parsing.

@@ -14,5 +14,6 @@ void uint64_decimal(uint64 x, char *buffer);
 uint64 uint64_make(unsigned long hi, unsigned long lo);
 uint64 uint64_add(uint64 x, uint64 y);
 uint64 uint64_add32(uint64 x, unsigned long y);
+int uint64_compare(uint64 x, uint64 y);
 
 #endif

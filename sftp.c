@@ -107,6 +107,31 @@ static void sftp_pkt_addstring(struct sftp_packet *pkt, char *data)
     sftp_pkt_addstring_start(pkt);
     sftp_pkt_addstring_str(pkt, data);
 }
+static void sftp_pkt_addattrs(struct sftp_packet *pkt, struct fxp_attrs attrs)
+{
+    sftp_pkt_adduint32(pkt, attrs.flags);
+    if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
+	sftp_pkt_adduint32(pkt, attrs.size.hi);
+	sftp_pkt_adduint32(pkt, attrs.size.lo);
+    }
+    if (attrs.flags & SSH_FILEXFER_ATTR_UIDGID) {
+	sftp_pkt_adduint32(pkt, attrs.uid);
+	sftp_pkt_adduint32(pkt, attrs.gid);
+    }
+    if (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) {
+	sftp_pkt_adduint32(pkt, attrs.permissions);
+    }
+    if (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME) {
+	sftp_pkt_adduint32(pkt, attrs.atime);
+	sftp_pkt_adduint32(pkt, attrs.mtime);
+    }
+    if (attrs.flags & SSH_FILEXFER_ATTR_EXTENDED) {
+	/*
+	 * We currently don't support sending any extended
+	 * attributes.
+	 */
+    }
+}
 
 /* ----------------------------------------------------------------------
  * SFTP packet decode functions.
@@ -488,8 +513,7 @@ int fxp_mkdir(char *path)
 
     pktout = sftp_pkt_init(SSH_FXP_MKDIR);
     sftp_pkt_adduint32(pktout, 0x234); /* request id */
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, path, strlen(path));
+    sftp_pkt_addstring(pktout, path);
     sftp_pkt_adduint32(pktout, 0);     /* (FIXME) empty ATTRS structure */
     sftp_send(pktout);
     pktin = sftp_recv();
@@ -512,8 +536,7 @@ int fxp_rmdir(char *path)
 
     pktout = sftp_pkt_init(SSH_FXP_RMDIR);
     sftp_pkt_adduint32(pktout, 0x345); /* request id */
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, path, strlen(path));
+    sftp_pkt_addstring(pktout, path);
     sftp_send(pktout);
     pktin = sftp_recv();
     id = sftp_pkt_getuint32(pktin);
@@ -528,15 +551,118 @@ int fxp_rmdir(char *path)
     return 1;
 }
 
-int fxp_rm(char *fname)
+int fxp_remove(char *fname)
 {
     struct sftp_packet *pktin, *pktout;
     int id;
 
     pktout = sftp_pkt_init(SSH_FXP_REMOVE);
     sftp_pkt_adduint32(pktout, 0x678); /* request id */
+    sftp_pkt_addstring(pktout, fname);
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x678) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+    id = fxp_got_status(pktin);
+    if (id != 1) {
+    	return 0;
+    }
+    return 1;
+}
+
+int fxp_rename(char *srcfname, char *dstfname)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_RENAME);
+    sftp_pkt_adduint32(pktout, 0x678); /* request id */
+    sftp_pkt_addstring(pktout, srcfname);
+    sftp_pkt_addstring(pktout, dstfname);
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x678) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+    id = fxp_got_status(pktin);
+    if (id != 1) {
+    	return 0;
+    }
+    return 1;
+}
+
+/*
+ * Retrieve the attributes of a file. We have fxp_stat which works
+ * on filenames, and fxp_fstat which works on open file handles.
+ */
+int fxp_stat(char *fname, struct fxp_attrs *attrs)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_STAT);
+    sftp_pkt_adduint32(pktout, 0x678); /* request id */
+    sftp_pkt_addstring(pktout, fname);
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x678) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+
+    if (pktin->type == SSH_FXP_ATTRS) {
+	*attrs = sftp_pkt_getattrs(pktin);
+	return 1;
+    } else {
+	fxp_got_status(pktin);
+	return 0;
+    }
+}
+
+int fxp_fstat(struct fxp_handle *handle, struct fxp_attrs *attrs)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_FSTAT);
+    sftp_pkt_adduint32(pktout, 0x678); /* request id */
     sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, fname, strlen(fname));
+    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x678) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+
+    if (pktin->type == SSH_FXP_ATTRS) {
+	*attrs = sftp_pkt_getattrs(pktin);
+	return 1;
+    } else {
+	fxp_got_status(pktin);
+	return 0;
+    }
+}
+
+/*
+ * Set the attributes of a file.
+ */
+int fxp_setstat(char *fname, struct fxp_attrs attrs)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_SETSTAT);
+    sftp_pkt_adduint32(pktout, 0x678); /* request id */
+    sftp_pkt_addstring(pktout, fname);
+    sftp_pkt_addattrs(pktout, attrs);
     sftp_send(pktout);
     pktin = sftp_recv();
     id = sftp_pkt_getuint32(pktin);

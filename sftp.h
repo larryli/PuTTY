@@ -122,19 +122,35 @@ struct fxp_handle *fxp_opendir(char *path);
 void fxp_close(struct fxp_handle *handle);
 
 /*
- * Makes a directory
+ * Make a directory.
  */
 int fxp_mkdir(char *path);
 
 /*
- * Removes a directory
+ * Remove a directory.
  */
 int fxp_rmdir(char *path);
 
 /*
- * Removes a file
+ * Remove a file.
  */
-int fxp_rm(char *fname);
+int fxp_remove(char *fname);
+
+/*
+ * Rename a file.
+ */
+int fxp_rename(char *srcfname, char *dstfname);
+
+/*
+ * Return file attributes.
+ */
+int fxp_stat(char *fname, struct fxp_attrs *attrs);
+int fxp_fstat(struct fxp_handle *handle, struct fxp_attrs *attrs);
+
+/*
+ * Set file attributes.
+ */
+int fxp_setstat(char *fname, struct fxp_attrs attrs);
 
 /*
  * Read from a file.
