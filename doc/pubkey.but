@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.18 2002/09/11 17:30:36 jacob Exp $
+\versionid $Id: pubkey.but,v 1.19 2002/11/01 21:50:35 jacob Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -48,7 +48,7 @@ passphrase. One solution to this is to use an \e{authentication
 agent}, a separate program which holds decrypted private keys and
 generates signatures on request. PuTTY's authentication agent is
 called Pageant. When you begin a Windows session, you start Pageant
-and load your public key into it (typing your passphrase once). For
+and load your private key into it (typing your passphrase once). For
 the rest of your session, you can start PuTTY any number of times
 and Pageant will automatically generate signatures without you
 having to do anything. When you close your Windows session, Pageant
@@ -110,7 +110,7 @@ server to accept it.
 
 \cfg{winhelp-topic}{puttygen.keytype}
 
-Before generating a public key using PuTTYgen, you need to select
+Before generating a key pair using PuTTYgen, you need to select
 which type of key you need. PuTTYgen currently supports three types
 of key:
 
