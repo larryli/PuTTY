@@ -401,7 +401,8 @@ int x11_send(Socket s, char *data, int len)
 		PUT_16BIT_MSB_FIRST(realauthdata+12, port);
 		t = time(NULL);
 		PUT_32BIT_MSB_FIRST(realauthdata+14, t);
-		des_encrypt_xdmauth(pr->auth->realdata+9, realauthdata, 24);
+		des_encrypt_xdmauth(pr->auth->realdata+9,
+				    (unsigned char *)realauthdata, 24);
 	    }
             /* implement other auth methods here if required */
 
