@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.26 2004/04/24 12:25:08 jacob Exp $
+\versionid $Id: pscp.but,v 1.27 2004/04/25 22:18:19 jacob Exp $
 
 \#FIXME: Need examples
 
@@ -60,6 +60,8 @@ use PSCP:
 \c   -batch    disable all interactive prompts
 \c   -unsafe   allow server-side wildcards (DANGEROUS)
 \c   -V        print version information
+\c   -scp      force use of SCP protocol
+\c   -sftp     force use of SFTP protocol
 
 (PSCP's interface is much like the Unix \c{scp} command, if you're
 familiar with that.)
@@ -113,7 +115,8 @@ pattern.
 PSCP will attempt to use the newer SFTP protocol (part of SSH 2)
 where possible, which does not suffer from this security flaw. If
 you are talking to an SSH 2 server which supports SFTP, you will
-never see this warning.
+never see this warning. (You can force use of the SFTP protocol,
+if available, with \c{-sftp} - see \k{pscp-usage-options-backend}.)
 
 If you really need to use a server-side wildcard with an SSH 1
 server, you can use the \c{-unsafe} command line option with PSCP:
@@ -221,6 +224,36 @@ to do next.
 This may help PSCP's behaviour when it is used in automated
 scripts: using \c{-batch}, if something goes wrong at connection
 time, the batch job will fail rather than hang.
+
+\S2{pscp-usage-options-backend}\c{-sftp}, \c{-scp} force use of
+particular protocol
+
+As mentioned in \k{pscp-usage-basics}, there are two different file
+transfer protocols in use with SSH. Despite its name, PSCP (like many
+other ostensible \cw{scp} clients) can use either of these protocols.
+
+The older SCP protocol does not have a written specification and
+leaves a lot of detail to the server platform. Wildcards are expanded
+on the server. The simple design means that any wildcard specification
+supported by the server platform (such as brace expansion) can be
+used, but also leads to interoperability issues such as with filename
+quoting (for instance, where filenames contain spaces), and also the
+security issue described in \k{pscp-usage-basics}.
+
+The newer SFTP protocol, which is usually associated with SSH 2
+servers, is specified in a more platform independent way, and leaves
+issues such as wildcard syntax up to the client. This makes it more
+consistent across platforms, more suitable for scripting and
+automation, and avoids security issues with wilcard matching.
+
+Normally PSCP will attempt to use the SFTP protocol, and only fall
+back to the SCP protocol if SFTP is not available on the server.
+
+The \c{-scp} option forces PSCP to use the SCP protocol or quit.
+
+The \c{-sftp} option forces PSCP to use the SFTP protocol or quit.
+When this option is specified, PSCP looks harder for an SFTP server,
+which may allow use of SFTP with SSH 1 depending on server setup.
 
 \S{pscp-retval} Return value
 

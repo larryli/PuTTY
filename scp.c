@@ -36,6 +36,10 @@ static int prev_stats_len = 0;
 static int scp_unsafe_mode = 0;
 static int errs = 0;
 static int gui_mode = 0;
+static int try_scp = 1;
+static int try_sftp = 1;
+static int main_cmd_is_sftp = 0;
+static int fallback_cmd_is_sftp = 0;
 static int using_sftp = 0;
 
 static Backend *back;
@@ -262,7 +266,13 @@ static void ssh_scp_init(void)
 	if (ssh_sftp_loop_iteration() < 0)
 	    return;		       /* doom */
     }
-    using_sftp = !ssh_fallback_cmd(backhandle);
+
+    /* Work out which backend we ended up using. */
+    if (!ssh_fallback_cmd(backhandle))
+	using_sftp = main_cmd_is_sftp;
+    else
+	using_sftp = fallback_cmd_is_sftp;
+
     if (verbose) {
 	if (using_sftp)
 	    tell_user(stderr, "Using SFTP");
@@ -402,13 +412,40 @@ static void do_cmd(char *host, char *user, char *cmd)
     cfg.portfwd[0] = cfg.portfwd[1] = '\0';
 
     /*
+     * Set up main and possibly fallback command depending on
+     * options specified by user.
      * Attempt to start the SFTP subsystem as a first choice,
      * falling back to the provided scp command if that fails.
      */
-    strcpy(cfg.remote_cmd, "sftp");
-    cfg.ssh_subsys = TRUE;
-    cfg.remote_cmd_ptr2 = cmd;
-    cfg.ssh_subsys2 = FALSE;
+    cfg.remote_cmd_ptr2 = NULL;
+    if (try_sftp) {
+	/* First choice is SFTP subsystem. */
+	main_cmd_is_sftp = 1;
+	strcpy(cfg.remote_cmd, "sftp");
+	cfg.ssh_subsys = TRUE;
+	if (try_scp) {
+	    /* Fallback is to use the provided scp command. */
+	    fallback_cmd_is_sftp = 0;
+	    cfg.remote_cmd_ptr2 = cmd;
+	    cfg.ssh_subsys2 = FALSE;
+	} else {
+	    /* Since we're not going to try SCP, we may as well try
+	     * harder to find an SFTP server, since in the current
+	     * implementation we have a spare slot. */
+	    fallback_cmd_is_sftp = 1;
+	    /* see psftp.c for full explanation of this kludge */
+	    cfg.remote_cmd_ptr2 = 
+		"test -x /usr/lib/sftp-server && exec /usr/lib/sftp-server\n"
+		"test -x /usr/local/lib/sftp-server && exec /usr/local/lib/sftp-server\n"
+		"exec sftp-server";
+	    cfg.ssh_subsys2 = FALSE;
+	}
+    } else {
+	/* Don't try SFTP at all; just try the scp command. */
+	main_cmd_is_sftp = 0;
+	cfg.remote_cmd_ptr = cmd;
+	cfg.ssh_subsys = FALSE;
+    }
     cfg.nopty = TRUE;
 
     back = &ssh_backend;
@@ -2065,6 +2102,8 @@ static void usage(void)
     printf("  -batch    disable all interactive prompts\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
     printf("  -V        print version information\n");
+    printf("  -sftp     force use of SFTP protocol\n");
+    printf("  -scp      force use of SCP protocol\n");
 #if 0
     /*
      * -gui is an internal option, used by GUI front ends to get
@@ -2148,6 +2187,10 @@ int psftp_main(int argc, char *argv[])
 	    console_batch_mode = 1;
 	} else if (strcmp(argv[i], "-unsafe") == 0) {
 	    scp_unsafe_mode = 1;
+	} else if (strcmp(argv[i], "-sftp") == 0) {
+	    try_scp = 0; try_sftp = 1;
+	} else if (strcmp(argv[i], "-scp") == 0) {
+	    try_scp = 1; try_sftp = 0;
 	} else if (strcmp(argv[i], "--") == 0) {
 	    i++;
 	    break;
