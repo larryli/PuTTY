@@ -114,12 +114,6 @@ static gsi_fn_t getsecurityinfo;
 #endif
 
 /*
- * Exports from pageantc.c
- */
-void agent_query(void *in, int inlen, void **out, int *outlen);
-int agent_exists(void);
-
-/*
  * Forward references
  */
 static void *make_keylist1(int *length);
@@ -536,7 +530,7 @@ static void add_keyfile(Filename filename)
 	if (already_running) {
 	    unsigned char *request, *response;
 	    void *vresponse;
-	    int reqlen, clen, resplen;
+	    int reqlen, clen, resplen, ret;
 
 	    clen = strlen(rkey->comment);
 
@@ -569,7 +563,9 @@ static void add_keyfile(Filename filename)
 	    reqlen += 4 + clen;
 	    PUT_32BIT(request, reqlen - 4);
 
-	    agent_query(request, reqlen, &vresponse, &resplen);
+	    ret = agent_query(request, reqlen, &vresponse, &resplen,
+			      NULL, NULL);
+	    assert(ret == 1);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
 		MessageBox(NULL, "The already running Pageant "
@@ -586,7 +582,7 @@ static void add_keyfile(Filename filename)
 	if (already_running) {
 	    unsigned char *request, *response;
 	    void *vresponse;
-	    int reqlen, alglen, clen, keybloblen, resplen;
+	    int reqlen, alglen, clen, keybloblen, resplen, ret;
 	    alglen = strlen(skey->alg->name);
 	    clen = strlen(skey->comment);
 
@@ -614,7 +610,9 @@ static void add_keyfile(Filename filename)
 	    PUT_32BIT(request, reqlen - 4);
 	    reqlen += clen + 4;
 
-	    agent_query(request, reqlen, &vresponse, &resplen);
+	    ret = agent_query(request, reqlen, &vresponse, &resplen,
+			      NULL, NULL);
+	    assert(ret == 1);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
 		MessageBox(NULL, "The already running Pageant "
@@ -739,11 +737,12 @@ static void *get_keylist1(void)
     if (already_running) {
 	unsigned char request[5], *response;
 	void *vresponse;
-	int resplen;
+	int resplen, retval;
 	request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
 	PUT_32BIT(request, 4);
 
-	agent_query(request, 5, &vresponse, &resplen);
+	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
+	assert(retval == 1);
 	response = vresponse;
 	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER)
 	    return NULL;
@@ -769,12 +768,13 @@ static void *get_keylist2(void)
     if (already_running) {
 	unsigned char request[5], *response;
 	void *vresponse;
-	int resplen;
+	int resplen, retval;
 
 	request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
 	PUT_32BIT(request, 4);
 
-	agent_query(request, 5, &vresponse, &resplen);
+	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
+	assert(retval == 1);
 	response = vresponse;
 	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER)
 	    return NULL;

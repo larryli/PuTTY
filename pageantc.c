@@ -33,7 +33,8 @@ int agent_exists(void)
 	return TRUE;
 }
 
-void agent_query(void *in, int inlen, void **out, int *outlen)
+int agent_query(void *in, int inlen, void **out, int *outlen,
+		void (*callback)(void *, void *, int), void *callback_ctx)
 {
     HWND hwnd;
     char mapname[64];
@@ -48,12 +49,12 @@ void agent_query(void *in, int inlen, void **out, int *outlen)
     hwnd = FindWindow("Pageant", "Pageant");
     debug(("hwnd is %p\n", hwnd));
     if (!hwnd)
-	return;
+	return 1;		       /* *out == NULL, so failure */
     sprintf(mapname, "PageantRequest%08x", (unsigned)GetCurrentThreadId());
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 				0, AGENT_MAX_MSGLEN, mapname);
     if (!filemap)
-	return;
+	return 1;		       /* *out == NULL, so failure */
     p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
     memcpy(p, in, inlen);
     cds.dwData = AGENT_COPYDATA_ID;
@@ -73,6 +74,8 @@ void agent_query(void *in, int inlen, void **out, int *outlen)
     }
     UnmapViewOfFile(p);
     CloseHandle(filemap);
+
+    return 1;
 }
 
 #ifdef TESTMODE

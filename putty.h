@@ -749,9 +749,19 @@ void crypto_wrapup();
 #endif
 
 /*
- * Exports from pageantc.c
+ * Exports from pageantc.c.
+ * 
+ * agent_query returns 1 for here's-a-response, and 0 for query-in-
+ * progress. In the latter case there will be a call to `callback'
+ * at some future point, passing callback_ctx as the first
+ * parameter and the actual reply data as the second and third.
+ * 
+ * The response may be a NULL pointer (in either of the synchronous
+ * or asynchronous cases), which indicates failure to receive a
+ * response.
  */
-void agent_query(void *in, int inlen, void **out, int *outlen);
+int agent_query(void *in, int inlen, void **out, int *outlen,
+		void (*callback)(void *, void *, int), void *callback_ctx);
 int agent_exists(void);
 
 /*

@@ -322,6 +322,8 @@ static unsigned char *ssh2_mpint_fmt(Bignum b, int *len);
 static void ssh2_pkt_addmp(Ssh, Bignum b);
 static int ssh2_pkt_construct(Ssh);
 static void ssh2_pkt_send(Ssh);
+static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt);
+static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt);
 
 /*
  * Buffer management constants. There are several of these for
@@ -649,6 +651,12 @@ struct ssh_tag {
      * potentially reconfigure port forwardings etc in mid-session.
      */
     Config cfg;
+
+    /*
+     * Used to transfer data back from async agent callbacks.
+     */
+    void *agent_response;
+    int agent_response_len;
 };
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -2283,6 +2291,44 @@ static int process_userpass_input(Ssh ssh, unsigned char *in, int inlen)
     return 0;
 }
 
+void ssh_agent_callback(void *sshv, void *reply, int replylen)
+{
+    Ssh ssh = (Ssh) sshv;
+
+    ssh->agent_response = reply;
+    ssh->agent_response_len = replylen;
+
+    if (ssh->version == 1)
+	do_ssh1_login(ssh, NULL, -1, 0);
+    else
+	do_ssh2_authconn(ssh, NULL, -1, 0);
+}
+
+void ssh_agentf_callback(void *cv, void *reply, int replylen)
+{
+    struct ssh_channel *c = (struct ssh_channel *)cv;
+    Ssh ssh = c->ssh;
+    void *sentreply = reply;
+
+    if (!sentreply) {
+	/* Fake SSH_AGENT_FAILURE. */
+	sentreply = "\0\0\0\1\5";
+	replylen = 5;
+    }
+    if (ssh->version == 2) {
+	ssh2_add_channel_data(c, sentreply, replylen);
+	ssh2_try_send(c);
+    } else {
+	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
+		    PKT_INT, c->remoteid,
+		    PKT_INT, replylen,
+		    PKT_DATA, sentreply, replylen,
+		    PKT_END);
+    }
+    if (reply)
+	sfree(reply);
+}
+
 /*
  * Handle the key exchange and user authentication phases.
  */
@@ -2569,7 +2615,19 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    /* Request the keys held by the agent. */
 	    PUT_32BIT(s->request, 1);
 	    s->request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
-	    agent_query(s->request, 5, &r, &s->responselen);
+	    if (!agent_query(s->request, 5, &r, &s->responselen,
+			     ssh_agent_callback, ssh)) {
+		do {
+		    crReturn(0);
+		    if (ispkt) {
+			bombout(("Unexpected data from server while waiting"
+				 " for agent response"));
+			crStop(0);
+		    }
+		} while (ispkt || inlen > 0);
+		r = ssh->agent_response;
+		s->responselen = ssh->agent_response_len;
+	    }
 	    s->response = (unsigned char *) r;
 	    if (s->response && s->responselen >= 5 &&
 		s->response[4] == SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
@@ -2631,9 +2689,23 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			memcpy(q, s->session_id, 16);
 			q += 16;
 			PUT_32BIT(q, 1);	/* response format */
-			agent_query(agentreq, len + 4, &vret, &retlen);
+			if (!agent_query(agentreq, len + 4, &vret, &retlen,
+					 ssh_agent_callback, ssh)) {
+			    sfree(agentreq);
+			    do {
+				crReturn(0);
+				if (ispkt) {
+				    bombout(("Unexpected data from server"
+					     " while waiting for agent"
+					     " response"));
+				    crStop(0);
+				}
+			    } while (ispkt || inlen > 0);
+			    vret = ssh->agent_response;
+			    retlen = ssh->agent_response_len;
+			} else
+			    sfree(agentreq);
 			ret = vret;
-			sfree(agentreq);
 			if (ret) {
 			    if (ret[4] == SSH1_AGENT_RSA_RESPONSE) {
 				logevent("Sending Pageant's response");
@@ -3629,25 +3701,13 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				c->u.a.lensofar += l;
 			    }
 			    if (c->u.a.lensofar == c->u.a.totallen) {
-				void *reply, *sentreply;
+				void *reply;
 				int replylen;
-				agent_query(c->u.a.message,
-					    c->u.a.totallen, &reply,
-					    &replylen);
-				if (reply)
-				    sentreply = reply;
-				else {
-				    /* Fake SSH_AGENT_FAILURE. */
-				    sentreply = "\0\0\0\1\5";
-				    replylen = 5;
-				}
-				send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
-					    PKT_INT, c->remoteid,
-					    PKT_INT, replylen,
-					    PKT_DATA, sentreply, replylen,
-					    PKT_END);
-				if (reply)
-				    sfree(reply);
+				if (agent_query(c->u.a.message,
+						c->u.a.totallen,
+						&reply, &replylen,
+						ssh_agentf_callback, c))
+				    ssh_agentf_callback(c, reply, replylen);
 				sfree(c->u.a.message);
 				c->u.a.lensofar = 0;
 			    }
@@ -4673,7 +4733,19 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		/* Request the keys held by the agent. */
 		PUT_32BIT(s->request, 1);
 		s->request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
-		agent_query(s->request, 5, &r, &s->responselen);
+		if (!agent_query(s->request, 5, &r, &s->responselen,
+				 ssh_agent_callback, ssh)) {
+		    do {
+			crReturnV;
+			if (ispkt) {
+			    bombout(("Unexpected data from server while"
+				     " waiting for agent response"));
+			    crStopV;
+			}
+		    } while (ispkt || inlen > 0);
+		    r = ssh->agent_response;
+		    s->responselen = ssh->agent_response_len;
+		}
 		s->response = (unsigned char *) r;
 		if (s->response && s->responselen >= 5 &&
 		    s->response[4] == SSH2_AGENT_IDENTITIES_ANSWER) {
@@ -4777,7 +4849,21 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			s->q += ssh->pktout.length - 5;
 			/* And finally the (zero) flags word. */
 			PUT_32BIT(s->q, 0);
-			agent_query(s->agentreq, s->len + 4, &vret, &s->retlen);
+			if (!agent_query(s->agentreq, s->len + 4,
+					 &vret, &s->retlen,
+					 ssh_agent_callback, ssh)) {
+			    do {
+				crReturnV;
+				if (ispkt) {
+				    bombout(("Unexpected data from server"
+					     " while waiting for agent"
+					     " response"));
+				    crStopV;
+				}
+			    } while (ispkt || inlen > 0);
+			    vret = ssh->agent_response;
+			    s->retlen = ssh->agent_response_len;
+			}
 			s->ret = vret;
 			sfree(s->agentreq);
 			if (s->ret) {
@@ -5632,22 +5718,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				c->u.a.lensofar += l;
 			    }
 			    if (c->u.a.lensofar == c->u.a.totallen) {
-				void *reply, *sentreply;
+				void *reply;
 				int replylen;
-				agent_query(c->u.a.message,
-					    c->u.a.totallen, &reply,
-					    &replylen);
-				if (reply)
-				    sentreply = reply;
-				else {
-				    /* Fake SSH_AGENT_FAILURE. */
-				    sentreply = "\0\0\0\1\5";
-				    replylen = 5;
-				}
-				ssh2_add_channel_data(c, sentreply, replylen);
-				s->try_send = TRUE;
-				if (reply)
-				    sfree(reply);
+				if (agent_query(c->u.a.message,
+						c->u.a.totallen,
+						&reply, &replylen,
+						ssh_agentf_callback, c))
+				    ssh_agentf_callback(c, reply, replylen);
 				sfree(c->u.a.message);
 				c->u.a.lensofar = 0;
 			    }
