@@ -19,6 +19,10 @@
 !makefile lcc Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile mpw mac/Makefile.mpw
+# Source directories.
+!srcdir charset/
+!srcdir unix/
+!srcdir mac/
 
 # Help text added to the top of each Makefile, with /D converted
 # into -D as appropriate for the particular Makefile.

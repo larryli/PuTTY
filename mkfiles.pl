@@ -7,6 +7,12 @@
 # files to compute #include dependencies. Finally, writes out the
 # various target Makefiles.
 
+# PuTTY specifics which could still do with removing:
+#  - Mac makefile is not portabilised at all. Include directories
+#    are hardwired, and also the libraries are fixed. This is
+#    mainly because I was too scared to go anywhere near it.
+#  - sbcsgen.pl is still run at startup.
+
 use FileHandle;
 use Cwd;
 
@@ -23,7 +29,7 @@ open IN, "Recipe" or do {
 # dependency analysis.
 eval 'chdir "charset"; require "sbcsgen.pl"; chdir ".."';
 
-@incdirs = ("", "charset/", "unix/", "mac/");
+@srcdirs = ("./");
 
 $divert = undef; # ref to scalar in which text is currently being put
 $help = ""; # list of newline-free lines of help text
@@ -43,6 +49,7 @@ while (<IN>) {
   if ($_[0] eq "!begin" and $_[1] eq "help") { $divert = \$help; next; }
   if ($_[0] eq "!end") { $divert = undef; next; }
   if ($_[0] eq "!name") { $project_name = $_[1]; next; }
+  if ($_[0] eq "!srcdir") { push @srcdirs, $_[1]; next; }
   if ($_[0] eq "!makefile" and &mfval($_[1])) { $makefiles{$_[1]}=$_[2]; next;}
   if ($_[0] eq "!begin") {
       if (&mfval($_[1])) {
@@ -210,12 +217,23 @@ sub mfval($) {
 
 # Utility routines while writing out the Makefiles.
 
+sub dirpfx {
+    my ($path) = shift @_;
+    my ($sep) = shift @_;
+    my $ret = "", $i;
+    while (($i = index $path, $sep) >= 0) {
+	$path = substr $path, ($i + length $sep);
+	$ret .= "..$sep";
+    }
+    return $ret;
+}
+
 sub findfile {
   my ($name) = @_;
   my $dir, $i, $outdir = "";
   unless (defined $findfilecache{$name}) {
     $i = 0;
-    foreach $dir (@incdirs) {
+    foreach $dir (@srcdirs) {
       $outdir = $dir, $i++ if -f "$dir$name";
     }
     die "multiple instances of source file $name\n" if $i > 1;
@@ -321,6 +339,7 @@ sub manpages {
 # Now we're ready to output the actual Makefiles.
 
 if (defined $makefiles{'cygwin'}) {
+    $dirpfx = &dirpfx($makefiles{'cygwin'}, "/");
 
     ##-- CygWin makefile
     open OUT, ">$makefiles{'cygwin'}"; select OUT;
@@ -345,7 +364,9 @@ if (defined $makefiles{'cygwin'}) {
     "# RCINC = --include-dir c:\\cygwin\\include\\\n".
     "\n".
     &splitline("CFLAGS = -mno-cygwin -Wall -O2 -D_WINDOWS -DDEBUG -DWIN32S_COMPAT".
-      " -D_NO_OLDNAMES -DNO_MULTIMON -I.")."\n".
+      " -D_NO_OLDNAMES -DNO_MULTIMON " .
+	       (join " ", map {"-I$dirpfx$_"} @srcdirs)) .
+	       "\n".
     "LDFLAGS = -mno-cygwin -s\n".
     &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1".
       " --define WINVER=0x0400 --define MINGW32_FIX=1")."\n".
@@ -370,7 +391,7 @@ if (defined $makefiles{'cygwin'}) {
                        "-Wl,-Map,$prog.map " .
                        $objstr . " $libstr", 69), "\n\n";
     }
-    foreach $d (&deps("X.o", "X.res.o", "", "/")) {
+    foreach $d (&deps("X.o", "X.res.o", $dirpfx, "/")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
     }
@@ -385,6 +406,8 @@ if (defined $makefiles{'cygwin'}) {
 
 ##-- Borland makefile
 if (defined $makefiles{'borland'}) {
+    $dirpfx = &dirpfx($makefiles{'borland'}, "\\");
+
     %stdlibs = (  # Borland provides many Win32 API libraries intrinsically
       "advapi32" => 1,
       "comctl32" => 1,
@@ -421,7 +444,9 @@ if (defined $makefiles{'borland'}) {
     "\n".
     ".c.obj:\n".
     &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT) \$(FWHACK)".
-      " \$(XFLAGS) \$(CFLAGS) /c \$*.c",69)."\n".
+	       " \$(XFLAGS) \$(CFLAGS) ".
+	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
+	       "/c \$*.c",69)."\n".
     ".rc.res:\n".
     &splitline("\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include -r".
       " -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401 \$*.rc",69)."\n".
@@ -463,7 +488,7 @@ if (defined $makefiles{'borland'}) {
       print "\techo " . &objects($p, undef, "X.res", undef) . " >> $prog.rsp\n";
       print "\n";
     }
-    foreach $d (&deps("X.obj", "X.res", "", "\\")) {
+    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
     }
@@ -484,6 +509,8 @@ if (defined $makefiles{'borland'}) {
 }
 
 if (defined $makefiles{'vc'}) {
+    $dirpfx = &dirpfx($makefiles{'vc'}, "\\");
+
     ##-- Visual C++ makefile
     open OUT, ">$makefiles{'vc'}"; select OUT;
     print
@@ -533,7 +560,7 @@ if (defined $makefiles{'vc'}) {
 	}
 	print "\n";
     }
-    foreach $d (&deps("X.obj", "X.res", "", "\\")) {
+    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\")) {
 	print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
 	  "\n";
     }
@@ -816,6 +843,7 @@ if (defined $makefiles{'vcproj'}) {
 }
 
 if (defined $makefiles{'gtk'}) {
+    $dirpfx = &dirpfx($makefiles{'gtk'}, "/");
 
     ##-- X/GTK/Unix makefile
     open OUT, ">$makefiles{'gtk'}"; select OUT;
@@ -832,7 +860,9 @@ if (defined $makefiles{'gtk'}) {
     "# TOOLPATH = /opt/gcc/bin\n".
     "CC = \$(TOOLPATH)cc\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -g -I. -I.. -I../charset `gtk-config --cflags`")."\n".
+    &splitline("CFLAGS = -O2 -Wall -Werror -g " .
+	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
+	       " `gtk-config --cflags`")."\n".
     "XLDFLAGS = `gtk-config --libs`\n".
     "ULDFLAGS =#\n".
     "INSTALL=install\n",
@@ -859,7 +889,7 @@ if (defined $makefiles{'gtk'}) {
       print &splitline("\t\$(CC)" . $mw . " \$(${type}LDFLAGS) -o \$@ " .
                        $objstr . " $libstr", 69), "\n\n";
     }
-    foreach $d (&deps("X.o", undef, "../", "/")) {
+    foreach $d (&deps("X.o", undef, $dirpfx, "/")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
           "\n";
     }
@@ -1011,6 +1041,8 @@ if (defined $makefiles{'mpw'}) {
 }
 
 if (defined $makefiles{'lcc'}) {
+    $dirpfx = &dirpfx($makefiles{'lcc'}, "\\");
+
     ##-- lcc makefile
     open OUT, ">$makefiles{'lcc'}"; select OUT;
     print
@@ -1027,7 +1059,9 @@ if (defined $makefiles{'lcc'}) {
     "MAKEFILE = Makefile.lcc\n".
     "\n".
     "# C compilation flags\n".
-    "CFLAGS = -D_WINDOWS\n".
+    "CFLAGS = -D_WINDOWS " .
+      (join " ", map {"-I$dirpfx$_"} @srcdirs) .
+      "\n".
     "\n".
     "# Get include directory for resource compiler\n".
     "\n".
@@ -1050,7 +1084,7 @@ if (defined $makefiles{'lcc'}) {
       print "\n\n";
     }
 
-    foreach $d (&deps("X.obj", "X.res", "", "\\")) {
+    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
     }
