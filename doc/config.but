@@ -2205,6 +2205,20 @@ allowed to elapse before a rekey is initiated. If this is set to zero,
 PuTTY will not rekey due to elapsed time. The SSH-2 protocol
 specification recommends a timeout of at most 60 minutes.
 
+You might have a need to disable time-based rekeys completely for the same
+reasons that keepalives aren't always helpful. If you anticipate
+suffering a network dropout of several hours in the middle of an SSH
+connection, but were not actually planning to send \e{data} down
+that connection during those hours, then an attempted rekey in the
+middle of the dropout will probably cause the connection to be
+abandoned, whereas if rekeys are disabled then the connection should
+in principle survive (in the absence of interfering firewalls). See
+\k{config-keepalive} for more discussion of these issues; for these
+purposes, rekeys have much the same properties as keepalives.
+(Except that rekeys have cryptographic value in themselves, so you
+should bear that in mind when deciding whether to turn them off.)
+Note, however, the the SSH \e{server} can still initiate rekeys.
+
 \b \q{Max data before rekey} specifies the amount of data (in bytes)
 that is permitted to flow in either direction before a rekey is
 initiated. If this is set to zero, PuTTY will not rekey due to
@@ -2224,22 +2238,13 @@ used:
 
 }
 
-PuTTY can be prevented from initiating a rekey entirely by setting
-both of these values to zero. (Note, however, that the SSH
-\e{server} may still initiate rekeys.)
-
-You might have a need to disable rekeys completely for the same
-reasons that keepalives aren't always helpful. If you anticipate
-suffering a network dropout of several hours in the middle of an SSH
-connection, but were not actually planning to send \e{data} down
-that connection during those hours, then an attempted rekey in the
-middle of the dropout will probably cause the connection to be
-abandoned, whereas if rekeys are disabled then the connection should
-in principle survive (in the absence of interfering firewalls). See
-\k{config-keepalive} for more discussion of these issues; for these
-purposes, rekeys have much the same properties as keepalives.
-(Except that rekeys have cryptographic value in themselves, so you
-should bear that in mind when deciding whether to turn them off.)
+Disabling data-based rekeys entirely is a bad idea.  The integrity,
+and to a lesser extent, confidentiality of the SSH-2 protocol depend
+in part on rekeys occuring before a 32-bit packet sequence number
+wraps around.  Unlike time-based rekeys, data-based rekeys won't occur
+when the SSH connection is idle, so they shouldn't cause the same
+problems.  The SSH-1 protocol, incidentally, has even weaker integrity
+protection than SSH-2 without rekeys.
 
 \H{config-ssh-auth} The Auth panel
 
