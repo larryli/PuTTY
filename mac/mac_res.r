@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.34 2003/03/19 00:40:15 ben Exp $ */
+/* $Id: mac_res.r,v 1.35 2003/03/26 23:52:21 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -72,8 +72,8 @@ resource 'SIZE' (-1) {
     reserved,
     reserved,
     reserved,
-    1024 * 1024,	/* Minimum size */
     2048 * 1024,	/* Preferred size */
+    1024 * 1024,	/* Minimum size */
 };
 
 #define FREF_APPL 128
