@@ -1,4 +1,4 @@
-/* $Id: macpgkey.c,v 1.4 2003/03/29 23:07:55 ben Exp $ */
+/* $Id: macpgkey.c,v 1.5 2003/03/29 23:57:55 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * Copyright (c) 1997-2003 Simon Tatham
@@ -123,7 +123,7 @@ static void mac_clickkey(WindowPtr window, EventRecord *event)
 	switch (item) {
 	  case wiKeyGenerate:
 	    SetControlMaximum(ks->progress, 1024);
-	    ks->entropy = snewn(1024, long);
+	    ks->entropy = snewn(1024, unsigned int);
 	    ks->entropy_required = 1024;
 	    ks->entropy_got = 0;
 	    ks->collecting_entropy = TRUE;
