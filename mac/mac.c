@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.2 2002/11/23 15:11:13 ben Exp $ */
+/* $Id: mac.c,v 1.3 2002/11/23 18:22:47 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -398,13 +398,14 @@ static void mac_openabout(void) {
 	SelectWindow(windows.about);
     else {
 	windows.about = GetNewDialog(wAbout, NULL, (WindowPtr)-1);
-	/* XXX check we're using the right resource file? */
-	vers = (VersRecHndl)GetResource('vers', 1);
-	assert(vers != NULL && *vers != NULL);
-	longvers = (*vers)->shortVersion + (*vers)->shortVersion[0] + 1;
-	GetDialogItem(windows.about, wiAboutVersion, &itemtype, &item, &box);
-	assert(itemtype & kStaticTextDialogItem);
-	SetDialogItemText(item, longvers);
+	vers = (VersRecHndl)Get1Resource('vers', 1);
+	if (vers != NULL && *vers != NULL) {
+	    longvers = (*vers)->shortVersion + (*vers)->shortVersion[0] + 1;
+	    GetDialogItem(windows.about, wiAboutVersion,
+			  &itemtype, &item, &box);
+	    assert(itemtype & kStaticTextDialogItem);
+	    SetDialogItemText(item, longvers);
+	}
 	ShowWindow(windows.about);
     }
 }
