@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.24 2002/12/28 22:22:43 ben Exp $ */
+/* $Id: macterm.c,v 1.25 2002/12/28 22:25:31 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -191,7 +191,6 @@ static void mac_initfont(Session *s) {
     Str255 macfont;
     FontInfo fi;
     TextEncoding enc;
-    OSStatus err;
 
     SetPort(s->window);
     macfont[0] = sprintf((char *)&macfont[1], "%s", s->cfg.font);

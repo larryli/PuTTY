@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.3 2002/12/28 22:22:43 ben Exp $ */
+/* $Id: macstore.c,v 1.4 2002/12/28 22:25:31 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -131,7 +131,6 @@ void write_setting_s(void *handle, char *key, char *value) {
     int fd = *(int *)handle;
     Handle h;
     int id;
-    OSErr error;
 
     UseResFile(fd);
     if (ResError() != noErr)
