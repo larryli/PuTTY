@@ -475,7 +475,7 @@ int main(int argc, char **argv)
 	    return 1;
 	}
 	back->provide_logctx(backhandle, logctx);
-	ldisc = ldisc_create(NULL, back, backhandle, NULL);
+	ldisc = ldisc_create(&cfg, NULL, back, backhandle, NULL);
 	sfree(realhost);
     }
     connopen = 1;

@@ -644,7 +644,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * Set up a line discipline.
      */
-    ldisc = ldisc_create(term, back, backhandle, NULL);
+    ldisc = ldisc_create(&cfg, term, back, backhandle, NULL);
 
     session_closed = FALSE;
 

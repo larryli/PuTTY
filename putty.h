@@ -544,7 +544,7 @@ extern Backend ssh_backend;
 /*
  * Exports from ldisc.c.
  */
-void *ldisc_create(Terminal *, Backend *, void *, void *);
+void *ldisc_create(Config *, Terminal *, Backend *, void *, void *);
 void ldisc_send(void *handle, char *buf, int len, int interactive);
 
 /*

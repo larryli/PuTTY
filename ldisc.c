@@ -12,12 +12,12 @@
 #include "terminal.h"
 #include "ldisc.h"
 
-#define ECHOING (cfg.localecho == LD_YES || \
-                 (cfg.localecho == LD_BACKEND && \
+#define ECHOING (ldisc->cfg->localecho == LD_YES || \
+                 (ldisc->cfg->localecho == LD_BACKEND && \
                       (ldisc->back->ldisc(ldisc->backhandle, LD_ECHO) || \
 			   term_ldisc(ldisc->term, LD_ECHO))))
-#define EDITING (cfg.localedit == LD_YES || \
-                 (cfg.localedit == LD_BACKEND && \
+#define EDITING (ldisc->cfg->localedit == LD_YES || \
+                 (ldisc->cfg->localedit == LD_BACKEND && \
                       (ldisc->back->ldisc(ldisc->backhandle, LD_EDIT) || \
 			   term_ldisc(ldisc->term, LD_EDIT))))
 
@@ -39,7 +39,7 @@ static int plen(Ldisc ldisc, unsigned char c)
 static void pwrite(Ldisc ldisc, unsigned char c)
 {
     if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf(ldisc->term))) {
-	c_write(ldisc, &c, 1);
+	c_write(ldisc, (char *)&c, 1);
     } else if (c < 128) {
 	char cc[2];
 	cc[1] = (c == 127 ? '?' : c + 0x40);
@@ -61,7 +61,7 @@ static void bsb(Ldisc ldisc, int n)
 #define CTRL(x) (x^'@')
 #define KCTRL(x) ((x^'@') | 0x100)
 
-void *ldisc_create(Terminal *term,
+void *ldisc_create(Config *mycfg, Terminal *term,
 		   Backend *back, void *backhandle,
 		   void *frontend)
 {
@@ -72,6 +72,7 @@ void *ldisc_create(Terminal *term,
     ldisc->bufsiz = 0;
     ldisc->quotenext = 0;
 
+    ldisc->cfg = mycfg;
     ldisc->back = back;
     ldisc->backhandle = backhandle;
     ldisc->term = term;
@@ -170,7 +171,7 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
                  * configured telnet specials off! This breaks
                  * talkers otherwise.
                  */
-                if (!cfg.telnet_keyboard)
+                if (!ldisc->cfg->telnet_keyboard)
                     goto default_case;
 		if (c == CTRL('C'))
 		    ldisc->back->special(ldisc->backhandle, TS_IP);
@@ -222,7 +223,7 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 		 *    default clause because of the break.
 		 */
 	      case CTRL('J'):
-		if (cfg.protocol == PROT_RAW &&
+		if (ldisc->cfg->protocol == PROT_RAW &&
 		    ldisc->buflen > 0 && ldisc->buf[ldisc->buflen - 1] == '\r') {
 		    if (ECHOING)
 			bsb(ldisc, plen(ldisc, ldisc->buf[ldisc->buflen - 1]));
@@ -231,9 +232,9 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 	      case KCTRL('M'):	       /* send with newline */
 		    if (ldisc->buflen > 0)
 			ldisc->back->send(ldisc->backhandle, ldisc->buf, ldisc->buflen);
-		    if (cfg.protocol == PROT_RAW)
+		    if (ldisc->cfg->protocol == PROT_RAW)
 			ldisc->back->send(ldisc->backhandle, "\r\n", 2);
-		    else if (cfg.protocol == PROT_TELNET && cfg.telnet_newline)
+		    else if (ldisc->cfg->protocol == PROT_TELNET && ldisc->cfg->telnet_newline)
 			ldisc->back->special(ldisc->backhandle, TS_EOL);
 		    else
 			ldisc->back->send(ldisc->backhandle, "\r", 1);
@@ -267,27 +268,27 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 	if (len > 0) {
 	    if (ECHOING)
 		c_write(ldisc, buf, len);
-	    if (keyflag && cfg.protocol == PROT_TELNET && len == 1) {
+	    if (keyflag && ldisc->cfg->protocol == PROT_TELNET && len == 1) {
 		switch (buf[0]) {
 		  case CTRL('M'):
-		    if (cfg.protocol == PROT_TELNET && cfg.telnet_newline)
+		    if (ldisc->cfg->protocol == PROT_TELNET && ldisc->cfg->telnet_newline)
 			ldisc->back->special(ldisc->backhandle, TS_EOL);
 		    else
 			ldisc->back->send(ldisc->backhandle, "\r", 1);
 		    break;
 		  case CTRL('?'):
 		  case CTRL('H'):
-		    if (cfg.telnet_keyboard) {
+		    if (ldisc->cfg->telnet_keyboard) {
 			ldisc->back->special(ldisc->backhandle, TS_EC);
 			break;
 		    }
 		  case CTRL('C'):
-		    if (cfg.telnet_keyboard) {
+		    if (ldisc->cfg->telnet_keyboard) {
 			ldisc->back->special(ldisc->backhandle, TS_IP);
 			break;
 		    }
 		  case CTRL('Z'):
-		    if (cfg.telnet_keyboard) {
+		    if (ldisc->cfg->telnet_keyboard) {
 			ldisc->back->special(ldisc->backhandle, TS_SUSP);
 			break;
 		    }

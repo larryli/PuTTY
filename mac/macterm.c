@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.8 2002/11/23 19:01:01 ben Exp $ */
+/* $Id: macterm.c,v 1.9 2002/11/23 20:02:38 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -165,7 +165,7 @@ void mac_newsession(void) {
     mac_adjustsize(s, s->cfg.height, s->cfg.width);
     term_size(s->term, s->cfg.height, s->cfg.width, s->cfg.savelines);
 
-    s->ldisc = ldisc_create(s->term, s->back, s->backhandle, s);
+    s->ldisc = ldisc_create(&s->cfg, s->term, s->back, s->backhandle, s);
     ldisc_send(s->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     mac_initfont(s);

@@ -2113,7 +2113,8 @@ int main(int argc, char **argv)
 
     term_size(inst->term, cfg.height, cfg.width, cfg.savelines);
 
-    inst->ldisc = ldisc_create(inst->term, inst->back, inst->backhandle, inst);
+    inst->ldisc =
+	ldisc_create(&cfg, inst->term, inst->back, inst->backhandle, inst);
     ldisc_send(inst->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     inst->master_fd = pty_master_fd;

@@ -11,6 +11,7 @@
 typedef struct ldisc_tag {
     Terminal *term;
     Backend *back;
+    Config *cfg;
     void *backhandle;
     void *frontend;
 
