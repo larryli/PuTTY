@@ -5439,7 +5439,14 @@ static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
     if (c->closes != 0)
 	return;
 
-    if (newwin > c->v.v2.locwindow) {
+    /*
+     * Only send a WINDOW_ADJUST if there's significantly more window
+     * available than the other end thinks there is.  This saves us
+     * sending a WINDOW_ADJUST for every character in a shell session.
+     *
+     * "Significant" is arbitrarily defined as half the window size.
+     */
+    if (newwin > c->v.v2.locwindow * 2) {
 	struct Packet *pktout;
 
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
