@@ -166,6 +166,9 @@ of the tag.
    Upload to ixion:www/putty/<ver>, upload to
    chiark:ftp/putty-<ver>, and upload to the:www/putty/<ver>.
 
+ - Check the permissions! Actually try downloading from the, to make
+   sure it really works.
+
  - Update the HTTP redirects.
     + Update the one at the:www/putty/htaccess which points the
       virtual subdir `latest' at the actual latest release dir. TEST
