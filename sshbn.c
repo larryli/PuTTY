@@ -184,11 +184,12 @@ static void internal_mod(unsigned short *a, int alen,
  * The most significant word of mod MUST be non-zero.
  * We assume that the result array is the same size as the mod array.
  */
-void modpow(Bignum base, Bignum exp, Bignum mod, Bignum result)
+Bignum modpow(Bignum base, Bignum exp, Bignum mod)
 {
     unsigned short *a, *b, *n, *m;
     int mshift;
     int mlen, i, j;
+    Bignum result;
 
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
@@ -252,14 +253,18 @@ void modpow(Bignum base, Bignum exp, Bignum mod, Bignum result)
     }
 
     /* Copy result to buffer */
+    result = newbn(mod[0]);
     for (i = 0; i < mlen; i++)
 	result[result[0] - i] = a[i+mlen];
+    while (result[0] > 1 && result[result[0]] == 0) result[0]--;
 
     /* Free temporary arrays */
     for (i = 0; i < 2*mlen; i++) a[i] = 0; free(a);
     for (i = 0; i < 2*mlen; i++) b[i] = 0; free(b);
     for (i = 0; i < mlen; i++) m[i] = 0; free(m);
     for (i = 0; i < mlen; i++) n[i] = 0; free(n);
+
+    return result;
 }
 
 /*
@@ -267,11 +272,12 @@ void modpow(Bignum base, Bignum exp, Bignum mod, Bignum result)
  * The most significant word of mod MUST be non-zero.
  * We assume that the result array is the same size as the mod array.
  */
-void modmul(Bignum p, Bignum q, Bignum mod, Bignum result)
+Bignum modmul(Bignum p, Bignum q, Bignum mod)
 {
     unsigned short *a, *n, *m, *o;
     int mshift;
     int pqlen, mlen, i, j;
+    Bignum result;
 
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
@@ -320,14 +326,18 @@ void modmul(Bignum p, Bignum q, Bignum mod, Bignum result)
     }
 
     /* Copy result to buffer */
+    result = newbn(mod[0]);
     for (i = 0; i < mlen; i++)
 	result[result[0] - i] = a[i+2*pqlen-mlen];
+    while (result[0] > 1 && result[result[0]] == 0) result[0]--;
 
     /* Free temporary arrays */
     for (i = 0; i < 2*pqlen; i++) a[i] = 0; free(a);
     for (i = 0; i < mlen; i++) m[i] = 0; free(m);
     for (i = 0; i < pqlen; i++) n[i] = 0; free(n);
     for (i = 0; i < pqlen; i++) o[i] = 0; free(o);
+
+    return result;
 }
 
 /*

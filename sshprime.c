@@ -670,8 +670,7 @@ Bignum primegen(int bits, int modulus, int residue,
         /*
          * Compute w^q mod p.
          */
-        wqp = newbn(p[0]);
-        modpow(w, q, p, wqp);
+        wqp = modpow(w, q, p);
         freebn(w);
 
         /*
@@ -683,8 +682,7 @@ Bignum primegen(int bits, int modulus, int residue,
             continue;
         }
         for (i = 0; i < k; i++) {
-            wqp2 = newbn(p[0]);
-            modmul(wqp, wqp, p, wqp2);
+            wqp2 = modmul(wqp, wqp, p);
             freebn(wqp);
             wqp = wqp2;
             if (bignum_cmp(wqp, One) == 0)

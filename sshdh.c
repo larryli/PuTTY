@@ -99,8 +99,7 @@ Bignum dh_create_e(void) {
     /*
      * Done. Now compute e = g^x mod p.
      */
-    e = newbn(P[0]);
-    modpow(G, x, P, e);
+    e = modpow(G, x, P);
 
     return e;
 }
@@ -110,6 +109,6 @@ Bignum dh_create_e(void) {
  */
 Bignum dh_find_K(Bignum f) {
     Bignum K = newbn(P[0]);
-    modpow(f, x, P, K);
+    K = modpow(f, x, P);
     return K;
 }

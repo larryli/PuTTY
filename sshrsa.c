@@ -65,7 +65,6 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
     w = (key->bytes+1)/2;
 
     b1 = newbn(w);
-    b2 = newbn(w);
 
     p = data;
     for (i=1; i<=w; i++)
@@ -78,7 +77,7 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
 	    b1[1+i/2] |= byte;
     }
 
-    modpow(b1, key->exponent, key->modulus, b2);
+    b2 = modpow(b1, key->exponent, key->modulus);
 
     p = data;
     for (i=key->bytes; i-- ;) {
@@ -96,8 +95,7 @@ void rsaencrypt(unsigned char *data, int length, struct RSAKey *key) {
 
 Bignum rsadecrypt(Bignum input, struct RSAKey *key) {
     Bignum ret;
-    ret = newbn(key->modulus[0]);
-    modpow(input, key->private_exponent, key->modulus, ret);
+    ret = modpow(input, key->private_exponent, key->modulus);
     return ret;
 }
 

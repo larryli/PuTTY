@@ -190,7 +190,7 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     char *p;
     int slen;
     char hash[20];
-    Bignum r, s, w, i1, i2, i3, u1, u2, sha, v;
+    Bignum r, s, w, gu1p, yu2p, gu1yu2p, u1, u2, sha, v;
     int ret;
 
     if (!dss_p)
@@ -243,34 +243,28 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
     /*
      * Step 2. u1 <- SHA(message) * w mod q.
      */
-    u1 = newbn(dss_q[0]);
     SHA_Simple(data, datalen, hash);
     p = hash; slen = 20; sha = get160(&p, &slen);
     diagbn("sha=", sha);
-    modmul(sha, w, dss_q, u1);
+    u1 = modmul(sha, w, dss_q);
     diagbn("u1=", u1);
 
     /*
      * Step 3. u2 <- r * w mod q.
      */
-    u2 = newbn(dss_q[0]);
-    modmul(r, w, dss_q, u2);
+    u2 = modmul(r, w, dss_q);
     diagbn("u2=", u2);
 
     /*
      * Step 4. v <- (g^u1 * y^u2 mod p) mod q.
      */
-    i1 = newbn(dss_p[0]);
-    i2 = newbn(dss_p[0]);
-    i3 = newbn(dss_p[0]);
-    v = newbn(dss_q[0]);
-    modpow(dss_g, u1, dss_p, i1);
-    diagbn("gu1p=", i1);
-    modpow(dss_y, u2, dss_p, i2);
-    diagbn("yu2p=", i2);
-    modmul(i1, i2, dss_p, i3);
-    diagbn("gu1yu2p=", i3);
-    modmul(i3, One, dss_q, v);
+    gu1p = modpow(dss_g, u1, dss_p);
+    diagbn("gu1p=", gu1p);
+    yu2p = modpow(dss_y, u2, dss_p);
+    diagbn("yu2p=", yu2p);
+    gu1yu2p = modmul(gu1p, yu2p, dss_p);
+    diagbn("gu1yu2p=", gu1yu2p);
+    v = modmul(gu1yu2p, One, dss_q);
     diagbn("gu1yu2q=v=", v);
     diagbn("r=", r);
 
@@ -282,9 +276,9 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
 
     freebn(w);
     freebn(sha);
-    freebn(i1);
-    freebn(i2);
-    freebn(i3);
+    freebn(gu1p);
+    freebn(yu2p);
+    freebn(gu1yu2p);
     freebn(v);
     freebn(r);
     freebn(s);
