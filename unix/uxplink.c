@@ -186,7 +186,6 @@ int main(int argc, char **argv)
     int i, skcount, sksize, socketstate;
     int connopen;
     int exitcode;
-    void *logctx;
     void *ldisc;
 
     ssh_get_line = console_get_line;
@@ -237,10 +236,19 @@ int main(int argc, char **argv)
 		continue;
 	    } else if (!strcmp(p, "-batch")) {
 		console_batch_mode = 1;
+	    } else if (!strcmp(p, "-o")) {
+                if (argc <= 1)
+                    fprintf(stderr,
+                            "plink: option \"-o\" requires an argument\n");
+                else
+                    --argc, provide_xrm_string(*++argv);
 	    }
 	} else if (*p) {
 	    if (!*cfg.host) {
 		char *q = p;
+
+                do_defaults(NULL, &cfg);
+
 		/*
 		 * If the hostname starts with "telnet:", set the
 		 * protocol to Telnet and process the string as a
@@ -441,6 +449,7 @@ int main(int argc, char **argv)
     /*
      * Start up the connection.
      */
+    logctx = log_init(NULL);
     {
 	char *error;
 	char *realhost;
@@ -453,7 +462,6 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
 	    return 1;
 	}
-	logctx = log_init(NULL);
 	back->provide_logctx(backhandle, logctx);
 	ldisc = ldisc_create(NULL, back, backhandle, NULL);
 	sfree(realhost);

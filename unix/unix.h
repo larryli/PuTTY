@@ -30,6 +30,8 @@ unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define WCHAR wchar_t
 #define BYTE unsigned char
 
+GLOBAL void *logctx;
+
 /* Things pty.c needs from pterm.c */
 char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */

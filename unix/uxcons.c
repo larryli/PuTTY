@@ -262,6 +262,7 @@ void old_keyfile_warning(void)
 
 void logevent(void *frontend, char *string)
 {
+    log_eventlog(logctx, string);
 }
 
 int console_get_line(const char *prompt, char *str,
