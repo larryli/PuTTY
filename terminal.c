@@ -1253,7 +1253,7 @@ static int beep_overload = 0;
 		    /* VTTEST Bug 9 - if region is less than 2 lines
 		     * don't change region.
 		     */
-		    if (bot-top > 1) {
+		    if (bot-top > 0) {
 			marg_t = top;
 			marg_b = bot;
 			curs_x = 0;
