@@ -177,6 +177,8 @@ static void cc_check(termline *line)
 	j += (flags[i] != 0);
 
     assert(j == line->size);
+
+    sfree(flags);
 }
 
 /*
@@ -1667,7 +1669,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 
 		addpos234(term->scrollback, compressline(line), sblen);
 
-		line = newline(term, term->cols, TRUE);
+		/* now `line' itself can be reused as the bottom line */
 
 		/*
 		 * If the user is currently looking at part of the
