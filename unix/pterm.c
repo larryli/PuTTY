@@ -41,6 +41,7 @@ struct gui_data {
     int mouseptr_visible;
     guint term_paste_idle_id;
     GdkAtom compound_text_atom;
+    int alt_keycode;
     char wintitle[sizeof(((Config *)0)->wintitle)];
     char icontitle[sizeof(((Config *)0)->wintitle)];
 };
@@ -317,6 +318,25 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     char output[32];
     int start, end;
 
+    /* By default, nothing is generated. */
+    end = start = 0;
+
+    /*
+     * If Alt is being released after typing an Alt+numberpad
+     * sequence, we should generate the code that was typed.
+     */
+    if (event->type == GDK_KEY_RELEASE &&
+	(event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
+	 event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R) &&
+	inst->alt_keycode >= 0) {
+#ifdef KEY_DEBUGGING
+	printf("Alt key up, keycode = %d\n", inst->alt_keycode);
+#endif
+	output[0] = inst->alt_keycode;
+	end = 1;
+	goto done;
+    }
+
     if (event->type == GDK_KEY_PRESS) {
 #ifdef KEY_DEBUGGING
 	{
@@ -330,10 +350,58 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #endif
 
 	/*
-	 * NYI:
-	 *  - alt+numpad
-	 *  - Compose key (!!! requires Unicode faff before even trying)
+	 * NYI: Compose key (!!! requires Unicode faff before even trying)
 	 */
+
+	/*
+	 * If Alt has just been pressed, we start potentially
+	 * accumulating an Alt+numberpad code. We do this by
+	 * setting alt_keycode to -1 (nothing yet but plausible).
+	 */
+	if ((event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
+	     event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R)) {
+	    inst->alt_keycode = -1;
+	    goto done;		       /* this generates nothing else */
+	}
+
+	/*
+	 * If we're seeing a numberpad key press with Mod1 down,
+	 * consider adding it to alt_keycode if that's sensible.
+	 * Anything _else_ with Mod1 down cancels any possibility
+	 * of an ALT keycode: we set alt_keycode to -2.
+	 */
+	if ((event->state & GDK_MOD1_MASK) && inst->alt_keycode != -2) {
+	    int digit = -1;
+	    switch (event->keyval) {
+	      case GDK_KP_0: case GDK_KP_Insert: digit = 0; break;
+	      case GDK_KP_1: case GDK_KP_End: digit = 1; break;
+	      case GDK_KP_2: case GDK_KP_Down: digit = 2; break;
+	      case GDK_KP_3: case GDK_KP_Page_Down: digit = 3; break;
+	      case GDK_KP_4: case GDK_KP_Left: digit = 4; break;
+	      case GDK_KP_5: case GDK_KP_Begin: digit = 5; break;
+	      case GDK_KP_6: case GDK_KP_Right: digit = 6; break;
+	      case GDK_KP_7: case GDK_KP_Home: digit = 7; break;
+	      case GDK_KP_8: case GDK_KP_Up: digit = 8; break;
+	      case GDK_KP_9: case GDK_KP_Page_Up: digit = 9; break;
+	    }
+	    if (digit < 0)
+		inst->alt_keycode = -2;   /* it's invalid */
+	    else {
+#ifdef KEY_DEBUGGING
+		printf("Adding digit %d to keycode %d", digit,
+		       inst->alt_keycode);
+#endif
+		if (inst->alt_keycode == -1)
+		    inst->alt_keycode = digit;   /* one-digit code */
+		else
+		    inst->alt_keycode = inst->alt_keycode * 10 + digit;
+#ifdef KEY_DEBUGGING
+		printf(" gives new code %d\n", inst->alt_keycode);
+#endif
+		/* Having used this digit, we now do nothing more with it. */
+		goto done;
+	    }
+	}
 
 	/*
 	 * Shift-PgUp and Shift-PgDn don't even generate keystrokes
@@ -693,23 +761,23 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		goto done;
 	    }
 	}
+	goto done;
+    }
 
-	done:
+    done:
 
+    if (end-start > 0) {
 #ifdef KEY_DEBUGGING
-	{
-	    int i;
-	    printf("generating sequence:");
-	    for (i = start; i < end; i++)
-		printf(" %02x", (unsigned char) output[i]);
-	    printf("\n");
-	}
+	int i;
+	printf("generating sequence:");
+	for (i = start; i < end; i++)
+	    printf(" %02x", (unsigned char) output[i]);
+	printf("\n");
 #endif
-	if (end-start > 0) {
-	    ldisc_send(output+start, end-start, 1);
-	    show_mouseptr(0);
-	    term_out();
-	}
+
+	ldisc_send(output+start, end-start, 1);
+	show_mouseptr(0);
+	term_out();
     }
 
     return TRUE;
@@ -1527,6 +1595,8 @@ int main(int argc, char **argv)
     gtk_signal_connect(GTK_OBJECT(inst->window), "delete_event",
 		       GTK_SIGNAL_FUNC(delete_window), inst);
     gtk_signal_connect(GTK_OBJECT(inst->window), "key_press_event",
+		       GTK_SIGNAL_FUNC(key_event), inst);
+    gtk_signal_connect(GTK_OBJECT(inst->window), "key_release_event",
 		       GTK_SIGNAL_FUNC(key_event), inst);
     gtk_signal_connect(GTK_OBJECT(inst->window), "focus_in_event",
 		       GTK_SIGNAL_FUNC(focus_event), inst);
