@@ -273,9 +273,9 @@ int main(int argc, char **argv)
 {
     int sending;
     int portnumber = -1;
-    int *sklist;
-    int socket;
-    int i, skcount, sksize, socketstate;
+    int *fdlist;
+    int fd;
+    int i, fdcount, fdsize, fdstate;
     int connopen;
     int exitcode;
     int errors;
@@ -283,8 +283,8 @@ int main(int argc, char **argv)
 
     ssh_get_line = console_get_line;
 
-    sklist = NULL;
-    skcount = sksize = 0;
+    fdlist = NULL;
+    fdcount = fdsize = 0;
     /*
      * Initialise port and protocol to sensible defaults. (These
      * will be overridden by more or less anything.)
@@ -559,6 +559,7 @@ int main(int argc, char **argv)
     putty_signal(SIGWINCH, sigwinch);
 
     sk_init();
+    uxsel_init();
 
     /*
      * Start up the connection.
@@ -623,31 +624,31 @@ int main(int argc, char **argv)
 	    FD_SET_MAX(2, maxfd, wset);
 	}
 
-	/* Count the currently active sockets. */
+	/* Count the currently active fds. */
 	i = 0;
-	for (socket = first_socket(&socketstate, &rwx); socket >= 0;
-	     socket = next_socket(&socketstate, &rwx)) i++;
+	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+	     fd = next_fd(&fdstate, &rwx)) i++;
 
-	/* Expand the sklist buffer if necessary. */
-	if (i > sksize) {
-	    sksize = i + 16;
-	    sklist = sresize(sklist, sksize, int);
+	/* Expand the fdlist buffer if necessary. */
+	if (i > fdsize) {
+	    fdsize = i + 16;
+	    fdlist = sresize(fdlist, fdsize, int);
 	}
 
 	/*
-	 * Add all currently open sockets to the select sets, and
-	 * store them in sklist as well.
+	 * Add all currently open fds to the select sets, and store
+	 * them in fdlist as well.
 	 */
-	skcount = 0;
-	for (socket = first_socket(&socketstate, &rwx); socket >= 0;
-	     socket = next_socket(&socketstate, &rwx)) {
-	    sklist[skcount++] = socket;
+	fdcount = 0;
+	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+	     fd = next_fd(&fdstate, &rwx)) {
+	    fdlist[fdcount++] = fd;
 	    if (rwx & 1)
-		FD_SET_MAX(socket, maxfd, rset);
+		FD_SET_MAX(fd, maxfd, rset);
 	    if (rwx & 2)
-		FD_SET_MAX(socket, maxfd, wset);
+		FD_SET_MAX(fd, maxfd, wset);
 	    if (rwx & 4)
-		FD_SET_MAX(socket, maxfd, xset);
+		FD_SET_MAX(fd, maxfd, xset);
 	}
 
 	do {
@@ -659,19 +660,19 @@ int main(int argc, char **argv)
 	    exit(1);
 	}
 
-	for (i = 0; i < skcount; i++) {
-	    socket = sklist[i];
+	for (i = 0; i < fdcount; i++) {
+	    fd = fdlist[i];
             /*
              * We must process exceptional notifications before
              * ordinary readability ones, or we may go straight
              * past the urgent marker.
              */
-	    if (FD_ISSET(socket, &xset))
-		select_result(socket, 4);
-	    if (FD_ISSET(socket, &rset))
-		select_result(socket, 1);
-	    if (FD_ISSET(socket, &wset))
-		select_result(socket, 2);
+	    if (FD_ISSET(fd, &xset))
+		select_result(fd, 4);
+	    if (FD_ISSET(fd, &rset))
+		select_result(fd, 1);
+	    if (FD_ISSET(fd, &wset))
+		select_result(fd, 2);
 	}
 
 	if (FD_ISSET(signalpipe[0], &rset)) {

@@ -115,7 +115,8 @@ SFTP     = sftp int64 logging
 # Pageant or PuTTYgen).
 WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
          + windefs winmisc
-UXMISC   = misc version uxstore settings tree234 uxnet proxy cmdline uxmisc
+UXMISC   = misc version uxstore settings tree234 uxsel uxnet proxy cmdline
+         + uxmisc
 MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
          + macmisc macabout
 

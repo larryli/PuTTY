@@ -61,10 +61,14 @@ char *x_get_default(const char *key);
 /* Things uxstore.c provides to pterm.c */
 void provide_xrm_string(char *string);
 
-/* Things uxnet.c provides to the front end */
+/* The interface used by uxsel.c */
+void uxsel_init(void);
+typedef int (*uxsel_callback_fn)(int fd, int event);
+void uxsel_set(int fd, int rwx, uxsel_callback_fn callback);
+void uxsel_del(int fd);
 int select_result(int fd, int event);
-int first_socket(int *state, int *rwx);
-int next_socket(int *state, int *rwx);
+int first_fd(int *state, int *rwx);
+int next_fd(int *state, int *rwx);
 
 /* uxcfg.c */
 struct controlbox;

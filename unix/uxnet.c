@@ -73,6 +73,8 @@ struct SockAddr_tag {
 
 static tree234 *sktree;
 
+static void uxsel_tell(Actual_Socket s);
+
 static int cmpfortree(void *av, void *bv)
 {
     Actual_Socket a = (Actual_Socket) av, b = (Actual_Socket) bv;
@@ -347,6 +349,7 @@ Socket sk_register(void *sock, Plug plug)
 
     ret->oobinline = 0;
 
+    uxsel_tell(ret);
     add234(sktree, ret);
 
     return (Socket) ret;
@@ -505,6 +508,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	ret->writable = 1;
     }
 
+    uxsel_tell(ret);
     add234(sktree, ret);
 
     return (Socket) ret;
@@ -623,6 +627,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 	return (Socket) ret;
     }
 
+    uxsel_tell(ret);
     add234(sktree, ret);
 
     return (Socket) ret;
@@ -632,6 +637,7 @@ static void sk_tcp_close(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
 
+    uxsel_del(s->s);
     del234(sktree, s);
     close(s->s);
     sfree(s);
@@ -729,6 +735,7 @@ void try_send(Actual_Socket s)
 	    }
 	}
     }
+    uxsel_tell(s);
 }
 
 static int sk_tcp_write(Socket sock, const char *buf, int len)
@@ -770,7 +777,7 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
     return s->sending_oob;
 }
 
-int select_result(int fd, int event)
+static int net_select_result(int fd, int event)
 {
     int ret;
     int err;
@@ -888,6 +895,7 @@ int select_result(int fd, int event)
 	     * asynchronous connection is completed.
 	     */
 	    s->connected = s->writable = 1;
+	    uxsel_tell(s);
 	    break;
 	} else {
 	    int bufsize_before, bufsize_after;
@@ -983,44 +991,21 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 	recv(s->s, &c, 1, MSG_PEEK);
     }
     s->frozen_readable = 0;
+    uxsel_tell(s);
 }
 
-/*
- * For Unix select()-based frontends: enumerate all sockets
- * currently active, and state whether we currently wish to receive
- * select events on them for reading, writing and exceptional
- * status.
- */
-static void set_rwx(Actual_Socket s, int *rwx)
+static void uxsel_tell(Actual_Socket s)
 {
-    int val = 0;
+    int rwx = 0;
     if (!s->connected)
-	val |= 2;		       /* write == connect */
+	rwx |= 2;		       /* write == connect */
     if (s->connected && !s->frozen)
-	val |= 1 | 4;		       /* read, except */
+	rwx |= 1 | 4;		       /* read, except */
     if (bufchain_size(&s->output_data))
-	val |= 2;		       /* write */
+	rwx |= 2;		       /* write */
     if (s->listener)
-	val |= 1;		       /* read == accept */
-    *rwx = val;
-}
-
-int first_socket(int *state, int *rwx)
-{
-    Actual_Socket s;
-    *state = 0;
-    s = index234(sktree, (*state)++);
-    if (s)
-	set_rwx(s, rwx);
-    return s ? s->s : -1;
-}
-
-int next_socket(int *state, int *rwx)
-{
-    Actual_Socket s = index234(sktree, (*state)++);
-    if (s)
-	set_rwx(s, rwx);
-    return s ? s->s : -1;
+	rwx |= 1;		       /* read == accept */
+    uxsel_set(s->s, rwx, net_select_result);
 }
 
 int net_service_lookup(char *service)
