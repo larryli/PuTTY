@@ -627,6 +627,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    {
 		char b[2048];
 		char c[30], *cl;
+		int freecl = FALSE;
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
 		HANDLE filemap = NULL;
@@ -660,9 +661,12 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		    sprintf(c, "putty &%08x", filemap);
 		    cl = c;
 		} else if (wParam == IDM_SAVEDSESS) {
-		    sprintf(c, "putty @%s",
-			    sessions[(lParam - IDM_SAVED_MIN) / 16]);
-		    cl = c;
+		    char *session = sessions[(lParam - IDM_SAVED_MIN) / 16];
+		    cl = malloc(16 + strlen(session)); /* 8, but play safe */
+		    if (!cl)
+			cl = NULL;     /* not a very important failure mode */
+		    sprintf(cl, "putty @%s", session);
+		    freecl = TRUE;
 		} else
 		    cl = NULL;
 
@@ -679,6 +683,8 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 
 		if (filemap)
 		    CloseHandle(filemap);
+		if (freecl)
+		    free(cl);
 	    }
 	    break;
 	  case IDM_RECONF:
