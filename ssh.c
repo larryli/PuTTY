@@ -730,13 +730,8 @@ static int ssh_versioncmp(char *a, char *b) {
 #include <stdio.h>
 void sha_string(SHA_State *s, void *str, int len) {
     unsigned char lenblk[4];
-static FILE *fp;
     PUT_32BIT(lenblk, len);
-if (!fp) fp = fopen("h:\\statham\\windows\\putty\\data","wb");
-fwrite(lenblk, 4, 1, fp);
     SHA_Bytes(s, lenblk, 4);
-fwrite(str, len, 1, fp);
-fflush(fp);
     SHA_Bytes(s, str, len);
 }
 
