@@ -73,6 +73,7 @@ static void init_palette(void);
 static void init_fonts(int, int);
 static void another_font(int);
 static void deinit_fonts(void);
+static void set_input_locale(HKL);
 
 /* Window layout information */
 static void reset_window(int);
@@ -587,6 +588,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
 	AppendMenu(m, MF_ENABLED, IDM_ABOUT, "&About PuTTY");
     }
+
+    /*
+     * Set up the initial input locale.
+     */
+    set_input_locale(GetKeyboardLayout(0));
 
     /*
      * Finally show the window!
@@ -1365,6 +1371,16 @@ static void reset_window(int reinit) {
 		   font_width, font_height));
 #endif
     }
+}
+
+static void set_input_locale(HKL kl)
+{
+    char lbuf[20];
+
+    GetLocaleInfo(LOWORD(kl), LOCALE_IDEFAULTANSICODEPAGE,
+		  lbuf, sizeof(lbuf));
+
+    kbd_codepage = atoi(lbuf);
 }
 
 static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
@@ -2287,19 +2303,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	net_pending_errors();
 	return 0;
       case WM_INPUTLANGCHANGE:
-	{
-	    /* wParam == Font number */
-	    /* lParam == Locale */
-	    char lbuf[20];
-	    HKL NewInputLocale = (HKL) lParam;
-
-	    // lParam == GetKeyboardLayout(0);
-
-	    GetLocaleInfo(LOWORD(NewInputLocale),
-			  LOCALE_IDEFAULTANSICODEPAGE, lbuf, sizeof(lbuf));
-
-	    kbd_codepage = atoi(lbuf);
-	}
+	/* wParam == Font number */
+	/* lParam == Locale */
+	set_input_locale((HKL)lParam);
 	break;
       case WM_IME_NOTIFY:
 	if(wParam == IMN_SETOPENSTATUS) {
