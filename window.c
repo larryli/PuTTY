@@ -87,7 +87,6 @@ static void init_fonts(int, int);
 static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
-static int do_mouse_wheel_msg(UINT message, WPARAM wParam, LPARAM lParam);
 
 static int is_full_screen(void);
 static void make_full_screen(void);
