@@ -550,9 +550,9 @@ struct Packet {
     struct logblank_t *blanks;
 };
 
-static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen,
+static void ssh1_protocol(Ssh ssh, void *vin, int inlen,
 			  struct Packet *pktin);
-static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen,
+static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
 			  struct Packet *pktin);
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
@@ -568,7 +568,7 @@ static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
 static int ssh2_pkt_getbool(struct Packet *pkt);
 static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
 static void ssh2_timer(void *ctx, long now);
-static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
+static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			     struct Packet *pktin);
 
 struct rdpkt1_state_tag {
@@ -711,7 +711,7 @@ struct ssh_tag {
     /* ssh1 and ssh2 use this for different things, but both use it */
     int protocol_initial_phase_done;
 
-    void (*protocol) (Ssh ssh, unsigned char *in, int inlen,
+    void (*protocol) (Ssh ssh, void *vin, int inlen,
 		      struct Packet *pkt);
     struct Packet *(*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
 
@@ -4599,9 +4599,10 @@ static void ssh1_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH1_MSG_DEBUG] = ssh1_msg_debug;
 }
 
-static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen,
+static void ssh1_protocol(Ssh ssh, void *vin, int inlen,
 			  struct Packet *pktin)
 {
+    unsigned char *in=(unsigned char*)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
@@ -4679,9 +4680,10 @@ static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
 /*
  * Handle the SSH2 transport layer.
  */
-static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
+static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			     struct Packet *pktin)
 {
+    unsigned char *in = (unsigned char *)vin;
     struct do_ssh2_transport_state {
 	int nbits, pbits, warn;
 	Bignum p, g, e, f, K;
@@ -7335,9 +7337,10 @@ static void ssh2_timer(void *ctx, long now)
     }
 }
 
-static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen,
+static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
 			  struct Packet *pktin)
 {
+    unsigned char *in = (unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
