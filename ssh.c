@@ -1510,6 +1510,11 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
 	c_write_str("Selected cipher not supported, falling back to 3DES\r\n");
 	cipher_type = SSH_CIPHER_3DES;
+	if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
+	    bombout(("Server violates SSH 1 protocol by "
+		     "not supporting 3DES encryption"));
+	    crReturn(0);
+	}
     }
     switch (cipher_type) {
       case SSH_CIPHER_3DES: logevent("Using 3DES encryption"); break;
