@@ -1024,20 +1024,20 @@ int handle_prefslist(struct prefslist *hdl,
 		    SetWindowLong(hwnd, DWL_MSGRESULT, DL_STOPCURSOR);
                 ret = 1; break;
               case DL_DROPPED:
-		ret = 1;
-		if (!hdl->dragging) break;
-		dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, TRUE);
-		if (dest > hdl->dummyitem) dest = hdl->dummyitem;
-		DrawInsert (hwnd, dlm->hWnd, -1);
+		if (hdl->dragging) {
+		    dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, TRUE);
+		    if (dest > hdl->dummyitem) dest = hdl->dummyitem;
+		    DrawInsert (hwnd, dlm->hWnd, -1);
+		}
 		SendDlgItemMessage(hwnd, hdl->listid,
 				   LB_DELETESTRING, hdl->dummyitem, 0);
-		hdl->dragging = 0;
-		if (dest >= 0) {
-		    /* Correct for "missing" item. This means you can't drag
-		     * an item to the end, but that seems to be the way this
-		     * control is used. */
-		    if (dest > hdl->srcitem) dest--;
-		    pl_moveitem(hwnd, hdl->listid, hdl->srcitem, dest);
+		if (hdl->dragging) {
+		    hdl->dragging = 0;
+		    if (dest >= 0) {
+			/* Correct for "missing" item. */
+			if (dest > hdl->srcitem) dest--;
+			pl_moveitem(hwnd, hdl->listid, hdl->srcitem, dest);
+		    }
 		}
                 ret = 1; break;
             }
