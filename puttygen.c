@@ -77,6 +77,13 @@ static void progress_update(void *param, int phase, int iprogress)
       case 3:
 	position = PHASE3START + progress * p->phase3mult;
 	break;
+      default:
+	/*
+	 * Shouldn't happen, but having a default clause placates
+	 * gcc -Wall, which would otherwise complain that
+	 * `position' might be used uninitialised.
+	 */
+	return;
     }
 
     SendMessage(p->progbar, PBM_SETPOS, position / DIVISOR, 0);
@@ -687,7 +694,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    char *comment;
 		    struct PassphraseProcStruct pps;
 		    struct RSAKey newkey1;
-		    struct ssh2_userkey *newkey2;
+		    struct ssh2_userkey *newkey2 = NULL;
 
 		    ver = keyfile_version(filename);
 		    if (ver == 0) {

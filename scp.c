@@ -71,8 +71,6 @@ static void sink(char *targ, char *src);
 static void tell_char(FILE * stream, char c);
 static void tell_str(FILE * stream, char *str);
 static void tell_user(FILE * stream, char *fmt, ...);
-static void send_char_msg(unsigned int msg_id, char c);
-static void send_str_msg(unsigned int msg_id, char *str);
 static void gui_update_stats(char *name, unsigned long size,
 			     int percentage, unsigned long elapsed);
 
@@ -743,11 +741,9 @@ static void source(char *src)
     if (response())
 	return;
 
-    if (statistics) {
-	stat_bytes = 0;
-	stat_starttime = time(NULL);
-	stat_lasttime = 0;
-    }
+    stat_bytes = 0;
+    stat_starttime = time(NULL);
+    stat_lasttime = 0;
 
     for (i = 0; i < size; i += 4096) {
 	char transbuf[4096];
@@ -938,17 +934,15 @@ static void sink(char *targ, char *src)
 
 	back->send("", 1);
 
-	if (statistics) {
-	    stat_bytes = 0;
-	    stat_starttime = time(NULL);
-	    stat_lasttime = 0;
-	    if ((stat_name = strrchr(namebuf, '/')) == NULL)
-		stat_name = namebuf;
-	    else
-		stat_name++;
-	    if (strrchr(stat_name, '\\') != NULL)
-		stat_name = strrchr(stat_name, '\\') + 1;
-	}
+	stat_bytes = 0;
+	stat_starttime = time(NULL);
+	stat_lasttime = 0;
+	if ((stat_name = strrchr(namebuf, '/')) == NULL)
+	    stat_name = namebuf;
+	else
+	    stat_name++;
+	if (strrchr(stat_name, '\\') != NULL)
+	    stat_name = strrchr(stat_name, '\\') + 1;
 
 	for (i = 0; i < size; i += 4096) {
 	    char transbuf[4096];

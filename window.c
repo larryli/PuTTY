@@ -1142,6 +1142,7 @@ Mouse_Button translate_button(Mouse_Button button)
 	return cfg.mouse_is_xterm ? MBT_PASTE : MBT_EXTEND;
     if (button == MBT_RIGHT)
 	return cfg.mouse_is_xterm ? MBT_EXTEND : MBT_PASTE;
+    return 0;			       /* shouldn't happen */
 }
 
 static void show_mouseptr(int show)
@@ -1557,6 +1558,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		button = MBT_RIGHT;
 		press = 0;
 		break;
+	      default:
+		button = press = 0;    /* shouldn't happen */
 	    }
 	    show_mouseptr(1);
 	    if (press) {
@@ -3173,7 +3176,7 @@ void get_clip(wchar_t ** p, int *len)
 	clipdata = NULL;
 	return;
     } else if (OpenClipboard(NULL)) {
-	if (clipdata = GetClipboardData(CF_UNICODETEXT)) {
+	if ((clipdata = GetClipboardData(CF_UNICODETEXT))) {
 	    CloseClipboard();
 	    *p = GlobalLock(clipdata);
 	    if (*p) {
@@ -3181,7 +3184,7 @@ void get_clip(wchar_t ** p, int *len)
 		*len = p2 - *p;
 		return;
 	    }
-	} else if (clipdata = GetClipboardData(CF_TEXT)) {
+	} else if ( (clipdata = GetClipboardData(CF_TEXT)) ) {
 	    char *s;
 	    int i;
 	    CloseClipboard();

@@ -271,7 +271,8 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "SunkenEdge", 0, &cfg->sunken_edge);
     gppi(sesskey, "CurType", 0, &cfg->cursor_type);
     gppi(sesskey, "BlinkCur", 0, &cfg->blink_cur);
-    gppi(sesskey, "Beep", 1, &cfg->beep);
+    /* pedantic compiler tells me I can't use &cfg->beep as an int * :-) */
+    gppi(sesskey, "Beep", 1, &i); cfg->beep = i;
     gpps(sesskey, "BellWaveFile", "", cfg->bell_wavefile,
 	 sizeof(cfg->bell_wavefile));
     gppi(sesskey, "BellOverload", 1, &cfg->bellovl);

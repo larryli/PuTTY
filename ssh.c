@@ -1322,7 +1322,7 @@ static void ssh_detect_bugs(char *vstring)
 
 static int do_ssh_init(unsigned char c)
 {
-    static char vslen;
+    static int vslen;
     static char version[10];
     static char *vstring;
     static int vstrsize;
@@ -1574,15 +1574,16 @@ static char *connect_to_host(char *host, int port, char **realhost)
  */
 static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 {
-    int i, j, len;
-    unsigned char *rsabuf, *keystr1, *keystr2;
+    int i, j;
+    static int len;
+    static unsigned char *rsabuf, *keystr1, *keystr2;
     unsigned char cookie[8];
     struct RSAKey servkey, hostkey;
     struct MD5Context md5c;
     static unsigned long supported_ciphers_mask, supported_auths_mask;
     static int tried_publickey;
     static unsigned char session_id[16];
-    int cipher_type;
+    static int cipher_type;
     static char username[100];
 
     crBegin;
@@ -1884,6 +1885,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		    ssh1_read_bignum(pktin.body, &challenge);
 		    {
 			char *agentreq, *q, *ret;
+			void *vret;
 			int len, retlen;
 			len = 1 + 4;   /* message type, bit count */
 			len += ssh1_bignum_length(key.exponent);
@@ -1903,7 +1905,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 			memcpy(q, session_id, 16);
 			q += 16;
 			PUT_32BIT(q, 1);	/* response format */
-			agent_query(agentreq, len + 4, &ret, &retlen);
+			agent_query(agentreq, len + 4, &vret, &retlen);
+			ret = vret;
 			sfree(agentreq);
 			if (ret) {
 			    if (ret[4] == SSH1_AGENT_RSA_RESPONSE) {
@@ -3085,8 +3088,6 @@ static void ssh2_try_send(struct ssh_channel *c)
  */
 static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 {
-    static unsigned long remote_winsize;
-    static unsigned long remote_maxpkt;
     static enum {
 	AUTH_INVALID, AUTH_PUBLICKEY_AGENT, AUTH_PUBLICKEY_FILE,
 	AUTH_PASSWORD
@@ -3366,6 +3367,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			static int pklen, alglen, commentlen;
 			static int siglen, retlen, len;
 			static char *q, *agentreq, *ret;
+			void *vret;
 
 			{
 			    char buf[64];
@@ -3444,7 +3446,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			q += pktout.length - 5;
 			/* And finally the (zero) flags word. */
 			PUT_32BIT(q, 0);
-			agent_query(agentreq, len + 4, &ret, &retlen);
+			agent_query(agentreq, len + 4, &vret, &retlen);
+			ret = vret;
 			sfree(agentreq);
 			if (ret) {
 			    if (ret[4] == SSH2_AGENT_SIGN_RESPONSE) {

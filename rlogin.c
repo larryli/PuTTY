@@ -16,11 +16,6 @@ static Socket s = NULL;
 
 static void rlogin_size(void);
 
-static int sb_opt, sb_len;
-static char *sb_buf = NULL;
-static int sb_size = 0;
-#define SB_DELTA 1024
-
 static void c_write(char *buf, int len)
 {
     from_backend(0, buf, len);

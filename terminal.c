@@ -358,9 +358,9 @@ void term_init(void)
  */
 void term_size(int newrows, int newcols, int newsavelines)
 {
-    tree234 *newsb, *newscreen, *newalt;
-    unsigned long *newdisp, *oldline, *line;
-    int i, j, ccols;
+    tree234 *newalt;
+    unsigned long *newdisp, *line;
+    int i, j;
     int sblen;
     int save_alt_which = alt_which;
 
@@ -1444,7 +1444,7 @@ void term_out(void)
 			  case ANSI('5', '#'):
 			    nlattr = LATTR_NORM;
 			    break;
-			  case ANSI('6', '#'):
+			  default: /* spiritually case ANSI('6', '#'): */
 			    nlattr = LATTR_WIDE;
 			    break;
 			}
@@ -2064,8 +2064,10 @@ void term_out(void)
 			val = c - 'A' + 10;
 		    else if (c >= 'a' && c <= 'a' + max - 10)
 			val = c - 'a' + 10;
-		    else
+		    else {
 			termstate = TOPLEVEL;
+			break;
+		    }
 		    osc_string[osc_strlen++] = val;
 		    if (osc_strlen >= 7) {
 			palette_set(osc_string[0],
@@ -2359,6 +2361,7 @@ void term_out(void)
 				    ATTR_BLINK)));
 		break;
 #endif
+	      default: break;	       /* placate gcc warning about enum use */
 	    }
 	if (selstate != NO_SELECTION) {
 	    pos cursplus = curs;
@@ -2997,6 +3000,7 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 	  case MBT_WHEEL_DOWN:
 	    encstate = 0x61;
 	    break;
+	  default: break;	       /* placate gcc warning about enum use */
 	}
 	switch (a) {
 	  case MA_DRAG:
@@ -3013,6 +3017,7 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 		return;
 	    is_down = b;
 	    break;
+	  default: break;	       /* placate gcc warning about enum use */
 	}
 	if (shift)
 	    encstate += 0x04;

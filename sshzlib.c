@@ -207,6 +207,7 @@ static void lz77_compress(struct LZ77Context *ctx,
     st->npending -= i;
 
     defermatch.len = 0;
+    deferchr = '\0';
     while (len > 0) {
 
 	/* Don't even look for a match, if we're not compressing. */
@@ -519,7 +520,8 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len)
 	 */
 	i = -1;
 	j = sizeof(lencodes) / sizeof(*lencodes);
-	while (j - i >= 2) {
+	while (1) {
+	    assert(j - i >= 2);
 	    k = (j + i) / 2;
 	    if (thislen < lencodes[k].min)
 		j = k;
@@ -554,7 +556,8 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len)
 	 */
 	i = -1;
 	j = sizeof(distcodes) / sizeof(*distcodes);
-	while (j - i >= 2) {
+	while (1) {
+	    assert(j - i >= 2);
 	    k = (j + i) / 2;
 	    if (distance < distcodes[k].min)
 		j = k;
@@ -656,7 +659,8 @@ int zlib_compress_block(unsigned char *block, int len,
 	out->firstblock = 0;
 
 	in_block = FALSE;
-    }
+    } else
+	in_block = TRUE;
 
     if (out->comp_disabled) {
 	if (in_block)

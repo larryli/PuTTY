@@ -49,7 +49,7 @@ void agent_query(void *in, int inlen, void **out, int *outlen)
     debug(("hwnd is %p\n", hwnd));
     if (!hwnd)
 	return;
-    sprintf(mapname, "PageantRequest%08x", GetCurrentThreadId());
+    sprintf(mapname, "PageantRequest%08x", (unsigned)GetCurrentThreadId());
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 				0, AGENT_MAX_MSGLEN, mapname);
     if (!filemap)

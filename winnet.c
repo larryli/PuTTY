@@ -251,7 +251,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	     */
 	    if (ret->family == 0) {
 		/*debug(("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host)); */
-		if (h = gethostbyname(host))
+		if ( (h = gethostbyname(host)) )
 		    ret->family = AF_INET;
 	    }
 	}
@@ -363,10 +363,10 @@ static void sk_tcp_flush(Socket s)
      */
 }
 
-void sk_tcp_close(Socket s);
-void sk_tcp_write(Socket s, char *data, int len);
-void sk_tcp_write_oob(Socket s, char *data, int len);
-char *sk_tcp_socket_error(Socket s);
+static void sk_tcp_close(Socket s);
+static void sk_tcp_write(Socket s, char *data, int len);
+static void sk_tcp_write_oob(Socket s, char *data, int len);
+static char *sk_tcp_socket_error(Socket s);
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      Plug plug)

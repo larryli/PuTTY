@@ -294,8 +294,8 @@ static void keylist_update(void)
 static void add_keyfile(char *filename)
 {
     char passphrase[PASSPHRASE_MAXLEN];
-    struct RSAKey *rkey;
-    struct ssh2_userkey *skey;
+    struct RSAKey *rkey = NULL;
+    struct ssh2_userkey *skey = NULL;
     int needs_pass;
     int ret;
     int attempts;
@@ -358,6 +358,7 @@ static void add_keyfile(char *filename)
     if (ver == 1) {
 	if (already_running) {
 	    unsigned char *request, *response;
+	    void *vresponse;
 	    int reqlen, clen, resplen;
 
 	    clen = strlen(rkey->comment);
@@ -391,7 +392,8 @@ static void add_keyfile(char *filename)
 	    reqlen += 4 + clen;
 	    PUT_32BIT(request, reqlen - 4);
 
-	    agent_query(request, reqlen, &response, &resplen);
+	    agent_query(request, reqlen, &vresponse, &resplen);
+	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
 		MessageBox(NULL, "The already running Pageant "
 			   "refused to add the key.", APPNAME,
@@ -403,6 +405,7 @@ static void add_keyfile(char *filename)
     } else {
 	if (already_running) {
 	    unsigned char *request, *response;
+	    void *vresponse;
 	    int reqlen, alglen, clen, keybloblen, resplen;
 	    alglen = strlen(skey->alg->name);
 	    clen = strlen(skey->comment);
@@ -431,7 +434,8 @@ static void add_keyfile(char *filename)
 	    PUT_32BIT(request, reqlen - 4);
 	    reqlen += clen + 4;
 
-	    agent_query(request, reqlen, &response, &resplen);
+	    agent_query(request, reqlen, &vresponse, &resplen);
+	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
 		MessageBox(NULL, "The already running Pageant"
 			   "refused to add the key.", APPNAME,
@@ -938,11 +942,6 @@ static int cmpkeys_ssh2_asymm(void *av, void *bv)
     return c;
 }
 
-static void error(char *s)
-{
-    MessageBox(hwnd, s, APPNAME, MB_OK | MB_ICONERROR);
-}
-
 /*
  * Prompt for a key file to add, and add it.
  */
@@ -1135,9 +1134,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    COPYDATASTRUCT *cds;
 	    char *mapname;
 	    void *p;
-	    HANDLE filemap, proc;
+	    HANDLE filemap;
+#ifndef NO_SECURITY
+	    HANDLE proc;
 	    PSID mapowner, procowner;
 	    PSECURITY_DESCRIPTOR psd1 = NULL, psd2 = NULL;
+#endif
 	    int ret = 0;
 
 	    cds = (COPYDATASTRUCT *) lParam;
@@ -1154,8 +1156,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    debug(("filemap is %p\n", filemap));
 #endif
 	    if (filemap != NULL && filemap != INVALID_HANDLE_VALUE) {
-		int rc;
 #ifndef NO_SECURITY
+		int rc;
 		if (has_security) {
 		    if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
 					    GetCurrentProcessId())) ==
@@ -1234,7 +1236,7 @@ void spawn_cmd(char *cmdline, int show)
 		     NULL, NULL, show) <= (HINSTANCE) 32) {
 	TCHAR sMsg[140];
 	sprintf(sMsg, _T("Failed to run \"%.100s\", Error: %d"), cmdline,
-		GetLastError());
+		(int)GetLastError());
 	MessageBox(NULL, sMsg, APPNAME, MB_OK | MB_ICONEXCLAMATION);
     }
 }
@@ -1367,7 +1369,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     {
 	char *p;
 	int inquotes = 0;
-	int ignorearg = 0;
 	p = cmdline;
 	while (*p) {
 	    while (*p && isspace(*p))

@@ -34,7 +34,6 @@ static unsigned char G[] = { 2 };
  * Variables.
  */
 static Bignum x, e, p, q, qmask, g;
-static int need_to_free_pg;
 
 /*
  * Common DH initialisation.
@@ -116,7 +115,7 @@ Bignum dh_create_e(int nbits)
 	} else {
 	    int b, nb;
 	    x = bn_power_2(nbits);
-	    nb = 0;
+	    b = nb = 0;
 	    for (i = 0; i < nbits; i++) {
 		if (nb == 0) {
 		    nb = 8;
