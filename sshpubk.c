@@ -835,7 +835,8 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     sfree(public_blob);
     sfree(private_blob);
     sfree(encryption);
-    *errorstr = NULL;
+    if (errorstr)
+	*errorstr = NULL;
     return ret;
 
     /*
