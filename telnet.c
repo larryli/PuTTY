@@ -955,6 +955,29 @@ static void telnet_special(void *handle, Telnet_Special code)
     }
 }
 
+static const struct telnet_special *telnet_get_specials(void *handle)
+{
+    static const struct telnet_special specials[] = {
+	{"Are You There", TS_AYT},
+	{"Break", TS_BRK},
+	{"Synch", TS_SYNCH},
+	{"Erase Character", TS_EC},
+	{"Erase Line", TS_EL},
+	{"Go Ahead", TS_GA},
+	{"No Operation", TS_NOP},
+	{"", 0},
+	{"Abort Process", TS_ABORT},
+	{"Abort Output", TS_AO},
+	{"Interrupt Process", TS_IP},
+	{"Suspend Process", TS_SUSP},
+	{"", 0},
+	{"End Of Record", TS_EOR},
+	{"End Of File", TS_EOF},
+	{NULL, 0}
+    };
+    return specials;
+}
+
 static Socket telnet_socket(void *handle)
 {
     Telnet telnet = (Telnet) handle;
@@ -1012,6 +1035,7 @@ Backend telnet_backend = {
     telnet_sendbuffer,
     telnet_size,
     telnet_special,
+    telnet_get_specials,
     telnet_socket,
     telnet_exitcode,
     telnet_sendok,

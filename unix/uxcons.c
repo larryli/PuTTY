@@ -29,6 +29,10 @@ void cleanup_exit(int code)
     exit(code);
 }
 
+void update_specials_menu(void *frontend)
+{
+}
+
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {

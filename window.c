@@ -37,19 +37,6 @@
 #define IDM_RECONF    0x0040
 #define IDM_CLRSB     0x0050
 #define IDM_RESET     0x0060
-#define IDM_TEL_AYT   0x0070
-#define IDM_TEL_BRK   0x0080
-#define IDM_TEL_SYNCH 0x0090
-#define IDM_TEL_EC    0x00a0
-#define IDM_TEL_EL    0x00b0
-#define IDM_TEL_GA    0x00c0
-#define IDM_TEL_NOP   0x00d0
-#define IDM_TEL_ABORT 0x00e0
-#define IDM_TEL_AO    0x00f0
-#define IDM_TEL_IP    0x0100
-#define IDM_TEL_SUSP  0x0110
-#define IDM_TEL_EOR   0x0120
-#define IDM_TEL_EOF   0x0130
 #define IDM_HELP      0x0140
 #define IDM_ABOUT     0x0150
 #define IDM_SAVEDSESS 0x0160
@@ -59,6 +46,10 @@
 #define IDM_SESSLGP   0x0250	       /* log type printable */
 #define IDM_SESSLGA   0x0260	       /* log type all chars */
 #define IDM_SESSLGE   0x0270	       /* log end */
+
+#define IDM_SPECIAL_MIN 0x0400
+#define IDM_SPECIAL_MAX 0x0800
+
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x2000
 
@@ -123,6 +114,9 @@ static void *backhandle;
 
 static struct unicode_data ucsdata;
 static int session_closed;
+
+static const struct telnet_special *specials;
+static int specials_menu_position;
 
 Config cfg;			       /* exported to windlg.c */
 
@@ -675,32 +669,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     {
 	HMENU m = GetSystemMenu(hwnd, FALSE);
-	HMENU p, s;
+	HMENU s;
 	int i;
 
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
-	if (cfg.protocol == PROT_TELNET) {
-	    p = CreateMenu();
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_AYT, "Are You There");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_BRK, "Break");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_SYNCH, "Synch");
-	    AppendMenu(p, MF_SEPARATOR, 0, 0);
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_EC, "Erase Character");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_EL, "Erase Line");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_GA, "Go Ahead");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_NOP, "No Operation");
-	    AppendMenu(p, MF_SEPARATOR, 0, 0);
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_ABORT, "Abort Process");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_AO, "Abort Output");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_IP, "Interrupt Process");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_SUSP, "Suspend Process");
-	    AppendMenu(p, MF_SEPARATOR, 0, 0);
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_EOR, "End Of Record");
-	    AppendMenu(p, MF_ENABLED, IDM_TEL_EOF, "End Of File");
-	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) p,
-		       "Telnet Command");
-	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	}
+	specials_menu_position = GetMenuItemCount(m);
+	debug(("specials_menu_position = %d\n", specials_menu_position));
 	AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
 	AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
@@ -726,6 +700,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
 	AppendMenu(m, MF_ENABLED, IDM_ABOUT, "&About PuTTY");
     }
+
+    update_specials_menu(NULL);
 
     /*
      * Set up the initial input locale.
@@ -885,6 +861,37 @@ char *do_select(SOCKET skt, int startup)
 	}
     }
     return NULL;
+}
+
+/*
+ * Update the Special Commands submenu.
+ */
+void update_specials_menu(void *frontend)
+{
+    HMENU m = GetSystemMenu(hwnd, FALSE);
+    int menu_already_exists = (specials != NULL);
+    int i;
+
+    specials = back->get_specials(backhandle);
+    if (specials) {
+	HMENU p = CreateMenu();
+	for (i = 0; specials[i].name; i++) {
+	    assert(IDM_SPECIAL_MIN + 0x10 * i < IDM_SPECIAL_MAX);
+	    if (*specials[i].name)
+		AppendMenu(p, MF_ENABLED, IDM_SPECIAL_MIN + 0x10 * i,
+			   specials[i].name);
+	    else
+		AppendMenu(p, MF_SEPARATOR, 0, 0);
+	}
+	if (menu_already_exists)
+	    DeleteMenu(m, specials_menu_position, MF_BYPOSITION);
+	else
+	    InsertMenu(m, specials_menu_position,
+		       MF_BYPOSITION | MF_SEPARATOR, 0, 0);
+	InsertMenu(m, specials_menu_position,
+		   MF_BYPOSITION | MF_POPUP | MF_ENABLED,
+		   (UINT) p, "Special Command");
+    }
 }
 
 /*
@@ -1906,58 +1913,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    term_pwron(term);
 	    ldisc_send(ldisc, NULL, 0, 0);
 	    break;
-	  case IDM_TEL_AYT:
-	    back->special(backhandle, TS_AYT);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_BRK:
-	    back->special(backhandle, TS_BRK);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_SYNCH:
-	    back->special(backhandle, TS_SYNCH);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_EC:
-	    back->special(backhandle, TS_EC);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_EL:
-	    back->special(backhandle, TS_EL);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_GA:
-	    back->special(backhandle, TS_GA);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_NOP:
-	    back->special(backhandle, TS_NOP);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_ABORT:
-	    back->special(backhandle, TS_ABORT);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_AO:
-	    back->special(backhandle, TS_AO);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_IP:
-	    back->special(backhandle, TS_IP);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_SUSP:
-	    back->special(backhandle, TS_SUSP);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_EOR:
-	    back->special(backhandle, TS_EOR);
-	    net_pending_errors();
-	    break;
-	  case IDM_TEL_EOF:
-	    back->special(backhandle, TS_EOF);
-	    net_pending_errors();
-	    break;
 	  case IDM_ABOUT:
 	    showabout(hwnd);
 	    break;
@@ -1991,6 +1946,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  default:
 	    if (wParam >= IDM_SAVED_MIN && wParam <= IDM_SAVED_MAX) {
 		SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
+	    }
+	    if (wParam >= IDM_SPECIAL_MIN && wParam <= IDM_SPECIAL_MAX) {
+		int i = (wParam - IDM_SPECIAL_MIN) / 0x10;
+		int j;
+		/*
+		 * Ensure we haven't been sent a bogus SYSCOMMAND
+		 * which would cause us to reference invalid memory
+		 * and crash. Perhaps I'm just too paranoid here.
+		 */
+		for (j = 0; j < i; j++)
+		    if (!specials || !specials[j].name)
+			break;
+		if (j == i) {
+		    back->special(backhandle, specials[i].code);
+		    net_pending_errors();
+		}
 	    }
 	}
 	break;

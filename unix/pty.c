@@ -704,6 +704,21 @@ static void pty_special(void *handle, Telnet_Special code)
     return;
 }
 
+/*
+ * Return a list of the special codes that make sense in this
+ * protocol.
+ */
+static const struct telnet_special *pty_get_specials(void *handle)
+{
+    /*
+     * Hmm. When I get round to having this actually usable, it
+     * might be quite nice to have the ability to deliver a few
+     * well chosen signals to the child process - SIGINT, SIGTERM,
+     * SIGKILL at least.
+     */
+    return NULL;
+}
+
 static Socket pty_socket(void *handle)
 {
     return NULL;		       /* shouldn't ever be needed */
@@ -750,6 +765,7 @@ Backend pty_backend = {
     pty_sendbuffer,
     pty_size,
     pty_special,
+    pty_get_specials,
     pty_socket,
     pty_exitcode,
     pty_sendok,

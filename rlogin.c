@@ -248,6 +248,15 @@ static void rlogin_special(void *handle, Telnet_Special code)
     return;
 }
 
+/*
+ * Return a list of the special codes that make sense in this
+ * protocol.
+ */
+static const struct telnet_special *rlogin_get_specials(void *handle)
+{
+    return NULL;
+}
+
 static Socket rlogin_socket(void *handle)
 {
     Rlogin rlogin = (Rlogin) handle;
@@ -300,6 +309,7 @@ Backend rlogin_backend = {
     rlogin_sendbuffer,
     rlogin_size,
     rlogin_special,
+    rlogin_get_specials,
     rlogin_socket,
     rlogin_exitcode,
     rlogin_sendok,

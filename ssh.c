@@ -1983,6 +1983,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	ssh->version = 1;
 	ssh->s_rdpkt = ssh1_rdpkt;
     }
+    update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
 
     sfree(s->vstring);
@@ -5967,6 +5968,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh = snew(struct ssh_tag);
     ssh->cfg = *cfg;		       /* STRUCTURE COPY */
+    ssh->version = 0;		       /* when not ready yet */
     ssh->s = NULL;
     ssh->cipher = NULL;
     ssh->v1_cipher_ctx = NULL;
@@ -6213,6 +6215,31 @@ static void ssh_size(void *handle, int width, int height)
 }
 
 /*
+ * Return a list of the special codes that make sense in this
+ * protocol.
+ */
+static const struct telnet_special *ssh_get_specials(void *handle)
+{
+    Ssh ssh = (Ssh) handle;
+
+    if (ssh->version == 1) {
+	static const struct telnet_special ssh1_specials[] = {
+	    {"IGNORE message", TS_NOP},
+	    {NULL, 0}
+	};
+	return ssh1_specials;
+    } else if (ssh->version == 2) {
+	static const struct telnet_special ssh2_specials[] = {
+	    {"Break", TS_BRK},
+	    {"IGNORE message", TS_NOP},
+	    {NULL, 0}
+	};
+	return ssh2_specials;
+    } else
+	return NULL;
+}
+
+/*
  * Send Telnet special codes. TS_EOF is useful for `plink', so you
  * can send an EOF and collect resulting output (e.g. `plink
  * hostname sort').
@@ -6239,7 +6266,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    ssh2_pkt_send(ssh);
 	}
 	logevent("Sent EOF message");
-    } else if (code == TS_PING) {
+    } else if (code == TS_PING || code == TS_NOP) {
 	if (ssh->state == SSH_STATE_CLOSED
 	    || ssh->state == SSH_STATE_PREPACKET) return;
 	if (ssh->version == 1) {
@@ -6248,6 +6275,19 @@ static void ssh_special(void *handle, Telnet_Special code)
 	} else {
 	    ssh2_pkt_init(ssh, SSH2_MSG_IGNORE);
 	    ssh2_pkt_addstring_start(ssh);
+	    ssh2_pkt_send(ssh);
+	}
+    } else if (code == TS_BRK) {
+	if (ssh->state == SSH_STATE_CLOSED
+	    || ssh->state == SSH_STATE_PREPACKET) return;
+	if (ssh->version == 1) {
+	    logevent("Unable to send BREAK signal in SSH1");
+	} else {
+	    ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_REQUEST);
+	    ssh2_pkt_adduint32(ssh, ssh->mainchan->remoteid);
+	    ssh2_pkt_addstring(ssh, "break");
+	    ssh2_pkt_addbool(ssh, 0);
+	    ssh2_pkt_adduint32(ssh, 0);   /* default break length */
 	    ssh2_pkt_send(ssh);
 	}
     } else {
@@ -6390,6 +6430,7 @@ Backend ssh_backend = {
     ssh_sendbuffer,
     ssh_size,
     ssh_special,
+    ssh_get_specials,
     ssh_socket,
     ssh_return_exitcode,
     ssh_sendok,

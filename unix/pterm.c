@@ -148,6 +148,14 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
 }
 
+void update_specials_menu(void *frontend)
+{
+    /*
+     * When I implement a context menu in pterm, I will need to
+     * support this function properly.
+     */
+}
+
 int askappend(void *frontend, Filename filename)
 {
     /*

@@ -134,6 +134,11 @@ typedef enum {
     TS_EOL
 } Telnet_Special;
 
+struct telnet_special {
+    const char *name;		       /* NULL==end, ""==separator */
+    int code;
+};
+
 typedef enum {
     MBT_NOTHING,
     MBT_LEFT, MBT_MIDDLE, MBT_RIGHT,   /* `raw' button designations */
@@ -272,6 +277,7 @@ struct backend_tag {
     int (*sendbuffer) (void *handle);
     void (*size) (void *handle, int width, int height);
     void (*special) (void *handle, Telnet_Special code);
+    const struct telnet_special *(*get_specials) (void *handle);
     Socket(*socket) (void *handle);
     int (*exitcode) (void *handle);
     int (*sendok) (void *handle);
@@ -519,6 +525,7 @@ void sys_cursor(void *frontend, int x, int y);
 void request_paste(void *frontend);
 void frontend_keypress(void *frontend);
 void ldisc_update(void *frontend, int echo, int edit);
+void update_specials_menu(void *frontend);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(void *frontend, int iconic);

@@ -181,6 +181,15 @@ static void raw_special(void *handle, Telnet_Special code)
     return;
 }
 
+/*
+ * Return a list of the special codes that make sense in this
+ * protocol.
+ */
+static const struct telnet_special *raw_get_specials(void *handle)
+{
+    return NULL;
+}
+
 static Socket raw_socket(void *handle)
 {
     Raw raw = (Raw) handle;
@@ -233,6 +242,7 @@ Backend raw_backend = {
     raw_sendbuffer,
     raw_size,
     raw_special,
+    raw_get_specials,
     raw_socket,
     raw_exitcode,
     raw_sendok,

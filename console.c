@@ -137,6 +137,10 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     }
 }
 
+void update_specials_menu(void *frontend)
+{
+}
+
 /*
  * Ask whether the selected cipher is acceptable (since it was
  * below the configured 'warn' threshold).
