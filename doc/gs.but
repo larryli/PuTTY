@@ -1,4 +1,4 @@
-\versionid $Id: gs.but,v 1.8 2004/09/17 14:26:39 jacob Exp $
+\versionid $Id: gs.but,v 1.9 2004/10/24 16:24:58 jacob Exp $
 
 \C{gs} Getting started with PuTTY
 
@@ -52,7 +52,7 @@ will probably see a message looking something like this:
 \c The server's host key is not cached in the registry. You
 \c have no guarantee that the server is the computer you
 \c think it is.
-\c The server's key fingerprint is:
+\c The server's rsa2 key fingerprint is:
 \c ssh-rsa 1024 7b:e5:6f:a7:f4:f9:81:62:5c:e3:1f:bf:8b:57:6c:5a
 \c If you trust this host, hit Yes to add the key to
 \c PuTTY's cache and carry on connecting.
@@ -117,10 +117,9 @@ give you several chances to get it right.
 
 If you are using SSH, be careful not to type your username wrongly,
 because you will not have a chance to correct it after you press
-Return. This is an unfortunate feature of the SSH protocol: it does
-not allow you to make two login attempts using \i{different
-usernames}. If you type your username wrongly, you must close PuTTY
-and start again.
+Return; many SSH servers do not permit you to make two login attempts
+using \i{different usernames}. If you type your username wrongly, you
+must close PuTTY and start again.
 
 If your password is refused but you are sure you have typed it
 correctly, check that Caps Lock is not enabled. Many login servers,
