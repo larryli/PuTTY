@@ -62,6 +62,7 @@ void noise_get_heavy(void (*func) (void *, int))
     pclose(fp);
 
     read_random_seed(func);
+    random_save_seed();
 }
 
 void random_save_seed(void)
@@ -72,6 +73,7 @@ void random_save_seed(void)
     if (random_active) {
 	random_get_savedata(&data, &len);
 	write_random_seed(data, len);
+	sfree(data);
     }
 }
 

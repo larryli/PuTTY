@@ -318,13 +318,18 @@ void write_random_seed(void *data, int len)
     char fname[FILENAME_MAX];
 
     make_filename(fname, INDEX_RANDSEED);
-    fd = open(fname, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+    /*
+     * Don't truncate the random seed file if it already exists; if
+     * something goes wrong half way through writing it, it would
+     * be better to leave the old data there than to leave it empty.
+     */
+    fd = open(fname, O_CREAT | O_WRONLY, 0600);
     if (fd < 0) {
 	char dir[FILENAME_MAX];
 
 	make_filename(dir, INDEX_DIR);
 	mkdir(dir, 0700);
-	fd = open(fname, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+	fd = open(fname, O_CREAT | O_WRONLY, 0600);
     }
 
     while (len > 0) {

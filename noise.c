@@ -40,6 +40,8 @@ void noise_get_heavy(void (*func) (void *, int))
     }
 
     read_random_seed(func);
+    /* Update the seed immediately, in case another instance uses it. */
+    random_save_seed();
 
     gsps = NULL;
     mod = GetModuleHandle("KERNEL32");
@@ -56,6 +58,7 @@ void random_save_seed(void)
     if (random_active) {
 	random_get_savedata(&data, &len);
 	write_random_seed(data, len);
+	sfree(data);
     }
 }
 
