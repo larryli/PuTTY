@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.69 2003/09/26 13:04:56 jacob Exp $
+\versionid $Id: config.but,v 1.70 2003/10/08 20:09:55 owen Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1848,10 +1848,10 @@ separate configuration of the preference orders. As a result you may
 get two warnings similar to the one above, possibly with different
 encryptions.
 
-Single-DES is not supported natively in the SSH 2 draft protocol
-standards. One or two server implementations do support it, by a
-non-standard name. PuTTY can use single-DES to interoperate with
-these servers if you enable the \q{Enable non-standard single-DES in
+Single-DES is not recommended in the SSH 2 draft protocol
+standards, but one or two server implementations do support it.
+PuTTY can use single-DES to interoperate with
+these servers if you enable the \q{Enable legacy use of single-DES in
 SSH 2} option; by default this is disabled and PuTTY will stick to
 the standard.
 

@@ -1494,7 +1494,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  cipherlist_handler, P(NULL));
 	c->listbox.height = 6;
 	
-	ctrl_checkbox(s, "Enable non-standard use of single-DES in SSH 2", 'i',
+	ctrl_checkbox(s, "Enable legacy use of single-DES in SSH 2", 'i',
 		      HELPCTX(ssh_ciphers),
 		      dlg_stdcheckbox_handler,
 		      I(offsetof(Config,ssh2_des_cbc)));
