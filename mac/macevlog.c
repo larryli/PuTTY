@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.5 2003/02/23 13:00:38 ben Exp $ */
+/* $Id: macevlog.c,v 1.6 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -58,7 +58,7 @@ static void mac_createeventlog(Session *s)
     WinInfo *wi;
 
     s->eventlog_window = GetNewWindow(wEventLog, NULL, (WindowPtr)-1);
-    wi = smalloc(sizeof(*wi));
+    wi = snew(WinInfo);
     memset(wi, 0, sizeof(*wi));
     wi->s = s;
     wi->wtype = wEventLog;

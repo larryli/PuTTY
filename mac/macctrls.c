@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.20 2003/03/29 22:04:21 ben Exp $ */
+/* $Id: macctrls.c,v 1.21 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -223,7 +223,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     for (i = 1; i < cb->nctrlsets; i++)
 	if (strcmp(cb->ctrlsets[i]->pathname, cb->ctrlsets[i-1]->pathname))
 	    mcs->npanels++;
-    mcs->panels = smalloc(sizeof(*mcs->panels) * mcs->npanels);
+    mcs->panels = snewn(mcs->npanels, union macctrl *);
     memset(mcs->panels, 0, sizeof(*mcs->panels) * mcs->npanels);
     curstate.panelnum = 0;
     for (i = 0; i < cb->nctrlsets; i++) {
@@ -379,7 +379,7 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 			 struct mac_layoutstate *curstate,
 			 union control *ctrl)
 {
-    union macctrl *mc = smalloc(sizeof *mc);
+    union macctrl *mc = snew(union macctrl);
     Rect bounds;
     SInt16 height;
 
@@ -426,7 +426,7 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 			    struct mac_layoutstate *curstate,
 			    union control *ctrl)
 {
-    union macctrl *mc = smalloc(sizeof *mc);
+    union macctrl *mc = snew(union macctrl);
     Rect lbounds, bounds;
 
     fprintf(stderr, "    label = %s\n", ctrl->editbox.label);
@@ -553,7 +553,7 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
 			  union control *ctrl)
 {
-    union macctrl *mc = smalloc(sizeof *mc);
+    union macctrl *mc = snew(union macctrl);
     Rect bounds;
     Str255 title;
     unsigned int i, colwidth;
@@ -562,8 +562,7 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
     mc->generic.type = MACCTRL_RADIO;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
-    mc->radio.tbctrls =
-	smalloc(sizeof(*mc->radio.tbctrls) * ctrl->radio.nbuttons);
+    mc->radio.tbctrls = snewn(ctrl->radio.nbuttons, ControlRef);
     colwidth = (curstate->width + 13) /	ctrl->radio.ncolumns;
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 16;
@@ -611,7 +610,7 @@ static void macctrl_checkbox(struct macctrls *mcs, WindowPtr window,
 			     struct mac_layoutstate *curstate,
 			     union control *ctrl)
 {
-    union macctrl *mc = smalloc(sizeof *mc);
+    union macctrl *mc = snew(union macctrl);
     Rect bounds;
     Str255 title;
 
@@ -637,7 +636,7 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 			   struct mac_layoutstate *curstate,
 			   union control *ctrl)
 {
-    union macctrl *mc = smalloc(sizeof *mc);
+    union macctrl *mc = snew(union macctrl);
     Rect bounds;
     Str255 title;
 
@@ -723,7 +722,7 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
 			  union control *ctrl)
 {
-    union macctrl *mc = smalloc(sizeof *mc);
+    union macctrl *mc = snew(union macctrl);
     Rect bounds;
     Str255 title;
     unsigned int labelwidth;
@@ -1299,8 +1298,7 @@ static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
     index = CountMenuItems(menu) - 1;
     if (mc->popup.nids <= index) {
 	mc->popup.nids = index + 1;
-	mc->popup.ids = srealloc(mc->popup.ids,
-				 mc->popup.nids * sizeof(*mc->popup.ids));
+	mc->popup.ids = sresize(mc->popup.ids, mc->popup.nids, int);
     }
     mc->popup.ids[index] = id;
 }

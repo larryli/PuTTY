@@ -81,7 +81,7 @@ void ot_cleanup(void)
 
 SockAddr ot_namelookup(char const *host, char **canonicalname)
 {
-    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    SockAddr ret = snew(struct SockAddr_tag);
     char *realhost;
 
     /* Casting away const -- hope OTInetStringToAddress is sensible */
@@ -93,14 +93,14 @@ SockAddr ot_namelookup(char const *host, char **canonicalname)
 	realhost = ret->hostinfo.name;
     else
 	realhost = "";
-    *canonicalname = smalloc(1+strlen(realhost));
+    *canonicalname = snewn(1+strlen(realhost), char);
     strcpy(*canonicalname, realhost);
     return ret;
 }
 
 SockAddr ot_nonamelookup(char const *host)
 {
-    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    SockAddr ret = snew(struct SockAddr_tag);
     
     ret->resolved = FALSE;
     ret->error = kOTNoError;
@@ -205,7 +205,7 @@ Socket ot_register(void *sock, Plug plug)
     
     Actual_Socket ret;
 
-    ret = smalloc(sizeof(struct Socket_tag));
+    ret = snew(struct Socket_tag);
     ret->fn = &fn_table;
     ret->error = kOTNoError;
     ret->plug = plug;
@@ -254,7 +254,7 @@ Socket ot_new(SockAddr addr, int port, int privport, int oobinline,
     InetAddress dest;
     TCall connectCall;
 
-    ret = smalloc(sizeof(struct Socket_tag));
+    ret = snew(struct Socket_tag);
     ret->fn = &fn_table;
     ret->error = kOTNoError;
     ret->plug = plug;

@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.16 2003/03/25 23:18:59 ben Exp $ */
+/* $Id: macdlg.c,v 1.17 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -54,7 +54,7 @@ void mac_newsession(void)
     WinInfo *wi;
     static struct sesslist sesslist;
 
-    s = smalloc(sizeof(*s));
+    s = snew(Session);
     memset(s, 0, sizeof(*s));
     do_defaults(NULL, &s->cfg);
     s->hasfile = FALSE;
@@ -71,7 +71,7 @@ void mac_newsession(void)
     s->settings_ctrls.data = &s->cfg;
     macctrl_layoutbox(s->ctrlbox, s->settings_window, &s->settings_ctrls);
 
-    wi = smalloc(sizeof(*wi));
+    wi = snew(WinInfo);
     memset(wi, 0, sizeof(*wi));
     wi->s = s;
     wi->mcs = &s->settings_ctrls;
@@ -102,7 +102,7 @@ void mac_dupsession(void)
     Session *s1 = mac_windowsession(FrontWindow());
     Session *s2;
 
-    s2 = smalloc(sizeof(*s2));
+    s2 = snew(Session);
     memset(s2, 0, sizeof(*s2));
     s2->cfg = s1->cfg;
     s2->hasfile = s1->hasfile;
@@ -118,7 +118,7 @@ static OSErr mac_opensessionfrom(FSSpec *fss)
     void *sesshandle;
     OSErr err;
 
-    s = smalloc(sizeof(*s));
+    s = snew(Session);
     memset(s, 0, sizeof(*s));
 
     err = FSpGetFInfo(fss, &fi);

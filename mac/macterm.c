@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.71 2003/02/15 16:22:15 ben Exp $ */
+/* $Id: macterm.c,v 1.72 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -129,7 +129,7 @@ void mac_startsession(Session *s)
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);
     else
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
-    wi = smalloc(sizeof(*wi));
+    wi = snew(WinInfo);
     memset(wi, 0, sizeof(*wi));
     wi->s = s;
     wi->wtype = wTerminal;
@@ -629,7 +629,7 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
 	if (data[i] == 0x2028)
 	    data[i] = 0x000d;
 
-    mactextbuf = smalloc(len); /* XXX DBCS */
+    mactextbuf = snewn(len, char); /* XXX DBCS */
     if (s->uni_to_font != NULL) {
 	err = ConvertFromUnicodeToText(s->uni_to_font, len * sizeof(UniChar),
 				       (UniChar *)data,
@@ -702,7 +702,7 @@ void get_clip(void *frontend, wchar_t **p, int *lenp)
 	    texth = NewHandle(0);
 	    textlen = GetScrap(texth, kScrapFlavorTypeText, &offset);
 	    HLock(texth);
-	    data = smalloc(textlen * 2);
+	    data = snewn(textlen, wchar_t);
 	    /* XXX should use 'styl' scrap if it's there. */
 	    if (mac_gestalts.encvvers != 0 &&
 		UpgradeScriptInfoToTextEncoding(smSystemScript,

@@ -1,4 +1,4 @@
-/* $Id: macmisc.c,v 1.2 2003/02/20 22:31:52 ben Exp $ */
+/* $Id: macmisc.c,v 1.3 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -119,7 +119,7 @@ const char *filename_to_str(const Filename *fn)
     char *newpath;
 
     if (path != NULL) sfree(path);
-    path = smalloc(fn->fss.name[0]);
+    path = snewn(fn->fss.name[0], char);
     p2cstrcpy(path, fn->fss.name);
     pb.dirInfo.ioNamePtr = dirname;
     pb.dirInfo.ioVRefNum = fn->fss.vRefNum;
@@ -130,7 +130,7 @@ const char *filename_to_str(const Filename *fn)
 	err = PBGetCatInfoSync(&pb);
 
 	/* XXX Assume not A/UX */
-	newpath = smalloc(strlen(path) + dirname[0] + 2);
+	newpath = snewn(strlen(path) + dirname[0] + 2, char);
 	p2cstrcpy(newpath, dirname);
 	strcat(newpath, ":");
 	strcat(newpath, path);

@@ -1,4 +1,4 @@
-/* $Id: macabout.c,v 1.2 2003/02/16 13:44:18 ben Exp $ */
+/* $Id: macabout.c,v 1.3 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -149,7 +149,7 @@ void mac_openabout(void)
     else {
 	windows.about =
 	    GetDialogWindow(GetNewDialog(wAbout, NULL, (WindowPtr)-1));
-	wi = smalloc(sizeof(*wi));
+	wi = snew(WinInfo);
 	memset(wi, 0, sizeof(*wi));
 	wi->wtype = wAbout;
 	wi->update = &mac_updateabout;
@@ -177,7 +177,7 @@ static void mac_openlicence(void)
 	SelectWindow(windows.licence);
     else {
 	windows.licence = GetNewWindow(wLicence, NULL, (WindowPtr)-1);
-	wi = smalloc(sizeof(*wi));
+	wi = snew(WinInfo);
 	memset(wi, 0, sizeof(*wi));
 	wi->wtype = wLicence;
 	wi->update = &mac_updatelicence;

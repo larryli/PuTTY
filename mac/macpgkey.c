@@ -1,4 +1,4 @@
-/* $Id: macpgkey.c,v 1.3 2003/02/20 22:55:09 ben Exp $ */
+/* $Id: macpgkey.c,v 1.4 2003/03/29 23:07:55 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * Copyright (c) 1997-2003 Simon Tatham
@@ -123,7 +123,7 @@ static void mac_clickkey(WindowPtr window, EventRecord *event)
 	switch (item) {
 	  case wiKeyGenerate:
 	    SetControlMaximum(ks->progress, 1024);
-	    ks->entropy = smalloc(1024 * sizeof(*ks->entropy));
+	    ks->entropy = snewn(1024, long);
 	    ks->entropy_required = 1024;
 	    ks->entropy_got = 0;
 	    ks->collecting_entropy = TRUE;
@@ -174,11 +174,11 @@ void mac_newkey(void)
     short type;
     Rect rect;
 
-    ks = smalloc(sizeof(*ks));
+    ks = snew(KeyState);
     ks->box = GetNewDialog(wKey, NULL, (WindowPtr)-1);
     GetDialogItem(ks->box, wiKeyProgress, &type, &h, &rect);
     ks->progress = (ControlHandle)h;
-    wi = smalloc(sizeof(*wi));
+    wi = snew(WinInfo);
     memset(wi, 0, sizeof(*wi));
     wi->ks = ks;
     wi->wtype = wKey;

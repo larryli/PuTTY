@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.17 2003/03/27 22:46:28 ben Exp $ */
+/* $Id: macstore.c,v 1.18 2003/03/29 23:07:55 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -149,7 +149,7 @@ void *open_settings_w_fsp(FSSpec *dstfile)
     OSErr error;
     Str255 tmpname;
 
-    ws = smalloc(sizeof *ws);
+    ws = snew(struct write_settings);
     ws->dstfile = *dstfile;
 
     /* Create a temporary file to save to first. */
@@ -278,7 +278,7 @@ void *open_settings_r_fsp(FSSpec *sessfile)
     fd = FSpOpenResFile(sessfile, fsRdPerm);
     if (fd == 0) {error = ResError(); goto out;}
 
-    handle = smalloc(sizeof *handle);
+    handle = snew(int);
     *handle = fd;
     return handle;
 

@@ -275,7 +275,7 @@ static ResultUPP mactcp_lookupdone_upp;
 
 SockAddr mactcp_namelookup(char const *host, char **canonicalname)
 {
-    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    SockAddr ret = snew(struct SockAddr_tag);
     OSErr err;
     volatile int done = FALSE;
     char *realhost;
@@ -305,7 +305,7 @@ SockAddr mactcp_namelookup(char const *host, char **canonicalname)
 	    realhost[realhostlen - 1] = '\0';
     } else
 	realhost = "";
-    *canonicalname = smalloc(1+strlen(realhost));
+    *canonicalname = snewn(1 + strlen(realhost), char);
     strcpy(*canonicalname, realhost);
     return ret;
 }
@@ -319,7 +319,7 @@ static pascal void mactcp_lookupdone(struct hostInfo *hi, char *cookie)
 
 SockAddr mactcp_nonamelookup(char const *host)
 {
-    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    SockAddr ret = snew(struct SockAddr_tag);
 
     ret->resolved = FALSE;
     ret->hostinfo.rtnCode = noErr;
@@ -432,7 +432,7 @@ Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
     /*
      * Create Socket structure.
      */
-    ret = smalloc(sizeof(struct Socket_tag));
+    ret = snew(struct Socket_tag);
     ret->s = 0;
     ret->fn = &fn_table;
     ret->err = noErr;
@@ -473,7 +473,7 @@ Socket mactcp_new(SockAddr addr, int port, int privport, int oobinline,
     GetCurrentProcess(&mactcp.self);
     pb.ioCRefNum = mactcp.refnum;
     pb.csCode = TCPCreate;
-    pb.csParam.create.rcvBuff = smalloc(buflen);
+    pb.csParam.create.rcvBuff = snewn(buflen, char);
     pb.csParam.create.rcvBuffLen = buflen;
     pb.csParam.create.notifyProc = mactcp_asr_upp;
     pb.csParam.create.userDataPtr = (Ptr)ret;
