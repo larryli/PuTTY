@@ -2000,8 +2000,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Main message loop.
      */
     while (GetMessage(&msg, NULL, 0, 0) == 1) {
-	TranslateMessage(&msg);
-	DispatchMessage(&msg);
+	if (!(IsWindow(keylist) && IsDialogMessage(keylist, &msg)) &&
+	    !(IsWindow(aboutbox) && IsDialogMessage(aboutbox, &msg))) {
+	    TranslateMessage(&msg);
+	    DispatchMessage(&msg);
+	}
     }
 
     /* Clean up the system tray icon */
