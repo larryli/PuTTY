@@ -590,8 +590,14 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    /* get the status line */
 	    len = bufchain_size(&p->pending_input_data);
 	    assert(len > 0);	       /* or we wouldn't be here */
-	    data = snewn(len, char);
+	    data = snewn(len+1, char);
 	    bufchain_fetch(&p->pending_input_data, data, len);
+	    /*
+	     * We must NUL-terminate this data, because Windows
+	     * sscanf appears to require a NUL at the end of the
+	     * string because it strlens it _first_. Sigh.
+	     */
+	    data[len] = '\0';
 
 	    eol = get_line_end(data, len);
 	    if (eol < 0) {
