@@ -1183,6 +1183,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		cfg.height = rows;
 		old_fwidth = font_width;
 		old_fheight = font_height;
+                GetWindowText(hwnd, cfg.wintitle, sizeof(cfg.wintitle));
 
                 if (!do_reconfig(hwnd))
                     break;
@@ -1282,6 +1283,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 				  SWP_NOACTIVATE | SWP_NOCOPYBITS |
 				  SWP_NOMOVE | SWP_NOZORDER);
 		}
+                set_title(cfg.wintitle);
                 if (IsIconic(hwnd)) {
                     SetWindowText (hwnd,
                                    cfg.win_name_always ? window_name : icon_name);

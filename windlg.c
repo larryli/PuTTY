@@ -844,10 +844,9 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             endbox(&cp);
             beginbox(&cp, "Adjust the use of the window title",
                      IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3);
-	    if (dlgtype == 0)
-		multiedit(&cp,
-			  "Initial window &title:", IDC_WINTITLE,
-			  IDC_WINEDIT, 100, NULL);
+            multiedit(&cp,
+                      "Window &title:", IDC_WINTITLE,
+                      IDC_WINEDIT, 100, NULL);
 	    checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
             endbox(&cp);
 
