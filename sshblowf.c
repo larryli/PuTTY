@@ -392,6 +392,30 @@ static void blowfish_setkey(BlowfishContext *ctx,
 #define SSH_SESSION_KEY_LENGTH	32
 static BlowfishContext ectx, dctx;
 
+static void blowfish_cskey(unsigned char *key) 
+{
+    blowfish_setkey(&ectx, key, 16);
+    logevent("Initialised Blowfish client->server encryption");
+}
+
+static void blowfish_sckey(unsigned char *key) 
+{
+    blowfish_setkey(&dctx, key, 16);
+    logevent("Initialised Blowfish server->client encryption");
+}
+
+static void blowfish_csiv(unsigned char *key) 
+{
+    ectx.iv0 = GET_32BIT_LSB_FIRST(key);
+    ectx.iv1 = GET_32BIT_LSB_FIRST(key+4);
+}
+
+static void blowfish_sciv(unsigned char *key) 
+{
+    dctx.iv0 = GET_32BIT_LSB_FIRST(key);
+    dctx.iv1 = GET_32BIT_LSB_FIRST(key+4);
+}
+
 static void blowfish_sesskey(unsigned char *key) 
 {
     blowfish_setkey(&ectx, key, SSH_SESSION_KEY_LENGTH);
@@ -413,6 +437,8 @@ static void blowfish_decrypt_blk(unsigned char *blk, int len)
 
 struct ssh_cipher ssh_blowfish = {
     blowfish_sesskey,
+    blowfish_csiv, blowfish_cskey,
+    blowfish_sciv, blowfish_sckey,
     blowfish_encrypt_blk,
     blowfish_decrypt_blk,
     "blowfish-cbc",

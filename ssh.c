@@ -104,11 +104,11 @@ extern struct ssh_mac ssh_sha1;
 
 SHA_State exhash;
 
-static void nullmac_sesskey(unsigned char *key, int len) { }
+static void nullmac_key(unsigned char *key) { }
 static void nullmac_generate(unsigned char *blk, int len, unsigned long seq) { }
 static int nullmac_verify(unsigned char *blk, int len, unsigned long seq) { return 1; }
 struct ssh_mac ssh_mac_none = {
-    nullmac_sesskey, nullmac_generate, nullmac_verify, "none", 0
+    nullmac_key, nullmac_key, nullmac_generate, nullmac_verify, "none", 0
 };
 struct ssh_mac *macs[] = { &ssh_sha1, &ssh_mac_none };
 
@@ -346,8 +346,16 @@ next_packet:
         /* FIXME */
     }
 #endif
+    debug(("Got initblk:"));
+    for (i = 0; i < cipherblk; i++)
+        debug(("  %02x", (unsigned char)pktin.data[i]));
+    debug(("\r\n"));
     if (sccipher)
         sccipher->decrypt(pktin.data, cipherblk);
+    debug(("Decrypted initblk:"));
+    for (i = 0; i < cipherblk; i++)
+        debug(("  %02x", (unsigned char)pktin.data[i]));
+    debug(("\r\n"));
 
     /*
      * Now get the length and padding figures.
@@ -392,6 +400,11 @@ next_packet:
     if (sccipher)
         sccipher->decrypt(pktin.data + cipherblk, packetlen - cipherblk);
 
+    debug(("Got packet len=%d pad=%d\r\n", len, pad));
+    for (i = 0; i < packetlen; i++)
+        debug(("  %02x", (unsigned char)pktin.data[i]));
+    debug(("\r\n"));
+
     /*
      * Check the MAC.
      */
@@ -400,12 +413,6 @@ next_packet:
 
     pktin.savedpos = 6;
     pktin.type = pktin.data[5];
-#if 0
-    debug(("Got packet len=%d pad=%d\r\n", len, pad));
-    for (i = 0; i < payload; i++)
-        debug(("  %02x", (unsigned char)pktin.data[i]));
-    debug(("\r\n"));
-#endif
 
     /*
      * FIXME: handle IGNORE and DEBUG messages.
@@ -1311,6 +1318,26 @@ int in_commasep_string(char *needle, char *haystack, int haylen) {
 }
 
 /*
+ * SSH2 key creation method.
+ */
+void ssh2_mkkey(Bignum K, char *H, char chr, char *keyspace) {
+    SHA_State s;
+    /* First 20 bytes. */
+    SHA_Init(&s);
+    sha_mpint(&s, K);
+    SHA_Bytes(&s, H, 20);
+    SHA_Bytes(&s, &chr, 1);
+    SHA_Bytes(&s, H, 20);
+    SHA_Final(&s, keyspace);
+    /* Next 20 bytes. */
+    SHA_Init(&s);
+    sha_mpint(&s, K);
+    SHA_Bytes(&s, H, 20);
+    SHA_Bytes(&s, keyspace, 20);
+    SHA_Final(&s, keyspace+20);
+}
+
+/*
  * Handle the SSH2 key exchange phase.
  */
 static int do_ssh2_kex(unsigned char *in, int inlen, int ispkt)
@@ -1327,6 +1354,7 @@ static int do_ssh2_kex(unsigned char *in, int inlen, int ispkt)
     static char *hostkeydata, *sigdata;
     static int hostkeylen, siglen;
     static unsigned char exchange_hash[20];
+    static unsigned char keyspace[40];
 
     crBegin;
 
@@ -1519,9 +1547,43 @@ static int do_ssh2_kex(unsigned char *in, int inlen, int ispkt)
     debug(("\r\n"));
 
     /*
-     * FIXME: verify hostkeydata and sigdata.
+     * FIXME: verify host key. This bit will be moderately
+     * unpleasant, because of having to rewrite it to work
+     * alongside the old scheme.
      */
-    
+
+    /*
+     * FIXME: verify signature of exchange hash.
+     */
+
+    /*
+     * Send SSH2_MSG_NEWKEYS. Expect it from server.
+     */
+    ssh2_pkt_init(SSH2_MSG_NEWKEYS);
+    ssh2_pkt_send();
+    crWaitUntil(ispkt);
+    if (pktin.type != SSH2_MSG_NEWKEYS)
+        fatalbox("expected new-keys packet from server");
+
+    /*
+     * Create and initialise session keys.
+     */
+    cscipher = cscipher_tobe;
+    sccipher = sccipher_tobe;
+    csmac = csmac_tobe;
+    scmac = scmac_tobe;
+    cscomp = cscomp_tobe;
+    sccomp = sccomp_tobe;
+    /*
+     * Set IVs after keys.
+     */
+    ssh2_mkkey(K, exchange_hash, 'C', keyspace); cscipher->setcskey(keyspace);
+    ssh2_mkkey(K, exchange_hash, 'D', keyspace); cscipher->setsckey(keyspace);
+    ssh2_mkkey(K, exchange_hash, 'A', keyspace); cscipher->setcsiv(keyspace);
+    ssh2_mkkey(K, exchange_hash, 'B', keyspace); sccipher->setsciv(keyspace);
+    ssh2_mkkey(K, exchange_hash, 'E', keyspace); csmac->setcskey(keyspace);
+    ssh2_mkkey(K, exchange_hash, 'F', keyspace); scmac->setsckey(keyspace);
+
     crWaitUntil(0);
 
     crFinish(1);

@@ -170,28 +170,39 @@ void SHA_Simple(void *p, int len, unsigned char *output) {
  * HMAC wrapper on it.
  */
 
-static SHA_State sha1_mac_s1, sha1_mac_s2;
+static SHA_State sha1_cs_mac_s1, sha1_cs_mac_s2;
+static SHA_State sha1_sc_mac_s1, sha1_sc_mac_s2;
 
-static void sha1_sesskey(unsigned char *key, int len) {
+static void sha1_key(SHA_State *s1, SHA_State *s2,
+                     unsigned char *key, int len) {
     unsigned char foo[64];
     int i;
 
     memset(foo, 0x36, 64);
     for (i = 0; i < len && i < 64; i++)
         foo[i] ^= key[i];
-    SHA_Init(&sha1_mac_s1);
-    SHA_Bytes(&sha1_mac_s1, foo, 64);
+    SHA_Init(s1);
+    SHA_Bytes(s1, foo, 64);
 
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
         foo[i] ^= key[i];
-    SHA_Init(&sha1_mac_s2);
-    SHA_Bytes(&sha1_mac_s2, foo, 64);
+    SHA_Init(s2);
+    SHA_Bytes(s2, foo, 64);
 
     memset(foo, 0, 64);                /* burn the evidence */
 }
 
-static void sha1_do_hmac(unsigned char *blk, int len, unsigned long seq,
+static void sha1_cskey(unsigned char *key) {
+    sha1_key(&sha1_cs_mac_s1, &sha1_cs_mac_s2, key, 20);
+}
+
+static void sha1_sckey(unsigned char *key) {
+    sha1_key(&sha1_sc_mac_s1, &sha1_sc_mac_s2, key, 20);
+}
+
+static void sha1_do_hmac(SHA_State *s1, SHA_State *s2,
+                         unsigned char *blk, int len, unsigned long seq,
                          unsigned char *hmac) {
     SHA_State s;
     unsigned char intermediate[20];
@@ -201,27 +212,27 @@ static void sha1_do_hmac(unsigned char *blk, int len, unsigned long seq,
     intermediate[2] = (unsigned char)((seq >>  8) & 0xFF);
     intermediate[3] = (unsigned char)((seq      ) & 0xFF);
 
-    s = sha1_mac_s1;                   /* structure copy */
+    s = *s1;                           /* structure copy */
     SHA_Bytes(&s, intermediate, 4);
     SHA_Bytes(&s, blk, len);
     SHA_Final(&s, intermediate);
-    s = sha1_mac_s2;                   /* structure copy */
+    s = *s2;                           /* structure copy */
     SHA_Bytes(&s, intermediate, 20);
     SHA_Final(&s, hmac);
 }
 
 static void sha1_generate(unsigned char *blk, int len, unsigned long seq) {
-    sha1_do_hmac(blk, len, seq, blk+len);
+    sha1_do_hmac(&sha1_cs_mac_s1, &sha1_cs_mac_s2, blk, len, seq, blk+len);
 }
 
 static int sha1_verify(unsigned char *blk, int len, unsigned long seq) {
     unsigned char correct[20];
-    sha1_do_hmac(blk, len, seq, correct);
+    sha1_do_hmac(&sha1_sc_mac_s1, &sha1_sc_mac_s2, blk, len, seq, correct);
     return !memcmp(correct, blk+len, 20);
 }
 
 struct ssh_mac ssh_sha1 = {
-    sha1_sesskey,
+    sha1_cskey, sha1_sckey,
     sha1_generate,
     sha1_verify,
     "hmac-sha1",

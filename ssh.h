@@ -73,7 +73,11 @@ void SHA_Bytes(SHA_State *s, void *p, int len);
 void SHA_Final(SHA_State *s, unsigned char *output);
 
 struct ssh_cipher {
-    void (*sesskey)(unsigned char *key);
+    void (*sesskey)(unsigned char *key);   /* for ssh 1 */
+    void (*setcsiv)(unsigned char *key);   /* for ssh 2 */
+    void (*setcskey)(unsigned char *key);   /* for ssh 2 */
+    void (*setsciv)(unsigned char *key);   /* for ssh 2 */
+    void (*setsckey)(unsigned char *key);   /* for ssh 2 */
     void (*encrypt)(unsigned char *blk, int len);
     void (*decrypt)(unsigned char *blk, int len);
     char *name;
@@ -81,7 +85,8 @@ struct ssh_cipher {
 };
 
 struct ssh_mac {
-    void (*sesskey)(unsigned char *key, int len);
+    void (*setcskey)(unsigned char *key);
+    void (*setsckey)(unsigned char *key);
     void (*generate)(unsigned char *blk, int len, unsigned long seq);
     int (*verify)(unsigned char *blk, int len, unsigned long seq);
     char *name;
