@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.7 2003/07/12 13:25:43 jacob Exp $
+\versionid $Id: errors.but,v 1.8 2004/05/20 12:48:19 simon Exp $
 
 \C{errors} Common error messages
 
@@ -188,11 +188,11 @@ panel (see \k{config-ssh-bug-derivekey2}).
 Another known server problem which can cause this error is described
 in \k{faq-openssh-bad-openssl} in the FAQ.
 
-\H{errors-x11-proxy} \q{Authentication failed at PuTTY X11 proxy}
+\H{errors-x11-proxy} \q{PuTTY X11 proxy: \e{various errors}}
 
-This error is reported when PuTTY is doing X forwarding. It is sent
-back to the X application running on the SSH server, which will
-usually report the error to the user.
+This family of errors are reported when PuTTY is doing X forwarding.
+They are sent back to the X application running on the SSH server,
+which will usually report the error to the user.
 
 When PuTTY enables X forwarding (see \k{using-x-forwarding}) it
 creates a virtual X display running on the SSH server. This display
@@ -203,10 +203,10 @@ details it needs to enable clients to connect, and the server should
 put this mechanism in place automatically, so your X applications
 should just work.
 
-A common reason why people see this message is because they used SSH
-to log in as one user (let's say \q{fred}), and then used the Unix
-\c{su} command to become another user (typically \q{root}). The
-original user, \q{fred}, has access to the X authentication data
+A common reason why people see one of these messages is because they
+used SSH to log in as one user (let's say \q{fred}), and then used
+the Unix \c{su} command to become another user (typically \q{root}).
+The original user, \q{fred}, has access to the X authentication data
 provided by the SSH server, and can run X applications which are
 forwarded over the SSH connection. However, the second user
 (\q{root}) does not automatically have the authentication data
