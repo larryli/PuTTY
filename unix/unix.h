@@ -58,6 +58,9 @@ long get_windowid(void *frontend);
 /* Things gtkdlg.c needs from pterm.c */
 void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 
+/* Things pterm.c needs from {ptermm,uxputty}.c */
+char *make_default_wintitle(char *hostname);
+
 /* Things uxstore.c needs from pterm.c */
 char *x_get_default(const char *key);
 

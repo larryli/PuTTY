@@ -2309,11 +2309,6 @@ int pt_main(int argc, char **argv)
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
-    if (inst->cfg.wintitle[0])
-	set_title(inst, inst->cfg.wintitle);
-    else
-	set_title(inst, "pterm");
-
     /*
      * Set up the colour map.
      */
@@ -2413,10 +2408,19 @@ int pt_main(int argc, char **argv)
 
     inst->back = select_backend(&inst->cfg);
     {
-	char *realhost;		       /* FIXME: don't ignore this! */
+	char *realhost;
+
 	inst->back->init((void *)inst->term, &inst->backhandle, &inst->cfg,
 			 inst->cfg.host, inst->cfg.port, &realhost,
 			 inst->cfg.tcp_nodelay);
+
+        if (inst->cfg.wintitle[0])
+            set_title(inst, inst->cfg.wintitle);
+        else {
+            char *title = make_default_wintitle(realhost);
+            set_title(inst, title);
+            sfree(title);
+        }
     }
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
 

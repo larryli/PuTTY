@@ -13,15 +13,9 @@
 /*
  * TODO:
  * 
- *  - Arrange for the window title not to be `pterm'.
- * 
  *  - Fix command-line parsing to be more PuTTYlike and not so
  *    ptermy - in particular non-option arguments should be
  *    hostname and port in the obvious way.
- * 
- *  - Session loading and saving; current thinking says the best
- *    way is to have a subdir .putty/sessions containing files
- *    whose names are actually munged saved session names.
  * 
  *  - libcharset enumeration.
  * 
@@ -148,6 +142,11 @@ int cfgbox(Config *cfg)
 {
     extern int do_config_box(const char *title, Config *cfg);
     return do_config_box("PuTTY Configuration", cfg);
+}
+
+char *make_default_wintitle(char *hostname)
+{
+    return dupcat(hostname, " - PuTTY", NULL);
 }
 
 int main(int argc, char **argv)

@@ -16,6 +16,11 @@ int cfgbox(Config *cfg)
     return 1;			       /* no-op in pterm */
 }
 
+char *make_default_wintitle(char *hostname)
+{
+    return dupstr("pterm");
+}
+
 int main(int argc, char **argv)
 {
     extern int pt_main(int argc, char **argv);
