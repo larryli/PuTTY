@@ -36,7 +36,7 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 {
     int slavefd;
     char name[FILENAME_MAX];
-    pid_t pid;
+    pid_t pid, pgrp;
 
     pty_master_fd = open("/dev/ptmx", O_RDWR);
 
@@ -58,12 +58,6 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
     name[FILENAME_MAX-1] = '\0';
     strncpy(name, ptsname(pty_master_fd), FILENAME_MAX-1);
 
-    slavefd = open(name, O_RDWR);
-    if (slavefd < 0) {
-	perror("slave pty: open");
-	exit(1);
-    }
-
     /*
      * Fork and execute the command.
      */
@@ -78,6 +72,13 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	/*
 	 * We are the child.
 	 */
+
+	slavefd = open(name, O_RDWR);
+	if (slavefd < 0) {
+	    perror("slave pty: open");
+	    exit(1);
+	}
+
 	close(pty_master_fd);
 	close(0);
 	close(1);
@@ -87,8 +88,12 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	dup2(slavefd, 1);
 	dup2(slavefd, 2);
 	setsid();
+	ioctl(slavefd, TIOCSCTTY, 1);
+	pgrp = getpid();
+	tcsetpgrp(slavefd, pgrp);
 	setpgrp();
-	tcsetpgrp(slavefd, getpgrp());
+	close(open(name, O_WRONLY, 0));
+	setpgrp();
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
