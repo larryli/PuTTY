@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.19 2001/12/11 21:00:01 simon Exp $
+\versionid $Id: config.but,v 1.20 2001/12/14 12:48:24 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1452,7 +1452,7 @@ your server supports this, you should talk to your system
 administrator about precisely what form these challenges and
 responses take.
 
-\S{config-ssh-tis} \q{Attempt keyboard-interactive authentication}
+\S{config-ssh-ki} \q{Attempt keyboard-interactive authentication}
 
 \cfg{winhelp-topic}{ssh.auth.ki}
 
@@ -1479,7 +1479,7 @@ See \k{pageant} for general information on Pageant, and
 there is a security risk involved with enabling this option; see
 \k{pageant-security} for details.
 
-\S{config-ssh-agentfwd} \q{Allow attempted changes of username in SSH2}
+\S{config-ssh-changeuser} \q{Allow attempted changes of username in SSH2}
 
 \cfg{winhelp-topic}{ssh.auth.changeuser}
 

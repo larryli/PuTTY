@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.13 2001/12/04 19:12:04 simon Exp $
+\versionid $Id: faq.but,v 1.14 2001/12/14 12:48:24 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -79,8 +79,8 @@ like a DOS box?
 
 Not in the 0.51 release, but it has been added since then.
 
-\S{faq-password}{Question} Does PuTTY have the ability to remember
-my password so I don't have to type it every time?
+\S{faq-password-remember}{Question} Does PuTTY have the ability to
+remember my password so I don't have to type it every time?
 
 No, it doesn't.
 
@@ -183,7 +183,7 @@ system.
 However, PuTTY on portable devices would clearly be a useful thing,
 so in the long term I hope there will be a WinCE port.
 
-\S{faq-mac}{Question} Will there be a port to the Mac?
+\S{faq-mac-port}{Question} Will there be a port to the Mac?
 
 A Mac port was started once and is half-finished, but development
 has been static for some time and the main PuTTY code has moved on,
@@ -389,8 +389,8 @@ of quotes in the obvious way:
 
 \H{faq-trouble} Troubleshooting
 
-\S{faq-mac}{Question} Why do I see \q{Incorrect MAC received on
-packet}?
+\S{faq-incorrect-mac}{Question} Why do I see \q{Incorrect MAC
+received on packet}?
 
 This is due to a bug in old SSH 2 servers distributed by
 \cw{ssh.com}. Version 2.3.0 and below of their SSH 2 server
@@ -572,8 +572,8 @@ to be empty (see \k{config-answerback}); but writing binary files to
 your terminal is likely to cause various other unpleasant behaviour,
 so this is only a small remedy.
 
-\S{faq-puttyputty}{Question} When I \cw{cat} a binary file, my
-window title changes to a nonsense string.
+\S{faq-wintitle}{Question} When I \cw{cat} a binary file, my window
+title changes to a nonsense string.
 
 Don't do that, then.
 
@@ -586,8 +586,8 @@ your terminal runs the risk of sending the same control sequence by
 accident, and cause unexpected changes in the window title. Don't do
 it.
 
-\S{faq-password}{Question} My keyboard stops working once PuTTY
-displays the password prompt.
+\S{faq-password-fails}{Question} My keyboard stops working once
+PuTTY displays the password prompt.
 
 No, it doesn't. PuTTY just doesn't display the password you type, so
 that someone looking at your screen can't see what it is.
