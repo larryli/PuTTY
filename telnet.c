@@ -575,6 +575,15 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
     /*
      * Initialise option states.
      */
+    if( cfg.ldisc_term )
+    {
+	struct Opt **o;
+
+	for (o = opts; *o; o++)
+	    if ((*o)->state == REQUESTED)
+		(*o)->state = INACTIVE;
+    }
+    else
     {
 	struct Opt **o;
 
@@ -666,19 +675,41 @@ static void telnet_send (char *buf, int len) {
     char *p;
     static unsigned char iac[2] = { IAC, IAC };
     static unsigned char cr[2] = { CR, NUL };
+    static unsigned char nl[2] = { CR, LF };
 
     if (s == INVALID_SOCKET)
 	return;
 
     p = buf;
-    while (p < buf+len) {
+    if (cfg.ldisc_term) {
+	while (p < buf+len) {
+	    char *q = p;
+	    unsigned char * cstr = 0;
+	    while (p < buf+len) {
+		if ((unsigned char)*p == IAC) {
+		    cstr = iac;
+		    break;
+		}
+		if (*p == '\r') {
+		    if( p+1 >= buf+len || ( p[1] != '\n' && p[1] != '\0'))
+		    {
+			cstr = cr;
+			break;
+		    }
+		}
+		p++;
+	    }
+	    if (p!=q) s_write (q, p-q);
+	    if (cstr) s_write (cstr,2), p++;
+	}
+    } else while (p < buf+len) {
 	char *q = p;
 
 	while (iswritable((unsigned char)*p) && p < buf+len) p++;
 	s_write (q, p-q);
 
 	while (p < buf+len && !iswritable((unsigned char)*p)) {
-	    s_write ((unsigned char)*p == IAC ? iac : cr, 2);
+	    s_write ((unsigned char)*p == IAC ? iac : nl, 2);
 	    p++;
 	}
     }
