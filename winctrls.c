@@ -287,6 +287,7 @@ void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...)
 	if (!btext)
 	    break;
 	bid = va_arg(ap, int);
+	nbuttons++;
     }
     va_end(ap);
     buttons = snewn(nbuttons, struct radio);
