@@ -2078,7 +2078,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    gdk_draw_rectangle(inst->pixmap, gc, 0,
 			       x*inst->font_width+inst->cfg.window_border,
 			       y*inst->font_height+inst->cfg.window_border,
-			       len*inst->font_width-1, inst->font_height-1);
+			       len*widefactor*inst->font_width-1, inst->font_height-1);
 	}
     } else {
 	int uheight;
@@ -2100,7 +2100,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    starty = y * inst->font_height + inst->cfg.window_border + uheight;
 	    dx = 1;
 	    dy = 0;
-	    length = len * char_width;
+	    length = len * widefactor * char_width;
 	} else {
 	    int xadjust = 0;
 	    if (attr & TATTR_RIGHTCURS)
