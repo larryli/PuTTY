@@ -150,6 +150,8 @@ extern int (WINAPI *p_WSAGetLastError)(void);
 extern int (WINAPI *p_WSAEnumNetworkEvents)
     (SOCKET s, WSAEVENT hEventObject, LPWSANETWORKEVENTS lpNetworkEvents);
 
+extern int socket_writable(SOCKET skt);
+
 /*
  * Exports from winctrls.c.
  */

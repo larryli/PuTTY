@@ -698,6 +698,11 @@ struct ssh_tag {
      * with at any time.
      */
     handler_fn_t packet_dispatch[256];
+
+    /*
+     * This module deals with sending keepalives.
+     */
+    Pinger pinger;
 };
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -2157,6 +2162,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     }
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
+    ssh->pinger = pinger_new(&ssh->cfg, &ssh_backend, ssh);
 
     sfree(s->vstring);
 
@@ -2216,6 +2222,7 @@ static void ssh_do_close(Ssh ssh)
     if (ssh->s) {
         sk_close(ssh->s);
         ssh->s = NULL;
+	notify_remote_exit(ssh->frontend);
     }
     /*
      * Now we must shut down any port and X forwardings going
@@ -2327,6 +2334,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 			    0, 1, nodelay, keepalive, (Plug) ssh, &ssh->cfg);
     if ((err = sk_socket_error(ssh->s)) != NULL) {
 	ssh->s = NULL;
+	notify_remote_exit(ssh->frontend);
 	return err;
     }
 
@@ -6933,6 +6941,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh->protocol_initial_phase_done = FALSE;
 
+    ssh->pinger = NULL;
+
     p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
     if (p != NULL)
 	return p;
@@ -7012,6 +7022,8 @@ static void ssh_free(void *handle)
     if (ssh->s)
 	ssh_do_close(ssh);
     sfree(ssh);
+    if (ssh->pinger)
+	pinger_free(ssh->pinger);
 }
 
 /*
@@ -7026,6 +7038,7 @@ static void ssh_free(void *handle)
 static void ssh_reconfig(void *handle, Config *cfg)
 {
     Ssh ssh = (Ssh) handle;
+    pinger_reconfig(ssh->pinger, &ssh->cfg, cfg);
     ssh->cfg = *cfg;		       /* STRUCTURE COPY */
 }
 

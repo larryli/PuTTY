@@ -40,6 +40,13 @@ GdkAtom compound_text_atom, utf8_string_atom;
 extern char **pty_argv;	       /* declared in pty.c */
 extern int use_pty_argv;
 
+/*
+ * Timers are global across all sessions (even if we were handling
+ * multiple sessions, which we aren't), so the current timer ID is
+ * a global variable.
+ */
+static guint timer_id = 0;
+
 struct gui_data {
     GtkWidget *window, *area, *sbar;
     GtkBox *hbox;
@@ -1022,7 +1029,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	show_mouseptr(inst, 0);
 	term_seen_key_event(inst->term);
-	term_out(inst->term);
     }
 
     return TRUE;
@@ -1130,9 +1136,9 @@ void frontend_keypress(void *handle)
 	exit(0);
 }
 
-gint timer_func(gpointer data)
+void notify_remote_exit(void *frontend)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    struct gui_data *inst = (struct gui_data *)frontend;
     int exitcode;
 
     if (!inst->exited &&
@@ -1153,10 +1159,40 @@ gint timer_func(gpointer data)
 	}
 	gtk_widget_show(inst->restartitem);
     }
+}
 
-    term_update(inst->term);
-    term_blink(inst->term, 0);
-    return TRUE;
+static gint timer_trigger(gpointer data)
+{
+    long now = GPOINTER_TO_INT(data);
+    long next;
+    long ticks;
+
+    if (run_timers(now, &next)) {
+	ticks = next - GETTICKCOUNT();
+	timer_id = gtk_timeout_add(ticks > 0 ? ticks : 1, timer_trigger,
+				   GINT_TO_POINTER(next));
+    }
+
+    /*
+     * Never let a timer resume. If we need another one, we've
+     * asked for it explicitly above.
+     */
+    return FALSE;
+}
+
+void timer_change_notify(long next)
+{
+    long ticks;
+
+    if (timer_id)
+	gtk_timeout_remove(timer_id);
+
+    ticks = next - GETTICKCOUNT();
+    if (ticks <= 0)
+	ticks = 1;		       /* just in case */
+
+    timer_id = gtk_timeout_add(ticks, timer_trigger,
+			       GINT_TO_POINTER(next));
 }
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
@@ -1183,7 +1219,6 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     inst->term->has_focus = event->in;
-    term_out(inst->term);
     term_update(inst->term);
     show_mouseptr(inst, 1);
     return FALSE;
@@ -3392,7 +3427,6 @@ int pt_main(int argc, char **argv)
     if (inst->cfg.scrollbar)
 	gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
 			   GTK_SIGNAL_FUNC(scrollbar_moved), inst);
-    gtk_timeout_add(20, timer_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |

@@ -474,6 +474,8 @@ int pty_select_result(int fd, int event)
 #endif
 	    from_backend(pty_frontend, 0, message, strlen(message));
 	}
+
+	notify_remote_exit(pty_frontend);
     }
     return !finished;
 }

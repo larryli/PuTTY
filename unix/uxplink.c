@@ -252,6 +252,7 @@ int main(int argc, char **argv)
     int errors;
     int use_subsystem = 0;
     void *ldisc, *logctx;
+    long now;
 
     ssh_get_line = console_get_line;
 
@@ -584,6 +585,7 @@ int main(int argc, char **argv)
     atexit(cleanup_termios);
     ldisc_update(NULL, 1, 1);
     sending = FALSE;
+    now = GETTICKCOUNT();
 
     while (1) {
 	fd_set rset, wset, xset;
@@ -644,7 +646,23 @@ int main(int argc, char **argv)
 	}
 
 	do {
-	    ret = select(maxfd, &rset, &wset, &xset, NULL);
+	    long next, ticks;
+	    struct timeval tv, *ptv;
+
+	    if (run_timers(now, &next)) {
+		ticks = next - GETTICKCOUNT();
+		if (ticks < 0) ticks = 0;   /* just in case */
+		tv.tv_sec = ticks / 1000;
+		tv.tv_usec = ticks % 1000 * 1000;
+		ptv = &tv;
+	    } else {
+		ptv = NULL;
+	    }
+	    ret = select(maxfd, &rset, &wset, &xset, ptv);
+	    if (ret == 0)
+		now = next;
+	    else
+		now = GETTICKCOUNT();
 	} while (ret < 0 && errno == EINTR);
 
 	if (ret < 0) {

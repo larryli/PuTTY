@@ -182,14 +182,15 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
 
 # Same thing on Unix.
 UXTERM   = TERMINAL pterm uxcfg gtkdlg gtkcols gtkpanel uxucs uxprint xkeysym
+         + timing
 
 # Non-SSH back ends (putty, puttytel, plink).
-NONSSH   = telnet raw rlogin ldisc
+NONSSH   = telnet raw rlogin ldisc pinger
 
 # SSH back end (putty, plink, pscp, psftp).
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
-         + sshaes sshsh512 sshbn wildcard
+         + sshaes sshsh512 sshbn wildcard pinger
 WINSSH   = SSH winnoise winpgntc
 UXSSH    = SSH uxnoise uxagentc
 MACSSH   = SSH macnoise
@@ -199,12 +200,10 @@ SFTP     = sftp int64 logging
 
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
-WINMISC  = misc version winstore settings tree234 winnet proxy cmdline
-         + windefs winmisc pproxy
-UXMISC   = misc version uxstore settings tree234 uxsel uxnet proxy cmdline
-         + uxmisc uxproxy
-MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
-         + macmisc macabout pproxy
+MISC     = timing misc version settings tree234 proxy
+WINMISC  = MISC winstore winnet cmdline windefs winmisc pproxy
+UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy
+MACMISC  = MISC macstore macnet mtcpnet otnet macmisc macabout pproxy
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc

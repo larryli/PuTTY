@@ -39,6 +39,7 @@ static int rlogin_closing(Plug plug, const char *error_msg, int error_code,
     if (rlogin->s) {
         sk_close(rlogin->s);
         rlogin->s = NULL;
+	notify_remote_exit(rlogin->frontend);
     }
     if (error_msg) {
 	/* A socket error has occurred. */

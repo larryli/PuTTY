@@ -75,21 +75,23 @@ Some ports of PuTTY - notably the in-progress Mac port - are
 constrained by the operating system to run as a single process
 potentially managing multiple sessions.
 
-Therefore, the platform-independent parts of PuTTY use \e{hardly
-any} global variables. The very few that do exist, such as
-\c{flags}, are tolerated because they are not specific to a
-particular login session: instead, they define properties that are
-expected to apply equally to \e{all} the sessions run by a single
-PuTTY process. Any data that is specific to a particular network
-session is stored in dynamically allocated data structures, and
-pointers to these structures are passed around between functions.
+Therefore, the platform-independent parts of PuTTY never use global
+variables to store per-session data. The global variables that do
+exist are tolerated because they are not specific to a particular
+login session: \c{flags} defines properties that are expected to
+apply equally to \e{all} the sessions run by a single PuTTY process,
+the random number state in \cw{sshrand.c} and the timer list in
+\cw{timing.c} serve all sessions equally, and so on. But most data
+is specific to a particular network session, and is therefore stored
+in dynamically allocated data structures, and pointers to these
+structures are passed around between functions.
 
 Platform-specific code can reverse this decision if it likes. The
 Windows code, for historical reasons, stores most of its data as
 global variables. That's OK, because \e{on Windows} we know there is
 only one session per PuTTY process, so it's safe to do that. But
 changes to the platform-independent code should avoid introducing
-any more global variables than already exist.
+global variables, unless they are genuinely cross-session.
 
 \H{udp-pure-c} C, not C++
 

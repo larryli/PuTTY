@@ -1353,6 +1353,16 @@ SOCKET next_socket(int *state)
     return s ? s->s : INVALID_SOCKET;
 }
 
+extern int socket_writable(SOCKET skt)
+{
+    Actual_Socket s = find234(sktree, (void *)skt, cmpforsearch);
+
+    if (s)
+	return bufchain_size(&s->output_data) > 0;
+    else
+	return 0;
+}
+
 int net_service_lookup(char *service)
 {
     struct servent *se;

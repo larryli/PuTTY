@@ -33,6 +33,14 @@ void cleanup_exit(int code)
     exit(code);
 }
 
+void notify_remote_exit(void *frontend)
+{
+}
+
+void timer_change_notify(long next)
+{
+}
+
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {

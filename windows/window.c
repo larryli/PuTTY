@@ -92,16 +92,11 @@ static int offset_width, offset_height;
 static int was_zoomed = 0;
 static int prev_rows, prev_cols;
   
-static int pending_netevent = 0;
-static WPARAM pend_netevent_wParam = 0;
-static LPARAM pend_netevent_lParam = 0;
-static void enact_pending_netevent(void);
+static void enact_netevent(WPARAM, LPARAM);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
 static int is_shift_pressed(void);
 static int get_fullscreen_rect(RECT * ss);
-
-static time_t last_movement = 0;
 
 static int caret_x = -1, caret_y = -1;
 
@@ -116,6 +111,9 @@ static int session_closed;
 
 static const struct telnet_special *specials;
 static int n_specials;
+
+#define TIMING_TIMER_ID 1234
+static long timing_next_time;
 
 static struct {
     HMENU menu;
@@ -776,30 +774,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     UpdateWindow(hwnd);
 
     if (GetMessage(&msg, NULL, 0, 0) == 1) {
-	int timer_id = 0, long_timer = 0;
-
 	while (msg.message != WM_QUIT) {
-	    /* Sometimes DispatchMessage calls routines that use their own
-	     * GetMessage loop, setup this timer so we get some control back.
-	     *
-	     * Also call term_update() from the timer so that if the host
-	     * is sending data flat out we still do redraws.
-	     */
-	    if (timer_id && long_timer) {
-		KillTimer(hwnd, timer_id);
-		long_timer = timer_id = 0;
-	    }
-	    if (!timer_id)
-		timer_id = SetTimer(hwnd, 1, 20, NULL);
 	    if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
 		DispatchMessage(&msg);
-
-	    /* Make sure we blink everything that needs it. */
-	    term_blink(term, 0);
-
 	    /* Send the paste buffer if there's anything to send */
 	    term_paste(term);
-
 	    /* If there's nothing new in the queue then we can do everything
 	     * we've delayed, reading the socket, writing, and repainting
 	     * the window.
@@ -807,42 +786,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		continue;
 
-	    if (pending_netevent) {
-		enact_pending_netevent();
-
-		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		    continue;
-	    }
-
-	    /* Okay there is now nothing to do so we make sure the screen is
-	     * completely up to date then tell windows to call us in a little 
-	     * while.
-	     */
-	    if (timer_id) {
-		KillTimer(hwnd, timer_id);
-		timer_id = 0;
-	    }
-	    HideCaret(hwnd);
-	    if (GetCapture() != hwnd || 
-		(send_raw_mouse &&
-		 !(cfg.mouse_override && is_shift_pressed())))
-		term_out(term);
-	    term_update(term);
-	    ShowCaret(hwnd);
-
-	    flash_window(1);	       /* maintain */
-
 	    /* The messages seem unreliable; especially if we're being tricky */
 	    term->has_focus = (GetForegroundWindow() == hwnd);
 
-	    if (term->in_vbell)
-		/* Hmm, term_update didn't want to do an update too soon ... */
-		timer_id = SetTimer(hwnd, 1, 50, NULL);
-	    else if (!term->has_focus)
-		timer_id = SetTimer(hwnd, 1, 500, NULL);
-	    else
-		timer_id = SetTimer(hwnd, 1, 100, NULL);
-	    long_timer = 1;
+	    net_pending_errors();
 
 	    /* There's no point rescanning everything in the message queue
 	     * so we do an apparently unnecessary wait here
@@ -1035,7 +982,7 @@ void cmdline_error(char *fmt, ...)
 /*
  * Actually do the job requested by a WM_NETEVENT
  */
-static void enact_pending_netevent(void)
+static void enact_netevent(WPARAM wParam, LPARAM lParam)
 {
     static int reentering = 0;
     extern int select_result(WPARAM, LPARAM);
@@ -1044,10 +991,8 @@ static void enact_pending_netevent(void)
     if (reentering)
 	return;			       /* don't unpend the pending */
 
-    pending_netevent = FALSE;
-
     reentering = 1;
-    ret = select_result(pend_netevent_wParam, pend_netevent_lParam);
+    ret = select_result(wParam, lParam);
     reentering = 0;
 
     if (ret == 0 && !session_closed) {
@@ -1795,6 +1740,17 @@ static int is_shift_pressed(void)
 
 static int resizing;
 
+void notify_remote_exit(void *fe) { /* stub not needed in this frontend */ }
+
+void timer_change_notify(long next)
+{
+    long ticks = next - GETTICKCOUNT();
+    if (ticks <= 0) ticks = 1;	       /* just in case */
+    KillTimer(hwnd, TIMING_TIMER_ID);
+    SetTimer(hwnd, TIMING_TIMER_ID, ticks, NULL);
+    timing_next_time = next;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -1806,25 +1762,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
     switch (message) {
       case WM_TIMER:
-	if (pending_netevent)
-	    enact_pending_netevent();
-	if (GetCapture() != hwnd || 
-	    (send_raw_mouse && !(cfg.mouse_override && is_shift_pressed())))
-	    term_out(term);
-	noise_regular();
-	HideCaret(hwnd);
-	term_update(term);
-	ShowCaret(hwnd);
-	if (cfg.ping_interval > 0) {
-	    time_t now;
-	    time(&now);
-	    if (now - last_movement > cfg.ping_interval) {
-		if (back)
-		    back->special(backhandle, TS_PING);
-		last_movement = now;
+	if ((UINT_PTR)wParam == TIMING_TIMER_ID) {
+	    long next;
+
+	    KillTimer(hwnd, TIMING_TIMER_ID);
+	    if (run_timers(timing_next_time, &next)) {
+		timer_change_notify(next);
+	    } else {
 	    }
 	}
-	net_pending_errors();
 	return 0;
       case WM_CREATE:
 	break;
@@ -2304,18 +2250,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_PAINT:
 	{
 	    PAINTSTRUCT p;
+
 	    HideCaret(hwnd);
 	    hdc = BeginPaint(hwnd, &p);
 	    if (pal) {
 		SelectPalette(hdc, pal, TRUE);
 		RealizePalette(hdc);
 	    }
+
 	    term_paint(term, hdc, 
 		       (p.rcPaint.left-offset_width)/font_width,
 		       (p.rcPaint.top-offset_height)/font_height,
 		       (p.rcPaint.right-offset_width-1)/font_width,
 		       (p.rcPaint.bottom-offset_height-1)/font_height,
-		       is_alt_pressed());
+		       TRUE);
 
 	    if (p.fErase ||
 	        p.rcPaint.left  < offset_width  ||
@@ -2365,20 +2313,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_NETEVENT:
-	/* Notice we can get multiple netevents, FD_READ, FD_WRITE etc
-	 * but the only one that's likely to try to overload us is FD_READ.
-	 * This means buffering just one is fine.
-	 */
-	if (pending_netevent)
-	    enact_pending_netevent();
-
-	pending_netevent = TRUE;
-	pend_netevent_wParam = wParam;
-	pend_netevent_lParam = lParam;
-	if (WSAGETSELECTEVENT(lParam) != FD_READ)
-	    enact_pending_netevent();
-
-	time(&last_movement);
+	enact_netevent(wParam, lParam);
+	net_pending_errors();
 	return 0;
       case WM_SETFOCUS:
 	term->has_focus = TRUE;
@@ -2386,7 +2322,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	ShowCaret(hwnd);
 	flash_window(0);	       /* stop */
 	compose_state = 0;
-	term_out(term);
 	term_update(term);
 	break;
       case WM_KILLFOCUS:
@@ -2394,7 +2329,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	term->has_focus = FALSE;
 	DestroyCaret();
 	caret_x = caret_y = -1;	       /* ensure caret is replaced next time */
-	term_out(term);
 	term_update(term);
 	break;
       case WM_ENTERSIZEMOVE:
@@ -4624,14 +4558,23 @@ void modalfatalbox(char *fmt, ...)
     cleanup_exit(1);
 }
 
+static void flash_window(int mode);
+static long next_flash;
+static int flashing = 0;
+
+static void flash_window_timer(void *ctx, long now)
+{
+    if (flashing && now - next_flash >= 0) {
+	flash_window(1);
+    }
+}
+
 /*
  * Manage window caption / taskbar flashing, if enabled.
  * 0 = stop, 1 = maintain, 2 = start
  */
 static void flash_window(int mode)
 {
-    static long last_flash = 0;
-    static int flashing = 0;
     if ((mode == 0) || (cfg.beep_ind == B_IND_DISABLED)) {
 	/* stop */
 	if (flashing) {
@@ -4642,20 +4585,16 @@ static void flash_window(int mode)
     } else if (mode == 2) {
 	/* start */
 	if (!flashing) {
-	    last_flash = GetTickCount();
 	    flashing = 1;
 	    FlashWindow(hwnd, TRUE);
+	    next_flash = schedule_timer(450, flash_window_timer, hwnd);
 	}
 
     } else if ((mode == 1) && (cfg.beep_ind == B_IND_FLASH)) {
 	/* maintain */
 	if (flashing) {
-	    long now = GetTickCount();
-	    long fdiff = now - last_flash;
-	    if (fdiff < 0 || fdiff > 450) {
-		last_flash = now;
-		FlashWindow(hwnd, TRUE);	/* toggle */
-	    }
+	    FlashWindow(hwnd, TRUE);	/* toggle */
+	    next_flash = schedule_timer(450, flash_window_timer, hwnd);
 	}
     }
 }

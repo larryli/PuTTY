@@ -578,6 +578,7 @@ void ldisc_update(void *frontend, int echo, int edit);
  * shutdown. */
 void update_specials_menu(void *frontend);
 int from_backend(void *frontend, int is_stderr, const char *data, int len);
+void notify_remote_exit(void *frontend);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(void *frontend, int iconic);
@@ -745,6 +746,14 @@ void random_get_savedata(void **data, int *len);
 extern int random_active;
 
 /*
+ * Exports from pinger.c.
+ */
+typedef struct pinger_tag *Pinger;
+Pinger pinger_new(Config *cfg, Backend *back, void *backhandle);
+void pinger_reconfig(Pinger, Config *oldcfg, Config *newcfg);
+void pinger_free(Pinger);
+
+/*
  * Exports from misc.c.
  */
 
@@ -894,5 +903,40 @@ int filename_equal(Filename f1, Filename f2);
 int filename_is_null(Filename fn);
 char *get_username(void);	       /* return value needs freeing */
 char *get_random_data(int bytes);      /* used in cmdgen.c */
+
+/*
+ * Exports and imports from timing.c.
+ *
+ * schedule_timer() asks the front end to schedule a callback to a
+ * timer function in a given number of ticks. The returned value is
+ * the time (in ticks since an arbitrary offset) at which the
+ * callback can be expected. This value will also be passed as the
+ * `now' parameter to the callback function. Hence, you can (for
+ * example) schedule an event at a particular time by calling
+ * schedule_timer() and storing the return value in your context
+ * structure as the time when that event is due. The first time a
+ * callback function gives you that value or more as `now', you do
+ * the thing.
+ * 
+ * expire_timer_context() drops all current timers associated with
+ * a given value of ctx (for when you're about to free ctx).
+ * 
+ * run_timers() is called from the front end when it has reason to
+ * think some timers have reached their moment, or when it simply
+ * needs to know how long to wait next. We pass it the time we
+ * think it is. It returns TRUE and places the time when the next
+ * timer needs to go off in `next', or alternatively it returns
+ * FALSE if there are no timers at all pending.
+ * 
+ * timer_change_notify() must be supplied by the front end; it
+ * notifies the front end that a new timer has been added to the
+ * list which is sooner than any existing ones. It provides the
+ * time when that timer needs to go off.
+ */
+typedef void (*timer_fn_t)(void *ctx, long now);
+long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
+void expire_timer_context(void *ctx);
+int run_timers(long now, long *next);
+void timer_change_notify(long next);
 
 #endif

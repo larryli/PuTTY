@@ -1361,15 +1361,9 @@ static int sftp_cmd_help(struct sftp_command *cmd)
 struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 {
     char *line;
-    int linelen, linesize;
     struct sftp_command *cmd;
     char *p, *q, *r;
     int quoting;
-
-    if ((mode == 0) || (modeflags & 1)) {
-	printf("psftp> ");
-    }
-    fflush(stdout);
 
     cmd = snew(struct sftp_command);
     cmd->words = NULL;
@@ -1377,29 +1371,24 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     cmd->wordssize = 0;
 
     line = NULL;
-    linesize = linelen = 0;
-    while (1) {
-	int len;
-	char *ret;
 
-	linesize += 512;
-	line = sresize(line, linesize, char);
-	ret = fgets(line + linelen, linesize - linelen, fp);
-
-	if (!ret || (linelen == 0 && line[0] == '\0')) {
-	    cmd->obey = sftp_cmd_quit;
-	    if ((mode == 0) || (modeflags & 1))
-		printf("quit\n");
-	    return cmd;		       /* eof */
-	}
-	len = linelen + strlen(line + linelen);
-	linelen += len;
-	if (line[linelen - 1] == '\n') {
-	    linelen--;
-	    line[linelen] = '\0';
-	    break;
-	}
+    if (fp) {
+	if (modeflags & 1)
+	    printf("psftp> ");
+	line = fgetline(fp);
+    } else {
+	line = ssh_sftp_get_cmdline("psftp> ");
     }
+
+    if (!line || !*line) {
+	cmd->obey = sftp_cmd_quit;
+	if ((mode == 0) || (modeflags & 1))
+	    printf("quit\n");
+	return cmd;		       /* eof */
+    }
+
+    line[strcspn(line, "\r\n")] = '\0';
+
     if (modeflags & 1) {
 	printf("%s\n", line);
     }
@@ -1464,7 +1453,8 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	}
     }
 
-	sfree(line);
+    sfree(line);
+
     /*
      * Now parse the first word and assign a function.
      */
@@ -1551,7 +1541,7 @@ void do_sftp(int mode, int modeflags, char *batchfile)
          */
         while (1) {
 	    struct sftp_command *cmd;
-	    cmd = sftp_getcmd(stdin, 0, 0);
+	    cmd = sftp_getcmd(NULL, 0, 0);
 	    if (!cmd)
 		break;
 	    ret = cmd->obey(cmd);

@@ -141,6 +141,29 @@ char *dupvprintf(const char *fmt, va_list ap)
     }
 }
 
+/*
+ * Read an entire line of text from a file. Return a buffer
+ * malloced to be as big as necessary (caller must free).
+ */
+char *fgetline(FILE *fp)
+{
+    char *ret = snewn(512, char);
+    int size = 512, len = 0;
+    while (fgets(ret + len, size - len, fp)) {
+	len += strlen(ret + len);
+	if (ret[len-1] == '\n')
+	    break;		       /* got a newline, we're done */
+	size = len + 512;
+	ret = sresize(ret, size, char);
+    }
+    if (len == 0) {		       /* first fgets returned NULL */
+	sfree(ret);
+	return NULL;
+    }
+    ret[len] = '\0';
+    return ret;
+}
+
 /* ----------------------------------------------------------------------
  * Base64 encoding routine. This is required in public-key writing
  * but also in HTTP proxy handling, so it's centralised here.

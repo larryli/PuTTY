@@ -321,55 +321,80 @@ char *dir_file_cat(char *dir, char *file)
 }
 
 /*
- * Wait for some network data and process it.
+ * Do a select() between all currently active network fds and
+ * optionally stdin.
  */
-int ssh_sftp_loop_iteration(void)
+static int ssh_sftp_do_select(int include_stdin)
 {
     fd_set rset, wset, xset;
     int i, fdcount, fdsize, *fdlist;
     int fd, fdstate, rwx, ret, maxfd;
+    long now = GETTICKCOUNT();
 
     fdlist = NULL;
     fdcount = fdsize = 0;
 
-    /* Count the currently active fds. */
-    i = 0;
-    for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	 fd = next_fd(&fdstate, &rwx)) i++;
-
-    if (i < 1)
-	return -1;		       /* doom */
-
-    /* Expand the fdlist buffer if necessary. */
-    if (i > fdsize) {
-	fdsize = i + 16;
-	fdlist = sresize(fdlist, fdsize, int);
-    }
-
-    FD_ZERO(&rset);
-    FD_ZERO(&wset);
-    FD_ZERO(&xset);
-    maxfd = 0;
-
-    /*
-     * Add all currently open fds to the select sets, and store
-     * them in fdlist as well.
-     */
-    fdcount = 0;
-    for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	 fd = next_fd(&fdstate, &rwx)) {
-	fdlist[fdcount++] = fd;
-	if (rwx & 1)
-	    FD_SET_MAX(fd, maxfd, rset);
-	if (rwx & 2)
-	    FD_SET_MAX(fd, maxfd, wset);
-	if (rwx & 4)
-	    FD_SET_MAX(fd, maxfd, xset);
-    }
-
     do {
-	ret = select(maxfd, &rset, &wset, &xset, NULL);
-    } while (ret < 0 && errno == EINTR);
+
+	/* Count the currently active fds. */
+	i = 0;
+	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+	     fd = next_fd(&fdstate, &rwx)) i++;
+
+	if (i < 1)
+	    return -1;		       /* doom */
+
+	/* Expand the fdlist buffer if necessary. */
+	if (i > fdsize) {
+	    fdsize = i + 16;
+	    fdlist = sresize(fdlist, fdsize, int);
+	}
+
+	FD_ZERO(&rset);
+	FD_ZERO(&wset);
+	FD_ZERO(&xset);
+	maxfd = 0;
+
+	/*
+	 * Add all currently open fds to the select sets, and store
+	 * them in fdlist as well.
+	 */
+	fdcount = 0;
+	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+	     fd = next_fd(&fdstate, &rwx)) {
+	    fdlist[fdcount++] = fd;
+	    if (rwx & 1)
+		FD_SET_MAX(fd, maxfd, rset);
+	    if (rwx & 2)
+		FD_SET_MAX(fd, maxfd, wset);
+	    if (rwx & 4)
+		FD_SET_MAX(fd, maxfd, xset);
+	}
+
+	if (include_stdin)
+	    FD_SET_MAX(0, maxfd, rset);
+
+	do {
+	    long next, ticks;
+	    struct timeval tv, *ptv;
+
+	    if (run_timers(now, &next)) {
+		ticks = next - GETTICKCOUNT();
+		if (ticks <= 0)
+		    ticks = 1;	       /* just in case */
+		tv.tv_sec = ticks / 1000;
+		tv.tv_usec = ticks % 1000 * 1000;
+		ptv = &tv;
+	    } else {
+		ptv = NULL;
+	    }
+	    ret = select(maxfd, &rset, &wset, &xset, ptv);
+	    if (ret == 0)
+		now = next;
+	    else
+		now = GETTICKCOUNT();
+	} while (ret < 0 && errno != EINTR);
+    } while (ret == 0);
 
     if (ret < 0) {
 	perror("select");
@@ -393,7 +418,58 @@ int ssh_sftp_loop_iteration(void)
 
     sfree(fdlist);
 
-    return 0;
+    return FD_ISSET(0, &rset) ? 1 : 0;
+}
+
+/*
+ * Wait for some network data and process it.
+ */
+int ssh_sftp_loop_iteration(void)
+{
+    return ssh_sftp_do_select(FALSE);
+}
+
+/*
+ * Read a PSFTP command line from stdin.
+ */
+char *ssh_sftp_get_cmdline(char *prompt)
+{
+    char *buf;
+    int buflen, bufsize, ret;
+
+    fputs(prompt, stdout);
+    fflush(stdout);
+
+    buf = NULL;
+    buflen = bufsize = 0;
+
+    while (1) {
+	ret = ssh_sftp_do_select(TRUE);
+	if (ret < 0) {
+	    printf("connection died\n");
+	    return NULL;	       /* woop woop */
+	}
+	if (ret > 0) {
+	    if (buflen >= bufsize) {
+		bufsize = buflen + 512;
+		buf = sresize(buf, bufsize, char);
+	    }
+	    ret = read(0, buf+buflen, 1);
+	    if (ret < 0) {
+		perror("read");
+		return NULL;
+	    }
+	    if (ret == 0) {
+		/* eof on stdin; no error, but no answer either */
+		return NULL;
+	    }
+
+	    if (buf[buflen++] == '\n') {
+		/* we have a full line */
+		return buf;
+	    }
+	}
+    }
 }
 
 /*

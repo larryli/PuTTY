@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.78 2004/10/14 16:42:43 simon Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -314,7 +314,6 @@ void mac_pollterm(void)
     Session *s;
 
     for (s = sesslist; s != NULL; s = s->next) {
-	term_out(s->term);
 	term_update(s->term);
     }
 }

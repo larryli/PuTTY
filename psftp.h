@@ -33,6 +33,12 @@ void get_file_times(char *filename, unsigned long *mtime,
 int ssh_sftp_loop_iteration(void);
 
 /*
+ * Read a command line for PSFTP from standard input. Caller must
+ * free.
+ */
+char *ssh_sftp_get_cmdline(char *prompt);
+
+/*
  * The main program in psftp.c. Called from main() in the platform-
  * specific code, after doing any platform-specific initialisation.
  */

@@ -2,6 +2,8 @@
  * winsftp.c: the Windows-specific parts of PSFTP and PSCP.
  */
 
+#include <assert.h>
+
 #include "putty.h"
 #include "psftp.h"
 
@@ -461,33 +463,253 @@ char *dir_file_cat(char *dir, char *file)
  * Be told what socket we're supposed to be using.
  */
 static SOCKET sftp_ssh_socket;
+static HANDLE netevent = NULL;
 char *do_select(SOCKET skt, int startup)
 {
+    int events;
     if (startup)
 	sftp_ssh_socket = skt;
     else
 	sftp_ssh_socket = INVALID_SOCKET;
+
+    if (p_WSAEventSelect) {
+	if (startup) {
+	    events = (FD_CONNECT | FD_READ | FD_WRITE |
+		      FD_OOB | FD_CLOSE | FD_ACCEPT);
+	    netevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	} else {
+	    events = 0;
+	}
+	if (p_WSAEventSelect(skt, netevent, events) == SOCKET_ERROR) {
+	    switch (p_WSAGetLastError()) {
+	      case WSAENETDOWN:
+		return "Network is down";
+	      default:
+		return "WSAEventSelect(): unknown error";
+	    }
+	}
+    }
     return NULL;
 }
 extern int select_result(WPARAM, LPARAM);
 
+int do_eventsel_loop(HANDLE other_event)
+{
+    int n;
+    long next, ticks;
+    HANDLE handles[2];
+    SOCKET *sklist;
+    int skcount;
+    long now = GETTICKCOUNT();
+
+    if (!netevent) {
+	return -1;		       /* doom */
+    }
+
+    handles[0] = netevent;
+    handles[1] = other_event;
+
+    if (run_timers(now, &next)) {
+	ticks = next - GETTICKCOUNT();
+	if (ticks < 0) ticks = 0;  /* just in case */
+    } else {
+	ticks = INFINITE;
+    }
+
+    n = MsgWaitForMultipleObjects(other_event ? 2 : 1, handles, FALSE, ticks,
+				  QS_POSTMESSAGE);
+
+    if (n == WAIT_OBJECT_0 + 0) {
+	WSANETWORKEVENTS things;
+	SOCKET socket;
+	extern SOCKET first_socket(int *), next_socket(int *);
+	extern int select_result(WPARAM, LPARAM);
+	int i, socketstate;
+
+	/*
+	 * We must not call select_result() for any socket
+	 * until we have finished enumerating within the
+	 * tree. This is because select_result() may close
+	 * the socket and modify the tree.
+	 */
+	/* Count the active sockets. */
+	i = 0;
+	for (socket = first_socket(&socketstate);
+	     socket != INVALID_SOCKET;
+	     socket = next_socket(&socketstate)) i++;
+
+	/* Expand the buffer if necessary. */
+	sklist = snewn(i, SOCKET);
+
+	/* Retrieve the sockets into sklist. */
+	skcount = 0;
+	for (socket = first_socket(&socketstate);
+	     socket != INVALID_SOCKET;
+	     socket = next_socket(&socketstate)) {
+	    sklist[skcount++] = socket;
+	}
+
+	/* Now we're done enumerating; go through the list. */
+	for (i = 0; i < skcount; i++) {
+	    WPARAM wp;
+	    socket = sklist[i];
+	    wp = (WPARAM) socket;
+	    if (!p_WSAEnumNetworkEvents(socket, NULL, &things)) {
+		static const struct { int bit, mask; } eventtypes[] = {
+		    {FD_CONNECT_BIT, FD_CONNECT},
+		    {FD_READ_BIT, FD_READ},
+		    {FD_CLOSE_BIT, FD_CLOSE},
+		    {FD_OOB_BIT, FD_OOB},
+		    {FD_WRITE_BIT, FD_WRITE},
+		    {FD_ACCEPT_BIT, FD_ACCEPT},
+		};
+		int e;
+
+		noise_ultralight(socket);
+		noise_ultralight(things.lNetworkEvents);
+
+		for (e = 0; e < lenof(eventtypes); e++)
+		    if (things.lNetworkEvents & eventtypes[e].mask) {
+			LPARAM lp;
+			int err = things.iErrorCode[eventtypes[e].bit];
+			lp = WSAMAKESELECTREPLY(eventtypes[e].mask, err);
+			select_result(wp, lp);
+		    }
+	    }
+	}
+
+	sfree(sklist);
+    }
+
+    if (n == WAIT_TIMEOUT) {
+	now = next;
+    } else {
+	now = GETTICKCOUNT();
+    }
+
+    if (other_event && n == WAIT_OBJECT_0 + 1)
+	return 1;
+
+    return 0;
+}
+
 /*
  * Wait for some network data and process it.
+ *
+ * We have two variants of this function. One uses select() so that
+ * it's compatible with WinSock 1. The other uses WSAEventSelect
+ * and MsgWaitForMultipleObjects, so that we can consistently use
+ * WSAEventSelect throughout; this enables us to also implement
+ * ssh_sftp_get_cmdline() using a parallel mechanism.
  */
 int ssh_sftp_loop_iteration(void)
 {
-    fd_set readfds;
-
     if (sftp_ssh_socket == INVALID_SOCKET)
 	return -1;		       /* doom */
 
-    FD_ZERO(&readfds);
-    FD_SET(sftp_ssh_socket, &readfds);
-    if (p_select(1, &readfds, NULL, NULL, NULL) < 0)
-	return -1;		       /* doom */
+    if (p_WSAEventSelect == NULL) {
+	fd_set readfds;
+	int ret;
+	long now = GETTICKCOUNT();
 
-    select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_READ);
+	if (socket_writable(sftp_ssh_socket))
+	    select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_WRITE);
+
+	do {
+	    long next, ticks;
+	    struct timeval tv, *ptv;
+
+	    if (run_timers(now, &next)) {
+		ticks = next - GETTICKCOUNT();
+		if (ticks <= 0)
+		    ticks = 1;	       /* just in case */
+		tv.tv_sec = ticks / 1000;
+		tv.tv_usec = ticks % 1000 * 1000;
+		ptv = &tv;
+	    } else {
+		ptv = NULL;
+	    }
+
+	    FD_ZERO(&readfds);
+	    FD_SET(sftp_ssh_socket, &readfds);
+	    ret = p_select(1, &readfds, NULL, NULL, ptv);
+
+	    if (ret < 0)
+		return -1;		       /* doom */
+	    else if (ret == 0)
+		now = next;
+	    else
+		now = GETTICKCOUNT();
+
+	} while (ret == 0);
+
+	select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_READ);
+
+	return 0;
+    } else {
+	return do_eventsel_loop(NULL);
+    }
+}
+
+/*
+ * Read a command line from standard input.
+ * 
+ * In the presence of WinSock 2, we can use WSAEventSelect to
+ * mediate between the socket and stdin, meaning we can send
+ * keepalives and respond to server events even while waiting at
+ * the PSFTP command prompt. Without WS2, we fall back to a simple
+ * fgets.
+ */
+struct command_read_ctx {
+    HANDLE event;
+    char *line;
+};
+
+static DWORD WINAPI command_read_thread(void *param)
+{
+    struct command_read_ctx *ctx = (struct command_read_ctx *) param;
+
+    ctx->line = fgetline(stdin);
+
+    SetEvent(ctx->event);
+
     return 0;
+}
+
+char *ssh_sftp_get_cmdline(char *prompt)
+{
+    int ret;
+    struct command_read_ctx actx, *ctx = &actx;
+    DWORD threadid;
+
+    fputs(prompt, stdout);
+    fflush(stdout);
+
+    if (sftp_ssh_socket == INVALID_SOCKET || p_WSAEventSelect == NULL) {
+	return fgetline(stdin);	       /* very simple */
+    }
+
+    /*
+     * Create a second thread to read from stdin. Process network
+     * and timing events until it terminates.
+     */
+    ctx->event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    ctx->line = NULL;
+
+    if (!CreateThread(NULL, 0, command_read_thread,
+		      ctx, 0, &threadid)) {
+	fprintf(stderr, "Unable to create command input thread\n");
+	cleanup_exit(1);
+    }
+
+    do {
+	ret = do_eventsel_loop(ctx->event);
+
+	/* Error return can only occur if netevent==NULL, and it ain't. */
+	assert(ret >= 0);
+    } while (ret == 0);
+
+    return ctx->line;
 }
 
 /* ----------------------------------------------------------------------

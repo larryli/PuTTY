@@ -15,13 +15,12 @@ unsigned long getticks(void)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     /*
-     * This will wrap around approximately every 4000 seconds, i.e.
-     * just over an hour, which is more than enough.
+     * We want to use milliseconds rather than microseconds,
+     * because we need a decent number of them to fit into a 32-bit
+     * word so it can be used for keepalives.
      */
-    return tv.tv_sec * 1000000 + tv.tv_usec;
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
-
-
 
 Filename filename_from_str(const char *str)
 {

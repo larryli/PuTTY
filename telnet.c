@@ -244,6 +244,8 @@ typedef struct telnet_tag {
     } state;
 
     Config cfg;
+
+    Pinger pinger;
 } *Telnet;
 
 #define TELNET_MAX_BACKLOG 4096
@@ -644,6 +646,7 @@ static int telnet_closing(Plug plug, const char *error_msg, int error_code,
     if (telnet->s) {
         sk_close(telnet->s);
         telnet->s = NULL;
+	notify_remote_exit(telnet->frontend);
     }
     if (error_msg) {
 	/* A socket error has occurred. */
@@ -704,6 +707,7 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
     telnet->term_height = telnet->cfg.height;
     telnet->state = TOP_LEVEL;
     telnet->ldisc = NULL;
+    telnet->pinger = NULL;
     *backend_handle = telnet;
 
     /*
@@ -738,6 +742,8 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
 			       nodelay, keepalive, (Plug) telnet, &telnet->cfg);
     if ((err = sk_socket_error(telnet->s)) != NULL)
 	return err;
+
+    telnet->pinger = pinger_new(&telnet->cfg, &telnet_backend, telnet);
 
     /*
      * Initialise option states.
@@ -778,6 +784,8 @@ static void telnet_free(void *handle)
     sfree(telnet->sb_buf);
     if (telnet->s)
 	sk_close(telnet->s);
+    if (telnet->pinger)
+	pinger_free(telnet->pinger);
     sfree(telnet);
 }
 /*
@@ -788,6 +796,7 @@ static void telnet_free(void *handle)
 static void telnet_reconfig(void *handle, Config *cfg)
 {
     Telnet telnet = (Telnet) handle;
+    pinger_reconfig(telnet->pinger, &telnet->cfg, cfg);
     telnet->cfg = *cfg;		       /* STRUCTURE COPY */
 }
 

@@ -279,6 +279,7 @@ int main(int argc, char **argv)
     int exitcode;
     int errors;
     int use_subsystem = 0;
+    long now, next;
 
     ssh_get_line = console_get_line;
 
@@ -631,8 +632,11 @@ int main(int argc, char **argv)
 	cleanup_exit(1);
     }
 
+    now = GETTICKCOUNT();
+
     while (1) {
 	int n;
+	DWORD ticks;
 
 	if (!sending && back->sendok(backhandle)) {
 	    /*
@@ -661,9 +665,16 @@ int main(int argc, char **argv)
 	    sending = TRUE;
 	}
 
-	n = MsgWaitForMultipleObjects(4, handles, FALSE, INFINITE,
+	if (run_timers(now, &next)) {
+	    ticks = next - GETTICKCOUNT();
+	    if (ticks < 0) ticks = 0;  /* just in case */
+	} else {
+	    ticks = INFINITE;
+	}
+
+	n = MsgWaitForMultipleObjects(4, handles, FALSE, ticks,
 				      QS_POSTMESSAGE);
-	if (n == 0) {
+	if (n == WAIT_OBJECT_0 + 0) {
 	    WSANETWORKEVENTS things;
 	    SOCKET socket;
 	    extern SOCKET first_socket(int *), next_socket(int *);
@@ -724,7 +735,7 @@ int main(int argc, char **argv)
                         }
 		}
 	    }
-	} else if (n == 1) {
+	} else if (n == WAIT_OBJECT_0 + 1) {
 	    reading = 0;
 	    noise_ultralight(idata.len);
 	    if (connopen && back->socket(backhandle) != NULL) {
@@ -734,7 +745,7 @@ int main(int argc, char **argv)
 		    back->special(backhandle, TS_EOF);
 		}
 	    }
-	} else if (n == 2) {
+	} else if (n == WAIT_OBJECT_0 + 2) {
 	    odata.busy = 0;
 	    if (!odata.writeret) {
 		fprintf(stderr, "Unable to write to standard output\n");
@@ -747,7 +758,7 @@ int main(int argc, char **argv)
 		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
 				 bufchain_size(&stderr_data));
 	    }
-	} else if (n == 3) {
+	} else if (n == WAIT_OBJECT_0 + 3) {
 	    edata.busy = 0;
 	    if (!edata.writeret) {
 		fprintf(stderr, "Unable to write to standard output\n");
@@ -760,7 +771,7 @@ int main(int argc, char **argv)
 		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
 				 bufchain_size(&stderr_data));
 	    }
-	} else if (n == 4) {
+	} else if (n == WAIT_OBJECT_0 + 4) {
 	    MSG msg;
 	    while (PeekMessage(&msg, INVALID_HANDLE_VALUE,
 			       WM_AGENT_CALLBACK, WM_AGENT_CALLBACK,
@@ -770,6 +781,13 @@ int main(int argc, char **argv)
 		sfree(c);
 	    }
 	}
+
+	if (n == WAIT_TIMEOUT) {
+	    now = next;
+	} else {
+	    now = GETTICKCOUNT();
+	}
+
 	if (!reading && back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
 	    SetEvent(idata.eventback);
 	    reading = 1;

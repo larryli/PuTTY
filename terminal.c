@@ -43,6 +43,11 @@
 
 #define TM_PUTTY	(0xFFFF)
 
+#define UPDATE_DELAY    ((TICKSPERSEC+49)/50)/* ticks to defer window update */
+#define TBLINK_DELAY    ((TICKSPERSEC*9+19)/20)/* ticks between text blinks*/
+#define CBLINK_DELAY    (CURSORBLINK) /* ticks between cursor blinks */
+#define VBELL_DELAY     (VBELL_TIMEOUT) /* visual bell timeout in ticks */
+
 #define compatibility(x) \
     if ( ((CL_##x)&term->compatibility_level) == 0 ) { 	\
        term->termstate=TOPLEVEL;			\
@@ -987,6 +992,117 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
 #define lineptr(x) (lineptr)(term,x,__LINE__,FALSE)
 #define scrlineptr(x) (lineptr)(term,x,__LINE__,TRUE)
 
+static void term_schedule_tblink(Terminal *term);
+static void term_schedule_cblink(Terminal *term);
+
+static void term_timer(void *ctx, long now)
+{
+    Terminal *term = (Terminal *)ctx;
+    int update = FALSE;
+
+    if (term->tblink_pending && now - term->next_tblink >= 0) {
+	term->tblinker = !term->tblinker;
+	term->tblink_pending = FALSE;
+	term_schedule_tblink(term);
+	update = TRUE;
+    }
+
+    if (term->cblink_pending && now - term->next_cblink >= 0) {
+	term->cblinker = !term->cblinker;
+	term->cblink_pending = FALSE;
+	term_schedule_cblink(term);
+	update = TRUE;
+    }
+
+    if (term->in_vbell && now - term->vbell_end >= 0) {
+	term->in_vbell = FALSE;
+	update = TRUE;
+    }
+
+    if (update ||
+	(term->window_update_pending && now - term->next_update >= 0))
+	term_update(term);
+}
+
+/*
+ * Call this whenever the terminal window state changes, to queue
+ * an update.
+ */
+static void seen_disp_event(Terminal *term)
+{
+    term->seen_disp_event = TRUE;      /* for scrollback-reset-on-activity */
+    if (!term->window_update_pending) {
+	term->window_update_pending = TRUE;
+	term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
+    }
+}
+
+/*
+ * Call when the terminal's blinking-text settings change, or when
+ * a text blink has just occurred.
+ */
+static void term_schedule_tblink(Terminal *term)
+{
+    if (term->tblink_pending)
+	return;			       /* already well in hand */
+    if (term->blink_is_real) {
+	term->next_tblink = schedule_timer(TBLINK_DELAY, term_timer, term);
+	term->tblink_pending = TRUE;
+    } else {
+	term->tblinker = 1;	       /* reset when not in use */
+	term->tblink_pending = FALSE;
+    }
+}
+
+/*
+ * Likewise with cursor blinks.
+ */
+static void term_schedule_cblink(Terminal *term)
+{
+    if (term->cblink_pending)
+	return;			       /* already well in hand */
+    if (term->cfg.blink_cur) {
+	term->next_cblink = schedule_timer(CBLINK_DELAY, term_timer, term);
+	term->cblink_pending = TRUE;
+    } else {
+	term->cblinker = 1;	       /* reset when not in use */
+	term->cblink_pending = FALSE;
+    }
+}
+
+/*
+ * Call to reset cursor blinking on new output.
+ */
+static void term_reset_cblink(Terminal *term)
+{
+    seen_disp_event(term);
+    term->cblinker = 1;
+    term->cblink_pending = FALSE;
+    term_schedule_cblink(term);
+}
+
+/*
+ * Call to begin a visual bell.
+ */
+static void term_schedule_vbell(Terminal *term, int already_started,
+				long startpoint)
+{
+    long ticks_already_gone;
+
+    if (already_started)
+	ticks_already_gone = GETTICKCOUNT() - startpoint;
+    else
+	ticks_already_gone = 0;
+
+    if (ticks_already_gone < VBELL_DELAY) {
+	term->in_vbell = TRUE;
+	term->vbell_end = schedule_timer(VBELL_DELAY - ticks_already_gone,
+					 term_timer, term);
+    } else {
+	term->in_vbell = FALSE;
+    }
+}
+
 /*
  * Set up power-on settings for the terminal.
  */
@@ -1038,6 +1154,8 @@ static void power_on(Terminal *term)
 	swap_screen(term, 0, FALSE, FALSE);
 	erase_lots(term, FALSE, TRUE, TRUE);
     }
+    term_schedule_tblink(term);
+    term_schedule_cblink(term);
 }
 
 /*
@@ -1046,6 +1164,9 @@ static void power_on(Terminal *term)
 void term_update(Terminal *term)
 {
     Context ctx;
+
+    term->window_update_pending = FALSE;
+
     ctx = get_ctx(term->frontend);
     if (ctx) {
 	int need_sbar_update = term->seen_disp_event;
@@ -1090,7 +1211,7 @@ void term_seen_key_event(Terminal *term)
      */
     if (term->cfg.scroll_on_key) {
 	term->disptop = 0;	       /* return to main screen */
-	term->seen_disp_event = 1;
+	seen_disp_event(term);
     }
 }
 
@@ -1130,13 +1251,13 @@ void term_reconfig(Terminal *term, Config *cfg)
      * default one. The full list is: Auto wrap mode, DEC Origin
      * Mode, BCE, blinking text, character classes.
      */
-    int reset_wrap, reset_decom, reset_bce, reset_blink, reset_charclass;
+    int reset_wrap, reset_decom, reset_bce, reset_tblink, reset_charclass;
     int i;
 
     reset_wrap = (term->cfg.wrap_mode != cfg->wrap_mode);
     reset_decom = (term->cfg.dec_om != cfg->dec_om);
     reset_bce = (term->cfg.bce != cfg->bce);
-    reset_blink = (term->cfg.blinktext != cfg->blinktext);
+    reset_tblink = (term->cfg.blinktext != cfg->blinktext);
     reset_charclass = 0;
     for (i = 0; i < lenof(term->cfg.wordness); i++)
 	if (term->cfg.wordness[i] != cfg->wordness[i])
@@ -1168,8 +1289,9 @@ void term_reconfig(Terminal *term, Config *cfg)
 	term->use_bce = term->cfg.bce;
 	set_erase_char(term);
     }
-    if (reset_blink)
+    if (reset_tblink) {
 	term->blink_is_real = term->cfg.blinktext;
+    }
     if (reset_charclass)
 	for (i = 0; i < 256; i++)
 	    term->wordness[i] = term->cfg.wordness[i];
@@ -1188,6 +1310,8 @@ void term_reconfig(Terminal *term, Config *cfg)
     if (!*term->cfg.printer) {
 	term_print_finish(term);
     }
+    term_schedule_tblink(term);
+    term_schedule_cblink(term);
 }
 
 /*
@@ -1224,7 +1348,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->logctx = NULL;
     term->compatibility_level = TM_PUTTY;
     strcpy(term->id_string, "\033[?6c");
-    term->last_blink = term->last_tblink = 0;
+    term->cblink_pending = term->tblink_pending = FALSE;
     term->paste_buffer = NULL;
     term->paste_len = 0;
     term->last_paste = 0;
@@ -1237,7 +1361,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->seen_disp_event = FALSE;
     term->xterm_mouse = term->mouse_is_down = FALSE;
     term->reset_132 = FALSE;
-    term->blinker = term->tblinker = 0;
+    term->cblinker = term->tblinker = 0;
     term->has_focus = 1;
     term->repeat_off = FALSE;
     term->termstate = TOPLEVEL;
@@ -1270,6 +1394,8 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->wcFrom = NULL;
     term->wcTo = NULL;
     term->wcFromTo_size = 0;
+
+    term->window_update_pending = FALSE;
 
     term->bidi_cache_size = 0;
     term->pre_bidi_cache = term->post_bidi_cache = NULL;
@@ -1323,6 +1449,8 @@ void term_free(Terminal *term)
     }
     sfree(term->pre_bidi_cache);
     sfree(term->post_bidi_cache);
+
+    expire_timer_context(term);
 
     sfree(term);
 }
@@ -2044,8 +2172,6 @@ static void insch(Terminal *term, int n)
  */
 static void toggle_mode(Terminal *term, int mode, int query, int state)
 {
-    unsigned long ticks;
-
     if (query)
 	switch (mode) {
 	  case 1:		       /* DECCKM: application cursor keys */
@@ -2059,6 +2185,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    } else {
 		term->blink_is_real = term->cfg.blinktext;
 	    }
+	    term_schedule_tblink(term);
 	    break;
 	  case 3:		       /* DECCOLM: 80/132 columns */
 	    deselect(term);
@@ -2077,27 +2204,15 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	     * effective visual bell, so that ESC[?5hESC[?5l will
 	     * always be an actually _visible_ visual bell.
 	     */
-	    ticks = GETTICKCOUNT();
-	    /* turn off a previous vbell to avoid inconsistencies */
-	    if (ticks - term->vbell_startpoint >= VBELL_TIMEOUT)
-		term->in_vbell = FALSE;
-	    if (term->rvideo && !state &&    /* we're turning it off... */
-		(ticks - term->rvbell_startpoint) < VBELL_TIMEOUT) {/*...soon*/
-		/* If there's no vbell timeout already, or this one lasts
-		 * longer, replace vbell_timeout with ours. */
-		if (!term->in_vbell ||
-		    (term->rvbell_startpoint - term->vbell_startpoint <
-		     VBELL_TIMEOUT))
-		    term->vbell_startpoint = term->rvbell_startpoint;
-		term->in_vbell = TRUE; /* may clear rvideo but set in_vbell */
+	    if (term->rvideo && !state) {
+		/* This is an OFF, so set up a vbell */
+		term_schedule_vbell(term, TRUE, term->rvbell_startpoint);
 	    } else if (!term->rvideo && state) {
 		/* This is an ON, so we notice the time and save it. */
-		term->rvbell_startpoint = ticks;
+		term->rvbell_startpoint = GETTICKCOUNT();
 	    }
 	    term->rvideo = state;
-	    term->seen_disp_event = TRUE;
-	    if (state)
-		term_update(term);
+	    seen_disp_event(term);
 	    break;
 	  case 6:		       /* DECOM: DEC origin mode */
 	    term->dec_om = state;
@@ -2116,7 +2231,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 25:		       /* DECTCEM: enable/disable cursor */
 	    compatibility2(OTHER, VT220);
 	    term->cursor_on = state;
-	    term->seen_disp_event = TRUE;
+	    seen_disp_event(term);
 	    break;
 	  case 47:		       /* alternate screen */
 	    compatibility(OTHER);
@@ -2141,12 +2256,12 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 1048:                   /* save/restore cursor */
 	    if (!term->cfg.no_alt_screen)
                 save_cursor(term, state);
-	    if (!state) term->seen_disp_event = TRUE;
+	    if (!state) seen_disp_event(term);
 	    break;
 	  case 1049:                   /* cursor & alternate screen */
 	    if (state && !term->cfg.no_alt_screen)
 		save_cursor(term, state);
-	    if (!state) term->seen_disp_event = TRUE;
+	    if (!state) seen_disp_event(term);
 	    compatibility(OTHER);
 	    deselect(term);
 	    swap_screen(term, term->cfg.no_alt_screen ? 0 : state, TRUE, FALSE);
@@ -2254,7 +2369,7 @@ static void term_print_finish(Terminal *term)
  * in-memory display. There's a big state machine in here to
  * process escape sequences...
  */
-void term_out(Terminal *term)
+static void term_out(Terminal *term)
 {
     unsigned long c;
     int unget;
@@ -2567,13 +2682,12 @@ void term_out(Terminal *term)
 		     */
 		    if (!term->cfg.bellovl || !term->beep_overloaded) {
 			beep(term->frontend, term->cfg.beep);
+
 			if (term->cfg.beep == BELL_VISUAL) {
-			    term->in_vbell = TRUE;
-			    term->vbell_startpoint = ticks;
-			    term_update(term);
+			    term_schedule_vbell(term, FALSE, 0);
 			}
 		    }
-		    term->seen_disp_event = TRUE;
+		    seen_disp_event(term);
 		}
 		break;
 	      case '\b':	      /* BS: Back space */
@@ -2586,7 +2700,7 @@ void term_out(Terminal *term)
 		    term->wrapnext = FALSE;
 		else
 		    term->curs.x--;
-		term->seen_disp_event = TRUE;
+		seen_disp_event(term);
 		break;
 	      case '\016':	      /* LS1: Locking-shift one */
 		compatibility(VT100);
@@ -2608,7 +2722,7 @@ void term_out(Terminal *term)
 	      case '\015':	      /* CR: Carriage return */
 		term->curs.x = 0;
 		term->wrapnext = FALSE;
-		term->seen_disp_event = TRUE;
+		seen_disp_event(term);
 		term->paste_hold = 0;
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
@@ -2619,7 +2733,7 @@ void term_out(Terminal *term)
 		    erase_lots(term, FALSE, FALSE, TRUE);
 		    term->disptop = 0;
 		    term->wrapnext = FALSE;
-		    term->seen_disp_event = 1;
+		    seen_disp_event(term);
 		    break;
 		}
 	      case '\013':	      /* VT: Line tabulation */
@@ -2632,7 +2746,7 @@ void term_out(Terminal *term)
 		if (term->cfg.lfhascr)
 		    term->curs.x = 0;
 		term->wrapnext = FALSE;
-		term->seen_disp_event = 1;
+		seen_disp_event(term);
 		term->paste_hold = 0;
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
@@ -2657,7 +2771,7 @@ void term_out(Terminal *term)
 
 		    check_selection(term, old_curs, term->curs);
 		}
-		term->seen_disp_event = TRUE;
+		seen_disp_event(term);
 		break;
 	    }
 	} else
@@ -2776,7 +2890,7 @@ void term_out(Terminal *term)
 			    }
 
 			    add_cc(cline, x, c);
-			    term->seen_disp_event = 1;
+			    seen_disp_event(term);
 			}
 			continue;
 		      default:
@@ -2796,7 +2910,7 @@ void term_out(Terminal *term)
 			    term->wrapnext = FALSE;
 			}
 		    }
-		    term->seen_disp_event = 1;
+		    seen_disp_event(term);
 		}
 		break;
 
@@ -2841,7 +2955,7 @@ void term_out(Terminal *term)
 		  case '8':	 	/* DECRC: restore cursor */
 		    compatibility(VT100);
 		    save_cursor(term, FALSE);
-		    term->seen_disp_event = TRUE;
+		    seen_disp_event(term);
 		    break;
 		  case '=':		/* DECKPAM: Keypad application mode */
 		    compatibility(VT100);
@@ -2858,7 +2972,7 @@ void term_out(Terminal *term)
 		    else if (term->curs.y < term->rows - 1)
 			term->curs.y++;
 		    term->wrapnext = FALSE;
-		    term->seen_disp_event = TRUE;
+		    seen_disp_event(term);
 		    break;
 		  case 'E':	       /* NEL: exactly equivalent to CR-LF */
 		    compatibility(VT100);
@@ -2868,7 +2982,7 @@ void term_out(Terminal *term)
 		    else if (term->curs.y < term->rows - 1)
 			term->curs.y++;
 		    term->wrapnext = FALSE;
-		    term->seen_disp_event = TRUE;
+		    seen_disp_event(term);
 		    break;
 		  case 'M':	       /* RI: reverse index - backwards LF */
 		    compatibility(VT100);
@@ -2877,7 +2991,7 @@ void term_out(Terminal *term)
 		    else if (term->curs.y > 0)
 			term->curs.y--;
 		    term->wrapnext = FALSE;
-		    term->seen_disp_event = TRUE;
+		    seen_disp_event(term);
 		    break;
 		  case 'Z':	       /* DECID: terminal type query */
 		    compatibility(VT100);
@@ -2896,7 +3010,7 @@ void term_out(Terminal *term)
 			term->reset_132 = 0;
 		    }
 		    term->disptop = 0;
-		    term->seen_disp_event = TRUE;
+		    seen_disp_event(term);
 		    break;
 		  case 'H':	       /* HTS: set a tab */
 		    compatibility(VT100);
@@ -2920,7 +3034,7 @@ void term_out(Terminal *term)
 			    ldata->lattr = LATTR_NORM;
 			}
 			term->disptop = 0;
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			scrtop.x = scrtop.y = 0;
 			scrbot.x = 0;
 			scrbot.y = term->rows;
@@ -3036,7 +3150,7 @@ void term_out(Terminal *term)
 		      case 'A':       /* CUU: move up N lines */
 			move(term, term->curs.x,
 			     term->curs.y - def(term->esc_args[0], 1), 1);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'e':		/* VPR: move down N lines */
 			compatibility(ANSI);
@@ -3044,7 +3158,7 @@ void term_out(Terminal *term)
 		      case 'B':		/* CUD: Cursor down */
 			move(term, term->curs.x,
 			     term->curs.y + def(term->esc_args[0], 1), 1);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case ANSI('c', '>'):	/* DA: report xterm version */
 			compatibility(OTHER);
@@ -3059,31 +3173,31 @@ void term_out(Terminal *term)
 		      case 'C':		/* CUF: Cursor right */ 
 			move(term, term->curs.x + def(term->esc_args[0], 1),
 			     term->curs.y, 1);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'D':       /* CUB: move left N cols */
 			move(term, term->curs.x - def(term->esc_args[0], 1),
 			     term->curs.y, 1);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'E':       /* CNL: move down N lines and CR */
 			compatibility(ANSI);
 			move(term, 0,
 			     term->curs.y + def(term->esc_args[0], 1), 1);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'F':       /* CPL: move up N lines and CR */
 			compatibility(ANSI);
 			move(term, 0,
 			     term->curs.y - def(term->esc_args[0], 1), 1);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'G':	      /* CHA */
 		      case '`':       /* HPA: set horizontal posn */
 			compatibility(ANSI);
 			move(term, def(term->esc_args[0], 1) - 1,
 			     term->curs.y, 0);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'd':       /* VPA: set vertical posn */
 			compatibility(ANSI);
@@ -3091,7 +3205,7 @@ void term_out(Terminal *term)
 			     ((term->dec_om ? term->marg_t : 0) +
 			      def(term->esc_args[0], 1) - 1),
 			     (term->dec_om ? 2 : 0));
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'H':	     /* CUP */
 		      case 'f':      /* HVP: set horz and vert posns at once */
@@ -3101,7 +3215,7 @@ void term_out(Terminal *term)
 			     ((term->dec_om ? term->marg_t : 0) +
 			      def(term->esc_args[0], 1) - 1),
 			     (term->dec_om ? 2 : 0));
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'J':       /* ED: erase screen or parts of it */
 			{
@@ -3111,7 +3225,7 @@ void term_out(Terminal *term)
 			    erase_lots(term, FALSE, !!(i & 2), !!(i & 1));
 			}
 			term->disptop = 0;
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'K':       /* EL: erase line or parts of it */
 			{
@@ -3120,14 +3234,14 @@ void term_out(Terminal *term)
 				i = 0;
 			    erase_lots(term, TRUE, !!(i & 2), !!(i & 1));
 			}
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'L':       /* IL: insert lines */
 			compatibility(VT102);
 			if (term->curs.y <= term->marg_b)
 			    scroll(term, term->curs.y, term->marg_b,
 				   -def(term->esc_args[0], 1), FALSE);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'M':       /* DL: delete lines */
 			compatibility(VT102);
@@ -3135,18 +3249,18 @@ void term_out(Terminal *term)
 			    scroll(term, term->curs.y, term->marg_b,
 				   def(term->esc_args[0], 1),
 				   TRUE);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case '@':       /* ICH: insert chars */
 			/* XXX VTTEST says this is vt220, vt510 manual says vt102 */
 			compatibility(VT102);
 			insch(term, def(term->esc_args[0], 1));
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'P':       /* DCH: delete chars */
 			compatibility(VT102);
 			insch(term, -def(term->esc_args[0], 1));
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'c':       /* DA: terminal type query */
 			compatibility(VT100);
@@ -3244,7 +3358,7 @@ void term_out(Terminal *term)
 				 */
 				term->curs.y = (term->dec_om ?
 						term->marg_t : 0);
-				term->seen_disp_event = TRUE;
+				seen_disp_event(term);
 			    }
 			}
 			break;
@@ -3302,6 +3416,7 @@ void term_out(Terminal *term)
 				    compatibility(SCOANSI);
 				    term->blink_is_real = FALSE;
 				    term->curr_attr |= ATTR_BLINK;
+				    term_schedule_tblink(term);
 				    break;
 				  case 7:	/* enable reverse video */
 				    term->curr_attr |= ATTR_REVERSE;
@@ -3406,7 +3521,7 @@ void term_out(Terminal *term)
 			break;
 		      case 'u':       /* restore cursor */
 			save_cursor(term, FALSE);
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 't': /* DECSLPP: set page size - ie window height */
 			/*
@@ -3548,14 +3663,14 @@ void term_out(Terminal *term)
 			scroll(term, term->marg_t, term->marg_b,
 			       def(term->esc_args[0], 1), TRUE);
 			term->wrapnext = FALSE;
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case 'T':		/* SD: Scroll down */
 			compatibility(SCOANSI);
 			scroll(term, term->marg_t, term->marg_b,
 			       -def(term->esc_args[0], 1), TRUE);
 			term->wrapnext = FALSE;
-			term->seen_disp_event = TRUE;
+			seen_disp_event(term);
 			break;
 		      case ANSI('|', '*'): /* DECSNLS */
 			/* 
@@ -3608,7 +3723,7 @@ void term_out(Terminal *term)
 			    while (n--)
 				copy_termchar(cline, p++,
 					      &term->erase_char);
-			    term->seen_disp_event = TRUE;
+			    seen_disp_event(term);
 			}
 			break;
 		      case 'x':       /* DECREQTPARM: report terminal characteristics */
@@ -3672,6 +3787,7 @@ void term_out(Terminal *term)
 		      case ANSI('D', '='):
 			compatibility(SCOANSI);
 			term->blink_is_real = FALSE;
+			term_schedule_tblink(term);
 			if (term->esc_args[0]>=1)
 			    term->curr_attr |= ATTR_BLINK;
 			else
@@ -3680,6 +3796,7 @@ void term_out(Terminal *term)
 		      case ANSI('E', '='):
 			compatibility(SCOANSI);
 			term->blink_is_real = (term->esc_args[0] >= 1);
+			term_schedule_tblink(term);
 			break;
 		      case ANSI('F', '='):      /* set normal foreground */
 			compatibility(SCOANSI);
@@ -3910,7 +4027,7 @@ void term_out(Terminal *term)
 		break;
 	      case VT52_ESC:
 		term->termstate = TOPLEVEL;
-		term->seen_disp_event = TRUE;
+		seen_disp_event(term);
 		switch (c) {
 		  case 'A':
 		    move(term, term->curs.x, term->curs.y - 1, 1);
@@ -4018,6 +4135,7 @@ void term_out(Terminal *term)
 		     */
 		    term->vt52_mode = FALSE;
 		    term->blink_is_real = term->cfg.blinktext;
+		    term_schedule_tblink(term);
 		    break;
 #if 0
 		  case '^':
@@ -4245,7 +4363,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     wchar_t *ch;
     int chlen;
     termchar cursor_background;
-    unsigned long ticks;
 #ifdef OPTIMISE_SCROLL
     struct scrollregion *sr;
 #endif /* OPTIMISE_SCROLL */
@@ -4255,28 +4372,19 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     chlen = 1024;
     ch = snewn(chlen, wchar_t);
 
-    /*
-     * Check the visual bell state.
-     */
-    if (term->in_vbell) {
-	ticks = GETTICKCOUNT();
-	if (ticks - term->vbell_startpoint >= VBELL_TIMEOUT)
-	    term->in_vbell = FALSE;
-    }
-
     rv = (!term->rvideo ^ !term->in_vbell ? ATTR_REVERSE : 0);
 
     /* Depends on:
      * screen array, disptop, scrtop,
      * selection, rv, 
      * cfg.blinkpc, blink_is_real, tblinker, 
-     * curs.y, curs.x, blinker, cfg.blink_cur, cursor_on, has_focus, wrapnext
+     * curs.y, curs.x, cblinker, cfg.blink_cur, cursor_on, has_focus, wrapnext
      */
 
     /* Has the cursor position or type changed ? */
     if (term->cursor_on) {
 	if (term->has_focus) {
-	    if (term->blinker || !term->cfg.blink_cur)
+	    if (term->cblinker || !term->cfg.blink_cur)
 		cursor = TATTR_ACTCURS;
 	    else
 		cursor = 0;
@@ -4679,39 +4787,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 }
 
 /*
- * Flick the switch that says if blinking things should be shown or hidden.
- */
-
-void term_blink(Terminal *term, int flg)
-{
-    long now, blink_diff;
-
-    now = GETTICKCOUNT();
-    blink_diff = now - term->last_tblink;
-
-    /* Make sure the text blinks no more than 2Hz; we'll use 0.45 s period. */
-    if (blink_diff < 0 || blink_diff > (TICKSPERSEC * 9 / 20)) {
-	term->last_tblink = now;
-	term->tblinker = !term->tblinker;
-    }
-
-    if (flg) {
-	term->blinker = 1;
-	term->last_blink = now;
-	return;
-    }
-
-    blink_diff = now - term->last_blink;
-
-    /* Make sure the cursor blinks no faster than system blink rate */
-    if (blink_diff >= 0 && blink_diff < (long) CURSORBLINK)
-	return;
-
-    term->last_blink = now;
-    term->blinker = !term->blinker;
-}
-
-/*
  * Invalidate the whole screen so it will be repainted in full.
  */
 void term_invalidate(Terminal *term)
@@ -4744,12 +4819,14 @@ void term_paint(Terminal *term, Context ctx,
 		term->disptext[i]->chars[j].attr = ATTR_INVALID;
     }
 
-    /* This should happen soon enough, also for some reason it sometimes 
-     * fails to actually do anything when re-sizing ... painting the wrong
-     * window perhaps ?
-     */
-    if (immediately)
+    if (immediately) {
         do_paint (term, ctx, FALSE);
+    } else {
+	if (!term->window_update_pending) {
+	    term->window_update_pending = TRUE;
+	    term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
+	}
+    }
 }
 
 /*
@@ -5960,8 +6037,14 @@ int term_data(Terminal *term, int is_stderr, const char *data, int len)
 
     if (!term->in_term_out) {
 	term->in_term_out = TRUE;
-	term_blink(term, 1);
-	term_out(term);
+	term_reset_cblink(term);
+	/*
+	 * During drag-selects, we do not process terminal input,
+	 * because the user will want the screen to hold still to
+	 * be selected.
+	 */
+	if (term->selstate != DRAGGING)
+	    term_out(term);
 	term->in_term_out = FALSE;
     }
 
