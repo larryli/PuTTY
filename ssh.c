@@ -235,16 +235,6 @@ extern void pfd_override_throttle(Socket s, int enable);
 #define SSH_MAX_BACKLOG 32768
 #define OUR_V2_WINSIZE 16384
 
-/*
- * Ciphers for SSH2.
- */
-const static struct ssh2_ciphers *ciphers[] = {
-    &ssh2_aes,
-    &ssh2_blowfish,
-    &ssh2_3des,
-    &ssh2_des,
-};
-
 const static struct ssh_kex *kex_algs[] = {
     &ssh_diffiehellman_gex,
     &ssh_diffiehellman
@@ -3153,6 +3143,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static int n_preferred_ciphers;
     static const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
     static const struct ssh_compress *preferred_comp;
+    static int cipherstr_started;
     static int first_kex;
 
     crBegin;
@@ -3170,8 +3161,10 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	    n_preferred_ciphers++;
 	    break;
 	  case CIPHER_DES:
-	    preferred_ciphers[n_preferred_ciphers] = &ssh2_des;
-	    n_preferred_ciphers++;
+	    if (cfg.ssh2_des_cbc) {
+		preferred_ciphers[n_preferred_ciphers] = &ssh2_des;
+		n_preferred_ciphers++;
+	    }
 	    break;
 	  case CIPHER_3DES:
 	    preferred_ciphers[n_preferred_ciphers] = &ssh2_3des;
@@ -3231,24 +3224,28 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
     /* List client->server encryption algorithms. */
     ssh2_pkt_addstring_start();
+    cipherstr_started = 0;
     for (i = 0; i < n_preferred_ciphers; i++) {
 	const struct ssh2_ciphers *c = preferred_ciphers[i];
 	if (!c) continue;	       /* warning flag */
 	for (j = 0; j < c->nciphers; j++) {
-	    ssh2_pkt_addstring_str(c->list[j]->name);
-	    if (i < n_preferred_ciphers || j < c->nciphers - 1)
+	    if (cipherstr_started)
 		ssh2_pkt_addstring_str(",");
+	    ssh2_pkt_addstring_str(c->list[j]->name);
+	    cipherstr_started = 1;
 	}
     }
     /* List server->client encryption algorithms. */
     ssh2_pkt_addstring_start();
+    cipherstr_started = 0;
     for (i = 0; i < n_preferred_ciphers; i++) {
 	const struct ssh2_ciphers *c = preferred_ciphers[i];
 	if (!c) continue; /* warning flag */
 	for (j = 0; j < c->nciphers; j++) {
-	    ssh2_pkt_addstring_str(c->list[j]->name);
-	    if (i < n_preferred_ciphers || j < c->nciphers - 1)
+	    if (cipherstr_started)
 		ssh2_pkt_addstring_str(",");
+	    ssh2_pkt_addstring_str(c->list[j]->name);
+	    cipherstr_started = 1;
 	}
     }
     /* List client->server MAC algorithms. */
