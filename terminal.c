@@ -2717,6 +2717,7 @@ void term_out(Terminal *term)
 			break;
 		      case 0:
 			add_cc(cline, term->curs.x - !term->wrapnext, c);
+			term->seen_disp_event = 1;
 			continue;
 		      default:
 			continue;
@@ -4559,6 +4560,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	if (i == our_curs_y && (term->curstype != cursor || updated_line)) {
 	    ch[0] = (wchar_t) cursor_background.chr;
 	    attr = cursor_background.attr | cursor;
+	    ccount = 1;
 
 	    if (cursor_background.cc_next) {
 		termchar *dd = ldata->chars + cursor_background.cc_next;
@@ -4594,7 +4596,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		attr |= TATTR_COMBINING;
 	    }
 
-	    do_cursor(ctx, our_curs_x, i, ch, 1, attr, ldata->lattr);
+	    do_cursor(ctx, our_curs_x, i, ch, ccount, attr, ldata->lattr);
 	    term->curstype = cursor;
 	}
 

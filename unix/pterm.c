@@ -2049,6 +2049,9 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
         active = 0;
     do_text_internal(ctx, x, y, text, len, attr, lattr);
 
+    if (attr & TATTR_COMBINING)
+	len = 1;
+
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
     } else {
