@@ -1052,42 +1052,60 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     int i;
     struct ctlpos cp;
+    enum { controlstartvalue = 1000,
+        IDC_HOSTSTATIC,
+        IDC_HOST,
+        IDC_PORTSTATIC,
+        IDC_PORT,
+        IDC_PROTSTATIC,
+        IDC_PROTRAW,
+        IDC_PROTTELNET,
+        IDC_PROTSSH,
+        IDC_SESSSTATIC,
+        IDC_SESSEDIT,
+        IDC_SESSLIST,
+        IDC_SESSLOAD,
+        IDC_SESSSAVE,
+        IDC_SESSDEL,
+        IDC_CLOSEEXIT,
+        IDC_CLOSEWARN
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] dehlnprstwx */
         ctlposinit(&cp, hwnd);
         multiedit(&cp,
-                  "Host &Name", IDC0_HOSTSTATIC, IDC0_HOST, 75,
-                  "&Port", IDC0_PORTSTATIC, IDC0_PORT, 25, NULL);
-        radioline(&cp, "Protocol:", IDC0_PROTSTATIC, 3,
-                  "&Raw", IDC0_PROTRAW,
-                  "&Telnet", IDC0_PROTTELNET,
+                  "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
+                  "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
+        radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
+                  "&Raw", IDC_PROTRAW,
+                  "&Telnet", IDC_PROTTELNET,
 #ifdef FWHACK
                   "SS&H/hack",
 #else
                   "SS&H",
 #endif
-                  IDC0_PROTSSH, NULL);
+                  IDC_PROTSSH, NULL);
         sesssaver(&cp, "Stor&ed Sessions",
-                  IDC0_SESSSTATIC, IDC0_SESSEDIT, IDC0_SESSLIST,
-                  "&Load", IDC0_SESSLOAD,
-                  "&Save", IDC0_SESSSAVE,
-                  "&Delete", IDC0_SESSDEL, NULL);
-        checkbox(&cp, "Close Window on E&xit", IDC0_CLOSEEXIT);
-        checkbox(&cp, "&Warn on Close", IDC0_CLOSEWARN);
+                  IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
+                  "&Load", IDC_SESSLOAD,
+                  "&Save", IDC_SESSSAVE,
+                  "&Delete", IDC_SESSDEL, NULL);
+        checkbox(&cp, "Close Window on E&xit", IDC_CLOSEEXIT);
+        checkbox(&cp, "&Warn on Close", IDC_CLOSEWARN);
 
-	SetDlgItemText (hwnd, IDC0_HOST, cfg.host);
-	SetDlgItemText (hwnd, IDC0_SESSEDIT, savedsession);
-	SetDlgItemInt (hwnd, IDC0_PORT, cfg.port, FALSE);
+	SetDlgItemText (hwnd, IDC_HOST, cfg.host);
+	SetDlgItemText (hwnd, IDC_SESSEDIT, savedsession);
+	SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
 	for (i = 0; i < nsessions; i++)
-	    SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_ADDSTRING,
+	    SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
 				0, (LPARAM) (sessions[i]));
-	CheckRadioButton (hwnd, IDC0_PROTRAW, IDC0_PROTSSH,
-			  cfg.protocol==PROT_SSH ? IDC0_PROTSSH : 
-			  cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW );
-	CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
-	CheckDlgButton (hwnd, IDC0_CLOSEWARN, cfg.warn_on_close);
+	CheckRadioButton (hwnd, IDC_PROTRAW, IDC_PROTSSH,
+			  cfg.protocol==PROT_SSH ? IDC_PROTSSH : 
+			  cfg.protocol==PROT_TELNET ? IDC_PROTTELNET : IDC_PROTRAW );
+	CheckDlgButton (hwnd, IDC_CLOSEEXIT, cfg.close_on_exit);
+	CheckDlgButton (hwnd, IDC_CLOSEWARN, cfg.warn_on_close);
 	break;
       case WM_LBUTTONUP:
         /*
@@ -1100,59 +1118,59 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
         break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC0_PROTTELNET:
-	  case IDC0_PROTSSH:
-	  case IDC0_PROTRAW:
+	  case IDC_PROTTELNET:
+	  case IDC_PROTSSH:
+	  case IDC_PROTRAW:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		int i = IsDlgButtonChecked (hwnd, IDC0_PROTSSH);
-		int j = IsDlgButtonChecked (hwnd, IDC0_PROTTELNET);
+		int i = IsDlgButtonChecked (hwnd, IDC_PROTSSH);
+		int j = IsDlgButtonChecked (hwnd, IDC_PROTTELNET);
 		cfg.protocol = i ? PROT_SSH : j ? PROT_TELNET : PROT_RAW ;
 		if ((cfg.protocol == PROT_SSH && cfg.port == 23) ||
 		    (cfg.protocol == PROT_TELNET && cfg.port == 22)) {
 		    cfg.port = i ? 22 : 23;
-		    SetDlgItemInt (hwnd, IDC0_PORT, cfg.port, FALSE);
+		    SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
 		}
 	    }
 	    break;
-	  case IDC0_HOST:
+	  case IDC_HOST:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC0_HOST, cfg.host,
+		GetDlgItemText (hwnd, IDC_HOST, cfg.host,
 				sizeof(cfg.host)-1);
 	    break;
-	  case IDC0_PORT:
+	  case IDC_PORT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		MyGetDlgItemInt (hwnd, IDC0_PORT, &cfg.port);
+		MyGetDlgItemInt (hwnd, IDC_PORT, &cfg.port);
 	    break;
-	  case IDC0_CLOSEEXIT:
+	  case IDC_CLOSEEXIT:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC0_CLOSEEXIT);
+		cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC_CLOSEEXIT);
 	    break;
-	  case IDC0_CLOSEWARN:
+	  case IDC_CLOSEWARN:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.warn_on_close = IsDlgButtonChecked (hwnd, IDC0_CLOSEWARN);
+		cfg.warn_on_close = IsDlgButtonChecked (hwnd, IDC_CLOSEWARN);
 	    break;
-	  case IDC0_SESSEDIT:
+	  case IDC_SESSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE) {
-		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
+		SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
-                GetDlgItemText (hwnd, IDC0_SESSEDIT,
+                GetDlgItemText (hwnd, IDC_SESSEDIT,
                                 savedsession, sizeof(savedsession)-1);
                 savedsession[sizeof(savedsession)-1] = '\0';
             }
 	    break;
-	  case IDC0_SESSSAVE:
+	  case IDC_SESSSAVE:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		/*
 		 * Save a session
 		 */
 		char str[2048];
-		GetDlgItemText (hwnd, IDC0_SESSEDIT, str, sizeof(str)-1);
+		GetDlgItemText (hwnd, IDC_SESSEDIT, str, sizeof(str)-1);
 		if (!*str) {
-		    int n = SendDlgItemMessage (hwnd, IDC0_SESSLIST,
+		    int n = SendDlgItemMessage (hwnd, IDC_SESSLIST,
 						LB_GETCURSEL, 0, 0);
 		    if (n == LB_ERR) {
 			MessageBeep(0);
@@ -1163,26 +1181,26 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 		save_settings (str, !!strcmp(str, "Default Settings"));
 		get_sesslist (FALSE);
 		get_sesslist (TRUE);
-		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_RESETCONTENT,
+		SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_RESETCONTENT,
 				    0, 0);
 		for (i = 0; i < nsessions; i++)
-		    SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_ADDSTRING,
+		    SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
 					0, (LPARAM) (sessions[i]));
-		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
+		SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
 	    }
 	    break;
-	  case IDC0_SESSLIST:
-	  case IDC0_SESSLOAD:
-	    if (LOWORD(wParam) == IDC0_SESSLOAD &&
+	  case IDC_SESSLIST:
+	  case IDC_SESSLOAD:
+	    if (LOWORD(wParam) == IDC_SESSLOAD &&
 		HIWORD(wParam) != BN_CLICKED &&
 		HIWORD(wParam) != BN_DOUBLECLICKED)
 		break;
-	    if (LOWORD(wParam) == IDC0_SESSLIST &&
+	    if (LOWORD(wParam) == IDC_SESSLIST &&
 		HIWORD(wParam) != LBN_DBLCLK)
 		break;
 	    {
-		int n = SendDlgItemMessage (hwnd, IDC0_SESSLIST,
+		int n = SendDlgItemMessage (hwnd, IDC_SESSLIST,
 					    LB_GETCURSEL, 0, 0);
 		if (n == LB_ERR) {
 		    MessageBeep(0);
@@ -1190,17 +1208,17 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 		}
 		load_settings (sessions[n],
 			       !!strcmp(sessions[n], "Default Settings"));
-		SetDlgItemText (hwnd, IDC0_HOST, cfg.host);
-		SetDlgItemInt (hwnd, IDC0_PORT, cfg.port, FALSE);
-		CheckRadioButton (hwnd, IDC0_PROTRAW, IDC0_PROTSSH,
-				  (cfg.protocol==PROT_SSH ? IDC0_PROTSSH :
-				  cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW));
-		CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
-		CheckDlgButton (hwnd, IDC0_CLOSEWARN, cfg.warn_on_close);
-		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
+		SetDlgItemText (hwnd, IDC_HOST, cfg.host);
+		SetDlgItemInt (hwnd, IDC_PORT, cfg.port, FALSE);
+		CheckRadioButton (hwnd, IDC_PROTRAW, IDC_PROTSSH,
+				  (cfg.protocol==PROT_SSH ? IDC_PROTSSH :
+				  cfg.protocol==PROT_TELNET ? IDC_PROTTELNET : IDC_PROTRAW));
+		CheckDlgButton (hwnd, IDC_CLOSEEXIT, cfg.close_on_exit);
+		CheckDlgButton (hwnd, IDC_CLOSEWARN, cfg.warn_on_close);
+		SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
 	    }
-	    if (LOWORD(wParam) == IDC0_SESSLIST) {
+	    if (LOWORD(wParam) == IDC_SESSLIST) {
 		/*
 		 * A double-click on a saved session should
 		 * actually start the session, not just load it.
@@ -1213,10 +1231,10 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
                 }
 	    }
 	    break;
-	  case IDC0_SESSDEL:
+	  case IDC_SESSDEL:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		int n = SendDlgItemMessage (hwnd, IDC0_SESSLIST,
+		int n = SendDlgItemMessage (hwnd, IDC_SESSLIST,
 					    LB_GETCURSEL, 0, 0);
 		if (n == LB_ERR || n == 0) {
 		    MessageBeep(0);
@@ -1225,12 +1243,12 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 		del_settings(sessions[n]);
 		get_sesslist (FALSE);
 		get_sesslist (TRUE);
-		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_RESETCONTENT,
+		SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_RESETCONTENT,
 				    0, 0);
 		for (i = 0; i < nsessions; i++)
-		    SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_ADDSTRING,
+		    SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_ADDSTRING,
 					0, (LPARAM) (sessions[i]));
-		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
+		SendDlgItemMessage (hwnd, IDC_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
 	    }
 	}
@@ -1241,102 +1259,126 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
                                   WPARAM wParam, LPARAM lParam) {
     struct ctlpos cp;
+    enum { controlstartvalue = 1000,
+        IDC_DELSTATIC,
+        IDC_DEL008,
+        IDC_DEL127,
+        IDC_HOMESTATIC,
+        IDC_HOMETILDE,
+        IDC_HOMERXVT,
+        IDC_FUNCSTATIC,
+        IDC_FUNCTILDE,
+        IDC_FUNCLINUX,
+        IDC_FUNCXTERM,
+        IDC_KPSTATIC,
+        IDC_KPNORMAL,
+        IDC_KPAPPLIC,
+        IDC_KPNH,
+        IDC_CURSTATIC,
+        IDC_CURNORMAL,
+        IDC_CURAPPLIC,
+        IDC_ALTF4,
+        IDC_ALTSPACE,
+        IDC_LDISCTERM,
+        IDC_SCROLLKEY
+    };
+
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] 4?ehiklmnprsuvxy */
         ctlposinit(&cp, hwnd);
-        radioline(&cp, "Action of Backspace:", IDC1_DELSTATIC, 2,
-                  "Control-&H", IDC1_DEL008,
-                  "Control-&? (127)", IDC1_DEL127, NULL);
-        radioline(&cp, "Action of Home and End:", IDC1_HOMESTATIC, 2,
-                  "&Standard", IDC1_HOMETILDE,
-                  "&rxvt", IDC1_HOMERXVT, NULL);
-        radioline(&cp, "Function key and keypad layout:", IDC1_FUNCSTATIC, 3,
-                  "&VT400", IDC1_FUNCTILDE,
-                  "&Linux", IDC1_FUNCLINUX,
-                  "&Xterm R6", IDC1_FUNCXTERM, NULL);
-        radioline(&cp, "Initial state of cursor keys:", IDC1_CURSTATIC, 2,
-                  "&Normal", IDC1_CURNORMAL,
-                  "A&pplication", IDC1_CURAPPLIC, NULL);
-        radioline(&cp, "Initial state of numeric keypad:", IDC1_KPSTATIC, 3,
-                  "Nor&mal", IDC1_KPNORMAL,
-                  "Appl&ication", IDC1_KPAPPLIC,
-                  "N&etHack", IDC1_KPNH, NULL);
-        checkbox(&cp, "ALT-F&4 is special (closes window)", IDC1_ALTF4);
-        checkbox(&cp, "ALT-Space is special (S&ystem menu)", IDC1_ALTSPACE);
-        checkbox(&cp, "&Use local terminal line discipline", IDC1_LDISCTERM);
-        checkbox(&cp, "Reset scrollback on &keypress", IDC1_SCROLLKEY);
+        radioline(&cp, "Action of Backspace:", IDC_DELSTATIC, 2,
+                  "Control-&H", IDC_DEL008,
+                  "Control-&? (127)", IDC_DEL127, NULL);
+        radioline(&cp, "Action of Home and End:", IDC_HOMESTATIC, 2,
+                  "&Standard", IDC_HOMETILDE,
+                  "&rxvt", IDC_HOMERXVT, NULL);
+        radioline(&cp, "Function key and keypad layout:", IDC_FUNCSTATIC, 3,
+                  "&VT400", IDC_FUNCTILDE,
+                  "&Linux", IDC_FUNCLINUX,
+                  "&Xterm R6", IDC_FUNCXTERM, NULL);
+        radioline(&cp, "Initial state of cursor keys:", IDC_CURSTATIC, 2,
+                  "&Normal", IDC_CURNORMAL,
+                  "A&pplication", IDC_CURAPPLIC, NULL);
+        radioline(&cp, "Initial state of numeric keypad:", IDC_KPSTATIC, 3,
+                  "Nor&mal", IDC_KPNORMAL,
+                  "Appl&ication", IDC_KPAPPLIC,
+                  "N&etHack", IDC_KPNH, NULL);
+        checkbox(&cp, "ALT-F&4 is special (closes window)", IDC_ALTF4);
+        checkbox(&cp, "ALT-Space is special (S&ystem menu)", IDC_ALTSPACE);
+        checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
+        checkbox(&cp, "Reset scrollback on &keypress", IDC_SCROLLKEY);
 
-	CheckRadioButton (hwnd, IDC1_DEL008, IDC1_DEL127,
-			  cfg.bksp_is_delete ? IDC1_DEL127 : IDC1_DEL008);
-	CheckRadioButton (hwnd, IDC1_HOMETILDE, IDC1_HOMERXVT,
-			  cfg.rxvt_homeend ? IDC1_HOMERXVT : IDC1_HOMETILDE);
-	CheckRadioButton (hwnd, IDC1_FUNCTILDE, IDC1_FUNCXTERM,
+	CheckRadioButton (hwnd, IDC_DEL008, IDC_DEL127,
+			  cfg.bksp_is_delete ? IDC_DEL127 : IDC_DEL008);
+	CheckRadioButton (hwnd, IDC_HOMETILDE, IDC_HOMERXVT,
+			  cfg.rxvt_homeend ? IDC_HOMERXVT : IDC_HOMETILDE);
+	CheckRadioButton (hwnd, IDC_FUNCTILDE, IDC_FUNCXTERM,
 			  cfg.funky_type ? 
-			  (cfg.funky_type==2 ? IDC1_FUNCXTERM 
-			   : IDC1_FUNCLINUX )
-			  : IDC1_FUNCTILDE);
-	CheckRadioButton (hwnd, IDC1_CURNORMAL, IDC1_CURAPPLIC,
-			  cfg.app_cursor ? IDC1_CURAPPLIC : IDC1_CURNORMAL);
-	CheckRadioButton (hwnd, IDC1_KPNORMAL, IDC1_KPNH,
-			  cfg.nethack_keypad ? IDC1_KPNH :
-			  cfg.app_keypad ? IDC1_KPAPPLIC : IDC1_KPNORMAL);
-	CheckDlgButton (hwnd, IDC1_ALTF4, cfg.alt_f4);
-	CheckDlgButton (hwnd, IDC1_ALTSPACE, cfg.alt_space);
-	CheckDlgButton (hwnd, IDC1_LDISCTERM, cfg.ldisc_term);
-	CheckDlgButton (hwnd, IDC1_SCROLLKEY, cfg.scroll_on_key);
+			  (cfg.funky_type==2 ? IDC_FUNCXTERM 
+			   : IDC_FUNCLINUX )
+			  : IDC_FUNCTILDE);
+	CheckRadioButton (hwnd, IDC_CURNORMAL, IDC_CURAPPLIC,
+			  cfg.app_cursor ? IDC_CURAPPLIC : IDC_CURNORMAL);
+	CheckRadioButton (hwnd, IDC_KPNORMAL, IDC_KPNH,
+			  cfg.nethack_keypad ? IDC_KPNH :
+			  cfg.app_keypad ? IDC_KPAPPLIC : IDC_KPNORMAL);
+	CheckDlgButton (hwnd, IDC_ALTF4, cfg.alt_f4);
+	CheckDlgButton (hwnd, IDC_ALTSPACE, cfg.alt_space);
+	CheckDlgButton (hwnd, IDC_LDISCTERM, cfg.ldisc_term);
+	CheckDlgButton (hwnd, IDC_SCROLLKEY, cfg.scroll_on_key);
 	break;
       case WM_COMMAND:
 	if (HIWORD(wParam) == BN_CLICKED ||
 	    HIWORD(wParam) == BN_DOUBLECLICKED)
 	    switch (LOWORD(wParam)) {
-	      case IDC1_DEL008:
-	      case IDC1_DEL127:
-		cfg.bksp_is_delete = IsDlgButtonChecked (hwnd, IDC1_DEL127);
+	      case IDC_DEL008:
+	      case IDC_DEL127:
+		cfg.bksp_is_delete = IsDlgButtonChecked (hwnd, IDC_DEL127);
 		break;
-	      case IDC1_HOMETILDE:
-	      case IDC1_HOMERXVT:
-		cfg.rxvt_homeend = IsDlgButtonChecked (hwnd, IDC1_HOMERXVT);
+	      case IDC_HOMETILDE:
+	      case IDC_HOMERXVT:
+		cfg.rxvt_homeend = IsDlgButtonChecked (hwnd, IDC_HOMERXVT);
 		break;
-	      case IDC1_FUNCXTERM:
+	      case IDC_FUNCXTERM:
 		cfg.funky_type = 2;
 		break;
-	      case IDC1_FUNCTILDE:
-	      case IDC1_FUNCLINUX:
-		cfg.funky_type = IsDlgButtonChecked (hwnd, IDC1_FUNCLINUX);
+	      case IDC_FUNCTILDE:
+	      case IDC_FUNCLINUX:
+		cfg.funky_type = IsDlgButtonChecked (hwnd, IDC_FUNCLINUX);
 		break;
-	      case IDC1_KPNORMAL:
-	      case IDC1_KPAPPLIC:
-		cfg.app_keypad = IsDlgButtonChecked (hwnd, IDC1_KPAPPLIC);
+	      case IDC_KPNORMAL:
+	      case IDC_KPAPPLIC:
+		cfg.app_keypad = IsDlgButtonChecked (hwnd, IDC_KPAPPLIC);
 		cfg.nethack_keypad = FALSE;
 		break;
-	      case IDC1_KPNH:
+	      case IDC_KPNH:
 		cfg.app_keypad = FALSE;
 		cfg.nethack_keypad = TRUE;
 		break;
-	      case IDC1_CURNORMAL:
-	      case IDC1_CURAPPLIC:
-		cfg.app_cursor = IsDlgButtonChecked (hwnd, IDC1_CURAPPLIC);
+	      case IDC_CURNORMAL:
+	      case IDC_CURAPPLIC:
+		cfg.app_cursor = IsDlgButtonChecked (hwnd, IDC_CURAPPLIC);
 		break;
-	      case IDC1_ALTF4:
+	      case IDC_ALTF4:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-		    cfg.alt_f4 = IsDlgButtonChecked (hwnd, IDC1_ALTF4);
+		    cfg.alt_f4 = IsDlgButtonChecked (hwnd, IDC_ALTF4);
 		break;
-	      case IDC1_ALTSPACE:
+	      case IDC_ALTSPACE:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-		    cfg.alt_space = IsDlgButtonChecked (hwnd, IDC1_ALTSPACE);
+		    cfg.alt_space = IsDlgButtonChecked (hwnd, IDC_ALTSPACE);
 		break;
-	      case IDC1_LDISCTERM:
+	      case IDC_LDISCTERM:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-		    cfg.ldisc_term = IsDlgButtonChecked (hwnd, IDC1_LDISCTERM);
+		    cfg.ldisc_term = IsDlgButtonChecked (hwnd, IDC_LDISCTERM);
 		break;
-	      case IDC1_SCROLLKEY:
+	      case IDC_SCROLLKEY:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-		    cfg.scroll_on_key = IsDlgButtonChecked (hwnd, IDC1_SCROLLKEY);
+		    cfg.scroll_on_key = IsDlgButtonChecked (hwnd, IDC_SCROLLKEY);
 		break;
 	    }
     }
@@ -1361,66 +1403,83 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
     CHOOSEFONT cf;
     LOGFONT lf;
     char fontstatic[256];
+    enum { controlstartvalue = 1000,
+        IDC_WRAPMODE,
+        IDC_DECOM,
+        IDC_DIMSTATIC,
+        IDC_ROWSSTATIC,
+        IDC_ROWSEDIT,
+        IDC_COLSSTATIC,
+        IDC_COLSEDIT,
+        IDC_SAVESTATIC,
+        IDC_SAVEEDIT,
+        IDC_FONTSTATIC,
+        IDC_CHOOSEFONT,
+        IDC_LFHASCR,
+        IDC_BEEP,
+        IDC_BCE,
+        IDC_BLINKTEXT
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] dghlmnprsw */
         ctlposinit(&cp, hwnd);
         multiedit(&cp,
-                  "&Rows", IDC2_ROWSSTATIC, IDC2_ROWSEDIT, 33,
-                  "Colu&mns", IDC2_COLSSTATIC, IDC2_COLSEDIT, 33,
-                  "&Scrollback", IDC2_SAVESTATIC, IDC2_SAVEEDIT, 33,
+                  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 33,
+                  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 33,
+                  "&Scrollback", IDC_SAVESTATIC, IDC_SAVEEDIT, 33,
                   NULL);
-        staticbtn(&cp, "", IDC2_FONTSTATIC, "C&hange...", IDC2_CHOOSEFONT);
-        checkbox(&cp, "Auto &wrap mode initially on", IDC2_WRAPMODE);
-        checkbox(&cp, "&DEC Origin Mode initially on", IDC2_DECOM);
-        checkbox(&cp, "Implicit CR in every &LF", IDC2_LFHASCR);
-        checkbox(&cp, "Bee&p enabled", IDC1_BEEP);
-        checkbox(&cp, "Use Back&ground colour erase", IDC2_BCE);
-        checkbox(&cp, "Enable bli&nking text", IDC2_BLINKTEXT);
+        staticbtn(&cp, "", IDC_FONTSTATIC, "C&hange...", IDC_CHOOSEFONT);
+        checkbox(&cp, "Auto &wrap mode initially on", IDC_WRAPMODE);
+        checkbox(&cp, "&DEC Origin Mode initially on", IDC_DECOM);
+        checkbox(&cp, "Implicit CR in every &LF", IDC_LFHASCR);
+        checkbox(&cp, "Bee&p enabled", IDC_BEEP);
+        checkbox(&cp, "Use Back&ground colour erase", IDC_BCE);
+        checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
 
-	CheckDlgButton (hwnd, IDC2_WRAPMODE, cfg.wrap_mode);
-	CheckDlgButton (hwnd, IDC2_DECOM, cfg.dec_om);
-	CheckDlgButton (hwnd, IDC2_LFHASCR, cfg.lfhascr);
-	SetDlgItemInt (hwnd, IDC2_ROWSEDIT, cfg.height, FALSE);
-	SetDlgItemInt (hwnd, IDC2_COLSEDIT, cfg.width, FALSE);
-	SetDlgItemInt (hwnd, IDC2_SAVEEDIT, cfg.savelines, FALSE);
+	CheckDlgButton (hwnd, IDC_WRAPMODE, cfg.wrap_mode);
+	CheckDlgButton (hwnd, IDC_DECOM, cfg.dec_om);
+	CheckDlgButton (hwnd, IDC_LFHASCR, cfg.lfhascr);
+	SetDlgItemInt (hwnd, IDC_ROWSEDIT, cfg.height, FALSE);
+	SetDlgItemInt (hwnd, IDC_COLSEDIT, cfg.width, FALSE);
+	SetDlgItemInt (hwnd, IDC_SAVEEDIT, cfg.savelines, FALSE);
 	fmtfont (fontstatic);
-	SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
-        CheckDlgButton (hwnd, IDC1_BEEP, cfg.beep);
-        CheckDlgButton (hwnd, IDC2_BCE, cfg.bce);
-        CheckDlgButton (hwnd, IDC2_BLINKTEXT, cfg.blinktext);
+	SetDlgItemText (hwnd, IDC_FONTSTATIC, fontstatic);
+        CheckDlgButton (hwnd, IDC_BEEP, cfg.beep);
+        CheckDlgButton (hwnd, IDC_BCE, cfg.bce);
+        CheckDlgButton (hwnd, IDC_BLINKTEXT, cfg.blinktext);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC2_WRAPMODE:
+	  case IDC_WRAPMODE:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.wrap_mode = IsDlgButtonChecked (hwnd, IDC2_WRAPMODE);
+		cfg.wrap_mode = IsDlgButtonChecked (hwnd, IDC_WRAPMODE);
 	    break;
-	  case IDC2_DECOM:
+	  case IDC_DECOM:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.dec_om = IsDlgButtonChecked (hwnd, IDC2_DECOM);
+		cfg.dec_om = IsDlgButtonChecked (hwnd, IDC_DECOM);
 	    break;
-	  case IDC2_LFHASCR:
+	  case IDC_LFHASCR:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.lfhascr = IsDlgButtonChecked (hwnd, IDC2_LFHASCR);
+		cfg.lfhascr = IsDlgButtonChecked (hwnd, IDC_LFHASCR);
 	    break;
-	  case IDC2_ROWSEDIT:
+	  case IDC_ROWSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		MyGetDlgItemInt (hwnd, IDC2_ROWSEDIT, &cfg.height);
+		MyGetDlgItemInt (hwnd, IDC_ROWSEDIT, &cfg.height);
 	    break;
-	  case IDC2_COLSEDIT:
+	  case IDC_COLSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		MyGetDlgItemInt (hwnd, IDC2_COLSEDIT, &cfg.width);
+		MyGetDlgItemInt (hwnd, IDC_COLSEDIT, &cfg.width);
 	    break;
-	  case IDC2_SAVEEDIT:
+	  case IDC_SAVEEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		MyGetDlgItemInt (hwnd, IDC2_SAVEEDIT, &cfg.savelines);
+		MyGetDlgItemInt (hwnd, IDC_SAVEEDIT, &cfg.savelines);
 	    break;
-	  case IDC2_CHOOSEFONT:
+	  case IDC_CHOOSEFONT:
 	    lf.lfHeight = cfg.fontheight;
 	    lf.lfWidth = lf.lfEscapement = lf.lfOrientation = 0;
 	    lf.lfItalic = lf.lfUnderline = lf.lfStrikeOut = 0;
@@ -1446,23 +1505,23 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 		cfg.fontcharset = lf.lfCharSet;
 		cfg.fontheight = lf.lfHeight;
 		fmtfont (fontstatic);
-		SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
+		SetDlgItemText (hwnd, IDC_FONTSTATIC, fontstatic);
 	    }
 	    break;
-	   case IDC1_BEEP:
+	   case IDC_BEEP:
 	     if (HIWORD(wParam) == BN_CLICKED ||
 		 HIWORD(wParam) == BN_DOUBLECLICKED)
-		 cfg.beep = IsDlgButtonChecked (hwnd, IDC1_BEEP);
+		 cfg.beep = IsDlgButtonChecked (hwnd, IDC_BEEP);
 	     break;
-	   case IDC2_BLINKTEXT:
+	   case IDC_BLINKTEXT:
 	     if (HIWORD(wParam) == BN_CLICKED ||
 		 HIWORD(wParam) == BN_DOUBLECLICKED)
-		 cfg.blinktext = IsDlgButtonChecked (hwnd, IDC2_BLINKTEXT);
+		 cfg.blinktext = IsDlgButtonChecked (hwnd, IDC_BLINKTEXT);
 	     break;
-	   case IDC2_BCE:
+	   case IDC_BCE:
 	     if (HIWORD(wParam) == BN_CLICKED ||
 		 HIWORD(wParam) == BN_DOUBLECLICKED)
-		 cfg.bce = IsDlgButtonChecked (hwnd, IDC2_BCE);
+		 cfg.bce = IsDlgButtonChecked (hwnd, IDC_BCE);
 	     break;
 	}
 	break;
@@ -1473,49 +1532,58 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 static int CALLBACK WindowProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     struct ctlpos cp;
+    enum { controlstartvalue = 1000,
+         IDC_WINNAME,
+         IDC_BLINKCUR,
+         IDC_SCROLLBAR,
+         IDC_LOCKSIZE,
+         IDC_WINTITLE,
+         IDC_WINEDIT
+    };
+
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] bikty */
         ctlposinit(&cp, hwnd);
         multiedit(&cp,
-                  "Initial window &title:", IDCW_WINTITLE, IDCW_WINEDIT, 100,
+                  "Initial window &title:", IDC_WINTITLE, IDC_WINEDIT, 100,
                   NULL);
-        checkbox(&cp, "Avoid ever using &icon title", IDCW_WINNAME);
-        checkbox(&cp, "&Blinking cursor", IDCW_BLINKCUR);
-        checkbox(&cp, "Displa&y scrollbar", IDCW_SCROLLBAR);
-        checkbox(&cp, "Loc&k Window size", IDCW_LOCKSIZE);
+        checkbox(&cp, "Avoid ever using &icon title", IDC_WINNAME);
+        checkbox(&cp, "&Blinking cursor", IDC_BLINKCUR);
+        checkbox(&cp, "Displa&y scrollbar", IDC_SCROLLBAR);
+        checkbox(&cp, "Loc&k Window size", IDC_LOCKSIZE);
 
-	SetDlgItemText (hwnd, IDCW_WINEDIT, cfg.wintitle);
-	CheckDlgButton (hwnd, IDCW_WINNAME, cfg.win_name_always);
-	CheckDlgButton (hwnd, IDCW_BLINKCUR, cfg.blink_cur);
-        CheckDlgButton (hwnd, IDCW_SCROLLBAR, cfg.scrollbar);
-        CheckDlgButton (hwnd, IDCW_LOCKSIZE, cfg.locksize);
+	SetDlgItemText (hwnd, IDC_WINEDIT, cfg.wintitle);
+	CheckDlgButton (hwnd, IDC_WINNAME, cfg.win_name_always);
+	CheckDlgButton (hwnd, IDC_BLINKCUR, cfg.blink_cur);
+        CheckDlgButton (hwnd, IDC_SCROLLBAR, cfg.scrollbar);
+        CheckDlgButton (hwnd, IDC_LOCKSIZE, cfg.locksize);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDCW_WINNAME:
+	  case IDC_WINNAME:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.win_name_always = IsDlgButtonChecked (hwnd, IDCW_WINNAME);
+		cfg.win_name_always = IsDlgButtonChecked (hwnd, IDC_WINNAME);
 	    break;
-          case IDCW_BLINKCUR:
+          case IDC_BLINKCUR:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED)
-                cfg.blink_cur = IsDlgButtonChecked (hwnd, IDCW_BLINKCUR);
+                cfg.blink_cur = IsDlgButtonChecked (hwnd, IDC_BLINKCUR);
             break;
-          case IDCW_SCROLLBAR:
+          case IDC_SCROLLBAR:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED)
-                cfg.scrollbar = IsDlgButtonChecked (hwnd, IDCW_SCROLLBAR);
+                cfg.scrollbar = IsDlgButtonChecked (hwnd, IDC_SCROLLBAR);
             break;
-          case IDCW_LOCKSIZE:
+          case IDC_LOCKSIZE:
 	     if (HIWORD(wParam) == BN_CLICKED ||
 		 HIWORD(wParam) == BN_DOUBLECLICKED)
-                cfg.locksize = IsDlgButtonChecked (hwnd, IDCW_LOCKSIZE);
+                cfg.locksize = IsDlgButtonChecked (hwnd, IDC_LOCKSIZE);
             break;
-	  case IDCW_WINEDIT:
+	  case IDC_WINEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDCW_WINEDIT, cfg.wintitle,
+		GetDlgItemText (hwnd, IDC_WINEDIT, cfg.wintitle,
 				sizeof(cfg.wintitle)-1);
 	    break;
 	}
@@ -1528,71 +1596,90 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     int i;
     struct ctlpos cp;
+    enum { controlstartvalue = 1000,
+         IDC_TTSTATIC,
+         IDC_TTEDIT,
+         IDC_TSSTATIC,
+         IDC_TSEDIT,
+         IDC_LOGSTATIC,
+         IDC_LOGEDIT,
+         IDC_ENVSTATIC,
+         IDC_VARSTATIC,
+         IDC_VAREDIT,
+         IDC_VALSTATIC,
+         IDC_VALEDIT,
+         IDC_ENVLIST,
+         IDC_ENVADD,
+         IDC_ENVREMOVE,
+         IDC_EMSTATIC,
+         IDC_EMBSD,
+         IDC_EMRFC
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] bdflrstuv */
         ctlposinit(&cp, hwnd);
-        staticedit(&cp, "Terminal-&type string", IDC3_TTSTATIC, IDC3_TTEDIT);
-        staticedit(&cp, "Terminal-&speed string", IDC3_TSSTATIC, IDC3_TSEDIT);
-        staticedit(&cp, "Auto-login &username", IDC3_LOGSTATIC, IDC3_LOGEDIT);
-        envsetter(&cp, "Environment variables:", IDC3_ENVSTATIC,
-                  "&Variable", IDC3_VARSTATIC, IDC3_VAREDIT,
-                  "Va&lue", IDC3_VALSTATIC, IDC3_VALEDIT,
-                  IDC3_ENVLIST,
-                  "A&dd", IDC3_ENVADD, "&Remove", IDC3_ENVREMOVE);
-        radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC3_EMSTATIC, 2,
-                  "&BSD (commonplace)", IDC3_EMBSD,
-                  "R&FC 1408 (unusual)", IDC3_EMRFC, NULL);
+        staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT);
+        staticedit(&cp, "Terminal-&speed string", IDC_TSSTATIC, IDC_TSEDIT);
+        staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT);
+        envsetter(&cp, "Environment variables:", IDC_ENVSTATIC,
+                  "&Variable", IDC_VARSTATIC, IDC_VAREDIT,
+                  "Va&lue", IDC_VALSTATIC, IDC_VALEDIT,
+                  IDC_ENVLIST,
+                  "A&dd", IDC_ENVADD, "&Remove", IDC_ENVREMOVE);
+        radioline(&cp, "Handling of OLD_ENVIRON ambiguity:", IDC_EMSTATIC, 2,
+                  "&BSD (commonplace)", IDC_EMBSD,
+                  "R&FC 1408 (unusual)", IDC_EMRFC, NULL);
 
-	SetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype);
-	SetDlgItemText (hwnd, IDC3_TSEDIT, cfg.termspeed);
-	SetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username);
+	SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
+	SetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed);
+	SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
 	{
           char *p = cfg.environmt;
 	    while (*p) {
-		SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_ADDSTRING, 0,
+		SendDlgItemMessage (hwnd, IDC_ENVLIST, LB_ADDSTRING, 0,
 				    (LPARAM) p);
 		p += strlen(p)+1;
 	    }
 	}
-	CheckRadioButton (hwnd, IDC3_EMBSD, IDC3_EMRFC,
-			  cfg.rfc_environ ? IDC3_EMRFC : IDC3_EMBSD);
+	CheckRadioButton (hwnd, IDC_EMBSD, IDC_EMRFC,
+			  cfg.rfc_environ ? IDC_EMRFC : IDC_EMBSD);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC3_TTEDIT:
+	  case IDC_TTEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-	    GetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype,
+	    GetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype,
 			    sizeof(cfg.termtype)-1);
 	    break;
-	  case IDC3_TSEDIT:
+	  case IDC_TSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC3_TSEDIT, cfg.termspeed,
+		GetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed,
 				sizeof(cfg.termspeed)-1);
 	    break;
-	  case IDC3_LOGEDIT:
+	  case IDC_LOGEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username,
+		GetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username,
 				sizeof(cfg.username)-1);
 	    break;
-	  case IDC3_EMBSD:
-	  case IDC3_EMRFC:
-	    cfg.rfc_environ = IsDlgButtonChecked (hwnd, IDC3_EMRFC);
+	  case IDC_EMBSD:
+	  case IDC_EMRFC:
+	    cfg.rfc_environ = IsDlgButtonChecked (hwnd, IDC_EMRFC);
 	    break;
-	  case IDC3_ENVADD:
+	  case IDC_ENVADD:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
               char str[sizeof(cfg.environmt)];
 		char *p;
-		GetDlgItemText (hwnd, IDC3_VAREDIT, str, sizeof(str)-1);
+		GetDlgItemText (hwnd, IDC_VAREDIT, str, sizeof(str)-1);
 		if (!*str) {
 		    MessageBeep(0);
 		    break;
 		}
 		p = str + strlen(str);
 		*p++ = '\t';
-		GetDlgItemText (hwnd, IDC3_VALEDIT, p, sizeof(str)-1-(p-str));
+		GetDlgItemText (hwnd, IDC_VALEDIT, p, sizeof(str)-1-(p-str));
 		if (!*p) {
 		    MessageBeep(0);
 		    break;
@@ -1605,27 +1692,27 @@ static int CALLBACK TelnetProc (HWND hwnd, UINT msg,
               if ((p-cfg.environmt) + strlen(str) + 2 < sizeof(cfg.environmt)) {
 		    strcpy (p, str);
 		    p[strlen(str)+1] = '\0';
-		    SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_ADDSTRING,
+		    SendDlgItemMessage (hwnd, IDC_ENVLIST, LB_ADDSTRING,
 					0, (LPARAM)str);
-		    SetDlgItemText (hwnd, IDC3_VAREDIT, "");
-		    SetDlgItemText (hwnd, IDC3_VALEDIT, "");
+		    SetDlgItemText (hwnd, IDC_VAREDIT, "");
+		    SetDlgItemText (hwnd, IDC_VALEDIT, "");
 		} else {
 		    MessageBox(hwnd, "Environment too big", "PuTTY Error",
 			       MB_OK | MB_ICONERROR);
 		}
 	    }
 	    break;
-	  case IDC3_ENVREMOVE:
+	  case IDC_ENVREMOVE:
 	    if (HIWORD(wParam) != BN_CLICKED &&
 		HIWORD(wParam) != BN_DOUBLECLICKED)
 		break;
-	    i = SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_GETCURSEL, 0, 0);
+	    i = SendDlgItemMessage (hwnd, IDC_ENVLIST, LB_GETCURSEL, 0, 0);
 	    if (i == LB_ERR)
 		MessageBeep (0);
 	    else {
 		char *p, *q;
 
-	        SendDlgItemMessage (hwnd, IDC3_ENVLIST, LB_DELETESTRING,
+	        SendDlgItemMessage (hwnd, IDC_ENVLIST, LB_DELETESTRING,
 				    i, 0);
               p = cfg.environmt;
 		while (i > 0) {
@@ -1660,105 +1747,126 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
     struct ctlpos cp;
     OPENFILENAME of;
     char filename[sizeof(cfg.keyfile)];
+    enum { controlstartvalue = 1000,
+         IDC_TTSTATIC,
+         IDC_TTEDIT,
+         IDC_LOGSTATIC,
+         IDC_LOGEDIT,
+         IDC_NOPTY,
+         IDC_CIPHERSTATIC,
+         IDC_CIPHER3DES,
+         IDC_CIPHERBLOWF,
+         IDC_CIPHERDES,
+         IDC_AUTHTIS,
+         IDC_PKSTATIC,
+         IDC_PKEDIT,
+         IDC_PKBUTTON,
+         IDC_SSHPROTSTATIC,
+         IDC_SSHPROT1,
+         IDC_SSHPROT2,
+         IDC_AGENTFWD,
+         IDC_CMDSTATIC,
+         IDC_CMDEDIT
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] 123abdkmprtuw */
         ctlposinit(&cp, hwnd);
-        staticedit(&cp, "Terminal-&type string", IDC3_TTSTATIC, IDC3_TTEDIT);
-        staticedit(&cp, "Auto-login &username", IDC3_LOGSTATIC, IDC3_LOGEDIT);
+        staticedit(&cp, "Terminal-&type string", IDC_TTSTATIC, IDC_TTEDIT);
+        staticedit(&cp, "Auto-login &username", IDC_LOGSTATIC, IDC_LOGEDIT);
         multiedit(&cp,
-                  "&Remote command:", IDC3_CMDSTATIC, IDC3_CMDEDIT, 100,
+                  "&Remote command:", IDC_CMDSTATIC, IDC_CMDEDIT, 100,
                   NULL);
-        checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC3_NOPTY);
+        checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
         checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
-                 IDC3_AUTHTIS);
-        checkbox(&cp, "Allow &agent forwarding", IDC3_AGENTFWD);
+                 IDC_AUTHTIS);
+        checkbox(&cp, "Allow &agent forwarding", IDC_AGENTFWD);
         editbutton(&cp, "Private &key file for authentication:",
-                    IDC3_PKSTATIC, IDC3_PKEDIT, "Bro&wse...", IDC3_PKBUTTON);
+                    IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...", IDC_PKBUTTON);
         radioline(&cp, "Preferred SSH protocol version:",
-                  IDC3_SSHPROTSTATIC, 2,
-                  "&1", IDC3_SSHPROT1, "&2", IDC3_SSHPROT2, NULL);
-        radioline(&cp, "Preferred encryption algorithm:", IDC3_CIPHERSTATIC, 3,
-                  "&3DES", IDC3_CIPHER3DES,
-                  "&Blowfish", IDC3_CIPHERBLOWF,
-                  "&DES", IDC3_CIPHERDES, NULL);    
+                  IDC_SSHPROTSTATIC, 2,
+                  "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
+        radioline(&cp, "Preferred encryption algorithm:", IDC_CIPHERSTATIC, 3,
+                  "&3DES", IDC_CIPHER3DES,
+                  "&Blowfish", IDC_CIPHERBLOWF,
+                  "&DES", IDC_CIPHERDES, NULL);    
 
-	SetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype);
-	SetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username);
-	CheckDlgButton (hwnd, IDC3_NOPTY, cfg.nopty);
-	CheckDlgButton (hwnd, IDC3_AGENTFWD, cfg.agentfwd);
-	CheckRadioButton (hwnd, IDC3_CIPHER3DES, IDC3_CIPHERDES,
-			  cfg.cipher == CIPHER_BLOWFISH ? IDC3_CIPHERBLOWF :
-			  cfg.cipher == CIPHER_DES ? IDC3_CIPHERDES :
-			  IDC3_CIPHER3DES);
-	CheckRadioButton (hwnd, IDC3_SSHPROT1, IDC3_SSHPROT2,
-			  cfg.sshprot == 1 ? IDC3_SSHPROT1 : IDC3_SSHPROT2);
-	CheckDlgButton (hwnd, IDC3_AUTHTIS, cfg.try_tis_auth);
-	SetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile);
-	SetDlgItemText (hwnd, IDC3_CMDEDIT, cfg.remote_cmd);
+	SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
+	SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
+	CheckDlgButton (hwnd, IDC_NOPTY, cfg.nopty);
+	CheckDlgButton (hwnd, IDC_AGENTFWD, cfg.agentfwd);
+	CheckRadioButton (hwnd, IDC_CIPHER3DES, IDC_CIPHERDES,
+			  cfg.cipher == CIPHER_BLOWFISH ? IDC_CIPHERBLOWF :
+			  cfg.cipher == CIPHER_DES ? IDC_CIPHERDES :
+			  IDC_CIPHER3DES);
+	CheckRadioButton (hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
+			  cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
+	CheckDlgButton (hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
+	SetDlgItemText (hwnd, IDC_PKEDIT, cfg.keyfile);
+	SetDlgItemText (hwnd, IDC_CMDEDIT, cfg.remote_cmd);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC3_TTEDIT:
+	  case IDC_TTEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-	    GetDlgItemText (hwnd, IDC3_TTEDIT, cfg.termtype,
+	    GetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype,
 			    sizeof(cfg.termtype)-1);
 	    break;
-	  case IDC3_LOGEDIT:
+	  case IDC_LOGEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC3_LOGEDIT, cfg.username,
+		GetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username,
 				sizeof(cfg.username)-1);
 	    break;
-	  case IDC3_NOPTY:
+	  case IDC_NOPTY:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.nopty = IsDlgButtonChecked (hwnd, IDC3_NOPTY);
+		cfg.nopty = IsDlgButtonChecked (hwnd, IDC_NOPTY);
 	    break;
-	  case IDC3_AGENTFWD:
+	  case IDC_AGENTFWD:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.agentfwd = IsDlgButtonChecked (hwnd, IDC3_AGENTFWD);
+		cfg.agentfwd = IsDlgButtonChecked (hwnd, IDC_AGENTFWD);
 	    break;
-	  case IDC3_CIPHER3DES:
-	  case IDC3_CIPHERBLOWF:
-	  case IDC3_CIPHERDES:
+	  case IDC_CIPHER3DES:
+	  case IDC_CIPHERBLOWF:
+	  case IDC_CIPHERDES:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		if (IsDlgButtonChecked (hwnd, IDC3_CIPHER3DES))
+		if (IsDlgButtonChecked (hwnd, IDC_CIPHER3DES))
 		    cfg.cipher = CIPHER_3DES;
-		else if (IsDlgButtonChecked (hwnd, IDC3_CIPHERBLOWF))
+		else if (IsDlgButtonChecked (hwnd, IDC_CIPHERBLOWF))
 		    cfg.cipher = CIPHER_BLOWFISH;
-		else if (IsDlgButtonChecked (hwnd, IDC3_CIPHERDES))
+		else if (IsDlgButtonChecked (hwnd, IDC_CIPHERDES))
 		    cfg.cipher = CIPHER_DES;
 	    }
 	    break;
-	  case IDC3_SSHPROT1:
-	  case IDC3_SSHPROT2:
+	  case IDC_SSHPROT1:
+	  case IDC_SSHPROT2:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-		if (IsDlgButtonChecked (hwnd, IDC3_SSHPROT1))
+		if (IsDlgButtonChecked (hwnd, IDC_SSHPROT1))
 		    cfg.sshprot = 1;
-		else if (IsDlgButtonChecked (hwnd, IDC3_SSHPROT2))
+		else if (IsDlgButtonChecked (hwnd, IDC_SSHPROT2))
 		    cfg.sshprot = 2;
 	    }
 	    break;
-	  case IDC3_AUTHTIS:
+	  case IDC_AUTHTIS:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.try_tis_auth = IsDlgButtonChecked (hwnd, IDC3_AUTHTIS);
+		cfg.try_tis_auth = IsDlgButtonChecked (hwnd, IDC_AUTHTIS);
 	    break;
-	  case IDC3_PKEDIT:
+	  case IDC_PKEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile,
+		GetDlgItemText (hwnd, IDC_PKEDIT, cfg.keyfile,
 				sizeof(cfg.keyfile)-1);
 	    break;
-	  case IDC3_CMDEDIT:
+	  case IDC_CMDEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
-		GetDlgItemText (hwnd, IDC3_CMDEDIT, cfg.remote_cmd,
+		GetDlgItemText (hwnd, IDC_CMDEDIT, cfg.remote_cmd,
 				sizeof(cfg.remote_cmd)-1);
 	    break;
-	  case IDC3_PKBUTTON:
+	  case IDC_PKBUTTON:
             /*
              * FIXME: this crashes. Find out why.
              */
@@ -1780,7 +1888,7 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
             of.Flags = 0;
             if (GetOpenFileName(&of)) {
                 strcpy(cfg.keyfile, filename);
-                SetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile);
+                SetDlgItemText (hwnd, IDC_PKEDIT, cfg.keyfile);
             }
 	    break;
 	}
@@ -1793,24 +1901,34 @@ static int CALLBACK SelectionProc (HWND hwnd, UINT msg,
 				    WPARAM wParam, LPARAM lParam) {
     struct ctlpos cp;
     int i;
+    enum { controlstartvalue = 1000,
+         IDC_MBSTATIC,
+         IDC_MBWINDOWS,
+         IDC_MBXTERM,
+         IDC_CCSTATIC,
+         IDC_CCLIST,
+         IDC_CCSET,
+         IDC_CCSTATIC2,
+         IDC_CCEDIT
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] stwx */
         ctlposinit(&cp, hwnd);
-        radiobig(&cp, "Action of mouse buttons:", IDC4_MBSTATIC,
-                 "&Windows (Right pastes, Middle extends)", IDC4_MBWINDOWS,
-                 "&xterm (Right extends, Middle pastes)", IDC4_MBXTERM,
+        radiobig(&cp, "Action of mouse buttons:", IDC_MBSTATIC,
+                 "&Windows (Right pastes, Middle extends)", IDC_MBWINDOWS,
+                 "&xterm (Right extends, Middle pastes)", IDC_MBXTERM,
                  NULL);
-        charclass(&cp, "Character classes:", IDC4_CCSTATIC, IDC4_CCLIST,
-                  "&Set", IDC4_CCSET, IDC4_CCEDIT,
-                  "&to class", IDC4_CCSTATIC2);
+        charclass(&cp, "Character classes:", IDC_CCSTATIC, IDC_CCLIST,
+                  "&Set", IDC_CCSET, IDC_CCEDIT,
+                  "&to class", IDC_CCSTATIC2);
 
-	CheckRadioButton (hwnd, IDC4_MBWINDOWS, IDC4_MBXTERM,
-			  cfg.mouse_is_xterm ? IDC4_MBXTERM : IDC4_MBWINDOWS);
+	CheckRadioButton (hwnd, IDC_MBWINDOWS, IDC_MBXTERM,
+			  cfg.mouse_is_xterm ? IDC_MBXTERM : IDC_MBWINDOWS);
 	{
 	    static int tabs[4] = {25, 61, 96, 128};
-	    SendDlgItemMessage (hwnd, IDC4_CCLIST, LB_SETTABSTOPS, 4,
+	    SendDlgItemMessage (hwnd, IDC_CCLIST, LB_SETTABSTOPS, 4,
 				(LPARAM) tabs);
 	}
 	for (i=0; i<256; i++) {
@@ -1818,36 +1936,36 @@ static int CALLBACK SelectionProc (HWND hwnd, UINT msg,
 	    sprintf(str, "%d\t(0x%02X)\t%c\t%d", i, i,
 		    (i>=0x21 && i != 0x7F) ? i : ' ',
 		    cfg.wordness[i]);
-	    SendDlgItemMessage (hwnd, IDC4_CCLIST, LB_ADDSTRING, 0,
+	    SendDlgItemMessage (hwnd, IDC_CCLIST, LB_ADDSTRING, 0,
 				(LPARAM) str);
 	}
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC4_MBWINDOWS:
-	  case IDC4_MBXTERM:
-	    cfg.mouse_is_xterm = IsDlgButtonChecked (hwnd, IDC4_MBXTERM);
+	  case IDC_MBWINDOWS:
+	  case IDC_MBXTERM:
+	    cfg.mouse_is_xterm = IsDlgButtonChecked (hwnd, IDC_MBXTERM);
 	    break;
-	  case IDC4_CCSET:
+	  case IDC_CCSET:
 	    {
 		BOOL ok;
 		int i;
-		int n = GetDlgItemInt (hwnd, IDC4_CCEDIT, &ok, FALSE);
+		int n = GetDlgItemInt (hwnd, IDC_CCEDIT, &ok, FALSE);
 
 		if (!ok)
 		    MessageBeep (0);
 		else {
 		    for (i=0; i<256; i++)
-			if (SendDlgItemMessage (hwnd, IDC4_CCLIST, LB_GETSEL,
+			if (SendDlgItemMessage (hwnd, IDC_CCLIST, LB_GETSEL,
 						i, 0)) {
 			    char str[100];
 			    cfg.wordness[i] = n;
-			    SendDlgItemMessage (hwnd, IDC4_CCLIST,
+			    SendDlgItemMessage (hwnd, IDC_CCLIST,
 						LB_DELETESTRING, i, 0);
 			    sprintf(str, "%d\t(0x%02X)\t%c\t%d", i, i,
 				    (i>=0x21 && i != 0x7F) ? i : ' ',
 				    cfg.wordness[i]);
-			    SendDlgItemMessage (hwnd, IDC4_CCLIST,
+			    SendDlgItemMessage (hwnd, IDC_CCLIST,
 						LB_INSERTSTRING, i,
 						(LPARAM)str);
 			}
@@ -1881,79 +1999,92 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
 	TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE
     };
     struct ctlpos cp;
+    enum { controlstartvalue = 1000,
+         IDC_BOLDCOLOUR,
+         IDC_PALETTE,
+         IDC_STATIC,
+         IDC_LIST,
+         IDC_RSTATIC,
+         IDC_GSTATIC,
+         IDC_BSTATIC,
+         IDC_RVALUE,
+         IDC_GVALUE,
+         IDC_BVALUE,
+         IDC_CHANGE
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] bmlu */
         ctlposinit(&cp, hwnd);
-        checkbox(&cp, "&Bolded text is a different colour", IDC5_BOLDCOLOUR);
-        checkbox(&cp, "Attempt to use &logical palettes", IDC5_PALETTE);
+        checkbox(&cp, "&Bolded text is a different colour", IDC_BOLDCOLOUR);
+        checkbox(&cp, "Attempt to use &logical palettes", IDC_PALETTE);
         colouredit(&cp, "Select a colo&ur and click to modify it:",
-                   IDC5_STATIC, IDC5_LIST,
-                   "&Modify...", IDC5_CHANGE,
-                   "Red:", IDC5_RSTATIC, IDC5_RVALUE,
-                   "Green:", IDC5_GSTATIC, IDC5_GVALUE,
-                   "Blue:", IDC5_BSTATIC, IDC5_BVALUE, NULL);
+                   IDC_STATIC, IDC_LIST,
+                   "&Modify...", IDC_CHANGE,
+                   "Red:", IDC_RSTATIC, IDC_RVALUE,
+                   "Green:", IDC_GSTATIC, IDC_GVALUE,
+                   "Blue:", IDC_BSTATIC, IDC_BVALUE, NULL);
 
-	CheckDlgButton (hwnd, IDC5_BOLDCOLOUR, cfg.bold_colour);
-	CheckDlgButton (hwnd, IDC5_PALETTE, cfg.try_palette);
+	CheckDlgButton (hwnd, IDC_BOLDCOLOUR, cfg.bold_colour);
+	CheckDlgButton (hwnd, IDC_PALETTE, cfg.try_palette);
 	{
 	    int i;
 	    for (i=0; i<22; i++)
 		if (cfg.bold_colour || permanent[i])
-		    SendDlgItemMessage (hwnd, IDC5_LIST, LB_ADDSTRING, 0,
+		    SendDlgItemMessage (hwnd, IDC_LIST, LB_ADDSTRING, 0,
 					(LPARAM) colours[i]);
 	}
-	SendDlgItemMessage (hwnd, IDC5_LIST, LB_SETCURSEL, 0, 0);
-	SetDlgItemInt (hwnd, IDC5_RVALUE, cfg.colours[0][0], FALSE);
-	SetDlgItemInt (hwnd, IDC5_GVALUE, cfg.colours[0][1], FALSE);
-	SetDlgItemInt (hwnd, IDC5_BVALUE, cfg.colours[0][2], FALSE);
+	SendDlgItemMessage (hwnd, IDC_LIST, LB_SETCURSEL, 0, 0);
+	SetDlgItemInt (hwnd, IDC_RVALUE, cfg.colours[0][0], FALSE);
+	SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[0][1], FALSE);
+	SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[0][2], FALSE);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC5_BOLDCOLOUR:
+	  case IDC_BOLDCOLOUR:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int n, i;
-		cfg.bold_colour = IsDlgButtonChecked (hwnd, IDC5_BOLDCOLOUR);
-		n = SendDlgItemMessage (hwnd, IDC5_LIST, LB_GETCOUNT, 0, 0);
+		cfg.bold_colour = IsDlgButtonChecked (hwnd, IDC_BOLDCOLOUR);
+		n = SendDlgItemMessage (hwnd, IDC_LIST, LB_GETCOUNT, 0, 0);
 		if (cfg.bold_colour && n!=22) {
 		    for (i=0; i<22; i++)
 			if (!permanent[i])
-			    SendDlgItemMessage (hwnd, IDC5_LIST,
+			    SendDlgItemMessage (hwnd, IDC_LIST,
 						LB_INSERTSTRING, i,
 						(LPARAM) colours[i]);
 		} else if (!cfg.bold_colour && n!=12) {
 		    for (i=22; i-- ;)
 			if (!permanent[i])
-			    SendDlgItemMessage (hwnd, IDC5_LIST,
+			    SendDlgItemMessage (hwnd, IDC_LIST,
 						LB_DELETESTRING, i, 0);
 		}
 	    }
 	    break;
-	  case IDC5_PALETTE:
+	  case IDC_PALETTE:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.try_palette = IsDlgButtonChecked (hwnd, IDC5_PALETTE);
+		cfg.try_palette = IsDlgButtonChecked (hwnd, IDC_PALETTE);
 	    break;
-	  case IDC5_LIST:
+	  case IDC_LIST:
 	    if (HIWORD(wParam) == LBN_DBLCLK ||
 		HIWORD(wParam) == LBN_SELCHANGE) {
-		int i = SendDlgItemMessage (hwnd, IDC5_LIST, LB_GETCURSEL,
+		int i = SendDlgItemMessage (hwnd, IDC_LIST, LB_GETCURSEL,
 					    0, 0);
 		if (!cfg.bold_colour)
 		    i = (i < 3 ? i*2 : i == 3 ? 5 : i*2-2);
-		SetDlgItemInt (hwnd, IDC5_RVALUE, cfg.colours[i][0], FALSE);
-		SetDlgItemInt (hwnd, IDC5_GVALUE, cfg.colours[i][1], FALSE);
-		SetDlgItemInt (hwnd, IDC5_BVALUE, cfg.colours[i][2], FALSE);
+		SetDlgItemInt (hwnd, IDC_RVALUE, cfg.colours[i][0], FALSE);
+		SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[i][1], FALSE);
+		SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[i][2], FALSE);
 	    }
 	    break;
-	  case IDC5_CHANGE:
+	  case IDC_CHANGE:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		static CHOOSECOLOR cc;
 		static DWORD custom[16] = {0};   /* zero initialisers */
-		int i = SendDlgItemMessage (hwnd, IDC5_LIST, LB_GETCURSEL,
+		int i = SendDlgItemMessage (hwnd, IDC_LIST, LB_GETCURSEL,
 					    0, 0);
 		if (!cfg.bold_colour)
 		    i = (i < 3 ? i*2 : i == 3 ? 5 : i*2-2);
@@ -1971,11 +2102,11 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
 			(unsigned char) (cc.rgbResult >> 8) & 0xFF;
 		    cfg.colours[i][2] =
 			(unsigned char) (cc.rgbResult >> 16) & 0xFF;
-		    SetDlgItemInt (hwnd, IDC5_RVALUE, cfg.colours[i][0],
+		    SetDlgItemInt (hwnd, IDC_RVALUE, cfg.colours[i][0],
 				   FALSE);
-		    SetDlgItemInt (hwnd, IDC5_GVALUE, cfg.colours[i][1],
+		    SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[i][1],
 				   FALSE);
-		    SetDlgItemInt (hwnd, IDC5_BVALUE, cfg.colours[i][2],
+		    SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[i][2],
 				   FALSE);
 		}
 	    }
@@ -1989,60 +2120,72 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
 static int CALLBACK TranslationProc (HWND hwnd, UINT msg,
 				  WPARAM wParam, LPARAM lParam) {
     struct ctlpos cp;
+    enum { controlstartvalue = 1000,
+         IDC_XLATSTATIC,
+         IDC_NOXLAT,
+         IDC_KOI8WIN1251,
+         IDC_88592WIN1250,
+         IDC_CAPSLOCKCYR,
+         IDC_VTSTATIC,
+         IDC_VTXWINDOWS,
+         IDC_VTOEMANSI,
+         IDC_VTOEMONLY,
+         IDC_VTPOORMAN
+    };
 
     switch (msg) {
       case WM_INITDIALOG:
         /* Accelerators used: [aco] beiknpsx */
         ctlposinit(&cp, hwnd);
         radiobig(&cp,
-                 "Handling of VT100 line drawing characters:", IDC2_VTSTATIC,
-                 "Font has &XWindows encoding", IDC2_VTXWINDOWS,
-                 "Use font in &both ANSI and OEM modes", IDC2_VTOEMANSI,
-                 "Use font in O&EM mode only", IDC2_VTOEMONLY,
+                 "Handling of VT100 line drawing characters:", IDC_VTSTATIC,
+                 "Font has &XWindows encoding", IDC_VTXWINDOWS,
+                 "Use font in &both ANSI and OEM modes", IDC_VTOEMANSI,
+                 "Use font in O&EM mode only", IDC_VTOEMONLY,
                  "&Poor man's line drawing (""+"", ""-"" and ""|"")",
-                 IDC2_VTPOORMAN, NULL);
+                 IDC_VTPOORMAN, NULL);
         radiobig(&cp,
-                 "Character set translation:", IDC6_XLATSTATIC,
-                 "&None", IDC6_NOXLAT,
-                 "&KOI8 / Win-1251", IDC6_KOI8WIN1251,
-                 "&ISO-8859-2 / Win-1250", IDC6_88592WIN1250, NULL);
-        checkbox(&cp, "CAP&S LOCK acts as cyrillic switch", IDC6_CAPSLOCKCYR);
+                 "Character set translation:", IDC_XLATSTATIC,
+                 "&None", IDC_NOXLAT,
+                 "&KOI8 / Win-1251", IDC_KOI8WIN1251,
+                 "&ISO-8859-2 / Win-1250", IDC_88592WIN1250, NULL);
+        checkbox(&cp, "CAP&S LOCK acts as cyrillic switch", IDC_CAPSLOCKCYR);
 
-	CheckRadioButton (hwnd, IDC6_NOXLAT, IDC6_88592WIN1250,
-			  cfg.xlat_88592w1250 ? IDC6_88592WIN1250 :
-			  cfg.xlat_enablekoiwin ? IDC6_KOI8WIN1251 :
-			  IDC6_NOXLAT);
-	CheckDlgButton (hwnd, IDC6_CAPSLOCKCYR, cfg.xlat_capslockcyr);
-	CheckRadioButton (hwnd, IDC2_VTXWINDOWS, IDC2_VTPOORMAN,
-			  cfg.vtmode == VT_XWINDOWS ? IDC2_VTXWINDOWS :
-			  cfg.vtmode == VT_OEMANSI ? IDC2_VTOEMANSI :
-			  cfg.vtmode == VT_OEMONLY ? IDC2_VTOEMONLY :
-			  IDC2_VTPOORMAN);
+	CheckRadioButton (hwnd, IDC_NOXLAT, IDC_88592WIN1250,
+			  cfg.xlat_88592w1250 ? IDC_88592WIN1250 :
+			  cfg.xlat_enablekoiwin ? IDC_KOI8WIN1251 :
+			  IDC_NOXLAT);
+	CheckDlgButton (hwnd, IDC_CAPSLOCKCYR, cfg.xlat_capslockcyr);
+	CheckRadioButton (hwnd, IDC_VTXWINDOWS, IDC_VTPOORMAN,
+			  cfg.vtmode == VT_XWINDOWS ? IDC_VTXWINDOWS :
+			  cfg.vtmode == VT_OEMANSI ? IDC_VTOEMANSI :
+			  cfg.vtmode == VT_OEMONLY ? IDC_VTOEMONLY :
+			  IDC_VTPOORMAN);
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
-	  case IDC6_NOXLAT:
-	  case IDC6_KOI8WIN1251:
-	  case IDC6_88592WIN1250:
+	  case IDC_NOXLAT:
+	  case IDC_KOI8WIN1251:
+	  case IDC_88592WIN1250:
 	    cfg.xlat_enablekoiwin =
-		IsDlgButtonChecked (hwnd, IDC6_KOI8WIN1251);
+		IsDlgButtonChecked (hwnd, IDC_KOI8WIN1251);
 	    cfg.xlat_88592w1250 =
-		IsDlgButtonChecked (hwnd, IDC6_88592WIN1250);
+		IsDlgButtonChecked (hwnd, IDC_88592WIN1250);
 	    break;
-	  case IDC6_CAPSLOCKCYR:
+	  case IDC_CAPSLOCKCYR:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		cfg.xlat_capslockcyr =
-		    IsDlgButtonChecked (hwnd, IDC6_CAPSLOCKCYR);
+		    IsDlgButtonChecked (hwnd, IDC_CAPSLOCKCYR);
 	    }
 	    break;
-	  case IDC2_VTXWINDOWS:
-	  case IDC2_VTOEMANSI:
-	  case IDC2_VTOEMONLY:
-	  case IDC2_VTPOORMAN:
+	  case IDC_VTXWINDOWS:
+	  case IDC_VTOEMANSI:
+	  case IDC_VTOEMONLY:
+	  case IDC_VTPOORMAN:
 	    cfg.vtmode =
-		(IsDlgButtonChecked (hwnd, IDC2_VTXWINDOWS) ? VT_XWINDOWS :
-		 IsDlgButtonChecked (hwnd, IDC2_VTOEMANSI) ? VT_OEMANSI :
-		 IsDlgButtonChecked (hwnd, IDC2_VTOEMONLY) ? VT_OEMONLY :
+		(IsDlgButtonChecked (hwnd, IDC_VTXWINDOWS) ? VT_XWINDOWS :
+		 IsDlgButtonChecked (hwnd, IDC_VTOEMANSI) ? VT_OEMANSI :
+		 IsDlgButtonChecked (hwnd, IDC_VTOEMONLY) ? VT_OEMONLY :
 		 VT_POORMAN);
 	    break;
 	}
@@ -2053,17 +2196,6 @@ static int CALLBACK TranslationProc (HWND hwnd, UINT msg,
 static DLGPROC panelproc[NPANELS] = {
     ConnectionProc, KeyboardProc, TerminalProc, WindowProc,
     TelnetProc, SshProc, SelectionProc, ColourProc, TranslationProc
-};
-static char *panelids[NPANELS] = {
-    MAKEINTRESOURCE(IDD_PANEL0),
-    MAKEINTRESOURCE(IDD_PANEL1),
-    MAKEINTRESOURCE(IDD_PANEL2),
-    MAKEINTRESOURCE(IDD_PANELW),
-    MAKEINTRESOURCE(IDD_PANEL3),
-    MAKEINTRESOURCE(IDD_PANEL35),
-    MAKEINTRESOURCE(IDD_PANEL4),
-    MAKEINTRESOURCE(IDD_PANEL5),
-    MAKEINTRESOURCE(IDD_PANEL6)
 };
 
 static char *names[NPANELS] = {
@@ -2086,7 +2218,7 @@ static HWND makesubdialog(HWND hwnd, int x, int y, int w, int h, int n) {
                            WS_CHILD | WS_VISIBLE | DS_SETFONT,
                            r.left, r.top,
                            r.right-r.left, r.bottom-r.top,
-                           hwnd, (HMENU)(panelids[n]),
+                           hwnd, (HMENU)IDC_SUBDLG,
                            hinst, NULL);
     SetWindowLong (ret, DWL_DLGPROC, (LONG)panelproc[n]);
     font = SendMessage(hwnd, WM_GETFONT, 0, 0);
@@ -2205,27 +2337,9 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 
 static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 				 WPARAM wParam, LPARAM lParam) {
-#if 0
-    HWND hw;
-    int i;
-#endif
     static HWND page = NULL;
 
     if (msg == WM_COMMAND && LOWORD(wParam) == IDOK) {
-#if 0
-	/*
-	 * If the Connection panel is active and the Session List
-	 * box is selected, we treat a press of Open to have an
-	 * implicit press of Load preceding it.
-	 */
-	hw = GetDlgItem (hwnd, IDC_TAB);
-	i = TabCtrl_GetCurSel(hw);
-	if (panelproc[mainp[i]] == ConnectionProc &&
-	    page && implicit_load_ok) {
-	    SendMessage (page, WM_COMMAND,
-			 MAKELONG(IDC0_SESSLOAD, BN_CLICKED), 0);
-	}
-#endif
     }
     if (msg == WM_COMMAND && LOWORD(wParam) == IDC_ABOUT) {
 	EnableWindow(hwnd, 0);
