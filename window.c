@@ -1640,9 +1640,9 @@ static Mouse_Button translate_button(Mouse_Button button)
     if (button == MBT_LEFT)
 	return MBT_SELECT;
     if (button == MBT_MIDDLE)
-	return cfg.mouse_is_xterm ? MBT_PASTE : MBT_EXTEND;
+	return cfg.mouse_is_xterm == 1 ? MBT_PASTE : MBT_EXTEND;
     if (button == MBT_RIGHT)
-	return cfg.mouse_is_xterm ? MBT_EXTEND : MBT_PASTE;
+	return cfg.mouse_is_xterm == 1 ? MBT_EXTEND : MBT_PASTE;
     return 0;			       /* shouldn't happen */
 }
 
@@ -2028,9 +2028,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_LBUTTONUP:
       case WM_MBUTTONUP:
       case WM_RBUTTONUP:
-	if (message == WM_RBUTTONDOWN && (wParam & MK_CONTROL)) {
+	if (message == WM_RBUTTONDOWN &&
+	    ((wParam & MK_CONTROL) || (cfg.mouse_is_xterm == 2))) {
 	    POINT cursorpos;
 
+	    show_mouseptr(1);	       /* make sure pointer is visible */
 	    GetCursorPos(&cursorpos);
 	    TrackPopupMenu(popup_menus[CTXMENU].menu,
 			   TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
