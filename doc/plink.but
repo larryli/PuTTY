@@ -113,6 +113,12 @@ and use most of the other features of PuTTY:
 \c Last login: Thu Dec  6 19:25:33 2001 from :0.0
 \c fred@flunky:~$
 
+(You can also use the \c{-load} command-line option to load a saved
+session; see \k{using-cmdline-load}. If you use \c{-load}, the saved
+session exists, and it specifies a hostname, you cannot also specify a
+\c{host} or \c{user@host} argument - it will be treated as part of the
+remote command.)
+
 \S{plink-usage-batch} Using Plink for automated connections
 
 More typically Plink is used with the SSH protocol, to enable you to
