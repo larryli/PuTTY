@@ -72,6 +72,7 @@ struct gui_data {
     int exited;
     struct unicode_data ucsdata;
     Config cfg;
+    void *eventlogstuff;
 };
 
 struct draw_ctx {
@@ -163,11 +164,12 @@ int askappend(void *frontend, Filename filename)
 
 void logevent(void *frontend, char *string)
 {
-    /*
-     * This is not a very helpful function: events are logged
-     * pretty much exclusively by the back end, and our pty back
-     * end is self-contained. So we need do nothing.
-     */
+    Terminal *term = (Terminal *)frontend;
+    struct gui_data *inst = (struct gui_data *)term->frontend;
+
+    log_eventlog(inst->logctx, string);
+
+    logevent_dlg(inst->eventlogstuff, string);
 }
 
 int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
@@ -2316,6 +2318,12 @@ void about_menuitem(GtkMenuItem *item, gpointer data)
     about_box();
 }
 
+void event_log_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    showeventlog(inst->eventlogstuff, inst->window);
+}
+
 void update_specials_menu(void *frontend)
 {
     Terminal *term = (Terminal *)frontend;
@@ -2530,6 +2538,7 @@ int pt_main(int argc, char **argv)
     {
 	GtkWidget *menuitem;
 	char *s;
+	extern const int use_event_log;
 
 	inst->menu = gtk_menu_new();
 
@@ -2542,6 +2551,8 @@ int pt_main(int argc, char **argv)
 	gtk_signal_connect(GTK_OBJECT(menuitem), "activate", \
 			       GTK_SIGNAL_FUNC(func), inst); \
 } while (0)
+	if (use_event_log)
+	    MKMENUITEM("Event Log", event_log_menuitem);
 	MKMENUITEM("Special Commands", NULL);
 	inst->specialsmenu = gtk_menu_new();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), inst->specialsmenu);
@@ -2563,6 +2574,8 @@ int pt_main(int argc, char **argv)
     make_mouse_ptr(inst, -2);	       /* clean up cursor font */
     inst->currcursor = inst->textcursor;
     show_mouseptr(inst, 1);
+
+    inst->eventlogstuff = eventlogstuff_new();
 
     inst->term = term_init(&inst->cfg, &inst->ucsdata, inst);
     inst->logctx = log_init(inst, &inst->cfg);

@@ -14,10 +14,9 @@
 /*
  * TODO:
  * 
- *  - Remainder of the context menu:
+ *  - Copy-and-paste from the Event Log.
  * 
- *     - Event Log (this means we must implement the Event Log; not
- *       in pterm)
+ *  - Remainder of the context menu:
  * 
  *     - New Session and Duplicate Session (perhaps in pterm, in fact?!)
  *        + Duplicate Session will be fun, since we must work out
@@ -48,8 +47,28 @@
  * 
  *     - Change Settings
  *        + we must also implement mid-session reconfig in pterm.c.
- *        + note this also requires config.c and uxcfg.c to be able
- *          to get hold of the application name.
+ * 	  + This will require some work. We have to throw the new
+ * 	    config at the log module, the ldisc, the terminal, and
+ * 	    the backend; that's the easy bit. But within pterm.c
+ * 	    itself we must also: 
+ *           - redo the colour palette if necessary
+ * 		* might be nice to move this over into terminal.c.
+ * 		  That way we could check which palette entries in
+ * 		  cfg have actually been _changed_ during
+ * 		  reconfiguration, and only update those ones in
+ * 		  the currently visible palette. Also it'd save
+ * 		  some of this hassle in the next port.
+ *           - enable/disable/move the scroll bar if necessary
+ *           - change the window title if necessary
+ *           - reinitialise the fonts
+ * 	     - resize the window if necessary (may be required
+ * 	       either by terminal size change or font size change
+ * 	       or both)
+ *           - redraw everything, just to be safe.
+ * 	  + In particular, among the above chaos, we must look into
+ * 	    how the choice of font affects the choice of codepage
+ * 	    since the Unix default is to derive the latter from the
+ * 	    former.
  * 
  *     - Copy All to Clipboard (for what that's worth)
  */
@@ -87,6 +106,8 @@ int cfgbox(Config *cfg)
 }
 
 static int got_host = 0;
+
+const int use_event_log = 1;
 
 int process_nonoption_arg(char *arg, Config *cfg)
 {

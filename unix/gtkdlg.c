@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <time.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <gdk/gdkx.h>
@@ -158,6 +159,7 @@ static void dlg_cleanup(struct dlgparam *dp)
     struct uctrl *uc;
 
     freetree234(dp->byctrl);	       /* doesn't free the uctrls inside */
+    dp->byctrl = NULL;
     while ( (uc = index234(dp->bywidget, 0)) != NULL) {
 	del234(dp->bywidget, uc);
 	if (uc->privdata_needs_free)
@@ -166,6 +168,7 @@ static void dlg_cleanup(struct dlgparam *dp)
 	sfree(uc);
     }
     freetree234(dp->bywidget);
+    dp->bywidget = NULL;
     sfree(dp->treeitems);
 }
 
@@ -177,12 +180,16 @@ static void dlg_add_uctrl(struct dlgparam *dp, struct uctrl *uc)
 
 static struct uctrl *dlg_find_byctrl(struct dlgparam *dp, union control *ctrl)
 {
+    if (!dp->byctrl)
+	return NULL;
     return find234(dp->byctrl, ctrl, uctrl_cmp_byctrl_find);
 }
 
 static struct uctrl *dlg_find_bywidget(struct dlgparam *dp, GtkWidget *w)
 {
     struct uctrl *ret = NULL;
+    if (!dp->bywidget)
+	return NULL;
     do {
 	ret = find234(dp->bywidget, w, uctrl_cmp_bywidget_find);
 	if (ret)
@@ -1471,7 +1478,10 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                                    GTK_SIGNAL_FUNC(widget_focus), dp);
             } else {
                 uc->list = gtk_list_new();
-                if (ctrl->listbox.multisel) {
+                if (ctrl->listbox.multisel == 2) {
+                    gtk_list_set_selection_mode(GTK_LIST(uc->list),
+                                                GTK_SELECTION_EXTENDED);
+                } else if (ctrl->listbox.multisel == 1) {
                     gtk_list_set_selection_mode(GTK_LIST(uc->list),
                                                 GTK_SELECTION_MULTIPLE);
                 } else {
@@ -1895,6 +1905,15 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 	}
 }
 
+int get_listitemheight(void)
+{
+    GtkWidget *listitem = gtk_list_item_new_with_label("foo");
+    GtkRequisition req;
+    gtk_widget_size_request(listitem, &req);
+    gtk_widget_unref(listitem);
+    return req.height;
+}
+
 int do_config_box(const char *title, Config *cfg)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
@@ -1913,15 +1932,9 @@ int do_config_box(const char *title, Config *cfg)
 
     dlg_init(&dp);
 
-    {
-        GtkWidget *listitem = gtk_list_item_new_with_label("foo");
-        GtkRequisition req;
-        gtk_widget_size_request(listitem, &req);
-        listitemheight = req.height;
-        gtk_widget_unref(listitem);
-    }
-
     get_sesslist(&sl, TRUE);
+
+    listitemheight = get_listitemheight();
 
     for (index = 0; index < lenof(scs.sc); index++) {
 	scs.sc[index].action = SHORTCUT_EMPTY;
@@ -2455,4 +2468,168 @@ void about_box(void)
     gtk_widget_show(w);
 
     gtk_widget_show(aboutbox);
+}
+
+struct eventlog_stuff {
+    GtkWidget *parentwin, *window;
+    struct controlbox *eventbox;
+    struct Shortcuts scs;
+    struct dlgparam dp;
+    union control *listctrl;
+    char **events;
+    int nevents, negsize;
+};
+
+static void eventlog_destroy(GtkWidget *widget, gpointer data)
+{
+    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+
+    es->window = NULL;
+    dlg_cleanup(&es->dp);
+    ctrl_free_box(es->eventbox);
+}
+static void eventlog_ok_handler(union control *ctrl, void *dlg,
+				void *data, int event)
+{
+    if (event == EVENT_ACTION)
+	dlg_end(dlg, 0);
+}
+static void eventlog_list_handler(union control *ctrl, void *dlg,
+				  void *data, int event)
+{
+    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+
+    if (event == EVENT_REFRESH) {
+	int i;
+
+	dlg_update_start(ctrl, dlg);
+	dlg_listbox_clear(ctrl, dlg);
+	for (i = 0; i < es->nevents; i++) {
+	    dlg_listbox_add(ctrl, dlg, es->events[i]);
+	}
+	dlg_update_done(ctrl, dlg);
+    }
+}
+void showeventlog(void *estuff, void *parentwin)
+{
+    struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
+    GtkWidget *window, *w0, *w1;
+    GtkWidget *parent = GTK_WIDGET(parentwin);
+    struct controlset *s0, *s1;
+    union control *c;
+    int listitemheight, index;
+    char *title;
+
+    if (es->window) {
+        gtk_widget_grab_focus(es->window);
+	return;
+    }
+
+    dlg_init(&es->dp);
+
+    for (index = 0; index < lenof(es->scs.sc); index++) {
+	es->scs.sc[index].action = SHORTCUT_EMPTY;
+    }
+
+    es->eventbox = ctrl_new_box();
+
+    s0 = ctrl_getset(es->eventbox, "", "", "");
+    ctrl_columns(s0, 3, 33, 34, 33);
+    c = ctrl_pushbutton(s0, "Close", 'c', HELPCTX(no_help),
+			eventlog_ok_handler, P(NULL));
+    c->button.column = 1;
+    c->button.isdefault = TRUE;
+
+    s1 = ctrl_getset(es->eventbox, "x", "", "");
+    es->listctrl = c = ctrl_listbox(s1, NULL, NO_SHORTCUT, HELPCTX(no_help),
+				    eventlog_list_handler, P(es));
+    c->listbox.height = 10;
+    c->listbox.multisel = 2;
+    c->listbox.ncols = 3;
+    c->listbox.percentages = snewn(3, int);
+    c->listbox.percentages[0] = 25;
+    c->listbox.percentages[1] = 10;
+    c->listbox.percentages[2] = 65;
+
+    listitemheight = get_listitemheight();
+
+    es->window = window = gtk_dialog_new();
+    title = dupcat(appname, " Event Log", NULL);
+    gtk_window_set_title(GTK_WINDOW(window), title);
+    sfree(title);
+    w0 = layout_ctrls(&es->dp, &es->scs, s0,
+		      listitemheight, GTK_WINDOW(window));
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
+		       w0, TRUE, TRUE, 0);
+    gtk_widget_show(w0);
+    w1 = layout_ctrls(&es->dp, &es->scs, s1,
+		      listitemheight, GTK_WINDOW(window));
+    gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
+    gtk_widget_set_usize(w1, 20 +
+			 string_width("LINE OF TEXT GIVING WIDTH OF EVENT LOG"
+				      " IS QUITE LONG 'COS SSH LOG ENTRIES"
+				      " ARE WIDE"), -1);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
+		       w1, TRUE, TRUE, 0);
+    gtk_widget_show(w1);
+
+    es->dp.data = es;
+    es->dp.shortcuts = &es->scs;
+    es->dp.lastfocus = NULL;
+    es->dp.retval = 0;
+    es->dp.window = window;
+
+    dlg_refresh(NULL, &es->dp);
+
+    if (parent) {
+	gint x, y, w, h, dx, dy;
+	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
+	gdk_window_get_origin(parent->window, &x, &y);
+	gdk_window_get_size(parent->window, &w, &h);
+	dx = x + w/4;
+	dy = y + h/4;
+	gtk_widget_set_uposition(GTK_WIDGET(window), dx, dy);
+	gtk_window_set_transient_for(GTK_WINDOW(window),
+				     GTK_WINDOW(parent));
+    } else
+	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+    gtk_widget_show(window);
+
+    gtk_signal_connect(GTK_OBJECT(window), "destroy",
+		       GTK_SIGNAL_FUNC(eventlog_destroy), es);
+    gtk_signal_connect(GTK_OBJECT(window), "key_press_event",
+		       GTK_SIGNAL_FUNC(win_key_press), &es->dp);
+}
+
+void *eventlogstuff_new(void)
+{
+    struct eventlog_stuff *es;
+    es = snew(struct eventlog_stuff);
+    memset(es, 0, sizeof(*es));
+    return es;
+}
+
+void logevent_dlg(void *estuff, char *string)
+{
+    struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
+
+    char timebuf[40];
+    time_t t;
+
+    if (es->nevents >= es->negsize) {
+	es->negsize += 64;
+	es->events = sresize(es->events, es->negsize, char *);
+    }
+
+    time(&t);
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t",
+	     localtime(&t));
+
+    es->events[es->nevents] = snewn(strlen(timebuf) + strlen(string) + 1, char);
+    strcpy(es->events[es->nevents], timebuf);
+    strcat(es->events[es->nevents], string);
+    if (es->window) {
+	dlg_listbox_add(es->listctrl, &es->dp, es->events[es->nevents]);
+    }
+    es->nevents++;
 }

@@ -8,6 +8,7 @@
 #include "putty.h"
 
 const char *const appname = "pterm";
+const int use_event_log = 0;	       /* pterm doesn't need it */
 
 Backend *select_backend(Config *cfg)
 {

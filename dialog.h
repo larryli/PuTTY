@@ -305,9 +305,16 @@ union control {
 	 */
 	int draglist;
 	/*
-	 * If this is set, the list can have more than one element
-	 * selected at a time. This is not guaranteed to work on a
-	 * drop-down list, so don't try it!
+	 * If this is non-zero, the list can have more than one
+	 * element selected at a time. This is not guaranteed to
+	 * work on a drop-down list, so don't try it!
+	 * 
+	 * Different non-zero values request slightly different
+	 * types of multi-selection (this may well be meaningful
+	 * only in GTK, so everyone else can ignore it if they
+	 * want). 1 means the list box expects to have individual
+	 * items selected, whereas 2 means it expects the user to
+	 * want to select a large contiguous range at a time.
 	 */
 	int multisel;
 	/*
