@@ -27,7 +27,12 @@ struct mac_gestalts {
 
 extern struct mac_gestalts mac_gestalts;
 
+#if TARGET_RT_MAC_CFM
+/* All systems that can use CFM have Color QuickDraw */
+#define HAVE_COLOR_QD() 1
+#else
 #define HAVE_COLOR_QD() (mac_gestalts.qdvers > gestaltOriginalQD)
+#endif
 
 typedef struct {
     /* Config that created this session */
