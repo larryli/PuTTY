@@ -2680,7 +2680,7 @@ static char *ssh_init (char *host, int port, char **realhost) {
  * Called to send data down the Telnet connection.
  */
 static void ssh_send (char *buf, int len) {
-    if (s == NULL)
+    if (s == NULL || ssh_protocol == NULL)
 	return;
 
     ssh_protocol(buf, len, 0);
