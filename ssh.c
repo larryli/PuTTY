@@ -454,10 +454,10 @@ next_packet:
     /*
      * Adjust memory allocation if packet is too big.
      */
-    if (pktin.maxlen < packetlen) {
-	pktin.maxlen = packetlen;
-	pktin.data = (pktin.data == NULL ? malloc(packetlen+APIEXTRA) :
-	              realloc(pktin.data, packetlen+APIEXTRA));
+    if (pktin.maxlen < packetlen+maclen) {
+	pktin.maxlen = packetlen+maclen;
+	pktin.data = (pktin.data == NULL ? malloc(pktin.maxlen+APIEXTRA) :
+	              realloc(pktin.data, pktin.maxlen+APIEXTRA));
 	if (!pktin.data)
 	    fatalbox("Out of memory");
     }
@@ -2171,8 +2171,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
     ssh2_pkt_addstring("session");
     ssh2_pkt_adduint32(100);           /* as good as any */
-    ssh2_pkt_adduint32(0xFFFFFFFFUL);  /* very big window which we ignore */
-    ssh2_pkt_adduint32(0xFFFFFFFFUL);  /* very big max pkt size */
+    ssh2_pkt_adduint32(0x7FFFFFFFUL);  /* very big window which we ignore */
+    ssh2_pkt_adduint32(0x7FFFFFFFUL);  /* very big max pkt size */
     ssh2_pkt_send();
     crWaitUntilV(ispkt);
     if (pktin.type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
