@@ -102,7 +102,7 @@ Bignum dh_create_e(int nbits) {
 	 * with qmask.
 	 */
         if (x) freebn(x);
-	if (nbits == 0 || nbits > ssh1_bignum_bitcount(qmask)) {
+	if (nbits == 0 || nbits > bignum_bitcount(qmask)) {
 	    ssh1_write_bignum(buf, qmask);
 	    for (i = 2; i < nbytes; i++)
 		buf[i] &= random_byte();

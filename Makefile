@@ -87,7 +87,7 @@ OBJS4 = x11fwd.$(OBJ) sshaes.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ) sshaes.$(OBJ)
-PAGE3 = sshsha.$(OBJ)
+PAGE3 = sshsha.$(OBJ) pageantc.$(OBJ)
 ##-- objects puttygen
 GEN1 = puttygen.$(OBJ) sshrsag.$(OBJ) sshprime.$(OBJ) sshdes.$(OBJ)
 GEN2 = sshbn.$(OBJ) sshmd5.$(OBJ) version.$(OBJ) sshrand.$(OBJ) noise.$(OBJ)

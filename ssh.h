@@ -144,6 +144,7 @@ struct ssh_signkey {
     void *(*createkey)(unsigned char *pub_blob, int pub_len,
 		       unsigned char *priv_blob, int priv_len);
     void *(*openssh_createkey)(unsigned char **blob, int *len);
+    int (*openssh_fmtkey)(void *key, unsigned char *blob, int len);
     char *(*fingerprint)(void *key);
     int (*verifysig)(void *key, char *sig, int siglen,
 		     char *data, int datalen);
@@ -209,7 +210,7 @@ void decbn(Bignum n);
 extern Bignum Zero, One;
 Bignum bignum_from_bytes(unsigned char *data, int nbytes);
 int ssh1_read_bignum(unsigned char *data, Bignum *result);
-int ssh1_bignum_bitcount(Bignum bn);
+int bignum_bitcount(Bignum bn);
 int ssh1_bignum_length(Bignum bn);
 int bignum_byte(Bignum bn, int i);
 int bignum_bit(Bignum bn, int i);

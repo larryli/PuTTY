@@ -213,7 +213,7 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase) {
      * containing the bit count, then two bignums containing the
      * modulus and exponent respectively.
      */
-    PUT_32BIT(p, ssh1_bignum_bitcount(key->modulus)); p += 4;
+    PUT_32BIT(p, bignum_bitcount(key->modulus)); p += 4;
     p += ssh1_write_bignum(p, key->modulus);
     p += ssh1_write_bignum(p, key->exponent);
 

@@ -108,28 +108,28 @@ static char *dss_fmtkey(void *key) {
     if (!dss->p)
         return NULL;
     len = 8 + 4 + 1;                   /* 4 x "0x", punctuation, \0 */
-    len += 4 * (ssh1_bignum_bitcount(dss->p)+15)/16;
-    len += 4 * (ssh1_bignum_bitcount(dss->q)+15)/16;
-    len += 4 * (ssh1_bignum_bitcount(dss->g)+15)/16;
-    len += 4 * (ssh1_bignum_bitcount(dss->y)+15)/16;
+    len += 4 * (bignum_bitcount(dss->p)+15)/16;
+    len += 4 * (bignum_bitcount(dss->q)+15)/16;
+    len += 4 * (bignum_bitcount(dss->g)+15)/16;
+    len += 4 * (bignum_bitcount(dss->y)+15)/16;
     p = smalloc(len);
     if (!p) return NULL;
 
     pos = 0;
     pos += sprintf(p+pos, "0x");
-    nibbles = (3 + ssh1_bignum_bitcount(dss->p))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(dss->p))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss->p, i/2) >> (4*(i%2))) & 0xF];
     pos += sprintf(p+pos, ",0x");
-    nibbles = (3 + ssh1_bignum_bitcount(dss->q))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(dss->q))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss->q, i/2) >> (4*(i%2))) & 0xF];
     pos += sprintf(p+pos, ",0x");
-    nibbles = (3 + ssh1_bignum_bitcount(dss->g))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(dss->g))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss->g, i/2) >> (4*(i%2))) & 0xF];
     pos += sprintf(p+pos, ",0x");
-    nibbles = (3 + ssh1_bignum_bitcount(dss->y))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(dss->y))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss->y, i/2) >> (4*(i%2))) & 0xF];
     p[pos] = '\0';
@@ -148,7 +148,7 @@ static char *dss_fingerprint(void *key) {
     MD5Update(&md5c, "\0\0\0\7ssh-dss", 11);
 
 #define ADD_BIGNUM(bignum) \
-    numlen = (ssh1_bignum_bitcount(bignum)+8)/8; \
+    numlen = (bignum_bitcount(bignum)+8)/8; \
     PUT_32BIT(lenbuf, numlen); MD5Update(&md5c, lenbuf, 4); \
     for (i = numlen; i-- ;) { \
         unsigned char c = bignum_byte(bignum, i); \
@@ -162,7 +162,7 @@ static char *dss_fingerprint(void *key) {
 
     MD5Final(digest, &md5c);
 
-    sprintf(buffer, "ssh-dss %d ", ssh1_bignum_bitcount(dss->p));
+    sprintf(buffer, "ssh-dss %d ", bignum_bitcount(dss->p));
     for (i = 0; i < 16; i++)
         sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
     ret = smalloc(strlen(buffer)+1);
@@ -279,10 +279,10 @@ static unsigned char *dss_public_blob(void *key, int *len) {
     int i;
     unsigned char *blob, *p;
 
-    plen = (ssh1_bignum_bitcount(dss->p)+8)/8;
-    qlen = (ssh1_bignum_bitcount(dss->q)+8)/8;
-    glen = (ssh1_bignum_bitcount(dss->g)+8)/8;
-    ylen = (ssh1_bignum_bitcount(dss->y)+8)/8;
+    plen = (bignum_bitcount(dss->p)+8)/8;
+    qlen = (bignum_bitcount(dss->q)+8)/8;
+    glen = (bignum_bitcount(dss->g)+8)/8;
+    ylen = (bignum_bitcount(dss->y)+8)/8;
 
     /*
      * string "ssh-dss", mpint p, mpint q, mpint g, mpint y. Total
@@ -319,6 +319,10 @@ static void *dss_openssh_createkey(unsigned char **blob, int *len) {
     return NULL;		       /* can't handle DSS private keys */
 }
 
+static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len) {
+    return -1;			       /* can't handle DSS private keys */
+}
+
 unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen) {
     return NULL;		       /* can't handle DSS private keys */
 }
@@ -331,6 +335,7 @@ const struct ssh_signkey ssh_dss = {
     dss_private_blob,
     dss_createkey,
     dss_openssh_createkey,
+    dss_openssh_fmtkey,
     dss_fingerprint,
     dss_verifysig,
     dss_sign,

@@ -987,7 +987,7 @@ static void ssh2_pkt_addstring(char *data) {
 }
 static char *ssh2_mpint_fmt(Bignum b, int *len) {
     unsigned char *p;
-    int i, n = (ssh1_bignum_bitcount(b)+7)/8;
+    int i, n = (bignum_bitcount(b)+7)/8;
     p = smalloc(n + 1);
     if (!p)
         fatalbox("out of memory");
@@ -1753,7 +1753,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                         PUT_32BIT(agentreq, len);
                         q = agentreq + 4;
                         *q++ = SSH1_AGENTC_RSA_CHALLENGE;
-                        PUT_32BIT(q, ssh1_bignum_bitcount(key.modulus));
+                        PUT_32BIT(q, bignum_bitcount(key.modulus));
                         q += 4;
                         q += ssh1_write_bignum(q, key.exponent);
                         q += ssh1_write_bignum(q, key.modulus);

@@ -88,8 +88,8 @@ int rsastr_len(struct RSAKey *key) {
 
     md = key->modulus;
     ex = key->exponent;
-    mdlen = (ssh1_bignum_bitcount(md)+15) / 16;
-    exlen = (ssh1_bignum_bitcount(ex)+15) / 16;
+    mdlen = (bignum_bitcount(md)+15) / 16;
+    exlen = (bignum_bitcount(ex)+15) / 16;
     return 4 * (mdlen+exlen) + 20;
 }
 
@@ -103,13 +103,13 @@ void rsastr_fmt(char *str, struct RSAKey *key) {
 
     len += sprintf(str+len, "0x");
 
-    nibbles = (3 + ssh1_bignum_bitcount(ex))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(ex))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         str[len++] = hex[(bignum_byte(ex, i/2) >> (4*(i%2))) & 0xF];
 
     len += sprintf(str+len, ",0x");
 
-    nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         str[len++] = hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF];
 
@@ -139,7 +139,7 @@ void rsa_fingerprint(char *str, int len, struct RSAKey *key) {
     }
     MD5Final(digest, &md5c);
 
-    sprintf(buffer, "%d ", ssh1_bignum_bitcount(key->modulus));
+    sprintf(buffer, "%d ", bignum_bitcount(key->modulus));
     for (i = 0; i < 16; i++)
         sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
     strncpy(str, buffer, len); str[len-1] = '\0';
@@ -292,8 +292,8 @@ static unsigned char *rsa2_public_blob(void *key, int *len) {
     int i;
     unsigned char *blob, *p;
 
-    elen = (ssh1_bignum_bitcount(rsa->exponent)+8)/8;
-    mlen = (ssh1_bignum_bitcount(rsa->modulus)+8)/8;
+    elen = (bignum_bitcount(rsa->exponent)+8)/8;
+    mlen = (bignum_bitcount(rsa->modulus)+8)/8;
 
     /*
      * string "ssh-rsa", mpint exp, mpint mod. Total 19+elen+mlen.
@@ -319,10 +319,10 @@ static unsigned char *rsa2_private_blob(void *key, int *len) {
     int i;
     unsigned char *blob, *p;
 
-    dlen = (ssh1_bignum_bitcount(rsa->private_exponent)+8)/8;
-    plen = (ssh1_bignum_bitcount(rsa->p)+8)/8;
-    qlen = (ssh1_bignum_bitcount(rsa->q)+8)/8;
-    ulen = (ssh1_bignum_bitcount(rsa->iqmp)+8)/8;
+    dlen = (bignum_bitcount(rsa->private_exponent)+8)/8;
+    plen = (bignum_bitcount(rsa->p)+8)/8;
+    qlen = (bignum_bitcount(rsa->q)+8)/8;
+    ulen = (bignum_bitcount(rsa->iqmp)+8)/8;
 
     /*
      * mpint private_exp, mpint p, mpint q, mpint iqmp. Total 16 +
@@ -393,6 +393,35 @@ static void *rsa2_openssh_createkey(unsigned char **blob, int *len) {
     return rsa;
 }
 
+static int *rsa2_openssh_fmtkey(void *key, unsigned char *blob, int len) {
+    struct RSAKey *rsa = (struct RSAKey *)key;
+    int bloblen, i;
+
+    bloblen =
+	ssh2_bignum_length(rsa->modulus) +
+	ssh2_bignum_length(rsa->exponent) +
+	ssh2_bignum_length(rsa->private_exponent) +
+	ssh2_bignum_length(rsa->iqmp) +
+	ssh2_bignum_length(rsa->p) +
+	ssh2_bignum_length(rsa->q);
+
+    if (bloblen > len)
+	return bloblen;
+
+    bloblen = 0;
+#define ENC(x) \
+    PUT_32BIT(blob+bloblen, ssh2_bignum_length((x))-4); bloblen += 4; \
+    for (i = ssh2_bignum_length((x))-4; i-- ;) blob[bloblen++]=bignum_byte((x),i);
+    ENC(rsa->modulus);
+    ENC(rsa->exponent);
+    ENC(rsa->private_exponent);
+    ENC(rsa->iqmp);
+    ENC(rsa->p);
+    ENC(rsa->q);
+
+    return bloblen;
+}
+
 static char *rsa2_fingerprint(void *key) {
     struct RSAKey *rsa = (struct RSAKey *)key;
     struct MD5Context md5c;
@@ -405,7 +434,7 @@ static char *rsa2_fingerprint(void *key) {
     MD5Update(&md5c, "\0\0\0\7ssh-rsa", 11);
 
 #define ADD_BIGNUM(bignum) \
-    numlen = (ssh1_bignum_bitcount(bignum)+8)/8; \
+    numlen = (bignum_bitcount(bignum)+8)/8; \
     PUT_32BIT(lenbuf, numlen); MD5Update(&md5c, lenbuf, 4); \
     for (i = numlen; i-- ;) { \
         unsigned char c = bignum_byte(bignum, i); \
@@ -417,7 +446,7 @@ static char *rsa2_fingerprint(void *key) {
 
     MD5Final(digest, &md5c);
 
-    sprintf(buffer, "ssh-rsa %d ", ssh1_bignum_bitcount(rsa->modulus));
+    sprintf(buffer, "ssh-rsa %d ", bignum_bitcount(rsa->modulus));
     for (i = 0; i < 16; i++)
         sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
     ret = smalloc(strlen(buffer)+1);
@@ -476,7 +505,7 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
 
     ret = 1;
 
-    bytes = ssh1_bignum_bitcount(rsa->modulus) / 8;
+    bytes = bignum_bitcount(rsa->modulus) / 8;
     /* Top (partial) byte should be zero. */
     if (bignum_byte(out, bytes-1) != 0)
         ret = 0;
@@ -513,7 +542,7 @@ unsigned char *rsa2_sign(void *key, char *data, int datalen, int *siglen) {
 
     SHA_Simple(data, datalen, hash);
 
-    nbytes = (ssh1_bignum_bitcount(rsa->modulus)-1) / 8;
+    nbytes = (bignum_bitcount(rsa->modulus)-1) / 8;
     bytes = smalloc(nbytes);
 
     bytes[0] = 1;
@@ -530,7 +559,7 @@ unsigned char *rsa2_sign(void *key, char *data, int datalen, int *siglen) {
     out = modpow(in, rsa->private_exponent, rsa->modulus);
     freebn(in);
 
-    nbytes = (ssh1_bignum_bitcount(out)+7)/8;
+    nbytes = (bignum_bitcount(out)+7)/8;
     bytes = smalloc(4+7+4+nbytes);
     PUT_32BIT(bytes, 7);
     memcpy(bytes+4, "ssh-rsa", 7);
@@ -551,6 +580,7 @@ const struct ssh_signkey ssh_rsa = {
     rsa2_private_blob,
     rsa2_createkey,
     rsa2_openssh_createkey,
+    rsa2_openssh_fmtkey,
     rsa2_fingerprint,
     rsa2_verifysig,
     rsa2_sign,

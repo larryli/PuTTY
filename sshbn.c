@@ -478,7 +478,7 @@ int ssh1_read_bignum(unsigned char *data, Bignum *result) {
 /*
  * Return the bit count of a bignum, for ssh1 encoding.
  */
-int ssh1_bignum_bitcount(Bignum bn) {
+int bignum_bitcount(Bignum bn) {
     int bitcount = bn[0] * 16 - 1;
     while (bitcount >= 0 && (bn[bitcount/16+1] >> (bitcount % 16)) == 0)
         bitcount--;
@@ -489,7 +489,14 @@ int ssh1_bignum_bitcount(Bignum bn) {
  * Return the byte length of a bignum when ssh1 encoded.
  */
 int ssh1_bignum_length(Bignum bn) {
-    return 2 + (ssh1_bignum_bitcount(bn)+7)/8;
+    return 2 + (bignum_bitcount(bn)+7)/8;
+}
+
+/*
+ * Return the byte length of a bignum when ssh2 encoded.
+ */
+int ssh2_bignum_length(Bignum bn) {
+    return 4 + (bignum_bitcount(bn)+8)/8;
 }
 
 /*
@@ -538,7 +545,7 @@ int ssh1_write_bignum(void *data, Bignum bn) {
     unsigned char *p = data;
     int len = ssh1_bignum_length(bn);
     int i;
-    int bitc = ssh1_bignum_bitcount(bn);
+    int bitc = bignum_bitcount(bn);
 
     *p++ = (bitc >> 8) & 0xFF;
     *p++ = (bitc     ) & 0xFF;
@@ -571,7 +578,7 @@ Bignum bignum_rshift(Bignum a, int shift) {
     int i, shiftw, shiftb, shiftbb, bits;
     unsigned short ai, ai1;
 
-    bits = ssh1_bignum_bitcount(a) - shift;
+    bits = bignum_bitcount(a) - shift;
     ret = newbn((bits+15)/16);
 
     if (ret) {
@@ -724,7 +731,7 @@ void diagbn(char *prefix, Bignum md) {
 
     debugprint(("%s0x", prefix ? prefix : ""));
 
-    nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
     morenibbles = 4*md[0] - nibbles;
     for (i=0; i<morenibbles; i++) debugprint(("-"));
     for (i=nibbles; i-- ;)
@@ -835,7 +842,7 @@ char *bignum_decimal(Bignum x) {
      * Therefore if we multiply the bit count by 28/93, rounding
      * up, we will have enough digits.
      */
-    i = ssh1_bignum_bitcount(x);
+    i = bignum_bitcount(x);
     ndigits = (28*i + 92)/93;          /* multiply by 28/93 and round up */
     ndigits++;                         /* allow for trailing \0 */
     ret = smalloc(ndigits);

@@ -9,6 +9,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <tchar.h>
+
+// FIXME
+#define DEBUG
+#ifdef DEBUG
+void dprintf(char *fmt, ...);
+#define debug(x) (dprintf x)
+#else
+#define debug(x)
+#endif
+
 
 #include "ssh.h"
 #include "tree234.h"
@@ -41,6 +52,7 @@ static HWND hwnd;
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu;
+static int already_running;
 
 static tree234 *rsakeys, *ssh2keys;
 
@@ -284,16 +296,22 @@ static void add_keyfile(char *filename) {
         return;
     }
 
+debug(("ooh %d\n", __LINE__));
     if (ver == 1)
 	needs_pass = rsakey_encrypted(filename, &comment);
     else
 	needs_pass = ssh2_userkey_encrypted(filename, &comment);
+debug(("ooh %d\n", __LINE__));
     attempts = 0;
+debug(("ooh %d\n", __LINE__));
     if (ver == 1)
 	rkey = smalloc(sizeof(*rkey));
+debug(("ooh %d\n", __LINE__));
     pps.passphrase = passphrase;
     pps.comment = comment;
+debug(("ooh %d\n", __LINE__));
     do {
+debug(("ooh %d\n", __LINE__));
         if (needs_pass) {
             int dlgret;
             dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
@@ -307,10 +325,13 @@ static void add_keyfile(char *filename) {
             }
         } else
             *passphrase = '\0';
+debug(("ooh %d\n", __LINE__));
 	if (ver == 1)
 	    ret = loadrsakey(filename, rkey, passphrase);
 	else {
+debug(("ooh %d\n", __LINE__));
 	    skey = ssh2_load_userkey(filename, passphrase);
+debug(("ooh %d\n", __LINE__));
 	    if (skey == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!skey)
@@ -320,7 +341,9 @@ static void add_keyfile(char *filename) {
 	}
         attempts++;
     } while (ret == -1);
+debug(("ooh %d\n", __LINE__));
     if (comment) sfree(comment);
+debug(("ooh %d\n", __LINE__));
     if (ret == 0) {
         MessageBox(NULL, "Couldn't load private key.", APPNAME,
                    MB_OK | MB_ICONERROR);
@@ -328,13 +351,120 @@ static void add_keyfile(char *filename) {
 	    sfree(rkey);
         return;
     }
+debug(("ooh %d\n", __LINE__));
     if (ver == 1) {
-	if (add234(rsakeys, rkey) != rkey)
-	    sfree(rkey);	       /* already present, don't waste RAM */
+	if (already_running) {
+	    unsigned char *request, *response;
+	    int reqlen, clen, resplen;
+
+debug(("ooh %d\n", __LINE__));
+	    clen = strlen(rkey->comment);
+debug(("ooh %d\n", __LINE__));
+
+	    reqlen = 4 + 1 +	       /* length, message type */
+		4 +		       /* bit count */
+		ssh1_bignum_length(rkey->modulus) +
+		ssh1_bignum_length(rkey->exponent) +
+		ssh1_bignum_length(rkey->private_exponent) +
+		ssh1_bignum_length(rkey->iqmp) +
+		ssh1_bignum_length(rkey->p) +
+		ssh1_bignum_length(rkey->q) +
+		4 + clen	       /* comment */
+		;
+debug(("ooh %d %d\n", __LINE__, reqlen));
+
+	    request = smalloc(reqlen);
+debug(("ooh %d\n", __LINE__));
+
+debug(("ooh %d\n", __LINE__));
+	    request[4] = SSH1_AGENTC_ADD_RSA_IDENTITY;
+debug(("ooh %d\n", __LINE__));
+	    reqlen = 5;
+	    PUT_32BIT(request+reqlen, bignum_bitcount(rkey->modulus));
+	    reqlen += 4;
+	    reqlen += ssh1_write_bignum(request+reqlen, rkey->modulus);
+	    reqlen += ssh1_write_bignum(request+reqlen, rkey->exponent);
+	    reqlen += ssh1_write_bignum(request+reqlen, rkey->private_exponent);
+	    reqlen += ssh1_write_bignum(request+reqlen, rkey->iqmp);
+	    reqlen += ssh1_write_bignum(request+reqlen, rkey->p);
+	    reqlen += ssh1_write_bignum(request+reqlen, rkey->q);
+	    PUT_32BIT(request+reqlen, clen);
+	    memcpy(request+reqlen+4, rkey->comment, clen);
+	    reqlen += 4+clen;
+	    PUT_32BIT(request, reqlen-4);
+
+debug(("ooh %d\n", __LINE__));
+	    agent_query(request, reqlen, &response, &resplen);
+debug(("ooh %d\n", __LINE__));
+	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
+		MessageBox(NULL, "The already running Pageant "
+			   "refused to add the key.", APPNAME,
+			   MB_OK | MB_ICONERROR);
+	} else {
+	    if (add234(rsakeys, rkey) != rkey)
+		sfree(rkey);	       /* already present, don't waste RAM */
+	}
     } else {
-	if (add234(ssh2keys, skey) != skey) {
-	    skey->alg->freekey(skey->data);
-	    sfree(skey);	       /* already present, don't waste RAM */
+	if (already_running) {
+	    unsigned char *request, *response;
+	    int reqlen, alglen, clen, keybloblen, resplen;
+debug(("ooh %d\n", __LINE__));
+	    alglen = strlen(skey->alg->name);
+debug(("ooh %d\n", __LINE__));
+	    clen = strlen(skey->comment);
+debug(("ooh %d\n", __LINE__));
+
+debug(("ooh %d\n", __LINE__));
+	    keybloblen = skey->alg->openssh_fmtkey(skey->data, NULL, 0);
+debug(("ooh %d\n", __LINE__));
+
+debug(("ooh %d\n", __LINE__));
+	    reqlen = 4 + 1 +	       /* length, message type */
+		4 + alglen +	       /* algorithm name */
+		keybloblen +	       /* key data */
+		4 + clen	       /* comment */
+		;
+debug(("ooh %d\n", __LINE__));
+
+debug(("ooh %d\n", __LINE__));
+	    request = smalloc(reqlen);
+debug(("ooh %d\n", __LINE__));
+
+	    request[4] = SSH2_AGENTC_ADD_IDENTITY;
+debug(("ooh %d\n", __LINE__));
+	    reqlen = 5;
+debug(("ooh %d\n", __LINE__));
+	    PUT_32BIT(request+reqlen, alglen);
+debug(("ooh %d\n", __LINE__));
+	    reqlen += 4;
+debug(("ooh %d\n", __LINE__));
+	    memcpy(request+reqlen, skey->alg->name, alglen);
+debug(("ooh %d\n", __LINE__));
+	    reqlen += alglen;
+debug(("ooh %d\n", __LINE__));
+	    reqlen += skey->alg->openssh_fmtkey(skey->data,
+						request+reqlen, keybloblen);
+debug(("ooh %d\n", __LINE__));
+	    PUT_32BIT(request+reqlen, clen);
+debug(("ooh %d\n", __LINE__));
+	    memcpy(request+reqlen+4, skey->comment, clen);
+debug(("ooh %d\n", __LINE__));
+	    PUT_32BIT(request, reqlen-4);
+debug(("ooh %d\n", __LINE__));
+	    reqlen += clen+4;
+
+	    agent_query(request, reqlen, &response, &resplen);
+debug(("ooh %d\n", __LINE__));
+	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
+		MessageBox(NULL, "The already running Pageant"
+			   "refused to add the key.", APPNAME,
+			   MB_OK | MB_ICONERROR);
+debug(("ooh %d\n", __LINE__));
+	} else {
+	    if (add234(ssh2keys, skey) != skey) {
+		skey->alg->freekey(skey->data);
+		sfree(skey);	       /* already present, don't waste RAM */
+	    }
 	}
     }
 }
@@ -387,7 +517,7 @@ static void answer_msg(void *msg) {
             PUT_32BIT(ret+5, nkeys);
             p = ret + 5 + 4;
             for (key = first234(rsakeys, &e); key; key = next234(&e)) {
-                PUT_32BIT(p, ssh1_bignum_bitcount(key->modulus));
+                PUT_32BIT(p, bignum_bitcount(key->modulus));
                 p += 4;
                 p += ssh1_write_bignum(p, key->exponent);
                 p += ssh1_write_bignum(p, key->modulus);
@@ -721,8 +851,8 @@ static int cmpkeys_rsa(void *av, void *bv) {
     /*
      * Compare by length of moduli.
      */
-    alen = ssh1_bignum_bitcount(am);
-    blen = ssh1_bignum_bitcount(bm);
+    alen = bignum_bitcount(am);
+    blen = bignum_bitcount(bm);
     if (alen > blen) return +1; else if (alen < blen) return -1;
     /*
      * Now compare by moduli themselves.
@@ -1081,11 +1211,26 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
     return DefWindowProc (hwnd, message, wParam, lParam);
 }
 
+/*
+ * Fork and Exec the command in cmdline. [DBW]
+ */
+void spawn_cmd(char *cmdline, int show) {
+    if (ShellExecute(NULL, _T("open"), cmdline,
+		     NULL, NULL, show) <= (HINSTANCE) 32) {
+        TCHAR sMsg[140];
+        sprintf(sMsg, _T("Failed to run \"%.100s\", Error: %d"), cmdline,
+		GetLastError());
+        MessageBox(NULL, sMsg, APPNAME, MB_OK | MB_ICONEXCLAMATION);
+    }
+}
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     WNDCLASS wndclass;
     MSG msg;
     OSVERSIONINFO osi;
     HMODULE advapi;
+    char *command = NULL;
+    int added_keys = 0;
 
     /*
      * Determine whether we're an NT system (should have security
@@ -1101,7 +1246,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     if (has_security) {
 #ifndef NO_SECURITY
         /*
-         * Attempt to ge the security API we need.
+         * Attempt to get the security API we need.
          */
         advapi = LoadLibrary("ADVAPI32.DLL");
         getsecurityinfo = (gsi_fn_t)GetProcAddress(advapi, "GetSecurityInfo");
@@ -1122,87 +1267,90 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     } else
         advapi = NULL;
 
-    /*
-     * First bomb out totally if we are already running.
-     */
-    if (FindWindow("Pageant", "Pageant")) {
-        MessageBox(NULL, "Pageant is already running", "Pageant Error",
-                   MB_ICONERROR | MB_OK);
-        if (advapi) FreeLibrary(advapi);
-        return 0;
-    }
-
     instance = inst;
 
-    if (!prev) {
-	wndclass.style         = 0;
-	wndclass.lpfnWndProc   = WndProc;
-	wndclass.cbClsExtra    = 0;
-	wndclass.cbWndExtra    = 0;
-	wndclass.hInstance     = inst;
-	wndclass.hIcon         = LoadIcon (inst,
-					   MAKEINTRESOURCE(IDI_MAINICON));
-	wndclass.hCursor       = LoadCursor (NULL, IDC_IBEAM);
-	wndclass.hbrBackground = GetStockObject (BLACK_BRUSH);
-	wndclass.lpszMenuName  = NULL;
-	wndclass.lpszClassName = APPNAME;
+    /*
+     * Find out if Pageant is already running.
+     */
+    already_running = FALSE;
+    if (FindWindow("Pageant", "Pageant"))
+	already_running = TRUE;
+    else {
 
-	RegisterClass (&wndclass);
-    }
+	if (!prev) {
+	    wndclass.style         = 0;
+	    wndclass.lpfnWndProc   = WndProc;
+	    wndclass.cbClsExtra    = 0;
+	    wndclass.cbWndExtra    = 0;
+	    wndclass.hInstance     = inst;
+	    wndclass.hIcon         = LoadIcon (inst,
+					       MAKEINTRESOURCE(IDI_MAINICON));
+	    wndclass.hCursor       = LoadCursor (NULL, IDC_IBEAM);
+	    wndclass.hbrBackground = GetStockObject (BLACK_BRUSH);
+	    wndclass.lpszMenuName  = NULL;
+	    wndclass.lpszClassName = APPNAME;
 
-    hwnd = keylist = NULL;
+	    RegisterClass (&wndclass);
+	}
 
-    hwnd = CreateWindow (APPNAME, APPNAME,
-                         WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-                         CW_USEDEFAULT, CW_USEDEFAULT,
-                         100, 100, NULL, NULL, inst, NULL);
+	hwnd = keylist = NULL;
 
-    /* Set up a system tray icon */
-    {
-        BOOL res;
-        NOTIFYICONDATA tnid;
-        HICON hicon;
+	hwnd = CreateWindow (APPNAME, APPNAME,
+			     WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+			     CW_USEDEFAULT, CW_USEDEFAULT,
+			     100, 100, NULL, NULL, inst, NULL);
+
+	/* Set up a system tray icon */
+	{
+	    BOOL res;
+	    NOTIFYICONDATA tnid;
+	    HICON hicon;
 
 #ifdef NIM_SETVERSION
-        tnid.uVersion = 0;
-        res = Shell_NotifyIcon(NIM_SETVERSION, &tnid);
+	    tnid.uVersion = 0;
+	    res = Shell_NotifyIcon(NIM_SETVERSION, &tnid);
 #endif
 
-        tnid.cbSize = sizeof(NOTIFYICONDATA); 
-        tnid.hWnd = hwnd; 
-        tnid.uID = 1;                  /* unique within this systray use */
-        tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP; 
-        tnid.uCallbackMessage = WM_SYSTRAY;
-        tnid.hIcon = hicon = LoadIcon (instance, MAKEINTRESOURCE(201));
-        strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
+	    tnid.cbSize = sizeof(NOTIFYICONDATA);
+	    tnid.hWnd = hwnd;
+	    tnid.uID = 1;                  /* unique within this systray use */
+	    tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+	    tnid.uCallbackMessage = WM_SYSTRAY;
+	    tnid.hIcon = hicon = LoadIcon (instance, MAKEINTRESOURCE(201));
+	    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
 
-        res = Shell_NotifyIcon(NIM_ADD, &tnid); 
+	    res = Shell_NotifyIcon(NIM_ADD, &tnid);
 
-        if (hicon) 
-            DestroyIcon(hicon); 
+	    if (hicon)
+		DestroyIcon(hicon);
 
-        systray_menu = CreatePopupMenu();
-        /* accelerators used: vkxa */
-        AppendMenu (systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys");
-        AppendMenu (systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-        AppendMenu (systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
-        AppendMenu (systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+	    systray_menu = CreatePopupMenu();
+	    /* accelerators used: vkxa */
+	    AppendMenu (systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys");
+	    AppendMenu (systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+	    AppendMenu (systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+	    AppendMenu (systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+	}
+
+	ShowWindow (hwnd, SW_HIDE);
+
+	/*
+	 * Initialise storage for RSA keys.
+	 */
+	rsakeys = newtree234(cmpkeys_rsa);
+	ssh2keys = newtree234(cmpkeys_ssh2);
+
     }
-
-    ShowWindow (hwnd, SW_HIDE);
-
-    /*
-     * Initialise storage for RSA keys.
-     */
-    rsakeys = newtree234(cmpkeys_rsa);
-    ssh2keys = newtree234(cmpkeys_ssh2);
 
     /*
      * Process the command line and add keys as listed on it.
+     * If we already determined that we need to spawn a program from above we
+     * need to ignore the first two arguments. [DBW]
      */
     {
         char *p;
         int inquotes = 0;
+        int ignorearg = 0;
         p = cmdline;
         while (*p) {
             while (*p && isspace(*p)) p++;
@@ -1221,9 +1369,37 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
                     if (*p) p++;
                     *pp++ = '\0';
                 }
-                add_keyfile(q);
+		if (!strcmp(q, "-c")) {
+		    /*
+		     * If we see `-c', then the rest of the
+		     * command line should be treated as a
+		     * command to be spawned.
+		     */
+		    while (*p && isspace(*p)) p++;
+		    command = p;
+		    break;
+		} else {
+		    add_keyfile(q);
+		    added_keys = TRUE;
+		}
             }
         }
+    }
+
+    if (command) spawn_cmd (command, show);
+
+    /*
+     * If Pageant was already running, we leave now. If we haven't
+     * even taken any auxiliary action (spawned a command or added
+     * keys), complain.
+     */
+    if (already_running) {
+	if (!command && !added_keys) {
+	    MessageBox(NULL, "Pageant is already running", "Pageant Error",
+		       MB_ICONERROR | MB_OK);
+	}
+        if (advapi) FreeLibrary(advapi);
+        return 0;
     }
 
     /*

@@ -314,7 +314,7 @@ static void setupbigedit1(HWND hwnd, int id, struct RSAKey *key) {
     buffer = smalloc(strlen(dec1)+strlen(dec2)+
                      strlen(key->comment)+30);
     sprintf(buffer, "%d %s %s %s",
-            ssh1_bignum_bitcount(key->modulus),
+            bignum_bitcount(key->modulus),
             dec1, dec2, key->comment);
     SetDlgItemText(hwnd, id, buffer);
     sfree(dec1);

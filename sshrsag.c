@@ -13,7 +13,7 @@ static void diagbn(char *prefix, Bignum md) {
 
     printf("%s0x", prefix ? prefix : "");
 
-    nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
+    nibbles = (3 + bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
     morenibbles = 4*md[0] - nibbles;
     for (i=0; i<morenibbles; i++) putchar('-');
     for (i=nibbles; i-- ;)
