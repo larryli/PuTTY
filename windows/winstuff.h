@@ -173,6 +173,10 @@ struct ctlpos {
 /*
  * Exports from winutils.c.
  */
+typedef struct filereq_tag filereq; /* cwd for file requester */
+BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save);
+filereq *filereq_new(void);
+void filereq_free(filereq *state);
 void split_into_argv(char *, int *, char ***, char ***);
 
 /*

@@ -59,6 +59,9 @@ static int requested_help;
 char *help_path;
 static char *putty_path;
 
+/* CWD for "add key" file requester. */
+static filereq *keypath = NULL;
+
 #define IDM_PUTTY         0x0060
 #define IDM_SESSIONS_BASE 0x1000
 #define IDM_SESSIONS_MAX  0x2000
@@ -1410,30 +1413,21 @@ static int cmpkeys_ssh2_asymm(void *av, void *bv)
 static void prompt_add_keyfile(void)
 {
     OPENFILENAME of;
-    char filename[FILENAME_MAX];
     char *filelist = snewn(8192, char);
-    char *filewalker;
-    int n, dirlen;
 	
+    if (!keypath) keypath = filereq_new();
     memset(&of, 0, sizeof(of));
-#ifdef OPENFILENAME_SIZE_VERSION_400
-    of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
-    of.lStructSize = sizeof(of);
-#endif
     of.hwndOwner = main_hwnd;
-    of.lpstrFilter = "PuTTY Private Key Files (*.ppk)\0*.ppk\0"
-	"All Files (*.*)\0*\0\0\0";
+    of.lpstrFilter = FILTER_KEY_FILES;
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
     of.lpstrFile = filelist;
     *filelist = '\0';
-    of.nMaxFile = FILENAME_MAX;
+    of.nMaxFile = 8192;
     of.lpstrFileTitle = NULL;
-    of.lpstrInitialDir = NULL;
     of.lpstrTitle = "Select Private Key File";
     of.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER;
-    if (GetOpenFileName(&of)) {
+    if (request_file(keypath, &of, TRUE, FALSE)) {
 	if(strlen(filelist) > of.nFileOffset)
 	    /* Only one filename returned? */
 	    add_keyfile(filename_from_str(filelist));
@@ -1443,28 +1437,13 @@ static void prompt_add_keyfile(void)
 	     * rest the filenames. terminated with an
 	     * empty string.
 	     */
-	    filewalker = filelist;
-	    dirlen = strlen(filewalker);
-	    if(dirlen > FILENAME_MAX - 8) return;
-	    memcpy(filename, filewalker, dirlen);
-
-	    filewalker += dirlen + 1;
-	    filename[dirlen++] = '\\';
-
-	    /* then go over names one by one */
-	    for(;;) {
-		n = strlen(filewalker) + 1;
-		/* end of the list */
-		if(n == 1)
-		    break;
-		/* too big, shouldn't happen */
-		if(n + dirlen > FILENAME_MAX)
-		    break;
-
-		memcpy(filename + dirlen, filewalker, n);
-		filewalker += n;
-
+	    char *dir = filelist;
+	    char *filewalker = filelist + strlen(dir) + 1;
+	    while (*filewalker != '\0') {
+		char *filename = dupcat(dir, "\\", filewalker, NULL);
 		add_keyfile(filename_from_str(filename));
+		sfree(filename);
+		filewalker += strlen(filewalker) + 1;
 	    }
 	}
 
@@ -2222,6 +2201,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	DestroyMenu(systray_menu);
     }
+
+    if (keypath) filereq_free(keypath);
 
     if (advapi)
 	FreeLibrary(advapi);

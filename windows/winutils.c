@@ -5,15 +5,88 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
+#include "winstuff.h"
 #include "misc.h"
 
 #ifdef TESTMODE
-/* Definitions to allow this module to be compiled standalone for testing. */
+/* Definitions to allow this module to be compiled standalone for testing
+ * split_into_argv(). */
 #define smalloc malloc
 #define srealloc realloc
 #define sfree free
 #endif
+
+/*
+ * GetOpenFileName/GetSaveFileName tend to muck around with the process'
+ * working directory on at least some versions of Windows.
+ * Here's a wrapper that gives more control over this, and hides a little
+ * bit of other grottiness.
+ */
+
+struct filereq_tag {
+    TCHAR cwd[PATH_MAX];
+};
+
+/*
+ * `of' is expected to be initialised with most interesting fields, but
+ * this function does some administrivia. (assume `of' was memset to 0)
+ * save==1 -> GetSaveFileName; save==0 -> GetOpenFileName
+ * `state' is optional.
+ */
+BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save)
+{
+    TCHAR cwd[PATH_MAX]; /* process CWD */
+    BOOL ret;
+
+    /* Get process CWD */
+    if (preserve) {
+	DWORD r = GetCurrentDirectory(lenof(cwd), cwd);
+	if (r == 0 || r >= lenof(cwd))
+	    /* Didn't work, oh well. Stop trying to be clever. */
+	    preserve = 0;
+    }
+
+    /* Open the file requester, maybe setting lpstrInitialDir */
+    {
+#ifdef OPENFILENAME_SIZE_VERSION_400
+	of->lStructSize = OPENFILENAME_SIZE_VERSION_400;
+#else
+	of->lStructSize = sizeof(*of);
+#endif
+	of->lpstrInitialDir = (state && state->cwd[0]) ? state->cwd : NULL;
+	/* Actually put up the requester. */
+	ret = save ? GetSaveFileName(of) : GetOpenFileName(of);
+    }
+
+    /* Get CWD left by requester */
+    if (state) {
+	DWORD r = GetCurrentDirectory(lenof(state->cwd), state->cwd);
+	if (r == 0 || r >= lenof(state->cwd))
+	    /* Didn't work, oh well. */
+	    state->cwd[0] = '\0';
+    }
+    
+    /* Restore process CWD */
+    if (preserve)
+	/* If it fails, there's not much we can do. */
+	(void) SetCurrentDirectory(cwd);
+
+    return ret;
+}
+
+filereq *filereq_new(void)
+{
+    filereq *ret = snew(filereq);
+    ret->cwd[0] = '\0';
+    return ret;
+}
+
+void filereq_free(filereq *state)
+{
+    sfree(state);
+}
 
 /*
  * Split a complete command line into argc/argv, attempting to do
