@@ -97,7 +97,7 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 	return n;
     } else {
 	return charset_from_unicode(&wcstr, &wclen, mbstr, mblen, codepage,
-				    NULL, NULL, 0);
+				    NULL, defchr?defchr:NULL, defchr?1:0);
     }
 }
 
