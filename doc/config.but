@@ -501,3 +501,48 @@ SSH sessions.
 \S{config-auth} SSH authentication options
 
 \S{config-protocol} SSH protocol options
+
+\H{config-file} Storing configuration in a file
+
+PuTTY does not currently support storing its configuration in a file
+instead of the Registry. However, you can work around this with a
+couple of batch files.
+
+You will need a file called (say) \c{PUTTY.BAT} which imports the
+contents of a file into the Registry, then runs PuTTY, exports the
+contents of the Registry back into the file, and deletes the
+Registry entries. This can all be done using the Regedit command
+line options, so it's all automatic. Here is what you need in
+\c{PUTTY.BAT}:
+
+\c @ECHO OFF
+\c regedit /s putty.reg
+\c regedit /s puttyrnd.reg
+\c start /w putty.exe
+\c regedit /e puttynew.reg HKEY_CURRENT_USER\Software\SimonTatham\PuTTY
+\c copy puttynew.reg putty.reg
+\c del puttynew.reg
+\c regedit /s puttydel.reg
+
+This batch file needs two auxiliary files: \c{PUTTYRND.REG} which
+sets up an initial safe location for the \c{PUTTY.RND} random seed
+file, and \c{PUTTYDEL.REG} which destroys everything in the Registry
+once it's been successfully saved back to the file.
+
+Here is \c{PUTTYDEL.REG}:
+
+\c REGEDIT4
+\c  
+\c [-HKEY_CURRENT_USER\Software\SimonTatham\PuTTY]
+
+Here is an example \c{PUTTYRND.REG} file:
+
+\c REGEDIT4
+\c  
+\c [HKEY_CURRENT_USER\Software\SimonTatham\PuTTY]
+\c "RandSeedFile"="a:\putty.rnd"
+
+You should replace \c{a:\\putty.rnd} with the location where you
+want to store your random number data. If the aim is to carry around
+PuTTY and its settings on one floppy, you probably want to store it
+on the floppy.
