@@ -459,6 +459,7 @@ enum { IDCX_ABOUT =
     IDC_CIPHERUP,
     IDC_CIPHERDN,
     IDC_BUGGYMAC,
+    IDC_SSH2DES,
     IDC_SSHPROTSTATIC,
     IDC_SSHPROT1,
     IDC_SSHPROT2,
@@ -740,6 +741,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_NOPTY, cfg.nopty);
     CheckDlgButton(hwnd, IDC_COMPRESS, cfg.compression);
     CheckDlgButton(hwnd, IDC_BUGGYMAC, cfg.buggymac);
+    CheckDlgButton(hwnd, IDC_SSH2DES, cfg.ssh2_des_cbc);
     CheckDlgButton(hwnd, IDC_AGENTFWD, cfg.agentfwd);
     CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
 		     cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
@@ -1305,7 +1307,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshpanelstart) {
-	/* The SSH panel. Accelerators used: [acgo] r pe12i s */
+	/* The SSH panel. Accelerators used: [acgo] r pe12i sd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1329,6 +1331,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    prefslist(&cipherlist, &cp, "Encryption cipher &selection policy:",
 		      IDC_CIPHERSTATIC2, IDC_CIPHERLIST, IDC_CIPHERUP,
 		      IDC_CIPHERDN);
+	    checkbox(&cp, "Enable non-standard use of single-&DES in SSH 2",
+		     IDC_SSH2DES);
 	    endbox(&cp);
 	}
     }
@@ -2391,6 +2395,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.buggymac =
 			IsDlgButtonChecked(hwnd, IDC_BUGGYMAC);
+		break;
+	      case IDC_SSH2DES:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.ssh2_des_cbc =
+			IsDlgButtonChecked(hwnd, IDC_SSH2DES);
 		break;
 	      case IDC_AGENTFWD:
 		if (HIWORD(wParam) == BN_CLICKED ||

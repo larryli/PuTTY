@@ -178,6 +178,7 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_i(sesskey, "BuggyMAC", cfg->buggymac);
+    write_setting_i(sesskey, "SSH2DES", cfg->ssh2_des_cbc);
     write_setting_s(sesskey, "PublicKeyFile", cfg->keyfile);
     write_setting_s(sesskey, "RemoteCommand", cfg->remote_cmd);
     write_setting_i(sesskey, "RFCEnviron", cfg->rfc_environ);
@@ -362,6 +363,7 @@ void load_settings(char *section, int do_host, Config * cfg)
 	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
     gppi(sesskey, "SshProt", 1, &cfg->sshprot);
     gppi(sesskey, "BuggyMAC", 0, &cfg->buggymac);
+    gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
     gpps(sesskey, "PublicKeyFile", "", cfg->keyfile, sizeof(cfg->keyfile));
