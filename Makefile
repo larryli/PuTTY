@@ -42,7 +42,7 @@ link.rsp: makefile
 	echo $(LIBS1) >> link.rsp
 	echo $(LIBS2) >> link.rsp
 
-window.obj: window.c putty.h win_res.h sizetip.h
+window.obj: window.c putty.h win_res.h
 windlg.obj: windlg.c putty.h ssh.h win_res.h
 terminal.obj: terminal.c putty.h
 sizetip.obj: sizetip.c putty.h
