@@ -40,7 +40,23 @@
 #endif
 #endif
 
+/*
+ * Set up a default for vaguely sane systems. The idea is that if
+ * OMIT_UTMP is not defined, then at least one of the symbols which
+ * enable particular forms of utmp processing should be, if only so
+ * that a link error can warn you that you should have defined
+ * OMIT_UTMP if you didn't want any. Currently HAVE_PUTUTLINE is
+ * the only such symbol.
+ */
+#ifndef OMIT_UTMP
+#if !defined HAVE_PUTUTLINE
+#define HAVE_PUTUTLINE
+#endif
+#endif
+
 int pty_master_fd;
+int pty_stamp_utmp = 1;
+static int pty_stamped_utmp = 0;
 static int pty_child_pid;
 static sig_atomic_t pty_child_dead;
 #ifndef OMIT_UTMP
@@ -63,10 +79,14 @@ static void setup_utmp(char *ttyname)
     FILE *lastlog;
 #endif
     struct passwd *pw;
-    char *location = get_x_display();
+    char *location;
     FILE *wtmp;
 
+    if (!pty_stamp_utmp)
+	return;
+
     pw = getpwuid(getuid());
+    location = get_x_display();
     memset(&utmp_entry, 0, sizeof(utmp_entry));
     utmp_entry.ut_type = USER_PROCESS;
     utmp_entry.ut_pid = getpid();
@@ -100,6 +120,8 @@ static void setup_utmp(char *ttyname)
     }
 #endif
 
+    pty_stamped_utmp = 1;
+
 #endif
 }
 
@@ -107,6 +129,9 @@ static void cleanup_utmp(void)
 {
 #ifndef OMIT_UTMP
     FILE *wtmp;
+
+    if (!pty_stamp_utmp || !pty_stamped_utmp)
+	return;
 
     utmp_entry.ut_type = DEAD_PROCESS;
     memset(utmp_entry.ut_user, 0, lenof(utmp_entry.ut_user));
@@ -127,6 +152,7 @@ static void cleanup_utmp(void)
     endutent();
 #endif
 
+    pty_stamped_utmp = 0;	       /* ensure we never double-cleanup */
 #endif
 }
 
