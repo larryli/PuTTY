@@ -146,6 +146,47 @@ typedef enum {
     MA_NOTHING, MA_CLICK, MA_2CLK, MA_3CLK, MA_DRAG, MA_RELEASE
 } Mouse_Action;
 
+/* Keyboard modifiers -- keys the user is actually holding down */
+
+#define PKM_SHIFT	0x01
+#define PKM_CONTROL	0x02
+#define PKM_META	0x04
+#define PKM_ALT		0x08
+
+/* Keyboard flags that aren't really modifiers */
+#define PKF_CAPSLOCK	0x10
+#define PKF_NUMLOCK	0x20
+#define PKF_REPEAT	0x40
+
+/* Stand-alone keysyms for function keys */
+
+typedef enum {
+    PK_NULL,		/* No symbol for this key */
+    /* Main keypad keys */
+    PK_ESCAPE, PK_TAB, PK_BACKSPACE, PK_RETURN, PK_COMPOSE,
+    /* Editing keys */
+    PK_HOME, PK_INSERT, PK_DELETE, PK_END, PK_PAGEUP, PK_PAGEDOWN,
+    /* Cursor keys */
+    PK_UP, PK_DOWN, PK_RIGHT, PK_LEFT, PK_REST,
+    /* Numeric keypad */			/* Real one looks like: */
+    PK_PF1, PK_PF2, PK_PF3, PK_PF4,		/* PF1 PF2 PF3 PF4 */
+    PK_KPCOMMA, PK_KPMINUS, PK_KPDECIMAL,	/*  7   8   9   -  */
+    PK_KP0, PK_KP1, PK_KP2, PK_KP3, PK_KP4,	/*  4   5   6   ,  */
+    PK_KP5, PK_KP6, PK_KP7, PK_KP8, PK_KP9,	/*  1   2   3  en- */
+    PK_KPBIGPLUS, PK_KPENTER,			/*    0     .  ter */
+    /* Top row */
+    PK_F1,  PK_F2,  PK_F3,  PK_F4,  PK_F5,
+    PK_F6,  PK_F7,  PK_F8,  PK_F9,  PK_F10,
+    PK_F11, PK_F12, PK_F13, PK_F14, PK_F15,
+    PK_F16, PK_F17, PK_F18, PK_F19, PK_F20,
+    PK_PAUSE
+} Key_Sym;
+
+#define PK_ISEDITING(k)	((k) >= PK_HOME && (k) <= PK_PAGEDOWN)
+#define PK_ISCURSOR(k)	((k) >= PK_UP && (k) <= PK_REST)
+#define PK_ISKEYPAD(k)	((k) >= PK_PF1 && (k) <= PK_KPENTER)
+#define PK_ISFKEY(k)	((k) >= PK_F1 && (k) <= PK_F20)
+
 typedef enum {
     VT_XWINDOWS, VT_OEMANSI, VT_OEMONLY, VT_POORMAN, VT_UNICODE
 } VT_Mode;
@@ -184,6 +225,16 @@ enum {
     COE_NEVER,			       /* Never close the window */
     COE_NORMAL,			       /* Close window on "normal" (non-error) exits only */
     COE_ALWAYS			       /* Always close the window */
+};
+
+enum {
+    /* Function key types (cfg.funky_type) */
+    FUNKY_TILDE,
+    FUNKY_LINUX,
+    FUNKY_XTERM,
+    FUNKY_VT400,
+    FUNKY_VT100P,
+    FUNKY_SCO
 };
 
 struct backend_tag {
@@ -506,6 +557,8 @@ void term_pwron(Terminal *);
 void term_clrsb(Terminal *);
 void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,
 		int,int,int,int,int);
+void term_key(Terminal *, Key_Sym, wchar_t *, size_t, unsigned int,
+	      unsigned int);
 void term_deselect(Terminal *);
 void term_update(Terminal *);
 void term_invalidate(Terminal *);

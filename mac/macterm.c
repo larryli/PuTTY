@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.56 2003/01/25 19:23:03 ben Exp $ */
+/* $Id: macterm.c,v 1.57 2003/01/27 00:39:01 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -89,7 +89,6 @@ static void mac_drawgrowicon(Session *s);
 static pascal void mac_growtermdraghook(void);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
-static int mac_keytrans(Session *, EventRecord *, unsigned char *);
 static void text_click(Session *, EventRecord *);
 
 void pre_paint(Session *s);
@@ -685,202 +684,96 @@ static pascal void mac_scrolltracker(ControlHandle control, short part) {
     }
 }
 
-#define K_BS	0x3300
-#define K_F1	0x7a00
-#define K_F2	0x7800
-#define K_F3	0x6300
-#define K_F4	0x7600
-#define K_F5	0x6000
-#define K_F6	0x6100
-#define K_F7	0x6200
-#define K_F8	0x6400
-#define K_F9	0x6500
-#define K_F10	0x6d00
-#define K_F11	0x6700
-#define K_F12	0x6f00
-#define K_F13	0x6900
-#define K_F14	0x6b00
-#define K_F15	0x7100
-#define K_INSERT 0x7200
-#define K_HOME	0x7300
-#define K_PRIOR	0x7400
-#define K_DELETE 0x7500
-#define K_END	0x7700
-#define K_NEXT	0x7900
-#define K_LEFT	0x7b00
-#define K_RIGHT	0x7c00
-#define K_DOWN	0x7d00
-#define K_UP	0x7e00
-#define KP_0	0x5200
-#define KP_1	0x5300
-#define KP_2	0x5400
-#define KP_3	0x5500
-#define KP_4	0x5600
-#define KP_5	0x5700
-#define KP_6	0x5800
-#define KP_7	0x5900
-#define KP_8	0x5b00
-#define KP_9	0x5c00
-#define KP_CLEAR 0x4700
-#define KP_EQUAL 0x5100
-#define KP_SLASH 0x4b00
-#define KP_STAR	0x4300
-#define KP_PLUS	0x4500
-#define KP_MINUS 0x4e00
-#define KP_DOT	0x4100
-#define KP_ENTER 0x4c00
-
 void mac_keyterm(WindowPtr window, EventRecord *event) {
-    unsigned char buf[20];
-    int len;
-    Session *s;
+    Session *s = (Session *)GetWRefCon(window);
+    Key_Sym keysym = PK_NULL;
+    unsigned int mods = 0, flags = PKF_NUMLOCK;
+    wchar_t utxt[1];
 
-    s = (Session *)GetWRefCon(window);
-    len = mac_keytrans(s, event, buf);
-    ldisc_send(s->ldisc, (char *)buf, len, 1);
     ObscureCursor();
-    term_seen_key_event(s->term);
-    term_out(s->term);
-    term_update(s->term);
-}
 
-static int mac_keytrans(Session *s, EventRecord *event,
-			unsigned char *output) {
-    unsigned char *p = output;
-    int code;
+    fprintf(stderr, "Got key event %08x\n", event->message);
 
     /* No meta key yet -- that'll be rather fun. */
 
     /* Keys that we handle locally */
     if (event->modifiers & shiftKey) {
-	switch (event->message & keyCodeMask) {
-	  case K_PRIOR: /* shift-pageup */
+	switch ((event->message & keyCodeMask) >> 8) {
+	  case 0x74: /* shift-pageup */
 	    term_scroll(s->term, 0, -(s->term->rows - 1));
-	    return 0;
-	  case K_NEXT:  /* shift-pagedown */
+	    return;
+	  case 0x79: /* shift-pagedown */
 	    term_scroll(s->term, 0, +(s->term->rows - 1));
-	    return 0;
+	    return;
 	}
     }
 
-    /*
-     * Control-2 should return ^@ (0x00), Control-6 should return
-     * ^^ (0x1E), and Control-Minus should return ^_ (0x1F). Since
-     * the DOS keyboard handling did it, and we have nothing better
-     * to do with the key combo in question, we'll also map
-     * Control-Backquote to ^\ (0x1C).
-     */
+    if (event->modifiers & shiftKey)
+	mods |= PKM_SHIFT;
+    if (event->modifiers & controlKey)
+	mods |= PKM_CONTROL;
+    if (event->what == autoKey)
+	flags |= PKF_REPEAT;
 
-    if (event->modifiers & controlKey) {
-	switch (event->message & charCodeMask) {
-	  case ' ': case '2':
-	    *p++ = 0x00;
-	    return p - output;
-	  case '`':
-	    *p++ = 0x1c;
-	    return p - output;
-	  case '6':
-	    *p++ = 0x1e;
-	    return p - output;
-	  case '/':
-	    *p++ = 0x1f;
-	    return p - output;
-	}
-    }
+    /* Mac key events consist of a virtual key code and a character code. */
 
-    /*
-     * First, all the keys that do tilde codes. (ESC '[' nn '~',
-     * for integer decimal nn.)
-     *
-     * We also deal with the weird ones here. Linux VCs replace F1
-     * to F5 by ESC [ [ A to ESC [ [ E. rxvt doesn't do _that_, but
-     * does replace Home and End (1~ and 4~) by ESC [ H and ESC O w
-     * respectively.
-     */
-    code = 0;
-    switch (event->message & keyCodeMask) {
-      case K_F1: code = (event->modifiers & shiftKey ? 23 : 11); break;
-      case K_F2: code = (event->modifiers & shiftKey ? 24 : 12); break;
-      case K_F3: code = (event->modifiers & shiftKey ? 25 : 13); break;
-      case K_F4: code = (event->modifiers & shiftKey ? 26 : 14); break;
-      case K_F5: code = (event->modifiers & shiftKey ? 28 : 15); break;
-      case K_F6: code = (event->modifiers & shiftKey ? 29 : 17); break;
-      case K_F7: code = (event->modifiers & shiftKey ? 31 : 18); break;
-      case K_F8: code = (event->modifiers & shiftKey ? 32 : 19); break;
-      case K_F9: code = (event->modifiers & shiftKey ? 33 : 20); break;
-      case K_F10: code = (event->modifiers & shiftKey ? 34 : 21); break;
-      case K_F11: code = 23; break;
-      case K_F12: code = 24; break;
-      case K_HOME: code = 1; break;
-      case K_INSERT: code = 2; break;
-      case K_DELETE: code = 3; break;
-      case K_END: code = 4; break;
-      case K_PRIOR: code = 5; break;
-      case K_NEXT: code = 6; break;
-    }
-    if (s->cfg.funky_type == 1 && code >= 11 && code <= 15) {
-	p += sprintf((char *)p, "\x1B[[%c", code + 'A' - 11);
-	return p - output;
-    }
-    if (s->cfg.rxvt_homeend && (code == 1 || code == 4)) {
-	p += sprintf((char *)p, code == 1 ? "\x1B[H" : "\x1BOw");
-	return p - output;
-    }
-    if (code) {
-	p += sprintf((char *)p, "\x1B[%d~", code);
-	return p - output;
+    switch ((event->message & keyCodeMask) >> 8) {
+      case 0x24: keysym = PK_RETURN; break;
+      case 0x30: keysym = PK_TAB; break;
+      case 0x33: keysym = PK_BACKSPACE; break;
+      case 0x35: keysym = PK_ESCAPE; break;
+
+      case 0x7A: keysym = PK_F1; break;
+      case 0x78: keysym = PK_F2; break;
+      case 0x63: keysym = PK_F3; break;
+      case 0x76: keysym = PK_F4; break;
+      case 0x60: keysym = PK_F5; break;
+      case 0x61: keysym = PK_F6; break;
+      case 0x62: keysym = PK_F7; break;
+      case 0x64: keysym = PK_F8; break;
+      case 0x65: keysym = PK_F9; break;
+      case 0x6D: keysym = PK_F10; break;
+      case 0x67: keysym = PK_F11; break;
+      case 0x6F: keysym = PK_F12; break;
+      case 0x69: keysym = PK_F13; break;
+      case 0x6B: keysym = PK_F14; break;
+      case 0x71: keysym = PK_F15; break;
+
+      case 0x72: keysym = PK_INSERT; break;
+      case 0x73: keysym = PK_HOME; break;
+      case 0x74: keysym = PK_PAGEUP; break;
+      case 0x75: keysym = PK_DELETE; break;
+      case 0x77: keysym = PK_END; break;
+      case 0x79: keysym = PK_PAGEDOWN; break;
+
+      case 0x47: keysym = PK_PF1; break;
+      case 0x51: keysym = PK_PF2; break;
+      case 0x4B: keysym = PK_PF3; break;
+      case 0x43: keysym = PK_PF4; break;
+      case 0x4E: keysym = PK_KPMINUS; break;
+      case 0x45: keysym = PK_KPCOMMA; break;
+      case 0x41: keysym = PK_KPDECIMAL; break;
+      case 0x4C: keysym = PK_KPENTER; break;
+      case 0x52: keysym = PK_KP0; break;
+      case 0x53: keysym = PK_KP1; break;
+      case 0x54: keysym = PK_KP2; break;
+      case 0x55: keysym = PK_KP3; break;
+      case 0x56: keysym = PK_KP4; break;
+      case 0x57: keysym = PK_KP5; break;
+      case 0x58: keysym = PK_KP6; break;
+      case 0x59: keysym = PK_KP7; break;
+      case 0x5B: keysym = PK_KP8; break;
+      case 0x5C: keysym = PK_KP9; break;
+
+      case 0x7B: keysym = PK_LEFT; break;
+      case 0x7C: keysym = PK_RIGHT; break;
+      case 0x7D: keysym = PK_DOWN; break;
+      case 0x7E: keysym = PK_UP; break;
     }
 
-    if (s->term->app_keypad_keys) {
-	switch (event->message & keyCodeMask) {
-	  case KP_ENTER: p += sprintf((char *)p, "\x1BOM"); return p - output;
-	  case KP_CLEAR: p += sprintf((char *)p, "\x1BOP"); return p - output;
-	  case KP_EQUAL: p += sprintf((char *)p, "\x1BOQ"); return p - output;
-	  case KP_SLASH: p += sprintf((char *)p, "\x1BOR"); return p - output;
-	  case KP_STAR:  p += sprintf((char *)p, "\x1BOS"); return p - output;
-	  case KP_PLUS:  p += sprintf((char *)p, "\x1BOl"); return p - output;
-	  case KP_MINUS: p += sprintf((char *)p, "\x1BOm"); return p - output;
-	  case KP_DOT:   p += sprintf((char *)p, "\x1BOn"); return p - output;
-	  case KP_0:     p += sprintf((char *)p, "\x1BOp"); return p - output;
-	  case KP_1:     p += sprintf((char *)p, "\x1BOq"); return p - output;
-	  case KP_2:     p += sprintf((char *)p, "\x1BOr"); return p - output;
-	  case KP_3:     p += sprintf((char *)p, "\x1BOs"); return p - output;
-	  case KP_4:     p += sprintf((char *)p, "\x1BOt"); return p - output;
-	  case KP_5:     p += sprintf((char *)p, "\x1BOu"); return p - output;
-	  case KP_6:     p += sprintf((char *)p, "\x1BOv"); return p - output;
-	  case KP_7:     p += sprintf((char *)p, "\x1BOw"); return p - output;
-	  case KP_8:     p += sprintf((char *)p, "\x1BOx"); return p - output;
-	  case KP_9:     p += sprintf((char *)p, "\x1BOy"); return p - output;
-	}
-    }
-
-    switch (event->message & keyCodeMask) {
-      case K_UP:
-	p += sprintf((char *)p,
-		     s->term->app_cursor_keys ? "\x1BOA" : "\x1B[A");
-	return p - output;
-      case K_DOWN:
-	p += sprintf((char *)p,
-		     s->term->app_cursor_keys ? "\x1BOB" : "\x1B[B");
-	return p - output;
-      case K_RIGHT:
-	p += sprintf((char *)p,
-		     s->term->app_cursor_keys ? "\x1BOC" : "\x1B[C");
-	return p - output;
-      case K_LEFT:
-	p += sprintf((char *)p,
-		     s->term->app_cursor_keys ? "\x1BOD" : "\x1B[D");
-	return p - output;
-      case KP_ENTER:
-	*p++ = 0x0d;
-	return p - output;
-      case K_BS:
-	*p++ = (s->cfg.bksp_is_delete ? 0x7f : 0x08);
-	return p - output;
-      default:
-	*p++ = event->message & charCodeMask;
-	return p - output;
-    }
+    /* XXX Map from key script to Unicode. */
+    utxt[0] = event->message & charCodeMask;
+    term_key(s->term, keysym, utxt, 1, mods, flags);
 }
 
 void request_paste(void *frontend)
