@@ -26,8 +26,6 @@
 # define X11_UNIX_PATH "/tmp/.X11-unix/X"
 #endif
 
-#define ipv4_is_loopback(addr) (inet_netof(addr) == IN_LOOPBACKNET)
-
 struct Socket_tag {
     struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
@@ -277,6 +275,32 @@ int sk_hostname_is_local(char *name)
     return !strcmp(name, "localhost");
 }
 
+#define ipv4_is_loopback(addr) \
+    (((addr).s_addr & htonl(0xff000000)) == htonl(0x7f000000))
+
+static int sockaddr_is_loopback(struct sockaddr *sa)
+{
+    struct sockaddr_in *sin;
+#ifndef NO_IPV6
+    struct sockaddr_in6 *sin6;
+#endif
+
+    switch (sa->sa_family) {
+      case AF_INET:
+	sin = (struct sockaddr_in *)sa;
+	return ipv4_is_loopback(sin->sin_addr);
+#ifndef NO_IPV6
+      case AF_INET6:
+	sin6 = (struct sockaddr_in6 *)sa;
+	return IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr);
+#endif
+      case AF_LOCAL:
+	return TRUE;
+      default:
+	return FALSE;
+    }
+}
+
 int sk_address_is_local(SockAddr addr)
 {
 
@@ -284,14 +308,7 @@ int sk_address_is_local(SockAddr addr)
 	return 0;                      /* we don't know; assume not */
     else {
 #ifndef NO_IPV6
-	if (addr->family == AF_INET)
-	    return ipv4_is_loopback(
-		((struct sockaddr_in *)addr->ai->ai_addr)->sin_addr);
-	else if (addr->family == AF_INET6)
-	    return IN6_IS_ADDR_LOOPBACK(
-		&((struct sockaddr_in6 *)addr->ai->ai_addr)->sin6_addr);
-	else
-	    return 0;
+	return sockaddr_is_loopback(addr->ai->ai_addr);
 #else
 	struct in_addr a;
 	assert(addr->family == AF_INET);
@@ -946,29 +963,6 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
     uxsel_tell(s);
 
     return s->sending_oob;
-}
-
-static int sockaddr_is_loopback(struct sockaddr *sa)
-{
-    struct sockaddr_in *sin;
-#ifndef NO_IPV6
-    struct sockaddr_in6 *sin6;
-#endif
-
-    switch (sa->sa_family) {
-      case AF_INET:
-	sin = (struct sockaddr_in *)sa;
-	return ipv4_is_loopback(sin->sin_addr);
-#ifndef NO_IPV6
-      case AF_INET6:
-	sin6 = (struct sockaddr_in6 *)sa;
-	return IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr);
-#endif
-      case AF_LOCAL:
-	return TRUE;
-      default:
-	return FALSE;
-    }
 }
 
 static int net_select_result(int fd, int event)
