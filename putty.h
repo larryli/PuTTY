@@ -338,8 +338,8 @@ struct config_tag {
     int proxy_type;
     char proxy_host[512];
     int proxy_port;
-    char proxy_username[32];
-    char proxy_password[32];
+    char proxy_username[128];
+    char proxy_password[128];
     char proxy_telnet_command[512];
     /* SSH options */
     char remote_cmd[512];
