@@ -1917,7 +1917,7 @@ void term_scroll (int rel, int where) {
     term_update();
 }
 
-static void clipme(long *top, long *bottom, char *workbuf) {
+static void clipme(unsigned long *top, unsigned long *bottom, char *workbuf) {
     char *wbptr;		/* where next char goes within workbuf */
     int wblen = 0;		/* workbuf len */
     int buflen;			/* amount of memory allocated to workbuf */
