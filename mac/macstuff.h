@@ -23,6 +23,8 @@ typedef void *Context; /* FIXME */
 #define WCHAR wchar_t
 #define BYTE unsigned char
 
+#define OPTIMISE_SCROLL
+
 /* To make it compile */
 
 #include <stdarg.h>

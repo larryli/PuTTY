@@ -405,6 +405,9 @@ void request_resize(void *frontend, int, int);
 void do_text(Context, int, int, char *, int, unsigned long, int);
 void do_cursor(Context, int, int, char *, int, unsigned long, int);
 int char_width(Context ctx, int uc);
+#ifdef OPTIMISE_SCROLL
+void do_scroll(void *, int, int, int);
+#endif
 void set_title(void *frontend, char *);
 void set_icon(void *frontend, char *);
 void set_sbar(void *frontend, int, int, int);

@@ -68,6 +68,9 @@ static void swap_screen(Terminal *, int, int, int);
 static void update_sbar(Terminal *);
 static void deselect(Terminal *);
 static void term_print_finish(Terminal *);
+#ifdef OPTIMISE_SCROLL
+static void scroll_display(Terminal *, int, int, int);
+#endif /* OPTIMISE_SCROLL */
 
 /*
  * Resize a line to make it `cols' columns wide.
@@ -702,6 +705,32 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	}
     }
 }
+
+#ifdef OPTIMISE_SCROLL
+/*
+ * Scroll the physical display, and our conception of it in disptext.
+ */
+static void scroll_display(Terminal *term, int topline, int botline, int lines)
+{
+    unsigned long *start, *end;
+    int distance, size, i;
+
+    start = term->disptext + topline * (term->cols + 1);
+    end = term->disptext + (botline + 1) * (term->cols + 1);
+    distance = (lines > 0 ? lines : -lines) * (term->cols + 1);
+    size = end - start - distance;
+    if (lines > 0) {
+	memmove(start, start + distance, size * TSIZE);
+	for (i = 0; i < distance; i++)
+	    (start + size)[i] |= ATTR_INVALID;
+    } else {
+	memmove(start + distance, start, size * TSIZE);
+	for (i = 0; i < distance; i++)
+	    start[i] |= ATTR_INVALID;
+    }
+    do_scroll(term->frontend, topline, botline, lines);
+}
+#endif /* OPTIMISE_SCROLL */
 
 /*
  * Move the cursor to a given position, clipping at boundaries. We
@@ -3143,6 +3172,10 @@ void term_paint(Terminal *term, Context ctx,
 void term_scroll(Terminal *term, int rel, int where)
 {
     int sbtop = -count234(term->scrollback);
+#ifdef OPTIMISE_SCROLL
+    int olddisptop = term->disptop;
+    int shift;
+#endif /* OPTIMISE_SCROLL */
 
     term->disptop = (rel < 0 ? 0 : rel > 0 ? sbtop : term->disptop) + where;
     if (term->disptop < sbtop)
@@ -3150,6 +3183,11 @@ void term_scroll(Terminal *term, int rel, int where)
     if (term->disptop > 0)
 	term->disptop = 0;
     update_sbar(term);
+#ifdef OPTIMISE_SCROLL
+    shift = (term->disptop - olddisptop);
+    if (shift < term->rows && shift > -term->rows)
+	scroll_display(term, 0, term->rows - 1, shift);
+#endif /* OPTIMISE_SCROLL */
     term_update(term);
 }
 
