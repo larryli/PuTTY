@@ -976,7 +976,7 @@ static void erase_lots(Terminal *term,
     while (poslt(start, end)) {
 	if (start.x == term->cols) {
             if (!erase_lattr)
-                ldata[start.x] = ~(LATTR_WRAPPED | LATTR_WRAPPED2);
+                ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
             else
                 ldata[start.x] = LATTR_NORM;
         } else {
