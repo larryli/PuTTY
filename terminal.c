@@ -369,7 +369,7 @@ void term_size(int newrows, int newcols, int newsavelines) {
     for (i=0; i<newrows; i++) {
 	line = smalloc(TSIZE * (newcols+1));
 	for (j = 0; j <= newcols; j++)
-	    line[i] = erase_char;
+	    line[j] = erase_char;
 	addpos234(newalt, line, i);
     }
     if (alt_screen) {
@@ -466,7 +466,7 @@ static void scroll (int topline, int botline, int lines, int sb) {
     unsigned long *line, *line2;
     int i;
 
-    if (topline != 0)
+    if (topline != 0 || alt_which != 0)
 	sb = FALSE;
 
     if (lines < 0) {
