@@ -24,6 +24,7 @@ struct mac_gestalts {
     long encvvers; /* TEC version (from TECGetInfo()) */
     long uncvattr; /* Unicode Converter attributes (frem TECGetInfo()) */
     long mtcpvers;
+    long otptattr;
 };
 
 extern struct mac_gestalts mac_gestalts;
@@ -94,7 +95,7 @@ extern void *open_settings_r_fsp(FSSpec *);
 extern void init_ucs(void);
 /* from mtcpnet.c */
 extern OSErr mactcp_init(void);
-extern void mactcp_shutdown(void);
+extern void mactcp_cleanup(void);
 extern void mactcp_poll(void);
 extern SockAddr mactcp_namelookup(char *, char **);
 extern SockAddr mactcp_nonamelookup(char *);
@@ -108,6 +109,22 @@ extern Socket mactcp_register(void *, Plug);
 extern Socket mactcp_new(SockAddr addr, int, int, int, int, Plug);
 extern Socket mactcp_newlistener(char *, int, Plug, int);
 extern char *mactcp_addr_error(SockAddr);
+/* from otnet.c */
+extern OSErr ot_init(void);
+extern void ot_cleanup(void);
+extern void ot_poll(void);
+extern SockAddr ot_namelookup(char *, char **);
+extern SockAddr ot_nonamelookup(char *);
+extern void ot_getaddr(SockAddr, char *, int);
+extern int ot_hostname_is_local(char *);
+extern int ot_address_is_local(SockAddr);
+extern int ot_addrtype(SockAddr);
+extern void ot_addrcopy(SockAddr, char *);
+extern void ot_addr_free(SockAddr);
+extern Socket ot_register(void *, Plug);
+extern Socket ot_new(SockAddr addr, int, int, int, int, Plug);
+extern Socket ot_newlistener(char *, int, Plug, int);
+extern char *ot_addr_error(SockAddr);
 
 #endif
 

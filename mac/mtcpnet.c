@@ -244,7 +244,7 @@ OSErr mactcp_init(void)
     return noErr;
 }
 
-void mactcp_shutdown(void)
+void mactcp_cleanup(void)
 {
     Actual_Socket s, next;
 

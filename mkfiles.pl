@@ -622,6 +622,9 @@ Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MathLib.far.o" \xb6
 		"{Libraries}IntEnv.far.o" \xb6
 		"{Libraries}Interface.o" \xb6
+		"{Libraries}OpenTransport.o" \xb6
+		"{Libraries}OpenTransportApp.o" \xb6
+		"{Libraries}OpenTptInet.o" \xb6
 		"{Libraries}UnicodeConverterLib.far.o"
 
 Libs_CFM =	"{SharedLibraries}InterfaceLib" \xb6
@@ -641,9 +644,17 @@ Libs_PPC =	{Libs_CFM} \xb6
 			-weaklib ControlsLib \xb6
 		"{SharedLibraries}WindowsLib" \xb6
 			-weaklib WindowsLib \xb6
+		"{SharedLibraries}OpenTransportLib" \xb6
+			-weaklib OTClientLib \xb6
+			-weaklib OTClientUtilLib \xb6
+			-weaklib OTUtilityLib \xb6
+		"{SharedLibraries}OpenTptInternetLib" \xb6
+			-weaklib OTInetClientLib \xb6
 		"{PPCLibraries}StdCRuntime.o" \xb6
 		"{PPCLibraries}PPCCRuntime.o" \xb6
-		"{PPCLibraries}CarbonAccessors.o"
+		"{PPCLibraries}CarbonAccessors.o" \xb6
+		"{PPCLibraries}OpenTransportAppPPC.o" \xb6
+		"{PPCLibraries}OpenTptInetPPC.o"
 
 END
 print &splitline("all \xc4 " . join(" ", &progrealnames("M")), undef, "\xb6");

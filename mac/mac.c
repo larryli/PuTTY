@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.24 2003/01/11 19:43:59 ben Exp $ */
+/* $Id: mac.c,v 1.25 2003/01/11 23:33:57 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -169,13 +169,21 @@ static void mac_startup(void) {
 	mac_gestalts.uncvattr = (*ti)->tecUnicodeConverterFeatures;
 	DisposeHandle((Handle)ti);
     }
-    /* MacTCP? */
-    if (Gestalt(FOUR_CHAR_CODE('mtcp'), &mac_gestalts.mtcpvers) != noErr)
-	mac_gestalts.mtcpvers = 0;
-    if (mac_gestalts.mtcpvers > 0) {
-	if (mactcp_init() != noErr)
+    /* OpenTransport? */
+    if (Gestalt(gestaltOpenTpt, &mac_gestalts.otptattr) != noErr ||
+	(mac_gestalts.otptattr & gestaltOpenTptTCPPresentMask) == 0 ||
+	ot_init() != noErr)
+	mac_gestalts.otptattr = 0;
+    if (mac_gestalts.otptattr == 0) {
+	/* MacTCP? */
+	if (Gestalt(FOUR_CHAR_CODE('mtcp'), &mac_gestalts.mtcpvers) != noErr)
 	    mac_gestalts.mtcpvers = 0;
-    }
+	if (mac_gestalts.mtcpvers > 0) {
+	    if (mactcp_init() != noErr)
+		mac_gestalts.mtcpvers = 0;
+	}
+    } else
+	mac_gestalts.mtcpvers = 0;
 
     /* We've been tested with the Appearance Manager */
     if (mac_gestalts.apprvers != 0)
@@ -623,8 +631,7 @@ void cleanup_exit(int status)
     if (mac_gestalts.encvvers != 0)
 	TerminateUnicodeConverter();
 #endif
-    if (mac_gestalts.mtcpvers != 0)
-	mactcp_shutdown();
+    sk_cleanup();
     exit(status);
 }
 
