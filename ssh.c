@@ -101,6 +101,18 @@
 #define SSH2_MSG_CHANNEL_SUCCESS                  99   /* 0x63 */
 #define SSH2_MSG_CHANNEL_FAILURE                  100  /* 0x64 */
 
+#define SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT 1  /* 0x1 */
+#define SSH2_DISCONNECT_PROTOCOL_ERROR            2    /* 0x2 */
+#define SSH2_DISCONNECT_KEY_EXCHANGE_FAILED       3    /* 0x3 */
+#define SSH2_DISCONNECT_HOST_AUTHENTICATION_FAILED 4   /* 0x4 */
+#define SSH2_DISCONNECT_MAC_ERROR                 5    /* 0x5 */
+#define SSH2_DISCONNECT_COMPRESSION_ERROR         6    /* 0x6 */
+#define SSH2_DISCONNECT_SERVICE_NOT_AVAILABLE     7    /* 0x7 */
+#define SSH2_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED 8 /* 0x8 */
+#define SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE   9    /* 0x9 */
+#define SSH2_DISCONNECT_CONNECTION_LOST           10   /* 0xa */
+#define SSH2_DISCONNECT_BY_APPLICATION            11   /* 0xb */
+
 #define SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED     1    /* 0x1 */
 #define SSH2_OPEN_CONNECT_FAILED                  2    /* 0x2 */
 #define SSH2_OPEN_UNKNOWN_CHANNEL_TYPE            3    /* 0x3 */
@@ -2427,6 +2439,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                 if (1 /* FIXME: "all channels are closed" */) {
                     logevent("All channels closed. Disconnecting");
                     ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+                    ssh2_pkt_adduint32(SSH2_DISCONNECT_BY_APPLICATION);
+                    ssh2_pkt_addstring("All open channels closed");
+                    ssh2_pkt_addstring("en");   /* language tag */
                     ssh2_pkt_send();
                     ssh_state = SSH_STATE_CLOSED;
                     crReturnV;
