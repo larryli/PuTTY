@@ -509,8 +509,9 @@ use the \c{-load} option (described in \k{using-cmdline-load}).
 \S{using-cleanup} \i\c{-cleanup}
 
 If invoked with the \c{-cleanup} option, rather than running as
-normal, PuTTY will remove its registry entries and random seed file
-from the local machine (after confirming with the user).
+normal, PuTTY will remove its \I{removing registry entries}registry
+entries and \I{random seed file} from the local machine (after
+confirming with the user).
 
 \S{using-general-opts} Standard command-line options
 
@@ -536,7 +537,7 @@ call something like
 \c d:\path\to\putty.exe -load "my session"
 
 (Note that PuTTY itself supports an alternative form of this option,
-for backwards compatibility. If you execute \c{putty @sessionname}
+for backwards compatibility. If you execute \i\c{putty @sessionname}
 it will have the same effect as \c{putty -load "sessionname"}. With
 the \c{@} form, no double quotes are required, and the \c{@} sign
 must be the very first thing on the command line. This form of the
@@ -708,7 +709,7 @@ These options are not available in the file transfer tools PSCP and
 PSFTP.
 
 \S2{using-cmdline-noshell} \I{-N-upper}\c{-N}: suppress starting a
-shell or command
+\I{suppressing remote shell}shell or command
 
 The \c{-N} option prevents PuTTY from attempting to start a shell or
 command on the remote server. You might want to use this option if
