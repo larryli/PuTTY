@@ -296,7 +296,11 @@ void load_settings(char *section, int do_host, Config * cfg)
     cfg->remote_cmd_ptr = cfg->remote_cmd;
     cfg->remote_cmd_ptr2 = NULL;
 
-    gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
+    if (do_host) {
+	gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
+    } else {
+	cfg->host[0] = '\0';	       /* blank hostname */
+    }
     gpps(sesskey, "LogFileName", "putty.log",
 	 cfg->logfilename, sizeof(cfg->logfilename));
     gppi(sesskey, "LogType", 0, &cfg->logtype);
