@@ -290,6 +290,8 @@ static int size_needed = FALSE, eof_needed = FALSE;
 
 static struct Packet pktin = { 0, 0, NULL, NULL, 0 };
 static struct Packet pktout = { 0, 0, NULL, NULL, 0 };
+static unsigned char *deferred_send_data = NULL;
+static int deferred_len = 0, deferred_size = 0;
 
 static int ssh_version;
 static void (*ssh_protocol)(unsigned char *in, int inlen, int ispkt);
@@ -891,7 +893,13 @@ static void ssh2_pkt_addmp(Bignum b) {
     ssh2_pkt_addstring_data(p, len);
     sfree(p);
 }
-static void ssh2_pkt_send(void) {
+
+/*
+ * Construct an SSH2 final-form packet: compress it, encrypt it,
+ * put the MAC on it. Final packet, ready to be sent, is stored in
+ * pktout.data. Total length is returned.
+ */
+static int ssh2_pkt_construct(void) {
     int cipherblk, maclen, padding, i;
     static unsigned long outgoing_sequence = 0;
 
@@ -944,7 +952,48 @@ static void ssh2_pkt_send(void) {
     if (cscipher)
         cscipher->encrypt(pktout.data, pktout.length + padding);
 
-    sk_write(s, pktout.data, pktout.length + padding + maclen);
+    /* Ready-to-send packet starts at pktout.data. We return length. */
+    return pktout.length + padding + maclen;
+}
+
+/*
+ * Construct and send an SSH2 packet immediately.
+ */
+static void ssh2_pkt_send(void) {
+    int len = ssh2_pkt_construct();
+    sk_write(s, pktout.data, len);
+}
+
+/*
+ * Construct an SSH2 packet and add it to a deferred data block.
+ * Useful for sending multiple packets in a single sk_write() call,
+ * to prevent a traffic-analysing listener from being able to work
+ * out the length of any particular packet (such as the password
+ * packet).
+ * 
+ * Note that because SSH2 sequence-numbers its packets, this can
+ * NOT be used as an m4-style `defer' allowing packets to be
+ * constructed in one order and sent in another.
+ */
+static void ssh2_pkt_defer(void) {
+    int len = ssh2_pkt_construct();
+    if (deferred_len + len > deferred_size) {
+        deferred_size = deferred_len + len + 128;
+        deferred_send_data = srealloc(deferred_send_data, deferred_size);
+    }
+    memcpy(deferred_send_data+deferred_len, pktout.data, len);
+    deferred_len += len;
+}
+
+/*
+ * Send the whole deferred data block constructed by
+ * ssh2_pkt_defer().
+ */
+static void ssh2_pkt_defersend(void) {
+    sk_write(s, deferred_send_data, deferred_len);
+    deferred_len = deferred_size = 0;
+    sfree(deferred_send_data);
+    deferred_send_data = NULL;
 }
 
 #if 0
@@ -2632,13 +2681,46 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
             c_write("\r\n", 2);
 	}
 
+        /*
+         * We send the password packet lumped tightly together with
+         * an SSH_MSG_IGNORE packet. The IGNORE packet contains a
+         * string long enough to make the total length of the two
+         * packets constant. This should ensure that a passive
+         * listener doing traffic analyis can't work out the length
+         * of the password.
+         * 
+         * For this to work, we need an assumption about the
+         * maximum length of the password packet. I think 256 is
+         * pretty conservative. Anyone using a password longer than
+         * that probably doesn't have much to worry about from
+         * people who find out how long their password is!
+         */
         ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
         ssh2_pkt_addstring(username);
         ssh2_pkt_addstring("ssh-connection");   /* service requested */
         ssh2_pkt_addstring("password");
         ssh2_pkt_addbool(FALSE);
         ssh2_pkt_addstring(password);
-        ssh2_pkt_send();
+        ssh2_pkt_defer();
+        /*
+         * We'll include a string that's an exact multiple of the
+         * cipher block size. If the cipher is NULL for some
+         * reason, we don't do this trick at all because we gain
+         * nothing by it.
+         */
+        if (cscipher) {
+            int i, j;
+            ssh2_pkt_init(SSH2_MSG_IGNORE);
+            ssh2_pkt_addstring_start();
+            for (i = deferred_len; i <= 256; i += cscipher->blksize) {
+                for (j = 0; j < cscipher->blksize; j++) {
+                    char c = (char)random_byte();
+                    ssh2_pkt_addstring_data(&c, 1);
+                }
+            }
+            ssh2_pkt_defer();
+        }
+        ssh2_pkt_defersend();
 
         crWaitUntilV(ispkt);
         if (pktin.type != SSH2_MSG_USERAUTH_SUCCESS) {
