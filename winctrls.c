@@ -646,7 +646,7 @@ void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
     r.right = lwid; r.bottom = LISTHEIGHT;
     doctl(cp, r, "LISTBOX",
           WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_HASSTRINGS |
-          LBS_USETABSTOPS,
+          LBS_USETABSTOPS | LBS_NOTIFY,
           WS_EX_CLIENTEDGE,
           "", listid);
 
