@@ -201,7 +201,10 @@ int random_byte(void)
 
 void random_get_savedata(void **data, int *len)
 {
+    void *buf = smalloc(POOLSIZE / 2);
     random_stir();
-    *data = pool.pool + pool.poolpos;
+    memcpy(buf, pool.pool + pool.poolpos, POOLSIZE / 2);
     *len = POOLSIZE / 2;
+    *data = buf;
+    random_stir();
 }
