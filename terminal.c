@@ -638,7 +638,7 @@ void term_out(void) {
 		termstate = SEEN_OSC;
 		esc_args[0] = 0;
 		break;
-	      case '\r':
+	      case '\015':
 		curs_x = 0;
 		wrapnext = FALSE;
 		fix_cpos;
@@ -647,7 +647,7 @@ void term_out(void) {
 		break;
 	      case '\013':
 	      case '\014':
-	      case '\n':
+	      case '\012':
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
@@ -720,8 +720,8 @@ void term_out(void) {
 	    termstate = TOPLEVEL;
 	    switch (c) {
 	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
+	      case '\033': case 0233: case 0234: case 0235: case '\015':
+	      case '\013': case '\014': case '\012': case '\t':
 		termstate = TOPLEVEL;
 		goto do_toplevel;      /* hack... */
 	      case ' ':		       /* some weird sequence? */
@@ -810,8 +810,8 @@ void term_out(void) {
 	    termstate = TOPLEVEL;      /* default */
 	    switch (c) {
 	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
+	      case '\033': case 0233: case 0234: case 0235: case '\015':
+	      case '\013': case '\014': case '\012': case '\t':
 		termstate = TOPLEVEL;
 		goto do_toplevel;      /* hack... */
 	      case '0': case '1': case '2': case '3': case '4':
@@ -1080,8 +1080,8 @@ void term_out(void) {
 	    osc_w = FALSE;
 	    switch (c) {
 	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
+	      case '\033': case 0233: case 0234: case 0235: case '\015':
+	      case '\013': case '\014': case '\012': case '\t':
 		termstate = TOPLEVEL;
 		goto do_toplevel;      /* hack... */
 	      case 'P':		       /* Linux palette sequence */
@@ -1158,8 +1158,8 @@ void term_out(void) {
 	  case SEEN_OSC_W:
 	    switch (c) {
 	      case '\005': case '\007': case '\b': case '\016': case '\017':
-	      case '\033': case 0233: case 0234: case 0235: case '\r':
-	      case '\013': case '\014': case '\n': case '\t':
+	      case '\033': case 0233: case 0234: case 0235: case '\015':
+	      case '\013': case '\014': case '\012': case '\t':
 		termstate = TOPLEVEL;
 		goto do_toplevel;      /* hack... */
 	      case '0': case '1': case '2': case '3': case '4':
