@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.11 2003/03/18 00:35:40 ben Exp $ */
+/* $Id: macresid.h,v 1.12 2003/03/19 00:40:15 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -62,3 +62,5 @@
 /* xDEFs */
 #define CDEF_Text	128
 #define SYS7_TEXT_PROC	(CDEF_Text << 4)
+#define CDEF_Default	129
+#define SYS7_DEFAULT_PROC	(CDEF_Default << 4)

@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.33 2003/03/18 00:35:40 ben Exp $ */
+/* $Id: mac_res.r,v 1.34 2003/03/19 00:40:15 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -1123,5 +1123,8 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
 /* Custom xDEFs */
 
 data 'CDEF' (CDEF_Text) {
+    $"4EF9 00000000"
+};
+data 'CDEF' (CDEF_Default) {
     $"4EF9 00000000"
 };

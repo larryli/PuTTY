@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.5 2003/03/18 23:47:33 ben Exp $ */
+/* $Id: macctrls.c,v 1.6 2003/03/19 00:40:15 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -93,6 +93,8 @@ static void macctrl_button(struct macctrls *, WindowPtr,
 #if !TARGET_API_MAC_CARBON
 static pascal SInt32 macctrl_sys7_text_cdef(SInt16, ControlRef,
 					    ControlDefProcMessage, SInt32);
+static pascal SInt32 macctrl_sys7_default_cdef(SInt16, ControlRef,
+					       ControlDefProcMessage, SInt32);
 #endif
 
 #if !TARGET_API_MAC_CARBON
@@ -119,6 +121,8 @@ static void macctrl_init()
     if (inited) return;
     cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Text);
     (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_text_cdef);
+    cdef = (PatchCDEF)GetResource(kControlDefProcResourceType, CDEF_Default);
+    (*cdef)->theUPP = NewControlDefProc(macctrl_sys7_default_cdef);
     inited = 1;
 #endif
 }
@@ -365,6 +369,10 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 	SetControlData(mc->button.tbctrl, kControlEntireControl,
 		       kControlPushButtonDefaultTag,
 		       sizeof(isdefault), &isdefault);
+    } else if (ctrl->button.isdefault) {
+	InsetRect(&bounds, -4, -4);
+	NewControl(window, &bounds, title, TRUE, 0, 0, 1,
+		   SYS7_DEFAULT_PROC, (long)mc);
     }
     if (mac_gestalts.apprvers >= 0x110) {
 	Boolean iscancel = ctrl->button.iscancel;
@@ -376,6 +384,47 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
     add234(mcs->byctrl, mc);
     curstate->pos.v += 26;
 }
+
+#if !TARGET_API_MAC_CARBON
+static pascal SInt32 macctrl_sys7_default_cdef(SInt16 variant,
+					       ControlRef control,
+					       ControlDefProcMessage msg,
+					       SInt32 param)
+{
+    RgnHandle rgn;
+    Rect rect;
+    int oval;
+
+    switch (msg) {
+      case drawCntl:
+	if ((*control)->contrlVis) {
+	    rect = (*control)->contrlRect;
+	    PenNormal();
+	    PenSize(3, 3);
+	    oval = (rect.bottom - rect.top) / 2 + 2;
+	    FrameRoundRect(&rect, oval, oval);
+	}
+	return 0;
+      case calcCRgns:
+	if (param & (1 << 31)) {
+	    param &= ~(1 << 31);
+	    goto calcthumbrgn;
+	}
+	/* FALLTHROUGH */
+      case calcCntlRgn:
+	rgn = (RgnHandle)param;
+	RectRgn(rgn, &(*control)->contrlRect);
+	return 0;
+      case calcThumbRgn:
+      calcthumbrgn:
+	rgn = (RgnHandle)param;
+	SetEmptyRgn(rgn);
+	return 0;
+    }
+
+    return 0;
+}
+#endif
 
 
 void macctrl_activate(WindowPtr window, EventRecord *event)
