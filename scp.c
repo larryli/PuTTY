@@ -277,10 +277,25 @@ static void source(char *src)
     }
 
     if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-	if (recursive)
-	    rsource(src);
-	else
+	if (recursive) {
+            /*
+             * Avoid . and .. directories.
+             */
+            char *p;
+            p = strrchr(src, '/');
+            if (!p)
+                p = strrchr(src, '\\');
+            if (!p)
+                p = src;
+            else
+                p++;
+            if (!strcmp(p, ".") || !strcmp(p, ".."))
+                /* skip . and .. */;
+            else
+                rsource(src);
+        } else {
 	    run_err("%s: not a regular file", src);
+        }
 	return;
     }
 
