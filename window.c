@@ -556,7 +556,9 @@ void request_resize (int w, int h) {
 }
 
 static void click (Mouse_Button b, int x, int y) {
-    if (lastbtn == b && GetMessageTime() - lasttime < dbltime) {
+    int thistime = GetMessageTime();
+
+    if (lastbtn == b && thistime - lasttime < dbltime) {
 	lastact = (lastact == MA_CLICK ? MA_2CLK :
 		   lastact == MA_2CLK ? MA_3CLK :
 		   lastact == MA_3CLK ? MA_CLICK : MA_NOTHING);
@@ -566,7 +568,7 @@ static void click (Mouse_Button b, int x, int y) {
     }
     if (lastact != MA_NOTHING)
 	term_mouse (b, lastact, x, y);
-    lasttime = GetMessageTime();
+    lasttime = thistime;
 }
 
 static int WINAPI WndProc (HWND hwnd, UINT message,
@@ -702,38 +704,41 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 #define X_POS(l) ((int)(short)LOWORD(l))
 #define Y_POS(l) ((int)(short)HIWORD(l))
 
+#define TO_CHR_X(x) (((x)<0 ? (x)-font_width+1 : (x)) / font_width)
+#define TO_CHR_Y(y) (((y)<0 ? (y)-font_height+1: (y)) / font_height)
+
       case WM_LBUTTONDOWN:
-	click (MB_SELECT, X_POS(lParam) / font_width,
-	       Y_POS(lParam) / font_height);
+	click (MB_SELECT, TO_CHR_X(X_POS(lParam)),
+	       TO_CHR_Y(Y_POS(lParam)));
         SetCapture(hwnd);
 	return 0;
       case WM_LBUTTONUP:
-	term_mouse (MB_SELECT, MA_RELEASE, X_POS(lParam) / font_width,
-		    Y_POS(lParam) / font_height);
+	term_mouse (MB_SELECT, MA_RELEASE, TO_CHR_X(X_POS(lParam)),
+		    TO_CHR_Y(Y_POS(lParam)));
         ReleaseCapture();
 	return 0;
       case WM_MBUTTONDOWN:
         SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
-	       X_POS(lParam) / font_width,
-	       Y_POS(lParam) / font_height);
+	       TO_CHR_X(X_POS(lParam)),
+	       TO_CHR_Y(Y_POS(lParam)));
 	return 0;
       case WM_MBUTTONUP:
 	term_mouse (cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND,
-		    MA_RELEASE, X_POS(lParam) / font_width,
-		    Y_POS(lParam) / font_height);
+		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
+		    TO_CHR_Y(Y_POS(lParam)));
 	return 0;
         ReleaseCapture();
       case WM_RBUTTONDOWN:
         SetCapture(hwnd);
 	click (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
-	       X_POS(lParam) / font_width,
-	       Y_POS(lParam) / font_height);
+	       TO_CHR_X(X_POS(lParam)),
+	       TO_CHR_Y(Y_POS(lParam)));
 	return 0;
       case WM_RBUTTONUP:
 	term_mouse (cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE,
-		    MA_RELEASE, X_POS(lParam) / font_width,
-		    Y_POS(lParam) / font_height);
+		    MA_RELEASE, TO_CHR_X(X_POS(lParam)),
+		    TO_CHR_Y(Y_POS(lParam)));
         ReleaseCapture();
 	return 0;
       case WM_MOUSEMOVE:
@@ -752,12 +757,9 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		b = cfg.mouse_is_xterm ? MB_PASTE : MB_EXTEND;
 	    else
 		b = cfg.mouse_is_xterm ? MB_EXTEND : MB_PASTE;
-	    term_mouse (b, MA_DRAG, X_POS(lParam) / font_width,
-			Y_POS(lParam) / font_height);
+	    term_mouse (b, MA_DRAG, TO_CHR_X(X_POS(lParam)),
+			TO_CHR_Y(Y_POS(lParam)));
 	}
-	lastbtn = MB_NOTHING;
-	lastact = MA_NOTHING;
-	lasttime = GetMessageTime();
 	return 0;
       case WM_IGNORE_CLIP:
 	ignore_clip = wParam;	       /* don't panic on DESTROYCLIPBOARD */
