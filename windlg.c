@@ -705,7 +705,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		multiedit(&cp,
 			  "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
 			  "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
-		if (backends[2].backend == NULL) {
+		if (backends[3].backend == NULL) {
 		    /* this is PuTTYtel, so only two protocols available */
 		    radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
 			      "&Raw", IDC_PROTRAW,
@@ -1027,7 +1027,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	}
 
 	/* The SSH panel. Accelerators used: [acgo] rmakwp123bd */
-        if (backends[2].backend != NULL) {
+        if (backends[3].backend != NULL) {
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
 	    if (dlgtype == 0) {
