@@ -2725,7 +2725,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
     if (eof_needed)
 	ssh_special(TS_EOF);
 
-    ldisc_send(NULL, 0);	       /* cause ldisc to notice changes */
+    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
     ssh_send_ok = 1;
     ssh_channels = newtree234(ssh_channelcmp);
     while (1) {
@@ -4636,7 +4636,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * Transfer data!
      */
-    ldisc_send(NULL, 0);	       /* cause ldisc to notice changes */
+    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
     ssh_send_ok = 1;
     while (1) {
 	static int try_send;

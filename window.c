@@ -1508,7 +1508,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * Flush the line discipline's edit buffer in the
 		 * case where local editing has just been disabled.
 		 */
-		ldisc_send(NULL, 0);
+		ldisc_send(NULL, 0, 0);
 		if (pal)
 		    DeleteObject(pal);
 		logpal = NULL;
@@ -2150,7 +2150,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * messages. We _have_ to buffer everything
 		     * we're sent.
 		     */
-		    ldisc_send(buf, len);
+		    ldisc_send(buf, len, 1);
 		    show_mouseptr(0);
 		}
 	    }
@@ -2189,7 +2189,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if (n > 0) {
 		buff = (char*) smalloc(n);
 		ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, buff, n);
-		luni_send((unsigned short *)buff, n / 2);
+		luni_send((unsigned short *)buff, n / 2, 1);
 		free(buff);
 	    }
 	    ImmReleaseContext(hwnd, hIMC);
@@ -2202,10 +2202,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
-	    lpage_send(kbd_codepage, buf, 2);
+	    lpage_send(kbd_codepage, buf, 2, 1);
 	} else {
 	    char c = (unsigned char) wParam;
-	    lpage_send(kbd_codepage, &c, 1);
+	    lpage_send(kbd_codepage, &c, 1, 1);
 	}
 	return (0);
       case WM_CHAR:
@@ -2218,7 +2218,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 */
 	{
 	    char c = (unsigned char)wParam;
-	    lpage_send(CP_ACP, &c, 1);
+	    lpage_send(CP_ACP, &c, 1, 1);
 	}
 	return 0;
       case WM_SETCURSOR:
@@ -3374,7 +3374,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			return 0;
 		    }
 		    keybuf = nc;
-		    luni_send(&keybuf, 1);
+		    luni_send(&keybuf, 1, 1);
 		    continue;
 		}
 
@@ -3384,7 +3384,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    if (alt_sum) {
 			if (in_utf || dbcs_screenfont) {
 			    keybuf = alt_sum;
-			    luni_send(&keybuf, 1);
+			    luni_send(&keybuf, 1, 1);
 			} else {
 			    ch = (char) alt_sum;
 			    /*
@@ -3396,22 +3396,22 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * messages. We _have_ to buffer
 			     * everything we're sent.
 			     */
-			    ldisc_send(&ch, 1);
+			    ldisc_send(&ch, 1, 1);
 			}
 			alt_sum = 0;
 		    } else
-			lpage_send(kbd_codepage, &ch, 1);
+			lpage_send(kbd_codepage, &ch, 1, 1);
 		} else {
 		    if(capsOn && ch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(ch);
-			luni_send(cbuf+!left_alt, 1+!!left_alt);
+			luni_send(cbuf+!left_alt, 1+!!left_alt, 1);
 		    } else {
 			char cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = ch;
-			lpage_send(kbd_codepage, cbuf+!left_alt, 1+!!left_alt);
+			lpage_send(kbd_codepage, cbuf+!left_alt, 1+!!left_alt, 1);
 		    }
 		}
 		show_mouseptr(0);

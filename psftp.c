@@ -1395,7 +1395,7 @@ void logevent(char *string)
 {
 }
 
-void ldisc_send(char *buf, int len)
+void ldisc_send(char *buf, int len, int interactive)
 {
     /*
      * This is only here because of the calls to ldisc_send(NULL,

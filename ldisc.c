@@ -61,7 +61,7 @@ static void bsb(int n)
 #define CTRL(x) (x^'@')
 #define KCTRL(x) ((x^'@') | 0x100)
 
-void ldisc_send(char *buf, int len)
+void ldisc_send(char *buf, int len, int interactive)
 {
     int keyflag = 0;
     /*
@@ -86,6 +86,8 @@ void ldisc_send(char *buf, int len)
 	while (len--) {
 	    int c;
 	    c = *buf++ + keyflag;
+	    if (!interactive && c == '\r')
+		c += KCTRL('@');
 	    switch (term_quotenext ? ' ' : c) {
 		/*
 		 * ^h/^?: delete one char and output one BSB

@@ -8,10 +8,6 @@
 #include "putty.h"
 #include "misc.h"
 
-void init_ucs_tables(void);
-void lpage_send(int codepage, char *buf, int len);
-void luni_send(wchar_t * widebuf, int len);
-
 static void get_unitab(int codepage, wchar_t * unitab, int ftype);
 
 /* Character conversion arrays; they are usually taken from windows,
@@ -441,14 +437,14 @@ static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr)
     }
 }
 
-void lpage_send(int codepage, char *buf, int len)
+void lpage_send(int codepage, char *buf, int len, int interactive)
 {
     static wchar_t *widebuffer = 0;
     static int widesize = 0;
     int wclen;
 
     if (codepage < 0) {
-	ldisc_send(buf, len);
+	ldisc_send(buf, len, interactive);
 	return;
     }
 
@@ -460,10 +456,10 @@ void lpage_send(int codepage, char *buf, int len)
 
     wclen =
 	MultiByteToWideChar(codepage, 0, buf, len, widebuffer, widesize);
-    luni_send(widebuffer, wclen);
+    luni_send(widebuffer, wclen, interactive);
 }
 
-void luni_send(wchar_t * widebuf, int len)
+void luni_send(wchar_t * widebuf, int len, int interactive)
 {
     static char *linebuffer = 0;
     static int linesize = 0;
@@ -521,7 +517,7 @@ void luni_send(wchar_t * widebuf, int len)
 	}
     }
     if (p > linebuffer)
-	ldisc_send(linebuffer, p - linebuffer);
+	ldisc_send(linebuffer, p - linebuffer, interactive);
 }
 
 wchar_t xlat_uskbd2cyrllic(int ch)

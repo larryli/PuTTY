@@ -496,7 +496,7 @@ extern Backend ssh_backend;
  * Exports from ldisc.c.
  */
 
-extern void ldisc_send(char *buf, int len);
+extern void ldisc_send(char *buf, int len, int interactive);
 
 /*
  * Exports from sshrand.c.
@@ -531,8 +531,8 @@ void EnableSizeTip(int bEnable);
 #define CP_UTF8 65001
 #endif
 void init_ucs_tables(void);
-void lpage_send(int codepage, char *buf, int len);
-void luni_send(wchar_t * widebuf, int len);
+void lpage_send(int codepage, char *buf, int len, int interactive);
+void luni_send(wchar_t * widebuf, int len, int interactive);
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);

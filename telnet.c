@@ -230,7 +230,7 @@ static void option_side_effects(struct Opt *o, int enabled)
 	echoing = !enabled;
     else if (o->option == TELOPT_SGA && o->send == DO)
 	editing = !enabled;
-    ldisc_send(NULL, 0);	       /* cause ldisc to notice the change */
+    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice the change */
 
     /* Ensure we get the minimum options */
     if (!activated) {
