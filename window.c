@@ -4436,7 +4436,7 @@ void beep(void *frontend, int mode)
 	    char buf[sizeof(cfg.bell_wavefile) + 80];
 	    char otherbuf[100];
 	    sprintf(buf, "Unable to play sound file\n%s\n"
-		    "Using default sound instead", cfg.bell_wavefile);
+		    "Using default sound instead", cfg.bell_wavefile.path);
 	    sprintf(otherbuf, "%.70s Sound Error", appname);
 	    MessageBox(hwnd, buf, otherbuf,
 		       MB_OK | MB_ICONEXCLAMATION);
