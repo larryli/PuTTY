@@ -6119,6 +6119,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		 */
 		if (!s->gotit)
 		    s->curr_prompt = 0;
+	    } else if (pktin->type == SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ) {
+		/* FIXME: perhaps we should support this? */
+		bombout(("PASSWD_CHANGEREQ not yet supported"));
+		crStopV;
 	    } else if (pktin->type != SSH2_MSG_USERAUTH_FAILURE) {
 		bombout(("Strange packet received during authentication: type %d",
 			 pktin->type));
