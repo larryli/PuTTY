@@ -1779,18 +1779,22 @@ int do_cmdline(int argc, char **argv, int do_everything)
     extern char **pty_argv;	       /* declared in pty.c */
 
     /*
-     * Macros to make argument handling easier.
+     * Macros to make argument handling easier. Note that because
+     * they need to call `continue', they cannot be contained in
+     * the usual do {...} while (0) wrapper to make them
+     * syntactically single statements; hence it is not legal to
+     * use one of these macros as an unbraced statement between
+     * `if' and `else'.
      */
-#define EXPECTS_ARG do { \
+#define EXPECTS_ARG { \
     if (--argc <= 0) { \
 	err = 1; \
 	fprintf(stderr, "pterm: %s expects an argument\n", p); \
+        continue; \
     } else \
 	val = *++argv; \
-} while (0)
-#define SECOND_PASS_ONLY do { \
-    if (!do_everything) continue; \
-} while (0)
+}
+#define SECOND_PASS_ONLY { if (!do_everything) continue; }
 
     /*
      * TODO:
