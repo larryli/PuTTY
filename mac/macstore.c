@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.15 2003/02/01 21:44:05 ben Exp $ */
+/* $Id: macstore.c,v 1.16 2003/02/02 00:04:36 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -183,6 +183,7 @@ void write_setting_s(void *handle, char const *key, char const *value) {
     Handle h;
     int id;
     OSErr error;
+    Str255 pkey;
 
     UseResFile(fd);
     if (ResError() != noErr)
@@ -195,7 +196,8 @@ void write_setting_s(void *handle, char const *key, char const *value) {
     id = Unique1ID(FOUR_CHAR_CODE('TEXT'));
     if (ResError() != noErr)
 	fatalbox("Failed to get ID for resource %s (%d)", key, ResError());
-    addresource(h, FOUR_CHAR_CODE('TEXT'), id, key);
+    c2pstrcpy(pkey, key);
+    AddResource(h, FOUR_CHAR_CODE('TEXT'), id, pkey);
     if (ResError() != noErr)
 	fatalbox("Failed to add resource %s (%d)", key, ResError());
 }
@@ -205,6 +207,7 @@ void write_setting_i(void *handle, char const *key, int value) {
     Handle h;
     int id;
     OSErr error;
+    Str255 pkey;
 
     UseResFile(fd);
     if (ResError() != noErr)
@@ -219,7 +222,8 @@ void write_setting_i(void *handle, char const *key, int value) {
     id = Unique1ID(FOUR_CHAR_CODE('Int '));
     if (ResError() != noErr)
 	fatalbox("Failed to get ID for resource %s (%d)", key, ResError());
-    addresource(h, FOUR_CHAR_CODE('Int '), id, key);
+    c2pstrcpy(pkey, key);
+    AddResource(h, FOUR_CHAR_CODE('Int '), id, pkey);
     if (ResError() != noErr)
 	fatalbox("Failed to add resource %s (%d)", key, ResError());
 }
@@ -270,7 +274,7 @@ void *open_settings_r_fsp(FSSpec *sessfile)
     fd = FSpOpenResFile(sessfile, fsRdPerm);
     if (fd == 0) {error = ResError(); goto out;}
 
-    handle = safemalloc(sizeof *handle);
+    handle = smalloc(sizeof *handle);
     *handle = fd;
     return handle;
 
@@ -282,12 +286,14 @@ char *read_setting_s(void *handle, char const *key, char *buffer, int buflen) {
     int fd;
     Handle h;
     size_t len;
+    Str255 pkey;
 
     if (handle == NULL) goto out;
     fd = *(int *)handle;
     UseResFile(fd);
     if (ResError() != noErr) goto out;
-    h = get1namedresource(FOUR_CHAR_CODE('TEXT'), key);
+    c2pstrcpy(pkey, key);
+    h = Get1NamedResource(FOUR_CHAR_CODE('TEXT'), pkey);
     if (h == NULL) goto out;
 
     len = GetHandleSize(h);
@@ -307,12 +313,14 @@ int read_setting_i(void *handle, char const *key, int defvalue) {
     int fd;
     Handle h;
     int value;
+    Str255 pkey;
 
     if (handle == NULL) goto out;
     fd = *(int *)handle;
     UseResFile(fd);
     if (ResError() != noErr) goto out;
-    h = get1namedresource(FOUR_CHAR_CODE('Int '), key);
+    c2pstrcpy(pkey, key);
+    h = Get1NamedResource(FOUR_CHAR_CODE('Int '), pkey);
     if (h == NULL) goto out;
     value = *(int *)*h;
     ReleaseResource(h);
@@ -358,18 +366,20 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec font)
     sfree(settingname);
 }
 
-int read_setting_filename(void *handle, const char *name, Filename *result)
+int read_setting_filename(void *handle, const char *key, Filename *result)
 {
     int fd;
     AliasHandle h;
     Boolean changed;
     OSErr err;
+    Str255 pkey;
 
     if (handle == NULL) goto out;
     fd = *(int *)handle;
     UseResFile(fd);
     if (ResError() != noErr) goto out;
-    h = (AliasHandle)get1namedresource(rAliasType, name);
+    c2pstrcpy(pkey, key);
+    h = (AliasHandle)Get1NamedResource(rAliasType, pkey);
     if (h == NULL) goto out;
     if ((*h)->userType == 'pTTY' && (*h)->aliasSize == sizeof(**h))
 	memset(result, 0, sizeof(*result));
@@ -397,12 +407,13 @@ int read_setting_filename(void *handle, const char *name, Filename *result)
     return 0;
 }
 
-void write_setting_filename(void *handle, const char *name, Filename fn)
+void write_setting_filename(void *handle, const char *key, Filename fn)
 {
     int fd = *(int *)handle;
     AliasHandle h;
     int id;
     OSErr error;
+    Str255 pkey;
 
     UseResFile(fd);
     if (ResError() != noErr)
@@ -442,10 +453,11 @@ void write_setting_filename(void *handle, const char *name, Filename fn)
     /* Put the data in a resource. */
     id = Unique1ID(rAliasType);
     if (ResError() != noErr)
-	fatalbox("Failed to get ID for resource %s (%d)", name, ResError());
-    addresource((Handle)h, rAliasType, id, name);
+	fatalbox("Failed to get ID for resource %s (%d)", key, ResError());
+    c2pstrcpy(pkey, key);
+    AddResource((Handle)h, rAliasType, id, pkey);
     if (ResError() != noErr)
-	fatalbox("Failed to add resource %s (%d)", name, ResError());
+	fatalbox("Failed to add resource %s (%d)", key, ResError());
 }
 
 void close_settings_r(void *handle) {
@@ -456,7 +468,7 @@ void close_settings_r(void *handle) {
     CloseResFile(fd);
     if (ResError() != noErr)
 	fatalbox("Close of saved session failed (%d)", ResError());
-    safefree(handle);
+    sfree(handle);
 }
 
 void del_settings(char const *sessionname) {
