@@ -60,6 +60,7 @@ void log_packet(int direction, int type, char *texttype, void *data, int len)
 	    strcpy(dumpdata + 10+1+3*16+2+j, "\n");
 	    fputs(dumpdata, lgfp);
 	}
+	fflush(lgfp);
     }
 }
 
