@@ -3354,7 +3354,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		unsigned i = GET_32BIT(pktin.body);
 		struct ssh_channel *c;
 		c = find234(ssh_channels, &i, ssh_channelfind);
-		if (c) {
+		if (c && ((int)c->remoteid) != -1) {
 		    int closetype;
 		    closetype =
 			(pktin.type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
@@ -3383,6 +3383,11 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 			del234(ssh_channels, c);
 			sfree(c);
 		    }
+		} else {
+		    bombout(("Received CHANNEL_CLOSE%s for %s channel %d\n",
+			     pktin.type == SSH1_MSG_CHANNEL_CLOSE ? "" :
+			     "_CONFIRMATION", c ? "half-open" : "nonexistent",
+			     i));
 		}
 	    } else if (pktin.type == SSH1_MSG_CHANNEL_DATA) {
 		/* Data sent down one of our channels. */
@@ -5359,8 +5364,10 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		struct ssh_channel *c;
 
 		c = find234(ssh_channels, &i, ssh_channelfind);
-		if (!c)
-		    continue;	       /* nonexistent channel */
+		if (!c || ((int)c->remoteid) == -1) {
+		    bombout(("Received CHANNEL_CLOSE for %s channel %d\n",
+			     c ? "half-open" : "nonexistent", i));
+		}
 		/* Do pre-close processing on the channel. */
 		switch (c->type) {
 		  case CHAN_MAINSESSION:
