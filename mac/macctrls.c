@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.40 2003/05/10 11:26:33 ben Exp $ */
+/* $Id: macctrls.c,v 1.41 2003/05/10 20:23:23 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -130,6 +130,7 @@ struct mac_layoutstate {
 
 static void macctrl_layoutset(struct mac_layoutstate *, struct controlset *, 
 			      WindowPtr, struct macctrls *);
+static void macctrl_hideshowpanel(struct macctrls *, unsigned int, int);
 static void macctrl_switchtopanel(struct macctrls *, unsigned int);
 static void macctrl_setfocus(struct macctrls *, union macctrl *);
 static void macctrl_text(struct macctrls *, WindowPtr,
@@ -280,6 +281,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
     macctrl_switchtopanel(mcs, 1);
+    macctrl_hideshowpanel(mcs, 0, TRUE);
     /* 14 = proxies, 19 = portfwd, 20 = SSH bugs */
 }
 
@@ -351,61 +353,69 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 	    curstate->pos.v = cols[j].pos.v;
 }
 
-static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
+static void macctrl_hideshowpanel(struct macctrls *mcs, unsigned int panel,
+				  int showit)
 {
-    unsigned int i, j;
     union macctrl *mc;
+    int j;
 
 #define hideshow(c) do {						\
-    if (i == which) ShowControl(c); else HideControl(c);		\
+    if (showit) ShowControl(c); else HideControl(c);			\
 } while (0)
 
-    mcs->curpanel = which;
-    /* Panel 0 is special and always visible. */
-    for (i = 1; i < mcs->npanels; i++)
-	for (mc = mcs->panels[i]; mc != NULL; mc = mc->generic.next) {
+    for (mc = mcs->panels[panel]; mc != NULL; mc = mc->generic.next) {
 #if !TARGET_API_MAC_CARBON
-	    if (mcs->focus == mc)
-		macctrl_setfocus(mcs, NULL);
+	if (mcs->focus == mc)
+	    macctrl_setfocus(mcs, NULL);
 #endif
-	    switch (mc->generic.type) {
-	      case MACCTRL_TEXT:
-		hideshow(mc->text.tbctrl);
-		break;
-	      case MACCTRL_EDITBOX:
-		hideshow(mc->editbox.tbctrl);
-		if (mc->editbox.tblabel != NULL)
-		    hideshow(mc->editbox.tblabel);
-		break;
-	      case MACCTRL_RADIO:
-		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
-		    hideshow(mc->radio.tbctrls[j]);
-		if (mc->radio.tblabel != NULL)
-		    hideshow(mc->radio.tblabel);
-		break;
-	      case MACCTRL_CHECKBOX:
-		hideshow(mc->checkbox.tbctrl);
-		break;
-	      case MACCTRL_BUTTON:
-		hideshow(mc->button.tbctrl);
-		break;
-	      case MACCTRL_LISTBOX:
-		hideshow(mc->listbox.tbctrl);
-		/*
-		 * At least under Mac OS 8.1, hiding a list box
-		 * doesn't hide its scroll bars.
-		 */
+	switch (mc->generic.type) {
+	  case MACCTRL_TEXT:
+	    hideshow(mc->text.tbctrl);
+	    break;
+	  case MACCTRL_EDITBOX:
+	    hideshow(mc->editbox.tbctrl);
+	    if (mc->editbox.tblabel != NULL)
+		hideshow(mc->editbox.tblabel);
+	    break;
+	  case MACCTRL_RADIO:
+	    for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
+		hideshow(mc->radio.tbctrls[j]);
+	    if (mc->radio.tblabel != NULL)
+		hideshow(mc->radio.tblabel);
+	    break;
+	  case MACCTRL_CHECKBOX:
+	    hideshow(mc->checkbox.tbctrl);
+	    break;
+	  case MACCTRL_BUTTON:
+	    hideshow(mc->button.tbctrl);
+	    if (mc->button.tbring != NULL)
+		hideshow(mc->button.tbring);
+	    break;
+	  case MACCTRL_LISTBOX:
+	    hideshow(mc->listbox.tbctrl);
+	    /*
+	     * At least under Mac OS 8.1, hiding a list box
+	     * doesn't hide its scroll bars.
+	     */
 #if TARGET_API_MAC_CARBON
-		hideshow(GetListVerticalScrollBar(mc->listbox.list));
+	    hideshow(GetListVerticalScrollBar(mc->listbox.list));
 #else
-		hideshow((*mc->listbox.list)->vScroll);
+	    hideshow((*mc->listbox.list)->vScroll);
 #endif
-		break;
-	      case MACCTRL_POPUP:
-		hideshow(mc->popup.tbctrl);
-		break;
-	    }
+	    break;
+	  case MACCTRL_POPUP:
+	    hideshow(mc->popup.tbctrl);
+	    break;
 	}
+    }
+}
+
+static void macctrl_switchtopanel(struct macctrls *mcs, unsigned int which)
+{
+
+    macctrl_hideshowpanel(mcs, mcs->curpanel, FALSE);
+    macctrl_hideshowpanel(mcs, which, TRUE);
+    mcs->curpanel = which;
 }
 
 #if !TARGET_API_MAC_CARBON
@@ -466,7 +476,7 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
     if (mac_gestalts.apprvers >= 0x100) {
 	Size olen;
 
-	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+	mc->text.tbctrl = NewControl(window, &bounds, NULL, FALSE, 0, 0, 0,
 				     kControlStaticTextProc, (long)mc);
 	SetControlData(mc->text.tbctrl, kControlEntireControl,
 		       kControlStaticTextTextTag,
@@ -479,7 +489,7 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
     else {
 	TEHandle te;
 
-	mc->text.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+	mc->text.tbctrl = NewControl(window, &bounds, NULL, FALSE, 0, 0, 0,
 				     SYS7_TEXT_PROC, (long)mc);
 	te = (TEHandle)(*mc->text.tbctrl)->contrlData;
 	TESetText(ctrl->text.label, strlen(ctrl->text.label), te);
@@ -526,7 +536,7 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 	if (ctrl->editbox.label == NULL)
 	    mc->editbox.tblabel = NULL;
 	else {
-	    mc->editbox.tblabel = NewControl(window, &lbounds, NULL, TRUE,
+	    mc->editbox.tblabel = NewControl(window, &lbounds, NULL, FALSE,
 					     0, 0, 0, kControlStaticTextProc,
 					     (long)mc);
 	    SetControlData(mc->editbox.tblabel, kControlEntireControl,
@@ -534,7 +544,7 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 			   strlen(ctrl->editbox.label), ctrl->editbox.label);
 	}
 	InsetRect(&bounds, 3, 3);
-	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, FALSE, 0, 0, 0,
 					ctrl->editbox.password ?
 					kControlEditTextPasswordProc :
 					kControlEditTextProc, (long)mc);
@@ -544,13 +554,13 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 	if (ctrl->editbox.label == NULL)
 	    mc->editbox.tblabel = NULL;
 	else {
-	    mc->editbox.tblabel = NewControl(window, &lbounds, NULL, TRUE,
+	    mc->editbox.tblabel = NewControl(window, &lbounds, NULL, FALSE,
 					     0, 0, 0, SYS7_TEXT_PROC,
 					     (long)mc);
 	    TESetText(ctrl->editbox.label, strlen(ctrl->editbox.label),
 		      (TEHandle)(*mc->editbox.tblabel)->contrlData);
 	}
-	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
+	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, FALSE, 0, 0, 0,
 					SYS7_EDITBOX_PROC, (long)mc);
     }
 #endif
@@ -651,7 +661,7 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 	mc->radio.tblabel = NULL;
     else {
 	if (mac_gestalts.apprvers >= 0x100) {
-	    mc->radio.tblabel = NewControl(window, &bounds, NULL, TRUE,
+	    mc->radio.tblabel = NewControl(window, &bounds, NULL, FALSE,
 					   0, 0, 0, kControlStaticTextProc,
 					   (long)mc);
 	    SetControlData(mc->radio.tblabel, kControlEntireControl,
@@ -660,7 +670,7 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 	}
 #if !TARGET_API_MAC_CARBON
 	else {
-	    mc->radio.tblabel = NewControl(window, &bounds, NULL, TRUE,
+	    mc->radio.tblabel = NewControl(window, &bounds, NULL, FALSE,
 					   0, 0, 0, SYS7_TEXT_PROC, (long)mc);
 	    TESetText(ctrl->radio.label, strlen(ctrl->radio.label),
 		      (TEHandle)(*mc->radio.tblabel)->contrlData);
@@ -679,7 +689,7 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 	} else
 	    bounds.right = bounds.left + colwidth - 13;
 	c2pstrcpy(title, ctrl->radio.buttons[i]);
-	mc->radio.tbctrls[i] = NewControl(window, &bounds, title, TRUE,
+	mc->radio.tbctrls[i] = NewControl(window, &bounds, title, FALSE,
 					  0, 0, 1, radioButProc, (long)mc);
     }
     curstate->pos.v += 4;
@@ -706,7 +716,7 @@ static void macctrl_checkbox(struct macctrls *mcs, WindowPtr window,
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 16;
     c2pstrcpy(title, ctrl->checkbox.label);
-    mc->checkbox.tbctrl = NewControl(window, &bounds, title, TRUE, 0, 0, 1,
+    mc->checkbox.tbctrl = NewControl(window, &bounds, title, FALSE, 0, 0, 1,
 				     checkBoxProc, (long)mc);
     add234(mcs->byctrl, mc);
     curstate->pos.v += 22;
@@ -732,7 +742,7 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 20;
     c2pstrcpy(title, ctrl->button.label);
-    mc->button.tbctrl = NewControl(window, &bounds, title, TRUE, 0, 0, 1,
+    mc->button.tbctrl = NewControl(window, &bounds, title, FALSE, 0, 0, 1,
 				   pushButProc, (long)mc);
     mc->button.tbring = NULL;
     if (mac_gestalts.apprvers >= 0x100) {
@@ -743,7 +753,7 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 		       sizeof(isdefault), &isdefault);
     } else if (ctrl->button.isdefault) {
 	InsetRect(&bounds, -4, -4);
-	mc->button.tbring = NewControl(window, &bounds, title, TRUE, 0, 0, 1,
+	mc->button.tbring = NewControl(window, &bounds, title, FALSE, 0, 0, 1,
 				       SYS7_DEFAULT_PROC, (long)mc);
     }
     if (mac_gestalts.apprvers >= 0x110) {
@@ -832,7 +842,7 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
 
     if (mac_gestalts.apprvers >= 0x100) {
 	InsetRect(&bounds, 3, 3);
-	mc->listbox.tbctrl = NewControl(window, &bounds, NULL, TRUE,
+	mc->listbox.tbctrl = NewControl(window, &bounds, NULL, FALSE,
 					ldes_Default, 0, 0,
 					kControlListBoxProc, (long)mc);
 	if (GetControlData(mc->listbox.tbctrl, kControlEntireControl,
@@ -847,7 +857,7 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
 #if !TARGET_API_MAC_CARBON
     else {
 	InsetRect(&bounds, -3, -3);
-	mc->listbox.tbctrl = NewControl(window, &bounds, NULL, TRUE,
+	mc->listbox.tbctrl = NewControl(window, &bounds, NULL, FALSE,
 					0, 0, 0,
 					SYS7_LISTBOX_PROC, (long)mc);
 	mc->listbox.list = (ListHandle)(*mc->listbox.tbctrl)->contrlData;
@@ -866,6 +876,11 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
     mc->generic.next = mcs->panels[curstate->panelnum];
     mcs->panels[curstate->panelnum] = mc;
     ctrlevent(mcs, mc, EVENT_REFRESH);
+#if TARGET_API_MAC_CARBON
+    HideControl(GetListVerticalScrollBar(mc->listbox.list));
+#else
+    HideControl((*mc->listbox.list)->vScroll);
+#endif
 }
 
 #if !TARGET_API_MAC_CARBON
@@ -1006,7 +1021,7 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
     bounds.bottom = bounds.top + 20;
     /* XXX handle percentwidth == 100 */
     labelwidth = curstate->width * (100 - ctrl->listbox.percentwidth) / 100;
-    mc->popup.tbctrl = NewControl(window, &bounds, title, TRUE,
+    mc->popup.tbctrl = NewControl(window, &bounds, title, FALSE,
 				  popupTitleLeftJust, menuid, labelwidth,
 				  popupMenuProc + popupFixedWidth, (long)mc);
     add234(mcs->byctrl, mc);
