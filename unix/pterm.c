@@ -42,6 +42,7 @@ struct gui_data {
     guint term_paste_idle_id;
     GdkAtom compound_text_atom;
     char wintitle[sizeof(((Config *)0)->wintitle)];
+    char icontitle[sizeof(((Config *)0)->wintitle)];
 };
 
 static struct gui_data the_inst;
@@ -104,7 +105,15 @@ Mouse_Button translate_button(Mouse_Button button)
  */
 void set_iconic(int iconic)
 {
-    /* FIXME: currently ignored */
+    /*
+     * GTK 1.2 doesn't know how to do this.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    if (iconic)
+	gtk_window_iconify(GTK_WINDOW(inst->window));
+    else
+	gtk_window_deiconify(GTK_WINDOW(inst->window));
+#endif
 }
 
 /*
@@ -112,7 +121,16 @@ void set_iconic(int iconic)
  */
 void move_window(int x, int y)
 {
-    /* FIXME: currently ignored */
+    /*
+     * I assume that when the GTK version of this call is available
+     * we should use it. Not sure how it differs from the GDK one,
+     * though.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_move(GTK_WINDOW(inst->window), x, y);
+#else
+    gdk_window_move(inst->window->window, x, y);
+#endif
 }
 
 /*
@@ -121,7 +139,10 @@ void move_window(int x, int y)
  */
 void set_zorder(int top)
 {
-    /* FIXME: currently ignored */
+    if (top)
+	gdk_window_raise(inst->window->window);
+    else
+	gdk_window_lower(inst->window->window);
 }
 
 /*
@@ -129,7 +150,7 @@ void set_zorder(int top)
  */
 void refresh_window(void)
 {
-    /* FIXME: currently ignored */
+    term_invalidate();
 }
 
 /*
@@ -138,7 +159,15 @@ void refresh_window(void)
  */
 void set_zoomed(int zoomed)
 {
-    /* FIXME: currently ignored */
+    /*
+     * GTK 1.2 doesn't know how to do this.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    if (iconic)
+	gtk_window_maximize(GTK_WINDOW(inst->window));
+    else
+	gtk_window_unmaximize(GTK_WINDOW(inst->window));
+#endif
 }
 
 /*
@@ -146,7 +175,7 @@ void set_zoomed(int zoomed)
  */
 int is_iconic(void)
 {
-    return 0;			       /* FIXME */
+    return !gdk_window_is_viewable(inst->window->window);
 }
 
 /*
@@ -154,7 +183,16 @@ int is_iconic(void)
  */
 void get_window_pos(int *x, int *y)
 {
-    *x = 3; *y = 4;		       /* FIXME */
+    /*
+     * I assume that when the GTK version of this call is available
+     * we should use it. Not sure how it differs from the GDK one,
+     * though.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_get_position(GTK_WINDOW(inst->window), x, y);
+#else
+    gdk_window_get_position(inst->window->window, x, y);
+#endif
 }
 
 /*
@@ -162,7 +200,16 @@ void get_window_pos(int *x, int *y)
  */
 void get_window_pixels(int *x, int *y)
 {
-    *x = 1; *y = 2;		       /* FIXME */
+    /*
+     * I assume that when the GTK version of this call is available
+     * we should use it. Not sure how it differs from the GDK one,
+     * though.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_get_size(GTK_WINDOW(inst->window), x, y);
+#else
+    gdk_window_get_size(inst->window->window, x, y);
+#endif
 }
 
 /*
@@ -170,7 +217,7 @@ void get_window_pixels(int *x, int *y)
  */
 char *get_window_title(int icon)
 {
-    return inst->wintitle;
+    return icon ? inst->wintitle : inst->icontitle;
 }
 
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
@@ -198,13 +245,10 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
 
-    /*
-     * Set up the colour map.
-     */
-    palette_reset();
-
+printf("configure %d x %d\n", event->width, event->height);
     w = (event->width - 2*cfg.window_border) / inst->font_width;
     h = (event->height - 2*cfg.window_border) / inst->font_height;
+printf("        = %d x %d\n", w, h);
 
     if (w != cfg.width || h != cfg.height) {
 	if (inst->pixmap) {
@@ -214,6 +258,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	cfg.width = w;
 	cfg.height = h;
 	need_size = 1;
+printf("need size\n");
     }
     if (!inst->pixmap) {
 	GdkGC *gc;
@@ -808,7 +853,9 @@ void set_raw_mouse_mode(int activate)
 
 void request_resize(int w, int h)
 {
-    /* FIXME: currently ignored */
+    gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
+			  inst->font_width * w + 2*cfg.window_border,
+			  inst->font_height * h + 2*cfg.window_border);
 }
 
 void real_palette_set(int n, int r, int g, int b)
@@ -972,7 +1019,9 @@ void set_title(char *title)
 
 void set_icon(char *title)
 {
-    /* FIXME: currently ignored */
+    strncpy(inst->icontitle, title, lenof(inst->icontitle));
+    inst->icontitle[lenof(inst->icontitle)-1] = '\0';
+    gdk_window_set_icon_name(inst->window->window, inst->icontitle);
 }
 
 void set_sbar(int total, int start, int page)
@@ -1356,6 +1405,11 @@ int main(int argc, char **argv)
     else
 	set_title("pterm");
 
+    /*
+     * Set up the colour map.
+     */
+    palette_reset();
+
     inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
 			  inst->font_width * cfg.width + 2*cfg.window_border,
@@ -1365,6 +1419,8 @@ int main(int argc, char **argv)
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
     gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
     gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
+
+    gtk_window_set_policy(GTK_WINDOW(inst->window), FALSE, TRUE, TRUE);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
@@ -1435,7 +1491,7 @@ int main(int argc, char **argv)
     gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
 
     term_init();
-    term_size(24, 80, 2000);
+    term_size(cfg.height, cfg.width, cfg.savelines);
 
     gtk_main();
 
