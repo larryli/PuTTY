@@ -2384,7 +2384,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    HIMC hIMC;
 	    int n;
 	    char *buff;
-   
+
 	    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS || 
 	        osVersion.dwPlatformId == VER_PLATFORM_WIN32s) break; /* no Unicode */
 
@@ -2395,9 +2395,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    n = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
 
 	    if (n > 0) {
+		int i;
 		buff = (char*) smalloc(n);
 		ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, buff, n);
-		luni_send((unsigned short *)buff, n / 2, 1);
+		/*
+		 * Jaeyoun Chung reports that Korean character
+		 * input doesn't work correctly if we do a single
+		 * luni_send() covering the whole of buff. So
+		 * instead we luni_send the characters one by one.
+		 */
+		for (i = 0; i < n; i += 2)
+		    luni_send((unsigned short *)(buff+i), 1, 1);
 		free(buff);
 	    }
 	    ImmReleaseContext(hwnd, hIMC);
