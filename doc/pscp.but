@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.25 2004/02/22 14:48:48 jacob Exp $
+\versionid $Id: pscp.but,v 1.26 2004/04/24 12:25:08 jacob Exp $
 
 \#FIXME: Need examples
 
@@ -41,7 +41,7 @@ use PSCP:
 
 \c Z:\owendadmin>pscp
 \c PuTTY Secure Copy client
-\c Release 0.54
+\c Release 0.XX
 \c Usage: pscp [options] [user@]host:source target
 \c        pscp [options] source [source...] [user@]host:target
 \c        pscp [options] -ls [user@]host:filespec
@@ -59,6 +59,7 @@ use PSCP:
 \c   -i key    private key file for authentication
 \c   -batch    disable all interactive prompts
 \c   -unsafe   allow server-side wildcards (DANGEROUS)
+\c   -V        print version information
 
 (PSCP's interface is much like the Unix \c{scp} command, if you're
 familiar with that.)

@@ -20,6 +20,10 @@
 
 The command-line options supported by \cw{psftp} are:
 
+\dt \cw{-V}
+
+\dd Show version information and exit.
+
 \dt \cw{-b} \e{batchfile}
 
 \dd Use specified batchfile.

@@ -24,6 +24,10 @@ copy) and SFTP (secure file transfer protocol) protocols.
 
 The command-line options supported by \e{pscp} are:
 
+\dt \cw{-V}
+
+\dd Show version information and exit.
+
 \dt \cw{-ls}
 
 \dd Remote directory listing.

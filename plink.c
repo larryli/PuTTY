@@ -210,6 +210,7 @@ static void usage(void)
     printf("Usage: plink [options] [user@]host [command]\n");
     printf("       (\"host\" can also be a PuTTY saved session name)\n");
     printf("Options:\n");
+    printf("  -V        print version information\n");
     printf("  -v        show verbose messages\n");
     printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw\n");
@@ -233,7 +234,6 @@ static void usage(void)
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
-    printf("  -V        print version information\n");
     exit(1);
 }
 

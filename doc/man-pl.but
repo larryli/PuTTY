@@ -19,6 +19,10 @@
 
 The command-line options supported by \cw{plink} are:
 
+\dt \cw{-V}
+
+\dd Show version information and exit.
+
 \dt \cw{-v}
 
 \dd Show verbose messages.
