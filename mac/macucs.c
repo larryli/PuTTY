@@ -1,4 +1,4 @@
-/* $Id: macucs.c,v 1.1 2002/11/19 02:13:46 ben Exp $ */
+/* $Id: macucs.c,v 1.2 2002/12/04 19:44:57 ben Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,11 +21,22 @@
  * nice, too.
  */
 
+/*
+ * Determine whether a byte is the first byte of a double-byte
+ * character in a system character set.  Only MI use is by clipme()
+ * when copying direct-to-font text to the clipboard.
+ */
 int is_dbcs_leadbyte(int codepage, char byte)
 {
     return 0;			       /* we don't do DBCS */
 }
 
+/*
+ * Convert from Unicode to a system character set.  MI uses are:
+ * (1) by lpage_send(), whose only MI use is to convert the answerback
+ * string to Unicode, and
+ * (2) by clipme() when copying direct-to-font text to the clipboard.
+ */
 int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
 	     wchar_t *wcstr, int wclen)
 {
@@ -37,6 +48,10 @@ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
     return ret;			       /* FIXME: check error codes! */
 }
 
+/*
+ * Convert from a system character set to Unicode.  Used by luni_send
+ * to convert Unicode into the line character set.
+ */
 int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 	     char *mbstr, int mblen, char *defchr, int *defused)
 {
