@@ -21,6 +21,12 @@
 #  - COMPAT=/DWIN32S_COMPAT
 #      Generates a binary that works (minimally) with Win32s.
 #
+#  - CFL=/DASCIICTLS
+#      Uses ASCII rather than Unicode to specify the tab control in
+#      the resource file. Probably most useful when compiling with
+#      Cygnus/mingw32, whose resource compiler may have less of a
+#      problem with it.
+#
 ##--
 
 CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd

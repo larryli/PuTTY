@@ -30,8 +30,13 @@ BEGIN
     DEFPUSHBUTTON "&Open", IDOK, 86, 199, 44, 14
     PUSHBUTTON "&Cancel", IDCANCEL, 133, 199, 44, 14
     PUSHBUTTON "&About", IDC_ABOUT, 3, 199, 44, 14, NOT WS_TABSTOP
-    CONTROL "", IDC_TAB, L"SysTabControl32", TCS_MULTILINE | WS_TABSTOP,
-	3, 3, 174, 193
+    CONTROL "", IDC_TAB,
+#ifdef ASCIICTLS
+        "SysTabControl32",
+#else
+        L"SysTabControl32",
+#endif
+	TCS_MULTILINE | WS_TABSTOP, 3, 3, 174, 193
 END
 
 IDD_RECONF DIALOG DISCARDABLE 0, 0, 180, 216
@@ -41,8 +46,13 @@ FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON "&Apply", IDOK, 86, 199, 44, 14
     PUSHBUTTON "&Cancel", IDCANCEL, 133, 199, 44, 14
-    CONTROL "", IDC_TAB, L"SysTabControl32", TCS_MULTILINE | WS_TABSTOP,
-	3, 3, 174, 193
+    CONTROL "", IDC_TAB,
+#ifdef ASCIICTLS
+        "SysTabControl32",
+#else
+        L"SysTabControl32",
+#endif
+	TCS_MULTILINE | WS_TABSTOP, 3, 3, 174, 193
 END
 
 IDD_PANEL0 DIALOG DISCARDABLE 6, 30, 168, 163
