@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.36 2003/01/08 22:46:12 ben Exp $ */
+/* $Id: macterm.c,v 1.37 2003/01/09 22:45:48 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -885,6 +885,7 @@ static pascal void mac_growtermdraghook(void)
     GrafPtr portsave;
     Point mouse;
     char buf[20];
+    unsigned char pbuf[20];
     int newrows, newcols;
     
     GetMouse(&mouse);
@@ -896,13 +897,13 @@ static pascal void mac_growtermdraghook(void)
     if (strcmp(buf, growterm_state.oldmsg) == 0)
 	return;
     strcpy(growterm_state.oldmsg, buf);
-    c2pstr(buf);
+    c2pstrcpy(pbuf, buf);
 
     GetPort(&portsave);
     SetPort(growterm_state.s->window);
     EraseRect(&growterm_state.msgrect);
     MoveTo(growterm_state.msgorigin.h, growterm_state.msgorigin.v);
-    DrawString((StringPtr)buf);
+    DrawString(pbuf);
     SetPort(portsave);
 }
 
