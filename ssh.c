@@ -263,6 +263,13 @@ static struct rdpkt1_state_tag {
     int chunk;
 } rdpkt1_state;
 
+static struct rdpkt2_state_tag {
+    long len, pad, payload, packetlen, maclen;
+    int i;
+    int cipherblk;
+    unsigned long incoming_sequence;
+} rdpkt2_state;
+
 static int ssh_channelcmp(void *av, void *bv) {
     struct ssh_channel *a = (struct ssh_channel *)av;
     struct ssh_channel *b = (struct ssh_channel *)bv;
@@ -425,29 +432,24 @@ next_packet:
 
 static int ssh2_rdpkt(unsigned char **data, int *datalen)
 {
-    static long len, pad, payload, packetlen, maclen;
-    static int i;
-    static int cipherblk;
-    static unsigned long incoming_sequence = 0;
+    struct rdpkt2_state_tag *st = &rdpkt2_state;
 
     crBegin;
 
 next_packet:
-
     pktin.type = 0;
     pktin.length = 0;
-
-    if (cipher)
-        cipherblk = cipher->blksize;
+    if (sccipher)
+        st->cipherblk = sccipher->blksize;
     else
-        cipherblk = 8;
-    if (cipherblk < 8)
-        cipherblk = 8;
+        st->cipherblk = 8;
+    if (st->cipherblk < 8)
+        st->cipherblk = 8;
 
-    if (pktin.maxlen < cipherblk) {
-	pktin.maxlen = cipherblk;
-	pktin.data = (pktin.data == NULL ? malloc(cipherblk+APIEXTRA) :
-	              realloc(pktin.data, cipherblk+APIEXTRA));
+    if (pktin.maxlen < st->cipherblk) {
+	pktin.maxlen = st->cipherblk;
+	pktin.data = (pktin.data == NULL ? malloc(st->cipherblk+APIEXTRA) :
+	              realloc(pktin.data, st->cipherblk+APIEXTRA));
 	if (!pktin.data)
 	    fatalbox("Out of memory");
     }
@@ -456,10 +458,10 @@ next_packet:
      * Acquire and decrypt the first block of the packet. This will
      * contain the length and padding details.
      */
-     for (i = len = 0; i < cipherblk; i++) {
+     for (st->i = st->len = 0; st->i < st->cipherblk; st->i++) {
 	while ((*datalen) == 0)
-	    crReturn(cipherblk-i);
-	pktin.data[i] = *(*data)++;
+	    crReturn(st->cipherblk-st->i);
+	pktin.data[st->i] = *(*data)++;
         (*datalen)--;
     }
 #ifdef FWHACK
@@ -468,32 +470,32 @@ next_packet:
     }
 #endif
     if (sccipher)
-        sccipher->decrypt(pktin.data, cipherblk);
+        sccipher->decrypt(pktin.data, st->cipherblk);
 
     /*
      * Now get the length and padding figures.
      */
-    len = GET_32BIT(pktin.data);
-    pad = pktin.data[4];
+    st->len = GET_32BIT(pktin.data);
+    st->pad = pktin.data[4];
 
     /*
      * This enables us to deduce the payload length.
      */
-    payload = len - pad - 1;
+    st->payload = st->len - st->pad - 1;
 
-    pktin.length = payload + 5;
+    pktin.length = st->payload + 5;
 
     /*
      * So now we can work out the total packet length.
      */
-    packetlen = len + 4;
-    maclen = scmac ? scmac->len : 0;
+    st->packetlen = st->len + 4;
+    st->maclen = scmac ? scmac->len : 0;
 
     /*
      * Adjust memory allocation if packet is too big.
      */
-    if (pktin.maxlen < packetlen+maclen) {
-	pktin.maxlen = packetlen+maclen;
+    if (pktin.maxlen < st->packetlen+st->maclen) {
+	pktin.maxlen = st->packetlen+st->maclen;
 	pktin.data = (pktin.data == NULL ? malloc(pktin.maxlen+APIEXTRA) :
 	              realloc(pktin.data, pktin.maxlen+APIEXTRA));
 	if (!pktin.data)
@@ -503,31 +505,32 @@ next_packet:
     /*
      * Read and decrypt the remainder of the packet.
      */
-    for (i = cipherblk; i < packetlen + maclen; i++) {
+    for (st->i = st->cipherblk; st->i < st->packetlen + st->maclen; st->i++) {
 	while ((*datalen) == 0)
-	    crReturn(packetlen + maclen - i);
-	pktin.data[i] = *(*data)++;
+	    crReturn(st->packetlen + st->maclen - st->i);
+	pktin.data[st->i] = *(*data)++;
         (*datalen)--;
     }
     /* Decrypt everything _except_ the MAC. */
     if (sccipher)
-        sccipher->decrypt(pktin.data + cipherblk, packetlen - cipherblk);
+        sccipher->decrypt(pktin.data + st->cipherblk,
+                          st->packetlen - st->cipherblk);
 
 #if 0
-    debug(("Got packet len=%d pad=%d\r\n", len, pad));
-    for (i = 0; i < packetlen; i++)
-        debug(("  %02x", (unsigned char)pktin.data[i]));
+    debug(("Got packet len=%d pad=%d\r\n", st->len, st->pad));
+    for (st->i = 0; st->i < st->packetlen; st->i++)
+        debug(("  %02x", (unsigned char)pktin.data[st->i]));
     debug(("\r\n"));
 #endif
 
     /*
      * Check the MAC.
      */
-    if (scmac && !scmac->verify(pktin.data, len+4, incoming_sequence)) {
+    if (scmac && !scmac->verify(pktin.data, st->len+4, st->incoming_sequence)) {
 	bombout(("Incorrect MAC received on packet"));
         crReturn(0);
     }
-    incoming_sequence++;               /* whether or not we MACed */
+    st->incoming_sequence++;               /* whether or not we MACed */
 
     pktin.savedpos = 6;
     pktin.type = pktin.data[5];
@@ -1027,6 +1030,8 @@ static int do_ssh_init(void) {
 	else if (c == '\n')
 	    break;
     }
+
+    rdpkt2_state.incoming_sequence = 0;
 
     *vsp = 0;
     sprintf(vlog, "Server version: %s", vstring);
