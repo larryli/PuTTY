@@ -76,8 +76,10 @@ extern void mac_growterm(WindowPtr, EventRecord *);
 extern void mac_keyterm(WindowPtr, EventRecord *);
 extern void mac_menuterm(WindowPtr, short, short);
 /* from macstore.c */
-OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
+extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern void *open_settings_r_fsp(FSSpec *);
+/* from macucs.c */
+extern void init_ucs(void);
 
 #endif
 

@@ -1,4 +1,4 @@
-/* $Id: macucs.c,v 1.2 2002/12/04 19:44:57 ben Exp $ */
+/* $Id: macucs.c,v 1.3 2003/01/02 23:39:53 ben Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +8,7 @@
 #include "putty.h"
 #include "terminal.h"
 #include "misc.h"
+#include "mac.h"
 
 /*
  * Mac Unicode-handling routines.
