@@ -727,7 +727,7 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
 
     ret = 1;
 
-    bytes = bignum_bitcount(rsa->modulus) / 8;
+    bytes = (bignum_bitcount(rsa->modulus)+7) / 8;
     /* Top (partial) byte should be zero. */
     if (bignum_byte(out, bytes - 1) != 0)
 	ret = 0;
