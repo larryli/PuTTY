@@ -156,6 +156,13 @@ install:
 	$(INSTALL_PROGRAM) -m 755 pscp $(DESTDIR)$(bindir)/pscp
 	$(INSTALL_PROGRAM) -m 755 psftp $(DESTDIR)$(bindir)/psftp
 	$(INSTALL_PROGRAM) -m 755 pterm $(DESTDIR)$(bindir)/pterm
+	if test -n "$(UTMP_GROUP)"; then \
+	  chgrp $(UTMP_GROUP) $(DESTDIR)$(bindir)/pterm && \
+	    chmod 2755 $(DESTDIR)$(bindir)/pterm; \
+	elif test -n "$(UTMP_USER)"; then \
+	  chown $(UTMP_USER) $(DESTDIR)$(bindir)/pterm && \
+	    chmod 4755 $(DESTDIR)$(bindir)/pterm; \
+	fi
 	$(INSTALL_PROGRAM) -m 755 putty $(DESTDIR)$(bindir)/putty
 	$(INSTALL_PROGRAM) -m 755 puttygen $(DESTDIR)$(bindir)/puttygen
 	$(INSTALL_PROGRAM) -m 755 puttytel $(DESTDIR)$(bindir)/puttytel
