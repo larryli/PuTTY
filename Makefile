@@ -1,7 +1,7 @@
 # Makefile for PuTTY. Use `FWHACK=/DFWHACK' to cause the firewall hack
 # to be built in. (requires rebuild of ssh.obj only)
 
-CFLAGS = /nologo /W3 /YX /O2 /Yd /D_X86_ /D_WINDOWS /DDEBUG /ML /Fd
+CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 
 .c.obj:
 	cl $(FWHACK) $(CFLAGS) /c $*.c
