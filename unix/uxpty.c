@@ -522,7 +522,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 {
     int slavefd;
     pid_t pid, pgrp;
+#ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
     long windowid;
+#endif
 
     pty_frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
@@ -569,7 +571,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     }
 #endif
 
+#ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
     windowid = get_windowid(pty_frontend);
+#endif
 
     /*
      * Fork and execute the command.
@@ -612,11 +616,13 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	    sprintf(term_env_var, "TERM=%s", cfg->termtype);
 	    putenv(term_env_var);
 	}
+#ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
 	{
 	    char windowid_env_var[40];
 	    sprintf(windowid_env_var, "WINDOWID=%ld", windowid);
 	    putenv(windowid_env_var);
 	}
+#endif
 	{
 	    char *e = cfg->environmt;
 	    char *var, *varend, *val, *varval;
