@@ -10,6 +10,8 @@ or on the PuTTY tools themselves, see the
 <a href="http://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback
 page</a>.</p>}
 
+\cfg{html-template-fragment}{%k}{%b}
+
 \cfg{xhtml-contents-filename}{index.html}
 \cfg{text-filename}{puttydoc.txt}
 \cfg{winhelp-filename}{putty.hlp}
