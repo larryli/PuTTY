@@ -1,0 +1,144 @@
+\cfg{man-identity}{plink}{1}{2004-03-24}{PuTTY tool suite}{PuTTY tool suite}
+\cfg{man-mindepth}{1}
+
+\H{plink-manpage} Man page for Plink
+
+\S{plink-manpage-name} NAME
+
+\cw{plink} \- PuTTY link, command line network connection tool
+
+\S{plink-manpage-synopsis} SYNOPSIS
+
+\c plink [options] [user@]host [command]
+\e bbbbb  iiiiiii   iiiib iiii  iiiiiii
+
+\S{plink-manpage-description} DESCRIPTION
+
+\cw{plink} is a network connection tool supporting several protocols.
+
+\S{plink-manpage-options} OPTIONS
+
+The command-line options supported by \cw{plink} are:
+
+\dt \cw{-v}
+
+\dd Show verbose messages.
+
+\dt \cw{-load} \e{session}
+
+\dd Load settings from saved session.
+
+\dt \cw{-ssh}
+
+\dd Force use of SSH protocol (default).
+
+\dt \cw{-telnet}
+
+\dd Force use of Telnet protocol.
+
+\dt \cw{-rlogin}
+
+\dd Force use of rlogin protocol.
+
+\dt \cw{-raw}
+
+\dd Force raw mode.
+
+\dt \cw{-P} \e{port}
+
+\dd Connect to port \e{port}.
+
+\dt \cw{-l} \e{user}
+
+\dd Set remote username to \e{user}.
+
+\dt \cw{-m} \e{path}
+
+\dd Read remote command(s) from local file \e{path}.
+
+\dt \cw{-batch}
+
+\dd Disable interactive prompts.
+
+\dt \cw{-pw} \e{password}
+
+\dd Set remote password to \e{password}.
+
+\dt \cw{\-L} \cw{[}\e{srcaddr}\cw{:]}\e{srcport}\cw{:}\e{desthost}\cw{:}\e{destport}
+
+\dd Set up a local port forwarding: listen on \e{srcport} (or
+\e{srcaddr}:\e{srcport} if specified), and forward any connections
+over the SSH connection to the destination address
+\e{desthost}:\e{destport}. Only works in SSH.
+
+\dt \cw{\-R} \cw{[}\e{srcaddr}\cw{:]}\e{srcport}\cw{:}\e{desthost}\cw{:}\e{destport}
+
+\dd Set up a remote port forwarding: ask the SSH server to listen on
+\e{srcport} (or \e{srcaddr}:\e{srcport} if specified), and to
+forward any connections back over the SSH connection where the
+client will pass them on to the destination address
+\e{desthost}:\e{destport}. Only works in SSH.
+
+\dt \cw{\-D} [\e{srcaddr}:]\e{srcport}
+
+\dd Set up dynamic port forwarding. The client listens on
+\e{srcport} (or \e{srcaddr}:\e{srcport} if specified), and
+implements a SOCKS server. So you can point SOCKS-aware applications
+at this port and they will automatically use the SSH connection to
+tunnel all their connections. Only works in SSH.
+
+\dt \cw{-X}
+
+\dd Enable X11 forwarding.
+
+\dt \cw{-x}
+
+\dd Disable X11 forwarding (default).
+
+\dt \cw{-A}
+
+\dd Enable agent forwarding.
+
+\dt \cw{-a}
+
+\dd Disable agent forwarding (default).
+
+\dt \cw{-t}
+
+\dd Enable pty allocation (default if a command is NOT specified).
+
+\dt \cw{-T}
+
+\dd Disable pty allocation (default if a command is specified).
+
+\dt \cw{-1}
+
+\dd Force use of SSH protocol version 1.
+
+\dt \cw{-2}
+
+\dd Force use of SSH protocol version 2.
+
+\dt \cw{-C}
+
+\dd Enable SSH compression.
+
+\dt \cw{-i} \e{path}
+
+\dd Private key file for authentication.
+
+\dt \cw{-s}
+
+\dd Remote command is SSH subsystem (SSH-2 only).
+
+\S{plink-manpage-more-information} MORE INFORMATION
+
+For more information on plink, it's probably best to go and look at
+the manual on the PuTTY web page:
+
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/}\cw{http://www.chiark.greenend.org.uk/~sgtatham/putty/}
+
+\S{plink-manpage-bugs} BUGS
+
+This man page isn't terribly complete. See the above web link for
+better documentation.
