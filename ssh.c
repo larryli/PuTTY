@@ -3682,10 +3682,8 @@ void sshfwd_close(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
 
-    if (ssh->state != SSH_STATE_SESSION) {
-	assert(ssh->state == SSH_STATE_CLOSED);
+    if (ssh->state == SSH_STATE_CLOSED)
 	return;
-    }
 
     if (c && !c->closes) {
 	/*
@@ -3722,10 +3720,8 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
 {
     Ssh ssh = c->ssh;
 
-    if (ssh->state != SSH_STATE_SESSION) {
-	assert(ssh->state == SSH_STATE_CLOSED);
+    if (ssh->state == SSH_STATE_CLOSED)
 	return 0;
-    }
 
     if (ssh->version == 1) {
 	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
@@ -3751,10 +3747,8 @@ void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
 {
     Ssh ssh = c->ssh;
 
-    if (ssh->state != SSH_STATE_SESSION) {
-	assert(ssh->state == SSH_STATE_CLOSED);
+    if (ssh->state == SSH_STATE_CLOSED)
 	return;
-    }
 
     if (ssh->version == 1) {
 	if (c->v.v1.throttling && bufsize < SSH1_BUFFER_LIMIT) {
