@@ -19,8 +19,9 @@
                       if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       fprintf(stderr, "%s\n", s); }
 
-#define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, sk_close(s), \
-                       s = NULL, connection_fatal msg )
+#define bombout(msg) ( ssh_state = SSH_STATE_CLOSED, \
+                          (s ? sk_close(s), s = NULL : (void)0), \
+                          connection_fatal msg )
 
 #define SSH1_MSG_DISCONNECT                       1    /* 0x1 */
 #define SSH1_SMSG_PUBLIC_KEY                      2    /* 0x2 */
