@@ -252,6 +252,17 @@ specify the local file name after the remote one:
 This will fetch the file on the server called \c{myfile.dat}, but
 will save it to your local machine under the name \c{newname.dat}.
 
+To fetch an entire directory recursively, you can use the \c{-r}
+option:
+
+\c get -r mydir
+\c get -r mydir newname
+
+(If you want to fetch a file whose name starts with a hyphen, you
+may have to use the \c{--} special argument, which stops \c{get}
+from interpreting anything as a switch after it. For example,
+\cq{get -- -silly-name-}.)
+
 \S{psftp-cmd-put} The \c{put} command: send a file to the server
 
 To upload a file to the server from your local PC, you use the
@@ -268,6 +279,17 @@ specify the remote file name after the local one:
 
 This will send the local file called \c{myfile.dat}, but will store
 it on the server under the name \c{newname.dat}.
+
+To send an entire directory recursively, you can use the \c{-r}
+option:
+
+\c put -r mydir
+\c put -r mydir newname
+
+(If you want to send a file whose name starts with a hyphen, you may
+have to use the \c{--} special argument, which stops \c{put} from
+interpreting anything as a switch after it. For example, \cq{put --
+-silly-name-}.)
 
 \S{psftp-cmd-regetput} The \c{reget} and \c{reput} commands:
 resuming file transfers
