@@ -1710,6 +1710,7 @@ static int do_ssh_init(unsigned char c)
     static int vstrsize;
     static char *vlog;
     static int i;
+    static int proto1, proto2;
 
     crBegin;
 
@@ -1766,12 +1767,26 @@ static int do_ssh_init(unsigned char c)
     sfree(vlog);
 
     /*
-     * Server version "1.99" means we can choose whether we use v1
-     * or v2 protocol. Choice is based on cfg.sshprot.
+     * Decide which SSH protocol version to support.
      */
-    if (ssh_versioncmp(version, cfg.sshprot == 1 ? "2.0" : "1.99") >= 0) {
+
+    /* Anything strictly below "2.0" means protocol 1 is supported. */
+    proto1 = ssh_versioncmp(version, "2.0") < 0;
+    /* Anything greater or equal to "1.99" means protocol 2 is supported. */
+    proto2 = ssh_versioncmp(version, "1.99") > 0;
+
+    if (cfg.sshprot == 0 && !proto1) {
+	bombout(("SSH protocol version 1 required by user but not provided by server"));
+	crReturn(0);
+    }
+    if (cfg.sshprot == 3 && !proto2) {
+	bombout(("SSH protocol version 2 required by user but not provided by server"));
+	crReturn(0);
+    }
+
+    if (proto2 && (cfg.sshprot == 2 || !proto1)) {
 	/*
-	 * This is a v2 server. Begin v2 protocol.
+	 * Use v2 protocol.
 	 */
 	char verstring[80], vlog[100];
 	sprintf(verstring, "SSH-2.0-%s", sshver);
@@ -1791,7 +1806,7 @@ static int do_ssh_init(unsigned char c)
 	s_rdpkt = ssh2_rdpkt;
     } else {
 	/*
-	 * This is a v1 server. Begin v1 protocol.
+	 * Use v1 protocol.
 	 */
 	char verstring[80], vlog[100];
 	sprintf(verstring, "SSH-%s-%s",
@@ -1800,11 +1815,6 @@ static int do_ssh_init(unsigned char c)
 	sprintf(vlog, "We claim version: %s", verstring);
 	logevent(vlog);
 	strcat(verstring, "\n");
-	
-	if (cfg.sshprot == 3) {
-	    bombout(("SSH protocol version 2 required by user but not provided by server"));
-	    crReturn(0);
-	}
 
 	logevent("Using SSH protocol version 1");
 	sk_write(s, verstring, strlen(verstring));

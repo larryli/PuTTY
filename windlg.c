@@ -512,6 +512,7 @@ enum { IDCX_ABOUT =
     IDC_BUGGYMAC,
     IDC_SSH2DES,
     IDC_SSHPROTSTATIC,
+    IDC_SSHPROT1ONLY,
     IDC_SSHPROT1,
     IDC_SSHPROT2,
     IDC_SSHPROT2ONLY,
@@ -891,6 +892,7 @@ char *help_context_cmd(int id)
       case IDC_BUGGYMAC:
         return "JI(`',`ssh.buggymac')";
       case IDC_SSHPROTSTATIC:
+      case IDC_SSHPROT1ONLY:
       case IDC_SSHPROT1:
       case IDC_SSHPROT2:
       case IDC_SSHPROT2ONLY:
@@ -1151,9 +1153,10 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_SSH2DES, cfg.ssh2_des_cbc);
     CheckDlgButton(hwnd, IDC_AGENTFWD, cfg.agentfwd);
     CheckDlgButton(hwnd, IDC_CHANGEUSER, cfg.change_username);
-    CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2ONLY,
+    CheckRadioButton(hwnd, IDC_SSHPROT1ONLY, IDC_SSHPROT2ONLY,
 		     cfg.sshprot == 1 ? IDC_SSHPROT1 :
-		     cfg.sshprot == 2 ? IDC_SSHPROT2 : IDC_SSHPROT2ONLY);
+		     cfg.sshprot == 2 ? IDC_SSHPROT2 :
+		     cfg.sshprot == 3 ? IDC_SSHPROT2ONLY : IDC_SSHPROT1ONLY);
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
     CheckDlgButton(hwnd, IDC_AUTHKI, cfg.try_ki_auth);
     SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
@@ -1826,7 +1829,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
 	    checkbox(&cp, "Enable compr&ession", IDC_COMPRESS);
 	    radioline(&cp, "Preferred SSH protocol version:",
-		      IDC_SSHPROTSTATIC, 3,
+		      IDC_SSHPROTSTATIC, 4,
+		      "1 on&ly", IDC_SSHPROT1ONLY,
 		      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2,
 		      "2 o&nly", IDC_SSHPROT2ONLY, NULL);
 	    checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
@@ -3090,11 +3094,14 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 				 cfg.ssh_cipherlist, CIPHER_MAX,
 				 0, hwnd, wParam, lParam);
 		break;
+	      case IDC_SSHPROT1ONLY:
 	      case IDC_SSHPROT1:
 	      case IDC_SSHPROT2:
       	      case IDC_SSHPROT2ONLY:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED) {
+		    if (IsDlgButtonChecked(hwnd, IDC_SSHPROT1ONLY))
+			cfg.sshprot = 0;
 		    if (IsDlgButtonChecked(hwnd, IDC_SSHPROT1))
 			cfg.sshprot = 1;
 		    else if (IsDlgButtonChecked(hwnd, IDC_SSHPROT2))
