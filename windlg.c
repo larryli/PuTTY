@@ -1006,7 +1006,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == sshpanelstart) {
-        /* The SSH panel. Accelerators used: [acgo] rmfkw pe123bd i */
+        /* The SSH panel. Accelerators used: [acgo] rmfkw pe123bds i */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         if (dlgtype == 0) {
@@ -1036,7 +1036,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                       "&3DES", IDC_CIPHER3DES,
                       "&Blowfish", IDC_CIPHERBLOWF,
                       "&DES", IDC_CIPHERDES,
-                      "&AES", IDC_CIPHERAES,
+                      "AE&S", IDC_CIPHERAES,
                       NULL);
             checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
                      IDC_BUGGYMAC);
