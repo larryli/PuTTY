@@ -284,8 +284,8 @@ static void mac_eventloop(void) {
 	    if (borednow)
 		cleanup_exit(0);
 	}
-	sk_poll();
 	if (!gotevent)
+	    sk_poll();
 	    mac_pollterm();
 	if (mac_gestalts.apprvers >= 0x100 && mac_frontwindow() != NULL)
 	    IdleControls(mac_frontwindow());
