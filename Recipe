@@ -119,7 +119,7 @@ FORCE:
 !begin borland
 version.obj: FORCE
 FORCE:
-	bcc32 $(FWHACK) $(VER) $(CFLAGS) /c version.obj
+	bcc32 $(FWHACK) $(VER) $(CFLAGS) /c version.c
 !end
 !begin lcc
 version.o: FORCE

@@ -446,7 +446,7 @@ if (defined $makefiles{'borland'}) {
     &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT) \$(FWHACK)".
 	       " \$(XFLAGS) \$(CFLAGS) ".
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-	       "/c \$*.c",69)."\n".
+	       " /c \$*.c",69)."\n".
     ".rc.res:\n".
     &splitline("\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include -r".
       " -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401 \$*.rc",69)."\n".
