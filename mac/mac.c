@@ -260,7 +260,6 @@ static void mac_eventloop(void) {
     cursrgn = NewRgn();
     sleeptime = 0;
     for (;;) {
-    	mac_adjustcursor(cursrgn);
 	ticksleft=timing_next_time-GETTICKCOUNT();
 	if (sleeptime > ticksleft && ticksleft >=0)
 	    sleeptime=ticksleft;
@@ -286,7 +285,6 @@ static void mac_eventloop(void) {
 	}
 	if (!gotevent)
 	    sk_poll();
-	    mac_pollterm();
 	if (mac_gestalts.apprvers >= 0x100 && mac_frontwindow() != NULL)
 	    IdleControls(mac_frontwindow());
     }

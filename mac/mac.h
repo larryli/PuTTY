@@ -162,7 +162,6 @@ extern void mac_showeventlog(Session *);
 /* from macterm.c */
 extern void mac_opensession(void);
 extern void mac_startsession(Session *);
-extern void mac_pollterm(void);
 /* from macstore.c */
 extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);

@@ -305,18 +305,6 @@ static pascal OSStatus uni_to_font_fallback(UniChar *ucp,
 }
 
 /*
- * Called every time round the event loop.
- */
-void mac_pollterm(void)
-{
-    Session *s;
-
-    for (s = sesslist; s != NULL; s = s->next) {
-	term_update(s->term);
-    }
-}
-
-/*
  * To be called whenever the window size changes.
  * rows and cols should be desired values.
  * It's assumed the terminal emulator will be informed, and will set rows
