@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.10 2003/02/02 15:59:00 ben Exp $ */
+/* $Id: macdlg.c,v 1.11 2003/02/04 23:39:26 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -65,7 +65,7 @@ void mac_newsession(void)
 
 void mac_dupsession(void)
 {
-    Session *s1 = (Session *)GetWRefCon(FrontWindow());
+    Session *s1 = mac_windowsession(FrontWindow());
     Session *s2;
 
     s2 = smalloc(sizeof(*s2));
@@ -180,7 +180,7 @@ void mac_opensession(void)
 
 void mac_savesession(void)
 {
-    Session *s = (Session *)GetWRefCon(FrontWindow());
+    Session *s = mac_windowsession(FrontWindow());
     void *sesshandle;
 
     assert(s->hasfile);
@@ -193,7 +193,7 @@ void mac_savesession(void)
 void mac_savesessionas(void)
 {
 #if !TARGET_API_MAC_CARBON /* XXX Navigation Services */
-    Session *s = (Session *)GetWRefCon(FrontWindow());
+    Session *s = mac_windowsession(FrontWindow());
     StandardFileReply sfr;
     void *sesshandle;
 
@@ -284,7 +284,7 @@ void mac_activatedlg(WindowPtr window, EventRecord *event)
 void mac_clickdlg(WindowPtr window, EventRecord *event)
 {
     short item;
-    Session *s = (Session *)GetWRefCon(window);
+    Session *s = mac_windowsession(window);
     DialogRef dialog = GetDialogFromWindow(window);
 
     if (DialogSelect(event, &dialog, &item))

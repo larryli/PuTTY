@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.44 2003/02/04 00:33:11 ben Exp $ */
+/* $Id: mac.c,v 1.45 2003/02/04 23:39:26 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -456,24 +456,15 @@ static void mac_updatelicence(WindowPtr window)
 
 /*
  * Work out what kind of window we're dealing with.
- * Concept shamelessly nicked from SurfWriter.
  */
-static int mac_windowtype(WindowPtr window) {
-    int kind;
-    long refcon;
+static int mac_windowtype(WindowPtr window)
+{
 
-    if (window == NULL)
-	return wNone;
-    kind = GetWindowKind(window);
-    if (kind < 0)
+#if !TARGET_API_MAC_CARBON
+    if (GetWindowKind(window) < 0)
 	return wDA;
-    if (GetWVariant(window) == zoomDocProc)
-	return wTerminal;
-    refcon = GetWRefCon(window);
-    if (refcon < 1024)
-	return refcon;
-    else
-	return wSettings;
+#endif
+    return ((WinInfo *)GetWRefCon(window))->wtype;
 }
 
 /*
@@ -568,12 +559,17 @@ static void mac_openabout(void) {
     VersRecHndl vers;
     Rect box;
     StringPtr longvers;
+    WinInfo *wi;
 
     if (windows.about)
 	SelectWindow(windows.about);
     else {
 	windows.about =
 	    GetDialogWindow(GetNewDialog(wAbout, NULL, (WindowPtr)-1));
+	wi = smalloc(sizeof(*wi));
+	wi->s = NULL;
+	wi->wtype = wAbout;
+	SetWRefCon(windows.about, (long)wi);
 	vers = (VersRecHndl)Get1Resource('vers', 1);
 	if (vers != NULL && *vers != NULL) {
 	    longvers = (*vers)->shortVersion + (*vers)->shortVersion[0] + 1;
@@ -587,11 +583,16 @@ static void mac_openabout(void) {
 }
 
 static void mac_openlicence(void) {
+    WinInfo *wi;
 
     if (windows.licence)
 	SelectWindow(windows.licence);
     else {
 	windows.licence = GetNewWindow(wLicence, NULL, (WindowPtr)-1);
+	wi = smalloc(sizeof(*wi));
+	wi->s = NULL;
+	wi->wtype = wLicence;
+	SetWRefCon(windows.licence, (long)wi);
 	ShowWindow(windows.licence);
     }
 }
@@ -601,7 +602,7 @@ static void mac_closewindow(WindowPtr window) {
     switch (mac_windowtype(window)) {
 #if !TARGET_API_MAC_CARBON
       case wDA:
-	CloseDeskAcc(((WindowPeek)window)->windowKind);
+	CloseDeskAcc(GetWindowKind(window));
 	break;
 #endif
       case wTerminal:

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.67 2003/02/04 02:08:03 ben Exp $ */
+/* $Id: macterm.c,v 1.68 2003/02/04 23:39:26 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -98,6 +98,7 @@ void mac_startsession(Session *s)
 {
     char *errmsg;
     int i;
+    WinInfo *wi;
 
     init_ucs(s);
 
@@ -119,7 +120,10 @@ void mac_startsession(Session *s)
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);
     else
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
-    SetWRefCon(s->window, (long)s);
+    wi = smalloc(sizeof(*wi));
+    wi->s = s;
+    wi->wtype = wTerminal;
+    SetWRefCon(s->window, (long)wi);
     s->scrollbar = GetNewControl(cVScroll, s->window);
     s->term = term_init(&s->cfg, &s->ucsdata, s);
 
@@ -385,7 +389,7 @@ void mac_adjusttermcursor(WindowPtr window, Point mouse, RgnHandle cursrgn) {
 #endif
 
     SetPort((GrafPtr)GetWindowPort(window));
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
     GlobalToLocal(&mouse);
     part = FindControl(mouse, window, &control);
     if (control == s->scrollbar) {
@@ -435,7 +439,7 @@ void mac_adjusttermmenus(WindowPtr window) {
     long offset;
 #endif
 
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
     menu = GetMenuHandle(mFile);
     DisableItem(menu, iSave); /* XXX enable if modified */
     EnableItem(menu, iSaveAs);
@@ -463,7 +467,7 @@ void mac_adjusttermmenus(WindowPtr window) {
 void mac_menuterm(WindowPtr window, short menu, short item) {
     Session *s;
 
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
     switch (menu) {
       case mEdit:
 	switch (item) {
@@ -484,7 +488,7 @@ void mac_clickterm(WindowPtr window, EventRecord *event) {
     int part;
     static ControlActionUPP mac_scrolltracker_upp = NULL;
 
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
     SetPort((GrafPtr)GetWindowPort(window));
     mouse = event->where;
     GlobalToLocal(&mouse);
@@ -705,9 +709,9 @@ static pascal void mac_scrolltracker(ControlHandle control, short part) {
     Session *s;
 
 #if TARGET_API_MAC_CARBON
-    s = (Session *)GetWRefCon(GetControlOwner(control));
+    s = mac_windowsession(GetControlOwner(control));
 #else
-    s = (Session *)GetWRefCon((*control)->contrlOwner);
+    s = mac_windowsession((*control)->contrlOwner);
 #endif
     switch (part) {
       case kControlUpButtonPart:
@@ -726,7 +730,7 @@ static pascal void mac_scrolltracker(ControlHandle control, short part) {
 }
 
 void mac_keyterm(WindowPtr window, EventRecord *event) {
-    Session *s = (Session *)GetWRefCon(window);
+    Session *s = mac_windowsession(window);
     Key_Sym keysym = PK_NULL;
     unsigned int mods = 0, flags = PKF_NUMLOCK;
     UniChar utxt[1];
@@ -896,7 +900,7 @@ void mac_growterm(WindowPtr window, EventRecord *event) {
     FontInfo fi;
 #endif
 
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
 
 #if !TARGET_API_MAC_CARBON
     draghooksave = LMGetDragHook();
@@ -970,7 +974,7 @@ static pascal void mac_growtermdraghook(void)
 
 void mac_closeterm(WindowPtr window)
 {
-    Session *s = (Session *)GetWRefCon(window);
+    Session *s = mac_windowsession(window);
 
     /* XXX warn on close */
     HideWindow(s->window);
@@ -982,6 +986,7 @@ void mac_closeterm(WindowPtr window)
     if (s->uni_to_font != NULL)
 	DisposeUnicodeToTextInfo(&s->uni_to_font);
     term_free(s->term);
+    sfree((WinInfo *)GetWRefCon(s->window));
     DisposeWindow(s->window);
     DisposePalette(s->palette);
     sfree(s);
@@ -990,7 +995,7 @@ void mac_closeterm(WindowPtr window)
 void mac_activateterm(WindowPtr window, Boolean active) {
     Session *s;
 
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
     s->term->has_focus = active;
     term_update(s->term);
     if (active)
@@ -1012,7 +1017,7 @@ void mac_updateterm(WindowPtr window) {
     RgnHandle visrgn;
 #endif
 
-    s = (Session *)GetWRefCon(window);
+    s = mac_windowsession(window);
     SetPort((GrafPtr)GetWindowPort(window));
     BeginUpdate(window);
     pre_paint(s);

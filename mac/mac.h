@@ -40,6 +40,14 @@ extern struct mac_gestalts mac_gestalts;
 #define HAVE_COLOR_QD() (mac_gestalts.qdvers > gestaltOriginalQD)
 #endif
 
+/* Every window used by PuTTY has a refCon field pointing to one of these. */
+typedef struct {
+    struct Session *s;
+    int wtype;
+} WinInfo;
+
+#define mac_windowsession(w)	(((WinInfo *)GetWRefCon(w))->s)
+
 typedef struct Session {
     struct Session *next;
     struct Session **prev;
