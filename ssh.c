@@ -1207,14 +1207,12 @@ static int do_ssh_init(unsigned char c) {
     rdpkt2_state.incoming_sequence = 0;
 
     vstring[vslen] = 0;
-    if (vslen > 80)
-        vlog = smalloc(20 + vslen);
-    else
-        vlog = smalloc(100);
+    vlog = smalloc(20 + vslen);
     sprintf(vlog, "Server version: %s", vstring);
     ssh_detect_bugs(vstring);
     vlog[strcspn(vlog, "\r\n")] = '\0';
     logevent(vlog);
+    sfree(vlog);
 
     /*
      * Server version "1.99" means we can choose whether we use v1
@@ -1224,7 +1222,7 @@ static int do_ssh_init(unsigned char c) {
         /*
          * This is a v2 server. Begin v2 protocol.
          */
-        char verstring[80];
+        char verstring[80], vlog[100];
         sprintf(verstring, "SSH-2.0-%s", sshver);
         SHA_Init(&exhashbase);
         /*
@@ -1232,11 +1230,11 @@ static int do_ssh_init(unsigned char c) {
          */
         sha_string(&exhashbase, verstring, strlen(verstring));
         sha_string(&exhashbase, vstring, strcspn(vstring, "\r\n"));
-        sprintf(vstring, "%s\n", verstring);
         sprintf(vlog, "We claim version: %s", verstring);
         logevent(vlog);
+        strcat(verstring, "\n");
         logevent("Using SSH protocol version 2");
-        sk_write(s, vstring, strlen(vstring));
+        sk_write(s, verstring, strlen(verstring));
         ssh_protocol = ssh2_protocol;
         ssh_version = 2;
         s_rdpkt = ssh2_rdpkt;
@@ -1244,14 +1242,15 @@ static int do_ssh_init(unsigned char c) {
         /*
          * This is a v1 server. Begin v1 protocol.
          */
-        sprintf(vstring, "SSH-%s-%s\n",
+        char verstring[80], vlog[100];
+        sprintf(verstring, "SSH-%s-%s",
                 (ssh_versioncmp(version, "1.5") <= 0 ? version : "1.5"),
                 sshver);
-        sprintf(vlog, "We claim version: %s", vstring);
-        vlog[strcspn(vlog, "\r\n")] = '\0';
+        sprintf(vlog, "We claim version: %s", verstring);
         logevent(vlog);
+        strcat(verstring, "\n");
         logevent("Using SSH protocol version 1");
-        sk_write(s, vstring, strlen(vstring));
+        sk_write(s, verstring, strlen(verstring));
         ssh_protocol = ssh1_protocol;
         ssh_version = 1;
         s_rdpkt = ssh1_rdpkt;
@@ -1259,7 +1258,6 @@ static int do_ssh_init(unsigned char c) {
     ssh_state = SSH_STATE_BEFORE_SIZE;
 
     sfree(vstring);
-    sfree(vlog);
 
     crFinish(0);
 }
