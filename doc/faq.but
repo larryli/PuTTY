@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.17 2002/01/02 15:44:06 simon Exp $
+\versionid $Id: faq.but,v 1.18 2002/01/14 12:16:58 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -31,8 +31,8 @@ However, currently the \e{default} SSH protocol is v1; to select SSH
 v2 if your server supports both, go to the SSH panel and change the
 \e{Preferred SSH protocol version} option.
 
-Public key authentication (both RSA and DSA) in SSH v2 has been
-added since version 0.51.
+Public key authentication (both RSA and DSA) in SSH v2 is new in
+version 0.52.
 
 \S{faq-ssh2-keyfmt}{Question} Does PuTTY support reading OpenSSH or
 \cw{ssh.com} SSHv2 private key files?
@@ -48,25 +48,20 @@ Yes. SSH 1 support has always been available in PuTTY.
 
 \S{faq-localecho}{Question} Does PuTTY support local echo?
 
-Yes.
+Yes. Version 0.52 has proper support for local echo.
 
-In version 0.51 and before, local echo cannot be separated from
+In version 0.51 and before, local echo could not be separated from
 local line editing (where you type a line of text locally, and it is
 not sent to the server until you press Return, so you have the
 chance to edit it and correct mistakes \e{before} the server sees
-it). The two features can be enabled and disabled from the Terminal
-panel, using the checkbox marked \q{Use local terminal line
-discipline}. Note that due to a bug in those versions of PuTTY,
-changing this feature in mid-session will have no effect; you have
-to enable it \e{before} you open the connection.
-
-In later versions, local echo and local line editing are separate
-options, and by default PuTTY will try to determine automatically
-whether to enable them or not, based on which protocol you have
-selected and also based on hints from the server. If you have a
-problem with PuTTY's default choice, you can force each option to be
-enabled or disabled as you choose. The controls are in the Terminal
-panel, in the section marked \q{Line discipline options}.
+it). New in version 0.52, local echo and local line editing are
+separate options, and by default PuTTY will try to determine
+automatically whether to enable them or not, based on which protocol
+you have selected and also based on hints from the server. If you
+have a problem with PuTTY's default choice, you can force each
+option to be enabled or disabled as you choose. The controls are in
+the Terminal panel, in the section marked \q{Line discipline
+options}.
 
 \S{faq-disksettings}{Question} Does PuTTY support storing its
 settings in a disk file?
@@ -77,7 +72,7 @@ a method of achieving the same effect.
 \S{faq-fullscreen}{Question} Does PuTTY support full-screen mode,
 like a DOS box?
 
-Not in the 0.51 release, but it has been added since then.
+Yes; this is a new feature in version 0.52.
 
 \S{faq-password-remember}{Question} Does PuTTY have the ability to
 remember my password so I don't have to type it every time?
@@ -263,9 +258,7 @@ This is what CVS for Windows does, for example.
 \S{faq-term}{Question} What terminal type does PuTTY use?
 
 For most purposes, PuTTY can be considered to be an \cw{xterm}
-terminal, although full support for some of \cw{xterm}'s features,
-such as passing mouse actions to the server-side program, is not
-present in the 0.51 release (but has been added since).
+terminal.
 
 PuTTY also supports some terminal control sequences not supported by
 the real \cw{xterm}: notably the Linux console sequences that
@@ -344,9 +337,7 @@ You can also paste by pressing Shift-Ins.
 \S{faq-tunnels}{Question} How do I use X forwarding and port
 forwarding? I can't find the Tunnels panel.
 
-If you're looking in the 0.51 release or earlier, the Tunnels panel
-isn't there. It was added in the development snapshots after 0.51,
-and releases 0.52 and onwards will contain it.
+This is a new feature in version 0.52. You should upgrade.
 
 \S{faq-options}{Question} How do I use all PuTTY's features (public
 keys, port forwarding, SSH v2, etc.) in PSCP, PSFTP and Plink?
@@ -416,16 +407,17 @@ expects the client to construct them in the same wrong way. PuTTY
 constructs the MACs correctly by default, and hence these old
 servers will fail to work with it.
 
-If you are using PuTTY version 0.51 or below, go to the SSH panel
-and check the box labelled \q{Imitate SSH 2 MAC bug}. This will
-cause PuTTY to construct its MACs in the same incorrect manner as
-the buggy servers, so it will be able to work with them.
+If you are using PuTTY version 0.52 or better, this should work
+automatically: PuTTY should detect the buggy servers from their
+version number announcement, and automatically start to construct
+its MACs in the same incorrect manner as they do, so it will be able
+to work with them.
 
-Since version 0.51, PuTTY has been enhanced to detect buggy servers
-automatically (when they announce their version) and enable the
-workaround without the user needing to ask. Therefore you \e{should}
-never have to use this option again after 0.52, but it is still
-provided just in case another buggy server shows up.
+If you are using PuTTY version 0.51 or below, you can enable the
+workaround by going to the SSH panel and ticking the box labelled
+\q{Imitate SSH 2 MAC bug}. It's possible that you might have to do
+this with 0.52 as well, if a buggy server exists that PuTTY doesn't
+know about.
 
 In this context MAC stands for Message Authentication Code. It's a
 cryptographic term, and it has nothing at all to do with Ethernet
@@ -472,8 +464,7 @@ v2 servers from \cw{ssh.com} will require the key exchange to be
 repeated one hour after the start of the connection, and PuTTY will
 get this wrong.
 
-The bug has been fixed since version 0.51, so upgrading to a later
-version or snapshot should solve the problem.
+Upgrade to version 0.52 and the problem should go away.
 
 \S{faq-outofmem}{Question} After trying to establish an SSH 2
 connection, PuTTY says \q{Out of memory} and dies.
@@ -523,8 +514,8 @@ effect. It will only take effect once you reset the terminal.
 \S{faq-altgr}{Question} I can't type characters that require the
 AltGr key.
 
-In PuTTY version 0.51, the AltGr key was broken. The bug has been
-fixed since then.
+In PuTTY version 0.51, the AltGr key was broken. Upgrade to version
+0.52.
 
 \S{faq-idleout}{Question} My PuTTY sessions unexpectedly close after
 they are idle for a while.
