@@ -683,6 +683,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 
 		return 1;
 	    }
+	    bufchain_consume(&p->pending_input_data, 2);
 
 	    /* we're done */
 	    proxy_activate(p);
@@ -713,13 +714,22 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	 *     0x03 = CHAP
 	 */
 
-	char command[3];
+	char command[4];
+	int len;
 
 	command[0] = 5; /* version 5 */
-	command[1] = 1; /* TODO: we don't currently support any auth methods */
-	command[2] = 0x00; /* no authentication */
+	if (cfg.proxy_username[0] || cfg.proxy_password[0]) {
+	    command[1] = 2;	       /* two methods supported: */
+	    command[2] = 0x00;	       /* no authentication */
+	    command[3] = 0x02;	       /* username/password */
+	    len = 4;
+	} else {
+	    command[1] = 1;	       /* one methods supported: */
+	    command[2] = 0x00;	       /* no authentication */
+	    len = 3;
+	}
 
-	sk_write(p->sub_socket, command, 3);
+	sk_write(p->sub_socket, command, len);
 
 	p->state = 1;
 	return 0;
@@ -795,6 +805,36 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 			     PROXY_ERROR_GENERAL, 0);
 		return 1;
 	    }
+	    bufchain_consume(&p->pending_input_data, 2);
+	}
+
+	if (p->state == 7) {
+
+	    /* password authentication reply format:
+	     *  version number (1 bytes) = 1
+	     *  reply code (1 byte)
+	     *    0 = succeeded
+	     *    >0 = failed
+	     */
+
+	    /* get the response */
+	    bufchain_prefix(&p->pending_input_data, &data, &len);
+
+	    if (data[0] != 1) {
+		plug_closing(p->plug, "Network error: Error while communicating with proxy",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+
+	    if (data[1] != 0) {
+
+		plug_closing(p->plug, "Network error: Proxy refused authentication",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+
+	    bufchain_consume(&p->pending_input_data, 2);
+	    p->state = 2;	       /* now proceed as authenticated */
 	}
 
 	if (p->state == 2) {
@@ -909,9 +949,24 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	}
 
 	if (p->state == 5) {
-	    /* TODO: Handle username/password authentication */
-	    plug_closing(p->plug, "Network error: We don't support username/password "
-				  "authentication",
+	    if (cfg.proxy_username[0] || cfg.proxy_password[0]) {
+		char userpwbuf[514];
+		int ulen, plen;
+		ulen = strlen(cfg.proxy_username);
+		if (ulen > 255) ulen = 255; if (ulen < 1) ulen = 1;
+		plen = strlen(cfg.proxy_password);
+		if (plen > 255) plen = 255; if (plen < 1) plen = 1;
+		userpwbuf[0] = 1;      /* version number of subnegotiation */
+		userpwbuf[1] = ulen;
+		memcpy(userpwbuf+2, cfg.proxy_username, ulen);
+		userpwbuf[ulen+2] = plen;
+		memcpy(userpwbuf+ulen+3, cfg.proxy_password, plen);
+		sk_write(p->sub_socket, userpwbuf, ulen + plen + 3);
+		p->state = 7;
+	    } else 
+		plug_closing(p->plug, "Network error: Server chose "
+			     "username/password authentication but we "
+			     "didn't offer it!",
 			 PROXY_ERROR_GENERAL, 0);
 	    return 1;
 	}
@@ -922,6 +977,7 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 			 PROXY_ERROR_GENERAL, 0);
 	    return 1;
 	}
+
     }
 
     plug_closing(p->plug, "Network error: Unexpected proxy error",
