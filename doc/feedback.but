@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.6 2002/08/05 10:35:23 simon Exp $
+\versionid $Id: feedback.but,v 1.7 2002/08/07 18:08:29 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -302,11 +302,12 @@ Of course, if the web site has some other error (Connection Refused,
 
 If you want to report a problem with our web site, check that you're
 looking at our \e{real} web site and not a mirror. The real web site
-is at \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/}; if
-that's not where you're reading this, then don't report the problem
-to us until you've checked that it's really a problem with the main
-site. If it's only a problem with the mirror, you should try to
-contact the administrator of that mirror site first, and only
+is at
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/}\c{http://www.chiark.greenend.org.uk/~sgtatham/putty/};
+if that's not where you're reading this, then don't report the
+problem to us until you've checked that it's really a problem with
+the main site. If it's only a problem with the mirror, you should
+try to contact the administrator of that mirror site first, and only
 contact us if that doesn't solve the problem (in case we need to
 remove the mirror from our list).
 
