@@ -3337,6 +3337,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    bombout(("TIS challenge packet was badly formed"));
 		    crStop(0);
 		}
+		c_write_str(ssh, "Using TIS authentication.\r\n");
 		logevent("Received TIS challenge");
 		if (challengelen > sizeof(s->prompt) - 1)
 		    challengelen = sizeof(s->prompt) - 1;/* prevent overrun */
@@ -3370,6 +3371,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    bombout(("CryptoCard challenge packet was badly formed"));
 		    crStop(0);
 		}
+		c_write_str(ssh, "Using CryptoCard authentication.\r\n");
 		logevent("Received CryptoCard challenge");
 		if (challengelen > sizeof(s->prompt) - 1)
 		    challengelen = sizeof(s->prompt) - 1;/* prevent overrun */
@@ -6802,6 +6804,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    continue;
 		}
 
+		c_write_str(ssh, "Using keyboard-interactive authentication.\r\n");
 		s->kbd_inter_running = TRUE;
 		s->curr_prompt = 0;
 	    }
