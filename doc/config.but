@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.87 2004/09/01 10:12:41 jacob Exp $
+\versionid $Id: config.but,v 1.88 2004/09/01 10:19:22 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1682,7 +1682,7 @@ supports it (this is not supported in \i{PuTTYtel}); otherwise the
 password is sent to the proxy in plain text.
 
 \b With HTTP proxying, the only currently supported authentication
-method is \q{basic}, where the password is sent to proxy in plain
+method is \q{basic}, where the password is sent to the proxy in plain
 text.
 
 }
