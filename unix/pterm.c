@@ -1703,7 +1703,7 @@ int do_cmdline(int argc, char **argv, int do_everything)
 
 	} else if (!strcmp(p, "-ut")) {
 	    SECOND_PASS_ONLY;
-	    cfg.stamp_utmp = 0;
+	    cfg.stamp_utmp = 1;
 
 	} else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
 	    SECOND_PASS_ONLY;
