@@ -1089,6 +1089,14 @@ void real_palette_set(int n, int r, int g, int b)
 		n, r, g, b);
 }
 
+void set_window_background(void)
+{
+    if (inst->area && inst->area->window)
+	gdk_window_set_background(inst->area->window, &inst->cols[18]);
+    if (inst->window && inst->window->window)
+	gdk_window_set_background(inst->window->window, &inst->cols[18]);
+}
+
 void palette_set(int n, int r, int g, int b)
 {
     static const int first[21] = {
@@ -1099,6 +1107,8 @@ void palette_set(int n, int r, int g, int b)
     real_palette_set(first[n], r, g, b);
     if (first[n] >= 18)
 	real_palette_set(first[n] + 1, r, g, b);
+    if (first[n] == 18)
+	set_window_background();
 }
 
 void palette_reset(void)
@@ -1133,6 +1143,8 @@ void palette_reset(void)
 	    g_error("pterm: couldn't allocate colour %d (#%02x%02x%02x)\n",
 		    i, cfg.colours[i][0], cfg.colours[i][1], cfg.colours[i][2]);
     }
+
+    set_window_background();
 }
 
 void write_clip(wchar_t * data, int len, int must_deselect)
@@ -1820,6 +1832,11 @@ int main(int argc, char **argv)
     if (do_cmdline(argc, argv, 1))     /* post-defaults, do everything */
 	exit(1);
 
+    /*
+     * Initialise the whole instance structure to zeroes
+     */
+    memset(inst, 0, sizeof(*inst));
+
     inst->fonts[0] = gdk_font_load(cfg.font);
     if (!inst->fonts[0]) {
 	fprintf(stderr, "pterm: unable to load font \"%s\"\n", cfg.font);
@@ -1930,6 +1947,8 @@ int main(int argc, char **argv)
 	gtk_widget_show(inst->sbar);
     gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(inst->window);
+
+    set_window_background();
 
     inst->textcursor = make_mouse_ptr(GDK_XTERM);
     inst->rawcursor = make_mouse_ptr(GDK_LEFT_PTR);
