@@ -306,6 +306,8 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
     unsigned long a;
     struct hostent *h = NULL;
     char realhost[8192];
+    int ret_family;
+    int err;
 
     /* Clear the structure and default to IPv4. */
     memset(ret, 0, sizeof(struct SockAddr_tag));
@@ -314,6 +316,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 		   address_family == ADDRTYPE_IPV6 ? AF_INET6 :
 #endif
 		   AF_UNSPEC);
+    ret_family = AF_UNSPEC;
     *realhost = '\0';
 
     if ((a = p_inet_addr(host)) == (unsigned long) INADDR_NONE) {
@@ -324,9 +327,8 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	 * it will fallback to IPv4. */
 	typedef int (CALLBACK * FGETADDRINFO) (const char *nodename,
 					       const char *servname,
-					       const struct addrinfo *
-					       hints,
-					       struct addrinfo ** res);
+					       const struct addrinfo *hints,
+					       struct addrinfo **res);
 	FGETADDRINFO fGetAddrInfo = NULL;
 
 	HINSTANCE dllWSHIP6 = LoadLibrary("wship6.dll");
@@ -338,11 +340,11 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	 * Use fGetAddrInfo when it's available
 	 */
 	if (fGetAddrInfo) {
-		struct addrinfo hints;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = ret->family;
-		if (fGetAddrInfo(host, NULL, &hints, &ret->ai) == 0)
-			ret->family = ret->ai->ai_family;
+	    struct addrinfo hints;
+	    memset(&hints, 0, sizeof(hints));
+	    hints.ai_family = ret->family;
+	    if ((err = fGetAddrInfo(host, NULL, &hints, &ret->ai)) == 0)
+		ret_family = ret->ai->ai_family;
 	} else
 #endif
 	{
@@ -350,24 +352,23 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	     * Otherwise use the IPv4-only gethostbyname...
 	     * (NOTE: we don't use gethostbyname as a fallback!)
 	     */
-	    if (ret->family == 0) {
-		if ( (h = p_gethostbyname(host)) )
-		    ret->family = AF_INET;
-	    }
+	    if ( (h = p_gethostbyname(host)) )
+		ret_family = AF_INET;
+	    else
+		err = p_WSAGetLastError();
 	}
 
-	if (ret->family == AF_UNSPEC) {
-	    DWORD err = p_WSAGetLastError();
+	if (ret_family == AF_UNSPEC) {
 	    ret->error = (err == WSAENETDOWN ? "Network is down" :
-			  err ==
-			  WSAHOST_NOT_FOUND ? "Host does not exist" : err
-			  == WSATRY_AGAIN ? "Host not found" :
+			  err == WSAHOST_NOT_FOUND ? "Host does not exist" :
+			  err == WSATRY_AGAIN ? "Host not found" :
 #ifndef NO_IPV6
 			  fGetAddrInfo ? "getaddrinfo: unknown error" :
 #endif
 			  "gethostbyname: unknown error");
 	} else {
 	    ret->error = NULL;
+	    ret->family = ret_family;
 
 #ifndef NO_IPV6
 	    /* If we got an address info use that... */
