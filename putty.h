@@ -141,7 +141,6 @@ GLOBAL unsigned char unitab_ctrl[256];
 #define LGTYP_ASCII 1		       /* logmode: pure ascii */
 #define LGTYP_DEBUG 2		       /* logmode: all chars of traffic */
 #define LGTYP_PACKETS 3		       /* logmode: SSH data packets */
-GLOBAL char *logfile;
 
 typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
