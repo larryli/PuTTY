@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.15 2003/01/16 00:35:11 ben Exp $ */
+/* $Id: mac_res.r,v 1.16 2003/01/18 12:18:04 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -97,7 +97,7 @@ resource 'FREF' (130, purgeable) {
 
 resource 'FREF' (131, purgeable) {
     /* Random seed */
-    'Rand', 131, ""
+    'Seed', 131, ""
 };
 
 resource 'BNDL' (128, purgeable) {
