@@ -392,14 +392,12 @@ static int CALLBACK LicenceProc (HWND hwnd, UINT msg,
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
-	    abtbox = NULL;
-	    DestroyWindow (hwnd);
+	    EndDialog(hwnd, 1);
 	    return 0;
 	}
 	return 0;
       case WM_CLOSE:
-	abtbox = NULL;
-	DestroyWindow (hwnd);
+	EndDialog(hwnd, 1);
 	return 0;
     }
     return 0;
