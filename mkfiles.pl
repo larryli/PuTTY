@@ -76,7 +76,8 @@ print
 "# You may also need to tell windres where to find include files:\n".
 "# RCINC = --include-dir c:\\cygwin\\include\\\n".
 "\n".
-"CFLAGS = -mno-cygwin -Wall -O2 -D_WINDOWS -DDEBUG -DWIN32S_COMPAT -D_NO_OLDNAMES -I.\n".
+"CFLAGS = -mno-cygwin -Wall -O2 -D_WINDOWS -DDEBUG -DWIN32S_COMPAT".
+  " -DNO_SECURITY -D_NO_OLDNAMES -I.\n".
 "LDFLAGS = -mno-cygwin -s\n".
 "RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 --define WINVER=0x0400 --define MINGW32_FIX=1\n".
 "LIBS = -ladvapi32 -luser32 -lgdi32 -lwsock32 -lcomctl32 -lcomdlg32 -lwinmm -limm32\n".

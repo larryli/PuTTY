@@ -3,6 +3,8 @@
 #include "puttymem.h"
 #include "network.h"
 
+struct ssh_channel;
+
 extern void sshfwd_close(struct ssh_channel *c);
 extern int sshfwd_write(struct ssh_channel *c, char *, int);
 extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
