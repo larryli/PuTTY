@@ -130,9 +130,9 @@ void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
      * Unix supports a local-command proxy. This also means we must
      * adjust the text on the `Telnet command' control.
      */
-    s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
-    {
+    if (!midsession) {
 	int i;
+        s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
 	for (i = 0; i < s->ncontrols; i++) {
 	    c = s->ctrls[i];
 	    if (c->generic.type == CTRL_RADIO &&
