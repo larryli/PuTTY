@@ -1588,6 +1588,7 @@ int sftp_cmd_mv(struct sftp_command *cmd)
     if ((cmd->nwords > 3 || is_wildcard(cmd->words[1])) && !ctx->dest_is_dir) {
 	printf("mv: multiple or wildcard arguments require the destination"
 	       " to be a directory\n");
+	sfree(ctx->dstfname);
 	return 0;
     }
 
@@ -1598,6 +1599,7 @@ int sftp_cmd_mv(struct sftp_command *cmd)
     for (i = 1; i < cmd->nwords-1; i++)
 	ret &= wildcard_iterate(cmd->words[i], sftp_action_mv, ctx);
 
+    sfree(ctx->dstfname);
     return ret;
 }
 
