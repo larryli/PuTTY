@@ -868,9 +868,12 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     if (ssh->v1_compressing) {
 	unsigned char *decompblk;
 	int decomplen;
-	zlib_decompress_block(ssh->sc_comp_ctx,
-			      ssh->pktin.body - 1, ssh->pktin.length + 1,
-			      &decompblk, &decomplen);
+	if (!zlib_decompress_block(ssh->sc_comp_ctx,
+				   ssh->pktin.body - 1, ssh->pktin.length + 1,
+				   &decompblk, &decomplen)) {
+	    bombout(("Zlib decompression encountered invalid data"));
+	    crStop(0);
+	}
 
 	if (ssh->pktin.maxlen < st->pad + decomplen) {
 	    ssh->pktin.maxlen = st->pad + decomplen;

@@ -992,6 +992,16 @@ static int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
 	    *nbitsp = nbits;
 	    return ent->code;
 	}
+
+	if (!tab) {
+	    /*
+	     * There was a missing entry in the table, presumably
+	     * due to an invalid Huffman table description, and the
+	     * subsequent data has attempted to use the missing
+	     * entry. Return a decoding failure.
+	     */
+	    return -2;
+	}
     }
 }
 
@@ -1099,6 +1109,8 @@ int zlib_decompress_block(void *handle, unsigned char *block, int len,
 		zlib_huflookup(&dctx->bits, &dctx->nbits, dctx->lenlentable);
 	    if (code == -1)
 		goto finished;
+	    if (code == -2)
+		goto decode_error;
 	    if (code < 16)
 		dctx->lengths[dctx->lenptr++] = code;
 	    else {
@@ -1128,6 +1140,8 @@ int zlib_decompress_block(void *handle, unsigned char *block, int len,
 		zlib_huflookup(&dctx->bits, &dctx->nbits, dctx->currlentable);
 	    if (code == -1)
 		goto finished;
+	    if (code == -2)
+		goto decode_error;
 	    if (code < 256)
 		zlib_emit_char(dctx, code);
 	    else if (code == 256) {
@@ -1160,6 +1174,8 @@ int zlib_decompress_block(void *handle, unsigned char *block, int len,
 			       dctx->currdisttable);
 	    if (code == -1)
 		goto finished;
+	    if (code == -2)
+		goto decode_error;
 	    dctx->state = GOTDISTSYM;
 	    dctx->sym = code;
 	    break;
@@ -1213,8 +1229,13 @@ int zlib_decompress_block(void *handle, unsigned char *block, int len,
   finished:
     *outblock = dctx->outblk;
     *outlen = dctx->outlen;
-
     return 1;
+
+  decode_error:
+    sfree(dctx->outblk);
+    *outblock = dctx->outblk = NULL;
+    *outlen = 0;
+    return 0;
 }
 
 const struct ssh_compress ssh_zlib = {
