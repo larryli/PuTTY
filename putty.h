@@ -655,6 +655,7 @@ void log_reconfig(void *logctx, Config *cfg);
 void logfopen(void *logctx);
 void logfclose(void *logctx);
 void logtraffic(void *logctx, unsigned char c, int logmode);
+void logflush(void *logctx);
 void log_eventlog(void *logctx, const char *string);
 enum { PKT_INCOMING, PKT_OUTGOING };
 void log_packet(void *logctx, int direction, int type,

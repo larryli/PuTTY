@@ -3311,6 +3311,7 @@ void term_out(Terminal *term)
     }
 
     term_print_flush(term);
+    logflush(term->logctx);
 }
 
 #if 0

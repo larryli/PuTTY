@@ -35,6 +35,16 @@ void logtraffic(void *handle, unsigned char c, int logmode)
 }
 
 /*
+ * Flush any open log file.
+ */
+void logflush(void *handle) {
+    struct LogContext *ctx = (struct LogContext *)handle;
+    if (ctx->cfg.logtype > 0)
+	if (ctx->lgfp)
+	    fflush(ctx->lgfp);
+}
+
+/*
  * Log an Event Log entry. Used in SSH packet logging mode; this is
  * also as convenient a place as any to put the output of Event Log
  * entries to stderr when a command-line tool is in verbose mode.
