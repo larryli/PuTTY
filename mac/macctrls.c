@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.27 2003/04/05 15:55:22 ben Exp $ */
+/* $Id: macctrls.c,v 1.28 2003/04/05 17:19:38 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -29,6 +29,7 @@
 #include <Appearance.h>
 #include <Controls.h>
 #include <ControlDefinitions.h>
+#include <Events.h>
 #include <Menus.h>
 #include <Resources.h>
 #include <Script.h>
@@ -218,6 +219,8 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     mcs->window = window;
     mcs->byctrl = newtree234(macctrl_cmp_byctrl);
     mcs->focus = NULL;
+    mcs->defbutton = NULL;
+    mcs->canbutton = NULL;
     /* Count the number of panels */
     mcs->npanels = 1;
     for (i = 1; i < cb->nctrlsets; i++)
@@ -729,6 +732,10 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 		       kControlPushButtonCancelTag,
 		       sizeof(iscancel), &iscancel);
     }
+    if (ctrl->button.isdefault)
+	mcs->defbutton = mc;
+    if (ctrl->button.iscancel)
+	mcs->canbutton = mc;
     add234(mcs->byctrl, mc);
     mc->generic.next = mcs->panels[curstate->panelnum];
     mcs->panels[curstate->panelnum] = mc;
@@ -967,7 +974,34 @@ void macctrl_key(WindowPtr window, EventRecord *event)
     ControlRef control;
     struct macctrls *mcs = mac_winctrls(window);
     union macctrl *mc;
+    unsigned long dummy;
 
+    switch (event->message & charCodeMask) {
+      case kEnterCharCode:
+      case kReturnCharCode:
+	if (mcs->defbutton != NULL) {
+	    assert(mcs->defbutton->generic.type == MACCTRL_BUTTON);
+	    HiliteControl(mcs->defbutton->button.tbctrl, kControlButtonPart);
+	    /*
+	     * I'd like to delay unhilighting the button until after
+	     * the event has been processed, but by them the entire
+	     * dialgue box might have been destroyed.
+	     */
+	    Delay(6, &dummy);
+	    HiliteControl(mcs->defbutton->button.tbctrl, kControlNoPart);
+	    ctrlevent(mcs, mcs->defbutton, EVENT_ACTION);
+	}
+	return;
+      case kEscapeCharCode:
+	if (mcs->canbutton != NULL) {
+	    assert(mcs->canbutton->generic.type == MACCTRL_BUTTON);
+	    HiliteControl(mcs->canbutton->button.tbctrl, kControlButtonPart);
+	    Delay(6, &dummy);
+	    HiliteControl(mcs->defbutton->button.tbctrl, kControlNoPart);
+	    ctrlevent(mcs, mcs->canbutton, EVENT_ACTION);
+	}
+	return;
+    }
     if (mac_gestalts.apprvers >= 0x100) {
 	if (GetKeyboardFocus(window, &control) == noErr && control != NULL) {
 	    HandleControlKey(control, (event->message & keyCodeMask) >> 8,
