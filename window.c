@@ -1665,7 +1665,8 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
  * have one.)
  */
 void sys_cursor(int x, int y) {
-    SetCaretPos(x * font_width, y * font_height);
+    if (has_focus)
+	SetCaretPos(x * font_width, y * font_height);
 }
 
 /*
