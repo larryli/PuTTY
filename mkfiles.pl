@@ -588,10 +588,10 @@ END
 print $_;
 print <<END;
 
-COptions     = -i : -i ::
+# -w 53 disables "unused parameter" warnings
+COptions     = -i : -i :: -w 35
 COptions_68K = {COptions} -proto strict -model far
-# disable "unused parameter" warnings
-COptions_PPC = {COptions} -w 35
+COptions_PPC = {COptions}
 ILinkOptions = -t 'APPL' -c 'pTTY' -br 68k -model far
 
 Libs_68K =	 "{CLibraries}StdCLib.o" \xb6
