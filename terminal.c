@@ -5,6 +5,35 @@
 
 #include "putty.h"
 
+#define CL_ANSIMIN	0x0001	/* Everybody has these even MSDOS */
+#define CL_VT100	0x0002	/* VT100 */
+#define CL_VT100AVO	0x0004	/* VT100 +AVO; 132x24 (not 132x14) & attrs */
+#define CL_VT102	0x0008	/* VT102 */
+#define CL_VT220	0x0010	/* VT220 */
+#define CL_VT320	0x0020	/* VT320 */
+#define CL_VT420	0x0040	/* VT420 */
+#define CL_VT510	0x0080	/* VT510, NB VT510 includes ANSI */
+#define CL_VT340TEXT	0x0100	/* VT340 extensions that appear in the VT420 */
+#define CL_ANSI		0x1000	/* ANSI ECMA-48 not in the VT100..VT420 */
+#define CL_OTHER	0x2000	/* Others, Xterm, linux, putty, dunno, etc */
+
+#define TM_ANSIMIN	(CL_ANSIMIN)
+#define TM_VT100	(CL_ANSIMIN+CL_VT100)
+#define TM_VT100AVO	(TM_VT100+CL_VT100AVO)
+#define TM_VT102	(TM_VT100AVO+CL_VT102)
+#define TM_PUTTY	(-1)
+
+#define compatibility(x) \
+    if ( ((CL_##x)&compatibility_level) == 0 ) { 	\
+       termstate=TOPLEVEL;				\
+       break;						\
+    }
+
+#define has_compat(x) ( ((CL_##x)&compatibility_level) != 0 )
+
+static int compatibility_level = TM_PUTTY;
+
+
 static unsigned long *text;	       /* buffer of text on terminal screen */
 static unsigned long *scrtop;	       /* top of working screen */
 static unsigned long *disptop;	       /* top of displayed screen */
@@ -20,6 +49,7 @@ static unsigned char *selspace;	       /* buffer for building selections in */
 #define fix_cpos  do { cpos = scrtop + curs_y * (cols+1) + curs_x; } while(0)
 
 static unsigned long curr_attr, save_attr;
+static unsigned long erase_char = ERASE_CHAR;
 
 static int curs_x, curs_y;	       /* cursor */
 static int save_x, save_y;	       /* saved cursor position */
@@ -30,6 +60,11 @@ static int insert;		       /* insert-mode flag */
 static int cset;		       /* 0 or 1: which char set */
 static int save_cset, save_csattr;     /* saved with cursor position */
 static int rvideo;		       /* global reverse video flag */
+static int cursor_on;		       /* cursor enabled flag */
+static int reset_132;		       /* Flag ESC c resets to 80 cols */
+static int use_bce;		       /* Use Background coloured erase */
+static int blinker;		       /* When blinking is the cursor on ? */
+static int vt52_mode;		       /* Is VT100+ in vt52 mode ? */
 
 static unsigned long cset_attr[2];
 
@@ -56,11 +91,6 @@ static int osc_w;
 
 static unsigned char *tabs;
 
-#define MAXNL 5
-static int nl_count;
-
-static int scroll_heuristic;
-
 static enum {
     TOPLEVEL,
     SEEN_ESC,
@@ -74,7 +104,10 @@ static enum {
     SET_GL, SET_GR,
     SEEN_OSC_P,
     OSC_STRING, OSC_MAYBE_ST,
-    SEEN_ESCHASH
+    SEEN_ESCHASH,
+    VT52_ESC,
+    VT52_Y1,
+    VT52_Y2
 } termstate;
 
 static enum {
@@ -128,9 +161,12 @@ static void power_on(void) {
     alt_cset = cset = 0;
     cset_attr[0] = cset_attr[1] = ATTR_ASCII;
     rvideo = 0;
+    cursor_on = 1;
     save_attr = curr_attr = ATTR_DEFAULT;
     app_cursor_keys = cfg.app_cursor;
     app_keypad_keys = cfg.app_keypad;
+    use_bce = 0;
+    erase_char = ERASE_CHAR;
     alt_which = 0;
     {
 	int i;
@@ -159,8 +195,6 @@ void term_update(void) {
 	}
 	do_paint (ctx, TRUE);
 	free_ctx (ctx);
-	nl_count = 0;
-	scroll_heuristic = 0;
     }
 }
 
@@ -193,7 +227,6 @@ void term_init(void) {
     selspace = NULL;
     deselect();
     rows = cols = -1;
-    nl_count = 0;
     power_on();
 }
 
@@ -255,7 +288,7 @@ void term_size(int newrows, int newcols, int newsavelines) {
 
     newalt = smalloc (newrows*(newcols+1)*TSIZE);
     for (i=0; i<newrows*(newcols+1); i++)
-	newalt[i] = ERASE_CHAR;
+	newalt[i] = erase_char;
     sfree (alttext);
     alttext = newalt;
 
@@ -389,7 +422,7 @@ static void scroll (int topline, int botline, int lines, int sb) {
 	if (scroll_size)
 	    memmove (scroll_top, scroll_top + size, scroll_size*TSIZE);
 	for (i = 0; i < size; i++)
-	    scroll_top[i+scroll_size] = ERASE_CHAR;
+	    scroll_top[i+scroll_size] = erase_char;
 	if (selstart > scroll_top &&
 	    selstart < scroll_top + size + scroll_size) {
 	    selstart -= size;
@@ -406,7 +439,7 @@ static void scroll (int topline, int botline, int lines, int sb) {
 	if (scroll_size)
 	    memmove (scroll_top + size, scroll_top, scroll_size*TSIZE);
 	for (i = 0; i < size; i++)
-	    scroll_top[i] = ERASE_CHAR;
+	    scroll_top[i] = erase_char;
 	if (selstart > scroll_top &&
 	    selstart < scroll_top + size + scroll_size) {
 	    selstart += size;
@@ -420,8 +453,6 @@ static void scroll (int topline, int botline, int lines, int sb) {
 		selend = scroll_top + size + scroll_size;
 	}
     }
-
-    scroll_heuristic += lines;
 }
 
 /*
@@ -468,6 +499,7 @@ static void save_cursor(int save) {
 	cset = save_cset;
 	cset_attr[cset] = save_csattr;
 	fix_cpos;
+        if (use_bce) erase_char = (' ' |(curr_attr&(ATTR_FGMASK|ATTR_BGMASK)));
     }
 }
 
@@ -488,10 +520,15 @@ static void erase_lots (int line_only, int from_begin, int to_end) {
     if (!from_begin)
 	startpos = cpos;
     if (!to_end)
-	endpos = cpos;
+	endpos = cpos+1;
     check_selection (startpos, endpos);
+
+    /* Clear screen also forces a full window redraw, just in case. */
+    if (startpos == scrtop && endpos == scrtop + rows * (cols+1))
+       term_invalidate();
+
     while (startpos < endpos)
-	*startpos++ = ERASE_CHAR;
+	*startpos++ = erase_char;
 }
 
 /*
@@ -510,11 +547,11 @@ static void insch (int n) {
     if (dir < 0) {
 	memmove (cpos, cpos+n, m*TSIZE);
 	while (n--)
-	    cpos[m++] = ERASE_CHAR;
+	    cpos[m++] = erase_char;
     } else {
 	memmove (cpos+n, cpos, m*TSIZE);
 	while (n--)
-	    cpos[n] = ERASE_CHAR;
+	    cpos[n] = erase_char;
     }
 }
 
@@ -527,13 +564,18 @@ static void toggle_mode (int mode, int query, int state) {
       case 1:			       /* application cursor keys */
 	app_cursor_keys = state;
 	break;
+      case 2:			       /* VT52 mode */
+	vt52_mode = !state;
+	break;
       case 3:			       /* 80/132 columns */
 	deselect();
-	request_resize (state ? 132 : 80, rows);
+	request_resize (state ? 132 : 80, rows, 1);
+	reset_132 = state;
 	break;
       case 5:			       /* reverse video */
 	rvideo = state;
 	seen_disp_event = TRUE;
+	if (state) term_update();
 	break;
       case 6:			       /* DEC origin mode */
 	dec_om = state;
@@ -541,14 +583,33 @@ static void toggle_mode (int mode, int query, int state) {
       case 7:			       /* auto wrap */
 	wrap = state;
 	break;
+      case 25:			       /* enable/disable cursor */
+	compatibility(VT220);
+	cursor_on = state;
+	seen_disp_event = TRUE;
+	break;
       case 47:			       /* alternate screen */
+	compatibility(OTHER);
 	deselect();
 	swap_screen (state);
 	disptop = scrtop;
 	break;
     } else switch (mode) {
       case 4:			       /* set insert mode */
+	compatibility(VT102);
 	insert = state;
+	break;
+      case 12:			       /* set echo mode */
+	/* 
+	 * This may be very good in smcup and rmcup (or smkx & rmkx) if you
+	 * have a long RTT and the telnet client/daemon doesn't understand
+	 * linemode.
+	 *
+	 * DONT send TS_RECHO/TS_LECHO; the telnet daemon tries to fix the
+	 * tty and _really_ confuses some programs.
+	 */
+	compatibility(VT220);
+        ldisc = (state? &ldisc_simple : &ldisc_term);
 	break;
     }
 }
@@ -595,10 +656,24 @@ void term_out(void) {
 	    if (!fp) fp = fopen(logfile, "wb");
 	    if (fp) fputc (c, fp);
 	}
-	if( termstate < DO_CTRLS && (c&0x60) == 0 ) {
+	/* Note only VT220+ are 8-bit VT102 is seven bit, it shouldn't even
+	 * be able to display 8-bit characters, but I'll let that go 'cause
+	 * of i18n.
+	 */
+	if( (c&0x60) == 0 && termstate < DO_CTRLS &&
+	    ( (c&0x80) == 0 || has_compat(VT220))) {
 	    switch (c) {
 	      case '\005':	       /* terminal type query */
-		ldisc->send ("PuTTY\r", 6);
+		/* Strictly speaking this is VT100 but a VT100 defaults to
+		 * no response. Other terminals respond at their option.
+		 *
+		 * Don't put a CR in the default string as this tends to
+		 * upset some weird software.
+		 *
+		 * An xterm returns "xterm" (5 characters)
+		 */
+	        compatibility(OTHER);
+		ldisc->send ("PuTTY", 5);
 		break;
 	      case '\007':
 		beep();
@@ -615,21 +690,30 @@ void term_out(void) {
 		seen_disp_event = TRUE;
 		break;
 	      case '\016':
+	        compatibility(VT100);
 		cset = 1;
 		break;
 	      case '\017':
+	        compatibility(VT100);
 		cset = 0;
 		break;
 	      case '\033':
-		termstate = SEEN_ESC;
+		if (vt52_mode) 
+		   termstate = VT52_ESC;
+		else {
+		    compatibility(ANSIMIN);
+		    termstate = SEEN_ESC;
+		}
 		break;
 	      case 0233:
+	        compatibility(VT220);
 		termstate = SEEN_CSI;
 		esc_nargs = 1;
 		esc_args[0] = ARG_DEFAULT;
 		esc_query = FALSE;
 		break;
 	      case 0235:
+	        compatibility(VT220);
 		termstate = SEEN_OSC;
 		esc_args[0] = 0;
 		break;
@@ -641,6 +725,7 @@ void term_out(void) {
 		break;
 	      case '\013':
 	      case '\014':
+	        compatibility(VT100);
 	      case '\n':
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
@@ -651,7 +736,6 @@ void term_out(void) {
 		fix_cpos;
 		wrapnext = FALSE;
 		seen_disp_event = 1;
-		nl_count++;
 		break;
 	      case '\t':
 		do {
@@ -680,13 +764,28 @@ void term_out(void) {
 		curs_x = 0;
 		fix_cpos;
 		wrapnext = FALSE;
-		nl_count++;
 	    }
 	    if (insert)
 		insch (1);
-	    check_selection (cpos, cpos+1);
-	    *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
-		(c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
+	    if (selstate != NO_SELECTION)
+	        check_selection (cpos, cpos+1);
+	    switch (cset_attr[cset]) {
+		/* Linedraw characters are different from 'ESC ( B' only 
+		 * for a small range, for ones outside that range make sure 
+		 * we use the same font as well as the same encoding.
+		 */
+	    case ATTR_LINEDRW:
+		if (c<0x60 || c>0x7F)
+	            *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
+		              ATTR_ASCII;
+		else
+	            *cpos++ = ((unsigned char)c) | curr_attr | ATTR_LINEDRW;
+		break;
+	    default:
+	        *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
+		    (c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
+		break;
+	    }
 	    curs_x++;
 	    if (curs_x == cols) {
 		cpos--;
@@ -715,6 +814,7 @@ void term_out(void) {
 	    termstate = TOPLEVEL;
 	    switch (c) {
 	      case ' ':		       /* some weird sequence? */
+	        compatibility(VT220);
 		termstate = IGNORE_NEXT;
 		break;
 	      case '[':		       /* enter CSI mode */
@@ -724,29 +824,38 @@ void term_out(void) {
 		esc_query = FALSE;
 		break;
 	      case ']':		       /* xterm escape sequences */
+		/* Compatibility is nasty here, xterm, linux, decterm yuk! */
+	        compatibility(OTHER);
 		termstate = SEEN_OSC;
 		esc_args[0] = 0;
 		break;
 	      case '(':		       /* should set GL */
+	        compatibility(VT100);
 		termstate = SET_GL;
 		break;
 	      case ')':		       /* should set GR */
+	        compatibility(VT100);
 		termstate = SET_GR;
 		break;
 	      case '7':		       /* save cursor */
+	        compatibility(VT100);
 		save_cursor (TRUE);
 		break;
 	      case '8':		       /* restore cursor */
+	        compatibility(VT100);
 		save_cursor (FALSE);
 		seen_disp_event = TRUE;
 		break;
 	      case '=':
+	        compatibility(VT100);
 		app_keypad_keys = TRUE;
 		break;
 	      case '>':
+	        compatibility(VT100);
 		app_keypad_keys = FALSE;
 		break;
 	      case 'D':		       /* exactly equivalent to LF */
+	        compatibility(VT100);
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
@@ -754,9 +863,9 @@ void term_out(void) {
 		fix_cpos;
 		wrapnext = FALSE;
 		seen_disp_event = TRUE;
-		nl_count++;
 		break;
 	      case 'E':		       /* exactly equivalent to CR-LF */
+	        compatibility(VT100);
 		curs_x = 0;
 		wrapnext = FALSE;
 		if (curs_y == marg_b)
@@ -765,10 +874,10 @@ void term_out(void) {
 		    curs_y++;
 		fix_cpos;
 		wrapnext = FALSE;
-		nl_count++;
 		seen_disp_event = TRUE;
 		break;
 	      case 'M':		       /* reverse index - backwards LF */
+	        compatibility(VT100);
 		if (curs_y == marg_t)
 		    scroll (marg_t, marg_b, -1, TRUE);
 		else if (curs_y > 0)
@@ -778,18 +887,26 @@ void term_out(void) {
 		seen_disp_event = TRUE;
 		break;
 	      case 'Z':		       /* terminal type query */
+	        compatibility(VT100);
 		ldisc->send ("\033[?6c", 5);
 		break;
 	      case 'c':		       /* restore power-on settings */
+	        compatibility(VT100);
 		power_on();
+		if (reset_132) {
+	            request_resize (80, rows, 1);
+		    reset_132 = 0;
+		}
 		fix_cpos;
 		disptop = scrtop;
 		seen_disp_event = TRUE;
 		break;
 	      case '#':		       /* ESC # 8 fills screen with Es :-) */
+	        compatibility(VT100);
 		termstate = SEEN_ESCHASH;
 		break;
 	      case 'H':		       /* set a tab */
+	        compatibility(VT100);
 		tabs[curs_x] = TRUE;
 		break;
 	    }
@@ -824,11 +941,15 @@ void term_out(void) {
 		move (curs_x, curs_y - def(esc_args[0], 1), 1);
 		seen_disp_event = TRUE;
 		break;
-	      case 'B': case 'e':      /* move down N lines */
+	      case 'e':      /* move down N lines */
+	        compatibility(ANSI);
+	      case 'B':
 		move (curs_x, curs_y + def(esc_args[0], 1), 1);
 		seen_disp_event = TRUE;
 		break;
-	      case 'C': case 'a':      /* move right N cols */
+	      case 'a':      /* move right N cols */
+	        compatibility(ANSI);
+	      case 'C':
 		move (curs_x + def(esc_args[0], 1), curs_y, 1);
 		seen_disp_event = TRUE;
 		break;
@@ -837,18 +958,22 @@ void term_out(void) {
 		seen_disp_event = TRUE;
 		break;
 	      case 'E':		       /* move down N lines and CR */
+	        compatibility(ANSI);
 		move (0, curs_y + def(esc_args[0], 1), 1);
 		seen_disp_event = TRUE;
 		break;
 	      case 'F':		       /* move up N lines and CR */
+	        compatibility(ANSI);
 		move (0, curs_y - def(esc_args[0], 1), 1);
 		seen_disp_event = TRUE;
 		break;
 	      case 'G': case '`':      /* set horizontal posn */
+	        compatibility(ANSI);
 		move (def(esc_args[0], 1) - 1, curs_y, 0);
 		seen_disp_event = TRUE;
 		break;
 	      case 'd':		       /* set vertical posn */
+	        compatibility(ANSI);
 		move (curs_x, (dec_om ? marg_t : 0) + def(esc_args[0], 1) - 1,
 		      (dec_om ? 2 : 0));
 		seen_disp_event = TRUE;
@@ -881,42 +1006,67 @@ void term_out(void) {
 		seen_disp_event = TRUE;
 		break;
 	      case 'L':		       /* insert lines */
+	        compatibility(VT102);
 		if (curs_y <= marg_b)
 		    scroll (curs_y, marg_b, -def(esc_args[0], 1), FALSE);
 		seen_disp_event = TRUE;
 		break;
 	      case 'M':		       /* delete lines */
+	        compatibility(VT102);
 		if (curs_y <= marg_b)
 		    scroll (curs_y, marg_b, def(esc_args[0], 1), TRUE);
 		seen_disp_event = TRUE;
 		break;
 	      case '@':		       /* insert chars */
+		/* XXX VTTEST says this is vt220, vt510 manual says vt102 */
+	        compatibility(VT102);	
 		insch (def(esc_args[0], 1));
 		seen_disp_event = TRUE;
 		break;
 	      case 'P':		       /* delete chars */
+	        compatibility(VT102);	
 		insch (-def(esc_args[0], 1));
 		seen_disp_event = TRUE;
 		break;
 	      case 'c':		       /* terminal type query */
+	        compatibility(VT100);
+		/* This is the response for a VT102 */
 		ldisc->send ("\033[?6c", 5);
 		break;
 	      case 'n':		       /* cursor position query */
 		if (esc_args[0] == 6) {
+		    /* Wonder of wonders ANSI.SYS has this!! */
 		    char buf[32];
 		    sprintf (buf, "\033[%d;%dR", curs_y + 1, curs_x + 1);
 		    ldisc->send (buf, strlen(buf));
 		}
+		else if (esc_args[0] == 5) {
+		    /* Are we working ... well I suppose so :-) */
+		    /* But ANSI.SYS doesn't say it's working :-) :-) */
+	            compatibility(VT100);
+		    ldisc->send ("\033[0n", 4);
+		}
 		break;
-	      case 'h':		       /* toggle a mode to high */
+	      case 'h':		       /* toggle modes to high */
 	      case ANSI_QUE('h'):
-		toggle_mode (esc_args[0], esc_query, TRUE);
+	        compatibility(VT100);
+		{
+		    int i;
+		    for (i=0; i<esc_nargs; i++)
+		        toggle_mode (esc_args[i], esc_query, TRUE);
+		}
 		break;
-	      case 'l':		       /* toggle a mode to low */
+	      case 'l':		       /* toggle modes to low */
 	      case ANSI_QUE('l'):
-		toggle_mode (esc_args[0], esc_query, FALSE);
+	        compatibility(VT100);
+		{
+		    int i;
+		    for (i=0; i<esc_nargs; i++)
+		        toggle_mode (esc_args[i], esc_query, FALSE);
+		}
 		break;
 	      case 'g':		       /* clear tabs */
+		compatibility(VT100);
 		if (esc_nargs == 1) {
 		    if (esc_args[0] == 0) {
 			tabs[curs_x] = FALSE;
@@ -928,13 +1078,20 @@ void term_out(void) {
 		}
 		break;
 	      case 'r':		       /* set scroll margins */
+		compatibility(VT100);
 		if (esc_nargs <= 2) {
 		    int top, bot;
-		    top = def(esc_args[0], 1) - 1;
-		    if (top < 0)
-			top = 0;
-		    bot = (esc_nargs <= 1 || esc_args[1] == 0 ? rows :
-			   def(esc_args[1], rows)) - 1;
+		    /* VTTEST Bug 9 if the first arg is default _or_ zero
+		     * this is a full screen region irrespective of 2nd arg.
+		     */
+		    if (esc_args[0] <= 0) {
+		       top=0;
+		       bot=rows-1;
+		    } else {
+		       top = def(esc_args[0], 1) - 1;
+		       bot = (esc_nargs <= 1 || esc_args[1] == 0 ? rows :
+			      def(esc_args[1], rows)) - 1;
+		    }
 		    if (bot >= rows)
 			bot = rows-1;
 		    if (top <= bot) {
@@ -946,8 +1103,10 @@ void term_out(void) {
 			 * placed at the top of the newly marginned
 			 * area. Apparently not: VMS TPU falls over
 			 * if so.
+			 *
+			 * Well actually it should for Origin mode - RDB
 			 */
-			curs_y = 0;
+			curs_y = (dec_om ? marg_t : 0);
 			fix_cpos;
 			seen_disp_event = TRUE;
 		    }
@@ -955,23 +1114,58 @@ void term_out(void) {
 		break;
 	      case 'm':		       /* set graphics rendition */
 		{
+		    /* 
+		     * A VT100 without the AVO only had one attribute, either
+		     * underline or reverse video depending on the cursor type,
+		     * this was selected by CSI 7m.
+		     *
+		     * case 2:
+		     *  This is DIM on the VT100-AVO and VT102
+		     * case 5:
+		     *  This is BLINK on the VT100-AVO and VT102+
+		     * case 8:
+		     *  This is INVIS on the VT100-AVO and VT102
+		     * case 21:
+		     *  This like 22 disables BOLD, DIM and INVIS
+		     *
+		     * The ANSI colours appear on any terminal that has colour
+		     * (obviously) but the interaction between sgr0 and the
+		     * colours varies but is usually related to the background
+		     * colour erase item.
+		     * The interaction between colour attributes and the mono
+		     * ones is also very implementation dependent.
+		     *
+		     * The 39 and 49 attributes are likely to be unimplemented.
+		     */
 		    int i;
 		    for (i=0; i<esc_nargs; i++) {
 			switch (def(esc_args[i], 0)) {
 			  case 0:      /* restore defaults */
 			    curr_attr = ATTR_DEFAULT; break;
 			  case 1:      /* enable bold */
+			    compatibility(VT100AVO);
 			    curr_attr |= ATTR_BOLD; break;
-			  case 4:      /* enable underline */
 			  case 21:     /* (enable double underline) */
+			    compatibility(OTHER);
+			  case 4:      /* enable underline */
+			    compatibility(VT100AVO);
 			    curr_attr |= ATTR_UNDER; break;
+			  case 5:      /* enable blink */
+			    compatibility(VT100AVO);
+			    curr_attr |= ATTR_BLINK; break;
 			  case 7:      /* enable reverse video */
 			    curr_attr |= ATTR_REVERSE; break;
 			  case 22:     /* disable bold */
+			    compatibility(VT220);
 			    curr_attr &= ~ATTR_BOLD; break;
 			  case 24:     /* disable underline */
+			    compatibility(VT220);
 			    curr_attr &= ~ATTR_UNDER; break;
+			  case 25:     /* disable blink */
+			    compatibility(VT220);
+			    curr_attr &= ~ATTR_BLINK; break;
 			  case 27:     /* disable reverse video */
+			    compatibility(VT220);
 			    curr_attr &= ~ATTR_REVERSE; break;
 			  case 30: case 31: case 32: case 33:
 			  case 34: case 35: case 36: case 37:
@@ -995,6 +1189,8 @@ void term_out(void) {
 			    break;
 			}
 		    }
+		    if (use_bce) 
+		       erase_char = (' '|(curr_attr&(ATTR_FGMASK|ATTR_BGMASK)));
 		}
 		break;
 	      case 's':		       /* save cursor */
@@ -1005,10 +1201,44 @@ void term_out(void) {
 		seen_disp_event = TRUE;
 		break;
 	      case 't':		       /* set page size - ie window height */
-		request_resize (cols, def(esc_args[0], 24));
-		deselect();
+		/*
+		 * VT340/VT420 sequence DECSLPP, DEC only allows values
+		 *  24/25/36/48/72/144 other emulators (eg dtterm) use
+		 * illegal values (eg first arg 1..9) for window changing 
+		 * and reports.
+		 */
+		compatibility(VT340TEXT);
+		if (esc_nargs<=1 && (esc_args[0]<1 || esc_args[0]>=24)) {
+		    request_resize (cols, def(esc_args[0], 24), 0);
+		    deselect();
+		}
+		break;
+	      case ANSI('|', '*'):
+		/* VT420 sequence DECSNLS
+		 * Set number of lines on screen
+		 * VT420 uses VGA like hardware and can support any size in
+		 * reasonable range (24..49 AIUI) with no default specified.
+		 */
+		compatibility(VT420);
+		if (esc_nargs==1 && esc_args[0]>=24) {
+		    request_resize (cols, def(esc_args[0], cfg.height), 0);
+		    deselect();
+		}
+		break;
+	      case ANSI('|', '$'):
+		/* VT340/VT420 sequence DECSCPP
+		 * Set number of columns per page
+		 * Docs imply range is only 80 or 132, but I'll allow any.
+		 */
+		compatibility(VT340TEXT);
+		if (esc_nargs<=1) {
+		    request_resize (cols, def(esc_args[0], cfg.width), 0);
+		    deselect();
+		}
 		break;
 	      case 'X':		       /* write N spaces w/o moving cursor */
+		/* XXX VTTEST says this is vt220, vt510 manual says vt100 */
+		compatibility(VT100);
 		{
 		    int n = def(esc_args[0], 1);
 		    unsigned long *p = cpos;
@@ -1016,11 +1246,12 @@ void term_out(void) {
 			n = cols - curs_x;
 		    check_selection (cpos, cpos+n);
 		    while (n--)
-			*p++ = ERASE_CHAR;
+			*p++ = erase_char;
 		    seen_disp_event = TRUE;
 		}
 		break;
 	      case 'x':		       /* report terminal characteristics */
+		compatibility(VT100);
 		{
 		    char buf[32];
 		    int i = def(esc_args[0], 0);
@@ -1031,10 +1262,38 @@ void term_out(void) {
 		    }
 		}
 		break;
+	      case ANSI('L','='):
+		compatibility(OTHER);
+		use_bce = (esc_args[0]<=0);
+		erase_char = ERASE_CHAR;
+		if (use_bce)
+		    erase_char = (' '|(curr_attr&(ATTR_FGMASK|ATTR_BGMASK)));
+		break;
+	      case ANSI('p','"'):
+		/* Allow the host to make this emulator a 'perfect' VT102.
+		 * This first appeared in the VT220, but we do need to get 
+		 * back to PuTTY mode so I won't check it.
+		 *
+		 * The arg == 60 is a PuTTY extension.
+		 * The 2nd arg, 8bit vs 7bit is not obeyed.
+		 *
+		 * Setting VT102 mode should also change the Fkeys to
+		 * generate PF* codes as a real VT102 has no Fkeys.
+		 * The VT220 does this, F11..F13 become ESC,BS,LF other Fkeys
+		 * send nothing.
+		 *
+		 * Note ESC c will NOT change this!
+		 */
+
+		if (esc_args[0] == 61)      compatibility_level = TM_VT102;
+		else if (esc_args[0] == 60) compatibility_level = TM_ANSIMIN;
+		else                        compatibility_level = TM_PUTTY;
+		break;
 	    }
 	    break;
 	  case SET_GL:
 	  case SET_GR:
+	    /* VT100 only here, checked above */
 	    switch (c) {
 	      case 'A':
 		cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_GBCHR;
@@ -1042,11 +1301,12 @@ void term_out(void) {
 	      case '0':
 		cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_LINEDRW;
 		break;
+	      case 'B':
 	      default:		       /* specifically, 'B' */
 		cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_ASCII;
 		break;
 	    }
-	    if( c != '%' )
+	    if( !has_compat(VT220) || c != '%' )
 	        termstate = TOPLEVEL;
 	    break;
 	  case SEEN_OSC:
@@ -1158,12 +1418,97 @@ void term_out(void) {
 	    }
 	    termstate = TOPLEVEL;
 	    break;
+	  case VT52_ESC:
+	    termstate = TOPLEVEL;
+	    seen_disp_event = TRUE;
+	    switch (c) {
+	      case 'A':
+		move (curs_x, curs_y - 1, 1);
+		break;
+	      case 'B':
+		move (curs_x, curs_y + 1, 1);
+		break;
+	      case 'C':
+		move (curs_x + 1, curs_y, 1);
+		break;
+	      case 'D':
+		move (curs_x - 1, curs_y, 1);
+		break;
+	      case 'F':
+		cset_attr[cset=0] = ATTR_LINEDRW;
+		break;
+	      case 'G':
+		cset_attr[cset=0] = ATTR_ASCII;
+		break;
+	      case 'H':
+		move (0, 0, 0);
+		break;
+	      case 'I':
+		if (curs_y == 0)
+		    scroll (0, rows-1, -1, TRUE);
+		else if (curs_y > 0)
+		    curs_y--;
+		fix_cpos;
+		wrapnext = FALSE;
+		break;
+	      case 'J':
+		erase_lots(FALSE, FALSE, TRUE);
+		disptop = scrtop;
+		break;
+	      case 'K':
+		erase_lots(TRUE, FALSE, TRUE);
+		break;
+	      case 'V':
+		/* XXX Print cursor line */
+		break;
+	      case 'W':
+		/* XXX Start controller mode */
+		break;
+	      case 'X':
+		/* XXX Stop controller mode */
+		break;
+	      case 'Y':
+	        termstate = VT52_Y1;
+		break;
+	      case 'Z':
+		ldisc->send ("\033/Z", 3);
+		break;
+	      case '=':
+	        app_cursor_keys = TRUE;
+		break;
+	      case '>':
+	        app_cursor_keys = FALSE;
+		break;
+	      case '<':
+		/* XXX This should switch to VT100 mode not current or default
+		 *     VT mode. But this will only have effect in a VT220+
+		 *     emulation.
+		 */
+	        vt52_mode = FALSE;
+		break;
+	      case '^':
+		/* XXX Enter auto print mode */
+		break;
+	      case '_':
+		/* XXX Exit auto print mode */
+		break;
+	      case ']':
+		/* XXX Print screen */
+		break;
+	    }
+	    break;
+	  case VT52_Y1:
+	    termstate = VT52_Y2;
+	    move(curs_x, c-' ', 0);
+	    break;
+	  case VT52_Y2:
+	    termstate = TOPLEVEL;
+	    move(c-' ', curs_y, 0);
+	    break;
 	}
-	check_selection (cpos, cpos+1);
+	if (selstate != NO_SELECTION)
+	    check_selection (cpos, cpos+1);
     }
-	
-    if (nl_count > MAXNL)
-	term_update();
 }
 
 /*
@@ -1188,7 +1533,15 @@ static void do_paint (Context ctx, int may_optimise){
     unsigned long attr, rv, cursor;
     char ch[1024];
 
-    cursor = (has_focus ? ATTR_ACTCURS : ATTR_PASCURS);
+    if (cursor_on) {
+        if (has_focus) {
+	    if (blinker) cursor = ATTR_ACTCURS;
+	    else         cursor = 0;
+        }
+        else
+            cursor = ATTR_PASCURS;
+    }
+    else           cursor = 0;
     rv = (rvideo ? ATTR_REVERSE : 0);
     our_curs_y = curs_y + (scrtop - disptop) / (cols+1);
 
@@ -1236,6 +1589,31 @@ static void do_paint (Context ctx, int may_optimise){
 }
 
 /*
+ * Flick the switch that says if blinking things should be shown or hidden.
+ */
+
+void term_blink(int flg) {
+static long last_blink = 0;
+    long now, blink_diff;
+
+    if (flg) {
+        blinker = 1;
+        last_blink = GetTickCount();
+	return;
+    } 
+    now = GetTickCount();
+
+    blink_diff = now-last_blink;
+
+    /* Make sure the cursor blinks no more than 2Hz */
+    if (blink_diff>=0 && blink_diff<450)
+       return;
+ 
+    last_blink = now;
+    blinker = !blinker;
+}
+
+/*
  * Invalidate the whole screen so it will be repainted in full.
  */
 void term_invalidate(void) {
@@ -1259,7 +1637,11 @@ void term_paint (Context ctx, int l, int t, int r, int b) {
       for (j = left; j <= right && j < cols ; j++)
 	    disptext[i*(cols+1)+j] = ATTR_INVALID;
 
+    /* This should happen soon enough, also for some reason it sometimes 
+     * fails to actually do anything when re-sizing ... painting the wrong
+     * window perhaps ?
     do_paint (ctx, FALSE);
+    */
 }
 
 /*

@@ -28,6 +28,7 @@ GLOBAL HINSTANCE putty_inst;
 #define ATTR_BOLD    0x00000100UL
 #define ATTR_UNDER   0x00000200UL
 #define ATTR_REVERSE 0x00000400UL
+#define ATTR_BLINK   0x00000800UL
 #define ATTR_FGMASK  0x0000F000UL
 #define ATTR_BGMASK  0x000F0000UL
 #define ATTR_FGSHIFT 12
@@ -75,7 +76,13 @@ GLOBAL Unscroll_Trigger unscroll_event;
 
 GLOBAL char *logfile;
 
-#define WM_NETEVENT  (WM_USER + 1)
+/*
+ * I've just looked in the windows standard headr files for WM_USER, there
+ * are hundreds of flags defined using the form WM_USER+123 so I've 
+ * renumbered this NETEVENT value and the two in window.c
+ */
+#define WM_XUSER     (WM_USER + 0x2000)
+#define WM_NETEVENT  (WM_XUSER + 5)
 
 typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
@@ -188,7 +195,7 @@ struct RSAKey;			       /* be a little careful of scope */
 /*
  * Exports from window.c.
  */
-void request_resize (int, int);
+void request_resize (int, int, int);
 void do_text (Context, int, int, char *, int, unsigned long);
 void set_title (char *);
 void set_icon (char *);
@@ -242,6 +249,7 @@ void term_mouse (Mouse_Button, Mouse_Action, int, int);
 void term_deselect (void);
 void term_update (void);
 void term_invalidate(void);
+void term_blink(int set_cursor);
 
 /*
  * Exports from raw.c.
