@@ -325,7 +325,7 @@ static void setupbigedit1(HWND hwnd, int id, struct RSAKey *key) {
 static void setupbigedit2(HWND hwnd, int id, struct ssh2_userkey *key) {
     unsigned char *pub_blob;
     char *buffer, *p;
-    int pub_len, buflen;
+    int pub_len;
     int i;
 
     pub_blob = key->alg->public_blob(key->data, &pub_len);
