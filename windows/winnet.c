@@ -572,10 +572,18 @@ int sk_address_is_local(SockAddr addr)
     } else
 #endif
     if (addr->family == AF_INET) {
-	struct in_addr a;
-	assert(addr->addresses && addr->curraddr < addr->naddresses);
-	a.s_addr = p_htonl(addr->addresses[addr->curraddr]);
-	return ipv4_is_local_addr(a);
+#ifndef NO_IPV6
+	if (addr->ai) {
+	    return ipv4_is_local_addr(((struct sockaddr_in *)addr->ai->ai_addr)
+				      ->sin_addr);
+	} else
+#endif
+	{
+	    struct in_addr a;
+	    assert(addr->addresses && addr->curraddr < addr->naddresses);
+	    a.s_addr = p_htonl(addr->addresses[addr->curraddr]);
+	    return ipv4_is_local_addr(a);
+	}
     } else {
 	assert(addr->family == AF_UNSPEC);
 	return 0;		       /* we don't know; assume not */
