@@ -377,7 +377,7 @@ static void bump(char *fmt, ...)
     strcat(str, "\n");
     tell_str(stderr, str);
 
-    if (back->socket() != NULL) {
+    if (back != NULL && back->socket() != NULL) {
 	char ch;
 	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
@@ -1209,6 +1209,7 @@ int main(int argc, char *argv[])
     }
     argc -= i;
     argv += i;
+    back = NULL;
 
     if (list) {
 	if (argc != 1)
@@ -1228,7 +1229,7 @@ int main(int argc, char *argv[])
 	    tolocal(argc, argv);
     }
 
-    if (back->socket() != NULL) {
+    if (back != NULL && back->socket() != NULL) {
 	char ch;
 	back->special(TS_EOF);
 	ssh_scp_recv(&ch, 1);
