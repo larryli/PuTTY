@@ -113,6 +113,7 @@ static void mac_config(int midsession)
     else
         str = dupprintf("%s Configuration", appname);
     c2pstrcpy(mactitle, str);
+    sfree(str);
     SetWTitle(s->settings_window, mactitle);
     ShowWindow(s->settings_window);
 }
