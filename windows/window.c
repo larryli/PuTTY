@@ -1860,7 +1860,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if (!cfg.warn_on_close || session_closed ||
 		MessageBox(hwnd,
 			   "Are you sure you want to close this session?",
-			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON2)
+			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
 		== IDOK)
 		DestroyWindow(hwnd);
 	    sfree(str);
