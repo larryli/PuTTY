@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.5 2002/12/29 19:01:33 ben Exp $
+$Id: README.mac,v 1.6 2002/12/30 23:15:46 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -26,13 +26,9 @@ Compiling it:
  and the contents of the "Stub Libraries" directory into
  "Interfaces&Libraries:Libraries:SharedLibraries".
 
- The "mkputty.mpw" script does most of the work, but currently needs
- you to run "Rez -append -o PuTTY.68k mac_res.r", and the same for
- PuTTY.ppc to get the resources compiled in.
-
- The current Makefile producess a Classic 68K build of PuTTY called
- "PuTTY.68k", a CFM-68K build called "PuTTY.cfm68k", and a non-Carbon
- PowerPC build called "PuTTY.ppc".
+ The "mkputty.mpw" script does all the work, and currently producess a
+ Classic 68K build of PuTTY called "PuTTY.68k", a CFM-68K build called
+ "PuTTY.cfm68k", and a non-Carbon PowerPC build called "PuTTY.ppc".
 
 Runtime requirements:
 
