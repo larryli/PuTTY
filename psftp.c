@@ -24,6 +24,9 @@
  * send buffer.
  */
 
+static int psftp_connect(char *userhost, char *user, int portnumber);
+static void do_sftp_init(void);
+
 /* ----------------------------------------------------------------------
  * sftp client state.
  */
@@ -198,6 +201,11 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     char *dir, *cdir;
     int i;
 
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
     if (cmd->nwords < 2)
 	dir = ".";
     else
@@ -273,6 +281,11 @@ int sftp_cmd_cd(struct sftp_command *cmd)
     struct fxp_handle *dirh;
     char *dir;
 
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
     if (cmd->nwords < 2)
 	dir = dupstr(homedir);
     else
@@ -304,6 +317,11 @@ int sftp_cmd_cd(struct sftp_command *cmd)
  */
 int sftp_cmd_pwd(struct sftp_command *cmd)
 {
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
     printf("Remote directory is %s\n", pwd);
     return 0;
 }
@@ -320,6 +338,11 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
     char *fname, *outfname;
     uint64 offset;
     FILE *fp;
+
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
 
     if (cmd->nwords < 2) {
 	printf("get: expects a filename\n");
@@ -425,6 +448,11 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
     uint64 offset;
     FILE *fp;
 
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
     if (cmd->nwords < 2) {
 	printf("put: expects a filename\n");
 	return 0;
@@ -529,6 +557,10 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     char *dir;
     int result;
 
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
 
     if (cmd->nwords < 2) {
 	printf("mkdir: expects a directory\n");
@@ -557,6 +589,10 @@ int sftp_cmd_rmdir(struct sftp_command *cmd)
     char *dir;
     int result;
 
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
 
     if (cmd->nwords < 2) {
 	printf("rmdir: expects a directory\n");
@@ -585,6 +621,11 @@ int sftp_cmd_rm(struct sftp_command *cmd)
     char *fname;
     int result;
 
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
+
     if (cmd->nwords < 2) {
 	printf("rm: expects a filename\n");
 	return 0;
@@ -612,6 +653,11 @@ int sftp_cmd_mv(struct sftp_command *cmd)
 {
     char *srcfname, *dstfname;
     int result;
+
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
 
     if (cmd->nwords < 3) {
 	printf("mv: expects two filenames\n");
@@ -679,6 +725,11 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
     int result;
     struct fxp_attrs attrs;
     unsigned attrs_clr, attrs_xor, oldperms, newperms;
+
+    if (back == NULL) {
+	printf("psftp: not connected to a host; use \"open host.name\"\n");
+	return 0;
+    }
 
     if (cmd->nwords < 3) {
 	printf("chmod: expects a mode specifier and a filename\n");
@@ -824,6 +875,25 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
     return 0;
 }
 
+static int sftp_cmd_open(struct sftp_command *cmd)
+{
+    if (back != NULL) {
+	printf("psftp: already connected\n");
+	return 0;
+    }
+
+    if (cmd->nwords < 2) {
+	printf("open: expects a host name\n");
+	return 0;
+    }
+
+    if (psftp_connect(cmd->words[1], NULL, 0)) {
+	back = NULL;		       /* connection is already closed */
+	return -1;		       /* this is fatal */
+    }
+    do_sftp_init();
+}
+
 static int sftp_cmd_help(struct sftp_command *cmd);
 
 static struct sftp_cmd_lookup {
@@ -952,6 +1022,14 @@ static struct sftp_cmd_lookup {
 	    "  the same name, or under a different one if you supply the\n"
 	    "  argument <remote-filename>.\n",
 	    sftp_cmd_put
+    },
+    {
+	"open", "connect to a host",
+	    " [<user>@]<hostname>\n"
+	    "  Establishes an SFTP connection to a given host. Only usable\n"
+	    "  when you did not already specify a host name on the command\n"
+	    "  line.\n",
+	    sftp_cmd_open
     },
     {
 	"pwd", "print your remote working directory",
@@ -1173,10 +1251,8 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     return cmd;
 }
 
-void do_sftp(int mode, int modeflags, char *batchfile)
+static void do_sftp_init(void)
 {
-    FILE *fp;
-
     /*
      * Do protocol initialisation. 
      */
@@ -1199,6 +1275,11 @@ void do_sftp(int mode, int modeflags, char *batchfile)
 	printf("Remote working directory is %s\n", homedir);
     }
     pwd = dupstr(homedir);
+}
+
+void do_sftp(int mode, int modeflags, char *batchfile)
+{
+    FILE *fp;
 
     /*
      * Batch mode?
@@ -1392,7 +1473,7 @@ void fatalbox(char *fmt, ...)
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
-    fprintf(stderr, str);
+    fputs(stderr, str);
 
     exit(1);
 }
@@ -1405,7 +1486,7 @@ void connection_fatal(char *fmt, ...)
     vsprintf(str + strlen(str), fmt, ap);
     va_end(ap);
     strcat(str, "\n");
-    fprintf(stderr, str);
+    fputs(stderr, str);
 
     exit(1);
 }
@@ -1648,62 +1729,12 @@ static void usage(void)
 }
 
 /*
- * Main program. Parse arguments etc.
+ * Connect to a host.
  */
-int main(int argc, char *argv[])
+static int psftp_connect(char *userhost, char *user, int portnumber)
 {
-    int i;
-    int portnumber = 0;
-    char *user, *host, *userhost, *realhost;
+    char *host, *realhost;
     char *err;
-    int mode = 0;
-    int modeflags = 0;
-    char *batchfile = NULL;
-
-    flags = FLAG_STDERR | FLAG_INTERACTIVE;
-    ssh_get_line = &get_line;
-    init_winsock();
-    sk_init();
-
-    userhost = user = NULL;
-
-    for (i = 1; i < argc; i++) {
-	if (argv[i][0] != '-') {
-	    if (userhost)
-		usage();
-	    else
-		userhost = dupstr(argv[i]);
-	} else if (strcmp(argv[i], "-v") == 0) {
-	    verbose = 1, flags |= FLAG_VERBOSE;
-	} else if (strcmp(argv[i], "-h") == 0 ||
-		   strcmp(argv[i], "-?") == 0) {
-	    usage();
-	} else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
-	    user = argv[++i];
-	} else if (strcmp(argv[i], "-P") == 0 && i + 1 < argc) {
-	    portnumber = atoi(argv[++i]);
-	} else if (strcmp(argv[i], "-pw") == 0 && i + 1 < argc) {
-	    password = argv[++i];
-    } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
-	    mode = 1;
-        batchfile = argv[++i];
-    } else if (strcmp(argv[i], "-bc") == 0 && i + 1 < argc) {
-	    modeflags = modeflags | 1;
-    } else if (strcmp(argv[i], "-be") == 0 && i + 1 < argc) {
-	    modeflags = modeflags | 2;
-	} else if (strcmp(argv[i], "--") == 0) {
-	    i++;
-	    break;
-	} else {
-	    usage();
-	}
-    }
-    argc -= i;
-    argv += i;
-    back = NULL;
-
-    if (argc > 0 || !userhost)
-	usage();
 
     /* Separate host and username */
     host = userhost;
@@ -1822,12 +1853,81 @@ int main(int argc, char *argv[])
 
     err = back->init(cfg.host, cfg.port, &realhost, 0);
     if (err != NULL) {
-	fprintf(stderr, "ssh_init: %s", err);
+	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
     ssh_sftp_init();
     if (verbose && realhost != NULL)
 	printf("Connected to %s\n", realhost);
+    return 0;
+}
+
+/*
+ * Main program. Parse arguments etc.
+ */
+int main(int argc, char *argv[])
+{
+    int i;
+    int portnumber = 0;
+    char *userhost, *user;
+    int mode = 0;
+    int modeflags = 0;
+    char *batchfile = NULL;
+
+    flags = FLAG_STDERR | FLAG_INTERACTIVE;
+    ssh_get_line = &get_line;
+    init_winsock();
+    sk_init();
+
+    userhost = user = NULL;
+
+    for (i = 1; i < argc; i++) {
+	if (argv[i][0] != '-') {
+	    if (userhost)
+		usage();
+	    else
+		userhost = dupstr(argv[i]);
+	} else if (strcmp(argv[i], "-v") == 0) {
+	    verbose = 1, flags |= FLAG_VERBOSE;
+	} else if (strcmp(argv[i], "-h") == 0 ||
+		   strcmp(argv[i], "-?") == 0) {
+	    usage();
+	} else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
+	    user = argv[++i];
+	} else if (strcmp(argv[i], "-P") == 0 && i + 1 < argc) {
+	    portnumber = atoi(argv[++i]);
+	} else if (strcmp(argv[i], "-pw") == 0 && i + 1 < argc) {
+	    password = argv[++i];
+	} else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+	    mode = 1;
+	    batchfile = argv[++i];
+	} else if (strcmp(argv[i], "-bc") == 0 && i + 1 < argc) {
+	    modeflags = modeflags | 1;
+	} else if (strcmp(argv[i], "-be") == 0 && i + 1 < argc) {
+	    modeflags = modeflags | 2;
+	} else if (strcmp(argv[i], "--") == 0) {
+	    i++;
+	    break;
+	} else {
+	    usage();
+	}
+    }
+    argc -= i;
+    argv += i;
+    back = NULL;
+
+    /*
+     * If a user@host string has already been provided, connect to
+     * it now.
+     */
+    if (userhost) {
+	if (psftp_connect(userhost, user, portnumber))
+	    return 1;
+	do_sftp_init();
+    } else {
+	printf("psftp: no hostname specified; use \"open host.name\""
+	    " to connect\n");
+    }
 
     do_sftp(mode, modeflags, batchfile);
 
