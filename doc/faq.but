@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.61 2004/02/23 19:10:43 jacob Exp $
+\versionid $Id: faq.but,v 1.62 2004/03/04 21:24:10 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -212,6 +212,9 @@ and it does not quite run on the Win32s environment under Windows
 We do not have release-quality ports for any other systems at the
 present time. If anyone told you we had an EPOC port, or an iPaq port,
 or any other port of PuTTY, they were mistaken. We don't.
+
+There are some third-party ports to various platforms, mentioned
+on the Links page of our website.
 
 \S{faq-unix}{Question} Is there a port to Unix?
 
