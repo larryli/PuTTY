@@ -25,6 +25,18 @@ typedef struct {
   (cp)[2] = (value) >> 16; \
   (cp)[3] = (value) >> 24; } while (0)
 
+#define GET_32BIT_MSB_FIRST(cp) \
+  (((unsigned long)(unsigned char)(cp)[0] << 24) | \
+  ((unsigned long)(unsigned char)(cp)[1] << 16) | \
+  ((unsigned long)(unsigned char)(cp)[2] << 8) | \
+  ((unsigned long)(unsigned char)(cp)[3]))
+
+#define PUT_32BIT_MSB_FIRST(cp, value) do { \
+  (cp)[0] = (value) >> 24; \
+  (cp)[1] = (value) >> 16; \
+  (cp)[2] = (value) >> 8; \
+  (cp)[3] = (value); } while (0)
+
 /*
  * The Blowfish init data: hex digits of the fractional part of pi.
  * (ie pi as a hex fraction is 3.243F6A8885A308D3...)
@@ -287,8 +299,8 @@ static void blowfish_decrypt(word32 xL, word32 xR, word32 *output,
     output[1] = xL;
 }
 
-static void blowfish_encrypt_cbc(unsigned char *blk, int len,
-                                 BlowfishContext *ctx) {
+static void blowfish_lsb_encrypt_cbc(unsigned char *blk, int len,
+                                     BlowfishContext *ctx) {
     word32 xL, xR, out[2], iv0, iv1;
 
     assert((len & 7) == 0);
@@ -312,8 +324,8 @@ static void blowfish_encrypt_cbc(unsigned char *blk, int len,
     ctx->iv0 = iv0; ctx->iv1 = iv1;
 }
 
-static void blowfish_decrypt_cbc(unsigned char *blk, int len,
-				 BlowfishContext *ctx) {
+static void blowfish_lsb_decrypt_cbc(unsigned char *blk, int len,
+                                     BlowfishContext *ctx) {
     word32 xL, xR, out[2], iv0, iv1;
 
     assert((len & 7) == 0);
@@ -328,6 +340,56 @@ static void blowfish_decrypt_cbc(unsigned char *blk, int len,
         iv1 ^= out[1];
         PUT_32BIT_LSB_FIRST(blk, iv0);
         PUT_32BIT_LSB_FIRST(blk+4, iv1);
+        iv0 = xL;
+        iv1 = xR;
+        blk += 8;
+        len -= 8;
+    }
+
+    ctx->iv0 = iv0; ctx->iv1 = iv1;
+}
+
+static void blowfish_msb_encrypt_cbc(unsigned char *blk, int len,
+                                     BlowfishContext *ctx) {
+    word32 xL, xR, out[2], iv0, iv1;
+
+    assert((len & 7) == 0);
+
+    iv0 = ctx->iv0; iv1 = ctx->iv1;
+
+    while (len > 0) {
+        xL = GET_32BIT_MSB_FIRST(blk);
+        xR = GET_32BIT_MSB_FIRST(blk+4);
+        iv0 ^= xL;
+        iv1 ^= xR;
+        blowfish_encrypt(iv0, iv1, out, ctx);
+        iv0 = out[0];
+        iv1 = out[1];
+        PUT_32BIT_MSB_FIRST(blk, iv0);
+        PUT_32BIT_MSB_FIRST(blk+4, iv1);
+        blk += 8;
+        len -= 8;
+    }
+
+    ctx->iv0 = iv0; ctx->iv1 = iv1;
+}
+
+static void blowfish_msb_decrypt_cbc(unsigned char *blk, int len,
+                                     BlowfishContext *ctx) {
+    word32 xL, xR, out[2], iv0, iv1;
+
+    assert((len & 7) == 0);
+
+    iv0 = ctx->iv0; iv1 = ctx->iv1;
+
+    while (len > 0) {
+        xL = GET_32BIT_MSB_FIRST(blk);
+        xR = GET_32BIT_MSB_FIRST(blk+4);
+        blowfish_decrypt(xL, xR, out, ctx);
+        iv0 ^= out[0];
+        iv1 ^= out[1];
+        PUT_32BIT_MSB_FIRST(blk, iv0);
+        PUT_32BIT_MSB_FIRST(blk+4, iv1);
         iv0 = xL;
         iv1 = xR;
         blk += 8;
@@ -406,14 +468,14 @@ static void blowfish_sckey(unsigned char *key)
 
 static void blowfish_csiv(unsigned char *key) 
 {
-    ectx.iv0 = GET_32BIT_LSB_FIRST(key);
-    ectx.iv1 = GET_32BIT_LSB_FIRST(key+4);
+    ectx.iv0 = GET_32BIT_MSB_FIRST(key);
+    ectx.iv1 = GET_32BIT_MSB_FIRST(key+4);
 }
 
 static void blowfish_sciv(unsigned char *key) 
 {
-    dctx.iv0 = GET_32BIT_LSB_FIRST(key);
-    dctx.iv1 = GET_32BIT_LSB_FIRST(key+4);
+    dctx.iv0 = GET_32BIT_MSB_FIRST(key);
+    dctx.iv1 = GET_32BIT_MSB_FIRST(key+4);
 }
 
 static void blowfish_sesskey(unsigned char *key) 
@@ -425,22 +487,42 @@ static void blowfish_sesskey(unsigned char *key)
     logevent("Initialised Blowfish encryption");
 }
 
-static void blowfish_encrypt_blk(unsigned char *blk, int len)
+static void blowfish_ssh1_encrypt_blk(unsigned char *blk, int len)
 {
-    blowfish_encrypt_cbc(blk, len, &ectx);
+    blowfish_lsb_encrypt_cbc(blk, len, &ectx);
 }
 
-static void blowfish_decrypt_blk(unsigned char *blk, int len)
+static void blowfish_ssh1_decrypt_blk(unsigned char *blk, int len)
 {
-    blowfish_decrypt_cbc(blk, len, &dctx);
+    blowfish_lsb_decrypt_cbc(blk, len, &dctx);
 }
 
-struct ssh_cipher ssh_blowfish = {
+static void blowfish_ssh2_encrypt_blk(unsigned char *blk, int len)
+{
+    blowfish_msb_encrypt_cbc(blk, len, &ectx);
+}
+
+static void blowfish_ssh2_decrypt_blk(unsigned char *blk, int len)
+{
+    blowfish_msb_decrypt_cbc(blk, len, &dctx);
+}
+
+struct ssh_cipher ssh_blowfish_ssh1 = {
     blowfish_sesskey,
     blowfish_csiv, blowfish_cskey,
     blowfish_sciv, blowfish_sckey,
-    blowfish_encrypt_blk,
-    blowfish_decrypt_blk,
+    blowfish_ssh1_encrypt_blk,
+    blowfish_ssh1_decrypt_blk,
+    "blowfish-cbc",
+    8
+};
+
+struct ssh_cipher ssh_blowfish_ssh2 = {
+    blowfish_sesskey,
+    blowfish_csiv, blowfish_cskey,
+    blowfish_sciv, blowfish_sckey,
+    blowfish_ssh2_encrypt_blk,
+    blowfish_ssh2_decrypt_blk,
     "blowfish-cbc",
     8
 };

@@ -142,10 +142,20 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 extern struct ssh_cipher ssh_3des;
 extern struct ssh_cipher ssh_3des_ssh2;
 extern struct ssh_cipher ssh_des;
-extern struct ssh_cipher ssh_blowfish;
+extern struct ssh_cipher ssh_blowfish_ssh1;
+extern struct ssh_cipher ssh_blowfish_ssh2;
 
-/* for ssh 2; we miss out single-DES because it isn't supported */
-struct ssh_cipher *ciphers[] = { &ssh_3des_ssh2, &ssh_blowfish };
+/*
+ * Ciphers for SSH2. We miss out single-DES because it isn't
+ * supported; also 3DES and Blowfish are both done differently from
+ * SSH1. (3DES uses outer chaining; Blowfish has the opposite
+ * endianness and different-sized keys.)
+ *
+ * The first entry in this array is set up to be whatever the user
+ * asks for as a cipher. Thereafter there is a fixed preference
+ * order of fallback ciphers.
+ */
+struct ssh_cipher *ciphers[] = { NULL, &ssh_blowfish_ssh2, &ssh_3des_ssh2 };
 
 extern struct ssh_kex ssh_diffiehellman;
 struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
@@ -1163,7 +1173,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     free(rsabuf);
 
-    cipher = cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish :
+    cipher = cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
              cipher_type == SSH_CIPHER_DES ? &ssh_des :
              &ssh_3des;
     cipher->sesskey(session_key);
@@ -1779,6 +1789,21 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 
     crBegin;
     random_init();
+
+    /*
+     * Set up the preferred cipher.
+     */
+    if (cfg.cipher == CIPHER_BLOWFISH) {
+        ciphers[0] = &ssh_blowfish_ssh2;
+    } else if (cfg.cipher == CIPHER_DES) {
+        logevent("Single DES not supported in SSH2; using 3DES");
+        ciphers[0] = &ssh_3des_ssh2;
+    } else if (cfg.cipher == CIPHER_3DES) {
+        ciphers[0] = &ssh_3des_ssh2;
+    } else {
+        /* Shouldn't happen, but we do want to initialise to _something_. */
+        ciphers[0] = &ssh_3des_ssh2;
+    }
 
     begin_key_exchange:
     /*
