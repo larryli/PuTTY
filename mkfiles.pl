@@ -623,7 +623,7 @@ Link_CFM68K = ILink
 Link_PPC = PPCLink
 Link_Carbon = PPCLink
 
-LinkOptions = -c 'pTTY' -fragname PuTTY
+LinkOptions = -c 'pTTY'
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
 LinkOptions_CFM68K = {LinkOptions} -br 020 -model cfmseg -compact
 LinkOptions_PPC = {LinkOptions}
@@ -692,7 +692,8 @@ foreach $p (&prognames("M")) {
       print &splitline("$prog.\L$arch\E \xc4 $objstr $rsrc", undef, "\xb6");
       print "\n";
       print &splitline("\tDuplicate -y $rsrc {Targ}", 69, "\xb6"), "\n";
-      print &splitline("\t{Link_$arch} -o {Targ} {LinkOptions_$arch} " .
+      print &splitline("\t{Link_$arch} -o {Targ} -fragname $prog " .
+		       "{LinkOptions_$arch} " .
 		       $objstr . " {Libs_$arch}", 69, "\xb6"), "\n";
       print &splitline("\tSetFile -a BMi {Targ}", 69, "\xb6"), "\n\n";
   }
