@@ -288,15 +288,15 @@ void *find234(tree234 *t, void *e, cmpfn234 cmp) {
 
     n = t->root;
     while (n) {
-	if ( (c = t->cmp(e, n->elems[0])) < 0)
+	if ( (c = cmp(e, n->elems[0])) < 0)
 	    n = n->kids[0];
 	else if (c == 0)
 	    return n->elems[0];
-	else if (n->elems[1] == NULL || (c = t->cmp(e, n->elems[1])) < 0)
+	else if (n->elems[1] == NULL || (c = cmp(e, n->elems[1])) < 0)
 	    n = n->kids[1];
 	else if (c == 0)
 	    return n->elems[1];
-	else if (n->elems[2] == NULL || (c = t->cmp(e, n->elems[2])) < 0)
+	else if (n->elems[2] == NULL || (c = cmp(e, n->elems[2])) < 0)
 	    n = n->kids[2];
 	else if (c == 0)
 	    return n->elems[2];
@@ -316,7 +316,7 @@ void *find234(tree234 *t, void *e, cmpfn234 cmp) {
  * Delete an element e in a 2-3-4 tree. Does not free the element,
  * merely removes all links to it from the tree nodes.
  */
-void *del234(tree234 *t, void *e) {
+void del234(tree234 *t, void *e) {
     node234 *n;
     int ei = -1;
 
