@@ -365,6 +365,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 SockAddr sk_nonamelookup(char *host)
 {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    ret->error = NULL;
     ret->family = AF_UNSPEC;
     strncpy(ret->hostname, host, lenof(ret->hostname));
     ret->hostname[lenof(ret->hostname)-1] = '\0';
