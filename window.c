@@ -2881,7 +2881,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
 	    if (alt_sum) {
-		if (utf || dbcs_screenfont)
+		if (in_utf || dbcs_screenfont)
 		    debug((", (U+%04x)", alt_sum));
 		else
 		    debug((", LCH(%d)", alt_sum));
@@ -2925,7 +2925,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 		if (!key_down) {
 		    if (alt_sum) {
-			if (utf || dbcs_screenfont) {
+			if (in_utf || dbcs_screenfont) {
 			    keybuf = alt_sum;
 			    luni_send(&keybuf, 1);
 			} else {
@@ -2952,7 +2952,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (!left_alt)
 	    keys[0] = 0;
 	/* If we will be using alt_sum fix the 256s */
-	else if (keys[0] && (utf || dbcs_screenfont))
+	else if (keys[0] && (in_utf || dbcs_screenfont))
 	    keys[0] = 10;
     }
 

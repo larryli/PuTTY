@@ -40,11 +40,17 @@ void init_ucs_tables(void)
     int i, j;
     int used_dtf = 0;
     char tbuf[256];
+    int old_codepage = line_codepage;
     for (i = 0; i < 256; i++)
 	tbuf[i] = i;
 
     /* Decide on the Line and Font codepages */
     line_codepage = decode_codepage(cfg.line_codepage);
+
+    if (font_codepage <= 0) { 
+	font_codepage=0; 
+	dbcs_screenfont=0; 
+    }
 
     if (cfg.vtmode == VT_OEMONLY) {
 	font_codepage = 437;
@@ -53,10 +59,9 @@ void init_ucs_tables(void)
 	    line_codepage = GetACP();
     } else if (line_codepage <= 0)
 	line_codepage = font_codepage;
-    utf = (line_codepage == CP_UTF8);
 
     /* Collect screen font ucs table */
-    if (dbcs_screenfont) {
+    if (dbcs_screenfont || font_codepage == 0) {
 	get_unitab(font_codepage, unitab_font, 2);
 	for (i = 128; i < 256; i++)
 	    unitab_font[i] = (WCHAR) (ATTR_ACP + i);
@@ -82,7 +87,7 @@ void init_ucs_tables(void)
 
     /* Collect line set ucs table */
     if (line_codepage == font_codepage &&
-	(dbcs_screenfont || cfg.vtmode == VT_POORMAN)) {
+	(dbcs_screenfont || cfg.vtmode == VT_POORMAN || font_codepage==0)) {
 
 	/* For DBCS and POOR fonts force direct to font */
 	used_dtf = 1;
@@ -228,7 +233,7 @@ void luni_send(wchar_t * widebuf, int len)
 {
     static char *linebuffer = 0;
     static int linesize = 0;
-    int ratio = (utf) ? 3 : 1;
+    int ratio = (in_utf)?3:1;
     int i;
     char *p;
 
@@ -238,7 +243,7 @@ void luni_send(wchar_t * widebuf, int len)
 	linesize = len * ratio * 2;
     }
 
-    if (utf) {
+    if (in_utf) {
 	/* UTF is a simple algorithm */
 	for (p = linebuffer, i = 0; i < len; i++) {
 	    wchar_t ch = widebuf[i];

@@ -94,6 +94,7 @@ static int wrap, wrapnext;	       /* wrap flags */
 static int insert;		       /* insert-mode flag */
 static int cset;		       /* 0 or 1: which char set */
 static int save_cset, save_csattr;     /* saved with cursor position */
+static int save_utf;     	       /* saved with cursor position */
 static int rvideo;		       /* global reverse video flag */
 static int rvbell_timeout;	       /* for ESC[?5hESC[?5l vbell */
 static int cursor_on;		       /* cursor enabled flag */
@@ -117,7 +118,7 @@ static unsigned long cset_attr[2];
 /*
  * Saved settings on the alternate screen.
  */
-static int alt_x, alt_y, alt_om, alt_wrap, alt_wnext, alt_ins, alt_cset, alt_sco_acs;
+static int alt_x, alt_y, alt_om, alt_wrap, alt_wnext, alt_ins, alt_cset, alt_sco_acs, alt_utf;
 static int alt_t, alt_b;
 static int alt_which;
 
@@ -279,6 +280,7 @@ static void power_on(void)
     alt_wnext = wrapnext = alt_ins = insert = FALSE;
     alt_wrap = wrap = cfg.wrap_mode;
     alt_cset = cset = 0;
+    alt_utf = utf = 0;
     alt_sco_acs = sco_acs = 0;
     cset_attr[0] = cset_attr[1] = ATTR_ASCII;
     rvideo = 0;
@@ -538,6 +540,9 @@ static void swap_screen(int which)
     t = cset;
     cset = alt_cset;
     alt_cset = t;
+    t = utf;
+    utf = alt_utf;
+    alt_utf = t;
     t = sco_acs;
     sco_acs = alt_sco_acs;
     alt_sco_acs = t;
@@ -694,6 +699,7 @@ static void save_cursor(int save)
 	savecurs = curs;
 	save_attr = curr_attr;
 	save_cset = cset;
+	save_utf = utf;
 	save_csattr = cset_attr[cset];
 	save_sco_acs = sco_acs;
     } else {
@@ -706,11 +712,13 @@ static void save_cursor(int save)
 
 	curr_attr = save_attr;
 	cset = save_cset;
+	utf = save_utf;
 	cset_attr[cset] = save_csattr;
 	sco_acs = save_sco_acs;
 	fix_cpos;
 	if (use_bce)
-	    erase_char = (' ' | (curr_attr & (ATTR_FGMASK | ATTR_BGMASK)));
+	    erase_char = (' ' | ATTR_ASCII |
+		         (curr_attr & (ATTR_FGMASK | ATTR_BGMASK)));
     }
 }
 
@@ -941,18 +949,15 @@ void term_out(void)
 
 	/* First see about all those translations. */
 	if (termstate == TOPLEVEL) {
-	    if (utf)
+	    if (in_utf)
 		switch (utf_state) {
 		  case 0:
 		    if (c < 0x80) {
-			/* I know; gotos are evil. This one is really bad!
-			 * But before you try removing it follow the path of the
-			 * sequence "0x5F 0xC0 0x71" with UTF and VTGraphics on.
-			 */
-			/*
-			   if (cfg.no_vt_graph_with_utf8) break;
-			 */
-			goto evil_jump;
+			/* UTF-8 must be stateless so we ignore iso2022. */
+			if (unitab_ctrl[c] != 0xFF) 
+			     c = unitab_ctrl[c];
+			else c = ((unsigned char)c) | ATTR_ASCII;
+			break;
 		    } else if ((c & 0xe0) == 0xc0) {
 			utf_size = utf_state = 1;
 			utf_char = (c & 0x1f);
@@ -1039,7 +1044,6 @@ void term_out(void)
 	       if (sco_acs == 2) c ^= 0x80;
 	       c |= ATTR_SCOACS;
 	    } else {
-	      evil_jump:;
 		switch (cset_attr[cset]) {
 		    /* 
 		     * Linedraw characters are different from 'ESC ( B'
@@ -1529,8 +1533,7 @@ void term_out(void)
 		    break;
 		  case ANSI('@', '%'):
 		    compatibility(OTHER);
-		    if (line_codepage != CP_UTF8)
-			utf = 0;
+		    utf = 0;
 		    break;
 		}
 		break;
@@ -1850,11 +1853,9 @@ void term_out(void)
 				}
 			    }
 			    if (use_bce)
-				erase_char =
-				    (' ' |
-				     (curr_attr &
-				      (ATTR_FGMASK | ATTR_BGMASK |
-				       ATTR_BLINK)));
+				erase_char = (' ' | ATTR_ASCII |
+					     (curr_attr & 
+					      (ATTR_FGMASK | ATTR_BGMASK)));
 			}
 			break;
 		      case 's':       /* save cursor */
@@ -1952,10 +1953,9 @@ void term_out(void)
 			use_bce = (esc_args[0] <= 0);
 			erase_char = ERASE_CHAR;
 			if (use_bce)
-			    erase_char =
-				(' ' |
-				 (curr_attr &
-				  (ATTR_FGMASK | ATTR_BGMASK)));
+			    erase_char = (' ' | ATTR_ASCII |
+					 (curr_attr & 
+					  (ATTR_FGMASK | ATTR_BGMASK)));
 			break;
 		      case ANSI('E', '='):
 			compatibility(OTHER);
@@ -2347,10 +2347,9 @@ void term_out(void)
 		    vt52_bold = FALSE;
 		    curr_attr = ATTR_DEFAULT;
 		    if (use_bce)
-			erase_char = (' ' |
-				      (curr_attr &
-				       (ATTR_FGMASK | ATTR_BGMASK |
-					ATTR_BLINK)));
+			erase_char = (' ' | ATTR_ASCII |
+				     (curr_attr & 
+				      (ATTR_FGMASK | ATTR_BGMASK)));
 		    break;
 		  case 'S':
 		    /* compatibility(VI50) */
@@ -2392,10 +2391,8 @@ void term_out(void)
 		    curr_attr |= ATTR_BOLD;
 
 		if (use_bce)
-		    erase_char = (' ' |
-				  (curr_attr &
-				   (ATTR_FGMASK | ATTR_BGMASK |
-				    ATTR_BLINK)));
+		    erase_char = (' ' | ATTR_ASCII |
+				 (curr_attr & (ATTR_FGMASK | ATTR_BGMASK)));
 		break;
 	      case VT52_BG:
 		termstate = TOPLEVEL;
@@ -2408,10 +2405,8 @@ void term_out(void)
 		    curr_attr |= ATTR_BLINK;
 
 		if (use_bce)
-		    erase_char = (' ' |
-				  (curr_attr &
-				   (ATTR_FGMASK | ATTR_BGMASK |
-				    ATTR_BLINK)));
+		    erase_char = (' ' | ATTR_ASCII |
+				 (curr_attr & (ATTR_FGMASK | ATTR_BGMASK)));
 		break;
 #endif
 	      default: break;	       /* placate gcc warning about enum use */

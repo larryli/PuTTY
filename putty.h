@@ -78,7 +78,7 @@
 #define ATTR_DEFAULT 0x00980000UL
 #define ATTR_DEFFG   0x00080000UL
 #define ATTR_DEFBG   0x00900000UL
-#define ERASE_CHAR   (ATTR_DEFAULT | ' ')
+#define ERASE_CHAR   (ATTR_DEFAULT | ATTR_ASCII | ' ')
 #define ATTR_MASK    0xFFFFFF00UL
 #define CHAR_MASK    0x000000FFUL
 
@@ -127,6 +127,7 @@ GLOBAL WCHAR unitab_font[256];
 GLOBAL WCHAR unitab_xterm[256];
 GLOBAL WCHAR unitab_oemcp[256];
 GLOBAL unsigned char unitab_ctrl[256];
+#define in_utf (utf || line_codepage==CP_UTF8)
 
 #define LGXF_OVR  1		       /* existing logfile overwrite */
 #define LGXF_APN  0		       /* existing logfile append */
