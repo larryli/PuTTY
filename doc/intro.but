@@ -1,4 +1,4 @@
-\versionid $Id: intro.but,v 1.6 2004/06/15 11:00:28 jacob Exp $
+\versionid $Id: intro.but,v 1.7 2004/10/24 15:58:31 jacob Exp $
 
 \C{intro} Introduction to PuTTY
 
@@ -65,14 +65,6 @@ and Rlogin}.
 high-security protocol. It uses strong cryptography to protect your
 connection against eavesdropping, hijacking and other attacks. Telnet
 and Rlogin are both older protocols offering minimal security.
-
-\b Telnet allows you to pass some settings on to the server, such as
-environment variables. (These control various aspects of the
-server's behaviour. You can usually set them by entering commands
-into the server once you're connected, but it's easier to have
-Telnet do it automatically.) SSH and Rlogin do not support this.
-However, most modern Telnet servers don't allow it either, because
-it has been a constant source of security problems.
 
 \b SSH and Rlogin both allow you to log in to the server without
 having to type a password. (Rlogin's method of doing this is
