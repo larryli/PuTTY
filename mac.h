@@ -10,6 +10,14 @@
 
 extern long mac_qdversion;
 
+struct mac_gestalts {
+    long qdvers;
+    long apprvers;
+    long cntlattr;
+};
+
+extern struct mac_gestalts mac_gestalts;
+
 /* from macterm.c */
 extern void mac_newsession(void);
 extern void mac_activateterm(WindowPtr, Boolean);

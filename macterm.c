@@ -1,14 +1,43 @@
+/* $Id: macterm.c,v 1.1.2.8 1999/02/28 17:05:11 ben Exp $ */
+/*
+ * Copyright (c) 1999 Ben Harris
+ * All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 /*
  * macterm.c -- Macintosh terminal front-end
  */
 
 #include <MacTypes.h>
+#include <Controls.h>
 #include <Fonts.h>
 #include <Gestalt.h>
 #include <MacWindows.h>
 #include <Palettes.h>
 #include <Quickdraw.h>
 #include <QuickdrawText.h>
+#include <Resources.h>
 #include <Sound.h>
 
 #include <limits.h>
@@ -44,6 +73,26 @@ static void inbuf_putstr(const char *c) {
 	inbuf_putc(*c++);
 }
 
+static void display_resource(unsigned long type, short id) {
+    Handle h;
+    int len, i;
+    char *t;
+
+    h = GetResource(type, id);
+    if (h == NULL)
+	fatalbox("Can't get test resource");
+    SetResAttrs(h, GetResAttrs(h) | resLocked);
+    t = *h;
+    len = GetResourceSizeOnDisk(h);
+    for (i = 0; i < len; i++) {
+	inbuf_putc(t[i]);
+	term_out();
+    }
+    SetResAttrs(h, GetResAttrs(h) & ~resLocked);
+    ReleaseResource(h);
+}
+	
+
 void mac_newsession(void) {
     struct mac_session *s;
     int i;
@@ -54,7 +103,7 @@ void mac_newsession(void) {
     onlysession = s;
 	
     /* XXX: Own storage management? */
-    if (mac_qdversion == gestaltOriginalQD)
+    if (mac_gestalts.qdvers == gestaltOriginalQD)
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
     else
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);
@@ -68,19 +117,7 @@ void mac_newsession(void) {
     SetPalette(s->window, s->palette, TRUE); 
     ActivatePalette(s->window);
     ShowWindow(s->window);
-    inbuf_putstr("\033[1mBold\033[m    \033[2mfaint\033[m   \033[3mitalic\033[m  \033[4mu_line\033[m  "
-                 "\033[5mslow bl\033[m \033[6mfast bl\033[m \033[7minverse\033[m \033[8mconceal\033[m "
-                 "\033[9mstruck\033[m  \033[21mdbl ul\033[m\015\012");
-    term_out();
-    inbuf_putstr("\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
-                 "\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
-    term_out();
-    inbuf_putstr("\033[1m\033[30mblack   \033[31mred     \033[32mgreen   \033[33myellow  "
-                 "\033[1m\033[34mblue    \033[35mmagenta \033[36mcyan    \033[37mwhite\015\012");
-    term_out();
-    inbuf_putstr("\033[37;44mwhite on blue     \033[32;41mgreen on red\015\012");
-    term_out();
-
+    display_resource('pTST', 128);
 }
 
 static void mac_initfont(struct mac_session *s) {
@@ -120,7 +157,7 @@ static void mac_adjustsize(struct mac_session *s) {
 static void mac_initpalette(struct mac_session *s) {
     WinCTab ct;
   
-    if (mac_qdversion == gestaltOriginalQD)
+    if (mac_gestalts.qdvers == gestaltOriginalQD)
 	return;
     s->palette = NewPalette((*cfg.colours)->pmEntries, NULL, pmCourteous, 0);
     if (s->palette == NULL)
@@ -253,10 +290,22 @@ void free_ctx(struct mac_session *ctx) {
 
 /*
  * Set the scroll bar position
+ *
+ * total is the line number of the bottom of the working screen
+ * start is the line number of the top of the display
+ * page is the length of the displayed page
  */
 void set_sbar(int total, int start, int page) {
+    struct mac_session *s = onlysession;
 
-    /* Do something once we actually have a scroll bar */
+    SetControlMinimum(s->scrollbar, 0);
+    SetControlMaximum(s->scrollbar, total - page);
+    SetControlValue(s->scrollbar, start);
+#if 0
+    /* XXX: This doesn't compile for me - bjh */
+    if (mac_gestalts.cntlattr & gestaltControlMgrPresent)
+	SetControlViewSize(s->scrollbar, page);
+#endif
 }
 
 /*
@@ -326,7 +375,7 @@ void palette_set(int n, int r, int g, int b) {
 void palette_reset(void) {
     struct mac_session *s = onlysession;
 
-    if (mac_qdversion == gestaltOriginalQD)
+    if (mac_gestalts.qdvers == gestaltOriginalQD)
 	return;
     CopyPalette(cfg.colours, s->palette, 0, 0, (*cfg.colours)->pmEntries);
     ActivatePalette(s->window);

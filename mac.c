@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.8 1999/02/28 02:38:40 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.9 1999/02/28 17:05:10 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -29,8 +29,7 @@
 QDGlobals qd;
 
 static int cold = 1;
-long mac_qdversion;
-long mac_apprversion;
+struct mac_gestalts mac_gestalts;
 
 static void mac_startup(void);
 static void mac_eventloop(void);
@@ -73,17 +72,20 @@ static void mac_startup(void) {
     cold = 0;
     
     /* Find out if we've got Color Quickdraw */
-    if (Gestalt(gestaltQuickdrawVersion, &mac_qdversion) != noErr)
-    	mac_qdversion = gestaltOriginalQD;
+    if (Gestalt(gestaltQuickdrawVersion, &mac_gestalts.qdvers) != noErr)
+    	mac_gestalts.qdvers = gestaltOriginalQD;
     /* ... and the Appearance Manager? */
-    if (Gestalt(gestaltAppearanceVersion, &mac_apprversion) != noErr)
+    if (Gestalt(gestaltAppearanceVersion, &mac_gestalts.apprvers) != noErr)
 	if (Gestalt(gestaltAppearanceAttr, NULL) == noErr)
-	    mac_apprversion = 0x0100;
+	    mac_gestalts.apprvers = 0x0100;
 	else
-	    mac_apprversion = 0;
+	    mac_gestalts.apprvers = 0;
+    /* Mac OS 8.5 Control Manager (proportional scrollbars)? */
+    if (Gestalt(gestaltControlMgrAttr, &mac_gestalts.cntlattr) != noErr)
+	mac_gestalts.cntlattr = 0;
 
     /* We've been tested with the Appearance Manager */
-    if (mac_apprversion != 0)
+    if (mac_gestalts.apprvers != 0)
 	RegisterAppearanceClient();
     
     menuBar = GetNewMBar(128);
