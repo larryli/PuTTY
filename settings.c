@@ -167,6 +167,8 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_filename(sesskey, "LogFileName", cfg->logfilename);
     write_setting_i(sesskey, "LogType", cfg->logtype);
     write_setting_i(sesskey, "LogFileClash", cfg->logxfovr);
+    write_setting_i(sesskey, "SSHLogOmitPasswords", cfg->logomitpass);
+    write_setting_i(sesskey, "SSHLogOmitData", cfg->logomitdata);
     p = "raw";
     for (i = 0; backends[i].name != NULL; i++)
 	if (backends[i].protocol == cfg->protocol) {
@@ -389,6 +391,8 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppfile(sesskey, "LogFileName", &cfg->logfilename);
     gppi(sesskey, "LogType", 0, &cfg->logtype);
     gppi(sesskey, "LogFileClash", LGXF_ASK, &cfg->logxfovr);
+    gppi(sesskey, "SSHLogOmitPasswords", 1, &cfg->logomitpass);
+    gppi(sesskey, "SSHLogOmitData", 0, &cfg->logomitdata);
 
     gpps(sesskey, "Protocol", "default", prot, 10);
     cfg->protocol = default_protocol;

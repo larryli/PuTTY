@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.90 2004/09/22 22:15:25 jacob Exp $
+\versionid $Id: config.but,v 1.91 2004/10/02 00:33:27 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -148,8 +148,9 @@ connections), the SSH message packets sent over the encrypted
 connection are written to the log file. You might need this to debug
 a network-level problem, or more likely to send to the PuTTY authors
 as part of a bug report. \e{BE WARNED} that if you log in using a
-password, the password will appear in the log file, so be sure to
-edit it out before sending the log file to anyone else!
+password, the password can appear in the log file; see
+\k{config-logssh} for options that may help to remove sensitive
+material from the log file before you send it to anyone else.
 
 \S{config-logfilename} \q{Log file name}
 
@@ -197,6 +198,44 @@ open the existing log file and add data to the \e{end} of it.
 Finally (the default option), you might not want to have any
 automatic behaviour, but to ask the user every time the problem
 comes up.
+
+\S{config-logssh} Options specific to SSH packet logging
+
+These options only apply if SSH packet data is being logged.
+
+The following options allow particularly sensitive portions of
+unencrypted packets to be automatically left out of the log file.
+They are only intended to deter casual nosiness; an attacker could
+glean a lot of useful information from even these obfuscated logs
+(e.g., length of password).
+
+\S2{config-logssh-omitpw} \q{Omit known password fields}
+
+\cfg{winhelp-topic}{logging.ssh.omitpassword}
+
+When checked, password fields are removed from the log of transmitted
+packets. (This includes any user responses to challenge-response
+authentication methods such as \q{keyboard-interactive}.) This does
+not include X11 authentication data if using X11 forwarding.
+
+Note that this will only omit data that PuTTY \e{knows} to be a
+password. However, if you start another login session within your
+PuTTY session, for instance, any password used will appear in the
+clear in the packet log. The next option may be of use to protect
+against this.
+
+This option is enabled by default.
+
+\S2{config-logssh-omitdata} \q{Omit session data}
+
+\cfg{winhelp-topic}{logging.ssh.omitdata}
+
+When checked, all \q{session data} is omitted; this is defined as data
+in terminal sessions and in forwarded channels (TCP, X11, and
+authentication agent). This will usually substantially reduce the size
+of the resulting log file.
+
+This option is disabled by default.
 
 \H{config-terminal} The Terminal panel
 

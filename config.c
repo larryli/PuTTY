@@ -885,6 +885,18 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		      "Always append to the end of it", I(LGXF_APN),
 		      "Ask the user every time", I(LGXF_ASK), NULL);
 
+    if ((midsession && protocol == PROT_SSH) ||
+	(!midsession && backends[3].name != NULL)) {
+	s = ctrl_getset(b, "Session/Logging", "ssh",
+			"Options specific to SSH packet logging");
+	ctrl_checkbox(s, "Omit known password fields", 'k',
+		      HELPCTX(logging_ssh_omit_password),
+		      dlg_stdcheckbox_handler, I(offsetof(Config,logomitpass)));
+	ctrl_checkbox(s, "Omit session data", 'd',
+		      HELPCTX(logging_ssh_omit_data),
+		      dlg_stdcheckbox_handler, I(offsetof(Config,logomitdata)));
+    }
+
     /*
      * The Terminal panel.
      */

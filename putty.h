@@ -425,6 +425,8 @@ struct config_tag {
     Filename logfilename;
     int logtype;
     int logxfovr;
+    int logomitpass;
+    int logomitdata;
     int hide_mouseptr;
     int sunken_edge;
     int window_border;
@@ -658,8 +660,15 @@ void logtraffic(void *logctx, unsigned char c, int logmode);
 void logflush(void *logctx);
 void log_eventlog(void *logctx, const char *string);
 enum { PKT_INCOMING, PKT_OUTGOING };
+enum { PKTLOG_EMIT, PKTLOG_BLANK, PKTLOG_OMIT };
+struct logblank_t {
+    int offset;
+    int len;
+    int type;
+};
 void log_packet(void *logctx, int direction, int type,
-		char *texttype, void *data, int len);
+		char *texttype, void *data, int len,
+		int n_blanks, const struct logblank_t *blanks);
 
 /*
  * Exports from testback.c
