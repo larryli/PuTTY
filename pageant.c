@@ -168,6 +168,8 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+static HWND passphrase_box;
+
 /*
  * Dialog-box function for the passphrase box.
  */
@@ -179,6 +181,7 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+	passphrase_box = hwnd;
 	/*
 	 * Centre the window.
 	 */
@@ -324,6 +327,7 @@ static void add_keyfile(char *filename)
 	    int dlgret;
 	    dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
 				    NULL, PassphraseProc, (LPARAM) & pps);
+	    passphrase_box = NULL;
 	    if (!dlgret) {
 		if (comment)
 		    sfree(comment);
@@ -1017,6 +1021,11 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	  case 101:		       /* add key */
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (passphrase_box) {
+		    MessageBeep(MB_ICONERROR);
+		    SetForegroundWindow(passphrase_box);
+		    break;
+		}
 		prompt_add_keyfile();
 	    }
 	    return 0;
@@ -1091,6 +1100,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
 	  case IDM_CLOSE:
+	    if (passphrase_box)
+		SendMessage(passphrase_box, WM_CLOSE, 0, 0);
 	    SendMessage(hwnd, WM_CLOSE, 0, 0);
 	    break;
 	  case IDM_VIEWKEYS:
@@ -1108,6 +1119,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_ADDKEY:
+	    if (passphrase_box) {
+		MessageBeep(MB_ICONERROR);
+		SetForegroundWindow(passphrase_box);
+		break;
+	    }
 	    prompt_add_keyfile();
 	    break;
 	  case IDM_ABOUT:
