@@ -649,7 +649,7 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 	sprintf(etastr, "%02ld:%02ld:%02ld",
 		eta / 3600, (eta % 3600) / 60, eta % 60);
 
-	pct = (int) (100.0 * (float) done / size);
+	pct = (int) (100 * (done * 1.0 / size));
 
 	len = printf("\r%-25.25s | %10ld kB | %5.1f kB/s | ETA: %8s | %3d%%",
 		     name, done / 1024, ratebs / 1024.0, etastr, pct);
