@@ -3500,15 +3500,6 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
 
     /*
-     * Expect SSH2_MSG_NEWKEYS from server.
-     */
-    crWaitUntil(ispkt);
-    if (pktin.type != SSH2_MSG_NEWKEYS) {
-	bombout(("expected new-keys packet from server"));
-	crReturn(0);
-    }
-
-    /*
      * Authenticate remote host: verify host key. (We've already
      * checked the signature of the exchange hash.)
      */
@@ -3529,6 +3520,15 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      */
     ssh2_pkt_init(SSH2_MSG_NEWKEYS);
     ssh2_pkt_send();
+
+    /*
+     * Expect SSH2_MSG_NEWKEYS from server.
+     */
+    crWaitUntil(ispkt);
+    if (pktin.type != SSH2_MSG_NEWKEYS) {
+	bombout(("expected new-keys packet from server"));
+	crReturn(0);
+    }
 
     /*
      * Create and initialise session keys.
