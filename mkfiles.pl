@@ -85,7 +85,7 @@ print
 "\t\$(CC) \$(FWHACK) \$(CFLAGS) -c \$<\n".
 "\n".
 "%.o: %.rc\n".
-"\t\$(RC) \$(FWHACK) \$(RCFLAGS) \$<\n".
+"\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) \$< \$\@\n".
 "\n";
 foreach $p (@projects) {
   print $p, ".exe: ", &project($p), "\n";
@@ -127,7 +127,7 @@ print
 ".c.obj:\n".
 "\tbcc32 \$(COMPAT) \$(FWHACK) \$(CFLAGS) /c \$*.c\n".
 ".rc.res:\n".
-"\tbrc32 \$(FWHACK) -i \$(BCB)\\include \\\n".
+"\tbrc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include \\\n".
 "\t\t-r -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
 "\n".
 "OBJ=obj\n".

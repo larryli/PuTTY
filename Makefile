@@ -21,7 +21,7 @@
 #  - COMPAT=/DWIN32S_COMPAT
 #      Generates a binary that works (minimally) with Win32s.
 #
-#  - CFL=/DASCIICTLS
+#  - RCFL=/DASCIICTLS
 #      Uses ASCII rather than Unicode to specify the tab control in
 #      the resource file. Probably most useful when compiling with
 #      Cygnus/mingw32, whose resource compiler may have less of a
@@ -124,13 +124,13 @@ versionpseudotarget:
 win_res.$(RES): win_res.rc win_res.h putty.ico
 ##--
 win_res.$(RES):
-	rc $(FWHACK) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
+	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
 
 ##-- dependencies
 scp.$(RES): scp.rc scp.ico
 ##--
 scp.$(RES):
-	rc $(FWHACK) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 scp.rc
+	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 scp.rc
 
 clean:
 	del *.obj
