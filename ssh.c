@@ -3353,6 +3353,11 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	    break;
 	}
     }
+    if (!cscipher_tobe) {
+	bombout(("Couldn't agree a client-to-server cipher (available: %s)", str));
+	crReturn(0);
+    }
+
     ssh2_pkt_getstring(&str, &len);    /* server->client cipher */
     warn = 0;
     for (i = 0; i < n_preferred_ciphers; i++) {
@@ -3373,6 +3378,11 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	    break;
 	}
     }
+    if (!sccipher_tobe) {
+	bombout(("Couldn't agree a server-to-client cipher (available: %s)", str));
+	crReturn(0);
+    }
+
     ssh2_pkt_getstring(&str, &len);    /* client->server mac */
     for (i = 0; i < nmacs; i++) {
 	if (in_commasep_string(maclist[i]->name, str, len)) {
