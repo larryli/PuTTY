@@ -55,7 +55,6 @@
 #endif
 
 int pty_master_fd;
-int pty_stamp_utmp = 1;
 static int pty_stamped_utmp = 0;
 static int pty_child_pid;
 static sig_atomic_t pty_child_dead;
@@ -82,7 +81,7 @@ static void setup_utmp(char *ttyname)
     char *location;
     FILE *wtmp;
 
-    if (!pty_stamp_utmp)
+    if (!cfg.stamp_utmp)
 	return;
 
     pw = getpwuid(getuid());
@@ -130,7 +129,7 @@ static void cleanup_utmp(void)
 #ifndef OMIT_UTMP
     FILE *wtmp;
 
-    if (!pty_stamp_utmp || !pty_stamped_utmp)
+    if (!cfg.stamp_utmp || !pty_stamped_utmp)
 	return;
 
     utmp_entry.ut_type = DEAD_PROCESS;
@@ -341,8 +340,19 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	}
 	if (pty_argv)
 	    execvp(pty_argv[0], pty_argv);
-	else
-	    execl(getenv("SHELL"), getenv("SHELL"), NULL);
+	else {
+	    char *shell = getenv("SHELL");
+	    char *shellname;
+	    if (cfg.login_shell) {
+		char *p = strrchr(shell, '/');
+		shellname = smalloc(2+strlen(shell));
+		p = p ? p+1 : shell;
+		sprintf(shellname, "-%s", p);
+	    } else
+		shellname = shell;
+	    execl(getenv("SHELL"), shellname, NULL);
+	}
+
 	/*
 	 * If we're here, exec has gone badly foom.
 	 */

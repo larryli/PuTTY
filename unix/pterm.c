@@ -1283,7 +1283,6 @@ char *get_x_display(void)
 int main(int argc, char **argv)
 {
     extern int pty_master_fd;	       /* declared in pty.c */
-    extern int pty_stamp_utmp;	       /* declared in pty.c */
     extern char **pty_argv;	       /* declared in pty.c */
     int err = 0;
 
@@ -1331,7 +1330,10 @@ int main(int argc, char **argv)
 	    cfg.hide_mouseptr = 1;
 	}
 	if (!strcmp(p, "-ut-")) {
-	    pty_stamp_utmp = 0;
+	    cfg.stamp_utmp = 0;
+	}
+	if (!strcmp(p, "-ls-")) {
+	    cfg.login_shell = 0;
 	}
 	if (!strcmp(p, "-nethack")) {
 	    cfg.nethack_keypad = 1;
