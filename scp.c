@@ -2064,6 +2064,7 @@ static void usage(void)
     printf("  -i key    private key file for authentication\n");
     printf("  -batch    disable all interactive prompts\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
+    printf("  -V        print version information\n");
 #if 0
     /*
      * -gui is an internal option, used by GUI front ends to get
@@ -2075,6 +2076,12 @@ static void usage(void)
     printf
 	("  -gui hWnd GUI mode with the windows handle for receiving messages\n");
 #endif
+    cleanup_exit(1);
+}
+
+void version(void)
+{
+    printf("pscp: %s\n", ver);
     cleanup_exit(1);
 }
 
@@ -2129,6 +2136,8 @@ int psftp_main(int argc, char *argv[])
 	    statistics = 0;
 	} else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-?") == 0) {
 	    usage();
+	} else if (strcmp(argv[i], "-V") == 0) {
+            version();
 	} else if (strcmp(argv[i], "-gui") == 0 && i + 1 < argc) {
 	    gui_enable(argv[++i]);
 	    gui_mode = 1;

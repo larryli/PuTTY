@@ -1779,7 +1779,14 @@ static void usage(void)
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
     printf("  -batch    disable all interactive prompts\n");
+    printf("  -V        print version information\n");
     cleanup_exit(1);
+}
+
+static void version(void)
+{
+  printf("psftp: %s\n", ver);
+  cleanup_exit(1);
 }
 
 /*
@@ -2010,6 +2017,8 @@ int psftp_main(int argc, char *argv[])
 	} else if (strcmp(argv[i], "-h") == 0 ||
 		   strcmp(argv[i], "-?") == 0) {
 	    usage();
+	} else if (strcmp(argv[i], "-V") == 0) {
+	    version();
 	} else if (strcmp(argv[i], "-batch") == 0) {
 	    console_batch_mode = 1;
 	} else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {

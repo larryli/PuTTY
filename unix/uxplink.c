@@ -231,6 +231,13 @@ static void usage(void)
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
+    printf("  -V        print version information\n");
+    exit(1);
+}
+
+static void version(void)
+{
+    printf("plink: %s\n", ver);
     exit(1);
 }
 
@@ -301,6 +308,8 @@ int main(int argc, char **argv)
 	    } else if (!strcmp(p, "-s")) {
                 /* Save status to write to cfg later. */
 		use_subsystem = 1;
+	    } else if (!strcmp(p, "-V")) {
+                version();
 	    } else if (!strcmp(p, "-o")) {
                 if (argc <= 1) {
                     fprintf(stderr,
