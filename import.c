@@ -1028,9 +1028,9 @@ struct sshcom_key *load_sshcom_key(char *filename)
              * Header lines can end in a trailing backslash for
              * continuation.
              */
-            while ((len = strlen(p)) > sizeof(buffer) - (p-buffer) -1 ||
+            while ((len = strlen(p)) > (int)(sizeof(buffer) - (p-buffer) -1) ||
                    p[len-1] != '\n' || p[len-2] == '\\') {
-                if (len > (p-buffer) + sizeof(buffer)-2) {
+                if (len > (int)((p-buffer) + sizeof(buffer)-2)) {
                     errmsg = "Header line too long to deal with";
                     goto error;
                 }
@@ -1590,7 +1590,7 @@ int sshcom_write(char *filename, struct ssh2_userkey *key, char *passphrase)
     {
 	int slen = 60;		       /* starts at 60 due to "Comment: " */
 	char *c = key->comment;
-	while (strlen(c) > slen) {
+	while ((int)strlen(c) > slen) {
 	    fprintf(fp, "%.*s\\\n", slen, c);
 	    c += slen;
 	    slen = 70;		       /* allow 70 chars on subsequent lines */
