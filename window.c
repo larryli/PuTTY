@@ -10,11 +10,6 @@
 #endif
 #endif
 
-#if (WINVER < 0x0500) && !defined(NO_MULTIMON)
-#define COMPILE_MULTIMON_STUBS
-#include <multimon.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -79,18 +74,13 @@ static void deinit_fonts(void);
 
 /* Window layout information */
 static void reset_window(int);
-static int full_screen = 0, want_full_screen = 0;
+static int full_screen = 0;
 static int extra_width, extra_height;
 static int font_width, font_height, font_dualwidth;
 static int offset_width, offset_height;
 static int was_zoomed = 0;
-static int was_full_screen = 0;
 static int prev_rows, prev_cols;
-static int pre_fs_rows, pre_fs_cols;
   
-static LONG old_wind_style;
-static WINDOWPLACEMENT old_wind_placement;
-
 static int pending_netevent = 0;
 static WPARAM pend_netevent_wParam = 0;
 static LPARAM pend_netevent_lParam = 0;
@@ -1201,7 +1191,7 @@ static void reset_window(int reinit) {
 #endif
     }
 
-    if (IsZoomed(hwnd) || full_screen) {
+    if (IsZoomed(hwnd)) {
 	/* We're fullscreen, this means we must not change the size of
 	 * the window so it's the font size or the terminal itself.
 	 */
@@ -2081,11 +2071,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    was_zoomed = 0;
 		    if (cfg.resize_action != RESIZE_FONT)
 			term_size(prev_rows, prev_cols, cfg.savelines);
-		    reset_window(0);
-		} else if (was_full_screen) {
-		    was_full_screen = 0;
-		    if (cfg.resize_action != RESIZE_FONT)
-			term_size(pre_fs_rows, pre_fs_cols, cfg.savelines);
 		    reset_window(0);
 		}
 		/* This is an unexpected resize, these will normally happen
@@ -3864,58 +3849,53 @@ void beep(int mode)
  */
 static void flip_full_screen(void)
 {
-    want_full_screen = !want_full_screen;
+    WINDOWPLACEMENT wp;
+    LONG style;
 
-    if (full_screen == want_full_screen)
-	return;
+    wp.length = sizeof(wp);
+    GetWindowPlacement(hwnd, &wp);
 
-    full_screen = want_full_screen;
-
-    old_wind_placement.length = sizeof(old_wind_placement);
+    full_screen = !full_screen;
 
     if (full_screen) {
-	int x, y, cx, cy;
-#if !defined(NO_MULTIMON) && defined(MONITOR_DEFAULTTONEAREST)
-	/* The multi-monitor safe way of doing things */
-	HMONITOR	mon;
-	MONITORINFO	mi;
+	if (wp.showCmd == SW_SHOWMAXIMIZED) {
+	    /* Ooops it was already 'zoomed' we have to unzoom it before
+	     * everything will work right.
+	     */
+	    wp.showCmd = SW_SHOWNORMAL;
+	    SetWindowPlacement(hwnd, &wp);
+	}
 
-	mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-	mi.cbSize = sizeof(mi);
-	GetMonitorInfo(mon, &mi);
-	x = mi.rcMonitor.left;
-	y = mi.rcMonitor.top;
-	cx = mi.rcMonitor.right;
-	cy = mi.rcMonitor.bottom;
-#else
-	/* good old fashioned way of doing it */
-	x = 0;
-	y = 0;
-	cx = GetSystemMetrics(SM_CXSCREEN);
-	cy = GetSystemMetrics(SM_CYSCREEN);
-#endif
+	style = GetWindowLong(hwnd, GWL_STYLE) & ~WS_CAPTION;
+	style &= ~WS_VSCROLL;
+	if (cfg.scrollbar_in_fullscreen)
+	    style |= WS_VSCROLL;
+	SetWindowLong(hwnd, GWL_STYLE, style);
 
-	/* save rows for when we "restore" back down again */
-	pre_fs_rows = rows;
-	pre_fs_cols = cols;
+	/* This seems to be needed otherwize explorer doesn't notice
+	 * we want to go fullscreen and it's bar is still visible
+	 */
+	SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+		     SWP_NOACTIVATE | SWP_NOCOPYBITS |
+		     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+		     SWP_FRAMECHANGED);
 
-	GetWindowPlacement(hwnd, &old_wind_placement);
-	SetWindowLong(hwnd, GWL_STYLE,
-		      GetWindowLong(hwnd, GWL_STYLE)
-		      & ~((cfg.scrollbar_in_fullscreen ? 0 : WS_VSCROLL)
-			  | WS_CAPTION | WS_BORDER | WS_THICKFRAME));
-	/* become topmost */
-	SetWindowPos(hwnd, HWND_TOP, x, y, cx, cy, SWP_FRAMECHANGED);
+	wp.showCmd = SW_SHOWMAXIMIZED;
+	SetWindowPlacement(hwnd, &wp);
     } else {
-	was_full_screen = 1;
-	SetWindowLong(hwnd, GWL_STYLE,
-		      GetWindowLong(hwnd, GWL_STYLE)
-		      | (cfg.scrollbar ? WS_VSCROLL : 0)
-		      | WS_CAPTION | WS_BORDER | WS_THICKFRAME);
-	SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
-		     SWP_NOMOVE|SWP_NOSIZE|SWP_FRAMECHANGED);
-	SetWindowPlacement(hwnd,&old_wind_placement);
+	style = GetWindowLong(hwnd, GWL_STYLE) | WS_CAPTION;
+	style &= ~WS_VSCROLL;
+	if (cfg.scrollbar)
+	    style |= WS_VSCROLL;
+	SetWindowLong(hwnd, GWL_STYLE, style);
+
+	/* Don't need to do a SetWindowPos as the resize will force a
+	 * full redraw.
+	 */
+	wp.showCmd = SW_SHOWNORMAL;
+	SetWindowPlacement(hwnd, &wp);
     }
+
     CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
 		  MF_BYCOMMAND| full_screen ? MF_CHECKED : MF_UNCHECKED);
 }
