@@ -1446,7 +1446,7 @@ static int verbose = 0;
  */
 void fatalbox(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char str[512];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal:");
@@ -1459,7 +1459,7 @@ void fatalbox(char *fmt, ...)
 }
 void connection_fatal(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char str[512];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal:");

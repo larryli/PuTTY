@@ -157,7 +157,7 @@ static void tell_str(FILE * stream, char *str)
 
 static void tell_user(FILE * stream, char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char str[512];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     vsprintf(str, fmt, ap);
@@ -213,7 +213,7 @@ static void gui_update_stats(char *name, unsigned long size,
  */
 void fatalbox(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char str[512];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal: ");
@@ -236,7 +236,7 @@ void fatalbox(char *fmt, ...)
 }
 void connection_fatal(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char str[512];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal: ");
@@ -401,7 +401,7 @@ static void ssh_scp_init(void)
  */
 static void bump(char *fmt, ...)
 {
-    char str[0x100];		       /* Make the size big enough */
+    char str[512];		       /* Make the size big enough */
     va_list ap;
     va_start(ap, fmt);
     strcpy(str, "Fatal: ");
