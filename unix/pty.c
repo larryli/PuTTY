@@ -519,6 +519,14 @@ static void pty_reconfig(void *handle, Config *cfg)
 }
 
 /*
+ * Stub routine (never called in pterm
+ */
+static void pty_free(void *handle)
+{
+}
+
+
+/*
  * Called to send data down the pty.
  */
 static int pty_send(void *handle, char *buf, int len)
@@ -624,6 +632,7 @@ static int pty_exitcode(void *handle)
 
 Backend pty_backend = {
     pty_init,
+    pty_free,
     pty_reconfig,
     pty_send,
     pty_sendbuffer,
