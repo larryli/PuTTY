@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.35 2002/08/07 19:20:06 simon Exp $
+\versionid $Id: config.but,v 1.36 2002/09/08 13:25:58 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1397,9 +1397,6 @@ and enter a command such as \c{connect myhost.com 22} to connect
 through to an external host. Selecting \q{Telnet} allows you to tell
 PuTTY to use this type of proxy.
 
-Note [FIXME] that SOCKS is not yet supported, although it should be
-by the time we make our next release.
-
 \S{config-proxy-exclude} Excluding parts of the network from proxying
 
 Typically you will only need to use a proxy to connect to non-local
@@ -1432,8 +1429,9 @@ This excludes both of the above ranges at once.
 If your proxy requires authentication, you can enter a username and
 a password in the \q{Username} and \q{Password} boxes.
 
-Currently these boxes have no effect ( [FIXME] presumably they're
-for SOCKS only).
+Currently only the \q{Username} box has any effect, and that only for
+SOCKS 4 proxies. ( [FIXME] No forms of authentication are supported
+for other types of proxy.)
 
 \S{config-proxy-command} Specifying the Telnet proxy command
 
