@@ -300,6 +300,7 @@ pageant.$(OBJ): pageant.c network.h misc.h int64.h puttymem.h ssh.h tree234.h
 pageantc.$(OBJ): pageantc.c puttymem.h 
 plink.$(OBJ): plink.c network.h misc.h puttymem.h storage.h putty.h tree234.h 
 portfwd.$(OBJ): portfwd.c network.h misc.h puttymem.h int64.h ssh.h putty.h 
+printing.$(OBJ): printing.c network.h misc.h puttymem.h putty.h 
 psftp.$(OBJ): psftp.c network.h misc.h sftp.h ssh.h storage.h int64.h puttymem.h putty.h 
 puttygen.$(OBJ): puttygen.c network.h misc.h puttymem.h int64.h winstuff.h ssh.h putty.h 
 raw.$(OBJ): raw.c network.h misc.h puttymem.h putty.h 
