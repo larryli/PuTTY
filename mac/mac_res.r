@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.31 2003/03/11 22:35:07 ben Exp $ */
+/* $Id: mac_res.r,v 1.32 2003/03/17 21:40:37 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.
@@ -1023,29 +1023,15 @@ resource 'CNTL' (cVScroll, "vscroll", purgeable) {
 
 /* Settings dialogue */
 
-resource 'DLOG' (wSettings, "settings", purgeable) {
-    { 0, 0, 46, 240 },
+resource 'WIND' (wSettings, "settings", purgeable) {
+    { 0, 0, 350, 500 },
     noGrowDocProc,
     invisible,
     goAway,
-    wSettings,
-    wSettings,
-    "Settings",
+    0x0,
+    "untitled",
     staggerParentWindowScreen
 };
-
-resource 'dlgx' (wSettings, "settings", purgeable) {
-    versionZero {
-	kDialogFlagsUseThemeBackground | kDialogFlagsUseThemeControls
-    }
-};
-
-resource 'DITL' (wSettings, "settings", purgeable) {
-    {
-	{ 13, 13, 33, 227 },
-	Button { enabled, "Open" },
-    }
-};        
 
 /* Event log */
 resource 'WIND' (wEventLog, "event log", purgeable) {

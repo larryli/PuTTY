@@ -15,6 +15,7 @@
 #include <UnicodeConverter.h>
 
 #include "charset.h"
+#include "tree234.h"
 
 #define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
 #define INTERNAL_CREATOR FOUR_CHAR_CODE('pTTI')
@@ -47,6 +48,7 @@ extern UInt32 sleeptime;
 typedef struct {
     struct Session *s;    /* Only used in PuTTY */
     struct KeyState *ks; /* Only used in PuTTYgen */
+    struct macctrls *mcs;
 
     void (*activate)	(WindowPtr, EventRecord *);
     void (*adjustcursor)(WindowPtr, Point, RgnHandle);
@@ -63,6 +65,12 @@ typedef struct {
 
 #define mac_wininfo(w)		((WinInfo *)GetWRefCon(w))
 #define mac_windowsession(w)	(((WinInfo *)GetWRefCon(w))->s)
+#define mac_winctrls(w)		(((WinInfo *)GetWRefCon(w))->mcs)
+
+struct macctrls {
+    tree234		*byctrl;
+    void		*data; /* private data for config box */
+};    
 
 typedef struct Session {
     struct Session *next;
@@ -96,7 +104,6 @@ typedef struct Session {
     Point		font_bignumer;
     Point		font_bigdenom;
     WindowPtr		window;
-    WindowPtr		settings_window;
     WindowPtr		eventlog_window;
     ListHandle		eventlog;
     PaletteHandle	palette;
@@ -107,6 +114,11 @@ typedef struct Session {
     charset_t		font_charset; /* font_charset is used at a time. */
     int			hasfile;
     FSSpec		savefile;
+
+    /* Config dialogue bits */
+    WindowPtr		settings_window;
+    struct controlbox	*ctrlbox;
+    struct macctrls	settings_ctrls;
 } Session;
 
 extern Session *sesslist;
@@ -179,6 +191,16 @@ extern Socket ot_newlistener(char *, int, Plug, int);
 extern char *ot_addr_error(SockAddr);
 /* from macabout.c */
 extern void mac_openabout(void);
+/* from macctrls.c */
+extern void macctrl_layoutbox(struct controlbox *, WindowPtr,
+			      struct macctrls *);
+extern void macctrl_activate(WindowPtr, EventRecord *);
+extern void macctrl_click(WindowPtr, EventRecord *);
+extern void macctrl_update(WindowPtr);
+extern void macctrl_adjustmenus(WindowPtr);
+extern void macctrl_close(WindowPtr);
+
+
 /* from macpgkey.c */
 extern void mac_newkey(void);
 /* Apple Event Handlers (in various files) */

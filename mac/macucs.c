@@ -1,4 +1,4 @@
-/* $Id: macucs.c,v 1.5 2003/01/14 19:57:36 ben Exp $ */
+/* $Id: macucs.c,v 1.6 2003/03/17 21:40:37 ben Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -108,4 +108,23 @@ void init_ucs(Session *s)
 	   sizeof(unitab_xterm_std));
     s->ucsdata.unitab_xterm['_'] = ' ';
 
+}
+
+int decode_codepage(char *cp_name)
+{
+
+    return 0;
+}
+
+char *cp_enumerate (int index)
+{
+
+    if (index == 0) return "ISO/IEC 8859-1";
+    return NULL;
+}
+
+char *cp_name(int codepage)
+{
+
+    return "ISO/IEC 8859-1";
 }

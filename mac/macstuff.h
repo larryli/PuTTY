@@ -59,3 +59,7 @@ extern int vsnprintf(char *, size_t, char const *, va_list);
 
 extern int stricmp(char const *, char const *);
 extern int strnicmp(char const *, char const *, size_t);
+
+#define HELPCTX(foo) I(0)
+
+#define FILTER_KEY_FILES "pAgt.PPK"

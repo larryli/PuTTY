@@ -155,10 +155,10 @@ plink    : [U] uxplink uxcons NONSSH UXSSH be_all logging UXMISC signal ux_x11
 
 PuTTY    : [M] terminal wcwidth ldiscucs logging be_all mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACSSH MACMISC CHARSET
-         + stricmp vsnprint
+         + stricmp vsnprint dialog config macctrls
 PuTTYtel : [M] terminal wcwidth ldiscucs logging be_nossh mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACMISC CHARSET
-         + stricmp vsnprint
+         + stricmp vsnprint dialog config macctrls
 PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
          + sshaes sshsh512 import macpgen.rsrc macpgkey macabout

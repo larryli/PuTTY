@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.12 2003/02/15 16:22:15 ben Exp $ */
+/* $Id: macdlg.c,v 1.13 2003/03/17 21:40:37 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -32,7 +32,6 @@
 #include <MacTypes.h>
 #include <AEDataModel.h>
 #include <AppleEvents.h>
-#include <Dialogs.h>
 #include <Navigation.h>
 #include <Resources.h>
 #include <StandardFile.h>
@@ -42,6 +41,7 @@
 #include <string.h>
 
 #include "putty.h"
+#include "dialog.h"
 #include "mac.h"
 #include "macresid.h"
 #include "storage.h"
@@ -50,29 +50,41 @@ static void mac_clickdlg(WindowPtr, EventRecord *);
 static void mac_activatedlg(WindowPtr, EventRecord *);
 static void mac_updatedlg(WindowPtr);
 static void mac_adjustdlgmenus(WindowPtr);
+static void mac_closedlg(WindowPtr);
 
 void mac_newsession(void)
 {
     Session *s;
     WinInfo *wi;
+    static struct sesslist sesslist;
 
-    /* This should obviously be initialised by other means */
     s = smalloc(sizeof(*s));
     memset(s, 0, sizeof(*s));
     do_defaults(NULL, &s->cfg);
     s->hasfile = FALSE;
 
-    s->settings_window =
-	GetDialogWindow(GetNewDialog(wSettings, NULL, (WindowPtr)-1));
+    if (HAVE_COLOR_QD())
+	s->settings_window = GetNewCWindow(wSettings, NULL, (WindowPtr)-1);
+    else
+	s->settings_window = GetNewWindow(wSettings, NULL, (WindowPtr)-1);
+
+    get_sesslist(&sesslist, TRUE);
+    s->ctrlbox = ctrl_new_box();
+    setup_config_box(s->ctrlbox, &sesslist, FALSE, 0);
+
+    s->settings_ctrls.data = &s->cfg;
+    macctrl_layoutbox(s->ctrlbox, s->settings_window, &s->settings_ctrls);
 
     wi = smalloc(sizeof(*wi));
     memset(wi, 0, sizeof(*wi));
     wi->s = s;
+    wi->mcs = s->settings_ctrls;
     wi->wtype = wSettings;
-    wi->update = &mac_updatedlg;
-    wi->click = &mac_clickdlg;
-    wi->activate = &mac_activatedlg;
-    wi->adjustmenus = &mac_adjustdlgmenus;
+    wi->update = &macctrl_update;
+    wi->click = &macctrl_click;
+    wi->activate = &macctrl_activate;
+    wi->adjustmenus = &macctrl_adjustmenus;
+    wi->close = &macctrl_close;
     SetWRefCon(s->settings_window, (long)wi);
     ShowWindow(s->settings_window);
 }
@@ -278,71 +290,6 @@ pascal OSErr mac_aevt_pdoc(const AppleEvent *req, AppleEvent *reply,
 
     /* We can't meaningfully do anything here. */
     return errAEEventNotHandled;
-}
-
-static void mac_activatedlg(WindowPtr window, EventRecord *event)
-{
-    DialogItemType itemtype;
-    Handle itemhandle;
-    short item;
-    Rect itemrect;
-    int active;
-    DialogRef dialog = GetDialogFromWindow(window);
-
-    active = (event->modifiers & activeFlag) != 0;
-    GetDialogItem(dialog, wiSettingsOpen, &itemtype, &itemhandle, &itemrect);
-    HiliteControl((ControlHandle)itemhandle, active ? 0 : 255);
-    DialogSelect(event, &dialog, &item);
-}
-
-static void mac_clickdlg(WindowPtr window, EventRecord *event)
-{
-    short item;
-    Session *s = mac_windowsession(window);
-    DialogRef dialog = GetDialogFromWindow(window);
-
-    if (DialogSelect(event, &dialog, &item))
-	switch (item) {
-	  case wiSettingsOpen:
-	    HideWindow(window);
-	    mac_startsession(s);
-	    break;
-	}
-}
-
-static void mac_updatedlg(WindowPtr window)
-{
-#if TARGET_API_MAC_CARBON
-    RgnHandle rgn;
-#endif
-
-    BeginUpdate(window);
-#if TARGET_API_MAC_CARBON
-    rgn = NewRgn();
-    GetPortVisibleRegion(GetWindowPort(window), rgn);
-    UpdateDialog(GetDialogFromWindow(window), rgn);
-    DisposeRgn(rgn);
-#else
-    UpdateDialog(window, window->visRgn);
-#endif
-    EndUpdate(window);
-}
-
-#if TARGET_API_MAC_CARBON
-#define EnableItem EnableMenuItem
-#define DisableItem DisableMenuItem
-#endif
-static void mac_adjustdlgmenus(WindowPtr window)
-{
-    MenuHandle menu;
-
-    menu = GetMenuHandle(mFile);
-    DisableItem(menu, iSave); /* XXX enable if modified */
-    EnableItem(menu, iSaveAs);
-    EnableItem(menu, iDuplicate);
-
-    menu = GetMenuHandle(mEdit);
-    DisableItem(menu, 0);
 }
 
 /*
