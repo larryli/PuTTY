@@ -126,6 +126,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 
     InitCommonControls();
 
+    /* Ensure a Maximize setting in Explorer doesn't maximise the
+     * config box. */
+    defuse_showwindow();
+
     /*
      * Process the command line.
      */

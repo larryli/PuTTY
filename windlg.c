@@ -173,6 +173,14 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
     return 0;
 }
 
+/*
+ * Null dialog procedure.
+ */
+static int CALLBACK NullDlgProc (HWND hwnd, UINT msg,
+                                 WPARAM wParam, LPARAM lParam) {
+    return 0;
+}
+
 /* ----------------------------------------------------------------------
  * Routines to self-manage the controls in a dialog box.
  */
@@ -2295,6 +2303,21 @@ static int CALLBACK ReconfDlgProc (HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam) {
     static HWND page;
     return GenericMainDlgProc (hwnd, msg, wParam, lParam, 1);
+}
+
+int defuse_showwindow(void) {
+    /*
+     * Work around the fact that the app's first call to ShowWindow
+     * will ignore the default in favour of the shell-provided
+     * setting.
+     */
+    {
+        HWND hwnd;
+        hwnd = CreateDialog (hinst, MAKEINTRESOURCE(IDD_ABOUTBOX),
+                             NULL, NullDlgProc);
+        ShowWindow(hwnd, SW_HIDE);
+        DestroyWindow(hwnd);
+    }
 }
 
 int do_config (void) {

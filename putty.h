@@ -269,6 +269,7 @@ void random_destroy_seed(void);
 /*
  * Exports from windlg.c.
  */
+int defuse_showwindow(void);
 int do_config (void);
 int do_reconfig (HWND);
 void do_defaults (char *, Config *);
