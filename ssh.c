@@ -3302,6 +3302,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    } else {
 		while (*ssh->portfwd_strptr) ssh->portfwd_strptr++;
 		dport = dserv = -1;
+		ssh->portfwd_strptr++; /* eat the NUL and move to next one */
 	    }
 	    sport = atoi(sports);
 	    sserv = 0;
@@ -5418,6 +5419,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    } else {
 		while (*ssh->portfwd_strptr) ssh->portfwd_strptr++;
 		dport = dserv = -1;
+		ssh->portfwd_strptr++; /* eat the NUL and move to next one */
 	    }
 	    sport = atoi(sports);
 	    sserv = 0;
