@@ -387,8 +387,9 @@ Socket new_connection(SockAddr addr, char *hostname,
 	char *proxy_canonical_name;
 	Socket sret;
 
-	if ( (sret = platform_new_connection(addr, hostname, port, privport,
-					     oobinline, nodelay, plug, cfg)) )
+	if ((sret = platform_new_connection(addr, hostname, port, privport,
+					    oobinline, nodelay, plug, cfg)) !=
+	    NULL)
 	    return sret;
 
 	ret = snew(struct Socket_proxy_tag);
