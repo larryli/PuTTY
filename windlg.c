@@ -49,6 +49,11 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+        {
+            static const int tabs[4] = {78, 108};
+            SendDlgItemMessage (hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
+                                (LPARAM) tabs);
+        }
 	for (i=0; i<nevents; i++)
 	    SendDlgItemMessage (hwnd, IDN_LIST, LB_ADDSTRING,
 				0, (LPARAM)events[i]);
@@ -2048,7 +2053,7 @@ void logevent (char *string) {
     }
 
     time(&t);
-    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S    ", localtime(&t));
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", localtime(&t));
 
     events[nevents] = smalloc(strlen(timebuf)+strlen(string)+1);
     strcpy(events[nevents], timebuf);
