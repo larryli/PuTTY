@@ -160,10 +160,10 @@ SOCK2 = ws2_32.lib
 all: putty.exe puttytel.exe pscp.exe psftp.exe \
      plink.exe pageant.exe puttygen.exe
 
-putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(PRESRC) putty.rsp
+putty.exe: $(GOBJS1) $(GOBJS2) $(GOBJS3) $(LOBJS1) $(POBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe -map:putty.map @putty.rsp
 
-puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(MOBJ2) $(PRESRC) puttytel.rsp
+puttytel.exe: $(GOBJS1) $(GOBJS2) $(GOBJS3) $(LOBJS1) $(TOBJS) $(MOBJS) $(MOBJ2) $(PRESRC) puttytel.rsp
 	link $(LFLAGS) -out:puttytel.exe -map:puttytel.map @puttytel.rsp
 
 pageant.exe: $(PAGE1) $(PAGE2) $(PAGE3) $(PAGERC) pageant.rsp
@@ -188,6 +188,7 @@ putty.rsp: makefile
 	echo /nologo /subsystem:windows > putty.rsp
 	echo $(GOBJS1) >> putty.rsp
 	echo $(GOBJS2) >> putty.rsp
+	echo $(GOBJS3) >> putty.rsp
 	echo $(LOBJS1) >> putty.rsp
 	echo $(POBJS) >> putty.rsp
 	echo $(MOBJS) >> putty.rsp
@@ -206,6 +207,7 @@ puttytel.rsp: makefile
 	echo /nologo /subsystem:windows > puttytel.rsp
 	echo $(GOBJS1) >> puttytel.rsp
 	echo $(GOBJS2) >> puttytel.rsp
+	echo $(GOBJS3) >> puttytel.rsp
 	echo $(LOBJS1) >> puttytel.rsp
 	echo $(TOBJS) >> puttytel.rsp
 	echo $(MOBJS) >> puttytel.rsp
