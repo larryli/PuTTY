@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.22 2003/03/30 00:45:00 ben Exp $ */
+/* $Id: macctrls.c,v 1.23 2003/03/30 14:24:20 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -459,7 +459,7 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 	SetControlData(mc->editbox.tblabel, kControlEntireControl,
 		       kControlStaticTextTextTag,
 		       strlen(ctrl->editbox.label), ctrl->editbox.label);
-	InsetRect(&bounds, 2, 2);
+	InsetRect(&bounds, 3, 3);
 	mc->editbox.tbctrl = NewControl(window, &bounds, NULL, TRUE, 0, 0, 0,
 					ctrl->editbox.password ?
 					kControlEditTextPasswordProc :
