@@ -703,6 +703,7 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
     telnet->term_width = telnet->cfg.width;
     telnet->term_height = telnet->cfg.height;
     telnet->state = TOP_LEVEL;
+    telnet->ldisc = NULL;
     *backend_handle = telnet;
 
     /*
