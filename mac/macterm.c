@@ -466,6 +466,7 @@ static void mac_adjusttermmenus(WindowPtr window)
     menu = GetMenuHandle(mFile);
     DisableItem(menu, iSave); /* XXX enable if modified */
     EnableItem(menu, iSaveAs);
+    EnableItem(menu, iChange);
     EnableItem(menu, iDuplicate);
     menu = GetMenuHandle(mEdit);
     EnableItem(menu, 0);

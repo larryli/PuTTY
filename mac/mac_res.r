@@ -895,12 +895,13 @@ resource 'MENU' (mApple, preload) {
 resource 'MENU' (mFile, preload) {
     mFile,
     textMenuProc,
-    0b11111111111111111111111101111011,
+    0b11111111111111111111111011110111,
     enabled,
     "Session",
     {
 	"New",			noicon, "N",   nomark, plain,
 	"Open\0xc9",		noicon, "O",   nomark, plain,
+	"Change Settings",	noicon, nokey, nomark, plain,
 	"-",			noicon, nokey, nomark, plain,
 	"Close",		noicon, "W",   nomark, plain,
 	"Save",			noicon, "S",   nomark, plain,

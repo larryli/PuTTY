@@ -47,20 +47,37 @@
 #include "macresid.h"
 #include "storage.h"
 
+static void mac_config(int);
 static void mac_closedlg(WindowPtr);
-static void mac_enddlg(WindowPtr, int);
+static void mac_enddlg_config(WindowPtr, int);
+static void mac_enddlg_reconfig(WindowPtr, int);
 
 void mac_newsession(void)
+{
+    mac_config(FALSE);
+}
+
+void mac_reconfig(void)
+{
+    mac_config(TRUE);
+}
+
+static void mac_config(int midsession)
 {
     Session *s;
     WinInfo *wi;
     static struct sesslist sesslist;
     Str255 mactitle;
+    char *str;
 
-    s = snew(Session);
-    memset(s, 0, sizeof(*s));
-    do_defaults(NULL, &s->cfg);
-    s->hasfile = FALSE;
+    if (midsession) {
+        s = mac_windowsession(FrontWindow());
+    } else {  
+        s = snew(Session);
+        memset(s, 0, sizeof(*s));
+        do_defaults(NULL, &s->cfg);
+        s->hasfile = FALSE;
+    }
 
     if (HAVE_COLOR_QD())
 	s->settings_window = GetNewCWindow(wSettings, NULL, (WindowPtr)-1);
@@ -69,10 +86,14 @@ void mac_newsession(void)
 
     get_sesslist(&sesslist, TRUE);
     s->ctrlbox = ctrl_new_box();
-    setup_config_box(s->ctrlbox, &sesslist, FALSE, 0, 0);
+    setup_config_box(s->ctrlbox, &sesslist, midsession, 0, 0);
 
     s->settings_ctrls.data = &s->cfg;
-    s->settings_ctrls.end = &mac_enddlg;
+    if (midsession)
+        s->settings_ctrls.end = &mac_enddlg_reconfig;
+    else
+        s->settings_ctrls.end = &mac_enddlg_config;
+
     macctrl_layoutbox(s->ctrlbox, s->settings_window, &s->settings_ctrls);
 
     wi = snew(WinInfo);
@@ -87,7 +108,11 @@ void mac_newsession(void)
     wi->adjustmenus = &macctrl_adjustmenus;
     wi->close = &mac_closedlg;
     SetWRefCon(s->settings_window, (long)wi);
-    c2pstrcpy(mactitle, "PuTTY Configuration");
+    if (midsession)
+        str = dupprintf("%s Reconfiguration", appname);
+    else
+        str = dupprintf("%s Configuration", appname);
+    c2pstrcpy(mactitle, str);
     SetWTitle(s->settings_window, mactitle);
     ShowWindow(s->settings_window);
 }
@@ -102,7 +127,7 @@ static void mac_closedlg(WindowPtr window)
 	sfree(s);
 }
 
-static void mac_enddlg(WindowPtr window, int value)
+static void mac_enddlg_config(WindowPtr window, int value)
 {
     Session *s = mac_windowsession(window);
 
@@ -110,6 +135,17 @@ static void mac_enddlg(WindowPtr window, int value)
 	mac_closedlg(window);
     else {
 	mac_startsession(s);
+	mac_closedlg(window);
+    }
+}
+
+static void mac_enddlg_reconfig(WindowPtr window, int value)
+{
+    Session *s = mac_windowsession(window);
+
+    if (value == 0)
+	mac_closedlg(window);
+    else {
 	mac_closedlg(window);
     }
 }

@@ -474,6 +474,9 @@ static void mac_menucommand(long result) {
 	  case iOpen:
 	    mac_opensession();
 	    goto done;
+	  case iChange:
+	    mac_reconfig();
+	    goto done;
           case iClose:
             mac_closewindow(window);
             goto done;
@@ -569,6 +572,7 @@ static void mac_adjustmenus(void) {
     if (window != NULL && mac_wininfo(window)->adjustmenus != NULL)
 	(*mac_wininfo(window)->adjustmenus)(window);
     else {
+	DisableItem(menu, iChange);
 	DisableItem(menu, iSave);
 	DisableItem(menu, iSaveAs);
 	DisableItem(menu, iDuplicate);

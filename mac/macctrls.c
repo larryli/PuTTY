@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.42 2003/05/10 20:51:39 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -248,6 +248,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
     mcs->focus = NULL;
     mcs->defbutton = NULL;
     mcs->canbutton = NULL;
+    mcs->curpanel = 1;
     /* Count the number of panels */
     mcs->npanels = 1;
     for (i = 1; i < cb->nctrlsets; i++)
