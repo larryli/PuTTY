@@ -35,7 +35,8 @@
 #
 #  - COMPAT=/DNO_SECURITY
 #      Disables Pageant's use of <aclapi.h>, which is not available
-#      with some development environments. This means that Pageant
+#      with some development environments (such as older versions of
+#      the Cygwin/mingw GNU toolchain). This means that Pageant
 #      won't care about the local user ID of processes accessing it; a
 #      version of Pageant built with this option will therefore refuse
 #      to run under NT-series OSes on security grounds (although it
