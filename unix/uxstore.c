@@ -127,13 +127,6 @@ static char *fgetline(FILE *fp)
     return ret;
 }
 
-/*
- * For the moment, the only existing Unix utility is pterm and that
- * has no GUI configuration at all, so our write routines need do
- * nothing. Eventually I suppose these will read and write an rc
- * file somewhere or other.
- */
-
 void *open_settings_w(const char *sessionname, char **errmsg)
 {
     char filename[FILENAME_MAX];
@@ -188,6 +181,7 @@ void close_settings_w(void *handle)
  * PuTTY's inbuilt defaults, but that the disk files will then
  * override those. This isn't optimal, but it's the best I can
  * immediately work out.
+ * FIXME: the above comment is a bit out of date. Did it happen?
  */
 
 struct keyval {
