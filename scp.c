@@ -95,7 +95,7 @@ void ssh_get_password(char *prompt, char *str, int maxlen)
 
     SetConsoleMode(hin, savemode);
 
-    if (i > maxlen) i = maxlen-1; else i = i - 2;
+    if ((int)i > maxlen) i = maxlen-1; else i = i - 2;
     str[i] = '\0';
 
     WriteFile(hout, "\r\n", 2, &i, NULL);
