@@ -56,6 +56,8 @@
 
 #define has_compat(x) ( ((CL_##x)&term->compatibility_level) != 0 )
 
+const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
 const wchar_t sel_nl[] = SEL_NL;
 
@@ -2390,6 +2392,11 @@ void term_out(Terminal *term)
 				    compatibility(VT100AVO);
 				    term->curr_attr |= ATTR_BLINK;
 				    break;
+				  case 6:	/* SCO light bkgrd */
+				    compatibility(SCOANSI);
+				    term->blink_is_real = FALSE;
+				    term->curr_attr |= ATTR_BLINK;
+				    break;
 				  case 7:	/* enable reverse video */
 				    term->curr_attr |= ATTR_REVERSE;
 				    break;
@@ -2726,18 +2733,77 @@ void term_out(Terminal *term)
 			    check_selection(term, old_curs, term->curs);
 			}
 			break;
+		      case ANSI('c', '='):      /* Hide or Show Cursor */
+			compatibility(SCOANSI);
+			switch(term->esc_args[0]) {
+			  case 0:  /* hide cursor */
+			    term->cursor_on = FALSE;
+			    break;
+			  case 1:  /* restore cursor */
+			    term->big_cursor = FALSE;
+			    term->cursor_on = TRUE;
+			    break;
+			  case 2:  /* block cursor */
+			    term->big_cursor = TRUE;
+			    term->cursor_on = TRUE;
+			    break;
+			}
+			break;
+		      case ANSI('C', '='):
+			/*
+			 * set cursor start on scanline esc_args[0] and
+			 * end on scanline esc_args[1].If you set
+			 * the bottom scan line to a value less than
+			 * the top scan line, the cursor will disappear.
+			 */
+			compatibility(SCOANSI);
+			if (term->esc_nargs >= 2) {
+			    if (term->esc_args[0] > term->esc_args[1])
+				term->cursor_on = FALSE;
+			    else
+				term->cursor_on = TRUE;
+			}
+			break;
+		      case ANSI('D', '='):
+			compatibility(SCOANSI);
+			term->blink_is_real = FALSE;
+			if (term->esc_args[0]>=1)
+			    term->curr_attr |= ATTR_BLINK;
+			else
+			    term->curr_attr &= ~ATTR_BLINK;
+			break;
+		      case ANSI('E', '='):
+			compatibility(SCOANSI);
+			term->blink_is_real = (term->esc_args[0] >= 1);
+			break;
+		      case ANSI('F', '='):      /* set normal foreground */
+			compatibility(SCOANSI);
+			if (term->esc_args[0] >= 0 && term->esc_args[0] < 16) {
+			    term->curr_attr &= ~ATTR_FGMASK;
+			    term->curr_attr |=
+				(sco2ansicolour[term->esc_args[0] & 0x7] |
+				 ((term->esc_args[0] & 0x8) << 1)) <<
+				ATTR_FGSHIFT;
+			}
+			break;
+		      case ANSI('G', '='):      /* set normal background */
+			compatibility(SCOANSI);
+			if (term->esc_args[0] >= 0 && term->esc_args[0] < 16) {
+			    term->curr_attr &= ~ATTR_BGMASK;
+			    term->curr_attr |=
+				(sco2ansicolour[term->esc_args[0] & 0x7] |
+				 ((term->esc_args[0] & 0x8) << 1)) <<
+				ATTR_BGSHIFT;
+			}
+			break;
 		      case ANSI('L', '='):
-			compatibility(OTHER);
+			compatibility(SCOANSI);
 			term->use_bce = (term->esc_args[0] <= 0);
 			term->erase_char = ERASE_CHAR;
 			if (term->use_bce)
 			    term->erase_char = (' ' | ATTR_ASCII |
 						(term->curr_attr & 
 						 (ATTR_FGMASK | ATTR_BGMASK)));
-			break;
-		      case ANSI('E', '='):
-			compatibility(OTHER);
-			term->blink_is_real = (term->esc_args[0] >= 1);
 			break;
 		      case ANSI('p', '"'):
 			/*
