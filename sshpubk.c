@@ -588,7 +588,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     int passlen = passphrase ? strlen(passphrase) : 0;
 
     ret = NULL;			       /* return NULL for most errors */
-    comment = mac = NULL;
+    encryption = comment = mac = NULL;
     public_blob = private_blob = NULL;
 
     fp = f_open(*filename, "rb");
