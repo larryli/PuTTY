@@ -666,7 +666,9 @@ static void environ_handler(union control *ctrl, void *dlg,
 struct portfwd_data {
     union control *addbutton, *rembutton, *listbox;
     union control *sourcebox, *destbox, *direction;
+#ifndef NO_IPV6
     union control *addressfamily;
+#endif
 };
 
 static void portfwd_handler(union control *ctrl, void *dlg,
@@ -691,8 +693,10 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	     * Default is Local.
 	     */
 	    dlg_radiobutton_set(ctrl, dlg, 0);
-	 } else if (ctrl == pfd->addressfamily) {
+#ifndef NO_IPV6
+	} else if (ctrl == pfd->addressfamily) {
 	    dlg_radiobutton_set(ctrl, dlg, 0);
+#endif
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
@@ -702,11 +706,13 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    int whichbutton;
 
 	    i = 0;
+#ifndef NO_IPV6
 	    whichbutton = dlg_radiobutton_get(pfd->addressfamily, dlg);
 	    if (whichbutton == 1)
 		str[i++] = '4';
 	    else if (whichbutton == 2)
 		str[i++] = '6';
+#endif
 
 	    whichbutton = dlg_radiobutton_get(pfd->direction, dlg);
 	    if (whichbutton == 0)
