@@ -1,4 +1,4 @@
-\versionid $Id: pscp.but,v 1.11 2001/06/28 13:36:14 owen Exp $
+\versionid $Id: pscp.but,v 1.12 2001/07/01 09:21:01 simon Exp $
 
 \#FIXME: Need examples
 
@@ -201,7 +201,8 @@ Firstly, PSCP can use PuTTY saved sessions in place of hostnames
 to log in as (see \k{config-username}).
 
 \b In PSCP, you can now use the name of the session instead of a
-hostname: \c{pscp sessionname:file localfile}.
+hostname: type \c{pscp sessionname:file localfile}, where
+\c{sessionname} is replaced by the name of your saved session.
 
 Secondly, PSCP will attempt to authenticate using Pageant if Pageant
 is running (see \k{pageant}). So you would do this:
