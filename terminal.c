@@ -2268,6 +2268,7 @@ void logfopen(void) {
 	    writemod[0] = 'a';	       /* set append mode */
 	else if (i == 0) {	       /* cancelled */
 	    lgfp = NULL;
+            cfg.logtype = 0;           /* disable logging */
 	    return;
 	}
     }
