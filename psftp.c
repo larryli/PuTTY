@@ -94,8 +94,75 @@ char *canonify(char *name) {
     if (canonname) {
 	sfree(fullname);
 	return canonname;
-    } else
-	return fullname;
+    } else {
+        /*
+         * Attempt number 2. Some FXP_REALPATH implementations
+         * (glibc-based ones, in particular) require the _whole_
+         * path to point to something that exists, whereas others
+         * (BSD-based) only require all but the last component to
+         * exist. So if the first call failed, we should strip off
+         * everything from the last slash onwards and try again,
+         * then put the final component back on.
+         * 
+         * Special cases:
+         * 
+         *  - if the last component is "/." or "/..", then we don't
+         *    bother trying this because there's no way it can work.
+         * 
+         *  - if the thing actually ends with a "/", we remove it
+         *    before we start. Except if the string is "/" itself
+         *    (although I can't see why we'd have got here if so,
+         *    because surely "/" would have worked the first
+         *    time?), in which case we don't bother.
+         * 
+         *  - if there's no slash in the string at all, give up in
+         *    confusion (we expect at least one because of the way
+         *    we constructed the string).
+         */
+        
+        int i;
+        char *returnname;
+
+        i = strlen(fullname);
+        if (i > 2 && fullname[i-1] == '/')
+            fullname[--i] = '\0';      /* strip trailing / unless at pos 0 */
+        while (i > 0 && fullname[--i] != '/');
+
+        /*
+         * Give up on special cases.
+         */
+        if (fullname[i] != '/' ||      /* no slash at all */
+            !strcmp(fullname+i, "/.") ||   /* ends in /. */
+            !strcmp(fullname+i, "/..") ||   /* ends in /.. */
+            !strcmp(fullname, "/")) {
+            return fullname;
+        }
+
+        /*
+         * Now i points at the slash. Deal with the final special
+         * case i==0 (ie the whole path was "/nonexistentfile").
+         */
+        fullname[i] = '\0';            /* separate the string */
+        if (i == 0) {
+            canonname = fxp_realpath("/");
+        } else {
+            canonname = fxp_realpath(fullname);
+        }
+
+        if (!canonname)
+            return fullname;           /* even that failed; give up */
+
+        /*
+         * We have a canonical name for all but the last path
+         * component. Concatenate the last component and return.
+         */
+        returnname = dupcat(canonname,
+                            canonname[strlen(canonname)-1] == '/' ? "" : "/",
+                            fullname+i+1, NULL);
+        sfree(fullname);
+        sfree(canonname);
+        return returnname;
+    }
 }
 
 /* ----------------------------------------------------------------------
