@@ -834,7 +834,11 @@ print
 "version.o: FORCE;\n".
 "# Hack to force version.o to be rebuilt always\n".
 "FORCE:\n".
-"\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c ../version.c\n".
+"\tif test -z \"\$(VER)\" && (cd ..; md5sum -c manifest); then \\\n".
+"\t\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) `cat ../version.def` -c ../version.c; \\\n".
+"\telse \\\n".
+"\t\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) \$(VER) -c ../version.c; \\\n".
+"\tfi\n".
 "clean:\n".
 "\trm -f *.o". (join "", map { " $_" } &progrealnames("XU")) . "\n".
 "\n",
