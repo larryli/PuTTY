@@ -86,7 +86,9 @@
 #define LF 10
 #define NUL 0
 
-#define iswritable(x) ( (x) != IAC && (x) != CR )
+#define iswritable(x) \
+	( (x) != IAC && \
+	      (telnet->opt_states[o_we_bin.index] == ACTIVE || (x) != CR))
 
 static char *telopt(int opt)
 {
@@ -157,6 +159,8 @@ enum {
     OPTINDEX_ECHO,
     OPTINDEX_WE_SGA,
     OPTINDEX_THEY_SGA,
+    OPTINDEX_WE_BIN,
+    OPTINDEX_THEY_BIN,
     NUM_OPTS
 };
 
@@ -178,10 +182,14 @@ static const struct Opt o_we_sga =
     { WILL, WONT, DO, DONT, TELOPT_SGA, OPTINDEX_WE_SGA, REQUESTED };
 static const struct Opt o_they_sga =
     { DO, DONT, WILL, WONT, TELOPT_SGA, OPTINDEX_THEY_SGA, REQUESTED };
+static const struct Opt o_we_bin =
+    { WILL, WONT, DO, DONT, TELOPT_BINARY, OPTINDEX_WE_BIN, INACTIVE };
+static const struct Opt o_they_bin =
+    { DO, DONT, WILL, WONT, TELOPT_BINARY, OPTINDEX_THEY_BIN, INACTIVE };
 
 static const struct Opt *const opts[] = {
     &o_naws, &o_tspeed, &o_ttype, &o_oenv, &o_nenv, &o_echo,
-    &o_we_sga, &o_they_sga, NULL
+    &o_we_sga, &o_they_sga, &o_we_bin, &o_they_bin, NULL
 };
 
 typedef struct telnet_tag {
@@ -521,7 +529,7 @@ static void do_telnet_read(Telnet telnet, char *buf, int len)
 		else if (c == DM)
 		    telnet->in_synch = 0;
 #endif
-		if (c == CR)
+		if (c == CR && telnet->opt_states[o_they_bin.index] != ACTIVE)
 		    telnet->state = SEENCR;
 		else
 		    telnet->state = TOP_LEVEL;
@@ -865,7 +873,11 @@ static void telnet_special(void *handle, Telnet_Special code)
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
       case TS_EOL:
-	telnet->bufsize = sk_write(telnet->s, "\r\n", 2);
+	/* In BINARY mode, CR-LF becomes just CR. */
+	if (telnet->opt_states[o_we_bin.index] == ACTIVE)
+	    telnet->bufsize = sk_write(telnet->s, "\r", 2);
+	else
+	    telnet->bufsize = sk_write(telnet->s, "\r\n", 2);
 	break;
       case TS_SYNCH:
 	b[1] = DM;
