@@ -117,7 +117,7 @@ static void save_settings (char *section, int do_host) {
 	wpps (sesskey, "HostName", cfg.host);
 	wppi (sesskey, "PortNumber", cfg.port);
         p = "raw";
-        for (i = 0; backends[i].backend != NULL; i++)
+        for (i = 0; backends[i].name != NULL; i++)
             if (backends[i].protocol == cfg.protocol) {
                 p = backends[i].name;
                 break;
@@ -243,7 +243,7 @@ static void load_settings (char *section, int do_host) {
 
     gpps (sesskey, "Protocol", "default", prot, 10);
     cfg.protocol = default_protocol;
-    for (i = 0; backends[i].backend != NULL; i++)
+    for (i = 0; backends[i].name != NULL; i++)
         if (!strcmp(prot, backends[i].name)) {
             cfg.protocol = backends[i].protocol;
             break;
