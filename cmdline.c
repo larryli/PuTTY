@@ -222,7 +222,7 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	cfg.remote_cmd_ptr2 = NULL;
 	cfg.nopty = TRUE;      /* command => no terminal */
     }
-    if (!strcmp(p, "-P")) {
+    if (!strcmp(p, "-P") || !strcmp(p, "-p")) {
 	RETURN(2);
 	SAVEABLE(2);		       /* lower priority than -ssh,-telnet */
 	cfg.port = atoi(value);
@@ -233,6 +233,64 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	ssh_get_line = cmdline_get_line;
 	ssh_getline_pw_only = TRUE;
     }
+
+    if (!strcmp(p, "-A")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.agentfwd = 1;
+    }
+    if (!strcmp(p, "-a")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.agentfwd = 0;
+    }
+
+    if (!strcmp(p, "-X")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.x11_forward = 1;
+    }
+    if (!strcmp(p, "-x")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.x11_forward = 0;
+    }
+
+    if (!strcmp(p, "-t")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.nopty = 0;
+    }
+    if (!strcmp(p, "-T")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.nopty = 1;
+    }
+
+    if (!strcmp(p, "-C")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.compression = 1;
+    }
+
+    if (!strcmp(p, "-1")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.sshprot = 0;	       /* ssh protocol 1 only */
+    }
+    if (!strcmp(p, "-2")) {
+	RETURN(1);
+	SAVEABLE(1);
+	cfg.sshprot = 3;	       /* ssh protocol 2 only */
+    }
+
+    if (!strcmp(p, "-i")) {
+	RETURN(2);
+	SAVEABLE(1);
+	strncpy(cfg.keyfile, value, sizeof(cfg.keyfile));
+	cfg.keyfile[sizeof(cfg.keyfile)-1] = '\0';
+    }
+
     return ret;			       /* unrecognised */
 }
 
