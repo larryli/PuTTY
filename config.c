@@ -1014,6 +1014,9 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		  HELPCTX(features_retitle),
 		  dlg_stdcheckbox_handler,
 		  I(offsetof(Config,no_remote_wintitle)));
+    ctrl_checkbox(s, "Disable remote window title querying (SECURITY)",
+		  'q', HELPCTX(features_qtitle), dlg_stdcheckbox_handler,
+		  I(offsetof(Config,no_remote_qtitle)));
     ctrl_checkbox(s, "Disable destructive backspace on server sending ^?",'b',
 		  HELPCTX(features_dbackspace),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,no_dbackspace)));

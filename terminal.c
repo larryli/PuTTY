@@ -2604,7 +2604,8 @@ void term_out(Terminal *term)
 				 */
 				break;
 			      case 20:
-				if (term->ldisc) {
+				if (term->ldisc &&
+				    !term->cfg.no_remote_qtitle) {
 				    p = get_window_title(term->frontend, TRUE);
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]L", 3, 0);
@@ -2613,7 +2614,8 @@ void term_out(Terminal *term)
 				}
 				break;
 			      case 21:
-				if (term->ldisc) {
+				if (term->ldisc &&
+				    !term->cfg.no_remote_qtitle) {
 				    p = get_window_title(term->frontend,FALSE);
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]l", 3, 0);

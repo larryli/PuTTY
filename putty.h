@@ -378,6 +378,7 @@ struct config_tag {
     int no_remote_wintitle;	       /* disable remote retitling */
     int no_dbackspace;		       /* disable destructive backspace */
     int no_remote_charset;	       /* disable remote charset config */
+    int no_remote_qtitle;	       /* disable remote win title query */
     int app_cursor;
     int app_keypad;
     int nethack_keypad;

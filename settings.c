@@ -240,6 +240,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "NoRemoteResize", cfg->no_remote_resize);
     write_setting_i(sesskey, "NoAltScreen", cfg->no_alt_screen);
     write_setting_i(sesskey, "NoRemoteWinTitle", cfg->no_remote_wintitle);
+    write_setting_i(sesskey, "NoRemoteQTitle", cfg->no_remote_qtitle);
     write_setting_i(sesskey, "NoDBackspace", cfg->no_dbackspace);
     write_setting_i(sesskey, "NoRemoteCharset", cfg->no_remote_charset);
     write_setting_i(sesskey, "ApplicationCursorKeys", cfg->app_cursor);
@@ -472,6 +473,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "NoRemoteResize", 0, &cfg->no_remote_resize);
     gppi(sesskey, "NoAltScreen", 0, &cfg->no_alt_screen);
     gppi(sesskey, "NoRemoteWinTitle", 0, &cfg->no_remote_wintitle);
+    gppi(sesskey, "NoRemoteQTitle", 1, &cfg->no_remote_qtitle);
     gppi(sesskey, "NoDBackspace", 0, &cfg->no_dbackspace);
     gppi(sesskey, "NoRemoteCharset", 0, &cfg->no_remote_charset);
     gppi(sesskey, "ApplicationCursorKeys", 0, &cfg->app_cursor);

@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.61 2003/04/11 17:39:48 simon Exp $
+\versionid $Id: config.but,v 1.62 2003/04/12 08:59:06 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -775,6 +775,26 @@ PuTTY has the ability to change the window title in response to
 commands from the server. If you find PuTTY is doing this
 unexpectedly or inconveniently, you can tell PuTTY not to respond to
 those server commands.
+
+\S{config-features-qtitle} Disabling remote window title querying
+
+\cfg{winhelp-topic}{features.qtitle}
+
+PuTTY can optionally provide the xterm service of allowing server
+applications to find out the local window title. This feature is
+disabled by default, but you can turn it on if you really want it.
+
+NOTE that this feature is a \e{potential security hazard}. If a
+malicious application can write data to your terminal (for example,
+if you merely \c{cat} a file owned by someone else on the server
+machine), it can change your window title (unless you have disabled
+this as mentioned in \k{config-features-retitle}) and then use this
+service to have the new window title sent back to the server as if
+typed at the keyboard. This allows an attacker to fake keypresses
+and potentially cause your server-side applications to do things you
+didn't want. Therefore this feature is disabled by default, and we
+recommend you do not turn it on unless you \e{really} know what you
+are doing.
 
 \S{config-features-dbackspace} Disabling destructive backspace
 

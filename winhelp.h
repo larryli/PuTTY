@@ -26,6 +26,7 @@
 #define WINHELP_CTX_features_resize "features.resize"
 #define WINHELP_CTX_features_altscreen "features.altscreen"
 #define WINHELP_CTX_features_retitle "features.retitle"
+#define WINHELP_CTX_features_qtitle "features.qtitle"
 #define WINHELP_CTX_features_dbackspace "features.dbackspace"
 #define WINHELP_CTX_features_charset "features.charset"
 #define WINHELP_CTX_terminal_autowrap "terminal.autowrap"
