@@ -276,6 +276,15 @@ int sftp_cmd_cd(struct sftp_command *cmd)
 }
 
 /*
+ * Print current directory. Easy as pie.
+ */
+int sftp_cmd_pwd(struct sftp_command *cmd)
+{
+    printf("Remote directory is %s\n", pwd);
+    return 0;
+}
+
+/*
  * Get a file and save it at the local end. We have two very
  * similar commands here: `get' and `reget', which differ in that
  * `reget' checks for the existence of the destination file and
@@ -917,6 +926,12 @@ static struct sftp_cmd_lookup {
 	    "  the same name, or under a different one if you supply the\n"
 	    "  argument <remote-filename>.\n",
 	    sftp_cmd_put
+    },
+    {
+	"pwd", "print your remote working directory",
+	    "\n"
+	    "  Print the current remote working directory for your SFTP session.\n",
+	    sftp_cmd_pwd
     },
     {
 	"quit", "bye", NULL,
