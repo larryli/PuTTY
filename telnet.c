@@ -928,9 +928,10 @@ static void telnet_special(void *handle, Telnet_Special code)
 	telnet->bufsize = sk_write(telnet->s, (char *)b, 2);
 	break;
       case TS_EOL:
-	/* In BINARY mode, CR-LF becomes just CR. */
+	/* In BINARY mode, CR-LF becomes just CR -
+	 * and without the NUL suffix too. */
 	if (telnet->opt_states[o_we_bin.index] == ACTIVE)
-	    telnet->bufsize = sk_write(telnet->s, "\r", 2);
+	    telnet->bufsize = sk_write(telnet->s, "\r", 1);
 	else
 	    telnet->bufsize = sk_write(telnet->s, "\r\n", 2);
 	break;
