@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.79 2004/09/09 10:37:17 jacob Exp $
+\versionid $Id: faq.but,v 1.80 2004/09/22 14:07:35 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -887,6 +887,29 @@ Windows XP Service Pack (but probably not before).
 (\e{However}, we've been told that SP2 \e{also} fixes the bug that
 means you need to use non-\cw{127.0.0.1} addresses to forward
 Terminal Services in the first place.)
+
+\S{faq-missing-slash}{Question} PSFTP commands seem to be missing a
+directory separator (slash). 
+
+Some people have reported the following incorrect behaviour with
+PSFTP:
+
+\c psftp> pwd
+\e        iii
+\c Remote directory is /dir1/dir2
+\c psftp> get filename.ext
+\e        iiiiiiiiiiiiiiii
+\c /dir1/dir2filename.ext: no such file or directory
+
+This is not a bug in PSFTP. There is a known bug in some versions of
+portable OpenSSH
+(\W{http://bugzilla.mindrot.org/show_bug.cgi?id=697}{bug 697}) that
+causes these symptoms; it appears to have been introduced around
+3.7.x. It manifests only on certain platforms (AIX is what has been
+reported to us).
+
+There is a patch for OpenSSH attached to that bug; it's also fixed in
+recent versions of portable OpenSSH (from around 3.8).
 
 \H{faq-secure} Security questions
 
