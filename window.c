@@ -11,9 +11,11 @@
 #endif
 #endif
 
+#ifndef NO_MULTIMON
 #if WINVER < 0x0500
 #define COMPILE_MULTIMON_STUBS
 #include <multimon.h>
+#endif
 #endif
 
 #include <stdio.h>
