@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.9 2003/03/23 14:11:39 ben Exp $ */
+/* $Id: macctrls.c,v 1.10 2003/03/24 21:55:51 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -218,7 +218,7 @@ void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 	}
 	macctrl_layoutset(&curstate, cb->ctrlsets[i], window, mcs);
     }
-    macctrl_switchtopanel(mcs, 20);
+    macctrl_switchtopanel(mcs, 2);
 }
 
 static void macctrl_layoutset(struct mac_layoutstate *curstate,
@@ -403,19 +403,20 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
     colwidth = (curstate->width + 13) /	ctrl->radio.ncolumns;
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
 	fprintf(stderr, "    button = %s\n", ctrl->radio.buttons[i]);
-	bounds.top = curstate->pos.v;
-	bounds.bottom = bounds.top + 16;
+	bounds.top = curstate->pos.v - 2;
+	bounds.bottom = bounds.top + 18;
 	bounds.left = curstate->pos.h + colwidth * (i % ctrl->radio.ncolumns);
 	if (i == ctrl->radio.nbuttons - 1 ||
 	    i % ctrl->radio.ncolumns == ctrl->radio.ncolumns - 1) {
 	    bounds.right = curstate->pos.h + curstate->width;
-	    curstate->pos.v += 22;
+	    curstate->pos.v += 18;
 	} else
 	    bounds.right = bounds.left + colwidth - 13;
 	c2pstrcpy(title, ctrl->radio.buttons[i]);
 	mc->radio.tbctrls[i] = NewControl(window, &bounds, title, TRUE,
 					  0, 0, 1, radioButProc, (long)mc);
     }
+    curstate->pos.v += 4;
     add234(mcs->byctrl, mc);
     mc->generic.next = mcs->panels[curstate->panelnum];
     mcs->panels[curstate->panelnum] = mc;
