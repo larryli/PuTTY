@@ -226,7 +226,6 @@ static void load_settings (char *section, int do_host) {
     }
 
     free(p);
-    RegCloseKey(subkey1);
 
     if (do_host) {
 	char prot[10];
