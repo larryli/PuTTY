@@ -178,7 +178,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	}
     }
 
-    back = (cfg.protocol == PROT_SSH ? &ssh_backend : &telnet_backend);
+    back = (cfg.protocol == PROT_SSH ? &ssh_backend : 
+			cfg.protocol == PROT_TELNET ? &telnet_backend : &raw_backend );
 
     if (!prev) {
 	wndclass.style         = 0;

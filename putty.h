@@ -93,7 +93,7 @@ typedef struct {
     /* Basic options */
     char host[512];
     int port;
-    enum { PROT_TELNET, PROT_SSH } protocol;
+    enum { PROT_RAW, PROT_TELNET, PROT_SSH } protocol;
     int close_on_exit;
     /* SSH options */
     int nopty;
@@ -202,6 +202,12 @@ void term_mouse (Mouse_Button, Mouse_Action, int, int);
 void term_deselect (void);
 void term_update (void);
 void term_invalidate(void);
+
+/*
+ * Exports from raw.c.
+ */
+
+Backend raw_backend;
 
 /*
  * Exports from telnet.c.

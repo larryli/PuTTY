@@ -10,7 +10,7 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 .c.obj:
 	cl $(FWHACK) $(CFLAGS) /c $*.c
 
-PUTTYOBJS = window.obj windlg.obj terminal.obj telnet.obj
+PUTTYOBJS = window.obj windlg.obj terminal.obj telnet.obj raw.obj
 OBJS1 = misc.obj noise.obj
 OBJS2 = ssh.obj sshcrc.obj sshdes.obj sshmd5.obj sshrsa.obj sshrand.obj
 OBJS3 = sshsha.obj sshblowf.obj version.obj
@@ -43,6 +43,7 @@ window.obj: window.c putty.h win_res.h
 windlg.obj: windlg.c putty.h ssh.h win_res.h
 terminal.obj: terminal.c putty.h
 telnet.obj: telnet.c putty.h
+raw.obj: raw.c putty.h
 misc.obj: misc.c putty.h
 noise.obj: noise.c putty.h ssh.h
 ssh.obj: ssh.c ssh.h putty.h

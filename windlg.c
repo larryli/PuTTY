@@ -116,7 +116,8 @@ static void save_settings (char *section, int do_host) {
 	wpps (sesskey, "HostName", cfg.host);
 	wppi (sesskey, "PortNumber", cfg.port);
 	wpps (sesskey, "Protocol",
-	      cfg.protocol == PROT_SSH ? "ssh" : "telnet");
+	      cfg.protocol == PROT_SSH ? "ssh" : 
+		  cfg.protocol == PROT_TELNET ? "telnet" : "raw" );
     }
     wppi (sesskey, "CloseOnExit", !!cfg.close_on_exit);
     wpps (sesskey, "TerminalType", cfg.termtype);
@@ -228,6 +229,8 @@ static void load_settings (char *section, int do_host) {
 	cfg.protocol = PROT_SSH;
     else if (!strcmp(prot, "telnet"))
 	cfg.protocol = PROT_TELNET;
+    else if (!strcmp(prot, "raw"))
+	cfg.protocol = PROT_RAW;
     else
 	cfg.protocol = default_protocol;
 
@@ -447,8 +450,9 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 	for (i = 0; i < nsessions; i++)
 	    SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_ADDSTRING,
 				0, (LPARAM) (sessions[i]));
-	CheckRadioButton (hwnd, IDC0_PROTTELNET, IDC0_PROTSSH,
-			  cfg.protocol==PROT_SSH ? IDC0_PROTSSH : IDC0_PROTTELNET);
+	CheckRadioButton (hwnd, IDC0_PROTRAW, IDC0_PROTSSH,
+			  cfg.protocol==PROT_SSH ? IDC0_PROTSSH : 
+			  cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW );
 	CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
 	break;
       case WM_LBUTTONUP:
@@ -464,10 +468,12 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 	switch (LOWORD(wParam)) {
 	  case IDC0_PROTTELNET:
 	  case IDC0_PROTSSH:
+	  case IDC0_PROTRAW:
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int i = IsDlgButtonChecked (hwnd, IDC0_PROTSSH);
-		cfg.protocol = i ? PROT_SSH : PROT_TELNET;
+		int j = IsDlgButtonChecked (hwnd, IDC0_PROTTELNET);
+		cfg.protocol = i ? PROT_SSH : j ? PROT_TELNET : PROT_RAW ;
 		if ((cfg.protocol == PROT_SSH && cfg.port == 23) ||
 		    (cfg.protocol == PROT_TELNET && cfg.port == 22)) {
 		    cfg.port = i ? 22 : 23;
@@ -543,9 +549,9 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
 			       !!strcmp(sessions[n], "Default Settings"));
 		SetDlgItemText (hwnd, IDC0_HOST, cfg.host);
 		SetDlgItemInt (hwnd, IDC0_PORT, cfg.port, FALSE);
-		CheckRadioButton (hwnd, IDC0_PROTTELNET, IDC0_PROTSSH,
+		CheckRadioButton (hwnd, IDC0_PROTRAW, IDC0_PROTSSH,
 				  (cfg.protocol==PROT_SSH ? IDC0_PROTSSH :
-				   IDC0_PROTTELNET));
+				  cfg.protocol==PROT_TELNET ? IDC0_PROTTELNET : IDC0_PROTRAW));
 		CheckDlgButton (hwnd, IDC0_CLOSEEXIT, cfg.close_on_exit);
 		SendDlgItemMessage (hwnd, IDC0_SESSLIST, LB_SETCURSEL,
 				    (WPARAM) -1, 0);
