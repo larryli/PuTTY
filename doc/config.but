@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.23 2001/12/29 17:21:26 simon Exp $
+\versionid $Id: config.but,v 1.24 2001/12/29 17:25:07 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1293,12 +1293,12 @@ the Telnet special backspace code, and Control-C will send the
 Telnet special interrupt code. You probably shouldn't enable this
 unless you know what you're doing.
 
-\S{config-telnetkey} \q{Return key sends telnet New Line instead of ^M}
+\S{config-telnetnl} \q{Return key sends telnet New Line instead of ^M}
 
 \cfg{winhelp-topic}{telnet.newline}
 
 Unlike most other remote login protocols, the Telnet protocol has a
-special \Q{new line} code that is not the same as the usual line
+special \q{new line} code that is not the same as the usual line
 endings of Control-M or Control-J. By default, PuTTY sends the
 Telnet New Line code when you press Return, instead of sending
 Control-M as it does in most other protocols.

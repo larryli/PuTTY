@@ -803,8 +803,9 @@ char *help_context_cmd(int id)
       case IDC_TACTIVE:
         return "JI(`',`telnet.passive')";
       case IDC_TELNETKEY:
-      case IDC_TELNETRET:
         return "JI(`',`telnet.specialkeys')";
+      case IDC_TELNETRET:
+        return "JI(`',`telnet.newline')";
 
       case IDC_R_TSSTATIC:
       case IDC_R_TSEDIT:
