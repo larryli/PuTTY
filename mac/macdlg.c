@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.2 2003/01/01 11:45:43 ben Exp $ */
+/* $Id: macdlg.c,v 1.3 2003/01/18 16:54:25 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -31,6 +31,7 @@
 
 #include <MacTypes.h>
 #include <Dialogs.h>
+#include <StandardFile.h>
 #include <Windows.h>
 
 #include <string.h>
@@ -38,6 +39,7 @@
 #include "putty.h"
 #include "mac.h"
 #include "macresid.h"
+#include "storage.h"
 
 void mac_newsession(void)
 {
@@ -53,6 +55,45 @@ void mac_newsession(void)
 
     SetWRefCon(s->settings_window, (long)s);
     ShowWindow(s->settings_window);
+}
+
+void mac_opensession(void) {
+    Session *s;
+    StandardFileReply sfr;
+    static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
+    void *sesshandle;
+    int i;
+
+    s = smalloc(sizeof(*s));
+    memset(s, 0, sizeof(*s));
+
+    StandardGetFile(NULL, 1, sftypes, &sfr);
+    if (!sfr.sfGood) goto fail;
+
+    sesshandle = open_settings_r_fsp(&sfr.sfFile);
+    if (sesshandle == NULL) goto fail;
+    load_open_settings(sesshandle, TRUE, &s->cfg);
+    close_settings_r(sesshandle);
+
+    /*
+     * Select protocol. This is farmed out into a table in a
+     * separate file to enable an ssh-free variant.
+     */
+    s->back = NULL;
+    for (i = 0; backends[i].backend != NULL; i++)
+	if (backends[i].protocol == s->cfg.protocol) {
+	    s->back = backends[i].backend;
+	    break;
+	}
+    if (s->back == NULL) {
+	fatalbox("Unsupported protocol number found");
+    }
+    mac_startsession(s);
+    return;
+
+  fail:
+    sfree(s);
+    return;
 }
 
 void mac_activatedlg(WindowPtr window, EventRecord *event)

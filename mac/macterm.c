@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.50 2003/01/15 23:30:21 ben Exp $ */
+/* $Id: macterm.c,v 1.51 2003/01/18 16:54:25 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -33,6 +33,7 @@
 #include <MacTypes.h>
 #include <Controls.h>
 #include <ControlDefinitions.h>
+#include <FixMath.h>
 #include <Fonts.h>
 #include <Gestalt.h>
 #include <LowMem.h>
@@ -46,9 +47,7 @@
 #include <Scrap.h>
 #include <Script.h>
 #include <Sound.h>
-#include <StandardFile.h>
 #include <TextCommon.h>
-#include <Threads.h>
 #include <ToolUtils.h>
 #include <UnicodeConverter.h>
 
@@ -62,7 +61,6 @@
 #include "putty.h"
 #include "charset.h"
 #include "mac.h"
-#include "storage.h"
 #include "terminal.h"
 
 #define NCOLOURS (lenof(((Config *)0)->colours))
@@ -108,45 +106,6 @@ static RoutineDescriptor do_text_for_device_upp =
 #define mac_scrolltracker_upp	mac_scrolltracker
 #define do_text_for_device_upp	do_text_for_device
 #endif /* not TARGET_RT_MAC_CFM */
-
-void mac_opensession(void) {
-    Session *s;
-    StandardFileReply sfr;
-    static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
-    void *sesshandle;
-    int i;
-
-    s = smalloc(sizeof(*s));
-    memset(s, 0, sizeof(*s));
-
-    StandardGetFile(NULL, 1, sftypes, &sfr);
-    if (!sfr.sfGood) goto fail;
-
-    sesshandle = open_settings_r_fsp(&sfr.sfFile);
-    if (sesshandle == NULL) goto fail;
-    load_open_settings(sesshandle, TRUE, &s->cfg);
-    close_settings_r(sesshandle);
-
-    /*
-     * Select protocol. This is farmed out into a table in a
-     * separate file to enable an ssh-free variant.
-     */
-    s->back = NULL;
-    for (i = 0; backends[i].backend != NULL; i++)
-	if (backends[i].protocol == s->cfg.protocol) {
-	    s->back = backends[i].backend;
-	    break;
-	}
-    if (s->back == NULL) {
-	fatalbox("Unsupported protocol number found");
-    }
-    mac_startsession(s);
-    return;
-
-  fail:
-    sfree(s);
-    return;
-}
 
 void mac_startsession(Session *s)
 {
