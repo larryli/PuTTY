@@ -9,14 +9,14 @@ HALIBUT = $(HOME)/src/halibut/build/halibut
 all: Contents.html man
 
 Contents.html: $(INPUTS)
-	$(HOME)/src/halibut/build/halibut $(INPUTS)
+	$(HALIBUT) $(INPUTS)
 	rm -f index.html
 	ln -s Contents.html index.html
 	mv output.txt puttydoc.txt
 	mv output.hlp putty.hlp
 	mv output.cnt putty.cnt
 
-MKMAN = $(HOME)/src/halibut/build/halibut mancfg.but $< && mv output.1 $@
+MKMAN = $(HALIBUT) mancfg.but $< && mv output.1 $@
 MANPAGES = putty.1 puttygen.1 plink.1 pscp.1 psftp.1 puttytel.1 pterm.1
 man: $(MANPAGES)
 
