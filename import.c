@@ -505,20 +505,20 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase)
 	unsigned char keybuf[32];
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
-	MD5Update(&md5c, key->iv, 8);
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)key->iv, 8);
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
 	MD5Update(&md5c, keybuf, 16);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
-	MD5Update(&md5c, key->iv, 8);
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)key->iv, 8);
 	MD5Final(keybuf+16, &md5c);
 
 	/*
 	 * Now decrypt the key blob.
 	 */
-	des3_decrypt_pubkey_ossh(keybuf, key->iv,
+	des3_decrypt_pubkey_ossh(keybuf, (unsigned char *)key->iv,
 				 key->keyblob, key->keyblob_len);
 
         memset(&md5c, 0, sizeof(md5c));
@@ -600,7 +600,7 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase)
 	     */
 	    if (i == 1) {
 		/* Save the details for after we deal with number 2. */
-		modptr = p;
+		modptr = (char *)p;
 		modlen = len;
 	    } else if (i != 6 && i != 7) {
 		PUT_32BIT(blob+blobptr, len);
@@ -845,13 +845,13 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
 	for (i = 0; i < 8; i++) iv[i] = random_byte();
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Update(&md5c, iv, 8);
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
 	MD5Update(&md5c, keybuf, 16);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Update(&md5c, iv, 8);
 	MD5Final(keybuf+16, &md5c);
 
@@ -1259,7 +1259,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase)
         errmsg = "Key blob does not contain actual key data";
         goto error;
     }
-    ciphertext = key->keyblob + pos + 4;
+    ciphertext = (char *)key->keyblob + pos + 4;
     cipherlen = len;
     if (cipherlen == 0) {
         errmsg = "Length of key data is zero";
@@ -1288,11 +1288,11 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase)
         }
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Update(&md5c, keybuf, 16);
 	MD5Final(keybuf+16, &md5c);
 
@@ -1300,7 +1300,8 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase)
 	 * Now decrypt the key blob.
 	 */
         memset(iv, 0, sizeof(iv));
-	des3_decrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
+	des3_decrypt_pubkey_ossh(keybuf, iv, (unsigned char *)ciphertext,
+				 cipherlen);
 
         memset(&md5c, 0, sizeof(md5c));
         memset(keybuf, 0, sizeof(keybuf));
@@ -1532,7 +1533,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	while (padding--)
 	    outblob[pos++] = random_byte();
     }
-    ciphertext = outblob+lenpos+4;
+    ciphertext = (char *)outblob+lenpos+4;
     cipherlen = pos - (lenpos+4);
     assert(!passphrase || cipherlen % 8 == 0);
     /* Wrap up the encrypted blob string. */
@@ -1558,11 +1559,11 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	unsigned char keybuf[32], iv[8];
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Update(&md5c, keybuf, 16);
 	MD5Final(keybuf+16, &md5c);
 
@@ -1570,7 +1571,8 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	 * Now decrypt the key blob.
 	 */
         memset(iv, 0, sizeof(iv));
-	des3_encrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
+	des3_encrypt_pubkey_ossh(keybuf, iv, (unsigned char *)ciphertext,
+				 cipherlen);
 
         memset(&md5c, 0, sizeof(md5c));
         memset(keybuf, 0, sizeof(keybuf));
