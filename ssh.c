@@ -1255,20 +1255,20 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    c_write("\r\n", 2);
 	    username[strcspn(username, "\n\r")] = '\0';
 	} else {
-	    char stuff[200];
 	    strncpy(username, cfg.username, 99);
 	    username[99] = '\0';
-            if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
-		sprintf(stuff, "Sent username \"%s\".\r\n", username);
-                c_write(stuff, strlen(stuff));
-	    }
 	}
 
 	send_packet(SSH1_CMSG_USER, PKT_STR, username, PKT_END);
 	{
-	    char userlog[20+sizeof(username)];
+	    char userlog[22+sizeof(username)];
 	    sprintf(userlog, "Sent username \"%s\"", username);
 	    logevent(userlog);
+            if (flags & FLAG_INTERACTIVE &&
+                (!((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)))) {
+		strcat(userlog, "\r\n");
+                c_write(userlog, strlen(userlog));
+	    }
 	}
     }
 
