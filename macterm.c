@@ -161,8 +161,30 @@ void do_text(struct mac_session *s, int x, int y, char *text, int len,
     int style = 0;
     int bgcolour, fgcolour;
     RGBColor rgbfore, rgbback;
+    RgnHandle textregion, intersection;
+    Rect textrect;
 
     SetPort(s->window);
+#if 0
+    /* First check this text is relevant */
+    textregion = NewRgn();
+    SetRectRgn(textregion, x * font_width, (x + len) * font_width,
+	       y * font_height, (y + 1) * font_height);
+    SectRgn(textregion, s->window->visRgn, textregion);
+    if (EmptyRgn(textregion)) {
+	DisposeRgn(textregion);
+	return;
+    }
+#else
+    /* alternatively */
+    textrect.top = y * font_height;
+    textrect.bottom = (y + 1) * font_height;
+    textrect.left = x * font_width;
+    textrect.right = (x + len) * font_width;
+    if (!RectInRgn(&textrect, s->window->visRgn))
+	return;
+#endif
+
     TextFont(s->fontnum);
     if (cfg.fontisbold || (attr & ATTR_BOLD) && !cfg.bold_colour)
     	style |= bold;
