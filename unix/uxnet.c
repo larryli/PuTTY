@@ -705,7 +705,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 #ifndef NO_IPV6
         hints.ai_flags = AI_NUMERICHOST;
         hints.ai_family = address_family;
-        hints.ai_socktype = 0;
+        hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = 0;
         hints.ai_addrlen = 0;
         hints.ai_addr = NULL;
