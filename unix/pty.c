@@ -168,11 +168,13 @@ static void sigchld_handler(int signum)
     pid_t pid;
     int status;
 
-    pid = waitpid(-1, &status, WNOHANG);
-    if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
-	pty_exit_code = status;
-	pty_child_dead = TRUE;
-    }
+    do {
+	pid = waitpid(-1, &status, WNOHANG);
+	if (pid == pty_child_pid && (WIFEXITED(status) || WIFSIGNALED(status))) {
+	    pty_exit_code = status;
+	    pty_child_dead = TRUE;
+	}
+    } while(pid > 0);
     errno = save_errno;
 }
 
