@@ -201,15 +201,40 @@ static FILE *lgfp = NULL;
 static void logtraffic(unsigned char c, int logmode);
 
 /*
+ * Resize a line to make it `cols' columns wide.
+ */
+unsigned long *resizeline(unsigned long *line, int cols)
+{
+    int i, oldlen;
+    unsigned long lineattrs;
+
+    if (line[0] != (unsigned long)cols) {
+	/*
+	 * This line is the wrong length, which probably means it
+	 * hasn't been accessed since a resize. Resize it now.
+	 */
+	oldlen = line[0];
+	lineattrs = line[oldlen + 1];
+	line = srealloc(line, TSIZE * (2 + cols));
+	line[0] = cols;
+	for (i = oldlen; i < cols; i++)
+	    line[i + 1] = ERASE_CHAR;
+	line[cols + 1] = lineattrs & LATTR_MODE;
+    }
+
+    return line;
+}
+
+/*
  * Retrieve a line of the screen or of the scrollback, according to
  * whether the y coordinate is non-negative or negative
  * (respectively).
  */
 unsigned long *lineptr(int y, int lineno)
 {
-    unsigned long *line, lineattrs;
+    unsigned long *line, *newline;
     tree234 *whichtree;
-    int i, treeindex, oldlen;
+    int treeindex;
 
     if (y >= 0) {
 	whichtree = screen;
@@ -223,20 +248,10 @@ unsigned long *lineptr(int y, int lineno)
     /* We assume that we don't screw up and retrieve something out of range. */
     assert(line != NULL);
 
-    if (line[0] != cols) {
-	/*
-	 * This line is the wrong length, which probably means it
-	 * hasn't been accessed since a resize. Resize it now.
-	 */
-	oldlen = line[0];
-	lineattrs = line[oldlen + 1];
+    newline = resizeline(line, cols);
+    if (newline != line) {
 	delpos234(whichtree, treeindex);
-	line = srealloc(line, TSIZE * (2 + cols));
-	line[0] = cols;
-	for (i = oldlen; i < cols; i++)
-	    line[i + 1] = ERASE_CHAR;
-	line[cols + 1] = lineattrs & LATTR_MODE;
-	addpos234(whichtree, line, treeindex);
+	addpos234(whichtree, newline, treeindex);
     }
 
     return line + 1;
@@ -568,6 +583,7 @@ static void scroll(int topline, int botline, int lines, int sb)
     if (lines < 0) {
 	while (lines < 0) {
 	    line = delpos234(screen, botline);
+            line = resizeline(line, cols);
 	    for (i = 0; i < cols; i++)
 		line[i + 1] = erase_char;
 	    line[cols + 1] = 0;
@@ -610,6 +626,7 @@ static void scroll(int topline, int botline, int lines, int sb)
 		addpos234(scrollback, line, sblen);
 		line = line2;
 	    }
+            line = resizeline(line, cols);
 	    for (i = 0; i < cols; i++)
 		line[i + 1] = erase_char;
 	    line[cols + 1] = 0;
