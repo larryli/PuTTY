@@ -261,26 +261,11 @@ void logevent(char *string)
 {
 }
 
-char *console_password = NULL;
-
 int console_get_line(const char *prompt, char *str,
 			    int maxlen, int is_pw)
 {
     HANDLE hin, hout;
     DWORD savemode, newmode, i;
-
-    if (is_pw && console_password) {
-	static int tried_once = 0;
-
-	if (tried_once) {
-	    return 0;
-	} else {
-	    strncpy(str, console_password, maxlen);
-	    str[maxlen - 1] = '\0';
-	    tried_once = 1;
-	    return 1;
-	}
-    }
 
     if (console_batch_mode) {
 	if (maxlen > 0)

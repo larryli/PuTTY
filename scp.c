@@ -453,6 +453,11 @@ static void do_cmd(char *host, char *user, char *cmd)
     }
 
     /*
+     * Enact command-line overrides.
+     */
+    cmdline_run_saved();
+
+    /*
      * Trim leading whitespace off the hostname if it's there.
      */
     {
@@ -2100,6 +2105,17 @@ static void usage(void)
     cleanup_exit(1);
 }
 
+void cmdline_error(char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "pscp: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
+}
+
 /*
  *  Main program (no, really?)
  */
@@ -2110,38 +2126,43 @@ int main(int argc, char *argv[])
     default_protocol = PROT_TELNET;
 
     flags = FLAG_STDERR;
+    cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     ssh_get_line = &console_get_line;
     init_winsock();
     sk_init();
 
     for (i = 1; i < argc; i++) {
+	int ret;
 	if (argv[i][0] != '-')
 	    break;
-	if (strcmp(argv[i], "-v") == 0)
-	    verbose = 1, flags |= FLAG_VERBOSE;
-	else if (strcmp(argv[i], "-r") == 0)
+	ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1);
+	if (ret == -2) {
+	    cmdline_error("option \"%s\" requires an argument", argv[i]);
+	} else if (ret == 2) {
+	    i++;	       /* skip next argument */
+	} else if (ret == 1) {
+	    /* We have our own verbosity in addition to `flags'. */
+	    if (flags & FLAG_VERBOSE)
+		verbose = 1;
+	} else if (strcmp(argv[i], "-r") == 0) {
 	    recursive = 1;
-	else if (strcmp(argv[i], "-p") == 0)
+	} else if (strcmp(argv[i], "-p") == 0) {
 	    preserve = 1;
-	else if (strcmp(argv[i], "-q") == 0)
+	} else if (strcmp(argv[i], "-q") == 0) {
 	    statistics = 0;
-	else if (strcmp(argv[i], "-batch") == 0)
-	    console_batch_mode = 1;
-	else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-?") == 0)
+	} else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-?") == 0) {
 	    usage();
-	else if (strcmp(argv[i], "-P") == 0 && i + 1 < argc)
-	    portnumber = atoi(argv[++i]);
-	else if (strcmp(argv[i], "-pw") == 0 && i + 1 < argc)
-	    console_password = argv[++i];
-	else if (strcmp(argv[i], "-gui") == 0 && i + 1 < argc) {
+	} else if (strcmp(argv[i], "-gui") == 0 && i + 1 < argc) {
 	    gui_hwnd = argv[++i];
 	    gui_mode = 1;
 	    console_batch_mode = TRUE;
-	} else if (strcmp(argv[i], "-ls") == 0)
+        } else if (strcmp(argv[i], "-ls") == 0) {
 	    list = 1;
-	else if (strcmp(argv[i], "-unsafe") == 0)
+	} else if (strcmp(argv[i], "-batch") == 0) {
+	    console_batch_mode = 1;
+	} else if (strcmp(argv[i], "-unsafe") == 0) {
 	    scp_unsafe_mode = 1;
-	else if (strcmp(argv[i], "--") == 0) {
+	} else if (strcmp(argv[i], "--") == 0) {
 	    i++;
 	    break;
 	} else

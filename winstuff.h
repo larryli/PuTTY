@@ -30,6 +30,11 @@ struct ctlpos {
 };
 
 /*
+ * Exports from winutils.c.
+ */
+void split_into_argv(char *, int *, char ***);
+
+/*
  * Private structure for prefslist state. Only in the header file
  * so that we can delegate allocation to callers.
  */

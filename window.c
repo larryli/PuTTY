@@ -256,6 +256,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     {
 	char *p;
+	int got_host = 0;
 
 	default_protocol = DEFAULT_PROTOCOL;
 	default_port = DEFAULT_PORT;
@@ -264,54 +265,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	do_defaults(NULL, &cfg);
 
 	p = cmdline;
+
+	/*
+	 * Process a couple of command-line options which are more
+	 * easily dealt with before the line is broken up into
+	 * words. These are the soon-to-be-defunct @sessionname and
+	 * the internal-use-only &sharedmemoryhandle, neither of
+	 * which are combined with anything else.
+	 */
 	while (*p && isspace(*p))
 	    p++;
-
-	/*
-	 * Process command line options first. Yes, this can be
-	 * done better, and it will be as soon as I have the
-	 * energy...
-	 */
-	while (*p == '-') {
-	    char *q = p + strcspn(p, " \t");
-	    p++;
-	    if (q == p + 3 &&
-		tolower(p[0]) == 's' &&
-		tolower(p[1]) == 's' && tolower(p[2]) == 'h') {
-		default_protocol = cfg.protocol = PROT_SSH;
-		default_port = cfg.port = 22;
-	    } else if (q == p + 7 &&
-		       tolower(p[0]) == 'c' &&
-		       tolower(p[1]) == 'l' &&
-		       tolower(p[2]) == 'e' &&
-		       tolower(p[3]) == 'a' &&
-		       tolower(p[4]) == 'n' &&
-		       tolower(p[5]) == 'u' && tolower(p[6]) == 'p') {
-		/*
-		 * `putty -cleanup'. Remove all registry entries
-		 * associated with PuTTY, and also find and delete
-		 * the random seed file.
-		 */
-		if (MessageBox(NULL,
-			       "This procedure will remove ALL Registry\n"
-			       "entries associated with PuTTY, and will\n"
-			       "also remove the PuTTY random seed file.\n"
-			       "\n"
-			       "THIS PROCESS WILL DESTROY YOUR SAVED\n"
-			       "SESSIONS. Are you really sure you want\n"
-			       "to continue?",
-			       "PuTTY Warning",
-			       MB_YESNO | MB_ICONWARNING) == IDYES) {
-		    cleanup_all();
-		}
-		exit(0);
-	    }
-	    p = q + strspn(q, " \t");
-	}
-
-	/*
-	 * An initial @ means to activate a saved session.
-	 */
 	if (*p == '@') {
 	    int i = strlen(p);
 	    while (i > 1 && isspace(p[i - 1]))
@@ -341,51 +304,105 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		WSACleanup();
 		return 0;
 	    }
-	} else if (*p) {
-	    char *q = p;
-	    /*
-	     * If the hostname starts with "telnet:", set the
-	     * protocol to Telnet and process the string as a
-	     * Telnet URL.
-	     */
-	    if (!strncmp(q, "telnet:", 7)) {
-		char c;
-
-		q += 7;
-		if (q[0] == '/' && q[1] == '/')
-		    q += 2;
-		cfg.protocol = PROT_TELNET;
-		p = q;
-		while (*p && *p != ':' && *p != '/')
-		    p++;
-		c = *p;
-		if (*p)
-		    *p++ = '\0';
-		if (c == ':')
-		    cfg.port = atoi(p);
-		else
-		    cfg.port = -1;
-		strncpy(cfg.host, q, sizeof(cfg.host) - 1);
-		cfg.host[sizeof(cfg.host) - 1] = '\0';
-	    } else {
-		while (*p && !isspace(*p))
-		    p++;
-		if (*p)
-		    *p++ = '\0';
-		strncpy(cfg.host, q, sizeof(cfg.host) - 1);
-		cfg.host[sizeof(cfg.host) - 1] = '\0';
-		while (*p && isspace(*p))
-		    p++;
-		if (*p)
-		    cfg.port = atoi(p);
-		else
-		    cfg.port = -1;
-	    }
 	} else {
-	    if (!do_config()) {
-		WSACleanup();
-		return 0;
+	    /*
+	     * Otherwise, break up the command line and deal with
+	     * it sensibly.
+	     */
+	    int argc, i;
+	    char **argv;
+	    
+	    split_into_argv(cmdline, &argc, &argv);
+
+	    for (i = 0; i < argc; i++) {
+		char *p = argv[i];
+		int ret;
+
+		ret = cmdline_process_param(p, i+1<argc?argv[i+1]:NULL, 1);
+		if (ret == -2) {
+		    cmdline_error("option \"%s\" requires an argument", p);
+		} else if (ret == 2) {
+		    i++;	       /* skip next argument */
+		} else if (ret == 1) {
+		    continue;	       /* nothing further needs doing */
+		} else if (!strcmp(p, "-cleanup")) {
+		    /*
+		     * `putty -cleanup'. Remove all registry
+		     * entries associated with PuTTY, and also find
+		     * and delete the random seed file.
+		     */
+		    if (MessageBox(NULL,
+				   "This procedure will remove ALL Registry\n"
+				   "entries associated with PuTTY, and will\n"
+				   "also remove the PuTTY random seed file.\n"
+				   "\n"
+				   "THIS PROCESS WILL DESTROY YOUR SAVED\n"
+				   "SESSIONS. Are you really sure you want\n"
+				   "to continue?",
+				   "PuTTY Warning",
+				   MB_YESNO | MB_ICONWARNING) == IDYES) {
+			cleanup_all();
+		    }
+		    exit(0);
+		} else if (*p != '-') {
+		    char *q = p;
+		    if (got_host) {
+			/*
+			 * If we already have a host name, treat
+			 * this argument as a port number. NB we
+			 * have to treat this as a saved -P
+			 * argument, so that it will be deferred
+			 * until it's a good moment to run it.
+			 */
+			int ret = cmdline_process_param("-P", p, 1);
+			assert(ret == 2);
+		    } else if (!strncmp(q, "telnet:", 7)) {
+			/*
+			 * If the hostname starts with "telnet:",
+			 * set the protocol to Telnet and process
+			 * the string as a Telnet URL.
+			 */
+			char c;
+
+			q += 7;
+			if (q[0] == '/' && q[1] == '/')
+			    q += 2;
+			cfg.protocol = PROT_TELNET;
+			p = q;
+			while (*p && *p != ':' && *p != '/')
+			    p++;
+			c = *p;
+			if (*p)
+			    *p++ = '\0';
+			if (c == ':')
+			    cfg.port = atoi(p);
+			else
+			    cfg.port = -1;
+			strncpy(cfg.host, q, sizeof(cfg.host) - 1);
+			cfg.host[sizeof(cfg.host) - 1] = '\0';
+			got_host = 1;
+		    } else {
+			/*
+			 * Otherwise, treat this argument as a host
+			 * name.
+			 */
+			while (*p && !isspace(*p))
+			    p++;
+			if (*p)
+			    *p++ = '\0';
+			strncpy(cfg.host, q, sizeof(cfg.host) - 1);
+			cfg.host[sizeof(cfg.host) - 1] = '\0';
+			got_host = 1;
+		    }
+		}
 	    }
+	}
+
+	cmdline_run_saved();
+
+	if (!*cfg.host && !do_config()) {
+	    WSACleanup();
+	    return 0;
 	}
 
 	/*
@@ -841,6 +858,21 @@ void connection_fatal(char *fmt, ...)
 	session_closed = TRUE;
 	SetWindowText(hwnd, "PuTTY (inactive)");
     }
+}
+
+/*
+ * Report an error at the command-line parsing stage.
+ */
+void cmdline_error(char *fmt, ...)
+{
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    MessageBox(hwnd, stuff, "PuTTY Command Line Error", MB_ICONERROR | MB_OK);
+    exit(1);
 }
 
 /*

@@ -515,8 +515,6 @@ static const struct ssh_compress *sccomp = NULL;
 static const struct ssh_kex *kex = NULL;
 static const struct ssh_signkey *hostkey = NULL;
 static unsigned char ssh2_session_id[20];
-int (*ssh_get_line) (const char *prompt, char *str, int maxlen,
-		     int is_pw) = NULL;
 
 static char *savedhost;
 static int savedport;
@@ -2228,7 +2226,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static int pos = 0;
 	static char c;
 	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
-	    if (ssh_get_line) {
+	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
 				  username, sizeof(username), FALSE)) {
 		    /*
@@ -4098,7 +4096,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	     * it again.
 	     */
 	} else if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
-	    if (ssh_get_line) {
+	    if (ssh_get_line && !ssh_getline_pw_only) {
 		if (!ssh_get_line("login as: ",
 				  username, sizeof(username), FALSE)) {
 		    /*
@@ -4327,6 +4325,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		static int authed = FALSE;
 		void *r;
 
+		ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh_pkt_ctx |= SSH2_PKTCTX_PUBLICKEY;
 
 		tried_agent = TRUE;
@@ -4469,6 +4468,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 		tried_pubkey_config = TRUE;
 
+		ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh_pkt_ctx |= SSH2_PKTCTX_PUBLICKEY;
 
 		/*
@@ -4523,6 +4523,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 		tried_keyb_inter = TRUE;
 
+		ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh_pkt_ctx |= SSH2_PKTCTX_KBDINTER;
 
 		ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
@@ -4551,6 +4552,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 		tried_keyb_inter = TRUE;
 
+		ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh_pkt_ctx |= SSH2_PKTCTX_KBDINTER;
 
 		if (curr_prompt == 0) {
@@ -4601,6 +4603,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	    if (!method && can_passwd) {
 		method = AUTH_PASSWORD;
+		ssh_pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh_pkt_ctx |= SSH2_PKTCTX_PASSWORD;
 		sprintf(pwprompt, "%.90s@%.90s's password: ", username,
 			savedhost);

@@ -534,11 +534,14 @@ extern Backend rlogin_backend;
 extern Backend telnet_backend;
 
 /*
- * Exports from ssh.c.
+ * Exports from ssh.c. (NB the getline variables have to be GLOBAL
+ * so that PuTTYtel will still compile - otherwise it would depend
+ * on ssh.c.)
  */
 
-extern int (*ssh_get_line) (const char *prompt, char *str, int maxlen,
+GLOBAL int (*ssh_get_line) (const char *prompt, char *str, int maxlen,
 			    int is_pw);
+GLOBAL int ssh_getline_pw_only;
 extern Backend ssh_backend;
 
 /*
@@ -616,7 +619,6 @@ int wc_unescape(char *output, const char *wildcard);
  * windlg.c).
  */
 extern int console_batch_mode;
-extern char *console_password;
 int console_get_line(const char *prompt, char *str, int maxlen, int is_pw);
 
 /*
@@ -630,5 +632,18 @@ void printer_finish_enum(printer_enum *);
 printer_job *printer_start_job(char *printer);
 void printer_job_data(printer_job *, void *, int);
 void printer_finish_job(printer_job *);
+
+/*
+ * Exports from cmdline.c (and also cmdline_error(), which is
+ * defined differently in various places and required _by_
+ * cmdline.c).
+ */
+int cmdline_process_param(char *, char *, int);
+void cmdline_run_saved(void);
+extern char *cmdline_password;
+#define TOOLTYPE_FILETRANSFER 1
+extern int cmdline_tooltype;
+
+void cmdline_error(char *, ...);
 
 #endif

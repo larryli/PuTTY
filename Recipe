@@ -90,7 +90,7 @@
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = window windlg winctrls terminal sizetip wcwidth unicode
-         + logging printing
+         + logging printing winutils
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc
@@ -105,7 +105,7 @@ SFTP     = sftp int64 logging
 
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
-MISC     = misc version winstore settings tree234 winnet proxy
+MISC     = misc version winstore settings tree234 winnet proxy cmdline
 
 # Standard libraries, and the same with WinSocks 1 and 2.
 LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib

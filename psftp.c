@@ -1688,6 +1688,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     }
 
     /*
+     * Enact command-line overrides.
+     */
+    cmdline_run_saved();
+
+    /*
      * Trim leading whitespace off the hostname if it's there.
      */
     {
@@ -1789,6 +1794,17 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     return 0;
 }
 
+void cmdline_error(char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "pscp: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
+}
+
 /*
  * Main program. Parse arguments etc.
  */
@@ -1802,6 +1818,7 @@ int main(int argc, char *argv[])
     char *batchfile = NULL;
 
     flags = FLAG_STDERR | FLAG_INTERACTIVE;
+    cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     ssh_get_line = &console_get_line;
     init_winsock();
     sk_init();
@@ -1809,29 +1826,35 @@ int main(int argc, char *argv[])
     userhost = user = NULL;
 
     for (i = 1; i < argc; i++) {
+	int ret;
 	if (argv[i][0] != '-') {
-	    if (userhost)
-		usage();
-	    else
-		userhost = dupstr(argv[i]);
-	} else if (strcmp(argv[i], "-v") == 0) {
-	    verbose = 1, flags |= FLAG_VERBOSE;
+            if (userhost)
+                usage();
+            else
+                userhost = dupstr(argv[i]);
+	    continue;
+	}
+	ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1);
+	if (ret == -2) {
+	    cmdline_error("option \"%s\" requires an argument", argv[i]);
+	} else if (ret == 2) {
+	    i++;	       /* skip next argument */
+	} else if (ret == 1) {
+	    /* We have our own verbosity in addition to `flags'. */
+	    if (flags & FLAG_VERBOSE)
+		verbose = 1;
 	} else if (strcmp(argv[i], "-h") == 0 ||
 		   strcmp(argv[i], "-?") == 0) {
 	    usage();
 	} else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
 	    user = argv[++i];
-	} else if (strcmp(argv[i], "-P") == 0 && i + 1 < argc) {
-	    portnumber = atoi(argv[++i]);
-	} else if (strcmp(argv[i], "-pw") == 0 && i + 1 < argc) {
-	    console_password = argv[++i];
+	} else if (strcmp(argv[i], "-batch") == 0) {
+	    console_batch_mode = 1;
 	} else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
 	    mode = 1;
 	    batchfile = argv[++i];
 	} else if (strcmp(argv[i], "-bc") == 0) {
 	    modeflags = modeflags | 1;
-	} else if (strcmp(argv[i], "-batch") == 0) {
-	    console_batch_mode = TRUE;
 	} else if (strcmp(argv[i], "-be") == 0) {
 	    modeflags = modeflags | 2;
 	} else if (strcmp(argv[i], "--") == 0) {
