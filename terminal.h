@@ -33,14 +33,35 @@ typedef struct termchar termchar;
 typedef struct termline termline;
 
 struct termchar {
+    /*
+     * Any code in terminal.c which definitely needs to be changed
+     * when extra fields are added here is labelled with a comment
+     * saying FULL-TERMCHAR.
+     */
     unsigned long chr;
     unsigned long attr;
+
+    /*
+     * The cc_next field is used to link multiple termchars
+     * together into a list, so as to fit more than one character
+     * into a character cell (Unicode combining characters).
+     * 
+     * cc_next is a relative offset into the current array of
+     * termchars. I.e. to advance to the next character in a list,
+     * one does `tc += tc->next'.
+     * 
+     * Zero means end of list.
+     */
+    int cc_next;
 };
 
 struct termline {
     unsigned short lattr;
-    int cols;
+    int cols;			       /* number of real columns on the line */
+    int size;			       /* number of allocated termchars
+					* (cc-lists may make this > cols) */
     int temporary;		       /* TRUE if decompressed from scrollback */
+    int cc_free;		       /* offset to first cc in free list */
     struct termchar *chars;
 };
 
@@ -55,8 +76,6 @@ struct terminal_tag {
     int tempsblines;		       /* number of lines in temporary
 					  scrollback */
 
-    termchar *cpos;		       /* cursor position (convenience) */
-
     termline **disptext;	       /* buffer of text on real screen */
     int dispcursx, dispcursy;	       /* location of cursor on real screen */
     int curstype;		       /* type of cursor on real screen */
@@ -70,9 +89,6 @@ struct terminal_tag {
 
 #define TTYPE termchar
 #define TSIZE (sizeof(TTYPE))
-#define fix_cpos do { \
-    term->cpos = lineptr(term->curs.y)->chars + term->curs.x; \
-} while(0)
 
 #ifdef OPTIMISE_SCROLL
     struct scrollregion *scrollhead, *scrolltail;
@@ -228,7 +244,9 @@ struct terminal_tag {
      * These are buffers used by the bidi and Arabic shaping code.
      */
     termchar *ltemp;
+    int ltemp_size;
     bidi_char *wcFrom, *wcTo;
+    int wcFromTo_size;
     termchar **pre_bidi_cache, **post_bidi_cache;
     int bidi_cache_size;
 };

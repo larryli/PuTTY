@@ -43,6 +43,7 @@ typedef struct terminal_tag Terminal;
 #define TATTR_ACTCURS 	    0x40000000UL      /* active cursor (block) */
 #define TATTR_PASCURS 	    0x20000000UL      /* passive cursor (box) */
 #define TATTR_RIGHTCURS	    0x10000000UL      /* cursor-on-RHS */
+#define TATTR_COMBINING	    0x80000000UL      /* combining characters */
 
 #define LATTR_NORM   0x00000000UL
 #define LATTR_WIDE   0x00000001UL

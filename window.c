@@ -1136,7 +1136,7 @@ static void init_palette(void)
  */
 static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 			  unsigned short *lpString, UINT cbCount,
-			  CONST INT *lpDx)
+			  CONST INT *lpDx, int opaque)
 {
 
     GCP_RESULTSW gcpr;
@@ -1152,10 +1152,11 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
     gcpr.nGlyphs = cbCount;
 
     GetCharacterPlacementW(hdc, lpString, cbCount, 0, &gcpr,
-			   FLI_MASK | GCP_CLASSIN);
+			   FLI_MASK | GCP_CLASSIN | GCP_DIACRITIC);
 
-    ExtTextOut(hdc, x, y, ETO_GLYPH_INDEX | ETO_CLIPPED | ETO_OPAQUE, lprc,
-	       buffer, cbCount, lpDx);
+    ExtTextOut(hdc, x, y,
+	       ETO_GLYPH_INDEX | ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
+	       lprc, buffer, cbCount, lpDx);
 }
 
 /*
@@ -2900,8 +2901,8 @@ static void sys_cursor_update(void)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text(Context ctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr)
+void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
+		      unsigned long attr, int lattr)
 {
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
@@ -3031,7 +3032,10 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
     SelectObject(hdc, fonts[nfont]);
     SetTextColor(hdc, fg);
     SetBkColor(hdc, bg);
-    SetBkMode(hdc, OPAQUE);
+    if (attr & TATTR_COMBINING)
+	SetBkMode(hdc, TRANSPARENT);
+    else
+	SetBkMode(hdc, OPAQUE);
     line_box.left = x;
     line_box.top = y;
     line_box.right = x + char_width * len;
@@ -3124,17 +3128,19 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	static WCHAR *wbuf = NULL;
 	static int wlen = 0;
 	int i;
+
 	if (wlen < len) {
 	    sfree(wbuf);
 	    wlen = len;
 	    wbuf = snewn(wlen, WCHAR);
 	}
+
 	for (i = 0; i < len; i++)
 	    wbuf[i] = text[i];
 
 	/* print Glyphs as they are, without Windows' Shaping*/
 	exact_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		      &line_box, wbuf, len, IpDx);
+		      &line_box, wbuf, len, IpDx, !(attr & TATTR_COMBINING));
 /*	ExtTextOutW(hdc, x,
 		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
 		    ETO_CLIPPED | ETO_OPAQUE, &line_box, wbuf, len, IpDx);
@@ -3163,6 +3169,24 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	oldpen = SelectObject(hdc, oldpen);
 	DeleteObject(oldpen);
     }
+}
+
+/*
+ * Wrapper that handles combining characters.
+ */
+void do_text(Context ctx, int x, int y, wchar_t *text, int len,
+	     unsigned long attr, int lattr)
+{
+    if (attr & TATTR_COMBINING) {
+	unsigned long a = 0;
+	attr &= ~TATTR_COMBINING;
+	while (len--) {
+	    do_text_internal(ctx, x, y, text, 1, attr | a, lattr);
+	    text++;
+	    a = TATTR_COMBINING;
+	}
+    } else
+	do_text_internal(ctx, x, y, text, len, attr, lattr);
 }
 
 void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,

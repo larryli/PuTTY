@@ -106,9 +106,10 @@ static termline *newline(Terminal *term, int cols, int bce)
     line->chars = snewn(cols, termchar);
     for (j = 0; j < cols; j++)
 	line->chars[j] = (bce ? term->erase_char : term->basic_erase_char);
-    line->cols = cols;
+    line->cols = line->size = cols;
     line->lattr = LATTR_NORM;
     line->temporary = FALSE;
+    line->cc_free = 0;
 
     return line;
 }
@@ -125,6 +126,189 @@ static void unlineptr(termline *line)
 {
     if (line->temporary)
 	freeline(line);
+}
+
+/*
+ * Diagnostic function: verify that a termline has a correct
+ * combining character structure.
+ */
+static void cc_check(termline *line)
+{
+    unsigned char *flags;
+    int i, j;
+
+    assert(line->size >= line->cols);
+
+    flags = snewn(line->size, unsigned char);
+
+    for (i = 0; i < line->size; i++)
+	flags[i] = (i < line->cols);
+
+    for (i = 0; i < line->cols; i++) {
+	j = i;
+	while (line->chars[j].cc_next) {
+	    j += line->chars[j].cc_next;
+	    assert(j >= line->cols && j < line->size);
+	    assert(!flags[j]);
+	    flags[j] = TRUE;
+	}
+    }
+
+    j = line->cc_free;
+    if (j) {
+	while (1) {
+	    assert(j >= line->cols && j < line->size);
+	    assert(!flags[j]);
+	    flags[j] = TRUE;
+	    if (line->chars[j].cc_next)
+		j += line->chars[j].cc_next;
+	    else
+		break;
+	}
+    }
+
+    j = 0;
+    for (i = 0; i < line->size; i++)
+	j += (flags[i] != 0);
+
+    assert(j == line->size);
+}
+
+/*
+ * Add a combining character to a character cell.
+ */
+static void add_cc(termline *line, int col, unsigned long chr)
+{
+    int newcc;
+
+    assert(col >= 0 && col < line->cols);
+
+    /*
+     * Start by extending the cols array if the free list is empty.
+     */
+    if (!line->cc_free) {
+	int n = line->size;
+	line->size += 16 + (line->size - line->cols) / 2;
+	line->chars = sresize(line->chars, line->size, termchar);
+	line->cc_free = n;
+	while (n < line->size) {
+	    if (n+1 < line->size)
+		line->chars[n].cc_next = 1;
+	    else
+		line->chars[n].cc_next = 0;
+	    n++;
+	}
+    }
+
+    /*
+     * Now walk the cc list of the cell in question.
+     */
+    while (line->chars[col].cc_next)
+	col += line->chars[col].cc_next;
+
+    /*
+     * `col' now points at the last cc currently in this cell; so
+     * we simply add another one.
+     */
+    newcc = line->cc_free;
+    if (line->chars[newcc].cc_next)
+	line->cc_free = newcc + line->chars[newcc].cc_next;
+    else
+	line->cc_free = 0;
+    line->chars[newcc].cc_next = 0;
+    line->chars[newcc].chr = chr;
+    line->chars[col].cc_next = newcc - col;
+
+    cc_check(line);
+}
+
+/*
+ * Clear the combining character list in a character cell.
+ */
+static void clear_cc(termline *line, int col)
+{
+    int oldfree, origcol = col;
+
+    assert(col >= 0 && col < line->cols);
+
+    if (!line->chars[col].cc_next)
+	return;			       /* nothing needs doing */
+
+    oldfree = line->cc_free;
+    line->cc_free = col + line->chars[col].cc_next;
+    while (line->chars[col].cc_next)
+	col += line->chars[col].cc_next;
+    if (oldfree)
+	line->chars[col].cc_next = oldfree - col;
+    else
+	line->chars[col].cc_next = 0;
+
+    line->chars[origcol].cc_next = 0;
+
+    cc_check(line);
+}
+
+/*
+ * Compare two character cells for equality. Special case required
+ * in do_paint() where we override what we expect the chr and attr
+ * fields to be.
+ */
+static int termchars_equal_override(termchar *a, termchar *b,
+				    unsigned long bchr, unsigned long battr)
+{
+    /* FULL-TERMCHAR */
+    if (a->chr != bchr)
+	return FALSE;
+    if (a->attr != battr)
+	return FALSE;
+    while (a->cc_next || b->cc_next) {
+	if (!a->cc_next || !b->cc_next)
+	    return FALSE;	       /* one cc-list ends, other does not */
+	a += a->cc_next;
+	b += b->cc_next;
+	if (a->chr != b->chr)
+	    return FALSE;
+    }
+    return TRUE;
+}
+
+static int termchars_equal(termchar *a, termchar *b)
+{
+    return termchars_equal_override(a, b, b->chr, b->attr);
+}
+
+/*
+ * Copy a character cell. (Requires a pointer to the destination
+ * termline, so as to access its free list.)
+ */
+static void copy_termchar(termline *destline, int x, termchar *src)
+{
+    clear_cc(destline, x);
+
+    destline->chars[x] = *src;	       /* copy everything except cc-list */
+    destline->chars[x].cc_next = 0;    /* and make sure this is zero */
+
+    while (src->cc_next) {
+	src += src->cc_next;
+	add_cc(destline, x, src->chr);
+    }
+}
+
+/*
+ * Move a character cell within its termline.
+ */
+static void move_termchar(termline *line, termchar *dest, termchar *src)
+{
+    /* First clear the cc list from the original char, just in case. */
+    clear_cc(line, dest - line->chars);
+
+    /* Move the character cell and adjust its cc_next. */
+    *dest = *src;		       /* copy everything except cc-list */
+    if (src->cc_next)
+	dest->cc_next = src->cc_next - (dest-src);
+
+    /* Ensure the original cell doesn't have a cc list. */
+    src->cc_next = 0;
 }
 
 /*
@@ -362,6 +546,32 @@ static void makeliteral_attr(struct buf *b, termchar *c, unsigned long *state)
 	add(b, (unsigned char)(c->attr & 0xFF));
     }
 }
+static void makeliteral_cc(struct buf *b, termchar *c, unsigned long *state)
+{
+    /*
+     * For combining characters, I just encode a bunch of ordinary
+     * chars using makeliteral_chr, and terminate with a \0
+     * character (which I know won't come up as a combining char
+     * itself).
+     * 
+     * I don't use the stateful encoding in makeliteral_chr.
+     */
+    unsigned long zstate;
+    termchar z;
+
+    while (c->cc_next) {
+	c += c->cc_next;
+
+	assert(c->chr != 0);
+
+	zstate = 0;
+	makeliteral_chr(b, c, &zstate);
+    }
+
+    z.chr = 0;
+    zstate = 0;
+    makeliteral_chr(b, &z, &zstate);
+}
 
 static termline *decompressline(unsigned char *data, int *bytes_used);
 
@@ -410,6 +620,7 @@ static unsigned char *compressline(termline *ldata)
      */
     makerle(b, ldata, makeliteral_chr);
     makerle(b, ldata, makeliteral_attr);
+    makerle(b, ldata, makeliteral_cc);
 
     /*
      * Diagnostics: ensure that the compressed data really does
@@ -419,9 +630,9 @@ static unsigned char *compressline(termline *ldata)
     {
 	int dused;
 	termline *dcl;
+	int i;
 
 #ifdef DIAGNOSTIC_SB_COMPRESSION
-	int i;
 	for (i = 0; i < b->len; i++) {
 	    printf(" %02x ", b->data[i]);
 	}
@@ -432,7 +643,8 @@ static unsigned char *compressline(termline *ldata)
 	assert(b->len == dused);
 	assert(ldata->cols == dcl->cols);
 	assert(ldata->lattr == dcl->lattr);
-	assert(!memcmp(ldata->chars, dcl->chars, ldata->cols * TSIZE));
+	for (i = 0; i < ldata->cols; i++)
+	    assert(termchars_equal(&ldata->chars[i], &dcl->chars[i]));
 
 #ifdef DIAGNOSTIC_SB_COMPRESSION
 	printf("%d cols (%d bytes) -> %d bytes (factor of %g)\n",
@@ -452,7 +664,7 @@ static unsigned char *compressline(termline *ldata)
 
 static void readrle(struct buf *b, termline *ldata,
 		    void (*readliteral)(struct buf *b, termchar *c,
-					unsigned long *state))
+					termline *ldata, unsigned long *state))
 {
     int n = 0;
     unsigned long state = 0;
@@ -467,7 +679,7 @@ static void readrle(struct buf *b, termline *ldata,
 	    while (count--) {
 		assert(n < ldata->cols);
 		b->len = pos;
-		readliteral(b, ldata->chars + n, &state);
+		readliteral(b, ldata->chars + n, ldata, &state);
 		n++;
 	    }
 	} else {
@@ -476,7 +688,7 @@ static void readrle(struct buf *b, termline *ldata,
 	    int count = hdr + 1;
 	    while (count--) {
 		assert(n < ldata->cols);
-		readliteral(b, ldata->chars + n, &state);
+		readliteral(b, ldata->chars + n, ldata, &state);
 		n++;
 	    }
 	}
@@ -484,7 +696,8 @@ static void readrle(struct buf *b, termline *ldata,
 
     assert(n == ldata->cols);
 }
-static void readliteral_chr(struct buf *b, termchar *c, unsigned long *state)
+static void readliteral_chr(struct buf *b, termchar *c, termline *ldata,
+			    unsigned long *state)
 {
     int byte;
 
@@ -520,7 +733,8 @@ static void readliteral_chr(struct buf *b, termchar *c, unsigned long *state)
     }
     *state = c->chr & ~0xFF;
 }
-static void readliteral_attr(struct buf *b, termchar *c, unsigned long *state)
+static void readliteral_attr(struct buf *b, termchar *c, termline *ldata,
+			     unsigned long *state)
 {
     int val;
 
@@ -534,6 +748,23 @@ static void readliteral_attr(struct buf *b, termchar *c, unsigned long *state)
     }
 
     c->attr = val;
+}
+static void readliteral_cc(struct buf *b, termchar *c, termline *ldata,
+			   unsigned long *state)
+{
+    termchar n;
+    unsigned long zstate;
+    int x = c - ldata->chars;
+
+    c->cc_next = 0;
+
+    while (1) {
+	zstate = 0;
+	readliteral_chr(b, &n, ldata, &zstate);
+	if (!n.chr)
+	    break;
+	add_cc(ldata, x, n.chr);
+    }
 }
 
 static termline *decompressline(unsigned char *data, int *bytes_used)
@@ -560,8 +791,21 @@ static termline *decompressline(unsigned char *data, int *bytes_used)
      */
     ldata = snew(termline);
     ldata->chars = snewn(ncols, termchar);
-    ldata->cols = ncols;
+    ldata->cols = ldata->size = ncols;
     ldata->temporary = TRUE;
+    ldata->cc_free = 0;
+
+    /*
+     * We must set all the cc pointers in ldata->chars to 0 right
+     * now, so that cc diagnostics that verify the integrity of the
+     * whole line will make sense while we're in the middle of
+     * building it up.
+     */
+    {
+	int i;
+	for (i = 0; i < ldata->cols; i++)
+	    ldata->chars[i].cc_next = 0;
+    }
 
     /*
      * Now read in the lattr.
@@ -578,6 +822,7 @@ static termline *decompressline(unsigned char *data, int *bytes_used)
      */
     readrle(b, ldata, readliteral_chr);
     readrle(b, ldata, readliteral_attr);
+    readrle(b, ldata, readliteral_cc);
 
     /* Return the number of bytes read, for diagnostic purposes. */
     if (bytes_used)
@@ -597,12 +842,52 @@ static void resizeline(Terminal *term, termline *line, int cols)
 	/*
 	 * This line is the wrong length, which probably means it
 	 * hasn't been accessed since a resize. Resize it now.
+	 * 
+	 * First, go through all the characters that will be thrown
+	 * out in the resize (if we're shrinking the line) and
+	 * return their cc lists to the cc free list.
+	 */
+	for (i = cols; i < line->cols; i++)
+	    clear_cc(line, i);
+
+	/*
+	 * Now do the actual resize, leaving the _same_ amount of
+	 * cc space as there was to begin with.
 	 */
 	oldlen = line->cols;
-	line->chars = sresize(line->chars, cols, TTYPE);
+	line->size += cols - oldlen;
+	line->chars = sresize(line->chars, line->size, TTYPE);
 	line->cols = cols;
+
+	/*
+	 * Bodily move the entire cc section from where it started
+	 * to where it now needs to be.
+	 */
+	memmove(line->chars + line->cols, line->chars + oldlen,
+		(line->size - line->cols) * TSIZE);
+
+	/*
+	 * Go through what's left of the original line, and adjust
+	 * the first cc_next pointer in each list. (All the
+	 * subsequent ones are still valid because they are
+	 * relative offsets within the cc block.) Also do the same
+	 * to the head of the cc_free list.
+	 */
+	for (i = 0; i < oldlen && i < line->cols; i++)
+	    if (line->chars[i].cc_next)
+		line->chars[i].cc_next += cols - oldlen;
+	if (line->cc_free)
+	    line->cc_free += cols - oldlen;
+
+	/*
+	 * And finally fill in the new space with erase chars. (We
+	 * don't have to worry about cc lists here, because we
+	 * _know_ the erase char doesn't have one.)
+	 */
 	for (i = oldlen; i < cols; i++)
 	    line->chars[i] = term->basic_erase_char;
+
+	cc_check(line);
     }
 }
 
@@ -738,14 +1023,6 @@ void term_update(Terminal *term)
 	    need_sbar_update = TRUE;
 	}
 
-	/* Allocate temporary buffers for Arabic shaping and bidi. */
-	if (!term->cfg.arabicshaping || !term->cfg.bidi)
-	{
-	    term->wcFrom = sresize(term->wcFrom, term->cols, bidi_char);
-	    term->ltemp = sresize(term->ltemp, term->cols+1, termchar);
-	    term->wcTo = sresize(term->wcTo, term->cols, bidi_char);
-	}
-
 	if (need_sbar_update)
 	    update_sbar(term);
 	do_paint(term, ctx, TRUE);
@@ -793,7 +1070,6 @@ void term_pwron(Terminal *term)
     power_on(term);
     if (term->ldisc)		       /* cause ldisc to notice changes */
 	ldisc_send(term->ldisc, NULL, 0, 0);
-    fix_cpos;
     term->disptop = 0;
     deselect(term);
     term_update(term);
@@ -942,14 +1218,19 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->resize_ctx = NULL;
     term->in_term_out = FALSE;
     term->ltemp = NULL;
+    term->ltemp_size = 0;
     term->wcFrom = NULL;
     term->wcTo = NULL;
+    term->wcFromTo_size = 0;
 
     term->bidi_cache_size = 0;
     term->pre_bidi_cache = term->post_bidi_cache = NULL;
 
+    /* FULL-TERMCHAR */
     term->basic_erase_char.chr = CSET_ASCII | ' ';
     term->basic_erase_char.attr = ATTR_DEFAULT;
+    term->basic_erase_char.cc_next = 0;
+    term->erase_char = term->basic_erase_char;
 
     return term;
 }
@@ -1152,7 +1433,6 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     term->rows = newrows;
     term->cols = newcols;
     term->savelines = newsavelines;
-    fix_cpos;
 
     swap_screen(term, save_alt_which, FALSE, FALSE);
 
@@ -1186,10 +1466,9 @@ static int find_last_nonempty_line(Terminal * term, tree234 * screen)
     for (i = count234(screen) - 1; i >= 0; i--) {
 	termline *line = index234(screen, i);
 	int j;
-	for (j = 0; j < line->cols; j++) {
-	    if (line->chars[j].chr != term->erase_char.chr ||
-		line->chars[j].attr != term->erase_char.attr) break;
-	}
+	for (j = 0; j < line->cols; j++)
+	    if (!termchars_equal(&line->chars[j], &term->erase_char))
+		break;
 	if (j != line->cols) break;
     }
     return i;
@@ -1260,13 +1539,6 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
 	 */
 	erase_lots(term, FALSE, TRUE, TRUE);
     }
-
-    /*
-     * This might not be possible if we're called during
-     * initialisation.
-     */
-    if (term->screen)
-	fix_cpos;
 }
 
 /*
@@ -1293,11 +1565,6 @@ static void check_selection(Terminal *term, pos from, pos to)
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
  * for backward.) `sb' is TRUE if the scrolling is permitted to
  * affect the scrollback buffer.
- * 
- * NB this function invalidates all pointers into lines of the
- * screen data structures. In particular, you MUST call fix_cpos
- * after calling scroll() and before doing anything else that
- * uses the cpos shortcut pointer.
  */
 static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 {
@@ -1314,7 +1581,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	    line = delpos234(term->screen, botline);
             resizeline(term, line, term->cols);
 	    for (i = 0; i < term->cols; i++)
-		line->chars[i] = term->erase_char;
+		copy_termchar(line, i, &term->erase_char);
 	    line->lattr = LATTR_NORM;
 	    addpos234(term->screen, line, topline);
 
@@ -1338,6 +1605,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
     } else {
 	while (lines > 0) {
 	    line = delpos234(term->screen, topline);
+	    cc_check(line);
 	    if (sb && term->savelines > 0) {
 		int sblen = count234(term->scrollback);
 		/*
@@ -1377,7 +1645,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	    }
             resizeline(term, line, term->cols);
 	    for (i = 0; i < term->cols; i++)
-		line->chars[i] = term->erase_char;
+		copy_termchar(line, i, &term->erase_char);
 	    line->lattr = LATTR_NORM;
 	    addpos234(term->screen, line, botline);
 
@@ -1465,15 +1733,15 @@ static void save_scroll(Terminal *term, int topline, int botline, int lines)
  */
 static void scroll_display(Terminal *term, int topline, int botline, int lines)
 {
-    int distance, nlines, i;
+    int distance, nlines, i, j;
 
     distance = lines > 0 ? lines : -lines;
     nlines = botline - topline + 1 - distance;
     if (lines > 0) {
 	for (i = 0; i < nlines; i++)
-	    memcpy(term->disptext[start+i]->chars,
-		   term->disptext[start+i+distance]->chars,
-		   term->cols * TSIZE);
+	    for (j = 0; j < term->cols; j++)
+		copy_termchar(term->disptext[start+i], j,
+			      term->disptext[start+i+distance]->chars+j);
 	if (term->dispcursy >= 0 &&
 	    term->dispcursy >= topline + distance &&
 	    term->dispcursy < topline + distance + nlines)
@@ -1483,9 +1751,9 @@ static void scroll_display(Terminal *term, int topline, int botline, int lines)
 		term->disptext[start+nlines+i]->chars[j].attr |= ATTR_INVALID;
     } else {
 	for (i = nlines; i-- ;)
-	    memcpy(term->disptext[start+i+distance]->chars,
-		   term->disptext[start+i]->chars,
-		   term->cols * TSIZE);
+	    for (j = 0; j < term->cols; j++)
+		copy_termchar(term->disptext[start+i+distance], j,
+			      term->disptext[start+i]->chars+j);
 	if (term->dispcursy >= 0 &&
 	    term->dispcursy >= topline &&
 	    term->dispcursy < topline + nlines)
@@ -1524,7 +1792,6 @@ static void move(Terminal *term, int x, int y, int marg_clip)
 	y = term->rows - 1;
     term->curs.x = x;
     term->curs.y = y;
-    fix_cpos;
     term->wrapnext = FALSE;
 }
 
@@ -1561,7 +1828,6 @@ static void save_cursor(Terminal *term, int save)
 	    term->wrapnext = FALSE;
 	term->cset_attr[term->cset] = term->save_csattr;
 	term->sco_acs = term->save_sco_acs;
-	fix_cpos;
 	set_erase_char(term);
     }
 }
@@ -1598,6 +1864,8 @@ static void check_boundary(Terminal *term, int x, int y)
 	ldata->lattr &= ~LATTR_WRAPPED2;
     } else {
 	if (ldata->chars[x].chr == UCSWIDE) {
+	    clear_cc(ldata, x-1);
+	    clear_cc(ldata, x);
 	    ldata->chars[x-1].chr = ' ' | CSET_ASCII;
 	    ldata->chars[x] = ldata->chars[x-1];
 	}
@@ -1659,7 +1927,6 @@ static void erase_lots(Terminal *term,
 	}
 	if (scrolllines > 0)
 	    scroll(term, 0, scrolllines - 1, scrolllines, TRUE);
-	fix_cpos;
     } else {
 	termline *ldata = scrlineptr(start.y);
 	while (poslt(start, end)) {
@@ -1669,7 +1936,7 @@ static void erase_lots(Terminal *term,
 		else
 		    ldata->lattr = LATTR_NORM;
 	    } else {
-		ldata->chars[start.x] = term->erase_char;
+		copy_termchar(ldata, start.x, &term->erase_char);
 	    }
 	    if (incpos(start) && start.y < term->rows) {
 		ldata = scrlineptr(start.y);
@@ -1691,7 +1958,7 @@ static void erase_lots(Terminal *term,
 static void insch(Terminal *term, int n)
 {
     int dir = (n < 0 ? -1 : +1);
-    int m;
+    int m, j;
     pos cursplus;
     termline *ldata;
 
@@ -1707,15 +1974,19 @@ static void insch(Terminal *term, int n)
 	check_boundary(term, term->curs.x + n, term->curs.y);
     ldata = scrlineptr(term->curs.y);
     if (dir < 0) {
-	memmove(ldata->chars + term->curs.x, ldata->chars + term->curs.x + n,
-		m * TSIZE);
+	for (j = 0; j < m; j++)
+	    move_termchar(ldata,
+			  ldata->chars + term->curs.x + j,
+			  ldata->chars + term->curs.x + j + n);
 	while (n--)
-	    ldata->chars[term->curs.x + m++] = term->erase_char;
+	    copy_termchar(ldata, term->curs.x + m++, &term->erase_char);
     } else {
-	memmove(ldata->chars + term->curs.x + n, ldata->chars + term->curs.x,
-		m * TSIZE);
+	for (j = m; j-- ;)
+	    move_termchar(ldata,
+			  ldata->chars + term->curs.x + j + n,
+			  ldata->chars + term->curs.x + j);
 	while (n--)
-	    ldata->chars[term->curs.x + n] = term->erase_char;
+	    copy_termchar(ldata, term->curs.x + n, &term->erase_char);
     }
 }
 
@@ -2148,11 +2419,10 @@ void term_out(Terminal *term)
 	    if (term->curs.x && !term->wrapnext)
 		term->curs.x--;
 	    term->wrapnext = FALSE;
-	    fix_cpos;
 	    /* destructive backspace might be disabled */
 	    if (!term->cfg.no_dbackspace) {
-		term->cpos->chr = ' ' | CSET_ASCII;
-		term->cpos->attr = term->curr_attr;
+		copy_termchar(scrlineptr(term->curs.y),
+			      term->curs.x, &term->erase_char);
 	    }
 	} else
 	    /* Or normal C0 controls. */
@@ -2266,7 +2536,6 @@ void term_out(Terminal *term)
 		    term->wrapnext = FALSE;
 		else
 		    term->curs.x--;
-		fix_cpos;
 		term->seen_disp_event = TRUE;
 		break;
 	      case '\016':	      /* LS1: Locking-shift one */
@@ -2289,7 +2558,6 @@ void term_out(Terminal *term)
 	      case '\015':	      /* CR: Carriage return */
 		term->curs.x = 0;
 		term->wrapnext = FALSE;
-		fix_cpos;
 		term->seen_disp_event = TRUE;
 		term->paste_hold = 0;
 		if (term->logctx)
@@ -2313,7 +2581,6 @@ void term_out(Terminal *term)
 		    term->curs.y++;
 		if (term->cfg.lfhascr)
 		    term->curs.x = 0;
-		fix_cpos;
 		term->wrapnext = FALSE;
 		term->seen_disp_event = 1;
 		term->paste_hold = 0;
@@ -2338,7 +2605,6 @@ void term_out(Terminal *term)
 			    term->curs.x = term->cols - 1;
 		    }
 
-		    fix_cpos;
 		    check_selection(term, old_curs, term->curs);
 		}
 		term->seen_disp_event = TRUE;
@@ -2349,32 +2615,36 @@ void term_out(Terminal *term)
 	      case TOPLEVEL:
 		/* Only graphic characters get this far;
 		 * ctrls are stripped above */
-		if (term->wrapnext && term->wrap) {
-		    scrlineptr(term->curs.y)->lattr |= LATTR_WRAPPED;
-		    if (term->curs.y == term->marg_b)
-			scroll(term, term->marg_t, term->marg_b, 1, TRUE);
-		    else if (term->curs.y < term->rows - 1)
-			term->curs.y++;
-		    term->curs.x = 0;
-		    fix_cpos;
-		    term->wrapnext = FALSE;
-		}
-		if (term->insert)
-		    insch(term, 1);
-		if (term->selstate != NO_SELECTION) {
-		    pos cursplus = term->curs;
-		    incpos(cursplus);
-		    check_selection(term, term->curs, cursplus);
-		}
-		if (((c & CSET_MASK) == CSET_ASCII || (c & CSET_MASK) == 0) &&
-		    term->logctx)
-		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		{
+		    termline *cline = scrlineptr(term->curs.y);
 		    int width = 0;
 		    if (DIRECT_CHAR(c))
 			width = 1;
 		    if (!width)
 			width = wcwidth((wchar_t) c);
+
+		    if (term->wrapnext && term->wrap && width > 0) {
+			cline->lattr |= LATTR_WRAPPED;
+			if (term->curs.y == term->marg_b)
+			    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
+			else if (term->curs.y < term->rows - 1)
+			    term->curs.y++;
+			term->curs.x = 0;
+			term->wrapnext = FALSE;
+		    }
+		    if (term->insert && width > 0)
+			insch(term, width);
+		    if (term->selstate != NO_SELECTION) {
+			pos cursplus = term->curs;
+			incpos(cursplus);
+			check_selection(term, term->curs, cursplus);
+		    }
+		    if (((c & CSET_MASK) == CSET_ASCII ||
+			 (c & CSET_MASK) == 0) &&
+			term->logctx)
+			logtraffic(term->logctx, (unsigned char) c,
+				   LGTYP_ASCII);
+
 		    switch (width) {
 		      case 2:
 			/*
@@ -2399,56 +2669,65 @@ void term_out(Terminal *term)
 			check_boundary(term, term->curs.x, term->curs.y);
 			check_boundary(term, term->curs.x+2, term->curs.y);
 			if (term->curs.x == term->cols-1) {
-			    term->cpos->chr = CSET_ASCII | ' ';
-			    term->cpos->attr = term->curr_attr;
-			    scrlineptr(term->curs.y)->lattr |=
-				LATTR_WRAPPED | LATTR_WRAPPED2;
+			    copy_termchar(cline, term->curs.x,
+					  &term->erase_char);
+			    cline->lattr |= LATTR_WRAPPED | LATTR_WRAPPED2;
 			    if (term->curs.y == term->marg_b)
 				scroll(term, term->marg_t, term->marg_b,
 				       1, TRUE);
 			    else if (term->curs.y < term->rows - 1)
 				term->curs.y++;
 			    term->curs.x = 0;
-			    fix_cpos;
 			    /* Now we must check_boundary again, of course. */
 			    check_boundary(term, term->curs.x, term->curs.y);
 			    check_boundary(term, term->curs.x+2, term->curs.y);
 			}
-			term->cpos->chr = c;
-			term->cpos->attr = term->curr_attr;
-			term->cpos++;
-			term->cpos->chr = UCSWIDE;
-			term->cpos->attr = term->curr_attr;
+
+			/* FULL-TERMCHAR */
+			clear_cc(cline, term->curs.x);
+			cline->chars[term->curs.x].chr = c;
+			cline->chars[term->curs.x].attr = term->curr_attr;
+
 			term->curs.x++;
+
+			/* FULL-TERMCHAR */
+			clear_cc(cline, term->curs.x);
+			cline->chars[term->curs.x].chr = UCSWIDE;
+			cline->chars[term->curs.x].attr = term->curr_attr;
+
 			break;
 		      case 1:
 			check_boundary(term, term->curs.x, term->curs.y);
 			check_boundary(term, term->curs.x+1, term->curs.y);
-			term->cpos->chr = c;
-			term->cpos->attr = term->curr_attr;
-			term->cpos++;
+
+			/* FULL-TERMCHAR */
+			clear_cc(cline, term->curs.x);
+			cline->chars[term->curs.x].chr = c;
+			cline->chars[term->curs.x].attr = term->curr_attr;
+
 			break;
+		      case 0:
+			add_cc(cline, term->curs.x - !term->wrapnext, c);
+			continue;
 		      default:
 			continue;
 		    }
-		}
-		term->curs.x++;
-		if (term->curs.x == term->cols) {
-		    term->cpos--;
-		    term->curs.x--;
-		    term->wrapnext = TRUE;
-		    if (term->wrap && term->vt52_mode) {
-			scrlineptr(term->curs.y)->lattr |= LATTR_WRAPPED;
-			if (term->curs.y == term->marg_b)
-			    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
-			else if (term->curs.y < term->rows - 1)
-			    term->curs.y++;
-			term->curs.x = 0;
-			fix_cpos;
-			term->wrapnext = FALSE;
+		    term->curs.x++;
+		    if (term->curs.x == term->cols) {
+			term->curs.x--;
+			term->wrapnext = TRUE;
+			if (term->wrap && term->vt52_mode) {
+			    cline->lattr |= LATTR_WRAPPED;
+			    if (term->curs.y == term->marg_b)
+				scroll(term, term->marg_t, term->marg_b, 1, TRUE);
+			    else if (term->curs.y < term->rows - 1)
+				term->curs.y++;
+			    term->curs.x = 0;
+			    term->wrapnext = FALSE;
+			}
 		    }
+		    term->seen_disp_event = 1;
 		}
-		term->seen_disp_event = 1;
 		break;
 
 	      case OSC_MAYBE_ST:
@@ -2508,7 +2787,6 @@ void term_out(Terminal *term)
 			scroll(term, term->marg_t, term->marg_b, 1, TRUE);
 		    else if (term->curs.y < term->rows - 1)
 			term->curs.y++;
-		    fix_cpos;
 		    term->wrapnext = FALSE;
 		    term->seen_disp_event = TRUE;
 		    break;
@@ -2519,7 +2797,6 @@ void term_out(Terminal *term)
 			scroll(term, term->marg_t, term->marg_b, 1, TRUE);
 		    else if (term->curs.y < term->rows - 1)
 			term->curs.y++;
-		    fix_cpos;
 		    term->wrapnext = FALSE;
 		    term->seen_disp_event = TRUE;
 		    break;
@@ -2529,7 +2806,6 @@ void term_out(Terminal *term)
 			scroll(term, term->marg_t, term->marg_b, -1, TRUE);
 		    else if (term->curs.y > 0)
 			term->curs.y--;
-		    fix_cpos;
 		    term->wrapnext = FALSE;
 		    term->seen_disp_event = TRUE;
 		    break;
@@ -2549,7 +2825,6 @@ void term_out(Terminal *term)
 			    request_resize(term->frontend, 80, term->rows);
 			term->reset_132 = 0;
 		    }
-		    fix_cpos;
 		    term->disptop = 0;
 		    term->seen_disp_event = TRUE;
 		    break;
@@ -2568,7 +2843,8 @@ void term_out(Terminal *term)
 			for (i = 0; i < term->rows; i++) {
 			    ldata = scrlineptr(i);
 			    for (j = 0; j < term->cols; j++) {
-				ldata->chars[j] = term->basic_erase_char;
+				copy_termchar(ldata, j,
+					      &term->basic_erase_char);
 				ldata->chars[j].chr = 'E';
 			    }
 			    ldata->lattr = LATTR_NORM;
@@ -2781,7 +3057,6 @@ void term_out(Terminal *term)
 			if (term->curs.y <= term->marg_b)
 			    scroll(term, term->curs.y, term->marg_b,
 				   -def(term->esc_args[0], 1), FALSE);
-			fix_cpos;
 			term->seen_disp_event = TRUE;
 			break;
 		      case 'M':       /* DL: delete lines */
@@ -2790,7 +3065,6 @@ void term_out(Terminal *term)
 			    scroll(term, term->curs.y, term->marg_b,
 				   def(term->esc_args[0], 1),
 				   TRUE);
-			fix_cpos;
 			term->seen_disp_event = TRUE;
 			break;
 		      case '@':       /* ICH: insert chars */
@@ -2900,7 +3174,6 @@ void term_out(Terminal *term)
 				 */
 				term->curs.y = (term->dec_om ?
 						term->marg_t : 0);
-				fix_cpos;
 				term->seen_disp_event = TRUE;
 			    }
 			}
@@ -3204,7 +3477,6 @@ void term_out(Terminal *term)
 			compatibility(SCOANSI);
 			scroll(term, term->marg_t, term->marg_b,
 			       def(term->esc_args[0], 1), TRUE);
-			fix_cpos;
 			term->wrapnext = FALSE;
 			term->seen_disp_event = TRUE;
 			break;
@@ -3212,7 +3484,6 @@ void term_out(Terminal *term)
 			compatibility(SCOANSI);
 			scroll(term, term->marg_t, term->marg_b,
 			       -def(term->esc_args[0], 1), TRUE);
-			fix_cpos;
 			term->wrapnext = FALSE;
 			term->seen_disp_event = TRUE;
 			break;
@@ -3254,7 +3525,9 @@ void term_out(Terminal *term)
 			{
 			    int n = def(term->esc_args[0], 1);
 			    pos cursplus;
-			    termchar *p = term->cpos;
+			    int p = term->curs.x;
+			    termline *cline = scrlineptr(term->curs.y);
+
 			    if (n > term->cols - term->curs.x)
 				n = term->cols - term->curs.x;
 			    cursplus = term->curs;
@@ -3263,7 +3536,8 @@ void term_out(Terminal *term)
 			    check_boundary(term, term->curs.x+n, term->curs.y);
 			    check_selection(term, term->curs, cursplus);
 			    while (n--)
-				*p++ = term->erase_char;
+				copy_termchar(cline, p++,
+					      &term->erase_char);
 			    term->seen_disp_event = TRUE;
 			}
 			break;
@@ -3291,7 +3565,6 @@ void term_out(Terminal *term)
 				} while (term->curs.x >0 &&
 					 !term->tabs[term->curs.x]);
 			    }
-			    fix_cpos;
 			    check_selection(term, old_curs, term->curs);
 			}
 			break;
@@ -3635,7 +3908,6 @@ void term_out(Terminal *term)
 			scroll(term, 0, term->rows - 1, -1, TRUE);
 		    else if (term->curs.y > 0)
 			term->curs.y--;
-		    fix_cpos;
 		    term->wrapnext = FALSE;
 		    break;
 		  case 'J':
@@ -3734,7 +4006,6 @@ void term_out(Terminal *term)
 		    erase_lots(term, TRUE, TRUE, TRUE);
 		    term->curs.x = 0;
 		    term->wrapnext = FALSE;
-		    fix_cpos;
 		    break;
 		  case 'o':
 		    /* compatibility(ATARI) */
@@ -3838,6 +4109,8 @@ void term_out(Terminal *term)
 static int term_bidi_cache_hit(Terminal *term, int line,
 			       termchar *lbefore, int width)
 {
+    int i;
+
     if (!term->pre_bidi_cache)
 	return FALSE;		       /* cache doesn't even exist yet! */
 
@@ -3847,10 +4120,11 @@ static int term_bidi_cache_hit(Terminal *term, int line,
     if (!term->pre_bidi_cache[line])
 	return FALSE;		       /* cache doesn't contain _this_ line */
 
-    if (!memcmp(term->pre_bidi_cache[line], lbefore, width * TSIZE))
-	return TRUE;		       /* aha! the line matches the cache */
+    for (i = 0; i < width; i++)
+	if (!termchars_equal(term->pre_bidi_cache[line] + i, lbefore + i))
+	    return FALSE;	       /* line doesn't match cache */
 
-    return FALSE;		       /* it didn't match. */
+    return TRUE;		       /* it didn't match. */
 }
 
 static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
@@ -3890,7 +4164,8 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     int i, it, j, our_curs_y, our_curs_x;
     int rv, cursor;
     pos scrpos;
-    wchar_t ch[1024];
+    wchar_t *ch;
+    int chlen;
     termchar cursor_background;
     unsigned long ticks;
 #ifdef OPTIMISE_SCROLL
@@ -3898,6 +4173,9 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 #endif /* OPTIMISE_SCROLL */
 
     cursor_background = term->basic_erase_char;
+
+    chlen = 1024;
+    ch = snewn(chlen, wchar_t);
 
     /*
      * Check the visual bell state.
@@ -4004,6 +4282,14 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    if (!term_bidi_cache_hit(term, i, ldata->chars, term->cols)) {
 
+		if (term->wcFromTo_size < term->cols) {
+		    term->wcFromTo_size = term->cols;
+		    term->wcFrom = sresize(term->wcFrom, term->wcFromTo_size,
+					   bidi_char);
+		    term->wcTo = sresize(term->wcTo, term->wcFromTo_size,
+					 bidi_char);
+		}
+
 		for(it=0; it<term->cols ; it++)
 		{
 		    unsigned long uc = (ldata->chars[it].chr);
@@ -4046,15 +4332,27 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		if(!term->cfg.arabicshaping)
 		    do_shape(term->wcFrom, term->wcTo, term->cols);
 
+		if (term->ltemp_size < ldata->size) {
+		    term->ltemp_size = ldata->size;
+		    term->ltemp = sresize(term->ltemp, term->ltemp_size,
+					  termchar);
+		}
+
+		memcpy(term->ltemp, ldata->chars, ldata->size * TSIZE);
+
 		for(it=0; it<term->cols ; it++)
 		{
 		    term->ltemp[it] = ldata->chars[term->wcTo[it].index];
+		    if (term->ltemp[it].cc_next)
+			term->ltemp[it].cc_next -=
+			it - term->wcTo[it].index;
 
 		    if (term->wcTo[it].origwc != term->wcTo[it].wc)
 			term->ltemp[it].chr = term->wcTo[it].wc;
 		}
 		term_bidi_cache_store(term, i, ldata->chars,
-				      term->ltemp, term->cols);
+				      term->ltemp, ldata->size);
+
 		lchars = term->ltemp;
 	    } else {
 		lchars = term->post_bidi_cache[i];
@@ -4065,7 +4363,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
 	    termchar *d = lchars + j;
-	    int break_run;
+	    int break_run, do_copy;
 	    scrpos.x = j;
 
 	    tchar = d->chr;
@@ -4120,8 +4418,14 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    /* Cursor here ? Save the 'background' */
 	    if (i == our_curs_y && j == our_curs_x) {
+		/* FULL-TERMCHAR */
 		cursor_background.chr = tchar;
 		cursor_background.attr = tattr;
+		/* For once, this cc_next field is an absolute index in lchars */
+		if (d->cc_next)
+		    cursor_background.cc_next = d->cc_next + j;
+		else
+		    cursor_background.cc_next = 0;
 		term->dispcursx = j;
 		term->dispcursy = i;
 	    }
@@ -4129,8 +4433,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    if ((term->disptext[i]->chars[j].attr ^ tattr) & ATTR_WIDE)
 		dirty_line = TRUE;
 
-	    break_run = (((tattr ^ attr) & term->attr_mask) ||
-		j - start >= sizeof(ch));
+	    break_run = ((tattr ^ attr) & term->attr_mask) != 0;
 
 	    /* Special hack for VT100 Linedraw glyphs */
 	    if (tchar >= 0x23BA && tchar <= 0x23BD)
@@ -4141,6 +4444,13 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	     * same CSET, if that CSET is a magic one.
 	     */
 	    if (CSET_OF(tchar) != cset)
+		break_run = TRUE;
+
+	    /*
+	     * Break on both sides of any combined-character cell.
+	     */
+	    if (d->cc_next != 0 ||
+		(j > 0 && d[-1].cc_next != 0))
 		break_run = TRUE;
 
 	    if (!term->ucsdata->dbcs_screenfont && !dirty_line) {
@@ -4165,12 +4475,55 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		dirty_run = dirty_line;
 	    }
 
-	    if (term->disptext[i]->chars[j].chr != tchar ||
-		term->disptext[i]->chars[j].attr != tattr)
+	    do_copy = FALSE;
+	    if (!termchars_equal_override(&term->disptext[i]->chars[j],
+					  d, tchar, tattr)) {
+		do_copy = TRUE;
 		dirty_run = TRUE;
+	    }
+
+	    if (ccount >= chlen) {
+		chlen = ccount + 256;
+		ch = sresize(ch, chlen, wchar_t);
+	    }
 	    ch[ccount++] = (wchar_t) tchar;
-	    term->disptext[i]->chars[j].chr = tchar;
-	    term->disptext[i]->chars[j].attr = tattr;
+
+	    if (d->cc_next) {
+		termchar *dd = d;
+
+		while (dd->cc_next) {
+		    unsigned long schar;
+
+		    dd += dd->cc_next;
+
+		    schar = dd->chr;
+		    switch (schar & CSET_MASK) {
+		      case CSET_ASCII:
+			schar = term->ucsdata->unitab_line[schar & 0xFF];
+			break;
+		      case CSET_LINEDRW:
+			schar = term->ucsdata->unitab_xterm[schar & 0xFF];
+			break;
+		      case CSET_SCOACS:
+			schar = term->ucsdata->unitab_scoacs[schar&0xFF];
+			break;
+		    }
+
+		    if (ccount >= chlen) {
+			chlen = ccount + 256;
+			ch = sresize(ch, chlen, wchar_t);
+		    }
+		    ch[ccount++] = (wchar_t) schar;
+		}
+
+		attr |= TATTR_COMBINING;
+	    }
+
+	    if (do_copy) {
+		copy_termchar(term->disptext[i], j, d);
+		term->disptext[i]->chars[j].chr = tchar;
+		term->disptext[i]->chars[j].attr = tattr;
+	    }
 
 	    /* If it's a wide char step along to the next one. */
 	    if (tattr & ATTR_WIDE) {
@@ -4182,10 +4535,9 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		     * Ever.
 		     */
 		    assert(!(i == our_curs_y && j == our_curs_x));
-		    if (memcmp(&term->disptext[i]->chars[j],
-			       d, sizeof(*d)))
+		    if (!termchars_equal(&term->disptext[i]->chars[j], d))
 			dirty_run = TRUE;
-		    term->disptext[i]->chars[j] = *d;
+		    copy_termchar(term->disptext[i], j, d);
 		}
 	    }
 	}
@@ -4198,12 +4550,49 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	if (i == our_curs_y && (term->curstype != cursor || updated_line)) {
 	    ch[0] = (wchar_t) cursor_background.chr;
 	    attr = cursor_background.attr | cursor;
+
+	    if (cursor_background.cc_next) {
+		termchar *dd = ldata->chars + cursor_background.cc_next;
+
+		while (1) {
+		    unsigned long schar;
+
+		    schar = dd->chr;
+		    switch (schar & CSET_MASK) {
+		      case CSET_ASCII:
+			schar = term->ucsdata->unitab_line[schar & 0xFF];
+			break;
+		      case CSET_LINEDRW:
+			schar = term->ucsdata->unitab_xterm[schar & 0xFF];
+			break;
+		      case CSET_SCOACS:
+			schar = term->ucsdata->unitab_scoacs[schar&0xFF];
+			break;
+		    }
+
+		    if (ccount >= chlen) {
+			chlen = ccount + 256;
+			ch = sresize(ch, chlen, wchar_t);
+		    }
+		    ch[ccount++] = (wchar_t) schar;
+
+		    if (dd->cc_next)
+			dd += dd->cc_next;
+		    else
+			break;
+		}
+
+		attr |= TATTR_COMBINING;
+	    }
+
 	    do_cursor(ctx, our_curs_x, i, ch, 1, attr, ldata->lattr);
 	    term->curstype = cursor;
 	}
 
 	unlineptr(ldata);
     }
+
+    sfree(ch);
 }
 
 /*
@@ -4371,73 +4760,82 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	    sprintf(cbuf, "<U+%04x>", (ldata[top.x] & 0xFFFF));
 #else
 	    wchar_t cbuf[16], *p;
-	    int uc = ldata->chars[top.x].chr;
 	    int set, c;
+	    int x = top.x;
 
-	    if (uc == UCSWIDE) {
+	    if (ldata->chars[x].chr == UCSWIDE) {
 		top.x++;
 		continue;
 	    }
 
-	    switch (uc & CSET_MASK) {
-	      case CSET_LINEDRW:
-		if (!term->cfg.rawcnp) {
-		    uc = term->ucsdata->unitab_xterm[uc & 0xFF];
+	    while (1) {
+		int uc = ldata->chars[x].chr;
+
+		switch (uc & CSET_MASK) {
+		  case CSET_LINEDRW:
+		    if (!term->cfg.rawcnp) {
+			uc = term->ucsdata->unitab_xterm[uc & 0xFF];
+			break;
+		    }
+		  case CSET_ASCII:
+		    uc = term->ucsdata->unitab_line[uc & 0xFF];
+		    break;
+		  case CSET_SCOACS:
+		    uc = term->ucsdata->unitab_scoacs[uc&0xFF];
 		    break;
 		}
-	      case CSET_ASCII:
-		uc = term->ucsdata->unitab_line[uc & 0xFF];
-		break;
-	      case CSET_SCOACS:  
-		uc = term->ucsdata->unitab_scoacs[uc&0xFF]; 
-		break;
-	    }
-	    switch (uc & CSET_MASK) {
-	      case CSET_ACP:
-		uc = term->ucsdata->unitab_font[uc & 0xFF];
-		break;
-	      case CSET_OEMCP:
-		uc = term->ucsdata->unitab_oemcp[uc & 0xFF];
-		break;
-	    }
+		switch (uc & CSET_MASK) {
+		  case CSET_ACP:
+		    uc = term->ucsdata->unitab_font[uc & 0xFF];
+		    break;
+		  case CSET_OEMCP:
+		    uc = term->ucsdata->unitab_oemcp[uc & 0xFF];
+		    break;
+		}
 
-	    set = (uc & CSET_MASK);
-	    c = (uc & ~CSET_MASK);
-	    cbuf[0] = uc;
-	    cbuf[1] = 0;
+		set = (uc & CSET_MASK);
+		c = (uc & ~CSET_MASK);
+		cbuf[0] = uc;
+		cbuf[1] = 0;
 
-	    if (DIRECT_FONT(uc)) {
-		if (c >= ' ' && c != 0x7F) {
-		    char buf[4];
-		    WCHAR wbuf[4];
-		    int rv;
-		    if (is_dbcs_leadbyte(term->ucsdata->font_codepage, (BYTE) c)) {
-			buf[0] = c;
-			buf[1] = (char) (0xFF & ldata->chars[top.x + 1].chr);
-			rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 2, wbuf, 4);
-			top.x++;
-		    } else {
-			buf[0] = c;
-			rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 1, wbuf, 4);
-		    }
+		if (DIRECT_FONT(uc)) {
+		    if (c >= ' ' && c != 0x7F) {
+			char buf[4];
+			WCHAR wbuf[4];
+			int rv;
+			if (is_dbcs_leadbyte(term->ucsdata->font_codepage, (BYTE) c)) {
+			    buf[0] = c;
+			    buf[1] = (char) (0xFF & ldata->chars[top.x + 1].chr);
+			    rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 2, wbuf, 4);
+			    top.x++;
+			} else {
+			    buf[0] = c;
+			    rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 1, wbuf, 4);
+			}
 
-		    if (rv > 0) {
-			memcpy(cbuf, wbuf, rv * sizeof(wchar_t));
-			cbuf[rv] = 0;
+			if (rv > 0) {
+			    memcpy(cbuf, wbuf, rv * sizeof(wchar_t));
+			    cbuf[rv] = 0;
+			}
 		    }
 		}
-	    }
 #endif
 
-	    for (p = cbuf; *p; p++) {
-		/* Enough overhead for trailing NL and nul */
-		if (wblen >= buflen - 16) {
-		    buflen += 100;
-		    workbuf = sresize(workbuf, buflen, wchar_t);
-		    wbptr = workbuf + wblen;
+		for (p = cbuf; *p; p++) {
+		    /* Enough overhead for trailing NL and nul */
+		    if (wblen >= buflen - 16) {
+			buflen += 100;
+			workbuf = sresize(workbuf, buflen, wchar_t);
+			wbptr = workbuf + wblen;
+		    }
+		    wblen++;
+		    *wbptr++ = *p;
 		}
-		wblen++;
-		*wbptr++ = *p;
+
+		if (ldata->chars[x].cc_next)
+		    x += ldata->chars[x].cc_next;
+		else
+		    break;
 	    }
 	    top.x++;
 	}

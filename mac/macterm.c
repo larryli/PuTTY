@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.77 2004/10/13 11:50:16 simon Exp $ */
+/* $Id: macterm.c,v 1.78 2004/10/14 16:42:43 simon Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1157,6 +1157,11 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
     static DeviceLoopDrawingUPP do_text_for_device_upp = NULL;
 
     assert(len <= 1024);
+
+    /* SGT, 2004-10-14: I don't know how to support combining characters
+     * on the Mac. Hopefully the first person to fail this assertion will
+     * know how to do it better than me... */
+    assert(!(attr & TATTR_COMBINING));
 
     SetPort((GrafPtr)GetWindowPort(s->window));
 

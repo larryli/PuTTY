@@ -1804,8 +1804,14 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
-
+    int ncombining, combining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor;
+
+    if (attr & TATTR_COMBINING) {
+	ncombining = len;
+	len = 1;
+    } else
+	ncombining = 1;
 
     nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
     nfg = 2 * (nfg & 0xF) + (nfg & 0x10 ? 1 : 0);
@@ -1874,8 +1880,8 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	wchar_t *wcs;
 	int i;
 
-	wcs = snewn(len+1, wchar_t);
-	for (i = 0; i < len; i++) {
+	wcs = snewn(len*ncombining+1, wchar_t);
+	for (i = 0; i < len*ncombining; i++) {
 	    wcs[i] = text[i];
 	}
 
@@ -1907,31 +1913,35 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	     * FIXME: when we have a wide-char equivalent of
 	     * from_unicode, use it instead of this.
 	     */
-	    for (i = 0; i <= len; i++)
-		gwcs[i] = wcs[i];
-	    gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
-			     x*inst->font_width+inst->cfg.window_border,
-			     y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-			     gwcs, len*2);
-	    if (shadow)
+	    for (combining = 0; combining < ncombining; combining++) {
+		for (i = 0; i <= len; i++)
+		    gwcs[i] = wcs[i + combining];
 		gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
-				 x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
+				 x*inst->font_width+inst->cfg.window_border,
 				 y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 				 gwcs, len*2);
+		if (shadow)
+		    gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
+				     x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
+				     y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
+				     gwcs, len*2);
+	    }
 	    sfree(gwcs);
 	} else {
 	    gcs = snewn(len+1, gchar);
-	    wc_to_mb(inst->fontinfo[fontid].charset, 0,
-		     wcs, len, gcs, len, ".", NULL, NULL);
-	    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-			  x*inst->font_width+inst->cfg.window_border,
-			  y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-			  gcs, len);
-	    if (shadow)
+	    for (combining = 0; combining < ncombining; combining++) {
+		wc_to_mb(inst->fontinfo[fontid].charset, 0,
+			 wcs + combining, len, gcs, len, ".", NULL, NULL);
 		gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-			      x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
+			      x*inst->font_width+inst->cfg.window_border,
 			      y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 			      gcs, len);
+		if (shadow)
+		    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
+				  x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
+				  y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
+				  gcs, len);
+	    }
 	    sfree(gcs);
 	}
 	sfree(wcs);
