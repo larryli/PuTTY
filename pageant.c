@@ -44,6 +44,13 @@ HMENU systray_menu;
 
 tree234 *rsakeys;
 
+int has_security;
+typedef DWORD (WINAPI *gsi_fn_t)
+    (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
+                                 PSID *, PSID *, PACL *, PACL *,
+                                 PSECURITY_DESCRIPTOR *);
+gsi_fn_t getsecurityinfo;
+
 /*
  * We need this to link with the RSA code, because rsaencrypt()
  * pads its data with random bytes. Since we only use rsadecrypt(),
@@ -487,43 +494,49 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 #endif
             if (filemap != NULL && filemap != INVALID_HANDLE_VALUE) {
                 int rc;
-                if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
-                                        GetCurrentProcessId())) == NULL) {
+                if (has_security) {
+                    if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
+                                            GetCurrentProcessId())) == NULL) {
 #ifdef DEBUG_IPC
-                    debug(("couldn't get handle for process\r\n"));
+                        debug(("couldn't get handle for process\r\n"));
 #endif
-                    return 0;
-                }
-                if (GetSecurityInfo(proc, SE_KERNEL_OBJECT,
-                                    OWNER_SECURITY_INFORMATION,
-                                    &procowner, NULL, NULL, NULL,
-                                    &psd2) != ERROR_SUCCESS) {
+                        return 0;
+                    }
+                    if (getsecurityinfo(proc, SE_KERNEL_OBJECT,
+                                        OWNER_SECURITY_INFORMATION,
+                                        &procowner, NULL, NULL, NULL,
+                                        &psd2) != ERROR_SUCCESS) {
 #ifdef DEBUG_IPC
-                    debug(("couldn't get owner info for process\r\n"));
+                        debug(("couldn't get owner info for process\r\n"));
 #endif
+                        CloseHandle(proc);
+                        return 0;          /* unable to get security info */
+                    }
                     CloseHandle(proc);
-                    return 0;          /* unable to get security info */
+                    if ((rc = getsecurityinfo(filemap, SE_KERNEL_OBJECT,
+                                              OWNER_SECURITY_INFORMATION,
+                                              &mapowner, NULL, NULL, NULL,
+                                              &psd1) != ERROR_SUCCESS)) {
+#ifdef DEBUG_IPC
+                        debug(("couldn't get owner info for filemap: %d\r\n", rc));
+#endif
+                        return 0;
+                    }
+#ifdef DEBUG_IPC
+                    debug(("got security stuff\r\n"));
+#endif
+                    if (!EqualSid(mapowner, procowner))
+                        return 0;          /* security ID mismatch! */
+#ifdef DEBUG_IPC
+                    debug(("security stuff matched\r\n"));
+#endif
+                    LocalFree(psd1);
+                    LocalFree(psd2);
+                } else {
+#ifdef DEBUG_IPC
+                    debug(("security APIs not present\r\n"));
+#endif
                 }
-                CloseHandle(proc);
-                if ((rc = GetSecurityInfo(filemap, SE_KERNEL_OBJECT,
-                                          OWNER_SECURITY_INFORMATION,
-                                          &mapowner, NULL, NULL, NULL,
-                                          &psd1) != ERROR_SUCCESS)) {
-#ifdef DEBUG_IPC
-                    debug(("couldn't get owner info for filemap: %d\r\n", rc));
-#endif
-                    return 0;
-                }
-#ifdef DEBUG_IPC
-                debug(("got security stuff\r\n"));
-#endif
-                if (!EqualSid(mapowner, procowner))
-                    return 0;          /* security ID mismatch! */
-#ifdef DEBUG_IPC
-                debug(("security stuff matched\r\n"));
-#endif
-                LocalFree(psd1);
-                LocalFree(psd2);
                 p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
 #ifdef DEBUG_IPC
                 debug(("p is %p\r\n", p));
@@ -544,6 +557,35 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     WNDCLASS wndclass;
     MSG msg;
+    OSVERSIONINFO osi;
+    HMODULE advapi;
+
+    /*
+     * Determine whether we're an NT system (should have security
+     * APIs) or a non-NT system (don't do security).
+     */
+    memset(&osi, 0, sizeof(OSVERSIONINFO));
+    osi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osi) && osi.dwPlatformId==VER_PLATFORM_WIN32_NT) {
+        has_security = TRUE;
+    } else
+        has_security = FALSE;
+
+    if (has_security) {
+        /*
+         * Attempt to ge the security API we need.
+         */
+        advapi = LoadLibrary("ADVAPI32.DLL");
+        getsecurityinfo = (gsi_fn_t)GetProcAddress(advapi, "GetSecurityInfo");
+        if (!getsecurityinfo) {
+            MessageBox(NULL,
+                       "Unable to access security APIs. Pageant will\n"
+                       "not run, in case it causes a security breach.",
+                       "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+            return 1;
+        }
+    } else
+        advapi = NULL;
 
     /*
      * First bomb out totally if we are already running.
@@ -551,6 +593,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     if (FindWindow("Pageant", "Pageant")) {
         MessageBox(NULL, "Pageant is already running", "Pageant Error",
                    MB_ICONERROR | MB_OK);
+        if (advapi) FreeLibrary(advapi);
         return 0;
     }
 
@@ -665,5 +708,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         DestroyMenu(systray_menu);
     }
 
+    if (advapi) FreeLibrary(advapi);
     exit(msg.wParam);
 }
