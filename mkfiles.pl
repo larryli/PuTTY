@@ -130,6 +130,9 @@ print
 "# so that the .rsp files still depend on the correct makefile.\n".
 "MAKEFILE = Makefile.bor\n".
 "\n".
+"# C compilation flags\n".
+"CFLAGS = -DWINVER=0x0401\n".
+"\n".
 "# Get include directory for resource compiler\n".
 "!if !\$d(BCB)\n".
 "BCB = \$(MAKEDIR)\\..\n".
@@ -139,7 +142,7 @@ print
 "\tbcc32 -w-aus -w-ccc -w-par \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) /c \$*.c\n".
 ".rc.res:\n".
 "\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include \\\n".
-"\t\t-r -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0400 \$*.rc\n".
+"\t\t-r -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401 \$*.rc\n".
 "\n".
 "OBJ=obj\n".
 "RES=res\n".

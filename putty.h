@@ -303,6 +303,7 @@ typedef struct {
     int bellovl_s;		       /* period of silence to re-enable bell (s) */
     char bell_wavefile[FILENAME_MAX];
     int scrollbar;
+    int scrollbar_in_fullscreen;
     enum { RESIZE_TERM, RESIZE_DISABLED, RESIZE_FONT } resize_action;
     int bce;
     int blinktext;

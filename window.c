@@ -9,6 +9,12 @@
 #include <winsock.h>
 #endif
 #endif
+
+#if WINVER < 0x0500
+#define COMPILE_MULTIMON_STUBS
+#include <multimon.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -42,6 +48,7 @@
 #define IDM_ABOUT     0x0140
 #define IDM_SAVEDSESS 0x0150
 #define IDM_COPYALL   0x0160
+#define IDM_FULLSCREEN	0x0170
 
 #define IDM_SESSLGP   0x0250	       /* log type printable */
 #define IDM_SESSLGA   0x0260	       /* log type all chars */
@@ -72,11 +79,14 @@ static void deinit_fonts(void);
 
 /* Window layout information */
 static void reset_window(int);
-static int full_screen = 0, extra_width, extra_height;
+static int full_screen = 0, want_full_screen = 0;
+static int extra_width, extra_height;
 static int font_width, font_height, font_dualwidth;
 static int offset_width, offset_height;
 static int was_zoomed = 0;
+static int was_full_screen = 0;
 static int prev_rows, prev_cols;
+static int pre_fs_rows, pre_fs_cols;
   
 static LONG old_wind_style;
 static WINDOWPLACEMENT old_wind_placement;
@@ -578,6 +588,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
 	AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
 	AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
+	AppendMenu(m, MF_SEPARATOR, 0, 0);
+	AppendMenu(m, MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
 	AppendMenu(m, MF_ENABLED, IDM_ABOUT, "&About PuTTY");
     }
@@ -1189,7 +1201,7 @@ static void reset_window(int reinit) {
 #endif
     }
 
-    if (IsZoomed(hwnd)) {
+    if (IsZoomed(hwnd) || full_screen) {
 	/* We're fullscreen, this means we must not change the size of
 	 * the window so it's the font size or the terminal itself.
 	 */
@@ -1497,6 +1509,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (!do_reconfig(hwnd))
 		    break;
 
+		/* If user forcibly disables full-screen, gracefully unzoom */
+		if (full_screen && !cfg.fullscreenonaltenter) {
+		    flip_full_screen();
+		}
+
 		if (strcmp(prev_cfg.logfilename, cfg.logfilename) ||
 		    prev_cfg.logtype != cfg.logtype) {
 		    logfclose();       /* reset logging */
@@ -1661,6 +1678,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if( lParam == 0 )
 		PostMessage(hwnd, WM_CHAR, ' ', 0);
 	    break;
+	  case IDM_FULLSCREEN:
+		flip_full_screen();	
+		break;
 	  default:
 	    if (wParam >= IDM_SAVED_MIN && wParam <= IDM_SAVED_MAX) {
 		SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
@@ -1983,7 +2003,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    return rv;
 	}
-	break;
 	/* break;  (never reached) */
       case WM_SIZE:
 #ifdef RDB_DEBUG_PATCH
@@ -2031,6 +2050,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    was_zoomed = 0;
 		    if (cfg.resize_action != RESIZE_FONT)
 			term_size(prev_rows, prev_cols, cfg.savelines);
+		    reset_window(0);
+		} else if (was_full_screen) {
+		    was_full_screen = 0;
+		    if (cfg.resize_action != RESIZE_FONT)
+			term_size(pre_fs_rows, pre_fs_cols, cfg.savelines);
 		    reset_window(0);
 		}
 		/* This is an unexpected resize, these will normally happen
@@ -3804,23 +3828,63 @@ void beep(int mode)
 /*
  * Toggle full screen mode. Thanks to cwis@nerim.fr for the
  * implementation.
+ * Revised by <wez@thebrainroom.com>
  */
 static void flip_full_screen(void)
 {
-    if (!full_screen) {
-	int cx, cy;
+    want_full_screen = !want_full_screen;
 
+    if (full_screen == want_full_screen)
+	return;
+
+    full_screen = want_full_screen;
+
+    old_wind_placement.length = sizeof(old_wind_placement);
+
+    if (full_screen) {
+	int x, y, cx, cy;
+#ifdef MONITOR_DEFAULTTONEAREST
+	/* The multi-monitor safe way of doing things */
+	HMONITOR	mon;
+	MONITORINFO	mi;
+
+	mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfo(mon, &mi);
+	x = mi.rcMonitor.left;
+	y = mi.rcMonitor.top;
+	cx = mi.rcMonitor.right;
+	cy = mi.rcMonitor.bottom;
+#else
+	/* good old fashioned way of doing it */
+	x = 0;
+	y = 0;
 	cx = GetSystemMetrics(SM_CXSCREEN);
 	cy = GetSystemMetrics(SM_CYSCREEN);
+#endif
+
+	/* save rows for when we "restore" back down again */
+	pre_fs_rows = rows;
+	pre_fs_cols = cols;
+
 	GetWindowPlacement(hwnd, &old_wind_placement);
-	old_wind_style = GetWindowLong(hwnd, GWL_STYLE);
 	SetWindowLong(hwnd, GWL_STYLE,
-		      old_wind_style & ~(WS_CAPTION | WS_BORDER | WS_THICKFRAME));
-	SetWindowPos(hwnd, HWND_TOP, 0, 0, cx, cy, SWP_SHOWWINDOW);
-	full_screen = 1;
+		      GetWindowLong(hwnd, GWL_STYLE)
+		      & ~((cfg.scrollbar_in_fullscreen ? 0 : WS_VSCROLL)
+			  | WS_CAPTION | WS_BORDER | WS_THICKFRAME));
+	/* become topmost */
+	SetWindowPos(hwnd, HWND_TOP, x, y, cx, cy, SWP_FRAMECHANGED);
     } else {
-	SetWindowLong(hwnd, GWL_STYLE, old_wind_style);
+	was_full_screen = 1;
+	SetWindowLong(hwnd, GWL_STYLE,
+		      GetWindowLong(hwnd, GWL_STYLE)
+		      | (cfg.scrollbar ? WS_VSCROLL : 0)
+		      | WS_CAPTION | WS_BORDER | WS_THICKFRAME);
+	SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
+		     SWP_NOMOVE|SWP_NOSIZE|SWP_FRAMECHANGED);
 	SetWindowPlacement(hwnd,&old_wind_placement);
-	full_screen = 0;
     }
+    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
+		  MF_BYCOMMAND| full_screen ? MF_CHECKED : MF_UNCHECKED);
 }
+

@@ -359,6 +359,7 @@ enum { IDCX_ABOUT =
     IDC_RESIZEFONT,
     IDC_RESIZENONE,
     IDC_SCROLLBAR,
+    IDC_SCROLLBARFULLSCREEN,
     IDC_CLOSEWARN,
     IDC_SAVESTATIC,
     IDC_SAVEEDIT,
@@ -675,6 +676,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.cursor_type == 1 ? IDC_CURUNDER : IDC_CURVERT);
     CheckDlgButton(hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton(hwnd, IDC_SCROLLBAR, cfg.scrollbar);
+    CheckDlgButton(hwnd, IDC_SCROLLBARFULLSCREEN, cfg.scrollbar_in_fullscreen);
     CheckRadioButton(hwnd, IDC_RESIZETERM, IDC_RESIZENONE,
 		     cfg.resize_action == RESIZE_TERM ? IDC_RESIZETERM :
 		     cfg.resize_action == RESIZE_FONT ? IDC_RESIZEFONT :
@@ -1040,7 +1042,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == windowpanelstart) {
-	/* The Window panel. Accelerators used: [acgo] rmz sdkp w4ylt f */
+	/* The Window panel. Accelerators used: [acgo] rmz sdikp w4ylt f */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling PuTTY's window",
@@ -1059,6 +1061,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	staticedit(&cp, "Lines of &scrollback",
 		   IDC_SAVESTATIC, IDC_SAVEEDIT, 50);
 	checkbox(&cp, "&Display scrollbar", IDC_SCROLLBAR);
+	checkbox(&cp, "D&isplay scrollbar in full screen mode", IDC_SCROLLBARFULLSCREEN);
 	checkbox(&cp, "Reset scrollback on &keypress", IDC_SCROLLKEY);
 	checkbox(&cp, "Reset scrollback on dis&play activity",
 		 IDC_SCROLLDISP);
@@ -1432,7 +1435,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.left = 3;
 	    r.right = r.left + 75;
 	    r.top = 13;
-	    r.bottom = r.top + 206;
+	    r.bottom = r.top + 219;
 	    MapDialogRect(hwnd, &r);
 	    treeview = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREEVIEW, "",
 				      WS_CHILD | WS_VISIBLE |
@@ -2113,6 +2116,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.scrollbar =
 			IsDlgButtonChecked(hwnd, IDC_SCROLLBAR);
+		break;
+	      case IDC_SCROLLBARFULLSCREEN:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		    cfg.scrollbar_in_fullscreen =
+		    IsDlgButtonChecked(hwnd, IDC_SCROLLBARFULLSCREEN);
 		break;
 	      case IDC_RESIZETERM:
 	      case IDC_RESIZEFONT:
