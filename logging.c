@@ -44,7 +44,7 @@ void log_eventlog(void *handle, char *event)
     if (!ctx->lgfp)
 	logfopen(ctx);
     if (ctx->lgfp)
-	fprintf(ctx->lgfp, "Event Log: %s\n", event);
+	fprintf(ctx->lgfp, "Event Log: %s\r\n", event);
 }
 
 /*
@@ -62,11 +62,11 @@ void log_packet(void *handle, int direction, int type,
     if (!ctx->lgfp)
 	logfopen(ctx);
     if (ctx->lgfp) {
-	fprintf(ctx->lgfp, "%s packet type %d / 0x%02x (%s)\n",
+	fprintf(ctx->lgfp, "%s packet type %d / 0x%02x (%s)\r\n",
 		direction == PKT_INCOMING ? "Incoming" : "Outgoing",
 		type, type, texttype);
 	for (i = 0; i < len; i += 16) {
-	    sprintf(dumpdata, "  %08x%*s\n", i, 1+3*16+2+16, "");
+	    sprintf(dumpdata, "  %08x%*s\r\n", i, 1+3*16+2+16, "");
 	    for (j = 0; j < 16 && i+j < len; j++) {
 		int c = ((unsigned char *)data)[i+j];
 		sprintf(smalldata, "%02x", c);
@@ -74,7 +74,7 @@ void log_packet(void *handle, int direction, int type,
 		dumpdata[10+2+3*j+1] = smalldata[1];
 		dumpdata[10+1+3*16+2+j] = (isprint(c) ? c : '.');
 	    }
-	    strcpy(dumpdata + 10+1+3*16+2+j, "\n");
+	    strcpy(dumpdata + 10+1+3*16+2+j, "\r\n");
 	    fputs(dumpdata, ctx->lgfp);
 	}
 	fflush(ctx->lgfp);
@@ -96,7 +96,7 @@ void logfopen(void *handle)
 
     if (!cfg.logtype)
 	return;
-    sprintf(writemod, "w");	       /* default to rewrite */
+    sprintf(writemod, "wb");	       /* default to rewrite */
 
     time(&t);
     tm = *localtime(&t);
@@ -124,7 +124,7 @@ void logfopen(void *handle)
 	fputs("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", ctx->lgfp);
 	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", &tm);
 	fputs(buf, ctx->lgfp);
-	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\n", ctx->lgfp);
+	fputs(" =~=~=~=~=~=~=~=~=~=~=~=\r\n", ctx->lgfp);
 
 	sprintf(buf, "%s session log (%s mode) to file: ",
 		(writemod[0] == 'a') ? "Appending" : "Writing new",
