@@ -582,7 +582,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
 	AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
-	AppendMenu(m, MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
+	AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
+		   MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
 	AppendMenu(m, MF_SEPARATOR, 0, 0);
 	AppendMenu(m, MF_ENABLED, IDM_ABOUT, "&About PuTTY");
     }
@@ -1531,9 +1532,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (!do_reconfig(hwnd))
 		    break;
 
-		/* If user forcibly disables full-screen, gracefully unzoom */
-		if (full_screen && !cfg.fullscreenonaltenter) {
-		    flip_full_screen();
+		{
+		    /* Disable full-screen if resizing forbidden */
+		    HMENU m = GetSystemMenu (hwnd, FALSE);
+		    EnableMenuItem(m, IDM_FULLSCREEN, MF_BYCOMMAND | 
+				   (cfg.resize_action == RESIZE_DISABLED)
+				   ? MF_GRAYED : MF_ENABLED);
+		    /* Gracefully unzoom if necessary */
+		    if (full_screen &&
+			(cfg.resize_action == RESIZE_DISABLED)) {
+			flip_full_screen();
+		    }
 		}
 
 		if (strcmp(prev_cfg.logfilename, cfg.logfilename) ||
@@ -1586,7 +1595,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			nexflag &= ~(WS_EX_CLIENTEDGE);
 
 		    nflg = flag;
-		    if (cfg.scrollbar)
+		    if (full_screen ?
+			cfg.scrollbar_in_fullscreen : cfg.scrollbar)
 			nflg |= WS_VSCROLL;
 		    else
 			nflg &= ~WS_VSCROLL;
@@ -1815,6 +1825,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		button = press = 0;    /* shouldn't happen */
 	    }
 	    show_mouseptr(1);
+	    /*
+	     * Special case: in full-screen mode, if the left
+	     * button is clicked in the very top left corner of the
+	     * window, we put up the System menu instead of doing
+	     * selection.
+	     */
+	    if (full_screen && press && button == MBT_LEFT &&
+		X_POS(lParam) == 0 && Y_POS(lParam) == 0) {
+		SendMessage(hwnd, WM_SYSCOMMAND, SC_MOUSEMENU, 0);
+		return 0;
+	    }
 	    if (press) {
 		click(button,
 		      TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
@@ -2987,7 +3008,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    SendMessage(hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
 	    return -1;
 	}
-	if (left_alt && wParam == VK_RETURN && cfg.fullscreenonaltenter) {
+	if (left_alt && wParam == VK_RETURN && cfg.fullscreenonaltenter &&
+	    (cfg.resize_action != RESIZE_DISABLED)) {
 	    flip_full_screen();
 	    return -1;
 	}
