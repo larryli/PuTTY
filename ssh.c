@@ -329,6 +329,7 @@ static unsigned char *ssh2_mpint_fmt(Bignum b, int *len);
 static void ssh2_pkt_addmp(struct Packet *, Bignum b);
 static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
+static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
 static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			 struct Packet *pktin);
 static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
@@ -615,6 +616,9 @@ struct ssh_tag {
 
     int size_needed, eof_needed;
 
+    struct Packet **queue;
+    int queuelen, queuesize;
+    int queueing;
     unsigned char *deferred_send_data;
     int deferred_len, deferred_size;
 
@@ -1289,7 +1293,9 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	    struct Packet *pktout;
 	    pktout = ssh2_pkt_init(SSH2_MSG_UNIMPLEMENTED);
 	    ssh2_pkt_adduint32(pktout, st->incoming_sequence - 1);
-	    ssh2_pkt_send(ssh, pktout);
+	    /* UNIMPLEMENTED messages MUST appear in the same order as
+	     * the messages they respond to. Hence, never queue them. */
+	    ssh2_pkt_send_noqueue(ssh, pktout);
 	}
         break;
     }
@@ -1726,9 +1732,38 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
 }
 
 /*
- * Construct and send an SSH2 packet immediately.
+ * Routines called from the main SSH code to send packets. There
+ * are quite a few of these, because we have two separate
+ * mechanisms for delaying the sending of packets:
+ * 
+ *  - In order to send an IGNORE message and a password message in
+ *    a single fixed-length blob, we require the ability to
+ *    concatenate the encrypted forms of those two packets _into_ a
+ *    single blob and then pass it to our <network.h> transport
+ *    layer in one go. Hence, there's a deferment mechanism which
+ *    works after packet encryption.
+ * 
+ *  - In order to avoid sending any connection-layer messages
+ *    during repeat key exchange, we have to queue up any such
+ *    outgoing messages _before_ they are encrypted (and in
+ *    particular before they're allocated sequence numbers), and
+ *    then send them once we've finished.
+ * 
+ * I call these mechanisms `defer' and `queue' respectively, so as
+ * to distinguish them reasonably easily.
+ * 
+ * The functions send_noqueue() and defer_noqueue() free the packet
+ * structure they are passed. Every outgoing packet goes through
+ * precisely one of these functions in its life; packets passed to
+ * ssh2_pkt_send() or ssh2_pkt_defer() either go straight to one of
+ * these or get queued, and then when the queue is later emptied
+ * the packets are all passed to defer_noqueue().
  */
-static void ssh2_pkt_send(Ssh ssh, struct Packet *pkt)
+
+/*
+ * Send an SSH2 packet immediately, without queuing or deferring.
+ */
+static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 {
     int len;
     int backlog;
@@ -1740,17 +1775,9 @@ static void ssh2_pkt_send(Ssh ssh, struct Packet *pkt)
 }
 
 /*
- * Construct an SSH2 packet and add it to a deferred data block.
- * Useful for sending multiple packets in a single sk_write() call,
- * to prevent a traffic-analysing listener from being able to work
- * out the length of any particular packet (such as the password
- * packet).
- * 
- * Note that because SSH2 sequence-numbers its packets, this can
- * NOT be used as an m4-style `defer' allowing packets to be
- * constructed in one order and sent in another.
+ * Defer an SSH2 packet.
  */
-static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
+static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt)
 {
     int len = ssh2_pkt_construct(ssh, pkt);
     if (ssh->deferred_len + len > ssh->deferred_size) {
@@ -1765,8 +1792,56 @@ static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
 }
 
 /*
+ * Queue an SSH2 packet.
+ */
+static void ssh2_pkt_queue(Ssh ssh, struct Packet *pkt)
+{
+    assert(ssh->queueing);
+
+    if (ssh->queuelen >= ssh->queuesize) {
+	ssh->queuesize = ssh->queuelen + 32;
+	ssh->queue = sresize(ssh->queue, ssh->queuesize, struct Packet *);
+    }
+
+    ssh->queue[ssh->queuelen++] = pkt;
+}
+
+/*
+ * Either queue or send a packet, depending on whether queueing is
+ * set.
+ */
+static void ssh2_pkt_send(Ssh ssh, struct Packet *pkt)
+{
+    if (ssh->queueing)
+	ssh2_pkt_queue(ssh, pkt);
+    else
+	ssh2_pkt_send_noqueue(ssh, pkt);
+}
+
+/*
+ * Either queue or defer a packet, depending on whether queueing is
+ * set.
+ */
+static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
+{
+    if (ssh->queueing)
+	ssh2_pkt_queue(ssh, pkt);
+    else
+	ssh2_pkt_defer_noqueue(ssh, pkt);
+}
+
+/*
  * Send the whole deferred data block constructed by
  * ssh2_pkt_defer() or SSH1's defer_packet().
+ * 
+ * The expected use of the defer mechanism is that you call
+ * ssh2_pkt_defer() a few times, then call ssh_pkt_defersend(). If
+ * not currently queueing, this simply sets up deferred_send_data
+ * and then sends it. If we _are_ currently queueing, the calls to
+ * ssh2_pkt_defer() put the deferred packets on to the queue
+ * instead, and therefore ssh_pkt_defersend() has no deferred data
+ * to send. Hence, there's no need to make it conditional on
+ * ssh->queueing.
  */
 static void ssh_pkt_defersend(Ssh ssh)
 {
@@ -1778,6 +1853,24 @@ static void ssh_pkt_defersend(Ssh ssh)
     ssh->deferred_send_data = NULL;
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
+}
+
+/*
+ * Send all queued SSH2 packets. We send them by means of
+ * ssh2_pkt_defer_noqueue(), in case they included a pair of
+ * packets that needed to be lumped together.
+ */
+static void ssh2_pkt_queuesend(Ssh ssh)
+{
+    int i;
+
+    assert(!ssh->queueing);
+
+    for (i = 0; i < ssh->queuelen; i++)
+	ssh2_pkt_defer_noqueue(ssh, ssh->queue[i]);
+    ssh->queuelen = 0;
+
+    ssh_pkt_defersend(ssh);
 }
 
 #if 0
@@ -4256,6 +4349,12 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	int i, j, cipherstr_started;
 
 	/*
+	 * Enable queueing of outgoing auth- or connection-layer
+	 * packets while we are in the middle of a key exchange.
+	 */
+	ssh->queueing = TRUE;
+
+	/*
 	 * Construct and send our key exchange packet.
 	 */
 	s->pktout = ssh2_pkt_init(SSH2_MSG_KEXINIT);
@@ -4353,7 +4452,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     ssh->exhash = ssh->exhashbase;
     sha_string(&ssh->exhash, s->pktout->data + 5, s->pktout->length - 5);
 
-    ssh2_pkt_send(ssh, s->pktout);
+    ssh2_pkt_send_noqueue(ssh, s->pktout);
 
     if (!pktin)
 	crWaitUntil(pktin);
@@ -4515,7 +4614,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	s->pbits = 512 << ((s->nbits - 1) / 64);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST);
 	ssh2_pkt_adduint32(s->pktout, s->pbits);
-	ssh2_pkt_send(ssh, s->pktout);
+	ssh2_pkt_send_noqueue(ssh, s->pktout);
 
 	crWaitUntil(pktin);
 	if (pktin->type != SSH2_MSG_KEX_DH_GEX_GROUP) {
@@ -4545,7 +4644,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
     s->e = dh_create_e(ssh->kex_ctx, s->nbits * 2);
     s->pktout = ssh2_pkt_init(s->kex_init_value);
     ssh2_pkt_addmp(s->pktout, s->e);
-    ssh2_pkt_send(ssh, s->pktout);
+    ssh2_pkt_send_noqueue(ssh, s->pktout);
 
     crWaitUntil(pktin);
     if (pktin->type != s->kex_reply_value) {
@@ -4610,7 +4709,14 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * Send SSH2_MSG_NEWKEYS.
      */
     s->pktout = ssh2_pkt_init(SSH2_MSG_NEWKEYS);
-    ssh2_pkt_send(ssh, s->pktout);
+    ssh2_pkt_send_noqueue(ssh, s->pktout);
+
+    /*
+     * Now our end of the key exchange is complete, we can send all
+     * our queued higher-layer packets.
+     */
+    ssh->queueing = FALSE;
+    ssh2_pkt_queuesend(ssh);
 
     /*
      * Expect SSH2_MSG_NEWKEYS from server.
@@ -5452,7 +5558,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			ssh2_pkt_addstring(s->pktout, "No more passwords available"
 					   " to try");
 			ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-			ssh2_pkt_send(ssh, s->pktout);
+			ssh2_pkt_send_noqueue(ssh, s->pktout);
 			logevent("Unable to authenticate");
 			connection_fatal(ssh->frontend,
 					 "Unable to authenticate");
@@ -5653,7 +5759,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		ssh2_pkt_addstring(s->pktout, "No supported authentication"
 				   " methods available");
 		ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		ssh2_pkt_send(ssh, s->pktout);
+		ssh2_pkt_send_noqueue(ssh, s->pktout);
                 ssh_closing((Plug)ssh, NULL, 0, 0);
 		crStopV;
 	    }
@@ -6332,7 +6438,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
 		    ssh2_pkt_addstring(s->pktout, "All open channels closed");
 		    ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		    ssh2_pkt_send(ssh, s->pktout);
+		    ssh2_pkt_send_noqueue(ssh, s->pktout);
 #endif
                     ssh_closing((Plug)ssh, NULL, 0, 0);
 		    crStopV;
@@ -6430,7 +6536,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
 		    ssh2_pkt_addstring(s->pktout, buf);
 		    ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		    ssh2_pkt_send(ssh, s->pktout);
+		    ssh2_pkt_send_noqueue(ssh, s->pktout);
 		    connection_fatal(ssh->frontend, "%s", buf);
                     ssh_closing((Plug)ssh, NULL, 0, 0);
 		    crStopV;
@@ -6790,6 +6896,9 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->mainchan = NULL;
     ssh->throttled_all = 0;
     ssh->v1_stdout_throttling = 0;
+    ssh->queue = NULL;
+    ssh->queuelen = ssh->queuesize = 0;
+    ssh->queueing = FALSE;
 
     *backend_handle = ssh;
 
@@ -6852,6 +6961,10 @@ static void ssh_free(void *handle)
     if (ssh->kex_ctx)
 	dh_cleanup(ssh->kex_ctx);
     sfree(ssh->savedhost);
+
+    while (ssh->queuelen-- > 0)
+	ssh_free_packet(ssh->queue[ssh->queuelen]);
+    sfree(ssh->queue);
 
     if (ssh->channels) {
 	while ((c = delpos234(ssh->channels, 0)) != NULL) {
@@ -7096,7 +7209,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	} else {
 	    pktout = ssh2_pkt_init(SSH2_MSG_IGNORE);
 	    ssh2_pkt_addstring_start(pktout);
-	    ssh2_pkt_send(ssh, pktout);
+	    ssh2_pkt_send_noqueue(ssh, pktout);
 	}
     } else if (code == TS_BRK) {
 	if (ssh->state == SSH_STATE_CLOSED
