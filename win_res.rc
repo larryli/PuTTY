@@ -145,7 +145,7 @@ BEGIN
     AUTOCHECKBOX "Reset scrollback on &keypress", IDC1_SCROLLKEY, 3, 143, 162, 8
 END
 
-/* Accelerators used: [aco] bdghiklmnprswy */
+/* Accelerators used: [aco] dghlmnprsw */
 IDD_PANEL2 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -170,17 +170,30 @@ BEGIN
     
     AUTOCHECKBOX "Auto &wrap mode initially on", IDC2_WRAPMODE, 3, 62, 162, 8
     AUTOCHECKBOX "&DEC Origin Mode initially on", IDC2_DECOM, 3, 72, 162, 8
-    AUTOCHECKBOX "Avoid ever using &icon title", IDC2_WINNAME, 3, 82, 162, 8
-    AUTOCHECKBOX "Implicit CR in every &LF", IDC2_LFHASCR, 3, 92, 162, 8
-    AUTOCHECKBOX "&Blinking cursor", IDC1_BLINKCUR, 3, 102, 162, 8
-    AUTOCHECKBOX "Bee&p enabled", IDC1_BEEP, 3, 112, 162, 8
-    AUTOCHECKBOX "Displa&y scrollbar", IDC2_SCROLLBAR, 3, 122, 162, 8
-    AUTOCHECKBOX "Loc&k Window size", IDC2_LOCKSIZE, 3, 132, 162, 8
-    AUTOCHECKBOX "Use Back&ground colour erase", IDC2_BCE, 3, 142, 162, 8
-    AUTOCHECKBOX "Enable bli&nking text", IDC2_BLINKTEXT, 3, 152, 162, 8
+    AUTOCHECKBOX "Implicit CR in every &LF", IDC2_LFHASCR, 3, 82, 162, 8
+    AUTOCHECKBOX "Bee&p enabled", IDC1_BEEP, 3, 92, 162, 8
+    AUTOCHECKBOX "Use Back&ground colour erase", IDC2_BCE, 3, 102, 162, 8
+    AUTOCHECKBOX "Enable bli&nking text", IDC2_BLINKTEXT, 3, 112, 162, 8
     
     
     
+END
+
+/* Accelerators used: [aco] bikty */
+IDD_PANELW DIALOG DISCARDABLE 6, 30, 168, 163
+STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
+FONT 8, "MS Sans Serif"
+  
+BEGIN
+    
+    LTEXT "Initial window &title:", IDCW_WINTITLE, 3, 3, 119, 8
+    EDITTEXT IDCW_WINEDIT,  3, 11, 119, 12, ES_AUTOHSCROLL
+    
+    
+    AUTOCHECKBOX "Avoid ever using &icon title", IDCW_WINNAME, 3, 29, 162, 8
+    AUTOCHECKBOX "&Blinking cursor", IDCW_BLINKCUR, 3, 39, 162, 8
+    AUTOCHECKBOX "Displa&y scrollbar", IDCW_SCROLLBAR, 3, 49, 162, 8
+    AUTOCHECKBOX "Loc&k Window size", IDCW_LOCKSIZE, 3, 59, 162, 8
 END
 
 /* Accelerators used: [aco] bdflrstuv */
@@ -340,15 +353,14 @@ BEGIN
     
 END
 
-/* Accelerators used: co */
-IDD_LOGBOX DIALOG DISCARDABLE 100, 20, 260, 119
+/* Accelerators used: c */
+IDD_LOGBOX DIALOG DISCARDABLE 100, 20, 160, 119
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Event Log"
 FONT 8, "MS Sans Serif"
 BEGIN
-    DEFPUSHBUTTON "&Close", IDOK, 135, 102, 44, 14
-    PUSHBUTTON "C&opy", IDN_COPY, 81, 102, 44, 14
-    LISTBOX IDN_LIST, 3, 3, 254, 95, LBS_HASSTRINGS | LBS_USETABSTOPS | WS_VSCROLL | LBS_EXTENDEDSEL
+    DEFPUSHBUTTON "&Close", IDOK, 58, 102, 44, 14
+    LISTBOX IDN_LIST, 3, 3, 154, 95, LBS_HASSTRINGS | LBS_USETABSTOPS | WS_VSCROLL
 END
 
 /* No accelerators used */

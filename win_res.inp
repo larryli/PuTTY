@@ -145,7 +145,7 @@ BEGIN
     AUTOCHECKBOX "Reset scrollback on &keypress", IDC1_SCROLLKEY, SCOL
 END
 
-/* Accelerators used: [aco] bdghiklmnprswy */
+/* Accelerators used: [aco] dghlmnprsw */
 IDD_PANEL2 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -170,17 +170,30 @@ BEGIN
     GRID(1,8,10)
     AUTOCHECKBOX "Auto &wrap mode initially on", IDC2_WRAPMODE, SCOL
     AUTOCHECKBOX "&DEC Origin Mode initially on", IDC2_DECOM, SCOL
-    AUTOCHECKBOX "Avoid ever using &icon title", IDC2_WINNAME, SCOL
     AUTOCHECKBOX "Implicit CR in every &LF", IDC2_LFHASCR, SCOL
-    AUTOCHECKBOX "&Blinking cursor", IDC1_BLINKCUR, SCOL
     AUTOCHECKBOX "Bee&p enabled", IDC1_BEEP, SCOL
-    AUTOCHECKBOX "Displa&y scrollbar", IDC2_SCROLLBAR, SCOL
-    AUTOCHECKBOX "Loc&k Window size", IDC2_LOCKSIZE, SCOL
     AUTOCHECKBOX "Use Back&ground colour erase", IDC2_BCE, SCOL
     AUTOCHECKBOX "Enable bli&nking text", IDC2_BLINKTEXT, SCOL
     GAP(6)
     GAP(6)
     GAP(6)
+END
+
+/* Accelerators used: [aco] bikty */
+IDD_PANELW DIALOG DISCARDABLE 6, 30, 168, 163
+STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
+FONT 8, "MS Sans Serif"
+INIT(10,176,8,162) SPOS(3,3) 
+BEGIN
+    GRID(4,4,24)
+    LTEXT "Initial window &title:", IDCW_WINTITLE, COL(1), SS(3,2)
+    EDITTEXT IDCW_WINEDIT, ADJ(8) COL(1), SS(3,3), ES_AUTOHSCROLL
+    NEXT(2)
+    GRID(1,8,10)
+    AUTOCHECKBOX "Avoid ever using &icon title", IDCW_WINNAME, SCOL
+    AUTOCHECKBOX "&Blinking cursor", IDCW_BLINKCUR, SCOL
+    AUTOCHECKBOX "Displa&y scrollbar", IDCW_SCROLLBAR, SCOL
+    AUTOCHECKBOX "Loc&k Window size", IDCW_LOCKSIZE, SCOL
 END
 
 /* Accelerators used: [aco] bdflrstuv */

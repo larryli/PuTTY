@@ -163,6 +163,7 @@ typedef struct {
     int alt_space;		       /* is it special? */
     int ldisc_term;
     int scroll_on_key;
+    char wintitle[256];                /* initial window title */
     /* Terminal options */
     int savelines;
     int dec_om;

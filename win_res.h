@@ -7,6 +7,7 @@
 #define IDD_PANEL0       103
 #define IDD_PANEL1       104
 #define IDD_PANEL2       105
+#define IDD_PANELW       115
 #define IDD_PANEL3       106
 #define IDD_PANEL35      107
 #define IDD_PANEL4       108
@@ -70,7 +71,6 @@
 
 #define IDC2_WRAPMODE   1001
 #define IDC2_DECOM      1002
-#define IDC2_WINNAME    1003
 #define IDC2_DIMSTATIC  1004
 #define IDC2_ROWSSTATIC 1005
 #define IDC2_ROWSEDIT   1006
@@ -81,12 +81,16 @@
 #define IDC2_FONTSTATIC 1011
 #define IDC2_CHOOSEFONT 1012
 #define IDC2_LFHASCR    1018
-#define IDC1_BLINKCUR   1020
 #define IDC1_BEEP       1021
-#define IDC2_SCROLLBAR  1022
-#define IDC2_LOCKSIZE   1023
 #define IDC2_BCE	1024
 #define IDC2_BLINKTEXT	1025
+
+#define IDCW_WINNAME    1001
+#define IDCW_BLINKCUR   1002
+#define IDCW_SCROLLBAR  1003
+#define IDCW_LOCKSIZE   1004
+#define IDCW_WINTITLE   1005
+#define IDCW_WINEDIT    1006
 
 #define IDC3_TTSTATIC   1001
 #define IDC3_TTEDIT     1002

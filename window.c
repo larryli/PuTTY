@@ -415,7 +415,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
      */
     {
 	char *error;
-	char msg[1024];
+	char msg[1024], *title;
 	char *realhost;
 
 	error = back->init (hwnd, cfg.host, cfg.port, &realhost);
@@ -425,9 +425,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	    return 0;
 	}
 	window_name = icon_name = NULL;
-	sprintf(msg, "%s - PuTTY", realhost);
-	set_title (msg);
-	set_icon (msg);
+        if (*cfg.wintitle) {
+            title = cfg.wintitle;
+        } else {
+            sprintf(msg, "%s - PuTTY", realhost);
+            title = msg;
+        }
+	set_title (title);
+	set_icon (title);
     }
 
     session_closed = FALSE;

@@ -16,9 +16,9 @@
 #include "win_res.h"
 #include "storage.h"
 
-#define NPANELS 8
-#define MAIN_NPANELS 8
-#define RECONF_NPANELS 5
+#define NPANELS 9
+#define MAIN_NPANELS 9
+#define RECONF_NPANELS 6
 
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
@@ -110,6 +110,7 @@ static void save_settings (char *section, int do_host) {
     write_setting_i (sesskey, "AutoWrapMode", cfg.wrap_mode);
     write_setting_i (sesskey, "LFImpliesCR", cfg.lfhascr);
     write_setting_i (sesskey, "WinNameAlways", cfg.win_name_always);
+    write_setting_s (sesskey, "WinTitle", cfg.wintitle);
     write_setting_i (sesskey, "TermWidth", cfg.width);
     write_setting_i (sesskey, "TermHeight", cfg.height);
     write_setting_s (sesskey, "Font", cfg.font);
@@ -227,6 +228,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "AutoWrapMode", 1, &cfg.wrap_mode);
     gppi (sesskey, "LFImpliesCR", 0, &cfg.lfhascr);
     gppi (sesskey, "WinNameAlways", 0, &cfg.win_name_always);
+    gpps (sesskey, "WinTitle", "", cfg.wintitle, sizeof(cfg.wintitle));
     gppi (sesskey, "TermWidth", 80, &cfg.width);
     gppi (sesskey, "TermHeight", 24, &cfg.height);
     gpps (sesskey, "Font", "Courier", cfg.font, sizeof(cfg.font));
@@ -726,7 +728,6 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	CheckDlgButton (hwnd, IDC2_WRAPMODE, cfg.wrap_mode);
-	CheckDlgButton (hwnd, IDC2_WINNAME, cfg.win_name_always);
 	CheckDlgButton (hwnd, IDC2_DECOM, cfg.dec_om);
 	CheckDlgButton (hwnd, IDC2_LFHASCR, cfg.lfhascr);
 	SetDlgItemInt (hwnd, IDC2_ROWSEDIT, cfg.height, FALSE);
@@ -734,10 +735,7 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 	SetDlgItemInt (hwnd, IDC2_SAVEEDIT, cfg.savelines, FALSE);
 	fmtfont (fontstatic);
 	SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
-	CheckDlgButton (hwnd, IDC1_BLINKCUR, cfg.blink_cur);
         CheckDlgButton (hwnd, IDC1_BEEP, cfg.beep);
-        CheckDlgButton (hwnd, IDC2_SCROLLBAR, cfg.scrollbar);
-        CheckDlgButton (hwnd, IDC2_LOCKSIZE, cfg.locksize);
         CheckDlgButton (hwnd, IDC2_BCE, cfg.bce);
         CheckDlgButton (hwnd, IDC2_BLINKTEXT, cfg.blinktext);
 	break;
@@ -747,11 +745,6 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.wrap_mode = IsDlgButtonChecked (hwnd, IDC2_WRAPMODE);
-	    break;
-	  case IDC2_WINNAME:
-	    if (HIWORD(wParam) == BN_CLICKED ||
-		HIWORD(wParam) == BN_DOUBLECLICKED)
-		cfg.win_name_always = IsDlgButtonChecked (hwnd, IDC2_WINNAME);
 	    break;
 	  case IDC2_DECOM:
 	    if (HIWORD(wParam) == BN_CLICKED ||
@@ -804,25 +797,10 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 		SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
 	    }
 	    break;
-	   case IDC1_BLINKCUR:
-	     if (HIWORD(wParam) == BN_CLICKED ||
-		 HIWORD(wParam) == BN_DOUBLECLICKED)
-		 cfg.blink_cur = IsDlgButtonChecked (hwnd, IDC1_BLINKCUR);
-	     break;
 	   case IDC1_BEEP:
 	     if (HIWORD(wParam) == BN_CLICKED ||
 		 HIWORD(wParam) == BN_DOUBLECLICKED)
 		 cfg.beep = IsDlgButtonChecked (hwnd, IDC1_BEEP);
-	     break;
-	   case IDC2_SCROLLBAR:
-	     if (HIWORD(wParam) == BN_CLICKED ||
-		 HIWORD(wParam) == BN_DOUBLECLICKED)
-		 cfg.scrollbar = IsDlgButtonChecked (hwnd, IDC2_SCROLLBAR);
-	     break;
-	   case IDC2_LOCKSIZE:
-	     if (HIWORD(wParam) == BN_CLICKED ||
-		 HIWORD(wParam) == BN_DOUBLECLICKED)
-		 cfg.locksize = IsDlgButtonChecked (hwnd, IDC2_LOCKSIZE);
 	     break;
 	   case IDC2_BLINKTEXT:
 	     if (HIWORD(wParam) == BN_CLICKED ||
@@ -834,6 +812,49 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 		 HIWORD(wParam) == BN_DOUBLECLICKED)
 		 cfg.bce = IsDlgButtonChecked (hwnd, IDC2_BCE);
 	     break;
+	}
+	break;
+    }
+    return GeneralPanelProc (hwnd, msg, wParam, lParam);
+}
+
+static int CALLBACK WindowProc (HWND hwnd, UINT msg,
+				    WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+      case WM_INITDIALOG:
+	SetDlgItemText (hwnd, IDCW_WINEDIT, cfg.wintitle);
+	CheckDlgButton (hwnd, IDCW_WINNAME, cfg.win_name_always);
+	CheckDlgButton (hwnd, IDCW_BLINKCUR, cfg.blink_cur);
+        CheckDlgButton (hwnd, IDCW_SCROLLBAR, cfg.scrollbar);
+        CheckDlgButton (hwnd, IDCW_LOCKSIZE, cfg.locksize);
+	break;
+      case WM_COMMAND:
+	switch (LOWORD(wParam)) {
+	  case IDCW_WINNAME:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.win_name_always = IsDlgButtonChecked (hwnd, IDCW_WINNAME);
+	    break;
+          case IDCW_BLINKCUR:
+            if (HIWORD(wParam) == BN_CLICKED ||
+                HIWORD(wParam) == BN_DOUBLECLICKED)
+                cfg.blink_cur = IsDlgButtonChecked (hwnd, IDCW_BLINKCUR);
+            break;
+          case IDCW_SCROLLBAR:
+            if (HIWORD(wParam) == BN_CLICKED ||
+                HIWORD(wParam) == BN_DOUBLECLICKED)
+                cfg.scrollbar = IsDlgButtonChecked (hwnd, IDCW_SCROLLBAR);
+            break;
+          case IDCW_LOCKSIZE:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+                cfg.locksize = IsDlgButtonChecked (hwnd, IDCW_LOCKSIZE);
+            break;
+	  case IDCW_WINEDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+		GetDlgItemText (hwnd, IDCW_WINEDIT, cfg.wintitle,
+				sizeof(cfg.wintitle)-1);
+	    break;
 	}
 	break;
     }
@@ -1282,13 +1303,14 @@ static int CALLBACK TranslationProc (HWND hwnd, UINT msg,
 }
 
 static DLGPROC panelproc[NPANELS] = {
-    ConnectionProc, KeyboardProc, TerminalProc,
+    ConnectionProc, KeyboardProc, TerminalProc, WindowProc,
     TelnetProc, SshProc, SelectionProc, ColourProc, TranslationProc
 };
 static char *panelids[NPANELS] = {
     MAKEINTRESOURCE(IDD_PANEL0),
     MAKEINTRESOURCE(IDD_PANEL1),
     MAKEINTRESOURCE(IDD_PANEL2),
+    MAKEINTRESOURCE(IDD_PANELW),
     MAKEINTRESOURCE(IDD_PANEL3),
     MAKEINTRESOURCE(IDD_PANEL35),
     MAKEINTRESOURCE(IDD_PANEL4),
@@ -1297,12 +1319,12 @@ static char *panelids[NPANELS] = {
 };
 
 static char *names[NPANELS] = {
-    "Connection", "Keyboard", "Terminal", "Telnet",
+    "Connection", "Keyboard", "Terminal", "Window", "Telnet",
     "SSH", "Selection", "Colours", "Translation"
 };
 
-static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6, 7};
-static int reconfp[RECONF_NPANELS] = { 1, 2, 5, 6, 7};
+static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6, 7, 8};
+static int reconfp[RECONF_NPANELS] = { 1, 2, 3, 6, 7, 8};
 
 static int GenericMainDlgProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam,
