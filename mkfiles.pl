@@ -74,17 +74,17 @@ print
 "RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 --define WINVER=0x0400\n".
 "LIBS = -ladvapi32 -luser32 -lgdi32 -lwsock32 -lcomctl32 -lcomdlg32\n".
 "OBJ=o\n".
-"RES=res\n".
+"RES=o\n".
 "\n";
 print $store{"objdefs"};
 print
 "\n".
 ".SUFFIXES:\n".
 "\n".
-"%.o %.obj: %.c\n".
+"%.o: %.c\n".
 "\t\$(CC) \$(FWHACK) \$(CFLAGS) -c \$<\n".
 "\n".
-"%.res: %.rc\n".
+"%.o: %.rc\n".
 "\t\$(RC) \$(FWHACK) \$(RCFLAGS) \$<\n".
 "\n";
 foreach $p (@projects) {
@@ -97,7 +97,7 @@ print
 "version.o: FORCE\n".
 "# Hack to force version.o to be rebuilt always\n".
 "FORCE:\n".
-"\t\$(CC) \$(FWHACK) \$(CFLAGS) \$(VER) -c \$<\n\n".
+"\t\$(CC) \$(FWHACK) \$(CFLAGS) \$(VER) -c version.c\n\n".
 "clean:\n".
 "\trm -f *.o *.exe *.res\n".
 "\n";
