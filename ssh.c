@@ -7794,7 +7794,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 		    PKT_INT, c->localid,
 		    PKT_STR, hostname,
 		    PKT_INT, port,
-		    //PKT_STR, <org:orgport>,
+		    /* PKT_STR, <org:orgport>, */
 		    PKT_END);
     } else {
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);

@@ -2320,7 +2320,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		Rectangle(hdc, p.rcPaint.left, p.rcPaint.top, 
 			  p.rcPaint.right, p.rcPaint.bottom);
 
-		// SelectClipRgn(hdc, NULL);
+		/* SelectClipRgn(hdc, NULL); */
 
 		SelectObject(hdc, oldbrush);
 		DeleteObject(fillcolour);
