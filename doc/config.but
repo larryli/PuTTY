@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.73 2004/01/20 12:46:35 jacob Exp $
+\versionid $Id: config.but,v 1.74 2004/02/07 23:49:21 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1187,18 +1187,24 @@ disabled.
 
 \cfg{winhelp-topic}{selection.buttons}
 
-PuTTY's copy and paste mechanism is modelled on the Unix \c{xterm}
-application. The X Window System uses a three-button mouse, and the
-convention is that the left button selects, the right button extends
-an existing selection, and the middle button pastes.
+PuTTY's copy and paste mechanism is by default modelled on the Unix
+\c{xterm} application. The X Window System uses a three-button mouse,
+and the convention is that the left button selects, the right button
+extends an existing selection, and the middle button pastes.
 
-Windows typically only has two mouse buttons, so in PuTTY's default
-configuration, the \e{right} button pastes, and the \e{middle}
-button (if you have one) extends a selection.
+Windows often only has two mouse buttons, so in PuTTY's default
+configuration (\q{Compromise}), the \e{right} button pastes, and the
+\e{middle} button (if you have one) extends a selection.
 
 If you have a three-button mouse and you are already used to the
 \c{xterm} arrangement, you can select it using the \q{Action of
 mouse buttons} control.
+
+Alternatively, with the \q{Windows} option selected, the middle
+button extends, and the right button brings up a context menu (on
+which one of the options is \q{Paste}). (This context menu is always
+available by holding down Ctrl and right-clicking, regardless of the
+setting of this option.)
 
 \S{config-mouseshift} \q{Shift overrides application's use of mouse}
 
