@@ -80,24 +80,6 @@ struct Socket_proxy_tag {
     /* accepting */
     void *accepting_sock;
 
-    /* spin locks, for the critical switch from negotiating
-     * to active state. we have to dump all of our pending
-     * buffers without new events (read, writes, etc) corrupting
-     * things. we should not have built up a large amount of
-     * pending data during negotiation, so hopefully this will
-     * not have a large effect on performance.
-     */
-
-    char lock_close;
-    char lock_write;
-    char lock_write_oob;
-    char lock_receive;
-    char lock_flush;
-    char lock_closing;
-    char lock_sent;
-    char lock_accepting;
-    char lock_freeze;
-
 };
 
 typedef struct Plug_proxy_tag * Proxy_Plug;

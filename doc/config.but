@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.29 2002/03/09 17:59:15 simon Exp $
+\versionid $Id: config.but,v 1.30 2002/03/27 21:09:16 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1356,6 +1356,96 @@ get a faster response to your keystrokes when connecting to some
 types of server.
 
 The Nagle algorithm is disabled by default.
+
+\H{config-proxy} The Proxy panel
+
+The Proxy panel allows you to configure PuTTY to use various types
+of proxy in order to make its network connections. The settings in
+this panel affect the primary network connection forming your PuTTY
+session, but also any extra connections made as a result of SSH port
+forwarding (see \k{using-port-forwarding}).
+
+\S{config-proxy-type} Setting the proxy type
+
+The \q{Proxy type} radio buttons allow you to configure what type of
+proxy you want PuTTY to use for its network connections. The default
+setting is \q{None}; in this mode no proxy is used for any
+connection.
+
+\b Selecting \q{HTTP} allows you to proxy your connections through a
+web server supporting the HTTP \cw{CONNECT} command, as documented
+in \W{http://www.ietf.org/rfc/rfc2817.txt}{RFC 2817}.
+
+\b Selecting \q{SOCKS} allows you to proxy your connections through
+a SOCKS server.
+
+\b Many firewalls implement a less formal type of proxy in which a
+user can make a Telnet connection directly to the firewall machine
+and enter a command such as \c{connect myhost.com 22} to connect
+through to an external host. Selecting \q{Telnet} allows you to tell
+PuTTY to use this type of proxy.
+
+Note [FIXME] that SOCKS is not yet supported, although it should be
+by the time we make our next release.
+
+\S{config-proxy-exclude} Excluding parts of the network from proxying
+
+Typically you will only need to use a proxy to connect to non-local
+parts of your network; for example, your proxy might be required for
+connections outside your company's internal network. In the
+\q{Exclude Hosts/IPs} box you can enter ranges of IP addresses, or
+ranges of DNS names, for which PuTTY will avoid using the proxy and
+make a direct connection instead.
+
+The \q{Exclude Hosts/IPs} box may contain more than one exclusion
+range, separated by commas. Each range can be an IP address or a DNS
+name, with a \c{*} character allowing wildcards. For example:
+
+\c *.example.com
+
+This excludes any host with a name ending in \c{.example.com} from
+proxying.
+
+\c 192.168.88.*
+
+This excludes any host with an IP address starting with 192.168.88
+from proxying.
+
+\c 192.168.88.*,*.example.com
+
+This excludes both of the above ranges at once.
+
+\S{config-proxy-auth} Username and password
+
+If your proxy requires authentication, you can enter a username and
+a password in the \q{Username} and \q{Password} boxes.
+
+Currently these boxes have no effect ( [FIXME] presumably they're
+for SOCKS only).
+
+\S{config-proxy-command} Specifying the Telnet proxy command
+
+If you are using the Telnet proxy type, the usual command required
+by the firewall's Telnet server is \c{connect}, followed by a host
+name and a port number. If your proxy needs a different command,
+you can enter an alternative here.
+
+In this string, you can use \c{\\n} to represent a new-line, \c{\\r}
+to represent a carriage return, \c{\\t} to represent a tab
+character, and \c{\\x} followed by two hex digits to represent any
+other character. \c{\\\\} is used to encode the \c{\\} character
+itself.
+
+Also, the special strings \c{%host} and \c{%port} will be replaced
+by the host name and port number you want to connect to. To get a
+literal \c{%} sign, enter \c{%%}.
+
+\S{config-proxy-socksver} Selecting the version of the SOCKS protocol
+
+SOCKS servers exist in two versions: version 5
+(\W{http://www.ietf.org/rfc/rfc1928.txt}{RFC 1928}) and the earlier
+version 4. The \q{SOCKS Version} radio buttons allow you to select
+which one to use, if you have selected the SOCKS proxy type.
 
 \H{config-telnet} The Telnet panel
 

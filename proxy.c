@@ -21,21 +21,12 @@ void proxy_activate (Proxy_Socket p)
     void *data;
     int len;
 
-    p->lock_close =
-	p->lock_write =
-	p->lock_write_oob =
-	p->lock_receive =
-	p->lock_flush =
-	p->lock_closing =
-	p->lock_sent =
-	p->lock_accepting =
-	p->lock_freeze = 1;
-
     p->state = PROXY_STATE_ACTIVE;
 
     /* let's try to keep extra receive events from coming through */
     sk_set_frozen(p->sub_socket, 1);
 
+    /* send buffered OOB writes */
     while (bufchain_size(&p->pending_oob_output_data) > 0) {
 	bufchain_prefix(&p->pending_oob_output_data, &data, &len);
 	sk_write_oob(p->sub_socket, data, len);
@@ -43,6 +34,7 @@ void proxy_activate (Proxy_Socket p)
     }
     bufchain_clear(&p->pending_oob_output_data);
 
+    /* send buffered normal writes */
     while (bufchain_size(&p->pending_output_data) > 0) {
 	bufchain_prefix(&p->pending_output_data, &data, &len);
 	sk_write(p->sub_socket, data, len);
@@ -50,28 +42,21 @@ void proxy_activate (Proxy_Socket p)
     }
     bufchain_clear(&p->pending_output_data);
 
-    p->lock_write_oob = 0;
-    p->lock_write = 0;
-
+    /* if we were asked to flush the output during
+     * the proxy negotiation process, do so now.
+     */
     if (p->pending_flush) sk_flush(p->sub_socket);
-    p->lock_flush = 0;
 
+    /* forward buffered recv data to the backend */
     while (bufchain_size(&p->pending_input_data) > 0) {
 	bufchain_prefix(&p->pending_input_data, &data, &len);
 	plug_receive(p->plug, 0, data, len);
 	bufchain_consume(&p->pending_input_data, len);
     }
     bufchain_clear(&p->pending_input_data);
-    p->lock_receive = 0;
 
     /* now set the underlying socket to whatever freeze state they wanted */
     sk_set_frozen(p->sub_socket, p->freeze);
-    p->lock_freeze = 0;
-
-    p->lock_sent = 0;
-    p->lock_accepting = 0;
-    p->lock_closing = 0;
-    p->lock_close = 0;
 }
 
 /* basic proxy socket functions */
@@ -89,7 +74,6 @@ static void sk_proxy_close (Socket s)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 
-    while (ps->lock_close) ;
     sk_close(ps->sub_socket);
     sfree(ps);
 }
@@ -98,7 +82,6 @@ static int sk_proxy_write (Socket s, char *data, int len)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 
-    while (ps->lock_write) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	bufchain_add(&ps->pending_output_data, data, len);
 	return bufchain_size(&ps->pending_output_data);
@@ -110,7 +93,6 @@ static int sk_proxy_write_oob (Socket s, char *data, int len)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 
-    while (ps->lock_write_oob) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	bufchain_clear(&ps->pending_output_data);
 	bufchain_clear(&ps->pending_oob_output_data);
@@ -124,7 +106,6 @@ static void sk_proxy_flush (Socket s)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 
-    while (ps->lock_flush) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->pending_flush = 1;
 	return;
@@ -148,7 +129,6 @@ static void sk_proxy_set_frozen (Socket s, int is_frozen)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 
-    while (ps->lock_freeze) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->freeze = is_frozen;
 	return;
@@ -173,7 +153,6 @@ static int plug_proxy_closing (Plug p, char *error_msg,
     Proxy_Plug pp = (Proxy_Plug) p;
     Proxy_Socket ps = pp->proxy_socket;
 
-    while (ps->lock_closing) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->closing_error_msg = error_msg;
 	ps->closing_error_code = error_code;
@@ -189,7 +168,6 @@ static int plug_proxy_receive (Plug p, int urgent, char *data, int len)
     Proxy_Plug pp = (Proxy_Plug) p;
     Proxy_Socket ps = pp->proxy_socket;
 
-    while (ps->lock_receive) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	/* we will lose the urgentness of this data, but since most,
 	 * if not all, of this data will be consumed by the negotiation
@@ -209,7 +187,6 @@ static void plug_proxy_sent (Plug p, int bufsize)
     Proxy_Plug pp = (Proxy_Plug) p;
     Proxy_Socket ps = pp->proxy_socket;
 
-    while (ps->lock_sent) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->sent_bufsize = bufsize;
 	ps->negotiate(ps, PROXY_CHANGE_SENT);
@@ -223,7 +200,6 @@ static int plug_proxy_accepting (Plug p, void *sock)
     Proxy_Plug pp = (Proxy_Plug) p;
     Proxy_Socket ps = pp->proxy_socket;
 
-    while (ps->lock_accepting) ;
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->accepting_sock = sock;
 	return ps->negotiate(ps, PROXY_CHANGE_ACCEPTING);
@@ -340,15 +316,6 @@ Socket new_connection(SockAddr addr, char *hostname,
 	bufchain_init(&ret->pending_output_data);
 	bufchain_init(&ret->pending_oob_output_data);
 
-	ret->lock_close =
-	    ret->lock_write =
-	    ret->lock_write_oob =
-	    ret->lock_receive =
-	    ret->lock_flush =
-	    ret->lock_closing =
-	    ret->lock_sent =
-	    ret->lock_accepting = 0;
-
 	ret->sub_socket = NULL;
 	ret->state = PROXY_STATE_NEW;
 
@@ -451,9 +418,9 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	 * for this proxy method, it's just a simple HTTP
 	 * request
 	 */
-	char buf[1024], dest[21];
+	char buf[256], dest[64];
 
-	sk_getaddr(p->remote_addr, dest, 20);
+	sk_getaddr(p->remote_addr, dest, 64);
 
 	sprintf(buf, "CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n\r\n",
 		dest, p->remote_port, dest, p->remote_port);
@@ -579,7 +546,7 @@ int proxy_socks_negotiate (Proxy_Socket p, int change)
 }
 
 /* ----------------------------------------------------------------------
- * `Telnet' proxy type (as yet unimplemented).
+ * `Telnet' proxy type.
  *
  * (This is for ad-hoc proxies where you connect to the proxy's
  * telnet port and send a command such as `connect host port'. The
@@ -589,6 +556,206 @@ int proxy_socks_negotiate (Proxy_Socket p, int change)
 
 int proxy_telnet_negotiate (Proxy_Socket p, int change)
 {
-    p->error = "Network error: Telnet proxy implementation is incomplete";
+    if (p->state == PROXY_CHANGE_NEW) {
+
+	int so = 0, eo = 0;
+
+	/* we need to escape \\, \%, \r, \n, \t, \x??, \0???, 
+	 * %%, %host, and %port 
+	 */
+
+	while (cfg.proxy_telnet_command[eo] != 0) {
+
+	    /* scan forward until we hit end-of-line, 
+	     * or an escape character (\ or %) */
+	    while (cfg.proxy_telnet_command[eo] != 0 &&
+		   cfg.proxy_telnet_command[eo] != '%' &&
+		   cfg.proxy_telnet_command[eo] != '\\') eo++;
+
+	    /* if we hit eol, break out of our escaping loop */
+	    if (cfg.proxy_telnet_command[eo] == 0) break;
+
+	    /* if there was any unescaped text before the escape
+	     * character, send that now */
+	    if (eo != so) {
+		sk_write(p->sub_socket, 
+			 cfg.proxy_telnet_command + so, eo - so);
+	    }
+
+	    so = eo++;
+
+	    /* if the escape character was the last character of
+	     * the line, we'll just stop and send it. */
+	    if (cfg.proxy_telnet_command[eo] == 0) break;
+
+	    if (cfg.proxy_telnet_command[so] == '\\') {
+
+		/* we recognize \\, \%, \r, \n, \t, \x??. 
+		 * anything else, we just send unescaped (including the \). 
+		 */
+
+		switch (cfg.proxy_telnet_command[eo]) {
+
+		  case '\\':
+		    sk_write(p->sub_socket, "\\", 1);
+		    eo++;
+		    break;
+
+		  case '%':
+		    sk_write(p->sub_socket, "%%", 1);
+		    eo++;
+		    break;
+
+		  case 'r':
+		    sk_write(p->sub_socket, "\r", 1);
+		    eo++;
+		    break;
+
+		  case 'n':
+		    sk_write(p->sub_socket, "\n", 1);
+		    eo++;
+		    break;
+
+		  case 't':
+		    sk_write(p->sub_socket, "\t", 1);
+		    eo++;
+		    break;
+
+		  case 'x':
+		  case 'X':
+		    {
+		    /* escaped hexadecimal value (ie. \xff) */
+		    unsigned char v = 0;
+		    int i = 0;
+
+		    for (;;) {
+			eo++;
+			if (cfg.proxy_telnet_command[eo] >= '0' &&
+			    cfg.proxy_telnet_command[eo] <= '9')
+			    v += cfg.proxy_telnet_command[eo] - '0';
+			else if (cfg.proxy_telnet_command[eo] >= 'a' &&
+				 cfg.proxy_telnet_command[eo] <= 'f')
+			    v += cfg.proxy_telnet_command[eo] - 'a' + 10;
+			else if (cfg.proxy_telnet_command[eo] >= 'A' &&
+				 cfg.proxy_telnet_command[eo] <= 'F')
+			    v += cfg.proxy_telnet_command[eo] - 'A' + 10;
+			else {
+			    /* non hex character, so we abort and just
+			     * send the whole thing unescaped (including \x)
+			     */
+			    sk_write(p->sub_socket, "\\", 1);
+			    eo = so + 1;
+			    break;
+			}
+
+			/* we only extract two hex characters */
+			if (i == 1) {
+			    sk_write(p->sub_socket, &v, 1);
+			    eo++;
+			    break;
+			}
+
+			i++;
+			v <<= 4;
+		    }
+		    }
+		    break;
+
+		  default:
+		    sk_write(p->sub_socket, 
+			     cfg.proxy_telnet_command + so, 2);
+		    eo++;
+		    break;
+		}
+	    } else {
+
+		/* % escape. we recognize %%, %host, %port. anything else,
+		 * we just send unescaped (including the %). */
+
+		if (cfg.proxy_telnet_command[eo] == '%') {
+		    sk_write(p->sub_socket, "%", 1);
+		    eo++;
+		} 
+		else if (strnicmp(cfg.proxy_telnet_command + eo,
+				  "host", 4) == 0) {
+		    char dest[64];
+		    sk_getaddr(p->remote_addr, dest, 64);
+		    sk_write(p->sub_socket, dest, strlen(dest));
+		    eo += 4;
+		} 
+		else if (strnicmp(cfg.proxy_telnet_command + eo,
+				  "port", 4) == 0) {
+		    char port[8];
+		    sprintf(port, "%i", p->remote_port);
+		    sk_write(p->sub_socket, port, strlen(port));
+		    eo += 4;
+		} 
+		else {
+		    /* we don't escape this, so send the % now, and
+		     * don't advance eo, so that we'll consider the
+		     * text immediately following the % as unescaped.
+		     */
+		    sk_write(p->sub_socket, "%", 1);
+		}
+	    }
+
+	    /* resume scanning for additional escapes after this one. */
+	    so = eo;
+	}
+
+	/* if there is any unescaped text at the end of the line, send it */
+	if (eo != so) {
+	    sk_write(p->sub_socket, cfg.proxy_telnet_command + so, eo - so);
+	}
+
+	p->state = 1;
+
+	return 0;
+    }
+
+    if (change == PROXY_CHANGE_CLOSING) {
+	/* if our proxy negotiation process involves closing and opening
+	 * new sockets, then we would want to intercept this closing
+	 * callback when we were expecting it. if we aren't anticipating
+	 * a socket close, then some error must have occurred. we'll
+	 * just pass those errors up to the backend.
+	 */
+	return plug_closing(p->plug, p->closing_error_msg,
+			    p->closing_error_code,
+			    p->closing_calling_back);
+    }
+
+    if (change == PROXY_CHANGE_SENT) {
+	/* some (or all) of what we wrote to the proxy was sent.
+	 * we don't do anything new, however, until we receive the
+	 * proxy's response. we might want to set a timer so we can
+	 * timeout the proxy negotiation after a while...
+	 */
+	return 0;
+    }
+
+    if (change == PROXY_CHANGE_ACCEPTING) {
+	/* we should _never_ see this, as we are using our socket to
+	 * connect to a proxy, not accepting inbound connections.
+	 * what should we do? close the socket with an appropriate
+	 * error message?
+	 */
+	return plug_accepting(p->plug, p->accepting_sock);
+    }
+
+    if (change == PROXY_CHANGE_RECEIVE) {
+	/* we have received data from the underlying socket, which
+	 * we'll need to parse, process, and respond to appropriately.
+	 */
+
+	/* we're done */
+	proxy_activate(p);
+	/* proxy activate will have dealt with
+	 * whatever is left of the buffer */
+	return 1;
+    }
+
+    plug_closing(p->plug, "Network error: Unexpected proxy error",
+		 PROXY_ERROR_UNEXPECTED, 0);
     return 0;
 }

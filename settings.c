@@ -366,7 +366,7 @@ void load_settings(char *section, int do_host, Config * cfg)
 	 sizeof(cfg->proxy_username));
     gpps(sesskey, "ProxyPassword", "", cfg->proxy_password,
 	 sizeof(cfg->proxy_password));
-    gpps(sesskey, "ProxyTelnetCommand", "connect %host %port",
+    gpps(sesskey, "ProxyTelnetCommand", "connect %host %port\\n",
 	 cfg->proxy_telnet_command, sizeof(cfg->proxy_telnet_command));
     gppi(sesskey, "ProxySOCKSVersion", 5, &cfg->proxy_socks_version);
 
