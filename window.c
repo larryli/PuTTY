@@ -365,14 +365,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 
     {
 	int winmode = WS_OVERLAPPEDWINDOW|WS_VSCROLL;
-	if (!cfg.scrollbar) winmode &= ~(WS_VSCROLL);
-	if (cfg.locksize)   winmode &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
-	hwnd = CreateWindow (appname, appname,
-			     winmode,
-			     CW_USEDEFAULT, CW_USEDEFAULT,
-			     guess_width, guess_height,
-			     NULL, NULL, inst, NULL);
-    }
+        int exwinmode = 0;
+	if (!cfg.scrollbar)  winmode &= ~(WS_VSCROLL);
+	if (cfg.locksize)    winmode &= ~(WS_THICKFRAME|WS_MAXIMIZEBOX);
+        if (cfg.alwaysontop) exwinmode = WS_EX_TOPMOST;
+        hwnd = CreateWindowEx (exwinmode, appname, appname,
+                              winmode, CW_USEDEFAULT, CW_USEDEFAULT,
+                              guess_width, guess_height,
+                              NULL, NULL, inst, NULL);
+     }
 
     /*
      * Initialise the fonts, simultaneously correcting the guesses
@@ -1152,7 +1153,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		    free(cl);
 	    }
 	    break;
-	  case IDM_RECONF:
+          case IDM_RECONF:
 	    if (!do_reconfig(hwnd))
 		break;
 	    just_reconfigged = TRUE;
@@ -1174,11 +1175,21 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    logpal = NULL;
 	    pal = NULL;
 	    cfgtopalette();
-	    init_palette();
+            init_palette();
 
 	    /* Enable or disable the scroll bar, etc */
 	    {
 		LONG nflg, flag = GetWindowLong(hwnd, GWL_STYLE);
+                LONG nexflag, exflag = GetWindowLong(hwnd, GWL_EXSTYLE);
+
+                nexflag = exflag;
+                if (cfg.alwaysontop) {
+                    nexflag = WS_EX_TOPMOST;
+                    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE);
+                } else {
+                    nexflag = 0;
+                    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE);
+                }
 
 		nflg = flag;
 		if (cfg.scrollbar) nflg |=  WS_VSCROLL;
@@ -1188,15 +1199,19 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		else              
 		   nflg |= (WS_THICKFRAME|WS_MAXIMIZEBOX);
 
-		if (nflg != flag)
+                if (nflg != flag || nexflag != exflag)
 		{
 		    RECT cr, wr;
 
-		    SetWindowLong(hwnd, GWL_STYLE, nflg);
+                    if (nflg != flag) 
+                        SetWindowLong(hwnd, GWL_STYLE, nflg);
+                    if (nexflag != exflag)
+                        SetWindowLong(hwnd, GWL_EXSTYLE, nexflag);
+
 		    SendMessage (hwnd, WM_IGNORE_SIZE, 0, 0);
 	            SetWindowPos(hwnd, NULL, 0,0,0,0,
 		         SWP_NOACTIVATE|SWP_NOCOPYBITS|
-			 SWP_NOMOVE|SWP_NOSIZE| SWP_NOZORDER|
+                         SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|
 			 SWP_FRAMECHANGED);
 
 		    GetWindowRect (hwnd, &wr);
@@ -1217,7 +1232,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 		SetWindowText (hwnd,
 			       cfg.win_name_always ? window_name : icon_name);
 	    }
-	    break;
+            break;
 	  case IDM_CLRSB:
 	    term_clrsb();
 	    break;

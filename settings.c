@@ -89,6 +89,7 @@ void save_settings (char *section, int do_host, Config *cfg) {
     write_setting_i (sesskey, "AltOnly", cfg->alt_only);
     write_setting_i (sesskey, "ComposeKey", cfg->compose_key);
     write_setting_i (sesskey, "LdiscTerm", cfg->ldisc_term);
+    write_setting_i (sesskey, "AlwaysOnTop", cfg->alwaysontop);
     write_setting_i (sesskey, "BlinkCur", cfg->blink_cur);
     write_setting_i (sesskey, "Beep", cfg->beep);
     write_setting_i (sesskey, "ScrollbackLines", cfg->savelines);
@@ -217,6 +218,7 @@ void load_settings (char *section, int do_host, Config *cfg) {
     gppi (sesskey, "AltOnly", 0, &cfg->alt_only);
     gppi (sesskey, "ComposeKey", 0, &cfg->compose_key);
     gppi (sesskey, "LdiscTerm", 0, &cfg->ldisc_term);
+    gppi (sesskey, "AlwaysOnTop", 0, &cfg->alwaysontop);
     gppi (sesskey, "BlinkCur", 0, &cfg->blink_cur);
     gppi (sesskey, "Beep", 1, &cfg->beep);
     gppi (sesskey, "ScrollbackLines", 200, &cfg->savelines);

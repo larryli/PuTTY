@@ -258,6 +258,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_ALTONLY,
     IDC_SCROLLKEY,
     IDC_SCROLLDISP,
+    IDC_ALWAYSONTOP,
     windowpanelend,
 
     appearancepanelstart,
@@ -444,6 +445,7 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_ALTONLY, cfg.alt_only);
     CheckDlgButton (hwnd, IDC_COMPOSEKEY, cfg.compose_key);
     CheckDlgButton (hwnd, IDC_LDISCTERM, cfg.ldisc_term);
+    CheckDlgButton (hwnd, IDC_ALWAYSONTOP, cfg.alwaysontop);
     CheckDlgButton (hwnd, IDC_SCROLLKEY, cfg.scroll_on_key);
     CheckDlgButton (hwnd, IDC_SCROLLDISP, cfg.scroll_on_disp);
 
@@ -708,7 +710,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    checkbox(&cp, "&Beep enabled", IDC_BEEP);
 	    checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
 	    checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
-	    checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
+            checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
             endbox(&cp);
 
             treeview_insert(&tvfaff, 0, "Terminal");
@@ -759,7 +761,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             treeview_insert(&tvfaff, 1, "Keyboard");
 	}
 
-        /* The Window panel. Accelerators used: [acgo] bsdkw4ylp */
+        /* The Window panel. Accelerators used: [acgo] bsdkw4ylpt */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
@@ -787,6 +789,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
 	    checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
 	    checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
+            checkbox(&cp, "Ensure window is always on &top", IDC_ALWAYSONTOP);
             endbox(&cp);
 
             treeview_insert(&tvfaff, 0, "Window");
@@ -1274,6 +1277,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.ldisc_term = IsDlgButtonChecked (hwnd, IDC_LDISCTERM);
+	    break;
+          case IDC_ALWAYSONTOP:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+                cfg.alwaysontop = IsDlgButtonChecked (hwnd, IDC_ALWAYSONTOP);
 	    break;
 	  case IDC_SCROLLKEY:
 	    if (HIWORD(wParam) == BN_CLICKED ||

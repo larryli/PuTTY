@@ -165,6 +165,7 @@ typedef struct {
     int alt_space;		       /* is it special? */
     int alt_only;		       /* is it special? */
     int ldisc_term;
+    int alwaysontop;
     int scroll_on_key;
     int scroll_on_disp;
     int compose_key;
