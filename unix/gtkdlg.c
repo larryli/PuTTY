@@ -2347,13 +2347,12 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 
     sfree(text);
 
-    if (ret == 0)
-        return 0;                      /* do not continue with connection */
-    else {
-        if (ret == 2)
-            store_host_key(host, port, keytype, keystr);
-        return 1;                      /* continue with connection */
-    }
+    if (ret == 2) {
+	store_host_key(host, port, keytype, keystr);
+	return 1;		       /* continue with connection */
+    } else if (ret == 1)
+	return 1;		       /* continue with connection */
+    return 0;			       /* do not continue with connection */
 }
 
 /*
