@@ -745,7 +745,7 @@ static void erase_lots(int line_only, int from_begin, int to_end)
 
     ldata = lineptr(start.y);
     while (poslt(start, end)) {
-	if (start.y == cols && !erase_lattr)
+	if (start.x == cols && !erase_lattr)
 	    ldata[start.x] &= ~LATTR_WRAPPED;
 	else
 	    ldata[start.x] = erase_char;
