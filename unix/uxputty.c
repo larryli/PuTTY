@@ -14,10 +14,6 @@
 /*
  * TODO:
  * 
- *  - Fix command-line parsing to be more PuTTYlike and not so
- *    ptermy - in particular non-option arguments should be
- *    hostname and port in the obvious way.
- * 
  *  - libcharset enumeration.
  * 
  *  - fix the printer enum (I think the sensible thing is simply to
