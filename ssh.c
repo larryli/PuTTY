@@ -385,7 +385,21 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
     if (!rsabuf)
 	fatalbox("Out of memory");
 
-    verify_ssh_host_key(savedhost, &hostkey);
+    /*
+     * Verify the host key.
+     */
+    {
+        /*
+         * First format the key into a string.
+         */
+        int len = rsastr_len(&hostkey);
+        char *keystr = malloc(len);
+        if (!keystr)
+            fatalbox("Out of memory");
+        rsastr_fmt(keystr, &hostkey);
+        verify_ssh_host_key(savedhost, keystr);
+        free(keystr);
+    }
 
     for (i=0; i<32; i++) {
 	rsabuf[i] = session_key[i];

@@ -37,23 +37,31 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 OBJ=obj
 RES=res
 
+##-- objects putty puttytel
+GOBJS1 = window.$(OBJ) windlg.$(OBJ) terminal.$(OBJ) telnet.$(OBJ) raw.$(OBJ)
+GOBJS2 = xlat.$(OBJ) ldisc.$(OBJ) sizetip.$(OBJ)
 ##-- objects putty
-POBJS1 = window.$(OBJ) windlg.$(OBJ) terminal.$(OBJ) telnet.$(OBJ) raw.$(OBJ)
-POBJS2 = xlat.$(OBJ) ldisc.$(OBJ) sizetip.$(OBJ) ssh.$(OBJ)
+POBJS = ssh.$(OBJ) be_all.$(OBJ)
+##-- objects puttytel
+TOBJS = be_nossh.$(OBJ)
 ##-- objects pscp
-SOBJS = scp.$(OBJ) windlg.$(OBJ) scpssh.$(OBJ)
+SOBJS = scp.$(OBJ) windlg.$(OBJ) scpssh.$(OBJ) be_none.$(OBJ)
+##-- objects putty puttytel pscp
+MOBJS = misc.$(OBJ) version.$(OBJ)
 ##-- objects putty pscp
-OBJS1 = misc.$(OBJ) noise.$(OBJ)
-OBJS2 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
-OBJS3 = sshsha.$(OBJ) sshblowf.$(OBJ) version.$(OBJ)
+OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
+OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ)
 ##-- resources putty
 PRESRC = win_res.$(RES)
+##-- resources puttytel
+TRESRC = nossh_res.$(RES)
 ##-- resources pscp
 SRESRC = scp.$(RES)
 ##--
 
 ##-- gui-apps
 # putty
+# puttytel
 ##-- console-apps
 # pscp
 ##--
@@ -61,34 +69,48 @@ SRESRC = scp.$(RES)
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
 
-all: putty.exe pscp.exe
+all: putty.exe puttytel.exe pscp.exe
 
-putty.exe: $(POBJS1) $(POBJS2) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) link.rsp
-	link /debug -out:putty.exe @link.rsp
+putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(PRESRC) putty.rsp
+	link /debug -out:putty.exe @putty.rsp
 
-pscp.exe: $(SOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) scp.rsp
-	link /debug -out:pscp.exe @scp.rsp
+puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(PRESRC) puttytel.rsp
+	link /debug -out:puttytel.exe @puttytel.rsp
 
-link.rsp: makefile
-	echo /nologo /subsystem:windows > link.rsp
-	echo $(POBJS1) >> link.rsp
-	echo $(POBJS2) >> link.rsp
-	echo $(OBJS1) >> link.rsp
-	echo $(OBJS2) >> link.rsp
-	echo $(OBJS3) >> link.rsp
-	echo $(PRESRC) >> link.rsp
-	echo $(LIBS1) >> link.rsp
-	echo $(LIBS2) >> link.rsp
+pscp.exe: $(SOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
+	link /debug -out:pscp.exe @pscp.rsp
 
-scp.rsp: makefile
-	echo /nologo /subsystem:console > scp.rsp
-	echo $(SOBJS) >> scp.rsp
-	echo $(OBJS1) >> scp.rsp
-	echo $(OBJS2) >> scp.rsp
-	echo $(OBJS3) >> scp.rsp
-	echo $(SRESRC) >> scp.rsp
-	echo $(LIBS1) >> scp.rsp
-	echo $(LIBS2) >> scp.rsp
+putty.rsp: makefile
+	echo /nologo /subsystem:windows > putty.rsp
+	echo $(GOBJS1) >> putty.rsp
+	echo $(GOBJS2) >> putty.rsp
+	echo $(POBJS) >> putty.rsp
+	echo $(MOBJS) >> putty.rsp
+	echo $(OBJS1) >> putty.rsp
+	echo $(OBJS2) >> putty.rsp
+	echo $(PRESRC) >> putty.rsp
+	echo $(LIBS1) >> putty.rsp
+	echo $(LIBS2) >> putty.rsp
+
+puttytel.rsp: makefile
+	echo /nologo /subsystem:windows > puttytel.rsp
+	echo $(GOBJS1) >> puttytel.rsp
+	echo $(GOBJS2) >> puttytel.rsp
+	echo $(TOBJS) >> puttytel.rsp
+	echo $(MOBJS) >> puttytel.rsp
+	echo $(TRESRC) >> puttytel.rsp
+	echo $(LIBS1) >> puttytel.rsp
+	echo $(LIBS2) >> puttytel.rsp
+
+pscp.rsp: makefile
+	echo /nologo /subsystem:console > pscp.rsp
+	echo $(SOBJS) >> pscp.rsp
+	echo $(MOBJS) >> pscp.rsp
+	echo $(OBJS1) >> pscp.rsp
+	echo $(OBJS2) >> pscp.rsp
+	echo $(SRESRC) >> pscp.rsp
+	echo $(LIBS1) >> pscp.rsp
+	echo $(LIBS2) >> pscp.rsp
 
 ##-- dependencies
 window.$(OBJ): window.c putty.h win_res.h
@@ -112,6 +134,9 @@ sshblowf.$(OBJ): sshblowf.c ssh.h
 scp.$(OBJ): scp.c putty.h scp.h
 scpssh.$(OBJ): scpssh.c putty.h ssh.h scp.h
 version.$(OBJ): version.c
+be_all.$(OBJ): be_all.c
+be_nossh.$(OBJ): be_nossh.c
+be_none.$(OBJ): be_none.c
 ##--
 
 # Hack to force version.obj to be rebuilt always
@@ -125,6 +150,12 @@ win_res.$(RES): win_res.rc win_res.h putty.ico
 ##--
 win_res.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
+
+##-- dependencies
+nossh_res.$(RES): nossh_res.rc win_res.h putty.ico
+##--
+nossh_res.$(RES):
+	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 nossh_res.rc
 
 ##-- dependencies
 scp.$(RES): scp.rc scp.ico

@@ -186,9 +186,25 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	}
     }
 
-    back = (cfg.protocol == PROT_SSH ? &ssh_backend : 
-	    cfg.protocol == PROT_TELNET ? &telnet_backend :
-	    &raw_backend);
+    /*
+     * Select protocol. This is farmed out into a table in a
+     * separate file to enable an ssh-free variant.
+     */
+    {
+        int i;
+        back = NULL;
+        for (i = 0; backends[i].backend != NULL; i++)
+            if (backends[i].protocol == cfg.protocol) {
+                back = backends[i].backend;
+                break;
+            }
+        if (back == NULL) {
+            MessageBox(NULL, "Unsupported protocol number found",
+                       "PuTTY Internal Error", MB_OK | MB_ICONEXCLAMATION);
+            WSACleanup();
+            return 1;
+        }
+    }
 
     ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
 

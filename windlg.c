@@ -116,9 +116,13 @@ static void save_settings (char *section, int do_host) {
     if (do_host) {
 	wpps (sesskey, "HostName", cfg.host);
 	wppi (sesskey, "PortNumber", cfg.port);
-	wpps (sesskey, "Protocol",
-	      cfg.protocol == PROT_SSH ? "ssh" : 
-		  cfg.protocol == PROT_TELNET ? "telnet" : "raw" );
+        p = "raw";
+        for (i = 0; backends[i].backend != NULL; i++)
+            if (backends[i].protocol == cfg.protocol) {
+                p = backends[i].name;
+                break;
+            }
+        wpps (sesskey, "Protocol", p);
     }
     wppi (sesskey, "CloseOnExit", !!cfg.close_on_exit);
     wppi (sesskey, "WarnOnClose", !!cfg.warn_on_close);
@@ -235,15 +239,14 @@ static void load_settings (char *section, int do_host) {
 
     gpps (sesskey, "HostName", "", cfg.host, sizeof(cfg.host));
     gppi (sesskey, "PortNumber", default_port, &cfg.port);
+
     gpps (sesskey, "Protocol", "default", prot, 10);
-    if (!strcmp(prot, "ssh"))
-	cfg.protocol = PROT_SSH;
-    else if (!strcmp(prot, "telnet"))
-	cfg.protocol = PROT_TELNET;
-    else if (!strcmp(prot, "raw"))
-	cfg.protocol = PROT_RAW;
-    else
-	cfg.protocol = default_protocol;
+    cfg.protocol = default_protocol;
+    for (i = 0; backends[i].backend != NULL; i++)
+        if (!strcmp(prot, backends[i].name)) {
+            cfg.protocol = backends[i].protocol;
+            break;
+        }
 
     gppi (sesskey, "CloseOnExit", 1, &cfg.close_on_exit);
     gppi (sesskey, "WarnOnClose", 1, &cfg.warn_on_close);
@@ -1433,19 +1436,12 @@ void showabout (HWND hwnd) {
     }
 }
 
-void verify_ssh_host_key(char *host, struct RSAKey *key) {
-    char *keystr, *otherstr, *mungedhost;
+void verify_ssh_host_key(char *host, char *keystr) {
+    char *otherstr, *mungedhost;
     int len;
     HKEY rkey;
 
-    /*
-     * Format the key into a string.
-     */
-    len = rsastr_len(key);
-    keystr = malloc(len);
-    if (!keystr)
-	fatalbox("Out of memory");
-    rsastr_fmt(keystr, key);
+    len = 1 + strlen(keystr);
 
     /*
      * Now read a saved key in from the registry and see what it

@@ -104,6 +104,12 @@ typedef struct {
 
 GLOBAL Backend *back;
 
+GLOBAL struct backend_list {
+    int protocol;
+    char *name;
+    Backend *backend;
+} backends[];
+
 typedef struct {
     void (*send) (char *buf, int len);
 } Ldisc;
@@ -215,7 +221,7 @@ void do_defaults (char *);
 void logevent (char *);
 void showeventlog (HWND);
 void showabout (HWND);
-void verify_ssh_host_key(char *host, struct RSAKey *key);
+void verify_ssh_host_key(char *host, char *keystr);
 void get_sesslist(int allocate);
 
 GLOBAL int nsessions;
