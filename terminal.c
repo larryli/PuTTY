@@ -254,6 +254,7 @@ unsigned long *lineptr(int y, int lineno)
     if (newline != line) {
 	delpos234(whichtree, treeindex);
 	addpos234(whichtree, newline, treeindex);
+        line = newline;
     }
 
     return line + 1;
