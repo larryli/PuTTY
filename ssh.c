@@ -147,64 +147,40 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 #define crWaitUntil(c)	do { crReturn(0); } while (!(c))
 #define crWaitUntilV(c)	do { crReturnV; } while (!(c))
 
-extern struct ssh_cipher ssh_3des;
-extern struct ssh_cipher ssh_3des_ssh2;
-extern struct ssh_cipher ssh_des;
-extern struct ssh_cipher ssh_blowfish_ssh1;
-extern struct ssh_cipher ssh_blowfish_ssh2;
+extern const struct ssh_cipher ssh_3des;
+extern const struct ssh_cipher ssh_3des_ssh2;
+extern const struct ssh_cipher ssh_des;
+extern const struct ssh_cipher ssh_blowfish_ssh1;
+extern const struct ssh_cipher ssh_blowfish_ssh2;
 
 /*
  * Ciphers for SSH2. We miss out single-DES because it isn't
  * supported; also 3DES and Blowfish are both done differently from
  * SSH1. (3DES uses outer chaining; Blowfish has the opposite
  * endianness and different-sized keys.)
- *
- * The first entry in this array is set up to be whatever the user
- * asks for as a cipher. Thereafter there is a fixed preference
- * order of fallback ciphers.
  */
-struct ssh_cipher *ciphers[] = { NULL, &ssh_blowfish_ssh2, &ssh_3des_ssh2 };
+const static struct ssh_cipher *ciphers[] = { &ssh_blowfish_ssh2, &ssh_3des_ssh2 };
 
-extern struct ssh_kex ssh_diffiehellman;
-struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
+extern const struct ssh_kex ssh_diffiehellman;
+const static struct ssh_kex *kex_algs[] = { &ssh_diffiehellman };
 
-extern struct ssh_hostkey ssh_dss;
-struct ssh_hostkey *hostkey_algs[] = { &ssh_dss };
+extern const struct ssh_hostkey ssh_dss;
+const static struct ssh_hostkey *hostkey_algs[] = { &ssh_dss };
 
-extern struct ssh_mac ssh_sha1;
-
-static SHA_State exhash;
+extern const struct ssh_mac ssh_sha1;
 
 static void nullmac_key(unsigned char *key) { }
 static void nullmac_generate(unsigned char *blk, int len, unsigned long seq) { }
 static int nullmac_verify(unsigned char *blk, int len, unsigned long seq) { return 1; }
-struct ssh_mac ssh_mac_none = {
+const static struct ssh_mac ssh_mac_none = {
     nullmac_key, nullmac_key, nullmac_generate, nullmac_verify, "none", 0
 };
-struct ssh_mac *macs[] = { &ssh_sha1, &ssh_mac_none };
+const static struct ssh_mac *macs[] = { &ssh_sha1, &ssh_mac_none };
 
-struct ssh_compress ssh_comp_none = {
+const static struct ssh_compress ssh_comp_none = {
     "none"
 };
-struct ssh_compress *compressions[] = { &ssh_comp_none };
-
-static SOCKET s = INVALID_SOCKET;
-
-static unsigned char session_key[32];
-static struct ssh_cipher *cipher = NULL;
-static struct ssh_cipher *cscipher = NULL;
-static struct ssh_cipher *sccipher = NULL;
-static struct ssh_mac *csmac = NULL;
-static struct ssh_mac *scmac = NULL;
-static struct ssh_compress *cscomp = NULL;
-static struct ssh_compress *sccomp = NULL;
-static struct ssh_kex *kex = NULL;
-static struct ssh_hostkey *hostkey = NULL;
-int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
-
-static char *savedhost;
-static int savedport;
-static int ssh_send_ok;
+const static struct ssh_compress *compressions[] = { &ssh_comp_none };
 
 /*
  * 2-3-4 tree storing channels.
@@ -226,7 +202,67 @@ struct ssh_channel {
         } v2;
     } u;
 };
+
+struct Packet {
+    long length;
+    int type;
+    unsigned char *data;
+    unsigned char *body;
+    long savedpos;
+    long maxlen;
+};
+
+static SHA_State exhash;
+
+static SOCKET s = INVALID_SOCKET;
+
+static unsigned char session_key[32];
+static const struct ssh_cipher *cipher = NULL;
+static const struct ssh_cipher *cscipher = NULL;
+static const struct ssh_cipher *sccipher = NULL;
+static const struct ssh_mac *csmac = NULL;
+static const struct ssh_mac *scmac = NULL;
+static const struct ssh_compress *cscomp = NULL;
+static const struct ssh_compress *sccomp = NULL;
+static const struct ssh_kex *kex = NULL;
+static const struct ssh_hostkey *hostkey = NULL;
+int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
+
+static char *savedhost;
+static int savedport;
+static int ssh_send_ok;
+
 static tree234 *ssh_channels;           /* indexed by local id */
+static struct ssh_channel *mainchan;   /* primary session channel */
+
+static enum {
+    SSH_STATE_BEFORE_SIZE,
+    SSH_STATE_INTERMED,
+    SSH_STATE_SESSION,
+    SSH_STATE_CLOSED
+} ssh_state = SSH_STATE_BEFORE_SIZE;
+
+static int size_needed = FALSE;
+
+static struct Packet pktin = { 0, 0, NULL, NULL, 0 };
+static struct Packet pktout = { 0, 0, NULL, NULL, 0 };
+
+static int ssh_version;
+static void (*ssh_protocol)(unsigned char *in, int inlen, int ispkt);
+static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
+static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
+static void ssh_size(void);
+
+static int (*s_rdpkt)(unsigned char **data, int *datalen);
+
+static struct rdpkt1_state_tag {
+    long len, pad, biglen, to_read;
+    unsigned long realcrc, gotcrc;
+    unsigned char *p;
+    int i;
+    int chunk;
+} rdpkt1_state;
+
 static int ssh_channelcmp(void *av, void *bv) {
     struct ssh_channel *a = (struct ssh_channel *)av;
     struct ssh_channel *b = (struct ssh_channel *)bv;
@@ -241,17 +277,6 @@ static int ssh_channelfind(void *av, void *bv) {
     if (*a > b->localid) return +1;
     return 0;
 }
-
-static struct ssh_channel *mainchan;   /* primary session channel */
-
-static enum {
-    SSH_STATE_BEFORE_SIZE,
-    SSH_STATE_INTERMED,
-    SSH_STATE_SESSION,
-    SSH_STATE_CLOSED
-} ssh_state = SSH_STATE_BEFORE_SIZE;
-
-static int size_needed = FALSE;
 
 static void s_write (char *buf, int len) {
     while (len > 0) {
@@ -296,26 +321,6 @@ static void c_writedata (char *buf, int len) {
         c_write1(*buf++);
 }
 
-struct Packet {
-    long length;
-    int type;
-    unsigned char *data;
-    unsigned char *body;
-    long savedpos;
-    long maxlen;
-};
-
-static struct Packet pktin = { 0, 0, NULL, NULL, 0 };
-static struct Packet pktout = { 0, 0, NULL, NULL, 0 };
-
-static int ssh_version;
-static void (*ssh_protocol)(unsigned char *in, int inlen, int ispkt);
-static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
-static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
-static void ssh_size(void);
-
-static int (*s_rdpkt)(unsigned char **data, int *datalen);
-
 /*
  * Collect incoming data in the incoming packet buffer.
  * Decipher and verify the packet when it is completely read.
@@ -326,10 +331,7 @@ static int (*s_rdpkt)(unsigned char **data, int *datalen);
  */
 static int ssh1_rdpkt(unsigned char **data, int *datalen)
 {
-    static long len, pad, biglen, to_read;
-    static unsigned long realcrc, gotcrc;
-    static unsigned char *p;
-    static int i;
+    struct rdpkt1_state_tag *st = &rdpkt1_state;
 
     crBegin;
 
@@ -338,56 +340,55 @@ next_packet:
     pktin.type = 0;
     pktin.length = 0;
 
-    for (i = len = 0; i < 4; i++) {
+    for (st->i = st->len = 0; st->i < 4; st->i++) {
 	while ((*datalen) == 0)
-	    crReturn(4-i);
-	len = (len << 8) + **data;
+	    crReturn(4-st->i);
+	st->len = (st->len << 8) + **data;
 	(*data)++, (*datalen)--;
     }
 
 #ifdef FWHACK
-    if (len == 0x52656d6f) {       /* "Remo"te server has closed ... */
-        len = 0x300;               /* big enough to carry to end */
+    if (st->len == 0x52656d6f) {        /* "Remo"te server has closed ... */
+        st->len = 0x300;                /* big enough to carry to end */
     }
 #endif
 
-    pad = 8 - (len % 8);
-    biglen = len + pad;
-    pktin.length = len - 5;
+    st->pad = 8 - (st->len % 8);
+    st->biglen = st->len + st->pad;
+    pktin.length = st->len - 5;
 
-    if (pktin.maxlen < biglen) {
-	pktin.maxlen = biglen;
-	pktin.data = (pktin.data == NULL ? malloc(biglen+APIEXTRA) :
-	              realloc(pktin.data, biglen+APIEXTRA));
+    if (pktin.maxlen < st->biglen) {
+	pktin.maxlen = st->biglen;
+	pktin.data = (pktin.data == NULL ? malloc(st->biglen+APIEXTRA) :
+	              realloc(pktin.data, st->biglen+APIEXTRA));
 	if (!pktin.data)
 	    fatalbox("Out of memory");
     }
 
-    to_read = biglen;
-    p = pktin.data;
-    while (to_read > 0) {
-	static int chunk;
-	chunk = to_read;
+    st->to_read = st->biglen;
+    st->p = pktin.data;
+    while (st->to_read > 0) {
+        st->chunk = st->to_read;
 	while ((*datalen) == 0)
-	    crReturn(to_read);
-	if (chunk > (*datalen))
-	    chunk = (*datalen);
-	memcpy(p, *data, chunk);
-	*data += chunk;
-	*datalen -= chunk;
-	p += chunk;
-	to_read -= chunk;
+	    crReturn(st->to_read);
+	if (st->chunk > (*datalen))
+	    st->chunk = (*datalen);
+	memcpy(st->p, *data, st->chunk);
+	*data += st->chunk;
+	*datalen -= st->chunk;
+	st->p += st->chunk;
+	st->to_read -= st->chunk;
     }
 
     if (cipher)
-	cipher->decrypt(pktin.data, biglen);
+	cipher->decrypt(pktin.data, st->biglen);
 
-    pktin.type = pktin.data[pad];
-    pktin.body = pktin.data + pad + 1;
+    pktin.type = pktin.data[st->pad];
+    pktin.body = pktin.data + st->pad + 1;
 
-    realcrc = crc32(pktin.data, biglen-4);
-    gotcrc = GET_32BIT(pktin.data+biglen-4);
-    if (gotcrc != realcrc) {
+    st->realcrc = crc32(pktin.data, st->biglen-4);
+    st->gotcrc = GET_32BIT(pktin.data+st->biglen-4);
+    if (st->gotcrc != st->realcrc) {
 	bombout(("Incorrect CRC received on packet"));
         crReturn(0);
     }
@@ -1822,16 +1823,17 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static int i, len;
     static char *str;
     static Bignum e, f, K;
-    static struct ssh_cipher *cscipher_tobe = NULL;
-    static struct ssh_cipher *sccipher_tobe = NULL;
-    static struct ssh_mac *csmac_tobe = NULL;
-    static struct ssh_mac *scmac_tobe = NULL;
-    static struct ssh_compress *cscomp_tobe = NULL;
-    static struct ssh_compress *sccomp_tobe = NULL;
+    static const struct ssh_cipher *cscipher_tobe = NULL;
+    static const struct ssh_cipher *sccipher_tobe = NULL;
+    static const struct ssh_mac *csmac_tobe = NULL;
+    static const struct ssh_mac *scmac_tobe = NULL;
+    static const struct ssh_compress *cscomp_tobe = NULL;
+    static const struct ssh_compress *sccomp_tobe = NULL;
     static char *hostkeydata, *sigdata, *keystr, *fingerprint;
     static int hostkeylen, siglen;
     static unsigned char exchange_hash[20];
     static unsigned char keyspace[40];
+    static const struct ssh_cipher *preferred_cipher;
 
     crBegin;
     random_init();
@@ -1840,15 +1842,15 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * Set up the preferred cipher.
      */
     if (cfg.cipher == CIPHER_BLOWFISH) {
-        ciphers[0] = &ssh_blowfish_ssh2;
+        preferred_cipher = &ssh_blowfish_ssh2;
     } else if (cfg.cipher == CIPHER_DES) {
         logevent("Single DES not supported in SSH2; using 3DES");
-        ciphers[0] = &ssh_3des_ssh2;
+        preferred_cipher = &ssh_3des_ssh2;
     } else if (cfg.cipher == CIPHER_3DES) {
-        ciphers[0] = &ssh_3des_ssh2;
+        preferred_cipher = &ssh_3des_ssh2;
     } else {
         /* Shouldn't happen, but we do want to initialise to _something_. */
-        ciphers[0] = &ssh_3des_ssh2;
+        preferred_cipher = &ssh_3des_ssh2;
     }
 
     begin_key_exchange:
@@ -1874,15 +1876,17 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
     /* List client->server encryption algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = 0; i < lenof(ciphers); i++) {
-        ssh2_pkt_addstring_str(ciphers[i]->name);
+    for (i = -1; i < lenof(ciphers); i++) {
+        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+        ssh2_pkt_addstring_str(c->name);
         if (i < lenof(ciphers)-1)
             ssh2_pkt_addstring_str(",");
     }
     /* List server->client encryption algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = 0; i < lenof(ciphers); i++) {
-        ssh2_pkt_addstring_str(ciphers[i]->name);
+    for (i = -1; i < lenof(ciphers); i++) {
+        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+        ssh2_pkt_addstring_str(c->name);
         if (i < lenof(ciphers)-1)
             ssh2_pkt_addstring_str(",");
     }
@@ -1954,15 +1958,17 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
         }
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server cipher */
-    for (i = 0; i < lenof(ciphers); i++) {
-        if (in_commasep_string(ciphers[i]->name, str, len)) {
+    for (i = -1; i < lenof(ciphers); i++) {
+        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+        if (in_commasep_string(c->name, str, len)) {
             cscipher_tobe = ciphers[i];
             break;
         }
     }
     ssh2_pkt_getstring(&str, &len);    /* server->client cipher */
-    for (i = 0; i < lenof(ciphers); i++) {
-        if (in_commasep_string(ciphers[i]->name, str, len)) {
+    for (i = -1; i < lenof(ciphers); i++) {
+        const struct ssh_cipher *c = i<0 ? preferred_cipher : ciphers[i];
+        if (in_commasep_string(c->name, str, len)) {
             sccipher_tobe = ciphers[i];
             break;
         }
