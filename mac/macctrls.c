@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.4 2003/03/18 23:41:14 ben Exp $ */
+/* $Id: macctrls.c,v 1.5 2003/03/18 23:47:33 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -712,11 +712,16 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
 void dlg_text_set(union control *ctrl, void *dlg, char const *text)
 {
     union macctrl *mc = dlg;
+    Str255 title;
 
     if (mac_gestalts.apprvers >= 0x100)
 	SetControlData(mc->text.tbctrl, kControlEntireControl,
 		       kControlStaticTextTextTag,
 		       strlen(ctrl->text.label), ctrl->text.label);
+    else {
+	c2pstrcpy(title, text);
+	SetControlTitle(mc->text.tbctrl, title);
+    }
 }
 
 
