@@ -427,7 +427,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     char output[32];
-    int start, end;
+    int start, end, special;
 
     /* By default, nothing is generated. */
     end = start = 0;
@@ -551,6 +551,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    return TRUE;
 	}
 
+	special = FALSE;
+
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
 	strncpy(output+1, event->string, 31);
@@ -574,6 +576,15 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & GDK_CONTROL_MASK)) {
 	    output[1] = '\003';
 	    end = 2;
+	    special = TRUE;
+	}
+
+	/* We handle Return ourselves, because it needs to be flagged as
+	 * special to ldisc. */
+	if (event->keyval == GDK_Return) {
+	    output[1] = '\015';
+	    end = 2;
+	    special = TRUE;
 	}
 
 	/* Control-2, Control-Space and Control-@ are NUL */
@@ -599,12 +610,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    !(event->state & GDK_SHIFT_MASK)) {
 	    output[1] = inst->cfg.bksp_is_delete ? '\x7F' : '\x08';
 	    end = 2;
+	    special = TRUE;
 	}
 	/* For Shift Backspace, do opposite of what is configured. */
 	if (event->keyval == GDK_BackSpace &&
 	    (event->state & GDK_SHIFT_MASK)) {
 	    output[1] = inst->cfg.bksp_is_delete ? '\x08' : '\x7F';
 	    end = 2;
+	    special = TRUE;
 	}
 
 	/* Shift-Tab is ESC [ Z */
@@ -910,7 +923,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	printf("\n");
 #endif
 
-	if (!inst->direct_to_font) {
+	if (special) {
+	    /*
+	     * For special control characters, the character set
+	     * should never matter.
+	     */
+	    output[end] = '\0';	       /* NUL-terminate */
+	    ldisc_send(inst->ldisc, output+start, -2, 1);
+	} else if (!inst->direct_to_font) {
 	    /*
 	     * The stuff we've just generated is assumed to be
 	     * ISO-8859-1! This sounds insane, but `man
