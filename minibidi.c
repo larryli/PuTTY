@@ -31,6 +31,8 @@
 
 #include "minibidi.h"
 
+#define lenof(x) ( sizeof((x)) / sizeof(*(x)) )
+
 /*
  * Flips the text buffer, according to max level, and
  * all higher levels
@@ -110,17 +112,25 @@ unsigned char setOverrideBits(unsigned char level, unsigned char override)
     return level;
 }
 
-/* Dont remember what this was used for :-) */
-unsigned char getPreviousLevel(unsigned char* level, int from)
+/*
+ * Find the most recent run of the same value in `level', and
+ * return the value _before_ it. Used to process U+202C POP
+ * DIRECTIONAL FORMATTING.
+ */
+int getPreviousLevel(unsigned char* level, int from)
 {
-    unsigned char current;
-    from--;
-    current = level[from];
-    while(from>0 && level[from] == current)
-    {
-	from--;
-    }
-    return level[++from];
+    if (from > 0) {
+        unsigned char current = level[--from];
+
+        while (from >= 0 && level[from] == current)
+            from--;
+
+        if (from >= 0)
+            return level[from];
+
+        return -1;
+    } else
+        return -1;
 }
 
 /*
@@ -151,19 +161,16 @@ unsigned char leastGreaterEven(unsigned char x)
  */
 unsigned char getRLE(wchar_t ch)
 {
-    int offset, i, freq;
+    int offset, i;
 
-    freq = offset = 0;
-    for(i=0; i<0xFFFF; i++)
+    offset = 0;
+    for(i=0; i<lenof(RLE_table); i++)
     {
-	freq = ((RLENode*)RLE_table)[i].f;
-	offset += freq;
-	if(offset == ch)
-	    return ((RLENode*)RLE_table)[i].d;
-	else if(offset > ch)
-	    return ((RLENode*)RLE_table)[i-1].d;
+	offset += RLE_table[i].f;
+	if(ch < offset)
+	    return RLE_table[i].d;
     }
-    /* this is here to stop compiler nagging */
+    /* anything beyond the end of the table is unknown */
     return ON;
 }
 
@@ -191,7 +198,7 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
 	    break;
 
 	  case SR:
-	    tempShape = STYPE(line[i+1].wc);
+	    tempShape = (i+1 < count ? STYPE(line[i+1].wc) : SU);
 	    if((tempShape == SL) || (tempShape == SD) || (tempShape == SC))
 		to[i].wc = SFINAL((SISOLATED(line[i].wc)));
 	    else
@@ -201,10 +208,10 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
 
 	  case SD:
 	    /* Make Ligatures */
-	    tempShape = STYPE(line[i+1].wc);
+	    tempShape = (i+1 < count ? STYPE(line[i+1].wc) : SU);
 	    if(line[i].wc == 0x644)
 	    {
-		switch(line[i-1].wc)
+		if (i > 0) switch(line[i-1].wc)
 		{
 		  case 0x622:
 		    ligFlag = 1;
@@ -245,7 +252,7 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
 
 	    if((tempShape == SL) || (tempShape == SD) || (tempShape == SC))
 	    {
-		tempShape = STYPE(line[i-1].wc);
+                tempShape = (i > 0 ? STYPE(line[i-1].wc) : SU);
 		if((tempShape == SR) || (tempShape == SD) || (tempShape == SC))
 		    to[i].wc = SMEDIAL( (SISOLATED(line[i].wc)) );
 		else
@@ -253,7 +260,7 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
 		break;
 	    }
 
-	    tempShape = STYPE(line[i-1].wc);
+            tempShape = (i > 0 ? STYPE(line[i-1].wc) : SU);
 	    if((tempShape == SR) || (tempShape == SD) || (tempShape == SC))
 		to[i].wc = SINITIAL((SISOLATED(line[i].wc)));
 	    else
@@ -380,9 +387,17 @@ int do_bidi(bidi_char *line, int count)
 	    break;
 
 	  case PDF:
-	    currentEmbedding = getPreviousLevel(levels, i);
-	    currentOverride = currentEmbedding & OMASK;
-	    currentEmbedding = currentEmbedding & ~OMASK;
+            {
+                int prevlevel = getPreviousLevel(levels, i);
+
+                if (prevlevel == -1) {
+                    currentEmbedding = paragraphLevel;
+                    currentOverride = ON;
+                } else {
+                    currentOverride = currentEmbedding & OMASK;
+                    currentEmbedding = currentEmbedding & ~OMASK;
+                }
+            }
 	    levels[i] = currentEmbedding;
 	    break;
 
@@ -487,7 +502,7 @@ int do_bidi(bidi_char *line, int count)
      * to a European number. A single common separator between two numbers
      * of the same type changes to that type.
      */
-    for( i=0; i<(count-1); i++)
+    for( i=1; i<(count-1); i++)
     {
 	if(types[i] == ES)
 	{
@@ -512,15 +527,15 @@ int do_bidi(bidi_char *line, int count)
     {
 	if(types[i] == ET)
 	{
-	    if(types[i-1] == EN)
+	    if(i > 0 && types[i-1] == EN)
 	    {
 		types[i] = EN;
 		continue;
-	    }else if(types[i+1] == EN)
+	    }else if(i < count-1 && types[i+1] == EN)
 		{
 		    types[i] = EN;
 		    continue;
-		}else if(types[i+1] == ET)
+		}else if(i < count-1 && types[i+1] == ET)
 		    {
 			j=i;
 			while(j <count && types[j] == ET)
@@ -579,7 +594,7 @@ int do_bidi(bidi_char *line, int count)
      * strong text if the text on both sides has the same direction. European
      * and Arabic numbers are treated as though they were R.
      */
-    if(types[0] == ON)
+    if(count >= 2 && types[0] == ON)
     {
 	if((types[1] == R) || (types[1] == EN) || (types[1] == AN))
 	    types[0] = R;
@@ -628,7 +643,7 @@ int do_bidi(bidi_char *line, int count)
 		}
 	}
     }
-    if(types[count-1] == ON)
+    if(count >= 2 && types[count-1] == ON)
     {
 	if(types[count-2] == R || types[count-2] == EN || types[count-2] == AN)
 	    types[count-1] = R;
