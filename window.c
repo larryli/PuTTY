@@ -4553,3 +4553,14 @@ void flip_full_screen()
 	ShowWindow(hwnd, SW_MAXIMIZE);
     }
 }
+
+void frontend_keypress(void)
+{
+    /*
+     * Keypress termination in non-Close-On-Exit mode is not
+     * currently supported in PuTTY proper, because the window
+     * always has a perfectly good Close button anyway. So we do
+     * nothing here.
+     */
+    return;
+}

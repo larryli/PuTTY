@@ -74,6 +74,12 @@ void ldisc_send(char *buf, int len, int interactive)
 	return;
     }
     /*
+     * Notify the front end that something was pressed, in case
+     * it's depending on finding out (e.g. keypress termination for
+     * Close On Exit). 
+     */
+    frontend_keypress();
+    /*
      * Less than zero means null terminated special string.
      */
     if (len < 0) {
