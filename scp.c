@@ -120,20 +120,19 @@ static void do_cmd(char *host, char *user, char *cmd)
 	cfg.port = 22;
     }
 
-    if (portnumber)
-	cfg.port = portnumber;
-
     /* Set username */
     if (user != NULL && user[0] != '\0') {
 	strncpy(cfg.username, user, sizeof(cfg.username)-1);
 	cfg.username[sizeof(cfg.username)-1] = '\0';
-	cfg.port = 22;
     } else if (cfg.username[0] == '\0') {
 	bump("Empty user name");
     }
 
     if (cfg.protocol != PROT_SSH)
 	cfg.port = 22;
+
+    if (portnumber)
+	cfg.port = portnumber;
 
     err = ssh_init(cfg.host, cfg.port, cmd, &realhost);
     if (err != NULL)
