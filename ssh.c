@@ -257,13 +257,14 @@ static tree234 *ssh_channels;           /* indexed by local id */
 static struct ssh_channel *mainchan;   /* primary session channel */
 
 static enum {
+    SSH_STATE_PREPACKET,
     SSH_STATE_BEFORE_SIZE,
     SSH_STATE_INTERMED,
     SSH_STATE_SESSION,
     SSH_STATE_CLOSED
-} ssh_state = SSH_STATE_BEFORE_SIZE;
+} ssh_state = SSH_STATE_PREPACKET;
 
-static int size_needed = FALSE;
+static int size_needed = FALSE, eof_needed = FALSE;
 
 static struct Packet pktin = { 0, 0, NULL, NULL, 0 };
 static struct Packet pktout = { 0, 0, NULL, NULL, 0 };
@@ -273,6 +274,7 @@ static void (*ssh_protocol)(unsigned char *in, int inlen, int ispkt);
 static void ssh1_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh2_protocol(unsigned char *in, int inlen, int ispkt);
 static void ssh_size(void);
+static void ssh_special (Telnet_Special);
 
 static int (*s_rdpkt)(unsigned char **data, int *datalen);
 
@@ -1072,6 +1074,7 @@ static int do_ssh_init(unsigned char c) {
         ssh_version = 1;
         s_rdpkt = ssh1_rdpkt;
     }
+    ssh_state = SSH_STATE_BEFORE_SIZE;
 
     crFinish(0);
 }
@@ -1121,7 +1124,6 @@ static void ssh_gotdata(unsigned char *data, int datalen)
 static int ssh_receive(Socket skt, int urgent, char *data, int len) {
     if (!len) {
 	/* Connection has closed. */
-	ssh_state = SSH_STATE_CLOSED;
 	sk_close(s);
 	s = NULL;
 	return 0;
@@ -1784,6 +1786,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
     ssh_state = SSH_STATE_SESSION;
     if (size_needed)
 	ssh_size();
+    if (eof_needed)
+        ssh_special(TS_EOF);
 
     ssh_send_ok = 1;
     ssh_channels = newtree234(ssh_channelcmp);
@@ -2563,6 +2567,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     ssh_state = SSH_STATE_SESSION;
     if (size_needed)
 	ssh_size();
+    if (eof_needed)
+        ssh_special(TS_EOF);
 
     /*
      * Transfer data!
@@ -2727,6 +2733,7 @@ static void ssh_send (char *buf, int len) {
 static void ssh_size(void) {
     switch (ssh_state) {
       case SSH_STATE_BEFORE_SIZE:
+      case SSH_STATE_PREPACKET:
       case SSH_STATE_CLOSED:
 	break;			       /* do nothing */
       case SSH_STATE_INTERMED:
@@ -2750,6 +2757,7 @@ static void ssh_size(void) {
                 ssh2_pkt_send();
             }
         }
+        break;
     }
 }
 
@@ -2760,6 +2768,15 @@ static void ssh_size(void) {
  */
 static void ssh_special (Telnet_Special code) {
     if (code == TS_EOF) {
+        if (ssh_state != SSH_STATE_SESSION) {
+            /*
+             * Buffer the EOF in case we are pre-SESSION, so we can
+             * send it as soon as we reach SESSION.
+             */
+            if (code == TS_EOF)
+                eof_needed = TRUE;
+            return;
+        }
         if (ssh_version == 1) {
             send_packet(SSH1_CMSG_EOF, PKT_END);
         } else {
@@ -2769,6 +2786,8 @@ static void ssh_special (Telnet_Special code) {
         }
         logevent("Sent EOF message");
     } else if (code == TS_PING) {
+        if (ssh_state == SSH_STATE_CLOSED || ssh_state == SSH_STATE_PREPACKET)
+            return;
         if (ssh_version == 1) {
             send_packet(SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
         } else {
