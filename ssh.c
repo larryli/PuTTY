@@ -3449,27 +3449,40 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		}
 	    }
 	    if (sport && dport) {
+		/* Set up a description of the source port. */
+		char *sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+			(int)(*saddr?1:0), ":",
+			(int)(sserv ? strlen(sports) : 0), sports,
+			sserv, "(", sport, sserv, ")");
 		if (type == 'L') {
-		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
-				   sport, ssh, &ssh->cfg);
-		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
-			      " forwarding to %s:%.*s%.*s%d%.*s",
-			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
-			      (int)(*saddr?1:0), ":",
-			      (int)(sserv ? strlen(sports) : 0), sports,
-			      sserv, "(", sport, sserv, ")",
-			      host,
-			      (int)(dserv ? strlen(dports) : 0), dports,
-			      dserv, "(", dport, dserv, ")");
+		    /* Verbose description of the destination port */
+		    char *dportdesc = dupprintf("%s:%.*s%.*s%d%.*s",
+			    host,
+			    (int)(dserv ? strlen(dports) : 0), dports,
+			    dserv, "(", dport, dserv, ")");
+		    const char *err = pfd_addforward(host, dport,
+						     *saddr ? saddr : NULL,
+						     sport, ssh, &ssh->cfg);
+		    if (err) {
+			logeventf(ssh, "Local port %s forward to %s"
+				  " failed: %s", sportdesc, dportdesc, err);
+		    } else {
+			logeventf(ssh, "Local port %s forwarding to %s",
+				  sportdesc, dportdesc);
+		    }
+		    sfree(dportdesc);
 		} else if (type == 'D') {
-		    pfd_addforward(NULL, -1, *saddr ? saddr : NULL,
-				   sport, ssh, &ssh->cfg);
-		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
-			      " doing SOCKS dynamic forwarding",
-			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
-			      (int)(*saddr?1:0), ":",
-			      (int)(sserv ? strlen(sports) : 0), sports,
-			      sserv, "(", sport, sserv, ")");
+		    const char *err = pfd_addforward(NULL, -1,
+						     *saddr ? saddr : NULL,
+						     sport, ssh, &ssh->cfg);
+		    if (err) {
+			logeventf(ssh, "Local port %s SOCKS dynamic forward"
+				  " setup failed: %s", sportdesc, err);
+		    } else {
+			logeventf(ssh, "Local port %s doing SOCKS"
+				  " dynamic forwarding", sportdesc);
+		    }
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = snew(struct ssh_rportfwd);
@@ -3512,6 +3525,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			logevent("Remote port forwarding enabled");
 		    }
 		}
+		sfree(sportdesc);
 	    }
 	}
     }
@@ -5606,27 +5620,40 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		}
 	    }
 	    if (sport && dport) {
+		/* Set up a description of the source port. */
+		char *sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
+			(int)(*saddr?1:0), ":",
+			(int)(sserv ? strlen(sports) : 0), sports,
+			sserv, "(", sport, sserv, ")");
 		if (type == 'L') {
-		    pfd_addforward(host, dport, *saddr ? saddr : NULL,
-				   sport, ssh, &ssh->cfg);
-		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
-			      " forwarding to %s:%.*s%.*s%d%.*s",
-			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
-			      (int)(*saddr?1:0), ":",
-			      (int)(sserv ? strlen(sports) : 0), sports,
-			      sserv, "(", sport, sserv, ")",
-			      host,
-			      (int)(dserv ? strlen(dports) : 0), dports,
-			      dserv, "(", dport, dserv, ")");
+		    /* Verbose description of the destination port */
+		    char *dportdesc = dupprintf("%s:%.*s%.*s%d%.*s",
+			    host,
+			    (int)(dserv ? strlen(dports) : 0), dports,
+			    dserv, "(", dport, dserv, ")");
+		    const char *err = pfd_addforward(host, dport,
+						     *saddr ? saddr : NULL,
+						     sport, ssh, &ssh->cfg);
+		    if (err) {
+			logeventf(ssh, "Local port %s forward to %s"
+				  " failed: %s", sportdesc, dportdesc, err);
+		    } else {
+			logeventf(ssh, "Local port %s forwarding to %s",
+				  sportdesc, dportdesc);
+		    }
+		    sfree(dportdesc);
 		} else if (type == 'D') {
-		    pfd_addforward(NULL, -1, *saddr ? saddr : NULL,
-				   sport, ssh, &ssh->cfg);
-		    logeventf(ssh, "Local port %.*s%.*s%.*s%.*s%d%.*s"
-			      " doing SOCKS dynamic forwarding",
-			      (int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
-			      (int)(*saddr?1:0), ":",
-			      (int)(sserv ? strlen(sports) : 0), sports,
-			      sserv, "(", sport, sserv, ")");
+		    const char *err = pfd_addforward(NULL, -1,
+						     *saddr ? saddr : NULL,
+						     sport, ssh, &ssh->cfg);
+		    if (err) {
+			logeventf(ssh, "Local port %s SOCKS dynamic forward"
+				  " setup failed: %s", sportdesc, err);
+		    } else {
+			logeventf(ssh, "Local port %s doing SOCKS"
+				  " dynamic forwarding", sportdesc);
+		    }
 		} else {
 		    struct ssh_rportfwd *pf;
 		    pf = snew(struct ssh_rportfwd);
@@ -5638,14 +5665,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				  " to %s:%d", host, dport);
 			sfree(pf);
 		    } else {
-			logeventf(ssh, "Requesting remote port "
-				  "%.*s%.*s%.*s%.*s%d%.*s"
+			logeventf(ssh, "Requesting remote port %s"
 				  " forward to %s:%.*s%.*s%d%.*s",
-				  (int)(*saddr?strlen(saddr):0),
-				  *saddr?saddr:NULL,
-				  (int)(*saddr?1:0), ":",
-				  (int)(sserv ? strlen(sports) : 0), sports,
-				  sserv, "(", sport, sserv, ")",
+				  sportdesc,
 				  host,
 				  (int)(dserv ? strlen(dports) : 0), dports,
 				  dserv, "(", dport, dserv, ")");
@@ -5686,6 +5708,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			}
 		    }
 		}
+		sfree(sportdesc);
 	    }
 	}
     }
