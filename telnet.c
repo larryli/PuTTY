@@ -762,6 +762,11 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
      */
     telnet->in_synch = FALSE;
 
+    /*
+     * We can send special commands from the start.
+     */
+    update_specials_menu(telnet->frontend);
+
     return NULL;
 }
 
