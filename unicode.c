@@ -971,9 +971,9 @@ int check_compose_internal(int first, int second, int recurse)
     if (recurse == 0) {
 	nc = check_compose_internal(second, first, 1);
 	if (nc == -1)
-	    nc = check_compose(toupper(first), toupper(second), 1);
+	    nc = check_compose_internal(toupper(first), toupper(second), 1);
 	if (nc == -1)
-	    nc = check_compose(toupper(second), toupper(first), 1);
+	    nc = check_compose_internal(toupper(second), toupper(first), 1);
     }
     return nc;
 }

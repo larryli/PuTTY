@@ -201,6 +201,7 @@ void EnableSizeTip(int bEnable);
 /*
  * Exports from unicode.c.
  */
+struct unicode_data;
 void init_ucs(Config *, struct unicode_data *);
 
 #endif
