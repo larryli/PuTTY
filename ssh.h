@@ -301,11 +301,12 @@ void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk,
 /*
  * For progress updates in the key generation utility.
  */
-#define PROGFN_LIN_PHASE 1
-#define PROGFN_EXP_PHASE 2
-#define PROGFN_PHASE_EXTENT 3
-#define PROGFN_READY 4
-#define PROGFN_PROGRESS 5
+#define PROGFN_INITIALISE 1
+#define PROGFN_LIN_PHASE 2
+#define PROGFN_EXP_PHASE 3
+#define PROGFN_PHASE_EXTENT 4
+#define PROGFN_READY 5
+#define PROGFN_PROGRESS 6
 typedef void (*progfn_t) (void *param, int action, int phase, int progress);
 
 int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,

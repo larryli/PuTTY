@@ -44,6 +44,9 @@ static void progress_update(void *param, int action, int phase, int iprogress)
     if (action < PROGFN_READY && p->nphases < phase)
 	p->nphases = phase;
     switch (action) {
+      case PROGFN_INITIALISE:
+	p->nphases = 0;
+	break;
       case PROGFN_LIN_PHASE:
 	p->phases[phase-1].exponential = 0;
 	p->phases[phase-1].mult = p->phases[phase].total / progress;
@@ -301,6 +304,8 @@ static DWORD WINAPI generate_rsa_key_thread(void *param)
 	(struct rsa_key_thread_params *) param;
     struct progress prog;
     prog.progbar = params->progressbar;
+
+    progress_update(&prog, PROGFN_INITIALISE, 0, 0);
 
     if (params->is_dsa)
 	dsa_generate(params->dsskey, params->keysize, progress_update, &prog);
