@@ -40,15 +40,39 @@
 	((*(LONGLONG*)&(ft)) / (LONGLONG) 10000000 - (LONGLONG) 11644473600))
 
 /* GUI Adaptation - Sept 2000 */
+
+/* This is just a base value from which the main message numbers are
+ * derived. */
 #define   WM_APP_BASE		0x8000
+
+/* These two pass a single character value in wParam. They represent
+ * the visible output from PSCP. */
 #define   WM_STD_OUT_CHAR	( WM_APP_BASE+400 )
 #define   WM_STD_ERR_CHAR	( WM_APP_BASE+401 )
+
+/* These pass a transfer status update. WM_STATS_CHAR passes a single
+ * character in wParam, and is called repeatedly to pass the name of
+ * the file, terminated with "\n". WM_STATS_SIZE passes the size of
+ * the file being transferred in wParam. WM_STATS_ELAPSED is called
+ * to pass the elapsed time (in seconds) in wParam, and
+ * WM_STATS_PERCENT passes the percentage of the transfer which is
+ * complete, also in wParam. */
 #define   WM_STATS_CHAR		( WM_APP_BASE+402 )
 #define   WM_STATS_SIZE 	( WM_APP_BASE+403 )
 #define   WM_STATS_PERCENT	( WM_APP_BASE+404 )
 #define   WM_STATS_ELAPSED	( WM_APP_BASE+405 )
+
+/* These are used at the end of a run to pass an error code in
+ * wParam: zero means success, nonzero means failure. WM_RET_ERR_CNT
+ * is used after a copy, and WM_LS_RET_ERR_CNT is used after a file
+ * list operation. */
 #define   WM_RET_ERR_CNT	( WM_APP_BASE+406 )
 #define   WM_LS_RET_ERR_CNT	( WM_APP_BASE+407 )
+
+/* More transfer status update messages. WM_STATS_DONE passes the
+ * number of bytes sent so far in wParam. WM_STATS_ETA passes the
+ * estimated time to completion (in seconds). WM_STATS_RATEBS passes
+ * the average transfer rate (in bytes per second). */
 #define   WM_STATS_DONE		( WM_APP_BASE+408 )
 #define   WM_STATS_ETA		( WM_APP_BASE+409 )
 #define   WM_STATS_RATEBS	( WM_APP_BASE+410 )
