@@ -4618,6 +4618,8 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
      */
     {
 	char *cmd = ssh->cfg.remote_cmd_ptr;
+
+	if (!cmd) cmd = ssh->cfg.remote_cmd;
 	
 	if (ssh->cfg.ssh_subsys && ssh->cfg.remote_cmd_ptr2) {
 	    cmd = ssh->cfg.remote_cmd_ptr2;
@@ -7323,6 +7325,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	} else {
 	    subsys = ssh->cfg.ssh_subsys;
 	    cmd = ssh->cfg.remote_cmd_ptr;
+	    if (!cmd) cmd = ssh->cfg.remote_cmd;
 	}
 
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);

@@ -402,7 +402,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		/* If at this point we have a valid session, go! */
 		if (*cfg2.host) {
 		    *cfg = cfg2;       /* structure copy */
-		    cfg->remote_cmd_ptr = cfg->remote_cmd; /* nasty */
+		    cfg->remote_cmd_ptr = NULL;
 		    dlg_end(dlg, 1);
 		} else
 		    dlg_beep(dlg);

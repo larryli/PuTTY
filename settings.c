@@ -406,7 +406,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     char prot[10];
 
     cfg->ssh_subsys = 0;	       /* FIXME: load this properly */
-    cfg->remote_cmd_ptr = cfg->remote_cmd;
+    cfg->remote_cmd_ptr = NULL;
     cfg->remote_cmd_ptr2 = NULL;
 
     if (do_host) {
