@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.8 2003/01/25 15:15:40 ben Exp $ */
+/* $Id: macdlg.c,v 1.9 2003/02/01 23:55:00 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -55,7 +55,8 @@ void mac_newsession(void)
     do_defaults(NULL, &s->cfg);
     s->hasfile = FALSE;
 
-    s->settings_window = GetNewDialog(wSettings, NULL, (WindowPtr)-1);
+    s->settings_window =
+	GetDialogWindow(GetNewDialog(wSettings, NULL, (WindowPtr)-1));
 
     SetWRefCon(s->settings_window, (long)s);
     ShowWindow(s->settings_window);
@@ -111,7 +112,9 @@ static OSErr mac_opensessionfrom(FSSpec *fss)
     return err;
 }
 
-void mac_opensession(void) {
+void mac_opensession(void)
+{
+#if !TARGET_API_MAC_CARBON /* XXX Navigation Services */
     StandardFileReply sfr;
     static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
 
@@ -120,6 +123,7 @@ void mac_opensession(void) {
 
     mac_opensessionfrom(&sfr.sfFile);
     /* XXX handle error */
+#endif
 }
 
 void mac_savesession(void)
@@ -136,6 +140,7 @@ void mac_savesession(void)
 
 void mac_savesessionas(void)
 {
+#if !TARGET_API_MAC_CARBON /* XXX Navigation Services */
     Session *s = (Session *)GetWRefCon(FrontWindow());
     StandardFileReply sfr;
     void *sesshandle;
@@ -154,6 +159,7 @@ void mac_savesessionas(void)
     close_settings_w(sesshandle);
     s->hasfile = TRUE;
     s->savefile = sfr.sfFile;
+#endif
 }
 
 pascal OSErr mac_aevt_oapp(const AppleEvent *req, AppleEvent *reply,
@@ -227,22 +233,24 @@ void mac_activatedlg(WindowPtr window, EventRecord *event)
     short item;
     Rect itemrect;
     int active;
+    DialogRef dialog = GetDialogFromWindow(window);
 
     active = (event->modifiers & activeFlag) != 0;
-    GetDialogItem(window, wiSettingsOpen, &itemtype, &itemhandle, &itemrect);
+    GetDialogItem(dialog, wiSettingsOpen, &itemtype, &itemhandle, &itemrect);
     HiliteControl((ControlHandle)itemhandle, active ? 0 : 255);
-    DialogSelect(event, &window, &item);
+    DialogSelect(event, &dialog, &item);
 }
 
 void mac_clickdlg(WindowPtr window, EventRecord *event)
 {
     short item;
     Session *s = (Session *)GetWRefCon(window);
+    DialogRef dialog = GetDialogFromWindow(window);
 
-    if (DialogSelect(event, &window, &item))
+    if (DialogSelect(event, &dialog, &item))
 	switch (item) {
 	  case wiSettingsOpen:
-	    CloseWindow(window);
+	    HideWindow(window);
 	    mac_startsession(s);
 	    break;
 	}
