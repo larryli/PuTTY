@@ -18,9 +18,6 @@
 #      Generates executables whose About box report them as being a
 #      release version.
 #
-#  - COMPAT=/DWIN32S_COMPAT
-#      Generates a binary that works (minimally) with Win32s.
-#
 #  - COMPAT=/DAUTO_WINSOCK
 #      Causes PuTTY to assume that <windows.h> includes its own WinSock
 #      header file, so that it won't try to include <winsock.h>.

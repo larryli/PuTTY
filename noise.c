@@ -11,6 +11,12 @@
 #include "storage.h"
 
 /*
+ * GetSystemPowerStatus function.
+ */
+typedef BOOL (WINAPI *gsps_t)(LPSYSTEM_POWER_STATUS);
+gsps_t gsps;
+
+/*
  * This function is called once, at PuTTY startup, and will do some
  * seriously silly things like listing directories and getting disk
  * free space and a process snapshot.
@@ -20,6 +26,7 @@ void noise_get_heavy(void (*func) (void *, int)) {
     HANDLE srch;
     WIN32_FIND_DATA finddata;
     char winpath[MAX_PATH+3];
+    HMODULE mod;
 
     GetWindowsDirectory(winpath, sizeof(winpath));
     strcat(winpath, "\\*");
@@ -32,6 +39,13 @@ void noise_get_heavy(void (*func) (void *, int)) {
     }
 
     read_random_seed(func);
+
+    gsps = NULL;
+    mod = GetModuleHandle("KERNEL32");
+    if (mod) {
+        gsps = (gsps_t)GetProcAddress(mod, "GetSystemPowerStatus");
+        debug(("got gsps=%p\n", gsps));
+    }
 }
 
 void random_save_seed(void) {
@@ -59,10 +73,13 @@ void noise_get_light(void (*func) (void *, int)) {
     GetSystemTimeAdjustment(&adjust[0], &adjust[1], &rubbish);
     func(&adjust, sizeof(adjust));
 
-#ifndef WIN32S_COMPAT
-    if (GetSystemPowerStatus(&pwrstat))
-	func(&pwrstat, sizeof(pwrstat));
-#endif
+    /*
+     * Call GetSystemPowerStatus if present.
+     */
+    if (gsps) {
+        if (gsps(&pwrstat))
+            func(&pwrstat, sizeof(pwrstat));
+    }
 }
 
 /*
