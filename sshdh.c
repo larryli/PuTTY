@@ -140,6 +140,8 @@ Bignum dh_create_e(void *handle, int nbits)
 	}
     } while (bignum_cmp(ctx->x, One) <= 0 || bignum_cmp(ctx->x, ctx->q) >= 0);
 
+    sfree(buf);
+
     /*
      * Done. Now compute e = g^x mod p.
      */

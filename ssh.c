@@ -2149,8 +2149,10 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
      */
     logeventf(ssh, "Looking up host \"%s\"", host);
     addr = name_lookup(host, port, realhost, &ssh->cfg);
-    if ((err = sk_addr_error(addr)) != NULL)
+    if ((err = sk_addr_error(addr)) != NULL) {
+	sk_addr_free(addr);
 	return err;
+    }
 
     /*
      * Open socket.
@@ -2163,6 +2165,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     ssh->fn = &fn_table;
     ssh->s = new_connection(addr, *realhost, port,
 			    0, 1, nodelay, (Plug) ssh, &ssh->cfg);
+    sk_addr_free(addr);
     if ((err = sk_socket_error(ssh->s)) != NULL) {
 	ssh->s = NULL;
 	return err;
