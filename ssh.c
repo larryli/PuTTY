@@ -5926,6 +5926,8 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->overall_bufsize = 0;
     ssh->fallback_cmd = 0;
 
+    ssh->protocol = NULL;
+
     p = connect_to_host(ssh, host, port, realhost, nodelay);
     if (p != NULL)
 	return p;
