@@ -58,7 +58,7 @@ static int errs = 0;
 static char statname[NAME_STR_MAX+1];
 static unsigned long statsize = 0;
 static int statperct = 0;
-static time_t statelapsed = 0;
+static unsigned long statelapsed = 0;
 static int gui_mode = 0;
 static char *gui_hwnd = NULL;
 
@@ -71,7 +71,8 @@ static void tell_str(FILE *stream, char *str);
 static void tell_user(FILE *stream, char *fmt, ...);
 static void send_char_msg(unsigned int msg_id, char c);
 static void send_str_msg(unsigned int msg_id, char *str);
-static void gui_update_stats(char *name, unsigned long size, int percentage, time_t elapsed);
+static void gui_update_stats(char *name, unsigned long size,
+                             int percentage, unsigned long elapsed);
 
 void begin_session(void) { }
 void logevent(char *string) { }
@@ -182,7 +183,7 @@ static void tell_user(FILE *stream, char *fmt, ...)
     tell_str(stream, str);
 }
 
-static void gui_update_stats(char *name, unsigned long size, int percentage, time_t elapsed)
+static void gui_update_stats(char *name, unsigned long size, int percentage, unsigned long elapsed)
 {
     unsigned int i;
 
@@ -490,7 +491,8 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
 
     /* GUI Adaptation - Sept 2000 */
     if (gui_mode)
-	gui_update_stats(name, size, ((done *100) / size), now-start);
+	gui_update_stats(name, size, (int)(100 * (done*1.0/size)),
+                         (unsigned long)difftime(now, start));
     else {
 	if (now > start)
 	    ratebs = (float) done / (now - start);
