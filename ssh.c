@@ -2139,7 +2139,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_rekey2 == FORCE_ON ||
 	(ssh->cfg.sshbug_rekey2 == AUTO &&
-	 wc_match("Sun_SSH_1.0", imp))) {
+	 (wc_match("Sun_SSH_1.0", imp) ||
+	  wc_match("Sun_SSH_1.0.1", imp)))) {
 	/*
 	 * These versions have the SSH2 ignore-rekey bug.
 	 */
