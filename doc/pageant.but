@@ -1,6 +1,8 @@
-\versionid $Id: pageant.but,v 1.5 2001/11/25 17:32:39 simon Exp $
+\versionid $Id: pageant.but,v 1.6 2001/12/11 18:48:29 simon Exp $
 
 \C{pageant} Using Pageant for authentication
+
+\cfg{winhelp-topic}{pageant.general}
 
 Pageant is an SSH authentication agent. It holds your private keys
 in memory, already decoded, so that you can use them often without
@@ -12,7 +14,8 @@ Before you run Pageant, you need to have a private key. See
 \k{pubkey} to find out how to generate and use one.
 
 When you run Pageant, it will put an icon of a computer wearing a
-hat into the System tray. It will then sit and do nothing.
+hat into the System tray. It will then sit and do nothing, until you
+load a private key into it.
 
 If you click the Pageant icon with the right mouse button, you will
 see a menu. Select \q{View Keys} from this menu. The Pageant main
@@ -21,7 +24,8 @@ double-clicking on the Pageant icon.)
 
 The Pageant window contains a list box. This shows the private keys
 Pageant is holding. When you start Pageant, it has no keys, so the
-list box will be empty.
+list box will be empty. After you add one or more keys, they will
+show up in the list box.
 
 To add a key to Pageant, press the \q{Add Key} button. Pageant will
 bring up a file dialog, labelled \q{Select Private Key File}. Find
@@ -41,6 +45,75 @@ passphrase again.
 When you want to shut down Pageant, click the right button on the
 Pageant icon in the System tray, and select \q{Exit} from the menu.
 Closing the Pageant main window does \e{not} shut down Pageant.
+
+\H{pageant-mainwin} The Pageant main window
+
+The Pageant main window appears when you left-click on the Pageant
+system tray icon, or alternatively right-click and select \q{View
+Keys} from the menu. You can use it to keep track of what keys are
+currently loaded into Pageant, and to add new ones or remove the
+existing keys.
+
+\S{pageant-mainwin-keylist} The key list box
+
+\cfg{winhelp-topic}{pageant.keylist}
+
+The large list box in the Pageant main window lists the private keys
+that are currently loaded into Pageant. The list might look
+something like this:
+
+\c ssh1     1024  22:c3:68:3b:09:41:36:c3:39:83:91:ae:71:b2:0f:04  key1
+\c ssh-rsa  1023  74:63:08:82:95:75:e1:7c:33:31:bb:cb:00:c0:89:8b  key2
+
+For each key, the list box will tell you:
+
+\b The type of the key. Currently, this can be \c{ssh1} (an RSA key
+for use with the SSH v1 protocol), \c{ssh-rsa} (an RSA key for use
+with the SSH v2 protocol), or \c{ssh-dss} (a DSA key for use with
+the SSH v2 protocol).
+
+\b The size (in bits) of the key.
+
+\b The fingerprint for the public key. This should be the same
+fingerprint given by PuTTYgen, and (hopefully) also the same
+fingerprint shown by remote utilities such as \c{ssh-keygen} when
+applied to your \c{authorized_keys} file.
+
+\b The comment attached to the key.
+
+\S{pageant-mainwin-addkey} The \q{Add Key} button
+
+\cfg{winhelp-topic}{pageant.addkey}
+
+To add a key to Pageant by reading it out of a local disk file,
+press the \q{Add Key} button in the Pageant main window, or
+alternatively right-click on the Pageant icon in the system tray and
+select \q{Add Key} from there.
+
+Pageant will bring up a file dialog, labelled \q{Select Private Key
+File}. Find your private key file in this dialog, and press
+\q{Open}. If you want to add more than one key at once, you can
+select multiple files using Shift-click (to select several adjacent
+files) or Ctrl-click (to select non-adjacent files).
+
+Pageant will now load the private key(s). If a key is protected by a
+passphrase, Pageant will ask you to type the passphrase.
+
+(This is not the only way to add a private key to Pageant. You can
+also add one from a remote system by using agent forwarding; see
+\k{pageant-forward} for details.)
+
+\S{pageant-mainwin-remkey} The \q{Remove Key} button
+
+\cfg{winhelp-topic}{pageant.remkey}
+
+If you need to remove a key from Pageant, select that key in the
+list box, and press the \q{Remove Key} button. Pageant will remove
+the key from its memory.
+
+You can apply this to keys you added using the \q{Add Key} button,
+or to keys you added remotely using agent forwarding (see
+\k{pageant-forward}); it makes no difference.
 
 \H{pageant-forward} Using agent forwarding
 

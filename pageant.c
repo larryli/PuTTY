@@ -12,6 +12,7 @@
 #include <tchar.h>
 
 #include "ssh.h"
+#include "misc.h"
 #include "tree234.h"
 
 #define IDI_MAINICON 200
@@ -31,18 +32,22 @@
 #define IDM_CLOSE    0x0010
 #define IDM_VIEWKEYS 0x0020
 #define IDM_ADDKEY   0x0030
-#define IDM_ABOUT    0x0040
+#define IDM_HELP     0x0040
+#define IDM_ABOUT    0x0050
 
 #define APPNAME "Pageant"
 
 extern char ver[];
 
 static HINSTANCE instance;
-static HWND hwnd;
+static HWND main_hwnd;
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu;
 static int already_running;
+static int requested_help;
+
+static char *help_path;
 
 static tree234 *rsakeys, *ssh2keys;
 
@@ -72,7 +77,7 @@ int agent_exists(void);
  */
 int random_byte(void)
 {
-    MessageBox(hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
+    MessageBox(main_hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
     exit(0);
     /* this line can't be reached but it placates MSVC's warnings :-) */
     return 0;
@@ -123,7 +128,6 @@ static tree234 *passphrases = NULL;
  */
 static void forget_passphrases(void)
 {
-    int i;
     while (count234(passphrases) > 0) {
 	char *pp = index234(passphrases, 0);
 	memset(pp, 0, strlen(pp));
@@ -1023,7 +1027,7 @@ static void prompt_add_keyfile(void)
 #else
     of.lStructSize = sizeof(of);
 #endif
-    of.hwndOwner = hwnd;
+    of.hwndOwner = main_hwnd;
     of.lpstrFilter = "All Files\0*\0\0\0";
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
@@ -1100,6 +1104,16 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
 			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
 	}
+
+        if (help_path)
+            SetWindowLong(hwnd, GWL_EXSTYLE,
+                          GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_CONTEXTHELP);
+        else {
+            HWND item = GetDlgItem(hwnd, 103);   /* the Help button */
+            if (item)
+                DestroyWindow(item);
+        }
+        requested_help = FALSE;
 
 	keylist = hwnd;
 	{
@@ -1189,8 +1203,35 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		keylist_update();
 	    }
 	    return 0;
+	  case 103:		       /* help */
+            if (HIWORD(wParam) == BN_CLICKED ||
+                HIWORD(wParam) == BN_DOUBLECLICKED) {
+                if (help_path) {
+                    WinHelp(main_hwnd, help_path, HELP_COMMAND,
+                            (DWORD)"JI(`',`pageant.general')");
+                    requested_help = TRUE;
+                }
+            }
+	    return 0;
 	}
 	return 0;
+      case WM_HELP:
+        if (help_path) {
+            int id = ((LPHELPINFO)lParam)->iCtrlId;
+            char *cmd = NULL;
+            switch (id) {
+              case 100: cmd = "JI(`',`pageant.keylist')"; break;
+              case 101: cmd = "JI(`',`pageant.addkey')"; break;
+              case 102: cmd = "JI(`',`pageant.remkey')"; break;
+            }
+            if (cmd) {
+                WinHelp(main_hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+                requested_help = TRUE;
+            } else {
+                MessageBeep(0);
+            }
+        }
+        break;
       case WM_CLOSE:
 	keylist = NULL;
 	DestroyWindow(hwnd);
@@ -1312,9 +1353,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			     SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 	    }
 	    break;
+	  case IDM_HELP:
+            if (help_path) {
+                WinHelp(main_hwnd, help_path, HELP_COMMAND,
+                        (DWORD)"JI(`',`pageant.general')");
+                requested_help = TRUE;
+            }
+	    break;
 	}
 	break;
       case WM_DESTROY:
+        if (requested_help) {
+            WinHelp(main_hwnd, help_path, HELP_QUIT, 0);
+            requested_help = FALSE;
+        }
 	PostQuitMessage(0);
 	return 0;
       case WM_COPYDATA:
@@ -1477,6 +1529,26 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     instance = inst;
 
     /*
+     * See if we can find our Help file.
+     */
+    {
+        char b[2048], *p, *q, *r;
+        FILE *fp;
+        GetModuleFileName(NULL, b, sizeof(b) - 1);
+        r = b;
+        p = strrchr(b, '\\');
+        if (p && p >= r) r = p+1;
+        q = strrchr(b, ':');
+        if (q && q >= r) r = q+1;
+        strcpy(r, "putty.hlp");
+        if ( (fp = fopen(b, "r")) != NULL) {
+            help_path = dupstr(b);
+            fclose(fp);
+        } else
+            help_path = NULL;
+    }
+
+    /*
      * Find out if Pageant is already running.
      */
     already_running = FALSE;
@@ -1499,25 +1571,29 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    RegisterClass(&wndclass);
 	}
 
-	hwnd = keylist = NULL;
+	main_hwnd = keylist = NULL;
 
-	hwnd = CreateWindow(APPNAME, APPNAME,
-			    WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-			    CW_USEDEFAULT, CW_USEDEFAULT,
-			    100, 100, NULL, NULL, inst, NULL);
+	main_hwnd = CreateWindow(APPNAME, APPNAME,
+                                 WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                                 CW_USEDEFAULT, CW_USEDEFAULT,
+                                 100, 100, NULL, NULL, inst, NULL);
 
 	/* Set up a system tray icon */
-	AddTrayIcon(hwnd);
+	AddTrayIcon(main_hwnd);
 
         systray_menu = CreatePopupMenu();
         /* accelerators used: vkxa */
         AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
                "&View Keys");
         AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+        if (help_path)
+            AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
         AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
         AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
 
-	ShowWindow(hwnd, SW_HIDE);
+	ShowWindow(main_hwnd, SW_HIDE);
 
 	/*
 	 * Initialise storage for RSA keys.
@@ -1624,7 +1700,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	NOTIFYICONDATA tnid;
 
 	tnid.cbSize = sizeof(NOTIFYICONDATA);
-	tnid.hWnd = hwnd;
+	tnid.hWnd = main_hwnd;
 	tnid.uID = 1;
 
 	Shell_NotifyIcon(NIM_DELETE, &tnid);
