@@ -65,6 +65,11 @@ GLOBAL HINSTANCE hinst;
 #define SELECTION_NUL_TERMINATED 1
 
 /*
+ * On Windows, copying to the clipboard terminates lines with CRLF.
+ */
+#define SEL_NL { 13, 10 }
+
+/*
  * Exports from winctrls.c.
  */
 

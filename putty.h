@@ -99,8 +99,6 @@ typedef struct backend_tag Backend;
 #define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
 #define ATTR_CUR_XOR 0x00BA0000UL
 
-#define SEL_NL { 13, 10 }
-
 GLOBAL int rows, cols, savelines;
 
 GLOBAL int has_focus;

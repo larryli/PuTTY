@@ -16,6 +16,11 @@ extern Backend pty_backend;
  */
 #define SELECTION_NUL_TERMINATED 0
 
+/*
+ * Under X, copying to the clipboard terminates lines with just LF.
+ */
+#define SEL_NL { 10 }
+
 /* Simple wraparound timer function */
 unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define GETTICKCOUNT getticks
