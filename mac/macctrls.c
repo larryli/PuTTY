@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.6 2003/03/19 00:40:15 ben Exp $ */
+/* $Id: macctrls.c,v 1.7 2003/03/20 23:15:25 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -33,6 +33,8 @@
 #include <Sound.h>
 #include <TextUtils.h>
 #include <Windows.h>
+
+#include <assert.h>
 
 #include "putty.h"
 #include "mac.h"
@@ -76,9 +78,12 @@ struct mac_layoutstate {
 
 #define ctrlevent(mcs, mc, event) do {					\
     if ((mc)->generic.ctrl->generic.handler != NULL)			\
-	(*(mc)->generic.ctrl->generic.handler)((mc)->generic.ctrl, (mc),\
+	(*(mc)->generic.ctrl->generic.handler)((mc)->generic.ctrl, (mcs),\
 					       (mcs)->data, (event));	\
 } while (0)
+
+#define findbyctrl(mcs, ctrl)						\
+    find234((mcs)->byctrl, (ctrl), macctrl_cmp_byctrl_find)
 
 static void macctrl_layoutset(struct mac_layoutstate *, struct controlset *, 
 			      WindowPtr, struct macctrls *);
@@ -141,6 +146,19 @@ static int macctrl_cmp_byctrl(void *av, void *bv)
 	return 0;
 }
 
+static int macctrl_cmp_byctrl_find(void *av, void *bv)
+{
+    union control *a = (union control *)av;
+    union macctrl *b = (union macctrl *)bv;
+
+    if (a < b->generic.ctrl)
+	return -1;
+    else if (a > b->generic.ctrl)
+	return +1;
+    else
+	return 0;
+}
+
 void macctrl_layoutbox(struct controlbox *cb, WindowPtr window,
 		       struct macctrls *mcs)
 {
@@ -172,6 +190,7 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     unsigned int i;
 
     fprintf(stderr, "--- begin set ---\n");
+    fprintf(stderr, "pathname = %s\n", s->pathname);
     if (s->boxname && *s->boxname)
 	fprintf(stderr, "boxname = %s\n", s->boxname);
     if (s->boxtitle)
@@ -641,9 +660,11 @@ void *dlg_alloc_privdata(union control *ctrl, void *dlg, size_t size)
 
 void dlg_radiobutton_set(union control *ctrl, void *dlg, int whichbutton)
 {
-    union macctrl *mc = dlg;
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
     int i;
 
+    assert(mc != NULL);
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
 	if (i == whichbutton)
 	    SetControlValue(mc->radio.tbctrls[i],
@@ -657,9 +678,11 @@ void dlg_radiobutton_set(union control *ctrl, void *dlg, int whichbutton)
 
 int dlg_radiobutton_get(union control *ctrl, void *dlg)
 {
-    union macctrl *mc = dlg;
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
     int i;
 
+    assert(mc != NULL);
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
 	if (GetControlValue(mc->radio.tbctrls[i])  ==
 	    kControlRadioButtonCheckedValue)
@@ -675,8 +698,10 @@ int dlg_radiobutton_get(union control *ctrl, void *dlg)
 
 void dlg_checkbox_set(union control *ctrl, void *dlg, int checked)
 {
-    union macctrl *mc = dlg;
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
 
+    assert(mc != NULL);
     SetControlValue(mc->checkbox.tbctrl,
 		    checked ? kControlCheckBoxCheckedValue :
 		              kControlCheckBoxUncheckedValue);
@@ -684,8 +709,10 @@ void dlg_checkbox_set(union control *ctrl, void *dlg, int checked)
 
 int dlg_checkbox_get(union control *ctrl, void *dlg)
 {
-    union macctrl *mc = dlg;
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
 
+    assert(mc != NULL);
     return GetControlValue(mc->checkbox.tbctrl);
 }
 
@@ -760,9 +787,11 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
 
 void dlg_text_set(union control *ctrl, void *dlg, char const *text)
 {
-    union macctrl *mc = dlg;
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
     Str255 title;
 
+    assert(mc != NULL);
     if (mac_gestalts.apprvers >= 0x100)
 	SetControlData(mc->text.tbctrl, kControlEntireControl,
 		       kControlStaticTextTextTag,
