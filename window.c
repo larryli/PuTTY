@@ -1889,6 +1889,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     int  scan, left_alt = 0, key_down, shift_state;
     int  r, i, code;
     unsigned char * p = output;
+    static int alt_state = 0;
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
@@ -2085,6 +2086,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
             return -1;
 	}
 	if (left_alt && wParam == VK_SPACE && cfg.alt_space) {
+	    alt_state = 0;
             PostMessage(hwnd, WM_CHAR, ' ', 0);
             SendMessage (hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
             return -1;
@@ -2361,7 +2363,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     /* ALT alone may or may not want to bring up the System menu */
     if (wParam == VK_MENU) {
         if (cfg.alt_only) {
-            static int alt_state = 0;
             if (message == WM_SYSKEYDOWN)
                 alt_state = 1;
             else if (message == WM_SYSKEYUP && alt_state)
