@@ -139,6 +139,7 @@ typedef struct {
     int nopty;
     enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES } cipher;
     char keyfile[FILENAME_MAX];
+    int sshprot;                       /* use v1 or v2 when both available */
     int try_tis_auth;
     /* Telnet options */
     char termtype[32];

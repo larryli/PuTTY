@@ -952,7 +952,11 @@ static int do_ssh_init(void) {
     vlog[strcspn(vlog, "\r\n")] = '\0';
     logevent(vlog);
 
-    if (ssh_versioncmp(version, "2.0" /* FIXME: "1.99" */ ) >= 0) {
+    /*
+     * Server version "1.99" means we can choose whether we use v1
+     * or v2 protocol. Choice is based on cfg.sshprot.
+     */
+    if (ssh_versioncmp(version, cfg.sshprot == 1 ? "2.0" : "1.99") >= 0) {
         /*
          * This is a v2 server. Begin v2 protocol.
          */

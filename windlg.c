@@ -153,6 +153,7 @@ static void save_settings (char *section, int do_host) {
     wpps (sesskey, "Cipher", cfg.cipher == CIPHER_BLOWFISH ? "blowfish" :
                              cfg.cipher == CIPHER_DES ? "des" : "3des");
     wppi (sesskey, "AuthTIS", cfg.try_tis_auth);
+    wppi (sesskey, "SshProt", cfg.sshprot);
     wpps (sesskey, "PublicKeyFile", cfg.keyfile);
     wppi (sesskey, "RFCEnviron", cfg.rfc_environ);
     wppi (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
@@ -295,6 +296,7 @@ static void load_settings (char *section, int do_host) {
 	else
 	    cfg.cipher = CIPHER_3DES;
     }
+    gppi (sesskey, "SshProt", 1, &cfg.sshprot);
     gppi (sesskey, "AuthTIS", 0, &cfg.try_tis_auth);
     gpps (sesskey, "PublicKeyFile", "", cfg.keyfile, sizeof(cfg.keyfile));
     gppi (sesskey, "RFCEnviron", 0, &cfg.rfc_environ);
@@ -1010,8 +1012,9 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 	CheckRadioButton (hwnd, IDC3_CIPHER3DES, IDC3_CIPHERDES,
 			  cfg.cipher == CIPHER_BLOWFISH ? IDC3_CIPHERBLOWF :
 			  cfg.cipher == CIPHER_DES ? IDC3_CIPHERDES :
-
 			  IDC3_CIPHER3DES);
+	CheckRadioButton (hwnd, IDC3_SSHPROT1, IDC3_SSHPROT2,
+			  cfg.sshprot == 1 ? IDC3_SSHPROT1 : IDC3_SSHPROT2);
 	CheckDlgButton (hwnd, IDC3_AUTHTIS, cfg.try_tis_auth);
 	SetDlgItemText (hwnd, IDC3_PKEDIT, cfg.keyfile);
 	break;
@@ -1043,6 +1046,16 @@ static int CALLBACK SshProc (HWND hwnd, UINT msg,
 		    cfg.cipher = CIPHER_BLOWFISH;
 		else if (IsDlgButtonChecked (hwnd, IDC3_CIPHERDES))
 		    cfg.cipher = CIPHER_DES;
+	    }
+	    break;
+	  case IDC3_SSHPROT1:
+	  case IDC3_SSHPROT2:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (IsDlgButtonChecked (hwnd, IDC3_SSHPROT1))
+		    cfg.sshprot = 1;
+		else if (IsDlgButtonChecked (hwnd, IDC3_SSHPROT2))
+		    cfg.sshprot = 2;
 	    }
 	    break;
 	  case IDC3_AUTHTIS:
