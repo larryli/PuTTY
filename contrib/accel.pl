@@ -1,9 +1,12 @@
 #! /usr/bin/perl -w
 
-# $Id: accel.pl,v 1.1 2002/03/10 21:56:55 jacob Exp $
+# $Id: accel.pl,v 1.2 2003/01/21 21:05:35 jacob Exp $
 # Grotty script to check for clashes in the PuTTY config dialog keyboard
 # accelerators in windlg.c, and to check the comments are still up to
-# date. Based on windlg.c:1.177 & win_res.rc:1.56.
+# date. Based on:
+#   windlg.c:1.201
+#   win_res.rc:1.59 (for global accelerators)
+#   winctrls.c:1.20 (for prefslist() hardcoded accelerators)
 # usage: accel.pl [-q] [-v] [-f windlg-alt.c]
 
 use strict;
@@ -129,6 +132,12 @@ while (<WINDLG>) {
                 do { $munch = <WINDLG> } until ($munch =~ m/^#else/);
             }
         }
+
+	# Hack: winctrls.c:prefslist() has hard-coded "&Up" and "&Down"
+	# buttons. Take this into account.
+	if (m/\bprefslist *\(/) {
+	    $real_accel .= "ud";
+	}
 
         # Look for accelerator comment.
         if (m#/\* .* Accelerators used: (.*) \*/#) {
