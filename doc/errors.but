@@ -1,4 +1,4 @@
-\versionid $Id: errors.but,v 1.8 2004/05/20 12:48:19 simon Exp $
+\versionid $Id: errors.but,v 1.9 2004/07/22 12:38:37 jacob Exp $
 
 \C{errors} Common error messages
 
@@ -124,6 +124,28 @@ occur. If it does, there is a bug in PuTTY by definition; please see
 Similarly, any error message starting with \q{Assertion failed} is a
 bug in PuTTY. Please report it to us, and include the exact text
 from the error message box.
+
+\H{errors-key-wrong-format} \q{Unable to use this private key file},
+\q{Couldn't load private key}, \q{Key is of wrong type}
+
+Various forms of this error are printed in the PuTTY window, or
+written to the PuTTY Event Log (see \k{using-eventlog}) when trying
+public-key authentication, or given by Pageant when trying to load a
+private key.
+
+If you see one of these messages, it often indicates that you've tried
+to load a key of an inappropriate type into PuTTY, Plink, PSCP, PSFTP,
+or Pageant.
+
+You may have specified a key that's inappropriate for the connection
+you're making. The SSH-1 and SSH-2 protocols require different private
+key formats, and a SSH-1 key can't be used for a SSH-2 connection (or
+vice versa).
+
+Alternatively, you may have tried to load an SSH-2 key in a \q{foreign}
+format (OpenSSH or \cw{ssh.com}) directly into one of the PuTTY tools,
+in which case you need to import it into PuTTY's native format
+(\c{*.PPK}) using PuTTYgen - see \k{puttygen-conversions}.
 
 \H{errors-refused} \q{Server refused our public key} or \q{Key
 refused}
