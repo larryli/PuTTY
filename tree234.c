@@ -572,7 +572,6 @@ static void *delpos234_internal(tree234 *t, int index) {
     LOG(("deleting item %d from tree %p\n", index, t));
     while (1) {
 	while (n) {
-	    int c;
 	    int ki;
 	    node234 *sub;
 

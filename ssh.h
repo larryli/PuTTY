@@ -212,6 +212,7 @@ Bignum bignum_from_bytes(unsigned char *data, int nbytes);
 int ssh1_read_bignum(unsigned char *data, Bignum *result);
 int bignum_bitcount(Bignum bn);
 int ssh1_bignum_length(Bignum bn);
+int ssh2_bignum_length(Bignum bn);
 int bignum_byte(Bignum bn, int i);
 int bignum_bit(Bignum bn, int i);
 void bignum_set_bit(Bignum bn, int i, int value);

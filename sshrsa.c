@@ -393,7 +393,7 @@ static void *rsa2_openssh_createkey(unsigned char **blob, int *len) {
     return rsa;
 }
 
-static int *rsa2_openssh_fmtkey(void *key, unsigned char *blob, int len) {
+static int rsa2_openssh_fmtkey(void *key, unsigned char *blob, int len) {
     struct RSAKey *rsa = (struct RSAKey *)key;
     int bloblen, i;
 

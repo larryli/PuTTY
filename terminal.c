@@ -297,7 +297,7 @@ void term_init(void) {
 void term_size(int newrows, int newcols, int newsavelines) {
     tree234 *newsb, *newscreen, *newalt;
     unsigned long *newdisp, *newwant, *oldline, *line;
-    int i, j, crows, ccols;
+    int i, j, ccols;
     int posn, oldposn, furthest_back, oldsbsize;
     int save_alt_which = alt_which;
 
@@ -416,7 +416,6 @@ void term_size(int newrows, int newcols, int newsavelines) {
  */
 static void swap_screen (int which) {
     int t;
-    unsigned long tt;
     tree234 *ttr;
 
     if (which == alt_which)
@@ -442,7 +441,7 @@ static void swap_screen (int which) {
  * Update the scroll bar.
  */
 static void update_sbar(void) {
-    int nscreen, nscroll;
+    int nscroll;
 
     nscroll = count234(scrollback);
 
@@ -593,7 +592,7 @@ static void save_cursor(int save) {
  * whole line, or parts thereof.
  */
 static void erase_lots (int line_only, int from_begin, int to_end) {
-    pos start, end, here;
+    pos start, end;
     int erase_lattr;
     unsigned long *ldata;
 
@@ -1683,7 +1682,6 @@ void term_out(void) {
 	    break;
 	  case SEEN_ESCHASH:
 	    {
-		unsigned long *p;
 		unsigned long nlattr;
 		unsigned long *ldata;
 		int i, j;
@@ -2037,7 +2035,7 @@ static void clipme(pos top, pos bottom, char *workbuf) {
     while (poslt(top, bottom)) {
 	int nl = FALSE;
 	unsigned long *ldata = lineptr(top.y);
-	pos lineend, nlpos;
+	pos nlpos;
 
 	nlpos.y = top.y;
 	nlpos.x = cols;
@@ -2112,7 +2110,6 @@ void term_copyall (void) {
  */
 static pos sel_spread_half (pos p, int dir) {
     unsigned long *ldata;
-    int x;
     short wvalue;
 
     ldata = lineptr(p.y);

@@ -56,6 +56,12 @@ static gsi_fn_t getsecurityinfo;
 #endif
 
 /*
+ * Exports from pageantc.c
+ */
+void agent_query(void *in, int inlen, void **out, int *outlen);
+int agent_exists(void);
+
+/*
  * We need this to link with the RSA code, because rsaencrypt()
  * pads its data with random bytes. Since we only use rsadecrypt()
  * and the signing functions, which are deterministic, this should
@@ -1220,7 +1226,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
      * Find out if Pageant is already running.
      */
     already_running = FALSE;
-    if (FindWindow("Pageant", "Pageant"))
+    if (agent_exists())
 	already_running = TRUE;
     else {
 

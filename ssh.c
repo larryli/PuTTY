@@ -366,8 +366,8 @@ static int ssh_channelfind(void *av, void *bv) {
 }
 
 static int alloc_channel_id(void) {
-    const int CHANNEL_NUMBER_OFFSET = 256;
-    int low, high, mid;
+    const unsigned CHANNEL_NUMBER_OFFSET = 256;
+    unsigned low, high, mid;
     int tsize;
     struct ssh_channel *c;
 
@@ -572,8 +572,8 @@ next_packet:
     if (pktin.type == SSH1_MSG_DISCONNECT) {
 	/* log reason code in disconnect message */
 	char buf[256];
-	int msglen = GET_32BIT(pktin.body);
-	int nowlen;
+	unsigned msglen = GET_32BIT(pktin.body);
+	unsigned nowlen;
 	strcpy(buf, "Remote sent disconnect: ");
 	nowlen = strlen(buf);
 	if (msglen > sizeof(buf)-nowlen-1)
@@ -726,8 +726,8 @@ next_packet:
 	/* log reason code in disconnect message */
 	char buf[256];
 	int reason = GET_32BIT(pktin.data+6);
-	int msglen = GET_32BIT(pktin.data+10);
-	int nowlen;
+	unsigned msglen = GET_32BIT(pktin.data+10);
+	unsigned nowlen;
 	if (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) {
 	    sprintf(buf, "Received disconnect message (%s)",
 		    ssh2_disconnect_reasons[reason]);
@@ -2270,7 +2270,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             } else if (pktin.type == SSH1_SMSG_X11_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * X-Server. Give them back a local channel number. */
-                struct ssh_channel *c, *d;
+                struct ssh_channel *c;
 
 		logevent("Received X11 connect request");
 		/* Refuse if X11 forwarding is disabled. */
@@ -2304,7 +2304,6 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
             } else if (pktin.type == SSH1_SMSG_AGENT_OPEN) {
                 /* Remote side is trying to open a channel to talk to our
                  * agent. Give them back a local channel number. */
-                unsigned i;
                 struct ssh_channel *c;
 
 		/* Refuse if agent forwarding is disabled. */
@@ -3920,9 +3919,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                     ssh2_pkt_send();
                     sfree(c);
                 } else {
-                    struct ssh_channel *d;
-                    unsigned i;
-
                     c->localid = alloc_channel_id();
                     c->closes = 0;
                     c->v2.remwindow = ssh2_pkt_getuint32();
