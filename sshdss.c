@@ -101,15 +101,15 @@ static char *dss_fmtkey(void) {
     nibbles = (3 + ssh1_bignum_bitcount(dss_p))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss_p, i/2) >> (4*(i%2))) & 0xF];
-    pos += sprintf(p+pos, "0x");
+    pos += sprintf(p+pos, ",0x");
     nibbles = (3 + ssh1_bignum_bitcount(dss_q))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss_q, i/2) >> (4*(i%2))) & 0xF];
-    pos += sprintf(p+pos, "0x");
+    pos += sprintf(p+pos, ",0x");
     nibbles = (3 + ssh1_bignum_bitcount(dss_g))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss_g, i/2) >> (4*(i%2))) & 0xF];
-    pos += sprintf(p+pos, "0x");
+    pos += sprintf(p+pos, ",0x");
     nibbles = (3 + ssh1_bignum_bitcount(dss_y))/4; if (nibbles<1) nibbles=1;
     for (i=nibbles; i-- ;)
         p[pos++] = hex[(bignum_byte(dss_y, i/2) >> (4*(i%2))) & 0xF];
