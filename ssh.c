@@ -127,6 +127,7 @@ static void ssh_gotdata(unsigned char *data, int datalen) {
     static long len, biglen, to_read;
     static unsigned char *p;
     static int i, pad;
+    static unsigned long realcrc, gotcrc;
 
     crBegin;
     while (1) {
@@ -185,6 +186,15 @@ static void ssh_gotdata(unsigned char *data, int datalen) {
 
 	pktin.type = pktin.data[pad];
 	pktin.body = pktin.data+pad+1;
+
+	realcrc = crc32(pktin.data, biglen-4);
+	gotcrc = (pktin.data[biglen-4] << 24);
+	gotcrc |= (pktin.data[biglen-3] << 16);
+	gotcrc |= (pktin.data[biglen-2] <<  8);
+	gotcrc |= (pktin.data[biglen-1] <<  0);
+	if (gotcrc != realcrc) {
+	    fatalbox("Incorrect CRC received on packet");
+	}
 
 	if (pktin.type == SSH_MSG_DEBUG) {
 	    /* FIXME: log it */
