@@ -179,9 +179,8 @@ of the tag.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
 
- - Update the wishlist - all items that have been fixed since the
-   last release should have their "Fixed-in:" headers updated to
-   include the release version number.
+ - Update the wishlist. This can be done without touching individual
+   items by editing the @releases array in control/bugs2html.
 
  - Check the Docs page links correctly to the release docs. (It
    should do this automatically, owing to the `latest' HTTP
