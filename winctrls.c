@@ -393,6 +393,7 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
     SIZE size;
     char *ret, *p, *q;
     RECT r;
+    HFONT oldfont, newfont;
 
     ret = smalloc(1+strlen(text));
     p = text;
@@ -403,17 +404,21 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
      * Work out the width the text will need to fit in, by doing
      * the same adjustment that the `statictext' function itself
      * will perform.
-     * 
-     * We must first convert from dialog-box units into pixels, and
-     * then from pixels into the `logical units' that Windows uses
-     * within GDI. You can't make this stuff up.
      */
+    SetMapMode(hdc, MM_TEXT);	       /* ensure logical units == pixels */
     r.left = r.top = r.bottom = 0;
     r.right = cp->width;
     MapDialogRect(hwnd, &r);
-    width = MulDiv(r.right, lpx, 72);
+    width = r.right;
 
     nlines = 1;
+
+    /*
+     * We must select the correct font into the HDC before calling
+     * GetTextExtent*, or silly things will happen.
+     */
+    newfont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+    oldfont = SelectObject(hdc, newfont);
 
     while (*p) {
 	if (!GetTextExtentExPoint(hdc, p, strlen(p), width,
@@ -453,6 +458,7 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
 	nlines++;
     }
 
+    SelectObject(hdc, oldfont);
     ReleaseDC(cp->hwnd, hdc);
 
     if (lines) *lines = nlines;
@@ -1747,6 +1753,8 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	HDC hdc = di->hDC;
 	RECT r = di->rcItem;
 	SIZE s;
+
+	SetMapMode(hdc, MM_TEXT);      /* ensure logical units == pixels */
 
 	GetTextExtentPoint32(hdc, (char *)c->data,
 				 strlen((char *)c->data), &s);
