@@ -556,9 +556,6 @@ static void toggle_mode (int mode, int query, int state) {
       case 4:			       /* set insert mode */
 	insert = state;
 	break;
-      case 20:			       /* line feed/new line mode */
-	lfhascr = state;
-	break;
     }
 }
 
