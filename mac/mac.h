@@ -106,6 +106,8 @@ typedef struct Session {
     void *logctx;
     /* Unicode stuff */
     struct unicode_data ucsdata;
+    /* Session closed flag */
+    int session_closed;
 
     /* Mac-specific elements */
     short		fontnum;

@@ -659,9 +659,10 @@ void cleanup_exit(int status)
 }
 
 /* This should only kill the current session, not the whole application. */
-void connection_fatal(void *fontend, char *fmt, ...) {
+void connection_fatal(void *frontend, char *fmt, ...) {
     va_list ap;
     Str255 stuff;
+    Session *s = frontend;
     
     va_start(ap, fmt);
     /* We'd like stuff to be a Pascal string */
@@ -669,7 +670,11 @@ void connection_fatal(void *fontend, char *fmt, ...) {
     va_end(ap);
     ParamText(stuff, NULL, NULL, NULL);
     StopAlert(128, NULL);
-    cleanup_exit(1);
+
+    s->session_closed = TRUE;
+
+    if (s->cfg.close_on_exit == FORCE_ON)
+	mac_closewindow(s->window);
 }
 
 /* Null SSH agent client -- never finds an agent. */
@@ -832,7 +837,41 @@ void update_specials_menu(void *frontend)
 	mac_adjustmenus();
 }
 
-void notify_remote_exit(void *fe) { /* XXX anything needed here? */ }
+void notify_remote_exit(void *frontend)
+{
+    Session *s = frontend;
+    int exitcode;
+
+    if (!s->session_closed &&
+	(exitcode = s->back->exitcode(s->backhandle)) >=0) {
+	s->session_closed = TRUE;
+	if (s->cfg.close_on_exit == FORCE_ON ||
+	    (s->cfg.close_on_exit == AUTO && exitcode == 0)) {
+	    mac_closewindow(s->window);
+	    return;
+	}
+
+	/* The session's dead */
+
+	if (s->ldisc) {
+	    ldisc_free(s->ldisc);
+	    s->ldisc = NULL;
+	}
+
+	if (s->back) {
+	    s->back->free(s->backhandle);
+	    s->backhandle = NULL;
+	    s->back = NULL;
+	    update_specials_menu(s);
+	}
+
+	{
+	    char title[100];
+	    sprintf(title, "%.70s (inactive)", appname);
+	    set_title(s, title);
+	}
+    }
+}
 
 /*
  * Local Variables:

@@ -77,6 +77,7 @@ static void mac_config(int midsession)
         memset(s, 0, sizeof(*s));
         do_defaults(NULL, &s->cfg);
         s->hasfile = FALSE;
+	s->session_closed = FALSE;
     }
 
     /* Copy the configuration somewhere else in case this is a *

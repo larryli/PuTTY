@@ -1015,7 +1015,7 @@ void mac_closeterm(WindowPtr window)
     int alertret;
     Session *s = mac_windowsession(window);
 
-    if (s->cfg.warn_on_close) {
+    if (s->cfg.warn_on_close && !s->session_closed) {
 	ParamText("\pAre you sure you want to close this session?",
 		  NULL, NULL, NULL);
 	alertret=CautionAlert(wQuestion, NULL);
@@ -1028,8 +1028,10 @@ void mac_closeterm(WindowPtr window)
     HideWindow(s->window);
     *s->prev = s->next;
     s->next->prev = s->prev;
-    ldisc_free(s->ldisc);
-    s->back->free(s->backhandle);
+    if (s->ldisc)
+	ldisc_free(s->ldisc);
+    if (s->back)
+	s->back->free(s->backhandle);
     log_free(s->logctx);
     if (s->uni_to_font != NULL)
 	DisposeUnicodeToTextInfo(&s->uni_to_font);
