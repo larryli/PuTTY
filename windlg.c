@@ -653,7 +653,7 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
  */
 static void create_controls(HWND hwnd, int dlgtype, int panel) {
     if (panel == sessionpanelstart) {
-	/* The Session panel. Accelerators used: [acgo] nprthelsdx */
+	/* The Session panel. Accelerators used: [acgo] nprtih elsd x */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Basic options for your PuTTY session",
@@ -669,12 +669,12 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                 radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
                           "&Raw", IDC_PROTRAW,
                           "&Telnet", IDC_PROTTELNET,
-                          "R&login", IDC_PROTRLOGIN, NULL);
+                          "Rlog&in", IDC_PROTRLOGIN, NULL);
             } else {
                 radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
                           "&Raw", IDC_PROTRAW,
                           "&Telnet", IDC_PROTTELNET,
-                          "R&login", IDC_PROTRLOGIN,
+                          "Rlog&in", IDC_PROTRLOGIN,
 #ifdef FWHACK
                           "SS&H/hack",
 #else
@@ -698,7 +698,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == loggingpanelstart) {
-        /* The Logging panel. Accelerators used: [acgo] lpt */
+        /* The Logging panel. Accelerators used: [acgo] tplfw */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling session logging",
@@ -716,7 +716,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == terminalpanelstart) {
-        /* The Terminal panel. Accelerators used: [acgo] &dflbentuw */
+        /* The Terminal panel. Accelerators used: [acgo] wdlben ht */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the terminal emulation",
@@ -733,19 +733,19 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
 
         beginbox(&cp, "Line discipline options",
                  IDC_BOX_TERMINAL2);
-        radioline(&cp, "Local echo:", IDC_ECHOSTATIC, 3,
-                  "A&uto", IDC_ECHOBACKEND,
+        radioline(&cp, "Local ec&ho:", IDC_ECHOSTATIC, 3,
+                  "Auto", IDC_ECHOBACKEND,
                   "Force on", IDC_ECHOYES,
                   "Force off", IDC_ECHONO, NULL);
-        radioline(&cp, "Local line editing:", IDC_EDITSTATIC, 3,
-                  "Au&to", IDC_EDITBACKEND,
+        radioline(&cp, "Local line edi&ting:", IDC_EDITSTATIC, 3,
+                  "Auto", IDC_EDITBACKEND,
                   "Force on", IDC_EDITYES,
                   "Force off", IDC_EDITNO, NULL);
         endbox(&cp);
     }
 
     if (panel == keyboardpanelstart) {
-        /* The Keyboard panel. Accelerators used: [acgo] h?srvlxvnpmietu */
+        /* The Keyboard panel. Accelerators used: [acgo] h?sr~lxv unpymie t */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the effects of keys",
@@ -788,7 +788,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == windowpanelstart) {
-        /* The Window panel. Accelerators used: [acgo] bsdkw4ylpt */
+        /* The Window panel. Accelerators used: [acgo] rmz sdkp w4ylt */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling PuTTY's window",
@@ -799,7 +799,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                   "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
                   "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50,
                   NULL);
-        checkbox(&cp, "Loc&k window size against resizing", IDC_LOCKSIZE);
+        checkbox(&cp, "Lock window size against resi&zing", IDC_LOCKSIZE);
         endbox(&cp);
         beginbox(&cp, "Control the scrollback in the window",
                  IDC_BOX_WINDOW2);
@@ -820,7 +820,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == appearancepanelstart) {
-        /* The Appearance panel. Accelerators used: [acgo] rmkhtibluv */
+        /* The Appearance panel. Accelerators used: [acgo] luvb h ti p */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling PuTTY's appearance",
@@ -853,7 +853,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == translationpanelstart) {
-        /* The Translation panel. Accelerators used: [acgo] xbepnkis */
+        /* The Translation panel. Accelerators used: [acgo] xbep t s */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling character set translation",
@@ -871,11 +871,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         beginbox(&cp, "Enable character set translation on received data",
                  IDC_BOX_TRANSLATION2);
         radiobig(&cp,
-                 "Character set translation:", IDC_XLATSTATIC,
-                 "&None", IDC_NOXLAT,
-                 "&KOI8 / Win-1251", IDC_KOI8WIN1251,
-                 "&ISO-8859-2 / Win-1250", IDC_88592WIN1250,
-                 "&ISO-8859-2 / CP852", IDC_88592CP852, NULL);
+                 "Character set &translation:", IDC_XLATSTATIC,
+                 "None", IDC_NOXLAT,
+                 "KOI8 / Win-1251", IDC_KOI8WIN1251,
+                 "ISO-8859-2 / Win-1250", IDC_88592WIN1250,
+                 "ISO-8859-2 / CP852", IDC_88592CP852, NULL);
         endbox(&cp);
         beginbox(&cp, "Enable character set translation on input data",
                  IDC_BOX_TRANSLATION3);
@@ -885,7 +885,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == selectionpanelstart) {
-        /* The Selection panel. Accelerators used: [acgo] wxst */
+        /* The Selection panel. Accelerators used: [acgo] wx hst */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling copy and paste",
@@ -899,7 +899,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         endbox(&cp);
         beginbox(&cp, "Control the select-one-word-at-a-time mode",
                  IDC_BOX_SELECTION2);
-        charclass(&cp, "Character classes:", IDC_CCSTATIC, IDC_CCLIST,
+        charclass(&cp, "C&haracter classes:", IDC_CCSTATIC, IDC_CCLIST,
                   "&Set", IDC_CCSET, IDC_CCEDIT,
                   "&to class", IDC_CCSTATIC2);
         endbox(&cp);
@@ -947,7 +947,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == telnetpanelstart) {
-        /* The Telnet panel. Accelerators used: [acgo] svldrbf */
+        /* The Telnet panel. Accelerators used: [acgo] svldr bf */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         if (dlgtype == 0) {
@@ -985,7 +985,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == sshpanelstart) {
-        /* The SSH panel. Accelerators used: [acgo] rmakwp123bd */
+        /* The SSH panel. Accelerators used: [acgo] rmfkw pe123bd i */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         if (dlgtype == 0) {
@@ -1000,7 +1000,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                      IDC_BOX_SSH2);
             checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
                      IDC_AUTHTIS);
-            checkbox(&cp, "Allow &agent forwarding", IDC_AGENTFWD);
+            checkbox(&cp, "Allow agent &forwarding", IDC_AGENTFWD);
             editbutton(&cp, "Private &key file for authentication:",
                        IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...", IDC_PKBUTTON);
             endbox(&cp);
@@ -1015,7 +1015,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
                       "&3DES", IDC_CIPHER3DES,
                       "&Blowfish", IDC_CIPHERBLOWF,
                       "&DES", IDC_CIPHERDES, NULL);
-            checkbox(&cp, "Imitate SSH 2 MAC bug in commercial <= v2.3.x",
+            checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
                      IDC_BUGGYMAC);
             endbox(&cp);
         }
