@@ -78,6 +78,9 @@ GLOBAL int seen_disp_event;
 
 GLOBAL int session_closed;
 
+#define LGTYP_NONE  0  /* logmode: no logging */
+#define LGTYP_ASCII 1  /* logmode: pure ascii */
+#define LGTYP_DEBUG 2  /* logmode: all chars of taffic */
 GLOBAL char *logfile;
 
 /*
@@ -188,6 +191,8 @@ typedef struct {
     int fontisbold;
     int fontheight;
     int fontcharset;
+    char logfilename[FILENAME_MAX];
+    int logtype;
     /* Colour options */
     int try_palette;
     int bold_colour;
@@ -283,6 +288,7 @@ void showeventlog (HWND);
 void showabout (HWND);
 void verify_ssh_host_key(char *host, int port, char *keytype,
                          char *keystr, char *fingerprint);
+int askappend(char *filename);
 void registry_cleanup(void);
 void force_normal(HWND hwnd);
 
@@ -315,6 +321,8 @@ void term_blink(int set_cursor);
 void term_paste(void);
 void term_nopaste(void);
 void from_backend(int is_stderr, char *data, int len);
+void logfopen (void); 
+void logfclose (void);
 void term_copyall(void);
 
 /*

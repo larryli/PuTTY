@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include <time.h>
 #include "putty.h"
 
 #define CL_ANSIMIN	0x0001	/* Codes in all ANSI like terminals. */
@@ -155,6 +156,9 @@ static void erase_lots (int, int, int);
 static void swap_screen (int);
 static void update_sbar (void);
 static void deselect (void);
+/* log session to file stuff ... */
+static FILE *lgfp = NULL;
+static void logtraffic(unsigned char c, int logmode);
 
 /*
  * Set up power-on settings for the terminal.
@@ -780,11 +784,8 @@ static int beep_overload = 0;
          * Optionally log the session traffic to a file. Useful for
          * debugging and possibly also useful for actual logging.
          */
-	if (logfile) {
-	    static FILE *fp = NULL;
-	    if (!fp) fp = fopen(logfile, "wb");
-	    if (fp) fputc (c, fp);
-	}
+	logtraffic((unsigned char)c, LGTYP_DEBUG);
+
 	/* Note only VT220+ are 8-bit VT102 is seven bit, it shouldn't even
 	 * be able to display 8-bit characters, but I'll let that go 'cause
 	 * of i18n.
@@ -856,6 +857,7 @@ static int beep_overload = 0;
 		fix_cpos;
 		seen_disp_event = TRUE;
 		paste_hold = 0;
+		logtraffic((unsigned char)c,LGTYP_ASCII);
 		break;
 	      case '\013':
 	      case '\014':
@@ -871,6 +873,7 @@ static int beep_overload = 0;
 		wrapnext = FALSE;
 		seen_disp_event = 1;
 		paste_hold = 0;
+		logtraffic((unsigned char)c,LGTYP_ASCII);
 		break;
 	      case '\t':
 		{
@@ -946,8 +949,10 @@ static int beep_overload = 0;
 		}
 		/*FALLTHROUGH*/
 	    default:
-	        *cpos++ = xlat_tty2scr((unsigned char)c) | curr_attr |
+		*cpos = xlat_tty2scr((unsigned char)c) | curr_attr |
 		    (c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
+		logtraffic((unsigned char)c, LGTYP_ASCII);
+		cpos++;
 		break;
 	    }
 	    curs_x++;
@@ -2229,4 +2234,65 @@ void from_backend(int is_stderr, char *data, int len) {
 	    term_out();
 	inbuf[inbuf_head++] = *data++;
     }
+}
+
+/*
+ * Log session traffic.
+ */
+void logtraffic(unsigned char c, int logmode) {
+    if (cfg.logtype > 0) {
+	if (cfg.logtype == logmode) {
+	    /* deferred open file from pgm start? */
+	    if (!lgfp) logfopen();
+	    if (lgfp) fputc (c, lgfp);
+    	}
+    }
+}
+
+/* open log file append/overwrite mode */
+void logfopen(void) {
+    char buf[256];
+    time_t t;
+    struct tm *tm;
+    char writemod[4];
+
+    if (!cfg.logtype)
+	return;
+    sprintf (writemod, "wb");	       /* default to rewrite */
+    lgfp = fopen(cfg.logfilename, "r");  /* file already present? */
+    if (lgfp) {
+	int i;
+	fclose(lgfp);
+	i = askappend(cfg.logfilename);
+	if (i == 1)
+	    writemod[0] = 'a';	       /* set append mode */
+	else if (i == 0) {	       /* cancelled */
+	    lgfp = NULL;
+	    return;
+	}
+    }
+
+    lgfp = fopen(cfg.logfilename, writemod);
+    if (lgfp) { /* enter into event log */
+	sprintf(buf, "%s session log (%s mode) to file : ",
+		(writemod[0] == 'a') ? "Appending" : "Writing new",
+		(cfg.logtype == LGTYP_ASCII ? "ASCII" :
+		 cfg.logtype == LGTYP_DEBUG ? "raw" : "<ukwn>")  );
+	/* Make sure we do not exceed the output buffer size */
+	strncat (buf, cfg.logfilename, 128);
+	buf[strlen(buf)] = '\0';
+	logevent(buf);
+
+        /* --- write header line iinto log file */
+	fputs ("=~=~=~=~=~=~=~=~=~=~=~= PuTTY log ", lgfp);
+	time(&t);
+	tm = localtime(&t);
+	strftime(buf, 24, "%Y.%m.%d %H:%M:%S", tm);
+	fputs (buf, lgfp);
+	fputs (" =~=~=~=~=~=~=~=~=~=~=~=\r\n", lgfp);
+    }
+}
+
+void logfclose (void) {
+    if (lgfp) { fclose(lgfp); lgfp = NULL; }
 }

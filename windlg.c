@@ -230,6 +230,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     terminalpanelstart,
     IDC_TITLE_TERMINAL,
     IDC_BOX_TERMINAL1, IDC_BOXT_TERMINAL1,
+    IDC_BOX_TERMINAL2, IDC_BOXT_TERMINAL2,
     IDC_WRAPMODE,
     IDC_DECOM,
     IDC_LFHASCR,
@@ -237,6 +238,13 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BCE,
     IDC_BLINKTEXT,
     IDC_LDISCTERM,
+    IDC_LSTATSTATIC,
+    IDC_LSTATOFF,
+    IDC_LSTATASCII,
+    IDC_LSTATRAW,
+    IDC_LGFSTATIC,
+    IDC_LGFEDIT,
+    IDC_LGFBUTTON,
     terminalpanelend,
 
     windowpanelstart,
@@ -473,6 +481,11 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
     SetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed);
     SetDlgItemText (hwnd, IDC_LOGEDIT, cfg.username);
+    SetDlgItemText (hwnd, IDC_LGFEDIT, cfg.logfilename);
+    CheckRadioButton(hwnd, IDC_LSTATOFF, IDC_LSTATRAW,
+		     cfg.logtype == 0 ? IDC_LSTATOFF :
+		     cfg.logtype == 1 ? IDC_LSTATASCII :
+		     IDC_LSTATRAW);
     {
 	char *p = cfg.environmt;
 	while (*p) {
@@ -704,7 +717,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             hsession = treeview_insert(&tvfaff, 0, "Session");
 	}
 
-        /* The Terminal panel. Accelerators used: [acgo] &dlbenu */
+        /* The Terminal panel. Accelerators used: [acgo] &dflbenuw */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
@@ -720,6 +733,18 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
             checkbox(&cp, "&Use local terminal line discipline", IDC_LDISCTERM);
             endbox(&cp);
+
+	    beginbox(&cp, "Control session logging",
+		     IDC_BOX_TERMINAL2, IDC_BOXT_TERMINAL2);
+	    radiobig(&cp,
+		     "Session logging:", IDC_LSTATSTATIC,
+		     "Logging turned &off completely", IDC_LSTATOFF,
+		     "Log printable output only", IDC_LSTATASCII,
+		     "Log all session output", IDC_LSTATRAW, NULL);
+	    editbutton(&cp, "Log &file name:",
+		       IDC_LGFSTATIC, IDC_LGFEDIT, "Bro&wse...",
+		       IDC_LGFBUTTON);
+	    endbox(&cp);
 
             treeview_insert(&tvfaff, 0, "Terminal");
 	}
@@ -1428,6 +1453,43 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    GetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype,
 			    sizeof(cfg.termtype)-1);
 	    break;
+	  case IDC_LGFEDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+	    GetDlgItemText (hwnd, IDC_LGFEDIT, cfg.logfilename,
+			    sizeof(cfg.logfilename)-1);
+	    break;
+	  case IDC_LGFBUTTON:
+            memset(&of, 0, sizeof(of));
+#ifdef OPENFILENAME_SIZE_VERSION_400
+            of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
+#else
+            of.lStructSize = sizeof(of);
+#endif
+            of.hwndOwner = hwnd;
+            of.lpstrFilter = "All Files\0*\0\0\0";
+            of.lpstrCustomFilter = NULL;
+            of.nFilterIndex = 1;
+            of.lpstrFile = filename; strcpy(filename, cfg.keyfile);
+            of.nMaxFile = sizeof(filename);
+            of.lpstrFileTitle = NULL;
+            of.lpstrInitialDir = NULL;
+            of.lpstrTitle = "Select session log file";
+            of.Flags = 0;
+            if (GetSaveFileName(&of)) {
+                strcpy(cfg.keyfile, filename);
+                SetDlgItemText (hwnd, IDC_LGFEDIT, cfg.keyfile);
+            }
+	    break;
+	  case IDC_LSTATOFF:
+	  case IDC_LSTATASCII:
+	  case IDC_LSTATRAW:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED) {
+		if (IsDlgButtonChecked (hwnd, IDC_LSTATOFF)) cfg.logtype = 0;
+		if (IsDlgButtonChecked (hwnd, IDC_LSTATASCII)) cfg.logtype = 1;
+		if (IsDlgButtonChecked (hwnd, IDC_LSTATRAW)) cfg.logtype = 2;
+	    }
+	    break;
 	  case IDC_TSEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE)
 		GetDlgItemText (hwnd, IDC_TSEDIT, cfg.termspeed,
@@ -1890,4 +1952,31 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
             exit(0);
         store_host_key(host, port, keytype, keystr);
     }
+}
+
+/*
+ * Ask whether to wipe a session log file before writing to it.
+ * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
+ */
+int askappend(char *filename) {
+    static const char mbtitle[] = "PuTTY Log to File";
+    static const char msgtemplate[] =
+	"The session log file \"%.*s\" already exists.\n"
+	"You can overwrite it with a new session log,\n"
+	"append your session log to the end of it,\n"
+	"or disable session logging for this session.\n"
+	"Hit Yes to wipe the file, No to append to it,\n"
+	"or Cancel to disable logging.";
+    char message[sizeof(msgtemplate) + FILENAME_MAX];
+    int mbret;
+    sprintf(message, msgtemplate, FILENAME_MAX, filename);
+
+    mbret = MessageBox(NULL, message, mbtitle,
+			MB_ICONQUESTION | MB_YESNOCANCEL);
+    if (mbret == IDYES)
+	return 2;
+    else if (mbret == IDNO)
+	return 1;
+    else
+	return 0;
 }

@@ -32,6 +32,8 @@ void save_settings (char *section, int do_host, Config *cfg) {
     if (do_host) {
 	write_setting_s (sesskey, "HostName", cfg->host);
 	write_setting_i (sesskey, "PortNumber", cfg->port);
+	write_setting_s (sesskey, "LogFileName", cfg->logfilename);
+	write_setting_i (sesskey, "LogType", cfg->logtype);
         p = "raw";
         for (i = 0; backends[i].name != NULL; i++)
             if (backends[i].protocol == cfg->protocol) {
@@ -150,6 +152,9 @@ void load_settings (char *section, int do_host, Config *cfg) {
 
     gpps (sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
     gppi (sesskey, "PortNumber", default_port, &cfg->port);
+    gpps (sesskey, "LogFileName", "putty.log",
+	  cfg->logfilename, sizeof(cfg->logfilename));
+    gppi (sesskey, "LogType", 0, &cfg->logtype);
 
     gpps (sesskey, "Protocol", "default", prot, 10);
     cfg->protocol = default_protocol;

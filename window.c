@@ -149,6 +149,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 
 	default_protocol = DEFAULT_PROTOCOL;
 	default_port = DEFAULT_PORT;
+	cfg.logtype = LGTYP_NONE;
 
 	do_defaults(NULL, &cfg);
 
@@ -169,11 +170,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		tolower(p[2]) == 'h') {
 		default_protocol = cfg.protocol = PROT_SSH;
 		default_port = cfg.port = 22;
-	    } else if (q == p + 3 &&
-		tolower(p[0]) == 'l' &&
-		tolower(p[1]) == 'o' &&
-		tolower(p[2]) == 'g') {
-                logfile = "putty.log";
 	    } else if (q == p + 7 &&
 		tolower(p[0]) == 'c' &&
 		tolower(p[1]) == 'l' &&
@@ -535,6 +531,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
      * Finally show the window!
      */
     ShowWindow (hwnd, show);
+
+    /*
+     * Open the initial log file if there is one.
+     */
+    logfopen();
 
     /*
      * Set the palette up.
@@ -1171,14 +1172,27 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
           case IDM_RECONF:
             {
                 int prev_alwaysontop = cfg.alwaysontop;
+		char oldlogfile[FILENAME_MAX];
+		int oldlogtype;
 		int need_setwpos = FALSE;
 		int old_fwidth, old_fheight;
+
+		strcpy(oldlogfile, cfg.logfilename);
+		oldlogtype = cfg.logtype;
 		cfg.width = cols;
 		cfg.height = rows;
 		old_fwidth = font_width;
 		old_fheight = font_height;
+
                 if (!do_reconfig(hwnd))
                     break;
+
+		if (strcmp(oldlogfile, cfg.logfilename) ||
+		    oldlogtype != cfg.logtype) {
+		    logfclose();       /* reset logging */
+		    logfopen();
+		}
+
                 just_reconfigged = TRUE;
                 {
                     int i;
