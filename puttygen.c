@@ -789,10 +789,13 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
         EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
-	if (state->ssh2)
+	if (state->ssh2) {
+	    state->ssh2key.data = &state->key;
+	    state->ssh2key.alg = &ssh_rsa;
 	    state->commentptr = &state->ssh2key.comment;
-	else
+	} else {
 	    state->commentptr = &state->key.comment;
+	}
         /*
          * Invent a comment for the key. We'll do this by including
          * the date in it. This will be so horrifyingly ugly that
