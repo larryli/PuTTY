@@ -392,6 +392,12 @@ next_packet:
 
     if (cipher)
 	cipher->decrypt(pktin.data, st->biglen);
+#if 0
+    debug(("Got packet len=%d pad=%d\r\n", st->len, st->pad));
+    for (st->i = 0; st->i < st->biglen; st->i++)
+        debug(("  %02x", (unsigned char)pktin.data[st->i]));
+    debug(("\r\n"));
+#endif
 
     pktin.type = pktin.data[st->pad];
     pktin.body = pktin.data + st->pad + 1;
@@ -599,6 +605,12 @@ static void s_wrpkt(void) {
     PUT_32BIT(pktout.data+biglen, crc);
     PUT_32BIT(pktout.data, len);
 
+#if 0
+    debug(("Sending packet len=%d\r\n", biglen+4));
+    for (i = 0; i < biglen+4; i++)
+        debug(("  %02x", (unsigned char)pktout.data[i]));
+    debug(("\r\n"));
+#endif
     if (cipher)
 	cipher->encrypt(pktout.data+4, biglen);
 
