@@ -1,7 +1,0 @@
-make.out
-*.NJ
-Makefile.mpw
-PuTTY.68k PuTTY.cfm68k PuTTY.ppc PuTTY.carbon
-PuTTYtel.68k PuTTYtel.cfm68k PuTTYtel.ppc PuTTYtel.carbon
-PuTTYgen.68k PuTTYgen.cfm68k PuTTYgen.ppc PuTTYgen.carbon
-*.rsrc
