@@ -194,6 +194,7 @@ typedef struct {
     VT_Mode vtmode;
     int xlat_enablekoiwin;
     int xlat_88592w1250;
+    int xlat_88592cp852;
     int xlat_capslockcyr;
 } Config;
 

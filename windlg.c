@@ -997,6 +997,7 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_NOXLAT,
     IDC_KOI8WIN1251,
     IDC_88592WIN1250,
+    IDC_88592CP852,
     IDC_CAPSLOCKCYR,
     IDC_VTSTATIC,
     IDC_VTXWINDOWS,
@@ -1152,8 +1153,9 @@ static void init_dlg_ctrls(HWND hwnd) {
     SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[0][1], FALSE);
     SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[0][2], FALSE);
 
-    CheckRadioButton (hwnd, IDC_NOXLAT, IDC_88592WIN1250,
+    CheckRadioButton (hwnd, IDC_NOXLAT, IDC_88592CP852,
 		      cfg.xlat_88592w1250 ? IDC_88592WIN1250 :
+		      cfg.xlat_88592cp852 ? IDC_88592CP852 :
 		      cfg.xlat_enablekoiwin ? IDC_KOI8WIN1251 :
 		      IDC_NOXLAT);
     CheckDlgButton (hwnd, IDC_CAPSLOCKCYR, cfg.xlat_capslockcyr);
@@ -1440,7 +1442,8 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		     "Character set translation:", IDC_XLATSTATIC,
 		     "&None", IDC_NOXLAT,
 		     "&KOI8 / Win-1251", IDC_KOI8WIN1251,
-		     "&ISO-8859-2 / Win-1250", IDC_88592WIN1250, NULL);
+		     "&ISO-8859-2 / Win-1250", IDC_88592WIN1250,
+                     "&ISO-8859-2 / CP852", IDC_88592CP852, NULL);
             endbox(&cp);
             beginbox(&cp, "Enable character set translation on input data",
                      IDC_BOX_TRANSLATION3, IDC_BOXT_TRANSLATION3);
@@ -2221,10 +2224,13 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	  case IDC_NOXLAT:
 	  case IDC_KOI8WIN1251:
 	  case IDC_88592WIN1250:
+	  case IDC_88592CP852:
 	    cfg.xlat_enablekoiwin =
 		IsDlgButtonChecked (hwnd, IDC_KOI8WIN1251);
 	    cfg.xlat_88592w1250 =
 		IsDlgButtonChecked (hwnd, IDC_88592WIN1250);
+	    cfg.xlat_88592cp852 =
+		IsDlgButtonChecked (hwnd, IDC_88592CP852);
 	    break;
 	  case IDC_CAPSLOCKCYR:
 	    if (HIWORD(wParam) == BN_CLICKED ||
