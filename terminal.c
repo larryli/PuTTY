@@ -4045,12 +4045,14 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
     char output[10];
     char *p = output;
     int prependesc = FALSE;
+#if 0
     int i;
 
     fprintf(stderr, "keysym = %d, %d chars:", keysym, tlen);
     for (i = 0; i < tlen; i++)
 	fprintf(stderr, " %04x", text[i]);
     fprintf(stderr, "\n");
+#endif
 
     /* XXX Num Lock */
     if ((flags & PKF_REPEAT) && term->repeat_off)
@@ -4440,23 +4442,27 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	term_seen_key_event(term);
 
 	if (prependesc) {
+#if 0
 	    fprintf(stderr, "sending ESC\n");
+#endif
 	    ldisc_send(term->ldisc, "\x1b", 1, 1);
 	}
 
 	if (p > output) {
+#if 0
 	    fprintf(stderr, "sending %d bytes:", p - output);
 	    for (i = 0; i < p - output; i++)
 		fprintf(stderr, " %02x", output[i]);
 	    fprintf(stderr, "\n");
-
+#endif
 	    ldisc_send(term->ldisc, output, p - output, 1);
 	} else if (tlen > 0) {
+#if 0
 	    fprintf(stderr, "sending %d unichars:", tlen);
 	    for (i = 0; i < tlen; i++)
 		fprintf(stderr, " %04x", text[i]);
 	    fprintf(stderr, "\n");
-
+#endif
 	    luni_send(term->ldisc, text, tlen, 1);
 	}
     }
