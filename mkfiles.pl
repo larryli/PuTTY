@@ -72,7 +72,7 @@ print
 "\n".
 "CFLAGS = -mno-cygwin -Wall -O2 -D_WINDOWS -DDEBUG -DWIN32S_COMPAT -D_NO_OLDNAMES -I.\n".
 "LDFLAGS = -mno-cygwin -s\n".
-"RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 --define WINVER=0x0400\n".
+"RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 --define WINVER=0x0400 --define MINGW32_FIX=1\n".
 "LIBS = -ladvapi32 -luser32 -lgdi32 -lwsock32 -lcomctl32 -lcomdlg32\n".
 "OBJ=o\n".
 "RES=res.o\n".
