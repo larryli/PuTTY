@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE
+#define _XOPEN_SOURCE_EXTENDED
 #include <features.h>
 
 #include <stdio.h>
@@ -6,6 +7,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #include "putty.h"
 
@@ -19,11 +22,6 @@
 int pty_master_fd;
 
 static void pty_size(void);
-
-static void c_write(char *buf, int len)
-{
-    from_backend(0, buf, len);
-}
 
 /*
  * Called to set up the pty.
@@ -62,7 +60,7 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
     slavefd = open(name, O_RDWR);
     if (slavefd < 0) {
 	perror("slave pty: open");
-	return 1;
+	exit(1);
     }
 
     /*
@@ -71,7 +69,7 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
     pid = fork();
     if (pid < 0) {
 	perror("fork");
-	return 1;
+	exit(1);
     }
 
     if (pid == 0) {
@@ -136,7 +134,11 @@ static int pty_sendbuffer(void)
  */
 static void pty_size(void)
 {
-    /* FIXME: will need to do TIOCSWINSZ or whatever. */
+    struct winsize size;
+
+    size.ws_row = (unsigned short)rows;
+    size.ws_col = (unsigned short)cols;
+    ioctl(pty_master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }
 

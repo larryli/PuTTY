@@ -37,6 +37,7 @@ struct gui_data {
     char *pasteout_data;
     int pasteout_data_len;
     int font_width, font_height;
+    int ignore_sbar;
 };
 
 static struct gui_data the_inst;
@@ -175,18 +176,29 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
+    int w, h, need_size = 0;
 
-    if (inst->pixmap)
-	gdk_pixmap_unref(inst->pixmap);
+    w = (event->width - 2*cfg.window_border) / inst->font_width;
+    h = (event->height - 2*cfg.window_border) / inst->font_height;
 
-    inst->pixmap = gdk_pixmap_new(widget->window,
-				  (cfg.width * inst->font_width +
-				   2*cfg.window_border),
-				  (cfg.height * inst->font_height +
-				   2*cfg.window_border), -1);
-
-    {
+    if (w != cfg.width || h != cfg.height) {
+	if (inst->pixmap) {
+	    gdk_pixmap_unref(inst->pixmap);
+	    inst->pixmap = NULL;
+	}
+	cfg.width = w;
+	cfg.height = h;
+	need_size = 1;
+    }
+    if (!inst->pixmap) {
 	GdkGC *gc;
+
+	inst->pixmap = gdk_pixmap_new(widget->window,
+				      (cfg.width * inst->font_width +
+				       2*cfg.window_border),
+				      (cfg.height * inst->font_height +
+				       2*cfg.window_border), -1);
+
 	gc = gdk_gc_new(inst->area->window);
 	gdk_gc_set_foreground(gc, &inst->cols[18]);   /* default background */
 	gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
@@ -195,11 +207,14 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	gdk_gc_unref(gc);
     }
 
+    if (need_size) {
+	term_size(h, w, cfg.savelines);
+    }
+
     /*
      * Set up the colour map.
      */
-    inst->colmap = gdk_colormap_get_system();
-    {
+    if (!inst->colmap) {
 	static const int ww[] = {
 	    6, 7, 8, 9, 10, 11, 12, 13,
 	    14, 15, 16, 17, 18, 19, 20, 21,
@@ -207,6 +222,8 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	};
 	gboolean success[NCOLOURS];
 	int i;
+
+	inst->colmap = gdk_colormap_get_system();
 
 	assert(lenof(ww) == NCOLOURS);
 
@@ -851,12 +868,15 @@ void set_sbar(int total, int start, int page)
     inst->sbar_adjust->page_size = page;
     inst->sbar_adjust->step_increment = 1;
     inst->sbar_adjust->page_increment = page/2;
+    inst->ignore_sbar = TRUE;
     gtk_adjustment_changed(inst->sbar_adjust);
+    inst->ignore_sbar = FALSE;
 }
 
 void scrollbar_moved(GtkAdjustment *adj, gpointer data)
 {
-    term_scroll(1, (int)adj->value);
+    if (!inst->ignore_sbar)
+	term_scroll(1, (int)adj->value);
 }
 
 void sys_cursor(int x, int y)
@@ -1114,8 +1134,8 @@ int main(int argc, char **argv)
     inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, 0, 0, 0, 0));
     inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
-    gtk_box_pack_start(inst->hbox, inst->area, FALSE, FALSE, 0);
-    gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
+    gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
+    gtk_box_pack_end(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(inst->hbox));
 
