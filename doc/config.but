@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.84 2004/06/20 17:07:36 jacob Exp $
+\versionid $Id: config.but,v 1.85 2004/06/27 11:04:39 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1549,7 +1549,7 @@ be configured within PuTTY.
 it may send out more in quick succession and if terminate the connection
 if no response is received.
 
-TCP keepalives may be useful for ensuring that half-open connections
+TCP keepalives may be more useful for ensuring that half-open connections
 are terminated than for keeping a connection alive.
 
 TCP keepalives are disabled by default.
