@@ -269,7 +269,8 @@ static const struct ssh_compress *sccomp = NULL;
 static const struct ssh_kex *kex = NULL;
 static const struct ssh_signkey *hostkey = NULL;
 static unsigned char ssh2_session_id[20];
-int (*ssh_get_password)(const char *prompt, char *str, int maxlen) = NULL;
+int (*ssh_get_line)(const char *prompt, char *str, int maxlen,
+                    int is_pw) = NULL;
 
 static char *savedhost;
 static int savedport;
@@ -1503,43 +1504,56 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static int pos = 0;
 	static char c;
 	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
-	    c_write_str("login as: ");
-            ssh_send_ok = 1;
-	    while (pos >= 0) {
-		crWaitUntil(!ispkt);
-		while (inlen--) switch (c = *in++) {
-		  case 10: case 13:
-		    username[pos] = 0;
-		    pos = -1;
-		    break;
-		  case 8: case 127:
-		    if (pos > 0) {
-			c_write_str("\b \b");
-			pos--;
-		    }
-		    break;
-		  case 21: case 27:
-		    while (pos > 0) {
-			c_write_str("\b \b");
-			pos--;
-		    }
-		    break;
-		  case 3: case 4:
-		    random_save_seed();
-		    exit(0);
-		    break;
-		  default:
-		    if (((c >= ' ' && c <= '~') ||
-                         ((unsigned char)c >= 160)) && pos < 40) {
-			username[pos++] = c;
-			c_write(&c, 1);
-		    }
-		    break;
-		}
-	    }
-	    c_write_str("\r\n");
-	    username[strcspn(username, "\n\r")] = '\0';
-	} else {
+            if (ssh_get_line) {
+                if (!ssh_get_line("login as: ",
+                                  username, sizeof(username), FALSE)) {
+                    /*
+                     * get_line failed to get a username.
+                     * Terminate.
+                     */
+                    logevent("No username provided. Abandoning session.");
+                    ssh_state = SSH_STATE_CLOSED;
+                    crReturn(1);
+                }
+            } else {
+                c_write_str("login as: ");
+                ssh_send_ok = 1;
+                while (pos >= 0) {
+                    crWaitUntil(!ispkt);
+                    while (inlen--) switch (c = *in++) {
+                      case 10: case 13:
+                        username[pos] = 0;
+                        pos = -1;
+                        break;
+                      case 8: case 127:
+                        if (pos > 0) {
+                            c_write_str("\b \b");
+                            pos--;
+                        }
+                        break;
+                      case 21: case 27:
+                        while (pos > 0) {
+                            c_write_str("\b \b");
+                            pos--;
+                        }
+                        break;
+                      case 3: case 4:
+                        random_save_seed();
+                        exit(0);
+                        break;
+                      default:
+                        if (((c >= ' ' && c <= '~') ||
+                             ((unsigned char)c >= 160)) && pos < 40) {
+                            username[pos++] = c;
+                            c_write(&c, 1);
+                        }
+                        break;
+                    }
+                }
+                c_write_str("\r\n");
+                username[strcspn(username, "\n\r")] = '\0';
+            }
+        } else {
 	    strncpy(username, cfg.username, 99);
 	    username[99] = '\0';
 	}
@@ -1741,13 +1755,12 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             sfree(comment);
         }
 
-	if (ssh_get_password) {
-	    if (!ssh_get_password(prompt, password, sizeof(password))) {
+	if (ssh_get_line) {
+	    if (!ssh_get_line(prompt, password, sizeof(password), TRUE)) {
                 /*
-                 * get_password failed to get a password (for
-                 * example because one was supplied on the command
-                 * line which has already failed to work).
-                 * Terminate.
+                 * get_line failed to get a password (for example
+                 * because one was supplied on the command line
+                 * which has already failed to work). Terminate.
                  */
                 logevent("No more passwords to try");
                 ssh_state = SSH_STATE_CLOSED;
@@ -2843,40 +2856,53 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	 */
 	pos = 0;
 	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
-	    c_write_str("login as: ");
-	    ssh_send_ok = 1;
-	    while (pos >= 0) {
-		crWaitUntilV(!ispkt);
-		while (inlen--) switch (c = *in++) {
-		  case 10: case 13:
-		    username[pos] = 0;
-		    pos = -1;
-		    break;
-		  case 8: case 127:
-		    if (pos > 0) {
-			c_write_str("\b \b");
-			pos--;
-		    }
-		    break;
-		  case 21: case 27:
-		    while (pos > 0) {
-			c_write_str("\b \b");
-			pos--;
-		    }
-		    break;
-		  case 3: case 4:
-		    random_save_seed();
-		    exit(0);
-		    break;
-		  default:
-		    if (((c >= ' ' && c <= '~') ||
-			 ((unsigned char)c >= 160)) && pos < 40) {
-			username[pos++] = c;
-			c_write(&c, 1);
-		    }
-		    break;
-		}
-	    }
+            if (ssh_get_line) {
+                if (!ssh_get_line("login as: ",
+                                  username, sizeof(username), FALSE)) {
+                    /*
+                     * get_line failed to get a username.
+                     * Terminate.
+                     */
+                    logevent("No username provided. Abandoning session.");
+                    ssh_state = SSH_STATE_CLOSED;
+                    crReturn(1);
+                }
+            } else {
+                c_write_str("login as: ");
+                ssh_send_ok = 1;
+                while (pos >= 0) {
+                    crWaitUntilV(!ispkt);
+                    while (inlen--) switch (c = *in++) {
+                      case 10: case 13:
+                        username[pos] = 0;
+                        pos = -1;
+                        break;
+                      case 8: case 127:
+                        if (pos > 0) {
+                            c_write_str("\b \b");
+                            pos--;
+                        }
+                        break;
+                      case 21: case 27:
+                        while (pos > 0) {
+                            c_write_str("\b \b");
+                            pos--;
+                        }
+                        break;
+                      case 3: case 4:
+                        random_save_seed();
+                        exit(0);
+                        break;
+                      default:
+                        if (((c >= ' ' && c <= '~') ||
+                             ((unsigned char)c >= 160)) && pos < 40) {
+                            username[pos++] = c;
+                            c_write(&c, 1);
+                        }
+                        break;
+                    }
+                }
+            }
 	    c_write_str("\r\n");
 	    username[strcspn(username, "\n\r")] = '\0';
 	} else {
@@ -3158,13 +3184,14 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    }
 
 	    if (need_pw) {
-		if (ssh_get_password) {
-		    if (!ssh_get_password(pwprompt, password, sizeof(password))) {
+		if (ssh_get_line) {
+		    if (!ssh_get_line(pwprompt, password,
+                                      sizeof(password), TRUE)) {
 			/*
-			 * get_password failed to get a password (for
-			 * example because one was supplied on the command
-			 * line which has already failed to work).
-			 * Terminate.
+			 * get_line failed to get a password (for
+			 * example because one was supplied on the
+			 * command line which has already failed to
+			 * work). Terminate.
 			 */
 			logevent("No more passwords to try");
 			ssh_state = SSH_STATE_CLOSED;

@@ -382,7 +382,8 @@ extern Backend telnet_backend;
  * Exports from ssh.c.
  */
 
-extern int (*ssh_get_password)(const char *prompt, char *str, int maxlen);
+extern int (*ssh_get_line)(const char *prompt, char *str, int maxlen,
+                           int is_pw);
 extern Backend ssh_backend;
 
 /*

@@ -395,12 +395,12 @@ static void bump(char *fmt, ...)
     exit(1);
 }
 
-static int get_password(const char *prompt, char *str, int maxlen)
+static int get_line(const char *prompt, char *str, int maxlen, int is_pw)
 {
     HANDLE hin, hout;
-    DWORD savemode, i;
+    DWORD savemode, newmode, i;
 
-    if (password) {
+    if (is_pw && password) {
         static int tried_once = 0;
 
         if (tried_once) {
@@ -423,8 +423,12 @@ static int get_password(const char *prompt, char *str, int maxlen)
 	    bump("Cannot get standard input/output handles");
 
 	GetConsoleMode(hin, &savemode);
-	SetConsoleMode(hin, (savemode & (~ENABLE_ECHO_INPUT)) |
-		       ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT);
+        newmode = savemode | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT;
+        if (is_pw)
+            newmode &= ~ENABLE_ECHO_INPUT;
+        else
+            newmode |= ENABLE_ECHO_INPUT;
+        SetConsoleMode(hin, newmode);
 
 	WriteFile(hout, prompt, strlen(prompt), &i, NULL);
 	ReadFile(hin, str, maxlen-1, &i, NULL);
@@ -434,7 +438,8 @@ static int get_password(const char *prompt, char *str, int maxlen)
 	if ((int)i > maxlen) i = maxlen-1; else i = i - 2;
 	str[i] = '\0';
 
-	WriteFile(hout, "\r\n", 2, &i, NULL);
+	if (is_pw)
+            WriteFile(hout, "\r\n", 2, &i, NULL);
     }
 
     return 1;
@@ -1223,7 +1228,7 @@ int main(int argc, char *argv[])
     default_protocol = PROT_TELNET;
 
     flags = FLAG_STDERR;
-    ssh_get_password = &get_password;
+    ssh_get_line = &get_line;
     init_winsock();
     sk_init();
 
