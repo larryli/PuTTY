@@ -1091,15 +1091,22 @@ static int CALLBACK ConnectionProc (HWND hwnd, UINT msg,
         multiedit(&cp,
                   "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
                   "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
-        radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
-                  "&Raw", IDC_PROTRAW,
-                  "&Telnet", IDC_PROTTELNET,
+        if (backends[2].backend == NULL) {
+            /* this is PuTTYtel, so only two protocols available */
+            radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
+                      "&Raw", IDC_PROTRAW,
+                      "&Telnet", IDC_PROTTELNET, NULL);
+        } else {
+            radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
+                      "&Raw", IDC_PROTRAW,
+                      "&Telnet", IDC_PROTTELNET,
 #ifdef FWHACK
-                  "SS&H/hack",
+                      "SS&H/hack",
 #else
-                  "SS&H",
+                      "SS&H",
 #endif
-                  IDC_PROTSSH, NULL);
+                      IDC_PROTSSH, NULL);
+        }
         sesssaver(&cp, "Stor&ed Sessions",
                   IDC_SESSSTATIC, IDC_SESSEDIT, IDC_SESSLIST,
                   "&Load", IDC_SESSLOAD,

@@ -1,3 +1,0 @@
-/* Stub rc file for the PuTTYtel ssh-free binary */
-#define NO_SSH
-#include "win_res.rc"

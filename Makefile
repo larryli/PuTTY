@@ -72,10 +72,8 @@ OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) tree234.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ)
-##-- resources putty
+##-- resources putty puttytel
 PRESRC = win_res.$(RES)
-##-- resources puttytel
-TRESRC = nosshres.$(RES)
 ##-- resources pageant
 PAGERC = pageant.$(RES)
 ##-- resources pscp
@@ -104,7 +102,7 @@ all: putty.exe puttytel.exe pscp.exe plink.exe pageant.exe
 putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe @putty.rsp
 
-puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
+puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(PRESRC) puttytel.rsp
 	link $(LFLAGS) -out:puttytel.exe @puttytel.rsp
 
 pageant.exe: $(PAGE1) $(PAGE2) $(PAGERC) pageant.rsp
@@ -138,7 +136,7 @@ puttytel.rsp: makefile
 	echo $(LOBJS1) >> puttytel.rsp
 	echo $(TOBJS) >> puttytel.rsp
 	echo $(MOBJS) >> puttytel.rsp
-	echo $(TRESRC) >> puttytel.rsp
+	echo $(PRESRC) >> puttytel.rsp
 	echo $(LIBS1) >> puttytel.rsp
 	echo $(LIBS2) >> puttytel.rsp
 	echo $(SOCK1) >> puttytel.rsp
@@ -223,12 +221,6 @@ win_res.$(RES): win_res.rc win_res.h putty.ico
 ##--
 win_res.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
-
-##-- dependencies
-nosshres.$(RES): nosshres.rc win_res.rc win_res.h putty.ico
-##--
-nosshres.$(RES):
-	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 nosshres.rc
 
 ##-- dependencies
 scp.$(RES): scp.rc scp.ico
