@@ -13,7 +13,7 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 PUTTYOBJS = window.obj windlg.obj terminal.obj telnet.obj raw.obj
 OBJS1 = misc.obj noise.obj
 OBJS2 = ssh.obj sshcrc.obj sshdes.obj sshmd5.obj sshrsa.obj sshrand.obj
-OBJS3 = sshsha.obj sshblowf.obj version.obj
+OBJS3 = sshsha.obj sshblowf.obj version.obj sizetip.c
 RESRC = win_res.res
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = wsock32.lib comctl32.lib comdlg32.lib
@@ -39,9 +39,10 @@ link.rsp: makefile
 	echo $(LIBS1) >> link.rsp
 	echo $(LIBS2) >> link.rsp
 
-window.obj: window.c putty.h win_res.h
+window.obj: window.c putty.h win_res.h sizetip.h
 windlg.obj: windlg.c putty.h ssh.h win_res.h
 terminal.obj: terminal.c putty.h
+sizetip.obj: sizetip.c putty.h
 telnet.obj: telnet.c putty.h
 raw.obj: raw.c putty.h
 misc.obj: misc.c putty.h
