@@ -322,7 +322,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
     static const char generating_msg[] =
         "Please wait while a key is generated...";
     static const char entropy_msg[] =
-        "Please move the mouse in this window to generate randomness";
+        "Please generate some randomness by moving the mouse over the blank area.";
     struct MainDlgState *state;
 
     switch (msg) {
@@ -372,7 +372,7 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
             endbox(&cp);
             beginbox(&cp, "Actions",
                      IDC_BOX_ACTIONS, IDC_BOXT_ACTIONS);
-            staticedit(&cp, "Length of generated keys in &bits:",
+            staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
             endbox(&cp);
         }
@@ -476,16 +476,18 @@ static int CALLBACK MainDlgProc (HWND hwnd, UINT msg,
 
                 /*
                  * My brief statistical tests on mouse movements
-                 * suggest that there are about 5 bits of
-                 * randomness in the x position, 5 in the y
+                 * suggest that there are about 2.5 bits of
+                 * randomness in the x position, 2.5 in the y
                  * position, and 1.7 in the message time, making
-                 * 11.7 bits of unpredictability per mouse
-                 * movement. However, other people have told me
-                 * it's far less than that, so I'm going to be
-                 * stupidly cautious and knock that down to a nice
-                 * round 4.
+                 * 5.7 bits of unpredictability per mouse movement.
+                 * However, other people have told me it's far less
+                 * than that, so I'm going to be stupidly cautious
+                 * and knock that down to a nice round 2. With this
+                 * method, we require two words per mouse movement,
+                 * so with 2 bits per mouse movement we expect 2
+                 * bits every 2 words.
                  */
-                state->entropy_required = (state->keysize / 4) * 2;
+                state->entropy_required = (state->keysize/2) * 2;
                 state->entropy_got = 0;
                 state->entropy_size = (state->entropy_required *
                                        sizeof(*state->entropy));
