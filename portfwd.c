@@ -362,6 +362,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
     pr->ready = 1;
     pr->c = c;
     pr->backhandle = NULL;	       /* we shouldn't need this */
+    pr->dynamic = 0;
 
     pr->s = *s = new_connection(addr, dummy_realhost, port,
 				0, 1, 0, (Plug) pr, cfg);
@@ -415,6 +416,7 @@ static int pfd_accepting(Plug p, void *sock)
 	pr->port = 0;		       /* hostname buffer is so far empty */
 	sk_set_frozen(s, 0);	       /* we want to receive SOCKS _now_! */
     } else {
+	pr->dynamic = 0;
 	strcpy(pr->hostname, org->hostname);
 	pr->port = org->port;	
 	pr->c = new_sock_channel(org->backhandle, s);
