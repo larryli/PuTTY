@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.18 2002/12/08 01:17:31 ben Exp $ */
+/* $Id: macterm.c,v 1.19 2002/12/08 22:15:10 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -82,7 +82,6 @@ static void mac_drawgrowicon(Session *s);
 static pascal void mac_growtermdraghook(void);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
-static pascal void mac_set_attr_mask(short, short, GDHandle, long);
 static int mac_keytrans(Session *, EventRecord *, unsigned char *);
 static void text_click(Session *, EventRecord *);
 
