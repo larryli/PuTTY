@@ -158,9 +158,9 @@ static const struct {
 
     { "KOI8-U", CS_KOI8_U },
 
-    { "macintosh", CS_MAC_ROMAN },
-    { "mac", CS_MAC_ROMAN },
-    { "csMacintosh", CS_MAC_ROMAN },
+    { "macintosh", CS_MAC_ROMAN_OLD },
+    { "mac", CS_MAC_ROMAN_OLD },
+    { "csMacintosh", CS_MAC_ROMAN_OLD },
 
     { "VISCII", CS_VISCII },
     { "csVISCII", CS_VISCII },
