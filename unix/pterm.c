@@ -1424,7 +1424,10 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	    memcpy(inst->pasteout_data_ctext, tp.value, tp.nitems);
 	    inst->pasteout_data_ctext_len = tp.nitems;
 	    XFree(tp.value);
-	}
+	} else {
+            inst->pasteout_data_ctext = NULL;
+            inst->pasteout_data_ctext_len = 0;
+        }
     } else {
 	inst->pasteout_data_utf8 = NULL;
 	inst->pasteout_data_utf8_len = 0;
