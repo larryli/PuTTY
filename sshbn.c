@@ -6,6 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if 0 // use PuTTY main debugging for diagbn()
+#include <windows.h>
+#include "putty.h"
+#define debugprint debug
+#else
+#define debugprint(x) printf x
+#endif
+
 #define BIGNUM_INTERNAL
 typedef unsigned short *Bignum;
 
@@ -714,15 +722,15 @@ void diagbn(char *prefix, Bignum md) {
     int i, nibbles, morenibbles;
     static const char hex[] = "0123456789ABCDEF";
 
-    printf("%s0x", prefix ? prefix : "");
+    debugprint(("%s0x", prefix ? prefix : ""));
 
     nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
     morenibbles = 4*md[0] - nibbles;
-    for (i=0; i<morenibbles; i++) putchar('-');
+    for (i=0; i<morenibbles; i++) debugprint(("-"));
     for (i=nibbles; i-- ;)
-        putchar(hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF]);
+        debugprint(("%c",hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF]));
 
-    if (prefix) putchar('\n');
+    if (prefix) debugprint(("\n"));
 }
 
 /*
