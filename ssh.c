@@ -4185,7 +4185,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
     /* Data sent down one of our channels. */
     int i = ssh_pkt_getuint32(pktin);
     char *p;
-    int len;
+    unsigned int len;
     struct ssh_channel *c;
 
     ssh_pkt_getstring(pktin, &p, &len);
@@ -4204,7 +4204,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	    /* Data for an agent message. Buffer it. */
 	    while (len > 0) {
 		if (c->u.a.lensofar < 4) {
-		    int l = min(4 - c->u.a.lensofar, len);
+		    unsigned int l = min(4 - c->u.a.lensofar, len);
 		    memcpy(c->u.a.msglen + c->u.a.lensofar, p,
 			   l);
 		    p += l;
@@ -4219,7 +4219,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 		    memcpy(c->u.a.message, c->u.a.msglen, 4);
 		}
 		if (c->u.a.lensofar >= 4 && len > 0) {
-		    int l =
+		    unsigned int l =
 			min(c->u.a.totallen - c->u.a.lensofar,
 			    len);
 		    memcpy(c->u.a.message + c->u.a.lensofar, p,
@@ -5335,7 +5335,7 @@ static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
 static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     char *data;
-    int length;
+    unsigned int length;
     unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
@@ -5364,7 +5364,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	  case CHAN_AGENT:
 	    while (length > 0) {
 		if (c->u.a.lensofar < 4) {
-		    int l = min(4 - c->u.a.lensofar, length);
+		    unsigned int l = min(4 - c->u.a.lensofar, length);
 		    memcpy(c->u.a.msglen + c->u.a.lensofar,
 			   data, l);
 		    data += l;
@@ -5379,7 +5379,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 		    memcpy(c->u.a.message, c->u.a.msglen, 4);
 		}
 		if (c->u.a.lensofar >= 4 && length > 0) {
-		    int l =
+		    unsigned int l =
 			min(c->u.a.totallen - c->u.a.lensofar,
 			    length);
 		    memcpy(c->u.a.message + c->u.a.lensofar,
