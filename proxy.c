@@ -234,7 +234,7 @@ static void plug_proxy_sent (Plug p, int bufsize)
     plug_sent(ps->plug, bufsize);
 }
 
-static int plug_proxy_accepting (Plug p, void *sock)
+static int plug_proxy_accepting (Plug p, OSSocket sock)
 {
     Proxy_Plug pp = (Proxy_Plug) p;
     Proxy_Socket ps = pp->proxy_socket;

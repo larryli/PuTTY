@@ -90,7 +90,7 @@ static int cmpfortree(void *av, void *bv)
 static int cmpforsearch(void *av, void *bv)
 {
     Actual_Socket b = (Actual_Socket) bv;
-    int as = (int) av, bs = b->s;
+    int as = *(int *)av, bs = b->s;
     if (as < bs)
 	return -1;
     if (as > bs)
@@ -336,7 +336,7 @@ static struct socket_function_table tcp_fn_table = {
     sk_tcp_socket_error
 };
 
-Socket sk_register(void *sock, Plug plug)
+Socket sk_register(OSSocket sockfd, Plug plug)
 {
     Actual_Socket ret;
 
@@ -357,7 +357,7 @@ Socket sk_register(void *sock, Plug plug)
     ret->oobpending = FALSE;
     ret->listener = 0;
 
-    ret->s = (int)sock;
+    ret->s = sockfd;
 
     if (ret->s < 0) {
 	ret->error = error_string(errno);
@@ -819,7 +819,7 @@ static int net_select_result(int fd, int event)
     u_long atmark;
 
     /* Find the Socket structure */
-    s = find234(sktree, (void *) fd, cmpforsearch);
+    s = find234(sktree, &fd, cmpforsearch);
     if (!s)
 	return 1;		       /* boggle */
 
@@ -876,7 +876,7 @@ static int net_select_result(int fd, int event)
 
 	    if (s->localhost_only && !ipv4_is_loopback(isa.sin_addr)) {
 		close(t);	       /* someone let nonlocal through?! */
-	    } else if (plug_accepting(s->plug, (void*)t)) {
+	    } else if (plug_accepting(s->plug, t)) {
 		close(t);	       /* denied or error */
 	    }
 	    break;

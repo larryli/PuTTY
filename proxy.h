@@ -77,7 +77,7 @@ struct Socket_proxy_tag {
     int sent_bufsize;
 
     /* accepting */
-    void *accepting_sock;
+    OSSocket accepting_sock;
 
     /* configuration, used to look up proxy settings */
     Config cfg;

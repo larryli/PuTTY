@@ -381,7 +381,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
  called when someone connects to the local port
  */
 
-static int pfd_accepting(Plug p, void *sock)
+static int pfd_accepting(Plug p, OSSocket sock)
 {
     static const struct plug_function_table fn_table = {
 	pfd_closing,

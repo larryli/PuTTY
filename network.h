@@ -25,6 +25,10 @@ typedef struct SockAddr_tag *SockAddr;
 typedef struct socket_function_table **Socket;
 typedef struct plug_function_table **Plug;
 
+#ifndef OSSOCKET_DEFINED
+typedef void *OSSocket;
+#endif
+
 struct socket_function_table {
     Plug(*plug) (Socket s, Plug p);
     /* use a different plug (return the old one) */
@@ -64,7 +68,7 @@ struct plug_function_table {
      * on a socket is cleared or partially cleared. The new backlog
      * size is passed in the `bufsize' parameter.
      */
-    int (*accepting)(Plug p, void *sock);
+    int (*accepting)(Plug p, OSSocket sock);
     /*
      * returns 0 if the host at address addr is a valid host for connecting or error
      */
@@ -100,7 +104,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 
 Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only);
 
-Socket sk_register(void *sock, Plug plug);
+Socket sk_register(OSSocket sock, Plug plug);
 
 #define sk_plug(s,p) (((*s)->plug) (s, p))
 #define sk_close(s) (((*s)->close) (s))

@@ -374,7 +374,8 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 	gtk_container_add(GTK_CONTAINER(uc->menu), menuitem);
 	gtk_widget_show(menuitem);
 
-	gtk_object_set_data(GTK_OBJECT(menuitem), "user-data", (gpointer)id);
+	gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
+			    GINT_TO_POINTER(id));
 	gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
 			   GTK_SIGNAL_FUNC(menuitem_activate), dp);
     } else if (!uc->entry) {
@@ -436,7 +437,8 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
                            GTK_SIGNAL_FUNC(widget_focus), dp);
 	gtk_signal_connect(GTK_OBJECT(listitem), "button_press_event",
 			   GTK_SIGNAL_FUNC(listitem_button), dp);
-	gtk_object_set_data(GTK_OBJECT(listitem), "user-data", (gpointer)id);
+	gtk_object_set_data(GTK_OBJECT(listitem), "user-data",
+			    GINT_TO_POINTER(id));
     } else {
 	/*
 	 * List item in a combo-box list, which means the sensible
@@ -448,7 +450,8 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 	gtk_container_add(GTK_CONTAINER(uc->list), listitem);
 	gtk_widget_show(listitem);
 
-	gtk_object_set_data(GTK_OBJECT(listitem), "user-data", (gpointer)id);
+	gtk_object_set_data(GTK_OBJECT(listitem), "user-data",
+			    GINT_TO_POINTER(id));
     }
 
     dp->flags &= ~FLAG_UPDATING_COMBO_LIST;
@@ -470,7 +473,7 @@ int dlg_listbox_getid(union control *ctrl, void *dlg, int index)
     item = GTK_OBJECT(g_list_nth_data(children, index));
     g_list_free(children);
 
-    return (int)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+    return GPOINTER_TO_INT(gtk_object_get_data(GTK_OBJECT(item), "user-data"));
 }
 
 /* dlg_listbox_index returns <0 if no single element is selected. */

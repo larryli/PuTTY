@@ -15,6 +15,9 @@ struct FontSpec {
 
 typedef void *Context;                 /* FIXME: probably needs changing */
 
+typedef int OSSocket;
+#define OSSOCKET_DEFINED	       /* stop network.h using its default */
+
 extern Backend pty_backend;
 
 /*

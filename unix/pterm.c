@@ -2485,7 +2485,8 @@ void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    int code = (int)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+    int code = GPOINTER_TO_INT(gtk_object_get_data(GTK_OBJECT(item),
+						   "user-data"));
 
     inst->back->special(inst->backhandle, code);
 }
@@ -2836,7 +2837,7 @@ void update_specials_menu(void *frontend)
 	    if (*specials[i].name) {
 		menuitem = gtk_menu_item_new_with_label(specials[i].name);
 		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
-				    (gpointer)specials[i].code);
+				    GINT_TO_POINTER(specials[i].code));
 		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
 				   GTK_SIGNAL_FUNC(special_menuitem), inst);
 	    } else
