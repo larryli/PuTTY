@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.12 2002/11/26 01:32:51 ben Exp $ */
+/* $Id: macterm.c,v 1.13 2002/11/28 00:25:09 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -797,6 +797,7 @@ struct do_text_args {
     int len;
     unsigned long attr;
     int lattr;
+    Point numer, denom;
 };
 
 /*
@@ -826,6 +827,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.len = len;
     a.attr = attr;
     a.lattr = lattr;
+    a.numer.h = a.numer.v = a.denom.h = a.denom.v = 1;
     SetPort(s->window);
     TextFont(s->fontnum);
     if (s->cfg.fontisbold || (attr & ATTR_BOLD) && !s->cfg.bold_colour)
@@ -907,7 +909,11 @@ static pascal void do_text_for_device(short depth, short devflags,
     EraseRect(&a->textrect);
     MoveTo(a->textrect.left, a->textrect.top + a->s->font_ascent);
     /* FIXME: Sort out bold width adjustments on Original QuickDraw. */
-    DrawText(a->text, 0, a->len);
+    if (a->s->window->grafProcs != NULL)
+	InvokeQDTextUPP(a->len, a->text, a->numer, a->denom,
+			a->s->window->grafProcs->textProc);
+    else
+	StdText(a->len, a->text, a->numer, a->denom);
 
     if (a->attr & TATTR_PASCURS) {
 	PenNormal();
@@ -1263,11 +1269,12 @@ void do_scroll(void *frontend, int topline, int botline, int lines) {
     Rect r;
     RgnHandle update;
 
-    /* FIXME: This is seriously broken on Original QuickDraw.  No idea why. */
     SetPort(s->window);
     PenNormal();
     if (HAVE_COLOR_QD())
 	PmBackColor(DEFAULT_BG);
+    else
+	BackColor(blackColor); /* XXX make configurable */
     update = NewRgn();
     SetRect(&r, 0, topline * s->font_height,
 	    s->term->cols * s->font_width, (botline + 1) * s->font_height);
