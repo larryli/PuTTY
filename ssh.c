@@ -104,7 +104,7 @@
  * Packet type contexts, so that ssh2_pkt_type can correctly decode
  * the ambiguous type numbers back into the correct type strings.
  */
-#define SSH2_PKTCTX_DHGROUP1         0x0001
+#define SSH2_PKTCTX_DHGROUP          0x0001
 #define SSH2_PKTCTX_DHGEX            0x0002
 #define SSH2_PKTCTX_PUBLICKEY        0x0010
 #define SSH2_PKTCTX_PASSWORD         0x0020
@@ -222,8 +222,8 @@ static char *ssh2_pkt_type(int pkt_ctx, int type)
     translate(SSH2_MSG_SERVICE_ACCEPT);
     translate(SSH2_MSG_KEXINIT);
     translate(SSH2_MSG_NEWKEYS);
-    translatec(SSH2_MSG_KEXDH_INIT, SSH2_PKTCTX_DHGROUP1);
-    translatec(SSH2_MSG_KEXDH_REPLY, SSH2_PKTCTX_DHGROUP1);
+    translatec(SSH2_MSG_KEXDH_INIT, SSH2_PKTCTX_DHGROUP);
+    translatec(SSH2_MSG_KEXDH_REPLY, SSH2_PKTCTX_DHGROUP);
     translatec(SSH2_MSG_KEX_DH_GEX_REQUEST, SSH2_PKTCTX_DHGEX);
     translatec(SSH2_MSG_KEX_DH_GEX_GROUP, SSH2_PKTCTX_DHGEX);
     translatec(SSH2_MSG_KEX_DH_GEX_INIT, SSH2_PKTCTX_DHGEX);
@@ -362,7 +362,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 const static struct ssh_kex *kex_algs[] = {
     &ssh_diffiehellman_gex,
-    &ssh_diffiehellman
+    &ssh_diffiehellman_group14,
+    &ssh_diffiehellman_group1,
 };
 
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
@@ -4650,7 +4651,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * If we're doing Diffie-Hellman group exchange, start by
      * requesting a group.
      */
-    if (ssh->kex == &ssh_diffiehellman_gex) {
+    if (!ssh->kex->pdata) {
 	logevent("Doing Diffie-Hellman group exchange");
 	ssh->pkt_ctx |= SSH2_PKTCTX_DHGEX;
 	/*
@@ -4673,14 +4674,16 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
 	    bombout(("unable to read mp-ints from incoming group packet"));
 	    crStop(0);
 	}
-	ssh->kex_ctx = dh_setup_group(s->p, s->g);
+	ssh->kex_ctx = dh_setup_gex(s->p, s->g);
 	s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
 	s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
     } else {
-	ssh->pkt_ctx |= SSH2_PKTCTX_DHGROUP1;
-	ssh->kex_ctx = dh_setup_group1();
+	ssh->pkt_ctx |= SSH2_PKTCTX_DHGROUP;
+	ssh->kex_ctx = dh_setup_group(ssh->kex);
 	s->kex_init_value = SSH2_MSG_KEXDH_INIT;
 	s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
+	logeventf(ssh, "Using Diffie-Hellman with standard group \"%s\"",
+		  ssh->kex->groupname);
     }
 
     logevent("Doing Diffie-Hellman key exchange");

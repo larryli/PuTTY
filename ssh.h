@@ -177,11 +177,13 @@ struct ssh_kex {
     /*
      * Plugging in another KEX algorithm requires structural chaos,
      * so it's hard to abstract them into nice little structures
-     * like this. Hence, for the moment, this is just a
-     * placeholder. I claim justification in the fact that OpenSSH
-     * does this too :-)
+     * like this. Fortunately, all our KEXes are basically
+     * Diffie-Hellman at the moment, so in this structure I simply
+     * parametrise the DH exchange a bit.
      */
-    char *name;
+    char *name, *groupname;
+    const unsigned char *pdata, *gdata;/* NULL means use group exchange */
+    int plen, glen;
 };
 
 struct ssh_signkey {
@@ -231,7 +233,8 @@ extern const struct ssh2_ciphers ssh2_3des;
 extern const struct ssh2_ciphers ssh2_des;
 extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh2_ciphers ssh2_blowfish;
-extern const struct ssh_kex ssh_diffiehellman;
+extern const struct ssh_kex ssh_diffiehellman_group1;
+extern const struct ssh_kex ssh_diffiehellman_group14;
 extern const struct ssh_kex ssh_diffiehellman_gex;
 extern const struct ssh_signkey ssh_dss;
 extern const struct ssh_signkey ssh_rsa;
@@ -336,8 +339,8 @@ char *bignum_decimal(Bignum x);
 void diagbn(char *prefix, Bignum md);
 #endif
 
-void *dh_setup_group1(void);
-void *dh_setup_group(Bignum pval, Bignum gval);
+void *dh_setup_group(const struct ssh_kex *kex);
+void *dh_setup_gex(Bignum pval, Bignum gval);
 void dh_cleanup(void *);
 Bignum dh_create_e(void *, int nbits);
 Bignum dh_find_K(void *, Bignum f);
