@@ -743,10 +743,6 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 	    SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_SETITEMDATA,
 			       pos, (LPARAM) c);
 	}
-	SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_ADDSTRING,
-			   0, (LPARAM) "FIXME1");
-	SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_ADDSTRING,
-			   0, (LPARAM) "FIXME2");
 
     }
 
