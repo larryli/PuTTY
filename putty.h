@@ -20,39 +20,69 @@
 #define GLOBAL extern
 #endif
 
-#define ATTR_ACTCURS 0x80000000UL      /* active cursor (block) */
-#define ATTR_PASCURS 0x40000000UL      /* passive cursor (box) */
-#define ATTR_INVALID 0x20000000UL
-#define ATTR_WRAPPED 0x10000000UL
-#define ATTR_RIGHTCURS 0x10000000UL    /* doubles as cursor-on-RHS indicator */
+/* Three attribute types: 
+ * The ATTRs (normal attributes) are stored with the characters in the main
+ * display arrays
+ *
+ * The TATTRs (temporary attributes) are generated on the fly, they can overlap
+ * with characters but not with normal attributes.
+ *
+ * The LATTRs (line attributes) conflict with no others and only have one
+ * value per line. But on area clears the LATTR cells are set to the erase_char
+ * (or DEFAULT_ATTR + 'E')
+ *
+ * ATTR_INVALID is an illegal colour combination.
+ */
+
+#define TATTR_ACTCURS 	    0x4UL      /* active cursor (block) */
+#define TATTR_PASCURS 	    0x2UL      /* passive cursor (box) */
+#define TATTR_RIGHTCURS	    0x1UL      /* cursor-on-RHS */
 
 #define LATTR_NORM   0x00000000UL
 #define LATTR_WIDE   0x01000000UL
 #define LATTR_TOP    0x02000000UL
 #define LATTR_BOT    0x03000000UL
 #define LATTR_MODE   0x03000000UL
+#define LATTR_WRAPPED 0x10000000UL
 
-#define ATTR_ASCII   0x00000000UL      /* normal ASCII charset ESC ( B */
-#define ATTR_GBCHR   0x00100000UL      /* UK variant   charset ESC ( A */
-#define ATTR_LINEDRW 0x00200000UL      /* line drawing charset ESC ( 0 */
+#define ATTR_INVALID 0x00FF0000UL
 
-#define ATTR_BOLD    0x00000100UL
-#define ATTR_UNDER   0x00000200UL
-#define ATTR_REVERSE 0x00000400UL
-#define ATTR_BLINK   0x00000800UL
-#define ATTR_FGMASK  0x0000F000UL
-#define ATTR_BGMASK  0x000F0000UL
-#define ATTR_FGSHIFT 12
-#define ATTR_BGSHIFT 16
+/* Like Linux use the F000 page for direct to font. */
+#define ATTR_OEMCP   0x0000F000UL      /* OEM Codepage DTF */
+#define ATTR_ACP     0x0000F100UL      /* Ansi Codepage DTF */
 
-#define ATTR_DEFAULT 0x00098000UL
-#define ATTR_DEFFG   0x00008000UL
-#define ATTR_DEFBG   0x00090000UL
-#define ATTR_CUR_XOR 0x000BA000UL
+/* These are internal use overlapping with the UTF-16 surrogates */
+#define ATTR_ASCII   0x0000D800UL      /* normal ASCII charset ESC ( B */
+#define ATTR_LINEDRW 0x0000D900UL      /* line drawing charset ESC ( 0 */
+#define ATTR_GBCHR   0x0000DB00UL      /* UK variant   charset ESC ( A */
+#define CSET_MASK    0x0000FF00UL      /* Character set mask; MUST be 0xFF00 */
+
+#define DIRECT_CHAR(c) ((c&0xFC00)==0xD800)
+#define DIRECT_FONT(c) ((c&0xFE00)==0xF000)
+
+#define UCSERR	     (ATTR_LINEDRW|'a')	/* UCS Format error character. */
+#define UCSWIDE	     0x303F
+
+#define ATTR_WIDE    0x10000000UL
+#define ATTR_BOLD    0x01000000UL
+#define ATTR_UNDER   0x02000000UL
+#define ATTR_REVERSE 0x04000000UL
+#define ATTR_BLINK   0x08000000UL
+#define ATTR_FGMASK  0x000F0000UL
+#define ATTR_BGMASK  0x00F00000UL
+#define ATTR_COLOURS 0x00FF0000UL
+#define ATTR_FGSHIFT 16
+#define ATTR_BGSHIFT 20
+
+#define ATTR_DEFAULT 0x00980000UL
+#define ATTR_DEFFG   0x00080000UL
+#define ATTR_DEFBG   0x00900000UL
 #define ERASE_CHAR   (ATTR_DEFAULT | ' ')
 #define ATTR_MASK    0xFFFFFF00UL
 #define CHAR_MASK    0x000000FFUL
-#define CSET_MASK    0x00F00000UL      /* mask for character set */
+
+#define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
+#define ATTR_CUR_XOR 0x00BA0000UL
 
 typedef HDC Context;
 #define SEL_NL { 13, 10 }
@@ -82,6 +112,19 @@ GLOBAL int seen_key_event;
 GLOBAL int seen_disp_event;
 
 GLOBAL int session_closed;
+
+GLOBAL int big_cursor;
+
+GLOBAL int utf;
+GLOBAL int dbcs_screenfont;
+GLOBAL int font_codepage;
+GLOBAL int kbd_codepage;
+GLOBAL int line_codepage;
+GLOBAL WCHAR unitab_line[256];
+GLOBAL WCHAR unitab_font[256];
+GLOBAL WCHAR unitab_xterm[256];
+GLOBAL WCHAR unitab_oemcp[256];
+GLOBAL unsigned char unitab_ctrl[256];
 
 #define LGXF_OVR  1		       /* existing logfile overwrite */
 #define LGXF_APN  0		       /* existing logfile append */
@@ -123,7 +166,7 @@ typedef enum {
 } Mouse_Action;
 
 typedef enum {
-    VT_XWINDOWS, VT_OEMANSI, VT_OEMONLY, VT_POORMAN
+    VT_XWINDOWS, VT_OEMANSI, VT_OEMONLY, VT_POORMAN, VT_UNICODE
 } VT_Mode;
 
 enum {
@@ -260,10 +303,7 @@ typedef struct {
     short wordness[256];
     /* translations */
     VT_Mode vtmode;
-    int xlat_enablekoiwin;
-    int xlat_88592w1250;
-    int xlat_88592cp852;
-    int xlat_capslockcyr;
+    char line_codepage[32];
     /* X11 forwarding */
     int x11_forward;
     char x11_display[128];
@@ -310,6 +350,7 @@ struct RSAKey;			       /* be a little careful of scope */
  */
 void request_resize(int, int, int);
 void do_text(Context, int, int, char *, int, unsigned long, int);
+void do_cursor(Context, int, int, char *, int, unsigned long, int);
 void set_title(char *);
 void set_icon(char *);
 void set_sbar(int, int, int);
@@ -317,8 +358,9 @@ Context get_ctx(void);
 void free_ctx(Context);
 void palette_set(int, int, int, int);
 void palette_reset(void);
-void write_clip(void *, int, int);
-void get_clip(void **, int *);
+void write_aclip(char *, int, int);
+void write_clip(wchar_t *, int, int);
+void get_clip(wchar_t **, int *);
 void optimised_move(int, int, int);
 void set_raw_mouse_mode(int);
 Mouse_Button translate_button(Mouse_Button b);
@@ -448,11 +490,17 @@ void UpdateSizeTip(HWND src, int cx, int cy);
 void EnableSizeTip(int bEnable);
 
 /*
- * Exports from xlat.c.
+ * Exports from unicode.c.
  */
-unsigned char xlat_kbd2tty(unsigned char c);
-unsigned char xlat_tty2scr(unsigned char c);
-unsigned char xlat_latkbd2win(unsigned char c);
+#ifndef CP_UTF8
+#define CP_UTF8 65001
+#endif
+void init_ucs_tables(void);
+void lpage_send(int codepage, char *buf, int len);
+void luni_send(wchar_t * widebuf, int len);
+int check_compose(int first, int second);
+int decode_codepage(char *cp_name);
+char *cp_name(int codepage);
 
 /*
  * Exports from mscrypto.c

@@ -69,7 +69,7 @@ RES=res
 
 ##-- objects putty puttytel
 GOBJS1 = window.$(OBJ) windlg.$(OBJ) winctrls.$(OBJ) terminal.$(OBJ)
-GOBJS2 = xlat.$(OBJ) sizetip.$(OBJ)
+GOBJS2 = sizetip.$(OBJ) wcwidth.$(OBJ) unicode.$(OBJ)
 ##-- objects putty puttytel plink
 LOBJS1 = telnet.$(OBJ) raw.$(OBJ) rlogin.$(OBJ) ldisc.$(OBJ) winnet.$(OBJ)
 ##-- objects putty plink

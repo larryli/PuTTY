@@ -28,7 +28,7 @@ static int term_buflen = 0, term_bufsiz = 0, term_quotenext = 0;
 
 static int plen(unsigned char c)
 {
-    if ((c >= 32 && c <= 126) || (c >= 160))
+    if ((c >= 32 && c <= 126) || (c >= 160 && !utf))
 	return 1;
     else if (c < 128)
 	return 2;		       /* ^x for some x */
@@ -38,7 +38,7 @@ static int plen(unsigned char c)
 
 static void pwrite(unsigned char c)
 {
-    if ((c >= 32 && c <= 126) || (c >= 160)) {
+    if ((c >= 32 && c <= 126) || (c >= 160 && !utf)) {
 	c_write(&c, 1);
     } else if (c < 128) {
 	char cc[2];

@@ -63,6 +63,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 static void cfgtopalette(void);
 static void init_palette(void);
 static void init_fonts(int);
+static void another_font(int);
+static void deinit_fonts(void);
 
 static int extra_width, extra_height;
 
@@ -77,12 +79,20 @@ static time_t last_movement = 0;
 #define FONT_BOLD 1
 #define FONT_UNDERLINE 2
 #define FONT_BOLDUND 3
-#define FONT_OEM 4
-#define FONT_OEMBOLD 5
-#define FONT_OEMBOLDUND 6
-#define FONT_OEMUND 7
-static HFONT fonts[8];
-static int font_needs_hand_underlining;
+#define FONT_WIDE	0x04
+#define FONT_HIGH	0x08
+#define FONT_NARROW	0x10
+#define FONT_OEM 	0x20
+#define FONT_OEMBOLD 	0x21
+#define FONT_OEMUND 	0x22
+#define FONT_OEMBOLDUND 0x23
+#define FONT_MSGOTHIC 	0x40
+#define FONT_MINGLIU 	0x60
+#define FONT_GULIMCHE 	0x80
+#define FONT_MAXNO 	0x8F
+#define FONT_SHIFT	5
+static HFONT fonts[FONT_MAXNO];
+static int fontflag[FONT_MAXNO];
 static enum {
     BOLD_COLOURS, BOLD_SHADOW, BOLD_FONT
 } bold_mode;
@@ -642,12 +652,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * Clean up.
      */
-    {
-	int i;
-	for (i = 0; i < 8; i++)
-	    if (fonts[i])
-		DeleteObject(fonts[i]);
-    }
+    deinit_fonts();
     sfree(logpal);
     if (pal)
 	DeleteObject(pal);
@@ -811,8 +816,11 @@ static void init_palette(void)
 }
 
 /*
- * Initialise all the fonts we will need. There may be as many as
- * eight or as few as one. We also:
+ * Initialise all the fonts we will need initially. There may be as many as
+ * three or as few as one.  The other (poentially) twentyone fonts are done
+ * if/when they are needed.
+ *
+ * We also:
  *
  * - check the font width and height, correcting our guesses if
  *   necessary.
@@ -827,16 +835,13 @@ static void init_palette(void)
 static void init_fonts(int pick_width)
 {
     TEXTMETRIC tm;
+    CPINFO cpinfo;
+    int fontsize[3];
     int i;
-    int fsize[8];
     HDC hdc;
     int fw_dontcare, fw_bold;
-    int firstchar = ' ';
 
-#ifdef CHECKOEMFONT
-  font_messup:
-#endif
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < FONT_MAXNO; i++)
 	fonts[i] = NULL;
 
     if (cfg.fontisbold) {
@@ -862,152 +867,177 @@ static void init_fonts(int pick_width)
 		           CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, \
 			   FIXED_PITCH | FF_DONTCARE, cfg.font)
 
-    if (cfg.vtmode != VT_OEMONLY) {
-	f(FONT_NORMAL, cfg.fontcharset, fw_dontcare, FALSE);
+    f(FONT_NORMAL, cfg.fontcharset, fw_dontcare, FALSE);
 
-	SelectObject(hdc, fonts[FONT_NORMAL]);
-	GetTextMetrics(hdc, &tm);
-	font_height = tm.tmHeight;
-	font_width = tm.tmAveCharWidth;
+    SelectObject(hdc, fonts[FONT_NORMAL]);
+    GetTextMetrics(hdc, &tm);
+    font_height = tm.tmHeight;
+    font_width = tm.tmAveCharWidth;
 
-	f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
+    {
+	CHARSETINFO info;
+	DWORD cset = tm.tmCharSet;
+	memset(&info, 0xFF, sizeof(info));
 
-	/*
-	 * Some fonts, e.g. 9-pt Courier, draw their underlines
-	 * outside their character cell. We successfully prevent
-	 * screen corruption by clipping the text output, but then
-	 * we lose the underline completely. Here we try to work
-	 * out whether this is such a font, and if it is, we set a
-	 * flag that causes underlines to be drawn by hand.
-	 *
-	 * Having tried other more sophisticated approaches (such
-	 * as examining the TEXTMETRIC structure or requesting the
-	 * height of a string), I think we'll do this the brute
-	 * force way: we create a small bitmap, draw an underlined
-	 * space on it, and test to see whether any pixels are
-	 * foreground-coloured. (Since we expect the underline to
-	 * go all the way across the character cell, we only search
-	 * down a single column of the bitmap, half way across.)
-	 */
-	{
-	    HDC und_dc;
-	    HBITMAP und_bm, und_oldbm;
-	    int i, gotit;
-	    COLORREF c;
+	/* !!! Yes the next line is right */
+	if (cset == OEM_CHARSET)
+	    font_codepage = GetOEMCP();
+	else
+	    if (TranslateCharsetInfo
+		((DWORD *) cset, &info, TCI_SRCCHARSET)) font_codepage =
+		info.ciACP;
+	else
+	    font_codepage = -1;
 
-	    und_dc = CreateCompatibleDC(hdc);
-	    und_bm = CreateCompatibleBitmap(hdc, font_width, font_height);
-	    und_oldbm = SelectObject(und_dc, und_bm);
-	    SelectObject(und_dc, fonts[FONT_UNDERLINE]);
-	    SetTextAlign(und_dc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
-	    SetTextColor(und_dc, RGB(255, 255, 255));
-	    SetBkColor(und_dc, RGB(0, 0, 0));
-	    SetBkMode(und_dc, OPAQUE);
-	    ExtTextOut(und_dc, 0, 0, ETO_OPAQUE, NULL, " ", 1, NULL);
-	    gotit = FALSE;
-	    for (i = 0; i < font_height; i++) {
-		c = GetPixel(und_dc, font_width / 2, i);
-		if (c != RGB(0, 0, 0))
-		    gotit = TRUE;
-	    }
-	    SelectObject(und_dc, und_oldbm);
-	    DeleteObject(und_bm);
-	    DeleteDC(und_dc);
-	    font_needs_hand_underlining = !gotit;
+	GetCPInfo(font_codepage, &cpinfo);
+	dbcs_screenfont = (cpinfo.MaxCharSize > 1);
+    }
+
+    f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
+
+    /*
+     * Some fonts, e.g. 9-pt Courier, draw their underlines
+     * outside their character cell. We successfully prevent
+     * screen corruption by clipping the text output, but then
+     * we lose the underline completely. Here we try to work
+     * out whether this is such a font, and if it is, we set a
+     * flag that causes underlines to be drawn by hand.
+     *
+     * Having tried other more sophisticated approaches (such
+     * as examining the TEXTMETRIC structure or requesting the
+     * height of a string), I think we'll do this the brute
+     * force way: we create a small bitmap, draw an underlined
+     * space on it, and test to see whether any pixels are
+     * foreground-coloured. (Since we expect the underline to
+     * go all the way across the character cell, we only search
+     * down a single column of the bitmap, half way across.)
+     */
+    {
+	HDC und_dc;
+	HBITMAP und_bm, und_oldbm;
+	int i, gotit;
+	COLORREF c;
+
+	und_dc = CreateCompatibleDC(hdc);
+	und_bm = CreateCompatibleBitmap(hdc, font_width, font_height);
+	und_oldbm = SelectObject(und_dc, und_bm);
+	SelectObject(und_dc, fonts[FONT_UNDERLINE]);
+	SetTextAlign(und_dc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
+	SetTextColor(und_dc, RGB(255, 255, 255));
+	SetBkColor(und_dc, RGB(0, 0, 0));
+	SetBkMode(und_dc, OPAQUE);
+	ExtTextOut(und_dc, 0, 0, ETO_OPAQUE, NULL, " ", 1, NULL);
+	gotit = FALSE;
+	for (i = 0; i < font_height; i++) {
+	    c = GetPixel(und_dc, font_width / 2, i);
+	    if (c != RGB(0, 0, 0))
+		gotit = TRUE;
 	}
-
-	if (bold_mode == BOLD_FONT) {
-	    f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
-	    f(FONT_BOLDUND, cfg.fontcharset, fw_bold, TRUE);
+	SelectObject(und_dc, und_oldbm);
+	DeleteObject(und_bm);
+	DeleteDC(und_dc);
+	if (!gotit) {
+	    und_mode = UND_LINE;
+	    DeleteObject(fonts[FONT_UNDERLINE]);
+	    fonts[FONT_UNDERLINE] = 0;
 	}
+    }
 
-	if (cfg.vtmode == VT_OEMANSI) {
-	    f(FONT_OEM, OEM_CHARSET, fw_dontcare, FALSE);
-	    f(FONT_OEMUND, OEM_CHARSET, fw_dontcare, TRUE);
-
-	    if (bold_mode == BOLD_FONT) {
-		f(FONT_OEMBOLD, OEM_CHARSET, fw_bold, FALSE);
-		f(FONT_OEMBOLDUND, OEM_CHARSET, fw_bold, TRUE);
-	    }
-	}
-    } else {
-	f(FONT_OEM, cfg.fontcharset, fw_dontcare, FALSE);
-
-	SelectObject(hdc, fonts[FONT_OEM]);
-	GetTextMetrics(hdc, &tm);
-	font_height = tm.tmHeight;
-	font_width = tm.tmAveCharWidth;
-
-	f(FONT_OEMUND, cfg.fontcharset, fw_dontcare, TRUE);
-
-	if (bold_mode == BOLD_FONT) {
-	    f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
-	    f(FONT_BOLDUND, cfg.fontcharset, fw_bold, TRUE);
-	}
+    if (bold_mode == BOLD_FONT) {
+	f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
     }
 #undef f
 
     descent = tm.tmAscent + 1;
     if (descent >= font_height)
 	descent = font_height - 1;
-    firstchar = tm.tmFirstChar;
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < 3; i++) {
 	if (fonts[i]) {
 	    if (SelectObject(hdc, fonts[i]) && GetTextMetrics(hdc, &tm))
-		fsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
+		fontsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
 	    else
-		fsize[i] = -i;
+		fontsize[i] = -i;
 	} else
-	    fsize[i] = -i;
+	    fontsize[i] = -i;
     }
 
     ReleaseDC(hwnd, hdc);
 
-    /* ... This is wrong in OEM only mode */
-    if (fsize[FONT_UNDERLINE] != fsize[FONT_NORMAL] ||
-	(bold_mode == BOLD_FONT &&
-	 fsize[FONT_BOLDUND] != fsize[FONT_BOLD])) {
+    if (fontsize[FONT_UNDERLINE] != fontsize[FONT_NORMAL]) {
 	und_mode = UND_LINE;
 	DeleteObject(fonts[FONT_UNDERLINE]);
-	if (bold_mode == BOLD_FONT)
-	    DeleteObject(fonts[FONT_BOLDUND]);
+	fonts[FONT_UNDERLINE] = 0;
     }
 
-    if (bold_mode == BOLD_FONT && fsize[FONT_BOLD] != fsize[FONT_NORMAL]) {
+    if (bold_mode == BOLD_FONT &&
+	fontsize[FONT_BOLD] != fontsize[FONT_NORMAL]) {
 	bold_mode = BOLD_SHADOW;
 	DeleteObject(fonts[FONT_BOLD]);
-	if (und_mode == UND_FONT)
-	    DeleteObject(fonts[FONT_BOLDUND]);
+	fonts[FONT_BOLD] = 0;
     }
-#ifdef CHECKOEMFONT
-    /* With the fascist font painting it doesn't matter if the linedraw font
-     * isn't exactly the right size anymore so we don't have to check this.
-     */
-    if (cfg.vtmode == VT_OEMANSI && fsize[FONT_OEM] != fsize[FONT_NORMAL]) {
-	if (cfg.fontcharset == OEM_CHARSET) {
-	    MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
-		       "different sizes. Using OEM-only mode instead",
-		       "Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
-	    cfg.vtmode = VT_OEMONLY;
-	} else if (firstchar < ' ') {
-	    MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
-		       "different sizes. Using XTerm mode instead",
-		       "Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
-	    cfg.vtmode = VT_XWINDOWS;
-	} else {
-	    MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
-		       "different sizes. Using ISO8859-1 mode instead",
-		       "Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
-	    cfg.vtmode = VT_POORMAN;
-	}
+    fontflag[0] = fontflag[1] = fontflag[2] = 1;
 
-	for (i = 0; i < 8; i++)
-	    if (fonts[i])
-		DeleteObject(fonts[i]);
-	goto font_messup;
+    init_ucs_tables();
+}
+
+static void another_font(int fontno)
+{
+    int basefont;
+    int fw_dontcare, fw_bold;
+    int c, u, w, x;
+    char *s;
+
+    if (fontno < 0 || fontno >= FONT_MAXNO || fontflag[fontno])
+	return;
+
+    basefont = (fontno & ~(FONT_BOLDUND));
+    if (basefont != fontno && !fontflag[basefont])
+	another_font(basefont);
+
+    if (cfg.fontisbold) {
+	fw_dontcare = FW_BOLD;
+	fw_bold = FW_HEAVY;
+    } else {
+	fw_dontcare = FW_DONTCARE;
+	fw_bold = FW_BOLD;
     }
-#endif
+
+    c = cfg.fontcharset;
+    w = fw_dontcare;
+    u = FALSE;
+    s = cfg.font;
+    x = font_width;
+
+    if (fontno & FONT_WIDE)
+	x *= 2;
+    if (fontno & FONT_NARROW)
+	x /= 2;
+    if (fontno & FONT_OEM)
+	c = OEM_CHARSET;
+    if (fontno & FONT_BOLD)
+	w = fw_bold;
+    if (fontno & FONT_UNDERLINE)
+	u = TRUE;
+
+    fonts[fontno] =
+	CreateFont(font_height * (1 + !!(fontno & FONT_HIGH)), x, 0, 0, w,
+		   FALSE, u, FALSE, c, OUT_DEFAULT_PRECIS,
+		   CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+		   FIXED_PITCH | FF_DONTCARE, s);
+
+    fontflag[fontno] = 1;
+}
+
+static void deinit_fonts(void)
+{
+    int i;
+    for (i = 0; i < FONT_MAXNO; i++) {
+	if (fonts[i])
+	    DeleteObject(fonts[i]);
+	fonts[i] = 0;
+	fontflag[i] = 0;
+    }
 }
 
 void request_resize(int w, int h, int refont)
@@ -1018,25 +1048,13 @@ void request_resize(int w, int h, int refont)
     if (IsZoomed(hwnd))
 	return;
 
-#ifdef CHECKOEMFONT
-    /* Don't do this in OEMANSI, you may get disable messages */
-    if (refont && w != cols && (cols == 80 || cols == 132)
-	&& cfg.vtmode != VT_OEMANSI)
-#else
-    if (refont && w != cols && (cols == 80 || cols == 132))
-#endif
-    {
+    if (refont && w != cols && (cols == 80 || cols == 132)) {
 	/* If font width too big for screen should we shrink the font more ? */
 	if (w == 132)
 	    font_width = ((font_width * cols + w / 2) / w);
 	else
 	    font_width = 0;
-	{
-	    int i;
-	    for (i = 0; i < 8; i++)
-		if (fonts[i])
-		    DeleteObject(fonts[i]);
-	}
+	deinit_fonts();
 	bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
 	und_mode = UND_FONT;
 	init_fonts(font_width);
@@ -1267,12 +1285,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		}
 
 		just_reconfigged = TRUE;
-		{
-		    int i;
-		    for (i = 0; i < 8; i++)
-			if (fonts[i])
-			    DeleteObject(fonts[i]);
-		}
+		deinit_fonts();
 		bold_mode = cfg.bold_colour ? BOLD_COLOURS : BOLD_FONT;
 		und_mode = UND_FONT;
 		init_fonts(0);
@@ -1823,14 +1836,33 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	}
 	return 0;
-      case WM_IME_CHAR:
+      case WM_INPUTLANGCHANGE:
 	{
+	    /* wParam == Font number */
+	    /* lParam == Locale */
+	    char lbuf[20];
+	    HKL NewInputLocale = (HKL) lParam;
+
+	    // lParam == GetKeyboardLayout(0);
+
+	    GetLocaleInfo(LOWORD(NewInputLocale),
+			  LOCALE_IDEFAULTANSICODEPAGE, lbuf, sizeof(lbuf));
+
+	    kbd_codepage = atoi(lbuf);
+	}
+	break;
+      case WM_IME_CHAR:
+	if (wParam & 0xFF00) {
 	    unsigned char buf[2];
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
-	    ldisc_send(buf, 2);
+	    lpage_send(kbd_codepage, buf, 2);
+	} else {
+	    char c = (unsigned char) wParam;
+	    lpage_send(kbd_codepage, &c, 1);
 	}
+	return (0);
       case WM_CHAR:
       case WM_SYSCHAR:
 	/*
@@ -1840,8 +1872,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * we're ready to cope.
 	 */
 	{
-	    char c = xlat_kbd2tty((unsigned char) wParam);
-	    ldisc_send(&c, 1);
+	    char c = (unsigned char)wParam;
+	    lpage_send(CP_ACP, &c, 1);
 	}
 	return 0;
       case WM_SETCURSOR:
@@ -1881,9 +1913,14 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     RECT line_box;
     int force_manual_underline = 0;
     int fnt_width = font_width * (1 + (lattr != LATTR_NORM));
-    static int *IpDx = 0, IpDxLEN = 0;;
+    int char_width = fnt_width;
+    int text_adjust = 0;
+    static int *IpDx = 0, IpDxLEN = 0;
 
-    if (len > IpDxLEN || IpDx[0] != fnt_width) {
+    if (attr & ATTR_WIDE)
+	char_width *= 2;
+
+    if (len > IpDxLEN || IpDx[0] != char_width) {
 	int i;
 	if (len > IpDxLEN) {
 	    sfree(IpDx);
@@ -1891,116 +1928,73 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    IpDxLEN = (len + 16);
 	}
 	for (i = 0; i < IpDxLEN; i++)
-	    IpDx[i] = fnt_width;
+	    IpDx[i] = char_width;
     }
 
     x *= fnt_width;
     y *= font_height;
 
-    if ((attr & ATTR_ACTCURS) && cfg.cursor_type == 0) {
-	attr &= (bold_mode == BOLD_COLOURS ? 0x300200 : 0x300300);
+    if ((attr & TATTR_ACTCURS) && (cfg.cursor_type == 0 || big_cursor)) {
+	attr &= ATTR_CUR_AND | (bold_mode != BOLD_COLOURS ? ATTR_BOLD : 0);
 	attr ^= ATTR_CUR_XOR;
     }
 
     nfont = 0;
-    if (cfg.vtmode == VT_OEMONLY)
-	nfont |= FONT_OEM;
-
-    /*
-     * Map high-half characters in order to approximate ISO using
-     * OEM character set. No characters are missing if the OEM codepage
-     * is CP850.
-     */
-    if (nfont & FONT_OEM) {
-	int i;
-	for (i = 0; i < len; i++)
-	    if (text[i] >= '\xA0' && text[i] <= '\xFF') {
-#if 0
-		/* This is CP850 ... perfect translation */
-		static const char oemhighhalf[] = "\x20\xAD\xBD\x9C\xCF\xBE\xDD\xF5"	/* A0-A7 */
-		    "\xF9\xB8\xA6\xAE\xAA\xF0\xA9\xEE"	/* A8-AF */
-		    "\xF8\xF1\xFD\xFC\xEF\xE6\xF4\xFA"	/* B0-B7 */
-		    "\xF7\xFB\xA7\xAF\xAC\xAB\xF3\xA8"	/* B8-BF */
-		    "\xB7\xB5\xB6\xC7\x8E\x8F\x92\x80"	/* C0-C7 */
-		    "\xD4\x90\xD2\xD3\xDE\xD6\xD7\xD8"	/* C8-CF */
-		    "\xD1\xA5\xE3\xE0\xE2\xE5\x99\x9E"	/* D0-D7 */
-		    "\x9D\xEB\xE9\xEA\x9A\xED\xE8\xE1"	/* D8-DF */
-		    "\x85\xA0\x83\xC6\x84\x86\x91\x87"	/* E0-E7 */
-		    "\x8A\x82\x88\x89\x8D\xA1\x8C\x8B"	/* E8-EF */
-		    "\xD0\xA4\x95\xA2\x93\xE4\x94\xF6"	/* F0-F7 */
-		    "\x9B\x97\xA3\x96\x81\xEC\xE7\x98"	/* F8-FF */
-		;
-#endif
-		/* This is CP437 ... junk translation */
-		static const unsigned char oemhighhalf[] = {
-		    0x20, 0xad, 0x9b, 0x9c, 0x6f, 0x9d, 0x7c, 0x15,
-		    0x22, 0x43, 0xa6, 0xae, 0xaa, 0x2d, 0x52, 0xc4,
-		    0xf8, 0xf1, 0xfd, 0x33, 0x27, 0xe6, 0x14, 0xfa,
-		    0x2c, 0x31, 0xa7, 0xaf, 0xac, 0xab, 0x2f, 0xa8,
-		    0x41, 0x41, 0x41, 0x41, 0x8e, 0x8f, 0x92, 0x80,
-		    0x45, 0x90, 0x45, 0x45, 0x49, 0x49, 0x49, 0x49,
-		    0x44, 0xa5, 0x4f, 0x4f, 0x4f, 0x4f, 0x99, 0x78,
-		    0xed, 0x55, 0x55, 0x55, 0x9a, 0x59, 0x50, 0xe1,
-		    0x85, 0xa0, 0x83, 0x61, 0x84, 0x86, 0x91, 0x87,
-		    0x8a, 0x82, 0x88, 0x89, 0x8d, 0xa1, 0x8c, 0x8b,
-		    0x0b, 0xa4, 0x95, 0xa2, 0x93, 0x6f, 0x94, 0xf6,
-		    0xed, 0x97, 0xa3, 0x96, 0x81, 0x79, 0x70, 0x98
-		};
-
-		text[i] = oemhighhalf[(unsigned char) text[i] - 0xA0];
-	    }
-    }
-
-    if (attr & ATTR_LINEDRW) {
-	int i;
-	/* ISO 8859-1 */
-	static const char poorman[] =
-	    "*#****\xB0\xB1**+++++-----++++|****\xA3\xB7";
-
-	/* CP437 */
-	static const char oemmap_437[] =
-	    "\x04\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
-	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3\xF3\xF2\xE3*\x9C\xFA";
-
-	/* CP850 */
-	static const char oemmap_850[] =
-	    "\x04\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
-	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3****\x9C\xFA";
-
-	/* Poor windows font ... eg: windows courier */
-	static const char oemmap[] =
-	    "*\xB1****\xF8\xF1**\xD9\xBF\xDA\xC0\xC5"
-	    "\xC4\xC4\xC4\xC4\xC4\xC3\xB4\xC1\xC2\xB3****\x9C\xFA";
-
-	/*
-	 * Line drawing mapping: map ` thru ~ (0x60 thru 0x7E) to
-	 * VT100 line drawing chars; everything else stays normal.
-	 *
-	 * Actually '_' maps to space too, but that's done before.
-	 */
-	switch (cfg.vtmode) {
-	  case VT_XWINDOWS:
-	    for (i = 0; i < len; i++)
-		if (text[i] >= '\x60' && text[i] <= '\x7E')
-		    text[i] += '\x01' - '\x60';
+    if (cfg.vtmode == VT_POORMAN && lattr != LATTR_NORM) {
+	/* Assume a poorman font is borken in other ways too. */
+	lattr = LATTR_WIDE;
+    } else
+	switch (lattr) {
+	  case LATTR_NORM:
 	    break;
-	  case VT_OEMANSI:
-	    /* Make sure we actually have an OEM font */
-	    if (fonts[nfont | FONT_OEM]) {
-	  case VT_OEMONLY:
-		nfont |= FONT_OEM;
-		for (i = 0; i < len; i++)
-		    if (text[i] >= '\x60' && text[i] <= '\x7E')
-			text[i] = oemmap[(unsigned char) text[i] - 0x60];
-		break;
-	    }
-	  case VT_POORMAN:
-	    for (i = 0; i < len; i++)
-		if (text[i] >= '\x60' && text[i] <= '\x7E')
-		    text[i] = poorman[(unsigned char) text[i] - 0x60];
+	  case LATTR_WIDE:
+	    nfont |= FONT_WIDE;
+	    break;
+	  default:
+	    nfont |= FONT_WIDE + FONT_HIGH;
 	    break;
 	}
+
+    /* Special hack for the VT100 linedraw glyphs. */
+    if ((attr & CSET_MASK) == 0x2300) {
+	if (!dbcs_screenfont &&
+	    text[0] >= (char) 0xBA && text[0] <= (char) 0xBD) {
+	    switch ((unsigned char) (text[0])) {
+	      case 0xBA:
+		text_adjust = -2 * font_height / 5;
+		break;
+	      case 0xBB:
+		text_adjust = -1 * font_height / 5;
+		break;
+	      case 0xBC:
+		text_adjust = font_height / 5;
+		break;
+	      case 0xBD:
+		text_adjust = 2 * font_height / 5;
+		break;
+	    }
+	    if (lattr == LATTR_TOP || lattr == LATTR_BOT)
+		text_adjust *= 2;
+	    attr &= ~CSET_MASK;
+	    text[0] = (char) (unitab_xterm['q'] & CHAR_MASK);
+	    attr |= (unitab_xterm['q'] & CSET_MASK);
+	    if (attr & ATTR_UNDER) {
+		attr &= ~ATTR_UNDER;
+		force_manual_underline = 1;
+	    }
+	}
     }
+
+    /* Anything left as an original character set is unprintable. */
+    if (DIRECT_CHAR(attr)) {
+	attr &= ~CSET_MASK;
+	attr |= 0xFF00;
+	memset(text, 0xFF, len);
+    }
+
+    /* OEM CP */
+    if ((attr & CSET_MASK) == ATTR_OEMCP)
+	nfont |= FONT_OEM;
 
     nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
     nbg = 2 * ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
@@ -2008,6 +2002,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	nfont |= FONT_BOLD;
     if (und_mode == UND_FONT && (attr & ATTR_UNDER))
 	nfont |= FONT_UNDERLINE;
+    another_font(nfont);
     if (!fonts[nfont]) {
 	if (nfont & FONT_UNDERLINE)
 	    force_manual_underline = 1;
@@ -2015,8 +2010,9 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 
 	nfont &= ~(FONT_BOLD | FONT_UNDERLINE);
     }
-    if (font_needs_hand_underlining && (attr & ATTR_UNDER))
-	force_manual_underline = 1;
+    another_font(nfont);
+    if (!fonts[nfont])
+	nfont = FONT_NORMAL;
     if (attr & ATTR_REVERSE) {
 	t = nfg;
 	nfg = nbg;
@@ -2034,62 +2030,151 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     SetBkMode(hdc, OPAQUE);
     line_box.left = x;
     line_box.top = y;
-    line_box.right = x + fnt_width * len;
+    line_box.right = x + char_width * len;
     line_box.bottom = y + font_height;
-    ExtTextOut(hdc, x, y, ETO_CLIPPED | ETO_OPAQUE, &line_box, text, len,
-	       IpDx);
-    if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	SetBkMode(hdc, TRANSPARENT);
 
-	/* GRR: This draws the character outside it's box and can leave
-	 * 'droppings' even with the clip box! I suppose I could loop it
-	 * one character at a time ... yuk. 
-	 * 
-	 * Or ... I could do a test print with "W", and use +1 or -1 for this
-	 * shift depending on if the leftmost column is blank...
-	 */
-	ExtTextOut(hdc, x - 1, y, ETO_CLIPPED, &line_box, text, len, IpDx);
+    /* We're using a private area for direct to font. (512 chars.) */
+    if (dbcs_screenfont && (attr & CSET_MASK) == ATTR_ACP) {
+	/* Ho Hum, dbcs fonts are a PITA! */
+	/* To display on W9x I have to convert to UCS */
+	static wchar_t *uni_buf = 0;
+	static int uni_len = 0;
+	int nlen;
+	if (len > uni_len) {
+	    sfree(uni_buf);
+	    uni_buf = smalloc((uni_len = len) * sizeof(wchar_t));
+	}
+	nlen = MultiByteToWideChar(font_codepage, MB_USEGLYPHCHARS,
+				   text, len, uni_buf, uni_len);
+
+	if (nlen <= 0)
+	    return;		       /* Eeek! */
+
+	ExtTextOutW(hdc, x,
+		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
+		    ETO_CLIPPED | ETO_OPAQUE, &line_box, uni_buf, nlen, 0);
+	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+	    SetBkMode(hdc, TRANSPARENT);
+	    ExtTextOutW(hdc, x - 1,
+			y - font_height * (lattr ==
+					   LATTR_BOT) + text_adjust,
+			ETO_CLIPPED, &line_box, uni_buf, nlen, 0);
+	}
+    } else if (DIRECT_FONT(attr)) {
+	ExtTextOut(hdc, x,
+		   y - font_height * (lattr == LATTR_BOT) + text_adjust,
+		   ETO_CLIPPED | ETO_OPAQUE, &line_box, text, len, IpDx);
+	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+	    SetBkMode(hdc, TRANSPARENT);
+
+	    /* GRR: This draws the character outside it's box and can leave
+	     * 'droppings' even with the clip box! I suppose I could loop it
+	     * one character at a time ... yuk. 
+	     * 
+	     * Or ... I could do a test print with "W", and use +1 or -1 for this
+	     * shift depending on if the leftmost column is blank...
+	     */
+	    ExtTextOut(hdc, x - 1,
+		       y - font_height * (lattr ==
+					  LATTR_BOT) + text_adjust,
+		       ETO_CLIPPED, &line_box, text, len, IpDx);
+	}
+    } else {
+	/* And 'normal' unicode characters */
+	static WCHAR *wbuf = NULL;
+	static int wlen = 0;
+	int i;
+	if (wlen < len) {
+	    sfree(wbuf);
+	    wlen = len;
+	    wbuf = smalloc(wlen * sizeof(WCHAR));
+	}
+	for (i = 0; i < len; i++)
+	    wbuf[i] = (WCHAR) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
+
+	ExtTextOutW(hdc, x,
+		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
+		    ETO_CLIPPED | ETO_OPAQUE, &line_box, wbuf, len, IpDx);
+
+	/* And the shadow bold hack. */
+	if (bold_mode == BOLD_SHADOW) {
+	    SetBkMode(hdc, TRANSPARENT);
+	    ExtTextOutW(hdc, x - 1,
+			y - font_height * (lattr ==
+					   LATTR_BOT) + text_adjust,
+			ETO_CLIPPED, &line_box, wbuf, len, IpDx);
+	}
     }
-    if (force_manual_underline ||
-	(und_mode == UND_LINE && (attr & ATTR_UNDER))) {
+    if (lattr != LATTR_TOP && (force_manual_underline ||
+			       (und_mode == UND_LINE
+				&& (attr & ATTR_UNDER)))) {
 	HPEN oldpen;
+	int dec = descent;
+	if (lattr == LATTR_BOT)
+	    dec = dec * 2 - font_height;
+
 	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, fg));
-	MoveToEx(hdc, x, y + descent, NULL);
-	LineTo(hdc, x + len * fnt_width, y + descent);
+	MoveToEx(hdc, x, y + dec, NULL);
+	LineTo(hdc, x + len * char_width, y + dec);
 	oldpen = SelectObject(hdc, oldpen);
 	DeleteObject(oldpen);
     }
-    if ((attr & ATTR_PASCURS) && cfg.cursor_type == 0) {
+}
+
+void do_cursor(Context ctx, int x, int y, char *text, int len,
+	       unsigned long attr, int lattr)
+{
+
+    int fnt_width;
+    int char_width;
+    HDC hdc = ctx;
+    int ctype = cfg.cursor_type;
+
+    if ((attr & TATTR_ACTCURS) && (ctype == 0 || big_cursor)) {
+	if (((attr & CSET_MASK) | (unsigned char) *text) != UCSWIDE) {
+	    do_text(ctx, x, y, text, len, attr, lattr);
+	    return;
+	}
+	ctype = 2;
+	attr |= TATTR_RIGHTCURS;
+    }
+
+    fnt_width = char_width = font_width * (1 + (lattr != LATTR_NORM));
+    if (attr & ATTR_WIDE)
+	char_width *= 2;
+    x *= fnt_width;
+    y *= font_height;
+
+    if ((attr & TATTR_PASCURS) && (ctype == 0 || big_cursor)) {
 	POINT pts[5];
 	HPEN oldpen;
 	pts[0].x = pts[1].x = pts[4].x = x;
-	pts[2].x = pts[3].x = x + fnt_width - 1;
+	pts[2].x = pts[3].x = x + char_width - 1;
 	pts[0].y = pts[3].y = pts[4].y = y;
 	pts[1].y = pts[2].y = y + font_height - 1;
 	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[23]));
 	Polyline(hdc, pts, 5);
 	oldpen = SelectObject(hdc, oldpen);
 	DeleteObject(oldpen);
-    }
-    if ((attr & (ATTR_ACTCURS | ATTR_PASCURS)) && cfg.cursor_type != 0) {
+    } else if ((attr & (TATTR_ACTCURS | TATTR_PASCURS)) && ctype != 0) {
 	int startx, starty, dx, dy, length, i;
-	if (cfg.cursor_type == 1) {
+	if (ctype == 1) {
 	    startx = x;
 	    starty = y + descent;
 	    dx = 1;
 	    dy = 0;
-	    length = fnt_width;
+	    length = char_width;
 	} else {
 	    int xadjust = 0;
-	    if (attr & ATTR_RIGHTCURS)
-		xadjust = fnt_width - 1;
+	    if (attr & TATTR_RIGHTCURS)
+		xadjust = char_width - 1;
 	    startx = x + xadjust;
 	    starty = y;
 	    dx = 0;
 	    dy = 1;
 	    length = font_height;
 	}
-	if (attr & ATTR_ACTCURS) {
+	if (attr & TATTR_ACTCURS) {
 	    HPEN oldpen;
 	    oldpen =
 		SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[23]));
@@ -2109,55 +2194,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     }
 }
 
-static int check_compose(int first, int second)
-{
-
-    static char *composetbl[] = {
-	"++#", "AA@", "(([", "//\\", "))]", "(-{", "-)}", "/^|", "!!¡",
-	"C/¢",
-	"C|¢", "L-£", "L=£", "XO¤", "X0¤", "Y-¥", "Y=¥", "||¦", "SO§",
-	"S!§",
-	"S0§", "\"\"¨", "CO©", "C0©", "A_ª", "<<«", ",-¬", "--­", "RO®",
-	"-^¯", "0^°", "+-±", "2^²", "3^³", "''´", "/Uµ", "P!¶", ".^·",
-	",,¸",
-	"1^¹", "O_º", ">>»", "14¼", "12½", "34¾", "??¿", "`AÀ", "'AÁ",
-	"^AÂ",
-	"~AÃ", "\"AÄ", "*AÅ", "AEÆ", ",CÇ", "`EÈ", "'EÉ", "^EÊ", "\"EË",
-	"`IÌ", "'IÍ", "^IÎ", "\"IÏ", "-DÐ", "~NÑ", "`OÒ", "'OÓ", "^OÔ",
-	"~OÕ", "\"OÖ", "XX×", "/OØ", "`UÙ", "'UÚ", "^UÛ", "\"UÜ", "'YÝ",
-	"HTÞ", "ssß", "`aà", "'aá", "^aâ", "~aã", "\"aä", "*aå", "aeæ",
-	",cç",
-	"`eè", "'eé", "^eê", "\"eë", "`iì", "'ií", "^iî", "\"iï", "-dð",
-	"~nñ",
-	"`oò", "'oó", "^oô", "~oõ", "\"oö", ":-÷", "o/ø", "`uù", "'uú",
-	"^uû",
-	"\"uü", "'yý", "htþ", "\"yÿ",
-	0
-    };
-
-    char **c;
-    static int recurse = 0;
-    int nc = -1;
-
-    for (c = composetbl; *c; c++) {
-	if ((*c)[0] == first && (*c)[1] == second) {
-	    return (*c)[2] & 0xFF;
-	}
-    }
-
-    if (recurse == 0) {
-	recurse = 1;
-	nc = check_compose(second, first);
-	if (nc == -1)
-	    nc = check_compose(toupper(first), toupper(second));
-	if (nc == -1)
-	    nc = check_compose(toupper(second), toupper(first));
-	recurse = 0;
-    }
-    return nc;
-}
-
-
 /*
  * Translate a WM_(SYS)?KEY(UP|DOWN) message into a string of ASCII
  * codes. Returns number of bytes used or zero to drop the message
@@ -2171,6 +2207,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     int r, i, code;
     unsigned char *p = output;
     static int alt_state = 0;
+    static int alt_sum = 0;
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
@@ -2183,6 +2220,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	memset(keystate, 0, sizeof(keystate));
     else {
 #if 0
+#define SHOW_TOASCII_RESULT
 	{			       /* Tell us all about key events */
 	    static BYTE oldstate[256];
 	    static int first = 1;
@@ -2791,19 +2829,38 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = 0;
 	    return -2;
 	}
+
+	if (left_alt && wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9)
+	    alt_sum = alt_sum * 10 + wParam - VK_NUMPAD0;
+	else
+	    alt_sum = 0;
     }
 
     /* Okay we've done everything interesting; let windows deal with 
      * the boring stuff */
     {
-	BOOL capsOn = keystate[VK_CAPITAL] != 0;
-
-	/* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
-	if (cfg.xlat_capslockcyr)
-	    keystate[VK_CAPITAL] = 0;
-
 	r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
+#ifdef SHOW_TOASCII_RESULT
+	if (r == 1 && !key_down) {
+	    if (alt_sum) {
+		if (utf || dbcs_screenfont)
+		    debug((", (U+%04x)", alt_sum));
+		else
+		    debug((", LCH(%d)", alt_sum));
+	    } else {
+		debug((", ACH(%d)", keys[0]));
+	    }
+	} else if (r > 0) {
+	    int r1;
+	    debug((", ASC("));
+	    for (r1 = 0; r1 < r; r1++) {
+		debug(("%s%d", r1 ? "," : "", keys[r1]));
+	    }
+	    debug((")"));
+	}
+#endif
 	if (r > 0) {
+	    WCHAR keybuf;
 	    p = output;
 	    for (i = 0; i < r; i++) {
 		unsigned char ch = (unsigned char) keys[i];
@@ -2821,20 +2878,30 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			MessageBeep(MB_ICONHAND);
 			return 0;
 		    }
-		    *p++ = xlat_kbd2tty((unsigned char) nc);
-		    return p - output;
+		    keybuf = nc;
+		    luni_send(&keybuf, 1);
+		    continue;
 		}
 
 		compose_state = 0;
 
-		if (left_alt && key_down)
-		    *p++ = '\033';
-		if (!key_down)
-		    *p++ = ch;
-		else {
-		    if (capsOn)
-			ch = xlat_latkbd2win(ch);
-		    *p++ = xlat_kbd2tty(ch);
+		if (!key_down) {
+		    if (alt_sum) {
+			if (utf || dbcs_screenfont) {
+			    keybuf = alt_sum;
+			    luni_send(&keybuf, 1);
+			} else {
+			    ch = (char) alt_sum;
+			    ldisc_send(&ch, 1);
+			}
+			alt_sum = 0;
+		    } else
+			lpage_send(kbd_codepage, &ch, 1);
+		} else {
+		    static char cbuf[] = "\033 ";
+		    cbuf[1] = ch;
+		    lpage_send(kbd_codepage, cbuf + !left_alt,
+			       1 + !!left_alt);
 		}
 	    }
 
@@ -2846,6 +2913,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	/* If we're definitly not building up an ALT-54321 then clear it */
 	if (!left_alt)
 	    keys[0] = 0;
+	/* If we will be using alt_sum fix the 256s */
+	else if (keys[0] && (utf || dbcs_screenfont))
+	    keys[0] = 10;
     }
 
     /* ALT alone may or may not want to bring up the System menu */
@@ -2976,7 +3046,7 @@ void palette_reset(void)
     }
 }
 
-void write_clip(void *data, int len, int must_deselect)
+void write_aclip(char *data, int len, int must_deselect)
 {
     HGLOBAL clipdata;
     void *lock;
@@ -3005,33 +3075,100 @@ void write_clip(void *data, int len, int must_deselect)
 	SendMessage(hwnd, WM_IGNORE_CLIP, FALSE, 0);
 }
 
-void get_clip(void **p, int *len)
+/*
+ * Note: unlike write_aclip() this will not append a nul.
+ */
+void write_clip(wchar_t * data, int len, int must_deselect)
+{
+    HGLOBAL clipdata;
+    HGLOBAL clipdata2;
+    int len2;
+    void *lock, *lock2;
+
+    len2 = WideCharToMultiByte(CP_ACP, 0, data, len, 0, 0, NULL, NULL);
+
+    clipdata = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE,
+			   len * sizeof(wchar_t));
+    clipdata2 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, len2);
+
+    if (!clipdata || !clipdata2) {
+	if (clipdata)
+	    GlobalFree(clipdata);
+	if (clipdata2)
+	    GlobalFree(clipdata2);
+	return;
+    }
+    if (!(lock = GlobalLock(clipdata)))
+	return;
+    if (!(lock2 = GlobalLock(clipdata2)))
+	return;
+
+    memcpy(lock, data, len * sizeof(wchar_t));
+    WideCharToMultiByte(CP_ACP, 0, data, len, lock2, len2, NULL, NULL);
+
+    GlobalUnlock(clipdata);
+    GlobalUnlock(clipdata2);
+
+    if (!must_deselect)
+	SendMessage(hwnd, WM_IGNORE_CLIP, TRUE, 0);
+
+    if (OpenClipboard(hwnd)) {
+	EmptyClipboard();
+	SetClipboardData(CF_UNICODETEXT, clipdata);
+	SetClipboardData(CF_TEXT, clipdata2);
+	CloseClipboard();
+    } else {
+	GlobalFree(clipdata);
+	GlobalFree(clipdata2);
+    }
+
+    if (!must_deselect)
+	SendMessage(hwnd, WM_IGNORE_CLIP, FALSE, 0);
+}
+
+void get_clip(wchar_t ** p, int *len)
 {
     static HGLOBAL clipdata = NULL;
+    static wchar_t *converted = 0;
+    wchar_t *p2;
 
+    if (converted) {
+	sfree(converted);
+	converted = 0;
+    }
     if (!p) {
 	if (clipdata)
 	    GlobalUnlock(clipdata);
 	clipdata = NULL;
 	return;
-    } else {
-	if (OpenClipboard(NULL)) {
-	    clipdata = GetClipboardData(CF_TEXT);
+    } else if (OpenClipboard(NULL)) {
+	if (clipdata = GetClipboardData(CF_UNICODETEXT)) {
 	    CloseClipboard();
-	    if (clipdata) {
-		*p = GlobalLock(clipdata);
-		if (*p) {
-		    *len = strlen(*p);
-		    return;
-		}
+	    *p = GlobalLock(clipdata);
+	    if (*p) {
+		for (p2 = *p; *p2; p2++);
+		*len = p2 - *p;
+		return;
 	    }
-	}
+	} else if (clipdata = GetClipboardData(CF_TEXT)) {
+	    char *s;
+	    int i;
+	    CloseClipboard();
+	    s = GlobalLock(clipdata);
+	    i = MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, 0, 0);
+	    *p = converted = smalloc(i * sizeof(wchar_t));
+	    MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, converted, i);
+	    *len = i - 1;
+	    return;
+	} else
+	    CloseClipboard();
     }
 
     *p = NULL;
     *len = 0;
 }
 
+#if 0
 /*
  * Move `lines' lines from position `from' to position `to' in the
  * window.
@@ -3050,6 +3187,7 @@ void optimised_move(int to, int from, int lines)
     r.bottom = (max + lines) * font_height;
     ScrollWindow(hwnd, 0, (to - from) * font_height, &r, &r);
 }
+#endif
 
 /*
  * Print a message box and perform a fatal exit.

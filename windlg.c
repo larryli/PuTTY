@@ -128,7 +128,7 @@ static int CALLBACK LogProc(HWND hwnd, UINT msg,
 			    memcpy(p, sel_nl, sizeof(sel_nl));
 			    p += sizeof(sel_nl);
 			}
-			write_clip(clipdata, size, TRUE);
+			write_aclip(clipdata, size, TRUE);
 			sfree(clipdata);
 		    }
 		    sfree(selitems);
@@ -486,18 +486,14 @@ enum { IDCX_ABOUT =
     IDC_TITLE_TRANSLATION,
     IDC_BOX_TRANSLATION1,
     IDC_BOX_TRANSLATION2,
-    IDC_BOX_TRANSLATION3,
-    IDC_XLATSTATIC,
-    IDC_NOXLAT,
-    IDC_KOI8WIN1251,
-    IDC_88592WIN1250,
-    IDC_88592CP852,
-    IDC_CAPSLOCKCYR,
+    IDC_CODEPAGESTATIC,
+    IDC_CODEPAGE,
     IDC_VTSTATIC,
     IDC_VTXWINDOWS,
     IDC_VTOEMANSI,
     IDC_VTOEMONLY,
     IDC_VTPOORMAN,
+    IDC_VTUNICODE,
     translationpanelend,
 
     tunnelspanelstart,
@@ -691,7 +687,7 @@ static void init_dlg_ctrls(HWND hwnd)
 	SendDlgItemMessage(hwnd, IDC_CCLIST, LB_SETTABSTOPS, 4,
 			   (LPARAM) tabs);
     }
-    for (i = 0; i < 256; i++) {
+    for (i = 0; i < 128; i++) {
 	char str[100];
 	sprintf(str, "%d\t(0x%02X)\t%c\t%d", i, i,
 		(i >= 0x21 && i != 0x7F) ? i : ' ', cfg.wordness[i]);
@@ -717,15 +713,12 @@ static void init_dlg_ctrls(HWND hwnd)
     SetDlgItemInt(hwnd, IDC_GVALUE, cfg.colours[0][1], FALSE);
     SetDlgItemInt(hwnd, IDC_BVALUE, cfg.colours[0][2], FALSE);
 
-    CheckRadioButton(hwnd, IDC_NOXLAT, IDC_88592CP852,
-		     cfg.xlat_88592w1250 ? IDC_88592WIN1250 :
-		     cfg.xlat_88592cp852 ? IDC_88592CP852 :
-		     cfg.xlat_enablekoiwin ? IDC_KOI8WIN1251 : IDC_NOXLAT);
-    CheckDlgButton(hwnd, IDC_CAPSLOCKCYR, cfg.xlat_capslockcyr);
-    CheckRadioButton(hwnd, IDC_VTXWINDOWS, IDC_VTPOORMAN,
+    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
+    CheckRadioButton(hwnd, IDC_VTXWINDOWS, IDC_VTUNICODE,
 		     cfg.vtmode == VT_XWINDOWS ? IDC_VTXWINDOWS :
 		     cfg.vtmode == VT_OEMANSI ? IDC_VTOEMANSI :
 		     cfg.vtmode == VT_OEMONLY ? IDC_VTOEMONLY :
+		     cfg.vtmode == VT_UNICODE ? IDC_VTUNICODE :
 		     IDC_VTPOORMAN);
 
     CheckDlgButton(hwnd, IDC_X11_FORWARD, cfg.x11_forward);
@@ -781,7 +774,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
 	    if (backends[3].backend == NULL) {
 		/* this is PuTTYtel, so only three protocols available */
-		radioline(&cp, "Protocol:", IDC_PROTSTATIC, 4,
+		radioline(&cp, "Protocol:", IDC_PROTSTATIC, 3,
 			  "&Raw", IDC_PROTRAW,
 			  "&Telnet", IDC_PROTTELNET,
 			  "Rlog&in", IDC_PROTRLOGIN, NULL);
@@ -1018,21 +1011,12 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 "Use font in &both ANSI and OEM modes", IDC_VTOEMANSI,
 		 "Use font in O&EM mode only", IDC_VTOEMONLY,
 		 "&Poor man's line drawing (" "+" ", " "-" " and " "|" ")",
-		 IDC_VTPOORMAN, NULL);
+		 IDC_VTPOORMAN, "&Unicode mode", IDC_VTUNICODE, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Enable character set translation on received data",
 		 IDC_BOX_TRANSLATION2);
-	radiobig(&cp,
-		 "Character set &translation:", IDC_XLATSTATIC,
-		 "None", IDC_NOXLAT,
-		 "KOI8 / Win-1251", IDC_KOI8WIN1251,
-		 "ISO-8859-2 / Win-1250", IDC_88592WIN1250,
-		 "ISO-8859-2 / CP852", IDC_88592CP852, NULL);
-	endbox(&cp);
-	beginbox(&cp, "Enable character set translation on input data",
-		 IDC_BOX_TRANSLATION3);
-	checkbox(&cp, "CAP&S LOCK acts as cyrillic switch",
-		 IDC_CAPSLOCKCYR);
+	multiedit(&cp, "Line codepage:", IDC_CODEPAGESTATIC,
+		  IDC_CODEPAGE, 100, NULL);
 	endbox(&cp);
     }
 
@@ -2194,7 +2178,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    if (!ok)
 			MessageBeep(0);
 		    else {
-			for (i = 0; i < 256; i++)
+			for (i = 0; i < 128; i++)
 			    if (SendDlgItemMessage
 				(hwnd, IDC_CCLIST, LB_GETSEL, i, 0)) {
 				char str[100];
@@ -2288,34 +2272,44 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    }
 		}
 		break;
-	      case IDC_NOXLAT:
-	      case IDC_KOI8WIN1251:
-	      case IDC_88592WIN1250:
-	      case IDC_88592CP852:
-		cfg.xlat_enablekoiwin =
-		    IsDlgButtonChecked(hwnd, IDC_KOI8WIN1251);
-		cfg.xlat_88592w1250 =
-		    IsDlgButtonChecked(hwnd, IDC_88592WIN1250);
-		cfg.xlat_88592cp852 =
-		    IsDlgButtonChecked(hwnd, IDC_88592CP852);
-		break;
-	      case IDC_CAPSLOCKCYR:
-		if (HIWORD(wParam) == BN_CLICKED ||
-		    HIWORD(wParam) == BN_DOUBLECLICKED) {
-		    cfg.xlat_capslockcyr =
-			IsDlgButtonChecked(hwnd, IDC_CAPSLOCKCYR);
+	      case IDC_CODEPAGE:
+		if (HIWORD(wParam) == EN_CHANGE)
+		    GetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage,
+				   sizeof(cfg.line_codepage) - 1);
+		if (HIWORD(wParam) == EN_KILLFOCUS) {
+		    int cp = decode_codepage(cfg.line_codepage);
+		    char buf[256];
+		    if (cp < -1) {
+			if (cp == -2)
+			    sprintf(buf,
+				    "Unable to identify character set '%s', "
+				    "translation disabled.",
+				    cfg.line_codepage);
+			if (cp == -3)
+			    sprintf(buf,
+				    "Character set '%s' is a DBCS, "
+				    "translation is not available.",
+				    cfg.line_codepage);
+			MessageBox(hwnd, buf, "PuTTY Error",
+				   MB_ICONERROR | MB_OK);
+		    }
+		    strcpy(cfg.line_codepage, cp_name(cp));
+		    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
 		}
 		break;
 	      case IDC_VTXWINDOWS:
 	      case IDC_VTOEMANSI:
 	      case IDC_VTOEMONLY:
 	      case IDC_VTPOORMAN:
+	      case IDC_VTUNICODE:
 		cfg.vtmode =
 		    (IsDlgButtonChecked(hwnd, IDC_VTXWINDOWS) ? VT_XWINDOWS
 		     : IsDlgButtonChecked(hwnd,
 					  IDC_VTOEMANSI) ? VT_OEMANSI :
 		     IsDlgButtonChecked(hwnd,
 					IDC_VTOEMONLY) ? VT_OEMONLY :
+		     IsDlgButtonChecked(hwnd,
+					IDC_VTUNICODE) ? VT_UNICODE :
 		     VT_POORMAN);
 		break;
 	      case IDC_X11_FORWARD:

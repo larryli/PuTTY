@@ -9,6 +9,8 @@
 #include "putty.h"
 #include "tree234.h"
 
+#define VT52_PLUS
+
 #define CL_ANSIMIN	0x0001	       /* Codes in all ANSI like terminals. */
 #define CL_VT100	0x0002	       /* VT100 */
 #define CL_VT100AVO	0x0004	       /* VT100 +AVO; 132x24 (not 132x14) & attrs */
@@ -54,7 +56,8 @@ static int disptop;		       /* distance scrolled back (0 or -ve) */
 static unsigned long *cpos;	       /* cursor position (convenience) */
 
 static unsigned long *disptext;	       /* buffer of text on real screen */
-static unsigned long *wanttext;	       /* buffer of text we want on screen */
+static unsigned long *dispcurs;	       /* location of cursor on real screen */
+static unsigned long curstype;	       /* type of cursor on real screen */
 
 #define VBELL_TIMEOUT 100	       /* millisecond len of visual bell */
 
@@ -66,8 +69,6 @@ static struct beeptime *beephead, *beeptail;
 int nbeeps;
 int beep_overloaded;
 long lastbeep;
-
-static unsigned char *selspace;	       /* buffer for building selections in */
 
 #define TSIZE (sizeof(unsigned long))
 #define fix_cpos do { cpos = lineptr(curs.y) + curs.x; } while(0)
@@ -103,6 +104,10 @@ static int tblinker;		       /* When the blinking text is on */
 static int blink_is_real;	       /* Actually blink blinking text */
 static int term_echoing;	       /* Does terminal want local echo? */
 static int term_editing;	       /* Does terminal want local edit? */
+static int vt52_bold;		       /* Force bold on non-bold colours */
+static int utf_state;		       /* Is there a pending UTF-8 character */
+static int utf_char;		       /* and what is it so far. */
+static int utf_size;		       /* The size of the UTF character. */
 
 static int xterm_mouse;		       /* send mouse messages to app */
 
@@ -142,14 +147,13 @@ static enum {
 
     DO_CTRLS,
 
-    IGNORE_NEXT,
-    SET_GL, SET_GR,
     SEEN_OSC_P,
     OSC_STRING, OSC_MAYBE_ST,
-    SEEN_ESCHASH,
     VT52_ESC,
     VT52_Y1,
-    VT52_Y2
+    VT52_Y2,
+    VT52_FG,
+    VT52_BG
 } termstate;
 
 static enum {
@@ -179,8 +183,9 @@ static short wordness[256] = {
     2, 2, 2, 2, 2, 2, 2, 2,	       /* EF */
 };
 
-static unsigned char sel_nl[] = SEL_NL;
-static char *paste_buffer = 0;
+#define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
+static wchar_t sel_nl[] = SEL_NL;
+static wchar_t *paste_buffer = 0;
 static int paste_len, paste_pos, paste_hold;
 
 /*
@@ -262,6 +267,7 @@ static void power_on(void)
     rvideo = 0;
     in_vbell = FALSE;
     cursor_on = 1;
+    big_cursor = 0;
     save_attr = curr_attr = ATTR_DEFAULT;
     term_editing = term_echoing = FALSE;
     ldisc_send(NULL, 0);	       /* cause ldisc to notice changes */
@@ -336,9 +342,8 @@ void term_init(void)
 {
     screen = alt_screen = scrollback = NULL;
     disptop = 0;
-    disptext = wanttext = NULL;
+    disptext = dispcurs = NULL;
     tabs = NULL;
-    selspace = NULL;
     deselect();
     rows = cols = -1;
     power_on();
@@ -354,7 +359,7 @@ void term_init(void)
 void term_size(int newrows, int newcols, int newsavelines)
 {
     tree234 *newsb, *newscreen, *newalt;
-    unsigned long *newdisp, *newwant, *oldline, *line;
+    unsigned long *newdisp, *oldline, *line;
     int i, j, ccols;
     int sblen;
     int save_alt_which = alt_which;
@@ -426,12 +431,7 @@ void term_size(int newrows, int newcols, int newsavelines)
 	newdisp[i] = ATTR_INVALID;
     sfree(disptext);
     disptext = newdisp;
-
-    newwant = smalloc(newrows * (newcols + 1) * TSIZE);
-    for (i = 0; i < newrows * (newcols + 1); i++)
-	newwant[i] = ATTR_INVALID;
-    sfree(wanttext);
-    wanttext = newwant;
+    dispcurs = NULL;
 
     newalt = newtree234(NULL);
     for (i = 0; i < newrows; i++) {
@@ -447,10 +447,6 @@ void term_size(int newrows, int newcols, int newsavelines)
 	freetree234(alt_screen);
     }
     alt_screen = newalt;
-
-    sfree(selspace);
-    selspace =
-	smalloc((newrows + newsavelines) * (newcols + sizeof(sel_nl)));
 
     tabs = srealloc(tabs, newcols * sizeof(*tabs));
     {
@@ -731,7 +727,7 @@ static void erase_lots(int line_only, int from_begin, int to_end)
     ldata = lineptr(start.y);
     while (poslt(start, end)) {
 	if (start.y == cols && !erase_lattr)
-	    ldata[start.x] &= ~ATTR_WRAPPED;
+	    ldata[start.x] &= ~LATTR_WRAPPED;
 	else
 	    ldata[start.x] = erase_char;
 	if (incpos(start) && start.y < rows)
@@ -784,6 +780,12 @@ static void toggle_mode(int mode, int query, int state)
 	    break;
 	  case 2:		       /* VT52 mode */
 	    vt52_mode = !state;
+	    if (vt52_mode) {
+		blink_is_real = FALSE;
+		vt52_bold = FALSE;
+	    } else {
+		blink_is_real = cfg.blinktext;
+	    }
 	    break;
 	  case 3:		       /* 80/132 columns */
 	    deselect();
@@ -857,6 +859,9 @@ static void toggle_mode(int mode, int query, int state)
 	  case 20:		       /* Return sends ... */
 	    cr_lf_return = state;
 	    break;
+	  case 34:		       /* Make cursor BIG */
+	    compatibility2(OTHER, VT220);
+	    big_cursor = !state;
 	}
 }
 
@@ -907,8 +912,149 @@ void term_out(void)
 	 * be able to display 8-bit characters, but I'll let that go 'cause
 	 * of i18n.
 	 */
-	if (((c & 0x60) == 0 || c == '\177') &&
-	    termstate < DO_CTRLS && ((c & 0x80) == 0 || has_compat(VT220))) {
+
+	/* First see about all those translations. */
+	if (termstate == TOPLEVEL) {
+	    if (utf)
+		switch (utf_state) {
+		  case 0:
+		    if (c < 0x80) {
+			/* I know; gotos are evil. This one is really bad!
+			 * But before you try removing it follow the path of the
+			 * sequence "0x5F 0xC0 0x71" with UTF and VTGraphics on.
+			 */
+			/*
+			   if (cfg.no_vt_graph_with_utf8) break;
+			 */
+			goto evil_jump;
+		    } else if ((c & 0xe0) == 0xc0) {
+			utf_size = utf_state = 1;
+			utf_char = (c & 0x1f);
+		    } else if ((c & 0xf0) == 0xe0) {
+			utf_size = utf_state = 2;
+			utf_char = (c & 0x0f);
+		    } else if ((c & 0xf8) == 0xf0) {
+			utf_size = utf_state = 3;
+			utf_char = (c & 0x07);
+		    } else if ((c & 0xfc) == 0xf8) {
+			utf_size = utf_state = 4;
+			utf_char = (c & 0x03);
+		    } else if ((c & 0xfe) == 0xfc) {
+			utf_size = utf_state = 5;
+			utf_char = (c & 0x01);
+		    } else {
+			c = UCSERR;
+			break;
+		    }
+		    continue;
+		  case 1:
+		  case 2:
+		  case 3:
+		  case 4:
+		  case 5:
+		    if ((c & 0xC0) != 0x80) {
+			inbuf_reap--;  /* This causes the faulting character */
+			c = UCSERR;    /* to be logged twice - not really a */
+			utf_state = 0; /* serious problem. */
+			break;
+		    }
+		    utf_char = (utf_char << 6) | (c & 0x3f);
+		    if (--utf_state)
+			continue;
+
+		    c = utf_char;
+
+		    /* Is somebody trying to be evil! */
+		    if (c < 0x80 ||
+			(c < 0x800 && utf_size >= 2) ||
+			(c < 0x10000 && utf_size >= 3) ||
+			(c < 0x200000 && utf_size >= 4) ||
+			(c < 0x4000000 && utf_size >= 5))
+			c = UCSERR;
+
+		    /* Unicode line separator and paragraph separator are CR-LF */
+		    if (c == 0x2028 || c == 0x2029)
+			c = 0x85;
+
+		    /* High controls are probably a Baaad idea too. */
+		    if (c < 0xA0)
+			c = 0xFFFD;
+
+		    /* The UTF-16 surrogates are not nice either. */
+		    /*       The standard give the option of decoding these: 
+		     *       I don't want to! */
+		    if (c >= 0xD800 && c < 0xE000)
+			c = UCSERR;
+
+		    /* ISO 10646 characters now limited to UTF-16 range. */
+		    if (c > 0x10FFFF)
+			c = UCSERR;
+
+		    /* This is currently a TagPhobic application.. */
+		    if (c >= 0xE0000 && c <= 0xE007F)
+			continue;
+
+		    /* U+FEFF is best seen as a null. */
+		    if (c == 0xFEFF)
+			continue;
+		    /* But U+FFFE is an error. */
+		    if (c == 0xFFFE || c == 0xFFFF)
+			c = UCSERR;
+
+		    /* Oops this is a 16bit implementation */
+		    if (c >= 0x10000)
+			c = 0xFFFD;
+		    break;
+	    } else {
+	      evil_jump:;
+		switch (cset_attr[cset]) {
+		    /* 
+		     * Linedraw characters are different from 'ESC ( B'
+		     * only for a small range. For ones outside that
+		     * range, make sure we use the same font as well as
+		     * the same encoding.
+		     */
+		  case ATTR_LINEDRW:
+		    if (unitab_ctrl[c] != 0xFF)
+			c = unitab_ctrl[c];
+		    else
+			c = ((unsigned char) c) | ATTR_LINEDRW;
+		    break;
+
+		  case ATTR_GBCHR:
+		    /* If UK-ASCII, make the '#' a LineDraw Pound */
+		    if (c == '#') {
+			c = '}' | ATTR_LINEDRW;
+			break;
+		    }
+		  /*FALLTHROUGH*/ case ATTR_ASCII:
+		    if (unitab_ctrl[c] != 0xFF)
+			c = unitab_ctrl[c];
+		    else
+			c = ((unsigned char) c) | ATTR_ASCII;
+		    break;
+		}
+	    }
+	}
+
+	/* How about C1 controls ? */
+	if ((c & -32) == 0x80 && termstate < DO_CTRLS && !vt52_mode &&
+	    has_compat(VT220)) {
+	    termstate = SEEN_ESC;
+	    esc_query = FALSE;
+	    c = '@' + (c & 0x1F);
+	}
+
+	/* Or the GL control. */
+	if (c == '\177' && termstate < DO_CTRLS && has_compat(OTHER)) {
+	    if (curs.x && !wrapnext)
+		curs.x--;
+	    wrapnext = FALSE;
+	    fix_cpos;
+	    *cpos = (' ' | curr_attr | ATTR_ASCII);
+	} else
+	    /* Or normal C0 controls. */
+	if ((c & -32) == 0 && termstate < DO_CTRLS) {
 	    switch (c) {
 	      case '\005':	       /* terminal type query */
 		/* Strictly speaking this is VT100 but a VT100 defaults to
@@ -936,9 +1082,9 @@ void term_out(void)
 			} else if (*s == '^') {
 			    state = 1;
 			} else
-			    *d++ = xlat_kbd2tty((unsigned char) *s);
+			    *d++ = *s;
 		    }
-		    ldisc_send(abuf, d - abuf);
+		    lpage_send(CP_ACP, abuf, d - abuf);
 		}
 		break;
 	      case '\007':
@@ -1034,19 +1180,8 @@ void term_out(void)
 		else {
 		    compatibility(ANSIMIN);
 		    termstate = SEEN_ESC;
+		    esc_query = FALSE;
 		}
-		break;
-	      case 0233:
-		compatibility(VT220);
-		termstate = SEEN_CSI;
-		esc_nargs = 1;
-		esc_args[0] = ARG_DEFAULT;
-		esc_query = FALSE;
-		break;
-	      case 0235:
-		compatibility(VT220);
-		termstate = SEEN_OSC;
-		esc_args[0] = 0;
 		break;
 	      case '\r':
 		curs.x = 0;
@@ -1102,22 +1237,13 @@ void term_out(void)
 		}
 		seen_disp_event = TRUE;
 		break;
-	      case '\177':	       /* Destructive backspace
-				          This does nothing on a real VT100 */
-		compatibility(OTHER);
-		if (curs.x && !wrapnext)
-		    curs.x--;
-		wrapnext = FALSE;
-		fix_cpos;
-		*cpos = (' ' | curr_attr | ATTR_ASCII);
-		break;
 	    }
 	} else
 	    switch (termstate) {
 	      case TOPLEVEL:
 		/* Only graphic characters get this far, ctrls are stripped above */
 		if (wrapnext && wrap) {
-		    cpos[1] |= ATTR_WRAPPED;
+		    cpos[1] |= LATTR_WRAPPED;
 		    if (curs.y == marg_b)
 			scroll(marg_t, marg_b, 1, TRUE);
 		    else if (curs.y < rows - 1)
@@ -1133,49 +1259,49 @@ void term_out(void)
 		    incpos(cursplus);
 		    check_selection(curs, cursplus);
 		}
-		switch (cset_attr[cset]) {
-		    /*
-		     * Linedraw characters are different from 'ESC ( B'
-		     * only for a small range. For ones outside that
-		     * range, make sure we use the same font as well as
-		     * the same encoding.
-		     */
-		  case ATTR_LINEDRW:
-		    if (c < 0x5f || c > 0x7F)
-			*cpos++ =
-			    xlat_tty2scr((unsigned char) c) | curr_attr |
-			    ATTR_ASCII;
-		    else if (c == 0x5F)
-			*cpos++ = ' ' | curr_attr | ATTR_ASCII;
-		    else
-			*cpos++ =
-			    ((unsigned char) c) | curr_attr | ATTR_LINEDRW;
-		    break;
-		  case ATTR_GBCHR:
-		    /* If UK-ASCII, make the '#' a LineDraw Pound */
-		    if (c == '#') {
-			*cpos++ = '}' | curr_attr | ATTR_LINEDRW;
-			break;
-		    }
-		  /*FALLTHROUGH*/ default:
-		    *cpos = xlat_tty2scr((unsigned char) c) | curr_attr |
-			(c <= 0x7F ? cset_attr[cset] : ATTR_ASCII);
+		if ((c & CSET_MASK) == ATTR_ASCII || (c & CSET_MASK) == 0)
 		    logtraffic((unsigned char) c, LGTYP_ASCII);
-		    cpos++;
-		    break;
+		{
+		    extern int wcwidth(wchar_t ucs);
+		    int width = 0;
+		    if (DIRECT_CHAR(c))
+			width = 1;
+		    if (!width)
+			width = wcwidth((wchar_t) c);
+		    switch (width) {
+		      case 2:
+			if (curs.x + 1 != cols) {
+			    *cpos++ = c | ATTR_WIDE | curr_attr;
+			    *cpos++ = UCSWIDE | curr_attr;
+			    curs.x++;
+			    break;
+			}
+		      case 1:
+			*cpos++ = c | curr_attr;
+			break;
+		      default:
+			continue;
+		    }
 		}
 		curs.x++;
 		if (curs.x == cols) {
 		    cpos--;
 		    curs.x--;
 		    wrapnext = TRUE;
+		    if (wrap && vt52_mode) {
+			cpos[1] |= LATTR_WRAPPED;
+			if (curs.y == marg_b)
+			    scroll(marg_t, marg_b, 1, TRUE);
+			else if (curs.y < rows - 1)
+			    curs.y++;
+			curs.x = 0;
+			fix_cpos;
+			wrapnext = FALSE;
+		    }
 		}
 		seen_disp_event = 1;
 		break;
 
-	      case IGNORE_NEXT:
-		termstate = TOPLEVEL;
-		break;
 	      case OSC_MAYBE_ST:
 		/*
 		 * This state is virtually identical to SEEN_ESC, with the
@@ -1189,12 +1315,15 @@ void term_out(void)
 		}
 		/* else fall through */
 	      case SEEN_ESC:
-		termstate = TOPLEVEL;
-		switch (c) {
-		  case ' ':	       /* some weird sequence? */
-		    compatibility(VT220);
-		    termstate = IGNORE_NEXT;
+		if (c >= ' ' && c <= '/') {
+		    if (esc_query)
+			esc_query = -1;
+		    else
+			esc_query = c;
 		    break;
+		}
+		termstate = TOPLEVEL;
+		switch (ANSI(c, esc_query)) {
 		  case '[':	       /* enter CSI mode */
 		    termstate = SEEN_CSI;
 		    esc_nargs = 1;
@@ -1206,14 +1335,6 @@ void term_out(void)
 		    compatibility(OTHER);
 		    termstate = SEEN_OSC;
 		    esc_args[0] = 0;
-		    break;
-		  case '(':	       /* should set GL */
-		    compatibility(VT100);
-		    termstate = SET_GL;
-		    break;
-		  case ')':	       /* should set GR */
-		    compatibility(VT100);
-		    termstate = SET_GR;
 		    break;
 		  case '7':	       /* save cursor */
 		    compatibility(VT100);
@@ -1278,13 +1399,96 @@ void term_out(void)
 		    disptop = 0;
 		    seen_disp_event = TRUE;
 		    break;
-		  case '#':	       /* ESC # 8 fills screen with Es :-) */
-		    compatibility(VT100);
-		    termstate = SEEN_ESCHASH;
-		    break;
 		  case 'H':	       /* set a tab */
 		    compatibility(VT100);
 		    tabs[curs.x] = TRUE;
+		    break;
+
+		  case ANSI('8', '#'):	/* ESC # 8 fills screen with Es :-) */
+		    compatibility(VT100);
+		    {
+			unsigned long *ldata;
+			int i, j;
+			pos scrtop, scrbot;
+
+			for (i = 0; i < rows; i++) {
+			    ldata = lineptr(i);
+			    for (j = 0; j < cols; j++)
+				ldata[j] = ATTR_DEFAULT | 'E';
+			    ldata[cols] = 0;
+			}
+			disptop = 0;
+			seen_disp_event = TRUE;
+			scrtop.x = scrtop.y = 0;
+			scrbot.x = 0;
+			scrbot.y = rows;
+			check_selection(scrtop, scrbot);
+		    }
+		    break;
+
+		  case ANSI('3', '#'):
+		  case ANSI('4', '#'):
+		  case ANSI('5', '#'):
+		  case ANSI('6', '#'):
+		    compatibility(VT100);
+		    {
+			unsigned long nlattr;
+			unsigned long *ldata;
+			switch (ANSI(c, esc_query)) {
+			  case ANSI('3', '#'):
+			    nlattr = LATTR_TOP;
+			    break;
+			  case ANSI('4', '#'):
+			    nlattr = LATTR_BOT;
+			    break;
+			  case ANSI('5', '#'):
+			    nlattr = LATTR_NORM;
+			    break;
+			  case ANSI('6', '#'):
+			    nlattr = LATTR_WIDE;
+			    break;
+			}
+			ldata = lineptr(curs.y);
+			ldata[cols] &= ~LATTR_MODE;
+			ldata[cols] |= nlattr;
+		    }
+		    break;
+
+		  case ANSI('A', '('):
+		    compatibility(VT100);
+		    cset_attr[0] = ATTR_GBCHR;
+		    break;
+		  case ANSI('B', '('):
+		    compatibility(VT100);
+		    cset_attr[0] = ATTR_ASCII;
+		    break;
+		  case ANSI('0', '('):
+		    compatibility(VT100);
+		    cset_attr[0] = ATTR_LINEDRW;
+		    break;
+
+		  case ANSI('A', ')'):
+		    compatibility(VT100);
+		    cset_attr[1] = ATTR_GBCHR;
+		    break;
+		  case ANSI('B', ')'):
+		    compatibility(VT100);
+		    cset_attr[1] = ATTR_ASCII;
+		    break;
+		  case ANSI('0', ')'):
+		    compatibility(VT100);
+		    cset_attr[1] = ATTR_LINEDRW;
+		    break;
+
+		  case ANSI('8', '%'):	/* Old Linux code */
+		  case ANSI('G', '%'):
+		    compatibility(OTHER);
+		    utf = 1;
+		    break;
+		  case ANSI('@', '%'):
+		    compatibility(OTHER);
+		    if (line_codepage != CP_UTF8)
+			utf = 0;
 		    break;
 		}
 		break;
@@ -1502,11 +1706,9 @@ void term_out(void)
 			     * this was selected by CSI 7m.
 			     *
 			     * case 2:
-			     *  This is DIM on the VT100-AVO and VT102
-			     * case 5:
-			     *  This is BLINK on the VT100-AVO and VT102+
+			     *  This is sometimes DIM, eg on the GIGI and Linux
 			     * case 8:
-			     *  This is INVIS on the VT100-AVO and VT102
+			     *  This is sometimes INVIS various ANSI.
 			     * case 21:
 			     *  This like 22 disables BOLD, DIM and INVIS
 			     *
@@ -1711,7 +1913,7 @@ void term_out(void)
 			 * This first appeared in the VT220, but we do need to get 
 			 * back to PuTTY mode so I won't check it.
 			 *
-			 * The arg in 40..42 are a PuTTY extension.
+			 * The arg in 40..42,50 are a PuTTY extension.
 			 * The 2nd arg, 8bit vs 7bit is not checked.
 			 *
 			 * Setting VT102 mode should also change the Fkeys to
@@ -1780,24 +1982,6 @@ void term_out(void)
 #endif
 			break;
 		    }
-		break;
-	      case SET_GL:
-	      case SET_GR:
-		/* VT100 only here, checked above */
-		switch (c) {
-		  case 'A':
-		    cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_GBCHR;
-		    break;
-		  case '0':
-		    cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_LINEDRW;
-		    break;
-		  case 'B':
-		  default:	       /* specifically, 'B' */
-		    cset_attr[termstate == SET_GL ? 0 : 1] = ATTR_ASCII;
-		    break;
-		}
-		if (!has_compat(VT220) || c != '%')
-		    termstate = TOPLEVEL;
 		break;
 	      case SEEN_OSC:
 		osc_w = FALSE;
@@ -1912,55 +2096,6 @@ void term_out(void)
 		    osc_strlen = 0;
 		}
 		break;
-	      case SEEN_ESCHASH:
-		{
-		    unsigned long nlattr;
-		    unsigned long *ldata;
-		    int i, j;
-		    pos scrtop, scrbot;
-
-		    switch (c) {
-		      case '8':
-			for (i = 0; i < rows; i++) {
-			    ldata = lineptr(i);
-			    for (j = 0; j < cols; j++)
-				ldata[j] = ATTR_DEFAULT | 'E';
-			    ldata[cols] = 0;
-			}
-			disptop = 0;
-			seen_disp_event = TRUE;
-			scrtop.x = scrtop.y = 0;
-			scrbot.x = 0;
-			scrbot.y = rows;
-			check_selection(scrtop, scrbot);
-			break;
-
-		      case '3':
-		      case '4':
-		      case '5':
-		      case '6':
-			switch (c) {
-			  case '3':
-			    nlattr = LATTR_TOP;
-			    break;
-			  case '4':
-			    nlattr = LATTR_BOT;
-			    break;
-			  case '5':
-			    nlattr = LATTR_NORM;
-			    break;
-			  case '6':
-			    nlattr = LATTR_WIDE;
-			    break;
-			}
-
-			ldata = lineptr(curs.y);
-			ldata[cols] &= ~LATTR_MODE;
-			ldata[cols] |= nlattr;
-		    }
-		}
-		termstate = TOPLEVEL;
-		break;
 	      case VT52_ESC:
 		termstate = TOPLEVEL;
 		seen_disp_event = TRUE;
@@ -1977,6 +2112,46 @@ void term_out(void)
 		  case 'D':
 		    move(curs.x - 1, curs.y, 1);
 		    break;
+		    /*
+		     * From the VT100 Manual
+		     * NOTE: The special graphics characters in the VT100
+		     *       are different from those in the VT52
+		     *
+		     * From VT102 manual:
+		     *       137 _  Blank             - Same
+		     *       140 `  Reserved          - Humm.
+		     *       141 a  Solid rectangle   - Similar
+		     *       142 b  1/                - Top half of fraction for the
+		     *       143 c  3/                - subscript numbers below.
+		     *       144 d  5/
+		     *       145 e  7/
+		     *       146 f  Degrees           - Same
+		     *       147 g  Plus or minus     - Same
+		     *       150 h  Right arrow
+		     *       151 i  Ellipsis (dots)
+		     *       152 j  Divide by
+		     *       153 k  Down arrow
+		     *       154 l  Bar at scan 0
+		     *       155 m  Bar at scan 1
+		     *       156 n  Bar at scan 2
+		     *       157 o  Bar at scan 3     - Similar
+		     *       160 p  Bar at scan 4     - Similar
+		     *       161 q  Bar at scan 5     - Similar
+		     *       162 r  Bar at scan 6     - Same
+		     *       163 s  Bar at scan 7     - Similar
+		     *       164 t  Subscript 0
+		     *       165 u  Subscript 1
+		     *       166 v  Subscript 2
+		     *       167 w  Subscript 3
+		     *       170 x  Subscript 4
+		     *       171 y  Subscript 5
+		     *       172 z  Subscript 6
+		     *       173 {  Subscript 7
+		     *       174 |  Subscript 8
+		     *       175 }  Subscript 9
+		     *       176 ~  Paragraph
+		     *
+		     */
 		  case 'F':
 		    cset_attr[cset = 0] = ATTR_LINEDRW;
 		    break;
@@ -2001,6 +2176,7 @@ void term_out(void)
 		  case 'K':
 		    erase_lots(TRUE, FALSE, TRUE);
 		    break;
+#if 0
 		  case 'V':
 		    /* XXX Print cursor line */
 		    break;
@@ -2010,6 +2186,7 @@ void term_out(void)
 		  case 'X':
 		    /* XXX Stop controller mode */
 		    break;
+#endif
 		  case 'Y':
 		    termstate = VT52_Y1;
 		    break;
@@ -2028,7 +2205,9 @@ void term_out(void)
 		     *     emulation.
 		     */
 		    vt52_mode = FALSE;
+		    blink_is_real = cfg.blinktext;
 		    break;
+#if 0
 		  case '^':
 		    /* XXX Enter auto print mode */
 		    break;
@@ -2038,6 +2217,105 @@ void term_out(void)
 		  case ']':
 		    /* XXX Print screen */
 		    break;
+#endif
+
+#ifdef VT52_PLUS
+		  case 'E':
+		    /* compatibility(ATARI) */
+		    move(0, 0, 0);
+		    erase_lots(FALSE, FALSE, TRUE);
+		    disptop = 0;
+		    break;
+		  case 'L':
+		    /* compatibility(ATARI) */
+		    if (curs.y <= marg_b)
+			scroll(curs.y, marg_b, -1, FALSE);
+		    break;
+		  case 'M':
+		    /* compatibility(ATARI) */
+		    if (curs.y <= marg_b)
+			scroll(curs.y, marg_b, 1, TRUE);
+		    break;
+		  case 'b':
+		    /* compatibility(ATARI) */
+		    termstate = VT52_FG;
+		    break;
+		  case 'c':
+		    /* compatibility(ATARI) */
+		    termstate = VT52_BG;
+		    break;
+		  case 'd':
+		    /* compatibility(ATARI) */
+		    erase_lots(FALSE, TRUE, FALSE);
+		    disptop = 0;
+		    break;
+		  case 'e':
+		    /* compatibility(ATARI) */
+		    cursor_on = TRUE;
+		    break;
+		  case 'f':
+		    /* compatibility(ATARI) */
+		    cursor_on = FALSE;
+		    break;
+		    /* case 'j': Save cursor position - broken on ST */
+		    /* case 'k': Restore cursor position */
+		  case 'l':
+		    /* compatibility(ATARI) */
+		    erase_lots(TRUE, TRUE, TRUE);
+		    curs.x = 0;
+		    wrapnext = FALSE;
+		    fix_cpos;
+		    break;
+		  case 'o':
+		    /* compatibility(ATARI) */
+		    erase_lots(TRUE, TRUE, FALSE);
+		    break;
+		  case 'p':
+		    /* compatibility(ATARI) */
+		    curr_attr |= ATTR_REVERSE;
+		    break;
+		  case 'q':
+		    /* compatibility(ATARI) */
+		    curr_attr &= ~ATTR_REVERSE;
+		    break;
+		  case 'v':	       /* wrap Autowrap on - Wyse style */
+		    /* compatibility(ATARI) */
+		    wrap = 1;
+		    break;
+		  case 'w':	       /* Autowrap off */
+		    /* compatibility(ATARI) */
+		    wrap = 0;
+		    break;
+
+		  case 'R':
+		    /* compatibility(OTHER) */
+		    vt52_bold = FALSE;
+		    curr_attr = ATTR_DEFAULT;
+		    if (use_bce)
+			erase_char = (' ' |
+				      (curr_attr &
+				       (ATTR_FGMASK | ATTR_BGMASK |
+					ATTR_BLINK)));
+		    break;
+		  case 'S':
+		    /* compatibility(VI50) */
+		    curr_attr |= ATTR_UNDER;
+		    break;
+		  case 'W':
+		    /* compatibility(VI50) */
+		    curr_attr &= ~ATTR_UNDER;
+		    break;
+		  case 'U':
+		    /* compatibility(VI50) */
+		    vt52_bold = TRUE;
+		    curr_attr |= ATTR_BOLD;
+		    break;
+		  case 'T':
+		    /* compatibility(VI50) */
+		    vt52_bold = FALSE;
+		    curr_attr &= ~ATTR_BOLD;
+		    break;
+#endif
 		}
 		break;
 	      case VT52_Y1:
@@ -2048,6 +2326,39 @@ void term_out(void)
 		termstate = TOPLEVEL;
 		move(c - ' ', curs.y, 0);
 		break;
+
+#ifdef VT52_PLUS
+	      case VT52_FG:
+		termstate = TOPLEVEL;
+		curr_attr &= ~ATTR_FGMASK;
+		curr_attr &= ~ATTR_BOLD;
+		curr_attr |= (c & 0x7) << ATTR_FGSHIFT;
+		if ((c & 0x8) || vt52_bold)
+		    curr_attr |= ATTR_BOLD;
+
+		if (use_bce)
+		    erase_char = (' ' |
+				  (curr_attr &
+				   (ATTR_FGMASK | ATTR_BGMASK |
+				    ATTR_BLINK)));
+		break;
+	      case VT52_BG:
+		termstate = TOPLEVEL;
+		curr_attr &= ~ATTR_BGMASK;
+		curr_attr &= ~ATTR_BLINK;
+		curr_attr |= (c & 0x7) << ATTR_BGSHIFT;
+
+		/* Note: bold background */
+		if (c & 0x8)
+		    curr_attr |= ATTR_BLINK;
+
+		if (use_bce)
+		    erase_char = (' ' |
+				  (curr_attr &
+				   (ATTR_FGMASK | ATTR_BGMASK |
+				    ATTR_BLINK)));
+		break;
+#endif
 	    }
 	if (selstate != NO_SELECTION) {
 	    pos cursplus = curs;
@@ -2058,6 +2369,7 @@ void term_out(void)
     inbuf_head = 0;
 }
 
+#if 0
 /*
  * Compare two lines to determine whether they are sufficiently
  * alike to scroll-optimise one to the other. Return the degree of
@@ -2071,6 +2383,7 @@ static int linecmp(unsigned long *a, unsigned long *b)
 	n += (*a++ == *b++);
     return n;
 }
+#endif
 
 /*
  * Given a context, update the window. Out of paranoia, we don't
@@ -2078,10 +2391,11 @@ static int linecmp(unsigned long *a, unsigned long *b)
  */
 static void do_paint(Context ctx, int may_optimise)
 {
-    int i, j, start, our_curs_y;
-    unsigned long attr, rv, cursor;
+    int i, j, our_curs_y;
+    unsigned long rv, cursor;
     pos scrpos;
     char ch[1024];
+    long cursor_background = ERASE_CHAR;
     long ticks;
 
     /*
@@ -2093,83 +2407,162 @@ static void do_paint(Context ctx, int may_optimise)
 	    in_vbell = FALSE;
     }
 
+    rv = (!rvideo ^ !in_vbell ? ATTR_REVERSE : 0);
+
     /* Depends on:
      * screen array, disptop, scrtop,
      * selection, rv, 
      * cfg.blinkpc, blink_is_real, tblinker, 
-     * curs.y, curs.x, blinker, cfg.blink_cur, cursor_on, has_focus
+     * curs.y, curs.x, blinker, cfg.blink_cur, cursor_on, has_focus, wrapnext
      */
+
+    /* Has the cursor position or type changed ? */
     if (cursor_on) {
 	if (has_focus) {
 	    if (blinker || !cfg.blink_cur)
-		cursor = ATTR_ACTCURS;
+		cursor = TATTR_ACTCURS;
 	    else
 		cursor = 0;
 	} else
-	    cursor = ATTR_PASCURS;
+	    cursor = TATTR_PASCURS;
 	if (wrapnext)
-	    cursor |= ATTR_RIGHTCURS;
+	    cursor |= TATTR_RIGHTCURS;
     } else
 	cursor = 0;
-    rv = (!rvideo ^ !in_vbell ? ATTR_REVERSE : 0);
     our_curs_y = curs.y - disptop;
 
+    if (dispcurs && (curstype != cursor ||
+		     dispcurs !=
+		     disptext + our_curs_y * (cols + 1) + curs.x)) {
+	if (dispcurs > disptext && (dispcurs[-1] & ATTR_WIDE))
+	    dispcurs[-1] |= ATTR_INVALID;
+	if ((*dispcurs & ATTR_WIDE))
+	    dispcurs[1] |= ATTR_INVALID;
+	*dispcurs |= ATTR_INVALID;
+	curstype = 0;
+    }
+    dispcurs = NULL;
+
+    /* The normal screen data */
     for (i = 0; i < rows; i++) {
 	unsigned long *ldata;
 	int lattr;
+	int idx, dirty_line, dirty_run;
+	unsigned long attr = 0;
+	int updated_line = 0;
+	int start = 0;
+	int ccount = 0;
+	int last_run_dirty = 0;
+
 	scrpos.y = i + disptop;
 	ldata = lineptr(scrpos.y);
 	lattr = (ldata[cols] & LATTR_MODE);
-	for (j = 0; j <= cols; j++) {
-	    unsigned long d = ldata[j];
-	    int idx = i * (cols + 1) + j;
+
+	idx = i * (cols + 1);
+	dirty_run = dirty_line = (ldata[cols] != disptext[idx + cols]);
+	disptext[idx + cols] = ldata[cols];
+
+	for (j = 0; j < cols; j++, idx++) {
+	    unsigned long tattr, tchar;
+	    unsigned long *d = ldata + j;
+	    int break_run;
 	    scrpos.x = j;
 
-	    wanttext[idx] = lattr | (((d & ~ATTR_WRAPPED) ^ rv
-				      ^ (posle(selstart, scrpos) &&
-					 poslt(scrpos, selend) ?
-					 ATTR_REVERSE : 0)) |
-				     (i == our_curs_y
-				      && j == curs.x ? cursor : 0));
-	    if (blink_is_real) {
-		if (has_focus && tblinker && (wanttext[idx] & ATTR_BLINK)) {
-		    wanttext[idx] &= ATTR_MASK;
-		    wanttext[idx] += ' ';
+	    tchar = (*d & (CHAR_MASK | CSET_MASK));
+	    tattr = (*d & (ATTR_MASK ^ CSET_MASK));
+	    switch (tchar & CSET_MASK) {
+	      case ATTR_ASCII:
+		tchar = unitab_line[tchar & 0xFF];
+		break;
+	      case ATTR_LINEDRW:
+		tchar = unitab_xterm[tchar & 0xFF];
+		break;
+	    }
+	    tattr |= (tchar & CSET_MASK);
+	    tchar &= CHAR_MASK;
+
+	    /* Video reversing things */
+	    tattr = (tattr ^ rv
+		     ^ (posle(selstart, scrpos) &&
+			poslt(scrpos, selend) ? ATTR_REVERSE : 0));
+
+	    /* 'Real' blinking ? */
+	    if (blink_is_real && (tattr & ATTR_BLINK)) {
+		if (has_focus && tblinker) {
+		    tchar = ' ';
+		    tattr &= ~CSET_MASK;
+		    tattr |= ATTR_ACP;
 		}
-		wanttext[idx] &= ~ATTR_BLINK;
+		tattr &= ~ATTR_BLINK;
+	    }
+
+	    /* Cursor here ? Save the 'background' */
+	    if (i == our_curs_y && j == curs.x) {
+		cursor_background = tattr | tchar;
+		dispcurs = disptext + idx;
+	    }
+
+	    if ((disptext[idx] ^ tattr) & ATTR_WIDE)
+		dirty_line = TRUE;
+
+	    break_run = (tattr != attr || j - start >= sizeof(ch));
+
+	    /* Special hack for VT100 Linedraw glyphs */
+	    if ((attr & CSET_MASK) == 0x2300 && tchar >= 0xBA
+		&& tchar <= 0xBD) break_run = TRUE;
+
+	    if (!dbcs_screenfont && !dirty_line) {
+		if ((tchar | tattr) == disptext[idx])
+		    break_run = TRUE;
+		else if (!dirty_run && ccount == 1)
+		    break_run = TRUE;
+	    }
+
+	    if (break_run) {
+		if ((dirty_run || last_run_dirty) && ccount > 0) {
+		    do_text(ctx, start, i, ch, ccount, attr, lattr);
+		    updated_line = 1;
+		}
+		start = j;
+		ccount = 0;
+		attr = tattr;
+		if (dbcs_screenfont)
+		    last_run_dirty = dirty_run;
+		dirty_run = dirty_line;
+	    }
+
+	    if ((tchar | tattr) != disptext[idx])
+		dirty_run = TRUE;
+	    ch[ccount++] = (char) tchar;
+	    disptext[idx] = tchar | tattr;
+
+	    /* If it's a wide char step along to the next one. */
+	    if (tattr & ATTR_WIDE) {
+		if (++j < cols) {
+		    idx++;
+		    d++;
+		    /* Cursor is here ? Ouch! */
+		    if (i == our_curs_y && j == curs.x) {
+			cursor_background = *d;
+			dispcurs = disptext + idx;
+		    }
+		    if (disptext[idx] != *d)
+			dirty_run = TRUE;
+		    disptext[idx] = *d;
+		}
 	    }
 	}
-    }
+	if (dirty_run && ccount > 0) {
+	    do_text(ctx, start, i, ch, ccount, attr, lattr);
+	    updated_line = 1;
+	}
 
-    /*
-     * We would perform scrolling optimisations in here, if they
-     * didn't have a nasty tendency to cause the whole sodding
-     * program to hang for a second at speed-critical moments.
-     * We'll leave it well alone...
-     */
-
-    for (i = 0; i < rows; i++) {
-	int idx = i * (cols + 1);
-	int lattr = (wanttext[idx + cols] & LATTR_MODE);
-	start = -1;
-	for (j = 0; j <= cols; j++, idx++) {
-	    unsigned long t = wanttext[idx];
-	    int needs_update = (j < cols && t != disptext[idx]);
-	    int keep_going = (start != -1 && needs_update &&
-			      (t & ATTR_MASK) == attr &&
-			      j - start < sizeof(ch));
-	    if (start != -1 && !keep_going) {
-		do_text(ctx, start, i, ch, j - start, attr, lattr);
-		start = -1;
-	    }
-	    if (needs_update) {
-		if (start == -1) {
-		    start = j;
-		    attr = t & ATTR_MASK;
-		}
-		ch[j - start] = (char) (t & CHAR_MASK);
-	    }
-	    disptext[idx] = t;
+	/* Cursor on this line ? (and changed) */
+	if (i == our_curs_y && (curstype != cursor || updated_line)) {
+	    ch[0] = (char) (cursor_background & CHAR_MASK);
+	    attr = (cursor_background & ATTR_MASK) | cursor;
+	    do_cursor(ctx, curs.x, i, ch, 1, attr, lattr);
+	    curstype = cursor;
 	}
     }
 }
@@ -2267,17 +2660,16 @@ void term_scroll(int rel, int where)
     term_update();
 }
 
-static void clipme(pos top, pos bottom, char *workbuf)
+static void clipme(pos top, pos bottom)
 {
-    char *wbptr;		       /* where next char goes within workbuf */
+    wchar_t *workbuf;
+    wchar_t *wbptr;		       /* where next char goes within workbuf */
     int wblen = 0;		       /* workbuf len */
     int buflen;			       /* amount of memory allocated to workbuf */
 
-    if (workbuf != NULL) {	       /* user supplied buffer? */
-	buflen = -1;		       /* assume buffer passed in is big enough */
-	wbptr = workbuf;	       /* start filling here */
-    } else
-	buflen = 0;		       /* No data is available yet */
+    buflen = 5120;		       /* Default size */
+    workbuf = smalloc(buflen * sizeof(wchar_t));
+    wbptr = workbuf;		       /* start filling here */
 
     while (poslt(top, bottom)) {
 	int nl = FALSE;
@@ -2287,49 +2679,94 @@ static void clipme(pos top, pos bottom, char *workbuf)
 	nlpos.y = top.y;
 	nlpos.x = cols;
 
-	if (!(ldata[cols] & ATTR_WRAPPED)) {
-	    while ((ldata[nlpos.x - 1] & CHAR_MASK) == 0x20
-		   && poslt(top, nlpos)) decpos(nlpos);
+	if (!(ldata[cols] & LATTR_WRAPPED)) {
+	    while (((ldata[nlpos.x - 1] & 0xFF) == 0x20 ||
+		    (DIRECT_CHAR(ldata[nlpos.x - 1]) &&
+		     (ldata[nlpos.x - 1] & CHAR_MASK) == 0x20))
+		   && poslt(top, nlpos))
+		decpos(nlpos);
 	    if (poslt(nlpos, bottom))
 		nl = TRUE;
 	}
 	while (poslt(top, bottom) && poslt(top, nlpos)) {
-	    int ch = (ldata[top.x] & CHAR_MASK);
-	    int set = (ldata[top.x] & CSET_MASK);
+#if 0
+	    char cbuf[16], *p;
+	    sprintf(cbuf, "<U+%04x>", (ldata[top.x] & 0xFFFF));
+#else
+	    wchar_t cbuf[16], *p;
+	    int uc = (ldata[top.x] & 0xFFFF);
+	    int set, c;
 
-	    /* VT Specials -> ISO8859-1 for Cut&Paste */
-	    static const unsigned char poorman2[] =
-		"* # HTFFCRLF\xB0 \xB1 NLVT+ + + + + - - - - - + + + + | <=>=PI!=\xA3 \xB7 ";
-
-	    if (set && !cfg.rawcnp) {
-		if (set == ATTR_LINEDRW && ch >= 0x60 && ch < 0x7F) {
-		    int x;
-		    if ((x = poorman2[2 * (ch - 0x60) + 1]) == ' ')
-			x = 0;
-		    ch = (x << 8) + poorman2[2 * (ch - 0x60)];
-		}
+	    if (uc == UCSWIDE) {
+		top.x++;
+		continue;
 	    }
 
-	    while (ch != 0) {
-		if (cfg.rawcnp || !!(ch & 0xE0)) {
-		    if (wblen == buflen) {
-			workbuf = srealloc(workbuf, buflen += 100);
-			wbptr = workbuf + wblen;
-		    }
-		    wblen++;
-		    *wbptr++ = (unsigned char) ch;
+	    switch (uc & CSET_MASK) {
+	      case ATTR_LINEDRW:
+		if (!cfg.rawcnp) {
+		    uc = unitab_xterm[uc & 0xFF];
+		    break;
 		}
-		ch >>= 8;
+	      case ATTR_ASCII:
+		uc = unitab_line[uc & 0xFF];
+		break;
+	    }
+	    switch (uc & CSET_MASK) {
+	      case ATTR_ACP:
+		uc = unitab_font[uc & 0xFF];
+		break;
+	      case ATTR_OEMCP:
+		uc = unitab_oemcp[uc & 0xFF];
+		break;
+	    }
+
+	    set = (uc & CSET_MASK);
+	    c = (uc & CHAR_MASK);
+	    cbuf[0] = uc;
+	    cbuf[1] = 0;
+
+	    if (DIRECT_FONT(uc)) {
+		if (c >= ' ' && c != 0x7F) {
+		    unsigned char buf[4];
+		    WCHAR wbuf[4];
+		    int rv;
+		    if (IsDBCSLeadByteEx(font_codepage, (BYTE) c)) {
+			buf[0] = c;
+			buf[1] = (unsigned char) ldata[top.x + 1];
+			rv = MultiByteToWideChar(font_codepage,
+						 0, buf, 2, wbuf, 4);
+			top.x++;
+		    } else {
+			buf[0] = c;
+			rv = MultiByteToWideChar(font_codepage,
+						 0, buf, 1, wbuf, 4);
+		    }
+
+		    if (rv > 0) {
+			memcpy(cbuf, wbuf, rv * sizeof(wchar_t));
+			cbuf[rv] = 0;
+		    }
+		}
+	    }
+#endif
+
+	    for (p = cbuf; *p; p++) {
+		/* Enough overhead for trailing NL and nul */
+		if (wblen >= buflen - 16) {
+		    workbuf =
+			srealloc(workbuf,
+				 sizeof(wchar_t) * (buflen += 100));
+		    wbptr = workbuf + wblen;
+		}
+		wblen++;
+		*wbptr++ = *p;
 	    }
 	    top.x++;
 	}
 	if (nl) {
 	    int i;
-	    for (i = 0; i < sizeof(sel_nl); i++) {
-		if (wblen == buflen) {
-		    workbuf = srealloc(workbuf, buflen += 100);
-		    wbptr = workbuf + wblen;
-		}
+	    for (i = 0; i < sel_nl_sz; i++) {
 		wblen++;
 		*wbptr++ = sel_nl[i];
 	    }
@@ -2337,17 +2774,122 @@ static void clipme(pos top, pos bottom, char *workbuf)
 	top.y++;
 	top.x = 0;
     }
+    wblen++;
+    *wbptr++ = 0;
     write_clip(workbuf, wblen, FALSE); /* transfer to clipboard */
     if (buflen > 0)		       /* indicates we allocated this buffer */
 	sfree(workbuf);
-
 }
+
 void term_copyall(void)
 {
     pos top;
     top.y = -count234(scrollback);
     top.x = 0;
-    clipme(top, curs, NULL /* dynamic allocation */ );
+    clipme(top, curs);
+}
+
+/*
+ * The wordness array is mainly for deciding the disposition of the US-ASCII 
+ * characters.
+ */
+static int wordtype(int uc)
+{
+    static struct {
+	int start, end, ctype;
+    } *wptr, ucs_words[] = {
+	{
+	128, 160, 0}, {
+	161, 191, 1}, {
+	215, 215, 1}, {
+	247, 247, 1}, {
+	0x037e, 0x037e, 1},	       /* Greek question mark */
+	{
+	0x0387, 0x0387, 1},	       /* Greek ano teleia */
+	{
+	0x055a, 0x055f, 1},	       /* Armenian punctuation */
+	{
+	0x0589, 0x0589, 1},	       /* Armenian full stop */
+	{
+	0x0700, 0x070d, 1},	       /* Syriac punctuation */
+	{
+	0x104a, 0x104f, 1},	       /* Myanmar punctuation */
+	{
+	0x10fb, 0x10fb, 1},	       /* Georgian punctuation */
+	{
+	0x1361, 0x1368, 1},	       /* Ethiopic punctuation */
+	{
+	0x166d, 0x166e, 1},	       /* Canadian Syl. punctuation */
+	{
+	0x17d4, 0x17dc, 1},	       /* Khmer punctuation */
+	{
+	0x1800, 0x180a, 1},	       /* Mongolian punctuation */
+	{
+	0x2000, 0x200a, 0},	       /* Various spaces */
+	{
+	0x2070, 0x207f, 2},	       /* superscript */
+	{
+	0x2080, 0x208f, 2},	       /* subscript */
+	{
+	0x200b, 0x27ff, 1},	       /* punctuation and symbols */
+	{
+	0x3000, 0x3000, 0},	       /* ideographic space */
+	{
+	0x3001, 0x3020, 1},	       /* ideographic punctuation */
+	{
+	0x303f, 0x309f, 3},	       /* Hiragana */
+	{
+	0x30a0, 0x30ff, 3},	       /* Katakana */
+	{
+	0x3300, 0x9fff, 3},	       /* CJK Ideographs */
+	{
+	0xac00, 0xd7a3, 3},	       /* Hangul Syllables */
+	{
+	0xf900, 0xfaff, 3},	       /* CJK Ideographs */
+	{
+	0xfe30, 0xfe6b, 1},	       /* punctuation forms */
+	{
+	0xff00, 0xff0f, 1},	       /* half/fullwidth ASCII */
+	{
+	0xff1a, 0xff20, 1},	       /* half/fullwidth ASCII */
+	{
+	0xff3b, 0xff40, 1},	       /* half/fullwidth ASCII */
+	{
+	0xff5b, 0xff64, 1},	       /* half/fullwidth ASCII */
+	{
+	0xfff0, 0xffff, 0},	       /* half/fullwidth ASCII */
+	{
+	0, 0, 0}
+    };
+
+    uc &= (CSET_MASK | CHAR_MASK);
+
+    switch (uc & CSET_MASK) {
+      case ATTR_LINEDRW:
+	uc = unitab_xterm[uc & 0xFF];
+	break;
+      case ATTR_ASCII:
+	uc = unitab_line[uc & 0xFF];
+	break;
+    }
+    switch (uc & CSET_MASK) {
+      case ATTR_ACP:
+	uc = unitab_font[uc & 0xFF];
+	break;
+      case ATTR_OEMCP:
+	uc = unitab_oemcp[uc & 0xFF];
+	break;
+    }
+
+    if (uc < 0x80)
+	return wordness[uc];
+
+    for (wptr = ucs_words; wptr->start; wptr++) {
+	if (uc >= wptr->start && uc <= wptr->end)
+	    return wptr->ctype;
+    }
+
+    return 2;
 }
 
 /*
@@ -2366,7 +2908,7 @@ static pos sel_spread_half(pos p, int dir)
 	 * In this mode, every character is a separate unit, except
 	 * for runs of spaces at the end of a non-wrapping line.
 	 */
-	if (!(ldata[cols] & ATTR_WRAPPED)) {
+	if (!(ldata[cols] & LATTR_WRAPPED)) {
 	    unsigned long *q = ldata + cols;
 	    while (q > ldata && (q[-1] & CHAR_MASK) == 0x20)
 		q--;
@@ -2381,15 +2923,13 @@ static pos sel_spread_half(pos p, int dir)
 	 * In this mode, the units are maximal runs of characters
 	 * whose `wordness' has the same value.
 	 */
-	wvalue = wordness[ldata[p.x] & CHAR_MASK];
+	wvalue = wordtype(ldata[p.x]);
 	if (dir == +1) {
-	    while (p.x < cols
-		   && wordness[ldata[p.x + 1] & CHAR_MASK] ==
-		   wvalue) p.x++;
+	    while (p.x < cols && wordtype(ldata[p.x + 1]) == wvalue)
+		p.x++;
 	} else {
-	    while (p.x > 0
-		   && wordness[ldata[p.x - 1] & CHAR_MASK] ==
-		   wvalue) p.x--;
+	    while (p.x > 0 && wordtype(ldata[p.x - 1]) == wvalue)
+		p.x--;
 	}
 	break;
       case SM_LINE:
@@ -2534,51 +3074,49 @@ void term_mouse(Mouse_Button b, Mouse_Action a, int x, int y,
 	     * We've completed a selection. We now transfer the
 	     * data to the clipboard.
 	     */
-	    clipme(selstart, selend, selspace);
+	    clipme(selstart, selend);
 	    selstate = SELECTED;
 	} else
 	    selstate = NO_SELECTION;
     } else if (b == MBT_PASTE
 	       && (a == MA_CLICK || a == MA_2CLK || a == MA_3CLK)) {
-	char *data;
+	wchar_t *data;
 	int len;
 
-	get_clip((void **) &data, &len);
+	get_clip(&data, &len);
 	if (data) {
-	    char *p, *q;
+	    wchar_t *p, *q;
 
 	    if (paste_buffer)
 		sfree(paste_buffer);
 	    paste_pos = paste_hold = paste_len = 0;
-	    paste_buffer = smalloc(len);
+	    paste_buffer = smalloc(len * sizeof(wchar_t));
 
 	    p = q = data;
 	    while (p < data + len) {
 		while (p < data + len &&
-		       !(p <= data + len - sizeof(sel_nl) &&
+		       !(p <= data + len - sel_nl_sz &&
 			 !memcmp(p, sel_nl, sizeof(sel_nl))))
 		    p++;
 
 		{
 		    int i;
-		    unsigned char c;
 		    for (i = 0; i < p - q; i++) {
-			c = xlat_kbd2tty(q[i]);
-			paste_buffer[paste_len++] = c;
+			paste_buffer[paste_len++] = q[i];
 		    }
 		}
 
-		if (p <= data + len - sizeof(sel_nl) &&
+		if (p <= data + len - sel_nl_sz &&
 		    !memcmp(p, sel_nl, sizeof(sel_nl))) {
 		    paste_buffer[paste_len++] = '\r';
-		    p += sizeof(sel_nl);
+		    p += sel_nl_sz;
 		}
 		q = p;
 	    }
 
 	    /* Assume a small paste will be OK in one go. */
 	    if (paste_len < 256) {
-		ldisc_send(paste_buffer, paste_len);
+		luni_send(paste_buffer, paste_len);
 		if (paste_buffer)
 		    sfree(paste_buffer);
 		paste_buffer = 0;
@@ -2623,7 +3161,7 @@ void term_paste()
 	    if (paste_buffer[paste_pos + n++] == '\r')
 		break;
 	}
-	ldisc_send(paste_buffer + paste_pos, n);
+	luni_send(paste_buffer + paste_pos, n);
 	paste_pos += n;
 
 	if (paste_pos < paste_len) {
