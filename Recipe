@@ -287,4 +287,4 @@ PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshaes sshsh512 import macpgen.rsrc macpgkey macabout
 
 PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET BE_ALL NONSSH UXSSH
-         + ux_x11 uxpty uxsignal testback
+         + ux_x11 uxpty uxsignal testback putty.icns info.plist
