@@ -4317,8 +4317,11 @@ static int term_bidi_cache_hit(Terminal *term, int line,
 }
 
 static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
-				  termchar *lafter, int width)
+				  termchar *lafter, bidi_char *wcTo,
+				  int width)
 {
+    int i;
+
     if (!term->pre_bidi_cache || term->bidi_cache_size <= line) {
 	int j = term->bidi_cache_size;
 	term->bidi_cache_size = line+1;
@@ -4344,9 +4347,123 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
     term->pre_bidi_cache[line].chars = snewn(width, termchar);
     term->post_bidi_cache[line].width = width;
     term->post_bidi_cache[line].chars = snewn(width, termchar);
+    term->post_bidi_cache[line].forward = snewn(width, int);
+    term->post_bidi_cache[line].backward = snewn(width, int);
 
     memcpy(term->pre_bidi_cache[line].chars, lbefore, width * TSIZE);
     memcpy(term->post_bidi_cache[line].chars, lafter, width * TSIZE);
+    memset(term->post_bidi_cache[line].forward, 0, width * sizeof(int));
+    memset(term->post_bidi_cache[line].backward, 0, width * sizeof(int));
+
+    for (i = 0; i < width; i++) {
+	int p = wcTo[i].index;
+
+	assert(0 <= p && p < width);
+
+	term->post_bidi_cache[line].backward[i] = p;
+	term->post_bidi_cache[line].forward[p] = i;
+    }
+}
+
+/*
+ * Prepare the bidi information for a screen line. Returns the
+ * transformed list of termchars, or NULL if no transformation at
+ * all took place (because bidi is disabled). If return was
+ * non-NULL, auxiliary information such as the forward and reverse
+ * mappings of permutation position are available in
+ * term->post_bidi_cache[scr_y].*.
+ */
+static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
+				int scr_y)
+{
+    termchar *lchars;
+    int it;
+
+    /* Do Arabic shaping and bidi. */
+    if(!term->cfg.bidi || !term->cfg.arabicshaping) {
+
+	if (!term_bidi_cache_hit(term, scr_y, ldata->chars, term->cols)) {
+
+	    if (term->wcFromTo_size < term->cols) {
+		term->wcFromTo_size = term->cols;
+		term->wcFrom = sresize(term->wcFrom, term->wcFromTo_size,
+				       bidi_char);
+		term->wcTo = sresize(term->wcTo, term->wcFromTo_size,
+				     bidi_char);
+	    }
+
+	    for(it=0; it<term->cols ; it++)
+	    {
+		unsigned long uc = (ldata->chars[it].chr);
+
+		switch (uc & CSET_MASK) {
+		  case CSET_LINEDRW:
+		    if (!term->cfg.rawcnp) {
+			uc = term->ucsdata->unitab_xterm[uc & 0xFF];
+			break;
+		    }
+		  case CSET_ASCII:
+		    uc = term->ucsdata->unitab_line[uc & 0xFF];
+		    break;
+		  case CSET_SCOACS:
+		    uc = term->ucsdata->unitab_scoacs[uc&0xFF];
+		    break;
+		}
+		switch (uc & CSET_MASK) {
+		  case CSET_ACP:
+		    uc = term->ucsdata->unitab_font[uc & 0xFF];
+		    break;
+		  case CSET_OEMCP:
+		    uc = term->ucsdata->unitab_oemcp[uc & 0xFF];
+		    break;
+		}
+
+		term->wcFrom[it].origwc = term->wcFrom[it].wc =
+		    (wchar_t)uc;
+		term->wcFrom[it].index = it;
+	    }
+
+	    if(!term->cfg.bidi)
+		do_bidi(term->wcFrom, term->cols);
+
+	    /* this is saved iff done from inside the shaping */
+	    if(!term->cfg.bidi && term->cfg.arabicshaping)
+		for(it=0; it<term->cols; it++)
+		    term->wcTo[it] = term->wcFrom[it];
+
+	    if(!term->cfg.arabicshaping)
+		do_shape(term->wcFrom, term->wcTo, term->cols);
+
+	    if (term->ltemp_size < ldata->size) {
+		term->ltemp_size = ldata->size;
+		term->ltemp = sresize(term->ltemp, term->ltemp_size,
+				      termchar);
+	    }
+
+	    memcpy(term->ltemp, ldata->chars, ldata->size * TSIZE);
+
+	    for(it=0; it<term->cols ; it++)
+	    {
+		term->ltemp[it] = ldata->chars[term->wcTo[it].index];
+		if (term->ltemp[it].cc_next)
+		    term->ltemp[it].cc_next -=
+		    it - term->wcTo[it].index;
+
+		if (term->wcTo[it].origwc != term->wcTo[it].wc)
+		    term->ltemp[it].chr = term->wcTo[it].wc;
+	    }
+	    term_bidi_cache_store(term, scr_y, ldata->chars,
+				  term->ltemp, term->wcTo, ldata->size);
+
+	    lchars = term->ltemp;
+	} else {
+	    lchars = term->post_bidi_cache[scr_y].chars;
+	}
+    } else {
+	lchars = NULL;
+    }
+
+    return lchars;
 }
 
 /*
@@ -4355,7 +4472,7 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
  */
 static void do_paint(Terminal *term, Context ctx, int may_optimise)
 {
-    int i, it, j, our_curs_y, our_curs_x;
+    int i, j, our_curs_y, our_curs_x;
     int rv, cursor;
     pos scrpos;
     wchar_t *ch;
@@ -4395,17 +4512,28 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
     our_curs_y = term->curs.y - term->disptop;
     {
 	/*
-	 * Adjust the cursor position in the case where it's
-	 * resting on the right-hand half of a CJK wide character.
-	 * xterm's behaviour here, which seems adequate to me, is
-	 * to display the cursor covering the _whole_ character,
-	 * exactly as if it were one space to the left.
+	 * Adjust the cursor position:
+	 *  - for bidi
+	 *  - in the case where it's resting on the right-hand half
+	 *    of a CJK wide character. xterm's behaviour here,
+	 *    which seems adequate to me, is to display the cursor
+	 *    covering the _whole_ character, exactly as if it were
+	 *    one space to the left.
 	 */
 	termline *ldata = lineptr(term->curs.y);
+	termchar *lchars;
+
 	our_curs_x = term->curs.x;
+
+	if ( (lchars = term_bidi_line(term, ldata, our_curs_y)) != NULL) {
+	    our_curs_x = term->post_bidi_cache[our_curs_y].forward[our_curs_x];
+	} else
+	    lchars = ldata->chars;
+
 	if (our_curs_x > 0 &&
-	    ldata->chars[our_curs_x].chr == UCSWIDE)
+	    lchars[our_curs_x].chr == UCSWIDE)
 	    our_curs_x--;
+
 	unlineptr(ldata);
     }
 
@@ -4453,6 +4581,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	int start = 0;
 	int ccount = 0;
 	int last_run_dirty = 0;
+	int *backward;
 
 	scrpos.y = i + term->disptop;
 	ldata = lineptr(scrpos.y);
@@ -4462,93 +4591,19 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	term->disptext[i]->lattr = ldata->lattr;
 
 	/* Do Arabic shaping and bidi. */
-	if(!term->cfg.bidi || !term->cfg.arabicshaping) {
-
-	    if (!term_bidi_cache_hit(term, i, ldata->chars, term->cols)) {
-
-		if (term->wcFromTo_size < term->cols) {
-		    term->wcFromTo_size = term->cols;
-		    term->wcFrom = sresize(term->wcFrom, term->wcFromTo_size,
-					   bidi_char);
-		    term->wcTo = sresize(term->wcTo, term->wcFromTo_size,
-					 bidi_char);
-		}
-
-		for(it=0; it<term->cols ; it++)
-		{
-		    unsigned long uc = (ldata->chars[it].chr);
-
-		    switch (uc & CSET_MASK) {
-		      case CSET_LINEDRW:
-			if (!term->cfg.rawcnp) {
-			    uc = term->ucsdata->unitab_xterm[uc & 0xFF];
-			    break;
-			}
-		      case CSET_ASCII:
-			uc = term->ucsdata->unitab_line[uc & 0xFF];
-			break;
-		      case CSET_SCOACS:
-			uc = term->ucsdata->unitab_scoacs[uc&0xFF];
-			break;
-		    }
-		    switch (uc & CSET_MASK) {
-		      case CSET_ACP:
-			uc = term->ucsdata->unitab_font[uc & 0xFF];
-			break;
-		      case CSET_OEMCP:
-			uc = term->ucsdata->unitab_oemcp[uc & 0xFF];
-			break;
-		    }
-
-		    term->wcFrom[it].origwc = term->wcFrom[it].wc =
-			(wchar_t)uc;
-		    term->wcFrom[it].index = it;
-		}
-
-		if(!term->cfg.bidi)
-		    do_bidi(term->wcFrom, term->cols);
-
-		/* this is saved iff done from inside the shaping */
-		if(!term->cfg.bidi && term->cfg.arabicshaping)
-		    for(it=0; it<term->cols; it++)
-			term->wcTo[it] = term->wcFrom[it];
-
-		if(!term->cfg.arabicshaping)
-		    do_shape(term->wcFrom, term->wcTo, term->cols);
-
-		if (term->ltemp_size < ldata->size) {
-		    term->ltemp_size = ldata->size;
-		    term->ltemp = sresize(term->ltemp, term->ltemp_size,
-					  termchar);
-		}
-
-		memcpy(term->ltemp, ldata->chars, ldata->size * TSIZE);
-
-		for(it=0; it<term->cols ; it++)
-		{
-		    term->ltemp[it] = ldata->chars[term->wcTo[it].index];
-		    if (term->ltemp[it].cc_next)
-			term->ltemp[it].cc_next -=
-			it - term->wcTo[it].index;
-
-		    if (term->wcTo[it].origwc != term->wcTo[it].wc)
-			term->ltemp[it].chr = term->wcTo[it].wc;
-		}
-		term_bidi_cache_store(term, i, ldata->chars,
-				      term->ltemp, ldata->size);
-
-		lchars = term->ltemp;
-	    } else {
-		lchars = term->post_bidi_cache[i].chars;
-	    }
-	} else
+	lchars = term_bidi_line(term, ldata, i);
+	if (lchars) {
+	    backward = term->post_bidi_cache[i].backward;
+	} else {
 	    lchars = ldata->chars;
+	    backward = NULL;
+	}
 
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
 	    termchar *d = lchars + j;
 	    int break_run, do_copy;
-	    scrpos.x = j;
+	    scrpos.x = backward ? backward[j] : j;
 
 	    tchar = d->chr;
 	    tattr = d->attr;
@@ -5341,10 +5396,20 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	x = term->cols - 1;
 
     selpoint.y = y + term->disptop;
-    selpoint.x = x;
     ldata = lineptr(selpoint.y);
+
     if ((ldata->lattr & LATTR_MODE) != LATTR_NORM)
-	selpoint.x /= 2;
+	x /= 2;
+
+    /*
+     * Transform x through the bidi algorithm to find the _logical_
+     * click point from the physical one.
+     */
+    if (term_bidi_line(term, ldata, y) != NULL) {
+	x = term->post_bidi_cache[y].backward[x];
+    }
+
+    selpoint.x = x;
     unlineptr(ldata);
 
     if (raw_mouse) {

@@ -68,6 +68,7 @@ struct termline {
 struct bidi_cache_entry {
     int width;
     struct termchar *chars;
+    int *forward, *backward;	       /* the permutations of line positions */
 };
 
 struct terminal_tag {
