@@ -44,8 +44,12 @@
 #define SSH1_CMSG_AUTH_TIS	39
 #define SSH1_SMSG_AUTH_TIS_CHALLENGE	40
 #define SSH1_CMSG_AUTH_TIS_RESPONSE	41
+#define SSH1_CMSG_AUTH_CCARD	70
+#define SSH1_SMSG_AUTH_CCARD_CHALLENGE	71
+#define SSH1_CMSG_AUTH_CCARD_RESPONSE	72
 
 #define SSH1_AUTH_TIS		5
+#define SSH1_AUTH_CCARD		16
 
 #define SSH2_MSG_DISCONNECT             1
 #define SSH2_MSG_IGNORE                 2
@@ -308,7 +312,8 @@ next_packet:
     if (pktin.type == SSH1_SMSG_STDOUT_DATA ||
         pktin.type == SSH1_SMSG_STDERR_DATA ||
         pktin.type == SSH1_MSG_DEBUG ||
-        pktin.type == SSH1_SMSG_AUTH_TIS_CHALLENGE) {
+        pktin.type == SSH1_SMSG_AUTH_TIS_CHALLENGE ||
+        pktin.type == SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
 	long strlen = GET_32BIT(pktin.body);
 	if (strlen + 4 != pktin.length)
 	    fatalbox("Received data packet with bogus string length");
@@ -1199,7 +1204,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
         static int pwpkt_type;
         /*
          * Show password prompt, having first obtained it via a TIS
-         * exchange if we're doing TIS authentication.
+         * or CryptoCard exchange if we're doing TIS or CryptoCard
+         * authentication.
          */
         pwpkt_type = SSH1_CMSG_AUTH_PASSWORD;
         if (*cfg.keyfile && !tried_publickey)
@@ -1238,6 +1244,26 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                                         (pktin.body[3]));
                     logevent("Received TIS challenge");
                     c_write(pktin.body+4, challengelen);
+                }
+            }
+            if (pktin.type == SSH1_SMSG_FAILURE &&
+                cfg.try_tis_auth &&
+                (supported_auths_mask & (1<<SSH1_AUTH_CCARD))) {
+                pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
+                logevent("Requested CryptoCard authentication");
+                send_packet(SSH1_CMSG_AUTH_CCARD, PKT_END);
+                crWaitUntil(ispkt);
+                if (pktin.type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
+                    logevent("CryptoCard authentication declined");
+                    c_write("CryptoCard authentication refused.\r\n", 29);
+                } else {
+                    int challengelen = ((pktin.body[0] << 24) |
+                                        (pktin.body[1] << 16) |
+                                        (pktin.body[2] << 8) |
+                                        (pktin.body[3]));
+                    logevent("Received CryptoCard challenge");
+                    c_write(pktin.body+4, challengelen);
+                    c_write("\r\nResponse : ", 13);
                 }
             }
             if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD)

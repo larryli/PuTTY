@@ -235,7 +235,7 @@ BEGIN
     AUTORADIOBUTTON "&DES", IDC3_CIPHERDES, 125, 45, 38, 8
     
     
-    AUTOCHECKBOX "Attempt TIS authentication", IDC3_AUTHTIS, 3, 55, 162, 8
+    AUTOCHECKBOX "Attempt TIS or CryptoCard authentication", IDC3_AUTHTIS, 3, 55, 162, 8
     
     
     LTEXT "Prefer protocol version:", IDC3_SSHPROTSTATIC, 3, 75, 105, 8
