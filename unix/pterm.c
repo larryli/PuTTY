@@ -38,6 +38,7 @@ struct gui_data {
     int pasteout_data_len;
     int font_width, font_height;
     int ignore_sbar;
+    guint term_paste_idle_id;
     GdkAtom compound_text_atom;
     char wintitle[sizeof(((Config *)0)->wintitle)];
 };
@@ -750,13 +751,6 @@ gint timer_func(gpointer data)
     return TRUE;
 }
 
-gint idle_func(gpointer data)
-{
-    /* struct gui_data *inst = (struct gui_data *)data; */
-    term_paste();
-    return TRUE;
-}
-
 void pty_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 {
     /* struct gui_data *inst = (struct gui_data *)data; */
@@ -924,6 +918,8 @@ void request_paste(void)
 			  GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
 }
 
+gint idle_paste_func(gpointer data);   /* forward ref */
+
 void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 			gpointer data)
 {
@@ -940,7 +936,23 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	     inst->pastein_data, inst->pastein_data_len);
 
     term_do_paste();
+
+    if (term_paste_pending())
+	inst->term_paste_idle_id = gtk_idle_add(idle_paste_func, inst);
 }
+
+gint idle_paste_func(gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    if (term_paste_pending())
+	term_paste();
+    else
+	gtk_idle_remove(inst->term_paste_idle_id);
+
+    return TRUE;
+}
+
 
 void get_clip(wchar_t ** p, int *len)
 {
@@ -1345,7 +1357,6 @@ int main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(selection_clear), inst);
     gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
 		       GTK_SIGNAL_FUNC(scrollbar_moved), inst);
-    gtk_idle_add(idle_func, inst);
     gtk_timeout_add(20, timer_func, inst);
     gdk_input_add(pty_master_fd, GDK_INPUT_READ, pty_input_func, inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),

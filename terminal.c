@@ -3708,6 +3708,11 @@ void term_nopaste()
     paste_len = 0;
 }
 
+int term_paste_pending(void)
+{
+    return paste_len != 0;
+}
+
 void term_paste()
 {
     static long last_paste = 0;
