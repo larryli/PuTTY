@@ -403,7 +403,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ChangeUsername", 0, &cfg->change_username);
     gprefs(sesskey, "Cipher", "\0",
 	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
-    gppi(sesskey, "SshProt", 1, &cfg->sshprot);
+    gppi(sesskey, "SshProt", 2, &cfg->sshprot);
     gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
@@ -549,7 +549,7 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
     gppi(sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
     gppi(sesskey, "LockSize", 0, &cfg->resize_action);
-    gppi(sesskey, "BCE", 0, &cfg->bce);
+    gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);
     gppi(sesskey, "X11Forward", 0, &cfg->x11_forward);
     gpps(sesskey, "X11Display", "localhost:0", cfg->x11_display,
