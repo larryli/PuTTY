@@ -632,6 +632,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     int needs_pass;
     int type, realtype;
     int ret;
+    const char *errmsg = NULL;
     char *comment;
     struct PassphraseProcStruct pps;
     struct RSAKey newkey1;
@@ -641,11 +642,11 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     if (type != SSH_KEYTYPE_SSH1 &&
 	type != SSH_KEYTYPE_SSH2 &&
 	!import_possible(type)) {
-	char msg[256];
-	sprintf(msg, "Couldn't load private key (%s)",
-		key_type_to_str(type));
+	char *msg = dupprintf("Couldn't load private key (%s)",
+			      key_type_to_str(type));
 	MessageBox(NULL, msg,
 		   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+	sfree(msg);
 	return;
     }
 
@@ -682,17 +683,17 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (realtype == type)
 		ret = loadrsakey(&filename, &newkey1,
-				 passphrase, NULL);
+				 passphrase, &errmsg);
 	    else
 		ret = import_ssh1(&filename, realtype,
-				  &newkey1, passphrase);
+				  &newkey1, passphrase, &errmsg);
 	} else {
 	    if (realtype == type)
 		newkey2 = ssh2_load_userkey(&filename,
-					    passphrase, NULL);
+					    passphrase, &errmsg);
 	    else
 		newkey2 = import_ssh2(&filename, realtype,
-				      passphrase);
+				      passphrase, &errmsg);
 	    if (newkey2 == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!newkey2)
@@ -704,8 +705,9 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     if (comment)
 	sfree(comment);
     if (ret == 0) {
-	MessageBox(NULL, "Couldn't load private key.",
-		   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+	char *msg = dupprintf("Couldn't load private key (%s)", errmsg);
+	MessageBox(NULL, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR);
+	sfree(msg);
     } else if (ret == 1) {
 	/*
 	 * Now update the key controls with all the

@@ -387,9 +387,9 @@ int import_possible(int type);
 int import_target_type(int type);
 int import_encrypted(const Filename *filename, int type, char **comment);
 int import_ssh1(const Filename *filename, int type,
-		struct RSAKey *key, char *passphrase);
+		struct RSAKey *key, char *passphrase, const char **errmsg_p);
 struct ssh2_userkey *import_ssh2(const Filename *filename, int type,
-				 char *passphrase);
+				 char *passphrase, const char **errmsg_p);
 int export_ssh1(const Filename *filename, int type,
 		struct RSAKey *key, char *passphrase);
 int export_ssh2(const Filename *filename, int type,
