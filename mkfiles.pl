@@ -298,7 +298,7 @@ print
 "!endif\n".
 "\n".
 ".c.obj:\n".
-&splitline("\tbcc32 -w-aus -w-ccc -w-par \$(COMPAT) \$(FWHACK)".
+&splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT) \$(FWHACK)".
   " \$(XFLAGS) \$(CFLAGS) /c \$*.c",69)."\n".
 ".rc.res:\n".
 &splitline("\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include -r".
