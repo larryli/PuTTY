@@ -65,14 +65,8 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
     *nprinters_ptr = 0;		       /* default return value */
     buffer = smalloc(512);
 
-    retval = printer_add_enum(PRINTER_ENUM_LOCAL, buffer, 0, nprinters_ptr);
-    if (!retval)
-        goto error;
-    else
-        buffer = retval;
-    retval = printer_add_enum(PRINTER_ENUM_CONNECTIONS, buffer,
-                              sizeof(ENUM_TYPE) * *nprinters_ptr,
-                              nprinters_ptr);
+    retval = printer_add_enum(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+			      buffer, 0, nprinters_ptr);
     if (!retval)
         goto error;
     else
