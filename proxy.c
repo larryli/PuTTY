@@ -481,8 +481,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    sk_write(p->sub_socket, buf2, strlen(buf2));
 	}
 
-	sprintf(buf, "\r\n");
-	sk_write(p->sub_socket, buf, strlen(buf));
+	sk_write(p->sub_socket, "\r\n", strlen(buf));
 
 	p->state = 1;
 	return 0;
