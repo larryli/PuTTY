@@ -67,3 +67,29 @@ void safefree(void *ptr) {
 	fprintf(fp, "freeing null pointer - no action taken\n");
 #endif
 }
+
+#ifdef DEBUG
+static FILE *debug_fp = NULL;
+static int debug_got_console = 0;
+
+void dprintf(char *fmt, ...) {
+    char buf[2048];
+    DWORD dw;
+    va_list ap;
+
+    if (!debug_got_console) {
+	AllocConsole();
+	debug_got_console = 1;
+    }
+    if (!debug_fp) {
+	debug_fp = fopen("debug.log", "w");
+    }
+
+    va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &dw, NULL);
+    fputs(buf, debug_fp);
+    fflush(debug_fp);
+    va_end(ap);
+}
+#endif

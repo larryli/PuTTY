@@ -400,28 +400,9 @@ void crypto_wrapup();
 void agent_query(void *in, int inlen, void **out, int *outlen);
 int agent_exists(void);
 
-/*
- * A debug system.
- */
 #ifdef DEBUG
-#include <stdarg.h>
+void dprintf(char *fmt, ...);
 #define debug(x) (dprintf x)
-static void dprintf(char *fmt, ...) {
-    char buf[2048];
-    DWORD dw;
-    va_list ap;
-    static int gotconsole = 0;
-
-    if (!gotconsole) {
-	AllocConsole();
-	gotconsole = 1;
-    }
-
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    WriteFile (GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &dw, NULL);
-    va_end(ap);
-}
 #else
 #define debug(x)
 #endif
