@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.19 2003/01/25 15:21:54 ben Exp $
+$Id: README.mac,v 1.20 2003/01/25 17:20:54 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -54,6 +54,12 @@ Known bugs:
    "-opt none" works around this.
  * When the last terminal window closes, the Edit menu doesn't get disabled
    immediately, which it should.
+ * When using the "VT100" font, text copied to the clipboard doesn't
+   get newlines in it, because that font has a graphic character at
+   position 0x0d.  Even if we did insert 0x0d manually, TextEdit
+   insists on displaying the graphic version, so I think we need a
+   font switch at this point.  This can be seen as a special case of
+   the need to switch fonts to get odd characters.
 
 Unimplemented features (should be done before release):
  * TCP urgent data.
@@ -61,7 +67,7 @@ Unimplemented features (should be done before release):
  * Clipping host resize requests to screen size.
  * Changing font size in reponse to resize requests.
  * Full screen mode.
- * TEXT copy/paste.
+ * TEXT paste.
  * Catching up with current keyboard mapping in other ports.
  * Session configuration.
  * Filename abstraction (we want to use alias records).
@@ -78,7 +84,7 @@ Unimplemented features (should be done before release):
 Wishlist (after release):
  * SFTP client (GUI?)
  * Carbon compatibility (requires Open Transport and Navigation Services).
- * 'styl' copy (and paste, for script codes?).
+ * 'styl' paste, for script codes?
  * Handle 'gurl' Apple Events.
 
 Local Variables:

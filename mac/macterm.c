@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.54 2003/01/25 16:16:44 ben Exp $ */
+/* $Id: macterm.c,v 1.55 2003/01/25 17:20:54 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -530,19 +530,64 @@ static void text_click(Session *s, EventRecord *event) {
     lastwhen = TickCount();
 }
 
-void write_clip(void *cookie, wchar_t *data, int len, int must_deselect) {
-    
+void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
+{
+    Session *s = cookie;
+    char *mactextbuf;
+    ByteCount iread, olen;
+    wchar_t *unitextptr;
+    StScrpRec *stsc;
+    size_t stsz;
+    OSErr err;
+    int i;
+
     /*
      * See "Programming with the Text Encoding Conversion Manager"
      * Appendix E for Unicode scrap conventions.
      *
-     * XXX Need to support TEXT/styl scrap as well.
-     * See STScrpRec in TextEdit (Inside Macintosh: Text) for styl details.
      * XXX Maybe PICT scrap too.
      */
     if (ZeroScrap() != noErr)
 	return;
     PutScrap(len * sizeof(*data), 'utxt', data);
+
+    /* Replace LINE SEPARATORs with CR for TEXT output. */
+    for (i = 0; i < len; i++)
+	if (data[i] == 0x2028)
+	    data[i] = 0x000d;
+
+    mactextbuf = smalloc(len); /* XXX DBCS */
+    if (s->uni_to_font != NULL) {
+	err = ConvertFromUnicodeToText(s->uni_to_font, len * sizeof(UniChar),
+				       (UniChar *)data,
+				       kUnicodeUseFallbacksMask,
+				       0, NULL, NULL, NULL,
+				       len, &iread, &olen, mactextbuf);
+	if (err != noErr && err != kTECUsedFallbacksStatus)
+	    return;
+    } else  if (s->font_charset != CS_NONE) {
+	unitextptr = data;
+	olen = charset_from_unicode(&unitextptr, &len, mactextbuf, 1024,
+				    s->font_charset, NULL, ".", 1);
+    } else
+	return;
+    PutScrap(olen, 'TEXT', mactextbuf);
+    sfree(mactextbuf);
+
+    stsz = offsetof(StScrpRec, scrpStyleTab) + sizeof(ScrpSTElement);
+    stsc = smalloc(stsz);
+    stsc->scrpNStyles = 1;
+    stsc->scrpStyleTab[0].scrpStartChar = 0;
+    stsc->scrpStyleTab[0].scrpHeight = s->font_height;
+    stsc->scrpStyleTab[0].scrpAscent = s->font_ascent;
+    stsc->scrpStyleTab[0].scrpFont = s->fontnum;
+    stsc->scrpStyleTab[0].scrpFace = 0;
+    stsc->scrpStyleTab[0].scrpSize = s->cfg.fontheight;
+    stsc->scrpStyleTab[0].scrpColor.red = 0;
+    stsc->scrpStyleTab[0].scrpColor.green = 0;
+    stsc->scrpStyleTab[0].scrpColor.blue = 0;
+    PutScrap(stsz, 'styl', stsc);
+    sfree(stsc);
 }
 
 void get_clip(void *frontend, wchar_t **p, int *lenp) {
