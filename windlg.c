@@ -816,10 +816,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	bartitle(&cp, "Basic options for your PuTTY session",
 		 IDC_TITLE_SESSION);
 	if (dlgtype == 0) {
-	    beginbox(&cp, "Specify your connection by host name",
+	    beginbox(&cp, "Specify your connection by host name or IP address",
 		     IDC_BOX_SESSION1);
 	    multiedit(&cp,
-		      "Host &Name", IDC_HOSTSTATIC, IDC_HOST, 75,
+		      "Host &Name (or IP address)",
+		      IDC_HOSTSTATIC, IDC_HOST, 75,
 		      "&Port", IDC_PORTSTATIC, IDC_PORT, 25, NULL);
 	    if (backends[3].backend == NULL) {
 		/* this is PuTTYtel, so only three protocols available */
