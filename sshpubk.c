@@ -125,7 +125,12 @@ static int loadrsakey_main(FILE *fp, struct RSAKey *key,
     i += ssh1_read_bignum(buf+i, &key->p);
     if (len-i < 0) goto end;
 
-    ret = 1;
+    if (!rsa_verify(key)) {
+	freersakey(key);
+	ret = 0;
+    } else
+	ret = 1;
+
     end:
     memset(buf, 0, sizeof(buf));       /* burn the evidence */
     return ret;
@@ -328,6 +333,16 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase) {
  * 
  * where the sequence-number increases from zero. As many of these
  * hashes are used as necessary.
+ * 
+ * NOTE! It is important that all _public_ data can be verified
+ * with reference to the _private_ data. There exist attacks based
+ * on modifying the public key but leaving the private section
+ * intact.
+ * 
+ * With RSA, this is easy: verify that n = p*q, and also verify
+ * that e*d == 1 modulo (p-1)(q-1). With DSA (if we were ever to
+ * support it), we would need to store extra data in the private
+ * section other than just x.
  */
 
 static int read_header(FILE *fp, char *header) {
@@ -613,6 +628,11 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase) {
     ret->comment = comment;
     ret->data = alg->createkey(public_blob, public_blob_len,
 			       private_blob, private_blob_len);
+    if (!ret->data) {
+	sfree(ret->comment);
+	sfree(ret);
+	ret = NULL;
+    }
     sfree(public_blob);
     sfree(private_blob);
     return ret;

@@ -151,6 +151,37 @@ void rsa_fingerprint(char *str, int len, struct RSAKey *key) {
     }
 }
 
+/*
+ * Verify that the public data in an RSA key matches the private
+ * data.
+ */
+int rsa_verify(struct RSAKey *key) {
+    Bignum n, ed, pm1, qm1, pm1qm1;
+    int cmp;
+
+    /* n must equal pq. */
+    n = bigmul(key->p, key->q);
+    cmp = bignum_cmp(n, key->modulus);
+    freebn(n);
+    if (cmp != 0)
+	return 0;
+
+    /* e * d must be congruent to 1, modulo (p-1)(q-1). */
+    pm1 = copybn(key->p);
+    decbn(pm1);
+    qm1 = copybn(key->q);
+    decbn(qm1);
+    pm1qm1 = bigmul(pm1, qm1);
+    freebn(pm1);
+    freebn(qm1);
+    ed = modmul(key->exponent, key->private_exponent, pm1qm1);
+    sfree(pm1qm1);
+    cmp = bignum_cmp(ed, One);
+    sfree(ed);
+    if (cmp != 0)
+	return 0;
+}
+
 void freersakey(struct RSAKey *key) {
     if (key->modulus) freebn(key->modulus);
     if (key->exponent) freebn(key->exponent);
@@ -231,7 +262,7 @@ static char *rsa2_fmtkey(void *key) {
     
     len = rsastr_len(rsa);
     p = smalloc(len);
-    rsastr_fmt(p, rsa);
+     rsastr_fmt(p, rsa);
     return p;
 }
 
@@ -303,6 +334,11 @@ static void *rsa2_createkey(unsigned char *pub_blob, int pub_len,
     rsa->p = getmp(&pb, &priv_len);
     rsa->q = getmp(&pb, &priv_len);
     rsa->iqmp = getmp(&pb, &priv_len);
+
+    if (!rsa_verify(rsa)) {
+	rsa2_freekey(rsa);
+	return NULL;
+    }
 
     return rsa;
 }
