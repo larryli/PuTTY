@@ -30,8 +30,4 @@
 #define RT_MANIFEST 24
 #endif
 
-#ifdef MINGW32_FIX
-#define EDITTEXT     EDITTEXT "",
-#endif
-
 #endif /* PUTTY_RCSTUFF_H */
