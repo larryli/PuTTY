@@ -1,11 +1,8 @@
-\versionid $Id: pscp.but,v 1.12 2001/07/01 09:21:01 simon Exp $
+\versionid $Id: pscp.but,v 1.13 2001/08/28 09:53:51 simon Exp $
 
 \#FIXME: Need examples
 
 \C{pscp} Using PSCP to transfer files securely
-
-\# Explain PSCP: the command line, the modes of use (local->remote
-\# and remote->local, recursive, wildcards).
 
 \i{PSCP}, the PuTTY Secure Copy client, is a tool for transferring files
 securely between computers using an SSH connection.
@@ -75,6 +72,48 @@ server \c{example.com} as user \c{fred} to the file
 \c{/tmp/csh-whynot} you would type:
 
 \c pscp c:\documents\csh-whynot.txt fred@example.com:/tmp/csh-whynot
+
+You can use wildcards to transfer multiple files in either
+direction, like this:
+
+\c pscp c:\documents\*.doc fred@example.com:docfiles
+\c pscp fred@example.com:source/*.c c:\source
+
+However, in the second case (using a wildcard for multiple remote
+files) you may see a warning like this:
+
+\c warning: remote host tried to write to a file called 'terminal.c'
+\c          when we requested a file called '*.c'.
+\c          If this is a wildcard, consider upgrading to SSH 2 or using
+\c          the '-unsafe' option. Renaming of this file has been disallowed.
+
+This is due to a fundamental insecurity in the old-style SCP
+protocol: the client sends the wildcard string (\c{*.c}) to the
+server, and the server sends back a sequence of file names that
+match the wildcard pattern. However, there is nothing to stop the
+server sending back a \e{different} pattern and writing over one of
+your other files: if you request \c{*.c}, the server might send back
+the file name \c{AUTOEXEC.BAT} and install a virus for you. Since
+the wildcard matching rules are decided by the server, the client
+cannot reliably verify that the filenames sent back match the
+pattern.
+
+PSCP will attempt to use the newer SFTP protocol (part of SSH 2)
+where possible, which does not suffer from this security flaw. If
+you are talking to an SSH 2 server which supports SFTP, you will
+never see this warning.
+
+If you really need to use a server-side wildcard with an SSH 1
+server, you can use the \c{-unsafe} command line option with PSCP:
+
+\c pscp -unsafe fred@example.com:source/*.c c:\source
+
+This will suppress the warning message and the file transfer will
+happen. However, you should be aware that by using this option you
+are giving the server the ability to write to \e{any} file in the
+target directory, so you should only use this option if you trust
+the server administrator not to be malicious (and not to let the
+server machine be cracked by malicious people).
 
 \S2{pscp-usage-basics-user} \c{user}
 
@@ -186,6 +225,15 @@ line.
 Since specifying passwords in scripts is a bad idea for security
 reasons, you might want instead to consider using public-key
 authentication; see \k{pscp-pubkey}.
+
+\S{pscp-pubkey} Return value
+
+PSCP returns an \cw{ERRORLEVEL} of zero (success) only if the files
+were correctly transferred. You can test for this in a batch file,
+using code such as this:
+
+\c pscp file*.* user@hostname:
+\c if errorlevel 1 echo There was an error
 
 \S{pscp-pubkey} Using public key authentication with PSCP
 
