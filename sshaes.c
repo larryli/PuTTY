@@ -941,7 +941,7 @@ static const word32 D3[256] = {
  * bytes; each can be either 16 (128-bit), 24 (192-bit), or 32
  * (256-bit).
  */
-void aes_setup(AESContext * ctx, int blocklen,
+static void aes_setup(AESContext * ctx, int blocklen,
 	       unsigned char *key, int keylen)
 {
     int i, j, Nk, rconst;
