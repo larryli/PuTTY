@@ -1181,6 +1181,10 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    if (!term->cfg.no_remote_resize)
 		request_resize(term->frontend, state ? 132 : 80, term->rows);
 	    term->reset_132 = state;
+	    term->alt_t = term->marg_t = 0;
+	    term->alt_b = term->marg_b = term->rows - 1;
+	    move(term, 0, 0, 0);
+	    erase_lots(term, FALSE, TRUE, TRUE);
 	    break;
 	  case 5:		       /* reverse video */
 	    /*
