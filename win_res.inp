@@ -220,7 +220,7 @@ BEGIN
     NEXT
 END
 
-/* Accelerators used: [aco] 123bdhkmptu */
+/* Accelerators used: [aco] 123abdhkmptu */
 IDD_PANEL35 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -255,6 +255,9 @@ BEGIN
     EDITTEXT IDC3_PKEDIT, ADJ(8) COL(1), SS(3,3), ES_AUTOHSCROLL
     GRID(4,12,24)
     PUSHBUTTON "C&hange...", IDC3_PKBUTTON, ADJ(8) COL(4), SS(1)
+    NEXT
+    GRID(1,8,10)
+    AUTOCHECKBOX "Allow &agent forwarding", IDC3_AGENTFWD, SCOL
 END
 
 /* Accelerators used: [aco] stwx */

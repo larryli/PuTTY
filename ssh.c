@@ -1544,7 +1544,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
     if (ssh_state == SSH_STATE_CLOSED)
         crReturnV;
 
-    if (1 /* FIXME: agent exists && agent forwarding configured */ ) {
+    if (cfg.agentfwd && agent_exists()) {
         logevent("Requesting agent forwarding");
         send_packet(SSH1_CMSG_AGENT_REQUEST_FORWARDING, PKT_END);
         do { crReturnV; } while (!ispkt);

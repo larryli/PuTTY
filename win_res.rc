@@ -12,6 +12,7 @@
 
 IDI_MAINICON ICON "putty.ico"
 
+/* Accelerators used: cl */
 IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 136, 70
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About PuTTY"
@@ -25,6 +26,7 @@ BEGIN
           IDA_TEXT2, 10, 34, 120, 16
 END
 
+/* Accelerators used: aco */
 IDD_MAINBOX DIALOG DISCARDABLE 0, 0, 180, 216
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Configuration"
@@ -42,6 +44,7 @@ BEGIN
 	TCS_MULTILINE | WS_TABSTOP, 3, 3, 174, 193
 END
 
+/* Accelerators used: ac */
 IDD_RECONF DIALOG DISCARDABLE 0, 0, 180, 216
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Reconfiguration"
@@ -58,6 +61,7 @@ BEGIN
 	TCS_MULTILINE | WS_TABSTOP, 3, 3, 174, 193
 END
 
+/* Accelerators used: [aco] dehlnprstwx */
 IDD_PANEL0 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -99,10 +103,11 @@ BEGIN
     
 
     
-    AUTOCHECKBOX "Close &Window on Exit", IDC0_CLOSEEXIT, 3, 130, 162, 8
-    AUTOCHECKBOX "Warn on C&lose", IDC0_CLOSEWARN, 3, 140, 162, 8
+    AUTOCHECKBOX "Close Window on E&xit", IDC0_CLOSEEXIT, 3, 130, 162, 8
+    AUTOCHECKBOX "&Warn on Close", IDC0_CLOSEWARN, 3, 140, 162, 8
 END
 
+/* Accelerators used: [aco] 4?ehiklmnprsuvxy */
 IDD_PANEL1 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -136,6 +141,7 @@ BEGIN
     AUTOCHECKBOX "Reset scrollback on &keypress", IDC1_SCROLLKEY, 3, 143, 162, 8
 END
 
+/* Accelerators used: [aco] bdghiklmnprswy */
 IDD_PANEL2 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -166,13 +172,14 @@ BEGIN
     AUTOCHECKBOX "Bee&p enabled", IDC1_BEEP, 3, 112, 162, 8
     AUTOCHECKBOX "Displa&y scrollbar", IDC2_SCROLLBAR, 3, 122, 162, 8
     AUTOCHECKBOX "Loc&k Window size", IDC2_LOCKSIZE, 3, 132, 162, 8
-    AUTOCHECKBOX "Use Backgroud colour erase", IDC2_BCE, 3, 142, 162, 8
-    AUTOCHECKBOX "Enable blinking text", IDC2_BLINKTEXT, 3, 152, 162, 8
+    AUTOCHECKBOX "Use Back&ground colour erase", IDC2_BCE, 3, 142, 162, 8
+    AUTOCHECKBOX "Enable bli&nking text", IDC2_BLINKTEXT, 3, 152, 162, 8
     
     
     
 END
 
+/* Accelerators used: [aco] bdflrstuv */
 IDD_PANEL3 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -213,6 +220,7 @@ BEGIN
     
 END
 
+/* Accelerators used: [aco] 123abdhkmptu */
 IDD_PANEL35 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -235,7 +243,7 @@ BEGIN
     AUTORADIOBUTTON "&DES", IDC3_CIPHERDES, 125, 45, 38, 8
     
     
-    AUTOCHECKBOX "Attempt TIS or CryptoCard authentication", IDC3_AUTHTIS, 3, 55, 162, 8
+    AUTOCHECKBOX "Atte&mpt TIS or CryptoCard authentication", IDC3_AUTHTIS, 3, 55, 162, 8
     
     
     LTEXT "Prefer protocol version:", IDC3_SSHPROTSTATIC, 3, 75, 105, 8
@@ -243,12 +251,16 @@ BEGIN
     AUTORADIOBUTTON "&2", IDC3_SSHPROT2, 143, 75, 21, 8
     
     
-    LTEXT "Public key file:", IDC3_PKSTATIC, 3, 85, 119, 8
+    LTEXT "Public &key file:", IDC3_PKSTATIC, 3, 85, 119, 8
     EDITTEXT IDC3_PKEDIT,  3, 93, 119, 12, ES_AUTOHSCROLL
     
     PUSHBUTTON "C&hange...", IDC3_PKBUTTON,  129, 93, 35, 12
+    
+    
+    AUTOCHECKBOX "Allow &agent forwarding", IDC3_AGENTFWD, 3, 109, 162, 8
 END
 
+/* Accelerators used: [aco] stwx */
 IDD_PANEL4 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -272,6 +284,7 @@ BEGIN
     
 END
 
+/* Accelerators used: [aco] bhlu */
 IDD_PANEL5 DIALOG DISCARDABLE 6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE | NOT WS_BORDER
 FONT 8, "MS Sans Serif"
@@ -282,7 +295,7 @@ BEGIN
     
     AUTOCHECKBOX "Attempt to use &logical palettes", IDC5_PALETTE, 3, 19, 162, 8
     
-    LTEXT "C&olours:", IDC5_STATIC, 3, 35, 162, 8
+    LTEXT "Colo&urs:", IDC5_STATIC, 3, 35, 162, 8
 
     LISTBOX IDC5_LIST, 3, 45, 100, 110,
         LBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -297,6 +310,7 @@ BEGIN
     
 END
 
+/* Accelerators used: [aco] beiknpsx */
 IDD_PANEL6 DIALOG DISCARDABLE  6, 30, 168, 163
 STYLE WS_CHILD | WS_VISIBLE
 FONT 8, "MS Sans Serif"
@@ -318,10 +332,11 @@ BEGIN
     AUTORADIOBUTTON "&KOI8 / Win-1251", IDC6_KOI8WIN1251, 3, 79, 162, 8
     AUTORADIOBUTTON "&ISO-8859-2 / Win-1250", IDC6_88592WIN1250, 3, 89, 162, 8
     
-    AUTOCHECKBOX "CA&PS LOCK acts as cyrillic switch", IDC6_CAPSLOCKCYR, 3, 105, 162, 8
+    AUTOCHECKBOX "CAP&S LOCK acts as cyrillic switch", IDC6_CAPSLOCKCYR, 3, 105, 162, 8
     
 END
 
+/* Accelerators used: c */
 IDD_LOGBOX DIALOG DISCARDABLE 100, 20, 160, 119
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Event Log"
@@ -331,6 +346,7 @@ BEGIN
     LISTBOX IDN_LIST, 3, 3, 154, 95, LBS_HASSTRINGS | LBS_USETABSTOPS | WS_VSCROLL
 END
 
+/* No accelerators used */
 IDD_LICENCEBOX DIALOG DISCARDABLE 50, 50, 226, 223
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Licence"
