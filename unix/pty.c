@@ -451,6 +451,13 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	    sprintf(term_env_var, "TERM=%s", cfg.termtype);
 	    putenv(term_env_var);
 	}
+	/*
+	 * SIGINT and SIGQUIT may have been set to ignored by our
+	 * parent, particularly by things like sh -c 'pterm &' and
+	 * some window managers. Reverse this for our child process.
+	 */
+	signal(SIGINT, SIG_DFL);
+	signal(SIGQUIT, SIG_DFL);
 	if (pty_argv)
 	    execvp(pty_argv[0], pty_argv);
 	else {
