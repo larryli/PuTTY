@@ -1153,9 +1153,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_CHANGEUSER, cfg.change_username);
     CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2ONLY,
 		     cfg.sshprot == 1 ? IDC_SSHPROT1 :
-		     cfg.sshprot == 2 ? IDC_SSHPROT2 :
-		     cfg.sshprot == 3 ? IDC_SSHPROT2ONLY :
-		     IDC_SSHPROT1); /* Should we make the default 2? */
+		     cfg.sshprot == 2 ? IDC_SSHPROT2 : IDC_SSHPROT2ONLY);
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
     CheckDlgButton(hwnd, IDC_AUTHKI, cfg.try_ki_auth);
     SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
