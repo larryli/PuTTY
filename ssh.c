@@ -4379,7 +4379,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Server got confused by X11 forwarding request"));
+		bombout(("Unexpected response to X11 forwarding request:"
+			 " packet type %d", pktin.type));
 		crReturnV;
 	    }
 	    logevent("X11 forwarding refused");
@@ -4467,7 +4468,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 			if (pktin.type != SSH2_MSG_REQUEST_SUCCESS) {
 			    if (pktin.type != SSH2_MSG_REQUEST_FAILURE) {
-				bombout(("Server got confused by port forwarding request"));
+				bombout(("Unexpected response to port "
+					 "forwarding request: packet type %d",
+					 pktin.type));
 				crReturnV;
 			    }
 			    logevent("Server refused this port forwarding");
@@ -4505,8 +4508,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(
-			("Server got confused by agent forwarding request"));
+		bombout(("Unexpected response to agent forwarding request:"
+			 " packet type %d", pktin.type));
 		crReturnV;
 	    }
 	    logevent("Agent forwarding refused");
@@ -4548,7 +4551,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Server got confused by pty request"));
+		bombout(("Unexpected response to pty request:"
+			 " packet type %d", pktin.type));
 		crReturnV;
 	    }
 	    c_write_str("Server refused to allocate pty\r\n");
@@ -4605,7 +4609,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 	if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
 	    if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Server got confused by shell/command request"));
+		bombout(("Unexpected response to shell/command request:"
+			 " packet type %d", pktin.type));
 		crReturnV;
 	    }
 	    /*
