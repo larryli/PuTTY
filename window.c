@@ -2434,7 +2434,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    return TRUE;
 	}
       default:
-	if (message == wm_mousewheel) {
+	if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
 	    int shift_pressed=0, control_pressed=0, alt_pressed=0;
 
 	    if (message == WM_MOUSEWHEEL) {
