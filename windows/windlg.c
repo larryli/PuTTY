@@ -751,7 +751,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	message = dupprintf(wrongmsg, appname, keytype, fingerprint, appname);
 	title = dupprintf(mbtitle, appname);
 	mbret = MessageBox(NULL, message, title,
-			   MB_ICONWARNING | MB_YESNOCANCEL);
+			   MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3);
 	sfree(message);
 	sfree(title);
 	if (mbret == IDYES)
@@ -765,7 +765,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	message = dupprintf(absentmsg, keytype, fingerprint, appname);
 	title = dupprintf(mbtitle, appname);
 	mbret = MessageBox(NULL, message, title,
-			   MB_ICONWARNING | MB_YESNOCANCEL);
+			   MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3);
 	sfree(message);
 	sfree(title);
 	if (mbret == IDYES)
