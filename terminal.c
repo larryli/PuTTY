@@ -1274,7 +1274,7 @@ void term_out(Terminal *term)
 	    else if(term->sco_acs && 
 		    (c!='\033' && c!='\012' && c!='\015' && c!='\b'))
 	    {
-	       if (term->sco_acs == 2) c ^= 0x80;
+	       if (term->sco_acs == 2) c |= 0x80;
 	       c |= ATTR_SCOACS;
 	    } else {
 		switch (term->cset_attr[term->cset]) {
@@ -2103,7 +2103,7 @@ void term_out(Terminal *term)
 				    compatibility(SCOANSI);
 				    if (term->cfg->no_remote_charset) break;
 				    term->sco_acs = 1; break;
-				  case 12:      /* SCO acs on flipped */
+				  case 12:      /* SCO acs on, |0x80 */
 				    compatibility(SCOANSI);
 				    if (term->cfg->no_remote_charset) break;
 				    term->sco_acs = 2; break;
