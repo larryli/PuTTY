@@ -58,8 +58,8 @@ struct gui_data {
     wchar_t *pastein_data;
     int direct_to_font;
     int pastein_data_len;
-    char *pasteout_data, *pasteout_data_utf8;
-    int pasteout_data_len, pasteout_data_utf8_len;
+    char *pasteout_data, *pasteout_data_ctext, *pasteout_data_utf8;
+    int pasteout_data_len, pasteout_data_ctext_len, pasteout_data_utf8_len;
     int font_width, font_height;
     int width, height;
     int ignore_sbar;
@@ -1327,16 +1327,20 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
     struct gui_data *inst = (struct gui_data *)frontend;
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
+    if (inst->pasteout_data_ctext)
+	sfree(inst->pasteout_data_ctext);
     if (inst->pasteout_data_utf8)
 	sfree(inst->pasteout_data_utf8);
 
     /*
-     * Set up UTF-8 paste data. This only happens if we aren't in
-     * direct-to-font mode using the D800 hack.
+     * Set up UTF-8 and compound text paste data. This only happens
+     * if we aren't in direct-to-font mode using the D800 hack.
      */
     if (!inst->direct_to_font) {
 	wchar_t *tmp = data;
 	int tmplen = len;
+	XTextProperty tp;
+	char *list[1];
 
 	inst->pasteout_data_utf8 = snewn(len*6, char);
 	inst->pasteout_data_utf8_len = len*6;
@@ -1350,11 +1354,26 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	} else {
 	    inst->pasteout_data_utf8 =
 		sresize(inst->pasteout_data_utf8,
-			inst->pasteout_data_utf8_len, char);
+			inst->pasteout_data_utf8_len + 1, char);
+	    inst->pasteout_data_utf8[inst->pasteout_data_utf8_len] = '\0';
+	}
+
+	/*
+	 * Now let Xlib convert our UTF-8 data into compound text.
+	 */
+	list[0] = inst->pasteout_data_utf8;
+	if (Xutf8TextListToTextProperty(GDK_DISPLAY(), list, 1,
+					XCompoundTextStyle, &tp) == 0) {
+	    inst->pasteout_data_ctext = snewn(tp.nitems+1, char);
+	    memcpy(inst->pasteout_data_ctext, tp.value, tp.nitems);
+	    inst->pasteout_data_ctext_len = tp.nitems;
+	    XFree(tp.value);
 	}
     } else {
 	inst->pasteout_data_utf8 = NULL;
 	inst->pasteout_data_utf8_len = 0;
+	inst->pasteout_data_ctext = NULL;
+	inst->pasteout_data_ctext_len = 0;
     }
 
     inst->pasteout_data = snewn(len*6, char);
@@ -1375,8 +1394,9 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 				GDK_CURRENT_TIME)) {
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				 GDK_SELECTION_TYPE_STRING, 1);
-	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
-				 compound_text_atom, 1);
+	if (inst->pasteout_data_ctext)
+	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+				     compound_text_atom, 1);
 	if (inst->pasteout_data_utf8)
 	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				     utf8_string_atom, 1);
@@ -1394,6 +1414,10 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 	gtk_selection_data_set(seldata, seldata->target, 8,
 			       inst->pasteout_data_utf8,
 			       inst->pasteout_data_utf8_len);
+    else if (seldata->target == compound_text_atom)
+	gtk_selection_data_set(seldata, seldata->target, 8,
+			       inst->pasteout_data_ctext,
+			       inst->pasteout_data_ctext_len);
     else
 	gtk_selection_data_set(seldata, seldata->target, 8,
 			       inst->pasteout_data, inst->pasteout_data_len);
@@ -1406,10 +1430,14 @@ gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     term_deselect(inst->term);
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
+    if (inst->pasteout_data_ctext)
+	sfree(inst->pasteout_data_ctext);
     if (inst->pasteout_data_utf8)
 	sfree(inst->pasteout_data_utf8);
     inst->pasteout_data = NULL;
     inst->pasteout_data_len = 0;
+    inst->pasteout_data_ctext = NULL;
+    inst->pasteout_data_ctext_len = 0;
     inst->pasteout_data_utf8 = NULL;
     inst->pasteout_data_utf8_len = 0;
     return TRUE;
@@ -1450,6 +1478,12 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 			guint time, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
+    XTextProperty tp;
+    char **list;
+    char *text;
+    int length, count, ret;
+    int free_list_required = 0;
+    int charset;
 
     if (seldata->target == utf8_string_atom && seldata->length <= 0) {
 	/*
@@ -1480,21 +1514,51 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	 seldata->type != utf8_string_atom))
 	return;			       /* Nothing happens. */
 
+
+    /*
+     * Convert COMPOUND_TEXT into UTF-8.
+     */
+    if (seldata->type == compound_text_atom) {
+	tp.value = seldata->data;
+	tp.encoding = (Atom) seldata->type;
+	tp.format = seldata->format;
+	tp.nitems = seldata->length;
+	ret = Xutf8TextPropertyToTextList(GDK_DISPLAY(), &tp, &list, &count);
+	if (ret != 0 || count != 1) {
+	    /*
+	     * Compound text failed; fall back to STRING.
+	     */
+	    gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+				  GDK_SELECTION_TYPE_STRING, GDK_CURRENT_TIME);
+	    return;
+	}
+	text = list[0];
+	length = strlen(list[0]);
+	charset = CS_UTF8;
+	free_list_required = 1;
+    } else {
+	text = (char *)seldata->data;
+	length = seldata->length;
+	charset = (seldata->type == utf8_string_atom ?
+		   CS_UTF8 : inst->ucsdata.line_codepage);
+    }
+
     if (inst->pastein_data)
 	sfree(inst->pastein_data);
 
-    inst->pastein_data = snewn(seldata->length, wchar_t);
-    inst->pastein_data_len = seldata->length;
+    inst->pastein_data = snewn(length, wchar_t);
+    inst->pastein_data_len = length;
     inst->pastein_data_len =
-	mb_to_wc((seldata->type == utf8_string_atom ?
-		  CS_UTF8 : inst->ucsdata.line_codepage),
-		 0, seldata->data, seldata->length,
+	mb_to_wc(charset, 0, text, length,
 		 inst->pastein_data, inst->pastein_data_len);
 
     term_do_paste(inst->term);
 
     if (term_paste_pending(inst->term))
 	inst->term_paste_idle_id = gtk_idle_add(idle_paste_func, inst);
+
+    if (free_list_required)
+	XFreeStringList(list);
 }
 
 gint idle_paste_func(gpointer data)
