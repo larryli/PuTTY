@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.5 2002/12/28 22:44:27 ben Exp $ */
+/* $Id: macstore.c,v 1.6 2002/12/30 18:21:17 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -15,12 +15,12 @@
 
 #include "putty.h"
 #include "storage.h"
+#include "mac.h"
 
 #define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
 #define SESS_TYPE	FOUR_CHAR_CODE('Sess')
 
 
-OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 OSErr FSpGetDirID(FSSpec *f, long *idp, Boolean makeit);
 
 /*
@@ -191,21 +191,32 @@ void close_settings_w(void *handle) {
     safefree(handle);
 }
 
-void *open_settings_r(char *sessionname) {
+void *open_settings_r(char *sessionname)
+{
     short sessVRefNum;
     long sessDirID;
     FSSpec sessfile;
     OSErr error;
     Str255 psessionname;
-    int fd;
-    int *handle;
 
     error = get_session_dir(kDontCreateFolder, &sessVRefNum, &sessDirID);
 
     c2pstrcpy(psessionname, sessionname);
     error = FSMakeFSSpec(sessVRefNum, sessDirID, psessionname, &sessfile);
     if (error != noErr) goto out;
-    fd = FSpOpenResFile(&sessfile, fsRdPerm);
+    return open_settings_r_fsp(&sessfile);
+
+  out:
+    return NULL;
+}
+
+void *open_settings_r_fsp(FSSpec *sessfile)
+{
+    OSErr error;
+    int fd;
+    int *handle;
+
+    fd = FSpOpenResFile(sessfile, fsRdPerm);
     if (fd == 0) {error = ResError(); goto out;}
 
     handle = safemalloc(sizeof *handle);
@@ -215,7 +226,6 @@ void *open_settings_r(char *sessionname) {
   out:
     return NULL;
 }
-
 
 char *read_setting_s(void *handle, char *key, char *buffer, int buflen) {
     int fd;

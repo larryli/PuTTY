@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.5 2002/12/30 14:17:51 ben Exp $ */
+/* $Id: mac_res.r,v 1.6 2002/12/30 18:21:17 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -360,7 +360,7 @@ resource 'MENU' (mApple, preload) {
     enabled,
     apple,
     {
-	"About PuTTYÉ",		noicon, nokey, nomark, plain,
+	"About PuTTY\0xc9",	noicon, nokey, nomark, plain,
 	"-",			noicon, nokey, nomark, plain,
     }
 };
@@ -368,11 +368,12 @@ resource 'MENU' (mApple, preload) {
 resource 'MENU' (mFile, preload) {
     mFile,
     textMenuProc,
-    0b11111111111111111111111111111011,
+    0b11111111111111111111111111110111,
     enabled,
-    "File",
+    "Session",
     {
-	"New Session",		noicon, "N",   nomark, plain,
+	"New",			noicon, "N",   nomark, plain,
+	"Open\0xc9",		noicon, "O",   nomark, plain,
 	"Close",		noicon, "W",   nomark, plain,
 	"-",			noicon, nokey, nomark, plain,
 	"Quit",			noicon, "Q",   nomark, plain,

@@ -321,11 +321,17 @@ void save_settings(char *section, int do_host, Config * cfg)
 
 void load_settings(char *section, int do_host, Config * cfg)
 {
-    int i;
-    char prot[10];
     void *sesskey;
 
     sesskey = open_settings_r(section);
+    load_open_settings(sesskey, do_host, cfg);
+    close_settings_r(sesskey);
+}
+
+void load_open_settings(void *sesskey, int do_host, Config *cfg)
+{
+    int i;
+    char prot[10];
 
     cfg->ssh_subsys = 0;	       /* FIXME: load this properly */
     cfg->remote_cmd_ptr = cfg->remote_cmd;
@@ -637,8 +643,6 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);
     gpps(sesskey, "BoldFont", "", cfg->boldfont, sizeof(cfg->boldfont));
     gppi(sesskey, "ShadowBoldOffset", 1, &cfg->shadowboldoffset);
-
-    close_settings_r(sesskey);
 }
 
 void do_defaults(char *session, Config * cfg)

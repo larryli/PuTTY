@@ -6,6 +6,7 @@
 #define PUTTY_MAC_H
 
 #include <MacTypes.h>
+#include <Controls.h>
 #include <Events.h>
 #include <Gestalt.h>
 #include <MacWindows.h>
@@ -24,21 +25,6 @@ struct mac_gestalts {
 extern struct mac_gestalts mac_gestalts;
 
 #define HAVE_COLOR_QD() (mac_gestalts.qdvers > gestaltOriginalQD)
-
-/* from macterm.c */
-extern void mac_newsession(void);
-extern void mac_activateterm(WindowPtr, Boolean);
-extern void mac_adjusttermcursor(WindowPtr, Point, RgnHandle);
-extern void mac_adjusttermmenus(WindowPtr);
-extern void mac_updateterm(WindowPtr);
-extern void mac_clickterm(WindowPtr, EventRecord *);
-extern void mac_growterm(WindowPtr, EventRecord *);
-extern void mac_keyterm(WindowPtr, EventRecord *);
-extern void mac_menuterm(WindowPtr, short, short);
-/* from maccfg.c */
-extern void mac_loadconfig(Config *);
-/* from macnet.c */
-extern void macnet_eventcheck(void);
 
 typedef struct {
     /* Config that created this session */
@@ -68,6 +54,26 @@ typedef struct {
     int			raw_mouse;
     UnicodeToTextInfo	uni_to_font;
 } Session;
+
+/* from macterm.c */
+extern void mac_newsession(void);
+extern void mac_opensession(void);
+extern void mac_startsession(Session *);
+extern void mac_activateterm(WindowPtr, Boolean);
+extern void mac_adjusttermcursor(WindowPtr, Point, RgnHandle);
+extern void mac_adjusttermmenus(WindowPtr);
+extern void mac_updateterm(WindowPtr);
+extern void mac_clickterm(WindowPtr, EventRecord *);
+extern void mac_growterm(WindowPtr, EventRecord *);
+extern void mac_keyterm(WindowPtr, EventRecord *);
+extern void mac_menuterm(WindowPtr, short, short);
+/* from macstore.c */
+OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
+extern void *open_settings_r_fsp(FSSpec *);
+/* from maccfg.c */
+extern void mac_loadconfig(Config *);
+/* from macnet.c */
+extern void macnet_eventcheck(void);
 
 #endif
 

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.25 2002/12/28 22:25:31 ben Exp $ */
+/* $Id: macterm.c,v 1.26 2002/12/30 18:21:17 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -46,6 +46,7 @@
 #include <Scrap.h>
 #include <Script.h>
 #include <Sound.h>
+#include <StandardFile.h>
 #include <TextCommon.h>
 #include <Threads.h>
 #include <ToolUtils.h>
@@ -60,6 +61,7 @@
 #include "macresid.h"
 #include "putty.h"
 #include "mac.h"
+#include "storage.h"
 #include "terminal.h"
 
 #define NCOLOURS (lenof(((Config *)0)->colours))
@@ -138,15 +140,45 @@ static void display_resource(Session *s, unsigned long type, short id) {
 
 void mac_newsession(void) {
     Session *s;
-    UInt32 starttime;
-    char msg[128];
 
     /* This should obviously be initialised by other means */
     s = smalloc(sizeof(*s));
     memset(s, 0, sizeof(*s));
     do_defaults(NULL, &s->cfg);
     s->back = &loop_backend;
-	
+    mac_startsession(s);
+}
+
+void mac_opensession(void) {
+    Session *s;
+    StandardFileReply sfr;
+    static const OSType sftypes[] = { 'Sess', 0, 0, 0 };
+    void *sesshandle;
+
+    s = smalloc(sizeof(*s));
+    memset(s, 0, sizeof(*s));
+
+    StandardGetFile(NULL, 1, sftypes, &sfr);
+    if (!sfr.sfGood) goto fail;
+
+    sesshandle = open_settings_r_fsp(&sfr.sfFile);
+    if (sesshandle == NULL) goto fail;
+    load_open_settings(sesshandle, TRUE, &s->cfg);
+    close_settings_r(sesshandle);
+    s->back = &loop_backend;
+    mac_startsession(s);
+    return;
+
+  fail:
+    sfree(s);
+    return;
+}
+
+void mac_startsession(Session *s)
+{
+    UInt32 starttime;
+    char msg[128];
+
     /* XXX: Own storage management? */
     if (HAVE_COLOR_QD())
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);

@@ -465,6 +465,7 @@ void random_destroy_seed(void);
  */
 void save_settings(char *section, int do_host, Config * cfg);
 void load_settings(char *section, int do_host, Config * cfg);
+void load_open_settings(void *sesskey, int do_host, Config *cfg);
 void get_sesslist(struct sesslist *, int allocate);
 void do_defaults(char *, Config *);
 void registry_cleanup(void);

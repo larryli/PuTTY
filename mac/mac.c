@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.9 2002/12/29 19:14:56 ben Exp $ */
+/* $Id: mac.c,v 1.10 2002/12/30 18:21:17 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -413,6 +413,9 @@ static void mac_menucommand(long result) {
           case iNew:
             mac_newsession();
             goto done;
+	  case iOpen:
+	    mac_opensession();
+	    goto done;
           case iClose:
             mac_closewindow(window);
             goto done;
