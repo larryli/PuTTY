@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.2 2002/11/19 12:29:45 ben Exp $ */
+/* $Id: testback.c,v 1.3 2002/11/23 19:58:55 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -75,7 +75,8 @@ static char *loop_init(void *frontend_handle, void **backend_handle,
     struct loop_state *st = smalloc(sizeof(*st));
 
     st->term = frontend_handle;
-    return (char *)st;
+    *backend_handle = st;
+    return NULL;
 }
 
 static int null_send(void *handle, char *buf, int len) {
@@ -85,7 +86,12 @@ static int null_send(void *handle, char *buf, int len) {
 
 static int loop_send(void *handle, char *buf, int len) {
     struct loop_state *st = handle;
+    int i;
 
+    fprintf(stderr, "%d chars: ", len);
+    for (i = 0; i < len; i++)
+	fprintf(stderr, " 0x%x", buf[i]);
+    fprintf(stderr, "\n");
     return from_backend(st->term, 0, buf, len);
 }
 
