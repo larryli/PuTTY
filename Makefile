@@ -13,7 +13,8 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 .c.obj:
 	cl $(COMPAT) $(FWHACK) $(CFLAGS) /c $*.c
 
-PUTTYOBJS = window.obj windlg.obj terminal.obj telnet.obj raw.obj xlat.obj
+POBJS1 = window.obj windlg.obj terminal.obj telnet.obj raw.obj
+POBJS2 = xlat.obj ldisc.obj
 OBJS1 = misc.obj noise.obj
 OBJS2 = ssh.obj sshcrc.obj sshdes.obj sshmd5.obj sshrsa.obj sshrand.obj
 OBJS3 = sshsha.obj sshblowf.obj version.obj sizetip.obj
@@ -26,15 +27,16 @@ SCPOBJS3 = sshrsa.obj sshrand.obj sshsha.obj sshblowf.obj version.obj
 
 all: putty.exe pscp.exe
 
-putty.exe: $(PUTTYOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(RESRC) link.rsp
+putty.exe: $(POBJS1) $(POBJS2) $(OBJS1) $(OBJS2) $(OBJS3) $(RESRC) link.rsp
 	link /debug -out:putty.exe @link.rsp
 
-puttyd.exe: $(PUTTYOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(RESRC) link.rsp
+puttyd.exe: $(POBJS1) $(POBJS2) $(OBJS1) $(OBJS2) $(OBJS3) $(RESRC) link.rsp
 	link /debug -out:puttyd.exe @link.rsp
 
 link.rsp: makefile
 	echo /nologo /subsystem:windows > link.rsp
-	echo $(PUTTYOBJS) >> link.rsp
+	echo $(POBJS1) >> link.rsp
+	echo $(POBJS2) >> link.rsp
 	echo $(OBJS1) >> link.rsp
 	echo $(OBJS2) >> link.rsp
 	echo $(OBJS3) >> link.rsp
@@ -49,6 +51,7 @@ sizetip.obj: sizetip.c putty.h
 telnet.obj: telnet.c putty.h
 raw.obj: raw.c putty.h
 xlat.obj: xlat.c putty.h
+ldisc.obj: ldisc.c putty.h
 misc.obj: misc.c putty.h
 noise.obj: noise.c putty.h ssh.h
 ssh.obj: ssh.c ssh.h putty.h

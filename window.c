@@ -181,7 +181,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     }
 
     back = (cfg.protocol == PROT_SSH ? &ssh_backend : 
-			cfg.protocol == PROT_TELNET ? &telnet_backend : &raw_backend );
+	    cfg.protocol == PROT_TELNET ? &telnet_backend :
+	    &raw_backend);
+
+    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
 
     if (!prev) {
 	wndclass.style         = 0;
@@ -1016,7 +1019,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	    len = TranslateKey (wParam, lParam, buf);
 	    if (len == -1)
 		return DefWindowProc (hwnd, message, wParam, lParam);
-	    back->send (buf, len);
+	    ldisc->send (buf, len);
 	}
 	return 0;
       case WM_KEYUP:
@@ -1056,7 +1059,7 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	 */
 	{
 	    char c = xlat_kbd2tty((unsigned char)wParam);
-	    back->send (&c, 1);
+	    ldisc->send (&c, 1);
 	}
 	return 0;
     }

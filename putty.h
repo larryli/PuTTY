@@ -92,6 +92,12 @@ typedef struct {
 GLOBAL Backend *back;
 
 typedef struct {
+    void (*send) (char *buf, int len);
+} Ldisc;
+
+GLOBAL Ldisc *ldisc;
+
+typedef struct {
     /* Basic options */
     char host[512];
     int port;
@@ -117,6 +123,7 @@ typedef struct {
     int nethack_keypad;
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
+    int ldisc_term;
     /* Terminal options */
     int savelines;
     int dec_om;
@@ -231,6 +238,12 @@ extern Backend telnet_backend;
  */
 
 extern Backend ssh_backend;
+
+/*
+ * Exports from ldisc.c.
+ */
+
+extern Ldisc ldisc_term, ldisc_simple;
 
 /*
  * Exports from sshrand.c.
