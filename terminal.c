@@ -96,6 +96,7 @@ static int insert;		       /* insert-mode flag */
 static int cset;		       /* 0 or 1: which char set */
 static int save_cset, save_csattr;     /* saved with cursor position */
 static int rvideo;		       /* global reverse video flag */
+static int rvbell_timeout;	       /* for explicit (ESC[?5hESC[?5l) vbell */
 static int cursor_on;		       /* cursor enabled flag */
 static int reset_132;		       /* Flag ESC c resets to 80 cols */
 static int use_bce;		       /* Use Background coloured erase */
@@ -671,6 +672,7 @@ static void insch (int n) {
  * whether the mode is a DEC private one or a normal one.)
  */
 static void toggle_mode (int mode, int query, int state) {
+    long ticks;
     if (query) switch (mode) {
       case 1:			       /* application cursor keys */
 	app_cursor_keys = state;
@@ -684,6 +686,22 @@ static void toggle_mode (int mode, int query, int state) {
 	reset_132 = state;
 	break;
       case 5:			       /* reverse video */
+	/*
+	 * Toggle reverse video. If we receive an OFF within the
+	 * visual bell timeout period after an ON, we trigger an
+	 * effective visual bell, so that ESC[?5hESC[?5l will
+	 * always be an actually _visible_ visual bell.
+	 */
+	ticks = GetTickCount();
+	if (rvideo && !state &&	       /* we're turning it off */
+	    ticks < rvbell_timeout) {  /* and it's not long since it was turned on */
+	    in_vbell = TRUE;	       /* we may clear rvideo but we set in_vbell */
+	    if (vbell_timeout < rvbell_timeout)   /* don't move vbell end forward */
+		vbell_timeout = rvbell_timeout;   /* vbell end is at least then */
+	} else if (!rvideo && state) {
+	    /* This is an ON, so we notice the time and save it. */
+	    rvbell_timeout = ticks + VBELL_TIMEOUT;
+	}
 	rvideo = state;
 	seen_disp_event = TRUE;
 	if (state) term_update();
