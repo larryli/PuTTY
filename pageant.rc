@@ -3,6 +3,11 @@
 #include <winresrc.h>
 #endif
 
+/* Some systems don't define this, so I do it myself if necessary */
+#ifndef RT_MANIFEST
+#define RT_MANIFEST 24
+#endif
+
 200 ICON "pageant.ico"
 201 ICON "pageants.ico"
 
@@ -82,3 +87,5 @@ BEGIN
     LTEXT "OTHER DEALINGS IN THE SOFTWARE.", 1022, 10, 218, 206, 8
 
 END
+
+1 RT_MANIFEST "pageant.mft"
