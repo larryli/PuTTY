@@ -3323,6 +3323,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     } type;
     static int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
     static int tried_pubkey_config, tried_agent, tried_keyb_inter;
+    static int kbd_inter_running;
     static int we_are_in;
     static int num_prompts, echo;
     static char username[100];
@@ -3457,6 +3458,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	tried_pubkey_config = FALSE;
 	tried_agent = FALSE;
+	tried_keyb_inter = FALSE;
+	kbd_inter_running = FALSE;
 
 	while (1) {
 	    /*
@@ -3488,9 +3491,14 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		break;
 	    }
 
-	    if (pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
-		bombout(
-			("Strange packet received during authentication: type %d",
+	    if (kbd_inter_running &&
+		pktin.type == SSH2_MSG_USERAUTH_INFO_REQUEST) {
+		/*
+		 * This is a further prompt in keyboard-interactive
+		 * authentication. Do nothing.
+		 */
+	    } else if (!pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
+		bombout(("Strange packet received during authentication: type %d",
 			 pktin.type));
 		crReturnV;
 	    }
@@ -3502,10 +3510,11 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	     * we can look at the string in it and know what we can
 	     * helpfully try next.
 	     */
-	    {
+	    if (pktin.type == SSH2_MSG_USERAUTH_FAILURE) {
 		char *methods;
 		int methlen;
 		ssh2_pkt_getstring(&methods, &methlen);
+		kbd_inter_running = FALSE;
 		if (!ssh2_pkt_getbool()) {
 		    /*
 		     * We have received an unequivocal Access
@@ -3583,6 +3592,14 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
 		    continue;
 		}
+
+		kbd_inter_running = TRUE;
+	    }
+
+	    if (kbd_inter_running) {
+		method = AUTH_KEYBOARD_INTERACTIVE;
+		type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		tried_keyb_inter = TRUE;
 
 		/* We've got packet with that "interactive" info
 		   dump banners, and set its prompt as ours */
