@@ -718,7 +718,7 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    str[i++] = type;
 
 	    dlg_editbox_get(pfd->sourcebox, dlg, str+i, sizeof(str) - i);
-	    if (!str[2]) {
+	    if (!str[i]) {
 		dlg_error_msg(dlg, "You need to specify a source port number");
 		return;
 	    }
