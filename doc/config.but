@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.49 2003/01/12 14:30:02 simon Exp $
+\versionid $Id: config.but,v 1.50 2003/01/16 15:43:18 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1869,6 +1869,8 @@ changes of username} option to modify PuTTY's behaviour.
 This box is where you enter the name of your private key file if you
 are using public key authentication. See \k{pubkey} for information
 about public key authentication in SSH.
+
+This key must be in PuTTY's native format (\c{*.PPK}).
 
 \H{config-ssh-tunnels} The Tunnels panel
 

@@ -1,4 +1,4 @@
-\versionid $Id: pageant.but,v 1.8 2002/09/11 17:30:36 jacob Exp $
+\versionid $Id: pageant.but,v 1.9 2003/01/16 15:43:18 jacob Exp $
 
 \C{pageant} Using Pageant for authentication
 
@@ -10,8 +10,8 @@ needing to type a passphrase.
 
 \H{pageant-start} Getting started with Pageant
 
-Before you run Pageant, you need to have a private key. See
-\k{pubkey} to find out how to generate and use one.
+Before you run Pageant, you need to have a private key in \c{*.PPK}
+format. See \k{pubkey} to find out how to generate and use one.
 
 When you run Pageant, it will put an icon of a computer wearing a
 hat into the System tray. It will then sit and do nothing, until you
@@ -129,7 +129,7 @@ Pageant can automatically load one or more private keys when it
 starts up, if you provide them on the Pageant command line. Your
 command line might then look like:
 
-\c C:\PuTTY\pageant.exe d:\main.key d:\secondary.key
+\c C:\PuTTY\pageant.exe d:\main.ppk d:\secondary.ppk
 
 If the keys are stored encrypted, Pageant will request the
 passphrases on startup.
@@ -145,7 +145,7 @@ loaded.
 You do this by specifying the \c{-c} option followed by the command,
 like this:
 
-\c C:\PuTTY\pageant.exe d:\main.key -c C:\PuTTY\putty.exe
+\c C:\PuTTY\pageant.exe d:\main.ppk -c C:\PuTTY\putty.exe
 
 \H{pageant-forward} Using agent forwarding
 

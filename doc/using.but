@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.10 2003/01/02 14:23:36 ben Exp $
+\versionid $Id: using.but,v 1.11 2003/01/16 15:43:18 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -578,8 +578,8 @@ PuTTY configuration box (see \k{config-ssh-prot}).
 \S2{using-cmdline-identity} \c{-i}: specify an SSH private key
 
 The \c{-i} option allows you to specify the name of a private key
-file which PuTTY will use to authenticate with the server. This
-option is only meaningful if you are using SSH.
+file in \c{*.PPK} format which PuTTY will use to authenticate with the
+server. This option is only meaningful if you are using SSH.
 
 For general information on public-key authentication, see \k{pubkey}.
 

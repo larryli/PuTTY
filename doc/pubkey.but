@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.20 2002/12/27 16:54:14 simon Exp $
+\versionid $Id: pubkey.but,v 1.21 2003/01/16 15:43:18 jacob Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -280,9 +280,10 @@ Press the \q{Save private key} button. PuTTYgen will put up a dialog
 box asking you where to save the file. Select a directory, type in a
 file name, and press \q{Save}.
 
-This file is the one you will need to tell PuTTY to use for
-authentication (see \k{config-ssh-privkey}) or tell Pageant to load
-(see \k{pageant-mainwin-addkey}).
+This file is in PuTTY's native format (\c{*.PPK}); it is the one you
+will need to tell PuTTY to use for authentication (see
+\k{config-ssh-privkey}) or tell Pageant to load (see
+\k{pageant-mainwin-addkey}).
 
 \S{puttygen-savepub} Saving your public key to a disk file
 
@@ -364,12 +365,12 @@ another.
 Using the \q{Import} command from the \q{Conversions} menu, PuTTYgen
 can load SSH2 private keys in OpenSSH's format and \cw{ssh.com}'s
 format. Once you have loaded one of these key types, you can then
-save it back out as a PuTTY-format key so that you can use it with
-PuTTY. The passphrase will be unchanged by this process (unless you
-deliberately change it). You may want to change the key comment
-before you save the key, since OpenSSH's SSH2 key format contains no
-space for a comment and \cw{ssh.com}'s default comment format is
-long and verbose.
+save it back out as a PuTTY-format key (\c{*.PPK}) so that you can use
+it with the PuTTY suite. The passphrase will be unchanged by this
+process (unless you deliberately change it). You may want to change
+the key comment before you save the key, since OpenSSH's SSH2 key
+format contains no space for a comment and \cw{ssh.com}'s default
+comment format is long and verbose.
 
 PuTTYgen can also export private keys in OpenSSH format and in
 \cw{ssh.com} format. To do so, select one of the \q{Export} options
