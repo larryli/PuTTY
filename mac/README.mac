@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.17 2003/01/25 14:07:50 ben Exp $
+$Id: README.mac,v 1.18 2003/01/25 15:18:51 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -76,7 +76,6 @@ Unimplemented features (should be done before release):
  * Close-on-exit.
  * Warn-on-quit.
  * Event log.
- * Duplicate session.
 
 Wishlist (after release):
  * SFTP client (GUI?)
