@@ -26,7 +26,8 @@
 
 #define IDM_CLOSE    0x0010
 #define IDM_VIEWKEYS 0x0020
-#define IDM_ABOUT    0x0030
+#define IDM_ADDKEY   0x0030
+#define IDM_ABOUT    0x0040
 
 #define APPNAME "Pageant"
 
@@ -161,6 +162,9 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
+        SetForegroundWindow(hwnd);
+        SetWindowPos (hwnd, HWND_TOP, 0, 0, 0, 0,
+                      SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         p = (struct PassphraseProcStruct *)lParam;
         passphrase = p->passphrase;
         if (p->comment)
@@ -471,14 +475,40 @@ static void error(char *s) {
 }
 
 /*
+ * Prompt for a key file to add, and add it.
+ */
+static void prompt_add_keyfile(void) {
+    OPENFILENAME of;
+    char filename[FILENAME_MAX];
+    memset(&of, 0, sizeof(of));
+#ifdef OPENFILENAME_SIZE_VERSION_400
+    of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
+#else
+    of.lStructSize = sizeof(of);
+#endif
+    of.hwndOwner = hwnd;
+    of.lpstrFilter = "All Files\0*\0\0\0";
+    of.lpstrCustomFilter = NULL;
+    of.nFilterIndex = 1;
+    of.lpstrFile = filename; *filename = '\0';
+    of.nMaxFile = sizeof(filename);
+    of.lpstrFileTitle = NULL;
+    of.lpstrInitialDir = NULL;
+    of.lpstrTitle = "Select Private Key File";
+    of.Flags = 0;
+    if (GetOpenFileName(&of)) {
+        add_keyfile(filename);
+        keylist_update();
+    }
+}
+
+/*
  * Dialog-box function for the key list box.
  */
 static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam) {
     enum234 e;
     struct RSAKey *key;
-    OPENFILENAME of;
-    char filename[FILENAME_MAX];
 
     switch (msg) {
       case WM_INITDIALOG:
@@ -500,26 +530,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
           case 101:                    /* add key */
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
-                memset(&of, 0, sizeof(of));
-#ifdef OPENFILENAME_SIZE_VERSION_400
-                of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
-                of.lStructSize = sizeof(of);
-#endif
-                of.hwndOwner = hwnd;
-                of.lpstrFilter = "All Files\0*\0\0\0";
-                of.lpstrCustomFilter = NULL;
-                of.nFilterIndex = 1;
-                of.lpstrFile = filename; *filename = '\0';
-                of.nMaxFile = sizeof(filename);
-                of.lpstrFileTitle = NULL;
-                of.lpstrInitialDir = NULL;
-                of.lpstrTitle = "Select Private Key File";
-                of.Flags = 0;
-                if (GetOpenFileName(&of)) {
-                    add_keyfile(filename);
-                    keylist_update();
-                }
+                prompt_add_keyfile();
             }
             return 0;
           case 102:                    /* remove key */
@@ -594,6 +605,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                 SetWindowPos (keylist, HWND_TOP, 0, 0, 0, 0,
                               SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             }
+            break;
+          case IDM_ADDKEY:
+            prompt_add_keyfile();
             break;
           case IDM_ABOUT:
             if (!aboutbox) {
@@ -802,8 +816,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
             DestroyIcon(hicon); 
 
         systray_menu = CreatePopupMenu();
-        /* accelerators used: vxa */
+        /* accelerators used: vkxa */
         AppendMenu (systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys");
+        AppendMenu (systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
         AppendMenu (systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
         AppendMenu (systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
     }
