@@ -2459,7 +2459,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		    pf->dport = dport;
 		    if (add234(ssh_rportfwds, pf) != pf) {
 			sprintf(buf, 
-				"Duplicate remote port forwarding to %s:%s",
+				"Duplicate remote port forwarding to %s:%d",
 				host, dport);
 			logevent(buf);
 			sfree(pf);
@@ -2615,7 +2615,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 		for(h = host, p = pktin.body+8; hostsize != 0; hostsize--) {
 		    if (h+1 < host+sizeof(host))
 			*h++ = *p;
-		    *p++;
+		    p++;
 		}
 		*h = 0;
 		port = GET_32BIT(p);
@@ -4143,7 +4143,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		    pf->sport = sport;
 		    if (add234(ssh_rportfwds, pf) != pf) {
 			sprintf(buf, 
-				"Duplicate remote port forwarding to %s:%s",
+				"Duplicate remote port forwarding to %s:%d",
 				host, dport);
 			logevent(buf);
 			sfree(pf);
