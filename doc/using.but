@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.22 2004/04/08 12:38:53 simon Exp $
+\versionid $Id: using.but,v 1.23 2004/06/15 10:17:03 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -503,8 +503,8 @@ These options are equivalent to the username selection box in the
 Connection panel of the PuTTY configuration box (see
 \k{config-username}).
 
-\S2{using-cmdline-portfwd} \i\c{-L}, \i\c{-R} and \i\c{-D}: set up
-\i{port forwardings}
+\S2{using-cmdline-portfwd} \I{-L-upper}\c{-L}, \I{-R-upper}\c{-R}
+and \I{-D-upper}\c{-D}: set up \i{port forwardings}
 
 As well as setting up port forwardings in the PuTTY configuration
 (see \k{config-ssh-portfwd}), you can also set up forwardings on the
@@ -554,7 +554,7 @@ execute more than one command in sequence, or a whole shell script.
 This option is not available in the file transfer tools PSCP and
 PSFTP.
 
-\S2{using-cmdline-p} \i\c{-P}: specify a \i{port number}
+\S2{using-cmdline-p} \I{-P-upper}\c{-P}: specify a \i{port number}
 
 The \c{-P} option is used to specify the port number to connect to. If
 you have a Telnet server running on port 9696 of a machine instead of
@@ -581,7 +581,7 @@ Note that the \c{-pw} option only works when you are using the SSH
 protocol. Due to fundamental limitations of Telnet and Rlogin, these
 protocols do not support automated password authentication.
 
-\S2{using-cmdline-agent} \i\c{-A} and \i\c{-a}: control \i{agent
+\S2{using-cmdline-agent} \I{-A-upper}\c{-A} and \i\c{-a}: control \i{agent
 forwarding}
 
 The \c{-A} option turns on SSH agent forwarding, and \c{-a} turns it
@@ -598,7 +598,7 @@ Auth panel of the PuTTY configuration box (see \k{config-ssh-agentfwd}).
 These options are not available in the file transfer tools PSCP and
 PSFTP.
 
-\S2{using-cmdline-x11} \i\c{-X} and \i\c{-x}: control \i{X11
+\S2{using-cmdline-x11} \I{-X-upper}\c{-X} and \i\c{-x}: control \i{X11
 forwarding}
 
 The \c{-X} option turns on X11 forwarding in SSH, and \c{-x} turns
@@ -613,7 +613,7 @@ Tunnels panel of the PuTTY configuration box (see
 These options are not available in the file transfer tools PSCP and
 PSFTP.
 
-\S2{using-cmdline-pty} \i\c{-t} and \i\c{-T}: control
+\S2{using-cmdline-pty} \i\c{-t} and \I{-T-upper}\c{-T}: control
 \i{pseudo-terminal allocation}
 
 The \c{-t} option ensures PuTTY attempts to allocate a
@@ -627,7 +627,7 @@ configuration box (see \k{config-ssh-pty}).
 These options are not available in the file transfer tools PSCP and
 PSFTP.
 
-\S2{using-cmdline-compress} \i\c{-C}: enable \i{compression}
+\S2{using-cmdline-compress} \I{-C-upper}\c{-C}: enable \i{compression}
 
 The \c{-C} option enables compression of the data sent across the
 network. This option is only meaningful if you are using SSH.
