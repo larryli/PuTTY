@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.7 1999/02/24 01:29:10 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.8 1999/02/28 02:38:40 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -9,6 +9,7 @@
 #include <MacWindows.h>
 #include <Menus.h>
 #include <TextEdit.h>
+#include <Appearance.h>
 #include <Dialogs.h>
 #include <Devices.h>
 #include <DiskInit.h>
@@ -29,11 +30,13 @@ QDGlobals qd;
 
 static int cold = 1;
 long mac_qdversion;
+long mac_apprversion;
 
 static void mac_startup(void);
 static void mac_eventloop(void);
 static void mac_event(EventRecord *);
 static void mac_contentclick(WindowPtr, EventRecord *);
+static void mac_activatewindow(WindowPtr, Boolean);
 static void mac_updatewindow(WindowPtr);
 static void mac_keypress(EventRecord *);
 static int mac_windowtype(WindowPtr);
@@ -72,6 +75,16 @@ static void mac_startup(void) {
     /* Find out if we've got Color Quickdraw */
     if (Gestalt(gestaltQuickdrawVersion, &mac_qdversion) != noErr)
     	mac_qdversion = gestaltOriginalQD;
+    /* ... and the Appearance Manager? */
+    if (Gestalt(gestaltAppearanceVersion, &mac_apprversion) != noErr)
+	if (Gestalt(gestaltAppearanceAttr, NULL) == noErr)
+	    mac_apprversion = 0x0100;
+	else
+	    mac_apprversion = 0;
+
+    /* We've been tested with the Appearance Manager */
+    if (mac_apprversion != 0)
+	RegisterAppearanceClient();
     
     menuBar = GetNewMBar(128);
     if (menuBar == NULL)
@@ -142,7 +155,8 @@ static void mac_event(EventRecord *event) {
         mac_keypress(event);
         break;
       case activateEvt:
-        /* FIXME: Do something */
+	mac_activatewindow((WindowPtr)event->message,
+			   (event->modifiers & activeFlag) != 0);
         break;
       case updateEvt:
         mac_updatewindow((WindowPtr)event->message);
@@ -174,17 +188,20 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
     }
 }
 
+static void mac_activatewindow(WindowPtr window, Boolean active) {
+
+    switch (mac_windowtype(window)) {
+      case wTerminal:
+	mac_activateterm(window, active);
+	break;
+    }
+}
+
 static void mac_updatewindow(WindowPtr window) {
 
     switch (mac_windowtype(window)) {
       case wTerminal:
-	BeginUpdate(window);
-	term_paint((struct mac_session *)GetWRefCon(window),
-		   (*window->visRgn)->rgnBBox.left,
-		   (*window->visRgn)->rgnBBox.top,
-		   (*window->visRgn)->rgnBBox.right,
-		   (*window->visRgn)->rgnBBox.bottom);
-	EndUpdate(window);
+	mac_updateterm(window);
 	break;
       case wAbout:
 	BeginUpdate(window);

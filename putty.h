@@ -154,7 +154,9 @@ typedef struct {
     unsigned char colours[22][3];
 #endif /* not macintosh */
     /* Selection options */
+#ifndef macintosh
     int mouse_is_xterm;
+#endif
     short wordness[256];
 } Config;
 

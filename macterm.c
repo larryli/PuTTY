@@ -11,6 +11,7 @@
 #include <QuickdrawText.h>
 #include <Sound.h>
 
+#include <limits.h>
 #include <stdlib.h>
 
 #include "macresid.h"
@@ -22,10 +23,12 @@ struct mac_session {
     int			font_ascent;
     WindowPtr		window;
     PaletteHandle	palette;
+    ControlHandle	scrollbar;
 };
 
 static void mac_initfont(struct mac_session *);
 static void mac_initpalette(struct mac_session *);
+static void mac_adjustsize(struct mac_session *);
 
 /* Temporary hack till I get the terminal emulator supporting multiple sessions */
 
@@ -46,28 +49,8 @@ void mac_newsession(void) {
     int i;
 
     /* This should obviously be initialised by other means */
+    mac_loadconfig(&cfg);
     s = smalloc(sizeof(*s));
-    cfg.bksp_is_delete = TRUE;
-    cfg.rxvt_homeend = FALSE;
-    cfg.linux_funkeys = FALSE;
-    cfg.app_cursor = FALSE;
-    cfg.app_keypad = FALSE;
-    cfg.savelines = 100;
-    cfg.dec_om = FALSE;
-    cfg.wrap_mode = 
-    cfg.lfhascr = FALSE;
-    cfg.win_name_always = FALSE;
-    cfg.width = 80;
-    cfg.height = 24;
-    strcpy(cfg.font, "Monaco");
-    cfg.fontisbold = 0;
-    cfg.fontheight = 9;
-    cfg.vtmode = VT_POORMAN;
-    cfg.try_palette = FALSE;
-    cfg.bold_colour = TRUE;
-    cfg.colours = GetNewPalette(PREF_pltt_ID);
-    if (cfg.colours == NULL)
-	fatalbox("Failed to get default palette");
     onlysession = s;
 	
     /* XXX: Own storage management? */
@@ -76,6 +59,7 @@ void mac_newsession(void) {
     else
 	s->window = GetNewCWindow(wTerminal, NULL, (WindowPtr)-1);
     SetWRefCon(s->window, (long)s);
+    s->scrollbar = GetNewControl(cVScroll, s->window);
     term_init();
     term_size(24, 80, 100);
     mac_initfont(s);
@@ -113,17 +97,90 @@ static void mac_initfont(struct mac_session *s) {
     font_width = fi.widMax;
     font_height = fi.ascent + fi.descent + fi.leading;
     s->font_ascent = fi.ascent;
-    SizeWindow(s->window, cols * font_width, rows * font_height, true);
+    mac_adjustsize(s);
+}
+
+/*
+ * To be called whenever the window size changes.
+ * rows and cols should be desired values.
+ * It's assumed the terminal emulator will be or has been informed.
+ */
+static void mac_adjustsize(struct mac_session *s) {
+    int winwidth, winheight;
+
+    winwidth = cols * font_width + 15;
+    winheight = rows * font_height;
+    SizeWindow(s->window, winwidth, winheight, true);
+    HideControl(s->scrollbar);
+    MoveControl(s->scrollbar, winwidth - 15, -1);
+    SizeControl(s->scrollbar, 16, winheight - 13);
+    ShowControl(s->scrollbar);
 }
 
 static void mac_initpalette(struct mac_session *s) {
-
+    WinCTab ct;
+  
     if (mac_qdversion == gestaltOriginalQD)
 	return;
     s->palette = NewPalette((*cfg.colours)->pmEntries, NULL, pmCourteous, 0);
     if (s->palette == NULL)
 	fatalbox("Unable to create palette");
     CopyPalette(cfg.colours, s->palette, 0, 0, (*cfg.colours)->pmEntries);
+}
+
+/*
+ * I don't think this is (a) safe or (b) a good way to do this.
+ */
+static void mac_updatewinbg(struct mac_session *s) {
+    WinCTab ct;
+    WCTabPtr ctp = &ct;
+    WCTabHandle cth = &ctp;
+
+    ct.wCSeed = 0;
+    ct.wCReserved = 0;
+    ct.ctSize = 1;
+    ct.ctTable[0].value = wContentColor;
+    ct.ctTable[0].rgb = (*s->palette)->pmInfo[16].ciRGB;
+    SetWinColor(s->window, cth);
+}
+
+void mac_activateterm(WindowPtr window, Boolean active) {
+    struct mac_session *s;
+
+    s = (struct mac_session *)GetWRefCon(window);
+    if (active)
+	ShowControl(s->scrollbar);
+    else
+	HideControl(s->scrollbar);
+}
+
+void mac_updateterm(WindowPtr window) {
+    struct mac_session *s;
+    Rect clip;
+
+    s = (struct mac_session *)GetWRefCon(window);
+    BeginUpdate(window);
+    term_paint(s,
+	       (*window->visRgn)->rgnBBox.left,
+	       (*window->visRgn)->rgnBBox.top,
+	       (*window->visRgn)->rgnBBox.right,
+	       (*window->visRgn)->rgnBBox.bottom);
+    /* Restore default colours in case the Window Manager uses them */
+    PmForeColor(16);
+    PmBackColor(18);
+    if (FrontWindow() != window)
+	EraseRect(&(*s->scrollbar)->contrlRect);
+    UpdateControls(window, window->visRgn);
+    /* Stop DrawGrowIcon giving us space for a horizontal scrollbar */
+    clip.left = window->portRect.right - 15;
+    clip.right = SHRT_MAX;
+    clip.top = SHRT_MIN;
+    clip.bottom = SHRT_MAX;
+    ClipRect(&clip);
+    DrawGrowIcon(window);
+    clip.left = SHRT_MIN;
+    ClipRect(&clip);
+    EndUpdate(window);
 }
 
 /*

@@ -1,9 +1,8 @@
-/* $Id: mac_res.r,v 1.1.2.4 1999/02/24 21:17:05 ben Exp $ */
+/* $Id: mac_res.r,v 1.1.2.5 1999/02/28 02:38:40 ben Exp $ */
 /* PuTTY resources */
 
-#define PICT_RezTemplateVersion 1
-
 #include "Types.r"
+#include "Dialogs.r"
 #include "Palettes.r"
 
 /* Get resource IDs we share with C code */
@@ -13,7 +12,7 @@
  * Finder-related resources
  */
 
-/* For now, PuTTY uses the signature "pTTY" */
+/* 'pTTY' is now registered with Apple as PuTTY's signature */
 
 type 'pTTY' as 'STR ';
 
@@ -26,7 +25,8 @@ resource 'vers' (1, purgeable) {
     development, 0,	/* Status and pre-release */
     2,			/* Region code (2 = UK) */
     "Mac exp",		/* Short version (list views) */
-    "Mac experimental",	/* Long version (get info) */
+    "Mac experimental version.  "
+    "Copyright Simon Tatham 1997-9",	/* Long version (get info) */
 };
 
 resource 'SIZE' (-1) {
@@ -87,23 +87,23 @@ resource 'BNDL' (128, purgeable) {
 resource 'ICN#' (128, purgeable) {
 	{	/* array: 2 elements */
 		/* [1] */
-		$"0000 3FFE 0000 4001 0000 4FF9 0000 5005"
-		$"0000 5355 0000 4505 0000 5A05 0000 2405"
-		$"0000 4A85 0001 9005 0002 23F9 0004 7C01"
-		$"0018 0201 7FA0 0C7D 801F 1001 9FE2 2001"
-		$"A00C DFFE AA89 2002 A012 3FFE A82C 0000"
-		$"A052 0000 AA6A 0000 A00A 0000 9FF2 0000"
-		$"8002 0000 8002 0000 80FA 0000 8002 0000"
-		$"8002 0000 7FFC 0000 4004 0000 7FFC",
+		$"00003FFE 00004001 00004FF9 00005005"
+		$"00005355 00004505 00005A05 00002405"
+		$"00004A85 00019005 000223F9 00047C01"
+		$"00180201 7FA00C7D 801F1001 9FE22001"
+		$"A00CDFFE AA892002 A0123FFE A82C0000"
+		$"A0520000 AA6A0000 A00A0000 9FF20000"
+		$"80020000 80020000 80FA0000 80020000"
+		$"80020000 7FFC0000 40040000 7FFC",
 		/* [2] */
-		$"0000 3FFE 0000 7FFF 0000 7FFF 0000 7FFF"
-		$"0000 7FFF 0000 7FFF 0000 7FFF 0000 7FFF"
-		$"0000 7FFF 0000 7FFF 0000 7FFF 0000 7FFF"
-		$"0000 7FFF 7FFC 7FFF FFFE 7FFF FFFE 7FFF"
-		$"FFFE 3FFE FFFE 3FFE FFFE 3FFE FFFE 0000"
-		$"FFFE 0000 FFFE 0000 FFFE 0000 FFFE 0000"
-		$"FFFE 0000 FFFE 0000 FFFE 0000 FFFE 0000"
-		$"FFFE 0000 7FFC 0000 7FFC 0000 7FFC"
+		$"00003FFE 00007FFF 0000 7FFF 00007FFF"
+		$"00007FFF 00007FFF 0000 7FFF 00007FFF"
+		$"00007FFF 00007FFF 0000 7FFF 00007FFF"
+		$"00007FFF 7FFC7FFF FFFE 7FFF FFFE7FFF"
+		$"FFFE3FFE FFFE3FFE FFFE 3FFE FFFE0000"
+		$"FFFE0000 FFFE0000 FFFE 0000 FFFE0000"
+		$"FFFE0000 FFFE0000 FFFE 0000 FFFE0000"
+		$"FFFE0000 7FFC0000 7FFC 0000 7FFC"
 	}
 };
 resource 'ics#' (128, purgeable) {
@@ -121,124 +121,93 @@ resource 'ics#' (128, purgeable) {
 resource 'ICN#' (130, purgeable) {
 	{	/* array: 2 elements */
 		/* [1] */
-		$"1FFF FC00 1000 0600 1000 0500 1FFF FC80"
-		$"1000 0440 1000 0420 1FFF FFF0 1000 0010"
-		$"13FC 0F90 1C03 F0F0 15FA 8090 150A 8090"
-		$"1D0B 80F0 150A 8050 15FA 8050 1C03 8070"
-		$"143A 8050 1402 8050 1FFF ABF0 1204 8110"
-		$"13FC FF10 1AAA AAB0 1000 0010 17FF FFD0"
-		$"1400 0050 1525 2250 1555 5550 1525 2250"
-		$"1400 0050 17FF FFD0 1000 0010 1FFF FFF0",
+		$"1FFFFC00 10000600 10000500 1FFFFC80"
+		$"10000440 10000420 1FFFFFF0 10000010"
+		$"13FC0F90 1C03F0F0 15FA8090 150A8090"
+		$"1D0B80F0 150A8050 15FA8050 1C038070"
+		$"143A8050 14028050 1FFFABF0 12048110"
+		$"13FCFF10 1AAAAAB0 10000010 17FFFFD0"
+		$"14000050 15252250 15555550 15252250"
+		$"14000050 17FFFFD0 10000010 1FFFFFF0",
 		/* [2] */
-		$"1FFF FC00 1FFF FE00 1FFF FF00 1FFF FF80"
-		$"1FFF FFC0 1FFF FFE0 1FFF FFF0 1FFF FFF0"
-		$"1FFF FFF0 1FFF FFF0 1FFF FFF0 1FFF FFF0"
-		$"1FFF FFF0 1FFF FFF0 1FFF FFF0 1FFF FFF0"
-		$"1FFF FFF0 1FFF FFF0 1FFF FFF0 1FFF FFF0"
-		$"1FFF FFF0 1FFF FFF0 1FFF FFF0 1FFF FFF0"
-		$"1FFF FFF0 1FFF FFF0 1FFF FFF0 1FFF FFF0"
-		$"1FFF FFF0 1FFF FFF0 1FFF FFF0 1FFF FFF0"
+		$"1FFFFC00 1FFFFE00 1FFFFF00 1FFFFF80"
+		$"1FFFFFC0 1FFFFFE0 1FFFFFF0 1FFFFFF0"
+		$"1FFFFFF0 1FFFFFF0 1FFFFFF0 1FFFFFF0"
+		$"1FFFFFF0 1FFFFFF0 1FFFFFF0 1FFFFFF0"
+		$"1FFFFFF0 1FFFFFF0 1FFFFFF0 1FFFFFF0"
+		$"1FFFFFF0 1FFFFFF0 1FFFFFF0 1FFFFFF0"
+		$"1FFFFFF0 1FFFFFF0 1FFFFFF0 1FFFFFF0"
+		$"1FFFFFF0 1FFFFFF0 1FFFFFF0 1FFFFFF0"
 	}
 };
+
 resource 'icl4' (130, purgeable) {
-	$"000F FFFF FFFF FFFF FFFF FF00 0000 0000"
-	$"000F 0000 0000 0000 0000 0FF0 0000 0000"
-	$"000F 0000 0000 0000 0000 0FCF 0000 0000"
-	$"000F FFFF FFFF FFFF FFFF FFCC F000 0000"
-	$"000F 0000 0000 0000 0000 0FCC CF00 0000"
-	$"000F 0000 0000 0000 0000 0FCC CCF0 0000"
-	$"000F FFFF FFFF FFFF FFFF FFFF FFFF 0000"
-	$"000F 0000 0000 0000 0000 0000 000F 0000"
-	$"000F 00FF FFFF FF00 0000 FFFF F00F 0000"
-	$"000F FFCC CCCC CCFF FFFF CCCC FFFF 0000"
-	$"000F 0FCE EEEE CCF0 FCCC CCCC F00F 0000"
-	$"000F 0FCE 0D0D 0CF0 FCCC CCCC F00F 0000"
-	$"000F FFCE D0D0 CCFF FCCC CCCC FFFF 0000"
-	$"000F 0FCE 0D0D 0CF0 FCCC CCCC CF0F 0000"
-	$"000F 0FCC C0C0 CCF0 FCCC CCCC CF0F 0000"
-	$"000F FFCC CCCC CCFF FCCC CCCC CFFF 0000"
-	$"000F 0FCC CCFF FCF0 FCCC CCCC CF0F 0000"
-	$"000F 0FCC CCCC CCF0 FCCC CCCC CF0F 0000"
-	$"000F FFFF FFFF FFFF FDDD DDDF FFFF 0000"
-	$"000F 00FC CDDE EF00 FDDD DDDF 000F 0000"
-	$"000F 00FF FFFF FF00 FFFF FFFF 000F 0000"
-	$"000F 0C0C 0C0C 0C0C 0C0C 0C0C 0C0F 0000"
-	$"000F C0C0 C0C0 C0C0 C0C0 C0C0 C0CF 0000"
-	$"000F 0FFF FFFF FFFF FFFF FFFF FF0F 0000"
-	$"000F CF00 0000 0000 0000 0000 0FCF 0000"
-	$"000F 0F0F 00F0 0F0F 00F0 00F0 0F0F 0000"
-	$"000F CF0F 0F0F 0F0F 0F0F 0F0F 0FCF 0000"
-	$"000F 0F0F 00F0 0F0F 00F0 00F0 0F0F 0000"
-	$"000F CF00 0000 0000 0000 0000 0FCF 0000"
-	$"000F 0FFF FFFF FFFF FFFF FFFF FF0F 0000"
-	$"000F C0C0 C0C0 C0C0 C0C0 C0C0 C0CF 0000"
-	$"000F FFFF FFFF FFFF FFFF FFFF FFFF"
+	$"000FFFFFFFFFFFFFFFFFFF0000000000"
+	$"000F00000000000000000FF000000000"
+	$"000F00000000000000000FCF00000000"
+	$"000FFFFFFFFFFFFFFFFFFFCCF0000000"
+	$"000F00000000000000000FCCCF000000"
+	$"000F00000000000000000FCCCCF00000"
+	$"000FFFFFFFFFFFFFFFFFFFFFFFFF0000"
+	$"000F00000000000000000000000F0000"
+	$"000F00FFFFFFFF000000FFFFF00F0000"
+	$"000FFFCCCCCCCCFFFFFFCCCCFFFF0000"
+	$"000F0FCEEEEECCF0FCCCCCCCF00F0000"
+	$"000F0FCE0D0D0CF0FCCCCCCCF00F0000"
+	$"000FFFCED0D0CCFFFCCCCCCCFFFF0000"
+	$"000F0FCE0D0D0CF0FCCCCCCCCF0F0000"
+	$"000F0FCCC0C0CCF0FCCCCCCCCF0F0000"
+	$"000FFFCCCCCCCCFFFCCCCCCCCFFF0000"
+	$"000F0FCCCCFFFCF0FCCCCCCCCF0F0000"
+	$"000F0FCCCCCCCCF0FCCCCCCCCF0F0000"
+	$"000FFFFFFFFFFFFFFDDDDDDFFFFF0000"
+	$"000F00FCCDDEEF00FDDDDDDF000F0000"
+	$"000F00FFFFFFFF00FFFFFFFF000F0000"
+	$"000F0C0C0C0C0C0C0C0C0C0C0C0F0000"
+	$"000FC0C0C0C0C0C0C0C0C0C0C0CF0000"
+	$"000F0FFFFFFFFFFFFFFFFFFFFF0F0000"
+	$"000FCF0000000000000000000FCF0000"
+	$"000F0F0F00F00F0F00F000F00F0F0000"
+	$"000FCF0F0F0F0F0F0F0F0F0F0FCF0000"
+	$"000F0F0F00F00F0F00F000F00F0F0000"
+	$"000FCF0000000000000000000FCF0000"
+	$"000F0FFFFFFFFFFFFFFFFFFFFF0F0000"
+	$"000FC0C0C0C0C0C0C0C0C0C0C0CF0000"
+	$"000FFFFFFFFFFFFFFFFFFFFFFFFF"
 };
 resource 'icl8' (130, purgeable) {
-	$"0000 00FF FFFF FFFF FFFF FFFF FFFF FFFF"
-	$"FFFF FFFF FFFF 0000 0000 0000 0000 0000"
-	$"0000 00FF 0000 0000 0000 0000 0000 0000"
-	$"0000 0000 00FF FF00 0000 0000 0000 0000"
-	$"0000 00FF 0000 0000 0000 0000 0000 0000"
-	$"0000 0000 00FF F6FF 0000 0000 0000 0000"
-	$"0000 00FF FFFF FFFF FFFF FFFF FFFF FFFF"
-	$"FFFF FFFF FFFF F6F6 FF00 0000 0000 0000"
-	$"0000 00FF 0000 0000 0000 0000 0000 0000"
-	$"0000 0000 00FF F6F6 F6FF 0000 0000 0000"
-	$"0000 00FF 0000 0000 0000 0000 0000 0000"
-	$"0000 0000 00FF F6F6 F6F6 FF00 0000 0000"
-	$"0000 00FF FFFF FFFF FFFF FFFF FFFF FFFF"
-	$"FFFF FFFF FFFF FFFF FFFF FFFF 0000 0000"
-	$"0000 00FF 0000 0000 0000 0000 0000 0000"
-	$"0000 0000 0000 0000 0000 00FF 0000 0000"
-	$"0000 00FF 0000 FFFF FFFF FFFF FFFF 0000"
-	$"0000 0000 FFFF FFFF FF00 00FF 0000 0000"
-	$"0000 00FF FFFF 2B2B 2B2B 2B2B 2B2B FFFF"
-	$"FFFF FFFF 2B2B 2B2B FFFF FFFF 0000 0000"
-	$"0000 00FF 00FF 2BFC FCFC FCFC F82B FF00"
-	$"FF2B 2B2B 2B2B 2B2B FF00 00FF 0000 0000"
-	$"0000 00FF 00FF 2BFC 2A2A 2A2A 002B FF00"
-	$"FF2B 2B2B 2B2B 2B2B FF00 00FF 0000 0000"
-	$"0000 00FF FFFF 2BFC 2A2A 2A2A 002B FFFF"
-	$"FF2B 2B2B 2B2B 2B2B FFFF FFFF 0000 0000"
-	$"0000 00FF 00FF 2BFC 2A2A 2A2A 002B FF00"
-	$"FF2B 2B2B 2B2B 2B2B 2BFF 00FF 0000 0000"
-	$"0000 00FF 00FF 2BF8 0000 0000 002B FF00"
-	$"FF2B 2B2B 2B2B 2B2B 2BFF 00FF 0000 0000"
-	$"0000 00FF FFFF 2B2B 2B2B 2B2B 2B2B FFFF"
-	$"FF2B 2B2B 2B2B 2B2B 2BFF FFFF 0000 0000"
-	$"0000 00FF 00FF 2B2B 2B2B FFFF FF2B FF00"
-	$"FF2B 2B2B 2B2B 2B2B 2BFF 00FF 0000 0000"
-	$"0000 00FF 00FF 2B2B 2B2B 2B2B 2B2B FF00"
-	$"FF2B 2B2B 2B2B 2B2B 2BFF 00FF 0000 0000"
-	$"0000 00FF FFFF FFFF FFFF FFFF FFFF FFFF"
-	$"FFF9 F9F9 F9F9 F9FF FFFF FFFF 0000 0000"
-	$"0000 00FF 0000 FFF7 F8F9 FAFB FCFF 0000"
-	$"FFF9 F9F9 F9F9 F9FF 0000 00FF 0000 0000"
-	$"0000 00FF 0000 FFFF FFFF FFFF FFFF 0000"
-	$"FFFF FFFF FFFF FFFF 0000 00FF 0000 0000"
-	$"0000 00FF F5F5 F5F5 F5F5 F5F5 F5F5 F5F5"
-	$"F5F5 F5F5 F5F5 F5F5 F5F5 F5FF 0000 0000"
-	$"0000 00FF F5F5 F5F5 F5F5 F5F5 F5F5 F5F5"
-	$"F5F5 F5F5 F5F5 F5F5 F5F5 F5FF 0000 0000"
-	$"0000 00FF F5FF FFFF FFFF FFFF FFFF FFFF"
-	$"FFFF FFFF FFFF FFFF FFFF F5FF 0000 0000"
-	$"0000 00FF F5FF 0000 0000 0000 0000 0000"
-	$"0000 0000 0000 0000 00FF F5FF 0000 0000"
-	$"0000 00FF F5FF 00FF 0000 FF00 00FF 00FF"
-	$"0000 FF00 0000 FF00 00FF F5FF 0000 0000"
-	$"0000 00FF F5FF 00FF 00FF 00FF 00FF 00FF"
-	$"00FF 00FF 00FF 00FF 00FF F5FF 0000 0000"
-	$"0000 00FF F5FF 00FF 0000 FF00 00FF 00FF"
-	$"0000 FF00 0000 FF00 00FF F5FF 0000 0000"
-	$"0000 00FF F5FF 0000 0000 0000 0000 0000"
-	$"0000 0000 0000 0000 00FF F5FF 0000 0000"
-	$"0000 00FF F5FF FFFF FFFF FFFF FFFF FFFF"
-	$"FFFF FFFF FFFF FFFF FFFF F5FF 0000 0000"
-	$"0000 00FF F5F5 F5F5 F5F5 F5F5 F5F5 F5F5"
-	$"F5F5 F5F5 F5F5 F5F5 F5F5 F5FF 0000 0000"
-	$"0000 00FF FFFF FFFF FFFF FFFF FFFF FFFF"
-	$"FFFF FFFF FFFF FFFF FFFF FFFF"
+	$"000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000"
+	$"000000FF0000000000000000000000000000000000FFFF000000000000000000"
+	$"000000FF0000000000000000000000000000000000FFF6FF0000000000000000"
+	$"000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF6F6FF00000000000000"
+	$"000000FF0000000000000000000000000000000000FFF6F6F6FF000000000000"
+	$"000000FF0000000000000000000000000000000000FFF6F6F6F6FF0000000000"
+	$"000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000"
+	$"000000FF0000000000000000000000000000000000000000000000FF00000000"
+	$"000000FF0000FFFFFFFFFFFFFFFF000000000000FFFFFFFFFF0000FF00000000"
+	$"000000FFFFFF2B2B2B2B2B2B2B2BFFFFFFFFFFFF2B2B2B2BFFFFFFFF00000000"
+	$"000000FF00FF2BFCFCFCFCFCF82BFF00FF2B2B2B2B2B2B2BFF0000FF00000000"
+	$"000000FF00FF2BFC2A2A2A2A002BFF00FF2B2B2B2B2B2B2BFF0000FF00000000"
+	$"000000FFFFFF2BFC2A2A2A2A002BFFFFFF2B2B2B2B2B2B2BFFFFFFFF00000000"
+	$"000000FF00FF2BFC2A2A2A2A002BFF00FF2B2B2B2B2B2B2B2BFF00FF00000000"
+	$"000000FF00FF2BF800000000002BFF00FF2B2B2B2B2B2B2B2BFF00FF00000000"
+	$"000000FFFFFF2B2B2B2B2B2B2B2BFFFFFF2B2B2B2B2B2B2B2BFFFFFF00000000"
+	$"000000FF00FF2B2B2B2BFFFFFF2BFF00FF2B2B2B2B2B2B2B2BFF00FF00000000"
+	$"000000FF00FF2B2B2B2B2B2B2B2BFF00FF2B2B2B2B2B2B2B2BFF00FF00000000"
+	$"000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF9F9F9F9F9F9FFFFFFFFFF00000000"
+	$"000000FF0000FFF7F8F9FAFBFCFF0000FFF9F9F9F9F9F9FF000000FF00000000"
+	$"000000FF0000FFFFFFFFFFFFFFFF0000FFFFFFFFFFFFFFFF000000FF00000000"
+	$"000000FFF5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5FF00000000"
+	$"000000FFF5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5FF00000000"
+	$"000000FFF5FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5FF00000000"
+	$"000000FFF5FF00000000000000000000000000000000000000FFF5FF00000000"
+	$"000000FFF5FF00FF0000FF0000FF00FF0000FF000000FF0000FFF5FF00000000"
+	$"000000FFF5FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FFF5FF00000000"
+	$"000000FFF5FF00FF0000FF0000FF00FF0000FF000000FF0000FFF5FF00000000"
+	$"000000FFF5FF00000000000000000000000000000000000000FFF5FF00000000"
+	$"000000FFF5FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5FF00000000"
+	$"000000FFF5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5FF00000000"
+	$"000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 };
 
 
@@ -322,33 +291,10 @@ resource 'WIND' (wTerminal, "terminal", purgeable) {
     staggerParentWindowScreen
 };
 
-resource 'pltt' (PREF_pltt_ID, "terminal", purgeable) {
-    {
-	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* black */
-	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright black */
-	0xbbbb, 0x0000, 0x0000, pmTolerant, 0x2000,	/* red */
-	0xffff, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright red */
-	0x0000, 0xbbbb, 0x0000, pmTolerant, 0x2000,	/* green */
-	0x5555, 0xffff, 0x5555, pmTolerant, 0x2000,	/* bright green */
-	0xbbbb, 0xbbbb, 0x0000, pmTolerant, 0x2000,	/* yellow */
-	0xffff, 0xffff, 0x0000, pmTolerant, 0x2000,	/* bright yellow */
-	0x0000, 0x0000, 0xbbbb, pmTolerant, 0x2000,	/* blue */
-	0x5555, 0x5555, 0xffff, pmTolerant, 0x2000,	/* bright blue */
-	0xbbbb, 0x0000, 0xbbbb, pmTolerant, 0x2000,	/* magenta */
-	0xffff, 0x5555, 0xffff, pmTolerant, 0x2000,	/* bright magenta */
-	0x0000, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* cyan */
-	0x5555, 0xffff, 0xffff, pmTolerant, 0x2000,	/* bright cyan */
-	0xbbbb, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* white */
-	0xffff, 0xffff, 0xffff, pmTolerant, 0x2000,	/* bright white */
-	0xbbbb, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* default fg */
-	0xffff, 0xffff, 0xffff, pmTolerant, 0x2000,	/* default bold fg */
-	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* default bg */
-	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* default bold bg */
-	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* cursor bg */
-	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* bold cursor bg */
-	0x0000, 0xffff, 0x0000, pmTolerant, 0x2000,	/* cursor fg */
-	0x0000, 0xffff, 0x0000, pmTolerant, 0x2000,	/* bold cursor fg */
-    }
+resource 'CNTL' (cVScroll, "vscroll", purgeable) {
+    { 0, 0, 48, 16 },
+    0, invisible, 0, 0,
+    scrollBarProc, 0, ""
 };
 
 /* "About" box */
@@ -364,6 +310,12 @@ resource 'DLOG' (wAbout, "about", purgeable) {
     alertPositionMainScreen
 };
 
+resource 'dlgx' (wAbout, "about", purgeable) {
+    versionZero {
+	kDialogFlagsUseThemeBackground | kDialogFlagsUseThemeControls
+    }
+};
+
 resource 'DITL' (wAbout, "about", purgeable) {
     {
 	{ 87, 13, 107, 173 },
@@ -371,7 +323,8 @@ resource 'DITL' (wAbout, "about", purgeable) {
 	{ 13, 13, 29, 173 },
 	StaticText { disabled, "PuTTY"},
 	{ 42, 13, 74, 173 },
-	StaticText { disabled,"Experimental Mac Port\n© 1997-9 Simon Tatham"},
+	StaticText { disabled, "Experimental Mac Port\n"
+			       "© 1997-9 Simon Tatham"},
     }
 };
 
@@ -416,3 +369,224 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
     "CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE."
 };
+
+/* Default Preferences */
+
+type PREF_wordness_type {
+    wide array [256] {
+        integer;
+    };
+};
+
+/*
+ * This resource collects together the various short settings we need.
+ * Each area of the system gets its own longword for flags, and then
+ * we have the other settings.  Strings are stored as two shorts --
+ * the id of a STR# or STR resource, and the index if it's a STR# (0
+ * for STR).
+ */
+
+type 'pSET' {
+    /* Basic boolean options */
+    boolean dont_close_on_exit, close_on_exit;
+    align long;
+    /* SSH options */
+    boolean use_pty, no_pty;
+    align long;
+    /* Telnet options */
+    boolean bsd_environ, rfc_environ;
+    align long;
+    /* Keyboard options */
+    boolean backspace, delete;
+    boolean std_home_end, rxvt_home_end;
+    boolean std_funkeys, linux_funkeys;
+    boolean normal_cursor, app_cursor;
+    boolean normal_keypad, app_keypad;
+    align long;
+    /* Terminal options */
+    boolean no_dec_om, dec_om;
+    boolean no_auto_wrap, auto_wrap;
+    boolean no_auto_cr, auto_cr;
+    boolean use_icon_name, win_name_always;
+    align long;
+    /* Colour options */
+    boolean bold_font, bold_colour;
+    align long;
+    /* Non-boolean options */
+    integer; integer;		/* host */
+    longint;			/* port */
+    longint prot_telnet = 0, prot_ssh = 1; /* protocol */
+    integer; integer;		/* termtype */
+    integer; integer;		/* termspeed */
+    integer; integer;		/* environmt */
+    integer; integer;		/* username */
+    longint;			/* width */
+    longint;			/* height */
+    longint;			/* save_lines */
+    integer; unsigned integer;	/* font */
+    longint;			/* font_height */
+    integer;			/* 'pltt' for colours */
+    integer;			/* 'wORD' for wordness */
+};
+
+resource 'pSET' (PREF_settings, "settings", purgeable) {
+    close_on_exit,
+    use_pty,
+    rfc_environ,
+    delete,
+    std_home_end,
+    std_funkeys,
+    normal_cursor,
+    normal_keypad,
+    no_dec_om,
+    auto_wrap,
+    no_auto_cr,
+    use_icon_name,
+    bold_colour,
+#define PREF_strings 1024
+    PREF_strings, 1,		/* host 'STR#' */
+    23, prot_telnet,		/* port, protocol */
+    PREF_strings, 2,		/* termtype 'STR#' */
+    PREF_strings, 3,		/* termspeed 'STR#' */
+    PREF_strings, 4,		/* environmt 'STR#' */
+    PREF_strings, 5,		/* username */
+    80, 24, 200,    		/* width, height, save_lines */
+    PREF_strings, 6,		/* font 'STR#' */
+    9,				/* font_height */
+#define PREF_pltt 1024
+    PREF_pltt,			/* colours 'pltt' */
+#define PREF_wordness 1024
+    PREF_wordness,		/* wordness 'wORD */
+};
+
+resource 'STR#' (PREF_strings, "strings", purgeable) {
+    {
+	"nowhere.loopback.edu",
+	"xterm",
+	"38400,38400",
+	"\000",
+	"",
+	"Monaco",
+    }
+};
+
+resource PREF_wordness_type (PREF_wordness, "wordness", purgeable) {
+    {
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,1,2,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,
+	1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,2,
+	1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,2,2,2,2,2,2,2,2,
+	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,2,2,2,2,2,2,2,2
+    }
+};
+
+/*
+ * and _why_ isn't this provided for us?
+ */
+type 'TMPL' {
+    array {
+	pstring;		/* Item name */
+	literal longint;	/* Item type */
+    };
+};
+
+resource 'TMPL' (128, "pSET") {
+    {
+	"Close on exit", 'BBIT',
+	"", 'BBIT', /* Must pad to a multiple of 8 */
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'ALNG',
+	"No PTY", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'ALNG',
+	"RFC OLD-ENVIRON", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'ALNG',
+	"Delete key sends delete", 'BBIT',
+	"rxvt home/end", 'BBIT',
+	"Linux function keys", 'BBIT',
+	"Application cursor keys", 'BBIT',
+	"Application keypad", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'ALNG',
+	"Use colour for bold", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'BBIT',
+	"", 'ALNG',
+	"Host STR# ID", 'DWRD',
+	"Host STR# index", 'DWRD',
+	"Port", 'DLNG',
+	"Protocol", 'DLNG',
+	"Termspeed STR# ID", 'DWRD',
+	"Termspeed STR# index", 'DWRD',
+	"Environ STR# ID", 'DWRD',
+	"Environ STR# index", 'DWRD',
+	"Username STR# ID", 'DWRD',
+	"Username STR# index", 'DWRD',
+	"Terminal width", 'DLNG',
+	"Terminal height", 'DLNG',
+	"Save lines", 'DLNG',
+	"Font STR# ID", 'DWRD',
+	"Font STR# index", 'DWRD',
+	"Font size", 'DLNG',
+	"pltt ID", 'DWRD',
+	"wORD ID", 'DWRD',
+    };
+};
+
+resource 'pltt' (PREF_pltt, purgeable) {
+    {
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* black */
+	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright black */
+	0xbbbb, 0x0000, 0x0000, pmTolerant, 0x2000,	/* red */
+	0xffff, 0x5555, 0x5555, pmTolerant, 0x2000,	/* bright red */
+	0x0000, 0xbbbb, 0x0000, pmTolerant, 0x2000,	/* green */
+	0x5555, 0xffff, 0x5555, pmTolerant, 0x2000,	/* bright green */
+	0xbbbb, 0xbbbb, 0x0000, pmTolerant, 0x2000,	/* yellow */
+	0xffff, 0xffff, 0x0000, pmTolerant, 0x2000,	/* bright yellow */
+	0x0000, 0x0000, 0xbbbb, pmTolerant, 0x2000,	/* blue */
+	0x5555, 0x5555, 0xffff, pmTolerant, 0x2000,	/* bright blue */
+	0xbbbb, 0x0000, 0xbbbb, pmTolerant, 0x2000,	/* magenta */
+	0xffff, 0x5555, 0xffff, pmTolerant, 0x2000,	/* bright magenta */
+	0x0000, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* cyan */
+	0x5555, 0xffff, 0xffff, pmTolerant, 0x2000,	/* bright cyan */
+	0xbbbb, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* white */
+	0xffff, 0xffff, 0xffff, pmTolerant, 0x2000,	/* bright white */
+	0xbbbb, 0xbbbb, 0xbbbb, pmTolerant, 0x2000,	/* default fg */
+	0xffff, 0xffff, 0xffff, pmTolerant, 0x2000,	/* default bold fg */
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* default bg */
+	0x5555, 0x5555, 0x5555, pmTolerant, 0x2000,	/* default bold bg */
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* cursor bg */
+	0x0000, 0x0000, 0x0000, pmTolerant, 0x2000,	/* bold cursor bg */
+	0x0000, 0xffff, 0x0000, pmTolerant, 0x2000,	/* cursor fg */
+	0x0000, 0xffff, 0x0000, pmTolerant, 0x2000,	/* bold cursor fg */
+    }
+};
+

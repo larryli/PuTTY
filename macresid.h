@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.1.2.3 1999/02/24 01:29:10 ben Exp $ */
+/* $Id: macresid.h,v 1.1.2.4 1999/02/28 02:38:40 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -31,6 +31,10 @@
 #define wTerminal	130
 #define wLicence	131
 
+/* Controls */
+#define cVScroll	128
 
 /* Preferences */
-#define PREF_pltt_ID	1024
+#define PREF_wordness_type	'wORD'
+
+#define PREF_settings		1024
