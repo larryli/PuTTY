@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.43 2003/02/02 15:59:00 ben Exp $ */
+/* $Id: mac.c,v 1.44 2003/02/04 00:33:11 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -513,19 +513,19 @@ static void mac_menucommand(long result) {
     window = FrontWindow();
     /* Things which do the same whatever window we're in. */
     switch (menu) {
-#if !TARGET_API_MAC_CARBON
       case mApple:
         switch (item) {
           case iAbout:
 	    mac_openabout();
             goto done;
+#if !TARGET_API_MAC_CARBON
           default:
             GetMenuItemText(GetMenuHandle(mApple), item, da);
             OpenDeskAcc(da);
             goto done;
+#endif
         }
         break;
-#endif
       case mFile:
         switch (item) {
           case iNew:
@@ -627,7 +627,6 @@ static void mac_zoomwindow(WindowPtr window, short part) {
  * Make the menus look right before the user gets to see them.
  */
 #if TARGET_API_MAC_CARBON
-/* XXX Is this good enough?  What about Carbon on OS 8.1? */
 #define EnableItem EnableMenuItem
 #define DisableItem DisableMenuItem
 #endif
