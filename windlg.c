@@ -1601,7 +1601,6 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 					    0, 0);
 		if (!cfg.bold_colour)
 		    i = (i < 3 ? i*2 : i == 3 ? 5 : i*2-2);
-debug(("ooh\n"));
 		SetDlgItemInt (hwnd, IDC_RVALUE, cfg.colours[i][0], FALSE);
 		SetDlgItemInt (hwnd, IDC_GVALUE, cfg.colours[i][1], FALSE);
 		SetDlgItemInt (hwnd, IDC_BVALUE, cfg.colours[i][2], FALSE);
