@@ -421,6 +421,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
             POINT cursorpos;
             GetCursorPos(&cursorpos);
             PostMessage(hwnd, WM_SYSTRAY2, cursorpos.x, cursorpos.y);
+        } else if (lParam == WM_LBUTTONDBLCLK) {
+            /* Equivalent to IDM_VIEWKEYS. */
+            PostMessage(hwnd, WM_COMMAND, IDM_VIEWKEYS, 0);
         }
         break;
       case WM_SYSTRAY2:
@@ -445,6 +448,13 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
                 keylist = CreateDialog (instance, MAKEINTRESOURCE(211),
                                         NULL, KeyListProc);
                 ShowWindow (keylist, SW_SHOWNORMAL);
+                /* 
+                 * Sometimes the window comes up minimised / hidden
+                 * for no obvious reason. Prevent this.
+                 */
+                SetForegroundWindow(keylist);
+                SetWindowPos (keylist, HWND_TOP, 0, 0, 0, 0,
+                              SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             }
             break;
         }
