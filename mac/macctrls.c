@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.35 2003/04/14 22:42:44 ben Exp $ */
+/* $Id: macctrls.c,v 1.36 2003/04/14 22:55:12 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -1952,12 +1952,15 @@ void dlg_coloursel_start(union control *ctrl, void *dlg,
     Point where = {-1, -1}; /* Screen with greatest colour depth */
     RGBColor incolour;
 
-    incolour.red = r * 0x0101;
-    incolour.green = g * 0x0101;
-    incolour.blue = b * 0x0101;
-    mcs->gotcolour = GetColor(where, "\pModify Colour:", &incolour,
-			      &mcs->thecolour);
-    ctrlevent(mcs, mc, EVENT_CALLBACK);
+    if (HAVE_COLOR_QD()) {
+	incolour.red = r * 0x0101;
+	incolour.green = g * 0x0101;
+	incolour.blue = b * 0x0101;
+	mcs->gotcolour = GetColor(where, "\pModify Colour:", &incolour,
+				  &mcs->thecolour);
+	ctrlevent(mcs, mc, EVENT_CALLBACK);
+    } else
+	dlg_beep(dlg);
 }
 
 int dlg_coloursel_results(union control *ctrl, void *dlg,
