@@ -170,6 +170,9 @@ static void mac_enddlg_reconfig(WindowPtr window, int value)
 	/* Change the palette */
 	palette_reset(s);
 
+	/* Reinitialise line codepage */
+	init_ucs(s);
+
 	/* Pass new config data to the terminal */
 	term_reconfig(s->term, &s->cfg);
 

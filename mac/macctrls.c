@@ -82,6 +82,11 @@ union macctrl {
 	struct macctrl_generic generic;
 	ControlRef tbctrl;
 	ControlRef tblabel;
+	ControlRef tbbutton;
+	MenuRef menu;
+	int menuid;
+	unsigned int nids;
+	int *ids;
     } editbox;
     struct {
 	struct macctrl_generic generic;
@@ -436,6 +441,8 @@ static void macctrl_hideshowpanel(struct macctrls *mcs, unsigned int panel,
 	    hideshow(mc->editbox.tbctrl);
 	    if (mc->editbox.tblabel != NULL)
 		hideshow(mc->editbox.tblabel);
+	    if (mc->editbox.tbbutton != NULL)
+		hideshow(mc->editbox.tbbutton);
 	    break;
 	  case MACCTRL_RADIO:
 	    for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
@@ -571,7 +578,10 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 			    union control *ctrl)
 {
     union macctrl *mc = snew(union macctrl);
-    Rect lbounds, bounds;
+    Rect lbounds, bounds, butbounds;
+    static int nextmenuid = MENU_MIN;
+    int menuid;
+    MenuRef menu;
 
     mc->generic.type = MACCTRL_EDITBOX;
     mc->generic.ctrl = ctrl;
@@ -595,6 +605,13 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
     }
     bounds.top = curstate->pos.v;
     bounds.bottom = bounds.top + 22;
+
+    if (ctrl->editbox.has_list) {
+	butbounds = bounds;
+	butbounds.left = butbounds.right - 20;
+	bounds.right -= 26; /* enough for 6 px gap and a button */
+    }
+
     if (mac_gestalts.apprvers >= 0x100) {
 	if (ctrl->editbox.label == NULL)
 	    mc->editbox.tblabel = NULL;
@@ -627,6 +644,27 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
 					SYS7_EDITBOX_PROC, (long)mc);
     }
 #endif
+
+    if (ctrl->editbox.has_list) {
+	while (GetMenuHandle(nextmenuid) != NULL)
+	    if (++nextmenuid >= MENU_MAX) nextmenuid = MENU_MIN;
+	menuid = nextmenuid++;
+	menu = NewMenu(menuid, "\pdummy");
+	if (menu == NULL) goto nomenu;
+	mc->editbox.menu = menu;
+	mc->editbox.menuid = menuid;
+	InsertMenu(menu, kInsertHierarchicalMenu);
+	mc->editbox.nids = 0;
+	mc->editbox.ids = NULL;
+
+	mc->editbox.tbbutton = NewControl(window, &butbounds, NULL, FALSE,
+					  popupTitleLeftJust, menuid, 0,
+					  popupMenuProc + popupFixedWidth,
+					  (long)mc);
+    }
+
+  nomenu:
+
     curstate->pos.v += 28;
     add234(mcs->byctrl, mc);
     mc->generic.next = mcs->panels[curstate->panelnum];
@@ -701,7 +739,7 @@ static pascal SInt32 macctrl_sys7_editbox_cdef(SInt16 variant,
     return 0;
 }
 #endif
-
+			     
 static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 			  struct mac_layoutstate *curstate,
 			  union control *ctrl)
@@ -1197,6 +1235,8 @@ void macctrl_activate(WindowPtr window, EventRecord *event)
 		HiliteControl(mc->editbox.tbctrl, state);
 		if (mc->editbox.tblabel != NULL)
 		    HiliteControl(mc->editbox.tblabel, state);
+		if (mc->editbox.tbbutton != NULL)
+		    HiliteControl(mc->editbox.tbbutton, state);
 		break;
 	      case MACCTRL_RADIO:
 		for (j = 0; j < mc->generic.ctrl->radio.nbuttons; j++)
@@ -1282,6 +1322,12 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 		TEClick(mouse, !!(event->modifiers & shiftKey), te);
 		goto done;
 	    }
+	    if (mc->generic.type == MACCTRL_EDITBOX &&
+		control == mc->editbox.tbbutton) {
+		dlg_editbox_set(mc->generic.ctrl, mcs,
+				cp_enumerate(dlg_listbox_index(mc->generic.ctrl, mcs)));
+		ctrlevent(mcs, mc, EVENT_VALCHANGE);
+	    }
 	    if (mc->generic.type == MACCTRL_LISTBOX &&
 		(control == mc->listbox.tbctrl ||
 		 control == (*mc->listbox.list)->vScroll)) {
@@ -1319,6 +1365,13 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 	  case MACCTRL_BUTTON:
 	    if (trackresult != 0)
 		ctrlevent(mcs, mc, EVENT_ACTION);
+	    break;
+	  case MACCTRL_EDITBOX:
+	    if (control == mc->editbox.tbbutton) {
+		dlg_editbox_set(mc->generic.ctrl, mcs,
+				cp_enumerate(dlg_listbox_index(mc->generic.ctrl, mcs)));
+		ctrlevent(mcs, mc, EVENT_VALCHANGE);
+	    }
 	    break;
 	  case MACCTRL_LISTBOX:
 	    /* FIXME spot double-click */
@@ -1729,6 +1782,23 @@ static void dlg_macpopup_clear(union control *ctrl, void *dlg)
     SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
+static void dlg_macedit_clear(union control *ctrl, void *dlg)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    MenuRef menu = mc->editbox.menu;
+    unsigned int i, n;
+
+    if (mc == NULL) return;
+    n = CountMenuItems(menu);
+    for (i = 0; i < n; i++)
+	DeleteMenuItem(menu, n - i);
+    mc->editbox.nids = 0;
+    sfree(mc->editbox.ids);
+    mc->editbox.ids = NULL;
+    SetControlMaximum(mc->editbox.tbbutton, CountMenuItems(menu));
+}
+
 static void dlg_maclist_clear(union control *ctrl, void *dlg)
 {
     struct macctrls *mcs = dlg;
@@ -1752,6 +1822,8 @@ void dlg_listbox_clear(union control *ctrl, void *dlg)
 	else
 	    dlg_maclist_clear(ctrl, dlg);
 	break;
+      case CTRL_EDITBOX:
+	dlg_macedit_clear(ctrl, dlg);
     }
 }
 
@@ -1767,6 +1839,20 @@ static void dlg_macpopup_del(union control *ctrl, void *dlg, int index)
 	memcpy(mc->popup.ids + index, mc->popup.ids + index + 1,
 	       (mc->popup.nids - index - 1) * sizeof(*mc->popup.ids));
     SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
+}
+
+static void dlg_macedit_del(union control *ctrl, void *dlg, int index)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    MenuRef menu = mc->editbox.menu;
+
+    if (mc == NULL) return;
+    DeleteMenuItem(menu, index + 1);
+    if (mc->editbox.ids != NULL)
+	memcpy(mc->editbox.ids + index, mc->editbox.ids + index + 1,
+	       (mc->editbox.nids - index - 1) * sizeof(*mc->editbox.ids));
+    SetControlMaximum(mc->editbox.tbbutton, CountMenuItems(menu));
 }
 
 static void dlg_maclist_del(union control *ctrl, void *dlg, int index)
@@ -1792,6 +1878,8 @@ void dlg_listbox_del(union control *ctrl, void *dlg, int index)
 	else
 	    dlg_maclist_del(ctrl, dlg, index);
 	break;
+      case CTRL_EDITBOX:
+	dlg_macedit_del(ctrl, dlg, index);
     }
 }
 
@@ -1810,6 +1898,20 @@ static void dlg_macpopup_add(union control *ctrl, void *dlg, char const *text)
     SetControlMaximum(mc->popup.tbctrl, CountMenuItems(menu));
 }
 
+static void dlg_macedit_add(union control *ctrl, void *dlg, char const *text)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    MenuRef menu = mc->editbox.menu;
+    Str255 itemstring;
+
+    if (mc == NULL) return;
+    assert(text[0] != '\0');
+    c2pstrcpy(itemstring, text);
+    AppendMenu(menu, "\pdummy");
+    SetMenuItemText(menu, CountMenuItems(menu), itemstring);
+    SetControlMaximum(mc->editbox.tbbutton, CountMenuItems(menu));
+}
 
 static void dlg_maclist_add(union control *ctrl, void *dlg, char const *text)
 {
@@ -1840,6 +1942,9 @@ void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
 	else
 	    dlg_maclist_add(ctrl, dlg, text);
 	break;
+      case CTRL_EDITBOX:
+	dlg_macedit_add(ctrl, dlg, text);
+	break;
     }
 }
 
@@ -1859,6 +1964,24 @@ static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
 	mc->popup.ids = sresize(mc->popup.ids, mc->popup.nids, int);
     }
     mc->popup.ids[index] = id;
+}
+
+static void dlg_macedit_addwithid(union control *ctrl, void *dlg,
+				   char const *text, int id)
+{
+    struct macctrls *mcs = dlg;
+    union macctrl *mc = findbyctrl(mcs, ctrl);
+    MenuRef menu = mc->editbox.menu;
+    unsigned int index;
+
+    if (mc == NULL) return;
+    dlg_macedit_add(ctrl, dlg, text);
+    index = CountMenuItems(menu) - 1;
+    if (mc->editbox.nids <= index) {
+	mc->editbox.nids = index + 1;
+	mc->editbox.ids = sresize(mc->editbox.ids, mc->editbox.nids, int);
+    }
+    mc->editbox.ids[index] = id;
 }
 
 static void dlg_maclist_addwithid(union control *ctrl, void *dlg,
@@ -1895,6 +2018,9 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 	else
 	    dlg_maclist_addwithid(ctrl, dlg, text, id);
 	break;
+      case CTRL_EDITBOX:
+	dlg_macedit_addwithid(ctrl, dlg, text, id);
+	break;
     }
 }
 
@@ -1913,6 +2039,9 @@ int dlg_listbox_getid(union control *ctrl, void *dlg, int index)
 	    assert(mc->listbox.ids != NULL && mc->listbox.nids > index);
 	    return mc->listbox.ids[index];
 	}
+      case CTRL_EDITBOX:
+	assert(mc->editbox.ids != NULL && mc->editbox.nids > index);
+	return mc->editbox.ids[index];
     }
     return -1;
 }
@@ -1934,6 +2063,8 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
 	    else
 		return -1;
 	}
+      case CTRL_EDITBOX:
+	return GetControlValue(mc->editbox.tbbutton) - 1;
     }
     return -1;
 }
@@ -1953,6 +2084,8 @@ int dlg_listbox_issel(union control *ctrl, void *dlg, int index)
 	    cell.v = index;
 	    return LGetSelect(FALSE, &cell, mc->listbox.list);
 	}
+      case CTRL_EDITBOX:
+	return GetControlValue(mc->editbox.tbbutton) - 1 == index;
     }
     return FALSE;
 }
@@ -1968,6 +2101,8 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
 	if (ctrl->listbox.height == 0)
 	    SetControlValue(mc->popup.tbctrl, index + 1);
 	break;
+      case CTRL_EDITBOX:
+	SetControlValue(mc->editbox.tbbutton, index + 1);
     }
 }
 
