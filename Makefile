@@ -74,7 +74,7 @@ all: putty.exe puttytel.exe pscp.exe
 putty.exe: $(GOBJS1) $(GOBJS2) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(PRESRC) putty.rsp
 	link /debug -out:putty.exe @putty.rsp
 
-puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(PRESRC) puttytel.rsp
+puttytel.exe: $(GOBJS1) $(GOBJS2) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
 	link /debug -out:puttytel.exe @puttytel.rsp
 
 pscp.exe: $(SOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
@@ -152,7 +152,7 @@ win_res.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 win_res.rc
 
 ##-- dependencies
-nossh_res.$(RES): nossh_res.rc win_res.h putty.ico
+nossh_res.$(RES): nossh_res.rc win_res.rc win_res.h putty.ico
 ##--
 nossh_res.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 nossh_res.rc
