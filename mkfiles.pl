@@ -284,7 +284,7 @@ foreach $p (&prognames("GC")) {
   print &splitline("\t\$(CC)" . $mw . " \$(LDFLAGS) -o \$@ " .
                    $objstr . " $libstr", 69), "\n\n";
 }
-&deps("X.o", "X.res.o", "", "\\");
+&deps("X.o", "X.res.o", "", "/");
 print
 "\n".
 "version.o: FORCE;\n".
