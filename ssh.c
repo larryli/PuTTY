@@ -1772,7 +1772,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_derivekey2 == FORCE_ON ||
 	(ssh->cfg.sshbug_derivekey2 == AUTO &&
-	 (wc_match("2.0.0*", imp) || wc_match("2.0.1[01]*", imp) ))) {
+	 (wc_match("2.0.0*", imp) || wc_match("2.0.10*", imp) ))) {
 	/*
 	 * These versions have the key-derivation bug (failing to
 	 * include the literal shared secret in the hashes that
