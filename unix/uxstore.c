@@ -507,24 +507,30 @@ void store_host_key(const char *hostname, int port,
     /*
      * Open both the old file and a new file.
      */
-    make_filename(filename, INDEX_HOSTKEYS, NULL);
-    rfp = fopen(filename, "r");
-    if (!rfp)
-	return;
     make_filename(tmpfilename, INDEX_HOSTKEYS_TMP, NULL);
     wfp = fopen(tmpfilename, "w");
     if (!wfp) {
-	fclose(rfp);
-	return;
+        char dir[FILENAME_MAX];
+
+        make_filename(dir, INDEX_DIR, NULL);
+        mkdir(dir, 0700);
+        wfp = fopen(tmpfilename, "w");
     }
+    if (!wfp)
+	return;
+    make_filename(filename, INDEX_HOSTKEYS, NULL);
+    rfp = fopen(filename, "r");
 
     /*
      * Copy all lines from the old file to the new one that _don't_
      * involve the same host key identifier as the one we're adding.
      */
-    while ( (line = fgetline(rfp)) ) {
-	if (strncmp(line, newtext, headerlen))
-	    fputs(line, wfp);
+    if (rfp) {
+        while ( (line = fgetline(rfp)) ) {
+            if (strncmp(line, newtext, headerlen))
+                fputs(line, wfp);
+        }
+        fclose(rfp);
     }
 
     /*
@@ -532,7 +538,6 @@ void store_host_key(const char *hostname, int port,
      */
     fputs(newtext, wfp);
 
-    fclose(rfp);
     fclose(wfp);
 
     rename(tmpfilename, filename);
