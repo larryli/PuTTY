@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.21 2003/01/16 15:43:18 jacob Exp $
+\versionid $Id: pubkey.but,v 1.22 2004/05/06 11:27:58 simon Exp $
 
 \C{pubkey} Using public keys for SSH authentication
 
@@ -419,10 +419,10 @@ that server.
 You may also need to ensure that your home directory, your \c{.ssh}
 directory, and any other files involved (such as
 \c{authorized_keys}, \c{authorized_keys2} or \c{authorization}) are
-not group-writable. You can typically do this by using a command
-such as
+not group-writable or world-writable. You can typically do this by
+using a command such as
 
-\c chmod g-w $HOME $HOME/.ssh $HOME/.ssh/authorized_keys
+\c chmod go-w $HOME $HOME/.ssh $HOME/.ssh/authorized_keys
 
 Your server should now be configured to accept authentication using
 your private key. Now you need to configure PuTTY to \e{attempt}
