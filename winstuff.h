@@ -174,6 +174,6 @@ void EnableSizeTip(int bEnable);
 #define mb_to_wc(cp, flags, mbstr, mblen, wcstr, wclen) \
 	MultiByteToWideChar(cp, flags, mbstr, mblen, wcstr, wclen)
 #define wc_to_mb(cp, flags, wcstr, wclen, mbstr, mblen, def, defused) \
-	WideCharToMultiByte(cp, flags, mbstr, mblen, wcstr, wclen, def,defused)
+	WideCharToMultiByte(cp, flags, wcstr, wclen, mbstr, mblen, def,defused)
 
 #endif

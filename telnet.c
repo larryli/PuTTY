@@ -192,6 +192,7 @@ typedef struct telnet_tag {
     Socket s;
 
     void *frontend;
+    void *ldisc;
     int term_width, term_height;
 
     int opt_states[NUM_OPTS];
@@ -261,7 +262,8 @@ static void option_side_effects(Telnet telnet, const struct Opt *o, int enabled)
 	telnet->echoing = !enabled;
     else if (o->option == TELOPT_SGA && o->send == DO)
 	telnet->editing = !enabled;
-    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice the change */
+    if (telnet->ldisc)		       /* cause ldisc to notice the change */
+	ldisc_send(telnet->ldisc, NULL, 0, 0);
 
     /* Ensure we get the minimum options */
     if (!telnet->activated) {
@@ -908,6 +910,12 @@ static int telnet_ldisc(void *handle, int option)
     return FALSE;
 }
 
+static void telnet_provide_ldisc(void *handle, void *ldisc)
+{
+    Telnet telnet = (Telnet) handle;
+    telnet->ldisc = ldisc;
+}
+
 static int telnet_exitcode(void *handle)
 {
     Telnet telnet = (Telnet) handle;
@@ -925,6 +933,7 @@ Backend telnet_backend = {
     telnet_exitcode,
     telnet_sendok,
     telnet_ldisc,
+    telnet_provide_ldisc,
     telnet_unthrottle,
     23
 };

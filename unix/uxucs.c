@@ -14,12 +14,12 @@
  * are ISO8859-1.
  */
 
-void lpage_send(int codepage, char *buf, int len, int interactive)
+void lpage_send(void *ldisc, int codepage, char *buf, int len, int interactive)
 {
-    ldisc_send(buf, len, interactive);
+    ldisc_send(ldisc, buf, len, interactive);
 }
 
-void luni_send(wchar_t * widebuf, int len, int interactive)
+void luni_send(void *ldisc, wchar_t * widebuf, int len, int interactive)
 {
     static char *linebuffer = 0;
     static int linesize = 0;
@@ -79,7 +79,7 @@ void luni_send(wchar_t * widebuf, int len, int interactive)
 	}
     }
     if (p > linebuffer)
-	ldisc_send(linebuffer, p - linebuffer, interactive);
+	ldisc_send(ldisc, linebuffer, p - linebuffer, interactive);
 }
 
 int is_dbcs_leadbyte(int codepage, char byte)

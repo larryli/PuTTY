@@ -94,6 +94,7 @@ struct terminal_tag {
     long last_tblink;
 
     int xterm_mouse;		       /* send mouse messages to app */
+    int mouse_is_down;		       /* used while tracking mouse buttons */
 
     unsigned long cset_attr[2];
 
@@ -160,6 +161,8 @@ struct terminal_tag {
 
     void (*resize_fn)(void *, int, int);
     void *resize_ctx;
+
+    void *ldisc;
 };
 
 #define in_utf(term) ((term)->utf || line_codepage==CP_UTF8)

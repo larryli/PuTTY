@@ -555,6 +555,8 @@ struct ssh_tag {
 
     Socket s;
 
+    void *ldisc;
+
     unsigned char session_key[32];
     int v1_compressing;
     int v1_remote_protoflags;
@@ -3233,7 +3235,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     if (ssh->eof_needed)
 	ssh_special(ssh, TS_EOF);
 
-    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
+    if (ssh->ldisc)
+	ldisc_send(ssh->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
     ssh->send_ok = 1;
     ssh->channels = newtree234(ssh_channelcmp);
     while (1) {
@@ -5379,7 +5382,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     /*
      * Transfer data!
      */
-    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
+    if (ssh->ldisc)
+	ldisc_send(ssh->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
     ssh->send_ok = 1;
     while (1) {
 	crReturnV;
@@ -5854,6 +5858,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->state = SSH_STATE_PREPACKET;
     ssh->size_needed = FALSE;
     ssh->eof_needed = FALSE;
+    ssh->ldisc = NULL;
     {
 	static const struct Packet empty = { 0, 0, NULL, NULL, 0 };
 	ssh->pktin = ssh->pktout = empty;
@@ -6133,6 +6138,12 @@ static int ssh_ldisc(void *handle, int option)
     return FALSE;
 }
 
+static void ssh_provide_ldisc(void *handle, void *ldisc)
+{
+    Ssh ssh = (Ssh) handle;
+    ssh->ldisc = ldisc;
+}
+
 static int ssh_return_exitcode(void *handle)
 {
     Ssh ssh = (Ssh) handle;
@@ -6160,6 +6171,7 @@ Backend ssh_backend = {
     ssh_return_exitcode,
     ssh_sendok,
     ssh_ldisc,
+    ssh_provide_ldisc,
     ssh_unthrottle,
     22
 };

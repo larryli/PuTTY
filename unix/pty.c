@@ -589,6 +589,11 @@ static int pty_ldisc(void *handle, int option)
     return 0;			       /* neither editing nor echoing */
 }
 
+static void pty_provide_ldisc(void *handle, void *ldisc)
+{
+    /* This is a stub. */
+}
+
 static int pty_exitcode(void *handle)
 {
     if (!pty_child_dead)
@@ -607,6 +612,7 @@ Backend pty_backend = {
     pty_exitcode,
     pty_sendok,
     pty_ldisc,
+    pty_provide_ldisc,
     pty_unthrottle,
     1
 };

@@ -241,7 +241,8 @@ void term_seen_key_event(Terminal *term)
 void term_pwron(Terminal *term)
 {
     power_on(term);
-    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
+    if (term->ldisc)		       /* cause ldisc to notice changes */
+	ldisc_send(term->ldisc, NULL, 0, 0);
     fix_cpos;
     term->disptop = 0;
     deselect(term);
@@ -309,7 +310,7 @@ Terminal *term_init(void)
     term->vt52_mode = FALSE;
     term->cr_lf_return = FALSE;
     term->seen_disp_event = FALSE;
-    term->xterm_mouse = FALSE;
+    term->xterm_mouse = term->mouse_is_down = FALSE;
     term->reset_132 = FALSE;
     term->blinker = term->tblinker = 0;
     term->has_focus = 1;
@@ -915,7 +916,8 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    break;
 	  case 10:		       /* set local edit mode */
 	    term->term_editing = state;
-	    ldisc_send(NULL, 0, 0);    /* cause ldisc to notice changes */
+	    if (term->ldisc)	       /* cause ldisc to notice changes */
+		ldisc_send(term->ldisc, NULL, 0, 0);
 	    break;
 	  case 25:		       /* enable/disable cursor */
 	    compatibility2(OTHER, VT220);
@@ -965,7 +967,8 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    break;
 	  case 12:		       /* set echo mode */
 	    term->term_echoing = !state;
-	    ldisc_send(NULL, 0, 0);    /* cause ldisc to notice changes */
+	    if (term->ldisc)	       /* cause ldisc to notice changes */
+		ldisc_send(term->ldisc, NULL, 0, 0);
 	    break;
 	  case 20:		       /* Return sends ... */
 	    term->cr_lf_return = state;
@@ -1288,7 +1291,7 @@ void term_out(Terminal *term)
 		 * An xterm returns "xterm" (5 characters)
 		 */
 		compatibility(ANSIMIN);
-		{
+		if (term->ldisc) {
 		    char abuf[256], *s, *d;
 		    int state = 0;
 		    for (s = cfg.answerback, d = abuf; *s; s++) {
@@ -1306,7 +1309,8 @@ void term_out(Terminal *term)
 			} else
 			    *d++ = *s;
 		    }
-		    lpage_send(DEFAULT_CODEPAGE, abuf, d - abuf, 0);
+		    lpage_send(term->ldisc, DEFAULT_CODEPAGE,
+			       abuf, d - abuf, 0);
 		}
 		break;
 	      case '\007':
@@ -1617,12 +1621,15 @@ void term_out(Terminal *term)
 		    break;
 		  case 'Z':	       /* terminal type query */
 		    compatibility(VT100);
-		    ldisc_send(term->id_string, strlen(term->id_string), 0);
+		    if (term->ldisc)
+			ldisc_send(term->ldisc, term->id_string,
+				   strlen(term->id_string), 0);
 		    break;
 		  case 'c':	       /* restore power-on settings */
 		    compatibility(VT100);
 		    power_on(term);
-		    ldisc_send(NULL, 0, 0);/* cause ldisc to notice changes */
+		    if (term->ldisc)   /* cause ldisc to notice changes */
+			ldisc_send(term->ldisc, NULL, 0, 0);
 		    if (term->reset_132) {
 			if (!cfg.no_remote_resize)
 			    request_resize(80, term->rows);
@@ -1783,7 +1790,8 @@ void term_out(Terminal *term)
 			compatibility(OTHER);
 			/* this reports xterm version 136 so that VIM can
 			   use the drag messages from the mouse reporting */
-			ldisc_send("\033[>0;136;0c", 11, 0);
+			if (term->ldisc)
+			    ldisc_send(term->ldisc, "\033[>0;136;0c", 11, 0);
 			break;
 		      case 'a':       /* move right N cols */
 			compatibility(ANSI);
@@ -1885,17 +1893,20 @@ void term_out(Terminal *term)
 		      case 'c':       /* terminal type query */
 			compatibility(VT100);
 			/* This is the response for a VT102 */
-			ldisc_send(term->id_string,
-				   strlen(term->id_string), 0);
+			if (term->ldisc)
+			    ldisc_send(term->ldisc, term->id_string,
+ 				       strlen(term->id_string), 0);
 			break;
 		      case 'n':       /* cursor position query */
-			if (term->esc_args[0] == 6) {
-			    char buf[32];
-			    sprintf(buf, "\033[%d;%dR", term->curs.y + 1,
-				    term->curs.x + 1);
-			    ldisc_send(buf, strlen(buf), 0);
-			} else if (term->esc_args[0] == 5) {
-			    ldisc_send("\033[0n", 4, 0);
+			if (term->ldisc) {
+			    if (term->esc_args[0] == 6) {
+				char buf[32];
+				sprintf(buf, "\033[%d;%dR", term->curs.y + 1,
+					term->curs.x + 1);
+				ldisc_send(term->ldisc, buf, strlen(buf), 0);
+			    } else if (term->esc_args[0] == 5) {
+				ldisc_send(term->ldisc, "\033[0n", 4, 0);
+			    }
 			}
 			break;
 		      case 'h':       /* toggle modes to high */
@@ -2175,23 +2186,31 @@ void term_out(Terminal *term)
 					       TRUE : FALSE);
 				break;
 			      case 11:
-				ldisc_send(is_iconic() ? "\033[1t" : "\033[2t",
-					   4, 0);
+				if (term->ldisc)
+				    ldisc_send(term->ldisc,
+					       is_iconic() ? "\033[1t" :
+					       "\033[2t", 4, 0);
 				break;
 			      case 13:
-				get_window_pos(&x, &y);
-				len = sprintf(buf, "\033[3;%d;%dt", x, y);
-				ldisc_send(buf, len, 0);
+				if (term->ldisc) {
+				    get_window_pos(&x, &y);
+				    len = sprintf(buf, "\033[3;%d;%dt", x, y);
+				    ldisc_send(term->ldisc, buf, len, 0);
+				}
 				break;
 			      case 14:
-				get_window_pixels(&x, &y);
-				len = sprintf(buf, "\033[4;%d;%dt", x, y);
-				ldisc_send(buf, len, 0);
+				if (term->ldisc) {
+				    get_window_pixels(&x, &y);
+				    len = sprintf(buf, "\033[4;%d;%dt", x, y);
+				    ldisc_send(term->ldisc, buf, len, 0);
+				}
 				break;
 			      case 18:
-				len = sprintf(buf, "\033[8;%d;%dt",
-					      term->rows, term->cols);
-				ldisc_send(buf, len, 0);
+				if (term->ldisc) {
+				    len = sprintf(buf, "\033[8;%d;%dt",
+						  term->rows, term->cols);
+				    ldisc_send(term->ldisc, buf, len, 0);
+				}
 				break;
 			      case 19:
 				/*
@@ -2211,18 +2230,22 @@ void term_out(Terminal *term)
 				 */
 				break;
 			      case 20:
-				p = get_window_title(TRUE);
-				len = strlen(p);
-				ldisc_send("\033]L", 3, 0);
-				ldisc_send(p, len, 0);
-				ldisc_send("\033\\", 2, 0);
+				if (term->ldisc) {
+				    p = get_window_title(TRUE);
+				    len = strlen(p);
+				    ldisc_send(term->ldisc, "\033]L", 3, 0);
+				    ldisc_send(term->ldisc, p, len, 0);
+				    ldisc_send(term->ldisc, "\033\\", 2, 0);
+				}
 				break;
 			      case 21:
-				p = get_window_title(FALSE);
-				len = strlen(p);
-				ldisc_send("\033]l", 3, 0);
-				ldisc_send(p, len, 0);
-				ldisc_send("\033\\", 2, 0);
+				if (term->ldisc) {
+				    p = get_window_title(FALSE);
+				    len = strlen(p);
+				    ldisc_send(term->ldisc, "\033]l", 3, 0);
+				    ldisc_send(term->ldisc, p, len, 0);
+				    ldisc_send(term->ldisc, "\033\\", 2, 0);
+				}
 				break;
 			    }
 			}
@@ -2290,13 +2313,13 @@ void term_out(Terminal *term)
 			break;
 		      case 'x':       /* report terminal characteristics */
 			compatibility(VT100);
-			{
+			if (term->ldisc) {
 			    char buf[32];
 			    int i = def(term->esc_args[0], 0);
 			    if (i == 0 || i == 1) {
 				strcpy(buf, "\033[2;1;1;112;112;1;0x");
 				buf[2] += i;
-				ldisc_send(buf, 20, 0);
+				ldisc_send(term->ldisc, buf, 20, 0);
 			    }
 			}
 			break;
@@ -2620,7 +2643,8 @@ void term_out(Terminal *term)
 		    term->termstate = VT52_Y1;
 		    break;
 		  case 'Z':
-		    ldisc_send("\033/Z", 3, 0);
+		    if (term->ldisc)
+			ldisc_send(term->ldisc, "\033/Z", 3, 0);
 		    break;
 		  case '=':
 		    term->app_keypad_keys = TRUE;
@@ -3281,9 +3305,10 @@ void term_copyall(Terminal *term)
  */
 static int wordtype(Terminal *term, int uc)
 {
-    static struct {
+    struct ucsword {
 	int start, end, ctype;
-    } *wptr, ucs_words[] = {
+    };
+    static const struct ucsword ucs_words[] = {
 	{
 	128, 160, 0}, {
 	161, 191, 1}, {
@@ -3347,6 +3372,7 @@ static int wordtype(Terminal *term, int uc)
 	{
 	0, 0, 0}
     };
+    const struct ucsword *wptr;
 
     uc &= (CSET_MASK | CHAR_MASK);
 
@@ -3524,7 +3550,8 @@ void term_do_paste(Terminal *term)
 
         /* Assume a small paste will be OK in one go. */
         if (term->paste_len < 256) {
-            luni_send(term->paste_buffer, term->paste_len, 0);
+            if (term->ldisc)
+		luni_send(term->ldisc, term->paste_buffer, term->paste_len, 0);
             if (term->paste_buffer)
                 sfree(term->paste_buffer);
             term->paste_buffer = 0;
@@ -3573,52 +3600,54 @@ void term_mouse(Terminal *term, Mouse_Button b, Mouse_Action a, int x, int y,
     if (raw_mouse) {
 	int encstate = 0, r, c;
 	char abuf[16];
-	static int is_down = 0;
 
-	switch (b) {
-	  case MBT_LEFT:
-	    encstate = 0x20;	       /* left button down */
-	    break;
-	  case MBT_MIDDLE:
-	    encstate = 0x21;
-	    break;
-	  case MBT_RIGHT:
-	    encstate = 0x22;
-	    break;
-	  case MBT_WHEEL_UP:
-	    encstate = 0x60;
-	    break;
-	  case MBT_WHEEL_DOWN:
-	    encstate = 0x61;
-	    break;
-	  default: break;	       /* placate gcc warning about enum use */
-	}
-	switch (a) {
-	  case MA_DRAG:
-	    if (term->xterm_mouse == 1)
-		return;
-	    encstate += 0x20;
-	    break;
-	  case MA_RELEASE:
-	    encstate = 0x23;
-	    is_down = 0;
-	    break;
-	  case MA_CLICK:
-	    if (is_down == b)
-		return;
-	    is_down = b;
-	    break;
-	  default: break;	       /* placate gcc warning about enum use */
-	}
-	if (shift)
-	    encstate += 0x04;
-	if (ctrl)
-	    encstate += 0x10;
-	r = y + 33;
-	c = x + 33;
+	if (term->ldisc) {
 
-	sprintf(abuf, "\033[M%c%c%c", encstate, c, r);
-	ldisc_send(abuf, 6, 0);
+	    switch (b) {
+	      case MBT_LEFT:
+		encstate = 0x20;	       /* left button down */
+		break;
+	      case MBT_MIDDLE:
+		encstate = 0x21;
+		break;
+	      case MBT_RIGHT:
+		encstate = 0x22;
+		break;
+	      case MBT_WHEEL_UP:
+		encstate = 0x60;
+		break;
+	      case MBT_WHEEL_DOWN:
+		encstate = 0x61;
+		break;
+	      default: break;	       /* placate gcc warning about enum use */
+	    }
+	    switch (a) {
+	      case MA_DRAG:
+		if (term->xterm_mouse == 1)
+		    return;
+		encstate += 0x20;
+		break;
+	      case MA_RELEASE:
+		encstate = 0x23;
+		term->mouse_is_down = 0;
+		break;
+	      case MA_CLICK:
+		if (term->mouse_is_down == b)
+		    return;
+		term->mouse_is_down = b;
+		break;
+	      default: break;	       /* placate gcc warning about enum use */
+	    }
+	    if (shift)
+		encstate += 0x04;
+	    if (ctrl)
+		encstate += 0x10;
+	    r = y + 33;
+	    c = x + 33;
+
+	    sprintf(abuf, "\033[M%c%c%c", encstate, c, r);
+	    ldisc_send(term->ldisc, abuf, 6, 0);
+	}
 	return;
     }
 
@@ -3775,7 +3804,8 @@ void term_paste(Terminal *term)
 	    if (term->paste_buffer[term->paste_pos + n++] == '\r')
 		break;
 	}
-	luni_send(term->paste_buffer + term->paste_pos, n, 0);
+	if (term->ldisc)
+	    luni_send(term->ldisc, term->paste_buffer + term->paste_pos, n, 0);
 	term->paste_pos += n;
 
 	if (term->paste_pos < term->paste_len) {

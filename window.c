@@ -108,11 +108,14 @@ static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
+static int is_shift_pressed(void);
 static int get_fullscreen_rect(RECT * ss);
 
 static time_t last_movement = 0;
 
 static int caret_x = -1, caret_y = -1;
+
+static void *ldisc;
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -168,7 +171,7 @@ static OSVERSIONINFO osVersion;
 static UINT wm_mousewheel = WM_MOUSEWHEEL;
 
 /* Dummy routine, only required in plink. */
-void ldisc_update(int echo, int edit)
+void ldisc_update(void *frontend, int echo, int edit)
 {
 }
 
@@ -624,6 +627,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Connect the terminal to the backend for resize purposes.
      */
     term_provide_resize_fn(term, back->size, backhandle);
+
+    /*
+     * Set up a line discipline.
+     */
+    ldisc = ldisc_create(term, back, backhandle, NULL);
 
     session_closed = FALSE;
 
@@ -1748,7 +1756,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * Flush the line discipline's edit buffer in the
 		 * case where local editing has just been disabled.
 		 */
-		ldisc_send(NULL, 0, 0);
+		ldisc_send(ldisc, NULL, 0, 0);
 		if (pal)
 		    DeleteObject(pal);
 		logpal = NULL;
@@ -1862,7 +1870,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_RESET:
 	    term_pwron(term);
-	    ldisc_send(NULL, 0, 0);
+	    ldisc_send(ldisc, NULL, 0, 0);
 	    break;
 	  case IDM_TEL_AYT:
 	    back->special(backhandle, TS_AYT);
@@ -2450,7 +2458,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * we're sent.
 		     */
 		    term_seen_key_event(term);
-		    ldisc_send(buf, len, 1);
+		    ldisc_send(ldisc, buf, len, 1);
 		    show_mouseptr(0);
 		}
 	    }
@@ -2498,7 +2506,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 */
 		term_seen_key_event(term);
 		for (i = 0; i < n; i += 2) {
-		    luni_send((unsigned short *)(buff+i), 1, 1);
+		    luni_send(ldisc, (unsigned short *)(buff+i), 1, 1);
 		}
 		free(buff);
 	    }
@@ -2513,11 +2521,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
 	    term_seen_key_event(term);
-	    lpage_send(kbd_codepage, buf, 2, 1);
+	    lpage_send(ldisc, kbd_codepage, buf, 2, 1);
 	} else {
 	    char c = (unsigned char) wParam;
 	    term_seen_key_event(term);
-	    lpage_send(kbd_codepage, &c, 1, 1);
+	    lpage_send(ldisc, kbd_codepage, &c, 1, 1);
 	}
 	return (0);
       case WM_CHAR:
@@ -2531,7 +2539,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	{
 	    char c = (unsigned char)wParam;
 	    term_seen_key_event(term);
-	    lpage_send(CP_ACP, &c, 1, 1);
+	    lpage_send(ldisc, CP_ACP, &c, 1, 1);
 	}
 	return 0;
       case WM_SETCURSOR:
@@ -3780,7 +3788,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    }
 		    keybuf = nc;
 		    term_seen_key_event(term);
-		    luni_send(&keybuf, 1, 1);
+		    luni_send(ldisc, &keybuf, 1, 1);
 		    continue;
 		}
 
@@ -3791,7 +3799,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			if (in_utf(term) || dbcs_screenfont) {
 			    keybuf = alt_sum;
 			    term_seen_key_event(term);
-			    luni_send(&keybuf, 1, 1);
+			    luni_send(ldisc, &keybuf, 1, 1);
 			} else {
 			    ch = (char) alt_sum;
 			    /*
@@ -3804,25 +3812,26 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * everything we're sent.
 			     */
 			    term_seen_key_event(term);
-			    ldisc_send(&ch, 1, 1);
+			    ldisc_send(ldisc, &ch, 1, 1);
 			}
 			alt_sum = 0;
 		    } else
 			term_seen_key_event(term);
-			lpage_send(kbd_codepage, &ch, 1, 1);
+			lpage_send(ldisc, kbd_codepage, &ch, 1, 1);
 		} else {
 		    if(capsOn && ch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(ch);
 			term_seen_key_event(term);
-			luni_send(cbuf+!left_alt, 1+!!left_alt, 1);
+			luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt, 1);
 		    } else {
 			char cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = ch;
 			term_seen_key_event(term);
-			lpage_send(kbd_codepage, cbuf+!left_alt, 1+!!left_alt, 1);
+			lpage_send(ldisc, kbd_codepage,
+				   cbuf+!left_alt, 1+!!left_alt, 1);
 		    }
 		}
 		show_mouseptr(0);
@@ -4559,7 +4568,7 @@ void flip_full_screen()
     }
 }
 
-void frontend_keypress(void)
+void frontend_keypress(void *handle)
 {
     /*
      * Keypress termination in non-Close-On-Exit mode is not

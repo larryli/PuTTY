@@ -598,14 +598,14 @@ static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr)
     }
 }
 
-void lpage_send(int codepage, char *buf, int len, int interactive)
+void lpage_send(void *ldisc, int codepage, char *buf, int len, int interactive)
 {
     static wchar_t *widebuffer = 0;
     static int widesize = 0;
     int wclen;
 
     if (codepage < 0) {
-	ldisc_send(buf, len, interactive);
+	ldisc_send(ldisc, buf, len, interactive);
 	return;
     }
 
@@ -616,10 +616,10 @@ void lpage_send(int codepage, char *buf, int len, int interactive)
     }
 
     wclen = mb_to_wc(codepage, 0, buf, len, widebuffer, widesize);
-    luni_send(widebuffer, wclen, interactive);
+    luni_send(ldisc, widebuffer, wclen, interactive);
 }
 
-void luni_send(wchar_t * widebuf, int len, int interactive)
+void luni_send(void *ldisc, wchar_t * widebuf, int len, int interactive)
 {
     static char *linebuffer = 0;
     static int linesize = 0;
@@ -677,7 +677,7 @@ void luni_send(wchar_t * widebuf, int len, int interactive)
 	}
     }
     if (p > linebuffer)
-	ldisc_send(linebuffer, p - linebuffer, interactive);
+	ldisc_send(ldisc, linebuffer, p - linebuffer, interactive);
 }
 
 wchar_t xlat_uskbd2cyrllic(int ch)

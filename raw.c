@@ -186,6 +186,11 @@ static int raw_ldisc(void *handle, int option)
     return 0;
 }
 
+static void raw_provide_ldisc(void *handle, void *ldisc)
+{
+    /* This is a stub. */
+}
+
 static int raw_exitcode(void *handle)
 {
     /* Exit codes are a meaningless concept in the Raw protocol */
@@ -202,6 +207,7 @@ Backend raw_backend = {
     raw_exitcode,
     raw_sendok,
     raw_ldisc,
+    raw_provide_ldisc,
     raw_unthrottle,
     1
 };

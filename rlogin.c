@@ -250,6 +250,11 @@ static int rlogin_ldisc(void *handle, int option)
     return 0;
 }
 
+static void rlogin_provide_ldisc(void *handle, void *ldisc)
+{
+    /* This is a stub. */
+}
+
 static int rlogin_exitcode(void *handle)
 {
     Rlogin rlogin = (Rlogin) handle;
@@ -267,6 +272,7 @@ Backend rlogin_backend = {
     rlogin_exitcode,
     rlogin_sendok,
     rlogin_ldisc,
+    rlogin_provide_ldisc,
     rlogin_unthrottle,
     1
 };

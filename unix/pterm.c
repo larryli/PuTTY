@@ -53,13 +53,14 @@ struct gui_data {
     char wintitle[sizeof(((Config *)0)->wintitle)];
     char icontitle[sizeof(((Config *)0)->wintitle)];
     int master_fd, master_func_id, exited;
+    void *ldisc;
 };
 
 static struct gui_data the_inst;
 static struct gui_data *inst = &the_inst;   /* so we always write `inst->' */
 static int send_raw_mouse;
 
-void ldisc_update(int echo, int edit)
+void ldisc_update(void *frontend, int echo, int edit)
 {
     /*
      * This is a stub in pterm. If I ever produce a Unix
@@ -792,7 +793,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	printf("\n");
 #endif
 
-	ldisc_send(output+start, end-start, 1);
+	ldisc_send(inst->ldisc, output+start, end-start, 1);
 	show_mouseptr(0);
 	term_seen_key_event(term);
 	term_out(term);
@@ -924,8 +925,10 @@ void done_with_pty(struct gui_data *inst)
     }
 }
 
-void frontend_keypress(void)
+void frontend_keypress(void *handle)
 {
+    struct gui_data *inst = (struct gui_data *)handle;
+
     /*
      * If our child process has exited but not closed, terminate on
      * any keypress.
@@ -1965,7 +1968,9 @@ int main(int argc, char **argv)
     term_provide_resize_fn(term, back->size, backhandle);
 
     term_size(term, cfg.height, cfg.width, cfg.savelines);
-    ldisc_send(NULL, 0, 0);	       /* cause ldisc to notice changes */
+
+    inst->ldisc = ldisc_create(term, back, backhandle, inst);
+    ldisc_send(inst->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
 
     inst->master_fd = pty_master_fd;
     inst->exited = FALSE;

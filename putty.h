@@ -200,6 +200,7 @@ struct backend_tag {
     int (*exitcode) (void *handle);
     int (*sendok) (void *handle);
     int (*ldisc) (void *handle, int);
+    void (*provide_ldisc) (void *handle, void *ldisc);
     /*
      * back->unthrottle() tells the back end that the front end
      * buffer is clearing.
@@ -430,7 +431,8 @@ void beep(int);
 void begin_session(void);
 void sys_cursor(int x, int y);
 void request_paste(void);
-void frontend_keypress(void);
+void frontend_keypress(void *frontend);
+void ldisc_update(void *frontend, int echo, int edit);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(int iconic);
@@ -536,7 +538,8 @@ extern Backend ssh_backend;
  * Exports from ldisc.c.
  */
 
-extern void ldisc_send(char *buf, int len, int interactive);
+void *ldisc_create(Terminal *, Backend *, void *, void *);
+void ldisc_send(void *handle, char *buf, int len, int interactive);
 
 /*
  * Exports from sshrand.c.
@@ -566,8 +569,8 @@ extern char ver[];
 #define CP_UTF8 65001
 #endif
 void init_ucs_tables(void);
-void lpage_send(int codepage, char *buf, int len, int interactive);
-void luni_send(wchar_t * widebuf, int len, int interactive);
+void lpage_send(void *, int codepage, char *buf, int len, int interactive);
+void luni_send(void *, wchar_t * widebuf, int len, int interactive);
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);
