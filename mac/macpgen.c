@@ -1,4 +1,4 @@
-/* $Id: macpgen.c,v 1.4 2003/02/20 22:55:09 ben Exp $ */
+/* $Id: macpgen.c,v 1.5 2003/02/23 13:31:12 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -71,6 +71,7 @@ static void mac_event(EventRecord *);
 static void mac_contentclick(WindowPtr, EventRecord *);
 static void mac_growwindow(WindowPtr, EventRecord *);
 static void mac_activatewindow(WindowPtr, EventRecord *);
+static void mac_suspendresume(EventRecord *);
 static void mac_updatewindow(WindowPtr);
 static void mac_keypress(EventRecord *);
 static int mac_windowtype(WindowPtr);
@@ -310,6 +311,13 @@ static void mac_event(EventRecord *event) {
         }
         break;
 #endif
+      case osEvt:
+	switch ((event->message & osEvtMessageMask) >> 24) {
+	  case suspendResumeMessage:
+	    mac_suspendresume(event);
+	    break;
+	}
+	break;
       case kHighLevelEvent:
 	AEProcessAppleEvent(event); /* errors? */
 	break;
@@ -435,6 +443,27 @@ static void mac_closewindow(WindowPtr window)
       default:
 	if (mac_wininfo(window)->close != NULL)
 	    (*mac_wininfo(window)->close)(window);
+    }
+}
+
+static void mac_suspendresume(EventRecord *event)
+{
+    WindowPtr front;
+    EventRecord fakeevent;
+
+    /*
+     * We're called either before we're suspended or after we're
+     * resumed, so we're the front application at this point.
+     */
+    front = FrontWindow();
+    if (front != NULL) {
+	fakeevent.what = activateEvt;
+	fakeevent.message = (UInt32)front;
+	fakeevent.when = event->when;
+	fakeevent.where = event->where;
+	fakeevent.modifiers =
+	    (event->message & resumeFlag) ? activeFlag : 0;
+	mac_activatewindow(front, &fakeevent);
     }
 }
 

@@ -1,4 +1,4 @@
-/* $Id: macpgen.r,v 1.4 2003/02/20 22:55:09 ben Exp $ */
+/* $Id: macpgen.r,v 1.5 2003/02/23 13:31:12 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -58,10 +58,10 @@ resource 'pGen' (0, purgeable) {
 
 resource 'SIZE' (-1) {
     reserved,
-    ignoreSuspendResumeEvents,
+    acceptSuspendResumeEvents,
     reserved,
     canBackground,
-    needsActivateOnFGSwitch,
+    doesActivateOnFGSwitch,
     backgroundAndForeground,
     dontGetFrontClicks,
     ignoreAppDiedEvents,
