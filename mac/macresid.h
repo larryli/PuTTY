@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.6 2003/01/25 15:15:40 ben Exp $ */
+/* $Id: macresid.h,v 1.7 2003/01/27 00:33:49 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -50,8 +50,3 @@
 
 /* Controls */
 #define cVScroll	128
-
-/* Preferences */
-#define PREF_wordness_type	'wORD'
-
-#define PREF_settings		1024
