@@ -100,10 +100,31 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     {
 	char *p;
 
+	default_protocol = DEFAULT_PROTOCOL;
+	default_port = DEFAULT_PORT;
+
 	do_defaults(NULL);
 
 	p = cmdline;
 	while (*p && isspace(*p)) p++;
+
+	/*
+	 * Process command line options first. Yes, this can be
+	 * done better, and it will be as soon as I have the
+	 * energy...
+	 */
+	while (*p == '-') {
+	    char *q = p + strcspn(p, " \t");
+	    p++;
+	    if (q == p + 3 &&
+		tolower(p[0]) == 's' &&
+		tolower(p[1]) == 's' &&
+		tolower(p[2]) == 'h') {
+		default_protocol = cfg.protocol = PROT_SSH;
+		default_port = cfg.port = 22;
+	    }
+	    p = q + strspn(q, " \t");
+	}
 
 	/*
 	 * An initial @ means to activate a saved session.

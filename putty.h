@@ -130,7 +130,20 @@ typedef struct {
     short wordness[256];
 } Config;
 
+/*
+ * You can compile with -DSSH_DEFAULT to have ssh by default.
+ */
+#ifndef SSH_DEFAULT
+#define DEFAULT_PROTOCOL PROT_TELNET
+#define DEFAULT_PORT 23
+#else
+#define DEFAULT_PROTOCOL PROT_SSH
+#define DEFAULT_PORT 22
+#endif
+
 GLOBAL Config cfg;
+GLOBAL int default_protocol;
+GLOBAL int default_port;
 
 /*
  * Exports from window.c.

@@ -210,6 +210,7 @@ static void load_settings (char *section, int do_host) {
     int i;
     HKEY subkey1, sesskey;
     char *p;
+    char prot[10];
 
     p = malloc(3*strlen(section)+1);
     mungestr(section, p);
@@ -225,20 +226,16 @@ static void load_settings (char *section, int do_host) {
 
     free(p);
 
-    if (do_host) {
-	char prot[10];
-	gpps (sesskey, "HostName", "", cfg.host, sizeof(cfg.host));
-	gppi (sesskey, "PortNumber", 23, &cfg.port);
-	gpps (sesskey, "Protocol", "telnet", prot, 10);
-	if (!strcmp(prot, "ssh"))
-	    cfg.protocol = PROT_SSH;
-	else
-	    cfg.protocol = PROT_TELNET;
-    } else {
+    gpps (sesskey, "HostName", "", cfg.host, sizeof(cfg.host));
+    gppi (sesskey, "PortNumber", default_port, &cfg.port);
+    gpps (sesskey, "Protocol", "default", prot, 10);
+    if (!strcmp(prot, "ssh"))
+	cfg.protocol = PROT_SSH;
+    else if (!strcmp(prot, "telnet"))
 	cfg.protocol = PROT_TELNET;
-	cfg.port = 23;
-	*cfg.host = '\0';
-    }
+    else
+	cfg.protocol = default_protocol;
+
     gppi (sesskey, "CloseOnExit", 1, &cfg.close_on_exit);
     gpps (sesskey, "TerminalType", "xterm", cfg.termtype,
 	  sizeof(cfg.termtype));
