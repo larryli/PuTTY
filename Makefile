@@ -216,3 +216,8 @@ clean:
 	del *.ilk
 	del *.pdb
 	del *.rsp
+	del *.dsp
+	del *.dsw
+	del *.ncb
+	del *.opt
+	del *.plg

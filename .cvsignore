@@ -1,2 +1,3 @@
-*.pdb *.ilk *.res *.RES *.pch *.rsp *.obj *.exe
+*.pdb *.ilk *.res *.RES *.pch *.rsp *.obj *.exe *.ncb *.plg *.dsw *.opt *.dsp
+mkres mkres.exe
 Makefile.bor Makefile.cyg
