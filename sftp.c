@@ -349,7 +349,7 @@ static struct sftp_request *sftp_alloc_request(void)
 
 void sftp_cleanup_request(void)
 {
-    if (sftp_requests == NULL) {
+    if (sftp_requests != NULL) {
 	freetree234(sftp_requests);
 	sftp_requests = NULL;
     }
