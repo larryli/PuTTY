@@ -1976,7 +1976,7 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, &sl, midsession, cfg->protocol, protcfginfo);
-    unix_setup_config_box(ctrlbox, midsession, window);
+    unix_setup_config_box(ctrlbox, midsession);
     gtk_setup_config_box(ctrlbox, midsession, window);
 
     gtk_window_set_title(GTK_WINDOW(window), title);

@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-void unix_setup_config_box(struct controlbox *b, int midsession, void *win)
+void unix_setup_config_box(struct controlbox *b, int midsession)
 {
     struct controlset *s;
     union control *c;
