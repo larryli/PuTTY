@@ -1094,7 +1094,7 @@ int decode_codepage(char *cp_name)
     return codepage;
 }
 
-char *cp_name(int codepage)
+const char *cp_name(int codepage)
 {
     const struct cp_list_item *cpi, *cpno;
     static char buf[32];
@@ -1134,7 +1134,7 @@ char *cp_name(int codepage)
  * Return the nth code page in the list, for use in the GUI
  * configurer.
  */
-char *cp_enumerate(int index)
+const char *cp_enumerate(int index)
 {
     if (index < 0 || index >= lenof(cp_list))
 	return NULL;

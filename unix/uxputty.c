@@ -14,12 +14,6 @@
 /*
  * TODO:
  * 
- *  - libcharset enumeration.
- * 
- *  - fix the printer enum (I think the sensible thing is simply to
- *    have uxcfg.c remove the drop-down list completely, since you
- *    can't sensibly provide an enumerated list of lpr commands!).
- * 
  *  - Remainder of the context menu:
  * 
  *     - Event Log (this means we must implement the Event Log; not
@@ -71,27 +65,6 @@ void cleanup_exit(int code)
     sk_cleanup();
     random_save_seed();
     exit(code);
-}
-
-/*
- * Another bunch of temporary stub functions. These ones will want
- * removing by means of implementing them properly: libcharset
- * should invent its own sensible format for codepage names and a
- * means of enumerating them, and printer_enum needs to be dealt
- * with somehow or other too.
- */
-
-char *cp_name(int codepage)
-{
-    return "";
-}
-char *cp_enumerate(int index)
-{
-    return NULL;
-}
-int decode_codepage(char *cp_name)
-{
-    return -2;
 }
 
 const char *const appname = "PuTTY";

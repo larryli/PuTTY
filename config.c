@@ -162,7 +162,7 @@ static void codepage_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
     if (event == EVENT_REFRESH) {
 	int i;
-	char *cp;
+	const char *cp;
 	dlg_update_start(ctrl, dlg);
 	strcpy(cfg->line_codepage,
 	       cp_name(decode_codepage(cfg->line_codepage)));

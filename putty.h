@@ -728,8 +728,8 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);
-char *cp_enumerate (int index);
-char *cp_name(int codepage);
+const char *cp_enumerate (int index);
+const char *cp_name(int codepage);
 void get_unitab(int codepage, wchar_t * unitab, int ftype);
 
 /*

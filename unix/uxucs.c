@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "putty.h"
+#include "charset.h"
 #include "terminal.h"
 #include "misc.h"
 
@@ -122,9 +123,7 @@ int init_ucs(struct unicode_data *ucsdata,
      * line_codepage should be decoded from the specification in
      * cfg.
      */
-    ucsdata->line_codepage = charset_from_mimeenc(linecharset);
-    if (ucsdata->line_codepage == CS_NONE)
-	ucsdata->line_codepage = charset_from_xenc(linecharset);
+    ucsdata->line_codepage = decode_codepage(linecharset);
 
     /*
      * If line_codepage is _still_ CS_NONE, we assume we're using
@@ -217,4 +216,29 @@ int init_ucs(struct unicode_data *ucsdata,
     }
 
     return ret;
+}
+
+const char *cp_name(int codepage)
+{
+    if (codepage == CS_NONE)
+	return "Use font encoding";
+    return charset_to_localenc(codepage);
+}
+
+const char *cp_enumerate(int index)
+{
+    int charset;
+    if (index == 0)
+	return "Use font encoding";
+    charset = charset_localenc_nth(index-1);
+    if (charset == CS_NONE)
+	return NULL;
+    return charset_to_localenc(charset);
+}
+
+int decode_codepage(char *cp_name)
+{
+    if (!*cp_name)
+	return CS_NONE;		       /* use font encoding */
+    return charset_from_localenc(cp_name);
 }

@@ -124,7 +124,7 @@ MACMISC  = misc version macstore settings tree234 macnet mtcpnet otnet proxy
          + macmisc macabout
 
 # Character set library, for use in pterm.
-CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc
+CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
 
 # Standard libraries, and the same with WinSocks 1 and 2.
 LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib

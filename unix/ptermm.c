@@ -9,27 +9,6 @@
 
 const char *const appname = "pterm";
 
-/*
- * Another bunch of temporary stub functions. These ones will want
- * removing by means of implementing them properly: libcharset
- * should invent its own sensible format for codepage names and a
- * means of enumerating them, and printer_enum needs to be dealt
- * with somehow or other too.
- */
-
-char *cp_name(int codepage)
-{
-    return "";
-}
-char *cp_enumerate(int index)
-{
-    return NULL;
-}
-int decode_codepage(char *cp_name)
-{
-    return -2;
-}
-
 Backend *select_backend(Config *cfg)
 {
     return &pty_backend;

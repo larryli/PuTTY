@@ -137,6 +137,14 @@ const char *charset_to_mimeenc(int charset);
 int charset_from_mimeenc(const char *name);
 
 /*
+ * Convert our own encoding names to and from our charset
+ * identifiers.
+ */
+const char *charset_to_localenc(int charset);
+int charset_from_localenc(const char *name);
+int charset_localenc_nth(int n);
+
+/*
  * Convert Mac OS script/region/font to our charset identifiers.
  */
 int charset_from_macenc(int script, int region, int sysvers,
