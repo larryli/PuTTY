@@ -691,8 +691,9 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 
 /* Temporary null routines for testing. */
 
-void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint)
+int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+                        char *keystr, char *fingerprint,
+                        void (*callback)(void *ctx, int result), void *ctx)
 {
     Str255 pappname;
     Str255 pfingerprint;
@@ -705,64 +706,55 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     c2pstrcpy(pfingerprint, fingerprint);
 
     /*
-     * This function is horribly wrong.  For one thing, the alert
-     * shouldn't be modal, it should be movable modal, or a sheet in
-     * Aqua.  Also, PuTTY might be in the background, in which case we
-     * should use the Notification Manager to wake up the user.  In
-     * any case, we shouldn't hold up processing of other connections'
-     * data just because this one's waiting for the user. Also see the
-     * note below about closing the connection.  All in all, a bit of
-     * a mess really.
+     * The alert shouldn't be modal, it should be movable modal, or
+     * a sheet in Aqua.  Also, PuTTY might be in the background, in
+     * which case we should use the Notification Manager to wake up
+     * the user.  In any case, we shouldn't hold up processing of
+     * other connections' data just because this one's waiting for
+     * the user.
      */
 
     /* Verify the key against the cache */
 
     ret = verify_host_key(host, port, keytype, keystr);
 
-    if (ret == 0)		       /* success - key matched OK */
-	return;
-    if (ret == 2) {		       /* key was different */
+    if (ret == 0) {		       /* success - key matched OK */
+	return 1;
+    } else if (ret == 2) {	       /* key was different */
 	ParamText(pappname, pkeytype, pfingerprint, NULL);
 	alertret=CautionAlert(wWrong, NULL);
 	if (alertret == 8) {
 	    /* Cancel */
-	    goto cancel;
+            return 0;
 	} else if (alertret == 9) {
 	    /* Connect Just Once */
+            return 1;
 	} else {
 	    /* Update Key */
 	    store_host_key(host, port, keytype, keystr);
+            return 1;
 	}
-    }
-    if (ret == 1) {                     /* key was absent */
+    } else /* ret == 1 */ {	       /* key was absent */
 	ParamText(pkeytype, pfingerprint, pappname, NULL);
 	alertret=CautionAlert(wAbsent, NULL);
 	if (alertret == 7) {
 	    /* Cancel */
-	    goto cancel;
+            return 0;
 	} else if (alertret == 8) {
 	    /* Connect Just Once */
+            return 1;
 	} else {
 	    /* Update Key */
 	    store_host_key(host, port, keytype, keystr);
+            return 1;
 	}
     }
-
-    return;
-
-  cancel:
-    /*
-     * User chose "Cancel".  Unfortunately, if I tear the
-     * connection down here, Bad Things happen when I return.  I
-     * think this function should actually return something
-     * telling the SSH code to abandon the connection.
-     */	
-    return;
 }
 
-void askalg(void *frontend, const char *algtype, const char *algname)
+int askalg(void *frontend, const char *algtype, const char *algname,
+	   void (*callback)(void *ctx, int result), void *ctx)
 {
-
+    return 0;
 }
 
 void old_keyfile_warning(void)

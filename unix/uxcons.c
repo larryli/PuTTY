@@ -47,8 +47,9 @@ void timer_change_notify(long next)
 {
 }
 
-void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint)
+int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+                        char *keystr, char *fingerprint,
+                        void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
 
@@ -107,12 +108,12 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     ret = verify_host_key(host, port, keytype, keystr);
 
     if (ret == 0)		       /* success - key matched OK */
-	return;
+	return 1;
 
     if (ret == 2) {		       /* key was different */
 	if (console_batch_mode) {
 	    fprintf(stderr, wrongmsg_batch, keytype, fingerprint);
-	    cleanup_exit(1);
+	    return 0;
 	}
 	fprintf(stderr, wrongmsg, keytype, fingerprint);
 	fflush(stderr);
@@ -120,7 +121,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (ret == 1) {		       /* key was absent */
 	if (console_batch_mode) {
 	    fprintf(stderr, absentmsg_batch, keytype, fingerprint);
-	    cleanup_exit(1);
+	    return 0;
 	}
 	fprintf(stderr, absentmsg, keytype, fingerprint);
 	fflush(stderr);
@@ -140,9 +141,10 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
 	if (line[0] == 'y' || line[0] == 'Y')
 	    store_host_key(host, port, keytype, keystr);
+        return 1;
     } else {
 	fprintf(stderr, abandoned);
-	cleanup_exit(0);
+        return 0;
     }
 }
 
@@ -150,7 +152,8 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-void askalg(void *frontend, const char *algtype, const char *algname)
+int askalg(void *frontend, const char *algtype, const char *algname,
+	   void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msg[] =
 	"The first %s supported by the server is\n"
@@ -166,7 +169,7 @@ void askalg(void *frontend, const char *algtype, const char *algname)
 
     if (console_batch_mode) {
 	fprintf(stderr, msg_batch, algtype, algname);
-	cleanup_exit(1);
+	return 0;
     }
 
     fprintf(stderr, msg, algtype, algname);
@@ -184,10 +187,10 @@ void askalg(void *frontend, const char *algtype, const char *algname)
     }
 
     if (line[0] == 'y' || line[0] == 'Y') {
-	return;
+	return 1;
     } else {
 	fprintf(stderr, abandoned);
-	cleanup_exit(0);
+	return 0;
     }
 }
 

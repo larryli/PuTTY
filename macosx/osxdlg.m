@@ -311,16 +311,104 @@ int askappend(void *frontend, Filename filename)
     return 0;			       /* FIXME */
 }
 
-void askalg(void *frontend, const char *algtype, const char *algname)
+struct algstate {
+    void (*callback)(void *ctx, int result);
+    void *ctx;
+};
+
+static void askalg_callback(void *ctx, int result)
 {
-    fatalbox("Cipher algorithm dialog box not supported yet");
-    return;			       /* FIXME */
+    struct algstate *state = (struct algstate *)ctx;
+
+    state->callback(state->ctx, result == 0);
+    sfree(state);
 }
 
-void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint)
+int askalg(void *frontend, const char *algtype, const char *algname,
+	   void (*callback)(void *ctx, int result), void *ctx)
 {
+    static const char msg[] =
+	"The first %s supported by the server is "
+	"%s, which is below the configured warning threshold.\n"
+	"Continue with connection?";
+
+    char *text;
+    SessionWindow *win = (SessionWindow *)frontend;
+    struct algstate *state;
+    NSAlert *alert;
+
+    text = dupprintf(msg, algtype, algname);
+
+    state = snew(struct algstate);
+    state->callback = callback;
+    state->ctx = ctx;
+
+    alert = [NSAlert alloc];
+    [alert setInformativeText:[NSString stringWithCString:text]];
+    [alert addButtonWithTitle:@"Yes"];
+    [alert addButtonWithTitle:@"No"];
+    [win startAlert:alert withCallback:askalg_callback andCtx:state];
+
+    return -1;
+}
+
+struct hostkeystate {
+    char *host, *keytype, *keystr;
+    int port;
+    void (*callback)(void *ctx, int result);
+    void *ctx;
+};
+
+static void verify_ssh_host_key_callback(void *ctx, int result)
+{
+    struct hostkeystate *state = (struct hostkeystate *)ctx;
+
+    if (result == NSAlertThirdButtonReturn)   /* `Accept' */
+	store_host_key(state->host, state->port,
+		       state->keytype, state->keystr);
+    state->callback(state->ctx, result != NSAlertFirstButtonReturn);
+    sfree(state->host);
+    sfree(state->keytype);
+    sfree(state->keystr);
+    sfree(state);
+}
+
+int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+                        char *keystr, char *fingerprint,
+                        void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char absenttxt[] =
+	"The server's host key is not cached. You have no guarantee "
+	"that the server is the computer you think it is.\n"
+	"The server's %s key fingerprint is:\n"
+	"%s\n"
+	"If you trust this host, press \"Accept\" to add the key to "
+	"PuTTY's cache and carry on connecting.\n"
+	"If you want to carry on connecting just once, without "
+	"adding the key to the cache, press \"Connect Once\".\n"
+	"If you do not trust this host, press \"Cancel\" to abandon the "
+	"connection.";
+    static const char wrongtxt[] =
+	"WARNING - POTENTIAL SECURITY BREACH!\n"
+	"The server's host key does not match the one PuTTY has "
+	"cached. This means that either the server administrator "
+	"has changed the host key, or you have actually connected "
+	"to another computer pretending to be the server.\n"
+	"The new %s key fingerprint is:\n"
+	"%s\n"
+	"If you were expecting this change and trust the new key, "
+	"press \"Accept\" to update PuTTY's cache and continue connecting.\n"
+	"If you want to carry on connecting but without updating "
+	"the cache, press \"Connect Once\".\n"
+	"If you want to abandon the connection completely, press "
+	"\"Cancel\" to cancel. Pressing \"Cancel\" is the ONLY guaranteed "
+	"safe choice.";
+
     int ret;
+    char *text;
+    SessionWindow *win = (SessionWindow *)frontend;
+    struct hostkeystate *state;
+    NSAlert *alert;
 
     /*
      * Verify the key.
@@ -328,30 +416,27 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     ret = verify_host_key(host, port, keytype, keystr);
 
     if (ret == 0)
-	return;
+	return 1;
 
-    /*
-     * FIXME FIXME FIXME. I currently lack any sensible means of
-     * asking the user for a verification non-application-modally,
-     * _or_ any means of closing just this connection if the answer
-     * is no (the Unix and Windows ports just exit() in this
-     * situation since they're one-connection-per-process).
-     * 
-     * What I need to do is to make this function optionally-
-     * asynchronous, much like the interface to agent_query(). It
-     * can either run modally and return a result directly, _or_ it
-     * can kick off a non-modal dialog, return a `please wait'
-     * status, and the dialog can call the backend back when the
-     * result comes in. Also, in either case, the aye/nay result
-     * wants to be passed to the backend so that it can tear down
-     * the connection if the answer was nay.
-     * 
-     * For the moment, I simply bomb out if we have an unrecognised
-     * host key. This makes this port safe but not very useful: you
-     * can only use it at all if you already have a host key cache
-     * set up by running the Unix port.
-     */
-    fatalbox("Host key dialog box not supported yet");
+    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype, fingerprint);
+
+    state = snew(struct hostkeystate);
+    state->callback = callback;
+    state->ctx = ctx;
+    state->host = dupstr(host);
+    state->port = port;
+    state->keytype = dupstr(keytype);
+    state->keystr = dupstr(keystr);
+
+    alert = [[NSAlert alloc] init];
+    [alert setInformativeText:[NSString stringWithCString:text]];
+    [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:@"Connect Once"];
+    [alert addButtonWithTitle:@"Accept"];
+    [win startAlert:alert withCallback:verify_ssh_host_key_callback
+     andCtx:state];
+
+    return -1;
 }
 
 void old_keyfile_warning(void)

@@ -207,6 +207,8 @@
 {
     NSRect rect = { {0,0}, {0,0} };
 
+    alert_ctx = NULL;
+
     cfg = aCfg;			       /* structure copy */
 
     init_ucs(&ucsdata, cfg.line_codepage, cfg.utf8_override,
@@ -307,6 +309,7 @@
      * terminal, the backend, the ldisc, the logctx, you name it.
      * Do so.
      */
+    sfree(alert_ctx);
     [super dealloc];
 }
 
@@ -776,6 +779,23 @@ printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
 - (int)fromBackend:(const char *)data len:(int)len isStderr:(int)is_stderr
 {
     return term_data(term, is_stderr, data, len);
+}
+
+- (void)startAlert:(NSAlert *)alert
+    withCallback:(void (*)(void *, int))callback andCtx:(void *)ctx
+{
+    alert_callback = callback;
+    alert_ctx = ctx;		     /* NB this is assumed to need freeing! */
+    [alert beginSheetModalForWindow:self modalDelegate:self
+     didEndSelector:@selector(alertSheetDidEnd:returnCode:contextInfo:)
+     contextInfo:NULL];
+}
+
+- (void)alertSheetDidEnd:(NSAlert *)alert returnCode:(int)returnCode
+    contextInfo:(void *)contextInfo
+{
+    alert_callback(alert_ctx, returnCode);   /* transfers ownership of ctx */
+    alert_ctx = NULL;
 }
 
 @end

@@ -896,9 +896,26 @@ int wc_unescape(char *output, const char *wildcard);
  * Exports from windlg.c
  */
 void logevent(void *frontend, const char *);
-void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint);
-void askalg(void *frontend, const char *algtype, const char *algname);
+/*
+ * verify_ssh_host_key() can return one of three values:
+ * 
+ *  - +1 means `key was OK' (either already known or the user just
+ *    approved it) `so continue with the connection'
+ * 
+ *  - 0 means `key was not OK, abandon the connection'
+ * 
+ *  - -1 means `I've initiated enquiries, please wait to be called
+ *    back via the provided function with a result that's either 0
+ *    or +1'.
+ */
+int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+                        char *keystr, char *fingerprint,
+                        void (*callback)(void *ctx, int result), void *ctx);
+/*
+ * askalg has the same set of return values as verify_ssh_host_key.
+ */
+int askalg(void *frontend, const char *algtype, const char *algname,
+	   void (*callback)(void *ctx, int result), void *ctx);
 int askappend(void *frontend, Filename filename);
 
 /*

@@ -40,6 +40,8 @@ extern AppController *controller;
     void *ldisc;
     Backend *back;
     void *backhandle;
+    void (*alert_callback)(void *, int);
+    void *alert_ctx;
 }
 - (id)initWithConfig:(Config)cfg;
 - (void)drawStartFinish:(BOOL)start;
@@ -48,6 +50,8 @@ extern AppController *controller;
 - (void)doText:(wchar_t *)text len:(int)len x:(int)x y:(int)y
     attr:(unsigned long)attr lattr:(int)lattr;
 - (int)fromBackend:(const char *)data len:(int)len isStderr:(int)is_stderr;
+- (void)startAlert:(NSAlert *)alert
+    withCallback:(void (*)(void *, int))callback andCtx:(void *)ctx;
 @end
 
 /*

@@ -16,13 +16,6 @@ version of the port decides to look somewhere completely different
 for the data and therefore loses them all. If that happens, don't
 say you weren't warned!
 
-Even more importantly, the alert box that confirms host keys is not
-yet implemented, and the application will bomb out and exit if it
-should be needed. This means you cannot make an SSH connection to a
-new host using the GUI PuTTY in this port: you must first run
-`plink' (which should be exactly identical to the version in the
-Unix port) and tell it to confirm the host key.
-
 Other ways in which the port is currently unfinished include:
 
  - terminal display is horribly slow

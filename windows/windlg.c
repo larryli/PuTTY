@@ -723,8 +723,9 @@ static VOID CALLBACK verify_ssh_host_key_help(LPHELPINFO lpHelpInfo)
     }
 }
 
-void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-			 char *keystr, char *fingerprint)
+int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
+                        char *keystr, char *fingerprint,
+                        void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
 
@@ -782,7 +783,7 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
     ret = verify_host_key(host, port, keytype, keystr);
 
     if (ret == 0)		       /* success - key matched OK */
-	return;
+	return 1;
     if (ret == 2) {		       /* key was different */
 	int mbret;
 	mbox.lpszText = dupprintf(wrongmsg, appname, keytype, fingerprint,
@@ -797,7 +798,8 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
 	if (mbret == IDCANCEL)
-	    cleanup_exit(0);
+	    return 0;
+        return 1;
     }
     if (ret == 1) {		       /* key was absent */
 	int mbret;
@@ -812,7 +814,8 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	if (mbret == IDYES)
 	    store_host_key(host, port, keytype, keystr);
 	if (mbret == IDCANCEL)
-	    cleanup_exit(0);
+	    return 0;
+        return 1;
     }
 }
 
@@ -820,7 +823,8 @@ void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-void askalg(void *frontend, const char *algtype, const char *algname)
+int askalg(void *frontend, const char *algtype, const char *algname,
+	   void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
@@ -838,9 +842,9 @@ void askalg(void *frontend, const char *algtype, const char *algname)
     sfree(message);
     sfree(title);
     if (mbret == IDYES)
-	return;
+	return 1;
     else
-	cleanup_exit(0);
+	return 0;
 }
 
 /*
