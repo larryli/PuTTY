@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <stdio.h>
 #include "putty.h"
 
 static unsigned char win2koi[] =
