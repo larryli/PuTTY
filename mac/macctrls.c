@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.3 2003/03/18 19:06:51 simon Exp $ */
+/* $Id: macctrls.c,v 1.4 2003/03/18 23:41:14 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -365,6 +365,13 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
 	SetControlData(mc->button.tbctrl, kControlEntireControl,
 		       kControlPushButtonDefaultTag,
 		       sizeof(isdefault), &isdefault);
+    }
+    if (mac_gestalts.apprvers >= 0x110) {
+	Boolean iscancel = ctrl->button.iscancel;
+
+	SetControlData(mc->button.tbctrl, kControlEntireControl,
+		       kControlPushButtonCancelTag,
+		       sizeof(iscancel), &iscancel);
     }
     add234(mcs->byctrl, mc);
     curstate->pos.v += 26;
