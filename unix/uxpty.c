@@ -70,7 +70,7 @@
 #endif
 
 static Config pty_cfg;
-static int pty_master_fd;
+static int pty_master_fd, pty_slave_fd;
 static void *pty_frontend;
 static char pty_name[FILENAME_MAX];
 static int pty_signal_pipe[2];
@@ -186,6 +186,14 @@ static void fatal_sig_handler(int signum)
 }
 #endif
 
+static int pty_open_slave(void)
+{
+    if (pty_slave_fd < 0)
+	pty_slave_fd = open(pty_name, O_RDWR);
+
+    return pty_slave_fd;
+}
+
 static void pty_open_master(void)
 {
 #ifdef BSD_PTYS
@@ -201,8 +209,24 @@ static void pty_open_master(void)
 	    pty_master_fd = open(master_name, O_RDWR);
 	    if (pty_master_fd >= 0) {
 		if (geteuid() == 0 ||
-		    access(master_name, R_OK | W_OK) == 0)
-		    goto got_one;
+		    access(master_name, R_OK | W_OK) == 0) {
+		    /*
+		     * We must also check at this point that we are
+		     * able to open the slave side of the pty. We
+		     * wouldn't want to allocate the wrong master,
+		     * get all the way down to forking, and _then_
+		     * find we're unable to open the slave.
+		     */
+		    strcpy(pty_name, master_name);
+		    pty_name[5] = 't'; /* /dev/ptyXX -> /dev/ttyXX */
+
+		    if (pty_open_slave() >= 0 &&
+			access(pty_name, R_OK | W_OK) == 0)
+			goto got_one;
+		    if (pty_slave_fd > 0)
+			close(pty_slave_fd);
+		    pty_slave_fd = -1;
+		}
 		close(pty_master_fd);
 	    }
 	}
@@ -212,8 +236,6 @@ static void pty_open_master(void)
     exit(1);
 
     got_one:
-    strcpy(pty_name, master_name);
-    pty_name[5] = 't';		       /* /dev/ptyXX -> /dev/ttyXX */
 
     /* We need to chown/chmod the /dev/ttyXX device. */
     gp = getgrnam("tty");
@@ -265,7 +287,7 @@ void pty_pre_init(void)
     /* set the child signal handler straight away; it needs to be set
      * before we ever fork. */
     putty_signal(SIGCHLD, sigchld_handler);
-    pty_master_fd = -1;
+    pty_master_fd = pty_slave_fd = -1;
 
     if (geteuid() != getuid() || getegid() != getgid()) {
 	pty_open_master();
@@ -564,7 +586,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	 * We are the child.
 	 */
 
-	slavefd = open(pty_name, O_RDWR);
+	slavefd = pty_open_slave();
 	if (slavefd < 0) {
 	    perror("slave pty: open");
 	    _exit(1);
@@ -652,7 +674,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	pty_child_pid = pid;
 	pty_child_dead = FALSE;
 	pty_finished = FALSE;
-    }      
+	if (pty_slave_fd > 0)
+	    close(pty_slave_fd);
+    }
 
     if (pipe(pty_signal_pipe) < 0) {
 	perror("pipe");
