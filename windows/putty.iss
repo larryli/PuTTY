@@ -34,10 +34,10 @@ Source: "pscp.exe"; DestDir: "{app}"
 Source: "psftp.exe"; DestDir: "{app}"
 Source: "plink.exe"; DestDir: "{app}"
 Source: "website.url"; DestDir: "{app}"
-Source: "doc\putty.hlp"; DestDir: "{app}"
-Source: "doc\putty.cnt"; DestDir: "{app}"
-Source: "LICENCE"; DestDir: "{app}"
-Source: "README.txt"; DestDir: "{app}"; Flags: isreadme
+Source: "..\doc\putty.hlp"; DestDir: "{app}"
+Source: "..\doc\putty.cnt"; DestDir: "{app}"
+Source: "..\LICENCE"; DestDir: "{app}"
+Source: "..\README.txt"; DestDir: "{app}"; Flags: isreadme
 
 [Icons]
 Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: startmenu
