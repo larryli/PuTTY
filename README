@@ -1,4 +1,5 @@
-This is the README for PuTTY, a free Win32 Telnet and SSH client.
+This is the README for the source archive of PuTTY, a free Win32
+Telnet and SSH client.
 
 If you want to rebuild PuTTY from source, we provide three
 Makefiles:
@@ -40,9 +41,9 @@ The PuTTY home web site is
 
     http://www.chiark.greenend.org.uk/~sgtatham/putty/
 
-Bug reports and feature requests should be sent to
-<putty@projects.tartarus.org>. PLEASE read the section on the web
-site about how to report bugs effectively. Do NOT send one-line
-reports saying `it doesn't work'!
+If you want to send bug reports or feature requests, please read the
+Feedback section of the web site before doing so. Sending one-line
+reports saying `it doesn't work' will waste your time as much as
+ours.
 
 See the file LICENCE for the licence conditions.
