@@ -1539,18 +1539,20 @@ void term_out(void)
 			break;
 		      case 'e':       /* move down N lines */
 			compatibility(ANSI);
+			/* FALLTHROUGH */
 		      case 'B':
 			move(curs.x, curs.y + def(esc_args[0], 1), 1);
 			seen_disp_event = TRUE;
 			break;
-		      case 'a':       /* move right N cols */
-			compatibility(ANSI);
 		      case ANSI('c', '>'):	/* report xterm version */
 			compatibility(OTHER);
 			/* this reports xterm version 136 so that VIM can
 			   use the drag messages from the mouse reporting */
 			ldisc_send("\033[>0;136;0c", 11);
 			break;
+		      case 'a':       /* move right N cols */
+			compatibility(ANSI);
+			/* FALLTHROUGH */
 		      case 'C':
 			move(curs.x + def(esc_args[0], 1), curs.y, 1);
 			seen_disp_event = TRUE;
