@@ -2383,7 +2383,8 @@ static void ssh_process_queued_incoming_data(Ssh ssh)
 
 static void ssh_set_frozen(Ssh ssh, int frozen)
 {
-    sk_set_frozen(ssh->s, frozen);
+    if (ssh->s)
+	sk_set_frozen(ssh->s, frozen);
     ssh->frozen = frozen;
 }
 
@@ -5219,6 +5220,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (s->dlgret == 0) {
 		ssh->close_expected = TRUE;
 		ssh_closing((Plug)ssh, NULL, 0, 0);
+		crStop(0);
 	    }
 	}
 
@@ -5243,6 +5245,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (s->dlgret == 0) {
 		ssh->close_expected = TRUE;
 		ssh_closing((Plug)ssh, NULL, 0, 0);
+		crStop(0);
 	    }
 	}
 
@@ -5267,6 +5270,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (s->dlgret == 0) {
 		ssh->close_expected = TRUE;
 		ssh_closing((Plug)ssh, NULL, 0, 0);
+		crStop(0);
 	    }
 	}
 
