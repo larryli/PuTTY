@@ -546,20 +546,16 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&File");
 
-#if 0
-	    /*
-	     * Exporting not yet supported, but when we do it we
-	     * should just put this lot back in.
-	     */
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH,
 		       "Export &OpenSSH key");
+#if 0
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
+#endif
 
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
 		       "&Export");
-#endif
 
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");

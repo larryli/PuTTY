@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.26 2002/05/13 16:48:31 simon Exp $
+\versionid $Id: faq.but,v 1.27 2002/05/14 18:11:15 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -38,8 +38,9 @@ version 0.52.
 \cw{ssh.com} SSHv2 private key files?
 
 Version 0.52 doesn't, but in the latest development snapshots
-PuTTYgen can load OpenSSH and \cw{ssh.com} private keys. We plan to
-add an export feature so that it can save them as well.
+PuTTYgen can load OpenSSH and \cw{ssh.com} private keys, and save
+OpenSSH private keys. We plan to add exporting of \cw{ssh.com} keys
+as well.
 
 \S{faq-ssh1}{Question} Does PuTTY support SSH v1?
 

@@ -25,6 +25,7 @@
 
 int openssh_encrypted(char *filename);
 struct ssh2_userkey *openssh_read(char *filename, char *passphrase);
+int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase);
 
 int sshcom_encrypted(char *filename, char **comment);
 struct ssh2_userkey *sshcom_read(char *filename, char *passphrase);
@@ -103,9 +104,9 @@ int export_ssh1(char *filename, int type, struct RSAKey *key, char *passphrase)
 int export_ssh2(char *filename, int type,
                 struct ssh2_userkey *key, char *passphrase)
 {
-#if 0
     if (type == SSH_KEYTYPE_OPENSSH)
 	return openssh_write(filename, key, passphrase);
+#if 0
     if (type == SSH_KEYTYPE_SSHCOM)
 	return sshcom_write(filename, key, passphrase);
 #endif
@@ -125,7 +126,7 @@ int export_ssh2(char *filename, int type,
 extern int base64_decode_atom(char *atom, unsigned char *out);
 extern int base64_lines(int datalen);
 extern void base64_encode_atom(unsigned char *data, int n, char *out);
-extern void base64_encode(FILE * fp, unsigned char *data, int datalen);
+extern void base64_encode(FILE *fp, unsigned char *data, int datalen);
 
 /*
  * Read an ASN.1/BER identifier and length pair.
@@ -190,6 +191,67 @@ int ber_read_id_len(void *source, int sourcelen,
     return p - (unsigned char *) source;
 }
 
+/*
+ * Write an ASN.1/BER identifier and length pair. Returns the
+ * number of bytes consumed. Assumes dest contains enough space.
+ * Will avoid writing anything if dest is NULL, but still return
+ * amount of space required.
+ */
+int ber_write_id_len(void *dest, int id, int length, int flags)
+{
+    unsigned char *d = (unsigned char *)dest;
+    int len = 0;
+
+    if (id <= 30) {
+	/*
+	 * Identifier is one byte.
+	 */
+	len++;
+	if (d) *d++ = id | flags;
+    } else {
+	int n;
+	/*
+	 * Identifier is multiple bytes: the first byte is 11111
+	 * plus the flags, and subsequent bytes encode the value of
+	 * the identifier, 7 bits at a time, with the top bit of
+	 * each byte 1 except the last one which is 0.
+	 */
+	len++;
+	if (d) *d++ = 0x1F | flags;
+	for (n = 1; (id >> (7*n)) > 0; n++)
+	    continue;		       /* count the bytes */
+	while (n--) {
+	    len++;
+	    if (d) *d++ = (n ? 0x80 : 0) | ((id >> (7*n)) & 0x7F);
+	}
+    }
+
+    if (length < 128) {
+	/*
+	 * Length is one byte.
+	 */
+	len++;
+	if (d) *d++ = length;
+    } else {
+	int n;
+	/*
+	 * Length is multiple bytes. The first is 0x80 plus the
+	 * number of subsequent bytes, and the subsequent bytes
+	 * encode the actual length.
+	 */
+	for (n = 1; (length >> (8*n)) > 0; n++)
+	    continue;		       /* count the bytes */
+	len++;
+	if (d) *d++ = 0x80 | n;
+	while (n--) {
+	    len++;
+	    if (d) *d++ = (length >> (8*n)) & 0xFF;
+	}
+    }
+
+    return len;
+}
+
 static int put_string(void *target, void *data, int len)
 {
     unsigned char *d = (unsigned char *)target;
@@ -216,8 +278,32 @@ static int put_mp(void *target, void *data, int len)
     }
 }
 
+/* Simple structure to point to an mp-int within a blob. */
+struct mpint_pos { void *start; int bytes; };
+
+int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
+{
+    int bytes;
+    unsigned char *d = (unsigned char *) data;
+
+    if (len < 4)
+        goto error;
+    bytes = GET_32BIT(d);
+    if (len < 4+bytes)
+        goto error;
+
+    ret->start = d + 4;
+    ret->bytes = bytes;
+    return bytes+4;
+
+    error:
+    ret->start = NULL;
+    ret->bytes = -1;
+    return len;                        /* ensure further calls fail as well */
+}
+
 /* ----------------------------------------------------------------------
- * Code to read OpenSSH private keys.
+ * Code to read and write OpenSSH private keys.
  */
 
 enum { OSSH_DSA, OSSH_RSA };
@@ -573,6 +659,226 @@ struct ssh2_userkey *openssh_read(char *filename, char *passphrase)
     return retval;
 }
 
+int openssh_write(char *filename, struct ssh2_userkey *key, char *passphrase)
+{
+    unsigned char *pubblob, *privblob, *spareblob;
+    int publen, privlen, sparelen;
+    unsigned char *outblob;
+    int outlen;
+    struct mpint_pos numbers[9];
+    int nnumbers, pos, len, seqlen, i;
+    char *header, *footer;
+    char zero[1];
+    unsigned char iv[8];
+    int ret = 0;
+    FILE *fp;
+
+    /*
+     * Fetch the key blobs.
+     */
+    pubblob = key->alg->public_blob(key->data, &publen);
+    privblob = key->alg->private_blob(key->data, &privlen);
+    spareblob = outblob = NULL;
+
+    /*
+     * Find the sequence of integers to be encoded into the OpenSSH
+     * key blob, and also decide on the header line.
+     */
+    if (key->alg == &ssh_rsa) {
+        int pos;
+        struct mpint_pos n, e, d, p, q, iqmp, dmp1, dmq1;
+        Bignum bd, bp, bq, bdmp1, bdmq1;
+
+        pos = 4 + GET_32BIT(pubblob);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &e);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &n);
+        pos = 0;
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &d);
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &p);
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &q);
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &iqmp);
+
+        assert(e.start && iqmp.start); /* can't go wrong */
+
+        /* We also need d mod (p-1) and d mod (q-1). */
+        bd = bignum_from_bytes(d.start, d.bytes);
+        bp = bignum_from_bytes(p.start, p.bytes);
+        bq = bignum_from_bytes(q.start, q.bytes);
+        decbn(bp);
+        decbn(bq);
+        bdmp1 = bigmod(bd, bp);
+        bdmq1 = bigmod(bd, bq);
+        freebn(bd);
+        freebn(bp);
+        freebn(bq);
+
+        dmp1.bytes = (bignum_bitcount(bdmp1)+8)/8;
+        dmq1.bytes = (bignum_bitcount(bdmq1)+8)/8;
+        sparelen = dmp1.bytes + dmq1.bytes;
+        spareblob = smalloc(sparelen);
+        dmp1.start = spareblob;
+        dmq1.start = spareblob + dmp1.bytes;
+        for (i = 0; i < dmp1.bytes; i++)
+            spareblob[i] = bignum_byte(bdmp1, dmp1.bytes-1 - i);
+        for (i = 0; i < dmq1.bytes; i++)
+            spareblob[i+dmp1.bytes] = bignum_byte(bdmq1, dmq1.bytes-1 - i);
+        freebn(bdmp1);
+        freebn(bdmq1);
+
+        numbers[0].start = zero; numbers[0].bytes = 1; zero[0] = '\0';
+        numbers[1] = n;
+        numbers[2] = e;
+        numbers[3] = d;
+        numbers[4] = p;
+        numbers[5] = q;
+        numbers[6] = dmp1;
+        numbers[7] = dmq1;
+        numbers[8] = iqmp;
+
+        nnumbers = 9;
+        header = "-----BEGIN RSA PRIVATE KEY-----\n";
+        footer = "-----END RSA PRIVATE KEY-----\n";
+    } else if (key->alg == &ssh_dss) {
+        int pos;
+        struct mpint_pos p, q, g, y, x;
+
+        pos = 4 + GET_32BIT(pubblob);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &p);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &q);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &g);
+        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &y);
+        pos = 0;
+        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &x);
+
+        assert(y.start && x.start); /* can't go wrong */
+
+        numbers[0].start = zero; numbers[0].bytes = 1; zero[0] = '\0'; 
+        numbers[1] = p;
+        numbers[2] = q;
+        numbers[3] = g;
+        numbers[4] = y;
+        numbers[5] = x;
+
+        nnumbers = 6;
+        header = "-----BEGIN DSA PRIVATE KEY-----\n";
+        footer = "-----END DSA PRIVATE KEY-----\n";
+    } else {
+        assert(0);                     /* zoinks! */
+    }
+
+    /*
+     * Now count up the total size of the ASN.1 encoded integers,
+     * so as to determine the length of the containing SEQUENCE.
+     */
+    len = 0;
+    for (i = 0; i < nnumbers; i++) {
+	len += ber_write_id_len(NULL, 2, numbers[i].bytes, 0);
+	len += numbers[i].bytes;
+    }
+    seqlen = len;
+    /* Now add on the SEQUENCE header. */
+    len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
+    /* And round up to the cipher block size. */
+    if (passphrase)
+	len = (len+7) &~ 7;
+
+    /*
+     * Now we know how big outblob needs to be. Allocate it.
+     */
+    outlen = len;
+    outblob = smalloc(outlen);
+
+    /*
+     * And write the data into it.
+     */
+    pos = 0;
+    pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
+    for (i = 0; i < nnumbers; i++) {
+	pos += ber_write_id_len(outblob+pos, 2, numbers[i].bytes, 0);
+	memcpy(outblob+pos, numbers[i].start, numbers[i].bytes);
+	pos += numbers[i].bytes;
+    }
+    while (pos < outlen) {
+	outblob[pos++] = random_byte();
+    }
+
+    /*
+     * Encrypt the key.
+     */
+    if (passphrase) {
+	/*
+	 * Invent an iv. Then derive encryption key from passphrase
+	 * and iv/salt:
+	 * 
+	 *  - let block A equal MD5(passphrase || iv)
+	 *  - let block B equal MD5(A || passphrase || iv)
+	 *  - block C would be MD5(B || passphrase || iv) and so on
+	 *  - encryption key is the first N bytes of A || B
+	 */
+	struct MD5Context md5c;
+	unsigned char keybuf[32];
+
+	for (i = 0; i < 8; i++) iv[i] = random_byte();
+
+	MD5Init(&md5c);
+	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, iv, 8);
+	MD5Final(keybuf, &md5c);
+
+	MD5Init(&md5c);
+	MD5Update(&md5c, keybuf, 16);
+	MD5Update(&md5c, passphrase, strlen(passphrase));
+	MD5Update(&md5c, iv, 8);
+	MD5Final(keybuf+16, &md5c);
+
+	/*
+	 * Now encrypt the key blob.
+	 */
+	des3_encrypt_pubkey_ossh(keybuf, iv, outblob, outlen);
+
+        memset(&md5c, 0, sizeof(md5c));
+        memset(keybuf, 0, sizeof(keybuf));
+    }
+
+    /*
+     * And save it. We'll use Unix line endings just in case it's
+     * subsequently transferred in binary mode.
+     */
+    fp = fopen(filename, "wb");	       /* ensure Unix line endings */
+    if (!fp)
+	goto error;
+    fputs(header, fp);
+    if (passphrase) {
+	fprintf(fp, "Proc-Type: 4,ENCRYPTED\nDEK-Info: DES-EDE3-CBC,");
+	for (i = 0; i < 8; i++)
+	    fprintf(fp, "%02X", iv[i]);
+	fprintf(fp, "\n\n");
+    }
+    base64_encode(fp, outblob, outlen);
+    fputs(footer, fp);
+    fclose(fp);
+    ret = 1;
+
+    error:
+    if (outblob) {
+        memset(outblob, 0, outlen);
+        sfree(outblob);
+    }
+    if (spareblob) {
+        memset(spareblob, 0, sparelen);
+        sfree(spareblob);
+    }
+    if (privblob) {
+        memset(privblob, 0, privlen);
+        sfree(privblob);
+    }
+    if (pubblob) {
+        memset(pubblob, 0, publen);
+        sfree(pubblob);
+    }
+    return ret;
+}
+
 /* ----------------------------------------------------------------------
  * Code to read ssh.com private keys.
  */
@@ -810,8 +1116,6 @@ int sshcom_encrypted(char *filename, char **comment)
     sfree(key);
     return answer;
 }
-
-struct mpint_pos { void *start; int bytes; };
 
 int sshcom_read_mpint(void *data, int len, struct mpint_pos *ret)
 {
