@@ -1721,6 +1721,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     static int ignore_clip = FALSE;
     static int need_backend_resize = FALSE;
     static int fullscr_on_max = FALSE;
+    static UINT last_mousemove = 0;
 
     switch (message) {
       case WM_TIMER:
@@ -2160,7 +2161,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_MOUSEMOVE:
-	show_mouseptr(1);
+	{
+	    /*
+	     * Windows seems to like to occasionally send MOUSEMOVE
+	     * events even if the mouse hasn't moved. Don't unhide
+	     * the mouse pointer in this case.
+	     */
+	    static WPARAM wp = 0;
+	    static LPARAM lp = 0;
+	    if (wParam != wp || lParam != lp ||
+		last_mousemove != WM_MOUSEMOVE) {
+		show_mouseptr(1);
+		wp = wParam; lp = lParam;
+		last_mousemove = WM_MOUSEMOVE;
+	    }
+	}
 	/*
 	 * Add the mouse position and message time to the random
 	 * number noise.
@@ -2183,7 +2198,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_NCMOUSEMOVE:
-	show_mouseptr(1);
+	{
+	    static WPARAM wp = 0;
+	    static LPARAM lp = 0;
+	    if (wParam != wp || lParam != lp ||
+		last_mousemove != WM_NCMOUSEMOVE) {
+		show_mouseptr(1);
+		wp = wParam; lp = lParam;
+		last_mousemove = WM_NCMOUSEMOVE;
+	    }
+	}
 	noise_ultralight(lParam);
 	break;
       case WM_IGNORE_CLIP:
