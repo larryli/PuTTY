@@ -3497,7 +3497,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		 * This is a further prompt in keyboard-interactive
 		 * authentication. Do nothing.
 		 */
-	    } else if (!pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
+	    } else if (pktin.type != SSH2_MSG_USERAUTH_FAILURE) {
 		bombout(("Strange packet received during authentication: type %d",
 			 pktin.type));
 		crReturnV;
