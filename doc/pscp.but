@@ -1,6 +1,136 @@
+\versionid $Id: pscp.but,v 1.2 2001/01/27 16:26:55 owen Exp $
+
+\#FIXME: Need examples, index entries, links
+
 \C{pscp} Using PSCP to transfer files securely
 
 \# Explain PSCP: the command line, the modes of use (local->remote
 \# and remote->local, recursive, wildcards).
 
-\# Link to iXplorer.
+\H{pscp-intro} Introduction to PSCP
+
+PSCP, the PuTTY Secure Copy client, is a tool for transferring files
+securely between computers using an SSH connection.
+
+\H{pscp-starting} Starting PSCP
+
+PSCP is a command line application.  This means that you cannot just
+double-click on its icon to run it and instead you have to bring up a
+console window.  With Windows 95, 98, and ME, this is called an
+\q{MS-DOS Prompt} and with Windows NT and 2000 it is called a
+\q{Command Prompt}.  It should be available from the Programs section
+of your Start Menu.
+
+To start PSCP it will need either to be on your \c{PATH} or in your
+current directory.  To add the directory containing PSCP to your
+\c{PATH} environment variable, type into the console window:
+
+\c set PATH C:\path\to\putty\directory;%PATH%
+
+\# FIXME: or the Environment panel in NT, or something else in Win9x...
+
+\H{pscp-usage} PSCP Usage
+
+Once you've got a console window to type into, you can just type
+\c{pscp} on its own to bring up a usage message.  This tells you the
+version of PSCP you're using, and gives you a brief summary of how to
+use PSCP:
+
+\c Z:\owendadmin>pscp
+\c PuTTY Secure Copy client
+\c Release 0.50
+\c Usage: pscp [options] [user@]host:source target
+\c       pscp [options] source [source...] [user@]host:target
+\c       pscp [options] -ls user@host:filespec
+\c Options:
+\c   -p        preserve file attributes
+\c   -q        quiet, don't show statistics
+\c   -r        copy directories recursively
+\c   -v        show verbose messages
+\c   -P port   connect to specified port
+\c   -pw passw login with specified password
+
+(PSCP's interface is much like the Unix \c{scp} command, if you're
+familiar with that.)
+
+\S{pscp-usage-basics} The basics
+
+To receive (a) file(s) from a remote server: 
+
+\c{pscp [options] [user@]host:source target}
+
+To send (a) file(s) to a remote server: 
+
+\c{pscp [options] source [source...] [user@]host:target}
+
+\b \c{user} The login name on the remote server. If this is omitted, scp
+will try to use the default login from the PuTTY saved session.
+
+\b \c{host} The name of the remote server, or the name of an existing PuTTY
+saved session. In the latter case, the session's settings for
+hostname, port number, cipher type and username will be used.  
+
+\b \c{source} One or more source files. Wildcards are allowed.  
+
+\# FIXME: describe wildcard syntax
+
+\b \c{target} The filename or directory to put the file(s).  
+
+\S{pscp-usage-options} Options
+
+\# Document each command line option.
+
+\S2{pscp-usage-options-p}\c{-p} preserve file attributes
+
+By default, files copied with PSCP are timestamped with the date and
+time they were copied.  The \c{-p} option preserves the original
+timestamp on copied files.
+
+\S2{pscp-usage-options-q}\c{-q} quiet, don't show statistics
+
+By default, PSCP displays a meter displaying the progress of the
+current transfer:
+
+\c mibs.tar                  |        168 kB |  84.0 kB/s | ETA: 00:00:13 |  13%
+
+The fields in this display are (from left to right), filename, size
+(in kilobytes) of file transferred so far, estimate of how fast the
+file is being transferred (in kilobytes per second), estimated time
+that the transfer will be complete, and percentage of the file so far
+transferred.  The \c{-q} option to PSCP suppresses the printing of
+these statistics.
+
+\S2{pscp-usage-options-r}\c{-r} copies directories recursively
+
+\S2{pscp-usage-options-v}\c{-v} show verbose messages
+
+The \c{-v} option to PSCP makes it print extra information about the
+file transfer.  For example:
+
+\c Logging in as "fred".
+\c fred@example.com's password:
+\c Sending command: scp -v -f mibs.tar
+\c Connected to example.com
+\c Sending file modes: C0644 1320960 mibs.tar
+\c mibs.tar                  |       1290 kB |  67.9 kB/s | ETA: 00:00:00 | 100%
+\c Remote exit status 0
+\c Closing connection
+
+This information may be useful for debugging problems with PSCP.
+
+\S2{pscp-usage-options-P}\c{-P port} connect to specified port
+
+\# Defaults: Saved Session, or 22
+
+\S2{pscp-usage-options-pw}\c{-pw passw} login with specified password
+
+\# Default is to ask.  (May not be appropriate when running PSCP from
+\# batch scripts etc.)
+\# But should be using RSA key authentication (qv.) and possibly
+\# Pageant (qv.) anyway.
+
+\H{pscp-ixplorer} Secure iXplorer
+
+Lars Gunnarson has written a graphical interface for PSCP.  You can
+get it from his web site, at
+\W{http://www.i-tree.org/}{www.i-tree.org}.
