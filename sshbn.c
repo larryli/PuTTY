@@ -909,6 +909,7 @@ Bignum modinv(Bignum number, Bignum modulus)
 	x = bigmuladd(q, xp, t);
 	sign = -sign;
 	freebn(t);
+	freebn(q);
     }
 
     freebn(b);

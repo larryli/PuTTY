@@ -5198,6 +5198,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 		    ssh2_pkt_send(ssh);
 		    s->type = AUTH_TYPE_PUBLICKEY;
+		    key->alg->freekey(key->data);
 		}
 	    } else if (s->method == AUTH_PASSWORD) {
 		/*
