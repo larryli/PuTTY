@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.19 2002/01/23 09:43:10 simon Exp $
+\versionid $Id: faq.but,v 1.20 2002/02/04 13:52:05 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -179,6 +179,20 @@ the Windows System menu appears will be pretty much meaningless
 under X11 or perhaps other windowing systems, whereas Telnet Passive
 Mode is universal and shouldn't need to be specified once for each
 platform.
+
+\S{faq-ports-general}{Question} What ports of PuTTY exist?
+
+Currently, PuTTY only runs on full Win32 systems. This includes
+Windows 95, 98, and ME, and it includes Windows NT, Windows 2000 and
+Windows XP.
+
+It does \e{not} include Windows CE (see \k{faq-wince}), and it does
+not quite include the Win32s environment under Windows 3.1 (see
+\k{faq-win31}).
+
+We do not have ports for any other systems at the present time. If
+anyone told you we had a Unix port, or an iPaq port, or any other
+port of PuTTY, they were mistaken. We don't.
 
 \S{faq-wince}{Question} Will there be a port to Windows CE?
 
