@@ -18,7 +18,6 @@
 #include <sys/ioctl.h>
 
 #include "putty.h"
-#include "terminal.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -60,6 +59,7 @@ static char pty_name[FILENAME_MAX];
 static int pty_stamped_utmp = 0;
 static int pty_child_pid;
 static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
+static int pty_term_width, pty_term_height;
 static sig_atomic_t pty_child_dead;
 #ifndef OMIT_UTMP
 static struct utmp utmp_entry;
@@ -70,8 +70,6 @@ int pty_child_is_dead(void)
 {
     return pty_child_dead;
 }
-
-static void pty_size(void);
 
 static void setup_utmp(char *ttyname, char *location)
 {
@@ -379,6 +377,9 @@ static char *pty_init(void *frontend,
     int slavefd;
     pid_t pid, pgrp;
 
+    pty_term_width = cfg.width;
+    pty_term_height = cfg.height;
+
     if (pty_master_fd < 0)
 	pty_open_master();
 
@@ -519,14 +520,17 @@ static int pty_sendbuffer(void)
 /*
  * Called to set the size of the window
  */
-static void pty_size(void)
+static void pty_size(int width, int height)
 {
     struct winsize size;
 
-    size.ws_row = (unsigned short)term->rows;
-    size.ws_col = (unsigned short)term->cols;
-    size.ws_xpixel = (unsigned short) term->cols * font_dimension(0);
-    size.ws_ypixel = (unsigned short) term->rows * font_dimension(1);
+    pty_term_width = width;
+    pty_term_height = height;
+
+    size.ws_row = (unsigned short)pty_term_height;
+    size.ws_col = (unsigned short)pty_term_width;
+    size.ws_xpixel = (unsigned short) pty_term_width * font_dimension(0);
+    size.ws_ypixel = (unsigned short) pty_term_height * font_dimension(1);
     ioctl(pty_master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }

@@ -5,7 +5,6 @@
 #include <assert.h>
 
 #include "putty.h"
-#include "terminal.h"
 #include "tree234.h"
 #include "ssh.h"
 
@@ -535,6 +534,8 @@ static int ssh_send_ok;
 static int ssh_echoing, ssh_editing;
 
 static void *frontend;
+
+static int ssh_term_width, ssh_term_height;
 
 static tree234 *ssh_channels;	       /* indexed by local id */
 static struct ssh_channel *mainchan;   /* primary session channel */
@@ -3127,8 +3128,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
     if (!cfg.nopty) {
 	send_packet(SSH1_CMSG_REQUEST_PTY,
 		    PKT_STR, cfg.termtype,
-		    PKT_INT, term ? term->rows : 24,
-		    PKT_INT, term ? term->cols : 80,
+		    PKT_INT, ssh_term_height,
+		    PKT_INT, ssh_term_width,
 		    PKT_INT, 0, PKT_INT, 0, PKT_CHAR, 0, PKT_END);
 	ssh_state = SSH_STATE_INTERMED;
 	do {
@@ -5146,8 +5147,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	ssh2_pkt_addstring("pty-req");
 	ssh2_pkt_addbool(1);	       /* want reply */
 	ssh2_pkt_addstring(cfg.termtype);
-	ssh2_pkt_adduint32(term ? term->cols : 80);
-	ssh2_pkt_adduint32(term ? term->rows : 24);
+	ssh2_pkt_adduint32(ssh_term_width);
+	ssh2_pkt_adduint32(ssh_term_height);
 	ssh2_pkt_adduint32(0);	       /* pixel width */
 	ssh2_pkt_adduint32(0);	       /* pixel height */
 	ssh2_pkt_addstring_start();
@@ -5721,6 +5722,8 @@ static char *ssh_init(void *frontend_handle,
 #endif
 
     frontend = frontend_handle;
+    ssh_term_width = cfg.width;
+    ssh_term_height = cfg.height;
 
     ssh_send_ok = 0;
     ssh_editing = 0;
@@ -5782,8 +5785,11 @@ static int ssh_sendbuffer(void)
 /*
  * Called to set the size of the window from SSH's POV.
  */
-static void ssh_size(void)
+static void ssh_size(int width, int height)
 {
+    ssh_term_width = width;
+    ssh_term_height = height;
+
     switch (ssh_state) {
       case SSH_STATE_BEFORE_SIZE:
       case SSH_STATE_PREPACKET:
@@ -5798,15 +5804,15 @@ static void ssh_size(void)
 		return;
 	    if (ssh_version == 1) {
 		send_packet(SSH1_CMSG_WINDOW_SIZE,
-			    PKT_INT, term->rows, PKT_INT, term->cols,
+			    PKT_INT, ssh_term_height, PKT_INT, ssh_term_width,
 			    PKT_INT, 0, PKT_INT, 0, PKT_END);
 	    } else {
 		ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 		ssh2_pkt_adduint32(mainchan->remoteid);
 		ssh2_pkt_addstring("window-change");
 		ssh2_pkt_addbool(0);
-		ssh2_pkt_adduint32(term->cols);
-		ssh2_pkt_adduint32(term->rows);
+		ssh2_pkt_adduint32(ssh_term_width);
+		ssh2_pkt_adduint32(ssh_term_height);
 		ssh2_pkt_adduint32(0);
 		ssh2_pkt_adduint32(0);
 		ssh2_pkt_send();

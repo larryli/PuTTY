@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "putty.h"
-#include "terminal.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -15,6 +14,7 @@
 static Socket s = NULL;
 
 static void *frontend;
+static int telnet_term_width, telnet_term_height;
 
 #define	IAC	255		       /* interpret as command: */
 #define	DONT	254		       /* you are not to use option */
@@ -618,6 +618,8 @@ static char *telnet_init(void *frontend_handle,
     char *err;
 
     frontend = frontend_handle;
+    telnet_term_width = cfg.width;
+    telnet_term_height = cfg.height;
 
     /*
      * Try to find host.
@@ -719,20 +721,23 @@ static int telnet_sendbuffer(void)
 /*
  * Called to set the size of the window from Telnet's POV.
  */
-static void telnet_size(void)
+static void telnet_size(int width, int height)
 {
     unsigned char b[16];
     char logbuf[50];
 
-    if (s == NULL || term == NULL || o_naws.state != ACTIVE)
+    telnet_term_width = width;
+    telnet_term_height = height;
+
+    if (s == NULL || o_naws.state != ACTIVE)
 	return;
     b[0] = IAC;
     b[1] = SB;
     b[2] = TELOPT_NAWS;
-    b[3] = term->cols >> 8;
-    b[4] = term->cols & 0xFF;
-    b[5] = term->rows >> 8;
-    b[6] = term->rows & 0xFF;
+    b[3] = telnet_term_width >> 8;
+    b[4] = telnet_term_width & 0xFF;
+    b[5] = telnet_term_height >> 8;
+    b[6] = telnet_term_height & 0xFF;
     b[7] = IAC;
     b[8] = SE;
     telnet_bufsize = sk_write(s, b, 9);

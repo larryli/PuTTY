@@ -4,7 +4,6 @@
 #include <ctype.h>
 
 #include "putty.h"
-#include "terminal.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -17,6 +16,7 @@
 
 static Socket s = NULL;
 static int rlogin_bufsize;
+static int rlogin_term_width, rlogin_term_height;
 static void *frontend;
 
 static void rlogin_size(void);
@@ -103,6 +103,8 @@ static char *rlogin_init(void *frontend_handle,
     char *err;
 
     frontend = frontend_handle;
+    rlogin_term_width = cfg.width;
+    rlogin_term_height = cfg.height;
 
     /*
      * Try to find host.
@@ -180,17 +182,20 @@ static int rlogin_sendbuffer(void)
 /*
  * Called to set the size of the window
  */
-static void rlogin_size(void)
+static void rlogin_size(int width, int height)
 {
     char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    if (s == NULL || term == NULL)
+    rlogin_term_width = width;
+    rlogin_term_height = height;
+
+    if (s == NULL)
 	return;
-    
-    b[6] = term->cols >> 8;
-    b[7] = term->cols & 0xFF;
-    b[4] = term->rows >> 8;
-    b[5] = term->rows & 0xFF;
+
+    b[6] = rlogin_term_width >> 8;
+    b[7] = rlogin_term_width & 0xFF;
+    b[4] = rlogin_term_height >> 8;
+    b[5] = rlogin_term_height & 0xFF;
     rlogin_bufsize = sk_write(s, b, 12);
     return;
 }

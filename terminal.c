@@ -148,12 +148,14 @@ static void power_on(Terminal *term)
 	    term->tabs[i] = (i % 8 == 0 ? TRUE : FALSE);
     }
     term->alt_om = term->dec_om = cfg.dec_om;
-    term->alt_wnext = term->wrapnext = term->alt_ins = term->insert = FALSE;
+    term->alt_ins = term->insert = FALSE;
+    term->alt_wnext = term->wrapnext = term->save_wnext = FALSE;
     term->alt_wrap = term->wrap = cfg.wrap_mode;
-    term->alt_cset = term->cset = 0;
-    term->alt_utf = term->utf = 0;
-    term->alt_sco_acs = term->sco_acs = 0;
-    term->cset_attr[0] = term->cset_attr[1] = ATTR_ASCII;
+    term->alt_cset = term->cset = term->save_cset = 0;
+    term->alt_utf = term->utf = term->save_utf = 0;
+    term->utf_state = 0;
+    term->alt_sco_acs = term->sco_acs = term->save_sco_acs = 0;
+    term->cset_attr[0] = term->cset_attr[1] = term->save_csattr = ATTR_ASCII;
     term->rvideo = 0;
     term->in_vbell = FALSE;
     term->cursor_on = 1;
@@ -302,6 +304,18 @@ Terminal *term_init(void)
     term->last_paste = 0;
     bufchain_init(&term->inbuf);
     bufchain_init(&term->printer_buf);
+    term->printing = term->only_printing = FALSE;
+    term->print_job = NULL;
+    term->vt52_mode = FALSE;
+    term->cr_lf_return = FALSE;
+    term->seen_disp_event = FALSE;
+    term->xterm_mouse = FALSE;
+    term->reset_132 = FALSE;
+    term->blinker = term->tblinker = 0;
+    term->has_focus = 1;
+    term->repeat_off = FALSE;
+    term->termstate = TOPLEVEL;
+    term->selstate = NO_SELECTION;
 
     term->screen = term->alt_screen = term->scrollback = NULL;
     term->disptop = 0;
@@ -441,7 +455,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 
     update_sbar(term);
     term_update(term);
-    back->size();
+    back->size(term->cols, term->rows);
 }
 
 /*
@@ -2887,12 +2901,15 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		    tattr |= ATTR_WIDE;
 
 	    /* Video reversing things */
-	    if (term->seltype == LEXICOGRAPHIC)
-		selected = (posle(term->selstart, scrpos) &&
-			    poslt(scrpos, term->selend));
-	    else
-		selected = (posPle(term->selstart, scrpos) &&
-			    posPlt(scrpos, term->selend));
+	    if (term->selstate == DRAGGING || term->selstate == SELECTED) {
+		if (term->seltype == LEXICOGRAPHIC)
+		    selected = (posle(term->selstart, scrpos) &&
+				poslt(scrpos, term->selend));
+		else
+		    selected = (posPle(term->selstart, scrpos) &&
+				posPlt(scrpos, term->selend));
+	    } else
+		selected = FALSE;
 	    tattr = (tattr ^ rv
 		     ^ (selected ? ATTR_REVERSE : 0));
 
@@ -3710,7 +3727,7 @@ void term_nopaste(Terminal *term)
     if (term->paste_len == 0)
 	return;
     sfree(term->paste_buffer);
-    term->paste_buffer = 0;
+    term->paste_buffer = NULL;
     term->paste_len = 0;
 }
 

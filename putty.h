@@ -194,7 +194,7 @@ struct backend_tag {
     int (*send) (char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */
     int (*sendbuffer) (void);
-    void (*size) (void);
+    void (*size) (int width, int height);
     void (*special) (Telnet_Special code);
     Socket(*socket) (void);
     int (*exitcode) (void);
