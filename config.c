@@ -1378,23 +1378,18 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  'p', HELPCTX(connection_tcpkeepalive),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,tcp_keepalives)));
+#ifndef NO_IPV6
 	    s = ctrl_getset(b, "Connection", "ipversion",
 			  "Internet protocol version");
-	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT,
-#ifndef NO_IPV6
-			  3,
-#else
-			  2,
-#endif
+	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 			  HELPCTX(connection_ipversion),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, addressfamily)),
 			  "Auto", NO_SHORTCUT, I(ADDRTYPE_UNSPEC),
 			  "IPv4", NO_SHORTCUT, I(ADDRTYPE_IPV4),
-#ifndef NO_IPV6
 			  "IPv6", NO_SHORTCUT, I(ADDRTYPE_IPV6),
-#endif
 			  NULL);
+#endif
 	}
 
 	/*
@@ -1801,21 +1796,16 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 					   "Remote", 'm', P(NULL),
 					   "Dynamic", 'y', P(NULL),
 					   NULL);
-	pfd->addressfamily =
-	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT,
 #ifndef NO_IPV6
-			      3,
-#else
-			      2,
-#endif
+	pfd->addressfamily =
+	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 			      HELPCTX(ssh_tunnels_portfwd_ipversion),
 			      portfwd_handler, P(pfd),
 			      "Auto", NO_SHORTCUT, I(ADDRTYPE_UNSPEC),
 			      "IPv4", NO_SHORTCUT, I(ADDRTYPE_IPV4),
-#ifndef NO_IPV6
 			      "IPv6", NO_SHORTCUT, I(ADDRTYPE_IPV6),
-#endif
 			      NULL);
+#endif
 	ctrl_tabdelay(s, pfd->addbutton);
 	ctrl_columns(s, 1, 100);
 
