@@ -15,8 +15,6 @@
 
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
-static void get_sesslist(int allocate);
-
 static char **negots = NULL;
 static int nnegots = 0, negsize = 0;
 static HWND logbox = NULL, abtbox = NULL;
@@ -94,9 +92,6 @@ static void gppi(HKEY key, LPCTSTR name, int def, int *i) {
 }
 
 static HINSTANCE hinst;
-
-static char **sessions;
-static int nsessions;
 
 static int readytogo;
 
@@ -1225,7 +1220,7 @@ static int CALLBACK ReconfDlgProc (HWND hwnd, UINT msg,
 			       RECONF_NPANELS, reconfp, &page);
 }
 
-static void get_sesslist(int allocate) {
+void get_sesslist(int allocate) {
     static char *buffer;
     int buflen, bufsize, i, ret;
     char otherbuf[2048];

@@ -28,6 +28,10 @@
 #define IDM_TEL_EOR   518
 #define IDM_TEL_EOF   519
 #define IDM_ABOUT     520
+#define IDM_SAVEDSESS 521
+
+#define IDM_SAVED_MIN 4096
+#define IDM_SAVED_MAX 8192
 
 #define WM_IGNORE_SIZE (WM_USER + 2)
 #define WM_IGNORE_CLIP (WM_USER + 3)
@@ -311,7 +315,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
      */
     {
 	HMENU m = GetSystemMenu (hwnd, FALSE);
-	HMENU p;
+	HMENU p,s;
+	int i;
 
 	AppendMenu (m, MF_SEPARATOR, 0, 0);
 	if (cfg.protocol == PROT_TELNET) {
@@ -338,6 +343,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	}
 	AppendMenu (m, MF_ENABLED, IDM_NEWSESS, "New Session");
 	AppendMenu (m, MF_ENABLED, IDM_DUPSESS, "Duplicate Session");
+	s = CreateMenu();
+	get_sesslist(TRUE);
+	for (i = 1 ; i < ((nsessions < 256) ? nsessions : 256) ; i++)
+	  AppendMenu (s, MF_ENABLED, IDM_SAVED_MIN + (16 * i) , sessions[i]);
+	AppendMenu (m, MF_POPUP | MF_ENABLED, (UINT) s, "Saved Sessions");
 	AppendMenu (m, MF_ENABLED, IDM_RECONF, "Change Settings");
 	AppendMenu (m, MF_SEPARATOR, 0, 0);
 	AppendMenu (m, MF_ENABLED, IDM_CLRSB, "Clear Scrollback");
@@ -605,13 +615,14 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
       case WM_DESTROY:
 	PostQuitMessage (0);
 	return 0;
-      case WM_SYSCOMMAND:
+    case WM_SYSCOMMAND:
 	switch (wParam) {
 	  case IDM_SHOWLOG:
 	    shownegot(hwnd);
 	    break;
 	  case IDM_NEWSESS:
 	  case IDM_DUPSESS:
+	case IDM_SAVEDSESS:
 	    {
 		char b[2048];
 		char c[30], *cl;
@@ -647,8 +658,11 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 		    }
 		    sprintf(c, "putty &%08x", filemap);
 		    cl = c;
+		} else if (wParam == IDM_SAVEDSESS) {
+		  sprintf(c, "putty @%s", sessions[(lParam - IDM_SAVED_MIN) / 16]);
+		  cl = c;
 		} else
-		    cl = NULL;
+		  cl = NULL;
 
 		GetModuleFileName (NULL, b, sizeof(b)-1);
 		si.cb = sizeof(si);
@@ -719,6 +733,10 @@ static int WINAPI WndProc (HWND hwnd, UINT message,
 	  case IDM_ABOUT:
 	    showabout (hwnd);
 	    break;
+	default:
+	  if (wParam >= IDM_SAVED_MIN && wParam <= IDM_SAVED_MAX) {
+	    SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
+	  }
 	}
 	break;
 

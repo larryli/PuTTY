@@ -182,6 +182,10 @@ void lognegot (char *);
 void shownegot (HWND);
 void showabout (HWND);
 void verify_ssh_host_key(char *host, struct RSAKey *key);
+void get_sesslist(int allocate);
+
+int nsessions;
+char **sessions;
 
 /*
  * Exports from terminal.c.
