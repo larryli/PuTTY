@@ -723,7 +723,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			 I(offsetof(Config,port)), I(-1));
 	c->generic.column = 1;
 	ctrl_columns(s, 1, 100);
-	if (backends[3].backend == NULL) {
+	if (backends[3].name == NULL) {
 	    ctrl_radiobuttons(s, "Protocol:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      protocolbuttons_handler, P(c),
@@ -1366,7 +1366,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
      * All the SSH stuff is omitted in PuTTYtel.
      */
 
-    if (!midsession && backends[3].backend != NULL) {
+    if (!midsession && backends[3].name != NULL) {
 
 	/*
 	 * The Connection/SSH panel.

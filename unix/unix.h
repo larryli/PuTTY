@@ -24,6 +24,12 @@ extern Backend pty_backend;
 #define MULTICLICK_ONLY_EVENT 0
 
 /*
+ * Under GTK, there is no context help available.
+ */
+#define HELPCTX(x) P(NULL)
+#define FILTER_KEY_FILES NULL          /* FIXME */
+
+/*
  * Under X, selection data must not be NUL-terminated.
  */
 #define SELECTION_NUL_TERMINATED 0
