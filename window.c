@@ -170,12 +170,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     {
 	ZeroMemory(&osVersion, sizeof(osVersion));
-	osVersion.dwOSVersionInfoSize = sizeof(osVersion);
+	osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
 
 	if(!GetVersionEx ((OSVERSIONINFO *) &osVersion)) {
 	// If OSVERSIONINFOEX doesn't work, try OSVERSIONINFO.
 
-	osVersion.dwOSVersionInfoSize = sizeof (osVersion);
+	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (!GetVersionEx ( (OSVERSIONINFO *) &osVersion))
 	    return FALSE;
 	}
