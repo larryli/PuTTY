@@ -1782,7 +1782,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		term_reconfig(term, &cfg);
 
 		/* Pass new config data to the back end */
-		back->reconfig(back, &cfg);
+		back->reconfig(backhandle, &cfg);
 
 		/* Screen size changed ? */
 		if (cfg.height != prev_cfg.height ||
