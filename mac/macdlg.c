@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.13 2003/03/17 21:40:37 ben Exp $ */
+/* $Id: macdlg.c,v 1.14 2003/03/17 22:38:18 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -78,7 +78,7 @@ void mac_newsession(void)
     wi = smalloc(sizeof(*wi));
     memset(wi, 0, sizeof(*wi));
     wi->s = s;
-    wi->mcs = s->settings_ctrls;
+    wi->mcs = &s->settings_ctrls;
     wi->wtype = wSettings;
     wi->update = &macctrl_update;
     wi->click = &macctrl_click;
