@@ -1955,27 +1955,27 @@ static void scroll_display(Terminal *term, int topline, int botline, int lines)
     if (lines > 0) {
 	for (i = 0; i < nlines; i++)
 	    for (j = 0; j < term->cols; j++)
-		copy_termchar(term->disptext[start+i], j,
-			      term->disptext[start+i+distance]->chars+j);
+		copy_termchar(term->disptext[i], j,
+			      term->disptext[i+distance]->chars+j);
 	if (term->dispcursy >= 0 &&
 	    term->dispcursy >= topline + distance &&
 	    term->dispcursy < topline + distance + nlines)
 	    term->dispcursy -= distance;
 	for (i = 0; i < distance; i++)
 	    for (j = 0; j < term->cols; j++)
-		term->disptext[start+nlines+i]->chars[j].attr |= ATTR_INVALID;
+		term->disptext[nlines+i]->chars[j].attr |= ATTR_INVALID;
     } else {
 	for (i = nlines; i-- ;)
 	    for (j = 0; j < term->cols; j++)
-		copy_termchar(term->disptext[start+i+distance], j,
-			      term->disptext[start+i]->chars+j);
+		copy_termchar(term->disptext[i+distance], j,
+			      term->disptext[i]->chars+j);
 	if (term->dispcursy >= 0 &&
 	    term->dispcursy >= topline &&
 	    term->dispcursy < topline + nlines)
 	    term->dispcursy += distance;
 	for (i = 0; i < distance; i++)
 	    for (j = 0; j < term->cols; j++)
-		term->disptext[start+i]->chars[j].attr |= ATTR_INVALID;
+		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
     }
     save_scroll(term, topline, botline, lines);
 }
