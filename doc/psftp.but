@@ -1,4 +1,4 @@
-\versionid $Id: psftp.but,v 1.5 2002/08/07 19:20:06 simon Exp $
+\versionid $Id: psftp.but,v 1.6 2004/08/15 17:21:46 jacob Exp $
 
 \C{psftp} Using PSFTP to transfer files securely
 
@@ -215,8 +215,12 @@ operate on. For example, if you type \c{get filename.dat} then PSFTP
 will look for \c{filename.dat} in your remote working directory on
 the server.
 
-To change your remote working directory, use the \c{cd} command. To
-display your current remote working directory, type \c{pwd}.
+To change your remote working directory, use the \c{cd} command. If
+you don't provide an argument, \c{cd} will return you to your home
+directory on the server (more precisely, the remote directory you were
+in at the start of the connection).
+
+To display your current remote working directory, type \c{pwd}.
 
 \S{psftp-cmd-lcd} The \c{lcd} and \c{lpwd} commands: changing the
 local working directory
