@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.16 2003/02/02 00:04:36 ben Exp $ */
+/* $Id: macstore.c,v 1.17 2003/03/27 22:46:28 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -126,6 +126,8 @@ void *open_settings_w(char const *sessionname) {
     error = get_session_dir(kCreateFolder, &sessVRefNum, &sessDirID);
     if (error != noErr) return NULL;
 
+    if (!sessionname || !*sessionname)
+	sessionname = "Default Settings";
     c2pstrcpy(psessionname, sessionname);
     error = FSMakeFSSpec(sessVRefNum, sessDirID, psessionname, &dstfile);
     if (error == fnfErr) {
@@ -256,6 +258,8 @@ void *open_settings_r(char const *sessionname)
 
     error = get_session_dir(kDontCreateFolder, &sessVRefNum, &sessDirID);
 
+    if (!sessionname || !*sessionname)
+	sessionname = "Default Settings";
     c2pstrcpy(psessionname, sessionname);
     error = FSMakeFSSpec(sessVRefNum, sessDirID, psessionname, &sessfile);
     if (error != noErr) goto out;
