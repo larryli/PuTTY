@@ -319,6 +319,7 @@ Terminal *term_init(void *frontend)
     term->repeat_off = FALSE;
     term->termstate = TOPLEVEL;
     term->selstate = NO_SELECTION;
+    term->curstype = 0;
 
     term->screen = term->alt_screen = term->scrollback = NULL;
     term->disptop = 0;
