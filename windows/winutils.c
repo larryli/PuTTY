@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #include "winstuff.h"
+#include "putty.h"
 #include "misc.h"
 
 #ifdef TESTMODE
@@ -105,6 +106,7 @@ static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
 	CHECK_CTX(errors_hostkey_changed);
 	CHECK_CTX(errors_cantloadkey);
 	CHECK_CTX(option_cleanup);
+	CHECK_CTX(pgp_fingerprints);
 #undef CHECK_CTX
 	if (context) {
 	    /* We avoid using malloc, in case we're in a situation where
@@ -137,6 +139,24 @@ int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
     mbox.dwStyle = style;
     if (helpctxid != 0 && help_path) mbox.dwStyle |= MB_HELP;
     return MessageBoxIndirect(&mbox);
+}
+
+/*
+ * Display the fingerprints of the PGP Master Keys to the user.
+ */
+void pgp_fingerprints(void)
+{
+    message_box("These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
+		"be used to establish a trust path from this executable to another\n"
+		"one. See the manual for more information.\n"
+		"(Note: these fingerprints have nothing to do with SSH!)\n"
+		"\n"
+		"PuTTY Master Key (RSA), 1024-bit:\n"
+		"  " PGP_RSA_MASTER_KEY_FP "\n"
+		"PuTTY Master Key (DSA), 1024-bit:\n"
+		"  " PGP_DSA_MASTER_KEY_FP,
+		"PGP fingerprints", MB_ICONINFORMATION | MB_OK,
+		HELPCTXID(pgp_fingerprints));
 }
 
 /*

@@ -24,6 +24,11 @@ The command-line options supported by \cw{psftp} are:
 
 \dd Show version information and exit.
 
+\dt \cw{-pgpfp}
+
+\dd Display the fingerprints of the PuTTY PGP Master Keys and exit,
+to aid in verifying new files released by the PuTTY team.
+
 \dt \cw{-b} \e{batchfile}
 
 \dd Use specified batchfile.

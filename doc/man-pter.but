@@ -205,6 +205,11 @@ example:
 
 \dd Display a message summarizing the available options.
 
+\dt \cw{\-pgpfp}
+
+\dd Display the fingerprints of the PuTTY PGP Master Keys, to aid
+in verifying new files released by the PuTTY team.
+
 \S{pterm-manpage-x-resources} X RESOURCES
 
 \cw{pterm} can be more completely configured by means of X

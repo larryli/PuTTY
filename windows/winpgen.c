@@ -1404,16 +1404,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     int argc;
     char **argv;
 
-    split_into_argv(cmdline, &argc, &argv, NULL);
-
-    if (argc > 0) {
-	/*
-	 * Assume the first argument to be a private key file, and
-	 * attempt to load it.
-	 */
-	cmdline_keyfile = argv[0];
-    }
-
     InitCommonControls();
     hinst = inst;
     hwnd = NULL;
@@ -1436,6 +1426,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             fclose(fp);
         } else
             help_path = NULL;
+    }
+
+    split_into_argv(cmdline, &argc, &argv, NULL);
+
+    if (argc > 0) {
+	if (!strcmp(argv[0], "-pgpfp")) {
+	    pgp_fingerprints();
+	    exit(1);
+	} else {
+	    /*
+	     * Assume the first argument to be a private key file, and
+	     * attempt to load it.
+	     */
+	    cmdline_keyfile = argv[0];
+	}
     }
 
     random_ref();

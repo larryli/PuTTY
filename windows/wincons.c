@@ -271,6 +271,22 @@ void old_keyfile_warning(void)
     fputs(message, stderr);
 }
 
+/*
+ * Display the fingerprints of the PGP Master Keys to the user.
+ */
+void pgp_fingerprints(void)
+{
+    fputs("These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
+	  "be used to establish a trust path from this executable to another\n"
+	  "one. See the manual for more information.\n"
+	  "(Note: these fingerprints have nothing to do with SSH!)\n"
+	  "\n"
+	  "PuTTY Master Key (RSA), 1024-bit:\n"
+	  "  " PGP_RSA_MASTER_KEY_FP "\n"
+	  "PuTTY Master Key (DSA), 1024-bit:\n"
+	  "  " PGP_DSA_MASTER_KEY_FP "\n", stdout);
+}
+
 void console_provide_logctx(void *logctx)
 {
     console_logctx = logctx;

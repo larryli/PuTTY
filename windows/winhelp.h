@@ -142,3 +142,5 @@
 #define WINHELP_CTXID_errors_cantloadkey 3
 #define WINHELP_CTX_option_cleanup "options.cleanup"
 #define WINHELP_CTXID_option_cleanup 4
+#define WINHELP_CTX_pgp_fingerprints "pgpfingerprints"
+#define WINHELP_CTXID_pgp_fingerprints 5

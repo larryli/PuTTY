@@ -2058,67 +2058,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * Find out if Pageant is already running.
      */
-    already_running = FALSE;
-    if (agent_exists())
-	already_running = TRUE;
-    else {
+    already_running = agent_exists();
 
-	if (!prev) {
-	    wndclass.style = 0;
-	    wndclass.lpfnWndProc = WndProc;
-	    wndclass.cbClsExtra = 0;
-	    wndclass.cbWndExtra = 0;
-	    wndclass.hInstance = inst;
-	    wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-	    wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
-	    wndclass.hbrBackground = GetStockObject(BLACK_BRUSH);
-	    wndclass.lpszMenuName = NULL;
-	    wndclass.lpszClassName = APPNAME;
-
-	    RegisterClass(&wndclass);
-	}
-
-	keylist = NULL;
-
-	hwnd = CreateWindow(APPNAME, APPNAME,
-			    WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-			    CW_USEDEFAULT, CW_USEDEFAULT,
-			    100, 100, NULL, NULL, inst, NULL);
-
-	/* Set up a system tray icon */
-	AddTrayIcon(hwnd);
-
-        /* Accelerators used: nsvkxa */
-        systray_menu = CreatePopupMenu();
-	if (putty_path) {
-	    session_menu = CreateMenu();
-	    AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
-	    AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
-		       (UINT) session_menu, "&Saved Sessions");
-	    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-	}
-        AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-               "&View Keys");
-        AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-        if (help_path)
-            AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
-        AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
-	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-        AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
-	initial_menuitems_count = GetMenuItemCount(session_menu);
-
-	/* Set the default menu item. */
-	SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, FALSE);
-
-	ShowWindow(hwnd, SW_HIDE);
-
-	/*
-	 * Initialise storage for RSA keys.
-	 */
+    /*
+     * Initialise storage for RSA keys.
+     */
+    if (!already_running) {
 	rsakeys = newtree234(cmpkeys_rsa);
 	ssh2keys = newtree234(cmpkeys_ssh2);
-
     }
 
     /*
@@ -2131,7 +2078,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
     for (i = 0; i < argc; i++) {
-	if (!strcmp(argv[i], "-c")) {
+	if (!strcmp(argv[i], "-pgpfp")) {
+	    pgp_fingerprints();
+	    if (advapi)
+		FreeLibrary(advapi);
+	    return 1;
+	} else if (!strcmp(argv[i], "-c")) {
 	    /*
 	     * If we see `-c', then the rest of the
 	     * command line should be treated as a
@@ -2181,6 +2133,56 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    FreeLibrary(advapi);
 	return 0;
     }
+
+    if (!prev) {
+	wndclass.style = 0;
+	wndclass.lpfnWndProc = WndProc;
+	wndclass.cbClsExtra = 0;
+	wndclass.cbWndExtra = 0;
+	wndclass.hInstance = inst;
+	wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
+	wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
+	wndclass.hbrBackground = GetStockObject(BLACK_BRUSH);
+	wndclass.lpszMenuName = NULL;
+	wndclass.lpszClassName = APPNAME;
+
+	RegisterClass(&wndclass);
+    }
+
+    keylist = NULL;
+
+    hwnd = CreateWindow(APPNAME, APPNAME,
+			WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+			CW_USEDEFAULT, CW_USEDEFAULT,
+			100, 100, NULL, NULL, inst, NULL);
+
+    /* Set up a system tray icon */
+    AddTrayIcon(hwnd);
+
+    /* Accelerators used: nsvkxa */
+    systray_menu = CreatePopupMenu();
+    if (putty_path) {
+	session_menu = CreateMenu();
+	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
+	AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
+		   (UINT) session_menu, "&Saved Sessions");
+	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    }
+    AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
+	   "&View Keys");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    if (help_path)
+	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+    initial_menuitems_count = GetMenuItemCount(session_menu);
+
+    /* Set the default menu item. */
+    SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, FALSE);
+
+    ShowWindow(hwnd, SW_HIDE);
 
     /*
      * Main message loop.

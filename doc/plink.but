@@ -47,7 +47,8 @@ use Plink:
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
-\c   -V        print version information
+\c   -V        print version information and exit
+\c   -pgpfp    print PGP key fingerprints and exit
 \c   -v        show verbose messages
 \c   -load sessname  Load settings from saved session
 \c   -ssh -telnet -rlogin -raw

@@ -212,7 +212,8 @@ static void usage(void)
     printf("Usage: plink [options] [user@]host [command]\n");
     printf("       (\"host\" can also be a PuTTY saved session name)\n");
     printf("Options:\n");
-    printf("  -V        print version information\n");
+    printf("  -V        print version information and exit\n");
+    printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -v        show verbose messages\n");
     printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw\n");
@@ -318,6 +319,9 @@ int main(int argc, char **argv)
 		use_subsystem = 1;
 	    } else if (!strcmp(p, "-V")) {
                 version();
+            } else if (!strcmp(p, "-pgpfp")) {
+                pgp_fingerprints();
+                exit(1);
 	    } else if (!strcmp(p, "-o")) {
                 if (argc <= 1) {
                     fprintf(stderr,

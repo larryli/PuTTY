@@ -2573,6 +2573,8 @@ static void usage(void)
     printf("%s\n", ver);
     printf("Usage: psftp [options] [user@]host\n");
     printf("Options:\n");
+    printf("  -V        print version information and exit\n");
+    printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -b file   use specified batchfile\n");
     printf("  -bc       output batchfile commands\n");
     printf("  -be       don't stop batchfile processing if errors\n");
@@ -2586,7 +2588,6 @@ static void usage(void)
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
     printf("  -batch    disable all interactive prompts\n");
-    printf("  -V        print version information\n");
     cleanup_exit(1);
 }
 
@@ -2850,6 +2851,9 @@ int psftp_main(int argc, char *argv[])
 	} else if (strcmp(argv[i], "-h") == 0 ||
 		   strcmp(argv[i], "-?") == 0) {
 	    usage();
+        } else if (strcmp(argv[i], "-pgpfp") == 0) {
+            pgp_fingerprints();
+            return 1;
 	} else if (strcmp(argv[i], "-V") == 0) {
 	    version();
 	} else if (strcmp(argv[i], "-batch") == 0) {

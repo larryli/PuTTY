@@ -2139,6 +2139,8 @@ static void usage(void)
 	("       pscp [options] source [source...] [user@]host:target\n");
     printf("       pscp [options] -ls [user@]host:filespec\n");
     printf("Options:\n");
+    printf("  -V        print version information and exit\n");
+    printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -p        preserve file attributes\n");
     printf("  -q        quiet, don't show statistics\n");
     printf("  -r        copy directories recursively\n");
@@ -2153,7 +2155,6 @@ static void usage(void)
     printf("  -i key    private key file for authentication\n");
     printf("  -batch    disable all interactive prompts\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
-    printf("  -V        print version information\n");
     printf("  -sftp     force use of SFTP protocol\n");
     printf("  -scp      force use of SCP protocol\n");
 #if 0
@@ -2223,6 +2224,9 @@ int psftp_main(int argc, char *argv[])
 	    /* We have our own verbosity in addition to `flags'. */
 	    if (flags & FLAG_VERBOSE)
 		verbose = 1;
+        } else if (strcmp(argv[i], "-pgpfp") == 0) {
+            pgp_fingerprints();
+            return 1;
 	} else if (strcmp(argv[i], "-r") == 0) {
 	    recursive = 1;
 	} else if (strcmp(argv[i], "-p") == 0) {

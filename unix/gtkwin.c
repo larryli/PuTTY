@@ -2561,7 +2561,11 @@ int do_cmdline(int argc, char **argv, int do_everything,
 	} else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
 	    help(stdout);
 	    exit(0);
-	    
+
+        } else if (!strcmp(p, "-pgpfp")) {
+            pgp_fingerprints();
+            exit(1);
+
 	} else if(p[0] != '-' && (!do_everything ||
                                   process_nonoption_arg(p, cfg))) {
             /* do nothing */

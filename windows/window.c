@@ -479,6 +479,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		    sfree(s1);
 		    sfree(s2);
 		    exit(0);
+		} else if (!strcmp(p, "-pgpfp")) {
+		    pgp_fingerprints();
+		    exit(1);
 		} else if (*p != '-') {
 		    char *q = p;
 		    if (got_host) {

@@ -1,0 +1,157 @@
+\define{versionidpgpkeys} \versionid $Id$
+
+\A{pgpkeys} PuTTY download keys and signatures
+
+\cfg{winhelp-topic}{pgpfingerprints}
+
+We create \i{PGP signatures} for all the PuTTY
+files distributed from our web site, so that users can be confident
+that the files have not been tampered with. Here we identify
+our public keys, and explain our signature policy so you can have an
+accurate idea of what each signature guarantees.
+This description is provided as both a web page on the PuTTY site, and
+an appendix in the PuTTY manual.
+
+As of the next release, all of the PuTTY executables will contain
+\#{XXX-REMOVE-BEFORE-RELEASE: fix this up for forthcoming release
+As of release 0.58, all of the PuTTY executables contain}
+fingerprint material (usually accessed via the \i\c{-pgpfp}
+command-line option), such that if you have an executable you trust,
+you can use it to establish a trust path, for instance to a newer
+version downloaded from the Internet.
+
+(Note that none of the keys, signatures, etc mentioned here have
+anything to do with keys used with SSH - they are purely for verifying
+the origin of files distributed by the PuTTY team.)
+
+\H{pgpkeys-pubkey} Public keys
+
+We supply two complete sets of keys. We supply a set of RSA keys,
+compatible with both \W{http://www.gnupg.org/}{GnuPG} and PGP2,
+and also a set of DSA keys compatible with GnuPG.
+
+In each format, we have three keys:
+
+\b A Development Snapshots key, used to sign the nightly builds.
+
+\b A Releases key, used to sign actual releases.
+
+\b A Master Key. The Master Key is used to sign the other two keys, and
+they sign it in return.
+
+Therefore, we have six public keys in total:
+
+\b RSA:
+
+\lcont{
+
+\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-rsa.asc}{Master Key}
+
+\lcont{
+1024-bit; fingerprint:
+\cw{8F\_15\_97\_DA\_25\_30\_AB\_0D\_\_88\_D1\_92\_54\_11\_CF\_0C\_4C}
+}
+
+\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-rsa.asc}{Release key}
+
+\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-rsa.asc}{Snapshot key}
+
+}
+
+\b DSA:
+
+\lcont{
+
+\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-dsa.asc}{Master Key}
+
+\lcont{
+1024-bit; fingerprint:
+\cw{313C\_3E76\_4B74\_C2C5\_F2AE\_\_83A8\_4F5E\_6DF5\_6A93\_B34E}
+}
+
+\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-dsa.asc}{Release key}
+
+\b \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-dsa.asc}{Snapshot key}
+
+}
+
+\H{pgpkeys-security} Security details
+
+The various keys have various different security levels. This
+section explains what those security levels are, and how far you can
+expect to trust each key.
+
+\S{pgpkeys-snapshot} The Development Snapshots keys
+
+These keys are stored \e{without passphrases}. This is
+necessary, because the snapshots are generated every night without
+human intervention, so nobody would be able to type a passphrase.
+
+The actual snapshots are built on a team member's home Windows box.
+The keys themselves are stored on an independently run Unix box
+(the same one that hosts our Subversion repository). After
+being built, the binaries are uploaded to this Unix box and then
+signed automatically.
+
+Therefore, a signature from one of the Development Snapshots keys
+\e{DOES} protect you against:
+
+\b People tampering with the PuTTY binaries between the PuTTY web site
+and you.
+
+But it \e{DOES NOT} protect you against:
+
+\b People tampering with the binaries before they are uploaded to the
+independent Unix box.
+
+\b The sysadmin of the independent Unix box using his root privilege to
+steal the private keys and abuse them, or tampering with the
+binaries before they are signed.
+
+\b Somebody getting root on the Unix box.
+
+Of course, we don't believe any of those things is very likely. We
+know our sysadmin personally and trust him (both to be competent and
+to be non-malicious), and we take all reasonable precautions to
+guard the build machine. But when you see a signature, you should
+always be certain of precisely what it guarantees and precisely what
+it does not.
+
+\S{pgpkeys-release} The Releases keys
+
+The Release keys have passphrases and we can be more careful about
+how we use them.
+
+The Release keys are kept safe on the developers' own local
+machines, and only used to sign releases that have been built by
+hand. A signature from a Release key protects you from almost any
+plausible attack.
+
+(Some of the developers' machines have cable modem connections and
+might in theory be crackable, but of course the private keys are
+still encrypted, so the crack would have to go unnoticed for long
+enough to steal a passphrase.)
+
+\S{pgpkeys-master} The Master Keys
+
+The Master Keys sign almost nothing. Their purpose is to bind the
+other keys together and certify that they are all owned by the same
+people and part of the same integrated setup. The only signatures
+produced by the Master Keys, \e{ever}, should be the signatures
+on the other keys.
+
+We intend to arrange for the Master Keys to sign each other, to
+certify that the DSA keys and RSA keys are part of the same setup.
+We have not yet got round to this at the time of writing.
+
+We have collected a few third-party signatures on the Master Keys,
+in order to increase the chances that you can find a suitable trust
+path to them. We intend to collect more. (Note that the keys on the
+keyservers appear to have also collected some signatures from people
+who haven't performed any verification of the Master Keys.) 
+
+We have uploaded our various keys to public keyservers, so that
+even if you don't know any of the people who have signed our
+keys, you can still be reasonably confident that an attacker would
+find it hard to substitute fake keys on all the public keyservers at
+once.

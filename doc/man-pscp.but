@@ -28,6 +28,11 @@ The command-line options supported by \e{pscp} are:
 
 \dd Show version information and exit.
 
+\dt \cw{-pgpfp}
+
+\dd Display the fingerprints of the PuTTY PGP Master Keys and exit,
+to aid in verifying new files released by the PuTTY team.
+
 \dt \cw{-ls}
 
 \dd Remote directory listing.

@@ -313,7 +313,11 @@ int main(int argc, char **argv)
 			} else if (!strcmp(opt, "-version")) {
 			    showversion();
 			    nogo = TRUE;
-			}
+			} else if (!strcmp(opt, "-pgpfp")) {
+                            /* support "-pgpfp" for consistency with others */
+                            pgp_fingerprints();
+                            nogo = TRUE;
+                        }
 			/*
 			 * A sample option requiring an argument:
 			 * 

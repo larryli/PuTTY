@@ -46,6 +46,8 @@ use PSCP:
 \c        pscp [options] source [source...] [user@]host:target
 \c        pscp [options] -ls [user@]host:filespec
 \c Options:
+\c   -V        print version information and exit
+\c   -pgpfp    print PGP key fingerprints and exit
 \c   -p        preserve file attributes
 \c   -q        quiet, don't show statistics
 \c   -r        copy directories recursively
@@ -60,7 +62,6 @@ use PSCP:
 \c   -i key    private key file for authentication
 \c   -batch    disable all interactive prompts
 \c   -unsafe   allow server-side wildcards (DANGEROUS)
-\c   -V        print version information
 \c   -sftp     force use of SFTP protocol
 \c   -scp      force use of SCP protocol
 

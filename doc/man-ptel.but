@@ -149,6 +149,11 @@ keys.
 
 \dd Display a message summarizing the available options.
 
+\dt \cw{\-pgpfp}
+
+\dd Display the fingerprints of the PuTTY PGP Master Keys, to aid
+in verifying new files released by the PuTTY team.
+
 \dt \cw{\-load} \e{session}
 
 \dd Load a saved session by name. This allows you to run a saved session

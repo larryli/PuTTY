@@ -100,3 +100,21 @@ char *get_username(void)
 
     return dupstr(ret);
 }
+
+/*
+ * Display the fingerprints of the PGP Master Keys to the user.
+ * (This is here rather than in uxcons because it's appropriate even for
+ * Unix GUI apps.)
+ */
+void pgp_fingerprints(void)
+{
+    fputs("These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
+	  "be used to establish a trust path from this executable to another\n"
+	  "one. See the manual for more information.\n"
+	  "(Note: these fingerprints have nothing to do with SSH!)\n"
+	  "\n"
+	  "PuTTY Master Key (RSA), 1024-bit:\n"
+	  "  " PGP_RSA_MASTER_KEY_FP "\n"
+	  "PuTTY Master Key (DSA), 1024-bit:\n"
+	  "  " PGP_DSA_MASTER_KEY_FP "\n", stdout);
+}

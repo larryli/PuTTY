@@ -782,3 +782,9 @@ For general information on \i{public-key authentication}, see
 This option is equivalent to the \q{Private key file for
 authentication} box in the Auth panel of the PuTTY configuration box
 (see \k{config-ssh-privkey}).
+
+\S2{using-cmdline-pgpfp} \i\c{-pgpfp}: display PGP key fingerprints
+
+This option causes the PuTTY tools not to run as normal, but instead
+to display the fingerprints of the PuTTY PGP Master Keys, in order to
+aid with verifying new versions. See \k{pgpkeys} for more information.
