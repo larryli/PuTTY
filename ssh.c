@@ -17,7 +17,7 @@
 #endif
 
 #define logevent(s) { logevent(s); \
-                      if (!(flags & FLAG_CONNECTION) && (flags & FLAG_VERBOSE)) \
+                      if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)) \
                       fprintf(stderr, "%s\n", s); }
 
 #define SSH1_MSG_DISCONNECT                       1    /* 0x1 */
@@ -269,7 +269,7 @@ static int s_read (char *buf, int len) {
 }
 
 static void c_write (char *buf, int len) {
-    if (!(flags & FLAG_CONNECTION)) {
+    if ((flags & FLAG_STDERR)) {
         int i;
         for (i = 0; i < len; i++)
             if (buf[i] != '\r')
@@ -1190,8 +1190,9 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static char username[100];
 	static int pos = 0;
 	static char c;
-	if ((flags & FLAG_CONNECTION) && !*cfg.username) {
+	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
 	    c_write("login as: ", 10);
+            ssh_send_ok = 1;
 	    while (pos >= 0) {
 		crWaitUntil(!ispkt);
 		while (inlen--) switch (c = *in++) {
@@ -1230,7 +1231,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	    char stuff[200];
 	    strncpy(username, cfg.username, 99);
 	    username[99] = '\0';
-            if (flags & FLAG_VERBOSE) {
+            if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
 		sprintf(stuff, "Sent username \"%s\".\r\n", username);
                 c_write(stuff, strlen(stuff));
 	    }
@@ -1362,7 +1363,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
         if (*cfg.keyfile && !tried_publickey)
             pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
-	if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD && !FLAG_WINDOWED) {
+	if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD &&
+            !(flags & FLAG_INTERACTIVE)) {
 	    char prompt[200];
 	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
@@ -1431,6 +1433,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             }
 
             pos = 0;
+            ssh_send_ok = 1;
             while (pos >= 0) {
                 crWaitUntil(!ispkt);
                 while (inlen--) switch (c = *in++) {
@@ -2079,8 +2082,9 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	static int pos = 0;
 	static char c;
 
-	if ((flags & FLAG_CONNECTION) && !*cfg.username) {
+	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
 	    c_write("login as: ", 10);
+            ssh_send_ok = 1;
 	    while (pos >= 0) {
 		crWaitUntilV(!ispkt);
 		while (inlen--) switch (c = *in++) {
@@ -2119,13 +2123,13 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 	    char stuff[200];
 	    strncpy(username, cfg.username, 99);
 	    username[99] = '\0';
-	    if (flags & FLAG_VERBOSE) {
+            if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
 		sprintf(stuff, "Using username \"%s\".\r\n", username);
 		c_write(stuff, strlen(stuff));
 	    }
 	}
 
-	if (!(flags & FLAG_WINDOWED)) {
+	if (!(flags & FLAG_INTERACTIVE)) {
 	    char prompt[200];
 	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
@@ -2141,6 +2145,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
             }
 	} else {
             c_write("password: ", 10);
+            ssh_send_ok = 1;
 
             pos = 0;
             while (pos >= 0) {
@@ -2222,39 +2227,53 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     /*
      * Now allocate a pty for the session.
      */
-    ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-    ssh2_pkt_adduint32(mainchan->remoteid); /* recipient channel */
-    ssh2_pkt_addstring("pty-req");
-    ssh2_pkt_addbool(1);               /* want reply */
-    ssh2_pkt_addstring(cfg.termtype);
-    ssh2_pkt_adduint32(cols);
-    ssh2_pkt_adduint32(rows);
-    ssh2_pkt_adduint32(0);             /* pixel width */
-    ssh2_pkt_adduint32(0);             /* pixel height */
-    ssh2_pkt_addstring_start();
-    ssh2_pkt_addstring_data("\0", 1);  /* TTY_OP_END, no special options */
-    ssh2_pkt_send();
+    if (!cfg.nopty) {
+        ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+        ssh2_pkt_adduint32(mainchan->remoteid); /* recipient channel */
+        ssh2_pkt_addstring("pty-req");
+        ssh2_pkt_addbool(1);           /* want reply */
+        ssh2_pkt_addstring(cfg.termtype);
+        ssh2_pkt_adduint32(cols);
+        ssh2_pkt_adduint32(rows);
+        ssh2_pkt_adduint32(0);         /* pixel width */
+        ssh2_pkt_adduint32(0);         /* pixel height */
+        ssh2_pkt_addstring_start();
+        ssh2_pkt_addstring_data("\0", 1);/* TTY_OP_END, no special options */
+        ssh2_pkt_send();
 
-    do {                               /* FIXME: pay attention to these */
-        crWaitUntilV(ispkt);
-    } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+        do {
+            crWaitUntilV(ispkt);
+            if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+                /* FIXME: be able to handle other channels here */
+                if (ssh2_pkt_getuint32() != mainchan->localid)
+                    continue;          /* wrong channel */
+                mainchan->u.v2.remwindow += ssh2_pkt_getuint32();
+            }
+        } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 
-    if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
-        if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-            fatalbox("Server got confused by pty request");
+        if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
+            if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
+                fatalbox("Server got confused by pty request");
+            }
+            c_write("Server refused to allocate pty\r\n", 32);
+        } else {
+            logevent("Allocated pty");
         }
-        c_write("Server refused to allocate pty\r\n", 32);
-    } else {
-        logevent("Allocated pty");
     }
 
     /*
-     * Start a shell.
+     * Start a shell or a remote command.
      */
     ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
     ssh2_pkt_adduint32(mainchan->remoteid); /* recipient channel */
-    ssh2_pkt_addstring("shell");
-    ssh2_pkt_addbool(1);               /* want reply */
+    if (*cfg.remote_cmd) {
+        ssh2_pkt_addstring("exec");
+        ssh2_pkt_addbool(1);           /* want reply */
+        ssh2_pkt_addstring(cfg.remote_cmd);
+    } else {
+        ssh2_pkt_addstring("shell");
+        ssh2_pkt_addbool(1);           /* want reply */
+    }
     ssh2_pkt_send();
     do {
         crWaitUntilV(ispkt);
@@ -2502,13 +2521,14 @@ static void ssh_size(void) {
  */
 static void ssh_special (Telnet_Special code) {
     if (code == TS_EOF) {
-        if (ssh_version = 1) {
+        if (ssh_version == 1) {
             send_packet(SSH1_CMSG_EOF, PKT_END);
         } else {
             ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
             ssh2_pkt_adduint32(mainchan->remoteid);
             ssh2_pkt_send();
         }
+        logevent("Sent EOF message");
     } else {
         /* do nothing */
     }

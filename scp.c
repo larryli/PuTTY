@@ -957,7 +957,7 @@ int main(int argc, char *argv[])
 
     default_protocol = PROT_TELNET;
 
-    flags = 0;
+    flags = FLAG_STDERR;
     ssh_get_password = &get_password;
     init_winsock();
 

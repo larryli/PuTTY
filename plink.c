@@ -43,6 +43,50 @@ struct input_data {
     HANDLE event;
 };
 
+static int get_password(const char *prompt, char *str, int maxlen)
+{
+    HANDLE hin, hout;
+    DWORD savemode, i;
+
+#if 0 /* this allows specifying a password some other way */
+    if (password) {
+        static int tried_once = 0;
+
+        if (tried_once) {
+            return 0;
+        } else {
+            strncpy(str, password, maxlen);
+            str[maxlen-1] = '\0';
+            tried_once = 1;
+            return 1;
+        }
+    }
+#endif
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    hout = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hin == INVALID_HANDLE_VALUE || hout == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Cannot get standard input/output handles");
+        return 0;
+    }
+
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode & (~ENABLE_ECHO_INPUT)) |
+                   ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT);
+
+    WriteFile(hout, prompt, strlen(prompt), &i, NULL);
+    ReadFile(hin, str, maxlen-1, &i, NULL);
+
+    SetConsoleMode(hin, savemode);
+
+    if ((int)i > maxlen) i = maxlen-1; else i = i - 2;
+    str[i] = '\0';
+
+    WriteFile(hout, "\r\n", 2, &i, NULL);
+
+    return 1;
+}
+
 int WINAPI stdin_read_thread(void *param) {
     struct input_data *idata = (struct input_data *)param;
     HANDLE inhandle;
@@ -70,7 +114,9 @@ int main(int argc, char **argv) {
     struct input_data idata;
     int sending;
 
-    flags = FLAG_CONNECTION;
+    ssh_get_password = get_password;
+
+    flags = FLAG_STDERR;
     /*
      * Process the command line.
      */
@@ -83,6 +129,8 @@ int main(int argc, char **argv) {
             if (!strcmp(p, "-ssh")) {
 		default_protocol = cfg.protocol = PROT_SSH;
 		default_port = cfg.port = 22;
+	    } else if (!strcmp(p, "-v")) {
+                flags |= FLAG_VERBOSE;
 	    } else if (!strcmp(p, "-log")) {
                 logfile = "putty.log";
 	    }
@@ -164,6 +212,9 @@ int main(int argc, char **argv) {
             }
 	}
     }
+
+    if (!*cfg.remote_cmd)
+        flags |= FLAG_INTERACTIVE;
 
     /*
      * Select protocol. This is farmed out into a table in a
