@@ -149,8 +149,11 @@ static int raw_msg (WPARAM wParam, LPARAM lParam) {
      * the queue; so it's possible that we can get here even with s
      * invalid. If so, we return 1 and don't worry about it.
      */
-    if (s == INVALID_SOCKET)
+    if (s == INVALID_SOCKET) {
+        closesocket(s);
+        s = INVALID_SOCKET;
 	return 1;
+    }
 
     if (WSAGETSELECTERROR(lParam) != 0)
 	return -WSAGETSELECTERROR(lParam);
@@ -161,8 +164,11 @@ static int raw_msg (WPARAM wParam, LPARAM lParam) {
 	ret = recv(s, buf, sizeof(buf), 0);
 	if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
 	    return 1;
-	if (ret < 0)		       /* any _other_ error */
+	if (ret < 0) {		       /* any _other_ error */
+            closesocket(s);
+            s = INVALID_SOCKET;
 	    return -10000-WSAGetLastError();
+        }
 	if (ret == 0) {
 	    s = INVALID_SOCKET;
 	    return 0;

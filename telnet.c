@@ -608,8 +608,11 @@ static int telnet_msg (WPARAM wParam, LPARAM lParam) {
     if (s == INVALID_SOCKET)
 	return 1;
 
-    if (WSAGETSELECTERROR(lParam) != 0)
+    if (WSAGETSELECTERROR(lParam) != 0) {
+        closesocket(s);
+        s = INVALID_SOCKET;
 	return -WSAGETSELECTERROR(lParam);
+    }
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
@@ -625,8 +628,11 @@ static int telnet_msg (WPARAM wParam, LPARAM lParam) {
 		ret = recv(s, buf, sizeof(buf), 0);
 		if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
 		    return 1;
-		if (ret < 0)		       /* any _other_ error */
+		if (ret < 0) {		       /* any _other_ error */
+                    closesocket(s);
+                    s = INVALID_SOCKET;
 		    return -10000-WSAGetLastError();
+                }
 		if (ret == 0) {
 		    s = INVALID_SOCKET;
 		    return 0;

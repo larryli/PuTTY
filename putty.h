@@ -241,6 +241,7 @@ void palette_reset (void);
 void write_clip (void *, int);
 void get_clip (void **, int *);
 void optimised_move (int, int, int);
+void connection_fatal(char *, ...);
 void fatalbox (char *, ...);
 void beep (int);
 #define OPTIMISE_IS_SCROLL 1

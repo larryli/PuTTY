@@ -521,6 +521,25 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 }
 
 /*
+ * Print a message box and close the connection.
+ */
+void connection_fatal(char *fmt, ...) {
+    va_list ap;
+    char stuff[200];
+
+    va_start(ap, fmt);
+    vsprintf(stuff, fmt, ap);
+    va_end(ap);
+    MessageBox(hwnd, stuff, "PuTTY Fatal Error", MB_ICONERROR | MB_OK);
+    if (cfg.close_on_exit)
+        PostQuitMessage(1);
+    else {
+        session_closed = TRUE;
+        SetWindowText (hwnd, "PuTTY (inactive)");
+    }
+}
+
+/*
  * Actually do the job requested by a WM_NETEVENT
  */
 static void enact_pending_netevent(void) {
@@ -546,10 +565,9 @@ static void enact_pending_netevent(void) {
 	    sprintf(buf, "Unexpected network error %d", -i);
 	    break;
 	}
-	MessageBox(hwnd, buf, "PuTTY Fatal Error",
-		   MB_ICONERROR | MB_OK);
-	PostQuitMessage(1);
-    } else if (i == 0) {
+        connection_fatal(buf);
+    }
+    if (i <= 0) {
 	if (cfg.close_on_exit)
 	    PostQuitMessage(0);
 	else {

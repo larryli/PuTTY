@@ -20,6 +20,16 @@ void fatalbox (char *p, ...) {
     WSACleanup();
     exit(1);
 }
+void connection_fatal (char *p, ...) {
+    va_list ap;
+    fprintf(stderr, "FATAL ERROR: ", p);
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    WSACleanup();
+    exit(1);
+}
 
 HANDLE outhandle;
 
