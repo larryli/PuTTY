@@ -45,9 +45,21 @@ extern struct mac_gestalts mac_gestalts;
 typedef struct {
     struct Session *s;    /* Only used in PuTTY */
     struct KeyState *ks; /* Only used in PuTTYgen */
+
+    void (*activate)	(WindowPtr, EventRecord *);
+    void (*adjustcursor)(WindowPtr, Point, RgnHandle);
+    void (*adjustmenus)	(WindowPtr);
+    void (*update)	(WindowPtr);
+    void (*click)	(WindowPtr, EventRecord *);
+    void (*grow)	(WindowPtr, EventRecord *);
+    void (*key)		(WindowPtr, EventRecord *);
+    void (*menu)	(WindowPtr, short, short);
+    void (*close)	(WindowPtr);
+
     int wtype;
 } WinInfo;
 
+#define mac_wininfo(w)		((WinInfo *)GetWRefCon(w))
 #define mac_windowsession(w)	(((WinInfo *)GetWRefCon(w))->s)
 
 typedef struct Session {
@@ -109,28 +121,13 @@ extern void mac_newsession(void);
 extern void mac_dupsession(void);
 extern void mac_savesession(void);
 extern void mac_savesessionas(void);
-extern void mac_clickdlg(WindowPtr, EventRecord *);
-extern void mac_activatedlg(WindowPtr, EventRecord *);
 /* from maceventlog.c */
-void mac_freeeventlog(Session *);
-extern void mac_clickeventlog(WindowPtr, EventRecord *);
-extern void mac_activateeventlog(WindowPtr, EventRecord *);
-extern void mac_groweventlog(WindowPtr, EventRecord *);
-extern void mac_updateeventlog(WindowPtr);
+extern void mac_freeeventlog(Session *);
 extern void mac_showeventlog(Session *);
 /* from macterm.c */
 extern void mac_opensession(void);
 extern void mac_startsession(Session *);
 extern void mac_pollterm(void);
-extern void mac_activateterm(WindowPtr, Boolean);
-extern void mac_adjusttermcursor(WindowPtr, Point, RgnHandle);
-extern void mac_adjusttermmenus(WindowPtr);
-extern void mac_updateterm(WindowPtr);
-extern void mac_clickterm(WindowPtr, EventRecord *);
-extern void mac_growterm(WindowPtr, EventRecord *);
-extern void mac_keyterm(WindowPtr, EventRecord *);
-extern void mac_menuterm(WindowPtr, short, short);
-extern void mac_closeterm(WindowPtr);
 /* from macstore.c */
 extern OSErr get_putty_dir(Boolean makeit, short *pVRefNum, long *pDirID);
 extern OSErr get_session_dir(Boolean makeit, short *pVRefNum, long *pDirID);
@@ -172,6 +169,8 @@ extern Socket ot_register(void *, Plug);
 extern Socket ot_new(SockAddr addr, int, int, int, int, Plug);
 extern Socket ot_newlistener(char *, int, Plug, int);
 extern char *ot_addr_error(SockAddr);
+/* from macabout.c */
+extern void mac_openabout(void);
 /* from macpgkey.c */
 extern void mac_newkey(void);
 /* Apple Event Handlers (in various files) */

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.70 2003/02/11 23:10:34 ben Exp $ */
+/* $Id: macterm.c,v 1.71 2003/02/15 16:22:15 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -90,6 +90,15 @@ static pascal void mac_growtermdraghook(void);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
 static void text_click(Session *, EventRecord *);
+static void mac_activateterm(WindowPtr, EventRecord *);
+static void mac_adjusttermcursor(WindowPtr, Point, RgnHandle);
+static void mac_adjusttermmenus(WindowPtr);
+static void mac_updateterm(WindowPtr);
+static void mac_clickterm(WindowPtr, EventRecord *);
+static void mac_growterm(WindowPtr, EventRecord *);
+static void mac_keyterm(WindowPtr, EventRecord *);
+static void mac_menuterm(WindowPtr, short, short);
+static void mac_closeterm(WindowPtr);
 
 void pre_paint(Session *s);
 void post_paint(Session *s);
@@ -121,8 +130,18 @@ void mac_startsession(Session *s)
     else
 	s->window = GetNewWindow(wTerminal, NULL, (WindowPtr)-1);
     wi = smalloc(sizeof(*wi));
+    memset(wi, 0, sizeof(*wi));
     wi->s = s;
     wi->wtype = wTerminal;
+    wi->activate = &mac_activateterm;
+    wi->adjustcursor = &mac_adjusttermcursor;
+    wi->adjustmenus = &mac_adjusttermmenus;
+    wi->update = &mac_updateterm;
+    wi->click = &mac_clickterm;
+    wi->grow = &mac_growterm;
+    wi->key = &mac_keyterm;
+    wi->menu = &mac_menuterm;
+    wi->close = &mac_closeterm;
     SetWRefCon(s->window, (long)wi);
     s->scrollbar = GetNewControl(cVScroll, s->window);
     s->term = term_init(&s->cfg, &s->ucsdata, s);
@@ -203,7 +222,8 @@ static void mac_workoutfontscale(Session *s, int wantwidth,
 
 static UnicodeToTextFallbackUPP uni_to_font_fallback_upp;
 
-static void mac_initfont(Session *s) {
+static void mac_initfont(Session *s)
+{
     FontInfo fi;
     TextEncoding enc;
     OptionBits fbflags;
@@ -317,7 +337,8 @@ static void mac_adjustsize(Session *s, int newrows, int newcols) {
     mac_drawgrowicon(s);
 }
 
-static void mac_initpalette(Session *s) {
+static void mac_initpalette(Session *s)
+{
 
     if (!HAVE_COLOR_QD())
 	return;
@@ -348,7 +369,8 @@ static void mac_initpalette(Session *s) {
  * Set the background colour of the window correctly.  Should be
  * called whenever the default background changes.
  */
-static void mac_adjustwinbg(Session *s) {
+static void mac_adjustwinbg(Session *s)
+{
 
     if (!HAVE_COLOR_QD())
 	return;
@@ -377,7 +399,9 @@ static void mac_adjustwinbg(Session *s) {
 /*
  * Set the cursor shape correctly
  */
-void mac_adjusttermcursor(WindowPtr window, Point mouse, RgnHandle cursrgn) {
+static void mac_adjusttermcursor(WindowPtr window, Point mouse,
+				 RgnHandle cursrgn)
+{
     Session *s;
     ControlHandle control;
     short part;
@@ -432,7 +456,8 @@ void mac_adjusttermcursor(WindowPtr window, Point mouse, RgnHandle cursrgn) {
 #define DisableItem DisableMenuItem
 #define EnableItem EnableMenuItem
 #endif
-void mac_adjusttermmenus(WindowPtr window) {
+static void mac_adjusttermmenus(WindowPtr window)
+{
     Session *s;
     MenuHandle menu;
 #if !TARGET_API_MAC_CARBON
@@ -467,7 +492,8 @@ void mac_adjusttermmenus(WindowPtr window) {
     EnableItem(menu, iShowEventLog);
 }
 
-void mac_menuterm(WindowPtr window, short menu, short item) {
+static void mac_menuterm(WindowPtr window, short menu, short item)
+{
     Session *s;
 
     s = mac_windowsession(window);
@@ -492,7 +518,8 @@ void mac_menuterm(WindowPtr window, short menu, short item) {
     }
 }
 	    
-void mac_clickterm(WindowPtr window, EventRecord *event) {
+static void mac_clickterm(WindowPtr window, EventRecord *event)
+{
     Session *s;
     Point mouse;
     ControlHandle control;
@@ -525,7 +552,8 @@ void mac_clickterm(WindowPtr window, EventRecord *event) {
     }
 }
 
-static void text_click(Session *s, EventRecord *event) {
+static void text_click(Session *s, EventRecord *event)
+{
     Point localwhere;
     int row, col;
     static UInt32 lastwhen = 0;
@@ -636,7 +664,8 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
 #endif
 }
 
-void get_clip(void *frontend, wchar_t **p, int *lenp) {
+void get_clip(void *frontend, wchar_t **p, int *lenp)
+{
 #if TARGET_API_MAC_CARBON
     *lenp = 0;
 #else
@@ -716,7 +745,8 @@ void get_clip(void *frontend, wchar_t **p, int *lenp) {
 #endif
 }
 
-static pascal void mac_scrolltracker(ControlHandle control, short part) {
+static pascal void mac_scrolltracker(ControlHandle control, short part)
+{
     Session *s;
 
 #if TARGET_API_MAC_CARBON
@@ -740,7 +770,8 @@ static pascal void mac_scrolltracker(ControlHandle control, short part) {
     }
 }
 
-void mac_keyterm(WindowPtr window, EventRecord *event) {
+static void mac_keyterm(WindowPtr window, EventRecord *event)
+{
     Session *s = mac_windowsession(window);
     Key_Sym keysym = PK_NULL;
     unsigned int mods = 0, flags = PKF_NUMLOCK;
@@ -900,7 +931,8 @@ static struct {
     char oldmsg[20];
 } growterm_state;
 
-void mac_growterm(WindowPtr window, EventRecord *event) {
+static void mac_growterm(WindowPtr window, EventRecord *event)
+{
     Rect limits;
     long grow_result;
     int newrows, newcols;
@@ -1004,8 +1036,10 @@ void mac_closeterm(WindowPtr window)
     sfree(s);
 }
 
-void mac_activateterm(WindowPtr window, Boolean active) {
+static void mac_activateterm(WindowPtr window, EventRecord *event)
+{
     Session *s;
+    Boolean active = (event->modifiers & activeFlag) != 0;
 
     s = mac_windowsession(window);
     s->term->has_focus = active;
@@ -1022,7 +1056,8 @@ void mac_activateterm(WindowPtr window, Boolean active) {
     mac_drawgrowicon(s);
 }
 
-void mac_updateterm(WindowPtr window) {
+static void mac_updateterm(WindowPtr window)
+{
     Session *s;
     Rect bbox;
 #if TARGET_API_MAC_CARBON
@@ -1064,7 +1099,8 @@ void mac_updateterm(WindowPtr window) {
     EndUpdate(window);
 }
 
-static void mac_drawgrowicon(Session *s) {
+static void mac_drawgrowicon(Session *s)
+{
     Rect clip;
     RgnHandle savergn;
 
@@ -1103,7 +1139,8 @@ struct do_text_args {
  * x and y are text row and column (zero-based)
  */
 void do_text(Context ctx, int x, int y, char *text, int len,
-	     unsigned long attr, int lattr) {
+	     unsigned long attr, int lattr)
+{
     Session *s = ctx;
     int style;
     struct do_text_args a;
@@ -1230,7 +1267,8 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 }
 
 static pascal void do_text_for_device(short depth, short devflags,
-				      GDHandle device, long cookie) {
+				      GDHandle device, long cookie)
+{
     struct do_text_args *a = (struct do_text_args *)cookie;
     int bgcolour, fgcolour, bright, reverse, tmp;
 #if TARGET_API_MAC_CARBON
@@ -1328,7 +1366,8 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
  * Call from the terminal emulator to get its graphics context.
  * Should probably be called start_redraw or something.
  */
-void pre_paint(Session *s) {
+void pre_paint(Session *s)
+{
     GDHandle gdh;
     Rect myrect, tmprect;
 #if TARGET_API_MAC_CARBON
@@ -1374,21 +1413,24 @@ void pre_paint(Session *s) {
 			        (s->cfg.bold_colour ? ATTR_BOLD : 0));
 }
 
-Context get_ctx(void *frontend) {
+Context get_ctx(void *frontend)
+{
     Session *s = frontend;
 
     pre_paint(s);
     return s;
 }
 
-void free_ctx(Context ctx) {
+void free_ctx(Context ctx)
+{
 
 }
 
 /*
  * Presumably this does something in Windows
  */
-void post_paint(Session *s) {
+void post_paint(Session *s)
+{
 
 }
 
@@ -1399,7 +1441,8 @@ void post_paint(Session *s) {
  * start is the line number of the top of the display
  * page is the length of the displayed page
  */
-void set_sbar(void *frontend, int total, int start, int page) {
+void set_sbar(void *frontend, int total, int start, int page)
+{
     Session *s = frontend;
 
     /* We don't redraw until we've set everything up, to avoid glitches */
@@ -1455,7 +1498,8 @@ void set_icon(void *frontend, char *icon) {
 /*
  * Set the window title
  */
-void set_title(void *frontend, char *title) {
+void set_title(void *frontend, char *title)
+{
     Session *s = frontend;
     Str255 mactitle;
 
@@ -1646,7 +1690,8 @@ static void real_palette_set(Session *s, int n, int r, int g, int b)
 /*
  * Set the logical palette.  Called by the terminal emulator.
  */
-void palette_set(void *frontend, int n, int r, int g, int b) {
+void palette_set(void *frontend, int n, int r, int g, int b)
+{
     Session *s = frontend;
     static const int first[21] = {
 	0, 2, 4, 6, 8, 10, 12, 14,
@@ -1667,7 +1712,8 @@ void palette_set(void *frontend, int n, int r, int g, int b) {
 /*
  * Reset to the default palette
  */
-void palette_reset(void *frontend) {
+void palette_reset(void *frontend)
+{
     Session *s = frontend;
     /* This maps colour indices in cfg to those used in our palette. */
     static const int ww[] = {
@@ -1697,7 +1743,8 @@ void palette_reset(void *frontend) {
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
  * for backward.)
  */
-void do_scroll(Context ctx, int topline, int botline, int lines) {
+void do_scroll(Context ctx, int topline, int botline, int lines)
+{
     Session *s = ctx;
     Rect r;
     RgnHandle scrollrgn = NewRgn();

@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.1 2003/02/07 01:38:12 ben Exp $ */
+/* $Id: macevlog.c,v 1.2 2003/02/15 16:22:15 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -42,6 +42,10 @@
 
 static void mac_draweventloggrowicon(Session *s);
 static void mac_adjusteventlogscrollbar(Session *s);
+static void mac_clickeventlog(WindowPtr, EventRecord *);
+static void mac_activateeventlog(WindowPtr, EventRecord *);
+static void mac_groweventlog(WindowPtr, EventRecord *);
+static void mac_updateeventlog(WindowPtr);
 
 static void mac_createeventlog(Session *s)
 {
@@ -57,8 +61,13 @@ static void mac_createeventlog(Session *s)
 
     s->eventlog_window = GetNewWindow(wEventLog, NULL, (WindowPtr)-1);
     wi = smalloc(sizeof(*wi));
+    memset(wi, 0, sizeof(*wi));
     wi->s = s;
     wi->wtype = wEventLog;
+    wi->click = &mac_clickeventlog;
+    wi->activate = &mac_activateeventlog;
+    wi->grow = &mac_groweventlog;
+    wi->update = &mac_updateeventlog;
     SetWRefCon(s->eventlog_window, (long)wi);
     GetPort(&saveport);
     SetPort((GrafPtr)GetWindowPort(s->eventlog_window));
@@ -178,7 +187,7 @@ void mac_clickeventlog(WindowPtr window, EventRecord *event)
     SetPort(saveport);
 }
 
-void mac_groweventlog(WindowPtr window, EventRecord *event)
+static void mac_groweventlog(WindowPtr window, EventRecord *event)
 {
     Session *s = mac_windowsession(window);
     Rect limits;
@@ -210,7 +219,7 @@ void mac_groweventlog(WindowPtr window, EventRecord *event)
 #endif
 }
 
-void mac_activateeventlog(WindowPtr window, EventRecord *event)
+static void mac_activateeventlog(WindowPtr window, EventRecord *event)
 {
     Session *s = mac_windowsession(window);
     int active = (event->modifiers & activeFlag) != 0;
@@ -219,7 +228,7 @@ void mac_activateeventlog(WindowPtr window, EventRecord *event)
     mac_draweventloggrowicon(s);
 }
 
-void mac_updateeventlog(WindowPtr window)
+static void mac_updateeventlog(WindowPtr window)
 {
     Session *s = mac_windowsession(window);
 #if TARGET_API_MAC_CARBON

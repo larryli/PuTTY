@@ -1,6 +1,6 @@
-/* $Id: mac.c,v 1.48 2003/02/12 23:53:15 ben Exp $ */
+/* $Id: mac.c,v 1.49 2003/02/15 16:22:15 ben Exp $ */
 /*
- * Copyright (c) 1999 Ben Harris
+ * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person
@@ -82,7 +82,6 @@ static void mac_updatelicence(WindowPtr);
 static void mac_keypress(EventRecord *);
 static int mac_windowtype(WindowPtr);
 static void mac_menucommand(long);
-static void mac_openabout(void);
 static void mac_openlicence(void);
 static void mac_adjustcursor(RgnHandle);
 static void mac_adjustmenus(void);
@@ -330,137 +329,33 @@ static void mac_event(EventRecord *event) {
     }
 }
 
-static void mac_contentclick(WindowPtr window, EventRecord *event) {
-    short item;
-    DialogRef dialog;
+static void mac_contentclick(WindowPtr window, EventRecord *event)
+{
 
-    switch (mac_windowtype(window)) {
-      case wTerminal:
-	mac_clickterm(window, event);
-	break;
-      case wAbout:
-	dialog = GetDialogFromWindow(window);
-	if (DialogSelect(event, &dialog, &item))
-	    switch (item) {
-	      case wiAboutLicence:
-		mac_openlicence();
-		break;
-	    }
-	break;
-      case wSettings:
-	mac_clickdlg(window, event);
-	break;
-      case wEventLog:
-	mac_clickeventlog(window, event);
-	break;
-    }
+    if (mac_wininfo(window)->click != NULL)
+	(*mac_wininfo(window)->click)(window, event);
 }
 
-static void mac_growwindow(WindowPtr window, EventRecord *event) {
+static void mac_growwindow(WindowPtr window, EventRecord *event)
+{
 
-    switch (mac_windowtype(window)) {
-      case wTerminal:
-	mac_growterm(window, event);
-	break;
-      case wEventLog:
-	mac_groweventlog(window, event);
-	break;
-    }
+    if (mac_wininfo(window)->grow != NULL)
+	(*mac_wininfo(window)->grow)(window, event);
 }
 
-static void mac_activatewindow(WindowPtr window, EventRecord *event) {
-    int active;
+static void mac_activatewindow(WindowPtr window, EventRecord *event)
+{
 
-    active = (event->modifiers & activeFlag) != 0;
     mac_adjustmenus();
-    switch (mac_windowtype(window)) {
-      case wTerminal:
-	mac_activateterm(window, active);
-	break;
-      case wSettings:
-	mac_activatedlg(window, event);
-	break;
-      case wAbout:
-	mac_activateabout(window, event);
-	break;
-      case wEventLog:
-	mac_activateeventlog(window, event);
-	break;
-    }
-}
-
-static void mac_activateabout(WindowPtr window, EventRecord *event) {
-    DialogRef dialog;
-    DialogItemType itemtype;
-    Handle itemhandle;
-    short item;
-    Rect itemrect;
-    int active;
-
-    dialog = GetDialogFromWindow(window);
-    active = (event->modifiers & activeFlag) != 0;
-    GetDialogItem(dialog, wiAboutLicence, &itemtype, &itemhandle, &itemrect);
-    HiliteControl((ControlHandle)itemhandle, active ? 0 : 255);
-    DialogSelect(event, &dialog, &item);
+    if (mac_wininfo(window)->activate != NULL)
+	(*mac_wininfo(window)->activate)(window, event);
 }
 
 static void mac_updatewindow(WindowPtr window)
 {
-#if TARGET_API_MAC_CARBON
-    RgnHandle rgn;
-#endif
 
-    switch (mac_windowtype(window)) {
-      case wTerminal:
-	mac_updateterm(window);
-	break;
-      case wAbout:
-      case wSettings:
-	BeginUpdate(window);
-#if TARGET_API_MAC_CARBON
-	rgn = NewRgn();
-	GetPortVisibleRegion(GetWindowPort(window), rgn);
-	UpdateDialog(GetDialogFromWindow(window), rgn);
-	DisposeRgn(rgn);
-#else
-	UpdateDialog(window, window->visRgn);
-#endif
-	EndUpdate(window);
-	break;
-      case wLicence:
-	mac_updatelicence(window);
-	break;
-      case wEventLog:
-	mac_updateeventlog(window);
-	break;
-    }
-}
-
-static void mac_updatelicence(WindowPtr window)
-{
-    Handle h;
-    int len;
-    long fondsize;
-    Rect textrect;
-
-    SetPort((GrafPtr)GetWindowPort(window));
-    BeginUpdate(window);
-    fondsize = GetScriptVariable(smRoman, smScriptSmallFondSize);
-    TextFont(HiWord(fondsize));
-    TextSize(LoWord(fondsize));
-    h = Get1Resource('TEXT', wLicence);
-    len = GetResourceSizeOnDisk(h);
-#if TARGET_API_MAC_CARBON
-    GetPortBounds(GetWindowPort(window), &textrect);
-#else
-    textrect = window->portRect;
-#endif
-    if (h != NULL) {
-	HLock(h);
-	TETextBox(*h, len, &textrect, teFlushDefault);
-	HUnlock(h);
-    }
-    EndUpdate(window);
+    if (mac_wininfo(window)->update != NULL)
+	(*mac_wininfo(window)->update)(window);
 }
 
 /*
@@ -493,11 +388,8 @@ static void mac_keypress(EventRecord *event) {
 	mac_adjustmenus();
 	mac_menucommand(MenuKey(event->message & charCodeMask));
     } else {
-	switch (mac_windowtype(window)) {
-	  case wTerminal:
-	    mac_keyterm(window, event);
-	    break;
-	}
+	if (mac_wininfo(window)->key != NULL)
+	    (*mac_wininfo(window)->key)(window, event);
     }       
 }
 
@@ -553,57 +445,11 @@ static void mac_menucommand(long result) {
         break;
     }
     /* If we get here, handling is up to window-specific code. */
-    switch (mac_windowtype(window)) {
-      case wTerminal:
-	mac_menuterm(window, menu, item);
-	break;
-    }
+    if (mac_wininfo(window)->menu != NULL)
+	(*mac_wininfo(window)->menu)(window, menu, item);
+
   done:
     HiliteMenu(0);
-}
-
-static void mac_openabout(void) {
-    DialogItemType itemtype;
-    Handle item;
-    VersRecHndl vers;
-    Rect box;
-    StringPtr longvers;
-    WinInfo *wi;
-
-    if (windows.about)
-	SelectWindow(windows.about);
-    else {
-	windows.about =
-	    GetDialogWindow(GetNewDialog(wAbout, NULL, (WindowPtr)-1));
-	wi = smalloc(sizeof(*wi));
-	wi->s = NULL;
-	wi->wtype = wAbout;
-	SetWRefCon(windows.about, (long)wi);
-	vers = (VersRecHndl)Get1Resource('vers', 1);
-	if (vers != NULL && *vers != NULL) {
-	    longvers = (*vers)->shortVersion + (*vers)->shortVersion[0] + 1;
-	    GetDialogItem(GetDialogFromWindow(windows.about), wiAboutVersion,
-			  &itemtype, &item, &box);
-	    assert(itemtype & kStaticTextDialogItem);
-	    SetDialogItemText(item, longvers);
-	}
-	ShowWindow(windows.about);
-    }
-}
-
-static void mac_openlicence(void) {
-    WinInfo *wi;
-
-    if (windows.licence)
-	SelectWindow(windows.licence);
-    else {
-	windows.licence = GetNewWindow(wLicence, NULL, (WindowPtr)-1);
-	wi = smalloc(sizeof(*wi));
-	wi->s = NULL;
-	wi->wtype = wLicence;
-	SetWRefCon(windows.licence, (long)wi);
-	ShowWindow(windows.licence);
-    }
 }
 
 static void mac_closewindow(WindowPtr window) {
@@ -614,16 +460,9 @@ static void mac_closewindow(WindowPtr window) {
 	CloseDeskAcc(GetWindowKind(window));
 	break;
 #endif
-      case wTerminal:
-	mac_closeterm(window);
-	break;
-      case wAbout:
-	windows.about = NULL;
-	DisposeDialog(GetDialogFromWindow(window));
-	break;
-      case wLicence:
-	windows.licence = NULL;
-	DisposeWindow(window);
+      default:
+	if (mac_wininfo(window)->close != NULL)
+	    (*mac_wininfo(window)->close)(window);
 	break;
     }
 }
@@ -658,18 +497,9 @@ static void mac_adjustmenus(void) {
 	DisableItem(menu, iClose);
     EnableItem(menu, iQuit);
 
-    switch (mac_windowtype(window)) {
-      case wSettings:
-	DisableItem(menu, iSave); /* XXX enable if modified */
-	EnableItem(menu, iSaveAs);
-	EnableItem(menu, iDuplicate);
-	menu = GetMenuHandle(mEdit);
-	DisableItem(menu, 0);
-	break;
-      case wTerminal:
-	mac_adjusttermmenus(window);
-	break;
-      default:
+    if (mac_wininfo(window)->adjustmenus != NULL)
+	(*mac_wininfo(window)->adjustmenus)(window);
+    else {
 	DisableItem(menu, iSave);
 	DisableItem(menu, iSaveAs);
 	DisableItem(menu, iDuplicate);
@@ -677,7 +507,6 @@ static void mac_adjustmenus(void) {
 	DisableItem(menu, 0);
 	menu = GetMenuHandle(mWindow);
 	DisableItem(menu, 0); /* Until we get more than 1 item on it. */
-	break;
     }
     DrawMenuBar();
 }
@@ -718,11 +547,9 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
 #endif
 	}
     } else {
-	switch (mac_windowtype(window)) {
-	  case wTerminal:
-	    mac_adjusttermcursor(window, mouse, cursrgn);
-	    break;
-	  default:
+	if (mac_wininfo(window)->adjustcursor != NULL)
+	    (*mac_wininfo(window)->adjustcursor)(window, mouse, cursrgn);
+	else {
 #if TARGET_API_MAC_CARBON
 	    GetQDGlobalsArrow(&arrow);
 	    SetCursor(&arrow);
@@ -731,7 +558,6 @@ static void mac_adjustcursor(RgnHandle cursrgn) {
 	    SetCursor(&qd.arrow);
 	    CopyRgn(window->visRgn, cursrgn);
 #endif
-	    break;
 	}
     }
 }

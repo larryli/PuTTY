@@ -1,4 +1,4 @@
-/* $Id: macdlg.c,v 1.11 2003/02/04 23:39:26 ben Exp $ */
+/* $Id: macdlg.c,v 1.12 2003/02/15 16:22:15 ben Exp $ */
 /*
  * Copyright (c) 2002 Ben Harris
  * All rights reserved.
@@ -46,9 +46,15 @@
 #include "macresid.h"
 #include "storage.h"
 
+static void mac_clickdlg(WindowPtr, EventRecord *);
+static void mac_activatedlg(WindowPtr, EventRecord *);
+static void mac_updatedlg(WindowPtr);
+static void mac_adjustdlgmenus(WindowPtr);
+
 void mac_newsession(void)
 {
     Session *s;
+    WinInfo *wi;
 
     /* This should obviously be initialised by other means */
     s = smalloc(sizeof(*s));
@@ -59,7 +65,15 @@ void mac_newsession(void)
     s->settings_window =
 	GetDialogWindow(GetNewDialog(wSettings, NULL, (WindowPtr)-1));
 
-    SetWRefCon(s->settings_window, (long)s);
+    wi = smalloc(sizeof(*wi));
+    memset(wi, 0, sizeof(*wi));
+    wi->s = s;
+    wi->wtype = wSettings;
+    wi->update = &mac_updatedlg;
+    wi->click = &mac_clickdlg;
+    wi->activate = &mac_activatedlg;
+    wi->adjustmenus = &mac_adjustdlgmenus;
+    SetWRefCon(s->settings_window, (long)wi);
     ShowWindow(s->settings_window);
 }
 
@@ -266,7 +280,7 @@ pascal OSErr mac_aevt_pdoc(const AppleEvent *req, AppleEvent *reply,
     return errAEEventNotHandled;
 }
 
-void mac_activatedlg(WindowPtr window, EventRecord *event)
+static void mac_activatedlg(WindowPtr window, EventRecord *event)
 {
     DialogItemType itemtype;
     Handle itemhandle;
@@ -281,7 +295,7 @@ void mac_activatedlg(WindowPtr window, EventRecord *event)
     DialogSelect(event, &dialog, &item);
 }
 
-void mac_clickdlg(WindowPtr window, EventRecord *event)
+static void mac_clickdlg(WindowPtr window, EventRecord *event)
 {
     short item;
     Session *s = mac_windowsession(window);
@@ -294,6 +308,41 @@ void mac_clickdlg(WindowPtr window, EventRecord *event)
 	    mac_startsession(s);
 	    break;
 	}
+}
+
+static void mac_updatedlg(WindowPtr window)
+{
+#if TARGET_API_MAC_CARBON
+    RgnHandle rgn;
+#endif
+
+    BeginUpdate(window);
+#if TARGET_API_MAC_CARBON
+    rgn = NewRgn();
+    GetPortVisibleRegion(GetWindowPort(window), rgn);
+    UpdateDialog(GetDialogFromWindow(window), rgn);
+    DisposeRgn(rgn);
+#else
+    UpdateDialog(window, window->visRgn);
+#endif
+    EndUpdate(window);
+}
+
+#if TARGET_API_MAC_CARBON
+#define EnableItem EnableMenuItem
+#define DisableItem DisableMenuItem
+#endif
+static void mac_adjustdlgmenus(WindowPtr window)
+{
+    MenuHandle menu;
+
+    menu = GetMenuHandle(mFile);
+    DisableItem(menu, iSave); /* XXX enable if modified */
+    EnableItem(menu, iSaveAs);
+    EnableItem(menu, iDuplicate);
+
+    menu = GetMenuHandle(mEdit);
+    DisableItem(menu, 0);
 }
 
 /*
