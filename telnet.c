@@ -216,6 +216,11 @@ static void activate_option (struct Opt *o) {
 	 */
 	deactivate_option (o->option==TELOPT_NEW_ENVIRON ? &o_oenv : &o_nenv);
     }
+    if (o->option == TELOPT_ECHO)
+    {
+	cfg.ldisc_term = FALSE;
+	ldisc = &ldisc_simple;
+    }
 }
 
 static void refused_option (struct Opt *o) {
@@ -223,6 +228,11 @@ static void refused_option (struct Opt *o) {
 	o_oenv.state == INACTIVE) {
 	send_opt (WILL, TELOPT_OLD_ENVIRON);
 	o_oenv.state = REQUESTED;
+    }
+    if (o->option == TELOPT_ECHO)
+    {
+	cfg.ldisc_term = TRUE;
+	ldisc = &ldisc_term;
     }
 }
 
@@ -719,8 +729,20 @@ static void telnet_special (Telnet_Special code) {
       case TS_EOF: b[1] = xEOF; s_write (b, 2); break;
       case TS_SYNCH:
 	outbuf_head = outbuf_reap = 0;
-	b[0] = DM;
-	send (s, b, 1, MSG_OOB);
+	b[1] = DM;
+	send (s, b, 2, MSG_OOB);
+	break;
+      case TS_RECHO:
+	if (o_echo.state == INACTIVE || o_echo.state == REALLY_INACTIVE) {
+	    o_echo.state = REQUESTED;
+	    send_opt (o_echo.send, o_echo.option);
+	}
+	break;
+      case TS_LECHO:
+	if (o_echo.state == ACTIVE) {
+	    o_echo.state = REQUESTED;
+	    send_opt (o_echo.nsend, o_echo.option);
+	}
 	break;
     }
 }

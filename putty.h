@@ -79,7 +79,7 @@ GLOBAL char *logfile;
 
 typedef enum {
     TS_AYT, TS_BRK, TS_SYNCH, TS_EC, TS_EL, TS_GA, TS_NOP, TS_ABORT,
-    TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF
+    TS_AO, TS_IP, TS_SUSP, TS_EOR, TS_EOF, TS_LECHO, TS_RECHO
 } Telnet_Special;
 
 typedef enum {

@@ -730,6 +730,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    init_fonts();
 	    sfree(logpal);
 	    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
+	    back->special (cfg.ldisc_term ? TS_LECHO : TS_RECHO);
 	    if (pal)
 		DeleteObject(pal);
 	    logpal = NULL;
