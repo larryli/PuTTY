@@ -803,8 +803,30 @@ static int beep_overload = 0;
 		 *
 		 * An xterm returns "xterm" (5 characters)
 		 */
-	        compatibility(OTHER);
-		ldisc_send ("PuTTY", 5);
+	        compatibility(ANSIMIN);
+		{
+		    char abuf[256], *s, *d;
+		    int state=0;
+		    for(s=cfg.answerback, d=abuf; *s; s++) {
+                        if (state)
+                        {
+                            if (*s >= 'a' && *s <= 'z')
+                                *d++ = (*s - ('a'-1));
+                            else if ((*s >='@' && *s<='_') ||
+                                     *s == '?' || (*s&0x80))
+                                *d++ = ('@'^*s);
+                            else if (*s == '~')
+                                *d++ = '^';
+                            state = 0;
+                        }
+                        else if (*s == '^') {
+                            state = 1;
+                        }
+                        else
+                            *d++ = xlat_kbd2tty((unsigned char)*s);
+		    }
+		    ldisc_send (abuf, d-abuf);
+		}
 		break;
 	      case '\007':
 		beep_count++; 

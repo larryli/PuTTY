@@ -227,6 +227,7 @@ typedef struct {
     char logfilename[FILENAME_MAX];
     int logtype;
     int hide_mouseptr;
+    char answerback[256];
     /* Colour options */
     int try_palette;
     int bold_colour;

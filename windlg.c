@@ -271,6 +271,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BEEP,
     IDC_BCE,
     IDC_BLINKTEXT,
+    IDC_ANSWERBACK,
+    IDC_ANSWEREDIT,
     IDC_ECHOSTATIC,
     IDC_ECHOBACKEND,
     IDC_ECHOYES,
@@ -530,6 +532,7 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckRadioButton (hwnd, IDC_EDITBACKEND, IDC_EDITNO,
 		      cfg.localedit == LD_BACKEND ? IDC_EDITBACKEND:
                       cfg.localedit == LD_YES ? IDC_EDITYES : IDC_EDITNO);
+    SetDlgItemText (hwnd, IDC_ANSWEREDIT, cfg.answerback);
     CheckDlgButton (hwnd, IDC_ALWAYSONTOP, cfg.alwaysontop);
     CheckDlgButton (hwnd, IDC_SCROLLKEY, cfg.scroll_on_key);
     CheckDlgButton (hwnd, IDC_SCROLLDISP, cfg.scroll_on_disp);
@@ -747,7 +750,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
     }
 
     if (panel == terminalpanelstart) {
-        /* The Terminal panel. Accelerators used: [acgo] wdlben ht */
+        /* The Terminal panel. Accelerators used: [acgo] wdlben hts */
         struct ctlpos cp;
         ctlposinit(&cp, hwnd, 80, 3, 13);
         bartitle(&cp, "Options controlling the terminal emulation",
@@ -760,6 +763,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         checkbox(&cp, "&Beep enabled", IDC_BEEP);
         checkbox(&cp, "Use background colour to &erase screen", IDC_BCE);
         checkbox(&cp, "Enable bli&nking text", IDC_BLINKTEXT);
+        multiedit(&cp,
+                  "An&swerback to ^E:", IDC_ANSWERBACK,
+                  IDC_ANSWEREDIT, 100, NULL);
         endbox(&cp);
 
         beginbox(&cp, "Line discipline options",
@@ -1491,6 +1497,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		if (LOWORD(wParam)==IDC_EDITYES) cfg.localedit=LD_YES;
 		if (LOWORD(wParam)==IDC_EDITNO) cfg.localedit=LD_NO;
             }
+	    break;
+	  case IDC_ANSWEREDIT:
+	    if (HIWORD(wParam) == EN_CHANGE)
+		GetDlgItemText (hwnd, IDC_ANSWEREDIT, cfg.answerback,
+				sizeof(cfg.answerback)-1);
 	    break;
           case IDC_ALWAYSONTOP:
 	    if (HIWORD(wParam) == BN_CLICKED ||
