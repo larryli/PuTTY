@@ -5138,6 +5138,23 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_send();
 		    }
 		}
+	    } else if (pktin.type == SSH2_MSG_GLOBAL_REQUEST) {
+		char *type;
+		int typelen, want_reply;
+
+		ssh2_pkt_getstring(&type, &typelen);
+		want_reply = ssh2_pkt_getbool();
+
+                /*
+                 * We currently don't support any global requests
+                 * at all, so we either ignore the request or
+                 * respond with REQUEST_FAILURE, depending on
+                 * want_reply.
+                 */
+                if (want_reply) {
+                    ssh2_pkt_init(SSH2_MSG_REQUEST_FAILURE);
+                    ssh2_pkt_send();
+		}
 	    } else if (pktin.type == SSH2_MSG_CHANNEL_OPEN) {
 		char *type;
 		int typelen;
