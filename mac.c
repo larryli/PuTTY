@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.2 1999/02/19 23:03:29 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.3 1999/02/19 23:51:21 ben Exp $ */
 /*
  * mac.c -- miscellaneous Mac-specific routines
  */
@@ -11,8 +11,9 @@
 #include <TextEdit.h>
 #include <Dialogs.h>
 
-#include <stdlib.h>		/* putty.h needs size_t */
+#include <limits.h>
 #include <stdarg.h>
+#include <stdlib.h>		/* putty.h needs size_t */
 
 #include "putty.h"
 
@@ -20,7 +21,16 @@ QDGlobals qd;
 
 int cold = 1;
 
+static void mac_startup(void);
+static void mac_eventloop(void);
+
 int main (int argc, char **argv) {
+
+    mac_startup();
+    mac_eventloop();
+}
+
+static void mac_startup(void) {
     Handle menuBar;
 
     /* Init QuickDraw */
@@ -40,13 +50,22 @@ int main (int argc, char **argv) {
     
     menuBar = GetNewMBar(128);
     if (menuBar == NULL)
-    	fatalbox("Unable to create menu bar.");
+	fatalbox("Unable to create menu bar.");
     SetMenuBar(menuBar);
     AppendResMenu(GetMenuHandle(128), 'DRVR');
     /* adjustmenus */
     DrawMenuBar();
-    
-    fatalbox("Init complete");
+}
+
+static void mac_eventloop(void) {
+    Boolean gotevent;
+    EventRecord event;
+    int i;
+
+    for (i = 0; i < 100; i++) {
+	gotevent = WaitNextEvent(everyEvent, &event, LONG_MAX, NULL);
+    }
+    fatalbox("I'm bored.");
 }
 
 void fatalbox(const char *fmt, ...) {
