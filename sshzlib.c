@@ -747,6 +747,31 @@ static struct zlib_table *zlib_mktable(unsigned char *lengths, int nlengths) {
                          maxlen < 9 ? maxlen : 9);
 }
 
+static int zlib_freetable(struct zlib_table ** ztab) {
+    struct zlib_table *tab;
+    int code;
+
+    if (ztab == NULL)
+	return -1;
+
+    if (*ztab == NULL)
+	return 0;
+
+    tab = *ztab;
+
+    for (code = 0; code <= tab->mask; code++)
+	if (tab->table[code].nexttable != NULL)
+	    zlib_freetable(&tab->table[code].nexttable);
+
+    sfree(tab->table);
+    tab->table = NULL;
+
+    sfree(tab);
+    *ztab = NULL;
+
+    return(0);
+}
+
 static struct zlib_decompress_ctx {
     struct zlib_table *staticlentable, *staticdisttable;
     struct zlib_table *currlentable, *currdisttable, *lenlentable;
@@ -893,8 +918,8 @@ int zlib_decompress_block(unsigned char *block, int len,
                 dctx.currlentable = zlib_mktable(dctx.lengths, dctx.hlit);
                 dctx.currdisttable = zlib_mktable(dctx.lengths + dctx.hlit,
                                                   dctx.hdist);
-                /* FIXME: zlib_freetable(dctx.lenlentable); */
-                dctx.state = INBLK;
+		zlib_freetable(&dctx.lenlentable);
+		dctx.state = INBLK;
                 break;
             }
             code = zlib_huflookup(&dctx.bits, &dctx.nbits, dctx.lenlentable);
@@ -930,7 +955,10 @@ int zlib_decompress_block(unsigned char *block, int len,
 		zlib_emit_char(code);
             else if (code == 256) {
                 dctx.state = OUTSIDEBLK;
-                /* FIXME: zlib_freetable(both) if not static */
+		if (dctx.currlentable != dctx.staticlentable)
+		    zlib_freetable(&dctx.currlentable);
+		if (dctx.currdisttable != dctx.staticdisttable)
+		    zlib_freetable(&dctx.currdisttable);
             } else if (code < 286) {   /* static tree can give >285; ignore */
                 dctx.state = GOTLENSYM;
                 dctx.sym = code;
