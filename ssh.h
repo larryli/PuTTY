@@ -28,13 +28,18 @@ typedef unsigned int uint32;
 
 unsigned long crc32(const void *s, size_t len);
 
+typedef struct {
+    uint32 h[4];
+} MD5_Core_State;
+
 struct MD5Context {
 #ifdef MSCRYPTOAPI
     unsigned long hHash;
 #else
-    uint32 buf[4];
-    uint32 bits[2];
-    unsigned char in[64];
+    MD5_Core_State core;
+    unsigned char block[BLKSIZE];
+    int blkused;
+    uint32 lenhi, lenlo;
 #endif
 };
 
