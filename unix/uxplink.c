@@ -446,13 +446,13 @@ int main(int argc, char **argv)
 		    while (*p) {
 			if (cmdlen >= cmdsize) {
 			    cmdsize = cmdlen + 512;
-			    command = srealloc(command, cmdsize);
+			    command = sresize(command, cmdsize, char);
 			}
 			command[cmdlen++]=*p++;
 		    }
 		    if (cmdlen >= cmdsize) {
 			cmdsize = cmdlen + 512;
-			command = srealloc(command, cmdsize);
+			command = sresize(command, cmdsize, char);
 		    }
 		    command[cmdlen++]=' '; /* always add trailing space */
 		    if (--argc) p = *++argv;
@@ -631,7 +631,7 @@ int main(int argc, char **argv)
 	/* Expand the sklist buffer if necessary. */
 	if (i > sksize) {
 	    sksize = i + 16;
-	    sklist = srealloc(sklist, sksize * sizeof(*sklist));
+	    sklist = sresize(sklist, sksize, int);
 	}
 
 	/*

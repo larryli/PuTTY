@@ -600,7 +600,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     {
 	char *bits;
 	int size = (font_width + 15) / 16 * 2 * font_height;
-	bits = smalloc(size);
+	bits = snewn(size, char);
 	memset(bits, 0, size);
 	caretbm = CreateBitmap(font_width, font_height, 1, 1, bits);
 	sfree(bits);
@@ -999,6 +999,10 @@ static void init_palette(void)
     HDC hdc = GetDC(hwnd);
     if (hdc) {
 	if (cfg.try_palette && GetDeviceCaps(hdc, RASTERCAPS) & RC_PALETTE) {
+	    /*
+	     * This is a genuine case where we must use smalloc
+	     * because the snew macros can't cope.
+	     */
 	    logpal = smalloc(sizeof(*logpal)
 			     - sizeof(logpal->palPalEntry)
 			     + NCOLOURS * sizeof(PALETTEENTRY));
@@ -1723,7 +1727,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    if ((lParam - IDM_SAVED_MIN) / 16 < sesslist.nsessions) {
 			char *session =
 			    sesslist.sessions[(lParam - IDM_SAVED_MIN) / 16];
-			cl = smalloc(16 + strlen(session));
+			cl = snewn(16 + strlen(session), char);
 				       /* 8, but play safe */
 			if (!cl)
 			    cl = NULL;    
@@ -2531,7 +2535,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    if (n > 0) {
 		int i;
-		buff = (char*) smalloc(n);
+		buff = snewn(n, char);
 		ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, buff, n);
 		/*
 		 * Jaeyoun Chung reports that Korean character
@@ -2719,7 +2723,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	int i;
 	if (len > IpDxLEN) {
 	    sfree(IpDx);
-	    IpDx = smalloc((len + 16) * sizeof(int));
+	    IpDx = snewn(len + 16, int);
 	    IpDxLEN = (len + 16);
 	}
 	for (i = 0; i < IpDxLEN; i++)
@@ -2850,7 +2854,8 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	int nlen, mptr;
 	if (len > uni_len) {
 	    sfree(uni_buf);
-	    uni_buf = smalloc((uni_len = len) * sizeof(wchar_t));
+	    uni_len = len;
+	    uni_buf = snewn(uni_len, wchar_t);
 	}
 
 	for(nlen = mptr = 0; mptr<len; mptr++) {
@@ -2910,7 +2915,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	if (wlen < len) {
 	    sfree(wbuf);
 	    wlen = len;
-	    wbuf = smalloc(wlen * sizeof(WCHAR));
+	    wbuf = snewn(wlen, WCHAR);
 	}
 	for (i = 0; i < len; i++)
 	    wbuf[i] = (WCHAR) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
@@ -3920,7 +3925,7 @@ void request_paste(void *frontend)
 void set_title(void *frontend, char *title)
 {
     sfree(window_name);
-    window_name = smalloc(1 + strlen(title));
+    window_name = snewn(1 + strlen(title), char);
     strcpy(window_name, title);
     if (cfg.win_name_always || !IsIconic(hwnd))
 	SetWindowText(hwnd, title);
@@ -3929,7 +3934,7 @@ void set_title(void *frontend, char *title)
 void set_icon(void *frontend, char *title)
 {
     sfree(icon_name);
-    icon_name = smalloc(1 + strlen(title));
+    icon_name = snewn(1 + strlen(title), char);
     strcpy(icon_name, title);
     if (!cfg.win_name_always && IsIconic(hwnd))
 	SetWindowText(hwnd, title);
@@ -4100,7 +4105,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	get_unitab(CP_ACP, unitab, 0);
 
 	rtfsize = 100 + strlen(cfg.font.name);
-	rtf = smalloc(rtfsize);
+	rtf = snewn(rtfsize, char);
 	sprintf(rtf, "{\\rtf1\\ansi%d{\\fonttbl\\f0\\fmodern %s;}\\f0",
 		GetACP(), cfg.font.name);
 	rtflen = strlen(rtf);
@@ -4165,7 +4170,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 
 	    if (rtfsize < rtflen + totallen + 3) {
 		rtfsize = rtflen + totallen + 512;
-		rtf = srealloc(rtf, rtfsize);
+		rtf = sresize(rtf, rtfsize, char);
 	    }
 
 	    strcpy(rtf + rtflen, before); rtflen += blen;
@@ -4253,7 +4258,7 @@ void get_clip(void *frontend, wchar_t ** p, int *len)
 	    CloseClipboard();
 	    s = GlobalLock(clipdata);
 	    i = MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, 0, 0);
-	    *p = converted = smalloc(i * sizeof(wchar_t));
+	    *p = converted = snewn(i, wchar_t);
 	    MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, converted, i);
 	    *len = i - 1;
 	    return;

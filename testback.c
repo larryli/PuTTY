@@ -1,4 +1,4 @@
-/* $Id: testback.c,v 1.6 2003/01/15 23:30:21 ben Exp $ */
+/* $Id: testback.c,v 1.7 2003/03/29 16:14:26 simon Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris
@@ -77,7 +77,7 @@ static char *null_init(void *frontend_handle, void **backend_handle,
 static char *loop_init(void *frontend_handle, void **backend_handle,
 		       Config *cfg, char *host, int port, char **realhost,
 		       int nodelay) {
-    struct loop_state *st = smalloc(sizeof(*st));
+    struct loop_state *st = snew(struct loop_state);
 
     st->term = frontend_handle;
     *backend_handle = st;

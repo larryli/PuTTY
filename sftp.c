@@ -40,7 +40,7 @@ static void sftp_pkt_ensure(struct sftp_packet *pkt, int length)
 {
     if (pkt->maxlen < length) {
 	pkt->maxlen = length + 256;
-	pkt->data = srealloc(pkt->data, pkt->maxlen);
+	pkt->data = sresize(pkt->data, pkt->maxlen, char);
     }
 }
 static void sftp_pkt_adddata(struct sftp_packet *pkt, void *data, int len)
@@ -56,7 +56,7 @@ static void sftp_pkt_addbyte(struct sftp_packet *pkt, unsigned char byte)
 static struct sftp_packet *sftp_pkt_init(int pkt_type)
 {
     struct sftp_packet *pkt;
-    pkt = smalloc(sizeof(struct sftp_packet));
+    pkt = snew(struct sftp_packet);
     pkt->data = NULL;
     pkt->savedpos = -1;
     pkt->length = 0;
@@ -228,10 +228,10 @@ struct sftp_packet *sftp_recv(void)
     if (!sftp_recvdata(x, 4))
 	return NULL;
 
-    pkt = smalloc(sizeof(struct sftp_packet));
+    pkt = snew(struct sftp_packet);
     pkt->savedpos = 0;
     pkt->length = pkt->maxlen = GET_32BIT(x);
-    pkt->data = smalloc(pkt->length);
+    pkt->data = snewn(pkt->length, char);
 
     if (!sftp_recvdata(pkt->data, pkt->length)) {
 	sftp_pkt_free(pkt);
@@ -249,7 +249,7 @@ struct sftp_packet *sftp_recv(void)
 
 static char *mkstr(char *s, int len)
 {
-    char *p = smalloc(len + 1);
+    char *p = snewn(len + 1, char);
     memcpy(p, s, len);
     p[len] = '\0';
     return p;
@@ -444,7 +444,7 @@ struct fxp_handle *fxp_open(char *path, int type)
             sftp_pkt_free(pktin);
 	    return NULL;
 	}
-	handle = smalloc(sizeof(struct fxp_handle));
+	handle = snew(struct fxp_handle);
 	handle->hstring = mkstr(hstring, len);
 	handle->hlen = len;
 	sftp_pkt_free(pktin);
@@ -490,7 +490,7 @@ struct fxp_handle *fxp_opendir(char *path)
             sftp_pkt_free(pktin);
 	    return NULL;
 	}
-	handle = smalloc(sizeof(struct fxp_handle));
+	handle = snew(struct fxp_handle);
 	handle->hstring = mkstr(hstring, len);
 	handle->hlen = len;
 	sftp_pkt_free(pktin);
@@ -855,9 +855,9 @@ struct fxp_names *fxp_readdir(struct fxp_handle *handle)
     if (pktin->type == SSH_FXP_NAME) {
 	struct fxp_names *ret;
 	int i;
-	ret = smalloc(sizeof(struct fxp_names));
+	ret = snew(struct fxp_names);
 	ret->nnames = sftp_pkt_getuint32(pktin);
-	ret->names = smalloc(ret->nnames * sizeof(struct fxp_name));
+	ret->names = snewn(ret->nnames, struct fxp_name);
 	for (i = 0; i < ret->nnames; i++) {
 	    char *str;
 	    int len;
@@ -930,7 +930,7 @@ void fxp_free_names(struct fxp_names *names)
 struct fxp_name *fxp_dup_name(struct fxp_name *name)
 {
     struct fxp_name *ret;
-    ret = smalloc(sizeof(struct fxp_name));
+    ret = snew(struct fxp_name);
     ret->filename = dupstr(name->filename);
     ret->longname = dupstr(name->longname);
     ret->attrs = name->attrs;	       /* structure copy */

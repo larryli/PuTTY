@@ -80,7 +80,7 @@ void agent_query(void *in, int inlen, void **out, int *outlen)
 	    }
 	    retsize += 4;
 	    assert(retbuf == sizebuf);
-	    retbuf = smalloc(retsize);
+	    retbuf = snewn(retsize, char);
 	    memcpy(retbuf, sizebuf, 4);
 	}
     }

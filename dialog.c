@@ -41,7 +41,7 @@ int ctrl_path_compare(char *p1, char *p2)
 
 struct controlbox *ctrl_new_box(void)
 {
-    struct controlbox *ret = smalloc(sizeof(struct controlbox));
+    struct controlbox *ret = snew(struct controlbox);
 
     ret->nctrlsets = ret->ctrlsetsize = 0;
     ret->ctrlsets = NULL;
@@ -128,7 +128,7 @@ struct controlset *ctrl_settitle(struct controlbox *b,
 				 char *path, char *title)
 {
     
-    struct controlset *s = smalloc(sizeof(struct controlset));
+    struct controlset *s = snew(struct controlset);
     int index = ctrl_find_set(b, path, 1);
     s->pathname = dupstr(path);
     s->boxname = NULL;
@@ -138,8 +138,7 @@ struct controlset *ctrl_settitle(struct controlbox *b,
     s->ctrls = NULL;
     if (b->nctrlsets >= b->ctrlsetsize) {
 	b->ctrlsetsize = b->nctrlsets + 32;
-	b->ctrlsets = srealloc(b->ctrlsets,
-			       b->ctrlsetsize*sizeof(*b->ctrlsets));
+	b->ctrlsets = sresize(b->ctrlsets, b->ctrlsetsize,struct controlset *);
     }
     if (index < b->nctrlsets)
 	memmove(&b->ctrlsets[index+1], &b->ctrlsets[index],
@@ -162,7 +161,7 @@ struct controlset *ctrl_getset(struct controlbox *b,
 	    return b->ctrlsets[index];
 	index++;
     }
-    s = smalloc(sizeof(struct controlset));
+    s = snew(struct controlset);
     s->pathname = dupstr(path);
     s->boxname = dupstr(name);
     s->boxtitle = boxtitle ? dupstr(boxtitle) : NULL;
@@ -171,8 +170,7 @@ struct controlset *ctrl_getset(struct controlbox *b,
     s->ctrls = NULL;
     if (b->nctrlsets >= b->ctrlsetsize) {
 	b->ctrlsetsize = b->nctrlsets + 32;
-	b->ctrlsets = srealloc(b->ctrlsets,
-			       b->ctrlsetsize*sizeof(*b->ctrlsets));
+	b->ctrlsets = sresize(b->ctrlsets, b->ctrlsetsize,struct controlset *);
     }
     if (index < b->nctrlsets)
 	memmove(&b->ctrlsets[index+1], &b->ctrlsets[index],
@@ -186,10 +184,14 @@ struct controlset *ctrl_getset(struct controlbox *b,
 void *ctrl_alloc(struct controlbox *b, size_t size)
 {
     void *p;
+    /*
+     * This is an internal allocation routine, so it's allowed to
+     * use smalloc directly.
+     */
     p = smalloc(size);
     if (b->nfrees >= b->freesize) {
 	b->freesize = b->nfrees + 32;
-	b->frees = srealloc(b->frees, b->freesize*sizeof(*b->frees));
+	b->frees = sresize(b->frees, b->freesize, void *);
     }
     b->frees[b->nfrees++] = p;
     return p;
@@ -199,10 +201,10 @@ static union control *ctrl_new(struct controlset *s, int type,
 			       intorptr helpctx, handler_fn handler,
 			       intorptr context)
 {
-    union control *c = smalloc(sizeof(union control));
+    union control *c = snew(union control);
     if (s->ncontrols >= s->ctrlsize) {
 	s->ctrlsize = s->ncontrols + 32;
-	s->ctrls = srealloc(s->ctrls, s->ctrlsize * sizeof(*s->ctrls));
+	s->ctrls = sresize(s->ctrls, s->ctrlsize, union control *);
     }
     s->ctrls[s->ncontrols++] = c;
     /*
@@ -230,7 +232,7 @@ union control *ctrl_columns(struct controlset *s, int ncolumns, ...)
     } else {
 	va_list ap;
 	int i;
-	c->columns.percentages = smalloc(ncolumns * sizeof(int));
+	c->columns.percentages = snewn(ncolumns, int);
 	va_start(ap, ncolumns);
 	for (i = 0; i < ncolumns; i++)
 	    c->columns.percentages[i] = va_arg(ap, int);
@@ -300,11 +302,11 @@ union control *ctrl_radiobuttons(struct controlset *s, char *label,
     va_end(ap);
     c->radio.nbuttons = i;
     if (c->radio.shortcut == NO_SHORTCUT)
-	c->radio.shortcuts = smalloc(c->radio.nbuttons * sizeof(char));
+	c->radio.shortcuts = snewn(c->radio.nbuttons, char);
     else
 	c->radio.shortcuts = NULL;
-    c->radio.buttons = smalloc(c->radio.nbuttons * sizeof(char *));
-    c->radio.buttondata = smalloc(c->radio.nbuttons * sizeof(intorptr));
+    c->radio.buttons = snewn(c->radio.nbuttons, char *);
+    c->radio.buttondata = snewn(c->radio.nbuttons, intorptr);
     /*
      * Second pass along variable argument list to actually fill in
      * the structure.

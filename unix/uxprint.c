@@ -12,7 +12,7 @@ struct printer_job_tag {
 
 printer_job *printer_start_job(char *printer)
 {
-    printer_job *ret = smalloc(sizeof(printer_job));
+    printer_job *ret = snew(printer_job);
     /*
      * On Unix, we treat the printer string as the name of a
      * command to pipe to - typically lpr, of course.

@@ -353,8 +353,7 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
     if (len > 0) {
 	if (pendsize < pendlen + len) {
 	    pendsize = pendlen + len + 4096;
-	    pending = (pending ? srealloc(pending, pendsize) :
-		       smalloc(pendsize));
+	    pending = sresize(pending, pendsize, unsigned char);
 	    if (!pending)
 		fatalbox("Out of memory");
 	}
@@ -545,7 +544,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 	namelen = 0;
 	if (GetUserName(user, &namelen) == FALSE)
 	    bump("Empty user name");
-	user = smalloc(namelen * sizeof(char));
+	user = snewn(namelen, char);
 	GetUserName(user, &namelen);
 	if (verbose)
 	    tell_user(stderr, "Guessing user name: %s", user);
@@ -777,8 +776,7 @@ void scp_sftp_listdir(char *dirname)
 
 	    if (nnames + names->nnames >= namesize) {
 		namesize += names->nnames + 128;
-		ournames =
-		    srealloc(ournames, namesize * sizeof(*ournames));
+		ournames = sresize(ournames, namesize, struct fxp_name);
 	    }
 
 	    for (i = 0; i < names->nnames; i++)
@@ -1064,7 +1062,7 @@ int scp_sink_setup(char *source, int preserve, int recursive)
 	 * wildcardness comes before the final slash) and arrange
 	 * things so that a dirstack entry will be set up.
 	 */
-	newsource = smalloc(1+strlen(source));
+	newsource = snewn(1+strlen(source), char);
 	if (!wc_unescape(newsource, source)) {
 	    /* Yes, here we go; it's a wildcard. Bah. */
 	    char *dupsource, *lastpart, *dirpart, *wildcard;
@@ -1097,7 +1095,7 @@ int scp_sink_setup(char *source, int preserve, int recursive)
 	     * wildcard escapes from the directory part, throwing
 	     * an error if it contains a real wildcard.
 	     */
-	    dirpart = smalloc(1+strlen(dupsource));
+	    dirpart = snewn(1+strlen(dupsource), char);
 	    if (!wc_unescape(dirpart, dupsource)) {
 		tell_user(stderr, "%s: multiple-level wildcards unsupported",
 			  source);
@@ -1306,8 +1304,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		}
 		if (nnames + names->nnames >= namesize) {
 		    namesize += names->nnames + 128;
-		    ournames =
-			srealloc(ournames, namesize * sizeof(*ournames));
+		    ournames = sresize(ournames, namesize, struct fxp_name);
 		}
 		for (i = 0; i < names->nnames; i++)
 		    ournames[nnames++] = names->names[i];
@@ -1316,7 +1313,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    }
 	    fxp_close(dirhandle);
 
-	    newitem = smalloc(sizeof(struct scp_sftp_dirstack));
+	    newitem = snew(struct scp_sftp_dirstack);
 	    newitem->next = scp_sftp_dirstack_head;
 	    newitem->names = ournames;
 	    newitem->namepos = 0;
@@ -1404,7 +1401,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		    bump("Lost connection");
 		if (i >= bufsize) {
 		    bufsize = i + 128;
-		    act->buf = srealloc(act->buf, bufsize);
+		    act->buf = sresize(act->buf, bufsize, char);
 		}
 		act->buf[i++] = ch;
 	    } while (ch != '\n');
@@ -2080,7 +2077,7 @@ static void get_dir_list(int argc, char *argv[])
 	    user = NULL;
     }
 
-    cmd = smalloc(4 * strlen(src) + 100);
+    cmd = snewn(4 * strlen(src) + 100, char);
     strcpy(cmd, "ls -la '");
     p = cmd + strlen(cmd);
     for (q = src; *q; q++) {

@@ -419,7 +419,7 @@ static void add_keyfile(Filename filename)
 		return;
 	    }
 	    /* For our purposes we want the blob prefixed with its length */
-	    blob2 = smalloc(bloblen+4);
+	    blob2 = snewn(bloblen+4, unsigned char);
 	    PUT_32BIT(blob2, bloblen);
 	    memcpy(blob2 + 4, blob, bloblen);
 	    sfree(blob);
@@ -459,7 +459,7 @@ static void add_keyfile(Filename filename)
 	needs_pass = ssh2_userkey_encrypted(&filename, &comment);
     attempts = 0;
     if (type == SSH_KEYTYPE_SSH1)
-	rkey = smalloc(sizeof(*rkey));
+	rkey = snew(struct RSAKey);
     pps.passphrase = passphrase;
     pps.comment = comment;
     original_pass = 0;
@@ -532,7 +532,7 @@ static void add_keyfile(Filename filename)
 		ssh1_bignum_length(rkey->q) + 4 + clen	/* comment */
 		;
 
-	    request = smalloc(reqlen);
+	    request = snewn(reqlen, unsigned char);
 
 	    request[4] = SSH1_AGENTC_ADD_RSA_IDENTITY;
 	    reqlen = 5;
@@ -580,7 +580,7 @@ static void add_keyfile(Filename filename)
 		4 + clen	       /* comment */
 		;
 
-	    request = smalloc(reqlen);
+	    request = snewn(reqlen, unsigned char);
 
 	    request[4] = SSH2_AGENTC_ADD_IDENTITY;
 	    reqlen = 5;
@@ -639,7 +639,7 @@ static void *make_keylist1(int *length)
     }
 
     /* Allocate the buffer. */
-    p = ret = smalloc(len);
+    p = ret = snewn(len, unsigned char);
     if (length) *length = len;
 
     PUT_32BIT(p, nkeys);
@@ -684,7 +684,7 @@ static void *make_keylist2(int *length)
     }
 
     /* Allocate the buffer. */
-    p = ret = smalloc(len);
+    p = ret = snewn(len, unsigned char);
     if (length) *length = len;
 
     /*
@@ -730,7 +730,7 @@ static void *get_keylist1(void)
 	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER)
 	    return NULL;
 
-	ret = smalloc(resplen-5);
+	ret = snewn(resplen-5, unsigned char);
 	memcpy(ret, response+5, resplen-5);
 	sfree(response);
     } else {
@@ -761,7 +761,7 @@ static void *get_keylist2(void)
 	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER)
 	    return NULL;
 
-	ret = smalloc(resplen-5);
+	ret = snewn(resplen-5, unsigned char);
 	memcpy(ret, response+5, resplen-5);
 	sfree(response);
     } else {
@@ -913,7 +913,7 @@ static void answer_msg(void *msg)
 	    struct RSAKey *key;
 	    char *comment;
             int commentlen;
-	    key = smalloc(sizeof(struct RSAKey));
+	    key = snew(struct RSAKey);
 	    memset(key, 0, sizeof(struct RSAKey));
 	    p += makekey(p, key, NULL, 1);
 	    p += makeprivate(p, key);
@@ -921,7 +921,7 @@ static void answer_msg(void *msg)
 	    p += ssh1_read_bignum(p, &key->p);	/* p */
 	    p += ssh1_read_bignum(p, &key->q);	/* q */
             commentlen = GET_32BIT(p);
-	    comment = smalloc(commentlen+1);
+	    comment = snewn(commentlen+1, char);
 	    if (comment) {
 		memcpy(comment, p + 4, commentlen);
                 comment[commentlen] = '\0';
@@ -949,7 +949,7 @@ static void answer_msg(void *msg)
 	    int alglen, commlen;
 	    int bloblen;
 
-	    key = smalloc(sizeof(struct ssh2_userkey));
+	    key = snew(struct ssh2_userkey);
 
 	    alglen = GET_32BIT(p);
 	    p += 4;
@@ -977,7 +977,7 @@ static void answer_msg(void *msg)
 	    commlen = GET_32BIT(p);
 	    p += 4;
 
-	    comment = smalloc(commlen + 1);
+	    comment = snewn(commlen + 1, char);
 	    if (comment) {
 		memcpy(comment, p, commlen);
 		comment[commlen] = '\0';
@@ -1222,7 +1222,7 @@ static void prompt_add_keyfile(void)
 {
     OPENFILENAME of;
     char filename[FILENAME_MAX];
-    char *filelist = smalloc(8192);
+    char *filelist = snewn(8192, char);
     char *filewalker;
     int n, dirlen;
 	
@@ -1369,7 +1369,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		}
 
 		/* get item indices in an array */
-		selectedArray = smalloc(numSelected * sizeof(int));
+		selectedArray = snewn(numSelected, int);
 		SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS,
 				numSelected, (WPARAM)selectedArray);
 		

@@ -289,7 +289,7 @@ void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...)
 	bid = va_arg(ap, int);
     }
     va_end(ap);
-    buttons = smalloc(nbuttons * sizeof(struct radio));
+    buttons = snewn(nbuttons, struct radio);
     va_start(ap, nacross);
     for (i = 0; i < nbuttons; i++) {
 	buttons[i].text = va_arg(ap, char *);
@@ -320,7 +320,7 @@ void bareradioline(struct ctlpos *cp, int nacross, ...)
 	bid = va_arg(ap, int);
     }
     va_end(ap);
-    buttons = smalloc(nbuttons * sizeof(struct radio));
+    buttons = snewn(nbuttons, struct radio);
     va_start(ap, nacross);
     for (i = 0; i < nbuttons; i++) {
 	buttons[i].text = va_arg(ap, char *);
@@ -351,7 +351,7 @@ void radiobig(struct ctlpos *cp, char *text, int id, ...)
 	bid = va_arg(ap, int);
     }
     va_end(ap);
-    buttons = smalloc(nbuttons * sizeof(struct radio));
+    buttons = snewn(nbuttons, struct radio);
     va_start(ap, id);
     for (i = 0; i < nbuttons; i++) {
 	buttons[i].text = va_arg(ap, char *);
@@ -395,10 +395,10 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
     RECT r;
     HFONT oldfont, newfont;
 
-    ret = smalloc(1+strlen(text));
+    ret = snewn(1+strlen(text), char);
     p = text;
     q = ret;
-    pwidths = smalloc(sizeof(INT)*(1+strlen(text)));
+    pwidths = snewn(1+strlen(text), INT);
 
     /*
      * Work out the width the text will need to fit in, by doing
@@ -973,7 +973,7 @@ static void pl_moveitem(HWND hwnd, int listid, int src, int dst)
     char *txt;
     /* Get the item's data. */
     tlen = SendDlgItemMessage (hwnd, listid, LB_GETTEXTLEN, src, 0);
-    txt = smalloc(tlen+1);
+    txt = snewn(tlen+1, char);
     SendDlgItemMessage (hwnd, listid, LB_GETTEXT, src, (LPARAM) txt);
     val = SendDlgItemMessage (hwnd, listid, LB_GETITEMDATA, src, 0);
     /* Deselect old location. */
@@ -1176,7 +1176,7 @@ static char *shortcut_escape(char *text, char shortcut)
     if (!text)
 	return NULL;		       /* sfree won't choke on this */
 
-    ret = smalloc(2*strlen(text)+1);   /* size potentially doubles! */
+    ret = snewn(2*strlen(text)+1, char);   /* size potentially doubles! */
     shortcut = tolower((unsigned char)shortcut);
 
     p = text;
@@ -1338,7 +1338,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 
     /* Start a containing box, if we have a boxname. */
     if (s->boxname && *s->boxname) {
-	struct winctrl *c = smalloc(sizeof(struct winctrl));
+	struct winctrl *c = snew(struct winctrl);
     	c->ctrl = NULL;
 	c->base_id = base_id;
 	c->num_ids = 1;
@@ -1351,7 +1351,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 
     /* Draw a title, if we have one. */
     if (!s->boxname && s->boxtitle) {
-	struct winctrl *c = smalloc(sizeof(struct winctrl));
+	struct winctrl *c = snew(struct winctrl);
     	c->ctrl = NULL;
 	c->base_id = base_id;
 	c->num_ids = 1;
@@ -1534,7 +1534,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 					  ctrl->radio.shortcut);
 		shortcuts[nshortcuts++] = ctrl->radio.shortcut;
 
-		buttons = smalloc(ctrl->radio.nbuttons * sizeof(struct radio));
+		buttons = snewn(ctrl->radio.nbuttons, struct radio);
 
 		for (i = 0; i < ctrl->radio.nbuttons; i++) {
 		    buttons[i].text =
@@ -1584,7 +1584,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 				      ctrl->listbox.shortcut);
 	    shortcuts[nshortcuts++] = ctrl->listbox.shortcut;
 	    if (ctrl->listbox.draglist) {
-		data = smalloc(sizeof(struct prefslist));
+		data = snew(struct prefslist);
 		num_ids = 4;
 		prefslist(data, &pos, ctrl->listbox.height, escaped,
 			  base_id, base_id+1, base_id+2, base_id+3);
@@ -1616,7 +1616,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 		int *tabarray;
 		int i, percent;
 
-		tabarray = smalloc((ctrl->listbox.ncols-1) * sizeof(int));
+		tabarray = snewn(ctrl->listbox.ncols-1, int);
 		percent = 0;
 		for (i = 0; i < ctrl->listbox.ncols-1; i++) {
 		    percent += ctrl->listbox.percentages[i];
@@ -1646,7 +1646,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    statictext(&pos, escaped, 1, base_id);
 	    staticbtn(&pos, "", base_id+1, "Change...", base_id+2);
 	    sfree(escaped);
-	    data = smalloc(sizeof(FontSpec));
+	    data = snew(FontSpec);
 	    break;
 	  default:
 	    assert(!"Can't happen");
@@ -1660,7 +1660,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	 * (and isn't tabdelayed).
 	 */
 	if (pos.hwnd) {
-	    struct winctrl *c = smalloc(sizeof(struct winctrl));
+	    struct winctrl *c = snew(struct winctrl);
 
 	    c->ctrl = ctrl;
 	    c->base_id = actual_base_id;
@@ -1814,7 +1814,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 					   CB_GETCURSEL, 0, 0);
 		len = SendDlgItemMessage(dp->hwnd, c->base_id+1,
 					 CB_GETLBTEXTLEN, index, 0);
-		text = smalloc(len+1);
+		text = snewn(len+1, char);
 		SendDlgItemMessage(dp->hwnd, c->base_id+1, CB_GETLBTEXT,
 				   index, (LPARAM)text);
 		SetDlgItemText(dp->hwnd, c->base_id+1, text);
@@ -2503,7 +2503,7 @@ void dlg_set_privdata(union control *ctrl, void *dlg, void *ptr)
     tmp.ctrl = ctrl;
     p = find234(dp->privdata, &tmp, NULL);
     if (!p) {
-	p = smalloc(sizeof(struct perctrl_privdata));
+	p = snew(struct perctrl_privdata);
 	p->ctrl = ctrl;
 	p->needs_free = FALSE;
 	add234(dp->privdata, p);
@@ -2518,13 +2518,17 @@ void *dlg_alloc_privdata(union control *ctrl, void *dlg, size_t size)
     tmp.ctrl = ctrl;
     p = find234(dp->privdata, &tmp, NULL);
     if (!p) {
-	p = smalloc(sizeof(struct perctrl_privdata));
+	p = snew(struct perctrl_privdata);
 	p->ctrl = ctrl;
 	p->needs_free = FALSE;
 	add234(dp->privdata, p);
     }
     assert(!p->needs_free);
     p->needs_free = TRUE;
+    /*
+     * This is an internal allocation routine, so it's allowed to
+     * use smalloc directly.
+     */
     p->data = smalloc(size);
     return p->data;
 }

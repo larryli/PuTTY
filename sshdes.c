@@ -746,24 +746,24 @@ static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
 
 static void *des3_make_context(void)
 {
-    return smalloc(3*sizeof(DESContext));
+    return snewn(3, DESContext);
 }
 
 static void *des3_ssh1_make_context(void)
 {
     /* Need 3 keys for each direction, in SSH1 */
-    return smalloc(6*sizeof(DESContext));
+    return snewn(6, DESContext);
 }
 
 static void *des_make_context(void)
 {
-    return smalloc(sizeof(DESContext));
+    return snew(DESContext);
 }
 
 static void *des_ssh1_make_context(void)
 {
     /* Need one key for each direction, in SSH1 */
-    return smalloc(2*sizeof(DESContext));
+    return snewn(2, DESContext);
 }
 
 static void des3_free_context(void *handle)   /* used for both 3DES and DES */

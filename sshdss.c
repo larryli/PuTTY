@@ -91,7 +91,7 @@ static void *dss_newkey(char *data, int len)
     int slen;
     struct dss_key *dss;
 
-    dss = smalloc(sizeof(struct dss_key));
+    dss = snew(struct dss_key);
     if (!dss)
 	return NULL;
     getstring(&data, &len, &p, &slen);
@@ -141,7 +141,7 @@ static char *dss_fmtkey(void *key)
     len += 4 * (bignum_bitcount(dss->q) + 15) / 16;
     len += 4 * (bignum_bitcount(dss->g) + 15) / 16;
     len += 4 * (bignum_bitcount(dss->y) + 15) / 16;
-    p = smalloc(len);
+    p = snewn(len, char);
     if (!p)
 	return NULL;
 
@@ -209,7 +209,7 @@ static char *dss_fingerprint(void *key)
     for (i = 0; i < 16; i++)
 	sprintf(buffer + strlen(buffer), "%s%02x", i ? ":" : "",
 		digest[i]);
-    ret = smalloc(strlen(buffer) + 1);
+    ret = snewn(strlen(buffer) + 1, char);
     if (ret)
 	strcpy(ret, buffer);
     return ret;
@@ -322,7 +322,7 @@ static unsigned char *dss_public_blob(void *key, int *len)
      * 27 + sum of lengths. (five length fields, 20+7=27).
      */
     bloblen = 27 + plen + qlen + glen + ylen;
-    blob = smalloc(bloblen);
+    blob = snewn(bloblen, unsigned char);
     p = blob;
     PUT_32BIT(p, 7);
     p += 4;
@@ -362,7 +362,7 @@ static unsigned char *dss_private_blob(void *key, int *len)
      * mpint x, string[20] the SHA of p||q||g. Total 4 + xlen.
      */
     bloblen = 4 + xlen;
-    blob = smalloc(bloblen);
+    blob = snewn(bloblen, unsigned char);
     p = blob;
     PUT_32BIT(p, xlen);
     p += 4;
@@ -422,7 +422,7 @@ static void *dss_openssh_createkey(unsigned char **blob, int *len)
     char **b = (char **) blob;
     struct dss_key *dss;
 
-    dss = smalloc(sizeof(struct dss_key));
+    dss = snew(struct dss_key);
     if (!dss)
 	return NULL;
 
@@ -606,7 +606,7 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
      * i.e. 4+7 + 4+40 bytes.
      */
     nbytes = 4 + 7 + 4 + 40;
-    bytes = smalloc(nbytes);
+    bytes = snewn(nbytes, unsigned char);
     PUT_32BIT(bytes, 7);
     memcpy(bytes + 4, "ssh-dss", 7);
     PUT_32BIT(bytes + 4 + 7, 40);

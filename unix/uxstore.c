@@ -75,8 +75,8 @@ void provide_xrm_string(char *string)
     q++;
     while (p > string && p[-1] != '.' && p[-1] != '*')
 	p--;
-    xrms = smalloc(sizeof(struct xrm_string));
-    key = smalloc(q-p);
+    xrms = snew(struct xrm_string);
+    key = snewn(q-p, char);
     memcpy(key, p, q-p);
     key[q-p-1] = '\0';
     xrms->key = key;
@@ -199,14 +199,14 @@ static void make_filename(char *filename, int index)
  */
 static char *fgetline(FILE *fp)
 {
-    char *ret = smalloc(512);
+    char *ret = snewn(512, char);
     int size = 512, len = 0;
     while (fgets(ret + len, size - len, fp)) {
 	len += strlen(ret + len);
 	if (ret[len-1] == '\n')
 	    break;		       /* got a newline, we're done */
 	size = len + 512;
-	ret = srealloc(ret, size);
+	ret = sresize(ret, size, char);
     }
     if (len == 0) {		       /* first fgets returned NULL */
 	sfree(ret);

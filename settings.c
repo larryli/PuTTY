@@ -672,7 +672,7 @@ void get_sesslist(struct sesslist *list, int allocate)
 		    int len = strlen(otherbuf) + 1;
 		    if (bufsize < buflen + len) {
 			bufsize = buflen + len + 2048;
-			list->buffer = srealloc(list->buffer, bufsize);
+			list->buffer = sresize(list->buffer, bufsize, char);
 		    }
 		    strcpy(list->buffer + buflen, otherbuf);
 		    buflen += strlen(list->buffer + buflen) + 1;
@@ -680,7 +680,7 @@ void get_sesslist(struct sesslist *list, int allocate)
 	    } while (ret);
 	    enum_settings_finish(handle);
 	}
-	list->buffer = srealloc(list->buffer, buflen + 1);
+	list->buffer = sresize(list->buffer, buflen + 1, char);
 	list->buffer[buflen] = '\0';
 
 	/*
@@ -699,7 +699,7 @@ void get_sesslist(struct sesslist *list, int allocate)
 	    p++;
 	}
 
-	list->sessions = smalloc((list->nsessions + 1) * sizeof(char *));
+	list->sessions = snewn(list->nsessions + 1, char *);
 	list->sessions[0] = "Default Settings";
 	p = list->buffer;
 	i = 1;

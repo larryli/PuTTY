@@ -37,7 +37,7 @@ static char *printer_add_enum(int param, char *buffer,
 {
     DWORD needed, nprinters;
 
-    buffer = srealloc(buffer, offset+512);
+    buffer = sresize(buffer, offset+512, char);
 
     /*
      * Exploratory call to EnumPrinters to determine how much space
@@ -50,7 +50,7 @@ static char *printer_add_enum(int param, char *buffer,
     if (needed < 512)
         needed = 512;
 
-    buffer = srealloc(buffer, offset+needed);
+    buffer = sresize(buffer, offset+needed, char);
 
     if (EnumPrinters(param, NULL, ENUM_LEVEL, buffer+offset,
                      needed, &needed, &nprinters) == 0)
@@ -63,11 +63,11 @@ static char *printer_add_enum(int param, char *buffer,
 
 printer_enum *printer_start_enum(int *nprinters_ptr)
 {
-    printer_enum *ret = smalloc(sizeof(printer_enum));
+    printer_enum *ret = snew(printer_enum);
     char *buffer = NULL, *retval;
 
     *nprinters_ptr = 0;		       /* default return value */
-    buffer = smalloc(512);
+    buffer = snewn(512, char);
 
     retval = printer_add_enum(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
 			      buffer, 0, nprinters_ptr);
@@ -107,7 +107,7 @@ void printer_finish_enum(printer_enum *pe)
 
 printer_job *printer_start_job(char *printer)
 {
-    printer_job *ret = smalloc(sizeof(printer_job));
+    printer_job *ret = snew(printer_job);
     DOC_INFO_1 docinfo;
     int jobstarted = 0, pagestarted = 0;
 

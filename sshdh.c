@@ -52,7 +52,7 @@ static void dh_init(struct dh_ctx *ctx)
  */
 void *dh_setup_group1(void)
 {
-    struct dh_ctx *ctx = smalloc(sizeof(struct dh_ctx));
+    struct dh_ctx *ctx = snew(struct dh_ctx);
     ctx->p = bignum_from_bytes(P, sizeof(P));
     ctx->g = bignum_from_bytes(G, sizeof(G));
     dh_init(ctx);
@@ -64,7 +64,7 @@ void *dh_setup_group1(void)
  */
 void *dh_setup_group(Bignum pval, Bignum gval)
 {
-    struct dh_ctx *ctx = smalloc(sizeof(struct dh_ctx));
+    struct dh_ctx *ctx = snew(struct dh_ctx);
     ctx->p = copybn(pval);
     ctx->g = copybn(gval);
     dh_init(ctx);
@@ -110,7 +110,7 @@ Bignum dh_create_e(void *handle, int nbits)
     unsigned char *buf;
 
     nbytes = ssh1_bignum_length(ctx->qmask);
-    buf = smalloc(nbytes);
+    buf = snewn(nbytes, unsigned char);
 
     do {
 	/*

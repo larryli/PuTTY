@@ -53,7 +53,8 @@ struct terminal_tag {
     int beep_overloaded;
     long lastbeep;
 
-#define TSIZE (sizeof(unsigned long))
+#define TTYPE unsigned long
+#define TSIZE (sizeof(TTYPE))
 #define fix_cpos do { \
     term->cpos = lineptr(term->curs.y) + term->curs.x; \
 } while(0)

@@ -42,7 +42,7 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
 	    Rectangle(hdc, cr.left, cr.top, cr.right, cr.bottom);
 
 	    wtlen = GetWindowTextLength(hWnd);
-	    wt = (LPTSTR) smalloc((wtlen + 1) * sizeof(TCHAR));
+	    wt = (LPTSTR) snewn(wtlen + 1, TCHAR);
 	    GetWindowText(hWnd, wt, wtlen + 1);
 
 	    SetTextColor(hdc, tip_text);

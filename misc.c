@@ -12,7 +12,7 @@
 char *dupstr(const char *s)
 {
     int len = strlen(s);
-    char *p = smalloc(len + 1);
+    char *p = snewn(len + 1, char);
     strcpy(p, s);
     return p;
 }
@@ -34,7 +34,7 @@ char *dupcat(const char *s1, ...)
     }
     va_end(ap);
 
-    p = smalloc(len + 1);
+    p = snewn(len + 1, char);
     strcpy(p, s1);
     q = p + strlen(p);
 
@@ -76,7 +76,7 @@ char *dupvprintf(const char *fmt, va_list ap)
     char *buf;
     int len, size;
 
-    buf = smalloc(512);
+    buf = snewn(512, char);
     size = 512;
 
     while (1) {
@@ -97,7 +97,7 @@ char *dupvprintf(const char *fmt, va_list ap)
 	     * buffer wasn't big enough, so we enlarge it a bit and hope. */
 	    size += 512;
 	}
-	buf = srealloc(buf, size);
+	buf = sresize(buf, size, char);
     }
 }
 
@@ -190,7 +190,7 @@ void bufchain_add(bufchain *ch, const void *data, int len)
     while (len > 0) {
 	int grainlen = min(len, BUFFER_GRANULE);
 	struct bufchain_granule *newbuf;
-	newbuf = smalloc(sizeof(struct bufchain_granule));
+	newbuf = snew(struct bufchain_granule);
 	newbuf->bufpos = 0;
 	newbuf->buflen = grainlen;
 	memcpy(newbuf->buf, buf, grainlen);

@@ -29,12 +29,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "puttymem.h"
 #include "tree234.h"
-
-#define smalloc malloc
-#define sfree free
-
-#define mknew(typ) ( (typ *) smalloc (sizeof (typ)) )
 
 #ifdef TEST
 #define LOG(x) (printf x)
@@ -61,7 +57,7 @@ struct node234_Tag {
  */
 tree234 *newtree234(cmpfn234 cmp)
 {
-    tree234 *ret = mknew(tree234);
+    tree234 *ret = snew(tree234);
     LOG(("created tree %p\n", ret));
     ret->root = NULL;
     ret->cmp = cmp;
@@ -128,7 +124,7 @@ static void *add234_internal(tree234 * t, void *e, int index)
 
     LOG(("adding node %p to tree %p\n", e, t));
     if (t->root == NULL) {
-	t->root = mknew(node234);
+	t->root = snew(node234);
 	t->root->elems[1] = t->root->elems[2] = NULL;
 	t->root->kids[0] = t->root->kids[1] = NULL;
 	t->root->kids[2] = t->root->kids[3] = NULL;
@@ -300,7 +296,7 @@ static void *add234_internal(tree234 * t, void *e, int index)
 	    LOG(("  done\n"));
 	    break;
 	} else {
-	    node234 *m = mknew(node234);
+	    node234 *m = snew(node234);
 	    m->parent = n->parent;
 	    LOG(("  splitting a 4-node; created new node %p\n", m));
 	    /*
@@ -423,7 +419,7 @@ static void *add234_internal(tree234 * t, void *e, int index)
 	}
     } else {
 	LOG(("  root is overloaded, split into two\n"));
-	t->root = mknew(node234);
+	t->root = snew(node234);
 	t->root->kids[0] = left;
 	t->root->counts[0] = lcount;
 	t->root->elems[0] = e;
@@ -1012,8 +1008,6 @@ void *del234(tree234 * t, void *e)
 
 #include <stdarg.h>
 
-#define srealloc realloc
-
 /*
  * Error reporting function.
  */
@@ -1201,8 +1195,7 @@ void internal_addtest(void *elem, int index, void *realret)
 
     if (arraysize < arraylen + 1) {
 	arraysize = arraylen + 1 + 256;
-	array = (array == NULL ? smalloc(arraysize * sizeof(*array)) :
-		 srealloc(array, arraysize * sizeof(*array)));
+	array = sresize(array, arraysize, void *);
     }
 
     i = index;

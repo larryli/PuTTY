@@ -245,8 +245,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 
 	    if (nnames + names->nnames >= namesize) {
 		namesize += names->nnames + 128;
-		ournames =
-		    srealloc(ournames, namesize * sizeof(*ournames));
+		ournames = sresize(ournames, namesize, struct fxp_name *);
 	    }
 
 	    for (i = 0; i < names->nnames; i++)
@@ -934,10 +933,10 @@ static int sftp_cmd_lcd(struct sftp_command *cmd)
 	return 0;
     }
 
-    currdir = smalloc(256);
+    currdir = snewn(256, char);
     len = GetCurrentDirectory(256, currdir);
     if (len > 256)
-	currdir = srealloc(currdir, len);
+	currdir = sresize(currdir, len, char);
     GetCurrentDirectory(len, currdir);
     printf("New local directory is %s\n", currdir);
     sfree(currdir);
@@ -950,10 +949,10 @@ static int sftp_cmd_lpwd(struct sftp_command *cmd)
     char *currdir;
     int len;
 
-    currdir = smalloc(256);
+    currdir = snewn(256, char);
     len = GetCurrentDirectory(256, currdir);
     if (len > 256)
-	currdir = srealloc(currdir, len);
+	currdir = sresize(currdir, len, char);
     GetCurrentDirectory(len, currdir);
     printf("Current local directory is %s\n", currdir);
     sfree(currdir);
@@ -1254,7 +1253,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     }
     fflush(stdout);
 
-    cmd = smalloc(sizeof(struct sftp_command));
+    cmd = snew(struct sftp_command);
     cmd->words = NULL;
     cmd->nwords = 0;
     cmd->wordssize = 0;
@@ -1266,7 +1265,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	char *ret;
 
 	linesize += 512;
-	line = srealloc(line, linesize);
+	line = sresize(line, linesize, char);
 	ret = fgets(line + linelen, linesize - linelen, fp);
 
 	if (!ret || (linelen == 0 && line[0] == '\0')) {
@@ -1298,7 +1297,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	 * containing everything else on the line.
 	 */
 	cmd->nwords = cmd->wordssize = 2;
-	cmd->words = srealloc(cmd->words, cmd->wordssize * sizeof(char *));
+	cmd->words = sresize(cmd->words, cmd->wordssize, char *);
 	cmd->words[0] = "!";
 	cmd->words[1] = p+1;
     } else {
@@ -1341,8 +1340,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	    *r = '\0';
 	    if (cmd->nwords >= cmd->wordssize) {
 		cmd->wordssize = cmd->nwords + 16;
-		cmd->words =
-		    srealloc(cmd->words, cmd->wordssize * sizeof(char *));
+		cmd->words = sresize(cmd->words, cmd->wordssize, char *);
 	    }
 	    cmd->words[cmd->nwords++] = q;
 	}
@@ -1564,10 +1562,7 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
     if (len > 0) {
 	if (pendsize < pendlen + len) {
 	    pendsize = pendlen + len + 4096;
-	    pending = (pending ? srealloc(pending, pendsize) :
-		       smalloc(pendsize));
-	    if (!pending)
-		fatalbox("Out of memory");
+	    pending = sresize(pending, pendsize, unsigned char);
 	}
 	memcpy(pending + pendlen, p, len);
 	pendlen += len;

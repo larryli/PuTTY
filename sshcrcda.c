@@ -63,7 +63,7 @@ struct crcda_ctx {
 
 void *crcda_make_context(void)
 {
-    struct crcda_ctx *ret = smalloc(sizeof(struct crcda_ctx));
+    struct crcda_ctx *ret = snew(struct crcda_ctx);
     ret->h = NULL;
     ret->n = HASH_MINSIZE / HASH_ENTRYSIZE;
     return ret;
@@ -118,11 +118,11 @@ int detect_attack(void *handle, uchar *buf, uint32 len, uchar *IV)
 
     if (ctx->h == NULL) {
         ctx->n = l;
-        ctx->h = (uint16 *) smalloc(ctx->n * HASH_ENTRYSIZE);
+        ctx->h = snewn(ctx->n, uint16);
     } else {
         if (l > ctx->n) {
             ctx->n = l;
-            ctx->h = (uint16 *) srealloc(ctx->h, ctx->n * HASH_ENTRYSIZE);
+            ctx->h = sresize(ctx->h, ctx->n, uint16);
         }
     }
 

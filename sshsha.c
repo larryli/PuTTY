@@ -195,7 +195,7 @@ void SHA_Simple(void *p, int len, unsigned char *output)
 
 static void *sha1_make_context(void)
 {
-    return smalloc(2*sizeof(SHA_State));
+    return snewn(2, SHA_State);
 }
 
 static void sha1_free_context(void *handle)

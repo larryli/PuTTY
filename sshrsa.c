@@ -316,7 +316,7 @@ unsigned char *rsa_public_blob(struct RSAKey *key, int *len)
 
     length = (ssh1_bignum_length(key->modulus) +
 	      ssh1_bignum_length(key->exponent) + 4);
-    ret = smalloc(length);
+    ret = snewn(length, unsigned char);
 
     PUT_32BIT(ret, bignum_bitcount(key->modulus));
     pos = 4;
@@ -388,7 +388,7 @@ static void *rsa2_newkey(char *data, int len)
     int slen;
     struct RSAKey *rsa;
 
-    rsa = smalloc(sizeof(struct RSAKey));
+    rsa = snew(struct RSAKey);
     if (!rsa)
 	return NULL;
     getstring(&data, &len, &p, &slen);
@@ -419,7 +419,7 @@ static char *rsa2_fmtkey(void *key)
     int len;
 
     len = rsastr_len(rsa);
-    p = smalloc(len);
+    p = snewn(len, char);
     rsastr_fmt(p, rsa);
     return p;
 }
@@ -439,7 +439,7 @@ static unsigned char *rsa2_public_blob(void *key, int *len)
      * (three length fields, 12+7=19).
      */
     bloblen = 19 + elen + mlen;
-    blob = smalloc(bloblen);
+    blob = snewn(bloblen, unsigned char);
     p = blob;
     PUT_32BIT(p, 7);
     p += 4;
@@ -475,7 +475,7 @@ static unsigned char *rsa2_private_blob(void *key, int *len)
      * sum of lengths.
      */
     bloblen = 16 + dlen + plen + qlen + ulen;
-    blob = smalloc(bloblen);
+    blob = snewn(bloblen, unsigned char);
     p = blob;
     PUT_32BIT(p, dlen);
     p += 4;
@@ -523,7 +523,7 @@ static void *rsa2_openssh_createkey(unsigned char **blob, int *len)
     char **b = (char **) blob;
     struct RSAKey *rsa;
 
-    rsa = smalloc(sizeof(struct RSAKey));
+    rsa = snew(struct RSAKey);
     if (!rsa)
 	return NULL;
     rsa->comment = NULL;
@@ -608,7 +608,7 @@ static char *rsa2_fingerprint(void *key)
     for (i = 0; i < 16; i++)
 	sprintf(buffer + strlen(buffer), "%s%02x", i ? ":" : "",
 		digest[i]);
-    ret = smalloc(strlen(buffer) + 1);
+    ret = snewn(strlen(buffer) + 1, char);
     if (ret)
 	strcpy(ret, buffer);
     return ret;
@@ -705,7 +705,7 @@ static unsigned char *rsa2_sign(void *key, char *data, int datalen,
     SHA_Simple(data, datalen, hash);
 
     nbytes = (bignum_bitcount(rsa->modulus) - 1) / 8;
-    bytes = smalloc(nbytes);
+    bytes = snewn(nbytes, unsigned char);
 
     bytes[0] = 1;
     for (i = 1; i < nbytes - 20 - ASN1_LEN; i++)
@@ -722,7 +722,7 @@ static unsigned char *rsa2_sign(void *key, char *data, int datalen,
     freebn(in);
 
     nbytes = (bignum_bitcount(out) + 7) / 8;
-    bytes = smalloc(4 + 7 + 4 + nbytes);
+    bytes = snewn(4 + 7 + 4 + nbytes, unsigned char);
     PUT_32BIT(bytes, 7);
     memcpy(bytes + 4, "ssh-rsa", 7);
     PUT_32BIT(bytes + 4 + 7, nbytes);

@@ -64,7 +64,7 @@ void agent_query(void *in, int inlen, void **out, int *outlen)
     if (id > 0) {
 	retlen = 4 + GET_32BIT(p);
 	debug(("len is %d\n", retlen));
-	ret = smalloc(retlen);
+	ret = snewn(retlen, unsigned char);
 	if (ret) {
 	    memcpy(ret, p, retlen);
 	    *out = ret;

@@ -126,7 +126,7 @@ static int lz77_init(struct LZ77Context *ctx)
     struct LZ77InternalContext *st;
     int i;
 
-    st = (struct LZ77InternalContext *) smalloc(sizeof(*st));
+    st = snew(struct LZ77InternalContext);
     if (!st)
 	return 0;
 
@@ -354,7 +354,7 @@ static void outbits(struct Outbuf *out, unsigned long bits, int nbits)
     while (out->noutbits >= 8) {
 	if (out->outlen >= out->outsize) {
 	    out->outsize = out->outlen + 64;
-	    out->outbuf = srealloc(out->outbuf, out->outsize);
+	    out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
 	}
 	out->outbuf[out->outlen++] = (unsigned char) (out->outbits & 0xFF);
 	out->outbits >>= 8;
@@ -583,13 +583,13 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len)
 void *zlib_compress_init(void)
 {
     struct Outbuf *out;
-    struct LZ77Context *ectx = smalloc(sizeof(struct LZ77Context));
+    struct LZ77Context *ectx = snew(struct LZ77Context);
 
     lz77_init(ectx);
     ectx->literal = zlib_literal;
     ectx->match = zlib_match;
 
-    out = smalloc(sizeof(struct Outbuf));
+    out = snew(struct Outbuf);
     out->outbits = out->noutbits = 0;
     out->firstblock = 1;
     out->comp_disabled = FALSE;
@@ -806,11 +806,11 @@ static struct zlib_table *zlib_mkonetab(int *codes, unsigned char *lengths,
 					int nsyms,
 					int pfx, int pfxbits, int bits)
 {
-    struct zlib_table *tab = smalloc(sizeof(struct zlib_table));
+    struct zlib_table *tab = snew(struct zlib_table);
     int pfxmask = (1 << pfxbits) - 1;
     int nbits, i, j, code;
 
-    tab->table = smalloc((1 << bits) * sizeof(struct zlib_tableentry));
+    tab->table = snewn(1 << bits, struct zlib_tableentry);
     tab->mask = (1 << bits) - 1;
 
     for (code = 0; code <= tab->mask; code++) {
@@ -941,8 +941,7 @@ struct zlib_decompress_ctx {
 
 void *zlib_decompress_init(void)
 {
-    struct zlib_decompress_ctx *dctx =
-	smalloc(sizeof(struct zlib_decompress_ctx));
+    struct zlib_decompress_ctx *dctx = snew(struct zlib_decompress_ctx);
     unsigned char lengths[288];
 
     memset(lengths, 8, 144);
@@ -1002,7 +1001,7 @@ static void zlib_emit_char(struct zlib_decompress_ctx *dctx, int c)
     dctx->winpos = (dctx->winpos + 1) & (WINSIZE - 1);
     if (dctx->outlen >= dctx->outsize) {
 	dctx->outsize = dctx->outlen + 512;
-	dctx->outblk = srealloc(dctx->outblk, dctx->outsize);
+	dctx->outblk = sresize(dctx->outblk, dctx->outsize, unsigned char);
     }
     dctx->outblk[dctx->outlen++] = c;
 }

@@ -34,7 +34,7 @@ Bignum Zero = bnZero, One = bnOne;
 
 static Bignum newbn(int length)
 {
-    Bignum b = smalloc((length + 1) * sizeof(unsigned short));
+    Bignum b = snewn(length + 1, unsigned short);
     if (!b)
 	abort();		       /* FIXME */
     memset(b, 0, (length + 1) * sizeof(*b));
@@ -50,7 +50,7 @@ void bn_restore_invariant(Bignum b)
 
 Bignum copybn(Bignum orig)
 {
-    Bignum b = smalloc((orig[0] + 1) * sizeof(unsigned short));
+    Bignum b = snewn(orig[0] + 1, unsigned short);
     if (!b)
 	abort();		       /* FIXME */
     memcpy(b, orig, (orig[0] + 1) * sizeof(*b));
@@ -216,7 +216,7 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod)
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
-    m = smalloc(mlen * sizeof(unsigned short));
+    m = snewn(mlen, unsigned short);
     for (j = 0; j < mlen; j++)
 	m[j] = mod[mod[0] - j];
 
@@ -231,7 +231,7 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod)
     }
 
     /* Allocate n of size mlen, copy base to n */
-    n = smalloc(mlen * sizeof(unsigned short));
+    n = snewn(mlen, unsigned short);
     i = mlen - base[0];
     for (j = 0; j < i; j++)
 	n[j] = 0;
@@ -239,8 +239,8 @@ Bignum modpow(Bignum base, Bignum exp, Bignum mod)
 	n[i + j] = base[base[0] - j];
 
     /* Allocate a and b of size 2*mlen. Set a = 1 */
-    a = smalloc(2 * mlen * sizeof(unsigned short));
-    b = smalloc(2 * mlen * sizeof(unsigned short));
+    a = snewn(2 * mlen, unsigned short);
+    b = snewn(2 * mlen, unsigned short);
     for (i = 0; i < 2 * mlen; i++)
 	a[i] = 0;
     a[2 * mlen - 1] = 1;
@@ -325,7 +325,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
-    m = smalloc(mlen * sizeof(unsigned short));
+    m = snewn(mlen, unsigned short);
     for (j = 0; j < mlen; j++)
 	m[j] = mod[mod[0] - j];
 
@@ -342,7 +342,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     pqlen = (p[0] > q[0] ? p[0] : q[0]);
 
     /* Allocate n of size pqlen, copy p to n */
-    n = smalloc(pqlen * sizeof(unsigned short));
+    n = snewn(pqlen, unsigned short);
     i = pqlen - p[0];
     for (j = 0; j < i; j++)
 	n[j] = 0;
@@ -350,7 +350,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
 	n[i + j] = p[p[0] - j];
 
     /* Allocate o of size pqlen, copy q to o */
-    o = smalloc(pqlen * sizeof(unsigned short));
+    o = snewn(pqlen, unsigned short);
     i = pqlen - q[0];
     for (j = 0; j < i; j++)
 	o[j] = 0;
@@ -358,7 +358,7 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
 	o[i + j] = q[q[0] - j];
 
     /* Allocate a of size 2*pqlen for result */
-    a = smalloc(2 * pqlen * sizeof(unsigned short));
+    a = snewn(2 * pqlen, unsigned short);
 
     /* Main computation */
     internal_mul(n, o, a, pqlen);
@@ -415,7 +415,7 @@ static void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
-    m = smalloc(mlen * sizeof(unsigned short));
+    m = snewn(mlen, unsigned short);
     for (j = 0; j < mlen; j++)
 	m[j] = mod[mod[0] - j];
 
@@ -435,7 +435,7 @@ static void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
 	plen = mlen + 1;
 
     /* Allocate n of size plen, copy p to n */
-    n = smalloc(plen * sizeof(unsigned short));
+    n = snewn(plen, unsigned short);
     for (j = 0; j < plen; j++)
 	n[j] = 0;
     for (j = 1; j <= p[0]; j++)
@@ -673,7 +673,7 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend)
     Bignum ret;
 
     /* mlen space for a, mlen space for b, 2*mlen for result */
-    workspace = smalloc(mlen * 4 * sizeof(unsigned short));
+    workspace = snewn(mlen * 4, unsigned short);
     for (i = 0; i < mlen; i++) {
 	workspace[0 * mlen + i] = (mlen - i <= a[0] ? a[mlen - i] : 0);
 	workspace[1 * mlen + i] = (mlen - i <= b[0] ? b[mlen - i] : 0);
@@ -949,14 +949,14 @@ char *bignum_decimal(Bignum x)
     i = bignum_bitcount(x);
     ndigits = (28 * i + 92) / 93;      /* multiply by 28/93 and round up */
     ndigits++;			       /* allow for trailing \0 */
-    ret = smalloc(ndigits);
+    ret = snewn(ndigits, char);
 
     /*
      * Now allocate some workspace to hold the binary form as we
      * repeatedly divide it by ten. Initialise this to the
      * big-endian form of the number.
      */
-    workspace = smalloc(sizeof(unsigned short) * x[0]);
+    workspace = snewn(x[0], unsigned short);
     for (i = 0; i < x[0]; i++)
 	workspace[i] = x[x[0] - i];
 

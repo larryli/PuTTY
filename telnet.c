@@ -611,18 +611,11 @@ static void do_telnet_read(Telnet telnet, char *buf, int len)
 	    else {
 	      subneg_addchar:
 		if (telnet->sb_len >= telnet->sb_size) {
-		    unsigned char *newbuf;
 		    telnet->sb_size += SB_DELTA;
-		    newbuf = (telnet->sb_buf ?
-			      srealloc(telnet->sb_buf, telnet->sb_size) :
-			      smalloc(telnet->sb_size));
-		    if (newbuf)
-			telnet->sb_buf = newbuf;
-		    else
-			telnet->sb_size -= SB_DELTA;
+		    telnet->sb_buf = sresize(telnet->sb_buf, telnet->sb_size,
+					     unsigned char);
 		}
-		if (telnet->sb_len < telnet->sb_size)
-		    telnet->sb_buf[telnet->sb_len++] = c;
+		telnet->sb_buf[telnet->sb_len++] = c;
 		telnet->state = SUBNEGOT;	/* in case we came here by goto */
 	    }
 	    break;
@@ -691,7 +684,7 @@ static char *telnet_init(void *frontend_handle, void **backend_handle,
     char *err;
     Telnet telnet;
 
-    telnet = smalloc(sizeof(*telnet));
+    telnet = snew(struct telnet_tag);
     telnet->fn = &fn_table;
     telnet->cfg = *cfg;		       /* STRUCTURE COPY */
     telnet->s = NULL;

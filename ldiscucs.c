@@ -26,7 +26,7 @@ void lpage_send(void *handle,
     }
 
     widesize = len * 2;
-    widebuffer = smalloc(widesize * sizeof(wchar_t));
+    widebuffer = snewn(widesize, wchar_t);
 
     wclen = mb_to_wc(codepage, 0, buf, len, widebuffer, widesize);
     luni_send(ldisc, widebuffer, wclen, interactive);
@@ -44,7 +44,7 @@ void luni_send(void *handle, wchar_t * widebuf, int len, int interactive)
     char *p;
 
     linesize = len * ratio * 2;
-    linebuffer = smalloc(linesize * sizeof(wchar_t));
+    linebuffer = snewn(linesize, char);
 
     if (in_utf(ldisc->term)) {
 	/* UTF is a simple algorithm */

@@ -210,7 +210,7 @@ void MD5Final(unsigned char output[16], struct MD5Context *s)
 
 static void *md5_make_context(void)
 {
-    return smalloc(2*sizeof(struct MD5Context));
+    return snewn(2, struct MD5Context);
 }
 
 static void md5_free_context(void *handle)

@@ -1141,7 +1141,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 				charclass_handler, P(ccd));
     ccd->listbox->listbox.multisel = 1;
     ccd->listbox->listbox.ncols = 4;
-    ccd->listbox->listbox.percentages = smalloc(4*sizeof(int));
+    ccd->listbox->listbox.percentages = snewn(4, int);
     ccd->listbox->listbox.percentages[0] = 15;
     ccd->listbox->listbox.percentages[1] = 25;
     ccd->listbox->listbox.percentages[2] = 20;
@@ -1345,7 +1345,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 				       environ_handler, P(ed));
 	    ed->listbox->listbox.height = 3;
 	    ed->listbox->listbox.ncols = 2;
-	    ed->listbox->listbox.percentages = smalloc(2*sizeof(int));
+	    ed->listbox->listbox.percentages = snewn(2, int);
 	    ed->listbox->listbox.percentages[0] = 30;
 	    ed->listbox->listbox.percentages[1] = 70;
 	}
@@ -1525,7 +1525,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 				    portfwd_handler, P(pfd));
 	pfd->listbox->listbox.height = 3;
 	pfd->listbox->listbox.ncols = 2;
-	pfd->listbox->listbox.percentages = smalloc(2*sizeof(int));
+	pfd->listbox->listbox.percentages = snewn(2, int);
 	pfd->listbox->listbox.percentages[0] = 20;
 	pfd->listbox->listbox.percentages[1] = 80;
 	ctrl_tabdelay(s, pfd->rembutton);

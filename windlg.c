@@ -102,7 +102,7 @@ static int CALLBACK LogProc(HWND hwnd, UINT msg,
 		    break;
 		}
 
-		selitems = smalloc(selcount * sizeof(int));
+		selitems = snewn(selcount, int);
 		if (selitems) {
 		    int count = SendDlgItemMessage(hwnd, IDN_LIST,
 						   LB_GETSELITEMS,
@@ -123,7 +123,7 @@ static int CALLBACK LogProc(HWND hwnd, UINT msg,
 			size +=
 			    strlen(events[selitems[i]]) + sizeof(sel_nl);
 
-		    clipdata = smalloc(size);
+		    clipdata = snewn(size, char);
 		    if (clipdata) {
 			char *p = clipdata;
 			for (i = 0; i < count; i++) {
@@ -648,14 +648,14 @@ void logevent(void *frontend, char *string)
 
     if (nevents >= negsize) {
 	negsize += 64;
-	events = srealloc(events, negsize * sizeof(*events));
+	events = sresize(events, negsize, char *);
     }
 
     time(&t);
     strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t",
 	     localtime(&t));
 
-    events[nevents] = smalloc(strlen(timebuf) + strlen(string) + 1);
+    events[nevents] = snewn(strlen(timebuf) + strlen(string) + 1, char);
     strcpy(events[nevents], timebuf);
     strcat(events[nevents], string);
     if (logbox) {

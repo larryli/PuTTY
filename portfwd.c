@@ -132,7 +132,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c,
     /*
      * Open socket.
      */
-    pr = (struct PFwdPrivate *) smalloc(sizeof(struct PFwdPrivate));
+    pr = snew(struct PFwdPrivate);
     pr->fn = &fn_table;
     pr->throttled = pr->throttle_override = 0;
     pr->ready = 1;
@@ -168,7 +168,7 @@ static int pfd_accepting(Plug p, void *sock)
     char *err;
 
     org = (struct PFwdPrivate *)p;
-    pr = (struct PFwdPrivate *) smalloc(sizeof(struct PFwdPrivate));
+    pr = snew(struct PFwdPrivate);
     pr->fn = &fn_table;
 
     pr->c = NULL;
@@ -222,7 +222,7 @@ char *pfd_addforward(char *desthost, int destport, char *srcaddr, int port,
     /*
      * Open socket.
      */
-    pr = (struct PFwdPrivate *) smalloc(sizeof(struct PFwdPrivate));
+    pr = snew(struct PFwdPrivate);
     pr->fn = &fn_table;
     pr->c = NULL;
     strcpy(pr->hostname, desthost);

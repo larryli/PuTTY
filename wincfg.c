@@ -128,19 +128,15 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		assert(c->generic.handler == dlg_stdradiobutton_handler);
 		c->radio.nbuttons++;
 		c->radio.buttons =
-		    srealloc(c->radio.buttons,
-			     c->radio.nbuttons * sizeof(*c->radio.buttons));
+		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
 		    dupstr("Play a custom sound file");
 		c->radio.buttondata =
-		    srealloc(c->radio.buttondata,
-			     c->radio.nbuttons * sizeof(*c->radio.buttondata));
+		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(BELL_WAVEFILE);
 		if (c->radio.shortcuts) {
 		    c->radio.shortcuts =
-			srealloc(c->radio.shortcuts,
-				 (c->radio.nbuttons *
-				  sizeof(*c->radio.shortcuts)));
+			sresize(c->radio.shortcuts, c->radio.nbuttons, char);
 		    c->radio.shortcuts[c->radio.nbuttons-1] = NO_SHORTCUT;
 		}
 		break;
@@ -201,29 +197,23 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		assert(c->generic.handler == dlg_stdradiobutton_handler);
 		c->radio.nbuttons += 2;
 		c->radio.buttons =
-		    srealloc(c->radio.buttons,
-			     c->radio.nbuttons * sizeof(*c->radio.buttons));
+		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-2] =
 		    dupstr("Use font in both ANSI and OEM modes");
 		c->radio.buttons[c->radio.nbuttons-1] =
 		    dupstr("Use font in OEM mode only");
 		c->radio.buttondata =
-		    srealloc(c->radio.buttondata,
-			     c->radio.nbuttons * sizeof(*c->radio.buttondata));
+		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-2] = I(VT_OEMANSI);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(VT_OEMONLY);
 		if (!c->radio.shortcuts) {
 		    int j;
-		    c->radio.shortcuts =
-			smalloc((c->radio.nbuttons *
-				 sizeof(*c->radio.shortcuts)));
+		    c->radio.shortcuts = snewn(c->radio.nbuttons, char);
 		    for (j = 0; j < c->radio.nbuttons; j++)
 			c->radio.shortcuts[j] = NO_SHORTCUT;
 		} else {
-		    c->radio.shortcuts =
-			srealloc(c->radio.shortcuts,
-				 (c->radio.nbuttons *
-				  sizeof(*c->radio.shortcuts)));
+		    c->radio.shortcuts = sresize(c->radio.shortcuts,
+						 c->radio.nbuttons, char);
 		}
 		c->radio.shortcuts[c->radio.nbuttons-2] = 'b';
 		c->radio.shortcuts[c->radio.nbuttons-1] = 'e';

@@ -80,7 +80,7 @@ static char *raw_init(void *frontend_handle, void **backend_handle,
     char *err;
     Raw raw;
 
-    raw = smalloc(sizeof(*raw));
+    raw = snew(struct raw_backend_data);
     raw->fn = &fn_table;
     raw->s = NULL;
     *backend_handle = raw;

@@ -498,7 +498,7 @@ static char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	    char *shellname;
 	    if (cfg->login_shell) {
 		char *p = strrchr(shell, '/');
-		shellname = smalloc(2+strlen(shell));
+		shellname = snewn(2+strlen(shell), char);
 		p = p ? p+1 : shell;
 		sprintf(shellname, "-%s", p);
 	    } else

@@ -378,7 +378,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	SockAddr proxy_addr;
 	char *proxy_canonical_name, *err;
 
-	ret = smalloc(sizeof(struct Socket_proxy_tag));
+	ret = snew(struct Socket_proxy_tag);
 	ret->fn = &socket_fn_table;
 	ret->cfg = *cfg;	       /* STRUCTURE COPY */
 	ret->plug = plug;
@@ -413,7 +413,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 
 	/* create the proxy plug to map calls from the actual
 	 * socket into our proxy socket layer */
-	pplug = smalloc(sizeof(struct Plug_proxy_tag));
+	pplug = snew(struct Plug_proxy_tag);
 	pplug->fn = &plug_fn_table;
 	pplug->proxy_socket = ret;
 
@@ -579,7 +579,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	    /* get the status line */
 	    len = bufchain_size(&p->pending_input_data);
 	    assert(len > 0);	       /* or we wouldn't be here */
-	    data = smalloc(len);
+	    data = snewn(len, char);
 	    bufchain_fetch(&p->pending_input_data, data, len);
 
 	    eol = get_line_end(data, len);
@@ -627,7 +627,7 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 
 	    len = bufchain_size(&p->pending_input_data);
 	    assert(len > 0);	       /* or we wouldn't be here */
-	    data = smalloc(len);
+	    data = snewn(len, char);
 	    datap = data;
 	    bufchain_fetch(&p->pending_input_data, data, len);
 
@@ -702,7 +702,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	}
 
 	length = strlen(p->cfg.proxy_username) + namelen + 9;
-	command = (char*) smalloc(length);
+	command = snewn(length, char);
 	strcpy(command + 8, p->cfg.proxy_username);
 
 	command[0] = 4; /* version 4 */

@@ -70,7 +70,7 @@ void *open_settings_w(const char *sessionname)
     if (!sessionname || !*sessionname)
 	sessionname = "Default Settings";
 
-    p = smalloc(3 * strlen(sessionname) + 1);
+    p = snewn(3 * strlen(sessionname) + 1, char);
     mungestr(sessionname, p);
 
     ret = RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1);
@@ -113,7 +113,7 @@ void *open_settings_r(const char *sessionname)
     if (!sessionname || !*sessionname)
 	sessionname = "Default Settings";
 
-    p = smalloc(3 * strlen(sessionname) + 1);
+    p = snewn(3 * strlen(sessionname) + 1, char);
     mungestr(sessionname, p);
 
     if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS) {
@@ -231,7 +231,7 @@ void del_settings(const char *sessionname)
     if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &subkey1) != ERROR_SUCCESS)
 	return;
 
-    p = smalloc(3 * strlen(sessionname) + 1);
+    p = snewn(3 * strlen(sessionname) + 1, char);
     mungestr(sessionname, p);
     RegDeleteKey(subkey1, p);
     sfree(p);
@@ -252,7 +252,7 @@ void *enum_settings_start(void)
     if (RegOpenKey(HKEY_CURRENT_USER, puttystr, &key) != ERROR_SUCCESS)
 	return NULL;
 
-    ret = smalloc(sizeof(*ret));
+    ret = snew(struct enumsettings);
     if (ret) {
 	ret->key = key;
 	ret->i = 0;
@@ -265,7 +265,7 @@ char *enum_settings_next(void *handle, char *buffer, int buflen)
 {
     struct enumsettings *e = (struct enumsettings *) handle;
     char *otherbuf;
-    otherbuf = smalloc(3 * buflen);
+    otherbuf = snewn(3 * buflen, char);
     if (RegEnumKey(e->key, e->i++, otherbuf, 3 * buflen) == ERROR_SUCCESS) {
 	unmungestr(otherbuf, buffer, buflen);
 	sfree(otherbuf);
@@ -310,8 +310,8 @@ int verify_host_key(const char *hostname, int port,
      * Now read a saved key in from the registry and see what it
      * says.
      */
-    otherstr = smalloc(len);
-    regname = smalloc(3 * (strlen(hostname) + strlen(keytype)) + 15);
+    otherstr = snewn(len, char);
+    regname = snewn(3 * (strlen(hostname) + strlen(keytype)) + 15, char);
 
     hostkey_regname(regname, hostname, port, keytype);
 
@@ -330,7 +330,7 @@ int verify_host_key(const char *hostname, int port,
 	 * under just the hostname and translate that.
 	 */
 	char *justhost = regname + 1 + strcspn(regname, ":");
-	char *oldstyle = smalloc(len + 10);	/* safety margin */
+	char *oldstyle = snewn(len + 10, char);	/* safety margin */
 	readlen = len;
 	ret = RegQueryValueEx(rkey, justhost, NULL, &type,
 			      oldstyle, &readlen);
@@ -406,7 +406,7 @@ void store_host_key(const char *hostname, int port,
     char *regname;
     HKEY rkey;
 
-    regname = smalloc(3 * (strlen(hostname) + strlen(keytype)) + 15);
+    regname = snewn(3 * (strlen(hostname) + strlen(keytype)) + 15, char);
 
     hostkey_regname(regname, hostname, port, keytype);
 

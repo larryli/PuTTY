@@ -1283,7 +1283,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	wchar_t *tmp = data;
 	int tmplen = len;
 
-	inst->pasteout_data_utf8 = smalloc(len*6);
+	inst->pasteout_data_utf8 = snewn(len*6, char);
 	inst->pasteout_data_utf8_len = len*6;
 	inst->pasteout_data_utf8_len =
 	    charset_from_unicode(&tmp, &tmplen, inst->pasteout_data_utf8,
@@ -1294,15 +1294,15 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	    inst->pasteout_data_utf8 = NULL;
 	} else {
 	    inst->pasteout_data_utf8 =
-		srealloc(inst->pasteout_data_utf8,
-			 inst->pasteout_data_utf8_len);
+		sresize(inst->pasteout_data_utf8,
+			inst->pasteout_data_utf8_len, char);
 	}
     } else {
 	inst->pasteout_data_utf8 = NULL;
 	inst->pasteout_data_utf8_len = 0;
     }
 
-    inst->pasteout_data = smalloc(len*6);
+    inst->pasteout_data = snewn(len*6, char);
     inst->pasteout_data_len = len*6;
     inst->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
 				       data, len, inst->pasteout_data,
@@ -1313,7 +1313,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	inst->pasteout_data = NULL;
     } else {
 	inst->pasteout_data =
-	    srealloc(inst->pasteout_data, inst->pasteout_data_len);
+	    sresize(inst->pasteout_data, inst->pasteout_data_len, char);
     }
 
     if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
@@ -1414,7 +1414,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     if (inst->pastein_data)
 	sfree(inst->pastein_data);
 
-    inst->pastein_data = smalloc(seldata->length * sizeof(wchar_t));
+    inst->pastein_data = snewn(seldata->length, wchar_t);
     inst->pastein_data_len = seldata->length;
     inst->pastein_data_len =
 	mb_to_wc((seldata->type == inst->utf8_string_atom ?
@@ -1530,7 +1530,7 @@ Context get_ctx(void *frontend)
     if (!inst->area->window)
 	return NULL;
 
-    dctx = smalloc(sizeof(*dctx));
+    dctx = snew(struct draw_ctx);
     dctx->inst = inst;
     dctx->gc = gdk_gc_new(inst->area->window);
     return dctx;
@@ -1627,7 +1627,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	wchar_t *wcs;
 	int i;
 
-	wcs = smalloc(sizeof(wchar_t) * (len+1));
+	wcs = snewn(len+1, wchar_t);
 	for (i = 0; i < len; i++) {
 	    wcs[i] = (wchar_t) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
 	}
@@ -1654,7 +1654,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	     * and (c) the clip rectangle should prevent it causing
 	     * trouble anyway.
 	     */
-	    gwcs = smalloc(sizeof(GdkWChar) * (len*2+1));
+	    gwcs = snewn(len*2+1, GdkWChar);
 	    memset(gwcs, 0, sizeof(GdkWChar) * (len*2+1));
 	    /*
 	     * FIXME: when we have a wide-char equivalent of
@@ -1668,7 +1668,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 			     gwcs, len*2);
 	    sfree(gwcs);
 	} else {
-	    gcs = smalloc(sizeof(GdkWChar) * (len+1));
+	    gcs = snewn(len+1, gchar);
 	    wc_to_mb(inst->fontinfo[fontid].charset, 0,
 		     wcs, len, gcs, len, ".", NULL, NULL);
 	    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
@@ -2129,7 +2129,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 
 	    if (--argc > 0) {
 		int i;
-		pty_argv = smalloc((argc+1) * sizeof(char *));
+		pty_argv = snewn(argc+1, char *);
 		++argv;
 		for (i = 0; i < argc; i++)
 		    pty_argv[i] = argv[i];
@@ -2293,7 +2293,7 @@ int main(int argc, char **argv)
     /*
      * Create an instance structure and initialise to zeroes
      */
-    inst = smalloc(sizeof(*inst));
+    inst = snew(struct gui_data);
     memset(inst, 0, sizeof(*inst));
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
 

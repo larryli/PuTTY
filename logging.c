@@ -163,7 +163,7 @@ void logfclose(void *handle)
 
 void *log_init(void *frontend, Config *cfg)
 {
-    struct LogContext *ctx = smalloc(sizeof(struct LogContext));
+    struct LogContext *ctx = snew(struct LogContext);
     ctx->lgfp = NULL;
     ctx->frontend = frontend;
     ctx->cfg = *cfg;		       /* STRUCTURE COPY */

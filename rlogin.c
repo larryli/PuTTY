@@ -110,7 +110,7 @@ static char *rlogin_init(void *frontend_handle, void **backend_handle,
     char *err;
     Rlogin rlogin;
 
-    rlogin = smalloc(sizeof(*rlogin));
+    rlogin = snew(struct rlogin_tag);
     rlogin->fn = &fn_table;
     rlogin->s = NULL;
     rlogin->frontend = frontend_handle;

@@ -87,7 +87,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     i += 4;
     if (len - i < j)
 	goto end;
-    comment = smalloc(j + 1);
+    comment = snewn(j + 1, char);
     if (comment) {
 	memcpy(comment, buf + i, j);
 	comment[j] = '\0';
@@ -457,7 +457,7 @@ static char *read_body(FILE * fp)
     int c;
 
     size = 128;
-    text = smalloc(size);
+    text = snewn(size, char);
     len = 0;
     text[len] = '\0';
 
@@ -475,7 +475,7 @@ static char *read_body(FILE * fp)
 	}
 	if (len + 1 > size) {
 	    size += 128;
-	    text = srealloc(text, size);
+	    text = sresize(text, size, char);
 	}
 	text[len++] = c;
 	text[len] = '\0';
@@ -538,7 +538,7 @@ static unsigned char *read_blob(FILE * fp, int nlines, int *bloblen)
     int i, j, k;
 
     /* We expect at most 64 base64 characters, ie 48 real bytes, per line. */
-    blob = smalloc(48 * nlines);
+    blob = snewn(48 * nlines, unsigned char);
     len = 0;
     for (i = 0; i < nlines; i++) {
 	line = read_body(fp);
@@ -727,7 +727,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 		      4 + commlen +
 		      4 + public_blob_len +
 		      4 + private_blob_len);
-	    macdata = smalloc(maclen);
+	    macdata = snewn(maclen, unsigned char);
 	    p = macdata;
 #define DO_STR(s,len) PUT_32BIT(p,(len));memcpy(p+4,(s),(len));p+=4+(len)
 	    DO_STR(alg->name, namelen);
@@ -778,7 +778,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     /*
      * Create and return the key.
      */
-    ret = smalloc(sizeof(struct ssh2_userkey));
+    ret = snew(struct ssh2_userkey);
     ret->alg = alg;
     ret->comment = comment;
     ret->data = alg->createkey(public_blob, public_blob_len,
@@ -1009,7 +1009,7 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
     }
     priv_encrypted_len = priv_blob_len + cipherblk - 1;
     priv_encrypted_len -= priv_encrypted_len % cipherblk;
-    priv_blob_encrypted = smalloc(priv_encrypted_len);
+    priv_blob_encrypted = snewn(priv_encrypted_len, unsigned char);
     memset(priv_blob_encrypted, 0, priv_encrypted_len);
     memcpy(priv_blob_encrypted, priv_blob, priv_blob_len);
     /* Create padding based on the SHA hash of the unpadded blob. This prevents
@@ -1036,7 +1036,7 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		  4 + commlen +
 		  4 + pub_blob_len +
 		  4 + priv_encrypted_len);
-	macdata = smalloc(maclen);
+	macdata = snewn(maclen, unsigned char);
 	p = macdata;
 #define DO_STR(s,len) PUT_32BIT(p,(len));memcpy(p+4,(s),(len));p+=4+(len)
 	DO_STR(key->alg->name, namelen);

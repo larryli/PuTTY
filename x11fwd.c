@@ -81,7 +81,7 @@ struct X11Private {
 void *x11_invent_auth(char *proto, int protomaxlen,
 		      char *data, int datamaxlen, int proto_id)
 {
-    struct X11Auth *auth = smalloc(sizeof(struct X11Auth));
+    struct X11Auth *auth = snew(struct X11Auth);
     char ourdata[64];
     int i;
 
@@ -282,7 +282,7 @@ char *x11_init(Socket * s, char *display, void *c, void *auth,
     /*
      * Open socket.
      */
-    pr = (struct X11Private *) smalloc(sizeof(struct X11Private));
+    pr = snew(struct X11Private);
     pr->fn = &fn_table;
     pr->auth_protocol = NULL;
     pr->auth = (struct X11Auth *)auth;
@@ -384,8 +384,8 @@ int x11_send(Socket s, char *data, int len)
 	pr->auth_psize = (pr->auth_plen + 3) & ~3;
 	pr->auth_dsize = (pr->auth_dlen + 3) & ~3;
 	/* Leave room for a terminating zero, to make our lives easier. */
-	pr->auth_protocol = (char *) smalloc(pr->auth_psize + 1);
-	pr->auth_data = (unsigned char *) smalloc(pr->auth_dsize);
+	pr->auth_protocol = snewn(pr->auth_psize + 1, char);
+	pr->auth_data = snewn(pr->auth_dsize, char);
     }
 
     /*
@@ -421,7 +421,7 @@ int x11_send(Socket s, char *data, int len)
 
 	    message = dupprintf("PuTTY X11 proxy: %s", err);
 	    msglen = strlen(message);
-	    reply = smalloc(8 + msglen+1 + 4);   /* include zero byte */
+	    reply = snewn(8 + msglen+1 + 4, unsigned char); /* include zero */
 	    msgsize = (msglen + 3) & ~3;
 	    reply[0] = 0;	       /* failure */
 	    reply[1] = msglen;	       /* length of reason string */

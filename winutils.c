@@ -148,9 +148,9 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      * This will guaranteeably be big enough; we can realloc it
      * down later.
      */
-    outputline = smalloc(1+strlen(cmdline));
-    outputargv = smalloc(sizeof(char *) * (strlen(cmdline)+1 / 2));
-    outputargstart = smalloc(sizeof(char *) * (strlen(cmdline)+1 / 2));
+    outputline = snewn(1+strlen(cmdline), char);
+    outputargv = snewn(strlen(cmdline)+1 / 2, char *);
+    outputargstart = snewn(strlen(cmdline)+1 / 2, char *);
 
     p = cmdline; q = outputline; outputargc = 0;
 
@@ -217,8 +217,8 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
 	*q++ = '\0';
     }
 
-    outputargv = srealloc(outputargv, sizeof(char *) * outputargc);
-    outputargstart = srealloc(outputargstart, sizeof(char *) * outputargc);
+    outputargv = sresize(outputargv, outputargc, char *);
+    outputargstart = sresize(outputargstart, outputargc, char *);
 
     if (argc) *argc = outputargc;
     if (argv) *argv = outputargv; else sfree(outputargv);

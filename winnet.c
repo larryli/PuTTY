@@ -226,7 +226,7 @@ char *winsock_error_string(int error)
 
 SockAddr sk_namelookup(const char *host, char **canonicalname)
 {
-    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    SockAddr ret = snew(struct SockAddr_tag);
     unsigned long a;
     struct hostent *h = NULL;
     char realhost[8192];
@@ -357,14 +357,14 @@ SockAddr sk_namelookup(const char *host, char **canonicalname)
     }
     ret->address = ntohl(a);
     realhost[lenof(realhost)-1] = '\0';
-    *canonicalname = smalloc(1+strlen(realhost));
+    *canonicalname = snewn(1+strlen(realhost), char);
     strcpy(*canonicalname, realhost);
     return ret;
 }
 
 SockAddr sk_nonamelookup(const char *host)
 {
-    SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
+    SockAddr ret = snew(struct SockAddr_tag);
     ret->error = NULL;
     ret->family = AF_UNSPEC;
     strncpy(ret->hostname, host, lenof(ret->hostname));
@@ -490,7 +490,7 @@ Socket sk_register(void *sock, Plug plug)
     /*
      * Create Socket structure.
      */
-    ret = smalloc(sizeof(struct Socket_tag));
+    ret = snew(struct Socket_tag);
     ret->fn = &fn_table;
     ret->error = NULL;
     ret->plug = plug;
@@ -553,7 +553,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     /*
      * Create Socket structure.
      */
-    ret = smalloc(sizeof(struct Socket_tag));
+    ret = snew(struct Socket_tag);
     ret->fn = &fn_table;
     ret->error = NULL;
     ret->plug = plug;
@@ -732,7 +732,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
     /*
      * Create Socket structure.
      */
-    ret = smalloc(sizeof(struct Socket_tag));
+    ret = snew(struct Socket_tag);
     ret->fn = &fn_table;
     ret->error = NULL;
     ret->plug = plug;

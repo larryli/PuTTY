@@ -326,7 +326,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename)
     char base64_bit[4];
     int base64_chars = 0;
 
-    ret = smalloc(sizeof(*ret));
+    ret = snew(struct openssh_key);
     ret->keyblob = NULL;
     ret->keyblob_len = ret->keyblob_size = 0;
     ret->encrypted = 0;
@@ -416,7 +416,8 @@ static struct openssh_key *load_openssh_key(const Filename *filename)
 
                     if (ret->keyblob_len + len > ret->keyblob_size) {
                         ret->keyblob_size = ret->keyblob_len + len + 256;
-                        ret->keyblob = srealloc(ret->keyblob, ret->keyblob_size);
+                        ret->keyblob = sresize(ret->keyblob, ret->keyblob_size,
+					       unsigned char);
                     }
 
                     memcpy(ret->keyblob + ret->keyblob_len, out, len);
@@ -564,7 +565,7 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase)
      * Space to create key blob in.
      */
     blobsize = 256+key->keyblob_len;
-    blob = smalloc(blobsize);
+    blob = snewn(blobsize, unsigned char);
     PUT_32BIT(blob, 7);
     if (key->type == OSSH_DSA)
 	memcpy(blob+4, "ssh-dss", 7);
@@ -636,7 +637,7 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase)
      * the sanity checks for free.
      */
     assert(privptr > 0);	       /* should have bombed by now if not */
-    retkey = smalloc(sizeof(struct ssh2_userkey));
+    retkey = snew(struct ssh2_userkey);
     retkey->alg = (key->type == OSSH_RSA ? &ssh_rsa : &ssh_dss);
     retkey->data = retkey->alg->createkey(blob, privptr,
 					  blob+privptr, blobptr-privptr);
@@ -719,7 +720,7 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
         dmp1.bytes = (bignum_bitcount(bdmp1)+8)/8;
         dmq1.bytes = (bignum_bitcount(bdmq1)+8)/8;
         sparelen = dmp1.bytes + dmq1.bytes;
-        spareblob = smalloc(sparelen);
+        spareblob = snewn(sparelen, unsigned char);
         dmp1.start = spareblob;
         dmq1.start = spareblob + dmp1.bytes;
         for (i = 0; i < dmp1.bytes; i++)
@@ -791,7 +792,7 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
     /*
      * Now we know how big outblob needs to be. Allocate it.
      */
-    outblob = smalloc(outlen);
+    outblob = snewn(outlen, unsigned char);
 
     /*
      * And write the data into it.
@@ -996,7 +997,7 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename)
     char base64_bit[4];
     int base64_chars = 0;
 
-    ret = smalloc(sizeof(*ret));
+    ret = snew(struct sshcom_key);
     ret->comment[0] = '\0';
     ret->keyblob = NULL;
     ret->keyblob_len = ret->keyblob_size = 0;
@@ -1072,7 +1073,8 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename)
 
                     if (ret->keyblob_len + len > ret->keyblob_size) {
                         ret->keyblob_size = ret->keyblob_len + len + 256;
-                        ret->keyblob = srealloc(ret->keyblob, ret->keyblob_size);
+                        ret->keyblob = sresize(ret->keyblob, ret->keyblob_size,
+					       unsigned char);
                     }
 
                     memcpy(ret->keyblob + ret->keyblob_len, out, len);
@@ -1333,7 +1335,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase)
      * end up feeding them to alg->createkey().
      */
     blobsize = cipherlen + 256;
-    blob = smalloc(blobsize);
+    blob = snewn(blobsize, unsigned char);
     privlen = 0;
     if (type == RSA) {
         struct mpint_pos n, e, d, u, p, q;
@@ -1391,7 +1393,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase)
 
     assert(privlen > 0);	       /* should have bombed by now if not */
 
-    retkey = smalloc(sizeof(struct ssh2_userkey));
+    retkey = snew(struct ssh2_userkey);
     retkey->alg = alg;
     retkey->data = alg->createkey(blob, publen, blob+publen, privlen);
     if (!retkey->data) {
@@ -1502,7 +1504,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
     outlen = 512;
     for (i = 0; i < nnumbers; i++)
 	outlen += 4 + numbers[i].bytes;
-    outblob = smalloc(outlen);
+    outblob = snewn(outlen, unsigned char);
 
     /*
      * Create the unencrypted key blob.

@@ -1085,7 +1085,7 @@ static void aes_decrypt_cbc(unsigned char *blk, int len, AESContext * ctx)
 
 static void *aes_make_context(void)
 {
-    return smalloc(sizeof(AESContext));
+    return snew(AESContext);
 }
 
 static void aes_free_context(void *handle)

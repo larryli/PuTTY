@@ -65,7 +65,7 @@ void *ldisc_create(Config *mycfg, Terminal *term,
 		   Backend *back, void *backhandle,
 		   void *frontend)
 {
-    Ldisc ldisc = smalloc(sizeof(*ldisc));
+    Ldisc ldisc = snew(struct ldisc_tag);
 
     ldisc->buf = NULL;
     ldisc->buflen = 0;
@@ -261,7 +261,7 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
                 default_case:
 		if (ldisc->buflen >= ldisc->bufsiz) {
 		    ldisc->bufsiz = ldisc->buflen + 256;
-		    ldisc->buf = srealloc(ldisc->buf, ldisc->bufsiz);
+		    ldisc->buf = sresize(ldisc->buf, ldisc->bufsiz, char);
 		}
 		ldisc->buf[ldisc->buflen++] = c;
 		if (ECHOING)

@@ -478,13 +478,13 @@ static void blowfish_setkey(BlowfishContext * ctx,
 
 static void *blowfish_make_context(void)
 {
-    return smalloc(sizeof(BlowfishContext));
+    return snew(BlowfishContext);
 }
 
 static void *blowfish_ssh1_make_context(void)
 {
     /* In SSH1, need one key for each direction */
-    return smalloc(2*sizeof(BlowfishContext));
+    return snewn(2, BlowfishContext);
 }
 
 static void blowfish_free_context(void *handle)

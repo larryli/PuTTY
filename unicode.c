@@ -516,12 +516,12 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 	    if (DIRECT_FONT(ucsdata->unitab_line[i]))
 		continue;
 	    if (!ucsdata->uni_tbl) {
-		ucsdata->uni_tbl = smalloc(256 * sizeof(char *));
+		ucsdata->uni_tbl = snewn(256, char *);
 		memset(ucsdata->uni_tbl, 0, 256 * sizeof(char *));
 	    }
 	    j = ((ucsdata->unitab_line[i] >> 8) & 0xFF);
 	    if (!ucsdata->uni_tbl[j]) {
-		ucsdata->uni_tbl[j] = smalloc(256 * sizeof(char));
+		ucsdata->uni_tbl[j] = snewn(256, char);
 		memset(ucsdata->uni_tbl[j], 0, 256 * sizeof(char));
 	    }
 	    ucsdata->uni_tbl[j][ucsdata->unitab_line[i] & 0xFF] = i;

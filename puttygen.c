@@ -389,8 +389,8 @@ static void setupbigedit2(HWND hwnd, int id, int idstatic,
     int i;
 
     pub_blob = key->alg->public_blob(key->data, &pub_len);
-    buffer = smalloc(strlen(key->alg->name) + 4 * ((pub_len + 2) / 3) +
-		     strlen(key->comment) + 3);
+    buffer = snewn(strlen(key->alg->name) + 4 * ((pub_len + 2) / 3) +
+		   strlen(key->comment) + 3, char);
     strcpy(buffer, key->alg->name);
     p = buffer + strlen(buffer);
     *p++ = ' ';
@@ -820,7 +820,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
 		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(200)));
 
-	state = smalloc(sizeof(*state));
+	state = snew(struct MainDlgState);
 	state->generation_thread_exists = FALSE;
 	state->collecting_entropy = FALSE;
 	state->entropy = NULL;
@@ -974,7 +974,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				   MAKELPARAM(0, PROGRESSRANGE));
 		SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
 
-		params = smalloc(sizeof(*params));
+		params = snew(struct rsa_key_thread_params);
 		params->progressbar = GetDlgItem(hwnd, IDC_PROGRESS);
 		params->dialog = hwnd;
 		params->keysize = state->keysize;
@@ -1021,7 +1021,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    int len = GetWindowTextLength(editctl);
 		    if (*state->commentptr)
 			sfree(*state->commentptr);
-		    *state->commentptr = smalloc(len + 1);
+		    *state->commentptr = snewn(len + 1, char);
 		    GetWindowText(editctl, *state->commentptr, len + 1);
 		    if (state->ssh2) {
 			setupbigedit2(hwnd, IDC_KEYDISPLAY, IDC_PKSTATIC,
@@ -1096,8 +1096,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		state->entropy_required = (state->keysize / 2) * 2;
 		state->entropy_got = 0;
 		state->entropy_size = (state->entropy_required *
-				       sizeof(*state->entropy));
-		state->entropy = smalloc(state->entropy_size);
+				       sizeof(unsigned));
+		state->entropy = snewn(state->entropy_required, unsigned);
 
 		SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
 				   MAKELPARAM(0, state->entropy_required));
@@ -1270,7 +1270,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	 * the user will immediately want to change it, which is
 	 * what we want :-)
 	 */
-	*state->commentptr = smalloc(30);
+	*state->commentptr = snewn(30, char);
 	{
 	    time_t t;
 	    struct tm *tm;

@@ -25,13 +25,14 @@ void *safemalloc(size_t);
 void *saferealloc(void *, size_t);
 void safefree(void *);
 
-
-/* smalloc a thing */
-#define smalloca(type) ((type *) smalloc (sizeof (type)))
-/* smalloc a copy of a thing */
-#define smallocc(ptr) memcpy (smalloc (sizeof (*ptr)), ptr, sizeof (*ptr))
-/* smalloc n things */
-#define smallocn(n,type) ((type *) smalloc ((n) * sizeof (type)))
-
+/*
+ * Direct use of smalloc within the code should be avoided where
+ * possible, in favour of these type-casting macros which ensure
+ * you don't mistakenly allocate enough space for one sort of
+ * structure and assign it to a different sort of pointer.
+ */
+#define snew(type) ((type *)smalloc(sizeof(type)))
+#define snewn(n, type) ((type *)smalloc((n)*sizeof(type)))
+#define sresize(ptr, n, type) ((type *)srealloc(ptr, (n)*sizeof(type)))
 
 #endif

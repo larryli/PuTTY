@@ -43,9 +43,8 @@ static void cmdline_save_param(char *p, char *value, int pri)
 {
     if (saves[pri].nsaved >= saves[pri].savesize) {
 	saves[pri].savesize = saves[pri].nsaved + 32;
-	saves[pri].params =
-	    srealloc(saves[pri].params,
-		     saves[pri].savesize*sizeof(*saves[pri].params));
+	saves[pri].params = sresize(saves[pri].params, saves[pri].savesize,
+				    struct cmdline_saved_param);
     }
     saves[pri].params[saves[pri].nsaved].p = p;
     saves[pri].params[saves[pri].nsaved].value = value;
@@ -234,7 +233,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 		d = 0;
 	    if (cmdlen >= cmdsize) {
 		cmdsize = cmdlen + 512;
-		command = srealloc(command, cmdsize);
+		command = sresize(command, cmdsize, char);
 	    }
 	    command[cmdlen++] = d;
 	} while (c != EOF);

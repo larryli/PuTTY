@@ -99,7 +99,7 @@ static unsigned long *resizeline(unsigned long *line, int cols)
 	 */
 	oldlen = line[0];
 	lineattrs = line[oldlen + 1];
-	line = srealloc(line, TSIZE * (2 + cols));
+	line = sresize(line, 2 + cols, TTYPE);
 	line[0] = cols;
 	for (i = oldlen; i < cols; i++)
 	    line[i + 1] = ERASE_CHAR;
@@ -372,7 +372,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
      * Allocate a new Terminal structure and initialise the fields
      * that need it.
      */
-    term = smalloc(sizeof(Terminal));
+    term = snew(Terminal);
     term->frontend = frontend;
     term->ucsdata = ucsdata;
     term->cfg = *mycfg;		       /* STRUCTURE COPY */
@@ -511,7 +511,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    term->savecurs.y += 1;
 	} else {
 	    /* Add a new blank line at the bottom of the screen. */
-	    line = smalloc(TSIZE * (newcols + 2));
+	    line = snewn(newcols + 2, TTYPE);
 	    line[0] = newcols;
 	    for (j = 0; j < newcols; j++)
 		line[j + 1] = ERASE_CHAR;
@@ -551,7 +551,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     term->disptop = 0;
 
     /* Make a new displayed text buffer. */
-    newdisp = smalloc(newrows * (newcols + 1) * TSIZE);
+    newdisp = snewn(newrows * (newcols + 1), TTYPE);
     for (i = 0; i < newrows * (newcols + 1); i++)
 	newdisp[i] = ATTR_INVALID;
     sfree(term->disptext);
@@ -561,7 +561,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     /* Make a new alternate screen. */
     newalt = newtree234(NULL);
     for (i = 0; i < newrows; i++) {
-	line = smalloc(TSIZE * (newcols + 2));
+	line = snewn(newcols + 2, TTYPE);
 	line[0] = newcols;
 	for (j = 0; j < newcols; j++)
 	    line[j + 1] = term->erase_char;
@@ -576,7 +576,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     term->alt_screen = newalt;
     term->alt_sblines = 0;
 
-    term->tabs = srealloc(term->tabs, newcols * sizeof(*term->tabs));
+    term->tabs = sresize(term->tabs, newcols, unsigned char);
     {
 	int i;
 	for (i = (term->cols > 0 ? term->cols : 0); i < newcols; i++)
@@ -797,7 +797,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 		if (sblen == term->savelines) {
 		    sblen--, line2 = delpos234(term->scrollback, 0);
 		} else {
-		    line2 = smalloc(TSIZE * (term->cols + 2));
+		    line2 = snewn(term->cols + 2, TTYPE);
 		    line2[0] = term->cols;
 		    term->tempsblines += 1;
 		}
@@ -889,7 +889,7 @@ static void save_scroll(Terminal *term, int topline, int botline, int lines)
 	term->scrolltail->botline == botline) {
 	term->scrolltail->lines += lines;
     } else {
-	newscroll = smalloc(sizeof(struct scrollregion));
+	newscroll = snew(struct scrollregion);
 	newscroll->topline = topline;
 	newscroll->botline = botline;
 	newscroll->lines = lines;
@@ -1631,7 +1631,7 @@ void term_out(Terminal *term)
 		    ticks = GETTICKCOUNT();
 
 		    if (!term->beep_overloaded) {
-			newbeep = smalloc(sizeof(struct beeptime));
+			newbeep = snew(struct beeptime);
 			newbeep->ticks = ticks;
 			newbeep->next = NULL;
 			if (!term->beephead)
@@ -3563,7 +3563,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
     int buflen;			       /* amount of memory allocated to workbuf */
 
     buflen = 5120;		       /* Default size */
-    workbuf = smalloc(buflen * sizeof(wchar_t));
+    workbuf = snewn(buflen, wchar_t);
     wbptr = workbuf;		       /* start filling here */
     old_top_x = top.x;		       /* needed for rect==1 */
 
@@ -3679,9 +3679,8 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 	    for (p = cbuf; *p; p++) {
 		/* Enough overhead for trailing NL and nul */
 		if (wblen >= buflen - 16) {
-		    workbuf =
-			srealloc(workbuf,
-				 sizeof(wchar_t) * (buflen += 100));
+		    buflen += 100;
+		    workbuf = sresize(workbuf, buflen, wchar_t);
 		    wbptr = workbuf + wblen;
 		}
 		wblen++;
@@ -3950,7 +3949,7 @@ void term_do_paste(Terminal *term)
         if (term->paste_buffer)
             sfree(term->paste_buffer);
         term->paste_pos = term->paste_hold = term->paste_len = 0;
-        term->paste_buffer = smalloc(len * sizeof(wchar_t));
+        term->paste_buffer = snewn(len, wchar_t);
 
         p = q = data;
         while (p < data + len) {

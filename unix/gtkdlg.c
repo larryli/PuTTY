@@ -207,6 +207,10 @@ void *dlg_alloc_privdata(union control *ctrl, void *dlg, size_t size)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+    /*
+     * This is an internal allocation routine, so it's allowed to
+     * use smalloc directly.
+     */
     uc->privdata = smalloc(size);
     uc->privdata_needs_free = FALSE;
     return uc->privdata;
@@ -379,7 +383,7 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 
 	assert(ncols <=
 	       (uc->ctrl->listbox.ncols ? uc->ctrl->listbox.ncols : 1));
-	percents = smalloc(ncols * sizeof(gint));
+	percents = snewn(ncols, gint);
 	percents[ncols-1] = 100;
 	for (i = 0; i < ncols-1; i++) {
 	    percents[i] = uc->ctrl->listbox.percentages[i];
@@ -1244,7 +1248,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
             continue;                  /* no actual control created */
 	}
 
-	uc = smalloc(sizeof(struct uctrl));
+	uc = snew(struct uctrl);
 	uc->ctrl = ctrl;
 	uc->privdata = NULL;
 	uc->privdata_needs_free = FALSE;
@@ -1309,7 +1313,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                 group = NULL;
 
 		uc->nbuttons = ctrl->radio.nbuttons;
-		uc->buttons = smalloc(uc->nbuttons * sizeof(GtkWidget *));
+		uc->buttons = snewn(uc->nbuttons, GtkWidget *);
 
                 for (i = 0; i < ctrl->radio.nbuttons; i++) {
                     GtkWidget *b;
@@ -2038,8 +2042,8 @@ int do_config_box(const char *title)
 
 		if (nselparams >= selparamsize) {
 		    selparamsize += 16;
-		    selparams = srealloc(selparams,
-					 selparamsize * sizeof(*selparams));
+		    selparams = sresize(selparams, selparamsize,
+					struct selparam);
 		}
 		selparams[nselparams].dp = &dp;
 		selparams[nselparams].panels = PANELS(panels);
@@ -2059,7 +2063,7 @@ int do_config_box(const char *title)
     }
 
     dp.ntreeitems = nselparams;
-    dp.treeitems = smalloc(dp.ntreeitems * sizeof(GtkWidget *));
+    dp.treeitems = snewn(dp.ntreeitems, GtkWidget *);
 
     for (index = 0; index < nselparams; index++) {
 	gtk_signal_connect(GTK_OBJECT(selparams[index].treeitem), "select",

@@ -29,7 +29,7 @@ void platform_get_x11_auth(char *display, int *protocol,
     if (!fp)
         return;                        /* assume no auth */
 
-    localbuf = smalloc(maxsize);
+    localbuf = snewn(maxsize, char);
 
     while (1) {
         /*

@@ -292,7 +292,7 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 #define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
 #define crState(t) \
     struct t *s; \
-    if (!ssh->t) ssh->t = smalloc(sizeof(struct t)); \
+    if (!ssh->t) ssh->t = snew(struct t); \
     s = ssh->t;
 #define crFinish(z)	} *crLine = 0; return (z); }
 #define crFinishV	} *crLine = 0; return; }
@@ -814,7 +814,8 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
     if (ssh->pktin.maxlen < st->biglen) {
 	ssh->pktin.maxlen = st->biglen;
-	ssh->pktin.data = srealloc(ssh->pktin.data, st->biglen + APIEXTRA);
+	ssh->pktin.data = sresize(ssh->pktin.data, st->biglen + APIEXTRA,
+				  unsigned char);
     }
 
     st->to_read = st->biglen;
@@ -859,8 +860,9 @@ static int ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
 	if (ssh->pktin.maxlen < st->pad + decomplen) {
 	    ssh->pktin.maxlen = st->pad + decomplen;
-	    ssh->pktin.data = srealloc(ssh->pktin.data,
-				       ssh->pktin.maxlen + APIEXTRA);
+	    ssh->pktin.data = sresize(ssh->pktin.data,
+				      ssh->pktin.maxlen + APIEXTRA,
+				      unsigned char);
 	    ssh->pktin.body = ssh->pktin.data + st->pad + 1;
 	}
 
@@ -942,7 +944,8 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
     if (ssh->pktin.maxlen < st->cipherblk) {
 	ssh->pktin.maxlen = st->cipherblk;
-	ssh->pktin.data = srealloc(ssh->pktin.data, st->cipherblk + APIEXTRA);
+	ssh->pktin.data = sresize(ssh->pktin.data, st->cipherblk + APIEXTRA,
+				  unsigned char);
     }
 
     /*
@@ -993,8 +996,9 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
      */
     if (ssh->pktin.maxlen < st->packetlen + st->maclen) {
 	ssh->pktin.maxlen = st->packetlen + st->maclen;
-	ssh->pktin.data = srealloc(ssh->pktin.data,
-				   ssh->pktin.maxlen + APIEXTRA);
+	ssh->pktin.data = sresize(ssh->pktin.data,
+				  ssh->pktin.maxlen + APIEXTRA,
+				  unsigned char);
     }
 
     /*
@@ -1036,8 +1040,9 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 				    &newpayload, &newlen)) {
 	    if (ssh->pktin.maxlen < newlen + 5) {
 		ssh->pktin.maxlen = newlen + 5;
-		ssh->pktin.data = srealloc(ssh->pktin.data,
-					   ssh->pktin.maxlen + APIEXTRA);
+		ssh->pktin.data = sresize(ssh->pktin.data,
+					  ssh->pktin.maxlen + APIEXTRA,
+					  unsigned char);
 	    }
 	    ssh->pktin.length = 5 + newlen;
 	    memcpy(ssh->pktin.data + 5, newpayload, newlen);
@@ -1170,9 +1175,11 @@ static void ssh1_pktout_size(Ssh ssh, int len)
 #ifdef MSCRYPTOAPI
 	/* Allocate enough buffer space for extra block
 	 * for MS CryptEncrypt() */
-	ssh->pktout.data = srealloc(ssh->pktout.data, biglen + 12);
+	ssh->pktout.data = sresize(ssh->pktout.data, biglen + 12,
+				   unsigned char);
 #else
-	ssh->pktout.data = srealloc(ssh->pktout.data, biglen + 4);
+	ssh->pktout.data = sresize(ssh->pktout.data, biglen + 4,
+				   unsigned char);
 #endif
     }
     ssh->pktout.body = ssh->pktout.data + 4 + pad + 1;
@@ -1248,8 +1255,9 @@ static void s_wrpkt_defer(Ssh ssh)
     len = s_wrpkt_prepare(ssh);
     if (ssh->deferred_len + len > ssh->deferred_size) {
 	ssh->deferred_size = ssh->deferred_len + len + 128;
-	ssh->deferred_send_data = srealloc(ssh->deferred_send_data,
-					   ssh->deferred_size);
+	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
+					  ssh->deferred_size,
+					  unsigned char);
     }
     memcpy(ssh->deferred_send_data + ssh->deferred_len, ssh->pktout.data, len);
     ssh->deferred_len += len;
@@ -1396,8 +1404,9 @@ static void ssh2_pkt_ensure(Ssh ssh, int length)
 {
     if (ssh->pktout.maxlen < length) {
 	ssh->pktout.maxlen = length + 256;
-	ssh->pktout.data = srealloc(ssh->pktout.data,
-				    ssh->pktout.maxlen + APIEXTRA);
+	ssh->pktout.data = sresize(ssh->pktout.data,
+				   ssh->pktout.maxlen + APIEXTRA,
+				   unsigned char);
 	if (!ssh->pktout.data)
 	    fatalbox("Out of memory");
     }
@@ -1453,7 +1462,7 @@ static unsigned char *ssh2_mpint_fmt(Bignum b, int *len)
 {
     unsigned char *p;
     int i, n = (bignum_bitcount(b) + 7) / 8;
-    p = smalloc(n + 1);
+    p = snewn(n + 1, unsigned char);
     if (!p)
 	fatalbox("out of memory");
     p[0] = 0;
@@ -1564,8 +1573,9 @@ static void ssh2_pkt_defer(Ssh ssh)
     int len = ssh2_pkt_construct(ssh);
     if (ssh->deferred_len + len > ssh->deferred_size) {
 	ssh->deferred_size = ssh->deferred_len + len + 128;
-	ssh->deferred_send_data = srealloc(ssh->deferred_send_data,
-					   ssh->deferred_size);
+	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
+					  ssh->deferred_size,
+					  unsigned char);
     }
     memcpy(ssh->deferred_send_data + ssh->deferred_len, ssh->pktout.data, len);
     ssh->deferred_len += len;
@@ -1876,7 +1886,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     }
 
     s->vstrsize = 16;
-    s->vstring = smalloc(s->vstrsize);
+    s->vstring = snewn(s->vstrsize, char);
     strcpy(s->vstring, "SSH-");
     s->vslen = 4;
     s->i = 0;
@@ -1884,7 +1894,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	crReturn(1);		       /* get another char */
 	if (s->vslen >= s->vstrsize - 1) {
 	    s->vstrsize += 16;
-	    s->vstring = srealloc(s->vstring, s->vstrsize);
+	    s->vstring = sresize(s->vstring, s->vstrsize, char);
 	}
 	s->vstring[s->vslen++] = c;
 	if (s->i >= 0) {
@@ -1904,7 +1914,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     s->vstring[strcspn(s->vstring, "\r\n")] = '\0';/* remove EOL chars */
     {
 	char *vlog;
-	vlog = smalloc(20 + s->vslen);
+	vlog = snewn(20 + s->vslen, char);
 	sprintf(vlog, "Server version: %s", s->vstring);
 	logevent(vlog);
 	sfree(vlog);
@@ -2083,7 +2093,7 @@ static char *connect_to_host(Ssh ssh, char *host, int port,
     SockAddr addr;
     char *err;
 
-    ssh->savedhost = smalloc(1 + strlen(host));
+    ssh->savedhost = snewn(1 + strlen(host), char);
     if (!ssh->savedhost)
 	fatalbox("Out of memory");
     strcpy(ssh->savedhost, host);
@@ -2326,7 +2336,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
     s->len = (hostkey.bytes > servkey.bytes ? hostkey.bytes : servkey.bytes);
 
-    s->rsabuf = smalloc(s->len);
+    s->rsabuf = snewn(s->len, unsigned char);
     if (!s->rsabuf)
 	fatalbox("Out of memory");
 
@@ -2339,7 +2349,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	 */
 	int len = rsastr_len(&hostkey);
 	char fingerprint[100];
-	char *keystr = smalloc(len);
+	char *keystr = snewn(len, char);
 	if (!keystr)
 	    fatalbox("Out of memory");
 	rsastr_fmt(keystr, &hostkey);
@@ -2577,7 +2587,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			len += ssh1_bignum_length(s->challenge);
 			len += 16;     /* session id */
 			len += 4;      /* response format */
-			agentreq = smalloc(4 + len);
+			agentreq = snewn(4 + len, char);
 			PUT_32BIT(agentreq, len);
 			q = agentreq + 4;
 			*q++ = SSH1_AGENTC_RSA_CHALLENGE;
@@ -2892,7 +2902,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 		    assert(pwlen >= bottom && pwlen <= top);
 
-		    randomstr = smalloc(top + 1);
+		    randomstr = snewn(top + 1, char);
 
 		    for (i = bottom; i <= top; i++) {
 			if (i == pwlen)
@@ -3182,7 +3192,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			      dserv, "(", dport, dserv, ")");
 		} else {
 		    struct ssh_rportfwd *pf;
-		    pf = smalloc(sizeof(*pf));
+		    pf = snew(struct ssh_rportfwd);
 		    strcpy(pf->dhost, host);
 		    pf->dport = dport;
 		    if (saddr) {
@@ -3330,7 +3340,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 				PKT_INT, GET_32BIT(ssh->pktin.body), PKT_END);
 		    logevent("Rejected X11 connect request");
 		} else {
-		    c = smalloc(sizeof(struct ssh_channel));
+		    c = snew(struct ssh_channel);
 		    c->ssh = ssh;
 
 		    if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
@@ -3365,7 +3375,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 				PKT_INT, GET_32BIT(ssh->pktin.body), PKT_END);
 		} else {
-		    c = smalloc(sizeof(struct ssh_channel));
+		    c = snew(struct ssh_channel);
 		    c->ssh = ssh;
 		    c->remoteid = GET_32BIT(ssh->pktin.body);
 		    c->localid = alloc_channel_id(ssh);
@@ -3386,7 +3396,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		int hostsize, port;
 		char host[256], buf[1024];
 		char *p, *h, *e;
-		c = smalloc(sizeof(struct ssh_channel));
+		c = snew(struct ssh_channel);
 		c->ssh = ssh;
 
 		hostsize = GET_32BIT(ssh->pktin.body+4);
@@ -3542,7 +3552,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			    if (c->u.a.lensofar == 4) {
 				c->u.a.totallen =
 				    4 + GET_32BIT(c->u.a.msglen);
-				c->u.a.message = smalloc(c->u.a.totallen);
+				c->u.a.message = snewn(c->u.a.totallen,
+						       unsigned char);
 				memcpy(c->u.a.message, c->u.a.msglen, 4);
 			    }
 			    if (c->u.a.lensofar >= 4 && len > 0) {
@@ -4682,7 +4693,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			s->len += 4 + s->pklen;	/* key blob */
 			s->len += 4 + s->siglen;	/* data to sign */
 			s->len += 4;      /* flags */
-			s->agentreq = smalloc(4 + s->len);
+			s->agentreq = snewn(4 + s->len, char);
 			PUT_32BIT(s->agentreq, s->len);
 			s->q = s->agentreq + 4;
 			*s->q++ = SSH2_AGENTC_SIGN_REQUEST;
@@ -4973,7 +4984,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    sigdata_len = ssh->pktout.length - 5 + 4 + 20;
                     if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
                         sigdata_len -= 4;
-		    sigdata = smalloc(sigdata_len);
+		    sigdata = snewn(sigdata_len, char);
                     p = 0;
                     if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
                         PUT_32BIT(sigdata+p, 20);
@@ -5105,7 +5116,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
      * So now create a channel with a session in it.
      */
     ssh->channels = newtree234(ssh_channelcmp);
-    ssh->mainchan = smalloc(sizeof(struct ssh_channel));
+    ssh->mainchan = snew(struct ssh_channel);
     ssh->mainchan->ssh = ssh;
     ssh->mainchan->localid = alloc_channel_id(ssh);
     ssh2_pkt_init(ssh, SSH2_MSG_CHANNEL_OPEN);
@@ -5262,7 +5273,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			      dserv, "(", dport, dserv, ")");
 		} else {
 		    struct ssh_rportfwd *pf;
-		    pf = smalloc(sizeof(*pf));
+		    pf = snew(struct ssh_rportfwd);
 		    strcpy(pf->dhost, host);
 		    pf->dport = dport;
 		    pf->sport = sport;
@@ -5530,7 +5541,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			    if (c->u.a.lensofar == 4) {
 				c->u.a.totallen =
 				    4 + GET_32BIT(c->u.a.msglen);
-				c->u.a.message = smalloc(c->u.a.totallen);
+				c->u.a.message = snewn(c->u.a.totallen,
+						       unsigned char);
 				memcpy(c->u.a.message, c->u.a.msglen, 4);
 			    }
 			    if (c->u.a.lensofar >= 4 && length > 0) {
@@ -5794,7 +5806,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		struct ssh_channel *c;
 		unsigned remid, winsize, pktsize;
 		ssh2_pkt_getstring(ssh, &type, &typelen);
-		c = smalloc(sizeof(struct ssh_channel));
+		c = snew(struct ssh_channel);
 		c->ssh = ssh;
 
 		remid = ssh2_pkt_getuint32(ssh);
@@ -5804,7 +5816,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		port = ssh2_pkt_getuint32(ssh);
 
 		if (typelen == 3 && !memcmp(type, "x11", 3)) {
-		    char *addrstr = smalloc(peeraddrlen+1);
+		    char *addrstr = snewn(peeraddrlen+1, char);
 		    memcpy(addrstr, peeraddr, peeraddrlen);
 		    peeraddr[peeraddrlen] = '\0';
 
@@ -5947,7 +5959,7 @@ static char *ssh_init(void *frontend_handle, void **backend_handle,
     char *p;
     Ssh ssh;
 
-    ssh = smalloc(sizeof(*ssh));
+    ssh = snew(struct ssh_tag);
     ssh->cfg = *cfg;		       /* STRUCTURE COPY */
     ssh->s = NULL;
     ssh->cipher = NULL;
@@ -6241,7 +6253,7 @@ void *new_sock_channel(void *handle, Socket s)
 {
     Ssh ssh = (Ssh) handle;
     struct ssh_channel *c;
-    c = smalloc(sizeof(struct ssh_channel));
+    c = snew(struct ssh_channel);
     c->ssh = ssh;
 
     if (c) {
