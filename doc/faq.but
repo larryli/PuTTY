@@ -393,6 +393,38 @@ On Unix, PuTTY stores all of this data in a directory \cw{~/.putty}.
 
 \H{faq-howto} HOWTO questions
 
+\S{faq-commands}{Question} What commands can I type into my PuTTY
+terminal window?
+
+This is not a question you should be asking \e{us}. You need to read
+the manuals, or ask the administrator, of \e{the computer you have
+connected to}.
+
+PuTTY does not process the commands you type into it. It's only a
+communications tool. It makes a connection to another computer; it
+passes the commands you type to that other computer; and it passes
+the other computer's responses back to you. Therefore, the precise
+range of commands you can use will not depend on PuTTY, but on what
+kind of computer you have connected to and what software is running
+on it. The PuTTY team cannot help you with that.
+
+(Think of PuTTY as being a bit like a telephone. If you phone
+somebody up and you don't know what language to speak to make them
+understand you, it isn't \e{the telephone company}'s job to find
+that out for you. We just provide the means for you to get in touch;
+making yourself understood is somebody else's problem.)
+
+If you are unsure of where to start looking for the administrator of
+your server, a good place to start might be to remember how you
+found out the host name in the PuTTY configuration. If you were
+given that host name by e-mail, for example, you could try asking
+the person who sent you that e-mail. If your company's IT department
+provided you with ready-made PuTTY saved sessions, then that IT
+department can probably also tell you something about what commands
+you can type during those sessions. But the PuTTY maintainer team
+does not administer any server you are likely to be connecting to,
+and cannot help you with questions of this type.
+
 \S{faq-startmax}{Question} How can I make PuTTY start up maximised?
 
 Create a Windows shortcut to start PuTTY from, and set it as \q{Run
