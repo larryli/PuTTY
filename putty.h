@@ -24,6 +24,7 @@
 #define ATTR_PASCURS 0x40000000UL      /* passive cursor (box) */
 #define ATTR_INVALID 0x20000000UL
 #define ATTR_WRAPPED 0x10000000UL
+#define ATTR_RIGHTCURS 0x10000000UL    /* doubles as cursor-on-RHS indicator */
 
 #define LATTR_NORM   0x00000000UL
 #define LATTR_WIDE   0x01000000UL
@@ -179,6 +180,7 @@ typedef struct {
     int dec_om;
     int wrap_mode;
     int lfhascr;
+    int cursor_type;		       /* 0=block 1=underline 2=vertical */
     int blink_cur;
     int beep;
     int scrollbar;

@@ -1663,7 +1663,7 @@ void do_text (Context ctx, int x, int y, char *text, int len,
     x *= fnt_width;
     y *= font_height;
 
-    if (attr & ATTR_ACTCURS) {
+    if ((attr & ATTR_ACTCURS) && cfg.cursor_type == 0) {
 	attr &= (bold_mode == BOLD_COLOURS ? 0x300200 : 0x300300);
 	attr ^= ATTR_CUR_XOR;
     }
@@ -1824,7 +1824,7 @@ void do_text (Context ctx, int x, int y, char *text, int len,
         oldpen = SelectObject (hdc, oldpen);
         DeleteObject (oldpen);
     }
-    if (attr & ATTR_PASCURS) {
+    if ((attr & ATTR_PASCURS) && cfg.cursor.type == 0) {
 	POINT pts[5];
         HPEN oldpen;
 	pts[0].x = pts[1].x = pts[4].x = x;
@@ -1833,6 +1833,27 @@ void do_text (Context ctx, int x, int y, char *text, int len,
 	pts[1].y = pts[2].y = y+font_height-1;
 	oldpen = SelectObject (hdc, CreatePen(PS_SOLID, 0, colours[23]));
 	Polyline (hdc, pts, 5);
+        oldpen = SelectObject (hdc, oldpen);
+        DeleteObject (oldpen);
+    }
+    if ((attr & (ATTR_ACTCURS | ATTR_PASCURS)) && cfg.cursor_type != 0) {
+        HPEN oldpen;
+	int pentype;
+	if (attr & ATTR_PASCURS)
+	    pentype = PS_DOTTED;
+	else
+	    pentype = PS_SOLID;
+	oldpen = SelectObject (hdc, CreatePen(pentype, 0, colours[23]));
+	if (cfg.cursor_type == 1) {
+	    MoveToEx (hdc, x, y+descent, NULL);
+	    LineTo (hdc, x+fnt_width-1, y+descent);
+	} else {
+	    int xadjust = 0;
+	    if (attr & ATTR_RIGHTCURS)
+		xadjust = fnt_width-1;
+	    MoveToEx (hdc, x+xadjust, y, NULL);
+	    LineTo (hdc, x+xadjust, y+font_height-1);
+	}
         oldpen = SelectObject (hdc, oldpen);
         DeleteObject (oldpen);
     }

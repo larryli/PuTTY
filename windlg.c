@@ -274,6 +274,10 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1,
     IDC_BOX_APPEARANCE2, IDC_BOXT_APPEARANCE2,
     IDC_BOX_APPEARANCE3, IDC_BOXT_APPEARANCE3,
+    IDC_CURSTATIC,
+    IDC_CURBLOCK,
+    IDC_CURUNDER,
+    IDC_CURVERT,
     IDC_BLINKCUR,
     IDC_FONTSTATIC,
     IDC_CHOOSEFONT,
@@ -472,6 +476,9 @@ static void init_dlg_ctrls(HWND hwnd) {
 
     SetDlgItemText (hwnd, IDC_WINEDIT, cfg.wintitle);
     CheckDlgButton (hwnd, IDC_WINNAME, cfg.win_name_always);
+    CheckRadioButton (hwnd, IDC_CURBLOCK, IDC_CURVERT,
+		      cfg.cursor_type==0 ? IDC_CURBLOCK :
+		      cfg.cursor_type==1 ? IDC_CURUNDER : IDC_CURVERT);
     CheckDlgButton (hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton (hwnd, IDC_SCROLLBAR, cfg.scrollbar);
     CheckDlgButton (hwnd, IDC_LOCKSIZE, cfg.locksize);
@@ -828,7 +835,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
             treeview_insert(&tvfaff, 0, "Window");
 	}
 
-        /* The Appearance panel. Accelerators used: [acgo] rmkhti */
+        /* The Appearance panel. Accelerators used: [acgo] rmkhtibluv */
 	{
 	    struct ctlpos cp;
 	    ctlposinit(&cp, hwnd, 80, 3, 13);
@@ -836,6 +843,11 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
                      IDC_TITLE_APPEARANCE);
             beginbox(&cp, "Adjust the use of the cursor",
                      IDC_BOX_APPEARANCE1, IDC_BOXT_APPEARANCE1);
+	    radioline(&cp, "Cursor appearance:", IDC_CURSTATIC, 3,
+		      "B&lock", IDC_CURBLOCK,
+		      "&Underline", IDC_CURUNDER,
+		      "&Vertical line", IDC_CURVERT,
+		      NULL);
 	    checkbox(&cp, "Cursor &blinks", IDC_BLINKCUR);
             endbox(&cp);
             beginbox(&cp, "Set the font used in the terminal window",
@@ -1416,6 +1428,21 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED)
 		cfg.win_name_always = IsDlgButtonChecked (hwnd, IDC_WINNAME);
+	    break;
+	  case IDC_CURBLOCK:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.cursor_type = 0;
+	    break;
+	  case IDC_CURUNDER:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.cursor_type = 1;
+	    break;
+	  case IDC_CURVERT:
+	    if (HIWORD(wParam) == BN_CLICKED ||
+		HIWORD(wParam) == BN_DOUBLECLICKED)
+		cfg.cursor_type = 2;
 	    break;
           case IDC_BLINKCUR:
             if (HIWORD(wParam) == BN_CLICKED ||

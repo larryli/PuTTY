@@ -1771,6 +1771,8 @@ static void do_paint (Context ctx, int may_optimise){
         }
         else
             cursor = ATTR_PASCURS;
+	if (wrapnext)
+	    cursor |= ATTR_RIGHTCURS;
     }
     else           cursor = 0;
     rv = (rvideo ? ATTR_REVERSE : 0);
@@ -1781,11 +1783,10 @@ static void do_paint (Context ctx, int may_optimise){
 	int lattr = (disptop[idx+cols] & LATTR_MODE);
 	for (j=0; j<=cols; j++,idx++) {
 	    unsigned long *d = disptop+idx;
-	    wanttext[idx] = lattr | ((*d ^ rv
+	    wanttext[idx] = lattr | (((*d &~ ATTR_WRAPPED) ^ rv
 			      ^ (selstart <= d && d < selend ?
 				 ATTR_REVERSE : 0)) |
 			     (i==our_curs_y && j==curs_x ? cursor : 0));
-
 	    if (blink_is_real) {
 		if (has_focus && tblinker && (wanttext[idx]&ATTR_BLINK) )
 		{
