@@ -5,6 +5,54 @@
 #include "ssh.h"
 
 /*
+ * This prime generation algorithm is pretty much cribbed from
+ * OpenSSL. The algorithm is:
+ * 
+ *  - invent a B-bit random number and ensure the top and bottom
+ *    bits are set (so it's definitely B-bit, and it's definitely
+ *    odd)
+ * 
+ *  - see if it's coprime to all primes below 2^16; increment it by
+ *    two until it is (this shouldn't take long in general)
+ * 
+ *  - perform the Miller-Rabin primality test enough times to
+ *    ensure the probability of it being composite is 2^-80 or
+ *    less
+ * 
+ *  - go back to square one if any M-R test fails.
+ */
+
+/*
+ * The Miller-Rabin primality test is an extension to the Fermat
+ * test. The Fermat test just checks that a^(n-1) == 1 mod n; this
+ * is vulnerable to Carmichael numbers. Miller-Rabin makes use of
+ * the fact that if p is truly prime and a^K == 1 mod p for even K,
+ * then a^(K/2) must be congruent to either 1 or -1. In Hence, we
+ * write n-1 as q * 2^k, with odd q, and then we compute a^q, a^2q,
+ * a^4q, a^8q, ..., a^(n-1) mod n. If n is prime, the last of these
+ * must be 1, and the last one that _isn't_ 1 must be -1. So we
+ * expect to see either a^q congruent to 1, or a^q congruent to -1,
+ * or a^q to become congruent to -1 after squaring at most k-1
+ * times.
+ * 
+ * For example, consider a=2 and n=1729 (a Carmichael number).
+ * 2^1728 mod 1729 is 1, so the Fermat test would have no problem
+ * with this. But Miller-Rabin looks at 2^(1728/2), 2^(1728/4),
+ * ..., 2^(1728/64) as well. Now 2^(1728/64) == 645, 2^(1728/32) ==
+ * 1065, 2^(1728/16) == 1. Hang on! The value before the first 1
+ * was 1065, and we expected 1728 (i.e. -1). Guards! Seize this
+ * impostor.
+ * 
+ * (It doesn't work for all bases. Try a=932 and n=1729, and even
+ * the Miller-Rabin test can't tell the difference, because
+ * 932^(1728/64) is already 1 and so we don't get to see what
+ * happens before the first 1. But there isn't any class of numbers
+ * which give false positives on Miller-Rabin for _all_ bases, so
+ * by trying several bases we probabilistically rule out Carmichael
+ * numbers as well as everything else composite.)
+ */
+
+/*
  * The first few odd primes.
  *
  * import sys
@@ -561,7 +609,7 @@ Bignum primegen(int bits, int modulus, int residue,
                 int phase, progfn_t pfn, void *pfnparam) {
     int i, k, v, byte, bitsleft, check, checks;
     unsigned long delta, moduli[NPRIMES+1], residues[NPRIMES+1];
-    Bignum p, q, wqp, wqp2;
+    Bignum p, pm1, q, wqp, wqp2;
     int progress = 0;
 
     byte = 0; bitsleft = 0;
@@ -596,7 +644,8 @@ Bignum primegen(int bits, int modulus, int residue,
         residues[i] = bignum_mod_short(p, primes[i]);
     }
     moduli[NPRIMES] = modulus;
-    residues[NPRIMES] = bignum_mod_short(p, modulus) + modulus - residue;
+    residues[NPRIMES] = (bignum_mod_short(p, (unsigned short)modulus)
+                         + modulus - residue);
     delta = 0;
     while (1) {
         for (i = 0; i < (sizeof(moduli) / sizeof(*moduli)); i++)
@@ -617,8 +666,8 @@ Bignum primegen(int bits, int modulus, int residue,
     freebn(q);
 
     /*
-     * Now apply the Fermat primality test a few times. First work
-     * out how many checks are needed.
+     * Now apply the Miller-Rabin primality test a few times. First
+     * work out how many checks are needed.
      */
     checks = 27;
     if (bits >= 150) checks = 18;
@@ -638,6 +687,9 @@ Bignum primegen(int bits, int modulus, int residue,
      */
     for (k = 0; bignum_bit(p, k) == !k; k++);   /* find first 1 bit in p-1 */
     q = bignum_rshift(p, k);
+    /* And store p-1 itself, which we'll need. */
+    pm1 = copybn(p);
+    decbn(pm1);
 
     /*
      * Now, for each check ...
@@ -674,21 +726,21 @@ Bignum primegen(int bits, int modulus, int residue,
         freebn(w);
 
         /*
-         * See if this is 1, or if it becomes 1 when squared at
-         * most k times.
+         * See if this is 1, or if it is -1, or if it becomes -1
+         * when squared at most k-1 times.
          */
-        if (bignum_cmp(wqp, One) == 0) {
+        if (bignum_cmp(wqp, One) == 0 || bignum_cmp(wqp, pm1) == 0) {
             freebn(wqp);
             continue;
         }
-        for (i = 0; i < k; i++) {
+        for (i = 0; i < k-1; i++) {
             wqp2 = modmul(wqp, wqp, p);
             freebn(wqp);
             wqp = wqp2;
-            if (bignum_cmp(wqp, One) == 0)
+            if (bignum_cmp(wqp, pm1) == 0)
                 break;
         }
-        if (i < k) {
+        if (i < k-1) {
             freebn(wqp);
             continue;
         }
@@ -698,6 +750,7 @@ Bignum primegen(int bits, int modulus, int residue,
          * compositeness of p.
          */
         freebn(p);
+        freebn(pm1);
         freebn(q);
         goto STARTOVER;
     }
@@ -706,5 +759,6 @@ Bignum primegen(int bits, int modulus, int residue,
      * We have a prime!
      */
     freebn(q);
+    freebn(pm1);
     return p;
 }
