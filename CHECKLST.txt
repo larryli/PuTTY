@@ -88,9 +88,15 @@ of the tag.
    within days of the release going out.
 
  - On my local machines, check out the release-tagged version of the
-   sources.
+   sources. Do this in a _clean_ directory; don't depend on my usual
+   source dir.
     + Make sure to run mkfiles.pl _after_ this checkout, just in
       case.
+
+ - Build the source archives now, while the directory is still
+   pristine.
+    + run ./mksrcarc.sh to build the Windows source zip.
+    + run `./mkunxarc.sh X.YZ' to build the Unix tarball.
 
  - Build the Windows/x86 release binaries. Don't forget to supply
    VER=/DRELEASE=<ver>. Run them, or at least one or two of them, to
@@ -99,25 +105,24 @@ of the tag.
       in src/putty/local/maps-<version>.
 
  - Acquire the Windows/alpha release binaries from Owen.
-    + Verify the snapshot-key signatures on these, to ensure they're
-      really the ones he built. If I'm going to snapshot-sign a zip
-      file I make out of these, I'm damn well going to make sure the
-      binaries that go _into_ it were snapshot-signed themselves.
+    + Verify the signatures on these, to ensure they're really the
+      ones he built. If I'm going to sign a zip file I make out of
+      these, I'm damn well going to make sure the binaries that go
+      _into_ it are signed themselves.
     + Make sure Owen has kept the Alpha release link maps somewhere
       useful.
 
  - Run Halibut to build the docs.
 
- - Build the .zip files.
-    + The binary archive putty.zip just contains all the .exe files
-      except PuTTYtel, and the .hlp and .cnt files.
-    + The source archive putty-src.zip is fiddly to build, so it's
-      done by the shell script mksrcarc.sh. First check out the
-      release sources in a pristine directory (to avoid cluttering
-      the zip file with irrelevant stuff), then run mksrcarc.sh in
-      that directory.
-    + The docs archive puttydoc.zip contains all the HTML files
-      output from Halibut.
+ - Build the binary archives putty.zip (one for each architecture):
+   each one just contains all the .exe files except PuTTYtel, and
+   the .hlp and .cnt files.
+    + zip -k putty.zip `ls *.exe | grep -v puttytel` putty.hlp putty.cnt
+    + same again for Alpha.
+
+ - Build the docs archive puttydoc.zip: it contains all the HTML
+   files output from Halibut.
+    + zip puttydoc.zip *.html
 
  - Build the installer.
 
@@ -126,8 +131,8 @@ of the tag.
       binary zipfile, and the locally built x86 installer, with the
       release keys.
     + The Alpha binaries should already have been signed with the
-      snapshot keys. Having checked that, sign the Alpha binary
-      zipfile with the snapshot keys too.
+      release keys. Having checked that, sign the Alpha binary
+      zipfile with the release keys too.
     + The source archive should be signed with the release keys.
     + Don't forget to sign with both DSA and RSA keys for absolutely
       everything.
@@ -137,20 +142,18 @@ of the tag.
       installer, and all signatures on the above.
     + subdir `alpha' containing the Alpha binaries, Alpha binary
       zip, and all signatures on the above.
-    + top-level dir contains the source zip (plus signatures),
+    + top-level dir contains the Windows source zip (plus
+      signatures), the Unix source tarball (plus signatures),
       puttydoc.txt, the .hlp and .cnt files, and puttydoc.zip.
 
  - Create and sign md5sums files: one in the x86 subdir, one in the
    alpha subdir, and one in the parent dir of both of those.
     + The md5sums files need not list the .DSA and .RSA signatures,
       and the top-level md5sums need not list the other two.
-    + Sign the md5sums files (gpg --clearsign). The Alpha md5sums
-      should be signed with the snapshot keys, but the other two
-      with the release keys (yes, the top-level one includes some
-      Alpha files, but I think people will understand).
+    + Sign the md5sums files (gpg --clearsign).
 
  - Now double-check by verifying all the signatures on all the
-   files.
+   files, and running md5sum -c on all the md5sums files.
 
  - Create subdir `htmldoc' in the release directory, which should
    contain exactly the same set of HTML files that went into
@@ -175,7 +178,8 @@ of the tag.
  - Update web site.
    + Adjust front page (`the latest version is <ver>').
    + Adjust Download page similarly.
-   + Adjust filename of installer on links in Download page.
+   + Adjust filenames of installer and Unix tarball on links in
+     Download page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
 
@@ -196,7 +200,6 @@ of the tag.
  - Announce the release!
     + Mail the announcement to putty-announce.
     + Post it to comp.security.ssh.
-    + Mention it in <TDHIS> on mono.
+    + Mention it in <TDHTT> on mono.
 
- - All done. Probably best to run `cvs up -A' now, or I'll only
-   forget in a few days' time and get confused...
+ - All done.
