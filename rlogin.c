@@ -177,6 +177,9 @@ static void rlogin_size(void)
 {
     char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+    if (s == NULL)
+	return;
+    
     b[6] = cols >> 8;
     b[7] = cols & 0xFF;
     b[4] = rows >> 8;
