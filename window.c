@@ -945,7 +945,7 @@ void update_specials_menu(void *frontend)
 	    InsertMenu(popup_menus[j].menu,
 		       popup_menus[j].specials_submenu_pos,
 		       MF_BYPOSITION | MF_POPUP | MF_ENABLED,
-		       (UINT) p, "Special Command");
+		       (UINT) p, "S&pecial Command");
 	}
     }
 }
