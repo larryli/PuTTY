@@ -19,7 +19,6 @@
 
 static void sha_mpint(SHA_State * s, Bignum b)
 {
-    unsigned char *p;
     unsigned char lenbuf[4];
     int len;
     len = (bignum_bitcount(b) + 8) / 8;
@@ -34,7 +33,6 @@ static void sha_mpint(SHA_State * s, Bignum b)
 
 static void sha512_mpint(SHA512_State * s, Bignum b)
 {
-    unsigned char *p;
     unsigned char lenbuf[4];
     int len;
     len = (bignum_bitcount(b) + 8) / 8;

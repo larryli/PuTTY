@@ -1,4 +1,4 @@
-\versionid $Id: pubkey.but,v 1.5 2001/09/22 20:52:21 simon Exp $
+\versionid $Id: pubkey.but,v 1.6 2001/09/25 19:59:14 simon Exp $
 
 \# FIXME: passphrases, examples (e.g what does a key for pasting into
 \# authorized_keys look like?), index entries, links.
@@ -65,7 +65,9 @@ The PuTTY key generator, described in \k{pubkey-puttygen}, offers
 you the opportunity to generate several types of key pair:
 
 \b An RSA key for use with the SSH 1 protocol.
+
 \b An RSA key for use with the SSH 2 protocol.
+
 \b A DSA key for use with the SSH 2 protocol.
 
 The SSH 1 protocol only supports RSA keys; if you will be connecting

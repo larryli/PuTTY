@@ -753,8 +753,8 @@ Bignum bignum_from_long(unsigned long n)
     Bignum ret;
 
     ret = newbn(3);
-    ret[1] = n & 0xFFFF;
-    ret[2] = (n >> 16) & 0xFFFF;
+    ret[1] = (unsigned short)(n & 0xFFFF);
+    ret[2] = (unsigned short)((n >> 16) & 0xFFFF);
     ret[3] = 0;
     ret[0] = (ret[2]  ? 2 : 1);
     return ret;
