@@ -1722,7 +1722,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     /*
      * Enact command-line overrides.
      */
-    cmdline_run_saved();
+    cmdline_run_saved(&cfg);
 
     /*
      * Trim leading whitespace off the hostname if it's there.
@@ -1883,7 +1883,7 @@ int main(int argc, char *argv[])
                 userhost = dupstr(argv[i]);
 	    continue;
 	}
-	ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1);
+	ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1, &cfg);
 	if (ret == -2) {
 	    cmdline_error("option \"%s\" requires an argument", argv[i]);
 	} else if (ret == 2) {

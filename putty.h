@@ -684,8 +684,8 @@ void printer_finish_job(printer_job *);
  * defined differently in various places and required _by_
  * cmdline.c).
  */
-int cmdline_process_param(char *, char *, int);
-void cmdline_run_saved(void);
+int cmdline_process_param(char *, char *, int, Config *);
+void cmdline_run_saved(Config *);
 extern char *cmdline_password;
 #define TOOLTYPE_FILETRANSFER 1
 extern int cmdline_tooltype;

@@ -329,7 +329,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		char *p = argv[i];
 		int ret;
 
-		ret = cmdline_process_param(p, i+1<argc?argv[i+1]:NULL, 1);
+		ret = cmdline_process_param(p, i+1<argc?argv[i+1]:NULL,
+					    1, &cfg);
 		if (ret == -2) {
 		    cmdline_error("option \"%s\" requires an argument", p);
 		} else if (ret == 2) {
@@ -365,7 +366,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			 * argument, so that it will be deferred
 			 * until it's a good moment to run it.
 			 */
-			int ret = cmdline_process_param("-P", p, 1);
+			int ret = cmdline_process_param("-P", p, 1, &cfg);
 			assert(ret == 2);
 		    } else if (!strncmp(q, "telnet:", 7)) {
 			/*
@@ -411,7 +412,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    }
 	}
 
-	cmdline_run_saved();
+	cmdline_run_saved(&cfg);
 
 	if (!*cfg.host && !do_config()) {
 	    WSACleanup();

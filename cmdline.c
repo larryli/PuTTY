@@ -109,45 +109,45 @@ static int cmdline_check_unavailable(int flag, char *p)
     ret = x; \
 } while (0)
 
-int cmdline_process_param(char *p, char *value, int need_save)
+int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 {
     int ret = 0;
 
     if (!strcmp(p, "-load")) {
 	RETURN(2);
 	SAVEABLE(0);		       /* very high priority */
-	do_defaults(value, &cfg);
+	do_defaults(value, cfg);
 	return 2;
     }
     if (!strcmp(p, "-ssh")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	default_protocol = cfg.protocol = PROT_SSH;
-	default_port = cfg.port = 22;
+	default_protocol = cfg->protocol = PROT_SSH;
+	default_port = cfg->port = 22;
 	return 1;
     }
     if (!strcmp(p, "-telnet")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	default_protocol = cfg.protocol = PROT_TELNET;
-	default_port = cfg.port = 23;
+	default_protocol = cfg->protocol = PROT_TELNET;
+	default_port = cfg->port = 23;
 	return 1;
     }
     if (!strcmp(p, "-rlogin")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	default_protocol = cfg.protocol = PROT_RLOGIN;
-	default_port = cfg.port = 513;
+	default_protocol = cfg->protocol = PROT_RLOGIN;
+	default_port = cfg->port = 513;
 	return 1;
     }
     if (!strcmp(p, "-raw")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	default_protocol = cfg.protocol = PROT_RAW;
+	default_protocol = cfg->protocol = PROT_RAW;
     }
     if (!strcmp(p, "-v")) {
 	RETURN(1);
@@ -156,8 +156,8 @@ int cmdline_process_param(char *p, char *value, int need_save)
     if (!strcmp(p, "-l")) {
 	RETURN(2);
 	SAVEABLE(1);
-	strncpy(cfg.username, value, sizeof(cfg.username));
-	cfg.username[sizeof(cfg.username) - 1] = '\0';
+	strncpy(cfg->username, value, sizeof(cfg->username));
+	cfg->username[sizeof(cfg->username) - 1] = '\0';
     }
     if ((!strcmp(p, "-L") || !strcmp(p, "-R"))) {
 	char *fwd, *ptr, *q, *qq;
@@ -166,20 +166,20 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
 	fwd = value;
-	ptr = cfg.portfwd;
+	ptr = cfg->portfwd;
 	/* if multiple forwards, find end of list */
 	if (ptr[0]=='R' || ptr[0]=='L') {
-	    for (i = 0; i < sizeof(cfg.portfwd) - 2; i++)
+	    for (i = 0; i < sizeof(cfg->portfwd) - 2; i++)
 		if (ptr[i]=='\000' && ptr[i+1]=='\000')
 		    break;
 	    ptr = ptr + i + 1;  /* point to next forward slot */
 	}
 	ptr[0] = p[1];  /* insert a 'L' or 'R' at the start */
-	if (strlen(fwd) > sizeof(cfg.portfwd) - i - 2) {
+	if (strlen(fwd) > sizeof(cfg->portfwd) - i - 2) {
 	    cmdline_error("out of space for port forwardings");
 	    return ret;
 	}
-	strncpy(ptr+1, fwd, sizeof(cfg.portfwd) - i);
+	strncpy(ptr+1, fwd, sizeof(cfg->portfwd) - i);
 	/*
 	 * We expect _at least_ two colons in this string. The
 	 * possible formats are `sourceport:desthost:destport', or
@@ -197,8 +197,8 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	    qq = qqq;
 	}
 	if (q) *q = '\t';	       /* replace second-last colon with \t */
-	cfg.portfwd[sizeof(cfg.portfwd) - 1] = '\0';
-	cfg.portfwd[sizeof(cfg.portfwd) - 2] = '\0';
+	cfg->portfwd[sizeof(cfg->portfwd) - 1] = '\0';
+	cfg->portfwd[sizeof(cfg->portfwd) - 2] = '\0';
 	ptr[strlen(ptr)+1] = '\000';    /* append two '\000' */
     }
     if (!strcmp(p, "-m")) {
@@ -232,14 +232,14 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	    }
 	    command[cmdlen++] = d;
 	} while (c != EOF);
-	cfg.remote_cmd_ptr = command;
-	cfg.remote_cmd_ptr2 = NULL;
-	cfg.nopty = TRUE;      /* command => no terminal */
+	cfg->remote_cmd_ptr = command;
+	cfg->remote_cmd_ptr2 = NULL;
+	cfg->nopty = TRUE;      /* command => no terminal */
     }
     if (!strcmp(p, "-P")) {
 	RETURN(2);
 	SAVEABLE(2);		       /* lower priority than -ssh,-telnet */
-	cfg.port = atoi(value);
+	cfg->port = atoi(value);
     }
     if (!strcmp(p, "-pw")) {
 	RETURN(2);
@@ -252,73 +252,73 @@ int cmdline_process_param(char *p, char *value, int need_save)
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	cfg.agentfwd = 1;
+	cfg->agentfwd = 1;
     }
     if (!strcmp(p, "-a")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	cfg.agentfwd = 0;
+	cfg->agentfwd = 0;
     }
 
     if (!strcmp(p, "-X")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	cfg.x11_forward = 1;
+	cfg->x11_forward = 1;
     }
     if (!strcmp(p, "-x")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	cfg.x11_forward = 0;
+	cfg->x11_forward = 0;
     }
 
     if (!strcmp(p, "-t")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	cfg.nopty = 0;
+	cfg->nopty = 0;
     }
     if (!strcmp(p, "-T")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
 	SAVEABLE(1);
-	cfg.nopty = 1;
+	cfg->nopty = 1;
     }
 
     if (!strcmp(p, "-C")) {
 	RETURN(1);
 	SAVEABLE(1);
-	cfg.compression = 1;
+	cfg->compression = 1;
     }
 
     if (!strcmp(p, "-1")) {
 	RETURN(1);
 	SAVEABLE(1);
-	cfg.sshprot = 0;	       /* ssh protocol 1 only */
+	cfg->sshprot = 0;	       /* ssh protocol 1 only */
     }
     if (!strcmp(p, "-2")) {
 	RETURN(1);
 	SAVEABLE(1);
-	cfg.sshprot = 3;	       /* ssh protocol 2 only */
+	cfg->sshprot = 3;	       /* ssh protocol 2 only */
     }
 
     if (!strcmp(p, "-i")) {
 	RETURN(2);
 	SAVEABLE(1);
-	strncpy(cfg.keyfile, value, sizeof(cfg.keyfile));
-	cfg.keyfile[sizeof(cfg.keyfile)-1] = '\0';
+	strncpy(cfg->keyfile, value, sizeof(cfg->keyfile));
+	cfg->keyfile[sizeof(cfg->keyfile)-1] = '\0';
     }
 
     return ret;			       /* unrecognised */
 }
 
-void cmdline_run_saved(void)
+void cmdline_run_saved(Config *cfg)
 {
     int pri, i;
     for (pri = 0; pri < NPRIORITIES; pri++)
 	for (i = 0; i < saves[pri].nsaved; i++)
 	    cmdline_process_param(saves[pri].params[i].p,
-				  saves[pri].params[i].value, 0);
+				  saves[pri].params[i].value, 0, cfg);
 }
