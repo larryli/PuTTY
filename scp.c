@@ -1,6 +1,6 @@
 /*
  *  scp.c  -  Scp (Secure Copy) client for PuTTY.
- *  Joris van Rantwijk, Aug 1999.
+ *  Joris van Rantwijk, Aug 1999, Nov 1999.
  *
  *  This is mainly based on ssh-1.2.26/scp.c by Timo Rinne & Tatu Ylonen.
  *  They, in turn, used stuff from BSD rcp.
@@ -27,6 +27,8 @@ static int recursive = 0;
 static int preserve = 0;
 static int targetshouldbedirectory = 0;
 static int statistics = 1;
+static int portnumber = 0;
+static char *password = NULL;
 static int errs = 0;
 static int connection_open = 0;
 
@@ -70,8 +72,14 @@ static void bump(char *fmt, ...)
 void ssh_get_password(char *prompt, char *str, int maxlen)
 {
     HANDLE hin, hout;
-    DWORD savemode;
-    int i;
+    DWORD savemode, i;
+
+    if (password) {
+	strncpy(str, password, maxlen);
+	str[maxlen-1] = '\0';
+	password = NULL;
+	return;
+    }
 
     hin = GetStdHandle(STD_INPUT_HANDLE);
     hout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -111,6 +119,9 @@ static void do_cmd(char *host, char *user, char *cmd)
 	cfg.host[sizeof(cfg.host)-1] = '\0';
 	cfg.port = 22;
     }
+
+    if (portnumber)
+	cfg.port = portnumber;
 
     /* Set username */
     if (user != NULL && user[0] != '\0') {
@@ -727,9 +738,15 @@ static void usage()
 {
     printf("PuTTY Secure Copy client\n");
     printf("%s\n", ver);
-    printf("usage: scp [-p] [-q] [-r] [-v] [user@]host:source target\n");
-    printf("       scp [-p] [-q] [-r] [-v] source [source..]"
-	   " [user@]host:target\n");
+    printf("Usage: scp [options] [user@]host:source target\n");
+    printf("       scp [options] source [source...] [user@]host:target\n");
+    printf("Options:\n");
+    printf("  -p        preserve file attributes\n");
+    printf("  -q        quiet, don't show statistics\n");
+    printf("  -r        copy directories recursively\n");
+    printf("  -v        show verbose messages\n");
+    printf("  -P port   connect to specified port\n");
+    printf("  -pw passw login with specified password\n");
     exit(1);
 }
 
@@ -756,6 +773,10 @@ int main(int argc, char *argv[])
 	else if (strcmp(argv[i], "-h") == 0 ||
 		 strcmp(argv[i], "-?") == 0)
 	    usage();
+	else if (strcmp(argv[i], "-P") == 0 && i+1 < argc)
+	    portnumber = atoi(argv[++i]);
+	else if (strcmp(argv[i], "-pw") == 0 && i+1 < argc)
+	    password = argv[++i];
 	else if (strcmp(argv[i], "--") == 0)
 	{ i++; break; }
 	else
