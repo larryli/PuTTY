@@ -96,10 +96,10 @@ direction, like this:
 
 However, in the second case (using a wildcard for multiple remote
 files) you may see a warning saying something like \q{warning:
-remote host tried to write to a file called 'terminal.c' when we
-requested a file called '*.c'. If this is a wildcard, consider
-upgrading to SSH 2 or using the '-unsafe' option. Renaming of this
-file has been disallowed}.
+remote host tried to write to a file called \cq{terminal.c} when we
+requested a file called \cq{*.c}. If this is a wildcard, consider
+upgrading to SSH 2 or using the \cq{-unsafe} option. Renaming of
+this file has been disallowed}.
 
 This is due to a fundamental insecurity in the old-style SCP
 protocol: the client sends the wildcard string (\c{*.c}) to the
@@ -128,7 +128,11 @@ happen. However, you should be aware that by using this option you
 are giving the server the ability to write to \e{any} file in the
 target directory, so you should only use this option if you trust
 the server administrator not to be malicious (and not to let the
-server machine be cracked by malicious people).
+server machine be cracked by malicious people). Alternatively, do
+any such download in a newly created empty directory. (Even in
+\q{unsafe} mode, PSCP will still protect you against the server
+trying to get out of that directory using pathnames including
+\cq{..}.)
 
 \S2{pscp-usage-basics-user} \c{user}
 
