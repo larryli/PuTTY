@@ -375,8 +375,6 @@ int from_backend(int is_stderr, char *data, int datalen)
 	return 0;
     }
 
-    inbuf_head = 0;
-
     /*
      * If this is before the real session begins, just return.
      */

@@ -526,12 +526,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     session_closed = FALSE;
 
     /*
-     * Set up the input and output buffers.
-     */
-    inbuf_head = 0;
-    outbuf_reap = outbuf_head = 0;
-
-    /*
      * Prepare the mouse handler.
      */
     lastact = MA_NOTHING;
@@ -660,8 +654,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		timer_id = 0;
 	    }
 	    HideCaret(hwnd);
-	    if (inbuf_head)
-		term_out();
+	    term_out();
 	    term_update();
 	    ShowCaret(hwnd);
 
@@ -1392,8 +1385,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_TIMER:
 	if (pending_netevent)
 	    enact_pending_netevent();
-	if (inbuf_head)
-	    term_out();
+	term_out();
 	noise_regular();
 	HideCaret(hwnd);
 	term_update();

@@ -86,6 +86,7 @@ typedef struct {
 #define incpos(p) ( (p).x == cols ? ((p).x = 0, (p).y++, 1) : ((p).x++, 0) )
 #define decpos(p) ( (p).x == 0 ? ((p).x = cols, (p).y--, 1) : ((p).x--, 0) )
 
+static bufchain inbuf;		       /* terminal input buffer */
 static pos curs;		       /* cursor */
 static pos savecurs;		       /* saved cursor position */
 static int marg_t, marg_b;	       /* scroll margins */
@@ -973,19 +974,37 @@ static void do_osc(void)
  */
 void term_out(void)
 {
-    int c, inbuf_reap;
+    int c, unget;
+    unsigned char localbuf[256], *chars;
+    int nchars = 0;
 
-    /*
-     * Optionally log the session traffic to a file. Useful for
-     * debugging and possibly also useful for actual logging.
-     */
-    if (cfg.logtype == LGTYP_DEBUG)
-	for (inbuf_reap = 0; inbuf_reap < inbuf_head; inbuf_reap++) {
-	    logtraffic((unsigned char) inbuf[inbuf_reap], LGTYP_DEBUG);
+    unget = -1;
+
+    while (nchars > 0 || bufchain_size(&inbuf) > 0) {
+	if (unget == -1) {
+	    if (nchars == 0) {
+		void *ret;
+		bufchain_prefix(&inbuf, &ret, &nchars);
+		if (nchars > sizeof(localbuf))
+		    nchars = sizeof(localbuf);
+		memcpy(localbuf, ret, nchars);
+		bufchain_consume(&inbuf, nchars);
+		chars = localbuf;
+		assert(chars != NULL);
+	    }
+	    c = *chars++;
+	    nchars--;
+
+	    /*
+	     * Optionally log the session traffic to a file. Useful for
+	     * debugging and possibly also useful for actual logging.
+	     */
+	    if (cfg.logtype == LGTYP_DEBUG)
+		logtraffic((unsigned char) &c, LGTYP_DEBUG);
+	} else {
+	    c = unget;
+	    unget = -1;
 	}
-
-    for (inbuf_reap = 0; inbuf_reap < inbuf_head; inbuf_reap++) {
-	c = inbuf[inbuf_reap];
 
 	/* Note only VT220+ are 8-bit VT102 is seven bit, it shouldn't even
 	 * be able to display 8-bit characters, but I'll let that go 'cause
@@ -1029,7 +1048,7 @@ void term_out(void)
 		  case 4:
 		  case 5:
 		    if ((c & 0xC0) != 0x80) {
-			inbuf_reap--;
+			unget = c;
 			c = UCSERR;
 			utf_state = 0;
 			break;
@@ -2480,7 +2499,6 @@ void term_out(void)
 	    check_selection(curs, cursplus);
 	}
     }
-    inbuf_head = 0;
 }
 
 #if 0
@@ -3358,18 +3376,15 @@ int term_ldisc(int option)
  */
 int from_backend(int is_stderr, char *data, int len)
 {
-    while (len--) {
-	if (inbuf_head >= INBUF_SIZE)
-	    term_out();
-	inbuf[inbuf_head++] = *data++;
-    }
+    bufchain_add(&inbuf, data, len);
 
     /*
-     * We process all stdout/stderr data immediately we receive it,
-     * and don't return until it's all gone. Therefore, there's no
-     * reason at all to return anything other than zero from this
-     * function.
-     * 
+     * term_out() always completely empties inbuf. Therefore,
+     * there's no reason at all to return anything other than zero
+     * from this function, because there _can't_ be a question of
+     * the remote side needing to wait until term_out() has cleared
+     * a backlog.
+     *
      * This is a slightly suboptimal way to deal with SSH2 - in
      * principle, the window mechanism would allow us to continue
      * to accept data on forwarded ports and X connections even
@@ -3379,7 +3394,7 @@ int from_backend(int is_stderr, char *data, int len)
      * portability. So we manage stdout buffering the old SSH1 way:
      * if the terminal processing goes slowly, the whole SSH
      * connection stops accepting data until it's ready.
-     * 
+     *
      * In practice, I can't imagine this causing serious trouble.
      */
     return 0;

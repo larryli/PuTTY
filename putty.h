@@ -93,15 +93,6 @@ typedef HDC Context;
 
 GLOBAL int rows, cols, savelines;
 
-#define INBUF_SIZE 2048
-GLOBAL unsigned char inbuf[INBUF_SIZE];
-GLOBAL int inbuf_head;
-
-#define OUTBUF_SIZE 2048
-#define OUTBUF_MASK (OUTBUF_SIZE-1)
-GLOBAL unsigned char outbuf[OUTBUF_SIZE];
-GLOBAL int outbuf_head, outbuf_reap;
-
 GLOBAL int has_focus;
 
 GLOBAL int in_vbell;
