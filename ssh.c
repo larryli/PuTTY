@@ -1266,12 +1266,16 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                 for (i = 0; i < nkeys; i++) {
                     static struct RSAKey key;
                     static Bignum challenge;
+                    static char *commentp;
+                    static int commentlen;
 
                     { char buf[64]; sprintf(buf, "Trying Pageant key #%d", i);
                         logevent(buf); }
                     p += 4;
                     p += ssh1_read_bignum(p, &key.exponent);
                     p += ssh1_read_bignum(p, &key.modulus);
+                    commentlen = GET_32BIT(p); p += 4;
+                    commentp = p; p += commentlen;
                     send_packet(SSH1_CMSG_AUTH_RSA,
                                 PKT_BIGNUM, key.modulus, PKT_END);
                     crWaitUntil(ispkt);
@@ -1312,6 +1316,10 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                                 crWaitUntil(ispkt);
                                 if (pktin.type == SSH1_SMSG_SUCCESS) {
                                     logevent("Pageant's response accepted");
+                                    c_write("Authenticated using RSA key \"",
+                                            29);
+                                    c_write(commentp, commentlen);
+                                    c_write("\" from agent\r\n", 14);
                                     authed = TRUE;
                                 } else
                                     logevent("Pageant's response not accepted");
@@ -1601,6 +1609,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
                 c = malloc(sizeof(struct ssh_channel));
                 c->remoteid = GET_32BIT(pktin.body);
                 c->localid = i;
+                c->closes = 0;
                 c->type = SSH1_SMSG_AGENT_OPEN;   /* identify channel type */
                 add234(ssh_channels, c);
                 send_packet(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
