@@ -50,6 +50,7 @@ struct gui_data {
     guint term_paste_idle_id;
     GdkAtom compound_text_atom;
     int alt_keycode;
+    int alt_digits;
     char wintitle[sizeof(((Config *)0)->wintitle)];
     char icontitle[sizeof(((Config *)0)->wintitle)];
     int master_fd, master_func_id, exited;
@@ -354,11 +355,17 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     /*
      * If Alt is being released after typing an Alt+numberpad
      * sequence, we should generate the code that was typed.
+     * 
+     * Note that we only do this if more than one key was actually
+     * pressed - I don't think Alt+NumPad4 should be ^D or that
+     * Alt+NumPad3 should be ^C, for example. There's no serious
+     * inconvenience in having to type a zero before a single-digit
+     * character code.
      */
     if (event->type == GDK_KEY_RELEASE &&
 	(event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
 	 event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R) &&
-	inst->alt_keycode >= 0) {
+	inst->alt_keycode >= 0 && inst->alt_digits > 1) {
 #ifdef KEY_DEBUGGING
 	printf("Alt key up, keycode = %d\n", inst->alt_keycode);
 #endif
@@ -391,6 +398,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if ((event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
 	     event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R)) {
 	    inst->alt_keycode = -1;
+            inst->alt_digits = 0;
 	    goto done;		       /* this generates nothing else */
 	}
 
@@ -425,6 +433,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		    inst->alt_keycode = digit;   /* one-digit code */
 		else
 		    inst->alt_keycode = inst->alt_keycode * 10 + digit;
+                inst->alt_digits++;
 #ifdef KEY_DEBUGGING
 		printf(" gives new code %d\n", inst->alt_keycode);
 #endif
@@ -1895,6 +1904,7 @@ int main(int argc, char **argv)
      */
     inst = smalloc(sizeof(*inst));
     memset(inst, 0, sizeof(*inst));
+    inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
 
     inst->fonts[0] = gdk_font_load(cfg.font);
     if (!inst->fonts[0]) {
