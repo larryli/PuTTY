@@ -1,6 +1,6 @@
-\versionid $Id: pscp.but,v 1.7 2001/01/31 00:28:11 owen Exp $
+\versionid $Id: pscp.but,v 1.8 2001/02/04 15:35:36 owen Exp $
 
-\#FIXME: Need examples, index entries, links
+\#FIXME: Need examples
 
 \C{pscp} Using PSCP to transfer files securely
 
@@ -59,11 +59,22 @@ familiar with that.)
 
 To receive (a) file(s) from a remote server: 
 
-\c{pscp [options] [user@]host:source target}
+\c pscp [options] [user@]host:source target
+
+So to copy the file /c{/etc/hosts} from the server /c{example.com} as
+user /c{fred} to the file \c{c:\temp\example-hosts.txt}, you would type:
+
+\c pscp fred@example.com:/etc/hosts c:\temp\example-hosts.txt
 
 To send (a) file(s) to a remote server: 
 
-\c{pscp [options] source [source...] [user@]host:target}
+\c pscp [options] source [source...] [user@]host:target
+
+So to copy the local file /c{c:\documents\csh-whynot.txt} to the
+server /c{example.com} as user /c{fred} to the file
+\c{/tmp/csh-whynot} you would type:
+
+\c pscp c:\documents\csh-whynot.txt fred@example.com:/tmp/csh-whynot
 
 \S2{pscp-usage-basics-user} \c{user}
 
@@ -87,9 +98,26 @@ Windows wildcard syntax (e.g. \c{*.*}), but if you are copying \e{from}
 a UNIX system \e{to} a Windows system, you would use the wildcard
 syntax allowed by your UNIX shell (e.g. \c{*}).
 
+If the source is a remote server and you do not specify a full
+pathname (in UNIX, a pathname beginning with a \c{/} (slash)
+character), what you specify as a source will be interpreted relative
+to your home directory on the remote server.
+
 \S2{pscp-usage-basics-target} \c{target}
 
-The filename or directory to put the file(s).
+The filename or directory to put the file(s).  When copying from a
+remote server to a local host, you may wish simply to place the
+file(s) in the current directory.  To do this, you should specify a
+target of \c{.}.  For example:
+
+\c pscp fred@example.com:/home/tom/.emacs .
+
+...would copy \c{/home/tom/.emacs} on the remote server to the current 
+directory.
+
+As with the \c{source} parameter, if the target is on a remote server
+and is not a full path name, it is interpreted relative to your home
+directory on the remote server.
 
 \S{pscp-usage-options} Options
 
