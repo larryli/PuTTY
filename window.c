@@ -2737,8 +2737,26 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 
-	if (cfg.funky_type == 5 && code >= 11 && code <= 24) {
-	    p += sprintf((char *) p, "\x1B[%c", code + 'M' - 11);
+	if (cfg.funky_type == 5 && code >= 11 && code <= 34) {
+	    char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
+	    int index = 0;
+	    switch (wParam) {
+	      case VK_F1: index = 0; break;
+	      case VK_F2: index = 1; break;
+	      case VK_F3: index = 2; break;
+	      case VK_F4: index = 3; break;
+	      case VK_F5: index = 4; break;
+	      case VK_F6: index = 5; break;
+	      case VK_F7: index = 6; break;
+	      case VK_F8: index = 7; break;
+	      case VK_F9: index = 8; break;
+	      case VK_F10: index = 9; break;
+	      case VK_F11: index = 10; break;
+	      case VK_F12: index = 11; break;
+	    }
+	    if (keystate[VK_SHIFT] & 0x80) index += 12;
+	    if (keystate[VK_CONTROL] & 0x80) index += 24;
+	    p += sprintf((char *) p, "\x1B[%c", codes[index]);
 	    return p - output;
 	}
 	if ((vt52_mode || cfg.funky_type == 4) && code >= 11 && code <= 24) {
