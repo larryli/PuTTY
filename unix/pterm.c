@@ -1371,7 +1371,7 @@ char * retrieve_cutbuffer(int * nbytes)
 {
     char * ptr;
     ptr = XFetchBytes(GDK_DISPLAY(), nbytes);
-    if (nbytes <= 0 && ptr != 0) {
+    if (*nbytes <= 0 && ptr != 0) {
 	XFree(ptr);
 	ptr = 0;
     }
