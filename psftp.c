@@ -130,6 +130,30 @@ char *canonify(char *name)
     }
 }
 
+/*
+ * Return a pointer to the portion of str that comes after the last
+ * slash (or backslash or colon, if `local' is TRUE).
+ */
+static char *stripslashes(char *str, int local)
+{
+    char *p;
+
+    if (local) {
+        p = strchr(str, ':');
+        if (p) str = p+1;
+    }
+
+    p = strrchr(str, '/');
+    if (p) str = p+1;
+
+    if (local) {
+	p = strrchr(str, '\\');
+	if (p) str = p+1;
+    }
+
+    return str;
+}
+
 /* ----------------------------------------------------------------------
  * Actual sftp commands.
  */
@@ -307,7 +331,8 @@ int sftp_general_get(struct sftp_command *cmd, int restart)
 	printf("%s: %s\n", cmd->words[1], fxp_error());
 	return 0;
     }
-    outfname = (cmd->nwords == 2 ? cmd->words[1] : cmd->words[2]);
+    outfname = (cmd->nwords == 2 ?
+		stripslashes(cmd->words[1], 0) : cmd->words[2]);
 
     fh = fxp_open(fname, SSH_FXF_READ);
     if (!fh) {
@@ -406,7 +431,8 @@ int sftp_general_put(struct sftp_command *cmd, int restart)
     }
 
     fname = cmd->words[1];
-    origoutfname = (cmd->nwords == 2 ? cmd->words[1] : cmd->words[2]);
+    origoutfname = (cmd->nwords == 2 ?
+		    stripslashes(cmd->words[1], 1) : cmd->words[2]);
     outfname = canonify(origoutfname);
     if (!outfname) {
 	printf("%s: %s\n", origoutfname, fxp_error());
