@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.3 2002/12/31 01:40:14 ben Exp $ */
+/* $Id: macresid.h,v 1.4 2003/01/18 16:10:21 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -6,6 +6,8 @@
  * This file is shared by C and Rez source files
  */
 
+/* TMPL for saved sessions */
+#define TMPL_Int	128
 
 /* Menu bar IDs */
 #define MBAR_Main	128

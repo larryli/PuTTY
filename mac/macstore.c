@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.9 2003/01/18 12:03:28 ben Exp $ */
+/* $Id: macstore.c,v 1.10 2003/01/18 16:10:21 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -16,8 +16,10 @@
 #include "putty.h"
 #include "storage.h"
 #include "mac.h"
+#include "macresid.h"
 
 #define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
+#define INTERNAL_CREATOR FOUR_CHAR_CODE('pTTI')
 #define SESS_TYPE	FOUR_CHAR_CODE('Sess')
 #define SEED_TYPE	FOUR_CHAR_CODE('Seed')
 
@@ -95,6 +97,25 @@ OSErr FSpGetDirID(FSSpec *f, long *idp, Boolean makeit) {
     return error;
 }
 
+/* Copy a resource into the current resource file */
+static OSErr copy_resource(ResType restype, short resid)
+{
+    Handle h;
+    Str255 resname;
+
+    fprintf(stderr, "getting resource %x, id %d\n", restype, resid);
+    h = GetResource(restype, resid);
+    if (h != NULL) {
+	GetResInfo(h, &resid, &restype, resname);
+	DetachResource(h);
+	AddResource(h, restype, resid, resname);
+	if (ResError() == noErr)
+	    WriteResource(h);
+    }
+    fprintf(stderr, "ResError() == %d\n", ResError());
+    return ResError();
+}
+
 struct write_settings {
     int fd;
     FSSpec tmpfile;
@@ -136,6 +157,10 @@ void *open_settings_w(char const *sessionname) {
 
     ws->fd = FSpOpenResFile(&ws->tmpfile, fsWrPerm);
     if (ws->fd == -1) {error = ResError(); goto out;}
+
+    /* Set up standard resources.  Doesn't matter if these fail. */
+    copy_resource('STR ', -16396);
+    copy_resource('TMPL', TMPL_Int);
 
     return ws;
 
@@ -408,15 +433,20 @@ void write_random_seed(void *data, int len)
 
     error = FSMakeFSSpec(puttyVRefNum, puttyDirID, "\pPuTTY Random Seed",
 			 &dstfile);
-    if (error == fnfErr)
-	error = FSpCreate(&dstfile, PUTTY_CREATOR, SEED_TYPE, smRoman);
-    if (error != noErr) return;
+    if (error == fnfErr) {
+	/* Set up standard resources */
+	FSpCreateResFile(&dstfile, INTERNAL_CREATOR, SEED_TYPE, smRoman);
+	refnum = FSpOpenResFile(&dstfile, fsWrPerm);
+	if (ResError() == noErr) {
+	    copy_resource('STR ', -16397);
+	    CloseResFile(refnum);
+	}
+    } else if (error != noErr) return;
 
     if (FSpOpenDF(&dstfile, fsWrPerm, &refnum) != noErr) return;
-
     FSWrite(refnum, &count, data);
-
     FSClose(refnum);
+
     return;
 }
 
