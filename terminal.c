@@ -1134,6 +1134,22 @@ void term_reconfig(Terminal *term, Config *cfg)
 	if (term->cfg.wordness[i] != cfg->wordness[i])
 	    reset_charclass = 1;
 
+    /*
+     * If the bidi or shaping settings have changed, flush the bidi
+     * cache completely.
+     */
+    if (term->cfg.arabicshaping != cfg->arabicshaping ||
+	term->cfg.bidi != cfg->bidi) {
+	for (i = 0; i < term->bidi_cache_size; i++) {
+	    sfree(term->pre_bidi_cache[i].chars);
+	    sfree(term->post_bidi_cache[i].chars);
+	    term->pre_bidi_cache[i].width = -1;
+	    term->pre_bidi_cache[i].chars = NULL;
+	    term->post_bidi_cache[i].width = -1;
+	    term->post_bidi_cache[i].chars = NULL;
+	}
+    }
+
     term->cfg = *cfg;		       /* STRUCTURE COPY */
 
     if (reset_wrap)
