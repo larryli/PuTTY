@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.7 2001/08/04 13:06:08 simon Exp $
+\versionid $Id: plink.but,v 1.8 2001/09/22 15:36:44 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -13,9 +13,9 @@
 
 \# Give instructions on how to set up Plink with CVS
 
-\i{Plink} (PuTTY Link), is a command-line connection tool similar to
-UNIX \c{ssh}.  It is probably not what you want if you want to run an
-interactive session in a console window.
+\i{Plink} (PuTTY Link) is a command-line connection tool similar to
+UNIX \c{ssh}.  It is probably not what you want if you want to run
+an interactive session in a console window.
 
 \H{plink-starting} Starting Plink
 

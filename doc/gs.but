@@ -45,7 +45,17 @@ If you are not using the SSH protocol, you can skip this section.
 If you are using SSH to connect to a server for the first time, you
 will probably see a message looking something like this:
 
-\# FIXME: copy the real message from the host key dialog
+\c The server's host key is not cached in the registry. You
+\c have no guarantee that the server is the computer you
+\c think it is.
+\c The server's key fingerprint is:
+\c ssh-rsa 1024 7b:e5:6f:a7:f4:f9:81:62:5c:e3:1f:bf:8b:57:6c:5a
+\c If you trust this host, hit Yes to add the key to
+\c PuTTY's cache and carry on connecting.
+\c If you want to carry on connecting just once, without
+\c adding the key to the cache, hit No.
+\c If you do not trust this host, hit Cancel to abandon the
+\c connection.
 
 This is a feature of the SSH protocol. It is designed to protect you
 against a network attack known as \e{spoofing}: secretly redirecting
