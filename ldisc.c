@@ -53,6 +53,8 @@ static void bsb(int n) {
 	c_write("\010 \010", 3);
 }
 
+#define CTRL(x) (x^'@')
+
 static void term_send(char *buf, int len) {
     while (len--) {
 	char c;
@@ -63,19 +65,22 @@ static void term_send(char *buf, int len) {
 	     * ^w: delete, and output BSBs, to return to last space/nonspace
 	     * boundary
 	     * ^u: delete, and output BSBs, to return to BOL
+	     * ^c: Do a ^u then send a telnet IP
+	     * ^z: Do a ^u then send a telnet SUSP
+	     * ^\: Do a ^u then send a telnet ABORT
 	     * ^r: echo "^R\n" and redraw line
 	     * ^v: quote next char
 	     * ^d: if at BOL, end of file and close connection, else send line
 	     * and reset to BOL
-	     * ^m/^j: send line-plus-\r\n and reset to BOL
+	     * ^m: send line-plus-\r\n and reset to BOL
 	     */
-	  case 8: case 127:	       /* backspace/delete */
+	  case CTRL('H'): case CTRL('?'):      /* backspace/delete */
 	    if (term_buflen > 0) {
 		bsb(plen(term_buf[term_buflen-1]));
 		term_buflen--;
 	    }
 	    break;
-	  case 23:		       /* ^W delete word */
+	  case CTRL('W'):		       /* delete word */
 	    while (term_buflen > 0) {
 		bsb(plen(term_buf[term_buflen-1]));
 		term_buflen--;
@@ -85,13 +90,19 @@ static void term_send(char *buf, int len) {
 		    break;
 	    }
 	    break;
-	  case 21:		       /* ^U delete line */
+	  case CTRL('U'):	       /* delete line */
+	  case CTRL('C'):	       /* Send IP */
+	  case CTRL('\\'):	       /* Quit */
+	  case CTRL('Z'):	       /* Suspend */
 	    while (term_buflen > 0) {
 		bsb(plen(term_buf[term_buflen-1]));
 		term_buflen--;
 	    }
+	    if( c == CTRL('C') )  back->special (TS_IP);
+	    if( c == CTRL('Z') )  back->special (TS_SUSP);
+	    if( c == CTRL('\\') ) back->special (TS_ABORT);
             break;
-	  case 18:		       /* ^R redraw line */
+	  case CTRL('R'):	       /* redraw line */
 	    c_write("^R\r\n", 4);
 	    {
 		int i;
@@ -99,18 +110,18 @@ static void term_send(char *buf, int len) {
 		    pwrite(term_buf[i]);
 	    }
 	    break;
-	  case 22:		       /* ^V quote next char */
+	  case CTRL('V'):	       /* quote next char */
 	    term_quotenext = TRUE;
 	    break;
-	  case 4:		       /* ^D logout or send */
+	  case CTRL('D'):	       /* logout or send */
 	    if (term_buflen == 0) {
-		/* FIXME: eof */;
+		back->special (TS_EOF);
 	    } else {
 		back->send(term_buf, term_buflen);
 		term_buflen = 0;
 	    }
 	    break;
-	  case 13: case 10:	       /* ^M/^J send with newline */
+	  case CTRL('M'):	       /* send with newline */
 	    back->send(term_buf, term_buflen);
 	    back->send("\r\n", 2);
 	    c_write("\r\n", 2);
@@ -130,6 +141,14 @@ static void term_send(char *buf, int len) {
 }
 
 static void simple_send(char *buf, int len) {
+    if( term_buflen != 0 )
+    {
+	back->send(term_buf, term_buflen);
+	while (term_buflen > 0) {
+	    bsb(plen(term_buf[term_buflen-1]));
+	    term_buflen--;
+	}
+    }
     back->send(buf, len);
 }
 
