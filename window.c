@@ -1410,6 +1410,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		last_movement = now;
 	    }
 	}
+	net_pending_errors();
 	return 0;
       case WM_CREATE:
 	break;
@@ -1614,6 +1615,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		InvalidateRect(hwnd, NULL, TRUE);
 		reset_window(init_lvl);
+		net_pending_errors();
 	    }
 	    break;
 	  case IDM_COPYALL:
@@ -1627,42 +1629,55 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_TEL_AYT:
 	    back->special(TS_AYT);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_BRK:
 	    back->special(TS_BRK);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_SYNCH:
 	    back->special(TS_SYNCH);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EC:
 	    back->special(TS_EC);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EL:
 	    back->special(TS_EL);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_GA:
 	    back->special(TS_GA);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_NOP:
 	    back->special(TS_NOP);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_ABORT:
 	    back->special(TS_ABORT);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_AO:
 	    back->special(TS_AO);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_IP:
 	    back->special(TS_IP);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_SUSP:
 	    back->special(TS_SUSP);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EOR:
 	    back->special(TS_EOR);
+	    net_pending_errors();
 	    break;
 	  case IDM_TEL_EOF:
 	    back->special(TS_EOF);
+	    net_pending_errors();
 	    break;
 	  case IDM_ABOUT:
 	    showabout(hwnd);
@@ -2188,6 +2203,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		}
 	    }
 	}
+	net_pending_errors();
 	return 0;
       case WM_INPUTLANGCHANGE:
 	{

@@ -72,6 +72,7 @@ struct Socket_tag {
     char oobdata[1];
     int sending_oob;
     int oobinline;
+    int pending_error;		       /* in case send() returns error */
 };
 
 /*
@@ -412,6 +413,7 @@ Socket sk_register(void *sock, Plug plug)
     ret->frozen = 1;
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->pending_error = 0;
 
     ret->s = (SOCKET)sock;
 
@@ -472,6 +474,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->frozen = 0;
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->pending_error = 0;
 
     /*
      * Open socket.
@@ -640,6 +643,7 @@ Socket sk_newlistener(int port, Plug plug, int local_host_only)
     ret->frozen = 0;
     ret->frozen_readable = 0;
     ret->localhost_only = local_host_only;
+    ret->pending_error = 0;
 
     /*
      * Open socket.
@@ -768,30 +772,17 @@ void try_send(Actual_Socket s)
 	    } else if (nsent == 0 ||
 		       err == WSAECONNABORTED || err == WSAECONNRESET) {
 		/*
-		 * ASSUMPTION:
-		 * 
-		 * I'm assuming here that if a TCP connection is
-		 * reset or aborted once established, we will be
-		 * notified by a select event rather than a
-		 * CONNABORTED or CONNRESET from send(). In other
-		 * words, I'm assuming CONNABORTED and CONNRESET
-		 * don't come back from a _nonblocking_ send(),
-		 * because the local side doesn't know they've
-		 * happened until it waits for a response to its
-		 * TCP segment - so the error will arrive
-		 * asynchronously.
-		 * 
-		 * If I'm wrong, this will be a really nasty case,
-		 * because we can't necessarily call plug_closing()
-		 * without having to make half the SSH code
-		 * reentrant; so instead we'll have to schedule a
-		 * call to plug_closing() for some suitable future
-		 * time.
+		 * If send() returns CONNABORTED or CONNRESET, we
+		 * unfortunately can't just call plug_closing(),
+		 * because it's quite likely that we're currently
+		 * _in_ a call from the code we'd be calling back
+		 * to, so we'd have to make half the SSH code
+		 * reentrant. Instead we flag a pending error on
+		 * the socket, to be dealt with (by calling
+		 * plug_closing()) at some suitable future moment.
 		 */
-		fatalbox("SERIOUS NETWORK INTERNAL ERROR: %s\n"
-			 "Please report this immediately to "
-			 "<putty@projects.tartarus.org>.",
-			 winsock_error_string(err));
+		s->pending_error = err;
+		return;
 	    } else {
 		fatalbox(winsock_error_string(err));
 	    }
@@ -991,6 +982,44 @@ int select_result(WPARAM wParam, LPARAM lParam)
     }
 
     return 1;
+}
+
+/*
+ * Deal with socket errors detected in try_send().
+ */
+void net_pending_errors(void)
+{
+    int i;
+    Actual_Socket s;
+
+    /*
+     * This might be a fiddly business, because it's just possible
+     * that handling a pending error on one socket might cause
+     * others to be closed. (I can't think of any reason this might
+     * happen in current SSH implementation, but to maintain
+     * generality of this network layer I'll assume the worst.)
+     * 
+     * So what we'll do is search the socket list for _one_ socket
+     * with a pending error, and then handle it, and then search
+     * the list again _from the beginning_. Repeat until we make a
+     * pass with no socket errors present. That way we are
+     * protected against the socket list changing under our feet.
+     */
+
+    do {
+	for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
+	    if (s->pending_error) {
+		/*
+		 * An error has occurred on this socket. Pass it to the
+		 * plug.
+		 */
+		plug_closing(s->plug,
+			     winsock_error_string(s->pending_error),
+			     s->pending_error, 0);
+		break;
+	    }
+	}
+    } while (s);
 }
 
 /*
