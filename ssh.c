@@ -4942,6 +4942,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		ssh2_pkt_addstring(ssh, "password");
 		ssh2_pkt_addbool(ssh, FALSE);
 		ssh2_pkt_addstring(ssh, s->password);
+		memset(s->password, 0, sizeof(s->password));
 		ssh2_pkt_defer(ssh);
 		/*
 		 * We'll include a string that's an exact multiple of the
