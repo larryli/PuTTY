@@ -1089,6 +1089,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
     static int tried_publickey;
     static unsigned char session_id[16];
     int cipher_type;
+    static char username[100];
 
     crBegin;
 
@@ -1212,7 +1213,6 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     fflush(stdout);
     {
-	static char username[100];
 	static int pos = 0;
 	static char c;
 	if ((flags & FLAG_INTERACTIVE) && !*cfg.username) {
@@ -1440,7 +1440,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
         }
         if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD) {
             sprintf(prompt, "%.90s@%.90s's password: ",
-                    cfg.username, savedhost);
+                    username, savedhost);
         }
         if (pwpkt_type == SSH1_CMSG_AUTH_RSA) {
             char *comment = NULL;
@@ -2195,7 +2195,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 
 	if (ssh_get_password) {
 	    char prompt[200];
-	    sprintf(prompt, "%.90s@%.90s's password: ", cfg.username, savedhost);
+	    sprintf(prompt, "%.90s@%.90s's password: ", username, savedhost);
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
                 /*
                  * get_password failed to get a password (for
