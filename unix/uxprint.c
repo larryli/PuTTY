@@ -14,10 +14,10 @@ printer_job *printer_start_job(char *printer)
 {
     printer_job *ret = smalloc(sizeof(printer_job));
     /*
-     * On Unix, we treat cfg.printer as the name of a command to
-     * pipe to - typically lpr, of course.
+     * On Unix, we treat the printer string as the name of a
+     * command to pipe to - typically lpr, of course.
      */
-    ret->fp = popen(cfg.printer, "w");
+    ret->fp = popen(printer, "w");
     if (!ret->fp) {
 	sfree(ret);
 	ret = NULL;
