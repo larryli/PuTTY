@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 		strncpy(cfg.username, username, sizeof(cfg.username));
 		cfg.username[sizeof(cfg.username) - 1] = '\0';
 	    } else if ((!strcmp(p, "-L") || !strcmp(p, "-R")) && argc > 1) {
-		char *fwd, *ptr;
+		char *fwd, *ptr, *q;
 		int i=0;
 		--argc, fwd = *++argv;
 		ptr = extra_portfwd;
@@ -460,7 +460,8 @@ int main(int argc, char **argv)
 		}
 		ptr[0] = p[1];  /* insert a 'L' or 'R' at the start */
 		strncpy(ptr+1, fwd, sizeof(extra_portfwd) - i);
-		ptr[strcspn(ptr, ":")] = '\t';  /* replace first : with \t */
+		q = strchr(ptr, ':');
+		if (q) *q = '\t';      /* replace first : with \t */
 		ptr[strlen(ptr)+1] = '\000';    /* append two '\000' */
 		extra_portfwd[sizeof(extra_portfwd) - 1] = '\0';
 	    } else if (!strcmp(p, "-m") && argc > 1) {
