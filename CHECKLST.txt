@@ -178,6 +178,7 @@ of the tag.
 
  - Update web site.
    + Adjust front page (`the latest version is <ver>').
+   + Adjust Download page similarly.
    + Adjust filename of installer on links in Download page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
