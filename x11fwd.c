@@ -69,8 +69,6 @@ struct X11Private {
     Socket s;
 };
 
-void x11_close(Socket s);
-
 void *x11_invent_auth(char *proto, int protomaxlen,
 		     char *data, int datamaxlen)
 {

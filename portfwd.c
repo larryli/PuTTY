@@ -70,8 +70,6 @@ struct PFwdPrivate {
     struct pfwd_queue *waiting;
 };
 
-void pfd_close(Socket s);
-
 
 static int pfd_closing(Plug plug, char *error_msg, int error_code,
 		       int calling_back)

@@ -291,23 +291,6 @@ enum { PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM };
 
 typedef struct ssh_tag *Ssh;
 
-extern char *x11_init(Socket *, char *, void *, void *);
-extern void x11_close(Socket);
-extern int x11_send(Socket, char *, int);
-extern void *x11_invent_auth(char *, int, char *, int);
-extern void x11_unthrottle(Socket s);
-extern void x11_override_throttle(Socket s, int enable);
-extern int x11_get_screen_number(char *display);
-
-extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
-extern char *pfd_addforward(char *desthost, int destport, char *srcaddr,
-			    int port, void *backhandle);
-extern void pfd_close(Socket s);
-extern int pfd_send(Socket s, char *data, int len);
-extern void pfd_confirm(Socket s);
-extern void pfd_unthrottle(Socket s);
-extern void pfd_override_throttle(Socket s, int enable);
-
 static void ssh2_pkt_init(Ssh, int pkt_type);
 static void ssh2_pkt_addbool(Ssh, unsigned char value);
 static void ssh2_pkt_adduint32(Ssh, unsigned long value);
