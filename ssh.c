@@ -1686,6 +1686,11 @@ static char *connect_to_host(char *host, int port, char **realhost)
     /*
      * Try to find host.
      */
+    {
+	char buf[200];
+	sprintf(buf, "Looking up host \"%.170s\"", host);
+	logevent(buf);
+    }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
@@ -1697,6 +1702,12 @@ static char *connect_to_host(char *host, int port, char **realhost)
     /*
      * Open socket.
      */
+    {
+	char buf[200], addrbuf[100];
+	sk_getaddr(addr, addrbuf, 100);
+	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
+	logevent(buf);
+    }
     s = sk_new(addr, port, 0, 1, &fn_table_ptr);
     if ((err = sk_socket_error(s)))
 	return err;

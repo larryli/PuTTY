@@ -64,6 +64,7 @@ struct plug_function_table {
 void sk_init(void);		       /* called once at program startup */
 
 SockAddr sk_namelookup(char *host, char **canonicalname);
+void sk_getaddr(SockAddr addr, char *buf, int buflen);
 void sk_addr_free(SockAddr addr);
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,

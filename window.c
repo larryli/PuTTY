@@ -706,7 +706,8 @@ char *do_select(SOCKET skt, int startup)
     int msg, events;
     if (startup) {
 	msg = WM_NETEVENT;
-	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT;
+	events = (FD_CONNECT | FD_READ | FD_WRITE |
+		  FD_OOB | FD_CLOSE | FD_ACCEPT);
     } else {
 	msg = events = 0;
     }
@@ -1666,6 +1667,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	pending_netevent = TRUE;
 	pend_netevent_wParam = wParam;
 	pend_netevent_lParam = lParam;
+	if (WSAGETSELECTEVENT(lParam) != FD_READ)
+	    enact_pending_netevent();
+
 	time(&last_movement);
 	return 0;
       case WM_SETFOCUS:

@@ -63,6 +63,7 @@ struct Socket_tag {
     Plug plug;
     void *private_ptr;
     bufchain output_data;
+    int connected;
     int writable;
     int frozen; /* this causes readability notifications to be ignored */
     int frozen_readable; /* this means we missed at least one readability
@@ -338,6 +339,21 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     return ret;
 }
 
+void sk_getaddr(SockAddr addr, char *buf, int buflen)
+{
+#ifdef IPV6
+    if (addr->family == AF_INET) {
+#endif
+	struct in_addr a;
+	a.s_addr = htonl(addr->address);
+	strncpy(buf, inet_ntoa(a), buflen);
+#ifdef IPV6
+    } else {
+	FIXME; /* I don't know how to get a text form of an IPv6 address. */
+    }
+#endif
+}
+
 void sk_addr_free(SockAddr addr)
 {
     sfree(addr);
@@ -448,7 +464,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->writable = 1;		       /* to start with */
+    ret->connected = 0;		       /* to start with */
+    ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 0;
     ret->frozen_readable = 0;
@@ -543,6 +560,15 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	a.sin_addr.s_addr = htonl(addr->address);
 	a.sin_port = htons((short) port);
     }
+
+    /* Set up a select mechanism. This could be an AsyncSelect on a
+     * window, or an EventSelect on an event object. */
+    errstr = do_select(s, 1);
+    if (errstr) {
+	ret->error = errstr;
+	return (Socket) ret;
+    }
+
     if ((
 #ifdef IPV6
 	    connect(s, ((addr->family == AF_INET6) ?
@@ -553,16 +579,22 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 #endif
 	) == SOCKET_ERROR) {
 	err = WSAGetLastError();
-	ret->error = winsock_error_string(err);
-	return (Socket) ret;
-    }
-
-    /* Set up a select mechanism. This could be an AsyncSelect on a
-     * window, or an EventSelect on an event object. */
-    errstr = do_select(s, 1);
-    if (errstr) {
-	ret->error = errstr;
-	return (Socket) ret;
+	/*
+	 * We expect a potential EWOULDBLOCK here, because the
+	 * chances are the front end has done a select for
+	 * FD_CONNECT, so that connect() will complete
+	 * asynchronously.
+	 */
+	if ( err != WSAEWOULDBLOCK ) {
+	    ret->error = winsock_error_string(err);
+	    return (Socket) ret;
+	}
+    } else {
+	/*
+	 * If we _don't_ get EWOULDBLOCK, the connect has completed
+	 * and we should set the socket as writable.
+	 */
+	ret->writable = 1;
     }
 
     add234(sktree, ret);
@@ -825,6 +857,9 @@ int select_result(WPARAM wParam, LPARAM lParam)
     noise_ultralight(lParam);
 
     switch (WSAGETSELECTEVENT(lParam)) {
+      case FD_CONNECT:
+	s->connected = s->writable = 1;
+	break;
       case FD_READ:
 	/* In the case the socket is still frozen, we don't even bother */
 	if (s->frozen) {

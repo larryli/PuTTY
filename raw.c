@@ -44,6 +44,11 @@ static int raw_receive(Plug plug, int urgent, char *data, int len)
     return 1;
 }
 
+static void raw_sent(Plug plug, int bufsize)
+{
+    raw_bufsize = bufsize;
+}
+
 /*
  * Called to set up the raw connection.
  * 
@@ -56,7 +61,8 @@ static char *raw_init(char *host, int port, char **realhost)
 {
     static struct plug_function_table fn_table = {
 	raw_closing,
-	raw_receive
+	raw_receive,
+	raw_sent
     }, *fn_table_ptr = &fn_table;
 
     SockAddr addr;
@@ -65,6 +71,11 @@ static char *raw_init(char *host, int port, char **realhost)
     /*
      * Try to find host.
      */
+    {
+	char buf[200];
+	sprintf(buf, "Looking up host \"%.170s\"", host);
+	logevent(buf);
+    }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
@@ -75,6 +86,12 @@ static char *raw_init(char *host, int port, char **realhost)
     /*
      * Open socket.
      */
+    {
+	char buf[200], addrbuf[100];
+	sk_getaddr(addr, addrbuf, 100);
+	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
+	logevent(buf);
+    }
     s = sk_new(addr, port, 0, 1, &fn_table_ptr);
     if ((err = sk_socket_error(s)))
 	return err;

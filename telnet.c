@@ -588,6 +588,11 @@ static int telnet_receive(Plug plug, int urgent, char *data, int len)
     return 1;
 }
 
+static void telnet_sent(Plug plug, int bufsize)
+{
+    telnet_bufsize = bufsize;
+}
+
 /*
  * Called to set up the Telnet connection.
  *
@@ -600,7 +605,8 @@ static char *telnet_init(char *host, int port, char **realhost)
 {
     static struct plug_function_table fn_table = {
 	telnet_closing,
-	telnet_receive
+	telnet_receive,
+	telnet_sent
     }, *fn_table_ptr = &fn_table;
 
     SockAddr addr;
@@ -609,6 +615,11 @@ static char *telnet_init(char *host, int port, char **realhost)
     /*
      * Try to find host.
      */
+    {
+	char buf[200];
+	sprintf(buf, "Looking up host \"%.170s\"", host);
+	logevent(buf);
+    }
     addr = sk_namelookup(host, realhost);
     if ((err = sk_addr_error(addr)))
 	return err;
@@ -619,6 +630,12 @@ static char *telnet_init(char *host, int port, char **realhost)
     /*
      * Open socket.
      */
+    {
+	char buf[200], addrbuf[100];
+	sk_getaddr(addr, addrbuf, 100);
+	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
+	logevent(buf);
+    }
     s = sk_new(addr, port, 0, 1, &fn_table_ptr);
     if ((err = sk_socket_error(s)))
 	return err;

@@ -352,7 +352,8 @@ char *do_select(SOCKET skt, int startup)
 {
     int events;
     if (startup) {
-	events = FD_READ | FD_WRITE | FD_OOB | FD_CLOSE | FD_ACCEPT;
+	events = (FD_CONNECT | FD_READ | FD_WRITE |
+		  FD_OOB | FD_CLOSE | FD_ACCEPT);
     } else {
 	events = 0;
     }
@@ -767,6 +768,8 @@ int main(int argc, char **argv)
 		if (!WSAEnumNetworkEvents(socket, NULL, &things)) {
 		    noise_ultralight(socket);
 		    noise_ultralight(things.lNetworkEvents);
+		    if (things.lNetworkEvents & FD_CONNECT)
+			connopen &= select_result(wp, (LPARAM) FD_CONNECT);
 		    if (things.lNetworkEvents & FD_READ)
 			connopen &= select_result(wp, (LPARAM) FD_READ);
 		    if (things.lNetworkEvents & FD_CLOSE)
