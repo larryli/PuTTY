@@ -804,11 +804,11 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 
     if (pktin.type == SSH1_MSG_DEBUG) {
 	/* log debug message */
-	char buf[80];
+	char buf[512];
 	int stringlen = GET_32BIT(pktin.body);
-	strcpy(buf, "Remote: ");
-	if (stringlen > 70)
-	    stringlen = 70;
+	strcpy(buf, "Remote debug message: ");
+	if (stringlen > 480)
+	    stringlen = 480;
 	memcpy(buf + 8, pktin.body + 4, stringlen);
 	buf[8 + stringlen] = '\0';
 	logevent(buf);
