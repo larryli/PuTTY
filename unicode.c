@@ -201,9 +201,7 @@ static const wchar_t iso_8859_10[] = {
     0x00F8, 0x0173, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x0138
 };
 
-/* "ISO 8859-11:1997" ("Thai", "TIS620") */
-/* From RDB -- ISO and unicode.org disclaim all knowledge of this one.
- * Maybe still in draft. --jtn */
+/* ISO 8859-11:2001 ("Thai", "TIS620") */
 static const wchar_t iso_8859_11[] = {
     0x00A0, 0x0E01, 0x0E02, 0x0E03, 0x0E04, 0x0E05, 0x0E06, 0x0E07,
     0x0E08, 0x0E09, 0x0E0A, 0x0E0B, 0x0E0C, 0x0E0D, 0x0E0E, 0x0E0F,
@@ -385,7 +383,7 @@ static const struct cp_list_item cp_list[] = {
     {"ISO-8859-8:1999 (Latin/Hebrew)", 0, 96, iso_8859_8},
     {"ISO-8859-9:1999 (Latin-5, Turkish)", 0, 96, iso_8859_9},
     {"ISO-8859-10:1993 (Latin-6, Nordic)", 0, 96, iso_8859_10},
-    {"ISO-8859-11:1997 (Latin/Thai)", 0, 96, iso_8859_11},
+    {"ISO-8859-11:2001 (Latin/Thai)", 0, 96, iso_8859_11},
     {"ISO-8859-13:1998 (Latin-7, Baltic)", 0, 96, iso_8859_13},
     {"ISO-8859-14:1998 (Latin-8, Celtic)", 0, 96, iso_8859_14},
     {"ISO-8859-15:1999 (Latin-9, \"euro\")", 0, 96, iso_8859_15},
