@@ -83,6 +83,8 @@ static RGBTRIPLE defpal[NCOLOURS];
 
 static HWND hwnd;
 
+static HBITMAP caretbm;
+
 static int dbltime, lasttime, lastact;
 static Mouse_Button lastbtn;
 
@@ -383,6 +385,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		  SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
 
     /*
+     * Set up a caret bitmap, with no content.
+     */
+    {
+        char *bits;
+        int size = (font_width+15)/16 * 2 * font_height; 
+        bits = calloc(size, 1);
+        memset(bits, 0x55, size);
+        caretbm = CreateBitmap(font_width, font_height, 1, 1, bits);
+        free(bits);
+    }
+
+    /*
      * Initialise the scroll bar.
      */
     {
@@ -536,9 +550,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 		    KillTimer(hwnd, timer_id);
 		    timer_id = 0;
 		}
+                HideCaret(hwnd);
 		if (inbuf_head)
 		    term_out();
 		term_update();
+                ShowCaret(hwnd);
 		if (!has_focus)
 		   timer_id = SetTimer(hwnd, 1, 2000, NULL);
 		else if (cfg.blinktext)
@@ -990,7 +1006,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    enact_pending_netevent();
 	if (inbuf_head)
 	    term_out();
+        HideCaret(hwnd);
 	term_update();
+        ShowCaret(hwnd);
 	return 0;
       case WM_CREATE:
 	break;
@@ -1243,6 +1261,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
       case WM_PAINT:
 	{
 	    PAINTSTRUCT p;
+            HideCaret(hwnd);
 	    hdc = BeginPaint (hwnd, &p);
 	    if (pal) {
 		SelectPalette (hdc, pal, TRUE);
@@ -1253,6 +1272,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    SelectObject (hdc, GetStockObject(SYSTEM_FONT));
 	    SelectObject (hdc, GetStockObject(WHITE_PEN));
 	    EndPaint (hwnd, &p);
+            ShowCaret(hwnd);
 	}
 	return 0;
       case WM_NETEVENT:
@@ -1269,7 +1289,8 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	return 0;
       case WM_SETFOCUS:
 	has_focus = TRUE;
-        CreateCaret(hwnd, NULL, font_width, font_height);
+        CreateCaret(hwnd, caretbm, 0, 0);
+        ShowCaret(hwnd);
 	term_out();
 	term_update();
 	break;
