@@ -420,14 +420,14 @@ void init_ucs_tables(void)
 
 static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr)
 {
-    int i, j, k;
-    for (k = 0; k < 256; k++) {
-	i = ((k + 32) & 0xFF);
-	if (DIRECT_FONT(line_tbl[i]))
+    int font_index, line_index, i;
+    for (line_index = 0; line_index < 256; line_index++) {
+	if (DIRECT_FONT(line_tbl[line_index]))
 	    continue;
-	for (j = 0; j < 256; j++) {
-	    if (line_tbl[i] == font_tbl[j]) {
-		line_tbl[i] = (WCHAR) (attr + j);
+	for(i = 0; i < 256; i++) {
+	    font_index = ((32 + i) & 0xFF);
+	    if (line_tbl[line_index] == font_tbl[font_index]) {
+		line_tbl[line_index] = (WCHAR) (attr + font_index);
 		break;
 	    }
 	}
