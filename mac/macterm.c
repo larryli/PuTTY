@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.11 2002/11/24 00:38:44 ben Exp $ */
+/* $Id: macterm.c,v 1.12 2002/11/26 01:32:51 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -793,7 +793,6 @@ static void mac_drawgrowicon(Session *s) {
 struct do_text_args {
     Session *s;
     Rect textrect;
-    Rect leadrect;
     char *text;
     int len;
     unsigned long attr;
@@ -827,12 +826,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.len = len;
     a.attr = attr;
     a.lattr = lattr;
-    if (s->font_leading > 0)
-	SetRect(&a.leadrect,
-		a.textrect.left, a.textrect.bottom - s->font_leading,
-		a.textrect.right, a.textrect.bottom);
-    else
-	SetRect(&a.leadrect, 0, 0, 0, 0);
     SetPort(s->window);
     TextFont(s->fontnum);
     if (s->cfg.fontisbold || (attr & ATTR_BOLD) && !s->cfg.bold_colour)
@@ -841,6 +834,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	style |= underline;
     TextFace(style);
     TextSize(s->cfg.fontheight);
+    TextMode(srcOr);
     SetFractEnable(FALSE); /* We want characters on pixel boundaries */
     if (HAVE_COLOR_QD())
 	if (style & bold) {
@@ -864,55 +858,53 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 static pascal void do_text_for_device(short depth, short devflags,
 				      GDHandle device, long cookie) {
     struct do_text_args *a;
-    int bgcolour, fgcolour, bright;
+    int bgcolour, fgcolour, bright, reverse, tmp;
 
     a = (struct do_text_args *)cookie;
 
     bright = (a->attr & ATTR_BOLD) && a->s->cfg.bold_colour;
+    reverse = a->attr & ATTR_REVERSE;
 
-    TextMode(a->attr & ATTR_REVERSE ? notSrcCopy : srcCopy);
+    if (depth == 1 && (a->attr & TATTR_ACTCURS))
+	reverse = !reverse;
 
-    switch (depth) {
-      case 1:
-	/* XXX This should be done with a _little_ more configurability */
-	ForeColor(whiteColor);
-	BackColor(blackColor);
-	if (a->attr & TATTR_ACTCURS)
-	    TextMode(a->attr & ATTR_REVERSE ? srcCopy : notSrcCopy);
-	break;
-      case 2:
-	if (a->attr & TATTR_ACTCURS) {
-	    PmForeColor(CURSOR_FG);
-	    PmBackColor(CURSOR_BG);
-	    TextMode(srcCopy);
-	} else {
-	    PmForeColor(bright ? DEFAULT_FG_BOLD : DEFAULT_FG);
-	    PmBackColor(DEFAULT_BG);
-	}
-	break;
-      default:
-	if (a->attr & TATTR_ACTCURS) {
-	    fgcolour = CURSOR_FG;
-	    bgcolour = CURSOR_BG;
-	    TextMode(srcCopy);
-	} else {
+    if (HAVE_COLOR_QD()) {
+	if (depth > 2) {
 	    fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT) * 2;
 	    bgcolour = ((a->attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
-	    if (bright)
-		if (a->attr & ATTR_REVERSE)
-		    bgcolour++;
-		else
-		    fgcolour++;
+	} else {
+	    /*
+	     * NB: bold reverse in 2bpp breaks with the usual PuTTY model and
+	     * boldens the background, because that's all we can do.
+	     */
+	    fgcolour = bright ? DEFAULT_FG_BOLD : DEFAULT_FG;
+	    bgcolour = DEFAULT_BG;
+	}
+	if (reverse) {
+	    tmp = fgcolour;
+	    fgcolour = bgcolour;
+	    bgcolour = tmp;
+	}
+	if (bright && depth > 2)
+	    fgcolour++;
+	if ((a->attr & TATTR_ACTCURS) && depth > 1) {
+	    fgcolour = CURSOR_FG;
+	    bgcolour = CURSOR_BG;
 	}
 	PmForeColor(fgcolour);
 	PmBackColor(bgcolour);
-	break;
+    } else { /* No Color Quickdraw */
+	/* XXX This should be done with a _little_ more configurability */
+	if (reverse) {
+	    ForeColor(blackColor);
+	    BackColor(whiteColor);
+	} else {
+	    ForeColor(whiteColor);
+	    BackColor(blackColor);
+	}
     }
 
-    if (a->attr & ATTR_REVERSE)
-	PaintRect(&a->leadrect);
-    else
-	EraseRect(&a->leadrect);
+    EraseRect(&a->textrect);
     MoveTo(a->textrect.left, a->textrect.top + a->s->font_ascent);
     /* FIXME: Sort out bold width adjustments on Original QuickDraw. */
     DrawText(a->text, 0, a->len);
