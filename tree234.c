@@ -599,9 +599,9 @@ void *next234(enum234 *e) {
 	return n->elems[0];
     }
 
-    if (pos == 0 && n->elems[1]) {
-	e->posn = 1;
-	return n->elems[1];
+    if (pos < 2 && n->elems[pos+1]) {
+	e->posn = pos+1;
+	return n->elems[e->posn];
     }
 
     do {
