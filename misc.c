@@ -54,14 +54,12 @@ static void minefield_init(void) {
     int i;
 
     for (size = 0x40000000; size > 0; size = ((size >> 3) * 7) &~ 0xFFF) {
-        printf("trying size=%d\n", size);
         minefield_region = VirtualAlloc(NULL, size,
                                         MEM_RESERVE, PAGE_NOACCESS);
         if (minefield_region)
             break;
     }
     minefield_size = size;
-    printf("got region %p size %d\n", minefield_region, minefield_size);
 
     /*
      * Firstly, allocate a section of that to be the admin block.
@@ -72,9 +70,6 @@ static void minefield_init(void) {
     admin_size = (minefield_npages * 2 + PAGESIZE-1) &~ (PAGESIZE-1);
     minefield_npages = (minefield_size - admin_size) / PAGESIZE;
     minefield_pages = (char *)minefield_region + admin_size;
-    printf("admin at %p, pages at %p, npages %x, admin_size %x\n",
-           minefield_admin, minefield_pages, minefield_npages,
-           admin_size);
 
     /*
      * Commit the admin region.
