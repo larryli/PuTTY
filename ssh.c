@@ -297,6 +297,7 @@ extern int x11_send(Socket, char *, int);
 extern void *x11_invent_auth(char *, int, char *, int);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
+extern int x11_get_screen_number(char *display);
 
 extern char *pfd_newconnect(Socket * s, char *hostname, int port, void *c);
 extern char *pfd_addforward(char *desthost, int destport, char *srcaddr,
@@ -3037,7 +3038,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, proto, PKT_STR, data,
-			PKT_INT, 0, PKT_END);
+			PKT_INT, x11_get_screen_number(cfg.x11_display),
+			PKT_END);
 	} else {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, proto, PKT_STR, data, PKT_END);
@@ -5083,7 +5085,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	ssh2_pkt_addbool(ssh, 0);	       /* many connections */
 	ssh2_pkt_addstring(ssh, proto);
 	ssh2_pkt_addstring(ssh, data);
-	ssh2_pkt_adduint32(ssh, 0);	       /* screen number */
+	ssh2_pkt_adduint32(ssh, x11_get_screen_number(cfg.x11_display));
 	ssh2_pkt_send(ssh);
 
 	do {

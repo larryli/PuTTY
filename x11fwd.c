@@ -140,6 +140,24 @@ static void x11_sent(Plug plug, int bufsize)
 }
 
 /*
+ * When setting up X forwarding, we should send the screen number
+ * from the specified local display. This function extracts it from
+ * the display string.
+ */
+int x11_get_screen_number(char *display)
+{
+    int n;
+
+    n = strcspn(display, ":");
+    if (!display[n])
+	return 0;
+    n = strcspn(display, ".");
+    if (!display[n])
+	return 0;
+    return atoi(display + n + 1);
+}
+
+/*
  * Called to set up the raw connection.
  * 
  * Returns an error message, or NULL on success.
