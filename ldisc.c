@@ -9,13 +9,8 @@
  */
 
 static void c_write (char *buf, int len) {
-    while (len--) {
-	int new_head = (inbuf_head + 1) & INBUF_MASK;
-	if (new_head != inbuf_reap) {
-	    inbuf[inbuf_head] = *buf++;
-	    inbuf_head = new_head;
-	}
-    }
+    while (len--) 
+        c_write1(*buf++);
 }
 
 static char *term_buf = NULL;
@@ -34,8 +29,7 @@ static int plen(unsigned char c) {
 static void pwrite(unsigned char c) {
     if ((c >= 32 && c <= 126) ||
         (c >= 160)) {
-        char cc = (char)c;
-        c_write(&cc, 1);
+        c_write1(c);
     } else if (c < 128) {
         char cc[2];
         cc[1] = (c == 127 ? '?' : c + 0x40);

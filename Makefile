@@ -33,7 +33,7 @@ CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
 # LFLAGS = /debug
 
 # Use MSVC DLL
-# CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /ML /Fd
+# CFLAGS = /nologo /W3 /YX /O2 /Yd /D_WINDOWS /DDEBUG /MD /Fd
 
 # Disable debug and incremental linking
 LFLAGS = /incremental:no

@@ -5,7 +5,7 @@
 
 #include "putty.h"
 
-#define CL_ANSIMIN	0x0001	/* Everybody has these even MSDOS */
+#define CL_ANSIMIN	0x0001	/* Codes in all ANSI like terminals. */
 #define CL_VT100	0x0002	/* VT100 */
 #define CL_VT100AVO	0x0004	/* VT100 +AVO; 132x24 (not 132x14) & attrs */
 #define CL_VT102	0x0008	/* VT102 */
@@ -14,17 +14,27 @@
 #define CL_VT420	0x0040	/* VT420 */
 #define CL_VT510	0x0080	/* VT510, NB VT510 includes ANSI */
 #define CL_VT340TEXT	0x0100	/* VT340 extensions that appear in the VT420 */
-#define CL_ANSI		0x1000	/* ANSI ECMA-48 not in the VT100..VT420 */
-#define CL_OTHER	0x2000	/* Others, Xterm, linux, putty, dunno, etc */
+#define CL_SCOANSI	0x1000	/* SCOANSI not in ANSIMIN. */
+#define CL_ANSI		0x2000	/* ANSI ECMA-48 not in the VT100..VT420 */
+#define CL_OTHER	0x4000	/* Others, Xterm, linux, putty, dunno, etc */
 
 #define TM_ANSIMIN	(CL_ANSIMIN)
-#define TM_VT100	(CL_ANSIMIN+CL_VT100)
-#define TM_VT100AVO	(TM_VT100+CL_VT100AVO)
-#define TM_VT102	(TM_VT100AVO+CL_VT102)
-#define TM_PUTTY	(-1)
+#define TM_VT100	(CL_ANSIMIN|CL_VT100)
+#define TM_VT100AVO	(TM_VT100|CL_VT100AVO)
+#define TM_VT102	(TM_VT100AVO|CL_VT102)
+#define TM_VT220	(TM_VT102|CL_VT220)
+#define TM_VTXXX	(TM_VT220|CL_VT340TEXT|CL_VT510|CL_VT420|CL_VT320)
+#define TM_SCOANSI	(CL_ANSIMIN|CL_SCOANSI)
+
+#define TM_PUTTY	(0xFFFF)
 
 #define compatibility(x) \
     if ( ((CL_##x)&compatibility_level) == 0 ) { 	\
+       termstate=TOPLEVEL;				\
+       break;						\
+    }
+#define compatibility2(x,y) \
+    if ( ((CL_##x|CL_##y)&compatibility_level) == 0 ) { \
        termstate=TOPLEVEL;				\
        break;						\
     }
@@ -38,6 +48,7 @@ static unsigned long *text;	       /* buffer of text on terminal screen */
 static unsigned long *scrtop;	       /* top of working screen */
 static unsigned long *disptop;	       /* top of displayed screen */
 static unsigned long *sbtop;	       /* top of scrollback */
+static unsigned long *sbbot;	       /* furthest extent of scrollback */
 static unsigned long *cpos;	       /* cursor position (convenience) */
 static unsigned long *disptext;	       /* buffer of text on real screen */
 static unsigned long *wanttext;	       /* buffer of text we want on screen */
@@ -64,7 +75,8 @@ static int cursor_on;		       /* cursor enabled flag */
 static int reset_132;		       /* Flag ESC c resets to 80 cols */
 static int use_bce;		       /* Use Background coloured erase */
 static int blinker;		       /* When blinking is the cursor on ? */
-static int vt52_mode;		       /* Is VT100+ in vt52 mode ? */
+static int tblinker;		       /* When the blinking text is on */
+static int blink_is_real;	       /* Actually blink blinking text */
 
 static unsigned long cset_attr[2];
 
@@ -88,6 +100,8 @@ static int esc_query;
 static int osc_strlen;
 static char osc_string[OSC_STR_MAX+1];
 static int osc_w;
+
+static char id_string[1024] = "\033[?6c";
 
 static unsigned char *tabs;
 
@@ -130,6 +144,8 @@ static short wordness[256] = {
 };
 
 static unsigned char sel_nl[] = SEL_NL;
+static char * paste_buffer = 0;
+static int paste_len, paste_pos, paste_hold;
 
 /*
  * Internal prototypes.
@@ -165,7 +181,8 @@ static void power_on(void) {
     save_attr = curr_attr = ATTR_DEFAULT;
     app_cursor_keys = cfg.app_cursor;
     app_keypad_keys = cfg.app_keypad;
-    use_bce = 0;
+    use_bce = cfg.bce;
+    blink_is_real = cfg.blinktext;
     erase_char = ERASE_CHAR;
     alt_which = 0;
     {
@@ -188,8 +205,8 @@ void term_update(void) {
     Context ctx;
     ctx = get_ctx();
     if (ctx) {
-        if ( (seen_key_event && (unscroll_event & US_KEY)) ||
-	     (seen_disp_event && (unscroll_event & US_DISP)) ) {
+        if ( (seen_key_event && (cfg.scroll_on_key)) ||
+	     (seen_disp_event && (!cfg.scroll_on_key)) ) {
 	    disptop = scrtop;
 	    seen_disp_event = seen_key_event = 0;
 	}
@@ -221,7 +238,7 @@ void term_clrsb(void) {
  * Initialise the terminal.
  */
 void term_init(void) {
-    text = sbtop = scrtop = disptop = cpos = NULL;
+    text = sbtop = sbbot = scrtop = disptop = cpos = NULL;
     disptext = wanttext = NULL;
     tabs = NULL;
     selspace = NULL;
@@ -249,27 +266,32 @@ void term_size(int newrows, int newcols, int newsavelines) {
     alt_b = marg_b = newrows - 1;
 
     newtext = smalloc ((newrows+newsavelines)*(newcols+1)*TSIZE);
-    disptop = newtext + newsavelines*(newcols+1);
+    sbbot = newtext + newsavelines*(newcols+1);
     for (i=0; i<(newrows+newsavelines)*(newcols+1); i++)
-	newtext[i] = ERASE_CHAR;
+	newtext[i] = erase_char;
     if (rows != -1) {
 	crows = rows + (scrtop - sbtop) / (cols+1);
 	if (crows > newrows+newsavelines)
 	    crows = newrows+newsavelines;
+	if (newrows>crows)
+	    disptop = newtext;
+	else
+            disptop = newtext + (crows-newrows)*(newcols+1);
 	ccols = (cols < newcols ? cols : newcols);
 	for (i=0; i<crows; i++) {
-	    int oldidx = (rows + savelines - crows + i) * (cols+1);
-	    int newidx = (newrows + newsavelines - crows + i) * (newcols+1);
+	    int oldidx = (rows - crows + i) * (cols+1);
+	    int newidx = (newrows - crows + i) * (newcols+1);
+
 	    for (j=0; j<ccols; j++)
-		newtext[newidx+j] = text[oldidx+j];
-	    newtext[newidx+newcols] =
-		(cols == newcols ? text[oldidx+cols] : 0);
+		disptop[newidx+j] = scrtop[oldidx+j];
+	    disptop[newidx+newcols] =
+		(cols == newcols ? scrtop[oldidx+cols] 
+		                 : (scrtop[oldidx+cols]&LATTR_MODE));
 	}
-	sbtop = disptop - (crows - newrows) * (newcols+1);
-	if (sbtop > disptop)
-	    sbtop = disptop;
-    } else
-	sbtop = disptop;
+	sbtop = newtext;
+    } else {
+	sbtop = disptop = newtext;
+    }
     scrtop = disptop;
     sfree (text);
     text = newtext;
@@ -354,19 +376,6 @@ static void swap_screen (int which) {
 }
 
 /*
- * Retrieve a character from `inbuf'.
- */
-static int inbuf_getc(void) {
-    if (inbuf_head == inbuf_reap)
-	return -1;		       /* EOF */
-    else {
-	int n = inbuf_reap;
-	inbuf_reap = (inbuf_reap+1) & INBUF_MASK;
-	return inbuf[n];
-    }
-}
-
-/*
  * Update the scroll bar.
  */
 static void update_sbar(void) {
@@ -394,7 +403,14 @@ static void check_selection (unsigned long *from, unsigned long *to) {
  */
 static void scroll (int topline, int botline, int lines, int sb) {
     unsigned long *scroll_top;
+    unsigned long *newscr;
     int scroll_size, size, i;
+    int scrtop_is_disptop = (scrtop==disptop);
+static int recursive = 0;
+
+    /* Only scroll more than the window if we're doing a 10% scroll */
+    if (!recursive && lines > botline - topline + 1)
+        lines = botline - topline + 1;
 
     scroll_top = scrtop + topline*(cols+1);
     size = (lines < 0 ? -lines : lines) * (cols+1);
@@ -403,14 +419,89 @@ static void scroll (int topline, int botline, int lines, int sb) {
     if (lines > 0 && topline == 0 && alt_which == 0 && sb) {
 	/*
 	 * Since we're going to scroll the top line and we're on the 
-	 * scrolling screen let's also affect the scrollback buffer.
+	 * scrolling screen let's also effect the scrollback buffer.
+	 *
+	 * This is normally done by moving the position the screen
+	 * painter reads from to reduce the amount of memory copying
+	 * required.
 	 */
-	sbtop -= lines * (cols+1);
-	if (sbtop < text)
-	    sbtop = text;
-	scroll_size += scroll_top - sbtop;
-	scroll_top = sbtop;
-	update_sbar();
+	if (scroll_size >= 0 && !recursive) {
+	    newscr = scrtop + lines * (cols+1);
+
+	    if (newscr > sbbot && botline == rows-1) {
+		/* We've hit the bottom of memory, so we have to do a 
+		 * physical scroll. But instead of just 1 line do it
+		 * by 10% of the available memory.
+		 *
+		 * If the scroll region isn't the whole screen then we can't
+		 * do this as it stands. We would need to recover the bottom
+		 * of the screen from the scroll buffer after being sure that
+		 * it doesn't get deleted.
+		 */
+
+		i = (rows+savelines)/10;
+
+		/* Make it simple and ensure safe recursion */
+		if ( i<savelines-1) {
+		    recursive ++;
+		    scroll(topline, botline, i, sb);
+		    recursive --;
+
+	            newscr = scrtop - i * (cols+1);
+		    if (scrtop_is_disptop) disptop = newscr;
+		    scrtop = newscr;
+		}
+
+	        newscr = scrtop + lines * (cols+1);
+	    }
+
+	    if (newscr <= sbbot) {
+		if (scrtop_is_disptop) disptop = newscr;
+		scrtop = newscr;
+
+		if (botline == rows-1 )
+		    for (i = 0; i < size; i++)
+		        scrtop[i+scroll_size] = erase_char;
+
+		update_sbar();
+		fix_cpos;
+
+	        if (botline != rows-1) {
+		    /* This fastscroll only works for full window scrolls. 
+		     * If the caller wanted a partial one we have to reverse
+		     * scroll the bottom of the screen.
+		     */
+		    scroll(botline-lines+1, rows-1, -lines, 0);
+		}
+		return ;
+	    }
+
+	    /* If we can't scroll by memory remapping do it physically.
+	     * But rather than expensivly doing the scroll buffer just
+	     * scroll the screen. All it means is that sometimes we choose
+	     * to not add lines from a scroll region to the scroll buffer.
+	     */
+
+	    if (savelines <= 400) {
+	        sbtop -= lines * (cols+1);
+	        if (sbtop < text)
+		    sbtop = text;
+	        scroll_size += scroll_top - sbtop;
+	        scroll_top = sbtop;
+    
+	        update_sbar();
+	    }
+	} else { 
+	    /* Ho hum, expensive scroll required. */
+
+	    sbtop -= lines * (cols+1);
+	    if (sbtop < text)
+		sbtop = text;
+	    scroll_size += scroll_top - sbtop;
+	    scroll_top = sbtop;
+
+	    update_sbar();
+	}
     }
 
     if (scroll_size < 0) {
@@ -435,6 +526,15 @@ static void scroll (int topline, int botline, int lines, int sb) {
 	    if (selend < scroll_top)
 		selend = scroll_top;
 	}
+	if (scrtop_is_disptop)
+	    disptop = scrtop;
+	else
+	    if (disptop > scroll_top &&
+		disptop < scroll_top + size + scroll_size) {
+		disptop -= size;
+		if (disptop < scroll_top)
+		    disptop = scroll_top;
+	}
     } else {
 	if (scroll_size)
 	    memmove (scroll_top + size, scroll_top, scroll_size*TSIZE);
@@ -451,6 +551,14 @@ static void scroll (int topline, int botline, int lines, int sb) {
 	    selend += size;
 	    if (selend > scroll_top + size + scroll_size)
 		selend = scroll_top + size + scroll_size;
+	}
+	if (scrtop_is_disptop)
+	    disptop = scrtop;
+	else if (disptop > scroll_top &&
+		disptop < scroll_top + size + scroll_size) {
+		disptop += size;
+		if (disptop > scroll_top + size + scroll_size)
+		    disptop = scroll_top + size + scroll_size;
 	}
     }
 }
@@ -495,6 +603,10 @@ static void save_cursor(int save) {
     } else {
 	curs_x = save_x;
 	curs_y = save_y;
+	/* Make sure the window hasn't shrunk since the save */
+	if (curs_x >= cols) curs_x = cols-1;
+	if (curs_y >= rows) curs_y = rows-1;
+
 	curr_attr = save_attr;
 	cset = save_cset;
 	cset_attr[cset] = save_csattr;
@@ -512,7 +624,10 @@ static void erase_lots (int line_only, int from_begin, int to_end) {
 
     if (line_only) {
 	startpos = cpos - curs_x;
-	endpos = startpos + cols+1;
+	endpos = startpos + cols;
+	/* I've removed the +1 so that the Wide screen stuff is not
+	 * removed when it shouldn't be.
+	 */
     } else {
 	startpos = scrtop;
 	endpos = startpos + rows * (cols+1);
@@ -583,6 +698,9 @@ static void toggle_mode (int mode, int query, int state) {
       case 7:			       /* auto wrap */
 	wrap = state;
 	break;
+      case 8:			       /* auto key repeat */
+	repeat_off = !state;
+	break;
       case 25:			       /* enable/disable cursor */
 	compatibility(VT220);
 	cursor_on = state;
@@ -610,6 +728,9 @@ static void toggle_mode (int mode, int query, int state) {
 	 */
 	compatibility(VT220);
         ldisc = (state? &ldisc_simple : &ldisc_term);
+	break;
+      case 20:			       /* Return sends ... */
+	cr_lf_return = state;
 	break;
     }
 }
@@ -644,10 +765,16 @@ static void do_osc(void) {
  * process escape sequences...
  */
 void term_out(void) {
-    int c;
+    int c, inbuf_reap;
 
-    while ( (c = inbuf_getc()) != -1) {
-        /*
+static int beep_overload = 0;
+    int beep_count = 0;
+
+    for(inbuf_reap = 0; inbuf_reap < inbuf_head; inbuf_reap++)
+    {
+        c = inbuf[inbuf_reap];
+
+	/*
          * Optionally log the session traffic to a file. Useful for
          * debugging and possibly also useful for actual logging.
          */
@@ -660,7 +787,8 @@ void term_out(void) {
 	 * be able to display 8-bit characters, but I'll let that go 'cause
 	 * of i18n.
 	 */
-	if( (c&0x60) == 0 && termstate < DO_CTRLS &&
+	if( ( (c&0x60) == 0 || c == '\177') && 
+	     termstate < DO_CTRLS &&
 	    ( (c&0x80) == 0 || has_compat(VT220))) {
 	    switch (c) {
 	      case '\005':	       /* terminal type query */
@@ -676,11 +804,14 @@ void term_out(void) {
 		ldisc->send ("PuTTY", 5);
 		break;
 	      case '\007':
-                if(cfg.beep) beep();
+		beep_count++; 
+		if(beep_count>6) beep_overload=1;
 		disptop = scrtop;
 		break;
 	      case '\b':
-		if (curs_x == 0 && curs_y > 0)
+		if (curs_x == 0 && curs_y == 0)
+		    ;
+		else if (curs_x == 0 && curs_y > 0)
 		    curs_x = cols-1, curs_y--;
 		else if (wrapnext)
 		    wrapnext = FALSE;
@@ -722,6 +853,7 @@ void term_out(void) {
 		wrapnext = FALSE;
 		fix_cpos;
 		seen_disp_event = TRUE;
+		paste_hold = 0;
 		break;
 	      case '\013':
 	      case '\014':
@@ -736,15 +868,28 @@ void term_out(void) {
 		fix_cpos;
 		wrapnext = FALSE;
 		seen_disp_event = 1;
+		paste_hold = 0;
 		break;
 	      case '\t':
-		do {
-		    curs_x++;
-		} while (curs_x < cols-1 && !tabs[curs_x]);
-		if (curs_x >= cols)
-		    curs_x = cols-1;
 		{
 		    unsigned long *old_cpos = cpos;
+		    unsigned long *p = scrtop + curs_y * (cols+1) + cols;
+
+		    do {
+			curs_x++;
+		    } while (curs_x < cols-1 && !tabs[curs_x]);
+
+		    if ((*p & LATTR_MODE) != LATTR_NORM)
+		    {
+			if (curs_x >= cols/2)
+			    curs_x = cols/2-1;
+		    }
+		    else
+		    {
+			if (curs_x >= cols)
+			    curs_x = cols-1;
+		    }
+
 		    fix_cpos;
 		    check_selection (old_cpos, cpos);
 		}
@@ -756,7 +901,7 @@ void term_out(void) {
 	  case TOPLEVEL:
 	  /* Only graphic characters get this far, ctrls are stripped above */
 	    if (wrapnext) {
-		cpos[1] = ATTR_WRAPPED;
+		cpos[1] |= ATTR_WRAPPED;
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
@@ -867,7 +1012,6 @@ void term_out(void) {
 	      case 'E':		       /* exactly equivalent to CR-LF */
 	        compatibility(VT100);
 		curs_x = 0;
-		wrapnext = FALSE;
 		if (curs_y == marg_b)
 		    scroll (marg_t, marg_b, 1, TRUE);
 		else if (curs_y < rows-1)
@@ -888,7 +1032,7 @@ void term_out(void) {
 		break;
 	      case 'Z':		       /* terminal type query */
 	        compatibility(VT100);
-		ldisc->send ("\033[?6c", 5);
+		ldisc->send (id_string, strlen(id_string));
 		break;
 	      case 'c':		       /* restore power-on settings */
 	        compatibility(VT100);
@@ -1031,19 +1175,15 @@ void term_out(void) {
 	      case 'c':		       /* terminal type query */
 	        compatibility(VT100);
 		/* This is the response for a VT102 */
-		ldisc->send ("\033[?6c", 5);
+		ldisc->send (id_string, strlen(id_string));
 		break;
 	      case 'n':		       /* cursor position query */
 		if (esc_args[0] == 6) {
-		    /* Wonder of wonders ANSI.SYS has this!! */
 		    char buf[32];
 		    sprintf (buf, "\033[%d;%dR", curs_y + 1, curs_x + 1);
 		    ldisc->send (buf, strlen(buf));
 		}
 		else if (esc_args[0] == 5) {
-		    /* Are we working ... well I suppose so :-) */
-		    /* But ANSI.SYS doesn't say it's working :-) :-) */
-	            compatibility(VT100);
 		    ldisc->send ("\033[0n", 4);
 		}
 		break;
@@ -1190,7 +1330,10 @@ void term_out(void) {
 			}
 		    }
 		    if (use_bce) 
-		       erase_char = (' '|(curr_attr&(ATTR_FGMASK|ATTR_BGMASK)));
+		       erase_char = 
+			    (' '|
+			      (curr_attr&(ATTR_FGMASK|ATTR_BGMASK|ATTR_BLINK))
+			    );
 		}
 		break;
 	      case 's':		       /* save cursor */
@@ -1209,11 +1352,7 @@ void term_out(void) {
 		 */
 		compatibility(VT340TEXT);
 		if (esc_nargs<=1 && (esc_args[0]<1 || esc_args[0]>=24)) {
-		    unsigned int newrows = def(esc_args[0], 24);
-		    /* Hack: prevent big-resize DoS attack. */
-		    if (newrows > max(512, cfg.height))
-			newrows = max(512, cfg.height);
-		    request_resize (cols, newrows, 0);
+		    request_resize (cols, def(esc_args[0], 24), 0);
 		    deselect();
 		}
 		break;
@@ -1224,12 +1363,8 @@ void term_out(void) {
 		 * reasonable range (24..49 AIUI) with no default specified.
 		 */
 		compatibility(VT420);
-		if (esc_nargs==1 && esc_args[0]>=24) {
-		    unsigned int newrows = def(esc_args[0], cfg.height);
-		    /* Hack: prevent big-resize DoS attack. */
-		    if (newrows > max(512, cfg.height))
-			newrows = max(512, cfg.height);
-		    request_resize (cols, newrows, 0);
+		if (esc_nargs==1 && esc_args[0]>0) {
+		    request_resize (cols, def(esc_args[0], cfg.height), 0);
 		    deselect();
 		}
 		break;
@@ -1240,17 +1375,13 @@ void term_out(void) {
 		 */
 		compatibility(VT340TEXT);
 		if (esc_nargs<=1) {
-		    unsigned int newcols = def(esc_args[0], cfg.width);
-		    /* Hack: prevent big-resize DoS attack. */
-		    if (newcols > max(512, cfg.width))
-			newcols = max(512, cfg.width);
-		    request_resize (newcols, rows, 0);
+		    request_resize (def(esc_args[0], cfg.width), rows, 0);
 		    deselect();
 		}
 		break;
 	      case 'X':		       /* write N spaces w/o moving cursor */
 		/* XXX VTTEST says this is vt220, vt510 manual says vt100 */
-		compatibility(VT100);
+		compatibility(ANSIMIN);
 		{
 		    int n = def(esc_args[0], 1);
 		    unsigned long *p = cpos;
@@ -1280,6 +1411,10 @@ void term_out(void) {
 		erase_char = ERASE_CHAR;
 		if (use_bce)
 		    erase_char = (' '|(curr_attr&(ATTR_FGMASK|ATTR_BGMASK)));
+		break;
+	      case ANSI('E','='):
+		compatibility(OTHER);
+		blink_is_real = (esc_args[0]>=1);
 		break;
 	      case ANSI('p','"'):
 		/* Allow the host to make this emulator a 'perfect' VT102.
@@ -1419,14 +1554,31 @@ void term_out(void) {
 	    }
 	    break;
 	  case SEEN_ESCHASH:
-	    if (c == '8') {
-		unsigned long *p = scrtop;
-		int n = rows * (cols+1);
-		while (n--)
-		    *p++ = ATTR_DEFAULT | 'E';
-		disptop = scrtop;
-		seen_disp_event = TRUE;
-		check_selection (scrtop, scrtop + rows * (cols+1));
+	    {
+		unsigned long *p;
+		unsigned long nlattr;
+		int n;
+
+		switch (c) {
+		case '8':
+		    p = scrtop;
+		    n = rows * (cols+1);
+		    while (n--)
+			*p++ = ATTR_DEFAULT | 'E';
+		    disptop = scrtop;
+		    seen_disp_event = TRUE;
+		    check_selection (scrtop, scrtop + rows * (cols+1));
+		    break;
+
+		case '3': nlattr = LATTR_TOP; 	  if(0) {
+		case '4': nlattr = LATTR_BOT;	} if(0) {
+		case '5': nlattr = LATTR_NORM;	} if(0) {
+		case '6': nlattr = LATTR_WIDE;  }
+
+		    p = scrtop + curs_y * (cols+1) + cols;
+		    *p &= ~LATTR_MODE;
+		    *p |=  nlattr;
+		}
 	    }
 	    termstate = TOPLEVEL;
 	    break;
@@ -1521,6 +1673,14 @@ void term_out(void) {
 	if (selstate != NO_SELECTION)
 	    check_selection (cpos, cpos+1);
     }
+    inbuf_head = 0;
+
+    if (beep_overload)
+    {
+       if(!beep_count) beep_overload=0;
+    }
+    else if(beep_count && beep_count<5 && cfg.beep)
+       beep(beep_count/3);
 }
 
 /*
@@ -1561,12 +1721,22 @@ static void do_paint (Context ctx, int may_optimise){
 
     for (i=0; i<rows; i++) {
 	int idx = i*(cols+1);
+	int lattr = (disptop[idx+cols] & LATTR_MODE);
 	for (j=0; j<=cols; j++,idx++) {
 	    unsigned long *d = disptop+idx;
-	    wanttext[idx] = ((*d ^ rv
+	    wanttext[idx] = lattr | ((*d ^ rv
 			      ^ (selstart <= d && d < selend ?
 				 ATTR_REVERSE : 0)) |
 			     (i==our_curs_y && j==curs_x ? cursor : 0));
+
+	    if (blink_is_real) {
+		if (has_focus && tblinker && (wanttext[idx]&ATTR_BLINK) )
+		{
+		    wanttext[idx] &= ATTR_MASK;
+		    wanttext[idx] += ' ';
+		}
+		wanttext[idx] &= ~ATTR_BLINK;
+	    }
 	}
     }
 
@@ -1579,6 +1749,7 @@ static void do_paint (Context ctx, int may_optimise){
 
     for (i=0; i<rows; i++) {
 	int idx = i*(cols+1);
+	int lattr = (wanttext[idx+cols] & LATTR_MODE);
 	start = -1;
 	for (j=0; j<=cols; j++,idx++) {
 	    unsigned long t = wanttext[idx];
@@ -1587,7 +1758,7 @@ static void do_paint (Context ctx, int may_optimise){
 			      (t & ATTR_MASK) == attr &&
 			      j-start < sizeof(ch));
 	    if (start != -1 && !keep_going) {
-		do_text (ctx, start, i, ch, j-start, attr);
+		do_text (ctx, start, i, ch, j-start, attr, lattr);
 		start = -1;
 	    }
 	    if (needs_update) {
@@ -1608,14 +1779,24 @@ static void do_paint (Context ctx, int may_optimise){
 
 void term_blink(int flg) {
 static long last_blink = 0;
+static long last_tblink = 0;
     long now, blink_diff;
+
+    now = GetTickCount();
+    blink_diff = now-last_tblink;
+
+    /* Make sure the text blinks no more than 2Hz */
+    if (blink_diff<0 || blink_diff>450)
+    {
+        last_tblink = now;
+	tblinker = !tblinker;
+    }
 
     if (flg) {
         blinker = 1;
-        last_blink = GetTickCount();
+        last_blink = now;
 	return;
     } 
-    now = GetTickCount();
 
     blink_diff = now-last_blink;
 
@@ -1648,8 +1829,14 @@ void term_paint (Context ctx, int l, int t, int r, int b) {
     top = t / font_height;
     bottom = (b - 1) / font_height;
     for (i = top; i <= bottom && i < rows ; i++)
-      for (j = left; j <= right && j < cols ; j++)
-	    disptext[i*(cols+1)+j] = ATTR_INVALID;
+    {
+	if ( (disptext[i*(cols+1)+cols]&LATTR_MODE) == LATTR_NORM)
+	    for (j = left; j <= right && j < cols ; j++)
+		disptext[i*(cols+1)+j] = ATTR_INVALID;
+	else
+	    for (j = left/2; j <= right/2+1 && j < cols ; j++)
+		disptext[i*(cols+1)+j] = ATTR_INVALID;
+    }
 
     /* This should happen soon enough, also for some reason it sometimes 
      * fails to actually do anything when re-sizing ... painting the wrong
@@ -1749,7 +1936,11 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
     }
     if (x>=cols) x = cols-1;
 
-    selpoint = disptop + y * (cols+1) + x;
+    selpoint = disptop + y * (cols+1);
+    if ((selpoint[cols]&LATTR_MODE) != LATTR_NORM)
+	selpoint += x/2;
+    else
+	selpoint += x;
 
     if (b == MB_SELECT && a == MA_CLICK) {
 	deselect();
@@ -1825,6 +2016,11 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 	get_clip((void **) &data, &len);
 	if (data) {
 	    char *p, *q;
+
+	    if (paste_buffer) sfree(paste_buffer);
+	    paste_pos = paste_hold = paste_len = 0;
+	    paste_buffer = smalloc(len);
+
 	    p = q = data;
 	    while (p < data+len) {
 		while (p < data+len &&
@@ -1838,22 +2034,67 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 		    for(i=0;i<p-q;i++)
 		    {
 			c=xlat_kbd2tty(q[i]);
-			ldisc->send(&c,1);
+			paste_buffer[paste_len++] = c;
 		    }
 		}
 
 		if (p <= data+len-sizeof(sel_nl) &&
 		    !memcmp(p, sel_nl, sizeof(sel_nl))) {
-		    ldisc->send ("\r", 1);
+		    paste_buffer[paste_len++] = '\r';
 		    p += sizeof(sel_nl);
 		}
 		q = p;
+	    }
+
+	    /* Assume a small paste will be OK in one go. */
+	    if (paste_len<256) {
+	        ldisc->send (paste_buffer, paste_len);
+	        if (paste_buffer) sfree(paste_buffer);
+		paste_buffer = 0;
+	        paste_pos = paste_hold = paste_len = 0;
 	    }
 	}
 	get_clip(NULL, NULL);
     }
 
     term_update();
+}
+
+void term_nopaste() {
+    if(paste_len == 0) return;
+    sfree(paste_buffer);
+    paste_buffer = 0;
+    paste_len = 0;
+}
+
+void term_paste() {
+static long last_paste = 0;
+    long now, paste_diff;
+
+    if(paste_len == 0) return;
+
+    /* Don't wait forever to paste */
+    if(paste_hold) {
+    	now = GetTickCount();
+    	paste_diff = now-last_paste;
+	if (paste_diff>=0 && paste_diff<450)
+	    return;
+    }
+    paste_hold = 0;
+
+    while(paste_pos<paste_len)
+    {
+	char c = paste_buffer[paste_pos++];
+	ldisc->send (&c, 1);
+
+	if (c =='\r') {
+	    paste_hold = 1;
+	    return;
+	}
+    }
+    sfree(paste_buffer);
+    paste_buffer = 0;
+    paste_len = 0;
 }
 
 static void deselect (void) {

@@ -128,16 +128,8 @@ static void c_write (char *buf, int len) {
 	if (len > 0) { fwrite(buf, len, 1, stderr); fputc('\n', stderr); }
 	return;
     }
-    while (len--) {
-	int new_head = (inbuf_head + 1) & INBUF_MASK;
-	if (new_head != inbuf_reap) {
-	    inbuf[inbuf_head] = *buf++;
-	    inbuf_head = new_head;
-	} else {
-            term_out();
-            if( inbuf_head == inbuf_reap ) len++; else break;
-	}
-    }
+    while (len--) 
+        c_write1(*buf++);
 }
 
 struct Packet {

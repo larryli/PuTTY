@@ -14,8 +14,6 @@
 
 static SOCKET s = INVALID_SOCKET;
 
-#define iswritable(x) ( (x) != IAC && (x) != CR )
-
 static void raw_size(void);
 
 static int sb_opt, sb_len;
@@ -50,16 +48,8 @@ static void s_write (void *buf, int len) {
 }
 
 static void c_write (char *buf, int len) {
-    while (len--) {
-	int new_head = (inbuf_head + 1) & INBUF_MASK;
-	if (new_head != inbuf_reap) {
-	    inbuf[inbuf_head] = *buf++;
-	    inbuf_head = new_head;
-	} else {
-            term_out();
-            if( inbuf_head == inbuf_reap ) len++; else break;
-	}
-    }
+    while (len--) 
+        c_write1(*buf++);
 }
 
 /*

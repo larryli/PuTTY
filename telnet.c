@@ -165,19 +165,6 @@ static void s_write (void *buf, int len) {
     try_write();
 }
 
-static void c_write (char *buf, int len) {
-    while (len--) {
-	int new_head = (inbuf_head + 1) & INBUF_MASK;
-	if (new_head != inbuf_reap) {
-	    inbuf[inbuf_head] = *buf++;
-	    inbuf_head = new_head;
-	} else {
-            term_out();
-            if( inbuf_head == inbuf_reap ) len++; else break;
-	}
-    }
-}
-
 static void log_option (char *sender, int cmd, int option) {
     char buf[50];
     sprintf(buf, "%s:\t%s %s", sender,
@@ -384,7 +371,6 @@ static enum {
 } telnet_state = TOPLEVEL;
 
 static void do_telnet_read (char *buf, int len) {
-    unsigned char b[10];
 
     while (len--) {
 	int c = (unsigned char) *buf++;
@@ -397,9 +383,8 @@ static void do_telnet_read (char *buf, int len) {
 	    else if (c == IAC)
 		telnet_state = SEENIAC;
 	    else {
-		b[0] = c;
 		if (!in_synch)
-		    c_write (b, 1);
+		    c_write1(c);
 
 #if 1
 		/* I can't get the F***ing winsock to insert the urgent IAC
@@ -431,8 +416,7 @@ static void do_telnet_read (char *buf, int len) {
 	    else {
 		/* ignore everything else; print it if it's IAC */
 		if (c == IAC) {
-		    b[0] = c;
-		    c_write(b,1);
+		    c_write1(c);
 		}
 		telnet_state = TOPLEVEL;
 	    }
@@ -467,8 +451,8 @@ static void do_telnet_read (char *buf, int len) {
 		    char *newbuf;
 		    sb_size += SB_DELTA;
 		    newbuf = (sb_buf ?
-			      realloc(sb_buf, sb_size) :
-			      malloc(sb_size));
+			      srealloc(sb_buf, sb_size) :
+			      smalloc(sb_size));
 		    if (newbuf)
 			sb_buf = newbuf;
 		    else
@@ -608,7 +592,11 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
  */
 static int telnet_msg (WPARAM wParam, LPARAM lParam) {
     int ret;
-    char buf[256];
+    /* This needs to be larger than the packet size now that inbuf
+     * cannot overflow, in fact the fewer calls we make to windows
+     * the faster we will run!
+     */
+    char buf[16384];	
 
     /*
      * Because reading less than the whole of the available pending

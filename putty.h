@@ -21,6 +21,12 @@ GLOBAL HINSTANCE putty_inst;
 #define ATTR_INVALID 0x20000000UL
 #define ATTR_WRAPPED 0x10000000UL
 
+#define LATTR_NORM   0x00000000UL
+#define LATTR_WIDE   0x01000000UL
+#define LATTR_TOP    0x02000000UL
+#define LATTR_BOT    0x03000000UL
+#define LATTR_MODE   0x03000000UL
+
 #define ATTR_ASCII   0x00000000UL      /* normal ASCII charset ESC ( B */
 #define ATTR_GBCHR   0x00100000UL      /* UK variant   charset ESC ( A */
 #define ATTR_LINEDRW 0x00200000UL      /* line drawing charset ESC ( 0 */
@@ -49,10 +55,11 @@ GLOBAL int rows, cols, savelines;
 
 GLOBAL int font_width, font_height;
 
+#define c_write1(_C) do { if (inbuf_head >= INBUF_SIZE) term_out(); \
+			  inbuf[inbuf_head++] = (_C) ; } while(0)
 #define INBUF_SIZE 2048
-#define INBUF_MASK (INBUF_SIZE-1)
 GLOBAL unsigned char inbuf[INBUF_SIZE];
-GLOBAL int inbuf_head, inbuf_reap;
+GLOBAL int inbuf_head;
 
 #define OUTBUF_SIZE 2048
 #define OUTBUF_MASK (OUTBUF_SIZE-1)
@@ -61,18 +68,13 @@ GLOBAL int outbuf_head, outbuf_reap;
 
 GLOBAL int has_focus;
 
-GLOBAL int app_cursor_keys, app_keypad_keys;
+GLOBAL int app_cursor_keys, app_keypad_keys, vt52_mode;
+GLOBAL int repeat_off, cr_lf_return;
 
 GLOBAL int seen_key_event;
 GLOBAL int seen_disp_event;
 
 GLOBAL int session_closed;
-
-typedef enum {
-    US_NONE = 0, US_KEY = 1, US_DISP = 2, US_BOTH = 3
-} Unscroll_Trigger;
-
-GLOBAL Unscroll_Trigger unscroll_event;
 
 GLOBAL char *logfile;
 
@@ -143,27 +145,31 @@ typedef struct {
     /* Keyboard options */
     int bksp_is_delete;
     int rxvt_homeend;
-    int linux_funkeys;
+    int funky_type;
     int app_cursor;
     int app_keypad;
     int nethack_keypad;
     int alt_f4;			       /* is it special? */
     int alt_space;		       /* is it special? */
     int ldisc_term;
-    int blink_cur;
-    int beep;
+    int scroll_on_key;
     /* Terminal options */
     int savelines;
     int dec_om;
     int wrap_mode;
     int lfhascr;
+    int blink_cur;
+    int beep;
+    int scrollbar;
+    int locksize;
+    int bce;
+    int blinktext;
     int win_name_always;
     int width, height;
     char font[64];
     int fontisbold;
     int fontheight;
     int fontcharset;
-    VT_Mode vtmode;
     /* Colour options */
     int try_palette;
     int bold_colour;
@@ -171,7 +177,8 @@ typedef struct {
     /* Selection options */
     int mouse_is_xterm;
     short wordness[256];
-    /* russian language translation */
+    /* translations */
+    VT_Mode vtmode;
     int xlat_enablekoiwin;
     int xlat_88592w1250;
     int xlat_capslockcyr;
@@ -198,7 +205,7 @@ struct RSAKey;			       /* be a little careful of scope */
  * Exports from window.c.
  */
 void request_resize (int, int, int);
-void do_text (Context, int, int, char *, int, unsigned long);
+void do_text (Context, int, int, char *, int, unsigned long, int);
 void set_title (char *);
 void set_icon (char *);
 void set_sbar (int, int, int);
@@ -210,7 +217,7 @@ void write_clip (void *, int);
 void get_clip (void **, int *);
 void optimised_move (int, int, int);
 void fatalbox (char *, ...);
-void beep (void);
+void beep (int);
 #define OPTIMISE_IS_SCROLL 1
 
 /*
@@ -252,6 +259,8 @@ void term_deselect (void);
 void term_update (void);
 void term_invalidate(void);
 void term_blink(int set_cursor);
+void term_paste(void);
+void term_nopaste(void);
 
 /*
  * Exports from raw.c.

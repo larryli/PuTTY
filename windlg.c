@@ -155,7 +155,7 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "RFCEnviron", cfg.rfc_environ);
     wppi (sesskey, "BackspaceIsDelete", cfg.bksp_is_delete);
     wppi (sesskey, "RXVTHomeEnd", cfg.rxvt_homeend);
-    wppi (sesskey, "LinuxFunctionKeys", cfg.linux_funkeys);
+    wppi (sesskey, "LinuxFunctionKeys", cfg.funky_type);
     wppi (sesskey, "ApplicationCursorKeys", cfg.app_cursor);
     wppi (sesskey, "ApplicationKeypad", cfg.app_keypad);
     wppi (sesskey, "NetHackKeypad", cfg.nethack_keypad);
@@ -200,6 +200,11 @@ static void save_settings (char *section, int do_host) {
     wppi (sesskey, "KoiWinXlat", cfg.xlat_enablekoiwin);
     wppi (sesskey, "88592Xlat", cfg.xlat_88592w1250);
     wppi (sesskey, "CapsLockCyr", cfg.xlat_capslockcyr);
+    wppi (sesskey, "ScrollBar", cfg.scrollbar);
+    wppi (sesskey, "ScrollOnKey", cfg.scroll_on_key);
+    wppi (sesskey, "LockSize", cfg.locksize);
+    wppi (sesskey, "BCE", cfg.bce);
+    wppi (sesskey, "BlinkText", cfg.blinktext);
 
     RegCloseKey(sesskey);
 }
@@ -291,7 +296,7 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "RFCEnviron", 0, &cfg.rfc_environ);
     gppi (sesskey, "BackspaceIsDelete", 1, &cfg.bksp_is_delete);
     gppi (sesskey, "RXVTHomeEnd", 0, &cfg.rxvt_homeend);
-    gppi (sesskey, "LinuxFunctionKeys", 0, &cfg.linux_funkeys);
+    gppi (sesskey, "LinuxFunctionKeys", 0, &cfg.funky_type);
     gppi (sesskey, "ApplicationCursorKeys", 0, &cfg.app_cursor);
     gppi (sesskey, "ApplicationKeypad", 0, &cfg.app_keypad);
     gppi (sesskey, "NetHackKeypad", 0, &cfg.nethack_keypad);
@@ -359,8 +364,31 @@ static void load_settings (char *section, int do_host) {
     gppi (sesskey, "KoiWinXlat", 0, &cfg.xlat_enablekoiwin);
     gppi (sesskey, "88592Xlat", 0, &cfg.xlat_88592w1250);
     gppi (sesskey, "CapsLockCyr", 0, &cfg.xlat_capslockcyr);
+    gppi (sesskey, "ScrollBar", 1, &cfg.scrollbar);
+    gppi (sesskey, "ScrollOnKey", 0, &cfg.scroll_on_key);
+    gppi (sesskey, "LockSize", 0, &cfg.locksize);
+    gppi (sesskey, "BCE", 0, &cfg.bce);
+    gppi (sesskey, "BlinkText", 0, &cfg.blinktext);
 
     RegCloseKey(sesskey);
+}
+
+static void force_normal(HWND hwnd)
+{
+static int recurse = 0;
+
+    WINDOWPLACEMENT wp;
+
+    if(recurse) return;
+    recurse = 1;
+
+    wp.length = sizeof(wp);
+    if (GetWindowPlacement(hwnd, &wp))
+    {
+	wp.showCmd = SW_SHOWNORMAL;
+	SetWindowPlacement(hwnd, &wp);
+    }
+    recurse = 0;
 }
 
 static void MyGetDlgItemInt (HWND hwnd, int id, int *result) {
@@ -642,8 +670,11 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 			  cfg.bksp_is_delete ? IDC1_DEL127 : IDC1_DEL008);
 	CheckRadioButton (hwnd, IDC1_HOMETILDE, IDC1_HOMERXVT,
 			  cfg.rxvt_homeend ? IDC1_HOMERXVT : IDC1_HOMETILDE);
-	CheckRadioButton (hwnd, IDC1_FUNCTILDE, IDC1_FUNCLINUX,
-			  cfg.linux_funkeys ? IDC1_FUNCLINUX : IDC1_FUNCTILDE);
+	CheckRadioButton (hwnd, IDC1_FUNCTILDE, IDC1_FUNCXTERM,
+			  cfg.funky_type ? 
+			  (cfg.funky_type==2 ? IDC1_FUNCXTERM 
+			   : IDC1_FUNCLINUX )
+			  : IDC1_FUNCTILDE);
 	CheckRadioButton (hwnd, IDC1_CURNORMAL, IDC1_CURAPPLIC,
 			  cfg.app_cursor ? IDC1_CURAPPLIC : IDC1_CURNORMAL);
 	CheckRadioButton (hwnd, IDC1_KPNORMAL, IDC1_KPNH,
@@ -652,8 +683,7 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 	CheckDlgButton (hwnd, IDC1_ALTF4, cfg.alt_f4);
 	CheckDlgButton (hwnd, IDC1_ALTSPACE, cfg.alt_space);
 	CheckDlgButton (hwnd, IDC1_LDISCTERM, cfg.ldisc_term);
-	CheckDlgButton (hwnd, IDC1_BLINKCUR, cfg.blink_cur);
-        CheckDlgButton (hwnd, IDC1_BEEP, cfg.beep);
+	CheckDlgButton (hwnd, IDC1_SCROLLKEY, cfg.scroll_on_key);
 	break;
       case WM_COMMAND:
 	if (HIWORD(wParam) == BN_CLICKED ||
@@ -667,9 +697,12 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 	      case IDC1_HOMERXVT:
 		cfg.rxvt_homeend = IsDlgButtonChecked (hwnd, IDC1_HOMERXVT);
 		break;
+	      case IDC1_FUNCXTERM:
+		cfg.funky_type = 2;
+		break;
 	      case IDC1_FUNCTILDE:
 	      case IDC1_FUNCLINUX:
-		cfg.linux_funkeys = IsDlgButtonChecked (hwnd, IDC1_FUNCLINUX);
+		cfg.funky_type = IsDlgButtonChecked (hwnd, IDC1_FUNCLINUX);
 		break;
 	      case IDC1_KPNORMAL:
 	      case IDC1_KPAPPLIC:
@@ -699,14 +732,10 @@ static int CALLBACK KeyboardProc (HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 		    cfg.ldisc_term = IsDlgButtonChecked (hwnd, IDC1_LDISCTERM);
 		break;
-	      case IDC1_BLINKCUR:
+	      case IDC1_SCROLLKEY:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
-		    cfg.blink_cur = IsDlgButtonChecked (hwnd, IDC1_BLINKCUR);
-              case IDC1_BEEP:
-                if (HIWORD(wParam) == BN_CLICKED ||
-                    HIWORD(wParam) == BN_DOUBLECLICKED)
-                    cfg.beep = IsDlgButtonChecked (hwnd, IDC1_BEEP);
+		    cfg.scroll_on_key = IsDlgButtonChecked (hwnd, IDC1_SCROLLKEY);
 		break;
 	    }
     }
@@ -742,11 +771,12 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 	SetDlgItemInt (hwnd, IDC2_SAVEEDIT, cfg.savelines, FALSE);
 	fmtfont (fontstatic);
 	SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
-	CheckRadioButton (hwnd, IDC2_VTXWINDOWS, IDC2_VTPOORMAN,
-			  cfg.vtmode == VT_XWINDOWS ? IDC2_VTXWINDOWS :
-			  cfg.vtmode == VT_OEMANSI ? IDC2_VTOEMANSI :
-			  cfg.vtmode == VT_OEMONLY ? IDC2_VTOEMONLY :
-			  IDC2_VTPOORMAN);
+	CheckDlgButton (hwnd, IDC1_BLINKCUR, cfg.blink_cur);
+        CheckDlgButton (hwnd, IDC1_BEEP, cfg.beep);
+        CheckDlgButton (hwnd, IDC2_SCROLLBAR, cfg.scrollbar);
+        CheckDlgButton (hwnd, IDC2_LOCKSIZE, cfg.locksize);
+        CheckDlgButton (hwnd, IDC2_BCE, cfg.bce);
+        CheckDlgButton (hwnd, IDC2_BLINKTEXT, cfg.blinktext);
 	break;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -811,16 +841,36 @@ static int CALLBACK TerminalProc (HWND hwnd, UINT msg,
 		SetDlgItemText (hwnd, IDC2_FONTSTATIC, fontstatic);
 	    }
 	    break;
-	  case IDC2_VTXWINDOWS:
-	  case IDC2_VTOEMANSI:
-	  case IDC2_VTOEMONLY:
-	  case IDC2_VTPOORMAN:
-	    cfg.vtmode =
-		(IsDlgButtonChecked (hwnd, IDC2_VTXWINDOWS) ? VT_XWINDOWS :
-		 IsDlgButtonChecked (hwnd, IDC2_VTOEMANSI) ? VT_OEMANSI :
-		 IsDlgButtonChecked (hwnd, IDC2_VTOEMONLY) ? VT_OEMONLY :
-		 VT_POORMAN);
-	    break;
+	   case IDC1_BLINKCUR:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+		 cfg.blink_cur = IsDlgButtonChecked (hwnd, IDC1_BLINKCUR);
+	     break;
+	   case IDC1_BEEP:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+		 cfg.beep = IsDlgButtonChecked (hwnd, IDC1_BEEP);
+	     break;
+	   case IDC2_SCROLLBAR:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+		 cfg.scrollbar = IsDlgButtonChecked (hwnd, IDC2_SCROLLBAR);
+	     break;
+	   case IDC2_LOCKSIZE:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+		 cfg.locksize = IsDlgButtonChecked (hwnd, IDC2_LOCKSIZE);
+	     break;
+	   case IDC2_BLINKTEXT:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+		 cfg.blinktext = IsDlgButtonChecked (hwnd, IDC2_BLINKTEXT);
+	     break;
+	   case IDC2_BCE:
+	     if (HIWORD(wParam) == BN_CLICKED ||
+		 HIWORD(wParam) == BN_DOUBLECLICKED)
+		 cfg.bce = IsDlgButtonChecked (hwnd, IDC2_BCE);
+	     break;
 	}
 	break;
     }
@@ -1171,7 +1221,7 @@ static int CALLBACK ColourProc (HWND hwnd, UINT msg,
     return GeneralPanelProc (hwnd, msg, wParam, lParam);
 }
 
-static int CALLBACK LanguageProc (HWND hwnd, UINT msg,
+static int CALLBACK TranslationProc (HWND hwnd, UINT msg,
 				  WPARAM wParam, LPARAM lParam) {
     switch (msg) {
       case WM_INITDIALOG:
@@ -1180,6 +1230,11 @@ static int CALLBACK LanguageProc (HWND hwnd, UINT msg,
 			  cfg.xlat_enablekoiwin ? IDC6_KOI8WIN1251 :
 			  IDC6_NOXLAT);
 	CheckDlgButton (hwnd, IDC6_CAPSLOCKCYR, cfg.xlat_capslockcyr);
+	CheckRadioButton (hwnd, IDC2_VTXWINDOWS, IDC2_VTPOORMAN,
+			  cfg.vtmode == VT_XWINDOWS ? IDC2_VTXWINDOWS :
+			  cfg.vtmode == VT_OEMANSI ? IDC2_VTOEMANSI :
+			  cfg.vtmode == VT_OEMONLY ? IDC2_VTOEMONLY :
+			  IDC2_VTPOORMAN);
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDC6_NOXLAT:
@@ -1197,6 +1252,16 @@ static int CALLBACK LanguageProc (HWND hwnd, UINT msg,
 		    IsDlgButtonChecked (hwnd, IDC6_CAPSLOCKCYR);
 	    }
 	    break;
+	  case IDC2_VTXWINDOWS:
+	  case IDC2_VTOEMANSI:
+	  case IDC2_VTOEMONLY:
+	  case IDC2_VTPOORMAN:
+	    cfg.vtmode =
+		(IsDlgButtonChecked (hwnd, IDC2_VTXWINDOWS) ? VT_XWINDOWS :
+		 IsDlgButtonChecked (hwnd, IDC2_VTOEMANSI) ? VT_OEMANSI :
+		 IsDlgButtonChecked (hwnd, IDC2_VTOEMONLY) ? VT_OEMONLY :
+		 VT_POORMAN);
+	    break;
 	}
     }
     return GeneralPanelProc (hwnd, msg, wParam, lParam);
@@ -1204,7 +1269,7 @@ static int CALLBACK LanguageProc (HWND hwnd, UINT msg,
 
 static DLGPROC panelproc[NPANELS] = {
     ConnectionProc, KeyboardProc, TerminalProc,
-    TelnetProc, SshProc, SelectionProc, ColourProc, LanguageProc
+    TelnetProc, SshProc, SelectionProc, ColourProc, TranslationProc
 };
 static char *panelids[NPANELS] = {
     MAKEINTRESOURCE(IDD_PANEL0),
@@ -1219,7 +1284,7 @@ static char *panelids[NPANELS] = {
 
 static char *names[NPANELS] = {
     "Connection", "Keyboard", "Terminal", "Telnet",
-    "SSH", "Selection", "Colours", "Language"
+    "SSH", "Selection", "Colours", "Translation"
 };
 
 static int mainp[MAIN_NPANELS] = { 0, 1, 2, 3, 4, 5, 6, 7};
@@ -1296,6 +1361,12 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 	return 0;
       case WM_CLOSE:
 	EndDialog (hwnd, 0);
+	return 0;
+
+	/* Grrr Explorer will maximize Dialogs! */
+      case WM_SIZE:
+	if (wParam == SIZE_MAXIMIZED)
+	   force_normal(hwnd);
 	return 0;
     }
     return 0;
@@ -1412,6 +1483,9 @@ int do_reconfig (HWND hwnd) {
     ret = DialogBox (hinst, MAKEINTRESOURCE(IDD_RECONF), hwnd, ReconfDlgProc);
     if (!ret)
 	cfg = backup_cfg;	       /* structure copy */
+    else
+        force_normal(hwnd);
+
     return ret;
 }
 
@@ -1462,8 +1536,8 @@ void verify_ssh_host_key(char *host, char *keystr) {
      * Now read a saved key in from the registry and see what it
      * says.
      */
-    otherstr = malloc(len);
-    mungedhost = malloc(3*strlen(host)+1);
+    otherstr = smalloc(len);
+    mungedhost = smalloc(3*strlen(host)+1);
     if (!otherstr || !mungedhost)
 	fatalbox("Out of memory");
 
