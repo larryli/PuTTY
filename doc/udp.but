@@ -45,10 +45,10 @@ endianness-dependent operations, and so on.
 \e{don't} care about. In particular, we expect PuTTY to be compiled
 on 32-bit architectures \e{or bigger}; so it's safe to assume that
 \c{int} is at least 32 bits wide, not just the 16 you are guaranteed
-by ANSI C.  Similarly, we assume that the execution character encoding
-is a superset of the printable characters of ASCII, though we don't
-assume the numeric values of control characters, particularly \cw{'\n'}
-and \cw{'\r'}.)
+by ANSI C.  Similarly, we assume that the execution character
+encoding is a superset of the printable characters of ASCII, though
+we don't assume the numeric values of control characters,
+particularly \cw{'\\n'} and \cw{'\\r'}.)
 
 \H{udp-multi-backend} Multiple backends treated equally
 
