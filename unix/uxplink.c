@@ -4,8 +4,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
@@ -206,6 +208,13 @@ int from_backend(void *frontend_handle, int is_stderr, char *data, int len)
     esize = bufchain_size(&stderr_data);
 
     return osize + esize;
+}
+
+int signalpipe[2];
+
+void sigwinch(int signum)
+{
+    write(signalpipe[1], "x", 1);
 }
 
 /*
@@ -520,6 +529,15 @@ int main(int argc, char **argv)
     if (portnumber != -1)
 	cfg.port = portnumber;
 
+    /*
+     * Set up the pipe we'll use to tell us about SIGWINCH.
+     */
+    if (pipe(signalpipe) < 0) {
+	perror("pipe");
+	exit(1);
+    }
+    putty_signal(SIGWINCH, sigwinch);
+
     sk_init();
 
     /*
@@ -564,6 +582,8 @@ int main(int argc, char **argv)
 	FD_ZERO(&wset);
 	FD_ZERO(&xset);
 	maxfd = 0;
+
+	FD_SET_MAX(signalpipe[0], maxfd, rset);
 
 	if (connopen && !sending &&
 	    back->socket(backhandle) != NULL &&
@@ -610,7 +630,9 @@ int main(int argc, char **argv)
 		FD_SET_MAX(socket, maxfd, xset);
 	}
 
-	ret = select(maxfd, &rset, &wset, &xset, NULL);
+	do {
+	    ret = select(maxfd, &rset, &wset, &xset, NULL);
+	} while (ret < 0 && errno == EINTR);
 
 	if (ret < 0) {
 	    perror("select");
@@ -630,6 +652,14 @@ int main(int argc, char **argv)
 		select_result(socket, 1);
 	    if (FD_ISSET(socket, &wset))
 		select_result(socket, 2);
+	}
+
+	if (FD_ISSET(signalpipe[0], &rset)) {
+	    char c[1];
+	    struct winsize size;
+	    read(signalpipe[0], c, 1); /* ignore its value; it'll be `x' */
+	    if (ioctl(0, TIOCGWINSZ, (void *)&size) >= 0)
+		back->size(backhandle, size.ws_col, size.ws_row);
 	}
 
 	if (FD_ISSET(0, &rset)) {
