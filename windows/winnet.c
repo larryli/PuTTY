@@ -24,6 +24,16 @@ const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 #define ipv4_is_loopback(addr) \
 	((p_ntohl(addr.s_addr) & 0xFF000000L) == 0x7F000000L)
 
+/*
+ * We used to typedef struct Socket_tag *Socket.
+ *
+ * Since we have made the networking abstraction slightly more
+ * abstract, Socket no longer means a tcp socket (it could mean
+ * an ssl socket).  So now we must use Actual_Socket when we know
+ * we are talking about a tcp socket.
+ */
+typedef struct Socket_tag *Actual_Socket;
+
 struct Socket_tag {
     const struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
@@ -42,17 +52,14 @@ struct Socket_tag {
     int sending_oob;
     int oobinline;
     int pending_error;		       /* in case send() returns error */
+    /*
+     * We sometimes need pairs of Socket structures to be linked:
+     * if we are listening on the same IPv6 and v4 port, for
+     * example. So here we define `parent' and `child' pointers to
+     * track this link.
+     */
+    Actual_Socket parent, child;
 };
-
-/*
- * We used to typedef struct Socket_tag *Socket.
- *
- * Since we have made the networking abstraction slightly more
- * abstract, Socket no longer means a tcp socket (it could mean
- * an ssl socket).  So now we must use Actual_Socket when we know
- * we are talking about a tcp socket.
- */
-typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
     char *error;
@@ -618,6 +625,7 @@ Socket sk_register(void *sock, Plug plug)
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
+    ret->parent = ret->child = NULL;
 
     ret->s = (SOCKET)sock;
 
@@ -682,6 +690,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
+    ret->parent = ret->child = NULL;
 
     /*
      * Open socket.
@@ -837,7 +846,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 }
 
 Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
-		      int address_family)
+		      int orig_address_family)
 {
     static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -863,6 +872,8 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
     int retcode;
     int on = 1;
 
+    int address_family;
+
     /*
      * Create Socket structure.
      */
@@ -877,25 +888,26 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
     ret->frozen_readable = 0;
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
+    ret->parent = ret->child = NULL;
 
     /*
      * Translate address_family from platform-independent constants
      * into local reality.
      */
-    address_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+    address_family = (orig_address_family == ADDRTYPE_IPV4 ? AF_INET :
 #ifndef NO_IPV6
-		      address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+		      orig_address_family == ADDRTYPE_IPV6 ? AF_INET6 :
 #endif
 		      AF_UNSPEC);
- 
-#ifndef NO_IPV6
-    /* Let's default to IPv6, this shouldn't hurt anybody
-     * If the stack supports IPv6 it will also allow IPv4 connections. */
-    if (address_family == AF_UNSPEC) address_family = AF_INET6;
-#else
-    /* No other choice, default to IPv4 */
-    if (address_family == AF_UNSPEC)  address_family = AF_INET;
-#endif
+
+    /*
+     * Our default, if passed the `don't care' value
+     * ADDRTYPE_UNSPEC, is to listen on IPv4. If IPv6 is supported,
+     * we will also set up a second socket listening on IPv6, but
+     * the v4 one is primary since that ought to work even on
+     * non-v6-supporting systems.
+     */
+    if (address_family == AF_UNSPEC) address_family = AF_INET;
 
     /*
      * Open socket.
@@ -974,6 +986,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
 	}
 
     if (err) {
+	p_closesocket(s);
 	ret->error = winsock_error_string(err);
 	return (Socket) ret;
     }
@@ -989,11 +1002,34 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
      * window, or an EventSelect on an event object. */
     errstr = do_select(s, 1);
     if (errstr) {
+	p_closesocket(s);
 	ret->error = errstr;
 	return (Socket) ret;
     }
 
     add234(sktree, ret);
+
+#ifndef NO_IPV6
+    /*
+     * If we were given ADDRTYPE_UNSPEC, we must also create an
+     * IPv6 listening socket and link it to this one.
+     */
+    if (address_family == AF_INET && orig_address_family == ADDRTYPE_UNSPEC) {
+	Actual_Socket other;
+
+	other = (Actual_Socket) sk_newlistener(srcaddr, port, plug,
+					       local_host_only, ADDRTYPE_IPV6);
+
+	if (other) {
+	    if (!other->error) {
+		other->parent = ret;
+		ret->child = other;
+	    } else {
+		sfree(other);
+	    }
+	}
+    }
+#endif
 
     return (Socket) ret;
 }
@@ -1002,6 +1038,9 @@ static void sk_tcp_close(Socket sock)
 {
     extern char *do_select(SOCKET skt, int startup);
     Actual_Socket s = (Actual_Socket) sock;
+
+    if (s->child)
+	sk_tcp_close((Socket)s->child);
 
     del234(sktree, s);
     do_select(s->s, 0);

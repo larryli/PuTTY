@@ -2494,12 +2494,15 @@ incoming connections in both IPv4 and (if available) IPv6
 \b for a remote-to-local port forwarding, PuTTY will choose a
 sensible protocol for the outgoing connection.
 
-\# FIXME: work out what this paragraph means, reword it for clarity,
-\# and reinstate it.
-Note that on Windows the address space for IPv4 and IPv6 is
-completely disjunct, so listening on IPv6 won't make PuTTY listen on
-IPv4. This behaviour may be different on most remote hosts when they
-are not operating Windows.
+Note that some operating systems may listen for incoming connections
+in IPv4 even if you specifically asked for IPv6, because their IPv4
+and IPv6 protocol stacks are linked together. Apparently Linux does
+this, and Windows does not. So if you're running PuTTY on Windows
+and you tick \q{IPv6} for a local or dynamic port forwarding, it
+will \e{only} be usable by connecting to it using IPv6; whereas if
+you do the same on Linux, you can also use it with IPv4. However,
+ticking \q{Auto} should always give you a port which you can connect
+to using either protocol.
 
 \H{config-ssh-bugs} The Bugs panel
 
