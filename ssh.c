@@ -5799,7 +5799,7 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 	if (q >= 0 && q+4 <= len) { \
 	    q = q + 4 + GET_32BIT(p+q); \
 	    if (q >= 0 && q+4 <= len && \
-		    (q = q + 4 + GET_32BIT(p+q)) && q == len) \
+		    ((q = q + 4 + GET_32BIT(p+q))!= 0) && q == len) \
 		result = TRUE; \
 	} \
     } while(0)
