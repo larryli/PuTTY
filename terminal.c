@@ -1227,7 +1227,7 @@ void term_out(Terminal *term)
 	    }
 	    /* Are we in the nasty ACS mode? Note: no sco in utf mode. */
 	    else if(term->sco_acs && 
-		    (c!='\033' && c!='\n' && c!='\r' && c!='\b'))
+		    (c!='\033' && c!='\012' && c!='\015' && c!='\b'))
 	    {
 	       if (term->sco_acs == 2) c ^= 0x80;
 	       c |= ATTR_SCOACS;
@@ -1413,7 +1413,7 @@ void term_out(Terminal *term)
 		    term->esc_query = FALSE;
 		}
 		break;
-	      case '\r':
+	      case '\015':
 		term->curs.x = 0;
 		term->wrapnext = FALSE;
 		fix_cpos;
@@ -1433,7 +1433,7 @@ void term_out(Terminal *term)
 		}
 	      case '\013':
 		compatibility(VT100);
-	      case '\n':
+	      case '\012':
 		if (term->curs.y == term->marg_b)
 		    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
 		else if (term->curs.y < term->rows - 1)
@@ -2500,7 +2500,7 @@ void term_out(Terminal *term)
 		 *
 		 * -- RDB
 		 */
-		if (c == '\n' || c == '\r') {
+		if (c == '\012' || c == '\015') {
 		    term->termstate = TOPLEVEL;
 		} else if (c == 0234 || c == '\007') {
 		    /*
@@ -3555,7 +3555,7 @@ void term_do_paste(Terminal *term)
 
             if (p <= data + len - sel_nl_sz &&
                 !memcmp(p, sel_nl, sizeof(sel_nl))) {
-                term->paste_buffer[term->paste_len++] = '\r';
+                term->paste_buffer[term->paste_len++] = '\015';
                 p += sel_nl_sz;
             }
             q = p;
@@ -3814,7 +3814,7 @@ void term_paste(Terminal *term)
     while (term->paste_pos < term->paste_len) {
 	int n = 0;
 	while (n + term->paste_pos < term->paste_len) {
-	    if (term->paste_buffer[term->paste_pos + n++] == '\r')
+	    if (term->paste_buffer[term->paste_pos + n++] == '\015')
 		break;
 	}
 	if (term->ldisc)
