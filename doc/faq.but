@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.82 2004/10/08 12:38:08 jacob Exp $
+\versionid $Id: faq.but,v 1.83 2004/11/15 15:57:28 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -1059,8 +1059,8 @@ There isn't one, that we know of.
 If someone else wants to set up a mailing list or other forum for
 PuTTY users to help each other with common problems, that would be
 fine with us, though the PuTTY team would almost certainly not have the
-time to read it.  It's probably better to use the established
-newsgroup \cw{comp.security.ssh} for this purpose.
+time to read it.  It's probably better to use one of the established
+newsgroups for this purpose (see \k{feedback-other-fora}).
 
 \S{faq-donations}{Question} How can I donate to PuTTY development?
 
