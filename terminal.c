@@ -1949,6 +1949,21 @@ void term_out(void)
 			    }
 			}
 			break;
+		      case 'Z':		/* BackTab for xterm */
+			compatibility(OTHER);
+			{
+			    int i = def(esc_args[0], 1);
+			    pos old_curs = curs;
+
+			    for(;i>0 && curs.x>0; i--) {
+				do {
+				    curs.x--;
+				} while (curs.x >0 && !tabs[curs.x]);
+			    }
+			    fix_cpos;
+			    check_selection(old_curs, curs);
+			}
+			break;
 		      case ANSI('L', '='):
 			compatibility(OTHER);
 			use_bce = (esc_args[0] <= 0);
