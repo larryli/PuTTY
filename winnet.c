@@ -287,10 +287,10 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
     }
     else
     {
-        /*
-         * Hack inserted to deal with problems with numeric IPs.
-         * FIXME: how will this work in IPv6?
-         */
+	/*
+	 * This must be a numeric IPv4 address because it caused a
+	 * success return from inet_addr.
+	 */
         ret->family = AF_INET;
 	*canonicalname = host;
     }
