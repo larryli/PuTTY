@@ -1798,7 +1798,7 @@ void free_ctx(Context ctx)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text_internal(Context ctx, int x, int y, char *text, int len,
+void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 		      unsigned long attr, int lattr)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
@@ -1841,7 +1841,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	    shadow = 1;
     }
 
-    if (lattr != LATTR_NORM) {
+    if ((lattr & LATTR_MODE) != LATTR_NORM) {
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
@@ -1876,7 +1876,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 
 	wcs = snewn(len+1, wchar_t);
 	for (i = 0; i < len; i++) {
-	    wcs[i] = (wchar_t) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
+	    wcs[i] = text[i];
 	}
 
 	if (inst->fonts[fontid] == NULL) {
@@ -1913,6 +1913,11 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 			     x*inst->font_width+inst->cfg.window_border,
 			     y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 			     gwcs, len*2);
+	    if (shadow)
+		gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
+				 x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
+				 y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
+				 gwcs, len*2);
 	    sfree(gwcs);
 	} else {
 	    gcs = snewn(len+1, gchar);
@@ -1922,16 +1927,14 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 			  x*inst->font_width+inst->cfg.window_border,
 			  y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
 			  gcs, len);
+	    if (shadow)
+		gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
+			      x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
+			      y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
+			      gcs, len);
 	    sfree(gcs);
 	}
 	sfree(wcs);
-    }
-
-    if (shadow) {
-	gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-		      x*inst->font_width+inst->cfg.window_border + inst->cfg.shadowboldoffset,
-		      y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-		      text, len);
     }
 
     if (attr & ATTR_UNDER) {
@@ -1944,7 +1947,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		      y*inst->font_height + uheight + inst->cfg.window_border);
     }
 
-    if (lattr != LATTR_NORM) {
+    if ((lattr & LATTR_MODE) != LATTR_NORM) {
 	/*
 	 * I can't find any plausible StretchBlt equivalent in the
 	 * X server, so I'm going to do this the slow and painful
@@ -1963,10 +1966,10 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 			    len * inst->font_width - i, inst->font_height);
 	}
 	len *= 2;
-	if (lattr != LATTR_WIDE) {
+	if ((lattr & LATTR_MODE) != LATTR_WIDE) {
 	    int dt, db;
 	    /* Now stretch vertically, in the same way. */
-	    if (lattr == LATTR_BOT)
+	    if ((lattr & LATTR_MODE) == LATTR_BOT)
 		dt = 0, db = 1;
 	    else
 		dt = 1, db = 0;
@@ -1982,7 +1985,7 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
     }
 }
 
-void do_text(Context ctx, int x, int y, char *text, int len,
+void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	     unsigned long attr, int lattr)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
@@ -1998,7 +2001,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	widefactor = 1;
     }
 
-    if (lattr != LATTR_NORM) {
+    if ((lattr & LATTR_MODE) != LATTR_NORM) {
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
@@ -2015,7 +2018,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 		    len*widefactor*inst->font_width, inst->font_height);
 }
 
-void do_cursor(Context ctx, int x, int y, char *text, int len,
+void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	       unsigned long attr, int lattr)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
@@ -2042,7 +2045,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 	widefactor = 1;
     }
 
-    if (lattr != LATTR_NORM) {
+    if ((lattr & LATTR_MODE) != LATTR_NORM) {
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
@@ -2070,7 +2073,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
 
 	int char_width;
 
-	if ((attr & ATTR_WIDE) || lattr != LATTR_NORM)
+	if ((attr & ATTR_WIDE) || (lattr & LATTR_MODE) != LATTR_NORM)
 	    char_width = 2*inst->font_width;
 	else
 	    char_width = inst->font_width;

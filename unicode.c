@@ -465,7 +465,7 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
     if (ucsdata->dbcs_screenfont || ucsdata->font_codepage == 0) {
 	get_unitab(ucsdata->font_codepage, ucsdata->unitab_font, 2);
 	for (i = 128; i < 256; i++)
-	    ucsdata->unitab_font[i] = (WCHAR) (ATTR_ACP + i);
+	    ucsdata->unitab_font[i] = (WCHAR) (CSET_ACP + i);
     } else {
 	get_unitab(ucsdata->font_codepage, ucsdata->unitab_font, 1);
 
@@ -497,7 +497,7 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 	for (i = 0; i < 32; i++)
 	    ucsdata->unitab_line[i] = (WCHAR) i;
 	for (i = 32; i < 256; i++)
-	    ucsdata->unitab_line[i] = (WCHAR) (ATTR_ACP + i);
+	    ucsdata->unitab_line[i] = (WCHAR) (CSET_ACP + i);
 	ucsdata->unitab_line[127] = (WCHAR) 127;
     } else {
 	get_unitab(ucsdata->line_codepage, ucsdata->unitab_line, 0);
@@ -561,15 +561,15 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 
     /* Generate line->screen direct conversion links. */
     if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS)
-	link_font(ucsdata->unitab_scoacs, ucsdata->unitab_oemcp, ATTR_OEMCP);
+	link_font(ucsdata->unitab_scoacs, ucsdata->unitab_oemcp, CSET_OEMCP);
 
-    link_font(ucsdata->unitab_line, ucsdata->unitab_font, ATTR_ACP);
-    link_font(ucsdata->unitab_scoacs, ucsdata->unitab_font, ATTR_ACP);
-    link_font(ucsdata->unitab_xterm, ucsdata->unitab_font, ATTR_ACP);
+    link_font(ucsdata->unitab_line, ucsdata->unitab_font, CSET_ACP);
+    link_font(ucsdata->unitab_scoacs, ucsdata->unitab_font, CSET_ACP);
+    link_font(ucsdata->unitab_xterm, ucsdata->unitab_font, CSET_ACP);
 
     if (cfg->vtmode == VT_OEMANSI || cfg->vtmode == VT_XWINDOWS) {
-	link_font(ucsdata->unitab_line, ucsdata->unitab_oemcp, ATTR_OEMCP);
-	link_font(ucsdata->unitab_xterm, ucsdata->unitab_oemcp, ATTR_OEMCP);
+	link_font(ucsdata->unitab_line, ucsdata->unitab_oemcp, CSET_OEMCP);
+	link_font(ucsdata->unitab_xterm, ucsdata->unitab_oemcp, CSET_OEMCP);
     }
 
     if (ucsdata->dbcs_screenfont &&
@@ -577,7 +577,7 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 	/* F***ing Microsoft fonts, Japanese and Korean codepage fonts
 	 * have a currency symbol at 0x5C but their unicode value is 
 	 * still given as U+005C not the correct U+00A5. */
-	ucsdata->unitab_line['\\'] = ATTR_OEMCP + '\\';
+	ucsdata->unitab_line['\\'] = CSET_OEMCP + '\\';
     }
 
     /* Last chance, if !unicode then try poorman links. */
@@ -593,17 +593,17 @@ void init_ucs(Config *cfg, struct unicode_data *ucsdata)
 		ucsdata->unitab_line[i] >= 160 &&
 		ucsdata->unitab_line[i] < 256) {
 		ucsdata->unitab_line[i] =
-		    (WCHAR) (ATTR_ACP +
+		    (WCHAR) (CSET_ACP +
 			     poorman_latin1[ucsdata->unitab_line[i] - 160]);
 	    }
 	for (i = 96; i < 127; i++)
 	    if (!DIRECT_FONT(ucsdata->unitab_xterm[i]))
 		ucsdata->unitab_xterm[i] =
-	    (WCHAR) (ATTR_ACP + poorman_vt100[i - 96]);
+	    (WCHAR) (CSET_ACP + poorman_vt100[i - 96]);
 	for(i=128;i<256;i++) 
 	    if (!DIRECT_FONT(ucsdata->unitab_scoacs[i]))
 		ucsdata->unitab_scoacs[i] = 
-		    (WCHAR) (ATTR_ACP + poorman_scoacs[i - 128]);
+		    (WCHAR) (CSET_ACP + poorman_scoacs[i - 128]);
     }
 }
 

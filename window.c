@@ -2901,7 +2901,7 @@ static void sys_cursor_update(void)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text(Context ctx, int x, int y, char *text, int len,
+void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	     unsigned long attr, int lattr)
 {
     COLORREF fg, bg, t;
@@ -2909,10 +2909,13 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     HDC hdc = ctx;
     RECT line_box;
     int force_manual_underline = 0;
-    int fnt_width = font_width * (1 + (lattr != LATTR_NORM));
-    int char_width = fnt_width;
+    int fnt_width, char_width;
     int text_adjust = 0;
     static int *IpDx = 0, IpDxLEN = 0;
+
+    lattr &= LATTR_MODE;
+
+    char_width = fnt_width = font_width * (1 + (lattr != LATTR_NORM));
 
     if (attr & ATTR_WIDE)
 	char_width *= 2;
@@ -2961,43 +2964,39 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	nfont |= FONT_NARROW;
 
     /* Special hack for the VT100 linedraw glyphs. */
-    if ((attr & CSET_MASK) == 0x2300) {
-	if (text[0] >= (char) 0xBA && text[0] <= (char) 0xBD) {
-	    switch ((unsigned char) (text[0])) {
-	      case 0xBA:
-		text_adjust = -2 * font_height / 5;
-		break;
-	      case 0xBB:
-		text_adjust = -1 * font_height / 5;
-		break;
-	      case 0xBC:
-		text_adjust = font_height / 5;
-		break;
-	      case 0xBD:
-		text_adjust = 2 * font_height / 5;
-		break;
-	    }
-	    if (lattr == LATTR_TOP || lattr == LATTR_BOT)
-		text_adjust *= 2;
-	    attr &= ~CSET_MASK;
-	    text[0] = (char) (ucsdata.unitab_xterm['q'] & CHAR_MASK);
-	    attr |= (ucsdata.unitab_xterm['q'] & CSET_MASK);
-	    if (attr & ATTR_UNDER) {
-		attr &= ~ATTR_UNDER;
-		force_manual_underline = 1;
-	    }
+    if (text[0] >= 0x23BA && text[0] <= 0x23BD) {
+	switch ((unsigned char) (text[0])) {
+	  case 0xBA:
+	    text_adjust = -2 * font_height / 5;
+	    break;
+	  case 0xBB:
+	    text_adjust = -1 * font_height / 5;
+	    break;
+	  case 0xBC:
+	    text_adjust = font_height / 5;
+	    break;
+	  case 0xBD:
+	    text_adjust = 2 * font_height / 5;
+	    break;
+	}
+	if (lattr == LATTR_TOP || lattr == LATTR_BOT)
+	    text_adjust *= 2;
+	text[0] = ucsdata.unitab_xterm['q'];
+	if (attr & ATTR_UNDER) {
+	    attr &= ~ATTR_UNDER;
+	    force_manual_underline = 1;
 	}
     }
 
     /* Anything left as an original character set is unprintable. */
-    if (DIRECT_CHAR(attr)) {
-	attr &= ~CSET_MASK;
-	attr |= 0xFF00;
-	memset(text, 0xFD, len);
+    if (DIRECT_CHAR(text[0])) {
+	int i;
+	for (i = 0; i < len; i++)
+	    text[i] = 0xFFFD;
     }
 
     /* OEM CP */
-    if ((attr & CSET_MASK) == ATTR_OEMCP)
+    if ((text[0] & CSET_MASK) == CSET_OEMCP)
 	nfont |= FONT_OEM;
 
     nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
@@ -3044,7 +3043,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	line_box.right = font_width*term->cols+offset_width;
 
     /* We're using a private area for direct to font. (512 chars.) */
-    if (ucsdata.dbcs_screenfont && (attr & CSET_MASK) == ATTR_ACP) {
+    if (ucsdata.dbcs_screenfont && (text[0] & CSET_MASK) == CSET_ACP) {
 	/* Ho Hum, dbcs fonts are a PITA! */
 	/* To display on W9x I have to convert to UCS */
 	static wchar_t *uni_buf = 0;
@@ -3059,15 +3058,20 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	for(nlen = mptr = 0; mptr<len; mptr++) {
 	    uni_buf[nlen] = 0xFFFD;
 	    if (IsDBCSLeadByteEx(ucsdata.font_codepage, (BYTE) text[mptr])) {
+		char dbcstext[2];
+		dbcstext[0] = text[mptr] & 0xFF;
+		dbcstext[1] = text[mptr+1] & 0xFF;
 		IpDx[nlen] += char_width;
 	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
-				   text+mptr, 2, uni_buf+nlen, 1);
+				    dbcstext, 2, uni_buf+nlen, 1);
 		mptr++;
 	    }
 	    else
 	    {
+		char dbcstext[1];
+		dbcstext[0] = text[mptr] & 0xFF;
 	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
-				   text+mptr, 1, uni_buf+nlen, 1);
+				    dbcstext, 1, uni_buf+nlen, 1);
 	    }
 	    nlen++;
 	}
@@ -3086,10 +3090,21 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	}
 
 	IpDx[0] = -1;
-    } else if (DIRECT_FONT(attr)) {
+    } else if (DIRECT_FONT(text[0])) {
+	static char *directbuf = NULL;
+	static int directlen = 0;
+	int i;
+	if (len > directlen) {
+	    directlen = len;
+	    directbuf = sresize(directbuf, directlen, char);
+	}
+
+	for (i = 0; i < len; i++)
+	    directbuf[i] = text[i] & 0xFF;
+
 	ExtTextOut(hdc, x,
 		   y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		   ETO_CLIPPED | ETO_OPAQUE, &line_box, text, len, IpDx);
+		   ETO_CLIPPED | ETO_OPAQUE, &line_box, directbuf, len, IpDx);
 	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
 	    SetBkMode(hdc, TRANSPARENT);
 
@@ -3103,7 +3118,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    ExtTextOut(hdc, x - 1,
 		       y - font_height * (lattr ==
 					  LATTR_BOT) + text_adjust,
-		       ETO_CLIPPED, &line_box, text, len, IpDx);
+		       ETO_CLIPPED, &line_box, directbuf, len, IpDx);
 	}
     } else {
 	/* And 'normal' unicode characters */
@@ -3116,7 +3131,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	    wbuf = snewn(wlen, WCHAR);
 	}
 	for (i = 0; i < len; i++)
-	    wbuf[i] = (WCHAR) ((attr & CSET_MASK) + (text[i] & CHAR_MASK));
+	    wbuf[i] = text[i];
 
 	/* print Glyphs as they are, without Windows' Shaping*/
 	exact_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
@@ -3151,7 +3166,7 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     }
 }
 
-void do_cursor(Context ctx, int x, int y, char *text, int len,
+void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	       unsigned long attr, int lattr)
 {
 
@@ -3161,7 +3176,7 @@ void do_cursor(Context ctx, int x, int y, char *text, int len,
     int ctype = cfg.cursor_type;
 
     if ((attr & TATTR_ACTCURS) && (ctype == 0 || term->big_cursor)) {
-	if (((attr & CSET_MASK) | (unsigned char) *text) != UCSWIDE) {
+	if (*text != UCSWIDE) {
 	    do_text(ctx, x, y, text, len, attr, lattr);
 	    return;
 	}
@@ -3238,13 +3253,13 @@ int char_width(Context ctx, int uc) {
     if (!font_dualwidth) return 1;
 
     switch (uc & CSET_MASK) {
-      case ATTR_ASCII:
+      case CSET_ASCII:
 	uc = ucsdata.unitab_line[uc & 0xFF];
 	break;
-      case ATTR_LINEDRW:
+      case CSET_LINEDRW:
 	uc = ucsdata.unitab_xterm[uc & 0xFF];
 	break;
-      case ATTR_SCOACS:
+      case CSET_SCOACS:
 	uc = ucsdata.unitab_scoacs[uc & 0xFF];
 	break;
     }
@@ -3252,12 +3267,12 @@ int char_width(Context ctx, int uc) {
 	if (ucsdata.dbcs_screenfont) return 1;
 
 	/* Speedup, I know of no font where ascii is the wrong width */
-	if ((uc&CHAR_MASK) >= ' ' && (uc&CHAR_MASK)<= '~') 
+	if ((uc&~CSET_MASK) >= ' ' && (uc&~CSET_MASK)<= '~')
 	    return 1;
 
-	if ( (uc & CSET_MASK) == ATTR_ACP ) {
+	if ( (uc & CSET_MASK) == CSET_ACP ) {
 	    SelectObject(hdc, fonts[FONT_NORMAL]);
-	} else if ( (uc & CSET_MASK) == ATTR_OEMCP ) {
+	} else if ( (uc & CSET_MASK) == CSET_OEMCP ) {
 	    another_font(FONT_OEM);
 	    if (!fonts[FONT_OEM]) return 0;
 
@@ -3265,8 +3280,8 @@ int char_width(Context ctx, int uc) {
 	} else
 	    return 0;
 
-	if ( GetCharWidth32(hdc, uc&CHAR_MASK, uc&CHAR_MASK, &ibuf) != 1 && 
-	     GetCharWidth(hdc, uc&CHAR_MASK, uc&CHAR_MASK, &ibuf) != 1)
+	if ( GetCharWidth32(hdc, uc&~CSET_MASK, uc&~CSET_MASK, &ibuf) != 1 &&
+	     GetCharWidth(hdc, uc&~CSET_MASK, uc&~CSET_MASK, &ibuf) != 1)
 	    return 0;
     } else {
 	/* Speedup, I know of no font where ascii is the wrong width */

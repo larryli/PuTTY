@@ -40,35 +40,35 @@ typedef struct terminal_tag Terminal;
  * ATTR_INVALID is an illegal colour combination.
  */
 
-#define TATTR_ACTCURS 	    0x4UL      /* active cursor (block) */
-#define TATTR_PASCURS 	    0x2UL      /* passive cursor (box) */
-#define TATTR_RIGHTCURS	    0x1UL      /* cursor-on-RHS */
+#define TATTR_ACTCURS 	    0x40000000UL      /* active cursor (block) */
+#define TATTR_PASCURS 	    0x20000000UL      /* passive cursor (box) */
+#define TATTR_RIGHTCURS	    0x10000000UL      /* cursor-on-RHS */
 
 #define LATTR_NORM   0x00000000UL
-#define LATTR_WIDE   0x01000000UL
-#define LATTR_TOP    0x02000000UL
-#define LATTR_BOT    0x03000000UL
-#define LATTR_MODE   0x03000000UL
-#define LATTR_WRAPPED 0x10000000UL
-#define LATTR_WRAPPED2 0x20000000UL
+#define LATTR_WIDE   0x00000001UL
+#define LATTR_TOP    0x00000002UL
+#define LATTR_BOT    0x00000003UL
+#define LATTR_MODE   0x00000003UL
+#define LATTR_WRAPPED 0x00000010UL
+#define LATTR_WRAPPED2 0x00000020UL
 
-#define ATTR_INVALID 0x03FF0000UL
+#define ATTR_INVALID 0x03FFU
 
 /* Like Linux use the F000 page for direct to font. */
-#define ATTR_OEMCP   0x0000F000UL      /* OEM Codepage DTF */
-#define ATTR_ACP     0x0000F100UL      /* Ansi Codepage DTF */
+#define CSET_OEMCP   0x0000F000UL      /* OEM Codepage DTF */
+#define CSET_ACP     0x0000F100UL      /* Ansi Codepage DTF */
 
 /* These are internal use overlapping with the UTF-16 surrogates */
-#define ATTR_ASCII   0x0000D800UL      /* normal ASCII charset ESC ( B */
-#define ATTR_LINEDRW 0x0000D900UL      /* line drawing charset ESC ( 0 */
-#define ATTR_SCOACS  0x0000DA00UL      /* SCO Alternate charset */
-#define ATTR_GBCHR   0x0000DB00UL      /* UK variant   charset ESC ( A */
-#define CSET_MASK    0x0000FF00UL      /* Character set mask; MUST be 0xFF00 */
+#define CSET_ASCII   0x0000D800UL      /* normal ASCII charset ESC ( B */
+#define CSET_LINEDRW 0x0000D900UL      /* line drawing charset ESC ( 0 */
+#define CSET_SCOACS  0x0000DA00UL      /* SCO Alternate charset */
+#define CSET_GBCHR   0x0000DB00UL      /* UK variant   charset ESC ( A */
+#define CSET_MASK    0xFFFFFF00UL      /* Character set mask */
 
-#define DIRECT_CHAR(c) ((c&0xFC00)==0xD800)
-#define DIRECT_FONT(c) ((c&0xFE00)==0xF000)
+#define DIRECT_CHAR(c) ((c&0xFFFFFC00)==0xD800)
+#define DIRECT_FONT(c) ((c&0xFFFFFE00)==0xF000)
 
-#define UCSERR	     (ATTR_LINEDRW|'a')	/* UCS Format error character. */
+#define UCSERR	     (CSET_LINEDRW|'a')	/* UCS Format error character. */
 /*
  * UCSWIDE is a special value used in the terminal data to signify
  * the character cell containing the right-hand half of a CJK wide
@@ -79,27 +79,24 @@ typedef struct terminal_tag Terminal;
  */
 #define UCSWIDE	     0xDFFF
 
-#define ATTR_NARROW  0x80000000UL
-#define ATTR_WIDE    0x40000000UL
-#define ATTR_BOLD    0x04000000UL
-#define ATTR_UNDER   0x08000000UL
-#define ATTR_REVERSE 0x10000000UL
-#define ATTR_BLINK   0x20000000UL
-#define ATTR_FGMASK  0x001F0000UL
-#define ATTR_BGMASK  0x03E00000UL
-#define ATTR_COLOURS 0x03FF0000UL
-#define ATTR_FGSHIFT 16
-#define ATTR_BGSHIFT 21
+#define ATTR_NARROW  0x8000U
+#define ATTR_WIDE    0x4000U
+#define ATTR_BOLD    0x0400U
+#define ATTR_UNDER   0x0800U
+#define ATTR_REVERSE 0x1000U
+#define ATTR_BLINK   0x2000U
+#define ATTR_FGMASK  0x001FU
+#define ATTR_BGMASK  0x03E0U
+#define ATTR_COLOURS 0x03FFU
+#define ATTR_FGSHIFT 0
+#define ATTR_BGSHIFT 5
 
-#define ATTR_DEFAULT 0x01280000UL      /* bg 9, fg 8 */
-#define ATTR_DEFFG   0x00080000UL
-#define ATTR_DEFBG   0x01200000UL
-#define ERASE_CHAR   (ATTR_DEFAULT | ATTR_ASCII | ' ')
-#define ATTR_MASK    0xFFFFFF00UL
-#define CHAR_MASK    0x000000FFUL
+#define ATTR_DEFAULT 0x0128U	       /* bg 9, fg 8 */
+#define ATTR_DEFFG   0x0008U
+#define ATTR_DEFBG   0x0120U
 
 #define ATTR_CUR_AND (~(ATTR_BOLD|ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS))
-#define ATTR_CUR_XOR 0x016A0000UL
+#define ATTR_CUR_XOR 0x016AU
 
 struct sesslist {
     int nsessions;
@@ -530,8 +527,8 @@ struct RSAKey;			       /* be a little careful of scope */
  * Exports from window.c.
  */
 void request_resize(void *frontend, int, int);
-void do_text(Context, int, int, char *, int, unsigned long, int);
-void do_cursor(Context, int, int, char *, int, unsigned long, int);
+void do_text(Context, int, int, wchar_t *, int, unsigned long, int);
+void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int);
 int char_width(Context ctx, int uc);
 #ifdef OPTIMISE_SCROLL
 void do_scroll(Context, int, int, int);

@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.76 2004/06/20 17:07:37 jacob Exp $ */
+/* $Id: macterm.c,v 1.77 2004/10/13 11:50:16 simon Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1139,7 +1139,7 @@ struct do_text_args {
  *
  * x and y are text row and column (zero-based)
  */
-void do_text(Context ctx, int x, int y, char *text, int len,
+void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	     unsigned long attr, int lattr)
 {
     Session *s = ctx;
@@ -1150,7 +1150,6 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     RgnHandle visrgn;
 #endif
     char mactextbuf[1024];
-    UniChar unitextbuf[1024];
     wchar_t *unitextptr;
     int i, fontwidth;
     ByteCount iread, olen;
@@ -1185,20 +1184,16 @@ void do_text(Context ctx, int x, int y, char *text, int len,
 	return;
 #endif
 
-    /* Unpack Unicode from the mad format we get passed */
-    for (i = 0; i < len; i++)
-	unitextbuf[i] = (unsigned char)text[i] | (attr & CSET_MASK);
-
     if (s->uni_to_font != NULL) {
 	err = ConvertFromUnicodeToText(s->uni_to_font, len * sizeof(UniChar),
-				       unitextbuf, kUnicodeUseFallbacksMask,
+				       text, kUnicodeUseFallbacksMask,
 				       0, NULL, NULL, NULL,
 				       1024, &iread, &olen, mactextbuf);
 	if (err != noErr && err != kTECUsedFallbacksStatus)
 	    olen = 0;
     } else  if (s->font_charset != CS_NONE) {
 	/* XXX this is bogus if wchar_t and UniChar are different sizes. */
-	unitextptr = (wchar_t *)unitextbuf;
+	unitextptr = (wchar_t *)text;
 	olen = charset_from_unicode(&unitextptr, &len, mactextbuf, 1024,
 				    s->font_charset, NULL, ".", 1);
     } else

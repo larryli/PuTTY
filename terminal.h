@@ -29,6 +29,21 @@ struct scrollregion {
 };
 #endif /* OPTIMISE_SCROLL */
 
+typedef struct termchar termchar;
+typedef struct termline termline;
+
+struct termchar {
+    unsigned long chr;
+    unsigned long attr;
+};
+
+struct termline {
+    unsigned short lattr;
+    int cols;
+    int temporary;		       /* TRUE if decompressed from scrollback */
+    struct termchar *chars;
+};
+
 struct terminal_tag {
 
     int compatibility_level;
@@ -40,11 +55,11 @@ struct terminal_tag {
     int tempsblines;		       /* number of lines in temporary
 					  scrollback */
 
-    unsigned long *cpos;	       /* cursor position (convenience) */
+    termchar *cpos;		       /* cursor position (convenience) */
 
-    unsigned long *disptext;	       /* buffer of text on real screen */
-    unsigned long *dispcurs;	       /* location of cursor on real screen */
-    unsigned long curstype;	       /* type of cursor on real screen */
+    termline **disptext;	       /* buffer of text on real screen */
+    int dispcursx, dispcursy;	       /* location of cursor on real screen */
+    int curstype;		       /* type of cursor on real screen */
 
 #define VBELL_TIMEOUT (TICKSPERSEC/10) /* visual bell lasts 1/10 sec */
 
@@ -53,18 +68,18 @@ struct terminal_tag {
     int beep_overloaded;
     long lastbeep;
 
-#define TTYPE unsigned long
+#define TTYPE termchar
 #define TSIZE (sizeof(TTYPE))
 #define fix_cpos do { \
-    term->cpos = lineptr(term->curs.y) + term->curs.x; \
+    term->cpos = lineptr(term->curs.y)->chars + term->curs.x; \
 } while(0)
 
 #ifdef OPTIMISE_SCROLL
     struct scrollregion *scrollhead, *scrolltail;
 #endif /* OPTIMISE_SCROLL */
 
-    unsigned long default_attr, curr_attr, save_attr;
-    unsigned long erase_char;
+    int default_attr, curr_attr, save_attr;
+    termchar basic_erase_char, erase_char;
 
     bufchain inbuf;		       /* terminal input buffer */
     pos curs;			       /* cursor */
@@ -112,7 +127,7 @@ struct terminal_tag {
     int xterm_mouse;		       /* send mouse messages to app */
     int mouse_is_down;		       /* used while tracking mouse buttons */
 
-    unsigned long cset_attr[2];
+    int cset_attr[2];
 
 /*
  * Saved settings on the alternate screen.
@@ -173,7 +188,7 @@ struct terminal_tag {
     short wordness[256];
 
     /* Mask of attributes to pay attention to when painting. */
-    unsigned long attr_mask;
+    int attr_mask;
 
     wchar_t *paste_buffer;
     int paste_len, paste_pos, paste_hold;
@@ -212,9 +227,9 @@ struct terminal_tag {
     /*
      * These are buffers used by the bidi and Arabic shaping code.
      */
-    unsigned long *ltemp;
+    termchar *ltemp;
     bidi_char *wcFrom, *wcTo;
-    unsigned long **pre_bidi_cache, **post_bidi_cache;
+    termchar **pre_bidi_cache, **post_bidi_cache;
     int bidi_cache_size;
 };
 
