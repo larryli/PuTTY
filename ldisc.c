@@ -123,7 +123,8 @@ static void term_send(char *buf, int len) {
 	    }
 	    break;
 	  case CTRL('M'):	       /* send with newline */
-	    back->send(term_buf, term_buflen);
+	    if (term_buflen > 0)
+                back->send(term_buf, term_buflen);
 	    if (cfg.protocol == PROT_RAW)
 	        back->send("\r\n", 2);
 	    else
@@ -153,7 +154,8 @@ static void simple_send(char *buf, int len) {
 	    term_buflen--;
 	}
     }
-    back->send(buf, len);
+    if (len > 0)
+        back->send(buf, len);
 }
 
 Ldisc ldisc_term = { term_send };
