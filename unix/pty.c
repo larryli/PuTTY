@@ -92,6 +92,11 @@ static char *pty_init(char *host, int port, char **realhost, int nodelay)
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
+	{
+	    char term_env_var[10 + sizeof(cfg.termtype)];
+	    sprintf(term_env_var, "TERM=%s", cfg.termtype);
+	    putenv(term_env_var);
+	}
 	if (pty_argv)
 	    execvp(pty_argv[0], pty_argv);
 	else
