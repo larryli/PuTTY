@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.21 2003/01/20 22:55:08 ben Exp $ */
+/* $Id: mac_res.r,v 1.22 2003/01/25 14:09:47 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -791,11 +791,11 @@ resource 'ics8' (FREF_Seed) {
 };
 
 resource 'vers' (1, purgeable) {
-    /* XXX This needs to be updated for each new version */
-    VERSION_MAJOR, VERSION_MINOR,
 #ifdef RELEASE
+    VERSION_MAJOR, VERSION_MINOR,
     beta,
 #else
+    VERSION_MAJOR, VERSION_MINOR + 1,
     development,
 #endif
     0, /* No prerelease version */
@@ -815,11 +815,11 @@ resource 'vers' (1, purgeable) {
 };
 
 resource 'vers' (2, purgeable) {
-    /* XXX This needs to be updated for each new version */
-    VERSION_MAJOR, VERSION_MINOR,
 #ifdef RELEASE
+    VERSION_MAJOR, VERSION_MINOR,
     beta,
 #else
+    VERSION_MAJOR, VERSION_MINOR + 1,
     development,
 #endif
     0, /* No prerelease version */
