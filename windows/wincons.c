@@ -282,6 +282,7 @@ int console_get_line(const char *prompt, char *str,
     if (console_batch_mode) {
 	if (maxlen > 0)
 	    str[0] = '\0';
+	return 0;
     } else {
 	hin = GetStdHandle(STD_INPUT_HANDLE);
 	hout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -312,8 +313,8 @@ int console_get_line(const char *prompt, char *str,
 	if (is_pw)
 	    WriteFile(hout, "\r\n", 2, &i, NULL);
 
+	return 1;
     }
-    return 1;
 }
 
 void frontend_keypress(void *handle)
