@@ -594,10 +594,10 @@ COptions_68K = {COptions} -proto strict -model far
 COptions_PPC = {COptions}
 ILinkOptions = -t 'APPL' -c 'pTTY' -br 68k -model far
 
-Libs_68K =	 "{CLibraries}StdCLib.o" \xb6
+Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MacRuntime.o" \xb6
 		"{Libraries}MathLib.far.o" \xb6
-		"{Libraries}IntEnv.o" \xb6
+		"{Libraries}IntEnv.far.o" \xb6
 		"{Libraries}Interface.o" \xb6
 		"{Libraries}OpenTransport.o" \xb6
 		"{Libraries}OpenTransportApp.o" \xb6
