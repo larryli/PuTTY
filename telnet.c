@@ -171,6 +171,11 @@ static void s_write (void *buf, int len) {
     try_write();
 }
 
+static void c_write1(int c) {
+    char cc = (char)c;
+    from_backend(0, &cc, 1);
+}
+
 static void log_option (char *sender, int cmd, int option) {
     char buf[50];
     sprintf(buf, "%s:\t%s %s", sender,

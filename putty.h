@@ -57,8 +57,6 @@ GLOBAL int rows, cols, savelines;
 
 GLOBAL int font_width, font_height;
 
-#define c_write1(_C) do { if (inbuf_head >= INBUF_SIZE) term_out(); \
-			  inbuf[inbuf_head++] = (_C) ; } while(0)
 #define INBUF_SIZE 2048
 GLOBAL unsigned char inbuf[INBUF_SIZE];
 GLOBAL int inbuf_head;
@@ -306,6 +304,7 @@ void term_invalidate(void);
 void term_blink(int set_cursor);
 void term_paste(void);
 void term_nopaste(void);
+void from_backend(int is_stderr, char *data, int len);
 
 /*
  * Exports from raw.c.

@@ -54,8 +54,7 @@ static void s_write (void *buf, int len) {
 }
 
 static void c_write (char *buf, int len) {
-    while (len--) 
-        c_write1(*buf++);
+    from_backend(0, buf, len);
 }
 
 /*

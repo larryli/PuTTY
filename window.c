@@ -1748,15 +1748,6 @@ static int check_compose(int first, int second) {
     static int recurse = 0;
     int nc = -1;
 
-    if(0)
-    {
-	char buf[256];
-	char * p;
-	sprintf(buf, "cc(%d,%d)", first, second);
-	for(p=buf; *p; p++)
-	    c_write1(*p);
-    }
-
     for(c=composetbl; *c; c++) {
 	if( (*c)[0] == first && (*c)[1] == second)
 	{
@@ -2219,7 +2210,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam, unsigned cha
 
 		    if ((nc=check_compose(compose_char,ch)) == -1)
 		    {
-			c_write1('\007');
+			MessageBeep(MB_ICONHAND);
 			return 0;
 		    }
 		    *p++ = xlat_kbd2tty((unsigned char)nc);

@@ -16,8 +16,11 @@
  */
 
 static void c_write (char *buf, int len) {
-    while (len--) 
-        c_write1(*buf++);
+    from_backend(0, buf, len);
+}
+
+static void c_write1 (char c) {
+    c_write(&c, 1);
 }
 
 static char *term_buf = NULL;

@@ -118,7 +118,7 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
     }
 }
 
-HANDLE outhandle;
+HANDLE outhandle, errhandle;
 DWORD orig_console_mode;
 
 void begin_session(void) {
@@ -128,17 +128,17 @@ void begin_session(void) {
         SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), orig_console_mode);
 }
 
-void term_out(void)
-{
-    int reap;
+void from_backend(int is_stderr, char *data, int len) {
+    int pos;
     DWORD ret;
-    reap = 0;
-    while (reap < inbuf_head) {
-        if (!WriteFile(outhandle, inbuf+reap, inbuf_head-reap, &ret, NULL))
+    HANDLE h = (is_stderr ? errhandle : outhandle);
+
+    pos = 0;
+    while (pos < len) {
+        if (!WriteFile(h, data+pos, len-pos, &ret, NULL))
             return;                    /* give up in panic */
-        reap += ret;
+        pos += ret;
     }
-    inbuf_head = 0;
 }
 
 struct input_data {
@@ -450,6 +450,7 @@ int main(int argc, char **argv) {
     GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &orig_console_mode);
     SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
     outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    errhandle = GetStdHandle(STD_ERROR_HANDLE);
 
     /*
      * Now we must send the back end oodles of stuff.
@@ -504,7 +505,6 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
-            term_out();
         } else if (n == 1) {
             if (idata.len > 0) {
                 back->send(idata.buffer, idata.len);

@@ -2188,3 +2188,14 @@ void term_deselect (void) {
     deselect();
     term_update();
 }
+
+/*
+ * from_backend(), to get data from the backend for the terminal.
+ */
+void from_backend(int is_stderr, char *data, int len) {
+    while (len--) {
+	if (inbuf_head >= INBUF_SIZE)
+	    term_out();
+	inbuf[inbuf_head++] = *data++;
+    }
+}

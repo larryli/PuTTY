@@ -246,20 +246,25 @@ void connection_fatal(char *fmt, ...)
  * is available.
  *
  * To do this, we repeatedly call the SSH protocol module, with our
- * own trap in term_out() to catch the data that comes back. We do
- * this until we have enough data.
+ * own trap in from_backend() to catch the data that comes back. We
+ * do this until we have enough data.
  */
 static unsigned char *outptr;          /* where to put the data */
 static unsigned outlen;                /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen=0, pendsize=0; /* length and phys. size of buffer */
-void term_out(void) {
+void from_backend(int is_stderr, char *data, int datalen) {
+    unsigned char *p = (unsigned char *)data;
+    unsigned len = (unsigned)datalen;
+
     /*
-     * Here we must deal with a block of data, in `inbuf', size
-     * `inbuf_head'.
+     * stderr data is just spouted to local stderr and otherwise
+     * ignored.
      */
-    unsigned char *p = inbuf;
-    unsigned len = inbuf_head;
+    if (is_stderr) {
+	fwrite(data, 1, len, stderr);
+	return;
+    }
 
     inbuf_head = 0;
 
@@ -329,7 +334,6 @@ static int ssh_scp_recv(unsigned char *buf, int len) {
         if (select(1, &readfds, NULL, NULL, NULL) < 0)
             return 0;                  /* doom */
         back->msg(0, FD_READ);
-        term_out();
     }
 
     return len;
@@ -351,7 +355,6 @@ static void ssh_scp_init(void) {
         if (select(1, &readfds, NULL, NULL, NULL) < 0)
             return;                    /* doom */
         back->msg(0, FD_READ);
-        term_out();
     }
 }
 

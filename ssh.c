@@ -322,13 +322,7 @@ static void c_write (char *buf, int len) {
                 fputc(buf[i], stderr);
 	return;
     }
-    while (len--) 
-        c_write1(*buf++);
-}
-
-static void c_writedata (char *buf, int len) {
-    while (len--)
-        c_write1(*buf++);
+    from_backend(1, buf, len);
 }
 
 /*
@@ -1674,7 +1668,8 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 	    if (pktin.type == SSH1_SMSG_STDOUT_DATA ||
                 pktin.type == SSH1_SMSG_STDERR_DATA) {
 		long len = GET_32BIT(pktin.body);
-		c_writedata(pktin.body+4, len);
+		from_backend(pktin.type == SSH1_SMSG_STDERR_DATA,
+			     pktin.body+4, len);
 	    } else if (pktin.type == SSH1_MSG_DISCONNECT) {
                 ssh_state = SSH_STATE_CLOSED;
 		logevent("Received disconnect request");
@@ -2414,7 +2409,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                     continue;          /* extended but not stderr */
                 ssh2_pkt_getstring(&data, &length);
                 if (data) {
-                    c_writedata(data, length);
+                    from_backend(pktin.type == SSH2_MSG_CHANNEL_EXTENDED_DATA,
+				 data, length);
                     /*
                      * Enlarge the window again at the remote side,
                      * just in case it ever runs down and they fail
