@@ -1367,7 +1367,7 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 		      "&Standard", IDC_HOMETILDE,
 		      "&rxvt", IDC_HOMERXVT, NULL);
 	    radioline(&cp, "The Function keys and keypad", IDC_FUNCSTATIC, 4,
-		      "&VT400", IDC_FUNCTILDE,
+		      "ESC[n&~", IDC_FUNCTILDE,
 		      "&Linux", IDC_FUNCLINUX,
 		      "&Xterm R6", IDC_FUNCXTERM,
                       "&VT400", IDC_FUNCVT400, NULL);
