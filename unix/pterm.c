@@ -1733,6 +1733,11 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	} else if (!strcmp(p, "-name")) {
 	    EXPECTS_ARG;
 	    app_name = val;
+
+	} else if (!strcmp(p, "-xrm")) {
+	    EXPECTS_ARG;
+	    provide_xrm_string(val);
+
 	}
     }
 

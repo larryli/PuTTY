@@ -97,6 +97,12 @@ enables you to play NetHack with the numeric keypad without having
 to use the NetHack "number_pad" option (which requires you to press
 "n" before any repeat count). So you can move with the numeric
 keypad, and enter repeat counts with the normal number keys.
+.IP "\fB-xrm\fP \fIresource-string\fP"
+This option specifies an X resource string. Useful for setting
+resources which do not have their own command-line options. For
+example:
+
+pterm -xrm 'ScrollbarOnLeft: 1'
 .SH X RESOURCES
 \fIpterm\fP can be more completely configured by means of X
 resources. All of these resources are of the form \fIpterm.FOO\fP
