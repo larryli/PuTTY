@@ -9,6 +9,7 @@
 #include <Controls.h>
 #include <Events.h>
 #include <Gestalt.h>
+#include <Lists.h>
 #include <MacWindows.h>
 #include <Palettes.h>
 #include <UnicodeConverter.h>
@@ -81,6 +82,8 @@ typedef struct Session {
     Point		font_bigdenom;
     WindowPtr		window;
     WindowPtr		settings_window;
+    WindowPtr		eventlog_window;
+    ListHandle		eventlog;
     PaletteHandle	palette;
     ControlHandle	scrollbar;
     WCTabHandle		wctab;
@@ -100,6 +103,13 @@ extern void mac_savesession(void);
 extern void mac_savesessionas(void);
 extern void mac_clickdlg(WindowPtr, EventRecord *);
 extern void mac_activatedlg(WindowPtr, EventRecord *);
+/* from maceventlog.c */
+void mac_freeeventlog(Session *);
+extern void mac_clickeventlog(WindowPtr, EventRecord *);
+extern void mac_activateeventlog(WindowPtr, EventRecord *);
+extern void mac_groweventlog(WindowPtr, EventRecord *);
+extern void mac_updateeventlog(WindowPtr);
+extern void mac_showeventlog(Session *);
 /* from macterm.c */
 extern void mac_opensession(void);
 extern void mac_startsession(Session *);

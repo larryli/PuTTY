@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.68 2003/02/04 23:39:26 ben Exp $ */
+/* $Id: macterm.c,v 1.69 2003/02/07 01:38:12 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -135,7 +135,7 @@ void mac_startsession(Session *s)
 	ActivatePalette(s->window);
     }
 
-    s->logctx = log_init(s, &s->cfg);
+    s->logctx = log_init(s->term, &s->cfg);
     term_provide_logctx(s->term, s->logctx);
 
     errmsg = s->back->init(s->term, &s->backhandle, &s->cfg, s->cfg.host,
@@ -462,6 +462,9 @@ void mac_adjusttermmenus(WindowPtr window) {
 	EnableItem(menu, iPaste);
     DisableItem(menu, iClear);
     EnableItem(menu, iSelectAll);
+    menu = GetMenuHandle(mWindow);
+    EnableItem(menu, 0);
+    EnableItem(menu, iShowEventLog);
 }
 
 void mac_menuterm(WindowPtr window, short menu, short item) {
@@ -478,6 +481,14 @@ void mac_menuterm(WindowPtr window, short menu, short item) {
 	    term_do_paste(s->term);
 	    break;
 	}
+	break;
+      case mWindow:
+	switch(item) {
+	  case iShowEventLog:
+	    mac_showeventlog(s);
+	    break;
+	}
+	break;
     }
 }
 	    
@@ -986,6 +997,7 @@ void mac_closeterm(WindowPtr window)
     if (s->uni_to_font != NULL)
 	DisposeUnicodeToTextInfo(&s->uni_to_font);
     term_free(s->term);
+    mac_freeeventlog(s);
     sfree((WinInfo *)GetWRefCon(s->window));
     DisposeWindow(s->window);
     DisposePalette(s->palette);
@@ -1727,11 +1739,6 @@ void do_scroll(Context ctx, int topline, int botline, int lines) {
     DisposeRgn(scrollrgn);
     DisposeRgn(movedupdate);
     DisposeRgn(update);
-}
-
-void logevent(void *frontend, char *str) {
-
-    fprintf(stderr, "%s\n", str);
 }
 
 /* Dummy routine, only required in plink. */

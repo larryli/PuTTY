@@ -1,4 +1,4 @@
-/* $Id: macresid.h,v 1.8 2003/02/02 15:59:00 ben Exp $ */
+/* $Id: macresid.h,v 1.9 2003/02/07 01:38:12 ben Exp $ */
 
 /*
  * macresid.h -- Mac resource IDs
@@ -19,6 +19,7 @@
 #define mApple		128
 #define mFile		129
 #define mEdit		130
+#define mWindow		131
 
 /* Menu Items */
 /* Apple menu */
@@ -38,6 +39,8 @@
 #define iPaste		5
 #define iClear		6
 #define iSelectAll	7
+/* Window menu */
+#define iShowEventLog	1
 
 /* Window types (and resource IDs) */
 #define wNone		0 /* Dummy value for no window */
@@ -50,6 +53,7 @@
 #define wLicence	131
 #define wSettings	132
 #define wiSettingsOpen		1
+#define wEventLog	133
 
 /* Controls */
 #define cVScroll	128

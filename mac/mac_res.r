@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.25 2003/02/02 15:59:00 ben Exp $ */
+/* $Id: mac_res.r,v 1.26 2003/02/07 01:38:12 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -899,7 +899,7 @@ resource 'TMPL' (TMPL_Int, "Int ", purgeable) {
 /* Menu bar */
 
 resource 'MBAR' (MBAR_Main, preload) {
-    { mApple, mFile, mEdit }
+    { mApple, mFile, mEdit, mWindow }
 };
 
 resource 'MENU' (mApple, preload) {
@@ -947,6 +947,17 @@ resource 'MENU' (mEdit, preload) {
 	"Paste",		noicon, "V",   nomark, plain,
 	"Clear",		noicon, nokey, nomark, plain,
 	"Select All",		noicon, "A",   nomark, plain,
+    }
+};
+
+resource 'MENU' (mWindow, preload) {
+    mWindow,
+    textMenuProc,
+    0b11111111111111111111111111111111,
+    enabled,
+    "Window",
+    {
+	"Show Event Log",	noicon, nokey, nomark, plain,
     }
 };
 
@@ -1025,6 +1036,17 @@ resource 'DITL' (wSettings, "settings", purgeable) {
 	Button { enabled, "Open" },
     }
 };        
+
+/* Event log */
+resource 'WIND' (wEventLog, "event log", purgeable) {
+    { 0, 0, 200, 200 },
+    zoomDocProc,
+    invisible,
+    goAway,
+    0x0,
+    "PuTTY Event Log",
+    staggerParentWindowScreen
+};
 
 /* "About" box */
 

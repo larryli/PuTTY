@@ -152,9 +152,9 @@ pterm    : [X] pterm terminal wcwidth uxucs uxmisc tree234 misc ldisc ldiscucs
 
 plink    : [U] uxplink uxcons NONSSH UXSSH be_all logging UXMISC signal ux_x11
 
-PuTTY    : [M] terminal wcwidth ldiscucs logging be_all mac macdlg
+PuTTY    : [M] terminal wcwidth ldiscucs logging be_all mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACSSH MACMISC CHARSET
          + stricmp vsnprint
-PuTTYtel : [M] terminal wcwidth ldiscucs logging be_nossh mac macdlg
+PuTTYtel : [M] terminal wcwidth ldiscucs logging be_nossh mac macdlg macevlog
          + macterm macucs mac_res.rsrc testback NONSSH MACMISC CHARSET
          + stricmp vsnprint

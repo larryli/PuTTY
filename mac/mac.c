@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.46 2003/02/07 01:33:24 ben Exp $ */
+/* $Id: mac.c,v 1.47 2003/02/07 01:38:12 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -362,6 +362,9 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
       case wSettings:
 	mac_clickdlg(window, event);
 	break;
+      case wEventLog:
+	mac_clickeventlog(window, event);
+	break;
     }
 }
 
@@ -370,6 +373,10 @@ static void mac_growwindow(WindowPtr window, EventRecord *event) {
     switch (mac_windowtype(window)) {
       case wTerminal:
 	mac_growterm(window, event);
+	break;
+      case wEventLog:
+	mac_groweventlog(window, event);
+	break;
     }
 }
 
@@ -387,6 +394,9 @@ static void mac_activatewindow(WindowPtr window, EventRecord *event) {
 	break;
       case wAbout:
 	mac_activateabout(window, event);
+	break;
+      case wEventLog:
+	mac_activateeventlog(window, event);
 	break;
     }
 }
@@ -431,6 +441,9 @@ static void mac_updatewindow(WindowPtr window)
 	break;
       case wLicence:
 	mac_updatelicence(window);
+	break;
+      case wEventLog:
+	mac_updateeventlog(window);
 	break;
     }
 }
@@ -674,6 +687,8 @@ static void mac_adjustmenus(void) {
 	DisableItem(menu, iDuplicate);
 	menu = GetMenuHandle(mEdit);
 	DisableItem(menu, 0);
+	menu = GetMenuHandle(mWindow);
+	DisableItem(menu, 0); /* Until we get more than 1 item on it. */
 	break;
     }
     DrawMenuBar();
