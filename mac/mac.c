@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.53 2003/03/01 15:12:03 ben Exp $ */
+/* $Id: mac.c,v 1.54 2003/03/06 23:44:47 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -61,6 +61,7 @@
 #include "macresid.h"
 #include "putty.h"
 #include "ssh.h"
+#include "terminal.h"
 #include "mac.h"
 
 Session *sesslist;
@@ -663,10 +664,43 @@ void agent_query(void *in, int inlen, void **out, int *outlen)
 
 /* Temporary null routines for testing. */
 
+/*
+ * FIXME: verify_ssh_host_key() should be passed a frontend handle,
+ * but backends have to have a terminal handle instead, because they
+ * pass it to from_backend(), so we accept a terminal handle here as
+ * well, and hope no-one tries to call us with sensible arguments.
+ */
 void verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint)
 {
+    Str255 stuff;
+    Terminal *term = frontend;
+    Session *s = term->frontend;
 
+    /*
+     * This function is horribly wrong.  For one thing, the alert
+     * shouldn't be modal, it should be movable modal, or a sheet in
+     * Aqua.  Also, PuTTY might be in the background, in which case we
+     * should use the Notification Manager to wake up the user.  In
+     * any case, we shouldn't hold up processing of other connections'
+     * data just because this one's waiting for the user.  It should
+     * also handle a host key cache, of course, and see the note above
+     * about the "frontend" argument and the one below about closing
+     * the connection.  All in all, a bit of a mess really.
+     */
+
+    stuff[0] = sprintf((char *)(&stuff[1]),
+		       "The server's key fingerprint is: %s\n"
+		       "Continue connecting?", fingerprint);
+    ParamText(stuff, NULL, NULL, NULL);
+    if (CautionAlert(wQuestion, NULL) == 2) {
+	/*
+	 * User chose "Cancel".  Unfortunately, if I tear the
+	 * connection down here, Bad Things happen when I return.  I
+	 * think this function should actually return something
+	 * telling the SSH code to abandon the connection.
+	 */
+    }
 }
 
 void askcipher(void *frontend, char *ciphername, int cs)
