@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.72 2004/07/24 12:37:42 jacob Exp $
+\versionid $Id: faq.but,v 1.73 2004/07/29 10:23:48 jacob Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -364,8 +364,8 @@ to say something else; \c{vt220} might help if you have trouble.
 
 \S{faq-settings}{Question} Where does PuTTY store its data?
 
-PuTTY stores most of its data (saved sessions, SSH host keys) in the
-Registry. The precise location is
+On Windows, PuTTY stores most of its data (saved sessions, SSH host
+keys) in the Registry. The precise location is
 
 \c HKEY_CURRENT_USER\Software\SimonTatham\PuTTY
 
@@ -382,6 +382,8 @@ location of the random number seed file, you can put your chosen
 pathname in the Registry, at
 
 \c HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\RandSeedFile
+
+On Unix, PuTTY stores all of this data in a directory \cw{~/.putty}.
 
 \H{faq-howto} HOWTO questions
 
