@@ -1,14 +1,5 @@
 /*
  * Pseudo-tty backend for pterm.
- * 
- * Unlike the other backends, data for this one is not neatly
- * encapsulated into a data structure, because it wouldn't make
- * sense to do so - the utmp stuff has to be done before a backend
- * is initialised, and starting a second pterm from the same
- * process would therefore be infeasible because privileges would
- * already have been dropped. Hence, I haven't bothered to keep the
- * data dynamically allocated: instead, the backend handle is just
- * a null pointer and ignored everywhere.
  */
 
 #define _XOPEN_SOURCE 600
@@ -33,6 +24,7 @@
 #include <errno.h>
 
 #include "putty.h"
+#include "tree234.h"
 
 #ifndef FALSE
 #define FALSE 0
@@ -69,25 +61,121 @@
 #endif
 #endif
 
-static Config pty_cfg;
-static int pty_master_fd, pty_slave_fd;
-static void *pty_frontend;
-static char pty_name[FILENAME_MAX];
-static int pty_signal_pipe[2];
-static int pty_child_pid;
-static int pty_term_width, pty_term_height;
-static int pty_child_dead, pty_finished;
-static int pty_exit_code;
-char **pty_argv;
-int use_pty_argv = TRUE;
+typedef struct pty_tag *Pty;
 
-static void pty_close(void);
+/*
+ * The pty_signal_pipe, along with the SIGCHLD handler, must be
+ * process-global rather than session-specific.
+ */
+static int pty_signal_pipe[2] = { -1, -1 };   /* obviously bogus initial val */
+
+struct pty_tag {
+    Config cfg;
+    int master_fd, slave_fd;
+    void *frontend;
+    char name[FILENAME_MAX];
+    int child_pid;
+    int term_width, term_height;
+    int child_dead, finished;
+    int exit_code;
+};
+
+/*
+ * We store our pty backends in a tree sorted by master fd, so that
+ * when we get an uxsel notification we know which backend instance
+ * is the owner of the pty that caused it.
+ */
+static int pty_compare_by_fd(void *av, void *bv)
+{
+    Pty a = (Pty)av;
+    Pty b = (Pty)bv;
+
+    if (a->master_fd < b->master_fd)
+	return -1;
+    else if (a->master_fd > b->master_fd)
+	return +1;
+    return 0;
+}
+
+static int pty_find_by_fd(void *av, void *bv)
+{
+    int a = *(int *)av;
+    Pty b = (Pty)bv;
+
+    if (a < b->master_fd)
+	return -1;
+    else if (a > b->master_fd)
+	return +1;
+    return 0;
+}
+
+static tree234 *ptys_by_fd = NULL;
+
+/*
+ * We also have a tree sorted by child pid, so that when we wait()
+ * in response to the signal we know which backend instance is the
+ * owner of the process that caused the signal.
+ */
+static int pty_compare_by_pid(void *av, void *bv)
+{
+    Pty a = (Pty)av;
+    Pty b = (Pty)bv;
+
+    if (a->child_pid < b->child_pid)
+	return -1;
+    else if (a->child_pid > b->child_pid)
+	return +1;
+    return 0;
+}
+
+static int pty_find_by_pid(void *av, void *bv)
+{
+    int a = *(int *)av;
+    Pty b = (Pty)bv;
+
+    if (a < b->child_pid)
+	return -1;
+    else if (a > b->child_pid)
+	return +1;
+    return 0;
+}
+
+static tree234 *ptys_by_pid = NULL;
+
+/*
+ * If we are using pty_pre_init(), it will need to have already
+ * allocated a pty structure, which we must then return from
+ * pty_init() rather than allocating a new one. Here we store that
+ * structure between allocation and use.
+ * 
+ * Note that although most of this module is entirely capable of
+ * handling multiple ptys in a single process, pty_pre_init() is
+ * fundamentally _dependent_ on there being at most one pty per
+ * process, so the normal static-data constraints don't apply.
+ * 
+ * Likewise, since utmp is only used via pty_pre_init, it too must
+ * be single-instance, so we can declare utmp-related variables
+ * here.
+ */
+static Pty single_pty = NULL;
 
 #ifndef OMIT_UTMP
 static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
-static int pty_stamped_utmp = 0;
+static int pty_stamped_utmp;
 static struct utmp utmp_entry;
+#endif
 
+/*
+ * pty_argv is a grievous hack to allow a proper argv to be passed
+ * through from the Unix command line. Again, it doesn't really
+ * make sense outside a one-pty-per-process setup.
+ */
+char **pty_argv;
+int use_pty_argv;
+
+static void pty_close(Pty pty);
+
+#ifndef OMIT_UTMP
 static void setup_utmp(char *ttyname, char *location)
 {
 #ifdef HAVE_LASTLOG
@@ -186,15 +274,15 @@ static void fatal_sig_handler(int signum)
 }
 #endif
 
-static int pty_open_slave(void)
+static int pty_open_slave(Pty pty)
 {
-    if (pty_slave_fd < 0)
-	pty_slave_fd = open(pty_name, O_RDWR);
+    if (pty->slave_fd < 0)
+	pty->slave_fd = open(pty->name, O_RDWR);
 
-    return pty_slave_fd;
+    return pty->slave_fd;
 }
 
-static void pty_open_master(void)
+static void pty_open_master(Pty pty)
 {
 #ifdef BSD_PTYS
     const char chars1[] = "pqrstuvwxyz";
@@ -206,8 +294,8 @@ static void pty_open_master(void)
     for (p1 = chars1; *p1; p1++)
 	for (p2 = chars2; *p2; p2++) {
 	    sprintf(master_name, "/dev/pty%c%c", *p1, *p2);
-	    pty_master_fd = open(master_name, O_RDWR);
-	    if (pty_master_fd >= 0) {
+	    pty->master_fd = open(master_name, O_RDWR);
+	    if (pty->master_fd >= 0) {
 		if (geteuid() == 0 ||
 		    access(master_name, R_OK | W_OK) == 0) {
 		    /*
@@ -217,17 +305,17 @@ static void pty_open_master(void)
 		     * get all the way down to forking, and _then_
 		     * find we're unable to open the slave.
 		     */
-		    strcpy(pty_name, master_name);
-		    pty_name[5] = 't'; /* /dev/ptyXX -> /dev/ttyXX */
+		    strcpy(pty->name, master_name);
+		    pty->name[5] = 't'; /* /dev/ptyXX -> /dev/ttyXX */
 
-		    if (pty_open_slave() >= 0 &&
-			access(pty_name, R_OK | W_OK) == 0)
+		    if (pty_open_slave(pty) >= 0 &&
+			access(pty->name, R_OK | W_OK) == 0)
 			goto got_one;
-		    if (pty_slave_fd > 0)
-			close(pty_slave_fd);
-		    pty_slave_fd = -1;
+		    if (pty->slave_fd > 0)
+			close(pty->slave_fd);
+		    pty->slave_fd = -1;
 		}
-		close(pty_master_fd);
+		close(pty->master_fd);
 	    }
 	}
 
@@ -239,29 +327,33 @@ static void pty_open_master(void)
 
     /* We need to chown/chmod the /dev/ttyXX device. */
     gp = getgrnam("tty");
-    chown(pty_name, getuid(), gp ? gp->gr_gid : -1);
-    chmod(pty_name, 0600);
+    chown(pty->name, getuid(), gp ? gp->gr_gid : -1);
+    chmod(pty->name, 0600);
 #else
-    pty_master_fd = open("/dev/ptmx", O_RDWR);
+    pty->master_fd = open("/dev/ptmx", O_RDWR);
 
-    if (pty_master_fd < 0) {
+    if (pty->master_fd < 0) {
 	perror("/dev/ptmx: open");
 	exit(1);
     }
 
-    if (grantpt(pty_master_fd) < 0) {
+    if (grantpt(pty->master_fd) < 0) {
 	perror("grantpt");
 	exit(1);
     }
     
-    if (unlockpt(pty_master_fd) < 0) {
+    if (unlockpt(pty->master_fd) < 0) {
 	perror("unlockpt");
 	exit(1);
     }
 
-    pty_name[FILENAME_MAX-1] = '\0';
-    strncpy(pty_name, ptsname(pty_master_fd), FILENAME_MAX-1);
+    pty->name[FILENAME_MAX-1] = '\0';
+    strncpy(pty->name, ptsname(pty->master_fd), FILENAME_MAX-1);
 #endif
+
+    if (!ptys_by_fd)
+	ptys_by_fd = newtree234(pty_compare_by_fd);
+    add234(ptys_by_fd, pty);
 }
 
 /*
@@ -279,18 +371,25 @@ static void pty_open_master(void)
  */
 void pty_pre_init(void)
 {
+    Pty pty;
+
 #ifndef OMIT_UTMP
     pid_t pid;
     int pipefd[2];
 #endif
 
+    pty = single_pty = snew(struct pty_tag);
+
     /* set the child signal handler straight away; it needs to be set
      * before we ever fork. */
     putty_signal(SIGCHLD, sigchld_handler);
-    pty_master_fd = pty_slave_fd = -1;
+    pty->master_fd = pty->slave_fd = -1;
+#ifndef OMIT_UTMP
+    pty_stamped_utmp = FALSE;
+#endif
 
     if (geteuid() != getuid() || getegid() != getgid()) {
-	pty_open_master();
+	pty_open_master(pty);
     }
 
 #ifndef OMIT_UTMP
@@ -379,7 +478,7 @@ void pty_pre_init(void)
 #ifdef SIGIO
 		    putty_signal(SIGIO, fatal_sig_handler);
 #endif
-		    setup_utmp(pty_name, display);
+		    setup_utmp(pty->name, display);
 		}
 	    }
 	}
@@ -405,73 +504,70 @@ void pty_pre_init(void)
     }
 }
 
-int pty_select_result(int fd, int event)
+int pty_real_select_result(Pty pty, int event, int status)
 {
     char buf[4096];
     int ret;
     int finished = FALSE;
 
-    if (fd == pty_master_fd && event == 1) {
-
-	ret = read(pty_master_fd, buf, sizeof(buf));
-
+    if (event < 0) {
 	/*
-	 * Clean termination condition is that either ret == 0, or ret
-	 * < 0 and errno == EIO. Not sure why the latter, but it seems
-	 * to happen. Boo.
+	 * We've been called because our child process did
+	 * something. `status' tells us what.
 	 */
-	if (ret == 0 || (ret < 0 && errno == EIO)) {
+	if ((WIFEXITED(status) || WIFSIGNALED(status))) {
 	    /*
-	     * We assume a clean exit if the pty has closed but the
-	     * actual child process hasn't. The only way I can
-	     * imagine this happening is if it detaches itself from
-	     * the pty and goes daemonic - in which case the
-	     * expected usage model would precisely _not_ be for
-	     * the pterm window to hang around!
+	     * The primary child process died. We could keep
+	     * the terminal open for remaining subprocesses to
+	     * output to, but conventional wisdom seems to feel
+	     * that that's the Wrong Thing for an xterm-alike,
+	     * so we bail out now (though we don't necessarily
+	     * _close_ the window, depending on the state of
+	     * Close On Exit). This would be easy enough to
+	     * change or make configurable if necessary.
 	     */
+	    pty->exit_code = status;
+	    pty->child_dead = TRUE;
+	    del234(ptys_by_pid, pty);
 	    finished = TRUE;
-	    if (!pty_child_dead)
-		pty_exit_code = 0;
-	} else if (ret < 0) {
-	    perror("read pty master");
-	    exit(1);
-	} else if (ret > 0) {
-	    from_backend(pty_frontend, 0, buf, ret);
 	}
-    } else if (fd == pty_signal_pipe[0]) {
-	pid_t pid;
-	int status;
-	char c[1];
+    } else {
+	if (event == 1) {
 
-	read(pty_signal_pipe[0], c, 1); /* ignore its value; it'll be `x' */
+	    ret = read(pty->master_fd, buf, sizeof(buf));
 
-	do {
-	    pid = waitpid(-1, &status, WNOHANG);
-	    if (pid == pty_child_pid &&
-		(WIFEXITED(status) || WIFSIGNALED(status))) {
+	    /*
+	     * Clean termination condition is that either ret == 0, or ret
+	     * < 0 and errno == EIO. Not sure why the latter, but it seems
+	     * to happen. Boo.
+	     */
+	    if (ret == 0 || (ret < 0 && errno == EIO)) {
 		/*
-		 * The primary child process died. We could keep
-		 * the terminal open for remaining subprocesses to
-		 * output to, but conventional wisdom seems to feel
-		 * that that's the Wrong Thing for an xterm-alike,
-		 * so we bail out now (though we don't necessarily
-		 * _close_ the window, depending on the state of
-		 * Close On Exit). This would be easy enough to
-		 * change or make configurable if necessary.
+		 * We assume a clean exit if the pty has closed but the
+		 * actual child process hasn't. The only way I can
+		 * imagine this happening is if it detaches itself from
+		 * the pty and goes daemonic - in which case the
+		 * expected usage model would precisely _not_ be for
+		 * the pterm window to hang around!
 		 */
-		pty_exit_code = status;
-		pty_child_dead = TRUE;
 		finished = TRUE;
+		if (!pty->child_dead)
+		    pty->exit_code = 0;
+	    } else if (ret < 0) {
+		perror("read pty master");
+		exit(1);
+	    } else if (ret > 0) {
+		from_backend(pty->frontend, 0, buf, ret);
 	    }
-	} while(pid > 0);
+	}
     }
 
-    if (finished && !pty_finished) {
-	uxsel_del(pty_master_fd);
-	pty_close();
-	pty_master_fd = -1;
+    if (finished && !pty->finished) {
+	uxsel_del(pty->master_fd);
+	pty_close(pty);
+	pty->master_fd = -1;
 
-	pty_finished = TRUE;
+	pty->finished = TRUE;
 
 	/*
 	 * This is a slight layering-violation sort of hack: only
@@ -479,32 +575,71 @@ int pty_select_result(int fd, int event)
 	 * Only On Clean and it wasn't a clean exit) do we output a
 	 * `terminated' message.
 	 */
-	if (pty_cfg.close_on_exit == FORCE_OFF ||
-	    (pty_cfg.close_on_exit == AUTO && pty_exit_code != 0)) {
+	if (pty->cfg.close_on_exit == FORCE_OFF ||
+	    (pty->cfg.close_on_exit == AUTO && pty->exit_code != 0)) {
 	    char message[512];
-	    if (WIFEXITED(pty_exit_code))
+	    if (WIFEXITED(pty->exit_code))
 		sprintf(message, "\r\n[pterm: process terminated with exit"
-			" code %d]\r\n", WEXITSTATUS(pty_exit_code));
-	    else if (WIFSIGNALED(pty_exit_code))
+			" code %d]\r\n", WEXITSTATUS(pty->exit_code));
+	    else if (WIFSIGNALED(pty->exit_code))
 #ifdef HAVE_NO_STRSIGNAL
 		sprintf(message, "\r\n[pterm: process terminated on signal"
-			" %d]\r\n", WTERMSIG(pty_exit_code));
+			" %d]\r\n", WTERMSIG(pty->exit_code));
 #else
 		sprintf(message, "\r\n[pterm: process terminated on signal"
-			" %d (%.400s)]\r\n", WTERMSIG(pty_exit_code),
-			strsignal(WTERMSIG(pty_exit_code)));
+			" %d (%.400s)]\r\n", WTERMSIG(pty->exit_code),
+			strsignal(WTERMSIG(pty->exit_code)));
 #endif
-	    from_backend(pty_frontend, 0, message, strlen(message));
+	    from_backend(pty->frontend, 0, message, strlen(message));
 	}
 
-	notify_remote_exit(pty_frontend);
+	notify_remote_exit(pty->frontend);
     }
+
     return !finished;
 }
 
-static void pty_uxsel_setup(void)
+int pty_select_result(int fd, int event)
 {
-    uxsel_set(pty_master_fd, 1, pty_select_result);
+    int ret = TRUE;
+    Pty pty;
+
+    if (fd == pty_signal_pipe[0]) {
+	pid_t pid;
+	int ipid;
+	int status;
+	char c[1];
+
+	read(pty_signal_pipe[0], c, 1); /* ignore its value; it'll be `x' */
+
+	do {
+	    pid = waitpid(-1, &status, WNOHANG);
+
+	    ipid = pid;
+	    pty = find234(ptys_by_pid, &pid, pty_find_by_pid);
+
+	    if (pty)
+		ret = ret && pty_real_select_result(pty, -1, status);
+	} while (pid > 0);
+    } else {
+	pty = find234(ptys_by_fd, &fd, pty_find_by_fd);
+
+	if (pty)
+	    ret = ret && pty_real_select_result(pty, event, 0);
+    }
+
+    return ret;
+}
+
+static void pty_uxsel_setup(Pty pty)
+{
+    uxsel_set(pty->master_fd, 1, pty_select_result);
+
+    /*
+     * In principle this only needs calling once for all pty
+     * backend instances, but it's simplest just to call it every
+     * time; uxsel won't mind.
+     */
     uxsel_set(pty_signal_pipe[0], 1, pty_select_result);
 }
 
@@ -525,16 +660,27 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
     long windowid;
 #endif
+    Pty pty;
 
-    pty_frontend = frontend;
+    if (single_pty) {
+	pty = single_pty;
+    } else {
+	pty = snew(struct pty_tag);
+	pty->master_fd = pty->slave_fd = -1;
+#ifndef OMIT_UTMP
+	pty_stamped_utmp = FALSE;
+#endif
+    }
+
+    pty->frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
 
-    pty_cfg = *cfg;		       /* structure copy */
-    pty_term_width = cfg->width;
-    pty_term_height = cfg->height;
+    pty->cfg = *cfg;		       /* structure copy */
+    pty->term_width = cfg->width;
+    pty->term_height = cfg->height;
 
-    if (pty_master_fd < 0)
-	pty_open_master();
+    if (pty->master_fd < 0)
+	pty_open_master(pty);
 
     /*
      * Set the backspace character to be whichever of ^H and ^? is
@@ -542,9 +688,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
      */
     {
 	struct termios attrs;
-	tcgetattr(pty_master_fd, &attrs);
+	tcgetattr(pty->master_fd, &attrs);
 	attrs.c_cc[VERASE] = cfg->bksp_is_delete ? '\177' : '\010';
-	tcsetattr(pty_master_fd, TCSANOW, &attrs);
+	tcsetattr(pty->master_fd, TCSANOW, &attrs);
     }
 
 #ifndef OMIT_UTMP
@@ -556,7 +702,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	close(pty_utmp_helper_pipe);   /* just let the child process die */
 	pty_utmp_helper_pipe = -1;
     } else {
-	char *location = get_x_display(pty_frontend);
+	char *location = get_x_display(pty->frontend);
 	int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
 	while (pos < len) {
 	    int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);
@@ -572,7 +718,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 #endif
 
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
-    windowid = get_windowid(pty_frontend);
+    windowid = get_windowid(pty->frontend);
 #endif
 
     /*
@@ -590,13 +736,13 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	 * We are the child.
 	 */
 
-	slavefd = pty_open_slave();
+	slavefd = pty_open_slave(pty);
 	if (slavefd < 0) {
 	    perror("slave pty: open");
 	    _exit(1);
 	}
 
-	close(pty_master_fd);
+	close(pty->master_fd);
 	fcntl(slavefd, F_SETFD, 0);    /* don't close on exec */
 	dup2(slavefd, 0);
 	dup2(slavefd, 1);
@@ -606,7 +752,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	pgrp = getpid();
 	tcsetpgrp(slavefd, pgrp);
 	setpgid(pgrp, pgrp);
-	close(open(pty_name, O_WRONLY, 0));
+	close(open(pty->name, O_WRONLY, 0));
 	setpgid(pgrp, pgrp);
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
@@ -677,30 +823,36 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	perror("exec");
 	_exit(127);
     } else {
-	pty_child_pid = pid;
-	pty_child_dead = FALSE;
-	pty_finished = FALSE;
-	if (pty_slave_fd > 0)
-	    close(pty_slave_fd);
+	pty->child_pid = pid;
+	pty->child_dead = FALSE;
+	pty->finished = FALSE;
+	if (pty->slave_fd > 0)
+	    close(pty->slave_fd);
+	if (!ptys_by_pid)
+	    ptys_by_pid = newtree234(pty_compare_by_pid);
+	add234(ptys_by_pid, pty);
     }
 
-    if (pipe(pty_signal_pipe) < 0) {
+    if (pty_signal_pipe[0] < 0 && pipe(pty_signal_pipe) < 0) {
 	perror("pipe");
 	exit(1);
     }
-    pty_uxsel_setup();
+    pty_uxsel_setup(pty);
+
+    *backend_handle = pty;
 
     return NULL;
 }
 
 static void pty_reconfig(void *handle, Config *cfg)
 {
+    Pty pty = (Pty)handle;
     /*
      * We don't have much need to reconfigure this backend, but
      * unfortunately we do need to pick up the setting of Close On
      * Exit so we know whether to give a `terminated' message.
      */
-    pty_cfg = *cfg;		       /* structure copy */
+    pty->cfg = *cfg;		       /* structure copy */
 }
 
 /*
@@ -708,6 +860,13 @@ static void pty_reconfig(void *handle, Config *cfg)
  */
 static void pty_free(void *handle)
 {
+    Pty pty = (Pty)handle;
+
+    /* Either of these may fail `not found'. That's fine with us. */
+    del234(ptys_by_pid, pty);
+    del234(ptys_by_fd, pty);
+
+    sfree(pty);
 }
 
 /*
@@ -715,11 +874,13 @@ static void pty_free(void *handle)
  */
 static int pty_send(void *handle, char *buf, int len)
 {
-    if (pty_master_fd < 0)
+    Pty pty = (Pty)handle;
+
+    if (pty->master_fd < 0)
 	return 0;		       /* ignore all writes if fd closed */
 
     while (len > 0) {
-	int ret = write(pty_master_fd, buf, len);
+	int ret = write(pty->master_fd, buf, len);
 	if (ret < 0) {
 	    perror("write pty master");
 	    exit(1);
@@ -730,11 +891,11 @@ static int pty_send(void *handle, char *buf, int len)
     return 0;
 }
 
-static void pty_close(void)
+static void pty_close(Pty pty)
 {
-    if (pty_master_fd >= 0) {
-	close(pty_master_fd);
-	pty_master_fd = -1;
+    if (pty->master_fd >= 0) {
+	close(pty->master_fd);
+	pty->master_fd = -1;
     }
 #ifndef OMIT_UTMP
     if (pty_utmp_helper_pipe >= 0) {
@@ -749,6 +910,7 @@ static void pty_close(void)
  */
 static int pty_sendbuffer(void *handle)
 {
+    /* Pty pty = (Pty)handle; */
     return 0;
 }
 
@@ -757,18 +919,19 @@ static int pty_sendbuffer(void *handle)
  */
 static void pty_size(void *handle, int width, int height)
 {
+    Pty pty = (Pty)handle;
     struct winsize size;
 
-    pty_term_width = width;
-    pty_term_height = height;
+    pty->term_width = width;
+    pty->term_height = height;
 
-    size.ws_row = (unsigned short)pty_term_height;
-    size.ws_col = (unsigned short)pty_term_width;
-    size.ws_xpixel = (unsigned short) pty_term_width *
-	font_dimension(pty_frontend, 0);
-    size.ws_ypixel = (unsigned short) pty_term_height *
-	font_dimension(pty_frontend, 1);
-    ioctl(pty_master_fd, TIOCSWINSZ, (void *)&size);
+    size.ws_row = (unsigned short)pty->term_height;
+    size.ws_col = (unsigned short)pty->term_width;
+    size.ws_xpixel = (unsigned short) pty->term_width *
+	font_dimension(pty->frontend, 0);
+    size.ws_ypixel = (unsigned short) pty->term_height *
+	font_dimension(pty->frontend, 1);
+    ioctl(pty->master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }
 
@@ -777,6 +940,7 @@ static void pty_size(void *handle, int width, int height)
  */
 static void pty_special(void *handle, Telnet_Special code)
 {
+    /* Pty pty = (Pty)handle; */
     /* Do nothing! */
     return;
 }
@@ -787,6 +951,7 @@ static void pty_special(void *handle, Telnet_Special code)
  */
 static const struct telnet_special *pty_get_specials(void *handle)
 {
+    /* Pty pty = (Pty)handle; */
     /*
      * Hmm. When I get round to having this actually usable, it
      * might be quite nice to have the ability to deliver a few
@@ -798,44 +963,52 @@ static const struct telnet_special *pty_get_specials(void *handle)
 
 static Socket pty_socket(void *handle)
 {
+    /* Pty pty = (Pty)handle; */
     return NULL;		       /* shouldn't ever be needed */
 }
 
 static int pty_sendok(void *handle)
 {
+    /* Pty pty = (Pty)handle; */
     return 1;
 }
 
 static void pty_unthrottle(void *handle, int backlog)
 {
+    /* Pty pty = (Pty)handle; */
     /* do nothing */
 }
 
 static int pty_ldisc(void *handle, int option)
 {
+    /* Pty pty = (Pty)handle; */
     return 0;			       /* neither editing nor echoing */
 }
 
 static void pty_provide_ldisc(void *handle, void *ldisc)
 {
+    /* Pty pty = (Pty)handle; */
     /* This is a stub. */
 }
 
 static void pty_provide_logctx(void *handle, void *logctx)
 {
+    /* Pty pty = (Pty)handle; */
     /* This is a stub. */
 }
 
 static int pty_exitcode(void *handle)
 {
-    if (!pty_finished)
+    Pty pty = (Pty)handle;
+    if (!pty->finished)
 	return -1;		       /* not dead yet */
     else
-	return pty_exit_code;
+	return pty->exit_code;
 }
 
 static int pty_cfg_info(void *handle)
 {
+    /* Pty pty = (Pty)handle; */
     return 0;
 }
 
