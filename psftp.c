@@ -1409,7 +1409,7 @@ int main(int argc, char *argv[])
     int modeflags = 0;
     char *batchfile = NULL;
 
-    flags = FLAG_STDERR;
+    flags = FLAG_STDERR | FLAG_INTERACTIVE;
     ssh_get_line = &get_line;
     init_winsock();
     sk_init();
