@@ -70,14 +70,15 @@ Known bugs:
    font switch at this point.  This can be seen as a special case of
    the need to switch fonts to get odd characters.
  * Pasting large blocks of text doesn't work.
+ * The host key database is currently limited by its implementation to
+   2727 host keys.
 
 Unimplemented features (should be done before release):
  * TCP urgent data.
  * Listening sockets.
  * Changing font size in reponse to resize requests.
  * Full screen mode.
- * Session configuration.
- * Host key database.
+ * Session configuration. 
  * Entropy collection.
  * Private key files.
  * Pageant and PuTTYgen.
