@@ -1124,6 +1124,7 @@ static void ssh_gotdata(unsigned char *data, int datalen)
 static int ssh_receive(Socket skt, int urgent, char *data, int len) {
     if (!len) {
 	/* Connection has closed. */
+	ssh_state = SSH_STATE_CLOSED;
 	sk_close(s);
 	s = NULL;
 	return 0;
