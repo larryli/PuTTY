@@ -361,25 +361,15 @@ static unsigned char *dss_private_blob(void *key, int *len)
     xlen = (bignum_bitcount(dss->x) + 8) / 8;
 
     /*
-     * mpint x, string[20] the SHA of p||q||g. Total 28 + xlen.
-     * (two length fields and twenty bytes, 20+8=28).
+     * mpint x, string[20] the SHA of p||q||g. Total 4 + xlen.
      */
-    bloblen = 28 + xlen;
+    bloblen = 4 + xlen;
     blob = smalloc(bloblen);
     p = blob;
     PUT_32BIT(p, xlen);
     p += 4;
     for (i = xlen; i--;)
 	*p++ = bignum_byte(dss->x, i);
-    PUT_32BIT(p, 20);
-    SHA_Init(&s);
-    sha_mpint(&s, dss->p);
-    sha_mpint(&s, dss->q);
-    sha_mpint(&s, dss->g);
-    SHA_Final(&s, digest);
-    p += 4;
-    for (i = 0; i < 20; i++)
-	*p++ = digest[i];
     assert(p == blob + bloblen);
     *len = bloblen;
     return blob;
@@ -398,24 +388,22 @@ static void *dss_createkey(unsigned char *pub_blob, int pub_len,
 
     dss = dss_newkey((char *) pub_blob, pub_len);
     dss->x = getmp(&pb, &priv_len);
-    getstring(&pb, &priv_len, &hash, &hashlen);
 
     /*
-     * Verify details of the key. First check that the hash is
-     * indeed a hash of p||q||g.
+     * Check the obsolete hash in the old DSS key format.
      */
-    if (hashlen != 20) {
-	dss_freekey(dss);
-	return NULL;
-    }
-    SHA_Init(&s);
-    sha_mpint(&s, dss->p);
-    sha_mpint(&s, dss->q);
-    sha_mpint(&s, dss->g);
-    SHA_Final(&s, digest);
-    if (0 != memcmp(hash, digest, 20)) {
-	dss_freekey(dss);
-	return NULL;
+    hashlen = -1;
+    getstring(&pb, &priv_len, &hash, &hashlen);
+    if (hashlen == 20) {
+	SHA_Init(&s);
+	sha_mpint(&s, dss->p);
+	sha_mpint(&s, dss->q);
+	sha_mpint(&s, dss->g);
+	SHA_Final(&s, digest);
+	if (0 != memcmp(hash, digest, 20)) {
+	    dss_freekey(dss);
+	    return NULL;
+	}
     }
 
     /*

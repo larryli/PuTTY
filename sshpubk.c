@@ -10,6 +10,7 @@
 #include <assert.h>
 
 #include "ssh.h"
+#include "misc.h"
 
 #define PUT_32BIT(cp, value) do { \
   (cp)[3] = (value); \
@@ -306,7 +307,7 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase)
  * The file is text. Lines are terminated by CRLF, although CR-only
  * and LF-only are tolerated on input.
  *
- * The first line says "PuTTY-User-Key-File-1: " plus the name of the
+ * The first line says "PuTTY-User-Key-File-2: " plus the name of the
  * algorithm ("ssh-dss", "ssh-rsa" etc).
  *
  * The next line says "Encryption: " plus an encryption type.
@@ -339,19 +340,18 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase)
  * And for "ssh-dss", it will be composed of
  *
  *    mpint  x                  (the private key parameter)
- *    string hash               (20-byte hash of mpints p || q || g)
- *
- * Finally, there is a line saying _either_
- *
- *  - "Private-Hash: " plus a hex representation of a SHA-1 hash of
- *    the plaintext version of the private part, including the
- *    final padding.
+ *  [ string hash   20-byte hash of mpints p || q || g   only in old format ]
  * 
- * or
- * 
- *  - "Private-MAC: " plus a hex representation of a HMAC-SHA-1 of
- *    the plaintext version of the private part, including the
- *    final padding.
+ * Finally, there is a line saying "Private-MAC: " plus a hex
+ * representation of a HMAC-SHA-1 of:
+ *
+ *    string  name of algorithm ("ssh-dss", "ssh-rsa")
+ *    string  encryption type
+ *    string  comment
+ *    string  public-blob
+ *    string  private-plaintext (the plaintext version of the
+ *                               private part, including the final
+ *                               padding)
  * 
  * The key to the MAC is itself a SHA-1 hash of:
  * 
@@ -371,16 +371,15 @@ int saversakey(char *filename, struct RSAKey *key, char *passphrase)
  * where the sequence-number increases from zero. As many of these
  * hashes are used as necessary.
  *
- * NOTE! It is important that all _public_ data can be verified
- * with reference to the _private_ data. There exist attacks based
- * on modifying the public key but leaving the private section
- * intact.
- *
- * With RSA, this is easy: verify that n = p*q, and also verify
- * that e*d == 1 modulo (p-1)(q-1). With DSA, we need to store
- * extra data in the private section other than just x, namely a
- * hash of p||q||g. (It's then easy to verify that y is equal to
- * g^x mod p.)
+ * For backwards compatibility with snapshots between 0.51 and
+ * 0.52, we also support the older key file format, which begins
+ * with "PuTTY-User-Key-File-1" (version number differs). In this
+ * format the Private-MAC: field only covers the private-plaintext
+ * field and nothing else (and without the 4-byte string length on
+ * the front too). Moreover, for RSA keys the Private-MAC: field
+ * can be replaced with a Private-Hash: field which is a plain
+ * SHA-1 hash instead of an HMAC. This is not allowable in DSA
+ * keys. (Yes, the old format was a mess. Guess why it changed :-)
  */
 
 static int read_header(FILE * fp, char *header)
@@ -535,13 +534,13 @@ struct ssh2_userkey ssh2_wrong_passphrase = {
 struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
 {
     FILE *fp;
-    char header[40], *b, *comment, *mac;
+    char header[40], *b, *encryption, *comment, *mac;
     const struct ssh_signkey *alg;
     struct ssh2_userkey *ret;
     int cipher, cipherblk;
     unsigned char *public_blob, *private_blob;
     int public_blob_len, private_blob_len;
-    int i, is_mac;
+    int i, is_mac, old_fmt;
     int passlen = passphrase ? strlen(passphrase) : 0;
 
     ret = NULL;			       /* return NULL for most errors */
@@ -553,8 +552,15 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
 	goto error;
 
     /* Read the first header line which contains the key type. */
-    if (!read_header(fp, header)
-	|| 0 != strcmp(header, "PuTTY-User-Key-File-1"))
+    if (!read_header(fp, header))
+	goto error;
+    if (0 == strcmp(header, "PuTTY-User-Key-File-2")) {
+	old_fmt = 0;
+    } else if (0 == strcmp(header, "PuTTY-User-Key-File-1")) {
+	/* this is an old key file; warn and then continue */
+	old_keyfile_warning();
+	old_fmt = 1;
+    } else
 	goto error;
     if ((b = read_body(fp)) == NULL)
 	goto error;
@@ -572,19 +578,18 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
     /* Read the Encryption header line. */
     if (!read_header(fp, header) || 0 != strcmp(header, "Encryption"))
 	goto error;
-    if ((b = read_body(fp)) == NULL)
+    if ((encryption = read_body(fp)) == NULL)
 	goto error;
-    if (!strcmp(b, "aes256-cbc")) {
+    if (!strcmp(encryption, "aes256-cbc")) {
 	cipher = 1;
 	cipherblk = 16;
-    } else if (!strcmp(b, "none")) {
+    } else if (!strcmp(encryption, "none")) {
 	cipher = 0;
 	cipherblk = 1;
     } else {
-	sfree(b);
+	sfree(encryption);
 	goto error;
     }
-    sfree(b);
 
     /* Read the Comment header line. */
     if (!read_header(fp, header) || 0 != strcmp(header, "Comment"))
@@ -619,7 +624,8 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
 	if ((mac = read_body(fp)) == NULL)
 	    goto error;
 	is_mac = 1;
-    } else if (0 == strcmp(header, "Private-Hash")) {
+    } else if (0 == strcmp(header, "Private-Hash") &&
+			   alg == &ssh_rsa && old_fmt) {
 	if ((mac = read_body(fp)) == NULL)
 	    goto error;
 	is_mac = 0;
@@ -653,33 +659,66 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
     }
 
     /*
-     * Verify the private hash.
+     * Verify the MAC.
      */
     {
 	char realmac[41];
 	unsigned char binary[20];
+	unsigned char *macdata;
+	int maclen;
+	int free_macdata;
+
+	if (old_fmt) {
+	    /* MAC (or hash) only covers the private blob. */
+	    macdata = private_blob;
+	    maclen = private_blob_len;
+	    free_macdata = 0;
+	} else {
+	    unsigned char *p;
+	    int namelen = strlen(alg->name);
+	    int enclen = strlen(encryption);
+	    int commlen = strlen(comment);
+	    maclen = (4 + namelen +
+		      4 + enclen +
+		      4 + commlen +
+		      4 + public_blob_len +
+		      4 + private_blob_len);
+	    macdata = smalloc(maclen);
+	    p = macdata;
+#define DO_STR(s,len) PUT_32BIT(p,(len));memcpy(p+4,(s),(len));p+=4+(len)
+	    DO_STR(alg->name, namelen);
+	    DO_STR(encryption, enclen);
+	    DO_STR(comment, commlen);
+	    DO_STR(public_blob, public_blob_len);
+	    DO_STR(private_blob, private_blob_len);
+
+	    free_macdata = 1;
+	}
 
 	if (is_mac) {
 	    SHA_State s;
 	    unsigned char mackey[20];
 	    char header[] = "putty-private-key-file-mac-key";
 
-	    if (!passphrase)	       /* can't have MAC in unencrypted key */
-		goto error;
-
 	    SHA_Init(&s);
 	    SHA_Bytes(&s, header, sizeof(header)-1);
-	    SHA_Bytes(&s, passphrase, passlen);
+	    if (passphrase)
+		SHA_Bytes(&s, passphrase, passlen);
 	    SHA_Final(&s, mackey);
 
-	    hmac_sha1_simple(mackey, 20, private_blob, private_blob_len,
-			     binary);
+	    hmac_sha1_simple(mackey, 20, macdata, maclen, binary);
 
 	    memset(mackey, 0, sizeof(mackey));
 	    memset(&s, 0, sizeof(s));
 	} else {
-	    SHA_Simple(private_blob, private_blob_len, binary);
+	    SHA_Simple(macdata, maclen, binary);
 	}
+
+	if (free_macdata) {
+	    memset(macdata, 0, maclen);
+	    sfree(macdata);
+	}
+
 	for (i = 0; i < 20; i++)
 	    sprintf(realmac + 2 * i, "%02x", binary[i]);
 
@@ -707,6 +746,7 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
     }
     sfree(public_blob);
     sfree(private_blob);
+    sfree(encryption);
     return ret;
 
     /*
@@ -717,6 +757,8 @@ struct ssh2_userkey *ssh2_load_userkey(char *filename, char *passphrase)
 	fclose(fp);
     if (comment)
 	sfree(comment);
+    if (encryption)
+	sfree(encryption);
     if (mac)
 	sfree(mac);
     if (public_blob)
@@ -744,7 +786,8 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm,
 
     /* Read the first header line which contains the key type. */
     if (!read_header(fp, header)
-	|| 0 != strcmp(header, "PuTTY-User-Key-File-1"))
+	|| (0 != strcmp(header, "PuTTY-User-Key-File-2") &&
+	    0 != strcmp(header, "PuTTY-User-Key-File-1")))
 	goto error;
     if ((b = read_body(fp)) == NULL)
 	goto error;
@@ -812,7 +855,8 @@ int ssh2_userkey_encrypted(char *filename, char **commentptr)
     if (!fp)
 	return 0;
     if (!read_header(fp, header)
-	|| 0 != strcmp(header, "PuTTY-User-Key-File-1")) {
+	|| (0 != strcmp(header, "PuTTY-User-Key-File-2") &&
+	    0 != strcmp(header, "PuTTY-User-Key-File-1"))) {
 	fclose(fp);
 	return 0;
     }
@@ -914,7 +958,7 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
     int pub_blob_len, priv_blob_len, priv_encrypted_len;
     int passlen;
     int cipherblk;
-    int i, is_mac;
+    int i;
     char *cipherstr;
     unsigned char priv_mac[20];
 
@@ -951,29 +995,42 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
     memcpy(priv_blob_encrypted + priv_blob_len, priv_mac,
 	   priv_encrypted_len - priv_blob_len);
 
-    /* Now create the private MAC. */
-    if (passphrase) {
+    /* Now create the MAC. */
+    {
+	unsigned char *macdata;
+	int maclen;
+	unsigned char *p;
+	int namelen = strlen(key->alg->name);
+	int enclen = strlen(cipherstr);
+	int commlen = strlen(key->comment);
 	SHA_State s;
 	unsigned char mackey[20];
 	char header[] = "putty-private-key-file-mac-key";
 
-	passlen = strlen(passphrase);
+	maclen = (4 + namelen +
+		  4 + enclen +
+		  4 + commlen +
+		  4 + pub_blob_len +
+		  4 + priv_encrypted_len);
+	macdata = smalloc(maclen);
+	p = macdata;
+#define DO_STR(s,len) PUT_32BIT(p,(len));memcpy(p+4,(s),(len));p+=4+(len)
+	DO_STR(key->alg->name, namelen);
+	DO_STR(cipherstr, enclen);
+	DO_STR(key->comment, commlen);
+	DO_STR(pub_blob, pub_blob_len);
+	DO_STR(priv_blob_encrypted, priv_encrypted_len);
 
 	SHA_Init(&s);
 	SHA_Bytes(&s, header, sizeof(header)-1);
-	SHA_Bytes(&s, passphrase, passlen);
+	if (passphrase)
+	    SHA_Bytes(&s, passphrase, strlen(passphrase));
 	SHA_Final(&s, mackey);
-
-	hmac_sha1_simple(mackey, 20,
-			 priv_blob_encrypted, priv_encrypted_len,
-			 priv_mac);
-	is_mac = 1;
-
+	hmac_sha1_simple(mackey, 20, macdata, maclen, priv_mac);
+	memset(macdata, 0, maclen);
+	sfree(macdata);
 	memset(mackey, 0, sizeof(mackey));
 	memset(&s, 0, sizeof(s));
-    } else {
-	SHA_Simple(priv_blob_encrypted, priv_encrypted_len, priv_mac);
-	is_mac = 0;
     }
 
     if (passphrase) {
@@ -1000,21 +1057,23 @@ int ssh2_save_userkey(char *filename, struct ssh2_userkey *key,
     fp = fopen(filename, "w");
     if (!fp)
 	return 0;
-    fprintf(fp, "PuTTY-User-Key-File-1: %s\n", key->alg->name);
+    fprintf(fp, "PuTTY-User-Key-File-2: %s\n", key->alg->name);
     fprintf(fp, "Encryption: %s\n", cipherstr);
     fprintf(fp, "Comment: %s\n", key->comment);
     fprintf(fp, "Public-Lines: %d\n", base64_lines(pub_blob_len));
     base64_encode(fp, pub_blob, pub_blob_len);
     fprintf(fp, "Private-Lines: %d\n", base64_lines(priv_encrypted_len));
     base64_encode(fp, priv_blob_encrypted, priv_encrypted_len);
-    if (is_mac)
-	fprintf(fp, "Private-MAC: ");
-    else
-	fprintf(fp, "Private-Hash: ");
+    fprintf(fp, "Private-MAC: ");
     for (i = 0; i < 20; i++)
 	fprintf(fp, "%02x", priv_mac[i]);
     fprintf(fp, "\n");
     fclose(fp);
+
+    sfree(pub_blob);
+    memset(priv_blob, 0, priv_blob_len);
+    sfree(priv_blob);
+    sfree(priv_blob_encrypted);
     return 1;
 }
 

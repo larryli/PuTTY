@@ -355,3 +355,9 @@ int zlib_decompress_block(unsigned char *block, int len,
 #define SSH2_AGENTC_ADD_IDENTITY                17
 #define SSH2_AGENTC_REMOVE_IDENTITY             18
 #define SSH2_AGENTC_REMOVE_ALL_IDENTITIES       19
+
+/*
+ * Need this to warn about support for the original SSH2 keyfile
+ * format.
+ */
+void old_keyfile_warning(void);

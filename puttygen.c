@@ -406,6 +406,26 @@ static int save_ssh1_pubkey(char *filename, struct RSAKey *key)
     return 1;
 }
 
+/*
+ * Warn about the obsolescent key file format.
+ */
+void old_keyfile_warning(void)
+{
+    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char message[] =
+	"You are loading an SSH 2 private key which has an\n"
+	"old version of the file format. This means your key\n"
+	"file is not fully tamperproof. Future versions of\n"
+	"PuTTY may stop supporting this private key format,\n"
+	"so we recommend you convert your key to the new\n"
+	"format.\n"
+	"\n"
+	"Once the key is loaded into PuTTYgen, you can perform\n"
+	"this conversion simply by saving it again.";
+
+    MessageBox(NULL, message, mbtitle, MB_OK);
+}
+
 static int save_ssh2_pubkey(char *filename, struct ssh2_userkey *key)
 {
     unsigned char *pub_blob;

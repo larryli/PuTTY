@@ -237,6 +237,26 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 }
 
 /*
+ * Warn about the obsolescent key file format.
+ */
+void old_keyfile_warning(void)
+{
+    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char message[] =
+	"You are loading an SSH 2 private key which has an\n"
+	"old version of the file format. This means your key\n"
+	"file is not fully tamperproof. Future versions of\n"
+	"PuTTY may stop supporting this private key format,\n"
+	"so we recommend you convert your key to the new\n"
+	"format.\n"
+	"\n"
+	"You can perform this conversion by loading the key\n"
+	"into PuTTYgen and then saving it again.";
+
+    MessageBox(NULL, message, mbtitle, MB_OK);
+}
+
+/*
  * Update the visible key list.
  */
 static void keylist_update(void)

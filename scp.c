@@ -226,6 +226,25 @@ void askcipher(char *ciphername, int cs)
     }
 }
 
+/*
+ * Warn about the obsolescent key file format.
+ */
+void old_keyfile_warning(void)
+{
+    static const char message[] =
+	"You are loading an SSH 2 private key which has an\n"
+	"old version of the file format. This means your key\n"
+	"file is not fully tamperproof. Future versions of\n"
+	"PuTTY may stop supporting this private key format,\n"
+	"so we recommend you convert your key to the new\n"
+	"format.\n"
+	"\n"
+	"Once the key is loaded into PuTTYgen, you can perform\n"
+	"this conversion simply by saving it again.\n";
+
+    fputs(message, stderr);
+}
+
 /* GUI Adaptation - Sept 2000 */
 static void send_msg(HWND h, UINT message, WPARAM wParam)
 {
