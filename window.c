@@ -444,7 +444,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 
 	error = back->init (cfg.host, cfg.port, &realhost);
 	if (error) {
-	    sprintf(msg, "Unable to open connection:\n%s", error);
+	    sprintf(msg, "Unable to open connection to\n"
+		    "%.800s\n"
+		    "%s", cfg.host, error);
 	    MessageBox(NULL, msg, "PuTTY Error", MB_ICONERROR | MB_OK);
 	    return 0;
 	}
