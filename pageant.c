@@ -647,8 +647,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
             DestroyIcon(hicon); 
 
         systray_menu = CreatePopupMenu();
-        AppendMenu (systray_menu, MF_ENABLED, IDM_VIEWKEYS, "View Keys");
-        AppendMenu (systray_menu, MF_ENABLED, IDM_CLOSE, "Terminate");
+        AppendMenu (systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys");
+        AppendMenu (systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
     }
 
     ShowWindow (hwnd, SW_HIDE);
