@@ -201,7 +201,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
     struct fxp_xfer *xfer;
     uint64 offset;
     FILE *fp;
-    int ret;
+    int ret, shown_err = FALSE;
 
     /*
      * In recursive mode, see if we're dealing with a directory.
@@ -443,7 +443,10 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart,
 	ret = xfer_download_gotpkt(xfer, pktin);
 
 	if (ret < 0) {
-            printf("error while reading: %s\n", fxp_error());
+	    if (!shown_err) {
+		printf("error while reading: %s\n", fxp_error());
+		shown_err = TRUE;
+	    }
             ret = 0;
 	}
 

@@ -1089,7 +1089,8 @@ int xfer_done(struct fxp_xfer *xfer)
 
 void xfer_download_queue(struct fxp_xfer *xfer)
 {
-    while (xfer->req_totalsize < xfer->req_maxsize && !xfer->eof) {
+    while (xfer->req_totalsize < xfer->req_maxsize &&
+	   !xfer->eof && !xfer->err) {
 	/*
 	 * Queue a new read request.
 	 */
@@ -1155,6 +1156,8 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 #endif
     } else if (rr->retlen < 0) {
 	/* some error other than EOF; signal it back to caller */
+	xfer_set_error(xfer);
+	rr->complete = -1;
 	return -1;
     }
 
