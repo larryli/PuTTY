@@ -1608,7 +1608,8 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
             request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
             agent_query(request, 5, &r, &responselen);
             response = (unsigned char *)r;
-            if (response) {
+            if (response && responselen >= 5 &&
+                response[4] == SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
                 p = response + 5;
                 nkeys = GET_32BIT(p); p += 4;
                 { char buf[64]; sprintf(buf, "Pageant has %d SSH1 keys", nkeys);
@@ -3035,7 +3036,8 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
 		request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
 		agent_query(request, 5, &r, &responselen);
 		response = (unsigned char *)r;
-		if (response) {
+		if (response && responselen >= 5 &&
+                    response[4] == SSH2_AGENT_IDENTITIES_ANSWER) {
 		    p = response + 5;
 		    nkeys = GET_32BIT(p); p += 4;
 		    { char buf[64]; sprintf(buf, "Pageant has %d SSH2 keys", nkeys);
