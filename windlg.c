@@ -454,6 +454,7 @@ enum { IDCX_ABOUT =
     IDC_PROXYPORTEDIT,
     IDC_PROXYEXCLUDESTATIC,
     IDC_PROXYEXCLUDEEDIT,
+    IDC_PROXYLOCALHOST,
     IDC_PROXYUSERSTATIC,
     IDC_PROXYUSEREDIT,
     IDC_PROXYPASSSTATIC,
@@ -882,6 +883,7 @@ char *help_context_cmd(int id)
         return "JI(`',`proxy.main')";
       case IDC_PROXYEXCLUDESTATIC:
       case IDC_PROXYEXCLUDEEDIT:
+      case IDC_PROXYLOCALHOST:
         return "JI(`',`proxy.exclude')";
       case IDC_PROXYUSERSTATIC:
       case IDC_PROXYUSEREDIT:
@@ -1349,6 +1351,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_PROXYHOSTEDIT, cfg.proxy_host);
     SetDlgItemInt(hwnd, IDC_PROXYPORTEDIT, cfg.proxy_port, FALSE);
     SetDlgItemText(hwnd, IDC_PROXYEXCLUDEEDIT, cfg.proxy_exclude_list);
+    CheckDlgButton(hwnd, IDC_PROXYLOCALHOST, cfg.even_proxy_localhost);
     SetDlgItemText(hwnd, IDC_PROXYTELNETCMDEDIT, cfg.proxy_telnet_command);
     SetDlgItemText(hwnd, IDC_PROXYUSEREDIT, cfg.proxy_username);
     SetDlgItemText(hwnd, IDC_PROXYPASSEDIT, cfg.proxy_password);
@@ -1868,6 +1871,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    multiedit(&cp,
 		      "&Exclude Hosts/IPs", IDC_PROXYEXCLUDESTATIC,
 		      IDC_PROXYEXCLUDEEDIT, 100, NULL);
+	    checkbox(&cp, "Consider pro&xying local host connections",
+		     IDC_PROXYLOCALHOST);
 	    staticedit(&cp, "&Username", IDC_PROXYUSERSTATIC,
 		       IDC_PROXYUSEREDIT, 60);
 	    staticpassedit(&cp, "Pass&word", IDC_PROXYPASSSTATIC,
@@ -3022,6 +3027,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    cfg.proxy_socks_version =
 			IsDlgButtonChecked(hwnd, IDC_PROXYSOCKSVER4) ? 4 : 5;
 		}
+		break;
+	      case IDC_PROXYLOCALHOST:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		    cfg.even_proxy_localhost =
+		    IsDlgButtonChecked(hwnd, IDC_PROXYLOCALHOST);
 		break;
 	      case IDC_PROXYTYPENONE:
 	      case IDC_PROXYTYPEHTTP:

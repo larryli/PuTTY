@@ -76,6 +76,8 @@ void sk_cleanup(void);		       /* called just before program exit */
 
 SockAddr sk_namelookup(char *host, char **canonicalname);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);
+int sk_hostname_is_local(char *name);
+int sk_address_is_local(SockAddr addr);
 enum { ADDRTYPE_IPV4, ADDRTYPE_IPV6 };
 int sk_addrtype(SockAddr addr);
 void sk_addrcopy(SockAddr addr, char *buf);

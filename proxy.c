@@ -247,6 +247,14 @@ static int proxy_for_destination (SockAddr addr, char * hostname, int port)
     int hostip_len, hostname_len;
     char * exclude_list;
 
+    /*
+     * Check the host name and IP against the hard-coded
+     * representations of `localhost'.
+     */
+    if (!cfg.even_proxy_localhost &&
+	(sk_hostname_is_local(hostname) || sk_address_is_local(addr)))
+	return 0;		       /* do not proxy */
+
     /* we want a string representation of the IP address for comparisons */
     sk_getaddr(addr, hostip, 64);
 

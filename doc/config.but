@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.45 2002/12/18 11:39:25 simon Exp $
+\versionid $Id: config.but,v 1.46 2002/12/18 12:18:54 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1438,6 +1438,12 @@ from proxying.
 \c 192.168.88.*,*.example.com
 
 This excludes both of the above ranges at once.
+
+Connections to the local host (the host name \c{localhost}, and any
+loopback IP address) are never proxied, even if the proxy exclude
+list does not explicitly contain them. It is very unlikely that this
+behaviour would ever cause problems, but if it does you can change
+it by enabling \q{Consider proxying local host connections}.
 
 \S{config-proxy-auth} Username and password
 

@@ -214,6 +214,7 @@ struct config_tag {
     int tcp_nodelay;
     /* Proxy options */
     char proxy_exclude_list[512];
+    int even_proxy_localhost;
     enum { PROXY_NONE, PROXY_HTTP, PROXY_SOCKS, PROXY_TELNET } proxy_type;
     char proxy_host[512];
     int proxy_port;

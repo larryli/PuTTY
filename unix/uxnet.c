@@ -209,6 +209,26 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 #endif
 }
 
+int sk_hostname_is_local(char *name)
+{
+    return !strcmp(name, "localhost");
+}
+
+int sk_address_is_local(SockAddr addr)
+{
+#ifdef IPV6
+    if (addr->family == AF_INET) {
+#endif
+	struct in_addr a;
+	a.s_addr = htonl(addr->address);
+	return ipv4_is_loopback(a);
+#ifdef IPV6
+    } else {
+	FIXME;  /* someone who can compile for IPV6 had better do this bit */
+    }
+#endif
+}
+
 int sk_addrtype(SockAddr addr)
 {
     return (addr->family == AF_INET ? ADDRTYPE_IPV4 : ADDRTYPE_IPV6);
