@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.54 2004/02/04 18:39:14 jacob Exp $
+\versionid $Id: faq.but,v 1.55 2004/02/10 18:22:00 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -193,33 +193,44 @@ Porting will become easier once PuTTY has a generalised porting
 layer, drawing a clear line between platform-dependent and
 platform-independent code. The general intention was for this
 porting layer to evolve naturally as part of the process of doing
-the first port; a Unix port is now under way and the plan seems to
-be working so far.
+the first port; a Unix port has now been released and the plan
+seems to be working so far.
 
 \S{faq-ports-general}{Question} What ports of PuTTY exist?
 
-Currently, release versions of PuTTY only run on full Win32 systems.
-This includes Windows 95, 98, and ME, and it includes Windows NT,
-Windows 2000 and Windows XP. In the development code, partial ports
-to Unix (see \k{faq-unix}) and the Mac OS (see \k{faq-mac-port}).
-are under way.
+Currently, release versions of PuTTY tools only run on full Win32
+systems and Unix. \q{Win32} includes Windows 95, 98, and ME, and it
+includes Windows NT, Windows 2000 and Windows XP.
+
+In the development code, a partial port to the Mac OS (see
+\k{faq-mac-port}) is under way.
 
 Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}),
 and it does not quite run on the Win32s environment under Windows
 3.1 (see \k{faq-win31}).
 
 We do not have release-quality ports for any other systems at the
-present time. If anyone told you we had a Mac port, or an iPaq port,
+present time. If anyone told you we had an EPOC port, or an iPaq port,
 or any other port of PuTTY, they were mistaken. We don't.
 
-\S{faq-unix}{Question} Will there be a port to Unix?
+\S{faq-unix}{Question} Is there a port to Unix?
 
-It's currently being worked on. If you look at the nightly source
-snapshots, you should find a \c{unix} subdirectory, which should
-build you Unix ports of Plink, PuTTY itself, PuTTYgen, PSCP, PSFTP,
-and also \c{pterm} - an \cw{xterm}-type program which supports the
-same terminal emulation as PuTTY. We do not yet have a Unix port of
+As of 0.54, there are Unix ports of most of the traditional PuTTY
+tools, and also one entirely new application.
+
+If you look at the source release, you should find a \c{unix}
+subdirectory containing \c{Makefile.gtk}, which should build you Unix
+ports of Plink, PuTTY itself, PuTTYgen, PSCP, PSFTP, and also
+\c{pterm} - an \cw{xterm}-type program which supports the same
+terminal emulation as PuTTY. We do not yet have a Unix port of
 Pageant.
+
+If you don't have Gtk, you should still be able to build the
+command-line tools.
+
+Note that Unix PuTTY has mostly only been tested on Linux so far;
+portability problems such as BSD-style ptys or different header file
+requirements are expected.
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
@@ -594,7 +605,7 @@ areas of black space where colour ought to be.
 
 You almost certainly need to enable the \q{Use background colour to
 erase screen} setting in the Terminal panel. Note that if you do
-this in mid-session, it won't take effect until you reset the
+this in mid-session, it may not take effect until you reset the
 terminal (see \k{faq-resetterm}).
 
 \S{faq-resetterm}{Question} When I change some terminal settings,
@@ -607,9 +618,13 @@ send sequences that modify these options in mid-session, but when
 the terminal is reset (by server action, or by you choosing \q{Reset
 Terminal} from the System menu) the defaults are restored.
 
-If you want to change one of these options in the middle of a
-session, you will find that the change does not immediately take
-effect. It will only take effect once you reset the terminal.
+In versions 0.53b and prior, if you change one of these options in
+the middle of a session, you will find that the change does not
+immediately take effect. It will only take effect once you reset
+the terminal.
+
+In version 0.54, the behaviour has changed - changes to these
+settings take effect immediately.
 
 \S{faq-altgr}{Question} I can't type characters that require the
 AltGr key.
