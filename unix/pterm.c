@@ -2803,12 +2803,6 @@ int pt_main(int argc, char **argv)
      * it */
     block_signal(SIGCHLD, 1);
 
-    /*
-     * SIGPIPE is not something we want to see terminating the
-     * process.
-     */
-    block_signal(SIGPIPE, 1);
-
     inst->progname = argv[0];
     /*
      * Copy the original argv before letting gtk_init fiddle with
@@ -3061,6 +3055,15 @@ int pt_main(int argc, char **argv)
     /* now we're reday to deal with the child exit handler being
      * called */
     block_signal(SIGCHLD, 0);
+
+    /*
+     * Block SIGPIPE: if we attempt Duplicate Session or similar
+     * and it falls over in some way, we certainly don't want
+     * SIGPIPE terminating the main pterm/PuTTY. Note that we do
+     * this _after_ (at least pterm) forks off its child process,
+     * since the child wants SIGPIPE handled in the usual way.
+     */
+    block_signal(SIGPIPE, 1);
 
     inst->exited = FALSE;
 
