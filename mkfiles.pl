@@ -604,7 +604,8 @@ print <<END;
 ROptions     = `Echo "{VER}" | StreamEdit -e "1,\$ replace /=(\xc5)\xa81\xb0/ 'STR=\xb6\xb6\xb6\xb6\xb6"' \xa81 '\xb6\xb6\xb6\xb6\xb6"'"`
 
 # -w 35 disables "unused parameter" warnings
-COptions     = -i : -i :: -w 35 -w err -proto strict
+COptions     = -i : -i :: -i ::charset -w 35 -w err -proto strict -ansi on \xb6
+	       -notOnce
 COptions_68K = {COptions} -model far -opt space
 # Enabling "-opt space" for CFM-68K gives me undefined references to
 # _$LDIVT and _$LMODT.
