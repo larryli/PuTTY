@@ -522,7 +522,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int n = SendDlgItemMessage (hwnd, 100, LB_GETCURSEL, 0, 0);
-		if (n == LB_ERR || n == 0) {
+		if (n == LB_ERR) {
 		    MessageBeep(0);
 		    break;
 		}
