@@ -138,7 +138,7 @@ char *pfd_newconnect(Socket *s, char *hostname, int port, void *c)
     pr->ready = 1;
     pr->c = c;
 
-    pr->s = *s = sk_new(addr, port, 0, 1, (Plug) pr);
+    pr->s = *s = sk_new(addr, port, 0, 1, 0, (Plug) pr);
     if ((err = sk_socket_error(*s))) {
 	sfree(pr);
 	return err;

@@ -68,7 +68,7 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen);
 void sk_addr_free(SockAddr addr);
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
-	      Plug p);
+	      int nodelay, Plug p);
 
 Socket sk_newlistener(int port, Plug plug, int local_host_only);
 

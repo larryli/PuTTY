@@ -735,8 +735,11 @@ int main(int argc, char **argv)
     {
 	char *error;
 	char *realhost;
+	/* nodelay is only useful if stdin is a character device (console) */
+	int nodelay = cfg.tcp_nodelay &&
+	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
-	error = back->init(cfg.host, cfg.port, &realhost);
+	error = back->init(cfg.host, cfg.port, &realhost, nodelay);
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;

@@ -405,12 +405,14 @@ enum { IDCX_ABOUT =
     IDC_TITLE_CONNECTION,
     IDC_BOX_CONNECTION1,
     IDC_BOX_CONNECTION2,
+    IDC_BOX_CONNECTION3,
     IDC_TTSTATIC,
     IDC_TTEDIT,
     IDC_LOGSTATIC,
     IDC_LOGEDIT,
     IDC_PINGSTATIC,
     IDC_PINGEDIT,
+    IDC_NODELAY,
     connectionpanelend,
 
     telnetpanelstart,
@@ -612,6 +614,7 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.protocol ==
 		     PROT_RLOGIN ? IDC_PROTRLOGIN : IDC_PROTRAW);
     SetDlgItemInt(hwnd, IDC_PINGEDIT, cfg.ping_interval, FALSE);
+    CheckDlgButton(hwnd, IDC_NODELAY, cfg.tcp_nodelay);
 
     CheckRadioButton(hwnd, IDC_DEL008, IDC_DEL127,
 		     cfg.bksp_is_delete ? IDC_DEL127 : IDC_DEL008);
@@ -1224,7 +1227,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == connectionpanelstart) {
-	/* The Connection panel. Accelerators used: [acgo] tuk */
+	/* The Connection panel. Accelerators used: [acgo] tukn */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling the connection",
@@ -1248,6 +1251,13 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	staticedit(&cp, "Seconds between &keepalives (0 to turn off)",
 		   IDC_PINGSTATIC, IDC_PINGEDIT, 20);
 	endbox(&cp);
+	if (dlgtype == 0) {
+	    beginbox(&cp, "Low-level TCP connection options",
+		     IDC_BOX_CONNECTION3);
+	    checkbox(&cp, "Disable &Nagle's algorithm (TCP_NODELAY option)",
+		     IDC_NODELAY);
+	    endbox(&cp);
+	}
     }
 
     if (panel == telnetpanelstart) {
@@ -1776,6 +1786,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		if (HIWORD(wParam) == EN_CHANGE)
 		    MyGetDlgItemInt(hwnd, IDC_PINGEDIT,
 				    &cfg.ping_interval);
+		break;
+	      case IDC_NODELAY:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+			cfg.tcp_nodelay =
+			IsDlgButtonChecked(hwnd, IDC_NODELAY);
 		break;
 	      case IDC_DEL008:
 	      case IDC_DEL127:

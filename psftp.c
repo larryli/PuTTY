@@ -1820,7 +1820,7 @@ int main(int argc, char *argv[])
 
     back = &ssh_backend;
 
-    err = back->init(cfg.host, cfg.port, &realhost);
+    err = back->init(cfg.host, cfg.port, &realhost, 0);
     if (err != NULL) {
 	fprintf(stderr, "ssh_init: %s", err);
 	return 1;

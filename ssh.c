@@ -1657,7 +1657,7 @@ static void ssh_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *connect_to_host(char *host, int port, char **realhost)
+static char *connect_to_host(char *host, int port, char **realhost, int nodelay)
 {
     static struct plug_function_table fn_table = {
 	ssh_closing,
@@ -1714,7 +1714,7 @@ static char *connect_to_host(char *host, int port, char **realhost)
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
 	logevent(buf);
     }
-    s = sk_new(addr, port, 0, 1, &fn_table_ptr);
+    s = sk_new(addr, port, 0, 1, nodelay, &fn_table_ptr);
     if ((err = sk_socket_error(s)))
 	return err;
 
@@ -5109,7 +5109,7 @@ static void ssh2_protocol(unsigned char *in, int inlen, int ispkt)
  *
  * Returns an error message, or NULL on success.
  */
-static char *ssh_init(char *host, int port, char **realhost)
+static char *ssh_init(char *host, int port, char **realhost, int nodelay)
 {
     char *p;
 
@@ -5125,7 +5125,7 @@ static char *ssh_init(char *host, int port, char **realhost)
     ssh_overall_bufsize = 0;
     ssh_fallback_cmd = 0;
 
-    p = connect_to_host(host, port, realhost);
+    p = connect_to_host(host, port, realhost, nodelay);
     if (p != NULL)
 	return p;
 

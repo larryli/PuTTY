@@ -202,7 +202,7 @@ enum {
 };
 
 typedef struct {
-    char *(*init) (char *host, int port, char **realhost);
+    char *(*init) (char *host, int port, char **realhost, int nodelay);
     /* back->send() returns the current amount of buffered data. */
     int (*send) (char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */
@@ -236,6 +236,7 @@ typedef struct {
     int close_on_exit;
     int warn_on_close;
     int ping_interval;		       /* in seconds */
+    int tcp_nodelay;
     /* SSH options */
     char remote_cmd[512];
     char remote_cmd2[512];	       /* fallback if the first fails

@@ -689,7 +689,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     back = &ssh_backend;
 
-    err = back->init(cfg.host, cfg.port, &realhost);
+    err = back->init(cfg.host, cfg.port, &realhost, 0);
     if (err != NULL)
 	bump("ssh_init: %s", err);
     ssh_scp_init();

@@ -439,7 +439,7 @@ Socket sk_register(void *sock, Plug plug)
 }
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
-	      Plug plug)
+	      int nodelay, Plug plug)
 {
     static struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -492,6 +492,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     if (oobinline) {
 	BOOL b = TRUE;
 	setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (void *) &b, sizeof(b));
+    }
+
+    if (nodelay) {
+	BOOL b = TRUE;
+	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
     }
 
     /*

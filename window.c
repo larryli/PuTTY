@@ -508,7 +508,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	char msg[1024], *title;
 	char *realhost;
 
-	error = back->init(cfg.host, cfg.port, &realhost);
+	error = back->init(cfg.host, cfg.port, &realhost, cfg.tcp_nodelay);
 	if (error) {
 	    sprintf(msg, "Unable to open connection to\n"
 		    "%.800s\n" "%s", cfg.host, error);

@@ -601,7 +601,7 @@ static void telnet_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static char *telnet_init(char *host, int port, char **realhost)
+static char *telnet_init(char *host, int port, char **realhost, int nodelay)
 {
     static struct plug_function_table fn_table = {
 	telnet_closing,
@@ -636,7 +636,7 @@ static char *telnet_init(char *host, int port, char **realhost)
 	sprintf(buf, "Connecting to %.100s port %d", addrbuf, port);
 	logevent(buf);
     }
-    s = sk_new(addr, port, 0, 1, &fn_table_ptr);
+    s = sk_new(addr, port, 0, 1, nodelay, &fn_table_ptr);
     if ((err = sk_socket_error(s)))
 	return err;
 
