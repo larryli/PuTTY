@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.13 1999/03/02 23:19:20 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.14 1999/03/03 22:03:54 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -39,6 +39,7 @@
 #include <QuickdrawText.h>
 #include <Resources.h>
 #include <Sound.h>
+#include <ToolUtils.h>
 
 #include <limits.h>
 #include <stdlib.h>
@@ -62,7 +63,7 @@ struct mac_session {
 
 static void mac_initfont(struct mac_session *);
 static void mac_initpalette(struct mac_session *);
-static void mac_adjustsize(struct mac_session *);
+static void mac_adjustsize(struct mac_session *, int, int);
 static pascal void mac_scrolltracker(ControlHandle, short);
 static pascal void do_text_for_device(short, short, GDHandle, long);
 
@@ -144,19 +145,20 @@ static void mac_initfont(struct mac_session *s) {
     font_width = fi.widMax;
     font_height = fi.ascent + fi.descent + fi.leading;
     s->font_ascent = fi.ascent;
-    mac_adjustsize(s);
+    mac_adjustsize(s, rows, cols);
 }
 
 /*
  * To be called whenever the window size changes.
  * rows and cols should be desired values.
- * It's assumed the terminal emulator will be or has been informed.
+ * It's assumed the terminal emulator will be informed, and will set rows
+ * and cols for us.
  */
-static void mac_adjustsize(struct mac_session *s) {
+static void mac_adjustsize(struct mac_session *s, int newrows, int newcols) {
     int winwidth, winheight;
 
-    winwidth = cols * font_width + 15;
-    winheight = rows * font_height;
+    winwidth = newcols * font_width + 15;
+    winheight = newrows * font_height;
     SizeWindow(s->window, winwidth, winheight, true);
     HideControl(s->scrollbar);
     MoveControl(s->scrollbar, winwidth - 15, -1);
@@ -235,6 +237,23 @@ static pascal void mac_scrolltracker(ControlHandle control, short part) {
       case kControlPageDownPart:
 	term_scroll(0, +(rows - 1));
 	break;
+    }
+}
+
+void mac_growterm(WindowPtr window, EventRecord *event) {
+    Rect limits;
+    long grow_result;
+    int newrows, newcols;
+    struct mac_session *s;
+
+    s = (struct mac_session *)GetWRefCon(window);
+    SetRect(&limits, font_width + 15, font_height, SHRT_MAX, SHRT_MAX);
+    grow_result = GrowWindow(window, event->where, &limits);
+    if (grow_result != 0) {
+	newrows = HiWord(grow_result) / font_height;
+	newcols = (LoWord(grow_result) - 15) / font_width;
+	mac_adjustsize(s, newrows, newcols);
+	term_size(newrows, newcols, cfg.savelines);
     }
 }
 

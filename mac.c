@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.10 1999/03/01 22:26:49 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.11 1999/03/03 22:03:54 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -60,6 +60,7 @@ static void mac_startup(void);
 static void mac_eventloop(void);
 static void mac_event(EventRecord *);
 static void mac_contentclick(WindowPtr, EventRecord *);
+static void mac_growwindow(WindowPtr, EventRecord *);
 static void mac_activatewindow(WindowPtr, Boolean);
 static void mac_updatewindow(WindowPtr);
 static void mac_keypress(EventRecord *);
@@ -169,6 +170,7 @@ static void mac_event(EventRecord *event) {
 	    DragWindow(window, event->where, &qd.screenBits.bounds);
 	    break;
 	  case inGrow:
+	    mac_growwindow(window, event);
 	    break;
 	  case inZoomIn:
 	  case inZoomOut:
@@ -212,6 +214,14 @@ static void mac_contentclick(WindowPtr window, EventRecord *event) {
 		break;
 	    }
 	break;
+    }
+}
+
+static void mac_growwindow(WindowPtr window, EventRecord *event) {
+
+    switch (mac_windowtype(window)) {
+      case wTerminal:
+	mac_growterm(window, event);
     }
 }
 
@@ -342,7 +352,7 @@ static void mac_adjustcursor(void) {
 
 static void mac_shutdown(void) {
 
-    ExitToShell();
+    exit(0);
 }
 
 void fatalbox(const char *fmt, ...) {
