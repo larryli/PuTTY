@@ -904,6 +904,66 @@ static int sftp_cmd_open(struct sftp_command *cmd)
     return 1;
 }
 
+static int sftp_cmd_lcd(struct sftp_command *cmd)
+{
+    char *currdir;
+    int len;
+
+    if (cmd->nwords < 2) {
+	printf("lcd: expects a local directory name\n");
+	return 0;
+    }
+
+    if (!SetCurrentDirectory(cmd->words[1])) {
+	LPVOID message;
+	int i;
+	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		      FORMAT_MESSAGE_FROM_SYSTEM |
+		      FORMAT_MESSAGE_IGNORE_INSERTS,
+		      NULL, GetLastError(),
+		      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		      (LPTSTR)&message, 0, NULL);
+	i = strcspn((char *)message, "\n");
+	printf("lcd: unable to change directory: %.*s\n", i, (LPCTSTR)message);
+	LocalFree(message);
+	return 0;
+    }
+
+    currdir = smalloc(256);
+    len = GetCurrentDirectory(256, currdir);
+    if (len > 256)
+	currdir = srealloc(currdir, len);
+    GetCurrentDirectory(len, currdir);
+    printf("New local directory is %s\n", currdir);
+    sfree(currdir);
+
+    return 1;
+}
+
+static int sftp_cmd_lpwd(struct sftp_command *cmd)
+{
+    char *currdir;
+    int len;
+
+    currdir = smalloc(256);
+    len = GetCurrentDirectory(256, currdir);
+    if (len > 256)
+	currdir = srealloc(currdir, len);
+    GetCurrentDirectory(len, currdir);
+    printf("Current local directory is %s\n", currdir);
+    sfree(currdir);
+
+    return 1;
+}
+
+static int sftp_cmd_pling(struct sftp_command *cmd)
+{
+    int exitcode;
+
+    exitcode = system(cmd->words[1]);
+    return (exitcode == 0);
+}
+
 static int sftp_cmd_help(struct sftp_command *cmd);
 
 static struct sftp_cmd_lookup {
@@ -920,6 +980,7 @@ static struct sftp_cmd_lookup {
      *    `shorthelp' is the name of a primary command, which
      *    contains the help that should double up for this command.
      */
+    int listed;			       /* do we list this in primary help? */
     char *shorthelp;
     char *longhelp;
     int (*obey) (struct sftp_command *);
@@ -929,13 +990,19 @@ static struct sftp_cmd_lookup {
      * in ASCII order.
      */
     {
-	"bye", "finish your SFTP session",
+	"!", TRUE, "run a local Windows command",
+	    "<command>\n"
+	    "  Runs a local Windows command. For example, \"!del myfile\".\n",
+	    sftp_cmd_pling
+    },
+    {
+	"bye", TRUE, "finish your SFTP session",
 	    "\n"
 	    "  Terminates your SFTP session and quits the PSFTP program.\n",
 	    sftp_cmd_quit
     },
     {
-	"cd", "change your remote working directory",
+	"cd", TRUE, "change your remote working directory",
 	    " [ <New working directory> ]\n"
 	    "  Change the remote working directory for your SFTP session.\n"
 	    "  If a new working directory is not supplied, you will be\n"
@@ -943,7 +1010,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_cd
     },
     {
-	"chmod", "change file permissions and modes",
+	"chmod", TRUE, "change file permissions and modes",
 	    " ( <octal-digits> | <modifiers> ) <filename>\n"
 	    "  Change the file permissions on a file or directory.\n"
 	    "  <octal-digits> can be any octal Unix permission specifier.\n"
@@ -970,19 +1037,16 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_chmod
     },
     {
-	"del", "delete a file",
+	"del", TRUE, "delete a file",
 	    " <filename>\n"
 	    "  Delete a file.\n",
 	    sftp_cmd_rm
     },
     {
-	"delete", "delete a file",
-	    "\n"
-	    "  Delete a file.\n",
-	    sftp_cmd_rm
+	"delete", FALSE, "del", NULL, sftp_cmd_rm
     },
     {
-	"dir", "list contents of a remote directory",
+	"dir", TRUE, "list contents of a remote directory",
 	    " [ <directory-name> ]\n"
 	    "  List the contents of a specified directory on the server.\n"
 	    "  If <directory-name> is not given, the current working directory\n"
@@ -990,10 +1054,10 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_ls
     },
     {
-	"exit", "bye", NULL, sftp_cmd_quit
+	"exit", TRUE, "bye", NULL, sftp_cmd_quit
     },
     {
-	"get", "download a file from the server to your local machine",
+	"get", TRUE, "download a file from the server to your local machine",
 	    " <filename> [ <local-filename> ]\n"
 	    "  Downloads a file on the server and stores it locally under\n"
 	    "  the same name, or under a different one if you supply the\n"
@@ -1001,7 +1065,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_get
     },
     {
-	"help", "give help",
+	"help", TRUE, "give help",
 	    " [ <command> [ <command> ... ] ]\n"
 	    "  Give general help if no commands are specified.\n"
 	    "  If one or more commands are specified, give specific help on\n"
@@ -1009,24 +1073,38 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_help
     },
     {
-	"ls", "dir", NULL,
+	"lcd", TRUE, "change local working directory",
+	    " <local-directory-name>\n"
+	    "  Change the local working directory of the PSFTP program (the\n"
+	    "  default location where the \"get\" command will save files).\n",
+	    sftp_cmd_lcd
+    },
+    {
+	"lpwd", TRUE, "print local working directory",
+	    "\n"
+	    "  Print the local working directory of the PSFTP program (the\n"
+	    "  default location where the \"get\" command will save files).\n",
+	    sftp_cmd_lpwd
+    },
+    {
+	"ls", TRUE, "dir", NULL,
 	    sftp_cmd_ls
     },
     {
-	"mkdir", "create a directory on the remote server",
+	"mkdir", TRUE, "create a directory on the remote server",
 	    " <directory-name>\n"
 	    "  Creates a directory with the given name on the server.\n",
 	    sftp_cmd_mkdir
     },
     {
-	"mv", "move or rename a file on the remote server",
+	"mv", TRUE, "move or rename a file on the remote server",
 	    " <source-filename> <destination-filename>\n"
 	    "  Moves or renames the file <source-filename> on the server,\n"
 	    "  so that it is accessible under the name <destination-filename>.\n",
 	    sftp_cmd_mv
     },
     {
-	"put", "upload a file from your local machine to the server",
+	"put", TRUE, "upload a file from your local machine to the server",
 	    " <filename> [ <remote-filename> ]\n"
 	    "  Uploads a file to the server and stores it there under\n"
 	    "  the same name, or under a different one if you supply the\n"
@@ -1034,7 +1112,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_put
     },
     {
-	"open", "connect to a host",
+	"open", TRUE, "connect to a host",
 	    " [<user>@]<hostname>\n"
 	    "  Establishes an SFTP connection to a given host. Only usable\n"
 	    "  when you did not already specify a host name on the command\n"
@@ -1042,17 +1120,17 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_open
     },
     {
-	"pwd", "print your remote working directory",
+	"pwd", TRUE, "print your remote working directory",
 	    "\n"
 	    "  Print the current remote working directory for your SFTP session.\n",
 	    sftp_cmd_pwd
     },
     {
-	"quit", "bye", NULL,
+	"quit", TRUE, "bye", NULL,
 	    sftp_cmd_quit
     },
     {
-	"reget", "continue downloading a file",
+	"reget", TRUE, "continue downloading a file",
 	    " <filename> [ <local-filename> ]\n"
 	    "  Works exactly like the \"get\" command, but the local file\n"
 	    "  must already exist. The download will begin at the end of the\n"
@@ -1060,15 +1138,15 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_reget
     },
     {
-	"ren", "mv", NULL,
+	"ren", TRUE, "mv", NULL,
 	    sftp_cmd_mv
     },
     {
-	"rename", "mv", NULL,
+	"rename", FALSE, "mv", NULL,
 	    sftp_cmd_mv
     },
     {
-	"reput", "continue uploading a file",
+	"reput", TRUE, "continue uploading a file",
 	    " <filename> [ <remote-filename> ]\n"
 	    "  Works exactly like the \"put\" command, but the remote file\n"
 	    "  must already exist. The upload will begin at the end of the\n"
@@ -1076,11 +1154,11 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_reput
     },
     {
-	"rm", "del", NULL,
+	"rm", TRUE, "del", NULL,
 	    sftp_cmd_rm
     },
     {
-	"rmdir", "remove a directory on the remote server",
+	"rmdir", TRUE, "remove a directory on the remote server",
 	    " <directory-name>\n"
 	    "  Removes the directory with the given name on the server.\n"
 	    "  The directory will not be removed unless it is empty.\n",
@@ -1118,12 +1196,17 @@ static int sftp_cmd_help(struct sftp_command *cmd)
 	int maxlen;
 	maxlen = 0;
 	for (i = 0; i < sizeof(sftp_lookup) / sizeof(*sftp_lookup); i++) {
-	    int len = strlen(sftp_lookup[i].name);
+	    int len;
+	    if (!sftp_lookup[i].listed)
+		continue;
+	    len = strlen(sftp_lookup[i].name);
 	    if (maxlen < len)
 		maxlen = len;
 	}
 	for (i = 0; i < sizeof(sftp_lookup) / sizeof(*sftp_lookup); i++) {
 	    const struct sftp_cmd_lookup *lookup;
+	    if (!sftp_lookup[i].listed)
+		continue;
 	    lookup = &sftp_lookup[i];
 	    printf("%-*s", maxlen+2, lookup->name);
 	    if (lookup->longhelp == NULL)
@@ -1199,49 +1282,65 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	printf("%s\n", line);
     }
 
-    /*
-     * Parse the command line into words. The syntax is:
-     *  - double quotes are removed, but cause spaces within to be
-     *    treated as non-separating.
-     *  - a double-doublequote pair is a literal double quote, inside
-     *    _or_ outside quotes. Like this:
-     * 
-     *      firstword "second word" "this has ""quotes"" in" sodoes""this""
-     * 
-     * becomes
-     * 
-     *      >firstword<
-     *      >second word<
-     *      >this has "quotes" in<
-     *      >sodoes"this"<
-     */
     p = line;
-    while (*p) {
-	/* skip whitespace */
-	while (*p && (*p == ' ' || *p == '\t'))
-	    p++;
-	/* mark start of word */
-	q = r = p;		       /* q sits at start, r writes word */
-	quoting = 0;
+    while (*p && (*p == ' ' || *p == '\t'))
+	p++;
+
+    if (*p == '!') {
+	/*
+	 * Special case: the ! command. This is always parsed as
+	 * exactly two words: one containing the !, and the second
+	 * containing everything else on the line.
+	 */
+	cmd->nwords = cmd->wordssize = 2;
+	cmd->words = srealloc(cmd->words, cmd->wordssize * sizeof(char *));
+	cmd->words[0] = "!";
+	cmd->words[1] = p+1;
+    } else {
+
+	/*
+	 * Parse the command line into words. The syntax is:
+	 *  - double quotes are removed, but cause spaces within to be
+	 *    treated as non-separating.
+	 *  - a double-doublequote pair is a literal double quote, inside
+	 *    _or_ outside quotes. Like this:
+	 *
+	 *      firstword "second word" "this has ""quotes"" in" and""this""
+	 *
+	 * becomes
+	 *
+	 *      >firstword<
+	 *      >second word<
+	 *      >this has "quotes" in<
+	 *      >and"this"<
+	 */
 	while (*p) {
-	    if (!quoting && (*p == ' ' || *p == '\t'))
-		break;		       /* reached end of word */
-	    else if (*p == '"' && p[1] == '"')
-		p += 2, *r++ = '"';    /* a literal quote */
-	    else if (*p == '"')
-		p++, quoting = !quoting;
-	    else
-		*r++ = *p++;
+	    /* skip whitespace */
+	    while (*p && (*p == ' ' || *p == '\t'))
+		p++;
+	    /* mark start of word */
+	    q = r = p;		       /* q sits at start, r writes word */
+	    quoting = 0;
+	    while (*p) {
+		if (!quoting && (*p == ' ' || *p == '\t'))
+		    break;		       /* reached end of word */
+		else if (*p == '"' && p[1] == '"')
+		    p += 2, *r++ = '"';    /* a literal quote */
+		else if (*p == '"')
+		    p++, quoting = !quoting;
+		else
+		    *r++ = *p++;
+	    }
+	    if (*p)
+		p++;		       /* skip over the whitespace */
+	    *r = '\0';
+	    if (cmd->nwords >= cmd->wordssize) {
+		cmd->wordssize = cmd->nwords + 16;
+		cmd->words =
+		    srealloc(cmd->words, cmd->wordssize * sizeof(char *));
+	    }
+	    cmd->words[cmd->nwords++] = q;
 	}
-	if (*p)
-	    p++;		       /* skip over the whitespace */
-	*r = '\0';
-	if (cmd->nwords >= cmd->wordssize) {
-	    cmd->wordssize = cmd->nwords + 16;
-	    cmd->words =
-		srealloc(cmd->words, cmd->wordssize * sizeof(char *));
-	}
-	cmd->words[cmd->nwords++] = q;
     }
 
     /*

@@ -1,4 +1,4 @@
-\versionid $Id: psftp.but,v 1.2 2001/12/14 12:22:09 simon Exp $
+\versionid $Id: psftp.but,v 1.3 2001/12/16 13:33:04 simon Exp $
 
 \C{psftp} Using PSFTP to transfer files securely
 
@@ -159,6 +159,40 @@ Once you have started your PSFTP session, you will see a \c{psftp>}
 prompt. You can now type commands to perform file-transfer
 functions. This section lists all the available commands.
 
+\S{psftp-quoting} General quoting rules for PSFTP commands
+
+Most PSFTP commands are considered by the PSFTP command interpreter
+as a sequence of words, separated by spaces. For example, the
+command \c{ren oldfilename newfilename} splits up into three words:
+\c{ren} (the command name), \c{oldfilename} (the name of the file to
+be renamed), and \c{newfilename} (the new name to give the file).
+
+Sometimes you will need to specify file names that \e{contain}
+spaces. In order to do this, you can surround the file name with
+double quotes. This works equally well for local file names and
+remote file names:
+
+\c psftp> get "spacey file name.txt" "save it under this name.txt"
+
+The double quotes themselves will not appear as part of the file
+names; they are removed by PSFTP and their only effect is to stop
+the spaces inside them from acting as word separators.
+
+If you need to \e{use} a double quote (on some types of remote
+system, such as Unix, you are allowed to use double quotes in file
+names), you can do this by doubling it. This works both inside and
+outside double quotes. For example, this command
+
+\c psftp> ren ""this"" "a file with ""quotes"" in it"
+
+will take a file whose current name is \c{"this"} (with a double
+quote character at the beginning and the end) and rename it to a
+file whose name is \c{a file with "quotes" in it}.
+
+(The one exception to the PSFTP quoting rules is the \c{!} command,
+which passes its command line straight to Windows without splitting
+it up into words at all. See \k{psftp-cmd-pling}.)
+
 \S{psftp-cmd-open} The \c{open} command: start a session
 
 If you started PSFTP by double-clicking in the GUI, or just by
@@ -198,11 +232,24 @@ remote working directory
 PSFTP maintains a notion of your \q{working directory} on the
 server. This is the default directory that other commands will
 operate on. For example, if you type \c{get filename.dat} then PSFTP
-will look for \c{filename.dat} in your working directory on the
-server.
+will look for \c{filename.dat} in your remote working directory on
+the server.
 
-To change your working directory, use the \c{cd} command. To display
-your current working directory, type \c{pwd}.
+To change your remote working directory, use the \c{cd} command. To
+display your current remote working directory, type \c{pwd}.
+
+\S{psftp-cmd-lcd} The \c{lcd} and \c{lpwd} commands: changing the
+local working directory
+
+As well as having a working directory on the remote server, PSFTP
+also has a working directory on your local machine (just like any
+other Windows process). This is the default local directory that
+other commands will operate on. For example, if you type \c{get
+filename.dat} then PSFTP will save the resulting file as
+\c{filename.dat} in your local working directory.
+
+To change your local working directory, use the \c{lcd} command. To
+display your current local working directory, type \c{lpwd}.
 
 \S{psftp-cmd-get} The \c{get} command: fetch a file from the server
 
@@ -362,6 +409,22 @@ name, and then the new file name:
 
 The \c{rename} and \c{mv} commands work exactly the same way as
 \c{ren}.
+
+\S{psftp-cmd-pling} The \c{!} command: run a local Windows command
+
+You can run local Windows commands using the \c{!} command. This is
+the only PSFTP command that is not subject to the command quoting
+rules given in \k{psftp-quoting}. If any command line begins with
+the \c{!} character, then the rest of the line will be passed
+straight to Windows without further translation.
+
+For example, if you want to move an existing copy of a file out of
+the way before downloading an updated version, you might type:
+
+\c psftp> !ren myfile.dat myfile.bak
+\c psftp> get myfile.dat
+
+using the Windows \c{ren} command to rename files on your local PC.
 
 \H{psftp-pubkey} Using public key authentication with PSFTP
 
