@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.37 2003/04/14 23:25:04 ben Exp $ */
+/* $Id: macctrls.c,v 1.38 2003/04/14 23:28:58 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -905,7 +905,7 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
 #endif
     }
     add234(mcs->byctrl, mc);
-    curstate->pos.v += 6 + 20 * ctrl->listbox.height;
+    curstate->pos.v += 6 + 16 * ctrl->listbox.height + 2;
     mc->generic.next = mcs->panels[curstate->panelnum];
     mcs->panels[curstate->panelnum] = mc;
     ctrlevent(mcs, mc, EVENT_REFRESH);
