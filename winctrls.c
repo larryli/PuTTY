@@ -920,11 +920,9 @@ int pl_itemfrompt(HWND hwnd, POINT cursor, BOOL scroll)
      * the lower edge, or _below_ it if vice versa.
      */
     ret = LBItemFromPt(hwnd, cursor, scroll);
-    debug(("pl_itemfrompt: initial is %d\n", ret));
     if (ret == -1)
 	return ret;
     ret = LBItemFromPt(hwnd, cursor, FALSE);
-    debug(("pl_itemfrompt: secondary is %d\n", ret));
     updist = downdist = 0;
     for (i = 1; i < 4096 && (!updist || !downdist); i++) {
 	uppoint = downpoint = cursor;
