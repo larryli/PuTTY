@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.9 2002/12/18 11:39:25 simon Exp $
+\versionid $Id: using.but,v 1.10 2003/01/02 14:23:36 ben Exp $
 
 \C{using} Using PuTTY
 
@@ -32,7 +32,8 @@ server where it will probably cause a process to be interrupted.
 
 Pasting is done using the right button (or the middle mouse button,
 if you have a three-button mouse and have set it up; see
-\k{config-mouse}). When you click the right mouse button, PuTTY will
+\k{config-mouse}). Pressing Shift-Ins has the same effect.
+When you click the right mouse button, PuTTY will
 read whatever is in the Windows Clipboard and paste it into your
 session, \e{exactly} as if it had been typed at the keyboard.
 (Therefore, be careful of pasting formatted text into an editor that
