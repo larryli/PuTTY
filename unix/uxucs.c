@@ -131,6 +131,6 @@ void init_ucs(void)
 
     for (i = 0; i < 256; i++) {
 	unitab_line[i] = unitab_scoacs[i] = i;
-	unitab_xterm[i] = (i+1) & 0x1F;
+	unitab_xterm[i] = (i >= 0x5F && i < 0x7F) ? ((i+1) & 0x1F) : i;
     }
 }
