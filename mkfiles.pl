@@ -182,14 +182,14 @@ print
 "FORCE:\n".
 "\tbcc32 \$(FWHACK) \$(VER) \$(CFLAGS) /c version.c\n\n".
 "clean:\n".
-"\tdel *.obj\n".
-"\tdel *.exe\n".
-"\tdel *.res\n".
-"\tdel *.pch\n".
-"\tdel *.aps\n".
-"\tdel *.il*\n".
-"\tdel *.pdb\n".
-"\tdel *.rsp\n".
-"\tdel *.tds\n".
-"\tdel *.\$\$\$\$\$\$\n";
+"\t-del *.obj\n".
+"\t-del *.exe\n".
+"\t-del *.res\n".
+"\t-del *.pch\n".
+"\t-del *.aps\n".
+"\t-del *.il*\n".
+"\t-del *.pdb\n".
+"\t-del *.rsp\n".
+"\t-del *.tds\n".
+"\t-del *.\$\$\$\$\$\$\n";
 select STDOUT; close OUT;
