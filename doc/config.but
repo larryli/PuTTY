@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.75 2004/03/01 18:17:34 jacob Exp $
+\versionid $Id: config.but,v 1.76 2004/03/05 19:01:45 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2295,7 +2295,7 @@ Here is an example \c{PUTTYRND.REG} file:
 \c REGEDIT4
 \c  
 \c [HKEY_CURRENT_USER\Software\SimonTatham\PuTTY]
-\c "RandSeedFile"="a:\putty.rnd"
+\c "RandSeedFile"="a:\\putty.rnd"
 
 You should replace \c{a:\\putty.rnd} with the location where you
 want to store your random number data. If the aim is to carry around
