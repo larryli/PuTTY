@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.95 2004/10/19 13:54:50 jacob Exp $
+\versionid $Id: config.but,v 1.96 2004/10/24 18:26:00 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -74,10 +74,16 @@ name in the list box, and then press the \q{Load} button. Your saved
 settings should all appear in the configuration panel.
 
 \b To modify a saved session: first load it as described above. Then
-make the changes you want. Come back to the Session panel,
-single-click to select the session name in the list box, and press
+make the changes you want. Come back to the Session panel, and press
 the \q{Save} button. The new settings will be saved over the top of
-the old ones.
+the old ones
+
+\lcont{
+To save the new settings under a different name, you can enter the new
+name in the \q{Saved Sessions} box, or single-click to select a
+session name in the list box to overwrite that session. To save
+\q{Default Settings}, you must single-click the name before saving.
+}
 
 \b To start a saved session immediately: double-click on the session
 name in the list box.
@@ -104,15 +110,16 @@ Finally in the Session panel, there is an option labelled \q{Close
 Window on Exit}. This controls whether the PuTTY session window
 disappears as soon as the session inside it terminates. If you are
 likely to want to copy and paste text out of the session after it
-has terminated, you should arrange this option to be off.
+has terminated, or restart the session, you should arrange for this
+option to be off.
 
 \q{Close Window On Exit} has three settings. \q{Always} means always
 close the window on exit; \q{Never} means never close on exit
-(always leave the window open). The third setting, and the default
-one, is \q{Only on clean exit}. In this mode, a session which
-terminates normally will cause its window to close, but one which is
-aborted unexpectedly by network trouble or a confusing message from
-the server will leave the window up.
+(always leave the window open, but \I{inactive window}inactive). The
+third setting, and the default one, is \q{Only on clean exit}. In this
+mode, a session which terminates normally will cause its window to
+close, but one which is aborted unexpectedly by network trouble or a
+confusing message from the server will leave the window up.
 
 \H{config-logging} The Logging panel
 
@@ -491,6 +498,9 @@ If you do have the choice, we recommend configuring PuTTY to
 generate Control-? and configuring the server to expect it, because
 that allows applications such as \c{emacs} to use Control-H for
 help.
+
+(Typing \i{Shift-Backspace} will cause PuTTY to send whichever code
+isn't configured here as the default.)
 
 \S{config-homeend} Changing the action of the Home and End keys
 
@@ -922,28 +932,22 @@ while a session is running.
 \cfg{winhelp-topic}{window.resize}
 
 These options allow you to control what happens when the user tries
-to resize the PuTTY window.
+to resize the PuTTY window using its window furniture.
 
-When you resize the PuTTY window, one of four things can happen:
+There are four options here:
 
-\b Nothing (if you have completely disabled resizes).
+\b \q{Change the number of rows and columns}: the font size will not
+change. (This is the default.)
 
-\b The font size can stay the same and the number of rows and
-columns in the terminal can change.
+\b \q{Change the size of the font}: the number of rows and columns in
+the terminal will stay the same, and the font size will change.
 
-\b The number of rows and columns in the terminal can stay the same,
-and the font size can change.
+\b \q{Change font size when maximised}: when the window is resized,
+the number of rows and columns will change, \e{except} when the window
+is maximised (or restored), when the font size will change.
 
-\b You can allow PuTTY to change \e{either} the terminal size or the
-font size. In this mode it will change the terminal size most of the
-time, but enlarge the font when you maximise the window.
-
-You can control which of these happens using the \q{Lock terminal
-size against resizing} and \q{Lock font size against resizing}
-options. If you lock both, the window will refuse to be resized at
-all. If you lock just the terminal size, the font size will change
-when you resize the window. If you lock just the font size, the
-terminal size will change when you resize the window.
+\b \q{Forbid resizing completely}: the terminal will refuse to be
+resized at all.
 
 \S{config-scrollback} Controlling scrollback
 
@@ -1442,7 +1446,10 @@ colours (black, red, green, yellow, blue, magenta, cyan, and white).
 You can also modify the precise shades used for the bold versions of
 these colours; these are used to display bold text if you have
 selected \q{Bolded text is a different colour}, and can also be used
-if the server asks specifically to use them.
+if the server asks specifically to use them. (Note that \q{Default
+Bold Background} is \e{not} the background colour used for bold text;
+it is only used if the server specifically asks for a bold
+background.)
 
 \H{config-connection} The Connection panel
 
@@ -1463,7 +1470,7 @@ down the connection describing the terminal.
 PuTTY attempts to emulate the Unix \c{xterm} program, and by default
 it reflects this by sending \c{xterm} as a terminal-type string. If
 you find this is not doing what you want - perhaps the remote
-terminal reports \q{Unknown terminal type} - you could try setting
+system reports \q{Unknown terminal type} - you could try setting
 this to something different, such as \c{vt220}.
 
 If you're not sure whether a problem is due to the terminal type
