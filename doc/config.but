@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.53 2003/02/01 02:09:02 jacob Exp $
+\versionid $Id: config.but,v 1.54 2003/02/04 13:02:51 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2169,6 +2169,24 @@ We have no hard evidence that any specific version of specific
 server software reliably demonstrates this bug. Therefore, PuTTY
 will never \e{assume} a server has this bug; if you want the
 workaround, you need to enable it manually.
+
+This is an SSH2-specific bug.
+
+\S{config-ssh-bug-pksessid2} \q{Misuses the session ID in PK auth}
+
+\cfg{winhelp-topic}{ssh.bugs.rsapad2}
+
+Versions below 2.3 of OpenSSH require SSH2 public-key authentication
+to be done slightly differently: the data to be signed by the client
+contains the session ID formatted in a different way. If public-key
+authentication mysteriously does not work but the Event Log (see
+\k{using-eventlog}) thinks it has successfully sent a signature, it
+might be worth enabling the workaround for this bug to see if it
+helps.
+
+If this bug is detected, PuTTY will sign data in the way OpenSSH
+expects. If this bug is enabled when talking to a correct server,
+SSH2 public-key authentication will fail.
 
 This is an SSH2-specific bug.
 

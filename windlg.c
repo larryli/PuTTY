@@ -559,6 +559,8 @@ enum { IDCX_ABOUT =
     IDC_BUGD_RSAPAD2,
     IDC_BUGS_DHGEX2,
     IDC_BUGD_DHGEX2,
+    IDC_BUGS_PKSESSID2,
+    IDC_BUGD_PKSESSID2,
     sshbugspanelend,
 
     selectionpanelstart,
@@ -1066,6 +1068,9 @@ char *help_context_cmd(int id)
       case IDC_BUGS_DHGEX2:
       case IDC_BUGD_DHGEX2:
 	return "JI(`',`ssh.bugs.dhgex2')";
+      case IDC_BUGS_PKSESSID2:
+      case IDC_BUGD_PKSESSID2:
+	return "JI(`',`ssh.bugs.pksessid2')";
 
       default:
         return NULL;
@@ -1426,6 +1431,13 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SendDlgItemMessage(hwnd, IDC_BUGD_DHGEX2, CB_SETCURSEL,
 		       cfg.sshbug_dhgex2 == FORCE_ON ? 2 :
 		       cfg.sshbug_dhgex2 == FORCE_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_PKSESSID2, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_PKSESSID2, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_PKSESSID2, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_PKSESSID2, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_PKSESSID2, CB_SETCURSEL,
+		       cfg.sshbug_pksessid2 == FORCE_ON ? 2 :
+		       cfg.sshbug_pksessid2 == FORCE_OFF ? 1 : 0, 0);
 }
 
 struct treeview_faff {
@@ -2039,6 +2051,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      IDC_BUGS_RSAPAD2, IDC_BUGD_RSAPAD2, 20);
 	    staticddl(&cp, "Chokes on &Diffie-Hellman group exchange",
 		      IDC_BUGS_DHGEX2, IDC_BUGD_DHGEX2, 20);
+	    staticddl(&cp, "Misuses the sessio&n ID in PK auth",
+		      IDC_BUGS_PKSESSID2, IDC_BUGD_PKSESSID2, 20);
 	    endbox(&cp);
 	}
     }
@@ -3676,6 +3690,14 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 						   CB_GETCURSEL, 0, 0);
 		    cfg.sshbug_dhgex2 = (index == 0 ? AUTO :
 					 index == 1 ? FORCE_OFF : FORCE_ON);
+		}
+		break;
+	      case IDC_BUGD_PKSESSID2:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_PKSESSID2,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_pksessid2 = (index == 0 ? AUTO :
+                                            index == 1 ? FORCE_OFF : FORCE_ON);
 		}
 		break;
 	    }

@@ -343,6 +343,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "BugDeriveKey2", 2-cfg->sshbug_derivekey2);
     write_setting_i(sesskey, "BugRSAPad2", 2-cfg->sshbug_rsapad2);
     write_setting_i(sesskey, "BugDHGEx2", 2-cfg->sshbug_dhgex2);
+    write_setting_i(sesskey, "BugPKSessID2", 2-cfg->sshbug_pksessid2);
     write_setting_i(sesskey, "StampUtmp", cfg->stamp_utmp);
     write_setting_i(sesskey, "LoginShell", cfg->login_shell);
     write_setting_i(sesskey, "ScrollbarOnLeft", cfg->scrollbar_on_left);
@@ -616,6 +617,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "BugDeriveKey2", 0, &i); cfg->sshbug_derivekey2 = 2-i;
     gppi(sesskey, "BugRSAPad2", 0, &i); cfg->sshbug_rsapad2 = 2-i;
     gppi(sesskey, "BugDHGEx2", 0, &i); cfg->sshbug_dhgex2 = 2-i;
+    gppi(sesskey, "BugPKSessID2", 0, &i); cfg->sshbug_pksessid2 = 2-i;
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, &cfg->scrollbar_on_left);

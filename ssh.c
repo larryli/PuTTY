@@ -163,6 +163,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_RSA_PADDING	        	 16
 #define BUG_SSH2_DERIVEKEY                       32
 #define BUG_SSH2_DH_GEX                          64
+#define BUG_SSH2_PK_SESSIONID                   128
 
 #define translate(x) if (type == x) return #x
 #define translatec(x,ctx) if (type == x && (pkt_ctx & ctx)) return #x
@@ -1790,6 +1791,17 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_SSH2_RSA_PADDING;
 	logevent("We believe remote version has SSH2 RSA padding bug");
+    }
+
+    if (ssh->cfg.sshbug_pksessid2 == FORCE_ON ||
+	(ssh->cfg.sshbug_pksessid2 == AUTO &&
+	 wc_match("OpenSSH_2.[0-2]*", imp))) {
+	/*
+	 * These versions have the SSH2 session-ID bug in
+	 * public-key authentication.
+	 */
+	ssh->remote_bugs |= BUG_SSH2_PK_SESSIONID;
+	logevent("We believe remote version has SSH2 public-key-session-ID bug");
     }
 
     if (ssh->cfg.sshbug_dhgex2 == FORCE_ON) {
@@ -4629,6 +4641,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_addstring_data(ssh, s->pkblob, s->pklen);
 
 			s->siglen = ssh->pktout.length - 5 + 4 + 20;
+                        if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
+                            s->siglen -= 4;
 			s->len = 1;       /* message type */
 			s->len += 4 + s->pklen;	/* key blob */
 			s->len += 4 + s->siglen;	/* data to sign */
@@ -4644,8 +4658,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			PUT_32BIT(s->q, s->siglen);
 			s->q += 4;
 			/* Now the data to be signed... */
-			PUT_32BIT(s->q, 20);
-			s->q += 4;
+                        if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
+                            PUT_32BIT(s->q, 20);
+                            s->q += 4;
+                        }
 			memcpy(s->q, ssh->v2_session_id, 20);
 			s->q += 20;
 			memcpy(s->q, ssh->pktout.data + 5,
@@ -4894,6 +4910,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		} else {
 		    unsigned char *pkblob, *sigblob, *sigdata;
 		    int pkblob_len, sigblob_len, sigdata_len;
+                    int p;
 
 		    /*
 		     * We have loaded the private key and the server
@@ -4919,11 +4936,19 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		     * outgoing packet.
 		     */
 		    sigdata_len = ssh->pktout.length - 5 + 4 + 20;
+                    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
+                        sigdata_len -= 4;
 		    sigdata = smalloc(sigdata_len);
-		    PUT_32BIT(sigdata, 20);
-		    memcpy(sigdata + 4, ssh->v2_session_id, 20);
-		    memcpy(sigdata + 24, ssh->pktout.data + 5,
+                    p = 0;
+                    if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
+                        PUT_32BIT(sigdata+p, 20);
+                        p += 4;
+                    }
+		    memcpy(sigdata+p, ssh->v2_session_id, 20); p += 20;
+		    memcpy(sigdata+p, ssh->pktout.data + 5,
 			   ssh->pktout.length - 5);
+                    p += ssh->pktout.length - 5;
+                    assert(p == sigdata_len);
 		    sigblob = key->alg->sign(key->data, (char *)sigdata,
 					     sigdata_len, &sigblob_len);
 		    ssh2_add_sigblob(ssh, pkblob, pkblob_len,
