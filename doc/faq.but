@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.15 2001/12/16 15:30:03 simon Exp $
+\versionid $Id: faq.but,v 1.16 2001/12/29 17:00:06 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -613,6 +613,41 @@ Unlike the Windows login prompts, PuTTY doesn't display the password
 as a row of asterisks either. This is so that someone looking at
 your screen can't even tell how \e{long} your password is, which
 might be valuable information.
+
+\S{faq-keyboard}{Question} One or more function keys don't do what I
+expected in a server-side application.
+
+If you've already tried all the relevant options in the PuTTY
+Keyboard panel, you may need to mail the PuTTY maintainers and ask.
+
+It is \e{not} usually helpful just to tell us which application,
+which server operating system, and which key isn't working; in order
+to replicate the problem we would need to have a copy of every
+operating system, and every application, that anyone has ever
+complained about.
+
+PuTTY responds to function key presses by sending a sequence of
+control characters to the server. If a function key isn't doing what
+you expect, it's likely that the character sequence your application
+is expecting to receive is not the same as the one PuTTY is sending.
+Therefore what we really need to know is \e{what} sequence the
+application is expecting.
+
+The simplest way to investigate this is to find some other terminal
+environment, in which that function key \e{does} work; and then
+investigate what sequence the function key is sending in that
+situation. One reasonably easy way to do this on a Unix system is to
+type the command \c{cat}, and then press the function key. This is
+likely to produce output of the form \c{^[[11~}. You can also do
+this in PuTTY, to find out what sequence the function key is
+producing in that. Then you can mail the PuTTY maintainers and tell
+us \q{I wanted the F1 key to send \c{^[[11~}, but instead it's
+sending \c{^[OP}, can this be done?}, or something similar.
+
+You should still read the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html}{Feedback
+page} on the PuTTY website (also provided as \k{feedback} in the
+manual), and follow the guidelines contained in that.
 
 \H{faq-secure} Security questions
 
