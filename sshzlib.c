@@ -1164,7 +1164,10 @@ int zlib_decompress_block(unsigned char *block, int len,
 		goto finished;
 	    nlen = dctx.bits & 0xFFFF;
 	    EATBITS(16);
-	    dctx.state = UNCOMP_DATA;
+	    if (dctx.uncomplen == 0)
+		dctx.state = OUTSIDEBLK;	/* block is empty */
+	    else
+		dctx.state = UNCOMP_DATA;
 	    break;
 	  case UNCOMP_DATA:
 	    if (dctx.nbits < 8)
