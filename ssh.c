@@ -159,6 +159,8 @@ static const char *const ssh2_disconnect_reasons[] = {
  */
 #define BUG_CHOKES_ON_SSH1_IGNORE                 1
 #define BUG_SSH2_HMAC                             2
+#define BUG_NEEDS_SSH1_PLAIN_PASSWORD        	  4
+
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
@@ -1418,17 +1420,15 @@ static void ssh_detect_bugs(char *vstring)
     char *imp;			       /* pointer to implementation part */
     imp = vstring;
     imp += strcspn(imp, "-");
-    if (*imp)
-	imp++;
+    if (*imp) imp++;
     imp += strcspn(imp, "-");
-    if (*imp)
-	imp++;
+    if (*imp) imp++;
 
     ssh_remote_bugs = 0;
 
     if (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
 	!strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
-	!strcmp(imp, "1.2.22")) {
+	!strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25")) {
 	/*
 	 * These versions don't support SSH1_MSG_IGNORE, so we have
 	 * to use a different defence against password length
@@ -1436,6 +1436,16 @@ static void ssh_detect_bugs(char *vstring)
 	 */
 	ssh_remote_bugs |= BUG_CHOKES_ON_SSH1_IGNORE;
 	logevent("We believe remote version has SSH1 ignore bug");
+    }
+
+    if (!strcmp(imp, "Cisco-1.25")) {
+	/*
+	 * These versions need a plain password sent; they can't
+	 * handle having a null and a random length of data after
+	 * the password.
+	 */
+	ssh_remote_bugs |= BUG_NEEDS_SSH1_PLAIN_PASSWORD;
+	logevent("We believe remote version needs a plain SSH1 password");
     }
 
     if (!strncmp(imp, "2.1.0", 5) || !strncmp(imp, "2.0.", 4) ||
@@ -1479,8 +1489,8 @@ static int do_ssh_init(unsigned char c)
 	crReturn(1);		       /* get another character */
     }
 
-    vstring = smalloc(16);
     vstrsize = 16;
+    vstring = smalloc(vstrsize);
     strcpy(vstring, "SSH-");
     vslen = 4;
     i = 0;
@@ -1506,10 +1516,10 @@ static int do_ssh_init(unsigned char c)
 
     vstring[vslen] = 0;
     vlog = smalloc(20 + vslen);
+    vstring[strcspn (vstring, "\r\n")] = '\0'; /* remove end-of-line chars */
     sprintf(vlog, "Server version: %s", vstring);
-    ssh_detect_bugs(vstring);
-    vlog[strcspn(vlog, "\r\n")] = '\0';
     logevent(vlog);
+    ssh_detect_bugs(vstring);
     sfree(vlog);
 
     /*
@@ -2405,26 +2415,13 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 		 * use of the fact that the password is interpreted
 		 * as a C string: so we can append a NUL, then some
 		 * random data.
+		 * 
+		 * One server (a Cisco one) can deal with neither
+		 * SSH1_MSG_IGNORE _nor_ a padded password string.
+		 * For this server we are left with no defences
+		 * against password length sniffing.
 		 */
-		if (ssh_remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE) {
-		    char string[64];
-		    char *s;
-		    int len;
-
-		    len = strlen(password);
-		    if (len < sizeof(string)) {
-			s = string;
-			strcpy(string, password);
-			len++;	       /* cover the zero byte */
-			while (len < sizeof(string)) {
-			    string[len++] = (char) random_byte();
-			}
-		    } else {
-			s = password;
-		    }
-		    send_packet(pwpkt_type, PKT_INT, len,
-				PKT_DATA, s, len, PKT_END);
-		} else {
+		if (!(ssh_remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE)) {
 		    int bottom, top, pwlen, i;
 		    char *randomstr;
 
@@ -2456,7 +2453,40 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 					 PKT_STR, randomstr, PKT_END);
 			}
 		    }
+		    logevent("Sending password with camouflage packets");
 		    ssh_pkt_defersend();
+		} 
+		else if (!(ssh_remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
+		    char string[64];
+		    char *s;
+		    int len;
+
+		    len = strlen(password);
+		    if (len < sizeof(string)) {
+			s = string;
+			strcpy(string, password);
+			len++;	       /* cover the zero byte */
+			while (len < sizeof(string)) {
+			    string[len++] = (char) random_byte();
+			}
+		    } else {
+			s = password;
+		    }
+		    logevent("Sending length-padded password");
+		    send_packet(pwpkt_type, PKT_INT, len,
+				PKT_DATA, s, len, PKT_END);
+		} else {
+		    /*
+		     * The server has _both_
+		     * BUG_CHOKES_ON_SSH1_IGNORE and
+		     * BUG_NEEDS_SSH1_PLAIN_PASSWORD. There is
+		     * therefore nothing we can do.
+		     */
+		    int len;
+		    len = strlen(password);
+		    logevent("Sending unpadded password");
+		    send_packet(pwpkt_type, PKT_INT, len,
+				PKT_DATA, password, len, PKT_END);
 		}
 	    } else {
 		send_packet(pwpkt_type, PKT_STR, password, PKT_END);
