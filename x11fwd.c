@@ -111,6 +111,7 @@ void *x11_invent_auth(char *proto, int protomaxlen,
 	auth->fakelen = 16;
 	for (i = 0; i < 16; i++)
 	    auth->fakedata[i] = random_byte();
+	auth->xdmseen = NULL;
     } else {
 	assert(proto_id == X11_XDM);
 	auth->fakeproto = X11_XDM;
