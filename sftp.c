@@ -7,12 +7,9 @@
 #include <string.h>
 #include <assert.h>
 
+#include "misc.h"
 #include "int64.h"
 #include "sftp.h"
-
-#define smalloc malloc
-#define srealloc realloc
-#define sfree free
 
 #define GET_32BIT(cp) \
     (((unsigned long)(unsigned char)(cp)[0] << 24) | \
