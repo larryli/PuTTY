@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.67 2003/09/03 20:14:38 jacob Exp $
+\versionid $Id: config.but,v 1.68 2003/09/25 12:38:02 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2024,7 +2024,7 @@ To add a port forwarding:
 on whether you want to forward a local port to a remote destination
 (\q{Local}) or forward a remote port to a local destination
 (\q{Remote}). Alternatively, select \q{Dynamic} if you want PuTTY to
-provide a local SOCKS proxy on a local port.
+provide a local SOCKS 4/4A/5 proxy on a local port.
 
 \b Enter a source port number into the \q{Source port} box. For
 local forwardings, PuTTY will listen on this port of your PC. For
