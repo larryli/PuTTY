@@ -357,6 +357,27 @@ static int CALLBACK LogProc (HWND hwnd, UINT msg,
     return 0;
 }
 
+static int CALLBACK LicenceProc (HWND hwnd, UINT msg,
+				 WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+      case WM_INITDIALOG:
+	return 1;
+      case WM_COMMAND:
+	switch (LOWORD(wParam)) {
+	  case IDOK:
+	    abtbox = NULL;
+	    DestroyWindow (hwnd);
+	    return 0;
+	}
+	return 0;
+      case WM_CLOSE:
+	abtbox = NULL;
+	DestroyWindow (hwnd);
+	return 0;
+    }
+    return 0;
+}
+
 static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 			       WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -377,7 +398,7 @@ static int CALLBACK AboutProc (HWND hwnd, UINT msg,
 	  case IDA_LICENCE:
 	    EnableWindow(hwnd, 0);
 	    DialogBox (hinst, MAKEINTRESOURCE(IDD_LICENCEBOX),
-		       NULL, AboutProc);
+		       NULL, LicenceProc);
 	    EnableWindow(hwnd, 1);
 	    return 0;
 	}
