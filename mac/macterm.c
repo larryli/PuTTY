@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.58 2003/01/27 23:03:30 simon Exp $ */
+/* $Id: macterm.c,v 1.59 2003/01/28 00:25:20 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1092,7 +1092,7 @@ static pascal void do_text_for_device(short depth, short devflags,
 	if (depth > 2) {
 	    fgcolour = ((a->attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
 	    fgcolour = (fgcolour & 0xF) * 2 + (fgcolour & 0x10 ? 1 : 0);
-	    bgcolour = ((a->attr & ATTR_BGMASK) >> ATTR_BGSHIFT) * 2;
+	    bgcolour = ((a->attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
 	    bgcolour = (bgcolour & 0xF) * 2 + (bgcolour & 0x10 ? 1 : 0);
 	} else {
 	    /*
