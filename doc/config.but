@@ -2662,16 +2662,18 @@ SSH2 public-key authentication will fail.
 
 This is an SSH2-specific bug.
 
-\S{config-ssh-bug-rekey} \q{Ignores key re-exchange completely}
+\S{config-ssh-bug-rekey} \q{Handles key re-exchange badly}
 
 \cfg{winhelp-topic}{ssh.bugs.rekey2}
 
-Some very old SSH servers cannot cope with repeat key exchange at
+Some SSH servers cannot cope with repeat key exchange at
 all, and will ignore attempts by the client to start one. Since
 PuTTY pauses the session while performing a repeat key exchange, the
 effect of this would be to cause the session to hang after an hour
 (unless you have your rekey timeout set differently; see
 \k{config-ssh-kex-rekey} for more about rekeys).
+Other, very old, SSH servers handle repeat key exchange even more
+badly, and disconnect upon receiving a repeat key exchange request.
 
 If this bug is detected, PuTTY will never initiate a repeat key
 exchange. If this bug is enabled when talking to a correct server,

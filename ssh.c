@@ -2139,13 +2139,15 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_rekey2 == FORCE_ON ||
 	(ssh->cfg.sshbug_rekey2 == AUTO &&
-	 (wc_match("Sun_SSH_1.0", imp) ||
+	 (wc_match("OpenSSH_2.[0-4]*", imp) ||
+	  wc_match("OpenSSH_2.5.[0-3]*", imp) ||
+	  wc_match("Sun_SSH_1.0", imp) ||
 	  wc_match("Sun_SSH_1.0.1", imp)))) {
 	/*
-	 * These versions have the SSH2 ignore-rekey bug.
+	 * These versions have the SSH2 rekey bug.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_REKEY;
-	logevent("We believe remote version has SSH2 ignore-rekey bug");
+	logevent("We believe remote version has SSH2 rekey bug");
     }
 }
 
