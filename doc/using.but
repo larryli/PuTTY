@@ -385,7 +385,7 @@ should appear in the list box.
 Now start your session and log in. (Port forwarding will not be
 enabled until after you have logged in; otherwise it would be easy
 to perform completely anonymous network attacks, and gain access to
-anyone's virtual private network). To check that PuTTY has set up
+anyone's virtual private network.) To check that PuTTY has set up
 the port forwarding correctly, you can look at the PuTTY Event Log
 (see \k{using-eventlog}). It should say something like this:
 
