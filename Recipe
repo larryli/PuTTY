@@ -161,4 +161,4 @@ PuTTYtel : [M] terminal wcwidth ldiscucs logging be_nossh mac macdlg macevlog
          + stricmp vsnprint
 PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
-         + sshaes sshsh512 import macpgen.rsrc
+         + sshaes sshsh512 import macpgen.rsrc macpgkey

@@ -1,4 +1,4 @@
-/* $Id: macpgen.r,v 1.1 2003/02/12 23:53:15 ben Exp $ */
+/* $Id: macpgen.r,v 1.2 2003/02/15 14:20:43 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -260,6 +260,11 @@ resource 'STR ' (-16397, purgeable) {
     "This file is used internally by PuTTY.  It cannot be opened."
 };
 
+/* Missing-application name string, for private keys. */
+/* XXX Private keys should eventually be owned by Pageant */
+resource 'STR ' (-16396, purgeable) {
+    "PuTTYgen"
+};
 
 /*
  * Internal resources
@@ -435,3 +440,28 @@ resource 'TEXT' (wLicence, "licence", purgeable) {
     "CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE."
 };
+
+/* Key box */
+
+resource 'DLOG' (wKey, "key", purgeable) {
+    { 0, 0, 120, 240 },
+    noGrowDocProc,
+    invisible,
+    goAway,
+    wAbout,		/* RefCon -- identifies the window to PuTTY */
+    wAbout,		/* DITL ID */
+    "untitled",
+    staggerParentWindowScreen
+};
+
+resource 'dlgx' (wKey, "key", purgeable) {
+    versionZero {
+	kDialogFlagsUseThemeBackground | kDialogFlagsUseThemeControls
+    }
+};
+
+resource 'DITL' (wKey, "key", purgeable) {
+    {
+    }
+};
+

@@ -1,4 +1,4 @@
-/* $Id: macpgrid.h,v 1.1 2003/02/12 23:53:15 ben Exp $ */
+/* $Id: macpgrid.h,v 1.2 2003/02/15 14:20:43 ben Exp $ */
 
 /*
  * macpgrid.h -- Mac resource IDs for PuTTYgen
@@ -42,3 +42,4 @@
 #define wiAboutLicence		1
 #define wiAboutVersion		3
 #define wLicence	131
+#define wKey		134

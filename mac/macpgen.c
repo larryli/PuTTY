@@ -1,4 +1,4 @@
-/* $Id: macpgen.c,v 1.1 2003/02/12 23:53:15 ben Exp $ */
+/* $Id: macpgen.c,v 1.2 2003/02/15 14:20:43 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -126,7 +126,7 @@ static void mac_startup(void) {
     /* Get base system version (only used if there's no better selector) */
     if (Gestalt(gestaltSystemVersion, &mac_gestalts.sysvers) != noErr ||
 	(mac_gestalts.sysvers &= 0xffff) < 0x700)
-	fatalbox("PuTTY requires System 7 or newer");
+	fatalbox("PuTTYgen requires System 7 or newer");
     /* Find out if we've got Color Quickdraw */
     if (Gestalt(gestaltQuickdrawVersion, &mac_gestalts.qdvers) != noErr)
     	mac_gestalts.qdvers = gestaltOriginalQD;
@@ -457,6 +457,9 @@ static void mac_menucommand(long result) {
         break;
       case mFile:
         switch (item) {
+	  case iNew:
+	    mac_newkey();
+	    goto done;
           case iClose:
             mac_closewindow(window);
             goto done;

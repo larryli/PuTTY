@@ -43,7 +43,8 @@ extern struct mac_gestalts mac_gestalts;
 
 /* Every window used by PuTTY has a refCon field pointing to one of these. */
 typedef struct {
-    struct Session *s;
+    struct Session *s;    /* Only used in PuTTY */
+    struct KeyState *ks; /* Only used in PuTTYgen */
     int wtype;
 } WinInfo;
 
@@ -95,6 +96,13 @@ typedef struct Session {
 } Session;
 
 extern Session *sesslist;
+
+/* PuTTYgen per-window state */
+typedef struct KeyState {
+    DialogPtr		box;
+} KeyState;
+
+#define mac_windowkey(w)	(((WinInfo *)GetWRefCon(w))->ks)
 
 /* from macdlg.c */
 extern void mac_newsession(void);
@@ -164,6 +172,8 @@ extern Socket ot_register(void *, Plug);
 extern Socket ot_new(SockAddr addr, int, int, int, int, Plug);
 extern Socket ot_newlistener(char *, int, Plug, int);
 extern char *ot_addr_error(SockAddr);
+/* from macpgkey.c */
+extern void mac_newkey(void);
 /* Apple Event Handlers (in various files) */
 extern pascal OSErr mac_aevt_oapp(const AppleEvent *, AppleEvent *, long);
 extern pascal OSErr mac_aevt_odoc(const AppleEvent *, AppleEvent *, long);
