@@ -434,6 +434,11 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     else
 	localport = 0;		       /* just use port 0 (ie kernel picks) */
 
+    /* BSD IP stacks need sockaddr_in zeroed before filling in */
+    memset(&a,'\0',sizeof(struct sockaddr_in));
+#ifdef IPV6
+    memset(&a6,'\0',sizeof(struct sockaddr_in6));
+#endif
     /* Loop round trying to bind */
     while (1) {
 	int retcode;
@@ -574,7 +579,12 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only)
 
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
+    /* BSD IP stacks need sockaddr_in zeroed before filling in */
+    memset(&a,'\0',sizeof(struct sockaddr_in));
 #ifdef IPV6
+#if 0
+    memset(&a6,'\0',sizeof(struct sockaddr_in6));
+#endif
     hints.ai_flags = AI_NUMERICHOST;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = 0;
