@@ -34,6 +34,7 @@ static const WCHAR unitab_xterm_std[32] = {
 /* 
  * Tables for ISO-8859-{1-9,13-16} derived from those downloaded
  * 2001-10-02 from <http://www.unicode.org/Public/MAPPINGS/> -- jtn
+ * Table for ISO-8859-11 derived from same on 2002-11-18. -- bjh21
  */
 
 /* XXX: This could be done algorithmically, but I'm not sure it's
@@ -54,7 +55,7 @@ static const wchar_t iso_8859_1[] = {
     0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x00FF
 };
 
-/* ISO 8859-2:1999 (Latin-2, "Central European", "East European") */
+/* ISO/IEC 8859-2:1999 (Latin-2, "Central European", "East European") */
 static const wchar_t iso_8859_2[] = {
     0x00A0, 0x0104, 0x02D8, 0x0141, 0x00A4, 0x013D, 0x015A, 0x00A7,
     0x00A8, 0x0160, 0x015E, 0x0164, 0x0179, 0x00AD, 0x017D, 0x017B,
@@ -102,7 +103,7 @@ static const wchar_t iso_8859_4[] = {
     0x00F8, 0x0173, 0x00FA, 0x00FB, 0x00FC, 0x0169, 0x016B, 0x02D9
 };
 
-/* ISO 8859-5:1999 (Latin/Cyrillic) */
+/* ISO/IEC 8859-5:1999 (Latin/Cyrillic) */
 static const wchar_t iso_8859_5[] = {
     0x00A0, 0x0401, 0x0402, 0x0403, 0x0404, 0x0405, 0x0406, 0x0407,
     0x0408, 0x0409, 0x040A, 0x040B, 0x040C, 0x00AD, 0x040E, 0x040F,
@@ -118,7 +119,7 @@ static const wchar_t iso_8859_5[] = {
     0x0458, 0x0459, 0x045A, 0x045B, 0x045C, 0x00A7, 0x045E, 0x045F
 };
 
-/* ISO 8859-6:1999 (Latin/Arabic) */
+/* ISO/IEC 8859-6:1999 (Latin/Arabic) */
 static const wchar_t iso_8859_6[] = {
     0x00A0, 0xFFFD, 0xFFFD, 0xFFFD, 0x00A4, 0xFFFD, 0xFFFD, 0xFFFD,
     0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0x060C, 0x00AD, 0xFFFD, 0xFFFD,
