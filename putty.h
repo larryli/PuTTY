@@ -135,8 +135,8 @@ enum {
      * Close On Exit behaviours. (cfg.close_on_exit)
      */
     COE_NEVER,      /* Never close the window */
-    COE_ALWAYS,     /* Always close the window */
-    COE_NORMAL      /* Close window on "normal" (non-error) exits only */
+    COE_NORMAL,     /* Close window on "normal" (non-error) exits only */
+    COE_ALWAYS      /* Always close the window */
 };
 
 typedef struct {

@@ -145,6 +145,13 @@ void multiedit(struct ctlpos *cp, ...) {
  * (you might want this not to equal the number of buttons if you
  * needed to line up some 2s and some 3s to look good in the same
  * panel).
+ * 
+ * There's a bit of a hack in here to ensure that if nacross
+ * exceeds the actual number of buttons, the rightmost button
+ * really does get all the space right to the edge of the line, so
+ * you can do things like
+ * 
+ * (*) Button1  (*) Button2  (*) ButtonWithReallyLongTitle
  */
 void radioline(struct ctlpos *cp,
                char *text, int id, int nacross, ...) {
@@ -152,6 +159,7 @@ void radioline(struct ctlpos *cp,
     va_list ap;
     int group;
     int i;
+    char *btext;
 
     r.left = GAPBETWEEN; r.top = cp->ypos;
     r.right = cp->width; r.bottom = STATICHEIGHT;
@@ -160,15 +168,19 @@ void radioline(struct ctlpos *cp,
     va_start(ap, nacross);
     group = WS_GROUP;
     i = 0;
+    btext = va_arg(ap, char *);
     while (1) {
-        char *btext;
+        char *nextbtext;
         int bid;
-        btext = va_arg(ap, char *);
         if (!btext)
             break;
         bid = va_arg(ap, int);
+        nextbtext = va_arg(ap, char *);
         r.left = GAPBETWEEN + i * (cp->width+GAPBETWEEN)/nacross;
-        r.right = (i+1) * (cp->width+GAPBETWEEN)/nacross - r.left;
+        if (nextbtext)
+            r.right = (i+1) * (cp->width+GAPBETWEEN)/nacross - r.left;
+        else
+            r.right = cp->width - r.left;
         r.top = cp->ypos; r.bottom = RADIOHEIGHT;
         doctl(cp, r, "BUTTON",
               BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP | group,
@@ -176,6 +188,7 @@ void radioline(struct ctlpos *cp,
               btext, bid);
         group = 0;
         i++;
+        btext = nextbtext;
     }
     va_end(ap);
     cp->ypos += r.bottom + GAPBETWEEN;

@@ -205,8 +205,8 @@ enum { IDCX_ABOUT = IDC_ABOUT, IDCX_TVSTATIC, IDCX_TREEVIEW, controlstartvalue,
     IDC_SESSDEL,
     IDC_CLOSEEXIT,
     IDC_COEALWAYS,
-    IDC_COENORMAL,
     IDC_COENEVER,
+    IDC_COENORMAL,
     sessionpanelend,
 
     loggingpanelstart,
@@ -540,9 +540,9 @@ static void init_dlg_ctrls(HWND hwnd) {
     CheckDlgButton (hwnd, IDC_BLINKCUR, cfg.blink_cur);
     CheckDlgButton (hwnd, IDC_SCROLLBAR, cfg.scrollbar);
     CheckDlgButton (hwnd, IDC_LOCKSIZE, cfg.locksize);
-    CheckRadioButton (hwnd, IDC_COEALWAYS, IDC_COENEVER,
-                      cfg.close_on_exit==COE_NEVER ? IDC_COENEVER :
-                      cfg.close_on_exit==COE_NORMAL ? IDC_COENORMAL : IDC_COEALWAYS);
+    CheckRadioButton (hwnd, IDC_COEALWAYS, IDC_COENORMAL,
+                      cfg.close_on_exit==COE_NORMAL ? IDC_COENORMAL :
+                      cfg.close_on_exit==COE_NEVER ? IDC_COENEVER : IDC_COEALWAYS);
     CheckDlgButton (hwnd, IDC_CLOSEWARN, cfg.warn_on_close);
 
     SetDlgItemText (hwnd, IDC_TTEDIT, cfg.termtype);
@@ -704,10 +704,10 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
             endbox(&cp);
         }
         beginbox(&cp, NULL, IDC_BOX_SESSION3);
-        radioline(&cp, "At session end, close &window:", IDC_CLOSEEXIT, 3,
+        radioline(&cp, "Close &window on exit:", IDC_CLOSEEXIT, 4,
                   "Always", IDC_COEALWAYS,
-                  "On clean exit", IDC_COENORMAL,
-                  "Never", IDC_COENEVER, NULL);
+                  "Never", IDC_COENEVER,
+                  "Only on clean exit", IDC_COENORMAL, NULL);
         endbox(&cp);
     }
 
@@ -1605,13 +1605,13 @@ static int GenericMainDlgProc (HWND hwnd, UINT msg,
 				sizeof(cfg.wintitle)-1);
 	    break;
           case IDC_COEALWAYS:
-          case IDC_COENORMAL:
           case IDC_COENEVER:
+          case IDC_COENORMAL:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 cfg.close_on_exit = IsDlgButtonChecked (hwnd, IDC_COEALWAYS) ? COE_ALWAYS :
-                                    IsDlgButtonChecked (hwnd, IDC_COENORMAL) ? COE_NORMAL :
-                                    COE_NEVER;
+                                    IsDlgButtonChecked (hwnd, IDC_COENEVER) ? COE_NEVER :
+                                    COE_NORMAL;
             }
             break;
 	  case IDC_CLOSEWARN:
