@@ -1236,13 +1236,12 @@ void free_ctx(Context ctx)
 void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		      unsigned long attr, int lattr)
 {
-    int nfg, nbg, t;
+    int nfg, nbg, t, fontid, shadow;
     GdkGC *gc = (GdkGC *)ctx;
 
     /*
      * NYI:
      *  - Unicode, code pages, and ATTR_WIDE for CJK support.
-     *  - shadow bolding
      */
 
     nfg = 2 * ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
@@ -1261,6 +1260,14 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 	nbg = NCOLOURS-1;
     }
 
+    fontid = shadow = 0;
+    if ((attr & ATTR_BOLD) && !cfg.bold_colour) {
+	if (inst->fonts[1])
+	    fontid = 1;
+	else
+	    shadow = 1;
+    }
+
     if (lattr != LATTR_NORM) {
 	x *= 2;
 	if (x >= cols)
@@ -1276,10 +1283,24 @@ void do_text_internal(Context ctx, int x, int y, char *text, int len,
 		       len*inst->font_width, inst->font_height);
 
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
-    gdk_draw_text(inst->pixmap, inst->fonts[0], gc,
+    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
 		  x*inst->font_width+cfg.window_border,
 		  y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
 		  text, len);
+
+    /*
+     * X fonts seem to be pretty consistent about leaving the
+     * _left_ pixel of the cell blank rather than the right. Hence
+     * I'm going to hard-code shadow bolding as displaying one
+     * pixel to the left rather than try to work out whether it
+     * should be left or right.
+     */
+    if (shadow) {
+	gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
+		      x*inst->font_width+cfg.window_border - 1,
+		      y*inst->font_height+cfg.window_border+inst->fonts[0]->ascent,
+		      text, len);
+    }
 
     if (attr & ATTR_UNDER) {
 	int uheight = inst->fonts[0]->ascent + 1;
@@ -1573,6 +1594,13 @@ int main(int argc, char **argv)
 	    } else
 		err = 1, fprintf(stderr, "pterm: -fn expects an argument\n");
 	}
+	if (!strcmp(p, "-fb")) {
+	    if (--argc > 0) {
+		strncpy(cfg.boldfont, *++argv, sizeof(cfg.boldfont));
+		cfg.boldfont[sizeof(cfg.boldfont)-1] = '\0';
+	    } else
+		err = 1, fprintf(stderr, "pterm: -fb expects an argument\n");
+	}
 	if (!strcmp(p, "-e")) {
 	    if (--argc > 0) {
 		int i;
@@ -1622,7 +1650,16 @@ int main(int argc, char **argv)
 	fprintf(stderr, "pterm: unable to load font \"%s\"\n", cfg.font);
 	exit(1);
     }
-    inst->fonts[1] = NULL;             /* FIXME: what about bold font? */
+    if (cfg.boldfont[0]) {
+	inst->fonts[1] = gdk_font_load(cfg.boldfont);
+	if (!inst->fonts[1]) {
+	    fprintf(stderr, "pterm: unable to load bold font \"%s\"\n",
+		    cfg.boldfont);
+	    exit(1);
+	}
+    } else
+	inst->fonts[1] = NULL;
+
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
 
