@@ -1124,6 +1124,17 @@ static void sink(char *targ, char *src)
 	     * distinguish this case because `src' will be non-NULL
 	     * and the last component of that will fail to match
 	     * (the last component of) the name sent.
+	     * 
+	     * (Well, not always; if `src' is a wildcard, we do
+	     * expect to get back filenames that don't correspond
+	     * exactly to it. So we skip this check if `src'
+	     * contains a *, a ? or a []. This is non-ideal - we
+	     * would like to ensure that the returned filename
+	     * actually matches the wildcard pattern - but one of
+	     * SCP's protocol infelicities is that wildcard
+	     * matching is done at the server end _by the server's
+	     * rules_ and so in general this is infeasible. Live
+	     * with it, or upgrade to SFTP.)
 	     */
 	    char *striptarget, *stripsrc;
 
@@ -1145,12 +1156,13 @@ static void sink(char *targ, char *src)
 
 	    if (src) {
 		stripsrc = stripslashes(src);
-		if (strcmp(striptarget, stripsrc)) {
+		if (!stripsrc[strcspn(stripsrc, "*?[]")] &&
+		    strcmp(striptarget, stripsrc)) {
 		    tell_user(stderr, "warning: remote host attempted to"
 			      " write to a different filename: disallowing");
+		    /* Override the name the server provided with our own. */
+		    striptarget = stripsrc;
 		}
-		/* Override the name the server provided with our own. */
-		striptarget = stripsrc;
 	    }
 
 	    if (targ[0] != '\0')
