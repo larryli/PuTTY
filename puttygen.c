@@ -182,7 +182,7 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
     of.lStructSize = sizeof(of);
 #endif
     of.hwndOwner = hwnd;
-    of.lpstrFilter = "All Files\0*\0\0\0";
+    of.lpstrFilter = "PuTTY Private Key Files\0*.PPK\0AllFiles\0*\0\0\0";
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
     of.lpstrFile = filename;
@@ -190,6 +190,7 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
     of.nMaxFile = FILENAME_MAX;
     of.lpstrFileTitle = NULL;
     of.lpstrInitialDir = NULL;
+    of.lpstrDefExt = ".ppk";
     of.lpstrTitle = dlgtitle;
     of.Flags = 0;
     if (save)

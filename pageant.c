@@ -1240,7 +1240,7 @@ static void prompt_add_keyfile(void)
     of.lStructSize = sizeof(of);
 #endif
     of.hwndOwner = main_hwnd;
-    of.lpstrFilter = "All Files\0*\0\0\0";
+    of.lpstrFilter = "PuTTY Private Key Files\0*.PPK\0AllFiles\0*\0\0\0";
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
     of.lpstrFile = filelist;

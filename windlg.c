@@ -3133,7 +3133,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		of.lStructSize = sizeof(of);
 #endif
 		of.hwndOwner = hwnd;
-		of.lpstrFilter = "All Files\0*\0\0\0";
+		of.lpstrFilter = "PuTTY Private Key Files\0*.PPK\0"
+		    "AllFiles\0*\0\0\0";
 		of.lpstrCustomFilter = NULL;
 		of.nFilterIndex = 1;
 		of.lpstrFile = filename;
