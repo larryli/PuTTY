@@ -596,7 +596,7 @@ COptions_68K = {COptions} -model far -opt space
 COptions_CFM68K = {COptions} -model cfmSeg -opt time
 COptions_PPC = {COptions} -opt size
 
-LinkOptions = -c 'pTTY'
+LinkOptions = -c 'pTTY' -fragname PuTTY
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
 LinkOptions_CFM68K = {LinkOptions} -br 020 -model cfmseg -compact
 LinkOptions_PPC = {LinkOptions}
@@ -618,8 +618,7 @@ Libs_CFM =	"{SharedLibraries}InterfaceLib" \xb6
 			-weaklib UnicodeConverter
 
 Libs_CFM68K =	{Libs_CFM} \xb6
-		"{CFM68KLibraries}NuMacRuntime.o" \xb6
-		"{CFM68KLibraries}NuMathLib.o"
+		"{CFM68KLibraries}NuMacRuntime.o"
 
 Libs_PPC =	{Libs_CFM} \xb6
 		"{PPCLibraries}StdCRuntime.o" \xb6
@@ -638,17 +637,20 @@ foreach $p (&prognames("M")) {
   $objstr = &objects($p, "X.68k.o", undef, undef);
   print &splitline("$prog.68k \xc4 $objstr", undef, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_68K} " .
-                   $objstr . " {Libs_68K}", 69, "\xb6"), "\n\n";
+                   $objstr . " {Libs_68K}", 69, "\xb6"), "\n";
+  print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.cfm68k.o", undef, undef);
   print &splitline("$prog.cfm68k \xc4 $objstr", undef, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_CFM68K} " .
-                   $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n\n";
+                   $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n";
+  print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.ppc.o", undef, undef);
   print &splitline("$prog.ppc \xc4 $objstr", undef, "\xb6"), "\n";
   print &splitline("\tPPCLink -o {Targ} {LinkOptions_PPC} " .
-                   $objstr . " {Libs_PPC}", 69, "\xb6"), "\n\n";
+                   $objstr . " {Libs_PPC}", 69, "\xb6"), "\n";
+  print &splitline("\tSetFile -a BM {Targ}", 69, "\xb6"), "\n\n";
 }
 foreach $d (&deps("X.68k.o", undef, "::", ":")) {
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
