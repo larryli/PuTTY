@@ -510,6 +510,7 @@ void lpage_send(int codepage, char *buf, int len);
 void luni_send(wchar_t * widebuf, int len);
 int check_compose(int first, int second);
 int decode_codepage(char *cp_name);
+char *cp_enumerate (int index);
 char *cp_name(int codepage);
 
 /*

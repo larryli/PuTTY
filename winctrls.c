@@ -145,7 +145,31 @@ void multiedit(struct ctlpos *cp, ...)
 	      WS_EX_CLIENTEDGE, "", editid);
     }
     va_end(ap);
-    cp->ypos += 8 + GAPWITHIN + 12 + GAPBETWEEN;
+    cp->ypos += STATICHEIGHT + GAPWITHIN + EDITHEIGHT + GAPBETWEEN;
+}
+
+/*
+ * A static line, followed by a full-width drop-down list (ie a
+ * non-editing combo box).
+ */
+void dropdownlist(struct ctlpos *cp, char *text, int staticid, int listid)
+{
+    RECT r;
+    va_list ap;
+
+    r.left = GAPBETWEEN;
+    r.right = cp->width;
+
+    r.top = cp->ypos;
+    r.bottom = STATICHEIGHT;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, staticid);
+    r.top = cp->ypos + 8 + GAPWITHIN;
+    r.bottom = COMBOHEIGHT * 10;
+    doctl(cp, r, "COMBOBOX",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL |
+	  CBS_DROPDOWNLIST | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", listid);
+
+    cp->ypos += STATICHEIGHT + GAPWITHIN + COMBOHEIGHT + GAPBETWEEN;
 }
 
 static void radioline_common(struct ctlpos *cp, int nacross, va_list ap)

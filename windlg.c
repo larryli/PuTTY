@@ -746,7 +746,20 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemInt(hwnd, IDC_GVALUE, cfg.colours[0][1], FALSE);
     SetDlgItemInt(hwnd, IDC_BVALUE, cfg.colours[0][2], FALSE);
 
-    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
+    {
+	int i;
+	char *cp;
+	int index = 0;
+	SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_RESETCONTENT, 0, 0);
+	for (i = 0; (cp = cp_enumerate(i)) != NULL; i++) {
+	    SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_ADDSTRING,
+			       0, (LPARAM) cp);
+	    if (!strcmp(cp, cfg.line_codepage))
+		index = i;
+	}
+	SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_SETCURSEL, index, 0);
+    }
+    
     CheckRadioButton(hwnd, IDC_VTXWINDOWS, IDC_VTUNICODE,
 		     cfg.vtmode == VT_XWINDOWS ? IDC_VTXWINDOWS :
 		     cfg.vtmode == VT_OEMANSI ? IDC_VTOEMANSI :
@@ -1053,10 +1066,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 "&Poor man's line drawing (" "+" ", " "-" " and " "|" ")",
 		 IDC_VTPOORMAN, "&Unicode mode", IDC_VTUNICODE, NULL);
 	endbox(&cp);
-	beginbox(&cp, "Enable character set translation on received data",
+	beginbox(&cp, "Character set translation on received data",
 		 IDC_BOX_TRANSLATION2);
-	multiedit(&cp, "Line codepage:", IDC_CODEPAGESTATIC,
-		  IDC_CODEPAGE, 100, NULL);
+	dropdownlist(&cp,
+		     "Received data assumed to be in which character set:",
+		     IDC_CODEPAGESTATIC, IDC_CODEPAGE);
 	endbox(&cp);
     }
 
@@ -2391,28 +2405,11 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		}
 		break;
 	      case IDC_CODEPAGE:
-		if (HIWORD(wParam) == EN_CHANGE)
-		    GetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage,
-				   sizeof(cfg.line_codepage) - 1);
-		if (HIWORD(wParam) == EN_KILLFOCUS) {
-		    int cp = decode_codepage(cfg.line_codepage);
-		    char buf[256];
-		    if (cp < -1) {
-			if (cp == -2)
-			    sprintf(buf,
-				    "Unable to identify character set '%s', "
-				    "translation disabled.",
-				    cfg.line_codepage);
-			if (cp == -3)
-			    sprintf(buf,
-				    "Character set '%s' is a DBCS, "
-				    "translation is not available.",
-				    cfg.line_codepage);
-			MessageBox(hwnd, buf, "PuTTY Error",
-				   MB_ICONERROR | MB_OK);
-		    }
-		    strcpy(cfg.line_codepage, cp_name(cp));
-		    SetDlgItemText(hwnd, IDC_CODEPAGE, cfg.line_codepage);
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_CODEPAGE,
+						   CB_GETCURSEL, 0, 0);
+		    SendDlgItemMessage(hwnd, IDC_CODEPAGE, CB_GETLBTEXT,
+				       index, (LPARAM)cfg.line_codepage);
 		}
 		break;
 	      case IDC_VTXWINDOWS:

@@ -46,6 +46,7 @@ void staticbtn(struct ctlpos *cp, char *stext, int sid,
 	       char *btext, int bid);
 void staticedit(struct ctlpos *cp, char *stext,
 		int sid, int eid, int percentedit);
+void dropdownlist(struct ctlpos *cp, char *text, int staticid, int listid);
 void staticpassedit(struct ctlpos *cp, char *stext,
 		    int sid, int eid, int percentedit);
 void bigeditctrl(struct ctlpos *cp, char *stext,
