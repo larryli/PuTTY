@@ -485,7 +485,27 @@ void old_keyfile_warning(void)
      */
 }
 
-void about_box(void *window)
+static void connection_fatal_callback(void *ctx, int result)
 {
-    /* FIXME */
+    SessionWindow *win = (SessionWindow *)ctx;
+
+    [win endSession:FALSE];
+}
+
+void connection_fatal(void *frontend, char *p, ...)
+{
+    SessionWindow *win = (SessionWindow *)frontend;
+    va_list ap;
+    char *msg;
+    NSAlert *alert;
+
+    va_start(ap, p);
+    msg = dupvprintf(p, ap);
+    va_end(ap);
+
+    alert = [[NSAlert alloc] init];
+    [alert setInformativeText:[NSString stringWithCString:msg]];
+    [alert addButtonWithTitle:@"Proceed"];
+    [win startAlert:alert withCallback:connection_fatal_callback
+     andCtx:win];
 }

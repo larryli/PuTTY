@@ -60,28 +60,47 @@ char *x_get_default(const char *key)
     return NULL;		       /* this is a stub */
 }
 
-void modalfatalbox(char *p, ...)
+static void commonfatalbox(char *p, va_list ap)
 {
-    /* FIXME: proper OS X GUI stuff */
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
+    char errorbuf[2048];
+    NSAlert *alert;
+
+    /*
+     * We may have come here because we ran out of memory, in which
+     * case it's entirely likely that that further memory
+     * allocations will fail. So (a) we use vsnprintf to format the
+     * error message rather than the usual dupvprintf; and (b) we
+     * have a fallback way to get the message out via stderr if
+     * even creating an NSAlert fails.
+     */
+    vsnprintf(errorbuf, lenof(errorbuf), p, ap);
+
+    alert = [NSAlert alloc];
+    if (!alert) {
+	fprintf(stderr, "fatal error (and NSAlert failed): %s\n", errorbuf);
+    } else {
+	alert = [[alert init] autorelease];
+	[alert addButtonWithTitle:@"Terminate"];
+	[alert setInformativeText:[NSString stringWithCString:errorbuf]];
+	[alert runModal];
+    }
     exit(1);
 }
 
 void fatalbox(char *p, ...)
 {
-    /* FIXME: proper OS X GUI stuff */
     va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
     va_start(ap, p);
-    vfprintf(stderr, p, ap);
+    commonfatalbox(p, ap);
     va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
+}
+
+void modalfatalbox(char *p, ...)
+{
+    va_list ap;
+    va_start(ap, p);
+    commonfatalbox(p, ap);
+    va_end(ap);
 }
 
 void cmdline_error(char *p, ...)

@@ -18,10 +18,10 @@ say you weren't warned!
 
 Other ways in which the port is currently unfinished include:
 
- - terminal display is horribly slow
+Missing terminal window features
+--------------------------------
 
- - fatal errors are currently output via printf, which is obviously
-   wrong for a GUI application
+ - terminal display is horribly slow
 
  - fonts aren't configurable
 
@@ -38,31 +38,44 @@ Other ways in which the port is currently unfinished include:
    starting position, plus remembering previous window positions per
    the Apple HIG) is not implemented
 
- - close-on-exit isn't implemented
+Missing alert box features
+--------------------------
 
  - warn-on-close isn't implemented
 
- - SessionWindow's dealloc method does nothing yet, so leaks memory
+Missing input features
+----------------------
 
  - use of Alt+numberpad to enter arbitrary numeric character codes
    is not yet supported
 
  - cut and paste isn't supported
 
- - there's no Meta key yet. (I think it will have to be Command
-   rather than Option since the latter is necessary to send some
-   characters, including the rather important # on Apple UK
-   keyboards; but trapping Command-<key> and sending it to the
-   window rather than the application menu requires me to make a
-   positive effort of some sort and I haven't got round to it yet.)
+ - there's no Meta key yet. (I'd like to at least have the
+   possibility of using Command rather than Option as the Meta key,
+   since the latter is necessary to send some characters, including
+   the rather important # on Apple UK keyboards; but trapping
+   Command-<key> and sending it to the window rather than the
+   application menu requires me to make a positive effort of some
+   sort and I haven't got round to it yet. For those Mac users who
+   consider their Command key sacrosanct, don't worry, this option
+   _will_ be configurable and _will_ be off by default.)
 
  - there's no specials menu
+
+Missing terminal emulation features
+-----------------------------------
 
  - currently no support for server-side window management requests
    (i.e. escape sequences to minimise or maximise the window,
    request or change its position and size, change its title etc)
 
  - window title is currently fixed
+
+Other missing features
+----------------------
+
+ - SessionWindow's dealloc method does nothing yet, so leaks memory
 
  - no Event Log
 

@@ -300,6 +300,8 @@
      */
     [self center];		       /* :-) */
 
+    exited = FALSE;
+
     return self;
 }
 
@@ -311,6 +313,14 @@
      * Do so.
      */
     sfree(alert_ctx);
+    if (term)
+	term_free(term);
+    if (logctx)
+	log_free(logctx);
+    if (back)
+	back->free(backhandle);
+    if (ldisc)
+	ldisc_free(ldisc);
     [super dealloc];
 }
 
@@ -346,7 +356,7 @@
     char coutput[32];
     int use_coutput = FALSE, special = FALSE, start, end;
 
-printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
+//printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
 
     /*
      * FIXME: Alt+numberpad codes.
@@ -846,6 +856,33 @@ printf("n=%d c=U+%04x cm=U+%04x m=%08x\n", n, c, cm, m);
     }
 }
 
+- (void)notifyRemoteExit
+{
+    int exitcode;
+
+    if (!exited && (exitcode = back->exitcode(backhandle)) >= 0)
+	[self endSession:(exitcode == 0)];
+}
+
+- (void)endSession:(int)clean
+{
+    exited = TRUE;
+    if (ldisc) {
+	ldisc_free(ldisc);
+	ldisc = NULL;
+    }
+    if (back) {
+	back->free(backhandle);
+	backhandle = NULL;
+	back = NULL;
+	//FIXME: update specials menu;
+    }
+    if (cfg.close_on_exit == FORCE_ON ||
+	(cfg.close_on_exit == AUTO && clean))
+	[self close];
+    // FIXME: else show restart menu item
+}
+
 @end
 
 int from_backend(void *frontend, int is_stderr, const char *data, int len)
@@ -859,23 +896,11 @@ void frontend_keypress(void *handle)
     /* FIXME */
 }
 
-void connection_fatal(void *frontend, char *p, ...)
-{
-    //SessionWindow *win = (SessionWindow *)frontend;
-    /* FIXME: proper OS X GUI stuff */
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
-
 void notify_remote_exit(void *frontend)
 {
-    //SessionWindow *win = (SessionWindow *)frontend;
-    /* FIXME */
+    SessionWindow *win = (SessionWindow *)frontend;
+
+    [win notifyRemoteExit];
 }
 
 void ldisc_update(void *frontend, int echo, int edit)

@@ -47,6 +47,7 @@ struct alert_queue {
     void *ldisc;
     Backend *back;
     void *backhandle;
+    int exited;
     /*
      * The following two members relate to the currently active
      * alert sheet, if any. They are NULL if there isn't one.
@@ -65,6 +66,8 @@ struct alert_queue {
 - (int)fromBackend:(const char *)data len:(int)len isStderr:(int)is_stderr;
 - (void)startAlert:(NSAlert *)alert
     withCallback:(void (*)(void *, int))callback andCtx:(void *)ctx;
+- (void)endSession:(int)clean;
+- (void)notifyRemoteExit;
 @end
 
 /*
