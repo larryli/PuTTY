@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.4 2002/11/20 00:11:05 ben Exp $ */
+/* $Id: macterm.c,v 1.5 2002/11/20 00:33:44 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -233,8 +233,8 @@ static void mac_initpalette(Session *s) {
      * Palette manager documentation suggests inhibiting all tolerant colours
      * on greyscale displays.
      */
-#define PM_NORMAL 	pmTolerant | pmInhibitC2 |			\
-			pmInhibitG2 | pmInhibitG4 | pmInhibitG8 | pmInhibitC2
+#define PM_NORMAL 	( pmTolerant | pmInhibitC2 |			\
+			  pmInhibitG2 | pmInhibitG4 | pmInhibitG8 )
 #define PM_TOLERANCE	0x2000
     s->palette = NewPalette(22, NULL, PM_NORMAL, PM_TOLERANCE);
     if (s->palette == NULL)
@@ -246,7 +246,7 @@ static void mac_initpalette(Session *s) {
 		  PM_NORMAL &~ pmInhibitC2, PM_TOLERANCE);
     SetEntryUsage(s->palette, DEFAULT_FG_BOLD,
 		  PM_NORMAL &~ pmInhibitC2, PM_TOLERANCE);
-    SetEntryUsage(s->palette, CURSOR_FG,
+    SetEntryUsage(s->palette, CURSOR_BG,
 		  PM_NORMAL &~ pmInhibitC2, PM_TOLERANCE);
     palette_reset(s);
 }
