@@ -355,6 +355,12 @@ void crypto_wrapup();
 #endif
 
 /*
+ * Exports from pageantc.c
+ */
+void agent_query(void *in, int inlen, void **out, int *outlen);
+int agent_exists(void);
+
+/*
  * A debug system.
  */
 #ifdef DEBUG

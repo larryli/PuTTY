@@ -36,6 +36,7 @@ struct RSAKey {
     Bignum exponent;
     Bignum private_exponent;
 #endif
+    char *comment;
 };
 
 int makekey(unsigned char *data, struct RSAKey *result,
@@ -47,6 +48,7 @@ void rsasign(unsigned char *data, int length, struct RSAKey *key);
 void rsasanitise(struct RSAKey *key);
 int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
+void freersakey(struct RSAKey *key);
 
 typedef unsigned int word32;
 typedef unsigned int uint32;
@@ -145,6 +147,10 @@ void modmul(Bignum a, Bignum b, Bignum mod, Bignum result);
 void decbn(Bignum n);
 extern Bignum Zero, One;
 int ssh1_read_bignum(unsigned char *data, Bignum *result);
+int ssh1_bignum_bitcount(Bignum bn);
+int ssh1_bignum_length(Bignum bn);
+int bignum_byte(Bignum bn, int i);
+int ssh1_write_bignum(void *data, Bignum bn);
 
 Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);

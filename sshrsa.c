@@ -156,6 +156,13 @@ void rsastr_fmt(char *str, struct RSAKey *key) {
     str[len] = '\0';
 }
 
+void freersakey(struct RSAKey *key) {
+    if (key->modulus) freebn(key->modulus);
+    if (key->exponent) freebn(key->exponent);
+    if (key->private_exponent) freebn(key->private_exponent);
+    if (key->comment) free(key->comment);
+}
+
 #ifdef TESTMODE
 
 #ifndef NODDY

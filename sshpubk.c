@@ -67,10 +67,14 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase) {
 
     /* Next, the comment field. */
     j = GET_32BIT(buf+i);
-    if (len-i < 4+j) goto end; i += 4+j;
-    /*
-     * FIXME: might need to use this string.
-     */
+    i += 4;
+    if (len-i < j) goto end;
+    key->comment = malloc(j+1);
+    if (key->comment) {
+        memcpy(key->comment, buf+i, j);
+        key->comment[j] = '\0';
+    }
+    i += j;
 
     /*
      * Decrypt remainder of buffer.
@@ -80,7 +84,7 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase) {
         MD5Update(&md5c, passphrase, strlen(passphrase));
         MD5Final(keybuf, &md5c);
         des3_decrypt_pubkey(keybuf, buf+i, (len-i+7)&~7);
-        memset(keybuf, 0, sizeof(buf));    /* burn the evidence */
+        memset(keybuf, 0, sizeof(keybuf));    /* burn the evidence */
     }
 
     /*

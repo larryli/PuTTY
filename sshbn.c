@@ -340,3 +340,50 @@ int ssh1_read_bignum(unsigned char *data, Bignum *result) {
 
     return p - data;
 }
+
+/*
+ * Return the bit count of a bignum, for ssh1 encoding.
+ */
+int ssh1_bignum_bitcount(Bignum bn) {
+    int bitcount = bn[0] * 16 - 1;
+
+    while (bitcount >= 0 && (bn[bitcount/16+1] >> (bitcount % 16)) == 0)
+        bitcount--;
+    return bitcount + 1;
+}
+
+/*
+ * Return the byte length of a bignum when ssh1 encoded.
+ */
+int ssh1_bignum_length(Bignum bn) {
+    return 2 + (ssh1_bignum_bitcount(bn)+7)/8;
+}
+
+/*
+ * Return a byte from a bignum; 0 is least significant, etc.
+ */
+int bignum_byte(Bignum bn, int i) {
+    if (i >= 2*bn[0])
+        return 0;                      /* beyond the end */
+    else if (i & 1)
+        return (bn[i/2+1] >> 8) & 0xFF;
+    else
+        return (bn[i/2+1]     ) & 0xFF;
+}
+
+/*
+ * Write a ssh1-format bignum into a buffer. It is assumed the
+ * buffer is big enough. Returns the number of bytes used.
+ */
+int ssh1_write_bignum(void *data, Bignum bn) {
+    unsigned char *p = data;
+    int len = ssh1_bignum_length(bn);
+    int i;
+    int bitc = ssh1_bignum_bitcount(bn);
+
+    *p++ = (bitc >> 8) & 0xFF;
+    *p++ = (bitc     ) & 0xFF;
+    for (i = len-2; i-- ;)
+        *p++ = bignum_byte(bn, i);
+    return len;
+}

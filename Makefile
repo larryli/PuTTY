@@ -50,23 +50,28 @@ GOBJS2 = xlat.$(OBJ) sizetip.$(OBJ)
 ##-- objects putty puttytel plink
 LOBJS1 = telnet.$(OBJ) raw.$(OBJ) ldisc.$(OBJ)
 ##-- objects putty plink
-POBJS = ssh.$(OBJ) be_all.$(OBJ)
+POBJS = be_all.$(OBJ)
 ##-- objects puttytel
 TOBJS = be_nossh.$(OBJ)
 ##-- objects plink
 PLOBJS = plink.$(OBJ) windlg.$(OBJ)
 ##-- objects pscp
-SOBJS = scp.$(OBJ) windlg.$(OBJ) ssh.$(OBJ) be_none.$(OBJ)
+SOBJS = scp.$(OBJ) windlg.$(OBJ) be_none.$(OBJ)
 ##-- objects putty puttytel pscp plink
 MOBJS = misc.$(OBJ) version.$(OBJ)
 ##-- objects putty pscp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
-OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ)
+OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ)
+##-- objects pageant
+PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
+PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ)
 ##-- resources putty
 PRESRC = win_res.$(RES)
 ##-- resources puttytel
 TRESRC = nosshres.$(RES)
+##-- resources pageant
+PAGERC = pageant.$(RES)
 ##-- resources pscp
 SRESRC = scp.$(RES)
 ##-- resources plink
@@ -76,22 +81,28 @@ LRESRC = plink.$(RES)
 ##-- gui-apps
 # putty
 # puttytel
+# pageant
 ##-- console-apps
 # pscp
+# plink
 ##--
 
 LIBS1 = advapi32.lib user32.lib gdi32.lib
 LIBS2 = comctl32.lib comdlg32.lib
+LIBS3 = shell32.lib
 SOCK1 = wsock32.lib
 SOCK2 = ws2_32.lib
 
-all: putty.exe puttytel.exe pscp.exe plink.exe
+all: putty.exe puttytel.exe pscp.exe plink.exe pageant.exe
 
 putty.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(POBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(PRESRC) putty.rsp
 	link $(LFLAGS) -out:putty.exe @putty.rsp
 
 puttytel.exe: $(GOBJS1) $(GOBJS2) $(LOBJS1) $(TOBJS) $(MOBJS) $(TRESRC) puttytel.rsp
 	link $(LFLAGS) -out:puttytel.exe @puttytel.rsp
+
+pageant.exe: $(PAGE1) $(PAGE2) $(PAGERC) pageant.rsp
+	link $(LFLAGS) -out:pageant.exe @pageant.rsp
 
 pscp.exe: $(SOBJS) $(MOBJS) $(OBJS1) $(OBJS2) $(OBJS3) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe @pscp.rsp
@@ -125,6 +136,15 @@ puttytel.rsp: makefile
 	echo $(LIBS1) >> puttytel.rsp
 	echo $(LIBS2) >> puttytel.rsp
 	echo $(SOCK1) >> puttytel.rsp
+
+pageant.rsp: makefile
+	echo /nologo /subsystem:windows > pageant.rsp
+        echo $(PAGE1) >> pageant.rsp
+        echo $(PAGE2) >> pageant.rsp
+        echo $(PAGERC) >> pageant.rsp
+	echo $(LIBS1) >> pageant.rsp
+	echo $(LIBS2) >> pageant.rsp
+	echo $(LIBS3) >> pageant.rsp
 
 pscp.rsp: makefile
 	echo /nologo /subsystem:console > pscp.rsp
@@ -181,6 +201,8 @@ be_all.$(OBJ): be_all.c
 be_nossh.$(OBJ): be_nossh.c
 be_none.$(OBJ): be_none.c
 plink.$(OBJ): plink.c putty.h
+pageant.$(OBJ): pageant.c ssh.h tree234.h
+tree234.$(OBJ): tree234.c tree234.h
 ##--
 
 # Hack to force version.obj to be rebuilt always
@@ -206,6 +228,12 @@ scp.$(RES): scp.rc scp.ico
 ##--
 scp.$(RES):
 	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 scp.rc
+
+##-- dependencies
+pageant.$(RES): pageant.rc pageant.ico pageants.ico
+##--
+pageant.$(RES):
+	rc $(FWHACK) $(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 pageant.rc
 
 clean:
 	del *.obj

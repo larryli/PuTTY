@@ -51,6 +51,15 @@
 #define SSH1_AUTH_TIS		5
 #define SSH1_AUTH_CCARD		16
 
+#define SSH_AGENTC_REQUEST_RSA_IDENTITIES    1
+#define SSH_AGENT_RSA_IDENTITIES_ANSWER      2
+#define SSH_AGENTC_RSA_CHALLENGE             3
+#define SSH_AGENT_RSA_RESPONSE               4
+#define SSH_AGENT_FAILURE                    5
+#define SSH_AGENT_SUCCESS                    6
+#define SSH_AGENTC_ADD_RSA_IDENTITY          7
+#define SSH_AGENTC_REMOVE_RSA_IDENTITY       8
+
 #define SSH2_MSG_DISCONNECT             1
 #define SSH2_MSG_IGNORE                 2
 #define SSH2_MSG_UNIMPLEMENTED          3
@@ -522,7 +531,6 @@ static void send_packet(int pkttype, ...)
     unsigned long argint;
     int pktlen, argtype, arglen;
     Bignum bn;
-    int i;
 
     pktlen = 0;
     va_start(args, pkttype);
@@ -548,10 +556,7 @@ static void send_packet(int pkttype, ...)
 	    break;
 	  case PKT_BIGNUM:
 	    bn = va_arg(args, Bignum);
-            i = 16 * bn[0] - 1;
-            while ( i > 0 && (bn[i/16+1] >> (i%16)) == 0 )
-                i--;
-            pktlen += 2 + (i+7)/8;
+            pktlen += ssh1_bignum_length(bn);
 	    break;
 	  default:
 	    assert(0);
@@ -590,18 +595,7 @@ static void send_packet(int pkttype, ...)
 	    break;
 	  case PKT_BIGNUM:
 	    bn = va_arg(args, Bignum);
-            i = 16 * bn[0] - 1;
-            while ( i > 0 && (bn[i/16+1] >> (i%16)) == 0 )
-                i--;
-            *p++ = (i >> 8) & 0xFF;
-            *p++ = i & 0xFF;
-            i = (i + 7) / 8;
-            while (i-- > 0) {
-                if (i % 2)
-                    *p++ = bn[i/2+1] >> 8;
-                else
-                    *p++ = bn[i/2+1] & 0xFF;
-            }
+            p += ssh1_write_bignum(p, bn);
 	    break;
 	}
     }
@@ -1139,7 +1133,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 	static char username[100];
 	static int pos = 0;
 	static char c;
-	if (!(flags & FLAG_CONNECTION) && !*cfg.username) {
+	if ((flags & FLAG_CONNECTION) && !*cfg.username) {
 	    c_write("login as: ", 10);
 	    while (pos >= 0) {
 		crWaitUntil(!ispkt);
@@ -1208,6 +1202,98 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
          * authentication.
          */
         pwpkt_type = SSH1_CMSG_AUTH_PASSWORD;
+        if (agent_exists()) {
+            /*
+             * Attempt RSA authentication using Pageant.
+             */
+            static unsigned char request[5], *response, *p;
+            static int responselen;
+            static int i, nkeys;
+            static int authed = FALSE;
+            void *r;
+
+            logevent("Pageant is running. Requesting keys.");
+
+            /* Request the keys held by the agent. */
+            PUT_32BIT(request, 1);
+            request[4] = SSH_AGENTC_REQUEST_RSA_IDENTITIES;
+            agent_query(request, 5, &r, &responselen);
+            response = (unsigned char *)r;
+            if (response) {
+                p = response + 5;
+                nkeys = GET_32BIT(p); p += 4;
+                { char buf[64]; sprintf(buf, "Pageant has %d keys", nkeys);
+                    logevent(buf); }
+                for (i = 0; i < nkeys; i++) {
+                    static struct RSAKey key;
+                    static Bignum challenge;
+
+                    { char buf[64]; sprintf(buf, "Trying Pageant key #%d", i);
+                        logevent(buf); }
+                    p += 4;
+                    p += ssh1_read_bignum(p, &key.exponent);
+                    p += ssh1_read_bignum(p, &key.modulus);
+                    send_packet(SSH1_CMSG_AUTH_RSA,
+                                PKT_BIGNUM, key.modulus, PKT_END);
+                    crWaitUntil(ispkt);
+                    if (pktin.type != SSH1_SMSG_AUTH_RSA_CHALLENGE) {
+                        logevent("Key refused");
+                        continue;
+                    }
+                    logevent("Received RSA challenge");
+                    ssh1_read_bignum(pktin.body, &challenge);
+                    {
+                        char *agentreq, *q, *ret;
+                        int len, retlen;
+                        len = 1 + 4;   /* message type, bit count */
+                        len += ssh1_bignum_length(key.exponent);
+                        len += ssh1_bignum_length(key.modulus);
+                        len += ssh1_bignum_length(challenge);
+                        len += 16;     /* session id */
+                        len += 4;      /* response format */
+                        agentreq = malloc(4 + len);
+                        PUT_32BIT(agentreq, len);
+                        q = agentreq + 4;
+                        *q++ = SSH_AGENTC_RSA_CHALLENGE;
+                        PUT_32BIT(q, ssh1_bignum_bitcount(key.modulus));
+                        q += 4;
+                        q += ssh1_write_bignum(q, key.exponent);
+                        q += ssh1_write_bignum(q, key.modulus);
+                        q += ssh1_write_bignum(q, challenge);
+                        memcpy(q, session_id, 16); q += 16;
+                        PUT_32BIT(q, 1);   /* response format */
+                        agent_query(agentreq, len+4, &ret, &retlen);
+                        free(agentreq);
+                        if (ret) {
+                            if (ret[4] == SSH_AGENT_RSA_RESPONSE) {
+                                logevent("Sending Pageant's response");
+                                send_packet(SSH1_CMSG_AUTH_RSA_RESPONSE,
+                                            PKT_DATA, ret+5, 16, PKT_END);
+                                free(ret);
+                                crWaitUntil(ispkt);
+                                if (pktin.type == SSH1_SMSG_SUCCESS) {
+                                    logevent("Pageant's response accepted");
+                                    authed = TRUE;
+                                } else
+                                    logevent("Pageant's response not accepted");
+                            } else {
+                                logevent("Pageant failed to answer challenge");
+                                free(ret);
+                            }
+                        } else {
+                            logevent("No reply received from Pageant");
+                        }
+                    }
+                    freebn(key.exponent);
+                    freebn(key.modulus);
+                    freebn(challenge);
+                    if (authed)
+                        break;
+                }
+            }
+            if (authed)
+                break;
+        }
         if (*cfg.keyfile && !tried_publickey)
             pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
