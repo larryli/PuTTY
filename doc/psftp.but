@@ -1,4 +1,4 @@
-\versionid $Id: psftp.but,v 1.6 2004/08/15 17:21:46 jacob Exp $
+\versionid $Id: psftp.but,v 1.7 2004/10/24 18:30:10 jacob Exp $
 
 \C{psftp} Using PSFTP to transfer files securely
 
@@ -413,7 +413,7 @@ using the Windows \c{ren} command to rename files on your local PC.
 \H{psftp-pubkey} Using public key authentication with PSFTP
 
 Like PuTTY, PSFTP can authenticate using a public key instead of a
-password. There are two ways you can do this.
+password. There are three ways you can do this.
 
 Firstly, PSFTP can use PuTTY saved sessions in place of hostnames.
 So you might do this:
@@ -427,7 +427,11 @@ username to log in as (see \k{config-username}).
 hostname: type \c{psftp sessionname}, where \c{sessionname} is
 replaced by the name of your saved session.
 
-Secondly, PSFTP will attempt to authenticate using Pageant if Pageant
+Secondly, you can supply the name of a private key file on the command
+line, with the \c{-i} option. See \k{using-cmdline-identity} for more
+information.
+
+Thirdly, PSFTP will attempt to authenticate using Pageant if Pageant
 is running (see \k{pageant}). So you would do this:
 
 \b Ensure Pageant is running, and has your private key stored in it.
