@@ -428,6 +428,13 @@ static struct Packet pktout = { 0, 0, NULL, NULL, 0 };
 static unsigned char *deferred_send_data = NULL;
 static int deferred_len = 0, deferred_size = 0;
 
+/*
+ * Gross hack: pscp will try to start SFTP but fall back to scp1 if
+ * that fails. This variable is the means by which scp.c can reach
+ * into the SSH code and find out which one it got.
+ */
+int ssh_fallback_cmd = 0;
+
 static int ssh_version;
 static int ssh1_throttle_count;
 static int ssh_overall_bufsize;
@@ -2663,12 +2670,26 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
 	zlib_decompress_init();
     }
 
-    if (*cfg.remote_cmd_ptr)
-	send_packet(SSH1_CMSG_EXEC_CMD, PKT_STR, cfg.remote_cmd_ptr,
-		    PKT_END);
-    else
-	send_packet(SSH1_CMSG_EXEC_SHELL, PKT_END);
-    logevent("Started session");
+    /*
+     * Start the shell or command.
+     * 
+     * Special case: if the first-choice command is an SSH2
+     * subsystem (hence not usable here) and the second choice
+     * exists, we fall straight back to that.
+     */
+    {
+	char *cmd = cfg.remote_cmd_ptr;
+	
+	if (cfg.ssh_subsys && cfg.remote_cmd_ptr2) {
+	    cmd = cfg.remote_cmd_ptr2;
+	    ssh_fallback_cmd = TRUE;
+	}
+	if (*cmd)
+	    send_packet(SSH1_CMSG_EXEC_CMD, PKT_STR, cmd, PKT_END);
+	else
+	    send_packet(SSH1_CMSG_EXEC_SHELL, PKT_END);
+	logevent("Started session");
+    }
 
     ssh_state = SSH_STATE_SESSION;
     if (size_needed)
@@ -4492,43 +4513,70 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
     }
 
     /*
-     * Start a shell or a remote command.
+     * Start a shell or a remote command. We may have to attempt
+     * this twice if the config data has provided a second choice
+     * of command.
      */
-    ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-    ssh2_pkt_adduint32(mainchan->remoteid);	/* recipient channel */
-    if (cfg.ssh_subsys) {
-	ssh2_pkt_addstring("subsystem");
-	ssh2_pkt_addbool(1);	       /* want reply */
-	ssh2_pkt_addstring(cfg.remote_cmd_ptr);
-    } else if (*cfg.remote_cmd_ptr) {
-	ssh2_pkt_addstring("exec");
-	ssh2_pkt_addbool(1);	       /* want reply */
-	ssh2_pkt_addstring(cfg.remote_cmd_ptr);
-    } else {
-	ssh2_pkt_addstring("shell");
-	ssh2_pkt_addbool(1);	       /* want reply */
-    }
-    ssh2_pkt_send();
-    do {
-	crWaitUntilV(ispkt);
-	if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
-	    unsigned i = ssh2_pkt_getuint32();
-	    struct ssh_channel *c;
-	    c = find234(ssh_channels, &i, ssh_channelfind);
-	    if (!c)
-		continue;	       /* nonexistent channel */
-	    c->v.v2.remwindow += ssh2_pkt_getuint32();
+    while (1) {
+	int subsys;
+	char *cmd;
+
+	if (ssh_fallback_cmd) {
+	    subsys = cfg.ssh_subsys2;
+	    cmd = cfg.remote_cmd_ptr2;
+	} else {
+	    subsys = cfg.ssh_subsys;
+	    cmd = cfg.remote_cmd_ptr;
 	}
-    } while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
-    if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
-	if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
-	    bombout(("Server got confused by shell/command request"));
+
+	ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+	ssh2_pkt_adduint32(mainchan->remoteid);	/* recipient channel */
+	if (subsys) {
+	    ssh2_pkt_addstring("subsystem");
+	    ssh2_pkt_addbool(1);	       /* want reply */
+	    ssh2_pkt_addstring(cmd);
+	} else if (*cmd) {
+	    ssh2_pkt_addstring("exec");
+	    ssh2_pkt_addbool(1);	       /* want reply */
+	    ssh2_pkt_addstring(cmd);
+	} else {
+	    ssh2_pkt_addstring("shell");
+	    ssh2_pkt_addbool(1);	       /* want reply */
+	}
+	ssh2_pkt_send();
+	do {
+	    crWaitUntilV(ispkt);
+	    if (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST) {
+		unsigned i = ssh2_pkt_getuint32();
+		struct ssh_channel *c;
+		c = find234(ssh_channels, &i, ssh_channelfind);
+		if (!c)
+		    continue;	       /* nonexistent channel */
+		c->v.v2.remwindow += ssh2_pkt_getuint32();
+	    }
+	} while (pktin.type == SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+	if (pktin.type != SSH2_MSG_CHANNEL_SUCCESS) {
+	    if (pktin.type != SSH2_MSG_CHANNEL_FAILURE) {
+		bombout(("Server got confused by shell/command request"));
+		crReturnV;
+	    }
+	    /*
+	     * We failed to start the command. If this is the
+	     * fallback command, we really are finished; if it's
+	     * not, and if the fallback command exists, try falling
+	     * back to it before complaining.
+	     */
+	    if (!ssh_fallback_cmd && cfg.remote_cmd_ptr2 != NULL) {
+		logevent("Primary command failed; attempting fallback");
+		ssh_fallback_cmd = TRUE;
+		continue;
+	    }
+	    bombout(("Server refused to start a shell/command"));
 	    crReturnV;
+	} else {
+	    logevent("Started a shell/command");
 	}
-	bombout(("Server refused to start a shell/command"));
-	crReturnV;
-    } else {
-	logevent("Started a shell/command");
+	break;
     }
 
     ssh_state = SSH_STATE_SESSION;
@@ -4882,6 +4930,7 @@ static char *ssh_init(char *host, int port, char **realhost)
     ssh_echoing = 0;
     ssh1_throttle_count = 0;
     ssh_overall_bufsize = 0;
+    ssh_fallback_cmd = 0;
 
     p = connect_to_host(host, port, realhost);
     if (p != NULL)

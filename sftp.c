@@ -676,6 +676,29 @@ int fxp_setstat(char *fname, struct fxp_attrs attrs)
     }
     return 1;
 }
+int fxp_fsetstat(struct fxp_handle *handle, struct fxp_attrs attrs)
+{
+    struct sftp_packet *pktin, *pktout;
+    int id;
+
+    pktout = sftp_pkt_init(SSH_FXP_FSETSTAT);
+    sftp_pkt_adduint32(pktout, 0x678); /* request id */
+    sftp_pkt_addstring_start(pktout);
+    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
+    sftp_pkt_addattrs(pktout, attrs);
+    sftp_send(pktout);
+    pktin = sftp_recv();
+    id = sftp_pkt_getuint32(pktin);
+    if (id != 0x678) {
+	fxp_internal_error("request ID mismatch\n");
+	return 0;
+    }
+    id = fxp_got_status(pktin);
+    if (id != 1) {
+    	return 0;
+    }
+    return 1;
+}
 
 /*
  * Read from a file. Returns the number of bytes read, or -1 on an

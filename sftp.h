@@ -151,6 +151,7 @@ int fxp_fstat(struct fxp_handle *handle, struct fxp_attrs *attrs);
  * Set file attributes.
  */
 int fxp_setstat(char *fname, struct fxp_attrs attrs);
+int fxp_fsetstat(struct fxp_handle *handle, struct fxp_attrs attrs);
 
 /*
  * Read from a file.

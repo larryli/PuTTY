@@ -90,7 +90,9 @@ PLOBJS = plink.$(OBJ)
 ##-- objects pscp
 SOBJS = scp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
 ##-- objects psftp
-FOBJS = psftp.$(OBJ) sftp.$(OBJ) int64.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
+FOBJS = psftp.$(OBJ) winnet.$(OBJ) be_none.$(OBJ)
+##-- objects pscp psftp
+SFOBJS = sftp.$(OBJ) int64.$(OBJ)
 ##-- objects putty puttytel pscp psftp plink
 MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ) settings.$(OBJ)
 MOBJ2 = tree234.$(OBJ)
@@ -152,10 +154,10 @@ pageant.exe: $(PAGE1) $(PAGE2) $(PAGE3) $(PAGERC) pageant.rsp
 puttygen.exe: $(GEN1) $(GEN2) $(GEN3) $(GEN4) $(GENRC) puttygen.rsp
 	link $(LFLAGS) -out:puttygen.exe -map:puttygen.map @puttygen.rsp
 
-pscp.exe: $(SOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) pscp.rsp
+pscp.exe: $(SOBJS) $(SFOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) pscp.rsp
 	link $(LFLAGS) -out:pscp.exe -map:pscp.map @pscp.rsp
 
-psftp.exe: $(FOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) psftp.rsp
+psftp.exe: $(FOBJS) $(SFOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(SRESRC) psftp.rsp
 	link $(LFLAGS) -out:psftp.exe -map:psftp.map @psftp.rsp
 
 plink.exe: $(LOBJS1) $(POBJS) $(PLOBJS) $(MOBJS) $(MOBJ2) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(LRESRC) plink.rsp
@@ -220,6 +222,7 @@ puttygen.rsp: makefile
 pscp.rsp: makefile
 	echo /nologo /subsystem:console > pscp.rsp
 	echo $(SOBJS) >> pscp.rsp
+	echo $(SFOBJS) >> pscp.rsp
 	echo $(MOBJS) >> pscp.rsp
 	echo $(MOBJ2) >> pscp.rsp
 	echo $(OBJS1) >> pscp.rsp
@@ -234,6 +237,7 @@ pscp.rsp: makefile
 psftp.rsp: makefile
 	echo /nologo /subsystem:console > psftp.rsp
 	echo $(FOBJS) >> psftp.rsp
+	echo $(SFOBJS) >> psftp.rsp
 	echo $(MOBJS) >> psftp.rsp
 	echo $(MOBJ2) >> psftp.rsp
 	echo $(OBJS1) >> psftp.rsp

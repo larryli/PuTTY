@@ -195,6 +195,13 @@ extern const struct ssh_mac ssh_sha1_buggy;
  */
 extern char sshver[];
 
+/*
+ * Gross hack: pscp will try to start SFTP but fall back to scp1 if
+ * that fails. This variable is the means by which scp.c can reach
+ * into the SSH code and find out which one it got.
+ */
+extern int ssh_fallback_cmd;
+
 #ifndef MSCRYPTOAPI
 void SHATransform(word32 * digest, word32 * data);
 #endif

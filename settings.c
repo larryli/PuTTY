@@ -287,6 +287,7 @@ void load_settings(char *section, int do_host, Config * cfg)
 
     cfg->ssh_subsys = 0;	       /* FIXME: load this properly */
     cfg->remote_cmd_ptr = cfg->remote_cmd;
+    cfg->remote_cmd_ptr2 = NULL;
 
     gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
     gppi(sesskey, "PortNumber", default_port, &cfg->port);

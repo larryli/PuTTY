@@ -471,6 +471,7 @@ int main(int argc, char **argv)
 		    command[cmdlen++] = d;
 		} while (c != EOF);
 		cfg.remote_cmd_ptr = command;
+		cfg.remote_cmd_ptr2 = NULL;
 		cfg.nopty = TRUE;      /* command => no terminal */
 	    } else if (!strcmp(p, "-P") && argc > 1) {
 		--argc, portnumber = atoi(*++argv);

@@ -247,7 +247,11 @@ typedef struct {
     int ping_interval;		       /* in seconds */
     /* SSH options */
     char remote_cmd[512];
+    char remote_cmd2[512];	       /* fallback if the first fails
+					* (used internally for scp) */
     char *remote_cmd_ptr;	       /* might point to a larger command
+				        * but never for loading/saving */
+    char *remote_cmd_ptr2;	       /* might point to a larger command
 				        * but never for loading/saving */
     int nopty;
     int compression;
@@ -258,6 +262,7 @@ typedef struct {
     int buggymac;		       /* MAC bug commmercial <=v2.3.x SSH2 */
     int try_tis_auth;
     int ssh_subsys;		       /* run a subsystem rather than a command */
+    int ssh_subsys2;		       /* fallback to go with remote_cmd2 */
     /* Telnet options */
     char termtype[32];
     char termspeed[32];
