@@ -461,6 +461,11 @@ static void check_selection (pos from, pos to) {
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
  * for backward.) `sb' is TRUE if the scrolling is permitted to
  * affect the scrollback buffer.
+ * 
+ * NB this function invalidates all pointers into lines of the
+ * screen data structures. In particular, you MUST call fix_cpos
+ * after calling scroll() and before doing anything else that
+ * uses the cpos shortcut pointer.
  */
 static void scroll (int topline, int botline, int lines, int sb) {
     unsigned long *line, *line2;
@@ -1244,12 +1249,14 @@ void term_out(void) {
 	        compatibility(VT102);
 		if (curs.y <= marg_b)
 		    scroll (curs.y, marg_b, -def(esc_args[0], 1), FALSE);
+                fix_cpos;
 		seen_disp_event = TRUE;
 		break;
 	      case 'M':		       /* delete lines */
 	        compatibility(VT102);
 		if (curs.y <= marg_b)
 		    scroll (curs.y, marg_b, def(esc_args[0], 1), TRUE);
+                fix_cpos;
 		seen_disp_event = TRUE;
 		break;
 	      case '@':		       /* insert chars */
@@ -2218,7 +2225,7 @@ void term_mouse (Mouse_Button b, Mouse_Action a, int x, int y) {
 	} else {
 	    selstart = selanchor;
 	    selend = selpoint;
-	    incpos(selpoint);
+	    incpos(selend);
 	}
 	sel_spread();
     } else if ((b == MB_SELECT || b == MB_EXTEND) && a == MA_RELEASE) {
