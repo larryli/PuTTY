@@ -61,6 +61,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname) {
     unsigned long a;
     struct hostent *h;
 
+    ret->error = NULL;
     if ( (a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
 	if ( (h = gethostbyname(host)) == NULL) {
 	    DWORD err = WSAGetLastError();
@@ -69,7 +70,6 @@ SockAddr sk_namelookup(char *host, char **canonicalname) {
 			  err == WSATRY_AGAIN ? "Host not found" :
 			  "gethostbyname: unknown error");
 	} else {
-	    ret->error = NULL;
 	    memcpy (&a, h->h_addr, sizeof(a));
 	    *canonicalname = h->h_name;
 	}
