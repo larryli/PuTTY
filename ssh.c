@@ -1780,7 +1780,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	(ssh->cfg.sshbug_ignore1 == AUTO &&
 	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
 	  !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
-	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25")))) {
+	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25") ||
+	  !strcmp(imp, "OSU_1.4alpha3")))) {
 	/*
 	 * These versions don't support SSH1_MSG_IGNORE, so we have
 	 * to use a different defence against password length
@@ -1792,7 +1793,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_plainpw1 == FORCE_ON ||
 	(ssh->cfg.sshbug_plainpw1 == AUTO &&
-	 (!strcmp(imp, "Cisco-1.25")))) {
+	 (!strcmp(imp, "Cisco-1.25") || !strcmp(imp, "OSU_1.4alpha3")))) {
 	/*
 	 * These versions need a plain password sent; they can't
 	 * handle having a null and a random length of data after
