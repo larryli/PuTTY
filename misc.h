@@ -5,7 +5,7 @@
 
 #include <stdio.h>		       /* for FILE * */
 #include <stdarg.h>		       /* for va_list */
-#include <time.h>                      /* for struct_tm */
+#include <time.h>                      /* for struct tm */
 
 #ifndef FALSE
 #define FALSE 0
