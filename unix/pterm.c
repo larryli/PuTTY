@@ -2163,7 +2163,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    length = inst->font_height;
 	}
 
-	gdk_gc_set_foreground(gc, &inst->cols[NCFGCOLOURS-1]);
+	gdk_gc_set_foreground(gc, &inst->cols[261]);
 	if (passive) {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {

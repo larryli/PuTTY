@@ -3234,7 +3234,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	if (attr & TATTR_ACTCURS) {
 	    HPEN oldpen;
 	    oldpen =
-		SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[23]));
+		SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[261]));
 	    MoveToEx(hdc, startx, starty, NULL);
 	    LineTo(hdc, startx + dx * length, starty + dy * length);
 	    oldpen = SelectObject(hdc, oldpen);
@@ -3242,7 +3242,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	} else {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
-		    SetPixel(hdc, startx, starty, colours[23]);
+		    SetPixel(hdc, startx, starty, colours[261]);
 		}
 		startx += dx;
 		starty += dy;
