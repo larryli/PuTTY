@@ -1308,6 +1308,10 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 				       HELPCTX(telnet_environ),
 				       environ_handler, P(ed));
 	    ed->listbox->listbox.height = 3;
+	    ed->listbox->listbox.ncols = 2;
+	    ed->listbox->listbox.percentages = smalloc(2*sizeof(int));
+	    ed->listbox->listbox.percentages[0] = 30;
+	    ed->listbox->listbox.percentages[1] = 70;
 	}
 
 	s = ctrl_getset(b, "Connection/Telnet", "protocol",
