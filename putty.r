@@ -1,4 +1,4 @@
-/* $Id: putty.r,v 1.1.2.3 1999/02/19 23:03:29 ben Exp $ */
+/* $Id: putty.r,v 1.1.2.4 1999/02/19 23:41:24 ben Exp $ */
 /* PuTTY resources */
 
 #include "Types.r"
@@ -275,7 +275,7 @@ resource 'MENU' (129, preload) {
 resource 'ALRT' (128, "fatalbox", purgeable) {
 	{54, 67, 152, 435},
 	128,
-	silentStages,
+	beepStages,
 	alertPositionMainScreen
 };
 
