@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.20 2002/02/04 13:52:05 simon Exp $
+\versionid $Id: faq.but,v 1.21 2002/02/12 11:07:07 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -808,12 +808,15 @@ we won't argue :-) The easiest way for us to accept donations is if
 you go to \W{http://www.e-gold.com}\cw{www.e-gold.com}, and deposit
 your donation in account number 174769. Then send us e-mail to let
 us know you've done so (otherwise we might not notice for months!).
+Alternatively, if e-gold isn't convenient for you, you can donate to
+\cw{<anakin@pobox.com>} using PayPal
+(\W{http://www.paypal.com/}\cw{www.paypal.com}).
 
 Small donations (tens of dollars or tens of euros) will probably be
 spent on beer or curry, which helps motivate our volunteer team to
 continue doing this for the world. Larger donations will be spent on
 something that actually helps development, if we can find anything
-(perhaps new hardware, or a copy of Windows 2000), but if we can't
+(perhaps new hardware, or a copy of Windows XP), but if we can't
 find anything then we'll just distribute the money among the
 developers. If you want to be sure your donation is going towards
 something worthwhile, ask us first. If you don't like these terms,
