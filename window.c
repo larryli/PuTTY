@@ -501,11 +501,13 @@ static void init_palette(void) {
  */
 static void init_fonts(void) {
     TEXTMETRIC tm;
-    int i, j;
-    int widths[5];
+    int i;
+    int fsize[5];
     HDC hdc;
     int fw_dontcare, fw_bold;
+    int firstchar = ' ';
 
+font_messup:
     for (i=0; i<8; i++)
 	fonts[i] = NULL;
 
@@ -517,83 +519,132 @@ static void init_fonts(void) {
 	fw_bold = FW_BOLD;
     }
 
+    hdc = GetDC(hwnd);
+
+    font_height = cfg.fontheight;
+    font_width = 0;
+
 #define f(i,c,w,u) \
-    fonts[i] = CreateFont (cfg.fontheight, 0, 0, 0, w, FALSE, u, FALSE, \
+    fonts[i] = CreateFont (font_height, font_width, 0, 0, w, FALSE, u, FALSE, \
 			   c, OUT_DEFAULT_PRECIS, \
 		           CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, \
 			   FIXED_PITCH | FF_DONTCARE, cfg.font)
+
     if (cfg.vtmode != VT_OEMONLY) {
 	f(FONT_NORMAL, cfg.fontcharset, fw_dontcare, FALSE);
+
+	SelectObject (hdc, fonts[FONT_NORMAL]);
+	GetTextMetrics(hdc, &tm); 
+	font_height = tm.tmHeight;
+	font_width = tm.tmAveCharWidth;
+
 	f(FONT_UNDERLINE, cfg.fontcharset, fw_dontcare, TRUE);
-    }
-    if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_OEMONLY) {
-	f(FONT_OEM, OEM_CHARSET, fw_dontcare, FALSE);
-	f(FONT_OEMUND, OEM_CHARSET, fw_dontcare, TRUE);
-    }
-    if (bold_mode == BOLD_FONT) {
-	if (cfg.vtmode != VT_OEMONLY) {
+
+        if (bold_mode == BOLD_FONT) {
 	    f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
 	    f(FONT_BOLDUND, cfg.fontcharset, fw_bold, TRUE);
 	}
-	if (cfg.vtmode == VT_OEMANSI || cfg.vtmode == VT_OEMONLY) {
-	    f(FONT_OEMBOLD, OEM_CHARSET, fw_bold, FALSE);
-	    f(FONT_OEMBOLDUND, OEM_CHARSET, fw_bold, TRUE);
+
+        if (cfg.vtmode == VT_OEMANSI) {
+	    f(FONT_OEM, OEM_CHARSET, fw_dontcare, FALSE);
+	    f(FONT_OEMUND, OEM_CHARSET, fw_dontcare, TRUE);
+
+	    if (bold_mode == BOLD_FONT) {
+		f(FONT_OEMBOLD, OEM_CHARSET, fw_bold, FALSE);
+		f(FONT_OEMBOLDUND, OEM_CHARSET, fw_bold, TRUE);
+	    }
+        }
+    }
+    else
+    {
+	f(FONT_OEM, cfg.fontcharset, fw_dontcare, FALSE);
+
+	SelectObject (hdc, fonts[FONT_OEM]);
+	GetTextMetrics(hdc, &tm); 
+	font_height = tm.tmHeight;
+	font_width = tm.tmAveCharWidth;
+
+	f(FONT_OEMUND, cfg.fontcharset, fw_dontcare, TRUE);
+
+	if (bold_mode == BOLD_FONT) {
+	    f(FONT_BOLD, cfg.fontcharset, fw_bold, FALSE);
+	    f(FONT_BOLDUND, cfg.fontcharset, fw_bold, TRUE);
 	}
-    } else {
-	fonts[FONT_BOLD] = fonts[FONT_BOLDUND] = NULL;
-	fonts[FONT_OEMBOLD] = fonts[FONT_OEMBOLDUND] = NULL;
     }
 #undef f
 
-    hdc = GetDC(hwnd);
+    descent = tm.tmAscent + 1;
+    if (descent >= font_height)
+	descent = font_height - 1;
+    firstchar = tm.tmFirstChar;
 
-    if (cfg.vtmode == VT_OEMONLY)
-	j = 4;
-    else
-	j = 0;
+    if( cfg.vtmode == VT_XWINDOWS && firstchar >= ' ' )
+	cfg.vtmode = VT_POORMAN;
 
-    for (i=0; i<(cfg.vtmode == VT_OEMANSI ? 5 : 4); i++) {
-	if (fonts[i+j]) {
-	    SelectObject (hdc, fonts[i+j]);
+    for (i=0; i<8; i++) {
+	if (fonts[i]) {
+	    SelectObject (hdc, fonts[i]);
 	    GetTextMetrics(hdc, &tm);
-	    if (i == 0 || i == 4) {
-		font_height = tm.tmHeight;
-		font_width = tm.tmAveCharWidth;
-		descent = tm.tmAscent + 1;
-		if (descent >= font_height)
-		    descent = font_height - 1;
-	    }
-	    widths[i] = tm.tmAveCharWidth;
+	    fsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
 	}
     }
 
     ReleaseDC (hwnd, hdc);
 
-    if (widths[FONT_UNDERLINE] != widths[FONT_NORMAL] ||
+    if (fsize[FONT_UNDERLINE] != fsize[FONT_NORMAL] ||
 	(bold_mode == BOLD_FONT &&
-	 widths[FONT_BOLDUND] != widths[FONT_BOLD])) {
+	 fsize[FONT_BOLDUND] != fsize[FONT_BOLD])) {
 	und_mode = UND_LINE;
 	DeleteObject (fonts[FONT_UNDERLINE]);
 	if (bold_mode == BOLD_FONT)
 	    DeleteObject (fonts[FONT_BOLDUND]);
+
+#if 0
+	MessageBox(NULL, "Disabling underline font",
+		"Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
+#endif
     }
 
     if (bold_mode == BOLD_FONT &&
-	widths[FONT_BOLD] != widths[FONT_NORMAL]) {
+	fsize[FONT_BOLD] != fsize[FONT_NORMAL]) {
 	bold_mode = BOLD_SHADOW;
 	DeleteObject (fonts[FONT_BOLD]);
 	if (und_mode == UND_FONT)
 	    DeleteObject (fonts[FONT_BOLDUND]);
+
+#if 0
+	MessageBox(NULL, "Disabling bold font",
+		"Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
+#endif
     }
 
-    if (cfg.vtmode == VT_OEMANSI && widths[FONT_OEM] != widths[FONT_NORMAL]) {
-	MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
+    if (cfg.vtmode == VT_OEMANSI && fsize[FONT_OEM] != fsize[FONT_NORMAL] ) {
+	if( cfg.fontcharset == OEM_CHARSET )
+	{
+	    MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
 		   "different sizes. Using OEM-only mode instead",
 		   "Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
-	cfg.vtmode = VT_OEMONLY;
-	for (i=0; i<4; i++)
+	    cfg.vtmode = VT_OEMONLY;
+	}
+	else if( firstchar < ' ' )
+	{
+	    MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
+		   "different sizes. Using XTerm mode instead",
+		   "Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
+	    cfg.vtmode = VT_XWINDOWS;
+	}
+	else
+	{
+	    MessageBox(NULL, "The OEM and ANSI versions of this font are\n"
+		   "different sizes. Using ISO8859-1 mode instead",
+		   "Font Size Mismatch", MB_ICONINFORMATION | MB_OK);
+	    cfg.vtmode = VT_POORMAN;
+	}
+
+	for (i=0; i<8; i++)
 	    if (fonts[i])
 		DeleteObject (fonts[i]);
+	goto font_messup;
     }
 }
 
