@@ -1,22 +1,8 @@
-/* Some compilers, like Borland, don't have winresrc.h */
-#ifdef __LCC__ 
-#include <win.h>
-#else
+/*
+ * Windows resources for PuTTYgen.
+ */
 
-#ifndef NO_WINRESRC_H
-#ifndef MSVC4
-#include <winresrc.h>
-#else
-#include <winres.h>
-#endif
-#endif
-
-#endif /* end #ifdef __LCC__ */
-
-/* Some systems don't define this, so I do it myself if necessary */
-#ifndef RT_MANIFEST
-#define RT_MANIFEST 24
-#endif
+#include "rcstuff.h"
 
 200 ICON "puttygen.ico"
 
