@@ -1732,6 +1732,9 @@ int do_cmdline(int argc, char **argv, int do_everything)
 	    EXPECTS_ARG;
 	    provide_xrm_string(val);
 
+	} else {
+	    err = 1;
+	    fprintf(stderr, "pterm: unrecognized option '%s'\n", p);
 	}
     }
 
