@@ -275,6 +275,10 @@ extern void x11_override_throttle(Socket s, int enable);
 extern int x11_get_screen_number(char *display);
 void x11_get_real_auth(void *authv, char *display);
 
+/* Platfdorm-dependent X11 function */
+extern void platform_get_x11_auth(char *display, int *proto,
+                                  unsigned char *data, int *datalen);
+
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);
 void bn_restore_invariant(Bignum b);

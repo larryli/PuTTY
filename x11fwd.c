@@ -62,9 +62,6 @@ struct X11Auth {
     int fakelen, reallen;
 };
 
-extern void platform_get_x11_auth(char *display, int *proto,
-                                  unsigned char *data, int *datalen);
-
 struct X11Private {
     const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
