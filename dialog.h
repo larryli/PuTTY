@@ -51,6 +51,11 @@ enum {
  */
 typedef union { void *p; int i; } intorptr;
 
+#ifndef INLINE
+intorptr I(int i);
+intorptr P(void *p);
+#endif
+
 #if defined DEFINE_INTORPTR_FNS || defined INLINE
 #ifdef INLINE
 #define PREFIX INLINE
@@ -60,9 +65,6 @@ typedef union { void *p; int i; } intorptr;
 PREFIX intorptr I(int i) { intorptr ret; ret.i = i; return ret; }
 PREFIX intorptr P(void *p) { intorptr ret; ret.p = p; return ret; }
 #undef PREFIX
-#else
-intorptr I(int i);
-intorptr P(void *p);
 #endif
 
 /*
