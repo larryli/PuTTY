@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.10 2002/11/23 22:36:56 ben Exp $ */
+/* $Id: macterm.c,v 1.11 2002/11/24 00:38:44 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -1273,10 +1273,9 @@ void do_scroll(void *frontend, int topline, int botline, int lines) {
 
     /* FIXME: This is seriously broken on Original QuickDraw.  No idea why. */
     SetPort(s->window);
+    PenNormal();
     if (HAVE_COLOR_QD())
 	PmBackColor(DEFAULT_BG);
-    else
-	BackColor(blackColor);
     update = NewRgn();
     SetRect(&r, 0, topline * s->font_height,
 	    s->term->cols * s->font_width, (botline + 1) * s->font_height);
