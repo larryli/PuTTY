@@ -1,4 +1,4 @@
-\versionid $Id: plink.but,v 1.6 2001/06/28 13:36:14 owen Exp $
+\versionid $Id: plink.but,v 1.7 2001/08/04 13:06:08 simon Exp $
 
 \C{plink} Using the command-line connection tool Plink
 
@@ -119,6 +119,10 @@ Alternatively, you can use Pageant if Pageant is running (see
 \k{pageant}).  To do this, you would:
 
 \b Ensure Pageant is running, and has your private key stored in it.
+
+\b Set the environment variable \cw{PLINK_PROTOCOL} to the string
+\c{ssh}, to make sure Plink will try to connect using SSH instead of
+Telnet.
 
 \b Run CVS as follows:
 
