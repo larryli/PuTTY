@@ -1,16 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef macintosh
 #include <winsock.h>
+#endif /* not macintosh */
 
 #include "putty.h"
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 #include "ssh.h"
 
 /* Coroutine mechanics for the sillier bits of the code */
@@ -30,14 +24,9 @@
 #define crStop(z)	do{ crLine = 0; return (z); }while(0)
 #define crStopV		do{ crLine = 0; return; }while(0)
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
+#ifndef macintosh
 static SOCKET s = INVALID_SOCKET;
+#endif
 
 static unsigned char session_key[32];
 static struct ssh_cipher *cipher = NULL;
@@ -52,6 +41,11 @@ static enum {
 
 static int size_needed = FALSE;
 
+#ifdef macintosh
+static void s_write (unsigned char *buf, int len) {
+    panic("s_write not implemented");
+}
+#else /* not macintosh */
 static void s_write (char *buf, int len) {
     while (len > 0) {
 	int i = send (s, buf, len, 0);
@@ -59,7 +53,13 @@ static void s_write (char *buf, int len) {
 	    len -= i, buf += i;
     }
 }
+#endif /* not macintosh */
 
+#ifdef macintosh
+static int s_read (unsigned char *buf, int len) {
+    panic("s_read not implemented");
+}
+#else /* not macintosh */
 static int s_read (char *buf, int len) {
     int ret = 0;
     while (len > 0) {
@@ -71,6 +71,7 @@ static int s_read (char *buf, int len) {
     }
     return ret;
 }
+#endif
 
 static void c_write (char *buf, int len) {
     while (len--) {
@@ -174,8 +175,8 @@ static void s_wrpkt_start(int type, int len) {
     pktout.length = len-5;
     if (pktout.maxlen < biglen) {
 	pktout.maxlen = biglen;
-	pktout.data = (pktout.data == NULL ? malloc(biglen+4) :
-		       realloc(pktout.data, biglen+4));
+	pktout.data = (pktout.data == NULL ? malloc(biglen) :
+		       realloc(pktout.data, biglen));
 	if (!pktout.data)
 	    fatalbox("Out of memory");
     }
@@ -214,7 +215,7 @@ static void s_wrpkt(void) {
 }
 
 static int do_ssh_init(void) {
-    char c;
+    unsigned char c;
     char version[10];
     char vstring[40];
     int i;
@@ -250,7 +251,7 @@ static int do_ssh_init(void) {
 
     sprintf(vstring, "SSH-%s-7.7.7\n",
 	    (strcmp(version, "1.5") <= 0 ? version : "1.5"));
-    s_write(vstring, strlen(vstring));
+    s_write((unsigned char *)vstring, strlen(vstring));
     return 1;
 }
 
@@ -476,7 +477,7 @@ static void ssh_protocol(unsigned char *in, int inlen, int ispkt) {
 		long len = 0;
 		for (i = 0; i < 4; i++)
 		    len = (len << 8) + pktin.body[i];
-		c_write(pktin.body+4, len);
+		c_write((char *)pktin.body+4, len);
 	    } else if (pktin.type == 1) {
 		/* SSH_MSG_DISCONNECT: do nothing */
 	    } else if (pktin.type == 14) {

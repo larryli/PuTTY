@@ -1,4 +1,6 @@
+#ifndef macintosh
 #include <windows.h>
+#endif /* not macintosh */
 
 #include <stdio.h>
 #include <stdlib.h>

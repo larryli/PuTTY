@@ -1,7 +1,12 @@
-/* $Id: putty.r,v 1.1.2.4 1999/02/19 23:41:24 ben Exp $ */
+/* $Id: putty.r,v 1.1.2.5 1999/02/20 22:10:34 ben Exp $ */
 /* PuTTY resources */
 
+#define PICT_RezTemplateVersion 1
+
 #include "Types.r"
+
+/* Get resource IDs we share with C code */
+#include "macresid.h"
 
 /*
  * Finder-related resources
@@ -243,12 +248,12 @@ resource 'icl8' (130, purgeable) {
 
 /* Menu bar */
 
-resource 'MBAR' (128, preload) {
-    { 128, 129 }
+resource 'MBAR' (MBAR_Main, preload) {
+    { mApple, mFile }
 };
 
-resource 'MENU' (128, preload) {
-    128,
+resource 'MENU' (mApple, preload) {
+    mApple,
     textMenuProc,
     0b11111111111111111111111111111101,
     enabled,
@@ -259,27 +264,29 @@ resource 'MENU' (128, preload) {
     }
 };
 
-resource 'MENU' (129, preload) {
-    129,
+resource 'MENU' (mFile, preload) {
+    mFile,
     textMenuProc,
-    0b11111111111111111111111111111111,
+    0b11111111111111111111111111111101,
     enabled,
     "File",
     {
+	"Close",		noicon, "W", nomark, plain,
+	"-",			noicon, nokey, nomark, plain,
 	"Quit",			noicon, "Q", nomark, plain,
     }
 };
 
 /* Fatal error box.  Stolen from the Finder. */
 
-resource 'ALRT' (128, "fatalbox", purgeable) {
+resource 'ALRT' (wFatal, "fatalbox", purgeable) {
 	{54, 67, 152, 435},
-	128,
+	wFatal,
 	beepStages,
 	alertPositionMainScreen
 };
 
-resource 'DITL' (128, "fatalbox", purgeable) {
+resource 'DITL' (wFatal, "fatalbox", purgeable) {
 	{	/* array DITLarray: 3 elements */
 		/* [1] */
 		{68, 299, 88, 358},
@@ -302,3 +309,90 @@ resource 'DITL' (128, "fatalbox", purgeable) {
 	}
 };
 
+/* "About" box */
+
+resource 'DLOG' (wAbout, "about", purgeable) {
+    { 0, 0, 120, 186 },
+    noGrowDocProc,
+    visible,
+    goAway,
+    wAbout,		/* RefCon -- identifies the window to PuTTY */
+    wAbout,		/* DITL ID */
+    "About PuTTY",
+    alertPositionMainScreen
+};
+
+resource 'DITL' (wAbout, "about", purgeable) {
+    {
+	{ 87, 116, 107, 173 },
+	Button { enabled, "Close" },
+	{ 87, 13, 107, 103 },
+	Button { enabled, "View Licence" },
+	{ 13, 13, 29, 173 },
+	StaticText { disabled, "PuTTY"},
+	{ 42, 13, 74, 173 },
+	StaticText { disabled, "Mac Development\n© 1997-9 Simon Tatham"},
+    }
+};
+
+/* Licence box */
+
+resource 'DLOG' (wLicence, "licence", purgeable) {
+    { 0, 0, 300, 300 },
+    noGrowDocProc,
+    visible,
+    goAway,
+    wLicence,
+    wLicence,
+    "PuTTY Licence",
+    alertPositionParentWindowScreen
+};
+
+type 'TEXT' {
+    string;
+};
+
+resource 'TEXT' (wLicence, "licence", purgeable) {
+    "Copyright © 1997-9 Simon Tatham\n"
+    "Portions copyright Gary S. Brown and Eric Young\n\n"
+    
+    "Permission is hereby granted, free of charge, to any person "
+    "obtaining a copy of this software and associated documentation "
+    "files (the \"Software\"), to deal in the Software without "
+    "restriction, including without limitation the rights to use, "
+    "copy, modify, merge, publish, distribute, sublicense, and/or "
+    "sell copies of the Software, and to permit persons to whom the "
+    "Software is furnished to do so, subject to the following "
+    "conditions:\n\n"
+    
+    "The above copyright notice and this permission notice shall be "
+    "included in all copies or substantial portions of the Software.\n\n"
+    
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, "
+    "EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF "
+    "MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND "
+    "NONINFRINGEMENT.  IN NO EVENT SHALL SIMON TATHAM BE LIABLE FOR "
+    "ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF "
+    "CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN "
+    "CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
+    "SOFTWARE."
+};
+
+#if 0
+resource 'DITL' (wLicence, "licence", purgeable) {
+    {
+	{ 13, 23, 287, 277 },
+	Picture { enabled, wLicence }
+    }
+};
+
+resource 'PICT' (wLicence, "licence", purgeable) {
+    { 0, 0, 274, 254 },
+     VersionTwo {
+ 	{
+	    LongText { { 16, 0 }, "Copyright © 1997-9 Simon Tatham" },
+ 	    LongText { { 32, 0 }, "Portions copyright Gary S. Brown and Eric Young" },
+ 	}
+    }
+};
+#endif

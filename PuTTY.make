@@ -1,4 +1,4 @@
-# $Id: PuTTY.make,v 1.1.2.3 1999/02/19 21:44:14 ben Exp $
+# $Id: PuTTY.make,v 1.1.2.4 1999/02/20 22:10:33 ben Exp $
 # This is the Makefile for building PuTTY for the Mac OS.
 # Users of non-Mac systems will see some pretty strange characters around.
 
@@ -39,14 +39,14 @@ PuTTY ÄÄ {¥MondoBuild¥} {Objects¥68K}
 		"{Libraries}Interface.o"
 
 
-PuTTY ÄÄ {¥MondoBuild¥} bjh21:putty:putty.r
-	Rez bjh21:putty:putty.r -o {Targ} {Includes} -append
+PuTTY ÄÄ {¥MondoBuild¥} putty.r macresid.h
+	Rez putty.r -o {Targ} {Includes} -append
 
 
-"{ObjDir¥68K}mac.c.o" Ä {¥MondoBuild¥} mac.c
+"{ObjDir¥68K}mac.c.o" Ä {¥MondoBuild¥} mac.c putty.h macresid.h
 	{C} mac.c -o {Targ} {COptions}
 
-"{ObjDir¥68K}misc.c.o" Ä {¥MondoBuild¥} misc.c
+"{ObjDir¥68K}misc.c.o" Ä {¥MondoBuild¥} misc.c putty.h
 	{C} misc.c -o {Targ} {COptions}
 
 "{ObjDir¥68K}ssh.c.o" Ä {¥MondoBuild¥} ssh.c
@@ -73,6 +73,6 @@ PuTTY ÄÄ {¥MondoBuild¥} bjh21:putty:putty.r
 "{ObjDir¥68K}telnet.c.o" Ä {¥MondoBuild¥} telnet.c
 	{C} telnet.c -o {Targ} {COptions}
 
-"{ObjDir¥68K}terminal.c.o" Ä {¥MondoBuild¥} terminal.c
+"{ObjDir¥68K}terminal.c.o" Ä {¥MondoBuild¥} terminal.c putty.h
 	{C} terminal.c -o {Targ} {COptions}
 

@@ -1,16 +1,11 @@
+#ifndef macintosh
 #include <windows.h>
+#include <winsock.h>
+#endif /* not macintosh */
 #include <stdio.h>
 #include <stdlib.h>
-#include <winsock.h>
 
 #include "putty.h"
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
 
 static SOCKET s = INVALID_SOCKET;
 
