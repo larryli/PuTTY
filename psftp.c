@@ -406,7 +406,6 @@ int sftp_cmd_put(struct sftp_command *cmd) {
     fp = fopen(fname, "rb");
     if (!fp) {
 	printf("local: unable to open %s\n", fname);
-        fxp_close(fh);
 	sfree(outfname);
 	return 0;
     }
