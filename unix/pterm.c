@@ -1332,9 +1332,16 @@ void sys_cursor(void *frontend, int x, int y)
      */
 }
 
+/*
+ * This is still called when mode==BELL_VISUAL, even though the
+ * visual bell is handled entirely within terminal.c, because we
+ * may want to perform additional actions on any kind of bell (for
+ * example, taskbar flashing in Windows).
+ */
 void beep(void *frontend, int mode)
 {
-    gdk_beep();
+    if (mode != BELL_VISUAL)
+	gdk_beep();
 }
 
 int CharWidth(Context ctx, int uc)

@@ -1373,12 +1373,12 @@ void term_out(Terminal *term)
 		     * Perform an actual beep if we're not overloaded.
 		     */
 		    if (!cfg.bellovl || !term->beep_overloaded) {
+			beep(term->frontend, cfg.beep);
 			if (cfg.beep == BELL_VISUAL) {
 			    term->in_vbell = TRUE;
 			    term->vbell_startpoint = ticks;
 			    term_update(term);
-			} else
-			    beep(term->frontend, cfg.beep);
+			}
 		    }
 		    term->disptop = 0;
 		}
