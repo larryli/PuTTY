@@ -13,20 +13,7 @@
 #include <Palettes.h>
 #include <UnicodeConverter.h>
 
-#include <stdio.h>		       /* for FILENAME_MAX */
-
 #include "charset.h"
-
-struct Filename {
-    char path[FILENAME_MAX];
-};
-#define f_open(filename, mode) ( fopen((filename).path, (mode)) )
-
-struct FontSpec {
-    char name[64];
-    int isbold;
-    int height;
-};
 
 #define PUTTY_CREATOR	FOUR_CHAR_CODE('pTTY')
 #define INTERNAL_CREATOR FOUR_CHAR_CODE('pTTI')

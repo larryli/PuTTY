@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.38 2003/02/01 12:54:40 simon Exp $ */
+/* $Id: mac.c,v 1.39 2003/02/01 15:44:08 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -741,30 +741,27 @@ void old_keyfile_warning(void)
 
 }
 
-FontSpec platform_default_font(char const *name)
+FontSpec platform_default_fontspec(char const *name)
 {
     FontSpec ret;
     long smfs;
-    Str255 pname;
-    static char cname[256];
 
     if (!strcmp(name, "Font")) {
 	smfs = GetScriptVariable(smSystemScript, smScriptMonoFondSize);
 	if (smfs == 0)
 	    smfs = GetScriptVariable(smRoman, smScriptMonoFondSize);
 	if (smfs != 0) {
-	    GetFontName(HiWord(smfs), pname);
-	    if (pname[0] == 0)
-		strcpy(ret.name, "Monaco");
-	    ret.height = LoWord(smfs);
-	    p2cstrcpy(ret.name, pname);
+	    GetFontName(HiWord(smfs), ret.name);
+	    if (ret.name[0] == 0)
+		memcpy(ret.name, "\pMonaco", 7);
+	    ret.size = LoWord(smfs);
 	} else {
-	    strcpy(ret.name, "Monaco");
-	    ret.height = 9;
+	    memcpy(ret.name, "\pMonaco", 7);
+	    ret.size = 9;
 	}
-	ret.isbold = 0;
+	ret.face = 0;
     } else {
-	ret.name[0] = '\0';
+	ret.name[0] = 0;
     }
 
     return ret;
@@ -787,7 +784,6 @@ char *platform_default_s(char const *name)
 
 int platform_default_i(char const *name, int def)
 {
-    long smfs;
 
     /* Non-raw cut and paste of line-drawing chars works badly on the
      * current Unix stub implementation of the Unicode functions.
@@ -815,7 +811,9 @@ Filename filename_from_str(char *str)
 
 char *filename_to_str(Filename fn)
 {
-    return fn.path;
+    /* FIXME: Memory leak! */
+
+    return dupstr(fn.path);
 }
 
 int filename_equal(Filename f1, Filename f2)

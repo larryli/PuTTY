@@ -4,6 +4,21 @@
 
 typedef void *Context; /* FIXME */
 
+#include <MacTypes.h>
+#include <stdio.h>		       /* for FILENAME_MAX */
+
+struct Filename {
+    char path[FILENAME_MAX];
+};
+#define f_open(filename, mode) ( fopen((filename).path, (mode)) )
+
+/* Suspiciously similar to an ICFontRecord */
+struct FontSpec {
+    short size;
+    Style face;
+    Str255 name;
+};
+
 /*
  * On the Mac, Unicode text copied to the clipboard has U+2028 line separators.
  * Non-Unicode text will have these converted to CR along with the rest of the

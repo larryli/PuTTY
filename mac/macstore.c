@@ -1,4 +1,4 @@
-/* $Id: macstore.c,v 1.13 2003/02/01 12:54:40 simon Exp $ */
+/* $Id: macstore.c,v 1.14 2003/02/01 15:44:08 ben Exp $ */
 
 /*
  * macstore.c: Macintosh-specific impementation of the interface
@@ -327,18 +327,18 @@ int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
 {
     char *settingname;
     FontSpec ret;
+    char tmp[256];
 
-    if (!read_setting_s(handle, name, ret.name, sizeof(ret.name)))
+    if (!read_setting_s(handle, name, tmp, sizeof(tmp)))
 	return 0;
-    settingname = dupcat(name, "IsBold", NULL);
-    ret.isbold = read_setting_i(handle, settingname, -1);
+    c2pstrcpy(ret.name, tmp);
+    settingname = dupcat(name, "Face", NULL);
+    ret.face = read_setting_i(handle, settingname, 0);
     sfree(settingname);
-    if (ret.isbold == -1) return 0;
-    if (ret.charset == -1) return 0;
     settingname = dupcat(name, "Height", NULL);
-    ret.height = read_setting_i(handle, settingname, INT_MIN);
+    ret.size = read_setting_i(handle, settingname, 0);
     sfree(settingname);
-    if (ret.height == INT_MIN) return 0;
+    if (ret.size == 0) return 0;
     *result = ret;
     return 1;
 }
@@ -346,13 +346,15 @@ int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
 void write_setting_fontspec(void *handle, const char *name, FontSpec font)
 {
     char *settingname;
+    char tmp[256];
 
-    write_setting_s(handle, name, font.name);
-    settingname = dupcat(name, "IsBold", NULL);
-    write_setting_i(handle, settingname, font.isbold);
+    p2cstrcpy(tmp, font.name);
+    write_setting_s(handle, name, tmp);
+    settingname = dupcat(name, "Face", NULL);
+    write_setting_i(handle, settingname, font.face);
     sfree(settingname);
-    settingname = dupcat(name, "Height", NULL);
-    write_setting_i(handle, settingname, font.height);
+    settingname = dupcat(name, "Size", NULL);
+    write_setting_i(handle, settingname, font.size);
     sfree(settingname);
 }
 

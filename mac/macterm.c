@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.62 2003/02/01 12:54:40 simon Exp $ */
+/* $Id: macterm.c,v 1.63 2003/02/01 15:44:08 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -207,17 +207,15 @@ static void mac_workoutfontscale(Session *s, int wantwidth,
 static UnicodeToTextFallbackUPP uni_to_font_fallback_upp;
 
 static void mac_initfont(Session *s) {
-    Str255 macfont;
     FontInfo fi;
     TextEncoding enc;
     OptionBits fbflags;
 
     SetPort(s->window);
-    c2pstrcpy(macfont, s->cfg.font.name);
-    GetFNum(macfont, &s->fontnum);
+    GetFNum(s->cfg.font.name, &s->fontnum);
     TextFont(s->fontnum);
-    TextFace(s->cfg.font.isbold ? bold : 0);
-    TextSize(s->cfg.font.height);
+    TextFace(s->cfg.font.face);
+    TextSize(s->cfg.font.size);
     GetFontInfo(&fi);
     s->font_width = CharWidth('W'); /* Well, it's what NCSA uses. */
     s->font_ascent = fi.ascent;
@@ -227,10 +225,10 @@ static void mac_initfont(Session *s) {
 			 &s->font_stdnumer, &s->font_stddenom);
     mac_workoutfontscale(s, s->font_width * 2,
 			 &s->font_widenumer, &s->font_widedenom);
-    TextSize(s->cfg.font.height * 2);
+    TextSize(s->cfg.font.size * 2);
     mac_workoutfontscale(s, s->font_width * 2,
 			 &s->font_bignumer, &s->font_bigdenom);
-    TextSize(s->cfg.font.height);
+    TextSize(s->cfg.font.size);
     if (!s->cfg.bold_colour) {
 	TextFace(bold);
 	s->font_boldadjust = s->font_width - CharWidth('W');
@@ -242,7 +240,7 @@ static void mac_initfont(Session *s) {
     if (mac_gestalts.encvvers != 0 &&
 	UpgradeScriptInfoToTextEncoding(kTextScriptDontCare,
 					kTextLanguageDontCare,
-					kTextRegionDontCare, macfont,
+					kTextRegionDontCare, s->cfg.font.name,
 					&enc) == noErr &&
 	CreateUnicodeToTextInfoByEncoding(enc, &s->uni_to_font) == noErr) {
 	if (uni_to_font_fallback_upp == NULL)
@@ -257,12 +255,15 @@ static void mac_initfont(Session *s) {
 	    goto no_encv;
 	}
     } else {
+	char cfontname[256];
+
       no_encv:
 	s->uni_to_font = NULL;
+	p2cstrcpy(cfontname, s->cfg.font.name);
 	s->font_charset =
 	    charset_from_macenc(FontToScript(s->fontnum),
 				GetScriptManagerVariable(smRegionCode),
-				mac_gestalts.sysvers, s->cfg.font.name);
+				mac_gestalts.sysvers, cfontname);
     }
 
     mac_adjustsize(s, s->term->rows, s->term->cols);
@@ -581,7 +582,7 @@ void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
     stsc->scrpStyleTab[0].scrpAscent = s->font_ascent;
     stsc->scrpStyleTab[0].scrpFont = s->fontnum;
     stsc->scrpStyleTab[0].scrpFace = 0;
-    stsc->scrpStyleTab[0].scrpSize = s->cfg.font.height;
+    stsc->scrpStyleTab[0].scrpSize = s->cfg.font.size;
     stsc->scrpStyleTab[0].scrpColor.red = 0;
     stsc->scrpStyleTab[0].scrpColor.green = 0;
     stsc->scrpStyleTab[0].scrpColor.blue = 0;
@@ -975,7 +976,7 @@ struct do_text_args {
 void do_text(Context ctx, int x, int y, char *text, int len,
 	     unsigned long attr, int lattr) {
     Session *s = ctx;
-    int style = 0;
+    int style;
     struct do_text_args a;
     RgnHandle textrgn, saveclip;
     char mactextbuf[1024];
@@ -1029,25 +1030,26 @@ void do_text(Context ctx, int x, int y, char *text, int len,
     a.lattr = lattr;
     switch (lattr & LATTR_MODE) {
       case LATTR_NORM:
-	TextSize(s->cfg.font.height);
+	TextSize(s->cfg.font.size);
 	a.numer = s->font_stdnumer;
 	a.denom = s->font_stddenom;
 	break;
       case LATTR_WIDE:
-	TextSize(s->cfg.font.height);
+	TextSize(s->cfg.font.size);
 	a.numer = s->font_widenumer;
 	a.denom = s->font_widedenom;
 	break;
       case LATTR_TOP:
       case LATTR_BOT:
-	TextSize(s->cfg.font.height * 2);
+	TextSize(s->cfg.font.size * 2);
 	a.numer = s->font_bignumer;
 	a.denom = s->font_bigdenom;
 	break;
     }
     SetPort(s->window);
     TextFont(s->fontnum);
-    if (s->cfg.font.isbold || (attr & ATTR_BOLD) && !s->cfg.bold_colour)
+    style = s->cfg.font.face;
+    if ((attr & ATTR_BOLD) && !s->cfg.bold_colour)
     	style |= bold;
     if (attr & ATTR_UNDER)
 	style |= underline;
