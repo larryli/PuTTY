@@ -131,6 +131,11 @@ static char *raw_init (HWND hwnd, char *host, int port, char **realhost) {
 	  default: return "WSAAsyncSelect(): unknown error";
 	}
 
+    /*
+     * We have no pre-session phase.
+     */
+    begin_session();
+
     return NULL;
 }
 

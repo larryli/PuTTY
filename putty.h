@@ -244,6 +244,7 @@ void optimised_move (int, int, int);
 void connection_fatal(char *, ...);
 void fatalbox (char *, ...);
 void beep (int);
+void begin_session(void);
 #define OPTIMISE_IS_SCROLL 1
 
 /*

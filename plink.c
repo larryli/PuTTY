@@ -32,12 +32,19 @@ void connection_fatal (char *p, ...) {
 }
 
 HANDLE outhandle;
+DWORD orig_console_mode;
+
+void begin_session(void) {
+    if (!cfg.ldisc_term)
+        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
+    else
+        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), orig_console_mode);
+}
 
 void term_out(void)
 {
     int reap;
     DWORD ret;
-
     reap = 0;
     while (reap < inbuf_head) {
         if (!WriteFile(outhandle, inbuf+reap, inbuf_head-reap, &ret, NULL))
@@ -277,8 +284,8 @@ int main(int argc, char **argv) {
     netevent = CreateEvent(NULL, FALSE, FALSE, NULL);
     stdinevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    if (!cfg.ldisc_term)
-        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
+    GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &orig_console_mode);
+    SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
     outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
 
     /*

@@ -1628,6 +1628,7 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt) {
 
     ssh_send_ok = 1;
     ssh_channels = newtree234(ssh_channelcmp);
+    begin_session();
     while (1) {
 	crReturnV;
 	if (ispkt) {
@@ -2335,6 +2336,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      * Transfer data!
      */
     ssh_send_ok = 1;
+    begin_session();
     while (1) {
         static int try_send;
 	crReturnV;

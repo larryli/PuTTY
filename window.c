@@ -82,6 +82,12 @@ static Mouse_Button lastbtn;
 
 static char *window_name, *icon_name;
 
+static Ldisc *real_ldisc;
+
+void begin_session(void) {
+    ldisc = real_ldisc;
+}
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
     static char appname[] = "PuTTY";
     WORD winsock_ver;
@@ -239,7 +245,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
         }
     }
 
-    ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
+    real_ldisc = (cfg.ldisc_term ? &ldisc_term : &ldisc_simple);
+    /* To start with, we use the simple line discipline, so we can
+     * type passwords etc without fear of them being echoed... */
+    ldisc = &ldisc_simple;
 
     if (!prev) {
 	wndclass.style         = 0;

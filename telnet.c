@@ -583,6 +583,12 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
      * Set up SYNCH state.
      */
     in_synch = FALSE;
+
+    /*
+     * We have no pre-session phase.
+     */
+    begin_session();
+
     return NULL;
 }
 
