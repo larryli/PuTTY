@@ -56,6 +56,47 @@ void sk_init(void) {
     sktree = newtree234(cmpfortree);
 }
 
+char *winsock_error_string(int error) {
+    switch (error) {
+      case WSAEACCES: return "Network error: Permission denied";
+      case WSAEADDRINUSE: return "Network error: Address already in use";
+      case WSAEADDRNOTAVAIL: return "Network error: Cannot assign requested address";
+      case WSAEAFNOSUPPORT: return "Network error: Address family not supported by protocol family";
+      case WSAEALREADY: return "Network error: Operation already in progress";
+      case WSAECONNABORTED: return "Network error: Software caused connection abort";
+      case WSAECONNREFUSED: return "Network error: Connection refused";
+      case WSAECONNRESET: return "Network error: Connection reset by peer";
+      case WSAEDESTADDRREQ: return "Network error: Destination address required";
+      case WSAEFAULT: return "Network error: Bad address";
+      case WSAEHOSTDOWN: return "Network error: Host is down";
+      case WSAEHOSTUNREACH: return "Network error: No route to host";
+      case WSAEINPROGRESS: return "Network error: Operation now in progress";
+      case WSAEINTR: return "Network error: Interrupted function call";
+      case WSAEINVAL: return "Network error: Invalid argument";
+      case WSAEISCONN: return "Network error: Socket is already connected";
+      case WSAEMFILE: return "Network error: Too many open files";
+      case WSAEMSGSIZE: return "Network error: Message too long";
+      case WSAENETDOWN: return "Network error: Network is down";
+      case WSAENETRESET: return "Network error: Network dropped connection on reset";
+      case WSAENETUNREACH: return "Network error: Network is unreachable";
+      case WSAENOBUFS: return "Network error: No buffer space available";
+      case WSAENOPROTOOPT: return "Network error: Bad protocol option";
+      case WSAENOTCONN: return "Network error: Socket is not connected";
+      case WSAENOTSOCK: return "Network error: Socket operation on non-socket";
+      case WSAEOPNOTSUPP: return "Network error: Operation not supported";
+      case WSAEPFNOSUPPORT: return "Network error: Protocol family not supported";
+      case WSAEPROCLIM: return "Network error: Too many processes";
+      case WSAEPROTONOSUPPORT: return "Network error: Protocol not supported";
+      case WSAEPROTOTYPE: return "Network error: Protocol wrong type for socket";
+      case WSAESHUTDOWN: return "Network error: Cannot send after socket shutdown";
+      case WSAESOCKTNOSUPPORT: return "Network error: Socket type not supported";
+      case WSAETIMEDOUT: return "Network error: Connection timed out";
+      case WSAEWOULDBLOCK: return "Network error: Resource temporarily unavailable";
+      case WSAEDISCON: return "Network error: Graceful shutdown in progress";
+      default: return "Unknown network error";
+    }
+}
+
 SockAddr sk_namelookup(char *host, char **canonicalname) {
     SockAddr ret = smalloc(sizeof(struct SockAddr_tag));
     unsigned long a;
@@ -65,10 +106,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname) {
     if ( (a = inet_addr(host)) == (unsigned long) INADDR_NONE) {
 	if ( (h = gethostbyname(host)) == NULL) {
 	    DWORD err = WSAGetLastError();
-	    ret->error = (err == WSAENETDOWN ? "Network is down" :
-			  err == WSAHOST_NOT_FOUND ? "Host does not exist" :
-			  err == WSATRY_AGAIN ? "Host not found" :
-			  "gethostbyname: unknown error");
+	    ret->error = winsock_error_string(err);
 	} else {
 	    memcpy (&a, h->h_addr, sizeof(a));
 	    *canonicalname = h->h_name;
@@ -112,9 +150,7 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
 
     if (s == INVALID_SOCKET) {
 	err = WSAGetLastError();
-	ret->error = (err == WSAENETDOWN ? "Network is down" :
-		      err == WSAEAFNOSUPPORT ? "TCP/IP support not present" :
-		      "socket(): unknown error");
+        ret->error = winsock_error_string(err);
 	return ret;
     }
 
@@ -126,8 +162,7 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     a.sin_port = htons(0);
     if (bind (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR) {
 	err = WSAGetLastError();
-	ret->error = (err == WSAENETDOWN ? "Network is down" :
-		      "bind(): unknown error");
+        ret->error = winsock_error_string(err);
 	return ret;
     }
 
@@ -138,11 +173,7 @@ Socket sk_new(SockAddr addr, int port, sk_receiver_t receiver) {
     a.sin_port = htons((short)port);
     if (connect (s, (struct sockaddr *)&a, sizeof(a)) == SOCKET_ERROR) {
 	err = WSAGetLastError();
-	ret->error = (err == WSAENETDOWN ? "Network is down" :
-		      err == WSAECONNREFUSED ? "Connection refused" :
-		      err == WSAENETUNREACH ? "Network is unreachable" :
-		      err == WSAEHOSTUNREACH ? "No route to host" :
-		      "connect(): unknown error");
+        ret->error = winsock_error_string(err);
 	return ret;
     }
 
@@ -164,47 +195,6 @@ void sk_close(Socket s) {
     do_select(s->s, 0);
     closesocket(s->s);
     sfree(s);
-}
-
-char *winsock_error_string(int error) {
-    switch (error) {
-      case WSAEACCES: return "Network error: Permission denied";
-      case WSAEADDRINUSE: return "Network error: Address already in use";
-      case WSAEADDRNOTAVAIL: return "Network error: Cannot assign requested address";
-      case WSAEAFNOSUPPORT: return "Network error: Address family not supported by protocol family";
-      case WSAEALREADY: return "Network error: Operation already in progress";
-      case WSAECONNABORTED: return "Network error: Software caused connection abort";
-      case WSAECONNREFUSED: return "Network error: Connection refused";
-      case WSAECONNRESET: return "Network error: Connection reset by peer";
-      case WSAEDESTADDRREQ: return "Network error: Destination address required";
-      case WSAEFAULT: return "Network error: Bad address";
-      case WSAEHOSTDOWN: return "Network error: Host is down";
-      case WSAEHOSTUNREACH: return "Network error: No route to host";
-      case WSAEINPROGRESS: return "Network error: Operation now in progress";
-      case WSAEINTR: return "Network error: Interrupted function call";
-      case WSAEINVAL: return "Network error: Invalid argument";
-      case WSAEISCONN: return "Network error: Socket is already connected";
-      case WSAEMFILE: return "Network error: Too many open files";
-      case WSAEMSGSIZE: return "Network error: Message too long";
-      case WSAENETDOWN: return "Network error: Network is down";
-      case WSAENETRESET: return "Network error: Network dropped connection on reset";
-      case WSAENETUNREACH: return "Network error: Network is unreachable";
-      case WSAENOBUFS: return "Network error: No buffer space available";
-      case WSAENOPROTOOPT: return "Network error: Bad protocol option";
-      case WSAENOTCONN: return "Network error: Socket is not connected";
-      case WSAENOTSOCK: return "Network error: Socket operation on non-socket";
-      case WSAEOPNOTSUPP: return "Network error: Operation not supported";
-      case WSAEPFNOSUPPORT: return "Network error: Protocol family not supported";
-      case WSAEPROCLIM: return "Network error: Too many processes";
-      case WSAEPROTONOSUPPORT: return "Network error: Protocol not supported";
-      case WSAEPROTOTYPE: return "Network error: Protocol wrong type for socket";
-      case WSAESHUTDOWN: return "Network error: Cannot send after socket shutdown";
-      case WSAESOCKTNOSUPPORT: return "Network error: Socket type not supported";
-      case WSAETIMEDOUT: return "Network error: Connection timed out";
-      case WSAEWOULDBLOCK: return "Network error: Resource temporarily unavailable";
-      case WSAEDISCON: return "Network error: Graceful shutdown in progress";
-      default: return "Unknown network error";
-    }
 }
 
 /*
