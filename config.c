@@ -726,7 +726,7 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    if (type != 'D') {
 		*p++ = '\t';
 		dlg_editbox_get(pfd->destbox, dlg, p,
-				sizeof(str)-1 - (p - str));
+				sizeof(str) - (p - str));
 		if (!*p || !strchr(p, ':')) {
 		    dlg_error_msg(dlg,
 				  "You need to specify a destination address\n"
@@ -741,7 +741,7 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		    p++;
 		p++;
 	    }
-	    if ((p - cfg->portfwd) + strlen(str) + 2 <
+	    if ((p - cfg->portfwd) + strlen(str) + 2 <=
 		sizeof(cfg->portfwd)) {
 		strcpy(p, str);
 		p[strlen(str) + 1] = '\0';
