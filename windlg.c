@@ -947,7 +947,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel) {
         beginbox(&cp, "Sending of null packets to keep session active",
                  IDC_BOX_CONNECTION2);
         staticedit(&cp, "Seconds between &keepalives (0 to turn off)",
-                   IDC_PINGSTATIC, IDC_PINGEDIT, 25);
+                   IDC_PINGSTATIC, IDC_PINGEDIT, 20);
         endbox(&cp);
     }
 
