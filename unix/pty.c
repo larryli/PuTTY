@@ -577,9 +577,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	ioctl(slavefd, TIOCSCTTY, 1);
 	pgrp = getpid();
 	tcsetpgrp(slavefd, pgrp);
-	setpgrp(pgrp, pgrp);
+	setpgid(pgrp, pgrp);
 	close(open(pty_name, O_WRONLY, 0));
-	setpgrp(pgrp, pgrp);
+	setpgid(pgrp, pgrp);
 	/* Close everything _else_, for tidiness. */
 	for (i = 3; i < 1024; i++)
 	    close(i);
