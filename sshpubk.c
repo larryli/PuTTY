@@ -433,8 +433,7 @@ int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase)
  *    data    "putty-private-key-file-mac-key"
  *    data    passphrase
  *
- * Encrypted keys should have a MAC, whereas unencrypted ones must
- * have a hash.
+ * (An empty passphrase is used for unencrypted keys.)
  *
  * If the key is encrypted, the encryption key is derived from the
  * passphrase by means of a succession of SHA-1 hashes. Each hash
