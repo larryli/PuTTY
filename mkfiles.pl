@@ -610,8 +610,8 @@ COptions_68K = {COptions} -model far -opt time
 # Enabling "-opt space" for CFM-68K gives me undefined references to
 # _$LDIVT and _$LMODT.
 COptions_CFM68K = {COptions} -model cfmSeg -opt time
-COptions_PPC = {COptions} -opt size
-COptions_Carbon = {COptions} -opt size -d TARGET_API_MAC_CARBON
+COptions_PPC = {COptions} -opt size -traceback
+COptions_Carbon = {COptions} -opt size -traceback -d TARGET_API_MAC_CARBON
 
 LinkOptions = -c 'pTTY' -fragname PuTTY
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
