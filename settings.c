@@ -309,6 +309,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "ScrollBarFullScreen", cfg->scrollbar_in_fullscreen);
     write_setting_i(sesskey, "ScrollOnKey", cfg->scroll_on_key);
     write_setting_i(sesskey, "ScrollOnDisp", cfg->scroll_on_disp);
+    write_setting_i(sesskey, "EraseToScrollback", cfg->erase_to_scrollback);
     write_setting_i(sesskey, "LockSize", cfg->resize_action);
     write_setting_i(sesskey, "BCE", cfg->bce);
     write_setting_i(sesskey, "BlinkText", cfg->blinktext);
@@ -572,6 +573,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "ScrollBarFullScreen", 0, &cfg->scrollbar_in_fullscreen);
     gppi(sesskey, "ScrollOnKey", 0, &cfg->scroll_on_key);
     gppi(sesskey, "ScrollOnDisp", 1, &cfg->scroll_on_disp);
+    gppi(sesskey, "EraseToScrollback", 1, &cfg->erase_to_scrollback);
     gppi(sesskey, "LockSize", 0, &cfg->resize_action);
     gppi(sesskey, "BCE", 1, &cfg->bce);
     gppi(sesskey, "BlinkText", 0, &cfg->blinktext);

@@ -110,6 +110,19 @@ static unsigned long *resizeline(unsigned long *line, int cols)
 }
 
 /*
+ * Get the number of lines in the scrollback.
+ */
+static int sblines(Terminal *term)
+{
+    int sblines = count234(term->scrollback);
+    if (term->cfg.erase_to_scrollback &&
+	term->alt_which && term->alt_screen) {
+	    sblines += term->alt_sblines;
+    }
+    return sblines;
+}
+
+/*
  * Retrieve a line of the screen or of the scrollback, according to
  * whether the y coordinate is non-negative or negative
  * (respectively).
@@ -124,8 +137,19 @@ static unsigned long *lineptr(Terminal *term, int y, int lineno)
 	whichtree = term->screen;
 	treeindex = y;
     } else {
-	whichtree = term->scrollback;
-	treeindex = y + count234(term->scrollback);
+	int altlines = 0;
+	if (term->cfg.erase_to_scrollback &&
+	    term->alt_which && term->alt_screen) {
+	    altlines = term->alt_sblines;
+	}
+	if (y < -altlines) {
+	    whichtree = term->scrollback;
+	    treeindex = y + altlines + count234(term->scrollback);
+	} else {
+	    whichtree = term->alt_screen;
+	    treeindex = y + term->alt_sblines;
+	    /* treeindex = y + count234(term->alt_screen); */
+	}
     }
     line = index234(whichtree, treeindex);
 
@@ -331,6 +355,7 @@ void term_clrsb(Terminal *term)
     while ((line = delpos234(term->scrollback, 0)) != NULL) {
 	sfree(line);
     }
+    term->alt_sblines = 0;
     update_sbar(term);
 }
 
@@ -374,6 +399,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->curstype = 0;
 
     term->screen = term->alt_screen = term->scrollback = NULL;
+    term->alt_sblines = 0;
     term->disptop = 0;
     term->disptext = term->dispcurs = NULL;
     term->tabs = NULL;
@@ -519,6 +545,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	freetree234(term->alt_screen);
     }
     term->alt_screen = newalt;
+    term->alt_sblines = 0;
 
     term->tabs = srealloc(term->tabs, newcols * sizeof(*term->tabs));
     {
@@ -565,6 +592,25 @@ void term_provide_resize_fn(Terminal *term,
 	resize_fn(resize_ctx, term->cols, term->rows);
 }
 
+/* Find the bottom line on the screen that has any content.
+ * If only the top line has content, returns 0.
+ * If no lines have content, return -1.
+ */ 
+static int find_last_nonempty_line(Terminal * term, tree234 * screen)
+{
+    int i;
+    for (i = count234(screen) - 1; i >= 0; i--) {
+	unsigned long *line = index234(screen, i);
+	int j;
+	int cols = line[0];
+	for (j = 0; j < cols; j++) {
+	    if (line[j + 1] != term->erase_char) break;
+	}
+	if (j != cols) break;
+    }
+    return i;
+}
+
 /*
  * Swap screens. If `reset' is TRUE and we have been asked to
  * switch to the alternate screen, we must bring most of its
@@ -586,6 +632,7 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
 	ttr = term->alt_screen;
 	term->alt_screen = term->screen;
 	term->screen = ttr;
+	term->alt_sblines = find_last_nonempty_line(term, term->alt_screen) + 1;
 	t = term->curs.x;
 	if (!reset && !keep_cur_pos)
 	    term->curs.x = term->alt_x;
@@ -643,10 +690,7 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
  */
 static void update_sbar(Terminal *term)
 {
-    int nscroll;
-
-    nscroll = count234(term->scrollback);
-
+    int nscroll = sblines(term);
     set_sbar(term->frontend, nscroll + term->rows,
 	     nscroll + term->disptop, term->rows);
 }
@@ -711,7 +755,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	while (lines > 0) {
 	    line = delpos234(term->screen, topline);
 	    if (sb && term->savelines > 0) {
-		int sblen = count234(term->scrollback);
+		int sblen = sblines(term);
 		/*
 		 * We must add this line to the scrollback. We'll
 		 * remove a line from the top of the scrollback to
@@ -974,7 +1018,6 @@ static void erase_lots(Terminal *term,
 {
     pos start, end;
     int erase_lattr;
-    unsigned long *ldata;
 
     if (line_only) {
 	start.y = term->curs.y;
@@ -1004,18 +1047,33 @@ static void erase_lots(Terminal *term,
     if (start.y == 0 && start.x == 0 && end.y == term->rows)
 	term_invalidate(term);
 
-    ldata = lineptr(start.y);
-    while (poslt(start, end)) {
-	if (start.x == term->cols) {
-            if (!erase_lattr)
-                ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
-            else
-                ldata[start.x] = LATTR_NORM;
-        } else {
-	    ldata[start.x] = term->erase_char;
-        }
-	if (incpos(start) && start.y < term->rows)
-	    ldata = lineptr(start.y);
+    if (term->cfg.erase_to_scrollback &&
+	start.y == 0 && start.x == 0 && end.x == 0 && erase_lattr) {
+	/* If it's a whole number of lines, starting at the top, and
+	 * we're fully erasing them, erase by scrolling and keep the
+	 * lines in the scrollback. */
+	int scrolllines = end.y;
+	if (end.y == term->rows) {
+	    /* Shrink until we find a non-empty row.*/
+	    scrolllines = find_last_nonempty_line(term, term->screen) + 1;
+	}
+	if (scrolllines > 0)
+	    scroll(term, 0, scrolllines - 1, scrolllines, TRUE);
+	fix_cpos;
+    } else {
+	unsigned long *ldata = lineptr(start.y);
+	while (poslt(start, end)) {
+	    if (start.x == term->cols) {
+		if (!erase_lattr)
+		    ldata[start.x] &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
+		else
+		    ldata[start.x] = LATTR_NORM;
+	    } else {
+		ldata[start.x] = term->erase_char;
+	    }
+	    if (incpos(start) && start.y < term->rows)
+		ldata = lineptr(start.y);
+	}
     }
 }
 
@@ -3428,7 +3486,7 @@ void term_paint(Terminal *term, Context ctx,
  */
 void term_scroll(Terminal *term, int rel, int where)
 {
-    int sbtop = -count234(term->scrollback);
+    int sbtop = -sblines(term);
 #ifdef OPTIMISE_SCROLL
     int olddisptop = term->disptop;
     int shift;
@@ -3605,7 +3663,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect)
 void term_copyall(Terminal *term)
 {
     pos top;
-    top.y = -count234(term->scrollback);
+    top.y = -sblines(term);
     top.x = 0;
     clipme(term, top, term->curs, 0);
 }
@@ -3732,7 +3790,7 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 {
     unsigned long *ldata;
     short wvalue;
-    int topy = -count234(term->scrollback);
+    int topy = -sblines(term);
 
     ldata = lineptr(p.y);
 

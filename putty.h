@@ -380,6 +380,7 @@ struct config_tag {
     int fullscreenonaltenter;
     int scroll_on_key;
     int scroll_on_disp;
+    int erase_to_scrollback;
     int compose_key;
     int ctrlaltkeys;
     char wintitle[256];		       /* initial window title */

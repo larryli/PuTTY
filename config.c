@@ -980,6 +980,10 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
     ctrl_checkbox(s, "Reset scrollback on display activity", 'p',
 		  HELPCTX(window_scrollback),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,scroll_on_disp)));
+    ctrl_checkbox(s, "Push erased text into scrollback", 'e',
+		  HELPCTX(window_erased),
+		  dlg_stdcheckbox_handler,
+		  I(offsetof(Config,erase_to_scrollback)));
 
     /*
      * The Window/Appearance panel.

@@ -43,6 +43,7 @@
 #define WINHELP_CTX_window_size "window.size"
 #define WINHELP_CTX_window_resize "window.resize"
 #define WINHELP_CTX_window_scrollback "window.scrollback"
+#define WINHELP_CTX_window_erased "window.erased"
 #define WINHELP_CTX_behaviour_closewarn "behaviour.closewarn"
 #define WINHELP_CTX_behaviour_altf4 "behaviour.altf4"
 #define WINHELP_CTX_behaviour_altspace "behaviour.altspace"

@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.57 2003/03/05 22:07:40 simon Exp $
+\versionid $Id: config.but,v 1.58 2003/03/06 12:51:12 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -855,6 +855,22 @@ terminal contents. You can disable this behaviour by turning off
 \q{Reset scrollback on display activity}. You can also make the
 screen revert when you press a key, by turning on \q{Reset
 scrollback on keypress}.
+
+\S{config-scrollback} \q{Push erased text into scrollback}
+
+\cfg{winhelp-topic}{window.erased}
+
+When this option is enabled, the contents of the terminal screen
+will be pushed into the scrollback when a server-side application
+clears the screen, so that your scrollback will contain a better
+record of what was on your screen in the past.
+
+If the application switches to the alternate screen (see
+\k{config-features-altscreen} for more about this), then the
+contents of the primary screen will be visible in the scrollback
+until the application switches back again.
+
+This option is enabled by default.
 
 \H{config-appearance} The Appearance panel
 
