@@ -3,6 +3,7 @@
  */
 
 #include <windows.h>
+#include <aclapi.h>
 #include <stdio.h> /* FIXME */
 #include "putty.h" /* FIXME */
 #include "ssh.h"
@@ -14,7 +15,13 @@
 #define WM_XUSER     (WM_USER + 0x2000)
 #define WM_SYSTRAY   (WM_XUSER + 6)
 #define WM_SYSTRAY2  (WM_XUSER + 7)
-#define WM_CLOSEMEM  (WM_XUSER + 10)
+
+#define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
+
+/*
+ * FIXME: maybe some day we can sort this out ...
+ */
+#define AGENT_MAX_MSGLEN  8192
 
 #define IDM_CLOSE    0x0010
 #define IDM_VIEWKEYS 0x0020
@@ -151,18 +158,10 @@ void add_keyfile(char *filename) {
 /*
  * This is the main agent function that answers messages.
  */
-void answer_msg(void *in, int inlen, void **out, int *outlen) {
-    unsigned char *ret;
-    unsigned char *p = in;
+void answer_msg(void *msg) {
+    unsigned char *p = msg;
+    unsigned char *ret = msg;
     int type;
-
-    *out = NULL;                       /* default `no go' response */
-
-    /*
-     * Basic sanity checks. len >= 5, and len[0:4] holds len-4.
-     */
-    if (inlen < 5 || GET_32BIT(p) != (unsigned long)(inlen-4))
-        return;
 
     /*
      * Get the message type.
@@ -170,7 +169,6 @@ void answer_msg(void *in, int inlen, void **out, int *outlen) {
     type = p[4];
 
     p += 5;
-
     switch (type) {
       case SSH_AGENTC_REQUEST_RSA_IDENTITIES:
         /*
@@ -198,20 +196,20 @@ void answer_msg(void *in, int inlen, void **out, int *outlen) {
              * bytes for the key count.
              */
             len += 5 + 4;
-            if ((ret = malloc(len)) != NULL) {
-                PUT_32BIT(ret, len-4);
-                ret[4] = SSH_AGENT_RSA_IDENTITIES_ANSWER;
-                PUT_32BIT(ret+5, nkeys);
-                p = ret + 5 + 4;
-                for (key = first234(rsakeys, &e); key; key = next234(&e)) {
-                    PUT_32BIT(p, ssh1_bignum_bitcount(key->modulus));
-                    p += 4;
-                    p += ssh1_write_bignum(p, key->exponent);
-                    p += ssh1_write_bignum(p, key->modulus);
-                    PUT_32BIT(p, strlen(key->comment));
-                    memcpy(p+4, key->comment, strlen(key->comment));
-                    p += 4 + strlen(key->comment);
-                }
+            if (len > AGENT_MAX_MSGLEN)
+                goto failure;          /* aaargh! too much stuff! */
+            PUT_32BIT(ret, len-4);
+            ret[4] = SSH_AGENT_RSA_IDENTITIES_ANSWER;
+            PUT_32BIT(ret+5, nkeys);
+            p = ret + 5 + 4;
+            for (key = first234(rsakeys, &e); key; key = next234(&e)) {
+                PUT_32BIT(p, ssh1_bignum_bitcount(key->modulus));
+                p += 4;
+                p += ssh1_write_bignum(p, key->exponent);
+                p += ssh1_write_bignum(p, key->modulus);
+                PUT_32BIT(p, strlen(key->comment));
+                memcpy(p+4, key->comment, strlen(key->comment));
+                p += 4 + strlen(key->comment);
             }
         }
         break;
@@ -258,11 +256,9 @@ void answer_msg(void *in, int inlen, void **out, int *outlen) {
              * bytes of MD5.
              */
             len = 5 + 16;
-            if ((ret = malloc(len)) != NULL) {
-                PUT_32BIT(ret, len-4);
-                ret[4] = SSH_AGENT_RSA_RESPONSE;
-                memcpy(ret+5, response_md5, 16);
-            }
+            PUT_32BIT(ret, len-4);
+            ret[4] = SSH_AGENT_RSA_RESPONSE;
+            memcpy(ret+5, response_md5, 16);
         }
         break;
 #if 0 /* FIXME: implement these */
@@ -285,16 +281,9 @@ void answer_msg(void *in, int inlen, void **out, int *outlen) {
         /*
          * Unrecognised message. Return SSH_AGENT_FAILURE.
          */
-        if ((ret = malloc(5)) != NULL) {
-            PUT_32BIT(ret, 1);
-            ret[4] = SSH_AGENT_FAILURE;
-        }
+        PUT_32BIT(ret, 1);
+        ret[4] = SSH_AGENT_FAILURE;
         break;
-    }
-
-    if (ret) {
-        *out = ret;
-        *outlen = 4 + GET_32BIT(ret);
     }
 }
 
@@ -465,45 +454,77 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
       case WM_COPYDATA:
         {
             COPYDATASTRUCT *cds;
-            void *in, *out, *ret;
-            int inlen, outlen;
-            HANDLE filemap;
-            char mapname[64];
-            int id;
+            char *mapname;
+            void *p;
+            HANDLE filemap, proc;
+            PSID mapowner, procowner;
+            PSECURITY_DESCRIPTOR psd1 = NULL, psd2 = NULL;
+            int ret = 0;
 
             cds = (COPYDATASTRUCT *)lParam;
-            /*
-             * FIXME: use dwData somehow.
-             */
-            in = cds->lpData;
-            inlen = cds->cbData;
-            answer_msg(in, inlen, &out, &outlen);
-            if (out) {
-                id = 0;
-                do {
-                    sprintf(mapname, "PageantReply%08x", ++id);
-		    filemap = CreateFileMapping(INVALID_HANDLE_VALUE,
-                                                NULL, PAGE_READWRITE,
-						0, outlen+sizeof(int),
-                                                mapname);
-                } while (filemap == INVALID_HANDLE_VALUE);
-                ret = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0,
-                                    outlen+sizeof(int));
-                if (ret) {
-                    *((int *)ret) = outlen;
-                    memcpy(((int *)ret)+1, out, outlen);
-                    UnmapViewOfFile(ret);
-                    return id;
+            if (cds->dwData != AGENT_COPYDATA_ID)
+                return 0;              /* not our message, mate */
+            mapname = (char *)cds->lpData;
+            if (mapname[cds->cbData - 1] != '\0')
+                return 0;              /* failure to be ASCIZ! */
+#ifdef DEBUG_IPC
+            debug(("mapname is :%s:\r\n", mapname));
+#endif
+            filemap = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, mapname);
+#ifdef DEBUG_IPC
+            debug(("filemap is %p\r\n", filemap));
+#endif
+            if (filemap != NULL && filemap != INVALID_HANDLE_VALUE) {
+                int rc;
+                if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
+                                        GetCurrentProcessId())) == NULL) {
+#ifdef DEBUG_IPC
+                    debug(("couldn't get handle for process\r\n"));
+#endif
+                    return 0;
                 }
-            } else
-                return 0;              /* invalid request */
+                if (GetSecurityInfo(proc, SE_KERNEL_OBJECT,
+                                    OWNER_SECURITY_INFORMATION,
+                                    &procowner, NULL, NULL, NULL,
+                                    &psd2) != ERROR_SUCCESS) {
+#ifdef DEBUG_IPC
+                    debug(("couldn't get owner info for process\r\n"));
+#endif
+                    CloseHandle(proc);
+                    return 0;          /* unable to get security info */
+                }
+                CloseHandle(proc);
+                if ((rc = GetSecurityInfo(filemap, SE_KERNEL_OBJECT,
+                                          OWNER_SECURITY_INFORMATION,
+                                          &mapowner, NULL, NULL, NULL,
+                                          &psd1) != ERROR_SUCCESS)) {
+#ifdef DEBUG_IPC
+                    debug(("couldn't get owner info for filemap: %d\r\n", rc));
+#endif
+                    return 0;
+                }
+#ifdef DEBUG_IPC
+                debug(("got security stuff\r\n"));
+#endif
+                if (!EqualSid(mapowner, procowner))
+                    return 0;          /* security ID mismatch! */
+#ifdef DEBUG_IPC
+                debug(("security stuff matched\r\n"));
+#endif
+                LocalFree(psd1);
+                LocalFree(psd2);
+                p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
+#ifdef DEBUG_IPC
+                debug(("p is %p\r\n", p));
+                {int i; for(i=0;i<5;i++)debug(("p[%d]=%02x\r\n", i, ((unsigned char *)p)[i]));}
+#endif
+                answer_msg(p);
+                ret = 1;
+                UnmapViewOfFile(p);
+            }
+            CloseHandle(filemap);
+            return ret;
         }
-        break;
-      case WM_CLOSEMEM:
-        /*
-         * FIXME!
-         */
-        break;
     }
 
     return DefWindowProc (hwnd, message, wParam, lParam);
