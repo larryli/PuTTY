@@ -106,77 +106,10 @@ void sk_cleanup(void)
 
 char *error_string(int error)
 {
-    switch (error) {
-      case EACCES:
-	return "Network error: Permission denied";
-      case EADDRINUSE:
-	return "Network error: Address already in use";
-      case EADDRNOTAVAIL:
-	return "Network error: Cannot assign requested address";
-      case EAFNOSUPPORT:
-	return
-	    "Network error: Address family not supported by protocol family";
-      case EALREADY:
-	return "Network error: Operation already in progress";
-      case ECONNABORTED:
-	return "Network error: Software caused connection abort";
-      case ECONNREFUSED:
-	return "Network error: Connection refused";
-      case ECONNRESET:
-	return "Network error: Connection reset by peer";
-      case EDESTADDRREQ:
-	return "Network error: Destination address required";
-      case EFAULT:
-	return "Network error: Bad address";
-      case EHOSTDOWN:
-	return "Network error: Host is down";
-      case EHOSTUNREACH:
-	return "Network error: No route to host";
-      case EINPROGRESS:
-	return "Network error: Operation now in progress";
-      case EINTR:
-	return "Network error: Interrupted function call";
-      case EINVAL:
-	return "Network error: Invalid argument";
-      case EISCONN:
-	return "Network error: Socket is already connected";
-      case EMFILE:
-	return "Network error: Too many open files";
-      case EMSGSIZE:
-	return "Network error: Message too long";
-      case ENETDOWN:
-	return "Network error: Network is down";
-      case ENETRESET:
-	return "Network error: Network dropped connection on reset";
-      case ENETUNREACH:
-	return "Network error: Network is unreachable";
-      case ENOBUFS:
-	return "Network error: No buffer space available";
-      case ENOPROTOOPT:
-	return "Network error: Bad protocol option";
-      case ENOTCONN:
-	return "Network error: Socket is not connected";
-      case ENOTSOCK:
-	return "Network error: Socket operation on non-socket";
-      case EOPNOTSUPP:
-	return "Network error: Operation not supported";
-      case EPFNOSUPPORT:
-	return "Network error: Protocol family not supported";
-      case EPROTONOSUPPORT:
-	return "Network error: Protocol not supported";
-      case EPROTOTYPE:
-	return "Network error: Protocol wrong type for socket";
-      case ESHUTDOWN:
-	return "Network error: Cannot send after socket shutdown";
-      case ESOCKTNOSUPPORT:
-	return "Network error: Socket type not supported";
-      case ETIMEDOUT:
-	return "Network error: Connection timed out";
-      case EWOULDBLOCK:
-	return "Network error: Resource temporarily unavailable";
-      default:
-	return "Unknown network error";
-    }
+    char *ret = smalloc(strlen(strerror(error)) +
+			strlen("Network error: "));
+    sprintf(ret, "Network error: %s",strerror(error));
+    return ret;
 }
 
 SockAddr sk_namelookup(char *host, char **canonicalname)
