@@ -7235,12 +7235,14 @@ static void ssh_free(void *handle)
 	    sfree(c);
 	}
 	freetree234(ssh->channels);
+	ssh->channels = NULL;
     }
 
     if (ssh->rportfwds) {
 	while ((pf = delpos234(ssh->rportfwds, 0)) != NULL)
 	    sfree(pf);
 	freetree234(ssh->rportfwds);
+	ssh->rportfwds = NULL;
     }
     sfree(ssh->deferred_send_data);
     if (ssh->x11auth)
