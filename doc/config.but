@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.15 2001/11/25 19:22:47 simon Exp $
+\versionid $Id: config.but,v 1.16 2001/11/29 22:32:37 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1046,6 +1046,17 @@ server.
 Keepalives are only supported in Telnet and SSH; the Rlogin and Raw
 protocols offer no way of implementing them.
 
+\S{config-nodelay} \q{Disable Nagle's algorithm}
+
+Nagle's algorithm is a detail of TCP/IP implementations that tries
+to minimise the number of small data packets sent down a network
+connection. With Nagle's algorithm enabled, PuTTY's bandwidth usage
+will be slightly more efficient; with it disabled, you may find you
+get a faster response to your keystrokes when connecting to some
+types of server.
+
+The Nagle algorithm is disabled by default.
+
 \H{config-telnet} The Telnet panel
 
 The Telnet panel allows you to configure options that only apply to
@@ -1246,6 +1257,13 @@ consider substandard. By default, PuTTY supplies a preference order
 intended to reflect a reasonable preference in terms of security and
 speed.
 
+Single-DES is not supported natively in the SSH 2 draft protocol
+standards. One or two server implementations do support it, by a
+non-standard name. PuTTY can use single-DES to interoperate with
+these servers if you enable the \q{Enable non-standard single-DES in
+SSH 2} option; by default this is disabled and PuTTY will stick to
+the standard.
+
 \H{config-ssh-auth} The Auth panel
 
 The Auth panel allows you to configure authentication options for
@@ -1266,6 +1284,18 @@ time) and must supply the correct response in order to log in. If
 your server supports this, you should talk to your system
 administrator about precisely what form these challenges and
 responses take.
+
+\S{config-ssh-tis} \q{Attempt keyboard-interactive authentication}
+
+The SSH 2 equivalent of TIS authentication is called
+\q{keyboard-interactive}. It is a flexible authentication method
+using an arbitrary sequence of requests and responses; so it is not
+only useful for challenge/response mechanisms such as S/Key, but it
+can also be used for (for example) asking the user for a new
+password when the old one has expired.
+
+PuTTY leaves this option enabled by default, but supplies a switch
+to turn it off in case you should have trouble with it.
 
 \S{config-ssh-agentfwd} \q{Allow agent forwarding}
 
