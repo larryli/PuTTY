@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.1.2.11 1999/03/03 22:03:54 ben Exp $ */
+/* $Id: mac.c,v 1.1.2.12 1999/03/07 23:20:20 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -44,6 +44,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>		/* putty.h needs size_t */
+#include <stdio.h>		/* for vsprintf */
 
 #define PUTTY_DO_GLOBALS
 
@@ -273,11 +274,19 @@ static int mac_windowtype(WindowPtr window) {
  */
 static void mac_keypress(EventRecord *event) {
     char key;
+    WindowPtr window;
 
     if (event->what == keyDown && (event->modifiers & cmdKey)) {
 	mac_adjustmenus();
 	mac_menucommand(MenuKey(event->message & charCodeMask));
-    }
+    } else {
+	window = FrontWindow();
+	switch (mac_windowtype(window)) {
+	  case wTerminal:
+	    mac_keyterm(window, event);
+	    break;
+	}
+    }       
 }
 
 static void mac_menucommand(long result) {
