@@ -993,6 +993,7 @@ static void list_selchange(GtkList *list, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(list));
+    if (!uc) return;
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
 }
 
@@ -1922,7 +1923,7 @@ int do_config_box(const char *title, Config *cfg)
         gtk_widget_unref(listitem);
     }
 
-    sl.nsessions = 0;
+    get_sesslist(&sl, TRUE);
 
     for (index = 0; index < lenof(scs.sc); index++) {
 	scs.sc[index].action = SHORTCUT_EMPTY;
@@ -2115,6 +2116,7 @@ int do_config_box(const char *title, Config *cfg)
 
     gtk_main();
 
+    get_sesslist(&sl, FALSE);
     dlg_cleanup(&dp);
     sfree(selparams);
 
