@@ -115,9 +115,9 @@ MOBJ2 = tree234.$(OBJ)
 COBJS = console.$(OBJ)
 ##-- objects putty pscp psftp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
-OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
-OBJS3 = sshbn.$(OBJ) sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ)
-OBJS4 = x11fwd.$(OBJ) portfwd.$(OBJ) sshaes.$(OBJ) sshsh512.$(OBJ)
+OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshcrcda.$(OBJ)
+OBJS3 = sshpubk.$(OBJ) ssh.$(OBJ) pageantc.$(OBJ) sshzlib.$(OBJ) sshdss.$(OBJ)
+OBJS4 = x11fwd.$(OBJ) portfwd.$(OBJ) sshaes.$(OBJ) sshsh512.$(OBJ) sshbn.$(OBJ)
 ##-- objects pageant
 PAGE1 = pageant.$(OBJ) sshrsa.$(OBJ) sshpubk.$(OBJ) sshdes.$(OBJ) sshbn.$(OBJ)
 PAGE2 = sshmd5.$(OBJ) version.$(OBJ) tree234.$(OBJ) misc.$(OBJ) sshaes.$(OBJ)

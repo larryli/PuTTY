@@ -724,6 +724,11 @@ static int ssh1_rdpkt(unsigned char **data, int *datalen)
 	st->to_read -= st->chunk;
     }
 
+    if (cipher && detect_attack(pktin.data, st->biglen, NULL)) {
+        bombout(("Network attack (CRC compensation) detected!"));
+        crReturn(0);
+    }
+
     if (cipher)
 	cipher->decrypt(pktin.data, st->biglen);
 
