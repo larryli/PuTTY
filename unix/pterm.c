@@ -45,6 +45,7 @@ struct gui_data {
 	int charset;
 	int is_wide;
     } fontinfo[4];
+    int xpos, ypos, gotpos, gravity;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *currcursor;
     GdkColor cols[NCOLOURS];
     GdkColormap *colmap;
@@ -1980,7 +1981,7 @@ static void help(FILE *fp) {
 "  -name PREFIX              Prefix when looking up resources (default: pterm)\n"
 "  -fn FONT                  Normal text font\n"
 "  -fb FONT                  Bold text font\n"
-"  -geometry WIDTHxHEIGHT    Size of terminal in characters\n"
+"  -geometry GEOMETRY        Position and size of window (size in characters)\n"
 "  -sl LINES                 Number of lines of scrollback\n"
 "  -fg COLOUR, -bg COLOUR    Foreground/background colour\n"
 "  -bfg COLOUR, -bbg COLOUR  Foreground/background bold colour\n"
@@ -1999,7 +2000,8 @@ static void help(FILE *fp) {
     }
 }
 
-int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
+int do_cmdline(int argc, char **argv, int do_everything,
+               struct gui_data *inst, Config *cfg)
 {
     int err = 0;
     extern char **pty_argv;	       /* declared in pty.c */
@@ -2022,12 +2024,6 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 	val = *++argv; \
 }
 #define SECOND_PASS_ONLY { if (!do_everything) continue; }
-
-    /*
-     * TODO:
-     * 
-     * finish -geometry
-     */
 
     char *val;
     while (--argc > 0) {
@@ -2087,13 +2083,13 @@ int do_cmdline(int argc, char **argv, int do_everything, Config *cfg)
 	    if (flags & HeightValue)
 		cfg->height = h;
 
-	    /*
-	     * Apparently setting the initial window position is
-	     * difficult in GTK 1.2. Not entirely sure why this
-	     * should be. 2.0 has gtk_window_parse_geometry(),
-	     * which would help... For the moment, though, I can't
-	     * be bothered with this.
-	     */
+            if (flags & (XValue | YValue)) {
+                inst->xpos = x;
+                inst->ypos = y;
+                inst->gotpos = TRUE;
+                inst->gravity = ((flags & XNegative ? 1 : 0) |
+                                 (flags & YNegative ? 2 : 0));
+            }
 
 	} else if (!strcmp(p, "-sl")) {
 	    EXPECTS_ARG;
@@ -2373,10 +2369,10 @@ int pt_main(int argc, char **argv)
     memset(inst, 0, sizeof(*inst));
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
 
-    if (do_cmdline(argc, argv, 0, &inst->cfg))
+    if (do_cmdline(argc, argv, 0, inst, &inst->cfg))
 	exit(1);		       /* pre-defaults pass to get -class */
     do_defaults(NULL, &inst->cfg);
-    if (do_cmdline(argc, argv, 1, &inst->cfg))
+    if (do_cmdline(argc, argv, 1, inst, &inst->cfg))
 	exit(1);		       /* post-defaults, do everything */
 
     cmdline_run_saved(&inst->cfg);
@@ -2472,6 +2468,21 @@ int pt_main(int argc, char **argv)
 				      GDK_HINT_RESIZE_INC);
     }
 
+    gtk_widget_show(inst->area);
+    if (inst->cfg.scrollbar)
+	gtk_widget_show(inst->sbar);
+    gtk_widget_show(GTK_WIDGET(inst->hbox));
+
+    if (inst->gotpos) {
+        int x = inst->xpos, y = inst->ypos;
+        GtkRequisition req;
+        gtk_widget_size_request(GTK_WIDGET(inst->window), &req);
+        if (inst->gravity & 1) x += gdk_screen_width() - req.width;
+        if (inst->gravity & 2) y += gdk_screen_height() - req.height;
+	gtk_window_set_position(GTK_WINDOW(inst->window), GTK_WIN_POS_NONE);
+	gtk_widget_set_uposition(GTK_WIDGET(inst->window), x, y);
+    }
+
     gtk_signal_connect(GTK_OBJECT(inst->window), "destroy",
 		       GTK_SIGNAL_FUNC(destroy), inst);
     gtk_signal_connect(GTK_OBJECT(inst->window), "delete_event",
@@ -2509,10 +2520,6 @@ int pt_main(int argc, char **argv)
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK);
 
-    gtk_widget_show(inst->area);
-    if (inst->cfg.scrollbar)
-	gtk_widget_show(inst->sbar);
-    gtk_widget_show(GTK_WIDGET(inst->hbox));
     gtk_widget_show(inst->window);
 
     set_window_background(inst);
