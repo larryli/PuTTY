@@ -1223,27 +1223,6 @@ static const struct ssh2_cipher ssh_aes256 = {
     16, 256, "AES-256 CBC"
 };
 
-static const struct ssh2_cipher ssh_rijndael128 = {
-    aes_make_context, aes_free_context, aes_iv, aes128_key,
-    aes_ssh2_encrypt_blk, aes_ssh2_decrypt_blk,
-    "rijndael128-cbc",
-    16, 128, "AES-128 CBC"
-};
-
-static const struct ssh2_cipher ssh_rijndael192 = {
-    aes_make_context, aes_free_context, aes_iv, aes192_key,
-    aes_ssh2_encrypt_blk, aes_ssh2_decrypt_blk,
-    "rijndael192-cbc",
-    16, 192, "AES-192 CBC"
-};
-
-static const struct ssh2_cipher ssh_rijndael256 = {
-    aes_make_context, aes_free_context, aes_iv, aes256_key,
-    aes_ssh2_encrypt_blk, aes_ssh2_decrypt_blk,
-    "rijndael256-cbc",
-    16, 256, "AES-256 CBC"
-};
-
 static const struct ssh2_cipher ssh_rijndael_lysator = {
     aes_make_context, aes_free_context, aes_iv, aes256_key,
     aes_ssh2_encrypt_blk, aes_ssh2_decrypt_blk,
@@ -1254,14 +1233,11 @@ static const struct ssh2_cipher ssh_rijndael_lysator = {
 static const struct ssh2_cipher *const aes_list[] = {
     &ssh_aes256_ctr,
     &ssh_aes256,
-    &ssh_rijndael256,
     &ssh_rijndael_lysator,
     &ssh_aes192_ctr,
     &ssh_aes192,
-    &ssh_rijndael192,
     &ssh_aes128_ctr,
     &ssh_aes128,
-    &ssh_rijndael128,
 };
 
 const struct ssh2_ciphers ssh2_aes = {
