@@ -111,7 +111,7 @@ typedef struct {
 
 GLOBAL Backend *back;
 
-GLOBAL struct backend_list {
+extern struct backend_list {
     int protocol;
     char *name;
     Backend *backend;
