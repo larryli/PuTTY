@@ -23,7 +23,7 @@
 void logeventf(char *fmt, ...)
 {
     va_list ap;
-    char stuff[200];
+    char stuff[512];
 
     va_start(ap, fmt);
     vsprintf(stuff, fmt, ap);
@@ -1559,11 +1559,15 @@ static int ssh2_pkt_getbool(void)
 }
 static void ssh2_pkt_getstring(char **p, int *length)
 {
+    int len;
     *p = NULL;
     *length = 0;
     if (pktin.length - pktin.savedpos < 4)
 	return;
-    *length = GET_32BIT(pktin.data + pktin.savedpos);
+    len = GET_32BIT(pktin.data + pktin.savedpos);
+    if (len < 0)
+	return;
+    *length = len;
     pktin.savedpos += 4;
     if (pktin.length - pktin.savedpos < *length)
 	return;
@@ -3517,7 +3521,10 @@ static void ssh1_protocol(unsigned char *in, int inlen, int ispkt)
  */
 static int in_commasep_string(char *needle, char *haystack, int haylen)
 {
-    int needlen = strlen(needle);
+    int needlen;
+    if (!needle || !haystack)
+	return 0;		       /* protect against null pointers */
+    needlen = strlen(needle);
     while (1) {
 	/*
 	 * Is it at the start of the string?
@@ -3745,7 +3752,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 
     if (!ispkt)
 	crWaitUntil(ispkt);
-    sha_string(&exhash, pktin.data + 5, pktin.length - 5);
+    if (pktin.length > 5)
+	sha_string(&exhash, pktin.data + 5, pktin.length - 5);
 
     /*
      * Now examine the other side's KEXINIT to see what we're up
@@ -3802,7 +3810,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	}
     }
     if (!cscipher_tobe) {
-	bombout(("Couldn't agree a client-to-server cipher (available: %s)", str));
+	bombout(("Couldn't agree a client-to-server cipher (available: %.450s)",
+		 str));
 	crReturn(0);
     }
 
@@ -3827,7 +3836,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	}
     }
     if (!sccipher_tobe) {
-	bombout(("Couldn't agree a server-to-client cipher (available: %s)", str));
+	bombout(("Couldn't agree a server-to-client cipher (available: %.450s)",
+		 str));
 	crReturn(0);
     }
 
