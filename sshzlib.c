@@ -592,7 +592,7 @@ void zlib_compress_init(void) {
  */
 int zlib_disable_compression(void) {
     struct Outbuf *out = (struct Outbuf *)ectx.userdata;
-    int n, startbits;
+    int n;
 
     out->comp_disabled = TRUE;
 

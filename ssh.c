@@ -2870,7 +2870,7 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
                      */
                     logevent("No username provided. Abandoning session.");
                     ssh_state = SSH_STATE_CLOSED;
-                    crReturn(1);
+                    crReturnV;
                 }
             } else {
                 c_write_str("login as: ");
@@ -3458,7 +3458,6 @@ static void do_ssh2_authconn(unsigned char *in, int inlen, int ispkt)
      * Potentially enable agent forwarding.
      */
     if (cfg.agentfwd && agent_exists()) {
-        char proto[20], data[64];
         logevent("Requesting OpenSSH-style agent forwarding");
         ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
         ssh2_pkt_adduint32(mainchan->remoteid);
