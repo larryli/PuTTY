@@ -591,10 +591,14 @@ print <<END;
 # -w 35 disables "unused parameter" warnings
 COptions     = -i : -i :: -w 35 -w err -proto strict
 COptions_68K = {COptions} -model far -opt space
+# Enabling "-opt space" for CFM-68K gives me undefined references to
+# _$LDIVT and _$LMODT.
+COptions_CFM68K = {COptions} -model cfmSeg -opt time
 COptions_PPC = {COptions} -opt size
 
 LinkOptions = -c 'pTTY'
 LinkOptions_68K = {LinkOptions} -br 68k -model far -compact
+LinkOptions_CFM68K = {LinkOptions} -br 020 -model cfmseg -compact
 LinkOptions_PPC = {LinkOptions}
 
 Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
@@ -602,39 +606,25 @@ Libs_68K =	"{CLibraries}StdCLib.far.o" \xb6
 		"{Libraries}MathLib.far.o" \xb6
 		"{Libraries}IntEnv.far.o" \xb6
 		"{Libraries}Interface.o" \xb6
-		"{Libraries}OpenTransport.o" \xb6
-		"{Libraries}OpenTransportApp.o" \xb6
-		"{Libraries}OpenTptInet.o" \xb6
 		"{Libraries}UnicodeConverterLib.far.o"
 
 Libs_CFM =	"{SharedLibraries}InterfaceLib" \xb6
 		"{SharedLibraries}StdCLib" \xb6
-		"{SharedLibraries}MathLib" \xb6
 		"{SharedLibraries}AppearanceLib" \xb6
 			-weaklib AppearanceLib \xb6
-		"{SharedLibraries}OpenTransportLib" \xb6
-			-weaklib OTGlobalLib \xb6
-			-weaklib OTUtilityLib \xb6
-			-weaklib OTClientUtilLib \xb6
-			-weaklib OTClientLib \xb6
-			-weaklib OTStreamUnixLib \xb6
-			-weaklib OTXTILib \xb6
-			-weaklib OTConfigLib \xb6
-			-weaklib OTNtvUtilLib \xb6
-			-weaklib OTNativeClientLib \xb6
-		"{SharedLibraries}OpenTptInternetLib" \xb6
-			-weaklib OTInetClientLib \xb6
 		"{SharedLibraries}TextCommon" \xb6
 			-weaklib TextCommon \xb6
 		"{SharedLibraries}UnicodeConverter" \xb6
 			-weaklib UnicodeConverter
 
+Libs_CFM68K =	{Libs_CFM} \xb6
+		"{CFM68KLibraries}NuMacRuntime.o" \xb6
+		"{CFM68KLibraries}NuMathLib.o"
+
 Libs_PPC =	{Libs_CFM} \xb6
 		"{PPCLibraries}StdCRuntime.o" \xb6
 		"{PPCLibraries}PPCCRuntime.o" \xb6
-		"{PPCLibraries}CarbonAccessors.o" \xb6
-		"{PPCLibraries}OpenTransportAppPPC.o" \xb6
-		"{PPCLibraries}OpenTptInetPPC.o"
+		"{PPCLibraries}CarbonAccessors.o"
 
 END
 print &splitline("all \xc4 " . join(" ", &progrealnames("M")), undef, "\xb6");
@@ -642,12 +632,18 @@ print "\n\n";
 foreach $p (&prognames("M")) {
   ($prog, $type) = split ",", $p;
 
-  print &splitline("$prog \xc4 $prog.68k $prog.ppc", undef, "\xb6"), "\n\n";
+  print &splitline("$prog \xc4 $prog.68k $prog.cfm68k $prog.ppc",
+		   undef, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.68k.o", undef, undef);
   print &splitline("$prog.68k \xc4 $objstr", undef, "\xb6"), "\n";
   print &splitline("\tILink -o {Targ} {LinkOptions_68K} " .
                    $objstr . " {Libs_68K}", 69, "\xb6"), "\n\n";
+
+  $objstr = &objects($p, "X.cfm68k.o", undef, undef);
+  print &splitline("$prog.cfm68k \xc4 $objstr", undef, "\xb6"), "\n";
+  print &splitline("\tILink -o {Targ} {LinkOptions_CFM68K} " .
+                   $objstr . " {Libs_CFM68K}", 69, "\xb6"), "\n\n";
 
   $objstr = &objects($p, "X.ppc.o", undef, undef);
   print &splitline("$prog.ppc \xc4 $objstr", undef, "\xb6"), "\n";
@@ -658,6 +654,11 @@ foreach $d (&deps("X.68k.o", undef, "::", ":")) {
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
 		   undef, "\xb6"), "\n";
   print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_68K}\n\n";
+}
+foreach $d (&deps("X.cfm68k.o", undef, "::", ":")) {
+  print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),
+		   undef, "\xb6"), "\n";
+  print "\t{C} ", $d->{deps}->[0], " -o {Targ} {COptions_CFM68K}\n\n";
 }
 foreach $d (&deps("X.ppc.o", undef, "::", ":")) {
   print &splitline(sprintf("%s \xc4 %s", $d->{obj}, join " ", @{$d->{deps}}),

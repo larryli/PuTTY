@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.4 2002/12/29 15:44:15 ben Exp $
+$Id: README.mac,v 1.5 2002/12/29 19:01:33 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -22,14 +22,17 @@ Compiling it:
 
  Install MPW, install the new Universal Headers (optional), then put
  the contents of the "68K Static Libraries" directory of the Text
- Encoding Converter SDK into "Interfaces&Libraries:Libraries:Libraries".
+ Encoding Converter SDK into "Interfaces&Libraries:Libraries:Libraries",
+ and the contents of the "Stub Libraries" directory into
+ "Interfaces&Libraries:Libraries:SharedLibraries".
 
  The "mkputty.mpw" script does most of the work, but currently needs
  you to run "Rez -append -o PuTTY.68k mac_res.r", and the same for
  PuTTY.ppc to get the resources compiled in.
 
  The current Makefile producess a Classic 68K build of PuTTY called
- "PuTTY.68k" and a non-Carbon PowerPC build called "PuTTY.ppc".
+ "PuTTY.68k", a CFM-68K build called "PuTTY.cfm68k", and a non-Carbon
+ PowerPC build called "PuTTY.ppc".
 
 Runtime requirements:
 
