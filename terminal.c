@@ -676,7 +676,7 @@ static void scroll(int topline, int botline, int lines, int sb)
 	     * selection), and also selanchor (for one being
 	     * selected as we speak).
 	     */
-	    seltop = sb ? -savelines : 0;
+	    seltop = sb ? -savelines : topline;
 
 	    if (selstart.y >= seltop && selstart.y <= botline) {
 		selstart.y--;
