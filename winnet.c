@@ -216,7 +216,7 @@ SockAddr sk_namelookup(char *host, char **canonicalname)
 	    {
 		LPVOID lpMsgBuf;
 		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&lpMsgBuf,	0,	NULL);
-		debug(("Error %ld: %s (h=%lx)\n", err, lpMsgBuf, h));
+		/*debug(("Error %ld: %s (h=%lx)\n", err, lpMsgBuf, h));*/
 		/* Free the buffer. */
 		LocalFree(lpMsgBuf);
 	    }
