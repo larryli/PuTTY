@@ -3170,7 +3170,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
-    static WORD keys[3];
+    /* keys is for ToAsciiEx; XXX do we know how big this needs to be? */
+    static BYTE keys[3];
     static int compose_char = 0;
     static WPARAM compose_key = 0;
 
@@ -3861,7 +3862,12 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    keystate[VK_CAPITAL] = 0;
 	}
 
-	r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
+	/* 'keys' parameter is declared in MSDN documentation as
+	 * 'LPWORD lpChar'. In 0.54 and below we took that to mean that
+	 * 'keys' should be an array of WORD, but an array of BYTE works
+	 * better on keyboard with dead keys, at least for Win2K/US-
+	 * International and WinXP/German. Bletch. */
+	r = ToAsciiEx(wParam, scan, keystate, (LPWORD)keys, 0, kbd_layout);
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
 	    if (alt_sum) {
