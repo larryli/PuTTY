@@ -7,6 +7,9 @@
 #include <commctrl.h>
 
 #include "winstuff.h"
+#include "puttymem.h"
+
+#include "putty.h"
 
 #define GAPBETWEEN 3
 #define GAPWITHIN 1
@@ -39,7 +42,7 @@ void ctlposinit(struct ctlpos *cp, HWND hwnd,
     cp->width -= leftborder + rightborder;
 }
 
-void doctl(struct ctlpos *cp, RECT r,
+HWND doctl(struct ctlpos *cp, RECT r,
 	   char *wclass, int wstyle, int exstyle, char *wtext, int wid)
 {
     HWND ctl;
@@ -56,6 +59,7 @@ void doctl(struct ctlpos *cp, RECT r,
 			 r.left, r.top, r.right, r.bottom,
 			 cp->hwnd, (HMENU) wid, hinst, NULL);
     SendMessage(ctl, WM_SETFONT, cp->font, MAKELPARAM(TRUE, 0));
+    return ctl;
 }
 
 /*
@@ -784,6 +788,257 @@ void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
 	  0, btext, bid);
 
     cp->ypos += LISTHEIGHT + GAPBETWEEN;
+}
+
+/*
+ * A special control for manipulating an ordered preference list
+ * (eg. for cipher selection).
+ * XXX: this is a rough hack and could be improved.
+ */
+void prefslist(struct prefslist *hdl, struct ctlpos *cp, char *stext,
+               int sid, int listid, int upbid, int dnbid)
+{
+    const static int percents[] = { 5, 75, 20 };
+    RECT r;
+    int xpos, percent = 0, i;
+    const int DEFLISTHEIGHT = 52;      /* XXX configurable? */
+    const int BTNSHEIGHT = 2*PUSHBTNHEIGHT + GAPBETWEEN;
+    int totalheight;
+
+    /* Squirrel away IDs. */
+    hdl->listid = listid;
+    hdl->upbid  = upbid;
+    hdl->dnbid  = dnbid;
+
+    /* The static label. */
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos;
+    r.right = cp->width;
+    r.bottom = STATICHEIGHT;
+    cp->ypos += r.bottom + GAPWITHIN;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    /* XXX it'd be nice to centre the buttons wrt the listbox
+     * but we'd have to find out how high the latter actually is. */
+    if (DEFLISTHEIGHT > BTNSHEIGHT) {
+        totalheight = DEFLISTHEIGHT;
+    } else {
+        totalheight = BTNSHEIGHT;
+    }
+
+    for (i=0; i<3; i++) {
+        int left, wid;
+        xpos = (cp->width + GAPBETWEEN) * percent / 100;
+        left = xpos + GAPBETWEEN;
+        percent += percents[i];
+        xpos = (cp->width + GAPBETWEEN) * percent / 100;
+        wid = xpos - left;
+
+        switch (i) {
+          case 1:
+            /* The drag list box. */
+            r.left = left; r.right = wid;
+            r.top = cp->ypos; r.bottom = totalheight;
+            {
+                HWND ctl;
+                ctl = doctl(cp, r, "LISTBOX",
+                            WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+			    WS_VSCROLL | LBS_HASSTRINGS,
+                            WS_EX_CLIENTEDGE,
+                            "", listid);
+		MakeDragList(ctl);
+            }
+            break;
+
+          case 2:
+            /* The "Up" and "Down" buttons. */
+	    /* XXX worry about accelerators if we have more than one
+	     * prefslist on a panel */
+            r.left = left; r.right = wid;
+            r.top = cp->ypos; r.bottom = PUSHBTNHEIGHT;
+            doctl(cp, r, "BUTTON",
+                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                  0, "&Up", upbid);
+
+            r.left = left; r.right = wid;
+            r.top = cp->ypos + PUSHBTNHEIGHT + GAPBETWEEN;
+            r.bottom = PUSHBTNHEIGHT;
+            doctl(cp, r, "BUTTON",
+                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                  0, "&Down", dnbid);
+
+            break;
+
+        }
+    }
+
+    cp->ypos += totalheight + GAPBETWEEN;
+
+}
+
+/*
+ * Helper function for prefslist: move item in list box.
+ */
+static void pl_moveitem(HWND hwnd, int listid, int src, int dst)
+{
+    int tlen, val;
+    char *txt;
+    /* Get the item's data. */
+    tlen = SendDlgItemMessage (hwnd, listid, LB_GETTEXTLEN, src, 0);
+    txt = smalloc(tlen+1);
+    SendDlgItemMessage (hwnd, listid, LB_GETTEXT, src, (LPARAM) txt);
+    val = SendDlgItemMessage (hwnd, listid, LB_GETITEMDATA, src, 0);
+    /* Deselect old location. */
+    SendDlgItemMessage (hwnd, listid, LB_SETSEL, FALSE, src);
+    /* Delete it at the old location. */
+    SendDlgItemMessage (hwnd, listid, LB_DELETESTRING, src, 0);
+    /* Insert it at new location. */
+    SendDlgItemMessage (hwnd, listid, LB_INSERTSTRING, dst,
+			(LPARAM) txt);
+    SendDlgItemMessage (hwnd, listid, LB_SETITEMDATA, dst,
+			(LPARAM) val);
+    /* Set selection. */
+    SendDlgItemMessage (hwnd, listid, LB_SETCURSEL, dst, 0);
+    sfree (txt);
+}
+
+int pl_itemfrompt(HWND hwnd, POINT cursor, BOOL scroll)
+{
+    int ret;
+    POINT uppoint, downpoint;
+    int updist, downdist, upitem, downitem, i;
+
+    /*
+     * Ghastly hackery to try to figure out not which
+     * _item_, but which _gap between items_, the user
+     * is pointing at. We do this by first working out
+     * which list item is under the cursor, and then
+     * working out how far the cursor would have to
+     * move up or down before the answer was different.
+     * Then we put the insertion point _above_ the
+     * current item if the upper edge is closer than
+     * the lower edge, or _below_ it if vice versa.
+     */
+    ret = LBItemFromPt(hwnd, cursor, scroll);
+    debug(("pl_itemfrompt: initial is %d\n", ret));
+    if (ret == -1)
+	return ret;
+    ret = LBItemFromPt(hwnd, cursor, FALSE);
+    debug(("pl_itemfrompt: secondary is %d\n", ret));
+    updist = downdist = 0;
+    for (i = 1; i < 4096 && (!updist || !downdist); i++) {
+	uppoint = downpoint = cursor;
+	uppoint.y -= i;
+	downpoint.y += i;
+	upitem = LBItemFromPt(hwnd, uppoint, FALSE);
+	downitem = LBItemFromPt(hwnd, downpoint, FALSE);
+	if (!updist && upitem != ret)
+	    updist = i;
+	if (!downdist && downitem != ret)
+	    downdist = i;
+    }
+    if (downdist < updist)
+	ret++;
+    return ret;
+}
+
+/*
+ * Handler for prefslist above.
+ */
+int handle_prefslist(struct prefslist *hdl,
+                     int *array, int maxmemb,
+                     int is_dlmsg, HWND hwnd,
+		     WPARAM wParam, LPARAM lParam)
+{
+    int i;
+    int ret;
+
+    if (is_dlmsg) {
+
+        if (wParam == hdl->listid) {
+            DRAGLISTINFO *dlm = (DRAGLISTINFO *)lParam;
+            int dest;
+            switch (dlm->uNotification) {
+              case DL_BEGINDRAG:
+		hdl->dummyitem =
+		    SendDlgItemMessage(hwnd, hdl->listid,
+				       LB_ADDSTRING, 0, (LPARAM) "");
+
+                hdl->srcitem = LBItemFromPt(dlm->hWnd, dlm->ptCursor, TRUE);
+		hdl->dragging = 0;
+		/* XXX hack Q183115 */
+		SetWindowLong(hwnd, DWL_MSGRESULT, TRUE);
+                ret = 1; break;
+              case DL_CANCELDRAG:
+		DrawInsert(hwnd, dlm->hWnd, -1);     /* Clear arrow */
+		SendDlgItemMessage(hwnd, hdl->listid,
+				   LB_DELETESTRING, hdl->dummyitem, 0);
+		hdl->dragging = 0;
+                ret = 1; break;
+              case DL_DRAGGING:
+		hdl->dragging = 1;
+		dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, TRUE);
+		if (dest > hdl->dummyitem) dest = hdl->dummyitem;
+		DrawInsert (hwnd, dlm->hWnd, dest);
+		if (dest >= 0)
+		    SetWindowLong(hwnd, DWL_MSGRESULT, DL_MOVECURSOR);
+		else
+		    SetWindowLong(hwnd, DWL_MSGRESULT, DL_STOPCURSOR);
+                ret = 1; break;
+              case DL_DROPPED:
+		ret = 1;
+		if (!hdl->dragging) break;
+		dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, TRUE);
+		if (dest > hdl->dummyitem) dest = hdl->dummyitem;
+		DrawInsert (hwnd, dlm->hWnd, -1);
+		SendDlgItemMessage(hwnd, hdl->listid,
+				   LB_DELETESTRING, hdl->dummyitem, 0);
+		hdl->dragging = 0;
+		if (dest >= 0) {
+		    /* Correct for "missing" item. This means you can't drag
+		     * an item to the end, but that seems to be the way this
+		     * control is used. */
+		    if (dest > hdl->srcitem) dest--;
+		    pl_moveitem(hwnd, hdl->listid, hdl->srcitem, dest);
+		}
+                ret = 1; break;
+            }
+        }
+
+    } else {
+
+        ret = 0;
+        if (((LOWORD(wParam) == hdl->upbid) ||
+             (LOWORD(wParam) == hdl->dnbid)) &&
+            ((HIWORD(wParam) == BN_CLICKED) ||
+             (HIWORD(wParam) == BN_DOUBLECLICKED))) {
+            /* Move an item up or down the list. */
+            /* Get the current selection, if any. */
+            int selection = SendDlgItemMessage (hwnd, hdl->listid, LB_GETCURSEL, 0, 0);
+            if (selection == LB_ERR) {
+                MessageBeep(0);
+            } else {
+                int nitems;
+                /* Get the total number of items. */
+                nitems = SendDlgItemMessage (hwnd, hdl->listid, LB_GETCOUNT, 0, 0);
+                /* Should we do anything? */
+		if (LOWORD(wParam) == hdl->upbid && (selection > 0))
+		    pl_moveitem(hwnd, hdl->listid, selection, selection - 1);
+		else if (LOWORD(wParam) == hdl->dnbid && (selection < nitems - 1))
+		    pl_moveitem(hwnd, hdl->listid, selection, selection + 1);
+            }
+
+        }
+
+    }
+
+    /* Update array to match the list box. */
+    for (i=0; i < maxmemb; i++)
+        array[i] = SendDlgItemMessage (hwnd, hdl->listid, LB_GETITEMDATA,
+                                       i, 0);
+
+    return ret;
+
 }
 
 /*

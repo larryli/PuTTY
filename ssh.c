@@ -1862,31 +1862,45 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     logevent("Encrypted session key");
 
-    switch (cfg.cipher) {
-      case CIPHER_BLOWFISH:
-	cipher_type = SSH_CIPHER_BLOWFISH;
-	break;
-      case CIPHER_DES:
-	cipher_type = SSH_CIPHER_DES;
-	break;
-      case CIPHER_3DES:
-	cipher_type = SSH_CIPHER_3DES;
-	break;
-      case CIPHER_AES:
-	c_write_str("AES not supported in SSH1, falling back to 3DES\r\n");
-	cipher_type = SSH_CIPHER_3DES;
-	break;
-    }
-    if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
-	c_write_str
-	    ("Selected cipher not supported, falling back to 3DES\r\n");
-	cipher_type = SSH_CIPHER_3DES;
-	if ((supported_ciphers_mask & (1 << cipher_type)) == 0) {
-	    bombout(("Server violates SSH 1 protocol by "
-		     "not supporting 3DES encryption"));
+    {
+	int cipher_chosen = 0, warn = 0;
+	char *cipher_string = NULL;
+	for (i = 0; !cipher_chosen && i < CIPHER_MAX; i++) {
+	    int next_cipher = cfg.ssh_cipherlist[i];
+	    if (next_cipher == CIPHER_WARN) {
+		/* If/when we choose a cipher, warn about it */
+		warn = 1;
+	    } else if (next_cipher == CIPHER_AES) {
+		/* XXX Probably don't need to mention this. */
+		logevent("AES not supported in SSH1, skipping");
+	    } else {
+		switch (next_cipher) {
+		  case CIPHER_3DES:     cipher_type = SSH_CIPHER_3DES;
+					cipher_string = "3DES"; break;
+		  case CIPHER_BLOWFISH: cipher_type = SSH_CIPHER_BLOWFISH;
+					cipher_string = "Blowfish"; break;
+		  case CIPHER_DES:	cipher_type = SSH_CIPHER_DES;
+					cipher_string = "single-DES"; break;
+		}
+		if (supported_ciphers_mask & (1 << cipher_type))
+		    cipher_chosen = 1;
+	    }
+	}
+	if (!cipher_chosen) {
+	    if ((supported_ciphers_mask & (1 << SSH_CIPHER_3DES)) == 0)
+		bombout(("Server violates SSH 1 protocol by not "
+			 "supporting 3DES encryption"));
+	    else
+		/* shouldn't happen */
+		bombout(("No supported ciphers found"));
 	    crReturn(0);
 	}
+
+	/* Warn about chosen cipher if necessary. */
+	if (warn)
+	    askcipher(cipher_string, 0);
     }
+
     switch (cipher_type) {
       case SSH_CIPHER_3DES:
 	logevent("Using 3DES encryption");
@@ -2992,7 +3006,7 @@ static void ssh2_mkkey(Bignum K, char *H, char *sessid, char chr,
  */
 static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 {
-    static int i, j, len, nbits, pbits;
+    static int i, j, len, nbits, pbits, warn;
     static char *str;
     static Bignum p, g, e, f, K;
     static int kex_init_value, kex_reply_value;
@@ -3009,7 +3023,8 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static void *hkey;		       /* actual host key */
     static unsigned char exchange_hash[20];
     static unsigned char keyspace[40];
-    static const struct ssh2_ciphers *preferred_cipher;
+    static int n_preferred_ciphers;
+    static const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
     static const struct ssh_compress *preferred_comp;
     static int first_kex;
 
@@ -3018,21 +3033,40 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     first_kex = 1;
 
     /*
-     * Set up the preferred cipher and compression.
+     * Set up the preferred ciphers. (NULL => warn below here)
      */
-    if (cfg.cipher == CIPHER_BLOWFISH) {
-	preferred_cipher = &ssh2_blowfish;
-    } else if (cfg.cipher == CIPHER_DES) {
-	logevent("Single DES not supported in SSH2; using 3DES");
-	preferred_cipher = &ssh2_3des;
-    } else if (cfg.cipher == CIPHER_3DES) {
-	preferred_cipher = &ssh2_3des;
-    } else if (cfg.cipher == CIPHER_AES) {
-	preferred_cipher = &ssh2_aes;
-    } else {
-	/* Shouldn't happen, but we do want to initialise to _something_. */
-	preferred_cipher = &ssh2_3des;
+    n_preferred_ciphers = 0;
+    for (i = 0; i < CIPHER_MAX; i++) {
+	switch (cfg.ssh_cipherlist[i]) {
+	  case CIPHER_BLOWFISH:
+	    preferred_ciphers[n_preferred_ciphers] = &ssh2_blowfish;
+	    n_preferred_ciphers++;
+	    break;
+	  case CIPHER_DES:
+	    /* Not supported in SSH2; silently drop */
+	    break;
+	  case CIPHER_3DES:
+	    preferred_ciphers[n_preferred_ciphers] = &ssh2_3des;
+	    n_preferred_ciphers++;
+	    break;
+	  case CIPHER_AES:
+	    preferred_ciphers[n_preferred_ciphers] = &ssh2_aes;
+	    n_preferred_ciphers++;
+	    break;
+	  case CIPHER_WARN:
+	    /* Flag for later. Don't bother if it's the last in
+	     * the list. */
+	    if (i < CIPHER_MAX - 1) {
+		preferred_ciphers[n_preferred_ciphers] = NULL;
+		n_preferred_ciphers++;
+	    }
+	    break;
+	}
     }
+
+    /*
+     * Set up preferred compression.
+     */
     if (cfg.compression)
 	preferred_comp = &ssh_zlib;
     else
@@ -3069,23 +3103,23 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     }
     /* List client->server encryption algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = 0; i < lenof(ciphers) + 1; i++) {
-	const struct ssh2_ciphers *c =
-	    i == 0 ? preferred_cipher : ciphers[i - 1];
+    for (i = 0; i < n_preferred_ciphers; i++) {
+	const struct ssh2_ciphers *c = preferred_ciphers[i];
+	if (!c) continue;	       /* warning flag */
 	for (j = 0; j < c->nciphers; j++) {
 	    ssh2_pkt_addstring_str(c->list[j]->name);
-	    if (i < lenof(ciphers) || j < c->nciphers - 1)
+	    if (i < n_preferred_ciphers || j < c->nciphers - 1)
 		ssh2_pkt_addstring_str(",");
 	}
     }
     /* List server->client encryption algorithms. */
     ssh2_pkt_addstring_start();
-    for (i = 0; i < lenof(ciphers) + 1; i++) {
-	const struct ssh2_ciphers *c =
-	    i == 0 ? preferred_cipher : ciphers[i - 1];
+    for (i = 0; i < n_preferred_ciphers; i++) {
+	const struct ssh2_ciphers *c = preferred_ciphers[i];
+	if (!c) continue; /* warning flag */
 	for (j = 0; j < c->nciphers; j++) {
 	    ssh2_pkt_addstring_str(c->list[j]->name);
-	    if (i < lenof(ciphers) || j < c->nciphers - 1)
+	    if (i < n_preferred_ciphers || j < c->nciphers - 1)
 		ssh2_pkt_addstring_str(",");
 	}
     }
@@ -3171,30 +3205,44 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
 	}
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server cipher */
-    for (i = 0; i < lenof(ciphers) + 1; i++) {
-	const struct ssh2_ciphers *c =
-	    i == 0 ? preferred_cipher : ciphers[i - 1];
-	for (j = 0; j < c->nciphers; j++) {
-	    if (in_commasep_string(c->list[j]->name, str, len)) {
-		cscipher_tobe = c->list[j];
-		break;
+    warn = 0;
+    for (i = 0; i < n_preferred_ciphers; i++) {
+	const struct ssh2_ciphers *c = preferred_ciphers[i];
+	if (!c) {
+	    warn = 1;
+	} else {
+	    for (j = 0; j < c->nciphers; j++) {
+		if (in_commasep_string(c->list[j]->name, str, len)) {
+		    cscipher_tobe = c->list[j];
+		    break;
+		}
 	    }
 	}
-	if (cscipher_tobe)
+	if (cscipher_tobe) {
+	    if (warn)
+		askcipher(cscipher_tobe->name, 1);
 	    break;
+	}
     }
     ssh2_pkt_getstring(&str, &len);    /* server->client cipher */
-    for (i = 0; i < lenof(ciphers) + 1; i++) {
-	const struct ssh2_ciphers *c =
-	    i == 0 ? preferred_cipher : ciphers[i - 1];
-	for (j = 0; j < c->nciphers; j++) {
-	    if (in_commasep_string(c->list[j]->name, str, len)) {
-		sccipher_tobe = c->list[j];
-		break;
+    warn = 0;
+    for (i = 0; i < n_preferred_ciphers; i++) {
+	const struct ssh2_ciphers *c = preferred_ciphers[i];
+	if (!c) {
+	    warn = 1;
+	} else {
+	    for (j = 0; j < c->nciphers; j++) {
+		if (in_commasep_string(c->list[j]->name, str, len)) {
+		    sccipher_tobe = c->list[j];
+		    break;
+		}
 	    }
 	}
-	if (sccipher_tobe)
+	if (sccipher_tobe) {
+	    if (warn)
+		askcipher(sccipher_tobe->name, 2);
 	    break;
+	}
     }
     ssh2_pkt_getstring(&str, &len);    /* client->server mac */
     for (i = 0; i < nmacs; i++) {

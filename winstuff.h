@@ -29,9 +29,20 @@ struct ctlpos {
     char *boxtext;
 };
 
+/*
+ * Private structure for prefslist state. Only in the header file
+ * so that we can delegate allocation to callers.
+ */
+struct prefslist {
+    int listid, upbid, dnbid;
+    int srcitem;
+    int dummyitem;
+    int dragging;
+};
+
 void ctlposinit(struct ctlpos *cp, HWND hwnd,
 		int leftborder, int rightborder, int topborder);
-void doctl(struct ctlpos *cp, RECT r,
+HWND doctl(struct ctlpos *cp, RECT r,
 	   char *wclass, int wstyle, int exstyle, char *wtext, int wid);
 void bartitle(struct ctlpos *cp, char *name, int id);
 void beginbox(struct ctlpos *cp, char *name, int idbox);
@@ -64,6 +75,12 @@ void charclass(struct ctlpos *cp, char *stext, int sid, int listid,
 	       char *btext, int bid, int eid, char *s2text, int s2id);
 void colouredit(struct ctlpos *cp, char *stext, int sid, int listid,
 		char *btext, int bid, ...);
+void prefslist(struct prefslist *hdl, struct ctlpos *cp, char *stext,
+	       int sid, int listid, int upbid, int dnbid);
+int handle_prefslist(struct prefslist *hdl,
+		     int *array, int maxmemb,
+		     int is_dlmsg, HWND hwnd,
+		     WPARAM wParam, LPARAM lParam);
 void progressbar(struct ctlpos *cp, int id);
 void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *e1stext, int e1sid, int e1id,

@@ -8,6 +8,19 @@
 #include "putty.h"
 #include "storage.h"
 
+/*
+ * Tables of string <-> enum value mappings
+ */
+struct keyval { char *s; int v; };
+
+static const struct keyval ciphernames[] = {
+    { "WARN",	    CIPHER_WARN },
+    { "3des",	    CIPHER_3DES },
+    { "blowfish",   CIPHER_BLOWFISH },
+    { "aes",	    CIPHER_AES },
+    { "des",	    CIPHER_DES }
+};
+
 static void gpps(void *handle, char *name, char *def, char *val, int len)
 {
     if (!read_setting_s(handle, name, val, len)) {
@@ -19,6 +32,88 @@ static void gpps(void *handle, char *name, char *def, char *val, int len)
 static void gppi(void *handle, char *name, int def, int *i)
 {
     *i = read_setting_i(handle, name, def);
+}
+
+static int key2val(const struct keyval *mapping, int nmaps, char *key)
+{
+    int i;
+    for (i = 0; i < nmaps; i++)
+	if (!strcmp(mapping[i].s, key)) return mapping[i].v;
+    return -1;
+}
+
+static const char *val2key(const struct keyval *mapping, int nmaps, int val)
+{
+    int i;
+    for (i = 0; i < nmaps; i++)
+	if (mapping[i].v == val) return mapping[i].s;
+    return NULL;
+}
+
+/*
+ * Helper function to parse a comma-separated list of strings into
+ * a preference list array of values. Any missing values are added
+ * to the end and duplicates are weeded.
+ * XXX: assumes vals in 'mapping' are small +ve integers
+ */
+static void gprefs(void *sesskey, char *name, char *def,
+		   const struct keyval *mapping, int nvals,
+		   int *array)
+{
+    char commalist[80];
+    int n;
+    unsigned long seen = 0;	       /* bitmap for weeding dups etc */
+    gpps(sesskey, name, def, commalist, sizeof(commalist));
+
+    /* Grotty parsing of commalist. */
+    n = 0;
+    do {
+	int v;
+	char *key;
+	key = strtok(n==0 ? commalist : NULL, ","); /* sorry */
+	if (!key) break;
+	if (((v = key2val(mapping, nvals, key)) != -1) &&
+	    !(seen & 1<<v)) {
+	    array[n] = v;
+	    n++;
+	    seen |= 1<<v;
+	}
+    } while (n < nvals);
+    /* Add any missing values (backward compatibility ect). */
+    {
+	int i, j;
+	for (i = 0; i < nvals; i++) {
+	    if (!(seen & 1<<mapping[i].v)) {
+		array[n] = mapping[i].v;
+		n++;
+	    }
+	}
+    }
+}
+
+/* 
+ * Write out a preference list.
+ */
+static void wprefs(void *sesskey, char *name,
+		   const struct keyval *mapping, int nvals,
+		   int *array)
+{
+    char buf[80] = "";	/* XXX assumed big enough */
+    int l = sizeof(buf)-1, i;
+    buf[l] = '\0';
+    for (i = 0; l > 0 && i < nvals; i++) {
+	const char *s = val2key(mapping, nvals, array[i]);
+	if (s) {
+	    int sl = strlen(s);
+	    if (i > 0) {
+		strncat(buf, ",", l);
+		l--;
+	    }
+	    strncat(buf, s, l);
+	    l -= sl;
+	}
+    }
+    write_setting_s(sesskey, name, buf);
 }
 
 void save_settings(char *section, int do_host, Config * cfg)
@@ -76,10 +171,8 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "NoPTY", cfg->nopty);
     write_setting_i(sesskey, "Compression", cfg->compression);
     write_setting_i(sesskey, "AgentFwd", cfg->agentfwd);
-    write_setting_s(sesskey, "Cipher",
-		    cfg->cipher == CIPHER_BLOWFISH ? "blowfish" :
-		    cfg->cipher == CIPHER_DES ? "des" :
-		    cfg->cipher == CIPHER_AES ? "aes" : "3des");
+    wprefs(sesskey, "SSHCipherList", ciphernames, CIPHER_MAX,
+	   cfg->ssh_cipherlist);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_i(sesskey, "BuggyMAC", cfg->buggymac);
@@ -250,16 +343,17 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "Compression", 0, &cfg->compression);
     gppi(sesskey, "AgentFwd", 0, &cfg->agentfwd);
     {
-	char cipher[10];
-	gpps(sesskey, "Cipher", "3des", cipher, 10);
-	if (!strcmp(cipher, "blowfish"))
-	    cfg->cipher = CIPHER_BLOWFISH;
-	else if (!strcmp(cipher, "des"))
-	    cfg->cipher = CIPHER_DES;
-	else if (!strcmp(cipher, "aes"))
-	    cfg->cipher = CIPHER_AES;
-	else
-	    cfg->cipher = CIPHER_3DES;
+	/* Backwards compatibility: recreate old cipher policy. */
+	char defcipherlist[80];
+	gpps(sesskey, "Cipher", "3des", defcipherlist, 80);
+	if (strcmp(defcipherlist, "3des") != 0) {
+	    int l = strlen(defcipherlist);
+	    strncpy(defcipherlist + l, ",3des", 80 - l);
+	    defcipherlist[79] = '\0';
+	}
+	/* Use it as default if no new-style policy. */
+	gprefs(sesskey, "SSHCipherList", defcipherlist,
+	       ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
     }
     gppi(sesskey, "SshProt", 1, &cfg->sshprot);
     gppi(sesskey, "BuggyMAC", 0, &cfg->buggymac);

@@ -18,6 +18,8 @@ static int nevents = 0, negsize = 0;
 static int readytogo;
 static int sesslist_has_focus;
 
+static struct prefslist cipherlist;
+
 void force_normal(HWND hwnd)
 {
     static int recurse = 0;
@@ -435,24 +437,30 @@ enum { IDCX_ABOUT =
     IDC_BOX_SSH2,
     IDC_BOX_SSH3,
     IDC_NOPTY,
-    IDC_CIPHERSTATIC,
-    IDC_CIPHER3DES,
-    IDC_CIPHERBLOWF,
-    IDC_CIPHERDES,
-    IDC_CIPHERAES,
+    IDC_BOX_SSHCIPHER,
+    IDC_CIPHERSTATIC2,
+    IDC_CIPHERLIST,
+    IDC_CIPHERUP,
+    IDC_CIPHERDN,
     IDC_BUGGYMAC,
-    IDC_AUTHTIS,
-    IDC_PKSTATIC,
-    IDC_PKEDIT,
-    IDC_PKBUTTON,
     IDC_SSHPROTSTATIC,
     IDC_SSHPROT1,
     IDC_SSHPROT2,
-    IDC_AGENTFWD,
     IDC_CMDSTATIC,
     IDC_CMDEDIT,
     IDC_COMPRESS,
     sshpanelend,
+
+    sshauthpanelstart,
+    IDC_TITLE_SSHAUTH,
+    IDC_BOX_SSHAUTH1,
+    IDC_BOX_SSHAUTH2,
+    IDC_PKSTATIC,
+    IDC_PKEDIT,
+    IDC_PKBUTTON,
+    IDC_AGENTFWD,
+    IDC_AUTHTIS,
+    sshauthpanelend,
 
     selectionpanelstart,
     IDC_TITLE_SELECTION,
@@ -701,16 +709,47 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     CheckDlgButton(hwnd, IDC_COMPRESS, cfg.compression);
     CheckDlgButton(hwnd, IDC_BUGGYMAC, cfg.buggymac);
     CheckDlgButton(hwnd, IDC_AGENTFWD, cfg.agentfwd);
-    CheckRadioButton(hwnd, IDC_CIPHER3DES, IDC_CIPHERAES,
-		     cfg.cipher == CIPHER_BLOWFISH ? IDC_CIPHERBLOWF :
-		     cfg.cipher == CIPHER_DES ? IDC_CIPHERDES :
-		     cfg.cipher == CIPHER_AES ? IDC_CIPHERAES :
-		     IDC_CIPHER3DES);
     CheckRadioButton(hwnd, IDC_SSHPROT1, IDC_SSHPROT2,
 		     cfg.sshprot == 1 ? IDC_SSHPROT1 : IDC_SSHPROT2);
     CheckDlgButton(hwnd, IDC_AUTHTIS, cfg.try_tis_auth);
     SetDlgItemText(hwnd, IDC_PKEDIT, cfg.keyfile);
     SetDlgItemText(hwnd, IDC_CMDEDIT, cfg.remote_cmd);
+
+    {
+	int i;
+	static const struct { char *s; int c; } ciphers[] = {
+	    { "3DES",			CIPHER_3DES },
+	    { "Blowfish",		CIPHER_BLOWFISH },
+	    { "DES (SSH 1 only)",	CIPHER_DES },
+	    { "AES (SSH 2 only)",	CIPHER_AES },
+	    { "-- warn below here --",	CIPHER_WARN }
+	};
+
+	/* Set up the "selected ciphers" box. */
+	/* (cipherlist assumed to contain all ciphers) */
+	SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_RESETCONTENT, 0, 0);
+	for (i = 0; i < CIPHER_MAX; i++) {
+	    int c = cfg.ssh_cipherlist[i];
+	    int j, pos;
+	    char *cstr = NULL;
+	    for (j = 0; j < (sizeof ciphers) / (sizeof ciphers[0]); j++) {
+		if (ciphers[j].c == c) {
+		    cstr = ciphers[j].s;
+		    break;
+		}
+	    }
+	    pos = SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_ADDSTRING,
+				     0, (LPARAM) cstr);
+	    SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_SETITEMDATA,
+			       pos, (LPARAM) c);
+	}
+	SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_ADDSTRING,
+			   0, (LPARAM) "FIXME1");
+	SendDlgItemMessage(hwnd, IDC_CIPHERLIST, LB_ADDSTRING,
+			   0, (LPARAM) "FIXME2");
+
+    }
+
 
     CheckRadioButton(hwnd, IDC_MBWINDOWS, IDC_MBXTERM,
 		     cfg.mouse_is_xterm ? IDC_MBXTERM : IDC_MBWINDOWS);
@@ -1197,7 +1236,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == sshpanelstart) {
-	/* The SSH panel. Accelerators used: [acgo] rmfkw pe123bds i */
+	/* The SSH panel. Accelerators used: [acgo] r pe12i sud */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	if (dlgtype == 0) {
@@ -1208,26 +1247,41 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      "&Remote command:", IDC_CMDSTATIC, IDC_CMDEDIT, 100,
 		      NULL);
 	    endbox(&cp);
-	    beginbox(&cp, "Authentication options", IDC_BOX_SSH2);
-	    checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
-		     IDC_AUTHTIS);
-	    checkbox(&cp, "Allow agent &forwarding", IDC_AGENTFWD);
-	    editbutton(&cp, "Private &key file for authentication:",
-		       IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...",
-		       IDC_PKBUTTON);
-	    endbox(&cp);
-	    beginbox(&cp, "Protocol options", IDC_BOX_SSH3);
+	    beginbox(&cp, "Protocol options", IDC_BOX_SSH2);
 	    checkbox(&cp, "Don't allocate a &pseudo-terminal", IDC_NOPTY);
 	    checkbox(&cp, "Enable compr&ession", IDC_COMPRESS);
 	    radioline(&cp, "Preferred SSH protocol version:",
 		      IDC_SSHPROTSTATIC, 2,
 		      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2, NULL);
-	    radioline(&cp, "Preferred encryption algorithm:",
-		      IDC_CIPHERSTATIC, 4, "&3DES", IDC_CIPHER3DES,
-		      "&Blowfish", IDC_CIPHERBLOWF, "&DES", IDC_CIPHERDES,
-		      "AE&S", IDC_CIPHERAES, NULL);
 	    checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
 		     IDC_BUGGYMAC);
+	    endbox(&cp);
+	    beginbox(&cp, "Encryption options", IDC_BOX_SSH3);
+	    prefslist(&cipherlist, &cp, "Encryption cipher &selection policy:",
+		      IDC_CIPHERSTATIC2, IDC_CIPHERLIST, IDC_CIPHERUP,
+		      IDC_CIPHERDN);
+	    endbox(&cp);
+	}
+    }
+
+    if (panel == sshauthpanelstart) {
+	/* The SSH authentication panel. Accelerators used: [acgo] m fkw */
+	struct ctlpos cp;
+	ctlposinit(&cp, hwnd, 80, 3, 13);
+	if (dlgtype == 0) {
+	    bartitle(&cp, "Options controlling SSH authentication",
+		     IDC_TITLE_SSHAUTH);
+	    beginbox(&cp, "Authentication methods",
+		     IDC_BOX_SSHAUTH1);
+	    checkbox(&cp, "Atte&mpt TIS or CryptoCard authentication",
+		     IDC_AUTHTIS);
+	    endbox(&cp);
+	    beginbox(&cp, "Authentication parameters",
+		     IDC_BOX_SSHAUTH2);
+	    checkbox(&cp, "Allow agent &forwarding", IDC_AGENTFWD);
+	    editbutton(&cp, "Private &key file for authentication:",
+		       IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...",
+		       IDC_PKBUTTON);
 	    endbox(&cp);
 	}
     }
@@ -1305,6 +1359,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
     char portname[32];
     struct servent *service;
     int i;
+    static UINT draglistmsg = WM_NULL;
 
     switch (msg) {
       case WM_INITDIALOG:
@@ -1387,6 +1442,9 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	    treeview_insert(&tvfaff, 1, "Rlogin");
 	    if (backends[3].backend != NULL) {
 		treeview_insert(&tvfaff, 1, "SSH");
+		/* XXX long name is ugly */
+		/* XXX make it closed by default? */
+		treeview_insert(&tvfaff, 2, "Auth");
 		treeview_insert(&tvfaff, 2, "Tunnels");
 	    }
 	}
@@ -1462,6 +1520,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, rloginpanelstart);
 	    if (!strcmp(buffer, "SSH"))
 		create_controls(hwnd, dlgtype, sshpanelstart);
+	    if (!strcmp(buffer, "Auth"))
+		create_controls(hwnd, dlgtype, sshauthpanelstart);
 	    if (!strcmp(buffer, "Selection"))
 		create_controls(hwnd, dlgtype, selectionpanelstart);
 	    if (!strcmp(buffer, "Colours"))
@@ -2223,21 +2283,12 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			cfg.agentfwd =
 			IsDlgButtonChecked(hwnd, IDC_AGENTFWD);
 		break;
-	      case IDC_CIPHER3DES:
-	      case IDC_CIPHERBLOWF:
-	      case IDC_CIPHERDES:
-	      case IDC_CIPHERAES:
-		if (HIWORD(wParam) == BN_CLICKED ||
-		    HIWORD(wParam) == BN_DOUBLECLICKED) {
-		    if (IsDlgButtonChecked(hwnd, IDC_CIPHER3DES))
-			cfg.cipher = CIPHER_3DES;
-		    else if (IsDlgButtonChecked(hwnd, IDC_CIPHERBLOWF))
-			cfg.cipher = CIPHER_BLOWFISH;
-		    else if (IsDlgButtonChecked(hwnd, IDC_CIPHERDES))
-			cfg.cipher = CIPHER_DES;
-		    else if (IsDlgButtonChecked(hwnd, IDC_CIPHERAES))
-			cfg.cipher = CIPHER_AES;
-		}
+	      case IDC_CIPHERLIST:
+	      case IDC_CIPHERUP:
+	      case IDC_CIPHERDN:
+		handle_prefslist(&cipherlist,
+				 cfg.ssh_cipherlist, CIPHER_MAX,
+				 0, hwnd, wParam, lParam);
 		break;
 	      case IDC_SSHPROT1:
 	      case IDC_SSHPROT2:
@@ -2540,6 +2591,26 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	if (wParam == SIZE_MAXIMIZED)
 	    force_normal(hwnd);
 	return 0;
+
+      default:
+	/*
+	 * Handle application-defined messages eg. DragListBox
+	 */
+	/* First find out what the number is (once). */
+	if (draglistmsg == WM_NULL)
+	    draglistmsg = RegisterWindowMessage (DRAGLISTMSGSTRING);
+
+	if (msg == draglistmsg) {
+	    /* Only process once dialog is fully formed. */
+	    if (GetWindowLong(hwnd, GWL_USERDATA) == 1) switch (LOWORD(wParam)) {
+	      case IDC_CIPHERLIST:
+		return handle_prefslist(&cipherlist,
+					cfg.ssh_cipherlist, CIPHER_MAX,
+					1, hwnd, wParam, lParam);
+	    }
+	}
+	return 0;
+
     }
     return 0;
 }
@@ -2719,6 +2790,36 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
 	if (mbret == IDCANCEL)
 	    exit(0);
     }
+}
+
+/*
+ * Ask whether the selected cipher is acceptable (since it was
+ * below the configured 'warn' threshold).
+ * cs: 0 = both ways, 1 = client->server, 2 = server->client
+ */
+void askcipher(char *ciphername, int cs)
+{
+    static const char mbtitle[] = "PuTTY Security Alert";
+    static const char msg[] =
+	"The first %.35scipher supported by the server\n"
+	"is %.64s, which is below the configured\n"
+	"warning threshold.\n"
+	"Do you want to continue with this connection?\n";
+    /* guessed cipher name + type max length */
+    char message[100 + sizeof(msg)];
+    int mbret;
+
+    sprintf(message, msg,
+	    (cs == 0) ? "" :
+	    (cs == 1) ? "client-to-server " :
+		        "server-to-client ",
+	    ciphername);
+    mbret = MessageBox(NULL, message, mbtitle,
+		       MB_ICONWARNING | MB_YESNO);
+    if (mbret == IDYES)
+	return;
+    else
+	exit(0);
 }
 
 /*

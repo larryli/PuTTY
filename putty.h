@@ -1,6 +1,8 @@
 #ifndef PUTTY_PUTTY_H
 #define PUTTY_PUTTY_H
 
+#include <stdio.h>		       /* for FILENAME_MAX */
+
 #include "network.h"
 
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
@@ -174,6 +176,18 @@ typedef enum {
 
 enum {
     /*
+     * SSH ciphers (both SSH1 and SSH2)
+     */
+    CIPHER_WARN,		       /* pseudo 'cipher' */
+    CIPHER_3DES,
+    CIPHER_BLOWFISH,
+    CIPHER_AES,			       /* (SSH 2 only) */
+    CIPHER_DES,			       /* (SSH 1 only) */
+    CIPHER_MAX			       /* no. ciphers (inc warn) */
+};
+
+enum {
+    /*
      * Line discipline option states: off, on, up to the backend.
      */
     LD_YES, LD_NO, LD_BACKEND
@@ -238,7 +252,7 @@ typedef struct {
     int nopty;
     int compression;
     int agentfwd;
-    enum { CIPHER_3DES, CIPHER_BLOWFISH, CIPHER_DES, CIPHER_AES } cipher;
+    int ssh_cipherlist[CIPHER_MAX];
     char keyfile[FILENAME_MAX];
     int sshprot;		       /* use v1 or v2 when both available */
     int buggymac;		       /* MAC bug commmercial <=v2.3.x SSH2 */
@@ -410,6 +424,7 @@ void showeventlog(HWND);
 void showabout(HWND);
 void verify_ssh_host_key(char *host, int port, char *keytype,
 			 char *keystr, char *fingerprint);
+void askcipher(char *ciphername, int cs);
 int askappend(char *filename);
 void registry_cleanup(void);
 void force_normal(HWND hwnd);

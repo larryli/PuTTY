@@ -122,6 +122,46 @@ void verify_ssh_host_key(char *host, int port, char *keytype,
     }
 }
 
+/*
+ * Ask whether the selected cipher is acceptable (since it was
+ * below the configured 'warn' threshold).
+ * cs: 0 = both ways, 1 = client->server, 2 = server->client
+ */
+void askcipher(char *ciphername, int cs)
+{
+    HANDLE hin;
+    DWORD savemode, i;
+
+    static const char msg[] =
+	"The first %scipher supported by the server is\n"
+	"%s, which is below the configured warning threshold.\n"
+	"Continue with connection? (y/n) ";
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+
+    fprintf(stderr, msg,
+	    (cs == 0) ? "" :
+	    (cs == 1) ? "client-to-server " :
+			"server-to-client ",
+	    ciphername);
+    fflush(stderr);
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+			 ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
+    SetConsoleMode(hin, savemode);
+
+    if (line[0] == 'y' || line[0] == 'Y') {
+	return;
+    } else {
+	fprintf(stderr, abandoned);
+	exit(0);
+    }
+}
+
 HANDLE inhandle, outhandle, errhandle;
 DWORD orig_console_mode;
 
