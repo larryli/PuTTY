@@ -708,12 +708,10 @@ struct ssh_tag {
      * size-based rekeys.
      */
     unsigned long incoming_data_size, outgoing_data_size, deferred_data_size;
+    unsigned long max_data_size;
     int kex_in_progress;
     long next_rekey;
 };
-
-#define MAX_DATA_BEFORE_REKEY (0x40000000UL)
-#define REKEY_TIMEOUT (3600 * TICKSPERSEC)
 
 #define logevent(s) logevent(ssh->frontend, s)
 
@@ -1653,7 +1651,8 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 
     ssh->outgoing_data_size += pkt->encrypted_len;
     if (!ssh->kex_in_progress &&
-	ssh->outgoing_data_size > MAX_DATA_BEFORE_REKEY)
+	ssh->max_data_size != 0 &&
+	ssh->outgoing_data_size > ssh->max_data_size)
 	do_ssh2_transport(ssh, "Initiating key re-exchange "
 			  "(too much data sent)", -1, NULL);
 
@@ -1743,7 +1742,8 @@ static void ssh_pkt_defersend(Ssh ssh)
 
     ssh->outgoing_data_size += ssh->deferred_data_size;
     if (!ssh->kex_in_progress &&
-	ssh->outgoing_data_size > MAX_DATA_BEFORE_REKEY)
+	ssh->max_data_size != 0 &&
+	ssh->outgoing_data_size > ssh->max_data_size)
 	do_ssh2_transport(ssh, "Initiating key re-exchange "
 			  "(too much data sent)", -1, NULL);
     ssh->deferred_data_size = 0;
@@ -4915,8 +4915,10 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen,
      * Key exchange is over. Schedule a timer for our next rekey.
      */
     ssh->kex_in_progress = FALSE;
-    ssh->next_rekey = schedule_timer(REKEY_TIMEOUT, ssh2_timer, ssh);
-
+    if (ssh->cfg.ssh_rekey_time != 0)
+	ssh->next_rekey = schedule_timer(ssh->cfg.ssh_rekey_time*60*TICKSPERSEC,
+					 ssh2_timer, ssh);
+    
     /*
      * If this is the first key exchange phase, we must pass the
      * SSH2_MSG_NEWKEYS packet to the next layer, not because it
@@ -7087,7 +7089,8 @@ static void ssh2_protocol(Ssh ssh, unsigned char *in, int inlen,
     if (pktin) {
 	ssh->incoming_data_size += pktin->encrypted_len;
 	if (!ssh->kex_in_progress &&
-	    ssh->incoming_data_size > MAX_DATA_BEFORE_REKEY)
+	    ssh->max_data_size != 0 &&
+	    ssh->incoming_data_size > ssh->max_data_size)
 	    do_ssh2_transport(ssh, "Initiating key re-exchange "
 			      "(too much data received)", -1, NULL);
     }
@@ -7209,6 +7212,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh->incoming_data_size = ssh->outgoing_data_size =
 	ssh->deferred_data_size = 0L;
+    ssh->max_data_size = parse_blocksize(ssh->cfg.ssh_rekey_data);
     ssh->kex_in_progress = FALSE;
 
     p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);

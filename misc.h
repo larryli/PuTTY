@@ -16,6 +16,8 @@
 typedef struct Filename Filename;
 typedef struct FontSpec FontSpec;
 
+unsigned long parse_blocksize(const char *bs);
+
 char *dupstr(const char *s);
 char *dupcat(const char *s1, ...);
 char *dupprintf(const char *fmt, ...);

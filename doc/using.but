@@ -185,8 +185,8 @@ Should have no effect.
 
 \lcont{
 Only available in SSH-2. Forces a repeat key exchange immediately (and
-resets associated timers and counters). \#{For more information about
-repeat key exchanges, see \k{FIXME}.}
+resets associated timers and counters). For more information about
+repeat key exchanges, see \k{config-ssh-kex-rekey}.
 }
 
 \b \I{Break, SSH special command}Break

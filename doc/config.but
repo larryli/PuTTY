@@ -2152,22 +2152,56 @@ If the first algorithm PuTTY finds is below the \q{warn below here}
 line, you will see a warning box when you make the connection, similar
 to that for cipher selection (see \k{config-ssh-encryption}).
 
-\# [Repeat key exchange bumph when config is added:] If the session
-key negotiated at connection startup is used too much or for too long,
-it may become feasible to mount attacks against the SSH connection.
-Therefore, the SSH protocol specifies that a new key exchange should
-take place every so often.
+\S{config-ssh-kex-rekey} Repeat key exchange
 
-\# While this renegotiation is taking place, no data can pass through
+\cfg{winhelp-topic}{ssh.kex.repeat}
+
+If the session key negotiated at connection startup is used too much
+or for too long, it may become feasible to mount attacks against the
+SSH connection. Therefore, the SSH-2 protocol specifies that a new key
+exchange should take place every so often; this can be initiated by
+either the client or the server.
+
+While this renegotiation is taking place, no data can pass through
 the SSH connection, so it may appear to \q{freeze}. (The occurrence of
 repeat key exchange is noted in the Event Log; see
 \k{using-eventlog}.) Usually the same algorithm is used as at the
 start of the connection, with a similar overhead.
 
-\# [When options are added to frob how often this happens, we should
-hardcode the values recommended by the drafts -- 1 hour, 1GB -- in
-this documentation, in case PuTTY's defaults are obscured by Default
-Settings etc. Assuming we think they're good advice, that is.]
+These options control how often PuTTY will initiate a repeat key
+exchange (\q{rekey}). You can also force a key exchange at any time
+from the Special Commands menu (see \k{using-specials}).
+
+\# FIXME: do we have any additions to the SSH-2 drafts' advice on
+these values? Do we want to enforce any limits?
+
+\b \q{Max minutes before rekey} specifies the amount of time that is
+allowed to elapse before a rekey is initiated. If this is set to zero,
+PuTTY will not rekey due to elapsed time. The SSH-2 protocol
+specification recommends a timeout of at most 60 minutes.
+
+\b \q{Max data before rekey} specifies the amount of data (in bytes)
+that is permitted to flow in either direction before a rekey is
+initiated. If this is set to zero, PuTTY will not rekey due to
+transferred data. The SSH-2 protocol specification recommends a limit
+of at most 1 gigabyte.
+
+\lcont{
+
+As well as specifying a value in bytes, the following shorthand can be
+used:
+
+\b \cq{1k} specifies 1 kilobyte (1024 bytes).
+
+\b \cq{1M} specifies 1 megabyte (1024 kilobytes).
+
+\b \cq{1G} specifies 1 gigabyte (1024 megabytes).
+
+}
+
+PuTTY can be prevented from initiating a rekey entirely by setting
+both of these values to zero. (Note, however, that the SSH server may
+still initiate rekeys.)
 
 \H{config-ssh-auth} The Auth panel
 

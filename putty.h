@@ -400,6 +400,8 @@ struct config_tag {
     int nopty;
     int compression;
     int ssh_kexlist[KEX_MAX];
+    int ssh_rekey_time;		       /* in minutes */
+    char ssh_rekey_data[16];
     int agentfwd;
     int change_username;	       /* allow username switching in SSH2 */
     int ssh_cipherlist[CIPHER_MAX];

@@ -1580,11 +1580,23 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 			  kexlist_handler, P(NULL));
 	c->listbox.height = 5;
 
-#if 0
 	s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
 			"Options controlling key re-exchange");
-	/* FIXME: at least time and data size */
-#endif
+
+	/* FIXME: these could usefully be configured mid-session in SSH-2.
+	 *        (So could cipher/compression/kex, now we have rekey.) */
+	ctrl_editbox(s, "Max minutes before rekey (0 for no limit)", 't', 20,
+		     HELPCTX(ssh_kex_repeat),
+		     dlg_stdeditbox_handler,
+		     I(offsetof(Config,ssh_rekey_time)),
+		     I(-1));
+	ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'd', 20,
+		     HELPCTX(ssh_kex_repeat),
+		     dlg_stdeditbox_handler,
+		     I(offsetof(Config,ssh_rekey_data)),
+		     I(16));
+	ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
+		  HELPCTX(ssh_kex_repeat));
 
 	/*
 	 * The Connection/SSH/Auth panel.

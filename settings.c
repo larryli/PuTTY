@@ -236,6 +236,8 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX,
 	   cfg->ssh_cipherlist);
     wprefs(sesskey, "KEX", kexnames, KEX_MAX, cfg->ssh_kexlist);
+    write_setting_i(sesskey, "RekeyTime", cfg->ssh_rekey_time);
+    write_setting_s(sesskey, "RekeyBytes", cfg->ssh_rekey_data);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshNoShell", cfg->ssh_no_shell);
@@ -514,6 +516,9 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	gprefs(sesskey, "KEX", default_kexes,
 	       kexnames, KEX_MAX, cfg->ssh_kexlist);
     }
+    gppi(sesskey, "RekeyTime", 60, &cfg->ssh_rekey_time);
+    gpps(sesskey, "RekeyBytes", "1G", cfg->ssh_rekey_data,
+	 sizeof(cfg->ssh_rekey_data));
     gppi(sesskey, "SshProt", 2, &cfg->sshprot);
     gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
