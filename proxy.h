@@ -96,6 +96,7 @@ extern void proxy_activate (Proxy_Socket);
 
 extern int proxy_http_negotiate (Proxy_Socket, int);
 extern int proxy_telnet_negotiate (Proxy_Socket, int);
-extern int proxy_socks_negotiate (Proxy_Socket, int);
+extern int proxy_socks4_negotiate (Proxy_Socket, int);
+extern int proxy_socks5_negotiate (Proxy_Socket, int);
 
 #endif

@@ -322,7 +322,10 @@ Socket new_connection(SockAddr addr, char *hostname,
 	if (cfg.proxy_type == PROXY_HTTP) {
 	    ret->negotiate = proxy_http_negotiate;
 	} else if (cfg.proxy_type == PROXY_SOCKS) {
-	    ret->negotiate = proxy_socks_negotiate;
+	    if (cfg.proxy_socks_version == 4)
+		ret->negotiate = proxy_socks4_negotiate;
+	    else
+		ret->negotiate = proxy_socks5_negotiate;
 	} else if (cfg.proxy_type == PROXY_TELNET) {
 	    ret->negotiate = proxy_telnet_negotiate;
 	} else {
@@ -427,7 +430,6 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 	sk_write(p->sub_socket, buf, strlen(buf));
 
 	p->state = 1;
-
 	return 0;
     }
 
@@ -532,17 +534,383 @@ int proxy_http_negotiate (Proxy_Socket p, int change)
 
     plug_closing(p->plug, "Network error: Unexpected proxy error",
 		 PROXY_ERROR_UNEXPECTED, 0);
-    return 0;
+    return 1;
 }
 
 /* ----------------------------------------------------------------------
- * SOCKS proxy type (as yet unimplemented).
+ * SOCKS proxy type.
  */
 
-int proxy_socks_negotiate (Proxy_Socket p, int change)
+/* SOCKS version 4 */
+int proxy_socks4_negotiate (Proxy_Socket p, int change)
 {
-    p->error = "Network error: SOCKS proxy implementation is incomplete";
-    return 0;
+    if (p->state == PROXY_CHANGE_NEW) {
+
+	/* request format:
+	 *  version number (1 byte) = 4
+	 *  command code (1 byte)
+	 *    1 = CONNECT
+	 *    2 = BIND
+	 *  dest. port (2 bytes) [network order]
+	 *  dest. address (4 bytes)
+	 *  user ID (variable length, null terminated string)
+	 */
+
+	int length;
+	char * command;
+
+	if (sk_addrtype(p->remote_addr) != AF_INET) {
+	    plug_closing(p->plug, "Network error: SOCKS version 4 does not support IPv6",
+			 PROXY_ERROR_GENERAL, 0);
+	    return 1;
+	}
+
+	length = strlen(cfg.proxy_username) + 9;
+	command = (char*) malloc(length);
+	strcpy(command + 8, cfg.proxy_username);
+
+	command[0] = 4; /* version 4 */
+	command[1] = 1; /* CONNECT command */
+
+	/* port */
+	command[2] = (char) (p->remote_port >> 8) & 0xff;
+	command[3] = (char) p->remote_port & 0xff;
+
+	/* address */
+	sk_addrcopy(p->remote_addr, command + 4);
+
+	sk_write(p->sub_socket, command, length);
+	free(command);
+
+	p->state = 1;
+	return 0;
+    }
+
+    if (change == PROXY_CHANGE_CLOSING) {
+	/* if our proxy negotiation process involves closing and opening
+	 * new sockets, then we would want to intercept this closing
+	 * callback when we were expecting it. if we aren't anticipating
+	 * a socket close, then some error must have occurred. we'll
+	 * just pass those errors up to the backend.
+	 */
+	return plug_closing(p->plug, p->closing_error_msg,
+			    p->closing_error_code,
+			    p->closing_calling_back);
+    }
+
+    if (change == PROXY_CHANGE_SENT) {
+	/* some (or all) of what we wrote to the proxy was sent.
+	 * we don't do anything new, however, until we receive the
+	 * proxy's response. we might want to set a timer so we can
+	 * timeout the proxy negotiation after a while...
+	 */
+	return 0;
+    }
+
+    if (change == PROXY_CHANGE_ACCEPTING) {
+	/* we should _never_ see this, as we are using our socket to
+	 * connect to a proxy, not accepting inbound connections.
+	 * what should we do? close the socket with an appropriate
+	 * error message?
+	 */
+	return plug_accepting(p->plug, p->accepting_sock);
+    }
+
+    if (change == PROXY_CHANGE_RECEIVE) {
+	/* we have received data from the underlying socket, which
+	 * we'll need to parse, process, and respond to appropriately.
+	 */
+
+	if (p->state == 1) {
+	    /* response format:
+	     *  version number (1 byte) = 4
+	     *  reply code (1 byte)
+	     *    90 = request granted
+	     *    91 = request rejected or failed
+	     *    92 = request rejected due to lack of IDENTD on client
+	     *    93 = request rejected due to difference in user ID 
+	     *         (what we sent vs. what IDENTD said)
+	     *  dest. port (2 bytes)
+	     *  dest. address (4 bytes)
+	     */
+
+	    char *data;
+	    int len;
+
+	    /* get the response */
+	    bufchain_prefix(&p->pending_input_data, &data, &len);
+
+	    if (data[0] != 0) {
+		plug_closing(p->plug, "Network error: SOCKS proxy responded with "
+				      "unexpected reply code version",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+
+	    if (data[1] != 90) {
+
+		switch (data[1]) {
+		  case 92:
+		    plug_closing(p->plug, "Network error: SOCKS server wanted IDENTD on client",
+				 PROXY_ERROR_GENERAL, 0);
+		    break;
+		  case 93:
+		    plug_closing(p->plug, "Network error: Username and IDENTD on client don't agree",
+				 PROXY_ERROR_GENERAL, 0);
+		    break;
+		  case 91:
+		  default:
+		    plug_closing(p->plug, "Network error: Error while communicating with proxy",
+				 PROXY_ERROR_GENERAL, 0);
+		    break;
+		}
+
+		return 1;
+	    }
+
+	    /* we're done */
+	    proxy_activate(p);
+	    /* proxy activate will have dealt with
+	     * whatever is left of the buffer */
+	    return 1;
+	}
+    }
+
+    plug_closing(p->plug, "Network error: Unexpected proxy error",
+		 PROXY_ERROR_UNEXPECTED, 0);
+    return 1;
+}
+
+/* SOCKS version 5 */
+int proxy_socks5_negotiate (Proxy_Socket p, int change)
+{
+    if (p->state == PROXY_CHANGE_NEW) {
+
+	/* initial command:
+	 *  version number (1 byte) = 5
+	 *  number of available authentication methods (1 byte)
+	 *  available authentication methods (1 byte * previous value)
+	 *    authentication methods:
+	 *     0x00 = no authentication
+	 *     0x01 = GSSAPI
+	 *     0x02 = username/password
+	 *     0x03 = CHAP
+	 */
+
+	char command[3];
+
+	command[0] = 5; /* version 5 */
+	command[1] = 1; /* TODO: we don't currently support any auth methods */
+	command[2] = 0x00; /* no authentication */
+
+	sk_write(p->sub_socket, command, 3);
+
+	p->state = 1;
+	return 0;
+    }
+
+    if (change == PROXY_CHANGE_CLOSING) {
+	/* if our proxy negotiation process involves closing and opening
+	 * new sockets, then we would want to intercept this closing
+	 * callback when we were expecting it. if we aren't anticipating
+	 * a socket close, then some error must have occurred. we'll
+	 * just pass those errors up to the backend.
+	 */
+	return plug_closing(p->plug, p->closing_error_msg,
+			    p->closing_error_code,
+			    p->closing_calling_back);
+    }
+
+    if (change == PROXY_CHANGE_SENT) {
+	/* some (or all) of what we wrote to the proxy was sent.
+	 * we don't do anything new, however, until we receive the
+	 * proxy's response. we might want to set a timer so we can
+	 * timeout the proxy negotiation after a while...
+	 */
+	return 0;
+    }
+
+    if (change == PROXY_CHANGE_ACCEPTING) {
+	/* we should _never_ see this, as we are using our socket to
+	 * connect to a proxy, not accepting inbound connections.
+	 * what should we do? close the socket with an appropriate
+	 * error message?
+	 */
+	return plug_accepting(p->plug, p->accepting_sock);
+    }
+
+    if (change == PROXY_CHANGE_RECEIVE) {
+	/* we have received data from the underlying socket, which
+	 * we'll need to parse, process, and respond to appropriately.
+	 */
+
+	char *data;
+	int len;
+
+	if (p->state == 1) {
+
+	    /* initial response:
+	     *  version number (1 byte) = 5
+	     *  authentication method (1 byte)
+	     *    authentication methods:
+	     *     0x00 = no authentication
+	     *     0x01 = GSSAPI
+	     *     0x02 = username/password 
+	     *     0x03 = CHAP
+	     *     0xff = no acceptable methods
+	     */
+
+	    /* get the response */
+	    bufchain_prefix(&p->pending_input_data, &data, &len);
+
+	    if (data[0] != 5) {
+		plug_closing(p->plug, "Network error: Error while communicating with proxy",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+
+	    if (data[1] == 0x00) p->state = 2; /* no authentication needed */
+	    else if (data[1] == 0x01) p->state = 4; /* GSSAPI authentication */
+	    else if (data[1] == 0x02) p->state = 5; /* username/password authentication */
+	    else if (data[1] == 0x03) p->state = 6; /* CHAP authentication */
+	    else {
+		plug_closing(p->plug, "Network error: We don't support any of the SOCKS "
+				      "server's authentication methods",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+	}
+
+	if (p->state == 2) {
+
+	    /* request format:
+	     *  version number (1 byte) = 5
+	     *  command code (1 byte)
+	     *    1 = CONNECT
+	     *    2 = BIND
+	     *    3 = UDP ASSOCIATE
+	     *  reserved (1 byte) = 0x00
+	     *  address type (1 byte)
+	     *    1 = IPv4
+	     *    3 = domainname (first byte has length, no terminating null)
+	     *    4 = IPv6
+	     *  dest. address (variable)
+	     *  dest. port (2 bytes) [network order]
+	     */
+
+	    char command[22];
+	    int len;
+
+	    if (sk_addrtype(p->remote_addr) == AF_INET) {
+		len = 10;
+		command[3] = 1; /* IPv4 */
+	    } else {
+		len = 22;
+		command[3] = 4; /* IPv6 */
+	    }
+
+	    command[0] = 5; /* version 5 */
+	    command[1] = 1; /* CONNECT command */
+	    command[2] = 0x00;
+
+	    /* address */
+	    sk_addrcopy(p->remote_addr, command+4);
+
+	    /* port */
+	    command[len-2] = (char) (p->remote_port >> 8) & 0xff;
+	    command[len-1] = (char) p->remote_port & 0xff;
+
+	    sk_write(p->sub_socket, command, len);
+
+	    p->state = 3;
+	    return 1;
+	}
+
+	if (p->state == 3) {
+
+	    /* reply format:
+	     *  version number (1 bytes) = 5
+	     *  reply code (1 byte)
+	     *    0 = succeeded
+	     *    1 = general SOCKS server failure
+	     *    2 = connection not allowed by ruleset
+	     *    3 = network unreachable
+	     *    4 = host unreachable
+	     *    5 = connection refused
+	     *    6 = TTL expired
+	     *    7 = command not supported
+	     *    8 = address type not supported
+	     * reserved (1 byte) = x00
+	     * address type (1 byte)
+	     *    1 = IPv4
+	     *    3 = domainname (first byte has length, no terminating null)
+	     *    4 = IPv6
+	     * server bound address (variable)
+	     * server bound port (2 bytes) [network order]
+	     */
+
+	    /* get the response */
+	    bufchain_prefix(&p->pending_input_data, &data, &len);
+
+	    if (data[0] != 5) {
+		plug_closing(p->plug, "Network error: Error while communicating with proxy",
+			     PROXY_ERROR_GENERAL, 0);
+		return 1;
+	    }
+
+	    if (data[1] != 0) {
+
+		switch (data[1]) {
+		  case 1:
+		  case 2:
+		  case 3:
+		  case 4:
+		  case 5:
+		  case 6:
+		  case 7:
+		  case 8:
+		  default:
+		    plug_closing(p->plug, "Network error: Error while communicating with proxy",
+				 PROXY_ERROR_GENERAL, 0);
+		    break;
+		}
+
+		return 1;
+	    }
+
+	    /* we're done */
+	    proxy_activate(p);
+	    /* proxy activate will have dealt with
+	     * whatever is left of the buffer */
+	    return 1;
+	}
+
+	if (p->state == 4) {
+	    /* TODO: Handle GSSAPI authentication */
+	    plug_closing(p->plug, "Network error: We don't support GSSAPI authentication",
+			 PROXY_ERROR_GENERAL, 0);
+	    return 1;
+	}
+
+	if (p->state == 5) {
+	    /* TODO: Handle username/password authentication */
+	    plug_closing(p->plug, "Network error: We don't support username/password "
+				  "authentication",
+			 PROXY_ERROR_GENERAL, 0);
+	    return 1;
+	}
+
+	if (p->state == 6) {
+	    /* TODO: Handle CHAP authentication */
+	    plug_closing(p->plug, "Network error: We don't support CHAP authentication",
+			 PROXY_ERROR_GENERAL, 0);
+	    return 1;
+	}
+    }
+
+    plug_closing(p->plug, "Network error: Unexpected proxy error",
+		 PROXY_ERROR_UNEXPECTED, 0);
+    return 1;
 }
 
 /* ----------------------------------------------------------------------
@@ -709,7 +1077,6 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 	}
 
 	p->state = 1;
-
 	return 0;
     }
 
@@ -757,5 +1124,5 @@ int proxy_telnet_negotiate (Proxy_Socket p, int change)
 
     plug_closing(p->plug, "Network error: Unexpected proxy error",
 		 PROXY_ERROR_UNEXPECTED, 0);
-    return 0;
+    return 1;
 }

@@ -76,6 +76,8 @@ void sk_cleanup(void);		       /* called just before program exit */
 
 SockAddr sk_namelookup(char *host, char **canonicalname);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);
+int sk_addrtype(SockAddr addr);
+void sk_addrcopy(SockAddr addr, char *buf);
 void sk_addr_free(SockAddr addr);
 
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,

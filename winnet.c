@@ -368,6 +368,26 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 #endif
 }
 
+int sk_addrtype(SockAddr addr)
+{
+    return addr->family;
+}
+
+void sk_addrcopy(SockAddr addr, char *buf)
+{
+#ifdef IPV6
+    if (addr->family == AF_INET) {
+#endif
+	struct in_addr a;
+	a.s_addr = htonl(addr->address);
+	strncpy(buf, (char*) &a.s_addr, 4);
+#ifdef IPV6
+    } else {
+	strncpy(buf, (char*) addr->ai, 16);
+    }
+#endif
+}
+
 void sk_addr_free(SockAddr addr)
 {
     sfree(addr);
