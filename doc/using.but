@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.28 2004/08/19 12:58:14 jacob Exp $
+\versionid $Id: using.but,v 1.29 2004/09/16 15:44:58 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -352,7 +352,8 @@ your client PC can connect to the forwarded port.
 remote-to-local port forwardings (so that machines other than the
 SSH server machine can connect to the forwarded port.) Note that
 this feature is only available in the SSH 2 protocol, and not all
-SSH 2 servers support it (OpenSSH 3.0 does not, for example).
+SSH 2 servers honour it (in OpenSSH, for example, it's usually
+disabled by default).
 
 You can also specify an \i{IP address} to listen on. Typically a
 Windows machine can be asked to listen on any single IP address in
