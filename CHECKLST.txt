@@ -15,13 +15,13 @@ The LICENCE file in the main source distribution:
 
 The resource files:
 
- - putty/pageant.rc
+ - putty/windows/pageant.rc
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
- - putty/puttygen.rc
+ - putty/windows/puttygen.rc
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
- - putty/win_res.rc
+ - putty/windows/win_res.rc
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
  - putty/mac/mac_res.r
@@ -45,12 +45,12 @@ Before tagging a release
    with a comment containing the word XXX-REMOVE-BEFORE-RELEASE.
 
 For a long time we got away with never checking the current version
-number into CVS at all - all version numbers were passed into the
-build system on the compiler command line, and the _only_ place
-version numbers showed up in CVS was in the tag information.
+number in at all - all version numbers were passed into the build
+system on the compiler command line, and the _only_ place version
+numbers showed up in the source files was in the tag information.
 
 Unfortunately, those halcyon days are gone, and we do need the
-version number in CVS in a couple of places. These must be updated
+version number checked in in a couple of places. These must be updated
 _before_ tagging a new release.
 
 The file used to generate the Unix snapshot version numbers (which
@@ -61,7 +61,7 @@ orders them correctly with respect to releases):
 
 The Windows installer script:
 
- - putty/putty.iss
+ - putty/windows/putty.iss
 
 The Mac resource file (used to generate the binary bit of the 'vers'
 resources -- the strings are supplied by the usual means):
@@ -239,5 +239,5 @@ After the release
 The following want doing some time soon after a release has been made:
 
  - If the release was made from a branch, make sure the version number
-   in _trunk_ CVS is up to date in all the locations listed above, so
+   on the _trunk_ is up to date in all the locations listed above, so
    that (e.g.) Unix snapshots come out right.
