@@ -84,6 +84,7 @@ options}.
 so I don't have to change them every time?
 
 Yes, all of PuTTY's settings can be saved in named session profiles.
+You can also change the default settings that are used for new sessions.
 See \k{config-saving} in the documentation for how to do this.
 
 \S{faq-disksettings}{Question} Does PuTTY support storing its
