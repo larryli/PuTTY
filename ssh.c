@@ -3642,7 +3642,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     /*
      * Be prepared to work around the buggy MAC problem.
      */
-    if (cfg.buggymac || (ssh_remote_bugs & BUG_SSH2_HMAC))
+    if (ssh_remote_bugs & BUG_SSH2_HMAC)
 	maclist = buggymacs, nmacs = lenof(buggymacs);
     else
 	maclist = macs, nmacs = lenof(macs);

@@ -266,7 +266,6 @@ typedef struct {
     int ssh_cipherlist[CIPHER_MAX];
     char keyfile[FILENAME_MAX];
     int sshprot;		       /* use v1 or v2 when both available */
-    int buggymac;		       /* MAC bug commmercial <=v2.3.x SSH2 */
     int ssh2_des_cbc;		       /* "des-cbc" nonstandard SSH2 cipher */
     int try_tis_auth;
     int try_ki_auth;
