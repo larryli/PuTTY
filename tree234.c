@@ -569,6 +569,17 @@ void del234(tree234 *t, void *e) {
 	    }
 	    n->elems[j] = NULL;
 	    n->kids[j+1] = NULL;
+            /*
+             * It's possible, in this case, that we've just removed
+             * the only element in the root of the tree. If so,
+             * shift the root.
+             */
+            if (n->elems[0] == NULL) {
+                LOG(("  shifting root!\n"));
+                t->root = a;
+                a->parent = NULL;
+                sfree(n);
+            }
 	    /*
 	     * Now go round the deletion process again, with n
 	     * pointing at the new big node and e still the same.
