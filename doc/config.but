@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.54 2003/02/04 13:02:51 simon Exp $
+\versionid $Id: config.but,v 1.55 2003/02/05 09:05:35 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -2174,7 +2174,7 @@ This is an SSH2-specific bug.
 
 \S{config-ssh-bug-pksessid2} \q{Misuses the session ID in PK auth}
 
-\cfg{winhelp-topic}{ssh.bugs.rsapad2}
+\cfg{winhelp-topic}{ssh.bugs.pksessid2}
 
 Versions below 2.3 of OpenSSH require SSH2 public-key authentication
 to be done slightly differently: the data to be signed by the client
