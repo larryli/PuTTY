@@ -1993,8 +1993,8 @@ void term_out(void)
 				break;
 			      case 8:
 				if (esc_nargs >= 3) {
-				    request_resize(def(esc_args[1], cfg.width),
-						   def(esc_args[2], cfg.height));
+				    request_resize(def(esc_args[2], cfg.width),
+						   def(esc_args[1], cfg.height));
 				}
 				break;
 			      case 9:
@@ -2017,7 +2017,7 @@ void term_out(void)
 				break;
 			      case 18:
 				len = sprintf(buf, "\033[8;%d;%dt",
-					      cols, rows);
+					      rows, cols);
 				ldisc_send(buf, len, 0);
 				break;
 			      case 19:
