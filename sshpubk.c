@@ -32,7 +32,7 @@
                           (x)=='+' ? 62 : \
                           (x)=='/' ? 63 : 0 )
 
-static int loadrsakey_main(FILE * fp, struct RSAKey *key,
+static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
 			   char **commentptr, char *passphrase)
 {
     unsigned char buf[16384];
@@ -75,6 +75,11 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key,
     i += makekey(buf + i, key, NULL, 1);
     if (len - i < 0)
 	goto end;		       /* overran */
+
+    if (pub_only) {
+	ret = 1;
+	goto end;
+    }
 
     /* Next, the comment field. */
     j = GET_32BIT(buf + i);
@@ -161,7 +166,7 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase)
      * key file.
      */
     if (fgets(buf, sizeof(buf), fp) && !strcmp(buf, rsa_signature)) {
-	return loadrsakey_main(fp, key, NULL, passphrase);
+	return loadrsakey_main(fp, key, FALSE, NULL, passphrase);
     }
 
     /*
@@ -189,10 +194,47 @@ int rsakey_encrypted(char *filename, char **comment)
      * key file.
      */
     if (fgets(buf, sizeof(buf), fp) && !strcmp(buf, rsa_signature)) {
-	return loadrsakey_main(fp, NULL, comment, NULL);
+	return loadrsakey_main(fp, NULL, FALSE, comment, NULL);
     }
     fclose(fp);
     return 0;			       /* wasn't the right kind of file */
+}
+
+/*
+ * Return a malloc'ed chunk of memory containing the public blob of
+ * an RSA key, as given in the agent protocol (modulus bits,
+ * exponent, modulus).
+ */
+int rsakey_pubblob(char *filename, void **blob, int *bloblen)
+{
+    FILE *fp;
+    unsigned char buf[64];
+    struct RSAKey key;
+    int ret;
+
+    /* Default return if we fail. */
+    *blob = NULL;
+    *bloblen = 0;
+    ret = 0;
+
+    fp = fopen(filename, "rb");
+    if (!fp)
+	return 0;		       /* doesn't even exist */
+
+    /*
+     * Read the first line of the file and see if it's a v1 private
+     * key file.
+     */
+    if (fgets(buf, sizeof(buf), fp) && !strcmp(buf, rsa_signature)) {
+	memset(&key, 0, sizeof(key));
+	if (loadrsakey_main(fp, &key, TRUE, NULL, NULL)) {
+	    *blob = rsa_public_blob(&key, bloblen);
+	    freersakey(&key);
+	    ret = 1;
+	}
+    }
+    fclose(fp);
+    return ret;
 }
 
 /*
@@ -827,8 +869,10 @@ char *ssh2_userkey_loadpub(char *filename, char **algorithm,
 	goto error;
 
     fclose(fp);
-    *pub_blob_len = public_blob_len;
-    *algorithm = alg->name;
+    if (pub_blob_len)
+	*pub_blob_len = public_blob_len;
+    if (algorithm)
+	*algorithm = alg->name;
     return public_blob;
 
     /*

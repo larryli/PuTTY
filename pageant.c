@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <assert.h>
 #include <tchar.h>
 
 #include "ssh.h"
@@ -64,6 +65,14 @@ static gsi_fn_t getsecurityinfo;
  */
 void agent_query(void *in, int inlen, void **out, int *outlen);
 int agent_exists(void);
+
+/*
+ * Forward references
+ */
+static void *make_keylist1(int *length);
+static void *make_keylist2(int *length);
+static void *get_keylist1(void);
+static void *get_keylist2(void);
 
 /*
  * We need this to link with the RSA code, because rsaencrypt()
@@ -357,6 +366,65 @@ static void add_keyfile(char *filename)
 	return;
     }
 
+    /*
+     * See if the key is already loaded (in the primary Pageant,
+     * which may or may not be us).
+     */
+    {
+	void *blob;
+	unsigned char *keylist, *p;
+	int i, nkeys, bloblen;
+
+	if (ver == 1) {
+	    if (!rsakey_pubblob(filename, &blob, &bloblen)) {
+		MessageBox(NULL, "Couldn't load private key.", APPNAME,
+			   MB_OK | MB_ICONERROR);
+		return;
+	    }
+	    keylist = get_keylist1();
+	} else {
+	    unsigned char *blob2;
+	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen);
+	    if (!blob) {
+		MessageBox(NULL, "Couldn't load private key.", APPNAME,
+			   MB_OK | MB_ICONERROR);
+		return;
+	    }
+	    /* For our purposes we want the blob prefixed with its length */
+	    blob2 = smalloc(bloblen+4);
+	    PUT_32BIT(blob2, bloblen);
+	    memcpy(blob2 + 4, blob, bloblen);
+	    sfree(blob);
+	    blob = blob2;
+
+	    keylist = get_keylist2();
+	}
+	if (keylist) {
+	    nkeys = GET_32BIT(keylist);
+	    p = keylist + 4;
+
+	    for (i = 0; i < nkeys; i++) {
+		if (!memcmp(blob, p, bloblen)) {
+		    /* Key is already present; we can now leave. */
+		    sfree(keylist);
+		    sfree(blob);
+		    return;
+		}
+		/* Now skip over public blob */
+		if (ver == 1)
+		    p += rsa_public_blob_len(p);
+		else
+		    p += 4 + GET_32BIT(p);
+		/* Now skip over comment field */
+		p += 4 + GET_32BIT(p);
+	    }
+
+	    sfree(keylist);
+	}
+
+	sfree(blob);
+    }
+
     if (ver == 1)
 	needs_pass = rsakey_encrypted(filename, &comment);
     else
@@ -461,6 +529,9 @@ static void add_keyfile(char *filename)
 		MessageBox(NULL, "The already running Pageant "
 			   "refused to add the key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
+
+	    sfree(request);
+	    sfree(response);
 	} else {
 	    if (add234(rsakeys, rkey) != rkey)
 		sfree(rkey);	       /* already present, don't waste RAM */
@@ -503,6 +574,9 @@ static void add_keyfile(char *filename)
 		MessageBox(NULL, "The already running Pageant"
 			   "refused to add the key.", APPNAME,
 			   MB_OK | MB_ICONERROR);
+
+	    sfree(request);
+	    sfree(response);
 	} else {
 	    if (add234(ssh2keys, skey) != skey) {
 		skey->alg->freekey(skey->data);
@@ -510,6 +584,162 @@ static void add_keyfile(char *filename)
 	    }
 	}
     }
+}
+
+/*
+ * Create an SSH1 key list in a malloc'ed buffer; return its
+ * length.
+ */
+static void *make_keylist1(int *length)
+{
+    int i, nkeys, len;
+    struct RSAKey *key;
+    unsigned char *blob, *p, *ret;
+    int bloblen;
+
+    /*
+     * Count up the number and length of keys we hold.
+     */
+    len = 4;
+    nkeys = 0;
+    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
+	nkeys++;
+	blob = rsa_public_blob(key, &bloblen);
+	len += bloblen;
+	sfree(blob);
+	len += 4 + strlen(key->comment);
+    }
+
+    /* Allocate the buffer. */
+    p = ret = smalloc(len);
+    if (length) *length = len;
+
+    PUT_32BIT(p, nkeys);
+    p += 4;
+    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
+	blob = rsa_public_blob(key, &bloblen);
+	memcpy(p, blob, bloblen);
+	p += bloblen;
+	sfree(blob);
+	PUT_32BIT(p, strlen(key->comment));
+	memcpy(p + 4, key->comment, strlen(key->comment));
+	p += 4 + strlen(key->comment);
+    }
+
+    assert(p - ret == len);
+    return ret;
+}
+
+/*
+ * Create an SSH2 key list in a malloc'ed buffer; return its
+ * length.
+ */
+static void *make_keylist2(int *length)
+{
+    struct ssh2_userkey *key;
+    int i, len, nkeys;
+    unsigned char *blob, *p, *ret;
+    int bloblen;
+
+    /*
+     * Count up the number and length of keys we hold.
+     */
+    len = 4;
+    nkeys = 0;
+    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
+	nkeys++;
+	len += 4;	       /* length field */
+	blob = key->alg->public_blob(key->data, &bloblen);
+	len += bloblen;
+	sfree(blob);
+	len += 4 + strlen(key->comment);
+    }
+
+    /* Allocate the buffer. */
+    p = ret = smalloc(len);
+    if (length) *length = len;
+
+    /*
+     * Packet header is the obvious five bytes, plus four
+     * bytes for the key count.
+     */
+    PUT_32BIT(p, nkeys);
+    p += 4;
+    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
+	blob = key->alg->public_blob(key->data, &bloblen);
+	PUT_32BIT(p, bloblen);
+	p += 4;
+	memcpy(p, blob, bloblen);
+	p += bloblen;
+	sfree(blob);
+	PUT_32BIT(p, strlen(key->comment));
+	memcpy(p + 4, key->comment, strlen(key->comment));
+	p += 4 + strlen(key->comment);
+    }
+
+    assert(p - ret == len);
+    return ret;
+}
+
+/*
+ * Acquire a keylist1 from the primary Pageant; this means either
+ * calling make_keylist1 (if that's us) or sending a message to the
+ * primary Pageant (if it's not).
+ */
+static void *get_keylist1(void)
+{
+    void *ret;
+
+    if (already_running) {
+	unsigned char request[5], *response;
+	void *vresponse;
+	int resplen;
+	request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
+	PUT_32BIT(request, 4);
+
+	agent_query(request, 5, &vresponse, &resplen);
+	response = vresponse;
+	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER)
+	    return NULL;
+
+	ret = smalloc(resplen-5);
+	memcpy(ret, response+5, resplen-5);
+	sfree(response);
+    } else {
+	ret = make_keylist1(NULL);
+    }
+    return ret;
+}
+
+/*
+ * Acquire a keylist2 from the primary Pageant; this means either
+ * calling make_keylist2 (if that's us) or sending a message to the
+ * primary Pageant (if it's not).
+ */
+static void *get_keylist2(void)
+{
+    void *ret;
+
+    if (already_running) {
+	unsigned char request[5], *response;
+	void *vresponse;
+	int resplen;
+
+	request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
+	PUT_32BIT(request, 4);
+
+	agent_query(request, 5, &vresponse, &resplen);
+	response = vresponse;
+	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER)
+	    return NULL;
+
+	ret = smalloc(resplen-5);
+	memcpy(ret, response+5, resplen-5);
+	sfree(response);
+    } else {
+	ret = make_keylist2(NULL);
+    }
+    return ret;
 }
 
 /*
@@ -533,42 +763,18 @@ static void answer_msg(void *msg)
 	 * Reply with SSH1_AGENT_RSA_IDENTITIES_ANSWER.
 	 */
 	{
-	    struct RSAKey *key;
-	    int len, nkeys;
-	    int i;
+	    int len;
+	    void *keylist;
 
-	    /*
-	     * Count up the number and length of keys we hold.
-	     */
-	    len = nkeys = 0;
-	    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
-		nkeys++;
-		len += 4;	       /* length field */
-		len += ssh1_bignum_length(key->exponent);
-		len += ssh1_bignum_length(key->modulus);
-		len += 4 + strlen(key->comment);
-	    }
-
-	    /*
-	     * Packet header is the obvious five bytes, plus four
-	     * bytes for the key count.
-	     */
-	    len += 5 + 4;
-	    if (len > AGENT_MAX_MSGLEN)
-		goto failure;	       /* aaargh! too much stuff! */
-	    PUT_32BIT(ret, len - 4);
 	    ret[4] = SSH1_AGENT_RSA_IDENTITIES_ANSWER;
-	    PUT_32BIT(ret + 5, nkeys);
-	    p = ret + 5 + 4;
-	    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
-		PUT_32BIT(p, bignum_bitcount(key->modulus));
-		p += 4;
-		p += ssh1_write_bignum(p, key->exponent);
-		p += ssh1_write_bignum(p, key->modulus);
-		PUT_32BIT(p, strlen(key->comment));
-		memcpy(p + 4, key->comment, strlen(key->comment));
-		p += 4 + strlen(key->comment);
+	    keylist = make_keylist1(&len);
+	    if (len + 5 > AGENT_MAX_MSGLEN) {
+		sfree(keylist);
+		goto failure;
 	    }
+	    PUT_32BIT(ret, len + 1);
+	    memcpy(ret + 5, keylist, len);
+	    sfree(keylist);
 	}
 	break;
       case SSH2_AGENTC_REQUEST_IDENTITIES:
@@ -576,47 +782,18 @@ static void answer_msg(void *msg)
 	 * Reply with SSH2_AGENT_IDENTITIES_ANSWER.
 	 */
 	{
-	    struct ssh2_userkey *key;
-	    int len, nkeys;
-	    unsigned char *blob;
-	    int bloblen;
-	    int i;
+	    int len;
+	    void *keylist;
 
-	    /*
-	     * Count up the number and length of keys we hold.
-	     */
-	    len = nkeys = 0;
-	    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
-		nkeys++;
-		len += 4;	       /* length field */
-		blob = key->alg->public_blob(key->data, &bloblen);
-		len += bloblen;
-		sfree(blob);
-		len += 4 + strlen(key->comment);
-	    }
-
-	    /*
-	     * Packet header is the obvious five bytes, plus four
-	     * bytes for the key count.
-	     */
-	    len += 5 + 4;
-	    if (len > AGENT_MAX_MSGLEN)
-		goto failure;	       /* aaargh! too much stuff! */
-	    PUT_32BIT(ret, len - 4);
 	    ret[4] = SSH2_AGENT_IDENTITIES_ANSWER;
-	    PUT_32BIT(ret + 5, nkeys);
-	    p = ret + 5 + 4;
-	    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
-		blob = key->alg->public_blob(key->data, &bloblen);
-		PUT_32BIT(p, bloblen);
-		p += 4;
-		memcpy(p, blob, bloblen);
-		p += bloblen;
-		sfree(blob);
-		PUT_32BIT(p, strlen(key->comment));
-		memcpy(p + 4, key->comment, strlen(key->comment));
-		p += 4 + strlen(key->comment);
+	    keylist = make_keylist2(&len);
+	    if (len + 5 > AGENT_MAX_MSGLEN) {
+		sfree(keylist);
+		goto failure;
 	    }
+	    PUT_32BIT(ret, len + 1);
+	    memcpy(ret + 5, keylist, len);
+	    sfree(keylist);
 	}
 	break;
       case SSH1_AGENTC_RSA_CHALLENGE:

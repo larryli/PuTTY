@@ -12,6 +12,17 @@
 
 #include "ssh.h"
 
+#define GET_32BIT(cp) \
+    (((unsigned long)(unsigned char)(cp)[0] << 24) | \
+    ((unsigned long)(unsigned char)(cp)[1] << 16) | \
+    ((unsigned long)(unsigned char)(cp)[2] << 8) | \
+    ((unsigned long)(unsigned char)(cp)[3]))
+
+#define PUT_32BIT(cp, value) { \
+    (cp)[0] = (unsigned char)((value) >> 24); \
+    (cp)[1] = (unsigned char)((value) >> 16); \
+    (cp)[2] = (unsigned char)((value) >> 8); \
+    (cp)[3] = (unsigned char)(value); }
 
 int makekey(unsigned char *data, struct RSAKey *result,
 	    unsigned char **keystr, int order)
@@ -217,6 +228,38 @@ int rsa_verify(struct RSAKey *key)
     return 1;
 }
 
+/* Public key blob as used by Pageant: exponent before modulus. */
+unsigned char *rsa_public_blob(struct RSAKey *key, int *len)
+{
+    int length, pos;
+    unsigned char *ret;
+
+    length = (ssh1_bignum_length(key->modulus) +
+	      ssh1_bignum_length(key->exponent) + 4);
+    ret = smalloc(length);
+
+    PUT_32BIT(ret, bignum_bitcount(key->modulus));
+    pos = 4;
+    pos += ssh1_write_bignum(ret + pos, key->exponent);
+    pos += ssh1_write_bignum(ret + pos, key->modulus);
+
+    *len = length;
+    return ret;
+}
+
+/* Given a public blob, determine its length. */
+int rsa_public_blob_len(void *data)
+{
+    unsigned char *p = (unsigned char *)data;
+    int ret;
+
+    p += 4;			       /* length word */
+    p += ssh1_read_bignum(p, NULL);    /* exponent */
+    p += ssh1_read_bignum(p, NULL);    /* modulus */
+
+    return p - (unsigned char *)data;
+}
+
 void freersakey(struct RSAKey *key)
 {
     if (key->modulus)
@@ -232,18 +275,6 @@ void freersakey(struct RSAKey *key)
 /* ----------------------------------------------------------------------
  * Implementation of the ssh-rsa signing key type. 
  */
-
-#define GET_32BIT(cp) \
-    (((unsigned long)(unsigned char)(cp)[0] << 24) | \
-    ((unsigned long)(unsigned char)(cp)[1] << 16) | \
-    ((unsigned long)(unsigned char)(cp)[2] << 8) | \
-    ((unsigned long)(unsigned char)(cp)[3]))
-
-#define PUT_32BIT(cp, value) { \
-    (cp)[0] = (unsigned char)((value) >> 24); \
-    (cp)[1] = (unsigned char)((value) >> 16); \
-    (cp)[2] = (unsigned char)((value) >> 8); \
-    (cp)[3] = (unsigned char)(value); }
 
 static void getstring(char **data, int *datalen, char **p, int *length)
 {

@@ -3,6 +3,13 @@
 
 #include "puttymem.h"
 
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+
 char *dupstr(char *s);
 char *dupcat(char *s1, ...);
 

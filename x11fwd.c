@@ -5,13 +5,6 @@
 #include "putty.h"
 #include "ssh.h"
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 #define GET_32BIT_LSB_FIRST(cp) \
   (((unsigned long)(unsigned char)(cp)[0]) | \
   ((unsigned long)(unsigned char)(cp)[1] << 8) | \

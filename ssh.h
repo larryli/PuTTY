@@ -64,6 +64,8 @@ int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
 void rsa_fingerprint(char *str, int len, struct RSAKey *key);
 int rsa_verify(struct RSAKey *key);
+unsigned char *rsa_public_blob(struct RSAKey *key, int *len);
+int rsa_public_blob_len(void *data);
 void freersakey(struct RSAKey *key);
 
 typedef unsigned int word32;
@@ -274,6 +276,7 @@ Bignum dh_find_K(Bignum f);
 
 int loadrsakey(char *filename, struct RSAKey *key, char *passphrase);
 int rsakey_encrypted(char *filename, char **comment);
+int rsakey_pubblob(char *filename, void **blob, int *bloblen);
 
 int saversakey(char *filename, struct RSAKey *key, char *passphrase);
 
