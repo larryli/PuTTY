@@ -841,6 +841,7 @@ static struct scp_sftp_dirstack {
     int namepos, namelen;
     char *dirpath;
     char *wildcard;
+    int matched_something;	       /* wildcard match set was non-empty */
 } *scp_sftp_dirstack_head;
 static char *scp_sftp_remotepath, *scp_sftp_currentname;
 static char *scp_sftp_wildcard;
@@ -1201,6 +1202,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 			       head->names[head->namepos].filename))))
 		head->namepos++;       /* skip . and .. */
 	    if (head->namepos < head->namelen) {
+		head->matched_something = 1;
 		fname = dupcat(head->dirpath, "/",
 			       head->names[head->namepos++].filename,
 			       NULL);
@@ -1213,7 +1215,13 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		 */
 		if (head->wildcard) {
 		    act->action = SCP_SINK_RETRY;
+		    if (!head->matched_something) {
+			tell_user(stderr, "pscp: wildcard '%s' matched "
+				  "no files", head->wildcard);
+			errs++;
+		    }
 		    sfree(head->wildcard);
+
 		} else {
 		    act->action = SCP_SINK_ENDDIR;
 		}
@@ -1334,6 +1342,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		newitem->dirpath = dupstr(fname);
 	    if (scp_sftp_wildcard) {
 		newitem->wildcard = scp_sftp_wildcard;
+		newitem->matched_something = 0;
 		scp_sftp_wildcard = NULL;
 	    } else {
 		newitem->wildcard = NULL;
