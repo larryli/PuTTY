@@ -28,15 +28,14 @@ typedef struct terminal_tag Terminal;
 #include "network.h"
 
 /* Three attribute types: 
- * The ATTRs (normal attributes) are stored with the characters in the main
- * display arrays
+ * The ATTRs (normal attributes) are stored with the characters in
+ * the main display arrays
  *
- * The TATTRs (temporary attributes) are generated on the fly, they can overlap
- * with characters but not with normal attributes.
+ * The TATTRs (temporary attributes) are generated on the fly, they
+ * can overlap with characters but not with normal attributes.
  *
- * The LATTRs (line attributes) conflict with no others and only have one
- * value per line. But on area clears the LATTR cells are set to the erase_char
- * (or DEFAULT_ATTR + 'E')
+ * The LATTRs (line attributes) are an entirely disjoint space of
+ * flags.
  *
  * ATTR_INVALID is an illegal colour combination.
  */
@@ -53,7 +52,7 @@ typedef struct terminal_tag Terminal;
 #define LATTR_WRAPPED 0x10000000UL
 #define LATTR_WRAPPED2 0x20000000UL
 
-#define ATTR_INVALID 0x00FF0000UL
+#define ATTR_INVALID 0x03FF0000UL
 
 /* Like Linux use the F000 page for direct to font. */
 #define ATTR_OEMCP   0x0000F000UL      /* OEM Codepage DTF */
@@ -92,7 +91,7 @@ typedef struct terminal_tag Terminal;
 #define ATTR_FGSHIFT 16
 #define ATTR_BGSHIFT 21
 
-#define ATTR_DEFAULT 0x01280000UL
+#define ATTR_DEFAULT 0x01280000UL      /* bg 9, fg 8 */
 #define ATTR_DEFFG   0x00080000UL
 #define ATTR_DEFBG   0x01200000UL
 #define ERASE_CHAR   (ATTR_DEFAULT | ATTR_ASCII | ' ')
