@@ -324,6 +324,9 @@ int ssh1_read_bignum(unsigned char *data, Bignum *result) {
     b = (w+7)/8;                       /* bits -> bytes */
     w = (w+15)/16;		       /* bits -> words */
 
+    if (!result)                       /* just return length */
+        return b + 2;
+
     bn = newbn(w);
 
     for (i=1; i<=w; i++)

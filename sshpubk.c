@@ -1,17 +1,17 @@
 /*
- * Read SSH public keys from files.
- *
- * First implementation: only supports unencrypted SSH 1.1 format
- * RSA keys. Encryption, and SSH 2 DSS keys, to be supported later.
+ * Generic SSH public-key handling operations. In particular,
+ * reading of SSH public-key files, and also the generic `sign'
+ * operation for ssh2 (which checks the type of the key and
+ * dispatches to the appropriate key-type specific function).
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
-#include <stdio.h> /* FIXME */
 #include <stdarg.h> /* FIXME */
 #include <windows.h> /* FIXME */
-#include "putty.h" /* FIXME */
 
+#include "putty.h"
 #include "ssh.h"
 
 #define GET_32BIT(cp) \
@@ -21,33 +21,40 @@
     ((unsigned long)(unsigned char)(cp)[3]))
 
 #define rsa_signature "SSH PRIVATE KEY FILE FORMAT 1.1\n"
+#define dss_signature "-----BEGIN DSA PRIVATE KEY-----\n"
 
-int loadrsakey(char *filename, struct RSAKey *key, char *passphrase) {
-    FILE *fp;
+#define BASE64_TOINT(x) ( (x)-'A'<26 ? (x)-'A'+0 :\
+                          (x)-'a'<26 ? (x)-'a'+26 :\
+                          (x)-'0'<10 ? (x)-'0'+52 :\
+                          (x)=='+' ? 62 : \
+                          (x)=='/' ? 63 : 0 )
+
+static int loadrsakey_main(FILE *fp, struct RSAKey *key,
+                           char **commentptr, char *passphrase) {
     unsigned char buf[16384];
     unsigned char keybuf[16];
     int len;
     int i, j, ciphertype;
     int ret = 0;
     struct MD5Context md5c;
+    char *comment;
 
-    fp = fopen(filename, "rb");
-    if (!fp)
-        goto end;
-
-    /* Slurp the whole file into a buffer. */
+    /* Slurp the whole file (minus the header) into a buffer. */
     len = fread(buf, 1, sizeof(buf), fp);
     fclose(fp);
     if (len < 0 || len == sizeof(buf))
         goto end;                      /* file too big or not read */
 
-    if (len < sizeof(rsa_signature) ||
-        memcmp(buf, rsa_signature, sizeof(rsa_signature)) != 0)
-        goto end;                      /* failure to have sig at front */
+    i = 0;
 
-    i = sizeof(rsa_signature);
+    /*
+     * A zero byte. (The signature includes a terminating NUL.)
+     */
+    if (len-i < 1 || buf[i] != 0)
+        goto end;
+    i++;
 
-    /* Next, one byte giving encryption type, and one reserved uint32. */
+    /* One byte giving encryption type, and one reserved uint32. */
     if (len-i < 1)
         goto end;
     ciphertype = buf[i];
@@ -69,12 +76,19 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase) {
     j = GET_32BIT(buf+i);
     i += 4;
     if (len-i < j) goto end;
-    key->comment = malloc(j+1);
-    if (key->comment) {
-        memcpy(key->comment, buf+i, j);
-        key->comment[j] = '\0';
+    comment = malloc(j+1);
+    if (comment) {
+        memcpy(comment, buf+i, j);
+        comment[j] = '\0';
     }
     i += j;
+    if (commentptr)
+        *commentptr = comment;
+    if (key)
+        key->comment = comment;
+    if (!key) {
+        return ciphertype != 0;
+    }
 
     /*
      * Decrypt remainder of buffer.
@@ -108,24 +122,49 @@ int loadrsakey(char *filename, struct RSAKey *key, char *passphrase) {
     return ret;
 }
 
-/*
- * See whether an RSA key is encrypted.
- */
-int rsakey_encrypted(char *filename) {
+int loadrsakey(char *filename, struct RSAKey *key, char *passphrase) {
     FILE *fp;
-    unsigned char buf[1+sizeof(rsa_signature)];
-    int len;
+    unsigned char buf[64];
 
     fp = fopen(filename, "rb");
     if (!fp)
         return 0;                      /* doesn't even exist */
 
-    /* Slurp the whole file into a buffer. */
-    len = fread(buf, 1, sizeof(buf), fp);
+    /*
+     * Read the first line of the file and see if it's a v1 private
+     * key file.
+     */
+    if (fgets(buf, sizeof(buf), fp) &&
+        !strcmp(buf, rsa_signature)) {
+        return loadrsakey_main(fp, key, NULL, passphrase);
+    }
+
+    /*
+     * Otherwise, we have nothing. Return empty-handed.
+     */
     fclose(fp);
-    if (len < sizeof(buf))
-        return 0;                      /* not even valid */
-    if (buf[sizeof(buf)-1])
-        return 1;                      /* encrypted */
     return 0;
+}
+
+/*
+ * See whether an RSA key is encrypted. Return its comment field as
+ * well.
+ */
+int rsakey_encrypted(char *filename, char **comment) {
+    FILE *fp;
+    unsigned char buf[64];
+
+    fp = fopen(filename, "rb");
+    if (!fp)
+        return 0;                      /* doesn't even exist */
+
+    /*
+     * Read the first line of the file and see if it's a v1 private
+     * key file.
+     */
+    if (fgets(buf, sizeof(buf), fp) &&
+        !strcmp(buf, rsa_signature)) {
+        return loadrsakey_main(fp, NULL, comment, NULL);
+    }
+    return 0;                          /* wasn't the right kind of file */
 }

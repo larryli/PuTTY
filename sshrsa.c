@@ -43,9 +43,12 @@ int makekey(unsigned char *data, struct RSAKey *result,
     unsigned char *p = data;
     int i;
 
-    result->bits = 0;
-    for (i=0; i<4; i++)
-	result->bits = (result->bits << 8) + *p++;
+    if (result) {
+        result->bits = 0;
+        for (i=0; i<4; i++)
+            result->bits = (result->bits << 8) + *p++;
+    } else
+        p += 4;
 
     /*
      * order=0 means exponent then modulus (the keys sent by the
@@ -54,12 +57,13 @@ int makekey(unsigned char *data, struct RSAKey *result,
      */
 
     if (order == 0)
-        p += ssh1_read_bignum(p, &result->exponent);
-    result->bytes = (((p[0] << 8) + p[1]) + 7) / 8;
+        p += ssh1_read_bignum(p, result ? &result->exponent : NULL);
+    if (result)
+        result->bytes = (((p[0] << 8) + p[1]) + 7) / 8;
     if (keystr) *keystr = p+2;
-    p += ssh1_read_bignum(p, &result->modulus);
+    p += ssh1_read_bignum(p, result ? &result->modulus : NULL);
     if (order == 1)
-        p += ssh1_read_bignum(p, &result->exponent);
+        p += ssh1_read_bignum(p, result ? &result->exponent : NULL);
 
     return p - data;
 }

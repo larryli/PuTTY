@@ -127,7 +127,8 @@ void add_keyfile(char *filename) {
     int ret;
     int attempts;
 
-    needs_pass = rsakey_encrypted(filename);
+    /* FIXME: we can acquire comment here and use it in dialog */
+    needs_pass = rsakey_encrypted(filename, NULL);
     attempts = 0;
     key = malloc(sizeof(*key));
     do {

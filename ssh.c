@@ -1273,6 +1273,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
     while (pktin.type == SSH1_SMSG_FAILURE) {
 	static char password[100];
+	static char prompt[200];
 	static int pos;
 	static char c;
         static int pwpkt_type;
@@ -1385,10 +1386,71 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
         if (*cfg.keyfile && !tried_publickey)
             pwpkt_type = SSH1_CMSG_AUTH_RSA;
 
-	if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD &&
-            !(flags & FLAG_INTERACTIVE)) {
-	    char prompt[200];
-	    sprintf(prompt, "%s@%s's password: ", cfg.username, savedhost);
+        if (pktin.type == SSH1_SMSG_FAILURE &&
+            cfg.try_tis_auth &&
+            (supported_auths_mask & (1<<SSH1_AUTH_TIS))) {
+            pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
+            logevent("Requested TIS authentication");
+            send_packet(SSH1_CMSG_AUTH_TIS, PKT_END);
+            crWaitUntil(ispkt);
+            if (pktin.type != SSH1_SMSG_AUTH_TIS_CHALLENGE) {
+                logevent("TIS authentication declined");
+                if (flags & FLAG_INTERACTIVE)
+                    c_write("TIS authentication refused.\r\n", 29);
+            } else {
+                int challengelen = ((pktin.body[0] << 24) |
+                                    (pktin.body[1] << 16) |
+                                    (pktin.body[2] << 8) |
+                                    (pktin.body[3]));
+                logevent("Received TIS challenge");
+                if (challengelen > sizeof(prompt)-1)
+                    challengelen = sizeof(prompt)-1;   /* prevent overrun */
+                memcpy(prompt, pktin.body+4, challengelen);
+                prompt[challengelen] = '\0';
+            }
+        }
+        if (pktin.type == SSH1_SMSG_FAILURE &&
+            cfg.try_tis_auth &&
+            (supported_auths_mask & (1<<SSH1_AUTH_CCARD))) {
+            pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
+            logevent("Requested CryptoCard authentication");
+            send_packet(SSH1_CMSG_AUTH_CCARD, PKT_END);
+            crWaitUntil(ispkt);
+            if (pktin.type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
+                logevent("CryptoCard authentication declined");
+                c_write("CryptoCard authentication refused.\r\n", 29);
+            } else {
+                int challengelen = ((pktin.body[0] << 24) |
+                                    (pktin.body[1] << 16) |
+                                    (pktin.body[2] << 8) |
+                                    (pktin.body[3]));
+                logevent("Received CryptoCard challenge");
+                if (challengelen > sizeof(prompt)-1)
+                    challengelen = sizeof(prompt)-1;   /* prevent overrun */
+                memcpy(prompt, pktin.body+4, challengelen);
+                strncpy(prompt + challengelen, "\r\nResponse : ",
+                        sizeof(prompt)-challengelen);
+                prompt[sizeof(prompt)-1] = '\0';
+            }
+        }
+        if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD) {
+            sprintf(prompt, "%.90s@%.90s's password: ",
+                    cfg.username, savedhost);
+        }
+        if (pwpkt_type == SSH1_CMSG_AUTH_RSA) {
+            char *comment = NULL;
+            if (flags & FLAG_VERBOSE)
+                c_write("Trying public key authentication.\r\n", 35);
+            if (!rsakey_encrypted(cfg.keyfile, &comment)) {
+                if (flags & FLAG_VERBOSE)
+                    c_write("No passphrase required.\r\n", 25);
+                goto tryauth;
+            }
+            sprintf(prompt, "Passphrase for key \"%.100s\": ", comment);
+            free(comment);
+        }
+
+	if (!(flags & FLAG_INTERACTIVE)) {
 	    if (!ssh_get_password(prompt, password, sizeof(password))) {
                 /*
                  * get_password failed to get a password (for
@@ -1401,59 +1463,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                 crReturn(1);
             }
 	} else {
-
-            if (pktin.type == SSH1_SMSG_FAILURE &&
-                cfg.try_tis_auth &&
-                (supported_auths_mask & (1<<SSH1_AUTH_TIS))) {
-                pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
-                logevent("Requested TIS authentication");
-                send_packet(SSH1_CMSG_AUTH_TIS, PKT_END);
-                crWaitUntil(ispkt);
-                if (pktin.type != SSH1_SMSG_AUTH_TIS_CHALLENGE) {
-                    logevent("TIS authentication declined");
-                    c_write("TIS authentication refused.\r\n", 29);
-                } else {
-                    int challengelen = ((pktin.body[0] << 24) |
-                                        (pktin.body[1] << 16) |
-                                        (pktin.body[2] << 8) |
-                                        (pktin.body[3]));
-                    logevent("Received TIS challenge");
-                    c_write(pktin.body+4, challengelen);
-                }
-            }
-            if (pktin.type == SSH1_SMSG_FAILURE &&
-                cfg.try_tis_auth &&
-                (supported_auths_mask & (1<<SSH1_AUTH_CCARD))) {
-                pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
-                logevent("Requested CryptoCard authentication");
-                send_packet(SSH1_CMSG_AUTH_CCARD, PKT_END);
-                crWaitUntil(ispkt);
-                if (pktin.type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
-                    logevent("CryptoCard authentication declined");
-                    c_write("CryptoCard authentication refused.\r\n", 29);
-                } else {
-                    int challengelen = ((pktin.body[0] << 24) |
-                                        (pktin.body[1] << 16) |
-                                        (pktin.body[2] << 8) |
-                                        (pktin.body[3]));
-                    logevent("Received CryptoCard challenge");
-                    c_write(pktin.body+4, challengelen);
-                    c_write("\r\nResponse : ", 13);
-                }
-            }
-            if (pwpkt_type == SSH1_CMSG_AUTH_PASSWORD)
-                c_write("password: ", 10);
-            if (pwpkt_type == SSH1_CMSG_AUTH_RSA) {
-                if (flags & FLAG_VERBOSE)
-                    c_write("Trying public key authentication.\r\n", 35);
-                if (!rsakey_encrypted(cfg.keyfile)) {
-                    if (flags & FLAG_VERBOSE)
-                        c_write("No passphrase required.\r\n", 25);
-                    goto tryauth;
-                }
-                c_write("passphrase: ", 12);
-            }
-
+            c_write(prompt, strlen(prompt));
             pos = 0;
             ssh_send_ok = 1;
             while (pos >= 0) {
@@ -1482,8 +1492,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
                 }
             }
             c_write("\r\n", 2);
-
-	}
+        }
 
         tryauth:
 	if (pwpkt_type == SSH1_CMSG_AUTH_RSA) {
@@ -1518,8 +1527,7 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
 
             crWaitUntil(ispkt);
             if (pktin.type == SSH1_SMSG_FAILURE) {
-                if (flags & FLAG_VERBOSE)
-                    c_write("Server refused our public key.\r\n", 32);
+                c_write("Server refused our public key.\r\n", 32);
                 continue;              /* go and try password */
             }
             if (pktin.type != SSH1_SMSG_AUTH_RSA_CHALLENGE) {

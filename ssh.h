@@ -156,7 +156,7 @@ Bignum dh_create_e(void);
 Bignum dh_find_K(Bignum f);
 
 int loadrsakey(char *filename, struct RSAKey *key, char *passphrase);
-int rsakey_encrypted(char *filename);
+int rsakey_encrypted(char *filename, char **comment);
 
 void des3_decrypt_pubkey(unsigned char *key,
                          unsigned char *blk, int len);
