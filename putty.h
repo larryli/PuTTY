@@ -163,6 +163,8 @@ GLOBAL Config cfg;
 GLOBAL int default_protocol;
 GLOBAL int default_port;
 
+struct RSAKey;			       /* be a little careful of scope */
+
 /*
  * Exports from window.c.
  */
