@@ -1133,6 +1133,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     static int just_reconfigged = FALSE;
     static int resizing = FALSE;
     static int need_backend_resize = FALSE;
+    static int defered_resize = FALSE;
 
     switch (message) {
       case WM_TIMER:
@@ -1251,8 +1252,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		strcpy(oldlogfile, cfg.logfilename);
 		oldlogtype = cfg.logtype;
-		cfg.width = cols;
-		cfg.height = rows;
 		old_fwidth = font_width;
 		old_fheight = font_height;
 		GetWindowText(hwnd, cfg.wintitle, sizeof(cfg.wintitle));
@@ -1343,6 +1342,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			    wr.right - wr.left - cr.right + cr.left;
 			extra_height =
 			    wr.bottom - wr.top - cr.bottom + cr.top;
+			need_setwpos = TRUE;
 		    }
 		}
 
@@ -1353,16 +1353,41 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    cfg.savelines != savelines ||
 		    cfg.sunken_edge != prev_sunken_edge)
 			need_setwpos = TRUE;
-		term_size(cfg.height, cfg.width, cfg.savelines);
-		InvalidateRect(hwnd, NULL, TRUE);
-		if (need_setwpos) {
-		    force_normal(hwnd);
-		    SetWindowPos(hwnd, NULL, 0, 0,
-				 extra_width + font_width * cfg.width,
-				 extra_height + font_height * cfg.height,
-				 SWP_NOACTIVATE | SWP_NOCOPYBITS |
-				 SWP_NOMOVE | SWP_NOZORDER);
+
+		if (IsZoomed(hwnd)) {
+		    int w, h;
+		    RECT cr;
+		    if (need_setwpos)
+			defered_resize = TRUE;
+
+		    GetClientRect(hwnd, &cr);
+		    w = cr.right - cr.left;
+		    h = cr.bottom - cr.top;
+		    w = w / font_width;
+		    if (w < 1)
+			w = 1;
+		    h = h / font_height;
+		    if (h < 1)
+			h = 1;
+
+		    term_size(h, w, cfg.savelines);
+		    InvalidateRect(hwnd, NULL, TRUE);
+		    back->size();
+		} else {
+		    term_size(cfg.height, cfg.width, cfg.savelines);
+		    InvalidateRect(hwnd, NULL, TRUE);
+		    if (need_setwpos) {
+			SetWindowPos(hwnd, NULL, 0, 0,
+				     extra_width + font_width * cfg.width,
+				     extra_height +
+				     font_height * cfg.height,
+				     SWP_NOACTIVATE | SWP_NOCOPYBITS |
+				     SWP_NOMOVE | SWP_NOZORDER);
+		    }
 		}
+		/* Oops */
+		if (cfg.locksize && IsZoomed(hwnd))
+		    force_normal(hwnd);
 		set_title(cfg.wintitle);
 		if (IsIconic(hwnd)) {
 		    SetWindowText(hwnd,
@@ -1693,10 +1718,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 */
 		if (!resizing)
 		    back->size();
-		else
+		else {
 		    need_backend_resize = TRUE;
+		    cfg.height = h;
+		    cfg.width = w;
+		}
 		just_reconfigged = FALSE;
 	    }
+	}
+	if (wParam == SIZE_RESTORED && defered_resize) {
+	    defered_resize = FALSE;
+	    SetWindowPos(hwnd, NULL, 0, 0,
+			 extra_width + font_width * cfg.width,
+			 extra_height + font_height * cfg.height,
+			 SWP_NOACTIVATE | SWP_NOCOPYBITS |
+			 SWP_NOMOVE | SWP_NOZORDER);
 	}
 	ignore_size = FALSE;
 	return 0;
