@@ -163,7 +163,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
 	wndclass.hInstance     = inst;
 	wndclass.hIcon         = LoadIcon (inst,
 					   MAKEINTRESOURCE(IDI_MAINICON));
-	wndclass.hCursor       = LoadCursor (NULL, IDC_ARROW);
+	wndclass.hCursor       = LoadCursor (NULL, IDC_IBEAM);
 	wndclass.hbrBackground = GetStockObject (BLACK_BRUSH);
 	wndclass.lpszMenuName  = NULL;
 	wndclass.lpszClassName = appname;
