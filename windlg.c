@@ -296,8 +296,6 @@ enum { IDCX_ABOUT =
     IDC_KPNORMAL,
     IDC_KPAPPLIC,
     IDC_KPNH,
-    IDC_NOAPPLICK,
-    IDC_NOAPPLICC,
     IDC_CURSTATIC,
     IDC_CURNORMAL,
     IDC_CURAPPLIC,
@@ -325,6 +323,18 @@ enum { IDCX_ABOUT =
     IDC_EDITYES,
     IDC_EDITNO,
     terminalpanelend,
+
+    featurespanelstart,
+    IDC_TITLE_FEATURES,
+    IDC_BOX_FEATURES1,
+    IDC_NOAPPLICK,
+    IDC_NOAPPLICC,
+    IDC_NORESIZE,
+    IDC_NOALTSCREEN,
+    IDC_NOWINTITLE,
+    IDC_NODBACKSPACE,
+    IDC_NOCHARSET,
+    featurespanelend,
 
     bellpanelstart,
     IDC_TITLE_BELL,
@@ -662,9 +672,7 @@ char *help_context_cmd(int id)
       case IDC_KPSTATIC:
       case IDC_KPNORMAL:
       case IDC_KPAPPLIC:
-      case IDC_NOAPPLICK:
         return "JI(`',`keyboard.appkeypad')";
-      case IDC_NOAPPLICC:
       case IDC_CURSTATIC:
       case IDC_CURNORMAL:
       case IDC_CURAPPLIC:
@@ -675,6 +683,20 @@ char *help_context_cmd(int id)
         return "JI(`',`keyboard.compose')";
       case IDC_CTRLALTKEYS:
         return "JI(`',`keyboard.ctrlalt')";
+
+      case IDC_NOAPPLICK:
+      case IDC_NOAPPLICC:
+        return "JI(`',`features.application')";
+      case IDC_NORESIZE:
+        return "JI(`',`features.resize')";
+      case IDC_NOALTSCREEN:
+        return "JI(`',`features.altscreen')";
+      case IDC_NOWINTITLE:
+        return "JI(`',`features.retitle')";
+      case IDC_NODBACKSPACE:
+        return "JI(`',`features.dbackspace')";
+      case IDC_NOCHARSET:
+        return "JI(`',`features.charset')";
 
       case IDC_WRAPMODE:
         return "JI(`',`terminal.autowrap')";
@@ -967,6 +989,11 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
 		     cfg.funky_type == 5 ? IDC_FUNCSCO : IDC_FUNCTILDE);
     CheckDlgButton(hwnd, IDC_NOAPPLICC, cfg.no_applic_c);
     CheckDlgButton(hwnd, IDC_NOAPPLICK, cfg.no_applic_k);
+    CheckDlgButton(hwnd, IDC_NORESIZE, cfg.no_remote_resize);
+    CheckDlgButton(hwnd, IDC_NOALTSCREEN, cfg.no_alt_screen);
+    CheckDlgButton(hwnd, IDC_NOWINTITLE, cfg.no_remote_wintitle);
+    CheckDlgButton(hwnd, IDC_NODBACKSPACE, cfg.no_dbackspace);
+    CheckDlgButton(hwnd, IDC_NOCHARSET, cfg.no_remote_charset);
     CheckRadioButton(hwnd, IDC_CURNORMAL, IDC_CURAPPLIC,
 		     cfg.app_cursor ? IDC_CURAPPLIC : IDC_CURNORMAL);
     CheckRadioButton(hwnd, IDC_KPNORMAL, IDC_KPNH,
@@ -1325,6 +1352,28 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	endbox(&cp);
     }
 
+    if (panel == featurespanelstart) {
+	/* The Features panel. Accelerators used: [acgoh] uksvatbr */
+	struct ctlpos cp;
+	ctlposinit(&cp, hwnd, 80, 3, 13);
+	bartitle(&cp, "Enabling and disabling advanced terminal features ",
+		 IDC_TITLE_FEATURES);
+	beginbox(&cp, NULL, IDC_BOX_FEATURES1);
+	checkbox(&cp, "Disable application c&ursor keys mode", IDC_NOAPPLICC);
+	checkbox(&cp, "Disable application &keypad mode", IDC_NOAPPLICK);
+	checkbox(&cp, "Disable remote-controlled terminal re&sizing",
+		 IDC_NORESIZE);
+	checkbox(&cp, "Disable switching to &alternate terminal screen",
+		 IDC_NOALTSCREEN);
+	checkbox(&cp, "Disable remote-controlled window &title changing",
+		 IDC_NOWINTITLE);
+	checkbox(&cp, "Disable destructive &backspace on server sending ^?",
+		 IDC_NODBACKSPACE);
+	checkbox(&cp, "Disable remote-controlled cha&racter set configuration",
+		 IDC_NOCHARSET);
+	endbox(&cp);
+    }
+
     if (panel == bellpanelstart) {
 	/* The Bell panel. Accelerators used: [acgoh] bdsm wit */
 	struct ctlpos cp;
@@ -1382,15 +1431,9 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		  "VT100+", IDC_FUNCVT100P, "SCO", IDC_FUNCSCO, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Application keypad settings:", IDC_BOX_KEYBOARD2);
-	checkbox(&cp,
-		 "Application c&ursor keys totally disabled",
-		 IDC_NOAPPLICC);
 	radioline(&cp, "Initial state of cu&rsor keys:", IDC_CURSTATIC, 2,
 		  "Normal", IDC_CURNORMAL,
 		  "Application", IDC_CURAPPLIC, NULL);
-	checkbox(&cp,
-		 "Application ke&ypad keys totally disabled",
-		 IDC_NOAPPLICK);
 	radioline(&cp, "Initial state of &numeric keypad:", IDC_KPSTATIC,
 		  3, "Normal", IDC_KPNORMAL, "Application", IDC_KPAPPLIC,
 		  "NetHack", IDC_KPNH, NULL);
@@ -1869,6 +1912,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	treeview_insert(&tvfaff, 0, "Terminal");
 	treeview_insert(&tvfaff, 1, "Keyboard");
 	treeview_insert(&tvfaff, 1, "Bell");
+	treeview_insert(&tvfaff, 1, "Features");
 	treeview_insert(&tvfaff, 0, "Window");
 	treeview_insert(&tvfaff, 1, "Appearance");
 	treeview_insert(&tvfaff, 1, "Behaviour");
@@ -1948,6 +1992,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, terminalpanelstart);
 	    if (!strcmp(buffer, "Bell"))
 		create_controls(hwnd, dlgtype, bellpanelstart);
+	    if (!strcmp(buffer, "Features"))
+		create_controls(hwnd, dlgtype, featurespanelstart);
 	    if (!strcmp(buffer, "Window"))
 		create_controls(hwnd, dlgtype, windowpanelstart);
 	    if (!strcmp(buffer, "Appearance"))
@@ -2268,6 +2314,36 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
 			cfg.no_applic_k =
 			IsDlgButtonChecked(hwnd, IDC_NOAPPLICK);
+		break;
+	      case IDC_NORESIZE:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		        cfg.no_remote_resize =
+		        IsDlgButtonChecked(hwnd, IDC_NORESIZE);
+		break;
+	      case IDC_NOALTSCREEN:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		        cfg.no_alt_screen =
+		        IsDlgButtonChecked(hwnd, IDC_NOALTSCREEN);
+		break;
+	      case IDC_NOWINTITLE:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		        cfg.no_remote_wintitle =
+		        IsDlgButtonChecked(hwnd, IDC_NOWINTITLE);
+		break;
+	      case IDC_NODBACKSPACE:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		        cfg.no_dbackspace =
+		        IsDlgButtonChecked(hwnd, IDC_NODBACKSPACE);
+		break;
+	      case IDC_NOCHARSET:
+		if (HIWORD(wParam) == BN_CLICKED ||
+		    HIWORD(wParam) == BN_DOUBLECLICKED)
+		        cfg.no_remote_charset =
+		        IsDlgButtonChecked(hwnd, IDC_NOCHARSET);
 		break;
 	      case IDC_ALTF4:
 		if (HIWORD(wParam) == BN_CLICKED ||

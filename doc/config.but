@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.26 2002/02/24 15:25:19 simon Exp $
+\versionid $Id: config.but,v 1.27 2002/03/06 23:04:20 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -469,8 +469,11 @@ they send \c{ESC OA} through to \c{ESC OD}.
 
 Application Cursor Keys mode can be turned on and off by the server,
 depending on the application. PuTTY allows you to configure the
-initial state, and also allows you to disable application mode
-completely.
+initial state.
+
+You can also disable application cursor keys mode completely, using
+the \q{Features} configuration panel; see
+\k{config-features-application}.
 
 \S{config-appkeypad} Controlling Application Keypad mode
 
@@ -494,8 +497,11 @@ function key. This is unavoidable.
 
 Application keypad mode can be turned on and off by the server,
 depending on the application. PuTTY allows you to configure the
-initial state, and also allows you to disable application mode
-completely.
+initial state.
+
+You can also disable application keypad mode completely, using the
+\q{Features} configuration panel; see
+\k{config-features-application}.
 
 \S{config-nethack} Using NetHack keypad mode
 
@@ -640,6 +646,86 @@ with the settings, you can configure the details: how many bells
 constitute an overload, how short a time period they have to arrive
 in to do so, and how much silent time is required before the
 overload feature will deactivate itself.
+
+\H{config-features} The Features panel
+
+PuTTY's terminal emulation is very highly featured, and can do a lot
+of things under remote server control. Some of these features can
+cause problems due to buggy or strangely configured server
+applications.
+
+The Features configuration panel allows you to disable some of
+PuTTY's more advanced terminal features, in case they cause trouble.
+
+\S{config-features-application} Disabling application keypad and cursor keys
+
+\cfg{winhelp-topic}{features.application}
+
+Application keypad mode (see \k{config-appkeypad}) and application
+cursor keys mode (see \k{config-appcursor}) alter the behaviour of
+the keypad and cursor keys. Some applications enable these modes but
+then do not deal correctly with the modified keys. You can force
+these modes to be permanently disabled no matter what the server
+tries to do.
+
+\S{config-features-resize} Disabling remote terminal resizing
+
+\cfg{winhelp-topic}{features.resize}
+
+PuTTY has the ability to change the terminal's size and position in
+response to commands from the server. If you find PuTTY is doing
+this unexpectedly or inconveniently, you can tell PuTTY not to
+respond to those server commands.
+
+\S{config-features-altscreen} Disabling switching to the alternate screen
+
+\cfg{winhelp-topic}{features.altscreen}
+
+Many terminals, including PuTTY, support an \q{alternate screen}.
+This is the same size as the ordinary terminal screen, but separate.
+Typically a screen-based program such as a text editor might switch
+the terminal to the alternate screen before starting up. Then at the
+end of the run, it switches back to the primary screen, and you see
+the screen contents just as they were before starting the editor.
+
+Some people prefer this not to happen. If you want your editor to
+run in the same screen as the rest of your terminal activity, you
+can disable the alternate screen feature completely.
+
+\S{config-features-retitle} Disabling remote window title changing
+
+\cfg{winhelp-topic}{features.retitle}
+
+PuTTY has the ability to change the window title in response to
+commands from the server. If you find PuTTY is doing this
+unexpectedly or inconveniently, you can tell PuTTY not to respond to
+those server commands.
+
+\S{config-features-dbackspace} Disabling destructive backspace
+
+\cfg{winhelp-topic}{features.dbackspace}
+
+Normally, when PuTTY receives character 127 (^?) from the server, it
+will perform a \q{destructive backspace}: move the cursor one space
+left and delete the character under it. This can apparently cause
+problems in some applications, so PuTTY provides the ability to
+configure character 127 to perform a normal backspace (without
+deleting a character) instead.
+
+\S{config-features-charset} Disabling remote character set
+configuration
+
+\cfg{winhelp-topic}{features.charset}
+
+PuTTY has the ability to change its character set configuration in
+response to commands from the server. Some programs send these
+commands unexpectedly or inconveniently. In particular, BitchX (an
+IRC client) seems to have a habit of reconfiguring the character set
+to something other than the user intended.
+
+If you find that accented characters are not showing up the way you
+expect them to, particularly if you're running BitchX, you could try
+disabling the remote character set configuration commands.
 
 \H{config-window} The Window panel
 

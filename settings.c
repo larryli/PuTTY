@@ -189,6 +189,11 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "LinuxFunctionKeys", cfg->funky_type);
     write_setting_i(sesskey, "NoApplicationKeys", cfg->no_applic_k);
     write_setting_i(sesskey, "NoApplicationCursors", cfg->no_applic_c);
+    write_setting_i(sesskey, "NoRemoteResize", cfg->no_remote_resize);
+    write_setting_i(sesskey, "NoAltScreen", cfg->no_alt_screen);
+    write_setting_i(sesskey, "NoRemoteWinTitle", cfg->no_remote_wintitle);
+    write_setting_i(sesskey, "NoDBackspace", cfg->no_dbackspace);
+    write_setting_i(sesskey, "NoRemoteCharset", cfg->no_remote_charset);
     write_setting_i(sesskey, "ApplicationCursorKeys", cfg->app_cursor);
     write_setting_i(sesskey, "ApplicationKeypad", cfg->app_keypad);
     write_setting_i(sesskey, "NetHackKeypad", cfg->nethack_keypad);
@@ -380,6 +385,11 @@ void load_settings(char *section, int do_host, Config * cfg)
     gppi(sesskey, "LinuxFunctionKeys", 0, &cfg->funky_type);
     gppi(sesskey, "NoApplicationKeys", 0, &cfg->no_applic_k);
     gppi(sesskey, "NoApplicationCursors", 0, &cfg->no_applic_c);
+    gppi(sesskey, "NoRemoteResize", 0, &cfg->no_remote_resize);
+    gppi(sesskey, "NoAltScreen", 0, &cfg->no_alt_screen);
+    gppi(sesskey, "NoRemoteWinTitle", 0, &cfg->no_remote_wintitle);
+    gppi(sesskey, "NoDBackspace", 0, &cfg->no_dbackspace);
+    gppi(sesskey, "NoRemoteCharset", 0, &cfg->no_remote_charset);
     gppi(sesskey, "ApplicationCursorKeys", 0, &cfg->app_cursor);
     gppi(sesskey, "ApplicationKeypad", 0, &cfg->app_keypad);
     gppi(sesskey, "NetHackKeypad", 0, &cfg->nethack_keypad);

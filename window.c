@@ -1684,6 +1684,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		cfgtopalette();
 		init_palette();
 
+		/* Give terminal a heads-up on miscellaneous stuff */
+		term_reconfig();
+
 		/* Screen size changed ? */
 		if (cfg.height != prev_cfg.height ||
 		    cfg.width != prev_cfg.width ||

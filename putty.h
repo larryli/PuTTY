@@ -277,6 +277,11 @@ typedef struct {
     int funky_type;
     int no_applic_c;		       /* totally disable app cursor keys */
     int no_applic_k;		       /* totally disable app keypad */
+    int no_remote_resize;	       /* disable remote resizing */
+    int no_alt_screen;		       /* disable alternate screen */
+    int no_remote_wintitle;	       /* disable remote retitling */
+    int no_dbackspace;		       /* disable destructive backspace */
+    int no_remote_charset;	       /* disable remote charset config */
     int app_cursor;
     int app_keypad;
     int nethack_keypad;
@@ -490,6 +495,7 @@ int from_backend(int is_stderr, char *data, int len);
 void logfopen(void);
 void logfclose(void);
 void term_copyall(void);
+void term_reconfig(void);
 
 /*
  * Exports from logging.c.

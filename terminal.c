@@ -351,6 +351,21 @@ void term_pwron(void)
 }
 
 /*
+ * When the user reconfigures us, we need to check the forbidden-
+ * alternate-screen config option.
+ */
+void term_reconfig(void)
+{
+    if (cfg.no_alt_screen)
+	swap_screen(0);
+    if (cfg.no_remote_charset) {
+	cset_attr[0] = cset_attr[1] = ATTR_ASCII;
+	sco_acs = alt_sco_acs = 0;
+	utf = 0;
+    }
+}
+
+/*
  * Clear the scrollback.
  */
 void term_clrsb(void)
@@ -877,7 +892,8 @@ static void toggle_mode(int mode, int query, int state)
 	    break;
 	  case 3:		       /* 80/132 columns */
 	    deselect();
-	    request_resize(state ? 132 : 80, rows);
+	    if (!cfg.no_remote_resize)
+		request_resize(state ? 132 : 80, rows);
 	    reset_132 = state;
 	    break;
 	  case 5:		       /* reverse video */
@@ -929,7 +945,7 @@ static void toggle_mode(int mode, int query, int state)
 	  case 47:		       /* alternate screen */
 	    compatibility(OTHER);
 	    deselect();
-	    swap_screen(state);
+	    swap_screen(cfg.no_alt_screen ? 0 : state);
 	    disptop = 0;
 	    break;
 	  case 1000:		       /* xterm mouse 1 */
@@ -972,13 +988,15 @@ static void do_osc(void)
 	switch (esc_args[0]) {
 	  case 0:
 	  case 1:
-	    set_icon(osc_string);
+	    if (!cfg.no_remote_wintitle)
+		set_icon(osc_string);
 	    if (esc_args[0] == 1)
 		break;
 	    /* fall through: parameter 0 means set both */
 	  case 2:
 	  case 21:
-	    set_title(osc_string);
+	    if (!cfg.no_remote_wintitle)
+		set_title(osc_string);
 	    break;
 	}
     }
@@ -1172,7 +1190,8 @@ void term_out(void)
 		curs.x--;
 	    wrapnext = FALSE;
 	    fix_cpos;
-	    *cpos = (' ' | curr_attr | ATTR_ASCII);
+	    if (!cfg.no_dbackspace)    /* destructive bksp might be disabled */
+		*cpos = (' ' | curr_attr | ATTR_ASCII);
 	} else
 	    /* Or normal C0 controls. */
 	if ((c & -32) == 0 && termstate < DO_CTRLS) {
@@ -1517,7 +1536,8 @@ void term_out(void)
 		    compatibility(VT100);
 		    power_on();
 		    if (reset_132) {
-			request_resize(80, rows);
+			if (!cfg.no_remote_resize)
+			    request_resize(80, rows);
 			reset_132 = 0;
 		    }
 		    fix_cpos;
@@ -1581,46 +1601,56 @@ void term_out(void)
 
 		  case ANSI('A', '('):
 		    compatibility(VT100);
-		    cset_attr[0] = ATTR_GBCHR;
+		    if (!cfg.no_remote_charset)
+			cset_attr[0] = ATTR_GBCHR;
 		    break;
 		  case ANSI('B', '('):
 		    compatibility(VT100);
-		    cset_attr[0] = ATTR_ASCII;
+		    if (!cfg.no_remote_charset)
+			cset_attr[0] = ATTR_ASCII;
 		    break;
 		  case ANSI('0', '('):
 		    compatibility(VT100);
-		    cset_attr[0] = ATTR_LINEDRW;
+		    if (!cfg.no_remote_charset)
+			cset_attr[0] = ATTR_LINEDRW;
 		    break;
 		  case ANSI('U', '('): 
 		    compatibility(OTHER);
-		    cset_attr[0] = ATTR_SCOACS; 
+		    if (!cfg.no_remote_charset)
+			cset_attr[0] = ATTR_SCOACS; 
 		    break;
 
 		  case ANSI('A', ')'):
 		    compatibility(VT100);
-		    cset_attr[1] = ATTR_GBCHR;
+		    if (!cfg.no_remote_charset)
+			cset_attr[1] = ATTR_GBCHR;
 		    break;
 		  case ANSI('B', ')'):
 		    compatibility(VT100);
-		    cset_attr[1] = ATTR_ASCII;
+		    if (!cfg.no_remote_charset)
+			cset_attr[1] = ATTR_ASCII;
 		    break;
 		  case ANSI('0', ')'):
 		    compatibility(VT100);
-		    cset_attr[1] = ATTR_LINEDRW;
+		    if (!cfg.no_remote_charset)
+			cset_attr[1] = ATTR_LINEDRW;
 		    break;
 		  case ANSI('U', ')'): 
 		    compatibility(OTHER);
-		    cset_attr[1] = ATTR_SCOACS; 
+		    if (!cfg.no_remote_charset)
+			cset_attr[1] = ATTR_SCOACS; 
 		    break;
 
 		  case ANSI('8', '%'):	/* Old Linux code */
 		  case ANSI('G', '%'):
 		    compatibility(OTHER);
-		    utf = 1;
+		    if (!cfg.no_remote_charset)
+			utf = 1;
 		    break;
 		  case ANSI('@', '%'):
 		    compatibility(OTHER);
-		    utf = 0;
+		    if (!cfg.no_remote_charset)
+			utf = 0;
 		    break;
 		}
 		break;
@@ -1880,12 +1910,15 @@ void term_out(void)
 				    break;
 				  case 10:      /* SCO acs off */
 				    compatibility(SCOANSI);
+				    if (cfg.no_remote_charset) break;
 				    sco_acs = 0; break;
 				  case 11:      /* SCO acs on */
 				    compatibility(SCOANSI);
+				    if (cfg.no_remote_charset) break;
 				    sco_acs = 1; break;
 				  case 12:      /* SCO acs on flipped */
 				    compatibility(SCOANSI);
+				    if (cfg.no_remote_charset) break;
 				    sco_acs = 2; break;
 				  case 22:	/* disable bold */
 				    compatibility2(OTHER, VT220);
@@ -1962,7 +1995,8 @@ void term_out(void)
 			if (esc_nargs <= 1
 			    && (esc_args[0] < 1 || esc_args[0] >= 24)) {
 			    compatibility(VT340TEXT);
-			    request_resize(cols, def(esc_args[0], 24));
+			    if (!cfg.no_remote_resize)
+				request_resize(cols, def(esc_args[0], 24));
 			    deselect();
 			} else if (esc_nargs >= 1 &&
 				   esc_args[0] >= 1 &&
@@ -2001,8 +2035,9 @@ void term_out(void)
 				break;
 			      case 8:
 				if (esc_nargs >= 3) {
-				    request_resize(def(esc_args[2], cfg.width),
-						   def(esc_args[1], cfg.height));
+				    if (!cfg.no_remote_resize)
+					request_resize(def(esc_args[2], cfg.width),
+						       def(esc_args[1], cfg.height));
 				}
 				break;
 			      case 9:
@@ -2084,7 +2119,8 @@ void term_out(void)
 			 */
 			compatibility(VT420);
 			if (esc_nargs == 1 && esc_args[0] > 0) {
-			    request_resize(cols, def(esc_args[0], cfg.height));
+			    if (!cfg.no_remote_resize)
+				request_resize(cols, def(esc_args[0], cfg.height));
 			    deselect();
 			}
 			break;
@@ -2095,7 +2131,8 @@ void term_out(void)
 			 */
 			compatibility(VT340TEXT);
 			if (esc_nargs <= 1) {
-			    request_resize(def(esc_args[0], cfg.width), rows);
+			    if (!cfg.no_remote_resize)
+				request_resize(def(esc_args[0], cfg.width), rows);
 			    deselect();
 			}
 			break;
@@ -2222,10 +2259,12 @@ void term_out(void)
 			 * Well we should do a soft reset at this point ...
 			 */
 			if (!has_compat(VT420) && has_compat(VT100)) {
-			    if (reset_132)
-				request_resize(132, 24);
-			    else
-				request_resize(80, 24);
+			    if (!cfg.no_remote_resize) {
+				if (reset_132)
+				    request_resize(132, 24);
+				else
+				    request_resize(80, 24);
+			    }
 			}
 #endif
 			break;
