@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.36 2004/10/19 13:54:50 jacob Exp $
+\versionid $Id: using.but,v 1.37 2004/10/24 16:48:43 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -204,10 +204,13 @@ sessions:
 \b Selecting \i{\q{New Session}} will start a completely new
 instance of PuTTY, and bring up the configuration box as normal.
 
-\b Selecting \i{\q{Duplicate Session}} will start a session with
-precisely the same options as your current one - connecting to the
-same host using the same protocol, with all the same terminal
-settings and everything.
+\b Selecting \i{\q{Duplicate Session}} will start a session in a
+new window with precisely the same options as your current one -
+connecting to the same host using the same protocol, with all the
+same terminal settings and everything.
+
+\b In an inactive window, selecting \i{\q{Restart Session}} will
+do the same as \q{Duplicate Session}, but in the current window.
 
 \b The \i{\q{Saved Sessions} submenu} gives you quick access to any
 sets of stored session details you have previously saved. See
@@ -719,7 +722,7 @@ This option is equivalent to the \q{Don't start a shell or command
 at all} checkbox in the SSH panel of the PuTTY configuration box
 (see \k{config-ssh-noshell}).
 
-These options are not available in the file transfer tools PSCP and
+This option is not available in the file transfer tools PSCP and
 PSFTP.
 
 \S2{using-cmdline-compress} \I{-C-upper}\c{-C}: enable \i{compression}
