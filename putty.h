@@ -190,13 +190,13 @@ void term_invalidate(void);
  * Exports from telnet.c.
  */
 
-Backend telnet_backend;
+extern Backend telnet_backend;
 
 /*
  * Exports from ssh.c.
  */
 
-Backend ssh_backend;
+extern Backend ssh_backend;
 
 /*
  * Exports from sshrand.c.
