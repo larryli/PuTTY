@@ -557,6 +557,8 @@ int main(int argc, char **argv) {
                 socket = sklist[i];
                 wp = (WPARAM)socket;
 		if (!WSAEnumNetworkEvents(socket, netevent, &things)) {
+                    noise_ultralight(socket);
+                    noise_ultralight(things.lNetworkEvents);
 		    if (things.lNetworkEvents & FD_READ)
 			connopen &= select_result(wp, (LPARAM)FD_READ);
 		    if (things.lNetworkEvents & FD_CLOSE)
@@ -568,6 +570,7 @@ int main(int argc, char **argv) {
 		}
 	    }
         } else if (n == 1) {
+            noise_ultralight(idata.len);
             if (idata.len > 0) {
                 back->send(idata.buffer, idata.len);
             } else {

@@ -225,6 +225,7 @@ void try_send(Socket s) {
         }
 
 	nsent = send(s->s, s->head->buf + s->head->bufpos, len, urgentflag);
+        noise_ultralight(nsent);
 	if (nsent <= 0) {
 	    err = (nsent < 0 ? WSAGetLastError() : 0);
 	    if (err == WSAEWOULDBLOCK) {
@@ -346,6 +347,8 @@ int select_result(WPARAM wParam, LPARAM lParam) {
 	fatalbox(winsock_error_string(err));
     }
 
+    noise_ultralight(lParam);
+
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
 	ret = recv(s->s, buf, sizeof(buf), 0);
@@ -376,6 +379,7 @@ int select_result(WPARAM wParam, LPARAM lParam) {
          * which is good enough to keep going at least. */
         ioctlsocket(s->s, SIOCATMARK, &atmark);
         ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
+        noise_ultralight(ret);
         if (ret <= 0) {
             fatalbox(ret == 0 ? "Internal networking trouble" :
                      winsock_error_string(WSAGetLastError()));

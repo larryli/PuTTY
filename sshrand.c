@@ -39,6 +39,7 @@ struct RandPool {
 };
 
 static struct RandPool pool;
+static int random_active = 0;
 
 void random_stir(void) {
     word32 block[HASHINPUT/sizeof(word32)];
@@ -114,6 +115,9 @@ void random_add_noise(void *noise, int length) {
     unsigned char *p = noise;
     int i;
 
+    if (!random_active)
+        return;
+
     /*
      * This function processes HASHINPUT bytes into only HASHSIZE
      * bytes, so _if_ we were getting incredibly high entropy
@@ -175,6 +179,8 @@ static void random_add_heavynoise_bitbybit(void *noise, int length) {
 
 void random_init(void) {
     memset(&pool, 0, sizeof(pool));    /* just to start with */
+
+    random_active = 1;
 
     noise_get_heavy(random_add_heavynoise_bitbybit);
 }

@@ -1051,6 +1051,7 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
 	    enact_pending_netevent();
 	if (inbuf_head)
 	    term_out();
+        noise_regular();
         HideCaret(hwnd);
 	term_update();
         ShowCaret(hwnd);
@@ -1288,10 +1289,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
       case WM_MOUSEMOVE:
 	/*
 	 * Add the mouse position and message time to the random
-	 * number noise, if we're using ssh.
+	 * number noise.
 	 */
-	if (cfg.protocol == PROT_SSH)
-	    noise_ultralight(lParam);
+        noise_ultralight(lParam);
 
 	if (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON)) {
 	    Mouse_Button b;
@@ -1486,10 +1486,9 @@ static LRESULT CALLBACK WndProc (HWND hwnd, UINT message,
       case WM_SYSKEYUP:
 	/*
 	 * Add the scan code and keypress timing to the random
-	 * number noise, if we're using ssh.
+	 * number noise.
 	 */
-	if (cfg.protocol == PROT_SSH)
-	    noise_ultralight(lParam);
+        noise_ultralight(lParam);
 
 	/*
 	 * We don't do TranslateMessage since it disassociates the

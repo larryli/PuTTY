@@ -11,6 +11,20 @@
 unsigned short bnZero[1] = { 0 };
 unsigned short bnOne[2] = { 1, 1 };
 
+/*
+ * The Bignum format is an array of `unsigned short'. The first
+ * element of the array counts the remaining elements. The
+ * remaining elements express the actual number, base 2^16, _least_
+ * significant digit first. (So it's trivial to extract the bit
+ * with value 2^n for any n.)
+ *
+ * All Bignums in this module are positive. Negative numbers must
+ * be dealt with outside it.
+ *
+ * INVARIANT: the most significant word of any Bignum must be
+ * nonzero.
+ */
+
 Bignum Zero = bnZero, One = bnOne;
 
 Bignum newbn(int length) {

@@ -260,8 +260,9 @@ void sys_cursor(int x, int y);
 /*
  * Exports from noise.c.
  */
-void noise_get_heavy(void (*func) (void *, int));
-void noise_get_light(void (*func) (void *, int));
+void noise_get_heavy(void (*func)(void *, int));
+void noise_get_light(void (*func)(void *, int));
+void noise_regular(void);
 void noise_ultralight(DWORD data);
 void random_save_seed(void);
 void random_destroy_seed(void);

@@ -25,3 +25,5 @@ void random_destroy_seed(void) {
 void noise_ultralight(DWORD data) {
 }
 
+void noise_regular(void) {
+}
