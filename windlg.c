@@ -1344,6 +1344,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	}
 
 	SetWindowLong(hwnd, GWL_USERDATA, 1);
+	sesslist_has_focus = 0;
 	return 0;
       case WM_LBUTTONUP:
 	/*
