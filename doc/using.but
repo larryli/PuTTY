@@ -1,4 +1,4 @@
-\versionid $Id: using.but,v 1.24 2004/07/20 15:34:39 jacob Exp $
+\versionid $Id: using.but,v 1.25 2004/07/25 12:12:53 jacob Exp $
 
 \C{using} Using PuTTY
 
@@ -446,8 +446,7 @@ tool.
 \I{saved sessions, loading from command line}The \c{-load} option
 causes PuTTY to load configuration details out of a saved session.
 If these details include a host name, then this option is all you
-need to make PuTTY start a session (although Plink still requires an
-explicitly specified host name).
+need to make PuTTY start a session.
 
 You need double quotes around the session name if it contains spaces.
 
