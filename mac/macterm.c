@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.37 2003/01/09 22:45:48 ben Exp $ */
+/* $Id: macterm.c,v 1.38 2003/01/09 22:51:41 ben Exp $ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999, 2002 Ben Harris
@@ -238,7 +238,7 @@ static void mac_initfont(Session *s) {
     OptionBits fbflags;
 
     SetPort(s->window);
-    macfont[0] = sprintf((char *)&macfont[1], "%s", s->cfg.font);
+    c2pstrcpy(macfont, s->cfg.font);
     GetFNum(macfont, &s->fontnum);
     TextFont(s->fontnum);
     TextFace(s->cfg.fontisbold ? bold : 0);
@@ -1269,7 +1269,7 @@ void set_title(void *frontend, char *title) {
     Session *s = frontend;
     Str255 mactitle;
 
-    mactitle[0] = sprintf((char *)&mactitle[1], "%s", title);
+    c2pstrcpy(mactitle, title);
     SetWTitle(s->window, mactitle);
 }
 
