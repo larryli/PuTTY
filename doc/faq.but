@@ -1,4 +1,4 @@
-\versionid $Id: faq.but,v 1.66 2004/03/31 09:00:39 jacob Exp $
+\versionid $Id: faq.but,v 1.67 2004/03/31 12:50:17 simon Exp $
 
 \A{faq} PuTTY FAQ
 
@@ -1035,6 +1035,22 @@ find anything then we'll just distribute the money among the
 developers. If you want to be sure your donation is going towards
 something worthwhile, ask us first. If you don't like these terms,
 feel perfectly free not to donate. We don't mind.
+
+\S{faq-permission}{Question} Can I have permission to put PuTTY on a
+cover disk / distribute it with other software / etc?
+
+Yes. You need not bother asking us explicitly for permission. You
+already have permission. Redistribution of the unmodified PuTTY
+binary in this way is entirely permitted by our licence, and you are
+welcome to do it as much as you like.
+
+If you are distributing PuTTY within your own organisation, or for
+use with your own product, then we recommend (but do not insist)
+that you offer your own first-line technical support, to answer
+questions directly relating to the interaction of PuTTY with your
+particular environment. If your users mail us directly, we won't be
+able to give them very much help about things specific to your own
+setup.
 
 \H{faq-misc} Miscellaneous questions
 

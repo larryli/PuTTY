@@ -1,4 +1,4 @@
-\versionid $Id: feedback.but,v 1.16 2004/02/22 16:52:27 jacob Exp $
+\versionid $Id: feedback.but,v 1.17 2004/03/31 12:50:17 simon Exp $
 
 \A{feedback} Feedback and bug reporting
 
@@ -337,6 +337,14 @@ So if you want permission to include PuTTY on a magazine cover disk,
 or as part of a collection of useful software on a CD or a web site,
 then \e{permission is already granted}. You don't have to mail us
 and ask. Just go ahead and do it. We don't mind.
+
+(If you want to distribute PuTTY alongside your own application for
+use with that application, or if you want to distribute PuTTY within
+your own organisation, then we recommend you offer your own
+first-line technical support, to answer questions about the
+interaction of PuTTY with your environment. If your users mail us
+directly, we won't be able to tell them anything useful about your
+specific setup.)
 
 If you want to use parts of the PuTTY source code in another
 program, then it might be worth mailing us to talk about technical
