@@ -1,4 +1,4 @@
-$Id: README.mac,v 1.10 2003/01/14 19:41:19 ben Exp $
+$Id: README.mac,v 1.11 2003/01/19 00:00:53 ben Exp $
 
 Information about PuTTY for the Mac OS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -49,7 +49,9 @@ Known bugs:
  * Display is far too slow.
  * Real bold doesn't compensate for changing character widths without Color
    QuickDraw. [MAYBE FIXED]
- * init_ucs() gets unitab_xterm completely wrong.
+ * Compiling ssh.c using SC 8.8.4 with "-opt time" causes SSH1
+   connections to fail with "Incorrect CRC received on packet".  Using
+   "-opt none" works around this.
 
 Unimplemented features:
 
