@@ -22,6 +22,7 @@
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 
@@ -1332,6 +1333,51 @@ void palette_reset(void *frontend)
     set_window_background(inst);
 }
 
+/* Ensure that all the cut buffers exist - according to the ICCCM, we must
+ * do this before we start using cut buffers.
+ */
+void init_cutbuffers()
+{
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, "", 0);
+    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, "", 0);
+}
+
+/* Store the data in a cut-buffer. */
+void store_cutbuffer(char * ptr, int len)
+{
+    /* ICCCM says we must rotate the buffers before storing to buffer 0. */
+    XRotateBuffers(GDK_DISPLAY(), 1);
+    XStoreBytes(GDK_DISPLAY(), ptr, len);
+}
+
+/* Retrieve data from a cut-buffer.
+ * Returned data needs to be freed with XFree().
+ */
+char * retrieve_cutbuffer(int * nbytes)
+{
+    char * ptr;
+    ptr = XFetchBytes(GDK_DISPLAY(), nbytes);
+    if (nbytes <= 0 && ptr != 0) {
+	XFree(ptr);
+	ptr = 0;
+    }
+    return ptr;
+}
+
 void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -1399,6 +1445,8 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	inst->pasteout_data =
 	    sresize(inst->pasteout_data, inst->pasteout_data_len, char);
     }
+
+    store_cutbuffer(inst->pasteout_data, inst->pasteout_data_len);
 
     if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
 				inst->input_event_time)) {
@@ -1496,6 +1544,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     char *text;
     int length, count, ret;
     int free_list_required = 0;
+    int free_required = 0;
     int charset;
 
     if (seldata->target == utf8_string_atom && seldata->length <= 0) {
@@ -1521,15 +1570,27 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     }
 
     /*
-     * Any other failure should just go foom.
+     * If we have data, but it's not of a type we can deal with,
+     * we have to ignore the data.
      */
-    if (seldata->length <= 0 ||
-	(seldata->type != GDK_SELECTION_TYPE_STRING &&
-	 seldata->type != compound_text_atom &&
-	 seldata->type != utf8_string_atom))
-	return;			       /* Nothing happens. */
+    if (seldata->length > 0 &&
+	seldata->type != GDK_SELECTION_TYPE_STRING &&
+	seldata->type != compound_text_atom &&
+	seldata->type != utf8_string_atom)
+	return;
 
-
+    /*
+     * If we have no data, try looking in a cut buffer.
+     */
+    if (seldata->length <= 0) {
+	text = retrieve_cutbuffer(&length);
+	if (length == 0)
+	    return;
+	/* Xterm is rumoured to expect Latin-1, though I havn't checked the
+	 * source, so use that as a de-facto standard. */
+	charset = CS_ISO8859_1;
+	free_required = 1;
+    } else {
     /*
      * Convert COMPOUND_TEXT into UTF-8.
      */
@@ -1558,6 +1619,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	charset = (seldata->type == utf8_string_atom ?
 		   CS_UTF8 : inst->ucsdata.line_codepage);
     }
+    }
 
     if (inst->pastein_data)
 	sfree(inst->pastein_data);
@@ -1575,6 +1637,8 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 
     if (free_list_required)
 	XFreeStringList(list);
+    if (free_required)
+	XFree(text);
 }
 
 gint idle_paste_func(gpointer data)
@@ -3108,6 +3172,7 @@ int pt_main(int argc, char **argv)
         utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
     setup_fonts_ucs(inst);
+    init_cutbuffers();
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
