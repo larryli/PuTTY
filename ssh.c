@@ -4610,7 +4610,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	int num_prompts, curr_prompt, echo;
 	char username[100];
 	int got_username;
-	char pwprompt[200];
+	char pwprompt[512];
 	char password[100];
 	void *publickey_blob;
 	int publickey_bloblen;
@@ -5189,9 +5189,16 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 
 		    ssh_pkt_getstring(ssh, &prompt, &prompt_len);
 		    if (prompt_len > 0) {
-			strncpy(s->pwprompt, prompt, sizeof(s->pwprompt));
-			s->pwprompt[prompt_len < sizeof(s->pwprompt) ?
-				    prompt_len : sizeof(s->pwprompt)-1] = '\0';
+			static const char trunc[] = "<prompt truncated>: ";
+			static const int prlen = sizeof(s->pwprompt) -
+						 lenof(trunc);
+			if (prompt_len > prlen) {
+			    memcpy(s->pwprompt, prompt, prlen);
+			    strcpy(s->pwprompt + prlen, trunc);
+			} else {
+			    memcpy(s->pwprompt, prompt, prompt_len);
+			    s->pwprompt[prompt_len] = '\0';
+			}
 		    } else {
 			strcpy(s->pwprompt,
 			       "<server failed to send prompt>: ");
