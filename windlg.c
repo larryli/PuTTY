@@ -361,17 +361,22 @@ enum { IDCX_ABOUT =
     IDC_RESIZEEITHER,
     IDC_SCROLLBAR,
     IDC_SCROLLBARFULLSCREEN,
-    IDC_CLOSEWARN,
     IDC_SAVESTATIC,
     IDC_SAVEEDIT,
+    IDC_SCROLLKEY,
+    IDC_SCROLLDISP,
+    windowpanelend,
+
+    behaviourpanelstart,
+    IDC_TITLE_BEHAVIOUR,
+    IDC_BOX_BEHAVIOUR1,
+    IDC_CLOSEWARN,
     IDC_ALTF4,
     IDC_ALTSPACE,
     IDC_ALTONLY,
-    IDC_SCROLLKEY,
-    IDC_SCROLLDISP,
     IDC_ALWAYSONTOP,
     IDC_FULLSCREENONALTENTER,
-    windowpanelend,
+    behaviourpanelend,
 
     appearancepanelstart,
     IDC_TITLE_APPEARANCE,
@@ -1010,10 +1015,8 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	/* The Keyboard panel. Accelerators used: [acgo] bhf ruyntd */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
-	/*
-	   bartitle(&cp, "Options controlling the effects of keys",
-	   IDC_TITLE_KEYBOARD);
-	 */
+	bartitle(&cp, "Options controlling the effects of keys",
+		 IDC_TITLE_KEYBOARD);
 	beginbox(&cp, "Change the sequences sent by:", IDC_BOX_KEYBOARD1);
 	radioline(&cp, "The &Backspace key", IDC_DELSTATIC, 2,
 		  "Control-H", IDC_DEL008,
@@ -1050,7 +1053,7 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
     }
 
     if (panel == windowpanelstart) {
-	/* The Window panel. Accelerators used: [acgo] rmz sdikp w4ylt f */
+	/* The Window panel. Accelerators used: [acgo] rmz sdikp */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
 	bartitle(&cp, "Options controlling PuTTY's window",
@@ -1059,11 +1062,11 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	multiedit(&cp,
 		  "&Rows", IDC_ROWSSTATIC, IDC_ROWSEDIT, 50,
 		  "Colu&mns", IDC_COLSSTATIC, IDC_COLSEDIT, 50, NULL);
-	radioline(&cp, "When window is resi&zed, change:", IDC_RESIZESTATIC,
-		  4, "Terminal", IDC_RESIZETERM,
- 		  "Font", IDC_RESIZEFONT,
- 		  "Special", IDC_RESIZEEITHER,
- 		  "Nothing", IDC_RESIZENONE, NULL);
+	radiobig(&cp, "When window is resi&zed:", IDC_RESIZESTATIC,
+		 "Change the number of rows and columns", IDC_RESIZETERM,
+		 "Change the size of the font", IDC_RESIZEFONT,
+		 "Change font size only when maximised", IDC_RESIZEEITHER,
+		 "Forbid resizing completely", IDC_RESIZENONE, NULL);
 	endbox(&cp);
 	beginbox(&cp, "Control the scrollback in the window",
 		 IDC_BOX_WINDOW2);
@@ -1075,22 +1078,14 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	checkbox(&cp, "Reset scrollback on dis&play activity",
 		 IDC_SCROLLDISP);
 	endbox(&cp);
-	beginbox(&cp, NULL, IDC_BOX_WINDOW3);
-	checkbox(&cp, "&Warn before closing window", IDC_CLOSEWARN);
-	checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
-	checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
-	checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
-	checkbox(&cp, "Ensure window is always on &top", IDC_ALWAYSONTOP);
-	checkbox(&cp, "&Full screen on Alt-Enter", IDC_FULLSCREENONALTENTER);
-	endbox(&cp);
     }
 
     if (panel == appearancepanelstart) {
 	/* The Appearance panel. Accelerators used: [acgo] luvb h ti p s */
 	struct ctlpos cp;
 	ctlposinit(&cp, hwnd, 80, 3, 13);
-	/* bartitle(&cp, "Options controlling PuTTY's appearance",
-		 IDC_TITLE_APPEARANCE); */
+	bartitle(&cp, "Configure the appearance of PuTTY's window",
+		 IDC_TITLE_APPEARANCE);
 	beginbox(&cp, "Adjust the use of the cursor", IDC_BOX_APPEARANCE1);
 	radioline(&cp, "Cursor appearance:", IDC_CURSORSTATIC, 3,
 		  "B&lock", IDC_CURBLOCK,
@@ -1118,6 +1113,22 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		 IDC_SUNKENEDGE);
 	staticedit(&cp, "Gap between text and window edge",
 		   IDC_WINBSTATIC, IDC_WINBEDIT, 20);
+	endbox(&cp);
+    }
+
+    if (panel == behaviourpanelstart) {
+	/* The Behaviour panel. Accelerators used: [acgo] w4yltf */
+	struct ctlpos cp;
+	ctlposinit(&cp, hwnd, 80, 3, 13);
+	bartitle(&cp, "Configure the behaviour of PuTTY's window",
+		 IDC_TITLE_WINDOW);
+	beginbox(&cp, NULL, IDC_BOX_BEHAVIOUR1);
+	checkbox(&cp, "&Warn before closing window", IDC_CLOSEWARN);
+	checkbox(&cp, "Window closes on ALT-F&4", IDC_ALTF4);
+	checkbox(&cp, "S&ystem menu appears on ALT-Space", IDC_ALTSPACE);
+	checkbox(&cp, "System menu appears on A&LT alone", IDC_ALTONLY);
+	checkbox(&cp, "Ensure window is always on &top", IDC_ALWAYSONTOP);
+	checkbox(&cp, "&Full screen on Alt-Enter", IDC_FULLSCREENONALTENTER);
 	endbox(&cp);
     }
 
@@ -1479,6 +1490,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 	treeview_insert(&tvfaff, 1, "Bell");
 	treeview_insert(&tvfaff, 0, "Window");
 	treeview_insert(&tvfaff, 1, "Appearance");
+	treeview_insert(&tvfaff, 1, "Behaviour");
 	treeview_insert(&tvfaff, 1, "Translation");
 	treeview_insert(&tvfaff, 1, "Selection");
 	treeview_insert(&tvfaff, 1, "Colours");
@@ -1559,6 +1571,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, windowpanelstart);
 	    if (!strcmp(buffer, "Appearance"))
 		create_controls(hwnd, dlgtype, appearancepanelstart);
+	    if (!strcmp(buffer, "Behaviour"))
+		create_controls(hwnd, dlgtype, behaviourpanelstart);
 	    if (!strcmp(buffer, "Tunnels"))
 		create_controls(hwnd, dlgtype, tunnelspanelstart);
 	    if (!strcmp(buffer, "Connection"))
