@@ -242,7 +242,7 @@ char *x11_display(const char *display) {
 	ret = dupstr(display);
     if(ret[0] == ':') {
 	/* no transport specified, use whatever we think is best */
-	char *s = dupcat(platform_x11_best_transport, display, (char *)0);
+	char *s = dupcat(platform_x11_best_transport, ret, (char *)0);
 	sfree(ret);
 	return s;
     } else

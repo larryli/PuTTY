@@ -525,6 +525,7 @@ static void ssh2_set_window(struct ssh_channel *c, unsigned newwin);
 static int ssh_sendbuffer(void *handle);
 static void ssh_do_close(Ssh ssh);
 static unsigned long ssh_pkt_getuint32(Ssh ssh);
+static int ssh2_pkt_getbool(Ssh ssh);
 static void ssh_pkt_getstring(Ssh ssh, char **p, int *length);
 
 struct rdpkt1_state_tag {
@@ -1198,7 +1199,10 @@ static int ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	    /* log the debug message */
 	    char *buf, *msg;
 	    int msglen;
+	    int always_display;
 
+	    /* XXX maybe we should actually take notice of this */
+            always_display = ssh2_pkt_getbool(ssh);
             ssh_pkt_getstring(ssh, &msg, &msglen);
 
             buf = dupprintf("Remote debug message: %.*s", msglen, msg);
@@ -3578,7 +3582,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		/* Set up a description of the source port. */
-		char *sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+		static char *sportdesc;
+		sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
 			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
 			(int)(*saddr?1:0), ":",
 			(int)(sserv ? strlen(sports) : 0), sports,
@@ -5766,7 +5771,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    }
 	    if (sport && dport) {
 		/* Set up a description of the source port. */
-		char *sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
+		static char *sportdesc;
+		sportdesc = dupprintf("%.*s%.*s%.*s%.*s%d%.*s",
 			(int)(*saddr?strlen(saddr):0), *saddr?saddr:NULL,
 			(int)(*saddr?1:0), ":",
 			(int)(sserv ? strlen(sports) : 0), sports,
@@ -5819,12 +5825,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			ssh2_pkt_init(ssh, SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring(ssh, "tcpip-forward");
 			ssh2_pkt_addbool(ssh, 1);/* want reply */
-			if (*saddr)
+			if (*saddr) {
 			    ssh2_pkt_addstring(ssh, saddr);
-			if (ssh->cfg.rport_acceptall)
+			} else if (ssh->cfg.rport_acceptall) {
 			    ssh2_pkt_addstring(ssh, "0.0.0.0");
-			else
+			} else {
 			    ssh2_pkt_addstring(ssh, "127.0.0.1");
+			}
 			ssh2_pkt_adduint32(ssh, sport);
 			ssh2_pkt_send(ssh);
 
