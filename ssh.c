@@ -1660,9 +1660,11 @@ static void ssh_detect_bugs(char *vstring)
 
     ssh_remote_bugs = 0;
 
-    if (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
-	!strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
-	!strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25")) {
+    if (cfg.sshbug_ignore1 == BUG_ON ||
+	(cfg.sshbug_ignore1 == BUG_AUTO &&
+	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
+	  !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
+	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions don't support SSH1_MSG_IGNORE, so we have
 	 * to use a different defence against password length
@@ -1672,7 +1674,9 @@ static void ssh_detect_bugs(char *vstring)
 	logevent("We believe remote version has SSH1 ignore bug");
     }
 
-    if (!strcmp(imp, "Cisco-1.25")) {
+    if (cfg.sshbug_plainpw1 == BUG_ON ||
+	(cfg.sshbug_plainpw1 == BUG_AUTO &&
+	 (!strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions need a plain password sent; they can't
 	 * handle having a null and a random length of data after
@@ -1682,7 +1686,9 @@ static void ssh_detect_bugs(char *vstring)
 	logevent("We believe remote version needs a plain SSH1 password");
     }
 
-    if (!strcmp(imp, "Cisco-1.25")) {
+    if (cfg.sshbug_rsa1 == BUG_ON ||
+	(cfg.sshbug_rsa1 == BUG_AUTO &&
+	 (!strcmp(imp, "Cisco-1.25")))) {
 	/*
 	 * These versions apparently have no clue whatever about
 	 * RSA authentication and will panic and die if they see
@@ -1692,9 +1698,11 @@ static void ssh_detect_bugs(char *vstring)
 	logevent("We believe remote version can't handle RSA authentication");
     }
 
-    if (!strncmp(imp, "2.1.0", 5) || !strncmp(imp, "2.0.", 4) ||
-	!strncmp(imp, "2.2.0", 5) || !strncmp(imp, "2.3.0", 5) ||
-	!strncmp(imp, "2.1 ", 4)) {
+    if (cfg.sshbug_hmac2 == BUG_ON ||
+	(cfg.sshbug_hmac2 == BUG_AUTO &&
+	 (!strncmp(imp, "2.1.0", 5) || !strncmp(imp, "2.0.", 4) ||
+	  !strncmp(imp, "2.2.0", 5) || !strncmp(imp, "2.3.0", 5) ||
+	  !strncmp(imp, "2.1 ", 4)))) {
 	/*
 	 * These versions have the HMAC bug.
 	 */
@@ -1702,7 +1710,9 @@ static void ssh_detect_bugs(char *vstring)
 	logevent("We believe remote version has SSH2 HMAC bug");
     }
 
-    if (!strncmp(imp, "2.0.", 4)) {
+    if (cfg.sshbug_derivekey2 == BUG_ON ||
+	(cfg.sshbug_derivekey2 == BUG_AUTO &&
+	 (!strncmp(imp, "2.0.", 4)))) {
 	/*
 	 * These versions have the key-derivation bug (failing to
 	 * include the literal shared secret in the hashes that
@@ -1712,8 +1722,10 @@ static void ssh_detect_bugs(char *vstring)
 	logevent("We believe remote version has SSH2 key-derivation bug");
     }
 
-    if ((!strncmp(imp, "OpenSSH_2.", 10) && imp[10]>='5' && imp[10]<='9') ||
-	(!strncmp(imp, "OpenSSH_3.", 10) && imp[10]>='0' && imp[10]<='2')) {
+    if (cfg.sshbug_rsapad2 == BUG_ON ||
+	(cfg.sshbug_rsapad2 == BUG_AUTO &&
+	 ((!strncmp(imp, "OpenSSH_2.", 10) && imp[10]>='5' && imp[10]<='9') ||
+	  (!strncmp(imp, "OpenSSH_3.", 10) && imp[10]>='0' && imp[10]<='2')))){
 	/*
 	 * These versions have the SSH2 RSA padding bug.
 	 */
@@ -5787,7 +5799,8 @@ static void ssh_special(Telnet_Special code)
 	if (ssh_state == SSH_STATE_CLOSED
 	    || ssh_state == SSH_STATE_PREPACKET) return;
 	if (ssh_version == 1) {
-	    send_packet(SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
+	    if (!(ssh_remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
+		send_packet(SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
 	} else {
 	    ssh2_pkt_init(SSH2_MSG_IGNORE);
 	    ssh2_pkt_addstring_start();

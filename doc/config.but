@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.36 2002/09/08 13:25:58 jacob Exp $
+\versionid $Id: config.but,v 1.37 2002/09/08 13:28:38 simon Exp $
 
 \C{config} Configuring PuTTY
 
@@ -1356,6 +1356,10 @@ server.
 Keepalives are only supported in Telnet and SSH; the Rlogin and Raw
 protocols offer no way of implementing them.
 
+Note that if you are using SSH1 and the server has a bug that makes
+it unable to deal with SSH1 ignore messages (see
+\k{config-ssh-bug-ignore1}), enabling keepalives will have no effect.
+
 \S{config-nodelay} \q{Disable Nagle's algorithm}
 
 \cfg{winhelp-topic}{connection.nodelay}
@@ -1662,20 +1666,6 @@ If you select \q{1 only} or \q{2 only} here, PuTTY will only connect
 if the server you connect to offers the SSH protocol version you
 have specified.
 
-\S{config-ssh-macbug} \q{Imitate SSH 2 MAC bug}
-
-\cfg{winhelp-topic}{ssh.buggymac}
-
-This option \e{should} now be unnecessary. It existed in order to
-work around a bug in early versions (2.3.0 and below) of the SSH
-server software from \cw{ssh.com}. The symptom of this problem would
-be that PuTTY would die unexpectedly at the beginning of the
-session, saying \q{Incorrect MAC received on packet}.
-
-Current versions of PuTTY attempt to detect these faulty servers and
-enable the bug compatibility automatically, so you should never need
-to use this option any more.
-
 \S{config-ssh-encryption} Encryption algorithm selection
 
 \cfg{winhelp-topic}{ssh.ciphers}
@@ -1869,6 +1859,146 @@ remote-to-local port forwardings (so that machines other than the
 SSH server machine can connect to the forwarded port.) Note that
 this feature is only available in the SSH 2 protocol, and not all
 SSH 2 servers support it (OpenSSH 3.0 does not, for example).
+
+\H{config-ssh-bugs} The Bugs panel
+
+Not all SSH servers work properly. Various existing servers have
+bugs in them, which can make it impossible for a client to talk to
+them unless it knows about the bug and works around it.
+
+Since most servers announce their software version number at the
+beginning of the SSH connection, PuTTY will attempt to detect which
+bugs it can expect to see in the server and automatically enable
+workarounds. However, sometimes it will make mistakes; if the server
+has been deliberately configured to conceal its version number, or
+if the server is a version which PuTTY's bug database does not know
+about, then PuTTY will not know what bugs to expect.
+
+The Bugs panel allows you to manually configure the bugs PuTTY
+expects to see in the server. Each bug can be configured in three
+states:
+
+\b \q{Off}: PuTTY will assume the server does not have the bug.
+
+\b \q{On}: PuTTY will assume the server \e{does} have the bug.
+
+\b \q{Auto}: PuTTY will use the server's version number announcement
+to try to guess whether or not the server has the bug.
+
+\S{config-ssh-bug-ignore1} \q{Chokes on SSH1 ignore messages}
+
+\cfg{winhelp-topic}{ssh.bugs.ignore1}
+
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
+which can be sent from the client to the server, or from the server
+to the client, at any time. Either side is required to ignore the
+message whenever it receives it. PuTTY uses ignore messages to hide
+the password packet in SSH1, so that a listener cannot tell the
+length of the user's password; it also uses ignore messages for
+connection keepalives (see \k{config-keepalive}).
+
+If this bug is detected, PuTTY will stop using ignore messages. This
+means that keepalives will stop working, and PuTTY will have to fall
+back to a secondary defence against SSH1 password-length
+eavesdropping. See \k{config-ssh-bug-plainpw1}. If this bug is
+enabled when talking to a correct server, the session will succeed,
+but keepalives will not work and the session might be more
+vulnerable to eavesdroppers than it could be.
+
+This is an SSH1-specific bug. No known SSH2 server fails to deal
+with SSH2 ignore messages.
+
+\S{config-ssh-bug-plainpw1} \q{Refuses all SSH1 password camouflage}
+
+\cfg{winhelp-topic}{ssh.bugs.plainpw1}
+
+When talking to an SSH1 server which cannot deal with ignore
+messages (see \k{config-ssh-bug-ignore1}), PuTTY will attempt to
+disguise the length of the user's password by sending additional
+padding \e{within} the password packet. This is technically a
+violation of the SSH1 specification, and so PuTTY will only do it
+when it cannot use standards-compliant ignore messages as
+camouflage. In this sense, for a server to refuse to accept a padded
+password packet is not really a bug, but it does make life
+inconvenient if the server can also not handle ignore messages.
+
+If this \q{bug} is detected, PuTTY will have no choice but to send
+the user's password with no form of camouflage, so that an
+eavesdropping user will be easily able to find out the exact length
+of the password. If this bug is enabled when talking to a correct
+server, the session will succeed, but will be more vulnerable to
+eavesdroppers than it could be.
+
+This is an SSH1-specific bug. SSH2 is secure against this type of
+attack.
+
+\S{config-ssh-bug-rsa1} \q{Chokes on SSH1 RSA authentication}
+
+\cfg{winhelp-topic}{ssh.bugs.rsa1}
+
+Some SSH1 servers cannot deal with RSA authentication messages at
+all. If Pageant is running and contains any SSH1 keys, PuTTY will
+normally automatically try RSA authentication before falling back to
+passwords, so these servers will crash when they see the RSA attempt.
+
+If this bug is detected, PuTTY will go straight to password
+authentication. If this bug is enabled when talking to a correct
+server, the session will succeed, but of course RSA authentication
+will be impossible.
+
+This is an SSH1-specific bug.
+
+\S{config-ssh-bug-hmac2} \q{Miscomputes SSH2 HMAC keys}
+
+\cfg{winhelp-topic}{ssh.bugs.hmac2}
+
+Versions 2.3.0 and below of the SSH server software from
+\cw{ssh.com} compute the keys for their HMAC message authentication
+codes incorrectly. A typical symptom of this problem is that PuTTY
+dies unexpectedly at the beginning of the session, saying
+\q{Incorrect MAC received on packet}.
+
+If this bug is detected, PuTTY will compute its HMAC keys in the
+same way as the buggy server, so that communication will still be
+possible. If this bug is enabled when talking to a correct server,
+communication will fail.
+
+This is an SSH2-specific bug.
+
+\S{config-ssh-bug-derivekey2} \q{Miscomputes SSH2 encryption keys}
+
+\cfg{winhelp-topic}{ssh.bugs.derivekey2}
+
+Versions below 2.1.0 of the SSH server software from \cw{ssh.com}
+compute the keys for the session encryption incorrectly. This
+problem can cause various error messages, such as \q{Incoming packet
+was garbled on decryption}, or possibly even \q{Out of memory}.
+
+If this bug is detected, PuTTY will compute its encryption keys in
+the same way as the buggy server, so that communication will still
+be possible. If this bug is enabled when talking to a correct
+server, communication will fail.
+
+This is an SSH2-specific bug.
+
+\S{config-ssh-bug-ssh} \q{Requires padding on SSH2 RSA signatures}
+
+\cfg{winhelp-topic}{ssh.bugs.rsapad2}
+
+Versions below 3.3 of OpenSSH require SSH2 RSA signatures to be
+padded with zero bytes to the same length as the RSA key modulus.
+The SSH2 draft specification says that an unpadded signature MUST be
+accepted, so this is a bug. A typical symptom of this problem is
+that PuTTY mysteriously fails RSA authentication once in every few
+hundred attempts, and falls back to passwords.
+
+If this bug is detected, PuTTY will pad its signatures in the way
+OpenSSH expects. If this bug is enabled when talking to a correct
+server, it is likely that no damage will be done, since correct
+servers usually still accept padded signatures because they're used
+to talking to OpenSSH.
+
+This is an SSH2-specific bug.
 
 \H{config-file} Storing configuration in a file
 

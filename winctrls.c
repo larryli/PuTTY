@@ -448,6 +448,40 @@ void staticpassedit(struct ctlpos *cp, char *stext,
 }
 
 /*
+ * A drop-down list box on the right hand side, with a static to
+ * its left.
+ */
+void staticddl(struct ctlpos *cp, char *stext,
+	       int sid, int lid, int percentlist)
+{
+    const int height = (COMBOHEIGHT > STATICHEIGHT ?
+			COMBOHEIGHT : STATICHEIGHT);
+    RECT r;
+    int lwid, rwid, rpos;
+
+    rpos =
+	GAPBETWEEN + (100 - percentlist) * (cp->width + GAPBETWEEN) / 100;
+    lwid = rpos - 2 * GAPBETWEEN;
+    rwid = cp->width + GAPBETWEEN - rpos;
+
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos + (height - STATICHEIGHT) / 2;
+    r.right = lwid;
+    r.bottom = STATICHEIGHT;
+    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+
+    r.left = rpos;
+    r.top = cp->ypos + (height - EDITHEIGHT) / 2;
+    r.right = rwid;
+    r.bottom = COMBOHEIGHT*4;
+    doctl(cp, r, "COMBOBOX",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+	  CBS_DROPDOWNLIST | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", lid);
+
+    cp->ypos += height + GAPBETWEEN;
+}
+
+/*
  * A big multiline edit control with a static labelling it.
  */
 void bigeditctrl(struct ctlpos *cp, char *stext,

@@ -368,6 +368,11 @@ typedef struct {
     int lport_acceptall; /* accept conns from hosts other than localhost */
     int rport_acceptall; /* same for remote forwarded ports (SSH2 only) */
     char portfwd[1024]; /* [LR]localport\thost:port\000[LR]localport\thost:port\000\000 */
+    /* SSH bug compatibility modes */
+    enum {
+	BUG_AUTO, BUG_OFF, BUG_ON
+    } sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
+	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2;
 } Config;
 
 /*

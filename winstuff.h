@@ -64,6 +64,8 @@ void static2btn(struct ctlpos *cp, char *stext, int sid,
 		char *btext1, int bid1, char *btext2, int bid2);
 void staticedit(struct ctlpos *cp, char *stext,
 		int sid, int eid, int percentedit);
+void staticddl(struct ctlpos *cp, char *stext,
+	       int sid, int lid, int percentlist);
 void combobox(struct ctlpos *cp, char *text, int staticid, int listid);
 void staticpassedit(struct ctlpos *cp, char *stext,
 		    int sid, int eid, int percentedit);

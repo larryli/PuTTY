@@ -189,7 +189,6 @@ void save_settings(char *section, int do_host, Config * cfg)
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
-    write_setting_i(sesskey, "BuggyMAC", cfg->buggymac);
     write_setting_i(sesskey, "SSH2DES", cfg->ssh2_des_cbc);
     write_setting_s(sesskey, "PublicKeyFile", cfg->keyfile);
     write_setting_s(sesskey, "RemoteCommand", cfg->remote_cmd);
@@ -304,7 +303,12 @@ void save_settings(char *section, int do_host, Config * cfg)
 	*p = '\0';
 	write_setting_s(sesskey, "PortForwardings", buf);
     }
-
+    write_setting_i(sesskey, "BugIgnore1", cfg->sshbug_ignore1);
+    write_setting_i(sesskey, "BugPlainPW1", cfg->sshbug_plainpw1);
+    write_setting_i(sesskey, "BugRSA1", cfg->sshbug_rsa1);
+    write_setting_i(sesskey, "BugHMAC2", cfg->sshbug_hmac2);
+    write_setting_i(sesskey, "BugDeriveKey2", cfg->sshbug_derivekey2);
+    write_setting_i(sesskey, "BugRSAPad2", cfg->sshbug_rsapad2);
     close_settings_w(sesskey);
 }
 
@@ -400,7 +404,6 @@ void load_settings(char *section, int do_host, Config * cfg)
     gprefs(sesskey, "Cipher", "\0",
 	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
     gppi(sesskey, "SshProt", 1, &cfg->sshprot);
-    gppi(sesskey, "BuggyMAC", 0, &cfg->buggymac);
     gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
@@ -566,6 +569,20 @@ void load_settings(char *section, int do_host, Config * cfg)
 	}
 	*q = '\0';
     }
+    gppi(sesskey, "BugIgnore1", BUG_AUTO, &cfg->sshbug_ignore1);
+    gppi(sesskey, "BugPlainPW1", BUG_AUTO, &cfg->sshbug_plainpw1);
+    gppi(sesskey, "BugRSA1", BUG_AUTO, &cfg->sshbug_rsa1);
+    {
+	int i;
+	gppi(sesskey, "BugHMAC2", BUG_AUTO, &cfg->sshbug_hmac2);
+	if (cfg->sshbug_hmac2 == BUG_AUTO) {
+	    gppi(sesskey, "BuggyMAC", 0, &i);
+	    if (i == 1)
+		cfg->sshbug_hmac2 = BUG_ON;
+	}
+    }
+    gppi(sesskey, "BugDeriveKey2", BUG_AUTO, &cfg->sshbug_derivekey2);
+    gppi(sesskey, "BugRSAPad2", BUG_AUTO, &cfg->sshbug_rsapad2);
 
     close_settings_r(sesskey);
 }

@@ -509,7 +509,6 @@ enum { IDCX_ABOUT =
     IDC_CIPHERLIST,
     IDC_CIPHERUP,
     IDC_CIPHERDN,
-    IDC_BUGGYMAC,
     IDC_SSH2DES,
     IDC_SSHPROTSTATIC,
     IDC_SSHPROT1ONLY,
@@ -533,6 +532,23 @@ enum { IDCX_ABOUT =
     IDC_AUTHTIS,
     IDC_AUTHKI,
     sshauthpanelend,
+
+    sshbugspanelstart,
+    IDC_TITLE_SSHBUGS,
+    IDC_BOX_SSHBUGS1,
+    IDC_BUGS_IGNORE1,
+    IDC_BUGD_IGNORE1,
+    IDC_BUGS_PLAINPW1,
+    IDC_BUGD_PLAINPW1,
+    IDC_BUGS_RSA1,
+    IDC_BUGD_RSA1,
+    IDC_BUGS_HMAC2,
+    IDC_BUGD_HMAC2,
+    IDC_BUGS_DERIVEKEY2,
+    IDC_BUGD_DERIVEKEY2,
+    IDC_BUGS_RSAPAD2,
+    IDC_BUGD_RSAPAD2,
+    sshbugspanelend,
 
     selectionpanelstart,
     IDC_TITLE_SELECTION,
@@ -889,8 +905,6 @@ char *help_context_cmd(int id)
       case IDC_CIPHERDN:
       case IDC_SSH2DES:
         return "JI(`',`ssh.ciphers')";
-      case IDC_BUGGYMAC:
-        return "JI(`',`ssh.buggymac')";
       case IDC_SSHPROTSTATIC:
       case IDC_SSHPROT1ONLY:
       case IDC_SSHPROT1:
@@ -984,6 +998,25 @@ char *help_context_cmd(int id)
       case IDC_LPORT_ALL:
       case IDC_RPORT_ALL:
         return "JI(`',`ssh.tunnels.portfwd.localhost')";
+
+      case IDC_BUGS_IGNORE1:
+      case IDC_BUGD_IGNORE1:
+	return "JI(`',`ssh.bugs.ignore1')";
+      case IDC_BUGS_PLAINPW1:
+      case IDC_BUGD_PLAINPW1:
+	return "JI(`',`ssh.bugs.plainpw1')";
+      case IDC_BUGS_RSA1:
+      case IDC_BUGD_RSA1:
+	return "JI(`',`ssh.bugs.rsa1')";
+      case IDC_BUGS_HMAC2:
+      case IDC_BUGD_HMAC2:
+	return "JI(`',`ssh.bugs.hmac2')";
+      case IDC_BUGS_DERIVEKEY2:
+      case IDC_BUGD_DERIVEKEY2:
+	return "JI(`',`ssh.bugs.derivekey2')";
+      case IDC_BUGS_RSAPAD2:
+      case IDC_BUGD_RSAPAD2:
+	return "JI(`',`ssh.bugs.rsapad2')";
 
       default:
         return NULL;
@@ -1149,7 +1182,6 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_LOGEDIT, cfg.username);
     CheckDlgButton(hwnd, IDC_NOPTY, cfg.nopty);
     CheckDlgButton(hwnd, IDC_COMPRESS, cfg.compression);
-    CheckDlgButton(hwnd, IDC_BUGGYMAC, cfg.buggymac);
     CheckDlgButton(hwnd, IDC_SSH2DES, cfg.ssh2_des_cbc);
     CheckDlgButton(hwnd, IDC_AGENTFWD, cfg.agentfwd);
     CheckDlgButton(hwnd, IDC_CHANGEUSER, cfg.change_username);
@@ -1288,6 +1320,50 @@ static void init_dlg_ctrls(HWND hwnd, int keepsess)
     SetDlgItemText(hwnd, IDC_PROXYPASSEDIT, cfg.proxy_password);
     CheckRadioButton(hwnd, IDC_PROXYSOCKSVER5, IDC_PROXYSOCKSVER4,
 		     cfg.proxy_socks_version == 4 ? IDC_PROXYSOCKSVER4 : IDC_PROXYSOCKSVER5);
+
+    /* SSH bugs config */
+    SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1, CB_SETCURSEL,
+		       cfg.sshbug_ignore1 == BUG_ON ? 2 :
+		       cfg.sshbug_ignore1 == BUG_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1, CB_SETCURSEL,
+		       cfg.sshbug_plainpw1 == BUG_ON ? 2 :
+		       cfg.sshbug_plainpw1 == BUG_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSA1, CB_SETCURSEL,
+		       cfg.sshbug_rsa1 == BUG_ON ? 2 :
+		       cfg.sshbug_rsa1 == BUG_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2, CB_SETCURSEL,
+		       cfg.sshbug_hmac2 == BUG_ON ? 2 :
+		       cfg.sshbug_hmac2 == BUG_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2, CB_SETCURSEL,
+		       cfg.sshbug_derivekey2 == BUG_ON ? 2 :
+		       cfg.sshbug_derivekey2 == BUG_OFF ? 1 : 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_ADDSTRING, 0, (LPARAM)"Auto");
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_ADDSTRING, 0, (LPARAM)"Off");
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_ADDSTRING, 0, (LPARAM)"On");
+    SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2, CB_SETCURSEL,
+		       cfg.sshbug_rsapad2 == BUG_ON ? 2 :
+		       cfg.sshbug_rsapad2 == BUG_OFF ? 1 : 0, 0);
 }
 
 struct treeview_faff {
@@ -1833,8 +1909,6 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 		      "1 on&ly", IDC_SSHPROT1ONLY,
 		      "&1", IDC_SSHPROT1, "&2", IDC_SSHPROT2,
 		      "2 o&nly", IDC_SSHPROT2ONLY, NULL);
-	    checkbox(&cp, "&Imitate SSH 2 MAC bug in commercial <= v2.3.x",
-		     IDC_BUGGYMAC);
 	    endbox(&cp);
 	    beginbox(&cp, "Encryption options", IDC_BOX_SSH3);
 	    prefslist(&cipherlist, &cp, "Encryption cipher &selection policy:",
@@ -1868,6 +1942,31 @@ static void create_controls(HWND hwnd, int dlgtype, int panel)
 	    editbutton(&cp, "Private &key file for authentication:",
 		       IDC_PKSTATIC, IDC_PKEDIT, "Bro&wse...",
 		       IDC_PKBUTTON);
+	    endbox(&cp);
+	}
+    }
+
+    if (panel == sshbugspanelstart) {
+	/* The SSH bugs panel. Accelerators used: [acgoh] isrmep */
+	struct ctlpos cp;
+	ctlposinit(&cp, hwnd, 80, 3, 13);
+	if (dlgtype == 0) {
+	    bartitle(&cp, "Workarounds for SSH server bugs",
+		     IDC_TITLE_SSHBUGS);
+	    beginbox(&cp, "Detection of known bugs in SSH servers",
+		     IDC_BOX_SSHBUGS1);
+	    staticddl(&cp, "Chokes on SSH1 &ignore messages",
+		      IDC_BUGS_IGNORE1, IDC_BUGD_IGNORE1, 20);
+	    staticddl(&cp, "Refuses all SSH1 pa&ssword camouflage",
+		      IDC_BUGS_PLAINPW1, IDC_BUGD_PLAINPW1, 20);
+	    staticddl(&cp, "Chokes on SSH1 &RSA authentication",
+		      IDC_BUGS_RSA1, IDC_BUGD_RSA1, 20);
+	    staticddl(&cp, "Miscomputes SSH2 H&MAC keys",
+		      IDC_BUGS_HMAC2, IDC_BUGD_HMAC2, 20);
+	    staticddl(&cp, "Miscomputes SSH2 &encryption keys",
+		      IDC_BUGS_DERIVEKEY2, IDC_BUGD_DERIVEKEY2, 20);
+	    staticddl(&cp, "Requires &padding on SSH2 RSA signatures",
+		      IDC_BUGS_RSAPAD2, IDC_BUGD_RSAPAD2, 20);
 	    endbox(&cp);
 	}
     }
@@ -2048,6 +2147,7 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		/* XXX make it closed by default? */
 		treeview_insert(&tvfaff, 2, "Auth");
 		treeview_insert(&tvfaff, 2, "Tunnels");
+		treeview_insert(&tvfaff, 2, "Bugs");
 	    }
 	}
 
@@ -2133,6 +2233,8 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		create_controls(hwnd, dlgtype, sshpanelstart);
 	    if (!strcmp(buffer, "Auth"))
 		create_controls(hwnd, dlgtype, sshauthpanelstart);
+	    if (!strcmp(buffer, "Bugs"))
+		create_controls(hwnd, dlgtype, sshbugspanelstart);
 	    if (!strcmp(buffer, "Selection"))
 		create_controls(hwnd, dlgtype, selectionpanelstart);
 	    if (!strcmp(buffer, "Colours"))
@@ -3063,12 +3165,6 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 			cfg.compression =
 			IsDlgButtonChecked(hwnd, IDC_COMPRESS);
 		break;
-	      case IDC_BUGGYMAC:
-		if (HIWORD(wParam) == BN_CLICKED ||
-		    HIWORD(wParam) == BN_DOUBLECLICKED)
-			cfg.buggymac =
-			IsDlgButtonChecked(hwnd, IDC_BUGGYMAC);
-		break;
 	      case IDC_SSH2DES:
 		if (HIWORD(wParam) == BN_CLICKED ||
 		    HIWORD(wParam) == BN_DOUBLECLICKED)
@@ -3439,6 +3535,54 @@ static int GenericMainDlgProc(HWND hwnd, UINT msg,
 		    }
 		    *q = '\0';
 		  disaster2:;
+		}
+		break;
+	      case IDC_BUGD_IGNORE1:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_IGNORE1,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_ignore1 = (index == 0 ? BUG_AUTO :
+					  index == 1 ? BUG_OFF : BUG_ON);
+		}
+		break;
+	      case IDC_BUGD_PLAINPW1:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_PLAINPW1,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_plainpw1 = (index == 0 ? BUG_AUTO :
+					   index == 1 ? BUG_OFF : BUG_ON);
+		}
+		break;
+	      case IDC_BUGD_RSA1:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_RSA1,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_rsa1 = (index == 0 ? BUG_AUTO :
+				       index == 1 ? BUG_OFF : BUG_ON);
+		}
+		break;
+	      case IDC_BUGD_HMAC2:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_HMAC2,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_hmac2 = (index == 0 ? BUG_AUTO :
+					index == 1 ? BUG_OFF : BUG_ON);
+		}
+		break;
+	      case IDC_BUGD_DERIVEKEY2:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_DERIVEKEY2,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_derivekey2 = (index == 0 ? BUG_AUTO :
+					     index == 1 ? BUG_OFF : BUG_ON);
+		}
+		break;
+	      case IDC_BUGD_RSAPAD2:
+		if (HIWORD(wParam) == CBN_SELCHANGE) {
+		    int index = SendDlgItemMessage(hwnd, IDC_BUGD_RSAPAD2,
+						   CB_GETCURSEL, 0, 0);
+		    cfg.sshbug_rsapad2 = (index == 0 ? BUG_AUTO :
+					  index == 1 ? BUG_OFF : BUG_ON);
 		}
 		break;
 	    }
