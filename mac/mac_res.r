@@ -1,4 +1,4 @@
-/* $Id: mac_res.r,v 1.27 2003/02/12 23:53:15 ben Exp $ */
+/* $Id: mac_res.r,v 1.28 2003/02/23 11:58:59 ben Exp $ */
 /*
  * Copyright (c) 1999, 2002 Ben Harris
  * All rights reserved.
@@ -57,10 +57,10 @@ resource 'pTTY' (0, purgeable) {
 
 resource 'SIZE' (-1) {
     reserved,
-    ignoreSuspendResumeEvents,
+    acceptSuspendResumeEvents,
     reserved,
     canBackground,
-    needsActivateOnFGSwitch,
+    doesActivateOnFGSwitch,
     backgroundAndForeground,
     dontGetFrontClicks,
     ignoreAppDiedEvents,
