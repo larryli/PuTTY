@@ -320,6 +320,7 @@ Terminal *term_init(Config *mycfg, void *frontend)
     strcpy(term->id_string, "\033[?6c");
     term->last_blink = term->last_tblink = 0;
     term->paste_buffer = NULL;
+    term->paste_len = 0;
     term->last_paste = 0;
     bufchain_init(&term->inbuf);
     bufchain_init(&term->printer_buf);
