@@ -613,7 +613,8 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
     return ret;
 }
 
-unsigned char *rsa2_sign(void *key, char *data, int datalen, int *siglen)
+static unsigned char *rsa2_sign(void *key, char *data, int datalen,
+				int *siglen)
 {
     struct RSAKey *rsa = (struct RSAKey *) key;
     unsigned char *bytes;
