@@ -74,7 +74,7 @@ struct PFwdPrivate {
      * we can also use them as a buffer and pointer for reading
      * data from the SOCKS client.
      */
-    char hostname[256];
+    char hostname[256+8];
     int port;
     /*
      * When doing dynamic port forwarding, we can receive
@@ -159,15 +159,15 @@ static int pfd_receive(Plug plug, int urgent, char *data, int len)
 		    int len;
 		    if (pr->dynamic == 0x4000) {
 			pr->dynamic = 0x4001;
+			pr->port = 8;      /* reset buffer to overwrite name */
 			continue;
 		    }
 		    pr->hostname[0] = 0;   /* reply version code */
 		    pr->hostname[1] = 90;   /* request granted */
 		    sk_write(pr->s, pr->hostname, 8);
+		    len= pr->port;
 		    pr->port = GET_16BIT_MSB_FIRST(pr->hostname+2);
-		    len = strlen(pr->hostname+8);
-		    memmove(pr->hostname, pr->hostname + 8 + len + 1,
-			    lenof(pr->hostname) - (8 + len + 1));
+		    memmove(pr->hostname, pr->hostname + 8, len);
 		    goto connect;
 		} else {
 		    /*
