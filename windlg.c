@@ -568,7 +568,7 @@ static void sesssaver(struct ctlpos *cp, char *text,
     cp->ypos += y + GAPBETWEEN;
     doctl(cp, r, "LISTBOX",
           WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | 
-          LBS_STANDARD | LBS_HASSTRINGS,
+          LBS_NOTIFY | LBS_HASSTRINGS,
           WS_EX_CLIENTEDGE,
           "", listid);
 }

@@ -280,6 +280,21 @@ void do_defaults (char *session, Config *cfg) {
 	load_settings ("Default Settings", FALSE, cfg);
 }
 
+static int sessioncmp(const void *av, const void *bv) {
+    const char *a = *(const char *const *)av;
+    const char *b = *(const char *const *)bv;
+
+    /*
+     * Alphabetical order, except that "Default Settings" is a
+     * special case and comes first.
+     */
+    if (!strcmp(a, "Default Settings"))
+        return -1;                     /* a comes first */
+    if (!strcmp(b, "Default Settings"))
+        return +1;                     /* b comes first */
+    return strcmp(a, b);               /* otherwise, compare normally */
+}
+
 void get_sesslist(int allocate) {
     static char otherbuf[2048];
     static char *buffer;
@@ -311,24 +326,23 @@ void get_sesslist(int allocate) {
 	buffer[buflen] = '\0';
 
 	p = buffer;
-	nsessions = 1;		       /* "Default Settings" counts as one */
+	nsessions = 0;
 	while (*p) {
-	    if (strcmp(p, "Default Settings"))
-		nsessions++;
+            nsessions++;
 	    while (*p) p++;
 	    p++;
 	}
 
 	sessions = smalloc(nsessions * sizeof(char *));
-	sessions[0] = "Default Settings";
 	p = buffer;
-	i = 1;
+	i = 0;
 	while (*p) {
-	    if (strcmp(p, "Default Settings"))
-		sessions[i++] = p;
+            sessions[i++] = p;
 	    while (*p) p++;
 	    p++;
 	}
+
+        qsort(sessions, i, sizeof(char *), sessioncmp);
     } else {
 	sfree (buffer);
 	sfree (sessions);
