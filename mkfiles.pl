@@ -398,9 +398,9 @@ if (defined $makefiles{'cygwin'}) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
       if ($d->{obj} =~ /\.res\.o$/) {
-	  print "\t\$(RC) \$(FWHACK) \$(RCFL) \$(RCFLAGS) ".$d->{deps}->[0]." ".$d->{obj}."\n\n";
+	  print "\t\$(RC) \$(RCFL) \$(RCFLAGS) ".$d->{deps}->[0]." ".$d->{obj}."\n\n";
       } else {
-	  print "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c ".$d->{deps}->[0]."\n\n";
+	  print "\t\$(CC) \$(COMPAT) \$(XFLAGS) \$(CFLAGS) -c ".$d->{deps}->[0]."\n\n";
       }
     }
     print "\n";
@@ -451,12 +451,12 @@ if (defined $makefiles{'borland'}) {
     "!endif\n".
     "\n".
     ".c.obj:\n".
-    &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT) \$(FWHACK)".
+    &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT)".
 	       " \$(XFLAGS) \$(CFLAGS) ".
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
 	       " /c \$*.c",69)."\n".
     ".rc.res:\n".
-    &splitline("\tbrcc32 \$(FWHACK) \$(RCFL) -i \$(BCB)\\include -r".
+    &splitline("\tbrcc32 \$(RCFL) -i \$(BCB)\\include -r".
       " -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401 \$*.rc",69)."\n".
     "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("GC"));
@@ -570,9 +570,9 @@ if (defined $makefiles{'vc'}) {
 	print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
 	  "\n";
         if ($d->{obj} =~ /.obj$/) {
-	    print "\tcl \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) /c ".$d->{deps}->[0],"\n\n";
+	    print "\tcl \$(COMPAT) \$(XFLAGS) \$(CFLAGS) /c ".$d->{deps}->[0],"\n\n";
 	} else {
-	    print "\trc \$(FWHACK) \$(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 ".$d->{deps}->[0],"\n\n";
+	    print "\trc \$(RCFL) -r -DWIN32 -D_WIN32 -DWINVER=0x0400 ".$d->{deps}->[0],"\n\n";
 	}
     }
     print "\n";
@@ -910,7 +910,7 @@ if (defined $makefiles{'gtk'}) {
     foreach $d (&deps("X.o", undef, $dirpfx, "/", "gtk")) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
           "\n";
-      print &splitline("\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c $d->{deps}->[0]\n");
+      print &splitline("\t\$(CC) \$(COMPAT) \$(XFLAGS) \$(CFLAGS) -c $d->{deps}->[0]\n");
     }
     print "\n";
     print $makefile_extra{'gtk'};
@@ -1101,10 +1101,10 @@ if (defined $makefiles{'lcc'}) {
       print &splitline(sprintf("%s: %s", $d->{obj}, join " ", @{$d->{deps}})),
         "\n";
       if ($d->{obj} =~ /\.obj$/) {
-	  print &splitline("\tlcc -O -p6 \$(COMPAT) \$(FWHACK)".
+	  print &splitline("\tlcc -O -p6 \$(COMPAT)".
 			   " \$(XFLAGS) \$(CFLAGS) ".$d->{deps}->[0],69)."\n";
       } else {
-	  print &splitline("\tlrc \$(FWHACK) \$(RCFL) -r ".$d->{deps}->[0],69)."\n";
+	  print &splitline("\tlrc \$(RCFL) -r ".$d->{deps}->[0],69)."\n";
       }
     }
     print "\n";
