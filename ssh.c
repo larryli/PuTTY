@@ -315,7 +315,7 @@ static void ssh2_pkt_addstring_start(Ssh);
 static void ssh2_pkt_addstring_str(Ssh, char *data);
 static void ssh2_pkt_addstring_data(Ssh, char *data, int len);
 static void ssh2_pkt_addstring(Ssh, char *data);
-static char *ssh2_mpint_fmt(Bignum b, int *len);
+static unsigned char *ssh2_mpint_fmt(Bignum b, int *len);
 static void ssh2_pkt_addmp(Ssh, Bignum b);
 static int ssh2_pkt_construct(Ssh);
 static void ssh2_pkt_send(Ssh);
@@ -1216,7 +1216,7 @@ static void s_wrpkt(Ssh ssh)
 {
     int len, backlog;
     len = s_wrpkt_prepare(ssh);
-    backlog = sk_write(ssh->s, ssh->pktout.data, len);
+    backlog = sk_write(ssh->s, (char *)ssh->pktout.data, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
 }
@@ -1262,7 +1262,7 @@ static void construct_packet(Ssh ssh, int pkttype, va_list ap1, va_list ap2)
 	    break;
 	  case PKT_STR:
 	    argp = va_arg(ap1, unsigned char *);
-	    arglen = strlen(argp);
+	    arglen = strlen((char *)argp);
 	    pktlen += 4 + arglen;
 	    break;
 	  case PKT_BIGNUM:
@@ -1297,7 +1297,7 @@ static void construct_packet(Ssh ssh, int pkttype, va_list ap1, va_list ap2)
 	    break;
 	  case PKT_STR:
 	    argp = va_arg(ap2, unsigned char *);
-	    arglen = strlen(argp);
+	    arglen = strlen((char *)argp);
 	    PUT_32BIT(p, arglen);
 	    memcpy(p + 4, argp, arglen);
 	    p += 4 + arglen;
@@ -1428,7 +1428,7 @@ static void ssh2_pkt_addstring(Ssh ssh, char *data)
     ssh2_pkt_addstring_start(ssh);
     ssh2_pkt_addstring_str(ssh, data);
 }
-static char *ssh2_mpint_fmt(Bignum b, int *len)
+static unsigned char *ssh2_mpint_fmt(Bignum b, int *len)
 {
     unsigned char *p;
     int i, n = (bignum_bitcount(b) + 7) / 8;
@@ -1451,7 +1451,7 @@ static void ssh2_pkt_addmp(Ssh ssh, Bignum b)
     int len;
     p = ssh2_mpint_fmt(b, &len);
     ssh2_pkt_addstring_start(ssh);
-    ssh2_pkt_addstring_data(ssh, p, len);
+    ssh2_pkt_addstring_data(ssh, (char *)p, len);
     sfree(p);
 }
 
@@ -1522,7 +1522,7 @@ static void ssh2_pkt_send(Ssh ssh)
     int len;
     int backlog;
     len = ssh2_pkt_construct(ssh);
-    backlog = sk_write(ssh->s, ssh->pktout.data, len);
+    backlog = sk_write(ssh->s, (char *)ssh->pktout.data, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
 }
@@ -1557,7 +1557,8 @@ static void ssh2_pkt_defer(Ssh ssh)
 static void ssh_pkt_defersend(Ssh ssh)
 {
     int backlog;
-    backlog = sk_write(ssh->s, ssh->deferred_send_data, ssh->deferred_len);
+    backlog = sk_write(ssh->s, (char *)ssh->deferred_send_data,
+		       ssh->deferred_len);
     ssh->deferred_len = ssh->deferred_size = 0;
     sfree(ssh->deferred_send_data);
     ssh->deferred_send_data = NULL;
@@ -1623,7 +1624,7 @@ static void ssh2_pkt_getstring(Ssh ssh, char **p, int *length)
     ssh->pktin.savedpos += 4;
     if (ssh->pktin.length - ssh->pktin.savedpos < *length)
 	return;
-    *p = ssh->pktin.data + ssh->pktin.savedpos;
+    *p = (char *)(ssh->pktin.data + ssh->pktin.savedpos);
     ssh->pktin.savedpos += *length;
 }
 static Bignum ssh2_pkt_getmp(Ssh ssh)
@@ -1639,7 +1640,7 @@ static Bignum ssh2_pkt_getmp(Ssh ssh)
 	bombout((ssh,"internal error: Can't handle negative mpints"));
 	return NULL;
     }
-    b = bignum_from_bytes(p, length);
+    b = bignum_from_bytes((unsigned char *)p, length);
     return b;
 }
 
@@ -1689,18 +1690,18 @@ static void ssh2_add_sigblob(Ssh ssh, void *pkblob_v, int pkblob_len,
 	if (len != siglen) {
 	    unsigned char newlen[4];
 	    ssh2_pkt_addstring_start(ssh);
-	    ssh2_pkt_addstring_data(ssh, sigblob, pos);
+	    ssh2_pkt_addstring_data(ssh, (char *)sigblob, pos);
 	    /* dmemdump(sigblob, pos); */
 	    pos += 4;		       /* point to start of actual sig */
 	    PUT_32BIT(newlen, len);
-	    ssh2_pkt_addstring_data(ssh, newlen, 4);
+	    ssh2_pkt_addstring_data(ssh, (char *)newlen, 4);
 	    /* dmemdump(newlen, 4); */
 	    newlen[0] = 0;
 	    while (len-- > siglen) {
-		ssh2_pkt_addstring_data(ssh, newlen, 1);
+		ssh2_pkt_addstring_data(ssh, (char *)newlen, 1);
 		/* dmemdump(newlen, 1); */
 	    }
-	    ssh2_pkt_addstring_data(ssh, sigblob+pos, siglen);
+	    ssh2_pkt_addstring_data(ssh, (char *)(sigblob+pos), siglen);
 	    /* dmemdump(sigblob+pos, siglen); */
 	    return;
 	}
@@ -1709,7 +1710,7 @@ static void ssh2_add_sigblob(Ssh ssh, void *pkblob_v, int pkblob_len,
     }
 
     ssh2_pkt_addstring_start(ssh);
-    ssh2_pkt_addstring_data(ssh, sigblob, sigblob_len);
+    ssh2_pkt_addstring_data(ssh, (char *)sigblob, sigblob_len);
 }
 
 /*
@@ -2009,7 +2010,7 @@ static int ssh_closing(Plug plug, char *error_msg, int error_code,
 static int ssh_receive(Plug plug, int urgent, char *data, int len)
 {
     Ssh ssh = (Ssh) plug;
-    ssh_gotdata(ssh, data, len);
+    ssh_gotdata(ssh, (unsigned char *)data, len);
     if (ssh->state == SSH_STATE_CLOSED) {
 	if (ssh->s) {
 	    sk_close(ssh->s);
@@ -2516,7 +2517,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    s->p += ssh1_read_bignum(s->p, &s->key.modulus);
 		    s->commentlen = GET_32BIT(s->p);
 		    s->p += 4;
-		    s->commentp = s->p;
+		    s->commentp = (char *)s->p;
 		    s->p += s->commentlen;
 		    send_packet(ssh, SSH1_CMSG_AUTH_RSA,
 				PKT_BIGNUM, s->key.modulus, PKT_END);
@@ -3267,7 +3268,7 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		int bufsize =
 		    from_backend(ssh->frontend,
 				 ssh->pktin.type == SSH1_SMSG_STDERR_DATA,
-				 ssh->pktin.body + 4, len);
+				 (char *)(ssh->pktin.body) + 4, len);
 		if (!ssh->v1_stdout_throttling && bufsize > SSH1_BUFFER_LIMIT) {
 		    ssh->v1_stdout_throttling = 1;
 		    ssh1_throttle(ssh, +1);
@@ -3348,7 +3349,8 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		c->ssh = ssh;
 
 		hostsize = GET_32BIT(ssh->pktin.body+4);
-		for(h = host, p = ssh->pktin.body+8; hostsize != 0; hostsize--) {
+		for (h = host, p = (char *)(ssh->pktin.body+8);
+		     hostsize != 0; hostsize--) {
 		    if (h+1 < host+sizeof(host))
 			*h++ = *p;
 		    p++;
@@ -3480,10 +3482,10 @@ static void ssh1_protocol(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    int bufsize;
 		    switch (c->type) {
 		      case CHAN_X11:
-			bufsize = x11_send(c->u.x11.s, p, len);
+			bufsize = x11_send(c->u.x11.s, (char *)p, len);
 			break;
 		      case CHAN_SOCKDATA:
-			bufsize = pfd_send(c->u.pfd.s, p, len);
+			bufsize = pfd_send(c->u.pfd.s, (char *)p, len);
 			break;
 		      case CHAN_AGENT:
 			/* Data for an agent message. Buffer it. */
@@ -3617,8 +3619,9 @@ static int in_commasep_string(char *needle, char *haystack, int haylen)
 /*
  * SSH2 key creation method.
  */
-static void ssh2_mkkey(Ssh ssh, Bignum K, char *H, char *sessid, char chr,
-		       char *keyspace)
+static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
+		       unsigned char *sessid, char chr,
+		       unsigned char *keyspace)
 {
     SHA_State s;
     /* First 20 bytes. */
@@ -4044,7 +4047,7 @@ static int do_ssh2_transport(Ssh ssh, unsigned char *in, int inlen, int ispkt)
     s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
     if (!s->hkey ||
 	!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
-				 s->exchange_hash, 20)) {
+				 (char *)s->exchange_hash, 20)) {
 	bombout((ssh,"Server's host key did not match the signature supplied"));
 	crReturn(0);
     }
@@ -4582,13 +4585,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 			    logevent("This key matches configured key file");
 			    s->tried_pubkey_config = 1;
 			}
-			s->pkblob = s->p;
+			s->pkblob = (char *)s->p;
 			s->p += s->pklen;
 			s->alglen = GET_32BIT(s->pkblob);
 			s->alg = s->pkblob + 4;
 			s->commentlen = GET_32BIT(s->p);
 			s->p += 4;
-			s->commentp = s->p;
+			s->commentp = (char *)s->p;
 			s->p += s->commentlen;
 			ssh2_pkt_init(ssh, SSH2_MSG_USERAUTH_REQUEST);
 			ssh2_pkt_addstring(ssh, s->username);
@@ -4694,8 +4697,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		 * First, offer the public blob to see if the server is
 		 * willing to accept it.
 		 */
-		pub_blob = ssh2_userkey_loadpub(cfg.keyfile, &algorithm,
-						&pub_blob_len);
+		pub_blob =
+		    (unsigned char *)ssh2_userkey_loadpub(cfg.keyfile,
+							  &algorithm,
+							  &pub_blob_len);
 		if (pub_blob) {
 		    ssh2_pkt_init(ssh, SSH2_MSG_USERAUTH_REQUEST);
 		    ssh2_pkt_addstring(ssh, s->username);
@@ -4704,7 +4709,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addbool(ssh, FALSE);	/* no signature included */
 		    ssh2_pkt_addstring(ssh, algorithm);
 		    ssh2_pkt_addstring_start(ssh);
-		    ssh2_pkt_addstring_data(ssh, pub_blob, pub_blob_len);
+		    ssh2_pkt_addstring_data(ssh, (char *)pub_blob,
+					    pub_blob_len);
 		    ssh2_pkt_send(ssh);
 		    logevent("Offered public key");	/* FIXME */
 
@@ -4905,7 +4911,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    ssh2_pkt_addstring(ssh, key->alg->name);
 		    pkblob = key->alg->public_blob(key->data, &pkblob_len);
 		    ssh2_pkt_addstring_start(ssh);
-		    ssh2_pkt_addstring_data(ssh, pkblob, pkblob_len);
+		    ssh2_pkt_addstring_data(ssh, (char *)pkblob, pkblob_len);
 
 		    /*
 		     * The data to be signed is:
@@ -4921,7 +4927,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 		    memcpy(sigdata + 4, ssh->v2_session_id, 20);
 		    memcpy(sigdata + 24, ssh->pktout.data + 5,
 			   ssh->pktout.length - 5);
-		    sigblob = key->alg->sign(key->data, sigdata,
+		    sigblob = key->alg->sign(key->data, (char *)sigdata,
 					     sigdata_len, &sigblob_len);
 		    ssh2_add_sigblob(ssh, pkblob, pkblob_len,
 				     sigblob, sigblob_len);
@@ -5809,7 +5815,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen, int ispkt)
 	    /*
 	     * We have spare data. Add it to the channel buffer.
 	     */
-	    ssh2_add_channel_data(ssh->mainchan, in, inlen);
+	    ssh2_add_channel_data(ssh->mainchan, (char *)in, inlen);
 	    s->try_send = TRUE;
 	}
 	if (s->try_send) {
@@ -5954,7 +5960,7 @@ static int ssh_send(void *handle, char *buf, int len)
     if (ssh == NULL || ssh->s == NULL || ssh->protocol == NULL)
 	return 0;
 
-    ssh->protocol(ssh, buf, len, 0);
+    ssh->protocol(ssh, (unsigned char *)buf, len, 0);
 
     return ssh_sendbuffer(ssh);
 }
