@@ -1,4 +1,4 @@
-/* $Id: macterm.c,v 1.1.2.10 1999/03/01 23:43:29 ben Exp $ */
+/* $Id: macterm.c,v 1.1.2.11 1999/03/02 14:52:35 ben Exp $ */
 /*
  * Copyright (c) 1999 Ben Harris
  * All rights reserved.
@@ -382,11 +382,12 @@ void free_ctx(struct mac_session *ctx) {
 void set_sbar(int total, int start, int page) {
     struct mac_session *s = onlysession;
 
-    SetControlMinimum(s->scrollbar, 0);
-    SetControlMaximum(s->scrollbar, total - page);
+    /* We don't redraw until we've set everything up, to avoid glitches */
+    (*s->scrollbar)->contrlMin = 0;
+    (*s->scrollbar)->contrlMax = total - page;
     SetControlValue(s->scrollbar, start);
 #if 0
-    /* XXX: This doesn't link for me - bjh */
+    /* XXX: This doesn't link for me. */
     if (mac_gestalts.cntlattr & gestaltControlMgrPresent)
 	SetControlViewSize(s->scrollbar, page);
 #endif
