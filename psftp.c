@@ -1104,20 +1104,20 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mv
     },
     {
-	"put", TRUE, "upload a file from your local machine to the server",
-	    " <filename> [ <remote-filename> ]\n"
-	    "  Uploads a file to the server and stores it there under\n"
-	    "  the same name, or under a different one if you supply the\n"
-	    "  argument <remote-filename>.\n",
-	    sftp_cmd_put
-    },
-    {
 	"open", TRUE, "connect to a host",
 	    " [<user>@]<hostname>\n"
 	    "  Establishes an SFTP connection to a given host. Only usable\n"
 	    "  when you did not already specify a host name on the command\n"
 	    "  line.\n",
 	    sftp_cmd_open
+    },
+    {
+	"put", TRUE, "upload a file from your local machine to the server",
+	    " <filename> [ <remote-filename> ]\n"
+	    "  Uploads a file to the server and stores it there under\n"
+	    "  the same name, or under a different one if you supply the\n"
+	    "  argument <remote-filename>.\n",
+	    sftp_cmd_put
     },
     {
 	"pwd", TRUE, "print your remote working directory",
