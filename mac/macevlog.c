@@ -1,4 +1,4 @@
-/* $Id: macevlog.c,v 1.4 2003/02/23 12:41:44 ben Exp $ */
+/* $Id: macevlog.c,v 1.5 2003/02/23 13:00:38 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -46,6 +46,7 @@ static void mac_clickeventlog(WindowPtr, EventRecord *);
 static void mac_activateeventlog(WindowPtr, EventRecord *);
 static void mac_groweventlog(WindowPtr, EventRecord *);
 static void mac_updateeventlog(WindowPtr);
+static void mac_closeeventlog(WindowPtr);
 
 static void mac_createeventlog(Session *s)
 {
@@ -65,6 +66,7 @@ static void mac_createeventlog(Session *s)
     wi->activate = &mac_activateeventlog;
     wi->grow = &mac_groweventlog;
     wi->update = &mac_updateeventlog;
+    wi->close = &mac_closeeventlog;
     SetWRefCon(s->eventlog_window, (long)wi);
     GetPort(&saveport);
     SetPort((GrafPtr)GetWindowPort(s->eventlog_window));
@@ -86,7 +88,6 @@ static void mac_createeventlog(Session *s)
 #else
     (*s->eventlog)->selFlags = lExtendDrag | lNoDisjoint | lNoExtend;
 #endif
-    ShowWindow(s->eventlog_window);
 }
 
 void mac_freeeventlog(Session *s)
@@ -252,9 +253,16 @@ static void mac_updateeventlog(WindowPtr window)
     EndUpdate(window);
 }
 
+static void mac_closeeventlog(WindowPtr window)
+{
+
+    HideWindow(window);
+}
+
 void mac_showeventlog(Session *s)
 {
 
+    SelectWindow(s->eventlog_window);
     ShowWindow(s->eventlog_window);
 }
 
