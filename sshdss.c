@@ -70,7 +70,7 @@ static Bignum getmp(char **data, int *datalen)
 	return NULL;
     if (p[0] & 0x80)
 	return NULL;		       /* negative mp */
-    b = bignum_from_bytes(p, length);
+    b = bignum_from_bytes((unsigned char *)p, length);
     return b;
 }
 
@@ -78,7 +78,7 @@ static Bignum get160(char **data, int *datalen)
 {
     Bignum b;
 
-    b = bignum_from_bytes(*data, 20);
+    b = bignum_from_bytes((unsigned char *)*data, 20);
     *data += 20;
     *datalen -= 20;
 
@@ -188,7 +188,7 @@ static char *dss_fingerprint(void *key)
     int numlen, i;
 
     MD5Init(&md5c);
-    MD5Update(&md5c, "\0\0\0\7ssh-dss", 11);
+    MD5Update(&md5c, (unsigned char *)"\0\0\0\7ssh-dss", 11);
 
 #define ADD_BIGNUM(bignum) \
     numlen = (bignum_bitcount(bignum)+8)/8; \
@@ -268,7 +268,7 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     /*
      * Step 2. u1 <- SHA(message) * w mod q.
      */
-    SHA_Simple(data, datalen, hash);
+    SHA_Simple(data, datalen, (unsigned char *)hash);
     p = hash;
     slen = 20;
     sha = get160(&p, &slen);
