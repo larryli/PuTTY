@@ -133,10 +133,7 @@ static struct Opt *opts[] = {
     &o_we_sga, &o_they_sga, NULL
 };
 
-#if 0
 static int in_synch;
-#endif
-
 static int sb_opt, sb_len;
 static char *sb_buf = NULL;
 static int sb_size = 0;
@@ -216,11 +213,8 @@ static void activate_option (struct Opt *o) {
 	 */
 	deactivate_option (o->option==TELOPT_NEW_ENVIRON ? &o_oenv : &o_nenv);
     }
-    if (o->option == TELOPT_ECHO)
-    {
-	cfg.ldisc_term = FALSE;
+    if (o->option == TELOPT_ECHO && cfg.ldisc_term)
 	ldisc = &ldisc_simple;
-    }
 }
 
 static void refused_option (struct Opt *o) {
@@ -229,11 +223,8 @@ static void refused_option (struct Opt *o) {
 	send_opt (WILL, TELOPT_OLD_ENVIRON);
 	o_oenv.state = REQUESTED;
     }
-    if (o->option == TELOPT_ECHO)
-    {
-	cfg.ldisc_term = TRUE;
+    if (o->option == TELOPT_ECHO && cfg.ldisc_term)
 	ldisc = &ldisc_term;
-    }
 }
 
 static void proc_rec_opt (int cmd, int option) {
@@ -407,10 +398,20 @@ static void do_telnet_read (char *buf, int len) {
 		telnet_state = SEENIAC;
 	    else {
 		b[0] = c;
-#if 0
 		if (!in_synch)
-#endif
 		    c_write (b, 1);
+
+#if 1
+		/* I can't get the F***ing winsock to insert the urgent IAC
+		 * into the right position! Even with SO_OOBINLINE it gives
+		 * it to recv too soon. And of course the DM byte (that
+		 * arrives in the same packet!) appears several K later!!
+		 *
+		 * Oh well, we do get the DM in the right place so I'll
+		 * just stop hiding on the next 0xf2 and hope for the best.
+		 */
+		else if (c == DM) in_synch = 0;
+#endif
 		if (c == CR)
 		    telnet_state = SEENCR;
 		else
@@ -423,6 +424,10 @@ static void do_telnet_read (char *buf, int len) {
 	    else if (c == WILL) telnet_state = SEENWILL;
 	    else if (c == WONT) telnet_state = SEENWONT;
 	    else if (c == SB) telnet_state = SEENSB;
+	    else if (c == DM) {
+	        in_synch = 0;
+		telnet_state = TOPLEVEL;
+	    } 
 	    else {
 		/* ignore everything else; print it if it's IAC */
 		if (c == IAC) {
@@ -532,12 +537,10 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
 	  default: return "socket(): unknown error";
 	}
 
-#if 0
     {
 	BOOL b = TRUE;
 	setsockopt (s, SOL_SOCKET, SO_OOBINLINE, (void *)&b, sizeof(b));
     }
-#endif
 
     /*
      * Bind to local address.
@@ -592,13 +595,10 @@ static char *telnet_init (HWND hwnd, char *host, int port, char **realhost) {
 		send_opt ((*o)->send, (*o)->option);
     }
 
-#if 0
     /*
      * Set up SYNCH state.
      */
     in_synch = FALSE;
-#endif
-
     return NULL;
 }
 
@@ -626,39 +626,27 @@ static int telnet_msg (WPARAM wParam, LPARAM lParam) {
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_READ:
       case FD_CLOSE:
-	ret = recv(s, buf, sizeof(buf), 0);
-	if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
-	    return 1;
-	if (ret < 0)		       /* any _other_ error */
-	    return -10000-WSAGetLastError();
-	if (ret == 0) {
-	    s = INVALID_SOCKET;
-	    return 0;
-	}
-#if 0
-	if (in_synch) {
-	    BOOL i;
-	    if (ioctlsocket (s, SIOCATMARK, &i) < 0) {
+	{
+	    int clear_of_oob = 1;
+	    if (ioctlsocket (s, SIOCATMARK, &clear_of_oob) < 0 )
 		return -20000-WSAGetLastError();
-	    }
-	    if (i)
-		in_synch = FALSE;
+
+	    in_synch = !clear_of_oob;
+
+	    do {
+		ret = recv(s, buf, sizeof(buf), 0);
+		if (ret < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
+		    return 1;
+		if (ret < 0)		       /* any _other_ error */
+		    return -10000-WSAGetLastError();
+		if (ret == 0) {
+		    s = INVALID_SOCKET;
+		    return 0;
+		}
+
+	        do_telnet_read (buf, ret);
+	    } while (in_synch);
 	}
-#endif
-	do_telnet_read (buf, ret);
-	return 1;
-      case FD_OOB:
-	do {
-	    ret = recv(s, buf, sizeof(buf), 0);
-	} while (ret > 0);
-	telnet_state = TOPLEVEL;
-	do {
-	    ret = recv(s, buf, 1, MSG_OOB);
-	    if (ret > 0)
-		do_telnet_read (buf, ret);
-	} while (ret > 0);
-	if (ret < 0 && WSAGetLastError() != WSAEWOULDBLOCK)
-	    return -30000-WSAGetLastError();
 	return 1;
       case FD_WRITE:
 	if (outbuf_head != outbuf_reap)
@@ -681,28 +669,7 @@ static void telnet_send (char *buf, int len) {
 	return;
 
     p = buf;
-    if (cfg.ldisc_term) {
-	while (p < buf+len) {
-	    char *q = p;
-	    unsigned char * cstr = 0;
-	    while (p < buf+len) {
-		if ((unsigned char)*p == IAC) {
-		    cstr = iac;
-		    break;
-		}
-		if (*p == '\r') {
-		    if( p+1 >= buf+len || ( p[1] != '\n' && p[1] != '\0'))
-		    {
-			cstr = cr;
-			break;
-		    }
-		}
-		p++;
-	    }
-	    if (p!=q) s_write (q, p-q);
-	    if (cstr) s_write (cstr,2), p++;
-	}
-    } else while (p < buf+len) {
+    while (p < buf+len) {
 	char *q = p;
 
 	while (iswritable((unsigned char)*p) && p < buf+len) p++;
