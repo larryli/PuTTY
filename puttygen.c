@@ -172,7 +172,7 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
  * FILENAME_MAX.
  */
 static int prompt_keyfile(HWND hwnd, char *dlgtitle,
-			  char *filename, int save)
+			  char *filename, int save, int ppk)
 {
     OPENFILENAME of;
     memset(&of, 0, sizeof(of));
@@ -182,7 +182,12 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
     of.lStructSize = sizeof(of);
 #endif
     of.hwndOwner = hwnd;
-    of.lpstrFilter = "PuTTY Private Key Files\0*.PPK\0AllFiles\0*\0\0\0";
+    if (ppk) {
+	of.lpstrFilter = "PuTTY Private Key Files\0*.PPK\0All Files\0*\0\0\0";
+	of.lpstrDefExt = ".ppk";
+    } else {
+	of.lpstrFilter = "All Files\0*\0\0\0";
+    }
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
     of.lpstrFile = filename;
@@ -190,7 +195,6 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
     of.nMaxFile = FILENAME_MAX;
     of.lpstrFileTitle = NULL;
     of.lpstrInitialDir = NULL;
-    of.lpstrDefExt = ".ppk";
     of.lpstrTitle = dlgtitle;
     of.Flags = 0;
     if (save)
@@ -961,7 +965,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			break;
 		}
 		if (prompt_keyfile(hwnd, "Save private key as:",
-				   filename, 1)) {
+				   filename, 1, (type == realtype))) {
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
@@ -1004,7 +1008,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
 		if (prompt_keyfile(hwnd, "Save public key as:",
-				   filename, 1)) {
+				   filename, 1, 0)) {
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
@@ -1035,7 +1039,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
 	    if (!state->generation_thread_exists) {
 		char filename[FILENAME_MAX];
-		if (prompt_keyfile(hwnd, "Load private key:", filename, 0)) {
+		if (prompt_keyfile(hwnd, "Load private key:",
+				   filename, 0, LOWORD(wParam)==IDC_LOAD)) {
 		    char passphrase[PASSPHRASE_MAXLEN];
 		    int needs_pass;
 		    int type, realtype;
