@@ -27,6 +27,7 @@ struct mac_gestalts {
     long apprvers;
     long cntlattr;
     long windattr;
+    long menuattr;
     long encvvers; /* TEC version (from TECGetInfo()) */
     long uncvattr; /* Unicode Converter attributes (frem TECGetInfo()) */
     long navsvers; /* Navigation Services version */

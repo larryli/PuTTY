@@ -1,4 +1,4 @@
-/* $Id: mac.c,v 1.51 2003/02/23 11:58:59 ben Exp $ */
+/* $Id: mac.c,v 1.52 2003/02/27 23:34:59 ben Exp $ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.
@@ -157,6 +157,9 @@ static void mac_startup(void) {
     if (Gestalt(gestaltWindowMgrAttr, &mac_gestalts.windattr) != noErr ||
 	&SetWindowContentColor == kUnresolvedCFragSymbolAddress)
 	mac_gestalts.windattr = 0;
+    /* Mac OS 8.5 Menu Manager? */
+    if (Gestalt(gestaltMenuMgrAttr, &mac_gestalts.menuattr) != noErr)
+	mac_gestalts.menuattr = 0;
 #endif
     /* Text Encoding Conversion Manager? */
     if (
@@ -189,6 +192,8 @@ static void mac_startup(void) {
 	fatalbox("Unable to create menu bar.");
     SetMenuBar(menuBar);
     AppendResMenu(GetMenuHandle(mApple), 'DRVR');
+    if (mac_gestalts.menuattr & gestaltMenuMgrAquaLayoutMask)
+	DeleteMenuItem(GetMenuHandle(mFile), iQuit);
     mac_adjustmenus();
     DrawMenuBar();
     InitCursor();
