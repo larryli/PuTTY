@@ -106,25 +106,29 @@ int rsastr_len(struct RSAKey *key) {
 
     md = key->modulus;
     ex = key->exponent;
-    return 4 * (ex[0]+md[0]) + 10;
+    return 4 * (ex[0]+md[0]) + 20;
 }
 
 void rsastr_fmt(char *str, struct RSAKey *key) {
     Bignum md, ex;
-    int len = 0, i;
+    int len = 0, i, nibbles;
+    static const char hex[] = "0123456789abcdef";
 
     md = key->modulus;
     ex = key->exponent;
 
-    for (i=1; i<=ex[0]; i++) {
-	sprintf(str+len, "%04x", ex[i]);
-	len += strlen(str+len);
-    }
-    str[len++] = '/';
-    for (i=1; i<=md[0]; i++) {
-	sprintf(str+len, "%04x", md[i]);
-	len += strlen(str+len);
-    }
+    len += sprintf(str+len, "0x");
+
+    nibbles = (3 + ssh1_bignum_bitcount(ex))/4; if (nibbles<1) nibbles=1;
+    for (i=nibbles; i-- ;)
+        str[len++] = hex[(bignum_byte(ex, i/2) >> (4*(i%2))) & 0xF];
+
+    len += sprintf(str+len, ",0x");
+
+    nibbles = (3 + ssh1_bignum_bitcount(md))/4; if (nibbles<1) nibbles=1;
+    for (i=nibbles; i-- ;)
+        str[len++] = hex[(bignum_byte(md, i/2) >> (4*(i%2))) & 0xF];
+
     str[len] = '\0';
 }
 

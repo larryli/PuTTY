@@ -9,6 +9,12 @@
     ((unsigned long)(unsigned char)(cp)[2] << 8) | \
     ((unsigned long)(unsigned char)(cp)[3]))
 
+#define PUT_32BIT(cp, value) { \
+    (cp)[0] = (unsigned char)((value) >> 24); \
+    (cp)[1] = (unsigned char)((value) >> 16); \
+    (cp)[2] = (unsigned char)((value) >> 8); \
+    (cp)[3] = (unsigned char)(value); }
+
 static void getstring(char **data, int *datalen, char **p, int *length) {
     *p = NULL;
     if (*datalen < 4)
@@ -81,23 +87,68 @@ static void dss_setkey(char *data, int len) {
 
 static char *dss_fmtkey(void) {
     char *p;
-    int len;
-    int i;
+    int len, i, pos, nibbles;
+    static const char hex[] = "0123456789abcdef";
     if (!dss_p)
         return NULL;
-    len = 7 + 4 + 1;                   /* "ssh-dss", punctuation, \0 */
+    len = 8 + 4 + 1;                   /* 4 x "0x", punctuation, \0 */
     len += 4 * (dss_p[0] + dss_q[0] + dss_g[0] + dss_y[0]);   /* digits */
     p = malloc(len);
     if (!p) return NULL;
-    strcpy(p, "ssh-dss:");
-    for (i = dss_p[0]; i > 0; i--) sprintf(p+strlen(p), "%04X", dss_p[i]);
-    strcat(p, "/");
-    for (i = dss_q[0]; i > 0; i--) sprintf(p+strlen(p), "%04X", dss_q[i]);
-    strcat(p, "/");
-    for (i = dss_g[0]; i > 0; i--) sprintf(p+strlen(p), "%04X", dss_g[i]);
-    strcat(p, "/");
-    for (i = dss_y[0]; i > 0; i--) sprintf(p+strlen(p), "%04X", dss_y[i]);
+
+    pos = 0;
+    pos += sprintf(p+pos, "0x");
+    nibbles = (3 + ssh1_bignum_bitcount(dss_p))/4; if (nibbles<1) nibbles=1;
+    for (i=nibbles; i-- ;)
+        p[pos++] = hex[(bignum_byte(dss_p, i/2) >> (4*(i%2))) & 0xF];
+    pos += sprintf(p+pos, "0x");
+    nibbles = (3 + ssh1_bignum_bitcount(dss_q))/4; if (nibbles<1) nibbles=1;
+    for (i=nibbles; i-- ;)
+        p[pos++] = hex[(bignum_byte(dss_q, i/2) >> (4*(i%2))) & 0xF];
+    pos += sprintf(p+pos, "0x");
+    nibbles = (3 + ssh1_bignum_bitcount(dss_g))/4; if (nibbles<1) nibbles=1;
+    for (i=nibbles; i-- ;)
+        p[pos++] = hex[(bignum_byte(dss_g, i/2) >> (4*(i%2))) & 0xF];
+    pos += sprintf(p+pos, "0x");
+    nibbles = (3 + ssh1_bignum_bitcount(dss_y))/4; if (nibbles<1) nibbles=1;
+    for (i=nibbles; i-- ;)
+        p[pos++] = hex[(bignum_byte(dss_y, i/2) >> (4*(i%2))) & 0xF];
+    p[pos] = '\0';
     return p;
+}
+
+static char *dss_fingerprint(void) {
+    struct MD5Context md5c;
+    unsigned char digest[16], lenbuf[4];
+    char buffer[16*3+40];
+    char *ret;
+    int numlen, i;
+
+    MD5Init(&md5c);
+    MD5Update(&md5c, "\0\0\0\7ssh-dss", 11);
+
+#define ADD_BIGNUM(bignum) \
+    numlen = (ssh1_bignum_bitcount(bignum)+8)/8; \
+    PUT_32BIT(lenbuf, numlen); MD5Update(&md5c, lenbuf, 4); \
+    for (i = numlen; i-- ;) { \
+        unsigned char c = bignum_byte(bignum, i); \
+        MD5Update(&md5c, &c, 1); \
+    }
+    ADD_BIGNUM(dss_p);
+    ADD_BIGNUM(dss_q);
+    ADD_BIGNUM(dss_g);
+    ADD_BIGNUM(dss_y);
+#undef ADD_BIGNUM
+
+    MD5Final(digest, &md5c);
+
+    sprintf(buffer, "%d ", ssh1_bignum_bitcount(dss_p));
+    for (i = 0; i < 16; i++)
+        sprintf(buffer+strlen(buffer), "%s%02x", i?":":"", digest[i]);
+    ret = malloc(strlen(buffer)+1);
+    if (ret)
+        strcpy(ret, buffer);
+    return ret;
 }
 
 static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
@@ -184,6 +235,8 @@ static int dss_verifysig(char *sig, int siglen, char *data, int datalen) {
 struct ssh_hostkey ssh_dss = {
     dss_setkey,
     dss_fmtkey,
+    dss_fingerprint,
     dss_verifysig,
-    "ssh-dss"
+    "ssh-dss",
+    "dss"
 };

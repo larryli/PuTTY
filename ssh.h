@@ -123,8 +123,10 @@ struct ssh_kex {
 struct ssh_hostkey {
     void (*setkey)(char *data, int len);
     char *(*fmtkey)(void);
+    char *(*fingerprint)(void);
     int (*verifysig)(char *sig, int siglen, char *data, int datalen);
     char *name;
+    char *keytype;                     /* for host key cache */
 };
 
 struct ssh_compress {

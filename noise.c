@@ -8,41 +8,7 @@
 
 #include "putty.h"
 #include "ssh.h"
-
-static char seedpath[2*MAX_PATH+10] = "\0";
-
-/*
- * Find the random seed file path and store it in `seedpath'.
- */
-static void get_seedpath(void) {
-    HKEY rkey;
-    DWORD type, size;
-
-    size = sizeof(seedpath);
-
-    if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_POS, &rkey)==ERROR_SUCCESS) {
-	int ret = RegQueryValueEx(rkey, "RandSeedFile",
-				  0, &type, seedpath, &size);
-	if (ret != ERROR_SUCCESS || type != REG_SZ)
-	    seedpath[0] = '\0';
-	RegCloseKey(rkey);
-    } else
-	seedpath[0] = '\0';
-
-    if (!seedpath[0]) {
-	int len, ret;
-
-	len = GetEnvironmentVariable("HOMEDRIVE", seedpath, sizeof(seedpath));
-	ret = GetEnvironmentVariable("HOMEPATH", seedpath+len,
-				      sizeof(seedpath)-len);
-	if (ret == 0) {		       /* probably win95; store in \WINDOWS */
-	    GetWindowsDirectory(seedpath, sizeof(seedpath));
-	    len = strlen(seedpath);
-	} else
-	    len += ret;
-	strcpy(seedpath+len, "\\PUTTY.RND");
-    }
-}
+#include "storage.h"
 
 /*
  * This function is called once, at PuTTY startup, and will do some
@@ -52,7 +18,6 @@ static void get_seedpath(void) {
 
 void noise_get_heavy(void (*func) (void *, int)) {
     HANDLE srch;
-    HANDLE seedf;
     WIN32_FIND_DATA finddata;
     char winpath[MAX_PATH+3];
 
@@ -66,55 +31,15 @@ void noise_get_heavy(void (*func) (void *, int)) {
 	FindClose(srch);
     }
 
-    if (!seedpath[0])
-	get_seedpath();
-
-    seedf = CreateFile(seedpath, GENERIC_READ,
-		       FILE_SHARE_READ | FILE_SHARE_WRITE,
-		       NULL, OPEN_EXISTING, 0, NULL);
-
-    if (seedf != INVALID_HANDLE_VALUE) {
-	while (1) {
-	    char buf[1024];
-	    DWORD len;
-
-	    if (ReadFile(seedf, buf, sizeof(buf), &len, NULL) && len)
-		func(buf, len);
-	    else
-		break;
-	}
-	CloseHandle(seedf);
-    }
+    read_random_seed(func);
 }
 
 void random_save_seed(void) {
-    HANDLE seedf;
+    int len;
+    void *data;
 
-    if (!seedpath[0])
-	get_seedpath();
-
-    seedf = CreateFile(seedpath, GENERIC_WRITE, 0,
-		       NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-    if (seedf != INVALID_HANDLE_VALUE) {
-	int len;
-	DWORD lenwritten;
-	void *data;
-
-	random_get_savedata(&data, &len);
-	WriteFile(seedf, data, len, &lenwritten, NULL);
-	CloseHandle(seedf);
-    }
-}
-
-/*
- * This function is called from `putty -cleanup'. It removes the
- * random seed file.
- */
-void random_destroy_seed(void) {
-    if (!seedpath[0])
-	get_seedpath();
-    remove(seedpath);
+    random_get_savedata(&data, &len);
+    write_random_seed(data, len);
 }
 
 /*

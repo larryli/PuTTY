@@ -67,7 +67,7 @@ PLOBJS = plink.$(OBJ) windlg.$(OBJ)
 ##-- objects pscp
 SOBJS = scp.$(OBJ) windlg.$(OBJ) be_none.$(OBJ)
 ##-- objects putty puttytel pscp plink
-MOBJS = misc.$(OBJ) version.$(OBJ)
+MOBJS = misc.$(OBJ) version.$(OBJ) winstore.$(OBJ)
 ##-- objects putty pscp plink
 OBJS1 = sshcrc.$(OBJ) sshdes.$(OBJ) sshmd5.$(OBJ) sshrsa.$(OBJ) sshrand.$(OBJ)
 OBJS2 = sshsha.$(OBJ) sshblowf.$(OBJ) noise.$(OBJ) sshdh.$(OBJ) sshdss.$(OBJ)
@@ -182,8 +182,9 @@ plink.rsp: makefile
  	echo $(SOCK2) >> plink.rsp
 
 ##-- dependencies
-window.$(OBJ): window.c putty.h win_res.h
-windlg.$(OBJ): windlg.c putty.h ssh.h win_res.h
+window.$(OBJ): window.c putty.h win_res.h storage.h
+windlg.$(OBJ): windlg.c putty.h ssh.h win_res.h storage.h
+winstore.$(OBJ): winstore.c putty.h storage.h
 terminal.$(OBJ): terminal.c putty.h
 sizetip.$(OBJ): sizetip.c putty.h
 telnet.$(OBJ): telnet.c putty.h
@@ -191,7 +192,7 @@ raw.$(OBJ): raw.c putty.h
 xlat.$(OBJ): xlat.c putty.h
 ldisc.$(OBJ): ldisc.c putty.h
 misc.$(OBJ): misc.c putty.h
-noise.$(OBJ): noise.c putty.h ssh.h
+noise.$(OBJ): noise.c putty.h ssh.h storage.h
 ssh.$(OBJ): ssh.c ssh.h putty.h tree234.h
 sshcrc.$(OBJ): sshcrc.c ssh.h
 sshdes.$(OBJ): sshdes.c ssh.h

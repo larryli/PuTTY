@@ -1142,11 +1142,13 @@ static int do_ssh1_login(unsigned char *in, int inlen, int ispkt)
          * First format the key into a string.
          */
         int len = rsastr_len(&hostkey);
+        char fingerprint[100];
         char *keystr = malloc(len);
         if (!keystr)
             fatalbox("Out of memory");
         rsastr_fmt(keystr, &hostkey);
-        verify_ssh_host_key(savedhost, keystr);
+        rsa_fingerprint(fingerprint, sizeof(fingerprint), &hostkey);
+        verify_ssh_host_key(savedhost, "rsa", keystr, fingerprint);
         free(keystr);
     }
 
@@ -1824,7 +1826,7 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
     static struct ssh_mac *scmac_tobe = NULL;
     static struct ssh_compress *cscomp_tobe = NULL;
     static struct ssh_compress *sccomp_tobe = NULL;
-    static char *hostkeydata, *sigdata, *keystr;
+    static char *hostkeydata, *sigdata, *keystr, *fingerprint;
     static int hostkeylen, siglen;
     static unsigned char exchange_hash[20];
     static unsigned char keyspace[40];
@@ -2053,7 +2055,11 @@ static int do_ssh2_transport(unsigned char *in, int inlen, int ispkt)
      * checked the signature of the exchange hash.)
      */
     keystr = hostkey->fmtkey();
-    verify_ssh_host_key(savedhost, keystr);
+    fingerprint = hostkey->fingerprint();
+    verify_ssh_host_key(savedhost, hostkey->keytype, keystr, fingerprint);
+    logevent("Host key fingerprint is:");
+    logevent(fingerprint);
+    free(fingerprint);
     free(keystr);
 
     /*

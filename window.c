@@ -13,6 +13,7 @@
 
 #define PUTTY_DO_GLOBALS		       /* actually _define_ globals */
 #include "putty.h"
+#include "storage.h"
 #include "win_res.h"
 
 #define IDM_SHOWLOG   0x0010
@@ -176,8 +177,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show) {
                                "to continue?",
                                "PuTTY Warning",
                                MB_YESNO | MB_ICONWARNING) == IDYES) {
-                    random_destroy_seed();
-                    registry_cleanup();
+                    cleanup_all();
                 }
                 exit(0);
 	    }

@@ -14,6 +14,7 @@
 #include "ssh.h"
 #include "putty.h"
 #include "win_res.h"
+#include "storage.h"
 
 #define NPANELS 8
 #define MAIN_NPANELS 8
@@ -1644,128 +1645,70 @@ void showabout (HWND hwnd) {
     }
 }
 
-void verify_ssh_host_key(char *host, char *keystr) {
-    char *otherstr, *mungedhost;
-    int len;
-    HKEY rkey;
-
-    len = 1 + strlen(keystr);
-
-    /*
-     * Now read a saved key in from the registry and see what it
-     * says.
-     */
-    otherstr = smalloc(len);
-    mungedhost = smalloc(3*strlen(host)+1);
-    if (!otherstr || !mungedhost)
-	fatalbox("Out of memory");
-
-    mungestr(host, mungedhost);
-
-    if (RegCreateKey(HKEY_CURRENT_USER, PUTTY_REG_POS "\\SshHostKeys",
-		     &rkey) != ERROR_SUCCESS) {
-	if (MessageBox(NULL, "PuTTY was unable to open the host key cache\n"
-		       "in the registry. There is thus no way to tell\n"
-		       "if the remote host is what you think it is.\n"
-		       "Connect anyway?", "PuTTY Problem",
-		       MB_ICONWARNING | MB_YESNO) == IDNO)
-	    exit(0);
-    } else {
-	DWORD readlen = len;
-	DWORD type;
-	int ret;
-
-	ret = RegQueryValueEx(rkey, mungedhost, NULL,
-			      &type, otherstr, &readlen);
-
-	if (ret == ERROR_MORE_DATA ||
-	    (ret == ERROR_SUCCESS && type == REG_SZ &&
-	     strcmp(otherstr, keystr))) {
-	    if (MessageBox(NULL,
-			   "This host's host key is different from the\n"
-			   "one cached in the registry! Someone may be\n"
-			   "impersonating this host for malicious reasons;\n"
-			   "alternatively, the host key may have changed\n"
-			   "due to sloppy system administration.\n"
-			   "Replace key in registry and connect?",
-			   "PuTTY: Security Warning",
-			   MB_ICONWARNING | MB_YESNO) == IDNO)
-		exit(0);
-	    RegSetValueEx(rkey, mungedhost, 0, REG_SZ, keystr,
-			  strlen(keystr)+1);
-	} else if (ret != ERROR_SUCCESS || type != REG_SZ) {
-	    if (MessageBox(NULL,
-			   "This host's host key is not cached in the\n"
-			   "registry. Do you want to add it to the cache\n"
-			   "and carry on connecting?",
-			   "PuTTY: New Host",
-			   MB_ICONWARNING | MB_YESNO) == IDNO)
-		exit(0);
-	    RegSetValueEx(rkey, mungedhost, 0, REG_SZ, keystr,
-			  strlen(keystr)+1);
-	}
-
-	RegCloseKey(rkey);
-    }
-}
-
-/*
- * Recursively delete a registry key and everything under it.
- */
-static void registry_recursive_remove(HKEY key) {
-    DWORD i;
-    char name[MAX_PATH+1];
-    HKEY subkey;
-
-    i = 0;
-    while (RegEnumKey(key, i, name, sizeof(name)) == ERROR_SUCCESS) {
-        if (RegOpenKey(key, name, &subkey) == ERROR_SUCCESS) {
-            registry_recursive_remove(subkey);
-            RegCloseKey(subkey);
-        }
-        RegDeleteKey(key, name);
-    }
-}
-
-/*
- * Destroy all registry information associated with PuTTY.
- */
-void registry_cleanup(void) {
-    HKEY key;
+void verify_ssh_host_key(char *host, char *keytype,
+                         char *keystr, char *fingerprint) {
     int ret;
-    char name[MAX_PATH+1];
+
+    static const char absentmsg[] =
+        "The server's host key is not cached in the registry. You\n"
+        "have no guarantee that the server is the computer you\n"
+        "think it is.\n"
+        "The server's key fingerprint is:\n"
+        "%s\n"
+        "If you trust this host, hit Yes to add the key to\n"
+        "PuTTY's cache and carry on connecting.\n"
+        "If you do not trust this host, hit No to abandon the\n"
+        "connection.\n";
+
+    static const char wrongmsg[] =
+        "WARNING - POTENTIAL SECURITY BREACH!\n"
+        "\n"
+        "The server's host key does not match the one PuTTY has\n"
+        "cached in the registry. This means that either the\n"
+        "server administrator has changed the host key, or you\n"
+        "have actually connected to another computer pretending\n"
+        "to be the server.\n"
+        "The new key fingerprint is:\n"
+        "%s\n"
+        "If you were expecting this change and trust the new key,\n"
+        "hit Yes to update PuTTY's cache and continue connecting.\n"
+        "If you want to carry on connecting but without updating\n"
+        "the cache, hit No.\n"
+        "If you want to abandon the connection completely, hit\n"
+        "Cancel. Hitting Cancel is the ONLY guaranteed safe\n"
+        "choice.\n";
+
+    static const char mbtitle[] = "PuTTY Security Alert";
+
+    
+    char message[160+                  /* sensible fingerprint max size */
+                 (sizeof(absentmsg) > sizeof(wrongmsg) ?
+                  sizeof(absentmsg) : sizeof(wrongmsg))];
 
     /*
-     * Open the main PuTTY registry key and remove everything in it.
+     * Verify the key against the registry.
      */
-    if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_POS, &key) == ERROR_SUCCESS) {
-        registry_recursive_remove(key);
-        RegCloseKey(key);
+    ret = verify_host_key(host, keytype, keystr);
+
+    if (ret == 0)                      /* success - key matched OK */
+        return;
+    if (ret == 2) {                    /* key was different */
+        int mbret;
+        sprintf(message, wrongmsg, fingerprint);
+        mbret = MessageBox(NULL, message, mbtitle,
+                           MB_ICONWARNING | MB_YESNOCANCEL);
+        if (mbret == IDYES)
+            store_host_key(host, keytype, keystr);
+        if (mbret == IDCANCEL)
+            exit(0);
     }
-    /*
-     * Now open the parent key and remove the PuTTY main key. Once
-     * we've done that, see if the parent key has any other
-     * children.
-     */
-    if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_PARENT,
-                   &key) == ERROR_SUCCESS) {
-        RegDeleteKey(key, PUTTY_REG_PARENT_CHILD);
-        ret = RegEnumKey(key, 0, name, sizeof(name));
-        RegCloseKey(key);
-        /*
-         * If the parent key had no other children, we must delete
-         * it in its turn. That means opening the _grandparent_
-         * key.
-         */
-        if (ret != ERROR_SUCCESS) {
-            if (RegOpenKey(HKEY_CURRENT_USER, PUTTY_REG_GPARENT,
-                           &key) == ERROR_SUCCESS) {
-                RegDeleteKey(key, PUTTY_REG_GPARENT_CHILD);
-                RegCloseKey(key);
-            }
-        }
+    if (ret == 1) {                    /* key was absent */
+        int mbret;
+        sprintf(message, absentmsg, fingerprint);
+        mbret = MessageBox(NULL, message, mbtitle,
+                           MB_ICONWARNING | MB_YESNO);
+        if (mbret == IDNO)
+            exit(0);
+        store_host_key(host, keytype, keystr);
     }
-    /*
-     * Now we're done.
-     */
 }
