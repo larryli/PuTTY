@@ -86,16 +86,25 @@ void logevent(char *msg) {
 
 #define PASSPHRASE_MAXLEN 512
 
+struct PassphraseProcStruct {
+    char *passphrase;
+    char *comment;
+};
+
 /*
  * Dialog-box function for the passphrase box.
  */
 static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                                    WPARAM wParam, LPARAM lParam) {
     static char *passphrase;
+    struct PassphraseProcStruct *p;
 
     switch (msg) {
       case WM_INITDIALOG:
-        passphrase = (char *)lParam;
+        p = (struct PassphraseProcStruct *)lParam;
+        passphrase = p->passphrase;
+        if (p->comment)
+            SetDlgItemText(hwnd, 101, p->comment);
         *passphrase = 0;
         return 0;
       case WM_COMMAND:
@@ -150,18 +159,22 @@ void add_keyfile(char *filename) {
     int needs_pass;
     int ret;
     int attempts;
+    char *comment;
+    struct PassphraseProcStruct pps;
 
-    /* FIXME: we can acquire comment here and use it in dialog */
-    needs_pass = rsakey_encrypted(filename, NULL);
+    needs_pass = rsakey_encrypted(filename, &comment);
     attempts = 0;
     key = malloc(sizeof(*key));
+    pps.passphrase = passphrase;
+    pps.comment = comment;
     do {
         if (needs_pass) {
             int dlgret;
             dlgret = DialogBoxParam(instance, MAKEINTRESOURCE(210),
                                     NULL, PassphraseProc,
-                                    (LPARAM)passphrase);
+                                    (LPARAM)&pps);
             if (!dlgret) {
+                if (comment) free(comment);
                 free(key);
                 return;                /* operation cancelled */
             }
@@ -170,6 +183,7 @@ void add_keyfile(char *filename) {
         ret = loadrsakey(filename, key, passphrase);
         attempts++;
     } while (ret == -1);
+    if (comment) free(comment);
     if (ret == 0) {
         MessageBox(NULL, "Couldn't load public key.", APPNAME,
                    MB_OK | MB_ICONERROR);
@@ -334,6 +348,7 @@ void answer_msg(void *msg) {
             if (key) {
                 del234(rsakeys, key);
                 keylist_update();
+                freersakey(key);
                 ret[4] = SSH_AGENT_SUCCESS;
             }
         }
