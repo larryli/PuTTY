@@ -471,7 +471,7 @@ int main(int argc, char **argv)
 
     /* See if host is of the form user@host */
     if (cfg.host[0] != '\0') {
-	char *atsign = strchr(cfg.host, '@');
+	char *atsign = strrchr(cfg.host, '@');
 	/* Make sure we're not overflowing the user field */
 	if (atsign) {
 	    if (atsign - cfg.host < sizeof cfg.username) {
