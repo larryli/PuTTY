@@ -1186,8 +1186,13 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
     HTREEITEM newitem;
     ins.hParent = (level > 0 ? faff->lastat[level-1] : TVI_ROOT);
     ins.hInsertAfter = faff->lastat[level];
-    ins.DUMMYUNIONNAME.item.mask = TVIF_TEXT;
-    ins.DUMMYUNIONNAME.item.pszText = text;
+#if _WIN32_IE >= 0x0400 && defined NONAMELESSUNION
+#define INSITEM DUMMYUNIONNAME.item
+#else
+#define INSITEM item
+#endif
+    ins.INSITEM.mask = TVIF_TEXT;
+    ins.INSITEM.pszText = text;
     newitem = TreeView_InsertItem(faff->treeview, &ins);
     if (level > 0)
         TreeView_Expand(faff->treeview, faff->lastat[level-1], TVE_EXPAND);
