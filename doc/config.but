@@ -1,4 +1,4 @@
-\versionid $Id: config.but,v 1.82 2004/06/15 11:11:19 jacob Exp $
+\versionid $Id: config.but,v 1.83 2004/06/15 11:31:30 jacob Exp $
 
 \C{config} Configuring PuTTY
 
@@ -916,8 +916,9 @@ scrolls off the top of the screen (see \k{using-scrollback}).
 The \q{Lines of scrollback} box lets you configure how many lines of
 text PuTTY keeps. The \q{Display scrollbar} options allow you to
 hide the scrollbar (although you can still view the scrollback using
-Shift-PgUp and Shift-PgDn). You can separately configure whether the
-scrollbar is shown in full-screen mode and in normal modes.
+the keyboard as described in \k{using-scrollback}). You can separately
+configure whether the scrollbar is shown in full-screen mode and in
+normal modes.
 
 If you are viewing part of the scrollback when the server sends more
 text to PuTTY, the screen will revert to showing the current
