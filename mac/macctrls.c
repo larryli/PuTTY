@@ -1,4 +1,4 @@
-/* $Id: macctrls.c,v 1.38 2003/04/14 23:28:58 ben Exp $ */
+/* $Id: macctrls.c,v 1.39 2003/04/14 23:47:07 ben Exp $ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.
@@ -290,40 +290,17 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
     unsigned int i, j, ncols, colstart;
     struct mac_layoutstate cols[MAXCOLS];
 
-    fprintf(stderr, "--- begin set ---\n");
-    fprintf(stderr, "pathname = %s\n", s->pathname);
-    if (s->boxname && *s->boxname)
-	fprintf(stderr, "boxname = %s\n", s->boxname);
-    if (s->boxtitle)
-	fprintf(stderr, "boxtitle = %s\n", s->boxtitle);
-
     cols[0] = *curstate;
     ncols = 1;
 
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
-	char const *s;
 
 	colstart = COLUMN_START(ctrl->generic.column);
-	switch (ctrl->generic.type) {
-	  case CTRL_TEXT: s = "text"; break;
-	  case CTRL_EDITBOX: s = "editbox"; break;
-	  case CTRL_RADIO: s = "radio"; break;
-	  case CTRL_CHECKBOX: s = "checkbox"; break;
-	  case CTRL_BUTTON: s = "button"; break;
-	  case CTRL_LISTBOX: s = "listbox"; break;
-	  case CTRL_COLUMNS: s = "columns"; break;
-	  case CTRL_FILESELECT: s = "fileselect"; break;
-	  case CTRL_FONTSELECT: s = "fontselect"; break;
-	  case CTRL_TABDELAY: s = "tabdelay"; break;
-	  default: s = "unknown"; break;
-	}
-	fprintf(stderr, "  control: %s\n", s);
 	switch (ctrl->generic.type) {
 	  case CTRL_COLUMNS:
 	    if (ctrl->columns.ncols != 1) {
 		ncols = ctrl->columns.ncols;
-		fprintf(stderr, "  split to %d\n", ncols);
 		assert(ncols <= MAXCOLS);
 		for (j = 0; j < ncols; j++) {
 		    cols[j] = cols[0];
@@ -337,7 +314,6 @@ static void macctrl_layoutset(struct mac_layoutstate *curstate,
 			    ctrl->columns.percentages[j] / 100 - 6;
 		}
 	    } else {
-		fprintf(stderr, "  join\n");
 		for (j = 0; j < ncols; j++)
 		    if (cols[j].pos.v > cols[0].pos.v)
 			cols[0].pos.v = cols[j].pos.v;
@@ -478,7 +454,6 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
     SInt16 height;
 
     assert(ctrl->text.label != NULL);
-    fprintf(stderr, "    label = %s\n", ctrl->text.label);
     mc->generic.type = MACCTRL_TEXT;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
@@ -509,7 +484,6 @@ static void macctrl_text(struct macctrls *mcs, WindowPtr window,
 	height = TEGetHeight(1, (*te)->nLines, te);
     }
 #endif
-    fprintf(stderr, "    height = %d\n", height);
     SizeControl(mc->text.tbctrl, curstate->width, height);
     curstate->pos.v += height + 6;
     add234(mcs->byctrl, mc);
@@ -524,11 +498,6 @@ static void macctrl_editbox(struct macctrls *mcs, WindowPtr window,
     union macctrl *mc = snew(union macctrl);
     Rect lbounds, bounds;
 
-    if (ctrl->editbox.label != NULL)
-	fprintf(stderr, "    label = %s\n", ctrl->editbox.label);
-    fprintf(stderr, "    percentwidth = %d\n", ctrl->editbox.percentwidth);
-    if (ctrl->editbox.password) fprintf(stderr, "    password\n");
-    if (ctrl->editbox.has_list) fprintf(stderr, "    has list\n");
     mc->generic.type = MACCTRL_EDITBOX;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
@@ -667,8 +636,6 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
     Str255 title;
     unsigned int i, colwidth;
 
-    if (ctrl->radio.label != NULL)
-	fprintf(stderr, "    label = %s\n", ctrl->radio.label);
     mc->generic.type = MACCTRL_RADIO;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
@@ -700,7 +667,6 @@ static void macctrl_radio(struct macctrls *mcs, WindowPtr window,
 	curstate->pos.v += 18;
     }
     for (i = 0; i < ctrl->radio.nbuttons; i++) {
-	fprintf(stderr, "    button = %s\n", ctrl->radio.buttons[i]);
 	bounds.top = curstate->pos.v - 2;
 	bounds.bottom = bounds.top + 18;
 	bounds.left = curstate->pos.h + colwidth * (i % ctrl->radio.ncolumns);
@@ -730,7 +696,6 @@ static void macctrl_checkbox(struct macctrls *mcs, WindowPtr window,
     Str255 title;
 
     assert(ctrl->checkbox.label != NULL);
-    fprintf(stderr, "    label = %s\n", ctrl->checkbox.label);
     mc->generic.type = MACCTRL_CHECKBOX;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
@@ -757,9 +722,6 @@ static void macctrl_button(struct macctrls *mcs, WindowPtr window,
     Str255 title;
 
     assert(ctrl->button.label != NULL);
-    fprintf(stderr, "    label = %s\n", ctrl->button.label);
-    if (ctrl->button.isdefault)
-	fprintf(stderr, "    is default\n");
     mc->generic.type = MACCTRL_BUTTON;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
@@ -853,14 +815,6 @@ static void macctrl_listbox(struct macctrls *mcs, WindowPtr window,
     Rect bounds;
     Size olen;
 
-    if (ctrl->listbox.label != NULL)
-	fprintf(stderr, "    label = %s\n", ctrl->listbox.label);
-    fprintf(stderr, "    height = %d\n", ctrl->listbox.height);
-    if (ctrl->listbox.draglist)
-	fprintf(stderr, "    draglist\n");
-    if (ctrl->listbox.multisel)
-	fprintf(stderr, "    multisel\n");
-    fprintf(stderr, "    ncols = %d\n", ctrl->listbox.ncols);
     assert(ctrl->listbox.percentwidth == 100);
     mc->generic.type = MACCTRL_LISTBOX;
     mc->generic.ctrl = ctrl;
@@ -1024,10 +978,6 @@ static void macctrl_popup(struct macctrls *mcs, WindowPtr window,
     assert(!ctrl->listbox.draglist);
     assert(!ctrl->listbox.multisel);
 
-    if (ctrl->listbox.label != NULL)
-	fprintf(stderr, "    label = %s\n", ctrl->listbox.label);
-    fprintf(stderr, "    percentwidth = %d\n", ctrl->listbox.percentwidth);
-
     mc->generic.type = MACCTRL_POPUP;
     mc->generic.ctrl = ctrl;
     mc->generic.privdata = NULL;
@@ -1155,8 +1105,6 @@ void macctrl_click(WindowPtr window, EventRecord *event)
        else
 #endif
 	    mc = (union macctrl *)GetControlReference(control);
-	fprintf(stderr, "control = %p, part = %d,  mc = %p\n",
-		control, part, mc);
 	if (mac_gestalts.apprvers >= 0x100) {
 	    if (GetControlFeatures(control, &features) == noErr &&
 		(features & kControlSupportsFocus) &&
@@ -1180,7 +1128,6 @@ void macctrl_click(WindowPtr window, EventRecord *event)
 		(control == mc->listbox.tbctrl ||
 		 control == (*mc->listbox.list)->vScroll)) {
 
-		fprintf(stderr, "list = %p\n", mc->listbox.list);
 		macctrl_setfocus(mcs, mc);
 		if (LClick(mouse, event->modifiers, mc->listbox.list))
 		    /* double-click */
@@ -1591,7 +1538,6 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
     }
 #endif
     buffer[olen] = '\0';
-    fprintf(stderr, "dlg_editbox_get: %s\n", buffer);
 }
 
 
@@ -1607,7 +1553,6 @@ static void dlg_macpopup_clear(union control *ctrl, void *dlg)
     unsigned int i, n;
 
     if (mc == NULL) return;
-    fprintf(stderr, "      popup_clear\n");
     n = CountMenuItems(menu);
     for (i = 0; i < n; i++)
 	DeleteMenuItem(menu, n - i);
@@ -1623,7 +1568,6 @@ static void dlg_maclist_clear(union control *ctrl, void *dlg)
     union macctrl *mc = findbyctrl(mcs, ctrl);
 
     if (mc == NULL) return;
-    fprintf(stderr, "      maclist_clear\n");
     LDelRow(0, 0, mc->listbox.list);
     mc->listbox.nids = 0;
     sfree(mc->listbox.ids);
@@ -1651,7 +1595,6 @@ static void dlg_macpopup_del(union control *ctrl, void *dlg, int index)
     MenuRef menu = mc->popup.menu;
 
     if (mc == NULL) return;
-    fprintf(stderr, "      popup_del %d\n", index);
     DeleteMenuItem(menu, index + 1);
     if (mc->popup.ids != NULL)
 	memcpy(mc->popup.ids + index, mc->popup.ids + index + 1,
@@ -1665,7 +1608,6 @@ static void dlg_maclist_del(union control *ctrl, void *dlg, int index)
     union macctrl *mc = findbyctrl(mcs, ctrl);
 
     if (mc == NULL) return;
-    fprintf(stderr, "      maclist_del %d\n", index);
     LDelRow(1, index, mc->listbox.list);
     if (mc->listbox.ids != NULL)
 	memcpy(mc->listbox.ids + index, mc->listbox.ids + index + 1,
@@ -1694,7 +1636,6 @@ static void dlg_macpopup_add(union control *ctrl, void *dlg, char const *text)
     Str255 itemstring;
 
     if (mc == NULL) return;
-    fprintf(stderr, "      popup_add %s\n", text);
     assert(text[0] != '\0');
     c2pstrcpy(itemstring, text);
     AppendMenu(menu, "\pdummy");
@@ -1711,7 +1652,6 @@ static void dlg_maclist_add(union control *ctrl, void *dlg, char const *text)
     Cell cell = { 0, 0 };
 
     if (mc == NULL) return;
-    fprintf(stderr, "      maclist_add %s\n", text);
 #if TARGET_API_MAC_CARBON
     GetListDataBounds(mc->listbox.list, &bounds);
 #else
@@ -1745,7 +1685,6 @@ static void dlg_macpopup_addwithid(union control *ctrl, void *dlg,
     unsigned int index;
 
     if (mc == NULL) return;
-    fprintf(stderr, "      popup_addwthid %s, %d\n", text, id);
     dlg_macpopup_add(ctrl, dlg, text);
     index = CountMenuItems(menu) - 1;
     if (mc->popup.nids <= index) {
@@ -1764,7 +1703,6 @@ static void dlg_maclist_addwithid(union control *ctrl, void *dlg,
     int index;
 
     if (mc == NULL) return;
-    fprintf(stderr, "      maclist_addwithid %s %d\n", text, id);
     dlg_maclist_add(ctrl, dlg, text);
 #if TARGET_API_MAC_CARBON
     GetListDataBounds(mc->listbox.list, &bounds);
