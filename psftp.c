@@ -1836,6 +1836,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     }
     logctx = log_init(NULL, &cfg);
     back->provide_logctx(backhandle, logctx);
+    console_provide_logctx(logctx);
     ssh_sftp_init();
     if (verbose && realhost != NULL)
 	printf("Connected to %s\n", realhost);

@@ -670,6 +670,7 @@ int askappend(void *frontend, char *filename);
  */
 extern int console_batch_mode;
 int console_get_line(const char *prompt, char *str, int maxlen, int is_pw);
+void console_provide_logctx(void *logctx);
 
 /*
  * Exports from printing.c.

@@ -580,6 +580,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 	bump("ssh_init: %s", err);
     logctx = log_init(NULL, &cfg);
     back->provide_logctx(backhandle, logctx);
+    console_provide_logctx(logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL)
 	tell_user(stderr, "Connected to %s\n", realhost);

@@ -15,6 +15,8 @@
 
 int console_batch_mode = FALSE;
 
+static void *console_logctx = NULL;
+
 /*
  * Clean up and exit.
  */
@@ -259,8 +261,15 @@ void old_keyfile_warning(void)
     fputs(message, stderr);
 }
 
+void console_provide_logctx(void *logctx)
+{
+    console_logctx = logctx;
+}
+
 void logevent(void *frontend, char *string)
 {
+    if (console_logctx)
+	log_eventlog(console_logctx, string);
 }
 
 int console_get_line(const char *prompt, char *str,

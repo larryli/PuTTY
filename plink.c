@@ -548,6 +548,7 @@ int main(int argc, char **argv)
 	}
 	logctx = log_init(NULL, &cfg);
 	back->provide_logctx(backhandle, logctx);
+	console_provide_logctx(logctx);
 	sfree(realhost);
     }
     connopen = 1;
