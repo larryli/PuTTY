@@ -129,10 +129,13 @@ void ldisc_update(void *frontend, int echo, int edit)
     else
 	mode.c_lflag &= ~ECHO;
 
-    if (edit)
+    if (edit) {
+	mode.c_iflag |= ICRNL;
 	mode.c_lflag |= ISIG | ICANON;
-    else
+    } else {
+	mode.c_iflag &= ~ICRNL;
 	mode.c_lflag &= ~(ISIG | ICANON);
+    }
 
     tcsetattr(0, TCSANOW, &mode);
 }
