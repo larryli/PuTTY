@@ -368,6 +368,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	    struct addrinfo hints;
 	    memset(&hints, 0, sizeof(hints));
 	    hints.ai_family = ret->family;
+	    hints.ai_flags = AI_CANONNAME;
 	    if ((err = p_getaddrinfo(host, NULL, &hints, &ret->ais)) == 0)
 		ret_family = ret->ais->ai_family;
 	    ret->ai = ret->ais;
@@ -406,17 +407,10 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 			   (char *) &((SOCKADDR_IN *) ret->ai->
 				      ai_addr)->sin_addr, sizeof(a));
 
-		/* Now let's find that canonicalname... */
-		if (p_getnameinfo) {
-		    if (p_getnameinfo
-			((struct sockaddr *) ret->ai->ai_addr,
-			 ret->family ==
-			 AF_INET ? sizeof(SOCKADDR_IN) :
-			 sizeof(SOCKADDR_IN6), realhost,
-			 sizeof(realhost), NULL, 0, 0) != 0) {
-			strncpy(realhost, host, sizeof(realhost));
-		    }
-		}
+		if (ret->ai->ai_canonname)
+		    strncpy(realhost, ret->ai->ai_canonname, lenof(realhost));
+		else
+		    strncpy(realhost, host, lenof(realhost));
 	    }
 	    /* We used the IPv4-only gethostbyname()... */
 	    else
