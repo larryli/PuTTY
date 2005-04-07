@@ -3226,6 +3226,33 @@ void saved_session_freedata(GtkMenuItem *item, gpointer data)
     sfree(str);
 }
 
+static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    struct sesslist sesslist;
+    int i;
+
+    gtk_container_foreach(GTK_CONTAINER(inst->sessionsmenu),
+			  (GtkCallback)gtk_widget_destroy, NULL);
+
+    get_sesslist(&sesslist, TRUE);
+    for (i = 1; i < sesslist.nsessions; i++) {
+	GtkWidget *menuitem =
+	    gtk_menu_item_new_with_label(sesslist.sessions[i]);
+	gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
+	gtk_widget_show(menuitem);
+	gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
+			    dupstr(sesslist.sessions[i]));
+	gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
+			   GTK_SIGNAL_FUNC(saved_session_menuitem),
+			   inst);
+	gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
+			   GTK_SIGNAL_FUNC(saved_session_freedata),
+			   inst);
+    }
+    get_sesslist(&sesslist, FALSE); /* free up */
+}
+
 void update_specials_menu(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -3505,28 +3532,10 @@ int pt_main(int argc, char **argv)
 	gtk_widget_hide(inst->restartitem);
         MKMENUITEM("Duplicate Session", dup_session_menuitem);
 	if (saved_sessions) {
-	    struct sesslist sesslist;
-	    int i;
-
 	    inst->sessionsmenu = gtk_menu_new();
-
-	    get_sesslist(&sesslist, TRUE);
-	    for (i = 1; i < sesslist.nsessions; i++) {
-		menuitem = gtk_menu_item_new_with_label(sesslist.sessions[i]);
-		gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
-		gtk_widget_show(menuitem);
-		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
-				    dupstr(sesslist.sessions[i]));
-		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
-				   GTK_SIGNAL_FUNC(saved_session_menuitem),
-				   inst);
-		gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
-				   GTK_SIGNAL_FUNC(saved_session_freedata),
-				   inst);
-	    }
-	    get_sesslist(&sesslist, FALSE);
-
-	    MKMENUITEM("Saved Sessions", NULL);
+	    /* sessionsmenu will be updated when it's invoked */
+	    /* XXX is this the right way to do dynamic menus in Gtk? */
+	    MKMENUITEM("Saved Sessions", update_savedsess_menu);
 	    gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem),
 				      inst->sessionsmenu);
 	}

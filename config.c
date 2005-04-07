@@ -278,7 +278,7 @@ static void sshbug_handler(union control *ctrl, void *dlg,
 struct sessionsaver_data {
     union control *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
     union control *okbutton, *cancelbutton;
-    struct sesslist *sesslist;
+    struct sesslist sesslist;
     int midsession;
 };
 
@@ -297,10 +297,10 @@ static int load_selected_session(struct sessionsaver_data *ssd,
 	dlg_beep(dlg);
 	return 0;
     }
-    isdef = !strcmp(ssd->sesslist->sessions[i], "Default Settings");
-    load_settings(ssd->sesslist->sessions[i], !isdef, cfg);
+    isdef = !strcmp(ssd->sesslist.sessions[i], "Default Settings");
+    load_settings(ssd->sesslist.sessions[i], !isdef, cfg);
     if (!isdef) {
-	strncpy(savedsession, ssd->sesslist->sessions[i],
+	strncpy(savedsession, ssd->sesslist.sessions[i],
 		SAVEDSESSION_LEN);
 	savedsession[SAVEDSESSION_LEN-1] = '\0';
     } else {
@@ -344,8 +344,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    int i;
 	    dlg_update_start(ctrl, dlg);
 	    dlg_listbox_clear(ctrl, dlg);
-	    for (i = 0; i < ssd->sesslist->nsessions; i++)
-		dlg_listbox_add(ctrl, dlg, ssd->sesslist->sessions[i]);
+	    for (i = 0; i < ssd->sesslist.nsessions; i++)
+		dlg_listbox_add(ctrl, dlg, ssd->sesslist.sessions[i]);
 	    dlg_update_done(ctrl, dlg);
 	}
     } else if (event == EVENT_VALCHANGE) {
@@ -376,9 +376,9 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		    dlg_beep(dlg);
 		    return;
 		}
-		isdef = !strcmp(ssd->sesslist->sessions[i], "Default Settings");
+		isdef = !strcmp(ssd->sesslist.sessions[i], "Default Settings");
 		if (!isdef) {
-		    strncpy(savedsession, ssd->sesslist->sessions[i],
+		    strncpy(savedsession, ssd->sesslist.sessions[i],
 			    SAVEDSESSION_LEN);
 		    savedsession[SAVEDSESSION_LEN-1] = '\0';
 		} else {
@@ -392,8 +392,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
                     sfree(errmsg);
                 }
             }
-	    get_sesslist(ssd->sesslist, FALSE);
-	    get_sesslist(ssd->sesslist, TRUE);
+	    get_sesslist(&ssd->sesslist, FALSE);
+	    get_sesslist(&ssd->sesslist, TRUE);
 	    dlg_refresh(ssd->editbox, dlg);
 	    dlg_refresh(ssd->listbox, dlg);
 	} else if (!ssd->midsession &&
@@ -402,9 +402,9 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    if (i <= 0) {
 		dlg_beep(dlg);
 	    } else {
-		del_settings(ssd->sesslist->sessions[i]);
-		get_sesslist(ssd->sesslist, FALSE);
-		get_sesslist(ssd->sesslist, TRUE);
+		del_settings(ssd->sesslist.sessions[i]);
+		get_sesslist(&ssd->sesslist, FALSE);
+		get_sesslist(&ssd->sesslist, TRUE);
 		dlg_refresh(ssd->listbox, dlg);
 	    }
 	} else if (ctrl == ssd->okbutton) {
@@ -819,8 +819,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
     }
 }
 
-void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
-		      int midsession, int protocol, int protcfginfo)
+void setup_config_box(struct controlbox *b, int midsession,
+		      int protocol, int protcfginfo)
 {
     struct controlset *s;
     struct sessionsaver_data *ssd;
@@ -904,7 +904,7 @@ void setup_config_box(struct controlbox *b, struct sesslist *sesslist,
 		    midsession ? "Save the current session settings" :
 		    "Load, save or delete a stored session");
     ctrl_columns(s, 2, 75, 25);
-    ssd->sesslist = sesslist;
+    get_sesslist(&ssd->sesslist, TRUE);
     ssd->editbox = ctrl_editbox(s, "Saved Sessions", 'e', 100,
 				HELPCTX(session_saved),
 				sessionsaver_handler, P(ssd), P(NULL));

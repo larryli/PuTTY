@@ -42,8 +42,6 @@ static int nevents = 0, negsize = 0;
 
 extern Config cfg;		       /* defined in window.c */
 
-struct sesslist sesslist;	       /* exported to window.c */
-
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
 void force_normal(HWND hwnd)
@@ -649,7 +647,7 @@ int do_config(void)
     int ret;
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, &sesslist, FALSE, 0, 0);
+    setup_config_box(ctrlbox, FALSE, 0, 0);
     win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), FALSE);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
@@ -661,11 +659,9 @@ int do_config(void)
     dp.data = &cfg;
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
-    get_sesslist(&sesslist, TRUE);
     ret =
 	SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
 		  GenericMainDlgProc);
-    get_sesslist(&sesslist, FALSE);
 
     ctrl_free_box(ctrlbox);
     winctrl_cleanup(&ctrls_panel);
@@ -683,7 +679,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     backup_cfg = cfg;		       /* structure copy */
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, &sesslist, TRUE, cfg.protocol, protcfginfo);
+    setup_config_box(ctrlbox, TRUE, cfg.protocol, protcfginfo);
     win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), TRUE);
     dp_init(&dp);
     winctrl_init(&ctrls_base);

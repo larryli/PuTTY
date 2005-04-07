@@ -80,7 +80,6 @@ struct alert_queue {
 {
     NSOutlineView *treeview;
     struct controlbox *ctrlbox;
-    struct sesslist sl;
     void *dv;
     Config cfg;
 }

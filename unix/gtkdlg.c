@@ -1956,15 +1956,12 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     GtkTreeItem *treeitemlevels[8];
     GtkTree *treelevels[8];
     struct dlgparam dp;
-    struct sesslist sl;
     struct Shortcuts scs;
 
     struct selparam *selparams = NULL;
     int nselparams = 0, selparamsize = 0;
 
     dlg_init(&dp);
-
-    get_sesslist(&sl, TRUE);
 
     listitemheight = get_listitemheight();
 
@@ -1975,7 +1972,7 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     window = gtk_dialog_new();
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, &sl, midsession, cfg->protocol, protcfginfo);
+    setup_config_box(ctrlbox, midsession, cfg->protocol, protcfginfo);
     unix_setup_config_box(ctrlbox, midsession);
     gtk_setup_config_box(ctrlbox, midsession, window);
 
@@ -2161,7 +2158,6 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 
     gtk_main();
 
-    get_sesslist(&sl, FALSE);
     dlg_cleanup(&dp);
     sfree(selparams);
 

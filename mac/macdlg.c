@@ -66,7 +66,6 @@ static void mac_config(int midsession)
 {
     Session *s;
     WinInfo *wi;
-    static struct sesslist sesslist;
     Str255 mactitle;
     char *str;
 
@@ -90,9 +89,8 @@ static void mac_config(int midsession)
     else
 	s->settings_window = GetNewWindow(wSettings, NULL, (WindowPtr)-1);
 
-    get_sesslist(&sesslist, TRUE);
     s->ctrlbox = ctrl_new_box();
-    setup_config_box(s->ctrlbox, &sesslist, midsession, 0, 0);
+    setup_config_box(s->ctrlbox, midsession, 0, 0);
 
     s->settings_ctrls.data = &s->temp_cfg;
     if (midsession)

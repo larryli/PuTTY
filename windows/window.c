@@ -78,6 +78,7 @@ static void init_fonts(int, int);
 static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
+static void update_savedsess_menu(void);
 
 static int is_full_screen(void);
 static void make_full_screen(void);
@@ -121,10 +122,11 @@ static struct {
     int specials_submenu_pos;
 } popup_menus[2];
 enum { SYSMENU, CTXMENU };
+static HMENU savedsess_menu;
 
 Config cfg;			       /* exported to windlg.c */
 
-extern struct sesslist sesslist;       /* imported from windlg.c */
+static struct sesslist sesslist;       /* for saved-session menu */
 
 struct agent_callback {
     void (*callback)(void *, void *, int);
@@ -741,23 +743,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Set up the session-control options on the system menu.
      */
     {
-	HMENU s, m;
-	int i, j;
+	HMENU m;
+	int j;
 	char *str;
 
 	popup_menus[SYSMENU].menu = GetSystemMenu(hwnd, FALSE);
 	popup_menus[CTXMENU].menu = CreatePopupMenu();
 	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "&Paste");
 
-	s = CreateMenu();
+	savedsess_menu = CreateMenu();
 	get_sesslist(&sesslist, TRUE);
-	/* skip sesslist.sessions[0] == Default Settings */
-	for (i = 1;
-	     i < ((sesslist.nsessions <= MENU_SAVED_MAX+1) ? sesslist.nsessions
-							   : MENU_SAVED_MAX+1);
-	     i++)
-	    AppendMenu(s, MF_ENABLED, IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
-		       sesslist.sessions[i]);
+	update_savedsess_menu();
 
 	for (j = 0; j < lenof(popup_menus); j++) {
 	    m = popup_menus[j].menu;
@@ -768,7 +764,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
 	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
-	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) s, "Sa&ved Sessions");
+	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) savedsess_menu,
+		       "Sa&ved Sessions");
 	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
@@ -893,6 +890,23 @@ char *do_select(SOCKET skt, int startup)
 	}
     }
     return NULL;
+}
+
+/*
+ * Refresh the saved-session submenu from `sesslist'.
+ */
+static void update_savedsess_menu(void)
+{
+    int i;
+    while (DeleteMenu(savedsess_menu, 0, MF_BYPOSITION)) ;
+    /* skip sesslist.sessions[0] == Default Settings */
+    for (i = 1;
+	 i < ((sesslist.nsessions <= MENU_SAVED_MAX+1) ? sesslist.nsessions
+						       : MENU_SAVED_MAX+1);
+	 i++)
+	AppendMenu(savedsess_menu, MF_ENABLED,
+		   IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
+		   sesslist.sessions[i]);
 }
 
 /*
@@ -1888,6 +1902,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	show_mouseptr(1);
 	PostQuitMessage(0);
 	return 0;
+      case WM_INITMENUPOPUP:
+	if ((HMENU)wParam == savedsess_menu) {
+	    /* About to pop up Saved Sessions sub-menu.
+	     * Refresh the session list. */
+	    get_sesslist(&sesslist, FALSE); /* free */
+	    get_sesslist(&sesslist, TRUE);
+	    update_savedsess_menu();
+	    return 0;
+	}
+	break;
       case WM_COMMAND:
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
