@@ -238,6 +238,8 @@ of the tag.
 
  - Announce the release!
     + Mail the announcement to putty-announce.
+       * Set a Reply-To on the mail so that people don't keep
+	 replying to my personal address.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
