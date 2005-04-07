@@ -818,5 +818,7 @@ void get_sesslist(struct sesslist *list, int allocate)
     } else {
 	sfree(list->buffer);
 	sfree(list->sessions);
+	list->buffer = NULL;
+	list->sessions = NULL;
     }
 }
