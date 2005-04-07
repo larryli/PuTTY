@@ -1242,7 +1242,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
     s = ctrl_getset(b, "Window/Appearance", "border",
 		    "Adjust the window border");
-    ctrl_editbox(s, "Gap between text and window edge:", NO_SHORTCUT, 20,
+    ctrl_editbox(s, "Gap between text and window edge:", 'e', 20,
 		 HELPCTX(appearance_border),
 		 dlg_stdeditbox_handler,
 		 I(offsetof(Config,window_border)), I(-1));
@@ -1423,9 +1423,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(connection_ipversion),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, addressfamily)),
-			  "Auto", NO_SHORTCUT, I(ADDRTYPE_UNSPEC),
-			  "IPv4", NO_SHORTCUT, I(ADDRTYPE_IPV4),
-			  "IPv6", NO_SHORTCUT, I(ADDRTYPE_IPV6),
+			  "Auto", 'u', I(ADDRTYPE_UNSPEC),
+			  "IPv4", '4', I(ADDRTYPE_IPV4),
+			  "IPv6", '6', I(ADDRTYPE_IPV6),
 			  NULL);
 #endif
 	}
@@ -1839,9 +1839,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 			      HELPCTX(ssh_tunnels_portfwd_ipversion),
 			      portfwd_handler, P(pfd),
-			      "Auto", NO_SHORTCUT, I(ADDRTYPE_UNSPEC),
-			      "IPv4", NO_SHORTCUT, I(ADDRTYPE_IPV4),
-			      "IPv6", NO_SHORTCUT, I(ADDRTYPE_IPV6),
+			      "Auto", 'u', I(ADDRTYPE_UNSPEC),
+			      "IPv4", '4', I(ADDRTYPE_IPV4),
+			      "IPv6", '6', I(ADDRTYPE_IPV6),
 			      NULL);
 #endif
 	ctrl_tabdelay(s, pfd->addbutton);
