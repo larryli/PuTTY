@@ -670,7 +670,7 @@ void staticddl(struct ctlpos *cp, char *stext,
     r.right = rwid;
     r.bottom = COMBOHEIGHT*4;
     doctl(cp, r, "COMBOBOX",
-	  WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL |
 	  CBS_DROPDOWNLIST | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", lid);
 
     cp->ypos += height + GAPBETWEEN;
@@ -729,7 +729,7 @@ void staticddlbig(struct ctlpos *cp, char *stext,
     r.right = cp->width;
     r.bottom = COMBOHEIGHT*4;
     doctl(cp, r, "COMBOBOX",
-	  WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL |
 	  CBS_DROPDOWNLIST | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", lid);
     cp->ypos += COMBOHEIGHT + GAPBETWEEN;
 }
