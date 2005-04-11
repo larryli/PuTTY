@@ -605,7 +605,7 @@ GLOBAL int loaded_session;
 struct RSAKey;			       /* be a little careful of scope */
 
 /*
- * Exports from window.c.
+ * Exports from the front end.
  */
 void request_resize(void *frontend, int, int);
 void do_text(Context, int, int, wchar_t *, int, unsigned long, int);
