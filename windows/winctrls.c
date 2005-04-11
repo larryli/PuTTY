@@ -148,44 +148,29 @@ void endbox(struct ctlpos *cp)
 }
 
 /*
- * Some edit boxes. Each one has a static above it. The percentages
- * of the horizontal space are provided.
+ * A static line, followed by a full-width edit box.
  */
-void multiedit(struct ctlpos *cp, int password, ...)
+void editboxfw(struct ctlpos *cp, int password, char *text,
+	       int staticid, int editid)
 {
     RECT r;
-    va_list ap;
-    int percent, xpos;
 
-    percent = xpos = 0;
-    va_start(ap, password);
-    while (1) {
-	char *text;
-	int staticid, editid, pcwidth;
-	text = va_arg(ap, char *);
-	if (!text)
-	    break;
-	staticid = va_arg(ap, int);
-	editid = va_arg(ap, int);
-	pcwidth = va_arg(ap, int);
+    r.left = GAPBETWEEN;
+    r.right = cp->width;
 
-	r.left = xpos + GAPBETWEEN;
-	percent += pcwidth;
-	xpos = (cp->width + GAPBETWEEN) * percent / 100;
-	r.right = xpos - r.left;
-
+    if (text) {
 	r.top = cp->ypos;
 	r.bottom = STATICHEIGHT;
 	doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, staticid);
-	r.top = cp->ypos + 8 + GAPWITHIN;
-	r.bottom = EDITHEIGHT;
-	doctl(cp, r, "EDIT",
-	      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL |
-	      (password ? ES_PASSWORD : 0),
-	      WS_EX_CLIENTEDGE, "", editid);
+	cp->ypos += STATICHEIGHT + GAPWITHIN;
     }
-    va_end(ap);
-    cp->ypos += STATICHEIGHT + GAPWITHIN + EDITHEIGHT + GAPBETWEEN;
+    r.top = cp->ypos;
+    r.bottom = EDITHEIGHT;
+    doctl(cp, r, "EDIT",
+	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL |
+	  (password ? ES_PASSWORD : 0),
+	  WS_EX_CLIENTEDGE, "", editid);
+    cp->ypos += EDITHEIGHT + GAPBETWEEN;
 }
 
 /*
@@ -198,16 +183,18 @@ void combobox(struct ctlpos *cp, char *text, int staticid, int listid)
     r.left = GAPBETWEEN;
     r.right = cp->width;
 
+    if (text) {
+	r.top = cp->ypos;
+	r.bottom = STATICHEIGHT;
+	doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, staticid);
+	cp->ypos += STATICHEIGHT + GAPWITHIN;
+    }
     r.top = cp->ypos;
-    r.bottom = STATICHEIGHT;
-    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, staticid);
-    r.top = cp->ypos + 8 + GAPWITHIN;
     r.bottom = COMBOHEIGHT * 10;
     doctl(cp, r, "COMBOBOX",
 	  WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL |
 	  CBS_DROPDOWN | CBS_HASSTRINGS, WS_EX_CLIENTEDGE, "", listid);
-
-    cp->ypos += STATICHEIGHT + GAPWITHIN + COMBOHEIGHT + GAPBETWEEN;
+    cp->ypos += COMBOHEIGHT + GAPBETWEEN;
 }
 
 struct radio { char *text; int id; };
@@ -717,12 +704,14 @@ void staticddlbig(struct ctlpos *cp, char *stext,
 {
     RECT r;
 
-    r.left = GAPBETWEEN;
-    r.top = cp->ypos;
-    r.right = cp->width;
-    r.bottom = STATICHEIGHT;
-    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
-    cp->ypos += STATICHEIGHT;
+    if (stext) {
+	r.left = GAPBETWEEN;
+	r.top = cp->ypos;
+	r.right = cp->width;
+	r.bottom = STATICHEIGHT;
+	doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+	cp->ypos += STATICHEIGHT;
+    }
 
     r.left = GAPBETWEEN;
     r.top = cp->ypos;
@@ -742,12 +731,14 @@ void bigeditctrl(struct ctlpos *cp, char *stext,
 {
     RECT r;
 
-    r.left = GAPBETWEEN;
-    r.top = cp->ypos;
-    r.right = cp->width;
-    r.bottom = STATICHEIGHT;
-    cp->ypos += r.bottom + GAPWITHIN;
-    doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+    if (stext) {
+	r.left = GAPBETWEEN;
+	r.top = cp->ypos;
+	r.right = cp->width;
+	r.bottom = STATICHEIGHT;
+	cp->ypos += r.bottom + GAPWITHIN;
+	doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, stext, sid);
+    }
 
     r.left = GAPBETWEEN;
     r.top = cp->ypos;
@@ -1508,8 +1499,8 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 		    combobox(&pos, escaped,
 			     base_id, base_id+1);
 		else
-		    multiedit(&pos, ctrl->editbox.password, escaped,
-			      base_id, base_id+1, 100, NULL);
+		    editboxfw(&pos, ctrl->editbox.password, escaped,
+			      base_id, base_id+1);
 	    } else {
 		if (ctrl->editbox.has_list) {
 		    staticcombo(&pos, escaped, base_id, base_id+1,
