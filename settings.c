@@ -68,6 +68,61 @@ static void gppi(void *handle, char *name, int def, int *i)
     *i = read_setting_i(handle, name, def);
 }
 
+/*
+ * Read a set of name-value pairs in the format we occasionally use:
+ *   NAME\tVALUE\0NAME\tVALUE\0\0 in memory
+ *   NAME=VALUE,NAME=VALUE, in storage
+ * `def' is in the storage format.
+ */
+static void gppmap(void *handle, char *name, char *def, char *val, int len)
+{
+    char *buf = snewn(2*len, char), *p, *q;
+    gpps(handle, name, def, buf, 2*len);
+    p = buf;
+    q = val;
+    while (*p) {
+	while (*p && *p != ',') {
+	    int c = *p++;
+	    if (c == '=')
+		c = '\t';
+	    if (c == '\\')
+		c = *p++;
+	    *q++ = c;
+	}
+	if (*p == ',')
+	    p++;
+	*q++ = '\0';
+    }
+    *q = '\0';
+    sfree(buf);
+}
+
+/*
+ * Write a set of name/value pairs in the above format.
+ */
+static void wmap(void *handle, char const *key, char const *value, int len)
+{
+    char *buf = snewn(2*len, char), *p;
+    const char *q;
+    p = buf;
+    q = value;
+    while (*q) {
+	while (*q) {
+	    int c = *q++;
+	    if (c == '=' || c == ',' || c == '\\')
+		*p++ = '\\';
+	    if (c == '\t')
+		c = '=';
+	    *p++ = c;
+	}
+	*p++ = ',';
+	q++;
+    }
+    *p = '\0';
+    write_setting_s(handle, key, buf);
+    sfree(buf);
+}
+
 static int key2val(const struct keyval *mapping, int nmaps, char *key)
 {
     int i;
@@ -210,26 +265,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_s(sesskey, "ProxyUsername", cfg->proxy_username);
     write_setting_s(sesskey, "ProxyPassword", cfg->proxy_password);
     write_setting_s(sesskey, "ProxyTelnetCommand", cfg->proxy_telnet_command);
-
-    {
-	char buf[2 * sizeof(cfg->environmt)], *p, *q;
-	p = buf;
-	q = cfg->environmt;
-	while (*q) {
-	    while (*q) {
-		int c = *q++;
-		if (c == '=' || c == ',' || c == '\\')
-		    *p++ = '\\';
-		if (c == '\t')
-		    c = '=';
-		*p++ = c;
-	    }
-	    *p++ = ',';
-	    q++;
-	}
-	*p = '\0';
-	write_setting_s(sesskey, "Environment", buf);
-    }
+    wmap(sesskey, "Environment", cfg->environmt, lenof(cfg->environmt));
     write_setting_s(sesskey, "UserName", cfg->username);
     write_setting_s(sesskey, "LocalUserName", cfg->localusername);
     write_setting_i(sesskey, "NoPTY", cfg->nopty);
@@ -356,25 +392,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "X11AuthType", cfg->x11_auth);
     write_setting_i(sesskey, "LocalPortAcceptAll", cfg->lport_acceptall);
     write_setting_i(sesskey, "RemotePortAcceptAll", cfg->rport_acceptall);
-    {
-	char buf[2 * sizeof(cfg->portfwd)], *p, *q;
-	p = buf;
-	q = cfg->portfwd;
-	while (*q) {
-	    while (*q) {
-		int c = *q++;
-		if (c == '=' || c == ',' || c == '\\')
-		    *p++ = '\\';
-		if (c == '\t')
-		    c = '=';
-		*p++ = c;
-	    }
-	    *p++ = ',';
-	    q++;
-	}
-	*p = '\0';
-	write_setting_s(sesskey, "PortForwardings", buf);
-    }
+    wmap(sesskey, "PortForwardings", cfg->portfwd, lenof(cfg->portfwd));
     write_setting_i(sesskey, "BugIgnore1", 2-cfg->sshbug_ignore1);
     write_setting_i(sesskey, "BugPlainPW1", 2-cfg->sshbug_plainpw1);
     write_setting_i(sesskey, "BugRSA1", 2-cfg->sshbug_rsa1);
@@ -487,27 +505,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	 sizeof(cfg->proxy_password));
     gpps(sesskey, "ProxyTelnetCommand", "connect %host %port\\n",
 	 cfg->proxy_telnet_command, sizeof(cfg->proxy_telnet_command));
-
-    {
-	char buf[2 * sizeof(cfg->environmt)], *p, *q;
-	gpps(sesskey, "Environment", "", buf, sizeof(buf));
-	p = buf;
-	q = cfg->environmt;
-	while (*p) {
-	    while (*p && *p != ',') {
-		int c = *p++;
-		if (c == '=')
-		    c = '\t';
-		if (c == '\\')
-		    c = *p++;
-		*q++ = c;
-	    }
-	    if (*p == ',')
-		p++;
-	    *q++ = '\0';
-	}
-	*q = '\0';
-    }
+    gppmap(sesskey, "Environment", "", cfg->environmt, lenof(cfg->environmt));
     gpps(sesskey, "UserName", "", cfg->username, sizeof(cfg->username));
     gpps(sesskey, "LocalUserName", "", cfg->localusername,
 	 sizeof(cfg->localusername));
@@ -686,26 +684,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 
     gppi(sesskey, "LocalPortAcceptAll", 0, &cfg->lport_acceptall);
     gppi(sesskey, "RemotePortAcceptAll", 0, &cfg->rport_acceptall);
-    {
-	char buf[2 * sizeof(cfg->portfwd)], *p, *q;
-	gpps(sesskey, "PortForwardings", "", buf, sizeof(buf));
-	p = buf;
-	q = cfg->portfwd;
-	while (*p) {
-	    while (*p && *p != ',') {
-		int c = *p++;
-		if (c == '=')
-		    c = '\t';
-		if (c == '\\')
-		    c = *p++;
-		*q++ = c;
-	    }
-	    if (*p == ',')
-		p++;
-	    *q++ = '\0';
-	}
-	*q = '\0';
-    }
+    gppmap(sesskey, "PortForwardings", "", cfg->portfwd, lenof(cfg->portfwd));
     gppi(sesskey, "BugIgnore1", 0, &i); cfg->sshbug_ignore1 = 2-i;
     gppi(sesskey, "BugPlainPW1", 0, &i); cfg->sshbug_plainpw1 = 2-i;
     gppi(sesskey, "BugRSA1", 0, &i); cfg->sshbug_rsa1 = 2-i;
