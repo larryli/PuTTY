@@ -11,46 +11,6 @@
 #define TRUE 1
 #endif
 
-#define GET_32BIT_LSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[0]) | \
-  ((unsigned long)(unsigned char)(cp)[1] << 8) | \
-  ((unsigned long)(unsigned char)(cp)[2] << 16) | \
-  ((unsigned long)(unsigned char)(cp)[3] << 24))
-
-#define PUT_32BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (value), \
-  (cp)[1] = (value) >> 8, \
-  (cp)[2] = (value) >> 16, \
-  (cp)[3] = (value) >> 24 )
-
-#define GET_16BIT_LSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[0]) | \
-  ((unsigned long)(unsigned char)(cp)[1] << 8))
-
-#define PUT_16BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (value), \
-  (cp)[1] = (value) >> 8 )
-
-#define GET_32BIT_MSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[0] << 24) | \
-  ((unsigned long)(unsigned char)(cp)[1] << 16) | \
-  ((unsigned long)(unsigned char)(cp)[2] << 8) | \
-  ((unsigned long)(unsigned char)(cp)[3]))
-
-#define PUT_32BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (value) >> 24, \
-  (cp)[1] = (value) >> 16, \
-  (cp)[2] = (value) >> 8, \
-  (cp)[3] = (value) )
-
-#define GET_16BIT_MSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[0] << 8) | \
-  ((unsigned long)(unsigned char)(cp)[1]))
-
-#define PUT_16BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (value) >> 8, \
-  (cp)[1] = (value) )
-
 struct PFwdPrivate {
     const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */

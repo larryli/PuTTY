@@ -13,18 +13,6 @@
 #include "ssh.h"
 #include "misc.h"
 
-#define PUT_32BIT(cp, value) do { \
-  (cp)[3] = (value); \
-  (cp)[2] = (value) >> 8; \
-  (cp)[1] = (value) >> 16; \
-  (cp)[0] = (value) >> 24; } while (0)
-
-#define GET_32BIT(cp) \
-    (((unsigned long)(unsigned char)(cp)[0] << 24) | \
-    ((unsigned long)(unsigned char)(cp)[1] << 16) | \
-    ((unsigned long)(unsigned char)(cp)[2] << 8) | \
-    ((unsigned long)(unsigned char)(cp)[3]))
-
 #define rsa_signature "SSH PRIVATE KEY FILE FORMAT 1.1\n"
 
 #define BASE64_TOINT(x) ( (x)-'A'<26 ? (x)-'A'+0 :\

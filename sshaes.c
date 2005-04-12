@@ -38,18 +38,6 @@
 
 #define mulby2(x) ( ((x&0x7F) << 1) ^ (x & 0x80 ? 0x1B : 0) )
 
-#define GET_32BIT_MSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[3]) | \
-  ((unsigned long)(unsigned char)(cp)[2] << 8) | \
-  ((unsigned long)(unsigned char)(cp)[1] << 16) | \
-  ((unsigned long)(unsigned char)(cp)[0] << 24))
-
-#define PUT_32BIT_MSB_FIRST(cp, value) do { \
-  (cp)[3] = (value); \
-  (cp)[2] = (value) >> 8; \
-  (cp)[1] = (value) >> 16; \
-  (cp)[0] = (value) >> 24; } while (0)
-
 typedef struct AESContext AESContext;
 
 struct AESContext {

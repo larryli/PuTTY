@@ -600,18 +600,6 @@ static void des_decipher(word32 * output, word32 L, word32 R,
     output[1] = R;
 }
 
-#define GET_32BIT_MSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[3]) | \
-  ((unsigned long)(unsigned char)(cp)[2] << 8) | \
-  ((unsigned long)(unsigned char)(cp)[1] << 16) | \
-  ((unsigned long)(unsigned char)(cp)[0] << 24))
-
-#define PUT_32BIT_MSB_FIRST(cp, value) do { \
-  (cp)[3] = (value); \
-  (cp)[2] = (value) >> 8; \
-  (cp)[1] = (value) >> 16; \
-  (cp)[0] = (value) >> 24; } while (0)
-
 static void des_cbc_encrypt(unsigned char *dest, const unsigned char *src,
 			    unsigned int len, DESContext * sched)
 {

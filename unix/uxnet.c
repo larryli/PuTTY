@@ -811,16 +811,6 @@ static void sk_tcp_close(Socket sock)
     sfree(s);
 }
 
-#define PUT_32BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (char)((value) >> 24), \
-  (cp)[1] = (char)((value) >> 16), \
-  (cp)[2] = (char)((value) >> 8), \
-  (cp)[3] = (char)(value) )
-
-#define PUT_16BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (char)((value) >> 8), \
-  (cp)[1] = (char)(value) )
-
 void *sk_getxdmdata(void *sock, int *lenp)
 {
     Actual_Socket s = (Actual_Socket) sock;
