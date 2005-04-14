@@ -4915,6 +4915,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	      case CIPHER_AES:
 		s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_aes;
 		break;
+	      case CIPHER_ARCFOUR:
+		s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_arcfour;
+		break;
 	      case CIPHER_WARN:
 		/* Flag for later. Don't bother if it's the last in
 		 * the list. */

@@ -261,6 +261,7 @@ enum {
     CIPHER_BLOWFISH,
     CIPHER_AES,			       /* (SSH-2 only) */
     CIPHER_DES,
+    CIPHER_ARCFOUR,
     CIPHER_MAX			       /* no. ciphers (inc warn) */
 };
 

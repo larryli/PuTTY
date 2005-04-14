@@ -74,7 +74,7 @@ this, let us know and we'll move it up our priority list.
 
 This occurs when the SSH server does not offer any ciphers which you
 have configured PuTTY to consider strong enough. By default, PuTTY
-puts up this warning only for \ii{single-DES} encryption.
+puts up this warning only for \ii{single-DES} and \i{Arcfour} encryption.
 
 See \k{config-ssh-encryption} for more information on this message.
 

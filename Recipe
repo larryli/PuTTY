@@ -205,7 +205,7 @@ NONSSH   = telnet raw rlogin ldisc pinger
 # SSH back end (putty, plink, pscp, psftp).
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
-         + sshaes sshsh512 sshbn wildcard pinger
+         + sshaes sshsh512 sshbn wildcard pinger ssharcf
 WINSSH   = SSH winnoise winpgntc
 UXSSH    = SSH uxnoise uxagentc
 MACSSH   = SSH macnoise

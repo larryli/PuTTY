@@ -18,6 +18,7 @@ static const struct keyval ciphernames[] = {
     { "blowfish",   CIPHER_BLOWFISH },
     { "3des",	    CIPHER_3DES },
     { "WARN",	    CIPHER_WARN },
+    { "arcfour",    CIPHER_ARCFOUR },
     { "des",	    CIPHER_DES }
 };
 

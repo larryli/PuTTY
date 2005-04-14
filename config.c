@@ -120,6 +120,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 	    { "Blowfish",		CIPHER_BLOWFISH },
 	    { "DES",			CIPHER_DES },
 	    { "AES (SSH-2 only)",	CIPHER_AES },
+	    { "Arcfour (SSH-2 only)",	CIPHER_ARCFOUR },
 	    { "-- warn below here --",	CIPHER_WARN }
 	};
 

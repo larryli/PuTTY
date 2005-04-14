@@ -595,6 +595,9 @@ saved sessions from
 \IM{AES} Advanced Encryption Standard
 \IM{AES} Rijndael
 
+\IM{Arcfour} Arcfour
+\IM{Arcfour} RC4
+
 \IM{triple-DES} triple-DES
 
 \IM{single-DES} single-DES
