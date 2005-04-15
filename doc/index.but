@@ -92,10 +92,16 @@ from SSH and Telnet
 \IM{right mouse button, with Ctrl} Ctrl, with right mouse button
 
 \IM{system menu} system menu
+\IM{system menu} menu, system
 \IM{system menu} window menu
 
 \IM{context menu} context menu
+\IM{context menu} menu, context
 \IM{context menu} right mouse button menu
+
+\IM{Event Log} Event Log
+\IM{Event Log} PuTTY Event Log
+\IM{Event Log} Log, Event
 
 \IM{Telnet special commands} Telnet special commands
 \IM{Telnet special commands} special commands, in Telnet
