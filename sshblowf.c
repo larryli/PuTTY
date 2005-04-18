@@ -500,11 +500,13 @@ static void blowfish_key(void *handle, unsigned char *key)
     blowfish_setkey(ctx, key, 16);
 }
 
+#ifndef ENABLE_BLOWFISH_SSH2_CTR
 static void blowfish256_key(void *handle, unsigned char *key)
 {
     BlowfishContext *ctx = (BlowfishContext *)handle;
     blowfish_setkey(ctx, key, 32);
 }
+#endif
 
 static void blowfish_iv(void *handle, unsigned char *key)
 {
@@ -550,12 +552,14 @@ static void blowfish_ssh2_decrypt_blk(void *handle, unsigned char *blk,
     blowfish_msb_decrypt_cbc(blk, len, ctx);
 }
 
+#ifndef ENABLE_BLOWFISH_SSH2_CTR
 static void blowfish_ssh2_sdctr(void *handle, unsigned char *blk,
 				      int len)
 {
     BlowfishContext *ctx = (BlowfishContext *)handle;
     blowfish_msb_sdctr(blk, len, ctx);
 }
+#endif
 
 const struct ssh_cipher ssh_blowfish_ssh1 = {
     blowfish_ssh1_make_context, blowfish_free_context, blowfish_sesskey,
@@ -570,12 +574,14 @@ static const struct ssh2_cipher ssh_blowfish_ssh2 = {
     8, 128, "Blowfish-128 CBC"
 };
 
+#ifndef ENABLE_BLOWFISH_SSH2_CTR
 static const struct ssh2_cipher ssh_blowfish_ssh2_ctr = {
     blowfish_make_context, blowfish_free_context, blowfish_iv, blowfish256_key,
     blowfish_ssh2_sdctr, blowfish_ssh2_sdctr,
     "blowfish-ctr",
     8, 256, "Blowfish-256 SDCTR"
 };
+#endif
 
 /*
  * "blowfish-ctr" is disabled because it hasn't had any interoperability
@@ -584,7 +590,9 @@ static const struct ssh2_cipher ssh_blowfish_ssh2_ctr = {
  * builds.
  */
 static const struct ssh2_cipher *const blowfish_list[] = {
-/*  &ssh_blowfish_ssh2_ctr, */
+#ifndef ENABLE_BLOWFISH_SSH2_CTR
+    &ssh_blowfish_ssh2_ctr,
+#endif
     &ssh_blowfish_ssh2
 };
 
