@@ -307,14 +307,19 @@ enum {
 typedef struct ssh_tag *Ssh;
 struct Packet;
 
+static struct Packet *ssh1_pkt_init(int pkt_type);
 static struct Packet *ssh2_pkt_init(int pkt_type);
+static void ssh_pkt_ensure(struct Packet *, int length);
+static void ssh_pkt_adddata(struct Packet *, void *data, int len);
+static void ssh_pkt_addbyte(struct Packet *, unsigned char value);
 static void ssh2_pkt_addbool(struct Packet *, unsigned char value);
-static void ssh2_pkt_adduint32(struct Packet *, unsigned long value);
-static void ssh2_pkt_addstring_start(struct Packet *);
-static void ssh2_pkt_addstring_str(struct Packet *, char *data);
-static void ssh2_pkt_addstring_data(struct Packet *, char *data, int len);
-static void ssh2_pkt_addstring(struct Packet *, char *data);
+static void ssh_pkt_adduint32(struct Packet *, unsigned long value);
+static void ssh_pkt_addstring_start(struct Packet *);
+static void ssh_pkt_addstring_str(struct Packet *, char *data);
+static void ssh_pkt_addstring_data(struct Packet *, char *data, int len);
+static void ssh_pkt_addstring(struct Packet *, char *data);
 static unsigned char *ssh2_mpint_fmt(Bignum b, int *len);
+static void ssh1_pkt_addmp(struct Packet *, Bignum b);
 static void ssh2_pkt_addmp(struct Packet *, Bignum b);
 static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
@@ -522,15 +527,15 @@ struct ssh_portfwd {
 	     sfree((pf)->sserv), sfree((pf)->dserv)) : (void)0 ), sfree(pf) )
 
 struct Packet {
-    long length;
-    long forcepad; /* Force padding to at least this length */
-    int type;
-    unsigned long sequence;
-    unsigned char *data;
-    unsigned char *body;
-    long savedpos;
-    long maxlen;
-    long encrypted_len;		       /* for SSH-2 total-size counting */
+    long length;	    /* length of `data' actually used */
+    long forcepad;	    /* SSH-2: force padding to at least this length */
+    int type;		    /* only used for incoming packets */
+    unsigned long sequence; /* SSH-2 incoming sequence number */
+    unsigned char *data;    /* allocated storage */
+    unsigned char *body;    /* offset of payload within `data' */
+    long savedpos;	    /* temporary index into `data' (for strings) */
+    long maxlen;	    /* amount of storage allocated for `data' */
+    long encrypted_len;	    /* for SSH-2 total-size counting */
 
     /*
      * State associated with packet logging
@@ -970,7 +975,7 @@ static struct Packet *ssh_new_packet(void)
 {
     struct Packet *pkt = snew(struct Packet);
 
-    pkt->data = NULL;
+    pkt->body = pkt->data = NULL;
     pkt->maxlen = 0;
     pkt->logmode = PKTLOG_EMIT;
     pkt->nblanks = 0;
@@ -1270,36 +1275,9 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     crFinish(st->pktin);
 }
 
-static void ssh1_pktout_size(struct Packet *pkt, int len)
+static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 {
-    int pad, biglen;
-
-    len += 5;			       /* type and CRC */
-    pad = 8 - (len % 8);
-    biglen = len + pad;
-
-    pkt->length = len - 5;
-    if (pkt->maxlen < biglen) {
-	pkt->maxlen = biglen;
-	pkt->data = sresize(pkt->data, biglen + 4 + APIEXTRA, unsigned char);
-    }
-    pkt->body = pkt->data + 4 + pad + 1;
-}
-
-static struct Packet *s_wrpkt_start(int type, int len)
-{
-    struct Packet *pkt = ssh_new_packet();
-    ssh1_pktout_size(pkt, len);
-    pkt->type = type;
-    /* Initialise log omission state */
-    pkt->nblanks = 0;
-    pkt->blanks = NULL;
-    return pkt;
-}
-
-static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt)
-{
-    int pad, biglen, i;
+    int pad, biglen, i, pktoffs;
     unsigned long crc;
 #ifdef __SC__
     /*
@@ -1312,12 +1290,10 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt)
 #endif
     int len;
 
-    pkt->body[-1] = pkt->type;
-
     if (ssh->logctx)
-	log_packet(ssh->logctx, PKT_OUTGOING, pkt->type,
-		   ssh1_pkt_type(pkt->type),
-		   pkt->body, pkt->length,
+	log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
+		   ssh1_pkt_type(pkt->data[12]),
+		   pkt->body, pkt->length - (pkt->body - pkt->data),
 		   pkt->nblanks, pkt->blanks);
     sfree(pkt->blanks); pkt->blanks = NULL;
     pkt->nblanks = 0;
@@ -1326,132 +1302,99 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt)
 	unsigned char *compblk;
 	int complen;
 	zlib_compress_block(ssh->cs_comp_ctx,
-			    pkt->body - 1, pkt->length + 1,
+			    pkt->data + 12, pkt->length - 12,
 			    &compblk, &complen);
-	ssh1_pktout_size(pkt, complen - 1);
-	memcpy(pkt->body - 1, compblk, complen);
+	memcpy(pkt->data + 12, compblk, complen);
 	sfree(compblk);
+	pkt->length = complen + 12;
     }
 
-    len = pkt->length + 5;	       /* type and CRC */
+    ssh_pkt_ensure(pkt, pkt->length + 4); /* space for CRC */
+    pkt->length += 4;
+    len = pkt->length - 4 - 8;	/* len(type+data+CRC) */
     pad = 8 - (len % 8);
-    biglen = len + pad;
+    pktoffs = 8 - pad;
+    biglen = len + pad;		/* len(padding+type+data+CRC) */
 
-    for (i = 0; i < pad; i++)
-	pkt->data[i + 4] = random_byte();
-    crc = crc32_compute(pkt->data + 4, biglen - 4);
-    PUT_32BIT(pkt->data + biglen, crc);
-    PUT_32BIT(pkt->data, len);
+    for (i = pktoffs; i < 4+8; i++)
+	pkt->data[i] = random_byte();
+    crc = crc32_compute(pkt->data + pktoffs + 4, biglen - 4); /* all ex len */
+    PUT_32BIT(pkt->data + pktoffs + 4 + biglen - 4, crc);
+    PUT_32BIT(pkt->data + pktoffs, len);
 
     if (ssh->cipher)
-	ssh->cipher->encrypt(ssh->v1_cipher_ctx, pkt->data + 4, biglen);
+	ssh->cipher->encrypt(ssh->v1_cipher_ctx,
+			     pkt->data + pktoffs + 4, biglen);
 
-    return biglen + 4;
+    if (offset_p) *offset_p = pktoffs;
+    return biglen + 4;		/* len(length+padding+type+data+CRC) */
 }
 
 static void s_wrpkt(Ssh ssh, struct Packet *pkt)
 {
-    int len, backlog;
-    len = s_wrpkt_prepare(ssh, pkt);
-    backlog = sk_write(ssh->s, (char *)pkt->data, len);
+    int len, backlog, offset;
+    len = s_wrpkt_prepare(ssh, pkt, &offset);
+    backlog = sk_write(ssh->s, (char *)pkt->data + offset, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
+    ssh_free_packet(pkt);
 }
 
 static void s_wrpkt_defer(Ssh ssh, struct Packet *pkt)
 {
-    int len;
-    len = s_wrpkt_prepare(ssh, pkt);
+    int len, offset;
+    len = s_wrpkt_prepare(ssh, pkt, &offset);
     if (ssh->deferred_len + len > ssh->deferred_size) {
 	ssh->deferred_size = ssh->deferred_len + len + 128;
 	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
 					  ssh->deferred_size,
 					  unsigned char);
     }
-    memcpy(ssh->deferred_send_data + ssh->deferred_len, pkt->data, len);
+    memcpy(ssh->deferred_send_data + ssh->deferred_len,
+	   pkt->data + offset, len);
     ssh->deferred_len += len;
+    ssh_free_packet(pkt);
 }
 
 /*
- * Construct a packet with the specified contents.
+ * Construct a SSH-1 packet with the specified contents.
+ * (This all-at-once interface used to be the only one, but now SSH-1
+ * packets can also be constructed incrementally.)
  */
-static struct Packet *construct_packet(Ssh ssh, int pkttype,
-				       va_list ap1, va_list ap2)
+static struct Packet *construct_packet(Ssh ssh, int pkttype, va_list ap)
 {
-    unsigned char *p, *argp, argchar;
-    unsigned long argint;
-    int pktlen, argtype, arglen;
+    int argtype;
     Bignum bn;
     struct Packet *pkt;
 
-    pktlen = 0;
-    while ((argtype = va_arg(ap1, int)) != PKT_END) {
-	switch (argtype) {
-	  case PKT_INT:
-	    (void) va_arg(ap1, int);
-	    pktlen += 4;
-	    break;
-	  case PKT_CHAR:
-	    (void) va_arg(ap1, int);
-	    pktlen++;
-	    break;
-	  case PKT_DATA:
-	    (void) va_arg(ap1, unsigned char *);
-	    arglen = va_arg(ap1, int);
-	    pktlen += arglen;
-	    break;
-	  case PKT_STR:
-	    argp = va_arg(ap1, unsigned char *);
-	    arglen = strlen((char *)argp);
-	    pktlen += 4 + arglen;
-	    break;
-	  case PKT_BIGNUM:
-	    bn = va_arg(ap1, Bignum);
-	    pktlen += ssh1_bignum_length(bn);
-	    break;
-	  case PKTT_PASSWORD:
-	  case PKTT_DATA:
-	  case PKTT_OTHER:
-	    /* ignore this pass */
-	    break;
-	  default:
-	    assert(0);
-	}
-    }
+    pkt = ssh1_pkt_init(pkttype);
 
-    pkt = s_wrpkt_start(pkttype, pktlen);
-    p = pkt->body;
-
-    while ((argtype = va_arg(ap2, int)) != PKT_END) {
-	int offset = p - pkt->body, len = 0;
+    while ((argtype = va_arg(ap, int)) != PKT_END) {
+	unsigned char *argp, argchar;
+	unsigned long argint;
+	int arglen;
 	switch (argtype) {
 	  /* Actual fields in the packet */
 	  case PKT_INT:
-	    argint = va_arg(ap2, int);
-	    PUT_32BIT(p, argint);
-	    len = 4;
+	    argint = va_arg(ap, int);
+	    ssh_pkt_adduint32(pkt, argint);
 	    break;
 	  case PKT_CHAR:
-	    argchar = (unsigned char) va_arg(ap2, int);
-	    *p = argchar;
-	    len = 1;
+	    argchar = (unsigned char) va_arg(ap, int);
+	    ssh_pkt_addbyte(pkt, argchar);
 	    break;
 	  case PKT_DATA:
-	    argp = va_arg(ap2, unsigned char *);
-	    arglen = va_arg(ap2, int);
-	    memcpy(p, argp, arglen);
-	    len = arglen;
+	    argp = va_arg(ap, unsigned char *);
+	    arglen = va_arg(ap, int);
+	    ssh_pkt_adddata(pkt, argp, arglen);
 	    break;
 	  case PKT_STR:
-	    argp = va_arg(ap2, unsigned char *);
-	    arglen = strlen((char *)argp);
-	    PUT_32BIT(p, arglen);
-	    memcpy(p + 4, argp, arglen);
-	    len = arglen + 4;
+	    argp = va_arg(ap, unsigned char *);
+	    ssh_pkt_addstring(pkt, argp);
 	    break;
 	  case PKT_BIGNUM:
-	    bn = va_arg(ap2, Bignum);
-	    len = ssh1_write_bignum(p, bn);
+	    bn = va_arg(ap, Bignum);
+	    ssh1_pkt_addmp(pkt, bn);
 	    break;
 	  /* Tokens for modifications to packet logging */
 	  case PKTT_PASSWORD:
@@ -1464,16 +1407,6 @@ static struct Packet *construct_packet(Ssh ssh, int pkttype,
 	    end_log_omission(ssh, pkt);
 	    break;
 	}
-	p += len;
-	/* Deal with logfile omission, if required. */
-	if (len && (pkt->logmode != PKTLOG_EMIT)) {
-	    pkt->nblanks++;
-	    pkt->blanks = sresize(pkt->blanks, pkt->nblanks,
-				  struct logblank_t);
-	    pkt->blanks[pkt->nblanks-1].offset = offset;
-	    pkt->blanks[pkt->nblanks-1].len    = len;
-	    pkt->blanks[pkt->nblanks-1].type   = pkt->logmode;
-	}
     }
 
     return pkt;
@@ -1482,27 +1415,21 @@ static struct Packet *construct_packet(Ssh ssh, int pkttype,
 static void send_packet(Ssh ssh, int pkttype, ...)
 {
     struct Packet *pkt;
-    va_list ap1, ap2;
-    va_start(ap1, pkttype);
-    va_start(ap2, pkttype);
-    pkt = construct_packet(ssh, pkttype, ap1, ap2);
-    va_end(ap2);
-    va_end(ap1);
+    va_list ap;
+    va_start(ap, pkttype);
+    pkt = construct_packet(ssh, pkttype, ap);
+    va_end(ap);
     s_wrpkt(ssh, pkt);
-    ssh_free_packet(pkt);
 }
 
 static void defer_packet(Ssh ssh, int pkttype, ...)
 {
     struct Packet *pkt;
-    va_list ap1, ap2;
-    va_start(ap1, pkttype);
-    va_start(ap2, pkttype);
-    pkt = construct_packet(ssh, pkttype, ap1, ap2);
-    va_end(ap2);
-    va_end(ap1);
+    va_list ap;
+    va_start(ap, pkttype);
+    pkt = construct_packet(ssh, pkttype, ap);
+    va_end(ap);
     s_wrpkt_defer(ssh, pkt);
-    ssh_free_packet(pkt);
 }
 
 static int ssh_versioncmp(char *a, char *b)
@@ -1529,7 +1456,6 @@ static int ssh_versioncmp(char *a, char *b)
  * Utility routines for putting an SSH-protocol `string' and
  * `uint32' into a SHA state.
  */
-#include <stdio.h>
 static void sha_string(SHA_State * s, void *str, int len)
 {
     unsigned char lenblk[4];
@@ -1546,69 +1472,74 @@ static void sha_uint32(SHA_State * s, unsigned i)
 }
 
 /*
- * SSH-2 packet construction functions.
+ * Packet construction functions. Mostly shared between SSH-1 and SSH-2.
  */
-static void ssh2_pkt_ensure(struct Packet *pkt, int length)
+static void ssh_pkt_ensure(struct Packet *pkt, int length)
 {
     if (pkt->maxlen < length) {
+	unsigned char *body = pkt->body;
+	int offset = body ? pkt->data - body : 0;
 	pkt->maxlen = length + 256;
 	pkt->data = sresize(pkt->data, pkt->maxlen + APIEXTRA, unsigned char);
+	if (body) pkt->body = pkt->data + offset;
     }
 }
-static void ssh2_pkt_adddata(struct Packet *pkt, void *data, int len)
+static void ssh_pkt_adddata(struct Packet *pkt, void *data, int len)
 {
     if (pkt->logmode != PKTLOG_EMIT) {
 	pkt->nblanks++;
 	pkt->blanks = sresize(pkt->blanks, pkt->nblanks, struct logblank_t);
-	pkt->blanks[pkt->nblanks-1].offset = pkt->length - 6;
+	assert(pkt->body);
+	pkt->blanks[pkt->nblanks-1].offset = pkt->length -
+					     (pkt->body - pkt->data);
 	pkt->blanks[pkt->nblanks-1].len = len;
 	pkt->blanks[pkt->nblanks-1].type = pkt->logmode;
     }
     pkt->length += len;
-    ssh2_pkt_ensure(pkt, pkt->length);
+    ssh_pkt_ensure(pkt, pkt->length);
     memcpy(pkt->data + pkt->length - len, data, len);
 }
-static void ssh2_pkt_addbyte(struct Packet *pkt, unsigned char byte)
+static void ssh_pkt_addbyte(struct Packet *pkt, unsigned char byte)
 {
-    ssh2_pkt_adddata(pkt, &byte, 1);
-}
-static struct Packet *ssh2_pkt_init(int pkt_type)
-{
-    struct Packet *pkt = ssh_new_packet();
-    pkt->length = 5;
-    pkt->forcepad = 0;
-    ssh2_pkt_addbyte(pkt, (unsigned char) pkt_type);
-    return pkt;
+    ssh_pkt_adddata(pkt, &byte, 1);
 }
 static void ssh2_pkt_addbool(struct Packet *pkt, unsigned char value)
 {
-    ssh2_pkt_adddata(pkt, &value, 1);
+    ssh_pkt_adddata(pkt, &value, 1);
 }
-static void ssh2_pkt_adduint32(struct Packet *pkt, unsigned long value)
+static void ssh_pkt_adduint32(struct Packet *pkt, unsigned long value)
 {
     unsigned char x[4];
     PUT_32BIT(x, value);
-    ssh2_pkt_adddata(pkt, x, 4);
+    ssh_pkt_adddata(pkt, x, 4);
 }
-static void ssh2_pkt_addstring_start(struct Packet *pkt)
+static void ssh_pkt_addstring_start(struct Packet *pkt)
 {
-    ssh2_pkt_adduint32(pkt, 0);
+    ssh_pkt_adduint32(pkt, 0);
     pkt->savedpos = pkt->length;
 }
-static void ssh2_pkt_addstring_str(struct Packet *pkt, char *data)
+static void ssh_pkt_addstring_str(struct Packet *pkt, char *data)
 {
-    ssh2_pkt_adddata(pkt, data, strlen(data));
+    ssh_pkt_adddata(pkt, data, strlen(data));
     PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
 }
-static void ssh2_pkt_addstring_data(struct Packet *pkt, char *data, int len)
+static void ssh_pkt_addstring_data(struct Packet *pkt, char *data, int len)
 {
-    ssh2_pkt_adddata(pkt, data, len);
+    ssh_pkt_adddata(pkt, data, len);
     PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
 }
-static void ssh2_pkt_addstring(struct Packet *pkt, char *data)
+static void ssh_pkt_addstring(struct Packet *pkt, char *data)
 {
-    ssh2_pkt_addstring_start(pkt);
-    ssh2_pkt_addstring_str(pkt, data);
+    ssh_pkt_addstring_start(pkt);
+    ssh_pkt_addstring_str(pkt, data);
+}
+static void ssh1_pkt_addmp(struct Packet *pkt, Bignum b)
+{
+    int len = ssh1_bignum_length(b);
+    unsigned char *data = snewn(len, char);
+    (void) ssh1_write_bignum(data, b);
+    ssh_pkt_adddata(pkt, data, len);
+    sfree(data);
 }
 static unsigned char *ssh2_mpint_fmt(Bignum b, int *len)
 {
@@ -1632,9 +1563,38 @@ static void ssh2_pkt_addmp(struct Packet *pkt, Bignum b)
     unsigned char *p;
     int len;
     p = ssh2_mpint_fmt(b, &len);
-    ssh2_pkt_addstring_start(pkt);
-    ssh2_pkt_addstring_data(pkt, (char *)p, len);
+    ssh_pkt_addstring_start(pkt);
+    ssh_pkt_addstring_data(pkt, (char *)p, len);
     sfree(p);
+}
+
+static struct Packet *ssh1_pkt_init(int pkt_type)
+{
+    struct Packet *pkt = ssh_new_packet();
+    pkt->length = 4 + 8;	    /* space for length + max padding */
+    ssh_pkt_addbyte(pkt, pkt_type);
+    pkt->body = pkt->data + pkt->length;
+    return pkt;
+}
+
+/* For legacy code (SSH-1 and -2 packet construction used to be separate) */
+#define ssh2_pkt_ensure(pkt, length) ssh_pkt_ensure(pkt, length)
+#define ssh2_pkt_adddata(pkt, data, len) ssh_pkt_adddata(pkt, data, len)
+#define ssh2_pkt_addbyte(pkt, byte) ssh_pkt_addbyte(pkt, byte)
+#define ssh2_pkt_adduint32(pkt, value) ssh_pkt_adduint32(pkt, value)
+#define ssh2_pkt_addstring_start(pkt) ssh_pkt_addstring_start(pkt)
+#define ssh2_pkt_addstring_str(pkt, data) ssh_pkt_addstring_str(pkt, data)
+#define ssh2_pkt_addstring_data(pkt, data, len) ssh_pkt_addstring_data(pkt, data, len)
+#define ssh2_pkt_addstring(pkt, data) ssh_pkt_addstring(pkt, data)
+
+static struct Packet *ssh2_pkt_init(int pkt_type)
+{
+    struct Packet *pkt = ssh_new_packet();
+    pkt->length = 5;
+    pkt->forcepad = 0;
+    ssh_pkt_addbyte(pkt, (unsigned char) pkt_type);
+    pkt->body = pkt->data + pkt->length;
+    return pkt;
 }
 
 /*
@@ -1649,7 +1609,7 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     if (ssh->logctx)
 	log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
 		   ssh2_pkt_type(ssh->pkt_ctx, pkt->data[5]),
-		   pkt->data + 6, pkt->length - 6,
+		   pkt->body, pkt->length - (pkt->body - pkt->data),
 		   pkt->nblanks, pkt->blanks);
     sfree(pkt->blanks); pkt->blanks = NULL;
     pkt->nblanks = 0;
