@@ -1039,6 +1039,10 @@ int handle_prefslist(struct prefslist *hdl,
             int dest = 0;	       /* initialise to placate gcc */
             switch (dlm->uNotification) {
               case DL_BEGINDRAG:
+		/* Add a dummy item to make pl_itemfrompt() work
+		 * better.
+		 * FIXME: this causes scrollbar glitches if the count of
+		 *        listbox contains >= its height. */
 		hdl->dummyitem =
 		    SendDlgItemMessage(hwnd, hdl->listid,
 				       LB_ADDSTRING, 0, (LPARAM) "");
