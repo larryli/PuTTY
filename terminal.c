@@ -2677,22 +2677,16 @@ static void term_out(Terminal *term)
 		 */
 		compatibility(ANSIMIN);
 		if (term->ldisc) {
-		    char abuf[256], *s, *d;
-		    int state = 0;
-		    for (s = term->cfg.answerback, d = abuf; *s; s++) {
-			if (state) {
-			    if (*s >= 'a' && *s <= 'z')
-				*d++ = (*s - ('a' - 1));
-			    else if ((*s >= '@' && *s <= '_') ||
-				     *s == '?' || (*s & 0x80))
-				*d++ = ('@' ^ *s);
-			    else if (*s == '~')
-				*d++ = '^';
-			    state = 0;
-			} else if (*s == '^') {
-			    state = 1;
-			} else
-			    *d++ = *s;
+		    char abuf[lenof(term->cfg.answerback)], *s, *d;
+		    for (s = term->cfg.answerback, d = abuf; *s;) {
+			char *n;
+			char c = ctrlparse(s, &n);
+			if (n) {
+			    *d++ = c;
+			    s = n;
+			} else {
+			    *d++ = *s++;
+			}
 		    }
 		    lpage_send(term->ldisc, DEFAULT_CODEPAGE,
 			       abuf, d - abuf, 0);

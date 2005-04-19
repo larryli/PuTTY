@@ -43,6 +43,42 @@ unsigned long parse_blocksize(const char *bs)
     return r;
 }
 
+/*
+ * Parse a ^C style character specification.
+ * Returns NULL in `next' if we didn't recognise it as a control character,
+ * in which case `c' should be ignored.
+ * The precise current parsing is an oddity inherited from the terminal
+ * answerback-string parsing code. All sequences are two characters,
+ * starting with '^'. The ones that are worth keeping are probably:
+ *   ^?		    127
+ *   ^@A-Z[\]^_	    0-31
+ *   a-z	    1-26
+ *   ~		    ^ escape
+ */
+char ctrlparse(char *s, char **next)
+{
+    char c = 0;
+    if (*s != '^') {
+	*next = NULL;
+	return c;
+    } else {
+	s++;
+	if (*s == '\0') {
+	    *next = NULL;
+	    return c;
+	} else if (*s >= 'a' && *s <= 'z') {
+	    c = (*s - ('a' - 1));
+	} else if ((*s >= '@' && *s <= '_') || *s == '?' || (*s & 0x80)) {
+	    c = ('@' ^ *s);
+	} else if (*s == '~') {
+	    c = '^';
+	}
+	s++;
+	*next = s;
+	return c;
+    }
+}
+
 /* ----------------------------------------------------------------------
  * String handling routines.
  */
