@@ -357,34 +357,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
-static void *nullmac_make_context(void)
-{
-    return NULL;
-}
-static void nullmac_free_context(void *handle)
-{
-}
-static void nullmac_key(void *handle, unsigned char *key)
-{
-}
-static void nullmac_generate(void *handle, unsigned char *blk, int len,
-			     unsigned long seq)
-{
-}
-static int nullmac_verify(void *handle, unsigned char *blk, int len,
-			  unsigned long seq)
-{
-    return 1;
-}
-const static struct ssh_mac ssh_mac_none = {
-    nullmac_make_context, nullmac_free_context, nullmac_key,
-    nullmac_generate, nullmac_verify, "none", 0
-};
 const static struct ssh_mac *macs[] = {
-    &ssh_sha1, &ssh_md5, &ssh_mac_none
+    &ssh_sha1, &ssh_md5
 };
 const static struct ssh_mac *buggymacs[] = {
-    &ssh_sha1_buggy, &ssh_md5, &ssh_mac_none
+    &ssh_sha1_buggy, &ssh_md5
 };
 
 static void *ssh_comp_none_init(void)
