@@ -112,12 +112,8 @@ const struct ssh2_cipher ssh_arcfour256_ssh2 = {
     1, 256, "Arcfour-256"
 };
 
-/*
- * arcfour256-draft-00@putty.projects.tartarus.org is as-yet untested
- * against any other implementation, and hence is commented out.
- */
 static const struct ssh2_cipher *const arcfour_list[] = {
-/*  &ssh_arcfour256_ssh2, */
+    &ssh_arcfour256_ssh2,
     &ssh_arcfour128_ssh2,
 };
 
