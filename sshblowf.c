@@ -389,6 +389,7 @@ static void blowfish_msb_decrypt_cbc(unsigned char *blk, int len,
     ctx->iv1 = iv1;
 }
 
+#ifdef ENABLE_BLOWFISH_SSH2_CTR
 static void blowfish_msb_sdctr(unsigned char *blk, int len,
 				     BlowfishContext * ctx)
 {
@@ -414,6 +415,7 @@ static void blowfish_msb_sdctr(unsigned char *blk, int len,
     ctx->iv0 = iv0;
     ctx->iv1 = iv1;
 }
+#endif
 
 static void blowfish_setkey(BlowfishContext * ctx,
 			    const unsigned char *key, short keybytes)

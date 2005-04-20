@@ -732,6 +732,7 @@ static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
     scheds->iv1 = iv1;
 }
 
+#ifdef ENABLE_3DES_SSH2_CTR
 static void des_sdctr3(unsigned char *dest, const unsigned char *src,
 			     unsigned int len, DESContext * scheds)
 {
@@ -760,6 +761,7 @@ static void des_sdctr3(unsigned char *dest, const unsigned char *src,
     scheds->iv0 = iv0;
     scheds->iv1 = iv1;
 }
+#endif
 
 static void *des3_make_context(void)
 {
@@ -844,11 +846,13 @@ static void des3_ssh2_decrypt_blk(void *handle, unsigned char *blk, int len)
     des_cbc3_decrypt(blk, blk, len, keys);
 }
 
+#ifdef ENABLE_3DES_SSH2_CTR
 static void des3_ssh2_sdctr(void *handle, unsigned char *blk, int len)
 {
     DESContext *keys = (DESContext *) handle;
     des_sdctr3(blk, blk, len, keys);
 }
+#endif
 
 static void des_ssh2_encrypt_blk(void *handle, unsigned char *blk, int len)
 {
