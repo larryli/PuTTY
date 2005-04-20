@@ -2125,7 +2125,7 @@ use that.
 
 PuTTY currently supports the following algorithms:
 
-\b \i{AES} (Rijndael) - 256, 192, or 128-bit CBC (SSH-2 only)
+\b \i{AES} (Rijndael) - 256, 192, or 128-bit SDCTR or CBC (SSH-2 only)
 
 \b \i{Arcfour} (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
 
