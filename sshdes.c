@@ -964,7 +964,7 @@ static const struct ssh2_cipher ssh_3des_ssh2 = {
     8, 168, "triple-DES CBC"
 };
 
-#ifndef ENABLE_3DES_SSH2_CTR
+#ifdef ENABLE_3DES_SSH2_CTR
 static const struct ssh2_cipher ssh_3des_ssh2_ctr = {
     des3_make_context, des3_free_context, des3_iv, des3_key,
     des3_ssh2_sdctr, des3_ssh2_sdctr,
@@ -1002,7 +1002,7 @@ static const struct ssh2_cipher ssh_des_sshcom_ssh2 = {
  * builds.
  */
 static const struct ssh2_cipher *const des3_list[] = {
-#ifndef ENABLE_3DES_SSH2_CTR
+#ifdef ENABLE_3DES_SSH2_CTR
     &ssh_3des_ssh2_ctr,
 #endif
     &ssh_3des_ssh2
