@@ -65,6 +65,8 @@ Filename platform_default_filename(const char *name)
     return ret;
 }
 
+char *get_ttymode(void *frontend, const char *mode) { return NULL; }
+
 /*
  * Stubs for the GUI feedback mechanism in Windows PSCP.
  */

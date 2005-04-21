@@ -29,6 +29,27 @@ static const struct keyval kexnames[] = {
     { "WARN",		    KEX_WARN }
 };
 
+/*
+ * All the terminal modes that we know about for the "TerminalModes"
+ * setting. (Also used by config.c for the drop-down list.)
+ * This is currently precisely the same as the set in ssh.c, but could
+ * in principle differ if other backends started to support tty modes
+ * (e.g., the pty backend).
+ */
+const char *const ttymodes[] = {
+    "INTR",	"QUIT",     "ERASE",	"KILL",     "EOF",
+    "EOL",	"EOL2",     "START",	"STOP",     "SUSP",
+    "DSUSP",	"REPRINT",  "WERASE",	"LNEXT",    "FLUSH",
+    "SWTCH",	"STATUS",   "DISCARD",	"IGNPAR",   "PARMRK",
+    "INPCK",	"ISTRIP",   "INLCR",	"IGNCR",    "ICRNL",
+    "IUCLC",	"IXON",     "IXANY",	"IXOFF",    "IMAXBEL",
+    "ISIG",	"ICANON",   "XCASE",	"ECHO",     "ECHOE",
+    "ECHOK",	"ECHONL",   "NOFLSH",	"TOSTOP",   "IEXTEN",
+    "ECHOCTL",	"ECHOKE",   "PENDIN",	"OPOST",    "OLCUC",
+    "ONLCR",	"OCRNL",    "ONOCR",	"ONLRET",   "CS7",
+    "CS8",	"PARENB",   "PARODD",	NULL
+};
+
 static void gpps(void *handle, const char *name, const char *def,
 		 char *val, int len)
 {
@@ -252,6 +273,7 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "TCPKeepalives", cfg->tcp_keepalives);
     write_setting_s(sesskey, "TerminalType", cfg->termtype);
     write_setting_s(sesskey, "TerminalSpeed", cfg->termspeed);
+    wmap(sesskey, "TerminalModes", cfg->ttymodes, lenof(cfg->ttymodes));
 
     /* Address family selection */
     write_setting_i(sesskey, "AddressFamily", cfg->addressfamily);
@@ -471,6 +493,21 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 	 sizeof(cfg->termtype));
     gpps(sesskey, "TerminalSpeed", "38400,38400", cfg->termspeed,
 	 sizeof(cfg->termspeed));
+    {
+	/* This hardcodes a big set of defaults in any new saved
+	 * sessions. Let's hope we don't change our mind. */
+	int i;
+	char *def = dupstr("");
+	/* Default: all set to "auto" */
+	for (i = 0; ttymodes[i]; i++) {
+	    char *def2 = dupprintf("%s%s=A,", def, ttymodes[i]);
+	    sfree(def);
+	    def = def2;
+	}
+	gppmap(sesskey, "TerminalModes", def,
+	       cfg->ttymodes, lenof(cfg->ttymodes));
+	sfree(def);
+    }
 
     /* proxy settings */
     gpps(sesskey, "ProxyExcludeList", "", cfg->proxy_exclude_list,

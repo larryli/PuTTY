@@ -6265,3 +6265,17 @@ void term_set_focus(Terminal *term, int has_focus)
     term->has_focus = has_focus;
     term_schedule_cblink(term);
 }
+
+/*
+ * Provide "auto" settings for remote tty modes, suitable for an
+ * application with a terminal window.
+ */
+char *term_get_ttymode(Terminal *term, const char *mode)
+{
+    char *val = NULL;
+    if (strcmp(mode, "ERASE") == 0) {
+	val = term->cfg.bksp_is_delete ? "^?" : "^H";
+    }
+    /* FIXME: perhaps we should set ONLCR based on cfg.lfhascr as well? */
+    return dupstr(val);
+}

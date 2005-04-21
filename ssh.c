@@ -166,6 +166,110 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_REKEY                           64
 #define BUG_SSH2_PK_SESSIONID                   128
 
+/*
+ * Codes for terminal modes.
+ * Most of these are the same in SSH-1 and SSH-2.
+ * This list is derived from draft-ietf-secsh-connect-25 and
+ * SSH-1 RFC-1.2.31.
+ */
+static const struct {
+    const char* const mode;
+    int opcode;
+    enum { TTY_OP_CHAR, TTY_OP_BOOL } type;
+} ssh_ttymodes[] = {
+    /* "V" prefix discarded for special characters relative to SSH specs */
+    { "INTR",	      1, TTY_OP_CHAR },
+    { "QUIT",	      2, TTY_OP_CHAR },
+    { "ERASE",	      3, TTY_OP_CHAR },
+    { "KILL",	      4, TTY_OP_CHAR },
+    { "EOF",	      5, TTY_OP_CHAR },
+    { "EOL",	      6, TTY_OP_CHAR },
+    { "EOL2",	      7, TTY_OP_CHAR },
+    { "START",	      8, TTY_OP_CHAR },
+    { "STOP",	      9, TTY_OP_CHAR },
+    { "SUSP",	     10, TTY_OP_CHAR },
+    { "DSUSP",	     11, TTY_OP_CHAR },
+    { "REPRINT",     12, TTY_OP_CHAR },
+    { "WERASE",	     13, TTY_OP_CHAR },
+    { "LNEXT",	     14, TTY_OP_CHAR },
+    { "FLUSH",	     15, TTY_OP_CHAR },
+    { "SWTCH",	     16, TTY_OP_CHAR },
+    { "STATUS",	     17, TTY_OP_CHAR },
+    { "DISCARD",     18, TTY_OP_CHAR },
+    { "IGNPAR",	     30, TTY_OP_BOOL },
+    { "PARMRK",	     31, TTY_OP_BOOL },
+    { "INPCK",	     32, TTY_OP_BOOL },
+    { "ISTRIP",	     33, TTY_OP_BOOL },
+    { "INLCR",	     34, TTY_OP_BOOL },
+    { "IGNCR",	     35, TTY_OP_BOOL },
+    { "ICRNL",	     36, TTY_OP_BOOL },
+    { "IUCLC",	     37, TTY_OP_BOOL },
+    { "IXON",	     38, TTY_OP_BOOL },
+    { "IXANY",	     39, TTY_OP_BOOL },
+    { "IXOFF",	     40, TTY_OP_BOOL },
+    { "IMAXBEL",     41, TTY_OP_BOOL },
+    { "ISIG",	     50, TTY_OP_BOOL },
+    { "ICANON",	     51, TTY_OP_BOOL },
+    { "XCASE",	     52, TTY_OP_BOOL },
+    { "ECHO",	     53, TTY_OP_BOOL },
+    { "ECHOE",	     54, TTY_OP_BOOL },
+    { "ECHOK",	     55, TTY_OP_BOOL },
+    { "ECHONL",	     56, TTY_OP_BOOL },
+    { "NOFLSH",	     57, TTY_OP_BOOL },
+    { "TOSTOP",	     58, TTY_OP_BOOL },
+    { "IEXTEN",	     59, TTY_OP_BOOL },
+    { "ECHOCTL",     60, TTY_OP_BOOL },
+    { "ECHOKE",	     61, TTY_OP_BOOL },
+    { "PENDIN",	     62, TTY_OP_BOOL }, /* XXX is this a real mode? */
+    { "OPOST",	     70, TTY_OP_BOOL },
+    { "OLCUC",	     71, TTY_OP_BOOL },
+    { "ONLCR",	     72, TTY_OP_BOOL },
+    { "OCRNL",	     73, TTY_OP_BOOL },
+    { "ONOCR",	     74, TTY_OP_BOOL },
+    { "ONLRET",	     75, TTY_OP_BOOL },
+    { "CS7",	     90, TTY_OP_BOOL },
+    { "CS8",	     91, TTY_OP_BOOL },
+    { "PARENB",	     92, TTY_OP_BOOL },
+    { "PARODD",	     93, TTY_OP_BOOL }
+};
+
+/* Miscellaneous other tty-related constants. */
+#define SSH_TTY_OP_END		  0
+/* The opcodes for ISPEED/OSPEED differ between SSH-1 and SSH-2. */
+#define SSH1_TTY_OP_ISPEED	192
+#define SSH1_TTY_OP_OSPEED	193
+#define SSH2_TTY_OP_ISPEED	128
+#define SSH2_TTY_OP_OSPEED	129
+
+/* Helper functions for parsing tty-related config. */
+static unsigned int ssh_tty_parse_specchar(char *s)
+{
+    unsigned int ret;
+    if (*s) {
+	char *next = NULL;
+	ret = ctrlparse(s, &next);
+	if (!next) ret = s[0];
+    } else {
+	ret = 255; /* special value meaning "don't set" */
+    }
+    return ret;
+}
+static unsigned int ssh_tty_parse_boolean(char *s)
+{
+    if (stricmp(s, "yes") == 0 ||
+	stricmp(s, "on") == 0 ||
+	stricmp(s, "true") == 0 ||
+	stricmp(s, "+") == 0)
+	return 1; /* true */
+    else if (stricmp(s, "no") == 0 ||
+	     stricmp(s, "off") == 0 ||
+	     stricmp(s, "false") == 0 ||
+	     stricmp(s, "-") == 0)
+	return 0; /* false */
+    else
+	return (atoi(s) != 0);
+}
+
 #define translate(x) if (type == x) return #x
 #define translatec(x,ctx) if (type == x && (pkt_ctx & ctx)) return #x
 static char *ssh1_pkt_type(int type)
@@ -783,6 +887,29 @@ static void dont_log_data(Ssh ssh, struct Packet *pkt, int blanktype)
 static void end_log_omission(Ssh ssh, struct Packet *pkt)
 {
     pkt->logmode = PKTLOG_EMIT;
+}
+
+/* Helper function for common bits of parsing cfg.ttymodes. */
+static void parse_ttymodes(Ssh ssh, char *modes,
+			   void (*do_mode)(void *data, char *mode, char *val),
+			   void *data)
+{
+    while (*modes) {
+	char *t = strchr(modes, '\t');
+	char *m = snewn(t-modes+1, char);
+	char *val;
+	strncpy(m, modes, t-modes);
+	m[t-modes] = '\0';
+	if (*(t+1) == 'A')
+	    val = get_ttymode(ssh->frontend, m);
+	else
+	    val = dupstr(t+2);
+	if (val)
+	    do_mode(data, m, val);
+	sfree(m);
+	sfree(val);
+	modes += strlen(modes) + 1;
+    }
 }
 
 static int ssh_channelcmp(void *av, void *bv)
@@ -4411,6 +4538,27 @@ static void ssh1_smsg_exit_status(Ssh ssh, struct Packet *pktin)
     ssh_closing((Plug)ssh, NULL, 0, 0);
 }
 
+/* Helper function to deal with sending tty modes for REQUEST_PTY */
+static void ssh1_send_ttymode(void *data, char *mode, char *val)
+{
+    struct Packet *pktout = (struct Packet *)data;
+    int i = 0;
+    unsigned int arg = 0;
+    while (strcmp(mode, ssh_ttymodes[i].mode) != 0) i++;
+    if (i == lenof(ssh_ttymodes)) return;
+    switch (ssh_ttymodes[i].type) {
+      case TTY_OP_CHAR:
+	arg = ssh_tty_parse_specchar(val);
+	break;
+      case TTY_OP_BOOL:
+	arg = ssh_tty_parse_boolean(val);
+	break;
+    }
+    ssh2_pkt_addbyte(pktout, ssh_ttymodes[i].opcode);
+    ssh2_pkt_addbyte(pktout, arg);
+}
+
+
 static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 			       struct Packet *pktin)
 {
@@ -4484,19 +4632,26 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
     ssh->packet_dispatch[SSH1_MSG_PORT_OPEN] = ssh1_msg_port_open;
 
     if (!ssh->cfg.nopty) {
+	struct Packet *pkt;
 	/* Unpick the terminal-speed string. */
 	/* XXX perhaps we should allow no speeds to be sent. */
 	ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
 	sscanf(ssh->cfg.termspeed, "%d,%d", &ssh->ospeed, &ssh->ispeed);
 	/* Send the pty request. */
-	send_packet(ssh, SSH1_CMSG_REQUEST_PTY,
-		    PKT_STR, ssh->cfg.termtype,
-		    PKT_INT, ssh->term_height,
-		    PKT_INT, ssh->term_width,
-		    PKT_INT, 0, PKT_INT, 0, /* width,height in pixels */
-		    PKT_CHAR, 192, PKT_INT, ssh->ispeed, /* TTY_OP_ISPEED */
-		    PKT_CHAR, 193, PKT_INT, ssh->ospeed, /* TTY_OP_OSPEED */
-		    PKT_CHAR, 0, PKT_END);
+	pkt = ssh1_pkt_init(SSH1_CMSG_REQUEST_PTY);
+	ssh_pkt_addstring(pkt, ssh->cfg.termtype);
+	ssh_pkt_adduint32(pkt, ssh->term_height);
+	ssh_pkt_adduint32(pkt, ssh->term_width);
+	ssh_pkt_adduint32(pkt, 0); /* width in pixels */
+	ssh_pkt_adduint32(pkt, 0); /* height in pixels */
+	parse_ttymodes(ssh, ssh->cfg.ttymodes,
+		       ssh1_send_ttymode, (void *)pkt);
+	ssh_pkt_addbyte(pkt, SSH1_TTY_OP_ISPEED);
+	ssh_pkt_adduint32(pkt, ssh->ispeed);
+	ssh_pkt_addbyte(pkt, SSH1_TTY_OP_OSPEED);
+	ssh_pkt_adduint32(pkt, ssh->ospeed);
+	ssh_pkt_addbyte(pkt, SSH_TTY_OP_END);
+	s_wrpkt(ssh, pkt);
 	ssh->state = SSH_STATE_INTERMED;
 	do {
 	    crReturnV;
@@ -6194,6 +6349,26 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     }
 }
 
+/* Helper function to deal with sending tty modes for "pty-req" */
+static void ssh2_send_ttymode(void *data, char *mode, char *val)
+{
+    struct Packet *pktout = (struct Packet *)data;
+    int i = 0;
+    unsigned int arg = 0;
+    while (strcmp(mode, ssh_ttymodes[i].mode) != 0) i++;
+    if (i == lenof(ssh_ttymodes)) return;
+    switch (ssh_ttymodes[i].type) {
+      case TTY_OP_CHAR:
+	arg = ssh_tty_parse_specchar(val);
+	break;
+      case TTY_OP_BOOL:
+	arg = ssh_tty_parse_boolean(val);
+	break;
+    }
+    ssh2_pkt_addbyte(pktout, ssh_ttymodes[i].opcode);
+    ssh2_pkt_adduint32(pktout, arg);
+}
+
 /*
  * Handle the SSH-2 userauth and connection layers.
  */
@@ -7179,9 +7354,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_adduint32(s->pktout, 0);	       /* pixel width */
 	ssh2_pkt_adduint32(s->pktout, 0);	       /* pixel height */
 	ssh2_pkt_addstring_start(s->pktout);
-	ssh2_pkt_addbyte(s->pktout, 128);	       /* TTY_OP_ISPEED */
+	parse_ttymodes(ssh, ssh->cfg.ttymodes,
+		       ssh2_send_ttymode, (void *)s->pktout);
+	ssh2_pkt_addbyte(s->pktout, SSH2_TTY_OP_ISPEED);
 	ssh2_pkt_adduint32(s->pktout, ssh->ispeed);
-	ssh2_pkt_addbyte(s->pktout, 129);	       /* TTY_OP_OSPEED */
+	ssh2_pkt_addbyte(s->pktout, SSH2_TTY_OP_OSPEED);
 	ssh2_pkt_adduint32(s->pktout, ssh->ospeed);
 	ssh2_pkt_addstring_data(s->pktout, "\0", 1); /* TTY_OP_END */
 	ssh2_pkt_send(ssh, s->pktout);

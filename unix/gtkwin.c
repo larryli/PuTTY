@@ -177,6 +177,12 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
 }
 
+char *get_ttymode(void *frontend, const char *mode)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    return term_get_ttymode(inst->term, mode);
+}
+
 int from_backend(void *frontend, int is_stderr, const char *data, int len)
 {
     struct gui_data *inst = (struct gui_data *)frontend;

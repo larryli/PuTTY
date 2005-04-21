@@ -913,6 +913,13 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
 }
 
+char *get_ttymode(void *frontend, const char *mode)
+{
+    SessionWindow *win = (SessionWindow *)ctx;
+    Terminal *term = [win term];
+    return term_get_ttymode(term, mode);
+}
+
 void update_specials_menu(void *frontend)
 {
     //SessionWindow *win = (SessionWindow *)frontend;

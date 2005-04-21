@@ -191,6 +191,11 @@ saved sessions from
 \IM{pseudo-terminal allocation} pty allocation
 \IM{pseudo-terminal allocation} allocation, of pseudo-terminal
 
+\IM{ERASE special character} \cw{ERASE}, special character
+\IM{ERASE special character} \cw{VERASE}, special character
+\IM{QUIT special character} \cw{QUIT}, special character
+\IM{QUIT special character} \cw{VQUIT}, special character
+
 \IM{-telnet} \c{-telnet} command-line option
 \IM{-raw} \c{-raw} command-line option
 \IM{-rlogin} \c{-rlogin} command-line option

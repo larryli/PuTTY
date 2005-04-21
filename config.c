@@ -602,6 +602,99 @@ static void colour_handler(union control *ctrl, void *dlg,
     }
 }
 
+struct ttymodes_data {
+    union control *modelist, *valradio, *valbox;
+    union control *addbutton, *rembutton, *listbox;
+};
+
+static void ttymodes_handler(union control *ctrl, void *dlg,
+			     void *data, int event)
+{
+    Config *cfg = (Config *)data;
+    struct ttymodes_data *td =
+	(struct ttymodes_data *)ctrl->generic.context.p;
+
+    if (event == EVENT_REFRESH) {
+	if (ctrl == td->listbox) {
+	    char *p = cfg->ttymodes;
+	    dlg_update_start(ctrl, dlg);
+	    dlg_listbox_clear(ctrl, dlg);
+	    while (*p) {
+		int tabpos = strchr(p, '\t') - p;
+		char *disp = dupprintf("%.*s\t%s", tabpos, p,
+				       (p[tabpos+1] == 'A') ? "(auto)" :
+				       p+tabpos+2);
+		dlg_listbox_add(ctrl, dlg, disp);
+		p += strlen(p) + 1;
+		sfree(disp);
+	    }
+	    dlg_update_done(ctrl, dlg);
+	} else if (ctrl == td->modelist) {
+	    int i;
+	    dlg_update_start(ctrl, dlg);
+	    dlg_listbox_clear(ctrl, dlg);
+	    for (i = 0; ttymodes[i]; i++)
+		dlg_listbox_add(ctrl, dlg, ttymodes[i]);
+	    dlg_listbox_select(ctrl, dlg, 0); /* *shrug* */
+	    dlg_update_done(ctrl, dlg);
+	} else if (ctrl == td->valradio) {
+	    dlg_radiobutton_set(ctrl, dlg, 0);
+	}
+    } else if (event == EVENT_ACTION) {
+	if (ctrl == td->addbutton) {
+	    int ind = dlg_listbox_index(td->modelist, dlg);
+	    if (ind >= 0) {
+		char type = dlg_radiobutton_get(td->valradio, dlg) ? 'V' : 'A';
+		int slen, left;
+		char *p, str[lenof(cfg->ttymodes)];
+		/* Construct new entry */
+		memset(str, 0, lenof(str));
+		strncpy(str, ttymodes[ind], lenof(str)-3);
+		slen = strlen(str);
+		str[slen] = '\t';
+		str[slen+1] = type;
+		slen += 2;
+		if (type == 'V') {
+		    dlg_editbox_get(td->valbox, dlg, str+slen, lenof(str)-slen);
+		}
+		/* Find end of list, deleting any existing instance */
+		p = cfg->ttymodes;
+		left = lenof(cfg->ttymodes);
+		while (*p) {
+		    int t = strchr(p, '\t') - p;
+		    if (t == strlen(ttymodes[ind]) &&
+			strncmp(p, ttymodes[ind], t) == 0) {
+			memmove(p, p+strlen(p)+1, left - (strlen(p)+1));
+			continue;
+		    }
+		    left -= strlen(p) + 1;
+		    p    += strlen(p) + 1;
+		}
+		/* Append new entry */
+		memset(p, 0, left);
+		strncpy(p, str, left - 2);
+		dlg_refresh(td->listbox, dlg);
+	    } else
+		dlg_beep(dlg);
+	} else if (ctrl == td->rembutton) {
+	    char *p = cfg->ttymodes;
+	    int i = 0, len = lenof(cfg->ttymodes);
+	    while (*p) {
+		if (dlg_listbox_issel(td->listbox, dlg, i)) {
+		    memmove(p, p+strlen(p)+1, len - (strlen(p)+1));
+		    i++;
+		    continue;
+		}
+		len -= strlen(p) + 1;
+		p   += strlen(p) + 1;
+		i++;
+	    }
+	    memset(p, 0, lenof(cfg->ttymodes) - len);
+	    dlg_refresh(td->listbox, dlg);
+	}
+    }
+}
+
 struct environ_data {
     union control *varbox, *valbox, *addbutton, *rembutton, *listbox;
 };
@@ -827,6 +920,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     struct sessionsaver_data *ssd;
     struct charclass_data *ccd;
     struct colour_data *cd;
+    struct ttymodes_data *td;
     struct environ_data *ed;
     struct portfwd_data *pfd;
     union control *c;
@@ -1641,10 +1735,6 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 I(sizeof(((Config *)0)->remote_cmd)));
 
 	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
-	    ctrl_checkbox(s, "Don't allocate a pseudo-terminal", 'p',
-			  HELPCTX(ssh_nopty),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,nopty)));
 	    ctrl_checkbox(s, "Don't start a shell or command at all", 'n',
 			  HELPCTX(ssh_noshell),
 			  dlg_stdcheckbox_handler,
@@ -1751,6 +1841,72 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 FILTER_KEY_FILES, FALSE, "Select private key file",
 			 HELPCTX(ssh_auth_privkey),
 			 dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
+	}
+
+	if (!midsession) {
+	    /*
+	     * The Connection/SSH/TTY panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/TTY", "Remote terminal settings");
+
+	    s = ctrl_getset(b, "Connection/SSH/TTY", "sshtty", NULL);
+	    ctrl_checkbox(s, "Don't allocate a pseudo-terminal", 'p',
+			  HELPCTX(ssh_nopty),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,nopty)));
+
+	    s = ctrl_getset(b, "Connection/SSH/TTY", "ttymodes",
+			    "Terminal modes");
+	    td = (struct ttymodes_data *)
+		ctrl_alloc(b, sizeof(struct ttymodes_data));
+	    ctrl_columns(s, 2, 75, 25);
+	    c = ctrl_text(s, "Terminal modes to send:", HELPCTX(ssh_ttymodes));
+	    c->generic.column = 0;
+	    td->rembutton = ctrl_pushbutton(s, "Remove", 'r',
+					    HELPCTX(ssh_ttymodes),
+					    ttymodes_handler, P(td));
+	    td->rembutton->generic.column = 1;
+	    td->rembutton->generic.tabdelay = 1;
+	    ctrl_columns(s, 1, 100);
+	    td->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
+				       HELPCTX(ssh_ttymodes),
+				       ttymodes_handler, P(td));
+	    td->listbox->listbox.multisel = 1;
+	    td->listbox->listbox.height = 4;
+	    td->listbox->listbox.ncols = 2;
+	    td->listbox->listbox.percentages = snewn(2, int);
+	    td->listbox->listbox.percentages[0] = 40;
+	    td->listbox->listbox.percentages[1] = 60;
+	    ctrl_tabdelay(s, td->rembutton);
+	    ctrl_columns(s, 2, 75, 25);
+	    td->modelist = ctrl_droplist(s, "Mode:", 'm', 67,
+					 HELPCTX(ssh_ttymodes),
+					 ttymodes_handler, P(td));
+	    td->modelist->generic.column = 0;
+	    td->addbutton = ctrl_pushbutton(s, "Add", 'd',
+					    HELPCTX(ssh_ttymodes),
+					    ttymodes_handler, P(td));
+	    td->addbutton->generic.column = 1;
+	    td->addbutton->generic.tabdelay = 1;
+	    ctrl_columns(s, 1, 100);	    /* column break */
+	    /* Bit of a hack to get the value radio buttons and
+	     * edit-box on the same row. */
+	    ctrl_columns(s, 3, 25, 50, 25);
+	    c = ctrl_text(s, "Value:", HELPCTX(ssh_ttymodes));
+	    c->generic.column = 0;
+	    td->valradio = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 2,
+					     HELPCTX(ssh_ttymodes),
+					     ttymodes_handler, P(td),
+					     "Auto", NO_SHORTCUT, P(NULL),
+					     "This:", NO_SHORTCUT, P(NULL),
+					     NULL);
+	    td->valradio->generic.column = 1;
+	    td->valbox = ctrl_editbox(s, NULL, NO_SHORTCUT, 100,
+				      HELPCTX(ssh_ttymodes),
+				      ttymodes_handler, P(td), P(NULL));
+	    td->valbox->generic.column = 2;
+	    ctrl_tabdelay(s, td->addbutton);
+
 	}
 
 	if (!midsession) {

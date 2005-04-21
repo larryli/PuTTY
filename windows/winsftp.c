@@ -125,6 +125,8 @@ void gui_enable(char *arg)
     gui_hwnd = (HWND) atoi(arg);
 }
 
+char *get_ttymode(void *frontend, const char *mode) { return NULL; }
+
 /* ----------------------------------------------------------------------
  * File access abstraction.
  */

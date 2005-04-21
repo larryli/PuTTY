@@ -324,6 +324,8 @@ enum {
     FUNKY_SCO
 };
 
+extern const char *const ttymodes[];
+
 enum {
     /*
      * Network address types. Used for specifying choice of IPv4/v6
@@ -438,6 +440,7 @@ struct config_tag {
     /* Telnet options */
     char termtype[32];
     char termspeed[32];
+    char ttymodes[768];		       /* MODE\tVvalue\0MODE\tA\0\0 */
     char environmt[1024];	       /* VAR\tvalue\0VAR\tvalue\0\0 */
     char username[100];
     char localusername[100];
@@ -647,6 +650,9 @@ void ldisc_update(void *frontend, int echo, int edit);
 void update_specials_menu(void *frontend);
 int from_backend(void *frontend, int is_stderr, const char *data, int len);
 void notify_remote_exit(void *frontend);
+/* Get a sensible value for a tty mode. NULL return = don't set.
+ * Otherwise, returned value should be freed by caller. */
+char *get_ttymode(void *frontend, const char *mode);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(void *frontend, int iconic);
@@ -741,6 +747,7 @@ void term_provide_resize_fn(Terminal *term,
 			    void *resize_ctx);
 void term_provide_logctx(Terminal *term, void *logctx);
 void term_set_focus(Terminal *term, int has_focus);
+char *term_get_ttymode(Terminal *term, const char *mode);
 
 /*
  * Exports from logging.c.

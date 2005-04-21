@@ -94,6 +94,8 @@ void ldisc_update(void *frontend, int echo, int edit)
     SetConsoleMode(inhandle, mode);
 }
 
+char *get_ttymode(void *frontend, const char *mode) { return NULL; }
+
 struct input_data {
     DWORD len;
     char buffer[4096];

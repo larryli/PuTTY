@@ -1845,6 +1845,12 @@ void ldisc_update(void *frontend, int echo, int edit)
 {
 }
 
+char *get_ttymode(void *frontend, const char *mode)
+{
+    Session *s = frontend;
+    return term_get_ttymode(s->term, mode);
+}
+
 /*
  * Mac PuTTY doesn't support printing yet.
  */

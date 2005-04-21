@@ -63,7 +63,8 @@ void cmdline_error(char *p, ...)
     exit(1);
 }
 
-struct termios orig_termios;
+static int local_tty = 0; /* do we have a local tty? */
+static struct termios orig_termios;
 
 static Backend *back;
 static void *backhandle;
@@ -122,6 +123,8 @@ void ldisc_update(void *frontend, int echo, int edit)
     /* Update stdin read mode to reflect changes in line discipline. */
     struct termios mode;
 
+    if (!local_tty) return;
+
     mode = orig_termios;
 
     if (echo)
@@ -135,16 +138,184 @@ void ldisc_update(void *frontend, int echo, int edit)
     } else {
 	mode.c_iflag &= ~ICRNL;
 	mode.c_lflag &= ~(ISIG | ICANON);
+	/* Solaris sets these to unhelpful values */
 	mode.c_cc[VMIN] = 1;
 	mode.c_cc[VTIME] = 0;
+	/* FIXME: perhaps what we do with IXON/IXOFF should be an
+	 * argument to ldisc_update(), to allow implementation of SSH-2
+	 * "xon-xoff" and Rlogin's equivalent? */
+	mode.c_iflag &= ~IXON;
+	mode.c_iflag &= ~IXOFF;
     }
 
     tcsetattr(0, TCSANOW, &mode);
 }
 
+/* Helper function to extract a special character from a termios. */
+static char *get_ttychar(struct termios *t, int index)
+{
+    cc_t c = t->c_cc[index];
+#if defined(_POSIX_VDISABLE)
+    if (c == _POSIX_VDISABLE)
+	return dupprintf("");
+#endif
+    return dupprintf("^<%d>", c);
+}
+
+char *get_ttymode(void *frontend, const char *mode)
+{
+    /*
+     * Propagate appropriate terminal modes from the local terminal,
+     * if any.
+     */
+    if (!local_tty) return NULL;
+
+#define GET_CHAR(ourname, uxname) \
+    do { \
+	if (strcmp(mode, ourname) == 0) \
+	    return get_ttychar(&orig_termios, uxname); \
+    } while(0)
+#define GET_BOOL(ourname, uxname, uxmemb, transform) \
+    do { \
+	if (strcmp(mode, ourname) == 0) { \
+	    int b = (orig_termios.uxmemb & uxname) != 0; \
+	    transform; \
+	    return dupprintf("%d", b); \
+	} \
+    } while (0)
+
+    /*
+     * Modes that want to be the same on all terminal devices involved.
+     */
+    /* All the special characters supported by SSH */
+#if defined(VINTR)
+    GET_CHAR("INTR", VINTR);
+#endif
+#if defined(VQUIT)
+    GET_CHAR("QUIT", VQUIT);
+#endif
+#if defined(VERASE)
+    GET_CHAR("ERASE", VERASE);
+#endif
+#if defined(VKILL)
+    GET_CHAR("KILL", VKILL);
+#endif
+#if defined(VEOF)
+    GET_CHAR("EOF", VEOF);
+#endif
+#if defined(VEOL)
+    GET_CHAR("EOL", VEOL);
+#endif
+#if defined(VEOL2)
+    GET_CHAR("EOL2", VEOL2);
+#endif
+#if defined(VSTART)
+    GET_CHAR("START", VSTART);
+#endif
+#if defined(VSTOP)
+    GET_CHAR("STOP", VSTOP);
+#endif
+#if defined(VSUSP)
+    GET_CHAR("SUSP", VSUSP);
+#endif
+#if defined(VDSUSP)
+    GET_CHAR("DSUSP", VDSUSP);
+#endif
+#if defined(VREPRINT)
+    GET_CHAR("REPRINT", VREPRINT);
+#endif
+#if defined(VWERASE)
+    GET_CHAR("WERASE", VWERASE);
+#endif
+#if defined(VLNEXT)
+    GET_CHAR("LNEXT", VLNEXT);
+#endif
+#if defined(VFLUSH)
+    GET_CHAR("FLUSH", VFLUSH);
+#endif
+#if defined(VSWTCH)
+    GET_CHAR("SWTCH", VSWTCH);
+#endif
+#if defined(VSTATUS)
+    GET_CHAR("STATUS", VSTATUS);
+#endif
+#if defined(VDISCARD)
+    GET_CHAR("DISCARD", VDISCARD);
+#endif
+    /* Modes that "configure" other major modes. These should probably be
+     * considered as user preferences. */
+    /* Configuration of ICANON */
+#if defined(ECHOK)
+    GET_BOOL("ECHOK", ECHOK, c_lflag, );
+#endif
+#if defined(ECHOKE)
+    GET_BOOL("ECHOKE", ECHOKE, c_lflag, );
+#endif
+#if defined(ECHOE)
+    GET_BOOL("ECHOE", ECHOE, c_lflag, );
+#endif
+#if defined(ECHONL)
+    GET_BOOL("ECHONL", ECHONL, c_lflag, );
+#endif
+#if defined(XCASE)
+    GET_BOOL("XCASE", XCASE, c_lflag, );
+#endif
+    /* Configuration of ECHO */
+#if defined(ECHOCTL)
+    GET_BOOL("ECHOCTL", ECHOCTL, c_lflag, );
+#endif
+    /* Configuration of IXON/IXOFF */
+#if defined(IXANY)
+    GET_BOOL("IXANY", IXANY, c_iflag, );
+#endif
+
+    /*
+     * Modes that want to be set in only one place, and that we have
+     * squashed locally.
+     */
+#if defined(ISIG)
+    GET_BOOL("ISIG", ISIG, c_lflag, );
+#endif
+#if defined(ICANON)
+    GET_BOOL("ICANON", ICANON, c_lflag, );
+#endif
+#if defined(ECHO)
+    GET_BOOL("ECHO", ECHO, c_lflag, );
+#endif
+#if defined(IXON)
+    GET_BOOL("IXON", IXON, c_iflag, );
+#endif
+#if defined(IXOFF)
+    GET_BOOL("IXOFF", IXOFF, c_iflag, );
+#endif
+
+    /*
+     * We do not propagate the following modes:
+     *  - Parity/serial settings, which are a local affair and don't
+     *    make sense propagated over SSH's 8-bit byte-stream.
+     *      IGNPAR PARMRK INPCK CS7 CS8 PARENB PARODD
+     *  - Things that want to be enabled in one place that we don't
+     *    squash locally.
+     *      IUCLC OLCUC
+     *  - Status bits.
+     *      PENDIN
+     *  - Things I don't know what to do with. (FIXME)
+     *      ISTRIP IMAXBEL NOFLSH TOSTOP IEXTEN OPOST 
+     *      INLCR IGNCR ICRNL ONLCR OCRNL ONOCR ONLRET
+     */
+
+#undef GET_CHAR
+#undef GET_BOOL
+
+    /* Fall through to here for unrecognised names, or ones that are
+     * unsupported on this platform */
+    return NULL;
+}
+
 void cleanup_termios(void)
 {
-    tcsetattr(0, TCSANOW, &orig_termios);
+    if (local_tty)
+	tcsetattr(0, TCSANOW, &orig_termios);
 }
 
 bufchain stdout_data, stderr_data;
@@ -590,7 +761,7 @@ int main(int argc, char **argv)
      * fails, because we know we aren't necessarily running in a
      * console.
      */
-    tcgetattr(0, &orig_termios);
+    local_tty = (tcgetattr(0, &orig_termios) == 0);
     atexit(cleanup_termios);
     ldisc_update(NULL, 1, 1);
     sending = FALSE;

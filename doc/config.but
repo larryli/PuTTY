@@ -515,9 +515,12 @@ known as \i{Control-?}) so that it can be distinguished from Control-H.
 This option allows you to choose which code PuTTY generates when you
 press Backspace.
 
-If you are connecting to a Unix system, you will probably find that
+If you are connecting over SSH, PuTTY by default tells the server
+the value of this option (see \k{config-ttymodes}), so you may find
+that the Backspace key does the right thing either way. Similarly,
+if you are connecting to a \i{Unix} system, you will probably find that
 the Unix \i\c{stty} command lets you configure which the server
-expects to see, so you might not need to change which one PuTTY
+expects to see, so again you might not need to change which one PuTTY
 generates. On other systems, the server's expectation might be fixed
 and you might have no choice but to configure PuTTY.
 
@@ -2049,22 +2052,6 @@ Instead, you can choose to run a single specific command (such as a
 mail user agent, for example). If you want to do this, enter the
 command in the \q{\ii{Remote command}} box.
 
-\S{config-ssh-pty} \I{pseudo-terminal allocation}\q{Don't allocate
-a pseudo-terminal}
-
-\cfg{winhelp-topic}{ssh.nopty}
-
-When connecting to a \i{Unix} system, most \I{interactive
-connections}interactive shell sessions are run in a \e{pseudo-terminal},
-which allows the Unix system to pretend it's talking to a real physical
-terminal device but allows the SSH server to catch all the data coming
-from that fake device and send it back to the client.
-
-Occasionally you might find you have a need to run a session \e{not}
-in a pseudo-terminal. In PuTTY, this is generally only useful for
-very specialist purposes; although in Plink (see \k{plink}) it is
-the usual way of working.
-
 \S{config-ssh-noshell} \q{Don't start a \I{remote shell}shell or
 \I{remote command}command at all}
 
@@ -2371,6 +2358,112 @@ about public key authentication in SSH.
 This key must be in PuTTY's native format (\c{*.\i{PPK}}). If you have a
 private key in another format that you want to use with PuTTY, see
 \k{puttygen-conversions}.
+
+\H{config-ssh-tty} The TTY panel
+
+The TTY panel lets you configure the remote pseudo-terminal.
+
+\S{config-ssh-pty} \I{pseudo-terminal allocation}\q{Don't allocate
+a pseudo-terminal}
+
+\cfg{winhelp-topic}{ssh.nopty}
+
+When connecting to a \i{Unix} system, most \I{interactive
+connections}interactive shell sessions are run in a \e{pseudo-terminal},
+which allows the Unix system to pretend it's talking to a real physical
+terminal device but allows the SSH server to catch all the data coming
+from that fake device and send it back to the client.
+
+Occasionally you might find you have a need to run a session \e{not}
+in a pseudo-terminal. In PuTTY, this is generally only useful for
+very specialist purposes; although in Plink (see \k{plink}) it is
+the usual way of working.
+
+\S{config-ttymodes} Sending \i{terminal modes}
+
+\cfg{winhelp-topic}{ssh.ttymodes}
+
+The SSH protocol allows the client to send \q{terminal modes} for
+the remote pseudo-terminal. These usually control the server's
+expectation of the local terminal's behaviour.
+
+If your server does not have sensible defaults for these modes, you
+may find that changing them here helps. If you don't understand any of
+this, it's safe to leave these settings alone.
+
+(None of these settings will have any effect if no pseudo-terminal
+is requested or allocated.)
+
+You can add or modify a mode by selecting it from the drop-down list,
+choosing whether it's set automatically or to a specific value with
+the radio buttons and edit box, and hitting \q{Add}. A mode (or
+several) can be removed from the list by selecting them and hitting
+\q{Remove}. The effect of the mode list is as follows:
+
+\b If a mode is not on the list, it will not be specified to the
+server under any circumstances.
+
+\b If a mode is on the list:
+
+\lcont{
+
+\b If the \q{Auto} option is selected, the PuTTY tools will decide
+whether to specify that mode to the server, and if so, will send
+a sensible value.
+
+\lcont{
+
+PuTTY proper will send modes that it has an opinion on (currently only
+the code for the Backspace key, \cw{ERASE}). Plink on Unix
+will propagate appropriate modes from the local terminal, if any.
+
+}
+
+\b If a value is specified, it will be sent to the server under all
+circumstances. The precise syntax of the value box depends on the
+mode.
+
+}
+
+By default, all of the available modes are listed as \q{Auto},
+which should do the right thing in most circumstances.
+
+The precise effect of each setting, if any, is up to the server. Their
+names come from \i{POSIX} and other Unix systems, and they are most
+likely to have a useful effect on such systems. (These are the same
+settings that can usually be changed using the \i\c{stty} command once
+logged in to such servers.)
+
+Some notable modes are described below; for fuller explanations, see
+your server documentation.
+
+\b \I{ERASE special character}\cw{ERASE} is the character that when typed
+by the user will delete one space to the left. When set to \q{Auto}
+(the default setting), this follows the setting of the local Backspace
+key in PuTTY (see \k{config-backspace}).
+
+\lcont{
+This and other \i{special character}s are specified using \c{^C} notation
+for Ctrl-C, and so on. Use \c{^<27>} or \c{^<0x1B>} to specify a
+character numerically, and \c{^~} to get a literal \c{^}. Other
+non-control characters are denoted by themselves. Leaving the box
+entirely blank indicates that \e{no} character should be assigned to
+the specified function, although this may not be supported by all
+servers.
+}
+
+\b \I{QUIT special character}\cw{QUIT} is a special character that
+usually forcefully ends the current process on the server
+(\cw{SIGQUIT}). On many servers its default setting is Ctrl-backslash
+(\c{^\\}), which is easy to accidentally invoke on many keyboards. If
+this is getting in your way, you may want to change it to another
+character or turn it off entirely.
+
+\b Boolean modes such as \cw{ECHO} and \cw{ICANON} can be specified in
+PuTTY in a variety of ways, such as \cw{true}/\cw{false},
+\cw{yes}/\cw{no}, and \cw{0}/\cw{1}.
+
+\b Terminal speeds are configured elsewhere; see \k{config-termspeed}.
 
 \H{config-ssh-x11} The X11 panel
 

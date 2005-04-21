@@ -191,6 +191,11 @@ void ldisc_update(void *frontend, int echo, int edit)
 {
 }
 
+char *get_ttymode(void *frontend, const char *mode)
+{
+    return term_get_ttymode(term, mode);
+}
+
 static void start_backend(void)
 {
     const char *error;
