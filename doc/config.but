@@ -1831,9 +1831,9 @@ set it to \q{Yes}, PuTTY will always pass host names straight to the
 proxy without trying to look them up first.
 
 If you set this option to \q{Auto} (the default), PuTTY will do
-something it considers appropriate for each type of proxy. Telnet
-and HTTP proxies will have host names passed straight to them; SOCKS
-proxies will not.
+something it considers appropriate for each type of proxy. Telnet,
+HTTP, and SOCKS5 proxies will have host names passed straight to
+them; SOCKS4 proxies will not.
 
 Note that if you are doing DNS at the proxy, you should make sure
 that your proxy exclusion settings (see \k{config-proxy-exclude}) do

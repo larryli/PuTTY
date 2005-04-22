@@ -16,9 +16,7 @@
 
 #define do_proxy_dns(cfg) \
     (cfg->proxy_dns == FORCE_ON || \
-	 (cfg->proxy_dns == AUTO && \
-              cfg->proxy_type != PROXY_SOCKS4 && \
-              cfg->proxy_type != PROXY_SOCKS5))
+	 (cfg->proxy_dns == AUTO && cfg->proxy_type != PROXY_SOCKS4))
 
 /*
  * Call this when proxy negotiation is complete, so that this
