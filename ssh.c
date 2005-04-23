@@ -1797,7 +1797,18 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
  * ssh2_pkt_send() or ssh2_pkt_defer() either go straight to one of
  * these or get queued, and then when the queue is later emptied
  * the packets are all passed to defer_noqueue().
+ *
+ * When using a CBC-mode cipher, it's necessary to ensure that an
+ * attacker can't provide data to be encrypted using an IV that they
+ * know.  We ensure this by prefixing each packet that might contain
+ * user data with an SSH_MSG_IGNORE.  This is done using the deferral
+ * mechanism, so in this case send_noqueue() ends up redirecting to
+ * defer_noqueue().  If you don't like this inefficiency, don't use
+ * CBC.
  */
+
+static void ssh2_pkt_defer_noqueue(Ssh, struct Packet *, int);
+static void ssh_pkt_defersend(Ssh);
 
 /*
  * Send an SSH-2 packet immediately, without queuing or deferring.
@@ -1806,6 +1817,12 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 {
     int len;
     int backlog;
+    if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC)) {
+	/* We need to send two packets, so use the deferral mechanism. */
+	ssh2_pkt_defer_noqueue(ssh, pkt, FALSE);
+	ssh_pkt_defersend(ssh);
+	return;
+    }
     len = ssh2_pkt_construct(ssh, pkt);
     backlog = sk_write(ssh->s, (char *)pkt->data, len);
     if (backlog > SSH_MAX_BACKLOG)
@@ -1823,9 +1840,19 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 /*
  * Defer an SSH-2 packet.
  */
-static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt)
+static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt, int noignore)
 {
-    int len = ssh2_pkt_construct(ssh, pkt);
+    int len;
+    if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC) &&
+	ssh->deferred_len == 0 && !noignore) {
+	/*
+	 * Interpose an SSH_MSG_IGNORE to ensure that user data don't
+	 * get encrypted with a known IV.
+	 */
+	struct Packet *ipkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
+	ssh2_pkt_defer_noqueue(ssh, ipkt, TRUE);
+    }
+    len = ssh2_pkt_construct(ssh, pkt);
     if (ssh->deferred_len + len > ssh->deferred_size) {
 	ssh->deferred_size = ssh->deferred_len + len + 128;
 	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
@@ -1875,7 +1902,7 @@ static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
     if (ssh->queueing)
 	ssh2_pkt_queue(ssh, pkt);
     else
-	ssh2_pkt_defer_noqueue(ssh, pkt);
+	ssh2_pkt_defer_noqueue(ssh, pkt, FALSE);
 }
 #endif
 
@@ -1923,7 +1950,7 @@ static void ssh2_pkt_queuesend(Ssh ssh)
     assert(!ssh->queueing);
 
     for (i = 0; i < ssh->queuelen; i++)
-	ssh2_pkt_defer_noqueue(ssh, ssh->queue[i]);
+	ssh2_pkt_defer_noqueue(ssh, ssh->queue[i], FALSE);
     ssh->queuelen = 0;
 
     ssh_pkt_defersend(ssh);

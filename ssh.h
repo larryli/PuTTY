@@ -154,6 +154,8 @@ struct ssh2_cipher {
     char *name;
     int blksize;
     int keylen;
+    unsigned int flags;
+#define SSH_CIPHER_IS_CBC	1
     char *text_name;
 };
 

@@ -573,7 +573,7 @@ static const struct ssh2_cipher ssh_blowfish_ssh2 = {
     blowfish_make_context, blowfish_free_context, blowfish_iv, blowfish_key,
     blowfish_ssh2_encrypt_blk, blowfish_ssh2_decrypt_blk,
     "blowfish-cbc",
-    8, 128, "Blowfish-128 CBC"
+    8, 128, SSH_CIPHER_IS_CBC, "Blowfish-128 CBC"
 };
 
 #ifdef ENABLE_BLOWFISH_SSH2_CTR
@@ -581,7 +581,7 @@ static const struct ssh2_cipher ssh_blowfish_ssh2_ctr = {
     blowfish_make_context, blowfish_free_context, blowfish_iv, blowfish256_key,
     blowfish_ssh2_sdctr, blowfish_ssh2_sdctr,
     "blowfish-ctr",
-    8, 256, "Blowfish-256 SDCTR"
+    8, 256, 0, "Blowfish-256 SDCTR"
 };
 #endif
 
