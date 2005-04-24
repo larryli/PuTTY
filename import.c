@@ -766,6 +766,7 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
         footer = "-----END DSA PRIVATE KEY-----\n";
     } else {
         assert(0);                     /* zoinks! */
+	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
     }
 
     /*
@@ -1497,6 +1498,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	type = "dl-modp{sign{dsa-nist-sha1},dh{plain}}";
     } else {
         assert(0);                     /* zoinks! */
+	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
     }
 
     /*

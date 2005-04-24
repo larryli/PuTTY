@@ -576,6 +576,7 @@ static int try_connect(Actual_Socket sock)
 
       default:
 	assert(0 && "unknown address family");
+	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
     }
 
     fl = fcntl(s, F_GETFL);
