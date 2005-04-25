@@ -1419,7 +1419,7 @@ void palette_reset(void *frontend)
     }
 
     gdk_colormap_alloc_colors(inst->colmap, inst->cols, NALLCOLOURS,
-			      FALSE, FALSE, success);
+			      FALSE, TRUE, success);
     for (i = 0; i < NALLCOLOURS; i++) {
 	if (!success[i])
 	    g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
