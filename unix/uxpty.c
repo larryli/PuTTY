@@ -2,8 +2,6 @@
  * Pseudo-tty backend for pterm.
  */
 
-#define _XOPEN_SOURCE 600
-#define _XOPEN_SOURCE_EXTENDED
 #define _GNU_SOURCE
 
 #include <stdio.h>
