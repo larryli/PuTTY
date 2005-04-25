@@ -135,9 +135,11 @@ void ldisc_update(void *frontend, int echo, int edit)
     if (edit) {
 	mode.c_iflag |= ICRNL;
 	mode.c_lflag |= ISIG | ICANON;
+	mode.c_oflag |= OPOST;
     } else {
 	mode.c_iflag &= ~ICRNL;
 	mode.c_lflag &= ~(ISIG | ICANON);
+	mode.c_oflag &= ~OPOST;
 	/* Solaris sets these to unhelpful values */
 	mode.c_cc[VMIN] = 1;
 	mode.c_cc[VTIME] = 0;
@@ -268,6 +270,19 @@ char *get_ttymode(void *frontend, const char *mode)
 #if defined(IXANY)
     GET_BOOL("IXANY", IXANY, c_iflag, );
 #endif
+    /* Configuration of OPOST */
+#if defined(ONLCR)
+    GET_BOOL("ONLCR", ONLCR, c_oflag, );
+#endif
+#if defined(OCRNL)
+    GET_BOOL("OCRNL", OCRNL, c_oflag, );
+#endif
+#if defined(ONOCR)
+    GET_BOOL("ONOCR", ONOCR, c_oflag, );
+#endif
+#if defined(ONLCR)
+    GET_BOOL("ONLRET", ONLRET, c_oflag, );
+#endif
 
     /*
      * Modes that want to be set in only one place, and that we have
@@ -288,6 +303,9 @@ char *get_ttymode(void *frontend, const char *mode)
 #if defined(IXOFF)
     GET_BOOL("IXOFF", IXOFF, c_iflag, );
 #endif
+#if defined(OPOST)
+    GET_BOOL("OPOST", OPOST, c_oflag, );
+#endif
 
     /*
      * We do not propagate the following modes:
@@ -300,8 +318,8 @@ char *get_ttymode(void *frontend, const char *mode)
      *  - Status bits.
      *      PENDIN
      *  - Things I don't know what to do with. (FIXME)
-     *      ISTRIP IMAXBEL NOFLSH TOSTOP IEXTEN OPOST 
-     *      INLCR IGNCR ICRNL ONLCR OCRNL ONOCR ONLRET
+     *      ISTRIP IMAXBEL NOFLSH TOSTOP IEXTEN
+     *      INLCR IGNCR ICRNL
      */
 
 #undef GET_CHAR
