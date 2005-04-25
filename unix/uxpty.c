@@ -24,6 +24,10 @@
 #include "putty.h"
 #include "tree234.h"
 
+#ifdef HAVE_UTMPX_H
+#include <utmpx.h>
+#endif
+
 #ifndef FALSE
 #define FALSE 0
 #endif
@@ -31,12 +35,15 @@
 #define TRUE 1
 #endif
 
-#ifndef UTMP_FILE
-#define UTMP_FILE "/var/run/utmp"
+/* updwtmpx() needs the name of the wtmp file.  Try to find it. */
+#ifndef WTMPX_FILE
+#ifdef _PATH_WTMPX
+#define WTMPX_FILE _PATH_WTMPX
+#else
+#define WTMPX_FILE "/var/log/wtmpx"
 #endif
-#ifndef WTMP_FILE
-#define WTMP_FILE "/var/log/wtmp"
 #endif
+
 #ifndef LASTLOG_FILE
 #ifdef _PATH_LASTLOG
 #define LASTLOG_FILE _PATH_LASTLOG
@@ -160,7 +167,7 @@ static Pty single_pty = NULL;
 #ifndef OMIT_UTMP
 static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
 static int pty_stamped_utmp;
-static struct utmp utmp_entry;
+static struct utmpx utmp_entry;
 #endif
 
 /*
@@ -180,8 +187,7 @@ static void setup_utmp(char *ttyname, char *location)
     FILE *lastlog;
 #endif
     struct passwd *pw;
-    FILE *wtmp;
-    time_t uttime;
+    struct timeval tv;
 
     pw = getpwuid(getuid());
     memset(&utmp_entry, 0, sizeof(utmp_entry));
@@ -191,22 +197,20 @@ static void setup_utmp(char *ttyname, char *location)
     strncpy(utmp_entry.ut_id, ttyname+8, lenof(utmp_entry.ut_id));
     strncpy(utmp_entry.ut_user, pw->pw_name, lenof(utmp_entry.ut_user));
     strncpy(utmp_entry.ut_host, location, lenof(utmp_entry.ut_host));
-    /* Apparently there are some architectures where (struct utmp).ut_time
-     * is not essentially time_t (e.g. Linux amd64). Hence the temporary. */
-    time(&uttime);
-    utmp_entry.ut_time = uttime; /* may truncate */
+    /*
+     * Apparently there are some architectures where (struct
+     * utmpx).ut_tv is not essentially struct timeval (e.g. Linux
+     * amd64). Hence the temporary.
+     */
+    gettimeofday(&tv, NULL);
+    utmp_entry.ut_tv.tv_sec = tv.tv_sec;
+    utmp_entry.ut_tv.tv_usec = tv.tv_usec;
 
-#if defined HAVE_PUTUTLINE
-    utmpname(UTMP_FILE);
-    setutent();
-    pututline(&utmp_entry);
-    endutent();
-#endif
+    setutxent();
+    pututxline(&utmp_entry);
+    endutxent();
 
-    if ((wtmp = fopen(WTMP_FILE, "a")) != NULL) {
-	fwrite(&utmp_entry, 1, sizeof(utmp_entry), wtmp);
-	fclose(wtmp);
-    }
+    updwtmpx(WTMPX_FILE, &utmp_entry);
 
 #ifdef HAVE_LASTLOG
     memset(&lastlog_entry, 0, sizeof(lastlog_entry));
@@ -226,31 +230,26 @@ static void setup_utmp(char *ttyname, char *location)
 
 static void cleanup_utmp(void)
 {
-    FILE *wtmp;
-    time_t uttime;
+    struct timeval tv;
 
     if (!pty_stamped_utmp)
 	return;
 
     utmp_entry.ut_type = DEAD_PROCESS;
     memset(utmp_entry.ut_user, 0, lenof(utmp_entry.ut_user));
-    time(&uttime);
-    utmp_entry.ut_time = uttime;
+    gettimeofday(&tv, NULL);
+    utmp_entry.ut_tv.tv_sec = tv.tv_sec;
+    utmp_entry.ut_tv.tv_usec = tv.tv_usec;
 
-    if ((wtmp = fopen(WTMP_FILE, "a")) != NULL) {
-	fwrite(&utmp_entry, 1, sizeof(utmp_entry), wtmp);
-	fclose(wtmp);
-    }
+    updwtmpx(WTMPX_FILE, &utmp_entry);
 
     memset(utmp_entry.ut_line, 0, lenof(utmp_entry.ut_line));
-    utmp_entry.ut_time = 0;
+    utmp_entry.ut_tv.tv_sec = 0;
+    utmp_entry.ut_tv.tv_usec = 0;
 
-#if defined HAVE_PUTUTLINE
-    utmpname(UTMP_FILE);
-    setutent();
-    pututline(&utmp_entry);
-    endutent();
-#endif
+    setutxent();
+    pututxline(&utmp_entry);
+    endutxent();
 
     pty_stamped_utmp = 0;	       /* ensure we never double-cleanup */
 }

@@ -15,13 +15,16 @@ if test "X$GCC" = Xyes; then
 fi
 
 AC_CHECK_HEADERS([sys/sockio.h],,,[ ])
+AC_CHECK_HEADERS([utmpx.h],,,[
+#include <sys/types.h>
+#include <utmp.h>])
 
 AM_PATH_GTK([1.2.0], [all_targets="all-cli all-gtk"], [all_targets="all-cli"])
 AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
 
-AC_CHECK_FUNCS([getaddrinfo ptsname pututline setresuid strsignal])
+AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal])
 
 AC_OUTPUT
 
@@ -37,7 +40,7 @@ AH_BOTTOM([
 #ifndef HAVE_STRSIGNAL
 # define HAVE_NO_STRSIGNAL
 #endif
-#ifndef HAVE_PUTUTLINE
+#ifndef HAVE_UTMPX_H
 # define OMIT_UTMP
 #endif
 #ifndef HAVE_PTSNAME
