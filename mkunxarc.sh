@@ -28,6 +28,9 @@ esac
 
 perl mkfiles.pl
 (cd doc && make -s ${docver:+"$docver"})
+# Track down automake's copy of install-sh
+cp `aclocal --print-ac-dir | sed 's/aclocal$/automake/'`/install-sh unix/.
+(cd unix && autoreconf  && rm -rf aclocal.m4 autom4te.cache)
 
 relver=`cat LATEST.VER`
 arcname="putty$arcsuffix"

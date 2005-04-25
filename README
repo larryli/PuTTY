@@ -42,11 +42,14 @@ For building on Windows:
 
 For building on Unix:
 
- - unix/Makefile.gtk is for Unix and GTK. If you don't have GTK, you
+ - unix/configure is for Unix and GTK. If you don't have GTK, you
    should still be able to build the command-line utilities (PSCP,
-   PSFTP, Plink, PuTTYgen) using this makefile. The makefile expects
-   you to change into the `unix' subdirectory, then run `make -f
-   Makefile.gtk'. Note that Unix PuTTY has mostly only been tested
+   PSFTP, Plink, PuTTYgen) using this script. To use it, change
+   into the `unix' subdirectory, run `./configure' and then `make'.
+ 
+ - unix/Makefile.gtk is for non-autoconfigured builds. This makefile
+   expects you to change into the `unix' subdirectory, then run `make
+   -f Makefile.gtk'. Note that Unix PuTTY has mostly only been tested
    on Linux so far; portability problems such as BSD-style ptys or
    different header file requirements are expected.
 
