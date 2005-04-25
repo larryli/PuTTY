@@ -14,6 +14,8 @@ if test "X$GCC" = Xyes; then
     CFLAGS="$CFLAGS -Wall -Werror"
 fi
 
+AC_CHECK_HEADERS([sys/sockio.h],,,[ ])
+
 AM_PATH_GTK([1.2.0], [all_targets="all-cli all-gtk"], [all_targets="all-cli"])
 AC_SUBST([all_targets])
 

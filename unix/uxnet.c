@@ -22,6 +22,11 @@
 #include "network.h"
 #include "tree234.h"
 
+/* Solaris needs <sys/sockio.h> for SIOCATMARK. */
+#ifdef HAVE_SYS_SOCKIO_H
+#include <sys/sockio.h>
+#endif
+
 #ifndef X11_UNIX_PATH
 # define X11_UNIX_PATH "/tmp/.X11-unix/X"
 #endif
