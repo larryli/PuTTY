@@ -271,6 +271,9 @@ char *get_ttymode(void *frontend, const char *mode)
     GET_BOOL("IXANY", IXANY, c_iflag, );
 #endif
     /* Configuration of OPOST */
+#if defined(OLCUC)
+    GET_BOOL("OLCUC", OLCUC, c_oflag, );
+#endif
 #if defined(ONLCR)
     GET_BOOL("ONLCR", ONLCR, c_oflag, );
 #endif
@@ -314,7 +317,7 @@ char *get_ttymode(void *frontend, const char *mode)
      *      IGNPAR PARMRK INPCK CS7 CS8 PARENB PARODD
      *  - Things that want to be enabled in one place that we don't
      *    squash locally.
-     *      IUCLC OLCUC
+     *      IUCLC
      *  - Status bits.
      *      PENDIN
      *  - Things I don't know what to do with. (FIXME)
