@@ -1352,7 +1352,7 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 
     gdk_colormap_free_colors(inst->colmap, inst->cols + n, 1);
     gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
-			      FALSE, FALSE, success);
+			      FALSE, TRUE, success);
     if (!success[0])
 	g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n", appname,
 		n, r, g, b);
