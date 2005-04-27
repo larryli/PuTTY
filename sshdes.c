@@ -744,9 +744,9 @@ static void des_sdctr3(unsigned char *dest, const unsigned char *src,
     iv0 = scheds->iv0;
     iv1 = scheds->iv1;
     for (i = 0; i < len; i += 8) {
-	des_encipher(b, iv0, iv1, &scheds[2]);
+	des_encipher(b, iv0, iv1, &scheds[0]);
 	des_decipher(b, b[0], b[1], &scheds[1]);
-	des_encipher(b, b[0], b[1], &scheds[0]);
+	des_encipher(b, b[0], b[1], &scheds[2]);
 	tmp = GET_32BIT_MSB_FIRST(src);
 	PUT_32BIT_MSB_FIRST(dest, tmp ^ b[0]);
 	src += 4;
