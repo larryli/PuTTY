@@ -14,7 +14,6 @@ if test "X$GCC" = Xyes; then
     CFLAGS="$CFLAGS -Wall -Werror"
 fi
 
-AC_CHECK_HEADERS([sys/sockio.h],,,[ ])
 AC_CHECK_HEADERS([utmpx.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])

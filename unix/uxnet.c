@@ -23,7 +23,7 @@
 #include "tree234.h"
 
 /* Solaris needs <sys/sockio.h> for SIOCATMARK. */
-#ifdef HAVE_SYS_SOCKIO_H
+#ifndef SOCKATMARK
 #include <sys/sockio.h>
 #endif
 
