@@ -1885,7 +1885,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     GdkGC *gc = dctx->gc;
     int ncombining, combining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor;
-    int monochrome = gtk_widget_get_visual(dctx->inst->area)->depth == 1;
+    int monochrome = gtk_widget_get_visual(inst->area)->depth == 1;
 
     if (attr & TATTR_COMBINING) {
 	ncombining = len;
