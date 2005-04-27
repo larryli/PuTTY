@@ -1895,7 +1895,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     nfg = ((monochrome ? ATTR_DEFFG : (attr & ATTR_FGMASK)) >> ATTR_FGSHIFT);
     nbg = ((monochrome ? ATTR_DEFBG : (attr & ATTR_BGMASK)) >> ATTR_BGSHIFT);
-    if (attr & ATTR_REVERSE) {
+    if (!!(attr & ATTR_REVERSE) ^ (monochrome && (attr & TATTR_ACTCURS))) {
 	t = nfg;
 	nfg = nbg;
 	nbg = t;
@@ -1908,7 +1908,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
-    if (attr & TATTR_ACTCURS) {
+    if ((attr & TATTR_ACTCURS) && !monochrome) {
 	nfg = 260;
 	nbg = 261;
     }
