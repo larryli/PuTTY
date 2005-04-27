@@ -2410,6 +2410,8 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
                   strcspn(verstring, "\015\012"), verstring);
 	sk_write(ssh->s, verstring, strlen(verstring));
         sfree(verstring);
+	if (ssh->version = 2)
+	    do_ssh2_transport(ssh, NULL, -1, NULL);
     }
 
     logeventf(ssh, "Using SSH protocol version %d", ssh->version);
