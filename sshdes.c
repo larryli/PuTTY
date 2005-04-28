@@ -993,12 +993,6 @@ static const struct ssh2_cipher ssh_des_sshcom_ssh2 = {
     8, 56, SSH_CIPHER_IS_CBC, "single-DES CBC"
 };
 
-/*
- * "3des-ctr" is disabled because it hasn't had any interoperability
- * testing, which is in turn because I couldn't find another implementation
- * to test against.  Once it's been tested, it can be enabled in standard
- * builds.
- */
 static const struct ssh2_cipher *const des3_list[] = {
     &ssh_3des_ssh2_ctr,
     &ssh_3des_ssh2
