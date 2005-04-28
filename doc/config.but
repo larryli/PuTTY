@@ -2116,9 +2116,9 @@ PuTTY currently supports the following algorithms:
 
 \b \i{Arcfour} (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
 
-\b \i{Blowfish} - 128-bit CBC
+\b \i{Blowfish} - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
 
-\b \ii{Triple-DES} - 168-bit CBC
+\b \ii{Triple-DES} - 168-bit SDCTR (SSH-2 only) or CBC
 
 \b \ii{Single-DES} - 56-bit CBC (see below for SSH-2)
 
