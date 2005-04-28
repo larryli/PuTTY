@@ -389,7 +389,6 @@ static void blowfish_msb_decrypt_cbc(unsigned char *blk, int len,
     ctx->iv1 = iv1;
 }
 
-#ifdef ENABLE_BLOWFISH_SSH2_CTR
 static void blowfish_msb_sdctr(unsigned char *blk, int len,
 				     BlowfishContext * ctx)
 {
@@ -415,7 +414,6 @@ static void blowfish_msb_sdctr(unsigned char *blk, int len,
     ctx->iv0 = iv0;
     ctx->iv1 = iv1;
 }
-#endif
 
 static void blowfish_setkey(BlowfishContext * ctx,
 			    const unsigned char *key, short keybytes)
@@ -502,13 +500,11 @@ static void blowfish_key(void *handle, unsigned char *key)
     blowfish_setkey(ctx, key, 16);
 }
 
-#ifdef ENABLE_BLOWFISH_SSH2_CTR
 static void blowfish256_key(void *handle, unsigned char *key)
 {
     BlowfishContext *ctx = (BlowfishContext *)handle;
     blowfish_setkey(ctx, key, 32);
 }
-#endif
 
 static void blowfish_iv(void *handle, unsigned char *key)
 {
@@ -554,14 +550,12 @@ static void blowfish_ssh2_decrypt_blk(void *handle, unsigned char *blk,
     blowfish_msb_decrypt_cbc(blk, len, ctx);
 }
 
-#ifdef ENABLE_BLOWFISH_SSH2_CTR
 static void blowfish_ssh2_sdctr(void *handle, unsigned char *blk,
 				      int len)
 {
     BlowfishContext *ctx = (BlowfishContext *)handle;
     blowfish_msb_sdctr(blk, len, ctx);
 }
-#endif
 
 const struct ssh_cipher ssh_blowfish_ssh1 = {
     blowfish_ssh1_make_context, blowfish_free_context, blowfish_sesskey,
@@ -576,25 +570,15 @@ static const struct ssh2_cipher ssh_blowfish_ssh2 = {
     8, 128, SSH_CIPHER_IS_CBC, "Blowfish-128 CBC"
 };
 
-#ifdef ENABLE_BLOWFISH_SSH2_CTR
 static const struct ssh2_cipher ssh_blowfish_ssh2_ctr = {
     blowfish_make_context, blowfish_free_context, blowfish_iv, blowfish256_key,
     blowfish_ssh2_sdctr, blowfish_ssh2_sdctr,
     "blowfish-ctr",
     8, 256, 0, "Blowfish-256 SDCTR"
 };
-#endif
 
-/*
- * "blowfish-ctr" is disabled because it hasn't had any interoperability
- * testing, which is in turn because I couldn't find another implementation
- * to test against.  Once it's been tested, it can be enabled in standard
- * builds.
- */
 static const struct ssh2_cipher *const blowfish_list[] = {
-#ifdef ENABLE_BLOWFISH_SSH2_CTR
     &ssh_blowfish_ssh2_ctr,
-#endif
     &ssh_blowfish_ssh2
 };
 
