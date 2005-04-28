@@ -406,8 +406,8 @@ static void blowfish_msb_sdctr(unsigned char *blk, int len,
 	PUT_32BIT_MSB_FIRST(blk, tmp ^ b[0]);
 	tmp = GET_32BIT_MSB_FIRST(blk + 4);
 	PUT_32BIT_MSB_FIRST(blk + 4, tmp ^ b[1]);
-	if ((iv0 = (iv0 + 1) & 0xffffffff) == 0)
-	    iv1 = (iv1 + 1) & 0xffffffff;
+	if ((iv1 = (iv1 + 1) & 0xffffffff) == 0)
+	    iv0 = (iv0 + 1) & 0xffffffff;
 	blk += 8;
 	len -= 8;
     }
