@@ -732,7 +732,6 @@ static void des_cbc3_decrypt(unsigned char *dest, const unsigned char *src,
     scheds->iv1 = iv1;
 }
 
-#ifdef ENABLE_3DES_SSH2_CTR
 static void des_sdctr3(unsigned char *dest, const unsigned char *src,
 			     unsigned int len, DESContext * scheds)
 {
@@ -752,16 +751,15 @@ static void des_sdctr3(unsigned char *dest, const unsigned char *src,
 	src += 4;
 	dest += 4;
 	tmp = GET_32BIT_MSB_FIRST(src);
-	PUT_32BIT_MSB_FIRST(dest, tmp ^ b[0]);
+	PUT_32BIT_MSB_FIRST(dest, tmp ^ b[1]);
 	src += 4;
 	dest += 4;
-	if ((iv0 = (iv0 + 1) & 0xffffffff) == 0)
-	    iv1 = (iv1 + 1) & 0xffffffff;
+	if ((iv1 = (iv1 + 1) & 0xffffffff) == 0)
+	    iv0 = (iv0 + 1) & 0xffffffff;
     }
     scheds->iv0 = iv0;
     scheds->iv1 = iv1;
 }
-#endif
 
 static void *des3_make_context(void)
 {
@@ -846,13 +844,11 @@ static void des3_ssh2_decrypt_blk(void *handle, unsigned char *blk, int len)
     des_cbc3_decrypt(blk, blk, len, keys);
 }
 
-#ifdef ENABLE_3DES_SSH2_CTR
 static void des3_ssh2_sdctr(void *handle, unsigned char *blk, int len)
 {
     DESContext *keys = (DESContext *) handle;
     des_sdctr3(blk, blk, len, keys);
 }
-#endif
 
 static void des_ssh2_encrypt_blk(void *handle, unsigned char *blk, int len)
 {
@@ -968,14 +964,12 @@ static const struct ssh2_cipher ssh_3des_ssh2 = {
     8, 168, SSH_CIPHER_IS_CBC, "triple-DES CBC"
 };
 
-#ifdef ENABLE_3DES_SSH2_CTR
 static const struct ssh2_cipher ssh_3des_ssh2_ctr = {
     des3_make_context, des3_free_context, des3_iv, des3_key,
     des3_ssh2_sdctr, des3_ssh2_sdctr,
     "3des-ctr",
     8, 168, 0, "triple-DES SDCTR"
 };
-#endif
 
 /*
  * Single DES in SSH-2. "des-cbc" is marked as HISTORIC in
@@ -1006,9 +1000,7 @@ static const struct ssh2_cipher ssh_des_sshcom_ssh2 = {
  * builds.
  */
 static const struct ssh2_cipher *const des3_list[] = {
-#ifdef ENABLE_3DES_SSH2_CTR
     &ssh_3des_ssh2_ctr,
-#endif
     &ssh_3des_ssh2
 };
 
