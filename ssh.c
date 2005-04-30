@@ -7314,7 +7314,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
 	ssh2_pkt_addbool(s->pktout, 0);	       /* many connections */
 	ssh2_pkt_addstring(s->pktout, proto);
+	dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
 	ssh2_pkt_addstring(s->pktout, data);
+	end_log_omission(ssh, s->pktout);
 	ssh2_pkt_adduint32(s->pktout, x11_get_screen_number(ssh->cfg.x11_display));
 	ssh2_pkt_send(ssh, s->pktout);
 
