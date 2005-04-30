@@ -4632,14 +4632,23 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
 				       data, sizeof(data), ssh->cfg.x11_auth);
         x11_get_real_auth(ssh->x11auth, ssh->cfg.x11_display);
+	/*
+	 * Note that while we blank the X authentication data here, we don't
+	 * take any special action to blank the start of an X11 channel,
+	 * so using MIT-MAGIC-COOKIE-1 and actually opening an X connection
+	 * without having session blanking enabled is likely to leak your
+	 * cookie into the log.
+	 */
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-			PKT_STR, proto, PKT_STR, data,
+			PKT_STR, proto,
+			PKTT_PASSWORD, PKT_STR, data, PKTT_OTHER,
 			PKT_INT, x11_get_screen_number(ssh->cfg.x11_display),
 			PKT_END);
 	} else {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-			PKT_STR, proto, PKT_STR, data, PKT_END);
+			PKT_STR, proto,
+			PKTT_PASSWORD, PKT_STR, data, PKTT_OTHER, PKT_END);
 	}
 	do {
 	    crReturnV;
@@ -7314,6 +7323,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
 	ssh2_pkt_addbool(s->pktout, 0);	       /* many connections */
 	ssh2_pkt_addstring(s->pktout, proto);
+	/*
+	 * Note that while we blank the X authentication data here, we don't
+	 * take any special action to blank the start of an X11 channel,
+	 * so using MIT-MAGIC-COOKIE-1 and actually opening an X connection
+	 * without having session blanking enabled is likely to leak your
+	 * cookie into the log.
+	 */
 	dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
 	ssh2_pkt_addstring(s->pktout, data);
 	end_log_omission(ssh, s->pktout);
