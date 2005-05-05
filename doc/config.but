@@ -2278,6 +2278,22 @@ protection than SSH-2 without rekeys.
 The Auth panel allows you to configure \i{authentication} options for
 SSH sessions.
 
+\S{config-ssh-noauth} \q{Bypass authentication entirely}
+
+\cfg{winhelp-topic}{ssh.auth.bypass}
+
+In SSH-2, it is possible to establish a connection without using SSH's
+mechanisms to identify or authenticate oneself to the server. Some
+servers may prefer to handle authentication in the data channel, for
+instance, or may simply require no authentication whatsoever.
+
+By default, PuTTY assumes the server requires authentication (most
+do), and thus must provide a username. If you find you are getting
+unwanted username prompts, you could try checking this option.
+
+This option only affects SSH-2 connections. SSH-1 connections always
+require an authentication step.
+
 \S{config-ssh-tis} \q{Attempt \I{TIS authentication}TIS or
 \i{CryptoCard authentication}}
 

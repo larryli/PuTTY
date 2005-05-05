@@ -1817,6 +1817,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_settitle(b, "Connection/SSH/Auth",
 			  "Options controlling SSH authentication");
 
+	    s = ctrl_getset(b, "Connection/SSH/Auth", "main", NULL);
+	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
+			  HELPCTX(ssh_auth_bypass),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh_no_userauth)));
+
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
 			    "Authentication methods");
 	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH-1)", 'm',

@@ -6428,6 +6428,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		AUTH_TYPE_KEYBOARD_INTERACTIVE,
 		AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET
 	} type;
+	int done_service_req;
 	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
 	int tried_pubkey_config, tried_agent;
 	int kbd_inter_running, kbd_inter_refused;
@@ -6455,16 +6456,33 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
     crBegin(ssh->do_ssh2_authconn_crstate);
 
-    /*
-     * Request userauth protocol, and await a response to it.
-     */
-    s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
-    ssh2_pkt_addstring(s->pktout, "ssh-userauth");
-    ssh2_pkt_send(ssh, s->pktout);
-    crWaitUntilV(pktin);
-    if (pktin->type != SSH2_MSG_SERVICE_ACCEPT) {
-	bombout(("Server refused user authentication protocol"));
-	crStopV;
+    s->done_service_req = FALSE;
+    s->we_are_in = FALSE;
+    if (!ssh->cfg.ssh_no_userauth) {
+	/*
+	 * Request userauth protocol, and await a response to it.
+	 */
+	s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+	ssh2_pkt_addstring(s->pktout, "ssh-userauth");
+	ssh2_pkt_send(ssh, s->pktout);
+	crWaitUntilV(pktin);
+	if (pktin->type == SSH2_MSG_SERVICE_ACCEPT)
+	    s->done_service_req = TRUE;
+    }
+    if (!s->done_service_req) {
+	/*
+	 * Request connection protocol directly, without authentication.
+	 */
+	s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+	ssh2_pkt_addstring(s->pktout, "ssh-connection");
+	ssh2_pkt_send(ssh, s->pktout);
+	crWaitUntilV(pktin);
+	if (pktin->type == SSH2_MSG_SERVICE_ACCEPT) {
+	    s->we_are_in = TRUE; /* no auth required */
+	} else {
+	    bombout(("Server refused service request"));
+	    crStopV;
+	}
     }
 
     /*
@@ -6493,7 +6511,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      */
     s->username[0] = '\0';
     s->got_username = FALSE;
-    do {
+    while (!s->we_are_in) {
 	/*
 	 * Get a username.
 	 */
@@ -7234,12 +7252,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		crStopV;
 	    }
 	}
-    } while (!s->we_are_in);
+    }
 
     /*
-     * Now we're authenticated for the connection protocol. The
-     * connection protocol will automatically have started at this
-     * point; there's no need to send SERVICE_REQUEST.
+     * Now the connection protocol has started, one way or another.
      */
 
     ssh->channels = newtree234(ssh_channelcmp);

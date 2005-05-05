@@ -95,6 +95,7 @@
 #define WINHELP_CTX_ssh_compress "ssh.compress"
 #define WINHELP_CTX_ssh_kexlist "ssh.kex.order"
 #define WINHELP_CTX_ssh_kex_repeat "ssh.kex.repeat"
+#define WINHELP_CTX_ssh_auth_bypass "ssh.auth.bypass"
 #define WINHELP_CTX_ssh_auth_privkey "ssh.auth.privkey"
 #define WINHELP_CTX_ssh_auth_agentfwd "ssh.auth.agentfwd"
 #define WINHELP_CTX_ssh_auth_changeuser "ssh.auth.changeuser"
