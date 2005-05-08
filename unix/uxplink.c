@@ -283,7 +283,7 @@ char *get_ttymode(void *frontend, const char *mode)
 #if defined(ONOCR)
     GET_BOOL("ONOCR", ONOCR, c_oflag, );
 #endif
-#if defined(ONLCR)
+#if defined(ONLRET)
     GET_BOOL("ONLRET", ONLRET, c_oflag, );
 #endif
 
