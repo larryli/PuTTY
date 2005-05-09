@@ -249,7 +249,7 @@ as long as they want.
 However, the sysadmin of the server machine can always pretend to be
 you \e{on that machine}. So if you forward your agent to a server
 machine, then the sysadmin of that machine can access the forwarded
-agent connection and request signatures from your public keys, and
+agent connection and request signatures from your private keys, and
 can therefore log in to other machines as you. They can only do this
 to a limited extent - when the agent forwarding disappears they lose
 the ability - but using Pageant doesn't actually \e{prevent} the
