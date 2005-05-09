@@ -24,7 +24,7 @@
 #include "putty.h"
 #include "tree234.h"
 
-#ifdef HAVE_UTMPX_H
+#ifndef OMIT_UTMP
 #include <utmpx.h>
 #endif
 
