@@ -748,6 +748,7 @@ struct ssh_tag {
      */
     int fallback_cmd;
 
+    bufchain banner;	/* accumulates banners during do_ssh2_authconn */
     /*
      * Used for username and password input.
      */
@@ -6387,6 +6388,21 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     }
 }
 
+/*
+ * Buffer banner messages for later display at some convenient point.
+ */
+static void ssh2_msg_userauth_banner(Ssh ssh, struct Packet *pktin)
+{
+    /* Arbitrary limit to prevent unbounded inflation of buffer */
+    if (bufchain_size(&ssh->banner) <= 131072) {
+	char *banner = NULL;
+	int size = 0;
+	ssh_pkt_getstring(pktin, &banner, &size);
+	if (banner)
+	    bufchain_add(&ssh->banner, banner, size);
+    }
+}
+
 /* Helper function to deal with sending tty modes for "pty-req" */
 static void ssh2_send_ttymode(void *data, char *mode, char *val)
 {
@@ -6511,6 +6527,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      */
     s->username[0] = '\0';
     s->got_username = FALSE;
+    bufchain_init(&ssh->banner);
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] =
+	ssh2_msg_userauth_banner;
     while (!s->we_are_in) {
 	/*
 	 * Get a username.
@@ -6611,9 +6630,14 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	     */
 	    if (!s->gotit)
 		crWaitUntilV(pktin);
-	    while (pktin->type == SSH2_MSG_USERAUTH_BANNER) {
-		char *banner;
-		int size;
+	    /*
+	     * Now is a convenient point to spew any banner material
+	     * that we've accumulated. (This should ensure that when
+	     * we exit the auth loop, we haven't any left to deal
+	     * with.)
+	     */
+	    {
+		int size = bufchain_size(&ssh->banner);
 		/*
 		 * Don't show the banner if we're operating in
 		 * non-verbose non-interactive mode. (It's probably
@@ -6622,12 +6646,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		 * the banner will screw up processing on the
 		 * output of (say) plink.)
 		 */
-		if (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE)) {
-		    ssh_pkt_getstring(pktin, &banner, &size);
-		    if (banner)
-			c_write_untrusted(ssh, banner, size);
+		if (size && (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
+		    char *banner = snewn(size, char);
+		    bufchain_fetch(&ssh->banner, banner, size);
+		    c_write_untrusted(ssh, banner, size);
+		    sfree(banner);
 		}
-		crWaitUntilV(pktin);
+		bufchain_clear(&ssh->banner);
 	    }
 	    if (pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
 		logevent("Access granted");
@@ -7253,6 +7278,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    }
 	}
     }
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = NULL;
 
     /*
      * Now the connection protocol has started, one way or another.
