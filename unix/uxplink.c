@@ -149,6 +149,17 @@ void ldisc_update(void *frontend, int echo, int edit)
 	mode.c_iflag &= ~IXON;
 	mode.c_iflag &= ~IXOFF;
     }
+    /* 
+     * Mark parity errors and (more important) BREAK on input.  This
+     * is more complex than it need be because POSIX-2001 suggests
+     * that escaping of valid 0xff in the input stream is dependent on
+     * IGNPAR being clear even though marking of BREAK isn't.  NetBSD
+     * 2.0 goes one worse and makes it dependent on INPCK too.  We
+     * deal with this by forcing these flags into a useful state and
+     * then faking the state in which we found them in from_tty() if
+     * we get passed a parity or framing error.
+     */
+    mode.c_iflag = (mode.c_iflag | INPCK | PARMRK) & ~IGNPAR;
 
     tcsetattr(0, TCSANOW, &mode);
 }
@@ -378,6 +389,72 @@ int from_backend(void *frontend_handle, int is_stderr,
     esize = bufchain_size(&stderr_data);
 
     return osize + esize;
+}
+
+/*
+ * Handle data from a local tty in PARMRK format.
+ */
+static void from_tty(void *buf, unsigned len)
+{
+    char *p, *q, *end;
+    static enum {NORMAL, FF, FF00} state = NORMAL;
+
+    p = buf; end = buf + len;
+    while (p < end) {
+	switch (state) {
+	    case NORMAL:
+		if (*p == '\xff') {
+		    p++;
+		    state = FF;
+		} else {
+		    q = memchr(p, '\xff', end - p);
+		    if (q == NULL) q = end;
+		    back->send(backhandle, p, q - p);
+		    p = q;
+		}
+		break;
+	    case FF:
+		if (*p == '\xff') {
+		    back->send(backhandle, p, 1);
+		    p++;
+		    state = NORMAL;
+		} else if (*p == '\0') {
+		    p++;
+		    state = FF00;
+		} else abort();
+		break;
+	    case FF00:
+		if (*p == '\0') {
+		    back->special(backhandle, TS_BRK);
+		} else {
+		    /* 
+		     * Pretend that PARMRK wasn't set.  This involves
+		     * faking what INPCK and IGNPAR would have done if
+		     * we hadn't overridden them.  Unfortunately, we
+		     * can't do this entirely correctly because INPCK
+		     * distinguishes between framing and parity
+		     * errors, but PARMRK format represents both in
+		     * the same way.  We assume that parity errors are
+		     * more common than framing errors, and hence
+		     * treat all input errors as being subject to
+		     * INPCK.
+		     */
+		    if (orig_termios.c_iflag & INPCK) {
+			/* If IGNPAR is set, we throw away the character. */
+			if (!(orig_termios.c_iflag & IGNPAR)) {
+			    /* PE/FE get passed on as NUL. */
+			    *p = 0;
+			    back->send(backhandle, p, 1);
+			}
+		    } else {
+			/* INPCK not set.  Assume we got a parity error. */
+			back->send(backhandle, p, 1);
+		    }
+		}
+		p++;
+		state = NORMAL;
+	}
+    }
 }
 
 int signalpipe[2];
@@ -926,7 +1003,10 @@ int main(int argc, char **argv)
 		    back->special(backhandle, TS_EOF);
 		    sending = FALSE;   /* send nothing further after this */
 		} else {
-		    back->send(backhandle, buf, ret);
+		    if (local_tty)
+			from_tty(buf, ret);
+		    else
+			back->send(backhandle, buf, ret);
 		}
 	    }
 	}
