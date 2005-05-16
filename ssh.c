@@ -3514,9 +3514,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			    PKT_STR, "No more passwords available to try",
 			    PKT_END);
 		logevent("Unable to authenticate");
-		connection_fatal(ssh->frontend, "Unable to authenticate");
 		ssh->close_expected = TRUE;
-                ssh_closing((Plug)ssh, NULL, 0, 0);
+		ssh_closing((Plug)ssh, NULL, 0, 0);
+		connection_fatal(ssh->frontend, "Unable to authenticate");
 		crStop(1);
 	    }
 	} else {
@@ -6137,9 +6137,9 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 	ssh2_pkt_addstring(pktout, buf);
 	ssh2_pkt_addstring(pktout, "en");	/* language tag */
 	ssh2_pkt_send_noqueue(ssh, pktout);
-	connection_fatal(ssh->frontend, "%s", buf);
 	ssh->close_expected = TRUE;
 	ssh_closing((Plug)ssh, NULL, 0, 0);
+	connection_fatal(ssh->frontend, "%s", buf);
 	return;
     }
 
@@ -7108,10 +7108,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
 			ssh2_pkt_send_noqueue(ssh, s->pktout);
 			logevent("Unable to authenticate");
+			ssh->close_expected = TRUE;
+			ssh_closing((Plug)ssh, NULL, 0, 0);
 			connection_fatal(ssh->frontend,
 					 "Unable to authenticate");
-			ssh->close_expected = TRUE;
-                        ssh_closing((Plug)ssh, NULL, 0, 0);
 			crStopV;
 		    }
 		} else {
