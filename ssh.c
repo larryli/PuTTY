@@ -8024,7 +8024,8 @@ static void ssh_reconfig(void *handle, Config *cfg)
     unsigned long old_max_data_size;
 
     pinger_reconfig(ssh->pinger, &ssh->cfg, cfg);
-    ssh_setup_portfwd(ssh, cfg);
+    if (ssh->portfwds)
+	ssh_setup_portfwd(ssh, cfg);
 
     if (ssh->cfg.ssh_rekey_time != cfg->ssh_rekey_time &&
 	cfg->ssh_rekey_time != 0) {
