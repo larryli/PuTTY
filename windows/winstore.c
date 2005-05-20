@@ -406,10 +406,12 @@ void store_host_key(const char *hostname, int port,
     hostkey_regname(regname, hostname, port, keytype);
 
     if (RegCreateKey(HKEY_CURRENT_USER, PUTTY_REG_POS "\\SshHostKeys",
-		     &rkey) != ERROR_SUCCESS)
-	return;			       /* key does not exist in registry */
-    RegSetValueEx(rkey, regname, 0, REG_SZ, key, strlen(key) + 1);
-    RegCloseKey(rkey);
+		     &rkey) == ERROR_SUCCESS) {
+	RegSetValueEx(rkey, regname, 0, REG_SZ, key, strlen(key) + 1);
+	RegCloseKey(rkey);
+    } /* else key does not exist in registry */
+
+    sfree(regname);
 }
 
 /*
