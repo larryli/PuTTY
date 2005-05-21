@@ -721,6 +721,7 @@ struct ssh_tag {
     struct ssh_channel *mainchan;      /* primary session channel */
     int exitcode;
     int close_expected;
+    int clean_exit;
 
     tree234 *rportfwds, *portfwds;
 
@@ -2596,20 +2597,20 @@ static int ssh_closing(Plug plug, const char *error_msg, int error_code,
     Ssh ssh = (Ssh) plug;
     int need_notify = ssh_do_close(ssh, FALSE);
 
-    if (!error_msg && !ssh->close_expected) {
-        error_msg = "Server unexpectedly closed network connection";
+    if (!error_msg) {
+	if (!ssh->close_expected)
+	    error_msg = "Server unexpectedly closed network connection";
+	else
+	    error_msg = "Server closed network connection";
     }
 
     if (need_notify)
         notify_remote_exit(ssh->frontend);
 
-    if (error_msg) {
-	/* A socket error has occurred. */
+    if (error_msg)
 	logevent(error_msg);
+    if (!ssh->close_expected || !ssh->clean_exit)
 	connection_fatal(ssh->frontend, "%s", error_msg);
-    } else {
-        logevent("Server closed network connection");
-    }
     return 0;
 }
 
@@ -2873,6 +2874,39 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 }
 
 /*
+ * Client-initiated disconnection. Send a DISCONNECT if `wire_reason'
+ * non-NULL, otherwise just close the connection. `client_reason' == NULL
+ * => log `wire_reason'.
+ */
+static void ssh_disconnect(Ssh ssh, char *client_reason, char *wire_reason,
+			   int code, int clean_exit)
+{
+    char *error;
+    if (!client_reason)
+	client_reason = wire_reason;
+    if (client_reason)
+	error = dupprintf("Disconnected: %s", client_reason);
+    else
+	error = dupstr("Disconnected");
+    if (wire_reason) {
+	if (ssh->version == 1) {
+	    send_packet(ssh, SSH1_MSG_DISCONNECT, PKT_STR, wire_reason,
+			PKT_END);
+	} else if (ssh->version == 2) {
+	    struct Packet *pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+	    ssh2_pkt_adduint32(pktout, code);
+	    ssh2_pkt_addstring(pktout, wire_reason);
+	    ssh2_pkt_addstring(pktout, "en");	/* language tag */
+	    ssh2_pkt_send_noqueue(ssh, pktout);
+	}
+    }
+    ssh->close_expected = TRUE;
+    ssh->clean_exit = clean_exit;
+    ssh_closing((Plug)ssh, error, 0, 0);
+    sfree(error);
+}
+
+/*
  * Handle the key exchange and user authentication phases.
  */
 static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
@@ -3015,8 +3049,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
         ssh_set_frozen(ssh, 0);
 
         if (s->dlgret == 0) {
-            ssh->close_expected = TRUE;
-            ssh_closing((Plug)ssh, NULL, 0, 0);
+	    ssh_disconnect(ssh, "User aborted at host key verification",
+			   NULL, 0, TRUE);
 	    crStop(0);
         }
     }
@@ -3096,8 +3130,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    }
             ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
-		ssh->close_expected = TRUE;
-		ssh_closing((Plug)ssh, NULL, 0, 0);
+		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
+			       0, TRUE);
 		crStop(0);
 	    }
         }
@@ -3171,9 +3205,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		     * get_line failed to get a username.
 		     * Terminate.
 		     */
-		    logevent("No username provided. Abandoning session.");
-		    ssh->close_expected = TRUE;
-                    ssh_closing((Plug)ssh, NULL, 0, 0);
+		    ssh_disconnect(ssh, "No username provided", NULL, 0, TRUE);
 		    crStop(1);
 		}
 	    } else {
@@ -3510,13 +3542,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		 * because one was supplied on the command line
 		 * which has already failed to work). Terminate.
 		 */
-		send_packet(ssh, SSH1_MSG_DISCONNECT,
-			    PKT_STR, "No more passwords available to try",
-			    PKT_END);
-		logevent("Unable to authenticate");
-		ssh->close_expected = TRUE;
-		ssh_closing((Plug)ssh, NULL, 0, 0);
-		connection_fatal(ssh->frontend, "Unable to authenticate");
+		ssh_disconnect(ssh, NULL, "Unable to authenticate", 0, FALSE);
 		crStop(1);
 	    }
 	} else {
@@ -4564,8 +4590,7 @@ static void ssh1_smsg_exit_status(Ssh ssh, struct Packet *pktin)
      * encrypted packet, we close the session once
      * we've sent EXIT_CONFIRMATION.
      */
-    ssh->close_expected = TRUE;
-    ssh_closing((Plug)ssh, NULL, 0, 0);
+    ssh_disconnect(ssh, NULL, NULL, 0, TRUE);
 }
 
 /* Helper function to deal with sending tty modes for REQUEST_PTY */
@@ -5340,8 +5365,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    }
 	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
-		ssh->close_expected = TRUE;
-		ssh_closing((Plug)ssh, NULL, 0, 0);
+		ssh_disconnect(ssh, "User aborted at kex warning", NULL,
+			       0, TRUE);
 		crStop(0);
 	    }
 	}
@@ -5365,8 +5390,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    }
 	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
-		ssh->close_expected = TRUE;
-		ssh_closing((Plug)ssh, NULL, 0, 0);
+		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
+			       0, TRUE);
 		crStop(0);
 	    }
 	}
@@ -5390,8 +5415,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    }
 	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
-		ssh->close_expected = TRUE;
-		ssh_closing((Plug)ssh, NULL, 0, 0);
+		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
+			       0, TRUE);
 		crStop(0);
 	    }
 	}
@@ -5539,8 +5564,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     }
     ssh_set_frozen(ssh, 0);
     if (s->dlgret == 0) {
-        ssh->close_expected = TRUE;
-        ssh_closing((Plug)ssh, NULL, 0, 0);
+	ssh_disconnect(ssh, "User aborted at host key verification", NULL,
+		       0, TRUE);
         crStop(0);
     }
     if (!s->got_session_id) {     /* don't bother logging this in rekeys */
@@ -6021,8 +6046,6 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
      * not running in -N mode.)
      */
     if (!ssh->cfg.ssh_no_shell && count234(ssh->channels) == 0) {
-	logevent("All channels closed. Disconnecting");
-#if 0
 	/*
 	 * We used to send SSH_MSG_DISCONNECT here,
 	 * because I'd believed that _every_ conforming
@@ -6034,14 +6057,7 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
 	 * this is more polite than sending a
 	 * DISCONNECT. So now we don't.
 	 */
-	s->pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
-	ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
-	ssh2_pkt_addstring(s->pktout, "All open channels closed");
-	ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-	ssh2_pkt_send_noqueue(ssh, s->pktout);
-#endif
-	ssh->close_expected = TRUE;
-	ssh_closing((Plug)ssh, NULL, 0, 0);
+	ssh_disconnect(ssh, "All channels closed", NULL, 0, TRUE);
     }
 }
 
@@ -6128,18 +6144,10 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
      */
     c = find234(ssh->channels, &localid, ssh_channelfind);
     if (!c) {
-	char buf[80];
-	sprintf(buf, "Received channel request for nonexistent"
-		" channel %d", localid);
-	logevent(buf);
-	pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
-	ssh2_pkt_adduint32(pktout, SSH2_DISCONNECT_BY_APPLICATION);
-	ssh2_pkt_addstring(pktout, buf);
-	ssh2_pkt_addstring(pktout, "en");	/* language tag */
-	ssh2_pkt_send_noqueue(ssh, pktout);
-	ssh->close_expected = TRUE;
-	ssh_closing((Plug)ssh, NULL, 0, 0);
-	connection_fatal(ssh->frontend, "%s", buf);
+	char *buf = dupprintf("Received channel request for nonexistent"
+			      " channel %d", localid);
+	ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+	sfree(buf);
 	return;
     }
 
@@ -6548,9 +6556,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		     * get_line failed to get a username.
 		     * Terminate.
 		     */
-		    logevent("No username provided. Abandoning session.");
-		    ssh->close_expected = TRUE;
-                    ssh_closing((Plug)ssh, NULL, 0, 0);
+		    ssh_disconnect(ssh, "No username provided", NULL, 0, TRUE);
 		    crStopV;
 		}
 	    } else {
@@ -7101,17 +7107,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			 * command line which has already failed to
 			 * work). Terminate.
 			 */
-			s->pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
-			ssh2_pkt_adduint32(s->pktout,SSH2_DISCONNECT_BY_APPLICATION);
-			ssh2_pkt_addstring(s->pktout, "No more passwords available"
-					   " to try");
-			ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-			ssh2_pkt_send_noqueue(ssh, s->pktout);
-			logevent("Unable to authenticate");
-			ssh->close_expected = TRUE;
-			ssh_closing((Plug)ssh, NULL, 0, 0);
-			connection_fatal(ssh->frontend,
-					 "Unable to authenticate");
+			ssh_disconnect(ssh, NULL, "Unable to authenticate",
+				       SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
+				       FALSE);
 			crStopV;
 		    }
 		} else {
@@ -7262,18 +7260,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 	    } else {
-		c_write_str(ssh, "No supported authentication methods"
-			    " left to try!\r\n");
-		logevent("No supported authentications offered."
-			 " Disconnecting");
-		s->pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
-		ssh2_pkt_adduint32(s->pktout, SSH2_DISCONNECT_BY_APPLICATION);
-		ssh2_pkt_addstring(s->pktout, "No supported authentication"
-				   " methods available");
-		ssh2_pkt_addstring(s->pktout, "en");	/* language tag */
-		ssh2_pkt_send_noqueue(ssh, s->pktout);
-		ssh->close_expected = TRUE;
-                ssh_closing((Plug)ssh, NULL, 0, 0);
+		ssh_disconnect(ssh, NULL,
+			       "No supported authentication methods available",
+			       SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE,
+			       FALSE);
 		crStopV;
 	    }
 	}
@@ -7847,6 +7837,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->hostkey = NULL;
     ssh->exitcode = -1;
     ssh->close_expected = FALSE;
+    ssh->clean_exit = FALSE;
     ssh->state = SSH_STATE_PREPACKET;
     ssh->size_needed = FALSE;
     ssh->eof_needed = FALSE;
