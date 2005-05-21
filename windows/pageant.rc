@@ -85,4 +85,6 @@ BEGIN
 
 END
 
+#ifndef NO_MANIFESTS
 1 RT_MANIFEST "pageant.mft"
+#endif /* NO_MANIFESTS */

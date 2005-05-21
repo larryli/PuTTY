@@ -78,4 +78,6 @@ BEGIN
 
 END
 
+#ifndef NO_MANIFESTS
 1 RT_MANIFEST "puttygen.mft"
+#endif /* NO_MANIFESTS */
