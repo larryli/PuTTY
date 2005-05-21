@@ -72,7 +72,7 @@
 #      build, since at the time of writing this <multimon.h> is
 #      known not to be available in Cygwin.
 #
-#  - COMPAT=/DNO_MANIFESTS (Windows only)
+#  - RCFL=/DNO_MANIFESTS (Windows only)
 #      Disables inclusion of XML application manifests in the PuTTY
 #      binaries. This may be necessary to build for 64-bit Windows;
 #      the manifests are only included to use the XP GUI style on
