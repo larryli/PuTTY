@@ -1471,8 +1471,9 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	}
 
         if (help_path)
-            SetWindowLong(hwnd, GWL_EXSTYLE,
-                          GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_CONTEXTHELP);
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+			     GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
+			     WS_EX_CONTEXTHELP);
         else {
             HWND item = GetDlgItem(hwnd, 103);   /* the Help button */
             if (item)

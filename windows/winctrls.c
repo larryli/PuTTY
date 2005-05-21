@@ -1050,7 +1050,7 @@ int handle_prefslist(struct prefslist *hdl,
                 hdl->srcitem = LBItemFromPt(dlm->hWnd, dlm->ptCursor, TRUE);
 		hdl->dragging = 0;
 		/* XXX hack Q183115 */
-		SetWindowLong(hwnd, DWL_MSGRESULT, TRUE);
+		SetWindowLongPtr(hwnd, DWLP_MSGRESULT, TRUE);
                 ret |= 1; break;
               case DL_CANCELDRAG:
 		DrawInsert(hwnd, dlm->hWnd, -1);     /* Clear arrow */
@@ -1064,9 +1064,9 @@ int handle_prefslist(struct prefslist *hdl,
 		if (dest > hdl->dummyitem) dest = hdl->dummyitem;
 		DrawInsert (hwnd, dlm->hWnd, dest);
 		if (dest >= 0)
-		    SetWindowLong(hwnd, DWL_MSGRESULT, DL_MOVECURSOR);
+		    SetWindowLongPtr(hwnd, DWLP_MSGRESULT, DL_MOVECURSOR);
 		else
-		    SetWindowLong(hwnd, DWL_MSGRESULT, DL_STOPCURSOR);
+		    SetWindowLongPtr(hwnd, DWLP_MSGRESULT, DL_STOPCURSOR);
                 ret |= 1; break;
               case DL_DROPPED:
 		if (hdl->dragging) {

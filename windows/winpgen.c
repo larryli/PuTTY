@@ -801,8 +801,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
         if (help_path)
-            SetWindowLong(hwnd, GWL_EXSTYLE,
-                          GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_CONTEXTHELP);
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+			     GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
+			     WS_EX_CONTEXTHELP);
         else {
             /*
              * If we add a Help button, this is where we destroy it
@@ -818,7 +819,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	state->collecting_entropy = FALSE;
 	state->entropy = NULL;
 	state->key_exists = FALSE;
-	SetWindowLong(hwnd, GWL_USERDATA, (LONG) state);
+	SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) state);
 	{
 	    HMENU menu, menu1;
 
@@ -943,7 +944,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
 	return 1;
       case WM_MOUSEMOVE:
-	state = (struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+	state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	if (state->collecting_entropy &&
 	    state->entropy && state->entropy_got < state->entropy_required) {
 	    state->entropy[state->entropy_got++] = lParam;
@@ -994,7 +995,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	  case IDC_KEYSSH2DSA:
 	    {
 		state = (struct MainDlgState *)
-		    GetWindowLong(hwnd, GWL_USERDATA);
+		    GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		if (!IsDlgButtonChecked(hwnd, LOWORD(wParam)))
 		    CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2DSA,
 				     LOWORD(wParam));
@@ -1008,7 +1009,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	  case IDC_COMMENTEDIT:
 	    if (HIWORD(wParam) == EN_CHANGE) {
 		state = (struct MainDlgState *)
-		    GetWindowLong(hwnd, GWL_USERDATA);
+		    GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		if (state->key_exists) {
 		    HWND editctl = GetDlgItem(hwnd, IDC_COMMENTEDIT);
 		    int len = GetWindowTextLength(editctl);
@@ -1047,7 +1048,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 HIWORD(wParam) != BN_DOUBLECLICKED)
 		break;
 	    state =
-		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (!state->generation_thread_exists) {
 		BOOL ok;
 		state->keysize = GetDlgItemInt(hwnd, IDC_BITS, &ok, FALSE);
@@ -1103,7 +1104,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) != BN_CLICKED)
 		break;
 	    state =
-		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
 		char passphrase[PASSPHRASE_MAXLEN];
@@ -1198,7 +1199,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) != BN_CLICKED)
 		break;
 	    state =
-		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
 		if (prompt_keyfile(hwnd, "Save public key as:",
@@ -1233,7 +1234,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) != BN_CLICKED)
 		break;
 	    state =
-		(struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (!state->generation_thread_exists) {
 		char filename[FILENAME_MAX];
 		if (prompt_keyfile(hwnd, "Load private key:",
@@ -1245,7 +1246,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	}
 	return 0;
       case WM_DONEKEY:
-	state = (struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+	state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	state->generation_thread_exists = FALSE;
 	state->key_exists = TRUE;
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
@@ -1385,7 +1386,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         }
         break;
       case WM_CLOSE:
-	state = (struct MainDlgState *) GetWindowLong(hwnd, GWL_USERDATA);
+	state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	sfree(state);
         if (requested_help) {
             WinHelp(hwnd, help_path, HELP_QUIT, 0);

@@ -2070,9 +2070,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		/* Enable or disable the scroll bar, etc */
 		{
-		    LONG nflg, flag = GetWindowLong(hwnd, GWL_STYLE);
+		    LONG nflg, flag = GetWindowLongPtr(hwnd, GWL_STYLE);
 		    LONG nexflag, exflag =
-			GetWindowLong(hwnd, GWL_EXSTYLE);
+			GetWindowLongPtr(hwnd, GWL_EXSTYLE);
 
 		    nexflag = exflag;
 		    if (cfg.alwaysontop != prev_cfg.alwaysontop) {
@@ -2111,9 +2111,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		    if (nflg != flag || nexflag != exflag) {
 			if (nflg != flag)
-			    SetWindowLong(hwnd, GWL_STYLE, nflg);
+			    SetWindowLongPtr(hwnd, GWL_STYLE, nflg);
 			if (nexflag != exflag)
-			    SetWindowLong(hwnd, GWL_EXSTYLE, nexflag);
+			    SetWindowLongPtr(hwnd, GWL_EXSTYLE, nexflag);
 
 			SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
 				     SWP_NOACTIVATE | SWP_NOCOPYBITS |
@@ -4942,7 +4942,7 @@ static int is_full_screen()
 {
     if (!IsZoomed(hwnd))
 	return FALSE;
-    if (GetWindowLong(hwnd, GWL_STYLE) & WS_CAPTION)
+    if (GetWindowLongPtr(hwnd, GWL_STYLE) & WS_CAPTION)
 	return FALSE;
     return TRUE;
 }
@@ -4988,13 +4988,13 @@ static void make_full_screen()
 		return;
 	
     /* Remove the window furniture. */
-    style = GetWindowLong(hwnd, GWL_STYLE);
+    style = GetWindowLongPtr(hwnd, GWL_STYLE);
     style &= ~(WS_CAPTION | WS_BORDER | WS_THICKFRAME);
     if (cfg.scrollbar_in_fullscreen)
 	style |= WS_VSCROLL;
     else
 	style &= ~WS_VSCROLL;
-    SetWindowLong(hwnd, GWL_STYLE, style);
+    SetWindowLongPtr(hwnd, GWL_STYLE, style);
 
     /* Resize ourselves to exactly cover the nearest monitor. */
 	get_fullscreen_rect(&ss);
@@ -5016,7 +5016,7 @@ static void clear_full_screen()
     DWORD oldstyle, style;
 
     /* Reinstate the window furniture. */
-    style = oldstyle = GetWindowLong(hwnd, GWL_STYLE);
+    style = oldstyle = GetWindowLongPtr(hwnd, GWL_STYLE);
     style |= WS_CAPTION | WS_BORDER;
     if (cfg.resize_action == RESIZE_DISABLED)
         style &= ~WS_THICKFRAME;
@@ -5027,7 +5027,7 @@ static void clear_full_screen()
     else
 	style &= ~WS_VSCROLL;
     if (style != oldstyle) {
-	SetWindowLong(hwnd, GWL_STYLE, style);
+	SetWindowLongPtr(hwnd, GWL_STYLE, style);
 	SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
 		     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
 		     SWP_FRAMECHANGED);

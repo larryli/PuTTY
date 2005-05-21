@@ -240,7 +240,7 @@ static int SaneDialogBox(HINSTANCE hinst,
     wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
     wc.lpfnWndProc = DefDlgProc;
     wc.cbClsExtra = 0;
-    wc.cbWndExtra = DLGWINDOWEXTRA + 8;
+    wc.cbWndExtra = DLGWINDOWEXTRA + 2*sizeof(LONG_PTR);
     wc.hInstance = hinst;
     wc.hIcon = NULL;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -251,11 +251,11 @@ static int SaneDialogBox(HINSTANCE hinst,
 
     hwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
 
-    SetWindowLong(hwnd, BOXFLAGS, 0); /* flags */
-    SetWindowLong(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
+    SetWindowLongPtr(hwnd, BOXFLAGS, 0); /* flags */
+    SetWindowLongPtr(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
 
     while ((gm=GetMessage(&msg, NULL, 0, 0)) > 0) {
-	flags=GetWindowLong(hwnd, BOXFLAGS);
+	flags=GetWindowLongPtr(hwnd, BOXFLAGS);
 	if (!(flags & DF_END) && !IsDialogMessage(hwnd, &msg))
 	    DispatchMessage(&msg);
 	if (flags & DF_END)
@@ -265,15 +265,15 @@ static int SaneDialogBox(HINSTANCE hinst,
     if (gm == 0)
         PostQuitMessage(msg.wParam); /* We got a WM_QUIT, pass it on */
 
-    ret=GetWindowLong(hwnd, BOXRESULT);
+    ret=GetWindowLongPtr(hwnd, BOXRESULT);
     DestroyWindow(hwnd);
     return ret;
 }
 
 static void SaneEndDialog(HWND hwnd, int ret)
 {
-    SetWindowLong(hwnd, BOXRESULT, ret);
-    SetWindowLong(hwnd, BOXFLAGS, DF_END);
+    SetWindowLongPtr(hwnd, BOXRESULT, ret);
+    SetWindowLongPtr(hwnd, BOXFLAGS, DF_END);
 }
 
 /*
@@ -375,10 +375,11 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	dp.hwnd = hwnd;
 	create_controls(hwnd, "");     /* Open and Cancel buttons etc */
 	SetWindowText(hwnd, dp.wintitle);
-	SetWindowLong(hwnd, GWL_USERDATA, 0);
+	SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
         if (help_path)
-            SetWindowLong(hwnd, GWL_EXSTYLE,
-                          GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_CONTEXTHELP);
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+			     GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
+			     WS_EX_CONTEXTHELP);
         else {
             HWND item = GetDlgItem(hwnd, IDC_HELPBTN);
             if (item)
@@ -512,7 +513,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    }
 	}
 
-	SetWindowLong(hwnd, GWL_USERDATA, 1);
+	SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 	return 0;
       case WM_LBUTTONUP:
 	/*
@@ -573,7 +574,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	/*
 	 * Only process WM_COMMAND once the dialog is fully formed.
 	 */
-	if (GetWindowLong(hwnd, GWL_USERDATA) == 1) {
+	if (GetWindowLongPtr(hwnd, GWLP_USERDATA) == 1) {
 	    ret = winctrl_handle_command(&dp, msg, wParam, lParam);
 	    if (dp.ended && GetCapture() != hwnd)
 		SaneEndDialog(hwnd, dp.endresult ? 1 : 0);

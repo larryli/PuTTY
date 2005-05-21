@@ -28,7 +28,7 @@ struct FontSpec {
 };
 
 #define BOXFLAGS DLGWINDOWEXTRA
-#define BOXRESULT DLGWINDOWEXTRA + 4
+#define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
 #define DF_END 0x0001
 
 /*
