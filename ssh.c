@@ -8063,7 +8063,7 @@ static void ssh_reconfig(void *handle, Config *cfg)
 }
 
 /*
- * Called to send data down the Telnet connection.
+ * Called to send data down the SSH connection.
  */
 static int ssh_send(void *handle, char *buf, int len)
 {
@@ -8220,7 +8220,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 }
 
 /*
- * Send Telnet special codes. TS_EOF is useful for `plink', so you
+ * Send special codes. TS_EOF is useful for `plink', so you
  * can send an EOF and collect resulting output (e.g. `plink
  * hostname sort').
  */
