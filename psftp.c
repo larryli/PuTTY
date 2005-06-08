@@ -1399,7 +1399,6 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
 
 	if (!result) {
 	    printf("mkdir %s: %s\n", dir, fxp_error());
-	    sfree(dir);
 	    ret = 0;
 	} else
 	    printf("mkdir %s: OK\n", dir);
