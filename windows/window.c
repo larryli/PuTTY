@@ -4513,7 +4513,7 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 
 	rtfsize = 100 + strlen(cfg.font.name);
 	rtf = snewn(rtfsize, char);
-	sprintf(rtf, "{\\rtf1\\ansi%d{\\fonttbl\\f0\\fmodern %s;}\\f0",
+	sprintf(rtf, "{\\rtf1\\ansi%d{\\fonttbl\\f0\\fmodern %s;}\\f0 ",
 		GetACP(), cfg.font.name);
 	rtflen = strlen(rtf);
 
