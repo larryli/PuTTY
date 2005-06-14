@@ -6357,7 +6357,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	    }
 	}
     } else if (typelen == 22 &&
-	       !memcmp(type, "auth-agent@openssh.com", 3)) {
+	       !memcmp(type, "auth-agent@openssh.com", 22)) {
 	if (!ssh->agentfwd_enabled)
 	    error = "Agent forwarding is not enabled";
 	else {
