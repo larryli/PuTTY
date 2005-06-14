@@ -20,6 +20,7 @@ typedef struct rlogin_tag {
     Socket s;
     int bufsize;
     int firstbyte;
+    int cansize;
     int term_width, term_height;
     void *frontend;
 } *Rlogin;
@@ -73,8 +74,10 @@ static int rlogin_receive(Plug plug, int urgent, char *data, int len)
 
 	c = *data++;
 	len--;
-	if (c == '\x80')
+	if (c == '\x80') {
+	    rlogin->cansize = 1;
 	    rlogin_size(rlogin, rlogin->term_width, rlogin->term_height);
+        }
 	/*
 	 * We should flush everything (aka Telnet SYNCH) if we see
 	 * 0x02, and we should turn off and on _local_ flow control
@@ -136,6 +139,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     rlogin->term_width = cfg->width;
     rlogin->term_height = cfg->height;
     rlogin->firstbyte = 1;
+    rlogin->cansize = 0;
     *backend_handle = rlogin;
 
     /*
@@ -243,7 +247,7 @@ static void rlogin_size(void *handle, int width, int height)
     rlogin->term_width = width;
     rlogin->term_height = height;
 
-    if (rlogin->s == NULL)
+    if (rlogin->s == NULL || !rlogin->cansize)
 	return;
 
     b[6] = rlogin->term_width >> 8;
