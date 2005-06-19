@@ -1652,8 +1652,6 @@ static unsigned char *ssh2_mpint_fmt(Bignum b, int *len)
     unsigned char *p;
     int i, n = (bignum_bitcount(b) + 7) / 8;
     p = snewn(n + 1, unsigned char);
-    if (!p)
-	fatalbox("out of memory");
     p[0] = 0;
     for (i = 1; i <= n; i++)
 	p[i] = bignum_byte(b, n - i);
@@ -2657,8 +2655,6 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     const char *err;
 
     ssh->savedhost = snewn(1 + strlen(host), char);
-    if (!ssh->savedhost)
-	fatalbox("Out of memory");
     strcpy(ssh->savedhost, host);
 
     if (port < 0)
@@ -3011,8 +3007,6 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     s->len = (hostkey.bytes > servkey.bytes ? hostkey.bytes : servkey.bytes);
 
     s->rsabuf = snewn(s->len, unsigned char);
-    if (!s->rsabuf)
-	fatalbox("Out of memory");
 
     /*
      * Verify the host key.
@@ -3024,8 +3018,6 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	int len = rsastr_len(&hostkey);
 	char fingerprint[100];
 	char *keystr = snewn(len, char);
-	if (!keystr)
-	    fatalbox("Out of memory");
 	rsastr_fmt(keystr, &hostkey);
 	rsa_fingerprint(fingerprint, sizeof(fingerprint), &hostkey);
 

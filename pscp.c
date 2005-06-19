@@ -213,8 +213,6 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
 	if (pendsize < pendlen + len) {
 	    pendsize = pendlen + len + 4096;
 	    pending = sresize(pending, pendsize, unsigned char);
-	    if (!pending)
-		fatalbox("Out of memory");
 	}
 	memcpy(pending + pendlen, p, len);
 	pendlen += len;
