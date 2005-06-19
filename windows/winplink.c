@@ -598,16 +598,16 @@ int main(int argc, char **argv)
     inhandle = GetStdHandle(STD_INPUT_HANDLE);
     outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
     errhandle = GetStdHandle(STD_ERROR_HANDLE);
-    GetConsoleMode(inhandle, &orig_console_mode);
-    SetConsoleMode(inhandle, ENABLE_PROCESSED_INPUT);
-
-    main_thread_id = GetCurrentThreadId();
-
     /*
      * Turn off ECHO and LINE input modes. We don't care if this
      * call fails, because we know we aren't necessarily running in
      * a console.
      */
+    GetConsoleMode(inhandle, &orig_console_mode);
+    SetConsoleMode(inhandle, ENABLE_PROCESSED_INPUT);
+
+    main_thread_id = GetCurrentThreadId();
+
     handles[0] = netevent;
     handles[1] = stdinevent;
     handles[2] = stdoutevent;
