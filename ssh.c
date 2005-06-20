@@ -1267,7 +1267,8 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
      * _Completely_ silly lengths should be stomped on before they
      * do us any more damage.
      */
-    if (st->len < 0 || st->pad < 0 || st->len + st->pad < 0) {
+    if (st->len < 0 || st->len > 35000 || st->pad < 4 ||
+	st->len - st->pad < 1 || (st->len + 4) % st->cipherblk != 0) {
 	bombout(("Incoming packet was garbled on decryption"));
 	ssh_free_packet(st->pktin);
 	crStop(NULL);
