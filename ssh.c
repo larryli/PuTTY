@@ -5724,7 +5724,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      * it would only confuse the layer above.
      */
     if (s->activated_authconn) {
-	crReturn(1);
+	crReturn(0);
     }
     s->activated_authconn = TRUE;
 
