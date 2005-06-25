@@ -438,7 +438,7 @@ To run a PuTTY session saved under the name \q{\cw{mysession}},
 create a Windows shortcut that invokes PuTTY with a command line
 like
 
-\c \path\name\to\putty.exe -load mysession
+\c \path\name\to\putty.exe -load "mysession"
 
 (Note: prior to 0.53, the syntax was \c{@session}. This is now
 deprecated and may be removed at some point.)
