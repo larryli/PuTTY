@@ -749,7 +749,7 @@ static struct fxp_handle *scp_sftp_filehandle;
 static struct fxp_xfer *scp_sftp_xfer;
 static uint64 scp_sftp_fileoffset;
 
-void scp_source_setup(char *target, int shouldbedir)
+int scp_source_setup(char *target, int shouldbedir)
 {
     if (using_sftp) {
 	/*
@@ -764,7 +764,7 @@ void scp_source_setup(char *target, int shouldbedir)
 	if (!fxp_init()) {
 	    tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
 	    errs++;
-	    return;
+	    return 1;
 	}
 
 	sftp_register(req = fxp_stat_send(target));
@@ -787,6 +787,7 @@ void scp_source_setup(char *target, int shouldbedir)
     } else {
 	(void) response();
     }
+    return 0;
 }
 
 int scp_send_errmsg(char *str)
@@ -1978,7 +1979,8 @@ static void toremote(int argc, char *argv[])
     do_cmd(host, user, cmd);
     sfree(cmd);
 
-    scp_source_setup(targ, targetshouldbedirectory);
+    if (scp_source_setup(targ, targetshouldbedirectory))
+	return;
 
     for (i = 0; i < argc - 1; i++) {
 	src = argv[i];
