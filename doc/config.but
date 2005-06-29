@@ -2299,11 +2299,12 @@ require an authentication step.
 
 \cfg{winhelp-topic}{ssh.auth.tis}
 
-TIS and CryptoCard authentication are simple \I{challenge/response
-authentication}challenge/response forms of authentication available in
-SSH protocol version 1 only. You might use them if you were using \i{S/Key}
-\i{one-time passwords}, for example, or if you had a physical \i{security
-token} that generated responses to authentication challenges.
+TIS and CryptoCard authentication are (despite their names) generic
+forms of simple \I{challenge/response authentication}challenge/response
+authentication available in SSH protocol version 1 only. You might use
+them if you were using \i{S/Key} \i{one-time passwords}, for example,
+or if you had a physical \i{security token} that generated responses
+to authentication challenges.
 
 With this switch enabled, PuTTY will attempt these forms of
 authentication if the server is willing to try them. You will be
