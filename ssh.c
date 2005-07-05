@@ -2245,7 +2245,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_rekey2 == FORCE_ON ||
 	(ssh->cfg.sshbug_rekey2 == AUTO &&
-	 (wc_match("OpenSSH_2.[0-4]*", imp) ||
+	 (wc_match("DigiSSH_2.0", imp) ||
+	  wc_match("OpenSSH_2.[0-4]*", imp) ||
 	  wc_match("OpenSSH_2.5.[0-3]*", imp) ||
 	  wc_match("Sun_SSH_1.0", imp) ||
 	  wc_match("Sun_SSH_1.0.1", imp)))) {
