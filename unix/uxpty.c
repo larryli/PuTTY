@@ -754,15 +754,19 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	for (i = 3; i < 1024; i++)
 	    close(i);
 	{
-	    char term_env_var[10 + sizeof(cfg->termtype)];
-	    sprintf(term_env_var, "TERM=%s", cfg->termtype);
+	    char *term_env_var = dupprintf("TERM=%s", cfg->termtype);
 	    putenv(term_env_var);
+	    /* We mustn't free term_env_var, as putenv links it into the
+	     * environment in place.
+	     */
 	}
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
 	{
-	    char windowid_env_var[40];
-	    sprintf(windowid_env_var, "WINDOWID=%ld", windowid);
+	    char *windowid_env_var = dupprintf("WINDOWID=%ld", windowid);
 	    putenv(windowid_env_var);
+	    /* We mustn't free windowid_env_var, as putenv links it into the
+	     * environment in place.
+	     */
 	}
 #endif
 	{
