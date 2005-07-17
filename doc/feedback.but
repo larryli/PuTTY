@@ -369,10 +369,12 @@ need to bother. You already have permission.
 
 \H{feedback-mirrors} Mirroring the PuTTY web site
 
+\#{This paragraph also in putty-website/mirrors.html}
 Mirrors of the PuTTY web site are welcome, especially in regions not
-well covered by existing mirrors. Please don't bother asking us for
-permission before setting up a mirror. You already have permission. We
-are always happy to have more mirrors.
+well covered by existing mirrors. (However, if you're in a region that is
+already well served by mirrors, you should consider whether yet another one
+will be worth the effort.) Please don't bother asking us for permission before
+setting up a mirror. You already have permission.
 
 If you mail us \e{after} you have set up the mirror and checked that
 it works, and remember to let us know which country your mirror is in,
