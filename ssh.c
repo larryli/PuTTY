@@ -2295,23 +2295,20 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 
     crBegin(ssh->do_ssh_init_crstate);
 
-    /* Search for the string "SSH-" in the input. */
-    s->i = 0;
-    while (1) {
-	static const int transS[] = { 1, 2, 2, 1 };
-	static const int transH[] = { 0, 0, 3, 0 };
-	static const int transminus[] = { 0, 0, 0, -1 };
-	if (c == 'S')
-	    s->i = transS[s->i];
-	else if (c == 'H')
-	    s->i = transH[s->i];
-	else if (c == '-')
-	    s->i = transminus[s->i];
-	else
-	    s->i = 0;
-	if (s->i < 0)
-	    break;
-	crReturn(1);		       /* get another character */
+    /* Search for a line beginning with the string "SSH-" in the input. */
+    for (;;) {
+	if (c != 'S') goto no;
+	crReturn(1);
+	if (c != 'S') goto no;
+	crReturn(1);
+	if (c != 'H') goto no;
+	crReturn(1);
+	if (c != '-') goto no;
+	break;
+      no:
+	while (c != '\012')
+	    crReturn(1);
+	crReturn(1);
     }
 
     s->vstrsize = 16;
