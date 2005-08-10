@@ -17,7 +17,7 @@
 #define ICON_BIG        1
 #endif
 
-#define WM_DONEKEY (WM_XUSER + 1)
+#define WM_DONEKEY (WM_APP + 1)
 
 #define DEFAULT_KEYSIZE 1024
 

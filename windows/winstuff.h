@@ -95,13 +95,7 @@ GLOBAL int requested_help;
 GLOBAL Terminal *term;
 GLOBAL void *logctx;
 
-/*
- * I've just looked in the windows standard headr files for WM_USER, there
- * are hundreds of flags defined using the form WM_USER+123 so I've 
- * renumbered this NETEVENT value and the two in window.c
- */
-#define WM_XUSER     (WM_USER + 0x2000)
-#define WM_NETEVENT  (WM_XUSER + 5)
+#define WM_NETEVENT  (WM_APP + 5)
 
 /*
  * On Windows, we send MA_2CLK as the only event marking the second

@@ -12,7 +12,7 @@
 #include "storage.h"
 #include "tree234.h"
 
-#define WM_AGENT_CALLBACK (WM_XUSER + 4)
+#define WM_AGENT_CALLBACK (WM_APP + 4)
 
 #define MAX_STDIN_BACKLOG 4096
 

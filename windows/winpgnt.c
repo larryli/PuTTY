@@ -24,9 +24,8 @@
 #define IDI_MAINICON 200
 #define IDI_TRAYICON 201
 
-#define WM_XUSER     (WM_USER + 0x2000)
-#define WM_SYSTRAY   (WM_XUSER + 6)
-#define WM_SYSTRAY2  (WM_XUSER + 7)
+#define WM_SYSTRAY   (WM_APP + 6)
+#define WM_SYSTRAY2  (WM_APP + 7)
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 

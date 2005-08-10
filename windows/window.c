@@ -50,9 +50,9 @@
 /* Maximum number of sessions on saved-session submenu */
 #define MENU_SAVED_MAX ((IDM_SAVED_MAX-IDM_SAVED_MIN) / MENU_SAVED_STEP)
 
-#define WM_IGNORE_CLIP (WM_XUSER + 2)
-#define WM_FULLSCR_ON_MAX (WM_XUSER + 3)
-#define WM_AGENT_CALLBACK (WM_XUSER + 4)
+#define WM_IGNORE_CLIP (WM_APP + 2)
+#define WM_FULLSCR_ON_MAX (WM_APP + 3)
+#define WM_AGENT_CALLBACK (WM_APP + 4)
 
 /* Needed for Chinese support and apparently not always defined. */
 #ifndef VK_PROCESSKEY
