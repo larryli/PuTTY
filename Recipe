@@ -21,6 +21,7 @@
 !makefile ac unix/Makefile.in
 !makefile mpw mac/Makefile.mpw
 !makefile osx macosx/Makefile
+!makefile devcppproj windows/DEVCPP
 # Source directories.
 !srcdir charset/
 !srcdir windows/

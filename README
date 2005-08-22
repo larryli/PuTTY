@@ -43,6 +43,9 @@ For building on Windows:
    Makefile.lcc' while in the `windows' subdirectory. (You will
    probably need to specify COMPAT=-DNO_MULTIMON.)
 
+ - Inside the windows/DEVCPP subdirectory are Dev-C++ project
+   files for doing GUI-based builds of the various PuTTY utilities.
+
 For building on Unix:
 
  - unix/configure is for Unix and GTK. If you don't have GTK, you

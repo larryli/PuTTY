@@ -212,7 +212,8 @@ sub mfval($) {
     # Returns true if the argument is a known makefile type. Otherwise,
     # prints a warning and returns false;
     if (grep { $type eq $_ }
-	("vc","vcproj","cygwin","borland","lcc","gtk","ac","mpw","osx")) {
+	("vc","vcproj","cygwin","borland","lcc","devcppproj","gtk","ac","mpw",
+	 "osx",)) {
 	    return 1;
 	}
     warn "$.:unknown makefile type '$type'\n";
@@ -646,7 +647,7 @@ if (defined $makefiles{'vcproj'}) {
     # Get names of all Windows projects (GUI and console)
     my @prognames = &prognames("G:C");
     foreach $progname (@prognames) {
-    	create_project(\%all_object_deps, $progname);
+      create_vc_project(\%all_object_deps, $progname);
     }
     # Create the workspace file
     open OUT, ">$project_name.dsw"; binmode OUT; select OUT;
@@ -688,7 +689,7 @@ if (defined $makefiles{'vcproj'}) {
     select STDOUT; close OUT;
     chdir $orig_dir;
 
-    sub create_project {
+    sub create_vc_project {
     	my ($all_object_deps, $progname) = @_;
     	# Construct program's dependency info
     	%seen_objects = ();
@@ -1276,4 +1277,194 @@ if (defined $makefiles{'osx'}) {
     "\trm -f *.o *.dmg". (join "", map { " $_" } &progrealnames("U")) . "\n";
     "\trm -rf *.app\n";
     select STDOUT; close OUT;
+}
+
+if (defined $makefiles{'devcppproj'}) {
+    $dirpfx = &dirpfx($makefiles{'devcppproj'}, "\\");
+    $orig_dir = cwd;
+
+    ##-- Dev-C++ 5 projects
+    #
+    # Note: All files created in this section are written in binary
+    # mode to prevent any posibility of misinterpreted line endings.
+    # I don't know if Dev-C++ is as touchy as MSVC with LF-only line
+    # endings. But however, CRLF line endings are the common way on
+    # Win32 machines where Dev-C++ is running.
+    # Hence, in order for mkfiles.pl to generate CRLF project files
+    # even when run from Unix, I make sure all files are binary and
+    # explicitly write the CRLFs.
+    #
+    # Create directories if necessary
+    mkdir $makefiles{'devcppproj'}
+        if(! -d $makefiles{'devcppproj'});
+    chdir $makefiles{'devcppproj'};
+    @deps = &deps("X.obj", "X.res", $dirpfx, "\\", "devcppproj");
+    %all_object_deps = map {$_->{obj} => $_->{deps}} @deps;
+    # Make dir names FAT/NTFS compatible
+    my @srcdirs = @srcdirs;
+    for ($i=0; $i<@srcdirs; $i++) {
+      $srcdirs[$i] =~ s/\//\\/g;
+      $srcdirs[$i] =~ s/\\$//;
+    }
+    # Create the project files
+    # Get names of all Windows projects (GUI and console)
+    my @prognames = &prognames("G:C");
+    foreach $progname (@prognames) {
+      create_devcpp_project(\%all_object_deps, $progname);
+    }
+
+    sub create_devcpp_project {
+      my ($all_object_deps, $progname) = @_;
+      # Construct program's dependency info (Taken from 'vcproj', seems to work right here, too.)
+      %seen_objects = ();
+      %lib_files = ();
+      %source_files = ();
+      %header_files = ();
+      %resource_files = ();
+      @object_files = split " ", &objects($progname, "X.obj", "X.res", "X.lib");
+      foreach $object_file (@object_files) {
+      next if defined $seen_objects{$object_file};
+      $seen_objects{$object_file} = 1;
+      if($object_file =~ /\.lib$/io) {
+    $lib_files{$object_file} = 1;
+    next;
+      }
+      $object_deps = $all_object_deps{$object_file};
+      foreach $object_dep (@$object_deps) {
+    if($object_dep =~ /\.c$/io) {
+        $source_files{$object_dep} = 1;
+        next;
+    }
+    if($object_dep =~ /\.h$/io) {
+        $header_files{$object_dep} = 1;
+        next;
+    }
+    if($object_dep =~ /\.(rc|ico)$/io) {
+        $resource_files{$object_dep} = 1;
+        next;
+    }
+      }
+      }
+      $libs = join " ", sort keys %lib_files;
+      @source_files = sort keys %source_files;
+      @header_files = sort keys %header_files;
+      @resources = sort keys %resource_files;
+  ($windows_project, $type) = split ",", $progname;
+      mkdir $windows_project
+      if(! -d $windows_project);
+      chdir $windows_project;
+
+  $subsys = ($type eq "G") ? "0" : "1";  # 0 = Win32 GUI, 1 = Win32 Console
+      open OUT, ">$windows_project.dev"; binmode OUT; select OUT;
+      print
+      "# DEV-C++ 5 Project File - $windows_project.dev\r\n".
+      "# ** DO NOT EDIT **\r\n".
+      "\r\n".
+      # No difference between DEBUG and RELEASE here as in 'vcproj', because
+      # Dev-C++ does not support mutiple compilation profiles in one single project.
+      # (At least I can say this for Dev-C++ 5 Beta)
+      "[Project]\r\n".
+      "FileName=$windows_project.dev\r\n".
+      "Name=$windows_project\r\n".
+      "Ver=1\r\n".
+      "IsCpp=1\r\n".
+      "Type=$subsys\r\n".
+      # Multimon is disabled here, as Dev-C++ (Version 5 Beta) does not have multimon.h
+      "Compiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_\@\@_\r\n".
+      "CppCompiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_\@\@_\r\n".
+      "Includes=" . (join ";", map {"..\\..\\$dirpfx$_"} @srcdirs) . "\r\n".
+      "Linker=-ladvapi32 -lcomctl32 -lcomdlg32 -lgdi32 -limm32 -lshell32 -luser32 -lwinmm -lwinspool_\@\@_\r\n".
+      "Libs=\r\n".
+      "UnitCount=" . (@source_files + @header_files + @resources) . "\r\n".
+      "Folders=\"Header Files\",\"Resource Files\",\"Source Files\"\r\n".
+      "ObjFiles=\r\n".
+      "PrivateResource=${windows_project}_private.rc\r\n".
+      "ResourceIncludes=..\\..\\..\\WINDOWS\r\n".
+      "MakeIncludes=\r\n".
+      "Icon=\r\n". # It's ok to leave this blank.
+      "ExeOutput=\r\n".
+      "ObjectOutput=\r\n".
+      "OverrideOutput=0\r\n".
+      "OverrideOutputName=$windows_project.exe\r\n".
+      "HostApplication=\r\n".
+      "CommandLine=\r\n".
+      "UseCustomMakefile=0\r\n".
+      "CustomMakefile=\r\n".
+      "IncludeVersionInfo=0\r\n".
+      "SupportXPThemes=0\r\n".
+      "CompilerSet=0\r\n".
+      "CompilerSettings=0000000000000000000000\r\n".
+      "\r\n";
+      $unit_count = 1;
+      foreach $source_file (@source_files) {
+      print
+        "[Unit$unit_count]\r\n".
+        "FileName=..\\..\\$source_file\r\n".
+        "Folder=Source Files\r\n".
+        "Compile=1\r\n".
+        "CompileCpp=0\r\n".
+        "Link=1\r\n".
+        "Priority=1000\r\n".
+        "OverrideBuildCmd=0\r\n".
+        "BuildCmd=\r\n".
+        "\r\n";
+      $unit_count++;
+  }
+      foreach $header_file (@header_files) {
+      print
+        "[Unit$unit_count]\r\n".
+        "FileName=..\\..\\$header_file\r\n".
+        "Folder=Header Files\r\n".
+        "Compile=1\r\n".
+        "CompileCpp=1\r\n". # Dev-C++ want's to compile all header files with both compilers C and C++. It does not hurt.
+        "Link=1\r\n".
+        "Priority=1000\r\n".
+        "OverrideBuildCmd=0\r\n".
+        "BuildCmd=\r\n".
+        "\r\n";
+      $unit_count++;
+  }
+      foreach $resource_file (@resources) {
+      if ($resource_file =~ /.*\.(ico|cur|bmp|dlg|rc2|rct|bin|rgs|gif|jpg|jpeg|jpe)/io) { # Default filter as in 'vcproj'
+        $Compile = "0";    # Don't compile images and other binary resource files
+        $CompileCpp = "0";
+      } else {
+        $Compile = "1";
+        $CompileCpp = "1"; # Dev-C++ want's to compile all .rc files with both compilers C and C++. It does not hurt.
+      }
+      print
+        "[Unit$unit_count]\r\n".
+        "FileName=..\\..\\$resource_file\r\n".
+        "Folder=Resource Files\r\n".
+        "Compile=$Compile\r\n".
+        "CompileCpp=$CompileCpp\r\n".
+        "Link=0\r\n".
+        "Priority=1000\r\n".
+        "OverrideBuildCmd=0\r\n".
+        "BuildCmd=\r\n".
+        "\r\n";
+      $unit_count++;
+  }
+      #Note: By default, [VersionInfo] is not used.
+      print
+      "[VersionInfo]\r\n".
+      "Major=0\r\n".
+      "Minor=0\r\n".
+      "Release=1\r\n".
+      "Build=1\r\n".
+      "LanguageID=1033\r\n".
+      "CharsetID=1252\r\n".
+      "CompanyName=\r\n".
+      "FileVersion=0.1\r\n".
+      "FileDescription=\r\n".
+      "InternalName=\r\n".
+      "LegalCopyright=\r\n".
+      "LegalTrademarks=\r\n".
+      "OriginalFilename=$windows_project.exe\r\n".
+      "ProductName=$windows_project\r\n".
+      "ProductVersion=0.1\r\n".
+      "AutoIncBuildNr=0\r\n";
+      select STDOUT; close OUT;
+      chdir "..";
+    }
 }
