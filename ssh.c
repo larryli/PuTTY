@@ -2496,24 +2496,29 @@ static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
      * everything to s_rdpkt, and then pass the resulting packets
      * to the proper protocol handler.
      */
-    if (datalen == 0)
-	crReturnV;
-
-    /*
-     * Process queued data if there is any.
-     */
-    ssh_process_queued_incoming_data(ssh);
 
     while (1) {
-	while (datalen > 0) {
-	    if (ssh->frozen)
+	while (bufchain_size(&ssh->queued_incoming_data) > 0 || datalen > 0) {
+	    if (ssh->frozen) {
 		ssh_queue_incoming_data(ssh, &data, &datalen);
-
-	    ssh_process_incoming_data(ssh, &data, &datalen);
-
+		/* This uses up all data and cannot cause anything interesting
+		 * to happen; indeed, for anything to happen at all, we must
+		 * return, so break out. */
+		break;
+	    } else if (bufchain_size(&ssh->queued_incoming_data) > 0) {
+		/* This uses up some or all data, and may freeze the
+		 * session. */
+		ssh_process_queued_incoming_data(ssh);
+	    } else {
+		/* This uses up some or all data, and may freeze the
+		 * session. */
+		ssh_process_incoming_data(ssh, &data, &datalen);
+	    }
+	    /* FIXME this is probably EBW. */
 	    if (ssh->state == SSH_STATE_CLOSED)
 		return;
 	}
+	/* We're out of data. Go and get some more. */
 	crReturnV;
     }
     crFinishV;
