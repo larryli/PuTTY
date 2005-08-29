@@ -2250,7 +2250,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	  wc_match("OpenSSH_2.5.[0-3]*", imp) ||
 	  wc_match("Sun_SSH_1.0", imp) ||
 	  wc_match("Sun_SSH_1.0.1", imp) ||
-	  wc_match("WeOnlyDo-1.2.6", imp)))) {
+	  /* All versions <= 1.2.6 (they changed their format in 1.2.7) */
+	  wc_match("WeOnlyDo-*", imp)))) {
 	/*
 	 * These versions have the SSH-2 rekey bug.
 	 */
