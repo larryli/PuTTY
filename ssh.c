@@ -679,7 +679,8 @@ struct ssh_tag {
     const struct plug_function_table *fn;
     /* the above field _must_ be first in the structure */
 
-    SHA_State exhash, exhashbase;
+    char *v_c, *v_s;
+    SHA_State exhash;
 
     Socket s;
 
@@ -2384,15 +2385,19 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
         ssh_fix_verstring(verstring);
 
         if (ssh->version == 2) {
+	    size_t len;
             /*
              * Hash our version string and their version string.
              */
-            SHA_Init(&ssh->exhashbase);
-            sha_string(&ssh->exhashbase, verstring,
-                       strcspn(verstring, "\015\012"));
-            sha_string(&ssh->exhashbase, s->vstring,
-                       strcspn(s->vstring, "\015\012"));
-
+	    len = strcspn(verstring, "\015\012");
+	    ssh->v_c = snewn(len + 1, char);
+	    memcpy(ssh->v_c, verstring, len);
+	    ssh->v_c[len] = 0;
+	    len = strcspn(s->vstring, "\015\012");
+	    ssh->v_s = snewn(len + 1, char);
+	    memcpy(ssh->v_s, s->vstring, len);
+	    ssh->v_s[len] = 0;
+	    
             /*
              * Initialise SSH-2 protocol.
              */
@@ -5197,7 +5202,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	ssh2_pkt_adduint32(s->pktout, 0);
     }
 
-    ssh->exhash = ssh->exhashbase;
+    SHA_Init(&ssh->exhash);
+    sha_string(&ssh->exhash, ssh->v_c, strlen(ssh->v_c));
+    sha_string(&ssh->exhash, ssh->v_s, strlen(ssh->v_s));
     sha_string(&ssh->exhash, s->pktout->data + 5, s->pktout->length - 5);
 
     ssh2_pkt_send_noqueue(ssh, s->pktout);
@@ -7861,6 +7868,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->do_ssh1_login_state = NULL;
     ssh->do_ssh2_transport_state = NULL;
     ssh->do_ssh2_authconn_state = NULL;
+    ssh->v_c = NULL;
+    ssh->v_s = NULL;
     ssh->mainchan = NULL;
     ssh->throttled_all = 0;
     ssh->v1_stdout_throttling = 0;
@@ -7988,6 +7997,8 @@ static void ssh_free(void *handle)
     sfree(ssh->do_ssh1_login_state);
     sfree(ssh->do_ssh2_transport_state);
     sfree(ssh->do_ssh2_authconn_state);
+    sfree(ssh->v_c);
+    sfree(ssh->v_s);
     if (ssh->crcda_ctx) {
 	crcda_free_context(ssh->crcda_ctx);
 	ssh->crcda_ctx = NULL;
