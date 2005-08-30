@@ -4979,6 +4979,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     struct do_ssh2_transport_state {
 	int nbits, pbits, warn_kex, warn_cscipher, warn_sccipher;
 	Bignum p, g, e, f, K;
+	void *our_kexinit;
+	int our_kexinitlen;
 	int kex_init_value, kex_reply_value;
 	const struct ssh_mac **maclist;
 	int nmacs;
@@ -5202,17 +5204,14 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	ssh2_pkt_adduint32(s->pktout, 0);
     }
 
-    SHA_Init(&ssh->exhash);
-    sha_string(&ssh->exhash, ssh->v_c, strlen(ssh->v_c));
-    sha_string(&ssh->exhash, ssh->v_s, strlen(ssh->v_s));
-    sha_string(&ssh->exhash, s->pktout->data + 5, s->pktout->length - 5);
+    s->our_kexinitlen = s->pktout->length - 5;
+    s->our_kexinit = snewn(s->our_kexinitlen, unsigned char);
+    memcpy(s->our_kexinit, s->pktout->data + 5, s->our_kexinitlen); 
 
     ssh2_pkt_send_noqueue(ssh, s->pktout);
 
     if (!pktin)
 	crWaitUntil(pktin);
-    if (pktin->length > 5)
-	sha_string(&ssh->exhash, pktin->data + 5, pktin->length - 5);
 
     /*
      * Now examine the other side's KEXINIT to see what we're up
@@ -5425,6 +5424,15 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		crStop(0);
 	    }
 	}
+
+	SHA_Init(&ssh->exhash);
+	sha_string(&ssh->exhash, ssh->v_c, strlen(ssh->v_c));
+	sha_string(&ssh->exhash, ssh->v_s, strlen(ssh->v_s));
+	sha_string(&ssh->exhash, s->our_kexinit, s->our_kexinitlen);
+	sfree(s->our_kexinit);
+	if (pktin->length > 5)
+	    sha_string(&ssh->exhash, pktin->data + 5, pktin->length - 5);
+
 
 	if (s->ignorepkt) /* first_kex_packet_follows */
 	    crWaitUntil(pktin);                /* Ignore packet */
