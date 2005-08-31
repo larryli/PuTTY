@@ -2052,6 +2052,9 @@ Instead, you can choose to run a single specific command (such as a
 mail user agent, for example). If you want to do this, enter the
 command in the \q{\ii{Remote command}} box.
 
+Note that most servers will close the session after executing the
+command.
+
 \S{config-ssh-noshell} \q{Don't start a \I{remote shell}shell or
 \I{remote command}command at all}
 
