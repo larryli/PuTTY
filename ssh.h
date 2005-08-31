@@ -122,6 +122,16 @@ void SHA_Simple(void *p, int len, unsigned char *output);
 
 void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
 		      unsigned char *output);
+typedef struct {
+    uint32 h[8];
+    unsigned char block[64];
+    int blkused;
+    uint32 lenhi, lenlo;
+} SHA256_State;
+void SHA256_Init(SHA256_State * s);
+void SHA256_Bytes(SHA256_State * s, const void *p, int len);
+void SHA256_Final(SHA256_State * s, unsigned char *output);
+void SHA256_Simple(const void *p, int len, unsigned char *output);
 
 typedef struct {
     uint64 h[8];
@@ -245,6 +255,7 @@ extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh2_ciphers ssh2_blowfish;
 extern const struct ssh2_ciphers ssh2_arcfour;
 extern const struct ssh_hash ssh_sha1;
+extern const struct ssh_hash ssh_sha256;
 extern const struct ssh_kex ssh_diffiehellman_group1;
 extern const struct ssh_kex ssh_diffiehellman_group14;
 extern const struct ssh_kex ssh_diffiehellman_gex;
