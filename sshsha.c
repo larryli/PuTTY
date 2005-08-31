@@ -282,7 +282,7 @@ void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
     SHA_Final(&states[1], output);
 }
 
-const struct ssh_mac ssh_sha1 = {
+const struct ssh_mac ssh_hmac_sha1 = {
     sha1_make_context, sha1_free_context, sha1_key,
     sha1_generate, sha1_verify,
     "hmac-sha1",
@@ -290,7 +290,7 @@ const struct ssh_mac ssh_sha1 = {
     "HMAC-SHA1"
 };
 
-const struct ssh_mac ssh_sha1_buggy = {
+const struct ssh_mac ssh_hmac_sha1_buggy = {
     sha1_make_context, sha1_free_context, sha1_key_buggy,
     sha1_generate, sha1_verify,
     "hmac-sha1",

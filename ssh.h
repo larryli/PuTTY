@@ -241,9 +241,10 @@ extern const struct ssh_kex ssh_diffiehellman_group14;
 extern const struct ssh_kex ssh_diffiehellman_gex;
 extern const struct ssh_signkey ssh_dss;
 extern const struct ssh_signkey ssh_rsa;
-extern const struct ssh_mac ssh_md5;
-extern const struct ssh_mac ssh_sha1;
-extern const struct ssh_mac ssh_sha1_buggy;
+extern const struct ssh_mac ssh_hmac_md5;
+extern const struct ssh_mac ssh_hmac_sha1;
+extern const struct ssh_mac ssh_hmac_sha1_buggy;
+
 
 /*
  * PuTTY version number formatted as an SSH version string. 
