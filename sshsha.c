@@ -188,6 +188,38 @@ void SHA_Simple(void *p, int len, unsigned char *output)
     SHA_Final(&s, output);
 }
 
+/*
+ * Thin abstraction for things where hashes are pluggable.
+ */
+
+static void *sha1_init(void)
+{
+    SHA_State *s;
+
+    s = snew(SHA_State);
+    SHA_Init(s);
+    return s;
+}
+
+static void sha1_bytes(void *handle, void *p, int len)
+{
+    SHA_State *s = handle;
+
+    SHA_Bytes(s, p, len);
+}
+
+static void sha1_final(void *handle, unsigned char *output)
+{
+    SHA_State *s = handle;
+
+    SHA_Final(s, output);
+    sfree(s);
+}
+
+const struct ssh_hash ssh_sha1 = {
+    sha1_init, sha1_bytes, sha1_final, 20
+};
+
 /* ----------------------------------------------------------------------
  * The above is the SHA-1 algorithm itself. Now we implement the
  * HMAC wrapper on it.

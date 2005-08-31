@@ -48,17 +48,17 @@ static const unsigned char G[] = { 2 };
 
 const struct ssh_kex ssh_diffiehellman_group1 = {
     "diffie-hellman-group1-sha1", "group1",
-    P1, G, lenof(P1), lenof(G)
+    P1, G, lenof(P1), lenof(G), &ssh_sha1
 };
 
 const struct ssh_kex ssh_diffiehellman_group14 = {
     "diffie-hellman-group14-sha1", "group14",
-    P14, G, lenof(P14), lenof(G)
+    P14, G, lenof(P14), lenof(G), &ssh_sha1
 };
 
 const struct ssh_kex ssh_diffiehellman_gex = {
     "diffie-hellman-group-exchange-sha1", NULL,
-    NULL, NULL, 0, 0
+    NULL, NULL, 0, 0, &ssh_sha1
 };
 
 /*

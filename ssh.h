@@ -175,6 +175,13 @@ struct ssh_mac {
     char *text_name;
 };
 
+struct ssh_hash {
+    void *(*init)(void); /* also allocates context */
+    void (*bytes)(void *, void *, int);
+    void (*final)(void *, unsigned char *); /* also frees context */
+    int hlen; /* output length in bytes */
+};   
+
 struct ssh_kex {
     /*
      * Plugging in another KEX algorithm requires structural chaos,
@@ -186,6 +193,7 @@ struct ssh_kex {
     char *name, *groupname;
     const unsigned char *pdata, *gdata;/* NULL means use group exchange */
     int plen, glen;
+    const struct ssh_hash *hash;
 };
 
 struct ssh_signkey {
@@ -236,6 +244,7 @@ extern const struct ssh2_ciphers ssh2_des;
 extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh2_ciphers ssh2_blowfish;
 extern const struct ssh2_ciphers ssh2_arcfour;
+extern const struct ssh_hash ssh_sha1;
 extern const struct ssh_kex ssh_diffiehellman_group1;
 extern const struct ssh_kex ssh_diffiehellman_group14;
 extern const struct ssh_kex ssh_diffiehellman_gex;
