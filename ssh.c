@@ -5602,8 +5602,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	assert(sizeof(s->exchange_hash) <= sizeof(ssh->v2_session_id));
 	memcpy(ssh->v2_session_id, s->exchange_hash,
 	       sizeof(s->exchange_hash));
-	assert(ssh->v2_session_id_len <= sizeof(ssh->v2_session_id));
 	ssh->v2_session_id_len = ssh->kex->hash->hlen;
+	assert(ssh->v2_session_id_len <= sizeof(ssh->v2_session_id));
 	s->got_session_id = TRUE;
     }
 
