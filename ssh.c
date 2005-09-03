@@ -4996,7 +4996,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	void *hkey;		       /* actual host key */
 	unsigned char exchange_hash[20];
 	int n_preferred_kex;
-	const struct ssh_kex *preferred_kex[KEX_MAX];
+	const struct ssh_kexes *preferred_kex[KEX_MAX];
 	int n_preferred_ciphers;
 	const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
 	const struct ssh_compress *preferred_comp;
@@ -5119,12 +5119,14 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	ssh2_pkt_addstring_start(s->pktout);
 	commalist_started = 0;
 	for (i = 0; i < s->n_preferred_kex; i++) {
-	    const struct ssh_kex *k = s->preferred_kex[i];
+	    const struct ssh_kexes *k = s->preferred_kex[i];
 	    if (!k) continue;	       /* warning flag */
-	    if (commalist_started)
-		ssh2_pkt_addstring_str(s->pktout, ",");
-	    ssh2_pkt_addstring_str(s->pktout, s->preferred_kex[i]->name);
-	    commalist_started = 1;
+	    for (j = 0; j < k->nkexes; j++) {
+		if (commalist_started)
+		    ssh2_pkt_addstring_str(s->pktout, ",");
+		ssh2_pkt_addstring_str(s->pktout, k->list[j]->name);
+		commalist_started = 1;
+	    }
 	}
 	/* List server host key algorithms. */
 	ssh2_pkt_addstring_start(s->pktout);
@@ -5241,13 +5243,17 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
 	preferred = NULL;
 	for (i = 0; i < s->n_preferred_kex; i++) {
-	    const struct ssh_kex *k = s->preferred_kex[i];
+	    const struct ssh_kexes *k = s->preferred_kex[i];
 	    if (!k) {
 		s->warn_kex = TRUE;
 	    } else {
-		if (!preferred) preferred = k->name;
-		if (in_commasep_string(k->name, str, len))
-		    ssh->kex = k;
+		for (j = 0; j < k->nkexes; j++) {
+		    if (!preferred) preferred = k->list[j]->name;
+		    if (in_commasep_string(k->list[j]->name, str, len)) {
+			ssh->kex = k->list[j];
+			break;
+		    }
+		}
 	    }
 	    if (ssh->kex)
 		break;
@@ -5528,7 +5534,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     set_busy_status(ssh->frontend, BUSY_NOT);
 
     hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
-    if (ssh->kex == &ssh_diffiehellman_gex) {
+    if (!ssh->kex->pdata) {
 	hash_uint32(ssh->kex->hash, ssh->exhash, s->pbits);
 	hash_mpint(ssh->kex->hash, ssh->exhash, s->p);
 	hash_mpint(ssh->kex->hash, ssh->exhash, s->g);
@@ -5717,7 +5723,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      */
     freebn(s->f);
     freebn(s->K);
-    if (ssh->kex == &ssh_diffiehellman_gex) {
+    if (!ssh->kex->pdata) {
 	freebn(s->g);
 	freebn(s->p);
     }

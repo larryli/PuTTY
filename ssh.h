@@ -206,6 +206,11 @@ struct ssh_kex {
     const struct ssh_hash *hash;
 };
 
+struct ssh_kexes {
+    int nkexes;
+    const struct ssh_kex *const *list;
+};
+
 struct ssh_signkey {
     void *(*newkey) (char *data, int len);
     void (*freekey) (void *key);
@@ -256,9 +261,9 @@ extern const struct ssh2_ciphers ssh2_blowfish;
 extern const struct ssh2_ciphers ssh2_arcfour;
 extern const struct ssh_hash ssh_sha1;
 extern const struct ssh_hash ssh_sha256;
-extern const struct ssh_kex ssh_diffiehellman_group1;
-extern const struct ssh_kex ssh_diffiehellman_group14;
-extern const struct ssh_kex ssh_diffiehellman_gex;
+extern const struct ssh_kexes ssh_diffiehellman_group1;
+extern const struct ssh_kexes ssh_diffiehellman_group14;
+extern const struct ssh_kexes ssh_diffiehellman_gex;
 extern const struct ssh_signkey ssh_dss;
 extern const struct ssh_signkey ssh_rsa;
 extern const struct ssh_mac ssh_hmac_md5;
