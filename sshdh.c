@@ -74,12 +74,18 @@ const struct ssh_kexes ssh_diffiehellman_group14 = {
     group14_list
 };
 
+static const struct ssh_kex ssh_diffiehellman_gex_sha256 = {
+    "diffie-hellman-group-exchange-sha256", NULL,
+    NULL, NULL, 0, 0, &ssh_sha256
+};
+
 static const struct ssh_kex ssh_diffiehellman_gex_sha1 = {
     "diffie-hellman-group-exchange-sha1", NULL,
     NULL, NULL, 0, 0, &ssh_sha1
 };
 
 static const struct ssh_kex *const gex_list[] = {
+    &ssh_diffiehellman_gex_sha256,
     &ssh_diffiehellman_gex_sha1
 };
 

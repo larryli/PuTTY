@@ -705,7 +705,7 @@ struct ssh_tag {
     void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
     const struct ssh_signkey *hostkey;
-    unsigned char v2_session_id[20];
+    unsigned char v2_session_id[32];
     int v2_session_id_len;
     void *kex_ctx;
 
@@ -4994,7 +4994,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	char *hostkeydata, *sigdata, *keystr, *fingerprint;
 	int hostkeylen, siglen;
 	void *hkey;		       /* actual host key */
-	unsigned char exchange_hash[20];
+	unsigned char exchange_hash[32];
 	int n_preferred_kex;
 	const struct ssh_kexes *preferred_kex[KEX_MAX];
 	int n_preferred_ciphers;
