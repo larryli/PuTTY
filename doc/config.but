@@ -416,7 +416,7 @@ other problems.
 
 Note that this is \e{not} the feature of PuTTY which the server will
 typically use to determine your terminal type. That feature is the
-\q{Terminal-type string} in the Connection panel; see
+\q{\ii{Terminal-type} string} in the Connection panel; see
 \k{config-termtype} for details.
 
 You can include control characters in the answerback string using
@@ -502,7 +502,13 @@ state.
 \H{config-keyboard} The Keyboard panel
 
 The Keyboard configuration panel allows you to control the behaviour
-of the \i{keyboard} in PuTTY.
+of the \i{keyboard} in PuTTY.  The correct state for many of these
+settings depends on what the server to which PuTTY is connecting
+expects.  With a \i{Unix} server, this is likely to depend on the
+\i\c{termcap} or \i\c{terminfo} entry it uses, which in turn is likely to
+be controlled by the \q{\ii{Terminal-type} string} setting in the Connection
+panel; see \k{config-termtype} for details.  If none of the settings here
+seems to help, you may find \k{faq-keyboard} to be useful.
 
 \S{config-backspace} Changing the action of the \ii{Backspace key}
 
@@ -1681,7 +1687,11 @@ connected to from lots of different types of terminal. In order to
 send the right \i{control sequence}s to each one, the server will need
 to know what type of terminal it is dealing with. Therefore, each of
 the SSH, Telnet and Rlogin protocols allow a text string to be sent
-down the connection describing the terminal.
+down the connection describing the terminal.  On a \i{Unix} server,
+this selects an entry from the \i\c{termcap} or \i\c{terminfo} database
+that tells applications what \i{control sequences} to send to the
+terminal, and what character sequences to expect the \i{keyboard}
+to generate.
 
 PuTTY attempts to emulate the Unix \i\c{xterm} program, and by default
 it reflects this by sending \c{xterm} as a terminal-type string. If

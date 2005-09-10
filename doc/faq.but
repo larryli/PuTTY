@@ -779,8 +779,8 @@ your terminal runs the risk of sending the same control sequence by
 accident, and cause unexpected changes in the window title. Don't do
 it.
 
-\S{faq-password-fails}{Question} My keyboard stops working once
-PuTTY displays the password prompt.
+\S{faq-password-fails}{Question} My \i{keyboard} stops working once
+PuTTY displays the \i{password prompt}.
 
 No, it doesn't. PuTTY just doesn't display the password you type, so
 that someone looking at your screen can't see what it is.
@@ -790,8 +790,8 @@ as a row of asterisks either. This is so that someone looking at
 your screen can't even tell how \e{long} your password is, which
 might be valuable information.
 
-\S{faq-keyboard}{Question} One or more function keys don't do what I
-expected in a server-side application.
+\S{faq-keyboard}{Question} One or more \I{keyboard}\i{function keys}
+don't do what I expected in a server-side application.
 
 If you've already tried all the relevant options in the PuTTY
 Keyboard panel, you may need to mail the PuTTY maintainers and ask.
@@ -812,8 +812,8 @@ application is expecting.
 The simplest way to investigate this is to find some other terminal
 environment, in which that function key \e{does} work; and then
 investigate what sequence the function key is sending in that
-situation. One reasonably easy way to do this on a Unix system is to
-type the command \c{cat}, and then press the function key. This is
+situation. One reasonably easy way to do this on a \i{Unix} system is to
+type the command \i\c{cat}, and then press the function key. This is
 likely to produce output of the form \c{^[[11~}. You can also do
 this in PuTTY, to find out what sequence the function key is
 producing in that. Then you can mail the PuTTY maintainers and tell
