@@ -301,6 +301,22 @@ static int sha1_verify(void *handle, unsigned char *blk, int len,
     return !memcmp(correct, blk + len, 20);
 }
 
+static void sha1_96_generate(void *handle, unsigned char *blk, int len,
+			     unsigned long seq)
+{
+    unsigned char full[20];
+    sha1_do_hmac(handle, blk, len, seq, full);
+    memcpy(blk + len, full, 12);
+}
+
+static int sha1_96_verify(void *handle, unsigned char *blk, int len,
+		       unsigned long seq)
+{
+    unsigned char correct[20];
+    sha1_do_hmac(handle, blk, len, seq, correct);
+    return !memcmp(correct, blk + len, 12);
+}
+
 void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
 		      unsigned char *output) {
     SHA_State states[2];
@@ -322,10 +338,26 @@ const struct ssh_mac ssh_hmac_sha1 = {
     "HMAC-SHA1"
 };
 
+const struct ssh_mac ssh_hmac_sha1_96 = {
+    sha1_make_context, sha1_free_context, sha1_key,
+    sha1_96_generate, sha1_96_verify,
+    "hmac-sha1-96",
+    12,
+    "HMAC-SHA1-96"
+};
+
 const struct ssh_mac ssh_hmac_sha1_buggy = {
     sha1_make_context, sha1_free_context, sha1_key_buggy,
     sha1_generate, sha1_verify,
     "hmac-sha1",
     20,
     "bug-compatible HMAC-SHA1"
+};
+
+const struct ssh_mac ssh_hmac_sha1_96_buggy = {
+    sha1_make_context, sha1_free_context, sha1_key_buggy,
+    sha1_96_generate, sha1_96_verify,
+    "hmac-sha1-96",
+    12,
+    "bug-compatible HMAC-SHA1-96"
 };

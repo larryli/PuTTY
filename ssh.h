@@ -269,6 +269,8 @@ extern const struct ssh_signkey ssh_rsa;
 extern const struct ssh_mac ssh_hmac_md5;
 extern const struct ssh_mac ssh_hmac_sha1;
 extern const struct ssh_mac ssh_hmac_sha1_buggy;
+extern const struct ssh_mac ssh_hmac_sha1_96;
+extern const struct ssh_mac ssh_hmac_sha1_96_buggy;
 
 
 /*
