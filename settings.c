@@ -2,6 +2,7 @@
  * settings.c: read and write saved sessions. (platform-independent)
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "putty.h"
@@ -172,6 +173,7 @@ static void gprefs(void *sesskey, char *name, char *def,
 		   int *array)
 {
     char commalist[80];
+    char *tokarg = commalist;
     int n;
     unsigned long seen = 0;	       /* bitmap for weeding dups etc */
     gpps(sesskey, name, def, commalist, sizeof(commalist));
@@ -181,7 +183,8 @@ static void gprefs(void *sesskey, char *name, char *def,
     do {
 	int v;
 	char *key;
-	key = strtok(n==0 ? commalist : NULL, ","); /* sorry */
+	key = strtok(tokarg, ","); /* sorry */
+	tokarg = NULL;
 	if (!key) break;
 	if (((v = key2val(mapping, nvals, key)) != -1) &&
 	    !(seen & 1<<v)) {
@@ -194,6 +197,7 @@ static void gprefs(void *sesskey, char *name, char *def,
     {
 	int i;
 	for (i = 0; i < nvals; i++) {
+	    assert(mapping[i].v < 32);
 	    if (!(seen & 1<<mapping[i].v)) {
 		array[n] = mapping[i].v;
 		n++;
