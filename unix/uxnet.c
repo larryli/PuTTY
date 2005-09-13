@@ -691,7 +691,10 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
      * into local reality.
      */
     address_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
-		      address_family == ADDRTYPE_IPV6 ? AF_INET6 : AF_UNSPEC);
+#ifndef NO_IPV6
+		      address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+#endif
+		      AF_UNSPEC);
 
 #ifndef NO_IPV6
     /* Let's default to IPv6.
@@ -707,11 +710,13 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
      */
     s = socket(address_family, SOCK_STREAM, 0);
 
+#ifndef NO_IPV6
     /* If the host doesn't support IPv6 try fallback to IPv4. */
     if (s < 0 && address_family == AF_INET6) {
     	address_family = AF_INET;
     	s = socket(address_family, SOCK_STREAM, 0);
     }
+#endif
 
     if (s < 0) {
 	ret->error = strerror(errno);
