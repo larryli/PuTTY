@@ -7,7 +7,7 @@
 
 typedef struct {
     unsigned long hi, lo;
-} uint64, int64;
+} uint64;
 
 uint64 uint64_div10(uint64 x, int *remainder);
 void uint64_decimal(uint64 x, char *buffer);
