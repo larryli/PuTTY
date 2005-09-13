@@ -298,9 +298,10 @@ There are several answers to this question:
 \b The Unix/Gtk port is already fully working under Mac OS X as an X11
 application.
 
-\b A native (Cocoa) Mac OS X port is in progress. It's just about
+\b A native (Cocoa) Mac OS X port has been started. It's just about
 usable, but is of nowhere near release quality yet, and is likely to
-behave in unexpected ways.
+behave in unexpected ways. Currently it's unlikely to be completed
+unless someone steps in to help.
 
 \b A separate port to the classic Mac OS (pre-OSX) is also in
 progress; it too is not ready yet.
