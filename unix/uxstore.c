@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <ctype.h>
+#include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -17,6 +18,12 @@
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
+
+#ifdef PATH_MAX
+#define FNLEN PATH_MAX
+#else
+#define FNLEN 1024 /* XXX */
+#endif
 
 enum {
     INDEX_DIR, INDEX_HOSTKEYS, INDEX_HOSTKEYS_TMP, INDEX_RANDSEED,
@@ -87,12 +94,12 @@ static void make_filename(char *filename, int index, const char *subname)
     home = getenv("HOME");
     if (!home)
         home="/";
-    strncpy(filename, home, FILENAME_MAX);
+    strncpy(filename, home, FNLEN);
     len = strlen(filename);
     if (index == INDEX_SESSION) {
         char *munged = mungestr(subname);
         char *fn = dupprintf("/.putty/sessions/%s", munged);
-        strncpy(filename + len, fn, FILENAME_MAX - len);
+        strncpy(filename + len, fn, FNLEN - len);
         sfree(fn);
         sfree(munged);
     } else {
@@ -102,14 +109,14 @@ static void make_filename(char *filename, int index, const char *subname)
                 index == INDEX_HOSTKEYS ? "/.putty/sshhostkeys" :
                 index == INDEX_HOSTKEYS_TMP ? "/.putty/sshhostkeys.tmp" :
                 index == INDEX_RANDSEED ? "/.putty/randomseed" :
-                "/.putty/ERROR", FILENAME_MAX - len);
+                "/.putty/ERROR", FNLEN - len);
     }
-    filename[FILENAME_MAX-1] = '\0';
+    filename[FNLEN-1] = '\0';
 }
 
 void *open_settings_w(const char *sessionname, char **errmsg)
 {
-    char filename[FILENAME_MAX];
+    char filename[FNLEN];
     FILE *fp;
 
     *errmsg = NULL;
@@ -226,7 +233,7 @@ const char *get_setting(const char *key)
 
 void *open_settings_r(const char *sessionname)
 {
-    char filename[FILENAME_MAX];
+    char filename[FNLEN];
     FILE *fp;
     char *line;
     tree234 *ret;
@@ -341,7 +348,7 @@ void close_settings_r(void *handle)
 
 void del_settings(const char *sessionname)
 {
-    char filename[FILENAME_MAX];
+    char filename[FNLEN];
     make_filename(filename, INDEX_SESSION, sessionname);
     unlink(filename);
 }
@@ -349,7 +356,7 @@ void del_settings(const char *sessionname)
 void *enum_settings_start(void)
 {
     DIR *dp;
-    char filename[FILENAME_MAX];
+    char filename[FNLEN];
 
     make_filename(filename, INDEX_SESSIONDIR, NULL);
     dp = opendir(filename);
@@ -362,7 +369,7 @@ char *enum_settings_next(void *handle, char *buffer, int buflen)
     DIR *dp = (DIR *)handle;
     struct dirent *de;
     struct stat st;
-    char fullpath[FILENAME_MAX];
+    char fullpath[FNLEN];
     int len;
     char *unmunged;
 
@@ -370,10 +377,10 @@ char *enum_settings_next(void *handle, char *buffer, int buflen)
     len = strlen(fullpath);
 
     while ( (de = readdir(dp)) != NULL ) {
-        if (len < FILENAME_MAX) {
+        if (len < FNLEN) {
             fullpath[len] = '/';
-            strncpy(fullpath+len+1, de->d_name, FILENAME_MAX-(len+1));
-            fullpath[FILENAME_MAX-1] = '\0';
+            strncpy(fullpath+len+1, de->d_name, FNLEN-(len+1));
+            fullpath[FNLEN-1] = '\0';
         }
 
         if (stat(fullpath, &st) < 0 || !S_ISREG(st.st_mode))
@@ -408,7 +415,7 @@ int verify_host_key(const char *hostname, int port,
 		    const char *keytype, const char *key)
 {
     FILE *fp;
-    char filename[FILENAME_MAX];
+    char filename[FNLEN];
     char *line;
     int ret;
 
@@ -478,7 +485,7 @@ void store_host_key(const char *hostname, int port,
     FILE *rfp, *wfp;
     char *newtext, *line;
     int headerlen;
-    char filename[FILENAME_MAX], tmpfilename[FILENAME_MAX];
+    char filename[FNLEN], tmpfilename[FNLEN];
 
     newtext = dupprintf("%s@%d:%s %s\n", keytype, port, hostname, key);
     headerlen = 1 + strcspn(newtext, " ");   /* count the space too */
@@ -489,7 +496,7 @@ void store_host_key(const char *hostname, int port,
     make_filename(tmpfilename, INDEX_HOSTKEYS_TMP, NULL);
     wfp = fopen(tmpfilename, "w");
     if (!wfp) {
-        char dir[FILENAME_MAX];
+        char dir[FNLEN];
 
         make_filename(dir, INDEX_DIR, NULL);
         mkdir(dir, 0700);
@@ -527,7 +534,7 @@ void store_host_key(const char *hostname, int port,
 void read_random_seed(noise_consumer_t consumer)
 {
     int fd;
-    char fname[FILENAME_MAX];
+    char fname[FNLEN];
 
     make_filename(fname, INDEX_RANDSEED, NULL);
     fd = open(fname, O_RDONLY);
@@ -543,7 +550,7 @@ void read_random_seed(noise_consumer_t consumer)
 void write_random_seed(void *data, int len)
 {
     int fd;
-    char fname[FILENAME_MAX];
+    char fname[FNLEN];
 
     make_filename(fname, INDEX_RANDSEED, NULL);
     /*
@@ -553,7 +560,7 @@ void write_random_seed(void *data, int len)
      */
     fd = open(fname, O_CREAT | O_WRONLY, 0600);
     if (fd < 0) {
-	char dir[FILENAME_MAX];
+	char dir[FNLEN];
 
 	make_filename(dir, INDEX_DIR, NULL);
 	mkdir(dir, 0700);
