@@ -13,6 +13,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <glob.h>
+#ifndef HAVE_NO_SYS_SELECT_H
+#include <sys/select.h>
+#endif
 
 #include "putty.h"
 #include "psftp.h"

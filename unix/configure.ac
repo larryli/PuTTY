@@ -14,7 +14,7 @@ if test "X$GCC" = Xyes; then
     CFLAGS="$CFLAGS -Wall -Werror"
 fi
 
-AC_CHECK_HEADERS([utmpx.h],,,[
+AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 
@@ -44,5 +44,8 @@ AH_BOTTOM([
 #endif
 #ifndef HAVE_PTSNAME
 # define BSD_PTYS
+#endif
+#ifndef HAVE_SYS_SELECT_H
+# define HAVE_NO_SYS_SELECT_H
 #endif
 ])

@@ -13,7 +13,10 @@
 #include <termios.h>
 #include <pwd.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#ifndef HAVE_NO_SYS_SELECT_H
 #include <sys/select.h>
+#endif
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
