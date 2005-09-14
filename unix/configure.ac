@@ -23,7 +23,7 @@ AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
 
-AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal])
+AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 
 AC_OUTPUT
 
@@ -39,7 +39,7 @@ AH_BOTTOM([
 #ifndef HAVE_STRSIGNAL
 # define HAVE_NO_STRSIGNAL
 #endif
-#ifndef HAVE_UTMPX_H
+#if !defined(HAVE_UTMPX_H) || !defined(HAVE_UPDWTMPX)
 # define OMIT_UTMP
 #endif
 #ifndef HAVE_PTSNAME
