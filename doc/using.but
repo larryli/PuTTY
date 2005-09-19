@@ -241,6 +241,10 @@ are not shown in the cut-down Change Settings box. These are usually
 options which don't make sense to change in the middle of a session
 (for example, you can't switch from SSH to Telnet in mid-session).
 
+You can save the current settings to a saved session for future use
+from this dialog box. See \k{config-saving} for more on saved
+sessions.
+
 \S2{using-copyall} \i{Copy All to Clipboard}
 
 This system menu option provides a convenient way to copy the whole
