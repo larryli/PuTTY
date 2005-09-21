@@ -549,7 +549,35 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
     if (uc->optmenu) {
 	gtk_option_menu_set_history(GTK_OPTION_MENU(uc->optmenu), index);
     } else {
+        int nitems;
+        GList *items;
+        gdouble newtop, newbot;
+
 	gtk_list_select_item(GTK_LIST(uc->list), index);
+
+        /*
+         * Scroll the list box if necessary to ensure the newly
+         * selected item is visible.
+         */
+        items = gtk_container_children(GTK_CONTAINER(uc->list));
+        nitems = g_list_length(items);
+        if (nitems > 0) {
+            int modified = FALSE;
+            g_list_free(items);
+            newtop = uc->adj->lower +
+                (uc->adj->upper - uc->adj->lower) * index / nitems;
+            newbot = uc->adj->lower +
+                (uc->adj->upper - uc->adj->lower) * (index+1) / nitems;
+            if (uc->adj->value > newtop) {
+                modified = TRUE;
+                uc->adj->value = newtop;
+            } else if (uc->adj->value < newbot - uc->adj->page_size) {
+                modified = TRUE;
+                uc->adj->value = newbot - uc->adj->page_size;
+            }
+            if (modified)
+                gtk_adjustment_value_changed(uc->adj);
+        }
     }
 }
 
