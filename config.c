@@ -350,9 +350,25 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    dlg_update_done(ctrl, dlg);
 	}
     } else if (event == EVENT_VALCHANGE) {
+        int top, bottom, halfway, i;
 	if (ctrl == ssd->editbox) {
 	    dlg_editbox_get(ctrl, dlg, savedsession,
 			    SAVEDSESSION_LEN);
+	    top = ssd->sesslist.nsessions;
+	    bottom = -1;
+	    while (top-bottom > 1) {
+	        halfway = (top+bottom)/2;
+	        i = strcmp(savedsession, ssd->sesslist.sessions[halfway]);
+	        if (i <= 0 ) {
+		    top = halfway;
+	        } else {
+		    bottom = halfway;
+	        }
+	    }
+	    if (top == ssd->sesslist.nsessions) {
+	        top -= 1;
+	    }
+	    dlg_listbox_select(ssd->listbox, dlg, top);
 	}
     } else if (event == EVENT_ACTION) {
 	if (!ssd->midsession &&
