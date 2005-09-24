@@ -395,12 +395,33 @@ On Unix, PuTTY stores all of this data in a directory \cw{~/.putty}.
 
 \H{faq-howto} HOWTO questions
 
+\S{faq-login}{Question} What login name / password should I use?
+
+This is not a question you should be asking \e{us}.
+
+PuTTY is a communications tool, for making connections to other
+computers. We maintain the tool; we \e{don't} administer any computers
+that you're likely to be able to use, in the same way that the people
+who make web browsers aren't responsible for most of the content you can
+view in them. \#{FIXME: less technical analogy?} We cannot help with
+questions of this sort.
+
+If you know the name of the computer you want to connect to, but don't
+know what login name or password to use, you should talk to whoever
+administers that computer. If you don't know who that is, see the next
+question for some possible ways to find out.
+
+\# FIXME: some people ask us to provide them with a login name
+apparently as random members of the public rather than in the
+belief that we run a server belonging to an organisation they already
+have some relationship with. Not sure what to say to such people.
+
 \S{faq-commands}{Question} \I{commands on the server}What commands
 can I type into my PuTTY terminal window?
 
-This is not a question you should be asking \e{us}. You need to read
-the manuals, or ask the administrator, of \e{the computer you have
-connected to}.
+Again, this is not a question you should be asking \e{us}. You need
+to read the manuals, or ask the administrator, of \e{the computer
+you have connected to}.
 
 PuTTY does not process the commands you type into it. It's only a
 communications tool. It makes a connection to another computer; it
