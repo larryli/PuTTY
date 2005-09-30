@@ -1589,7 +1589,11 @@ connectivity is restored, the other side will find that the first
 side doesn't believe there is an open connection any more.
 Keepalives can make this sort of problem worse, because they
 increase the probability that PuTTY will attempt to send data during
-a break in connectivity. Therefore, you might find they help
+a break in connectivity. (Other types of periodic network activity
+can cause this activity; in particular, SSH-2 re-keys can have
+this effect. See \k{config-ssh-kex-rekey}.)
+
+Therefore, you might find that keepalives help
 connection loss, or you might find they make it worse, depending on
 what \e{kind} of network problems you have between you and the
 server.
