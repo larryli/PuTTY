@@ -1223,6 +1223,172 @@ particular environment. If your users mail us directly, we won't be
 able to give them very much help about things specific to your own
 setup.
 
+\S{faq-indemnity}{Question} Can you sign an agreement indemnifying
+us against security problems in PuTTY?
+
+No!
+
+A vendor of physical security products (e.g. locks) might plausibly
+be willing to accept financial liability for a product that failed
+to perform as advertised and resulted in damage (e.g. valuables
+being stolen). The reason they can afford to do this is because they
+sell a \e{lot} of units, and only a small proportion of them will
+fail; so they can meet their financial liability out of the income
+from all the rest of their sales, and still have enough left over to
+make a profit. Financial liability is intrinsically linked to
+selling your product for money.
+
+There are two reasons why PuTTY is not analogous to a physical lock
+in this context. One is that software products don't exhibit random
+variation: \e{if} PuTTY has a security hole (which does happen,
+although we do our utmost to prevent it and to respond quickly when
+it does), every copy of PuTTY will have the same hole, so it's
+likely to affect all the users at the same time. So even if our
+users were all paying us to use PuTTY, we wouldn't be able to
+\e{simultaneously} pay every affected user compensation in excess of
+the amount they had paid us in the first place. It just wouldn't
+work.
+
+The second, much more important, reason is that PuTTY users
+\e{don't} pay us. The PuTTY team does not have an income; it's a
+volunteer effort composed of people spending their spare time to try
+to write useful software. We aren't even a company or any kind of
+legally recognised organisation. We're just a bunch of people who
+happen to do some stuff in our spare time.
+
+Therefore, to ask us to assume financial liability is to ask us to
+assume a risk of having to pay it out of our own \e{personal}
+pockets: out of the same budget from which we buy food and clothes
+and pay our rent. That's more than we're willing to give. We're
+already giving a lot of our spare \e{time} to developing software
+for free; if we had to pay our own \e{money} to do it as well, we'd
+start to wonder why we were bothering.
+
+Free software fundamentally does not work on the basis of financial
+guarantees. Your guarantee of the software functioning correctly is
+simply that you have the source code and can check it before you use
+it. If you want to be sure there aren't any security holes, do a
+security audit of the PuTTY code, or hire a security engineer if you
+don't have the necessary skills yourself: instead of trying to
+ensure you can get compensation in the event of a disaster, try to
+ensure there isn't a disaster in the first place.
+
+If you \e{really} want financial security, see if you can find a
+security engineer who will take financial responsibility for the
+correctness of their review. (This might be less likely to suffer
+from the everything-failing-at-once problem mentioned above, because
+such an engineer would probably be reviewing a lot of \e{different}
+products which would tend to fail independently.) Failing that, see
+if you can persuade an insurance company to insure you against
+security incidents, and if the insurer demands it as a condition
+then get our code reviewed by a security engineer they're happy
+with.
+
+\S{faq-permission-form}{Question} Can you sign this form granting us
+permission to use/distribute PuTTY?
+
+If your form contains any clause along the lines of \q{the
+undersigned represents and warrants}, we're not going to sign it.
+This is particularly true if it asks us to warrant that PuTTY is
+secure; see \k{faq-indemnity} for more discussion of this. But it
+doesn't really matter what we're supposed to be warranting: even if
+it's something we already believe is true, such as that we don't
+infringe any third-party copyright, we will not sign a document
+accepting any legal or financial liability. This is simply because
+the PuTTY development project has no income out of which to satisfy
+that liability, or pay legal costs, should it become necessary. We
+cannot afford to be sued. We are assuring you that \e{we have done
+our best}; if that isn't good enough for you, tough.
+
+The existing PuTTY licence document already gives you permission to
+use or distribute PuTTY in pretty much any way which does not
+involve pretending you wrote it or suing us if it goes wrong. We
+think that really ought to be enough for anybody.
+
+See also \k{faq-permission-general} for another reason why we don't
+want to do this sort of thing.
+
+\S{faq-permission-future}{Question} Can you write us a formal notice
+of permission to use PuTTY?
+
+We could, in principle, but it isn't clear what use it would be. If
+you think there's a serious chance of one of the PuTTY copyright
+holders suing you (which we don't!), you would presumably want a
+signed notice from \e{all} of them; and we couldn't provide that
+even if we wanted to, because many of the copyright holders are
+people who contributed some code in the past and with whom we
+subsequently lost contact. Therefore the best we would be able to do
+\e{even in theory} would be to have the core development team sign
+the document, which wouldn't guarantee you that some other copyright
+holder might not sue.
+
+See also \k{faq-permission-general} for another reason why we don't
+want to do this sort of thing.
+
+\S{faq-permission-general}{Question} Can you sign \e{anything} for
+us?
+
+Not unless there's an incredibly good reason.
+
+We are generally unwilling to set a precedent that involves us
+having to enter into individual agreements with PuTTY users. We
+estimate that we have literally \e{millions} of users, and we
+absolutely would not have time to go round signing specific
+agreements with every one of them. So if you want us to sign
+something specific for you, you might usefully stop to consider
+whether there's anything special that distinguishes you from 999,999
+other users, and therefore any reason we should be willing to sign
+something for you without it setting such a precedent.
+
+If your company policy requires you to have an individual agreement
+with the supplier of any software you use, then your company policy
+is simply not well suited to using popular free software, and we
+urge you to consider this as a flaw in your policy.
+
+\S{faq-permission-assurance}{Question} If you won't sign anything,
+can you give us some sort of assurance that you won't make PuTTY
+closed-source in future?
+
+Yes and no.
+
+If what you want is an assurance that some \e{current version} of
+PuTTY which you've already downloaded will remain free, then you
+already have that assurance: it's called the PuTTY Licence. It
+grants you permission to use, distribute and copy the software to
+which it applies; once we've granted that permission (which we
+have), we can't just revoke it.
+
+On the other hand, if you want an assurance that \e{future} versions
+of PuTTY won't be closed-source, that's more difficult. We could in
+principle sign a document stating that we would never release a
+closed-source PuTTY, but that wouldn't assure you that we \e{would}
+keep releasing \e{open}-source PuTTYs: we would still have the
+option of ceasing to develop PuTTY at all, which would surely be
+even worse for you than making it closed-source! (And we almost
+certainly wouldn't \e{want} to sign a document guaranteeing that we
+would actually continue to do development work on PuTTY; we
+certainly wouldn't sign it for free. Documents like that are called
+contracts of employment, and are generally not signed except in
+return for a sizeable salary.)
+
+If we \e{were} to stop developing PuTTY, or to decide to make all
+future releases closed-source, then you would still be free to copy
+the last open release in accordance with the current licence, and in
+particular you could start your own fork of the project from that
+release. If this happened, I confidently predict that \e{somebody}
+would do that, and that some kind of a free PuTTY would continue to
+be developed. There's already precedent for that sort of thing
+happening in free software. We can't guarantee that somebody
+\e{other than you} would do it, of course; you might have to do it
+yourself. But we can assure you that there would be nothing
+\e{preventing} anyone from continuing free development if we
+stopped.
+
+(Finally, we can also confidently predict that if we made PuTTY
+closed-source and someone made an open-source fork, most people
+would switch to the latter. Therefore, it would be pretty stupid of
+us to try it.)
+
 \H{faq-misc} Miscellaneous questions
 
 \S{faq-openssh}{Question} Is PuTTY a port of \i{OpenSSH}, or based on
