@@ -2446,7 +2446,7 @@ static void term_out(Terminal *term)
     unget = -1;
 
     chars = NULL;		       /* placate compiler warnings */
-    while (nchars > 0 || bufchain_size(&term->inbuf) > 0) {
+    while (nchars > 0 || unget != -1 || bufchain_size(&term->inbuf) > 0) {
 	if (unget == -1) {
 	    if (nchars == 0) {
 		void *ret;
