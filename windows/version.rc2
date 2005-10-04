@@ -1,0 +1,121 @@
+/*
+ * Standard Windows version information.
+ * (For inclusion in other .rc files with appropriate macro definitions.)
+ * FIXME: This file is called '.rc2' rather than '.rc' to avoid MSVC trying
+ * to compile it on its own when using the project files. Nicer solutions
+ * welcome.
+ */
+
+/*
+ * Binary versions in Windows are major.minor.build.revision. Each
+ * component is 16-bit.
+ * Here we have:
+ *   major.minor
+ *     PuTTY version number (e.g. 0.58). (We've made a policy decision
+ *     that these will be numeric from now on.)
+ *     Present in releases and snapshots (for the sake of monotonicity
+ *     in version numbers).
+ *   build
+ *     In releases, always 0.
+ *     In snapshots, nearest Subversion revision. (It shouldn't be
+ *     assumed that only one binary will have a given build number, of
+ *     course.)
+ *   revision
+ *     Reserved; always 0.
+ *
+ * Examples of these version numbers:
+ *   Release:  0.58.0.0	    (but 0.58 didn't have a VERSIONINFO resource)
+ *   Snapshot: 0.58.6356.0  (between 0.58 and the next release)
+ *   Local:    0.0.0.0
+ */
+
+/*
+ * Mechanics of version naming/numbering.
+ * (This is a ripoff of ../version.c.)
+ */
+
+#define STR1(x) #x
+#define STR(x) STR1(x)
+
+/* We keep this around even for snapshots, for monotonicity of version
+ * numbering. It needs to be kept up to date. NB _comma_-separated. */
+#define BASE_VERSION 0,58
+
+#if defined SNAPSHOT
+
+/* Make SVN_REV mandatory for snapshots, to avoid issuing binary
+ * version numbers that look like full releases. */
+#if (!defined SVN_REV) || (SVN_REV == 0)
+#error SVN_REV not defined/nonzero for snapshot build
+#endif
+
+#define VERSION_TEXT "Development snapshot " STR(SNAPSHOT) ":r" STR(SVN_REV)
+#define BINARY_VERSION BASE_VERSION,SVN_REV,0
+
+#elif defined RELEASE
+
+#define VERSION_TEXT "Release " STR(RELEASE)
+#define BINARY_VERSION BASE_VERSION,0,0
+
+#else
+
+/* We can't reliably get the same date and time as version.c, so
+ * we won't bother trying. */
+#define VERSION_TEXT "Unidentified build"
+#define BINARY_VERSION 0,0,0,0
+
+#endif
+
+/*
+ * The actual VERSIONINFO resource.
+ */
+VS_VERSION_INFO VERSIONINFO
+/* (None of this "fixed" info appears to be trivially user-visible on
+ * Win98SE. The binary version does show up on Win2K.) */
+FILEVERSION	BINARY_VERSION
+PRODUCTVERSION	BINARY_VERSION	/* version of whole suite */
+FILEFLAGSMASK	VS_FF_DEBUG | VS_FF_PRERELEASE | VS_FF_PRIVATEBUILD
+FILEFLAGS	0x0L
+#if defined DEBUG
+		| VS_FF_DEBUG
+#endif
+#if defined SNAPSHOT
+		| VS_FF_PRERELEASE
+#elif !defined RELEASE
+		| VS_FF_PRIVATEBUILD
+#endif
+FILEOS		VOS__WINDOWS32
+FILETYPE	VFT_APP
+FILESUBTYPE	0x0L /* n/a for VFT_APP */
+BEGIN
+    /* (On Win98SE and Win2K, we can see most of this on the Version tab
+     * in the file properties in Explorer.) */
+    BLOCK "StringFileInfo"
+    BEGIN
+	/* "lang-charset" LLLLCCCC = (UK English, Unicode) */
+	BLOCK "080904B0"
+	BEGIN
+	    VALUE "CompanyName",	"Simon Tatham"  /* required :/ */
+	    VALUE "ProductName",	"PuTTY suite"
+	    VALUE "FileDescription",	APPDESC
+	    VALUE "InternalName",	APPNAME
+	    VALUE "OriginalFilename",	APPNAME
+	    VALUE "FileVersion",	VERSION_TEXT
+	    VALUE "ProductVersion",	VERSION_TEXT
+	    VALUE "LegalCopyright",	"Copyright \251 1997-2005 Simon Tatham."
+#if (!defined SNAPSHOT) && (!defined RELEASE)
+	    /* Only if VS_FF_PRIVATEBUILD. */
+	    VALUE "PrivateBuild",	VERSION_TEXT /* NBI */
+#endif
+	END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+	/* Once again -- same meanings -- apparently necessary */
+	VALUE "Translation", 0x809, 1200
+    END
+END
+
+#undef VERSION_TEXT
+#undef BASE_VERSION
+#undef BINARY_VERSION

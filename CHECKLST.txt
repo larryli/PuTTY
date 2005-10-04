@@ -21,9 +21,11 @@ The resource files:
  - putty/windows/puttygen.rc
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
- - putty/windows/win_res.rc
+ - putty/windows/win_res.rc2
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
+ - putty/windows/version.rc2
+    + the copyright date appears once only.
  - putty/mac/mac_res.r
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
@@ -70,8 +72,13 @@ and again in a subsequent comment):
 
  - putty/windows/putty.iss
 
+The Windows resource file (used to generate the binary bit of the
+VERSIONINFO resources -- the strings are supplied by the usual means):
+
+ - putty/windows/version.rc2 (BASE_VERSION; NB, _comma_-separated)
+
 The Mac resource file (used to generate the binary bit of the 'vers'
-resources -- the strings are supplied by the usual means):
+resources):
 
  - putty/mac/version.r
 
@@ -114,7 +121,8 @@ of the tag.
 
  - Build the Windows/x86 release binaries. Don't forget to supply
    VER=/DRELEASE=<ver>. Run them, or at least one or two of them, to
-   ensure that they really do report their version number correctly.
+   ensure that they really do report their version number correctly,
+   and sanity-check the version info reported on the files by Windows.
     + Save the release link maps. Currently I keep these on ixion,
       in src/putty/local/maps-<version>.
 

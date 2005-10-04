@@ -4,6 +4,9 @@
 
 #include "rcstuff.h"
 
+#define APPNAME "Pageant"
+#define APPDESC "PuTTY SSH authentication agent"
+
 200 ICON "pageant.ico"
 201 ICON "pageants.ico"
 
@@ -84,6 +87,8 @@ BEGIN
     LTEXT "OTHER DEALINGS IN THE SOFTWARE.", 1023, 10, 226, 206, 8
 
 END
+
+#include "version.rc2"
 
 #ifndef NO_MANIFESTS
 1 RT_MANIFEST "pageant.mft"

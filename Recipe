@@ -36,9 +36,9 @@
 #
 # Extra options you can set:
 #
-#  - VER=/DSNAPSHOT=1999-01-25
+#  - VER="/DSNAPSHOT=1999-01-25 /DSVN_REV=1234"
 #      Generates executables whose About box report them as being a
-#      development snapshot.
+#      development snapshot. SVN_REV is a Subversion revision number.
 #
 #  - VER=/DRELEASE=0.43
 #      Generates executables whose About box report them as being a
@@ -127,27 +127,23 @@ version.obj: *.c *.h *.rc
 !specialobj vc version
 !begin cygwin
 version.o: FORCE
-FORCE:
 	$(CC) $(COMPAT) $(XFLAGS) $(CFLAGS) $(VER) -c ../version.c
 !end
 !specialobj cygwin version
 !begin borland
 version.obj: FORCE
-FORCE:
 	bcc32 $(VER) $(CFLAGS) /c ..\version.c
 !end
 !specialobj borland version
 !begin lcc
 version.obj: FORCE
-FORCE:
 	lcc $(VER) $(CFLAGS) /c ..\version.c
 !end
 !specialobj lcc version
 # For Unix, we also need the gross MD5 hack that causes automatic
 # version number selection in release source archives.
 !begin gtk
-version.o: FORCE;
-FORCE:
+version.o: FORCE
 	if test -z "$(VER)" && (cd ..; md5sum -c manifest); then \
 		$(CC) $(COMPAT) $(XFLAGS) $(CFLAGS) `cat ../version.def` -c ../version.c; \
 	else \
@@ -155,6 +151,30 @@ FORCE:
 	fi
 !end
 !specialobj gtk version
+
+# Add VER to Windows resource targets, and force them to be rebuilt every
+# time, on the assumption that they will contain version information.
+!begin vc vars
+RCFLAGS = $(RCFLAGS) $(VER)
+!end
+!begin cygwin vars
+# XXX GNU-ism, but it's probably all right for a Cygwin/MinGW Makfile.
+RCFLAGS += $(patsubst -D%,--define %,$(VER))
+!end
+!begin borland vars
+# Borland doesn't support +=. This probably shouldn't work, but seems to.
+RCFLAGS = $(RCFLAGS) $(VER)
+!end
+!begin lcc vars
+RCFLAGS += $(VER)
+!end
+!forceobj putty.res
+!forceobj puttytel.res
+!forceobj plink.res
+!forceobj pscp.res
+!forceobj psftp.res
+!forceobj pageant.res
+!forceobj puttygen.res
 
 # `make install' target for Unix.
 !begin gtk
@@ -249,14 +269,14 @@ BE_NONE  = be_none nocproxy
 # keywords [G] for Windows GUI app, [C] for Console app, [X] for
 # X/GTK Unix app, [U] for command-line Unix app, [M] for Macintosh app.
 
-putty    : [G] GUITERM NONSSH WINSSH BE_ALL WINMISC win_res.res LIBS
-puttytel : [G] GUITERM NONSSH BE_NOSSH WINMISC win_res.res LIBS
+putty    : [G] GUITERM NONSSH WINSSH BE_ALL WINMISC putty.res LIBS
+puttytel : [G] GUITERM NONSSH BE_NOSSH WINMISC puttytel.res LIBS
 plink    : [C] winplink wincons NONSSH WINSSH BE_ALL logging WINMISC
          + plink.res LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + pscp.res LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res LIBS
+         + psftp.res LIBS
 
 pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
          + misc sshaes sshsha winpgntc sshdss sshsh512 winutils winmisc

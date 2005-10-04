@@ -1,8 +1,14 @@
 /*
- * Windows resources for PuTTY and PuTTYtel.
+ * Windows resources shared between PuTTY and PuTTYtel, to be #include'd
+ * after defining appropriate macros.
+ * Note that many of these strings mention PuTTY. Due to restrictions in
+ * VC's handling of string concatenation, this can't easily be fixed.
+ * It's fixed up at runtime.
+ * FIXME: This file is called '.rc2' rather than '.rc' to avoid MSVC trying
+ * to compile it on its own when using the project files. Nicer solutions
+ * welcome.
  */
 
-#include "rcstuff.h"
 #include "win_res.h"
 
 IDI_MAINICON ICON "putty.ico"
@@ -83,6 +89,4 @@ BEGIN
 
 END
 
-#ifndef NO_MANIFESTS
-1 RT_MANIFEST "putty.mft"
-#endif /* NO_MANIFESTS */
+#include "version.rc2"

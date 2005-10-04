@@ -4,6 +4,9 @@
 
 #include "rcstuff.h"
 
+#define APPNAME "PuTTYgen"
+#define APPDESC "PuTTY SSH key generation utility"
+
 200 ICON "puttygen.ico"
 
 201 DIALOG DISCARDABLE 0, 0, 318, 270
@@ -77,6 +80,8 @@ BEGIN
     LTEXT "OTHER DEALINGS IN THE SOFTWARE.", 1023, 10, 226, 206, 8
 
 END
+
+#include "version.rc2"
 
 #ifndef NO_MANIFESTS
 1 RT_MANIFEST "puttygen.mft"
