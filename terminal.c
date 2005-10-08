@@ -3899,6 +3899,7 @@ static void term_out(Terminal *term)
 			    term->curr_attr |= colour;
 			    term->default_attr &= ~ATTR_FGMASK;
 			    term->default_attr |= colour;
+			    set_erase_char(term);
 			}
 			break;
 		      case ANSI('G', '='):      /* set normal background */
@@ -3912,6 +3913,7 @@ static void term_out(Terminal *term)
 			    term->curr_attr |= colour;
 			    term->default_attr &= ~ATTR_BGMASK;
 			    term->default_attr |= colour;
+			    set_erase_char(term);
 			}
 			break;
 		      case ANSI('L', '='):
