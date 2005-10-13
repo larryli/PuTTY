@@ -134,7 +134,7 @@ static const char *const ssh2_disconnect_reasons[] = {
     "protocol error",
     "key exchange failed",
     "host authentication failed",
-    "mac error",
+    "MAC error",
     "compression error",
     "service not available",
     "protocol version not supported",
