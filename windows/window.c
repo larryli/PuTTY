@@ -1135,12 +1135,12 @@ static void cfgtopalette(void)
     for (i = 0; i < NEXTCOLOURS; i++) {
 	if (i < 216) {
 	    int r = i / 36, g = (i / 6) % 6, b = i % 6;
-	    defpal[i+16].rgbtRed = r * 0x33;
-	    defpal[i+16].rgbtGreen = g * 0x33;
-	    defpal[i+16].rgbtBlue = b * 0x33;
+	    defpal[i+16].rgbtRed = r ? r * 40 + 55 : 0;
+	    defpal[i+16].rgbtGreen = g ? g * 40 + 55 : 0;
+	    defpal[i+16].rgbtBlue = b ? b * 40 + 55 : 0;
 	} else {
 	    int shade = i - 216;
-	    shade = (shade + 1) * 0xFF / (NEXTCOLOURS - 216 + 1);
+	    shade = shade * 10 + 8;
 	    defpal[i+16].rgbtRed = defpal[i+16].rgbtGreen =
 		defpal[i+16].rgbtBlue = shade;
 	}

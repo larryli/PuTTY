@@ -986,10 +986,11 @@ void palette_reset(void *frontend)
     for (i = 0; i < NEXTCOLOURS; i++) {
 	if (i < 216) {
 	    int r = i / 36, g = (i / 6) % 6, b = i % 6;
-	    [win setColour:i+16 r:r/5.0 g:g/5.0 b:b/5.0];
+	    r = r ? r*40+55 : 0; g = g ? b*40+55 : 0; b = b ? b*40+55 : 0;
+	    [win setColour:i+16 r:r/255.0 g:g/255.0 b:b/255.0];
 	} else {
 	    int shade = i - 216;
-	    float fshade = (shade + 1) / (float)(NEXTCOLOURS - 216 + 1);
+	    float fshade = (shade * 10 + 8) / 255.0;
 	    [win setColour:i+16 r:fshade g:fshade b:fshade];
 	}
     }

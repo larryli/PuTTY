@@ -1407,12 +1407,12 @@ void palette_reset(void *frontend)
     for (i = 0; i < NEXTCOLOURS; i++) {
 	if (i < 216) {
 	    int r = i / 36, g = (i / 6) % 6, b = i % 6;
-	    inst->cols[i+16].red = r * 0x3333;
-	    inst->cols[i+16].green = g * 0x3333;
-	    inst->cols[i+16].blue = b * 0x3333;
+	    inst->cols[i+16].red = r ? r * 0x2828 + 0x3737 : 0;
+	    inst->cols[i+16].green = g ? g * 0x2828 + 0x3737 : 0;
+	    inst->cols[i+16].blue = b ? b + 0x2828 + 0x3737 : 0;
 	} else {
 	    int shade = i - 216;
-	    shade = (shade + 1) * 0xFFFF / (NEXTCOLOURS - 216 + 1);
+	    shade = shade * 0x0a0a + 0x0808;
 	    inst->cols[i+16].red = inst->cols[i+16].green =
 		inst->cols[i+16].blue = shade;
 	}
