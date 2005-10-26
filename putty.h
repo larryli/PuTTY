@@ -353,6 +353,8 @@ struct backend_tag {
     const struct telnet_special *(*get_specials) (void *handle);
     Socket(*socket) (void *handle);
     int (*exitcode) (void *handle);
+    /* If back->sendok() returns FALSE, data sent to it from the frontend
+     * may be lost. */
     int (*sendok) (void *handle);
     int (*ldisc) (void *handle, int);
     void (*provide_ldisc) (void *handle, void *ldisc);
