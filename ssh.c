@@ -1587,7 +1587,7 @@ static void ssh_pkt_ensure(struct Packet *pkt, int length)
 {
     if (pkt->maxlen < length) {
 	unsigned char *body = pkt->body;
-	int offset = body ? pkt->data - body : 0;
+	int offset = body ? body - pkt->data : 0;
 	pkt->maxlen = length + 256;
 	pkt->data = sresize(pkt->data, pkt->maxlen + APIEXTRA, unsigned char);
 	if (body) pkt->body = pkt->data + offset;
@@ -1697,10 +1697,10 @@ static struct Packet *ssh1_pkt_init(int pkt_type)
 static struct Packet *ssh2_pkt_init(int pkt_type)
 {
     struct Packet *pkt = ssh_new_packet();
-    pkt->length = 5;
+    pkt->length = 5; /* space for packet length + padding length */
     pkt->forcepad = 0;
     ssh_pkt_addbyte(pkt, (unsigned char) pkt_type);
-    pkt->body = pkt->data + pkt->length;
+    pkt->body = pkt->data + pkt->length; /* after packet type */
     return pkt;
 }
 
