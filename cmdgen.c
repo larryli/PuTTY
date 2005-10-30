@@ -690,7 +690,8 @@ int main(int argc, char **argv)
 		char *blob;
 		int n, l, bloblen;
 
-		ret = rsakey_pubblob(&infilename, &vblob, &bloblen, &error);
+		ret = rsakey_pubblob(&infilename, &vblob, &bloblen, NULL,
+				     &error);
 		blob = (char *)vblob;
 
 		n = 4;		       /* skip modulus bits */

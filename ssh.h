@@ -383,7 +383,7 @@ int loadrsakey(const Filename *filename, struct RSAKey *key,
 	       char *passphrase, const char **errorstr);
 int rsakey_encrypted(const Filename *filename, char **comment);
 int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
-		   const char **errorstr);
+		   char **commentptr, const char **errorstr);
 
 int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase);
 

@@ -415,7 +415,7 @@ static void add_keyfile(Filename filename)
 	int i, nkeys, bloblen, keylistlen;
 
 	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(&filename, &blob, &bloblen, &error)) {
+	    if (!rsakey_pubblob(&filename, &blob, &bloblen, NULL, &error)) {
 		char *msg = dupprintf("Couldn't load private key (%s)", error);
 		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
 			    HELPCTXID(errors_cantloadkey));

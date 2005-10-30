@@ -225,7 +225,7 @@ int rsakey_encrypted(const Filename *filename, char **comment)
  * exponent, modulus).
  */
 int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
-		   const char **errorstr)
+		   char **commentptr, const char **errorstr)
 {
     FILE *fp;
     char buf[64];
@@ -250,7 +250,7 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
      */
     if (fgets(buf, sizeof(buf), fp) && !strcmp(buf, rsa_signature)) {
 	memset(&key, 0, sizeof(key));
-	if (loadrsakey_main(fp, &key, TRUE, NULL, NULL, &error)) {
+	if (loadrsakey_main(fp, &key, TRUE, commentptr, NULL, &error)) {
 	    *blob = rsa_public_blob(&key, bloblen);
 	    freersakey(&key);
 	    ret = 1;

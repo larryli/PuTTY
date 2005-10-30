@@ -3256,7 +3256,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     /* Load the public half of ssh->cfg.keyfile so we notice if it's in Pageant */
     if (!filename_is_null(ssh->cfg.keyfile)) {
 	if (!rsakey_pubblob(&ssh->cfg.keyfile,
-			    &s->publickey_blob, &s->publickey_bloblen, NULL))
+			    &s->publickey_blob, &s->publickey_bloblen,
+			    NULL, NULL))
 	    s->publickey_blob = NULL;
     } else
 	s->publickey_blob = NULL;
