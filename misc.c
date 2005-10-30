@@ -87,6 +87,46 @@ char ctrlparse(char *s, char **next)
     return c;
 }
 
+prompts_t *new_prompts(void *frontend)
+{
+    prompts_t *p = snew(prompts_t);
+    p->prompts = NULL;
+    p->n_prompts = 0;
+    p->frontend = frontend;
+    p->data = NULL;
+    p->to_server = TRUE; /* to be on the safe side */
+    p->name = p->instruction = NULL;
+    p->name_reqd = p->instr_reqd = FALSE;
+    return p;
+}
+void add_prompt(prompts_t *p, char *promptstr, int echo, size_t len)
+{
+    prompt_t *pr = snew(prompt_t);
+    unsigned char *result = snewn(len, unsigned char);
+    pr->prompt = promptstr;
+    pr->echo = echo;
+    pr->result = result;
+    pr->result_len = len;
+    p->n_prompts++;
+    p->prompts = sresize(p->prompts, p->n_prompts, prompt_t *);
+    p->prompts[p->n_prompts-1] = pr;
+}
+void free_prompts(prompts_t *p)
+{
+    size_t i;
+    for (i=0; i < p->n_prompts; i++) {
+	prompt_t *pr = p->prompts[i];
+	memset(pr->result, 0, pr->result_len); /* burn the evidence */
+	sfree(pr->result);
+	sfree(pr->prompt);
+	sfree(pr);
+    }
+    sfree(p->prompts);
+    sfree(p->name);
+    sfree(p->instruction);
+    sfree(p);
+}
+
 /* ----------------------------------------------------------------------
  * String handling routines.
  */

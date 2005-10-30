@@ -5069,6 +5069,20 @@ int from_backend(void *frontend, int is_stderr, const char *data, int len)
     return term_data(term, is_stderr, data, len);
 }
 
+int from_backend_untrusted(void *frontend, const char *data, int len)
+{
+    return term_data_untrusted(term, data, len);
+}
+
+int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+{
+    int ret;
+    ret = cmdline_get_passwd_input(p, in, inlen);
+    if (ret == -1)
+	ret = term_get_userpass_input(term, p, in, inlen);
+    return ret;
+}
+
 void agent_schedule_callback(void (*callback)(void *, void *, int),
 			     void *callback_ctx, void *data, int len)
 {

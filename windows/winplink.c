@@ -189,6 +189,25 @@ int from_backend(void *frontend_handle, int is_stderr,
     return osize + esize;
 }
 
+int from_backend_untrusted(void *frontend_handle, const char *data, int len)
+{
+    /*
+     * No "untrusted" output should get here (the way the code is
+     * currently, it's all diverted by FLAG_STDERR).
+     */
+    assert(!"Unexpected call to from_backend_untrusted()");
+    return 0; /* not reached */
+}
+
+int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+{
+    int ret;
+    ret = cmdline_get_passwd_input(p, in, inlen);
+    if (ret == -1)
+	ret = console_get_userpass_input(p, in, inlen);
+    return ret;
+}
+
 static DWORD main_thread_id;
 
 void agent_schedule_callback(void (*callback)(void *, void *, int),
@@ -284,8 +303,6 @@ int main(int argc, char **argv)
     int errors;
     int use_subsystem = 0;
     long now, next;
-
-    ssh_get_line = console_get_line;
 
     sklist = NULL;
     skcount = sksize = 0;

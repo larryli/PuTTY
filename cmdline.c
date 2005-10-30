@@ -63,23 +63,40 @@ void cmdline_cleanup(void)
     if (need_save) { cmdline_save_param(p, value, pri); return ret; } \
 } while (0)
 
-char *cmdline_password = NULL;
+static char *cmdline_password = NULL;
 
-static int cmdline_get_line(const char *prompt, char *str,
-                            int maxlen, int is_pw)
-{
+/*
+ * Similar interface to get_userpass_input(), except that here a -1
+ * return means that we aren't capable of processing the prompt and
+ * someone else should do it.
+ */
+int cmdline_get_passwd_input(prompts_t *p, unsigned char *in, int inlen) {
+
     static int tried_once = 0;
 
-    assert(is_pw && cmdline_password);
-
-    if (tried_once) {
-	return 0;
-    } else {
-	strncpy(str, cmdline_password, maxlen);
-	str[maxlen - 1] = '\0';
-	tried_once = 1;
-	return 1;
+    /*
+     * We only handle prompts which don't echo (which we assume to be
+     * passwords), and (currently) we only cope with a password prompt
+     * that comes in a prompt-set on its own.
+     */
+    if (!cmdline_password || in || p->n_prompts != 1 || p->prompts[0]->echo) {
+	return -1;
     }
+
+    /*
+     * If we've tried once, return utter failure (no more passwords left
+     * to try).
+     */
+    if (tried_once)
+	return 0;
+
+    strncpy(p->prompts[0]->result, cmdline_password,
+	    p->prompts[0]->result_len);
+    p->prompts[0]->result[p->prompts[0]->result_len-1] = '\0';
+    memset(cmdline_password, 0, strlen(cmdline_password));
+    tried_once = 1;
+    return 1;
+
 }
 
 /*
@@ -272,8 +289,6 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	cmdline_password = value;
-	ssh_get_line = cmdline_get_line;
-	ssh_getline_pw_only = TRUE;
     }
 
     if (!strcmp(p, "-A")) {

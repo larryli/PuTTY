@@ -220,6 +220,15 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
 
     return 0;
 }
+int from_backend_untrusted(void *frontend_handle, const char *data, int len)
+{
+    /*
+     * No "untrusted" output should get here (the way the code is
+     * currently, it's all diverted by FLAG_STDERR).
+     */
+    assert(!"Unexpected call to from_backend_untrusted()");
+    return 0; /* not reached */
+}
 static int ssh_scp_recv(unsigned char *buf, int len)
 {
     outptr = buf;
@@ -2204,7 +2213,6 @@ int psftp_main(int argc, char *argv[])
 #endif
 	;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
-    ssh_get_line = &console_get_line;
     sk_init();
 
     /* Load Default Settings before doing anything else. */

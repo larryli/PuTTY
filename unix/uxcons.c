@@ -280,41 +280,81 @@ void logevent(void *frontend, const char *string)
 	log_eventlog(console_logctx, string);
 }
 
-int console_get_line(const char *prompt, char *str,
-		     int maxlen, int is_pw)
+static void console_data_untrusted(const char *data, int len)
 {
-    struct termios oldmode, newmode;
     int i;
+    for (i = 0; i < len; i++)
+	if ((data[i] & 0x60) || (data[i] == '\n'))
+	    fputc(data[i], stdout);
+    fflush(stdout);
+}
 
-    if (console_batch_mode) {
-	if (maxlen > 0)
-	    str[0] = '\0';
+int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+{
+    size_t curr_prompt;
+
+    /*
+     * Zero all the results, in case we abort half-way through.
+     */
+    {
+	int i;
+	for (i = 0; i < p->n_prompts; i++)
+	    memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
+    }
+
+    if (console_batch_mode)
 	return 0;
-    } else {
+
+    /*
+     * Preamble.
+     */
+    /* We only print the `name' caption if we have to... */
+    if (p->name_reqd && p->name) {
+	size_t l = strlen(p->name);
+	console_data_untrusted(p->name, l);
+	if (p->name[l-1] != '\n')
+	    console_data_untrusted("\n", 1);
+    }
+    /* ...but we always print any `instruction'. */
+    if (p->instruction) {
+	size_t l = strlen(p->instruction);
+	console_data_untrusted(p->instruction, l);
+	if (p->instruction[l-1] != '\n')
+	    console_data_untrusted("\n", 1);
+    }
+
+    for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
+
+	struct termios oldmode, newmode;
+	int i;
+	prompt_t *pr = p->prompts[curr_prompt];
+
 	tcgetattr(0, &oldmode);
 	newmode = oldmode;
 	newmode.c_lflag |= ISIG | ICANON;
-	if (is_pw)
+	if (!pr->echo)
 	    newmode.c_lflag &= ~ECHO;
 	else
 	    newmode.c_lflag |= ECHO;
 	tcsetattr(0, TCSANOW, &newmode);
 
-	fputs(prompt, stdout);
-	fflush(stdout);
-	i = read(0, str, maxlen - 1);
+	console_data_untrusted(pr->prompt, strlen(pr->prompt));
+
+	i = read(0, pr->result, pr->result_len - 1);
 
 	tcsetattr(0, TCSANOW, &oldmode);
 
-	if (i > 0 && str[i-1] == '\n')
+	if (i > 0 && pr->result[i-1] == '\n')
 	    i--;
-	str[i] = '\0';
+	pr->result[i] = '\0';
 
-	if (is_pw)
+	if (!pr->echo)
 	    fputs("\n", stdout);
 
-	return 1;
     }
+
+    return 1; /* success */
+
 }
 
 void frontend_keypress(void *handle)

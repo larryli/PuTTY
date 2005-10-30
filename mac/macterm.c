@@ -1898,6 +1898,12 @@ int from_backend(void *frontend, int is_stderr, const char *data, int len)
     return term_data(s->term, is_stderr, data, len);
 }
 
+int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+{
+    Session *s = p->frontend;
+    return term_get_userpass_input(s->term, p, in, inlen);
+}
+
 /*
  * Emacs magic:
  * Local Variables:

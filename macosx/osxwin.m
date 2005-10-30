@@ -893,6 +893,13 @@ int from_backend(void *frontend, int is_stderr, const char *data, int len)
     return [win fromBackend:data len:len isStderr:is_stderr];
 }
 
+int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+{
+    SessionWindow *win = (SessionWindow *)p->frontend;
+    Terminal *term = [win term];
+    return term_get_userpass_input(term, p, in, inlen);
+}
+
 void frontend_keypress(void *handle)
 {
     /* FIXME */

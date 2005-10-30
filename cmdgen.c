@@ -25,9 +25,10 @@
  *    order to avoid depleting the test system's /dev/random
  *    unnecessarily.
  * 
- *  - Calls to console_get_line() are replaced with the diagnostic
- *    function below, so that I can run tests in an automated
- *    manner and provide their interactive passphrase inputs.
+ *  - Calls to console_get_userpass_input() are replaced with the
+ *    diagnostic function below, so that I can run tests in an
+ *    automated manner and provide their interactive passphrase
+ *    inputs.
  * 
  *  - main() is renamed to cmdgen_main(); at the bottom of the file
  *    I define another main() which calls the former repeatedly to
@@ -40,19 +41,23 @@ char *get_random_data(int len)
     memset(buf, 'x', len);
     return buf;
 }
-#define console_get_line console_get_line_diagnostic
+#define console_get_userpass_input console_get_userpass_input_diagnostic
 int nprompts, promptsgot;
 const char *prompts[3];
-int console_get_line(const char *prompt, char *str, int maxlen, int is_pw)
+int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 {
-    if (promptsgot < nprompts) {
-	assert(strlen(prompts[promptsgot]) < maxlen);
-	strcpy(str, prompts[promptsgot++]);
-	return TRUE;
-    } else {
-	promptsgot++;		       /* track number of requests anyway */
-	return FALSE;
+    size_t i;
+    int ret = 1;
+    for (i = 0; i < p->n_prompts; i++) {
+	if (promptsgot < nprompts) {
+	    assert(strlen(prompts[promptsgot]) < p->prompts[i]->result_len);
+	    strcpy(p->prompts[i]->result, prompts[promptsgot++]);
+	} else {
+	    promptsgot++;	    /* track number of requests anyway */
+	    ret = 0;
+	}
     }
+    return ret;
 }
 #define main cmdgen_main
 #endif
@@ -670,11 +675,20 @@ int main(int argc, char **argv)
 	 * If so, ask for a passphrase.
 	 */
 	if (encrypted && load_encrypted) {
-	    passphrase = snewn(512, char);
-	    if (!console_get_line("Enter passphrase to load key: ",
-				  passphrase, 512, TRUE)) {
+	    prompts_t *p = new_prompts(NULL);
+	    int ret;
+	    p->to_server = FALSE;
+	    p->name = dupstr("SSH key passphrase");
+	    add_prompt(p, dupstr("Enter passphrase to load key: "), FALSE, 512);
+	    ret = console_get_userpass_input(p, NULL, 0);
+	    assert(ret >= 0);
+	    if (!ret) {
+		free_prompts(p);
 		perror("puttygen: unable to read passphrase");
 		return 1;
+	    } else {
+		passphrase = dupstr(p->prompts[0]->result);
+		free_prompts(p);
 	    }
 	} else {
 	    passphrase = NULL;
@@ -785,31 +799,35 @@ int main(int argc, char **argv)
      * we have just generated a key.
      */
     if (change_passphrase || keytype != NOKEYGEN) {
-	char *passphrase2;
+	prompts_t *p = new_prompts(NULL);
+	int ret;
 
-	if (passphrase) {
-	    memset(passphrase, 0, strlen(passphrase));
-	    sfree(passphrase);
-	}
-
-	passphrase = snewn(512, char);
-	passphrase2 = snewn(512, char);
-	if (!console_get_line("Enter passphrase to save key: ",
-			      passphrase, 512, TRUE) ||
-	    !console_get_line("Re-enter passphrase to verify: ",
-			      passphrase2, 512, TRUE)) {
+	p->to_server = FALSE;
+	p->name = dupstr("New SSH key passphrase");
+	add_prompt(p, dupstr("Enter passphrase to save key: "), FALSE, 512);
+	add_prompt(p, dupstr("Re-enter passphrase to verify: "), FALSE, 512);
+	ret = console_get_userpass_input(p, NULL, 0);
+	assert(ret >= 0);
+	if (!ret) {
+	    free_prompts(p);
 	    perror("puttygen: unable to read new passphrase");
 	    return 1;
-	}
-	if (strcmp(passphrase, passphrase2)) {
-	    fprintf(stderr, "puttygen: passphrases do not match\n");
-	    return 1;
-	}
-	memset(passphrase2, 0, strlen(passphrase2));
-	sfree(passphrase2);
-	if (!*passphrase) {
-	    sfree(passphrase);
-	    passphrase = NULL;
+	} else {
+	    if (strcmp(p->prompts[0]->result, p->prompts[1]->result)) {
+		free_prompts(p);
+		fprintf(stderr, "puttygen: passphrases do not match\n");
+		return 1;
+	    }
+	    if (passphrase) {
+		memset(passphrase, 0, strlen(passphrase));
+		sfree(passphrase);
+	    }
+	    passphrase = dupstr(p->prompts[0]->result);
+	    free_prompts(p);
+	    if (!*passphrase) {
+		sfree(passphrase);
+		passphrase = NULL;
+	    }
 	}
     }
 

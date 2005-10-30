@@ -2523,6 +2523,15 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
 
     return 0;
 }
+int from_backend_untrusted(void *frontend_handle, const char *data, int len)
+{
+    /*
+     * No "untrusted" output should get here (the way the code is
+     * currently, it's all diverted by FLAG_STDERR).
+     */
+    assert(!"Unexpected call to from_backend_untrusted()");
+    return 0; /* not reached */
+}
 int sftp_recvdata(char *buf, int len)
 {
     outptr = (unsigned char *) buf;
@@ -2714,14 +2723,21 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	cfg.username[sizeof(cfg.username) - 1] = '\0';
     }
     if (!cfg.username[0]) {
-	if (!console_get_line("login as: ",
-			      cfg.username, sizeof(cfg.username), FALSE)) {
+        /* FIXME: leave this to ssh.c? */
+        int ret;
+        prompts_t *p = new_prompts(NULL);
+        p->to_server = TRUE;
+        p->name = dupstr("SSH login name");
+        add_prompt(p, dupstr("login as: "), TRUE, lenof(cfg.username));
+        ret = get_userpass_input(p, NULL, 0);
+        assert(ret >= 0);
+        if (!ret) {
+            free_prompts(p);
 	    fprintf(stderr, "psftp: no username, aborting\n");
 	    cleanup_exit(1);
 	} else {
-	    int len = strlen(cfg.username);
-	    if (cfg.username[len - 1] == '\n')
-		cfg.username[len - 1] = '\0';
+            memcpy(cfg.username, p->prompts[0]->result, lenof(cfg.username));
+            free_prompts(p);
 	}
     }
 
@@ -2819,7 +2835,6 @@ int psftp_main(int argc, char *argv[])
 #endif
 	;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
-    ssh_get_line = &console_get_line;
     sk_init();
 
     userhost = user = NULL;

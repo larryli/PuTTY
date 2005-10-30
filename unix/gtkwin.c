@@ -189,6 +189,22 @@ int from_backend(void *frontend, int is_stderr, const char *data, int len)
     return term_data(inst->term, is_stderr, data, len);
 }
 
+int from_backend_untrusted(void *frontend, const char *data, int len)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    return term_data_untrusted(inst->term, data, len);
+}
+
+int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+{
+    struct gui_data *inst = (struct gui_data *)p->frontend;
+    int ret;
+    ret = cmdline_get_passwd_input(p, in, inlen);
+    if (ret == -1)
+	ret = term_get_userpass_input(inst->term, p, in, inlen);
+    return ret;
+}
+
 void logevent(void *frontend, const char *string)
 {
     struct gui_data *inst = (struct gui_data *)frontend;

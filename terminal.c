@@ -6257,6 +6257,24 @@ int term_data(Terminal *term, int is_stderr, const char *data, int len)
     return 0;
 }
 
+/*
+ * Write untrusted data to the terminal.
+ * The only control character that should be honoured is \n (which
+ * will behave as a CRLF).
+ */
+int term_data_untrusted(Terminal *term, const char *data, int len)
+{
+    int i;
+    /* FIXME: more sophisticated checking? */
+    for (i = 0; i < len; i++) {
+	if (data[i] == '\n')
+	    term_data(term, 1, "\r\n", 2);
+	else if (data[i] & 0x60)
+	    term_data(term, 1, data + i, 1);
+    }
+    return 0; /* assumes that term_data() always returns 0 */
+}
+
 void term_provide_logctx(Terminal *term, void *logctx)
 {
     term->logctx = logctx;
@@ -6280,4 +6298,129 @@ char *term_get_ttymode(Terminal *term, const char *mode)
     }
     /* FIXME: perhaps we should set ONLCR based on cfg.lfhascr as well? */
     return dupstr(val);
+}
+
+struct term_userpass_state {
+    size_t curr_prompt;
+    int done_prompt;	/* printed out prompt yet? */
+    size_t pos;		/* cursor position */
+};
+
+/*
+ * Process some terminal data in the course of username/password
+ * input.
+ */
+int term_get_userpass_input(Terminal *term, prompts_t *p,
+			    unsigned char *in, int inlen)
+{
+    struct term_userpass_state *s = (struct term_userpass_state *)p->data;
+    if (!s) {
+	/*
+	 * First call. Set some stuff up.
+	 */
+	p->data = s = snew(struct term_userpass_state);
+	s->curr_prompt = 0;
+	s->done_prompt = 0;
+	/* We only print the `name' caption if we have to... */
+	if (p->name_reqd && p->name) {
+	    size_t l = strlen(p->name);
+	    term_data_untrusted(term, p->name, l);
+	    if (p->name[l-1] != '\n')
+		term_data_untrusted(term, "\n", 1);
+	}
+	/* ...but we always print any `instruction'. */
+	if (p->instruction) {
+	    size_t l = strlen(p->instruction);
+	    term_data_untrusted(term, p->instruction, l);
+	    if (p->instruction[l-1] != '\n')
+		term_data_untrusted(term, "\n", 1);
+	}
+	/*
+	 * Zero all the results, in case we abort half-way through.
+	 */
+	{
+	    int i;
+	    for (i = 0; i < p->n_prompts; i++)
+		memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
+	}
+    }
+
+    while (s->curr_prompt < p->n_prompts) {
+
+	prompt_t *pr = p->prompts[s->curr_prompt];
+	int finished_prompt = 0;
+
+	if (!s->done_prompt) {
+	    term_data_untrusted(term, pr->prompt, strlen(pr->prompt));
+	    s->done_prompt = 1;
+	    s->pos = 0;
+	}
+
+	/* Breaking out here ensures that the prompt is printed even
+	 * if we're now waiting for user data. */
+	if (!in || !inlen) break;
+
+	/* FIXME: should we be using local-line-editing code instead? */
+	while (!finished_prompt && inlen) {
+	    char c = *in++;
+	    inlen--;
+	    switch (c) {
+	      case 10:
+	      case 13:
+		term_data(term, 0, "\r\n", 2);
+		pr->result[s->pos] = '\0';
+		pr->result[pr->result_len - 1] = '\0';
+		/* go to next prompt, if any */
+		s->curr_prompt++;
+		s->done_prompt = 0;
+		finished_prompt = 1; /* break out */
+		break;
+	      case 8:
+	      case 127:
+		if (s->pos > 0) {
+		    if (pr->echo)
+			term_data(term, 0, "\b \b", 3);
+		    s->pos--;
+		}
+		break;
+	      case 21:
+	      case 27:
+		while (s->pos > 0) {
+		    if (pr->echo)
+			term_data(term, 0, "\b \b", 3);
+		    s->pos--;
+		}
+		break;
+	      case 3:
+	      case 4:
+		/* Immediate abort. */
+		term_data(term, 0, "\r\n", 2);
+		sfree(s);
+		return 0; /* user abort */
+	      default:
+		/*
+		 * This simplistic check for printability is disabled
+		 * when we're doing password input, because some people
+		 * have control characters in their passwords.
+		 */
+		if ((!pr->echo ||
+		     (c >= ' ' && c <= '~') ||
+		     ((unsigned char) c >= 160))
+		    && s->pos < pr->result_len - 1) {
+		    pr->result[s->pos++] = c;
+		    if (pr->echo)
+			term_data(term, 0, &c, 1);
+		}
+		break;
+	    }
+	}
+	
+    }
+
+    if (s->curr_prompt < p->n_prompts) {
+	return -1; /* more data required */
+    } else {
+	sfree(s);
+	return +1; /* all done */
+    }
 }
