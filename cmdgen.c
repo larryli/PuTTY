@@ -690,8 +690,8 @@ int main(int argc, char **argv)
 		char *blob;
 		int n, l, bloblen;
 
-		ret = rsakey_pubblob(&infilename, &vblob, &bloblen, NULL,
-				     &error);
+		ret = rsakey_pubblob(&infilename, &vblob, &bloblen,
+				     &origcomment, &error);
 		blob = (char *)vblob;
 
 		n = 4;		       /* skip modulus bits */
@@ -709,7 +709,7 @@ int main(int argc, char **argv)
 		    } else
 			n += l;
 		}
-		ssh1key->comment = NULL;
+		ssh1key->comment = dupstr(origcomment);
 		ssh1key->private_exponent = NULL;
 	    } else {
 		ret = loadrsakey(&infilename, ssh1key, passphrase, &error);
