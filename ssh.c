@@ -6640,7 +6640,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    if (keytype == SSH_KEYTYPE_SSH2) {
 		s->publickey_blob =
 		    ssh2_userkey_loadpub(&ssh->cfg.keyfile, NULL,
-					 &s->publickey_bloblen, NULL);
+					 &s->publickey_bloblen, NULL, NULL);
 	    } else {
 		char *msgbuf;
 		logeventf(ssh, "Unable to use this key file (%s)",
@@ -6982,7 +6982,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    (unsigned char *)ssh2_userkey_loadpub(&ssh->cfg.keyfile,
 							  &algorithm,
 							  &pub_blob_len,
-							  NULL);
+							  NULL, NULL);
 		if (pub_blob) {
 		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
 		    ssh2_pkt_addstring(s->pktout, s->username);

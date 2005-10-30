@@ -400,7 +400,8 @@ int ssh2_userkey_encrypted(const Filename *filename, char **comment);
 struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 				       char *passphrase, const char **errorstr);
 char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
-			   int *pub_blob_len, const char **errorstr);
+			   int *pub_blob_len, char **commentptr,
+			   const char **errorstr);
 int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		      char *passphrase);
 const struct ssh_signkey *find_pubkey_alg(const char *name);

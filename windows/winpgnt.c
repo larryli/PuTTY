@@ -425,7 +425,8 @@ static void add_keyfile(Filename filename)
 	    keylist = get_keylist1(&keylistlen);
 	} else {
 	    unsigned char *blob2;
-	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen, &error);
+	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen,
+					NULL, &error);
 	    if (!blob) {
 		char *msg = dupprintf("Couldn't load private key (%s)", error);
 		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,

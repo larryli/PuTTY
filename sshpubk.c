@@ -866,7 +866,8 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 }
 
 char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
-			   int *pub_blob_len, const char **errorstr)
+			   int *pub_blob_len, char **commentptr,
+			   const char **errorstr)
 {
     FILE *fp;
     char header[40], *b;
@@ -875,6 +876,7 @@ char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     int public_blob_len;
     int i;
     const char *error = NULL;
+    char *comment;
 
     public_blob = NULL;
 
@@ -912,9 +914,13 @@ char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     /* Read the Comment header line. */
     if (!read_header(fp, header) || 0 != strcmp(header, "Comment"))
 	goto error;
-    if ((b = read_body(fp)) == NULL)
+    if ((comment = read_body(fp)) == NULL)
 	goto error;
-    sfree(b);			       /* we don't care */
+
+    if (commentptr)
+	*commentptr = comment;
+    else
+	sfree(comment);
 
     /* Read the Public-Lines header line and the public blob. */
     if (!read_header(fp, header) || 0 != strcmp(header, "Public-Lines"))

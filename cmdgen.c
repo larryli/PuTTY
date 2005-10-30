@@ -722,7 +722,7 @@ int main(int argc, char **argv)
 	  case SSH_KEYTYPE_SSH2:
 	    if (!load_encrypted) {
 		ssh2blob = ssh2_userkey_loadpub(&infilename, &ssh2alg,
-						&ssh2bloblen, &error);
+						&ssh2bloblen, NULL, &error);
 		ssh2algf = find_pubkey_alg(ssh2alg);
 		if (ssh2algf)
 		    bits = ssh2algf->pubkey_bits(ssh2blob, ssh2bloblen);
