@@ -71,11 +71,6 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     if (i < 0)
 	goto end;		       /* overran */
 
-    if (pub_only) {
-	ret = 1;
-	goto end;
-    }
-
     /* Next, the comment field. */
     j = GET_32BIT(buf + i);
     i += 4;
@@ -88,9 +83,17 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     }
     i += j;
     if (commentptr)
-	*commentptr = comment;
+	*commentptr = dupstr(comment);
     if (key)
 	key->comment = comment;
+    else
+	sfree(comment);
+
+    if (pub_only) {
+	ret = 1;
+	goto end;
+    }
+
     if (!key) {
 	ret = ciphertype != 0;
 	*error = NULL;
