@@ -6474,11 +6474,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 {
     struct do_ssh2_authconn_state {
 	enum {
-	    AUTH_INVALID, AUTH_PUBLICKEY_AGENT, AUTH_PUBLICKEY_FILE,
-		AUTH_PASSWORD,
-		AUTH_KEYBOARD_INTERACTIVE
-	} method;
-	enum {
 	    AUTH_TYPE_NONE,
 		AUTH_TYPE_PUBLICKEY,
 		AUTH_TYPE_PUBLICKEY_OFFER_LOUD,
@@ -7016,7 +7011,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    s->type = AUTH_TYPE_PUBLICKEY_OFFER_LOUD;
 		    continue; /* process this new message */
 		}
-		s->method = AUTH_PUBLICKEY_FILE;
 		logevent("Offer of public key accepted");
 
 		/*
@@ -7165,7 +7159,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		int name_len, inst_len, lang_len;
 		int i;
 
-		s->method = AUTH_KEYBOARD_INTERACTIVE;
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 
 		ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
@@ -7276,7 +7269,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    end_log_omission(ssh, s->pktout);
 		}
 		ssh2_pkt_send(ssh, s->pktout);
-		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE; /*FIXME?*/
+		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 
 	    } else if (s->can_passwd) {
 
@@ -7285,7 +7278,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		 */
 		int ret; /* not live over crReturn */
 
-		s->method = AUTH_PASSWORD;
 		ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh->pkt_ctx |= SSH2_PKTCTX_PASSWORD;
 
@@ -7340,7 +7332,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		end_log_omission(ssh, s->pktout);
 		ssh2_pkt_send(ssh, s->pktout);
 		logevent("Sent password");
-		s->type = AUTH_TYPE_PASSWORD; /*FIXME?*/
+		s->type = AUTH_TYPE_PASSWORD;
 
 	    } else {
 
