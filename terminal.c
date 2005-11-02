@@ -6396,6 +6396,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p,
 		/* Immediate abort. */
 		term_data(term, 0, "\r\n", 2);
 		sfree(s);
+		p->data = NULL;
 		return 0; /* user abort */
 	      default:
 		/*
@@ -6421,6 +6422,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p,
 	return -1; /* more data required */
     } else {
 	sfree(s);
+	p->data = NULL;
 	return +1; /* all done */
     }
 }
