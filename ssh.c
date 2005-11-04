@@ -6490,6 +6490,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	prompts_t *cur_prompt;
 	int num_prompts;
 	char username[100];
+	char *password;
 	int got_username;
 	void *publickey_blob;
 	int publickey_bloblen;
@@ -6726,13 +6727,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		break;
 	    }
 
-	    if (pktin->type == SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ) {
-		/* FIXME: perhaps we should support this? */
-		bombout(("PASSWD_CHANGEREQ not yet supported"));
-		crStopV;
-	    } else if (pktin->type != SSH2_MSG_USERAUTH_FAILURE) {
-		bombout(("Strange packet received during authentication: type %d",
-			 pktin->type));
+	    if (pktin->type != SSH2_MSG_USERAUTH_FAILURE) {
+		bombout(("Strange packet received during authentication: "
+			 "type %d", pktin->type));
 		crStopV;
 	    }
 
@@ -7277,6 +7274,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		 * Plain old password authentication.
 		 */
 		int ret; /* not live over crReturn */
+		int changereq_first_time; /* not live over crReturn */
 
 		ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh->pkt_ctx |= SSH2_PKTCTX_PASSWORD;
@@ -7306,6 +7304,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 				   TRUE);
 		    crStopV;
 		}
+		/*
+		 * Squirrel away the password. (We may need it later if
+		 * asked to change it.)
+		 */
+		s->password = dupstr(s->cur_prompt->prompts[0]->result);
+		free_prompts(s->cur_prompt);
 
 		/*
 		 * Send the password packet.
@@ -7326,13 +7330,145 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		ssh2_pkt_addstring(s->pktout, "password");
 		ssh2_pkt_addbool(s->pktout, FALSE);
 		dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
-		ssh2_pkt_addstring(s->pktout,
-				   s->cur_prompt->prompts[0]->result);
-		free_prompts(s->cur_prompt);
+		ssh2_pkt_addstring(s->pktout, s->password);
 		end_log_omission(ssh, s->pktout);
 		ssh2_pkt_send(ssh, s->pktout);
 		logevent("Sent password");
 		s->type = AUTH_TYPE_PASSWORD;
+
+		/*
+		 * Wait for next packet, in case it's a password change
+		 * request.
+		 */
+		crWaitUntilV(pktin);
+		changereq_first_time = TRUE;
+
+		while (pktin->type == SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ) {
+
+		    /* 
+		     * We're being asked for a new password
+		     * (perhaps not for the first time).
+		     * Loop until the server accepts it.
+		     */
+
+		    int got_new = FALSE; /* not live over crReturn */
+		    char *prompt;   /* not live over crReturn */
+		    int prompt_len; /* not live over crReturn */
+		    
+		    {
+			char *msg;
+			if (changereq_first_time)
+			    msg = "Server requested password change";
+			else
+			    msg = "Server rejected new password";
+			logevent(msg);
+			c_write_str(ssh, msg);
+			c_write_str(ssh, "\r\n");
+		    }
+
+		    ssh_pkt_getstring(pktin, &prompt, &prompt_len);
+
+		    s->cur_prompt = new_prompts(ssh->frontend);
+		    s->cur_prompt->to_server = TRUE;
+		    s->cur_prompt->name = dupstr("New SSH password");
+		    s->cur_prompt->instruction =
+			dupprintf("%.*s", prompt_len, prompt);
+		    s->cur_prompt->instr_reqd = TRUE;
+		    add_prompt(s->cur_prompt, dupstr("Enter new password: "),
+			       FALSE, SSH_MAX_PASSWORD_LEN);
+		    add_prompt(s->cur_prompt, dupstr("Confirm new password: "),
+			       FALSE, SSH_MAX_PASSWORD_LEN);
+
+		    /*
+		     * Loop until the user manages to enter the same
+		     * password twice.
+		     */
+		    while (!got_new) {
+
+			ret = get_userpass_input(s->cur_prompt, NULL, 0);
+			while (ret < 0) {
+			    ssh->send_ok = 1;
+			    crWaitUntilV(!pktin);
+			    ret = get_userpass_input(s->cur_prompt, in, inlen);
+			    ssh->send_ok = 0;
+			}
+			if (!ret) {
+			    /*
+			     * Failed to get responses. Terminate.
+			     */
+			    /* burn the evidence */
+			    free_prompts(s->cur_prompt);
+			    memset(s->password, 0, strlen(s->password));
+			    sfree(s->password);
+			    ssh_disconnect(ssh, NULL, "Unable to authenticate",
+					   SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
+					   TRUE);
+			    crStopV;
+			}
+
+			/*
+			 * Check the two passwords match.
+			 */
+			got_new = (strcmp(s->cur_prompt->prompts[0]->result,
+					  s->cur_prompt->prompts[1]->result)
+				   == 0);
+			if (!got_new)
+			    /* They don't. Silly user. */
+			    c_write_str(ssh, "Passwords do not match\r\n");
+
+		    }
+
+		    /*
+		     * Send the new password (along with the old one).
+		     * (see above for padding rationale)
+		     */
+		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		    s->pktout->forcepad = 256;
+		    ssh2_pkt_addstring(s->pktout, s->username);
+		    ssh2_pkt_addstring(s->pktout, "ssh-connection");
+							/* service requested */
+		    ssh2_pkt_addstring(s->pktout, "password");
+		    ssh2_pkt_addbool(s->pktout, TRUE);
+		    dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
+		    ssh2_pkt_addstring(s->pktout, s->password);
+		    ssh2_pkt_addstring(s->pktout,
+				       s->cur_prompt->prompts[0]->result);
+		    free_prompts(s->cur_prompt);
+		    end_log_omission(ssh, s->pktout);
+		    ssh2_pkt_send(ssh, s->pktout);
+		    logevent("Sent new password");
+		    
+		    /*
+		     * Now see what the server has to say about it.
+		     * (If it's CHANGEREQ again, it's not happy with the
+		     * new password.)
+		     */
+		    crWaitUntilV(pktin);
+		    changereq_first_time = FALSE;
+
+		}
+
+		/*
+		 * We need to reexamine the current pktin at the top
+		 * of the loop. Either:
+		 *  - we weren't asked to change password at all, in
+		 *    which case it's a SUCCESS or FAILURE with the
+		 *    usual meaning
+		 *  - we sent a new password, and the server was
+		 *    either OK with it (SUCCESS or FAILURE w/partial
+		 *    success) or unhappy with the _old_ password
+		 *    (FAILURE w/o partial success)
+		 * In any of these cases, we go back to the top of
+		 * the loop and start again.
+		 */
+		s->gotit = TRUE;
+
+		/*
+		 * We don't need the old password any more, in any
+		 * case. Burn the evidence.
+		 */
+		memset(s->password, 0, strlen(s->password));
+		sfree(s->password);
 
 	    } else {
 
