@@ -3459,7 +3459,6 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    break;	       /* go and try something else */
 		} else if (ret == -1) {
 		    c_write_str(ssh, "Wrong passphrase.\r\n"); /* FIXME */
-		    s->tried_publickey = 0;
 		    got_passphrase = FALSE;
 		    /* and try again */
 		} else {
@@ -3478,7 +3477,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		crWaitUntil(pktin);
 		if (pktin->type == SSH1_SMSG_FAILURE) {
 		    c_write_str(ssh, "Server refused our public key.\r\n");
-		    continue;	       /* go and try password */
+		    continue;	       /* go and try something else */
 		}
 		if (pktin->type != SSH1_SMSG_AUTH_RSA_CHALLENGE) {
 		    bombout(("Bizarre response to offer of public key"));
@@ -3518,7 +3517,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    if (flags & FLAG_VERBOSE)
 			c_write_str(ssh, "Failed to authenticate with"
 				    " our public key.\r\n");
-		    continue;	       /* go and try password */
+		    continue;	       /* go and try something else */
 		} else if (pktin->type != SSH1_SMSG_SUCCESS) {
 		    bombout(("Bizarre response to RSA authentication response"));
 		    crStop(0);
