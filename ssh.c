@@ -3462,6 +3462,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    s->tried_publickey = 0;
 		    got_passphrase = FALSE;
 		    /* and try again */
+		} else {
+		    assert(0 && "unexpected return from loadrsakey()");
 		}
 	    }
 
