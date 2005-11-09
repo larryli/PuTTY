@@ -7153,9 +7153,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		/*
 		 * Keyboard-interactive authentication.
 		 */
-		char *name, *inst, *lang;
-		int name_len, inst_len, lang_len;
-		int i;
 
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 
@@ -7175,7 +7172,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		crWaitUntilV(pktin);
 		if (pktin->type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
 		    /* Server is not willing to do keyboard-interactive
-		     * at all. Give up on it entirely. */
+		     * at all (or, bizarrely but legally, accepts the
+		     * user without actually issuing any prompts).
+		     * Give up on it entirely. */
 		    s->gotit = TRUE;
 		    if (pktin->type == SSH2_MSG_USERAUTH_FAILURE)
 			logevent("Keyboard-interactive authentication refused");
@@ -7185,89 +7184,113 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 
 		/*
-		 * We've got a fresh USERAUTH_INFO_REQUEST.
-		 * Get the preamble and start building a prompt.
+		 * Loop while the server continues to send INFO_REQUESTs.
 		 */
-		ssh_pkt_getstring(pktin, &name, &name_len);
-		ssh_pkt_getstring(pktin, &inst, &inst_len);
-		ssh_pkt_getstring(pktin, &lang, &lang_len);
-		s->cur_prompt = new_prompts(ssh->frontend);
-		s->cur_prompt->to_server = TRUE;
-		if (name_len) {
-		    /* FIXME: better prefix to distinguish from
-		     * local prompts? */
-		    s->cur_prompt->name = dupprintf("SSH server: %.*s",
-						    name_len, name);
-		    s->cur_prompt->name_reqd = TRUE;
-		} else {
-		    s->cur_prompt->name = dupstr("SSH server authentication");
-		    s->cur_prompt->name_reqd = FALSE;
+		while (pktin->type == SSH2_MSG_USERAUTH_INFO_REQUEST) {
+
+		    char *name, *inst, *lang;
+		    int name_len, inst_len, lang_len;
+		    int i;
+
+		    /*
+		     * We've got a fresh USERAUTH_INFO_REQUEST.
+		     * Get the preamble and start building a prompt.
+		     */
+		    ssh_pkt_getstring(pktin, &name, &name_len);
+		    ssh_pkt_getstring(pktin, &inst, &inst_len);
+		    ssh_pkt_getstring(pktin, &lang, &lang_len);
+		    s->cur_prompt = new_prompts(ssh->frontend);
+		    s->cur_prompt->to_server = TRUE;
+		    if (name_len) {
+			/* FIXME: better prefix to distinguish from
+			 * local prompts? */
+			s->cur_prompt->name =
+			    dupprintf("SSH server: %.*s", name_len, name);
+			s->cur_prompt->name_reqd = TRUE;
+		    } else {
+			s->cur_prompt->name =
+			    dupstr("SSH server authentication");
+			s->cur_prompt->name_reqd = FALSE;
+		    }
+		    /* FIXME: ugly to print "Using..." in prompt _every_
+		     * time round. Can this be done more subtly? */
+		    s->cur_prompt->instruction =
+			dupprintf("Using keyboard-interactive authentication.%s%.*s",
+				  inst_len ? "\n" : "", inst_len, inst);
+		    s->cur_prompt->instr_reqd = TRUE;
+
+		    /*
+		     * Get the prompts from the packet.
+		     */
+		    s->num_prompts = ssh_pkt_getuint32(pktin);
+		    for (i = 0; i < s->num_prompts; i++) {
+			char *prompt;
+			int prompt_len;
+			int echo;
+			static char noprompt[] =
+			    "<server failed to send prompt>: ";
+
+			ssh_pkt_getstring(pktin, &prompt, &prompt_len);
+			echo = ssh2_pkt_getbool(pktin);
+			if (!prompt_len) {
+			    prompt = noprompt;
+			    prompt_len = lenof(noprompt)-1;
+			}
+			add_prompt(s->cur_prompt,
+				   dupprintf("%.*s", prompt_len, prompt),
+				   echo, SSH_MAX_PASSWORD_LEN);
+		    }
+
+		    /*
+		     * Get the user's responses.
+		     */
+		    if (s->num_prompts) {
+			int ret; /* not live over crReturn */
+			ret = get_userpass_input(s->cur_prompt, NULL, 0);
+			while (ret < 0) {
+			    ssh->send_ok = 1;
+			    crWaitUntilV(!pktin);
+			    ret = get_userpass_input(s->cur_prompt, in, inlen);
+			    ssh->send_ok = 0;
+			}
+			if (!ret) {
+			    /*
+			     * Failed to get responses. Terminate.
+			     */
+			    free_prompts(s->cur_prompt);
+			    ssh_disconnect(ssh, NULL, "Unable to authenticate",
+					   SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
+					   TRUE);
+			    crStopV;
+			}
+		    }
+
+		    /*
+		     * Send the responses to the server.
+		     */
+		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
+		    s->pktout->forcepad = 256;
+		    ssh2_pkt_adduint32(s->pktout, s->num_prompts);
+		    for (i=0; i < s->num_prompts; i++) {
+			dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
+			ssh2_pkt_addstring(s->pktout,
+					   s->cur_prompt->prompts[i]->result);
+			end_log_omission(ssh, s->pktout);
+		    }
+		    ssh2_pkt_send(ssh, s->pktout);
+
+		    /*
+		     * Get the next packet in case it's another
+		     * INFO_REQUEST.
+		     */
+		    crWaitUntilV(pktin);
+
 		}
-		s->cur_prompt->instruction =
-		    dupprintf("Using keyboard-interactive authentication.%s%.*s",
-			      inst_len ? "\n" : "", inst_len, inst);
-		s->cur_prompt->instr_reqd = TRUE;
 
 		/*
-		 * Get the prompts from the packet.
+		 * We should have SUCCESS or FAILURE now.
 		 */
-		s->num_prompts = ssh_pkt_getuint32(pktin);
-		for (i = 0; i < s->num_prompts; i++) {
-		    char *prompt;
-		    int prompt_len;
-		    int echo;
-		    static char noprompt[] =
-			"<server failed to send prompt>: ";
-
-		    ssh_pkt_getstring(pktin, &prompt, &prompt_len);
-		    echo = ssh2_pkt_getbool(pktin);
-		    if (!prompt_len) {
-			prompt = noprompt;
-			prompt_len = lenof(noprompt)-1;
-		    }
-		    add_prompt(s->cur_prompt,
-			       dupprintf("%.*s", prompt_len, prompt),
-			       echo, SSH_MAX_PASSWORD_LEN);
-		}
-
-		/*
-		 * Get the user's responses.
-		 */
-		if (s->num_prompts) {
-		    int ret; /* not live over crReturn */
-		    ret = get_userpass_input(s->cur_prompt, NULL, 0);
-		    while (ret < 0) {
-			ssh->send_ok = 1;
-			crWaitUntilV(!pktin);
-			ret = get_userpass_input(s->cur_prompt, in, inlen);
-			ssh->send_ok = 0;
-		    }
-		    if (!ret) {
-			/*
-			 * Failed to get responses. Terminate.
-			 */
-			free_prompts(s->cur_prompt);
-			ssh_disconnect(ssh, NULL, "Unable to authenticate",
-				       SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
-				       TRUE);
-			crStopV;
-		    }
-		}
-
-		/*
-		 * Send the responses to the server.
-		 */
-		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
-		s->pktout->forcepad = 256;
-		ssh2_pkt_adduint32(s->pktout, s->num_prompts);
-		for (i=0; i < s->num_prompts; i++) {
-		    dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
-		    ssh2_pkt_addstring(s->pktout,
-				       s->cur_prompt->prompts[i]->result);
-		    end_log_omission(ssh, s->pktout);
-		}
-		ssh2_pkt_send(ssh, s->pktout);
-		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
+		s->gotit = TRUE;
 
 	    } else if (s->can_passwd) {
 
