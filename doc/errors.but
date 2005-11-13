@@ -79,16 +79,23 @@ puts up this warning only for \ii{single-DES} and \i{Arcfour} encryption.
 See \k{config-ssh-encryption} for more information on this message.
 
 \H{errors-toomanyauth} \q{Server sent disconnect message type 2
-(SSH_DISCONNECT_PROTOCOL_ERROR): "Too many authentication failures for root"}
+(protocol error): "Too many authentication failures for root"}
 
 This message is produced by an \i{OpenSSH} (or \i{Sun SSH}) server if it
 receives more failed authentication attempts than it is willing to
-tolerate.  This can easily happen if you are using Pageant and have a
-large number of keys loaded into it.  This can be worked around on the
-server by disabling public-key authentication or (for Sun SSH only) by
-increasing \c{MaxAuthTries} in \c{sshd_config}.  Neither of these is a
-really satisfactory solution, and we hope to provide a better one in a
-future version of PuTTY.
+tolerate.
+
+This can easily happen if you are using Pageant and have a
+large number of keys loaded into it, since these servers count each
+offer of a public key as an authentication attempt. This can be worked
+around by specifying the key that's required for the authentication in
+the PuTTY configuration (see \k{config-ssh-privkey}; PuTTY will ignore
+any other keys Pageant may have, but will ask Pageant to do the
+authentication, so that you don't have to type your passphrase.
+
+On the server, this can be worked around by disabling public-key
+authentication or (for Sun SSH only) by increasing \c{MaxAuthTries} in
+\c{sshd_config}.
 
 \H{errors-memory} \q{\ii{Out of memory}}
 

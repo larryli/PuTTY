@@ -3256,13 +3256,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		s->p += 4;
 		logeventf(ssh, "Pageant has %d SSH-1 keys", s->nkeys);
 		for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
-		    logeventf(ssh, "Trying Pageant key #%d", s->keyi);
-		    if (s->publickey_blob &&
-			!memcmp(s->p, s->publickey_blob,
-				s->publickey_bloblen)) {
-			logevent("This key matches configured key file");
-			s->tried_publickey = 1;
-		    }
+		    unsigned char *pkblob = s->p;
 		    s->p += 4;
 		    {
 			int n, ok = FALSE;
@@ -3295,6 +3289,17 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			    break;
 			}
 		    }
+		    if (s->publickey_blob) {
+			if (!memcmp(pkblob, s->publickey_blob,
+				    s->publickey_bloblen)) {
+			    logeventf(ssh, "Pageant key #%d matches "
+				      "configured key file", s->keyi);
+			    s->tried_publickey = 1;
+			} else
+			    /* Skip non-configured key */
+			    continue;
+		    }
+		    logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 		    send_packet(ssh, SSH1_CMSG_AUTH_RSA,
 				PKT_BIGNUM, s->key.modulus, PKT_END);
 		    crWaitUntil(pktin);
@@ -3385,6 +3390,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			break;
 		}
 		sfree(s->response);
+		if (s->publickey_blob && !s->tried_publickey)
+		    logevent("Configured key file not in Pageant");
 	    }
 	    if (s->authed)
 		break;
@@ -6485,7 +6492,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	} type;
 	int done_service_req;
 	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
-	int tried_pubkey_config, tried_agent;
+	int tried_pubkey_config, done_agent;
 	int kbd_inter_refused;
 	int we_are_in;
 	prompts_t *cur_prompt;
@@ -6498,10 +6505,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	int publickey_encrypted;
 	char *publickey_algorithm;
 	char *publickey_comment;
-	unsigned char request[5], *response, *p;
-	int responselen;
+	unsigned char agent_request[5], *agent_response, *agentp;
+	int agent_responselen;
+	unsigned char *pkblob_in_agent;
 	int keyi, nkeys;
-	int authed;
 	char *pkblob, *alg, *commentp;
 	int pklen, alglen, commentlen;
 	int siglen, retlen, len;
@@ -6542,6 +6549,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    crStopV;
 	}
     }
+
+    /* Arrange to be able to deal with any BANNERs that come in.
+     * (We do this now as packets may come in during the next bit.) */
+    bufchain_init(&ssh->banner);
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] =
+	ssh2_msg_userauth_banner;
 
     /*
      * Misc one-time setup for authentication.
@@ -6593,6 +6606,68 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    }
 	}
 
+	/*
+	 * Find out about any keys Pageant has (but if there's a
+	 * public key configured, filter out all others).
+	 */
+	s->nkeys = 0;
+	s->agent_response = NULL;
+	s->pkblob_in_agent = NULL;
+	if (agent_exists()) {
+
+	    void *r;
+
+	    logevent("Pageant is running. Requesting keys.");
+
+	    /* Request the keys held by the agent. */
+	    PUT_32BIT(s->agent_request, 1);
+	    s->agent_request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
+	    if (!agent_query(s->agent_request, 5, &r, &s->agent_responselen,
+			     ssh_agent_callback, ssh)) {
+		do {
+		    crReturnV;
+		    if (pktin) {
+			bombout(("Unexpected data from server while"
+				 " waiting for agent response"));
+			crStopV;
+		    }
+		} while (pktin || inlen > 0);
+		r = ssh->agent_response;
+		s->agent_responselen = ssh->agent_response_len;
+	    }
+	    s->agent_response = (unsigned char *) r;
+	    if (s->agent_response && s->agent_responselen >= 5 &&
+		s->agent_response[4] == SSH2_AGENT_IDENTITIES_ANSWER) {
+		int keyi;
+		unsigned char *p;
+		p = s->agent_response + 5;
+		s->nkeys = GET_32BIT(p);
+		p += 4;
+		logeventf(ssh, "Pageant has %d SSH-2 keys", s->nkeys);
+		if (s->publickey_blob) {
+		    /* See if configured key is in agent. */
+		    for (keyi = 0; keyi < s->nkeys; keyi++) {
+			s->pklen = GET_32BIT(p);
+			if (s->pklen == s->publickey_bloblen &&
+			    !memcmp(p+4, s->publickey_blob,
+				    s->publickey_bloblen)) {
+			    logeventf(ssh, "Pageant key #%d matches "
+				      "configured key file", keyi);
+			    s->keyi = keyi;
+			    s->pkblob_in_agent = p;
+			    break;
+			}
+			p += 4 + s->pklen;
+			p += GET_32BIT(p) + 4; /* comment */
+		    }
+		    if (!s->pkblob_in_agent) {
+			logevent("Configured key file not in Pageant");
+			s->nkeys = 0;
+		    }
+		}
+	    }
+	}
+
     }
 
     /*
@@ -6621,9 +6696,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      */
     s->username[0] = '\0';
     s->got_username = FALSE;
-    bufchain_init(&ssh->banner);
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] =
-	ssh2_msg_userauth_banner;
     while (!s->we_are_in) {
 	/*
 	 * Get a username.
@@ -6689,8 +6761,18 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	s->we_are_in = FALSE;
 
 	s->tried_pubkey_config = FALSE;
-	s->tried_agent = FALSE;
 	s->kbd_inter_refused = FALSE;
+
+	/* Reset agent request state. */
+	s->done_agent = FALSE;
+	if (s->agent_response) {
+	    if (s->pkblob_in_agent) {
+		s->agentp = s->pkblob_in_agent;
+	    } else {
+		s->agentp = s->agent_response + 5 + 4;
+		s->keyi = 0;
+	    }
+	}
 
 	while (1) {
 	    /*
@@ -6803,172 +6885,153 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 	    ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 
-	    if (s->can_pubkey && agent_exists() && !s->tried_agent) {
+	    if (s->can_pubkey && !s->done_agent && s->nkeys) {
 
 		/*
-		 * Attempt public-key authentication using Pageant.
+		 * Attempt public-key authentication using a key from Pageant.
 		 */
-		void *r;
-		s->authed = FALSE;
 
 		ssh->pkt_ctx &= ~SSH2_PKTCTX_AUTH_MASK;
 		ssh->pkt_ctx |= SSH2_PKTCTX_PUBLICKEY;
 
-		s->tried_agent = TRUE;
+		logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 
-		logevent("Pageant is running. Requesting keys.");
+		/* Unpack key from agent response */
+		s->pklen = GET_32BIT(s->agentp);
+		s->agentp += 4;
+		s->pkblob = (char *)s->agentp;
+		s->agentp += s->pklen;
+		s->alglen = GET_32BIT(s->pkblob);
+		s->alg = s->pkblob + 4;
+		s->commentlen = GET_32BIT(s->agentp);
+		s->agentp += 4;
+		s->commentp = (char *)s->agentp;
+		s->agentp += s->commentlen;
+		/* s->agentp now points at next key, if any */
 
-		/* Request the keys held by the agent. */
-		PUT_32BIT(s->request, 1);
-		s->request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
-		if (!agent_query(s->request, 5, &r, &s->responselen,
-				 ssh_agent_callback, ssh)) {
-		    do {
-			crReturnV;
-			if (pktin) {
-			    bombout(("Unexpected data from server while"
-				     " waiting for agent response"));
+		/* See if server will accept it */
+		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		ssh2_pkt_addstring(s->pktout, s->username);
+		ssh2_pkt_addstring(s->pktout, "ssh-connection");
+						    /* service requested */
+		ssh2_pkt_addstring(s->pktout, "publickey");
+						    /* method */
+		ssh2_pkt_addbool(s->pktout, FALSE); /* no signature included */
+		ssh2_pkt_addstring_start(s->pktout);
+		ssh2_pkt_addstring_data(s->pktout, s->alg, s->alglen);
+		ssh2_pkt_addstring_start(s->pktout);
+		ssh2_pkt_addstring_data(s->pktout, s->pkblob, s->pklen);
+		ssh2_pkt_send(ssh, s->pktout);
+		s->type = AUTH_TYPE_PUBLICKEY_OFFER_QUIET;
+
+		crWaitUntilV(pktin);
+		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
+
+		    /* Offer of key refused. */
+		    s->gotit = TRUE;
+
+		} else {
+		    
+		    void *vret;
+
+		    if (flags & FLAG_VERBOSE) {
+			c_write_str(ssh, "Authenticating with "
+				    "public key \"");
+			c_write(ssh, s->commentp, s->commentlen);
+			c_write_str(ssh, "\" from agent\r\n");
+		    }
+
+		    /*
+		     * Server is willing to accept the key.
+		     * Construct a SIGN_REQUEST.
+		     */
+		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		    ssh2_pkt_addstring(s->pktout, s->username);
+		    ssh2_pkt_addstring(s->pktout, "ssh-connection");
+							/* service requested */
+		    ssh2_pkt_addstring(s->pktout, "publickey");
+							/* method */
+		    ssh2_pkt_addbool(s->pktout, TRUE);  /* signature included */
+		    ssh2_pkt_addstring_start(s->pktout);
+		    ssh2_pkt_addstring_data(s->pktout, s->alg, s->alglen);
+		    ssh2_pkt_addstring_start(s->pktout);
+		    ssh2_pkt_addstring_data(s->pktout, s->pkblob, s->pklen);
+
+		    /* Ask agent for signature. */
+		    s->siglen = s->pktout->length - 5 + 4 +
+			ssh->v2_session_id_len;
+		    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
+			s->siglen -= 4;
+		    s->len = 1;       /* message type */
+		    s->len += 4 + s->pklen;	/* key blob */
+		    s->len += 4 + s->siglen;	/* data to sign */
+		    s->len += 4;      /* flags */
+		    s->agentreq = snewn(4 + s->len, char);
+		    PUT_32BIT(s->agentreq, s->len);
+		    s->q = s->agentreq + 4;
+		    *s->q++ = SSH2_AGENTC_SIGN_REQUEST;
+		    PUT_32BIT(s->q, s->pklen);
+		    s->q += 4;
+		    memcpy(s->q, s->pkblob, s->pklen);
+		    s->q += s->pklen;
+		    PUT_32BIT(s->q, s->siglen);
+		    s->q += 4;
+		    /* Now the data to be signed... */
+		    if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
+			PUT_32BIT(s->q, ssh->v2_session_id_len);
+			s->q += 4;
+		    }
+		    memcpy(s->q, ssh->v2_session_id,
+			   ssh->v2_session_id_len);
+		    s->q += ssh->v2_session_id_len;
+		    memcpy(s->q, s->pktout->data + 5,
+			   s->pktout->length - 5);
+		    s->q += s->pktout->length - 5;
+		    /* And finally the (zero) flags word. */
+		    PUT_32BIT(s->q, 0);
+		    if (!agent_query(s->agentreq, s->len + 4,
+				     &vret, &s->retlen,
+				     ssh_agent_callback, ssh)) {
+			do {
+			    crReturnV;
+			    if (pktin) {
+				bombout(("Unexpected data from server"
+					 " while waiting for agent"
+					 " response"));
+				crStopV;
+			    }
+			} while (pktin || inlen > 0);
+			vret = ssh->agent_response;
+			s->retlen = ssh->agent_response_len;
+		    }
+		    s->ret = vret;
+		    sfree(s->agentreq);
+		    if (s->ret) {
+			if (s->ret[4] == SSH2_AGENT_SIGN_RESPONSE) {
+			    logevent("Sending Pageant's response");
+			    ssh2_add_sigblob(ssh, s->pktout,
+					     s->pkblob, s->pklen,
+					     s->ret + 9,
+					     GET_32BIT(s->ret + 5));
+			    ssh2_pkt_send(ssh, s->pktout);
+			    s->type = AUTH_TYPE_PUBLICKEY;
+			} else {
+			    /* FIXME: less drastic response */
+			    bombout(("Pageant failed to answer challenge"));
 			    crStopV;
 			}
-		    } while (pktin || inlen > 0);
-		    r = ssh->agent_response;
-		    s->responselen = ssh->agent_response_len;
-		}
-		s->response = (unsigned char *) r;
-		if (s->response && s->responselen >= 5 &&
-		    s->response[4] == SSH2_AGENT_IDENTITIES_ANSWER) {
-		    s->p = s->response + 5;
-		    s->nkeys = GET_32BIT(s->p);
-		    s->p += 4;
-		    logeventf(ssh, "Pageant has %d SSH-2 keys", s->nkeys);
-		    for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
-			void *vret;
-
-			logeventf(ssh, "Trying Pageant key #%d", s->keyi);
-			s->pklen = GET_32BIT(s->p);
-			s->p += 4;
-			if (s->publickey_blob &&
-			    s->pklen == s->publickey_bloblen &&
-			    !memcmp(s->p, s->publickey_blob,
-				    s->publickey_bloblen)) {
-			    logevent("This key matches configured key file");
-			    s->tried_pubkey_config = 1;
-			}
-			s->pkblob = (char *)s->p;
-			s->p += s->pklen;
-			s->alglen = GET_32BIT(s->pkblob);
-			s->alg = s->pkblob + 4;
-			s->commentlen = GET_32BIT(s->p);
-			s->p += 4;
-			s->commentp = (char *)s->p;
-			s->p += s->commentlen;
-			s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
-			ssh2_pkt_addstring(s->pktout, s->username);
-			ssh2_pkt_addstring(s->pktout, "ssh-connection");	/* service requested */
-			ssh2_pkt_addstring(s->pktout, "publickey");	/* method */
-			ssh2_pkt_addbool(s->pktout, FALSE);	/* no signature included */
-			ssh2_pkt_addstring_start(s->pktout);
-			ssh2_pkt_addstring_data(s->pktout, s->alg, s->alglen);
-			ssh2_pkt_addstring_start(s->pktout);
-			ssh2_pkt_addstring_data(s->pktout, s->pkblob, s->pklen);
-			ssh2_pkt_send(ssh, s->pktout);
-
-			crWaitUntilV(pktin);
-			if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
-			    logevent("Key refused");
-			    continue;
-			}
-
-			if (flags & FLAG_VERBOSE) {
-			    c_write_str(ssh, "Authenticating with "
-					"public key \"");
-			    c_write(ssh, s->commentp, s->commentlen);
-			    c_write_str(ssh, "\" from agent\r\n");
-			}
-
-			/*
-			 * Server is willing to accept the key.
-			 * Construct a SIGN_REQUEST.
-			 */
-			s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
-			ssh2_pkt_addstring(s->pktout, s->username);
-			ssh2_pkt_addstring(s->pktout, "ssh-connection");	/* service requested */
-			ssh2_pkt_addstring(s->pktout, "publickey");	/* method */
-			ssh2_pkt_addbool(s->pktout, TRUE);
-			ssh2_pkt_addstring_start(s->pktout);
-			ssh2_pkt_addstring_data(s->pktout, s->alg, s->alglen);
-			ssh2_pkt_addstring_start(s->pktout);
-			ssh2_pkt_addstring_data(s->pktout, s->pkblob, s->pklen);
-
-			s->siglen = s->pktout->length - 5 + 4 +
-			    ssh->v2_session_id_len;
-                        if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
-                            s->siglen -= 4;
-			s->len = 1;       /* message type */
-			s->len += 4 + s->pklen;	/* key blob */
-			s->len += 4 + s->siglen;	/* data to sign */
-			s->len += 4;      /* flags */
-			s->agentreq = snewn(4 + s->len, char);
-			PUT_32BIT(s->agentreq, s->len);
-			s->q = s->agentreq + 4;
-			*s->q++ = SSH2_AGENTC_SIGN_REQUEST;
-			PUT_32BIT(s->q, s->pklen);
-			s->q += 4;
-			memcpy(s->q, s->pkblob, s->pklen);
-			s->q += s->pklen;
-			PUT_32BIT(s->q, s->siglen);
-			s->q += 4;
-			/* Now the data to be signed... */
-                        if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
-                            PUT_32BIT(s->q, ssh->v2_session_id_len);
-                            s->q += 4;
-                        }
-			memcpy(s->q, ssh->v2_session_id,
-			       ssh->v2_session_id_len);
-			s->q += ssh->v2_session_id_len;
-			memcpy(s->q, s->pktout->data + 5,
-			       s->pktout->length - 5);
-			s->q += s->pktout->length - 5;
-			/* And finally the (zero) flags word. */
-			PUT_32BIT(s->q, 0);
-			if (!agent_query(s->agentreq, s->len + 4,
-					 &vret, &s->retlen,
-					 ssh_agent_callback, ssh)) {
-			    do {
-				crReturnV;
-				if (pktin) {
-				    bombout(("Unexpected data from server"
-					     " while waiting for agent"
-					     " response"));
-				    crStopV;
-				}
-			    } while (pktin || inlen > 0);
-			    vret = ssh->agent_response;
-			    s->retlen = ssh->agent_response_len;
-			}
-			s->ret = vret;
-			sfree(s->agentreq);
-			if (s->ret) {
-			    if (s->ret[4] == SSH2_AGENT_SIGN_RESPONSE) {
-				logevent("Sending Pageant's response");
-				ssh2_add_sigblob(ssh, s->pktout,
-						 s->pkblob, s->pklen,
-						 s->ret + 9,
-						 GET_32BIT(s->ret + 5));
-				ssh2_pkt_send(ssh, s->pktout);
-				s->authed = TRUE;
-				break;
-			    } else {
-				logevent
-				    ("Pageant failed to answer challenge");
-				sfree(s->ret);
-			    }
-			}
 		    }
-		    if (s->authed)
-			continue;
 		}
-		sfree(s->response);
+
+		/* Do we have any keys left to try? */
+		if (s->pkblob_in_agent) {
+		    s->done_agent = TRUE;
+		    s->tried_pubkey_config = TRUE;
+		} else {
+		    s->keyi++;
+		    if (s->keyi >= s->nkeys)
+			s->done_agent = TRUE;
+		}
 
 	    } else if (s->can_pubkey && s->publickey_blob &&
 		       !s->tried_pubkey_config) {
@@ -7513,6 +7576,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	sfree(s->publickey_blob);
 	sfree(s->publickey_comment);
     }
+    if (s->agent_response)
+	sfree(s->agent_response);
 
     /*
      * Now the connection protocol has started, one way or another.

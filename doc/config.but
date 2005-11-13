@@ -2393,6 +2393,11 @@ This key must be in PuTTY's native format (\c{*.\i{PPK}}). If you have a
 private key in another format that you want to use with PuTTY, see
 \k{puttygen-conversions}.
 
+If a key file is specified here, and \i{Pageant} is running (see
+\k{pageant}), PuTTY will first try asking Pageant to authenticate with
+that key, and ignore any other keys Pageant may have. If that fails,
+PuTTY will ask for a passphrase as normal.
+
 \H{config-ssh-tty} The TTY panel
 
 The TTY panel lets you configure the remote pseudo-terminal.
