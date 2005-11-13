@@ -538,7 +538,7 @@ help.
 (Typing \i{Shift-Backspace} will cause PuTTY to send whichever code
 isn't configured here as the default.)
 
-\S{config-homeend} Changing the action of the \I{Home and End keys}
+\S{config-homeend} Changing the action of the \i{Home and End keys}
 
 \cfg{winhelp-topic}{keyboard.homeend}
 
