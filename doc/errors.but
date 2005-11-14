@@ -89,7 +89,7 @@ This can easily happen if you are using Pageant and have a
 large number of keys loaded into it, since these servers count each
 offer of a public key as an authentication attempt. This can be worked
 around by specifying the key that's required for the authentication in
-the PuTTY configuration (see \k{config-ssh-privkey}; PuTTY will ignore
+the PuTTY configuration (see \k{config-ssh-privkey}); PuTTY will ignore
 any other keys Pageant may have, but will ask Pageant to do the
 authentication, so that you don't have to type your passphrase.
 
