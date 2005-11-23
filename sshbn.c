@@ -20,6 +20,33 @@ typedef unsigned long long BignumDblInt;
     __asm__("div %2" : \
 	    "=d" (r), "=a" (q) : \
 	    "r" (w), "d" (hi), "a" (lo))
+#elif defined _MSC_VER && defined _M_IX86
+typedef unsigned __int32 BignumInt;
+typedef unsigned __int64 BignumDblInt;
+#define BIGNUM_INT_MASK  0xFFFFFFFFUL
+#define BIGNUM_TOP_BIT   0x80000000UL
+#define BIGNUM_INT_BITS  32
+#define MUL_WORD(w1, w2) ((BignumDblInt)w1 * w2)
+typedef struct {
+    unsigned __int32 quot;
+    unsigned __int32 remd;
+} msvc_quorem;
+static __declspec(naked) msvc_quorem __stdcall msvc_divmod(
+    unsigned __int32 hi,
+    unsigned __int32 lo,
+    unsigned __int32 w)
+{
+    __asm {
+	mov edx, dword ptr [esp+4]
+        mov eax, dword ptr [esp+8]
+        div dword ptr [esp+12]
+        ret 12
+    };
+}
+#define DIVMOD_WORD(q, r, hi, lo, w) do { \
+    const msvc_quorem qr = msvc_divmod((hi), (lo), (w)); \
+    (q) = qr.quot; (r) = qr.remd; \
+} while (0)
 #else
 typedef unsigned short BignumInt;
 typedef unsigned long BignumDblInt;
