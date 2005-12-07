@@ -444,7 +444,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
             memset(ret->keyblob, 0, ret->keyblob_size);
             sfree(ret->keyblob);
         }
-        memset(&ret, 0, sizeof(ret));
+        memset(ret, 0, sizeof(*ret));
 	sfree(ret);
     }
     if (errmsg_p) *errmsg_p = errmsg;
@@ -461,7 +461,7 @@ int openssh_encrypted(const Filename *filename)
     ret = key->encrypted;
     memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
-    memset(&key, 0, sizeof(key));
+    memset(key, 0, sizeof(*key));
     sfree(key);
     return ret;
 }
@@ -654,7 +654,7 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
     }
     memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
-    memset(&key, 0, sizeof(key));
+    memset(key, 0, sizeof(*key));
     sfree(key);
     if (errmsg_p) *errmsg_p = errmsg;
     return retval;
@@ -1099,7 +1099,7 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
             memset(ret->keyblob, 0, ret->keyblob_size);
             sfree(ret->keyblob);
         }
-        memset(&ret, 0, sizeof(ret));
+        memset(ret, 0, sizeof(*ret));
 	sfree(ret);
     }
     if (errmsg_p) *errmsg_p = errmsg;
@@ -1141,7 +1141,7 @@ int sshcom_encrypted(const Filename *filename, char **comment)
     *comment = dupstr(key->comment);
     memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
-    memset(&key, 0, sizeof(key));
+    memset(key, 0, sizeof(*key));
     sfree(key);
     return answer;
 }
@@ -1416,7 +1416,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
     }
     memset(key->keyblob, 0, key->keyblob_size);
     sfree(key->keyblob);
-    memset(&key, 0, sizeof(key));
+    memset(key, 0, sizeof(*key));
     sfree(key);
     if (errmsg_p) *errmsg_p = errmsg;
     return ret;
