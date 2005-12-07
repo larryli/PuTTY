@@ -8690,8 +8690,11 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 	 * too much hassle to keep track, and partly I'm not
 	 * convinced the server should be told details like that
 	 * about my local network configuration.
+	 * The "originator IP address" is syntactically a numeric
+	 * IP address, and some servers (e.g., Tectia) get upset
+	 * if it doesn't match this syntax.
 	 */
-	ssh2_pkt_addstring(pktout, "client-side-connection");
+	ssh2_pkt_addstring(pktout, "0.0.0.0");
 	ssh2_pkt_adduint32(pktout, 0);
 	ssh2_pkt_send(ssh, pktout);
     }
