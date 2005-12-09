@@ -1488,7 +1488,7 @@ void sys_cursor(void *frontend, int x, int y)
  * may want to perform additional actions on any kind of bell (for
  * example, taskbar flashing in Windows).
  */
-void beep(void *frontend, int mode)
+void do_beep(void *frontend, int mode)
 {
     if (mode != BELL_VISUAL)
 	SysBeep(30);

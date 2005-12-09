@@ -4777,7 +4777,7 @@ static void flash_window(int mode)
 /*
  * Beep.
  */
-void beep(void *frontend, int mode)
+void do_beep(void *frontend, int mode)
 {
     if (mode == BELL_DEFAULT) {
 	/*

@@ -2748,7 +2748,7 @@ static void term_out(Terminal *term)
 		     * Perform an actual beep if we're not overloaded.
 		     */
 		    if (!term->cfg.bellovl || !term->beep_overloaded) {
-			beep(term->frontend, term->cfg.beep);
+			do_beep(term->frontend, term->cfg.beep);
 
 			if (term->cfg.beep == BELL_VISUAL) {
 			    term_schedule_vbell(term, FALSE, 0);

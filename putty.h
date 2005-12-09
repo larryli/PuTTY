@@ -686,7 +686,7 @@ void modalfatalbox(char *, ...);
 #pragma noreturn(fatalbox)
 #pragma noreturn(modalfatalbox)
 #endif
-void beep(void *frontend, int);
+void do_beep(void *frontend, int);
 void begin_session(void *frontend);
 void sys_cursor(void *frontend, int x, int y);
 void request_paste(void *frontend);
