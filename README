@@ -6,6 +6,11 @@ Makefiles and equivalents. (If you have fetched the source from
 Subversion, you'll have to generate the Makefiles yourself -- see
 below.)
 
+There are various compile-time directives that you can use to
+disable or modify certain features; it may be necessary to do this
+in some environments. They are documented in `Recipe', and in
+comments in many of the generated Makefiles.
+
 For building on Windows:
 
  - windows/Makefile.vc is for command-line builds on MS Visual C++
