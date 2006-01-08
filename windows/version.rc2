@@ -102,7 +102,7 @@ BEGIN
 	    VALUE "OriginalFilename",	APPNAME
 	    VALUE "FileVersion",	VERSION_TEXT
 	    VALUE "ProductVersion",	VERSION_TEXT
-	    VALUE "LegalCopyright",	"Copyright \251 1997-2005 Simon Tatham."
+	    VALUE "LegalCopyright",	"Copyright \251 1997-2006 Simon Tatham."
 #if (!defined SNAPSHOT) && (!defined RELEASE)
 	    /* Only if VS_FF_PRIVATEBUILD. */
 	    VALUE "PrivateBuild",	VERSION_TEXT /* NBI */
