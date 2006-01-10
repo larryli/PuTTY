@@ -1535,6 +1535,11 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	newsavelines == term->savelines)
 	return;			       /* nothing to do */
 
+    /* Behave sensibly if we're given zero (or negative) rows/cols */
+
+    if (newrows < 1) newrows = 1;
+    if (newcols < 1) newcols = 1;
+
     deselect(term);
     swap_screen(term, 0, FALSE, FALSE);
 
