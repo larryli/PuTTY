@@ -324,6 +324,10 @@ enum {
     FUNKY_SCO
 };
 
+enum {
+    FQ_DEFAULT, FQ_ANTIALIASED, FQ_NONANTIALIASED, FQ_CLEARTYPE
+};
+
 extern const char *const ttymodes[];
 
 enum {
@@ -502,6 +506,7 @@ struct config_tag {
     int win_name_always;
     int width, height;
     FontSpec font;
+    int font_quality;
     Filename logfilename;
     int logtype;
     int logxfovr;

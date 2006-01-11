@@ -27,8 +27,30 @@ struct FontSpec {
     int charset;
 };
 
+#ifndef CLEARTYPE_QUALITY
+#define CLEARTYPE_QUALITY 5
+#endif
+#define FONT_QUALITY(fq) ( \
+    (fq) == FQ_DEFAULT ? DEFAULT_QUALITY : \
+    (fq) == FQ_ANTIALIASED ? ANTIALIASED_QUALITY : \
+    (fq) == FQ_NONANTIALIASED ? NONANTIALIASED_QUALITY : \
+    CLEARTYPE_QUALITY)
+
+/* VC++ 6 doesn't have GetWindowLongPtr and friends.  Degrade nicely. */
+
+#ifndef GWLP_USERDATA
+#define GetWindowLongPtr GetWindowLong
+#define SetWindowLongPtr SetWindowLong
+#define GWLP_USERDATA GWL_USERDATA
+#define DWLP_MSGRESULT DWL_MSGRESULT
+#endif
+
 #define BOXFLAGS DLGWINDOWEXTRA
+#ifdef LONG_PTR
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
+#else
+#define BOXRESULT (DLGWINDOWEXTRA + 4)
+#endif
 #define DF_END 0x0001
 
 /*

@@ -173,6 +173,20 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		  dlg_stdcheckbox_handler, I(offsetof(Config,sunken_edge)));
 
     /*
+     * Configurable font quality settings for Windows.
+     */
+    s = ctrl_getset(b, "Window/Appearance", "font",
+		    "Font settings");
+    ctrl_radiobuttons(s, "Font quality:", 'q', 2,
+		      HELPCTX(appearance_font),
+		      dlg_stdradiobutton_handler,
+		      I(offsetof(Config, font_quality)),
+		      "Antialiased", I(FQ_ANTIALIASED),
+		      "Non-Antialiased", I(FQ_NONANTIALIASED),
+		      "ClearType", I(FQ_CLEARTYPE),
+		      "Default", I(FQ_DEFAULT), NULL);
+
+    /*
      * Cyrillic Lock is a horrid misfeature even on Windows, and
      * the least we can do is ensure it never makes it to any other
      * platform (at least unless someone fixes it!).

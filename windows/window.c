@@ -1319,7 +1319,7 @@ static void init_fonts(int pick_width, int pick_height)
 #define f(i,c,w,u) \
     fonts[i] = CreateFont (font_height, font_width, 0, 0, w, FALSE, u, FALSE, \
 			   c, OUT_DEFAULT_PRECIS, \
-		           CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, \
+		           CLIP_DEFAULT_PRECIS, FONT_QUALITY(cfg.font_quality), \
 			   FIXED_PITCH | FF_DONTCARE, cfg.font.name)
 
     f(FONT_NORMAL, cfg.font.charset, fw_dontcare, FALSE);
@@ -1488,7 +1488,7 @@ static void another_font(int fontno)
     fonts[fontno] =
 	CreateFont(font_height * (1 + !!(fontno & FONT_HIGH)), x, 0, 0, w,
 		   FALSE, u, FALSE, c, OUT_DEFAULT_PRECIS,
-		   CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+		   CLIP_DEFAULT_PRECIS, FONT_QUALITY(cfg.font_quality),
 		   FIXED_PITCH | FF_DONTCARE, s);
 
     fontflag[fontno] = 1;
@@ -2142,6 +2142,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    cfg.font.isbold != prev_cfg.font.isbold ||
 		    cfg.font.height != prev_cfg.font.height ||
 		    cfg.font.charset != prev_cfg.font.charset ||
+		    cfg.font_quality != prev_cfg.font_quality ||
 		    cfg.vtmode != prev_cfg.vtmode ||
 		    cfg.bold_colour != prev_cfg.bold_colour ||
 		    cfg.resize_action == RESIZE_DISABLED ||
