@@ -240,7 +240,11 @@ static int SaneDialogBox(HINSTANCE hinst,
     wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
     wc.lpfnWndProc = DefDlgProc;
     wc.cbClsExtra = 0;
+#ifdef LONG_PTR
     wc.cbWndExtra = DLGWINDOWEXTRA + 2*sizeof(LONG_PTR);
+#else
+    wc.cbWndExtra = DLGWINDOWEXTRA + 8;
+#endif
     wc.hInstance = hinst;
     wc.hIcon = NULL;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
