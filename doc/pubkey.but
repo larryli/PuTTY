@@ -212,7 +212,7 @@ utility, will list key fingerprints rather than the whole public key.
 
 If you have more than one key and use them for different purposes,
 you don't need to memorise the key fingerprints in order to tell
-them apart. PuTTY allows you to enter a \e{comment} for your key,
+them apart. PuTTYgen allows you to enter a \e{comment} for your key,
 which will be displayed whenever PuTTY or Pageant asks you for the
 passphrase.
 
@@ -235,7 +235,7 @@ choose a passphrase for your key. The passphrase will be used to
 \i{encrypt} the key on disk, so you will not be able to use the key
 without first entering the passphrase.
 
-When you save the key, PuTTY will check that the \q{Key passphrase}
+When you save the key, PuTTYgen will check that the \q{Key passphrase}
 and \q{Confirm passphrase} boxes both contain exactly the same
 passphrase, and will refuse to save the key otherwise.
 
