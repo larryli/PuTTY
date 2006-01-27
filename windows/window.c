@@ -1010,7 +1010,7 @@ static void update_mouse_pointer(void)
     }
     {
 	HCURSOR cursor = LoadCursor(NULL, curstype);
-	SetClassLong(hwnd, GCL_HCURSOR, (LONG)cursor);
+	SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)cursor);
 	SetCursor(cursor); /* force redraw of cursor at current posn */
     }
     if (force_visible != forced_visible) {

@@ -36,21 +36,38 @@ struct FontSpec {
     (fq) == FQ_NONANTIALIASED ? NONANTIALIASED_QUALITY : \
     CLEARTYPE_QUALITY)
 
-/* VC++ 6 doesn't have GetWindowLongPtr and friends.  Degrade nicely. */
+/*
+ * Where we can, we use GetWindowLongPtr and friends because they're
+ * more useful on 64-bit platforms, but they're a relatively recent
+ * innovation, missing from VC++ 6 and older MinGW.  Degrade nicely.
+ * (NB that on some systems, some of these things are available but
+ * not others...)
+ */
 
-#ifndef GWLP_USERDATA
+#ifndef GCLP_HCURSOR
+/* GetClassLongPtr and friends */
+#undef  GetClassLongPtr
+#define GetClassLongPtr GetClassLong
+#undef  SetClassLongPtr
+#define SetClassLongPtr SetClassLong
+#define GCLP_HCURSOR GCL_HCURSOR
+/* GetWindowLongPtr and friends */
+#undef  GetWindowLongPtr
 #define GetWindowLongPtr GetWindowLong
+#undef  SetWindowLongPtr
 #define SetWindowLongPtr SetWindowLong
+#undef  GWLP_USERDATA
 #define GWLP_USERDATA GWL_USERDATA
+#undef  DWLP_MSGRESULT
 #define DWLP_MSGRESULT DWL_MSGRESULT
+/* Since we've clobbered the above functions, we should clobber the
+ * associated type regardless of whether it's defined. */
+#undef LONG_PTR
+#define LONG_PTR LONG
 #endif
 
 #define BOXFLAGS DLGWINDOWEXTRA
-#ifdef LONG_PTR
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
-#else
-#define BOXRESULT (DLGWINDOWEXTRA + 4)
-#endif
 #define DF_END 0x0001
 
 /*
