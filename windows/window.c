@@ -40,6 +40,7 @@
 #define IDM_COPYALL   0x0170
 #define IDM_FULLSCREEN	0x0180
 #define IDM_PASTE     0x0190
+#define IDM_SPECIALSEP 0x0200
 
 #define IDM_SPECIAL_MIN 0x0400
 #define IDM_SPECIAL_MAX 0x0800
@@ -111,15 +112,15 @@ static struct unicode_data ucsdata;
 static int session_closed;
 static int reconfiguring = FALSE;
 
-static const struct telnet_special *specials;
-static int n_specials;
+static const struct telnet_special *specials = NULL;
+static HMENU specials_menu = NULL;
+static int n_specials = 0;
 
 #define TIMING_TIMER_ID 1234
 static long timing_next_time;
 
 static struct {
     HMENU menu;
-    int specials_submenu_pos;
 } popup_menus[2];
 enum { SYSMENU, CTXMENU };
 static HMENU savedsess_menu;
@@ -764,7 +765,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    m = popup_menus[j].menu;
 
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    popup_menus[j].specials_submenu_pos = GetMenuItemCount(m);
 	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
@@ -914,8 +914,7 @@ static void update_savedsess_menu(void)
  */
 void update_specials_menu(void *frontend)
 {
-    HMENU p;
-    int menu_already_exists = (specials != NULL);
+    HMENU new_menu;
     int i, j;
 
     if (back)
@@ -928,30 +927,30 @@ void update_specials_menu(void *frontend)
 	 * here's a lame "stack" that will do for now. */
 	HMENU saved_menu = NULL;
 	int nesting = 1;
-	p = CreatePopupMenu();
+	new_menu = CreatePopupMenu();
 	for (i = 0; nesting > 0; i++) {
 	    assert(IDM_SPECIAL_MIN + 0x10 * i < IDM_SPECIAL_MAX);
 	    switch (specials[i].code) {
 	      case TS_SEP:
-		AppendMenu(p, MF_SEPARATOR, 0, 0);
+		AppendMenu(new_menu, MF_SEPARATOR, 0, 0);
 		break;
 	      case TS_SUBMENU:
 		assert(nesting < 2);
 		nesting++;
-		saved_menu = p; /* XXX lame stacking */
-		p = CreatePopupMenu();
+		saved_menu = new_menu; /* XXX lame stacking */
+		new_menu = CreatePopupMenu();
 		AppendMenu(saved_menu, MF_POPUP | MF_ENABLED,
-			   (UINT) p, specials[i].name);
+			   (UINT) new_menu, specials[i].name);
 		break;
 	      case TS_EXITMENU:
 		nesting--;
 		if (nesting) {
-		    p = saved_menu; /* XXX lame stacking */
+		    new_menu = saved_menu; /* XXX lame stacking */
 		    saved_menu = NULL;
 		}
 		break;
 	      default:
-		AppendMenu(p, MF_ENABLED, IDM_SPECIAL_MIN + 0x10 * i,
+		AppendMenu(new_menu, MF_ENABLED, IDM_SPECIAL_MIN + 0x10 * i,
 			   specials[i].name);
 		break;
 	    }
@@ -959,29 +958,24 @@ void update_specials_menu(void *frontend)
 	/* Squirrel the highest special. */
 	n_specials = i - 1;
     } else {
-	p = NULL;
+	new_menu = NULL;
 	n_specials = 0;
     }
 
     for (j = 0; j < lenof(popup_menus); j++) {
-	if (menu_already_exists) {
+	if (specials_menu) {
 	    /* XXX does this free up all submenus? */
-	    DeleteMenu(popup_menus[j].menu,
-		       popup_menus[j].specials_submenu_pos,
-		       MF_BYPOSITION);
-	    DeleteMenu(popup_menus[j].menu,
-		       popup_menus[j].specials_submenu_pos,
-		       MF_BYPOSITION);
+	    DeleteMenu(popup_menus[j].menu, specials_menu, MF_BYCOMMAND);
+	    DeleteMenu(popup_menus[j].menu, IDM_SPECIALSEP, MF_BYCOMMAND);
 	}
 	if (specials) {
-	    InsertMenu(popup_menus[j].menu,
-		       popup_menus[j].specials_submenu_pos,
-		       MF_BYPOSITION | MF_SEPARATOR, 0, 0);
-	    InsertMenu(popup_menus[j].menu,
-		       popup_menus[j].specials_submenu_pos,
-		       MF_BYPOSITION | MF_POPUP | MF_ENABLED,
-		       (UINT) p, "S&pecial Command");
+	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
+		       MF_BYCOMMAND | MF_POPUP | MF_ENABLED,
+		       (UINT) new_menu, "S&pecial Command");
+	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
+		       MF_BYCOMMAND | MF_SEPARATOR, IDM_SPECIALSEP, 0);
 	}
+	specials_menu = new_menu;
     }
 }
 
