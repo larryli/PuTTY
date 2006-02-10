@@ -968,15 +968,15 @@ void update_specials_menu(void *frontend)
 	    DeleteMenu(popup_menus[j].menu, specials_menu, MF_BYCOMMAND);
 	    DeleteMenu(popup_menus[j].menu, IDM_SPECIALSEP, MF_BYCOMMAND);
 	}
-	if (specials) {
+	if (new_menu) {
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_POPUP | MF_ENABLED,
 		       (UINT) new_menu, "S&pecial Command");
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_SEPARATOR, IDM_SPECIALSEP, 0);
 	}
-	specials_menu = new_menu;
     }
+    specials_menu = new_menu;
 }
 
 static void update_mouse_pointer(void)
