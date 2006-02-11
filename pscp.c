@@ -546,26 +546,23 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
  */
 static char *colon(char *str)
 {
-    /* Check and process IPv6 literal addresses
-     * (eg: 'jeroen@[2001:db8::1]:myfile.txt') */
-    char *ipv6 = strchr(str, '[');
-    if (ipv6) {
-	str = strchr(str, ']');
-	if (str) {
-	    /* Terminate on the closing bracket */
-	    *str++ = '\0';
-	    return (str);
-	}
-	return (NULL);
-    }
-
     /* We ignore a leading colon, since the hostname cannot be
        empty. We also ignore a colon as second character because
        of filenames like f:myfile.txt. */
-    if (str[0] == '\0' || str[0] == ':' || str[1] == ':')
+    if (str[0] == '\0' || str[0] == ':' ||
+        (str[0] != '[' && str[1] == ':'))
 	return (NULL);
-    while (*str != '\0' && *str != ':' && *str != '/' && *str != '\\')
+    while (*str != '\0' && *str != ':' && *str != '/' && *str != '\\') {
+	if (*str == '[') {
+	    /* Skip over IPv6 literal addresses
+	     * (eg: 'jeroen@[2001:db8::1]:myfile.txt') */
+	    char *ipv6_end = strchr(str, ']');
+	    if (ipv6_end) {
+		str = ipv6_end;
+	    }
+	}
 	str++;
+    }
     if (*str == ':')
 	return (str);
     else
