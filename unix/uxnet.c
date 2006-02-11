@@ -236,7 +236,7 @@ SockAddr sk_nonamelookup(const char *host)
 static int sk_nextaddr(SockAddr addr)
 {
 #ifndef NO_IPV6
-    if (addr->ai->ai_next) {
+    if (addr->ai && addr->ai->ai_next) {
 	addr->ai = addr->ai->ai_next;
 	addr->family = addr->ai->ai_family;
 	return TRUE;
@@ -1282,9 +1282,10 @@ SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname)
     else
 	*canonicalname = dupstr(ret->hostname);
 #ifndef NO_IPV6
-    ret->ais = NULL;
+    ret->ai = ret->ais = NULL;
 #else
     ret->addresses = NULL;
+    ret->curraddr = ret->naddresses = 0;
 #endif
     return ret;
 }
