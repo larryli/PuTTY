@@ -245,7 +245,7 @@ char *x11_display(const char *display) {
     char *ret;
     if(!display || !*display) {
 	/* try to find platform-specific local display */
-	if((ret = platform_get_x_display())==0)
+	if((ret = platform_get_x_display())==0 || !*ret)
 	    /* plausible default for all platforms */
 	    ret = dupstr(":0");
     } else
