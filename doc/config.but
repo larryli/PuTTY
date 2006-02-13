@@ -1325,11 +1325,10 @@ work in the PuTTY window.
 
 If you enable \q{Paste to clipboard in RTF as well as plain text},
 PuTTY will write formatting information to the clipboard as well as
-the actual text you copy. Currently the only effect of this will be
+the actual text you copy. The effect of this is
 that if you paste into (say) a word processor, the text will appear
-in the word processor in the same \i{font} PuTTY was using to display
-it. In future it is likely that other formatting information (bold,
-underline, colours) will be copied as well.
+in the word processor in the same \i{font}, \i{colour}, and style 
+(e.g. bold, underline) PuTTY was using to display it.
 
 This option can easily be inconvenient, so by default it is
 disabled.
