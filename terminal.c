@@ -5047,10 +5047,15 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
     int old_top_x;
     int wblen = 0;		       /* workbuf len */
     int buflen;			       /* amount of memory allocated to workbuf */
+    int *attrbuf;                      /* Attribute buffer */
+    int *attrptr;
+    int attr;
 
     buflen = 5120;		       /* Default size */
     workbuf = snewn(buflen, wchar_t);
+    attrbuf = buflen ? snewn(buflen, int) : 0;
     wbptr = workbuf;		       /* start filling here */
+    attrptr = attrbuf;
     old_top_x = top.x;		       /* needed for rect==1 */
 
     while (poslt(top, bottom)) {
@@ -5113,6 +5118,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 
 	    while (1) {
 		int uc = ldata->chars[x].chr;
+                attr = ldata->chars[x].attr;
 
 		switch (uc & CSET_MASK) {
 		  case CSET_LINEDRW:
@@ -5170,9 +5176,12 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 			buflen += 100;
 			workbuf = sresize(workbuf, buflen, wchar_t);
 			wbptr = workbuf + wblen;
+			attrbuf = sresize(attrbuf, buflen, int);
+			attrptr = attrbuf + wblen;
 		    }
 		    wblen++;
 		    *wbptr++ = *p;
+                    *attrptr++ = attr;
 		}
 
 		if (ldata->chars[x].cc_next)
@@ -5187,6 +5196,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	    for (i = 0; i < sel_nl_sz; i++) {
 		wblen++;
 		*wbptr++ = sel_nl[i];
+                *attrptr++ = 0;
 	    }
 	}
 	top.y++;
@@ -5198,7 +5208,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
     wblen++;
     *wbptr++ = 0;
 #endif
-    write_clip(term->frontend, workbuf, wblen, desel); /* transfer to clipbd */
+    write_clip(term->frontend, workbuf, attrbuf, wblen, desel); /* transfer to clipbd */
     if (buflen > 0)		       /* indicates we allocated this buffer */
 	sfree(workbuf);
 }

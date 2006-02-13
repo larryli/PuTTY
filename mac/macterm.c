@@ -595,7 +595,7 @@ static void text_click(Session *s, EventRecord *event)
     lastwhen = TickCount();
 }
 
-void write_clip(void *cookie, wchar_t *data, int len, int must_deselect)
+void write_clip(void *cookie, wchar_t *data, int *attr, int len, int must_deselect)
 {
 #if !TARGET_API_MAC_CARBON
     Session *s = cookie;

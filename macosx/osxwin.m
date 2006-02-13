@@ -1176,7 +1176,7 @@ void get_clip(void *frontend, wchar_t ** p, int *len)
     /* FIXME */
 }
 
-void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t *data, int *arttr, int len, int must_deselect)
 {
     //SessionWindow *win = (SessionWindow *)frontend;
     /* FIXME */

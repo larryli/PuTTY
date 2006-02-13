@@ -4462,7 +4462,7 @@ void write_aclip(void *frontend, char *data, int len, int must_deselect)
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
-void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_deselect)
 {
     HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;
@@ -4498,14 +4498,83 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	int rtfsize = 0;
 	int multilen, blen, alen, totallen, i;
 	char before[16], after[4];
+	int fgcolour,  lastfgcolour  = 0;
+	int bgcolour,  lastbgcolour  = 0;
+	int attrBold,  lastAttrBold  = 0;
+	int attrUnder, lastAttrUnder = 0;
+	int palette[NALLCOLOURS];
+	int numcolours;
 
 	get_unitab(CP_ACP, unitab, 0);
 
 	rtfsize = 100 + strlen(cfg.font.name);
 	rtf = snewn(rtfsize, char);
-	sprintf(rtf, "{\\rtf1\\ansi%d{\\fonttbl\\f0\\fmodern %s;}\\f0 ",
-		GetACP(), cfg.font.name);
-	rtflen = strlen(rtf);
+	rtflen = sprintf(rtf, "{\\rtf1\\ansi\\deff0{\\fonttbl\\f0\\fmodern %s;}\\f0\\fs%d",
+			 cfg.font.name, cfg.font.height*2);
+
+	/*
+	 * Add colour palette
+	 * {\colortbl ;\red255\green0\blue0;\red0\green0\blue128;}
+	 */
+
+	/*
+	 * First - Determine all colours in use
+	 *    o  Foregound and background colours share the same palette
+	 */
+	if (attr) {
+	    memset(palette, 0, sizeof(palette));
+	    for (i = 0; i < (len-1); i++) {
+		fgcolour = ((attr[i] & ATTR_FGMASK) >> ATTR_FGSHIFT);
+		bgcolour = ((attr[i] & ATTR_BGMASK) >> ATTR_BGSHIFT);
+
+		if (attr[i] & ATTR_REVERSE) {
+		    int tmpcolour = fgcolour;	/* Swap foreground and background */
+		    fgcolour = bgcolour;
+		    bgcolour = tmpcolour;
+		}
+
+		if (bold_mode == BOLD_COLOURS && (attr[i] & ATTR_BOLD)) {
+		    if (fgcolour  <   8)	/* ANSI colours */
+			fgcolour +=   8;
+		    else if (fgcolour >= 256)	/* Default colours */
+			fgcolour ++;
+		}
+
+		if (attr[i] & ATTR_BLINK) {
+		    if (bgcolour  <   8)	/* ANSI colours */
+			bgcolour +=   8;
+    		    else if (bgcolour >= 256)	/* Default colours */
+			bgcolour ++;
+		}
+
+		palette[fgcolour]++;
+		palette[bgcolour]++;
+	    }
+
+	    /*
+	     * Next - Create a reduced palette
+	     */
+	    numcolours = 0;
+	    for (i = 0; i < NALLCOLOURS; i++) {
+		if (palette[i] != 0)
+		    palette[i]  = ++numcolours;
+	    }
+
+	    /*
+	     * Finally - Write the colour table
+	     */
+	    rtf = sresize(rtf, rtfsize + (numcolours * 25), char);
+	    strcat(rtf, "{\\colortbl ;");
+	    rtflen = strlen(rtf);
+
+	    for (i = 0; i < NALLCOLOURS; i++) {
+		if (palette[i] != 0) {
+		    rtflen += sprintf(&rtf[rtflen], "\\red%d\\green%d\\blue%d;", defpal[i].rgbtRed, defpal[i].rgbtGreen, defpal[i].rgbtBlue);
+		}
+	    }
+	    strcpy(&rtf[rtflen], "}");
+	    rtflen ++;
+	}
 
 	/*
 	 * We want to construct a piece of RTF that specifies the
@@ -4532,7 +4601,96 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 		tdata[tindex+1] == '\n') {
 		tindex++;
 		uindex++;
+            }
+
+            /*
+             * Set text attributes
+             */
+            if (attr) {
+                if (rtfsize < rtflen + 64) {
+		    rtfsize = rtflen + 512;
+		    rtf = sresize(rtf, rtfsize, char);
+                }
+
+                /*
+                 * Determine foreground and background colours
+                 */
+                fgcolour = ((attr[tindex] & ATTR_FGMASK) >> ATTR_FGSHIFT);
+                bgcolour = ((attr[tindex] & ATTR_BGMASK) >> ATTR_BGSHIFT);
+
+		if (attr[tindex] & ATTR_REVERSE) {
+		    int tmpcolour = fgcolour;	    /* Swap foreground and background */
+		    fgcolour = bgcolour;
+		    bgcolour = tmpcolour;
+		}
+
+		if (bold_mode == BOLD_COLOURS && (attr[tindex] & ATTR_BOLD)) {
+		    if (fgcolour  <   8)	    /* ANSI colours */
+			fgcolour +=   8;
+		    else if (fgcolour >= 256)	    /* Default colours */
+			fgcolour ++;
+                }
+
+		if (attr[tindex] & ATTR_BLINK) {
+		    if (bgcolour  <   8)	    /* ANSI colours */
+			bgcolour +=   8;
+		    else if (bgcolour >= 256)	    /* Default colours */
+			bgcolour ++;
+                }
+
+                /*
+                 * Collect other attributes
+                 */
+		if (bold_mode != BOLD_COLOURS)
+		    attrBold  = attr[tindex] & ATTR_BOLD;
+		else
+		    attrBold  = 0;
+                
+		attrUnder = attr[tindex] & ATTR_UNDER;
+
+                /*
+                 * Reverse video
+		 *   o  If video isn't reversed, ignore colour attributes for default foregound
+	         *	or background.
+		 *   o  Special case where bolded text is displayed using the default foregound
+		 *      and background colours - force to bolded RTF.
+                 */
+		if (!(attr[tindex] & ATTR_REVERSE)) {
+		    if (bgcolour >= 256)	    /* Default color */
+			bgcolour  = -1;		    /* No coloring */
+
+		    if (fgcolour >= 256) {	    /* Default colour */
+			if (bold_mode == BOLD_COLOURS && (fgcolour & 1) && bgcolour == -1)
+			    attrBold = ATTR_BOLD;   /* Emphasize text with bold attribute */
+
+			fgcolour  = -1;		    /* No coloring */
+		    }
+		}
+
+                /*
+                 * Write RTF text attributes
+                 */
+		if (lastfgcolour != fgcolour) {
+                    lastfgcolour  = fgcolour;
+		    rtflen       += sprintf(&rtf[rtflen], "\\cf%d ", (fgcolour >= 0) ? palette[fgcolour] : 0);
+                }
+
+                if (lastbgcolour != bgcolour) {
+                    lastbgcolour  = bgcolour;
+                    rtflen       += sprintf(&rtf[rtflen], "\\highlight%d ", (bgcolour >= 0) ? palette[bgcolour] : 0);
+                }
+
+		if (lastAttrBold != attrBold) {
+		    lastAttrBold  = attrBold;
+		    rtflen       += sprintf(&rtf[rtflen], "%s", attrBold ? "\\b " : "\\b0 ");
+		}
+
+                if (lastAttrUnder != attrUnder) {
+                    lastAttrUnder  = attrUnder;
+                    rtflen        += sprintf(&rtf[rtflen], "%s", attrUnder ? "\\ul " : "\\ulnone ");
+                }
 	    }
+
 	    if (unitab[tdata[tindex]] == udata[uindex]) {
 		multilen = 1;
 		before[0] = '\0';
@@ -4591,12 +4749,13 @@ void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
 	    uindex++;
 	}
 
-	strcpy(rtf + rtflen, "}");
-	rtflen += 2;
+        rtf[rtflen++] = '}';	       /* Terminate RTF stream */
+        rtf[rtflen++] = '\0';
+        rtf[rtflen++] = '\0';
 
 	clipdata3 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, rtflen);
 	if (clipdata3 && (lock3 = GlobalLock(clipdata3)) != NULL) {
-	    strcpy(lock3, rtf);
+	    memcpy(lock3, rtf, rtflen);
 	    GlobalUnlock(clipdata3);
 	}
 	sfree(rtf);

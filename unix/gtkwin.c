@@ -1491,7 +1491,7 @@ char * retrieve_cutbuffer(int * nbytes)
     return ptr;
 }
 
-void write_clip(void *frontend, wchar_t * data, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     if (inst->pasteout_data)

@@ -680,7 +680,7 @@ void free_ctx(Context);
 void palette_set(void *frontend, int, int, int, int);
 void palette_reset(void *frontend);
 void write_aclip(void *frontend, char *, int, int);
-void write_clip(void *frontend, wchar_t *, int, int);
+void write_clip(void *frontend, wchar_t *, int *, int, int);
 void get_clip(void *frontend, wchar_t **, int *);
 void optimised_move(void *frontend, int, int, int);
 void set_raw_mouse_mode(void *frontend, int);
