@@ -1384,7 +1384,7 @@ void term_reconfig(Terminal *term, Config *cfg)
  */
 void term_clrsb(Terminal *term)
 {
-    termline *line;
+    unsigned char *line;
     term->disptop = 0;
     while ((line = delpos234(term->scrollback, 0)) != NULL) {
 	sfree(line);            /* this is compressed data, not a termline */
