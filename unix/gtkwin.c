@@ -2858,7 +2858,7 @@ void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
 void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    term_pwron(inst->term);
+    term_pwron(inst->term, TRUE);
     if (inst->ldisc)
 	ldisc_send(inst->ldisc, NULL, 0, 0);
 }
@@ -3229,6 +3229,7 @@ void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 
     if (!inst->back) {
 	logevent(inst, "----- Session restarted -----");
+	term_pwron(inst->term, FALSE);
 	start_backend(inst);
 	inst->exited = FALSE;
     }

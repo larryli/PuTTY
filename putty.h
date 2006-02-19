@@ -787,7 +787,7 @@ void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
 void term_paint(Terminal *, Context, int, int, int, int, int);
 void term_scroll(Terminal *, int, int);
-void term_pwron(Terminal *);
+void term_pwron(Terminal *, int);
 void term_clrsb(Terminal *);
 void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,
 		int,int,int,int,int);

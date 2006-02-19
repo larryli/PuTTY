@@ -94,10 +94,12 @@ static termline *lineptr(Terminal *, int, int, int);
 static void unlineptr(termline *);
 static void do_paint(Terminal *, Context, int);
 static void erase_lots(Terminal *, int, int, int);
+static int find_last_nonempty_line(Terminal *, tree234 *);
 static void swap_screen(Terminal *, int, int, int);
 static void update_sbar(Terminal *);
 static void deselect(Terminal *);
 static void term_print_finish(Terminal *);
+static void scroll(Terminal *, int, int, int, int);
 #ifdef OPTIMISE_SCROLL
 static void scroll_display(Terminal *, int, int, int);
 #endif /* OPTIMISE_SCROLL */
@@ -1170,10 +1172,12 @@ static void term_schedule_vbell(Terminal *term, int already_started,
 
 /*
  * Set up power-on settings for the terminal.
+ * If 'clear' is false, don't actually clear the primary screen, and
+ * position the cursor below the last non-blank line (scrolling if
+ * necessary).
  */
-static void power_on(Terminal *term)
+static void power_on(Terminal *term, int clear)
 {
-    term->curs.x = term->curs.y = 0;
     term->alt_x = term->alt_y = 0;
     term->savecurs.x = term->savecurs.y = 0;
     term->alt_t = term->marg_t = 0;
@@ -1217,8 +1221,17 @@ static void power_on(Terminal *term)
 	swap_screen(term, 1, FALSE, FALSE);
 	erase_lots(term, FALSE, TRUE, TRUE);
 	swap_screen(term, 0, FALSE, FALSE);
-	erase_lots(term, FALSE, TRUE, TRUE);
+	if (clear)
+	    erase_lots(term, FALSE, TRUE, TRUE);
+	term->curs.y = find_last_nonempty_line(term, term->screen) + 1;
+	if (term->curs.y == term->rows) {
+	    term->curs.y--;
+	    scroll(term, 0, term->rows - 1, 1, TRUE);
+	}
+    } else {
+	term->curs.y = 0;
     }
+    term->curs.x = 0;
     term_schedule_tblink(term);
     term_schedule_cblink(term);
 }
@@ -1283,9 +1296,9 @@ void term_seen_key_event(Terminal *term)
 /*
  * Same as power_on(), but an external function.
  */
-void term_pwron(Terminal *term)
+void term_pwron(Terminal *term, int clear)
 {
-    power_on(term);
+    power_on(term, clear);
     if (term->ldisc)		       /* cause ldisc to notice changes */
 	ldisc_send(term->ldisc, NULL, 0, 0);
     term->disptop = 0;
@@ -1442,7 +1455,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->tabs = NULL;
     deselect(term);
     term->rows = term->cols = -1;
-    power_on(term);
+    power_on(term, TRUE);
     term->beephead = term->beeptail = NULL;
 #ifdef OPTIMISE_SCROLL
     term->scrollhead = term->scrolltail = NULL;
@@ -3076,7 +3089,7 @@ static void term_out(Terminal *term)
 		    break;
 		  case 'c':	       /* RIS: restore power-on settings */
 		    compatibility(VT100);
-		    power_on(term);
+		    power_on(term, TRUE);
 		    if (term->ldisc)   /* cause ldisc to notice changes */
 			ldisc_send(term->ldisc, NULL, 0, 0);
 		    if (term->reset_132) {

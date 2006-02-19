@@ -1987,6 +1987,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_RESTART:
 	    if (!back) {
 		logevent(NULL, "----- Session restarted -----");
+		term_pwron(term, FALSE);
 		start_backend();
 	    }
 
@@ -2154,7 +2155,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    term_clrsb(term);
 	    break;
 	  case IDM_RESET:
-	    term_pwron(term);
+	    term_pwron(term, TRUE);
 	    if (ldisc)
 		ldisc_send(ldisc, NULL, 0, 0);
 	    break;
