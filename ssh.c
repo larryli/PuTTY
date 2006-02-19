@@ -6613,7 +6613,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	s->nkeys = 0;
 	s->agent_response = NULL;
 	s->pkblob_in_agent = NULL;
-	if (ssh->cfg.tryagent && agent_exists() && ssh->cfg.tryagent) {
+	if (ssh->cfg.tryagent && agent_exists()) {
 
 	    void *r;
 
