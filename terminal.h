@@ -79,8 +79,9 @@ struct terminal_tag {
     tree234 *screen;		       /* lines on primary screen */
     tree234 *alt_screen;	       /* lines on alternate screen */
     int disptop;		       /* distance scrolled back (0 or -ve) */
-    int tempsblines;		       /* number of lines in temporary
-					  scrollback */
+    int tempsblines;		       /* number of lines of .scrollback that
+					  can be retrieved onto the terminal
+					  ("temporary scrollback") */
 
     termline **disptext;	       /* buffer of text on real screen */
     int dispcursx, dispcursy;	       /* location of cursor on real screen */
