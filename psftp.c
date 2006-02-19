@@ -2595,6 +2595,8 @@ static void usage(void)
     printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for authentication\n");
+    printf("  -noagent  disable use of Pageant\n");
+    printf("  -agent    enable use of Pageant\n");
     printf("  -batch    disable all interactive prompts\n");
     cleanup_exit(1);
 }

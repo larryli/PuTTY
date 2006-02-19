@@ -43,7 +43,7 @@ use Plink:
 
 \c Z:\sysosd>plink
 \c PuTTY Link: command-line connection utility
-\c Release 0.58
+\c Release 0.XX
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
@@ -71,6 +71,8 @@ use Plink:
 \c   -4 -6     force use of IPv4 or IPv6
 \c   -C        enable compression
 \c   -i key    private key file for authentication
+\c   -noagent  disable use of Pageant
+\c   -agent    enable use of Pageant
 \c   -m file   read remote command(s) from file
 \c   -s        remote command is an SSH subsystem (SSH-2 only)
 \c   -N        don't start a shell/command (SSH-2 only)

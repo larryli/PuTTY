@@ -692,14 +692,11 @@ The \c{-agent} option turns on SSH authentication using Pageant, and
 \c{-noagent} turns it off. These options are only meaningful if you
 are using SSH.
 
-See \k{pageant} for general information on \i{Pageant}
+See \k{pageant} for general information on \i{Pageant}.
 
 These options are equivalent to the agent authentication checkbox in
 the Auth panel of the PuTTY configuration box (see
 \k{config-ssh-tryagent}).
-
-These options are not available in the file transfer tools PSCP and
-PSFTP.
 
 \S2{using-cmdline-agent} \I{-A-upper}\c{-A} and \i\c{-a}: control \i{agent
 forwarding}
