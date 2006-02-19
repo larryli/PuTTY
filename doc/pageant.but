@@ -42,6 +42,10 @@ automatically from Pageant, and use it to authenticate. You can now
 open as many PuTTY sessions as you like without having to type your
 passphrase again.
 
+(PuTTY can be configured not to try to use Pageant, but it will try
+by default. See \k{config-ssh-tryagent} and
+\k{using-cmdline-agentauth} for more information.)
+
 When you want to shut down Pageant, click the right button on the
 Pageant icon in the System tray, and select \q{Exit} from the menu.
 Closing the Pageant main window does \e{not} shut down Pageant.

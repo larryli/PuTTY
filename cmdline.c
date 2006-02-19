@@ -291,6 +291,19 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	cmdline_password = value;
     }
 
+    if (!strcmp(p, "-agent") || !strcmp(p, "-pagent") ||
+	!strcmp(p, "-pageant")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	cfg->tryagent = TRUE;
+    }
+    if (!strcmp(p, "-noagent") || !strcmp(p, "-nopagent") ||
+	!strcmp(p, "-nopageant")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	cfg->tryagent = FALSE;
+    }
+
     if (!strcmp(p, "-A")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);

@@ -628,8 +628,6 @@ int main(int argc, char **argv)
 	    if (!*cfg.host) {
 		char *q = p;
 
-                do_defaults(NULL, &cfg);
-
 		/*
 		 * If the hostname starts with "telnet:", set the
 		 * protocol to Telnet and process the string as a

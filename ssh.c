@@ -3222,7 +3222,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     while (pktin->type == SSH1_SMSG_FAILURE) {
 	s->pwpkt_type = SSH1_CMSG_AUTH_PASSWORD;
 
-	if (agent_exists() && !s->tried_agent) {
+	if (ssh->cfg.tryagent && agent_exists() && !s->tried_agent) {
 	    /*
 	     * Attempt RSA authentication using Pageant.
 	     */
@@ -6613,7 +6613,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	s->nkeys = 0;
 	s->agent_response = NULL;
 	s->pkblob_in_agent = NULL;
-	if (agent_exists()) {
+	if (ssh->cfg.tryagent && agent_exists() && ssh->cfg.tryagent) {
 
 	    void *r;
 

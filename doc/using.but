@@ -685,6 +685,22 @@ Note that the \c{-pw} option only works when you are using the SSH
 protocol. Due to fundamental limitations of Telnet and Rlogin, these
 protocols do not support automated password authentication.
 
+\S2{using-cmdline-agentauth} \i\c{-agent} and \i\c{-noagent}:
+control use of Pageant for authentication
+
+The \c{-agent} option turns on SSH authentication using Pageant, and
+\c{-noagent} turns it off. These options are only meaningful if you
+are using SSH.
+
+See \k{pageant} for general information on \i{Pageant}
+
+These options are equivalent to the agent authentication checkbox in
+the Auth panel of the PuTTY configuration box (see
+\k{config-ssh-tryagent}).
+
+These options are not available in the file transfer tools PSCP and
+PSFTP.
+
 \S2{using-cmdline-agent} \I{-A-upper}\c{-A} and \i\c{-a}: control \i{agent
 forwarding}
 

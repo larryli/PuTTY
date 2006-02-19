@@ -1841,6 +1841,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
 			    "Authentication methods");
+	    ctrl_checkbox(s, "Attempt authentication using Pageant", 'p',
+			  HELPCTX(ssh_auth_pageant),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,tryagent)));
 	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH-1)", 'm',
 			  HELPCTX(ssh_auth_tis),
 			  dlg_stdcheckbox_handler,

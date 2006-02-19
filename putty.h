@@ -432,6 +432,7 @@ struct config_tag {
     int ssh_kexlist[KEX_MAX];
     int ssh_rekey_time;		       /* in minutes */
     char ssh_rekey_data[16];
+    int tryagent;
     int agentfwd;
     int change_username;	       /* allow username switching in SSH-2 */
     int ssh_cipherlist[CIPHER_MAX];

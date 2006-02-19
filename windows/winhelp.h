@@ -99,6 +99,7 @@
 #define WINHELP_CTX_ssh_auth_privkey "ssh.auth.privkey"
 #define WINHELP_CTX_ssh_auth_agentfwd "ssh.auth.agentfwd"
 #define WINHELP_CTX_ssh_auth_changeuser "ssh.auth.changeuser"
+#define WINHELP_CTX_ssh_auth_pageant "ssh.auth.pageant"
 #define WINHELP_CTX_ssh_auth_tis "ssh.auth.tis"
 #define WINHELP_CTX_ssh_auth_ki "ssh.auth.ki"
 #define WINHELP_CTX_selection_buttons "selection.buttons"

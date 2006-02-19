@@ -2310,6 +2310,24 @@ unwanted username prompts, you could try checking this option.
 This option only affects SSH-2 connections. SSH-1 connections always
 require an authentication step.
 
+\S{config-ssh-tryagent} \q{Attempt authentication using Pageant}
+
+\cfg{winhelp-topic}{ssh.auth.pageant}
+
+If this option is enabled, then PuTTY will look for Pageant (the SSH
+private-key storage agent) and attempt to authenticate with any
+suitable public keys Pageant currently holds.
+
+This behaviour is almost always desirable, and is therefore enabled
+by default. In rare cases you might need to turn it off in order to
+force authentication by some non-public-key method such as
+passwords.
+
+This option can also be controlled using the \c{-noagent}
+command-line option. See \k{using-cmdline-agentauth}.
+
+See \k{pageant} for more information about Pageant in general.
+
 \S{config-ssh-tis} \q{Attempt \I{TIS authentication}TIS or
 \i{CryptoCard authentication}}
 
