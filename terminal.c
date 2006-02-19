@@ -5040,22 +5040,43 @@ void term_scroll(Terminal *term, int rel, int where)
     term_update(term);
 }
 
+/*
+ * Helper routine for clipme(): growing buffer.
+ */
+typedef struct {
+    int buflen;		    /* amount of allocated space in textbuf/attrbuf */
+    int bufpos;		    /* amount of actual data */
+    wchar_t *textbuf;	    /* buffer for copied text */
+    wchar_t *textptr;	    /* = textbuf + bufpos (current insertion point) */
+    int *attrbuf;	    /* buffer for copied attributes */
+    int *attrptr;	    /* = attrbuf + bufpos */
+} clip_workbuf;
+
+static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr)
+{
+    if (b->bufpos >= b->buflen) {
+	b->buflen += 128;
+	b->textbuf = sresize(b->textbuf, b->buflen, wchar_t);
+	b->textptr = b->textbuf + b->bufpos;
+	b->attrbuf = sresize(b->attrbuf, b->buflen, int);
+	b->attrptr = b->attrbuf + b->bufpos;
+    }
+    *b->textptr++ = chr;
+    *b->attrptr++ = attr;
+    b->bufpos++;
+}
+
 static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 {
-    wchar_t *workbuf;
-    wchar_t *wbptr;		       /* where next char goes within workbuf */
+    clip_workbuf buf;
     int old_top_x;
-    int wblen = 0;		       /* workbuf len */
-    int buflen;			       /* amount of memory allocated to workbuf */
-    int *attrbuf;                      /* Attribute buffer */
-    int *attrptr;
     int attr;
 
-    buflen = 5120;		       /* Default size */
-    workbuf = snewn(buflen, wchar_t);
-    attrbuf = buflen ? snewn(buflen, int) : 0;
-    wbptr = workbuf;		       /* start filling here */
-    attrptr = attrbuf;
+    buf.buflen = 5120;			
+    buf.bufpos = 0;
+    buf.textptr = buf.textbuf = snewn(buf.buflen, wchar_t);
+    buf.attrptr = buf.attrbuf = snewn(buf.buflen, int);
+
     old_top_x = top.x;		       /* needed for rect==1 */
 
     while (poslt(top, bottom)) {
@@ -5078,7 +5099,8 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	 * newline at the end)...
 	 */
 	if (!(ldata->lattr & LATTR_WRAPPED)) {
-	    while (IS_SPACE_CHR(ldata->chars[nlpos.x - 1].chr) &&
+	    while (nlpos.x &&
+		   IS_SPACE_CHR(ldata->chars[nlpos.x - 1].chr) &&
 		   !ldata->chars[nlpos.x - 1].cc_next &&
 		   poslt(top, nlpos))
 		decpos(nlpos);
@@ -5170,19 +5192,8 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 		}
 #endif
 
-		for (p = cbuf; *p; p++) {
-		    /* Enough overhead for trailing NL and nul */
-		    if (wblen >= buflen - 16) {
-			buflen += 100;
-			workbuf = sresize(workbuf, buflen, wchar_t);
-			wbptr = workbuf + wblen;
-			attrbuf = sresize(attrbuf, buflen, int);
-			attrptr = attrbuf + wblen;
-		    }
-		    wblen++;
-		    *wbptr++ = *p;
-                    *attrptr++ = attr;
-		}
+		for (p = cbuf; *p; p++)
+		    clip_addchar(&buf, *p, attr);
 
 		if (ldata->chars[x].cc_next)
 		    x += ldata->chars[x].cc_next;
@@ -5193,11 +5204,8 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	}
 	if (nl) {
 	    int i;
-	    for (i = 0; i < sel_nl_sz; i++) {
-		wblen++;
-		*wbptr++ = sel_nl[i];
-                *attrptr++ = 0;
-	    }
+	    for (i = 0; i < sel_nl_sz; i++)
+		clip_addchar(&buf, sel_nl[i], 0);
 	}
 	top.y++;
 	top.x = rect ? old_top_x : 0;
@@ -5205,12 +5213,12 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	unlineptr(ldata);
     }
 #if SELECTION_NUL_TERMINATED
-    wblen++;
-    *wbptr++ = 0;
+    clip_addchar(&buf, 0, 0);
 #endif
-    write_clip(term->frontend, workbuf, attrbuf, wblen, desel); /* transfer to clipbd */
-    if (buflen > 0)		       /* indicates we allocated this buffer */
-	sfree(workbuf);
+    /* Finally, transfer all that to the clipboard. */
+    write_clip(term->frontend, buf.textbuf, buf.attrbuf, buf.bufpos, desel);
+    sfree(buf.textbuf);
+    sfree(buf.attrbuf);
 }
 
 void term_copyall(Terminal *term)
