@@ -4093,7 +4093,7 @@ static void term_out(Terminal *term)
 		break;
 	      case SEEN_OSC_P:
 		{
-		    int max = (term->osc_strlen == 0 ? 21 : 16);
+		    int max = (term->osc_strlen == 0 ? 21 : 15);
 		    int val;
 		    if ((int)c >= '0' && (int)c <= '9')
 			val = c - '0';
