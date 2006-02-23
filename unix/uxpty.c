@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <grp.h>
@@ -83,6 +84,7 @@ struct pty_tag {
     int term_width, term_height;
     int child_dead, finished;
     int exit_code;
+    bufchain output_data;
 };
 
 /*
@@ -178,6 +180,7 @@ static struct utmpx utmp_entry;
 char **pty_argv;
 
 static void pty_close(Pty pty);
+static void pty_try_write(Pty pty);
 
 #ifndef OMIT_UTMP
 static void setup_utmp(char *ttyname, char *location)
@@ -347,6 +350,14 @@ static void pty_open_master(Pty pty)
     strncpy(pty->name, ptsname(pty->master_fd), FILENAME_MAX-1);
 #endif
 
+    {
+        /*
+         * Set the pty master into non-blocking mode.
+         */
+        int i = 1;
+        ioctl(pty->master_fd, FIONBIO, &i);
+    }
+
     if (!ptys_by_fd)
 	ptys_by_fd = newtree234(pty_compare_by_fd);
     add234(ptys_by_fd, pty);
@@ -375,6 +386,7 @@ void pty_pre_init(void)
 #endif
 
     pty = single_pty = snew(struct pty_tag);
+    bufchain_init(&pty->output_data);
 
     /* set the child signal handler straight away; it needs to be set
      * before we ever fork. */
@@ -555,7 +567,12 @@ int pty_real_select_result(Pty pty, int event, int status)
 	    } else if (ret > 0) {
 		from_backend(pty->frontend, 0, buf, ret);
 	    }
-	}
+	} else if (event == 2) {
+            /*
+             * Attempt to send data down the pty.
+             */
+            pty_try_write(pty);
+        }
     }
 
     if (finished && !pty->finished) {
@@ -629,7 +646,12 @@ int pty_select_result(int fd, int event)
 
 static void pty_uxsel_setup(Pty pty)
 {
-    uxsel_set(pty->master_fd, 1, pty_select_result);
+    int rwx;
+
+    rwx = 1;                           /* always want to read from pty */
+    if (bufchain_size(&pty->output_data))
+        rwx |= 2;                      /* might also want to write to it */
+    uxsel_set(pty->master_fd, rwx, pty_select_result);
 
     /*
      * In principle this only needs calling once for all pty
@@ -871,6 +893,33 @@ static void pty_free(void *handle)
     sfree(pty);
 }
 
+static void pty_try_write(Pty pty)
+{
+    void *data;
+    int len, ret;
+
+    assert(pty->master_fd >= 0);
+
+    while (bufchain_size(&pty->output_data) > 0) {
+        bufchain_prefix(&pty->output_data, &data, &len);
+	ret = write(pty->master_fd, data, len);
+
+        if (ret < 0 && (errno == EWOULDBLOCK)) {
+            /*
+             * We've sent all we can for the moment.
+             */
+            break;
+        }
+	if (ret < 0) {
+	    perror("write pty master");
+	    exit(1);
+	}
+	bufchain_consume(&pty->output_data, ret);
+    }
+
+    pty_uxsel_setup(pty);
+}
+
 /*
  * Called to send data down the pty.
  */
@@ -879,18 +928,12 @@ static int pty_send(void *handle, char *buf, int len)
     Pty pty = (Pty)handle;
 
     if (pty->master_fd < 0)
-	return 0;		       /* ignore all writes if fd closed */
+	return 0;                      /* ignore all writes if fd closed */
 
-    while (len > 0) {
-	int ret = write(pty->master_fd, buf, len);
-	if (ret < 0) {
-	    perror("write pty master");
-	    exit(1);
-	}
-	buf += ret;
-	len -= ret;
-    }
-    return 0;
+    bufchain_add(&pty->output_data, buf, len);
+    pty_try_write(pty);
+
+    return bufchain_size(&pty->output_data);
 }
 
 static void pty_close(Pty pty)
