@@ -4400,6 +4400,12 @@ void palette_set(void *frontend, int n, int r, int g, int b)
 	UnrealizeObject(pal);
 	RealizePalette(hdc);
 	free_ctx(hdc);
+    } else {
+	if (n == (ATTR_DEFBG>>ATTR_BGSHIFT))
+	    /* If Default Background changes, we need to ensure any
+	     * space between the text area and the window border is
+	     * redrawn. */
+	    InvalidateRect(hwnd, NULL, TRUE);
     }
 }
 
@@ -4428,6 +4434,10 @@ void palette_reset(void *frontend)
 	hdc = get_ctx(frontend);
 	RealizePalette(hdc);
 	free_ctx(hdc);
+    } else {
+	/* Default Background may have changed. Ensure any space between
+	 * text area and window border is redrawn. */
+	InvalidateRect(hwnd, NULL, TRUE);
     }
 }
 
