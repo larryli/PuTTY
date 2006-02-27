@@ -48,9 +48,10 @@ The website:
 Before tagging a release
 ------------------------
 
- - First of all, go through the source (including the documentation)
-   and remove anything tagged with a comment containing the word
-   XXX-REMOVE-BEFORE-RELEASE.
+ - First of all, go through the source (including the documentation),
+   and the website, and review anything tagged with a comment
+   containing the word XXX-REVIEW-BEFORE-RELEASE.
+   (Any such comments should state clearly what needs to be done.)
 
 For a long time we got away with never checking the current version
 number in at all - all version numbers were passed into the build
