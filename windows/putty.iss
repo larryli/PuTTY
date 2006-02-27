@@ -1,26 +1,22 @@
 ; -*- no -*-
-; putty.iss
+; $Id$
 ;
 ; -- Inno Setup installer script for PuTTY and its related tools.
 ;
 ; TODO for future releases:
 ;
 ;  - It might be nice to have an option to add PSCP, Plink and PSFTP to
-;    the PATH. This is probably only practical on NT-class systems; I
-;    believe doing this on 9x would require mucking around with
-;    AUTOEXEC.BAT.
+;    the PATH. See wish `installer-addpath'.
 ;
-;  - Maybe a "custom" installation might be useful? Hassle with icons,
-;    though.
+;  - Maybe a "custom" installation might be useful? Hassle with
+;    UninstallDisplayIcon, though.
 
 [Setup]
 AppName=PuTTY
 AppVerName=PuTTY version 0.58
 VersionInfoTextVersion=Release 0.58
 AppVersion=0.58
-;FIXME -- enable this when we've got it going for individual EXEs too
-;         and are committed to the version numbering scheme.
-;VersionInfoVersion=0.58.0.0
+VersionInfoVersion=0.58.0.0
 AppPublisher=Simon Tatham
 AppPublisherURL=http://www.chiark.greenend.org.uk/~sgtatham/putty/
 AppReadmeFile={app}\README.txt
@@ -33,25 +29,37 @@ Compression=zip/9
 AllowNoIcons=yes
 
 [Files]
-Source: "putty.exe"; DestDir: "{app}"
-Source: "pageant.exe"; DestDir: "{app}"
-Source: "puttygen.exe"; DestDir: "{app}"
-Source: "pscp.exe"; DestDir: "{app}"
-Source: "psftp.exe"; DestDir: "{app}"
-Source: "plink.exe"; DestDir: "{app}"
-Source: "website.url"; DestDir: "{app}"
-Source: "..\doc\putty.hlp"; DestDir: "{app}"
-Source: "..\doc\putty.cnt"; DestDir: "{app}"
-Source: "..\LICENCE"; DestDir: "{app}"
-Source: "..\README.txt"; DestDir: "{app}"; Flags: isreadme
+; We flag all files with "restartreplace" et al primarily for the benefit
+; of unattended un/installations/upgrades, when the user is running one
+; of the apps at a time. Without it, the operation will fail noisily in
+; this situation.
+; This does mean that the user will be prompted to restart their machine
+; if any of the files _were_ open during installation (or, if /VERYSILENT
+; is used, the machine will be restarted automatically!). The /NORESTART
+; flag avoids this.
+; It might be nicer to have a "no worries, replace the file next time you
+; reboot" option, but the developers have no interest in adding one.
+; NB: apparently, using long (non-8.3) filenames with restartreplace is a
+; bad idea. (Not that we do.)
+Source: "putty.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
+Source: "pageant.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
+Source: "puttygen.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
+Source: "pscp.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
+Source: "psftp.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
+Source: "plink.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
+Source: "website.url"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
+Source: "..\doc\putty.hlp"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
+Source: "..\doc\putty.cnt"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
+Source: "..\LICENCE"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
+Source: "..\README.txt"; DestDir: "{app}"; Flags: isreadme restartreplace uninsrestartdelete
 
 [Icons]
-Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"; Comment: "SSH, Telnet and Rlogin client";
+Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"
 Name: "{group}\PuTTY Manual"; Filename: "{app}\putty.hlp"
 Name: "{group}\PuTTY Web Site"; Filename: "{app}\website.url"
-Name: "{group}\PSFTP"; Filename: "{app}\psftp.exe"; Comment: "Command-line interactive SFTP client"
-Name: "{group}\PuTTYgen"; Filename: "{app}\puttygen.exe"; Comment: "PuTTY SSH key generation utility"
-Name: "{group}\Pageant"; Filename: "{app}\pageant.exe"; Comment: "PuTTY SSH authentication agent"
+Name: "{group}\PSFTP"; Filename: "{app}\psftp.exe"
+Name: "{group}\PuTTYgen"; Filename: "{app}\puttygen.exe"
+Name: "{group}\Pageant"; Filename: "{app}\pageant.exe"
 Name: "{commondesktop}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: desktopicon\common
 Name: "{userdesktop}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: desktopicon\user
 ; Putting this in {commonappdata} doesn't seem to work, on 98SE at least.
@@ -76,4 +84,6 @@ Root: HKCR; Subkey: "PuTTYPrivateKey\shell\edit\command"; ValueType: string; Val
 [UninstallRun]
 ; -cleanup-during-uninstall is an undocumented option that tailors the
 ; message displayed.
+; XXX: it would be nice if this task weren't run if a silent uninstall is
+;      requested, but "skipifsilent" is disallowed.
 Filename: "{app}\putty.exe"; Parameters: "-cleanup-during-uninstall"; RunOnceId: "PuTTYCleanup"; StatusMsg: "Cleaning up saved sessions etc (optional)..."
