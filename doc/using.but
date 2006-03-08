@@ -649,11 +649,14 @@ a remote command or script from a file
 The \i\c{-m} option performs a similar function to the \q{\ii{Remote
 command}} box in the SSH panel of the PuTTY configuration box (see
 \k{config-command}). However, the \c{-m} option expects to be given
-a local file name, and it will read a command from that file. On
-most Unix systems, you can even put multiple lines in this file and
-execute more than one command in sequence, or a whole shell script;
-but this will not work on all servers (and is known not to work
-with certain \q{embedded} servers such as routers).
+a local file name, and it will read a command from that file.
+
+With some servers (particularly Unix systems), you can even put
+multiple lines in this file and execute more than one command in
+sequence, or a whole shell script; but this is arguably an abuse, and
+cannot be expected to work on all servers. In particular, it is known
+\e{not} to work with certain \q{embedded} servers, such as \i{Cisco}
+routers.
 
 This option is not available in the file transfer tools PSCP and
 PSFTP.
