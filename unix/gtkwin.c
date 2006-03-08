@@ -729,19 +729,21 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (inst->cfg.nethack_keypad) {
 	    char *keys = NULL;
 	    switch (event->keyval) {
-	      case GDK_KP_1: case GDK_KP_End: keys = "bB"; break;
-	      case GDK_KP_2: case GDK_KP_Down: keys = "jJ"; break;
-	      case GDK_KP_3: case GDK_KP_Page_Down: keys = "nN"; break;
-	      case GDK_KP_4: case GDK_KP_Left: keys = "hH"; break;
-	      case GDK_KP_5: case GDK_KP_Begin: keys = ".."; break;
-	      case GDK_KP_6: case GDK_KP_Right: keys = "lL"; break;
-	      case GDK_KP_7: case GDK_KP_Home: keys = "yY"; break;
-	      case GDK_KP_8: case GDK_KP_Up: keys = "kK"; break;
-	      case GDK_KP_9: case GDK_KP_Page_Up: keys = "uU"; break;
+	      case GDK_KP_1: case GDK_KP_End: keys = "bB\002"; break;
+	      case GDK_KP_2: case GDK_KP_Down: keys = "jJ\012"; break;
+	      case GDK_KP_3: case GDK_KP_Page_Down: keys = "nN\016"; break;
+	      case GDK_KP_4: case GDK_KP_Left: keys = "hH\010"; break;
+	      case GDK_KP_5: case GDK_KP_Begin: keys = "..."; break;
+	      case GDK_KP_6: case GDK_KP_Right: keys = "lL\014"; break;
+	      case GDK_KP_7: case GDK_KP_Home: keys = "yY\031"; break;
+	      case GDK_KP_8: case GDK_KP_Up: keys = "kK\013"; break;
+	      case GDK_KP_9: case GDK_KP_Page_Up: keys = "uU\025"; break;
 	    }
 	    if (keys) {
 		end = 2;
-		if (event->state & GDK_SHIFT_MASK)
+		if (event->state & GDK_CONTROL_MASK)
+		    output[1] = keys[2];
+		else if (event->state & GDK_SHIFT_MASK)
 		    output[1] = keys[1];
 		else
 		    output[1] = keys[0];

@@ -3723,31 +3723,31 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (cfg.nethack_keypad && !left_alt) {
 	    switch (wParam) {
 	      case VK_NUMPAD1:
-		*p++ = shift_state ? 'B' : 'b';
+		*p++ = "bB\002\002"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD2:
-		*p++ = shift_state ? 'J' : 'j';
+		*p++ = "jJ\012\012"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD3:
-		*p++ = shift_state ? 'N' : 'n';
+		*p++ = "nN\016\016"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD4:
-		*p++ = shift_state ? 'H' : 'h';
+		*p++ = "hH\010\010"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD5:
 		*p++ = shift_state ? '.' : '.';
 		return p - output;
 	      case VK_NUMPAD6:
-		*p++ = shift_state ? 'L' : 'l';
+		*p++ = "lL\014\014"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD7:
-		*p++ = shift_state ? 'Y' : 'y';
+		*p++ = "yY\031\031"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD8:
-		*p++ = shift_state ? 'K' : 'k';
+		*p++ = "kK\013\013"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD9:
-		*p++ = shift_state ? 'U' : 'u';
+		*p++ = "uU\025\025"[shift_state & 3];
 		return p - output;
 	    }
 	}
