@@ -647,10 +647,11 @@ In this mode, the numeric keypad keys 1-9 generate the NetHack
 movement commands (\cw{hjklyubn}). The 5 key generates the \c{.}
 command (do nothing).
 
-Better still, pressing Shift with the keypad keys generates the
-capital forms of the commands (\cw{HJKLYUBN}), which tells NetHack
-to keep moving you in the same direction until you encounter
-something interesting.
+In addition, pressing Shift or Ctrl with the keypad keys generate
+the Shift- or Ctrl-keys you would expect (e.g. keypad-7 generates
+\cq{y}, so Shift-keypad-7 generates \cq{Y} and Ctrl-keypad-7
+generates Ctrl-Y); these commands tell NetHack to keep moving you in
+the same direction until you encounter something interesting.
 
 For some reason, this feature only works properly when \i{Num Lock} is
 on. We don't know why.
