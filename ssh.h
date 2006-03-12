@@ -252,6 +252,9 @@ struct ssh2_userkey {
     char *comment;		       /* the key comment */
 };
 
+/* The maximum length of any hash algorithm used in kex. (bytes) */
+#define SSH2_KEX_MAX_HASH_LEN (32) /* SHA-256 */
+
 extern const struct ssh_cipher ssh_3des;
 extern const struct ssh_cipher ssh_des;
 extern const struct ssh_cipher ssh_blowfish_ssh1;

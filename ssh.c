@@ -708,7 +708,7 @@ struct ssh_tag {
     void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
     const struct ssh_signkey *hostkey;
-    unsigned char v2_session_id[32];
+    unsigned char v2_session_id[SSH2_KEX_MAX_HASH_LEN];
     int v2_session_id_len;
     void *kex_ctx;
 
@@ -4964,7 +4964,10 @@ static int first_in_commasep_string(char *needle, char *haystack, int haylen)
 
 /*
  * SSH-2 key creation method.
+ * (Currently assumes 2 lots of any hash are sufficient to generate
+ * keys/IVs for any cipher/MAC. SSH2_MKKEY_ITERS documents this assumption.)
  */
+#define SSH2_MKKEY_ITERS (2)
 static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H, char chr,
 		       unsigned char *keyspace)
 {
@@ -5011,7 +5014,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	char *hostkeydata, *sigdata, *keystr, *fingerprint;
 	int hostkeylen, siglen;
 	void *hkey;		       /* actual host key */
-	unsigned char exchange_hash[32];
+	unsigned char exchange_hash[SSH2_KEX_MAX_HASH_LEN];
 	int n_preferred_kex;
 	const struct ssh_kexes *preferred_kex[KEX_MAX];
 	int n_preferred_ciphers;
@@ -5064,7 +5067,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		s->preferred_kex[s->n_preferred_kex++] =
 		    &ssh_diffiehellman_group1;
 		break;
-	      case CIPHER_WARN:
+	      case KEX_WARN:
 		/* Flag for later. Don't bother if it's the last in
 		 * the list. */
 		if (i < KEX_MAX - 1) {
@@ -5662,13 +5665,21 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      * hash from the _first_ key exchange.
      */
     {
-	unsigned char keyspace[40];
+	unsigned char keyspace[SSH2_KEX_MAX_HASH_LEN * SSH2_MKKEY_ITERS];
+	assert(sizeof(keyspace) >= ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'C',keyspace);
+	assert((ssh->cscipher->keylen+7) / 8 <=
+	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->cscipher->setkey(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'A',keyspace);
+	assert(ssh->cscipher->blksize <=
+	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->cscipher->setiv(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'E',keyspace);
+	assert(ssh->csmac->len <=
+	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
+	memset(keyspace, 0, sizeof(keyspace));
     }
 
     logeventf(ssh, "Initialised %.200s client->server encryption",
@@ -5720,13 +5731,21 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      * hash from the _first_ key exchange.
      */
     {
-	unsigned char keyspace[40];
+	unsigned char keyspace[SSH2_KEX_MAX_HASH_LEN * SSH2_MKKEY_ITERS];
+	assert(sizeof(keyspace) >= ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'D',keyspace);
+	assert((ssh->sccipher->keylen+7) / 8 <=
+	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->sccipher->setkey(ssh->sc_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'B',keyspace);
+	assert(ssh->sccipher->blksize <=
+	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->sccipher->setiv(ssh->sc_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'F',keyspace);
+	assert(ssh->scmac->len <=
+	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
+	memset(keyspace, 0, sizeof(keyspace));
     }
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
