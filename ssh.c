@@ -5519,7 +5519,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		  ssh->kex->groupname);
     }
 
-    logevent("Doing Diffie-Hellman key exchange");
+    logeventf(ssh, "Doing Diffie-Hellman key exchange with hash %s",
+             ssh->kex->hash->text_name);
     /*
      * Now generate and send e for Diffie-Hellman.
      */

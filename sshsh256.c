@@ -215,7 +215,7 @@ static void sha256_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha256 = {
-    sha256_init, sha256_bytes, sha256_final, 32
+    sha256_init, sha256_bytes, sha256_final, 32, "SHA-256"
 };
 
 #ifdef TEST

@@ -190,6 +190,7 @@ struct ssh_hash {
     void (*bytes)(void *, void *, int);
     void (*final)(void *, unsigned char *); /* also frees context */
     int hlen; /* output length in bytes */
+    char *text_name;
 };   
 
 struct ssh_kex {

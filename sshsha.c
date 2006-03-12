@@ -217,7 +217,7 @@ static void sha1_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha1 = {
-    sha1_init, sha1_bytes, sha1_final, 20
+    sha1_init, sha1_bytes, sha1_final, 20, "SHA-1"
 };
 
 /* ----------------------------------------------------------------------
