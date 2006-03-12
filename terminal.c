@@ -4822,10 +4822,12 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		!= newline[j].attr) {
 		int k;
 
-		for (k = laststart; k < j; k++)
-		    term->disptext[i]->chars[k].attr |= ATTR_INVALID;
+		if (!dirtyrect) {
+		    for (k = laststart; k < j; k++)
+			term->disptext[i]->chars[k].attr |= ATTR_INVALID;
 
-		dirtyrect = TRUE;
+		    dirtyrect = TRUE;
+		}
 	    }
 
 	    if (dirtyrect)
