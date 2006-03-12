@@ -1392,8 +1392,13 @@ void palette_set(void *frontend, int n, int r, int g, int b)
     if (n > NALLCOLOURS)
 	return;
     real_palette_set(inst, n, r, g, b);
-    if (n == 258)
+    if (n == 258) {
+	/* Default Background changed. Ensure space between text area and
+	 * window border is redrawn */
 	set_window_background(inst);
+	draw_backing_rect(inst);
+	gtk_widget_queue_draw(inst->area);
+    }
 }
 
 void palette_reset(void *frontend)
@@ -1445,7 +1450,13 @@ void palette_reset(void *frontend)
                     inst->cfg.colours[i][1], inst->cfg.colours[i][2]);
     }
 
+    /* Since Default Background may have changed, ensure that space
+     * between text area and window border is refreshed. */
     set_window_background(inst);
+    if (inst->area) {
+	draw_backing_rect(inst);
+	gtk_widget_queue_draw(inst->area);
+    }
 }
 
 /* Ensure that all the cut buffers exist - according to the ICCCM, we must
