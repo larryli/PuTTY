@@ -127,6 +127,10 @@ If you're starting Pageant from the Windows GUI, you can arrange this
 by editing the properties of the \i{Windows shortcut} that it was
 started from.
 
+If Pageant is already running, invoking it again with the options
+below causes actions to be performed with the existing instance, not a
+new one.
+
 \S{pageant-cmdline-loadkey} Making Pageant automatically load keys
 on startup
 
@@ -138,6 +142,9 @@ command line might then look like:
 
 If the keys are stored encrypted, Pageant will request the
 passphrases on startup.
+
+If Pageant is already running, this syntax loads keys into the
+existing Pageant.
 
 \S{pageant-cmdline-command} Making Pageant run another program
 
