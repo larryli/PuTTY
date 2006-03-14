@@ -3386,6 +3386,8 @@ static void start_backend(struct gui_data *inst)
 	set_icon(inst, title);
 	sfree(title);
     }
+    sfree(realhost);
+
     inst->back->provide_logctx(inst->backhandle, inst->logctx);
 
     term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
