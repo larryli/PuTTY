@@ -356,16 +356,19 @@ and ask. Just go ahead and do it. We don't mind.
 
 (If you want to distribute PuTTY alongside your own application for
 use with that application, or if you want to distribute PuTTY within
-your own organisation, then we recommend you offer your own
-first-line technical support, to answer questions about the
-interaction of PuTTY with your environment. If your users mail us
-directly, we won't be able to tell them anything useful about your
-specific setup.)
+your own organisation, then we recommend, but do not insist, that
+you offer your own first-line technical support, to answer questions
+about the interaction of PuTTY with your environment. If your users
+mail us directly, we won't be able to tell them anything useful about
+your specific setup.)
 
 If you want to use parts of the PuTTY source code in another
 program, then it might be worth mailing us to talk about technical
 details, but if all you want is to ask permission then you don't
 need to bother. You already have permission.
+
+If you just want to link to our web site, just go ahead. (It's not
+clear that we \e{could} stop you doing this, even if we wanted to!)
 
 \H{feedback-mirrors} Mirroring the PuTTY web site
 

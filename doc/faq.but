@@ -1210,18 +1210,10 @@ feel perfectly free not to donate. We don't mind.
 \S{faq-permission}{Question} Can I have permission to put PuTTY on a
 cover disk / distribute it with other software / etc?
 
-Yes. You need not bother asking us explicitly for permission. You
-already have permission. Redistribution of the unmodified PuTTY
-binary in this way is entirely permitted by our licence (see
-\k{licence}), and you are welcome to do it as much as you like.
+Yes. For most things, you need not bother asking us explicitly for
+permission; our licence already grants you permission.
 
-If you are distributing PuTTY within your own organisation, or for
-use with your own product, then we recommend (but do not insist)
-that you offer your own first-line technical support, to answer
-questions directly relating to the interaction of PuTTY with your
-particular environment. If your users mail us directly, we won't be
-able to give them very much help about things specific to your own
-setup.
+See \k{feedback-permission} for more details.
 
 \S{faq-indemnity}{Question} Can you sign an agreement indemnifying
 us against security problems in PuTTY?
