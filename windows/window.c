@@ -1621,8 +1621,8 @@ static void reset_window(int reinit) {
 #endif
 	    }
 	} else {
-	    if (  font_width != win_width/term->cols || 
-		  font_height != win_height/term->rows) {
+	    if (  font_width * term->cols != win_width || 
+		  font_height * term->rows != win_height) {
 		/* Our only choice at this point is to change the 
 		 * size of the terminal; Oh well.
 		 */
@@ -5162,6 +5162,10 @@ static void make_full_screen()
 			ss.right - ss.left,
 			ss.bottom - ss.top,
 			SWP_FRAMECHANGED);
+
+    /* We may have changed size as a result */
+
+    reset_window(0);
 
     /* Tick the menu item in the System menu. */
     CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
