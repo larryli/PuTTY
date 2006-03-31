@@ -1381,6 +1381,22 @@ closed-source and someone made an open-source fork, most people
 would switch to the latter. Therefore, it would be pretty stupid of
 us to try it.)
 
+\S{faq-export-cert}{Question} Can you provide us with export control
+information / FIPS certification for PuTTY?
+
+Some people have asked us for an Export Control Classification Number
+(ECCN) for PuTTY.  We don't know whether we have one, and as a team of
+free software developers based in the UK we don't have the time,
+money, or effort to deal with US bureaucracy to investigate any
+further.  We believe that PuTTY falls under 5D002 on the US Commerce
+Control List, but that shouldn't be taken as definitive.  If you need
+to know more you should seek professional legal advice.  The same
+applies to any other country's legal requirements and restrictions.
+
+Similarly, some people have asked us for FIPS certification of the
+PuTTY tools.  Unless someone else is prepared to do the necessary work
+and pay any costs, we can't provide this.
+
 \H{faq-misc} Miscellaneous questions
 
 \S{faq-openssh}{Question} Is PuTTY a port of \i{OpenSSH}, or based on
