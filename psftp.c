@@ -2724,24 +2724,6 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	strncpy(cfg.username, user, sizeof(cfg.username) - 1);
 	cfg.username[sizeof(cfg.username) - 1] = '\0';
     }
-    if (!cfg.username[0]) {
-        /* FIXME: leave this to ssh.c? */
-        int ret;
-        prompts_t *p = new_prompts(NULL);
-        p->to_server = TRUE;
-        p->name = dupstr("SSH login name");
-        add_prompt(p, dupstr("login as: "), TRUE, lenof(cfg.username));
-        ret = get_userpass_input(p, NULL, 0);
-        assert(ret >= 0);
-        if (!ret) {
-            free_prompts(p);
-	    fprintf(stderr, "psftp: no username, aborting\n");
-	    cleanup_exit(1);
-	} else {
-            memcpy(cfg.username, p->prompts[0]->result, lenof(cfg.username));
-            free_prompts(p);
-	}
-    }
 
     if (portnumber)
 	cfg.port = portnumber;
