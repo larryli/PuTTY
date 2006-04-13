@@ -381,7 +381,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     fh = fxp_open_recv(pktin, rreq);
 
     if (!fh) {
-	printf("%s: %s\n", fname, fxp_error());
+	printf("%s: open for read: %s\n", fname, fxp_error());
 	return 0;
     }
 
@@ -624,7 +624,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     fh = fxp_open_recv(pktin, rreq);
 
     if (!fh) {
-	printf("%s: %s\n", outfname, fxp_error());
+	printf("%s: open for write: %s\n", outfname, fxp_error());
 	return 0;
     }
 
@@ -874,7 +874,7 @@ int wildcard_iterate(char *filename, int (*func)(void *, char *), void *ctx)
 	while ( (newname = sftp_wildcard_get_filename(swcm)) != NULL ) {
 	    cname = canonify(newname);
 	    if (!cname) {
-		printf("%s: %s\n", newname, fxp_error());
+		printf("%s: canonify: %s\n", newname, fxp_error());
 		ret = 0;
 	    }
 	    matched = TRUE;
@@ -891,7 +891,7 @@ int wildcard_iterate(char *filename, int (*func)(void *, char *), void *ctx)
     } else {
 	cname = canonify(unwcfname);
 	if (!cname) {
-	    printf("%s: %s\n", filename, fxp_error());
+	    printf("%s: canonify: %s\n", filename, fxp_error());
 	    ret = 0;
 	}
 	ret = func(ctx, cname);
@@ -1007,7 +1007,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 
     cdir = canonify(dir);
     if (!cdir) {
-	printf("%s: %s\n", dir, fxp_error());
+	printf("%s: canonify: %s\n", dir, fxp_error());
 	sfree(unwcdir);
 	return 0;
     }
@@ -1103,7 +1103,7 @@ int sftp_cmd_cd(struct sftp_command *cmd)
 	dir = canonify(cmd->words[1]);
 
     if (!dir) {
-	printf("%s: %s\n", dir, fxp_error());
+	printf("%s: canonify: %s\n", dir, fxp_error());
 	return 0;
     }
 
@@ -1214,7 +1214,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	    fname = canonify(origwfname);
 
 	    if (!fname) {
-		printf("%s: %s\n", origwfname, fxp_error());
+		printf("%s: canonify: %s\n", origwfname, fxp_error());
 		sfree(unwcfname);
 		return 0;
 	    }
@@ -1325,7 +1325,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 
 	    outfname = canonify(origoutfname);
 	    if (!outfname) {
-		printf("%s: %s\n", origoutfname, fxp_error());
+		printf("%s: canonify: %s\n", origoutfname, fxp_error());
 		if (wcm) {
 		    sfree(wfname);
 		    finish_wildcard_matching(wcm);
@@ -1388,7 +1388,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     for (i = 1; i < cmd->nwords; i++) {
 	dir = canonify(cmd->words[i]);
 	if (!dir) {
-	    printf("%s: %s\n", dir, fxp_error());
+	    printf("%s: canonify: %s\n", dir, fxp_error());
 	    return 0;
 	}
 
@@ -1536,7 +1536,7 @@ static int sftp_action_mv(void *vctx, char *srcfname)
 	newname = dupcat(ctx->dstfname, "/", p, NULL);
 	newcanon = canonify(newname);
 	if (!newcanon) {
-	    printf("%s: %s\n", newname, fxp_error());
+	    printf("%s: canonify: %s\n", newname, fxp_error());
 	    sfree(newname);
 	    return 0;
 	}
@@ -1583,7 +1583,7 @@ int sftp_cmd_mv(struct sftp_command *cmd)
 
     ctx->dstfname = canonify(cmd->words[cmd->nwords-1]);
     if (!ctx->dstfname) {
-	printf("%s: %s\n", ctx->dstfname, fxp_error());
+	printf("%s: canonify: %s\n", ctx->dstfname, fxp_error());
 	return 0;
     }
 
