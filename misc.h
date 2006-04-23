@@ -1,3 +1,7 @@
+/*
+ * Header for misc.c.
+ */
+
 #ifndef PUTTY_MISC_H
 #define PUTTY_MISC_H
 

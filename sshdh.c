@@ -1,3 +1,7 @@
+/*
+ * Diffie-Hellman implementation for PuTTY.
+ */
+
 #include "ssh.h"
 
 /*

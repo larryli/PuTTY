@@ -1,3 +1,8 @@
+/*
+ * window.c - the PuTTY(tel) main program, which runs a PuTTY terminal
+ * emulator and backend in a window.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>

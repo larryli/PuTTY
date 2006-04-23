@@ -1,3 +1,7 @@
+/*
+ * SSH port forwarding.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 

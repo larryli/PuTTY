@@ -1,3 +1,7 @@
+/*
+ * win_res.h - constants shared between win_res.rc2 and the C code.
+ */
+
 #ifndef PUTTY_WIN_RES_H
 #define PUTTY_WIN_RES_H
 

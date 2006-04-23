@@ -1,3 +1,8 @@
+/*
+ * cmdline.c - command-line parsing shared between many of the
+ * PuTTY applications
+ */
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>

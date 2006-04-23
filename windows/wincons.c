@@ -1,5 +1,5 @@
 /*
- * console.c: various interactive-prompt routines shared between
+ * wincons.c - various interactive-prompt routines shared between
  * the Windows console PuTTY tools
  */
 

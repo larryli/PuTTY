@@ -1,3 +1,7 @@
+/*
+ * Telnet backend.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -1,3 +1,7 @@
+/*
+ * Digital Signature Standard implementation for PuTTY.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
