@@ -86,9 +86,10 @@ sub outcharset($$$) {
 	}
     }
     print "\n    },\n    {\n";
-    @sorted = sort { $a->[1] == $b->[1] ?
-	             $b->[2] <=> $a->[2] :
-	             $a->[1] <=> $b->[1] } @sorted;
+    @sorted = sort { ($a->[1] == $b->[1] ?
+	              $b->[2] <=> $a->[2] :
+	              $a->[1] <=> $b->[1]) ||
+                     $a->[0] <=> $b->[0] } @sorted;
     $prefix = "    ";
     $uval = -1;
     for ($i = $j = 0; $i < scalar @sorted; $i++) {

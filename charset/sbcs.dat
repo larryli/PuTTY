@@ -634,6 +634,13 @@ charset CS_KOI8_U
   Code point F8A0 at position F5 in Mac OS Turkish is actually just an
   undefined character, so we make it properly undefined.
 
+  Many of the positions 80-9F in Mac OS Thai are for presentation
+  forms of other characters. When converting from Unicode, we use
+  `sortpriority' to avoid them.
+
+  Positions E2-E4 in Mac OS Symbol are for sans-serif variants of
+  other characters. Similarly, we avoid them.
+
 charset CS_MAC_ROMAN
 0000 0001 0002 0003 0004 0005 0006 0007 0008 0009 000a 000b 000c 000d 000e 000f
 0010 0011 0012 0013 0014 0015 0016 0017 0018 0019 001a 001b 001c 001d 001e 001f
@@ -761,6 +768,9 @@ charset CS_MAC_CYRILLIC
 0440 0441 0442 0443 0444 0445 0446 0447 0448 0449 044a 044b 044c 044d 044e 20ac
 
 charset CS_MAC_THAI
+sortpriority 83-8C -1
+sortpriority 8F-8F -1
+sortpriority 92-9C -1
 0000 0001 0002 0003 0004 0005 0006 0007 0008 0009 000a 000b 000c 000d 000e 000f
 0010 0011 0012 0013 0014 0015 0016 0017 0018 0019 001a 001b 001c 001d 001e 001f
 0020 0021 0022 0023 0024 0025 0026 0027 0028 0029 002a 002b 002c 002d 002e 002f
@@ -797,6 +807,7 @@ charset CS_MAC_CENTEURO
 016b 016e 00da 016f 0170 0171 0172 0173 00dd 00fd 0137 017b 0141 017c 0122 02c7
 
 charset CS_MAC_SYMBOL
+sortpriority E2-E4 -1
 0000 0001 0002 0003 0004 0005 0006 0007 0008 0009 000a 000b 000c 000d 000e 000f
 0010 0011 0012 0013 0014 0015 0016 0017 0018 0019 001a 001b 001c 001d 001e 001f
 0020 0021 2200 0023 2203 0025 0026 220d 0028 0029 2217 002b 002c 2212 002e 002f
