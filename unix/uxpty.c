@@ -865,6 +865,8 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 
     *backend_handle = pty;
 
+    *realhost = dupprintf("\0");
+
     return NULL;
 }
 
