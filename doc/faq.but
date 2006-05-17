@@ -55,7 +55,9 @@ version 0.52.
 \S{faq-ssh2-keyfmt}{Question} Does PuTTY support reading OpenSSH or
 \cw{ssh.com} SSH-2 private key files?
 
-PuTTY doesn't support this natively, but as of 0.53
+PuTTY doesn't support this natively (see
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/key-formats-natively.html}{the wishlist entry}
+for reasons why not), but as of 0.53
 PuTTYgen can convert both OpenSSH and \cw{ssh.com} private key
 files into PuTTY's format.
 
