@@ -74,7 +74,6 @@ containing lines like this:
 \c ren jam.tar.gz jam-old.tar.gz
 \c put jam.tar.gz
 \c chmod a+r jam.tar.gz
-\c quit
 
 and then you could run the script by typing
 
@@ -83,6 +82,8 @@ and then you could run the script by typing
 When you run a batch script in this way, PSFTP will abort the script
 if any command fails to complete successfully. To change this
 behaviour, you can add the \c{-be} option (\k{psftp-option-be}).
+
+PSFTP will terminate after it finishes executing the batch script.
 
 \S{psftp-option-bc} \I{-bc-PSFTP}\c{-bc}: display batch commands as they are run
 
