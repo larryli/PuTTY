@@ -1129,7 +1129,7 @@ static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64 offset)
     xfer->offset = offset;
     xfer->head = xfer->tail = NULL;
     xfer->req_totalsize = 0;
-    xfer->req_maxsize = 16384;
+    xfer->req_maxsize = 1048576;
     xfer->err = 0;
     xfer->filesize = uint64_make(ULONG_MAX, ULONG_MAX);
     xfer->furthestdata = uint64_make(0, 0);
@@ -1169,7 +1169,7 @@ void xfer_download_queue(struct fxp_xfer *xfer)
 	xfer->tail = rr;
 	rr->next = NULL;
 
-	rr->len = 4096;
+	rr->len = 32768;
 	rr->buffer = snewn(rr->len, char);
 	sftp_register(req = fxp_read_send(xfer->fh, rr->offset, rr->len));
 	fxp_set_userdata(req, rr);

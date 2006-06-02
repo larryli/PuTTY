@@ -1887,10 +1887,10 @@ static void sink(char *targ, char *src)
 
 	received = 0;
 	while (received < act.size) {
-	    char transbuf[4096];
+	    char transbuf[32768];
 	    unsigned long blksize;
 	    int read;
-	    blksize = 4096;
+	    blksize = 32768;
 	    if (blksize > (act.size - received))
 		blksize = act.size - received;
 	    read = scp_recv_filedata(transbuf, (int)blksize);
