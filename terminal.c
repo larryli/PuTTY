@@ -5578,7 +5578,16 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
     selpoint.x = x;
     unlineptr(ldata);
 
-    if (raw_mouse) {
+    /*
+     * If we're in the middle of a selection operation, we ignore raw
+     * mouse mode until it's done (we must have been not in raw mouse
+     * mode when it started).
+     * This makes use of Shift for selection reliable, and avoids the
+     * host seeing mouse releases for which they never saw corresponding
+     * presses.
+     */
+    if (raw_mouse &&
+	(term->selstate != ABOUT_TO) && (term->selstate != DRAGGING)) {
 	int encstate = 0, r, c;
 	char abuf[16];
 
