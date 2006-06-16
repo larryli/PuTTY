@@ -268,12 +268,11 @@ expect our Unix port to be the right thing for everybody.
 
 \S{faq-wince}{Question} Will there be a port to Windows CE or PocketPC?
 
-It's currently being worked on, but it's only in its early stages yet,
-and certainly isn't yet useful.  PuTTY on portable devices would
-clearly be a useful thing, so in the long term I hope it can be
-brought up to release quality.
+We have done some work on such a port, but it only reached an early
+stage, and certainly not a useful one. It's no longer being actively
+worked on.
 
-There's also a third-party port at
+However, there's a third-party port at
 \W{http://www.pocketputty.net/}\c{http://www.pocketputty.net/}.
 
 \S{faq-win31}{Question} Is there a port to \i{Windows 3.1}?
