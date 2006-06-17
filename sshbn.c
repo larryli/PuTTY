@@ -1037,9 +1037,14 @@ char *bignum_decimal(Bignum x)
      * round up (rounding down might make it less than x again).
      * Therefore if we multiply the bit count by 28/93, rounding
      * up, we will have enough digits.
+     *
+     * i=0 (i.e., x=0) is an irritating special case.
      */
     i = bignum_bitcount(x);
-    ndigits = (28 * i + 92) / 93;      /* multiply by 28/93 and round up */
+    if (!i)
+	ndigits = 1;		       /* x = 0 */
+    else
+	ndigits = (28 * i + 92) / 93;  /* multiply by 28/93 and round up */
     ndigits++;			       /* allow for trailing \0 */
     ret = snewn(ndigits, char);
 
