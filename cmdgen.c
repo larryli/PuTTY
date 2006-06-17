@@ -124,13 +124,16 @@ void showversion(void)
     sfree(verstr);
 }
 
-void usage(void)
+void usage(int standalone)
 {
     fprintf(stderr,
 	    "Usage: puttygen ( keyfile | -t type [ -b bits ] )\n"
 	    "                [ -C comment ] [ -P ]\n"
 	    "                [ -o output-keyfile ] [ -O type | -l | -L"
 	    " | -p ]\n");
+    if (standalone)
+	fprintf(stderr,
+		"Use \"puttygen --help\" for more detail.\n");
 }
 
 void help(void)
@@ -140,7 +143,7 @@ void help(void)
      * start with that, plus a version heading.
      */
     showversion();
-    usage();
+    usage(FALSE);
     fprintf(stderr,
 	    "  -t    specify key type when generating (rsa, dsa, rsa1)\n"
 	    "  -b    specify number of bits when generating key\n"
@@ -282,7 +285,7 @@ int main(int argc, char **argv)
      * return success.
      */
     if (argc <= 1) {
-	usage();
+	usage(TRUE);
 	return 0;
     }
 
@@ -475,7 +478,7 @@ int main(int argc, char **argv)
      * ones, print the usage message and return failure.
      */
     if (!infile && keytype == NOKEYGEN) {
-	usage();
+	usage(TRUE);
 	return 1;
     }
 
