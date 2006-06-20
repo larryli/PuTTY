@@ -564,7 +564,9 @@ static void colour_handler(union control *ctrl, void *dlg,
 	    int i, cval;
 
 	    dlg_editbox_get(ctrl, dlg, buf, lenof(buf));
-	    cval = atoi(buf) & 255;
+	    cval = atoi(buf);
+	    if (cval > 255) cval = 255;
+	    if (cval < 0)   cval = 0;
 
 	    i = dlg_listbox_index(cd->listbox, dlg);
 	    if (i >= 0) {

@@ -1533,7 +1533,9 @@ use the list box to select which colour you want to modify. The \i{RGB
 values} for that colour will appear on the right-hand side of the
 list box. Now, if you press the \q{Modify} button, you will be
 presented with a colour selector, in which you can choose a new
-colour to go in place of the old one.
+colour to go in place of the old one. (You may also edit the RGB
+values directly in the edit boxes, if you wish; each value is an
+integer from 0 to 255.)
 
 PuTTY allows you to set the \i{cursor colour}, the \i{default foreground}
 and \I{default background}background, and the precise shades of all the
