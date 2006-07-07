@@ -18,7 +18,9 @@ For building on Windows:
    -f Makefile.vc' to build all the PuTTY binaries.
 
    Last time we checked, PuTTY built with vanilla VC7, or VC6 with
-   the Platform SDK.
+   an up-to-date Platform SDK. (It is possible to build with
+   vanilla VC6, but you'll have to remove some functionality with
+   directives such as NO_IPV6.)
 
    (We've also had one report of success building with the
    OpenWatcom compiler -- www.openwatcom.org -- using Makefile.vc
