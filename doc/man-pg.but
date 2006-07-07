@@ -10,8 +10,8 @@
 
 \c puttygen ( keyfile | -t keytype [ -b bits ] )
 \e bbbbbbbb   iiiiiii   bb iiiiiii   bb iiii
-\c          [ -C new-comment ] [ -P ]
-\e            bb iiiiiiiiiii     bb
+\c          [ -C new-comment ] [ -P ] [ -q ]
+\e            bb iiiiiiiiiii     bb     bb
 \c          [ -O output-type | -l | -L | -p ]
 \e            bb iiiiiiiiiii   bb   bb   bb
 \c          [ -o output-file ]
@@ -55,6 +55,10 @@ generate SSH-1 keys).
 \dt \cw{\-b} \e{bits}
 
 \dd Specify the size of the key to generate, in bits. Default is 1024.
+
+\dt \cw{\-q}
+
+\dd Suppress the progress display when generating a new key.
 
 In the second phase, \c{puttygen} optionally alters properties of
 the key it has loaded or generated. The options to control this are:
@@ -145,9 +149,13 @@ fingerprint. Otherwise, the \c{\-o} option is required.
 The following options do not run PuTTYgen as normal, but print
 informational messages and then quit:
 
-\dt \cw{\-\-help}
+\dt \cw{\-h}, \cw{\-\-help}
 
 \dd Display a message summarizing the available options.
+
+\dt \cw{\-V}, \cw{\-\-version}
+
+\dd Display the version of PuTTYgen.
 
 \dt \cw{\-\-pgpfp}
 

@@ -128,7 +128,7 @@ void usage(int standalone)
 {
     fprintf(stderr,
 	    "Usage: puttygen ( keyfile | -t type [ -b bits ] )\n"
-	    "                [ -C comment ] [ -P ]\n"
+	    "                [ -C comment ] [ -P ] [ -q ]\n"
 	    "                [ -o output-keyfile ] [ -O type | -l | -L"
 	    " | -p ]\n");
     if (standalone)
@@ -149,6 +149,7 @@ void help(void)
 	    "  -b    specify number of bits when generating key\n"
 	    "  -C    change or specify key comment\n"
 	    "  -P    change key passphrase\n"
+	    "  -q    quiet: do not display progress bar\n"
 	    "  -O    specify output type:\n"
 	    "           private             output PuTTY private key format\n"
 	    "           private-openssh     export OpenSSH private key\n"
@@ -339,7 +340,7 @@ int main(int argc, char **argv)
 			else {
 			    errs = TRUE;
 			    fprintf(stderr,
-				    "puttygen: no such option `--%s'\n", opt);
+				    "puttygen: no such option `-%s'\n", opt);
 			}
 		    }
 		    p = NULL;
@@ -490,8 +491,18 @@ int main(int argc, char **argv)
      * Bomb out if we've been asked to both load and generate a
      * key.
      */
-    if (keytype != NOKEYGEN && intype) {
+    if (keytype != NOKEYGEN && infile) {
 	fprintf(stderr, "puttygen: cannot both load and generate a key\n");
+	return 1;
+    }
+
+    /* 
+     * We must save the private part when generating a new key.
+     */
+    if (keytype != NOKEYGEN &&
+	(outtype != PRIVATE && outtype != OPENSSH && outtype != SSHCOM)) {
+	fprintf(stderr, "puttygen: this would generate a new key but "
+		"discard the private part\n");
 	return 1;
     }
 
