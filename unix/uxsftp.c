@@ -19,6 +19,7 @@
 
 #include "putty.h"
 #include "psftp.h"
+#include "int64.h"
 
 /*
  * In PSFTP our selects are synchronous, so these functions are
@@ -80,18 +81,6 @@ int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 }
 
 /*
- * Stubs for the GUI feedback mechanism in Windows PSCP.
- */
-void gui_update_stats(char *name, unsigned long size,
-		      int percentage, unsigned long elapsed,
-		      unsigned long done, unsigned long eta,
-		      unsigned long ratebs) {}
-void gui_send_errcount(int list, int errs) {}
-void gui_send_char(int is_stderr, int c) {}
-void gui_enable(char *arg) {}
-
-
-/*
  * Set local current directory. Returns NULL on success, or else an
  * error message which must be freed after printing.
  */
@@ -134,7 +123,7 @@ struct RFile {
     int fd;
 };
 
-RFile *open_existing_file(char *name, unsigned long *size,
+RFile *open_existing_file(char *name, uint64 *size,
 			  unsigned long *mtime, unsigned long *atime)
 {
     int fd;
@@ -154,9 +143,15 @@ RFile *open_existing_file(char *name, unsigned long *size,
 	    memset(&statbuf, 0, sizeof(statbuf));
 	}
 
-	if (size)
-	    *size = statbuf.st_size;
-
+	if (size) {
+	    if (sizeof(statbuf.st_size) == 8) {
+		size->hi = statbuf.st_size >> 32;
+		size->lo = (long) statbuf.st_size;
+	    } else {
+		*size = uint64_make(0, statbuf.st_size);
+	    }
+	}
+	 	
 	if (mtime)
 	    *mtime = statbuf.st_mtime;
 
@@ -195,6 +190,37 @@ WFile *open_new_file(char *name)
     ret = snew(WFile);
     ret->fd = fd;
     ret->name = dupstr(name);
+
+    return ret;
+}
+
+
+WFile *open_existing_wfile(char *name, uint64 *size)
+{
+    int fd;
+    WFile *ret;
+
+    fd = open(name, O_APPEND | O_WRONLY);
+    if (fd < 0)
+	return NULL;
+
+    ret = snew(WFile);
+    ret->fd = fd;
+
+    if (size) {
+	struct stat statbuf;
+	if (fstat(fd, &statbuf) < 0) {
+	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
+	    memset(&statbuf, 0, sizeof(statbuf));
+	}
+
+	if (sizeof(statbuf.st_size) == 8) {
+	    size->hi = statbuf.st_size >> 32;
+	    size->lo = (long) statbuf.st_size;
+	} else {
+	    *size = uint64_make(0, statbuf.st_size);
+	}
+    }
 
     return ret;
 }
@@ -238,6 +264,53 @@ void close_wfile(WFile *f)
     close(f->fd);
     sfree(f->name);
     sfree(f);
+}
+
+/* Seek offset bytes through file, from whence, where whence is
+   FROM_START, FROM_CURRENT, or FROM_END */
+int seek_file(WFile *f, uint64 offset, int whence)
+{
+    off_t fileofft;
+    int lseek_whence;
+    
+    if (sizeof(off_t) == 8) {
+	fileofft = ((off_t) offset.hi << 32) + offset.lo;
+    } else {
+	fileofft = offset.lo;
+    }
+
+    switch (whence) {
+    case FROM_START:
+	lseek_whence = SEEK_SET;
+	break;
+    case FROM_CURRENT:
+	lseek_whence = SEEK_CUR;
+	break;
+    case FROM_END:
+	lseek_whence = SEEK_END;
+	break;
+    default:
+	return -1;
+    }
+
+    return lseek(f->fd, fileofft, lseek_whence) >= 0 ? 0 : -1;
+}
+
+uint64 get_file_posn(WFile *f)
+{
+    off_t fileofft;
+    uint64 ret;
+
+    fileofft = lseek(f->fd, (off_t) 0, SEEK_CUR);
+
+    if (sizeof(off_t) == 8) {
+	ret.hi = fileofft >> 32;
+	ret.lo = (long) fileofft;
+    } else {
+	ret = uint64_make(0, fileofft);
+    }
+
+    return ret;
 }
 
 int file_type(char *name)

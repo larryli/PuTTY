@@ -3,6 +3,8 @@
  * platform-specific SFTP module.
  */
 
+#include "int64.h"
+
 #ifndef PUTTY_PSFTP_H
 #define PUTTY_PSFTP_H
 
@@ -78,16 +80,15 @@ void gui_enable(char *arg);
  * the times when saving a new file.
  * 
  * On the other hand, the abstraction is pretty simple: it supports
- * only opening a file and reading it, or creating a file and
- * writing it. (FIXME: to use this in PSFTP it will also need to
- * support seeking to a starting point for restarted transfers.)
- * None of this read-and-write, seeking-back-and-forth stuff.
+ * only opening a file and reading it, or creating a file and writing
+ * it. None of this read-and-write, seeking-back-and-forth stuff.
  */
 typedef struct RFile RFile;
 typedef struct WFile WFile;
 /* Output params size, mtime and atime can all be NULL if desired */
-RFile *open_existing_file(char *name, unsigned long *size,
+RFile *open_existing_file(char *name, uint64 *size,
 			  unsigned long *mtime, unsigned long *atime);
+WFile *open_existing_wfile(char *name, uint64 *size);
 /* Returns <0 on error, 0 on eof, or number of bytes read, as usual */
 int read_from_file(RFile *f, void *buffer, int length);
 /* Closes and frees the RFile */
@@ -98,7 +99,11 @@ int write_to_file(WFile *f, void *buffer, int length);
 void set_file_times(WFile *f, unsigned long mtime, unsigned long atime);
 /* Closes and frees the WFile */
 void close_wfile(WFile *f);
-
+/* Seek offset bytes through file */
+enum { FROM_START, FROM_CURRENT, FROM_END };
+int seek_file(WFile *f, uint64 offset, int whence);
+/* Get file position */
+uint64 get_file_posn(WFile *f);
 /*
  * Determine the type of a file: nonexistent, file, directory or
  * weird. `weird' covers anything else - named pipes, Unix sockets,

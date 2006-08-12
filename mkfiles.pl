@@ -927,7 +927,8 @@ if (defined $makefiles{'gtk'}) {
     "\n".
     &splitline("CFLAGS = -O2 -Wall -Werror -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-	       " `gtk-config --cflags`")."\n".
+	       " `gtk-config --cflags`").
+		 " -D _FILE_OFFSET_BITS=64\n".
     "XLDFLAGS = `gtk-config --libs`\n".
     "ULDFLAGS =#\n".
     "INSTALL=install\n",

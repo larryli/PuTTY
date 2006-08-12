@@ -204,7 +204,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     struct sftp_request *req, *rreq;
     struct fxp_xfer *xfer;
     uint64 offset;
-    FILE *fp;
+    WFile *file;
     int ret, shown_err = FALSE;
 
     /*
@@ -386,12 +386,12 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     }
 
     if (restart) {
-	fp = fopen(outfname, "rb+");
+	file = open_existing_wfile(outfname, NULL);
     } else {
-	fp = fopen(outfname, "wb");
+	file = open_new_file(outfname);
     }
 
-    if (!fp) {
+    if (!file) {
 	printf("local: unable to open %s\n", outfname);
 
 	sftp_register(req = fxp_close_send(fh));
@@ -403,11 +403,21 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     }
 
     if (restart) {
-	long posn;
-	fseek(fp, 0L, SEEK_END);
-	posn = ftell(fp);
-	printf("reget: restarting at file position %ld\n", posn);
-	offset = uint64_make(0, posn);
+	char decbuf[30];
+	if (seek_file(file, uint64_make(0,0) , FROM_END) == -1) {
+	    printf("reget: cannot restart %s - file too large\n",
+		   outfname);
+	    	sftp_register(req = fxp_close_send(fh));
+		rreq = sftp_find_request(pktin = sftp_recv());
+		assert(rreq == req);
+		fxp_close_recv(pktin, rreq);
+		
+		return 0;
+	}
+	    
+	offset = get_file_posn(file);
+	uint64_decimal(offset, decbuf);
+	printf("reget: restarting at file position %s\n", decbuf);
     } else {
 	offset = uint64_make(0, 0);
     }
@@ -442,7 +452,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 
 	    wpos = 0;
 	    while (wpos < len) {
-		wlen = fwrite(buf + wpos, 1, len - wpos, fp);
+		wlen = write_to_file(file, buf + wpos, len - wpos);
 		if (wlen <= 0) {
 		    printf("error while writing local file\n");
 		    ret = 0;
@@ -461,7 +471,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 
     xfer_cleanup(xfer);
 
-    fclose(fp);
+    close_wfile(file);
 
     sftp_register(req = fxp_close_send(fh));
     rreq = sftp_find_request(pktin = sftp_recv());
@@ -478,7 +488,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     struct sftp_packet *pktin;
     struct sftp_request *req, *rreq;
     uint64 offset;
-    FILE *fp;
+    RFile *file;
     int ret, err, eof;
 
     /*
@@ -608,8 +618,8 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	return 1;
     }
 
-    fp = fopen(fname, "rb");
-    if (!fp) {
+    file = open_existing_file(fname, NULL, NULL, NULL);
+    if (!file) {
 	printf("local: unable to open %s\n", fname);
 	return 0;
     }
@@ -649,12 +659,9 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	offset = attrs.size;
 	uint64_decimal(offset, decbuf);
 	printf("reput: restarting at file position %s\n", decbuf);
-	if (uint64_compare(offset, uint64_make(0, LONG_MAX)) > 0) {
-	    printf("reput: remote file is larger than we can deal with\n");
-	    return 0;
-	}
-	if (fseek(fp, offset.lo, SEEK_SET) != 0)
-	    fseek(fp, 0, SEEK_END);    /* *shrug* */
+
+	if (seek_file((WFile *)file, offset, FROM_START) != 0)
+	    seek_file((WFile *)file, uint64_make(0,0), FROM_END);    /* *shrug* */
     } else {
 	offset = uint64_make(0, 0);
     }
@@ -673,7 +680,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	int len, ret;
 
 	while (xfer_upload_ready(xfer) && !err && !eof) {
-	    len = fread(buffer, 1, sizeof(buffer), fp);
+	    len = read_from_file(file, buffer, sizeof(buffer));
 	    if (len == -1) {
 		printf("error while reading local file\n");
 		err = 1;
@@ -701,7 +708,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     assert(rreq == req);
     fxp_close_recv(pktin, rreq);
 
-    fclose(fp);
+    close_rfile(file);
 
     return ret;
 }

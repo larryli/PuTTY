@@ -25,6 +25,7 @@
 #include "ssh.h"
 #include "sftp.h"
 #include "storage.h"
+#include "int64.h"
 
 static int list = 0;
 static int verbose = 0;
@@ -35,7 +36,6 @@ static int statistics = 1;
 static int prev_stats_len = 0;
 static int scp_unsafe_mode = 0;
 static int errs = 0;
-static int gui_mode = 0;
 static int try_scp = 1;
 static int try_sftp = 1;
 static int main_cmd_is_sftp = 0;
@@ -69,10 +69,7 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
 
 static void tell_char(FILE * stream, char c)
 {
-    if (!gui_mode)
-	fputc(c, stream);
-    else
-	gui_send_char(stream == stderr, c);
+    fputc(c, stream);
 }
 
 static void tell_str(FILE * stream, char *str)
@@ -112,9 +109,6 @@ void fatalbox(char *fmt, ...)
     sfree(str2);
     errs++;
 
-    if (gui_mode)
-	gui_send_errcount(list, errs);
-
     cleanup_exit(1);
 }
 void modalfatalbox(char *fmt, ...)
@@ -130,9 +124,6 @@ void modalfatalbox(char *fmt, ...)
     sfree(str2);
     errs++;
 
-    if (gui_mode)
-	gui_send_errcount(list, errs);
-
     cleanup_exit(1);
 }
 void connection_fatal(void *frontend, char *fmt, ...)
@@ -147,9 +138,6 @@ void connection_fatal(void *frontend, char *fmt, ...)
     tell_str(stderr, str2);
     sfree(str2);
     errs++;
-
-    if (gui_mode)
-	gui_send_errcount(list, errs);
 
     cleanup_exit(1);
 }
@@ -309,9 +297,6 @@ static void bump(char *fmt, ...)
 	back->special(backhandle, TS_EOF);
 	ssh_scp_recv((unsigned char *) &ch, 1);
     }
-
-    if (gui_mode)
-	gui_send_errcount(list, errs);
 
     cleanup_exit(1);
 }
@@ -495,7 +480,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 /*
  *  Update statistic information about current file.
  */
-static void print_stats(char *name, unsigned long size, unsigned long done,
+static void print_stats(char *name, uint64 size, uint64 done,
 			time_t start, time_t now)
 {
     float ratebs;
@@ -504,34 +489,42 @@ static void print_stats(char *name, unsigned long size, unsigned long done,
     int pct;
     int len;
     int elap;
+    double donedbl;
+    double sizedbl;
 
     elap = (unsigned long) difftime(now, start);
 
     if (now > start)
-	ratebs = (float) done / elap;
+	ratebs = (float) (uint64_to_double(done) / elap);
     else
-	ratebs = (float) done;
+	ratebs = (float) uint64_to_double(done);
 
     if (ratebs < 1.0)
-	eta = size - done;
-    else
-	eta = (unsigned long) ((size - done) / ratebs);
+	eta = (unsigned long) (uint64_to_double(uint64_subtract(size, done)));
+    else {
+        eta = (unsigned long)
+	    ((uint64_to_double(uint64_subtract(size, done)) / ratebs));
+    }
+
     etastr = dupprintf("%02ld:%02ld:%02ld",
 		       eta / 3600, (eta % 3600) / 60, eta % 60);
 
-    pct = (int) (100 * (done * 1.0 / size));
+    donedbl = uint64_to_double(done);
+    sizedbl = uint64_to_double(size);
+    pct = (int) (100 * (donedbl * 1.0 / sizedbl));
 
-    if (gui_mode) {
-	gui_update_stats(name, size, pct, elap, done, eta,
-			 (unsigned long) ratebs);
-    } else {
-	len = printf("\r%-25.25s | %10ld kB | %5.1f kB/s | ETA: %8s | %3d%%",
-		     name, done / 1024, ratebs / 1024.0, etastr, pct);
+    {
+	char donekb[40];
+	/* divide by 1024 to provide kB */
+	uint64_decimal(uint64_shift_right(done, 10), donekb);
+	len = printf("\r%-25.25s | %s kB | %5.1f kB/s | ETA: %8s | %3d%%",
+		     name,
+		     donekb, ratebs / 1024.0, etastr, pct);
 	if (len < prev_stats_len)
 	    printf("%*s", prev_stats_len - len, "");
 	prev_stats_len = len;
 
-	if (done == size)
+	if (uint64_compare(done, size) == 0)
 	    printf("\n");
 
 	fflush(stdout);
@@ -822,7 +815,7 @@ int scp_send_filetimes(unsigned long mtime, unsigned long atime)
     }
 }
 
-int scp_send_filename(char *name, unsigned long size, int modes)
+int scp_send_filename(char *name, uint64 size, int modes)
 {
     if (using_sftp) {
 	char *fullname;
@@ -854,7 +847,9 @@ int scp_send_filename(char *name, unsigned long size, int modes)
 	return 0;
     } else {
 	char buf[40];
-	sprintf(buf, "C%04o %lu ", modes, size);
+	char sizestr[40];
+	uint64_decimal(size, sizestr);
+	sprintf(buf, "C%04o %s ", modes, sizestr);
 	back->send(backhandle, buf, strlen(buf));
 	back->send(backhandle, name, strlen(name));
 	back->send(backhandle, "\n", 1);
@@ -1135,7 +1130,7 @@ struct scp_sink_action {
     char *buf;			       /* will need freeing after use */
     char *name;			       /* filename or dirname (not ENDDIR) */
     int mode;			       /* access mode (not ENDDIR) */
-    unsigned long size;		       /* file size (not ENDDIR) */
+    uint64 size;		       /* file size (not ENDDIR) */
     int settime;		       /* 1 if atime and mtime are filled */
     unsigned long atime, mtime;	       /* access times for the file */
 };
@@ -1359,7 +1354,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		act->action = SCP_SINK_DIR;
 		act->buf = dupstr(stripslashes(fname, 0));
 		act->name = act->buf;
-		act->size = 0;	       /* duhh, it's a directory */
+		act->size = uint64_make(0,0);     /* duhh, it's a directory */
 		act->mode = 07777 & attrs.permissions;
 		if (scp_sftp_preserve &&
 		    (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
@@ -1379,13 +1374,9 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    act->buf = dupstr(stripslashes(fname, 0));
 	    act->name = act->buf;
 	    if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
-		if (uint64_compare(attrs.size,
-				   uint64_make(0, ULONG_MAX)) > 0) {
-		    act->size = ULONG_MAX;   /* *boggle* */
-		} else
-		    act->size = attrs.size.lo;
+		act->size = attrs.size;
 	    } else
-		act->size = ULONG_MAX;   /* no idea */
+		act->size = uint64_make(ULONG_MAX,ULONG_MAX);   /* no idea */
 	    act->mode = 07777 & attrs.permissions;
 	    if (scp_sftp_preserve &&
 		(attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
@@ -1465,10 +1456,15 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	 * If we get here, we must have seen SCP_SINK_FILE or
 	 * SCP_SINK_DIR.
 	 */
-	if (sscanf(act->buf, "%o %lu %n", &act->mode, &act->size, &i) != 2)
-	    bump("Protocol error: Illegal file descriptor format");
-	act->name = act->buf + i;
-	return 0;
+	{
+	    char sizestr[40];
+	
+	    if (sscanf(act->buf, "%o %s %n", &act->mode, sizestr, &i) != 2)
+		bump("Protocol error: Illegal file descriptor format");
+	    act->size = uint64_from_decimal(sizestr);
+	    act->name = act->buf + i;
+	    return 0;
+	}
     }
 }
 
@@ -1596,13 +1592,13 @@ static void run_err(const char *fmt, ...)
  */
 static void source(char *src)
 {
-    unsigned long size;
+    uint64 size;
     unsigned long mtime, atime;
     char *last;
     RFile *f;
     int attr;
-    unsigned long i;
-    unsigned long stat_bytes;
+    uint64 i;
+    uint64 stat_bytes;
     time_t stat_starttime, stat_lasttime;
 
     attr = file_type(src);
@@ -1655,21 +1651,26 @@ static void source(char *src)
 	    return;
     }
 
-    if (verbose)
-	tell_user(stderr, "Sending file %s, size=%lu", last, size);
+    if (verbose) {
+	char sizestr[40];
+	uint64_decimal(size, sizestr);
+	tell_user(stderr, "Sending file %s, size=%s", last, sizestr);
+    }
     if (scp_send_filename(last, size, 0644))
 	return;
 
-    stat_bytes = 0;
+    stat_bytes = uint64_make(0,0);
     stat_starttime = time(NULL);
     stat_lasttime = 0;
 
-    for (i = 0; i < size; i += 4096) {
+    for (i = uint64_make(0,0);
+	 uint64_compare(i,size) < 0;
+	 i = uint64_add32(i,4096)) {
 	char transbuf[4096];
 	int j, k = 4096;
 
-	if (i + k > size)
-	    k = size - i;
+	if (uint64_compare(uint64_add32(i, k),size) > 0) /* i + k > size */ 
+	    k = (uint64_subtract(size, i)).lo; 	/* k = size - i; */
 	if ((j = read_from_file(f, transbuf, k)) != k) {
 	    if (statistics)
 		printf("\n");
@@ -1679,8 +1680,9 @@ static void source(char *src)
 	    bump("%s: Network error occurred", src);
 
 	if (statistics) {
-	    stat_bytes += k;
-	    if (time(NULL) != stat_lasttime || i + k == size) {
+	    stat_bytes = uint64_add32(stat_bytes, k);
+	    if (time(NULL) != stat_lasttime ||
+		(uint64_compare(uint64_add32(i, k), size) == 0)) {
 		stat_lasttime = time(NULL);
 		print_stats(last, size, stat_bytes,
 			    stat_starttime, stat_lasttime);
@@ -1747,9 +1749,9 @@ static void sink(char *targ, char *src)
     int exists;
     int attr;
     WFile *f;
-    unsigned long received;
+    uint64 received;
     int wrerror = 0;
-    unsigned long stat_bytes;
+    uint64 stat_bytes;
     time_t stat_starttime, stat_lasttime;
     char *stat_name;
 
@@ -1880,20 +1882,20 @@ static void sink(char *targ, char *src)
 	if (scp_accept_filexfer())
 	    return;
 
-	stat_bytes = 0;
+	stat_bytes = uint64_make(0, 0);
 	stat_starttime = time(NULL);
 	stat_lasttime = 0;
 	stat_name = stripslashes(destfname, 1);
 
-	received = 0;
-	while (received < act.size) {
+	received = uint64_make(0, 0);
+	while (uint64_compare(received,act.size) < 0) {
 	    char transbuf[32768];
-	    unsigned long blksize;
+	    uint64 blksize;
 	    int read;
-	    blksize = 32768;
-	    if (blksize > (act.size - received))
-		blksize = act.size - received;
-	    read = scp_recv_filedata(transbuf, (int)blksize);
+	    blksize = uint64_make(0, 32768);
+	    if (uint64_compare(blksize,uint64_subtract(act.size,received)) > 0)
+	      blksize = uint64_subtract(act.size,received);
+	    read = scp_recv_filedata(transbuf, (int)blksize.lo);
 	    if (read <= 0)
 		bump("Lost connection");
 	    if (wrerror)
@@ -1908,15 +1910,15 @@ static void sink(char *targ, char *src)
 		continue;
 	    }
 	    if (statistics) {
-		stat_bytes += read;
+		stat_bytes = uint64_add32(stat_bytes,read);
 		if (time(NULL) > stat_lasttime ||
-		    received + read == act.size) {
+		    uint64_compare(uint64_add32(received, read), act.size) == 0) {
 		    stat_lasttime = time(NULL);
 		    print_stats(stat_name, act.size, stat_bytes,
 				stat_starttime, stat_lasttime);
 		}
 	    }
-	    received += read;
+	    received = uint64_add32(received, read);
 	}
 	if (act.settime) {
 	    set_file_times(f, act.mtime, act.atime);
@@ -2244,10 +2246,6 @@ int psftp_main(int argc, char *argv[])
 	    usage();
 	} else if (strcmp(argv[i], "-V") == 0) {
             version();
-	} else if (strcmp(argv[i], "-gui") == 0 && i + 1 < argc) {
-	    gui_enable(argv[++i]);
-	    gui_mode = 1;
-	    console_batch_mode = TRUE;
         } else if (strcmp(argv[i], "-ls") == 0) {
 	    list = 1;
 	} else if (strcmp(argv[i], "-batch") == 0) {
@@ -2293,9 +2291,6 @@ int psftp_main(int argc, char *argv[])
 	ssh_scp_recv((unsigned char *) &ch, 1);
     }
     random_save_seed();
-
-    if (gui_mode)
-	gui_send_errcount(list, errs);
 
     cmdline_cleanup();
     console_provide_logctx(NULL);
