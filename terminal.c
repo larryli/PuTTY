@@ -1184,6 +1184,7 @@ static void power_on(Terminal *term, int clear)
 {
     term->alt_x = term->alt_y = 0;
     term->savecurs.x = term->savecurs.y = 0;
+    term->alt_savecurs.x = term->alt_savecurs.y = 0;
     term->alt_t = term->marg_t = 0;
     if (term->rows != -1)
 	term->alt_b = term->marg_b = term->rows - 1;
@@ -1196,13 +1197,16 @@ static void power_on(Terminal *term, int clear)
     }
     term->alt_om = term->dec_om = term->cfg.dec_om;
     term->alt_ins = term->insert = FALSE;
-    term->alt_wnext = term->wrapnext = term->save_wnext = FALSE;
+    term->alt_wnext = term->wrapnext =
+        term->save_wnext = term->alt_save_wnext = FALSE;
     term->alt_wrap = term->wrap = term->cfg.wrap_mode;
-    term->alt_cset = term->cset = term->save_cset = 0;
-    term->alt_utf = term->utf = term->save_utf = 0;
+    term->alt_cset = term->cset = term->save_cset = term->alt_save_cset = 0;
+    term->alt_utf = term->utf = term->save_utf = term->alt_save_utf = 0;
     term->utf_state = 0;
-    term->alt_sco_acs = term->sco_acs = term->save_sco_acs = 0;
-    term->cset_attr[0] = term->cset_attr[1] = term->save_csattr = CSET_ASCII;
+    term->alt_sco_acs = term->sco_acs =
+        term->save_sco_acs = term->alt_save_sco_acs = 0;
+    term->cset_attr[0] = term->cset_attr[1] =
+        term->save_csattr = term->alt_save_csattr = CSET_ASCII;
     term->rvideo = 0;
     term->in_vbell = FALSE;
     term->cursor_on = 1;
@@ -1747,6 +1751,7 @@ static int find_last_nonempty_line(Terminal * term, tree234 * screen)
 static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
 {
     int t;
+    pos tp;
     tree234 *ttr;
 
     if (!which)
@@ -1794,6 +1799,31 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
 	t = term->sco_acs;
 	if (!reset) term->sco_acs = term->alt_sco_acs;
 	term->alt_sco_acs = t;
+
+	tp = term->savecurs;
+	if (!reset && !keep_cur_pos)
+	    term->savecurs = term->alt_savecurs;
+	term->alt_savecurs = tp;
+        t = term->save_cset;
+        if (!reset && !keep_cur_pos)
+            term->save_cset = term->alt_save_cset;
+        term->alt_save_cset = t;
+        t = term->save_csattr;
+        if (!reset && !keep_cur_pos)
+            term->save_csattr = term->alt_save_csattr;
+        term->alt_save_csattr = t;
+        t = term->save_utf;
+        if (!reset && !keep_cur_pos)
+            term->save_utf = term->alt_save_utf;
+        term->alt_save_utf = t;
+        t = term->save_wnext;
+        if (!reset && !keep_cur_pos)
+            term->save_wnext = term->alt_save_wnext;
+        term->alt_save_wnext = t;
+        t = term->save_sco_acs;
+        if (!reset && !keep_cur_pos)
+            term->save_sco_acs = term->alt_save_sco_acs;
+        term->alt_save_sco_acs = t;
     }
 
     if (reset && term->screen) {
