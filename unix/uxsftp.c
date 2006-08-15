@@ -143,14 +143,9 @@ RFile *open_existing_file(char *name, uint64 *size,
 	    memset(&statbuf, 0, sizeof(statbuf));
 	}
 
-	if (size) {
-	    if (sizeof(statbuf.st_size) == 8) {
-		size->hi = statbuf.st_size >> 32;
-		size->lo = (long) statbuf.st_size;
-	    } else {
-		*size = uint64_make(0, statbuf.st_size);
-	    }
-	}
+	if (size)
+	    *size = uint64_make((statbuf.st_size >> 16) >> 16,
+				statbuf.st_size);
 	 	
 	if (mtime)
 	    *mtime = statbuf.st_mtime;
@@ -214,12 +209,8 @@ WFile *open_existing_wfile(char *name, uint64 *size)
 	    memset(&statbuf, 0, sizeof(statbuf));
 	}
 
-	if (sizeof(statbuf.st_size) == 8) {
-	    size->hi = statbuf.st_size >> 32;
-	    size->lo = (long) statbuf.st_size;
-	} else {
-	    *size = uint64_make(0, statbuf.st_size);
-	}
+	*size = uint64_make((statbuf.st_size >> 16) >> 16,
+			    statbuf.st_size);
     }
 
     return ret;
@@ -273,11 +264,7 @@ int seek_file(WFile *f, uint64 offset, int whence)
     off_t fileofft;
     int lseek_whence;
     
-    if (sizeof(off_t) == 8) {
-	fileofft = ((off_t) offset.hi << 32) + offset.lo;
-    } else {
-	fileofft = offset.lo;
-    }
+    fileofft = (((off_t) offset.hi << 16) << 16) + offset.lo;
 
     switch (whence) {
     case FROM_START:
@@ -303,12 +290,7 @@ uint64 get_file_posn(WFile *f)
 
     fileofft = lseek(f->fd, (off_t) 0, SEEK_CUR);
 
-    if (sizeof(off_t) == 8) {
-	ret.hi = fileofft >> 32;
-	ret.lo = (long) fileofft;
-    } else {
-	ret = uint64_make(0, fileofft);
-    }
+    ret = uint64_make((fileofft >> 16) >> 16, fileofft);
 
     return ret;
 }
