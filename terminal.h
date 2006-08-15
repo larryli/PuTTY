@@ -135,6 +135,13 @@ struct terminal_tag {
     bufchain printer_buf;	       /* buffered data for printer */
     printer_job *print_job;
 
+    /* ESC 7 saved state for the alternate screen */
+    pos alt_savecurs;
+    int alt_save_attr;
+    int alt_save_cset, alt_save_csattr;
+    int alt_save_utf, alt_save_wnext;
+    int alt_save_sco_acs;
+
     int rows, cols, savelines;
     int has_focus;
     int in_vbell;

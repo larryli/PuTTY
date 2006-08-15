@@ -1211,7 +1211,8 @@ static void power_on(Terminal *term, int clear)
     term->in_vbell = FALSE;
     term->cursor_on = 1;
     term->big_cursor = 0;
-    term->default_attr = term->save_attr = term->curr_attr = ATTR_DEFAULT;
+    term->default_attr = term->save_attr =
+	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
     term->term_editing = term->term_echoing = FALSE;
     term->app_cursor_keys = term->cfg.app_cursor;
     term->app_keypad_keys = term->cfg.app_keypad;
@@ -1812,6 +1813,10 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
         if (!reset && !keep_cur_pos)
             term->save_csattr = term->alt_save_csattr;
         term->alt_save_csattr = t;
+        t = term->save_attr;
+        if (!reset && !keep_cur_pos)
+            term->save_attr = term->alt_save_attr;
+        term->alt_save_attr = t;
         t = term->save_utf;
         if (!reset && !keep_cur_pos)
             term->save_utf = term->alt_save_utf;
