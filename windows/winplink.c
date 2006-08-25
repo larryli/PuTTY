@@ -14,8 +14,6 @@
 
 #define WM_AGENT_CALLBACK (WM_APP + 4)
 
-#define MAX_STDIN_BACKLOG 4096
-
 struct agent_callback {
     void (*callback)(void *, void *, int);
     void *callback_ctx;
@@ -65,7 +63,9 @@ void cmdline_error(char *p, ...)
 }
 
 HANDLE inhandle, outhandle, errhandle;
+struct handle *stdin_handle, *stdout_handle, *stderr_handle;
 DWORD orig_console_mode;
+int connopen;
 
 WSAEVENT netevent;
 
@@ -96,97 +96,16 @@ void ldisc_update(void *frontend, int echo, int edit)
 
 char *get_ttymode(void *frontend, const char *mode) { return NULL; }
 
-struct input_data {
-    DWORD len;
-    char buffer[4096];
-    HANDLE event, eventback;
-};
-
-static DWORD WINAPI stdin_read_thread(void *param)
-{
-    struct input_data *idata = (struct input_data *) param;
-    HANDLE inhandle;
-
-    inhandle = GetStdHandle(STD_INPUT_HANDLE);
-
-    while (ReadFile(inhandle, idata->buffer, sizeof(idata->buffer),
-		    &idata->len, NULL) && idata->len > 0) {
-	SetEvent(idata->event);
-	WaitForSingleObject(idata->eventback, INFINITE);
-    }
-
-    idata->len = 0;
-    SetEvent(idata->event);
-
-    return 0;
-}
-
-struct output_data {
-    DWORD len, lenwritten;
-    int writeret;
-    char *buffer;
-    int is_stderr, done;
-    HANDLE event, eventback;
-    int busy;
-};
-
-static DWORD WINAPI stdout_write_thread(void *param)
-{
-    struct output_data *odata = (struct output_data *) param;
-    HANDLE outhandle, errhandle;
-
-    outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    errhandle = GetStdHandle(STD_ERROR_HANDLE);
-
-    while (1) {
-	WaitForSingleObject(odata->eventback, INFINITE);
-	if (odata->done)
-	    break;
-	odata->writeret =
-	    WriteFile(odata->is_stderr ? errhandle : outhandle,
-		      odata->buffer, odata->len, &odata->lenwritten, NULL);
-	SetEvent(odata->event);
-    }
-
-    return 0;
-}
-
-bufchain stdout_data, stderr_data;
-struct output_data odata, edata;
-
-void try_output(int is_stderr)
-{
-    struct output_data *data = (is_stderr ? &edata : &odata);
-    void *senddata;
-    int sendlen;
-
-    if (!data->busy) {
-	bufchain_prefix(is_stderr ? &stderr_data : &stdout_data,
-			&senddata, &sendlen);
-	data->buffer = senddata;
-	data->len = sendlen;
-	SetEvent(data->eventback);
-	data->busy = 1;
-    }
-}
-
 int from_backend(void *frontend_handle, int is_stderr,
 		 const char *data, int len)
 {
-    int osize, esize;
-
     if (is_stderr) {
-	bufchain_add(&stderr_data, data, len);
-	try_output(1);
+	handle_write(stderr_handle, data, len);
     } else {
-	bufchain_add(&stdout_data, data, len);
-	try_output(0);
+	handle_write(stdout_handle, data, len);
     }
 
-    osize = bufchain_size(&stdout_data);
-    esize = bufchain_size(&stderr_data);
-
-    return osize + esize;
+    return handle_backlog(stdout_handle) + handle_backlog(stderr_handle);
 }
 
 int from_backend_untrusted(void *frontend_handle, const char *data, int len)
@@ -289,18 +208,49 @@ char *do_select(SOCKET skt, int startup)
     return NULL;
 }
 
+int stdin_gotdata(struct handle *h, void *data, int len)
+{
+    if (len < 0) {
+	/*
+	 * Special case: report read error.
+	 */
+	fprintf(stderr, "Unable to read from standard input\n");
+	cleanup_exit(0);
+    }
+    noise_ultralight(len);
+    if (connopen && back->socket(backhandle) != NULL) {
+	if (len > 0) {
+	    return back->send(backhandle, data, len);
+	} else {
+	    back->special(backhandle, TS_EOF);
+	    return 0;
+	}
+    } else
+	return 0;
+}
+
+void stdouterr_sent(struct handle *h, int new_backlog)
+{
+    if (new_backlog < 0) {
+	/*
+	 * Special case: report write error.
+	 */
+	fprintf(stderr, "Unable to write to standard %s\n",
+		(h == stdout_handle ? "output" : "error"));
+	cleanup_exit(0);
+    }
+    if (connopen && back->socket(backhandle) != NULL) {
+	back->unthrottle(backhandle, (handle_backlog(stdout_handle) +
+				      handle_backlog(stderr_handle)));
+    }
+}
+
 int main(int argc, char **argv)
 {
-    WSAEVENT stdinevent, stdoutevent, stderrevent;
-    HANDLE handles[4];
-    DWORD in_threadid, out_threadid, err_threadid;
-    struct input_data idata;
-    int reading = FALSE;
     int sending;
     int portnumber = -1;
     SOCKET *sklist;
     int skcount, sksize;
-    int connopen;
     int exitcode;
     int errors;
     int use_subsystem = 0;
@@ -610,13 +560,10 @@ int main(int argc, char **argv)
     }
     connopen = 1;
 
-    stdinevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    stdoutevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    stderrevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-
     inhandle = GetStdHandle(STD_INPUT_HANDLE);
     outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
     errhandle = GetStdHandle(STD_ERROR_HANDLE);
+
     /*
      * Turn off ECHO and LINE input modes. We don't care if this
      * call fails, because we know we aren't necessarily running in
@@ -625,69 +572,29 @@ int main(int argc, char **argv)
     GetConsoleMode(inhandle, &orig_console_mode);
     SetConsoleMode(inhandle, ENABLE_PROCESSED_INPUT);
 
+    /*
+     * Pass the output handles to the handle-handling subsystem.
+     * (The input one we leave until we're through the
+     * authentication process.)
+     */
+    stdout_handle = handle_output_new(outhandle, stdouterr_sent);
+    stderr_handle = handle_output_new(errhandle, stdouterr_sent);
+
     main_thread_id = GetCurrentThreadId();
 
-    handles[0] = netevent;
-    handles[1] = stdinevent;
-    handles[2] = stdoutevent;
-    handles[3] = stderrevent;
     sending = FALSE;
-
-    /*
-     * Create spare threads to write to stdout and stderr, so we
-     * can arrange asynchronous writes.
-     */
-    odata.event = stdoutevent;
-    odata.eventback = CreateEvent(NULL, FALSE, FALSE, NULL);
-    odata.is_stderr = 0;
-    odata.busy = odata.done = 0;
-    if (!CreateThread(NULL, 0, stdout_write_thread,
-		      &odata, 0, &out_threadid)) {
-	fprintf(stderr, "Unable to create output thread\n");
-	cleanup_exit(1);
-    }
-    edata.event = stderrevent;
-    edata.eventback = CreateEvent(NULL, FALSE, FALSE, NULL);
-    edata.is_stderr = 1;
-    edata.busy = edata.done = 0;
-    if (!CreateThread(NULL, 0, stdout_write_thread,
-		      &edata, 0, &err_threadid)) {
-	fprintf(stderr, "Unable to create error output thread\n");
-	cleanup_exit(1);
-    }
 
     now = GETTICKCOUNT();
 
     while (1) {
+	int nhandles;
+	HANDLE *handles;	
 	int n;
 	DWORD ticks;
 
 	if (!sending && back->sendok(backhandle)) {
-	    /*
-	     * Create a separate thread to read from stdin. This is
-	     * a total pain, but I can't find another way to do it:
-	     *
-	     *  - an overlapped ReadFile or ReadFileEx just doesn't
-	     *    happen; we get failure from ReadFileEx, and
-	     *    ReadFile blocks despite being given an OVERLAPPED
-	     *    structure. Perhaps we can't do overlapped reads
-	     *    on consoles. WHY THE HELL NOT?
-	     * 
-	     *  - WaitForMultipleObjects(netevent, console) doesn't
-	     *    work, because it signals the console when
-	     *    _anything_ happens, including mouse motions and
-	     *    other things that don't cause data to be readable
-	     *    - so we're back to ReadFile blocking.
-	     */
-	    idata.event = stdinevent;
-	    idata.eventback = CreateEvent(NULL, FALSE, FALSE, NULL);
-	    if (!CreateThread(NULL, 0, stdin_read_thread,
-			      &idata, 0, &in_threadid)) {
-		fprintf(stderr, "Unable to create input thread\n");
-		cleanup_exit(1);
-	    }
+	    stdin_handle = handle_input_new(inhandle, stdin_gotdata);
 	    sending = TRUE;
-	    reading = TRUE;
 	}
 
 	if (run_timers(now, &next)) {
@@ -697,9 +604,14 @@ int main(int argc, char **argv)
 	    ticks = INFINITE;
 	}
 
-	n = MsgWaitForMultipleObjects(4, handles, FALSE, ticks,
+	handles = handle_get_events(&nhandles);
+	handles = sresize(handles, nhandles+1, HANDLE);
+	handles[nhandles] = netevent;
+	n = MsgWaitForMultipleObjects(nhandles+1, handles, FALSE, ticks,
 				      QS_POSTMESSAGE);
-	if (n == WAIT_OBJECT_0 + 0) {
+	if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
+	    handle_got_event(handles[n - WAIT_OBJECT_0]);
+	} else if (n == WAIT_OBJECT_0 + nhandles) {
 	    WSANETWORKEVENTS things;
 	    SOCKET socket;
 	    extern SOCKET first_socket(int *), next_socket(int *);
@@ -760,43 +672,7 @@ int main(int argc, char **argv)
                         }
 		}
 	    }
-	} else if (n == WAIT_OBJECT_0 + 1) {
-	    reading = 0;
-	    noise_ultralight(idata.len);
-	    if (connopen && back->socket(backhandle) != NULL) {
-		if (idata.len > 0) {
-		    back->send(backhandle, idata.buffer, idata.len);
-		} else {
-		    back->special(backhandle, TS_EOF);
-		}
-	    }
-	} else if (n == WAIT_OBJECT_0 + 2) {
-	    odata.busy = 0;
-	    if (!odata.writeret) {
-		fprintf(stderr, "Unable to write to standard output\n");
-		cleanup_exit(0);
-	    }
-	    bufchain_consume(&stdout_data, odata.lenwritten);
-	    if (bufchain_size(&stdout_data) > 0)
-		try_output(0);
-	    if (connopen && back->socket(backhandle) != NULL) {
-		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
-				 bufchain_size(&stderr_data));
-	    }
-	} else if (n == WAIT_OBJECT_0 + 3) {
-	    edata.busy = 0;
-	    if (!edata.writeret) {
-		fprintf(stderr, "Unable to write to standard output\n");
-		cleanup_exit(0);
-	    }
-	    bufchain_consume(&stderr_data, edata.lenwritten);
-	    if (bufchain_size(&stderr_data) > 0)
-		try_output(1);
-	    if (connopen && back->socket(backhandle) != NULL) {
-		back->unthrottle(backhandle, bufchain_size(&stdout_data) +
-				 bufchain_size(&stderr_data));
-	    }
-	} else if (n == WAIT_OBJECT_0 + 4) {
+	} else if (n == WAIT_OBJECT_0 + nhandles + 1) {
 	    MSG msg;
 	    while (PeekMessage(&msg, INVALID_HANDLE_VALUE,
 			       WM_AGENT_CALLBACK, WM_AGENT_CALLBACK,
@@ -813,13 +689,13 @@ int main(int argc, char **argv)
 	    now = GETTICKCOUNT();
 	}
 
-	if (!reading && back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
-	    SetEvent(idata.eventback);
-	    reading = 1;
-	}
+	sfree(handles);
+
+	if (sending)
+	    handle_unthrottle(stdin_handle, back->sendbuffer(backhandle));
+
 	if ((!connopen || back->socket(backhandle) == NULL) &&
-	    bufchain_size(&stdout_data) == 0 &&
-	    bufchain_size(&stderr_data) == 0)
+	    handle_backlog(stdout_handle) + handle_backlog(stderr_handle) == 0)
 	    break;		       /* we closed the connection */
     }
     exitcode = back->exitcode(backhandle);

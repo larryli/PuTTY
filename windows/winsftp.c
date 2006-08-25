@@ -463,9 +463,9 @@ extern int select_result(WPARAM, LPARAM);
 
 int do_eventsel_loop(HANDLE other_event)
 {
-    int n;
+    int n, nhandles, nallhandles;
     long next, ticks;
-    HANDLE handles[2];
+    HANDLE *handles;
     SOCKET *sklist;
     int skcount;
     long now = GETTICKCOUNT();
@@ -474,8 +474,13 @@ int do_eventsel_loop(HANDLE other_event)
 	return -1;		       /* doom */
     }
 
-    handles[0] = netevent;
-    handles[1] = other_event;
+    handles = handle_get_events(&nhandles);
+    handles = sresize(handles, nhandles+2, HANDLE);
+    nallhandles = nhandles;
+
+    handles[nallhandles++] = netevent;
+    if (other_event)
+	handles[nallhandles++] = other_event;
 
     if (run_timers(now, &next)) {
 	ticks = next - GETTICKCOUNT();
@@ -484,10 +489,12 @@ int do_eventsel_loop(HANDLE other_event)
 	ticks = INFINITE;
     }
 
-    n = MsgWaitForMultipleObjects(other_event ? 2 : 1, handles, FALSE, ticks,
+    n = MsgWaitForMultipleObjects(nallhandles, handles, FALSE, ticks,
 				  QS_POSTMESSAGE);
 
-    if (n == WAIT_OBJECT_0 + 0) {
+    if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
+	handle_got_event(handles[n - WAIT_OBJECT_0]);
+    } else if (n == WAIT_OBJECT_0 + nhandles) {
 	WSANETWORKEVENTS things;
 	SOCKET socket;
 	extern SOCKET first_socket(int *), next_socket(int *);
@@ -549,13 +556,15 @@ int do_eventsel_loop(HANDLE other_event)
 	sfree(sklist);
     }
 
+    sfree(handles);
+
     if (n == WAIT_TIMEOUT) {
 	now = next;
     } else {
 	now = GETTICKCOUNT();
     }
 
-    if (other_event && n == WAIT_OBJECT_0 + 1)
+    if (other_event && n == WAIT_OBJECT_0 + nhandles + 1)
 	return 1;
 
     return 0;

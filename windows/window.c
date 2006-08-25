@@ -816,8 +816,29 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     term_set_focus(term, GetForegroundWindow() == hwnd);
     UpdateWindow(hwnd);
 
-    if (GetMessage(&msg, NULL, 0, 0) == 1) {
-	while (msg.message != WM_QUIT) {
+    while (1) {
+	HANDLE *handles;
+	int nhandles, n;
+
+	handles = handle_get_events(&nhandles);
+
+	n = MsgWaitForMultipleObjects(nhandles, handles, FALSE, INFINITE,
+				      QS_ALLINPUT);
+
+	if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
+	    handle_got_event(handles[n - WAIT_OBJECT_0]);
+	    sfree(handles);
+	    continue;
+	}
+
+	sfree(handles);
+
+	if (GetMessage(&msg, NULL, 0, 0) != 1)
+	    break;
+	do {
+	    if (msg.message == WM_QUIT)
+		goto finished;	       /* two-level break */
+
 	    if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
 		DispatchMessage(&msg);
 	    /* Send the paste buffer if there's anything to send */
@@ -826,23 +847,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	     * we've delayed, reading the socket, writing, and repainting
 	     * the window.
 	     */
-	    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		continue;
+	} while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE));
 
-	    /* The messages seem unreliable; especially if we're being tricky */
-	    term_set_focus(term, GetForegroundWindow() == hwnd);
+	/* The messages seem unreliable; especially if we're being tricky */
+	term_set_focus(term, GetForegroundWindow() == hwnd);
 
-	    net_pending_errors();
-
-	    /* There's no point rescanning everything in the message queue
-	     * so we do an apparently unnecessary wait here
-	     */
-	    WaitMessage();
-	    if (GetMessage(&msg, NULL, 0, 0) != 1)
-		break;
-	}
+	net_pending_errors();
     }
 
+    finished:
     cleanup_exit(msg.wParam);	       /* this doesn't return... */
     return msg.wParam;		       /* ... but optimiser doesn't know */
 }

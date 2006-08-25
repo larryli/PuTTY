@@ -244,7 +244,7 @@ SFTP     = sftp int64 logging
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
 MISC     = timing misc version settings tree234 proxy
-WINMISC  = MISC winstore winnet cmdline windefs winmisc pproxy wintime
+WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc pproxy wintime
 UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time
 OSXMISC  = MISC uxstore uxsel osxsel uxnet uxmisc uxproxy time
 MACMISC  = MISC macstore macnet mtcpnet otnet macmisc macabout pproxy
