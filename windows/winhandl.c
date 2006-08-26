@@ -122,7 +122,8 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
  */
 static void handle_throttle(struct handle_input *ctx, int backlog)
 {
-    assert(!ctx->defunct);
+    if (ctx->defunct)
+	return;
 
     /*
      * If there's a read operation already in progress, do nothing:
