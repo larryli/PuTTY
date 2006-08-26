@@ -273,7 +273,6 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
     h->u.i.ev_to_main = CreateEvent(NULL, FALSE, FALSE, NULL);
     h->u.i.ev_from_main = CreateEvent(NULL, FALSE, FALSE, NULL);
     h->u.i.gotdata = gotdata;
-    h->u.i.busy = FALSE;
     h->u.i.defunct = FALSE;
     h->u.i.moribund = FALSE;
     h->u.i.done = FALSE;
@@ -285,8 +284,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 
     CreateThread(NULL, 0, handle_input_threadfunc,
 		 &h->u.i, 0, NULL);
-
-    handle_throttle(&h->u.i, 0);       /* start first read operation */
+    h->u.i.busy = TRUE;
 
     return h;
 }
