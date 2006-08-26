@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
+#include <limits.h>
 #include <assert.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
@@ -114,7 +115,7 @@ static Backend *back;
 static void *backhandle;
 
 static struct unicode_data ucsdata;
-static int session_closed;
+static int must_close_session, session_closed;
 static int reconfiguring = FALSE;
 
 static const struct telnet_special *specials = NULL;
@@ -828,6 +829,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
 	    handle_got_event(handles[n - WAIT_OBJECT_0]);
 	    sfree(handles);
+	    if (must_close_session)
+		close_session();
 	    continue;
 	}
 
@@ -847,6 +850,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	     * we've delayed, reading the socket, writing, and repainting
 	     * the window.
 	     */
+	    if (must_close_session)
+		close_session();
 	} while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE));
 
 	/* The messages seem unreliable; especially if we're being tricky */
@@ -1069,7 +1074,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
     if (cfg.close_on_exit == FORCE_ON)
 	PostQuitMessage(1);
     else {
-	close_session();
+	must_close_session = TRUE;
     }
 }
 
@@ -1097,27 +1102,13 @@ static void enact_netevent(WPARAM wParam, LPARAM lParam)
 {
     static int reentering = 0;
     extern int select_result(WPARAM, LPARAM);
-    int ret;
 
     if (reentering)
 	return;			       /* don't unpend the pending */
 
     reentering = 1;
-    ret = select_result(wParam, lParam);
+    select_result(wParam, lParam);
     reentering = 0;
-
-    if (ret == 0 && !session_closed) {
-	/* Abnormal exits will already have set session_closed and taken
-	 * appropriate action. */
-	if (cfg.close_on_exit == FORCE_ON ||
-	    cfg.close_on_exit == AUTO) PostQuitMessage(0);
-	else {
-	    close_session();
-	    session_closed = TRUE;
-	    MessageBox(hwnd, "Connection closed by remote host",
-		       appname, MB_OK | MB_ICONINFORMATION);
-	}
-    }
 }
 
 /*
@@ -1862,7 +1853,29 @@ static int is_shift_pressed(void)
 
 static int resizing;
 
-void notify_remote_exit(void *fe) { /* stub not needed in this frontend */ }
+void notify_remote_exit(void *fe)
+{
+    int exitcode;
+
+    if (!session_closed &&
+        (exitcode = back->exitcode(backhandle)) >= 0) {
+	/* Abnormal exits will already have set session_closed and taken
+	 * appropriate action. */
+	if (cfg.close_on_exit == FORCE_ON ||
+	    (cfg.close_on_exit == AUTO && exitcode != INT_MAX)) {
+	    PostQuitMessage(0);
+	} else {
+	    must_close_session = TRUE;
+	    session_closed = TRUE;
+	    /* exitcode == INT_MAX indicates that the connection was closed
+	     * by a fatal error, so an error box will be coming our way and
+	     * we should not generate this informational one. */
+	    if (exitcode != INT_MAX)
+		MessageBox(hwnd, "Connection closed by remote host",
+			   appname, MB_OK | MB_ICONINFORMATION);
+	}
+    }
+}
 
 void timer_change_notify(long next)
 {
