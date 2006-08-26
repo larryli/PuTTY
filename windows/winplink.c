@@ -577,8 +577,8 @@ int main(int argc, char **argv)
      * (The input one we leave until we're through the
      * authentication process.)
      */
-    stdout_handle = handle_output_new(outhandle, stdouterr_sent);
-    stderr_handle = handle_output_new(errhandle, stdouterr_sent);
+    stdout_handle = handle_output_new(outhandle, stdouterr_sent, NULL);
+    stderr_handle = handle_output_new(errhandle, stdouterr_sent, NULL);
 
     main_thread_id = GetCurrentThreadId();
 
@@ -593,7 +593,7 @@ int main(int argc, char **argv)
 	DWORD ticks;
 
 	if (!sending && back->sendok(backhandle)) {
-	    stdin_handle = handle_input_new(inhandle, stdin_gotdata);
+	    stdin_handle = handle_input_new(inhandle, stdin_gotdata, NULL);
 	    sending = TRUE;
 	}
 

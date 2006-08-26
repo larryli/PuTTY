@@ -18,13 +18,6 @@
  * when one completes.
  */
 
-/*
- * TODO:
- *
- *  - could do with some sort of private-data field in each handle
- *    structure.
- */
-
 #include <assert.h>
 
 #include "putty.h"
@@ -58,6 +51,7 @@ struct handle_generic {
     int done;			       /* request subthread to terminate */
     int defunct;		       /* has the subthread already gone? */
     int busy;			       /* operation currently in progress? */
+    void *privdata;		       /* for client to remember who they are */
 };
 
 /* ----------------------------------------------------------------------
@@ -78,6 +72,7 @@ struct handle_input {
     int done;			       /* request subthread to terminate */
     int defunct;		       /* has the subthread already gone? */
     int busy;			       /* operation currently in progress? */
+    void *privdata;		       /* for client to remember who they are */
 
     /*
      * Data set by the input thread before signalling ev_to_main,
@@ -165,6 +160,7 @@ struct handle_output {
     int done;			       /* request subthread to terminate */
     int defunct;		       /* has the subthread already gone? */
     int busy;			       /* operation currently in progress? */
+    void *privdata;		       /* for client to remember who they are */
 
     /*
      * Data set by the main thread before signalling ev_from_main,
@@ -267,7 +263,8 @@ static int handle_find_evtomain(void *av, void *bv)
 	return 0;
 }
 
-struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata)
+struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
+				void *privdata)
 {
     struct handle *h = snew(struct handle);
 
@@ -280,6 +277,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata)
     h->u.i.defunct = FALSE;
     h->u.i.moribund = FALSE;
     h->u.i.done = FALSE;
+    h->u.i.privdata = privdata;
 
     if (!handles_by_evtomain)
 	handles_by_evtomain = newtree234(handle_cmp_evtomain);
@@ -293,7 +291,8 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata)
     return h;
 }
 
-struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata)
+struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
+				 void *privdata)
 {
     struct handle *h = snew(struct handle);
 
@@ -305,6 +304,7 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata)
     h->u.o.defunct = FALSE;
     h->u.o.moribund = FALSE;
     h->u.o.done = FALSE;
+    h->u.o.privdata = privdata;
     bufchain_init(&h->u.o.queued_data);
     h->u.o.sentdata = sentdata;
 
@@ -483,4 +483,9 @@ int handle_backlog(struct handle *h)
 {
     assert(h->output);
     return bufchain_size(&h->u.o.queued_data);
+}
+
+void *handle_get_privdata(struct handle *h)
+{
+    return h->u.g.privdata;
 }
