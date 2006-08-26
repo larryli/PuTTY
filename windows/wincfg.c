@@ -333,4 +333,42 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		  HELPCTX(behaviour_altenter),
 		  dlg_stdcheckbox_handler,
 		  I(offsetof(Config,fullscreenonaltenter)));
+
+    /*
+     * Windows supports a local-command proxy. This also means we
+     * must adjust the text on the `Telnet command' control.
+     */
+    if (!midsession) {
+	int i;
+        s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
+	for (i = 0; i < s->ncontrols; i++) {
+	    c = s->ctrls[i];
+	    if (c->generic.type == CTRL_RADIO &&
+		c->generic.context.i == offsetof(Config, proxy_type)) {
+		assert(c->generic.handler == dlg_stdradiobutton_handler);
+		c->radio.nbuttons++;
+		c->radio.buttons =
+		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
+		c->radio.buttons[c->radio.nbuttons-1] =
+		    dupstr("Local");
+		c->radio.buttondata =
+		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
+		c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_CMD);
+		break;
+	    }
+	}
+
+	for (i = 0; i < s->ncontrols; i++) {
+	    c = s->ctrls[i];
+	    if (c->generic.type == CTRL_EDITBOX &&
+		c->generic.context.i ==
+		offsetof(Config, proxy_telnet_command)) {
+		assert(c->generic.handler == dlg_stdeditbox_handler);
+		sfree(c->generic.label);
+		c->generic.label = dupstr("Telnet command, or local"
+					  " proxy command");
+		break;
+	    }
+	}
+    }
 }
