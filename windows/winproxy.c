@@ -182,6 +182,9 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	return (Socket)ret;
     }
 
+    SetHandleInformation(us_to_cmd, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(us_from_cmd, HANDLE_FLAG_INHERIT, 0);
+
     si.cb = sizeof(si);
     si.lpReserved = NULL;
     si.lpDesktop = NULL;
