@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "putty.h"
 #include "tree234.h"
@@ -8764,7 +8765,7 @@ static int ssh_return_exitcode(void *handle)
     if (ssh->s != NULL)
         return -1;
     else
-        return (ssh->exitcode >= 0 ? ssh->exitcode : 0);
+        return (ssh->exitcode >= 0 ? ssh->exitcode : INT_MAX);
 }
 
 /*
