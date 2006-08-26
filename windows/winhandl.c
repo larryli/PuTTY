@@ -391,6 +391,7 @@ void handle_free(struct handle *h)
 	 */
 	h->u.g.moribund = TRUE;
 	h->u.g.done = TRUE;
+	h->u.g.busy = TRUE;
 	SetEvent(h->u.g.ev_from_main);
     }
 }
@@ -424,6 +425,7 @@ void handle_got_event(HANDLE event)
 	    handle_destroy(h);
 	} else {
 	    h->u.g.done = TRUE;
+	    h->u.g.busy = TRUE;
 	    SetEvent(h->u.g.ev_from_main);
 	}
 	return;
