@@ -463,24 +463,12 @@ extern int select_result(WPARAM, LPARAM);
 
 int do_eventsel_loop(HANDLE other_event)
 {
-    int n, nhandles, nallhandles;
+    int n, nhandles, nallhandles, netindex, otherindex;
     long next, ticks;
     HANDLE *handles;
     SOCKET *sklist;
     int skcount;
     long now = GETTICKCOUNT();
-
-    if (!netevent) {
-	return -1;		       /* doom */
-    }
-
-    handles = handle_get_events(&nhandles);
-    handles = sresize(handles, nhandles+2, HANDLE);
-    nallhandles = nhandles;
-
-    handles[nallhandles++] = netevent;
-    if (other_event)
-	handles[nallhandles++] = other_event;
 
     if (run_timers(now, &next)) {
 	ticks = next - GETTICKCOUNT();
@@ -489,12 +477,25 @@ int do_eventsel_loop(HANDLE other_event)
 	ticks = INFINITE;
     }
 
+    handles = handle_get_events(&nhandles);
+    handles = sresize(handles, nhandles+2, HANDLE);
+    nallhandles = nhandles;
+
+    if (netevent)
+	handles[netindex = nallhandles++] = netevent;
+    else
+	netindex = -1;
+    if (other_event)
+	handles[otherindex = nallhandles++] = other_event;
+    else
+	otherindex = -1;
+
     n = MsgWaitForMultipleObjects(nallhandles, handles, FALSE, ticks,
 				  QS_POSTMESSAGE);
 
     if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
 	handle_got_event(handles[n - WAIT_OBJECT_0]);
-    } else if (n == WAIT_OBJECT_0 + nhandles) {
+    } else if (netindex >= 0 && n == WAIT_OBJECT_0 + netindex) {
 	WSANETWORKEVENTS things;
 	SOCKET socket;
 	extern SOCKET first_socket(int *), next_socket(int *);
@@ -564,7 +565,7 @@ int do_eventsel_loop(HANDLE other_event)
 	now = GETTICKCOUNT();
     }
 
-    if (other_event && n == WAIT_OBJECT_0 + nhandles + 1)
+    if (otherindex >= 0 && n == WAIT_OBJECT_0 + otherindex)
 	return 1;
 
     return 0;
@@ -581,13 +582,13 @@ int do_eventsel_loop(HANDLE other_event)
  */
 int ssh_sftp_loop_iteration(void)
 {
-    if (sftp_ssh_socket == INVALID_SOCKET)
-	return -1;		       /* doom */
-
     if (p_WSAEventSelect == NULL) {
 	fd_set readfds;
 	int ret;
 	long now = GETTICKCOUNT();
+
+	if (sftp_ssh_socket == INVALID_SOCKET)
+	    return -1;		       /* doom */
 
 	if (socket_writable(sftp_ssh_socket))
 	    select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_WRITE);
