@@ -2567,7 +2567,7 @@ int sftp_recvdata(char *buf, int len)
     }
 
     while (outlen > 0) {
-	if (ssh_sftp_loop_iteration() < 0)
+	if (back->exitcode(backhandle) >= 0 || ssh_sftp_loop_iteration() < 0)
 	    return 0;		       /* doom */
     }
 
