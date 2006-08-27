@@ -536,6 +536,9 @@ int main(int argc, char **argv)
 	return 1;
     }
 
+    logctx = log_init(NULL, &cfg);
+    console_provide_logctx(logctx);
+
     /*
      * Start up the connection.
      */
@@ -553,9 +556,7 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
 	}
-	logctx = log_init(NULL, &cfg);
 	back->provide_logctx(backhandle, logctx);
-	console_provide_logctx(logctx);
 	sfree(realhost);
     }
     connopen = 1;
