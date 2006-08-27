@@ -218,7 +218,7 @@ int stdin_gotdata(struct handle *h, void *data, int len)
 	cleanup_exit(0);
     }
     noise_ultralight(len);
-    if (connopen && back->socket(backhandle) != NULL) {
+    if (connopen && back->connected(backhandle)) {
 	if (len > 0) {
 	    return back->send(backhandle, data, len);
 	} else {
@@ -239,7 +239,7 @@ void stdouterr_sent(struct handle *h, int new_backlog)
 		(h == stdout_handle ? "output" : "error"));
 	cleanup_exit(0);
     }
-    if (connopen && back->socket(backhandle) != NULL) {
+    if (connopen && back->connected(backhandle)) {
 	back->unthrottle(backhandle, (handle_backlog(stdout_handle) +
 				      handle_backlog(stderr_handle)));
     }
@@ -694,7 +694,7 @@ int main(int argc, char **argv)
 	if (sending)
 	    handle_unthrottle(stdin_handle, back->sendbuffer(backhandle));
 
-	if ((!connopen || back->socket(backhandle) == NULL) &&
+	if ((!connopen || !back->connected(backhandle)) &&
 	    handle_backlog(stdout_handle) + handle_backlog(stderr_handle) == 0)
 	    break;		       /* we closed the connection */
     }

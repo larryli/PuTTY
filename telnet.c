@@ -1019,10 +1019,10 @@ static const struct telnet_special *telnet_get_specials(void *handle)
     return specials;
 }
 
-static Socket telnet_socket(void *handle)
+static int telnet_connected(void *handle)
 {
     Telnet telnet = (Telnet) handle;
-    return telnet->s;
+    return telnet->s != NULL;
 }
 
 static int telnet_sendok(void *handle)
@@ -1085,7 +1085,7 @@ Backend telnet_backend = {
     telnet_size,
     telnet_special,
     telnet_get_specials,
-    telnet_socket,
+    telnet_connected,
     telnet_exitcode,
     telnet_sendok,
     telnet_ldisc,

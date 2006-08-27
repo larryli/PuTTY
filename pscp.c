@@ -292,7 +292,7 @@ static void bump(char *fmt, ...)
     sfree(str2);
     errs++;
 
-    if (back != NULL && back->socket(backhandle) != NULL) {
+    if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
 	ssh_scp_recv((unsigned char *) &ch, 1);
@@ -2285,7 +2285,7 @@ int psftp_main(int argc, char *argv[])
 	    tolocal(argc, argv);
     }
 
-    if (back != NULL && back->socket(backhandle) != NULL) {
+    if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
 	ssh_scp_recv((unsigned char *) &ch, 1);

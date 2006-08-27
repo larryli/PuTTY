@@ -357,7 +357,7 @@ struct backend_tag {
     void (*size) (void *handle, int width, int height);
     void (*special) (void *handle, Telnet_Special code);
     const struct telnet_special *(*get_specials) (void *handle);
-    Socket(*socket) (void *handle);
+    int (*connected) (void *handle);
     int (*exitcode) (void *handle);
     /* If back->sendok() returns FALSE, data sent to it from the frontend
      * may be lost. */

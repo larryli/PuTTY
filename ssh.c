@@ -8725,10 +8725,10 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
     }
 }
 
-static Socket ssh_socket(void *handle)
+static int ssh_connected(void *handle)
 {
     Ssh ssh = (Ssh) handle;
-    return ssh->s;
+    return ssh->s != NULL;
 }
 
 static int ssh_sendok(void *handle)
@@ -8798,7 +8798,7 @@ Backend ssh_backend = {
     ssh_size,
     ssh_special,
     ssh_get_specials,
-    ssh_socket,
+    ssh_connected,
     ssh_return_exitcode,
     ssh_sendok,
     ssh_ldisc,

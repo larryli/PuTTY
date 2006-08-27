@@ -280,10 +280,10 @@ static const struct telnet_special *rlogin_get_specials(void *handle)
     return NULL;
 }
 
-static Socket rlogin_socket(void *handle)
+static int rlogin_connected(void *handle)
 {
     Rlogin rlogin = (Rlogin) handle;
-    return rlogin->s;
+    return rlogin->s != NULL;
 }
 
 static int rlogin_sendok(void *handle)
@@ -341,7 +341,7 @@ Backend rlogin_backend = {
     rlogin_size,
     rlogin_special,
     rlogin_get_specials,
-    rlogin_socket,
+    rlogin_connected,
     rlogin_exitcode,
     rlogin_sendok,
     rlogin_ldisc,

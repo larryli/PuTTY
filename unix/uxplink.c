@@ -899,7 +899,7 @@ int main(int argc, char **argv)
 	FD_SET_MAX(signalpipe[0], maxfd, rset);
 
 	if (connopen && !sending &&
-	    back->socket(backhandle) != NULL &&
+	    back->connected(backhandle) &&
 	    back->sendok(backhandle) &&
 	    back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
 	    /* If we're OK to send, then try to read from stdin. */
@@ -1014,7 +1014,7 @@ int main(int argc, char **argv)
 	    char buf[4096];
 	    int ret;
 
-	    if (connopen && back->socket(backhandle) != NULL) {
+	    if (connopen && back->connected(backhandle)) {
 		ret = read(0, buf, sizeof(buf));
 		if (ret < 0) {
 		    perror("stdin: read");
@@ -1039,7 +1039,7 @@ int main(int argc, char **argv)
 	    try_output(1);
 	}
 
-	if ((!connopen || back->socket(backhandle) == NULL) &&
+	if ((!connopen || !back->connected(backhandle)) &&
 	    bufchain_size(&stdout_data) == 0 &&
 	    bufchain_size(&stderr_data) == 0)
 	    break;		       /* we closed the connection */

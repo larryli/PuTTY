@@ -952,7 +952,7 @@ int sftp_cmd_close(struct sftp_command *cmd)
 	return 0;
     }
 
-    if (back != NULL && back->socket(backhandle) != NULL) {
+    if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
 	sftp_recvdata(&ch, 1);
@@ -2909,7 +2909,7 @@ int psftp_main(int argc, char *argv[])
 
     do_sftp(mode, modeflags, batchfile);
 
-    if (back != NULL && back->socket(backhandle) != NULL) {
+    if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
 	sftp_recvdata(&ch, 1);

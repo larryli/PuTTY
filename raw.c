@@ -209,10 +209,10 @@ static const struct telnet_special *raw_get_specials(void *handle)
     return NULL;
 }
 
-static Socket raw_socket(void *handle)
+static int raw_connected(void *handle)
 {
     Raw raw = (Raw) handle;
-    return raw->s;
+    return raw->s != NULL;
 }
 
 static int raw_sendok(void *handle)
@@ -270,7 +270,7 @@ Backend raw_backend = {
     raw_size,
     raw_special,
     raw_get_specials,
-    raw_socket,
+    raw_connected,
     raw_exitcode,
     raw_sendok,
     raw_ldisc,

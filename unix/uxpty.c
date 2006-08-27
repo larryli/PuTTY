@@ -1008,10 +1008,10 @@ static const struct telnet_special *pty_get_specials(void *handle)
     return NULL;
 }
 
-static Socket pty_socket(void *handle)
+static int pty_connected(void *handle)
 {
     /* Pty pty = (Pty)handle; */
-    return NULL;		       /* shouldn't ever be needed */
+    return TRUE;
 }
 
 static int pty_sendok(void *handle)
@@ -1068,7 +1068,7 @@ Backend pty_backend = {
     pty_size,
     pty_special,
     pty_get_specials,
-    pty_socket,
+    pty_connected,
     pty_exitcode,
     pty_sendok,
     pty_ldisc,
