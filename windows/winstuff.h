@@ -408,13 +408,15 @@ void init_ucs(Config *, struct unicode_data *);
 /*
  * Exports from winhandl.c.
  */
+#define HANDLE_FLAG_OVERLAPPED 1
+#define HANDLE_FLAG_IGNOREEOF 2
 struct handle;
 typedef int (*handle_inputfn_t)(struct handle *h, void *data, int len);
 typedef void (*handle_outputfn_t)(struct handle *h, int new_backlog);
 struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
-				void *privdata);
+				void *privdata, int flags);
 struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
-				 void *privdata);
+				 void *privdata, int flags);
 int handle_write(struct handle *h, const void *data, int len);
 HANDLE *handle_get_events(int *nevents);
 void handle_free(struct handle *h);

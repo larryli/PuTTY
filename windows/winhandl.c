@@ -75,6 +75,11 @@ struct handle_input {
     void *privdata;		       /* for client to remember who they are */
 
     /*
+     * Data set at initialisation and then read-only.
+     */
+    int flags;
+
+    /*
      * Data set by the input thread before signalling ev_to_main,
      * and read by the main thread after receiving that signal.
      */
@@ -95,12 +100,27 @@ struct handle_input {
 static DWORD WINAPI handle_input_threadfunc(void *param)
 {
     struct handle_input *ctx = (struct handle_input *) param;
+    OVERLAPPED ovl, *povl;
+
+    if (ctx->flags & HANDLE_FLAG_OVERLAPPED)
+	povl = &ovl;
+    else
+	povl = NULL;
 
     while (1) {
+	if (povl)
+	    memset(povl, 0, sizeof(OVERLAPPED));
 	ctx->readret = ReadFile(ctx->h, ctx->buffer, sizeof(ctx->buffer),
-				&ctx->len, NULL);
+				&ctx->len, povl);
+	if (povl && !ctx->readret && GetLastError() == ERROR_IO_PENDING)
+	    ctx->readret = GetOverlappedResult(ctx->h, povl, &ctx->len, TRUE);
+
 	if (!ctx->readret)
 	    ctx->len = 0;
+
+	if (ctx->readret && ctx->len == 0 &&
+	    (ctx->flags & HANDLE_FLAG_IGNOREEOF))
+	    continue;
 
 	SetEvent(ctx->ev_to_main);
 
@@ -164,6 +184,11 @@ struct handle_output {
     void *privdata;		       /* for client to remember who they are */
 
     /*
+     * Data set at initialisation and then read-only.
+     */
+    int flags;
+
+    /*
      * Data set by the main thread before signalling ev_from_main,
      * and read by the input thread after receiving that signal.
      */
@@ -192,6 +217,12 @@ struct handle_output {
 static DWORD WINAPI handle_output_threadfunc(void *param)
 {
     struct handle_output *ctx = (struct handle_output *) param;
+    OVERLAPPED ovl, *povl;
+
+    if (ctx->flags & HANDLE_FLAG_OVERLAPPED)
+	povl = &ovl;
+    else
+	povl = NULL;
 
     while (1) {
 	WaitForSingleObject(ctx->ev_from_main, INFINITE);
@@ -199,8 +230,14 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
 	    SetEvent(ctx->ev_to_main);
 	    break;
 	}
+	if (povl)
+	    memset(povl, 0, sizeof(OVERLAPPED));
 	ctx->writeret = WriteFile(ctx->h, ctx->buffer, ctx->len,
-				  &ctx->lenwritten, NULL);
+				  &ctx->lenwritten, povl);
+	if (povl && !ctx->writeret && GetLastError() == ERROR_IO_PENDING)
+	    ctx->writeret = GetOverlappedResult(ctx->h, povl,
+						&ctx->lenwritten, TRUE);
+
 	SetEvent(ctx->ev_to_main);
 	if (!ctx->writeret)
 	    break;
@@ -265,7 +302,7 @@ static int handle_find_evtomain(void *av, void *bv)
 }
 
 struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
-				void *privdata)
+				void *privdata, int flags)
 {
     struct handle *h = snew(struct handle);
 
@@ -278,6 +315,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
     h->u.i.moribund = FALSE;
     h->u.i.done = FALSE;
     h->u.i.privdata = privdata;
+    h->u.i.flags = flags;
 
     if (!handles_by_evtomain)
 	handles_by_evtomain = newtree234(handle_cmp_evtomain);
@@ -291,7 +329,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 }
 
 struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
-				 void *privdata)
+				 void *privdata, int flags)
 {
     struct handle *h = snew(struct handle);
 
@@ -306,6 +344,7 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
     h->u.o.privdata = privdata;
     bufchain_init(&h->u.o.queued_data);
     h->u.o.sentdata = sentdata;
+    h->u.o.flags = flags;
 
     if (!handles_by_evtomain)
 	handles_by_evtomain = newtree234(handle_cmp_evtomain);
