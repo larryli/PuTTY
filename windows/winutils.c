@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include "winstuff.h"
 #include "putty.h"
 #include "misc.h"
 
