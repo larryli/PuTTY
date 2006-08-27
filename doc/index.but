@@ -535,6 +535,10 @@ saved sessions from
 \IM{Telnet proxy} ad-hoc proxy
 \IM{Telnet proxy} proxy, Telnet
 
+\IM{Local proxy} local proxy
+\IM{Local proxy} proxy command
+\IM{Local proxy} command, proxy
+
 \IM{proxy DNS} proxy DNS
 \IM{proxy DNS} DNS, with proxy
 \IM{proxy DNS} name resolution, with proxy

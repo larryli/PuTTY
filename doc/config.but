@@ -1765,7 +1765,7 @@ To remove one from the list, select it in the list box and press
 The \ii{Proxy} panel allows you to configure PuTTY to use various types
 of proxy in order to make its network connections. The settings in
 this panel affect the primary network connection forming your PuTTY
-session, but also any extra connections made as a result of SSH \i{port
+session, and also any extra connections made as a result of SSH \i{port
 forwarding} (see \k{using-port-forwarding}).
 
 \S{config-proxy-type} Setting the proxy type
@@ -1789,6 +1789,18 @@ user can make a Telnet connection directly to the firewall machine
 and enter a command such as \c{connect myhost.com 22} to connect
 through to an external host. Selecting \I{Telnet proxy}\q{Telnet}
 allows you to tell PuTTY to use this type of proxy.
+
+\b Selecting \I{Local proxy}\q{Local} allows you to specify an arbitrary
+command on the local machine to act as a proxy. When the session is
+started, instead of creating a TCP connection, PuTTY runs the command
+(specified in \k{config-proxy-command}), and uses its standard input and
+output streams.
+
+\lcont{
+This could be used, for instance, to talk to some kind of network proxy
+that PuTTY does not natively support; or you could tunnel a connection
+over something other than TCP/IP entirely.
+}
 
 \S{config-proxy-exclude} Excluding parts of the network from proxying
 
@@ -1894,9 +1906,9 @@ in \I{plaintext password}plain text.
 passwords.
 
 \b You can specify a way to include a username and password in the
-Telnet proxy command (see \k{config-proxy-command}).
+Telnet/Local proxy command (see \k{config-proxy-command}).
 
-\S{config-proxy-command} Specifying the Telnet proxy command
+\S{config-proxy-command} Specifying the Telnet or Local proxy command
 
 \cfg{winhelp-topic}{proxy.command}
 
@@ -1904,6 +1916,9 @@ If you are using the \i{Telnet proxy} type, the usual command required
 by the firewall's Telnet server is \c{connect}, followed by a host
 name and a port number. If your proxy needs a different command,
 you can enter an alternative here.
+
+If you are using the \i{Local proxy} type, the local command to run
+is specified here.
 
 In this string, you can use \c{\\n} to represent a new-line, \c{\\r}
 to represent a carriage return, \c{\\t} to represent a tab
@@ -1914,9 +1929,12 @@ itself.
 Also, the special strings \c{%host} and \c{%port} will be replaced
 by the host name and port number you want to connect to. The strings
 \c{%user} and \c{%pass} will be replaced by the proxy username and 
-password you specify. To get a literal \c{%} sign, enter \c{%%}.
+password you specify. The strings \c{%proxyhost} and \c{%proxyport}
+will be replaced by the host details specified on the \e{Proxy} panel,
+if any (this is most likely to be useful for the Local proxy type).
+To get a literal \c{%} sign, enter \c{%%}.
 
-If the Telnet proxy server prompts for a username and password
+If a Telnet proxy server prompts for a username and password
 before commands can be sent, you can use a command such as:
 
 \c %user\n%pass\nconnect %host %port\n
