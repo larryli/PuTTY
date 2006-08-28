@@ -768,8 +768,8 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppi(sesskey, "SerialSpeed", 9600, &cfg->serspeed);
     gppi(sesskey, "SerialDataBits", 8, &cfg->serdatabits);
     gppi(sesskey, "SerialStopHalfbits", 2, &cfg->serstopbits);
-    gppi(sesskey, "SerialParity", 0, &cfg->serparity);
-    gppi(sesskey, "SerialFlowControl", 0, &cfg->serflow);
+    gppi(sesskey, "SerialParity", SER_PAR_NONE, &cfg->serparity);
+    gppi(sesskey, "SerialFlowControl", SER_FLOW_XONXOFF, &cfg->serflow);
 }
 
 void do_defaults(char *session, Config * cfg)
