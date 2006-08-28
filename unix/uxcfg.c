@@ -69,4 +69,11 @@ void unix_setup_config_box(struct controlbox *b, int midsession)
 	}
     }
 
+    /*
+     * Serial back end is available on Unix. However, we have to
+     * mask out a couple of the configuration options: mark and
+     * space parity are not conveniently supported, and neither is
+     * DSR/DTR flow control.
+     */
+    ser_setup_config_box(b, midsession, 0x07, 0x07);
 }

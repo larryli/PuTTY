@@ -155,6 +155,8 @@ Filename platform_default_filename(const char *name)
 
 char *platform_default_s(const char *name)
 {
+    if (!strcmp(name, "SerialLine"))
+	return dupstr("/dev/ttyS0");
     return NULL;
 }
 
@@ -3444,7 +3446,7 @@ int pt_main(int argc, char **argv)
 
 	cmdline_run_saved(&inst->cfg);
 
-	if (!*inst->cfg.host && !cfgbox(&inst->cfg))
+	if (!cfg_launchable(&inst->cfg) && !cfgbox(&inst->cfg))
 	    exit(0);		       /* config box hit Cancel */
     }
 

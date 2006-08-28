@@ -55,6 +55,7 @@ struct uctrl {
     GtkWidget *menu;	      /* for optionmenu (==droplist) */
     GtkWidget *optmenu;	      /* also for optionmenu */
     GtkWidget *text;	      /* for text */
+    GtkWidget *label;         /* for dlg_label_change */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
     guint textsig;
 };
@@ -90,6 +91,7 @@ static gboolean widget_focus(GtkWidget *widget, GdkEventFocus *event,
                              gpointer data);
 static void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 			 int chr, int action, void *ptr);
+static void shortcut_highlight(GtkWidget *label, int chr);
 static int listitem_single_key(GtkWidget *item, GdkEventKey *event,
                                gpointer data);
 static int listitem_multi_key(GtkWidget *item, GdkEventKey *event,
@@ -594,13 +596,42 @@ void dlg_text_set(union control *ctrl, void *dlg, char const *text)
 
 void dlg_label_change(union control *ctrl, void *dlg, char const *text)
 {
-    /*
-     * This function is currently only used by the config box to
-     * switch the labels on the host and port boxes between serial
-     * and network modes. Since Unix does not (yet) have a serial
-     * back end, this function can safely do nothing for the
-     * moment.
-     */
+    struct dlgparam *dp = (struct dlgparam *)dlg;
+    struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+
+    switch (uc->ctrl->generic.type) {
+      case CTRL_BUTTON:
+	gtk_label_set_text(GTK_LABEL(uc->toplevel), text);
+	shortcut_highlight(uc->toplevel, ctrl->button.shortcut);
+	break;
+      case CTRL_CHECKBOX:
+	gtk_label_set_text(GTK_LABEL(uc->toplevel), text);
+	shortcut_highlight(uc->toplevel, ctrl->checkbox.shortcut);
+	break;
+      case CTRL_RADIO:
+	gtk_label_set_text(GTK_LABEL(uc->label), text);
+	shortcut_highlight(uc->label, ctrl->radio.shortcut);
+	break;
+      case CTRL_EDITBOX:
+	gtk_label_set_text(GTK_LABEL(uc->label), text);
+	shortcut_highlight(uc->label, ctrl->editbox.shortcut);
+	break;
+      case CTRL_FILESELECT:
+	gtk_label_set_text(GTK_LABEL(uc->label), text);
+	shortcut_highlight(uc->label, ctrl->fileselect.shortcut);
+	break;
+      case CTRL_FONTSELECT:
+	gtk_label_set_text(GTK_LABEL(uc->label), text);
+	shortcut_highlight(uc->label, ctrl->fontselect.shortcut);
+	break;
+      case CTRL_LISTBOX:
+	gtk_label_set_text(GTK_LABEL(uc->label), text);
+	shortcut_highlight(uc->label, ctrl->listbox.shortcut);
+	break;
+      default:
+	assert(!"This shouldn't happen");
+	break;
+    }
 }
 
 void dlg_filesel_set(union control *ctrl, void *dlg, Filename fn)
@@ -1336,6 +1367,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 	uc->buttons = NULL;
 	uc->entry = uc->list = uc->menu = NULL;
 	uc->button = uc->optmenu = uc->text = NULL;
+	uc->label = NULL;
 
         switch (ctrl->generic.type) {
           case CTRL_BUTTON:
@@ -1381,6 +1413,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                     gtk_widget_show(label);
 		    shortcut_add(scs, label, ctrl->radio.shortcut,
 				 SHORTCUT_UCTRL, uc);
+		    uc->label = label;
                 }
                 percentages = g_new(gint, ctrl->radio.ncolumns);
                 for (i = 0; i < ctrl->radio.ncolumns; i++) {
@@ -1485,6 +1518,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		    gtk_widget_show(w);
 
 		    w = container;
+		    uc->label = label;
 		}
 		gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_out_event",
 				   GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
@@ -1513,6 +1547,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 				  ctrl->fileselect.shortcut :
 				  ctrl->fontselect.shortcut),
 				 SHORTCUT_UCTRL, uc);
+		    uc->label = ww;
                 }
 
                 uc->entry = ww = gtk_entry_new();
@@ -1650,6 +1685,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		shortcut_add(scs, label, ctrl->listbox.shortcut,
 			     SHORTCUT_UCTRL, uc);
                 w = container;
+		uc->label = label;
             }
             break;
           case CTRL_TEXT:
@@ -1715,6 +1751,8 @@ static void treeitem_sel(GtkItem *item, gpointer data)
     struct selparam *sp = (struct selparam *)data;
 
     panels_switch_to(sp->panels, sp->panel);
+
+    dlg_refresh(NULL, sp->dp);
 
     sp->dp->shortcuts = &sp->shortcuts;
     sp->dp->currtreeitem = sp->treeitem;
@@ -1935,13 +1973,31 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
     return FALSE;
 }
 
-void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
-		  int chr, int action, void *ptr)
+static void shortcut_highlight(GtkWidget *labelw, int chr)
 {
     GtkLabel *label = GTK_LABEL(labelw);
     gchar *currstr, *pattern;
     int i;
 
+    gtk_label_get(label, &currstr);
+    for (i = 0; currstr[i]; i++)
+	if (tolower((unsigned char)currstr[i]) == chr) {
+	    GtkRequisition req;
+
+	    pattern = dupprintf("%*s_", i, "");
+
+	    gtk_widget_size_request(GTK_WIDGET(label), &req);
+	    gtk_label_set_pattern(label, pattern);
+	    gtk_widget_set_usize(GTK_WIDGET(label), -1, req.height);
+
+	    sfree(pattern);
+	    break;
+	}
+}
+
+void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
+		  int chr, int action, void *ptr)
+{
     if (chr == NO_SHORTCUT)
 	return;
 
@@ -1959,20 +2015,7 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 	scs->sc[chr].uc = (struct uctrl *)ptr;
     }
 
-    gtk_label_get(label, &currstr);
-    for (i = 0; currstr[i]; i++)
-	if (tolower((unsigned char)currstr[i]) == chr) {
-	    GtkRequisition req;
-
-	    pattern = dupprintf("%*s_", i, "");
-
-	    gtk_widget_size_request(GTK_WIDGET(label), &req);
-	    gtk_label_set_pattern(label, pattern);
-	    gtk_widget_set_usize(GTK_WIDGET(label), -1, req.height);
-
-	    sfree(pattern);
-	    break;
-	}
+    shortcut_highlight(labelw, chr);
 }
 
 int get_listitemheight(void)

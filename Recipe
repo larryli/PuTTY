@@ -223,7 +223,7 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
          + winutils wincfg sercfg
 
 # Same thing on Unix.
-UXTERM   = TERMINAL uxcfg uxucs uxprint timing
+UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing
 GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkcols gtkpanel xkeysym
 OSXTERM  = UXTERM osxwin osxdlg osxctrls
 
@@ -266,6 +266,9 @@ BE_NONE  = be_none nocproxy
 # More backend sets, with the additional Windows serial-port module.
 W_BE_ALL = be_all_s winser cproxy
 W_BE_NOSSH = be_nos_s winser nocproxy
+# And with the Unix serial-port module.
+U_BE_ALL = be_all_s uxser cproxy
+U_BE_NOSSH = be_nos_s uxser nocproxy
 
 # ------------------------------------------------------------
 # Definitions of actual programs. The program name, followed by a
@@ -293,12 +296,13 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time
-putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel BE_ALL uxstore
+putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
-puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel BE_NOSSH
+puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC
 
-plink    : [U] uxplink uxcons NONSSH UXSSH BE_ALL logging UXMISC uxsignal ux_x11
+plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
+         + ux_x11
 
 puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
@@ -318,5 +322,5 @@ PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
          + sshaes sshsh512 import macpgen.rsrc macpgkey macabout
 
-PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET BE_ALL NONSSH UXSSH
+PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
          + ux_x11 uxpty uxsignal testback putty.icns info.plist

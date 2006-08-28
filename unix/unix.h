@@ -149,4 +149,9 @@ void *sk_getxdmdata(void *sock, int *lenp);
     if (max < fd + 1) max = fd + 1; \
 } while (0)
 
+/*
+ * Exports from winser.c.
+ */
+extern Backend serial_backend;
+
 #endif

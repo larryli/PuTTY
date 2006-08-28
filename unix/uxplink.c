@@ -82,6 +82,8 @@ char *platform_default_s(const char *name)
 	return dupstr(getenv("TERM"));
     if (!strcmp(name, "UserName"))
 	return get_username();
+    if (!strcmp(name, "SerialLine"))
+	return dupstr("/dev/ttyS0");
     return NULL;
 }
 
@@ -627,7 +629,7 @@ int main(int argc, char **argv)
 		errors = 1;
 	    }
 	} else if (*p) {
-	    if (!*cfg.host) {
+	    if (!cfg_launchable(&cfg)) {
 		char *q = p;
 
 		/*
@@ -701,7 +703,7 @@ int main(int argc, char **argv)
 		    {
 			Config cfg2;
 			do_defaults(host, &cfg2);
-			if (loaded_session || cfg2.host[0] == '\0') {
+			if (loaded_session || !cfg_launchable(&cfg2)) {
 			    /* No settings for this host; use defaults */
 			    /* (or session was already loaded with -load) */
 			    strncpy(cfg.host, host, sizeof(cfg.host) - 1);
@@ -755,7 +757,7 @@ int main(int argc, char **argv)
     if (errors)
 	return 1;
 
-    if (!*cfg.host) {
+    if (!cfg_launchable(&cfg)) {
 	usage();
     }
 
