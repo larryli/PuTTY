@@ -29,18 +29,24 @@ static void serial_parity_handler(union control *ctrl, void *dlg,
 	{"Mark", SER_PAR_MARK},
 	{"Space", SER_PAR_SPACE},
     };
-    int i;
+    int mask = ctrl->listbox.context.i;
+    int i, j;
     Config *cfg = (Config *)data;
 
     if (event == EVENT_REFRESH) {
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
-	for (i = 0; i < lenof(parities); i++)
-	    dlg_listbox_addwithid(ctrl, dlg, parities[i].name,
-				  parities[i].val);
-	for (i = 0; i < lenof(parities); i++)
+	for (i = 0; i < lenof(parities); i++)  {
+	    if (mask & (1 << i))
+		dlg_listbox_addwithid(ctrl, dlg, parities[i].name,
+				      parities[i].val);
+	}
+	for (i = j = 0; i < lenof(parities); i++) {
 	    if (cfg->serparity == parities[i].val)
-		dlg_listbox_select(ctrl, dlg, i);
+		dlg_listbox_select(ctrl, dlg, j);
+	    if (mask & (1 << i))
+		j++;
+	}
 	dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_SELCHANGE) {
 	int i = dlg_listbox_index(ctrl, dlg);
@@ -64,18 +70,23 @@ static void serial_flow_handler(union control *ctrl, void *dlg,
 	{"RTS/CTS", SER_FLOW_RTSCTS},
 	{"DSR/DTR", SER_FLOW_DSRDTR},
     };
-    int i;
+    int mask = ctrl->listbox.context.i;
+    int i, j;
     Config *cfg = (Config *)data;
 
     if (event == EVENT_REFRESH) {
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
-	for (i = 0; i < lenof(flows); i++)
-	    dlg_listbox_addwithid(ctrl, dlg, flows[i].name,
-				  flows[i].val);
-	for (i = 0; i < lenof(flows); i++)
+	for (i = 0; i < lenof(flows); i++)  {
+	    if (mask & (1 << i))
+		dlg_listbox_addwithid(ctrl, dlg, flows[i].name, flows[i].val);
+	}
+	for (i = j = 0; i < lenof(flows); i++) {
 	    if (cfg->serflow == flows[i].val)
-		dlg_listbox_select(ctrl, dlg, i);
+		dlg_listbox_select(ctrl, dlg, j);
+	    if (mask & (1 << i))
+		j++;
+	}
 	dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_SELCHANGE) {
 	int i = dlg_listbox_index(ctrl, dlg);
@@ -87,7 +98,8 @@ static void serial_flow_handler(union control *ctrl, void *dlg,
     }
 }
 
-void ser_setup_config_box(struct controlbox *b, int midsession)
+void ser_setup_config_box(struct controlbox *b, int midsession,
+			  int parity_mask, int flow_mask)
 {
     struct controlset *s;
     union control *c;
@@ -160,8 +172,8 @@ void ser_setup_config_box(struct controlbox *b, int midsession)
 		 dlg_stdeditbox_handler,I(offsetof(Config,serstopbits)),I(-2));
     ctrl_droplist(s, "Parity", 'p', 40,
 		  HELPCTX(serial_parity),
-		  serial_parity_handler, I(0));
+		  serial_parity_handler, I(parity_mask));
     ctrl_droplist(s, "Flow control", 'f', 40,
 		  HELPCTX(serial_flow),
-		  serial_flow_handler, I(0));
+		  serial_flow_handler, I(flow_mask));
 }
