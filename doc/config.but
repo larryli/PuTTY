@@ -25,18 +25,25 @@ filled in before PuTTY can open a session at all.
 \b The \q{Host Name} box is where you type the name, or the \i{IP
 address}, of the server you want to connect to.
 
-\b The \q{Protocol} radio buttons let you choose what type of
+\b The \q{Connection type} radio buttons let you choose what type of
 connection you want to make: a \I{raw TCP connections}raw
-connection, a \i{Telnet} connection, an \i{Rlogin} connection
-or an \i{SSH} connection. (See \k{which-one} for a
-summary of the differences between SSH, Telnet and rlogin, and
-\k{using-rawprot} for an explanation of \q{raw} connections.)
+connection, a \i{Telnet} connection, an \i{Rlogin} connection, an
+\i{SSH} connection, or a connection to a local \i{serial line}. (See
+\k{which-one} for a summary of the differences between SSH, Telnet
+and rlogin; see \k{using-rawprot} for an explanation of \q{raw}
+connections; see \k{using-serial} for information about using a
+serial line.)
 
-\b The \q{Port} box lets you specify which \i{port number} on the server
-to connect to. If you select Telnet, Rlogin, or SSH, this box will
-be filled in automatically to the usual value, and you will only
-need to change it if you have an unusual server. If you select Raw
-mode, you will almost certainly need to fill in the \q{Port} box.
+\b The \q{Port} box lets you specify which \i{port number} on the
+server to connect to. If you select Telnet, Rlogin, or SSH, this box
+will be filled in automatically to the usual value, and you will
+only need to change it if you have an unusual server. If you select
+Raw mode, you will almost certainly need to fill in the \q{Port} box
+yourself.
+
+If you select \q{Serial} from the \q{Connection type} radio buttons,
+the \q{Host Name} and \q{Port} boxes are replaced by \q{Serial line}
+and \q{Speed}; see \k{config-serial} for more details of these.
 
 \S{config-saving} \ii{Loading and storing saved sessions}
 
@@ -2911,6 +2918,95 @@ the session should still function, but may be less secure than you
 would expect.
 
 This is an SSH-2-specific bug.
+
+\H{config-serial} The Serial panel
+
+The \i{Serial} panel allows you to configure options that only apply
+when PuTTY is connecting to a local \I{serial port}\i{serial line}.
+
+\S{config-serial-line} Selecting a serial line to connect to
+
+\cfg{winhelp-topic}{serial.line}
+
+The \q{Serial line to connect to} box allows you to choose which
+serial line you want PuTTY to talk to, if your computer has more
+than one serial port.
+
+On Windows, the first serial line is called \cw{COM1}, and if there
+is a second it is called \cw{COM2}, and so on.
+
+This configuration setting is also visible on the Session panel,
+where it replaces the \q{Host Name} box (see \k{config-hostname}) if
+the connection type is set to \q{Serial}.
+
+\S{config-serial-speed} Selecting the speed of your serial line
+
+\cfg{winhelp-topic}{serial.speed}
+
+The \q{Speed} box allows you to choose the speed (or \q{baud rate})
+at which to talk to the serial line. Typical values might be 9600,
+19200, 38400 or 57600. Which one you need will depend on the device
+at the other end of the serial cable; consult the manual for that
+device if you are in doubt.
+
+This configuration setting is also visible on the Session panel,
+where it replaces the \q{Port} box (see \k{config-hostname}) if the
+connection type is set to \q{Serial}.
+
+\S{config-serial-databits} Selecting the number of data bits
+
+\cfg{winhelp-topic}{serial.databits}
+
+The \q{Data bits} box allows you to choose how many data bits are
+transmitted in each byte sent or received through the serial line.
+Typical values are 7 or 8.
+
+\S{config-serial-stopbits} Selecting the number of stop bits
+
+\cfg{winhelp-topic}{serial.stopbits}
+
+The \q{Stop bits} box allows you to choose how many stop bits are
+used in the serial line protocol. Typical values are 1, 1.5 or 2.
+
+\S{config-serial-parity} Selecting the serial parity checking scheme
+
+\cfg{winhelp-topic}{serial.parity}
+
+The \q{Parity} box allows you to choose what type of parity checking
+is used on the serial line. The settings are:
+
+\b \q{None}: no parity bit is sent at all.
+
+\b \q{Odd}: an extra parity bit is sent alongside each byte, and
+arranged so that the total number of 1 bits is odd.
+
+\b \q{Even}: an extra parity bit is sent alongside each byte, and
+arranged so that the total number of 1 bits is even.
+
+\b \q{Mark}: an extra parity bit is sent alongside each byte, and
+always set to 1.
+
+\b \q{Space}: an extra parity bit is sent alongside each byte, and
+always set to 0.
+
+\S{config-serial-flow} Selecting the serial flow control scheme
+
+\cfg{winhelp-topic}{serial.flow}
+
+The \q{Flow control} box allows you to choose what type of flow
+control checking is used on the serial line. The settings are:
+
+\b \q{None}: no flow control is done. Data may be lost if either
+side attempts to send faster than the serial line permits.
+
+\b \q{XON/XOFF}: flow control is done by sending XON and XOFF
+characters within the data stream.
+
+\b \q{RTS/CTS}: flow control is done using the RTS and CTS wires on
+the serial line.
+
+\b \q{DSR/DTR}: flow control is done using the DSR and DTR wires on
+the serial line.
 
 \H{config-file} \ii{Storing configuration in a file}
 

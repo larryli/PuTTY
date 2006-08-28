@@ -319,7 +319,7 @@ int main(int argc, char **argv)
 		errors = 1;
 	    }
 	} else if (*p) {
-	    if (!*cfg.host) {
+	    if (!cfg_launchable(&cfg)) {
 		char *q = p;
 		/*
 		 * If the hostname starts with "telnet:", set the
@@ -392,7 +392,7 @@ int main(int argc, char **argv)
 		    {
 			Config cfg2;
 			do_defaults(host, &cfg2);
-			if (loaded_session || cfg2.host[0] == '\0') {
+			if (loaded_session || !cfg_launchable(&cfg2)) {
 			    /* No settings for this host; use defaults */
 			    /* (or session was already loaded with -load) */
 			    strncpy(cfg.host, host, sizeof(cfg.host) - 1);
@@ -446,7 +446,7 @@ int main(int argc, char **argv)
     if (errors)
 	return 1;
 
-    if (!*cfg.host) {
+    if (!cfg_launchable(&cfg)) {
 	usage();
     }
 
@@ -459,7 +459,7 @@ int main(int argc, char **argv)
     }
 
     /* See if host is of the form user@host */
-    if (cfg.host[0] != '\0') {
+    if (cfg_launchable(&cfg)) {
 	char *atsign = strrchr(cfg.host, '@');
 	/* Make sure we're not overflowing the user field */
 	if (atsign) {

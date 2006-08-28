@@ -12,16 +12,94 @@
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
-static void protocolbuttons_handler(union control *ctrl, void *dlg,
+#define HOST_BOX_TITLE "Host Name (or IP address)"
+#define PORT_BOX_TITLE "Port"
+
+static void config_host_handler(union control *ctrl, void *dlg,
+				void *data, int event)
+{
+    Config *cfg = (Config *)data;
+
+    /*
+     * This function works just like the standard edit box handler,
+     * only it has to choose the control's label and text from two
+     * different places depending on the protocol.
+     */
+    if (event == EVENT_REFRESH) {
+	if (cfg->protocol == PROT_SERIAL) {
+	    /*
+	     * This label text is carefully chosen to contain an n,
+	     * since that's the shortcut for the host name control.
+	     */
+	    dlg_label_change(ctrl, dlg, "Serial line");
+	    dlg_editbox_set(ctrl, dlg, cfg->serline);
+	} else {
+	    dlg_label_change(ctrl, dlg, HOST_BOX_TITLE);
+	    dlg_editbox_set(ctrl, dlg, cfg->host);
+	}
+    } else if (event == EVENT_VALCHANGE) {
+	if (cfg->protocol == PROT_SERIAL)
+	    dlg_editbox_get(ctrl, dlg, cfg->serline, lenof(cfg->serline));
+	else
+	    dlg_editbox_get(ctrl, dlg, cfg->host, lenof(cfg->host));
+    }
+}
+
+static void config_port_handler(union control *ctrl, void *dlg,
+				void *data, int event)
+{
+    Config *cfg = (Config *)data;
+    char buf[80];
+
+    /*
+     * This function works just like the standard edit box handler,
+     * only it has to choose the control's label and text from two
+     * different places depending on the protocol.
+     */
+    if (event == EVENT_REFRESH) {
+	if (cfg->protocol == PROT_SERIAL) {
+	    /*
+	     * This label text is carefully chosen to contain a p,
+	     * since that's the shortcut for the port control.
+	     */
+	    dlg_label_change(ctrl, dlg, "Speed");
+	    sprintf(buf, "%d", cfg->serspeed);
+	} else {
+	    dlg_label_change(ctrl, dlg, PORT_BOX_TITLE);
+	    sprintf(buf, "%d", cfg->port);
+	}
+	dlg_editbox_set(ctrl, dlg, buf);
+    } else if (event == EVENT_VALCHANGE) {
+	dlg_editbox_get(ctrl, dlg, buf, lenof(buf));
+	if (cfg->protocol == PROT_SERIAL)
+	    cfg->serspeed = atoi(buf);
+	else
+	    cfg->port = atoi(buf);
+    }
+}
+
+struct hostport {
+    union control *host, *port;
+};
+
+/*
+ * We export this function so that platform-specific config
+ * routines can use it to conveniently identify the protocol radio
+ * buttons in order to add to them.
+ */
+void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 				    void *data, int event)
 {
     int button, defport;
     Config *cfg = (Config *)data;
+    struct hostport *hp = (struct hostport *)ctrl->radio.context.p;
+
     /*
      * This function works just like the standard radio-button
      * handler, except that it also has to change the setting of
-     * the port box. We expect the context parameter to point at
-     * the `union control' structure for the port box.
+     * the port box, and refresh both host and port boxes when. We
+     * expect the context parameter to point at a hostport
+     * structure giving the `union control's for both.
      */
     if (event == EVENT_REFRESH) {
 	for (button = 0; button < ctrl->radio.nbuttons; button++)
@@ -44,9 +122,10 @@ static void protocolbuttons_handler(union control *ctrl, void *dlg,
 	    }
 	    if (defport > 0 && cfg->port != defport) {
 		cfg->port = defport;
-		dlg_refresh((union control *)ctrl->radio.context.p, dlg);
 	    }
 	}
+	dlg_refresh(hp->host, dlg);
+	dlg_refresh(hp->port, dlg);
     }
 }
 
@@ -382,7 +461,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * contains a hostname.
 	     */
 	    if (load_selected_session(ssd, savedsession, dlg, cfg) &&
-		(ctrl == ssd->listbox && cfg->host[0])) {
+		(ctrl == ssd->listbox && cfg_launchable(cfg))) {
 		dlg_end(dlg, 1);       /* it's all over, and succeeded */
 	    }
 	} else if (ctrl == ssd->savebutton) {
@@ -437,7 +516,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * there was a session selected in that which had a
 	     * valid host name in it, then load it and go.
 	     */
-	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox && !*cfg->host) {
+	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
+		!cfg_launchable(cfg)) {
 		Config cfg2;
 		if (!load_selected_session(ssd, savedsession, dlg, &cfg2)) {
 		    dlg_beep(dlg);
@@ -457,7 +537,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * Otherwise, do the normal thing: if we have a valid
 	     * session, get going.
 	     */
-	    if (*cfg->host) {
+	    if (cfg_launchable(cfg)) {
 		dlg_end(dlg, 1);
 	    } else
 		dlg_beep(dlg);
@@ -977,31 +1057,43 @@ void setup_config_box(struct controlbox *b, int midsession,
     sfree(str);
 
     if (!midsession) {
+	struct hostport *hp = (struct hostport *)
+	    ctrl_alloc(b, sizeof(struct hostport));
+	int i, gotssh;
+
 	s = ctrl_getset(b, "Session", "hostport",
-			"Specify your connection by host name or IP address");
+			"Specify the destination you want to connect to");
 	ctrl_columns(s, 2, 75, 25);
-	c = ctrl_editbox(s, "Host Name (or IP address)", 'n', 100,
+	c = ctrl_editbox(s, HOST_BOX_TITLE, 'n', 100,
 			 HELPCTX(session_hostname),
-			 dlg_stdeditbox_handler, I(offsetof(Config,host)),
-			 I(sizeof(((Config *)0)->host)));
+			 config_host_handler, I(0), I(0));
 	c->generic.column = 0;
-	c = ctrl_editbox(s, "Port", 'p', 100, HELPCTX(session_hostname),
-			 dlg_stdeditbox_handler,
-			 I(offsetof(Config,port)), I(-1));
+	hp->host = c;
+	c = ctrl_editbox(s, PORT_BOX_TITLE, 'p', 100,
+			 HELPCTX(session_hostname),
+			 config_port_handler, I(0), I(0));
 	c->generic.column = 1;
+	hp->port = c;
 	ctrl_columns(s, 1, 100);
-	if (backends[3].name == NULL) {
-	    ctrl_radiobuttons(s, "Protocol:", NO_SHORTCUT, 3,
+
+	gotssh = FALSE;
+	for (i = 0; backends[i].name; i++)
+	    if (backends[i].protocol == PROT_SSH) {
+		gotssh = TRUE;
+		break;
+	    }
+	if (!gotssh) {
+	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
-			      protocolbuttons_handler, P(c),
+			      config_protocolbuttons_handler, P(hp),
 			      "Raw", 'r', I(PROT_RAW),
 			      "Telnet", 't', I(PROT_TELNET),
 			      "Rlogin", 'i', I(PROT_RLOGIN),
 			      NULL);
 	} else {
-	    ctrl_radiobuttons(s, "Protocol:", NO_SHORTCUT, 4,
+	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 4,
 			      HELPCTX(session_hostname),
-			      protocolbuttons_handler, P(c),
+			      config_protocolbuttons_handler, P(hp),
 			      "Raw", 'r', I(PROT_RAW),
 			      "Telnet", 't', I(PROT_TELNET),
 			      "Rlogin", 'i', I(PROT_RLOGIN),

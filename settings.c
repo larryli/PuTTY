@@ -439,6 +439,12 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_fontspec(sesskey, "WideBoldFont", cfg->wideboldfont);
     write_setting_i(sesskey, "ShadowBold", cfg->shadowbold);
     write_setting_i(sesskey, "ShadowBoldOffset", cfg->shadowboldoffset);
+    write_setting_s(sesskey, "SerialLine", cfg->serline);
+    write_setting_i(sesskey, "SerialSpeed", cfg->serspeed);
+    write_setting_i(sesskey, "SerialDataBits", cfg->serdatabits);
+    write_setting_i(sesskey, "SerialStopHalfbits", cfg->serstopbits);
+    write_setting_i(sesskey, "SerialParity", cfg->serparity);
+    write_setting_i(sesskey, "SerialFlowControl", cfg->serflow);
 }
 
 void load_settings(char *section, int do_host, Config * cfg)
@@ -758,6 +764,12 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     gppfont(sesskey, "WideFont", &cfg->widefont);
     gppfont(sesskey, "WideBoldFont", &cfg->wideboldfont);
     gppi(sesskey, "ShadowBoldOffset", 1, &cfg->shadowboldoffset);
+    gpps(sesskey, "SerialLine", "", cfg->serline, sizeof(cfg->serline));
+    gppi(sesskey, "SerialSpeed", 9600, &cfg->serspeed);
+    gppi(sesskey, "SerialDataBits", 8, &cfg->serdatabits);
+    gppi(sesskey, "SerialStopHalfbits", 2, &cfg->serstopbits);
+    gppi(sesskey, "SerialParity", 0, &cfg->serparity);
+    gppi(sesskey, "SerialFlowControl", 0, &cfg->serflow);
 }
 
 void do_defaults(char *session, Config * cfg)

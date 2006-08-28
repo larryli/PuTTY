@@ -491,6 +491,37 @@ protocol}\q{Raw}, from the \q{Protocol} buttons in the \q{Session}
 configuration panel. (See \k{config-hostname}.) You can then enter a
 host name and a port number, and make the connection.
 
+\H{using-serial} Connecting to a local serial line
+
+PuTTY can connect directly to a local serial line as an alternative
+to making a network connection. In this mode, text typed into the
+PuTTY window will be sent straight out of your computer's serial
+port, and data received through that port will be displayed in the
+PuTTY window. You might use this mode, for example, if your serial
+port is connected to another computer which has a serial connection.
+
+To make a connection of this type, simply select \q{Serial} from the
+\q{Connection type} radio buttons on the \q{Session} configuration
+panel (see \k{config-hostname}). The \q{Host Name} and \q{Port}
+boxes will transform into \q{Serial line} and \q{Speed}, allowing
+you to specify which serial line to use (if your computer has more
+than one) and what speed (baud rate) to use when transferring data.
+For further configuration options (data bits, stop bits, parity,
+flow control), you can use the \q{Serial} configuration panel (see
+\k{config-serial}).
+
+After you start up PuTTY in serial mode, you might find that you
+have to make the first move, by sending some data out of the serial
+line in order to notify the device at the other end that someone is
+there for it to talk to. This probably depends on the device. If you
+start up a PuTTY serial session and nothing appears in the window,
+try pressing Return a few times and see if that helps.
+
+A serial line provides no well defined means for one end of the
+connection to notify the other that the connection is finished.
+Therefore, PuTTY in serial mode will remain connected until you
+close the window using the close button.
+
 \H{using-cmdline} The PuTTY command line
 
 PuTTY can be made to do various things without user intervention by

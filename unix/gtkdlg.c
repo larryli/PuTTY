@@ -592,6 +592,17 @@ void dlg_text_set(union control *ctrl, void *dlg, char const *text)
     gtk_label_set_text(GTK_LABEL(uc->text), text);
 }
 
+void dlg_label_change(union control *ctrl, void *dlg, char const *text)
+{
+    /*
+     * This function is currently only used by the config box to
+     * switch the labels on the host and port boxes between serial
+     * and network modes. Since Unix does not (yet) have a serial
+     * back end, this function can safely do nothing for the
+     * moment.
+     */
+}
+
 void dlg_filesel_set(union control *ctrl, void *dlg, Filename fn)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;

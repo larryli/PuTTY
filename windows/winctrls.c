@@ -1161,10 +1161,11 @@ void progressbar(struct ctlpos *cp, int id)
  * Return value is a malloc'ed copy of the processed version of the
  * string.
  */
-static char *shortcut_escape(char *text, char shortcut)
+static char *shortcut_escape(const char *text, char shortcut)
 {
     char *ret;
-    char *p, *q;
+    char const *p;
+    char *q;
 
     if (!text)
 	return NULL;		       /* sfree won't choke on this */
@@ -2234,6 +2235,53 @@ void dlg_text_set(union control *ctrl, void *dlg, char const *text)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->generic.type == CTRL_TEXT);
     SetDlgItemText(dp->hwnd, c->base_id, text);
+}
+
+void dlg_label_change(union control *ctrl, void *dlg, char const *text)
+{
+    struct dlgparam *dp = (struct dlgparam *)dlg;
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    char *escaped = NULL;
+    int id = -1;
+
+    assert(c);
+    switch (c->ctrl->generic.type) {
+      case CTRL_EDITBOX:
+	escaped = shortcut_escape(text, c->ctrl->editbox.shortcut);
+	id = c->base_id;
+	break;
+      case CTRL_RADIO:
+	escaped = shortcut_escape(text, c->ctrl->radio.shortcut);
+	id = c->base_id;
+	break;
+      case CTRL_CHECKBOX:
+	escaped = shortcut_escape(text, ctrl->checkbox.shortcut);
+	id = c->base_id;
+	break;
+      case CTRL_BUTTON:
+	escaped = shortcut_escape(text, ctrl->button.shortcut);
+	id = c->base_id;
+	break;
+      case CTRL_LISTBOX:
+	escaped = shortcut_escape(text, ctrl->listbox.shortcut);
+	id = c->base_id;
+	break;
+      case CTRL_FILESELECT:
+	escaped = shortcut_escape(text, ctrl->fileselect.shortcut);
+	id = c->base_id;
+	break;
+      case CTRL_FONTSELECT:
+	escaped = shortcut_escape(text, ctrl->fontselect.shortcut);
+	id = c->base_id;
+	break;
+      default:
+	assert(!"Can't happen");
+	break;
+    }
+    if (escaped) {
+	SetDlgItemText(dp->hwnd, id, escaped);
+	sfree(escaped);
+    }
 }
 
 void dlg_filesel_set(union control *ctrl, void *dlg, Filename fn)

@@ -371,4 +371,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	    }
 	}
     }
+
+    /*
+     * Serial back end is available on Windows.
+     */
+    ser_setup_config_box(b, midsession);
 }

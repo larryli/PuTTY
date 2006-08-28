@@ -131,6 +131,12 @@
 #define WINHELP_CTX_ssh_bugs_rsapad2 "ssh.bugs.rsapad2"
 #define WINHELP_CTX_ssh_bugs_pksessid2 "ssh.bugs.pksessid2"
 #define WINHELP_CTX_ssh_bugs_rekey2 "ssh.bugs.rekey2"
+#define WINHELP_CTX_serial_line "serial.line"
+#define WINHELP_CTX_serial_speed "serial.speed"
+#define WINHELP_CTX_serial_databits "serial.databits"
+#define WINHELP_CTX_serial_stopbits "serial.stopbits"
+#define WINHELP_CTX_serial_parity "serial.parity"
+#define WINHELP_CTX_serial_flow "serial.flow"
 
 /* These are used in Windows-specific bits of the frontend.
  * We (ab)use "help context identifiers" (dwContextId) to identify them. */

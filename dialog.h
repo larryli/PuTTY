@@ -611,6 +611,10 @@ void dlg_update_done(union control *ctrl, void *dlg);
  */
 void dlg_set_focus(union control *ctrl, void *dlg);
 /*
+ * Change the label text on a control.
+ */
+void dlg_label_change(union control *ctrl, void *dlg, char const *text);
+/*
  * Return the `ctrl' structure for the most recent control that had
  * the input focus apart from the one mentioned. This is NOT
  * GUARANTEED to work on all platforms, so don't base any critical

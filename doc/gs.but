@@ -19,13 +19,16 @@ In the \q{Host Name} box, enter the Internet \i{host name} of the server
 you want to connect to. You should have been told this by the
 provider of your login account.
 
-Now select a login \i{protocol} to use, from the \q{Protocol}
+Now select a login \i{protocol} to use, from the \q{Connection type}
 buttons. For a login session, you should select \i{Telnet},
 \i{Rlogin} or \i{SSH}. See \k{which-one} for a description of the
 differences between the three protocols, and advice on which one to
 use. The fourth protocol, \I{raw protocol}\e{Raw}, is not used for
 interactive login sessions; you would usually use this for debugging
-other Internet services (see \k{using-rawprot}).
+other Internet services (see \k{using-rawprot}). The fifth option,
+\e{Serial}, is used for connecting to a local serial line, and works
+somewhat differently: see \k{using-serial} for more information on
+this.
 
 When you change the selected protocol, the number in the \q{Port}
 box will change. This is normal: it happens because the various

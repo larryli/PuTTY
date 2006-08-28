@@ -625,3 +625,23 @@ void debug_memdump(void *buf, int len, int L)
 }
 
 #endif				/* def DEBUG */
+
+/*
+ * Determine whether or not a Config structure represents a session
+ * which can sensibly be launched right now.
+ */
+int cfg_launchable(const Config *cfg)
+{
+    if (cfg->protocol == PROT_SERIAL)
+	return cfg->serline[0] != 0;
+    else
+	return cfg->host[0] != 0;
+}
+
+char const *cfg_dest(const Config *cfg)
+{
+    if (cfg->protocol == PROT_SERIAL)
+	return cfg->serline;
+    else
+	return cfg->host;
+}

@@ -220,7 +220,7 @@ TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
-         + winutils wincfg
+         + winutils wincfg sercfg
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg uxucs uxprint timing
@@ -263,6 +263,9 @@ BE_ALL   = be_all cproxy
 BE_NOSSH = be_nossh nocproxy
 BE_SSH   = be_none cproxy
 BE_NONE  = be_none nocproxy
+# More backend sets, with the additional Windows serial-port module.
+W_BE_ALL = be_all_s winser cproxy
+W_BE_NOSSH = be_nos_s winser nocproxy
 
 # ------------------------------------------------------------
 # Definitions of actual programs. The program name, followed by a
@@ -270,9 +273,9 @@ BE_NONE  = be_none nocproxy
 # keywords [G] for Windows GUI app, [C] for Console app, [X] for
 # X/GTK Unix app, [U] for command-line Unix app, [M] for Macintosh app.
 
-putty    : [G] GUITERM NONSSH WINSSH BE_ALL WINMISC putty.res LIBS
-puttytel : [G] GUITERM NONSSH BE_NOSSH WINMISC puttytel.res LIBS
-plink    : [C] winplink wincons NONSSH WINSSH BE_ALL logging WINMISC
+putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC putty.res LIBS
+puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res LIBS
+plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
          + plink.res LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + pscp.res LIBS
