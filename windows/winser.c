@@ -217,6 +217,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     serial = snew(struct serial_backend_data);
     serial->port = NULL;
     serial->out = serial->in = NULL;
+    serial->bufsize = 0;
     *backend_handle = serial;
 
     serial->frontend = frontend_handle;
