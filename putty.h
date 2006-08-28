@@ -931,7 +931,8 @@ char const *cfg_dest(const Config *cfg);
 /*
  * Exports from sercfg.c.
  */
-void ser_setup_config_box(struct controlbox *b, int midsession);
+void ser_setup_config_box(struct controlbox *b, int midsession,
+			  int parity_mask, int flow_mask);
 
 /*
  * Exports from version.c.
