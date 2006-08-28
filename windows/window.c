@@ -409,7 +409,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		i--;
 	    p[i] = '\0';
 	    do_defaults(p + 1, &cfg);
-	    if (!*cfg.host && !do_config()) {
+	    if (!cfg_launchable(&cfg) && !do_config()) {
 		cleanup_exit(0);
 	    }
 	} else if (*p == '&') {
@@ -554,7 +554,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	cmdline_run_saved(&cfg);
 
-	if (!*cfg.host && !do_config()) {
+	if (!cfg_launchable(&cfg) && !do_config()) {
 	    cleanup_exit(0);
 	}
 
