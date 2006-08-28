@@ -102,6 +102,7 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
     struct handle_input *ctx = (struct handle_input *) param;
     OVERLAPPED ovl, *povl;
     HANDLE oev;
+    int readlen;
 
     if (ctx->flags & HANDLE_FLAG_OVERLAPPED) {
 	povl = &ovl;
@@ -110,12 +111,17 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 	povl = NULL;
     }
 
+    if (ctx->flags & HANDLE_FLAG_UNITBUFFER)
+	readlen = 1;
+    else
+	readlen = sizeof(ctx->buffer);
+
     while (1) {
 	if (povl) {
 	    memset(povl, 0, sizeof(OVERLAPPED));
 	    povl->hEvent = oev;
 	}
-	ctx->readret = ReadFile(ctx->h, ctx->buffer, sizeof(ctx->buffer),
+	ctx->readret = ReadFile(ctx->h, ctx->buffer, readlen,
 				&ctx->len, povl);
 	if (povl && !ctx->readret && GetLastError() == ERROR_IO_PENDING) {
 	    WaitForSingleObject(povl->hEvent, INFINITE);

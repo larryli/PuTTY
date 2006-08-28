@@ -410,6 +410,7 @@ void init_ucs(Config *, struct unicode_data *);
  */
 #define HANDLE_FLAG_OVERLAPPED 1
 #define HANDLE_FLAG_IGNOREEOF 2
+#define HANDLE_FLAG_UNITBUFFER 3
 struct handle;
 typedef int (*handle_inputfn_t)(struct handle *h, void *data, int len);
 typedef void (*handle_outputfn_t)(struct handle *h, int new_backlog);

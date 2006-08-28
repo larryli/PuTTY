@@ -241,7 +241,8 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
 				    HANDLE_FLAG_OVERLAPPED);
     serial->in = handle_input_new(serport, serial_gotdata, serial,
 				  HANDLE_FLAG_OVERLAPPED |
-				  HANDLE_FLAG_IGNOREEOF);
+				  HANDLE_FLAG_IGNOREEOF |
+				  HANDLE_FLAG_UNITBUFFER);
 
     *realhost = dupstr(cfg->serline);
 
