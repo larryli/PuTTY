@@ -223,7 +223,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     serial->frontend = frontend_handle;
 
     {
-	char *msg = dupprintf("Opening serial device %s", host);
+	char *msg = dupprintf("Opening serial device %s", cfg->serline);
 	logevent(serial->frontend, msg);
     }
 
