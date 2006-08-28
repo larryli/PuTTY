@@ -836,9 +836,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	sfree(handles);
 
-	if (GetMessage(&msg, NULL, 0, 0) != 1)
-	    break;
-	do {
+	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 	    if (msg.message == WM_QUIT)
 		goto finished;	       /* two-level break */
 
@@ -852,7 +850,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	     */
 	    if (must_close_session)
 		close_session();
-	} while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE));
+	}
 
 	/* The messages seem unreliable; especially if we're being tricky */
 	term_set_focus(term, GetForegroundWindow() == hwnd);
