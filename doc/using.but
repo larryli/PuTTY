@@ -796,6 +796,47 @@ at all} checkbox in the SSH panel of the PuTTY configuration box
 This option is not available in the file transfer tools PSCP and
 PSFTP.
 
+\S2{using-cmdline-ncmode} \I{-nc}\c{-nc}: make a \i{remote network
+connection} in place of a remote shell or command
+
+The \c{-nc} option prevents Plink (or PuTTY) from attempting to
+start a shell or command on the remote server. Instead, it will
+instruct the remote server to open a network connection to a host
+name and port number specified by you, and treat that network
+connection as if it were the main session.
+
+You specify a host and port as an argument to the \c{-nc} option,
+with a colon separating the host name from the port number, like
+this:
+
+\c plink host1.example.com -nc host2.example.com:1234
+
+You might want to use this feature if you needed to make an SSH
+connection to a target host which you can only reach by going
+through a proxy host, and rather than using port forwarding you
+prefer to use the local proxy feature (see \k{config-proxy-type} for
+more about local proxies). In this situation you might select
+\q{Local} proxy type, set your local proxy command to be \cq{plink
+%proxyhost -nc %host:%port}, enter the target host name on the
+Session panel, and enter the directly reachable proxy host name on
+the Proxy panel.
+
+This feature is only available in SSH protocol version 2 (since the
+version 1 protocol assumes you will always want to run a shell). It
+is not available in the file transfer tools PSCP and PSFTP. It is
+available in PuTTY itself, although it is unlikely to be very useful
+in any tool other than Plink. Also, \c{-nc} uses the same server
+functionality as port forwarding, so it will not work if your server
+administrator has disabled port forwarding.
+
+(The option is named \c{-nc} after the Unix program
+\W{http://www.vulnwatch.org/netcat/}\c{nc}, short for \q{netcat}.
+The command \cq{plink host1 -nc host2:port} is very similar in
+functionality to \cq{plink host1 nc host2 port}, which invokes
+\c{nc} on the server and tells it to connect to the specified
+destination. However, Plink's built-in \c{-nc} option does not
+depend on the \c{nc} program being installed on the server.)
+
 \S2{using-cmdline-compress} \I{-C-upper}\c{-C}: enable \i{compression}
 
 The \c{-C} option enables compression of the data sent across the

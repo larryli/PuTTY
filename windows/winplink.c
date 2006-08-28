@@ -502,7 +502,7 @@ int main(int argc, char **argv)
 	cfg.host[p1] = '\0';
     }
 
-    if (!cfg.remote_cmd_ptr && !*cfg.remote_cmd)
+    if (!cfg.remote_cmd_ptr && !*cfg.remote_cmd && !*cfg.ssh_nc_host)
 	flags |= FLAG_INTERACTIVE;
 
     /*

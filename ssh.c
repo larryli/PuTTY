@@ -729,6 +729,7 @@ struct ssh_tag {
 
     tree234 *channels;		       /* indexed by local id */
     struct ssh_channel *mainchan;      /* primary session channel */
+    int ncmode;			       /* is primary channel direct-tcpip? */
     int exitcode;
     int close_expected;
     int clean_exit;
@@ -7622,7 +7623,59 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Create the main session channel.
      */
-    if (!ssh->cfg.ssh_no_shell) {
+    if (ssh->cfg.ssh_no_shell) {
+	ssh->mainchan = NULL;
+    } else if (*ssh->cfg.ssh_nc_host) {
+	/*
+	 * Just start a direct-tcpip channel and use it as the main
+	 * channel.
+	 */
+	ssh->mainchan = snew(struct ssh_channel);
+	ssh->mainchan->ssh = ssh;
+	ssh->mainchan->localid = alloc_channel_id(ssh);
+	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
+	ssh2_pkt_addstring(s->pktout, "direct-tcpip");
+	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
+	ssh->mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
+	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
+	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);      /* our max pkt size */
+	ssh2_pkt_addstring(s->pktout, ssh->cfg.ssh_nc_host);
+	ssh2_pkt_adduint32(s->pktout, ssh->cfg.ssh_nc_port);
+	/*
+	 * We make up values for the originator data; partly it's
+	 * too much hassle to keep track, and partly I'm not
+	 * convinced the server should be told details like that
+	 * about my local network configuration.
+	 * The "originator IP address" is syntactically a numeric
+	 * IP address, and some servers (e.g., Tectia) get upset
+	 * if it doesn't match this syntax.
+	 */
+	ssh2_pkt_addstring(s->pktout, "0.0.0.0");
+	ssh2_pkt_adduint32(s->pktout, 0);
+	ssh2_pkt_send(ssh, s->pktout);
+
+	crWaitUntilV(pktin);
+	if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
+	    bombout(("Server refused to open a direct-tcpip channel"));
+	    crStopV;
+	    /* FIXME: error data comes back in FAILURE packet */
+	}
+	if (ssh_pkt_getuint32(pktin) != ssh->mainchan->localid) {
+	    bombout(("Server's channel confirmation cited wrong channel"));
+	    crStopV;
+	}
+	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
+	ssh->mainchan->halfopen = FALSE;
+	ssh->mainchan->type = CHAN_MAINSESSION;
+	ssh->mainchan->closes = 0;
+	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
+	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
+	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
+	add234(ssh->channels, ssh->mainchan);
+	update_specials_menu(ssh->frontend);
+	logevent("Opened direct-tcpip channel in place of session");
+	ssh->ncmode = TRUE;
+    } else {
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
 	ssh->mainchan->localid = alloc_channel_id(ssh);
@@ -7653,8 +7706,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	add234(ssh->channels, ssh->mainchan);
 	update_specials_menu(ssh->frontend);
 	logevent("Opened channel for session");
-    } else
-	ssh->mainchan = NULL;
+	ssh->ncmode = FALSE;
+    }
 
     /*
      * Now we have a channel, make dispatch table entries for
@@ -7677,7 +7730,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Potentially enable X11 forwarding.
      */
-    if (ssh->mainchan && ssh->cfg.x11_forward) {
+    if (ssh->mainchan && !ssh->ncmode && ssh->cfg.x11_forward) {
 	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
 	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
@@ -7725,7 +7778,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Potentially enable agent forwarding.
      */
-    if (ssh->mainchan && ssh->cfg.agentfwd && agent_exists()) {
+    if (ssh->mainchan && !ssh->ncmode && ssh->cfg.agentfwd && agent_exists()) {
 	logevent("Requesting OpenSSH-style agent forwarding");
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
@@ -7751,7 +7804,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Now allocate a pty for the session.
      */
-    if (ssh->mainchan && !ssh->cfg.nopty) {
+    if (ssh->mainchan && !ssh->ncmode && !ssh->cfg.nopty) {
 	/* Unpick the terminal-speed string. */
 	/* XXX perhaps we should allow no speeds to be sent. */
         ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
@@ -7801,7 +7854,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      * Simplest thing here is to send all the requests at once, and
      * then wait for a whole bunch of successes or failures.
      */
-    if (ssh->mainchan && *ssh->cfg.environmt) {
+    if (ssh->mainchan && !ssh->ncmode && *ssh->cfg.environmt) {
 	char *e = ssh->cfg.environmt;
 	char *var, *varend, *val;
 
@@ -7866,7 +7919,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      * this twice if the config data has provided a second choice
      * of command.
      */
-    if (ssh->mainchan) while (1) {
+    if (ssh->mainchan && !ssh->ncmode) while (1) {
 	int subsys;
 	char *cmd;
 

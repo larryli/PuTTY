@@ -458,6 +458,8 @@ struct config_tag {
     int ssh_subsys;		       /* run a subsystem rather than a command */
     int ssh_subsys2;		       /* fallback to go with remote_cmd2 */
     int ssh_no_shell;		       /* avoid running a shell */
+    char ssh_nc_host[512];	       /* host to connect to in `nc' mode */
+    int ssh_nc_port;		       /* port to connect to in `nc' mode */
     /* Telnet options */
     char termtype[32];
     char termspeed[32];

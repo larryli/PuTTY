@@ -249,6 +249,28 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	cfg->portfwd[sizeof(cfg->portfwd) - 2] = '\0';
 	ptr[strlen(ptr)+1] = '\000';    /* append 2nd '\000' */
     }
+    if ((!strcmp(p, "-nc"))) {
+	char *host, *portp;
+
+	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+
+	host = portp = value;
+	while (*portp && *portp != ':')
+	    portp++;
+	if (*portp) {
+	    unsigned len = portp - host;
+	    if (len >= sizeof(cfg->ssh_nc_host))
+		len = sizeof(cfg->ssh_nc_host) - 1;
+	    strncpy(cfg->ssh_nc_host, value, len);
+	    cfg->ssh_nc_host[sizeof(cfg->ssh_nc_host) - 1] = '\0';
+	    cfg->ssh_nc_port = atoi(portp+1);
+	} else {
+	    cmdline_error("-nc expects argument of form 'host:port'");
+	    return ret;
+	}
+    }
     if (!strcmp(p, "-m")) {
 	char *filename, *command;
 	int cmdlen, cmdsize;

@@ -1807,6 +1807,11 @@ output streams.
 This could be used, for instance, to talk to some kind of network proxy
 that PuTTY does not natively support; or you could tunnel a connection
 over something other than TCP/IP entirely.
+
+If you want your local proxy command to make a secondary SSH
+connection to a proxy host and then tunnel the primary connection
+over that, you might well want the \c{-nc} command-line option in
+Plink. See \k{using-cmdline-ncmode} for more information.
 }
 
 \S{config-proxy-exclude} Excluding parts of the network from proxying
