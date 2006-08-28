@@ -76,6 +76,8 @@ use Plink:
 \c   -m file   read remote command(s) from file
 \c   -s        remote command is an SSH subsystem (SSH-2 only)
 \c   -N        don't start a shell/command (SSH-2 only)
+\c   -nc host:port
+\c             open tunnel in place of session (SSH-2 only)
 
 Once this works, you are ready to use Plink.
 

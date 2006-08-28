@@ -7633,6 +7633,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
 	ssh->mainchan->localid = alloc_channel_id(ssh);
+	logeventf(ssh,
+		  "Opening direct-tcpip channel to %s:%d in place of session",
+		  ssh->cfg.ssh_nc_host, ssh->cfg.ssh_nc_port);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(s->pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
@@ -7642,13 +7645,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addstring(s->pktout, ssh->cfg.ssh_nc_host);
 	ssh2_pkt_adduint32(s->pktout, ssh->cfg.ssh_nc_port);
 	/*
-	 * We make up values for the originator data; partly it's
-	 * too much hassle to keep track, and partly I'm not
-	 * convinced the server should be told details like that
-	 * about my local network configuration.
-	 * The "originator IP address" is syntactically a numeric
-	 * IP address, and some servers (e.g., Tectia) get upset
-	 * if it doesn't match this syntax.
+	 * There's nothing meaningful to put in the originator
+	 * fields, but some servers insist on syntactically correct
+	 * information.
 	 */
 	ssh2_pkt_addstring(s->pktout, "0.0.0.0");
 	ssh2_pkt_adduint32(s->pktout, 0);
@@ -7673,7 +7672,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
 	add234(ssh->channels, ssh->mainchan);
 	update_specials_menu(ssh->frontend);
-	logevent("Opened direct-tcpip channel in place of session");
+	logevent("Opened direct-tcpip channel");
 	ssh->ncmode = TRUE;
     } else {
 	ssh->mainchan = snew(struct ssh_channel);

@@ -179,6 +179,8 @@ static void usage(void)
     printf("  -m file   read remote command(s) from file\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
     printf("  -N        don't start a shell/command (SSH-2 only)\n");
+    printf("  -nc host:port\n");
+    printf("            open tunnel in place of session (SSH-2 only)\n");
     exit(1);
 }
 
