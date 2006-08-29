@@ -106,6 +106,7 @@ static void logfopen_callback(void *handle, int mode)
 		      (ctx->cfg.logtype == LGTYP_ASCII ? "ASCII" :
 		       ctx->cfg.logtype == LGTYP_DEBUG ? "raw" :
 		       ctx->cfg.logtype == LGTYP_PACKETS ? "SSH packets" :
+		       ctx->cfg.logtype == LGTYP_SSHRAW ? "SSH raw data" :
 		       "unknown"),
 		      filename_to_str(&ctx->currlogfilename));
     logevent(ctx->frontend, event);
@@ -203,9 +204,11 @@ void log_eventlog(void *handle, const char *event)
 	fprintf(stderr, "%s\n", event);
 	fflush(stderr);
     }
-    if (ctx->cfg.logtype != LGTYP_PACKETS)
+    if (ctx->cfg.logtype != LGTYP_PACKETS &&
+	ctx->cfg.logtype != LGTYP_SSHRAW)
 	return;
     logprintf(ctx, "Event Log: %s\r\n", event);
+    logflush(ctx);
 }
 
 /*
@@ -222,13 +225,18 @@ void log_packet(void *handle, int direction, int type,
     int p = 0, b = 0, omitted = 0;
     int output_pos = 0; /* NZ if pending output in dumpdata */
 
-    if (ctx->cfg.logtype != LGTYP_PACKETS)
+    if (!(ctx->cfg.logtype == LGTYP_SSHRAW ||
+          (ctx->cfg.logtype == LGTYP_PACKETS && texttype)))
 	return;
 
     /* Packet header. */
-    logprintf(ctx, "%s packet type %d / 0x%02x (%s)\r\n",
-	      direction == PKT_INCOMING ? "Incoming" : "Outgoing",
-	      type, type, texttype);
+    if (texttype)
+        logprintf(ctx, "%s packet type %d / 0x%02x (%s)\r\n",
+                  direction == PKT_INCOMING ? "Incoming" : "Outgoing",
+                  type, type, texttype);
+    else
+        logprintf(ctx, "%s raw data\r\n",
+                  direction == PKT_INCOMING ? "Incoming" : "Outgoing");
 
     /*
      * Output a hex/ASCII dump of the packet body, blanking/omitting

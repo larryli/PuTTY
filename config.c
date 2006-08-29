@@ -1171,20 +1171,24 @@ void setup_config_box(struct controlbox *b, int midsession,
      * logging can sensibly be available.
      */
     {
-	char *sshlogname;
+	char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
-	    (!midsession && backends[3].name != NULL))
-	    sshlogname = "Log SSH packet data";
-	else
-	    sshlogname = NULL;	       /* this will disable the button */
-	ctrl_radiobuttons(s, "Session logging:", NO_SHORTCUT, 1,
+	    (!midsession && backends[3].name != NULL)) {
+	    sshlogname = "SSH packets";
+	    sshrawlogname = "SSH packets and raw data";
+        } else {
+	    sshlogname = NULL;	       /* this will disable both buttons */
+	    sshrawlogname = NULL;      /* this will just placate optimisers */
+        }
+	ctrl_radiobuttons(s, "Session logging:", NO_SHORTCUT, 2,
 			  HELPCTX(logging_main),
 			  loggingbuttons_handler,
 			  I(offsetof(Config, logtype)),
-			  "Logging turned off completely", 't', I(LGTYP_NONE),
-			  "Log printable output only", 'p', I(LGTYP_ASCII),
-			  "Log all session output", 'l', I(LGTYP_DEBUG),
+			  "None", 't', I(LGTYP_NONE),
+			  "Printable output", 'p', I(LGTYP_ASCII),
+			  "All session output", 'l', I(LGTYP_DEBUG),
 			  sshlogname, 's', I(LGTYP_PACKETS),
+			  sshrawlogname, 'r', I(LGTYP_SSHRAW),
 			  NULL);
     }
     ctrl_filesel(s, "Log file name:", 'f',

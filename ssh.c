@@ -1442,11 +1442,17 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
     return biglen + 4;		/* len(length+padding+type+data+CRC) */
 }
 
+static int s_write(Ssh ssh, void *data, int len)
+{
+    log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len, 0, NULL);
+    return sk_write(ssh->s, (char *)data, len);
+}
+
 static void s_wrpkt(Ssh ssh, struct Packet *pkt)
 {
     int len, backlog, offset;
     len = s_wrpkt_prepare(ssh, pkt, &offset);
-    backlog = sk_write(ssh->s, (char *)pkt->data + offset, len);
+    backlog = s_write(ssh, pkt->data + offset, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
     ssh_free_packet(pkt);
@@ -1830,7 +1836,7 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 	return;
     }
     len = ssh2_pkt_construct(ssh, pkt);
-    backlog = sk_write(ssh->s, (char *)pkt->data, len);
+    backlog = s_write(ssh, pkt->data, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
 
@@ -1928,8 +1934,7 @@ static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
 static void ssh_pkt_defersend(Ssh ssh)
 {
     int backlog;
-    backlog = sk_write(ssh->s, (char *)ssh->deferred_send_data,
-		       ssh->deferred_len);
+    backlog = s_write(ssh, ssh->deferred_send_data, ssh->deferred_len);
     ssh->deferred_len = ssh->deferred_size = 0;
     sfree(ssh->deferred_send_data);
     ssh->deferred_send_data = NULL;
@@ -2418,7 +2423,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
         }
         logeventf(ssh, "We claim version: %.*s",
                   strcspn(verstring, "\015\012"), verstring);
-	sk_write(ssh->s, verstring, strlen(verstring));
+	s_write(ssh, verstring, strlen(verstring));
         sfree(verstring);
 	if (ssh->version == 2)
 	    do_ssh2_transport(ssh, NULL, -1, NULL);
@@ -2438,7 +2443,9 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 static void ssh_process_incoming_data(Ssh ssh,
 				      unsigned char **data, int *datalen)
 {
-    struct Packet *pktin = ssh->s_rdpkt(ssh, data, datalen);
+    struct Packet *pktin;
+
+    pktin = ssh->s_rdpkt(ssh, data, datalen);
     if (pktin) {
 	ssh->protocol(ssh, NULL, 0, pktin);
 	ssh_free_packet(pktin);
@@ -2481,6 +2488,9 @@ static void ssh_set_frozen(Ssh ssh, int frozen)
 
 static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
 {
+    /* Log raw data, if we're in that mode. */
+    log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, datalen, 0, NULL);
+
     crBegin(ssh->ssh_gotdata_crstate);
 
     /*

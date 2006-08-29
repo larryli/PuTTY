@@ -163,6 +163,7 @@ struct unicode_data {
 #define LGTYP_ASCII 1		       /* logmode: pure ascii */
 #define LGTYP_DEBUG 2		       /* logmode: all chars of traffic */
 #define LGTYP_PACKETS 3		       /* logmode: SSH data packets */
+#define LGTYP_SSHRAW 4		       /* logmode: SSH raw data */
 
 typedef enum {
     /* Actual special commands. Originally Telnet, but some codes have
