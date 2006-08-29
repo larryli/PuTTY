@@ -29,6 +29,10 @@ void fatalbox(char *p, ...)
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
     cleanup_exit(1);
 }
 void modalfatalbox(char *p, ...)
@@ -39,6 +43,10 @@ void modalfatalbox(char *p, ...)
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
     cleanup_exit(1);
 }
 void connection_fatal(void *frontend, char *p, ...)
@@ -49,6 +57,10 @@ void connection_fatal(void *frontend, char *p, ...)
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
     cleanup_exit(1);
 }
 void cmdline_error(char *p, ...)

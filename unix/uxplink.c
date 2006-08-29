@@ -25,6 +25,8 @@
 
 #define MAX_STDIN_BACKLOG 4096
 
+void *logctx;
+
 void fatalbox(char *p, ...)
 {
     va_list ap;
@@ -33,6 +35,10 @@ void fatalbox(char *p, ...)
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
     cleanup_exit(1);
 }
 void modalfatalbox(char *p, ...)
@@ -43,6 +49,10 @@ void modalfatalbox(char *p, ...)
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
     cleanup_exit(1);
 }
 void connection_fatal(void *frontend, char *p, ...)
@@ -53,6 +63,10 @@ void connection_fatal(void *frontend, char *p, ...)
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
     cleanup_exit(1);
 }
 void cmdline_error(char *p, ...)
@@ -556,7 +570,7 @@ int main(int argc, char **argv)
     int exitcode;
     int errors;
     int use_subsystem = 0;
-    void *ldisc, *logctx;
+    void *ldisc;
     long now;
 
     fdlist = NULL;
