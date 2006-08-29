@@ -2,12 +2,6 @@
  * Serial back end (Unix-specific).
  */
 
-/*
- * TODO:
- * 
- *  - send break.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -260,6 +254,11 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
 
     serial_uxsel_setup(serial);
 
+    /*
+     * Specials are always available.
+     */
+    update_specials_menu(serial->frontend);
+
     return NULL;
 }
 
@@ -418,9 +417,13 @@ static void serial_size(void *handle, int width, int height)
  */
 static void serial_special(void *handle, Telnet_Special code)
 {
-    /*
-     * FIXME: serial break? XON? XOFF?
-     */
+    Serial serial = (Serial) handle;
+
+    if (serial->fd >= 0 && code == TS_BRK) {
+	tcsendbreak(serial->fd, 0);
+	logevent(serial->frontend, "Sending serial break at user request");
+    }
+
     return;
 }
 
@@ -430,10 +433,11 @@ static void serial_special(void *handle, Telnet_Special code)
  */
 static const struct telnet_special *serial_get_specials(void *handle)
 {
-    /*
-     * FIXME: serial break? XON? XOFF?
-     */
-    return NULL;
+    static const struct telnet_special specials[] = {
+	{"Break", TS_BRK},
+	{NULL, TS_EXITMENU}
+    };
+    return specials;
 }
 
 static int serial_connected(void *handle)

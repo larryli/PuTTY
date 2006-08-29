@@ -2,17 +2,6 @@
  * Serial back end (Windows-specific).
  */
 
-/*
- * TODO:
- * 
- *  - sending breaks?
- *     + looks as if you do this by calling SetCommBreak(handle),
- * 	 then waiting a bit, then doing ClearCommBreak(handle). A
- * 	 small job for timing.c, methinks.
- *
- *  - why are we dropping data when talking to judicator?
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -26,6 +15,8 @@ typedef struct serial_backend_data {
     struct handle *out, *in;
     void *frontend;
     int bufsize;
+    long clearbreak_time;
+    int break_in_progress;
 } *Serial;
 
 static void serial_terminate(Serial serial)
@@ -39,6 +30,8 @@ static void serial_terminate(Serial serial)
 	serial->in = NULL;
     }
     if (serial->port) {
+	if (serial->break_in_progress)
+	    ClearCommBreak(serial->port);
 	CloseHandle(serial->port);
 	serial->port = NULL;
     }
@@ -218,6 +211,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     serial->port = NULL;
     serial->out = serial->in = NULL;
     serial->bufsize = 0;
+    serial->break_in_progress = FALSE;
     *backend_handle = serial;
 
     serial->frontend = frontend_handle;
@@ -246,6 +240,11 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
 
     *realhost = dupstr(cfg->serline);
 
+    /*
+     * Specials are always available.
+     */
+    update_specials_menu(serial->frontend);
+
     return NULL;
 }
 
@@ -254,6 +253,7 @@ static void serial_free(void *handle)
     Serial serial = (Serial) handle;
 
     serial_terminate(serial);
+    expire_timer_context(serial);
     sfree(serial);
 }
 
@@ -301,14 +301,42 @@ static void serial_size(void *handle, int width, int height)
     return;
 }
 
+static void serbreak_timer(void *ctx, long now)
+{
+    Serial serial = (Serial)ctx;
+
+    if (now >= serial->clearbreak_time && serial->port) {
+	ClearCommBreak(serial->port);
+	serial->break_in_progress = FALSE;
+	logevent(serial->frontend, "Finished serial break");
+    }
+}
+
 /*
  * Send serial special codes.
  */
 static void serial_special(void *handle, Telnet_Special code)
 {
-    /*
-     * FIXME: serial break? XON? XOFF?
-     */
+    Serial serial = (Serial) handle;
+
+    if (serial->port && code == TS_BRK) {
+	logevent(serial->frontend, "Starting serial break at user request");
+	SetCommBreak(serial->port);
+	/*
+	 * To send a serial break on Windows, we call SetCommBreak
+	 * to begin the break, then wait a bit, and then call
+	 * ClearCommBreak to finish it. Hence, I must use timing.c
+	 * to arrange a callback when it's time to do the latter.
+	 * 
+	 * SUS says that a default break length must be between 1/4
+	 * and 1/2 second. FreeBSD apparently goes with 2/5 second,
+	 * and so will I. 
+	 */
+	serial->clearbreak_time =
+	    schedule_timer(TICKSPERSEC * 2 / 5, serbreak_timer, serial);
+	serial->break_in_progress = TRUE;
+    }
+
     return;
 }
 
@@ -318,10 +346,11 @@ static void serial_special(void *handle, Telnet_Special code)
  */
 static const struct telnet_special *serial_get_specials(void *handle)
 {
-    /*
-     * FIXME: serial break? XON? XOFF?
-     */
-    return NULL;
+    static const struct telnet_special specials[] = {
+	{"Break", TS_BRK},
+	{NULL, TS_EXITMENU}
+    };
+    return specials;
 }
 
 static int serial_connected(void *handle)
