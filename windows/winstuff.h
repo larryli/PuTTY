@@ -373,7 +373,7 @@ void dp_cleanup(struct dlgparam *dp);
  * Exports from wincfg.c.
  */
 void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
-			  int midsession);
+			  int midsession, int protocol);
 
 /*
  * Exports from windlg.c.

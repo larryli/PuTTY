@@ -2055,7 +2055,7 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, midsession, cfg->protocol, protcfginfo);
-    unix_setup_config_box(ctrlbox, midsession);
+    unix_setup_config_box(ctrlbox, midsession, cfg->protocol);
     gtk_setup_config_box(ctrlbox, midsession, window);
 
     gtk_window_set_title(GTK_WINDOW(window), title);

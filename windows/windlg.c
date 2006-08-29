@@ -653,7 +653,7 @@ int do_config(void)
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, FALSE, 0, 0);
-    win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), FALSE);
+    win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), FALSE, 0);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
@@ -685,7 +685,8 @@ int do_reconfig(HWND hwnd, int protcfginfo)
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, TRUE, cfg.protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), TRUE);
+    win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), TRUE,
+                         cfg.protocol);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);

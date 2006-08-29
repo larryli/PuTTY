@@ -105,7 +105,7 @@ void uxsel_input_remove(int id);
 
 /* uxcfg.c */
 struct controlbox;
-void unix_setup_config_box(struct controlbox *b, int midsession);
+void unix_setup_config_box(struct controlbox *b, int midsession, int protocol);
 
 /* gtkcfg.c */
 void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);

@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-void unix_setup_config_box(struct controlbox *b, int midsession)
+void unix_setup_config_box(struct controlbox *b, int midsession, int protocol)
 {
     struct controlset *s;
     union control *c;
@@ -75,5 +75,6 @@ void unix_setup_config_box(struct controlbox *b, int midsession)
      * space parity are not conveniently supported, and neither is
      * DSR/DTR flow control.
      */
-    ser_setup_config_box(b, midsession, 0x07, 0x07);
+    if (!midsession || (protocol == PROT_SERIAL))
+        ser_setup_config_box(b, midsession, 0x07, 0x07);
 }
