@@ -123,9 +123,10 @@ Event Log into your bug report.
 
 Depending on the protocol used for the current session, there may be
 a submenu of \q{special commands}. These are protocol-specific
-tokens, such as a \i{\q{break} signal}, that can be sent down a
+tokens, such as a \q{break} signal, that can be sent down a
 connection in addition to normal data. Their precise effect is usually
-up to the server. Currently only Telnet and SSH have special commands.
+up to the server. Currently only Telnet, SSH, and serial connections
+have special commands.
 
 The following \I{Telnet special commands}special commands are
 available in Telnet:
@@ -206,6 +207,9 @@ default break length.
 Only available in SSH-2, and only during a session. Sends various
 POSIX signals. Not honoured by all servers.
 }
+
+With a serial connection, the only available special command is
+\I{Break, serial special command}\q{Break}.
 
 \S2{using-newsession} Starting new sessions
 

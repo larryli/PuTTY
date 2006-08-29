@@ -127,6 +127,12 @@ from SSH and Telnet
 \IM{port forwarding}{port forwardings} tunnelling using SSH
 \IM{port forwarding}{port forwardings} SSH tunnelling
 
+\IM{port forwarding, changing mid-session} port forwarding in SSH, changing mid-session
+\IM{port forwarding, changing mid-session} SSH port forwarding, changing mid-session
+\IM{port forwarding, changing mid-session} forwarding ports in SSH, changing mid-session
+\IM{port forwarding, changing mid-session} tunnelling using SSH, changing mid-session
+\IM{port forwarding, changing mid-session} SSH tunnelling, changing mid-session
+
 \IM{local port forwarding} local-to-remote port forwarding
 \IM{remote port forwarding} remote-to-local port forwarding
 
@@ -290,8 +296,8 @@ saved sessions from
 \IM{inactive window} window, inactive
 \IM{inactive window} terminal window, inactive
 
-\IM{Log SSH packet data} SSH packet log
-\IM{Log SSH packet data} packet log, SSH
+\IM{SSH packet log} SSH packet log
+\IM{SSH packet log} packet log, SSH
 
 \IM{auto wrap mode}{auto wrap} auto wrap mode
 \IM{auto wrap mode}{auto wrap} wrapping, automatic

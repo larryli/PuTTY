@@ -147,19 +147,19 @@ The Logging configuration panel allows you to save \i{log file}s of your
 PuTTY sessions, for debugging, analysis or future reference.
 
 The main option is a radio-button set that specifies whether PuTTY
-will log anything at all. The options are
+will log anything at all. The options are:
 
-\b \q{Logging turned off completely}. This is the default option; in
-this mode PuTTY will not create a log file at all.
+\b \q{None}. This is the default option; in this mode PuTTY will not
+create a log file at all.
 
-\b \q{Log printable output only}. In this mode, a log file will be
+\b \q{Printable output}. In this mode, a log file will be
 created and written to, but only printable text will be saved into
 it. The various terminal control codes that are typically sent down
 an interactive session alongside the printable text will be omitted.
 This might be a useful mode if you want to read a log file in a text
 editor and hope to be able to make sense of it.
 
-\b \q{Log all session output}. In this mode, \e{everything} sent by
+\b \q{All session output}. In this mode, \e{everything} sent by
 the server into your terminal session is logged. If you view the log
 file in a text editor, therefore, you may well find it full of
 strange control characters. This is a particularly useful mode if
@@ -168,14 +168,21 @@ can record everything that went to the terminal, so that someone
 else can replay the session later in slow motion and watch to see
 what went wrong.
 
-\b \q{\i{Log SSH packet data}}. In this mode (which is only used by SSH
-connections), the SSH message packets sent over the encrypted
-connection are written to the log file. You might need this to debug
-a network-level problem, or more likely to send to the PuTTY authors
-as part of a bug report. \e{BE WARNED} that if you log in using a
-password, the password can appear in the log file; see
-\k{config-logssh} for options that may help to remove sensitive
-material from the log file before you send it to anyone else.
+\b \I{SSH packet log}\q{SSH packets}. In this mode (which is only used
+by SSH connections), the SSH message packets sent over the encrypted
+connection are written to the log file (as well as \i{Event Log}
+entries). You might need this to debug a network-level problem, or
+more likely to send to the PuTTY authors as part of a bug report.
+\e{BE WARNED} that if you log in using a password, the password can
+appear in the log file; see \k{config-logssh} for options that may
+help to remove sensitive material from the log file before you send it
+to anyone else.
+
+\b \q{SSH packets and raw data}. In this mode, as well as the
+decrypted packets (as in the previous mode), the \e{raw} (encrypted,
+compressed, etc) packets are \e{also} logged. This could be useful to
+diagnose corruption in transit. (The same caveats as the previous mode
+apply, of course.)
 
 \S{config-logfilename} \q{Log file name}
 
@@ -254,10 +261,11 @@ glean a lot of useful information from even these obfuscated logs
 
 \cfg{winhelp-topic}{logging.ssh.omitpassword}
 
-When checked, password fields are removed from the log of transmitted
-packets. (This includes any user responses to challenge-response
-authentication methods such as \q{keyboard-interactive}.) This does
-not include X11 authentication data if using X11 forwarding.
+When checked, decrypted password fields are removed from the log of
+transmitted packets. (This includes any user responses to
+challenge-response authentication methods such as
+\q{keyboard-interactive}.) This does not include X11 authentication
+data if using X11 forwarding.
 
 Note that this will only omit data that PuTTY \e{knows} to be a
 password. However, if you start another login session within your
@@ -271,10 +279,10 @@ This option is enabled by default.
 
 \cfg{winhelp-topic}{logging.ssh.omitdata}
 
-When checked, all \q{session data} is omitted; this is defined as data
-in terminal sessions and in forwarded channels (TCP, X11, and
-authentication agent). This will usually substantially reduce the size
-of the resulting log file.
+When checked, all decrypted \q{session data} is omitted; this is
+defined as data in terminal sessions and in forwarded channels (TCP,
+X11, and authentication agent). This will usually substantially reduce
+the size of the resulting log file.
 
 This option is disabled by default.
 
@@ -2675,11 +2683,12 @@ In place of port numbers, you can enter \i{service names}, if they are
 known to the local system. For instance, in the \q{Destination} box,
 you could enter \c{popserver.example.com:pop3}.
 
-You can modify the currently active set of port forwardings in
-mid-session using \q{Change Settings} (see \k{using-changesettings}).
-If you delete a local or dynamic port forwarding in mid-session, PuTTY
-will stop listening for connections on that port, so it can be re-used
-by another program. If you delete a remote port forwarding, note that:
+You can \I{port forwarding, changing mid-session}modify the currently
+active set of port forwardings in mid-session using \q{Change
+Settings} (see \k{using-changesettings}). If you delete a local or
+dynamic port forwarding in mid-session, PuTTY will stop listening for
+connections on that port, so it can be re-used by another program. If
+you delete a remote port forwarding, note that:
 
 \b The SSH-1 protocol contains no mechanism for asking the server to
 stop listening on a remote port.
