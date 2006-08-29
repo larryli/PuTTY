@@ -85,7 +85,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
     mapname = dupprintf("PageantRequest%08x", (unsigned)GetCurrentThreadId());
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 				0, AGENT_MAX_MSGLEN, mapname);
-    if (!filemap)
+    if (filemap == NULL || filemap == INVALID_HANDLE_VALUE)
 	return 1;		       /* *out == NULL, so failure */
     p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
     memcpy(p, in, inlen);

@@ -29,11 +29,11 @@ static void serial_terminate(Serial serial)
 	handle_free(serial->in);
 	serial->in = NULL;
     }
-    if (serial->port) {
+    if (serial->port != INVALID_HANDLE_VALUE) {
 	if (serial->break_in_progress)
 	    ClearCommBreak(serial->port);
 	CloseHandle(serial->port);
-	serial->port = NULL;
+	serial->port = INVALID_HANDLE_VALUE;
     }
 }
 
@@ -208,7 +208,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     const char *err;
 
     serial = snew(struct serial_backend_data);
-    serial->port = NULL;
+    serial->port = INVALID_HANDLE_VALUE;
     serial->out = serial->in = NULL;
     serial->bufsize = 0;
     serial->break_in_progress = FALSE;
@@ -391,7 +391,7 @@ static void serial_provide_logctx(void *handle, void *logctx)
 static int serial_exitcode(void *handle)
 {
     Serial serial = (Serial) handle;
-    if (serial->port != NULL)
+    if (serial->port != INVALID_HANDLE_VALUE)
         return -1;                     /* still connected */
     else
         /* Exit codes are a meaningless concept with serial ports */

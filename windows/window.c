@@ -1964,11 +1964,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    sa.nLength = sizeof(sa);
 		    sa.lpSecurityDescriptor = NULL;
 		    sa.bInheritHandle = TRUE;
-		    filemap = CreateFileMapping((HANDLE) 0xFFFFFFFF,
+		    filemap = CreateFileMapping(INVALID_HANDLE_VALUE,
 						&sa,
 						PAGE_READWRITE,
 						0, sizeof(Config), NULL);
-		    if (filemap) {
+		    if (filemap && filemap != INVALID_HANDLE_VALUE) {
 			p = (Config *) MapViewOfFile(filemap,
 						     FILE_MAP_WRITE,
 						     0, 0, sizeof(Config));

@@ -431,7 +431,7 @@ char *dir_file_cat(char *dir, char *file)
  * Be told what socket we're supposed to be using.
  */
 static SOCKET sftp_ssh_socket = INVALID_SOCKET;
-static HANDLE netevent = NULL;
+static HANDLE netevent = INVALID_HANDLE_VALUE;
 char *do_select(SOCKET skt, int startup)
 {
     int events;
@@ -481,11 +481,11 @@ int do_eventsel_loop(HANDLE other_event)
     handles = sresize(handles, nhandles+2, HANDLE);
     nallhandles = nhandles;
 
-    if (netevent)
+    if (netevent != INVALID_HANDLE_VALUE)
 	handles[netindex = nallhandles++] = netevent;
     else
 	netindex = -1;
-    if (other_event)
+    if (other_event != INVALID_HANDLE_VALUE)
 	handles[otherindex = nallhandles++] = other_event;
     else
 	otherindex = -1;
@@ -625,7 +625,7 @@ int ssh_sftp_loop_iteration(void)
 
 	return 0;
     } else {
-	return do_eventsel_loop(NULL);
+	return do_eventsel_loop(INVALID_HANDLE_VALUE);
     }
 }
 
