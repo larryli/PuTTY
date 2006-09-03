@@ -1998,12 +1998,18 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	    wcs[i] = text[i];
 	}
 
+	if (inst->fonts[fontid] == NULL && (fontid & 2)) {
+	    /*
+	     * We've been given ATTR_WIDE, but have no wide font.
+	     * Fall back to the non-wide font.
+	     */
+	    fontid &= ~2;
+	}
+
 	if (inst->fonts[fontid] == NULL) {
 	    /*
-	     * The font for this contingency does not exist.
-	     * Typically this means we've been given ATTR_WIDE
-	     * character and have no wide font. So we display
-	     * nothing at all; such is life.
+	     * The font for this contingency does not exist. So we
+	     * display nothing at all; such is life.
 	     */
 	} else if (inst->fontinfo[fontid].is_wide) {
 	    /*
