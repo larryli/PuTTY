@@ -16,6 +16,17 @@
  * write; so the output thread waits for an event object notifying
  * it to _attempt_ a write, and then it sets an event in return
  * when one completes.
+ * 
+ * (It's terribly annoying having to spawn a subthread for each
+ * direction of each handle. Technically it isn't necessary for
+ * serial ports, since we could use overlapped I/O within the main
+ * thread and wait directly on the event objects in the OVERLAPPED
+ * structures. However, we can't use this trick for some types of
+ * file handle at all - for some reason Windows restricts use of
+ * OVERLAPPED to files which were opened with the overlapped flag -
+ * and so we must use threads for those. This being the case, it's
+ * simplest just to use threads for everything rather than trying
+ * to keep track of multiple completely separate mechanisms.)
  */
 
 #include <assert.h>
