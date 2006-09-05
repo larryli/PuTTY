@@ -3346,10 +3346,17 @@ static void term_out(Terminal *term)
 			break;
 		      case 'J':       /* ED: erase screen or parts of it */
 			{
-			    unsigned int i = def(term->esc_args[0], 0) + 1;
-			    if (i > 3)
-				i = 0;
-			    erase_lots(term, FALSE, !!(i & 2), !!(i & 1));
+			    unsigned int i = def(term->esc_args[0], 0);
+			    if (i == 3) {
+				/* Erase Saved Lines (xterm)
+				 * This follows Thomas Dickey's xterm. */
+				term_clrsb(term);
+			    } else {
+				i++;
+				if (i > 3)
+				    i = 0;
+				erase_lots(term, FALSE, !!(i & 2), !!(i & 1));
+			    }
 			}
 			term->disptop = 0;
 			seen_disp_event(term);
