@@ -2652,7 +2652,9 @@ on whether you want to \I{local port forwarding}forward a local port
 to a remote destination (\q{Local}) or \I{remote port forwarding}forward
 a remote port to a local destination (\q{Remote}). Alternatively,
 select \q{Dynamic} if you want PuTTY to \I{dynamic port forwarding}provide
-a local SOCKS 4/4A/5 proxy on a local port.
+a local SOCKS 4/4A/5 proxy on a local port (note that this proxy only
+supports TCP connections; the SSH protocol does not support forwarding
+\i{UDP}).
 
 \b Enter a source \i{port number} into the \q{Source port} box. For
 local forwardings, PuTTY will listen on this port of your PC. For
