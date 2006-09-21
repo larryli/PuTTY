@@ -272,6 +272,7 @@ static void start_backend(void)
 	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
     }
 
+    must_close_session = FALSE;
     session_closed = FALSE;
 }
 
