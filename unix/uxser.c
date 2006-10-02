@@ -162,9 +162,15 @@ static const char *serial_configure(Serial serial, Config *cfg)
     logevent(serial->frontend, msg);
     sfree(msg);
 
-    options.c_cflag &= ~(IXON|IXOFF);
+    options.c_iflag &= ~(IXON|IXOFF);
+#ifdef CRTSCTS
+    options.c_cflag &= ~CRTSCTS;
+#endif
+#ifdef CNEW_RTSCTS
+    options.c_cflag &= ~CNEW_RTSCTS;
+#endif
     if (cfg->serflow == SER_FLOW_XONXOFF) {
-	options.c_cflag |= IXON | IXOFF;
+	options.c_iflag |= IXON | IXOFF;
 	str = "XON/XOFF";
     } else if (cfg->serflow == SER_FLOW_RTSCTS) {
 #ifdef CRTSCTS
