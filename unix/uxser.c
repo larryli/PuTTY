@@ -205,7 +205,16 @@ static const char *serial_configure(Serial serial, Config *cfg)
 
     options.c_cflag |= CLOCAL | CREAD;
     options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-    options.c_oflag &= ~OPOST;
+    options.c_iflag &= ~(ISTRIP | IGNCR | INLCR | ICRNL
+#ifdef IUCLC
+			 | IUCLC
+#endif
+			 );
+    options.c_oflag &= ~(OPOST
+#ifdef ONLCR
+			 | ONLCR
+#endif
+			 | OCRNL | ONOCR | ONLRET);
     options.c_cc[VMIN] = 1;
     options.c_cc[VTIME] = 0;
 
