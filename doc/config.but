@@ -2789,10 +2789,11 @@ to try to guess whether or not the server has the bug.
 An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
 which can be sent from the client to the server, or from the server
 to the client, at any time. Either side is required to ignore the
-message whenever it receives it. PuTTY uses ignore messages to hide
-the password packet in SSH-1, so that a listener cannot tell the
-length of the user's password; it also uses ignore messages for
-connection keepalives (see \k{config-keepalive}).
+message whenever it receives it. PuTTY uses ignore messages to
+\I{password camouflage}hide the password packet in SSH-1, so that
+a listener cannot tell the length of the user's password; it also
+uses ignore messages for connection \i{keepalives} (see
+\k{config-keepalive}).
 
 If this bug is detected, PuTTY will stop using ignore messages. This
 means that keepalives will stop working, and PuTTY will have to fall
@@ -2819,9 +2820,10 @@ camouflage. In this sense, for a server to refuse to accept a padded
 password packet is not really a bug, but it does make life
 inconvenient if the server can also not handle ignore messages.
 
-If this \q{bug} is detected, PuTTY will have no choice but to send
-the user's password with no form of camouflage, so that an
-eavesdropping user will be easily able to find out the exact length
+If this \q{bug} is detected, PuTTY will assume that neither ignore
+messages nor padding are acceptable, and that it thus has no choice
+but to send the user's password with no form of camouflage, so that
+an eavesdropping user will be easily able to find out the exact length
 of the password. If this bug is enabled when talking to a correct
 server, the session will succeed, but will be more vulnerable to
 eavesdroppers than it could be.

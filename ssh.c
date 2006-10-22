@@ -2166,6 +2166,13 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     ssh->remote_bugs = 0;
 
+    /*
+     * General notes on server version strings:
+     *  - Not all servers reporting "Cisco-1.25" have all the bugs listed
+     *    here -- in particular, we've heard of one that's perfectly happy
+     *    with SSH1_MSG_IGNOREs -- but this string never seems to change,
+     *    so we can't distinguish them.
+     */
     if (ssh->cfg.sshbug_ignore1 == FORCE_ON ||
 	(ssh->cfg.sshbug_ignore1 == AUTO &&
 	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
@@ -3703,19 +3710,19 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	     *    magnitude of the password length, but it will
 	     *    introduce a bit of extra uncertainty.
 	     * 
-	     * A few servers (the old 1.2.18 through 1.2.22)
-	     * can't deal with SSH1_MSG_IGNORE. For these
-	     * servers, we need an alternative defence. We make
-	     * use of the fact that the password is interpreted
-	     * as a C string: so we can append a NUL, then some
-	     * random data.
+	     * A few servers can't deal with SSH1_MSG_IGNORE, at
+	     * least in this context. For these servers, we need
+	     * an alternative defence. We make use of the fact
+	     * that the password is interpreted as a C string:
+	     * so we can append a NUL, then some random data.
 	     * 
-	     * One server (a Cisco one) can deal with neither
-	     * SSH1_MSG_IGNORE _nor_ a padded password string.
-	     * For this server we are left with no defences
+	     * A few servers can deal with neither SSH1_MSG_IGNORE
+	     * here _nor_ a padded password string.
+	     * For these servers we are left with no defences
 	     * against password length sniffing.
 	     */
-	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE)) {
+	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE) &&
+	        !(ssh->remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
 		/*
 		 * The server can deal with SSH1_MSG_IGNORE, so
 		 * we can use the primary defence.
@@ -3784,10 +3791,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			    PKTT_OTHER, PKT_END);
 	    } else {
 		/*
-		 * The server has _both_
-		 * BUG_CHOKES_ON_SSH1_IGNORE and
-		 * BUG_NEEDS_SSH1_PLAIN_PASSWORD. There is
-		 * therefore nothing we can do.
+		 * The server is believed unable to cope with
+		 * any of our password camouflage methods.
 		 */
 		int len;
 		len = strlen(s->cur_prompt->prompts[0]->result);
