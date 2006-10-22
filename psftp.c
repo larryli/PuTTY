@@ -128,8 +128,12 @@ char *canonify(char *name)
 	assert(rreq == req);
 	canonname = fxp_realpath_recv(pktin, rreq);
 
-	if (!canonname)
-	    return fullname;	       /* even that failed; give up */
+	if (!canonname) {
+	    /* Even that failed. Restore our best guess at the
+	     * constructed filename and give up */
+	    fullname[i] = '/';	/* restore slash and last component */
+	    return fullname;
+	}
 
 	/*
 	 * We have a canonical name for all but the last path
