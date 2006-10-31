@@ -352,7 +352,7 @@ void log_reconfig(void *handle, Config *cfg)
  * translate format codes into time/date strings
  * and insert them into log file name
  *
- * "&Y":YYYY   "&m":MM   "&d":DD   "&T":hhmm   "&h":<hostname>   "&&":&
+ * "&Y":YYYY   "&m":MM   "&d":DD   "&T":hhmmss   "&h":<hostname>   "&&":&
  */
 static void xlatlognam(Filename *dest, Filename src,
 		       char *hostname, struct tm *tm) {
