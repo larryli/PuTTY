@@ -2200,7 +2200,7 @@ separate configuration of the preference orders. As a result you may
 get two warnings similar to the one above, possibly with different
 encryptions.
 
-Single-DES is not recommended in the SSH-2 draft protocol
+Single-DES is not recommended in the SSH-2 protocol
 standards, but one or two server implementations do support it.
 PuTTY can use single-DES to interoperate with
 these servers if you enable the \q{Enable legacy use of single-DES in
@@ -2281,7 +2281,7 @@ These options control how often PuTTY will initiate a repeat key
 exchange (\q{rekey}). You can also force a key exchange at any time
 from the Special Commands menu (see \k{using-specials}).
 
-\# FIXME: do we have any additions to the SSH-2 drafts' advice on
+\# FIXME: do we have any additions to the SSH-2 specs' advice on
 these values? Do we want to enforce any limits?
 
 \b \q{Max minutes before rekey} specifies the amount of time that is
@@ -2886,7 +2886,7 @@ This is an SSH-2-specific bug.
 
 Versions below 3.3 of \i{OpenSSH} require SSH-2 RSA signatures to be
 padded with zero bytes to the same length as the RSA key modulus.
-The SSH-2 draft specification says that an unpadded signature MUST be
+The SSH-2 specification says that an unpadded signature MUST be
 accepted, so this is a bug. A typical symptom of this problem is
 that PuTTY mysteriously fails RSA authentication once in every few
 hundred attempts, and falls back to passwords.
