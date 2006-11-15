@@ -392,6 +392,8 @@ put your chosen pathname in the Registry, at
 
 \c HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\RandSeedFile
 
+You can ask PuTTY to delete all this data; see \k{faq-cleanup}.
+
 On Unix, PuTTY stores all of this data in a directory \cw{~/.putty}.
 
 \H{faq-howto} HOWTO questions
