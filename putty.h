@@ -435,8 +435,6 @@ struct config_tag {
     char proxy_telnet_command[512];
     /* SSH options */
     char remote_cmd[512];
-    char remote_cmd2[512];	       /* fallback if the first fails
-					* (used internally for scp) */
     char *remote_cmd_ptr;	       /* might point to a larger command
 				        * but never for loading/saving */
     char *remote_cmd_ptr2;	       /* might point to a larger command
@@ -457,7 +455,7 @@ struct config_tag {
     int try_tis_auth;
     int try_ki_auth;
     int ssh_subsys;		       /* run a subsystem rather than a command */
-    int ssh_subsys2;		       /* fallback to go with remote_cmd2 */
+    int ssh_subsys2;		       /* fallback to go with remote_cmd_ptr2 */
     int ssh_no_shell;		       /* avoid running a shell */
     char ssh_nc_host[512];	       /* host to connect to in `nc' mode */
     int ssh_nc_port;		       /* port to connect to in `nc' mode */
