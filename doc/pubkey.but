@@ -291,8 +291,8 @@ will need to tell PuTTY to use for authentication (see
 
 \cfg{winhelp-topic}{puttygen.savepub}
 
-The SSH-2 protocol drafts specify a \I{SSH-2 public key format}standard
-format for storing public keys on disk. Some SSH servers (such as
+RFC 4716 specifies a \I{SSH-2 public key format}standard format for
+storing SSH-2 public keys on disk. Some SSH servers (such as
 \i\cw{ssh.com}'s) require a public key in this format in order to accept
 authentication with the corresponding private key. (Others, such as
 OpenSSH, use a different format; see \k{puttygen-pastekey}.)

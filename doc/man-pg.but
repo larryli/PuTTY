@@ -95,8 +95,8 @@ be the standard SSH-1 key format, or PuTTY's own SSH-2 key format.
 
 \dd Save the public key only. For SSH-1 keys, the standard public key
 format will be used (\q{\cw{1024 37 5698745}...}). For SSH-2 keys, the
-public key will be output in the format specified in the IETF
-drafts, which is a multi-line text file beginning with the line
+public key will be output in the format specified by RFC 4716,
+which is a multi-line text file beginning with the line
 \q{\cw{---- BEGIN SSH2 PUBLIC KEY ----}}.
 
 \dt \cw{public-openssh}
