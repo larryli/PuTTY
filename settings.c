@@ -464,6 +464,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     cfg->ssh_subsys = 0;	       /* FIXME: load this properly */
     cfg->remote_cmd_ptr = NULL;
     cfg->remote_cmd_ptr2 = NULL;
+    cfg->ssh_nc_host[0] = '\0';
 
     if (do_host) {
 	gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
