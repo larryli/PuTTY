@@ -878,6 +878,40 @@ unsigned char getType(int ch)
 }
 
 /*
+ * Function exported to front ends to allow them to identify
+ * bidi-active characters (in case, for example, the platform's
+ * text display function can't conveniently be prevented from doing
+ * its own bidi and so special treatment is required for characters
+ * that would cause the bidi algorithm to activate).
+ * 
+ * This function is passed a single Unicode code point, and returns
+ * nonzero if the presence of this code point can possibly cause
+ * the bidi algorithm to do any reordering. Thus, any string
+ * composed entirely of characters for which is_rtl() returns zero
+ * should be safe to pass to a bidi-active platform display
+ * function without fear.
+ * 
+ * (is_rtl() must therefore also return true for any character
+ * which would be affected by Arabic shaping, but this isn't
+ * important because all such characters are right-to-left so it
+ * would have flagged them anyway.)
+ */
+int is_rtl(int c)
+{
+    /*
+     * After careful reading of the Unicode bidi algorithm (URL as
+     * given at the top of this file) I believe that the only
+     * character classes which can possibly cause trouble are R,
+     * AL, RLE and RLO. I think that any string containing no
+     * character in any of those classes will be displayed
+     * uniformly left-to-right by the Unicode bidi algorithm.
+     */
+    const int mask = (1<<R) | (1<<AL) | (1<<RLE) | (1<<RLO);
+
+    return mask & (1 << (getType(c)));
+}
+
+/*
  * The most significant 2 bits of each level are used to store
  * Override status of each character
  * This function sets the override bits of level according

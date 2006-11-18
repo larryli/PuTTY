@@ -1087,6 +1087,7 @@ typedef struct bidi_char {
 } bidi_char;
 int do_bidi(bidi_char *line, int count);
 int do_shape(bidi_char *line, bidi_char *to, int count);
+int is_rtl(int c);
 
 /*
  * X11 auth mechanisms we know about.

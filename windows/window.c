@@ -1261,6 +1261,89 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 }
 
 /*
+ * The exact_textout() wrapper, unfortunately, destroys the useful
+ * Windows `font linking' behaviour: automatic handling of Unicode
+ * code points not supported in this font by falling back to a font
+ * which does contain them. Therefore, we adopt a multi-layered
+ * approach: for any potentially-bidi text, we use exact_textout(),
+ * and for everything else we use a simple ExtTextOut as we did
+ * before exact_textout() was introduced.
+ */
+static void general_textout(HDC hdc, int x, int y, CONST RECT *lprc,
+			    unsigned short *lpString, UINT cbCount,
+			    CONST INT *lpDx, int opaque)
+{
+    int i, j, xp, xn;
+    RECT newrc;
+
+#ifdef FIXME_REMOVE_BEFORE_CHECKIN
+int k;
+debug(("general_textout: %d,%d", x, y));
+for(k=0;k<cbCount;k++)debug((" U+%04X", lpString[k]));
+debug(("\n           rect: [%d,%d %d,%d]", lprc->left, lprc->top, lprc->right, lprc->bottom));
+debug(("\n"));
+#endif
+
+    xp = xn = x;
+
+    for (i = 0; i < cbCount ;) {
+	int rtl = is_rtl(lpString[i]);
+
+	xn += lpDx[i];
+
+	for (j = i+1; j < cbCount; j++) {
+	    if (rtl != is_rtl(lpString[j]))
+		break;
+	    xn += lpDx[j];
+	}
+
+	/*
+	 * Now [i,j) indicates a maximal substring of lpString
+	 * which should be displayed using the same textout
+	 * function.
+	 */
+	if (rtl) {
+	    newrc.left = lprc->left + xp - x;
+	    newrc.right = lprc->left + xn - x;
+	    newrc.top = lprc->top;
+	    newrc.bottom = lprc->bottom;
+#ifdef FIXME_REMOVE_BEFORE_CHECKIN
+{
+int k;
+debug(("  exact_textout: %d,%d", xp, y));
+for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
+debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
+}
+#endif
+	    exact_textout(hdc, xp, y, &newrc, lpString+i, j-i, lpDx+i, opaque);
+	} else {
+#ifdef FIXME_REMOVE_BEFORE_CHECKIN
+{
+int k;
+debug(("  ExtTextOut   : %d,%d", xp, y));
+for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
+debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
+}
+#endif
+	    newrc.left = lprc->left + xp - x;
+	    newrc.right = lprc->left + xn - x;
+	    newrc.top = lprc->top;
+	    newrc.bottom = lprc->bottom;
+	    ExtTextOutW(hdc, xp, y, ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
+			&newrc, lpString+i, j-i, lpDx+i);
+	}
+
+	i = j;
+	xp = xn;
+    }
+
+#ifdef FIXME_REMOVE_BEFORE_CHECKIN
+debug(("general_textout: done, xn=%d\n", xn));
+#endif
+    assert(xn - x == lprc->right - lprc->left);
+}
+
+/*
  * Initialise all the fonts we will need initially. There may be as many as
  * three or as few as one.  The other (poentially) twentyone fonts are done
  * if/when they are needed.
@@ -3295,12 +3378,8 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	    wbuf[i] = text[i];
 
 	/* print Glyphs as they are, without Windows' Shaping*/
-	exact_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		      &line_box, wbuf, len, IpDx, !(attr & TATTR_COMBINING));
-/*	ExtTextOutW(hdc, x,
-		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		    ETO_CLIPPED | ETO_OPAQUE, &line_box, wbuf, len, IpDx);
- */
+	general_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
+			&line_box, wbuf, len, IpDx, !(attr & TATTR_COMBINING));
 
 	/* And the shadow bold hack. */
 	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
