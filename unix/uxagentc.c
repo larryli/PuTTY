@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <fcntl.h>
 
 #include "putty.h"
 #include "misc.h"
@@ -120,6 +121,8 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 	perror("socket(PF_UNIX)");
 	exit(1);
     }
+
+    fcntl(sock, F_SETFD, FD_CLOEXEC);
 
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, name, sizeof(addr.sun_path));

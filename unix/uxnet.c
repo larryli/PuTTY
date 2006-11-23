@@ -470,6 +470,8 @@ static int try_connect(Actual_Socket sock)
 	goto ret;
     }
 
+    fcntl(s, F_SETFD, FD_CLOEXEC);
+
     if (sock->oobinline) {
 	int b = TRUE;
 	setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (void *) &b, sizeof(b));
@@ -722,6 +724,8 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 	ret->error = strerror(errno);
 	return (Socket) ret;
     }
+
+    fcntl(s, F_SETFD, FD_CLOEXEC);
 
     ret->oobinline = 0;
 

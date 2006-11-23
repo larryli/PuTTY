@@ -275,8 +275,10 @@ static void fatal_sig_handler(int signum)
 
 static int pty_open_slave(Pty pty)
 {
-    if (pty->slave_fd < 0)
+    if (pty->slave_fd < 0) {
 	pty->slave_fd = open(pty->name, O_RDWR);
+        fcntl(pty->slave_fd, F_SETFD, FD_CLOEXEC);
+    }
 
     return pty->slave_fd;
 }
@@ -306,6 +308,8 @@ static void pty_open_master(Pty pty)
 		     */
 		    strcpy(pty->name, master_name);
 		    pty->name[5] = 't'; /* /dev/ptyXX -> /dev/ttyXX */
+
+                    fcntl(pty->master_fd, F_SETFD, FD_CLOEXEC);
 
 		    if (pty_open_slave(pty) >= 0 &&
 			access(pty->name, R_OK | W_OK) == 0)
@@ -345,6 +349,8 @@ static void pty_open_master(Pty pty)
 	perror("unlockpt");
 	exit(1);
     }
+
+    fcntl(pty->master_fd, F_SETFD, FD_CLOEXEC);
 
     pty->name[FILENAME_MAX-1] = '\0';
     strncpy(pty->name, ptsname(pty->master_fd), FILENAME_MAX-1);
