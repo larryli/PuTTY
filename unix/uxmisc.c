@@ -2,6 +2,7 @@
  * PuTTY miscellaneous Unix stuff
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -120,4 +121,15 @@ void pgp_fingerprints(void)
 	  "  " PGP_RSA_MASTER_KEY_FP "\n"
 	  "PuTTY Master Key (DSA), 1024-bit:\n"
 	  "  " PGP_DSA_MASTER_KEY_FP "\n", stdout);
+}
+
+/*
+ * Set FD_CLOEXEC on a file descriptor
+ */
+int cloexec(int fd) {
+    int fdflags;
+
+    fdflags = fcntl(fd, F_GETFD);
+    if (fdflags == -1) return -1;
+    return fcntl(fd, F_SETFD, fdflags | FD_CLOEXEC);
 }

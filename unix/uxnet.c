@@ -470,7 +470,7 @@ static int try_connect(Actual_Socket sock)
 	goto ret;
     }
 
-    fcntl(s, F_SETFD, FD_CLOEXEC);
+    cloexec(s);
 
     if (sock->oobinline) {
 	int b = TRUE;
@@ -725,7 +725,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 	return (Socket) ret;
     }
 
-    fcntl(s, F_SETFD, FD_CLOEXEC);
+    cloexec(s);
 
     ret->oobinline = 0;
 

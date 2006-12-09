@@ -122,7 +122,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 	exit(1);
     }
 
-    fcntl(sock, F_SETFD, FD_CLOEXEC);
+    cloexec(sock);
 
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, name, sizeof(addr.sun_path));

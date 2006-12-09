@@ -257,7 +257,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     if (serial->fd < 0)
 	return "Unable to open serial port";
 
-    fcntl(serial->fd, F_SETFD, FD_CLOEXEC);
+    cloexec(serial->fd);
 
     err = serial_configure(serial, cfg);
     if (err)

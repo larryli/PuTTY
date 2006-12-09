@@ -128,6 +128,9 @@ void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
 void (*putty_signal(int sig, void (*func)(int)))(int);
 void block_signal(int sig, int block_it);
 
+/* uxmisc.c */
+int cloexec(int);
+
 /*
  * Exports from unicode.c.
  */
