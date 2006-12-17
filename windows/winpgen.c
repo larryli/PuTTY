@@ -800,7 +800,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-        if (help_path)
+        if (has_help())
             SetWindowLongPtr(hwnd, GWL_EXSTYLE,
 			     GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
 			     WS_EX_CONTEXTHELP);
@@ -810,7 +810,6 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
              * if the help file isn't present.
              */
         }
-        requested_help = FALSE;
 	SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
 		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(200)));
 
@@ -856,7 +855,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");
-	    if (help_path)
+	    if (has_help())
 		AppendMenu(menu1, MF_ENABLED, IDC_GIVEHELP, "&Help");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Help");
 
@@ -1036,11 +1035,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	  case IDC_GIVEHELP:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
-                if (help_path) {
-                    WinHelp(hwnd, help_path, HELP_COMMAND,
-                            (DWORD)"JI(`',`puttygen.general')");
-                    requested_help = TRUE;
-                }
+		launch_help(hwnd, WINHELP_CTX_puttygen_general);
             }
 	    return 0;
 	  case IDC_GENERATE:
@@ -1331,7 +1326,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	ui_set_state(hwnd, state, 2);
 	break;
       case WM_HELP:
-        if (help_path) {
+        {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
             char *topic = NULL;
             switch (id) {
@@ -1339,47 +1334,44 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
               case IDC_PROGRESS:
               case IDC_GENSTATIC:
               case IDC_GENERATE:
-                topic = "puttygen.generate"; break;
+                topic = WINHELP_CTX_puttygen_generate; break;
               case IDC_PKSTATIC:
               case IDC_KEYDISPLAY:
-                topic = "puttygen.pastekey"; break;
+                topic = WINHELP_CTX_puttygen_pastekey; break;
               case IDC_FPSTATIC:
               case IDC_FINGERPRINT:
-                topic = "puttygen.fingerprint"; break;
+                topic = WINHELP_CTX_puttygen_fingerprint; break;
               case IDC_COMMENTSTATIC:
               case IDC_COMMENTEDIT:
-                topic = "puttygen.comment"; break;
+                topic = WINHELP_CTX_puttygen_comment; break;
               case IDC_PASSPHRASE1STATIC:
               case IDC_PASSPHRASE1EDIT:
               case IDC_PASSPHRASE2STATIC:
               case IDC_PASSPHRASE2EDIT:
-                topic = "puttygen.passphrase"; break;
+                topic = WINHELP_CTX_puttygen_passphrase; break;
               case IDC_LOADSTATIC:
               case IDC_LOAD:
-                topic = "puttygen.load"; break;
+                topic = WINHELP_CTX_puttygen_load; break;
               case IDC_SAVESTATIC:
               case IDC_SAVE:
-                topic = "puttygen.savepriv"; break;
+                topic = WINHELP_CTX_puttygen_savepriv; break;
               case IDC_SAVEPUB:
-                topic = "puttygen.savepub"; break;
+                topic = WINHELP_CTX_puttygen_savepub; break;
               case IDC_TYPESTATIC:
               case IDC_KEYSSH1:
               case IDC_KEYSSH2RSA:
               case IDC_KEYSSH2DSA:
-                topic = "puttygen.keytype"; break;
+                topic = WINHELP_CTX_puttygen_keytype; break;
               case IDC_BITSSTATIC:
               case IDC_BITS:
-                topic = "puttygen.bits"; break;
+                topic = WINHELP_CTX_puttygen_bits; break;
               case IDC_IMPORT:
               case IDC_EXPORT_OPENSSH:
               case IDC_EXPORT_SSHCOM:
-                topic = "puttygen.conversions"; break;
+                topic = WINHELP_CTX_puttygen_conversions; break;
             }
             if (topic) {
-		char *cmd = dupprintf("JI(`',`%s')", topic);
-                WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
-		sfree(cmd);
-                requested_help = TRUE;
+                launch_help(hwnd, topic);
             } else {
                 MessageBeep(0);
             }
@@ -1388,22 +1380,24 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_CLOSE:
 	state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	sfree(state);
-        if (requested_help) {
-            WinHelp(hwnd, help_path, HELP_QUIT, 0);
-            requested_help = FALSE;
-        }
+	quit_help(hwnd);
 	EndDialog(hwnd, 1);
 	return 0;
     }
     return 0;
 }
 
-void cleanup_exit(int code) { exit(code); }
+void cleanup_exit(int code)
+{
+    shutdown_help();
+    exit(code);
+}
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     int argc;
     char **argv;
+    int ret;
 
     InitCommonControls();
     hinst = inst;
@@ -1412,22 +1406,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * See if we can find our Help file.
      */
-    {
-        char b[2048], *p, *q, *r;
-        FILE *fp;
-        GetModuleFileName(NULL, b, sizeof(b) - 1);
-        r = b;
-        p = strrchr(b, '\\');
-        if (p && p >= r) r = p+1;
-        q = strrchr(b, ':');
-        if (q && q >= r) r = q+1;
-        strcpy(r, PUTTY_HELP_FILE);
-        if ( (fp = fopen(b, "r")) != NULL) {
-            help_path = dupstr(b);
-            fclose(fp);
-        } else
-            help_path = NULL;
-    }
+    init_help();
 
     split_into_argv(cmdline, &argc, &argv, NULL);
 
@@ -1445,6 +1424,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     random_ref();
-    return DialogBox(hinst, MAKEINTRESOURCE(201), NULL,
-		     MainDlgProc) != IDOK;
+    ret = DialogBox(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc) != IDOK;
+
+    cleanup_exit(ret);
+    return ret;			       /* just in case optimiser complains */
 }

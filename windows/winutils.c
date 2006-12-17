@@ -94,28 +94,20 @@ void filereq_free(filereq *state)
 /* Callback function to launch context help. */
 static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
 {
-    if (help_path) {
-	char *context = NULL;
+    char *context = NULL;
 #define CHECK_CTX(name) \
-	do { \
-	    if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
-		context = WINHELP_CTX_ ## name; \
-	} while (0)
-	CHECK_CTX(errors_hostkey_absent);
-	CHECK_CTX(errors_hostkey_changed);
-	CHECK_CTX(errors_cantloadkey);
-	CHECK_CTX(option_cleanup);
-	CHECK_CTX(pgp_fingerprints);
+    do { \
+	if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
+	    context = WINHELP_CTX_ ## name; \
+    } while (0)
+    CHECK_CTX(errors_hostkey_absent);
+    CHECK_CTX(errors_hostkey_changed);
+    CHECK_CTX(errors_cantloadkey);
+    CHECK_CTX(option_cleanup);
+    CHECK_CTX(pgp_fingerprints);
 #undef CHECK_CTX
-	if (context) {
-	    /* We avoid using malloc, in case we're in a situation where
-	     * it would be awkward to do so. */
-	    char cmd[WINHELP_CTX_MAXLEN+10];
-	    sprintf(cmd, "JI(`',`%.*s')", WINHELP_CTX_MAXLEN, context);
-	    WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
-	    requested_help = TRUE;
-	}
-    }
+    if (context)
+	launch_help(hwnd, context);
 }
 
 int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
@@ -136,7 +128,7 @@ int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
     mbox.lpszCaption = caption;
     mbox.dwContextHelpId = helpctxid;
     mbox.dwStyle = style;
-    if (helpctxid != 0 && help_path) mbox.dwStyle |= MB_HELP;
+    if (helpctxid != 0 && has_help()) mbox.dwStyle |= MB_HELP;
     return MessageBoxIndirect(&mbox);
 }
 

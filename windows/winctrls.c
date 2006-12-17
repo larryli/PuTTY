@@ -2005,7 +2005,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 
 /*
  * This function can be called to produce context help on a
- * control. Returns TRUE if it has actually launched WinHelp.
+ * control. Returns TRUE if it has actually launched some help.
  */
 int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
 {
@@ -2032,9 +2032,7 @@ int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
     if (!c->ctrl || !c->ctrl->generic.helpctx.p)
 	return 0;		       /* no help available for this ctrl */
 
-    cmd = dupprintf("JI(`',`%s')", c->ctrl->generic.helpctx.p);
-    WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
-    sfree(cmd);
+    launch_help(hwnd, c->ctrl->generic.helpctx.p);
     return 1;
 }
 

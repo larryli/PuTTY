@@ -220,7 +220,7 @@ TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
-         + winutils wincfg sercfg
+         + winutils wincfg sercfg winhelp
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing
@@ -255,7 +255,7 @@ CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
 
 # Standard libraries.
 LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib
-         + shell32.lib winmm.lib imm32.lib winspool.lib
+         + shell32.lib winmm.lib imm32.lib winspool.lib htmlhelp.lib
 
 # Network backend sets. This also brings in the relevant attachment
 # to proxy.c depending on whether we're crypto-avoidant or not.
@@ -287,12 +287,12 @@ psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
 
 pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
          + misc sshaes sshsha winpgntc sshdss sshsh512 winutils winmisc
-         + pageant.res LIBS
+         + winhelp pageant.res LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh512 import winutils puttygen.res tree234
-	 + notiming LIBS wintime
+	 + notiming winhelp LIBS wintime
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time

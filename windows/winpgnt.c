@@ -1470,7 +1470,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
 	}
 
-        if (help_path)
+        if (has_help())
             SetWindowLongPtr(hwnd, GWL_EXSTYLE,
 			     GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
 			     WS_EX_CONTEXTHELP);
@@ -1479,7 +1479,6 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
             if (item)
                 DestroyWindow(item);
         }
-        requested_help = FALSE;
 
 	keylist = hwnd;
 	{
@@ -1572,29 +1571,22 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	  case 103:		       /* help */
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
-                if (help_path) {
-                    WinHelp(hwnd, help_path, HELP_COMMAND,
-                            (DWORD)"JI(`',`pageant.general')");
-                    requested_help = TRUE;
-                }
+		launch_help(hwnd, WINHELP_CTX_pageant_general);
             }
 	    return 0;
 	}
 	return 0;
       case WM_HELP:
-        if (help_path) {
+        {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
             char *topic = NULL;
             switch (id) {
-              case 100: topic = "pageant.keylist"; break;
-              case 101: topic = "pageant.addkey"; break;
-              case 102: topic = "pageant.remkey"; break;
+              case 100: topic = WINHELP_CTX_pageant_keylist; break;
+              case 101: topic = WINHELP_CTX_pageant_addkey; break;
+              case 102: topic = WINHELP_CTX_pageant_remkey; break;
             }
             if (topic) {
-		char *cmd = dupprintf("JI(`',`%s')", topic);
-                WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
-		sfree(cmd);
-                requested_help = TRUE;
+		launch_help(hwnd, topic);
             } else {
                 MessageBeep(0);
             }
@@ -1788,11 +1780,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_HELP:
-            if (help_path) {
-                WinHelp(hwnd, help_path, HELP_COMMAND,
-                        (DWORD)"JI(`',`pageant.general')");
-                requested_help = TRUE;
-            }
+	    launch_help(hwnd, WINHELP_CTX_pageant_general);
 	    break;
 	  default:
 	    {
@@ -1819,10 +1807,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	break;
       case WM_DESTROY:
-        if (requested_help) {
-            WinHelp(hwnd, help_path, HELP_QUIT, 0);
-            requested_help = FALSE;
-        }
+	quit_help(hwnd);
 	PostQuitMessage(0);
 	return 0;
       case WM_COPYDATA:
@@ -1948,7 +1933,11 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
     assert(!"We shouldn't get here");
 }
 
-void cleanup_exit(int code) { exit(code); }
+void cleanup_exit(int code)
+{
+    shutdown_help();
+    exit(code);
+}
 
 int flags = FLAG_SYNCAGENT;
 
@@ -2006,22 +1995,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * See if we can find our Help file.
      */
-    {
-        char b[2048], *p, *q, *r;
-        FILE *fp;
-        GetModuleFileName(NULL, b, sizeof(b) - 1);
-        r = b;
-        p = strrchr(b, '\\');
-        if (p && p >= r) r = p+1;
-        q = strrchr(b, ':');
-        if (q && q >= r) r = q+1;
-        strcpy(r, PUTTY_HELP_FILE);
-        if ( (fp = fopen(b, "r")) != NULL) {
-            help_path = dupstr(b);
-            fclose(fp);
-        } else
-            help_path = NULL;
-    }
+    init_help();
 
     /*
      * Look for the PuTTY binary (we will enable the saved session
@@ -2161,7 +2135,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	   "&View Keys");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    if (help_path)
+    if (has_help())
 	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
@@ -2201,5 +2175,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     if (advapi)
 	FreeLibrary(advapi);
-    return msg.wParam;
+
+    cleanup_exit(msg.wParam);
+    return msg.wParam;		       /* just in case optimiser complains */
 }

@@ -345,31 +345,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	 osVersion.dwPlatformId != VER_PLATFORM_WIN32_NT))
 	wm_mousewheel = RegisterWindowMessage("MSWHEEL_ROLLMSG");
 
-    /*
-     * See if we can find our Help file.
-     */
-    {
-        char b[2048], *p, *q, *r;
-        FILE *fp;
-        GetModuleFileName(NULL, b, sizeof(b) - 1);
-        r = b;
-        p = strrchr(b, '\\');
-        if (p && p >= r) r = p+1;
-        q = strrchr(b, ':');
-        if (q && q >= r) r = q+1;
-        strcpy(r, PUTTY_HELP_FILE);
-        if ( (fp = fopen(b, "r")) != NULL) {
-            help_path = dupstr(b);
-            fclose(fp);
-        } else
-            help_path = NULL;
-        strcpy(r, PUTTY_HELP_CONTENTS);
-        if ( (fp = fopen(b, "r")) != NULL) {
-            help_has_contents = TRUE;
-            fclose(fp);
-        } else
-            help_has_contents = FALSE;
-    }
+    init_help();
 
     /*
      * Process the command line.
@@ -787,7 +763,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
 		       MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    if (help_path)
+	    if (has_help())
 		AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
 	    str = dupprintf("&About %s", appname);
 	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
@@ -884,6 +860,7 @@ void cleanup_exit(int code)
 	crypto_wrapup();
 #endif
     }
+    shutdown_help();
 
     exit(code);
 }
@@ -2276,8 +2253,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    showabout(hwnd);
 	    break;
 	  case IDM_HELP:
-	    WinHelp(hwnd, help_path,
-                    help_has_contents ? HELP_FINDER : HELP_CONTENTS, 0);
+	    launch_help(hwnd, NULL);
 	    break;
 	  case SC_MOUSEMENU:
 	    /*

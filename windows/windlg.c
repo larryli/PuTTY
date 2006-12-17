@@ -380,7 +380,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	create_controls(hwnd, "");     /* Open and Cancel buttons etc */
 	SetWindowText(hwnd, dp.wintitle);
 	SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
-        if (help_path)
+        if (has_help())
             SetWindowLongPtr(hwnd, GWL_EXSTYLE,
 			     GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
 			     WS_EX_CONTEXTHELP);
@@ -389,7 +389,6 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
             if (item)
                 DestroyWindow(item);
         }
-        requested_help = FALSE;
 	SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
 		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
 	/*
@@ -586,19 +585,12 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    ret = 0;
 	return ret;
       case WM_HELP:
-        if (help_path) {
-	    if (winctrl_context_help(&dp, hwnd,
-				     ((LPHELPINFO)lParam)->iCtrlId))
-                requested_help = TRUE;
-	    else
-                MessageBeep(0);
-        }
+	if (!winctrl_context_help(&dp, hwnd,
+				 ((LPHELPINFO)lParam)->iCtrlId))
+	    MessageBeep(0);
         break;
       case WM_CLOSE:
-        if (requested_help) {
-            WinHelp(hwnd, help_path, HELP_QUIT, 0);
-            requested_help = FALSE;
-        }
+	quit_help(hwnd);
 	SaneEndDialog(hwnd, 0);
 	return 0;
 
@@ -622,12 +614,7 @@ void modal_about_box(HWND hwnd)
 
 void show_help(HWND hwnd)
 {
-    if (help_path) {
-	WinHelp(hwnd, help_path,
-		help_has_contents ? HELP_FINDER : HELP_CONTENTS,
-		0);
-	requested_help = TRUE;
-    }
+    launch_help(hwnd, NULL);
 }
 
 void defuse_showwindow(void)
@@ -653,7 +640,7 @@ int do_config(void)
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, FALSE, 0, 0);
-    win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), FALSE, 0);
+    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), FALSE, 0);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
@@ -685,7 +672,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, TRUE, cfg.protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, (help_path != NULL), TRUE,
+    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), TRUE,
                          cfg.protocol);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
