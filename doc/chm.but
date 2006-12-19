@@ -16,4 +16,8 @@
 \cfg{html-mshtmlhelp-contents}{putty.hhc}
 \cfg{html-mshtmlhelp-index}{putty.hhk}
 
+\cfg{html-body-end}{}
+
+\cfg{html-head-end}{<link rel="stylesheet" type="text/css" href="chm.css">}
+
 \versionid $Id$
