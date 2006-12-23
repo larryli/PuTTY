@@ -115,7 +115,7 @@ static int cmpforsearch(void *av, void *bv)
     typedef rettype (WINAPI *t_##name) params; \
     linkage t_##name p_##name
 #define GET_WINSOCK_FUNCTION(module, name) \
-    p_##name = (t_##name) GetProcAddress(module, #name)
+    p_##name = module ? (t_##name) GetProcAddress(module, #name) : NULL
 
 DECL_WINSOCK_FUNCTION(NOTHING, int, WSAAsyncSelect,
 		      (SOCKET, HWND, u_int, long));
@@ -166,34 +166,84 @@ DECL_WINSOCK_FUNCTION(static, int, getnameinfo,
 		      (const struct sockaddr FAR * sa, socklen_t salen,
 		       char FAR * host, size_t hostlen, char FAR * serv,
 		       size_t servlen, int flags));
+DECL_WINSOCK_FUNCTION(static, char *, gai_strerror, (int ecode));
+DECL_WINSOCK_FUNCTION(static, int, WSAAddressToStringA,
+		      (LPSOCKADDR, DWORD, LPWSAPROTOCOL_INFO,
+		       LPTSTR, LPDWORD));
 #endif
 
-static HMODULE winsock_module;
+static HMODULE winsock_module = NULL;
+static WSADATA wsadata;
 #ifndef NO_IPV6
-static HMODULE wship6_module;
+static HMODULE winsock2_module = NULL;
+static HMODULE wship6_module = NULL;
 #endif
+
+int sk_startup(int hi, int lo)
+{
+    WORD winsock_ver;
+
+    winsock_ver = MAKEWORD(hi, lo);
+
+    if (p_WSAStartup(winsock_ver, &wsadata)) {
+	return FALSE;
+    }
+
+    if (LOBYTE(wsadata.wVersion) != LOBYTE(winsock_ver)) {
+	return FALSE;
+    }
+
+#ifdef NET_SETUP_DIAGNOSTICS
+    {
+	char buf[80];
+	sprintf(buf, "Using WinSock %d.%d", hi, lo);
+	logevent(NULL, buf);
+    }
+#endif
+    return TRUE;
+}
 
 void sk_init(void)
 {
-    WORD winsock_ver;
-    WSADATA wsadata;
-
-    winsock_ver = MAKEWORD(2, 0);
-    winsock_module = LoadLibrary("WS2_32.DLL");
+    winsock2_module = winsock_module = LoadLibrary("WS2_32.DLL");
     if (!winsock_module) {
 	winsock_module = LoadLibrary("WSOCK32.DLL");
-	winsock_ver = MAKEWORD(1, 1);
     }
     if (!winsock_module)
 	fatalbox("Unable to load any WinSock library");
 
 #ifndef NO_IPV6
-    wship6_module = LoadLibrary("wship6.dll");
-    if (wship6_module) {
-	GET_WINSOCK_FUNCTION(wship6_module, getaddrinfo);
-	GET_WINSOCK_FUNCTION(wship6_module, freeaddrinfo);
-	GET_WINSOCK_FUNCTION(wship6_module, getnameinfo);
+    /* Check if we have getaddrinfo in Winsock */
+    if (GetProcAddress(winsock_module, "getaddrinfo") != NULL) {
+#ifdef NET_SETUP_DIAGNOSTICS
+	logevent(NULL, "Native WinSock IPv6 support detected");
+#endif
+	GET_WINSOCK_FUNCTION(winsock_module, getaddrinfo);
+	GET_WINSOCK_FUNCTION(winsock_module, freeaddrinfo);
+	GET_WINSOCK_FUNCTION(winsock_module, getnameinfo);
+	GET_WINSOCK_FUNCTION(winsock_module, gai_strerror);
+    } else {
+	/* Fall back to wship6.dll for Windows 2000 */
+	wship6_module = LoadLibrary("wship6.dll");
+	if (wship6_module) {
+#ifdef NET_SETUP_DIAGNOSTICS
+	    logevent(NULL, "WSH IPv6 support detected");
+#endif
+	    GET_WINSOCK_FUNCTION(wship6_module, getaddrinfo);
+	    GET_WINSOCK_FUNCTION(wship6_module, freeaddrinfo);
+	    GET_WINSOCK_FUNCTION(wship6_module, getnameinfo);
+	    GET_WINSOCK_FUNCTION(wship6_module, gai_strerror);
+	} else {
+#ifdef NET_SETUP_DIAGNOSTICS
+	    logevent(NULL, "No IPv6 support detected");
+#endif
+	}
     }
+    GET_WINSOCK_FUNCTION(winsock2_module, WSAAddressToStringA);
+#else
+#ifdef NET_SETUP_DIAGNOSTICS
+    logevent(NULL, "PuTTY was built without IPv6 support");
+#endif
 #endif
 
     GET_WINSOCK_FUNCTION(winsock_module, WSAAsyncSelect);
@@ -223,13 +273,11 @@ void sk_init(void)
     GET_WINSOCK_FUNCTION(winsock_module, recv);
     GET_WINSOCK_FUNCTION(winsock_module, WSAIoctl);
 
-    if (p_WSAStartup(winsock_ver, &wsadata)) {
+    /* Try to get the best WinSock version we can get */
+    if (!sk_startup(2,2) &&
+	!sk_startup(2,0) &&
+	!sk_startup(1,1)) {
 	fatalbox("Unable to initialise WinSock");
-    }
-    if (LOBYTE(wsadata.wVersion) != LOBYTE(winsock_ver)) {
-        p_WSACleanup();
-	fatalbox("WinSock version is incompatible with %d.%d",
-		 LOBYTE(winsock_ver), HIBYTE(winsock_ver));
     }
 
     sktree = newtree234(cmpfortree);
@@ -367,6 +415,9 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	 */
 	if (p_getaddrinfo) {
 	    struct addrinfo hints;
+#ifdef NET_SETUP_DIAGNOSTICS
+	    logevent(NULL, "Using getaddrinfo() for resolving");
+#endif
 	    memset(&hints, 0, sizeof(hints));
 	    hints.ai_family = ret->family;
 	    hints.ai_flags = AI_CANONNAME;
@@ -376,6 +427,9 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	} else
 #endif
 	{
+#ifdef NET_SETUP_DIAGNOSTICS
+	    logevent(NULL, "Using gethostbyname() for resolving");
+#endif
 	    /*
 	     * Otherwise use the IPv4-only gethostbyname...
 	     * (NOTE: we don't use gethostbyname as a fallback!)
@@ -391,7 +445,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 			  err == WSAHOST_NOT_FOUND ? "Host does not exist" :
 			  err == WSATRY_AGAIN ? "Host not found" :
 #ifndef NO_IPV6
-			  p_getaddrinfo ? "getaddrinfo: unknown error" :
+			  p_getaddrinfo&&p_gai_strerror ? p_gai_strerror(err) :
 #endif
 			  "gethostbyname: unknown error");
 	} else {
@@ -488,28 +542,11 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
 #ifndef NO_IPV6
     if (addr->ai) {
-	/* Try to get the WSAAddressToStringA() function from wship6.dll */
-	/* This way one doesn't need to have IPv6 dll's to use PuTTY and
-	 * it will fallback to IPv4. */
-	typedef int (CALLBACK * FADDRTOSTR) (LPSOCKADDR lpsaAddress,
-		DWORD dwAddressLength,
-		LPWSAPROTOCOL_INFO lpProtocolInfo,
-		OUT LPTSTR lpszAddressString,
-		IN OUT LPDWORD lpdwAddressStringLength
-	);
-	FADDRTOSTR fAddrToStr = NULL;
-
-	HINSTANCE dllWS2 = LoadLibrary("ws2_32.dll");
-	if (dllWS2) {
-	    fAddrToStr = (FADDRTOSTR)GetProcAddress(dllWS2,
-						    "WSAAddressToStringA");
-	    if (fAddrToStr) {
-		fAddrToStr(addr->ai->ai_addr, addr->ai->ai_addrlen,
-			   NULL, buf, &buflen);
-	    }
-	    else strncpy(buf, "IPv6", buflen);
-	    FreeLibrary(dllWS2);
-	}
+	if (p_WSAAddressToStringA) {
+	    p_WSAAddressToStringA(addr->ai->ai_addr, addr->ai->ai_addrlen,
+				  NULL, buf, &buflen);
+	} else
+	    strncpy(buf, "IPv6", buflen);
     } else
 #endif
     if (addr->family == AF_INET) {
@@ -837,6 +874,8 @@ static DWORD try_connect(Actual_Socket sock)
 	    a6.sin6_port = p_htons((short) sock->port);
 	    a6.sin6_addr =
 		((struct sockaddr_in6 *) sock->addr->ai->ai_addr)->sin6_addr;
+	    a6.sin6_flowinfo = ((struct sockaddr_in6 *) sock->addr->ai->ai_addr)->sin6_flowinfo;
+	    a6.sin6_scope_id = ((struct sockaddr_in6 *) sock->addr->ai->ai_addr)->sin6_scope_id;
 	} else {
 	    a.sin_family = AF_INET;
 	    a.sin_addr =

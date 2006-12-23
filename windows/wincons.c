@@ -294,8 +294,7 @@ void console_provide_logctx(void *logctx)
 
 void logevent(void *frontend, const char *string)
 {
-    if (console_logctx)
-	log_eventlog(console_logctx, string);
+    log_eventlog(console_logctx, string);
 }
 
 static void console_data_untrusted(HANDLE hout, const char *data, int len)

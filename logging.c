@@ -204,6 +204,9 @@ void log_eventlog(void *handle, const char *event)
 	fprintf(stderr, "%s\n", event);
 	fflush(stderr);
     }
+    /* If we don't have a context yet (eg winnet.c init) then skip entirely */
+    if (!ctx)
+	return;
     if (ctx->cfg.logtype != LGTYP_PACKETS &&
 	ctx->cfg.logtype != LGTYP_SSHRAW)
 	return;
