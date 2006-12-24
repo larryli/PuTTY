@@ -137,7 +137,13 @@ of the tag.
  - Run Halibut to build the docs. Define VERSION on the make command
    line to override the version strings, since Subversion revision
    numbers are less meaningful on a tag.
-    + make -C doc VERSION="PuTTY release 0.XX"
+    + change into the doc subdir
+    + run `make VERSION="PuTTY release 0.XX" chm', then run `hhc
+      putty.hhp' to build the .CHM
+    + then move the .CHM somewhere else so `make clean' doesn't blow
+      it away
+    + then run `make clean'
+    + then `make VERSION="PuTTY release 0.XX"'
 
  - Build the binary archives putty.zip (one for each architecture):
    each one just contains all the .exe files except PuTTYtel, and
@@ -222,6 +228,10 @@ of the tag.
      Download page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
+   + FOR NEXT RELEASE ONLY: update the docs page so that it links to
+     the release .chm as well as the release .hlp and .cnt. Remove
+     this checklist item after it's done; it won't need doing again
+     in the subsequent release.
 
  - Update the wishlist. This can be done without touching individual
    items by editing the @releases array in control/bugs2html.
