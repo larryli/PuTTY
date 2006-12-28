@@ -11,15 +11,19 @@
 
 #include "putty.h"
 
+#ifndef NO_HTMLHELP
 #include <htmlhelp.h>
+#endif /* NO_HTMLHELP */
 
-typedef HWND (CALLBACK *htmlhelp_t)(HWND, LPCSTR, UINT, DWORD);
-
-static char *help_path, *chm_path;
-static int help_has_contents;
 static int requested_help;
+static char *help_path;
+static int help_has_contents;
+#ifndef NO_HTMLHELP
+typedef HWND (CALLBACK *htmlhelp_t)(HWND, LPCSTR, UINT, DWORD);
+static char *chm_path;
 static DWORD html_help_cookie;
 static htmlhelp_t htmlhelp;
+#endif /* NO_HTMLHELP */
 
 void init_help(void)
 {
@@ -45,6 +49,7 @@ void init_help(void)
     } else
 	help_has_contents = FALSE;
 
+#ifndef NO_HTMLHELP
     strcpy(r, PUTTY_CHM_FILE);
     if ( (fp = fopen(b, "r")) != NULL) {
 	chm_path = dupstr(b);
@@ -63,12 +68,15 @@ void init_help(void)
 	else
 	    chm_path = NULL;
     }
+#endif /* NO_HTMLHELP */
 }
 
 void shutdown_help(void)
 {
+#ifndef NO_HTMLHELP
     if (chm_path)
 	htmlhelp(NULL, NULL, HH_UNINITIALIZE, html_help_cookie);
+#endif /* NO_HTMLHELP */
 }
 
 int has_help(void)
@@ -79,7 +87,11 @@ int has_help(void)
      * unrealistic, since even Vista will have it if the user
      * specifically downloads it.
      */
-    return (help_path || chm_path);
+    return (help_path
+#ifndef NO_HTMLHELP
+	    || chm_path
+#endif /* NO_HTMLHELP */
+	   );
 }
 
 void launch_help(HWND hwnd, const char *topic)
@@ -87,6 +99,7 @@ void launch_help(HWND hwnd, const char *topic)
     if (topic) {
 	int colonpos = strcspn(topic, ":");
 
+#ifndef NO_HTMLHELP
 	if (chm_path) {
 	    char *fname;
 	    assert(topic[colonpos] != '\0');
@@ -94,15 +107,20 @@ void launch_help(HWND hwnd, const char *topic)
 			      topic + colonpos + 1);
 	    htmlhelp(hwnd, fname, HH_DISPLAY_TOPIC, 0);
 	    sfree(fname);
-	} else if (help_path) {
+	} else
+#endif /* NO_HTMLHELP */
+	if (help_path) {
 	    char *cmd = dupprintf("JI(`',`%.*s')", colonpos, topic);
 	    WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
 	    sfree(cmd);
 	}
     } else {
+#ifndef NO_HTMLHELP
 	if (chm_path) {
 	    htmlhelp(hwnd, chm_path, HH_DISPLAY_TOPIC, 0);
-	} else if (help_path) {
+	} else
+#endif /* NO_HTMLHELP */
+	if (help_path) {
 	    WinHelp(hwnd, help_path,
 		    help_has_contents ? HELP_FINDER : HELP_CONTENTS, 0);
 	}
@@ -113,9 +131,12 @@ void launch_help(HWND hwnd, const char *topic)
 void quit_help(HWND hwnd)
 {
     if (requested_help) {
+#ifndef NO_HTMLHELP
 	if (chm_path) {
 	    htmlhelp(NULL, NULL, HH_CLOSE_ALL, 0);
-	} else if (help_path) {
+	} else
+#endif /* NO_HTMLHELP */
+	if (help_path) {
 	    WinHelp(hwnd, help_path, HELP_QUIT, 0);
 	}
 	requested_help = FALSE;

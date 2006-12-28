@@ -73,6 +73,16 @@
 #      build, since at the time of writing this <multimon.h> is
 #      known not to be available in Cygwin.
 #
+#  - COMPAT=/DNO_HTMLHELP (Windows only)
+#      Disables PuTTY's use of <htmlhelp.h>, which is not available
+#      with some development environments. The resulting binary
+#      will only look for an old-style WinHelp file (.HLP/.CNT), and
+#      will ignore any .CHM file.
+#
+#      Note that this definition is always enabled in the Cygwin
+#      build, since at the time of writing this <htmlhelp.h> is
+#      known not to be available in Cygwin.
+#
 #  - RCFL=/DNO_MANIFESTS (Windows only)
 #      Disables inclusion of XML application manifests in the PuTTY
 #      binaries. This may be necessary to build for 64-bit Windows;
@@ -158,7 +168,7 @@ version.o: FORCE
 RCFLAGS = $(RCFLAGS) $(VER)
 !end
 !begin cygwin vars
-# XXX GNU-ism, but it's probably all right for a Cygwin/MinGW Makfile.
+# XXX GNU-ism, but it's probably all right for a Cygwin/MinGW Makefile.
 RCFLAGS += $(patsubst -D%,--define %,$(VER))
 !end
 !begin borland vars
