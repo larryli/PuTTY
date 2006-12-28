@@ -255,7 +255,7 @@ CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
 
 # Standard libraries.
 LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib
-         + shell32.lib winmm.lib imm32.lib winspool.lib htmlhelp.lib
+         + shell32.lib winmm.lib imm32.lib winspool.lib
 
 # Network backend sets. This also brings in the relevant attachment
 # to proxy.c depending on whether we're crypto-avoidant or not.
