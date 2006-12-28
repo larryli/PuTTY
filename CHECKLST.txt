@@ -140,9 +140,8 @@ of the tag.
     + change into the doc subdir
     + run `make VERSION="PuTTY release 0.XX" chm', then run `hhc
       putty.hhp' to build the .CHM
-    + then move the .CHM somewhere else so `make clean' doesn't blow
-      it away
-    + then run `make clean'
+    + then run `make mostlyclean' (destroys the hhc input files but
+      _not_ the .CHM)
     + then `make VERSION="PuTTY release 0.XX"'
 
  - Build the binary archives putty.zip (one for each architecture):

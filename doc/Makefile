@@ -65,5 +65,7 @@ psftp.1: man-psft.but mancfg.but; $(MKMAN)
 puttytel.1: man-ptel.but mancfg.but; $(MKMAN)
 pterm.1: man-pter.but mancfg.but; $(MKMAN)
 
-clean:
-	rm -f *.html *.txt *.hlp *.cnt *.1 *.info vstr.but *.hh[pck] *.chm
+mostlyclean:
+	rm -f *.html *.txt *.hlp *.cnt *.1 *.info vstr.but *.hh[pck]
+clean: mostlyclean
+	rm -f *.chm
