@@ -48,6 +48,7 @@ Source: "pscp.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion re
 Source: "psftp.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
 Source: "plink.exe"; DestDir: "{app}"; Flags: promptifolder replacesameversion restartreplace uninsrestartdelete
 Source: "website.url"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
+Source: "..\doc\putty.chm"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
 Source: "..\doc\putty.hlp"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
 Source: "..\doc\putty.cnt"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
 Source: "..\LICENCE"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
@@ -55,7 +56,10 @@ Source: "..\README.txt"; DestDir: "{app}"; Flags: isreadme restartreplace uninsr
 
 [Icons]
 Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"
-Name: "{group}\PuTTY Manual"; Filename: "{app}\putty.hlp"
+; We have to fall back from the .chm to the older .hlp file on some Windows
+; versions.
+Name: "{group}\PuTTY Manual"; Filename: "{app}\putty.chm"; MinVersion: 4.1,5.0
+Name: "{group}\PuTTY Manual"; Filename: "{app}\putty.hlp"; OnlyBelowVersion: 4.1,5.0
 Name: "{group}\PuTTY Web Site"; Filename: "{app}\website.url"
 Name: "{group}\PSFTP"; Filename: "{app}\psftp.exe"
 Name: "{group}\PuTTYgen"; Filename: "{app}\puttygen.exe"
