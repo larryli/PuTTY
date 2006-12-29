@@ -22,7 +22,6 @@
 #include <X11/Xutil.h>
 
 #include "gtkcols.h"
-#include "gtkpanel.h"
 
 #ifdef TESTMODE
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
@@ -1741,7 +1740,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
 struct selparam {
     struct dlgparam *dp;
-    Panels *panels;
+    GtkNotebook *panels;
     GtkWidget *panel, *treeitem;
     struct Shortcuts shortcuts;
 };
@@ -1749,8 +1748,10 @@ struct selparam {
 static void treeitem_sel(GtkItem *item, gpointer data)
 {
     struct selparam *sp = (struct selparam *)data;
+    gint page_num;
 
-    panels_switch_to(sp->panels, sp->panel);
+    page_num = gtk_notebook_page_num(sp->panels, sp->panel);
+    gtk_notebook_set_page(sp->panels, page_num);
 
     dlg_refresh(NULL, sp->dp);
 
@@ -2090,7 +2091,9 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     gtk_widget_show(tree);
     gtk_widget_show(treescroll);
     gtk_box_pack_start(GTK_BOX(vbox), treescroll, TRUE, TRUE, 0);
-    panels = panels_new();
+    panels = gtk_notebook_new();
+    gtk_notebook_set_show_tabs(GTK_NOTEBOOK(panels), FALSE);
+    gtk_notebook_set_show_border(GTK_NOTEBOOK(panels), FALSE);
     gtk_box_pack_start(GTK_BOX(hbox), panels, TRUE, TRUE, 0);
     gtk_widget_show(panels);
 
@@ -2160,9 +2163,15 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		first = (panelvbox == NULL);
 
 		panelvbox = gtk_vbox_new(FALSE, 4);
-		gtk_container_add(GTK_CONTAINER(panels), panelvbox);
+		gtk_widget_show(panelvbox);
+		gtk_notebook_append_page(GTK_NOTEBOOK(panels), panelvbox,
+					 NULL);
 		if (first) {
-		    panels_switch_to(PANELS(panels), panelvbox);
+		    gint page_num;
+
+		    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(panels),
+						     panelvbox);
+		    gtk_notebook_set_page(GTK_NOTEBOOK(panels), page_num);
 		    gtk_tree_select_child(GTK_TREE(tree), treeitem);
 		}
 
@@ -2172,7 +2181,7 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 					struct selparam);
 		}
 		selparams[nselparams].dp = &dp;
-		selparams[nselparams].panels = PANELS(panels);
+		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
 		selparams[nselparams].panel = panelvbox;
 		selparams[nselparams].shortcuts = scs;   /* structure copy */
 		selparams[nselparams].treeitem = treeitem;
