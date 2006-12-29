@@ -180,20 +180,11 @@ char *dupcat(const char *s1, ...)
  * Do an sprintf(), but into a custom-allocated buffer.
  * 
  * Currently I'm doing this via vsnprintf. This has worked so far,
- * but it's not good, because:
- * 
- *  - vsnprintf is not available on all platforms. There's an ifdef
- *    to use `_vsnprintf', which seems to be the local name for it
- *    on Windows. Other platforms may lack it completely, in which
- *    case it'll be time to rewrite this function in a totally
- *    different way.
- * 
- *  - technically you can't reuse a va_list like this: it is left
- *    unspecified whether advancing a va_list pointer modifies its
- *    value or something it points to, so on some platforms calling
- *    vsnprintf twice on the same va_list might fail hideously. It
- *    would be better to use the `va_copy' macro mandated by C99,
- *    but that too is not yet ubiquitous.
+ * but it's not good, because vsnprintf is not available on all
+ * platforms. There's an ifdef to use `_vsnprintf', which seems
+ * to be the local name for it on Windows. Other platforms may
+ * lack it completely, in which case it'll be time to rewrite
+ * this function in a totally different way.
  * 
  * The only `properly' portable solution I can think of is to
  * implement my own format string scanner, which figures out an
@@ -241,7 +232,24 @@ char *dupvprintf(const char *fmt, va_list ap)
 #ifdef _WINDOWS
 #define vsnprintf _vsnprintf
 #endif
+#ifdef va_copy
+	/* Use the `va_copy' macro mandated by C99, if present.
+	 * XXX some environments may have this as __va_copy() */
+	va_list aq;
+	va_copy(aq, ap);
+	len = vsnprintf(buf, size, fmt, aq);
+	va_end(aq);
+#else
+	/* Ugh. No va_copy macro, so do something nasty.
+	 * Technically, you can't reuse a va_list like this: it is left
+	 * unspecified whether advancing a va_list pointer modifies its
+	 * value or something it points to, so on some platforms calling
+	 * vsnprintf twice on the same va_list might fail hideously
+	 * (indeed, it has been observed to).
+	 * XXX the autoconf manual suggests that using memcpy() will give
+	 *     "maximum portability". */
 	len = vsnprintf(buf, size, fmt, ap);
+#endif
 	if (len >= 0 && len < size) {
 	    /* This is the C99-specified criterion for snprintf to have
 	     * been completely successful. */
