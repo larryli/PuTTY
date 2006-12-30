@@ -2696,7 +2696,7 @@ void eventlog_selection_get(GtkWidget *widget, GtkSelectionData *seldata,
     struct eventlog_stuff *es = (struct eventlog_stuff *)data;
 
     gtk_selection_data_set(seldata, seldata->target, 8,
-                           es->seldata, es->sellen);
+                           (unsigned char *)es->seldata, es->sellen);
 }
 
 gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,

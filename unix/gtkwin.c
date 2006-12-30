@@ -1466,22 +1466,23 @@ void palette_reset(void *frontend)
  */
 void init_cutbuffers()
 {
+    unsigned char empty[] = "";
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, "", 0);
+		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
 }
 
 /* Store the data in a cut-buffer. */
@@ -1601,15 +1602,16 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
     struct gui_data *inst = (struct gui_data *)data;
     if (seldata->target == utf8_string_atom)
 	gtk_selection_data_set(seldata, seldata->target, 8,
-			       inst->pasteout_data_utf8,
+			       (unsigned char *)inst->pasteout_data_utf8,
 			       inst->pasteout_data_utf8_len);
     else if (seldata->target == compound_text_atom)
 	gtk_selection_data_set(seldata, seldata->target, 8,
-			       inst->pasteout_data_ctext,
+			       (unsigned char *)inst->pasteout_data_ctext,
 			       inst->pasteout_data_ctext_len);
     else
 	gtk_selection_data_set(seldata, seldata->target, 8,
-			       inst->pasteout_data, inst->pasteout_data_len);
+			       (unsigned char *)inst->pasteout_data,
+			       inst->pasteout_data_len);
 }
 
 gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
@@ -2488,15 +2490,16 @@ int do_cmdline(int argc, char **argv, int do_everything,
 	    cfg->line_codepage[sizeof(cfg->line_codepage)-1] = '\0';
 
 	} else if (!strcmp(p, "-geometry")) {
-	    int flags, x, y, w, h;
+	    int flags, x, y;
+	    unsigned int w, h;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
 
 	    flags = XParseGeometry(val, &x, &y, &w, &h);
 	    if (flags & WidthValue)
-		cfg->width = w;
+		cfg->width = (int)w;
 	    if (flags & HeightValue)
-		cfg->height = h;
+		cfg->height = (int)h;
 
             if (flags & (XValue | YValue)) {
                 inst->xpos = x;

@@ -868,9 +868,9 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     return ret;
 }
 
-char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
-			   int *pub_blob_len, char **commentptr,
-			   const char **errorstr)
+unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
+				    int *pub_blob_len, char **commentptr,
+				    const char **errorstr)
 {
     FILE *fp;
     char header[40], *b;
@@ -940,7 +940,7 @@ char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 	*pub_blob_len = public_blob_len;
     if (algorithm)
 	*algorithm = alg->name;
-    return (char *)public_blob;
+    return public_blob;
 
     /*
      * Error processing.

@@ -102,7 +102,7 @@ prompts_t *new_prompts(void *frontend)
 void add_prompt(prompts_t *p, char *promptstr, int echo, size_t len)
 {
     prompt_t *pr = snew(prompt_t);
-    unsigned char *result = snewn(len, unsigned char);
+    char *result = snewn(len, char);
     pr->prompt = promptstr;
     pr->echo = echo;
     pr->result = result;

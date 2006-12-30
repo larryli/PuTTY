@@ -233,7 +233,7 @@ static int move(char *from, char *to)
     return TRUE;
 }
 
-static char *blobfp(char *alg, int bits, char *blob, int bloblen)
+static char *blobfp(char *alg, int bits, unsigned char *blob, int bloblen)
 {
     char buffer[128];
     unsigned char digest[16];
@@ -270,7 +270,8 @@ int main(int argc, char **argv)
     int sshver = 0;
     struct ssh2_userkey *ssh2key = NULL;
     struct RSAKey *ssh1key = NULL;
-    char *ssh2blob = NULL, *ssh2alg = NULL;
+    unsigned char *ssh2blob = NULL;
+    char *ssh2alg = NULL;
     const struct ssh_signkey *ssh2algf = NULL;
     int ssh2bloblen;
     char *passphrase = NULL;
@@ -715,12 +716,12 @@ int main(int argc, char **argv)
 	    ssh1key = snew(struct RSAKey);
 	    if (!load_encrypted) {
 		void *vblob;
-		char *blob;
+		unsigned char *blob;
 		int n, l, bloblen;
 
 		ret = rsakey_pubblob(&infilename, &vblob, &bloblen,
 				     &origcomment, &error);
-		blob = (char *)vblob;
+		blob = (unsigned char *)vblob;
 
 		n = 4;		       /* skip modulus bits */
 		

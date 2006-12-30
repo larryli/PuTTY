@@ -1489,6 +1489,7 @@ static struct Packet *construct_packet(Ssh ssh, int pkttype, va_list ap)
 
     while ((argtype = va_arg(ap, int)) != PKT_END) {
 	unsigned char *argp, argchar;
+	char *sargp;
 	unsigned long argint;
 	int arglen;
 	switch (argtype) {
@@ -1507,8 +1508,8 @@ static struct Packet *construct_packet(Ssh ssh, int pkttype, va_list ap)
 	    ssh_pkt_adddata(pkt, argp, arglen);
 	    break;
 	  case PKT_STR:
-	    argp = va_arg(ap, unsigned char *);
-	    ssh_pkt_addstring(pkt, argp);
+	    sargp = va_arg(ap, char *);
+	    ssh_pkt_addstring(pkt, sargp);
 	    break;
 	  case PKT_BIGNUM:
 	    bn = va_arg(ap, Bignum);
@@ -1654,7 +1655,7 @@ static void ssh_pkt_addstring(struct Packet *pkt, char *data)
 static void ssh1_pkt_addmp(struct Packet *pkt, Bignum b)
 {
     int len = ssh1_bignum_length(b);
-    unsigned char *data = snewn(len, char);
+    unsigned char *data = snewn(len, unsigned char);
     (void) ssh1_write_bignum(data, b);
     ssh_pkt_adddata(pkt, data, len);
     sfree(data);
