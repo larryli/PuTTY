@@ -882,7 +882,7 @@ commands from the server. If you find PuTTY is doing this
 unexpectedly or inconveniently, you can tell PuTTY not to respond to
 those server commands.
 
-\S{config-features-qtitle} Disabling remote \i{window title} querying
+\S{config-features-qtitle} Response to remote \i{window title} querying
 
 \cfg{winhelp-topic}{features.qtitle}
 
@@ -899,8 +899,28 @@ service to have the new window title sent back to the server as if
 typed at the keyboard. This allows an attacker to fake keypresses
 and potentially cause your server-side applications to do things you
 didn't want. Therefore this feature is disabled by default, and we
-recommend you do not turn it on unless you \e{really} know what you
-are doing.
+recommend you do not set it to \q{Window title} unless you \e{really}
+know what you are doing.
+
+There are three settings for this option:
+
+\dt \q{None}
+
+\dd PuTTY makes no response whatsoever to the relevant escape
+sequence. This may upset server-side software that is expecting some
+sort of response.
+
+\dt \q{Empty string}
+
+\dd PuTTY makes a well-formed response, but leaves it blank. Thus,
+server-side software that expects a response is kept happy, but an
+attacker cannot influence the response string. This is probably the
+setting you want if you have no better ideas.
+
+\dt \q{Window title}
+
+\dd PuTTY responds with the actual window title. This is dangerous for
+the reasons described above.
 
 \S{config-features-dbackspace} Disabling \i{destructive backspace}
 

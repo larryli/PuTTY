@@ -1363,9 +1363,13 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  HELPCTX(features_retitle),
 		  dlg_stdcheckbox_handler,
 		  I(offsetof(Config,no_remote_wintitle)));
-    ctrl_checkbox(s, "Disable remote window title querying (SECURITY)",
-		  'q', HELPCTX(features_qtitle), dlg_stdcheckbox_handler,
-		  I(offsetof(Config,no_remote_qtitle)));
+    ctrl_radiobuttons(s, "Response to remote title query (SECURITY):", 'q', 3,
+		      HELPCTX(features_qtitle),
+		      dlg_stdradiobutton_handler,
+		      I(offsetof(Config,remote_qtitle_action)),
+		      "None", I(TITLE_NONE),
+		      "Empty string", I(TITLE_EMPTY),
+		      "Window title", I(TITLE_REAL), NULL);
     ctrl_checkbox(s, "Disable destructive backspace on server sending ^?",'b',
 		  HELPCTX(features_dbackspace),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,no_dbackspace)));

@@ -65,6 +65,8 @@
 
 #define has_compat(x) ( ((CL_##x)&term->compatibility_level) != 0 )
 
+char *EMPTY_WINDOW_TITLE = "";
+
 const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
@@ -3791,8 +3793,11 @@ static void term_out(Terminal *term)
 				break;
 			      case 20:
 				if (term->ldisc &&
-				    !term->cfg.no_remote_qtitle) {
-				    p = get_window_title(term->frontend, TRUE);
+				    term->cfg.remote_qtitle_action != TITLE_NONE) {
+				    if(term->cfg.remote_qtitle_action == TITLE_REAL)
+					p = get_window_title(term->frontend, TRUE);
+				    else
+					p = EMPTY_WINDOW_TITLE;
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]L", 3, 0);
 				    ldisc_send(term->ldisc, p, len, 0);
@@ -3801,8 +3806,11 @@ static void term_out(Terminal *term)
 				break;
 			      case 21:
 				if (term->ldisc &&
-				    !term->cfg.no_remote_qtitle) {
-				    p = get_window_title(term->frontend,FALSE);
+				    term->cfg.remote_qtitle_action != TITLE_NONE) {
+				    if(term->cfg.remote_qtitle_action == TITLE_REAL)
+					p = get_window_title(term->frontend, FALSE);
+				    else
+					p = EMPTY_WINDOW_TITLE;
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]l", 3, 0);
 				    ldisc_send(term->ldisc, p, len, 0);
