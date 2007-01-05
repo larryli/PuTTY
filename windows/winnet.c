@@ -205,7 +205,10 @@ int sk_startup(int hi, int lo)
 
 void sk_init(void)
 {
-    winsock2_module = winsock_module = LoadLibrary("WS2_32.DLL");
+#ifndef NO_IPV6
+    winsock2_module =
+#endif
+        winsock_module = LoadLibrary("WS2_32.DLL");
     if (!winsock_module) {
 	winsock_module = LoadLibrary("WSOCK32.DLL");
     }
