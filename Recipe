@@ -305,11 +305,12 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 	 + notiming winhelp LIBS wintime
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
-         + uxsignal CHARSET cmdline uxpterm version time
+         + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
 putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
-         + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11
+         + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
+         + xpmpucfg
 puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
-	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC
+	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC xpmputty xpmpucfg
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11
