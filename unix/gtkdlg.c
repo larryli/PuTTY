@@ -2216,6 +2216,16 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     dp.retval = 0;
     dp.window = window;
 
+    {
+	/* in gtkwin.c */
+	extern void set_window_icon(GtkWidget *window,
+				    const char *const *const *icon,
+				    int n_icon);
+	extern const char *const *const cfg_icon[];
+	extern const int n_cfg_icon;
+	set_window_icon(window, cfg_icon, n_cfg_icon);
+    }
+
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     gtk_widget_show(window);
 

@@ -3301,6 +3301,35 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
     get_sesslist(&sesslist, FALSE); /* free up */
 }
 
+void set_window_icon(GtkWidget *window, const char *const *const *icon,
+		     int n_icon)
+{
+    GdkPixmap *iconpm;
+#if GTK_CHECK_VERSION(2,0,0)
+    GList *iconlist;
+    int n;
+#endif
+
+    if (!n_icon)
+	return;
+
+    gtk_widget_realize(window);
+    iconpm = gdk_pixmap_create_from_xpm_d(window->window, NULL,
+					  NULL, (gchar **)icon[0]);
+    gdk_window_set_icon(window->window, NULL, iconpm, NULL);
+
+#if GTK_CHECK_VERSION(2,0,0)
+    iconlist = NULL;
+    for (n = 0; n < n_icon; n++) {
+	iconlist =
+	    g_list_append(iconlist,
+			  gdk_pixbuf_new_from_xpm_data((const gchar **)
+						       icon[n]));
+    }
+    gdk_window_set_icon_list(window->window, iconlist);
+#endif
+}
+
 void update_specials_menu(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -3551,6 +3580,12 @@ int pt_main(int argc, char **argv)
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK);
+
+    {
+	extern const char *const *const main_icon[];
+	extern const int n_main_icon;
+	set_window_icon(inst->window, main_icon, n_main_icon);
+    }
 
     gtk_widget_show(inst->window);
 
