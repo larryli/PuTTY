@@ -100,7 +100,10 @@ static int offset_width, offset_height;
 static int was_zoomed = 0;
 static int prev_rows, prev_cols;
   
-static void enact_netevent(WPARAM, LPARAM);
+static int pending_netevent = 0;
+static WPARAM pend_netevent_wParam = 0;
+static LPARAM pend_netevent_lParam = 0;
+static void enact_pending_netevent(void);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
 static int is_shift_pressed(void);
@@ -808,7 +811,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    sfree(handles);
 	    if (must_close_session)
 		close_session();
-	    continue;
 	}
 
 	sfree(handles);
@@ -831,6 +833,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	/* The messages seem unreliable; especially if we're being tricky */
 	term_set_focus(term, GetForegroundWindow() == hwnd);
+
+	if (pending_netevent)
+	    enact_pending_netevent();
 
 	net_pending_errors();
     }
@@ -1074,7 +1079,7 @@ void cmdline_error(char *fmt, ...)
 /*
  * Actually do the job requested by a WM_NETEVENT
  */
-static void enact_netevent(WPARAM wParam, LPARAM lParam)
+static void enact_pending_netevent(void)
 {
     static int reentering = 0;
     extern int select_result(WPARAM, LPARAM);
@@ -1082,8 +1087,10 @@ static void enact_netevent(WPARAM wParam, LPARAM lParam)
     if (reentering)
 	return;			       /* don't unpend the pending */
 
+    pending_netevent = FALSE;
+
     reentering = 1;
-    select_result(wParam, lParam);
+    select_result(pend_netevent_wParam, pend_netevent_lParam);
     reentering = 0;
 }
 
@@ -2565,7 +2572,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_NETEVENT:
-	enact_netevent(wParam, lParam);
+	/* Notice we can get multiple netevents, FD_READ, FD_WRITE etc
+	 * but the only one that's likely to try to overload us is FD_READ.
+	 * This means buffering just one is fine.
+	 */
+	if (pending_netevent)
+	    enact_pending_netevent();
+
+	pending_netevent = TRUE;
+	pend_netevent_wParam = wParam;
+	pend_netevent_lParam = lParam;
+	if (WSAGETSELECTEVENT(lParam) != FD_READ)
+	    enact_pending_netevent();
+
 	net_pending_errors();
 	return 0;
       case WM_SETFOCUS:
