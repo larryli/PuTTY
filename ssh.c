@@ -1905,7 +1905,6 @@ static void ssh2_pkt_send(Ssh ssh, struct Packet *pkt)
 	ssh2_pkt_send_noqueue(ssh, pkt);
 }
 
-#if 0 /* disused */
 /*
  * Either queue or defer a packet, depending on whether queueing is
  * set.
@@ -1917,7 +1916,6 @@ static void ssh2_pkt_defer(Ssh ssh, struct Packet *pkt)
     else
 	ssh2_pkt_defer_noqueue(ssh, pkt, FALSE);
 }
-#endif
 
 /*
  * Send the whole deferred data block constructed by
@@ -1948,6 +1946,74 @@ static void ssh_pkt_defersend(Ssh ssh)
 	ssh->outgoing_data_size > ssh->max_data_size)
 	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
     ssh->deferred_data_size = 0;
+}
+
+/*
+ * Send a packet whose length needs to be disguised (typically
+ * passwords or keyboard-interactive responses).
+ */
+static void ssh2_pkt_send_with_padding(Ssh ssh, struct Packet *pkt,
+				       int padsize)
+{
+#if 0
+    if (0) {
+	/*
+	 * The simplest way to do this is to adjust the
+	 * variable-length padding field in the outgoing packet.
+	 * 
+	 * Currently compiled out, because some Cisco SSH servers
+	 * don't like excessively padded packets (bah, why's it
+	 * always Cisco?)
+	 */
+	pkt->forcepad = padsize;
+	ssh2_pkt_send(ssh, pkt);
+    } else
+#endif
+    {
+	/*
+	 * If we can't do that, however, an alternative approach is
+	 * to use the pkt_defer mechanism to bundle the packet
+	 * tightly together with an SSH_MSG_IGNORE such that their
+	 * combined length is a constant. So first we construct the
+	 * final form of this packet and defer its sending.
+	 */
+	ssh2_pkt_defer(ssh, pkt);
+
+	/*
+	 * Now construct an SSH_MSG_IGNORE which includes a string
+	 * that's an exact multiple of the cipher block size. (If
+	 * the cipher is NULL so that the block size is
+	 * unavailable, we don't do this trick at all, because we
+	 * gain nothing by it.)
+	 */
+	if (ssh->cscipher) {
+	    int stringlen, i;
+
+	    stringlen = (256 - ssh->deferred_len);
+	    stringlen += ssh->cscipher->blksize - 1;
+	    stringlen -= (stringlen % ssh->cscipher->blksize);
+	    if (ssh->cscomp) {
+		/*
+		 * Temporarily disable actual compression, so we
+		 * can guarantee to get this string exactly the
+		 * length we want it. The compression-disabling
+		 * routine should return an integer indicating how
+		 * many bytes we should adjust our string length
+		 * by.
+		 */
+		stringlen -=
+		    ssh->cscomp->disable_compression(ssh->cs_comp_ctx);
+	    }
+	    pkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
+	    ssh2_pkt_addstring_start(pkt);
+	    for (i = 0; i < stringlen; i++) {
+		char c = (char) random_byte();
+		ssh2_pkt_addstring_data(pkt, &c, 1);
+	    }
+	    ssh2_pkt_defer(ssh, pkt);
+	}
+	ssh_pkt_defersend(ssh);
+    }
 }
 
 /*
@@ -7374,7 +7440,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		     * Send the responses to the server.
 		     */
 		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
-		    s->pktout->forcepad = 256;
 		    ssh2_pkt_adduint32(s->pktout, s->num_prompts);
 		    for (i=0; i < s->num_prompts; i++) {
 			dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
@@ -7382,7 +7447,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 					   s->cur_prompt->prompts[i]->result);
 			end_log_omission(ssh, s->pktout);
 		    }
-		    ssh2_pkt_send(ssh, s->pktout);
+		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 
 		    /*
 		     * Get the next packet in case it's another
@@ -7452,7 +7517,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		 * people who find out how long their password is!
 		 */
 		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
-		s->pktout->forcepad = 256;
 		ssh2_pkt_addstring(s->pktout, s->username);
 		ssh2_pkt_addstring(s->pktout, "ssh-connection");
 							/* service requested */
@@ -7461,7 +7525,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
 		ssh2_pkt_addstring(s->pktout, s->password);
 		end_log_omission(ssh, s->pktout);
-		ssh2_pkt_send(ssh, s->pktout);
+		ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 		logevent("Sent password");
 		s->type = AUTH_TYPE_PASSWORD;
 
@@ -7582,7 +7646,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		     * (see above for padding rationale)
 		     */
 		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
-		    s->pktout->forcepad = 256;
 		    ssh2_pkt_addstring(s->pktout, s->username);
 		    ssh2_pkt_addstring(s->pktout, "ssh-connection");
 							/* service requested */
@@ -7594,7 +7657,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 				       s->cur_prompt->prompts[1]->result);
 		    free_prompts(s->cur_prompt);
 		    end_log_omission(ssh, s->pktout);
-		    ssh2_pkt_send(ssh, s->pktout);
+		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 		    logevent("Sent new password");
 		    
 		    /*
