@@ -68,7 +68,7 @@ def memoisedsqrt(x):
 
 BR, TR, BL, TL = range(4) # enumeration of quadrants for border()
 
-def border(canvas, thickness, squarecorners):
+def border(canvas, thickness, squarecorners, out={}):
     # I haven't yet worked out exactly how to do borders in a
     # properly alpha-blended fashion.
     #
@@ -129,6 +129,8 @@ def border(canvas, thickness, squarecorners):
     if thickness < 1: thickness = 1
     thickness = round(thickness - 0.5) + 0.3
 
+    out["borderthickness"] = thickness
+
     dmax = int(round(thickness))
     if dmax < thickness: dmax = dmax + 1
 
@@ -158,16 +160,18 @@ def border(canvas, thickness, squarecorners):
 	if not canvas.has_key((x,y)):
 	    canvas[(x,y)] = dark(value)
 
-def sysbox(size):
+def sysbox(size, out={}):
     canvas = {}
 
     # The system box of the computer.
 
-    height = int(round(3*size))
-    width = int(round(17*size))
+    height = int(round(3.6*size))
+    width = int(round(16.51*size))
     depth = int(round(2*size))
     highlight = int(round(1*size))
-    bothighlight = int(round(0.49*size))
+    bothighlight = int(round(1*size))
+
+    out["sysboxheight"] = height
 
     floppystart = int(round(19*size)) # measured in half-pixels
     floppyend = int(round(29*size)) # measured in half-pixels
@@ -203,7 +207,7 @@ def sysbox(size):
 
     # The side panel is a parallelogram.
     for x in range(depth):
-	for y in range(height+1):
+	for y in range(height):
 	    pixel(x+width, y-(x+1), greypix(0.5), canvas)
 
     # The top panel is another parallelogram.
@@ -215,7 +219,7 @@ def sysbox(size):
 	    pixel(x+(y+1), -(y+1), greypix(grey/4.0), canvas)
 
     # And draw a border.
-    border(canvas, size, [])
+    border(canvas, size, [], out)
 
     return canvas
 
@@ -225,7 +229,7 @@ def monitor(size):
     # The computer's monitor.
 
     height = int(round(9.55*size))
-    width = int(round(11*size))
+    width = int(round(11.49*size))
     surround = int(round(1*size))
     botsurround = int(round(2*size))
     sheight = height - surround - botsurround
@@ -321,10 +325,11 @@ def monitor(size):
 
 def computer(size):
     # Monitor plus sysbox.
+    out = {}
     m = monitor(size)
-    s = sysbox(size)
+    s = sysbox(size, out)
     x = int(round((2+size/(size+1))*size))
-    y = int(round(4*size))
+    y = int(out["sysboxheight"] + out["borderthickness"])
     mb = bbox(m)
     sb = bbox(s)
     xoff = sb[0] - mb[0] + x
@@ -337,8 +342,9 @@ def lightning(size):
 
     # The lightning bolt motif.
 
-    # We always want this to be an even number of pixels in span.
-    width = round(7*size) * 2
+    # We always want this to be an even number of pixels in height,
+    # and an odd number in width.
+    width = round(7*size) * 2 - 1
     height = round(8*size) * 2
 
     # The outer edge of each side of the bolt goes to this point.
@@ -694,8 +700,8 @@ def xybolt(c1, c2, size, boltoffx=0, boltoffy=0):
     # calculation here on that.)
     bb = bbox(bolt)
     assert bb[2]-bb[0] <= w and bb[3]-bb[1] <= h
-    overlay(bolt, (w-bb[0]-bb[2])/2 - round((1-boltoffx)*size), \
-    (h-bb[1]-bb[3])/2 - round((2-boltoffy)*size), canvas)
+    overlay(bolt, (w-bb[0]-bb[2])/2 + round(boltoffx*size), \
+    (h-bb[1]-bb[3])/2 + round((boltoffy-2)*size), canvas)
 
     return canvas
 
@@ -715,7 +721,7 @@ def puttygen_icon(size):
     return xybolt(computer(size), key(size), size, boltoffx=2)
 
 def pscp_icon(size):
-    return xybolt(document(size), computer(size), size, boltoffx=1)
+    return xybolt(document(size), computer(size), size)
 
 def pterm_icon(size):
     # Just a really big computer.
@@ -747,7 +753,7 @@ def pageant_icon(size):
     canvas = {}
     w = h = round(32 * size)
 
-    c = computer(size * 1.3)
+    c = computer(size * 1.2)
     ht = hat(size)
 
     cbb = bbox(c)

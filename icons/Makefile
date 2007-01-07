@@ -23,6 +23,10 @@ truepngs: $(TRUEPNGS)
 icos: $(ICOS)
 cicons: $(CICONS)
 
+install: icos cicons
+	cp $(ICOS) ../windows
+	cp $(CICONS) ../unix
+
 $(PNGS): %.png: mkicon.py
 	./mkicon.py $(MODE) $(join $(subst -, ,$(basename $@)),_icon) $@
 
