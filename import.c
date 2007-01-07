@@ -109,6 +109,17 @@ int export_ssh2(const Filename *filename, int type,
     return 0;
 }
 
+/*
+ * Strip trailing CRs and LFs at the end of a line of text.
+ */
+void strip_crlf(char *str)
+{
+    char *p = str + strlen(str);
+
+    while (p > str && (p[-1] == '\r' || p[-1] == '\n'))
+	*--p = '\0';
+}
+
 /* ----------------------------------------------------------------------
  * Helper routines. (The base64 ones are defined in sshpubk.c.)
  */
@@ -310,7 +321,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 {
     struct openssh_key *ret;
     FILE *fp;
-    char buffer[256];
+    char *line = NULL;
     char *errmsg, *p;
     int headers_done;
     char base64_bit[4];
@@ -327,46 +338,55 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	errmsg = "unable to open key file";
 	goto error;
     }
-    if (!fgets(buffer, sizeof(buffer), fp) ||
-	0 != strncmp(buffer, "-----BEGIN ", 11) ||
-	0 != strcmp(buffer+strlen(buffer)-17, "PRIVATE KEY-----\n")) {
+
+    if (!(line = fgetline(fp))) {
+	errmsg = "unexpected end of file";
+	goto error;
+    }
+    strip_crlf(line);
+    if (0 != strncmp(line, "-----BEGIN ", 11) ||
+	0 != strcmp(line+strlen(line)-16, "PRIVATE KEY-----")) {
 	errmsg = "file does not begin with OpenSSH key header";
 	goto error;
     }
-    if (!strcmp(buffer, "-----BEGIN RSA PRIVATE KEY-----\n"))
+    if (!strcmp(line, "-----BEGIN RSA PRIVATE KEY-----"))
 	ret->type = OSSH_RSA;
-    else if (!strcmp(buffer, "-----BEGIN DSA PRIVATE KEY-----\n"))
+    else if (!strcmp(line, "-----BEGIN DSA PRIVATE KEY-----"))
 	ret->type = OSSH_DSA;
     else {
 	errmsg = "unrecognised key type";
 	goto error;
     }
+    memset(line, 0, strlen(line));
+    sfree(line);
+    line = NULL;
 
     headers_done = 0;
     while (1) {
-	if (!fgets(buffer, sizeof(buffer), fp)) {
+	if (!(line = fgetline(fp))) {
 	    errmsg = "unexpected end of file";
 	    goto error;
 	}
-	if (0 == strncmp(buffer, "-----END ", 9) &&
-	    0 == strcmp(buffer+strlen(buffer)-17, "PRIVATE KEY-----\n"))
+	strip_crlf(line);
+	if (0 == strncmp(line, "-----END ", 9) &&
+	    0 == strcmp(line+strlen(line)-16, "PRIVATE KEY-----"))
 	    break;		       /* done */
-	if ((p = strchr(buffer, ':')) != NULL) {
+	if ((p = strchr(line, ':')) != NULL) {
 	    if (headers_done) {
 		errmsg = "header found in body of key data";
 		goto error;
 	    }
 	    *p++ = '\0';
 	    while (*p && isspace((unsigned char)*p)) p++;
-	    if (!strcmp(buffer, "Proc-Type")) {
+	    if (!strcmp(line, "Proc-Type")) {
 		if (p[0] != '4' || p[1] != ',') {
 		    errmsg = "Proc-Type is not 4 (only 4 is supported)";
 		    goto error;
 		}
 		p += 2;
-		if (!strcmp(p, "ENCRYPTED\n"))
+		if (!strcmp(p, "ENCRYPTED"))
 		    ret->encrypted = 1;
-	    } else if (!strcmp(buffer, "DEK-Info")) {
+	    } else if (!strcmp(line, "DEK-Info")) {
 		int i, j;
 
 		if (strncmp(p, "DES-EDE3-CBC,", 13)) {
@@ -388,7 +408,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	} else {
 	    headers_done = 1;
 
-	    p = buffer;
+	    p = line;
 	    while (isbase64(*p)) {
                 base64_bit[base64_chars++] = *p;
                 if (base64_chars == 4) {
@@ -419,6 +439,9 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 		p++;
 	    }
 	}
+	memset(line, 0, strlen(line));
+	sfree(line);
+	line = NULL;
     }
 
     if (ret->keyblob_len == 0 || !ret->keyblob) {
@@ -431,13 +454,16 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	goto error;
     }
 
-    memset(buffer, 0, sizeof(buffer));
     memset(base64_bit, 0, sizeof(base64_bit));
     if (errmsg_p) *errmsg_p = NULL;
     return ret;
 
     error:
-    memset(buffer, 0, sizeof(buffer));
+    if (line) {
+	memset(line, 0, strlen(line));
+	sfree(line);
+	line = NULL;
+    }
     memset(base64_bit, 0, sizeof(base64_bit));
     if (ret) {
 	if (ret->keyblob) {
@@ -989,8 +1015,8 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 {
     struct sshcom_key *ret;
     FILE *fp;
-    char buffer[256];
-    int len;
+    char *line = NULL;
+    int hdrstart, len;
     char *errmsg, *p;
     int headers_done;
     char base64_bit[4];
@@ -1006,44 +1032,67 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 	errmsg = "unable to open key file";
 	goto error;
     }
-    if (!fgets(buffer, sizeof(buffer), fp) ||
-	0 != strcmp(buffer, "---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----\n")) {
+    if (!(line = fgetline(fp))) {
+	errmsg = "unexpected end of file";
+	goto error;
+    }
+    strip_crlf(line);
+    if (0 != strcmp(line, "---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----")) {
 	errmsg = "file does not begin with ssh.com key header";
 	goto error;
     }
+    memset(line, 0, strlen(line));
+    sfree(line);
+    line = NULL;
 
     headers_done = 0;
     while (1) {
-	if (!fgets(buffer, sizeof(buffer), fp)) {
+	if (!(line = fgetline(fp))) {
 	    errmsg = "unexpected end of file";
 	    goto error;
 	}
-        if (!strcmp(buffer, "---- END SSH2 ENCRYPTED PRIVATE KEY ----\n"))
+	strip_crlf(line);
+        if (!strcmp(line, "---- END SSH2 ENCRYPTED PRIVATE KEY ----"))
             break;                     /* done */
-	if ((p = strchr(buffer, ':')) != NULL) {
+	if ((p = strchr(line, ':')) != NULL) {
 	    if (headers_done) {
 		errmsg = "header found in body of key data";
 		goto error;
 	    }
 	    *p++ = '\0';
 	    while (*p && isspace((unsigned char)*p)) p++;
+	    hdrstart = p - line;
+
             /*
              * Header lines can end in a trailing backslash for
              * continuation.
              */
-            while ((len = strlen(p)) > (int)(sizeof(buffer) - (p-buffer) -1) ||
-                   p[len-1] != '\n' || p[len-2] == '\\') {
-                if (len > (int)((p-buffer) + sizeof(buffer)-2)) {
-                    errmsg = "header line too long to deal with";
-                    goto error;
-                }
-                if (!fgets(p+len-2, sizeof(buffer)-(p-buffer)-(len-2), fp)) {
+	    len = hdrstart + strlen(line+hdrstart);
+	    assert(!line[len]);
+            while (line[len-1] == '\\') {
+		char *line2;
+		int line2len;
+
+		line2 = fgetline(fp);
+		if (!line2) {
                     errmsg = "unexpected end of file";
                     goto error;
                 }
+		strip_crlf(line2);
+
+		line2len = strlen(line2);
+		line = sresize(line, len + line2len + 1, char);
+		strcpy(line + len - 1, line2);
+		len += line2len - 1;
+		assert(!line[len]);
+
+		memset(line2, 0, strlen(line2));
+		sfree(line2);
+		line2 = NULL;
             }
-            p[strcspn(p, "\n")] = '\0';
-            if (!strcmp(buffer, "Comment")) {
+	    p = line + hdrstart;
+	    strip_crlf(p);
+            if (!strcmp(line, "Comment")) {
                 /* Strip quotes in comment if present. */
                 if (p[0] == '"' && p[strlen(p)-1] == '"') {
                     p++;
@@ -1055,7 +1104,7 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 	} else {
 	    headers_done = 1;
 
-	    p = buffer;
+	    p = line;
 	    while (isbase64(*p)) {
                 base64_bit[base64_chars++] = *p;
                 if (base64_chars == 4) {
@@ -1083,6 +1132,9 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 		p++;
 	    }
 	}
+	memset(line, 0, strlen(line));
+	sfree(line);
+	line = NULL;
     }
 
     if (ret->keyblob_len == 0 || !ret->keyblob) {
@@ -1094,6 +1146,11 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
     return ret;
 
     error:
+    if (line) {
+	memset(line, 0, strlen(line));
+	sfree(line);
+	line = NULL;
+    }
     if (ret) {
 	if (ret->keyblob) {
             memset(ret->keyblob, 0, ret->keyblob_size);
