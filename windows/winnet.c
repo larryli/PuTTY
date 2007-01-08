@@ -1473,10 +1473,11 @@ int select_result(WPARAM wParam, LPARAM lParam)
 #ifndef NO_IPV6
             if (isa.ss_family == AF_INET &&
                 s->localhost_only &&
-                !ipv4_is_local_addr(((struct sockaddr_in *)&isa)->sin_addr)) {
+                !ipv4_is_local_addr(((struct sockaddr_in *)&isa)->sin_addr))
 #else
-	    if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr)) {
+	    if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr))
 #endif
+	    {
 		p_closesocket(t);      /* dodgy WinSock let nonlocal through */
 	    } else if (plug_accepting(s->plug, (void*)t)) {
 		p_closesocket(t);      /* denied or error */
@@ -1570,6 +1571,17 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 	}
     }
     s->frozen_readable = 0;
+}
+
+void socket_reselect_all(void)
+{
+    Actual_Socket s;
+    int i;
+
+    for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
+	if (!s->frozen)
+	    do_select(s->s, 1);
+    }
 }
 
 /*

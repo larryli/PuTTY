@@ -843,6 +843,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     title = dupprintf(mbtitle, appname);
     mbret = MessageBox(NULL, message, title,
 		       MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+    socket_reselect_all();
     sfree(message);
     sfree(title);
     if (mbret == IDYES)
@@ -874,6 +875,8 @@ int askappend(void *frontend, Filename filename,
 
     mbret = MessageBox(NULL, message, mbtitle,
 		       MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON3);
+
+    socket_reselect_all();
 
     sfree(message);
     sfree(mbtitle);
@@ -915,6 +918,8 @@ void old_keyfile_warning(void)
     title = dupprintf(mbtitle, appname);
 
     MessageBox(NULL, msg, title, MB_OK);
+
+    socket_reselect_all();
 
     sfree(msg);
     sfree(title);

@@ -202,6 +202,8 @@ extern int (WINAPI *p_WSAEnumNetworkEvents)
 
 extern int socket_writable(SOCKET skt);
 
+extern void socket_reselect_all(void);
+
 /*
  * Exports from winctrls.c.
  */
