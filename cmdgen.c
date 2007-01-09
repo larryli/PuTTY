@@ -893,7 +893,7 @@ int main(int argc, char **argv)
 	    assert(ssh1key);
 
 	    if (outfile)
-		fp = f_open(outfilename, "w");
+		fp = f_open(outfilename, "w", FALSE);
 	    else
 		fp = stdout;
 	    dec1 = bignum_decimal(ssh1key->exponent);
@@ -951,7 +951,7 @@ int main(int argc, char **argv)
 		*p++ = '\0';
 
 	    if (outfile)
-		fp = f_open(outfilename, "w");
+		fp = f_open(outfilename, "w", FALSE);
 	    else
 		fp = stdout;
 	    fprintf(fp, "%s\n", buffer);
@@ -981,7 +981,7 @@ int main(int argc, char **argv)
 	    }
 
 	    if (outfile)
-		fp = f_open(outfilename, "w");
+		fp = f_open(outfilename, "w", FALSE);
 	    else
 		fp = stdout;
 	    fprintf(fp, "%s\n", fingerprint);

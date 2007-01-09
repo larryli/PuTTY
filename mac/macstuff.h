@@ -14,7 +14,7 @@ struct Filename {
     FSSpec fss;
 };
 
-extern FILE * f_open(struct Filename, char const *);
+extern FILE * f_open(struct Filename, char const *, int);
 
 /* Suspiciously similar to an ICFontRecord */
 struct FontSpec {

@@ -156,7 +156,7 @@ int filename_is_null(Filename fn)
     return fn.fss.vRefNum == 0 && fn.fss.parID == 0 && fn.fss.name[0] == 0;
 }
 
-FILE *f_open(Filename fn, char const *mode)
+FILE *f_open(Filename fn, char const *mode, int is_private)
 {
     short savevol;
     long savedir;

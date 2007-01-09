@@ -11,7 +11,7 @@
 struct Filename {
     char path[FILENAME_MAX];
 };
-#define f_open(filename, mode) ( fopen((filename).path, (mode)) )
+FILE *f_open(struct Filename, char const *, int);
 
 struct FontSpec {
     char name[256];

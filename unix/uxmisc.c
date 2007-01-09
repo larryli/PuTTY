@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -132,4 +133,18 @@ int cloexec(int fd) {
     fdflags = fcntl(fd, F_GETFD);
     if (fdflags == -1) return -1;
     return fcntl(fd, F_SETFD, fdflags | FD_CLOEXEC);
+}
+
+FILE *f_open(struct Filename filename, char const *mode, int is_private)
+{
+    if (!is_private) {
+	return fopen(filename.path, mode);
+    } else {
+	assert(mode[0] == 'w');	       /* is_private is meaningless for read */
+	int fd = open(filename.path, O_WRONLY | O_CREAT | O_TRUNC,
+		      0700);
+	if (fd < 0)
+	    return NULL;
+	return fdopen(fd, mode);
+    }
 }
