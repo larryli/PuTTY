@@ -218,6 +218,13 @@ install-strip:
 CFLAGS += -DMACOSX
 !end
 
+# Random symbols.
+!begin cygwin vars
+# _WIN32_IE is required to expose identifiers that only make sense on
+# systems with IE5+ installed, such as some arguments to SHGetFolderPath().
+CFLAGS += -D_WIN32_IE=0x0500
+!end
+
 # ------------------------------------------------------------
 # Definitions of object groups. A group name, followed by an =,
 # followed by any number of objects or other already-defined group

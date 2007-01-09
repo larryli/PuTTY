@@ -492,6 +492,12 @@ static HANDLE access_random_seed(int action)
      * versions of Windows.
      */
     if (!tried_shgetfolderpath) {
+	/* This is likely only to bear fruit on systems with IE5+
+	 * installed, or WinMe/2K+. There is some faffing with
+	 * SHFOLDER.DLL we could do to try to find an equivalent
+	 * on older versions of Windows if we cared enough.
+	 * However, the invocation below requires IE5+ anyway,
+	 * so stuff that. */
 	shell32_module = LoadLibrary("SHELL32.DLL");
 	if (shell32_module) {
 	    p_SHGetFolderPath = (p_SHGetFolderPath_t)
