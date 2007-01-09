@@ -485,7 +485,7 @@ int x11_send(Socket s, char *data, int len)
             char realauthdata[64];
             int realauthlen = 0;
             int authstrlen = strlen(x11_authnames[pr->auth->realproto]);
-	    int buflen;
+	    int buflen = 0;	       /* initialise to placate optimiser */
             static const char zeroes[4] = { 0,0,0,0 };
 	    void *buf;
 

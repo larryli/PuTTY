@@ -969,7 +969,7 @@ void update_specials_menu(void *frontend)
     for (j = 0; j < lenof(popup_menus); j++) {
 	if (specials_menu) {
 	    /* XXX does this free up all submenus? */
-	    DeleteMenu(popup_menus[j].menu, specials_menu, MF_BYCOMMAND);
+	    DeleteMenu(popup_menus[j].menu, (UINT)specials_menu, MF_BYCOMMAND);
 	    DeleteMenu(popup_menus[j].menu, IDM_SPECIALSEP, MF_BYCOMMAND);
 	}
 	if (new_menu) {
@@ -1270,12 +1270,12 @@ debug(("\n"));
 
     xp = xn = x;
 
-    for (i = 0; i < cbCount ;) {
+    for (i = 0; i < (int)cbCount ;) {
 	int rtl = is_rtl(lpString[i]);
 
 	xn += lpDx[i];
 
-	for (j = i+1; j < cbCount; j++) {
+	for (j = i+1; j < (int)cbCount; j++) {
 	    if (rtl != is_rtl(lpString[j]))
 		break;
 	    xn += lpDx[j];
@@ -2051,7 +2051,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		} else if (wParam == IDM_SAVEDSESS) {
 		    unsigned int sessno = ((lParam - IDM_SAVED_MIN)
 					   / MENU_SAVED_STEP) + 1;
-		    if (sessno < sesslist.nsessions) {
+		    if (sessno < (unsigned)sesslist.nsessions) {
 			char *session = sesslist.sessions[sessno];
 			/* XXX spaces? quotes? "-load"? */
 			cl = dupprintf("putty @%s", session);

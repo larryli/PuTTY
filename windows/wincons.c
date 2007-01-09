@@ -314,7 +314,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
      */
     {
 	int i;
-	for (i = 0; i < p->n_prompts; i++)
+	for (i = 0; i < (int)p->n_prompts; i++)
 	    memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
     }
 

@@ -30,7 +30,7 @@ static void fxp_internal_error(char *msg);
  */
 static void sftp_pkt_ensure(struct sftp_packet *pkt, int length)
 {
-    if (pkt->maxlen < length) {
+    if ((int)pkt->maxlen < length) {
 	pkt->maxlen = length + 256;
 	pkt->data = sresize(pkt->data, pkt->maxlen, char);
     }
@@ -151,7 +151,7 @@ static int sftp_pkt_getstring(struct sftp_packet *pkt,
 	return 0;
     *length = GET_32BIT(pkt->data + pkt->savedpos);
     pkt->savedpos += 4;
-    if (pkt->length - pkt->savedpos < *length || *length < 0) {
+    if ((int)(pkt->length - pkt->savedpos) < *length || *length < 0) {
 	*length = 0;
 	return 0;
     }
@@ -994,7 +994,7 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
 	ret = snew(struct fxp_names);
 	ret->nnames = i;
 	ret->names = snewn(ret->nnames, struct fxp_name);
-	for (i = 0; i < ret->nnames; i++) {
+	for (i = 0; i < (unsigned long)ret->nnames; i++) {
 	    char *str1, *str2;
 	    int len1, len2;
 	    if (!sftp_pkt_getstring(pktin, &str1, &len1) ||

@@ -4641,7 +4641,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	    /* Data for an agent message. Buffer it. */
 	    while (len > 0) {
 		if (c->u.a.lensofar < 4) {
-		    unsigned int l = min(4 - c->u.a.lensofar, len);
+		    unsigned int l = min(4 - c->u.a.lensofar, (unsigned)len);
 		    memcpy(c->u.a.msglen + c->u.a.lensofar, p,
 			   l);
 		    p += l;
@@ -4658,7 +4658,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 		if (c->u.a.lensofar >= 4 && len > 0) {
 		    unsigned int l =
 			min(c->u.a.totallen - c->u.a.lensofar,
-			    len);
+			    (unsigned)len);
 		    memcpy(c->u.a.message + c->u.a.lensofar, p,
 			   l);
 		    p += l;
@@ -6078,7 +6078,8 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	  case CHAN_AGENT:
 	    while (length > 0) {
 		if (c->u.a.lensofar < 4) {
-		    unsigned int l = min(4 - c->u.a.lensofar, length);
+		    unsigned int l = min(4 - c->u.a.lensofar,
+					 (unsigned)length);
 		    memcpy(c->u.a.msglen + c->u.a.lensofar,
 			   data, l);
 		    data += l;
@@ -6095,7 +6096,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 		if (c->u.a.lensofar >= 4 && length > 0) {
 		    unsigned int l =
 			min(c->u.a.totallen - c->u.a.lensofar,
-			    length);
+			    (unsigned)length);
 		    memcpy(c->u.a.message + c->u.a.lensofar,
 			   data, l);
 		    data += l;

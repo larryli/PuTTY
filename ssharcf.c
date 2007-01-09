@@ -19,7 +19,7 @@ static void arcfour_block(void *handle, unsigned char *blk, int len)
 
     s = ctx->s;
     i = ctx->i; j = ctx->j;
-    for (k = 0; k < len; k++) {
+    for (k = 0; (int)k < len; k++) {
 	i  = (i + 1) & 0xff;
 	j  = (j + s[i]) & 0xff;
 	tmp = s[i]; s[i] = s[j]; s[j] = tmp;

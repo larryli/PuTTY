@@ -2011,7 +2011,6 @@ int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
 {
     int i;
     struct winctrl *c;
-    char *cmd;
 
     /*
      * Look up the control ID in our data.
