@@ -15,6 +15,20 @@
 #define HOST_BOX_TITLE "Host Name (or IP address)"
 #define PORT_BOX_TITLE "Port"
 
+/*
+ * Convenience function: determine whether this binary supports a
+ * given backend.
+ */
+static int have_backend(int protocol)
+{
+    struct backend_list *p = backends;
+    for (p = backends; p->name; p++) {
+	if (p->protocol == protocol)
+	    return 1;
+    }
+    return 0;
+}
+
 static void config_host_handler(union control *ctrl, void *dlg,
 				void *data, int event)
 {
@@ -1059,7 +1073,6 @@ void setup_config_box(struct controlbox *b, int midsession,
     if (!midsession) {
 	struct hostport *hp = (struct hostport *)
 	    ctrl_alloc(b, sizeof(struct hostport));
-	int i, gotssh;
 
 	s = ctrl_getset(b, "Session", "hostport",
 			"Specify the destination you want to connect to");
@@ -1076,13 +1089,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	hp->port = c;
 	ctrl_columns(s, 1, 100);
 
-	gotssh = FALSE;
-	for (i = 0; backends[i].name; i++)
-	    if (backends[i].protocol == PROT_SSH) {
-		gotssh = TRUE;
-		break;
-	    }
-	if (!gotssh) {
+	if (!have_backend(PROT_SSH)) {
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
@@ -1173,7 +1180,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     {
 	char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
-	    (!midsession && backends[3].name != NULL)) {
+	    (!midsession && have_backend(PROT_SSH))) {
 	    sshlogname = "SSH packets";
 	    sshrawlogname = "SSH packets and raw data";
         } else {
@@ -1209,7 +1216,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 dlg_stdcheckbox_handler, I(offsetof(Config,logflush)));
 
     if ((midsession && protocol == PROT_SSH) ||
-	(!midsession && backends[3].name != NULL)) {
+	(!midsession && have_backend(PROT_SSH))) {
 	s = ctrl_getset(b, "Session/Logging", "ssh",
 			"Options specific to SSH packet logging");
 	ctrl_checkbox(s, "Omit known password fields", 'k',
@@ -1828,7 +1835,7 @@ void setup_config_box(struct controlbox *b, int midsession,
      * when we're not doing SSH.
      */
 
-    if (backends[3].name != NULL && (!midsession || protocol == PROT_SSH)) {
+    if (have_backend(PROT_SSH) && (!midsession || protocol == PROT_SSH)) {
 
 	/*
 	 * The Connection/SSH panel.
