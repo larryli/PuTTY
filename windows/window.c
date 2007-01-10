@@ -1233,7 +1233,7 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 
     gcpr.lStructSize = sizeof(gcpr);
     gcpr.lpGlyphs = (void *)buffer;
-    gcpr.lpClass = classbuffer;
+    gcpr.lpClass = (void *)classbuffer;
     gcpr.nGlyphs = cbCount;
 
     GetCharacterPlacementW(hdc, lpString, cbCount, 0, &gcpr,
