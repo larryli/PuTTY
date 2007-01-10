@@ -22,10 +22,10 @@ For building on Windows:
    vanilla VC6, but you'll have to remove some functionality with
    directives such as NO_IPV6.)
 
-   (We've also had one report of success building with the
+   (We've also had reports of success building with the
    OpenWatcom compiler -- www.openwatcom.org -- using Makefile.vc
    with `wmake -ms -f makefile.vc' and NO_MULTIMON, although we
-   haven't tried this ourselves.)
+   haven't tried this ourselves. Version 1.3 is reported to work.)
 
  - Inside the windows/MSVC subdirectory are MS Visual Studio project
    files for doing GUI-based builds of the various PuTTY utilities.
@@ -42,9 +42,12 @@ For building on Windows:
 
  - windows/Makefile.cyg is for Cygwin / mingw32 installations. Type
    `make -f Makefile.cyg' while in the `windows' subdirectory to
-   build all the PuTTY binaries. Note that by default the multiple
-   monitor support is excluded from the Cygwin build, since at the
-   time of writing Cygwin doesn't include the necessary headers.
+   build all the PuTTY binaries.
+
+   You'll probably need quite a recent version of the w32api package.
+   Note that by default the multiple monitor and HTML Help support are
+   excluded from the Cygwin build, since at the time of writing Cygwin
+   doesn't include the necessary headers.
 
  - windows/Makefile.lcc is for lcc-win32. Type `make -f
    Makefile.lcc' while in the `windows' subdirectory. (You will
@@ -52,6 +55,10 @@ For building on Windows:
 
  - Inside the windows/DEVCPP subdirectory are Dev-C++ project
    files for doing GUI-based builds of the various PuTTY utilities.
+
+The PuTTY team actively use Makefile.vc and Makefile.cyg, so we'll
+probably notice problems with those toolchains fairly quickly. Please
+report any problems with the other toolchains mentioned above.
 
 For building on Unix:
 
