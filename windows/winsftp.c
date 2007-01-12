@@ -490,8 +490,7 @@ int do_eventsel_loop(HANDLE other_event)
     else
 	otherindex = -1;
 
-    n = MsgWaitForMultipleObjects(nallhandles, handles, FALSE, ticks,
-				  QS_POSTMESSAGE);
+    n = WaitForMultipleObjects(nallhandles, handles, FALSE, ticks);
 
     if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
 	handle_got_event(handles[n - WAIT_OBJECT_0]);
