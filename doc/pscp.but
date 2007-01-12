@@ -190,8 +190,6 @@ options. (The ones not supported by PSCP are clearly marked.)
 PSCP also supports some of its own options. The following sections
 describe PSCP's specific command-line options.
 
-These are the command line options that PSCP accepts.
-
 \S2{pscp-usage-options-ls}\I{-ls-PSCP}\c{-ls} \I{listing files}list remote files
 
 If the \c{-ls} option is given, no files are transferred; instead,
