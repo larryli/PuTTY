@@ -265,6 +265,8 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	ret->error = dupprintf("pipe: %s", strerror(errno));
 	return (Socket)ret;
     }
+    cloexec(to_cmd_pipe[1]);
+    cloexec(from_cmd_pipe[0]);
 
     pid = fork();
 
@@ -272,13 +274,12 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	ret->error = dupprintf("fork: %s", strerror(errno));
 	return (Socket)ret;
     } else if (pid == 0) {
-	int i;
 	close(0);
 	close(1);
 	dup2(to_cmd_pipe[0], 0);
 	dup2(from_cmd_pipe[1], 1);
-	for (i = 3; i < 127; i++)
-	    close(i);
+	close(to_cmd_pipe[0]);
+	close(from_cmd_pipe[1]);
 	fcntl(0, F_SETFD, 0);
 	fcntl(1, F_SETFD, 0);
 	execl("/bin/sh", "sh", "-c", cmd, (void *)NULL);

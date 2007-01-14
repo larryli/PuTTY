@@ -414,6 +414,8 @@ void pty_pre_init(void)
 	perror("pterm: pipe");
 	exit(1);
     }
+    cloexec(pipefd[0]);
+    cloexec(pipefd[1]);
     pid = fork();
     if (pid < 0) {
 	perror("pterm: fork");
@@ -755,7 +757,6 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     }
 
     if (pid == 0) {
-	int i;
 	/*
 	 * We are the child.
 	 */
@@ -771,6 +772,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	dup2(slavefd, 0);
 	dup2(slavefd, 1);
 	dup2(slavefd, 2);
+	close(slavefd);
 	setsid();
 #ifdef TIOCSCTTY
 	ioctl(slavefd, TIOCSCTTY, 1);
@@ -780,9 +782,6 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	setpgid(pgrp, pgrp);
 	close(open(pty->name, O_WRONLY, 0));
 	setpgid(pgrp, pgrp);
-	/* Close everything _else_, for tidiness. */
-	for (i = 3; i < 1024; i++)
-	    close(i);
 	{
 	    char *term_env_var = dupprintf("TERM=%s", cfg->termtype);
 	    putenv(term_env_var);
@@ -863,9 +862,13 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	add234(ptys_by_pid, pty);
     }
 
-    if (pty_signal_pipe[0] < 0 && pipe(pty_signal_pipe) < 0) {
-	perror("pipe");
-	exit(1);
+    if (pty_signal_pipe[0] < 0) {
+	if (pipe(pty_signal_pipe) < 0) {
+	    perror("pipe");
+	    exit(1);
+	}
+	cloexec(pty_signal_pipe[0]);
+	cloexec(pty_signal_pipe[1]);
     }
     pty_uxsel_setup(pty);
 
