@@ -184,6 +184,11 @@ compressed, etc) packets are \e{also} logged. This could be useful to
 diagnose corruption in transit. (The same caveats as the previous mode
 apply, of course.)
 
+Note that the non-SSH logging options (\q{Printable output} and
+\q{All session output}) only work with PuTTY proper; in programs
+without terminal emulation (such as Plink), they will have no effect,
+even if enabled via saved settings.
+
 \S{config-logfilename} \q{Log file name}
 
 \cfg{winhelp-topic}{logging.filename}
