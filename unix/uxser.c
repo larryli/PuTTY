@@ -214,7 +214,16 @@ static const char *serial_configure(Serial serial, Config *cfg)
 #ifdef ONLCR
 			 | ONLCR
 #endif
-			 | OCRNL | ONOCR | ONLRET);
+#ifdef OCRNL
+			 | OCRNL
+#endif
+#ifdef ONOCR
+			 | ONOCR
+#endif
+#ifdef ONLRET
+			 | ONLRET
+#endif
+			 );
     options.c_cc[VMIN] = 1;
     options.c_cc[VTIME] = 0;
 
