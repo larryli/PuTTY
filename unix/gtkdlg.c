@@ -2081,14 +2081,8 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
     gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
-					  tree);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(treescroll),
-				   GTK_POLICY_NEVER,
-				   GTK_POLICY_AUTOMATIC);
     gtk_signal_connect(GTK_OBJECT(tree), "focus",
 		       GTK_SIGNAL_FUNC(tree_focus), &dp);
-    gtk_widget_show(tree);
     gtk_widget_show(treescroll);
     gtk_box_pack_start(GTK_BOX(vbox), treescroll, TRUE, TRUE, 0);
     panels = gtk_notebook_new();
@@ -2141,7 +2135,10 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 			gtk_tree_item_set_subtree
 			    (treeitemlevels[j-1],
 			     GTK_WIDGET(treelevels[j-1]));
-			gtk_tree_item_expand(treeitemlevels[j-1]);
+                        if (j < 2)
+                            gtk_tree_item_expand(treeitemlevels[j-1]);
+                        else
+                            gtk_tree_item_collapse(treeitemlevels[j-1]);
 		    }
 		    gtk_tree_append(treelevels[j-1], treeitem);
 		} else {
@@ -2225,6 +2222,13 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 	extern const int n_cfg_icon;
 	set_window_icon(window, cfg_icon, n_cfg_icon);
     }
+
+    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
+					  tree);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(treescroll),
+				   GTK_POLICY_NEVER,
+				   GTK_POLICY_AUTOMATIC);
+    gtk_widget_show(tree);
 
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     gtk_widget_show(window);

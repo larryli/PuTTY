@@ -322,7 +322,7 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
     newitem = TreeView_InsertItem(faff->treeview, &ins);
     if (level > 0)
 	TreeView_Expand(faff->treeview, faff->lastat[level - 1],
-			TVE_EXPAND);
+			(level > 1 ? TVE_COLLAPSE : TVE_EXPAND));
     faff->lastat[level] = newitem;
     for (i = level + 1; i < 4; i++)
 	faff->lastat[i] = NULL;
