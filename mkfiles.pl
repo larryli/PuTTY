@@ -473,7 +473,7 @@ if (defined $makefiles{'borland'}) {
     "MAKEFILE = Makefile.bor\n".
     "\n".
     "# C compilation flags\n".
-    "CFLAGS = -D_WINDOWS -DWINVER=0x0401\n".
+    "CFLAGS = -D_WINDOWS -DWINVER=0x0500\n".
     "# Resource compilation flags\n".
     "RCFLAGS = -DNO_WINRESRC_H -DWIN32 -D_WIN32 -DWINVER=0x0401\n".
     "\n".
@@ -576,7 +576,7 @@ if (defined $makefiles{'vc'}) {
       "# C compilation flags\n".
       "CFLAGS = /nologo /W3 /O1 " .
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-      " /D_WINDOWS /D_WIN32_WINDOWS=0x401 /DWINVER=0x401\n".
+      " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500\n".
       "LFLAGS = /incremental:no /fixed\n".
       "RCFLAGS = -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
       "\n".

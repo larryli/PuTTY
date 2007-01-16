@@ -10,6 +10,10 @@
 #include <limits.h>
 #include <assert.h>
 
+#ifndef NO_MULTIMON
+#define COMPILE_MULTIMON_STUBS
+#endif
+
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
 #include "terminal.h"
@@ -17,10 +21,7 @@
 #include "win_res.h"
 
 #ifndef NO_MULTIMON
-#if WINVER < 0x0500
-#define COMPILE_MULTIMON_STUBS
 #include <multimon.h>
-#endif
 #endif
 
 #include <imm.h>
