@@ -86,6 +86,7 @@ static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
 static void update_savedsess_menu(void);
+static void init_flashwindow(void);
 
 static int is_full_screen(void);
 static void make_full_screen(void);
@@ -349,6 +350,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	wm_mousewheel = RegisterWindowMessage("MSWHEEL_ROLLMSG");
 
     init_help();
+
+    init_flashwindow();
 
     /*
      * Process the command line.
@@ -4997,10 +5000,41 @@ void modalfatalbox(char *fmt, ...)
     cleanup_exit(1);
 }
 
+typedef BOOL (WINAPI *p_FlashWindowEx_t)(PFLASHWINFO);
+static p_FlashWindowEx_t p_FlashWindowEx = NULL;
+
+static void init_flashwindow(void)
+{
+    HMODULE user32_module = LoadLibrary("USER32.DLL");
+    if (user32_module) {
+	p_FlashWindowEx = (p_FlashWindowEx_t)
+	    GetProcAddress(user32_module, "FlashWindowEx");
+    }
+}
+
+static BOOL flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
+{
+    if (p_FlashWindowEx) {
+	FLASHWINFO fi;
+	fi.cbSize = sizeof(fi);
+	fi.hwnd = hwnd;
+	fi.dwFlags = dwFlags;
+	fi.uCount = uCount;
+	fi.dwTimeout = dwTimeout;
+	return (*p_FlashWindowEx)(&fi);
+    }
+    else
+	return FALSE; /* shrug */
+}
+
 static void flash_window(int mode);
 static long next_flash;
 static int flashing = 0;
 
+/*
+ * Timer for platforms where we must maintain window flashing manually
+ * (e.g., Win95).
+ */
 static void flash_window_timer(void *ctx, long now)
 {
     if (flashing && now - next_flash >= 0) {
@@ -5017,21 +5051,37 @@ static void flash_window(int mode)
     if ((mode == 0) || (cfg.beep_ind == B_IND_DISABLED)) {
 	/* stop */
 	if (flashing) {
-	    FlashWindow(hwnd, FALSE);
 	    flashing = 0;
+	    if (p_FlashWindowEx)
+		flash_window_ex(FLASHW_STOP, 0, 0);
+	    else
+		FlashWindow(hwnd, FALSE);
 	}
 
     } else if (mode == 2) {
 	/* start */
 	if (!flashing) {
 	    flashing = 1;
-	    FlashWindow(hwnd, TRUE);
-	    next_flash = schedule_timer(450, flash_window_timer, hwnd);
+	    if (p_FlashWindowEx) {
+		/* For so-called "steady" mode, we use uCount=2, which
+		 * seems to be the traditional number of flashes used
+		 * by user notifications (e.g., by Explorer).
+		 * uCount=0 appears to enable continuous flashing, per
+		 * "flashing" mode, although I haven't seen this
+		 * documented. */
+		flash_window_ex(FLASHW_ALL | FLASHW_TIMER,
+				(cfg.beep_ind == B_IND_FLASH ? 0 : 2),
+				0 /* system cursor blink rate */);
+		/* No need to schedule timer */
+	    } else {
+		FlashWindow(hwnd, TRUE);
+		next_flash = schedule_timer(450, flash_window_timer, hwnd);
+	    }
 	}
 
     } else if ((mode == 1) && (cfg.beep_ind == B_IND_FLASH)) {
 	/* maintain */
-	if (flashing) {
+	if (flashing && !p_FlashWindowEx) {
 	    FlashWindow(hwnd, TRUE);	/* toggle */
 	    next_flash = schedule_timer(450, flash_window_timer, hwnd);
 	}

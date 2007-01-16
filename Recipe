@@ -222,7 +222,9 @@ CFLAGS += -DMACOSX
 !begin cygwin vars
 # _WIN32_IE is required to expose identifiers that only make sense on
 # systems with IE5+ installed, such as some arguments to SHGetFolderPath().
+# WINVER etc perform a similar function for FlashWindowEx().
 CFLAGS += -D_WIN32_IE=0x0500
+CFLAGS += -DWINVER=0x0500 -D_WIN32_WINDOWS=0x0410 -D_WIN32_WINNT=0x0500
 !end
 
 # ------------------------------------------------------------
