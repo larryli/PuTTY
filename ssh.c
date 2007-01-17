@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <limits.h>
+#include <signal.h>
 
 #include "putty.h"
 #include "tree234.h"
@@ -2700,6 +2701,9 @@ static int ssh_closing(Plug plug, const char *error_msg, int error_code,
 	else
 	    error_msg = "Server closed network connection";
     }
+
+    if (ssh->close_expected && ssh->clean_exit && ssh->exitcode < 0)
+	ssh->exitcode = 0;
 
     if (need_notify)
         notify_remote_exit(ssh->frontend);
@@ -6365,11 +6369,13 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 			is_plausible = FALSE;
 		}
 	    }
+	    ssh->exitcode = 128;       /* means `unknown signal' */
 	    if (is_plausible) {
 		if (is_int) {
 		    /* Old non-standard OpenSSH. */
 		    int signum = ssh_pkt_getuint32(pktin);
 		    fmt_sig = dupprintf(" %d", signum);
+		    ssh->exitcode = 128 + signum;
 		} else {
 		    /* As per the drafts. */
 		    char *sig;
@@ -6381,6 +6387,82 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 			fmt_sig = dupprintf(" \"%.*s\"",
 					    siglen, sig);
 		    }
+
+		    /*
+		     * Really hideous method of translating the
+		     * signal description back into a locally
+		     * meaningful number.
+		     */
+
+		    if (0)
+			;
+#ifdef SIGABRT
+		    else if (siglen == lenof("ABRT")-1 &&
+			     !memcmp(sig, "ABRT", siglen))
+			ssh->exitcode = 128 + SIGABRT;
+#endif
+#ifdef SIGALRM
+		    else if (siglen == lenof("ALRM")-1 &&
+			     !memcmp(sig, "ALRM", siglen))
+			ssh->exitcode = 128 + SIGALRM;
+#endif
+#ifdef SIGFPE
+		    else if (siglen == lenof("FPE")-1 &&
+			     !memcmp(sig, "FPE", siglen))
+			ssh->exitcode = 128 + SIGFPE;
+#endif
+#ifdef SIGHUP
+		    else if (siglen == lenof("HUP")-1 &&
+			     !memcmp(sig, "HUP", siglen))
+			ssh->exitcode = 128 + SIGHUP;
+#endif
+#ifdef SIGILL
+		    else if (siglen == lenof("ILL")-1 &&
+			     !memcmp(sig, "ILL", siglen))
+			ssh->exitcode = 128 + SIGILL;
+#endif
+#ifdef SIGINT
+		    else if (siglen == lenof("INT")-1 &&
+			     !memcmp(sig, "INT", siglen))
+			ssh->exitcode = 128 + SIGINT;
+#endif
+#ifdef SIGKILL
+		    else if (siglen == lenof("KILL")-1 &&
+			     !memcmp(sig, "KILL", siglen))
+			ssh->exitcode = 128 + SIGKILL;
+#endif
+#ifdef SIGPIPE
+		    else if (siglen == lenof("PIPE")-1 &&
+			     !memcmp(sig, "PIPE", siglen))
+			ssh->exitcode = 128 + SIGPIPE;
+#endif
+#ifdef SIGQUIT
+		    else if (siglen == lenof("QUIT")-1 &&
+			     !memcmp(sig, "QUIT", siglen))
+			ssh->exitcode = 128 + SIGQUIT;
+#endif
+#ifdef SIGSEGV
+		    else if (siglen == lenof("SEGV")-1 &&
+			     !memcmp(sig, "SEGV", siglen))
+			ssh->exitcode = 128 + SIGSEGV;
+#endif
+#ifdef SIGTERM
+		    else if (siglen == lenof("TERM")-1 &&
+			     !memcmp(sig, "TERM", siglen))
+			ssh->exitcode = 128 + SIGTERM;
+#endif
+#ifdef SIGUSR1
+		    else if (siglen == lenof("USR1")-1 &&
+			     !memcmp(sig, "USR1", siglen))
+			ssh->exitcode = 128 + SIGUSR1;
+#endif
+#ifdef SIGUSR2
+		    else if (siglen == lenof("USR2")-1 &&
+			     !memcmp(sig, "USR2", siglen))
+			ssh->exitcode = 128 + SIGUSR2;
+#endif
+		    else
+			ssh->exitcode = 128;
 		}
 		core = ssh2_pkt_getbool(pktin);
 		ssh_pkt_getstring(pktin, &msg, &msglen);
