@@ -52,7 +52,7 @@ Source: "..\doc\putty.chm"; DestDir: "{app}"; Flags: restartreplace uninsrestart
 Source: "..\doc\putty.hlp"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
 Source: "..\doc\putty.cnt"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
 Source: "..\LICENCE"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
-Source: "..\README.txt"; DestDir: "{app}"; Flags: isreadme restartreplace uninsrestartdelete
+Source: "README.txt"; DestDir: "{app}"; Flags: isreadme restartreplace uninsrestartdelete
 
 [Icons]
 Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"
