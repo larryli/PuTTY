@@ -140,8 +140,9 @@ FILE *f_open(struct Filename filename, char const *mode, int is_private)
     if (!is_private) {
 	return fopen(filename.path, mode);
     } else {
+	int fd;
 	assert(mode[0] == 'w');	       /* is_private is meaningless for read */
-	int fd = open(filename.path, O_WRONLY | O_CREAT | O_TRUNC,
+	fd = open(filename.path, O_WRONLY | O_CREAT | O_TRUNC,
 		      0700);
 	if (fd < 0)
 	    return NULL;

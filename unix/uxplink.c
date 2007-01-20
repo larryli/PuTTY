@@ -432,9 +432,9 @@ int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 /*
  * Handle data from a local tty in PARMRK format.
  */
-static void from_tty(void *buf, unsigned len)
+static void from_tty(void *vbuf, unsigned len)
 {
-    char *p, *q, *end;
+    char *p, *q, *end, *buf = vbuf;
     static enum {NORMAL, FF, FF00} state = NORMAL;
 
     p = buf; end = buf + len;
