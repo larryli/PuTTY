@@ -332,6 +332,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 				void *privdata, int flags)
 {
     struct handle *h = snew(struct handle);
+    DWORD in_threadid; /* required for Win9x */
 
     h->output = FALSE;
     h->u.i.h = handle;
@@ -349,7 +350,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
     add234(handles_by_evtomain, h);
 
     CreateThread(NULL, 0, handle_input_threadfunc,
-		 &h->u.i, 0, NULL);
+		 &h->u.i, 0, &in_threadid);
     h->u.i.busy = TRUE;
 
     return h;
@@ -359,6 +360,7 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
 				 void *privdata, int flags)
 {
     struct handle *h = snew(struct handle);
+    DWORD out_threadid; /* required for Win9x */
 
     h->output = TRUE;
     h->u.o.h = handle;
@@ -378,7 +380,7 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
     add234(handles_by_evtomain, h);
 
     CreateThread(NULL, 0, handle_output_threadfunc,
-		 &h->u.i, 0, NULL);
+		 &h->u.i, 0, &out_threadid);
 
     return h;
 }
