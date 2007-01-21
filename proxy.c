@@ -1369,7 +1369,7 @@ char *format_telnet_command(SockAddr addr, int port, const Config *cfg)
 		eo += 4;
 	    }
 	    else if (strnicmp(cfg->proxy_telnet_command + eo,
-			      "proxyhost", 4) == 0) {
+			      "proxyhost", 9) == 0) {
 		int phlen = strlen(cfg->proxy_host);
 		ENSURE(phlen);
 		memcpy(ret+retlen, cfg->proxy_host, phlen);
@@ -1377,11 +1377,11 @@ char *format_telnet_command(SockAddr addr, int port, const Config *cfg)
 		eo += 9;
 	    }
 	    else if (strnicmp(cfg->proxy_telnet_command + eo,
-			      "proxyport", 4) == 0) {
+			      "proxyport", 9) == 0) {
                 char pport[50];
 		int pplen;
                 sprintf(pport, "%d", cfg->proxy_port);
-                pplen = strlen(cfg->proxy_host);
+                pplen = strlen(pport);
 		ENSURE(pplen);
 		memcpy(ret+retlen, pport, pplen);
 		retlen += pplen;
