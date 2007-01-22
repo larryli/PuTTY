@@ -203,7 +203,8 @@ sub readicon {
 		$currbits += $depth;
 		if ($x < $w && defined ($pix = $data->[$y*$w+$x])) {
 		    if (!defined $pal{$pix}) {
-			die "illegal colour value $pix at pixel $i in $filename\n";
+                        $pixhex = sprintf "%02x%02x%02x", unpack "CCC", $pix;
+			die "illegal colour value $pixhex at pixel ($x,$y) in $filename\n";
 		    }
 		    $currbyte |= $pal{$pix};
 		}
