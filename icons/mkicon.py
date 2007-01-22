@@ -675,9 +675,79 @@ def spanner(size):
 
     return canvas
 
+def box(size, back):
+    canvas = {}
+
+    # The back side of the cardboard box in the installer icon.
+
+    boxwidth = round(15 * size)
+    boxheight = round(12 * size)
+    boxdepth = round(4 * size)
+    boxfrontflapheight = round(5 * size)
+    boxrightflapheight = round(3 * size)
+
+    # Three shades of basically acceptable brown, all achieved by
+    # halftoning between two of the Windows-16 colours. I'm quite
+    # pleased that was feasible at all!
+    dark = halftone(cr, cK)
+    med = halftone(cr, cy)
+    light = halftone(cr, cY)
+    # We define our halftoning parity in such a way that the black
+    # pixels along the RHS of the visible part of the box back
+    # match up with the one-pixel black outline around the
+    # right-hand side of the box. In other words, we want the pixel
+    # at (-1, boxwidth-1) to be black, and hence the one at (0,
+    # boxwidth) too.
+    parityadjust = int(boxwidth) % 2
+
+    # The entire back of the box.
+    if back:
+        for x in range(int(boxwidth + boxdepth)):
+            ytop = max(-x-1, -boxdepth-1)
+            ybot = min(boxheight, boxheight+boxwidth-1-x)
+            for y in range(int(ytop), int(ybot)):
+                pixel(x, y, dark[(x+y+parityadjust) % 2], canvas)
+
+    # Even when drawing the back of the box, we still draw the
+    # whole shape, because that means we get the right overall size
+    # (the flaps make the box front larger than the box back) and
+    # it'll all be overwritten anyway.
+
+    # The front face of the box.
+    for x in range(int(boxwidth)):
+        for y in range(int(boxheight)):
+            pixel(x, y, med[(x+y+parityadjust) % 2], canvas)
+    # The right face of the box.
+    for x in range(int(boxwidth), int(boxwidth+boxdepth)):
+        ybot = boxheight + boxwidth-x
+        ytop = ybot - boxheight
+        for y in range(int(ytop), int(ybot)):
+            pixel(x, y, dark[(x+y+parityadjust) % 2], canvas)
+    # The front flap of the box.
+    for y in range(int(boxfrontflapheight)):
+        xadj = int(round(-0.5*y))
+        for x in range(int(xadj), int(xadj+boxwidth)):
+            pixel(x, y, light[(x+y+parityadjust) % 2], canvas)
+    # The right flap of the box.
+    for x in range(int(boxwidth), int(boxwidth + boxdepth + boxrightflapheight + 1)):
+        ytop = max(boxwidth - 1 - x, x - boxwidth - 2*boxdepth - 1)
+        ybot = min(x - boxwidth - 1, boxwidth + 2*boxrightflapheight - 1 - x)
+        for y in range(int(ytop), int(ybot+1)):
+            pixel(x, y, med[(x+y+parityadjust) % 2], canvas)
+
+    # And draw a border.
+    border(canvas, size, [(0, int(boxheight)-1, BL)])
+
+    return canvas
+
+def boxback(size):
+    return box(size, 1)
+def boxfront(size):
+    return box(size, 0)
+
 # Functions to draw entire icons by composing the above components.
 
-def xybolt(c1, c2, size, boltoffx=0, boltoffy=0):
+def xybolt(c1, c2, size, boltoffx=0, boltoffy=0, aux={}):
     # Two unspecified objects and a lightning bolt.
 
     canvas = {}
@@ -689,10 +759,12 @@ def xybolt(c1, c2, size, boltoffx=0, boltoffy=0):
     bb = bbox(c2)
     assert bb[2]-bb[0] <= w and bb[3]-bb[1] <= h
     overlay(c2, w-bb[2], 0-bb[1], canvas)
+    aux["c2pos"] = (w-bb[2], 0-bb[1])
     # Position c1 against the bottom left of the icon.
     bb = bbox(c1)
     assert bb[2]-bb[0] <= w and bb[3]-bb[1] <= h
     overlay(c1, 0-bb[0], h-bb[3], canvas)
+    aux["c1pos"] = (0-bb[0], h-bb[3])
     # Place the lightning bolt artistically off-centre. (The
     # rationale for this positioning is that it's centred on the
     # midpoint between the centres of the two monitors in the PuTTY
@@ -722,6 +794,18 @@ def puttygen_icon(size):
 
 def pscp_icon(size):
     return xybolt(document(size), computer(size), size)
+
+def installer_icon(size):
+    aret = {}
+    # The box back goes behind the lightning bolt.
+    canvas = xybolt(boxback(size), computer(size), size, boltoffx=-2, boltoffy=+1, aux=aret)
+    # But the box front goes over the top, so that the lightning
+    # bolt appears to come _out_ of the box. Here it's useful to
+    # know the exact coordinates where xybolt placed the box back,
+    # so we can overlay the box front exactly on top of it.
+    c1x, c1y = aret["c1pos"]
+    overlay(boxfront(size), c1x, c1y, canvas)
+    return canvas
 
 def pterm_icon(size):
     # Just a really big computer.
@@ -894,6 +978,8 @@ if colours == 0:
 	return pixvals[colour]
     def finalisepix(colour):
 	return colour
+    def halftone(col1, col2):
+        return (col1, col2)
 elif colours == 1:
     # Windows 16-colour palette.
     cK,cr,cg,cy,cb,cm,cc,cP,cw,cR,cG,cY,cB,cM,cC,cW = range(16)
@@ -941,6 +1027,8 @@ elif colours == 1:
 	if colour == cD:
 	    return cK
 	return colour
+    def halftone(col1, col2):
+        return (col1, col2)
 else:
     # True colour.
     cK = (0x00, 0x00, 0x00, 0xFF)
@@ -993,6 +1081,11 @@ else:
     else:
 	def finalisepix(colour):
 	    return colour
+    def halftone(col1, col2):
+	r1,g1,b1,a1 = col1
+	r2,g2,b2,a2 = col2
+        colret = (int(r1+r2)/2, int(g1+g2)/2, int(b1+b2)/2, int(a1+a2)/2)
+        return (colret, colret)
 
 if test:
     testrun(eval(realargs[0]), realargs[1])

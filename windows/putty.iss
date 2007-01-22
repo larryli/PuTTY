@@ -22,6 +22,7 @@ AppPublisherURL=http://www.chiark.greenend.org.uk/~sgtatham/putty/
 AppReadmeFile={app}\README.txt
 DefaultDirName={pf}\PuTTY
 DefaultGroupName=PuTTY
+SetupIconFile=installer.ico
 UninstallDisplayIcon={app}\putty.exe
 ChangesAssociations=yes
 ;ChangesEnvironment=yes -- when PATH munging is sorted (probably)
