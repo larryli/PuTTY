@@ -126,14 +126,6 @@ of the tag.
     + Save the release link maps. Currently I keep these on ixion,
       in src/putty/local/maps-<version>.
 
- - Acquire the Windows/alpha release binaries from Owen.
-    + Verify the signatures on these, to ensure they're really the
-      ones he built. If I'm going to sign a zip file I make out of
-      these, I'm damn well going to make sure the binaries that go
-      _into_ it are signed themselves.
-    + Make sure Owen has kept the Alpha release link maps somewhere
-      useful.
-
  - Run Halibut to build the docs. Define VERSION on the make command
    line to override the version strings, since Subversion revision
    numbers are less meaningful on a tag.
@@ -144,11 +136,9 @@ of the tag.
       _not_ the .CHM)
     + then `make VERSION="PuTTY release 0.XX"'
 
- - Build the binary archives putty.zip (one for each architecture):
-   each one just contains all the .exe files except PuTTYtel, and
-   the .hlp and .cnt files.
-    + zip -k putty.zip `ls *.exe | grep -v puttytel` putty.hlp putty.cnt
-    + same again for Alpha.
+ - Build the binary archive putty.zip: all the .exe files except
+   PuTTYtel, and the .hlp, .cnt and .chm files.
+    + zip -k putty.zip `ls *.exe | grep -v puttytel` putty.hlp putty.cnt putty.chm
 
  - Build the docs archive puttydoc.zip: it contains all the HTML
    files output from Halibut.
@@ -160,9 +150,6 @@ of the tag.
     + Sign the locally built x86 binaries, the locally built x86
       binary zipfile, and the locally built x86 installer, with the
       release keys.
-    + The Alpha binaries should already have been signed with the
-      release keys. Having checked that, sign the Alpha binary
-      zipfile with the release keys too.
     + The source archive should be signed with the release keys.
     + Don't forget to sign with both DSA and RSA keys for absolutely
       everything.
@@ -171,8 +158,6 @@ of the tag.
  - Begin to pull together the release directory structure.
     + subdir `x86' containing the x86 binaries, x86 binary zip, x86
       installer, and all signatures on the above.
-    + subdir `alpha' containing the Alpha binaries, Alpha binary
-      zip, and all signatures on the above.
     + top-level dir contains the Windows source zip (plus
       signatures), the Unix source tarball (plus signatures),
       puttydoc.txt, the .hlp and .cnt files, and puttydoc.zip.
@@ -184,17 +169,15 @@ of the tag.
       versions of the HTML docs will link to this (although the
       zipped form should be self-contained).
 
- - Create and sign md5sums files: one in the x86 subdir, one in the
-   alpha subdir, and one in the parent dir of both of those.
-    + The md5sums files need not list the .DSA and .RSA signatures,
-      and the top-level md5sums need not list the other two. Easiest
-      thing is to run, in each directory, this command:
+ - Create and sign an md5sums file in the top-level directory.
+    + The md5sums files need not list the .DSA and .RSA signatures.
+      Easiest thing is to run this command:
       md5sum `\find * -name '*SA' -o -type f -print` > md5sums
-    + Sign the md5sums files (gpg --clearsign).
-      for i in md5sums */md5sums; do for t in DSA RSA; do gpg --load-extension=idea --clearsign -u "Releases ($t)" -o $i.$t $i; done; done
+    + Sign the md5sums file (gpg --clearsign).
+      for t in DSA RSA; do gpg --load-extension=idea --clearsign -u "Releases ($t)" -o md5sums.$t md5sums; done
 
  - Now double-check by verifying all the signatures on all the
-   files, and running md5sum -c on all the md5sums files.
+   files, and running md5sum -c on the md5sums file.
 
  - Now the whole release directory should be present and correct.
    Upload to ixion:www/putty/<ver>.
@@ -202,7 +185,7 @@ of the tag.
  - Do final checks on the release directory:
     + verify all the signatures. In each directory:
       for i in *.*SA; do case $i in md5sums*) gpg --verify $i;; *) gpg --verify $i `echo $i | sed 's/\..SA$//'`;; esac; done
-    + check the md5sums. In each directory:
+    + check the md5sums:
       md5sum -c md5sums
 
  - Having double-checked the release, copy it from ixion to
@@ -227,10 +210,13 @@ of the tag.
      Download page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
-   + FOR NEXT RELEASE ONLY: update the docs page so that it links to
-     the release .chm as well as the release .hlp and .cnt. Remove
-     this checklist item after it's done; it won't need doing again
-     in the subsequent release.
+   + FOR 0.59 ONLY: update the docs page so that it links to the
+     release .chm as well as the release .hlp and .cnt. Remove this
+     checklist item after it's done; it won't need doing again in
+     the subsequent release.
+   + FOR 0.59 ONLY: update the Download page to remove all the Alpha
+     links. Remove this checklist item after it's done; it won't
+     need doing again in the subsequent release.
 
  - Update the wishlist. This can be done without touching individual
    items by editing the @releases array in control/bugs2html.
@@ -246,7 +232,7 @@ of the tag.
    chiark. Important to do this _before_ announcing that the release
    is available.
     * Don't forget to create the new directories on chiark -
-      ~/www/putty/<ver>{,/x86,/alpha,/htmldoc} - before running
+      ~/www/putty/<ver>{,/x86,/htmldoc} - before running
       webupdate.
 
  - After running webupdate, run update-rsync on chiark and verify
