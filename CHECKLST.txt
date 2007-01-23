@@ -101,7 +101,8 @@ This is the procedure I (SGT) currently follow (or _should_ follow
 of the tag.
 
  - Double-check that we have removed anything tagged with a comment
-   containing the word XXX-REMOVE-BEFORE-RELEASE.
+   containing the words XXX-REMOVE-BEFORE-RELEASE or
+   XXX-REVIEW-BEFORE-RELEASE.
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
