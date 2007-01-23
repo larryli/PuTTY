@@ -19,6 +19,12 @@ Windows NT, 2000, and XP, you can set it using Control Panel > System;
 on Windows 95, 98, and Me, you will need to edit AUTOEXEC.BAT. Consult
 your Windows manuals for details.
 
+Some versions of Windows will refuse to run HTML Help files (.CHM)
+if they are installed on a network drive. If you have installed
+PuTTY on a network drive, you might want to check that the help file
+works properly. If not, see http://support.microsoft.com/kb/896054
+for information on how to solve this problem.
+
 What do I do if it doesn't work?
 --------------------------------
 
