@@ -299,6 +299,7 @@ static void close_session(void)
 	back->free(backhandle);
 	backhandle = NULL;
 	back = NULL;
+        term_provide_resize_fn(term, NULL, NULL);
 	update_specials_menu(NULL);
     }
 

@@ -1722,7 +1722,7 @@ void term_provide_resize_fn(Terminal *term,
 {
     term->resize_fn = resize_fn;
     term->resize_ctx = resize_ctx;
-    if (term->cols > 0 && term->rows > 0)
+    if (resize_fn && term->cols > 0 && term->rows > 0)
 	resize_fn(resize_ctx, term->cols, term->rows);
 }
 

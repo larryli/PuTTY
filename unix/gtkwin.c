@@ -1205,6 +1205,7 @@ void notify_remote_exit(void *frontend)
 	    inst->back->free(inst->backhandle);
 	    inst->backhandle = NULL;
 	    inst->back = NULL;
+            term_provide_resize_fn(inst->term, NULL, NULL);
 	    update_specials_menu(inst);
 	}
 	gtk_widget_show(inst->restartitem);
