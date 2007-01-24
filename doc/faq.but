@@ -1013,19 +1013,8 @@ still. We do not recommend it.)
 \S{faq-xpwontrun}{Question} PuTTY fails to start up.  Windows claims that
 \q{the application configuration is incorrect}.
 
-This is caused by a bug in certain versions of \i{Windows XP} which is
-triggered by PuTTY 0.58.
-\#{XXX-REVIEW-BEFORE-RELEASE: This entry should be changed on the point
-   of the next release, so that it makes it into the release
-   documentation. I suggest replacing the following text:}
-It can be avoided by installing
-Service Pack 2, by using a different version of PuTTY, or by installing
-a special \i{manifest file} alongside the PuTTY executable.
-\#{with this:
-This was fixed in 0.59.
-}
-\#{XXX-REVIEW-BEFORE-RELEASE: END}
-The
+This is caused by a bug in certain versions of \i{Windows XP} which
+is triggered by PuTTY 0.58. This was fixed in 0.59. The
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/xp-wont-run}{\q{xp-wont-run}}
 entry in PuTTY's wishlist has more details.
 
