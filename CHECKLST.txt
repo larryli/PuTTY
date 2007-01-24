@@ -161,7 +161,7 @@ of the tag.
       installer, and all signatures on the above.
     + top-level dir contains the Windows source zip (plus
       signatures), the Unix source tarball (plus signatures),
-      puttydoc.txt, the .hlp and .cnt files, and puttydoc.zip.
+      puttydoc.txt, the .hlp, .cnt and .chm files, and puttydoc.zip.
 
  - Create subdir `htmldoc' in the release directory, which should
    contain exactly the same set of HTML files that went into
@@ -211,13 +211,6 @@ of the tag.
      Download page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
-   + FOR 0.59 ONLY: update the docs page so that it links to the
-     release .chm as well as the release .hlp and .cnt. Remove this
-     checklist item after it's done; it won't need doing again in
-     the subsequent release.
-   + FOR 0.59 ONLY: update the Download page to remove all the Alpha
-     links. Remove this checklist item after it's done; it won't
-     need doing again in the subsequent release.
 
  - Update the wishlist. This can be done without touching individual
    items by editing the @releases array in control/bugs2html.
@@ -232,9 +225,6 @@ of the tag.
  - Run webupdate, so that all the changes on ixion propagate to
    chiark. Important to do this _before_ announcing that the release
    is available.
-    * Don't forget to create the new directories on chiark -
-      ~/www/putty/<ver>{,/x86,/htmldoc} - before running
-      webupdate.
 
  - After running webupdate, run update-rsync on chiark and verify
    that the rsync mirror package correctly identifies the new
