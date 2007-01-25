@@ -72,6 +72,10 @@ installer.ico: installer-16.png installer-32.png installer-48.png \
                   -4 $(filter-out %-true.png, $(filter-out %-mono.png, $^)) \
                   -1 $(filter %-mono.png, $^) > $@
 
+# Icon for the website. (This isn't linked into "make all".)
+website.ico: putty-16.png
+	./icon.pl -4 $^ >$@
+
 xpmputty.c: putty-16.png putty-32.png putty-48.png
 	./cicon.pl main_icon $^ > $@
 
