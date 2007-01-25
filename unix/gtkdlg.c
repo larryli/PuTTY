@@ -2661,7 +2661,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
 	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
 	"Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas "
 	"Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, "
-	"Markus Kuhn, and CORE SDI S.A.\n\n"
+	"Markus Kuhn, Colin Watson, and CORE SDI S.A.\n\n"
 
 	"Permission is hereby granted, free of charge, to any person "
 	"obtaining a copy of this software and associated documentation "

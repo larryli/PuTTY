@@ -63,7 +63,7 @@ BEGIN
     LTEXT "Portions copyright Robert de Bath, Joris van Rantwijk, Delian", 1001, 10, 26, 206, 8
     LTEXT "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas", 1002, 10, 34, 206, 8
     LTEXT "Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa,", 1003, 10, 42, 206, 8
-    LTEXT "Markus Kuhn, and CORE SDI S.A.", 1004, 10, 50, 206, 8
+    LTEXT "Markus Kuhn, Colin Watson, and CORE SDI S.A.", 1004, 10, 50, 206, 8
 
     LTEXT "Permission is hereby granted, free of charge, to any person", 1005, 10, 66, 206, 8
     LTEXT "obtaining a copy of this software and associated documentation", 1006, 10, 74, 206, 8
