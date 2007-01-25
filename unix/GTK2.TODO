@@ -43,6 +43,11 @@ Other items:
  - The host key security alert dialog box is coming up the right
    size but totally blank! Find out why and fix it.
 
+ - Since Colin's patch was originally prepared I committed r7117
+   (fold up treeview branches at depth 2 or greater), and this is
+   not currently replicated in the GTK2 version of the treeview
+   code. It should be.
+
 At point of merge:
 
  - Mention Colin in the website's licence page.
