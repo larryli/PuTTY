@@ -56,6 +56,7 @@ struct uctrl {
     GtkWidget *text;	      /* for text */
     GtkWidget *label;         /* for dlg_label_change */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
+    guint entrysig;
     guint textsig;
 };
 
@@ -102,12 +103,12 @@ static gboolean widget_focus(GtkWidget *widget, GdkEventFocus *event,
 static void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 			 int chr, int action, void *ptr);
 static void shortcut_highlight(GtkWidget *label, int chr);
-static int listitem_single_key(GtkWidget *item, GdkEventKey *event,
-                               gpointer data);
-static int listitem_multi_key(GtkWidget *item, GdkEventKey *event,
-                                 gpointer data);
-static int listitem_button(GtkWidget *item, GdkEventButton *event,
-			    gpointer data);
+static gboolean listitem_single_key(GtkWidget *item, GdkEventKey *event,
+				    gpointer data);
+static gboolean listitem_multi_key(GtkWidget *item, GdkEventKey *event,
+				   gpointer data);
+static gboolean listitem_button(GtkWidget *item, GdkEventButton *event,
+				gpointer data);
 static void menuitem_activate(GtkMenuItem *item, gpointer data);
 static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
@@ -300,7 +301,27 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_EDITBOX);
     assert(uc->entry != NULL);
+    /*
+     * GTK 2 implements gtk_entry_set_text by means of two separate
+     * operations: first delete the previous text leaving the empty
+     * string, then insert the new text. This causes two calls to
+     * the "changed" signal.
+     * 
+     * The first call to "changed", if allowed to proceed normally,
+     * will cause an EVENT_VALCHANGE event on the edit box, causing
+     * a call to dlg_editbox_get() which will read the empty string
+     * out of the GtkEntry - and promptly write it straight into
+     * the Config structure, which is precisely where our `text'
+     * pointer is probably pointing, so the second editing
+     * operation will insert that instead of the string we
+     * originally asked for.
+     * 
+     * Hence, we must block our "changed" signal handler for the
+     * duration of this call to gtk_entry_set_text.
+     */
+    g_signal_handler_block(uc->entry, uc->entrysig);
     gtk_entry_set_text(GTK_ENTRY(uc->entry), text);
+    g_signal_handler_unblock(uc->entry, uc->entrysig);
 }
 
 void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
@@ -963,7 +984,8 @@ static void button_toggled(GtkToggleButton *tb, gpointer data)
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
 }
 
-static int editbox_key(GtkWidget *widget, GdkEventKey *event, gpointer data)
+static gboolean editbox_key(GtkWidget *widget, GdkEventKey *event,
+			    gpointer data)
 {
     /*
      * GtkEntry has a nasty habit of eating the Return key, which
@@ -975,7 +997,7 @@ static int editbox_key(GtkWidget *widget, GdkEventKey *event, gpointer data)
      * in the dialog just like it will everywhere else.
      */
     if (event->keyval == GDK_Return && widget->parent != NULL) {
-	gint return_val;
+	gboolean return_val;
 	gtk_signal_emit_stop_by_name(GTK_OBJECT(widget), "key_press_event");
 	gtk_signal_emit_by_name(GTK_OBJECT(widget->parent), "key_press_event",
 				event, &return_val);
@@ -993,16 +1015,17 @@ static void editbox_changed(GtkEditable *ed, gpointer data)
     }
 }
 
-static void editbox_lostfocus(GtkWidget *ed, GdkEventFocus *event,
-			      gpointer data)
+static gboolean editbox_lostfocus(GtkWidget *ed, GdkEventFocus *event,
+				  gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(ed));
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_REFRESH);
+    return FALSE;
 }
 
-static int listitem_key(GtkWidget *item, GdkEventKey *event, gpointer data,
-                        int multiple)
+static gboolean listitem_key(GtkWidget *item, GdkEventKey *event,
+			     gpointer data, int multiple)
 {
     GtkAdjustment *adj = GTK_ADJUSTMENT(data);
 
@@ -1095,20 +1118,20 @@ static int listitem_key(GtkWidget *item, GdkEventKey *event, gpointer data,
     return FALSE;
 }
 
-static int listitem_single_key(GtkWidget *item, GdkEventKey *event,
-                               gpointer data)
+static gboolean listitem_single_key(GtkWidget *item, GdkEventKey *event,
+				    gpointer data)
 {
     return listitem_key(item, event, data, FALSE);
 }
 
-static int listitem_multi_key(GtkWidget *item, GdkEventKey *event,
-                                 gpointer data)
+static gboolean listitem_multi_key(GtkWidget *item, GdkEventKey *event,
+				   gpointer data)
 {
     return listitem_key(item, event, data, TRUE);
 }
 
-static int listitem_button(GtkWidget *item, GdkEventButton *event,
-			    gpointer data)
+static gboolean listitem_button(GtkWidget *item, GdkEventButton *event,
+				gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     if (event->type == GDK_2BUTTON_PRESS ||
@@ -1500,8 +1523,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 			gtk_entry_set_visibility(GTK_ENTRY(w), FALSE);
 		    uc->entry = w;
 		}
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
-				   GTK_SIGNAL_FUNC(editbox_changed), dp);
+		uc->entrysig =
+		    gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
+				       GTK_SIGNAL_FUNC(editbox_changed), dp);
 		gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
 				   GTK_SIGNAL_FUNC(editbox_key), dp);
 		gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_in_event",
@@ -1592,8 +1616,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
 		gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
 				   GTK_SIGNAL_FUNC(editbox_key), dp);
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
-				   GTK_SIGNAL_FUNC(editbox_changed), dp);
+		uc->entrysig =
+		    gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
+				       GTK_SIGNAL_FUNC(editbox_changed), dp);
                 gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_in_event",
                                    GTK_SIGNAL_FUNC(widget_focus), dp);
                 gtk_signal_connect(GTK_OBJECT(uc->button), "focus_in_event",
