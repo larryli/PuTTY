@@ -5,8 +5,8 @@
 /*
  * TODO when porting to GTK 2.0:
  * 
- *  - GtkTree is apparently deprecated and we should switch to
- *    GtkTreeView instead.
+ *  - GtkList is deprecated and we should switch to GtkTreeView instead
+ *    (done for GtkTree).
  *  - GtkLabel has a built-in mnemonic scheme, so we should at
  *    least consider switching to that from the current adhockery.
  */
@@ -67,9 +67,12 @@ struct dlgparam {
      * due to automatic processing and should not flag a user event. */
     int flags;
     struct Shortcuts *shortcuts;
-    GtkWidget *window, *cancelbutton, *currtreeitem, **treeitems;
+    GtkWidget *window, *cancelbutton;
     union control *currfocus, *lastfocus;
+#if !GTK_CHECK_VERSION(2,0,0)
+    GtkWidget *currtreeitem, **treeitems;
     int ntreeitems;
+#endif
     int retval;
 };
 #define FLAG_UPDATING_COMBO_LIST 1
@@ -82,6 +85,14 @@ enum {				       /* values for Shortcut.action */
     SHORTCUT_UCTRL_UP,		       /* uctrl is a draglist, move Up */
     SHORTCUT_UCTRL_DOWN,	       /* uctrl is a draglist, move Down */
 };
+
+#if GTK_CHECK_VERSION(2,0,0)
+enum {
+    TREESTORE_PATH,
+    TREESTORE_PARAMS,
+    TREESTORE_NUM
+};
+#endif
 
 /*
  * Forward references.
@@ -151,8 +162,11 @@ static void dlg_init(struct dlgparam *dp)
     dp->byctrl = newtree234(uctrl_cmp_byctrl);
     dp->bywidget = newtree234(uctrl_cmp_bywidget);
     dp->coloursel_result.ok = FALSE;
+    dp->window = dp->cancelbutton = NULL;
+#if !GTK_CHECK_VERSION(2,0,0)
     dp->treeitems = NULL;
-    dp->window = dp->cancelbutton = dp->currtreeitem = NULL;
+    dp->currtreeitem = NULL;
+#endif
     dp->flags = 0;
     dp->currfocus = NULL;
 }
@@ -172,7 +186,9 @@ static void dlg_cleanup(struct dlgparam *dp)
     }
     freetree234(dp->bywidget);
     dp->bywidget = NULL;
+#if !GTK_CHECK_VERSION(2,0,0)
     sfree(dp->treeitems);
+#endif
 }
 
 static void dlg_add_uctrl(struct dlgparam *dp, struct uctrl *uc)
@@ -735,7 +751,11 @@ void dlg_set_focus(union control *ctrl, void *dlg)
             gtk_widget_grab_focus(uc->optmenu);
         } else {
             assert(uc->list != NULL);
+#if GTK_CHECK_VERSION(2,0,0)
+	    gtk_widget_grab_focus(uc->list);
+#else
             gtk_container_focus(GTK_CONTAINER(uc->list), GTK_DIR_TAB_FORWARD);
+#endif
         }
         break;
     }
@@ -863,7 +883,11 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
     dp->coloursel_result.ok = FALSE;
 
     gtk_window_set_modal(GTK_WINDOW(coloursel), TRUE);
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_color_selection_set_has_opacity_control(GTK_COLOR_SELECTION(ccs->colorsel), FALSE);
+#else
     gtk_color_selection_set_opacity(GTK_COLOR_SELECTION(ccs->colorsel), FALSE);
+#endif
     cvals[0] = r / 255.0;
     cvals[1] = g / 255.0;
     cvals[2] = b / 255.0;
@@ -1157,7 +1181,8 @@ static void filesel_ok(GtkButton *button, gpointer data)
     /* struct dlgparam *dp = (struct dlgparam *)data; */
     gpointer filesel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(filesel), "user-data");
-    char *name = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filesel));
+    const char *name = gtk_file_selection_get_filename
+	(GTK_FILE_SELECTION(filesel));
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
 }
 
@@ -1166,7 +1191,7 @@ static void fontsel_ok(GtkButton *button, gpointer data)
     /* struct dlgparam *dp = (struct dlgparam *)data; */
     gpointer fontsel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(fontsel), "user-data");
-    char *name = gtk_font_selection_dialog_get_font_name
+    const char *name = gtk_font_selection_dialog_get_font_name
 	(GTK_FONT_SELECTION_DIALOG(fontsel));
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
 }
@@ -1222,15 +1247,20 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     }
 
     if (uc->ctrl->generic.type == CTRL_FONTSELECT) {
+#if !GTK_CHECK_VERSION(2,0,0)
 	gchar *spacings[] = { "c", "m", NULL };
-        gchar *fontname = gtk_entry_get_text(GTK_ENTRY(uc->entry));
+#endif
+        const gchar *fontname = gtk_entry_get_text(GTK_ENTRY(uc->entry));
+	/* TODO: In GTK 2, this only seems to offer client-side fonts. */
 	GtkWidget *fontsel =
 	    gtk_font_selection_dialog_new("Select a font");
 	gtk_window_set_modal(GTK_WINDOW(fontsel), TRUE);
+#if !GTK_CHECK_VERSION(2,0,0)
 	gtk_font_selection_dialog_set_filter
 	    (GTK_FONT_SELECTION_DIALOG(fontsel),
 	     GTK_FONT_FILTER_BASE, GTK_FONT_ALL,
 	     NULL, NULL, NULL, NULL, spacings, NULL);
+#endif
 	if (!gtk_font_selection_dialog_set_font_name
 	    (GTK_FONT_SELECTION_DIALOG(fontsel), fontname)) {
             /*
@@ -1245,6 +1275,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
                 Display *disp = GDK_FONT_XDISPLAY(font);
                 Atom fontprop = XInternAtom(disp, "FONT", False);
                 unsigned long ret;
+		gdk_font_ref(font);
                 if (XGetFontProperty(xfs, fontprop, &ret)) {
                     char *name = XGetAtomName(disp, (Atom)ret);
                     if (name)
@@ -1620,7 +1651,12 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                  * upgrades, I'd be grateful.
                  */
 		{
-		    int edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
+		    int edge;
+#if GTK_CHECK_VERSION(2,0,0)
+		    edge = GTK_WIDGET(uc->list)->style->ythickness;
+#else
+		    edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
+#endif
                     gtk_widget_set_usize(w, 10,
                                          2*edge + (ctrl->listbox.height *
 						   listitemheight));
@@ -1741,10 +1777,37 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 struct selparam {
     struct dlgparam *dp;
     GtkNotebook *panels;
-    GtkWidget *panel, *treeitem;
+    GtkWidget *panel;
+#if !GTK_CHECK_VERSION(2,0,0)
+    GtkWidget *treeitem;
+#endif
     struct Shortcuts shortcuts;
 };
 
+#if GTK_CHECK_VERSION(2,0,0)
+static void treeselection_changed(GtkTreeSelection *treeselection,
+				  gpointer data)
+{
+    struct selparam *sps = (struct selparam *)data, *sp;
+    GtkTreeModel *treemodel;
+    GtkTreeIter treeiter;
+    gint spindex;
+    gint page_num;
+
+    if (!gtk_tree_selection_get_selected(treeselection, &treemodel, &treeiter))
+	return;
+
+    gtk_tree_model_get(treemodel, &treeiter, TREESTORE_PARAMS, &spindex, -1);
+    sp = &sps[spindex];
+
+    page_num = gtk_notebook_page_num(sp->panels, sp->panel);
+    gtk_notebook_set_page(sp->panels, page_num);
+
+    dlg_refresh(NULL, sp->dp);
+
+    sp->dp->shortcuts = &sp->shortcuts;
+}
+#else
 static void treeitem_sel(GtkItem *item, gpointer data)
 {
     struct selparam *sp = (struct selparam *)data;
@@ -1758,12 +1821,14 @@ static void treeitem_sel(GtkItem *item, gpointer data)
     sp->dp->shortcuts = &sp->shortcuts;
     sp->dp->currtreeitem = sp->treeitem;
 }
+#endif
 
 static void window_destroy(GtkWidget *widget, gpointer data)
 {
     gtk_main_quit();
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
 static int tree_grab_focus(struct dlgparam *dp)
 {
     int i, f;
@@ -1799,6 +1864,7 @@ gint tree_focus(GtkContainer *container, GtkDirectionType direction,
      */
     return tree_grab_focus(dp);
 }
+#endif
 
 int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
@@ -1817,7 +1883,11 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	switch (sc->action) {
 	  case SHORTCUT_TREE:
+#if GTK_CHECK_VERSION(2,0,0)
+	    gtk_widget_grab_focus(sc->widget);
+#else
 	    tree_grab_focus(dp);
+#endif
 	    break;
 	  case SHORTCUT_FOCUS:
 	    gtk_widget_grab_focus(sc->widget);
@@ -1893,8 +1963,12 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		} else {
                     assert(sc->uc->list != NULL);
 
+#if GTK_CHECK_VERSION(2,0,0)
+		    gtk_widget_grab_focus(sc->uc->list);
+#else
                     gtk_container_focus(GTK_CONTAINER(sc->uc->list),
                                         GTK_DIR_TAB_FORWARD);
+#endif
 		}
 		break;
 	    }
@@ -1905,6 +1979,7 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
     return FALSE;
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
 int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
@@ -1973,6 +2048,7 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
     return FALSE;
 }
+#endif
 
 static void shortcut_highlight(GtkWidget *labelw, int chr)
 {
@@ -2024,7 +2100,7 @@ int get_listitemheight(void)
     GtkWidget *listitem = gtk_list_item_new_with_label("foo");
     GtkRequisition req;
     gtk_widget_size_request(listitem, &req);
-    gtk_widget_unref(listitem);
+    gtk_object_sink(GTK_OBJECT(listitem));
     return req.height;
 }
 
@@ -2036,8 +2112,16 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     int index, level, listitemheight;
     struct controlbox *ctrlbox;
     char *path;
+#if GTK_CHECK_VERSION(2,0,0)
+    GtkTreeStore *treestore;
+    GtkCellRenderer *treerenderer;
+    GtkTreeViewColumn *treecolumn;
+    GtkTreeSelection *treeselection;
+    GtkTreeIter treeiterlevels[8];
+#else
     GtkTreeItem *treeitemlevels[8];
     GtkTree *treelevels[8];
+#endif
     struct dlgparam dp;
     struct Shortcuts scs;
 
@@ -2075,14 +2159,28 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     columns_force_left_align(COLUMNS(cols), label);
     gtk_widget_show(label);
     treescroll = gtk_scrolled_window_new(NULL, NULL);
+#if GTK_CHECK_VERSION(2,0,0)
+    treestore = gtk_tree_store_new
+	(TREESTORE_NUM, G_TYPE_STRING, G_TYPE_INT);
+    tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(treestore));
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tree), FALSE);
+    treerenderer = gtk_cell_renderer_text_new();
+    treecolumn = gtk_tree_view_column_new_with_attributes
+	("Label", treerenderer, "text", 0, NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tree), treecolumn);
+    treeselection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+    gtk_tree_selection_set_mode(treeselection, GTK_SELECTION_BROWSE);
+    gtk_container_add(GTK_CONTAINER(treescroll), tree);
+#else
     tree = gtk_tree_new();
-    gtk_signal_connect(GTK_OBJECT(tree), "focus_in_event",
-                       GTK_SIGNAL_FUNC(widget_focus), &dp);
-    shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
     gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
     gtk_signal_connect(GTK_OBJECT(tree), "focus",
 		       GTK_SIGNAL_FUNC(tree_focus), &dp);
+#endif
+    gtk_signal_connect(GTK_OBJECT(tree), "focus_in_event",
+                       GTK_SIGNAL_FUNC(widget_focus), &dp);
+    shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_widget_show(treescroll);
     gtk_box_pack_start(GTK_BOX(vbox), treescroll, TRUE, TRUE, 0);
     panels = gtk_notebook_new();
@@ -2106,7 +2204,11 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 	    int j = path ? ctrl_path_compare(s->pathname, path) : 0;
 	    if (j != INT_MAX) {        /* add to treeview, start new panel */
 		char *c;
+#if GTK_CHECK_VERSION(2,0,0)
+		GtkTreeIter treeiter;
+#else
 		GtkWidget *treeitem;
+#endif
 		int first;
 
 		/*
@@ -2127,8 +2229,50 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		else
 		    c++;
 
-		treeitem = gtk_tree_item_new_with_label(c);
+		path = s->pathname;
+
+		first = (panelvbox == NULL);
+
+		panelvbox = gtk_vbox_new(FALSE, 4);
+		gtk_widget_show(panelvbox);
+		gtk_notebook_append_page(GTK_NOTEBOOK(panels), panelvbox,
+					 NULL);
+		if (first) {
+		    gint page_num;
+
+		    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(panels),
+						     panelvbox);
+		    gtk_notebook_set_page(GTK_NOTEBOOK(panels), page_num);
+		}
+
+		if (nselparams >= selparamsize) {
+		    selparamsize += 16;
+		    selparams = sresize(selparams, selparamsize,
+					struct selparam);
+		}
+		selparams[nselparams].dp = &dp;
+		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
+		selparams[nselparams].panel = panelvbox;
+		selparams[nselparams].shortcuts = scs;   /* structure copy */
+
 		assert(j-1 < level);
+
+#if GTK_CHECK_VERSION(2,0,0)
+		if (j > 0)
+		    /* treeiterlevels[j-1] will always be valid because we
+		     * don't allow implicit path components; see above.
+		     */
+		    gtk_tree_store_append(treestore, &treeiter,
+					  &treeiterlevels[j-1]);
+		else
+		    gtk_tree_store_append(treestore, &treeiter, NULL);
+		gtk_tree_store_set(treestore, &treeiter,
+				   TREESTORE_PATH, c,
+				   TREESTORE_PARAMS, nselparams,
+				   -1);
+		treeiterlevels[j] = treeiter;
+#else
+		treeitem = gtk_tree_item_new_with_label(c);
 		if (j > 0) {
 		    if (!treelevels[j-1]) {
 			treelevels[j-1] = GTK_TREE(gtk_tree_new());
@@ -2146,7 +2290,6 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		}
 		treeitemlevels[j] = GTK_TREE_ITEM(treeitem);
 		treelevels[j] = NULL;
-		level = j+1;
 
                 gtk_signal_connect(GTK_OBJECT(treeitem), "key_press_event",
                                    GTK_SIGNAL_FUNC(tree_key_press), &dp);
@@ -2155,35 +2298,13 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 
 		gtk_widget_show(treeitem);
 
-		path = s->pathname;
-
-		first = (panelvbox == NULL);
-
-		panelvbox = gtk_vbox_new(FALSE, 4);
-		gtk_widget_show(panelvbox);
-		gtk_notebook_append_page(GTK_NOTEBOOK(panels), panelvbox,
-					 NULL);
-		if (first) {
-		    gint page_num;
-
-		    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(panels),
-						     panelvbox);
-		    gtk_notebook_set_page(GTK_NOTEBOOK(panels), page_num);
+		if (first)
 		    gtk_tree_select_child(GTK_TREE(tree), treeitem);
-		}
-
-		if (nselparams >= selparamsize) {
-		    selparamsize += 16;
-		    selparams = sresize(selparams, selparamsize,
-					struct selparam);
-		}
-		selparams[nselparams].dp = &dp;
-		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
-		selparams[nselparams].panel = panelvbox;
-		selparams[nselparams].shortcuts = scs;   /* structure copy */
 		selparams[nselparams].treeitem = treeitem;
-		nselparams++;
+#endif
 
+		level = j+1;
+		nselparams++;
 	    }
 
 	    w = layout_ctrls(&dp,
@@ -2194,6 +2315,11 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 	}
     }
 
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_tree_view_expand_all(GTK_TREE_VIEW(tree));
+    g_signal_connect(G_OBJECT(treeselection), "changed",
+		     G_CALLBACK(treeselection_changed), selparams);
+#else
     dp.ntreeitems = nselparams;
     dp.treeitems = snewn(dp.ntreeitems, GtkWidget *);
 
@@ -2203,12 +2329,15 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 			   &selparams[index]);
         dp.treeitems[index] = selparams[index].treeitem;
     }
+#endif
 
     dp.data = cfg;
     dlg_refresh(NULL, &dp);
 
     dp.shortcuts = &selparams[0].shortcuts;
+#if !GTK_CHECK_VERSION(2,0,0)
     dp.currtreeitem = dp.treeitems[0];
+#endif
     dp.lastfocus = NULL;
     dp.retval = 0;
     dp.window = window;
@@ -2223,8 +2352,10 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 	set_window_icon(window, cfg_icon, n_cfg_icon);
     }
 
+#if !GTK_CHECK_VERSION(2,0,0)
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
 					  tree);
+#endif
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(treescroll),
 				   GTK_POLICY_NEVER,
 				   GTK_POLICY_AUTOMATIC);
@@ -2378,7 +2509,7 @@ static int string_width(char *text)
     GtkWidget *label = gtk_label_new(text);
     GtkRequisition req;
     gtk_widget_size_request(label, &req);
-    gtk_widget_unref(label);
+    gtk_object_sink(GTK_OBJECT(label));
     return req.width;
 }
 

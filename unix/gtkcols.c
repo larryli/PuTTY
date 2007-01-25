@@ -3,18 +3,23 @@
  */
 
 #include "gtkcols.h"
+#include <gtk/gtk.h>
 
 static void columns_init(Columns *cols);
 static void columns_class_init(ColumnsClass *klass);
 static void columns_map(GtkWidget *widget);
 static void columns_unmap(GtkWidget *widget);
+#if !GTK_CHECK_VERSION(2,0,0)
 static void columns_draw(GtkWidget *widget, GdkRectangle *area);
 static gint columns_expose(GtkWidget *widget, GdkEventExpose *event);
+#endif
 static void columns_base_add(GtkContainer *container, GtkWidget *widget);
 static void columns_remove(GtkContainer *container, GtkWidget *widget);
 static void columns_forall(GtkContainer *container, gboolean include_internals,
                            GtkCallback callback, gpointer callback_data);
+#if !GTK_CHECK_VERSION(2,0,0)
 static gint columns_focus(GtkContainer *container, GtkDirectionType dir);
+#endif
 static GtkType columns_child_type(GtkContainer *container);
 static void columns_size_request(GtkWidget *widget, GtkRequisition *req);
 static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc);
@@ -43,8 +48,10 @@ GtkType columns_get_type(void)
     return columns_type;
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
 static gint (*columns_inherited_focus)(GtkContainer *container,
 				       GtkDirectionType direction);
+#endif
 
 static void columns_class_init(ColumnsClass *klass)
 {
@@ -65,8 +72,10 @@ static void columns_class_init(ColumnsClass *klass)
 
     widget_class->map = columns_map;
     widget_class->unmap = columns_unmap;
+#if !GTK_CHECK_VERSION(2,0,0)
     widget_class->draw = columns_draw;
     widget_class->expose_event = columns_expose;
+#endif
     widget_class->size_request = columns_size_request;
     widget_class->size_allocate = columns_size_allocate;
 
@@ -74,10 +83,12 @@ static void columns_class_init(ColumnsClass *klass)
     container_class->remove = columns_remove;
     container_class->forall = columns_forall;
     container_class->child_type = columns_child_type;
+#if !GTK_CHECK_VERSION(2,0,0)
     /* Save the previous value of this method. */
     if (!columns_inherited_focus)
 	columns_inherited_focus = container_class->focus;
     container_class->focus = columns_focus;
+#endif
 }
 
 static void columns_init(Columns *cols)
@@ -135,6 +146,7 @@ static void columns_unmap(GtkWidget *widget)
             gtk_widget_unmap(child->widget);
     }
 }
+#if !GTK_CHECK_VERSION(2,0,0)
 static void columns_draw(GtkWidget *widget, GdkRectangle *area)
 {
     Columns *cols;
@@ -186,6 +198,7 @@ static gint columns_expose(GtkWidget *widget, GdkEventExpose *event)
     }
     return FALSE;
 }
+#endif
 
 static void columns_base_add(GtkContainer *container, GtkWidget *widget)
 {
@@ -241,6 +254,9 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
 
         cols->taborder = g_list_remove_link(cols->taborder, children);
         g_list_free(children);
+#if GTK_CHECK_VERSION(2,0,0)
+	gtk_container_set_focus_chain(container, cols->taborder);
+#endif
         break;
     }
 }
@@ -332,6 +348,10 @@ void columns_add(Columns *cols, GtkWidget *child,
 
     gtk_widget_set_parent(child, GTK_WIDGET(cols));
 
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_container_set_focus_chain(GTK_CONTAINER(cols), cols->taborder);
+#endif
+
     if (GTK_WIDGET_REALIZED(cols))
         gtk_widget_realize(child);
 
@@ -382,10 +402,14 @@ void columns_taborder_last(Columns *cols, GtkWidget *widget)
         cols->taborder = g_list_remove_link(cols->taborder, children);
         g_list_free(children);
 	cols->taborder = g_list_append(cols->taborder, widget);
+#if GTK_CHECK_VERSION(2,0,0)
+	gtk_container_set_focus_chain(GTK_CONTAINER(cols), cols->taborder);
+#endif
         break;
     }
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
 /*
  * Override GtkContainer's focus movement so the user can
  * explicitly specify the tab order.
@@ -449,6 +473,7 @@ static gint columns_focus(GtkContainer *container, GtkDirectionType dir)
     } else
 	return columns_inherited_focus(container, dir);
 }
+#endif
 
 /*
  * Now here comes the interesting bit. The actual layout part is

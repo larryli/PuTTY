@@ -327,7 +327,7 @@ void set_zoomed(void *frontend, int zoomed)
      */
 #if GTK_CHECK_VERSION(2,0,0)
     struct gui_data *inst = (struct gui_data *)frontend;
-    if (iconic)
+    if (zoomed)
 	gtk_window_maximize(GTK_WINDOW(inst->window));
     else
 	gtk_window_unmaximize(GTK_WINDOW(inst->window));
@@ -1347,17 +1347,13 @@ void request_resize(void *frontend, int w, int h)
      */
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_widget_set_size_request(inst->area, area_x, area_y);
-#else
-    gtk_widget_set_usize(inst->area, area_x, area_y);
-    gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), area_x, area_y);
-#endif
-
-    gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
-
-#if GTK_CHECK_VERSION(2,0,0)
+    _gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
     gtk_window_resize(GTK_WINDOW(inst->window),
 		      area_x + offset_x, area_y + offset_y);
 #else
+    gtk_widget_set_usize(inst->area, area_x, area_y);
+    gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), area_x, area_y);
+    gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
     gdk_window_resize(inst->window->window,
 		      area_x + offset_x, area_y + offset_y);
 #endif
@@ -2286,8 +2282,11 @@ GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
 	return NULL;
     }
 
-    if (cursor_val >= 0 && !cursor_font)
+    if (cursor_val >= 0 && !cursor_font) {
 	cursor_font = gdk_font_load("cursor");
+	if (cursor_font)
+	    gdk_font_ref(cursor_font);
+    }
 
     /*
      * Get the text extent of the cursor in question. We use the
@@ -2776,6 +2775,7 @@ void setup_fonts_ucs(struct gui_data *inst)
 		inst->cfg.font.name);
 	exit(1);
     }
+    gdk_font_ref(inst->fonts[0]);
     font_charset = set_font_info(inst, 0);
 
     if (inst->cfg.shadowbold) {
@@ -2790,6 +2790,7 @@ void setup_fonts_ucs(struct gui_data *inst)
 	}
 	inst->fonts[1] = name ? gdk_font_load(name) : NULL;
 	if (inst->fonts[1]) {
+	    gdk_font_ref(inst->fonts[1]);
 	    set_font_info(inst, 1);
 	} else if (!guessed) {
 	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
@@ -2809,6 +2810,7 @@ void setup_fonts_ucs(struct gui_data *inst)
     }
     inst->fonts[2] = name ? gdk_font_load(name) : NULL;
     if (inst->fonts[2]) {
+	gdk_font_ref(inst->fonts[2]);
 	set_font_info(inst, 2);
     } else if (!guessed) {
 	fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
@@ -2840,6 +2842,7 @@ void setup_fonts_ucs(struct gui_data *inst)
 	}
 	inst->fonts[3] = name ? gdk_font_load(name) : NULL;
 	if (inst->fonts[3]) {
+	    gdk_font_ref(inst->fonts[3]);
 	    set_font_info(inst, 3);
 	} else if (!guessed) {
 	    fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n", appname,
@@ -2851,6 +2854,17 @@ void setup_fonts_ucs(struct gui_data *inst)
     }
 
     inst->font_width = gdk_char_width(inst->fonts[0], ' ');
+    if (!inst->font_width) {
+	/* Maybe this is a 16-bit font? If so, GDK 2 actually expects a
+	 * pointer to an XChar2b. This is pretty revolting. Can Pango do
+	 * this more neatly even for server-side fonts?
+	 */
+	XChar2b space;
+	space.byte1 = 0;
+	space.byte2 = ' ';
+	inst->font_width = gdk_text_width(inst->fonts[0],
+					  (const gchar *)&space, 2);
+    }
     inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
 
     inst->direct_to_font = init_ucs(&inst->ucsdata, inst->cfg.line_codepage,
