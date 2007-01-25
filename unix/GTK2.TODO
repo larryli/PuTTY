@@ -1,0 +1,48 @@
+TODO for PuTTY GTK2 port before merging back into main trunk code
+-----------------------------------------------------------------
+
+Items from Colin's original mail:
+
+ - Font handling is the biggie. Current problems with it:
+    * The GTK2 font selection dialog only mentions client-side
+      fonts, but the actual text display code can't cope with them.
+       + Clearly one or the other needs to be fixed: the font
+	 selection dialog certainly needs to agree with the fonts
+	 actually available in the program.
+       + I want to keep being able to use my server-side fonts.
+       + People used to GTK2 applications will probably want to use
+	 their client-side fonts.
+    * Also, the GTK2 font selection dialog doesn't allow filtering
+      to monospaced fonts only (and gnome-terminal, for example,
+      just has to cope if the user selects a proportional font).
+       + We can live with this problem if we really have to, but
+	 it'd be nice not to have to.
+    * Colin's idea is that we should simply cook up a font selection
+      dialog entirely of our own, which handles both client- _and_
+      server-side fonts, and correspondingly soup up the text
+      display code to deal with whichever it's given (if necessary
+      by switching between two totally separate pieces of code).
+      This sounds like a sensible plan to me, or at least the most
+      sensible response to a generally insane situation.
+
+ - The call to _gtk_container_dequeue_resize_handler wants
+   revisiting, and preferably removing in favour of a cleaner way to
+   do the job.
+
+ - gtkcols.c is currently a minimal-work GTK2 port of my original
+   GTK1 implementation. Someone should go through it and compare it
+   to a real GTK2 container class, to make sure there aren't any
+   large chunks we should have reimplemented and haven't, or indeed
+   that we shouldn't have reimplemented and have.
+
+ - Uses of GtkList should be replaced with the non-deprecated
+   GtkTreeView.
+
+Other items:
+
+ - The host key security alert dialog box is coming up the right
+   size but totally blank! Find out why and fix it.
+
+At point of merge:
+
+ - Mention Colin in the website's licence page.
