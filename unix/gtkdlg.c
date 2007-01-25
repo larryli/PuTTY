@@ -2104,6 +2104,72 @@ int get_listitemheight(void)
     return req.height;
 }
 
+void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
+{
+#if !GTK_CHECK_VERSION(2,0,0)
+
+    /*
+     * In GTK 1, laying out the buttons at the bottom of the
+     * configuration box is nice and easy, because a GtkDialog's
+     * action_area is a GtkHBox which stretches to cover the full
+     * width of the dialog. So we just put our Columns widget
+     * straight into that hbox, and it ends up just where we want
+     * it.
+     */
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
+		       w, TRUE, TRUE, 0);
+
+#else
+    /*
+     * In GTK 2, the action area is now a GtkHButtonBox and its
+     * layout behaviour seems to be different: it doesn't stretch
+     * to cover the full width of the window, but instead finds its
+     * own preferred width and right-aligns that within the window.
+     * This isn't what we want, because we have both left-aligned
+     * and right-aligned buttons coming out of the above call to
+     * layout_ctrls(), and right-aligning the whole thing will
+     * result in the former being centred and looking weird.
+     *
+     * So instead we abandon the dialog's action area completely:
+     * we gtk_widget_hide() it in the below code, and we also call
+     * gtk_dialog_set_has_separator() to remove the separator above
+     * it. We then insert our own action area into the end of the
+     * dialog's main vbox, and add our own separator above that.
+     *
+     * (Ideally, if we were a native GTK app, we would use the
+     * GtkHButtonBox's _own_ innate ability to support one set of
+     * buttons being right-aligned and one left-aligned. But to do
+     * that here, we would have to either (a) pick apart our cross-
+     * platform layout structures and treat them specially for this
+     * particular set of controls, which would be painful, or else
+     * (b) develop a special and simpler cross-platform
+     * representation for these particular controls, and introduce
+     * special-case code into all the _other_ platforms to handle
+     * it. Neither appeals. Therefore, I regretfully discard the
+     * GTKHButtonBox and go it alone.)
+     */
+
+    GtkWidget *align;
+    align = gtk_alignment_new(0, 0, 1, 1);
+    gtk_container_add(GTK_CONTAINER(align), w);
+    /*
+     * The purpose of this GtkAlignment is to provide padding
+     * around the buttons. The padding we use is twice the padding
+     * used in our GtkColumns, because we nest two GtkColumns most
+     * of the time (one separating the tree view from the main
+     * controls, and another for the main controls themselves).
+     */
+    gtk_alignment_set_padding(GTK_ALIGNMENT(align), 8, 8, 8, 8);
+    gtk_widget_show(align);
+    gtk_box_pack_end(GTK_BOX(dlg->vbox), align, FALSE, TRUE, 0);
+    w = gtk_hseparator_new();
+    gtk_box_pack_end(GTK_BOX(dlg->vbox), w, FALSE, TRUE, 0);
+    gtk_widget_show(w);
+    gtk_widget_hide(dlg->action_area);
+    gtk_dialog_set_has_separator(dlg, FALSE);
+#endif
+}
+
 int do_config_box(const char *title, Config *cfg, int midsession,
 		  int protcfginfo)
 {
@@ -2198,8 +2264,8 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 
 	if (!*s->pathname) {
 	    w = layout_ctrls(&dp, &scs, s, listitemheight, GTK_WINDOW(window));
-	    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
-			       w, TRUE, TRUE, 0);
+
+	    set_dialog_action_area(GTK_DIALOG(window), w);
 	} else {
 	    int j = path ? ctrl_path_compare(s->pathname, path) : 0;
 	    if (j != INT_MAX) {        /* add to treeview, start new panel */
@@ -2467,8 +2533,7 @@ int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
     window = gtk_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
     w0 = layout_ctrls(&dp, &scs, s0, 0, GTK_WINDOW(window));
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
-		       w0, TRUE, TRUE, 0);
+    set_dialog_action_area(GTK_DIALOG(window), w0);
     gtk_widget_show(w0);
     w1 = layout_ctrls(&dp, &scs, s1, 0, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
@@ -2913,8 +2978,7 @@ void showeventlog(void *estuff, void *parentwin)
     sfree(title);
     w0 = layout_ctrls(&es->dp, &es->scs, s0,
 		      listitemheight, GTK_WINDOW(window));
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
-		       w0, TRUE, TRUE, 0);
+    set_dialog_action_area(GTK_DIALOG(window), w0);
     gtk_widget_show(w0);
     w1 = layout_ctrls(&es->dp, &es->scs, s1,
 		      listitemheight, GTK_WINDOW(window));
