@@ -429,7 +429,7 @@ if (defined $makefiles{'cygwin'}) {
       if ($d->{obj} =~ /\.res\.o$/) {
 	  print "\t\$(RC) \$(RCFL) \$(RCFLAGS) ".$d->{deps}->[0]." ".$d->{obj}."\n\n";
       } else {
-	  print "\t\$(CC) \$(COMPAT) \$(XFLAGS) \$(CFLAGS) -c ".$d->{deps}->[0]."\n\n";
+	  print "\t\$(CC) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) -c ".$d->{deps}->[0]."\n\n";
       }
     }
     print "\n";
@@ -486,7 +486,7 @@ if (defined $makefiles{'borland'}) {
     "\n".
     ".c.obj:\n".
     &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT)".
-	       " \$(XFLAGS) \$(CFLAGS) ".
+	       " \$(CFLAGS) \$(XFLAGS) ".
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
 	       " /c \$*.c",69)."\n".
     ".rc.res:\n".
@@ -615,7 +615,7 @@ if (defined $makefiles{'vc'}) {
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @$extradeps, @{$d->{deps}})), "\n";
         if ($d->{obj} =~ /.obj$/) {
-	    print "\tcl \$(COMPAT) \$(XFLAGS) \$(CFLAGS) /c ".$d->{deps}->[0],"\n\n";
+	    print "\tcl \$(COMPAT) \$(CFLAGS) \$(XFLAGS) /c ".$d->{deps}->[0],"\n\n";
 	} else {
 	    print "\trc \$(RCFL) -r \$(RCFLAGS) ".$d->{deps}->[0],"\n\n";
 	}
@@ -962,7 +962,7 @@ if (defined $makefiles{'gtk'}) {
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @{$d->{deps}})), "\n";
       }
-      print &splitline("\t\$(CC) \$(COMPAT) \$(XFLAGS) \$(CFLAGS) -c $d->{deps}->[0]\n");
+      print &splitline("\t\$(CC) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) -c $d->{deps}->[0]\n");
     }
     print "\n";
     print $makefile_extra{'gtk'}->{'end'};
@@ -1025,7 +1025,7 @@ if (defined $makefiles{'ac'}) {
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @{$d->{deps}})), "\n";
       }
-      print &splitline("\t\$(CC) \$(COMPAT) \$(XFLAGS) \$(CFLAGS) -c $d->{deps}->[0]\n");
+      print &splitline("\t\$(CC) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) -c $d->{deps}->[0]\n");
     }
     print "\n";
     print $makefile_extra{'gtk'}->{'end'};
@@ -1226,7 +1226,7 @@ if (defined $makefiles{'lcc'}) {
       }
       if ($d->{obj} =~ /\.obj$/) {
 	  print &splitline("\tlcc -O -p6 \$(COMPAT)".
-			   " \$(XFLAGS) \$(CFLAGS) ".$d->{deps}->[0],69)."\n";
+			   " \$(CFLAGS) \$(XFLAGS) ".$d->{deps}->[0],69)."\n";
       } else {
           print &splitline("\tlrc \$(RCFL) -r \$(RCFLAGS) ".
                            $d->{deps}->[0],69)."\n";
@@ -1311,9 +1311,9 @@ if (defined $makefiles{'osx'}) {
       }
       $firstdep = $d->{deps}->[0];
       if ($firstdep =~ /\.c$/) {
-	  print "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n";
+	  print "\t\$(CC) \$(COMPAT) \$(FWHACK) \$(CFLAGS) \$(XFLAGS) -c \$<\n";
       } elsif ($firstdep =~ /\.m$/) {
-	  print "\t\$(CC) -x objective-c \$(COMPAT) \$(FWHACK) \$(XFLAGS) \$(CFLAGS) -c \$<\n";
+	  print "\t\$(CC) -x objective-c \$(COMPAT) \$(FWHACK) \$(CFLAGS) \$(XFLAGS) -c \$<\n";
       }
     }
     print "\n".$makefile_extra{'osx'}->{'end'};
