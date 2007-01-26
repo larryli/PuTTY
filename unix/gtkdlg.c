@@ -2363,9 +2363,6 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 				   -1);
 		treeiterlevels[j] = treeiter;
 
-		treeindices[j]++;
-		treeindices[j+1] = -1;
-
 		if (j > 0) {
 		    GtkTreePath *path;
 
