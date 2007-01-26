@@ -816,9 +816,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    sfree(handles);
 	    if (must_close_session)
 		close_session();
-	}
-
-	sfree(handles);
+	} else
+	    sfree(handles);
 
 	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 	    if (msg.message == WM_QUIT)
