@@ -62,22 +62,18 @@ void uxsel_init(void)
 
 void uxsel_set(int fd, int rwx, uxsel_callback_fn callback)
 {
-    struct fd *newfd = snew(struct fd);
-    struct fd *oldfd;
+    struct fd *newfd;
 
-    newfd->fd = fd;
-    newfd->rwx = rwx;
-    newfd->callback = callback;
+    uxsel_del(fd);
 
-    oldfd = find234(fds, newfd, NULL);
-    if (oldfd) {
-	uxsel_input_remove(oldfd->id);
-	del234(fds, oldfd);
-	sfree(oldfd);
+    if (rwx) {
+	newfd = snew(struct fd);
+	newfd->fd = fd;
+	newfd->rwx = rwx;
+	newfd->callback = callback;
+	newfd->id = uxsel_input_add(fd, rwx);
+	add234(fds, newfd);
     }
-
-    add234(fds, newfd);
-    newfd->id = uxsel_input_add(fd, rwx);
 }
 
 void uxsel_del(int fd)
