@@ -2695,11 +2695,15 @@ int uxsel_input_add(int fd, int rwx) {
     if (rwx & 1) flags |= GDK_INPUT_READ;
     if (rwx & 2) flags |= GDK_INPUT_WRITE;
     if (rwx & 4) flags |= GDK_INPUT_EXCEPTION;
-    return gdk_input_add(fd, flags, fd_input_func, NULL);
+    if (flags)
+	return gdk_input_add(fd, flags, fd_input_func, NULL);
+    else
+	return -1;
 }
 
 void uxsel_input_remove(int id) {
-    gdk_input_remove(id);
+    if (id > 0)
+	gdk_input_remove(id);
 }
 
 char *guess_derived_font_name(GdkFont *font, int bold, int wide)
