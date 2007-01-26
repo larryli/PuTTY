@@ -53,6 +53,11 @@ Before tagging a release
    containing the word XXX-REVIEW-BEFORE-RELEASE.
    (Any such comments should state clearly what needs to be done.)
 
+ - Also, do some testing of the Windows version with Minefield, and
+   of the Unix version with valgrind or efence or both. In
+   particular, any headline features for the release should get a
+   workout with memory checking enabled!
+
 For a long time we got away with never checking the current version
 number in at all - all version numbers were passed into the build
 system on the compiler command line, and the _only_ place version
