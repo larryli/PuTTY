@@ -2362,6 +2362,22 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 				   TREESTORE_PARAMS, nselparams,
 				   -1);
 		treeiterlevels[j] = treeiter;
+
+		treeindices[j]++;
+		treeindices[j+1] = -1;
+
+		if (j > 0) {
+		    GtkTreePath *path;
+
+		    path = gtk_tree_model_get_path(GTK_TREE_MODEL(treestore),
+						   &treeiterlevels[j-1]);
+		    if (j < 2)
+			gtk_tree_view_expand_row(GTK_TREE_VIEW(tree), path,
+						 FALSE);
+		    else
+			gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree), path);
+		    gtk_tree_path_free(path);
+		}
 #else
 		treeitem = gtk_tree_item_new_with_label(c);
 		if (j > 0) {
@@ -2407,7 +2423,6 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     }
 
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_tree_view_expand_all(GTK_TREE_VIEW(tree));
     g_signal_connect(G_OBJECT(treeselection), "changed",
 		     G_CALLBACK(treeselection_changed), selparams);
 #else

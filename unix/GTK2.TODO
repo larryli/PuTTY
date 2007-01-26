@@ -38,13 +38,6 @@ Items from Colin's original mail:
  - Uses of GtkList should be replaced with the non-deprecated
    GtkTreeView.
 
-Other items:
-
- - Since Colin's patch was originally prepared I committed r7117
-   (fold up treeview branches at depth 2 or greater), and this is
-   not currently replicated in the GTK2 version of the treeview
-   code. It should be.
-
 At point of merge:
 
  - Mention Colin in the website's licence page.
