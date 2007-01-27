@@ -1,7 +1,7 @@
 TODO for PuTTY GTK2 port before merging back into main trunk code
 -----------------------------------------------------------------
 
-Items from Colin's original mail:
+Things to do before deciding a merge is feasible:
 
  - Font handling is the biggie. Current problems with it:
     * The GTK2 font selection dialog only mentions client-side
@@ -38,6 +38,9 @@ Items from Colin's original mail:
  - Uses of GtkList should be replaced with the non-deprecated
    GtkTreeView.
 
-At point of merge:
+ - Investigate the shortcut mechanism in GTK2's GtkLabel, and see if
+   it's worth switching to it from the current ad-hockery.
+
+Things to do at point of actual merge:
 
  - Mention Colin in the website's licence page.

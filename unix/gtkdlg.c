@@ -2,15 +2,6 @@
  * gtkdlg.c - GTK implementation of the PuTTY configuration box.
  */
 
-/*
- * TODO when porting to GTK 2.0:
- * 
- *  - GtkList is deprecated and we should switch to GtkTreeView instead
- *    (done for GtkTree).
- *  - GtkLabel has a built-in mnemonic scheme, so we should at
- *    least consider switching to that from the current adhockery.
- */
-
 #include <assert.h>
 #include <stdarg.h>
 #include <ctype.h>
