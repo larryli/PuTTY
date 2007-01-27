@@ -41,6 +41,10 @@ Things to do before deciding a merge is feasible:
  - Investigate the shortcut mechanism in GTK2's GtkLabel, and see if
    it's worth switching to it from the current ad-hockery.
 
+Things to do once GTK2 development is complete:
+
+ - Make sure we haven't broken GTK1.
+
 Things to do at point of actual merge:
 
  - Mention Colin in the website's licence page.
