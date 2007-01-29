@@ -2,6 +2,7 @@
 ; $Id$
 ;
 ; -- Inno Setup installer script for PuTTY and its related tools.
+;    Last tested with Inno Setup 5.0.8.
 ;
 ; TODO for future releases:
 ;
@@ -92,3 +93,14 @@ Root: HKCR; Subkey: "PuTTYPrivateKey\shell\edit\command"; ValueType: string; Val
 ; XXX: it would be nice if this task weren't run if a silent uninstall is
 ;      requested, but "skipifsilent" is disallowed.
 Filename: "{app}\putty.exe"; Parameters: "-cleanup-during-uninstall"; RunOnceId: "PuTTYCleanup"; StatusMsg: "Cleaning up saved sessions etc (optional)..."
+
+[Messages]
+; Since it's possible for the user to be asked to restart their computer,
+; we should override the default messages to explain exactly why, so they
+; can make an informed decision. (Especially as 95% of users won't need or
+; want to restart; see rant above.)
+FinishedRestartLabel=One or more [name] programs are still running. Setup will not replace these program files until you restart your computer. Would you like to restart now?
+; This message is popped up in a message box on a /SILENT install.
+FinishedRestartMessage=One or more [name] programs are still running.%nSetup will not replace these program files until you restart your computer.%n%nWould you like to restart now?
+; ...and this comes up if you try to uninstall.
+UninstalledAndNeedsRestart=One or more %1 programs are still running.%nThe program files will not be removed until your computer is restarted.%n%nWould you like to restart now?
