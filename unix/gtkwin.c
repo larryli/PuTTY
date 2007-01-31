@@ -3306,6 +3306,7 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 		     int n_icon)
 {
     GdkPixmap *iconpm;
+    GdkBitmap *iconmask;
 #if GTK_CHECK_VERSION(2,0,0)
     GList *iconlist;
     int n;
@@ -3315,9 +3316,9 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 	return;
 
     gtk_widget_realize(window);
-    iconpm = gdk_pixmap_create_from_xpm_d(window->window, NULL,
+    iconpm = gdk_pixmap_create_from_xpm_d(window->window, &iconmask,
 					  NULL, (gchar **)icon[0]);
-    gdk_window_set_icon(window->window, NULL, iconpm, NULL);
+    gdk_window_set_icon(window->window, NULL, iconpm, iconmask);
 
 #if GTK_CHECK_VERSION(2,0,0)
     iconlist = NULL;
