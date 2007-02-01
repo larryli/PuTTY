@@ -1003,7 +1003,7 @@ The Window configuration panel allows you to control aspects of the
 
 \cfg{winhelp-topic}{window.size}
 
-The \q{\ii{Rows}} and \q{\ii{Columns}} boxes let you set the PuTTY
+The \q{\ii{Columns}} and \q{\ii{Rows}} boxes let you set the PuTTY
 window to a precise size. Of course you can also \I{window resizing}drag
 the window to a new size while a session is running.
 

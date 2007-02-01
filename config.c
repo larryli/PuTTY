@@ -1399,13 +1399,13 @@ void setup_config_box(struct controlbox *b, int midsession,
 
     s = ctrl_getset(b, "Window", "size", "Set the size of the window");
     ctrl_columns(s, 2, 50, 50);
-    c = ctrl_editbox(s, "Rows", 'r', 100,
-		     HELPCTX(window_size),
-		     dlg_stdeditbox_handler, I(offsetof(Config,height)),I(-1));
-    c->generic.column = 0;
     c = ctrl_editbox(s, "Columns", 'm', 100,
 		     HELPCTX(window_size),
 		     dlg_stdeditbox_handler, I(offsetof(Config,width)), I(-1));
+    c->generic.column = 0;
+    c = ctrl_editbox(s, "Rows", 'r', 100,
+		     HELPCTX(window_size),
+		     dlg_stdeditbox_handler, I(offsetof(Config,height)),I(-1));
     c->generic.column = 1;
     ctrl_columns(s, 1, 100);
 
