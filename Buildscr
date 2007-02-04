@@ -2,28 +2,48 @@
 # Build script to construct a full distribution directory of PuTTY.
 
 # Set up the arguments for the main make command.
-set Makeargs
-ifneq "$(RELEASE)" "" set Makeargs VER="-DRELEASE=$(RELEASE)"
-ifneq "$(SNAPSHOT)" "" set Makeargs VER="-DSNAPSHOT=$(SNAPSHOT)"
+set Makeargs VER="-DSVN_REV=$(revision)"
+ifneq "$(RELEASE)" "" set Makeargs $(Makeargs) VER="-DRELEASE=$(RELEASE)"
+ifneq "$(date)" "" set Makeargs $(Makeargs) VER="-DSNAPSHOT=$(date)"
 ifneq "$(XFLAGS)" "" set Makeargs $(makeargs) XFLAGS="$(XFLAGS)"
 ifneq "$(MAKEARGS)" "" set Makeargs $(makeargs) $(MAKEARGS)
 
 # Set up the version string for the docs build.
-set Docmakeargs
+set Docmakeargs VERSION="PuTTY revision $(revision)"
 ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
-ifneq "$(SNAPSHOT)" "" set Docmakeaargs VERSION="PuTTY development snapshot $(SNAPSHOT)"
+ifneq "$(date)" "" set Docmakeaargs VERSION="PuTTY development snapshot $(date)"
+
+# Set up the various version strings for the installer.
+set Iversion r$(revision)
+set Iname PuTTY revision $(revision)
+set Ivertext Revision $(revision)
+set Irev $(revision)
+ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
+ifneq "$(RELEASE)" "" set Iname PuTTY version $(RELEASE)
+ifneq "$(RELEASE)" "" set Ivertext Release $(RELEASE)
+ifneq "$(RELEASE)" "" set Irev
+ifneq "$(date)" "" set Iversion $(date):r$(revision)
+ifneq "$(date)" "" set Iname PuTTY development snapshot $(date):r$(revision)
+ifneq "$(date)" "" set Ivertext Development snapshot $(date):r$(revision)
 
 # Set up the version string for the installer.
-set Iversion
+set Iversion r$(revision)
 ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
-ifneq "$(SNAPSHOT)" "" set Iversion $(SNAPSHOT)
-# FIXME: what about the static version numbers in putty.iss?
+ifneq "$(date)" "" set Iversion $(date):r$(revision)
 
 in putty do ./mksrcarc.sh
 in putty do ./mkunxarc.sh $(RELEASE)
 in putty do perl mkfiles.pl
 in putty/doc do make $(Docmakeargs) putty.hlp
 in putty/doc do make $(Docmakeargs) chm
+
+# Munge the installer script locally so that it reports the version
+# we're really building.
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVerName=).*$$/$$1$$a/' '$(Iname)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoTextVersion=).*$$/$$1$$a/' '$(Ivertext)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVersion=).*$$/$$1$$a/' '$(Iversion)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;$$a=~s/M//;}s/^(VersionInfoVersion=\d+\.\d+\.)\d+(\.\d+)\r?$$/$$1$$a$$2/' '$(Irev)' putty.iss
+
 delegate windows
   # FIXME: Cygwin alternative?
   in putty/windows do cmd /c 'vcvars32 & nmake -f Makefile.vc $(Makeargs)'
