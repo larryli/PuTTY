@@ -2975,8 +2975,10 @@ The \q{Serial line to connect to} box allows you to choose which
 serial line you want PuTTY to talk to, if your computer has more
 than one serial port.
 
-On Windows, the first serial line is called \cw{COM1}, and if there
-is a second it is called \cw{COM2}, and so on.
+On Windows, the first serial line is called \i\cw{COM1}, and if there
+is a second it is called \cw{COM2}, and so on. A serial line with
+a name other than \cw{COM1} to \cw{COM9} can be specified by prefixing
+its name with \cw{\\\\.\\} - for instance, \cw{\\\\.\\COM10}.
 
 This configuration setting is also visible on the Session panel,
 where it replaces the \q{Host Name} box (see \k{config-hostname}) if
