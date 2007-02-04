@@ -46,6 +46,10 @@ HALIBUT = halibut
 index.html: $(INPUTS)
 	$(HALIBUT) --text --html --winhelp $(INPUTS)
 
+# During formal builds it's useful to be able to build this one alone.
+putty.hlp: $(INPUTS)
+	$(HALIBUT) --winhelp $(INPUTS)
+
 putty.info: $(INPUTS)
 	$(HALIBUT) --info $(INPUTS)
 

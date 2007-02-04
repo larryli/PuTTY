@@ -1,0 +1,58 @@
+# -*- sh -*-
+# Build script to construct a full distribution directory of PuTTY.
+
+# Set up the arguments for the main make command.
+set Makeargs
+ifneq "$(RELEASE)" "" set Makeargs VER="-DRELEASE=$(RELEASE)"
+ifneq "$(SNAPSHOT)" "" set Makeargs VER="-DSNAPSHOT=$(SNAPSHOT)"
+ifneq "$(XFLAGS)" "" set Makeargs $(makeargs) XFLAGS="$(XFLAGS)"
+ifneq "$(MAKEARGS)" "" set Makeargs $(makeargs) $(MAKEARGS)
+
+# Set up the version string for the docs build.
+set Docmakeargs
+ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
+ifneq "$(SNAPSHOT)" "" set Docmakeaargs VERSION="PuTTY development snapshot $(SNAPSHOT)"
+
+# Set up the version string for the installer.
+set Iversion
+ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
+ifneq "$(SNAPSHOT)" "" set Iversion $(SNAPSHOT)
+# FIXME: what about the static version numbers in putty.iss?
+
+in putty do ./mksrcarc.sh
+in putty do ./mkunxarc.sh $(RELEASE)
+in putty do perl mkfiles.pl
+in putty/doc do make $(Docmakeargs) putty.hlp
+in putty/doc do make $(Docmakeargs) chm
+delegate windows
+  # FIXME: Cygwin alternative?
+  in putty/windows do cmd /c 'vcvars32 & nmake -f Makefile.vc $(Makeargs)'
+  # Ignore exit code from hhc, in favour of seeing whether the .chm
+  # file was created. (Yuck; but hhc appears to return non-zero
+  # exit codes on whim.)
+  in putty/doc do hhc putty.hhp; test -f putty.chm
+  in putty/windows do iscc putty.iss
+  return putty/windows/*.exe
+  return putty/doc/putty.chm
+  return putty/windows/Output/setup.exe
+enddelegate
+in putty/doc do make mostlyclean
+in putty/doc do make $(Docmakeargs)
+in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/putty.chm ../doc/putty.hlp ../doc/putty.cnt
+in putty/doc do zip puttydoc.zip *.html
+
+deliver putty/windows/*.exe x86/$@
+deliver putty/windows/putty.zip x86/$@
+deliver putty/windows/Output/setup.exe x86/putty-$(Iversion)-installer.exe
+deliver putty/doc/puttydoc.zip $@
+deliver putty/doc/putty.chm $@
+deliver putty/doc/putty.hlp $@
+deliver putty/doc/putty.cnt $@
+deliver putty/doc/puttydoc.txt $@
+deliver putty/doc/*.html htmldoc/$@
+deliver putty/putty-src.zip $@
+deliver putty/*.tar.gz $@
+
+# Building the md5sums file is most easily done in the destination
+# directory.
+in-dest . do md5sum `\find * -type f -print` > md5sums
