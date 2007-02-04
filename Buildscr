@@ -53,6 +53,7 @@ delegate windows
   in putty/doc do hhc putty.hhp; test -f putty.chm
   in putty/windows do iscc putty.iss
   return putty/windows/*.exe
+  return putty/windows/*.map
   return putty/doc/putty.chm
   return putty/windows/Output/setup.exe
 enddelegate
@@ -62,6 +63,7 @@ in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/put
 in putty/doc do zip puttydoc.zip *.html
 
 deliver putty/windows/*.exe x86/$@
+deliver putty/windows/*.map maps-x86/$@
 deliver putty/windows/putty.zip x86/$@
 deliver putty/windows/Output/setup.exe x86/putty-$(Iversion)-installer.exe
 deliver putty/doc/puttydoc.zip $@
