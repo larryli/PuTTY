@@ -45,7 +45,7 @@
 
 /* Make SVN_REV mandatory for snapshots, to avoid issuing binary
  * version numbers that look like full releases. */
-#if (!defined SVN_REV) || (SVN_REV == 0)
+#ifndef SVN_REV
 #error SVN_REV not defined/nonzero for snapshot build
 #endif
 
