@@ -96,10 +96,9 @@ deliver putty/windows/*.map maps-x86/$@
 # And construct .htaccess files. One in the top-level directory,
 # setting the MIME types for Windows help files and providing an
 # appropriate link to the source archive:
-in-dest . do echo "AddType application/octet-stream .chm" > .htaccess
+in-dest . do echo "AddType application/octet-stream .chm" >> .htaccess
 in-dest . do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest . do echo "AddType application/octet-stream .cnt" >> .htaccess
-in-dest . do set -- putty*.tar.gz; echo RedirectMatch temp '(.*/)'putty.tar.gz '$$1'"$$1" >> .htaccess
+in-dest . do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k '$$1'"$$1$$k" >> .htaccess; done
 # And one in the x86 directory, providing a link for the installer.
-in-dest x86 do set -- putty*installer.exe; echo RedirectMatch temp '(.*/)'putty-installer.exe '$$1'"$$1" > .htaccess
-
+in-dest x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k '$$1'"$$1$$k" >> .htaccess; done
