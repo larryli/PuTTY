@@ -2,9 +2,10 @@
 # Build script to construct a full distribution directory of PuTTY.
 
 # Set up the arguments for the main make command.
-set Makeargs VER="-DSVN_REV=$(revision)"
-ifneq "$(RELEASE)" "" set Makeargs $(Makeargs) VER="-DRELEASE=$(RELEASE)"
-ifneq "$(date)" "" set Makeargs $(Makeargs) VER="-DSNAPSHOT=$(date)"
+set Makever -DSVN_REV=$(revision)
+ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
+ifneq "$(date)" "" set Makever $(Makever) -DSNAPSHOT=$(date)
+set Makeargs VER="$(Makever)"
 ifneq "$(XFLAGS)" "" set Makeargs $(makeargs) XFLAGS="$(XFLAGS)"
 ifneq "$(MAKEARGS)" "" set Makeargs $(makeargs) $(MAKEARGS)
 
@@ -46,7 +47,7 @@ in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;$$a=~s/M//;}s/^(VersionIn
 
 delegate windows
   # FIXME: Cygwin alternative?
-  in putty/windows do cmd /c 'vcvars32 & nmake -f Makefile.vc $(Makeargs)'
+  in putty/windows do cmd /c vcvars32 \& nmake -f Makefile.vc $(Makeargs)
   # Ignore exit code from hhc, in favour of seeing whether the .chm
   # file was created. (Yuck; but hhc appears to return non-zero
   # exit codes on whim.)
