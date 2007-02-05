@@ -775,7 +775,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	close(slavefd);
 	setsid();
 #ifdef TIOCSCTTY
-	ioctl(slavefd, TIOCSCTTY, 1);
+	ioctl(0, TIOCSCTTY, 1);
 #endif
 	pgrp = getpid();
 	tcsetpgrp(slavefd, pgrp);
