@@ -1,6 +1,8 @@
 # -*- sh -*-
 # Build script to construct a full distribution directory of PuTTY.
 
+module putty
+
 # Set up the arguments for the main make command.
 set Makever -DSVN_REV=$(revision)
 ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
@@ -14,18 +16,26 @@ set Docmakeargs VERSION="PuTTY revision $(revision)"
 ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
 ifneq "$(date)" "" set Docmakeaargs VERSION="PuTTY development snapshot $(date)"
 
+# Set up the version string for the Unix source archive.
+set Unxver r$(revision)
+ifneq "$(RELEASE)" "" set Unxver $(RELEASE)
+ifneq "$(date)" "" set Unxver $(date)
+
 # Set up the various version strings for the installer.
 set Iversion r$(revision)
 set Iname PuTTY revision $(revision)
 set Ivertext Revision $(revision)
 set Irev $(revision)
+set Ifilename putty-$(Iversion)-installer.exe
 ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
 ifneq "$(RELEASE)" "" set Iname PuTTY version $(RELEASE)
 ifneq "$(RELEASE)" "" set Ivertext Release $(RELEASE)
-ifneq "$(RELEASE)" "" set Irev
+ifneq "$(RELEASE)" "" set Irev 0
+ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer.exe
 ifneq "$(date)" "" set Iversion $(date):r$(revision)
 ifneq "$(date)" "" set Iname PuTTY development snapshot $(date):r$(revision)
 ifneq "$(date)" "" set Ivertext Development snapshot $(date):r$(revision)
+ifneq "$(date)" "" set Ifilename putty-$(date)-installer.exe
 
 # Set up the version string for the installer.
 set Iversion r$(revision)
@@ -33,7 +43,7 @@ ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
 ifneq "$(date)" "" set Iversion $(date):r$(revision)
 
 in putty do ./mksrcarc.sh
-in putty do ./mkunxarc.sh $(RELEASE)
+in putty do ./mkunxarc.sh $(Unxver)
 in putty do perl mkfiles.pl
 in putty/doc do make $(Docmakeargs) putty.hlp
 in putty/doc do make $(Docmakeargs) chm
@@ -64,9 +74,8 @@ in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/put
 in putty/doc do zip puttydoc.zip *.html
 
 deliver putty/windows/*.exe x86/$@
-deliver putty/windows/*.map maps-x86/$@
 deliver putty/windows/putty.zip x86/$@
-deliver putty/windows/Output/setup.exe x86/putty-$(Iversion)-installer.exe
+deliver putty/windows/Output/setup.exe x86/$(Ifilename)
 deliver putty/doc/puttydoc.zip $@
 deliver putty/doc/putty.chm $@
 deliver putty/doc/putty.hlp $@
@@ -79,3 +88,18 @@ deliver putty/*.tar.gz $@
 # Building the md5sums file is most easily done in the destination
 # directory.
 in-dest . do md5sum `\find * -type f -print` > md5sums
+
+# Now deliver the map files _after_ we do that, so we don't md5sum
+# them gratuitously.
+deliver putty/windows/*.map maps-x86/$@
+
+# And construct .htaccess files. One in the top-level directory,
+# setting the MIME types for Windows help files and providing an
+# appropriate link to the source archive:
+in-dest . do echo "AddType application/octet-stream .chm" > .htaccess
+in-dest . do echo "AddType application/octet-stream .hlp" >> .htaccess
+in-dest . do echo "AddType application/octet-stream .cnt" >> .htaccess
+in-dest . do set -- putty*.tar.gz; echo RedirectMatch temp '(.*/)'putty.tar.gz '$$1'"$$1" >> .htaccess
+# And one in the x86 directory, providing a link for the installer.
+in-dest x86 do set -- putty*installer.exe; echo RedirectMatch temp '(.*/)'putty-installer.exe '$$1'"$$1" > .htaccess
+
