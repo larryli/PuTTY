@@ -99,6 +99,6 @@ deliver putty/windows/*.map maps-x86/$@
 in-dest . do echo "AddType application/octet-stream .chm" >> .htaccess
 in-dest . do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest . do echo "AddType application/octet-stream .cnt" >> .htaccess
-in-dest . do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k '$$1'"$$1$$k" >> .htaccess; done
+in-dest . do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
 # And one in the x86 directory, providing a link for the installer.
-in-dest x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k '$$1'"$$1$$k" >> .htaccess; done
+in-dest x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
