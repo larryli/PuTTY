@@ -50,7 +50,11 @@
 #endif
 
 #define VERSION_TEXT "Development snapshot " STR(SNAPSHOT) ":r" STR(SVN_REV)
+#ifdef MODIFIED
+#define BINARY_VERSION 0,0,0,0
+#else
 #define BINARY_VERSION BASE_VERSION,SVN_REV,0
+#endif
 
 #elif defined RELEASE
 
@@ -60,7 +64,11 @@
 #elif defined SVN_REV
 
 #define VERSION_TEXT "Custom build r" STR(SVN_REV)
+#ifdef MODIFIED
+#define BINARY_VERSION 0,0,0,0
+#else
 #define BINARY_VERSION BASE_VERSION,SVN_REV,0
+#endif
 
 #else
 

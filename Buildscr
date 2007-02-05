@@ -5,6 +5,7 @@ module putty
 
 # Set up the arguments for the main make command.
 set Makever -DSVN_REV=$(revision)
+ifneq "$(!numeric $(revision))" "yes" set Makever $(Makever) -DMODIFIED
 ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
 ifneq "$(date)" "" set Makever $(Makever) -DSNAPSHOT=$(date)
 set Makeargs VER="$(Makever)"
