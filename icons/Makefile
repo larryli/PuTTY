@@ -1,6 +1,6 @@
 # Makefile for the PuTTY icon suite.
 
-ICONS = putty puttycfg puttygen pscp pageant pterm ptermcfg installer
+ICONS = putty puttycfg puttygen pscp pageant pterm ptermcfg puttyins
 SIZES = 16 32 48
 
 MODE = # override to -it on command line for opaque testing
@@ -10,7 +10,7 @@ MONOPNGS = $(foreach I,$(ICONS),$(foreach S,$(SIZES),$(I)-$(S)-mono.png))
 TRUEPNGS = $(foreach I,$(ICONS),$(foreach S,$(SIZES),$(I)-$(S)-true.png))
 
 ICOS = putty.ico puttygen.ico pscp.ico pageant.ico pageants.ico puttycfg.ico \
-       installer.ico
+       puttyins.ico
 CICONS = xpmputty.c xpmpucfg.c xpmpterm.c xpmptcfg.c
 
 base: icos cicons
@@ -63,11 +63,11 @@ pscp.ico: pscp-16.png pscp-32.png pscp-48.png \
 # Because the installer icon makes heavy use of brown when drawing
 # the cardboard box, it's worth having 8-bit versions of it in
 # addition to the 4- and 1-bit ones.
-installer.ico: installer-16.png installer-32.png installer-48.png \
-               installer-16-mono.png installer-32-mono.png \
-               installer-48-mono.png \
-               installer-16-true.png installer-32-true.png \
-               installer-48-true.png
+puttyins.ico: puttyins-16.png puttyins-32.png puttyins-48.png \
+              puttyins-16-mono.png puttyins-32-mono.png \
+              puttyins-48-mono.png \
+              puttyins-16-true.png puttyins-32-true.png \
+              puttyins-48-true.png
 	./icon.pl -8 $(filter %-true.png, $^) \
                   -4 $(filter-out %-true.png, $(filter-out %-mono.png, $^)) \
                   -1 $(filter %-mono.png, $^) > $@
