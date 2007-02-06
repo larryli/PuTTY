@@ -1864,6 +1864,7 @@ static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt, int noignore)
 	 * get encrypted with a known IV.
 	 */
 	struct Packet *ipkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
+	ssh2_pkt_addstring_start(ipkt);
 	ssh2_pkt_defer_noqueue(ssh, ipkt, TRUE);
     }
     len = ssh2_pkt_construct(ssh, pkt);
