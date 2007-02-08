@@ -115,21 +115,22 @@ of the tag.
    within days of the release going out.
 
  - Build the release: `bob putty-0.XX RELEASE=0.XX'. This should
-   generate a basically valid release directory as `build.out'.
+   generate a basically valid release directory as
+   `build.out/putty', and provide link maps and sign.sh alongside
+   that in build.out.
 
  - Do a bit of checking that the release binaries basically work,
    report their version numbers accurately, and so on. Test the
    installer and the Unix source tarball.
 
- - Move the release link maps out of the build directory and save
-   them somewhere more useful. Currently I keep these on ixion, in
+ - Save the link maps. Currently I keep these on ixion, in
    src/putty/local/maps-<version>.
 
- - Sign the release: type `./sign.sh build.out Releases', and enter
-   the passphrases a lot of times.
+ - Sign the release: in the `build.out' directory, type `./sign.sh
+   putty Releases', and enter the passphrases a lot of times.
 
  - Now the whole release directory should be present and correct.
-   Upload to ixion:www/putty/<ver>.
+   Upload it to ixion:www/putty/<ver>.
 
  - Do final checks on the release directory:
     + verify all the signatures:

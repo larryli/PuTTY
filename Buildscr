@@ -74,32 +74,37 @@ in putty/doc do make $(Docmakeargs)
 in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/putty.chm ../doc/putty.hlp ../doc/putty.cnt
 in putty/doc do zip puttydoc.zip *.html
 
-deliver putty/windows/*.exe x86/$@
-deliver putty/windows/putty.zip x86/$@
-deliver putty/windows/Output/setup.exe x86/$(Ifilename)
-deliver putty/doc/puttydoc.zip $@
-deliver putty/doc/putty.chm $@
-deliver putty/doc/putty.hlp $@
-deliver putty/doc/putty.cnt $@
-deliver putty/doc/puttydoc.txt $@
-deliver putty/doc/*.html htmldoc/$@
-deliver putty/putty-src.zip $@
-deliver putty/*.tar.gz $@
+# Deliver the actual PuTTY release directory into a subdir `putty'.
+deliver putty/windows/*.exe putty/x86/$@
+deliver putty/windows/putty.zip putty/x86/$@
+deliver putty/windows/Output/setup.exe putty/x86/$(Ifilename)
+deliver putty/doc/puttydoc.zip putty/$@
+deliver putty/doc/putty.chm putty/$@
+deliver putty/doc/putty.hlp putty/$@
+deliver putty/doc/putty.cnt putty/$@
+deliver putty/doc/puttydoc.txt putty/$@
+deliver putty/doc/*.html putty/htmldoc/$@
+deliver putty/putty-src.zip putty/$@
+deliver putty/*.tar.gz putty/$@
+
+# Deliver the map files alongside the `proper' release deliverables.
+deliver putty/windows/*.map maps-x86/$@
+
+# Deliver sign.sh, so that whoever has just built PuTTY (the
+# snapshot scripts or me, depending) can conveniently sign it with
+# whatever key they want.
+deliver putty/sign.sh $@
 
 # Building the md5sums file is most easily done in the destination
 # directory.
-in-dest . do md5sum `\find * -type f -print` > md5sums
-
-# Now deliver the map files _after_ we do that, so we don't md5sum
-# them gratuitously.
-deliver putty/windows/*.map maps-x86/$@
+in-dest putty do md5sum `\find * -type f -print` > md5sums
 
 # And construct .htaccess files. One in the top-level directory,
 # setting the MIME types for Windows help files and providing an
 # appropriate link to the source archive:
-in-dest . do echo "AddType application/octet-stream .chm" >> .htaccess
-in-dest . do echo "AddType application/octet-stream .hlp" >> .htaccess
-in-dest . do echo "AddType application/octet-stream .cnt" >> .htaccess
-in-dest . do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+in-dest putty do echo "AddType application/octet-stream .chm" >> .htaccess
+in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
+in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
+in-dest putty do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
 # And one in the x86 directory, providing a link for the installer.
-in-dest x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+in-dest putty/x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
