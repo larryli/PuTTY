@@ -114,83 +114,26 @@ of the tag.
    ixion:src/putty/local/announce-<ver> in case it's needed again
    within days of the release going out.
 
- - On my local machines, check out the release-tagged version of the
-   sources. Do this in a _clean_ directory; don't depend on my usual
-   source dir.
-    + Make sure to run mkfiles.pl _after_ this checkout, just in
-      case.
+ - Build the release: `bob putty-0.XX RELEASE=0.XX'. This should
+   generate a basically valid release directory as `build.out'.
 
- - Build the source archives now, while the directory is still
-   pristine.
-    + run ./mksrcarc.sh to build the Windows source zip.
-    + run `./mkunxarc.sh X.YZ' to build the Unix tarball.
+ - Do a bit of checking that the release binaries basically work,
+   report their version numbers accurately, and so on. Test the
+   installer and the Unix source tarball.
 
- - Build the Windows/x86 release binaries. Don't forget to supply
-   VER=/DRELEASE=<ver>. Run them, or at least one or two of them, to
-   ensure that they really do report their version number correctly,
-   and sanity-check the version info reported on the files by Windows.
-    + Save the release link maps. Currently I keep these on ixion,
-      in src/putty/local/maps-<version>.
+ - Move the release link maps out of the build directory and save
+   them somewhere more useful. Currently I keep these on ixion, in
+   src/putty/local/maps-<version>.
 
- - Run Halibut to build the docs. Define VERSION on the make command
-   line to override the version strings, since Subversion revision
-   numbers are less meaningful on a tag.
-    + change into the doc subdir
-    + run `make VERSION="PuTTY release 0.XX" chm', then run `hhc
-      putty.hhp' to build the .CHM
-    + then run `make mostlyclean' (destroys the hhc input files but
-      _not_ the .CHM)
-    + then `make VERSION="PuTTY release 0.XX"'
-
- - Build the binary archive putty.zip: all the .exe files except
-   PuTTYtel, and the .hlp, .cnt and .chm files.
-    + zip -k putty.zip `ls *.exe | grep -v puttytel` putty.hlp putty.cnt putty.chm
-
- - Build the docs archive puttydoc.zip: it contains all the HTML
-   files output from Halibut.
-    + zip puttydoc.zip *.html
-
- - Build the installer.
-
- - Sign the release (gpg --detach-sign).
-    + Sign the locally built x86 binaries, the locally built x86
-      binary zipfile, and the locally built x86 installer, with the
-      release keys.
-    + The source archive should be signed with the release keys.
-    + Don't forget to sign with both DSA and RSA keys for absolutely
-      everything.
-      for i in <filenames>; do for t in DSA RSA; do gpg --load-extension=idea --detach-sign -u "Releases ($t)" -o $i.$t $i; done; done
-
- - Begin to pull together the release directory structure.
-    + subdir `x86' containing the x86 binaries, x86 binary zip, x86
-      installer, and all signatures on the above.
-    + top-level dir contains the Windows source zip (plus
-      signatures), the Unix source tarball (plus signatures),
-      puttydoc.txt, the .hlp, .cnt and .chm files, and puttydoc.zip.
-
- - Create subdir `htmldoc' in the release directory, which should
-   contain exactly the same set of HTML files that went into
-   puttydoc.zip.
-    + It also needs a copy of sitestyle.css, because the online
-      versions of the HTML docs will link to this (although the
-      zipped form should be self-contained).
-
- - Create and sign an md5sums file in the top-level directory.
-    + The md5sums files need not list the .DSA and .RSA signatures.
-      Easiest thing is to run this command:
-      md5sum `\find * -name '*SA' -o -type f -print` > md5sums
-    + Sign the md5sums file (gpg --clearsign).
-      for t in DSA RSA; do gpg --load-extension=idea --clearsign -u "Releases ($t)" -o md5sums.$t md5sums; done
-
- - Now double-check by verifying all the signatures on all the
-   files, and running md5sum -c on the md5sums file.
+ - Sign the release: type `./sign.sh build.out Releases', and enter
+   the passphrases a lot of times.
 
  - Now the whole release directory should be present and correct.
    Upload to ixion:www/putty/<ver>.
 
  - Do final checks on the release directory:
-    + verify all the signatures. In each directory:
-      for i in *.*SA; do case $i in md5sums*) gpg --verify $i;; *) gpg --verify $i `echo $i | sed 's/\..SA$//'`;; esac; done
+    + verify all the signatures:
+      for i in `find . -name '*.*SA'`; do case $i in *md5sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.?SA};; esac; done
     + check the md5sums:
       md5sum -c md5sums
 
