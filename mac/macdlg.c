@@ -237,7 +237,7 @@ static OSErr mac_opensessionfrom(FSSpec *fss)
 	err = -9999;
 	goto fail;
     }
-    load_open_settings(sesshandle, TRUE, &s->cfg);
+    load_open_settings(sesshandle, &s->cfg);
     close_settings_r(sesshandle);
 
     mac_startsession(s);
@@ -321,7 +321,7 @@ void mac_savesession(void)
     assert(s->hasfile);
     sesshandle = open_settings_w_fsp(&s->savefile);
     if (sesshandle == NULL) return; /* XXX report error */
-    save_open_settings(sesshandle, TRUE, &s->cfg);
+    save_open_settings(sesshandle, &s->cfg);
     close_settings_w(sesshandle);
 }
 
@@ -342,7 +342,7 @@ void mac_savesessionas(void)
     }
     sesshandle = open_settings_w_fsp(&sfr.sfFile);
     if (sesshandle == NULL) return; /* XXX report error */
-    save_open_settings(sesshandle, TRUE, &s->cfg);
+    save_open_settings(sesshandle, &s->cfg);
     close_settings_w(sesshandle);
     s->hasfile = TRUE;
     s->savefile = sfr.sfFile;

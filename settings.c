@@ -231,7 +231,7 @@ static void wprefs(void *sesskey, char *name,
     write_setting_s(sesskey, name, buf);
 }
 
-char *save_settings(char *section, int do_host, Config * cfg)
+char *save_settings(char *section, Config * cfg)
 {
     void *sesskey;
     char *errmsg;
@@ -239,20 +239,18 @@ char *save_settings(char *section, int do_host, Config * cfg)
     sesskey = open_settings_w(section, &errmsg);
     if (!sesskey)
 	return errmsg;
-    save_open_settings(sesskey, do_host, cfg);
+    save_open_settings(sesskey, cfg);
     close_settings_w(sesskey);
     return NULL;
 }
 
-void save_open_settings(void *sesskey, int do_host, Config *cfg)
+void save_open_settings(void *sesskey, Config *cfg)
 {
     int i;
     char *p;
 
     write_setting_i(sesskey, "Present", 1);
-    if (do_host) {
-	write_setting_s(sesskey, "HostName", cfg->host);
-    }
+    write_setting_s(sesskey, "HostName", cfg->host);
     write_setting_filename(sesskey, "LogFileName", cfg->logfilename);
     write_setting_i(sesskey, "LogType", cfg->logtype);
     write_setting_i(sesskey, "LogFileClash", cfg->logxfovr);
@@ -447,16 +445,16 @@ void save_open_settings(void *sesskey, int do_host, Config *cfg)
     write_setting_i(sesskey, "SerialFlowControl", cfg->serflow);
 }
 
-void load_settings(char *section, int do_host, Config * cfg)
+void load_settings(char *section, Config * cfg)
 {
     void *sesskey;
 
     sesskey = open_settings_r(section);
-    load_open_settings(sesskey, do_host, cfg);
+    load_open_settings(sesskey, cfg);
     close_settings_r(sesskey);
 }
 
-void load_open_settings(void *sesskey, int do_host, Config *cfg)
+void load_open_settings(void *sesskey, Config *cfg)
 {
     int i;
     char prot[10];
@@ -466,11 +464,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
     cfg->remote_cmd_ptr2 = NULL;
     cfg->ssh_nc_host[0] = '\0';
 
-    if (do_host) {
-	gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
-    } else {
-	cfg->host[0] = '\0';	       /* blank hostname */
-    }
+    gpps(sesskey, "HostName", "", cfg->host, sizeof(cfg->host));
     gppfile(sesskey, "LogFileName", &cfg->logfilename);
     gppi(sesskey, "LogType", 0, &cfg->logtype);
     gppi(sesskey, "LogFileClash", LGXF_ASK, &cfg->logxfovr);
@@ -785,7 +779,7 @@ void load_open_settings(void *sesskey, int do_host, Config *cfg)
 
 void do_defaults(char *session, Config * cfg)
 {
-    load_settings(session, (session != NULL && *session), cfg);
+    load_settings(session, cfg);
 }
 
 static int sessioncmp(const void *av, const void *bv)

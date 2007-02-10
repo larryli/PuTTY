@@ -392,7 +392,7 @@ static int load_selected_session(struct sessionsaver_data *ssd,
 	return 0;
     }
     isdef = !strcmp(ssd->sesslist.sessions[i], "Default Settings");
-    load_settings(ssd->sesslist.sessions[i], !isdef, cfg);
+    load_settings(ssd->sesslist.sessions[i], cfg);
     if (!isdef) {
 	strncpy(savedsession, ssd->sesslist.sessions[i],
 		SAVEDSESSION_LEN);
@@ -501,7 +501,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		}
 	    }
             {
-                char *errmsg = save_settings(savedsession, !isdef, cfg);
+                char *errmsg = save_settings(savedsession, cfg);
                 if (errmsg) {
                     dlg_error_msg(dlg, errmsg);
                     sfree(errmsg);
