@@ -3486,7 +3486,8 @@ int pt_main(int argc, char **argv)
 
 	cmdline_run_saved(&inst->cfg);
 
-	if (!cfg_launchable(&inst->cfg) && !cfgbox(&inst->cfg))
+	if ((!loaded_session || !cfg_launchable(&inst->cfg)) &&
+	    !cfgbox(&inst->cfg))
 	    exit(0);		       /* config box hit Cancel */
     }
 

@@ -539,7 +539,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	cmdline_run_saved(&cfg);
 
-	if (!cfg_launchable(&cfg) && !do_config()) {
+	if ((!loaded_session || !cfg_launchable(&cfg)) &&
+	    !do_config()) {
 	    cleanup_exit(0);
 	}
 

@@ -383,7 +383,7 @@ struct sessionsaver_data {
  */
 static int load_selected_session(struct sessionsaver_data *ssd,
 				 char *savedsession,
-				 void *dlg, Config *cfg)
+				 void *dlg, Config *cfg, int *maybe_launch)
 {
     int i = dlg_listbox_index(ssd->listbox, dlg);
     int isdef;
@@ -397,8 +397,12 @@ static int load_selected_session(struct sessionsaver_data *ssd,
 	strncpy(savedsession, ssd->sesslist.sessions[i],
 		SAVEDSESSION_LEN);
 	savedsession[SAVEDSESSION_LEN-1] = '\0';
+	if (maybe_launch)
+	    *maybe_launch = TRUE;
     } else {
 	savedsession[0] = '\0';
+	if (maybe_launch)
+	    *maybe_launch = FALSE;
     }
     dlg_refresh(NULL, dlg);
     /* Restore the selection, which might have been clobbered by
@@ -464,6 +468,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    dlg_listbox_select(ssd->listbox, dlg, top);
 	}
     } else if (event == EVENT_ACTION) {
+	int mbl = FALSE;
 	if (!ssd->midsession &&
 	    (ctrl == ssd->listbox ||
 	     (ssd->loadbutton && ctrl == ssd->loadbutton))) {
@@ -474,8 +479,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * double-click on the list box _and_ that session
 	     * contains a hostname.
 	     */
-	    if (load_selected_session(ssd, savedsession, dlg, cfg) &&
-		(ctrl == ssd->listbox && cfg_launchable(cfg))) {
+	    if (load_selected_session(ssd, savedsession, dlg, cfg, &mbl) &&
+		(mbl && ctrl == ssd->listbox && cfg_launchable(cfg))) {
 		dlg_end(dlg, 1);       /* it's all over, and succeeded */
 	    }
 	} else if (ctrl == ssd->savebutton) {
@@ -533,12 +538,14 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
 		!cfg_launchable(cfg)) {
 		Config cfg2;
-		if (!load_selected_session(ssd, savedsession, dlg, &cfg2)) {
+		int mbl = FALSE;
+		if (!load_selected_session(ssd, savedsession, dlg,
+					   &cfg2, &mbl)) {
 		    dlg_beep(dlg);
 		    return;
 		}
 		/* If at this point we have a valid session, go! */
-		if (*cfg2.host) {
+		if (mbl && cfg_launchable(&cfg2)) {
 		    *cfg = cfg2;       /* structure copy */
 		    cfg->remote_cmd_ptr = NULL;
 		    dlg_end(dlg, 1);
