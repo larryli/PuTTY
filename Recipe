@@ -81,7 +81,8 @@
 #
 #      Note that this definition is always enabled in the Cygwin
 #      build, since at the time of writing this <htmlhelp.h> is
-#      known not to be available in Cygwin.
+#      known not to be available in Cygwin (although you can use
+#      the htmlhelp.h supplied with HTML Help Workshop).
 #
 #  - RCFL=/DNO_MANIFESTS (Windows only)
 #      Disables inclusion of XML application manifests in the PuTTY
