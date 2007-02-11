@@ -15,7 +15,7 @@ ifneq "$(MAKEARGS)" "" set Makeargs $(makeargs) $(MAKEARGS)
 # Set up the version string for the docs build.
 set Docmakeargs VERSION="PuTTY revision $(revision)"
 ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
-ifneq "$(date)" "" set Docmakeaargs VERSION="PuTTY development snapshot $(date)"
+ifneq "$(date)" "" set Docmakeargs VERSION="PuTTY development snapshot $(date)"
 
 # Set up the version string for the Unix source archive.
 set Unxver r$(revision)
