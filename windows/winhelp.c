@@ -21,7 +21,6 @@ static int help_has_contents;
 #ifndef NO_HTMLHELP
 typedef HWND (CALLBACK *htmlhelp_t)(HWND, LPCSTR, UINT, DWORD);
 static char *chm_path;
-static DWORD html_help_cookie;
 static htmlhelp_t htmlhelp;
 #endif /* NO_HTMLHELP */
 
@@ -63,9 +62,7 @@ void init_help(void)
 	    if (!htmlhelp)
 		FreeLibrary(dllHH);
 	}
-	if (htmlhelp)
-	    htmlhelp(NULL, NULL, HH_INITIALIZE, (DWORD)&html_help_cookie);
-	else
+	if (!htmlhelp)
 	    chm_path = NULL;
     }
 #endif /* NO_HTMLHELP */
@@ -73,10 +70,9 @@ void init_help(void)
 
 void shutdown_help(void)
 {
-#ifndef NO_HTMLHELP
-    if (chm_path)
-	htmlhelp(NULL, NULL, HH_UNINITIALIZE, html_help_cookie);
-#endif /* NO_HTMLHELP */
+    /* Nothing to do currently.
+     * (If we were running HTML Help single-threaded, this is where we'd
+     * call HH_UNINITIALIZE.) */
 }
 
 int has_help(void)
