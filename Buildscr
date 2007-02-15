@@ -56,6 +56,9 @@ in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoTextVersi
 in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVersion=).*$$/$$1$$a/' '$(Iversion)' putty.iss
 in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;$$a=~s/M//;}s/^(VersionInfoVersion=\d+\.\d+\.)\d+(\.\d+)\r?$$/$$1$$a$$2/' '$(Irev)' putty.iss
 
+# Windowsify LICENCE, since it's going in the Windows installer.
+in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
+
 delegate windows
   # FIXME: Cygwin alternative?
   in putty/windows do cmd /c vcvars32 \& nmake -f Makefile.vc $(Makeargs)
