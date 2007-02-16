@@ -397,6 +397,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    if (!cfg_launchable(&cfg) && !do_config()) {
 		cleanup_exit(0);
 	    }
+	    loaded_session = TRUE;     /* allow it to be launched directly */
 	} else if (*p == '&') {
 	    /*
 	     * An initial & means we've been given a command line
