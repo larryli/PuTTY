@@ -413,6 +413,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		cfg = *cp;
 		UnmapViewOfFile(cp);
 		CloseHandle(filemap);
+		loaded_session = TRUE;
 	    } else if (!do_config()) {
 		cleanup_exit(0);
 	    }
