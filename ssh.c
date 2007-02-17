@@ -8927,8 +8927,7 @@ static void ssh_unthrottle(void *handle, int bufsize)
 	    ssh1_throttle(ssh, -1);
 	}
     } else {
-	if (ssh->mainchan && ssh->mainchan->closes == 0)
-	    ssh2_set_window(ssh->mainchan, OUR_V2_WINSIZE - bufsize);
+	ssh2_set_window(ssh->mainchan, OUR_V2_WINSIZE - bufsize);
     }
 }
 
