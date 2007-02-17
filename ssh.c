@@ -6398,71 +6398,49 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 
 		    if (0)
 			;
+#define TRANSLATE_SIGNAL(s) \
+    else if (siglen == lenof(#s)-1 && !memcmp(sig, #s, siglen)) \
+        ssh->exitcode = 128 + SIG ## s
 #ifdef SIGABRT
-		    else if (siglen == lenof("ABRT")-1 &&
-			     !memcmp(sig, "ABRT", siglen))
-			ssh->exitcode = 128 + SIGABRT;
+		    TRANSLATE_SIGNAL(ABRT);
 #endif
 #ifdef SIGALRM
-		    else if (siglen == lenof("ALRM")-1 &&
-			     !memcmp(sig, "ALRM", siglen))
-			ssh->exitcode = 128 + SIGALRM;
+		    TRANSLATE_SIGNAL(ALRM);
 #endif
 #ifdef SIGFPE
-		    else if (siglen == lenof("FPE")-1 &&
-			     !memcmp(sig, "FPE", siglen))
-			ssh->exitcode = 128 + SIGFPE;
+		    TRANSLATE_SIGNAL(FPE);
 #endif
 #ifdef SIGHUP
-		    else if (siglen == lenof("HUP")-1 &&
-			     !memcmp(sig, "HUP", siglen))
-			ssh->exitcode = 128 + SIGHUP;
+		    TRANSLATE_SIGNAL(HUP);
 #endif
 #ifdef SIGILL
-		    else if (siglen == lenof("ILL")-1 &&
-			     !memcmp(sig, "ILL", siglen))
-			ssh->exitcode = 128 + SIGILL;
+		    TRANSLATE_SIGNAL(ILL);
 #endif
 #ifdef SIGINT
-		    else if (siglen == lenof("INT")-1 &&
-			     !memcmp(sig, "INT", siglen))
-			ssh->exitcode = 128 + SIGINT;
+		    TRANSLATE_SIGNAL(INT);
 #endif
 #ifdef SIGKILL
-		    else if (siglen == lenof("KILL")-1 &&
-			     !memcmp(sig, "KILL", siglen))
-			ssh->exitcode = 128 + SIGKILL;
+		    TRANSLATE_SIGNAL(KILL);
 #endif
 #ifdef SIGPIPE
-		    else if (siglen == lenof("PIPE")-1 &&
-			     !memcmp(sig, "PIPE", siglen))
-			ssh->exitcode = 128 + SIGPIPE;
+		    TRANSLATE_SIGNAL(PIPE);
 #endif
 #ifdef SIGQUIT
-		    else if (siglen == lenof("QUIT")-1 &&
-			     !memcmp(sig, "QUIT", siglen))
-			ssh->exitcode = 128 + SIGQUIT;
+		    TRANSLATE_SIGNAL(QUIT);
 #endif
 #ifdef SIGSEGV
-		    else if (siglen == lenof("SEGV")-1 &&
-			     !memcmp(sig, "SEGV", siglen))
-			ssh->exitcode = 128 + SIGSEGV;
+		    TRANSLATE_SIGNAL(SEGV);
 #endif
 #ifdef SIGTERM
-		    else if (siglen == lenof("TERM")-1 &&
-			     !memcmp(sig, "TERM", siglen))
-			ssh->exitcode = 128 + SIGTERM;
+		    TRANSLATE_SIGNAL(TERM);
 #endif
 #ifdef SIGUSR1
-		    else if (siglen == lenof("USR1")-1 &&
-			     !memcmp(sig, "USR1", siglen))
-			ssh->exitcode = 128 + SIGUSR1;
+		    TRANSLATE_SIGNAL(USR1);
 #endif
 #ifdef SIGUSR2
-		    else if (siglen == lenof("USR2")-1 &&
-			     !memcmp(sig, "USR2", siglen))
-			ssh->exitcode = 128 + SIGUSR2;
+		    TRANSLATE_SIGNAL(USR2);
 #endif
+#undef TRANSLATE_SIGNAL
 		    else
 			ssh->exitcode = 128;
 		}
