@@ -799,7 +799,29 @@ static void ttymodes_handler(union control *ctrl, void *dlg,
 	    char *p = cfg->ttymodes;
 	    int i = 0, len = lenof(cfg->ttymodes);
 	    while (*p) {
+		int multisel = dlg_listbox_index(td->listbox, dlg) < 0;
 		if (dlg_listbox_issel(td->listbox, dlg, i)) {
+		    if (!multisel) {
+			/* Populate controls with entry we're about to
+			 * delete, for ease of editing.
+			 * (If multiple entries were selected, don't
+			 * touch the controls.) */
+			char *val = strchr(p, '\t');
+			if (val) {
+			    int ind = 0;
+			    val++;
+			    while (ttymodes[ind]) {
+				if (strlen(ttymodes[ind]) == val-p-1 &&
+				    !strncmp(ttymodes[ind], p, val-p-1))
+				    break;
+				ind++;
+			    }
+			    dlg_listbox_select(td->modelist, dlg, ind);
+			    dlg_radiobutton_set(td->valradio, dlg,
+						(*val == 'V'));
+			    dlg_editbox_set(td->valbox, dlg, val+1);
+			}
+		    }
 		    memmove(p, p+strlen(p)+1, len - (strlen(p)+1));
 		    i++;
 		    continue;
@@ -873,7 +895,7 @@ static void environ_handler(union control *ctrl, void *dlg,
 	    if (i < 0) {
 		dlg_beep(dlg);
 	    } else {
-		char *p, *q;
+		char *p, *q, *str;
 
 		dlg_listbox_del(ed->listbox, dlg, i);
 		p = cfg->environmt;
@@ -888,8 +910,20 @@ static void environ_handler(union control *ctrl, void *dlg,
 		q = p;
 		if (!*p)
 		    goto disaster;
-		while (*p)
-		    p++;
+		/* Populate controls with the entry we're about to delete
+		 * for ease of editing */
+		str = p;
+		p = strchr(p, '\t');
+		if (!p)
+		    goto disaster;
+		*p = '\0';
+		dlg_editbox_set(ed->varbox, dlg, str);
+		p++;
+		str = p;
+		dlg_editbox_set(ed->valbox, dlg, str);
+		p = strchr(p, '\0');
+		if (!p)
+		    goto disaster;
 		p++;
 		while (*p) {
 		    while (*p)
@@ -1002,7 +1036,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    if (i < 0)
 		dlg_beep(dlg);
 	    else {
-		char *p, *q;
+		char *p, *q, *src, *dst;
+		char dir;
 
 		dlg_listbox_del(pfd->listbox, dlg, i);
 		p = cfg->portfwd;
@@ -1017,8 +1052,42 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		q = p;
 		if (!*p)
 		    goto disaster2;
-		while (*p)
+		/* Populate the controls with the entry we're about to
+		 * delete, for ease of editing. */
+		{
+		    static const char *const afs = "A46";
+		    char *afp = strchr(afs, *p);
+		    int idx = afp ? afp-afs : 0;
+		    if (afp)
+			p++;
+#ifndef NO_IPV6
+		    dlg_radiobutton_set(pfd->addressfamily, dlg, idx);
+#endif
+		}
+		{
+		    static const char *const dirs = "LRD";
+		    dir = *p;
+		    dlg_radiobutton_set(pfd->direction, dlg,
+					strchr(dirs, dir) - dirs);
+		}
+		p++;
+		if (dir != 'D') {
+		    src = p;
+		    p = strchr(p, '\t');
+		    if (!p)
+			goto disaster2;
+		    *p = '\0';
 		    p++;
+		    dst = p;
+		} else {
+		    src = p;
+		    dst = "";
+		}
+		p = strchr(p, '\0');
+		if (!p)
+		    goto disaster2;
+		dlg_editbox_set(pfd->sourcebox, dlg, src);
+		dlg_editbox_set(pfd->destbox, dlg, dst);
 		p++;
 		while (*p) {
 		    while (*p)
