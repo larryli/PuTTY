@@ -663,13 +663,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    end = 2;
 	}
 
-	/* Control-Break is the same as Control-C */
+	/* Control-Break sends a Break special to the backend */
 	if (event->keyval == GDK_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
-	    output[1] = '\003';
-	    use_ucsoutput = FALSE;
-	    end = 2;
-	    special = TRUE;
+	    if (inst->back)
+		inst->back->special(inst->backhandle, TS_BRK);
+	    return TRUE;
 	}
 
 	/* We handle Return ourselves, because it needs to be flagged as

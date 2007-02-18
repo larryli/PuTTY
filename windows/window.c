@@ -3566,8 +3566,9 @@ int char_width(Context ctx, int uc) {
 
 /*
  * Translate a WM_(SYS)?KEY(UP|DOWN) message into a string of ASCII
- * codes. Returns number of bytes used or zero to drop the message
- * or -1 to forward the message to windows.
+ * codes. Returns number of bytes used, zero to drop the message,
+ * -1 to forward the message to Windows, or another negative number
+ * to indicate a NUL-terminated "special" string.
  */
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			unsigned char *output)
@@ -3987,9 +3988,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 	if (wParam == VK_CANCEL && shift_state == 2) {	/* Ctrl-Break */
-	    *p++ = 3;
-	    *p++ = 0;
-	    return -2;
+	    if (back)
+		back->special(backhandle, TS_BRK);
+	    return 0;
 	}
 	if (wParam == VK_PAUSE) {      /* Break/Pause */
 	    *p++ = 26;

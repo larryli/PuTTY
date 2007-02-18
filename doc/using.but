@@ -128,6 +128,9 @@ connection in addition to normal data. Their precise effect is usually
 up to the server. Currently only Telnet, SSH, and serial connections
 have special commands.
 
+The \q{break} signal can also be invoked from the keyboard with
+\i{Ctrl-Break}.
+
 The following \I{Telnet special commands}special commands are
 available in Telnet:
 
