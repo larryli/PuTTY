@@ -929,8 +929,8 @@ if (defined $makefiles{'gtk'}) {
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
 	       " `gtk-config --cflags`").
 		 " -D _FILE_OFFSET_BITS=64\n".
-    "XLDFLAGS = `gtk-config --libs`\n".
-    "ULDFLAGS =#\n".
+    "XLDFLAGS = \$(LDFLAGS) `gtk-config --libs`\n".
+    "ULDFLAGS = \$(LDFLAGS)\n".
     "INSTALL=install\n",
     "INSTALL_PROGRAM=\$(INSTALL)\n",
     "INSTALL_DATA=\$(INSTALL)\n",
@@ -952,8 +952,8 @@ if (defined $makefiles{'gtk'}) {
       $objstr = &objects($p, "X.o", undef, undef);
       print &splitline($prog . ": " . $objstr), "\n";
       $libstr = &objects($p, undef, undef, "-lX");
-      print &splitline("\t\$(CC)" . $mw . " \$(${type}LDFLAGS) -o \$@ " .
-                       $objstr . " $libstr", 69), "\n\n";
+      print &splitline("\t\$(CC)" . $mw . " -o \$@ " .
+                       $objstr . " \$(${type}LDFLAGS) $libstr", 69), "\n\n";
     }
     foreach $d (&deps("X.o", undef, $dirpfx, "/", "gtk")) {
       if ($forceobj{$d->{obj_orig}}) {
@@ -1015,8 +1015,8 @@ if (defined $makefiles{'ac'}) {
       $objstr = &objects($p, "X.o", undef, undef);
       print &splitline($prog . ": " . $objstr), "\n";
       $libstr = &objects($p, undef, undef, "-lX");
-      print &splitline("\t\$(CC)" . $mw . " \$(${type}LDFLAGS) -o \$@ " .
-                       $objstr . " $libstr", 69), "\n\n";
+      print &splitline("\t\$(CC)" . $mw . " -o \$@ " .
+                       $objstr . " \$(${type}LDFLAGS) $libstr", 69), "\n\n";
     }
     foreach $d (&deps("X.o", undef, $dirpfx, "/", "gtk")) {
       if ($forceobj{$d->{obj_orig}}) {
