@@ -322,12 +322,14 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	!strcmp(p, "-pageant")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
 	cfg->tryagent = TRUE;
     }
     if (!strcmp(p, "-noagent") || !strcmp(p, "-nopagent") ||
 	!strcmp(p, "-nopageant")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
 	cfg->tryagent = FALSE;
     }
 
