@@ -1867,7 +1867,7 @@ void sys_cursor(void *frontend, int x, int y)
  */
 void do_beep(void *frontend, int mode)
 {
-    if (mode != BELL_VISUAL)
+    if (mode == BELL_DEFAULT)
 	gdk_beep();
 }
 
