@@ -2408,7 +2408,7 @@ static void help(FILE *fp) {
     }
 }
 
-int do_cmdline(int argc, char **argv, int do_everything,
+int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
                struct gui_data *inst, Config *cfg)
 {
     int err = 0;
@@ -2614,7 +2614,8 @@ int do_cmdline(int argc, char **argv, int do_everything,
             exit(1);
 
 	} else if(p[0] != '-' && (!do_everything ||
-                                  process_nonoption_arg(p, cfg))) {
+                                  process_nonoption_arg(p, cfg,
+							allow_launch))) {
             /* do nothing */
 
 	} else {
@@ -3477,15 +3478,22 @@ int pt_main(int argc, char **argv)
 	/* Splatter this argument so it doesn't clutter a ps listing */
 	memset(argv[1], 0, strlen(argv[1]));
     } else {
-	if (do_cmdline(argc, argv, 0, inst, &inst->cfg))
+	/* By default, we bring up the config dialog, rather than launching
+	 * a session. This gets set to TRUE if something happens to change
+	 * that (e.g., a hostname is specified on the command-line). */
+	int allow_launch = FALSE;
+	if (do_cmdline(argc, argv, 0, &allow_launch, inst, &inst->cfg))
 	    exit(1);		       /* pre-defaults pass to get -class */
 	do_defaults(NULL, &inst->cfg);
-	if (do_cmdline(argc, argv, 1, inst, &inst->cfg))
+	if (do_cmdline(argc, argv, 1, &allow_launch, inst, &inst->cfg))
 	    exit(1);		       /* post-defaults, do everything */
 
 	cmdline_run_saved(&inst->cfg);
 
-	if ((!loaded_session || !cfg_launchable(&inst->cfg)) &&
+	if (loaded_session)
+	    allow_launch = TRUE;
+
+	if ((!allow_launch || !cfg_launchable(&inst->cfg)) &&
 	    !cfgbox(&inst->cfg))
 	    exit(0);		       /* config box hit Cancel */
     }

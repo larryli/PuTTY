@@ -361,6 +361,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     {
 	char *p;
 	int got_host = 0;
+	/* By default, we bring up the config dialog, rather than launching
+	 * a session. This gets set to TRUE if something happens to change
+	 * that (e.g., a hostname is specified on the command-line). */
+	int allow_launch = FALSE;
 
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
@@ -397,7 +401,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    if (!cfg_launchable(&cfg) && !do_config()) {
 		cleanup_exit(0);
 	    }
-	    loaded_session = TRUE;     /* allow it to be launched directly */
+	    allow_launch = TRUE;    /* allow it to be launched directly */
 	} else if (*p == '&') {
 	    /*
 	     * An initial & means we've been given a command line
@@ -413,10 +417,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		cfg = *cp;
 		UnmapViewOfFile(cp);
 		CloseHandle(filemap);
-		loaded_session = TRUE;
 	    } else if (!do_config()) {
 		cleanup_exit(0);
 	    }
+	    allow_launch = TRUE;
 	} else {
 	    /*
 	     * Otherwise, break up the command line and deal with
@@ -541,8 +545,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	cmdline_run_saved(&cfg);
 
-	if ((!loaded_session || !cfg_launchable(&cfg)) &&
-	    !do_config()) {
+	if (loaded_session || got_host)
+	    allow_launch = TRUE;
+
+	if ((!allow_launch || !cfg_launchable(&cfg)) && !do_config()) {
 	    cleanup_exit(0);
 	}
 

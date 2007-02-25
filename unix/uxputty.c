@@ -53,7 +53,7 @@ static int got_host = 0;
 
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
 
-int process_nonoption_arg(char *arg, Config *cfg)
+int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
 {
     char *p, *q = arg;
 
@@ -104,6 +104,8 @@ int process_nonoption_arg(char *arg, Config *cfg)
         cfg->host[sizeof(cfg->host) - 1] = '\0';
         got_host = 1;
     }
+    if (got_host)
+	*allow_launch = TRUE;
     return 1;
 }
 
