@@ -319,10 +319,15 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	/* We delay evaluating this until after the protocol is decided,
 	 * so that we can warn if it's of no use with the selected protocol */
 	if (cfg->protocol != PROT_SSH)
-	    cmdline_error("The -pw option can only be used with the "
+	    cmdline_error("the -pw option can only be used with the "
 			  "SSH protocol");
-	else
-	    cmdline_password = value;
+	else {
+	    cmdline_password = dupstr(value);
+	    /* Assuming that `value' is directly from argv, make a good faith
+	     * attempt to trample it, to stop it showing up in `ps' output
+	     * on Unix-like systems. Not guaranteed, of course. */
+	    memset(value, 0, strlen(value));
+	}
     }
 
     if (!strcmp(p, "-agent") || !strcmp(p, "-pagent") ||
