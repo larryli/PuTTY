@@ -374,13 +374,13 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
     if (!strcmp(p, "-t")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-	SAVEABLE(0);
+	SAVEABLE(1);	/* lower priority than -m */
 	cfg->nopty = 0;
     }
     if (!strcmp(p, "-T")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-	SAVEABLE(0);
+	SAVEABLE(1);
 	cfg->nopty = 1;
     }
 
