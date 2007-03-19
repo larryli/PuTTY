@@ -1434,7 +1434,7 @@ void palette_reset(void *frontend)
 	    int r = i / 36, g = (i / 6) % 6, b = i % 6;
 	    inst->cols[i+16].red = r ? r * 0x2828 + 0x3737 : 0;
 	    inst->cols[i+16].green = g ? g * 0x2828 + 0x3737 : 0;
-	    inst->cols[i+16].blue = b ? b + 0x2828 + 0x3737 : 0;
+	    inst->cols[i+16].blue = b ? b * 0x2828 + 0x3737 : 0;
 	} else {
 	    int shade = i - 216;
 	    shade = shade * 0x0a0a + 0x0808;
