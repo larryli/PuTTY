@@ -134,13 +134,25 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 	}
 	ctx->readret = ReadFile(ctx->h, ctx->buffer, readlen,
 				&ctx->len, povl);
-	if (povl && !ctx->readret && GetLastError() == ERROR_IO_PENDING) {
+	if (!ctx->readret)
+	    error = GetLastError();
+	if (povl && !ctx->readret && error == ERROR_IO_PENDING) {
 	    WaitForSingleObject(povl->hEvent, INFINITE);
 	    ctx->readret = GetOverlappedResult(ctx->h, povl, &ctx->len, FALSE);
 	}
 
-	if (!ctx->readret)
+	if (!ctx->readret) {
+	    /*
+	     * Windows apparently sends ERROR_BROKEN_PIPE when a
+	     * pipe we're reading from is closed normally from the
+	     * writing end. This is ludicrous; if that situation
+	     * isn't a natural EOF, _nothing_ is. So if we get that
+	     * particular error, we pretend it's EOF.
+	     */
+	    if (error == ERROR_BROKEN_PIPE)
+		ctx->readret = 1;
 	    ctx->len = 0;
+	}
 
 	if (ctx->readret && ctx->len == 0 &&
 	    (ctx->flags & HANDLE_FLAG_IGNOREEOF))
