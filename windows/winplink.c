@@ -228,7 +228,13 @@ int stdin_gotdata(struct handle *h, void *data, int len)
 	/*
 	 * Special case: report read error.
 	 */
-	fprintf(stderr, "Unable to read from standard input\n");
+	char buf[4096];
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, -len, 0,
+		      buf, lenof(buf), NULL);
+	buf[lenof(buf)-1] = '\0';
+	if (buf[strlen(buf)-1] == '\n')
+	    buf[strlen(buf)-1] = '\0';
+	fprintf(stderr, "Unable to read from standard input: %s\n", buf);
 	cleanup_exit(0);
     }
     noise_ultralight(len);
@@ -249,8 +255,14 @@ void stdouterr_sent(struct handle *h, int new_backlog)
 	/*
 	 * Special case: report write error.
 	 */
-	fprintf(stderr, "Unable to write to standard %s\n",
-		(h == stdout_handle ? "output" : "error"));
+	char buf[4096];
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, -new_backlog, 0,
+		      buf, lenof(buf), NULL);
+	buf[lenof(buf)-1] = '\0';
+	if (buf[strlen(buf)-1] == '\n')
+	    buf[strlen(buf)-1] = '\0';
+	fprintf(stderr, "Unable to write to standard %s: %s\n",
+		(h == stdout_handle ? "output" : "error"), buf);
 	cleanup_exit(0);
     }
     if (connopen && back->connected(backhandle)) {
