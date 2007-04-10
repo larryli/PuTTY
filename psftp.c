@@ -463,6 +463,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		    printf("error while writing local file\n");
 		    ret = 0;
 		    xfer_set_error(xfer);
+		    break;
 		}
 		wpos += wlen;
 	    }
