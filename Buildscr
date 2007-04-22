@@ -9,8 +9,8 @@ ifneq "$(!numeric $(revision))" "yes" set Makever $(Makever) -DMODIFIED
 ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
 ifneq "$(date)" "" set Makever $(Makever) -DSNAPSHOT=$(date)
 set Makeargs VER="$(Makever)"
-ifneq "$(XFLAGS)" "" set Makeargs $(makeargs) XFLAGS="$(XFLAGS)"
-ifneq "$(MAKEARGS)" "" set Makeargs $(makeargs) $(MAKEARGS)
+ifneq "$(XFLAGS)" "" set Makeargs $(Makeargs) XFLAGS="$(XFLAGS)"
+ifneq "$(MAKEARGS)" "" set Makeargs $(Makeargs) $(MAKEARGS)
 
 # Set up the version string for the docs build.
 set Docmakeargs VERSION="PuTTY revision $(revision)"
