@@ -104,16 +104,18 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
     struct controlset *s;
     union control *c;
 
-    /*
-     * Add the serial back end to the protocols list at the top of
-     * the config box.
-     */
-    s = ctrl_getset(b, "Session", "hostport",
-		    "Specify your connection by host name or IP address");
-    {
+    if (!midsession) {
 	int i;
 	extern void config_protocolbuttons_handler(union control *, void *,
 						   void *, int);
+
+	/*
+	 * Add the serial back end to the protocols list at the
+	 * top of the config box.
+	 */
+	s = ctrl_getset(b, "Session", "hostport",
+			"Specify the destination you want to connect to");
+
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
 	    if (c->generic.type == CTRL_RADIO &&
