@@ -256,6 +256,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	    { "Diffie-Hellman group 1",		KEX_DHGROUP1 },
 	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
 	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
+	    { "RSA-based key exchange", 	KEX_RSA },
 	    { "-- warn below here --",		KEX_WARN }
 	};
 

@@ -2282,6 +2282,10 @@ exchange; the server can avoid groups known to be weak, and possibly
 invent new ones over time, without any changes required to PuTTY's
 configuration. We recommend use of this method, if possible.
 
+In addition, PuTTY supports \i{RSA key exchange}, which requires much less
+computational effort on the part of the client, and somewhat less on
+the part of the server, than Diffie-Hellman key exchange.
+
 If the first algorithm PuTTY finds is below the \q{warn below here}
 line, you will see a warning box when you make the connection, similar
 to that for cipher selection (see \k{config-ssh-encryption}).

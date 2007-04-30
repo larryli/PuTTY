@@ -83,6 +83,9 @@
 #define SSH2_MSG_KEX_DH_GEX_GROUP                 31	/* 0x1f */
 #define SSH2_MSG_KEX_DH_GEX_INIT                  32	/* 0x20 */
 #define SSH2_MSG_KEX_DH_GEX_REPLY                 33	/* 0x21 */
+#define SSH2_MSG_KEXRSA_PUBKEY                    30    /* 0x1e */
+#define SSH2_MSG_KEXRSA_SECRET                    31    /* 0x1f */
+#define SSH2_MSG_KEXRSA_DONE                      32    /* 0x20 */
 #define SSH2_MSG_USERAUTH_REQUEST                 50	/* 0x32 */
 #define SSH2_MSG_USERAUTH_FAILURE                 51	/* 0x33 */
 #define SSH2_MSG_USERAUTH_SUCCESS                 52	/* 0x34 */
@@ -112,6 +115,7 @@
  */
 #define SSH2_PKTCTX_DHGROUP          0x0001
 #define SSH2_PKTCTX_DHGEX            0x0002
+#define SSH2_PKTCTX_RSAKEX           0x0004
 #define SSH2_PKTCTX_KEX_MASK         0x000F
 #define SSH2_PKTCTX_PUBLICKEY        0x0010
 #define SSH2_PKTCTX_PASSWORD         0x0020
@@ -339,6 +343,9 @@ static char *ssh2_pkt_type(int pkt_ctx, int type)
     translatec(SSH2_MSG_KEX_DH_GEX_GROUP, SSH2_PKTCTX_DHGEX);
     translatec(SSH2_MSG_KEX_DH_GEX_INIT, SSH2_PKTCTX_DHGEX);
     translatec(SSH2_MSG_KEX_DH_GEX_REPLY, SSH2_PKTCTX_DHGEX);
+    translatec(SSH2_MSG_KEXRSA_PUBKEY, SSH2_PKTCTX_RSAKEX);
+    translatec(SSH2_MSG_KEXRSA_SECRET, SSH2_PKTCTX_RSAKEX);
+    translatec(SSH2_MSG_KEXRSA_DONE, SSH2_PKTCTX_RSAKEX);
     translate(SSH2_MSG_USERAUTH_REQUEST);
     translate(SSH2_MSG_USERAUTH_FAILURE);
     translate(SSH2_MSG_USERAUTH_SUCCESS);
@@ -5105,9 +5112,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	const struct ssh_mac *scmac_tobe;
 	const struct ssh_compress *cscomp_tobe;
 	const struct ssh_compress *sccomp_tobe;
-	char *hostkeydata, *sigdata, *keystr, *fingerprint;
-	int hostkeylen, siglen;
+	char *hostkeydata, *sigdata, *rsakeydata, *keystr, *fingerprint;
+	int hostkeylen, siglen, rsakeylen;
 	void *hkey;		       /* actual host key */
+	void *rsakey;		       /* for RSA kex */
 	unsigned char exchange_hash[SSH2_KEX_MAX_HASH_LEN];
 	int n_preferred_kex;
 	const struct ssh_kexes *preferred_kex[KEX_MAX];
@@ -5160,6 +5168,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	      case KEX_DHGROUP1:
 		s->preferred_kex[s->n_preferred_kex++] =
 		    &ssh_diffiehellman_group1;
+		break;
+	      case KEX_RSA:
+		s->preferred_kex[s->n_preferred_kex++] =
+		    &ssh_rsa_kex;
 		break;
 	      case KEX_WARN:
 		/* Flag for later. Don't bother if it's the last in
@@ -5560,6 +5572,8 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    crWaitUntil(pktin);                /* Ignore packet */
     }
 
+    if (ssh->kex->main_type == KEXTYPE_DH) {
+	/* XXX The lines below should be reindented before this is committed.*/
     /*
      * Work out the number of bits of key we will need from the key
      * exchange. We start with the maximum key length of either
@@ -5635,6 +5649,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     }
     set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
     ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+    s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
     s->f = ssh2_pkt_getmp(pktin);
     if (!s->f) {
 	bombout(("unable to parse key exchange reply packet"));
@@ -5656,11 +5671,120 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     }
     hash_mpint(ssh->kex->hash, ssh->exhash, s->e);
     hash_mpint(ssh->kex->hash, ssh->exhash, s->f);
+
+    dh_cleanup(ssh->kex_ctx);
+    freebn(s->f);
+    if (!ssh->kex->pdata) {
+        freebn(s->g);
+	freebn(s->p);
+    }
+        /* XXX end incorrectly-indented section */
+    } else {
+	logeventf(ssh, "Doing RSA key exchange with hash %s",
+		  ssh->kex->hash->text_name);
+	ssh->pkt_ctx |= SSH2_PKTCTX_RSAKEX;
+        /*
+         * RSA key exchange. First expect a KEXRSA_PUBKEY packet
+         * from the server.
+         */
+        crWaitUntil(pktin);
+        if (pktin->type != SSH2_MSG_KEXRSA_PUBKEY) {
+            bombout(("expected RSA public key packet from server"));
+            crStop(0);
+        }
+
+        ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+        hash_string(ssh->kex->hash, ssh->exhash,
+		    s->hostkeydata, s->hostkeylen);
+	s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
+
+        {
+            char *keydata;
+            ssh_pkt_getstring(pktin, &keydata, &s->rsakeylen);
+            s->rsakeydata = snewn(s->rsakeylen, char);
+            memcpy(s->rsakeydata, keydata, s->rsakeylen);
+        }
+
+        s->rsakey = ssh_rsakex_newkey(s->rsakeydata, s->rsakeylen);
+        if (!s->rsakey) {
+            sfree(s->rsakeydata);
+            bombout(("unable to parse RSA public key from server"));
+            crStop(0);
+        }
+
+        hash_string(ssh->kex->hash, ssh->exhash, s->rsakeydata, s->rsakeylen);
+
+        /*
+         * Next, set up a shared secret K, of precisely KLEN -
+         * 2*HLEN - 49 bits, where KLEN is the bit length of the
+         * RSA key modulus and HLEN is the bit length of the hash
+         * we're using.
+         */
+        {
+            int klen = ssh_rsakex_klen(s->rsakey);
+            int nbits = klen - (2*ssh->kex->hash->hlen*8 + 49);
+            int i, byte = 0;
+            unsigned char *kstr1, *kstr2, *outstr;
+            int kstr1len, kstr2len, outstrlen;
+
+            s->K = bn_power_2(nbits - 1);
+
+            for (i = 0; i < nbits; i++) {
+                if ((i & 7) == 0) {
+                    byte = random_byte();
+                }
+                bignum_set_bit(s->K, i, (byte >> (i & 7)) & 1);
+            }
+
+            /*
+             * Encode this as an mpint.
+             */
+            kstr1 = ssh2_mpint_fmt(s->K, &kstr1len);
+            kstr2 = snewn(kstr2len = 4 + kstr1len, unsigned char);
+            PUT_32BIT(kstr2, kstr1len);
+            memcpy(kstr2 + 4, kstr1, kstr1len);
+
+            /*
+             * Encrypt it with the given RSA key.
+             */
+            outstrlen = (klen + 7) / 8;
+            outstr = snewn(outstrlen, unsigned char);
+            ssh_rsakex_encrypt(ssh->kex->hash, kstr2, kstr2len,
+			       outstr, outstrlen, s->rsakey);
+
+            /*
+             * And send it off in a return packet.
+             */
+            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXRSA_SECRET);
+            ssh2_pkt_addstring_start(s->pktout);
+            ssh2_pkt_addstring_data(s->pktout, outstr, outstrlen);
+            ssh2_pkt_send_noqueue(ssh, s->pktout);
+
+	    hash_string(ssh->kex->hash, ssh->exhash, outstr, outstrlen);
+
+            sfree(kstr2);
+            sfree(kstr1);
+            sfree(outstr);
+        }
+
+        ssh_rsakex_freekey(s->rsakey);
+
+        crWaitUntil(pktin);
+        if (pktin->type != SSH2_MSG_KEXRSA_DONE) {
+            sfree(s->rsakeydata);
+            bombout(("expected signature packet from server"));
+            crStop(0);
+        }
+
+        ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
+
+        sfree(s->rsakeydata);
+    }
+
     hash_mpint(ssh->kex->hash, ssh->exhash, s->K);
     assert(ssh->kex->hash->hlen <= sizeof(s->exchange_hash));
     ssh->kex->hash->final(ssh->exhash, s->exchange_hash);
 
-    dh_cleanup(ssh->kex_ctx);
     ssh->kex_ctx = NULL;
 
 #if 0
@@ -5668,7 +5792,6 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     dmemdump(s->exchange_hash, ssh->kex->hash->hlen);
 #endif
 
-    s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
     if (!s->hkey ||
 	!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
 				 (char *)s->exchange_hash,
@@ -5850,14 +5973,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		  ssh->sccomp->text_name);
 
     /*
-     * Free key exchange data.
+     * Free shared secret.
      */
-    freebn(s->f);
     freebn(s->K);
-    if (!ssh->kex->pdata) {
-	freebn(s->g);
-	freebn(s->p);
-    }
 
     /*
      * Key exchange is over. Loop straight back round if we have a

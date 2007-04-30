@@ -312,8 +312,8 @@ pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
-         + sshpubk sshaes sshsh512 import winutils puttygen.res tree234
-	 + notiming winhelp LIBS wintime
+         + sshpubk sshaes sshsh256 sshsh512 import winutils puttygen.res
+	 + tree234 notiming winhelp LIBS wintime
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
@@ -328,8 +328,8 @@ plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
 
 puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
-         + sshpubk sshaes sshsh512 import puttygen.res time tree234 uxgen
-         + notiming
+         + sshpubk sshaes sshsh256 sshsh512 import puttygen.res time tree234
+	 + uxgen notiming
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
@@ -342,7 +342,7 @@ PuTTYtel : [M] terminal wcwidth ldiscucs logging BE_NOSSH mac macdlg
 	 + CHARSET stricmp vsnprint dialog config macctrls minibidi
 PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
-         + sshaes sshsh512 import macpgen.rsrc macpgkey macabout
+         + sshaes sshsh256 sshsh512 import macpgen.rsrc macpgkey macabout
 
 PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
          + ux_x11 uxpty uxsignal testback putty.icns info.plist
