@@ -190,6 +190,7 @@ RCFLAGS += $(VER)
 # `make install' target for Unix.
 !begin gtk
 install:
+	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir)
 	$(INSTALL_PROGRAM) -m 755 plink $(DESTDIR)$(bindir)/plink
 	$(INSTALL_PROGRAM) -m 755 pscp $(DESTDIR)$(bindir)/pscp
 	$(INSTALL_PROGRAM) -m 755 psftp $(DESTDIR)$(bindir)/psftp
