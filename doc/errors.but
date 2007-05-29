@@ -209,6 +209,14 @@ encryption or decryption process. It's difficult to tell from this
 error message whether the problem is in the client, in the server,
 or in between.
 
+In particular, if the network is corrupting data at the TCP level, it
+may only be obvious with cryptographic protocols such as SSH, which
+explicitly check the integrity of the transferred data and complain
+loudly if the checks fail. Corruption of protocols without integrity
+protection (such as HTTP) will manifest in more subtle failures (such
+as misdisplayed text or images in a web browser) which may not be
+noticed.
+
 A known server problem which can cause this error is described in
 \k{faq-openssh-bad-openssl} in the FAQ.
 
