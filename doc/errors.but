@@ -201,7 +201,7 @@ Upgrade your server, or use the workarounds described in
 \k{config-ssh-bug-ignore1} and possibly \k{config-ssh-bug-plainpw1}.
 
 \H{errors-crc} \q{Incorrect \i{CRC} received on packet} or \q{Incorrect
-MAC received on packet}
+\i{MAC} received on packet}
 
 This error occurs when PuTTY decrypts an SSH packet and its checksum
 is not correct. This probably means something has gone wrong in the

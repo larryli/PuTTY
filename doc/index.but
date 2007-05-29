@@ -672,8 +672,8 @@ saved sessions from
 \IM{ignore message} SSH \q{ignore} messages
 \IM{ignore message} \q{ignore} messages, in SSH
 
-\IM{message authentication code} message authentication code
-\IM{message authentication code} MAC (message authentication code)
+\IM{message authentication code}{MAC} message authentication code (MAC)
+\IM{message authentication code}{MAC} MAC (message authentication code)
 
 \IM{signatures} signature
 \IM{signatures} digital signature
