@@ -1424,6 +1424,7 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 	zlib_compress_block(ssh->cs_comp_ctx,
 			    pkt->data + 12, pkt->length - 12,
 			    &compblk, &complen);
+	ssh_pkt_ensure(pkt, complen + 2);   /* just in case it's got bigger */
 	memcpy(pkt->data + 12, compblk, complen);
 	sfree(compblk);
 	pkt->length = complen + 12;
