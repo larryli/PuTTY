@@ -5756,7 +5756,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
              */
             s->pktout = ssh2_pkt_init(SSH2_MSG_KEXRSA_SECRET);
             ssh2_pkt_addstring_start(s->pktout);
-            ssh2_pkt_addstring_data(s->pktout, outstr, outstrlen);
+            ssh2_pkt_addstring_data(s->pktout, (char *)outstr, outstrlen);
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
 	    hash_string(ssh->kex->hash, ssh->exhash, outstr, outstrlen);

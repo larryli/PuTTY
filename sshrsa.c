@@ -961,7 +961,7 @@ void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
      */
     b1 = bignum_from_bytes(out, outlen);
     b2 = modpow(b1, rsa->exponent, rsa->modulus);
-    p = out;
+    p = (char *)out;
     for (i = outlen; i--;) {
 	*p++ = bignum_byte(b2, i);
     }
