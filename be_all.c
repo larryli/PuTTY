@@ -22,10 +22,10 @@ const int be_default_protocol = PROT_TELNET;
 const int be_default_protocol = PROT_SSH;
 #endif
 
-struct backend_list backends[] = {
-    {PROT_SSH, "ssh", &ssh_backend},
-    {PROT_TELNET, "telnet", &telnet_backend},
-    {PROT_RLOGIN, "rlogin", &rlogin_backend},
-    {PROT_RAW, "raw", &raw_backend},
-    {0, NULL}
+Backend *backends[] = {
+    &ssh_backend,
+    &telnet_backend,
+    &rlogin_backend,
+    &raw_backend,
+    NULL
 };

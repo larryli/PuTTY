@@ -232,15 +232,9 @@
     /*
      * Set up a backend.
      */
-    {
-	int i;
+    back = backend_from_proto(cfg.protocol);
+    if (!back)
 	back = &pty_backend;
-	for (i = 0; backends[i].backend != NULL; i++)
-	    if (backends[i].protocol == cfg.protocol) {
-		back = backends[i].backend;
-		break;
-	    }
-    }
 
     {
 	const char *error;

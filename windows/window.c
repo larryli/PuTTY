@@ -219,12 +219,7 @@ static void start_backend(void)
      * Select protocol. This is farmed out into a table in a
      * separate file to enable an ssh-free variant.
      */
-    back = NULL;
-    for (i = 0; backends[i].backend != NULL; i++)
-	if (backends[i].protocol == cfg.protocol) {
-	    back = backends[i].backend;
-	    break;
-	}
+    back = backend_from_proto(cfg.protocol);
     if (back == NULL) {
 	char *str = dupprintf("%s Internal Error", appname);
 	MessageBox(NULL, "Unsupported protocol number found",
@@ -369,13 +364,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
 	{
-	    int i;
+	    Backend *b = backend_from_proto(default_protocol);
 	    default_port = 0; /* illegal */
-	    for (i = 0; backends[i].backend != NULL; i++)
-		if (backends[i].protocol == default_protocol) {
-		    default_port = backends[i].backend->default_port;
-		    break;
-		}
+	    if (b)
+		default_port = b->default_port;
 	}
 	cfg.logtype = LGTYP_NONE;
 

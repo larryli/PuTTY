@@ -59,14 +59,14 @@ Backend null_backend = {
     null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
     null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
-    null_cfg_info, 0
+    null_cfg_info, "null", -1, 0
 };
 
 Backend loop_backend = {
     loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
     null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
-    null_cfg_info, 0
+    null_cfg_info, "loop", -1, 0
 };
 
 struct loop_state {

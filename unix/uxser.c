@@ -536,5 +536,7 @@ Backend serial_backend = {
     serial_provide_logctx,
     serial_unthrottle,
     serial_cfg_info,
+    "serial",
+    PROT_SERIAL,
     1
 };

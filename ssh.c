@@ -9146,5 +9146,7 @@ Backend ssh_backend = {
     ssh_provide_logctx,
     ssh_unthrottle,
     ssh_cfg_info,
+    "ssh",
+    PROT_SSH,
     22
 };

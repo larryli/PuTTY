@@ -52,6 +52,29 @@ const char *const ttymodes[] = {
     "CS8",	"PARENB",   "PARODD",	NULL
 };
 
+/*
+ * Convenience functions to access the backends[] array
+ * (which is only present in tools that manage settings).
+ */
+
+Backend *backend_from_name(const char *name)
+{
+    Backend **p;
+    for (p = backends; *p != NULL; p++)
+	if (!strcmp((*p)->name, name))
+	    return *p;
+    return NULL;
+}
+
+Backend *backend_from_proto(int proto)
+{
+    Backend **p;
+    for (p = backends; *p != NULL; p++)
+	if ((*p)->protocol == proto)
+	    return *p;
+    return NULL;
+}
+
 static void gpps(void *handle, const char *name, const char *def,
 		 char *val, int len)
 {
@@ -259,11 +282,11 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "SSHLogOmitPasswords", cfg->logomitpass);
     write_setting_i(sesskey, "SSHLogOmitData", cfg->logomitdata);
     p = "raw";
-    for (i = 0; backends[i].name != NULL; i++)
-	if (backends[i].protocol == cfg->protocol) {
-	    p = backends[i].name;
-	    break;
-	}
+    {
+	const Backend *b = backend_from_proto(cfg->protocol);
+	if (b)
+	    p = b->name;
+    }
     write_setting_s(sesskey, "Protocol", p);
     write_setting_i(sesskey, "PortNumber", cfg->port);
     /* The CloseOnExit numbers are arranged in a different order from
@@ -476,12 +499,13 @@ void load_open_settings(void *sesskey, Config *cfg)
     gpps(sesskey, "Protocol", "default", prot, 10);
     cfg->protocol = default_protocol;
     cfg->port = default_port;
-    for (i = 0; backends[i].name != NULL; i++)
-	if (!strcmp(prot, backends[i].name)) {
-	    cfg->protocol = backends[i].protocol;
+    {
+	const Backend *b = backend_from_name(prot);
+	if (b) {
+	    cfg->protocol = b->protocol;
 	    gppi(sesskey, "PortNumber", default_port, &cfg->port);
-	    break;
 	}
+    }
 
     /* Address family selection */
     gppi(sesskey, "AddressFamily", ADDRTYPE_UNSPEC, &cfg->addressfamily);
