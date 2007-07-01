@@ -351,5 +351,5 @@ Backend rlogin_backend = {
     rlogin_cfg_info,
     "rlogin",
     PROT_RLOGIN,
-    1
+    513
 };

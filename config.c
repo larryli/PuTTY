@@ -90,7 +90,7 @@ struct hostport {
 void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 				    void *data, int event)
 {
-    int button, defport;
+    int button;
     Config *cfg = (Config *)data;
     struct hostport *hp = (struct hostport *)ctrl->radio.context.p;
 
@@ -114,15 +114,20 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	assert(button >= 0 && button < ctrl->radio.nbuttons);
 	cfg->protocol = ctrl->radio.buttondata[button].i;
 	if (oldproto != cfg->protocol) {
-	    defport = -1;
-	    switch (cfg->protocol) {
-	      case PROT_SSH: defport = 22; break;
-	      case PROT_TELNET: defport = 23; break;
-	      case PROT_RLOGIN: defport = 513; break;
-	    }
-	    if (defport > 0 && cfg->port != defport) {
-		cfg->port = defport;
-	    }
+	    Backend *ob = backend_from_proto(oldproto);
+	    Backend *nb = backend_from_proto(cfg->protocol);
+	    assert(ob);
+	    assert(nb);
+	    /* Iff the user hasn't changed the port from the protocol
+	     * default (if any), update it with the new protocol's
+	     * default.
+	     * (XXX: this isn't perfect; a default can become permanent
+	     * by going via the serial backend. However, it helps with
+	     * the common case of tabbing through the controls in order
+	     * and setting a non-default port.) */
+	    if (cfg->port == ob->default_port &&
+		cfg->port > 0 && nb->default_port > 0)
+		cfg->port = nb->default_port;
 	}
 	dlg_refresh(hp->host, dlg);
 	dlg_refresh(hp->port, dlg);

@@ -1087,5 +1087,5 @@ Backend pty_backend = {
     pty_cfg_info,
     "pty",
     -1,
-    1
+    0
 };

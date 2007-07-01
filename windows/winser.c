@@ -456,5 +456,5 @@ Backend serial_backend = {
     serial_cfg_info,
     "serial",
     PROT_SERIAL,
-    1
+    0
 };

@@ -280,5 +280,5 @@ Backend raw_backend = {
     raw_cfg_info,
     "raw",
     PROT_RAW,
-    1
+    0
 };
