@@ -597,15 +597,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
-    /* Check for invalid Port number (i.e. zero) */
-    if (cfg.port == 0) {
-	char *str = dupprintf("%s Internal Error", appname);
-	MessageBox(NULL, "Invalid Port Number",
-		   str, MB_OK | MB_ICONEXCLAMATION);
-	sfree(str);
-	cleanup_exit(1);
-    }
-
     if (!prev) {
 	wndclass.style = 0;
 	wndclass.lpfnWndProc = WndProc;
