@@ -2480,7 +2480,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
         if (ssh->version == 2) {
 	    size_t len;
             /*
-             * Hash our version string and their version string.
+             * Record our version string and their version string.
              */
 	    len = strcspn(verstring, "\015\012");
 	    ssh->v_c = snewn(len + 1, char);
