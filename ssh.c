@@ -2377,6 +2377,47 @@ static void ssh_fix_verstring(char *str)
     }
 }
 
+/*
+ * Send an appropriate SSH version string.
+ */
+static void ssh_send_verstring(Ssh ssh, char *svers)
+{
+    char *verstring;
+
+    if (ssh->version == 2) {
+	/*
+	 * Construct a v2 version string.
+	 */
+	verstring = dupprintf("SSH-2.0-%s\015\012", sshver);
+    } else {
+	/*
+	 * Construct a v1 version string.
+	 */
+	verstring = dupprintf("SSH-%s-%s\012",
+			      (ssh_versioncmp(svers, "1.5") <= 0 ?
+			       svers : "1.5"),
+			      sshver);
+    }
+
+    ssh_fix_verstring(verstring);
+
+    if (ssh->version == 2) {
+	size_t len;
+	/*
+	 * Record our version string.
+	 */
+	len = strcspn(verstring, "\015\012");
+	ssh->v_c = snewn(len + 1, char);
+	memcpy(ssh->v_c, verstring, len);
+	ssh->v_c[len] = 0;
+    }
+
+    logeventf(ssh, "We claim version: %.*s",
+	      strcspn(verstring, "\015\012"), verstring);
+    s_write(ssh, verstring, strlen(verstring));
+    sfree(verstring);
+}
+
 static int do_ssh_init(Ssh ssh, unsigned char c)
 {
     struct do_ssh_init_state {
@@ -2390,6 +2431,20 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     crState(do_ssh_init_state);
 
     crBegin(ssh->do_ssh_init_crstate);
+
+    /*
+     * If the SSH version number's fixed, set it now, and if it's SSH-2,
+     * send the version string too.
+     *
+     * XXX This isn't actually early enough to be useful, since we only
+     * get here when the first incoming byte turns up.
+     */
+    if (ssh->cfg.sshprot == 0)
+	ssh->version = 1;
+    if (ssh->cfg.sshprot == 3) {
+	ssh->version = 2;
+	ssh_send_verstring(ssh, NULL);
+    }
 
     /* Search for a line beginning with the string "SSH-" in the input. */
     for (;;) {
@@ -2455,65 +2510,43 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	crStop(0);
     }
 
-    {
-        char *verstring;
-
-        if (s->proto2 && (ssh->cfg.sshprot >= 2 || !s->proto1)) {
-            /*
-             * Construct a v2 version string.
-             */
-            verstring = dupprintf("SSH-2.0-%s\015\012", sshver);
-            ssh->version = 2;
-        } else {
-            /*
-             * Construct a v1 version string.
-             */
-            verstring = dupprintf("SSH-%s-%s\012",
-                                  (ssh_versioncmp(s->version, "1.5") <= 0 ?
-                                   s->version : "1.5"),
-                                  sshver);
-            ssh->version = 1;
-        }
-
-        ssh_fix_verstring(verstring);
-
-        if (ssh->version == 2) {
-	    size_t len;
-            /*
-             * Record our version string and their version string.
-             */
-	    len = strcspn(verstring, "\015\012");
-	    ssh->v_c = snewn(len + 1, char);
-	    memcpy(ssh->v_c, verstring, len);
-	    ssh->v_c[len] = 0;
-	    len = strcspn(s->vstring, "\015\012");
-	    ssh->v_s = snewn(len + 1, char);
-	    memcpy(ssh->v_s, s->vstring, len);
-	    ssh->v_s[len] = 0;
-	    
-            /*
-             * Initialise SSH-2 protocol.
-             */
-            ssh->protocol = ssh2_protocol;
-            ssh2_protocol_setup(ssh);
-            ssh->s_rdpkt = ssh2_rdpkt;
-        } else {
-            /*
-             * Initialise SSH-1 protocol.
-             */
-            ssh->protocol = ssh1_protocol;
-            ssh1_protocol_setup(ssh);
-            ssh->s_rdpkt = ssh1_rdpkt;
-        }
-        logeventf(ssh, "We claim version: %.*s",
-                  strcspn(verstring, "\015\012"), verstring);
-	s_write(ssh, verstring, strlen(verstring));
-        sfree(verstring);
-	if (ssh->version == 2)
-	    do_ssh2_transport(ssh, NULL, -1, NULL);
-    }
+    if (s->proto2 && (ssh->cfg.sshprot >= 2 || !s->proto1))
+	ssh->version = 2;
+    else
+	ssh->version = 1;
 
     logeventf(ssh, "Using SSH protocol version %d", ssh->version);
+
+    /* Send the version string, if we haven't already */
+    if (ssh->cfg.sshprot != 3)
+	ssh_send_verstring(ssh, s->version);
+
+    if (ssh->version == 2) {
+	size_t len;
+	/*
+	 * Record their version string.
+	 */
+	len = strcspn(s->vstring, "\015\012");
+	ssh->v_s = snewn(len + 1, char);
+	memcpy(ssh->v_s, s->vstring, len);
+	ssh->v_s[len] = 0;
+	    
+	/*
+	 * Initialise SSH-2 protocol.
+	 */
+	ssh->protocol = ssh2_protocol;
+	ssh2_protocol_setup(ssh);
+	ssh->s_rdpkt = ssh2_rdpkt;
+    } else {
+	/*
+	 * Initialise SSH-1 protocol.
+	 */
+	ssh->protocol = ssh1_protocol;
+	ssh1_protocol_setup(ssh);
+	ssh->s_rdpkt = ssh1_rdpkt;
+    }
+    if (ssh->version == 2)
+	do_ssh2_transport(ssh, NULL, -1, NULL);
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
