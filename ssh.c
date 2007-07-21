@@ -1453,7 +1453,8 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 
 static int s_write(Ssh ssh, void *data, int len)
 {
-    log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len, 0, NULL);
+    if (ssh->logctx)
+	log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len, 0, NULL);
     return sk_write(ssh->s, (char *)data, len);
 }
 
@@ -2432,20 +2433,6 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 
     crBegin(ssh->do_ssh_init_crstate);
 
-    /*
-     * If the SSH version number's fixed, set it now, and if it's SSH-2,
-     * send the version string too.
-     *
-     * XXX This isn't actually early enough to be useful, since we only
-     * get here when the first incoming byte turns up.
-     */
-    if (ssh->cfg.sshprot == 0)
-	ssh->version = 1;
-    if (ssh->cfg.sshprot == 3) {
-	ssh->version = 2;
-	ssh_send_verstring(ssh, NULL);
-    }
-
     /* Search for a line beginning with the string "SSH-" in the input. */
     for (;;) {
 	if (c != 'S') goto no;
@@ -2606,7 +2593,9 @@ static void ssh_set_frozen(Ssh ssh, int frozen)
 static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
 {
     /* Log raw data, if we're in that mode. */
-    log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, datalen, 0, NULL);
+    if (ssh->logctx)
+	log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, datalen,
+		   0, NULL);
 
     crBegin(ssh->ssh_gotdata_crstate);
 
@@ -2829,6 +2818,17 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 	ssh->s = NULL;
 	notify_remote_exit(ssh->frontend);
 	return err;
+    }
+
+    /*
+     * If the SSH version number's fixed, set it now, and if it's SSH-2,
+     * send the version string too.
+     */
+    if (ssh->cfg.sshprot == 0)
+	ssh->version = 1;
+    if (ssh->cfg.sshprot == 3) {
+	ssh->version = 2;
+	ssh_send_verstring(ssh, NULL);
     }
 
     return NULL;
