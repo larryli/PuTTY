@@ -1801,6 +1801,11 @@ this panel affect the primary network connection forming your PuTTY
 session, and also any extra connections made as a result of SSH \i{port
 forwarding} (see \k{using-port-forwarding}).
 
+Note that unlike some software (such as web browsers), PuTTY does not
+attempt to automatically determine whether to use a proxy and (if so)
+which one to use for a given destination. If you need to use a proxy,
+it must always be explicitly configured.
+
 \S{config-proxy-type} Setting the proxy type
 
 \cfg{winhelp-topic}{proxy.type}
