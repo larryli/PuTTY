@@ -180,12 +180,6 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
 	return 0;
     }
 
-    /*
-     * If this is before the real session begins, just return.
-     */
-    if (!outptr)
-	return 0;
-
     if ((outlen > 0) && (len > 0)) {
 	unsigned used = outlen;
 	if (used > len)
