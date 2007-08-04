@@ -1222,9 +1222,9 @@ static struct Packet *ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	    /* "Session data" packets - omit the data field */
 	    if ((st->pktin->type == SSH1_SMSG_STDOUT_DATA) ||
 		(st->pktin->type == SSH1_SMSG_STDERR_DATA)) {
-		do_blank = TRUE; blank_prefix = 0;
-	    } else if (st->pktin->type == SSH1_MSG_CHANNEL_DATA) {
 		do_blank = TRUE; blank_prefix = 4;
+	    } else if (st->pktin->type == SSH1_MSG_CHANNEL_DATA) {
+		do_blank = TRUE; blank_prefix = 8;
 	    }
 	    if (do_blank) {
 		blank.offset = blank_prefix;
@@ -1382,9 +1382,9 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	    int do_blank = FALSE, blank_prefix = 0;
 	    /* "Session data" packets - omit the data field */
 	    if (st->pktin->type == SSH2_MSG_CHANNEL_DATA) {
-		do_blank = TRUE; blank_prefix = 4;
-	    } else if (st->pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA) {
 		do_blank = TRUE; blank_prefix = 8;
+	    } else if (st->pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA) {
+		do_blank = TRUE; blank_prefix = 12;
 	    }
 	    if (do_blank) {
 		blank.offset = blank_prefix;
@@ -2940,8 +2940,8 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
     } else {
 	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
 		    PKT_INT, c->remoteid,
-		    PKTT_DATA,
 		    PKT_INT, replylen,
+		    PKTT_DATA,
 		    PKT_DATA, sentreply, replylen,
 		    PKTT_OTHER,
 		    PKT_END);
@@ -4001,8 +4001,7 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
     if (ssh->version == 1) {
 	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
 		    PKT_INT, c->remoteid,
-		    PKTT_DATA,
-		    PKT_INT, len, PKT_DATA, buf, len,
+		    PKT_INT, len, PKTT_DATA, PKT_DATA, buf, len,
 		    PKTT_OTHER, PKT_END);
 	/*
 	 * In SSH-1 we can return 0 here - implying that forwarded
@@ -4973,8 +4972,8 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	} else {
 	    while (inlen > 0) {
 		int len = min(inlen, 512);
-		send_packet(ssh, SSH1_CMSG_STDIN_DATA, PKTT_DATA,
-			    PKT_INT, len, PKT_DATA, in, len,
+		send_packet(ssh, SSH1_CMSG_STDIN_DATA,
+			    PKT_INT, len,  PKTT_DATA, PKT_DATA, in, len,
 			    PKTT_OTHER, PKT_END);
 		in += len;
 		inlen -= len;
@@ -6124,8 +6123,8 @@ static int ssh2_try_send(struct ssh_channel *c)
 	    len = c->v.v2.remmaxpkt;
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
-	dont_log_data(ssh, pktout, PKTLOG_OMIT);
 	ssh2_pkt_addstring_start(pktout);
+	dont_log_data(ssh, pktout, PKTLOG_OMIT);
 	ssh2_pkt_addstring_data(pktout, data, len);
 	end_log_omission(ssh, pktout);
 	ssh2_pkt_send(ssh, pktout);
