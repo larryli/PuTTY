@@ -6187,7 +6187,7 @@ static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
      *
      * "Significant" is arbitrarily defined as half the window size.
      */
-    if (newwin > c->v.v2.locwindow * 2) {
+    if (newwin >= c->v.v2.locwindow * 2) {
 	struct Packet *pktout;
 
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
