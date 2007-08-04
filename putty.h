@@ -588,6 +588,12 @@ struct config_tag {
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
 	sshbug_pksessid2, sshbug_rekey2;
+    /*
+     * ssh_simple means that we promise never to open any channel other
+     * than the main one, which means it can safely use a very large
+     * window in SSH-2.
+     */
+    int ssh_simple;
     /* Options for pterm. Should split out into platform-dependent part. */
     int stamp_utmp;
     int login_shell;

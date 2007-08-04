@@ -470,11 +470,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
  * 
  *  - OUR_V2_WINSIZE is the maximum window size we present on SSH-2
  *    channels.
+ *
+ *  - OUR_V2_BIGWIN is the window size we advertise for the only
+ *    channel in a simple connection.
  */
 
 #define SSH1_BUFFER_LIMIT 32768
 #define SSH_MAX_BACKLOG 32768
 #define OUR_V2_WINSIZE 16384
+#define OUR_V2_BIGWIN 0x10000000
 #define OUR_V2_MAXPKT 0x4000UL
 
 /* Maximum length of passwords/passphrases (arbitrary) */
@@ -552,7 +556,7 @@ struct ssh_channel {
 	    bufchain outbuffer;
 	    unsigned remwindow, remmaxpkt;
 	    /* locwindow is signed so we can cope with excess data. */
-	    int locwindow;
+	    int locwindow, locmaxwin;
 	} v2;
     } v;
     union {
@@ -4030,7 +4034,7 @@ void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
 	    ssh1_throttle(ssh, -1);
 	}
     } else {
-	ssh2_set_window(c, OUR_V2_WINSIZE - bufsize);
+	ssh2_set_window(c, c->v.v2.locmaxwin - bufsize);
     }
 }
 
@@ -6288,8 +6292,8 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	 * need to adjust the window if the server's
 	 * sent excess data.
 	 */
-	ssh2_set_window(c, bufsize < OUR_V2_WINSIZE ?
-			OUR_V2_WINSIZE - bufsize : 0);
+	ssh2_set_window(c, bufsize < c->v.v2.locmaxwin ?
+			c->v.v2.locmaxwin - bufsize : 0);
     }
 }
 
@@ -6756,7 +6760,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     } else {
 	c->localid = alloc_channel_id(ssh);
 	c->closes = 0;
-	c->v.v2.locwindow = OUR_V2_WINSIZE;
+	c->v.v2.locwindow = c->v.v2.locmaxwin = OUR_V2_WINSIZE;
 	c->v.v2.remwindow = winsize;
 	c->v.v2.remmaxpkt = pktsize;
 	bufchain_init(&c->v.v2.outbuffer);
@@ -7967,7 +7971,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(s->pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
-	ssh->mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
+	ssh->mainchan->v.v2.locwindow = ssh->mainchan->v.v2.locmaxwin =
+	    ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(s->pktout, ssh->cfg.ssh_nc_host);
@@ -8009,7 +8014,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(s->pktout, "session");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
-	ssh->mainchan->v.v2.locwindow = OUR_V2_WINSIZE;
+	ssh->mainchan->v.v2.locwindow = ssh->mainchan->v.v2.locmaxwin =
+	    ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);    /* our max pkt size */
 	ssh2_pkt_send(ssh, s->pktout);
@@ -9062,7 +9068,8 @@ static void ssh_unthrottle(void *handle, int bufsize)
 	    ssh1_throttle(ssh, -1);
 	}
     } else {
-	ssh2_set_window(ssh->mainchan, OUR_V2_WINSIZE - bufsize);
+	ssh2_set_window(ssh->mainchan,
+			ssh->mainchan->v.v2.locmaxwin - bufsize);
     }
 }
 
@@ -9085,7 +9092,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(pktout, c->localid);
-	c->v.v2.locwindow = OUR_V2_WINSIZE;
+	c->v.v2.locwindow = c->v.v2.locmaxwin = OUR_V2_WINSIZE;
 	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(pktout, hostname);

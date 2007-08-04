@@ -418,6 +418,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     cfg.x11_forward = 0;
     cfg.agentfwd = 0;
     cfg.portfwd[0] = cfg.portfwd[1] = '\0';
+    cfg.ssh_simple = TRUE;
 
     /*
      * Set up main and possibly fallback command depending on

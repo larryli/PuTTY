@@ -2752,6 +2752,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     cfg.x11_forward = 0;
     cfg.agentfwd = 0;
     cfg.portfwd[0] = cfg.portfwd[1] = '\0';
+    cfg.ssh_simple = TRUE;
 
     /* Set up subsystem name. */
     strcpy(cfg.remote_cmd, "sftp");
