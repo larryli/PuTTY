@@ -42,6 +42,7 @@
 #define WINHELP_CTX_terminal_autowrap "terminal.autowrap:config-autowrap"
 #define WINHELP_CTX_terminal_decom "terminal.decom:config-decom"
 #define WINHELP_CTX_terminal_lfhascr "terminal.lfhascr:config-crlf"
+#define WINHELP_CTX_terminal_crhaslf "terminal.crhaslf:config-lfcr"
 #define WINHELP_CTX_terminal_bce "terminal.bce:config-erase"
 #define WINHELP_CTX_terminal_blink "terminal.blink:config-blink"
 #define WINHELP_CTX_terminal_answerback "terminal.answerback:config-answerback"

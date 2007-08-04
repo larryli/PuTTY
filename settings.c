@@ -388,6 +388,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "DECOriginMode", cfg->dec_om);
     write_setting_i(sesskey, "AutoWrapMode", cfg->wrap_mode);
     write_setting_i(sesskey, "LFImpliesCR", cfg->lfhascr);
+    write_setting_i(sesskey, "CRImpliesLF", cfg->crhaslf);
     write_setting_i(sesskey, "DisableArabicShaping", cfg->arabicshaping);
     write_setting_i(sesskey, "DisableBidi", cfg->bidi);
     write_setting_i(sesskey, "WinNameAlways", cfg->win_name_always);
@@ -681,6 +682,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "DECOriginMode", 0, &cfg->dec_om);
     gppi(sesskey, "AutoWrapMode", 1, &cfg->wrap_mode);
     gppi(sesskey, "LFImpliesCR", 0, &cfg->lfhascr);
+    gppi(sesskey, "CRImpliesLF", 0, &cfg->crhaslf);
     gppi(sesskey, "DisableArabicShaping", 0, &cfg->arabicshaping);
     gppi(sesskey, "DisableBidi", 0, &cfg->bidi);
     gppi(sesskey, "WinNameAlways", 1, &cfg->win_name_always);

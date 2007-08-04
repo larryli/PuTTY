@@ -368,6 +368,19 @@ option, and things might go back to normal:
 \c Second line
 \c Third line
 
+\S{config-lfcr} \q{Implicit LF in every CR}
+
+\cfg{winhelp-topic}{terminal.crhaslf}
+
+Most servers send two control characters, \i{CR} and \i{LF}, to start a
+\i{new line} of the screen. The CR character makes the cursor return to the
+left-hand side of the screen. The LF character makes the cursor move
+one line down (and might make the screen scroll).
+
+Some servers only send CR, and so the newly 
+written line is overwritten by the following line. This option causes 
+a line feed so that all lines are displayed.
+
 \S{config-erase} \q{Use \i{background colour} to erase screen}
 
 \cfg{winhelp-topic}{terminal.bce}

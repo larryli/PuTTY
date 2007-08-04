@@ -597,6 +597,7 @@ struct config_tag {
     FontSpec widefont;
     FontSpec wideboldfont;
     int shadowboldoffset;
+    int crhaslf;
 };
 
 /*

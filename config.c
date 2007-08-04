@@ -1310,6 +1310,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_checkbox(s, "Implicit CR in every LF", 'r',
 		  HELPCTX(terminal_lfhascr),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,lfhascr)));
+    ctrl_checkbox(s, "Implicit LF in every CR", 'f',
+		  HELPCTX(terminal_crhaslf),
+		  dlg_stdcheckbox_handler, I(offsetof(Config,crhaslf)));
     ctrl_checkbox(s, "Use background colour to erase screen", 'e',
 		  HELPCTX(terminal_bce),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,bce)));

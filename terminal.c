@@ -2850,6 +2850,13 @@ static void term_out(Terminal *term)
 		term->wrapnext = FALSE;
 		seen_disp_event(term);
 		term->paste_hold = 0;
+
+        if (term->cfg.crhaslf) {  
+		  if (term->curs.y == term->marg_b)
+		    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
+		  else if (term->curs.y < term->rows - 1)
+		    term->curs.y++;
+        }
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
