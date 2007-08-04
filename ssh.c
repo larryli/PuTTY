@@ -551,7 +551,8 @@ struct ssh_channel {
 	struct ssh2_data_channel {
 	    bufchain outbuffer;
 	    unsigned remwindow, remmaxpkt;
-	    unsigned locwindow;
+	    /* locwindow is signed so we can cope with excess data. */
+	    int locwindow;
 	} v2;
     } v;
     union {
@@ -6284,9 +6285,12 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	/*
 	 * If we are not buffering too much data,
 	 * enlarge the window again at the remote side.
+	 * If we are buffering too much, we may still
+	 * need to adjust the window if the server's
+	 * sent excess data.
 	 */
-	if (bufsize < OUR_V2_WINSIZE)
-	    ssh2_set_window(c, OUR_V2_WINSIZE - bufsize);
+	ssh2_set_window(c, bufsize < OUR_V2_WINSIZE ?
+			OUR_V2_WINSIZE - bufsize : 0);
     }
 }
 
