@@ -472,13 +472,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
  *    channels.
  *
  *  - OUR_V2_BIGWIN is the window size we advertise for the only
- *    channel in a simple connection.
+ *    channel in a simple connection.  It must be <= INT_MAX.
  */
 
 #define SSH1_BUFFER_LIMIT 32768
 #define SSH_MAX_BACKLOG 32768
 #define OUR_V2_WINSIZE 16384
-#define OUR_V2_BIGWIN 0x10000000
+#define OUR_V2_BIGWIN 0x7fffffff
 #define OUR_V2_MAXPKT 0x4000UL
 
 /* Maximum length of passwords/passphrases (arbitrary) */
@@ -6191,7 +6191,7 @@ static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
      *
      * "Significant" is arbitrarily defined as half the window size.
      */
-    if (newwin >= c->v.v2.locwindow * 2) {
+    if (newwin / 2 >= c->v.v2.locwindow) {
 	struct Packet *pktout;
 
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
@@ -8059,6 +8059,20 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_msg_channel_request;
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] =
 	ssh2_msg_channel_open;
+
+    if (ssh->cfg.ssh_simple) {
+	/*
+	 * This message indicates to the server that we promise
+	 * not to try to run any other channel in parallel with
+	 * this one, so it's safe for it to advertise a very large
+	 * window and leave the flow control to TCP.
+	 */
+	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
+	ssh2_pkt_addstring(s->pktout, "simple@putty.projects.tartarus.org");
+	ssh2_pkt_addbool(s->pktout, 0); /* no reply */
+	ssh2_pkt_send(ssh, s->pktout);
+    }
 
     /*
      * Potentially enable X11 forwarding.
