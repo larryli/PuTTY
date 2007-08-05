@@ -183,7 +183,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 /*
  * Codes for terminal modes.
  * Most of these are the same in SSH-1 and SSH-2.
- * This list is derived from draft-ietf-secsh-connect-25 and
+ * This list is derived from RFC 4254 and
  * SSH-1 RFC-1.2.31.
  */
 static const struct {
