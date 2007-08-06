@@ -663,7 +663,7 @@ static void ssh_special(void *handle, Telnet_Special);
 static int ssh2_try_send(struct ssh_channel *c);
 static void ssh2_add_channel_data(struct ssh_channel *c, char *buf, int len);
 static void ssh_throttle_all(Ssh ssh, int enable, int bufsize);
-static void ssh2_set_window(struct ssh_channel *c, unsigned newwin);
+static void ssh2_set_window(struct ssh_channel *c, int newwin);
 static int ssh_sendbuffer(void *handle);
 static int ssh_do_close(Ssh ssh, int notify_exit);
 static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
@@ -6172,7 +6172,7 @@ static void ssh2_try_send_and_unthrottle(struct ssh_channel *c)
 /*
  * Potentially enlarge the window on an SSH-2 channel.
  */
-static void ssh2_set_window(struct ssh_channel *c, unsigned newwin)
+static void ssh2_set_window(struct ssh_channel *c, int newwin)
 {
     Ssh ssh = c->ssh;
 
