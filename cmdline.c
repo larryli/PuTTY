@@ -263,8 +263,8 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	    unsigned len = portp - host;
 	    if (len >= sizeof(cfg->ssh_nc_host))
 		len = sizeof(cfg->ssh_nc_host) - 1;
-	    strncpy(cfg->ssh_nc_host, value, len);
-	    cfg->ssh_nc_host[sizeof(cfg->ssh_nc_host) - 1] = '\0';
+	    memcpy(cfg->ssh_nc_host, value, len);
+	    cfg->ssh_nc_host[len] = '\0';
 	    cfg->ssh_nc_port = atoi(portp+1);
 	} else {
 	    cmdline_error("-nc expects argument of form 'host:port'");
