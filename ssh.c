@@ -9082,8 +9082,9 @@ static void ssh_unthrottle(void *handle, int bufsize)
 	    ssh1_throttle(ssh, -1);
 	}
     } else {
-	ssh2_set_window(ssh->mainchan,
-			ssh->mainchan->v.v2.locmaxwin - bufsize);
+	if (ssh->mainchan)
+	    ssh2_set_window(ssh->mainchan,
+			    ssh->mainchan->v.v2.locmaxwin - bufsize);
     }
 }
 
