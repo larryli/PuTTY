@@ -1049,7 +1049,9 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		{
 		    static const char *const afs = "A46";
 		    char *afp = strchr(afs, *p);
+#ifndef NO_IPV6
 		    int idx = afp ? afp-afs : 0;
+#endif
 		    if (afp)
 			p++;
 #ifndef NO_IPV6
