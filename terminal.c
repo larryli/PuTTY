@@ -6405,6 +6405,7 @@ char *term_get_ttymode(Terminal *term, const char *mode)
 	val = term->cfg.bksp_is_delete ? "^?" : "^H";
     }
     /* FIXME: perhaps we should set ONLCR based on cfg.lfhascr as well? */
+    /* FIXME: or ECHO and friends based on local echo state? */
     return dupstr(val);
 }
 
