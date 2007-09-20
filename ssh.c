@@ -3070,6 +3070,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     ssh->v1_remote_protoflags = ssh_pkt_getuint32(pktin);
     s->supported_ciphers_mask = ssh_pkt_getuint32(pktin);
     s->supported_auths_mask = ssh_pkt_getuint32(pktin);
+    if ((ssh->remote_bugs & BUG_CHOKES_ON_RSA))
+	s->supported_auths_mask &= ~(1 << SSH1_AUTH_RSA);
 
     ssh->v1_local_protoflags =
 	ssh->v1_remote_protoflags & SSH1_PROTOFLAGS_SUPPORTED;
@@ -3323,7 +3325,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 
     crWaitUntil(pktin);
 
-    if ((ssh->remote_bugs & BUG_CHOKES_ON_RSA)) {
+    if ((s->supported_auths_mask & (1 << SSH1_AUTH_RSA)) == 0) {
 	/* We must not attempt PK auth. Pretend we've already tried it. */
 	s->tried_publickey = s->tried_agent = 1;
     } else {
