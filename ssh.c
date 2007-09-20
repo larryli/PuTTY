@@ -62,6 +62,10 @@
 #define SSH1_SMSG_AUTH_CCARD_CHALLENGE            71	/* 0x47 */
 #define SSH1_CMSG_AUTH_CCARD_RESPONSE             72	/* 0x48 */
 
+#define SSH1_AUTH_RHOSTS                          1	/* 0x1 */
+#define SSH1_AUTH_RSA                             2	/* 0x2 */
+#define SSH1_AUTH_PASSWORD                        3	/* 0x3 */
+#define SSH1_AUTH_RHOSTS_RSA                      4	/* 0x4 */
 #define SSH1_AUTH_TIS                             5	/* 0x5 */
 #define SSH1_AUTH_CCARD                           16	/* 0x10 */
 
@@ -3776,6 +3780,10 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    }
 	}
 	if (s->pwpkt_type == SSH1_CMSG_AUTH_PASSWORD) {
+	    if ((s->supported_auths_mask & (1 << SSH1_AUTH_PASSWORD)) == 0) {
+		bombout(("No supported authentication methods available"));
+		crStop(0);
+	    }
 	    s->cur_prompt->to_server = TRUE;
 	    s->cur_prompt->name = dupstr("SSH password");
 	    add_prompt(s->cur_prompt, dupprintf("%.90s@%.90s's password: ",
