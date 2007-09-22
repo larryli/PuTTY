@@ -2419,11 +2419,12 @@ forms of simple \I{challenge/response authentication}challenge/response
 authentication available in SSH protocol version 1 only. You might use
 them if you were using \i{S/Key} \i{one-time passwords}, for example,
 or if you had a physical \i{security token} that generated responses
-to authentication challenges.
+to authentication challenges.  They can even be used to prompt for
+simple passwords.
 
 With this switch enabled, PuTTY will attempt these forms of
 authentication if the server is willing to try them. You will be
-presented with a challenge string (which will be different every
+presented with a challenge string (which may be different every
 time) and must supply the correct response in order to log in. If
 your server supports this, you should talk to your system
 administrator about precisely what form these challenges and

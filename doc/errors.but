@@ -200,6 +200,13 @@ the various strategies we use for camouflaging passwords in transit.
 Upgrade your server, or use the workarounds described in
 \k{config-ssh-bug-ignore1} and possibly \k{config-ssh-bug-plainpw1}.
 
+\H{errors-no-auth} \q{No supported authentication methods available}
+
+This error indicates that PuTTY has run out of ways to authenticate
+you to an SSH server.  This may be because PuTTY has TIS or
+keyboard-interactive authentication disabled, in which case
+\k{config-ssh-tis} and \k{config-ssh-ki}.
+
 \H{errors-crc} \q{Incorrect \i{CRC} received on packet} or \q{Incorrect
 \i{MAC} received on packet}
 
