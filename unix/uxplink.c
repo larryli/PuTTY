@@ -385,7 +385,7 @@ void try_output(int is_stderr)
     ret = write(fd, senddata, sendlen);
     if (ret > 0)
 	bufchain_consume(chain, ret);
-    else if (ret < 0 && errno != EWOULDBLOCK) {
+    else if (ret < 0) {
 	perror(is_stderr ? "stderr: write" : "stdout: write");
 	exit(1);
     }
@@ -883,23 +883,6 @@ int main(int argc, char **argv)
     local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
     ldisc_update(NULL, 1, 1);
-
-    {
-	int fl;
-	/*
-	 * Make sure that stdout/err are non-blocking.
-	 */
-	if ((fl = fcntl(STDOUT_FILENO, F_GETFL)) == -1 ||
-	    fcntl(STDOUT_FILENO, F_SETFL, fl | O_NONBLOCK) == -1) {
-	    perror("stdout");
-	    exit(1);
-	}
-	if ((fl = fcntl(STDERR_FILENO, F_GETFL)) == -1 ||
-	    fcntl(STDERR_FILENO, F_SETFL, fl | O_NONBLOCK) == -1) {
-	    perror("stderr");
-	    exit(1);
-	}
-    }
     sending = FALSE;
     now = GETTICKCOUNT();
 
