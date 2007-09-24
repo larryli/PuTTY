@@ -533,6 +533,14 @@ enum {				       /* channel types */
 };
 
 /*
+ * little structure to keep track of outstanding WINDOW_ADJUSTs
+ */
+struct winadj {
+    struct winadj *next;
+    unsigned size;
+};
+
+/*
  * 2-3-4 tree storing channels.
  */
 struct ssh_channel {
@@ -561,6 +569,18 @@ struct ssh_channel {
 	    unsigned remwindow, remmaxpkt;
 	    /* locwindow is signed so we can cope with excess data. */
 	    int locwindow, locmaxwin;
+	    /*
+	     * remlocwin is the amount of local window that we think
+	     * the remote end had available to it after it sent the
+	     * last data packet or window adjust ack.
+	     */
+	    int remlocwin;
+	    /*
+	     * These store the list of window adjusts that haven't
+	     * been acked.
+	     */
+	    struct winadj *winadj_head, *winadj_tail;
+	    enum { THROTTLED, UNTHROTTLING, UNTHROTTLED } throttle_state;
 	} v2;
     } v;
     union {
@@ -6203,12 +6223,88 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
      */
     if (newwin / 2 >= c->v.v2.locwindow) {
 	struct Packet *pktout;
+	struct winadj *wa;
 
+	/*
+	 * In order to keep track of how much window the client
+	 * actually has available, we'd like it to acknowledge each
+	 * WINDOW_ADJUST.  We can't do that directly, so we accompany
+	 * it with a CHANNEL_REQUEST that has to be acknowledged.
+	 *
+	 * This is only necessary if we're opening the window wide.
+	 * If we're not, then throughput is being constrained by
+	 * something other than the maximum window size anyway.
+	 *
+	 * We also only send this if the main channel has finished its
+	 * initial CHANNEL_REQUESTs and installed the default
+	 * CHANNEL_FAILURE handler, so as not to risk giving it
+	 * unexpected CHANNEL_FAILUREs.
+	 */
+	if (newwin == c->v.v2.locmaxwin &&
+	    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE]) {
+	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+	    ssh2_pkt_adduint32(pktout, c->remoteid);
+	    ssh2_pkt_addstring(pktout, "winadj@putty.projects.tartarus.org");
+	    ssh2_pkt_addbool(pktout, TRUE);
+	    ssh2_pkt_send(ssh, pktout);
+
+	    /*
+	     * CHANNEL_FAILURE doesn't come with any indication of
+	     * what message caused it, so we have to keep track of the
+	     * outstanding CHANNEL_REQUESTs ourselves.
+	     */
+	    wa = snew(struct winadj);
+	    wa->size = newwin - c->v.v2.locwindow;
+	    wa->next = NULL;
+	    if (!c->v.v2.winadj_head)
+		c->v.v2.winadj_head = wa;
+	    else
+		c->v.v2.winadj_tail->next = wa;
+	    c->v.v2.winadj_tail = wa;
+	    if (c->v.v2.throttle_state != UNTHROTTLED)
+		c->v.v2.throttle_state = UNTHROTTLING;
+	} else {
+	    /* Pretend the WINDOW_ADJUST was acked immediately. */
+	    c->v.v2.remlocwin = newwin;
+	    c->v.v2.throttle_state = THROTTLED;
+	}
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
 	ssh2_pkt_adduint32(pktout, newwin - c->v.v2.locwindow);
 	ssh2_pkt_send(ssh, pktout);
 	c->v.v2.locwindow = newwin;
+    }
+}
+
+static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
+{
+    /*
+     * The only time this should get called is for "winadj@putty"
+     * messages sent above.  All other channel requests are either
+     * sent with want_reply false or are sent before this handler gets
+     * installed.
+     */
+    unsigned i = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+    struct winadj *wa;
+
+    c = find234(ssh->channels, &i, ssh_channelfind);
+    if (!c)
+	return;			       /* nonexistent channel */
+    wa = c->v.v2.winadj_head;
+    if (!wa)
+	logevent("excess SSH_MSG_CHANNEL_FAILURE");
+    else {
+	c->v.v2.winadj_head = wa->next;
+	c->v.v2.remlocwin += wa->size;
+	sfree(wa);
+	/*
+	 * winadj messages are only sent when the window is fully open,
+	 * so if we get an ack of one, we know any pending unthrottle
+	 * is complete.
+	 */
+	if (c->v.v2.throttle_state == UNTHROTTLING)
+	    c->v.v2.throttle_state = UNTHROTTLED;
     }
 }
 
@@ -6239,6 +6335,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
     if (data) {
 	int bufsize = 0;
 	c->v.v2.locwindow -= length;
+	c->v.v2.remlocwin -= length;
 	switch (c->type) {
 	  case CHAN_MAINSESSION:
 	    bufsize =
@@ -6295,6 +6392,14 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	    bufsize = 0;
 	    break;
 	}
+	/*
+	 * If it looks like the remote end hit the end of its window,
+	 * and we didn't want it to do that, think about using a
+	 * larger window.
+	 */
+	if (c->v.v2.remlocwin <= 0 && c->v.v2.throttle_state == UNTHROTTLED &&
+	    c->v.v2.locmaxwin < 0x40000000)
+	    c->v.v2.locmaxwin += OUR_V2_WINSIZE;
 	/*
 	 * If we are not buffering too much data,
 	 * enlarge the window again at the remote side.
@@ -6773,6 +6878,9 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	c->v.v2.locwindow = c->v.v2.locmaxwin = OUR_V2_WINSIZE;
 	c->v.v2.remwindow = winsize;
 	c->v.v2.remmaxpkt = pktsize;
+	c->v.v2.remlocwin = OUR_V2_WINSIZE;
+	c->v.v2.winadj_head = c->v.v2.winadj_tail = NULL;
+	c->v.v2.throttle_state = UNTHROTTLED;
 	bufchain_init(&c->v.v2.outbuffer);
 	add234(ssh->channels, c);
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
@@ -7982,7 +8090,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addstring(s->pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
 	ssh->mainchan->v.v2.locwindow = ssh->mainchan->v.v2.locmaxwin =
+	    ssh->mainchan->v.v2.remlocwin =
 	    ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
+	ssh->mainchan->v.v2.winadj_head = NULL;
+	ssh->mainchan->v.v2.winadj_tail = NULL;
+	ssh->mainchan->v.v2.throttle_state = UNTHROTTLED;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(s->pktout, ssh->cfg.ssh_nc_host);
@@ -8025,7 +8137,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addstring(s->pktout, "session");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
 	ssh->mainchan->v.v2.locwindow = ssh->mainchan->v.v2.locmaxwin =
+	    ssh->mainchan->v.v2.remlocwin =
 	    ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
+	ssh->mainchan->v.v2.winadj_head = NULL;
+	ssh->mainchan->v.v2.winadj_tail = NULL;
+	ssh->mainchan->v.v2.throttle_state = UNTHROTTLED;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);    /* our max pkt size */
 	ssh2_pkt_send(ssh, s->pktout);
@@ -8337,6 +8453,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh_size(ssh, ssh->term_width, ssh->term_height);
     if (ssh->eof_needed)
 	ssh_special(ssh, TS_EOF);
+
+    /*
+     * All the initial channel requests are done, so install the default
+     * failure handler.
+     */
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_failure;
 
     /*
      * Transfer data!
@@ -9118,6 +9240,9 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 	ssh2_pkt_addstring(pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(pktout, c->localid);
 	c->v.v2.locwindow = c->v.v2.locmaxwin = OUR_V2_WINSIZE;
+	c->v.v2.remlocwin = OUR_V2_WINSIZE;
+	c->v.v2.winadj_head = c->v.v2.winadj_head = NULL;
+	c->v.v2.throttle_state = UNTHROTTLED;
 	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(pktout, hostname);
