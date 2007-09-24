@@ -80,7 +80,7 @@ void cmdline_error(char *p, ...)
     exit(1);
 }
 
-static int local_tty = 0; /* do we have a local tty? */
+static int local_tty = FALSE; /* do we have a local tty? */
 static struct termios orig_termios;
 
 static Backend *back;
@@ -106,7 +106,7 @@ int platform_default_i(const char *name, int def)
     if (!strcmp(name, "TermWidth") ||
 	!strcmp(name, "TermHeight")) {
 	struct winsize size;
-	if (ioctl(0, TIOCGWINSZ, (void *)&size) >= 0)
+	if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
 	    return (!strcmp(name, "TermWidth") ? size.ws_col : size.ws_row);
     }
     return def;
@@ -180,7 +180,7 @@ void ldisc_update(void *frontend, int echo, int edit)
      */
     mode.c_iflag = (mode.c_iflag | INPCK | PARMRK) & ~IGNPAR;
 
-    tcsetattr(0, TCSANOW, &mode);
+    tcsetattr(STDIN_FILENO, TCSANOW, &mode);
 }
 
 /* Helper function to extract a special character from a termios. */
@@ -366,7 +366,7 @@ char *get_ttymode(void *frontend, const char *mode)
 void cleanup_termios(void)
 {
     if (local_tty)
-	tcsetattr(0, TCSANOW, &orig_termios);
+	tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
 
 bufchain stdout_data, stderr_data;
@@ -374,7 +374,7 @@ bufchain stdout_data, stderr_data;
 void try_output(int is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
-    int fd = (is_stderr ? 2 : 1);
+    int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
     void *senddata;
     int sendlen, ret;
 
@@ -398,10 +398,10 @@ int from_backend(void *frontend_handle, int is_stderr,
 
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);
-	try_output(1);
+	try_output(TRUE);
     } else {
 	bufchain_add(&stdout_data, data, len);
-	try_output(0);
+	try_output(FALSE);
     }
 
     osize = bufchain_size(&stdout_data);
@@ -880,7 +880,7 @@ int main(int argc, char **argv)
      * fails, because we know we aren't necessarily running in a
      * console.
      */
-    local_tty = (tcgetattr(0, &orig_termios) == 0);
+    local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
     ldisc_update(NULL, 1, 1);
 
@@ -889,13 +889,13 @@ int main(int argc, char **argv)
 	/*
 	 * Make sure that stdout/err are non-blocking.
 	 */
-	if ((fl = fcntl(1, F_GETFL)) == -1 ||
-	    fcntl(1, F_SETFL, fl | O_NONBLOCK) == -1) {
+	if ((fl = fcntl(STDOUT_FILENO, F_GETFL)) == -1 ||
+	    fcntl(STDOUT_FILENO, F_SETFL, fl | O_NONBLOCK) == -1) {
 	    perror("stdout");
 	    exit(1);
 	}
-	if ((fl = fcntl(2, F_GETFL)) == -1 ||
-	    fcntl(2, F_SETFL, fl | O_NONBLOCK) == -1) {
+	if ((fl = fcntl(STDERR_FILENO, F_GETFL)) == -1 ||
+	    fcntl(STDERR_FILENO, F_SETFL, fl | O_NONBLOCK) == -1) {
 	    perror("stderr");
 	    exit(1);
 	}
@@ -921,17 +921,17 @@ int main(int argc, char **argv)
 	    back->sendok(backhandle) &&
 	    back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
 	    /* If we're OK to send, then try to read from stdin. */
-	    FD_SET_MAX(0, maxfd, rset);
+	    FD_SET_MAX(STDIN_FILENO, maxfd, rset);
 	}
 
 	if (bufchain_size(&stdout_data) > 0) {
 	    /* If we have data for stdout, try to write to stdout. */
-	    FD_SET_MAX(1, maxfd, wset);
+	    FD_SET_MAX(STDOUT_FILENO, maxfd, wset);
 	}
 
 	if (bufchain_size(&stderr_data) > 0) {
 	    /* If we have data for stderr, try to write to stderr. */
-	    FD_SET_MAX(2, maxfd, wset);
+	    FD_SET_MAX(STDERR_FILENO, maxfd, wset);
 	}
 
 	/* Count the currently active fds. */
@@ -1028,12 +1028,12 @@ int main(int argc, char **argv)
 		back->size(backhandle, size.ws_col, size.ws_row);
 	}
 
-	if (FD_ISSET(0, &rset)) {
+	if (FD_ISSET(STDIN_FILENO, &rset)) {
 	    char buf[4096];
 	    int ret;
 
 	    if (connopen && back->connected(backhandle)) {
-		ret = read(0, buf, sizeof(buf));
+		ret = read(STDIN_FILENO, buf, sizeof(buf));
 		if (ret < 0) {
 		    perror("stdin: read");
 		    exit(1);
@@ -1049,12 +1049,12 @@ int main(int argc, char **argv)
 	    }
 	}
 
-	if (FD_ISSET(1, &wset)) {
-	    try_output(0);
+	if (FD_ISSET(STDOUT_FILENO, &wset)) {
+	    try_output(FALSE);
 	}
 
-	if (FD_ISSET(2, &wset)) {
-	    try_output(1);
+	if (FD_ISSET(STDERR_FILENO, &wset)) {
+	    try_output(TRUE);
 	}
 
 	if ((!connopen || !back->connected(backhandle)) &&
