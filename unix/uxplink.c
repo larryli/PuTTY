@@ -27,14 +27,19 @@
 
 void *logctx;
 
+static struct termios orig_termios;
+
 void fatalbox(char *p, ...)
 {
+    struct termios cf;
     va_list ap;
+    premsg(&cf);
     fprintf(stderr, "FATAL ERROR: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    postmsg(&cf);
     if (logctx) {
         log_free(logctx);
         logctx = NULL;
@@ -43,12 +48,15 @@ void fatalbox(char *p, ...)
 }
 void modalfatalbox(char *p, ...)
 {
+    struct termios cf;
     va_list ap;
+    premsg(&cf);
     fprintf(stderr, "FATAL ERROR: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    postmsg(&cf);
     if (logctx) {
         log_free(logctx);
         logctx = NULL;
@@ -57,12 +65,15 @@ void modalfatalbox(char *p, ...)
 }
 void connection_fatal(void *frontend, char *p, ...)
 {
+    struct termios cf;
     va_list ap;
+    premsg(&cf);
     fprintf(stderr, "FATAL ERROR: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    postmsg(&cf);
     if (logctx) {
         log_free(logctx);
         logctx = NULL;
@@ -71,17 +82,19 @@ void connection_fatal(void *frontend, char *p, ...)
 }
 void cmdline_error(char *p, ...)
 {
+    struct termios cf;
     va_list ap;
+    premsg(&cf);
     fprintf(stderr, "plink: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
     fputc('\n', stderr);
+    postmsg(&cf);
     exit(1);
 }
 
 static int local_tty = FALSE; /* do we have a local tty? */
-static struct termios orig_termios;
 
 static Backend *back;
 static void *backhandle;
@@ -582,7 +595,9 @@ int main(int argc, char **argv)
     default_protocol = PROT_SSH;
     default_port = 22;
 
-    flags = FLAG_STDERR;
+    flags = FLAG_STDERR | FLAG_STDERR_TTY;
+
+    stderr_tty_init();
     /*
      * Process the command line.
      */
