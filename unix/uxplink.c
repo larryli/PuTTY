@@ -873,6 +873,14 @@ int main(int argc, char **argv)
     uxsel_init();
 
     /*
+     * Unix Plink doesn't provide any way to add forwardings after the
+     * connection is set up, so if there are none now, we can safely set
+     * the "simple" flag.
+     */
+    if (cfg.protocol == PROT_SSH && !cfg.x11_forward &&	!cfg.agentfwd &&
+	cfg.portfwd[0] == '\0' && cfg.portfwd[1] == '\0')
+	cfg.ssh_simple = TRUE;
+    /*
      * Start up the connection.
      */
     logctx = log_init(NULL, &cfg);
