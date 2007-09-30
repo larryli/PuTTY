@@ -6276,6 +6276,30 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
     }
 }
 
+/*
+ * Find the channel associated with a message.  If there's no channel,
+ * or it's not properly open, make a noise about it and return NULL.
+ */
+static struct ssh_channel *ssh2_channel_msg(Ssh ssh, struct Packet *pktin)
+{
+    unsigned localid = ssh_pkt_getuint32(pktin);
+    struct ssh_channel *c;
+
+    c = find234(ssh->channels, &localid, ssh_channelfind);
+    if (!c ||
+	(c->halfopen && pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION &&
+	 pktin->type != SSH2_MSG_CHANNEL_OPEN_FAILURE)) {
+	char *buf = dupprintf("Received %s for %s channel %u",
+			      ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
+					    pktin->type),
+			      c ? "half-open" : "nonexistent", localid);
+	ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+	sfree(buf);
+	return NULL;
+    }
+    return c;
+}
+
 static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
 {
     /*
@@ -6284,13 +6308,12 @@ static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
      * sent with want_reply false or are sent before this handler gets
      * installed.
      */
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     struct winadj *wa;
 
-    c = find234(ssh->channels, &i, ssh_channelfind);
+    c = ssh2_channel_msg(ssh, pktin);
     if (!c)
-	return;			       /* nonexistent channel */
+	return;
     wa = c->v.v2.winadj_head;
     if (!wa)
 	logevent("excess SSH_MSG_CHANNEL_FAILURE");
@@ -6310,10 +6333,11 @@ static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
 {
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
-    c = find234(ssh->channels, &i, ssh_channelfind);
-    if (c && !c->closes) {
+    c = ssh2_channel_msg(ssh, pktin);
+    if (!c)
+	return;
+    if (!c->closes) {
 	c->v.v2.remwindow += ssh_pkt_getuint32(pktin);
 	ssh2_try_send_and_unthrottle(c);
     }
@@ -6323,11 +6347,10 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     char *data;
     int length;
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
-    c = find234(ssh->channels, &i, ssh_channelfind);
+    c = ssh2_channel_msg(ssh, pktin);
     if (!c)
-	return;			       /* nonexistent channel */
+	return;
     if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
 	ssh_pkt_getuint32(pktin) != SSH2_EXTENDED_DATA_STDERR)
 	return;			       /* extended but not stderr */
@@ -6414,12 +6437,11 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
 {
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
 
-    c = find234(ssh->channels, &i, ssh_channelfind);
+    c = ssh2_channel_msg(ssh, pktin);
     if (!c)
-	return;			       /* nonexistent channel */
+	return;
 
     if (c->type == CHAN_X11) {
 	/*
@@ -6438,16 +6460,12 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
 {
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     struct Packet *pktout;
 
-    c = find234(ssh->channels, &i, ssh_channelfind);
-    if (!c || c->halfopen) {
-	bombout(("Received CHANNEL_CLOSE for %s channel %d\n",
-		 c ? "half-open" : "nonexistent", i));
+    c = ssh2_channel_msg(ssh, pktin);
+    if (!c)
 	return;
-    }
     /* Do pre-close processing on the channel. */
     switch (c->type) {
       case CHAN_MAINSESSION:
@@ -6500,13 +6518,12 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 {
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
     struct Packet *pktout;
 
-    c = find234(ssh->channels, &i, ssh_channelfind);
+    c = ssh2_channel_msg(ssh, pktin);
     if (!c)
-	return;			       /* nonexistent channel */
+	return;
     if (c->type != CHAN_SOCKDATA_DORMANT)
 	return;			       /* dunno why they're confirming this */
     c->remoteid = ssh_pkt_getuint32(pktin);
@@ -6538,14 +6555,13 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
 	    "Unknown channel type",
 	    "Resource shortage",
     };
-    unsigned i = ssh_pkt_getuint32(pktin);
     unsigned reason_code;
     char *reason_string;
     int reason_length;
     struct ssh_channel *c;
-    c = find234(ssh->channels, &i, ssh_channelfind);
+    c = ssh2_channel_msg(ssh, pktin);
     if (!c)
-	return;			       /* nonexistent channel */
+	return;
     if (c->type != CHAN_SOCKDATA_DORMANT)
 	return;			       /* dunno why they're failing this */
 
@@ -6564,29 +6580,17 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 {
-    unsigned localid;
     char *type;
     int typelen, want_reply;
     int reply = SSH2_MSG_CHANNEL_FAILURE; /* default */
     struct ssh_channel *c;
     struct Packet *pktout;
 
-    localid = ssh_pkt_getuint32(pktin);
+    c = ssh2_channel_msg(ssh, pktin);
+    if (!c)
+	return;
     ssh_pkt_getstring(pktin, &type, &typelen);
     want_reply = ssh2_pkt_getbool(pktin);
-
-    /*
-     * First, check that the channel exists. Otherwise,
-     * we can instantly disconnect with a rude message.
-     */
-    c = find234(ssh->channels, &localid, ssh_channelfind);
-    if (!c) {
-	char *buf = dupprintf("Received channel request for nonexistent"
-			      " channel %d", localid);
-	ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
-	sfree(buf);
-	return;
-    }
 
     /*
      * Having got the channel number, we now look at
