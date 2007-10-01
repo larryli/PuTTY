@@ -6300,6 +6300,30 @@ static struct ssh_channel *ssh2_channel_msg(Ssh ssh, struct Packet *pktin)
     return c;
 }
 
+static void ssh2_msg_channel_success(Ssh ssh, struct Packet *pktin)
+{
+    /*
+     * This should never get called.  All channel requests are either
+     * sent with want_reply false or are sent before this handler gets
+     * installed.
+     */
+    struct ssh_channel *c;
+    struct winadj *wa;
+
+    c = ssh2_channel_msg(ssh, pktin);
+    if (!c)
+	return;
+    wa = c->v.v2.winadj_head;
+    if (wa)
+	ssh_disconnect(ssh, NULL, "Received SSH_MSG_CHANNEL_SUCCESS for "
+		       "\"winadj@putty.projects.tartarus.org\"",
+		       SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+    else
+	ssh_disconnect(ssh, NULL,
+		       "Received unsolicited SSH_MSG_CHANNEL_SUCCESS",
+		       SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+}
+
 static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
 {
     /*
@@ -6315,20 +6339,22 @@ static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
     if (!c)
 	return;
     wa = c->v.v2.winadj_head;
-    if (!wa)
-	logevent("excess SSH_MSG_CHANNEL_FAILURE");
-    else {
-	c->v.v2.winadj_head = wa->next;
-	c->v.v2.remlocwin += wa->size;
-	sfree(wa);
-	/*
-	 * winadj messages are only sent when the window is fully open,
-	 * so if we get an ack of one, we know any pending unthrottle
-	 * is complete.
-	 */
-	if (c->v.v2.throttle_state == UNTHROTTLING)
-	    c->v.v2.throttle_state = UNTHROTTLED;
+    if (!wa) {
+	ssh_disconnect(ssh, NULL,
+		       "Received unsolicited SSH_MSG_CHANNEL_FAILURE",
+		       SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+	return;
     }
+    c->v.v2.winadj_head = wa->next;
+    c->v.v2.remlocwin += wa->size;
+    sfree(wa);
+    /*
+     * winadj messages are only sent when the window is fully open, so
+     * if we get an ack of one, we know any pending unthrottle is
+     * complete.
+     */
+    if (c->v.v2.throttle_state == UNTHROTTLING)
+	c->v.v2.throttle_state = UNTHROTTLED;
 }
 
 static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
@@ -8462,6 +8488,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      * All the initial channel requests are done, so install the default
      * failure handler.
      */
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_channel_success;
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_failure;
 
     /*
