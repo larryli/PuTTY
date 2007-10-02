@@ -384,7 +384,7 @@ void cleanup_termios(void)
 
 bufchain stdout_data, stderr_data;
 
-void try_output(int is_stderr)
+int try_output(int is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
@@ -392,40 +392,36 @@ void try_output(int is_stderr)
     int sendlen, ret, fl;
 
     if (bufchain_size(chain) == 0)
-        return;
+        return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 
-    bufchain_prefix(chain, &senddata, &sendlen);
     fl = fcntl(fd, F_GETFL);
     if (fl != -1 && !(fl & O_NONBLOCK))
 	fcntl(fd, F_SETFL, fl | O_NONBLOCK);
-    ret = write(fd, senddata, sendlen);
+    do {
+	bufchain_prefix(chain, &senddata, &sendlen);
+	ret = write(fd, senddata, sendlen);
+	if (ret > 0)
+	    bufchain_consume(chain, ret);
+    } while (ret == sendlen && bufchain_size(chain) != 0);
     if (fl != -1 && !(fl & O_NONBLOCK))
 	fcntl(fd, F_SETFL, fl);
-    if (ret > 0)
-	bufchain_consume(chain, ret);
-    else if (ret < 0 && errno != EAGAIN) {
+    if (ret < 0 && errno != EAGAIN) {
 	perror(is_stderr ? "stderr: write" : "stdout: write");
 	exit(1);
     }
+    return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
 int from_backend(void *frontend_handle, int is_stderr,
 		 const char *data, int len)
 {
-    int osize, esize;
-
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);
-	try_output(TRUE);
+	return try_output(TRUE);
     } else {
 	bufchain_add(&stdout_data, data, len);
-	try_output(FALSE);
+	return try_output(FALSE);
     }
-
-    osize = bufchain_size(&stdout_data);
-    esize = bufchain_size(&stderr_data);
-
-    return osize + esize;
 }
 
 int from_backend_untrusted(void *frontend_handle, const char *data, int len)
@@ -1061,11 +1057,11 @@ int main(int argc, char **argv)
 	}
 
 	if (FD_ISSET(STDOUT_FILENO, &wset)) {
-	    try_output(FALSE);
+	    back->unthrottle(backhandle, try_output(FALSE));
 	}
 
 	if (FD_ISSET(STDERR_FILENO, &wset)) {
-	    try_output(TRUE);
+	    back->unthrottle(backhandle, try_output(TRUE));
 	}
 
 	if ((!connopen || !back->connected(backhandle)) &&
