@@ -6677,7 +6677,7 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 	    int msglen = 0, core = FALSE;
 	    /* ICK: older versions of OpenSSH (e.g. 3.4p1)
 	     * provide an `int' for the signal, despite its
-	     * having been a `string' in the drafts since at
+	     * having been a `string' in the drafts of RFC 4254 since at
 	     * least 2001. (Fixed in session.c 1.147.) Try to
 	     * infer which we can safely parse it as. */
 	    {
@@ -6720,7 +6720,7 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 		    fmt_sig = dupprintf(" %d", signum);
 		    ssh->exitcode = 128 + signum;
 		} else {
-		    /* As per the drafts. */
+		    /* As per RFC 4254. */
 		    char *sig;
 		    int siglen;
 		    ssh_pkt_getstring(pktin, &sig, &siglen);
@@ -9079,7 +9079,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
     static const struct telnet_special ssh2_session_specials[] = {
 	{NULL, TS_SEP},
 	{"Break", TS_BRK},
-	/* These are the signal names defined by draft-ietf-secsh-connect-23.
+	/* These are the signal names defined by RFC 4254.
 	 * They include all the ISO C signals, but are a subset of the POSIX
 	 * required signals. */
 	{"SIGINT (Interrupt)", TS_SIGINT},
