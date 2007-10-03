@@ -6205,6 +6205,22 @@ static void ssh2_try_send_and_unthrottle(struct ssh_channel *c)
 }
 
 /*
+ * Set up most of a new ssh_channel for SSH-2.
+ */
+static void ssh2_channel_init(struct ssh_channel *c)
+{
+    Ssh ssh = c->ssh;
+    c->localid = alloc_channel_id(ssh);
+    c->closes = 0;
+    c->throttling_conn = FALSE;
+    c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
+	ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
+    c->v.v2.winadj_head = c->v.v2.winadj_tail = NULL;
+    c->v.v2.throttle_state = UNTHROTTLED;
+    bufchain_init(&c->v.v2.outbuffer);
+}
+
+/*
  * Potentially enlarge the window on an SSH-2 channel.
  */
 static void ssh2_set_window(struct ssh_channel *c, int newwin)
@@ -6919,16 +6935,9 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	logeventf(ssh, "Rejected channel open: %s", error);
 	sfree(c);
     } else {
-	c->localid = alloc_channel_id(ssh);
-	c->closes = 0;
-	c->throttling_conn = FALSE;
-	c->v.v2.locwindow = c->v.v2.locmaxwin = OUR_V2_WINSIZE;
+	ssh2_channel_init(c);
 	c->v.v2.remwindow = winsize;
 	c->v.v2.remmaxpkt = pktsize;
-	c->v.v2.remlocwin = OUR_V2_WINSIZE;
-	c->v.v2.winadj_head = c->v.v2.winadj_tail = NULL;
-	c->v.v2.throttle_state = UNTHROTTLED;
-	bufchain_init(&c->v.v2.outbuffer);
 	add234(ssh->channels, c);
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
@@ -8129,20 +8138,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	 */
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
-	ssh->mainchan->localid = alloc_channel_id(ssh);
+	ssh2_channel_init(ssh->mainchan);
 	logeventf(ssh,
 		  "Opening direct-tcpip channel to %s:%d in place of session",
 		  ssh->cfg.ssh_nc_host, ssh->cfg.ssh_nc_port);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(s->pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
-	ssh->mainchan->throttling_conn = FALSE;
-	ssh->mainchan->v.v2.locwindow = ssh->mainchan->v.v2.locmaxwin =
-	    ssh->mainchan->v.v2.remlocwin =
-	    ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
-	ssh->mainchan->v.v2.winadj_head = NULL;
-	ssh->mainchan->v.v2.winadj_tail = NULL;
-	ssh->mainchan->v.v2.throttle_state = UNTHROTTLED;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(s->pktout, ssh->cfg.ssh_nc_host);
@@ -8169,10 +8171,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->halfopen = FALSE;
 	ssh->mainchan->type = CHAN_MAINSESSION;
-	ssh->mainchan->closes = 0;
 	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
-	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
 	add234(ssh->channels, ssh->mainchan);
 	update_specials_menu(ssh->frontend);
 	logevent("Opened direct-tcpip channel");
@@ -8180,17 +8180,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     } else {
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
-	ssh->mainchan->localid = alloc_channel_id(ssh);
+	ssh2_channel_init(ssh->mainchan);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(s->pktout, "session");
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
-	ssh->mainchan->throttling_conn = FALSE;
-	ssh->mainchan->v.v2.locwindow = ssh->mainchan->v.v2.locmaxwin =
-	    ssh->mainchan->v.v2.remlocwin =
-	    ssh->cfg.ssh_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
-	ssh->mainchan->v.v2.winadj_head = NULL;
-	ssh->mainchan->v.v2.winadj_tail = NULL;
-	ssh->mainchan->v.v2.throttle_state = UNTHROTTLED;
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);    /* our max pkt size */
 	ssh2_pkt_send(ssh, s->pktout);
@@ -8207,10 +8200,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->halfopen = FALSE;
 	ssh->mainchan->type = CHAN_MAINSESSION;
-	ssh->mainchan->closes = 0;
 	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
-	bufchain_init(&ssh->mainchan->v.v2.outbuffer);
 	add234(ssh->channels, ssh->mainchan);
 	update_specials_menu(ssh->frontend);
 	logevent("Opened channel for session");
@@ -9240,12 +9231,10 @@ void *new_sock_channel(void *handle, Socket s)
     c->ssh = ssh;
 
     if (c) {
+	ssh2_channel_init(c);
 	c->halfopen = TRUE;
-	c->localid = alloc_channel_id(ssh);
-	c->closes = 0;
 	c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
 	c->u.pfd.s = s;
-	bufchain_init(&c->v.v2.outbuffer);
 	add234(ssh->channels, c);
     }
     return c;
@@ -9301,11 +9290,6 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
 	ssh2_pkt_addstring(pktout, "direct-tcpip");
 	ssh2_pkt_adduint32(pktout, c->localid);
-	c->throttling_conn = FALSE;
-	c->v.v2.locwindow = c->v.v2.locmaxwin = OUR_V2_WINSIZE;
-	c->v.v2.remlocwin = OUR_V2_WINSIZE;
-	c->v.v2.winadj_head = c->v.v2.winadj_head = NULL;
-	c->v.v2.throttle_state = UNTHROTTLED;
 	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);/* our window size */
 	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);      /* our max pkt size */
 	ssh2_pkt_addstring(pktout, hostname);
