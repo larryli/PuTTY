@@ -9228,15 +9228,13 @@ void *new_sock_channel(void *handle, Socket s)
     Ssh ssh = (Ssh) handle;
     struct ssh_channel *c;
     c = snew(struct ssh_channel);
-    c->ssh = ssh;
 
-    if (c) {
-	ssh2_channel_init(c);
-	c->halfopen = TRUE;
-	c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
-	c->u.pfd.s = s;
-	add234(ssh->channels, c);
-    }
+    c->ssh = ssh;
+    ssh2_channel_init(c);
+    c->halfopen = TRUE;
+    c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
+    c->u.pfd.s = s;
+    add234(ssh->channels, c);
     return c;
 }
 
