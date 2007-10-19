@@ -338,7 +338,7 @@ doesn't, the manual for the \i{X server} should tell you what it
 does do.
 
 You should then tick the \q{Enable X11 forwarding} box in the
-Tunnels panel (see \k{config-ssh-x11}) before starting your SSH
+X11 panel (see \k{config-ssh-x11}) before starting your SSH
 session. The \i{\q{X display location}} box is blank by default, which
 means that PuTTY will try to use a sensible default such as \c{:0},
 which is the usual display location where your X server will be
@@ -765,8 +765,7 @@ it off. These options are only meaningful if you are using SSH.
 For information on X11 forwarding, see \k{using-x-forwarding}.
 
 These options are equivalent to the X11 forwarding checkbox in the
-Tunnels panel of the PuTTY configuration box (see
-\k{config-ssh-x11}).
+X11 panel of the PuTTY configuration box (see \k{config-ssh-x11}).
 
 These options are not available in the file transfer tools PSCP and
 PSFTP.
