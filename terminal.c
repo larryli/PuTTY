@@ -1223,6 +1223,8 @@ static void power_on(Terminal *term, int clear)
     term->erase_char = term->basic_erase_char;
     term->alt_which = 0;
     term_print_finish(term);
+    term->xterm_mouse = FALSE;
+    set_raw_mouse_mode(term->frontend, FALSE);
     {
 	int i;
 	for (i = 0; i < 256; i++)
@@ -1448,7 +1450,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->vt52_mode = FALSE;
     term->cr_lf_return = FALSE;
     term->seen_disp_event = FALSE;
-    term->xterm_mouse = term->mouse_is_down = FALSE;
+    term->mouse_is_down = FALSE;
     term->reset_132 = FALSE;
     term->cblinker = term->tblinker = 0;
     term->has_focus = 1;
