@@ -97,6 +97,10 @@ static int cmpfortree(void *av, void *bv)
 	return -1;
     if (as > bs)
 	return +1;
+    if (a < b)
+       return -1;
+    if (a > b)
+       return +1;
     return 0;
 }
 
@@ -453,6 +457,14 @@ static int try_connect(Actual_Socket sock)
     short localport;
     int fl, salen;
 
+    /*
+     * Remove the socket from the tree before we overwrite its
+     * internal socket id, because that forms part of the tree's
+     * sorting criterion. We'll add it back before exiting this
+     * function, whether we changed anything or not.
+     */
+    del234(sktree, sock);
+
     if (sock->s >= 0)
         close(sock->s);
 
@@ -605,9 +617,14 @@ static int try_connect(Actual_Socket sock)
     }
 
     uxsel_tell(sock);
-    add234(sktree, sock);
 
     ret:
+
+    /*
+     * No matter what happened, put the socket back in the tree.
+     */
+    add234(sktree, sock);
+
     if (err)
 	plug_log(sock->plug, 1, sock->addr, sock->port, strerror(err), err);
     return err;
