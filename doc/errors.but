@@ -235,9 +235,10 @@ gone wrong in the encryption or decryption process. It's difficult
 to tell from this error message whether the problem is in the client,
 in the server, or in between.
 
-If you get this error, one thing you could try would be to fiddle
-with the setting of \q{Miscomputes SSH-2 encryption keys} on the Bugs
-panel (see \k{config-ssh-bug-derivekey2}).
+If you get this error, one thing you could try would be to fiddle with
+the setting of \q{Miscomputes SSH-2 encryption keys} (see
+\k{config-ssh-bug-derivekey2}) or \q{Ignores SSH-2 maximum packet
+size} (see \k{config-ssh-bug-maxpkt2}) on the Bugs panel .
 
 Another known server problem which can cause this error is described
 in \k{faq-openssh-bad-openssl} in the FAQ.

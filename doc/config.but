@@ -2978,7 +2978,7 @@ would expect.
 
 This is an SSH-2-specific bug.
 
-\S{config-ssh-bug-maxpkt} \q{Ignores SSH-2 \i{maximum packet size}}
+\S{config-ssh-bug-maxpkt2} \q{Ignores SSH-2 \i{maximum packet size}}
 
 \cfg{winhelp-topic}{ssh.bugs.maxpkt2}
 
