@@ -183,6 +183,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_DERIVEKEY                       32
 #define BUG_SSH2_REKEY                           64
 #define BUG_SSH2_PK_SESSIONID                   128
+#define BUG_SSH2_MAXPKT				256
 
 /*
  * Codes for terminal modes.
@@ -2390,6 +2391,16 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_SSH2_REKEY;
 	logevent("We believe remote version has SSH-2 rekey bug");
+    }
+
+    if (ssh->cfg.sshbug_maxpkt2 == FORCE_ON ||
+	(ssh->cfg.sshbug_maxpkt2 == AUTO &&
+	 (wc_match("1.36_sshlib GlobalSCAPE", imp)))) {
+	/*
+	 * This version ignores our makpkt and needs to be throttled.
+	 */
+	ssh->remote_bugs |= BUG_SSH2_MAXPKT;
+	logevent("We believe remote version ignores SSH-2 maximum packet size");
     }
 }
 
@@ -6234,6 +6245,15 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
      */
     if (c->closes != 0)
 	return;
+
+    /*
+     * If the remote end has a habit of ignoring maxpkt, limit the
+     * window so that it has no choice (assuming it doesn't ignore the
+     * window as well).
+     */
+    if ((ssh->remote_bugs & BUG_SSH2_MAXPKT) && newwin > OUR_V2_MAXPKT)
+	newwin = OUR_V2_MAXPKT;
+	
 
     /*
      * Only send a WINDOW_ADJUST if there's significantly more window

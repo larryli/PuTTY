@@ -2978,6 +2978,22 @@ would expect.
 
 This is an SSH-2-specific bug.
 
+\S{config-ssh-bug-maxpkt} \q{Ignores SSH-2 \i{maximum packet size}}
+
+\cfg{winhelp-topic}{ssh.bugs.maxpkt2}
+
+When an SSH-2 channel is set up, each end announces the maximum size
+of data packet that it is willing to receive for that channel.  Some
+servers ignore PuTTY's announcement and send packets larger than PuTTY
+is willing to accept, causing it to report \q{Incoming packet was
+garbled on decryption}.
+
+If this bug is detected, PuTTY never allows the channel's
+\i{flow-control window} to grow large enough to allow the server to
+send an over-sized packet.  If this bug is enabled when talking to a
+correct server, the session will work correctly, but download
+performance will be less than it could be.
+
 \H{config-serial} The Serial panel
 
 The \i{Serial} panel allows you to configure options that only apply

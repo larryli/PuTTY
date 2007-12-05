@@ -587,7 +587,7 @@ struct config_tag {
     /* SSH bug compatibility modes */
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
-	sshbug_pksessid2, sshbug_rekey2;
+	sshbug_pksessid2, sshbug_rekey2, sshbug_maxpkt2;
     /*
      * ssh_simple means that we promise never to open any channel other
      * than the main one, which means it can safely use a very large

@@ -2245,6 +2245,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "Handles SSH-2 key re-exchange badly", 'k', 20,
 			  HELPCTX(ssh_bugs_rekey2),
 			  sshbug_handler, I(offsetof(Config,sshbug_rekey2)));
+	    ctrl_droplist(s, "Ignores SSH-2 maximum packet size", 'x', 20,
+			  HELPCTX(ssh_bugs_maxpkt2),
+			  sshbug_handler, I(offsetof(Config,sshbug_maxpkt2)));
 	}
     }
 }

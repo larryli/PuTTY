@@ -454,6 +454,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "BugRSAPad2", 2-cfg->sshbug_rsapad2);
     write_setting_i(sesskey, "BugPKSessID2", 2-cfg->sshbug_pksessid2);
     write_setting_i(sesskey, "BugRekey2", 2-cfg->sshbug_rekey2);
+    write_setting_i(sesskey, "BugMaxPkt2", 2-cfg->sshbug_maxpkt2);
     write_setting_i(sesskey, "StampUtmp", cfg->stamp_utmp);
     write_setting_i(sesskey, "LoginShell", cfg->login_shell);
     write_setting_i(sesskey, "ScrollbarOnLeft", cfg->scrollbar_on_left);
@@ -788,6 +789,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "BugRSAPad2", 0, &i); cfg->sshbug_rsapad2 = 2-i;
     gppi(sesskey, "BugPKSessID2", 0, &i); cfg->sshbug_pksessid2 = 2-i;
     gppi(sesskey, "BugRekey2", 0, &i); cfg->sshbug_rekey2 = 2-i;
+    gppi(sesskey, "BugMaxPkt2", 0, &i); cfg->sshbug_maxpkt2 = 2-i;
     cfg->ssh_simple = FALSE;
     gppi(sesskey, "StampUtmp", 1, &cfg->stamp_utmp);
     gppi(sesskey, "LoginShell", 1, &cfg->login_shell);
