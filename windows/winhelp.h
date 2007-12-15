@@ -131,6 +131,7 @@
 #define WINHELP_CTX_ssh_bugs_rsapad2 "ssh.bugs.rsapad2:config-ssh-bug-sig"
 #define WINHELP_CTX_ssh_bugs_pksessid2 "ssh.bugs.pksessid2:config-ssh-bug-pksessid2"
 #define WINHELP_CTX_ssh_bugs_rekey2 "ssh.bugs.rekey2:config-ssh-bug-rekey"
+#define WINHELP_CTX_ssh_bugs_maxpkt2 "ssh.bugs.maxpkt2:config-ssh-bug-maxpkt2"
 #define WINHELP_CTX_serial_line "serial.line:config-serial-line"
 #define WINHELP_CTX_serial_speed "serial.speed:config-serial-speed"
 #define WINHELP_CTX_serial_databits "serial.databits:config-serial-databits"
