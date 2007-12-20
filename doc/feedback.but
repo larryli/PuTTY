@@ -375,18 +375,27 @@ clear that we \e{could} stop you doing this, even if we wanted to!)
 
 \H{feedback-mirrors} Mirroring the PuTTY web site
 
-\#{This paragraph also in putty-website/mirrors.html}
-Mirrors of the PuTTY web site are welcome, especially in regions not
-well covered by existing mirrors. (However, if you're in a region that is
-already well served by mirrors, you should consider whether yet another one
-will be worth the effort.) Please don't bother asking us for permission before
+\# the next two paragraphs also on the Mirrors page itself, with
+\# minor context changes
+
+If you want to set up a mirror of the PuTTY website, go ahead and
+set one up. Please don't bother asking us for permission before
 setting up a mirror. You already have permission.
 
-If you mail us \e{after} you have set up the mirror and checked that
-it works, and remember to let us know which country your mirror is in,
-then we'll add it to the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html}{Mirrors
-page} on the PuTTY website.
+If the mirror is in a country where we don't already have plenty of
+mirrors, we may be willing to add it to the list on our
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html}{mirrors
+page}. Read the guidelines on that page, make sure your mirror
+works, and email us the information listed at the bottom of the
+page.
+
+Note that we do not \e{promise} to list your mirror: we get a lot of
+mirror notifications and yours may not happen to find its way to the
+top of the list.
+
+Also note that we link to all our mirror sites using the
+\c{rel="nofollow"} attribute. Running a PuTTY mirror is not intended
+to be a cheap way to gain search rankings.
 
 If you have technical questions about the process of mirroring, then
 you might want to mail us before setting up the mirror (see also the
