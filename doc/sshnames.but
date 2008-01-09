@@ -32,7 +32,7 @@ format of the request is:
 
 This name can be sent in a \cw{SSH_MSG_CHANNEL_REQUEST} message.
 
-\dt \cw{winadj@putty.project.tartarus.org}
+\dt \cw{winadj@putty.projects.tartarus.org}
 
 \dd PuTTY sends this request along with some
 \cw{SSH_MSG_CHANNEL_WINDOW_ADJUST} messages as part of its window-size
