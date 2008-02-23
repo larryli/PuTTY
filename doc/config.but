@@ -1700,8 +1700,13 @@ TCP keepalives are disabled by default.
 \cfg{winhelp-topic}{connection.ipversion}
 
 This option allows the user to select between the old and new
-Internet protocols and addressing schemes (\i{IPv4} and \i{IPv6}). The
-default setting is \q{Auto}, which means PuTTY will do something
+Internet protocols and addressing schemes (\i{IPv4} and \i{IPv6}).
+The selected protocol will be used for most outgoing network
+connections (including connections to \I{proxy}proxies); however,
+tunnels have their own configuration, for which see
+\k{config-ssh-portfwd-address-family}.
+
+The default setting is \q{Auto}, which means PuTTY will do something
 sensible and try to guess which protocol you wanted. (If you specify
 a literal \i{Internet address}, it will use whichever protocol that
 address implies. If you provide a \i{hostname}, it will see what kinds
@@ -2787,6 +2792,9 @@ incoming connections in both IPv4 and (if available) IPv6
 
 \b for a remote-to-local port forwarding, PuTTY will choose a
 sensible protocol for the outgoing connection.
+
+This overrides the general Internet protocol version preference
+on the Connection panel (see \k{config-address-family}).
 
 Note that some operating systems may listen for incoming connections
 in IPv4 even if you specifically asked for IPv6, because their IPv4

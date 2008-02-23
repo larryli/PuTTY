@@ -870,7 +870,8 @@ PuTTY configuration box (see \k{config-ssh-prot}).
 \i{Internet protocol version}
 
 The \c{-4} and \c{-6} options force PuTTY to use the older Internet
-protocol \i{IPv4} or the newer \i{IPv6}.
+protocol \i{IPv4} or the newer \i{IPv6} for most outgoing
+connections.
 
 These options are equivalent to selecting your preferred Internet
 protocol version as \q{IPv4} or \q{IPv6} in the Connection panel of
