@@ -467,6 +467,9 @@ theory but servers will not necessarily cooperate.
 to obtain a fix from Microsoft in order to use addresses like
 \cw{127.0.0.5} - see \k{faq-alternate-localhost}.)
 
+For more options relating to port forwarding, see
+\k{config-ssh-portfwd}.
+
 \H{using-rawprot} Making \i{raw TCP connections}
 
 A lot of \I{debugging Internet protocols}Internet protocols are
