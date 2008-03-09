@@ -723,6 +723,13 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    end = 1 + sprintf(output+1, "\033[Z");
 	    use_ucsoutput = FALSE;
 	}
+	/* And normal Tab is Tab, if the keymap hasn't already told us.
+	 * (Curiously, at least one version of the MacOS 10.5 X server
+	 * doesn't translate Tab for us. */
+	if (event->keyval == GDK_Tab && end <= 1) {
+	    output[1] = '\t';
+	    end = 2;
+	}
 
 	/*
 	 * NetHack keypad mode.
