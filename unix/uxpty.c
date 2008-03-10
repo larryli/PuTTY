@@ -360,8 +360,10 @@ static void pty_open_master(Pty pty)
         /*
          * Set the pty master into non-blocking mode.
          */
-        int i = 1;
-        ioctl(pty->master_fd, FIONBIO, &i);
+        int fl;
+	fl = fcntl(pty->master_fd, F_GETFL);
+	if (fl != -1 && !(fl & O_NONBLOCK))
+	    fcntl(pty->master_fd, F_SETFL, fl | O_NONBLOCK);
     }
 
     if (!ptys_by_fd)
@@ -775,10 +777,10 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	close(slavefd);
 	setsid();
 #ifdef TIOCSCTTY
-	ioctl(slavefd, TIOCSCTTY, 1);
+	ioctl(0, TIOCSCTTY, 1);
 #endif
 	pgrp = getpid();
-	tcsetpgrp(slavefd, pgrp);
+	tcsetpgrp(0, pgrp);
 	setpgid(pgrp, pgrp);
 	close(open(pty->name, O_WRONLY, 0));
 	setpgid(pgrp, pgrp);
@@ -1085,5 +1087,7 @@ Backend pty_backend = {
     pty_provide_logctx,
     pty_unthrottle,
     pty_cfg_info,
-    1
+    "pty",
+    -1,
+    0
 };

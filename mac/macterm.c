@@ -115,12 +115,7 @@ void mac_startsession(Session *s)
      * Select protocol. This is farmed out into a table in a
      * separate file to enable an ssh-free variant.
      */
-    s->back = NULL;
-    for (i = 0; backends[i].backend != NULL; i++)
-	if (backends[i].protocol == s->cfg.protocol) {
-	    s->back = backends[i].backend;
-	    break;
-	}
+    s->back = backend_from_proto(s->cfg.protocol);
     if (s->back == NULL)
 	fatalbox("Unsupported protocol number found");
 

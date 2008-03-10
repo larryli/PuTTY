@@ -349,5 +349,7 @@ Backend rlogin_backend = {
     rlogin_provide_logctx,
     rlogin_unthrottle,
     rlogin_cfg_info,
-    1
+    "rlogin",
+    PROT_RLOGIN,
+    513
 };

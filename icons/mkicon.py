@@ -795,7 +795,7 @@ def puttygen_icon(size):
 def pscp_icon(size):
     return xybolt(document(size), computer(size), size)
 
-def installer_icon(size):
+def puttyins_icon(size):
     aret = {}
     # The box back goes behind the lightning bolt.
     canvas = xybolt(boxback(size), computer(size), size, boltoffx=-2, boltoffy=+1, aux=aret)

@@ -126,7 +126,7 @@
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, FALSE /*midsession*/, aCfg.protocol,
 		     0 /* protcfginfo */);
-    unix_setup_config_box(ctrlbox, FALSE /*midsession*/);
+    unix_setup_config_box(ctrlbox, FALSE /*midsession*/, aCfg.protocol);
 
     cfg = aCfg;			       /* structure copy */
 

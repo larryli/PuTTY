@@ -200,14 +200,29 @@ the various strategies we use for camouflaging passwords in transit.
 Upgrade your server, or use the workarounds described in
 \k{config-ssh-bug-ignore1} and possibly \k{config-ssh-bug-plainpw1}.
 
+\H{errors-no-auth} \q{No supported authentication methods available}
+
+This error indicates that PuTTY has run out of ways to authenticate
+you to an SSH server.  This may be because PuTTY has TIS or
+keyboard-interactive authentication disabled, in which case
+\k{config-ssh-tis} and \k{config-ssh-ki}.
+
 \H{errors-crc} \q{Incorrect \i{CRC} received on packet} or \q{Incorrect
-MAC received on packet}
+\i{MAC} received on packet}
 
 This error occurs when PuTTY decrypts an SSH packet and its checksum
 is not correct. This probably means something has gone wrong in the
 encryption or decryption process. It's difficult to tell from this
 error message whether the problem is in the client, in the server,
 or in between.
+
+In particular, if the network is corrupting data at the TCP level, it
+may only be obvious with cryptographic protocols such as SSH, which
+explicitly check the integrity of the transferred data and complain
+loudly if the checks fail. Corruption of protocols without integrity
+protection (such as HTTP) will manifest in more subtle failures (such
+as misdisplayed text or images in a web browser) which may not be
+noticed.
 
 A known server problem which can cause this error is described in
 \k{faq-openssh-bad-openssl} in the FAQ.
@@ -220,9 +235,10 @@ gone wrong in the encryption or decryption process. It's difficult
 to tell from this error message whether the problem is in the client,
 in the server, or in between.
 
-If you get this error, one thing you could try would be to fiddle
-with the setting of \q{Miscomputes SSH-2 encryption keys} on the Bugs
-panel (see \k{config-ssh-bug-derivekey2}).
+If you get this error, one thing you could try would be to fiddle with
+the setting of \q{Miscomputes SSH-2 encryption keys} (see
+\k{config-ssh-bug-derivekey2}) or \q{Ignores SSH-2 maximum packet
+size} (see \k{config-ssh-bug-maxpkt2}) on the Bugs panel .
 
 Another known server problem which can cause this error is described
 in \k{faq-openssh-bad-openssl} in the FAQ.

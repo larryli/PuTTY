@@ -2194,8 +2194,13 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg, ret;
-    assert(c && c->ctrl->generic.type == CTRL_LISTBOX &&
-	   !c->ctrl->listbox.multisel);
+    assert(c && c->ctrl->generic.type == CTRL_LISTBOX);
+    if (c->ctrl->listbox.multisel) {
+	assert(c->ctrl->listbox.height != 0); /* not combo box */
+	ret = SendDlgItemMessage(dp->hwnd, c->base_id+1, LB_GETSELCOUNT, 0, 0);
+	if (ret == LB_ERR || ret > 1)
+	    return -1;
+    }
     msg = (c->ctrl->listbox.height != 0 ? LB_GETCURSEL : CB_GETCURSEL);
     ret = SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, 0);
     if (ret == LB_ERR)

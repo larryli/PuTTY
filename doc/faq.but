@@ -161,7 +161,7 @@ completely is the wrong solution and we will not do it.
 
 If you have host keys available in the common \i\c{known_hosts} format,
 we have a script called 
-\W{http://www.tartarus.org/~simon-anonsvn/viewcvs.cgi/putty/contrib/kh2reg.py?view=markup}\c{kh2reg.py}
+\W{http://svn.tartarus.org/putty/contrib/kh2reg.py?view=markup}\c{kh2reg.py}
 to convert them to a Windows .REG file, which can be installed ahead of
 time by double-clicking or using \c{REGEDIT}.
 
@@ -1133,8 +1133,9 @@ link to you at all.
 If you have software based on PuTTY, or specifically designed to
 interoperate with PuTTY, or in some other way of genuine interest to
 PuTTY users, then we will probably be happy to add a link to you on
-our Links page. And if you're running a mirror of the PuTTY web
-site, we're \e{definitely} interested.
+our Links page. And if you're running a particularly valuable mirror
+of the PuTTY web site, we might be interested in linking to you from
+our Mirrors page.
 
 \S{faq-sourceforge}{Question} Why don't you move PuTTY to
 SourceForge?
@@ -1191,11 +1192,8 @@ asking for any.
 Having said all that, if you still really \e{want} to give us money,
 we won't argue :-) The easiest way for us to accept donations is if
 you send money to \cw{<anakin@pobox.com>} using PayPal
-(\W{http://www.paypal.com/}\cw{www.paypal.com}). Alternatively, if
-you don't trust PayPal, you could donate through e-gold
-(\W{http://www.e-gold.com}\cw{www.e-gold.com}): deposit your
-donation in account number 174769, then send us e-mail to let us
-know you've done so (otherwise we might not notice for months!).
+(\W{http://www.paypal.com/}\cw{www.paypal.com}). If you don't like
+PayPal, talk to us; we can probably arrange some alternative means.
 
 Small donations (tens of dollars or tens of euros) will probably be
 spent on beer or curry, which helps motivate our volunteer team to

@@ -180,12 +180,6 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
 	return 0;
     }
 
-    /*
-     * If this is before the real session begins, just return.
-     */
-    if (!outptr)
-	return 0;
-
     if ((outlen > 0) && (len > 0)) {
 	unsigned used = outlen;
 	if (used > len)
@@ -424,6 +418,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     cfg.x11_forward = 0;
     cfg.agentfwd = 0;
     cfg.portfwd[0] = cfg.portfwd[1] = '\0';
+    cfg.ssh_simple = TRUE;
 
     /*
      * Set up main and possibly fallback command depending on

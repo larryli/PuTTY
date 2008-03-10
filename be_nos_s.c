@@ -10,12 +10,12 @@ const int be_default_protocol = PROT_TELNET;
 
 const char *const appname = "PuTTYtel";
 
-struct backend_list backends[] = {
-    {PROT_TELNET, "telnet", &telnet_backend},
-    {PROT_RLOGIN, "rlogin", &rlogin_backend},
-    {PROT_RAW, "raw", &raw_backend},
-    {PROT_SERIAL, "serial", &serial_backend},
-    {0, NULL}
+Backend *backends[] = {
+    &telnet_backend,
+    &rlogin_backend,
+    &raw_backend,
+    &serial_backend,
+    NULL
 };
 
 /*

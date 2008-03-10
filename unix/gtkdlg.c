@@ -49,6 +49,7 @@ struct uctrl {
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
     guint entrysig;
     guint textsig;
+    int nclicks;
 };
 
 struct dlgparam {
@@ -98,8 +99,10 @@ static gboolean listitem_single_key(GtkWidget *item, GdkEventKey *event,
 				    gpointer data);
 static gboolean listitem_multi_key(GtkWidget *item, GdkEventKey *event,
 				   gpointer data);
-static gboolean listitem_button(GtkWidget *item, GdkEventButton *event,
-				gpointer data);
+static gboolean listitem_button_press(GtkWidget *item, GdkEventButton *event,
+				      gpointer data);
+static gboolean listitem_button_release(GtkWidget *item, GdkEventButton *event,
+					gpointer data);
 static void menuitem_activate(GtkMenuItem *item, gpointer data);
 static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
@@ -467,7 +470,9 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
         gtk_signal_connect(GTK_OBJECT(listitem), "focus_in_event",
                            GTK_SIGNAL_FUNC(widget_focus), dp);
 	gtk_signal_connect(GTK_OBJECT(listitem), "button_press_event",
-			   GTK_SIGNAL_FUNC(listitem_button), dp);
+			   GTK_SIGNAL_FUNC(listitem_button_press), dp);
+	gtk_signal_connect(GTK_OBJECT(listitem), "button_release_event",
+			   GTK_SIGNAL_FUNC(listitem_button_release), dp);
 	gtk_object_set_data(GTK_OBJECT(listitem), "user-data",
 			    GINT_TO_POINTER(id));
     } else {
@@ -1121,13 +1126,26 @@ static gboolean listitem_multi_key(GtkWidget *item, GdkEventKey *event,
     return listitem_key(item, event, data, TRUE);
 }
 
-static gboolean listitem_button(GtkWidget *item, GdkEventButton *event,
-				gpointer data)
+static gboolean listitem_button_press(GtkWidget *item, GdkEventButton *event,
+				      gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
-    if (event->type == GDK_2BUTTON_PRESS ||
-	event->type == GDK_3BUTTON_PRESS) {
-	struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
+    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
+    switch (event->type) {
+    default:
+    case GDK_BUTTON_PRESS: uc->nclicks = 1; break;
+    case GDK_2BUTTON_PRESS: uc->nclicks = 2; break;
+    case GDK_3BUTTON_PRESS: uc->nclicks = 3; break;
+    }
+    return FALSE;
+}
+
+static gboolean listitem_button_release(GtkWidget *item, GdkEventButton *event,
+					gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
+    if (uc->nclicks>1) {
 	uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
         return TRUE;
     }
@@ -1412,6 +1430,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 	uc->entry = uc->list = uc->menu = NULL;
 	uc->button = uc->optmenu = uc->text = NULL;
 	uc->label = NULL;
+        uc->nclicks = 0;
 
         switch (ctrl->generic.type) {
           case CTRL_BUTTON:
@@ -2749,7 +2768,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
     char *title;
 
     char *licence =
-	"Copyright 1997-2007 Simon Tatham.\n\n"
+	"Copyright 1997-2008 Simon Tatham.\n\n"
 
 	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
 	"Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas "
@@ -2830,7 +2849,7 @@ void about_box(void *window)
 		       w, FALSE, FALSE, 5);
     gtk_widget_show(w);
 
-    w = gtk_label_new("Copyright 1997-2007 Simon Tatham. All rights reserved");
+    w = gtk_label_new("Copyright 1997-2008 Simon Tatham. All rights reserved");
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
 		       w, FALSE, FALSE, 5);
     gtk_widget_show(w);

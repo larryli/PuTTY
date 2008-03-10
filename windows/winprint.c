@@ -21,7 +21,7 @@ struct printer_job_tag {
 static char *printer_add_enum(int param, DWORD level, char *buffer,
                               int offset, int *nprinters_ptr)
 {
-    DWORD needed, nprinters;
+    DWORD needed = 0, nprinters = 0;
 
     buffer = sresize(buffer, offset+512, char);
 

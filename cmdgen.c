@@ -640,6 +640,11 @@ int main(int argc, char **argv)
 
 	random_ref();
 	entropy = get_random_data(bits / 8);
+	if (!entropy) {
+	    fprintf(stderr, "puttygen: failed to collect entropy, "
+		    "could not generate key\n");
+	    return 1;
+	}
 	random_add_heavynoise(entropy, bits / 8);
 	memset(entropy, 0, bits/8);
 	sfree(entropy);

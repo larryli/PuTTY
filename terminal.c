@@ -1223,6 +1223,8 @@ static void power_on(Terminal *term, int clear)
     term->erase_char = term->basic_erase_char;
     term->alt_which = 0;
     term_print_finish(term);
+    term->xterm_mouse = FALSE;
+    set_raw_mouse_mode(term->frontend, FALSE);
     {
 	int i;
 	for (i = 0; i < 256; i++)
@@ -1448,7 +1450,7 @@ Terminal *term_init(Config *mycfg, struct unicode_data *ucsdata,
     term->vt52_mode = FALSE;
     term->cr_lf_return = FALSE;
     term->seen_disp_event = FALSE;
-    term->xterm_mouse = term->mouse_is_down = FALSE;
+    term->mouse_is_down = FALSE;
     term->reset_132 = FALSE;
     term->cblinker = term->tblinker = 0;
     term->has_focus = 1;
@@ -1612,6 +1614,8 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    addpos234(term->screen, line, 0);
 	    term->curs.y += 1;
 	    term->savecurs.y += 1;
+	    term->alt_y += 1;
+	    term->alt_savecurs.y += 1;
 	} else {
 	    /* Add a new blank line at the bottom of the screen. */
 	    line = newline(term, newcols, FALSE);
@@ -1632,6 +1636,8 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    term->tempsblines += 1;
 	    term->curs.y -= 1;
 	    term->savecurs.y -= 1;
+	    term->alt_y -= 1;
+	    term->alt_savecurs.y -= 1;
 	}
 	term->rows -= 1;
     }
@@ -1691,12 +1697,26 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	term->savecurs.y = 0;
     if (term->savecurs.y >= newrows)
 	term->savecurs.y = newrows - 1;
+    if (term->savecurs.x >= newcols)
+	term->savecurs.x = newcols - 1;
+    if (term->alt_savecurs.y < 0)
+	term->alt_savecurs.y = 0;
+    if (term->alt_savecurs.y >= newrows)
+	term->alt_savecurs.y = newrows - 1;
+    if (term->alt_savecurs.x >= newcols)
+	term->alt_savecurs.x = newcols - 1;
     if (term->curs.y < 0)
 	term->curs.y = 0;
     if (term->curs.y >= newrows)
 	term->curs.y = newrows - 1;
     if (term->curs.x >= newcols)
 	term->curs.x = newcols - 1;
+    if (term->alt_y < 0)
+	term->alt_y = 0;
+    if (term->alt_y >= newrows)
+	term->alt_y = newrows - 1;
+    if (term->alt_x >= newcols)
+	term->alt_x = newcols - 1;
     term->alt_x = term->alt_y = 0;
     term->wrapnext = term->alt_wnext = FALSE;
 
@@ -2850,6 +2870,13 @@ static void term_out(Terminal *term)
 		term->wrapnext = FALSE;
 		seen_disp_event(term);
 		term->paste_hold = 0;
+
+        if (term->cfg.crhaslf) {  
+		  if (term->curs.y == term->marg_b)
+		    scroll(term, term->marg_t, term->marg_b, 1, TRUE);
+		  else if (term->curs.y < term->rows - 1)
+		    term->curs.y++;
+        }
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
@@ -6398,6 +6425,7 @@ char *term_get_ttymode(Terminal *term, const char *mode)
 	val = term->cfg.bksp_is_delete ? "^?" : "^H";
     }
     /* FIXME: perhaps we should set ONLCR based on cfg.lfhascr as well? */
+    /* FIXME: or ECHO and friends based on local echo state? */
     return dupstr(val);
 }
 

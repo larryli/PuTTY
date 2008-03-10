@@ -232,15 +232,9 @@
     /*
      * Set up a backend.
      */
-    {
-	int i;
+    back = backend_from_proto(cfg.protocol);
+    if (!back)
 	back = &pty_backend;
-	for (i = 0; backends[i].backend != NULL; i++)
-	    if (backends[i].protocol == cfg.protocol) {
-		back = backends[i].backend;
-		break;
-	    }
-    }
 
     {
 	const char *error;
@@ -794,6 +788,11 @@
     return term_data(term, is_stderr, data, len);
 }
 
+- (int)fromBackendUntrusted:(const char *)data len:(int)len
+{
+    return term_data_untrusted(term, data, len);
+}
+
 - (void)startAlert:(NSAlert *)alert
     withCallback:(void (*)(void *, int))callback andCtx:(void *)ctx
 {
@@ -885,12 +884,23 @@
     // FIXME: else show restart menu item
 }
 
+- (Terminal *)term
+{
+    return term;
+}
+
 @end
 
 int from_backend(void *frontend, int is_stderr, const char *data, int len)
 {
     SessionWindow *win = (SessionWindow *)frontend;
     return [win fromBackend:data len:len isStderr:is_stderr];
+}
+
+int from_backend_untrusted(void *frontend, const char *data, int len)
+{
+    SessionWindow *win = (SessionWindow *)frontend;
+    return [win fromBackendUntrusted:data len:len];
 }
 
 int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
@@ -922,7 +932,7 @@ void ldisc_update(void *frontend, int echo, int edit)
 
 char *get_ttymode(void *frontend, const char *mode)
 {
-    SessionWindow *win = (SessionWindow *)ctx;
+    SessionWindow *win = (SessionWindow *)frontend;
     Terminal *term = [win term];
     return term_get_ttymode(term, mode);
 }

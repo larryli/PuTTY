@@ -97,6 +97,10 @@ static int cmpfortree(void *av, void *bv)
 	return -1;
     if (as > bs)
 	return +1;
+    if (a < b)
+       return -1;
+    if (a > b)
+       return +1;
     return 0;
 }
 
@@ -453,6 +457,14 @@ static int try_connect(Actual_Socket sock)
     short localport;
     int fl, salen;
 
+    /*
+     * Remove the socket from the tree before we overwrite its
+     * internal socket id, because that forms part of the tree's
+     * sorting criterion. We'll add it back before exiting this
+     * function, whether we changed anything or not.
+     */
+    del234(sktree, sock);
+
     if (sock->s >= 0)
         close(sock->s);
 
@@ -605,9 +617,14 @@ static int try_connect(Actual_Socket sock)
     }
 
     uxsel_tell(sock);
-    add234(sktree, sock);
 
     ret:
+
+    /*
+     * No matter what happened, put the socket back in the tree.
+     */
+    add234(sktree, sock);
+
     if (err)
 	plug_log(sock->plug, 1, sock->addr, sock->port, strerror(err), err);
     return err;
@@ -1060,12 +1077,17 @@ static int net_select_result(int fd, int event)
 #endif
 	    socklen_t addrlen = sizeof(ss);
 	    int t;  /* socket of connection */
+            int fl;
 
 	    memset(&ss, 0, addrlen);
 	    t = accept(s->s, (struct sockaddr *)&ss, &addrlen);
 	    if (t < 0) {
 		break;
 	    }
+
+            fl = fcntl(t, F_GETFL);
+            if (fl != -1)
+                fcntl(t, F_SETFL, fl | O_NONBLOCK);
 
 	    if (s->localhost_only &&
 		!sockaddr_is_loopback((struct sockaddr *)&ss)) {

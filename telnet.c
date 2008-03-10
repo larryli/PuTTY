@@ -1106,5 +1106,7 @@ Backend telnet_backend = {
     telnet_provide_logctx,
     telnet_unthrottle,
     telnet_cfg_info,
+    "telnet",
+    PROT_TELNET,
     23
 };

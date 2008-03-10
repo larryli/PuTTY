@@ -96,7 +96,7 @@ struct handle_input {
      */
     char buffer[4096];		       /* the data read from the handle */
     DWORD len;			       /* how much data that was */
-    int readret;		       /* lets us know about read errors */
+    int readerr;		       /* lets us know about read errors */
 
     /*
      * Callback function called by this module when data arrives on
@@ -113,7 +113,7 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
     struct handle_input *ctx = (struct handle_input *) param;
     OVERLAPPED ovl, *povl;
     HANDLE oev;
-    int readlen;
+    int readret, readlen;
 
     if (ctx->flags & HANDLE_FLAG_OVERLAPPED) {
 	povl = &ovl;
@@ -132,17 +132,34 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 	    memset(povl, 0, sizeof(OVERLAPPED));
 	    povl->hEvent = oev;
 	}
-	ctx->readret = ReadFile(ctx->h, ctx->buffer, readlen,
-				&ctx->len, povl);
-	if (povl && !ctx->readret && GetLastError() == ERROR_IO_PENDING) {
+	readret = ReadFile(ctx->h, ctx->buffer,readlen, &ctx->len, povl);
+	if (!readret)
+	    ctx->readerr = GetLastError();
+	else
+	    ctx->readerr = 0;
+	if (povl && !readret && ctx->readerr == ERROR_IO_PENDING) {
 	    WaitForSingleObject(povl->hEvent, INFINITE);
-	    ctx->readret = GetOverlappedResult(ctx->h, povl, &ctx->len, FALSE);
+	    readret = GetOverlappedResult(ctx->h, povl, &ctx->len, FALSE);
+	    if (!readret)
+		ctx->readerr = GetLastError();
+	    else
+		ctx->readerr = 0;
 	}
 
-	if (!ctx->readret)
+	if (!readret) {
+	    /*
+	     * Windows apparently sends ERROR_BROKEN_PIPE when a
+	     * pipe we're reading from is closed normally from the
+	     * writing end. This is ludicrous; if that situation
+	     * isn't a natural EOF, _nothing_ is. So if we get that
+	     * particular error, we pretend it's EOF.
+	     */
+	    if (ctx->readerr == ERROR_BROKEN_PIPE)
+		ctx->readerr = 0;
 	    ctx->len = 0;
+	}
 
-	if (ctx->readret && ctx->len == 0 &&
+	if (readret && ctx->len == 0 &&
 	    (ctx->flags & HANDLE_FLAG_IGNOREEOF))
 	    continue;
 
@@ -227,7 +244,7 @@ struct handle_output {
      * and read by the main thread after receiving that signal.
      */
     DWORD lenwritten;		       /* how much data we actually wrote */
-    int writeret;		       /* return value from WriteFile */
+    int writeerr;		       /* return value from WriteFile */
 
     /*
      * Data only ever read or written by the main thread.
@@ -245,6 +262,7 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
 {
     struct handle_output *ctx = (struct handle_output *) param;
     OVERLAPPED ovl, *povl;
+    int writeret;
 
     if (ctx->flags & HANDLE_FLAG_OVERLAPPED)
 	povl = &ovl;
@@ -259,14 +277,23 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
 	}
 	if (povl)
 	    memset(povl, 0, sizeof(OVERLAPPED));
-	ctx->writeret = WriteFile(ctx->h, ctx->buffer, ctx->len,
-				  &ctx->lenwritten, povl);
-	if (povl && !ctx->writeret && GetLastError() == ERROR_IO_PENDING)
-	    ctx->writeret = GetOverlappedResult(ctx->h, povl,
-						&ctx->lenwritten, TRUE);
+	writeret = WriteFile(ctx->h, ctx->buffer, ctx->len,
+			     &ctx->lenwritten, povl);
+	if (!writeret)
+	    ctx->writeerr = GetLastError();
+	else
+	    ctx->writeerr = 0;
+	if (povl && !writeret && GetLastError() == ERROR_IO_PENDING) {
+	    writeret = GetOverlappedResult(ctx->h, povl,
+					   &ctx->lenwritten, TRUE);
+	    if (!writeret)
+		ctx->writeerr = GetLastError();
+	    else
+		ctx->writeerr = 0;
+	}
 
 	SetEvent(ctx->ev_to_main);
-	if (!ctx->writeret)
+	if (!writeret)
 	    break;
     }
 
@@ -512,7 +539,7 @@ void handle_got_event(HANDLE event)
 	    /*
 	     * EOF, or (nearly equivalently) read error.
 	     */
-	    h->u.i.gotdata(h, NULL, (h->u.i.readret ? 0 : -1));
+	    h->u.i.gotdata(h, NULL, -h->u.i.readerr);
 	    h->u.i.defunct = TRUE;
 	} else {
 	    backlog = h->u.i.gotdata(h, h->u.i.buffer, h->u.i.len);
@@ -526,13 +553,13 @@ void handle_got_event(HANDLE event)
 	 * write. Call the callback to indicate that the output
 	 * buffer size has decreased, or to indicate an error.
 	 */
-	if (!h->u.o.writeret) {
+	if (h->u.o.writeerr) {
 	    /*
 	     * Write error. Send a negative value to the callback,
 	     * and mark the thread as defunct (because the output
 	     * thread is terminating by now).
 	     */
-	    h->u.o.sentdata(h, -1);
+	    h->u.o.sentdata(h, -h->u.o.writeerr);
 	    h->u.o.defunct = TRUE;
 	} else {
 	    bufchain_consume(&h->u.o.queued_data, h->u.o.lenwritten);

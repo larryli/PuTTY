@@ -228,7 +228,13 @@ int stdin_gotdata(struct handle *h, void *data, int len)
 	/*
 	 * Special case: report read error.
 	 */
-	fprintf(stderr, "Unable to read from standard input\n");
+	char buf[4096];
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, -len, 0,
+		      buf, lenof(buf), NULL);
+	buf[lenof(buf)-1] = '\0';
+	if (buf[strlen(buf)-1] == '\n')
+	    buf[strlen(buf)-1] = '\0';
+	fprintf(stderr, "Unable to read from standard input: %s\n", buf);
 	cleanup_exit(0);
     }
     noise_ultralight(len);
@@ -249,8 +255,14 @@ void stdouterr_sent(struct handle *h, int new_backlog)
 	/*
 	 * Special case: report write error.
 	 */
-	fprintf(stderr, "Unable to write to standard %s\n",
-		(h == stdout_handle ? "output" : "error"));
+	char buf[4096];
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, -new_backlog, 0,
+		      buf, lenof(buf), NULL);
+	buf[lenof(buf)-1] = '\0';
+	if (buf[strlen(buf)-1] == '\n')
+	    buf[strlen(buf)-1] = '\0';
+	fprintf(stderr, "Unable to write to standard %s: %s\n",
+		(h == stdout_handle ? "output" : "error"), buf);
 	cleanup_exit(0);
     }
     if (connopen && back->connected(backhandle)) {
@@ -295,13 +307,10 @@ int main(int argc, char **argv)
 	char *p = getenv("PLINK_PROTOCOL");
 	int i;
 	if (p) {
-	    for (i = 0; backends[i].backend != NULL; i++) {
-		if (!strcmp(backends[i].name, p)) {
-		    default_protocol = cfg.protocol = backends[i].protocol;
-		    default_port = cfg.port =
-			backends[i].backend->default_port;
-		    break;
-		}
+	    const Backend *b = backend_from_name(p);
+	    if (b) {
+		default_protocol = cfg.protocol = b->protocol;
+		default_port = cfg.port = b->default_port;
 	    }
 	}
     }
@@ -368,19 +377,14 @@ int main(int argc, char **argv)
 		     */
 		    r = strchr(p, ',');
 		    if (r) {
-			int i, j;
-			for (i = 0; backends[i].backend != NULL; i++) {
-			    j = strlen(backends[i].name);
-			    if (j == r - p &&
-				!memcmp(backends[i].name, p, j)) {
-				default_protocol = cfg.protocol =
-				    backends[i].protocol;
-				portnumber =
-				    backends[i].backend->default_port;
-				p = r + 1;
-				break;
-			    }
+			const Backend *b;
+			*r = '\0';
+			b = backend_from_name(p);
+			if (b) {
+			    default_protocol = cfg.protocol = b->protocol;
+			    portnumber = b->default_port;
 			}
+			p = r + 1;
 		    }
 
 		    /*
@@ -523,19 +527,11 @@ int main(int argc, char **argv)
      * Select protocol. This is farmed out into a table in a
      * separate file to enable an ssh-free variant.
      */
-    {
-	int i;
-	back = NULL;
-	for (i = 0; backends[i].backend != NULL; i++)
-	    if (backends[i].protocol == cfg.protocol) {
-		back = backends[i].backend;
-		break;
-	    }
-	if (back == NULL) {
-	    fprintf(stderr,
-		    "Internal fault: Unsupported protocol found\n");
-	    return 1;
-	}
+    back = backend_from_proto(cfg.protocol);
+    if (back == NULL) {
+	fprintf(stderr,
+		"Internal fault: Unsupported protocol found\n");
+	return 1;
     }
 
     /*

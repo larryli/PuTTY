@@ -1,0 +1,113 @@
+# -*- sh -*-
+# Build script to construct a full distribution directory of PuTTY.
+
+module putty
+
+# Set up the arguments for the main make command.
+set Makever -DSVN_REV=$(revision)
+ifneq "$(!numeric $(revision))" "yes" set Makever $(Makever) -DMODIFIED
+ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
+ifneq "$(date)" "" set Makever $(Makever) -DSNAPSHOT=$(date)
+set Makeargs VER="$(Makever)"
+ifneq "$(XFLAGS)" "" set Makeargs $(Makeargs) XFLAGS="$(XFLAGS)"
+ifneq "$(MAKEARGS)" "" set Makeargs $(Makeargs) $(MAKEARGS)
+
+# Set up the version string for the docs build.
+set Docmakeargs VERSION="PuTTY revision $(revision)"
+ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
+ifneq "$(date)" "" set Docmakeargs VERSION="PuTTY development snapshot $(date)"
+
+# Set up the version string for the Unix source archive.
+set Unxver r$(revision)
+ifneq "$(RELEASE)" "" set Unxver $(RELEASE)
+ifneq "$(date)" "" set Unxver $(date)
+
+# Set up the various version strings for the installer.
+set Iversion r$(revision)
+set Iname PuTTY revision $(revision)
+set Ivertext Revision $(revision)
+set Irev $(revision)
+set Ifilename putty-$(Iversion)-installer.exe
+ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
+ifneq "$(RELEASE)" "" set Iname PuTTY version $(RELEASE)
+ifneq "$(RELEASE)" "" set Ivertext Release $(RELEASE)
+ifneq "$(RELEASE)" "" set Irev 0
+ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer.exe
+ifneq "$(date)" "" set Iversion $(date):r$(revision)
+ifneq "$(date)" "" set Iname PuTTY development snapshot $(date):r$(revision)
+ifneq "$(date)" "" set Ivertext Development snapshot $(date):r$(revision)
+ifneq "$(date)" "" set Ifilename putty-$(date)-installer.exe
+
+# Set up the version string for the installer.
+set Iversion r$(revision)
+ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
+ifneq "$(date)" "" set Iversion $(date):r$(revision)
+
+in putty do ./mksrcarc.sh
+in putty do ./mkunxarc.sh $(Unxver)
+in putty do perl mkfiles.pl
+in putty/doc do make $(Docmakeargs) putty.hlp
+in putty/doc do make $(Docmakeargs) chm
+
+# Munge the installer script locally so that it reports the version
+# we're really building.
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVerName=).*$$/$$1$$a/' '$(Iname)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoTextVersion=).*$$/$$1$$a/' '$(Ivertext)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVersion=).*$$/$$1$$a/' '$(Iversion)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;$$a=~s/M//;}s/^(VersionInfoVersion=\d+\.\d+\.)\d+(\.\d+)\r?$$/$$1$$a$$2/' '$(Irev)' putty.iss
+
+# Windowsify LICENCE, since it's going in the Windows installer.
+in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
+
+delegate windows
+  # FIXME: Cygwin alternative?
+  in putty/windows do cmd /c vcvars32 \& nmake -f Makefile.vc $(Makeargs)
+  # Ignore exit code from hhc, in favour of seeing whether the .chm
+  # file was created. (Yuck; but hhc appears to return non-zero
+  # exit codes on whim.)
+  in putty/doc do hhc putty.hhp; test -f putty.chm
+  in putty/windows do iscc putty.iss
+  return putty/windows/*.exe
+  return putty/windows/*.map
+  return putty/doc/putty.chm
+  return putty/windows/Output/setup.exe
+enddelegate
+in putty/doc do make mostlyclean
+in putty/doc do make $(Docmakeargs)
+in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/putty.chm ../doc/putty.hlp ../doc/putty.cnt
+in putty/doc do zip puttydoc.zip *.html
+
+# Deliver the actual PuTTY release directory into a subdir `putty'.
+deliver putty/windows/*.exe putty/x86/$@
+deliver putty/windows/putty.zip putty/x86/$@
+deliver putty/windows/Output/setup.exe putty/x86/$(Ifilename)
+deliver putty/doc/puttydoc.zip putty/$@
+deliver putty/doc/putty.chm putty/$@
+deliver putty/doc/putty.hlp putty/$@
+deliver putty/doc/putty.cnt putty/$@
+deliver putty/doc/puttydoc.txt putty/$@
+deliver putty/doc/*.html putty/htmldoc/$@
+deliver putty/putty-src.zip putty/$@
+deliver putty/*.tar.gz putty/$@
+
+# Deliver the map files alongside the `proper' release deliverables.
+deliver putty/windows/*.map maps-x86/$@
+
+# Deliver sign.sh, so that whoever has just built PuTTY (the
+# snapshot scripts or me, depending) can conveniently sign it with
+# whatever key they want.
+deliver putty/sign.sh $@
+
+# Building the md5sums file is most easily done in the destination
+# directory.
+in-dest putty do md5sum `\find * -type f -print` > md5sums
+
+# And construct .htaccess files. One in the top-level directory,
+# setting the MIME types for Windows help files and providing an
+# appropriate link to the source archive:
+in-dest putty do echo "AddType application/octet-stream .chm" >> .htaccess
+in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
+in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
+in-dest putty do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+# And one in the x86 directory, providing a link for the installer.
+in-dest putty/x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done

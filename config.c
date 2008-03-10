@@ -15,20 +15,6 @@
 #define HOST_BOX_TITLE "Host Name (or IP address)"
 #define PORT_BOX_TITLE "Port"
 
-/*
- * Convenience function: determine whether this binary supports a
- * given backend.
- */
-static int have_backend(int protocol)
-{
-    struct backend_list *p = backends;
-    for (p = backends; p->name; p++) {
-	if (p->protocol == protocol)
-	    return 1;
-    }
-    return 0;
-}
-
 static void config_host_handler(union control *ctrl, void *dlg,
 				void *data, int event)
 {
@@ -104,7 +90,7 @@ struct hostport {
 void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 				    void *data, int event)
 {
-    int button, defport;
+    int button;
     Config *cfg = (Config *)data;
     struct hostport *hp = (struct hostport *)ctrl->radio.context.p;
 
@@ -128,15 +114,20 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	assert(button >= 0 && button < ctrl->radio.nbuttons);
 	cfg->protocol = ctrl->radio.buttondata[button].i;
 	if (oldproto != cfg->protocol) {
-	    defport = -1;
-	    switch (cfg->protocol) {
-	      case PROT_SSH: defport = 22; break;
-	      case PROT_TELNET: defport = 23; break;
-	      case PROT_RLOGIN: defport = 513; break;
-	    }
-	    if (defport > 0 && cfg->port != defport) {
-		cfg->port = defport;
-	    }
+	    Backend *ob = backend_from_proto(oldproto);
+	    Backend *nb = backend_from_proto(cfg->protocol);
+	    assert(ob);
+	    assert(nb);
+	    /* Iff the user hasn't changed the port from the protocol
+	     * default (if any), update it with the new protocol's
+	     * default.
+	     * (XXX: this isn't perfect; a default can become permanent
+	     * by going via the serial backend. However, it helps with
+	     * the common case of tabbing through the controls in order
+	     * and setting a non-default port.) */
+	    if (cfg->port == ob->default_port &&
+		cfg->port > 0 && nb->default_port > 0)
+		cfg->port = nb->default_port;
 	}
 	dlg_refresh(hp->host, dlg);
 	dlg_refresh(hp->port, dlg);
@@ -256,6 +247,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	    { "Diffie-Hellman group 1",		KEX_DHGROUP1 },
 	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
 	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
+	    { "RSA-based key exchange", 	KEX_RSA },
 	    { "-- warn below here --",		KEX_WARN }
 	};
 
@@ -383,7 +375,7 @@ struct sessionsaver_data {
  */
 static int load_selected_session(struct sessionsaver_data *ssd,
 				 char *savedsession,
-				 void *dlg, Config *cfg)
+				 void *dlg, Config *cfg, int *maybe_launch)
 {
     int i = dlg_listbox_index(ssd->listbox, dlg);
     int isdef;
@@ -392,13 +384,17 @@ static int load_selected_session(struct sessionsaver_data *ssd,
 	return 0;
     }
     isdef = !strcmp(ssd->sesslist.sessions[i], "Default Settings");
-    load_settings(ssd->sesslist.sessions[i], !isdef, cfg);
+    load_settings(ssd->sesslist.sessions[i], cfg);
     if (!isdef) {
 	strncpy(savedsession, ssd->sesslist.sessions[i],
 		SAVEDSESSION_LEN);
 	savedsession[SAVEDSESSION_LEN-1] = '\0';
+	if (maybe_launch)
+	    *maybe_launch = TRUE;
     } else {
 	savedsession[0] = '\0';
+	if (maybe_launch)
+	    *maybe_launch = FALSE;
     }
     dlg_refresh(NULL, dlg);
     /* Restore the selection, which might have been clobbered by
@@ -464,6 +460,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    dlg_listbox_select(ssd->listbox, dlg, top);
 	}
     } else if (event == EVENT_ACTION) {
+	int mbl = FALSE;
 	if (!ssd->midsession &&
 	    (ctrl == ssd->listbox ||
 	     (ssd->loadbutton && ctrl == ssd->loadbutton))) {
@@ -474,8 +471,8 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	     * double-click on the list box _and_ that session
 	     * contains a hostname.
 	     */
-	    if (load_selected_session(ssd, savedsession, dlg, cfg) &&
-		(ctrl == ssd->listbox && cfg_launchable(cfg))) {
+	    if (load_selected_session(ssd, savedsession, dlg, cfg, &mbl) &&
+		(mbl && ctrl == ssd->listbox && cfg_launchable(cfg))) {
 		dlg_end(dlg, 1);       /* it's all over, and succeeded */
 	    }
 	} else if (ctrl == ssd->savebutton) {
@@ -496,7 +493,7 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		}
 	    }
             {
-                char *errmsg = save_settings(savedsession, !isdef, cfg);
+                char *errmsg = save_settings(savedsession, cfg);
                 if (errmsg) {
                     dlg_error_msg(dlg, errmsg);
                     sfree(errmsg);
@@ -533,12 +530,14 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
 		!cfg_launchable(cfg)) {
 		Config cfg2;
-		if (!load_selected_session(ssd, savedsession, dlg, &cfg2)) {
+		int mbl = FALSE;
+		if (!load_selected_session(ssd, savedsession, dlg,
+					   &cfg2, &mbl)) {
 		    dlg_beep(dlg);
 		    return;
 		}
 		/* If at this point we have a valid session, go! */
-		if (*cfg2.host) {
+		if (mbl && cfg_launchable(&cfg2)) {
 		    *cfg = cfg2;       /* structure copy */
 		    cfg->remote_cmd_ptr = NULL;
 		    dlg_end(dlg, 1);
@@ -792,7 +791,29 @@ static void ttymodes_handler(union control *ctrl, void *dlg,
 	    char *p = cfg->ttymodes;
 	    int i = 0, len = lenof(cfg->ttymodes);
 	    while (*p) {
+		int multisel = dlg_listbox_index(td->listbox, dlg) < 0;
 		if (dlg_listbox_issel(td->listbox, dlg, i)) {
+		    if (!multisel) {
+			/* Populate controls with entry we're about to
+			 * delete, for ease of editing.
+			 * (If multiple entries were selected, don't
+			 * touch the controls.) */
+			char *val = strchr(p, '\t');
+			if (val) {
+			    int ind = 0;
+			    val++;
+			    while (ttymodes[ind]) {
+				if (strlen(ttymodes[ind]) == val-p-1 &&
+				    !strncmp(ttymodes[ind], p, val-p-1))
+				    break;
+				ind++;
+			    }
+			    dlg_listbox_select(td->modelist, dlg, ind);
+			    dlg_radiobutton_set(td->valradio, dlg,
+						(*val == 'V'));
+			    dlg_editbox_set(td->valbox, dlg, val+1);
+			}
+		    }
 		    memmove(p, p+strlen(p)+1, len - (strlen(p)+1));
 		    i++;
 		    continue;
@@ -866,7 +887,7 @@ static void environ_handler(union control *ctrl, void *dlg,
 	    if (i < 0) {
 		dlg_beep(dlg);
 	    } else {
-		char *p, *q;
+		char *p, *q, *str;
 
 		dlg_listbox_del(ed->listbox, dlg, i);
 		p = cfg->environmt;
@@ -881,8 +902,20 @@ static void environ_handler(union control *ctrl, void *dlg,
 		q = p;
 		if (!*p)
 		    goto disaster;
-		while (*p)
-		    p++;
+		/* Populate controls with the entry we're about to delete
+		 * for ease of editing */
+		str = p;
+		p = strchr(p, '\t');
+		if (!p)
+		    goto disaster;
+		*p = '\0';
+		dlg_editbox_set(ed->varbox, dlg, str);
+		p++;
+		str = p;
+		dlg_editbox_set(ed->valbox, dlg, str);
+		p = strchr(p, '\0');
+		if (!p)
+		    goto disaster;
 		p++;
 		while (*p) {
 		    while (*p)
@@ -995,7 +1028,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    if (i < 0)
 		dlg_beep(dlg);
 	    else {
-		char *p, *q;
+		char *p, *q, *src, *dst;
+		char dir;
 
 		dlg_listbox_del(pfd->listbox, dlg, i);
 		p = cfg->portfwd;
@@ -1010,8 +1044,44 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		q = p;
 		if (!*p)
 		    goto disaster2;
-		while (*p)
+		/* Populate the controls with the entry we're about to
+		 * delete, for ease of editing. */
+		{
+		    static const char *const afs = "A46";
+		    char *afp = strchr(afs, *p);
+#ifndef NO_IPV6
+		    int idx = afp ? afp-afs : 0;
+#endif
+		    if (afp)
+			p++;
+#ifndef NO_IPV6
+		    dlg_radiobutton_set(pfd->addressfamily, dlg, idx);
+#endif
+		}
+		{
+		    static const char *const dirs = "LRD";
+		    dir = *p;
+		    dlg_radiobutton_set(pfd->direction, dlg,
+					strchr(dirs, dir) - dirs);
+		}
+		p++;
+		if (dir != 'D') {
+		    src = p;
+		    p = strchr(p, '\t');
+		    if (!p)
+			goto disaster2;
+		    *p = '\0';
 		    p++;
+		    dst = p;
+		} else {
+		    src = p;
+		    dst = "";
+		}
+		p = strchr(p, '\0');
+		if (!p)
+		    goto disaster2;
+		dlg_editbox_set(pfd->sourcebox, dlg, src);
+		dlg_editbox_set(pfd->destbox, dlg, dst);
 		p++;
 		while (*p) {
 		    while (*p)
@@ -1089,7 +1159,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	hp->port = c;
 	ctrl_columns(s, 1, 100);
 
-	if (!have_backend(PROT_SSH)) {
+	if (!backend_from_proto(PROT_SSH)) {
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
@@ -1180,7 +1250,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     {
 	char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
-	    (!midsession && have_backend(PROT_SSH))) {
+	    (!midsession && backend_from_proto(PROT_SSH))) {
 	    sshlogname = "SSH packets";
 	    sshrawlogname = "SSH packets and raw data";
         } else {
@@ -1216,7 +1286,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 dlg_stdcheckbox_handler, I(offsetof(Config,logflush)));
 
     if ((midsession && protocol == PROT_SSH) ||
-	(!midsession && have_backend(PROT_SSH))) {
+	(!midsession && backend_from_proto(PROT_SSH))) {
 	s = ctrl_getset(b, "Session/Logging", "ssh",
 			"Options specific to SSH packet logging");
 	ctrl_checkbox(s, "Omit known password fields", 'k',
@@ -1242,6 +1312,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_checkbox(s, "Implicit CR in every LF", 'r',
 		  HELPCTX(terminal_lfhascr),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,lfhascr)));
+    ctrl_checkbox(s, "Implicit LF in every CR", 'f',
+		  HELPCTX(terminal_crhaslf),
+		  dlg_stdcheckbox_handler, I(offsetof(Config,crhaslf)));
     ctrl_checkbox(s, "Use background colour to erase screen", 'e',
 		  HELPCTX(terminal_bce),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,bce)));
@@ -1399,13 +1472,13 @@ void setup_config_box(struct controlbox *b, int midsession,
 
     s = ctrl_getset(b, "Window", "size", "Set the size of the window");
     ctrl_columns(s, 2, 50, 50);
-    c = ctrl_editbox(s, "Rows", 'r', 100,
-		     HELPCTX(window_size),
-		     dlg_stdeditbox_handler, I(offsetof(Config,height)),I(-1));
-    c->generic.column = 0;
     c = ctrl_editbox(s, "Columns", 'm', 100,
 		     HELPCTX(window_size),
 		     dlg_stdeditbox_handler, I(offsetof(Config,width)), I(-1));
+    c->generic.column = 0;
+    c = ctrl_editbox(s, "Rows", 'r', 100,
+		     HELPCTX(window_size),
+		     dlg_stdeditbox_handler, I(offsetof(Config,height)),I(-1));
     c->generic.column = 1;
     ctrl_columns(s, 1, 100);
 
@@ -1835,7 +1908,7 @@ void setup_config_box(struct controlbox *b, int midsession,
      * when we're not doing SSH.
      */
 
-    if (have_backend(PROT_SSH) && (!midsession || protocol == PROT_SSH)) {
+    if (backend_from_proto(PROT_SSH) && (!midsession || protocol == PROT_SSH)) {
 
 	/*
 	 * The Connection/SSH panel.
@@ -2172,6 +2245,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "Handles SSH-2 key re-exchange badly", 'k', 20,
 			  HELPCTX(ssh_bugs_rekey2),
 			  sshbug_handler, I(offsetof(Config,sshbug_rekey2)));
+	    ctrl_droplist(s, "Ignores SSH-2 maximum packet size", 'x', 20,
+			  HELPCTX(ssh_bugs_maxpkt2),
+			  sshbug_handler, I(offsetof(Config,sshbug_maxpkt2)));
 	}
     }
 }

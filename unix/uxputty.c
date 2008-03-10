@@ -33,13 +33,7 @@ void cleanup_exit(int code)
 
 Backend *select_backend(Config *cfg)
 {
-    int i;
-    Backend *back = NULL;
-    for (i = 0; backends[i].backend != NULL; i++)
-	if (backends[i].protocol == cfg->protocol) {
-	    back = backends[i].backend;
-	    break;
-	}
+    Backend *back = backend_from_proto(cfg->protocol);
     assert(back != NULL);
     return back;
 }
@@ -53,7 +47,7 @@ static int got_host = 0;
 
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
 
-int process_nonoption_arg(char *arg, Config *cfg)
+int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
 {
     char *p, *q = arg;
 
@@ -104,6 +98,8 @@ int process_nonoption_arg(char *arg, Config *cfg)
         cfg->host[sizeof(cfg->host) - 1] = '\0';
         got_host = 1;
     }
+    if (got_host)
+	*allow_launch = TRUE;
     return 1;
 }
 
@@ -135,13 +131,10 @@ int main(int argc, char **argv)
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {
-	int i;
+	Backend *b = backend_from_proto(default_protocol);
 	default_port = 0; /* illegal */
-	for (i = 0; backends[i].backend != NULL; i++)
-	    if (backends[i].protocol == default_protocol) {
-		default_port = backends[i].backend->default_port;
-		break;
-	    }
+	if (b)
+	    default_port = b->default_port;
     }
     return pt_main(argc, argv);
 }

@@ -82,6 +82,17 @@ void crcda_free_context(void *handle);
 int detect_attack(void *handle, unsigned char *buf, uint32 len,
 		  unsigned char *IV);
 
+/*
+ * SSH2 RSA key exchange functions
+ */
+struct ssh_hash;
+void *ssh_rsakex_newkey(char *data, int len);
+void ssh_rsakex_freekey(void *key);
+int ssh_rsakex_klen(void *key);
+void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
+                        unsigned char *out, int outlen,
+                        void *key);
+
 typedef struct {
     uint32 h[4];
 } MD5_Core_State;
@@ -194,15 +205,10 @@ struct ssh_hash {
 };   
 
 struct ssh_kex {
-    /*
-     * Plugging in another KEX algorithm requires structural chaos,
-     * so it's hard to abstract them into nice little structures
-     * like this. Fortunately, all our KEXes are basically
-     * Diffie-Hellman at the moment, so in this structure I simply
-     * parametrise the DH exchange a bit.
-     */
     char *name, *groupname;
-    const unsigned char *pdata, *gdata;/* NULL means use group exchange */
+    enum { KEXTYPE_DH, KEXTYPE_RSA } main_type;
+    /* For DH */
+    const unsigned char *pdata, *gdata; /* NULL means group exchange */
     int plen, glen;
     const struct ssh_hash *hash;
 };
@@ -268,6 +274,7 @@ extern const struct ssh_hash ssh_sha256;
 extern const struct ssh_kexes ssh_diffiehellman_group1;
 extern const struct ssh_kexes ssh_diffiehellman_group14;
 extern const struct ssh_kexes ssh_diffiehellman_gex;
+extern const struct ssh_kexes ssh_rsa_kex;
 extern const struct ssh_signkey ssh_dss;
 extern const struct ssh_signkey ssh_rsa;
 extern const struct ssh_mac ssh_hmac_md5;

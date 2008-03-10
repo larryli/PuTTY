@@ -33,7 +33,7 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-int process_nonoption_arg(char *arg, Config *cfg)
+int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
 {
     return 0;                          /* pterm doesn't have any. */
 }

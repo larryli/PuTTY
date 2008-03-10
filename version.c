@@ -23,6 +23,11 @@ char sshver[] = "PuTTY-Snapshot-" SNAPSHOT_TEXT;
 char ver[] = "Release " STR(RELEASE);
 char sshver[] = "PuTTY-Release-" STR(RELEASE);
 
+#elif defined SVN_REV
+
+char ver[] = "Custom build r" STR(SVN_REV);
+char sshver[] = "PuTTY-Custom-r" STR(SVN_REV);
+
 #else
 
 char ver[] = "Unidentified build, " __DATE__ " " __TIME__;

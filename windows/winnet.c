@@ -96,6 +96,10 @@ static int cmpfortree(void *av, void *bv)
 	return -1;
     if (as > bs)
 	return +1;
+    if (a < b)
+	return -1;
+    if (a > b)
+	return +1;
     return 0;
 }
 
@@ -788,6 +792,14 @@ static DWORD try_connect(Actual_Socket sock)
 	family = AF_INET;
     }
 
+    /*
+     * Remove the socket from the tree before we overwrite its
+     * internal socket id, because that forms part of the tree's
+     * sorting criterion. We'll add it back before exiting this
+     * function, whether we changed anything or not.
+     */
+    del234(sktree, sock);
+
     s = p_socket(family, SOCK_STREAM, 0);
     sock->s = s;
 
@@ -932,11 +944,15 @@ static DWORD try_connect(Actual_Socket sock)
 	sock->writable = 1;
     }
 
-    add234(sktree, sock);
-
     err = 0;
 
     ret:
+
+    /*
+     * No matter what happened, put the socket back in the tree.
+     */
+    add234(sktree, sock);
+
     if (err)
 	plug_log(sock->plug, 1, sock->addr, sock->port, sock->error, err);
     return err;

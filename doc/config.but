@@ -61,13 +61,6 @@ you want them saved. Then come back to the Session panel. Select the
 \q{\i{Default Settings}} entry in the saved sessions list, with a single
 click. Then press the \q{Save} button.
 
-\lcont{
-Note that PuTTY does not allow you to save a host name into the
-Default Settings entry. This ensures that when PuTTY is started up,
-the host name box is always empty, so a user can always just type in
-a host name and connect.
-}
-
 If there is a specific host you want to store the details of how to
 connect to, you should create a saved session, which will be
 separate from the Default Settings.
@@ -374,6 +367,19 @@ option, and things might go back to normal:
 \c First line of text
 \c Second line
 \c Third line
+
+\S{config-lfcr} \q{Implicit LF in every CR}
+
+\cfg{winhelp-topic}{terminal.crhaslf}
+
+Most servers send two control characters, \i{CR} and \i{LF}, to start a
+\i{new line} of the screen. The CR character makes the cursor return to the
+left-hand side of the screen. The LF character makes the cursor move
+one line down (and might make the screen scroll).
+
+Some servers only send CR, and so the newly 
+written line is overwritten by the following line. This option causes 
+a line feed so that all lines are displayed.
 
 \S{config-erase} \q{Use \i{background colour} to erase screen}
 
@@ -1003,7 +1009,7 @@ The Window configuration panel allows you to control aspects of the
 
 \cfg{winhelp-topic}{window.size}
 
-The \q{\ii{Rows}} and \q{\ii{Columns}} boxes let you set the PuTTY
+The \q{\ii{Columns}} and \q{\ii{Rows}} boxes let you set the PuTTY
 window to a precise size. Of course you can also \I{window resizing}drag
 the window to a new size while a session is running.
 
@@ -1694,8 +1700,13 @@ TCP keepalives are disabled by default.
 \cfg{winhelp-topic}{connection.ipversion}
 
 This option allows the user to select between the old and new
-Internet protocols and addressing schemes (\i{IPv4} and \i{IPv6}). The
-default setting is \q{Auto}, which means PuTTY will do something
+Internet protocols and addressing schemes (\i{IPv4} and \i{IPv6}).
+The selected protocol will be used for most outgoing network
+connections (including connections to \I{proxy}proxies); however,
+tunnels have their own configuration, for which see
+\k{config-ssh-portfwd-address-family}.
+
+The default setting is \q{Auto}, which means PuTTY will do something
 sensible and try to guess which protocol you wanted. (If you specify
 a literal \i{Internet address}, it will use whichever protocol that
 address implies. If you provide a \i{hostname}, it will see what kinds
@@ -1807,6 +1818,11 @@ of proxy in order to make its network connections. The settings in
 this panel affect the primary network connection forming your PuTTY
 session, and also any extra connections made as a result of SSH \i{port
 forwarding} (see \k{using-port-forwarding}).
+
+Note that unlike some software (such as web browsers), PuTTY does not
+attempt to automatically determine whether to use a proxy and (if so)
+which one to use for a given destination. If you need to use a proxy,
+it must always be explicitly configured.
 
 \S{config-proxy-type} Setting the proxy type
 
@@ -2282,6 +2298,10 @@ exchange; the server can avoid groups known to be weak, and possibly
 invent new ones over time, without any changes required to PuTTY's
 configuration. We recommend use of this method, if possible.
 
+In addition, PuTTY supports \i{RSA key exchange}, which requires much less
+computational effort on the part of the client, and somewhat less on
+the part of the server, than Diffie-Hellman key exchange.
+
 If the first algorithm PuTTY finds is below the \q{warn below here}
 line, you will see a warning box when you make the connection, similar
 to that for cipher selection (see \k{config-ssh-encryption}).
@@ -2404,11 +2424,12 @@ forms of simple \I{challenge/response authentication}challenge/response
 authentication available in SSH protocol version 1 only. You might use
 them if you were using \i{S/Key} \i{one-time passwords}, for example,
 or if you had a physical \i{security token} that generated responses
-to authentication challenges.
+to authentication challenges.  They can even be used to prompt for
+simple passwords.
 
 With this switch enabled, PuTTY will attempt these forms of
 authentication if the server is willing to try them. You will be
-presented with a challenge string (which will be different every
+presented with a challenge string (which may be different every
 time) and must supply the correct response in order to log in. If
 your server supports this, you should talk to your system
 administrator about precisely what form these challenges and
@@ -2772,6 +2793,9 @@ incoming connections in both IPv4 and (if available) IPv6
 \b for a remote-to-local port forwarding, PuTTY will choose a
 sensible protocol for the outgoing connection.
 
+This overrides the general Internet protocol version preference
+on the Connection panel (see \k{config-address-family}).
+
 Note that some operating systems may listen for incoming connections
 in IPv4 even if you specifically asked for IPv6, because their IPv4
 and IPv6 protocol stacks are linked together. Apparently \i{Linux} does
@@ -2962,6 +2986,22 @@ would expect.
 
 This is an SSH-2-specific bug.
 
+\S{config-ssh-bug-maxpkt2} \q{Ignores SSH-2 \i{maximum packet size}}
+
+\cfg{winhelp-topic}{ssh.bugs.maxpkt2}
+
+When an SSH-2 channel is set up, each end announces the maximum size
+of data packet that it is willing to receive for that channel.  Some
+servers ignore PuTTY's announcement and send packets larger than PuTTY
+is willing to accept, causing it to report \q{Incoming packet was
+garbled on decryption}.
+
+If this bug is detected, PuTTY never allows the channel's
+\i{flow-control window} to grow large enough to allow the server to
+send an over-sized packet.  If this bug is enabled when talking to a
+correct server, the session will work correctly, but download
+performance will be less than it could be.
+
 \H{config-serial} The Serial panel
 
 The \i{Serial} panel allows you to configure options that only apply
@@ -2975,7 +3015,7 @@ The \q{Serial line to connect to} box allows you to choose which
 serial line you want PuTTY to talk to, if your computer has more
 than one serial port.
 
-On Windows, the first serial line is called \cw{COM1}, and if there
+On Windows, the first serial line is called \i\cw{COM1}, and if there
 is a second it is called \cw{COM2}, and so on.
 
 This configuration setting is also visible on the Session panel,
