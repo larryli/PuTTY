@@ -28,6 +28,7 @@
 
 #include "putty.h"
 #include "terminal.h"
+#include "gtkfont.h"
 
 #define CAT2(x,y) x ## y
 #define CAT(x,y) CAT2(x,y)
@@ -58,11 +59,7 @@ struct gui_data {
 	*restartitem;
     GtkWidget *sessionsmenu;
     GdkPixmap *pixmap;
-    GdkFont *fonts[4];                 /* normal, bold, wide, widebold */
-    struct {
-	int charset;
-	int is_wide;
-    } fontinfo[4];
+    unifont *fonts[4];                 /* normal, bold, wide, widebold */
     int xpos, ypos, gotpos, gravity;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
@@ -1880,6 +1877,8 @@ int char_width(Context ctx, int uc)
      * Under X, any fixed-width font really _is_ fixed-width.
      * Double-width characters will be dealt with using a separate
      * font. For the moment we can simply return 1.
+     * 
+     * FIXME: but is that also true of Pango?
      */
     return 1;
 }
@@ -1920,7 +1919,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     struct gui_data *inst = dctx->inst;
     GdkGC *gc = dctx->gc;
     int ncombining, combining;
-    int nfg, nbg, t, fontid, shadow, rlen, widefactor;
+    int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
     int monochrome = gtk_widget_get_visual(inst->area)->depth == 1;
 
     if (attr & TATTR_COMBINING) {
@@ -1959,10 +1958,27 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     }
 
     if ((attr & ATTR_BOLD) && !inst->cfg.bold_colour) {
-	if (inst->fonts[fontid | 1])
-	    fontid |= 1;
-	else
-	    shadow = 1;
+	bold = 1;
+	fontid |= 1;
+    } else {
+	bold = 0;
+    }
+
+    if (!inst->fonts[fontid]) {
+	int i;
+	/*
+	 * Fall back through font ids with subsets of this one's
+	 * set bits, in order.
+	 */
+	for (i = fontid; i-- > 0 ;) {
+	    if (i & ~fontid)
+		continue;	       /* some other bit is set */
+	    if (inst->fonts[i]) {
+		fontid = i;
+		break;
+	    }
+	}
+	assert(inst->fonts[fontid]);   /* we should at least have hit zero */
     }
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
@@ -1993,82 +2009,27 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
     {
-	GdkWChar *gwcs;
 	gchar *gcs;
-	wchar_t *wcs;
-	int i;
 
-	wcs = snewn(len*ncombining+1, wchar_t);
-	for (i = 0; i < len*ncombining; i++) {
-	    wcs[i] = text[i];
-	}
+	/*
+	 * FIXME: this length is hardwired on the assumption that
+	 * conversions from wide to multibyte characters will
+	 * never generate more than 10 bytes for a single wide
+	 * character.
+	 */
+	gcs = snewn(len*10+1, gchar);
 
-	if (inst->fonts[fontid] == NULL && (fontid & 2)) {
-	    /*
-	     * We've been given ATTR_WIDE, but have no wide font.
-	     * Fall back to the non-wide font.
-	     */
-	    fontid &= ~2;
-	}
-
-	if (inst->fonts[fontid] == NULL) {
-	    /*
-	     * The font for this contingency does not exist. So we
-	     * display nothing at all; such is life.
-	     */
-	} else if (inst->fontinfo[fontid].is_wide) {
-	    /*
-	     * At least one version of gdk_draw_text_wc() has a
-	     * weird bug whereby it reads `len' elements of the
-	     * input string, but only draws `len/2'. Hence I'm
-	     * going to make its input array twice as long as it
-	     * theoretically needs to be, and pass in twice the
-	     * actual number of characters. If a fixed gdk actually
-	     * takes the doubled length seriously, then (a) the
-	     * array will stand scrutiny up to the full length, (b)
-	     * the spare elements of the array are full of zeroes
-	     * which will probably be an empty glyph in the font,
-	     * and (c) the clip rectangle should prevent it causing
-	     * trouble anyway.
-	     */
-	    gwcs = snewn(len*2+1, GdkWChar);
-	    memset(gwcs, 0, sizeof(GdkWChar) * (len*2+1));
-	    /*
-	     * FIXME: when we have a wide-char equivalent of
-	     * from_unicode, use it instead of this.
-	     */
-	    for (combining = 0; combining < ncombining; combining++) {
-		for (i = 0; i <= len; i++)
-		    gwcs[i] = wcs[i + combining];
-		gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
-				 x*inst->font_width+inst->cfg.window_border,
-				 y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-				 gwcs, len*2);
-		if (shadow)
-		    gdk_draw_text_wc(inst->pixmap, inst->fonts[fontid], gc,
-				     x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
-				     y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-				     gwcs, len*2);
-	    }
-	    sfree(gwcs);
-	} else {
-	    gcs = snewn(len+1, gchar);
-	    for (combining = 0; combining < ncombining; combining++) {
-		wc_to_mb(inst->fontinfo[fontid].charset, 0,
-			 wcs + combining, len, gcs, len, ".", NULL, NULL);
-		gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
+	for (combining = 0; combining < ncombining; combining++) {
+	    int mblen = wc_to_mb(inst->fonts[fontid]->real_charset, 0,
+				 text + combining, len, gcs, len*10+1, ".",
+				 NULL, NULL);
+	    unifont_draw_text(inst->pixmap, gc, inst->fonts[fontid],
 			      x*inst->font_width+inst->cfg.window_border,
 			      y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-			      gcs, len);
-		if (shadow)
-		    gdk_draw_text(inst->pixmap, inst->fonts[fontid], gc,
-				  x*inst->font_width+inst->cfg.window_border+inst->cfg.shadowboldoffset,
-				  y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-				  gcs, len);
-	    }
-	    sfree(gcs);
+			      gcs, mblen, widefactor > 1, bold);
 	}
-	sfree(wcs);
+
+	sfree(gcs);
     }
 
     if (attr & ATTR_UNDER) {
@@ -2633,70 +2594,6 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
     return err;
 }
 
-/*
- * This function retrieves the character set encoding of a font. It
- * returns the character set without the X11 hack (in case the user
- * asks to use the font's own encoding).
- */
-static int set_font_info(struct gui_data *inst, int fontid)
-{
-    GdkFont *font = inst->fonts[fontid];
-    XFontStruct *xfs = GDK_FONT_XFONT(font);
-    Display *disp = GDK_FONT_XDISPLAY(font);
-    Atom charset_registry, charset_encoding;
-    unsigned long registry_ret, encoding_ret;
-    int retval = CS_NONE;
-
-    charset_registry = XInternAtom(disp, "CHARSET_REGISTRY", False);
-    charset_encoding = XInternAtom(disp, "CHARSET_ENCODING", False);
-    inst->fontinfo[fontid].charset = CS_NONE;
-    inst->fontinfo[fontid].is_wide = 0;
-    if (XGetFontProperty(xfs, charset_registry, &registry_ret) &&
-	XGetFontProperty(xfs, charset_encoding, &encoding_ret)) {
-	char *reg, *enc;
-	reg = XGetAtomName(disp, (Atom)registry_ret);
-	enc = XGetAtomName(disp, (Atom)encoding_ret);
-	if (reg && enc) {
-	    char *encoding = dupcat(reg, "-", enc, NULL);
-	    retval = inst->fontinfo[fontid].charset =
-		charset_from_xenc(encoding);
-	    /* FIXME: when libcharset supports wide encodings fix this. */
-	    if (!strcasecmp(encoding, "iso10646-1")) {
-		inst->fontinfo[fontid].is_wide = 1;
-		retval = CS_UTF8;
-	    }
-
-	    /*
-	     * Hack for X line-drawing characters: if the primary
-	     * font is encoded as ISO-8859-anything, and has valid
-	     * glyphs in the first 32 char positions, it is assumed
-	     * that those glyphs are the VT100 line-drawing
-	     * character set.
-	     * 
-	     * Actually, we'll hack even harder by only checking
-	     * position 0x19 (vertical line, VT100 linedrawing
-	     * `x'). Then we can check it easily by seeing if the
-	     * ascent and descent differ.
-	     */
-	    if (inst->fontinfo[fontid].charset == CS_ISO8859_1) {
-		int lb, rb, wid, asc, desc;
-		gchar text[2];
-
-		text[1] = '\0';
-		text[0] = '\x12';
-		gdk_string_extents(inst->fonts[fontid], text,
-				   &lb, &rb, &wid, &asc, &desc);
-		if (asc != desc)
-		    inst->fontinfo[fontid].charset = CS_ISO8859_1_X11;
-	    }
-
-	    sfree(encoding);
-	}
-    }
-
-    return retval;
-}
-
 int uxsel_input_add(int fd, int rwx) {
     int flags = 0;
     if (rwx & 1) flags |= GDK_INPUT_READ;
@@ -2710,173 +2607,71 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
-char *guess_derived_font_name(GdkFont *font, int bold, int wide)
-{
-    XFontStruct *xfs = GDK_FONT_XFONT(font);
-    Display *disp = GDK_FONT_XDISPLAY(font);
-    Atom fontprop = XInternAtom(disp, "FONT", False);
-    unsigned long ret;
-    if (XGetFontProperty(xfs, fontprop, &ret)) {
-	char *name = XGetAtomName(disp, (Atom)ret);
-	if (name && name[0] == '-') {
-	    char *strings[13];
-	    char *dupname, *extrafree = NULL, *ret;
-	    char *p, *q;
-	    int nstr;
-
-	    p = q = dupname = dupstr(name); /* skip initial minus */
-	    nstr = 0;
-
-	    while (*p && nstr < lenof(strings)) {
-		if (*p == '-') {
-		    *p = '\0';
-		    strings[nstr++] = p+1;
-		}
-		p++;
-	    }
-
-	    if (nstr < lenof(strings))
-		return NULL;	       /* XLFD was malformed */
-
-	    if (bold)
-		strings[2] = "bold";
-
-	    if (wide) {
-		/* 4 is `wideness', which obviously may have changed. */
-		/* 5 is additional style, which may be e.g. `ja' or `ko'. */
-		strings[4] = strings[5] = "*";
-		strings[11] = extrafree = dupprintf("%d", 2*atoi(strings[11]));
-	    }
-
-	    ret = dupcat("-", strings[ 0], "-", strings[ 1], "-", strings[ 2],
-			 "-", strings[ 3], "-", strings[ 4], "-", strings[ 5],
-			 "-", strings[ 6], "-", strings[ 7], "-", strings[ 8],
-			 "-", strings[ 9], "-", strings[10], "-", strings[11],
-			 "-", strings[12], NULL);
-	    sfree(extrafree);
-	    sfree(dupname);
-
-	    return ret;
-	}
-    }
-    return NULL;
-}
-
 void setup_fonts_ucs(struct gui_data *inst)
 {
-    int font_charset;
-    char *name;
-    int guessed;
-
     if (inst->fonts[0])
-        gdk_font_unref(inst->fonts[0]);
+        unifont_destroy(inst->fonts[0]);
     if (inst->fonts[1])
-        gdk_font_unref(inst->fonts[1]);
+        unifont_destroy(inst->fonts[1]);
     if (inst->fonts[2])
-        gdk_font_unref(inst->fonts[2]);
+        unifont_destroy(inst->fonts[2]);
     if (inst->fonts[3])
-        gdk_font_unref(inst->fonts[3]);
+        unifont_destroy(inst->fonts[3]);
 
-    inst->fonts[0] = gdk_font_load(inst->cfg.font.name);
+    inst->fonts[0] = unifont_create(inst->cfg.font.name, FALSE, FALSE,
+				    inst->cfg.shadowboldoffset,
+				    inst->cfg.shadowbold);
     if (!inst->fonts[0]) {
 	fprintf(stderr, "%s: unable to load font \"%s\"\n", appname,
 		inst->cfg.font.name);
 	exit(1);
     }
-    gdk_font_ref(inst->fonts[0]);
-    font_charset = set_font_info(inst, 0);
 
-    if (inst->cfg.shadowbold) {
+    if (inst->cfg.shadowbold || !inst->cfg.boldfont.name[0]) {
 	inst->fonts[1] = NULL;
     } else {
-	if (inst->cfg.boldfont.name[0]) {
-	    name = inst->cfg.boldfont.name;
-	    guessed = FALSE;
-	} else {
-	    name = guess_derived_font_name(inst->fonts[0], TRUE, FALSE);
-	    guessed = TRUE;
-	}
-	inst->fonts[1] = name ? gdk_font_load(name) : NULL;
-	if (inst->fonts[1]) {
-	    gdk_font_ref(inst->fonts[1]);
-	    set_font_info(inst, 1);
-	} else if (!guessed) {
+	inst->fonts[1] = unifont_create(inst->cfg.boldfont.name, FALSE, TRUE,
+					inst->cfg.shadowboldoffset,
+					inst->cfg.shadowbold);
+	if (!inst->fonts[1]) {
 	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
 		    inst->cfg.boldfont.name);
 	    exit(1);
 	}
-	if (guessed)
-	    sfree(name);
     }
 
     if (inst->cfg.widefont.name[0]) {
-	name = inst->cfg.widefont.name;
-	guessed = FALSE;
-    } else {
-	name = guess_derived_font_name(inst->fonts[0], FALSE, TRUE);
-	guessed = TRUE;
-    }
-    inst->fonts[2] = name ? gdk_font_load(name) : NULL;
-    if (inst->fonts[2]) {
-	gdk_font_ref(inst->fonts[2]);
-	set_font_info(inst, 2);
-    } else if (!guessed) {
-	fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
-		inst->cfg.widefont.name);
-	exit(1);
-    }
-    if (guessed)
-	sfree(name);
-
-    if (inst->cfg.shadowbold) {
-	inst->fonts[3] = NULL;
-    } else {
-	if (inst->cfg.wideboldfont.name[0]) {
-	    name = inst->cfg.wideboldfont.name;
-	    guessed = FALSE;
-	} else {
-	    /*
-	     * Here we have some choices. We can widen the bold font,
-	     * bolden the wide font, or widen and bolden the standard
-	     * font. Try them all, in that order!
-	     */
-	    if (inst->cfg.widefont.name[0])
-		name = guess_derived_font_name(inst->fonts[2], TRUE, FALSE);
-	    else if (inst->cfg.boldfont.name[0])
-		name = guess_derived_font_name(inst->fonts[1], FALSE, TRUE);
-	    else
-		name = guess_derived_font_name(inst->fonts[0], TRUE, TRUE);
-	    guessed = TRUE;
-	}
-	inst->fonts[3] = name ? gdk_font_load(name) : NULL;
-	if (inst->fonts[3]) {
-	    gdk_font_ref(inst->fonts[3]);
-	    set_font_info(inst, 3);
-	} else if (!guessed) {
-	    fprintf(stderr, "%s: unable to load wide/bold font \"%s\"\n", appname,
-		    inst->cfg.wideboldfont.name);
+	inst->fonts[2] = unifont_create(inst->cfg.widefont.name, TRUE, FALSE,
+					inst->cfg.shadowboldoffset,
+					inst->cfg.shadowbold);
+	if (!inst->fonts[2]) {
+	    fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
+		    inst->cfg.widefont.name);
 	    exit(1);
 	}
-	if (guessed)
-	    sfree(name);
+    } else {
+	inst->fonts[2] = NULL;
     }
 
-    inst->font_width = gdk_char_width(inst->fonts[0], ' ');
-    if (!inst->font_width) {
-	/* Maybe this is a 16-bit font? If so, GDK 2 actually expects a
-	 * pointer to an XChar2b. This is pretty revolting. Can Pango do
-	 * this more neatly even for server-side fonts?
-	 */
-	XChar2b space;
-	space.byte1 = 0;
-	space.byte2 = ' ';
-	inst->font_width = gdk_text_width(inst->fonts[0],
-					  (const gchar *)&space, 2);
+    if (inst->cfg.shadowbold || !inst->cfg.wideboldfont.name[0]) {
+	inst->fonts[3] = NULL;
+    } else {
+	inst->fonts[3] = unifont_create(inst->cfg.wideboldfont.name, TRUE,
+					TRUE, inst->cfg.shadowboldoffset,
+					inst->cfg.shadowbold);
+	if (!inst->fonts[3]) {
+	    fprintf(stderr, "%s: unable to load wide bold font \"%s\"\n", appname,
+		    inst->cfg.boldfont.name);
+	    exit(1);
+	}
     }
-    inst->font_height = inst->fonts[0]->ascent + inst->fonts[0]->descent;
+
+    inst->font_width = inst->fonts[0]->width;
+    inst->font_height = inst->fonts[0]->height;
 
     inst->direct_to_font = init_ucs(&inst->ucsdata, inst->cfg.line_codepage,
-				    inst->cfg.utf8_override, font_charset,
+				    inst->cfg.utf8_override,
+				    inst->fonts[0]->public_charset,
 				    inst->cfg.vtmode);
 }
 
