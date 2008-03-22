@@ -25,10 +25,11 @@
 /*
  * To do:
  * 
- *  - import flags to do VT100 double-width, and import the icky
- *    pixmap stretch code for it.
+ *  - import flags to do VT100 double-width; import the icky
+ *    pixmap stretch code on to the X11 side, and do something
+ *    nicer in Pango.
  * 
- *  - add the Pango back end!
+ *  - unified font selector dialog, arrgh!
  */
 
 /*
@@ -56,12 +57,12 @@ struct unifont_vtable {
     /*
      * `Methods' of the `class'.
      */
-    unifont *(*create)(char *name, int wide, int bold,
+    unifont *(*create)(GtkWidget *widget, char *name, int wide, int bold,
 		       int shadowoffset, int shadowalways);
     void (*destroy)(unifont *font);
     void (*draw_text)(GdkDrawable *target, GdkGC *gc, unifont *font,
 		      int x, int y, const char *string, int len, int wide,
-		      int bold);
+		      int bold, int cellwidth);
     /*
      * `Static data members' of the `class'.
      */
@@ -74,8 +75,9 @@ struct unifont_vtable {
 
 static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 			      int x, int y, const char *string, int len,
-			      int wide, int bold);
-static unifont *x11font_create(char *name, int wide, int bold,
+			      int wide, int bold, int cellwidth);
+static unifont *x11font_create(GtkWidget *widget, char *name,
+			       int wide, int bold,
 			       int shadowoffset, int shadowalways);
 static void x11font_destroy(unifont *font);
 
@@ -99,11 +101,6 @@ struct x11font {
      * whether we use gdk_draw_text_wc() or gdk_draw_text().
      */
     int sixteen_bit;
-    /*
-     * Font charsets. public_charset and real_charset can differ
-     * for X11 fonts, because many X fonts use CS_ISO8859_1_X11.
-     */
-    int public_charset, real_charset;
     /*
      * Data passed in to unifont_create().
      */
@@ -181,7 +178,8 @@ static int x11_font_width(GdkFont *font, int sixteen_bit)
     }
 }
 
-static unifont *x11font_create(char *name, int wide, int bold,
+static unifont *x11font_create(GtkWidget *widget, char *name,
+			       int wide, int bold,
 			       int shadowoffset, int shadowalways)
 {
     struct x11font *xfont;
@@ -299,7 +297,7 @@ static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 
 static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 			      int x, int y, const char *string, int len,
-			      int wide, int bold)
+			      int wide, int bold, int cellwidth)
 {
     struct x11font *xfont = (struct x11font *)font;
     int sfid;
@@ -375,6 +373,164 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 }
 
 /* ----------------------------------------------------------------------
+ * Pango font implementation.
+ */
+
+static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
+				int x, int y, const char *string, int len,
+				int wide, int bold, int cellwidth);
+static unifont *pangofont_create(GtkWidget *widget, char *name,
+				 int wide, int bold,
+				 int shadowoffset, int shadowalways);
+static void pangofont_destroy(unifont *font);
+
+struct pangofont {
+    struct unifont u;
+    /*
+     * Pango objects.
+     */
+    PangoFontDescription *desc;
+    PangoFontset *fset;
+    /*
+     * The containing widget.
+     */
+    GtkWidget *widget;
+    /*
+     * Data passed in to unifont_create().
+     */
+    int bold, shadowoffset, shadowalways;
+};
+
+static const struct unifont_vtable pangofont_vtable = {
+    pangofont_create,
+    pangofont_destroy,
+    pangofont_draw_text,
+    "pango"
+};
+
+static unifont *pangofont_create(GtkWidget *widget, char *name,
+				 int wide, int bold,
+				 int shadowoffset, int shadowalways)
+{
+    struct pangofont *pfont;
+    PangoContext *ctx;
+    PangoFontMap *map;
+    PangoFontDescription *desc;
+    PangoFontset *fset;
+    PangoFontMetrics *metrics;
+
+    desc = pango_font_description_from_string(name);
+    if (!desc)
+	return NULL;
+    ctx = gtk_widget_get_pango_context(widget);
+    if (!ctx) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    map = pango_context_get_font_map(ctx);
+    if (!map) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    fset = pango_font_map_load_fontset(map, ctx, desc,
+				       pango_context_get_language(ctx));
+    if (!fset) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    metrics = pango_fontset_get_metrics(fset);
+    if (!metrics ||
+	pango_font_metrics_get_approximate_digit_width(metrics) == 0) {
+	pango_font_description_free(desc);
+	g_object_unref(fset);
+	return NULL;
+    }
+
+    pfont = snew(struct pangofont);
+    pfont->u.vt = &pangofont_vtable;
+    pfont->u.width =
+	PANGO_PIXELS(pango_font_metrics_get_approximate_digit_width(metrics));
+    pfont->u.ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
+    pfont->u.descent = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
+    pfont->u.height = pfont->u.ascent + pfont->u.descent;
+    /* The Pango API is hardwired to UTF-8 */
+    pfont->u.public_charset = CS_UTF8;
+    pfont->u.real_charset = CS_UTF8;
+    pfont->desc = desc;
+    pfont->fset = fset;
+    pfont->widget = widget;
+    pfont->bold = bold;
+    pfont->shadowoffset = shadowoffset;
+    pfont->shadowalways = shadowalways;
+
+    return (unifont *)pfont;
+}
+
+static void pangofont_destroy(unifont *font)
+{
+    struct pangofont *pfont = (struct pangofont *)font;
+    pfont = pfont;		       /* FIXME */
+    pango_font_description_free(pfont->desc);
+    g_object_unref(pfont->fset);
+    sfree(font);
+}
+
+static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
+				int x, int y, const char *string, int len,
+				int wide, int bold, int cellwidth)
+{
+    struct pangofont *pfont = (struct pangofont *)font;
+    PangoLayout *layout;
+    PangoRectangle rect;
+    int shadowbold = FALSE;
+
+    if (wide)
+	cellwidth *= 2;
+
+    y -= pfont->u.ascent;
+
+    layout = pango_layout_new(gtk_widget_get_pango_context(pfont->widget));
+    pango_layout_set_font_description(layout, pfont->desc);
+    if (bold > pfont->bold) {
+	if (pfont->shadowalways)
+	    shadowbold = TRUE;
+	else {
+	    PangoFontDescription *desc2 =
+		pango_font_description_copy_static(pfont->desc);
+	    pango_font_description_set_weight(desc2, PANGO_WEIGHT_BOLD);
+	    pango_layout_set_font_description(layout, desc2);
+	}
+    }
+
+    while (len > 0) {
+	int clen;
+
+	/*
+	 * Extract a single UTF-8 character from the string.
+	 */
+	clen = 1;
+	while (clen < len &&
+	       (unsigned char)string[clen] >= 0x80 &&
+	       (unsigned char)string[clen] < 0xC0)
+	    clen++;
+
+	pango_layout_set_text(layout, string, clen);
+	pango_layout_get_pixel_extents(layout, NULL, &rect);
+	gdk_draw_layout(target, gc, x + (cellwidth - rect.width)/2,
+			y + (pfont->u.height - rect.height)/2, layout);
+	if (shadowbold)
+	    gdk_draw_layout(target, gc, x + (cellwidth - rect.width)/2 + pfont->shadowoffset,
+			    y + (pfont->u.height - rect.height)/2, layout);
+
+	len -= clen;
+	string += clen;
+	x += cellwidth;
+    }
+
+    g_object_unref(layout);
+}
+
+/* ----------------------------------------------------------------------
  * Outermost functions which do the vtable dispatch.
  */
 
@@ -385,9 +541,10 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
  * the font name.
  */
 static const struct unifont_vtable *unifont_types[] = {
+    &pangofont_vtable,
     &x11font_vtable,
 };
-unifont *unifont_create(char *name, int wide, int bold,
+unifont *unifont_create(GtkWidget *widget, char *name, int wide, int bold,
 			int shadowoffset, int shadowalways)
 {
     int colonpos = strcspn(name, ":");
@@ -405,14 +562,14 @@ unifont *unifont_create(char *name, int wide, int bold,
 	}
 	if (i == lenof(unifont_types))
 	    return NULL;	       /* prefix not recognised */
-	return unifont_types[i]->create(name+colonpos+1, wide, bold,
+	return unifont_types[i]->create(widget, name+colonpos+1, wide, bold,
 					shadowoffset, shadowalways);
     } else {
 	/*
 	 * No colon prefix, so just go through all the subclasses.
 	 */
 	for (i = 0; i < lenof(unifont_types); i++) {
-	    unifont *ret = unifont_types[i]->create(name, wide, bold,
+	    unifont *ret = unifont_types[i]->create(widget, name, wide, bold,
 						    shadowoffset,
 						    shadowalways);
 	    if (ret)
@@ -429,7 +586,8 @@ void unifont_destroy(unifont *font)
 
 void unifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 		       int x, int y, const char *string, int len,
-		       int wide, int bold)
+		       int wide, int bold, int cellwidth)
 {
-    font->vt->draw_text(target, gc, font, x, y, string, len, wide, bold);
+    font->vt->draw_text(target, gc, font, x, y, string, len,
+			wide, bold, cellwidth);
 }

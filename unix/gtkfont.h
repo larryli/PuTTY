@@ -36,11 +36,11 @@ typedef struct unifont {
     int width, height, ascent, descent;
 } unifont;
 
-unifont *unifont_create(char *name, int wide, int bold,
+unifont *unifont_create(GtkWidget *widget, char *name, int wide, int bold,
 			int shadowoffset, int shadowalways);
 void unifont_destroy(unifont *font);
 void unifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 		       int x, int y, const char *string, int len,
-		       int wide, int bold);
+		       int wide, int bold, int cellwidth);
 
 #endif /* PUTTY_GTKFONT_H */

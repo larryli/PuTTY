@@ -1455,7 +1455,7 @@ void palette_reset(void *frontend)
     /* Since Default Background may have changed, ensure that space
      * between text area and window border is refreshed. */
     set_window_background(inst);
-    if (inst->area) {
+    if (inst->area && inst->area->window) {
 	draw_backing_rect(inst);
 	gtk_widget_queue_draw(inst->area);
     }
@@ -2026,7 +2026,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	    unifont_draw_text(inst->pixmap, gc, inst->fonts[fontid],
 			      x*inst->font_width+inst->cfg.window_border,
 			      y*inst->font_height+inst->cfg.window_border+inst->fonts[0]->ascent,
-			      gcs, mblen, widefactor > 1, bold);
+			      gcs, mblen, widefactor > 1, bold, inst->font_width);
 	}
 
 	sfree(gcs);
@@ -2618,7 +2618,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     if (inst->fonts[3])
         unifont_destroy(inst->fonts[3]);
 
-    inst->fonts[0] = unifont_create(inst->cfg.font.name, FALSE, FALSE,
+    inst->fonts[0] = unifont_create(inst->area, inst->cfg.font.name,
+				    FALSE, FALSE,
 				    inst->cfg.shadowboldoffset,
 				    inst->cfg.shadowbold);
     if (!inst->fonts[0]) {
@@ -2630,7 +2631,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     if (inst->cfg.shadowbold || !inst->cfg.boldfont.name[0]) {
 	inst->fonts[1] = NULL;
     } else {
-	inst->fonts[1] = unifont_create(inst->cfg.boldfont.name, FALSE, TRUE,
+	inst->fonts[1] = unifont_create(inst->area, inst->cfg.boldfont.name,
+					FALSE, TRUE,
 					inst->cfg.shadowboldoffset,
 					inst->cfg.shadowbold);
 	if (!inst->fonts[1]) {
@@ -2641,7 +2643,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     }
 
     if (inst->cfg.widefont.name[0]) {
-	inst->fonts[2] = unifont_create(inst->cfg.widefont.name, TRUE, FALSE,
+	inst->fonts[2] = unifont_create(inst->area, inst->cfg.widefont.name,
+					TRUE, FALSE,
 					inst->cfg.shadowboldoffset,
 					inst->cfg.shadowbold);
 	if (!inst->fonts[2]) {
@@ -2656,7 +2659,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     if (inst->cfg.shadowbold || !inst->cfg.wideboldfont.name[0]) {
 	inst->fonts[3] = NULL;
     } else {
-	inst->fonts[3] = unifont_create(inst->cfg.wideboldfont.name, TRUE,
+	inst->fonts[3] = unifont_create(inst->area,
+					inst->cfg.wideboldfont.name, TRUE,
 					TRUE, inst->cfg.shadowboldoffset,
 					inst->cfg.shadowbold);
 	if (!inst->fonts[3]) {
@@ -3320,6 +3324,8 @@ int pt_main(int argc, char **argv)
     if (!utf8_string_atom)
         utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
+    inst->area = gtk_drawing_area_new();
+
     setup_fonts_ucs(inst);
     init_cutbuffers();
 
@@ -3333,7 +3339,6 @@ int pt_main(int argc, char **argv)
     inst->width = inst->cfg.width;
     inst->height = inst->cfg.height;
 
-    inst->area = gtk_drawing_area_new();
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
 			  inst->font_width * inst->cfg.width + 2*inst->cfg.window_border,
 			  inst->font_height * inst->cfg.height + 2*inst->cfg.window_border);
