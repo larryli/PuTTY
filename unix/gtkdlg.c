@@ -13,6 +13,7 @@
 #include <X11/Xutil.h>
 
 #include "gtkcols.h"
+#include "gtkfont.h"
 
 #ifdef TESTMODE
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
@@ -1221,11 +1222,12 @@ static void filesel_ok(GtkButton *button, gpointer data)
 static void fontsel_ok(GtkButton *button, gpointer data)
 {
     /* struct dlgparam *dp = (struct dlgparam *)data; */
-    gpointer fontsel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
-    struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(fontsel), "user-data");
-    const char *name = gtk_font_selection_dialog_get_font_name
-	(GTK_FONT_SELECTION_DIALOG(fontsel));
+    unifontsel *fontsel = (unifontsel *)gtk_object_get_data
+	(GTK_OBJECT(button), "user-data");
+    struct uctrl *uc = (struct uctrl *)fontsel->user_data;
+    char *name = unifontsel_get_name(fontsel);
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+    sfree(name);
 }
 
 static void coloursel_ok(GtkButton *button, gpointer data)
@@ -1279,60 +1281,25 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     }
 
     if (uc->ctrl->generic.type == CTRL_FONTSELECT) {
-#if !GTK_CHECK_VERSION(2,0,0)
-	gchar *spacings[] = { "c", "m", NULL };
-#endif
         const gchar *fontname = gtk_entry_get_text(GTK_ENTRY(uc->entry));
-	/* TODO: In GTK 2, this only seems to offer client-side fonts. */
-	GtkWidget *fontsel =
-	    gtk_font_selection_dialog_new("Select a font");
-	gtk_window_set_modal(GTK_WINDOW(fontsel), TRUE);
-#if !GTK_CHECK_VERSION(2,0,0)
-	gtk_font_selection_dialog_set_filter
-	    (GTK_FONT_SELECTION_DIALOG(fontsel),
-	     GTK_FONT_FILTER_BASE, GTK_FONT_ALL,
-	     NULL, NULL, NULL, NULL, spacings, NULL);
-#endif
-	if (!gtk_font_selection_dialog_set_font_name
-	    (GTK_FONT_SELECTION_DIALOG(fontsel), fontname)) {
-            /*
-             * If the font name wasn't found as it was, try opening
-             * it and extracting its FONT property. This should
-             * have the effect of mapping short aliases into true
-             * XLFDs.
-             */
-            GdkFont *font = gdk_font_load(fontname);
-            if (font) {
-                XFontStruct *xfs = GDK_FONT_XFONT(font);
-                Display *disp = GDK_FONT_XDISPLAY(font);
-                Atom fontprop = XInternAtom(disp, "FONT", False);
-                unsigned long ret;
-		gdk_font_ref(font);
-                if (XGetFontProperty(xfs, fontprop, &ret)) {
-                    char *name = XGetAtomName(disp, (Atom)ret);
-                    if (name)
-                        gtk_font_selection_dialog_set_font_name
-                        (GTK_FONT_SELECTION_DIALOG(fontsel), name);
-                }
-                gdk_font_unref(font);
-            }
-        }
-	gtk_object_set_data
-	    (GTK_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
-	     "user-data", (gpointer)fontsel);
-	gtk_object_set_data(GTK_OBJECT(fontsel), "user-data", (gpointer)uc);
-	gtk_signal_connect
-	    (GTK_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
-	     "clicked", GTK_SIGNAL_FUNC(fontsel_ok), (gpointer)dp);
-	gtk_signal_connect_object
-	    (GTK_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
-	     "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy),
-	     (gpointer)fontsel);
-	gtk_signal_connect_object
-	    (GTK_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->cancel_button),
-	     "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy),
-	     (gpointer)fontsel);
-	gtk_widget_show(fontsel);
+	unifontsel *fontsel = unifontsel_new("Select a font");
+
+	gtk_window_set_modal(fontsel->window, TRUE);
+	unifontsel_set_name(fontsel, fontname);
+	
+	gtk_object_set_data(GTK_OBJECT(fontsel->ok_button),
+			    "user-data", (gpointer)fontsel);
+	fontsel->user_data = uc;
+	gtk_signal_connect(GTK_OBJECT(fontsel->ok_button), "clicked",
+			   GTK_SIGNAL_FUNC(fontsel_ok), (gpointer)dp);
+	gtk_signal_connect_object(GTK_OBJECT(fontsel->ok_button), "clicked",
+				  GTK_SIGNAL_FUNC(unifontsel_destroy),
+				  (gpointer)fontsel);
+	gtk_signal_connect_object(GTK_OBJECT(fontsel->cancel_button),"clicked",
+				  GTK_SIGNAL_FUNC(unifontsel_destroy),
+				  (gpointer)fontsel);
+
+	gtk_widget_show(GTK_WIDGET(fontsel->window));
     }
 }
 
