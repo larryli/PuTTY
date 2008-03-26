@@ -46,8 +46,7 @@
  *  - work out why the list boxes don't go all the way to the RHS
  *    of the dialog box
  * 
- *  - develop a sensible sorting order for the font styles -
- *    Regular / Roman / non-bold-or-italic should come at the top!
+ *  - construct a stylekey for X11 fonts
  * 
  *  - big testing and shakedown!
  */
@@ -90,7 +89,8 @@
 
 typedef void (*fontsel_add_entry)(void *ctx, const char *realfontname,
 				  const char *family, const char *charset,
-				  const char *style, int size, int flags,
+				  const char *style, const char *stylekey,
+				  int size, int flags,
 				  const struct unifont_vtable *fontclass);
 
 struct unifont_vtable {
@@ -536,7 +536,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     */
 	    if (fontsize)
 		callback(callback_ctx, fontnames[i], font, charset,
-			 style, fontsize, flags, &x11font_vtable);
+			 style, NULL, fontsize, flags, &x11font_vtable);
 	} else {
 	    /*
 	     * This isn't an XLFD, so it must be an alias.
@@ -547,7 +547,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     * anything but computationally hideous. Ah well.
 	     */
 	    callback(callback_ctx, fontnames[i], fontnames[i], NULL,
-		     NULL, 0, FONTFLAG_SERVERALIAS, &x11font_vtable);
+		     NULL, NULL, 0, FONTFLAG_SERVERALIAS, &x11font_vtable);
 	}
     }
     XFreeFontNames(fontnames);
@@ -883,10 +883,38 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 	     */
 	    for (k = 0; k < nsizes; k++) {
 		char *fullname;
+		char stylekey[128];
 
 		pango_font_description_set_size(desc, sizes[k]);
 
 		fullname = pango_font_description_to_string(desc);
+
+		/*
+		 * Construct the sorting key for font styles.
+		 */
+		{
+		    char *p = stylekey;
+		    int n;
+
+		    n = pango_font_description_get_weight(desc);
+		    /* Weight: normal, then lighter, then bolder */
+		    if (n <= PANGO_WEIGHT_NORMAL)
+			n = PANGO_WEIGHT_NORMAL - n;
+		    p += sprintf(p, "%4d", n);
+
+		    n = pango_font_description_get_style(desc);
+		    p += sprintf(p, " %2d", n);
+
+		    n = pango_font_description_get_stretch(desc);
+		    /* Stretch: closer to normal sorts earlier */
+		    n = 2 * abs(PANGO_STRETCH_NORMAL - n) +
+			(n < PANGO_STRETCH_NORMAL);
+		    p += sprintf(p, " %2d", n);
+
+		    n = pango_font_description_get_variant(desc);
+		    p += sprintf(p, " %2d", n);
+		    
+		}
 
 		/*
 		 * Got everything. Hand off to the callback.
@@ -894,6 +922,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 		 * server-side X fonts use it.)
 		 */
 		callback(callback_ctx, fullname, familyname, NULL, facename,
+			 stylekey,
 			 (sizes == &dummysize ? 0 : PANGO_PIXELS(sizes[k])),
 			 flags, &pangofont_vtable);
 
@@ -1106,7 +1135,7 @@ typedef struct unifontsel_internal {
  */
 struct fontinfo {
     char *realname;
-    char *family, *charset, *style;
+    char *family, *charset, *style, *stylekey;
     int size, flags;
     /*
      * Fallback sorting key, to permit multiple identical entries
@@ -1170,6 +1199,8 @@ static int fontinfo_selorder_compare(void *av, void *bv)
     if ((i = strnullcasecmp(a->family, b->family)) != 0)
 	return i;
     if ((i = strnullcasecmp(a->charset, b->charset)) != 0)
+	return i;
+    if ((i = strnullcasecmp(a->stylekey, b->stylekey)) != 0)
 	return i;
     if ((i = strnullcasecmp(a->style, b->style)) != 0)
 	return i;
@@ -1504,7 +1535,8 @@ static void unifontsel_button_toggled(GtkToggleButton *tb, gpointer data)
 
 static void unifontsel_add_entry(void *ctx, const char *realfontname,
 				 const char *family, const char *charset,
-				 const char *style, int size, int flags,
+				 const char *style, const char *stylekey,
+				 int size, int flags,
 				 const struct unifont_vtable *fontclass)
 {
     unifontsel_internal *fs = (unifontsel_internal *)ctx;
@@ -1514,7 +1546,7 @@ static void unifontsel_add_entry(void *ctx, const char *realfontname,
 
     totalsize = sizeof(fontinfo) + strlen(realfontname) +
 	(family ? strlen(family) : 0) + (charset ? strlen(charset) : 0) +
-	(style ? strlen(style) : 0) + 10;
+	(style ? strlen(style) : 0) + (stylekey ? strlen(stylekey) : 0) + 10;
     info = (fontinfo *)smalloc(totalsize);
     info->fontclass = fontclass;
     p = (char *)info + sizeof(fontinfo);
@@ -1539,6 +1571,12 @@ static void unifontsel_add_entry(void *ctx, const char *realfontname,
 	p += 1+strlen(p);
     } else
 	info->style = NULL;
+    if (stylekey) {
+	info->stylekey = p;
+	strcpy(p, stylekey);
+	p += 1+strlen(p);
+    } else
+	info->stylekey = NULL;
     assert(p - (char *)info <= totalsize);
     info->size = size;
     info->flags = flags;
