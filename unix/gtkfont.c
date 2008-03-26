@@ -1843,7 +1843,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 {
     unifontsel_internal *fs = (unifontsel_internal *)fontsel;
     int i, start, end, size;
-    const char *fontname2;
+    const char *fontname2 = NULL;
     fontinfo *info;
 
     /*
