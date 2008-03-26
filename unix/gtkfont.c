@@ -46,8 +46,6 @@
  *  - work out why the list boxes don't go all the way to the RHS
  *    of the dialog box
  * 
- *  - construct a stylekey for X11 fonts
- * 
  *  - big testing and shakedown!
  */
 
@@ -452,10 +450,11 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     * we'll be using in the font selector.
 	     */
 	    char *components[14];
-	    char *p, *font, *style, *charset;
-	    int j, thistmpsize, fontsize, flags;
+	    char *p, *font, *style, *stylekey, *charset;
+	    int j, weightkey, slantkey, setwidthkey;
+	    int thistmpsize, fontsize, flags;
 
-	    thistmpsize = 3 * strlen(fontnames[i]) + 256;
+	    thistmpsize = 4 * strlen(fontnames[i]) + 256;
 	    if (tmpsize < thistmpsize) {
 		tmpsize = thistmpsize;
 		tmp = sresize(tmp, tmpsize, char);
@@ -488,10 +487,8 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	    p += 1 + sprintf(p, "%s-%s", components[12], components[13]);
 
 	    /*
-	     * Style is a mixture of the weight, slant, set_width
-	     * and spacing fields (respectively 2, 3, 4 and 10)
-	     * with some strange formatting. (Again, cribbed
-	     * entirely from the GTK 1.2 font selector.)
+	     * Style is a mixture of quite a lot of the fields,
+	     * with some strange formatting.
 	     */
 	    style = p;
 	    p += sprintf(p, "%s", components[2][0] ? components[2] :
@@ -512,6 +509,48 @@ static void x11font_enum_fonts(GtkWidget *widget,
 		p += sprintf(p, " [M]");
 	    if (!g_strcasecmp(components[10], "c"))
 		p += sprintf(p, " [C]");
+	    if (components[5][0])
+		p += sprintf(p, " %s", components[5]);
+
+	    /*
+	     * Style key is the same stuff as above, but with a
+	     * couple of transformations done on it to make it
+	     * sort more sensibly.
+	     */
+	    p++;
+	    stylekey = p;
+	    if (!g_strcasecmp(components[2], "medium") ||
+		!g_strcasecmp(components[2], "regular") ||
+		!g_strcasecmp(components[2], "normal") ||
+		!g_strcasecmp(components[2], "book"))
+		weightkey = 0;
+	    else if (!g_strncasecmp(components[2], "demi", 4) ||
+		     !g_strncasecmp(components[2], "semi", 4))
+		weightkey = 1;
+	    else
+		weightkey = 2;
+	    if (!g_strcasecmp(components[3], "r"))
+		slantkey = 0;
+	    else if (!g_strncasecmp(components[3], "r", 1))
+		slantkey = 2;
+	    else
+		slantkey = 1;
+	    if (!g_strcasecmp(components[4], "normal"))
+		setwidthkey = 0;
+	    else
+		setwidthkey = 1;
+
+	    p += sprintf(p, "%04d%04d%s%04d%04d%s%04d%04d%s%04d%s%04d%s",
+			 weightkey,
+			 strlen(components[2]), components[2],
+			 slantkey,
+			 strlen(components[3]), components[3],
+			 setwidthkey,
+			 strlen(components[4]), components[4],
+			 strlen(components[10]), components[10],
+			 strlen(components[5]), components[5]);
+
+	    assert(p - tmp < thistmpsize);
 
 	    /*
 	     * Size is in pixels, for our application, so we
@@ -536,7 +575,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     */
 	    if (fontsize)
 		callback(callback_ctx, fontnames[i], font, charset,
-			 style, NULL, fontsize, flags, &x11font_vtable);
+			 style, stylekey, fontsize, flags, &x11font_vtable);
 	} else {
 	    /*
 	     * This isn't an XLFD, so it must be an alias.
