@@ -2161,7 +2161,9 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
      * of the time (one separating the tree view from the main
      * controls, and another for the main controls themselves).
      */
+#if GTK_CHECK_VERSION(2,4,0)
     gtk_alignment_set_padding(GTK_ALIGNMENT(align), 8, 8, 8, 8);
+#endif
     gtk_widget_show(align);
     gtk_box_pack_end(GTK_BOX(dlg->vbox), align, FALSE, TRUE, 0);
     w = gtk_hseparator_new();

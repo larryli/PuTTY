@@ -653,7 +653,9 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
 {
     struct pangofont *pfont;
     PangoContext *ctx;
+#ifndef PANGO_PRE_1POINT6
     PangoFontMap *map;
+#endif
     PangoFontDescription *desc;
     PangoFontset *fset;
     PangoFontMetrics *metrics;
@@ -666,6 +668,7 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
 	pango_font_description_free(desc);
 	return NULL;
     }
+#ifndef PANGO_PRE_1POINT6
     map = pango_context_get_font_map(ctx);
     if (!map) {
 	pango_font_description_free(desc);
@@ -673,6 +676,10 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
     }
     fset = pango_font_map_load_fontset(map, ctx, desc,
 				       pango_context_get_language(ctx));
+#else
+    fset = pango_context_load_fontset(ctx, desc,
+                                      pango_context_get_language(ctx));
+#endif
     if (!fset) {
 	pango_font_description_free(desc);
 	return NULL;
@@ -781,25 +788,28 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 				 void *callback_ctx)
 {
     PangoContext *ctx;
+#ifndef PANGO_PRE_1POINT6
     PangoFontMap *map;
+#endif
     PangoFontFamily **families;
     int i, nfamilies;
 
-    /*
-     * Find the active font map.
-     */
     ctx = gtk_widget_get_pango_context(widget);
     if (!ctx)
 	return;
+
+    /*
+     * Ask Pango for a list of font families, and iterate through
+     * them.
+     */
+#ifndef PANGO_PRE_1POINT6
     map = pango_context_get_font_map(ctx);
     if (!map)
 	return;
-
-    /*
-     * Ask the font map for a list of font families, and iterate
-     * through them.
-     */
     pango_font_map_list_families(map, &families, &nfamilies);
+#else
+    pango_context_list_families(ctx, &families, &nfamilies);
+#endif
     for (i = 0; i < nfamilies; i++) {
 	PangoFontFamily *family = families[i];
 	const char *familyname;
@@ -812,8 +822,14 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 	 * string.
 	 */
 	flags = FONTFLAG_CLIENTSIDE;
+#ifndef PANGO_PRE_1POINT4
+        /*
+         * In very early versions of Pango, we can't tell
+         * monospaced fonts from non-monospaced.
+         */
 	if (!pango_font_family_is_monospace(family))
 	    flags |= FONTFLAG_NONMONOSPACED;
+#endif
 	familyname = pango_font_family_get_name(family);
 
 	/*
@@ -843,7 +859,16 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 	    /*
 	     * See if this font has a list of specific sizes.
 	     */
+#ifndef PANGO_PRE_1POINT4
 	    pango_font_face_list_sizes(face, &sizes, &nsizes);
+#else
+            /*
+             * In early versions of Pango, that call wasn't
+             * supported; we just have to assume everything is
+             * scalable.
+             */
+            sizes = NULL;
+#endif
 	    if (!sizes) {
 		/*
 		 * Write a single entry with a dummy size.
@@ -893,7 +918,9 @@ static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
      * extract its original size (in pixels) into the `size' field.
      */
     PangoContext *ctx;
+#ifndef PANGO_PRE_1POINT6
     PangoFontMap *map;
+#endif
     PangoFontDescription *desc;
     PangoFontset *fset;
     PangoFontMetrics *metrics;
@@ -907,6 +934,7 @@ static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
 	pango_font_description_free(desc);
 	return NULL;
     }
+#ifndef PANGO_PRE_1POINT6
     map = pango_context_get_font_map(ctx);
     if (!map) {
 	pango_font_description_free(desc);
@@ -914,6 +942,10 @@ static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
     }
     fset = pango_font_map_load_fontset(map, ctx, desc,
 				       pango_context_get_language(ctx));
+#else
+    fset = pango_context_load_fontset(ctx, desc,
+                                      pango_context_get_language(ctx));
+#endif
     if (!fset) {
 	pango_font_description_free(desc);
 	return NULL;
@@ -1563,6 +1595,8 @@ static void style_changed(GtkTreeSelection *treeselection, gpointer data)
 	return;
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, -1);
+    if (minval < 0)
+        return;                    /* somehow a charset heading got clicked */
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize, 2);
 }
@@ -1630,8 +1664,12 @@ unifontsel *unifontsel_new(const char *wintitle)
 	gtk_label_set_text(GTK_LABEL(label), "48000");
 	gtk_widget_size_request(label, &req);
 	size_width = req.width;
+#if GTK_CHECK_VERSION(2,10,0)
 	g_object_ref_sink(label);
 	g_object_unref(label);
+#else
+        gtk_object_sink(GTK_OBJECT(label));
+#endif
     }
 
     /*
