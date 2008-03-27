@@ -27,24 +27,29 @@
  * TODO on fontsel
  * ---------------
  * 
- *  - implement the preview pane
- * 
- *  - extend the font style language for X11 fonts so that we
- *    never get unexplained double size elements? Or, at least, so
- *    that _my_ font collection never produces them; that'd be a
- *    decent start.
- * 
- *  - decide what _should_ happen about font aliases. Should we
- *    resolve them as soon as they're clicked? Or be able to
- *    resolve them on demand, er, somehow? Or resolve them on exit
- *    from the function? Or what? If we resolve on demand, should
- *    we stop canonifying them on input, on the basis that we'd
- *    prefer to let the user _tell_ us when to canonify them?
+ *  - preview pane fixes:
+ *     + better centring of text? (Garuda is a particularly oddly
+ * 	 behaved font in this respect; are its metrics going weird
+ * 	 for some reason?)
+ *     + pick a better few lines of preview text. Should take care
+ * 	 to use wide letters (MWmw) and narrow ones (ij).
+ *     + resize to fit?
  * 
  *  - think about points versus pixels, harder than I already have
  * 
  *  - work out why the list boxes don't go all the way to the RHS
  *    of the dialog box
+ * 
+ *  - consistency and updating issues:
+ *     + the preview pane is empty when the dialog comes up
+ *     + we should attempt to preserve font size when switching
+ * 	 font family and style (it's currently OK as long as we're
+ * 	 moving between scalable fonts but falls down badly
+ * 	 otherwise)
+ * 
+ *  - generalised style and padding polish
+ *     + gtk_scrolled_window_set_shadow_type(foo, GTK_SHADOW_IN);
+ * 	 might be worth considering
  * 
  *  - big testing and shakedown!
  */
@@ -103,7 +108,8 @@ struct unifont_vtable {
 		      int bold, int cellwidth);
     void (*enum_fonts)(GtkWidget *widget,
 		       fontsel_add_entry callback, void *callback_ctx);
-    char *(*canonify_fontname)(GtkWidget *widget, const char *name, int *size);
+    char *(*canonify_fontname)(GtkWidget *widget, const char *name, int *size,
+			       int resolve_aliases);
     char *(*scale_fontname)(GtkWidget *widget, const char *name, int size);
 
     /*
@@ -126,7 +132,7 @@ static void x11font_destroy(unifont *font);
 static void x11font_enum_fonts(GtkWidget *widget,
 			       fontsel_add_entry callback, void *callback_ctx);
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
-				       int *size);
+				       int *size, int resolve_aliases);
 static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 				    int size);
 
@@ -593,14 +599,18 @@ static void x11font_enum_fonts(GtkWidget *widget,
 }
 
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
-				       int *size)
+				       int *size, int resolve_aliases)
 {
     /*
      * When given an X11 font name to try to make sense of for a
      * font selector, we must attempt to load it (to see if it
      * exists), and then canonify it by extracting its FONT
      * property, which should give its full XLFD even if what we
-     * originally had was an alias.
+     * originally had was a wildcard.
+     * 
+     * However, we must carefully avoid canonifying font
+     * _aliases_, unless specifically asked to, because the font
+     * selector treats them as worthwhile in their own right.
      */
     GdkFont *font = gdk_font_load(name);
     XFontStruct *xfs;
@@ -618,15 +628,16 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
     fontprop = XInternAtom(disp, "FONT", False);
 
     if (XGetFontProperty(xfs, fontprop, &ret)) {
-	char *name = XGetAtomName(disp, (Atom)ret);
-	if (name) {
+	char *newname = XGetAtomName(disp, (Atom)ret);
+	if (newname) {
 	    unsigned long fsize = 12;
 
 	    fontprop2 = XInternAtom(disp, "PIXEL_SIZE", False);
-	    if (XGetFontProperty(xfs, fontprop2, &fsize)) {
+	    if (XGetFontProperty(xfs, fontprop2, &fsize) && fsize > 0) {
 		*size = fsize;
 		gdk_font_unref(font);
-		return dupstr(name);
+		return dupstr(name[0] == '-' || resolve_aliases ?
+			      newname : name);
 	    }
 	}
     }
@@ -655,7 +666,7 @@ static void pangofont_destroy(unifont *font);
 static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 				 void *callback_ctx);
 static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
-					 int *size);
+					 int *size, int resolve_aliases);
 static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 				      int size);
 
@@ -978,7 +989,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 }
 
 static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
-					 int *size)
+					 int *size, int resolve_aliases)
 {
     /*
      * When given a Pango font name to try to make sense of for a
@@ -1160,6 +1171,10 @@ typedef struct unifontsel_internal {
     GtkListStore *family_model, *style_model, *size_model;
     GtkWidget *family_list, *style_list, *size_entry, *size_list;
     GtkWidget *filter_buttons[4];
+    GtkWidget *preview_area;
+    GdkPixmap *preview_pixmap;
+    int preview_width, preview_height;
+    GdkColor preview_fg, preview_bg;
     int filter_flags;
     tree234 *fonts_by_realname, *fonts_by_selorder;
     fontinfo *selected;
@@ -1550,6 +1565,38 @@ static void unifontsel_select_font(unifontsel_internal *fs,
     gtk_entry_set_editable(GTK_ENTRY(fs->size_entry), fs->selected->size == 0);
     gtk_widget_set_sensitive(fs->size_entry, fs->selected->size == 0);
 
+    /*
+     * Instantiate the font and draw some preview text.
+     */
+    {
+	unifont *font;
+	char *sizename;
+
+	sizename = info->fontclass->scale_fontname
+	    (GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
+
+	font = info->fontclass->create(GTK_WIDGET(fs->u.window),
+				       sizename ? sizename : info->realname,
+				       FALSE, FALSE, 0, 0);
+	if (font && fs->preview_pixmap) {
+	    GdkGC *gc = gdk_gc_new(fs->preview_pixmap);
+	    gdk_gc_set_foreground(gc, &fs->preview_bg);
+	    gdk_draw_rectangle(fs->preview_pixmap, gc, 1, 0, 0,
+			       fs->preview_width, fs->preview_height);
+	    gdk_gc_set_foreground(gc, &fs->preview_fg);
+	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
+				       font->width, font->height,
+				       "hello, world", 12,
+				       FALSE, FALSE, font->width);
+	    gdk_gc_unref(gc);
+	    gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
+	}
+
+	info->fontclass->destroy(font);
+
+	sfree(sizename);
+    }
+
     fs->inhibit_response = FALSE;
 }
 
@@ -1715,13 +1762,99 @@ static void size_entry_changed(GtkEditable *ed, gpointer data)
     }
 }
 
+static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
+			  GtkTreeViewColumn *column, gpointer data)
+{
+    unifontsel_internal *fs = (unifontsel_internal *)data;
+    GtkTreeIter iter;
+    int minval, newsize;
+    fontinfo *info, *newinfo;
+    char *newname;
+
+    if (fs->inhibit_response)	       /* we made this change ourselves */
+	return;
+
+    gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->family_model), &iter, path);
+    gtk_tree_model_get(GTK_TREE_MODEL(fs->family_model), &iter, 1,&minval, -1);
+    info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
+    if (info) {
+	newname = info->fontclass->canonify_fontname
+	    (GTK_WIDGET(fs->u.window), info->realname, &newsize, TRUE);
+	newinfo = find234(fs->fonts_by_realname, (char *)newname,
+			  fontinfo_realname_find);
+	sfree(newname);
+	if (!newinfo)
+	    return;		       /* font name not in our index */
+	if (newinfo == info)
+	    return;   /* didn't change under canonification => not an alias */
+	unifontsel_select_font(fs, newinfo,
+			       newinfo->size ? newinfo->size : newsize, 1);
+    }
+}
+
+static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
+				   gpointer data)
+{
+    unifontsel_internal *fs = (unifontsel_internal *)data;
+
+    if (fs->preview_pixmap) {
+	gdk_draw_pixmap(widget->window,
+			widget->style->fg_gc[GTK_WIDGET_STATE(widget)],
+			fs->preview_pixmap,
+			event->area.x, event->area.y,
+			event->area.x, event->area.y,
+			event->area.width, event->area.height);
+    }
+    return TRUE;
+}
+
+static gint unifontsel_configure_area(GtkWidget *widget,
+				      GdkEventConfigure *event, gpointer data)
+{
+    unifontsel_internal *fs = (unifontsel_internal *)data;
+    GdkGC *gc;
+    int ox, oy, nx, ny, x, y;
+
+    /*
+     * Enlarge the pixmap, but never shrink it.
+     */
+    ox = fs->preview_width;
+    oy = fs->preview_height;
+    x = event->width;
+    y = event->height;
+    if (x > ox || y > oy) {
+	GdkPixmap *newpm;
+
+	nx = (x > ox ? x : ox);
+	ny = (y > oy ? y : oy);
+	newpm = gdk_pixmap_new(widget->window, nx, ny, -1);
+
+	gc = gdk_gc_new(newpm);
+	gdk_gc_set_foreground(gc, &fs->preview_bg);
+	gdk_draw_rectangle(newpm, gc, 1, 0, 0, nx, ny);
+	if (fs->preview_pixmap) {
+	    gdk_draw_pixmap(newpm, gc, fs->preview_pixmap, 0, 0, 0, 0, ox, oy);
+	    gdk_pixmap_unref(fs->preview_pixmap);
+	}
+	gdk_gc_unref(gc);
+
+	fs->preview_pixmap = newpm;
+	fs->preview_width = nx;
+	fs->preview_height = ny;
+    }
+
+    gdk_window_invalidate_rect(widget->window, NULL, FALSE);
+
+    return TRUE;
+}
+
 unifontsel *unifontsel_new(const char *wintitle)
 {
     unifontsel_internal *fs = snew(unifontsel_internal);
     GtkWidget *table, *label, *w, *scroll;
     GtkListStore *model;
     GtkTreeViewColumn *column;
-    int lists_height, font_width, style_width, size_width;
+    int lists_height, preview_height, font_width, style_width, size_width;
     int i;
 
     fs->inhibit_response = FALSE;
@@ -1735,6 +1868,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 	gtk_widget_size_request(label, &req);
 	font_width = req.width;
 	lists_height = 14 * req.height;
+	preview_height = 5 * req.height;
 	gtk_label_set_text(GTK_LABEL(label), "Italic Extra Condensed");
 	gtk_widget_size_request(label, &req);
 	style_width = req.width;
@@ -1794,6 +1928,8 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
     g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(w))),
 		     "changed", G_CALLBACK(family_changed), fs);
+    g_signal_connect(G_OBJECT(w), "row-activated",
+		     G_CALLBACK(alias_resolve), fs);
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scroll), w);
@@ -1879,6 +2015,26 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->size_model = model;
     fs->size_list = w;
 
+    fs->preview_area = gtk_drawing_area_new();
+    fs->preview_pixmap = NULL;
+    fs->preview_width = 0;
+    fs->preview_height = 0;
+    fs->preview_fg.pixel = fs->preview_bg.pixel = 0;
+    fs->preview_fg.red = fs->preview_fg.green = fs->preview_fg.blue = 0x0000;
+    fs->preview_bg.red = fs->preview_bg.green = fs->preview_bg.blue = 0xFFFF;
+    gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_fg,
+			     FALSE, FALSE);
+    gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_bg,
+			     FALSE, FALSE);
+    gtk_signal_connect(GTK_OBJECT(fs->preview_area), "expose_event",
+		       GTK_SIGNAL_FUNC(unifontsel_expose_area), fs);
+    gtk_signal_connect(GTK_OBJECT(fs->preview_area), "configure_event",
+		       GTK_SIGNAL_FUNC(unifontsel_configure_area), fs);
+    gtk_widget_set_size_request(fs->preview_area, 1, preview_height);
+    gtk_widget_show(fs->preview_area);
+    gtk_table_attach(GTK_TABLE(table), fs->preview_area, 0, 3, 3, 4,
+		     GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+
     /*
      * FIXME: preview widget
      */
@@ -1945,6 +2101,9 @@ void unifontsel_destroy(unifontsel *fontsel)
     unifontsel_internal *fs = (unifontsel_internal *)fontsel;
     fontinfo *info;
 
+    if (fs->preview_pixmap)
+	gdk_pixmap_unref(fs->preview_pixmap);
+
     freetree234(fs->fonts_by_selorder);
     while ((info = delpos234(fs->fonts_by_realname, 0)) != NULL)
 	sfree(info);
@@ -1973,7 +2132,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
     fontname = unifont_do_prefix(fontname, &start, &end);
     for (i = start; i < end; i++) {
 	fontname2 = unifont_types[i]->canonify_fontname
-	    (GTK_WIDGET(fs->u.window), fontname, &size);
+	    (GTK_WIDGET(fs->u.window), fontname, &size, FALSE);
 	if (fontname2)
 	    break;
     }
