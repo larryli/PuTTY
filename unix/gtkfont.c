@@ -41,7 +41,6 @@
  *    of the dialog box
  * 
  *  - consistency and updating issues:
- *     + the preview pane is empty when the dialog comes up
  *     + we should attempt to preserve font size when switching
  * 	 font family and style (it's currently OK as long as we're
  * 	 moving between scalable fonts but falls down badly
@@ -1442,6 +1441,37 @@ static void unifontsel_set_filter_buttons(unifontsel_internal *fs)
     }
 }
 
+static void unifontsel_draw_preview_text(unifontsel_internal *fs)
+{
+    unifont *font;
+    char *sizename;
+    fontinfo *info = fs->selected;
+
+    sizename = info->fontclass->scale_fontname
+	(GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
+
+    font = info->fontclass->create(GTK_WIDGET(fs->u.window),
+				   sizename ? sizename : info->realname,
+				   FALSE, FALSE, 0, 0);
+    if (font && fs->preview_pixmap) {
+	GdkGC *gc = gdk_gc_new(fs->preview_pixmap);
+	gdk_gc_set_foreground(gc, &fs->preview_bg);
+	gdk_draw_rectangle(fs->preview_pixmap, gc, 1, 0, 0,
+			   fs->preview_width, fs->preview_height);
+	gdk_gc_set_foreground(gc, &fs->preview_fg);
+	info->fontclass->draw_text(fs->preview_pixmap, gc, font,
+				   font->width, font->height,
+				   "hello, world", 12,
+				   FALSE, FALSE, font->width);
+	gdk_gc_unref(gc);
+	gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
+    }
+
+    info->fontclass->destroy(font);
+
+    sfree(sizename);
+}
+
 static void unifontsel_select_font(unifontsel_internal *fs,
 				   fontinfo *info, int size, int leftlist)
 {
@@ -1565,37 +1595,7 @@ static void unifontsel_select_font(unifontsel_internal *fs,
     gtk_entry_set_editable(GTK_ENTRY(fs->size_entry), fs->selected->size == 0);
     gtk_widget_set_sensitive(fs->size_entry, fs->selected->size == 0);
 
-    /*
-     * Instantiate the font and draw some preview text.
-     */
-    {
-	unifont *font;
-	char *sizename;
-
-	sizename = info->fontclass->scale_fontname
-	    (GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
-
-	font = info->fontclass->create(GTK_WIDGET(fs->u.window),
-				       sizename ? sizename : info->realname,
-				       FALSE, FALSE, 0, 0);
-	if (font && fs->preview_pixmap) {
-	    GdkGC *gc = gdk_gc_new(fs->preview_pixmap);
-	    gdk_gc_set_foreground(gc, &fs->preview_bg);
-	    gdk_draw_rectangle(fs->preview_pixmap, gc, 1, 0, 0,
-			       fs->preview_width, fs->preview_height);
-	    gdk_gc_set_foreground(gc, &fs->preview_fg);
-	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
-				       font->width, font->height,
-				       "hello, world", 12,
-				       FALSE, FALSE, font->width);
-	    gdk_gc_unref(gc);
-	    gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
-	}
-
-	info->fontclass->destroy(font);
-
-	sfree(sizename);
-    }
+    unifontsel_draw_preview_text(fs);
 
     fs->inhibit_response = FALSE;
 }
@@ -1812,7 +1812,6 @@ static gint unifontsel_configure_area(GtkWidget *widget,
 				      GdkEventConfigure *event, gpointer data)
 {
     unifontsel_internal *fs = (unifontsel_internal *)data;
-    GdkGC *gc;
     int ox, oy, nx, ny, x, y;
 
     /*
@@ -1823,24 +1822,16 @@ static gint unifontsel_configure_area(GtkWidget *widget,
     x = event->width;
     y = event->height;
     if (x > ox || y > oy) {
-	GdkPixmap *newpm;
-
+	if (fs->preview_pixmap)
+	    gdk_pixmap_unref(fs->preview_pixmap);
+	
 	nx = (x > ox ? x : ox);
 	ny = (y > oy ? y : oy);
-	newpm = gdk_pixmap_new(widget->window, nx, ny, -1);
-
-	gc = gdk_gc_new(newpm);
-	gdk_gc_set_foreground(gc, &fs->preview_bg);
-	gdk_draw_rectangle(newpm, gc, 1, 0, 0, nx, ny);
-	if (fs->preview_pixmap) {
-	    gdk_draw_pixmap(newpm, gc, fs->preview_pixmap, 0, 0, 0, 0, ox, oy);
-	    gdk_pixmap_unref(fs->preview_pixmap);
-	}
-	gdk_gc_unref(gc);
-
-	fs->preview_pixmap = newpm;
+	fs->preview_pixmap = gdk_pixmap_new(widget->window, nx, ny, -1);
 	fs->preview_width = nx;
 	fs->preview_height = ny;
+
+	unifontsel_draw_preview_text(fs);
     }
 
     gdk_window_invalidate_rect(widget->window, NULL, FALSE);
