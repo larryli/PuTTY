@@ -27,14 +27,6 @@
  * TODO on fontsel
  * ---------------
  * 
- *  - preview pane fixes:
- *     + better centring of text? (Garuda is a particularly oddly
- * 	 behaved font in this respect; are its metrics going weird
- * 	 for some reason?)
- *     + pick a better few lines of preview text. Should take care
- * 	 to use wide letters (MWmw) and narrow ones (ij).
- *     + resize to fit?
- * 
  *  - think about points versus pixels, harder than I already have
  * 
  *  - work out why the list boxes don't go all the way to the RHS
@@ -1459,10 +1451,34 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 	gdk_draw_rectangle(fs->preview_pixmap, gc, 1, 0, 0,
 			   fs->preview_width, fs->preview_height);
 	gdk_gc_set_foreground(gc, &fs->preview_fg);
+	/*
+	 * The pangram used here is rather carefully constructed:
+	 * it contains a sequence of very narrow letters (`jil')
+	 * and a pair of adjacent very wide letters (`wm').
+	 *
+	 * If the user selects a proportional font, it will be
+	 * coerced into fixed-width character cells when used in
+	 * the actual terminal window. We therefore display it the
+	 * same way in the preview pane, so as to show it the way
+	 * it will actually be displayed - and we deliberately
+	 * pick a pangram which will show the resulting miskerning
+	 * at its worst.
+	 *
+	 * We aren't trying to sell people these fonts; we're
+	 * trying to let them make an informed choice. Better that
+	 * they find out the problems with using proportional
+	 * fonts in terminal windows here than that they go to the
+	 * effort of selecting their font and _then_ realise it
+	 * was a mistake.
+	 */
 	info->fontclass->draw_text(fs->preview_pixmap, gc, font,
-				   font->width, font->height,
-				   "hello, world", 12,
-				   FALSE, FALSE, font->width);
+				   0, font->ascent,
+				   "bankrupt jilted showmen quiz convex fogey",
+				   41, FALSE, FALSE, font->width);
+	info->fontclass->draw_text(fs->preview_pixmap, gc, font,
+				   0, font->ascent + font->height,
+				   "BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
+				   41, FALSE, FALSE, font->width);
 	gdk_gc_unref(gc);
 	gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
     }
