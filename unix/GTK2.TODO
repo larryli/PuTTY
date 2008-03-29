@@ -3,31 +3,20 @@ TODO for PuTTY GTK2 port before merging back into main trunk code
 
 Things to do before deciding a merge is feasible:
 
- - Font handling is the biggie. Current problems with it:
-    * The GTK2 font selection dialog only mentions client-side
-      fonts, but the actual text display code can't cope with them.
-       + Clearly one or the other needs to be fixed: the font
-	 selection dialog certainly needs to agree with the fonts
-	 actually available in the program.
-       + I want to keep being able to use my server-side fonts.
-       + People used to GTK2 applications will probably want to use
-	 their client-side fonts.
-    * Also, the GTK2 font selection dialog doesn't allow filtering
-      to monospaced fonts only (and gnome-terminal, for example,
-      just has to cope if the user selects a proportional font).
-       + We can live with this problem if we really have to, but
-	 it'd be nice not to have to.
-    * Colin's idea is that we should simply cook up a font selection
-      dialog entirely of our own, which handles both client- _and_
-      server-side fonts, and correspondingly soup up the text
-      display code to deal with whichever it's given (if necessary
-      by switching between two totally separate pieces of code).
-      This sounds like a sensible plan to me, or at least the most
-      sensible response to a generally insane situation.
+ - Although I'm still stubbornly _supporting_ X11 fonts alongside
+   Pango ones in defiance of standard GTK2 policy, it might be a
+   good idea to at least switch the default font to Pango's
+   Monospace 12, not least so that font aliases don't come up
+   selected by default. Then again, perhaps keeping fixed as the
+   default is more traditional. Hmm.
 
  - The call to _gtk_container_dequeue_resize_handler wants
    revisiting, and preferably removing in favour of a cleaner way to
    do the job.
+    + trouble with this is that I have no idea what it's actually
+      doing. Perhaps the thing to do is to debug through the GTK1
+      version and see when it gets called and what happens if I take
+      it out?
 
  - gtkcols.c is currently a minimal-work GTK2 port of my original
    GTK1 implementation. Someone should go through it and compare it
@@ -47,6 +36,9 @@ Things to do before deciding a merge is feasible:
      AM_PATH_GTK_2_0([2.0.0],
     + also I'll need to detect early Pangoi and enable my magic
       switches in gtkfont.c.
+    + and I'll probably also want to detect GTK2 vs GTK1
+      automatically - _and_ provide a command line switch on
+      configure to select one manually.
 
 Things to do once GTK2 development is complete:
 
