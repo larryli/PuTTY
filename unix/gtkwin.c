@@ -1350,12 +1350,28 @@ void request_resize(void *frontend, int w, int h)
      */
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_widget_set_size_request(inst->area, area_x, area_y);
-    _gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
     gtk_window_resize(GTK_WINDOW(inst->window),
 		      area_x + offset_x, area_y + offset_y);
 #else
     gtk_widget_set_usize(inst->area, area_x, area_y);
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), area_x, area_y);
+    /*
+     * I can no longer remember what this call to
+     * gtk_container_dequeue_resize_handler is for. It was
+     * introduced in r3092 with no comment, and the commit log
+     * message was uninformative. I'm _guessing_ its purpose is to
+     * prevent gratuitous resize processing on the window given
+     * that we're about to resize it anyway, but I have no idea
+     * why that's so incredibly vital.
+     * 
+     * I've tried removing the call, and nothing seems to go
+     * wrong. I've backtracked to r3092 and tried removing the
+     * call there, and still nothing goes wrong. So I'm going to
+     * adopt the working hypothesis that it's superfluous; I won't
+     * actually remove it from the GTK 1.2 code, but I won't
+     * attempt to replicate its functionality in the GTK 2 code
+     * above.
+     */
     gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
     gdk_window_resize(inst->window->window,
 		      area_x + offset_x, area_y + offset_y);

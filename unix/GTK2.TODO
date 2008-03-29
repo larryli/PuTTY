@@ -10,14 +10,6 @@ Things to do before deciding a merge is feasible:
    selected by default. Then again, perhaps keeping fixed as the
    default is more traditional. Hmm.
 
- - The call to _gtk_container_dequeue_resize_handler wants
-   revisiting, and preferably removing in favour of a cleaner way to
-   do the job.
-    + trouble with this is that I have no idea what it's actually
-      doing. Perhaps the thing to do is to debug through the GTK1
-      version and see when it gets called and what happens if I take
-      it out?
-
  - gtkcols.c is currently a minimal-work GTK2 port of my original
    GTK1 implementation. Someone should go through it and compare it
    to a real GTK2 container class, to make sure there aren't any
