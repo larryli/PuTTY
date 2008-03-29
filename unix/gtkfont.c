@@ -715,6 +715,55 @@ static const struct unifont_vtable pangofont_vtable = {
     "client"
 };
 
+/*
+ * This function is used to rigorously validate a
+ * PangoFontDescription. Later versions of Pango have a nasty
+ * habit of accepting _any_ old string as input to
+ * pango_font_description_from_string and returning a font
+ * description which can actually be used to display text, even if
+ * they have to do it by falling back to their most default font.
+ * This is doubtless helpful in some situations, but not here,
+ * because we need to know if a Pango font string actually _makes
+ * sense_ in order to fall back to treating it as an X font name
+ * if it doesn't. So we check that the font family is actually one
+ * supported by Pango.
+ */
+static int pangofont_check_desc_makes_sense(PangoContext *ctx,
+					    PangoFontDescription *desc)
+{
+#ifndef PANGO_PRE_1POINT6
+    PangoFontMap *map;
+#endif
+    PangoFontFamily **families;
+    int i, nfamilies, matched;
+
+    /*
+     * Ask Pango for a list of font families, and iterate through
+     * them to see if one of them matches the family in the
+     * PangoFontDescription.
+     */
+#ifndef PANGO_PRE_1POINT6
+    map = pango_context_get_font_map(ctx);
+    if (!map)
+	return FALSE;
+    pango_font_map_list_families(map, &families, &nfamilies);
+#else
+    pango_context_list_families(ctx, &families, &nfamilies);
+#endif
+
+    matched = FALSE;
+    for (i = 0; i < nfamilies; i++) {
+	if (!g_strcasecmp(pango_font_family_get_name(families[i]),
+			  pango_font_description_get_family(desc))) {
+	    matched = TRUE;
+	    break;
+	}
+    }
+    g_free(families);
+
+    return matched;
+}
+
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
 				 int wide, int bold,
 				 int shadowoffset, int shadowalways)
@@ -733,6 +782,10 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
 	return NULL;
     ctx = gtk_widget_get_pango_context(widget);
     if (!ctx) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    if (!pangofont_check_desc_makes_sense(ctx, desc)) {
 	pango_font_description_free(desc);
 	return NULL;
     }
@@ -1028,6 +1081,10 @@ static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
 	return NULL;
     ctx = gtk_widget_get_pango_context(widget);
     if (!ctx) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    if (!pangofont_check_desc_makes_sense(ctx, desc)) {
 	pango_font_description_free(desc);
 	return NULL;
     }
