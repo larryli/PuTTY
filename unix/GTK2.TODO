@@ -41,6 +41,13 @@ Things to do before deciding a merge is feasible:
  - Investigate the shortcut mechanism in GTK2's GtkLabel, and see if
    it's worth switching to it from the current ad-hockery.
 
+ - Update the autoconf build. Richard B says he had to replace
+     AM_PATH_GTK([1.2.0],
+   with
+     AM_PATH_GTK_2_0([2.0.0],
+    + also I'll need to detect early Pangoi and enable my magic
+      switches in gtkfont.c.
+
 Things to do once GTK2 development is complete:
 
  - Make sure we haven't broken GTK1.
