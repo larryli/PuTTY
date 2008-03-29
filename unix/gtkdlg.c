@@ -1226,6 +1226,7 @@ static void fontsel_ok(GtkButton *button, gpointer data)
 	(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = (struct uctrl *)fontsel->user_data;
     char *name = unifontsel_get_name(fontsel);
+    assert(name);              /* should always be ok after OK pressed */
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
     sfree(name);
 }

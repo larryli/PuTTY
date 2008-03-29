@@ -1564,6 +1564,8 @@ static void unifontsel_select_font(unifontsel_internal *fs,
     if (size_is_explicit)
 	fs->intendedsize = size;
 
+    gtk_widget_set_sensitive(fs->u.ok_button, TRUE);
+
     /*
      * Find the index of this fontinfo in the selorder list. 
      */
@@ -2270,6 +2272,8 @@ unifontsel *unifontsel_new(const char *wintitle)
     unifontsel_setup_familylist(fs);
 
     fs->selected = NULL;
+    fs->selsize = fs->intendedsize = 13;   /* random default */
+    gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
 
     return (unifontsel *)fs;
 }
@@ -2349,7 +2353,8 @@ char *unifontsel_get_name(unifontsel *fontsel)
     unifontsel_internal *fs = (unifontsel_internal *)fontsel;
     char *name;
 
-    assert(fs->selected);
+    if (!fs->selected)
+	return NULL;
 
     if (fs->selected->size == 0) {
 	name = fs->selected->fontclass->scale_fontname
