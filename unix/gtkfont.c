@@ -24,17 +24,6 @@
 #include "tree234.h"
 
 /*
- * TODO on fontsel
- * ---------------
- * 
- *  - generalised style and padding polish
- *     + work out why the list boxes don't go all the way to the
- * 	 RHS of the dialog box
- * 
- *  - big testing and shakedown!
- */
-
-/*
  * Future work:
  * 
  *  - all the GDK font functions used in the x11font subclass are
@@ -2058,11 +2047,16 @@ unifontsel *unifontsel_new(const char *wintitle)
      * Now set up the internal fields, including in particular all
      * the controls that actually allow the user to select fonts.
      */
-    table = gtk_table_new(3, 8, FALSE);
+    table = gtk_table_new(8, 3, FALSE);
     gtk_widget_show(table);
     gtk_table_set_col_spacings(GTK_TABLE(table), 8);
+    /* GtkAlignment seems to be the simplest way to put padding round things */
+    w = gtk_alignment_new(0, 0, 1, 1);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(w), 8, 8, 8, 8);
+    gtk_container_add(GTK_CONTAINER(w), table);
+    gtk_widget_show(w);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(fs->u.window)->vbox),
-		       table, TRUE, TRUE, 0);
+		       w, TRUE, TRUE, 0);
 
     label = gtk_label_new_with_mnemonic("_Font:");
     gtk_widget_show(label);
@@ -2181,6 +2175,9 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->size_model = model;
     fs->size_list = w;
 
+    /*
+     * Preview widget.
+     */
     fs->preview_area = gtk_drawing_area_new();
     fs->preview_pixmap = NULL;
     fs->preview_width = 0;
@@ -2215,9 +2212,6 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 3, 4,
 		     GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 8);
 
-    /*
-     * FIXME: preview widget
-     */
     i = 0;
     w = gtk_check_button_new_with_label("Show client-side fonts");
     gtk_object_set_data(GTK_OBJECT(w), "user-data",
