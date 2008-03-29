@@ -27,14 +27,9 @@
  * TODO on fontsel
  * ---------------
  * 
- *  - think about points versus pixels, harder than I already have
- * 
  *  - generalised style and padding polish
- *     + gtk_scrolled_window_set_shadow_type(foo, GTK_SHADOW_IN);
- * 	 might be worth considering
  *     + work out why the list boxes don't go all the way to the
  * 	 RHS of the dialog box
- *     + sort out the behaviour when resizing the dialog box
  * 
  *  - big testing and shakedown!
  */
@@ -2009,7 +2004,7 @@ static gint unifontsel_configure_area(GtkWidget *widget,
 unifontsel *unifontsel_new(const char *wintitle)
 {
     unifontsel_internal *fs = snew(unifontsel_internal);
-    GtkWidget *table, *label, *w, *scroll;
+    GtkWidget *table, *label, *w, *ww, *scroll;
     GtkListStore *model;
     GtkTreeViewColumn *column;
     int lists_height, preview_height, font_width, style_width, size_width;
@@ -2090,12 +2085,15 @@ unifontsel *unifontsel_new(const char *wintitle)
 		     G_CALLBACK(alias_resolve), fs);
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll),
+					GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(scroll), w);
     gtk_widget_show(scroll);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
 				   GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
     gtk_widget_set_size_request(scroll, font_width, lists_height);
-    gtk_table_attach(GTK_TABLE(table), scroll, 0, 1, 1, 3, GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table), scroll, 0, 1, 1, 3, GTK_FILL,
+		     GTK_EXPAND | GTK_FILL, 0, 0);
     fs->family_model = model;
     fs->family_list = w;
 
@@ -2124,12 +2122,15 @@ unifontsel *unifontsel_new(const char *wintitle)
 		     "changed", G_CALLBACK(style_changed), fs);
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll),
+					GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(scroll), w);
     gtk_widget_show(scroll);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
 				   GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
     gtk_widget_set_size_request(scroll, style_width, lists_height);
-    gtk_table_attach(GTK_TABLE(table), scroll, 1, 2, 1, 3, GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table), scroll, 1, 2, 1, 3, GTK_FILL,
+		     GTK_EXPAND | GTK_FILL, 0, 0);
     fs->style_model = model;
     fs->style_list = w;
 
@@ -2164,6 +2165,8 @@ unifontsel *unifontsel_new(const char *wintitle)
 		     "changed", G_CALLBACK(size_changed), fs);
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll),
+					GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(scroll), w);
     gtk_widget_show(scroll);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
@@ -2190,8 +2193,22 @@ unifontsel *unifontsel_new(const char *wintitle)
 		       GTK_SIGNAL_FUNC(unifontsel_configure_area), fs);
     gtk_widget_set_size_request(fs->preview_area, 1, preview_height);
     gtk_widget_show(fs->preview_area);
-    gtk_table_attach(GTK_TABLE(table), fs->preview_area, 0, 3, 3, 4,
-		     GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+    ww = fs->preview_area;
+    w = gtk_frame_new(NULL);
+    gtk_container_add(GTK_CONTAINER(w), ww);
+    gtk_widget_show(w);
+    ww = w;
+    /* GtkAlignment seems to be the simplest way to put padding round things */
+    w = gtk_alignment_new(0, 0, 1, 1);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(w), 8, 8, 8, 8);
+    gtk_container_add(GTK_CONTAINER(w), ww);
+    gtk_widget_show(w);
+    ww = w;
+    w = gtk_frame_new("Preview of font");
+    gtk_container_add(GTK_CONTAINER(w), ww);
+    gtk_widget_show(w);
+    gtk_table_attach(GTK_TABLE(table), w, 0, 3, 3, 4,
+		     GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 8);
 
     /*
      * FIXME: preview widget
