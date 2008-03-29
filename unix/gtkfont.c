@@ -27,20 +27,19 @@
  * TODO on fontsel
  * ---------------
  * 
+ *  - add a third line of sample text containing digits and punct
+ * 
+ *  - start drawing X fonts one character at a time, at least if
+ *    they're not fixed-width? Now we have that helpful pangram,
+ *    we should make it work for everyone.
+ * 
  *  - think about points versus pixels, harder than I already have
- * 
- *  - work out why the list boxes don't go all the way to the RHS
- *    of the dialog box
- * 
- *  - consistency and updating issues:
- *     + we should attempt to preserve font size when switching
- * 	 font family and style (it's currently OK as long as we're
- * 	 moving between scalable fonts but falls down badly
- * 	 otherwise)
  * 
  *  - generalised style and padding polish
  *     + gtk_scrolled_window_set_shadow_type(foo, GTK_SHADOW_IN);
  * 	 might be worth considering
+ *     + work out why the list boxes don't go all the way to the
+ * 	 RHS of the dialog box
  * 
  *  - big testing and shakedown!
  */
@@ -1169,7 +1168,7 @@ typedef struct unifontsel_internal {
     int filter_flags;
     tree234 *fonts_by_realname, *fonts_by_selorder;
     fontinfo *selected;
-    int selsize;
+    int selsize, intendedsize;
     int inhibit_response;  /* inhibit callbacks when we change GUI controls */
 } unifontsel_internal;
 
@@ -1445,7 +1444,7 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
     font = info->fontclass->create(GTK_WIDGET(fs->u.window),
 				   sizename ? sizename : info->realname,
 				   FALSE, FALSE, 0, 0);
-    if (font && fs->preview_pixmap) {
+    if (fs->preview_pixmap) {
 	GdkGC *gc = gdk_gc_new(fs->preview_pixmap);
 	gdk_gc_set_foreground(gc, &fs->preview_bg);
 	gdk_draw_rectangle(fs->preview_pixmap, gc, 1, 0, 0,
@@ -1471,25 +1470,28 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 	 * effort of selecting their font and _then_ realise it
 	 * was a mistake.
 	 */
-	info->fontclass->draw_text(fs->preview_pixmap, gc, font,
-				   0, font->ascent,
-				   "bankrupt jilted showmen quiz convex fogey",
-				   41, FALSE, FALSE, font->width);
-	info->fontclass->draw_text(fs->preview_pixmap, gc, font,
-				   0, font->ascent + font->height,
-				   "BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
-				   41, FALSE, FALSE, font->width);
+	if (font) {
+	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
+				       0, font->ascent,
+				       "bankrupt jilted showmen quiz convex fogey",
+				       41, FALSE, FALSE, font->width);
+	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
+				       0, font->ascent + font->height,
+				       "BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
+				       41, FALSE, FALSE, font->width);
+	}
 	gdk_gc_unref(gc);
 	gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
     }
-
-    info->fontclass->destroy(font);
+    if (font)
+	info->fontclass->destroy(font);
 
     sfree(sizename);
 }
 
 static void unifontsel_select_font(unifontsel_internal *fs,
-				   fontinfo *info, int size, int leftlist)
+				   fontinfo *info, int size, int leftlist,
+				   int size_is_explicit)
 {
     int index;
     int minval, maxval;
@@ -1500,6 +1502,8 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 
     fs->selected = info;
     fs->selsize = size;
+    if (size_is_explicit)
+	fs->intendedsize = size;
 
     /*
      * Find the index of this fontinfo in the selorder list. 
@@ -1701,6 +1705,79 @@ static void unifontsel_add_entry(void *ctx, const char *realfontname,
     add234(fs->fonts_by_selorder, info);
 }
 
+static fontinfo *update_for_intended_size(unifontsel_internal *fs,
+					  fontinfo *info)
+{
+    fontinfo info2, *below, *above;
+    int pos;
+
+    /*
+     * Copy the info structure. This doesn't copy its dynamic
+     * string fields, but that's unimportant because all we're
+     * going to do is to adjust the size field and use it in one
+     * tree search.
+     */
+    info2 = *info;
+    info2.size = fs->intendedsize;
+
+    /*
+     * Search in the tree to find the fontinfo structure which
+     * best approximates the size the user last requested.
+     */
+    below = findrelpos234(fs->fonts_by_selorder, &info2, NULL,
+			  REL234_LE, &pos);
+    above = index234(fs->fonts_by_selorder, pos+1);
+
+    /*
+     * See if we've found it exactly, which is an easy special
+     * case. If we have, it'll be in `below' and not `above',
+     * because we did a REL234_LE rather than REL234_LT search.
+     */
+    if (!fontinfo_selorder_compare(&info2, below))
+	return below;
+
+    /*
+     * Now we've either found two suitable fonts, one smaller and
+     * one larger, or we're at one or other extreme end of the
+     * scale. Find out which, by NULLing out either of below and
+     * above if it differs from this one in any respect but size
+     * (and the disambiguating index field). Bear in mind, also,
+     * that either one might _already_ be NULL if we're at the
+     * extreme ends of the font list.
+     */
+    if (below) {
+	info2.size = below->size;
+	info2.index = below->index;
+	if (fontinfo_selorder_compare(&info2, below))
+	    below = NULL;
+    }
+    if (above) {
+	info2.size = above->size;
+	info2.index = above->index;
+	if (fontinfo_selorder_compare(&info2, above))
+	    above = NULL;
+    }
+
+    /*
+     * Now return whichever of above and below is non-NULL, if
+     * that's unambiguous.
+     */
+    if (!above)
+	return below;
+    if (!below)
+	return above;
+
+    /*
+     * And now we really do have to make a choice about whether to
+     * round up or down. We'll do it by rounding to nearest,
+     * breaking ties by rounding up.
+     */
+    if (above->size - fs->intendedsize <= fs->intendedsize - below->size)
+	return above;
+    else
+	return below;
+}
+
 static void family_changed(GtkTreeSelection *treeselection, gpointer data)
 {
     unifontsel_internal *fs = (unifontsel_internal *)data;
@@ -1717,7 +1794,13 @@ static void family_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize, 1);
+    info = update_for_intended_size(fs, info);
+    if (!info)
+	return; /* _shouldn't_ happen unless font list is completely funted */
+    if (!info->size)
+	fs->selsize = fs->intendedsize;   /* font is scalable */
+    unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
+			   1, FALSE);
 }
 
 static void style_changed(GtkTreeSelection *treeselection, gpointer data)
@@ -1738,7 +1821,13 @@ static void style_changed(GtkTreeSelection *treeselection, gpointer data)
     if (minval < 0)
         return;                    /* somehow a charset heading got clicked */
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize, 2);
+    info = update_for_intended_size(fs, info);
+    if (!info)
+	return; /* _shouldn't_ happen unless font list is completely funted */
+    if (!info->size)
+	fs->selsize = fs->intendedsize;   /* font is scalable */
+    unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
+			   2, FALSE);
 }
 
 static void size_changed(GtkTreeSelection *treeselection, gpointer data)
@@ -1757,7 +1846,7 @@ static void size_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, 2, &size, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    unifontsel_select_font(fs, info, info->size ? info->size : size, 3);
+    unifontsel_select_font(fs, info, info->size ? info->size : size, 3, TRUE);
 }
 
 static void size_entry_changed(GtkEditable *ed, gpointer data)
@@ -1774,7 +1863,7 @@ static void size_entry_changed(GtkEditable *ed, gpointer data)
 
     if (size > 0) {
 	assert(fs->selected->size == 0);
-	unifontsel_select_font(fs, fs->selected, size, 3);
+	unifontsel_select_font(fs, fs->selected, size, 3, TRUE);
     }
 }
 
@@ -1804,7 +1893,8 @@ static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
 	if (newinfo == info)
 	    return;   /* didn't change under canonification => not an alias */
 	unifontsel_select_font(fs, newinfo,
-			       newinfo->size ? newinfo->size : newsize, 1);
+			       newinfo->size ? newinfo->size : newsize,
+			       1, TRUE);
     }
 }
 
@@ -2170,7 +2260,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
      * know everything we need to fill in all the fields in the
      * dialog.
      */
-    unifontsel_select_font(fs, info, size, 0);
+    unifontsel_select_font(fs, info, size, 0, TRUE);
 }
 
 char *unifontsel_get_name(unifontsel *fontsel)
