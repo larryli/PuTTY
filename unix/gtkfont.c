@@ -1474,15 +1474,18 @@ static void unifontsel_set_filter_buttons(unifontsel_internal *fs)
 static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 {
     unifont *font;
-    char *sizename;
+    char *sizename = NULL;
     fontinfo *info = fs->selected;
 
-    sizename = info->fontclass->scale_fontname
-	(GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
+    if (info) {
+	sizename = info->fontclass->scale_fontname
+	    (GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
+	font = info->fontclass->create(GTK_WIDGET(fs->u.window),
+				       sizename ? sizename : info->realname,
+				       FALSE, FALSE, 0, 0);
+    } else
+	font = NULL;
 
-    font = info->fontclass->create(GTK_WIDGET(fs->u.window),
-				   sizename ? sizename : info->realname,
-				   FALSE, FALSE, 0, 0);
     if (fs->preview_pixmap) {
 	GdkGC *gc = gdk_gc_new(fs->preview_pixmap);
 	gdk_gc_set_foreground(gc, &fs->preview_bg);
