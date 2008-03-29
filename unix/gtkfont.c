@@ -27,8 +27,6 @@
  * TODO on fontsel
  * ---------------
  * 
- *  - add a third line of sample text containing digits and punct
- * 
  *  - start drawing X fonts one character at a time, at least if
  *    they're not fixed-width? Now we have that helpful pangram,
  *    we should make it work for everyone.
@@ -40,6 +38,7 @@
  * 	 might be worth considering
  *     + work out why the list boxes don't go all the way to the
  * 	 RHS of the dialog box
+ *     + sort out the behaviour when resizing the dialog box
  * 
  *  - big testing and shakedown!
  */
@@ -1450,27 +1449,28 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 	gdk_draw_rectangle(fs->preview_pixmap, gc, 1, 0, 0,
 			   fs->preview_width, fs->preview_height);
 	gdk_gc_set_foreground(gc, &fs->preview_fg);
-	/*
-	 * The pangram used here is rather carefully constructed:
-	 * it contains a sequence of very narrow letters (`jil')
-	 * and a pair of adjacent very wide letters (`wm').
-	 *
-	 * If the user selects a proportional font, it will be
-	 * coerced into fixed-width character cells when used in
-	 * the actual terminal window. We therefore display it the
-	 * same way in the preview pane, so as to show it the way
-	 * it will actually be displayed - and we deliberately
-	 * pick a pangram which will show the resulting miskerning
-	 * at its worst.
-	 *
-	 * We aren't trying to sell people these fonts; we're
-	 * trying to let them make an informed choice. Better that
-	 * they find out the problems with using proportional
-	 * fonts in terminal windows here than that they go to the
-	 * effort of selecting their font and _then_ realise it
-	 * was a mistake.
-	 */
 	if (font) {
+	    /*
+	     * The pangram used here is rather carefully
+	     * constructed: it contains a sequence of very narrow
+	     * letters (`jil') and a pair of adjacent very wide
+	     * letters (`wm').
+	     *
+	     * If the user selects a proportional font, it will be
+	     * coerced into fixed-width character cells when used
+	     * in the actual terminal window. We therefore display
+	     * it the same way in the preview pane, so as to show
+	     * it the way it will actually be displayed - and we
+	     * deliberately pick a pangram which will show the
+	     * resulting miskerning at its worst.
+	     *
+	     * We aren't trying to sell people these fonts; we're
+	     * trying to let them make an informed choice. Better
+	     * that they find out the problems with using
+	     * proportional fonts in terminal windows here than
+	     * that they go to the effort of selecting their font
+	     * and _then_ realise it was a mistake.
+	     */
 	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
 				       0, font->ascent,
 				       "bankrupt jilted showmen quiz convex fogey",
@@ -1479,6 +1479,22 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 				       0, font->ascent + font->height,
 				       "BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
 				       41, FALSE, FALSE, font->width);
+	    /*
+	     * The ordering of punctuation here is also selected
+	     * with some specific aims in mind. I put ` and '
+	     * together because some software (and people) still
+	     * use them as matched quotes no matter what Unicode
+	     * might say on the matter, so people can quickly
+	     * check whether they look silly in a candidate font.
+	     * The sequence #_@ is there to let people judge the
+	     * suitability of the underscore as an effectively
+	     * alphabetic character (since that's how it's often
+	     * used in practice, at least by programmers).
+	     */
+	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
+				       0, font->ascent + font->height * 2,
+				       "0123456789!?,.:;<>()[]{}\\/`'\"+*-=~#_@|%&^$",
+				       42, FALSE, FALSE, font->width);
 	}
 	gdk_gc_unref(gc);
 	gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
