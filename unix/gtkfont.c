@@ -566,13 +566,13 @@ static void x11font_enum_fonts(GtkWidget *widget,
 
 	    p += sprintf(p, "%04d%04d%s%04d%04d%s%04d%04d%s%04d%s%04d%s",
 			 weightkey,
-			 strlen(components[2]), components[2],
+			 (int)strlen(components[2]), components[2],
 			 slantkey,
-			 strlen(components[3]), components[3],
+			 (int)strlen(components[3]), components[3],
 			 setwidthkey,
-			 strlen(components[4]), components[4],
-			 strlen(components[10]), components[10],
-			 strlen(components[5]), components[5]);
+			 (int)strlen(components[4]), components[4],
+			 (int)strlen(components[10]), components[10],
+			 (int)strlen(components[5]), components[5]);
 
 	    assert(p - tmp < thistmpsize);
 
