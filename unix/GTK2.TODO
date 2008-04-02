@@ -16,9 +16,6 @@ Things to do before deciding a merge is feasible:
    large chunks we should have reimplemented and haven't, or indeed
    that we shouldn't have reimplemented and have.
 
- - Uses of GtkList should be replaced with the non-deprecated
-   GtkTreeView.
-
  - Investigate the shortcut mechanism in GTK2's GtkLabel, and see if
    it's worth switching to it from the current ad-hockery.
 
@@ -35,6 +32,9 @@ Things to do before deciding a merge is feasible:
 Things to do once GTK2 development is complete:
 
  - Make sure we haven't broken GTK1.
+    + In particular, I know I _have_ broken GTK1 by taking out all
+      the GTK1-style list box code. Put it all back in under ifdefs,
+      which will be unpleasant but necessary.
 
 Things to do at point of actual merge:
 
