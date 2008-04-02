@@ -9,9 +9,6 @@ Things to do before deciding a merge is feasible:
    large chunks we should have reimplemented and haven't, or indeed
    that we shouldn't have reimplemented and have.
 
- - Investigate the shortcut mechanism in GTK2's GtkLabel, and see if
-   it's worth switching to it from the current ad-hockery.
-
  - Update the autoconf build. Richard B says he had to replace
      AM_PATH_GTK([1.2.0],
    with
