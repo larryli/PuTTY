@@ -26,6 +26,7 @@ static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc);
 
 static GtkContainerClass *parent_class = NULL;
 
+#if !GTK_CHECK_VERSION(2,0,0)
 GtkType columns_get_type(void)
 {
     static GtkType columns_type = 0;
@@ -47,6 +48,31 @@ GtkType columns_get_type(void)
 
     return columns_type;
 }
+#else
+GType columns_get_type(void)
+{
+    static GType columns_type = 0;
+
+    if (!columns_type) {
+        static const GTypeInfo columns_info = {
+            sizeof(ColumnsClass),
+	    NULL,
+	    NULL,
+            (GClassInitFunc) columns_class_init,
+	    NULL,
+	    NULL,
+            sizeof(Columns),
+	    0,
+            (GInstanceInitFunc)columns_init,
+        };
+
+        columns_type = g_type_register_static(GTK_TYPE_CONTAINER, "Columns",
+					      &columns_info, 0);
+    }
+
+    return columns_type;
+}
+#endif
 
 #if !GTK_CHECK_VERSION(2,0,0)
 static gint (*columns_inherited_focus)(GtkContainer *container,
@@ -55,20 +81,21 @@ static gint (*columns_inherited_focus)(GtkContainer *container,
 
 static void columns_class_init(ColumnsClass *klass)
 {
-    GtkObjectClass *object_class;
-    GtkWidgetClass *widget_class;
-    GtkContainerClass *container_class;
+#if !GTK_CHECK_VERSION(2,0,0)
+    GtkObjectClass *object_class = (GtkObjectClass *)klass;
+    GtkWidgetClass *widget_class = (GtkWidgetClass *)klass;
+    GtkContainerClass *container_class = (GtkContainerClass *)klass;
+#else
+    /* GObjectClass *object_class = G_OBJECT_CLASS(klass); */
+    GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(klass);
+    GtkContainerClass *container_class = GTK_CONTAINER_CLASS(klass);
+#endif
 
-    object_class = (GtkObjectClass *)klass;
-    widget_class = (GtkWidgetClass *)klass;
-    container_class = (GtkContainerClass *)klass;
-
+#if !GTK_CHECK_VERSION(2,0,0)
+    parent_class = g_type_class_peek_parent(klass);
+#else
     parent_class = gtk_type_class(GTK_TYPE_CONTAINER);
-
-    /*
-     * FIXME: do we have to do all this faffing with set_arg,
-     * get_arg and child_arg_type? Ick.
-     */
+#endif
 
     widget_class->map = columns_map;
     widget_class->unmap = columns_unmap;
@@ -300,7 +327,12 @@ GtkWidget *columns_new(gint spacing)
 {
     Columns *cols;
 
+#if !GTK_CHECK_VERSION(2,0,0)
     cols = gtk_type_new(columns_get_type());
+#else
+    cols = g_object_new(TYPE_COLUMNS, NULL);
+#endif
+
     cols->spacing = spacing;
 
     return GTK_WIDGET(cols);

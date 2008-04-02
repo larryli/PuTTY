@@ -3,12 +3,6 @@ TODO for PuTTY GTK2 port before merging back into main trunk code
 
 Things to do before deciding a merge is feasible:
 
- - gtkcols.c is currently a minimal-work GTK2 port of my original
-   GTK1 implementation. Someone should go through it and compare it
-   to a real GTK2 container class, to make sure there aren't any
-   large chunks we should have reimplemented and haven't, or indeed
-   that we shouldn't have reimplemented and have.
-
  - Update the autoconf build. Richard B says he had to replace
      AM_PATH_GTK([1.2.0],
    with
