@@ -3,13 +3,6 @@ TODO for PuTTY GTK2 port before merging back into main trunk code
 
 Things to do before deciding a merge is feasible:
 
- - Although I'm still stubbornly _supporting_ X11 fonts alongside
-   Pango ones in defiance of standard GTK2 policy, it might be a
-   good idea to at least switch the default font to Pango's
-   Monospace 12, not least so that font aliases don't come up
-   selected by default. Then again, perhaps keeping fixed as the
-   default is more traditional. Hmm.
-
  - gtkcols.c is currently a minimal-work GTK2 port of my original
    GTK1 implementation. Someone should go through it and compare it
    to a real GTK2 container class, to make sure there aren't any

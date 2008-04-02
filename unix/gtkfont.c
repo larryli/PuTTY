@@ -2304,7 +2304,8 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 7, 8, GTK_FILL, 0, 0, 0);
 
     assert(i == lenof(fs->filter_buttons));
-    fs->filter_flags = FONTFLAG_CLIENTSIDE | FONTFLAG_SERVERSIDE;
+    fs->filter_flags = FONTFLAG_CLIENTSIDE | FONTFLAG_SERVERSIDE |
+	FONTFLAG_SERVERALIAS;
     unifontsel_set_filter_buttons(fs);
 
     /*
