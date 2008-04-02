@@ -1,25 +1,13 @@
 TODO for PuTTY GTK2 port before merging back into main trunk code
 -----------------------------------------------------------------
 
-Things to do before deciding a merge is feasible:
-
- - Update the autoconf build. Richard B says he had to replace
-     AM_PATH_GTK([1.2.0],
-   with
-     AM_PATH_GTK_2_0([2.0.0],
-    + also I'll need to detect early Pangoi and enable my magic
-      switches in gtkfont.c.
-    + and I'll probably also want to detect GTK2 vs GTK1
-      automatically - _and_ provide a command line switch on
-      configure to select one manually.
-
-Things to do once GTK2 development is complete:
+Things left to do:
 
  - Make sure we haven't broken GTK1.
     + In particular, I know I _have_ broken GTK1 by taking out all
       the GTK1-style list box code. Put it all back in under ifdefs,
       which will be unpleasant but necessary.
 
-Things to do at point of actual merge:
-
- - Mention Colin in the website's licence page.
+ - Merge to trunk. Colin is already mentioned in the licence in all
+   the branched copies, but mention him in the _website's_ licence
+   page too.
