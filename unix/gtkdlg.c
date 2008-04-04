@@ -2412,6 +2412,9 @@ struct selparam {
     GtkWidget *panel;
 #if !GTK_CHECK_VERSION(2,0,0)
     GtkWidget *treeitem;
+#else
+    int depth;
+    GtkTreePath *treepath;
 #endif
     struct Shortcuts shortcuts;
 };
@@ -2991,16 +2994,19 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		treeiterlevels[j] = treeiter;
 
 		if (j > 0) {
-		    GtkTreePath *path;
-
-		    path = gtk_tree_model_get_path(GTK_TREE_MODEL(treestore),
-						   &treeiterlevels[j-1]);
-		    if (j < 2)
-			gtk_tree_view_expand_row(GTK_TREE_VIEW(tree), path,
-						 FALSE);
-		    else
-			gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree), path);
-		    gtk_tree_path_free(path);
+		    selparams[nselparams].treepath =
+			gtk_tree_model_get_path(GTK_TREE_MODEL(treestore),
+						&treeiterlevels[j-1]);
+		    /*
+		     * We are going to collapse all tree branches
+		     * at depth greater than 2, but not _yet_; see
+		     * the comment at the call to
+		     * gtk_tree_view_collapse_row below.
+		     */
+		    gtk_tree_view_expand_row(GTK_TREE_VIEW(tree),
+					     selparams[nselparams].treepath,
+					     FALSE);
+		    selparams[nselparams].depth = j;
 		}
 #else
 		treeitem = gtk_tree_item_new_with_label(c);
@@ -3043,6 +3049,35 @@ int do_config_box(const char *title, Config *cfg, int midsession,
             gtk_widget_show(w);
 	}
     }
+
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+	GtkRequisition req;
+	int i;
+
+	/*
+	 * We want our tree view to come up with all branches at
+	 * depth 2 or more collapsed. However, if we start off
+	 * with those branches collapsed, then the tree view's
+	 * size request will be calculated based on the width of
+	 * the collapsed tree. So instead we start with them all
+	 * expanded; then we ask for the current size request,
+	 * collapse the relevant rows, and force the width to the
+	 * value we just computed. This arranges that the tree
+	 * view is wide enough to have all branches expanded
+	 * safely.
+	 */
+
+	gtk_widget_size_request(tree, &req);
+
+	for (i = 0; i < nselparams; i++)
+	    if (selparams[i].depth >= 2)
+		gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree),
+					   selparams[i].treepath);
+
+	gtk_widget_set_size_request(tree, req.width, -1);
+    }
+#endif
 
 #if GTK_CHECK_VERSION(2,0,0)
     g_signal_connect(G_OBJECT(treeselection), "changed",
