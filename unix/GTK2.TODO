@@ -3,10 +3,8 @@ TODO for PuTTY GTK2 port before merging back into main trunk code
 
 Things left to do:
 
- - Make sure we haven't broken GTK1.
-    + In particular, I know I _have_ broken GTK1 by taking out all
-      the GTK1-style list box code. Put it all back in under ifdefs,
-      which will be unpleasant but necessary.
+ - I apparently missed out a piece of code when doing the new GTK2
+   list box: shortcut activations for list boxes are missing.
 
  - Merge to trunk. Colin is already mentioned in the licence in all
    the branched copies, but mention him in the _website's_ licence

@@ -82,7 +82,7 @@ static gint (*columns_inherited_focus)(GtkContainer *container,
 static void columns_class_init(ColumnsClass *klass)
 {
 #if !GTK_CHECK_VERSION(2,0,0)
-    GtkObjectClass *object_class = (GtkObjectClass *)klass;
+    /* GtkObjectClass *object_class = (GtkObjectClass *)klass; */
     GtkWidgetClass *widget_class = (GtkWidgetClass *)klass;
     GtkContainerClass *container_class = (GtkContainerClass *)klass;
 #else
@@ -92,9 +92,9 @@ static void columns_class_init(ColumnsClass *klass)
 #endif
 
 #if !GTK_CHECK_VERSION(2,0,0)
-    parent_class = g_type_class_peek_parent(klass);
-#else
     parent_class = gtk_type_class(GTK_TYPE_CONTAINER);
+#else
+    parent_class = g_type_class_peek_parent(klass);
 #endif
 
     widget_class->map = columns_map;

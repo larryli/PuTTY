@@ -670,8 +670,10 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
     return NULL;		       /* shan't */
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
+
 /* ----------------------------------------------------------------------
- * Pango font implementation.
+ * Pango font implementation (for GTK 2 only).
  */
 
 static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
@@ -1143,6 +1145,8 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
     return retname;
 }
 
+#endif /* GTK_CHECK_VERSION(2,0,0) */
+
 /* ----------------------------------------------------------------------
  * Outermost functions which do the vtable dispatch.
  */
@@ -1155,7 +1159,9 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
  * of an explicit type-disambiguating prefix.)
  */
 static const struct unifont_vtable *unifont_types[] = {
+#if GTK_CHECK_VERSION(2,0,0)
     &pangofont_vtable,
+#endif
     &x11font_vtable,
 };
 
@@ -1234,8 +1240,11 @@ void unifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 			wide, bold, cellwidth);
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
+
 /* ----------------------------------------------------------------------
- * Implementation of a unified font selector.
+ * Implementation of a unified font selector. Used on GTK 2 only;
+ * for GTK 1 we still use the standard font selector.
  */
 
 typedef struct fontinfo fontinfo;
@@ -2417,3 +2426,5 @@ char *unifontsel_get_name(unifontsel *fontsel)
 
     return dupstr(fs->selected->realname);
 }
+
+#endif /* GTK_CHECK_VERSION(2,0,0) */
