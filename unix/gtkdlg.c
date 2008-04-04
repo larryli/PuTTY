@@ -41,10 +41,10 @@ struct uctrl {
     int privdata_needs_free;
     GtkWidget **buttons; int nbuttons; /* for radio buttons */
     GtkWidget *entry;         /* for editbox, filesel, fontsel */
-    GtkWidget *combo;         /* for combo box (either editable or not) */
-    GtkWidget *list;          /* for list box (list, droplist, combo box) */
-    GtkListStore *listmodel;  /* for all types of list box */
     GtkWidget *button;        /* for filesel, fontsel */
+    GtkWidget *combo;         /* for combo box (either editable or not) */
+    GtkWidget *treeview;      /* for list box (list, droplist, combo box) */
+    GtkListStore *listmodel;  /* for all types of list box */
     GtkWidget *text;	      /* for text */
     GtkWidget *label;         /* for dlg_label_change */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
@@ -465,8 +465,8 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
 	gint *indices;
 	int ret;
 
-	assert(uc->list != NULL);
-	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->list));
+	assert(uc->treeview != NULL);
+	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
 
 	if (gtk_tree_selection_count_selected_rows(treesel) != 1)
 	    return -1;
@@ -517,8 +517,8 @@ int dlg_listbox_issel(union control *ctrl, void *dlg, int index)
 	GtkTreePath *path;
 	int ret;
 
-	assert(uc->list != NULL);
-	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->list));
+	assert(uc->treeview != NULL);
+	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
 
 	path = gtk_tree_path_new_from_indices(index, -1);
 	ret = gtk_tree_selection_path_is_selected(treesel, path);
@@ -546,12 +546,12 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
 	GtkTreeSelection *treesel;
 	GtkTreePath *path;
 
-	assert(uc->list != NULL);
-	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->list));
+	assert(uc->treeview != NULL);
+	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
 
 	path = gtk_tree_path_new_from_indices(index, -1);
 	gtk_tree_selection_select_path(treesel, path);
-	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(uc->list),
+	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(uc->treeview),
 				     path, NULL, FALSE, 0.0, 0.0);
 	gtk_tree_path_free(path);
     }
@@ -710,8 +710,8 @@ void dlg_set_focus(union control *ctrl, void *dlg)
 	 * There might be a combo box (drop-down list) here, or a
 	 * proper list box.
 	 */
-	if (uc->list) {
-	    gtk_widget_grab_focus(uc->list);
+	if (uc->treeview) {
+	    gtk_widget_grab_focus(uc->treeview);
 	} else if (uc->combo) {
 	    gtk_widget_grab_focus(uc->combo);
 	}
@@ -1225,7 +1225,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 	uc->privdata = NULL;
 	uc->privdata_needs_free = FALSE;
 	uc->buttons = NULL;
-	uc->entry = uc->combo = uc->list = NULL;
+	uc->entry = uc->combo = uc->treeview = NULL;
 	uc->listmodel = NULL;
 	uc->button = uc->text = NULL;
 	uc->label = NULL;
@@ -1516,7 +1516,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		gtk_tree_selection_set_mode
 		    (sel, ctrl->listbox.multisel ? GTK_SELECTION_MULTIPLE :
 		     GTK_SELECTION_SINGLE);
-		uc->list = w;
+		uc->treeview = w;
 		gtk_signal_connect(GTK_OBJECT(w), "row-activated",
 				   GTK_SIGNAL_FUNC(listbox_doubleclick), dp);
 		g_signal_connect(G_OBJECT(sel), "changed",
@@ -2783,9 +2783,9 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
      * Deselect everything in the list box.
      */
     uc = dlg_find_byctrl(&es->dp, es->listctrl);
-    assert(uc->list);
+    assert(uc->treeview);
     gtk_tree_selection_unselect_all
-	(gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->list)));
+	(gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview)));
 
     sfree(es->seldata);
     es->sellen = 0;
