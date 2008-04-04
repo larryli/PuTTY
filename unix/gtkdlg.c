@@ -2604,10 +2604,12 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 #else
 
-		/*
-		 * FIXME: apparently I forgot to put this back in
-		 * for GTK 2. Oops.
-		 */
+		if (sc->uc->treeview) {
+		    gtk_widget_grab_focus(sc->uc->treeview);
+		} else if (sc->uc->combo) {
+		    gtk_widget_grab_focus(sc->uc->combo);
+		    gtk_combo_box_popup(GTK_COMBO_BOX(sc->uc->combo));
+		}
 
 #endif
 
