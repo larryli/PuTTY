@@ -26,6 +26,10 @@
 /*
  * Future work:
  * 
+ *  - it would be nice to have a display of the current font name,
+ *    and in particular whether it's client- or server-side,
+ *    during the progress of the font selector.
+ * 
  *  - all the GDK font functions used in the x11font subclass are
  *    deprecated, so one day they may go away. When this happens -
  *    or before, if I'm feeling proactive - it oughtn't to be too
@@ -59,6 +63,8 @@
 #define FONTFLAG_SERVERALIAS   0x0004
 #define FONTFLAG_NONMONOSPACED 0x0008
 
+#define FONTFLAG_SORT_MASK     0x0007 /* used to disambiguate font families */
+
 typedef void (*fontsel_add_entry)(void *ctx, const char *realfontname,
 				  const char *family, const char *charset,
 				  const char *style, const char *stylekey,
@@ -78,7 +84,7 @@ struct unifont_vtable {
     void (*enum_fonts)(GtkWidget *widget,
 		       fontsel_add_entry callback, void *callback_ctx);
     char *(*canonify_fontname)(GtkWidget *widget, const char *name, int *size,
-			       int resolve_aliases);
+			       int *flags, int resolve_aliases);
     char *(*scale_fontname)(GtkWidget *widget, const char *name, int size);
 
     /*
@@ -101,7 +107,8 @@ static void x11font_destroy(unifont *font);
 static void x11font_enum_fonts(GtkWidget *widget,
 			       fontsel_add_entry callback, void *callback_ctx);
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
-				       int *size, int resolve_aliases);
+				       int *size, int *flags,
+				       int resolve_aliases);
 static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 				    int size);
 
@@ -144,7 +151,7 @@ static const struct unifont_vtable x11font_vtable = {
     x11font_enum_fonts,
     x11font_canonify_fontname,
     x11font_scale_fontname,
-    "server"
+    "server",
 };
 
 char *x11_guess_derived_font_name(GdkFont *font, int bold, int wide)
@@ -617,7 +624,8 @@ static void x11font_enum_fonts(GtkWidget *widget,
 }
 
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
-				       int *size, int resolve_aliases)
+				       int *size, int *flags,
+				       int resolve_aliases)
 {
     /*
      * When given an X11 font name to try to make sense of for a
@@ -654,6 +662,12 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
 	    if (XGetFontProperty(xfs, fontprop2, &fsize) && fsize > 0) {
 		*size = fsize;
 		gdk_font_unref(font);
+		if (flags) {
+		    if (name[0] == '-' || resolve_aliases)
+			*flags = FONTFLAG_SERVERSIDE;
+		    else
+			*flags = FONTFLAG_SERVERALIAS;
+		}
 		return dupstr(name[0] == '-' || resolve_aliases ?
 			      newname : name);
 	    }
@@ -686,7 +700,8 @@ static void pangofont_destroy(unifont *font);
 static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 				 void *callback_ctx);
 static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
-					 int *size, int resolve_aliases);
+					 int *size, int *flags,
+					 int resolve_aliases);
 static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 				      int size);
 
@@ -714,7 +729,7 @@ static const struct unifont_vtable pangofont_vtable = {
     pangofont_enum_fonts,
     pangofont_canonify_fontname,
     pangofont_scale_fontname,
-    "client"
+    "client",
 };
 
 /*
@@ -1062,7 +1077,8 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 }
 
 static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
-					 int *size, int resolve_aliases)
+					 int *size, int *flags,
+					 int resolve_aliases)
 {
     /*
      * When given a Pango font name to try to make sense of for a
@@ -1292,19 +1308,10 @@ struct fontinfo {
     const struct unifont_vtable *fontclass;
 };
 
-static int fontinfo_realname_compare(void *av, void *bv)
-{
-    fontinfo *a = (fontinfo *)av;
-    fontinfo *b = (fontinfo *)bv;
-    return g_strcasecmp(a->realname, b->realname);
-}
-
-static int fontinfo_realname_find(void *av, void *bv)
-{
-    const char *a = (const char *)av;
-    fontinfo *b = (fontinfo *)bv;
-    return g_strcasecmp(a, b->realname);
-}
+struct fontinfo_realname_find {
+    const char *realname;
+    int flags;
+};
 
 static int strnullcasecmp(const char *a, const char *b)
 {
@@ -1329,6 +1336,34 @@ static int strnullcasecmp(const char *a, const char *b)
     return g_strcasecmp(a, b);
 }
 
+static int fontinfo_realname_compare(void *av, void *bv)
+{
+    fontinfo *a = (fontinfo *)av;
+    fontinfo *b = (fontinfo *)bv;
+    int i;
+
+    if ((i = strnullcasecmp(a->realname, b->realname)) != 0)
+	return i;
+    if ((a->flags & FONTFLAG_SORT_MASK) != (b->flags & FONTFLAG_SORT_MASK))
+	return ((a->flags & FONTFLAG_SORT_MASK) <
+		(b->flags & FONTFLAG_SORT_MASK) ? -1 : +1);
+    return 0;
+}
+
+static int fontinfo_realname_find(void *av, void *bv)
+{
+    struct fontinfo_realname_find *a = (struct fontinfo_realname_find *)av;
+    fontinfo *b = (fontinfo *)bv;
+    int i;
+
+    if ((i = strnullcasecmp(a->realname, b->realname)) != 0)
+	return i;
+    if ((a->flags & FONTFLAG_SORT_MASK) != (b->flags & FONTFLAG_SORT_MASK))
+	return ((a->flags & FONTFLAG_SORT_MASK) <
+		(b->flags & FONTFLAG_SORT_MASK) ? -1 : +1);
+    return 0;
+}
+
 static int fontinfo_selorder_compare(void *av, void *bv)
 {
     fontinfo *a = (fontinfo *)av;
@@ -1336,6 +1371,13 @@ static int fontinfo_selorder_compare(void *av, void *bv)
     int i;
     if ((i = strnullcasecmp(a->family, b->family)) != 0)
 	return i;
+    /*
+     * Font class comes immediately after family, so that fonts
+     * from different classes with the same family
+     */
+    if ((a->flags & FONTFLAG_SORT_MASK) != (b->flags & FONTFLAG_SORT_MASK))
+	return ((a->flags & FONTFLAG_SORT_MASK) <
+		(b->flags & FONTFLAG_SORT_MASK) ? -1 : +1);
     if ((i = strnullcasecmp(a->charset, b->charset)) != 0)
 	return i;
     if ((i = strnullcasecmp(a->stylekey, b->stylekey)) != 0)
@@ -1354,6 +1396,7 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
     GtkTreeIter iter;
     int i, listindex, minpos = -1, maxpos = -1;
     char *currfamily = NULL;
+    int currflags = -1;
     fontinfo *info;
 
     gtk_list_store_clear(fs->family_model);
@@ -1376,7 +1419,8 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
 	    info->familyindex = -1;
 	    continue;		       /* we're filtering out this font */
 	}
-	if (!info || strnullcasecmp(currfamily, info->family)) {
+	if (!info || strnullcasecmp(currfamily, info->family) ||
+	    currflags != (info->flags & FONTFLAG_SORT_MASK)) {
 	    /*
 	     * We've either finished a family, or started a new
 	     * one, or both.
@@ -1390,6 +1434,7 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
 	    if (info) {
 		minpos = i;
 		currfamily = info->family;
+		currflags = info->flags & FONTFLAG_SORT_MASK;
 	    }
 	}
 	if (!info)
@@ -1999,10 +2044,16 @@ static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
     gtk_tree_model_get(GTK_TREE_MODEL(fs->family_model), &iter, 1,&minval, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
     if (info) {
+	int flags;
+	struct fontinfo_realname_find f;
+
 	newname = info->fontclass->canonify_fontname
-	    (GTK_WIDGET(fs->u.window), info->realname, &newsize, TRUE);
-	newinfo = find234(fs->fonts_by_realname, (char *)newname,
-			  fontinfo_realname_find);
+	    (GTK_WIDGET(fs->u.window), info->realname, &newsize, &flags, TRUE);
+
+	f.realname = newname;
+	f.flags = flags;
+	newinfo = find234(fs->fonts_by_realname, &f, fontinfo_realname_find);
+
 	sfree(newname);
 	if (!newinfo)
 	    return;		       /* font name not in our index */
@@ -2359,7 +2410,7 @@ void unifontsel_destroy(unifontsel *fontsel)
 void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 {
     unifontsel_internal *fs = (unifontsel_internal *)fontsel;
-    int i, start, end, size;
+    int i, start, end, size, flags;
     const char *fontname2 = NULL;
     fontinfo *info;
 
@@ -2367,7 +2418,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
      * Provide a default if given an empty or null font name.
      */
     if (!fontname || !*fontname)
-	fontname = "fixed";   /* Pango zealots might prefer "Monospace 12" */
+	fontname = "server:fixed";
 
     /*
      * Call the canonify_fontname function.
@@ -2375,7 +2426,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
     fontname = unifont_do_prefix(fontname, &start, &end);
     for (i = start; i < end; i++) {
 	fontname2 = unifont_types[i]->canonify_fontname
-	    (GTK_WIDGET(fs->u.window), fontname, &size, FALSE);
+	    (GTK_WIDGET(fs->u.window), fontname, &size, &flags, FALSE);
 	if (fontname2)
 	    break;
     }
@@ -2385,8 +2436,12 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
     /*
      * Now look up the canonified font name in our index.
      */
-    info = find234(fs->fonts_by_realname, (char *)fontname2,
-		   fontinfo_realname_find);
+    {
+	struct fontinfo_realname_find f;
+	f.realname = fontname2;
+	f.flags = flags;
+	info = find234(fs->fonts_by_realname, &f, fontinfo_realname_find);
+    }
 
     /*
      * If we've found the font, and its size field is either
@@ -2395,8 +2450,11 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
      * font name instead.
      */
     if (!info || (info->size != size && info->size != 0)) {
-	info = find234(fs->fonts_by_realname, (char *)fontname,
-		       fontinfo_realname_find);
+	struct fontinfo_realname_find f;
+	f.realname = fontname;
+	f.flags = flags;
+
+	info = find234(fs->fonts_by_realname, &f, fontinfo_realname_find);
 	if (!info || info->size != size)
 	    return;		       /* font name not in our index */
     }
@@ -2420,11 +2478,16 @@ char *unifontsel_get_name(unifontsel *fontsel)
     if (fs->selected->size == 0) {
 	name = fs->selected->fontclass->scale_fontname
 	    (GTK_WIDGET(fs->u.window), fs->selected->realname, fs->selsize);
-	if (name)
-	    return name;
+	if (name) {
+	    char *ret = dupcat(fs->selected->fontclass->prefix, ":",
+			       name, NULL);
+	    sfree(name);
+	    return ret;
+	}
     }
 
-    return dupstr(fs->selected->realname);
+    return dupcat(fs->selected->fontclass->prefix, ":",
+		  fs->selected->realname, NULL);
 }
 
 #endif /* GTK_CHECK_VERSION(2,0,0) */

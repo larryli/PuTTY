@@ -362,7 +362,35 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 
 int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
 {
-    return !!read_setting_s(handle, name, result->name, sizeof(result->name));
+    /*
+     * In GTK1-only PuTTY, we used to store font names simply as a
+     * valid X font description string (logical or alias), under a
+     * bare key such as "Font".
+     * 
+     * In GTK2 PuTTY, we have a prefix system where "client:"
+     * indicates a Pango font and "server:" an X one; existing
+     * configuration needs to be reinterpreted as having the
+     * "server:" prefix, so we change the storage key from the
+     * provided name string (e.g. "Font") to a suffixed one
+     * ("FontName").
+     */
+    char *suffname = dupcat(name, "Name", NULL);
+    if (read_setting_s(handle, suffname, result->name, sizeof(result->name))) {
+	sfree(suffname);
+	return TRUE;		       /* got new-style name */
+    }
+    sfree(suffname);
+
+    /* Fall back to old-style name. */
+    memcpy(result->name, "server:", 7);
+    if (!read_setting_s(handle, name,
+			result->name + 7, sizeof(result->name) - 7) ||
+	!result->name[7]) {
+	result->name[0] = '\0';
+	return FALSE;
+    } else {
+	return TRUE;
+    }
 }
 int read_setting_filename(void *handle, const char *name, Filename *result)
 {
@@ -371,7 +399,14 @@ int read_setting_filename(void *handle, const char *name, Filename *result)
 
 void write_setting_fontspec(void *handle, const char *name, FontSpec result)
 {
-    write_setting_s(handle, name, result.name);
+    /*
+     * read_setting_fontspec had to handle two cases, but when
+     * writing our settings back out we simply always generate the
+     * new-style name.
+     */
+    char *suffname = dupcat(name, "Name", NULL);
+    write_setting_s(handle, suffname, result.name);
+    sfree(suffname);
 }
 void write_setting_filename(void *handle, const char *name, Filename result)
 {

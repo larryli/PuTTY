@@ -134,7 +134,7 @@ FontSpec platform_default_fontspec(const char *name)
 {
     FontSpec ret;
     if (!strcmp(name, "Font"))
-	strcpy(ret.name, "fixed");
+	strcpy(ret.name, "server:fixed");
     else
 	*ret.name = '\0';
     return ret;
