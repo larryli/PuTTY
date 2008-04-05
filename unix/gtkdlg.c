@@ -2998,6 +2998,7 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 				   -1);
 		treeiterlevels[j] = treeiter;
 
+		selparams[nselparams].depth = j;
 		if (j > 0) {
 		    selparams[nselparams].treepath =
 			gtk_tree_model_get_path(GTK_TREE_MODEL(treestore),
@@ -3011,7 +3012,8 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		    gtk_tree_view_expand_row(GTK_TREE_VIEW(tree),
 					     selparams[nselparams].treepath,
 					     FALSE);
-		    selparams[nselparams].depth = j;
+		} else {
+		    selparams[nselparams].treepath = NULL;
 		}
 #else
 		treeitem = gtk_tree_item_new_with_label(c);
