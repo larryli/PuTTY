@@ -40,7 +40,7 @@ option has a double minus sign, even though none of the others do.
 This is because this option is supplied automatically by GTK.
 Sorry.)
 
-\dt \cw{\-name} \e{font-name}
+\dt \cw{\-name} \e{name}
 
 \dd Specify the name under which \cw{pterm} looks up X resources.
 Normally it will look them up as (for example) \cw{pterm.Font}. If
