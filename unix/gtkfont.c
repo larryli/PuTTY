@@ -1131,6 +1131,7 @@ static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
     }
 
     *size = PANGO_PIXELS(pango_font_description_get_size(desc));
+    *flags = FONTFLAG_CLIENTSIDE;
     pango_font_description_set_size(desc, PANGO_DUMMY_SIZE * PANGO_SCALE);
     newname = pango_font_description_to_string(desc);
     retname = dupstr(newname);
