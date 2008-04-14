@@ -2139,6 +2139,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     int i;
 
     fs->inhibit_response = FALSE;
+    fs->selected = NULL;
 
     {
 	/*
@@ -2400,7 +2401,6 @@ unifontsel *unifontsel_new(const char *wintitle)
      */
     unifontsel_setup_familylist(fs);
 
-    fs->selected = NULL;
     fs->selsize = fs->intendedsize = 13;   /* random default */
     gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
 
