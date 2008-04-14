@@ -1392,6 +1392,15 @@ static int fontinfo_selorder_compare(void *av, void *bv)
     return 0;
 }
 
+static void unifontsel_deselect(unifontsel_internal *fs)
+{
+    fs->selected = NULL;
+    gtk_list_store_clear(fs->style_model);
+    gtk_list_store_clear(fs->size_model);
+    gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
+    gtk_widget_set_sensitive(fs->size_entry, FALSE);
+}
+
 static void unifontsel_setup_familylist(unifontsel_internal *fs)
 {
     GtkTreeIter iter;
@@ -1443,6 +1452,13 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
 	info->familyindex = listindex;
 	maxpos = i;
     }
+
+    /*
+     * If we've just filtered out the previously selected font,
+     * deselect it thoroughly.
+     */
+    if (fs->selected && fs->selected->familyindex < 0)
+	unifontsel_deselect(fs);
 }
 
 static void unifontsel_setup_stylelist(unifontsel_internal *fs,
