@@ -209,7 +209,7 @@ seems to be working so far.
 
 Currently, release versions of PuTTY tools only run on full Win32
 systems and Unix. \q{Win32} includes Windows 95, 98, and ME, and it
-includes Windows NT, Windows 2000 and Windows XP.
+includes Windows NT, 2000, XP, and Vista.
 
 In the development code, a partial port to the Mac OS (see
 \k{faq-mac-port}) is under way.
