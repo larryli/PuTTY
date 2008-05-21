@@ -1398,11 +1398,12 @@ and pay any costs, we can't provide this.
 \H{faq-misc} Miscellaneous questions
 
 \S{faq-openssh}{Question} Is PuTTY a port of \i{OpenSSH}, or based on
-OpenSSH?
+OpenSSH or OpenSSL?
 
 No, it isn't. PuTTY is almost completely composed of code written
 from scratch for PuTTY. The only code we share with OpenSSH is the
-detector for SSH-1 CRC compensation attacks, written by CORE SDI S.A.
+detector for SSH-1 CRC compensation attacks, written by CORE SDI
+S.A; we share no code at all with OpenSSL.
 
 \S{faq-sillyputty}{Question} Where can I buy silly putty?
 
