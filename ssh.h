@@ -344,7 +344,8 @@ extern void platform_get_x11_auth(char *display, int *proto,
                                   unsigned char *data, int *datalen);
 extern const char platform_x11_best_transport[];
 /* best X11 hostname for this platform if none specified */
-SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname);
+SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
+				       char **canonicalname);
 /* make up a SockAddr naming the address for displaynum */
 char *platform_get_x_display(void);
 /* allocated local X display string, if any */

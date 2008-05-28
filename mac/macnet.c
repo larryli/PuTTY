@@ -175,7 +175,8 @@ int net_service_lookup(char *service)
     return 0;
 }
 
-SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname)
+SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
+				       char **canonicalname)
 {
     return NULL;
 }

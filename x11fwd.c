@@ -301,9 +301,9 @@ const char *x11_init(Socket * s, char *display, void *c, void *auth,
     host[n] = '\0';
     sfree(display);
     
-    if(!strcmp(host, "unix")) {
+    if(!strcmp(host, "unix") || host[0] == '/') {
 	/* use AF_UNIX sockets (doesn't make sense on all platforms) */
-	addr = platform_get_x11_unix_address(displaynum,
+	addr = platform_get_x11_unix_address(display, displaynum,
 					     &dummy_realhost);
 	port = 0;		/* to show we are not confused */
     } else {

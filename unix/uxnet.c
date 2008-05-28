@@ -1292,15 +1292,29 @@ int net_service_lookup(char *service)
 	return 0;
 }
 
-SockAddr platform_get_x11_unix_address(int displaynum, char **canonicalname)
+SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
+				       char **canonicalname)
 {
     SockAddr ret = snew(struct SockAddr_tag);
     int n;
 
     memset(ret, 0, sizeof *ret);
     ret->family = AF_UNIX;
-    n = snprintf(ret->hostname, sizeof ret->hostname,
-		 "%s%d", X11_UNIX_PATH, displaynum);
+    /*
+     * Mac OS X Leopard uses an innovative X display naming
+     * convention in which the entire display name is the path to
+     * the Unix socket, including the trailing :0 which only
+     * _looks_ like a display number. Heuristically, I think
+     * detecting this by means of a leading slash ought to be
+     * adequate.
+     */
+    if (display[0] == '/') {
+	n = snprintf(ret->hostname, sizeof ret->hostname,
+		     "%s", display);
+    } else {
+	n = snprintf(ret->hostname, sizeof ret->hostname,
+		     "%s%d", X11_UNIX_PATH, displaynum);
+    }
     if(n < 0)
 	ret->error = "snprintf failed";
     else if(n >= sizeof ret->hostname)
