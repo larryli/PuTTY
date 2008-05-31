@@ -8569,7 +8569,7 @@ static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
 {
     /* log reason code in disconnect message */
     char *buf, *msg;
-    int nowlen, reason, msglen;
+    int reason, msglen;
 
     reason = ssh_pkt_getuint32(pktin);
     ssh_pkt_getstring(pktin, &msg, &msglen);
@@ -8583,14 +8583,14 @@ static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
     }
     logevent(buf);
     sfree(buf);
-    buf = dupprintf("Disconnection message text: %n%.*s",
-		    &nowlen, msglen, msg);
+    buf = dupprintf("Disconnection message text: %.*s",
+		    msglen, msg);
     logevent(buf);
-    bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
+    bombout(("Server sent disconnect message\ntype %d (%s):\n\"%.*s\"",
 	     reason,
 	     (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
 	     ssh2_disconnect_reasons[reason] : "unknown",
-	     buf+nowlen));
+	     msglen, msg));
     sfree(buf);
 }
 
