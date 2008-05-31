@@ -690,6 +690,10 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
  * Pango font implementation (for GTK 2 only).
  */
 
+#if defined PANGO_PRE_1POINT4 && !defined PANGO_PRE_1POINT6
+#define PANGO_PRE_1POINT6	       /* make life easier for pre-1.4 folk */
+#endif
+
 static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 				int x, int y, const char *string, int len,
 				int wide, int bold, int cellwidth);
@@ -2185,11 +2189,15 @@ unifontsel *unifontsel_new(const char *wintitle)
     table = gtk_table_new(8, 3, FALSE);
     gtk_widget_show(table);
     gtk_table_set_col_spacings(GTK_TABLE(table), 8);
+#if GTK_CHECK_VERSION(2,4,0)
     /* GtkAlignment seems to be the simplest way to put padding round things */
     w = gtk_alignment_new(0, 0, 1, 1);
     gtk_alignment_set_padding(GTK_ALIGNMENT(w), 8, 8, 8, 8);
     gtk_container_add(GTK_CONTAINER(w), table);
     gtk_widget_show(w);
+#else
+    w = table;
+#endif
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(fs->u.window)->vbox),
 		       w, TRUE, TRUE, 0);
 
@@ -2334,12 +2342,14 @@ unifontsel *unifontsel_new(const char *wintitle)
     w = gtk_frame_new(NULL);
     gtk_container_add(GTK_CONTAINER(w), ww);
     gtk_widget_show(w);
+#if GTK_CHECK_VERSION(2,4,0)
     ww = w;
     /* GtkAlignment seems to be the simplest way to put padding round things */
     w = gtk_alignment_new(0, 0, 1, 1);
     gtk_alignment_set_padding(GTK_ALIGNMENT(w), 8, 8, 8, 8);
     gtk_container_add(GTK_CONTAINER(w), ww);
     gtk_widget_show(w);
+#endif
     ww = w;
     w = gtk_frame_new("Preview of font");
     gtk_container_add(GTK_CONTAINER(w), ww);
