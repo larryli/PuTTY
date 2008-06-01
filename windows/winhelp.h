@@ -74,6 +74,7 @@
 #define WINHELP_CTX_connection_nodelay "connection.nodelay:config-nodelay"
 #define WINHELP_CTX_connection_ipversion "connection.ipversion:config-address-family"
 #define WINHELP_CTX_connection_tcpkeepalive "connection.tcpkeepalive:config-tcp-keepalives"
+#define WINHELP_CTX_connection_loghost "connection.loghost:config-loghost"
 #define WINHELP_CTX_proxy_type "proxy.type:config-proxy-type"
 #define WINHELP_CTX_proxy_main "proxy.main:config-proxy"
 #define WINHELP_CTX_proxy_exclude "proxy.exclude:config-proxy-exclude"

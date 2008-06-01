@@ -2837,12 +2837,30 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     SockAddr addr;
     const char *err;
 
-    ssh->savedhost = snewn(1 + strlen(host), char);
-    strcpy(ssh->savedhost, host);
+    if (*ssh->cfg.loghost) {
+	char *colon;
 
-    if (port < 0)
-	port = 22;		       /* default ssh port */
-    ssh->savedport = port;
+	ssh->savedhost = dupstr(ssh->cfg.loghost);
+	ssh->savedport = 22;	       /* default ssh port */
+
+	/*
+	 * A colon suffix on savedhost also lets us affect
+	 * savedport.
+	 * 
+	 * (FIXME: do something about IPv6 address literals here.)
+	 */
+	colon = strrchr(ssh->savedhost, ':');
+	if (colon) {
+	    *colon++ = '\0';
+	    if (*colon)
+		ssh->savedport = atoi(colon);
+	}
+    } else {
+	ssh->savedhost = dupstr(host);
+	if (port < 0)
+	    port = 22;		       /* default ssh port */
+	ssh->savedport = port;
+    }
 
     /*
      * Try to find host.
@@ -2878,6 +2896,14 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     if (ssh->cfg.sshprot == 3) {
 	ssh->version = 2;
 	ssh_send_verstring(ssh, NULL);
+    }
+
+    /*
+     * loghost, if configured, overrides realhost.
+     */
+    if (*ssh->cfg.loghost) {
+	sfree(*realhost);
+	*realhost = dupstr(ssh->cfg.loghost);
     }
 
     return NULL;
@@ -8569,7 +8595,7 @@ static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
 {
     /* log reason code in disconnect message */
     char *buf, *msg;
-    int nowlen, reason, msglen;
+    int reason, msglen;
 
     reason = ssh_pkt_getuint32(pktin);
     ssh_pkt_getstring(pktin, &msg, &msglen);
@@ -8583,14 +8609,14 @@ static void ssh2_msg_disconnect(Ssh ssh, struct Packet *pktin)
     }
     logevent(buf);
     sfree(buf);
-    buf = dupprintf("Disconnection message text: %n%.*s",
-		    &nowlen, msglen, msg);
+    buf = dupprintf("Disconnection message text: %.*s",
+		    msglen, msg);
     logevent(buf);
-    bombout(("Server sent disconnect message\ntype %d (%s):\n\"%s\"",
+    bombout(("Server sent disconnect message\ntype %d (%s):\n\"%.*s\"",
 	     reason,
 	     (reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
 	     ssh2_disconnect_reasons[reason] : "unknown",
-	     buf+nowlen));
+	     msglen, msg));
     sfree(buf);
 }
 

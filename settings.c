@@ -332,6 +332,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "SshNoShell", cfg->ssh_no_shell);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
+    write_setting_s(sesskey, "LogHost", cfg->loghost);
     write_setting_i(sesskey, "SSH2DES", cfg->ssh2_des_cbc);
     write_setting_filename(sesskey, "PublicKeyFile", cfg->keyfile);
     write_setting_s(sesskey, "RemoteCommand", cfg->remote_cmd);
@@ -608,6 +609,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gpps(sesskey, "RekeyBytes", "1G", cfg->ssh_rekey_data,
 	 sizeof(cfg->ssh_rekey_data));
     gppi(sesskey, "SshProt", 2, &cfg->sshprot);
+    gpps(sesskey, "LogHost", "", cfg->loghost, sizeof(cfg->loghost));
     gppi(sesskey, "SSH2DES", 0, &cfg->ssh2_des_cbc);
     gppi(sesskey, "SshNoAuth", 0, &cfg->ssh_no_userauth);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);

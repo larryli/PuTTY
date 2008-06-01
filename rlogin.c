@@ -197,6 +197,22 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
 	rlogin->bufsize = sk_write(rlogin->s, &z, 1);
     }
 
+    if (*cfg->loghost) {
+	char *colon;
+
+	sfree(*realhost);
+	*realhost = dupstr(cfg->loghost);
+	colon = strrchr(*realhost, ':');
+	if (colon) {
+	    /*
+	     * FIXME: if we ever update this aspect of ssh.c for
+	     * IPv6 literal management, this should change in line
+	     * with it.
+	     */
+	    *colon++ = '\0';
+	}
+    }
+
     return NULL;
 }
 
