@@ -427,6 +427,7 @@ struct config_tag {
     int ping_interval;		       /* in seconds */
     int tcp_nodelay;
     int tcp_keepalives;
+    char loghost[512];  /* logical host being contacted, for host key check */
     /* Proxy options */
     char proxy_exclude_list[512];
     int proxy_dns;

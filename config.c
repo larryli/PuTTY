@@ -1721,6 +1721,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  "IPv6", '6', I(ADDRTYPE_IPV6),
 			  NULL);
 #endif
+
+	    s = ctrl_getset(b, "Connection", "identity",
+			    "Logical name of remote host");
+	    ctrl_editbox(s, "Logical name of remote host (e.g. for SSH key lookup):",
+			 'm', 100,
+			 HELPCTX(connection_loghost),
+			 dlg_stdeditbox_handler, I(offsetof(Config,loghost)),
+			 I(sizeof(((Config *)0)->loghost)));
 	}
 
 	/*

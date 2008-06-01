@@ -2837,12 +2837,30 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     SockAddr addr;
     const char *err;
 
-    ssh->savedhost = snewn(1 + strlen(host), char);
-    strcpy(ssh->savedhost, host);
+    if (*ssh->cfg.loghost) {
+	char *colon;
 
-    if (port < 0)
-	port = 22;		       /* default ssh port */
-    ssh->savedport = port;
+	ssh->savedhost = dupstr(ssh->cfg.loghost);
+	ssh->savedport = 22;	       /* default ssh port */
+
+	/*
+	 * A colon suffix on savedhost also lets us affect
+	 * savedport.
+	 * 
+	 * (FIXME: do something about IPv6 address literals here.)
+	 */
+	colon = strrchr(ssh->savedhost, ':');
+	if (colon) {
+	    *colon++ = '\0';
+	    if (*colon)
+		ssh->savedport = atoi(colon);
+	}
+    } else {
+	ssh->savedhost = dupstr(host);
+	if (port < 0)
+	    port = 22;		       /* default ssh port */
+	ssh->savedport = port;
+    }
 
     /*
      * Try to find host.
@@ -2878,6 +2896,14 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     if (ssh->cfg.sshprot == 3) {
 	ssh->version = 2;
 	ssh_send_verstring(ssh, NULL);
+    }
+
+    /*
+     * loghost, if configured, overrides realhost.
+     */
+    if (*ssh->cfg.loghost) {
+	sfree(*realhost);
+	*realhost = dupstr(ssh->cfg.loghost);
     }
 
     return NULL;

@@ -470,6 +470,12 @@ to obtain a fix from Microsoft in order to use addresses like
 For more options relating to port forwarding, see
 \k{config-ssh-portfwd}.
 
+If the connection you are forwarding over SSH is itself a second SSH
+connection made by another copy of PuTTY, you might find the
+\q{logical host name} configuration option useful to warn PuTTY of
+which host key it should be expecting. See \k{config-loghost} for
+details of this.
+
 \H{using-rawprot} Making \i{raw TCP connections}
 
 A lot of \I{debugging Internet protocols}Internet protocols are
@@ -889,6 +895,16 @@ For general information on \i{public-key authentication}, see
 This option is equivalent to the \q{Private key file for
 authentication} box in the Auth panel of the PuTTY configuration box
 (see \k{config-ssh-privkey}).
+
+\S2{using-cmdline-loghost} \i\c{-loghost}: specify a \i{logical host
+name}
+
+This option overrides PuTTY's normal SSH host key caching policy by
+telling it the name of the host you expect your connection to end up
+at (in cases where this differs from the location PuTTY thinks it's
+connecting to). It can be a plain host name, or a host name followed
+by a colon and a port number. See \k{config-loghost} for more detail
+on this.
 
 \S2{using-cmdline-pgpfp} \i\c{-pgpfp}: display \i{PGP key fingerprint}s
 

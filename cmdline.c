@@ -203,6 +203,13 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	strncpy(cfg->username, value, sizeof(cfg->username));
 	cfg->username[sizeof(cfg->username) - 1] = '\0';
     }
+    if (!strcmp(p, "-loghost")) {
+	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+	strncpy(cfg->loghost, value, sizeof(cfg->loghost));
+	cfg->loghost[sizeof(cfg->loghost) - 1] = '\0';
+    }
     if ((!strcmp(p, "-L") || !strcmp(p, "-R") || !strcmp(p, "-D"))) {
 	char *fwd, *ptr, *q, *qq;
 	int dynamic, i=0;

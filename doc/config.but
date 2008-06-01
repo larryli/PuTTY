@@ -1716,6 +1716,54 @@ IPv6 address available, and fall back to IPv4 if not.)
 If you need to force PuTTY to use a particular protocol, you can
 explicitly set this to \q{IPv4} or \q{IPv6}.
 
+\S{config-loghost} \I{logical host name}\q{Logical name of remote host}
+
+\cfg{winhelp-topic}{connection.loghost}
+
+This allows you to tell PuTTY that the host it will really end up
+connecting to is different from where it thinks it is making a
+network connection.
+
+You might use this, for instance, if you had set up an SSH port
+forwarding in one PuTTY session so that connections to some
+arbitrary port (say, \cw{localhost} port 10022) were forwarded to a
+second machine's SSH port (say, \cw{foovax} port 22), and then
+started a second PuTTY connecting to the forwarded port.
+
+In normal usage, the second PuTTY will access the host key cache
+under the host name and port it actually connected to (i.e.
+\cw{localhost} port 10022 in this example). Using the logical host
+name option, however, you can configure the second PuTTY to cache
+the host key under the name of the host \e{you} know that it's
+\e{really} going to end up talking to (here \c{foovax}).
+
+This can be useful if you expect to connect to the same actual
+server through many different channels (perhaps because your port
+forwarding arrangements keep changing): by consistently setting the
+logical host name, you can arrange that PuTTY will not keep asking
+you to reconfirm its host key. Conversely, if you expect to use the
+same local port number for port forwardings to lots of different
+servers, you probably didn't want any particular server's host key
+cached under that local port number.
+
+If you just enter a host name for this option, PuTTY will cache the
+SSH host key under the default SSH port for that host, irrespective
+of the port you really connected to (since the typical scenario is
+like the above example: you connect to a silly real port number and
+your connection ends up forwarded to the normal port-22 SSH server
+of some other machine). To override this, you can append a port
+number to the logical host name, separated by a colon. E.g. entering
+\cq{foovax:2200} as the logical host name will cause the host key to
+be cached as if you had connected to port 2200 of \c{foovax}.
+
+If you provide a host name using this option, it is also displayed
+in other locations which contain the remote host name, such as the
+default window title and the default SSH password prompt. This
+reflects the fact that this is the host you're \e{really} connecting
+to, which is more important than the mere means you happen to be
+using to contact that host. (This applies even if you're using a
+protocol other than SSH.)
+
 \H{config-data} The Data panel
 
 The Data panel allows you to configure various pieces of data which
@@ -2756,6 +2804,12 @@ If you delete a forwarding, any existing connections established using
 that forwarding remain open. Similarly, changes to global settings
 such as \q{Local ports accept connections from other hosts} only take
 effect on new forwardings.
+
+If the connection you are forwarding over SSH is itself a second SSH
+connection made by another copy of PuTTY, you might find the
+\q{logical host name} configuration option useful to warn PuTTY of
+which host key it should be expecting. See \k{config-loghost} for
+details of this.
 
 \S{config-ssh-portfwd-localhost} Controlling the visibility of
 forwarded ports

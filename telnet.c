@@ -805,6 +805,25 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
      */
     update_specials_menu(telnet->frontend);
 
+    /*
+     * loghost overrides realhost, if specified.
+     */
+    if (*telnet->cfg.loghost) {
+	char *colon;
+
+	sfree(*realhost);
+	*realhost = dupstr(telnet->cfg.loghost);
+	colon = strrchr(*realhost, ':');
+	if (colon) {
+	    /*
+	     * FIXME: if we ever update this aspect of ssh.c for
+	     * IPv6 literal management, this should change in line
+	     * with it.
+	     */
+	    *colon++ = '\0';
+	}
+    }
+
     return NULL;
 }
 
