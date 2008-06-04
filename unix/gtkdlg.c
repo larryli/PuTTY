@@ -2,15 +2,6 @@
  * gtkdlg.c - GTK implementation of the PuTTY configuration box.
  */
 
-/*
- * TODO when porting to GTK 2.0:
- * 
- *  - GtkTree is apparently deprecated and we should switch to
- *    GtkTreeView instead.
- *  - GtkLabel has a built-in mnemonic scheme, so we should at
- *    least consider switching to that from the current adhockery.
- */
-
 #include <assert.h>
 #include <stdarg.h>
 #include <ctype.h>
@@ -22,6 +13,7 @@
 #include <X11/Xutil.h>
 
 #include "gtkcols.h"
+#include "gtkfont.h"
 
 #ifdef TESTMODE
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
@@ -48,14 +40,23 @@ struct uctrl {
     void *privdata;
     int privdata_needs_free;
     GtkWidget **buttons; int nbuttons; /* for radio buttons */
-    GtkWidget *entry;         /* for editbox, combobox, filesel, fontsel */
+    GtkWidget *entry;         /* for editbox, filesel, fontsel */
     GtkWidget *button;        /* for filesel, fontsel */
-    GtkWidget *list;	      /* for combobox, listbox */
+#if !GTK_CHECK_VERSION(2,4,0)
+    GtkWidget *list;	      /* for listbox (in GTK1), combobox (<=GTK2.3) */
     GtkWidget *menu;	      /* for optionmenu (==droplist) */
     GtkWidget *optmenu;	      /* also for optionmenu */
+#else
+    GtkWidget *combo;         /* for combo box (either editable or not) */
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    GtkWidget *treeview;      /* for listbox (GTK2), droplist+combo (>=2.4) */
+    GtkListStore *listmodel;  /* for all types of list box */
+#endif
     GtkWidget *text;	      /* for text */
     GtkWidget *label;         /* for dlg_label_change */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
+    guint entrysig;
     guint textsig;
     int nclicks;
 };
@@ -68,12 +69,16 @@ struct dlgparam {
      * due to automatic processing and should not flag a user event. */
     int flags;
     struct Shortcuts *shortcuts;
-    GtkWidget *window, *cancelbutton, *currtreeitem, **treeitems;
+    GtkWidget *window, *cancelbutton;
     union control *currfocus, *lastfocus;
+#if !GTK_CHECK_VERSION(2,0,0)
+    GtkWidget *currtreeitem, **treeitems;
     int ntreeitems;
+#endif
     int retval;
 };
 #define FLAG_UPDATING_COMBO_LIST 1
+#define FLAG_UPDATING_LISTBOX    2
 
 enum {				       /* values for Shortcut.action */
     SHORTCUT_EMPTY,		       /* no shortcut on this key */
@@ -84,6 +89,14 @@ enum {				       /* values for Shortcut.action */
     SHORTCUT_UCTRL_DOWN,	       /* uctrl is a draglist, move Down */
 };
 
+#if GTK_CHECK_VERSION(2,0,0)
+enum {
+    TREESTORE_PATH,
+    TREESTORE_PARAMS,
+    TREESTORE_NUM
+};
+#endif
+
 /*
  * Forward references.
  */
@@ -92,18 +105,23 @@ static gboolean widget_focus(GtkWidget *widget, GdkEventFocus *event,
 static void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 			 int chr, int action, void *ptr);
 static void shortcut_highlight(GtkWidget *label, int chr);
-static int listitem_single_key(GtkWidget *item, GdkEventKey *event,
-                               gpointer data);
-static int listitem_multi_key(GtkWidget *item, GdkEventKey *event,
-                                 gpointer data);
-static int listitem_button_press(GtkWidget *item, GdkEventButton *event,
-			         gpointer data);
-static int listitem_button_release(GtkWidget *item, GdkEventButton *event,
-			           gpointer data);
+#if !GTK_CHECK_VERSION(2,0,0)
+static gboolean listitem_single_key(GtkWidget *item, GdkEventKey *event,
+				    gpointer data);
+static gboolean listitem_multi_key(GtkWidget *item, GdkEventKey *event,
+				   gpointer data);
+static gboolean listitem_button_press(GtkWidget *item, GdkEventButton *event,
+				      gpointer data);
+static gboolean listitem_button_release(GtkWidget *item, GdkEventButton *event,
+					gpointer data);
+#endif
+#if !GTK_CHECK_VERSION(2,4,0)
 static void menuitem_activate(GtkMenuItem *item, gpointer data);
+#endif
 static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
 static void window_destroy(GtkWidget *widget, gpointer data);
+int get_listitemheight(GtkWidget *widget);
 
 static int uctrl_cmp_byctrl(void *av, void *bv)
 {
@@ -154,8 +172,11 @@ static void dlg_init(struct dlgparam *dp)
     dp->byctrl = newtree234(uctrl_cmp_byctrl);
     dp->bywidget = newtree234(uctrl_cmp_bywidget);
     dp->coloursel_result.ok = FALSE;
+    dp->window = dp->cancelbutton = NULL;
+#if !GTK_CHECK_VERSION(2,0,0)
     dp->treeitems = NULL;
-    dp->window = dp->cancelbutton = dp->currtreeitem = NULL;
+    dp->currtreeitem = NULL;
+#endif
     dp->flags = 0;
     dp->currfocus = NULL;
 }
@@ -175,7 +196,9 @@ static void dlg_cleanup(struct dlgparam *dp)
     }
     freetree234(dp->bywidget);
     dp->bywidget = NULL;
+#if !GTK_CHECK_VERSION(2,0,0)
     sfree(dp->treeitems);
+#endif
 }
 
 static void dlg_add_uctrl(struct dlgparam *dp, struct uctrl *uc)
@@ -285,9 +308,40 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+    GtkWidget *entry;
+    char *tmpstring;
     assert(uc->ctrl->generic.type == CTRL_EDITBOX);
-    assert(uc->entry != NULL);
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), text);
+
+#if GTK_CHECK_VERSION(2,4,0)
+    if (uc->combo)
+	entry = gtk_bin_get_child(GTK_BIN(uc->combo));
+    else
+#endif
+    entry = uc->entry;
+
+    assert(entry != NULL);
+
+    /*
+     * GTK 2 implements gtk_entry_set_text by means of two separate
+     * operations: first delete the previous text leaving the empty
+     * string, then insert the new text. This causes two calls to
+     * the "changed" signal.
+     *
+     * The first call to "changed", if allowed to proceed normally,
+     * will cause an EVENT_VALCHANGE event on the edit box, causing
+     * a call to dlg_editbox_get() which will read the empty string
+     * out of the GtkEntry - and promptly write it straight into
+     * the Config structure, which is precisely where our `text'
+     * pointer is probably pointing, so the second editing
+     * operation will insert that instead of the string we
+     * originally asked for.
+     *
+     * Hence, we must take our own copy of the text before we do
+     * this.
+     */
+    tmpstring = dupstr(text);
+    gtk_entry_set_text(GTK_ENTRY(entry), tmpstring);
+    sfree(tmpstring);
 }
 
 void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
@@ -295,18 +349,42 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_EDITBOX);
-    assert(uc->entry != NULL);
-    strncpy(buffer, gtk_entry_get_text(GTK_ENTRY(uc->entry)),
-	    length);
-    buffer[length-1] = '\0';
+
+#if GTK_CHECK_VERSION(2,4,0)
+    if (uc->combo) {
+#if GTK_CHECK_VERSION(2,6,0)
+	strncpy(buffer,
+		gtk_combo_box_get_active_text(GTK_COMBO_BOX(uc->combo)),
+		length);
+#else
+	strncpy(buffer,
+		gtk_entry_get_text
+		(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(uc->combo)))),
+		length);
+#endif
+	buffer[length-1] = '\0';
+	return;
+    }
+#endif
+
+    if (uc->entry) {
+	strncpy(buffer, gtk_entry_get_text(GTK_ENTRY(uc->entry)),
+		length);
+	buffer[length-1] = '\0';
+	return;
+    }
+
+    assert(!"We shouldn't get here");
 }
 
+#if !GTK_CHECK_VERSION(2,4,0)
 static void container_remove_and_destroy(GtkWidget *w, gpointer data)
 {
     GtkContainer *cont = GTK_CONTAINER(data);
     /* gtk_container_remove will unref the widget for us; we need not. */
     gtk_container_remove(cont, w);
 }
+#endif
 
 /* The `listbox' functions can also apply to combo boxes. */
 void dlg_listbox_clear(union control *ctrl, void *dlg)
@@ -316,15 +394,26 @@ void dlg_listbox_clear(union control *ctrl, void *dlg)
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->menu != NULL || uc->list != NULL);
 
+#if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu) {
 	gtk_container_foreach(GTK_CONTAINER(uc->menu),
 			      container_remove_and_destroy,
 			      GTK_CONTAINER(uc->menu));
-    } else {
-	gtk_list_clear_items(GTK_LIST(uc->list), 0, -1);
+	return;
     }
+    if (uc->list) {
+	gtk_list_clear_items(GTK_LIST(uc->list), 0, -1);
+	return;
+    }
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    if (uc->listmodel) {
+	gtk_list_store_clear(uc->listmodel);
+	return;
+    }
+#endif
+    assert(!"We shouldn't get here");
 }
 
 void dlg_listbox_del(union control *ctrl, void *dlg, int index)
@@ -334,15 +423,32 @@ void dlg_listbox_del(union control *ctrl, void *dlg, int index)
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->menu != NULL || uc->list != NULL);
 
+#if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu) {
 	gtk_container_remove
 	    (GTK_CONTAINER(uc->menu),
 	     g_list_nth_data(GTK_MENU_SHELL(uc->menu)->children, index));
-    } else {
-	gtk_list_clear_items(GTK_LIST(uc->list), index, index+1);
+	return;
     }
+    if (uc->list) {
+	gtk_list_clear_items(GTK_LIST(uc->list), index, index+1);
+	return;
+    }
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    if (uc->listmodel) {
+	GtkTreePath *path;
+	GtkTreeIter iter;
+	assert(uc->listmodel != NULL);
+	path = gtk_tree_path_new_from_indices(index, -1);
+	gtk_tree_model_get_iter(GTK_TREE_MODEL(uc->listmodel), &iter, path);
+	gtk_list_store_remove(uc->listmodel, &iter);
+	gtk_tree_path_free(path);
+	return;
+    }
+#endif
+    assert(!"We shouldn't get here");
 }
 
 void dlg_listbox_add(union control *ctrl, void *dlg, char const *text)
@@ -365,10 +471,14 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->menu != NULL || uc->list != NULL);
 
+    /*
+     * This routine is long and complicated in both GTK 1 and 2,
+     * and completely different. Sigh.
+     */
     dp->flags |= FLAG_UPDATING_COMBO_LIST;
 
+#if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu) {
 	/*
 	 * List item in a drop-down (but non-combo) list. Tabs are
@@ -384,7 +494,26 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 			    GINT_TO_POINTER(id));
 	gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
 			   GTK_SIGNAL_FUNC(menuitem_activate), dp);
-    } else if (!uc->entry) {
+	goto done;
+    }
+    if (uc->list && uc->entry) {
+	/*
+	 * List item in a combo-box list, which means the sensible
+	 * thing to do is make it a perfectly normal label. Hence
+	 * tabs are disregarded.
+	 */
+	GtkWidget *listitem = gtk_list_item_new_with_label(text);
+
+	gtk_container_add(GTK_CONTAINER(uc->list), listitem);
+	gtk_widget_show(listitem);
+
+	gtk_object_set_data(GTK_OBJECT(listitem), "user-data",
+			    GINT_TO_POINTER(id));
+	goto done;
+    }
+#endif
+#if !GTK_CHECK_VERSION(2,0,0)
+    if (uc->list) {
 	/*
 	 * List item in a non-combo-box list box. We make all of
 	 * these Columns containing GtkLabels. This allows us to do
@@ -447,21 +576,39 @@ void dlg_listbox_addwithid(union control *ctrl, void *dlg,
 			   GTK_SIGNAL_FUNC(listitem_button_release), dp);
 	gtk_object_set_data(GTK_OBJECT(listitem), "user-data",
 			    GINT_TO_POINTER(id));
-    } else {
-	/*
-	 * List item in a combo-box list, which means the sensible
-	 * thing to do is make it a perfectly normal label. Hence
-	 * tabs are disregarded.
-	 */
-	GtkWidget *listitem = gtk_list_item_new_with_label(text);
-
-	gtk_container_add(GTK_CONTAINER(uc->list), listitem);
-	gtk_widget_show(listitem);
-
-	gtk_object_set_data(GTK_OBJECT(listitem), "user-data",
-			    GINT_TO_POINTER(id));
+	goto done;
     }
+#else
+    if (uc->listmodel) {
+	GtkTreeIter iter;
+	int i, cols;
 
+	dp->flags |= FLAG_UPDATING_LISTBOX;/* inhibit drag-list update */
+	gtk_list_store_append(uc->listmodel, &iter);
+	dp->flags &= ~FLAG_UPDATING_LISTBOX;
+	gtk_list_store_set(uc->listmodel, &iter, 0, id, -1);
+
+	/*
+	 * Now go through text and divide it into columns at the tabs,
+	 * as necessary.
+	 */
+	cols = (uc->ctrl->generic.type == CTRL_LISTBOX ? ctrl->listbox.ncols : 1);
+	cols = cols ? cols : 1;
+	for (i = 0; i < cols; i++) {
+	    int collen = strcspn(text, "\t");
+	    char *tmpstr = snewn(collen+1, char);
+	    memcpy(tmpstr, text, collen);
+	    tmpstr[collen] = '\0';
+	    gtk_list_store_set(uc->listmodel, &iter, i+1, tmpstr, -1);
+	    sfree(tmpstr);
+	    text += collen;
+	    if (*text) text++;
+	}
+	goto done;
+    }
+#endif
+    assert(!"We shouldn't get here");
+    done:
     dp->flags &= ~FLAG_UPDATING_COMBO_LIST;
 }
 
@@ -469,19 +616,40 @@ int dlg_listbox_getid(union control *ctrl, void *dlg, int index)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    GList *children;
-    GtkObject *item;
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->menu != NULL || uc->list != NULL);
 
-    children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
-						    uc->list));
-    item = GTK_OBJECT(g_list_nth_data(children, index));
-    g_list_free(children);
+#if !GTK_CHECK_VERSION(2,4,0)
+    if (uc->menu || uc->list) {
+	GList *children;
+	GtkObject *item;
 
-    return GPOINTER_TO_INT(gtk_object_get_data(GTK_OBJECT(item), "user-data"));
+	children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
+							uc->list));
+	item = GTK_OBJECT(g_list_nth_data(children, index));
+	g_list_free(children);
+
+	return GPOINTER_TO_INT(gtk_object_get_data(GTK_OBJECT(item),
+						   "user-data"));
+    }
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    if (uc->listmodel) {
+	GtkTreePath *path;
+	GtkTreeIter iter;
+	int ret;
+
+	path = gtk_tree_path_new_from_indices(index, -1);
+	gtk_tree_model_get_iter(GTK_TREE_MODEL(uc->listmodel), &iter, path);
+	gtk_tree_model_get(GTK_TREE_MODEL(uc->listmodel), &iter, 0, &ret, -1);
+	gtk_tree_path_free(path);
+
+	return ret;
+    }
+#endif
+    assert(!"We shouldn't get here");
+    return -1;			       /* placate dataflow analysis */
 }
 
 /* dlg_listbox_index returns <0 if no single element is selected. */
@@ -489,58 +657,142 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    GList *children;
-    GtkWidget *item, *activeitem;
-    int i;
-    int selected = -1;
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->menu != NULL || uc->list != NULL);
 
-    if (uc->menu)
-	activeitem = gtk_menu_get_active(GTK_MENU(uc->menu));
-    else
-	activeitem = NULL;	       /* unnecessarily placate gcc */
+#if !GTK_CHECK_VERSION(2,4,0)
+    if (uc->menu || uc->list) {
+	GList *children;
+	GtkWidget *item, *activeitem;
+	int i;
+	int selected = -1;
 
-    children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
-						    uc->list));
-    for (i = 0; children!=NULL && (item = GTK_WIDGET(children->data))!=NULL;
-	 i++, children = children->next) {
-	if (uc->menu ? activeitem == item :
-	    GTK_WIDGET_STATE(item) == GTK_STATE_SELECTED) {
-	    if (selected == -1)
-		selected = i;
-	    else
-		selected = -2;
+	if (uc->menu)
+	    activeitem = gtk_menu_get_active(GTK_MENU(uc->menu));
+	else
+	    activeitem = NULL;	       /* unnecessarily placate gcc */
+
+	children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
+							uc->list));
+	for (i = 0; children!=NULL && (item = GTK_WIDGET(children->data))!=NULL;
+	     i++, children = children->next) {
+	    if (uc->menu ? activeitem == item :
+		GTK_WIDGET_STATE(item) == GTK_STATE_SELECTED) {
+		if (selected == -1)
+		    selected = i;
+		else
+		    selected = -2;
+	    }
 	}
+	g_list_free(children);
+	return selected < 0 ? -1 : selected;
     }
-    g_list_free(children);
-    return selected < 0 ? -1 : selected;
+#else
+    if (uc->combo) {
+	/*
+	 * This API function already does the right thing in the
+	 * case of no current selection.
+	 */
+	return gtk_combo_box_get_active(GTK_COMBO_BOX(uc->combo));
+    }
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    if (uc->treeview) {
+	GtkTreeSelection *treesel;
+	GtkTreePath *path;
+	GList *sellist;
+	gint *indices;
+	int ret;
+
+	assert(uc->treeview != NULL);
+	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
+
+	if (gtk_tree_selection_count_selected_rows(treesel) != 1)
+	    return -1;
+
+	sellist = gtk_tree_selection_get_selected_rows(treesel, NULL);
+
+	assert(sellist && sellist->data);
+	path = sellist->data;
+
+	if (gtk_tree_path_get_depth(path) != 1) {
+	    ret = -1;
+	} else {
+	    indices = gtk_tree_path_get_indices(path);
+	    if (!indices) {
+		ret = -1;
+	    } else {
+		ret = indices[0];
+	    }
+	}
+
+	g_list_foreach(sellist, (GFunc)gtk_tree_path_free, NULL);
+	g_list_free(sellist);
+
+	return ret;
+    }
+#endif
+    assert(!"We shouldn't get here");
+    return -1;			       /* placate dataflow analysis */
 }
 
 int dlg_listbox_issel(union control *ctrl, void *dlg, int index)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    GList *children;
-    GtkWidget *item, *activeitem;
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->menu != NULL || uc->list != NULL);
 
-    children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
-						    uc->list));
-    item = GTK_WIDGET(g_list_nth_data(children, index));
-    g_list_free(children);
+#if !GTK_CHECK_VERSION(2,4,0)
+    if (uc->menu || uc->list) {
+	GList *children;
+	GtkWidget *item, *activeitem;
 
-    if (uc->menu) {
-	activeitem = gtk_menu_get_active(GTK_MENU(uc->menu));
-	return item == activeitem;
-    } else {
-	return GTK_WIDGET_STATE(item) == GTK_STATE_SELECTED;
+	assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
+	       uc->ctrl->generic.type == CTRL_LISTBOX);
+	assert(uc->menu != NULL || uc->list != NULL);
+
+	children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
+							uc->list));
+	item = GTK_WIDGET(g_list_nth_data(children, index));
+	g_list_free(children);
+
+	if (uc->menu) {
+	    activeitem = gtk_menu_get_active(GTK_MENU(uc->menu));
+	    return item == activeitem;
+	} else {
+	    return GTK_WIDGET_STATE(item) == GTK_STATE_SELECTED;
+	}
     }
+#else
+    if (uc->combo) {
+	/*
+	 * This API function already does the right thing in the
+	 * case of no current selection.
+	 */
+	return gtk_combo_box_get_active(GTK_COMBO_BOX(uc->combo)) == index;
+    }
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    if (uc->treeview) {
+	GtkTreeSelection *treesel;
+	GtkTreePath *path;
+	int ret;
+
+	assert(uc->treeview != NULL);
+	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
+
+	path = gtk_tree_path_new_from_indices(index, -1);
+	ret = gtk_tree_selection_path_is_selected(treesel, path);
+	gtk_tree_path_free(path);
+
+	return ret;
+    }
+#endif
+    assert(!"We shouldn't get here");
+    return -1;			       /* placate dataflow analysis */
 }
 
 void dlg_listbox_select(union control *ctrl, void *dlg, int index)
@@ -550,11 +802,13 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
 
     assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
 	   uc->ctrl->generic.type == CTRL_LISTBOX);
-    assert(uc->optmenu != NULL || uc->list != NULL);
 
+#if !GTK_CHECK_VERSION(2,4,0)
     if (uc->optmenu) {
 	gtk_option_menu_set_history(GTK_OPTION_MENU(uc->optmenu), index);
-    } else {
+	return;
+    } 
+    if (uc->list) {
         int nitems;
         GList *items;
         gdouble newtop, newbot;
@@ -584,7 +838,30 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index)
             if (modified)
                 gtk_adjustment_value_changed(uc->adj);
         }
+	return;
     }
+#else
+    if (uc->combo) {
+	gtk_combo_box_set_active(GTK_COMBO_BOX(uc->combo), index);
+	return;
+    }
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+    if (uc->treeview) {
+	GtkTreeSelection *treesel;
+	GtkTreePath *path;
+
+	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
+
+	path = gtk_tree_path_new_from_indices(index, -1);
+	gtk_tree_selection_select_path(treesel, path);
+	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(uc->treeview),
+				     path, NULL, FALSE, 0.0, 0.0);
+	gtk_tree_path_free(path);
+	return;
+    }
+#endif
+    assert(!"We shouldn't get here");
 }
 
 void dlg_text_set(union control *ctrl, void *dlg, char const *text)
@@ -713,8 +990,16 @@ void dlg_set_focus(union control *ctrl, void *dlg)
       case CTRL_FILESELECT:
       case CTRL_FONTSELECT:
       case CTRL_EDITBOX:
-        /* Anything containing an edit box gets that focused. */
-        gtk_widget_grab_focus(uc->entry);
+	if (uc->entry) {
+	    /* Anything containing an edit box gets that focused. */
+	    gtk_widget_grab_focus(uc->entry);
+	}
+#if GTK_CHECK_VERSION(2,4,0)
+	else if (uc->combo) {
+	    /* Failing that, there'll be a combo box. */
+	    gtk_widget_grab_focus(uc->combo);
+	}
+#endif
         break;
       case CTRL_RADIO:
         /*
@@ -731,17 +1016,34 @@ void dlg_set_focus(union control *ctrl, void *dlg)
         }
         break;
       case CTRL_LISTBOX:
-        /*
-         * If the list is really an option menu, we focus it.
-         * Otherwise we tell it to focus one of its children, which
-         * appears to do the Right Thing.
-         */
+#if !GTK_CHECK_VERSION(2,4,0)
         if (uc->optmenu) {
             gtk_widget_grab_focus(uc->optmenu);
-        } else {
-            assert(uc->list != NULL);
-            gtk_container_focus(GTK_CONTAINER(uc->list), GTK_DIR_TAB_FORWARD);
+	    break;
         }
+#else
+	if (uc->combo) {
+	    gtk_widget_grab_focus(uc->combo);
+	    break;
+	}
+#endif
+#if !GTK_CHECK_VERSION(2,0,0)
+	if (uc->list) {
+	    /*
+	     * For GTK-1 style list boxes, we tell it to focus one
+	     * of its children, which appears to do the Right
+	     * Thing.
+	     */
+            gtk_container_focus(GTK_CONTAINER(uc->list), GTK_DIR_TAB_FORWARD);
+	    break;
+	}
+#else
+	if (uc->treeview) {
+	    gtk_widget_grab_focus(uc->treeview);
+	    break;
+	}
+#endif
+	assert(!"We shouldn't get here");
         break;
     }
 }
@@ -868,7 +1170,11 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
     dp->coloursel_result.ok = FALSE;
 
     gtk_window_set_modal(GTK_WINDOW(coloursel), TRUE);
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_color_selection_set_has_opacity_control(GTK_COLOR_SELECTION(ccs->colorsel), FALSE);
+#else
     gtk_color_selection_set_opacity(GTK_COLOR_SELECTION(ccs->colorsel), FALSE);
+#endif
     cvals[0] = r / 255.0;
     cvals[1] = g / 255.0;
     cvals[2] = b / 255.0;
@@ -944,7 +1250,8 @@ static void button_toggled(GtkToggleButton *tb, gpointer data)
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
 }
 
-static int editbox_key(GtkWidget *widget, GdkEventKey *event, gpointer data)
+static gboolean editbox_key(GtkWidget *widget, GdkEventKey *event,
+			    gpointer data)
 {
     /*
      * GtkEntry has a nasty habit of eating the Return key, which
@@ -956,7 +1263,7 @@ static int editbox_key(GtkWidget *widget, GdkEventKey *event, gpointer data)
      * in the dialog just like it will everywhere else.
      */
     if (event->keyval == GDK_Return && widget->parent != NULL) {
-	gint return_val;
+	gboolean return_val;
 	gtk_signal_emit_stop_by_name(GTK_OBJECT(widget), "key_press_event");
 	gtk_signal_emit_by_name(GTK_OBJECT(widget->parent), "key_press_event",
 				event, &return_val);
@@ -974,16 +1281,23 @@ static void editbox_changed(GtkEditable *ed, gpointer data)
     }
 }
 
-static void editbox_lostfocus(GtkWidget *ed, GdkEventFocus *event,
-			      gpointer data)
+static gboolean editbox_lostfocus(GtkWidget *ed, GdkEventFocus *event,
+				  gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(ed));
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_REFRESH);
+    return FALSE;
 }
 
-static int listitem_key(GtkWidget *item, GdkEventKey *event, gpointer data,
-                        int multiple)
+#if !GTK_CHECK_VERSION(2,0,0)
+
+/*
+ * GTK 1 list box event handlers.
+ */
+
+static gboolean listitem_key(GtkWidget *item, GdkEventKey *event,
+			     gpointer data, int multiple)
 {
     GtkAdjustment *adj = GTK_ADJUSTMENT(data);
 
@@ -1076,20 +1390,20 @@ static int listitem_key(GtkWidget *item, GdkEventKey *event, gpointer data,
     return FALSE;
 }
 
-static int listitem_single_key(GtkWidget *item, GdkEventKey *event,
-                               gpointer data)
+static gboolean listitem_single_key(GtkWidget *item, GdkEventKey *event,
+				    gpointer data)
 {
     return listitem_key(item, event, data, FALSE);
 }
 
-static int listitem_multi_key(GtkWidget *item, GdkEventKey *event,
-                                 gpointer data)
+static gboolean listitem_multi_key(GtkWidget *item, GdkEventKey *event,
+				   gpointer data)
 {
     return listitem_key(item, event, data, TRUE);
 }
 
-static int listitem_button_press(GtkWidget *item, GdkEventButton *event,
-			         gpointer data)
+static gboolean listitem_button_press(GtkWidget *item, GdkEventButton *event,
+				      gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
@@ -1102,8 +1416,8 @@ static int listitem_button_press(GtkWidget *item, GdkEventButton *event,
     return FALSE;
 }
 
-static int listitem_button_release(GtkWidget *item, GdkEventButton *event,
-                                   gpointer data)
+static gboolean listitem_button_release(GtkWidget *item, GdkEventButton *event,
+					gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
@@ -1119,15 +1433,6 @@ static void list_selchange(GtkList *list, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(list));
     if (!uc) return;
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
-}
-
-static void menuitem_activate(GtkMenuItem *item, gpointer data)
-{
-    struct dlgparam *dp = (struct dlgparam *)data;
-    GtkWidget *menushell = GTK_WIDGET(item)->parent;
-    gpointer optmenu = gtk_object_get_data(GTK_OBJECT(menushell), "user-data");
-    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(optmenu));
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
 }
 
@@ -1170,23 +1475,144 @@ static void draglist_down(GtkButton *button, gpointer data)
     draglist_move(dp, uc, +1);
 }
 
+#else /* !GTK_CHECK_VERSION(2,0,0) */
+
+/*
+ * GTK 2 list box event handlers.
+ */
+
+static void listbox_doubleclick(GtkTreeView *treeview, GtkTreePath *path,
+				GtkTreeViewColumn *column, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(treeview));
+    if (uc)
+	uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
+}
+
+static void listbox_selchange(GtkTreeSelection *treeselection,
+			      gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    GtkTreeView *tree = gtk_tree_selection_get_tree_view(treeselection);
+    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(tree));
+    if (uc)
+	uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+}
+
+struct draglist_valchange_ctx {
+    struct uctrl *uc;
+    struct dlgparam *dp;
+};
+
+static gboolean draglist_valchange(gpointer data)
+{
+    struct draglist_valchange_ctx *ctx =
+	(struct draglist_valchange_ctx *)data;
+
+    ctx->uc->ctrl->generic.handler(ctx->uc->ctrl, ctx->dp,
+				   ctx->dp->data, EVENT_VALCHANGE);
+
+    sfree(ctx);
+
+    return FALSE;
+}
+
+static void listbox_reorder(GtkTreeModel *treemodel, GtkTreePath *path,
+			    GtkTreeIter *iter, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    gpointer tree;
+    struct uctrl *uc;
+
+    if (dp->flags & FLAG_UPDATING_LISTBOX)
+	return;			       /* not a user drag operation */
+
+    tree = g_object_get_data(G_OBJECT(treemodel), "user-data");
+    uc = dlg_find_bywidget(dp, GTK_WIDGET(tree));
+    if (uc) {
+	/*
+	 * We should cause EVENT_VALCHANGE on the list box, now
+	 * that its rows have been reordered. However, the GTK 2
+	 * docs say that at the point this signal is received the
+	 * new row might not have actually been filled in yet.
+	 *
+	 * (So what smegging use is it then, eh? Don't suppose it
+	 * occurred to you at any point that letting the
+	 * application know _after_ the reordering was compelete
+	 * might be helpful to someone?)
+	 *
+	 * To get round this, I schedule an idle function, which I
+	 * hope won't be called until the main event loop is
+	 * re-entered after the drag-and-drop handler has finished
+	 * furtling with the list store.
+	 */
+	struct draglist_valchange_ctx *ctx =
+	    snew(struct draglist_valchange_ctx);
+	ctx->uc = uc;
+	ctx->dp = dp;
+	g_idle_add(draglist_valchange, ctx);
+    }
+}
+
+#endif /* !GTK_CHECK_VERSION(2,0,0) */
+
+#if !GTK_CHECK_VERSION(2,4,0)
+
+static void menuitem_activate(GtkMenuItem *item, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    GtkWidget *menushell = GTK_WIDGET(item)->parent;
+    gpointer optmenu = gtk_object_get_data(GTK_OBJECT(menushell), "user-data");
+    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(optmenu));
+    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+}
+
+#else
+
+static void droplist_selchange(GtkComboBox *combo, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(combo));
+    if (uc)
+	uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+}
+
+#endif /* !GTK_CHECK_VERSION(2,4,0) */
+
 static void filesel_ok(GtkButton *button, gpointer data)
 {
     /* struct dlgparam *dp = (struct dlgparam *)data; */
     gpointer filesel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(filesel), "user-data");
-    char *name = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filesel));
+    const char *name = gtk_file_selection_get_filename
+	(GTK_FILE_SELECTION(filesel));
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
 }
 
 static void fontsel_ok(GtkButton *button, gpointer data)
 {
     /* struct dlgparam *dp = (struct dlgparam *)data; */
+
+#if !GTK_CHECK_VERSION(2,0,0)
+
     gpointer fontsel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(fontsel), "user-data");
-    char *name = gtk_font_selection_dialog_get_font_name
+    const char *name = gtk_font_selection_dialog_get_font_name
 	(GTK_FONT_SELECTION_DIALOG(fontsel));
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+
+#else
+
+    unifontsel *fontsel = (unifontsel *)gtk_object_get_data
+	(GTK_OBJECT(button), "user-data");
+    struct uctrl *uc = (struct uctrl *)fontsel->user_data;
+    char *name = unifontsel_get_name(fontsel);
+    assert(name);              /* should always be ok after OK pressed */
+    gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+    sfree(name);
+
+#endif
 }
 
 static void coloursel_ok(GtkButton *button, gpointer data)
@@ -1240,8 +1666,15 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     }
 
     if (uc->ctrl->generic.type == CTRL_FONTSELECT) {
+        const gchar *fontname = gtk_entry_get_text(GTK_ENTRY(uc->entry));
+
+#if !GTK_CHECK_VERSION(2,0,0)
+
+	/*
+	 * Use the GTK 1 standard font selector.
+	 */
+
 	gchar *spacings[] = { "c", "m", NULL };
-        gchar *fontname = gtk_entry_get_text(GTK_ENTRY(uc->entry));
 	GtkWidget *fontsel =
 	    gtk_font_selection_dialog_new("Select a font");
 	gtk_window_set_modal(GTK_WINDOW(fontsel), TRUE);
@@ -1263,6 +1696,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
                 Display *disp = GDK_FONT_XDISPLAY(font);
                 Atom fontprop = XInternAtom(disp, "FONT", False);
                 unsigned long ret;
+		gdk_font_ref(font);
                 if (XGetFontProperty(xfs, fontprop, &ret)) {
                     char *name = XGetAtomName(disp, (Atom)ret);
                     if (name)
@@ -1288,6 +1722,34 @@ static void filefont_clicked(GtkButton *button, gpointer data)
 	     "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy),
 	     (gpointer)fontsel);
 	gtk_widget_show(fontsel);
+
+#else /* !GTK_CHECK_VERSION(2,0,0) */
+
+	/*
+	 * Use the unifontsel code provided in gtkfont.c.
+	 */
+
+	unifontsel *fontsel = unifontsel_new("Select a font");
+
+	gtk_window_set_modal(fontsel->window, TRUE);
+	unifontsel_set_name(fontsel, fontname);
+	
+	gtk_object_set_data(GTK_OBJECT(fontsel->ok_button),
+			    "user-data", (gpointer)fontsel);
+	fontsel->user_data = uc;
+	gtk_signal_connect(GTK_OBJECT(fontsel->ok_button), "clicked",
+			   GTK_SIGNAL_FUNC(fontsel_ok), (gpointer)dp);
+	gtk_signal_connect_object(GTK_OBJECT(fontsel->ok_button), "clicked",
+				  GTK_SIGNAL_FUNC(unifontsel_destroy),
+				  (gpointer)fontsel);
+	gtk_signal_connect_object(GTK_OBJECT(fontsel->cancel_button),"clicked",
+				  GTK_SIGNAL_FUNC(unifontsel_destroy),
+				  (gpointer)fontsel);
+
+	gtk_widget_show(GTK_WIDGET(fontsel->window));
+
+#endif /* !GTK_CHECK_VERSION(2,0,0) */
+
     }
 }
 
@@ -1311,16 +1773,12 @@ static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
  * definitely a GtkWidget and should probably be added to a
  * GtkVbox.)
  * 
- * `listitemheight' is used to calculate a usize for list boxes: it
- * should be the height from the size request of a GtkListItem.
- * 
  * `win' is required for setting the default button. If it is
  * non-NULL, all buttons created will be default-capable (so they
  * have extra space round them for the default highlight).
  */
 GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
-			struct controlset *s, int listitemheight,
-			GtkWindow *win)
+			struct controlset *s, GtkWindow *win)
 {
     Columns *cols;
     GtkWidget *ret;
@@ -1382,8 +1840,17 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 	uc->privdata = NULL;
 	uc->privdata_needs_free = FALSE;
 	uc->buttons = NULL;
-	uc->entry = uc->list = uc->menu = NULL;
-	uc->button = uc->optmenu = uc->text = NULL;
+	uc->entry = NULL;
+#if !GTK_CHECK_VERSION(2,4,0)
+	uc->list = uc->menu = uc->optmenu = NULL;
+#else
+	uc->combo = NULL;
+#endif
+#if GTK_CHECK_VERSION(2,0,0)
+	uc->treeview = NULL;
+	uc->listmodel = NULL;
+#endif
+	uc->button = uc->text = NULL;
 	uc->label = NULL;
         uc->nclicks = 0;
 
@@ -1476,24 +1943,49 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
           case CTRL_EDITBOX:
 	    {
                 GtkRequisition req;
+		GtkWidget *signalobject;
 
 		if (ctrl->editbox.has_list) {
+#if !GTK_CHECK_VERSION(2,4,0)
+		    /*
+		     * GTK 1 combo box.
+		     */
 		    w = gtk_combo_new();
 		    gtk_combo_set_value_in_list(GTK_COMBO(w), FALSE, TRUE);
 		    uc->entry = GTK_COMBO(w)->entry;
 		    uc->list = GTK_COMBO(w)->list;
+		    signalobject = uc->entry;
+#else
+		    /*
+		     * GTK 2 combo box.
+		     */
+		    uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
+						       G_TYPE_STRING);
+		    w = gtk_combo_box_entry_new_with_model
+			(GTK_TREE_MODEL(uc->listmodel), 1);
+		    /* We cannot support password combo boxes. */
+		    assert(!ctrl->editbox.password);
+		    uc->combo = w;
+		    signalobject = uc->combo;
+#endif
 		} else {
 		    w = gtk_entry_new();
 		    if (ctrl->editbox.password)
 			gtk_entry_set_visibility(GTK_ENTRY(w), FALSE);
 		    uc->entry = w;
+		    signalobject = w;
 		}
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
-				   GTK_SIGNAL_FUNC(editbox_changed), dp);
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
+		uc->entrysig =
+		    gtk_signal_connect(GTK_OBJECT(signalobject), "changed",
+				       GTK_SIGNAL_FUNC(editbox_changed), dp);
+		gtk_signal_connect(GTK_OBJECT(signalobject), "key_press_event",
 				   GTK_SIGNAL_FUNC(editbox_key), dp);
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_in_event",
+		gtk_signal_connect(GTK_OBJECT(signalobject), "focus_in_event",
 				   GTK_SIGNAL_FUNC(widget_focus), dp);
+		gtk_signal_connect(GTK_OBJECT(signalobject), "focus_out_event",
+				   GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
+		gtk_signal_connect(GTK_OBJECT(signalobject), "focus_out_event",
+				   GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
 		/*
 		 * Edit boxes, for some strange reason, have a minimum
 		 * width of 150 in GTK 1.2. We don't want this - we'd
@@ -1538,8 +2030,6 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		    w = container;
 		    uc->label = label;
 		}
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_out_event",
-				   GTK_SIGNAL_FUNC(editbox_lostfocus), dp);
 	    }
             break;
           case CTRL_FILESELECT:
@@ -1580,8 +2070,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
 		gtk_signal_connect(GTK_OBJECT(uc->entry), "key_press_event",
 				   GTK_SIGNAL_FUNC(editbox_key), dp);
-		gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
-				   GTK_SIGNAL_FUNC(editbox_changed), dp);
+		uc->entrysig =
+		    gtk_signal_connect(GTK_OBJECT(uc->entry), "changed",
+				       GTK_SIGNAL_FUNC(editbox_changed), dp);
                 gtk_signal_connect(GTK_OBJECT(uc->entry), "focus_in_event",
                                    GTK_SIGNAL_FUNC(widget_focus), dp);
                 gtk_signal_connect(GTK_OBJECT(uc->button), "focus_in_event",
@@ -1591,7 +2082,46 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
             }
             break;
           case CTRL_LISTBOX:
-            if (ctrl->listbox.height == 0) {
+
+#if GTK_CHECK_VERSION(2,0,0)
+	    /*
+	     * First construct the list data store, with the right
+	     * number of columns.
+	     */
+#  if !GTK_CHECK_VERSION(2,4,0)
+	    /* (For GTK 2.0 to 2.3, we do this for full listboxes only,
+	     * because combo boxes are still done the old GTK1 way.) */
+	    if (ctrl->listbox.height > 0)
+#  endif
+	    {
+		GType *types;
+		int i;
+		int cols;
+
+		cols = ctrl->listbox.ncols;
+		cols = cols ? cols : 1;
+		types = snewn(1 + cols, GType);
+
+		types[0] = G_TYPE_INT;
+		for (i = 0; i < cols; i++)
+		    types[i+1] = G_TYPE_STRING;
+
+		uc->listmodel = gtk_list_store_newv(1 + cols, types);
+
+		sfree(types);
+	    }
+#endif
+
+	    /*
+	     * See if it's a drop-down list (non-editable combo
+	     * box).
+	     */
+	    if (ctrl->listbox.height == 0) {
+#if !GTK_CHECK_VERSION(2,4,0)
+		/*
+		 * GTK1 and early-GTK2 option-menu style of
+		 * drop-down list.
+		 */
                 uc->optmenu = w = gtk_option_menu_new();
 		uc->menu = gtk_menu_new();
 		gtk_option_menu_set_menu(GTK_OPTION_MENU(w), uc->menu);
@@ -1599,7 +2129,41 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 				    (gpointer)uc->optmenu);
                 gtk_signal_connect(GTK_OBJECT(uc->optmenu), "focus_in_event",
                                    GTK_SIGNAL_FUNC(widget_focus), dp);
+#else
+		/*
+		 * Late-GTK2 style using a GtkComboBox.
+		 */
+		GtkCellRenderer *cr;
+
+		/*
+		 * Create a non-editable GtkComboBox (that is, not
+		 * its subclass GtkComboBoxEntry).
+		 */
+		w = gtk_combo_box_new_with_model
+		    (GTK_TREE_MODEL(uc->listmodel));
+		uc->combo = w;
+
+		/*
+		 * Tell it how to render a list item (i.e. which
+		 * column to look at in the list model).
+		 */
+		cr = gtk_cell_renderer_text_new();
+		gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(w), cr, TRUE);
+		gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(w), cr,
+					       "text", 1, NULL);
+
+		/*
+		 * And tell it to notify us when the selection
+		 * changes.
+		 */
+		g_signal_connect(G_OBJECT(w), "changed",
+				 G_CALLBACK(droplist_selchange), dp);
+#endif
             } else {
+#if !GTK_CHECK_VERSION(2,0,0)
+		/*
+		 * GTK1-style full list box.
+		 */
                 uc->list = gtk_list_new();
                 if (ctrl->listbox.multisel == 2) {
                     gtk_list_set_selection_mode(GTK_LIST(uc->list),
@@ -1639,10 +2203,11 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                  * upgrades, I'd be grateful.
                  */
 		{
-		    int edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
+		    int edge;
+		    edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
                     gtk_widget_set_usize(w, 10,
                                          2*edge + (ctrl->listbox.height *
-						   listitemheight));
+						   get_listitemheight(w)));
 		}
 
                 if (ctrl->listbox.draglist) {
@@ -1677,35 +2242,115 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
                     w = cols;
                 }
+#else
+		/*
+		 * GTK2 treeview-based full list box.
+		 */
+		GtkTreeSelection *sel;
 
+		/*
+		 * Create the list box itself, its columns, and
+		 * its containing scrolled window.
+		 */
+		w = gtk_tree_view_new_with_model
+		    (GTK_TREE_MODEL(uc->listmodel));
+		g_object_set_data(G_OBJECT(uc->listmodel), "user-data",
+				  (gpointer)w);
+		gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), FALSE);
+		sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(w));
+		gtk_tree_selection_set_mode
+		    (sel, ctrl->listbox.multisel ? GTK_SELECTION_MULTIPLE :
+		     GTK_SELECTION_SINGLE);
+		uc->treeview = w;
+		gtk_signal_connect(GTK_OBJECT(w), "row-activated",
+				   GTK_SIGNAL_FUNC(listbox_doubleclick), dp);
+		g_signal_connect(G_OBJECT(sel), "changed",
+				 G_CALLBACK(listbox_selchange), dp);
+
+		if (ctrl->listbox.draglist) {
+		    gtk_tree_view_set_reorderable(GTK_TREE_VIEW(w), TRUE);
+		    g_signal_connect(G_OBJECT(uc->listmodel), "row-inserted",
+				     G_CALLBACK(listbox_reorder), dp);
+		}
+
+		{
+		    int i;
+		    int cols;
+
+		    cols = ctrl->listbox.ncols;
+		    cols = cols ? cols : 1;
+		    for (i = 0; i < cols; i++) {
+			GtkTreeViewColumn *column;
+			/*
+			 * It appears that GTK 2 doesn't leave us any
+			 * particularly sensible way to honour the
+			 * "percentages" specification in the ctrl
+			 * structure.
+			 */
+			column = gtk_tree_view_column_new_with_attributes
+			    ("heading", gtk_cell_renderer_text_new(),
+			     "text", i+1, (char *)NULL);
+			gtk_tree_view_column_set_sizing
+			    (column, GTK_TREE_VIEW_COLUMN_GROW_ONLY);
+			gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
+		    }
+		}
+
+		{
+		    GtkWidget *scroll;
+
+		    scroll = gtk_scrolled_window_new(NULL, NULL);
+		    gtk_scrolled_window_set_shadow_type
+			(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
+		    gtk_widget_show(w);
+		    gtk_container_add(GTK_CONTAINER(scroll), w);
+		    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+						   GTK_POLICY_AUTOMATIC,
+						   GTK_POLICY_ALWAYS);
+		    gtk_widget_set_size_request
+			(scroll, -1,
+			 ctrl->listbox.height * get_listitemheight(w));
+
+		    w = scroll;
+		}
+#endif
             }
-            if (ctrl->generic.label) {
-                GtkWidget *label, *container;
 
-                label = gtk_label_new(ctrl->generic.label);
+	    if (ctrl->generic.label) {
+		GtkWidget *label, *container;
+                GtkRequisition req;
+
+		label = gtk_label_new(ctrl->generic.label);
+
+		shortcut_add(scs, label, ctrl->listbox.shortcut,
+			     SHORTCUT_FOCUS, w);
 
 		container = columns_new(4);
-                if (ctrl->listbox.percentwidth == 100) {
-                    columns_add(COLUMNS(container), label, 0, 1);
+		if (ctrl->listbox.percentwidth == 100) {
+		    columns_add(COLUMNS(container), label, 0, 1);
 		    columns_force_left_align(COLUMNS(container), label);
-                    columns_add(COLUMNS(container), w, 0, 1);
-                } else {
-                    gint percentages[2];
-                    percentages[1] = ctrl->listbox.percentwidth;
-                    percentages[0] = 100 - ctrl->listbox.percentwidth;
-                    columns_set_cols(COLUMNS(container), 2, percentages);
-                    columns_add(COLUMNS(container), label, 0, 1);
+		    columns_add(COLUMNS(container), w, 0, 1);
+		} else {
+		    gint percentages[2];
+		    percentages[1] = ctrl->listbox.percentwidth;
+		    percentages[0] = 100 - ctrl->listbox.percentwidth;
+		    columns_set_cols(COLUMNS(container), 2, percentages);
+		    columns_add(COLUMNS(container), label, 0, 1);
 		    columns_force_left_align(COLUMNS(container), label);
-                    columns_add(COLUMNS(container), w, 1, 1);
-                }
-                gtk_widget_show(label);
-                gtk_widget_show(w);
-		shortcut_add(scs, label, ctrl->listbox.shortcut,
-			     SHORTCUT_UCTRL, uc);
-                w = container;
+		    columns_add(COLUMNS(container), w, 1, 1);
+		    /* Centre the label vertically. */
+		    gtk_widget_size_request(w, &req);
+		    gtk_widget_set_usize(label, -1, req.height);
+		    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+		}
+		gtk_widget_show(label);
+		gtk_widget_show(w);
+
+		w = container;
 		uc->label = label;
-            }
-            break;
+	    }
+
+	    break;
           case CTRL_TEXT:
 	    /*
 	     * Wrapping text widgets don't sit well with the GTK
@@ -1760,10 +2405,40 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 struct selparam {
     struct dlgparam *dp;
     GtkNotebook *panels;
-    GtkWidget *panel, *treeitem;
+    GtkWidget *panel;
+#if !GTK_CHECK_VERSION(2,0,0)
+    GtkWidget *treeitem;
+#else
+    int depth;
+    GtkTreePath *treepath;
+#endif
     struct Shortcuts shortcuts;
 };
 
+#if GTK_CHECK_VERSION(2,0,0)
+static void treeselection_changed(GtkTreeSelection *treeselection,
+				  gpointer data)
+{
+    struct selparam *sps = (struct selparam *)data, *sp;
+    GtkTreeModel *treemodel;
+    GtkTreeIter treeiter;
+    gint spindex;
+    gint page_num;
+
+    if (!gtk_tree_selection_get_selected(treeselection, &treemodel, &treeiter))
+	return;
+
+    gtk_tree_model_get(treemodel, &treeiter, TREESTORE_PARAMS, &spindex, -1);
+    sp = &sps[spindex];
+
+    page_num = gtk_notebook_page_num(sp->panels, sp->panel);
+    gtk_notebook_set_page(sp->panels, page_num);
+
+    dlg_refresh(NULL, sp->dp);
+
+    sp->dp->shortcuts = &sp->shortcuts;
+}
+#else
 static void treeitem_sel(GtkItem *item, gpointer data)
 {
     struct selparam *sp = (struct selparam *)data;
@@ -1777,12 +2452,14 @@ static void treeitem_sel(GtkItem *item, gpointer data)
     sp->dp->shortcuts = &sp->shortcuts;
     sp->dp->currtreeitem = sp->treeitem;
 }
+#endif
 
 static void window_destroy(GtkWidget *widget, gpointer data)
 {
     gtk_main_quit();
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
 static int tree_grab_focus(struct dlgparam *dp)
 {
     int i, f;
@@ -1818,6 +2495,7 @@ gint tree_focus(GtkContainer *container, GtkDirectionType direction,
      */
     return tree_grab_focus(dp);
 }
+#endif
 
 int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
@@ -1836,7 +2514,11 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	switch (sc->action) {
 	  case SHORTCUT_TREE:
+#if GTK_CHECK_VERSION(2,0,0)
+	    gtk_widget_grab_focus(sc->widget);
+#else
 	    tree_grab_focus(dp);
+#endif
 	    break;
 	  case SHORTCUT_FOCUS:
 	    gtk_widget_grab_focus(sc->widget);
@@ -1891,12 +2573,8 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		}
 		break;
 	      case CTRL_LISTBOX:
-		/*
-		 * If the list is really an option menu, we focus
-		 * and click it. Otherwise we tell it to focus one
-		 * of its children, which appears to do the Right
-		 * Thing.
-		 */
+
+#if !GTK_CHECK_VERSION(2,4,0)
 		if (sc->uc->optmenu) {
 		    GdkEventButton bev;
 		    gint returnval;
@@ -1909,12 +2587,33 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		    gtk_signal_emit_by_name(GTK_OBJECT(sc->uc->optmenu),
 					    "button_press_event",
 					    &bev, &returnval);
-		} else {
-                    assert(sc->uc->list != NULL);
-
+		    break;
+		}
+#else
+		if (sc->uc->combo) {
+		    gtk_widget_grab_focus(sc->uc->combo);
+		    gtk_combo_box_popup(GTK_COMBO_BOX(sc->uc->combo));
+		    break;
+		}
+#endif
+#if !GTK_CHECK_VERSION(2,0,0)
+		if (sc->uc->list) {
+		    /*
+		     * For GTK-1 style list boxes, we tell it to
+		     * focus one of its children, which appears to
+		     * do the Right Thing.
+		     */
                     gtk_container_focus(GTK_CONTAINER(sc->uc->list),
                                         GTK_DIR_TAB_FORWARD);
+		    break;
 		}
+#else
+		if (sc->uc->treeview) {
+		    gtk_widget_grab_focus(sc->uc->treeview);
+		    break;
+		}
+#endif
+		assert(!"We shouldn't get here");
 		break;
 	    }
 	    break;
@@ -1924,6 +2623,7 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
     return FALSE;
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
 int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
@@ -1992,6 +2692,7 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
     return FALSE;
 }
+#endif
 
 static void shortcut_highlight(GtkWidget *labelw, int chr)
 {
@@ -2038,13 +2739,90 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
     shortcut_highlight(labelw, chr);
 }
 
-int get_listitemheight(void)
+int get_listitemheight(GtkWidget *w)
 {
+#if !GTK_CHECK_VERSION(2,0,0)
     GtkWidget *listitem = gtk_list_item_new_with_label("foo");
     GtkRequisition req;
     gtk_widget_size_request(listitem, &req);
-    gtk_widget_unref(listitem);
+    gtk_object_sink(GTK_OBJECT(listitem));
     return req.height;
+#else
+    int height;
+    GtkCellRenderer *cr = gtk_cell_renderer_text_new();
+    gtk_cell_renderer_get_size(cr, w, NULL, NULL, NULL, NULL, &height);
+    g_object_ref(G_OBJECT(cr));
+    gtk_object_sink(GTK_OBJECT(cr));
+    g_object_unref(G_OBJECT(cr));
+    return height;
+#endif
+}
+
+void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
+{
+#if !GTK_CHECK_VERSION(2,0,0)
+
+    /*
+     * In GTK 1, laying out the buttons at the bottom of the
+     * configuration box is nice and easy, because a GtkDialog's
+     * action_area is a GtkHBox which stretches to cover the full
+     * width of the dialog. So we just put our Columns widget
+     * straight into that hbox, and it ends up just where we want
+     * it.
+     */
+    gtk_box_pack_start(GTK_BOX(dlg->action_area), w, TRUE, TRUE, 0);
+
+#else
+    /*
+     * In GTK 2, the action area is now a GtkHButtonBox and its
+     * layout behaviour seems to be different: it doesn't stretch
+     * to cover the full width of the window, but instead finds its
+     * own preferred width and right-aligns that within the window.
+     * This isn't what we want, because we have both left-aligned
+     * and right-aligned buttons coming out of the above call to
+     * layout_ctrls(), and right-aligning the whole thing will
+     * result in the former being centred and looking weird.
+     *
+     * So instead we abandon the dialog's action area completely:
+     * we gtk_widget_hide() it in the below code, and we also call
+     * gtk_dialog_set_has_separator() to remove the separator above
+     * it. We then insert our own action area into the end of the
+     * dialog's main vbox, and add our own separator above that.
+     *
+     * (Ideally, if we were a native GTK app, we would use the
+     * GtkHButtonBox's _own_ innate ability to support one set of
+     * buttons being right-aligned and one left-aligned. But to do
+     * that here, we would have to either (a) pick apart our cross-
+     * platform layout structures and treat them specially for this
+     * particular set of controls, which would be painful, or else
+     * (b) develop a special and simpler cross-platform
+     * representation for these particular controls, and introduce
+     * special-case code into all the _other_ platforms to handle
+     * it. Neither appeals. Therefore, I regretfully discard the
+     * GTKHButtonBox and go it alone.)
+     */
+
+    GtkWidget *align;
+    align = gtk_alignment_new(0, 0, 1, 1);
+    gtk_container_add(GTK_CONTAINER(align), w);
+    /*
+     * The purpose of this GtkAlignment is to provide padding
+     * around the buttons. The padding we use is twice the padding
+     * used in our GtkColumns, because we nest two GtkColumns most
+     * of the time (one separating the tree view from the main
+     * controls, and another for the main controls themselves).
+     */
+#if GTK_CHECK_VERSION(2,4,0)
+    gtk_alignment_set_padding(GTK_ALIGNMENT(align), 8, 8, 8, 8);
+#endif
+    gtk_widget_show(align);
+    gtk_box_pack_end(GTK_BOX(dlg->vbox), align, FALSE, TRUE, 0);
+    w = gtk_hseparator_new();
+    gtk_box_pack_end(GTK_BOX(dlg->vbox), w, FALSE, TRUE, 0);
+    gtk_widget_show(w);
+    gtk_widget_hide(dlg->action_area);
+    gtk_dialog_set_has_separator(dlg, FALSE);
+#endif
 }
 
 int do_config_box(const char *title, Config *cfg, int midsession,
@@ -2052,11 +2830,19 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
 	*tree, *treescroll, *panels, *panelvbox;
-    int index, level, listitemheight;
+    int index, level;
     struct controlbox *ctrlbox;
     char *path;
+#if GTK_CHECK_VERSION(2,0,0)
+    GtkTreeStore *treestore;
+    GtkCellRenderer *treerenderer;
+    GtkTreeViewColumn *treecolumn;
+    GtkTreeSelection *treeselection;
+    GtkTreeIter treeiterlevels[8];
+#else
     GtkTreeItem *treeitemlevels[8];
     GtkTree *treelevels[8];
+#endif
     struct dlgparam dp;
     struct Shortcuts scs;
 
@@ -2064,8 +2850,6 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     int nselparams = 0, selparamsize = 0;
 
     dlg_init(&dp);
-
-    listitemheight = get_listitemheight();
 
     for (index = 0; index < lenof(scs.sc); index++) {
 	scs.sc[index].action = SHORTCUT_EMPTY;
@@ -2094,14 +2878,28 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     columns_force_left_align(COLUMNS(cols), label);
     gtk_widget_show(label);
     treescroll = gtk_scrolled_window_new(NULL, NULL);
+#if GTK_CHECK_VERSION(2,0,0)
+    treestore = gtk_tree_store_new
+	(TREESTORE_NUM, G_TYPE_STRING, G_TYPE_INT);
+    tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(treestore));
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tree), FALSE);
+    treerenderer = gtk_cell_renderer_text_new();
+    treecolumn = gtk_tree_view_column_new_with_attributes
+	("Label", treerenderer, "text", 0, NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tree), treecolumn);
+    treeselection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+    gtk_tree_selection_set_mode(treeselection, GTK_SELECTION_BROWSE);
+    gtk_container_add(GTK_CONTAINER(treescroll), tree);
+#else
     tree = gtk_tree_new();
-    gtk_signal_connect(GTK_OBJECT(tree), "focus_in_event",
-                       GTK_SIGNAL_FUNC(widget_focus), &dp);
-    shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
     gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
     gtk_signal_connect(GTK_OBJECT(tree), "focus",
 		       GTK_SIGNAL_FUNC(tree_focus), &dp);
+#endif
+    gtk_signal_connect(GTK_OBJECT(tree), "focus_in_event",
+                       GTK_SIGNAL_FUNC(widget_focus), &dp);
+    shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_widget_show(treescroll);
     gtk_box_pack_start(GTK_BOX(vbox), treescroll, TRUE, TRUE, 0);
     panels = gtk_notebook_new();
@@ -2118,14 +2916,18 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 	GtkWidget *w;
 
 	if (!*s->pathname) {
-	    w = layout_ctrls(&dp, &scs, s, listitemheight, GTK_WINDOW(window));
-	    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
-			       w, TRUE, TRUE, 0);
+	    w = layout_ctrls(&dp, &scs, s, GTK_WINDOW(window));
+
+	    set_dialog_action_area(GTK_DIALOG(window), w);
 	} else {
 	    int j = path ? ctrl_path_compare(s->pathname, path) : 0;
 	    if (j != INT_MAX) {        /* add to treeview, start new panel */
 		char *c;
+#if GTK_CHECK_VERSION(2,0,0)
+		GtkTreeIter treeiter;
+#else
 		GtkWidget *treeitem;
+#endif
 		int first;
 
 		/*
@@ -2146,8 +2948,68 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		else
 		    c++;
 
-		treeitem = gtk_tree_item_new_with_label(c);
+		path = s->pathname;
+
+		first = (panelvbox == NULL);
+
+		panelvbox = gtk_vbox_new(FALSE, 4);
+		gtk_widget_show(panelvbox);
+		gtk_notebook_append_page(GTK_NOTEBOOK(panels), panelvbox,
+					 NULL);
+		if (first) {
+		    gint page_num;
+
+		    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(panels),
+						     panelvbox);
+		    gtk_notebook_set_page(GTK_NOTEBOOK(panels), page_num);
+		}
+
+		if (nselparams >= selparamsize) {
+		    selparamsize += 16;
+		    selparams = sresize(selparams, selparamsize,
+					struct selparam);
+		}
+		selparams[nselparams].dp = &dp;
+		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
+		selparams[nselparams].panel = panelvbox;
+		selparams[nselparams].shortcuts = scs;   /* structure copy */
+
 		assert(j-1 < level);
+
+#if GTK_CHECK_VERSION(2,0,0)
+		if (j > 0)
+		    /* treeiterlevels[j-1] will always be valid because we
+		     * don't allow implicit path components; see above.
+		     */
+		    gtk_tree_store_append(treestore, &treeiter,
+					  &treeiterlevels[j-1]);
+		else
+		    gtk_tree_store_append(treestore, &treeiter, NULL);
+		gtk_tree_store_set(treestore, &treeiter,
+				   TREESTORE_PATH, c,
+				   TREESTORE_PARAMS, nselparams,
+				   -1);
+		treeiterlevels[j] = treeiter;
+
+		selparams[nselparams].depth = j;
+		if (j > 0) {
+		    selparams[nselparams].treepath =
+			gtk_tree_model_get_path(GTK_TREE_MODEL(treestore),
+						&treeiterlevels[j-1]);
+		    /*
+		     * We are going to collapse all tree branches
+		     * at depth greater than 2, but not _yet_; see
+		     * the comment at the call to
+		     * gtk_tree_view_collapse_row below.
+		     */
+		    gtk_tree_view_expand_row(GTK_TREE_VIEW(tree),
+					     selparams[nselparams].treepath,
+					     FALSE);
+		} else {
+		    selparams[nselparams].treepath = NULL;
+		}
+#else
+		treeitem = gtk_tree_item_new_with_label(c);
 		if (j > 0) {
 		    if (!treelevels[j-1]) {
 			treelevels[j-1] = GTK_TREE(gtk_tree_new());
@@ -2165,7 +3027,6 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 		}
 		treeitemlevels[j] = GTK_TREE_ITEM(treeitem);
 		treelevels[j] = NULL;
-		level = j+1;
 
                 gtk_signal_connect(GTK_OBJECT(treeitem), "key_press_event",
                                    GTK_SIGNAL_FUNC(tree_key_press), &dp);
@@ -2174,45 +3035,54 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 
 		gtk_widget_show(treeitem);
 
-		path = s->pathname;
-
-		first = (panelvbox == NULL);
-
-		panelvbox = gtk_vbox_new(FALSE, 4);
-		gtk_widget_show(panelvbox);
-		gtk_notebook_append_page(GTK_NOTEBOOK(panels), panelvbox,
-					 NULL);
-		if (first) {
-		    gint page_num;
-
-		    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(panels),
-						     panelvbox);
-		    gtk_notebook_set_page(GTK_NOTEBOOK(panels), page_num);
+		if (first)
 		    gtk_tree_select_child(GTK_TREE(tree), treeitem);
-		}
-
-		if (nselparams >= selparamsize) {
-		    selparamsize += 16;
-		    selparams = sresize(selparams, selparamsize,
-					struct selparam);
-		}
-		selparams[nselparams].dp = &dp;
-		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
-		selparams[nselparams].panel = panelvbox;
-		selparams[nselparams].shortcuts = scs;   /* structure copy */
 		selparams[nselparams].treeitem = treeitem;
-		nselparams++;
+#endif
 
+		level = j+1;
+		nselparams++;
 	    }
 
-	    w = layout_ctrls(&dp,
-			     &selparams[nselparams-1].shortcuts,
-			     s, listitemheight, NULL);
+	    w = layout_ctrls(&dp, &selparams[nselparams-1].shortcuts, s, NULL);
 	    gtk_box_pack_start(GTK_BOX(panelvbox), w, FALSE, FALSE, 0);
             gtk_widget_show(w);
 	}
     }
 
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+	GtkRequisition req;
+	int i;
+
+	/*
+	 * We want our tree view to come up with all branches at
+	 * depth 2 or more collapsed. However, if we start off
+	 * with those branches collapsed, then the tree view's
+	 * size request will be calculated based on the width of
+	 * the collapsed tree. So instead we start with them all
+	 * expanded; then we ask for the current size request,
+	 * collapse the relevant rows, and force the width to the
+	 * value we just computed. This arranges that the tree
+	 * view is wide enough to have all branches expanded
+	 * safely.
+	 */
+
+	gtk_widget_size_request(tree, &req);
+
+	for (i = 0; i < nselparams; i++)
+	    if (selparams[i].depth >= 2)
+		gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree),
+					   selparams[i].treepath);
+
+	gtk_widget_set_size_request(tree, req.width, -1);
+    }
+#endif
+
+#if GTK_CHECK_VERSION(2,0,0)
+    g_signal_connect(G_OBJECT(treeselection), "changed",
+		     G_CALLBACK(treeselection_changed), selparams);
+#else
     dp.ntreeitems = nselparams;
     dp.treeitems = snewn(dp.ntreeitems, GtkWidget *);
 
@@ -2222,12 +3092,15 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 			   &selparams[index]);
         dp.treeitems[index] = selparams[index].treeitem;
     }
+#endif
 
     dp.data = cfg;
     dlg_refresh(NULL, &dp);
 
     dp.shortcuts = &selparams[0].shortcuts;
+#if !GTK_CHECK_VERSION(2,0,0)
     dp.currtreeitem = dp.treeitems[0];
+#endif
     dp.lastfocus = NULL;
     dp.retval = 0;
     dp.window = window;
@@ -2242,8 +3115,10 @@ int do_config_box(const char *title, Config *cfg, int midsession,
 	set_window_icon(window, cfg_icon, n_cfg_icon);
     }
 
+#if !GTK_CHECK_VERSION(2,0,0)
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
 					  tree);
+#endif
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(treescroll),
 				   GTK_POLICY_NEVER,
 				   GTK_POLICY_AUTOMATIC);
@@ -2354,11 +3229,10 @@ int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
 
     window = gtk_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
-    w0 = layout_ctrls(&dp, &scs, s0, 0, GTK_WINDOW(window));
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
-		       w0, TRUE, TRUE, 0);
+    w0 = layout_ctrls(&dp, &scs, s0, GTK_WINDOW(window));
+    set_dialog_action_area(GTK_DIALOG(window), w0);
     gtk_widget_show(w0);
-    w1 = layout_ctrls(&dp, &scs, s1, 0, GTK_WINDOW(window));
+    w1 = layout_ctrls(&dp, &scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_usize(w1, minwid+20, -1);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
@@ -2397,7 +3271,7 @@ static int string_width(char *text)
     GtkWidget *label = gtk_label_new(text);
     GtkRequisition req;
     gtk_widget_size_request(label, &req);
-    gtk_widget_unref(label);
+    gtk_object_sink(GTK_OBJECT(label));
     return req.width;
 }
 
@@ -2549,7 +3423,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
 	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
 	"Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas "
 	"Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, "
-	"Markus Kuhn, and CORE SDI S.A.\n\n"
+	"Markus Kuhn, Colin Watson, and CORE SDI S.A.\n\n"
 
 	"Permission is hereby granted, free of charge, to any person "
 	"obtaining a copy of this software and associated documentation "
@@ -2743,7 +3617,14 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
      */
     uc = dlg_find_byctrl(&es->dp, es->listctrl);
     es->ignore_selchange = 1;
+#if !GTK_CHECK_VERSION(2,0,0)
+    assert(uc->list);
     gtk_list_unselect_all(GTK_LIST(uc->list));
+#else
+    assert(uc->treeview);
+    gtk_tree_selection_unselect_all
+	(gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview)));
+#endif
     es->ignore_selchange = 0;
 
     sfree(es->seldata);
@@ -2759,7 +3640,7 @@ void showeventlog(void *estuff, void *parentwin)
     GtkWidget *parent = GTK_WIDGET(parentwin);
     struct controlset *s0, *s1;
     union control *c;
-    int listitemheight, index;
+    int index;
     char *title;
 
     if (es->window) {
@@ -2793,19 +3674,14 @@ void showeventlog(void *estuff, void *parentwin)
     c->listbox.percentages[1] = 10;
     c->listbox.percentages[2] = 65;
 
-    listitemheight = get_listitemheight();
-
     es->window = window = gtk_dialog_new();
     title = dupcat(appname, " Event Log", NULL);
     gtk_window_set_title(GTK_WINDOW(window), title);
     sfree(title);
-    w0 = layout_ctrls(&es->dp, &es->scs, s0,
-		      listitemheight, GTK_WINDOW(window));
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->action_area),
-		       w0, TRUE, TRUE, 0);
+    w0 = layout_ctrls(&es->dp, &es->scs, s0, GTK_WINDOW(window));
+    set_dialog_action_area(GTK_DIALOG(window), w0);
     gtk_widget_show(w0);
-    w1 = layout_ctrls(&es->dp, &es->scs, s1,
-		      listitemheight, GTK_WINDOW(window));
+    w1 = layout_ctrls(&es->dp, &es->scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_usize(w1, 20 +
 			 string_width("LINE OF TEXT GIVING WIDTH OF EVENT LOG"

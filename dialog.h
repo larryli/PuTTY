@@ -209,6 +209,10 @@ union control {
 	 * has a drop-down list built in. (Note that a _non_-
 	 * editable drop-down list is done as a special case of a
 	 * list box.)
+	 * 
+	 * Don't try setting has_list and password on the same
+	 * control; front ends are not required to support that
+	 * combination.
 	 */
 	int has_list;
 	/*
@@ -333,6 +337,11 @@ union control {
 	 * the respective widths of `ncols' columns, which together
 	 * will exactly fit the width of the list box. Otherwise
 	 * `percentages' must be NULL.
+	 * 
+	 * There should never be more than one column in a
+	 * drop-down list (one with height==0), because front ends
+	 * may have to implement it as a special case of an
+	 * editable combo box.
 	 */
 	int ncols;		       /* number of columns */
 	int *percentages;	       /* % width of each column */

@@ -1,4 +1,4 @@
-/* $Id: macpgen.c,v 1.5 2003/02/23 13:31:12 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 1999, 2003 Ben Harris
  * All rights reserved.

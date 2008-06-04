@@ -18,7 +18,23 @@ AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 
-AM_PATH_GTK([1.2.0], [all_targets="all-cli all-gtk"], [all_targets="all-cli"])
+# Look for both GTK 1 and GTK 2.
+AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
+AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
+if test "$gtk" = "none"; then
+  all_targets="all-cli"
+else
+  all_targets="all-cli all-gtk"
+fi
+if test "$gtk" = "2"; then
+  ac_save_CFLAGS="$CFLAGS"
+  ac_save_LIBS="$LIBS"
+  CFLAGS="$CFLAGS $GTK_CFLAGS"
+  LIBS="$GTK_LIBS $LIBS"
+  AC_CHECK_FUNCS([pango_font_family_is_monospace pango_font_map_list_families])
+  CFLAGS="$ac_save_CFLAGS"
+  LIBS="$ac_save_LIBS"
+fi
 AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
@@ -47,5 +63,11 @@ AH_BOTTOM([
 #endif
 #ifndef HAVE_SYS_SELECT_H
 # define HAVE_NO_SYS_SELECT_H
+#endif
+#ifndef HAVE_PANGO_FONT_FAMILY_IS_MONOSPACE
+# define PANGO_PRE_1POINT4
+#endif
+#ifndef HAVE_PANGO_FONT_MAP_LIST_FAMILIES
+# define PANGO_PRE_1POINT6
 #endif
 ])

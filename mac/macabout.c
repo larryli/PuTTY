@@ -1,4 +1,4 @@
-/* $Id: macabout.c,v 1.3 2003/03/29 23:07:55 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 1999, 2002, 2003 Ben Harris
  * All rights reserved.

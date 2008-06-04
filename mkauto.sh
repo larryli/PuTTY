@@ -3,6 +3,10 @@
 # It's separate from mkfiles.pl because it won't work (and isn't needed)
 # on a non-Unix system.
 
+# It's nice to be able to run this from inside the unix subdir as
+# well as from outside.
+test -f unix.h && cd ..
+
 # Persuade automake to give us a copy of its install-sh. This is a
 # pain because I don't actually want to have to _use_ automake.
 # Instead, I construct a trivial unrelated automake project in a

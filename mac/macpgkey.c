@@ -1,4 +1,4 @@
-/* $Id: macpgkey.c,v 1.5 2003/03/29 23:57:55 ben Exp $ */
+/* $Id$ */
 /*
  * Copyright (c) 2003 Ben Harris
  * Copyright (c) 1997-2003 Simon Tatham

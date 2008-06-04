@@ -924,12 +924,18 @@ if (defined $makefiles{'gtk'}) {
     "# You can define this path to point at your tools if you need to\n".
     "# TOOLPATH = /opt/gcc/bin\n".
     "CC = \$(TOOLPATH)cc\n".
+    "# You can manually set this to `gtk-config' or `pkg-config gtk+-1.2'\n".
+    "# (depending on what works on your system) if you want to enforce\n".
+    "# building with GTK 1.2, or you can set it to `pkg-config gtk+-2.0'\n".
+    "# if you want to enforce 2.0. The default is to try 2.0 and fall back\n".
+    "# to 1.2 if it isn't found.\n".
+    "GTK_CONFIG = sh -c 'pkg-config gtk+-2.0 \$\$0 2>/dev/null || gtk-config \$\$0'\n".
     "\n".
     &splitline("CFLAGS = -O2 -Wall -Werror -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-	       " `gtk-config --cflags`").
+	       " `\$(GTK_CONFIG) --cflags`").
 		 " -D _FILE_OFFSET_BITS=64\n".
-    "XLDFLAGS = \$(LDFLAGS) `gtk-config --libs`\n".
+    "XLDFLAGS = \$(LDFLAGS) `\$(GTK_CONFIG) --libs`\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
     "INSTALL=install\n",
     "INSTALL_PROGRAM=\$(INSTALL)\n",
