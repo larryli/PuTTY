@@ -55,10 +55,14 @@ PuTTY will \I{selecting lines}select a whole line or sequence of lines.
 
 If you want to select a \I{rectangular selection}rectangular region
 instead of selecting to the end of each line, you can do this by
-holding down Alt when you make your selection. (You can also
+holding down Alt when you make your selection. You can also
 configure rectangular selection to be the default, and then holding
-down Alt gives the normal behaviour instead. See
-\k{config-rectselect} for details.)
+down Alt gives the normal behaviour instead: see
+\k{config-rectselect} for details.
+
+(In some Unix environments, Alt+drag is intercepted by the window
+manager. Shift+Alt+drag should work for rectangular selection as
+well, so you could try that instead.)
 
 If you have a \i{middle mouse button}, then you can use it to
 \I{adjusting a selection}adjust an existing selection if you
