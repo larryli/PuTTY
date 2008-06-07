@@ -70,13 +70,13 @@ For building on Unix:
    Note that Unix PuTTY has mostly only been tested on Linux so far;
    portability problems such as BSD-style ptys or different header file
    requirements are expected.
- 
+
  - unix/Makefile.gtk is for non-autoconfigured builds. This makefile
    expects you to change into the `unix' subdirectory, then run `make
    -f Makefile.gtk'.
 
- - For the graphical utilities, Gtk+-1.2 is required. Gtk+-2.0 is not
-   yet supported.
+ - For the graphical utilities, Gtk+-1.2 and Gtk+-2.0 should both be
+   supported.
 
  - Both Unix Makefiles have an `install' target. Note that by default
    it tries to install `man' pages, which you may need to have built
