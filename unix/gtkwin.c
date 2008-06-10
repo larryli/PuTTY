@@ -1087,45 +1087,46 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     return TRUE;
 }
 
-gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+gboolean button_internal(struct gui_data *inst, guint32 timestamp,
+			 GdkEventType type, guint ebutton, guint state,
+			 gdouble ex, gdouble ey)
 {
-    struct gui_data *inst = (struct gui_data *)data;
     int shift, ctrl, alt, x, y, button, act;
 
     /* Remember the timestamp. */
-    inst->input_event_time = event->time;
+    inst->input_event_time = timestamp;
 
     show_mouseptr(inst, 1);
 
-    if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
+    if (ebutton == 4 && type == GDK_BUTTON_PRESS) {
 	term_scroll(inst->term, 0, -5);
 	return TRUE;
     }
-    if (event->button == 5 && event->type == GDK_BUTTON_PRESS) {
+    if (ebutton == 5 && type == GDK_BUTTON_PRESS) {
 	term_scroll(inst->term, 0, +5);
 	return TRUE;
     }
 
-    shift = event->state & GDK_SHIFT_MASK;
-    ctrl = event->state & GDK_CONTROL_MASK;
-    alt = event->state & GDK_MOD1_MASK;
+    shift = state & GDK_SHIFT_MASK;
+    ctrl = state & GDK_CONTROL_MASK;
+    alt = state & GDK_MOD1_MASK;
 
-    if (event->button == 3 && ctrl) {
+    if (ebutton == 3 && ctrl) {
 	gtk_menu_popup(GTK_MENU(inst->menu), NULL, NULL, NULL, NULL,
-		       event->button, event->time);
+		       ebutton, timestamp);
 	return TRUE;
     }
 
-    if (event->button == 1)
+    if (ebutton == 1)
 	button = MBT_LEFT;
-    else if (event->button == 2)
+    else if (ebutton == 2)
 	button = MBT_MIDDLE;
-    else if (event->button == 3)
+    else if (ebutton == 3)
 	button = MBT_RIGHT;
     else
 	return FALSE;		       /* don't even know what button! */
 
-    switch (event->type) {
+    switch (type) {
       case GDK_BUTTON_PRESS: act = MA_CLICK; break;
       case GDK_BUTTON_RELEASE: act = MA_RELEASE; break;
       case GDK_2BUTTON_PRESS: act = MA_2CLK; break;
@@ -1137,14 +1138,44 @@ gint button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	act != MA_CLICK && act != MA_RELEASE)
 	return TRUE;		       /* we ignore these in raw mouse mode */
 
-    x = (event->x - inst->cfg.window_border) / inst->font_width;
-    y = (event->y - inst->cfg.window_border) / inst->font_height;
+    x = (ex - inst->cfg.window_border) / inst->font_width;
+    y = (ey - inst->cfg.window_border) / inst->font_height;
 
     term_mouse(inst->term, button, translate_button(button), act,
 	       x, y, shift, ctrl, alt);
 
     return TRUE;
 }
+
+gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    return button_internal(inst, event->time, event->type, event->button,
+			   event->state, event->x, event->y);
+}
+
+#if GTK_CHECK_VERSION(2,0,0)
+/*
+ * In GTK 2, mouse wheel events have become a new type of event.
+ * This handler translates them back into button-4 and button-5
+ * presses so that I don't have to change my old code too much :-)
+ */
+gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    guint button;
+
+    if (event->direction == GDK_SCROLL_UP)
+	button = 4;
+    else if (event->direction == GDK_SCROLL_DOWN)
+	button = 5;
+    else
+	return FALSE;
+
+    return button_internal(inst, event->time, GDK_BUTTON_PRESS,
+			   button, event->state, event->x, event->y);
+}
+#endif
 
 gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
@@ -3413,6 +3444,10 @@ int pt_main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(button_event), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "button_release_event",
 		       GTK_SIGNAL_FUNC(button_event), inst);
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_signal_connect(GTK_OBJECT(inst->area), "scroll_event",
+		       GTK_SIGNAL_FUNC(scroll_event), inst);
+#endif
     gtk_signal_connect(GTK_OBJECT(inst->area), "motion_notify_event",
 		       GTK_SIGNAL_FUNC(motion_event), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "selection_received",
