@@ -701,6 +701,7 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
     if (uc->treeview) {
 	GtkTreeSelection *treesel;
 	GtkTreePath *path;
+	GtkTreeModel *model;
 	GList *sellist;
 	gint *indices;
 	int ret;
@@ -711,7 +712,7 @@ int dlg_listbox_index(union control *ctrl, void *dlg)
 	if (gtk_tree_selection_count_selected_rows(treesel) != 1)
 	    return -1;
 
-	sellist = gtk_tree_selection_get_selected_rows(treesel, NULL);
+	sellist = gtk_tree_selection_get_selected_rows(treesel, &model);
 
 	assert(sellist && sellist->data);
 	path = sellist->data;
