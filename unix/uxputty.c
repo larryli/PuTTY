@@ -40,7 +40,10 @@ Backend *select_backend(Config *cfg)
 
 int cfgbox(Config *cfg)
 {
-    return do_config_box("PuTTY Configuration", cfg, 0, 0);
+    char *title = dupcat(appname, " Configuration", NULL);
+    int ret = do_config_box(title, cfg, 0, 0);
+    sfree(title);
+    return ret;
 }
 
 static int got_host = 0;
@@ -105,7 +108,7 @@ int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
 
 char *make_default_wintitle(char *hostname)
 {
-    return dupcat(hostname, " - PuTTY", NULL);
+    return dupcat(hostname, " - ", appname, NULL);
 }
 
 /*
