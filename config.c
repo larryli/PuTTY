@@ -623,7 +623,7 @@ static void colour_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
     struct colour_data *cd =
 	(struct colour_data *)ctrl->generic.context.p;
-    int update = FALSE, r, g, b;
+    int update = FALSE, clear, r, g, b;
 
     if (event == EVENT_REFRESH) {
 	if (ctrl == cd->listbox) {
@@ -633,21 +633,21 @@ static void colour_handler(union control *ctrl, void *dlg,
 	    for (i = 0; i < lenof(colours); i++)
 		dlg_listbox_add(ctrl, dlg, colours[i]);
 	    dlg_update_done(ctrl, dlg);
-	    dlg_editbox_set(cd->redit, dlg, "");
-	    dlg_editbox_set(cd->gedit, dlg, "");
-	    dlg_editbox_set(cd->bedit, dlg, "");
+	    clear = TRUE;
+	    update = TRUE;
 	}
     } else if (event == EVENT_SELCHANGE) {
 	if (ctrl == cd->listbox) {
 	    /* The user has selected a colour. Update the RGB text. */
 	    int i = dlg_listbox_index(ctrl, dlg);
 	    if (i < 0) {
-		dlg_beep(dlg);
-		return;
+		clear = TRUE;
+	    } else {
+		clear = FALSE;
+		r = cfg->colours[i][0];
+		g = cfg->colours[i][1];
+		b = cfg->colours[i][2];
 	    }
-	    r = cfg->colours[i][0];
-	    g = cfg->colours[i][1];
-	    b = cfg->colours[i][2];
 	    update = TRUE;
 	}
     } else if (event == EVENT_VALCHANGE) {
@@ -700,16 +700,23 @@ static void colour_handler(union control *ctrl, void *dlg,
 		cfg->colours[i][0] = r;
 		cfg->colours[i][1] = g;
 		cfg->colours[i][2] = b;
+		clear = FALSE;
 		update = TRUE;
 	    }
 	}
     }
 
     if (update) {
-	char buf[40];
-	sprintf(buf, "%d", r); dlg_editbox_set(cd->redit, dlg, buf);
-	sprintf(buf, "%d", g); dlg_editbox_set(cd->gedit, dlg, buf);
-	sprintf(buf, "%d", b); dlg_editbox_set(cd->bedit, dlg, buf);
+	if (clear) {
+	    dlg_editbox_set(cd->redit, dlg, "");
+	    dlg_editbox_set(cd->gedit, dlg, "");
+	    dlg_editbox_set(cd->bedit, dlg, "");
+	} else {
+	    char buf[40];
+	    sprintf(buf, "%d", r); dlg_editbox_set(cd->redit, dlg, buf);
+	    sprintf(buf, "%d", g); dlg_editbox_set(cd->gedit, dlg, buf);
+	    sprintf(buf, "%d", b); dlg_editbox_set(cd->bedit, dlg, buf);
+	}
     }
 }
 
