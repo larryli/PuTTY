@@ -411,14 +411,15 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     if (restart) {
 	char decbuf[30];
 	if (seek_file(file, uint64_make(0,0) , FROM_END) == -1) {
+	    close_wfile(file);
 	    printf("reget: cannot restart %s - file too large\n",
 		   outfname);
-	    	sftp_register(req = fxp_close_send(fh));
-		rreq = sftp_find_request(pktin = sftp_recv());
-		assert(rreq == req);
-		fxp_close_recv(pktin, rreq);
+	    sftp_register(req = fxp_close_send(fh));
+	    rreq = sftp_find_request(pktin = sftp_recv());
+	    assert(rreq == req);
+	    fxp_close_recv(pktin, rreq);
 		
-		return 0;
+	    return 0;
 	}
 	    
 	offset = get_file_posn(file);
@@ -643,6 +644,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     fh = fxp_open_recv(pktin, rreq);
 
     if (!fh) {
+	close_rfile(file);
 	printf("%s: open for write: %s\n", outfname, fxp_error());
 	return 0;
     }
@@ -658,10 +660,12 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	ret = fxp_fstat_recv(pktin, rreq, &attrs);
 
 	if (!ret) {
+	    close_rfile(file);
 	    printf("read size of %s: %s\n", outfname, fxp_error());
 	    return 0;
 	}
 	if (!(attrs.flags & SSH_FILEXFER_ATTR_SIZE)) {
+	    close_rfile(file);
 	    printf("read size of %s: size was not given\n", outfname);
 	    return 0;
 	}
