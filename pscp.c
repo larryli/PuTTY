@@ -252,8 +252,14 @@ static int ssh_scp_recv(unsigned char *buf, int len)
 static void ssh_scp_init(void)
 {
     while (!back->sendok(backhandle)) {
-	if (ssh_sftp_loop_iteration() < 0)
+        if (back->exitcode(backhandle) >= 0) {
+            errs++;
+            return;
+        }
+	if (ssh_sftp_loop_iteration() < 0) {
+            errs++;
 	    return;		       /* doom */
+        }
     }
 
     /* Work out which backend we ended up using. */
@@ -467,7 +473,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     back->provide_logctx(backhandle, logctx);
     console_provide_logctx(logctx);
     ssh_scp_init();
-    if (verbose && realhost != NULL)
+    if (verbose && realhost != NULL && errs == 0)
 	tell_user(stderr, "Connected to %s\n", realhost);
     sfree(realhost);
 }
