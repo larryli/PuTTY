@@ -2395,7 +2395,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 
     if (ssh->cfg.sshbug_maxpkt2 == FORCE_ON ||
 	(ssh->cfg.sshbug_maxpkt2 == AUTO &&
-	 (wc_match("1.36_sshlib GlobalSCAPE", imp)))) {
+	 (wc_match("1.36_sshlib GlobalSCAPE", imp) ||
+          wc_match("1.36 sshlib: GlobalScape", imp)))) {
 	/*
 	 * This version ignores our makpkt and needs to be throttled.
 	 */
