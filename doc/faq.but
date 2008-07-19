@@ -330,6 +330,9 @@ has taken the time to do it.
 Most of the code cleanup work would be a good thing to happen in
 general, so if anyone feels like helping, we wouldn't say no.
 
+See also
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/dll-frontend.html}{the wishlist entry}.
+
 \S{faq-vb}{Question} Is the SSH or Telnet code available as a Visual
 Basic component?
 
