@@ -211,8 +211,8 @@ Currently, release versions of PuTTY tools only run on full Win32
 systems and Unix. \q{Win32} includes Windows 95, 98, and ME, and it
 includes Windows NT, 2000, XP, and Vista.
 
-In the development code, a partial port to the Mac OS (see
-\k{faq-mac-port}) is under way.
+In the development code, partial ports to the Mac OSes exist (see
+\k{faq-mac-port}).
 
 Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}),
 and it does not quite run on the Win32s environment under Windows
@@ -223,7 +223,8 @@ present time. If anyone told you we had an EPOC port, or an iPaq port,
 or any other port of PuTTY, they were mistaken. We don't.
 
 There are some third-party ports to various platforms, mentioned
-on the Links page of our website.
+on the 
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/links.html}{Links page of our website}.
 
 \S{faq-unix}{Question} \I{Unix version}Is there a port to Unix?
 
@@ -231,7 +232,9 @@ As of 0.54, there are Unix ports of most of the traditional PuTTY
 tools, and also one entirely new application.
 
 If you look at the source release, you should find a \c{unix}
-subdirectory containing \c{Makefile.gtk}, which should build you Unix
+subdirectory. There are a couple of ways of building it,
+including the usual \c{configure}/\c{make}; see the file \c{README}
+in the source distribution. This should build you Unix
 ports of Plink, PuTTY itself, PuTTYgen, PSCP, PSFTP, and also
 \i\c{pterm} - an \cw{xterm}-type program which supports the same
 terminal emulation as PuTTY. We do not yet have a Unix port of
@@ -314,9 +317,22 @@ even on systems the developers \e{do} already know how to program
 for, it might be a long time before any of us get round to learning
 a new system and doing the port for that.
 
-However, some of the work has been done by other people, and a beta
-port of PuTTY for the Nokia 9200 Communicator series is available
-from \W{http://s2putty.sourceforge.net/}\cw{http://s2putty.sourceforge.net/}
+However, some of the work has been done by other people; see the
+\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/links.html}{Links page of our website}
+for various third-party ports.
+
+\S{faq-iphone}{Question} Will there be a port to the iPhone?
+
+We have no plans to write such a port ourselves; none of us has an
+iPhone, and developing and publishing applications for it looks
+awkward and expensive. Such a port would probably depend upon the
+stalled Mac OS X port (see \k{faq-mac-port}).
+
+However, there is a third-party SSH client for the iPhone and
+iPod\_Touch called \W{http://www.instantcocoa.com/products/pTerm/}{pTerm},
+which is apparently based on PuTTY. (This is nothing to do with our
+similarly-named \c{pterm}, which is a standalone terminal emulator for
+Unix systems; see \k{faq-unix}.)
 
 \H{faq-embedding} Embedding PuTTY in other programs
 
