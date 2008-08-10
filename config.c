@@ -2051,6 +2051,13 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,try_ki_auth)));
 
+#ifndef NO_GSSAPI
+	    ctrl_checkbox(s, "Attempt GSSAPI auth (SSH-2)",
+			  NO_SHORTCUT, HELPCTX(no_help),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_gssapi_auth)));
+#endif
+
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "params",
 			    "Authentication parameters");
 	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
@@ -2060,6 +2067,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(ssh_auth_changeuser),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,change_username)));
+#ifndef NO_GSSAPI
+	    ctrl_checkbox(s, "Allow GSSAPI credential delegation in SSH-2", NO_SHORTCUT,
+			  HELPCTX(no_help),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,gssapifwd)));
+#endif
 	    ctrl_filesel(s, "Private key file for authentication:", 'k',
 			 FILTER_KEY_FILES, FALSE, "Select private key file",
 			 HELPCTX(ssh_auth_privkey),

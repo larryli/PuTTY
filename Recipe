@@ -95,6 +95,10 @@
 #      it to compile under development environments which do not
 #      support IPv6 in their header files.
 #
+#  - COMPAT=/DNO_GSSAPI
+#      Disables PuTTY's ability to use GSSAPI functions for
+#      authentication and key exchange.
+#
 #  - COMPAT=/DMSVC4 (Windows only)
 #  - RCFL=/DMSVC4
 #      Makes a couple of minor changes so that PuTTY compiles using
@@ -166,6 +170,7 @@ version.o: FORCE
 # Add VER to Windows resource targets, and force them to be rebuilt every
 # time, on the assumption that they will contain version information.
 !begin vc vars
+CFLAGS = $(CFLAGS) /DHAS_GSSAPI
 RCFLAGS = $(RCFLAGS) $(VER)
 !end
 !begin cygwin vars
@@ -255,8 +260,8 @@ NONSSH   = telnet raw rlogin ldisc pinger
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
-WINSSH   = SSH winnoise winpgntc
-UXSSH    = SSH uxnoise uxagentc
+WINSSH   = SSH winnoise winpgntc wingss
+UXSSH    = SSH uxnoise uxagentc uxgss
 MACSSH   = SSH macnoise
 
 # SFTP implementation (pscp, psftp).

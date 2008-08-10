@@ -459,6 +459,8 @@ struct config_tag {
     int ssh_no_userauth;	       /* bypass "ssh-userauth" (SSH-2 only) */
     int try_tis_auth;
     int try_ki_auth;
+    int try_gssapi_auth;               /* attempt gssapi auth */
+    int gssapifwd;                     /* forward tgt via gss */
     int ssh_subsys;		       /* run a subsystem rather than a command */
     int ssh_subsys2;		       /* fallback to go with remote_cmd_ptr2 */
     int ssh_no_shell;		       /* avoid running a shell */

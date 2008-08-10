@@ -321,6 +321,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "Compression", cfg->compression);
     write_setting_i(sesskey, "TryAgent", cfg->tryagent);
     write_setting_i(sesskey, "AgentFwd", cfg->agentfwd);
+    write_setting_i(sesskey, "GssapiFwd", cfg->gssapifwd);
     write_setting_i(sesskey, "ChangeUsername", cfg->change_username);
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX,
 	   cfg->ssh_cipherlist);
@@ -330,6 +331,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "SshNoAuth", cfg->ssh_no_userauth);
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
+    write_setting_i(sesskey, "AuthGSSAPI", cfg->try_gssapi_auth);
     write_setting_i(sesskey, "SshNoShell", cfg->ssh_no_shell);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_s(sesskey, "LogHost", cfg->loghost);
@@ -581,7 +583,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gpps(sesskey, "ProxyTelnetCommand", "connect %host %port\\n",
 	 cfg->proxy_telnet_command, sizeof(cfg->proxy_telnet_command));
     gppmap(sesskey, "Environment", "", cfg->environmt, lenof(cfg->environmt));
-    gpps(sesskey, "UserName", "", cfg->username, sizeof(cfg->username));
+    gpps(sesskey, "UserName", get_username(), cfg->username, sizeof(cfg->username));
     gpps(sesskey, "LocalUserName", "", cfg->localusername,
 	 sizeof(cfg->localusername));
     gppi(sesskey, "NoPTY", 0, &cfg->nopty);
@@ -589,6 +591,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "TryAgent", 1, &cfg->tryagent);
     gppi(sesskey, "AgentFwd", 0, &cfg->agentfwd);
     gppi(sesskey, "ChangeUsername", 0, &cfg->change_username);
+    gppi(sesskey, "GssapiFwd", 0, &cfg->gssapifwd);
     gprefs(sesskey, "Cipher", "\0",
 	   ciphernames, CIPHER_MAX, cfg->ssh_cipherlist);
     {
@@ -614,6 +617,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "SshNoAuth", 0, &cfg->ssh_no_userauth);
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
+    gppi(sesskey, "AuthGSSAPI", 1, &cfg->try_gssapi_auth);
     gppi(sesskey, "SshNoShell", 0, &cfg->ssh_no_shell);
     gppfile(sesskey, "PublicKeyFile", &cfg->keyfile);
     gpps(sesskey, "RemoteCommand", "", cfg->remote_cmd,

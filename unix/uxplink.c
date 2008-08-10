@@ -107,8 +107,8 @@ char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "TermType"))
 	return dupstr(getenv("TERM"));
-    if (!strcmp(name, "UserName"))
-	return get_username();
+     if (!strcmp(name, "UserName"))
+ 	return get_username();
     if (!strcmp(name, "SerialLine"))
 	return dupstr("/dev/ttyS0");
     return NULL;

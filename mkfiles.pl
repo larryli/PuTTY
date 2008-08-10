@@ -924,6 +924,8 @@ if (defined $makefiles{'gtk'}) {
     "# You can define this path to point at your tools if you need to\n".
     "# TOOLPATH = /opt/gcc/bin\n".
     "CC = \$(TOOLPATH)cc\n".
+    "# If necessary set the path to krb5-config here\n".
+    "KRB5CONFIG=krb5-config\n".
     "# You can manually set this to `gtk-config' or `pkg-config gtk+-1.2'\n".
     "# (depending on what works on your system) if you want to enforce\n".
     "# building with GTK 1.2, or you can set it to `pkg-config gtk+-2.0'\n".
@@ -939,6 +941,11 @@ if (defined $makefiles{'gtk'}) {
 		 " -D _FILE_OFFSET_BITS=64\n".
     "XLDFLAGS = \$(LDFLAGS) `\$(GTK_CONFIG) --libs`\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
+    "ifeq (,\$(findstring NO_GSSAPI,\$(COMPAT)))\n".
+    "CFLAGS+= `\$(KRB5CONFIG) --cflags gssapi`\n".
+    "XLDFLAGS+= `\$(KRB5CONFIG) --libs gssapi`\n".
+    "ULDFLAGS = `\$(KRB5CONFIG) --libs gssapi`\n".
+    "endif\n";
     "INSTALL=install\n",
     "INSTALL_PROGRAM=\$(INSTALL)\n",
     "INSTALL_DATA=\$(INSTALL)\n",
