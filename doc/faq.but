@@ -161,7 +161,7 @@ completely is the wrong solution and we will not do it.
 
 If you have host keys available in the common \i\c{known_hosts} format,
 we have a script called 
-\W{http://svn.tartarus.org/putty/contrib/kh2reg.py?view=markup}\c{kh2reg.py}
+\W{http://svn.tartarus.org/sgt/putty/contrib/kh2reg.py?view=markup}\c{kh2reg.py}
 to convert them to a Windows .REG file, which can be installed ahead of
 time by double-clicking or using \c{REGEDIT}.
 
