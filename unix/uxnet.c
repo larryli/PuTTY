@@ -31,6 +31,16 @@
 # define X11_UNIX_PATH "/tmp/.X11-unix/X"
 #endif
 
+/*
+ * We used to typedef struct Socket_tag *Socket.
+ *
+ * Since we have made the networking abstraction slightly more
+ * abstract, Socket no longer means a tcp socket (it could mean
+ * an ssl socket).  So now we must use Actual_Socket when we know
+ * we are talking about a tcp socket.
+ */
+typedef struct Socket_tag *Actual_Socket;
+
 struct Socket_tag {
     struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
@@ -54,17 +64,14 @@ struct Socket_tag {
     int nodelay, keepalive;            /* for connect()-type sockets */
     int privport, port;                /* and again */
     SockAddr addr;
+    /*
+     * We sometimes need pairs of Socket structures to be linked:
+     * if we are listening on the same IPv6 and v4 port, for
+     * example. So here we define `parent' and `child' pointers to
+     * track this link.
+     */
+    Actual_Socket parent, child;
 };
-
-/*
- * We used to typedef struct Socket_tag *Socket.
- *
- * Since we have made the networking abstraction slightly more
- * abstract, Socket no longer means a tcp socket (it could mean
- * an ssl socket).  So now we must use Actual_Socket when we know
- * we are talking about a tcp socket.
- */
-typedef struct Socket_tag *Actual_Socket;
 
 struct SockAddr_tag {
     const char *error;
@@ -426,6 +433,7 @@ Socket sk_register(OSSocket sockfd, Plug plug)
     ret->pending_error = 0;
     ret->oobpending = FALSE;
     ret->listener = 0;
+    ret->parent = ret->child = NULL;
     ret->addr = NULL;
     ret->connected = 1;
 
@@ -651,6 +659,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
+    ret->parent = ret->child = NULL;
     ret->oobpending = FALSE;
     ret->listener = 0;
     ret->addr = addr;
@@ -672,7 +681,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int address_family)
+Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int orig_address_family)
 {
     int s;
 #ifndef NO_IPV6
@@ -685,6 +694,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     struct sockaddr_in a;
     Actual_Socket ret;
     int retcode;
+    int address_family;
     int on = 1;
 
     /*
@@ -701,6 +711,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     ret->frozen_readable = 0;
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
+    ret->parent = ret->child = NULL;
     ret->oobpending = FALSE;
     ret->listener = 1;
     ret->addr = NULL;
@@ -709,9 +720,9 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
      * Translate address_family from platform-independent constants
      * into local reality.
      */
-    address_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+    address_family = (orig_address_family == ADDRTYPE_IPV4 ? AF_INET :
 #ifndef NO_IPV6
-		      address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+		      orig_address_family == ADDRTYPE_IPV6 ? AF_INET6 :
 #endif
 		      AF_UNSPEC);
 
@@ -823,6 +834,32 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 	return (Socket) ret;
     }
 
+#ifndef NO_IPV6
+    /*
+     * If we were given ADDRTYPE_UNSPEC, we must also create an
+     * IPv4 listening socket and link it to this one.
+     */
+    if (address_family == AF_INET6 && orig_address_family == ADDRTYPE_UNSPEC) {
+        Actual_Socket other;
+
+        other = (Actual_Socket) sk_newlistener(srcaddr, port, plug,
+                                               local_host_only, ADDRTYPE_IPV4);
+
+        if (other) {
+            if (!other->error) {
+                other->parent = ret;
+                ret->child = other;
+            } else {
+                /* If we couldn't create a listening socket on IPv4 as well
+                 * as IPv6, we must return an error overall. */
+                close(s);
+                sfree(ret);
+                return (Socket) other;
+            }
+        }
+    }
+#endif
+
     ret->s = s;
 
     uxsel_tell(ret);
@@ -834,6 +871,9 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 static void sk_tcp_close(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
+
+    if (s->child)
+        sk_tcp_close((Socket)s->child);
 
     uxsel_del(s->s);
     del234(sktree, s);
