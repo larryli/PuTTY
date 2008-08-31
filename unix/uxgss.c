@@ -159,7 +159,7 @@ Ssh_gss_stat ssh_gss_release_cred(Ssh_gss_ctx *ctx)
 Ssh_gss_stat ssh_gss_release_name(Ssh_gss_name *srv_name)
 {
     OM_uint32 min_stat,maj_stat;
-    maj_stat = gss_release_name(&min_stat, (gss_name_t) srv_name);
+    maj_stat = gss_release_name(&min_stat, (gss_name_t *) srv_name);
   
     if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
     return SSH_GSS_FAILURE;
