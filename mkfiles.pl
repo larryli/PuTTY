@@ -945,15 +945,15 @@ if (defined $makefiles{'gtk'}) {
     "CFLAGS+= `\$(KRB5CONFIG) --cflags gssapi`\n".
     "XLDFLAGS+= `\$(KRB5CONFIG) --libs gssapi`\n".
     "ULDFLAGS = `\$(KRB5CONFIG) --libs gssapi`\n".
-    "endif\n";
-    "INSTALL=install\n",
-    "INSTALL_PROGRAM=\$(INSTALL)\n",
-    "INSTALL_DATA=\$(INSTALL)\n",
-    "prefix=/usr/local\n",
-    "exec_prefix=\$(prefix)\n",
-    "bindir=\$(exec_prefix)/bin\n",
-    "mandir=\$(prefix)/man\n",
-    "man1dir=\$(mandir)/man1\n",
+    "endif\n".
+    "INSTALL=install\n".
+    "INSTALL_PROGRAM=\$(INSTALL)\n".
+    "INSTALL_DATA=\$(INSTALL)\n".
+    "prefix=/usr/local\n".
+    "exec_prefix=\$(prefix)\n".
+    "bindir=\$(exec_prefix)/bin\n".
+    "mandir=\$(prefix)/man\n".
+    "man1dir=\$(mandir)/man1\n".
     "\n".
     $makefile_extra{'gtk'}->{'vars'} .
     "\n".
@@ -1007,14 +1007,14 @@ if (defined $makefiles{'ac'}) {
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "XLDFLAGS = \@LDFLAGS\@ \@LIBS\@ \@GTK_LIBS\@\n".
     "ULDFLAGS = \@LDFLAGS\@ \@LIBS\@\n".
-    "INSTALL=\@INSTALL\@\n",
-    "INSTALL_PROGRAM=\$(INSTALL)\n",
-    "INSTALL_DATA=\$(INSTALL)\n",
-    "prefix=\@prefix\@\n",
-    "exec_prefix=\@exec_prefix\@\n",
-    "bindir=\@bindir\@\n",
-    "mandir=\@mandir\@\n",
-    "man1dir=\$(mandir)/man1\n",
+    "INSTALL=\@INSTALL\@\n".
+    "INSTALL_PROGRAM=\$(INSTALL)\n".
+    "INSTALL_DATA=\$(INSTALL)\n".
+    "prefix=\@prefix\@\n".
+    "exec_prefix=\@exec_prefix\@\n".
+    "bindir=\@bindir\@\n".
+    "mandir=\@mandir\@\n".
+    "man1dir=\$(mandir)/man1\n".
     "\n".
     $makefile_extra{'gtk'}->{'vars'} .
     "\n".
