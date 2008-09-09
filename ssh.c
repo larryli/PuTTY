@@ -8022,7 +8022,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    s->cur_prompt->instr_reqd = TRUE;
 
 		    /*
-		     * Get the prompts from the packet.
+		     * Get any prompt(s) from the packet.
 		     */
 		    s->num_prompts = ssh_pkt_getuint32(pktin);
 		    for (i = 0; i < s->num_prompts; i++) {
@@ -8044,9 +8044,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    }
 
 		    /*
-		     * Get the user's responses.
+                     * Display any instructions, and get the user's
+                     * response(s).
 		     */
-		    if (s->num_prompts) {
+		    {
 			int ret; /* not live over crReturn */
 			ret = get_userpass_input(s->cur_prompt, NULL, 0);
 			while (ret < 0) {
@@ -8068,7 +8069,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    }
 
 		    /*
-		     * Send the responses to the server.
+		     * Send the response(s) to the server.
 		     */
 		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
 		    ssh2_pkt_adduint32(s->pktout, s->num_prompts);

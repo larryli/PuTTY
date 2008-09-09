@@ -686,7 +686,8 @@ typedef struct {
     int name_reqd;	/* Display of `name' required or optional? */
     char *instruction;	/* Long description, maybe with embedded newlines */
     int instr_reqd;	/* Display of `instruction' required or optional? */
-    size_t n_prompts;
+    size_t n_prompts;   /* May be zero (in which case display the foregoing,
+                         * if any, and return success) */
     prompt_t **prompts;
     void *frontend;
     void *data;		/* slot for housekeeping data, managed by
