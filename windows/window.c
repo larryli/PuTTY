@@ -3995,7 +3995,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = 0x1F;
 	    return p - output;
 	}
-	if (shift_state == 2 && wParam == 0xDF) {
+	if (shift_state == 2 && (wParam == 0xDF || wParam == 0xDC)) {
 	    *p++ = 0x1C;
 	    return p - output;
 	}
