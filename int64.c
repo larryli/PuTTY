@@ -49,7 +49,7 @@ void uint64_decimal(uint64 x, char *buffer)
 uint64 uint64_make(unsigned long hi, unsigned long lo)
 {
     uint64 y;
-    y.hi = (hi + (lo >> 32)) & 0xFFFFFFFFU;
+    y.hi = hi & 0xFFFFFFFFU;
     y.lo = lo & 0xFFFFFFFFU;
     return y;
 }
