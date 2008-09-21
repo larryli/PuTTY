@@ -228,6 +228,8 @@ commands (except \c{help} and \c{quit}).
 
 To create a connection, type \c{open host.name}, or if you need to
 specify a user name as well you can type \c{open user@host.name}.
+You can optionally specify a port as well:
+\c{open user@host.name 22}.
 
 Once you have issued this command, you will not be able to issue it
 again, \e{even} if the command fails (for example, if you mistype
