@@ -182,6 +182,9 @@ user's home directory on the server. Also, read the PuTTY Event Log;
 the server may have sent diagnostic messages explaining exactly what
 problem it had with your setup.
 
+\K{pubkey-gettingready} has some hints on server-side public key
+setup.
+
 \H{errors-access-denied} \q{Access denied}, \q{Authentication refused}
 
 Various forms of this error are printed in the PuTTY window, or
