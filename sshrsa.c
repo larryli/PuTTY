@@ -352,9 +352,20 @@ int rsa_verify(struct RSAKey *key)
 
     /*
      * Ensure p > q.
+     *
+     * I have seen key blobs in the wild which were generated with
+     * p < q, so instead of rejecting the key in this case we
+     * should instead flip them round into the canonical order of
+     * p > q. This also involves regenerating iqmp.
      */
-    if (bignum_cmp(key->p, key->q) <= 0)
-	return 0;
+    if (bignum_cmp(key->p, key->q) <= 0) {
+	Bignum tmp = key->p;
+	key->p = key->q;
+	key->q = tmp;
+
+	freebn(key->iqmp);
+	key->iqmp = modinv(key->q, key->p);
+    }
 
     /*
      * Ensure iqmp * q is congruent to 1, modulo p.
@@ -419,6 +430,12 @@ void freersakey(struct RSAKey *key)
 	freebn(key->exponent);
     if (key->private_exponent)
 	freebn(key->private_exponent);
+    if (key->p)
+	freebn(key->p);
+    if (key->q)
+	freebn(key->q);
+    if (key->iqmp)
+	freebn(key->iqmp);
     if (key->comment)
 	sfree(key->comment);
 }
