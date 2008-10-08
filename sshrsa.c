@@ -489,6 +489,7 @@ static void *rsa2_newkey(char *data, int len)
     rsa->exponent = getmp(&data, &len);
     rsa->modulus = getmp(&data, &len);
     rsa->private_exponent = NULL;
+    rsa->p = rsa->q = rsa->iqmp = NULL;
     rsa->comment = NULL;
 
     return rsa;
