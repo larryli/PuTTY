@@ -172,7 +172,7 @@ void *open_settings_w(const char *sessionname, char **errmsg)
      * to catch it now.
      */
     filename = make_filename(INDEX_SESSIONDIR, NULL);
-    if (!mkdir(filename, 0700)) {
+    if (mkdir(filename, 0700) != 0) {
 	char *filename2 = make_filename(INDEX_DIR, NULL);
 	mkdir(filename2, 0700);
 	sfree(filename2);
