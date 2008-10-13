@@ -1240,13 +1240,17 @@ the character set understood by PuTTY.
 
 During an interactive session, PuTTY receives a stream of 8-bit
 bytes from the server, and in order to display them on the screen it
-needs to know what character set to interpret them in.
+needs to know what character set to interpret them in. Similarly,
+PuTTY needs to know how to translate your keystrokes into the encoding
+the server expects. Unfortunately, there is no satisfactory
+mechanism for PuTTY and the server to communicate this information,
+so it must usually be manually configured.
 
-There are a lot of character sets to choose from. The \q{Received
-data assumed to be in which character set} option lets you select
-one. By default PuTTY will attempt to choose a character set that is
-right for your \i{locale} as reported by Windows; if it gets it wrong,
-you can select a different one using this control.
+There are a lot of character sets to choose from. The \q{Remote
+character set} option lets you select one. By default PuTTY will
+attempt to choose a character set that is right for your \i{locale} as
+reported by Windows; if it gets it wrong, you can select a different
+one using this control.
 
 A few notable character sets are:
 
@@ -1263,9 +1267,10 @@ Euro symbol.
 line-drawing characters, you can select \q{\i{CP437}}.
 
 \b PuTTY also supports \i{Unicode} mode, in which the data coming from
-the server is interpreted as being in the \i{UTF-8} encoding of Unicode.
-If you select \q{UTF-8} as a character set you can use this mode.
-Not all server-side applications will support it.
+the server is interpreted as being in the \i{UTF-8} encoding of Unicode,
+and keystrokes are sent UTF-8 encoded. If you select \q{UTF-8} as a
+character set you can use this mode. Not all server-side applications
+will support it.
 
 If you need support for a numeric \i{code page} which is not listed in
 the drop-down list, such as code page 866, then you can try entering

@@ -1577,8 +1577,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  "Options controlling character set translation");
 
     s = ctrl_getset(b, "Window/Translation", "trans",
-		    "Character set translation on received data");
-    ctrl_combobox(s, "Received data assumed to be in which character set:",
+		    "Character set translation");
+    ctrl_combobox(s, "Remote character set:",
 		  'r', 100, HELPCTX(translation_codepage),
 		  codepage_handler, P(NULL), P(NULL));
 
