@@ -951,7 +951,7 @@ configuration
 
 PuTTY has the ability to change its character set configuration in
 response to commands from the server. Some programs send these
-commands unexpectedly or inconveniently. In particular, \I{BitchX} (an
+commands unexpectedly or inconveniently. In particular, \i{BitchX} (an
 IRC client) seems to have a habit of reconfiguring the character set
 to something other than the user intended.
 
