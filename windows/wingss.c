@@ -96,6 +96,7 @@ Ssh_gss_stat ssh_gss_import_name(char *host, Ssh_gss_name *srv_name)
 Ssh_gss_stat ssh_gss_acquire_cred(Ssh_gss_ctx *ctx)
 {
     winSsh_gss_ctx *winctx = snew(winSsh_gss_ctx);
+    memset(winctx, 0, sizeof(winSsh_gss_ctx));
 
     /* prepare our "wrapper" structure */
     winctx->maj_stat =  winctx->min_stat = SEC_E_OK;
