@@ -88,6 +88,7 @@ struct Socket_tag {
 };
 
 struct SockAddr_tag {
+    int refcount;
     const char *error;
     enum { UNRESOLVED, UNIX, IP } superfamily;
 #ifndef NO_IPV6
@@ -193,6 +194,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname, int address_famil
     ret->superfamily = UNRESOLVED;
     *realhost = '\0';
     ret->error = NULL;
+    ret->refcount = 1;
 
 #ifndef NO_IPV6
     hints.ai_flags = AI_CANONNAME;
@@ -275,6 +277,7 @@ SockAddr sk_nonamelookup(const char *host)
 #else
     ret->addresses = NULL;
 #endif
+    ret->refcount = 1;
     return ret;
 }
 
@@ -412,7 +415,8 @@ void sk_addrcopy(SockAddr addr, char *buf)
 
 void sk_addr_free(SockAddr addr)
 {
-
+    if (--addr->refcount > 0)
+	return;
 #ifndef NO_IPV6
     if (addr->ais != NULL)
 	freeaddrinfo(addr->ais);
@@ -420,6 +424,12 @@ void sk_addr_free(SockAddr addr)
     sfree(addr->addresses);
 #endif
     sfree(addr);
+}
+
+SockAddr sk_addr_dup(SockAddr addr)
+{
+    addr->refcount++;
+    return addr;
 }
 
 static Plug sk_tcp_plug(Socket sock, Plug p)
@@ -1415,5 +1425,6 @@ SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
     ret->addresses = NULL;
     ret->naddresses = 0;
 #endif
+    ret->refcount = 1;
     return ret;
 }

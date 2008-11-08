@@ -78,6 +78,7 @@ struct Socket_tag {
 };
 
 struct SockAddr_tag {
+    int refcount;
     char *error;
     int resolved;
 #ifndef NO_IPV6
@@ -444,6 +445,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 #endif
     ret->addresses = NULL;
     ret->resolved = FALSE;
+    ret->refcount = 1;
     *realhost = '\0';
 
     if ((a = p_inet_addr(host)) == (unsigned long) INADDR_NONE) {
@@ -547,6 +549,7 @@ SockAddr sk_nonamelookup(const char *host)
 #endif
     ret->addresses = NULL;
     ret->naddresses = 0;
+    ret->refcount = 1;
     strncpy(ret->hostname, host, lenof(ret->hostname));
     ret->hostname[lenof(ret->hostname)-1] = '\0';
     return ret;
@@ -708,6 +711,8 @@ void sk_addrcopy(SockAddr addr, char *buf)
 
 void sk_addr_free(SockAddr addr)
 {
+    if (--addr->refcount > 0)
+	return;
 #ifndef NO_IPV6
     if (addr->ais && p_freeaddrinfo)
 	p_freeaddrinfo(addr->ais);
@@ -715,6 +720,12 @@ void sk_addr_free(SockAddr addr)
     if (addr->addresses)
 	sfree(addr->addresses);
     sfree(addr);
+}
+
+SockAddr sk_addr_dup(SockAddr addr)
+{
+    addr->refcount++;
+    return addr;
 }
 
 static Plug sk_tcp_plug(Socket sock, Plug p)
@@ -1677,5 +1688,6 @@ SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
     SockAddr ret = snew(struct SockAddr_tag);
     memset(ret, 0, sizeof(struct SockAddr_tag));
     ret->error = "unix sockets not supported on this platform";
+    ret->refcount = 1;
     return ret;
 }
