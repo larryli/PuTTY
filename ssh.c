@@ -1287,7 +1287,7 @@ static struct Packet *ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 		   PKT_INCOMING, st->pktin->type,
 		   ssh1_pkt_type(st->pktin->type),
 		   st->pktin->body, st->pktin->length,
-		   nblanks, &blank);
+		   nblanks, &blank, NULL);
     }
 
     crFinish(st->pktin);
@@ -1447,7 +1447,7 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 		   ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
 				 st->pktin->type),
 		   st->pktin->data+6, st->pktin->length-6,
-		   nblanks, &blank);
+		   nblanks, &blank, &st->pktin->sequence);
     }
 
     crFinish(st->pktin);
@@ -1472,7 +1472,7 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 	log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
 		   ssh1_pkt_type(pkt->data[12]),
 		   pkt->body, pkt->length - (pkt->body - pkt->data),
-		   pkt->nblanks, pkt->blanks);
+		   pkt->nblanks, pkt->blanks, NULL);
     sfree(pkt->blanks); pkt->blanks = NULL;
     pkt->nblanks = 0;
 
@@ -1512,7 +1512,8 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 static int s_write(Ssh ssh, void *data, int len)
 {
     if (ssh->logctx)
-	log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len, 0, NULL);
+	log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len,
+		   0, NULL, NULL);
     return sk_write(ssh->s, (char *)data, len);
 }
 
@@ -1795,7 +1796,7 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
 	log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
 		   ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->data[5]),
 		   pkt->body, pkt->length - (pkt->body - pkt->data),
-		   pkt->nblanks, pkt->blanks);
+		   pkt->nblanks, pkt->blanks, &ssh->v2_outgoing_sequence);
     sfree(pkt->blanks); pkt->blanks = NULL;
     pkt->nblanks = 0;
 
@@ -2664,7 +2665,7 @@ static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
     /* Log raw data, if we're in that mode. */
     if (ssh->logctx)
 	log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, datalen,
-		   0, NULL);
+		   0, NULL, NULL);
 
     crBegin(ssh->ssh_gotdata_crstate);
 

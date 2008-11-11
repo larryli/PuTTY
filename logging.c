@@ -220,8 +220,9 @@ void log_eventlog(void *handle, const char *event)
  * Set of blanking areas must be in increasing order.
  */
 void log_packet(void *handle, int direction, int type,
-		char *texttype, void *data, int len,
-		int n_blanks, const struct logblank_t *blanks)
+		char *texttype, const void *data, int len,
+		int n_blanks, const struct logblank_t *blanks,
+		const unsigned long *seq)
 {
     struct LogContext *ctx = (struct LogContext *)handle;
     char dumpdata[80], smalldata[5];
@@ -233,13 +234,20 @@ void log_packet(void *handle, int direction, int type,
 	return;
 
     /* Packet header. */
-    if (texttype)
-        logprintf(ctx, "%s packet type %d / 0x%02x (%s)\r\n",
-                  direction == PKT_INCOMING ? "Incoming" : "Outgoing",
-                  type, type, texttype);
-    else
+    if (texttype) {
+	if (seq) {
+	    logprintf(ctx, "%s packet #0x%lx, type %d / 0x%02x (%s)\r\n",
+		      direction == PKT_INCOMING ? "Incoming" : "Outgoing",
+		      *seq, type, type, texttype);
+	} else {
+	    logprintf(ctx, "%s packet type %d / 0x%02x (%s)\r\n",
+		      direction == PKT_INCOMING ? "Incoming" : "Outgoing",
+		      type, type, texttype);
+	}
+    } else {
         logprintf(ctx, "%s raw data\r\n",
                   direction == PKT_INCOMING ? "Incoming" : "Outgoing");
+    }
 
     /*
      * Output a hex/ASCII dump of the packet body, blanking/omitting

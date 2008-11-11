@@ -870,8 +870,9 @@ struct logblank_t {
     int type;
 };
 void log_packet(void *logctx, int direction, int type,
-		char *texttype, void *data, int len,
-		int n_blanks, const struct logblank_t *blanks);
+		char *texttype, const void *data, int len,
+		int n_blanks, const struct logblank_t *blanks,
+		const unsigned long *sequence);
 
 /*
  * Exports from testback.c
