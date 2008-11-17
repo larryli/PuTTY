@@ -75,6 +75,7 @@ struct gui_data {
     int mouseptr_visible;
     int busy_status;
     guint term_paste_idle_id;
+    guint term_exit_idle_id;
     int alt_keycode;
     int alt_digits;
     char wintitle[sizeof(((Config *)0)->wintitle)];
@@ -1220,9 +1221,9 @@ void frontend_keypress(void *handle)
 	exit(0);
 }
 
-void notify_remote_exit(void *frontend)
+static gint idle_exit_func(gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    struct gui_data *inst = (struct gui_data *)data;
     int exitcode;
 
     if (!inst->exited &&
@@ -1244,6 +1245,16 @@ void notify_remote_exit(void *frontend)
 	}
 	gtk_widget_show(inst->restartitem);
     }
+
+    gtk_idle_remove(inst->term_exit_idle_id);
+    return TRUE;
+}
+
+void notify_remote_exit(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+
+    inst->term_exit_idle_id = gtk_idle_add(idle_exit_func, inst);
 }
 
 static gint timer_trigger(gpointer data)
