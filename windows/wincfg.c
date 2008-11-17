@@ -377,4 +377,14 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      */
     if (!midsession || (protocol == PROT_SERIAL))
         ser_setup_config_box(b, midsession, 0x1F, 0x0F);
+
+    /*
+     * $XAUTHORITY is not reliable on Windows, so we provide a
+     * means to override it.
+     */
+    s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
+    ctrl_filesel(s, "X authority file for local display", 't',
+		 NULL, FALSE, "Select X authority file",
+		 HELPCTX(ssh_tunnels_xauthority),
+		 dlg_stdfilesel_handler, I(offsetof(Config, xauthfile)));
 }

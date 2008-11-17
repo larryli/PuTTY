@@ -2728,6 +2728,27 @@ connections fail.
 PuTTY's default is \cw{MIT-MAGIC-COOKIE-1}. If you change it, you
 should be sure you know what you're doing.
 
+\S{config-ssh-xauthority} X authority file for local display
+
+\cfg{winhelp-topic}{ssh.tunnels.xauthority}
+
+If you are using X11 forwarding, the local X server to which your
+forwarded connections are eventually directed may itself require
+authorisation.
+
+Some Windows X servers do not require this: they do authorisation by
+simpler means, such as accepting any connection from the local
+machine but not from anywhere else. However, if your X server does
+require authorisation, then PuTTY needs to know what authorisation
+is required.
+
+One way in which this data might be made available is for the X
+server to store it somewhere in a file which has the same format
+as the Unix \c{.Xauthority} file. If this is how your Windows X
+server works, then you can tell PuTTY where to find this file by
+configuring this option. By default, PuTTY will not attempt to find
+any authorisation for your local display.
+
 \H{config-ssh-portfwd} \I{port forwarding}The Tunnels panel
 
 \cfg{winhelp-topic}{ssh.tunnels.portfwd}

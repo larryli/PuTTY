@@ -18,6 +18,7 @@
 #endif
 
 #include "putty.h"
+#include "ssh.h"
 #include "psftp.h"
 #include "int64.h"
 
@@ -33,11 +34,11 @@ char *x_get_default(const char *key)
     return NULL;		       /* this is a stub */
 }
 
-void platform_get_x11_auth(char *display, int *protocol,
-                           unsigned char *data, int *datalen)
+void platform_get_x11_auth(struct X11Display *display, const Config *cfg)
 {
     /* Do nothing, therefore no auth. */
 }
+const int platform_uses_x11_unix_by_default = TRUE;
 
 /*
  * Default settings that are specific to PSFTP.

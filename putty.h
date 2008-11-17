@@ -572,6 +572,7 @@ struct config_tag {
     int x11_forward;
     char x11_display[128];
     int x11_auth;
+    Filename xauthfile;
     /* port forwarding */
     int lport_acceptall; /* accept conns from hosts other than localhost */
     int rport_acceptall; /* same for remote forwarded ports (SSH-2 only) */

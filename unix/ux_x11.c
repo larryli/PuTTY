@@ -5,117 +5,66 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stdlib.h>
+
 #include "putty.h"
 #include "ssh.h"
+#include "network.h"
 
-void platform_get_x11_auth(char *display, int *protocol,
-                           unsigned char *data, int *datalen)
+void platform_get_x11_auth(struct X11Display *disp, const Config *cfg)
 {
-    FILE *fp;
-    char *command;
-    int maxsize = *datalen;
-    char *localbuf;
-    int proto = -1;
+    char *xauthfile;
+    int needs_free;
 
-    display = x11_display(display);
     /*
-     * Normally we should run `xauth list DISPLAYNAME'. However,
-     * there's an oddity when the display is local: the display
-     * `localhost:0' (or `:0') should become just `:0'.
+     * Upgrade an IP-style localhost display to a Unix-socket
+     * display.
      */
-    if (!strncmp(display, "localhost:", 10)
-	|| !strncmp(display, "unix:", 5))
-	command = dupprintf("xauth list %s 2>/dev/null",
-			    strchr(display, ':'));
-    else
-	command = dupprintf("xauth list %s 2>/dev/null", display);
-    sfree(display);
-    fp = popen(command, "r");
-    sfree(command);
-
-    if (!fp)
-        return;                        /* assume no auth */
-
-    localbuf = snewn(maxsize, char);
-
-    while (1) {
-        /*
-         * Read a line from stdin, and attempt to parse it into a
-         * display name (ignored), auth protocol, and auth string.
-         */
-        int c, i, hexdigit;
-        char protoname[64];
-
-        /* Skip the display name. */
-        while (c = getc(fp), c != EOF && c != '\n' && !isspace(c));
-        if (c == EOF) break;
-        if (c == '\n') continue;
-
-        /* Skip white space. */
-        while (c != EOF && c != '\n' && isspace(c))
-            c = getc(fp);
-        if (c == EOF) break;
-        if (c == '\n') continue;
-
-        /* Read the auth protocol name, and see if it matches any we
-         * know about. */
-        i = 0;
-        while (c != EOF && c != '\n' && !isspace(c)) {
-            if (i < lenof(protoname)-1) protoname[i++] = c;
-            c = getc(fp);
-        }
-        protoname[i] = '\0';
-
-        for (i = X11_NO_AUTH; ++i < X11_NAUTHS ;) {
-            if (!strcmp(protoname, x11_authnames[i]))
-                break;
-        }
-        if (i >= X11_NAUTHS || i <= proto) {
-            /* Unrecognised protocol name, or a worse one than we already have.
-	     * Skip this line. */
-            while (c != EOF && c != '\n')
-                c = getc(fp);
-            if (c == EOF) break;
-        }
-        proto = i;
-
-        /* Skip white space. */
-        while (c != EOF && c != '\n' && isspace(c))
-            c = getc(fp);
-        if (c == EOF) break;
-        if (c == '\n') continue;
-
-        /*
-         * Now grab pairs of hex digits and shove them into `data'.
-         */
-        i = 0;
-        hexdigit = -1;
-        while (c != EOF && c != '\n') {
-            int hexval = -1;
-            if (c >= 'A' && c <= 'F')
-                hexval = c + 10 - 'A';
-            if (c >= 'a' && c <= 'f')
-                hexval = c + 10 - 'a';
-            if (c >= '0' && c <= '9')
-                hexval = c - '0';
-            if (hexval >= 0) {
-                if (hexdigit >= 0) {
-                    hexdigit = (hexdigit << 4) + hexval;
-                    if (i < maxsize)
-                        localbuf[i++] = hexdigit;
-                    hexdigit = -1;
-                } else
-                    hexdigit = hexval;
-            }
-            c = getc(fp);
-        }
-
-        *datalen = i;
-        *protocol = proto;
-	memcpy(data, localbuf, i);
-
-	/* Nonetheless, continue looping round; we might find a better one. */
+    if (!disp->unixdomain && sk_address_is_local(disp->addr)) {
+	sk_addr_free(disp->addr);
+	disp->unixdomain = TRUE;
+	disp->addr = platform_get_x11_unix_address(NULL, disp->displaynum);
+	disp->realhost = dupprintf("unix:%d", disp->displaynum);
+	disp->port = 0;
     }
-    pclose(fp);
-    sfree(localbuf);
+
+    /*
+     * Set the hostname for Unix-socket displays, so that we'll
+     * look it up correctly in the X authority file.
+     */
+    if (disp->unixdomain) {
+	int len;
+
+	sfree(disp->hostname);
+	len = 128;
+	do {
+	    len *= 2;
+	    disp->hostname = snewn(len, char);
+	    if (gethostname(disp->hostname, len) < 0) {
+		disp->hostname = NULL;
+		return;
+	    }
+	} while (strlen(disp->hostname) >= len-1);
+    }
+
+    /*
+     * Find the .Xauthority file.
+     */
+    needs_free = FALSE;
+    xauthfile = getenv("XAUTHORITY");
+    if (!xauthfile) {
+	xauthfile = getenv("HOME");
+	if (xauthfile) {
+	    xauthfile = dupcat(xauthfile, "/.Xauthority", NULL);
+	    needs_free = TRUE;
+	}
+    }
+
+    if (xauthfile) {
+	x11_get_auth_from_authfile(disp, xauthfile);
+	if (needs_free)
+	    sfree(xauthfile);
+    }
 }
+
+const int platform_uses_x11_unix_by_default = TRUE;

@@ -19,6 +19,12 @@ int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     return ret;
 }
 
+void platform_get_x11_auth(struct X11Display *display, const Config *cfg)
+{
+    /* Do nothing, therefore no auth. */
+}
+const int platform_uses_x11_unix_by_default = TRUE;
+
 /* ----------------------------------------------------------------------
  * File access abstraction.
  */

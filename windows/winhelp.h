@@ -121,6 +121,7 @@
 #define WINHELP_CTX_translation_linedraw "translation.linedraw:config-linedraw"
 #define WINHELP_CTX_ssh_tunnels_x11 "ssh.tunnels.x11:config-ssh-x11"
 #define WINHELP_CTX_ssh_tunnels_x11auth "ssh.tunnels.x11auth:config-ssh-x11auth"
+#define WINHELP_CTX_ssh_tunnels_xauthority "ssh.tunnels.xauthority:config-ssh-xauthority"
 #define WINHELP_CTX_ssh_tunnels_portfwd "ssh.tunnels.portfwd:config-ssh-portfwd"
 #define WINHELP_CTX_ssh_tunnels_portfwd_localhost "ssh.tunnels.portfwd.localhost:config-ssh-portfwd-localhost"
 #define WINHELP_CTX_ssh_tunnels_portfwd_ipversion "ssh.tunnels.portfwd.ipversion:config-ssh-portfwd-address-family"

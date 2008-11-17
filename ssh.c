@@ -824,7 +824,7 @@ struct ssh_tag {
     Pkt_KCtx pkt_kctx;
     Pkt_ACtx pkt_actx;
 
-    void *x11auth;
+    struct X11Display *x11disp;
 
     int version;
     int conn_throttle_count;
@@ -4578,8 +4578,8 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
 
-	if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-		     ssh->x11auth, NULL, -1, &ssh->cfg) != NULL) {
+	if (x11_init(&c->u.x11.s, ssh->x11disp, c,
+		     NULL, -1, &ssh->cfg) != NULL) {
 	    logevent("Opening X11 forward connection failed");
 	    sfree(c);
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
@@ -4914,11 +4914,9 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
     }
 
     if (ssh->cfg.x11_forward) {
-	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
-	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
-				       data, sizeof(data), ssh->cfg.x11_auth);
-        x11_get_real_auth(ssh->x11auth, ssh->cfg.x11_display);
+	ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
+					 ssh->cfg.x11_auth, &ssh->cfg);
 	/*
 	 * Note that while we blank the X authentication data here, we don't
 	 * take any special action to blank the start of an X11 channel,
@@ -4928,14 +4926,19 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	 */
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-			PKT_STR, proto,
-			PKTT_PASSWORD, PKT_STR, data, PKTT_OTHER,
-			PKT_INT, x11_get_screen_number(ssh->cfg.x11_display),
+			PKT_STR, ssh->x11disp->remoteauthprotoname,
+			PKTT_PASSWORD,
+			PKT_STR, ssh->x11disp->remoteauthdatastring,
+			PKTT_OTHER,
+			PKT_INT, ssh->x11disp->screennum,
 			PKT_END);
 	} else {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-			PKT_STR, proto,
-			PKTT_PASSWORD, PKT_STR, data, PKTT_OTHER, PKT_END);
+			PKT_STR, ssh->x11disp->remoteauthprotoname,
+			PKTT_PASSWORD,
+			PKT_STR, ssh->x11disp->remoteauthdatastring,
+			PKTT_OTHER,
+			PKT_END);
 	}
 	do {
 	    crReturnV;
@@ -6939,9 +6942,8 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
-	else if (x11_init(&c->u.x11.s, ssh->cfg.x11_display, c,
-			  ssh->x11auth, addrstr, peerport,
-			  &ssh->cfg) != NULL) {
+	else if (x11_init(&c->u.x11.s, ssh->x11disp, c,
+			  addrstr, peerport, &ssh->cfg) != NULL) {
 	    error = "Unable to open an X11 connection";
 	} else {
 	    logevent("Opening X11 forward connection succeeded");
@@ -8479,17 +8481,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      * Potentially enable X11 forwarding.
      */
     if (ssh->mainchan && !ssh->ncmode && ssh->cfg.x11_forward) {
-	char proto[20], data[64];
 	logevent("Requesting X11 forwarding");
-	ssh->x11auth = x11_invent_auth(proto, sizeof(proto),
-				       data, sizeof(data), ssh->cfg.x11_auth);
-        x11_get_real_auth(ssh->x11auth, ssh->cfg.x11_display);
+	ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
+					 ssh->cfg.x11_auth, &ssh->cfg);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
 	ssh2_pkt_addstring(s->pktout, "x11-req");
 	ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
 	ssh2_pkt_addbool(s->pktout, 0);	       /* many connections */
-	ssh2_pkt_addstring(s->pktout, proto);
+	ssh2_pkt_addstring(s->pktout, ssh->x11disp->remoteauthprotoname);
 	/*
 	 * Note that while we blank the X authentication data here, we don't
 	 * take any special action to blank the start of an X11 channel,
@@ -8498,9 +8498,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	 * cookie into the log.
 	 */
 	dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
-	ssh2_pkt_addstring(s->pktout, data);
+	ssh2_pkt_addstring(s->pktout, ssh->x11disp->remoteauthdatastring);
 	end_log_omission(ssh, s->pktout);
-	ssh2_pkt_adduint32(s->pktout, x11_get_screen_number(ssh->cfg.x11_display));
+	ssh2_pkt_adduint32(s->pktout, ssh->x11disp->screennum);
 	ssh2_pkt_send(ssh, s->pktout);
 
 	crWaitUntilV(pktin);
@@ -8991,7 +8991,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->fallback_cmd = 0;
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     ssh->pkt_actx = SSH2_PKTCTX_NOAUTH;
-    ssh->x11auth = NULL;
+    ssh->x11disp = NULL;
     ssh->v1_compressing = FALSE;
     ssh->v2_outgoing_sequence = 0;
     ssh->ssh1_rdpkt_crstate = 0;
@@ -9129,8 +9129,8 @@ static void ssh_free(void *handle)
 	ssh->rportfwds = NULL;
     }
     sfree(ssh->deferred_send_data);
-    if (ssh->x11auth)
-	x11_free_auth(ssh->x11auth);
+    if (ssh->x11disp)
+	x11_free_display(ssh->x11disp);
     sfree(ssh->do_ssh_init_state);
     sfree(ssh->do_ssh1_login_state);
     sfree(ssh->do_ssh2_transport_state);

@@ -1390,8 +1390,7 @@ int net_service_lookup(char *service)
 	return 0;
 }
 
-SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
-				       char **canonicalname)
+SockAddr platform_get_x11_unix_address(const char *sockpath, int displaynum)
 {
     SockAddr ret = snew(struct SockAddr_tag);
     int n;
@@ -1399,26 +1398,22 @@ SockAddr platform_get_x11_unix_address(const char *display, int displaynum,
     memset(ret, 0, sizeof *ret);
     ret->superfamily = UNIX;
     /*
-     * Mac OS X Leopard uses an innovative X display naming
-     * convention in which the entire display name is the path to
-     * the Unix socket, including the trailing :0 which only
-     * _looks_ like a display number. Heuristically, I think
-     * detecting this by means of a leading slash ought to be
-     * adequate.
+     * In special circumstances (notably Mac OS X Leopard), we'll
+     * have been passed an explicit Unix socket path.
      */
-    if (display[0] == '/') {
+    if (sockpath) {
 	n = snprintf(ret->hostname, sizeof ret->hostname,
-		     "%s", display);
+		     "%s", sockpath);
     } else {
 	n = snprintf(ret->hostname, sizeof ret->hostname,
 		     "%s%d", X11_UNIX_PATH, displaynum);
     }
-    if(n < 0)
+
+    if (n < 0)
 	ret->error = "snprintf failed";
-    else if(n >= sizeof ret->hostname)
+    else if (n >= sizeof ret->hostname)
 	ret->error = "X11 UNIX name too long";
-    else
-	*canonicalname = dupstr(ret->hostname);
+
 #ifndef NO_IPV6
     ret->ais = NULL;
 #else
