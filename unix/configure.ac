@@ -14,9 +14,15 @@ if test "X$GCC" = Xyes; then
     CFLAGS="$CFLAGS -Wall -Werror"
 fi
 
+AC_ARG_WITH(gssapi,
+[  --without-gssapi        disable GSS-API support])
+
 AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
+if test "$with_gssapi" != "no"; then
+  AC_CHECK_HEADERS([gssapi/gssapi.h])
+fi
 
 # Look for both GTK 1 and GTK 2.
 AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
@@ -38,6 +44,9 @@ fi
 AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
+if test "$with_gssapi" != "no"; then
+  AC_SEARCH_LIBS([gss_init_sec_context], [gss gssapi gssapi_krb5])
+fi
 
 AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 
@@ -69,5 +78,8 @@ AH_BOTTOM([
 #endif
 #ifndef HAVE_PANGO_FONT_MAP_LIST_FAMILIES
 # define PANGO_PRE_1POINT6
+#endif
+#ifndef HAVE_GSSAPI_GSSAPI_H
+# define NO_GSSAPI
 #endif
 ])
