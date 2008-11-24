@@ -143,6 +143,9 @@ Once you have started your PSFTP session, you will see a \c{psftp>}
 prompt. You can now type commands to perform file-transfer
 functions. This section lists all the available commands.
 
+Any line starting with a \cw{#} will be treated as a \i{comment}
+and ignored.
+
 \S{psftp-quoting} \I{quoting, in PSFTP}General quoting rules for PSFTP commands
 
 Most PSFTP commands are considered by the PSFTP command interpreter

@@ -2240,6 +2240,11 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	cmd->words = sresize(cmd->words, cmd->wordssize, char *);
 	cmd->words[0] = dupstr("!");
 	cmd->words[1] = dupstr(p+1);
+    } else if (*p == '#') {
+	/*
+	 * Special case: comment. Entire line is ignored.
+	 */
+	cmd->nwords = cmd->wordssize = 0;
     } else {
 
 	/*
