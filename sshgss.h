@@ -1,3 +1,5 @@
+#include "puttyps.h"
+
 #define SSH2_GSS_OIDTYPE 0x06
 typedef void *Ssh_gss_ctx;
 typedef void *Ssh_gss_name;
