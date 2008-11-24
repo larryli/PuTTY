@@ -129,8 +129,8 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
 				      Ssh_gss_buf *send_tok)
 {
     winSsh_gss_ctx *winctx = (winSsh_gss_ctx *) *ctx;
-    SecBuffer wsend_tok = {send_tok->len,SECBUFFER_TOKEN,send_tok->data};
-    SecBuffer wrecv_tok = {recv_tok->len,SECBUFFER_TOKEN,recv_tok->data};
+    SecBuffer wsend_tok = {send_tok->length,SECBUFFER_TOKEN,send_tok->value};
+    SecBuffer wrecv_tok = {recv_tok->length,SECBUFFER_TOKEN,recv_tok->value};
     SecBufferDesc output_desc={SECBUFFER_VERSION,1,&wsend_tok};
     SecBufferDesc input_desc ={SECBUFFER_VERSION,1,&wrecv_tok};
     unsigned long flags=ISC_REQ_MUTUAL_AUTH|ISC_REQ_REPLAY_DETECT|
@@ -154,8 +154,8 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
   
     /* prepare for the next round */
     winctx->context_handle = &winctx->context;
-    send_tok->data = (char*) wsend_tok.pvBuffer;
-    send_tok->len  =  wsend_tok.cbBuffer;
+    send_tok->value = wsend_tok.pvBuffer;
+    send_tok->length = wsend_tok.cbBuffer;
   
     /* check & return our status */
     if (winctx->maj_stat==SEC_E_OK) return SSH_GSS_S_COMPLETE;
@@ -170,8 +170,8 @@ Ssh_gss_stat ssh_gss_free_tok(Ssh_gss_buf *send_tok)
     if (send_tok == NULL) return SSH_GSS_FAILURE;
 
     /* free Windows buffer */
-    p_FreeContextBuffer(send_tok->data);
-    send_tok->len = 0; send_tok->data = NULL;
+    p_FreeContextBuffer(send_tok->value);
+    SSH_GSS_CLEAR_BUF(send_tok);
     
     return SSH_GSS_OK;
 }
@@ -250,8 +250,8 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
 	break;
     }
 
-    buf->data = dupstr(msg);
-    buf->len = strlen(buf->data);
+    buf->value = dupstr(msg);
+    buf->length = strlen(buf->length);
     
     return SSH_GSS_OK;
 }
@@ -282,8 +282,8 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
     InputBufferDescriptor.pBuffers = InputSecurityToken;
     InputBufferDescriptor.ulVersion = SECBUFFER_VERSION;
     InputSecurityToken[0].BufferType = SECBUFFER_DATA;
-    InputSecurityToken[0].cbBuffer = buf->len;
-    InputSecurityToken[0].pvBuffer = buf->data;
+    InputSecurityToken[0].cbBuffer = buf->length;
+    InputSecurityToken[0].pvBuffer = buf->value;
     InputSecurityToken[1].BufferType = SECBUFFER_TOKEN;
     InputSecurityToken[1].cbBuffer = ContextSizes.cbMaxSignature;
     InputSecurityToken[1].pvBuffer = snewn(ContextSizes.cbMaxSignature, char);
@@ -294,8 +294,8 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
 				       0);
 
     if (winctx->maj_stat == SEC_E_OK) {
-	hash->len = InputSecurityToken[1].cbBuffer;
-	hash->data = InputSecurityToken[1].pvBuffer;
+	hash->length = InputSecurityToken[1].cbBuffer;
+	hash->value = InputSecurityToken[1].pvBuffer;
     }
 
     return winctx->maj_stat;
@@ -303,7 +303,7 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
 
 Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
 {
-    sfree(hash->data);
+    sfree(hash->value);
     return SSH_GSS_OK;
 }
 

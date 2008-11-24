@@ -7805,7 +7805,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 		/* GSSAPI Authentication */
 
-		int micoffset;
+		int micoffset, len;
+		char *data;
 		Ssh_gss_buf mic;
 		s->type = AUTH_TYPE_GSSAPI;
 		s->tried_gssapi = TRUE;
@@ -7825,13 +7826,14 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		ssh2_pkt_adduint32(s->pktout,1);
 
 		/* length of OID + 2 */
-		ssh2_pkt_adduint32(s->pktout, s->gss_buf.len + 2);
+		ssh2_pkt_adduint32(s->pktout, s->gss_buf.length + 2);
 		ssh2_pkt_addbyte(s->pktout, SSH2_GSS_OIDTYPE);
 
 		/* length of OID */
-		ssh2_pkt_addbyte(s->pktout, (unsigned char) s->gss_buf.len);
+		ssh2_pkt_addbyte(s->pktout, (unsigned char) s->gss_buf.length);
 
-		ssh_pkt_adddata(s->pktout, s->gss_buf.data, s->gss_buf.len);
+		ssh_pkt_adddata(s->pktout, s->gss_buf.value,
+				s->gss_buf.length);
 		ssh2_pkt_send(ssh, s->pktout);
 		crWaitUntilV(pktin);
 		if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_RESPONSE) {
@@ -7841,11 +7843,14 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 		/* check returned packet ... */
 
-		ssh_pkt_getstring(pktin,&s->gss_rcvtok.data,&s->gss_rcvtok.len);
-		if (s->gss_rcvtok.len != s->gss_buf.len + 2 ||
-		    s->gss_rcvtok.data[0] != SSH2_GSS_OIDTYPE ||
-		    s->gss_rcvtok.data[1] != s->gss_buf.len ||
-		    memcmp(s->gss_rcvtok.data+2,s->gss_buf.data,s->gss_buf.len) ) {
+		ssh_pkt_getstring(pktin, &data, &len);
+		s->gss_rcvtok.value = data;
+		s->gss_rcvtok.length = len;
+		if (s->gss_rcvtok.length != s->gss_buf.length + 2 ||
+		    ((char *)s->gss_rcvtok.value)[0] != SSH2_GSS_OIDTYPE ||
+		    ((char *)s->gss_rcvtok.value)[1] != s->gss_buf.length ||
+		    memcmp((char *)s->gss_rcvtok.value + 2,
+			   s->gss_buf.value,s->gss_buf.length) ) {
 		    logevent("GSSAPI authentication - wrong response from server");
 		    continue;
 		}
@@ -7871,8 +7876,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 
 		/* initial tokens are empty */
-		s->gss_rcvtok.len = s->gss_sndtok.len = 0;
-		s->gss_rcvtok.data = s->gss_sndtok.data = NULL;
+		SSH_GSS_CLEAR_BUF(&s->gss_rcvtok);
 
 		/* now enter the loop */
 		do {
@@ -7887,8 +7891,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			logevent("GSSAPI authentication initialisation failed");
 
 			if (ssh_gss_display_status(s->gss_ctx,&s->gss_buf) == SSH_GSS_OK) {
-			    logevent(s->gss_buf.data);
-			    sfree(s->gss_buf.data);
+			    logevent(s->gss_buf.value);
+			    sfree(s->gss_buf.value);
 			}
 
 			break;
@@ -7898,10 +7902,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    /* Client and server now exchange tokens until GSSAPI
 		     * no longer says CONTINUE_NEEDED */
 
-		    if (s->gss_sndtok.len != 0) {
+		    if (s->gss_sndtok.length != 0) {
 			s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
 			ssh_pkt_addstring_start(s->pktout);
-			ssh_pkt_addstring_data(s->pktout,s->gss_sndtok.data,s->gss_sndtok.len);
+			ssh_pkt_addstring_data(s->pktout,s->gss_sndtok.value,s->gss_sndtok.length);
 			ssh2_pkt_send(ssh, s->pktout);
 			ssh_gss_free_tok(&s->gss_sndtok);
 		    }
@@ -7913,7 +7917,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			    s->gss_stat = SSH_GSS_FAILURE;
 			    break;
 			}
-			ssh_pkt_getstring(pktin,&s->gss_rcvtok.data,&s->gss_rcvtok.len);
+			ssh_pkt_getstring(pktin, &data, &len);
+			s->gss_rcvtok.value = data;
+			s->gss_rcvtok.length = len;
 		    }
 		} while (s-> gss_stat == SSH_GSS_S_CONTINUE_NEEDED);
 
@@ -7935,13 +7941,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		ssh_pkt_addstring(s->pktout, "ssh-connection");
 		ssh_pkt_addstring(s->pktout, "gssapi-with-mic");
 
-		s->gss_buf.data = (char *)s->pktout->data + micoffset;
-		s->gss_buf.len = s->pktout->length - micoffset;
+		s->gss_buf.value = (char *)s->pktout->data + micoffset;
+		s->gss_buf.length = s->pktout->length - micoffset;
 
 		ssh_gss_get_mic(s->gss_ctx, &s->gss_buf, &mic);
 		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_GSSAPI_MIC);
 		ssh_pkt_addstring_start(s->pktout);
-		ssh_pkt_addstring_data(s->pktout, mic.data, mic.len);
+		ssh_pkt_addstring_data(s->pktout, mic.value, mic.length);
 		ssh2_pkt_send(ssh, s->pktout);
 		ssh_gss_free_mic(&mic);
 

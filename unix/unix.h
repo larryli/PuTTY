@@ -60,6 +60,15 @@ extern long tickcount_offset;
 #define WCHAR wchar_t
 #define BYTE unsigned char
 
+#ifndef NO_GSSAPI
+/*
+ * GSS-API stuff
+ */
+#include <gssapi/gssapi.h>
+typedef gss_buffer_desc Ssh_gss_buf;
+#define SSH_GSS_EMPTY_BUF GSS_C_EMPTY_BUFFER
+#endif
+
 /*
  * Unix-specific global flag
  *

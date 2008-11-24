@@ -12,16 +12,9 @@ typedef enum Ssh_gss_stat {
 
 #define SSH_GSS_S_COMPLETE SSH_GSS_OK
 
-typedef struct Ssh_gss_buf {
-    int len;
-    char *data;
-} Ssh_gss_buf;
-
-#define SSH_GSS_EMPTY_BUF (Ssh_gss_buf) {0,NULL}
-
 #define SSH_GSS_CLEAR_BUF(buf) do {		\
-    (*buf).len = 0;				\
-    (*buf).data = NULL;				\
+    (*buf).length = 0;				\
+    (*buf).value = NULL;				\
 } while (0)
 
 /* Functions, provided by either wingss.c or uxgss.c */
