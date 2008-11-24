@@ -3361,7 +3361,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 
     fflush(stdout); /* FIXME eh? */
     {
-	if (!*ssh->cfg.username) {
+	if (!get_remote_username(&ssh->cfg, s->username,
+				 sizeof(s->username))) {
 	    int ret; /* need not be kept over crReturn */
 	    s->cur_prompt = new_prompts(ssh->frontend);
 	    s->cur_prompt->to_server = TRUE;
@@ -3386,9 +3387,6 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    memcpy(s->username, s->cur_prompt->prompts[0]->result,
 		   lenof(s->username));
 	    free_prompts(s->cur_prompt);
-	} else {
-	    strncpy(s->username, ssh->cfg.username, sizeof(s->username));
-	    s->username[sizeof(s->username)-1] = '\0';
 	}
 
 	send_packet(ssh, SSH1_CMSG_USER, PKT_STR, s->username, PKT_END);
@@ -7295,7 +7293,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	     * with change_username turned off we don't try to get
 	     * it again.
 	     */
-	} else if (!*ssh->cfg.username) {
+	} else if (!get_remote_username(&ssh->cfg, s->username,
+					sizeof(s->username))) {
 	    int ret; /* need not be kept over crReturn */
 	    s->cur_prompt = new_prompts(ssh->frontend);
 	    s->cur_prompt->to_server = TRUE;
@@ -7323,8 +7322,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    free_prompts(s->cur_prompt);
 	} else {
 	    char *stuff;
-	    strncpy(s->username, ssh->cfg.username, sizeof(s->username));
-	    s->username[sizeof(s->username)-1] = '\0';
 	    if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
 		stuff = dupprintf("Using username \"%s\".\r\n", s->username);
 		c_write_str(ssh, stuff);

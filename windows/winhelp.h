@@ -1,6 +1,10 @@
 /*
- * winhelp.h - define Windows Help context names. These match up with
- * the \cfg{winhelp-topic} directives in the Halibut source.
+ * winhelp.h - define Windows Help context names.
+ * Each definition has the form "winhelp-topic:halibut-topic", where:
+ *  - "winhelp-topic" matches up with the \cfg{winhelp-topic} directives
+ *    in the Halibut source, and is used for WinHelp;
+ *  - "halibut-topic" matches up with the Halibut keywords in the source,
+ *    and is used for HTML Help.
  */
 
 /* Maximum length for WINHELP_CTX_foo strings */
@@ -70,6 +74,7 @@
 #define WINHELP_CTX_connection_termtype "connection.termtype:config-termtype"
 #define WINHELP_CTX_connection_termspeed "connection.termspeed:config-termspeed"
 #define WINHELP_CTX_connection_username "connection.username:config-username"
+#define WINHELP_CTX_connection_username_from_env "connection.usernamefromenv:config-username-from-env"
 #define WINHELP_CTX_connection_keepalive "connection.keepalive:config-keepalive"
 #define WINHELP_CTX_connection_nodelay "connection.nodelay:config-nodelay"
 #define WINHELP_CTX_connection_ipversion "connection.ipversion:config-address-family"

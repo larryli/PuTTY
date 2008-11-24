@@ -1788,6 +1788,22 @@ it explicitly every time. (Some Telnet servers don't support this.)
 
 In this box you can type that user name.
 
+\S{config-username-from-env} \q{Use of system username}
+
+\cfg{winhelp-topic}{connection.usernamefromenv}
+
+When the previous box (\k{config-username}) is left blank, by default,
+PuTTY will prompt for a username at the time you make a connection.
+
+In some environments, such as large corporate networks with \i{single
+sign-on}, a more sensible default may be to use the name of the user
+logged in to the local operating system (if any). This control allows
+you to change the default behaviour.
+
+The current system username is displayed in the dialog as a
+convenience. It is not saved in the configuration; if a saved session
+is later used by a different user, that user's name will be used.
+
 \S{config-termtype} \q{\ii{Terminal-type} string}
 
 \cfg{winhelp-topic}{connection.termtype}

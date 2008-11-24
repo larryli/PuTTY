@@ -182,12 +182,14 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     {
 	char z = 0;
 	char *p;
+	char ruser[sizeof(cfg->username)];
+	(void) get_remote_username(cfg, ruser, sizeof(ruser));
 	sk_write(rlogin->s, &z, 1);
 	sk_write(rlogin->s, cfg->localusername,
 		 strlen(cfg->localusername));
 	sk_write(rlogin->s, &z, 1);
-	sk_write(rlogin->s, cfg->username,
-		 strlen(cfg->username));
+	sk_write(rlogin->s, ruser,
+		 strlen(ruser));
 	sk_write(rlogin->s, &z, 1);
 	sk_write(rlogin->s, cfg->termtype,
 		 strlen(cfg->termtype));

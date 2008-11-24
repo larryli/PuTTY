@@ -75,6 +75,25 @@ Backend *backend_from_proto(int proto)
     return NULL;
 }
 
+int get_remote_username(Config *cfg, char *user, size_t len)
+{
+    if (*cfg->username) {
+	strncpy(user, cfg->username, len);
+	user[len-1] = '\0';
+    } else {
+	if (cfg->username_from_env) {
+	    /* Use local username. */
+	    char *luser = get_username();
+	    strncpy(user, luser, len);
+	    user[len-1] = '\0';
+	    sfree(luser);
+	} else {
+	    *user = '\0';
+	}
+    }
+    return (*user != '\0');
+}
+
 static void gpps(void *handle, const char *name, const char *def,
 		 char *val, int len)
 {
@@ -316,6 +335,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_s(sesskey, "ProxyTelnetCommand", cfg->proxy_telnet_command);
     wmap(sesskey, "Environment", cfg->environmt, lenof(cfg->environmt));
     write_setting_s(sesskey, "UserName", cfg->username);
+    write_setting_i(sesskey, "UserNameFromEnvironment", cfg->username_from_env);
     write_setting_s(sesskey, "LocalUserName", cfg->localusername);
     write_setting_i(sesskey, "NoPTY", cfg->nopty);
     write_setting_i(sesskey, "Compression", cfg->compression);
@@ -584,7 +604,8 @@ void load_open_settings(void *sesskey, Config *cfg)
     gpps(sesskey, "ProxyTelnetCommand", "connect %host %port\\n",
 	 cfg->proxy_telnet_command, sizeof(cfg->proxy_telnet_command));
     gppmap(sesskey, "Environment", "", cfg->environmt, lenof(cfg->environmt));
-    gpps(sesskey, "UserName", get_username(), cfg->username, sizeof(cfg->username));
+    gpps(sesskey, "UserName", "", cfg->username, sizeof(cfg->username));
+    gppi(sesskey, "UserNameFromEnvironment", 0, &cfg->username_from_env);
     gpps(sesskey, "LocalUserName", "", cfg->localusername,
 	 sizeof(cfg->localusername));
     gppi(sesskey, "NoPTY", 0, &cfg->nopty);
