@@ -84,9 +84,9 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
 					   GSS_C_INTEG_FLAG | to_deleg,
 					   0,
 					   GSS_C_NO_CHANNEL_BINDINGS,
-					   (gss_buffer_desc *)recv_tok,
+					   recv_tok,
 					   NULL,   /* ignore mech type */
-					   (gss_buffer_desc *)send_tok,
+					   send_tok,
 					   &ret_flags,
 					   NULL);  /* ignore time_rec */
   
@@ -139,7 +139,7 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
 Ssh_gss_stat ssh_gss_free_tok(Ssh_gss_buf *send_tok)
 {
     OM_uint32 min_stat,maj_stat;
-    maj_stat = gss_release_buffer(&min_stat, (gss_buffer_desc *)send_tok);
+    maj_stat = gss_release_buffer(&min_stat, send_tok);
   
     if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
     return SSH_GSS_FAILURE;
@@ -175,11 +175,7 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
 {
     uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx *) ctx;
     if (uxctx == NULL) return SSH_GSS_FAILURE;
-    return gss_get_mic(&(uxctx->min_stat),
-		       uxctx->ctx,
-		       0,
-		       (gss_buffer_desc *)buf,
-		       (gss_buffer_desc *)hash);
+    return gss_get_mic(&(uxctx->min_stat), uxctx->ctx, 0, buf, hash);
 }
 
 Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
