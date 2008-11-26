@@ -190,8 +190,14 @@ struct ssh_mac {
     void *(*make_context)(void);
     void (*free_context)(void *);
     void (*setkey) (void *, unsigned char *key);
+    /* whole-packet operations */
     void (*generate) (void *, unsigned char *blk, int len, unsigned long seq);
     int (*verify) (void *, unsigned char *blk, int len, unsigned long seq);
+    /* partial-packet operations */
+    void (*start) (void *);
+    void (*bytes) (void *, unsigned char const *, int);
+    void (*genresult) (void *, unsigned char *);
+    int (*verresult) (void *, unsigned char const *);
     char *name;
     int len;
     char *text_name;

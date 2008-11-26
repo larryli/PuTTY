@@ -492,6 +492,16 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
  *
  *  - OUR_V2_BIGWIN is the window size we advertise for the only
  *    channel in a simple connection.  It must be <= INT_MAX.
+ *
+ *  - OUR_V2_MAXPKT is the official "maximum packet size" we send
+ *    to the remote side. This actually has nothing to do with the
+ *    size of the _packet_, but is instead a limit on the amount
+ *    of data we're willing to receive in a single SSH2 channel
+ *    data message.
+ *
+ *  - OUR_V2_PACKETLIMIT is actually the maximum size of SSH
+ *    _packet_ we're prepared to cope with.  It must be a multiple
+ *    of the cipher block size, and must be at least 35000.
  */
 
 #define SSH1_BUFFER_LIMIT 32768
@@ -499,6 +509,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 #define OUR_V2_WINSIZE 16384
 #define OUR_V2_BIGWIN 0x7fffffff
 #define OUR_V2_MAXPKT 0x4000UL
+#define OUR_V2_PACKETLIMIT 0x9000UL
 
 /* Maximum length of passwords/passphrases (arbitrary) */
 #define SSH_MAX_PASSWORD_LEN 100
@@ -1309,90 +1320,162 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	st->cipherblk = 8;
     if (st->cipherblk < 8)
 	st->cipherblk = 8;
+    st->maclen = ssh->scmac ? ssh->scmac->len : 0;
 
-    st->pktin->data = snewn(st->cipherblk + APIEXTRA, unsigned char);
+    if (ssh->sccipher && (ssh->sccipher->flags & SSH_CIPHER_IS_CBC) &&
+	ssh->scmac) {
+	/*
+	 * When dealing with a CBC-mode cipher, we want to avoid the
+	 * possibility of an attacker's tweaking the ciphertext stream
+	 * so as to cause us to feed the same block to the block
+	 * cipher more than once and thus leak information
+	 * (VU#958563).  The way we do this is not to take any
+	 * decisions on the basis of anything we've decrypted until
+	 * we've verified it with a MAC.  That includes the packet
+	 * length, so we just read data and check the MAC repeatedly,
+	 * and when the MAC passes, see if the length we've got is
+	 * plausible.
+	 */
 
-    /*
-     * Acquire and decrypt the first block of the packet. This will
-     * contain the length and padding details.
-     */
-    for (st->i = st->len = 0; st->i < st->cipherblk; st->i++) {
-	while ((*datalen) == 0)
-	    crReturn(NULL);
-	st->pktin->data[st->i] = *(*data)++;
-	(*datalen)--;
+	/* May as well allocate the whole lot now. */
+	st->pktin->data = snewn(OUR_V2_PACKETLIMIT + st->maclen + APIEXTRA,
+				unsigned char);
+
+	/* Read an amount corresponding to the MAC. */
+	for (st->i = 0; st->i < st->maclen; st->i++) {
+	    while ((*datalen) == 0)
+		crReturn(NULL);
+	    st->pktin->data[st->i] = *(*data)++;
+	    (*datalen)--;
+	}
+
+	st->packetlen = 0;
+	{
+	    unsigned char seq[4];
+	    ssh->scmac->start(ssh->sc_mac_ctx);
+	    PUT_32BIT(seq, st->incoming_sequence);
+	    ssh->scmac->bytes(ssh->sc_mac_ctx, seq, 4);
+	}
+
+	for (;;) { /* Once around this loop per cipher block. */
+	    /* Read another cipher-block's worth, and tack it onto the end. */
+	    for (st->i = 0; st->i < st->cipherblk; st->i++) {
+		while ((*datalen) == 0)
+		    crReturn(NULL);
+		st->pktin->data[st->packetlen+st->maclen+st->i] = *(*data)++;
+		(*datalen)--;
+	    }
+	    /* Decrypt one more block (a little further back in the stream). */
+	    ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
+				   st->pktin->data + st->packetlen,
+				   st->cipherblk);
+	    /* Feed that block to the MAC. */
+	    ssh->scmac->bytes(ssh->sc_mac_ctx,
+			      st->pktin->data + st->packetlen, st->cipherblk);
+	    st->packetlen += st->cipherblk;
+	    /* See if that gives us a valid packet. */
+	    if (ssh->scmac->verresult(ssh->sc_mac_ctx,
+				      st->pktin->data + st->packetlen) &&
+		(st->len = GET_32BIT(st->pktin->data)) + 4 == st->packetlen)
+		    break;
+	    if (st->packetlen >= OUR_V2_PACKETLIMIT) {
+		bombout(("No valid incoming packet found"));
+		ssh_free_packet(st->pktin);
+		crStop(NULL);
+	    }	    
+	}
+	st->pktin->maxlen = st->packetlen + st->maclen;
+	st->pktin->data = sresize(st->pktin->data,
+				  st->pktin->maxlen + APIEXTRA,
+				  unsigned char);
+    } else {
+	st->pktin->data = snewn(st->cipherblk + APIEXTRA, unsigned char);
+
+	/*
+	 * Acquire and decrypt the first block of the packet. This will
+	 * contain the length and padding details.
+	 */
+	for (st->i = st->len = 0; st->i < st->cipherblk; st->i++) {
+	    while ((*datalen) == 0)
+		crReturn(NULL);
+	    st->pktin->data[st->i] = *(*data)++;
+	    (*datalen)--;
+	}
+
+	if (ssh->sccipher)
+	    ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
+				   st->pktin->data, st->cipherblk);
+
+	/*
+	 * Now get the length figure.
+	 */
+	st->len = GET_32BIT(st->pktin->data);
+
+	/*
+	 * _Completely_ silly lengths should be stomped on before they
+	 * do us any more damage.
+	 */
+	if (st->len < 0 || st->len > OUR_V2_PACKETLIMIT ||
+	    (st->len + 4) % st->cipherblk != 0) {
+	    bombout(("Incoming packet was garbled on decryption"));
+	    ssh_free_packet(st->pktin);
+	    crStop(NULL);
+	}
+
+	/*
+	 * So now we can work out the total packet length.
+	 */
+	st->packetlen = st->len + 4;
+
+	/*
+	 * Allocate memory for the rest of the packet.
+	 */
+	st->pktin->maxlen = st->packetlen + st->maclen;
+	st->pktin->data = sresize(st->pktin->data,
+				  st->pktin->maxlen + APIEXTRA,
+				  unsigned char);
+
+	/*
+	 * Read and decrypt the remainder of the packet.
+	 */
+	for (st->i = st->cipherblk; st->i < st->packetlen + st->maclen;
+	     st->i++) {
+	    while ((*datalen) == 0)
+		crReturn(NULL);
+	    st->pktin->data[st->i] = *(*data)++;
+	    (*datalen)--;
+	}
+	/* Decrypt everything _except_ the MAC. */
+	if (ssh->sccipher)
+	    ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
+				   st->pktin->data + st->cipherblk,
+				   st->packetlen - st->cipherblk);
+
+	/*
+	 * Check the MAC.
+	 */
+	if (ssh->scmac
+	    && !ssh->scmac->verify(ssh->sc_mac_ctx, st->pktin->data,
+				   st->len + 4, st->incoming_sequence)) {
+	    bombout(("Incorrect MAC received on packet"));
+	    ssh_free_packet(st->pktin);
+	    crStop(NULL);
+	}
     }
-
-    if (ssh->sccipher)
-	ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
-			       st->pktin->data, st->cipherblk);
-
-    /*
-     * Now get the length and padding figures.
-     */
-    st->len = GET_32BIT(st->pktin->data);
+    /* Get and sanity-check the amount of random padding. */
     st->pad = st->pktin->data[4];
-
-    /*
-     * _Completely_ silly lengths should be stomped on before they
-     * do us any more damage.
-     */
-    if (st->len < 0 || st->len > 35000 || st->pad < 4 ||
-	st->len - st->pad < 1 || (st->len + 4) % st->cipherblk != 0) {
-	bombout(("Incoming packet was garbled on decryption"));
+    if (st->pad < 4 || st->len - st->pad < 1) {
+	bombout(("Invalid padding length on received packet"));
 	ssh_free_packet(st->pktin);
 	crStop(NULL);
     }
-
     /*
      * This enables us to deduce the payload length.
      */
     st->payload = st->len - st->pad - 1;
 
     st->pktin->length = st->payload + 5;
-
-    /*
-     * So now we can work out the total packet length.
-     */
-    st->packetlen = st->len + 4;
-    st->maclen = ssh->scmac ? ssh->scmac->len : 0;
-
-    /*
-     * Allocate memory for the rest of the packet.
-     */
-    st->pktin->maxlen = st->packetlen + st->maclen;
-    st->pktin->data = sresize(st->pktin->data,
-			      st->pktin->maxlen + APIEXTRA,
-			      unsigned char);
-
-    /*
-     * Read and decrypt the remainder of the packet.
-     */
-    for (st->i = st->cipherblk; st->i < st->packetlen + st->maclen;
-	 st->i++) {
-	while ((*datalen) == 0)
-	    crReturn(NULL);
-	st->pktin->data[st->i] = *(*data)++;
-	(*datalen)--;
-    }
-    /* Decrypt everything _except_ the MAC. */
-    if (ssh->sccipher)
-	ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
-			       st->pktin->data + st->cipherblk,
-			       st->packetlen - st->cipherblk);
-
     st->pktin->encrypted_len = st->packetlen;
-
-    /*
-     * Check the MAC.
-     */
-    if (ssh->scmac
-	&& !ssh->scmac->verify(ssh->sc_mac_ctx, st->pktin->data, st->len + 4,
-			       st->incoming_sequence)) {
-	bombout(("Incorrect MAC received on packet"));
-	ssh_free_packet(st->pktin);
-	crStop(NULL);
-    }
 
     st->pktin->sequence = st->incoming_sequence++;
 
