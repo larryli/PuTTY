@@ -7960,6 +7960,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 		/* initial tokens are empty */
 		SSH_GSS_CLEAR_BUF(&s->gss_rcvtok);
+		SSH_GSS_CLEAR_BUF(&s->gss_sndtok);
 
 		/* now enter the loop */
 		do {
