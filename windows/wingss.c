@@ -253,7 +253,7 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
     }
 
     buf->value = dupstr(msg);
-    buf->length = strlen(buf->length);
+    buf->length = strlen(buf->value);
     
     return SSH_GSS_OK;
 }
