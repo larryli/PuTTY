@@ -61,6 +61,7 @@
 #define WM_IGNORE_CLIP (WM_APP + 2)
 #define WM_FULLSCR_ON_MAX (WM_APP + 3)
 #define WM_AGENT_CALLBACK (WM_APP + 4)
+#define WM_GOT_CLIPDATA (WM_APP + 6)
 
 /* Needed for Chinese support and apparently not always defined. */
 #ifndef VK_PROCESSKEY
@@ -93,6 +94,7 @@ static int is_full_screen(void);
 static void make_full_screen(void);
 static void clear_full_screen(void);
 static void flip_full_screen(void);
+static int process_clipdata(HGLOBAL clipdata, int unicode);
 
 /* Window layout information */
 static void reset_window(int);
@@ -126,6 +128,9 @@ static int reconfiguring = FALSE;
 static const struct telnet_special *specials = NULL;
 static HMENU specials_menu = NULL;
 static int n_specials = 0;
+
+static wchar_t *clipboard_contents;
+static size_t clipboard_length;
 
 #define TIMING_TIMER_ID 1234
 static long timing_next_time;
@@ -3004,6 +3009,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    sfree(c);
 	}
 	return 0;
+      case WM_GOT_CLIPDATA:
+	if (process_clipdata((HGLOBAL)lParam, wParam))
+	    term_do_paste(term);
+	return 0;
       default:
 	if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
 	    int shift_pressed=0, control_pressed=0;
@@ -4413,16 +4422,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     return -1;
 }
 
-void request_paste(void *frontend)
-{
-    /*
-     * In Windows, pasting is synchronous: we can read the
-     * clipboard with no difficulty, so request_paste() can just go
-     * ahead and paste.
-     */
-    term_do_paste(term);
-}
-
 void set_title(void *frontend, char *title)
 {
     sfree(window_name);
@@ -4896,46 +4895,91 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 	SendMessage(hwnd, WM_IGNORE_CLIP, FALSE, 0);
 }
 
-void get_clip(void *frontend, wchar_t ** p, int *len)
+static DWORD WINAPI clipboard_read_threadfunc(void *param)
 {
-    static HGLOBAL clipdata = NULL;
-    static wchar_t *converted = 0;
-    wchar_t *p2;
+    HWND hwnd = (HWND)param;
+    HGLOBAL clipdata;
 
-    if (converted) {
-	sfree(converted);
-	converted = 0;
-    }
-    if (!p) {
-	if (clipdata)
-	    GlobalUnlock(clipdata);
-	clipdata = NULL;
-	return;
-    } else if (OpenClipboard(NULL)) {
+    if (OpenClipboard(NULL)) {
 	if ((clipdata = GetClipboardData(CF_UNICODETEXT))) {
-	    CloseClipboard();
-	    *p = GlobalLock(clipdata);
-	    if (*p) {
-		for (p2 = *p; *p2; p2++);
-		*len = p2 - *p;
-		return;
-	    }
-	} else if ( (clipdata = GetClipboardData(CF_TEXT)) ) {
-	    char *s;
-	    int i;
-	    CloseClipboard();
-	    s = GlobalLock(clipdata);
-	    i = MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, 0, 0);
-	    *p = converted = snewn(i, wchar_t);
-	    MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, converted, i);
-	    *len = i - 1;
-	    return;
-	} else
-	    CloseClipboard();
+	    SendMessage(hwnd, WM_GOT_CLIPDATA, (WPARAM)1, (LPARAM)clipdata);
+	} else if ((clipdata = GetClipboardData(CF_TEXT))) {
+	    SendMessage(hwnd, WM_GOT_CLIPDATA, (WPARAM)0, (LPARAM)clipdata);
+	}
+	CloseClipboard();
     }
 
-    *p = NULL;
-    *len = 0;
+    return 0;
+}
+
+static int process_clipdata(HGLOBAL clipdata, int unicode)
+{
+    static wchar_t *converted = 0;
+
+    sfree(clipboard_contents);
+    clipboard_contents = NULL;
+    clipboard_length = 0;
+
+    if (unicode) {
+	wchar_t *p = GlobalLock(clipdata);
+	wchar_t *p2;
+
+	if (p) {
+	    /* Unwilling to rely on Windows having wcslen() */
+	    for (p2 = p; *p2; p2++);
+	    clipboard_length = p2 - p;
+	    clipboard_contents = snewn(clipboard_length + 1, wchar_t);
+	    memcpy(clipboard_contents, p, clipboard_length * sizeof(wchar_t));
+	    clipboard_contents[clipboard_length] = L'\0';
+	    return TRUE;
+	}
+    } else {
+	char *s = GlobalLock(clipdata);
+	int i;
+
+	if (s) {
+	    i = MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1, 0, 0);
+	    clipboard_contents = snewn(i, wchar_t);
+	    MultiByteToWideChar(CP_ACP, 0, s, strlen(s) + 1,
+				clipboard_contents, i);
+	    clipboard_length = i - 1;
+	    clipboard_contents[clipboard_length] = L'\0';
+	    return TRUE;
+	}
+    }
+
+    return FALSE;
+}
+
+void request_paste(void *frontend)
+{
+    /*
+     * I always thought pasting was synchronous in Windows; the
+     * clipboard access functions certainly _look_ synchronous,
+     * unlike the X ones. But in fact it seems that in some
+     * situations the contents of the clipboard might not be
+     * immediately available, and the clipboard-reading functions
+     * may block. This leads to trouble if the application
+     * delivering the clipboard data has to get hold of it by -
+     * for example - talking over a network connection which is
+     * forwarded through this very PuTTY.
+     *
+     * Hence, we spawn a subthread to read the clipboard, and do
+     * our paste when it's finished. The thread will send a
+     * message back to our main window when it terminates, and
+     * that tells us it's OK to paste.
+     */
+    DWORD in_threadid; /* required for Win9x */
+    CreateThread(NULL, 0, clipboard_read_threadfunc,
+		 hwnd, 0, &in_threadid);
+}
+
+void get_clip(void *frontend, wchar_t **p, int *len)
+{
+    if (p) {
+	*p = clipboard_contents;
+	*len = clipboard_length;
+    }
 }
 
 #if 0
