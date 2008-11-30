@@ -7,38 +7,25 @@ using a textual name.  Names ending in \cw{@putty.projects.tartarus.org}
 are reserved for allocation by the PuTTY team.  Allocated names are
 documented here.
 
-\H{sshnames-global} Connection protocol global request name
+\H{sshnames-channel} Connection protocol channel request names
 
-This name can be sent in a \cw{SSH_MSG_GLOBAL_REQUEST} message.
+These names can be sent in a \cw{SSH_MSG_CHANNEL_REQUEST} message.
 
 \dt \cw{simple@putty.projects.tartarus.org}
 
-\dd This is sent by a client to announce that it will not have more that
-one channel open at a time in the current connection.  The intention
-is that the server, knowing this, can set the window on that one
-channel to something very large, and leave flow control to TCP.  The
-format of the request is:
-
-\lcont{
-
-\c byte      SSH_MSG_GLOBAL_REQUEST
-\c uint32    recipient channel
-\c string    "simple@putty.projects.tartarus.org"
-\c boolean   want reply
-
-}
-
-\H{sshnames-channel} Connection protocol channel request name
-
-This name can be sent in a \cw{SSH_MSG_CHANNEL_REQUEST} message.
+\dd This is sent by a client to announce that it will not have more than
+one channel open at a time in the current connection (that one being
+the one the request is sent on).  The intention is that the server,
+knowing this, can set the window on that one channel to something very
+large, and leave flow control to TCP.  There is no message-specific data.
 
 \dt \cw{winadj@putty.projects.tartarus.org}
 
 \dd PuTTY sends this request along with some
 \cw{SSH_MSG_CHANNEL_WINDOW_ADJUST} messages as part of its window-size
-tuning.  It can be sent on any type of channel.  Servers MUST treat it
-as an unrecognised request and respond with
-\cw{SSH_MSG_CHANNEL_FAILURE}.
+tuning.  It can be sent on any type of channel.  There is no
+message-specific data. Servers MUST treat it as an unrecognised request
+and respond with \cw{SSH_MSG_CHANNEL_FAILURE}.
 
 \H{sshnames-kex} Key exchange method names
 
