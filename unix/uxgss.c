@@ -46,8 +46,7 @@ Ssh_gss_stat ssh_gss_import_name(char *host,
     host_buf.length = strlen(pStr);
 
     maj_stat = gss_import_name(&min_stat, &host_buf,
-			       GSS_C_NT_HOSTBASED_SERVICE,
-			       (gss_name_t *)srv_name);
+			       GSS_C_NT_HOSTBASED_SERVICE, srv_name);
     /* Release buffer */
     sfree(pStr);
     if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
@@ -78,7 +77,7 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
     uxctx->maj_stat = gss_init_sec_context(&uxctx->min_stat,
 					   GSS_C_NO_CREDENTIAL,
 					   &uxctx->ctx,
-					   (gss_name_t) srv_name,
+					   srv_name,
 					   (gss_OID) putty_gss_mech_krb5,
 					   GSS_C_MUTUAL_FLAG |
 					   GSS_C_INTEG_FLAG | to_deleg,
@@ -164,7 +163,7 @@ Ssh_gss_stat ssh_gss_release_cred(Ssh_gss_ctx *ctx)
 Ssh_gss_stat ssh_gss_release_name(Ssh_gss_name *srv_name)
 {
     OM_uint32 min_stat,maj_stat;
-    maj_stat = gss_release_name(&min_stat, (gss_name_t *) srv_name);
+    maj_stat = gss_release_name(&min_stat, srv_name);
   
     if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
     return SSH_GSS_FAILURE;

@@ -67,6 +67,7 @@ extern long tickcount_offset;
 #include <gssapi/gssapi.h>
 typedef gss_buffer_desc Ssh_gss_buf;
 #define SSH_GSS_EMPTY_BUF GSS_C_EMPTY_BUFFER
+typedef gss_name_t Ssh_gss_name;
 #endif
 
 /*

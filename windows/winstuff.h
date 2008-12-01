@@ -118,6 +118,7 @@ typedef struct Ssh_gss_buf {
 } Ssh_gss_buf;
 
 #define SSH_GSS_EMPTY_BUF (Ssh_gss_buf) {0,NULL}
+typedef void *Ssh_gss_name;
 #endif
 
 /*
