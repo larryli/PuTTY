@@ -1640,6 +1640,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 
     if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
 				inst->input_event_time)) {
+	gtk_selection_clear_targets(inst->area, GDK_SELECTION_PRIMARY);
 	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
 				 GDK_SELECTION_TYPE_STRING, 1);
 	if (inst->pasteout_data_ctext)
