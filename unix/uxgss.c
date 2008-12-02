@@ -1,10 +1,10 @@
+#ifndef NO_GSSAPI
+
 #include <string.h>
 #include <gssapi/gssapi.h>
 #include "putty.h"
 #include "sshgss.h"
 #include "misc.h"
-
-#ifndef NO_GSSAPI
 
 static gss_OID_desc putty_gss_mech_krb5_desc =
     { 9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };

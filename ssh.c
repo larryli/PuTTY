@@ -12,7 +12,9 @@
 #include "putty.h"
 #include "tree234.h"
 #include "ssh.h"
+#ifndef NO_GSSAPI
 #include "sshgss.h"
+#endif
 
 #ifndef FALSE
 #define FALSE 0
@@ -7154,8 +7156,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	int done_service_req;
 	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
 	int tried_pubkey_config, done_agent;
+#ifndef NO_GSSAPI
 	int can_gssapi;
 	int tried_gssapi;
+#endif
 	int kbd_inter_refused;
 	int we_are_in;
 	prompts_t *cur_prompt;
@@ -7179,11 +7183,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	int try_send;
 	int num_env, env_left, env_ok;
 	struct Packet *pktout;
+#ifndef NO_GSSAPI
 	Ssh_gss_ctx gss_ctx;
 	Ssh_gss_buf gss_buf;
 	Ssh_gss_buf gss_rcvtok, gss_sndtok;
 	Ssh_gss_name gss_srv_name;
 	Ssh_gss_stat gss_stat;
+#endif
     };
     crState(do_ssh2_authconn_state);
 
@@ -7191,7 +7197,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
     s->done_service_req = FALSE;
     s->we_are_in = FALSE;
+#ifndef NO_GSSAPI
     s->tried_gssapi = FALSE;
+#endif
 
     if (!ssh->cfg.ssh_no_userauth) {
 	/*
