@@ -3046,16 +3046,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (send_raw_mouse &&
 		    !(cfg.mouse_override && shift_pressed)) {
-		    /* send a mouse-down followed by a mouse up */
-		    term_mouse(term, b, translate_button(b),
-			       MA_CLICK,
-			       TO_CHR_X(X_POS(lParam)),
-			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
-			       control_pressed, is_alt_pressed());
-		    term_mouse(term, b, translate_button(b),
-			       MA_RELEASE, TO_CHR_X(X_POS(lParam)),
-			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
-			       control_pressed, is_alt_pressed());
+		    /* Mouse wheel position is in screen coordinates for
+		     * some reason */
+		    POINT p;
+		    p.x = X_POS(lParam); p.y = Y_POS(lParam);
+		    if (ScreenToClient(hwnd, &p)) {
+			/* send a mouse-down followed by a mouse up */
+			term_mouse(term, b, translate_button(b),
+				   MA_CLICK,
+				   TO_CHR_X(p.x),
+				   TO_CHR_Y(p.y), shift_pressed,
+				   control_pressed, is_alt_pressed());
+			term_mouse(term, b, translate_button(b),
+				   MA_RELEASE, TO_CHR_X(p.x),
+				   TO_CHR_Y(p.y), shift_pressed,
+				   control_pressed, is_alt_pressed());
+		    } /* else: not sure when this can fail */
 		} else {
 		    /* trigger a scroll */
 		    term_scroll(term, 0,
