@@ -3778,7 +3778,7 @@ static void term_out(Terminal *term)
 				if (term->ldisc)
 				    ldisc_send(term->ldisc,
 					       is_iconic(term->frontend) ?
-					       "\033[1t" : "\033[2t", 4, 0);
+					       "\033[2t" : "\033[1t", 4, 0);
 				break;
 			      case 13:
 				if (term->ldisc) {
@@ -3790,7 +3790,7 @@ static void term_out(Terminal *term)
 			      case 14:
 				if (term->ldisc) {
 				    get_window_pixels(term->frontend, &x, &y);
-				    len = sprintf(buf, "\033[4;%d;%dt", x, y);
+				    len = sprintf(buf, "\033[4;%d;%dt", y, x);
 				    ldisc_send(term->ldisc, buf, len, 0);
 				}
 				break;
