@@ -1223,7 +1223,7 @@ static void power_on(Terminal *term, int clear)
     term->erase_char = term->basic_erase_char;
     term->alt_which = 0;
     term_print_finish(term);
-    term->xterm_mouse = FALSE;
+    term->xterm_mouse = 0;
     set_raw_mouse_mode(term->frontend, FALSE);
     {
 	int i;
@@ -2385,11 +2385,11 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    swap_screen(term, term->cfg.no_alt_screen ? 0 : state, FALSE, FALSE);
 	    term->disptop = 0;
 	    break;
-	  case 1000:		       /* xterm mouse 1 */
+	  case 1000:		       /* xterm mouse 1 (normal) */
 	    term->xterm_mouse = state ? 1 : 0;
 	    set_raw_mouse_mode(term->frontend, state);
 	    break;
-	  case 1002:		       /* xterm mouse 2 */
+	  case 1002:		       /* xterm mouse 2 (inc. button drags) */
 	    term->xterm_mouse = state ? 2 : 0;
 	    set_raw_mouse_mode(term->frontend, state);
 	    break;
