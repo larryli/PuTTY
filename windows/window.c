@@ -2247,7 +2247,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    term_copyall(term);
 	    break;
 	  case IDM_PASTE:
-	    term_do_paste(term);
+	    request_paste(NULL);
 	    break;
 	  case IDM_CLRSB:
 	    term_clrsb(term);
@@ -3813,7 +3813,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return 0;
 	}
 	if (wParam == VK_INSERT && shift_state == 1) {
-	    term_do_paste(term);
+	    request_paste(NULL);
 	    return 0;
 	}
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {
