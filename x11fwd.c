@@ -125,8 +125,10 @@ struct X11Display *x11_setup_display(char *display, int authtype,
 	if (protocol)
 	    disp->unixdomain = (!strcmp(protocol, "local") ||
 				!strcmp(protocol, "unix"));
-	else
+	else if (!*hostname || !strcmp(hostname, "unix"))
 	    disp->unixdomain = platform_uses_x11_unix_by_default;
+	else
+	    disp->unixdomain = FALSE;
 
 	if (!disp->hostname && !disp->unixdomain)
 	    disp->hostname = dupstr("localhost");
