@@ -20,8 +20,6 @@ AppController *controller;
  * and Unix PuTTY code.
  */
 
-const char platform_x11_best_transport[] = "unix";
-
 char *platform_get_x_display(void) {
     return NULL;
 }

@@ -115,8 +115,6 @@ char *make_default_wintitle(char *hostname)
  * X11-forwarding-related things suitable for Gtk app.
  */
 
-const char platform_x11_best_transport[] = "unix";
-
 char *platform_get_x_display(void) {
     const char *display;
     /* Try to take account of --display and what have you. */

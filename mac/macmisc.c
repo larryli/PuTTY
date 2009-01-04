@@ -194,7 +194,7 @@ struct tm ltime(void)
     return tm;
 }
 
-const char platform_x11_best_transport[] = "localhost";
+const int platform_uses_x11_unix_by_default = FALSE;
 
 char *platform_get_x_display(void) {
     return NULL;
