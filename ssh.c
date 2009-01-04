@@ -7013,6 +7013,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
     if (typelen == 3 && !memcmp(type, "x11", 3)) {
 	char *addrstr;
+	const char *x11err;
 
 	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
 	addrstr = snewn(peeraddrlen+1, char);
@@ -7025,8 +7026,9 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
-	else if (x11_init(&c->u.x11.s, ssh->x11disp, c,
-			  addrstr, peerport, &ssh->cfg) != NULL) {
+	else if ((x11err = x11_init(&c->u.x11.s, ssh->x11disp, c,
+				    addrstr, peerport, &ssh->cfg)) != NULL) {
+	    logeventf(ssh, "Local X11 connection failed: %s", x11err);
 	    error = "Unable to open an X11 connection";
 	} else {
 	    logevent("Opening X11 forward connection succeeded");
