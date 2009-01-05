@@ -4996,10 +4996,10 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	}
     }
 
-    if (ssh->cfg.x11_forward) {
+    if (ssh->cfg.x11_forward &&
+	(ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
+					  ssh->cfg.x11_auth, &ssh->cfg))) {
 	logevent("Requesting X11 forwarding");
-	ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
-					 ssh->cfg.x11_auth, &ssh->cfg);
 	/*
 	 * Note that while we blank the X authentication data here, we don't
 	 * take any special action to blank the start of an X11 channel,
@@ -8577,10 +8577,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Potentially enable X11 forwarding.
      */
-    if (ssh->mainchan && !ssh->ncmode && ssh->cfg.x11_forward) {
+    if (ssh->mainchan && !ssh->ncmode && ssh->cfg.x11_forward &&
+	(ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
+					  ssh->cfg.x11_auth, &ssh->cfg))) {
 	logevent("Requesting X11 forwarding");
-	ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
-					 ssh->cfg.x11_auth, &ssh->cfg);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
 	ssh2_pkt_addstring(s->pktout, "x11-req");
