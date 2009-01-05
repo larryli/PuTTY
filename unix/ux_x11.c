@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "putty.h"
 #include "ssh.h"
@@ -40,7 +41,8 @@ void platform_get_x11_auth(struct X11Display *disp, const Config *cfg)
 	do {
 	    len *= 2;
 	    disp->hostname = snewn(len, char);
-	    if (gethostname(disp->hostname, len) < 0) {
+	    if ((gethostname(disp->hostname, len) < 0) &&
+		(errno != ENAMETOOLONG)) {
 		disp->hostname = NULL;
 		return;
 	    }
