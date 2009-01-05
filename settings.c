@@ -695,13 +695,21 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppfile(sesskey, "BellWaveFile", &cfg->bell_wavefile);
     gppi(sesskey, "BellOverload", 1, &cfg->bellovl);
     gppi(sesskey, "BellOverloadN", 5, &cfg->bellovl_n);
-    gppi(sesskey, "BellOverloadT", 2*TICKSPERSEC, &i);
+    gppi(sesskey, "BellOverloadT", 2*TICKSPERSEC
+#ifdef PUTTY_UNIX_H
+				   *1000
+#endif
+				   , &i);
     cfg->bellovl_t = i
 #ifdef PUTTY_UNIX_H
 		    / 1000
 #endif
 	;
-    gppi(sesskey, "BellOverloadS", 5*TICKSPERSEC, &i);
+    gppi(sesskey, "BellOverloadS", 5*TICKSPERSEC
+#ifdef PUTTY_UNIX_H
+				   *1000
+#endif
+				   , &i);
     cfg->bellovl_s = i
 #ifdef PUTTY_UNIX_H
 		    / 1000
