@@ -37,12 +37,14 @@ void platform_get_x11_auth(struct X11Display *disp, const Config *cfg)
 	int len;
 
 	sfree(disp->hostname);
+	disp->hostname = NULL;
 	len = 128;
 	do {
 	    len *= 2;
-	    disp->hostname = snewn(len, char);
+	    disp->hostname = sresize(disp->hostname, len, char);
 	    if ((gethostname(disp->hostname, len) < 0) &&
 		(errno != ENAMETOOLONG)) {
+		sfree(disp->hostname);
 		disp->hostname = NULL;
 		return;
 	    }
