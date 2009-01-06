@@ -4920,8 +4920,6 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
 
 static int process_clipdata(HGLOBAL clipdata, int unicode)
 {
-    static wchar_t *converted = 0;
-
     sfree(clipboard_contents);
     clipboard_contents = NULL;
     clipboard_length = 0;

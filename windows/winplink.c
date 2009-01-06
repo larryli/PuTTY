@@ -305,7 +305,6 @@ int main(int argc, char **argv)
 	 * Override the default protocol if PLINK_PROTOCOL is set.
 	 */
 	char *p = getenv("PLINK_PROTOCOL");
-	int i;
 	if (p) {
 	    const Backend *b = backend_from_name(p);
 	    if (b) {
