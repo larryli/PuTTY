@@ -1048,6 +1048,9 @@ if (defined $makefiles{'ac'}) {
     print $makefile_extra{'gtk'}->{'end'};
     print "\nclean:\n".
     "\trm -f *.o". (join "", map { " $_" } &progrealnames("X:U")) . "\n";
+    print "\ndistclean: clean\n".
+    "\t". &splitline("rm -f config.status config.cache config.log ".
+		     "configure.lineno config.status.lineno Makefile") . "\n";
     print "\nFORCE:\n";
     select STDOUT; close OUT;
 }
