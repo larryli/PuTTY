@@ -935,6 +935,8 @@ if (defined $makefiles{'gtk'}) {
     "\n".
     "-include Makefile.local\n".
     "\n".
+    "unexport CFLAGS # work around a weird issue with krb5-config\n".
+    "\n".
     &splitline("CFLAGS = -O2 -Wall -Werror -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
 	       " `\$(GTK_CONFIG) --cflags`").
