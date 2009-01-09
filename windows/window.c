@@ -1325,7 +1325,7 @@ debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right,
 #ifdef FIXME_REMOVE_BEFORE_CHECKIN
 debug(("general_textout: done, xn=%d\n", xn));
 #endif
-    assert(xn - x == lprc->right - lprc->left);
+    assert(xn - x >= lprc->right - lprc->left);
 }
 
 /*
