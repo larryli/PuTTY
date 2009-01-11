@@ -81,7 +81,7 @@ int charset_from_xenc(const char *name)
 	p = name;
 	q = xencs[i].name;
 	while (*p || *q) {
-	    if (tolower(*p) != tolower(*q))
+		if (tolower((unsigned char)*p) != tolower((unsigned char)*q))
 		break;
 	    p++; q++;
 	}
