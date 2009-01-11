@@ -384,7 +384,7 @@ static void xlatlognam(Filename *dest, Filename src,
 	    char c;
 	    s++;
 	    size = 0;
-	    if (*s) switch (c = *s++, tolower(c)) {
+	    if (*s) switch (c = *s++, tolower((unsigned char)c)) {
 	      case 'y':
 		size = strftime(buf, sizeof(buf), "%Y", tm);
 		break;

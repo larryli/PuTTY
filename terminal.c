@@ -5942,7 +5942,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 		if (modifiers & PKM_CONTROL)
 		    c &= 0x1f;
 		else if (modifiers & PKM_SHIFT)
-		    c = toupper(c);
+			c = toupper((unsigned char)c);
 	    }
 	    *p++ = c;
 	    goto done;

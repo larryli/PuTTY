@@ -119,7 +119,7 @@ void sk_cleanup(void)
 void showversion(void)
 {
     char *verstr = dupstr(ver);
-    verstr[0] = tolower(verstr[0]);
+    verstr[0] = tolower((unsigned char)verstr[0]);
     printf("PuTTYgen %s\n", verstr);
     sfree(verstr);
 }
