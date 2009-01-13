@@ -4,6 +4,9 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -47,19 +50,34 @@ void noise_get_heavy(void (*func) (void *, int))
     char buf[512];
     FILE *fp;
     int ret;
+    int got_dev_urandom = 0;
 
-    if (read_dev_urandom(buf, 32))
+    if (read_dev_urandom(buf, 32)) {
+	got_dev_urandom = 1;
 	func(buf, 32);
+    }
 
     fp = popen("ps -axu 2>/dev/null", "r");
-    while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
-	func(buf, ret);
-    pclose(fp);
+    if (fp) {
+	while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
+	    func(buf, ret);
+	pclose(fp);
+    } else if (!got_dev_urandom) {
+	fprintf(stderr, "popen: %s\n"
+		"Unable to access fallback entropy source\n", strerror(errno));
+	exit(1);
+    }
 
     fp = popen("ls -al /tmp 2>/dev/null", "r");
-    while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
-	func(buf, ret);
-    pclose(fp);
+    if (fp) {
+	while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
+	    func(buf, ret);
+	pclose(fp);
+    } else if (!got_dev_urandom) {
+	fprintf(stderr, "popen: %s\n"
+		"Unable to access fallback entropy source\n", strerror(errno));
+	exit(1);
+    }
 
     read_random_seed(func);
     random_save_seed();
