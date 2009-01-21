@@ -2335,26 +2335,32 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    switch (message) {
 	      case WM_LBUTTONDOWN:
 		button = MBT_LEFT;
+		wParam |= MK_LBUTTON;
 		press = 1;
 		break;
 	      case WM_MBUTTONDOWN:
 		button = MBT_MIDDLE;
+		wParam |= MK_MBUTTON;
 		press = 1;
 		break;
 	      case WM_RBUTTONDOWN:
 		button = MBT_RIGHT;
+		wParam |= MK_RBUTTON;
 		press = 1;
 		break;
 	      case WM_LBUTTONUP:
 		button = MBT_LEFT;
+		wParam &= ~MK_LBUTTON;
 		press = 0;
 		break;
 	      case WM_MBUTTONUP:
 		button = MBT_MIDDLE;
+		wParam &= ~MK_MBUTTON;
 		press = 0;
 		break;
 	      case WM_RBUTTONUP:
 		button = MBT_RIGHT;
+		wParam &= ~MK_RBUTTON;
 		press = 0;
 		break;
 	      default:
@@ -2413,7 +2419,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			   TO_CHR_X(X_POS(lParam)),
 			   TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
 			   wParam & MK_CONTROL, is_alt_pressed());
-		ReleaseCapture();
+		if (!(wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON)))
+		    ReleaseCapture();
 	    }
 	}
 	return 0;
