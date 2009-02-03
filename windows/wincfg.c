@@ -382,7 +382,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * $XAUTHORITY is not reliable on Windows, so we provide a
      * means to override it.
      */
-    if (backend_from_proto(PROT_SSH)) {
+    if (!midsession && backend_from_proto(PROT_SSH)) {
 	s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
 	ctrl_filesel(s, "X authority file for local display", 't',
 		     NULL, FALSE, "Select X authority file",
