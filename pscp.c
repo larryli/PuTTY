@@ -2091,7 +2091,7 @@ static void get_dir_list(int argc, char *argv[])
     host = src;
     src = colon(src);
     if (src == NULL)
-	bump("Local to local copy not supported");
+	bump("Local file listing not supported");
     *src++ = '\0';
     if (*src == '\0')
 	src = ".";
