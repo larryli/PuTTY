@@ -18,40 +18,6 @@ void platform_get_x11_auth(struct X11Display *disp, const Config *cfg)
     int needs_free;
 
     /*
-     * Upgrade an IP-style localhost display to a Unix-socket
-     * display.
-     */
-    if (!disp->unixdomain && sk_address_is_local(disp->addr)) {
-	sk_addr_free(disp->addr);
-	disp->unixdomain = TRUE;
-	disp->addr = platform_get_x11_unix_address(NULL, disp->displaynum);
-	disp->realhost = dupprintf("unix:%d", disp->displaynum);
-	disp->port = 0;
-    }
-
-    /*
-     * Set the hostname for Unix-socket displays, so that we'll
-     * look it up correctly in the X authority file.
-     */
-    if (disp->unixdomain) {
-	int len;
-
-	sfree(disp->hostname);
-	disp->hostname = NULL;
-	len = 128;
-	do {
-	    len *= 2;
-	    disp->hostname = sresize(disp->hostname, len, char);
-	    if ((gethostname(disp->hostname, len) < 0) &&
-		(errno != ENAMETOOLONG)) {
-		sfree(disp->hostname);
-		disp->hostname = NULL;
-		return;
-	    }
-	} while (strlen(disp->hostname) >= len-1);
-    }
-
-    /*
      * Find the .Xauthority file.
      */
     needs_free = FALSE;
