@@ -501,9 +501,9 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    char output[32];
+    char output[256];
     wchar_t ucsoutput[2];
-    int ucsval, start, end, special, use_ucsoutput;
+    int ucsval, start, end, special, output_charset, use_ucsoutput;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
@@ -511,6 +511,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     /* By default, nothing is generated. */
     end = start = 0;
     special = use_ucsoutput = FALSE;
+    output_charset = CS_ISO8859_1;
 
     /*
      * If Alt is being released after typing an Alt+numberpad
@@ -529,6 +530,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_DEBUGGING
 	printf("Alt key up, keycode = %d\n", inst->alt_keycode);
 #endif
+	/*
+	 * FIXME: we might usefully try to do something clever here
+	 * about interpreting the generated key code in a way that's
+	 * appropriate to the line code page.
+	 */
 	output[0] = inst->alt_keycode;
 	end = 1;
 	goto done;
@@ -636,15 +642,57 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
-	strncpy(output+1, event->string, 31);
-	if (!*event->string &&
+#if !GTK_CHECK_VERSION(2,0,0)
+	/*
+	 * In vanilla X, and hence also GDK 1.2, the string received
+	 * as part of a keyboard event is assumed to be in
+	 * ISO-8859-1. (Seems woefully shortsighted in i18n terms,
+	 * but it's true: see the man page for XLookupString(3) for
+	 * confirmation.)
+	 */
+	output_charset = CS_ISO8859_1;
+	strncpy(output+1, event->string, lenof(output)-1);
+#else
+	/*
+	 * GDK 2.0 arranges to have done some translation for us: in
+	 * GDK 2.0, event->string is encoded in the current locale.
+	 *
+	 * (However, it's also deprecated; we really ought to be
+	 * using a GTKIMContext.)
+	 *
+	 * So we use the standard C library function mbstowcs() to
+	 * convert from the current locale into Unicode; from there
+	 * we can convert to whatever PuTTY is currently working in.
+	 * (In fact I convert straight back to UTF-8 from
+	 * wide-character Unicode, for the sake of simplicity: that
+	 * way we can still use exactly the same code to manipulate
+	 * the string, such as prefixing ESC.)
+	 */
+	output_charset = CS_UTF8;
+	{
+	    wchar_t widedata[32], *wp;
+	    int wlen;
+	    int ulen;
+
+	    wlen = mb_to_wc(DEFAULT_CODEPAGE, 0,
+			    event->string, strlen(event->string),
+			    widedata, lenof(widedata)-1);
+
+	    wp = widedata;
+	    ulen = charset_from_unicode(&wp, &wlen, output+1, lenof(output)-2,
+					CS_UTF8, NULL, NULL, 0);
+	    output[1+ulen] = '\0';
+	}
+#endif
+
+	if (!output[1] &&
 	    (ucsval = keysym_to_unicode(event->keyval)) >= 0) {
 	    ucsoutput[0] = '\033';
 	    ucsoutput[1] = ucsval;
 	    use_ucsoutput = TRUE;
 	    end = 2;
 	} else {
-	    output[31] = '\0';
+	    output[lenof(output)-1] = '\0';
 	    end = strlen(output);
 	}
 	if (event->state & GDK_MOD1_MASK) {
@@ -654,7 +702,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    start = 1;
 
 	/* Control-` is the same as Control-\ (unless gtk has a better idea) */
-	if (!event->string[0] && event->keyval == '`' &&
+	if (!output[1] && event->keyval == '`' &&
 	    (event->state & GDK_CONTROL_MASK)) {
 	    output[1] = '\x1C';
 	    use_ucsoutput = FALSE;
@@ -679,7 +727,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* Control-2, Control-Space and Control-@ are NUL */
-	if (!event->string[0] &&
+	if (!output[1] &&
 	    (event->keyval == ' ' || event->keyval == '2' ||
 	     event->keyval == '@') &&
 	    (event->state & (GDK_SHIFT_MASK |
@@ -690,10 +738,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* Control-Shift-Space is 160 (ISO8859 nonbreaking space) */
-	if (!event->string[0] && event->keyval == ' ' &&
+	if (!output[1] && event->keyval == ' ' &&
 	    (event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) ==
 	    (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) {
 	    output[1] = '\240';
+	    output_charset = CS_ISO8859_1;
 	    use_ucsoutput = FALSE;
 	    end = 2;
 	}
@@ -1049,20 +1098,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		ldisc_send(inst->ldisc, output+start, -2, 1);
 	} else if (!inst->direct_to_font) {
 	    if (!use_ucsoutput) {
-		/*
-		 * The stuff we've just generated is assumed to be
-		 * ISO-8859-1! This sounds insane, but `man
-		 * XLookupString' agrees: strings of this type
-		 * returned from the X server are hardcoded to
-		 * 8859-1. Strictly speaking we should be doing
-		 * this using some sort of GtkIMContext, which (if
-		 * we're lucky) would give us our data directly in
-		 * Unicode; but that's not supported in GTK 1.2 as
-		 * far as I can tell, and it's poorly documented
-		 * even in 2.0, so it'll have to wait.
-		 */
 		if (inst->ldisc)
-		    lpage_send(inst->ldisc, CS_ISO8859_1, output+start,
+		    lpage_send(inst->ldisc, output_charset, output+start,
 			       end-start, 1);
 	    } else {
 		/*
