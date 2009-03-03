@@ -318,14 +318,31 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 	    memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
     }
 
-    if (console_batch_mode)
-	return 0;
+    /*
+     * The prompts_t might contain a message to be displayed but no
+     * actual prompt. More usually, though, it will contain
+     * questions that the user needs to answer, in which case we
+     * need to ensure that we're able to get the answers.
+     */
+    if (p->n_prompts) {
+	if (console_batch_mode)
+	    return 0;
+	hin = GetStdHandle(STD_INPUT_HANDLE);
+	if (hin == INVALID_HANDLE_VALUE) {
+	    fprintf(stderr, "Cannot get standard input handle\n");
+	    cleanup_exit(1);
+	}
+    }
 
-    hin = GetStdHandle(STD_INPUT_HANDLE);
-    hout = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hin == INVALID_HANDLE_VALUE || hout == INVALID_HANDLE_VALUE) {
-	fprintf(stderr, "Cannot get standard input/output handles\n");
-	cleanup_exit(1);
+    /*
+     * And if we have anything to print, we need standard output.
+     */
+    if ((p->name_reqd && p->name) || p->instruction || p->n_prompts) {
+	hout = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hout == INVALID_HANDLE_VALUE) {
+	    fprintf(stderr, "Cannot get standard output handle\n");
+	    cleanup_exit(1);
+	}
     }
 
     /*

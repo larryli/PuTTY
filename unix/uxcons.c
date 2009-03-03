@@ -344,7 +344,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 	    memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
     }
 
-    if (console_batch_mode)
+    if (p->n_prompts && console_batch_mode)
 	return 0;
 
     /*
