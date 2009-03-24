@@ -5262,8 +5262,17 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 
 		set = (uc & CSET_MASK);
 		c = (uc & ~CSET_MASK);
-		cbuf[0] = uc;
-		cbuf[1] = 0;
+#ifdef PLATFORM_IS_UTF16
+		if (uc > 0x10000 && uc < 0x110000) {
+		    cbuf[0] = 0xD800 | ((uc - 0x10000) >> 10);
+		    cbuf[1] = 0xDC00 | ((uc - 0x10000) & 0x3FF);
+		    cbuf[2] = 0;
+		} else
+#endif
+		{
+		    cbuf[0] = uc;
+		    cbuf[1] = 0;
+		}
 
 		if (DIRECT_FONT(uc)) {
 		    if (c >= ' ' && c != 0x7F) {
