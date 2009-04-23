@@ -50,6 +50,8 @@ static void source(char *src);
 static void rsource(char *src);
 static void sink(char *targ, char *src);
 
+const char *const appname = "PSCP";
+
 /*
  * The maximum amount of queued data we accept before we stop and
  * wait for the server to process some.

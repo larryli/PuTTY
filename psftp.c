@@ -16,6 +16,8 @@
 #include "sftp.h"
 #include "int64.h"
 
+const char *const appname = "PSFTP";
+
 /*
  * Since SFTP is a request-response oriented protocol, it requires
  * no buffer management: when we send data, we stop and wait for an
