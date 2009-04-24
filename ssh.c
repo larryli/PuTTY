@@ -8570,7 +8570,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] =
 	ssh2_msg_channel_open;
 
-    if (ssh->cfg.ssh_simple) {
+    if (ssh->mainchan && ssh->cfg.ssh_simple) {
 	/*
 	 * This message indicates to the server that we promise
 	 * not to try to run any other channel in parallel with
