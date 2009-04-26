@@ -132,9 +132,13 @@ for line in fileinput.input(args):
                 sys.stderr.write("Skipping hashed hostname '%s'\n" % host)
                 continue
             else:
-                # Slightly bizarre key format: 'type@port:hostname'
-                # As far as I know, the input never specifies a port.
-                port = 22
+                m = re.match (r"\[([^]]*)\]:(\d*)$", host)
+                if m:
+                    (host, port) = m.group(1,2)
+                    port = int(port)
+                else:
+                    port = 22
+                # Slightly bizarre output key format: 'type@port:hostname'
                 # XXX: does PuTTY do anything useful with literal IP[v4]s?
                 key = keytype + ("@%d:%s" % (port, host))
                 value = string.join (map (longtohex, magicnumbers), ',')
