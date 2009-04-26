@@ -638,7 +638,7 @@ void read_random_seed(noise_consumer_t consumer)
     fname = make_filename(INDEX_RANDSEED, NULL);
     fd = open(fname, O_RDONLY);
     sfree(fname);
-    if (fd) {
+    if (fd >= 0) {
 	char buf[512];
 	int ret;
 	while ( (ret = read(fd, buf, sizeof(buf))) > 0)
