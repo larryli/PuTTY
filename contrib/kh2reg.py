@@ -128,6 +128,9 @@ for line in fileinput.input(args):
                 sys.stderr.write("Skipping wildcard host pattern '%s'\n"
                                  % host)
                 continue
+            elif re.match (r"\|", host):
+                sys.stderr.write("Skipping hashed hostname '%s'\n" % host)
+                continue
             else:
                 # Slightly bizarre key format: 'type@port:hostname'
                 # As far as I know, the input never specifies a port.
