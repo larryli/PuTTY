@@ -18,6 +18,7 @@
 !makefile borland windows/Makefile.bor
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
+!makefile unix unix/Makefile.ux
 !makefile ac unix/Makefile.in
 !makefile mpw mac/Makefile.mpw
 !makefile osx macosx/Makefile
