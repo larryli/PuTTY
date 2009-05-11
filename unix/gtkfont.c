@@ -892,28 +892,83 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
     }
 
     while (len > 0) {
-	int clen;
+	int clen, n;
 
 	/*
-	 * Extract a single UTF-8 character from the string.
+	 * We want to display every character from this string in
+	 * the centre of its own character cell. In the worst case,
+	 * this requires a separate text-drawing call for each
+	 * character; but in the common case where the font is
+	 * properly fixed-width, we can draw many characters in one
+	 * go which is much faster.
+	 *
+	 * This still isn't really ideal. If you look at what
+	 * happens in the X protocol as a result of all of this, you
+	 * find - naturally enough - that each call to
+	 * gdk_draw_layout() generates a separate set of X RENDER
+	 * operations involving creating a picture, setting a clip
+	 * rectangle, doing some drawing and undoing the whole lot.
+	 * In an ideal world, we should _always_ be able to turn the
+	 * contents of this loop into a single RenderCompositeGlyphs
+	 * operation which internally specifies inter-character
+	 * deltas to get the spacing right, which would give us full
+	 * speed _even_ in the worst case of a non-fixed-width font.
+	 * However, Pango's architecture and documentation are so
+	 * unhelpful that I have no idea how if at all to persuade
+	 * them to do that.
+	 */
+
+	/*
+	 * Start by extracting a single UTF-8 character from the
+	 * string.
 	 */
 	clen = 1;
 	while (clen < len &&
 	       (unsigned char)string[clen] >= 0x80 &&
 	       (unsigned char)string[clen] < 0xC0)
 	    clen++;
+	n = 1;
+
+	/*
+	 * See if that character has the width we expect.
+	 */
+	pango_layout_set_text(layout, string, clen);
+	pango_layout_get_pixel_extents(layout, NULL, &rect);
+
+	if (rect.width == cellwidth) {
+	    /*
+	     * Try extracting more characters, for as long as they
+	     * stay well-behaved.
+	     */
+	    while (clen < len) {
+		int oldclen = clen;
+		clen++;		       /* skip UTF-8 introducer byte */
+		while (clen < len &&
+		       (unsigned char)string[clen] >= 0x80 &&
+		       (unsigned char)string[clen] < 0xC0)
+		    clen++;
+		n++;
+		pango_layout_set_text(layout, string, clen);
+		pango_layout_get_pixel_extents(layout, NULL, &rect);
+		if (rect.width != n * cellwidth) {
+		    clen = oldclen;
+		    n--;
+		    break;
+		}
+	    }
+	}
 
 	pango_layout_set_text(layout, string, clen);
 	pango_layout_get_pixel_extents(layout, NULL, &rect);
-	gdk_draw_layout(target, gc, x + (cellwidth - rect.width)/2,
+	gdk_draw_layout(target, gc, x + (n*cellwidth - rect.width)/2,
 			y + (pfont->u.height - rect.height)/2, layout);
 	if (shadowbold)
-	    gdk_draw_layout(target, gc, x + (cellwidth - rect.width)/2 + pfont->shadowoffset,
+	    gdk_draw_layout(target, gc, x + (n*cellwidth - rect.width)/2 + pfont->shadowoffset,
 			    y + (pfont->u.height - rect.height)/2, layout);
 
 	len -= clen;
 	string += clen;
-	x += cellwidth;
+	x += n * cellwidth;
     }
 
     g_object_unref(layout);
