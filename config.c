@@ -317,14 +317,14 @@ static void codepage_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
     if (event == EVENT_REFRESH) {
 	int i;
-	const char *cp;
+	const char *cp, *thiscp;
 	dlg_update_start(ctrl, dlg);
-	strcpy(cfg->line_codepage,
-	       cp_name(decode_codepage(cfg->line_codepage)));
+	thiscp = cp_name(decode_codepage(cfg->line_codepage));
 	dlg_listbox_clear(ctrl, dlg);
 	for (i = 0; (cp = cp_enumerate(i)) != NULL; i++)
 	    dlg_listbox_add(ctrl, dlg, cp);
-	dlg_editbox_set(ctrl, dlg, cfg->line_codepage);
+	dlg_editbox_set(ctrl, dlg, thiscp);
+	strcpy(cfg->line_codepage, thiscp);
 	dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_VALCHANGE) {
 	dlg_editbox_get(ctrl, dlg, cfg->line_codepage,
