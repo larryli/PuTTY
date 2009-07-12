@@ -243,7 +243,7 @@ If you leave the passphrase fields blank, the key will be saved
 unencrypted. You should \e{not} do this without good reason; if you
 do, your private key file on disk will be all an attacker needs to
 gain access to any machine configured to accept that key. If you
-want to be able to \i{passwordless login}log in without having to
+want to be able to \I{passwordless login}log in without having to
 type a passphrase every time, you should consider using Pageant
 (\k{pageant}) so that your decrypted key is only held in memory
 rather than on disk.
