@@ -45,7 +45,7 @@ AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
 if test "$with_gssapi" != "no"; then
-  AC_SEARCH_LIBS([gss_init_sec_context], [gss gssapi gssapi_krb5])
+  AC_SEARCH_LIBS([gss_init_sec_context], [gssapi gssapi_krb5 gss])
 fi
 
 AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
