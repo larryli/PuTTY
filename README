@@ -18,9 +18,9 @@ For building on Windows:
    -f Makefile.vc' to build all the PuTTY binaries.
 
    Last time we checked, PuTTY built with vanilla VC7, or VC6 with
-   an up-to-date Platform SDK. (It is possible to build with
-   vanilla VC6, but you'll have to remove some functionality with
-   directives such as NO_IPV6.)
+   an up-to-date Platform SDK. (It might still be possible to build
+   with vanilla VC6, but you'll certainly have to remove some
+   functionality with directives such as NO_IPV6.)
 
    (We've also had reports of success building with the
    OpenWatcom compiler -- www.openwatcom.org -- using Makefile.vc
@@ -56,9 +56,10 @@ For building on Windows:
  - Inside the windows/DEVCPP subdirectory are Dev-C++ project
    files for doing GUI-based builds of the various PuTTY utilities.
 
-The PuTTY team actively use Makefile.vc and Makefile.cyg, so we'll
-probably notice problems with those toolchains fairly quickly. Please
-report any problems with the other toolchains mentioned above.
+The PuTTY team actively use Makefile.vc (with VC7) and Makefile.cyg
+(with mingw32), so we'll probably notice problems with those
+toolchains fairly quickly. Please report any problems with the other
+toolchains mentioned above.
 
 For building on Unix:
 
@@ -71,9 +72,12 @@ For building on Unix:
    portability problems such as BSD-style ptys or different header file
    requirements are expected.
 
- - unix/Makefile.gtk is for non-autoconfigured builds. This makefile
-   expects you to change into the `unix' subdirectory, then run `make
-   -f Makefile.gtk'.
+ - unix/Makefile.gtk and unix/Makefile.ux are for non-autoconfigured
+   builds. These makefiles expect you to change into the `unix'
+   subdirectory, then run `make -f Makefile.gtk' or `make -f
+   Makefile.ux' respectively. Makefile.gtk builds all the programs but
+   relies on Gtk, whereas Makefile.ux builds only the command-line
+   utilities and has no Gtk dependence.
 
  - For the graphical utilities, Gtk+-1.2 and Gtk+-2.0 should both be
    supported.
