@@ -31,6 +31,20 @@
 # define X11_UNIX_PATH "/tmp/.X11-unix/X"
 #endif
 
+/* 
+ * Access to sockaddr types without breaking C strict aliasing rules.
+ */
+union sockaddr_union {
+#ifdef NO_IPV6
+    struct sockaddr_in storage;
+#else
+    struct sockaddr_storage storage;
+    struct sockaddr_in6 sin6;
+#endif
+    struct sockaddr sa;
+    struct sockaddr_in sin;
+};
+
 /*
  * We used to typedef struct Socket_tag *Socket.
  *
@@ -338,19 +352,13 @@ int sk_hostname_is_local(char *name)
 
 static int sockaddr_is_loopback(struct sockaddr *sa)
 {
-    struct sockaddr_in *sin;
-#ifndef NO_IPV6
-    struct sockaddr_in6 *sin6;
-#endif
-
-    switch (sa->sa_family) {
+    union sockaddr_union *u = (union sockaddr_union *)sa;
+    switch (u->sa.sa_family) {
       case AF_INET:
-	sin = (struct sockaddr_in *)sa;
-	return ipv4_is_loopback(sin->sin_addr);
+	return ipv4_is_loopback(u->sin.sin_addr);
 #ifndef NO_IPV6
       case AF_INET6:
-	sin6 = (struct sockaddr_in6 *)sa;
-	return IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr);
+	return IN6_IS_ADDR_LOOPBACK(&u->sin6.sin6_addr);
 #endif
       case AF_UNIX:
 	return TRUE;
@@ -949,14 +957,7 @@ static void sk_tcp_close(Socket sock)
 void *sk_getxdmdata(void *sock, int *lenp)
 {
     Actual_Socket s = (Actual_Socket) sock;
-#ifdef NO_IPV6
-    struct sockaddr_in addr;
-#else
-    struct sockaddr_storage addr;
-    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&addr;
-#endif
-    struct sockaddr *sa = (struct sockaddr *)&addr;
-    struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
+    union sockaddr_union u;
     socklen_t addrlen;
     char *buf;
     static unsigned int unix_addr = 0xFFFFFFFF;
@@ -967,23 +968,23 @@ void *sk_getxdmdata(void *sock, int *lenp)
     if (s->fn != &tcp_fn_table)
 	return NULL;		       /* failure */
 
-    addrlen = sizeof(addr);
-    if (getsockname(s->s, sa, &addrlen) < 0)
+    addrlen = sizeof(u);
+    if (getsockname(s->s, &u.sa, &addrlen) < 0)
 	return NULL;
-    switch(sa->sa_family) {
+    switch(u.sa.sa_family) {
       case AF_INET:
 	*lenp = 6;
 	buf = snewn(*lenp, char);
-	PUT_32BIT_MSB_FIRST(buf, ntohl(sin->sin_addr.s_addr));
-	PUT_16BIT_MSB_FIRST(buf+4, ntohs(sin->sin_port));
+	PUT_32BIT_MSB_FIRST(buf, ntohl(u.sin.sin_addr.s_addr));
+	PUT_16BIT_MSB_FIRST(buf+4, ntohs(u.sin.sin_port));
 	break;
 #ifndef NO_IPV6
     case AF_INET6:
 	*lenp = 6;
 	buf = snewn(*lenp, char);
-	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-	    memcpy(buf, sin6->sin6_addr.s6_addr + 12, 4);
-	    PUT_16BIT_MSB_FIRST(buf+4, ntohs(sin6->sin6_port));
+	if (IN6_IS_ADDR_V4MAPPED(&u.sin6.sin6_addr)) {
+	    memcpy(buf, u.sin6.sin6_addr.s6_addr + 12, 4);
+	    PUT_16BIT_MSB_FIRST(buf+4, ntohs(u.sin6.sin6_port));
 	} else
 	    /* This is stupid, but it's what XLib does. */
 	    memset(buf, 0, 6);
