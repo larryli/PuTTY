@@ -161,7 +161,8 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	newmode.c_lflag |= ECHO | ISIG | ICANON;
 	tcsetattr(0, TCSANOW, &newmode);
 	line[0] = '\0';
-	read(0, line, sizeof(line) - 1);
+	if (read(0, line, sizeof(line) - 1) <= 0)
+	    /* handled below */;
 	tcsetattr(0, TCSANOW, &oldmode);
     }
 
@@ -213,7 +214,8 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 	newmode.c_lflag |= ECHO | ISIG | ICANON;
 	tcsetattr(0, TCSANOW, &newmode);
 	line[0] = '\0';
-	read(0, line, sizeof(line) - 1);
+	if (read(0, line, sizeof(line) - 1) <= 0)
+	    /* handled below */;
 	tcsetattr(0, TCSANOW, &oldmode);
     }
 
@@ -266,7 +268,8 @@ int askappend(void *frontend, Filename filename,
 	newmode.c_lflag |= ECHO | ISIG | ICANON;
 	tcsetattr(0, TCSANOW, &newmode);
 	line[0] = '\0';
-	read(0, line, sizeof(line) - 1);
+	if (read(0, line, sizeof(line) - 1) <= 0)
+	    /* handled below */;
 	tcsetattr(0, TCSANOW, &oldmode);
     }
 

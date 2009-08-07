@@ -178,7 +178,8 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
      */
     if (is_stderr) {
 	if (len > 0)
-	    fwrite(data, 1, len, stderr);
+	    if (fwrite(data, 1, len, stderr) < len)
+		/* oh well */;
 	return 0;
     }
 

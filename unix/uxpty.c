@@ -260,7 +260,8 @@ static void cleanup_utmp(void)
 
 static void sigchld_handler(int signum)
 {
-    write(pty_signal_pipe[1], "x", 1);
+    if (write(pty_signal_pipe[1], "x", 1) <= 0)
+	/* not much we can do about it */;
 }
 
 #ifndef OMIT_UTMP
@@ -633,7 +634,9 @@ int pty_select_result(int fd, int event)
 	int status;
 	char c[1];
 
-	read(pty_signal_pipe[0], c, 1); /* ignore its value; it'll be `x' */
+	if (read(pty_signal_pipe[0], c, 1) <= 0)
+	    /* ignore error */;
+	/* ignore its value; it'll be `x' */
 
 	do {
 	    pid = waitpid(-1, &status, WNOHANG);

@@ -513,7 +513,8 @@ int signalpipe[2];
 
 void sigwinch(int signum)
 {
-    write(signalpipe[1], "x", 1);
+    if (write(signalpipe[1], "x", 1) <= 0)
+	/* not much we can do about it */;
 }
 
 /*
@@ -1030,7 +1031,9 @@ int main(int argc, char **argv)
 	if (FD_ISSET(signalpipe[0], &rset)) {
 	    char c[1];
 	    struct winsize size;
-	    read(signalpipe[0], c, 1); /* ignore its value; it'll be `x' */
+	    if (read(signalpipe[0], c, 1) <= 0)
+		/* ignore error */;
+	    /* ignore its value; it'll be `x' */
 	    if (ioctl(0, TIOCGWINSZ, (void *)&size) >= 0)
 		back->size(backhandle, size.ws_col, size.ws_row);
 	}
