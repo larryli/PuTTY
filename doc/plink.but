@@ -51,7 +51,7 @@ use Plink:
 \c   -pgpfp    print PGP key fingerprints and exit
 \c   -v        show verbose messages
 \c   -load sessname  Load settings from saved session
-\c   -ssh -telnet -rlogin -raw
+\c   -ssh -telnet -rlogin -raw -serial
 \c             force use of a particular protocol
 \c   -P port   connect to specified port
 \c   -l user   connect with specified username
@@ -78,6 +78,8 @@ use Plink:
 \c   -N        don't start a shell/command (SSH-2 only)
 \c   -nc host:port
 \c             open tunnel in place of session (SSH-2 only)
+\c   -sercfg configuration-string (e.g. 19200,8,n,1,X)
+\c             Specify the serial configuration (serial only)
 
 Once this works, you are ready to use Plink.
 

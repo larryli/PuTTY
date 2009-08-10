@@ -160,7 +160,7 @@ in verifying new files released by the PuTTY team.
 straight from the command line without having to go through the
 configuration box first.
 
-\dt \cw{\-ssh}, \cw{\-telnet}, \cw{\-rlogin}, \cw{\-raw}
+\dt \cw{\-ssh}, \cw{\-telnet}, \cw{\-rlogin}, \cw{\-raw}, \cw{\-serial}
 
 \dd Select the protocol \cw{putty} will use to make the connection.
 
@@ -222,6 +222,29 @@ pseudo-terminal at the server end.
 \dd Specify a private key file to use for authentication. For SSH-2
 keys, this key file must be in PuTTY's format, not OpenSSH's or
 anyone else's.
+
+\dt \cw{\-sercfg} \e{configuration-string}
+
+\dd Specify the configuration parameters for the serial port, in
+\cw{-serial} mode. \e{configuration-string} should be a
+comma-separated list of configuration parameters as follows:
+
+\lcont{
+
+\b Any single digit from 5 to 9 sets the number of data bits.
+
+\b \cq{1}, \cq{1.5} or \cq{2} sets the number of stop bits.
+
+\b Any other numeric string is interpreted as a baud rate.
+
+\b A single lower-case letter specifies the parity: \cq{n} for none,
+\cq{o} for odd, \cq{e} for even, \cq{m} for mark and \cq{s} for space.
+
+\b A single upper-case letter specifies the flow control: \cq{N} for
+none, \cq{X} for XON/XOFF, \cq{R} for RTS/CTS and \cq{D} for
+DSR/DTR.
+
+}
 
 \S{putty-manpage-saved-sessions} SAVED SESSIONS
 

@@ -206,6 +206,7 @@ saved sessions from
 \IM{-raw} \c{-raw} command-line option
 \IM{-rlogin} \c{-rlogin} command-line option
 \IM{-ssh} \c{-ssh} command-line option
+\IM{-serial} \c{-serial} command-line option
 \IM{-cleanup} \c{-cleanup} command-line option
 \IM{-load} \c{-load} command-line option
 \IM{-v} \c{-v} command-line option
@@ -228,6 +229,7 @@ saved sessions from
 \IM{-2} \c{-2} command-line option
 \IM{-i} \c{-i} command-line option
 \IM{-pgpfp} \c{-pgpfp} command-line option
+\IM{-sercfg} \c{-sercfg} command-line option
 
 \IM{removing registry entries} removing registry entries
 \IM{removing registry entries} registry entries, removing

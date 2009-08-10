@@ -192,6 +192,16 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	SAVEABLE(0);
 	default_protocol = cfg->protocol = PROT_RAW;
     }
+    if (!strcmp(p, "-serial")) {
+	RETURN(1);
+	/* Serial is not NONNETWORK in an odd sense of the word */
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+	default_protocol = cfg->protocol = PROT_SERIAL;
+	/* The host parameter will already be loaded into cfg->host, so copy it across */
+	strncpy(cfg->serline, cfg->host, sizeof(cfg->serline) - 1);
+	cfg->serline[sizeof(cfg->serline) - 1] = '\0';
+    }
     if (!strcmp(p, "-v")) {
 	RETURN(1);
 	flags |= FLAG_VERBOSE;
@@ -435,7 +445,100 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	SAVEABLE(1);
 	cfg->addressfamily = ADDRTYPE_IPV6;
     }
+    if (!strcmp(p, "-sercfg")) {
+	char* nextitem;
+	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+	SAVEABLE(1);
+	if (cfg->protocol != PROT_SERIAL)
+	    cmdline_error("the -sercfg option can only be used with the "
+			  "serial protocol");
+	/* Value[0] contains one or more , separated values, like 19200,8,n,1,X */
+	nextitem = value;
+	while (nextitem[0] != '\0') {
+	    int length, skip;
+	    char *end = strchr(nextitem, ',');
+	    if (!end) {
+		length = strlen(nextitem);
+		skip = 0;
+	    } else {
+		length = end - nextitem;
+		nextitem[length] = '\0';
+		skip = 1;
+	    }
+	    if (length == 1) {
+		switch (*nextitem) {
+		  case '1':
+		    cfg->serstopbits = 2;
+		    break;
+		  case '2':
+		    cfg->serstopbits = 4;
+		    break;
 
+		  case '5':
+		    cfg->serdatabits = 5;
+		    break;
+		  case '6':
+		    cfg->serdatabits = 6;
+		    break;
+		  case '7':
+		    cfg->serdatabits = 7;
+		    break;
+		  case '8':
+		    cfg->serdatabits = 8;
+		    break;
+		  case '9':
+		    cfg->serdatabits = 9;
+		    break;
+
+		  case 'n':
+		    cfg->serparity = SER_PAR_NONE;
+		    break;
+		  case 'o':
+		    cfg->serparity = SER_PAR_ODD;
+		    break;
+		  case 'e':
+		    cfg->serparity = SER_PAR_EVEN;
+		    break;
+		  case 'm':
+		    cfg->serparity = SER_PAR_MARK;
+		    break;
+		  case 's':
+		    cfg->serparity = SER_PAR_SPACE;
+		    break;
+
+		  case 'N':
+		    cfg->serflow = SER_FLOW_NONE;
+		    break;
+		  case 'X':
+		    cfg->serflow = SER_FLOW_XONXOFF;
+		    break;
+		  case 'R':
+		    cfg->serflow = SER_FLOW_RTSCTS;
+		    break;
+		  case 'D':
+		    cfg->serflow = SER_FLOW_DSRDTR;
+		    break;
+
+		  default:
+		    cmdline_error("Unrecognised suboption \"-sercfg %c\"",
+				  *nextitem);
+		}
+	    } else if (length == 3 && !strncmp(nextitem,"1.5",3)) {
+		/* Messy special case */
+		cfg->serstopbits = 3;
+	    } else {
+		int serspeed = atoi(nextitem);
+		if (serspeed != 0) {
+		    cfg->serspeed = serspeed;
+		} else {
+		    cmdline_error("Unrecognised suboption \"-sercfg %s\"",
+				  nextitem);
+		}
+	    }
+	    nextitem += length + skip;
+	}
+    }
     return ret;			       /* unrecognised */
 }
 

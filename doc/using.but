@@ -550,9 +550,9 @@ window}, or a \i{Windows shortcut}).
 
 \S{using-cmdline-session} Starting a session from the command line
 
-\I\c{-ssh}\I\c{-telnet}\I\c{-rlogin}\I\c{-raw}These options allow
-you to bypass the configuration window and launch straight into a
-session.
+\I\c{-ssh}\I\c{-telnet}\I\c{-rlogin}\I\c{-raw}\I\c{-serial}These
+options allow you to bypass the configuration window and launch
+straight into a session.
 
 To start a connection to a server called \c{host}:
 
@@ -568,6 +568,10 @@ For telnet sessions, the following alternative syntax is supported
 URLs} in web browsers):
 
 \c putty.exe telnet://host[:port]/
+
+To start a connection to a serial port, e.g. COM1:
+
+\c putty.exe -serial com1
 
 In order to start an existing saved session called \c{sessionname},
 use the \c{-load} option (described in \k{using-cmdline-load}).
@@ -618,7 +622,7 @@ must be the very first thing on the command line. This form of the
 option is deprecated.)
 
 \S2{using-cmdline-protocol} Selecting a protocol: \c{-ssh},
-\c{-telnet}, \c{-rlogin}, \c{-raw}
+\c{-telnet}, \c{-rlogin}, \c{-raw} \c{-serial}
 
 To choose which protocol you want to connect with, you can use one
 of these options:
@@ -630,6 +634,8 @@ of these options:
 \b \i\c{-rlogin} selects the Rlogin protocol.
 
 \b \i\c{-raw} selects the raw protocol.
+
+\b \i\c{-serial} selects a serial connection.
 
 These options are not available in the file transfer tools PSCP and
 PSFTP (which only work with the SSH protocol).
@@ -915,3 +921,27 @@ on this.
 This option causes the PuTTY tools not to run as normal, but instead
 to display the fingerprints of the PuTTY PGP Master Keys, in order to
 aid with \i{verifying new versions}. See \k{pgpkeys} for more information.
+
+\S2{using-cmdline-sercfg} \i\c{-sercfg}: specify serial port
+\i{configuration}
+
+This option specifies the configuration parameters for the serial
+port (baud rate, stop bits etc). Its argument is interpreted as a
+comma-separated list of configuration options, which can be as
+follows:
+
+\b Any single digit from 5 to 9 sets the number of data bits.
+
+\b \cq{1}, \cq{1.5} or \cq{2} sets the number of stop bits.
+
+\b Any other numeric string is interpreted as a baud rate.
+
+\b A single lower-case letter specifies the parity: \cq{n} for none,
+\cq{o} for odd, \cq{e} for even, \cq{m} for mark and \cq{s} for space.
+
+\b A single upper-case letter specifies the flow control: \cq{N} for
+none, \cq{X} for XON/XOFF, \cq{R} for RTS/CTS and \cq{D} for
+DSR/DTR.
+
+For example, \cq{-sercfg 19200,8,n,1,N} denotes a baud rate of
+19200, 8 data bits, no parity, 1 stop bit and no flow control.

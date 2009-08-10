@@ -52,6 +52,10 @@ to aid in verifying new files released by the PuTTY team.
 
 \dd Force raw mode.
 
+\dt \cw{-serial}
+
+\dd Force serial mode.
+
 \dt \cw{-P} \e{port}
 
 \dd Connect to port \e{port}.
@@ -144,6 +148,29 @@ tunnel all their connections. Only works in SSH.
 \dt \cw{-N}
 
 \dd Don't start a remote command or shell at all (SSH-2 only).
+
+\dt \cw{\-sercfg} \e{configuration-string}
+
+\dd Specify the configuration parameters for the serial port, in
+\cw{-serial} mode. \e{configuration-string} should be a
+comma-separated list of configuration parameters as follows:
+
+\lcont{
+
+\b Any single digit from 5 to 9 sets the number of data bits.
+
+\b \cq{1}, \cq{1.5} or \cq{2} sets the number of stop bits.
+
+\b Any other numeric string is interpreted as a baud rate.
+
+\b A single lower-case letter specifies the parity: \cq{n} for none,
+\cq{o} for odd, \cq{e} for even, \cq{m} for mark and \cq{s} for space.
+
+\b A single upper-case letter specifies the flow control: \cq{N} for
+none, \cq{X} for XON/XOFF, \cq{R} for RTS/CTS and \cq{D} for
+DSR/DTR.
+
+}
 
 \S{plink-manpage-more-information} MORE INFORMATION
 
