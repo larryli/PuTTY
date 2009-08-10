@@ -34,6 +34,7 @@ static void serial_parity_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
 
     if (event == EVENT_REFRESH) {
+	int oldparity = cfg->serparity;/* preserve past reentrant calls */
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
 	for (i = 0; i < lenof(parities); i++)  {
@@ -42,12 +43,20 @@ static void serial_parity_handler(union control *ctrl, void *dlg,
 				      parities[i].val);
 	}
 	for (i = j = 0; i < lenof(parities); i++) {
-	    if (cfg->serparity == parities[i].val)
-		dlg_listbox_select(ctrl, dlg, j);
-	    if (mask & (1 << i))
+	    if (mask & (1 << i)) {
+		if (oldparity == parities[i].val) {
+		    dlg_listbox_select(ctrl, dlg, j);
+		    break;
+		}
 		j++;
+	    }
+	}
+	if (i == lenof(parities)) {    /* an unsupported setting was chosen */
+	    dlg_listbox_select(ctrl, dlg, 0);
+	    oldparity = SER_PAR_NONE;
 	}
 	dlg_update_done(ctrl, dlg);
+	cfg->serparity = oldparity;    /* restore */
     } else if (event == EVENT_SELCHANGE) {
 	int i = dlg_listbox_index(ctrl, dlg);
 	if (i < 0)
@@ -75,6 +84,7 @@ static void serial_flow_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
 
     if (event == EVENT_REFRESH) {
+	int oldflow = cfg->serflow;    /* preserve past reentrant calls */
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
 	for (i = 0; i < lenof(flows); i++)  {
@@ -82,16 +92,24 @@ static void serial_flow_handler(union control *ctrl, void *dlg,
 		dlg_listbox_addwithid(ctrl, dlg, flows[i].name, flows[i].val);
 	}
 	for (i = j = 0; i < lenof(flows); i++) {
-	    if (cfg->serflow == flows[i].val)
-		dlg_listbox_select(ctrl, dlg, j);
-	    if (mask & (1 << i))
+	    if (mask & (1 << i)) {
+		if (oldflow == flows[i].val) {
+		    dlg_listbox_select(ctrl, dlg, j);
+		    break;
+		}
 		j++;
+	    }
+	}
+	if (i == lenof(flows)) {       /* an unsupported setting was chosen */
+	    dlg_listbox_select(ctrl, dlg, 0);
+	    oldflow = SER_FLOW_NONE;
 	}
 	dlg_update_done(ctrl, dlg);
+	cfg->serflow = oldflow;	       /* restore */
     } else if (event == EVENT_SELCHANGE) {
 	int i = dlg_listbox_index(ctrl, dlg);
 	if (i < 0)
-	    i = SER_PAR_NONE;
+	    i = SER_FLOW_NONE;
 	else
 	    i = dlg_listbox_getid(ctrl, dlg, i);
 	cfg->serflow = i;
