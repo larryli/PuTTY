@@ -538,7 +538,7 @@ static void usage(void)
     printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -v        show verbose messages\n");
     printf("  -load sessname  Load settings from saved session\n");
-    printf("  -ssh -telnet -rlogin -raw\n");
+    printf("  -ssh -telnet -rlogin -raw -serial\n");
     printf("            force use of a particular protocol\n");
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
