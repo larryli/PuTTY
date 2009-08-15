@@ -2112,10 +2112,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		{
 		    /* Disable full-screen if resizing forbidden */
-		    HMENU m = GetSystemMenu (hwnd, FALSE);
-		    EnableMenuItem(m, IDM_FULLSCREEN, MF_BYCOMMAND | 
-				   (cfg.resize_action == RESIZE_DISABLED)
-				   ? MF_GRAYED : MF_ENABLED);
+		    int i;
+		    for (i = 0; i < lenof(popup_menus); i++)
+			EnableMenuItem(popup_menus[i].menu, IDM_FULLSCREEN,
+				       MF_BYCOMMAND | 
+				       (cfg.resize_action == RESIZE_DISABLED)
+				       ? MF_GRAYED : MF_ENABLED);
 		    /* Gracefully unzoom if necessary */
 		    if (IsZoomed(hwnd) &&
 			(cfg.resize_action == RESIZE_DISABLED)) {
@@ -5370,9 +5372,12 @@ static void make_full_screen()
 
     reset_window(0);
 
-    /* Tick the menu item in the System menu. */
-    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
-		  MF_CHECKED);
+    /* Tick the menu item in the System and context menus. */
+    {
+	int i;
+	for (i = 0; i < lenof(popup_menus); i++)
+	    CheckMenuItem(popup_menus[i].menu, IDM_FULLSCREEN, MF_CHECKED);
+    }
 }
 
 /*
@@ -5400,9 +5405,12 @@ static void clear_full_screen()
 		     SWP_FRAMECHANGED);
     }
 
-    /* Untick the menu item in the System menu. */
-    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
-		  MF_UNCHECKED);
+    /* Untick the menu item in the System and context menus. */
+    {
+	int i;
+	for (i = 0; i < lenof(popup_menus); i++)
+	    CheckMenuItem(popup_menus[i].menu, IDM_FULLSCREEN, MF_UNCHECKED);
+    }
 }
 
 /*
