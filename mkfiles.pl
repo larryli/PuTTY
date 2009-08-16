@@ -1088,6 +1088,7 @@ if (defined $makefiles{'ac'}) {
     "prefix=\@prefix\@\n".
     "exec_prefix=\@exec_prefix\@\n".
     "bindir=\@bindir\@\n".
+    "datarootdir=\@datarootdir\@\n".
     "mandir=\@mandir\@\n".
     "man1dir=\$(mandir)/man1\n".
     "\n".
