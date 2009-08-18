@@ -1016,19 +1016,25 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		*p = '\0';
 	    p = cfg->portfwd;
 	    while (*p) {
+		if (strcmp(p,str) == 0) {
+		    dlg_error_msg(dlg, "Specified forwarding already exists");
+		    break;
+		}
 		while (*p)
 		    p++;
 		p++;
 	    }
-	    if ((p - cfg->portfwd) + strlen(str) + 2 <=
-		sizeof(cfg->portfwd)) {
-		strcpy(p, str);
-		p[strlen(str) + 1] = '\0';
-		dlg_listbox_add(pfd->listbox, dlg, str);
-		dlg_editbox_set(pfd->sourcebox, dlg, "");
-		dlg_editbox_set(pfd->destbox, dlg, "");
-	    } else {
-		dlg_error_msg(dlg, "Too many forwardings");
+	    if (!*p) {
+		if ((p - cfg->portfwd) + strlen(str) + 2 <=
+		    sizeof(cfg->portfwd)) {
+		    strcpy(p, str);
+		    p[strlen(str) + 1] = '\0';
+		    dlg_listbox_add(pfd->listbox, dlg, str);
+		    dlg_editbox_set(pfd->sourcebox, dlg, "");
+		    dlg_editbox_set(pfd->destbox, dlg, "");
+		} else {
+		    dlg_error_msg(dlg, "Too many forwardings");
+		}
 	    }
 	} else if (ctrl == pfd->rembutton) {
 	    int i = dlg_listbox_index(pfd->listbox, dlg);
