@@ -199,6 +199,8 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 		  CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS,
 		  NULL, NULL, &si, &pi);
 
+    sfree(cmd);
+
     CloseHandle(cmd_from_us);
     CloseHandle(cmd_to_us);
 

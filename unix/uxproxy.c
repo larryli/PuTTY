@@ -286,6 +286,8 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	_exit(255);
     }
 
+    sfree(cmd);
+
     close(to_cmd_pipe[0]);
     close(from_cmd_pipe[1]);
 
