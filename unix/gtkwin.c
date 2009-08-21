@@ -167,14 +167,9 @@ int platform_default_i(const char *name, int def)
     return def;
 }
 
+/* Dummy routine, only required in plink. */
 void ldisc_update(void *frontend, int echo, int edit)
 {
-    /*
-     * This is a stub in pterm. If I ever produce a Unix
-     * command-line ssh/telnet/rlogin client (i.e. a port of plink)
-     * then it will require some termios manoeuvring analogous to
-     * that in the Windows plink.c, but here it's meaningless.
-     */
 }
 
 char *get_ttymode(void *frontend, const char *mode)
