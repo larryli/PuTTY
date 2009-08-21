@@ -204,7 +204,7 @@ DECL_WINSOCK_FUNCTION(static, int, getnameinfo,
 DECL_WINSOCK_FUNCTION(static, char *, gai_strerror, (int ecode));
 DECL_WINSOCK_FUNCTION(static, int, WSAAddressToStringA,
 		      (LPSOCKADDR, DWORD, LPWSAPROTOCOL_INFO,
-		       LPTSTR, LPDWORD));
+		       LPSTR, LPDWORD));
 #endif
 
 static HMODULE winsock_module = NULL;
