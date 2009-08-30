@@ -1078,7 +1078,8 @@ if (defined $makefiles{'ac'}) {
     "\n".
     "CC = \@CC\@\n".
     "\n".
-    &splitline("CFLAGS = \@CFLAGS\@ \@CPPFLAGS\@ \@DEFS\@ \@GTK_CFLAGS\@ " .
+    &splitline("CFLAGS = \@CFLAGS\@ \@PUTTYCFLAGS\@ \@CPPFLAGS\@ " .
+               "\@DEFS\@ \@GTK_CFLAGS\@ " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "XLDFLAGS = \@LDFLAGS\@ \@LIBS\@ \@GTK_LIBS\@\n".
     "ULDFLAGS = \@LDFLAGS\@ \@LIBS\@\n".

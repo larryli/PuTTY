@@ -11,8 +11,11 @@ AC_CONFIG_HEADERS([uxconfig.h:uxconfig.in])
 AC_PROG_INSTALL
 AC_PROG_CC
 if test "X$GCC" = Xyes; then
-    CFLAGS="$CFLAGS -Wall -Werror"
+    PUTTYCFLAGS="-Wall -Werror"
+else
+    PUTTYCFLAGS=""
 fi
+AC_SUBST(PUTTYCFLAGS)
 
 AC_ARG_WITH(gssapi,
 [  --without-gssapi        disable GSS-API support])
