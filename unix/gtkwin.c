@@ -3548,7 +3548,7 @@ int pt_main(int argc, char **argv)
 			       GTK_SIGNAL_FUNC(func), inst); \
 } while (0)
 	if (new_session)
-	    MKMENUITEM("New Session", new_session_menuitem);
+	    MKMENUITEM("New Session...", new_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
 	inst->restartitem = menuitem;
 	gtk_widget_hide(inst->restartitem);
@@ -3562,7 +3562,7 @@ int pt_main(int argc, char **argv)
 				      inst->sessionsmenu);
 	}
 	MKMENUITEM(NULL, NULL);
-        MKMENUITEM("Change Settings", change_settings_menuitem);
+        MKMENUITEM("Change Settings...", change_settings_menuitem);
 	MKMENUITEM(NULL, NULL);
 	if (use_event_log)
 	    MKMENUITEM("Event Log", event_log_menuitem);
