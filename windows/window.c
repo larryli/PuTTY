@@ -636,7 +636,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     guess_height = extra_height + font_height * cfg.height;
     {
 	RECT r;
-		get_fullscreen_rect(&r);
+	get_fullscreen_rect(&r);
 	if (guess_width > r.right - r.left)
 	    guess_width = r.right - r.left;
 	if (guess_height > r.bottom - r.top)
@@ -912,6 +912,8 @@ static void update_savedsess_menu(void)
 	AppendMenu(savedsess_menu, MF_ENABLED,
 		   IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
 		   sesslist.sessions[i]);
+    if (sesslist.nsessions <= 1)
+	AppendMenu(savedsess_menu, MF_GRAYED, IDM_SAVED_MIN, "(No sessions)");
 }
 
 /*

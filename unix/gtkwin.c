@@ -3199,6 +3199,7 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 			  (GtkCallback)gtk_widget_destroy, NULL);
 
     get_sesslist(&sesslist, TRUE);
+    /* skip sesslist.sessions[0] == Default Settings */
     for (i = 1; i < sesslist.nsessions; i++) {
 	GtkWidget *menuitem =
 	    gtk_menu_item_new_with_label(sesslist.sessions[i]);
@@ -3212,6 +3213,13 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 	gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
 			   GTK_SIGNAL_FUNC(saved_session_freedata),
 			   inst);
+    }
+    if (sesslist.nsessions <= 1) {
+	GtkWidget *menuitem =
+	    gtk_menu_item_new_with_label("(No sessions)");
+	gtk_widget_set_sensitive(menuitem, FALSE);
+	gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
+	gtk_widget_show(menuitem);
     }
     get_sesslist(&sesslist, FALSE); /* free up */
 }
