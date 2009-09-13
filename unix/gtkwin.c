@@ -1275,7 +1275,7 @@ static gint idle_exit_func(gpointer data)
             term_provide_resize_fn(inst->term, NULL, NULL);
 	    update_specials_menu(inst);
 	}
-	gtk_widget_show(inst->restartitem);
+	gtk_widget_set_sensitive(inst->restartitem, TRUE);
     }
 
     gtk_idle_remove(inst->term_exit_idle_id);
@@ -3360,7 +3360,7 @@ static void start_backend(struct gui_data *inst)
 	ldisc_create(&inst->cfg, inst->term, inst->back, inst->backhandle,
 		     inst);
 
-    gtk_widget_hide(inst->restartitem);
+    gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
 
 int pt_main(int argc, char **argv)
@@ -3551,7 +3551,7 @@ int pt_main(int argc, char **argv)
 	    MKMENUITEM("New Session...", new_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
 	inst->restartitem = menuitem;
-	gtk_widget_hide(inst->restartitem);
+	gtk_widget_set_sensitive(inst->restartitem, FALSE);
         MKMENUITEM("Duplicate Session", dup_session_menuitem);
 	if (saved_sessions) {
 	    inst->sessionsmenu = gtk_menu_new();
