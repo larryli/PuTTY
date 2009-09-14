@@ -587,6 +587,7 @@ int main(int argc, char **argv)
     int exitcode;
     int errors;
     int use_subsystem = 0;
+    int got_host = FALSE;
     void *ldisc;
     long now;
 
@@ -660,7 +661,7 @@ int main(int argc, char **argv)
 		errors = 1;
 	    }
 	} else if (*p) {
-	    if (!cfg_launchable(&cfg)) {
+	    if (!cfg_launchable(&cfg) || !(got_host || loaded_session)) {
 		char *q = p;
 
 		/*
@@ -687,6 +688,7 @@ int main(int argc, char **argv)
 			cfg.port = -1;
 		    strncpy(cfg.host, q, sizeof(cfg.host) - 1);
 		    cfg.host[sizeof(cfg.host) - 1] = '\0';
+		    got_host = TRUE;
 		} else {
 		    char *r, *user, *host;
 		    /*
@@ -735,8 +737,10 @@ int main(int argc, char **argv)
 			    strncpy(cfg.host, host, sizeof(cfg.host) - 1);
 			    cfg.host[sizeof(cfg.host) - 1] = '\0';
 			    cfg.port = default_port;
+			    got_host = TRUE;
 			} else {
 			    cfg = cfg2;
+			    loaded_session = TRUE;
 			}
 		    }
 
@@ -783,7 +787,7 @@ int main(int argc, char **argv)
     if (errors)
 	return 1;
 
-    if (!cfg_launchable(&cfg)) {
+    if (!cfg_launchable(&cfg) || !(got_host || loaded_session)) {
 	usage();
     }
 
