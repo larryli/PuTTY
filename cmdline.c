@@ -322,6 +322,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	cfg->remote_cmd_ptr = command;
 	cfg->remote_cmd_ptr2 = NULL;
 	cfg->nopty = TRUE;      /* command => no terminal */
+	fclose(fp);
     }
     if (!strcmp(p, "-P")) {
 	RETURN(2);
