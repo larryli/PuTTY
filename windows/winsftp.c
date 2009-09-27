@@ -6,6 +6,7 @@
 
 #include "putty.h"
 #include "psftp.h"
+#include "ssh.h"
 #include "int64.h"
 
 char *get_ttymode(void *frontend, const char *mode) { return NULL; }
@@ -108,7 +109,8 @@ RFile *open_existing_file(char *name, uint64 *size,
 
 int read_from_file(RFile *f, void *buffer, int length)
 {
-    int ret, read;
+    int ret;
+    DWORD read;
     ret = ReadFile(f->h, buffer, length, &read, NULL);
     if (!ret)
 	return -1;		       /* error */
@@ -163,7 +165,8 @@ WFile *open_existing_wfile(char *name, uint64 *size)
 
 int write_to_file(WFile *f, void *buffer, int length)
 {
-    int ret, written;
+    int ret;
+    DWORD written;
     ret = WriteFile(f->h, buffer, length, &written, NULL);
     if (!ret)
 	return -1;		       /* error */
