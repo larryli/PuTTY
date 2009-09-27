@@ -110,7 +110,6 @@ static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
-static int is_shift_pressed(void);
 static int get_fullscreen_rect(RECT * ss);
 
 static int caret_x = -1, caret_y = -1;
@@ -1905,17 +1904,6 @@ static int is_alt_pressed(void)
     if (keystate[VK_MENU] & 0x80)
 	return TRUE;
     if (keystate[VK_RMENU] & 0x80)
-	return TRUE;
-    return FALSE;
-}
-
-static int is_shift_pressed(void)
-{
-    BYTE keystate[256];
-    int r = GetKeyboardState(keystate);
-    if (!r)
-	return FALSE;
-    if (keystate[VK_SHIFT] & 0x80)
 	return TRUE;
     return FALSE;
 }
