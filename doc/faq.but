@@ -208,15 +208,22 @@ seems to be working so far.
 \S{faq-ports-general}{Question} What ports of PuTTY exist?
 
 Currently, release versions of PuTTY tools only run on full Win32
-systems and Unix. \q{Win32} includes Windows 95, 98, and ME, and it
-includes Windows NT, 2000, XP, and Vista.
+systems and Unix. \q{\i{Win32}} includes versions of Windows from
+Windows 95 onwards (as opposed to the 16-bit Windows 3.1; see
+\k{faq-win31}), up to and including Windows 7; and we know of no
+reason why PuTTY should not continue to work on future versions
+of Windows.
+
+The Windows executables we provide are for the 32-bit \q{\i{x86}}
+processor architecture, but they should work fine on 64-bit
+processors that are backward-compatible with that architecture.
+(We used to also provide executables for Windows for the Alpha
+processor, but stopped after 0.58 due to lack of interest.)
 
 In the development code, partial ports to the Mac OSes exist (see
 \k{faq-mac-port}).
 
-Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}),
-and it does not quite run on the Win32s environment under Windows
-3.1 (see \k{faq-win31}).
+Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}).
 
 We do not have release-quality ports for any other systems at the
 present time. If anyone told you we had an EPOC port, or an iPaq port,
