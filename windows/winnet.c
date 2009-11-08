@@ -584,13 +584,19 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 
 #ifndef NO_IPV6
     if (step.ai) {
+	int err = 0;
 	if (p_WSAAddressToStringA) {
-	    DWORD dwbuflen;
-	    p_WSAAddressToStringA(step.ai->ai_addr, step.ai->ai_addrlen,
-				  NULL, buf, &dwbuflen);
-	    buflen = dwbuflen;
+	    DWORD dwbuflen = buflen;
+	    err = p_WSAAddressToStringA(step.ai->ai_addr, step.ai->ai_addrlen,
+					NULL, buf, &dwbuflen);
 	} else
-	    strncpy(buf, "IPv6", buflen);
+	    err = -1;
+	if (err) {
+	    strncpy(buf, addr->hostname, buflen);
+	    if (!buf[0])
+		strncpy(buf, "<unknown>", buflen);
+	    buf[buflen-1] = '\0';
+	}
     } else
 #endif
     if (SOCKADDR_FAMILY(addr, step) == AF_INET) {
