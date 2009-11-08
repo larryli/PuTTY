@@ -19,9 +19,8 @@ static int requested_help;
 static char *help_path;
 static int help_has_contents;
 #ifndef NO_HTMLHELP
-typedef HWND (CALLBACK *htmlhelp_t)(HWND, LPCSTR, UINT, DWORD);
+DECL_WINDOWS_FUNCTION(static, HWND, HtmlHelpA, (HWND, LPCSTR, UINT, DWORD));
 static char *chm_path;
-static htmlhelp_t htmlhelp;
 #endif /* NO_HTMLHELP */
 
 void init_help(void)
@@ -57,13 +56,12 @@ void init_help(void)
 	chm_path = NULL;
     if (chm_path) {
 	HINSTANCE dllHH = LoadLibrary("hhctrl.ocx");
-	if (dllHH) {
-	    htmlhelp = (htmlhelp_t)GetProcAddress(dllHH, "HtmlHelpA");
-	    if (!htmlhelp)
+	GET_WINDOWS_FUNCTION(dllHH, HtmlHelpA);
+	if (!p_HtmlHelpA) {
+	    chm_path = NULL;
+	    if (dllHH)
 		FreeLibrary(dllHH);
 	}
-	if (!htmlhelp)
-	    chm_path = NULL;
     }
 #endif /* NO_HTMLHELP */
 }
@@ -101,7 +99,7 @@ void launch_help(HWND hwnd, const char *topic)
 	    assert(topic[colonpos] != '\0');
 	    fname = dupprintf("%s::/%s.html>main", chm_path,
 			      topic + colonpos + 1);
-	    htmlhelp(hwnd, fname, HH_DISPLAY_TOPIC, 0);
+	    p_HtmlHelpA(hwnd, fname, HH_DISPLAY_TOPIC, 0);
 	    sfree(fname);
 	} else
 #endif /* NO_HTMLHELP */
@@ -113,7 +111,7 @@ void launch_help(HWND hwnd, const char *topic)
     } else {
 #ifndef NO_HTMLHELP
 	if (chm_path) {
-	    htmlhelp(hwnd, chm_path, HH_DISPLAY_TOPIC, 0);
+	    p_HtmlHelpA(hwnd, chm_path, HH_DISPLAY_TOPIC, 0);
 	} else
 #endif /* NO_HTMLHELP */
 	if (help_path) {
@@ -129,7 +127,7 @@ void quit_help(HWND hwnd)
     if (requested_help) {
 #ifndef NO_HTMLHELP
 	if (chm_path) {
-	    htmlhelp(NULL, NULL, HH_CLOSE_ALL, 0);
+	    p_HtmlHelpA(NULL, NULL, HH_CLOSE_ALL, 0);
 	} else
 #endif /* NO_HTMLHELP */
 	if (help_path) {

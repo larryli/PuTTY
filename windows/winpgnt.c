@@ -113,10 +113,10 @@ static tree234 *rsakeys, *ssh2keys;
 
 static int has_security;
 #ifndef NO_SECURITY
-typedef DWORD(WINAPI * gsi_fn_t)
- (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
-  PSID *, PSID *, PACL *, PACL *, PSECURITY_DESCRIPTOR *);
-static gsi_fn_t getsecurityinfo;
+DECL_WINDOWS_FUNCTION(static, DWORD, GetSecurityInfo,
+		      (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
+		       PSID *, PSID *, PACL *, PACL *,
+		       PSECURITY_DESCRIPTOR *));
 #endif
 
 /*
@@ -1848,10 +1848,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #endif
 			return 0;
 		    }
-		    if (getsecurityinfo(proc, SE_KERNEL_OBJECT,
-					OWNER_SECURITY_INFORMATION,
-					&procowner, NULL, NULL, NULL,
-					&psd2) != ERROR_SUCCESS) {
+		    if (p_GetSecurityInfo(proc, SE_KERNEL_OBJECT,
+					  OWNER_SECURITY_INFORMATION,
+					  &procowner, NULL, NULL, NULL,
+					  &psd2) != ERROR_SUCCESS) {
 #ifdef DEBUG_IPC
 			debug(("couldn't get owner info for process\n"));
 #endif
@@ -1859,10 +1859,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			return 0;      /* unable to get security info */
 		    }
 		    CloseHandle(proc);
-		    if ((rc = getsecurityinfo(filemap, SE_KERNEL_OBJECT,
-					      OWNER_SECURITY_INFORMATION,
-					      &mapowner, NULL, NULL, NULL,
-					      &psd1) != ERROR_SUCCESS)) {
+		    if ((rc = p_GetSecurityInfo(filemap, SE_KERNEL_OBJECT,
+						OWNER_SECURITY_INFORMATION,
+						&mapowner, NULL, NULL, NULL,
+						&psd1) != ERROR_SUCCESS)) {
 #ifdef DEBUG_IPC
 			debug(
 			      ("couldn't get owner info for filemap: %d\n",
@@ -1973,9 +1973,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	 * Attempt to get the security API we need.
 	 */
 	advapi = LoadLibrary("ADVAPI32.DLL");
-	getsecurityinfo =
-	    (gsi_fn_t) GetProcAddress(advapi, "GetSecurityInfo");
-	if (!getsecurityinfo) {
+	GET_WINDOWS_FUNCTION(advapi, GetSecurityInfo);
+	if (!p_GetSecurityInfo) {
 	    MessageBox(NULL,
 		       "Unable to access security APIs. Pageant will\n"
 		       "not run, in case it causes a security breach.",

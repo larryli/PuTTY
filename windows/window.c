@@ -5041,16 +5041,12 @@ void modalfatalbox(char *fmt, ...)
     cleanup_exit(1);
 }
 
-typedef BOOL (WINAPI *p_FlashWindowEx_t)(PFLASHWINFO);
-static p_FlashWindowEx_t p_FlashWindowEx = NULL;
+DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 
 static void init_flashwindow(void)
 {
     HMODULE user32_module = LoadLibrary("USER32.DLL");
-    if (user32_module) {
-	p_FlashWindowEx = (p_FlashWindowEx_t)
-	    GetProcAddress(user32_module, "FlashWindowEx");
-    }
+    GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
 }
 
 static BOOL flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
