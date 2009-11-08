@@ -499,6 +499,7 @@ static HANDLE access_random_seed(int action)
 	 * so stuff that. */
 	shell32_module = LoadLibrary("SHELL32.DLL");
 	GET_WINDOWS_FUNCTION(shell32_module, SHGetFolderPathA);
+	tried_shgetfolderpath = TRUE;
     }
     if (p_SHGetFolderPathA) {
 	if (SUCCEEDED(p_SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA,
