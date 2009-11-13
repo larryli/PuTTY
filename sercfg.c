@@ -150,7 +150,7 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
 		if (c->radio.shortcuts) {
 		    c->radio.shortcuts =
 			sresize(c->radio.shortcuts, c->radio.nbuttons, char);
-		    c->radio.shortcuts[c->radio.nbuttons-1] = NO_SHORTCUT;
+		    c->radio.shortcuts[c->radio.nbuttons-1] = 'r';
 		}
 	    }
 	}
