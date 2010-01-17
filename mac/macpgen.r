@@ -422,7 +422,7 @@ resource 'DITL' (wAbout, "about", purgeable) {
 	StaticText { disabled, "PuTTYgen"},
 	{ 42, 13, 74, 227 },
 	StaticText { disabled, "Some version or other\n"
-			       "Copyright © 1997-2009 Simon Tatham"},
+			       "Copyright © 1997-2010 Simon Tatham"},
     }
 };
 
@@ -443,7 +443,7 @@ type 'TEXT' {
 };
 
 resource 'TEXT' (wLicence, "licence", purgeable) {
-    "Copyright 1997-2009 Simon Tatham.\n"
+    "Copyright 1997-2010 Simon Tatham.\n"
     "\n"
     "Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
     "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry, "
