@@ -56,19 +56,29 @@ static void cmdline_save_param(char *p, char *value, int pri)
     saves[pri].nsaved++;
 }
 
+static char *cmdline_password = NULL;
+
 void cmdline_cleanup(void)
 {
     int pri;
 
-    for (pri = 0; pri < NPRIORITIES; pri++)
+    if (cmdline_password) {
+	memset(cmdline_password, 0, strlen(cmdline_password));
+	sfree(cmdline_password);
+	cmdline_password = NULL;
+    }
+    
+    for (pri = 0; pri < NPRIORITIES; pri++) {
 	sfree(saves[pri].params);
+	saves[pri].params = NULL;
+	saves[pri].savesize = 0;
+	saves[pri].nsaved = 0;
+    }
 }
 
 #define SAVEABLE(pri) do { \
     if (need_save) { cmdline_save_param(p, value, pri); return ret; } \
 } while (0)
-
-static char *cmdline_password = NULL;
 
 /*
  * Similar interface to get_userpass_input(), except that here a -1
@@ -99,6 +109,8 @@ int cmdline_get_passwd_input(prompts_t *p, unsigned char *in, int inlen) {
 	    p->prompts[0]->result_len);
     p->prompts[0]->result[p->prompts[0]->result_len-1] = '\0';
     memset(cmdline_password, 0, strlen(cmdline_password));
+    sfree(cmdline_password);
+    cmdline_password = NULL;
     tried_once = 1;
     return 1;
 
