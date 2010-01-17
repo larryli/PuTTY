@@ -22,7 +22,6 @@ struct timer {
 };
 
 static tree234 *timers = NULL;
-static tree234 *timer_contexts = NULL;
 static long now = 0L;
 
 static int compare_timers(void *av, void *bv)
@@ -71,8 +70,10 @@ static int compare_timers(void *av, void *bv)
 
 static int compare_timer_contexts(void *av, void *bv)
 {
-    char *a = (char *)av;
-    char *b = (char *)bv;
+    struct timer *at = (struct timer *)av;
+    struct timer *bt = (struct timer *)bv;
+    char *a = (char *)at->ctx;
+    char *b = (char *)bt->ctx;
     if (a < b)
 	return -1;
     else if (a > b)
@@ -84,7 +85,6 @@ static void init_timers(void)
 {
     if (!timers) {
 	timers = newtree234(compare_timers);
-	timer_contexts = newtree234(compare_timer_contexts);
 	now = GETTICKCOUNT();
     }
 }
@@ -113,8 +113,6 @@ long schedule_timer(int ticks, timer_fn_t fn, void *ctx)
 
     if (t != add234(timers, t)) {
 	sfree(t);		       /* identical timer already exists */
-    } else {
-	add234(timer_contexts, t->ctx);/* don't care if this fails */
     }
 
     first = (struct timer *)index234(timers, 0);
@@ -200,14 +198,7 @@ int run_timers(long anow, long *next)
 	if (!first)
 	    return FALSE;	       /* no timers remaining */
 
-	if (find234(timer_contexts, first->ctx, NULL) == NULL) {
-	    /*
-	     * This timer belongs to a context that has been
-	     * expired. Delete it without running.
-	     */
-	    delpos234(timers, 0);
-	    sfree(first);
-	} else if (first->now - now <= 0) {
+	if (first->now - now <= 0) {
 	    /*
 	     * This timer is active and has reached its running
 	     * time. Run it.
@@ -231,13 +222,24 @@ int run_timers(long anow, long *next)
  */
 void expire_timer_context(void *ctx)
 {
-    init_timers();
+    struct timer *ptr;
+    struct timer exemplar;
 
-    /*
-     * We don't bother to check the return value; if the context
-     * already wasn't in the tree (presumably because no timers
-     * ever actually got scheduled for it) then that's fine and we
-     * simply don't need to do anything.
-     */
-    del234(timer_contexts, ctx);
+    if (!timers) return;
+
+    exemplar.ctx = ctx;
+    /* don't care about initialisation of other members */
+
+    /* Dispose of all timers with this context */
+    while ((ptr = (struct timer *)find234(timers, &exemplar,
+					  compare_timer_contexts))) {
+	del234(timers, ptr);
+	sfree(ptr);
+    }
+
+    /* Dispose of timer tree itself if none are left */
+    if (count234(timers) == 0) {
+	freetree234(timers);
+	timers = NULL;
+    }
 }
