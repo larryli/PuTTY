@@ -1291,14 +1291,14 @@ void notify_remote_exit(void *frontend)
 
 static gint timer_trigger(gpointer data)
 {
-    long now = GPOINTER_TO_INT(data);
+    long now = GPOINTER_TO_SIZE(data);
     long next;
     long ticks;
 
     if (run_timers(now, &next)) {
 	ticks = next - GETTICKCOUNT();
 	timer_id = gtk_timeout_add(ticks > 0 ? ticks : 1, timer_trigger,
-				   GINT_TO_POINTER(next));
+				   GSIZE_TO_POINTER(next));
     }
 
     /*
