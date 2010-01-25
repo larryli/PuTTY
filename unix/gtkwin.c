@@ -1320,7 +1320,7 @@ void timer_change_notify(long next)
 	ticks = 1;		       /* just in case */
 
     timer_id = gtk_timeout_add(ticks, timer_trigger,
-			       GINT_TO_POINTER(next));
+			       GSIZE_TO_POINTER(next));
 }
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
