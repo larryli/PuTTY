@@ -6670,11 +6670,13 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
 	 * wrap up and close the channel ourselves.
 	 */
 	x11_close(c->u.x11.s);
+	c->u.x11.s = NULL;
 	sshfwd_close(c);
     } else if (c->type == CHAN_AGENT) {
 	sshfwd_close(c);
     } else if (c->type == CHAN_SOCKDATA) {
 	pfd_close(c->u.pfd.s);
+	c->u.pfd.s = NULL;
 	sshfwd_close(c);
     }
 }
