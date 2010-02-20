@@ -30,7 +30,8 @@ void printer_job_data(printer_job *pj, void *data, int len)
     if (!pj)
 	return;
 
-    fwrite(data, 1, len, pj->fp);
+    if (fwrite(data, 1, len, pj->fp) < len)
+	/* ignore */;
 }
 
 void printer_finish_job(printer_job *pj)
