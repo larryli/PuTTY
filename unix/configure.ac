@@ -51,6 +51,8 @@ if test "$with_gssapi" != "no"; then
   AC_SEARCH_LIBS([gss_init_sec_context], [gssapi gssapi_krb5 gss])
 fi
 
+AC_CHECK_LIB(X11, XOpenDisplay)
+
 AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 
 AC_OUTPUT
