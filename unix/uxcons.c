@@ -325,18 +325,32 @@ void logevent(void *frontend, const char *string)
     postmsg(&cf);
 }
 
-static void console_data_untrusted(const char *data, int len)
+/*
+ * Special function to print text to the console for password
+ * prompts and the like. Uses /dev/tty or stderr, in that order of
+ * preference; also sanitises escape sequences out of the text, on
+ * the basis that it might have been sent by a hostile SSH server
+ * doing malicious keyboard-interactive.
+ */
+static void console_prompt_text(FILE **confp, const char *data, int len)
 {
     int i;
+
+    if (!*confp) {
+	if ((*confp = fopen("/dev/tty", "w")) == NULL)
+	    *confp = stderr;
+    }
+
     for (i = 0; i < len; i++)
 	if ((data[i] & 0x60) || (data[i] == '\n'))
-	    fputc(data[i], stdout);
-    fflush(stdout);
+	    fputc(data[i], *confp);
+    fflush(*confp);
 }
 
 int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 {
     size_t curr_prompt;
+    FILE *confp = NULL;
 
     /*
      * Zero all the results, in case we abort half-way through.
@@ -356,16 +370,16 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
 	size_t l = strlen(p->name);
-	console_data_untrusted(p->name, l);
+	console_prompt_text(&confp, p->name, l);
 	if (p->name[l-1] != '\n')
-	    console_data_untrusted("\n", 1);
+	    console_prompt_text(&confp, "\n", 1);
     }
     /* ...but we always print any `instruction'. */
     if (p->instruction) {
 	size_t l = strlen(p->instruction);
-	console_data_untrusted(p->instruction, l);
+	console_prompt_text(&confp, p->instruction, l);
 	if (p->instruction[l-1] != '\n')
-	    console_data_untrusted("\n", 1);
+	    console_prompt_text(&confp, "\n", 1);
     }
 
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
@@ -383,7 +397,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 	    newmode.c_lflag |= ECHO;
 	tcsetattr(0, TCSANOW, &newmode);
 
-	console_data_untrusted(pr->prompt, strlen(pr->prompt));
+	console_prompt_text(&confp, pr->prompt, strlen(pr->prompt));
 
 	i = read(0, pr->result, pr->result_len - 1);
 
@@ -394,12 +408,14 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 	pr->result[i] = '\0';
 
 	if (!pr->echo)
-	    fputs("\n", stdout);
+	    console_prompt_text(&confp, "\n", 1);
 
     }
 
-    return 1; /* success */
+    if (confp && confp != stderr)
+	fclose(confp);
 
+    return 1; /* success */
 }
 
 void frontend_keypress(void *handle)
