@@ -1052,19 +1052,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	      case GDK_Begin: case GDK_KP_Begin: xkey = 'G'; break;
 	    }
 	    if (xkey) {
-		/*
-		 * The arrow keys normally do ESC [ A and so on. In
-		 * app cursor keys mode they do ESC O A instead.
-		 * Ctrl toggles the two modes.
-		 */
-		if (inst->term->vt52_mode) {
-		    end = 1 + sprintf(output+1, "\033%c", xkey);
-		} else if (!inst->term->app_cursor_keys ^
-			   !(event->state & GDK_CONTROL_MASK)) {
-		    end = 1 + sprintf(output+1, "\033O%c", xkey);
-		} else {		    
-		    end = 1 + sprintf(output+1, "\033[%c", xkey);
-		}
+		end = 1 + format_arrow_key(output+1, inst->term, xkey,
+					   event->state & GDK_CONTROL_MASK);
 		use_ucsoutput = FALSE;
 		goto done;
 	    }

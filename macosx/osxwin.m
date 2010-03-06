@@ -737,23 +737,8 @@
 	  case NSLeftArrowFunctionKey: xkey = 'D'; break;
 	}
 	if (xkey) {
-	    /*
-	     * The arrow keys normally do ESC [ A and so on. In
-	     * app cursor keys mode they do ESC O A instead.
-	     * Ctrl toggles the two modes.
-	     */
-	    if (term->vt52_mode) {
-		output[end++] = '\033';
-		output[end++] = xkey;
-	    } else if (!term->app_cursor_keys ^ !(m & NSControlKeyMask)) {
-		output[end++] = '\033';
-		output[end++] = 'O';
-		output[end++] = xkey;
-	    } else {
-		output[end++] = '\033';
-		output[end++] = '[';
-		output[end++] = xkey;
-	    }
+	    end += format_arrow_key(output+end, term, xkey,
+				    m & NSControlKeyMask);
 	    goto done;
 	}
     }
