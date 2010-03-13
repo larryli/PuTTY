@@ -427,15 +427,17 @@ number on the \e{server} (note that most servers will not allow you
 to use \I{privileged port}port numbers under 1024 for this purpose).
 
 An alternative way to forward local connections to remote hosts is
-to use \I{dynamic port forwarding}dynamic SOCKS proxying. For
-this, you will need to select the \q{Dynamic} radio button instead
-of \q{Local}, and then you should not enter anything into the
-\q{Destination} box (it will be ignored). This will cause PuTTY to
-listen on the port you have specified, and provide a SOCKS proxy
-service to any programs which connect to that port. So, in
-particular, you can forward other PuTTY connections through it by
-setting up the Proxy control panel (see \k{config-proxy} for
-details).
+to use \I{dynamic port forwarding}dynamic SOCKS proxying. In this
+mode, PuTTY acts as a SOCKS server, which SOCKS-aware programs can
+connect to and open forwarded connections to the destination of their
+choice, so this can be an alternative to long lists of static
+forwardings. To use this mode, you will need to select the \q{Dynamic}
+radio button instead of \q{Local}, and then you should not enter
+anything into the \q{Destination} box (it will be ignored). PuTTY will
+then listen for SOCKS connections on the port you have specified.
+Most \i{web browsers} can be configured to connect to this SOCKS proxy
+service; also, you can forward other PuTTY connections through it by
+setting up the Proxy control panel (see \k{config-proxy} for details).
 
 The source port for a forwarded connection usually does not accept
 connections from any machine except the \I{localhost}SSH client or
@@ -565,7 +567,7 @@ default protocol (see \k{using-cmdline-protocol}).
 
 For telnet sessions, the following alternative syntax is supported
 (this makes PuTTY suitable for use as a URL handler for \i{telnet
-URLs} in web browsers):
+URLs} in \i{web browsers}):
 
 \c putty.exe telnet://host[:port]/
 
