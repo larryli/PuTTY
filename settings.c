@@ -84,9 +84,13 @@ int get_remote_username(Config *cfg, char *user, size_t len)
 	if (cfg->username_from_env) {
 	    /* Use local username. */
 	    char *luser = get_username();
-	    strncpy(user, luser, len);
-	    user[len-1] = '\0';
-	    sfree(luser);
+	    if (luser) {
+		strncpy(user, luser, len);
+		user[len-1] = '\0';
+		sfree(luser);
+	    } else {
+		*user = '\0';
+	    }
 	} else {
 	    *user = '\0';
 	}
