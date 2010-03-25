@@ -171,7 +171,7 @@ version.o: FORCE
 # Add VER to Windows resource targets, and force them to be rebuilt every
 # time, on the assumption that they will contain version information.
 !begin vc vars
-CFLAGS = $(CFLAGS) /DHAS_GSSAPI
+CFLAGS = $(CFLAGS) /DHAS_GSSAPI /DSECURITY_WIN32
 RCFLAGS = $(RCFLAGS) $(VER)
 !end
 !begin cygwin vars
