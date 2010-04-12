@@ -308,9 +308,10 @@ static int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
  */
 
 enum { OSSH_DSA, OSSH_RSA };
+enum { OSSH_ENC_3DES, OSSH_ENC_AES };
 struct openssh_key {
     int type;
-    int encrypted;
+    int encrypted, encryption;
     char iv[32];
     unsigned char *keyblob;
     int keyblob_len, keyblob_size;
@@ -387,21 +388,29 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 		if (!strcmp(p, "ENCRYPTED"))
 		    ret->encrypted = 1;
 	    } else if (!strcmp(line, "DEK-Info")) {
-		int i, j;
+		int i, j, ivlen;
 
-		if (strncmp(p, "DES-EDE3-CBC,", 13)) {
-		    errmsg = "ciphers other than DES-EDE3-CBC not supported";
+		if (!strncmp(p, "DES-EDE3-CBC,", 13)) {
+		    ret->encryption = OSSH_ENC_3DES;
+		    ivlen = 8;
+		} else if (!strncmp(p, "AES-128-CBC,", 12)) {
+		    ret->encryption = OSSH_ENC_AES;
+		    ivlen = 16;
+		} else {
+		    errmsg = "unsupported cipher";
 		    goto error;
 		}
-		p += 13;
-		for (i = 0; i < 8; i++) {
-		    if (1 != sscanf(p, "%2x", &j))
-			break;
+		p = strchr(p, ',') + 1;/* always non-NULL, by above checks */
+		for (i = 0; i < ivlen; i++) {
+		    if (1 != sscanf(p, "%2x", &j)) {
+			errmsg = "expected more iv data in DEK-Info";
+			goto error;
+		    }
 		    ret->iv[i] = j;
 		    p += 2;
 		}
-		if (i < 8) {
-		    errmsg = "expected 16-digit iv in DEK-Info";
+		if (*p) {
+		    errmsg = "more iv data than expected in DEK-Info";
 		    goto error;
 		}
 	    }
@@ -538,8 +547,18 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
 	/*
 	 * Now decrypt the key blob.
 	 */
-	des3_decrypt_pubkey_ossh(keybuf, (unsigned char *)key->iv,
-				 key->keyblob, key->keyblob_len);
+	if (key->encryption == OSSH_ENC_3DES)
+	    des3_decrypt_pubkey_ossh(keybuf, (unsigned char *)key->iv,
+				     key->keyblob, key->keyblob_len);
+	else {
+	    void *ctx;
+	    assert(key->encryption == OSSH_ENC_AES);
+	    ctx = aes_make_context();
+	    aes128_key(ctx, keybuf);
+	    aes_iv(ctx, (unsigned char *)key->iv);
+	    aes_ssh2_decrypt_blk(ctx, key->keyblob, key->keyblob_len);
+	    aes_free_context(ctx);
+	}
 
         memset(&md5c, 0, sizeof(md5c));
         memset(keybuf, 0, sizeof(keybuf));
