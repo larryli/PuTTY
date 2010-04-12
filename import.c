@@ -529,6 +529,10 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
 	 *  - let block B equal MD5(A || passphrase || iv)
 	 *  - block C would be MD5(B || passphrase || iv) and so on
 	 *  - encryption key is the first N bytes of A || B
+	 *
+	 * (Note that only 8 bytes of the iv are used for key
+	 * derivation, even when the key is encrypted with AES and
+	 * hence there are 16 bytes available.)
 	 */
 	struct MD5Context md5c;
 	unsigned char keybuf[32];
@@ -872,6 +876,9 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
 
     /*
      * Encrypt the key.
+     *
+     * For the moment, we still encrypt our OpenSSH keys using
+     * old-style 3DES.
      */
     if (passphrase) {
 	/*
