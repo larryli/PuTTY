@@ -2948,9 +2948,6 @@ enabled when talking to a correct server, the session will succeed,
 but keepalives will not work and the session might be more
 vulnerable to eavesdroppers than it could be.
 
-This is an SSH-1-specific bug. No known SSH-2 server fails to deal
-with SSH-2 ignore messages.
-
 \S{config-ssh-bug-plainpw1} \q{Refuses all SSH-1 \i{password camouflage}}
 
 \cfg{winhelp-topic}{ssh.bugs.plainpw1}
@@ -2991,6 +2988,23 @@ server, the session will succeed, but of course RSA authentication
 will be impossible.
 
 This is an SSH-1-specific bug.
+
+\S{config-ssh-bug-ignore2} \q{Chokes on SSH-2 \i{ignore message}s}
+
+\cfg{winhelp-topic}{ssh.bugs.ignore2}
+
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
+which can be sent from the client to the server, or from the server
+to the client, at any time. Either side is required to ignore the
+message whenever it receives it. PuTTY uses ignore messages in SSH-2
+to confuse the encrypted data stream and make it harder to
+cryptanalyse. It also uses ignore messages for connection
+\i{keepalives} (see \k{config-keepalive}).
+
+If it believes the server to have this bug, PuTTY will stop using
+ignore messages. If this bug is enabled when talking to a correct
+server, the session will succeed, but keepalives will not work and
+the session might be less cryptographically secure than it could be.
 
 \S{config-ssh-bug-hmac2} \q{Miscomputes SSH-2 HMAC keys}
 

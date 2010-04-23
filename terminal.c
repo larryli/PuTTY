@@ -5137,6 +5137,31 @@ void term_scroll(Terminal *term, int rel, int where)
 }
 
 /*
+ * Scroll the scrollback to centre it on the beginning or end of the
+ * current selection, if any.
+ */
+void term_scroll_to_selection(Terminal *term, int which_end)
+{
+    pos target;
+    int y;
+    int sbtop = -sblines(term);
+
+    if (term->selstate != SELECTED)
+	return;
+    if (which_end)
+	target = term->selend;
+    else
+	target = term->selstart;
+
+    y = target.y - term->rows/2;
+    if (y < sbtop)
+	y = sbtop;
+    else if (y > 0)
+	y = 0;
+    term_scroll(term, -1, y);
+}
+
+/*
  * Helper routine for clipme(): growing buffer.
  */
 typedef struct {

@@ -2284,6 +2284,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "Chokes on SSH-1 RSA authentication", 'r', 20,
 			  HELPCTX(ssh_bugs_rsa1),
 			  sshbug_handler, I(offsetof(Config,sshbug_rsa1)));
+	    ctrl_droplist(s, "Chokes on SSH-2 ignore messages", '2', 20,
+			  HELPCTX(ssh_bugs_ignore2),
+			  sshbug_handler, I(offsetof(Config,sshbug_ignore2)));
 	    ctrl_droplist(s, "Miscomputes SSH-2 HMAC keys", 'm', 20,
 			  HELPCTX(ssh_bugs_hmac2),
 			  sshbug_handler, I(offsetof(Config,sshbug_hmac2)));

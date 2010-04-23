@@ -194,6 +194,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_REKEY                           64
 #define BUG_SSH2_PK_SESSIONID                   128
 #define BUG_SSH2_MAXPKT				256
+#define BUG_CHOKES_ON_SSH2_IGNORE               512
 
 /*
  * Codes for terminal modes.
@@ -2011,7 +2012,8 @@ static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt, int noignore)
 {
     int len;
     if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC) &&
-	ssh->deferred_len == 0 && !noignore) {
+	ssh->deferred_len == 0 && !noignore &&
+	!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
 	/*
 	 * Interpose an SSH_MSG_IGNORE to ensure that user data don't
 	 * get encrypted with a known IV.
@@ -2141,7 +2143,8 @@ static void ssh2_pkt_send_with_padding(Ssh ssh, struct Packet *pkt,
 	 * unavailable, we don't do this trick at all, because we
 	 * gain nothing by it.)
 	 */
-	if (ssh->cscipher) {
+	if (ssh->cscipher &&
+	    !(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
 	    int stringlen, i;
 
 	    stringlen = (256 - ssh->deferred_len);
@@ -2507,6 +2510,15 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_SSH2_MAXPKT;
 	logevent("We believe remote version ignores SSH-2 maximum packet size");
+    }
+
+    if (ssh->cfg.sshbug_ignore2 == FORCE_ON) {
+	/*
+	 * Servers that don't support SSH2_MSG_IGNORE. Currently,
+	 * none detected automatically.
+	 */
+	ssh->remote_bugs |= BUG_CHOKES_ON_SSH2_IGNORE;
+	logevent("We believe remote version has SSH-2 ignore bug");
     }
 }
 
@@ -9426,8 +9438,10 @@ static const struct telnet_special *ssh_get_specials(void *handle)
     static const struct telnet_special ssh1_ignore_special[] = {
 	{"IGNORE message", TS_NOP}
     };
-    static const struct telnet_special ssh2_transport_specials[] = {
+    static const struct telnet_special ssh2_ignore_special[] = {
 	{"IGNORE message", TS_NOP},
+    };
+    static const struct telnet_special ssh2_rekey_special[] = {
 	{"Repeat key exchange", TS_REKEY},
     };
     static const struct telnet_special ssh2_session_specials[] = {
@@ -9452,7 +9466,8 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 	{NULL, TS_EXITMENU}
     };
     /* XXX review this length for any changes: */
-    static struct telnet_special ssh_specials[lenof(ssh2_transport_specials) +
+    static struct telnet_special ssh_specials[lenof(ssh2_ignore_special) +
+					      lenof(ssh2_rekey_special) +
 					      lenof(ssh2_session_specials) +
 					      lenof(specials_end)];
     Ssh ssh = (Ssh) handle;
@@ -9471,7 +9486,10 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
 	    ADD_SPECIALS(ssh1_ignore_special);
     } else if (ssh->version == 2) {
-	ADD_SPECIALS(ssh2_transport_specials);
+	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE))
+	    ADD_SPECIALS(ssh2_ignore_special);
+	if (!(ssh->remote_bugs & BUG_SSH2_REKEY))
+	    ADD_SPECIALS(ssh2_rekey_special);
 	if (ssh->mainchan)
 	    ADD_SPECIALS(ssh2_session_specials);
     } /* else we're not ready yet */
@@ -9521,9 +9539,11 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
 		send_packet(ssh, SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
 	} else {
-	    pktout = ssh2_pkt_init(SSH2_MSG_IGNORE);
-	    ssh2_pkt_addstring_start(pktout);
-	    ssh2_pkt_send_noqueue(ssh, pktout);
+	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
+		pktout = ssh2_pkt_init(SSH2_MSG_IGNORE);
+		ssh2_pkt_addstring_start(pktout);
+		ssh2_pkt_send_noqueue(ssh, pktout);
+	    }
 	}
     } else if (code == TS_REKEY) {
 	if (!ssh->kex_in_progress && ssh->version == 2) {

@@ -592,7 +592,8 @@ struct config_tag {
     /* SSH bug compatibility modes */
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
-	sshbug_pksessid2, sshbug_rekey2, sshbug_maxpkt2;
+	sshbug_pksessid2, sshbug_rekey2, sshbug_maxpkt2,
+	sshbug_ignore2;
     /*
      * ssh_simple means that we promise never to open any channel other
      * than the main one, which means it can safely use a very large
@@ -825,6 +826,7 @@ void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
 void term_paint(Terminal *, Context, int, int, int, int, int);
 void term_scroll(Terminal *, int, int);
+void term_scroll_to_selection(Terminal *, int);
 void term_pwron(Terminal *, int);
 void term_clrsb(Terminal *);
 void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,

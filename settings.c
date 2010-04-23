@@ -477,6 +477,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "BugIgnore1", 2-cfg->sshbug_ignore1);
     write_setting_i(sesskey, "BugPlainPW1", 2-cfg->sshbug_plainpw1);
     write_setting_i(sesskey, "BugRSA1", 2-cfg->sshbug_rsa1);
+    write_setting_i(sesskey, "BugIgnore2", 2-cfg->sshbug_ignore2);
     write_setting_i(sesskey, "BugHMAC2", 2-cfg->sshbug_hmac2);
     write_setting_i(sesskey, "BugDeriveKey2", 2-cfg->sshbug_derivekey2);
     write_setting_i(sesskey, "BugRSAPad2", 2-cfg->sshbug_rsapad2);
@@ -817,6 +818,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "BugIgnore1", 0, &i); cfg->sshbug_ignore1 = 2-i;
     gppi(sesskey, "BugPlainPW1", 0, &i); cfg->sshbug_plainpw1 = 2-i;
     gppi(sesskey, "BugRSA1", 0, &i); cfg->sshbug_rsa1 = 2-i;
+    gppi(sesskey, "BugIgnore2", 0, &i); cfg->sshbug_ignore2 = 2-i;
     {
 	int i;
 	gppi(sesskey, "BugHMAC2", 0, &i); cfg->sshbug_hmac2 = 2-i;
