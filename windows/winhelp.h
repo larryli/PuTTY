@@ -133,6 +133,7 @@
 #define WINHELP_CTX_ssh_bugs_ignore1 "ssh.bugs.ignore1:config-ssh-bug-ignore1"
 #define WINHELP_CTX_ssh_bugs_plainpw1 "ssh.bugs.plainpw1:config-ssh-bug-plainpw1"
 #define WINHELP_CTX_ssh_bugs_rsa1 "ssh.bugs.rsa1:config-ssh-bug-rsa1"
+#define WINHELP_CTX_ssh_bugs_ignore2 "ssh.bugs.ignore2:config-ssh-bug-ignore2"
 #define WINHELP_CTX_ssh_bugs_hmac2 "ssh.bugs.hmac2:config-ssh-bug-hmac2"
 #define WINHELP_CTX_ssh_bugs_derivekey2 "ssh.bugs.derivekey2:config-ssh-bug-derivekey2"
 #define WINHELP_CTX_ssh_bugs_rsapad2 "ssh.bugs.rsapad2:config-ssh-bug-sig"
