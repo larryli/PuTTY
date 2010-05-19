@@ -944,9 +944,14 @@ if (defined $makefiles{'gtk'}) {
     "XLDFLAGS = \$(LDFLAGS) \$(shell \$(GTK_CONFIG) --libs)\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
     "ifeq (,\$(findstring NO_GSSAPI,\$(COMPAT)))\n".
-    "CFLAGS+= \$(shell \$(KRB5CONFIG) --cflags gssapi)\n".
+    "ifeq (,\$(findstring STATIC_GSSAPI,\$(COMPAT)))\n".
+    "XLDFLAGS+= -ldl\n".
+    "ULDFLAGS+= -ldl\n".
+    "else\n".
+    "CFLAGS+= -DNO_LIBDL \$(shell \$(KRB5CONFIG) --cflags gssapi)\n".
     "XLDFLAGS+= \$(shell \$(KRB5CONFIG) --libs gssapi)\n".
-    "ULDFLAGS = \$(shell \$(KRB5CONFIG) --libs gssapi)\n".
+    "ULDFLAGS+= \$(shell \$(KRB5CONFIG) --libs gssapi)\n".
+    "endif\n".
     "endif\n".
     "INSTALL=install\n".
     "INSTALL_PROGRAM=\$(INSTALL)\n".
@@ -1006,8 +1011,6 @@ if (defined $makefiles{'unix'}) {
     "# You can define this path to point at your tools if you need to\n".
     "# TOOLPATH = /opt/gcc/bin\n".
     "CC = \$(TOOLPATH)cc\n".
-    "# If necessary set the path to krb5-config here\n".
-    "KRB5CONFIG=krb5-config\n".
     "\n".
     "-include Makefile.local\n".
     "\n".
@@ -1017,10 +1020,6 @@ if (defined $makefiles{'unix'}) {
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs)).
 		 " -D _FILE_OFFSET_BITS=64\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
-    "ifeq (,\$(findstring NO_GSSAPI,\$(COMPAT)))\n".
-    "CFLAGS+= \$(shell \$(KRB5CONFIG) --cflags gssapi)\n".
-    "ULDFLAGS = \$(shell \$(KRB5CONFIG) --libs gssapi)\n".
-    "endif\n".
     "INSTALL=install\n".
     "INSTALL_PROGRAM=\$(INSTALL)\n".
     "INSTALL_DATA=\$(INSTALL)\n".

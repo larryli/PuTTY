@@ -8,11 +8,6 @@
 #include "putty.h"
 #include "storage.h"
 
-/*
- * Tables of string <-> enum value mappings
- */
-struct keyval { char *s; int v; };
-
 /* The cipher order given here is the default order. */
 static const struct keyval ciphernames[] = {
     { "aes",	    CIPHER_AES },
@@ -356,6 +351,8 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "AuthGSSAPI", cfg->try_gssapi_auth);
+    wprefs(sesskey, "GSSLibs", gsslibkeywords, ngsslibs,
+	   cfg->ssh_gsslist);
     write_setting_i(sesskey, "SshNoShell", cfg->ssh_no_shell);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_s(sesskey, "LogHost", cfg->loghost);
@@ -645,6 +642,8 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
     gppi(sesskey, "AuthGSSAPI", 1, &cfg->try_gssapi_auth);
+    gprefs(sesskey, "GSSList", "\0",
+	   gsslibkeywords, ngsslibs, cfg->ssh_gsslist);
     gppi(sesskey, "SshNoShell", 0, &cfg->ssh_no_shell);
     gppfile(sesskey, "PublicKeyFile", &cfg->keyfile);
     gpps(sesskey, "RemoteCommand", "", cfg->remote_cmd,

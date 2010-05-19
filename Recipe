@@ -100,6 +100,10 @@
 #      Disables PuTTY's ability to use GSSAPI functions for
 #      authentication and key exchange.
 #
+#  - COMPAT=/DSTATIC_GSSAPI
+#      Causes PuTTY to try to link statically against the GSSAPI
+#      library instead of the default of doing it at run time.
+#
 #  - COMPAT=/DMSVC4 (Windows only)
 #  - RCFL=/DMSVC4
 #      Makes a couple of minor changes so that PuTTY compiles using
@@ -261,9 +265,10 @@ NONSSH   = telnet raw rlogin ldisc pinger
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
+         + sshgssc pgssapi
 WINSSH   = SSH winnoise winpgntc wingss
 UXSSH    = SSH uxnoise uxagentc uxgss
-MACSSH   = SSH macnoise
+MACSSH   = SSH macnoise sshnogss
 
 # SFTP implementation (pscp, psftp).
 SFTP     = sftp int64 logging
@@ -304,7 +309,7 @@ U_BE_NOSSH = be_nos_s uxser nocproxy
 # X/GTK Unix app, [U] for command-line Unix app, [M] for Macintosh app.
 
 putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
-puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res LIBS
+puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
 plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
          + winx11 plink.res LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
@@ -323,11 +328,13 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
+	 + nogss
 putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
          + xpmpucfg
 puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC xpmputty xpmpucfg
+	 + nogss
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11
@@ -345,7 +352,7 @@ PuTTY    : [M] terminal wcwidth ldiscucs logging BE_ALL mac macdlg macevlog
          + stricmp vsnprint dialog config macctrls minibidi
 PuTTYtel : [M] terminal wcwidth ldiscucs logging BE_NOSSH mac macdlg
 	 + macevlog macterm macucs mac_res.rsrc testback NONSSH MACMISC
-	 + CHARSET stricmp vsnprint dialog config macctrls minibidi
+	 + CHARSET stricmp vsnprint dialog config macctrls minibidi nogss
 PuTTYgen : [M] macpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand macnoise sshsha macstore misc sshrsa sshdss macmisc sshpubk
          + sshaes sshsh256 sshsh512 import macpgen.rsrc macpgkey macabout

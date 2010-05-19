@@ -348,6 +348,19 @@ enum {
     SER_FLOW_NONE, SER_FLOW_XONXOFF, SER_FLOW_RTSCTS, SER_FLOW_DSRDTR
 };
 
+/*
+ * Tables of string <-> enum value mappings used in settings.c.
+ * Defined here so that backends can export their GSS library tables
+ * to the cross-platform settings code.
+ */
+struct keyval { char *s; int v; };
+
+#ifndef NO_GSSAPI
+extern const int ngsslibs;
+extern const char *const gsslibnames[];/* for displaying in configuration */
+extern const struct keyval gsslibkeywords[];   /* for storing by settings.c */
+#endif
+
 extern const char *const ttymodes[];
 
 enum {
@@ -461,6 +474,7 @@ struct config_tag {
     int try_ki_auth;
     int try_gssapi_auth;               /* attempt gssapi auth */
     int gssapifwd;                     /* forward tgt via gss */
+    int ssh_gsslist[4];		       /* preference order for local GSS libs */
     int ssh_subsys;		       /* run a subsystem rather than a command */
     int ssh_subsys2;		       /* fallback to go with remote_cmd_ptr2 */
     int ssh_no_shell;		       /* avoid running a shell */

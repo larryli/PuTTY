@@ -44,6 +44,9 @@ struct FontSpec {
 #define BYTE UInt8
 #define DWORD UInt32
 
+typedef UInt32 uint32;
+#define PUTTY_UINT32_DEFINED
+
 #define OPTIMISE_SCROLL
 
 /*

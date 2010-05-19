@@ -220,7 +220,7 @@ void close_settings_w(void *handle)
  * FIXME: the above comment is a bit out of date. Did it happen?
  */
 
-struct keyval {
+struct skeyval {
     const char *key;
     const char *value;
 };
@@ -229,15 +229,15 @@ static tree234 *xrmtree = NULL;
 
 int keycmp(void *av, void *bv)
 {
-    struct keyval *a = (struct keyval *)av;
-    struct keyval *b = (struct keyval *)bv;
+    struct skeyval *a = (struct skeyval *)av;
+    struct skeyval *b = (struct skeyval *)bv;
     return strcmp(a->key, b->key);
 }
 
 void provide_xrm_string(char *string)
 {
     char *p, *q, *key;
-    struct keyval *xrms, *ret;
+    struct skeyval *xrms, *ret;
 
     p = q = strchr(string, ':');
     if (!q) {
@@ -248,7 +248,7 @@ void provide_xrm_string(char *string)
     q++;
     while (p > string && p[-1] != '.' && p[-1] != '*')
 	p--;
-    xrms = snew(struct keyval);
+    xrms = snew(struct skeyval);
     key = snewn(q-p, char);
     memcpy(key, p, q-p);
     key[q-p-1] = '\0';
@@ -270,7 +270,7 @@ void provide_xrm_string(char *string)
 
 const char *get_setting(const char *key)
 {
-    struct keyval tmp, *ret;
+    struct skeyval tmp, *ret;
     tmp.key = key;
     if (xrmtree) {
 	ret = find234(xrmtree, &tmp, NULL);
@@ -297,14 +297,14 @@ void *open_settings_r(const char *sessionname)
 
     while ( (line = fgetline(fp)) ) {
         char *value = strchr(line, '=');
-        struct keyval *kv;
+        struct skeyval *kv;
 
         if (!value)
             continue;
         *value++ = '\0';
         value[strcspn(value, "\r\n")] = '\0';   /* trim trailing NL */
 
-        kv = snew(struct keyval);
+        kv = snew(struct skeyval);
         kv->key = dupstr(line);
         kv->value = dupstr(value);
         add234(ret, kv);
@@ -321,7 +321,7 @@ char *read_setting_s(void *handle, const char *key, char *buffer, int buflen)
 {
     tree234 *tree = (tree234 *)handle;
     const char *val;
-    struct keyval tmp, *kv;
+    struct skeyval tmp, *kv;
 
     tmp.key = key;
     if (tree != NULL &&
@@ -344,7 +344,7 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 {
     tree234 *tree = (tree234 *)handle;
     const char *val;
-    struct keyval tmp, *kv;
+    struct skeyval tmp, *kv;
 
     tmp.key = key;
     if (tree != NULL &&
@@ -416,7 +416,7 @@ void write_setting_filename(void *handle, const char *name, Filename result)
 void close_settings_r(void *handle)
 {
     tree234 *tree = (tree234 *)handle;
-    struct keyval *kv;
+    struct skeyval *kv;
 
     if (!tree)
         return;

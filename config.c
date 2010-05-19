@@ -236,6 +236,33 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
     }
 }
 
+#ifndef NO_GSSAPI
+static void gsslist_handler(union control *ctrl, void *dlg,
+			    void *data, int event)
+{
+    Config *cfg = (Config *)data;
+    if (event == EVENT_REFRESH) {
+	int i;
+
+	dlg_update_start(ctrl, dlg);
+	dlg_listbox_clear(ctrl, dlg);
+	for (i = 0; i < ngsslibs; i++) {
+	    int id = cfg->ssh_gsslist[i];
+	    assert(id >= 0 && id < ngsslibs);
+	    dlg_listbox_addwithid(ctrl, dlg, gsslibnames[id], id);
+	}
+	dlg_update_done(ctrl, dlg);
+
+    } else if (event == EVENT_VALCHANGE) {
+	int i;
+
+	/* Update array to match the list box. */
+	for (i=0; i < ngsslibs; i++)
+	    cfg->ssh_gsslist[i] = dlg_listbox_getid(ctrl, dlg, i);
+    }
+}
+#endif
+
 static void kexlist_handler(union control *ctrl, void *dlg,
 			    void *data, int event)
 {
@@ -2089,7 +2116,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
 			  HELPCTX(ssh_auth_agentfwd),
 			  dlg_stdcheckbox_handler, I(offsetof(Config,agentfwd)));
-	    ctrl_checkbox(s, "Allow attempted changes of username in SSH-2", 'u',
+	    ctrl_checkbox(s, "Allow attempted changes of username in SSH-2", NO_SHORTCUT,
 			  HELPCTX(ssh_auth_changeuser),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,change_username)));
@@ -2103,6 +2130,18 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 FILTER_KEY_FILES, FALSE, "Select private key file",
 			 HELPCTX(ssh_auth_privkey),
 			 dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
+
+#ifndef NO_GSSAPI
+	    /*
+	     * GSSAPI library selection.
+	     */
+	    if (ngsslibs > 1) {
+		c = ctrl_draglist(s, "Preference order for GSSAPI libraries:", NO_SHORTCUT,
+				  HELPCTX(no_help),
+				  gsslist_handler, P(NULL));
+		c->listbox.height = ngsslibs;
+	    }
+#endif
 	}
 
 	if (!midsession) {

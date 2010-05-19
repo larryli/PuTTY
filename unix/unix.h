@@ -6,6 +6,10 @@
 #endif
 
 #include <stdio.h>		       /* for FILENAME_MAX */
+#include <stdint.h>		       /* C99 int types */
+#ifndef NO_LIBDL
+#include <dlfcn.h>		       /* Dynamic library loading */
+#endif /*  NO_LIBDL */
 #include "charset.h"
 
 struct Filename {
@@ -23,6 +27,9 @@ typedef int OSSocket;
 #define OSSOCKET_DEFINED	       /* stop network.h using its default */
 
 extern Backend pty_backend;
+
+typedef uint32_t uint32; /* C99: uint32_t defined in stdint.h */
+#define PUTTY_UINT32_DEFINED
 
 /*
  * Under GTK, we send MA_CLICK _and_ MA_2CLK, or MA_CLICK _and_
@@ -59,16 +66,6 @@ extern long tickcount_offset;
 
 #define WCHAR wchar_t
 #define BYTE unsigned char
-
-#ifndef NO_GSSAPI
-/*
- * GSS-API stuff
- */
-#include <gssapi/gssapi.h>
-typedef gss_buffer_desc Ssh_gss_buf;
-#define SSH_GSS_EMPTY_BUF GSS_C_EMPTY_BUFFER
-typedef gss_name_t Ssh_gss_name;
-#endif
 
 /*
  * Unix-specific global flag
