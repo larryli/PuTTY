@@ -32,7 +32,7 @@ AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <utmp.h>])
 
 # Look for both GTK 1 and GTK 2.
-# AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
+AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
 AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
 if test "$gtk" = "none"; then
   all_targets="all-cli"
