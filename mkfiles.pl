@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
 #
 # Cross-platform Makefile generator.
 #
@@ -15,6 +15,7 @@
 #
 # FIXME: no attempt made to handle !forceobj in the project files.
 
+use warnings;
 use FileHandle;
 use Cwd;
 
