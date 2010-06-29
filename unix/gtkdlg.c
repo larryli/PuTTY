@@ -3506,6 +3506,8 @@ void about_box(void *window)
     gtk_widget_show(w);
 
     set_transient_window_pos(GTK_WIDGET(window), aboutbox);
+    gtk_window_set_transient_for(GTK_WINDOW(aboutbox),
+				 GTK_WINDOW(window));
     gtk_widget_show(aboutbox);
 }
 
