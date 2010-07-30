@@ -4350,6 +4350,7 @@ static void ssh_rportfwd_succfail(Ssh ssh, struct Packet *pktin, void *ctx)
 
 	rpf = del234(ssh->rportfwds, pf);
 	assert(rpf == pf);
+	pf->pfrec->remote = NULL;
 	free_rportfwd(pf);
     }
 }
@@ -4526,6 +4527,8 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 	    logeventf(ssh, "Cancelling %s", message);
 	    sfree(message);
 
+	    /* epf->remote or epf->local may be NULL if setting up a
+	     * forwarding failed. */
 	    if (epf->remote) {
 		struct ssh_rportfwd *rpf = epf->remote;
 		struct Packet *pktout;
@@ -9346,7 +9349,7 @@ static void ssh_free(void *handle)
 
     if (ssh->rportfwds) {
 	while ((pf = delpos234(ssh->rportfwds, 0)) != NULL)
-	    sfree(pf);
+	    free_rportfwd(pf);
 	freetree234(ssh->rportfwds);
 	ssh->rportfwds = NULL;
     }
