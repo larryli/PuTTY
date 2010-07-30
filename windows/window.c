@@ -1331,7 +1331,7 @@ debug(("general_textout: done, xn=%d\n", xn));
 
 /*
  * Initialise all the fonts we will need initially. There may be as many as
- * three or as few as one.  The other (poentially) twentyone fonts are done
+ * three or as few as one.  The other (potentially) twenty-one fonts are done
  * if/when they are needed.
  *
  * We also:
