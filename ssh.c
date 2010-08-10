@@ -7538,6 +7538,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	}
 
 	while (1) {
+	    char *methods = NULL;
+	    int methlen = 0;
+
 	    /*
 	     * Wait for the result of the last authentication request.
 	     */
@@ -7587,8 +7590,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	     * helpfully try next.
 	     */
 	    if (pktin->type == SSH2_MSG_USERAUTH_FAILURE) {
-		char *methods;
-		int methlen;
 		ssh_pkt_getstring(pktin, &methods, &methlen);
 		if (!ssh2_pkt_getbool(pktin)) {
 		    /*
@@ -8552,11 +8553,16 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		sfree(s->password);
 
 	    } else {
+		char *str = dupprintf("No supported authentication methods available"
+				      " (server sent: %.*s)",
+				      methlen, methods);
 
-		ssh_disconnect(ssh, NULL,
+		ssh_disconnect(ssh, str,
 			       "No supported authentication methods available",
 			       SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE,
 			       FALSE);
+		sfree(str);
+
 		crStopV;
 
 	    }
