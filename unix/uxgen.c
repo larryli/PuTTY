@@ -32,5 +32,7 @@ char *get_random_data(int len)
 	ngot += ret;
     }
 
+    close(fd);
+
     return buf;
 }
