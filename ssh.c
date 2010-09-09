@@ -4164,7 +4164,7 @@ void sshfwd_close(struct ssh_channel *c)
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (c && !c->closes) {
+    if (!c->closes) {
 	/*
 	 * If halfopen is true, we have sent
 	 * CHANNEL_OPEN for this channel, but it hasn't even been
