@@ -102,7 +102,7 @@ void ssh_gss_init(void)
     }
 
     /* Microsoft SSPI Implementation */
-    module = LoadLibrary("secur32.dll");
+    module = load_system32_dll("secur32.dll");
     if (module) {
 	struct ssh_gss_library *lib =
 	    &ssh_gss_libraries[n_ssh_gss_libraries++];

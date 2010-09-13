@@ -446,6 +446,7 @@ void show_help(HWND hwnd);
  */
 extern OSVERSIONINFO osVersion;
 BOOL init_winver(void);
+HMODULE load_system32_dll(const char *libname);
 
 /*
  * Exports from sizetip.c.

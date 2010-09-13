@@ -1972,7 +1972,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	/*
 	 * Attempt to get the security API we need.
 	 */
-	advapi = LoadLibrary("ADVAPI32.DLL");
+	advapi = load_system32_dll("advapi32.dll");
 	GET_WINDOWS_FUNCTION(advapi, GetSecurityInfo);
 	if (!p_GetSecurityInfo) {
 	    MessageBox(NULL,

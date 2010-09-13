@@ -5019,7 +5019,7 @@ DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 
 static void init_flashwindow(void)
 {
-    HMODULE user32_module = LoadLibrary("USER32.DLL");
+    HMODULE user32_module = load_system32_dll("user32.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
 }
 

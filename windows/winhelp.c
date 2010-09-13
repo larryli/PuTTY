@@ -55,7 +55,7 @@ void init_help(void)
     } else
 	chm_path = NULL;
     if (chm_path) {
-	HINSTANCE dllHH = LoadLibrary("hhctrl.ocx");
+	HINSTANCE dllHH = load_system32_dll("hhctrl.ocx");
 	GET_WINDOWS_FUNCTION(dllHH, HtmlHelpA);
 	if (!p_HtmlHelpA) {
 	    chm_path = NULL;
