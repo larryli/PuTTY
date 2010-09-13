@@ -19,7 +19,7 @@ static int initialised = FALSE;
 const int ngsslibs = 2;
 const char *const gsslibnames[2] = {
     "GSSAPI32.DLL (MIT Kerberos)",
-    "SSPI.DLL (Microsoft SSPI)",
+    "SECUR32.DLL (Microsoft SSPI)",
 };
 const struct keyval gsslibkeywords[] = {
     { "gssapi32", 0 },
