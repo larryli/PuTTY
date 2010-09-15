@@ -642,7 +642,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
     gppi(sesskey, "AuthGSSAPI", 1, &cfg->try_gssapi_auth);
-    gprefs(sesskey, "GSSList", "\0",
+    gprefs(sesskey, "GSSLibs", "\0",
 	   gsslibkeywords, ngsslibs, cfg->ssh_gsslist);
     gppi(sesskey, "SshNoShell", 0, &cfg->ssh_no_shell);
     gppfile(sesskey, "PublicKeyFile", &cfg->keyfile);
