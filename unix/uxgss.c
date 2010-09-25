@@ -6,23 +6,21 @@
 
 /* Unix code to set up the GSSAPI library list. */
 
-struct ssh_gss_library ssh_gss_libraries[3];
-int n_ssh_gss_libraries = 0;
-static int initialised = FALSE;
+#if !defined NO_LIBDL && !defined NO_GSSAPI
 
-const int ngsslibs = 3;
-const char *const gsslibnames[3] = {
+const int ngsslibs = 4;
+const char *const gsslibnames[4] = {
     "libgssapi (Heimdal)",
     "libgssapi_krb5 (MIT Kerberos)",
     "libgss (Sun)",
+    "User-specified GSSAPI library",
 };
 const struct keyval gsslibkeywords[] = {
     { "libgssapi", 0 },
     { "libgssapi_krb5", 1 },
     { "libgss", 2 },
+    { "custom", 3 },
 };
-
-#ifndef NO_LIBDL
 
 /*
  * Run-time binding against a choice of GSSAPI implementations. We
@@ -35,6 +33,7 @@ static void gss_init(struct ssh_gss_library *lib, void *dlhandle,
 {
     lib->id = id;
     lib->gsslogmsg = msg;
+    lib->handle = dlhandle;
 
 #define BIND_GSS_FN(name) \
     lib->u.gssapi.name = (t_gss_##name) dlsym(dlhandle, "gss_" #name)
@@ -54,30 +53,72 @@ static void gss_init(struct ssh_gss_library *lib, void *dlhandle,
 }
 
 /* Dynamically load gssapi libs. */
-void ssh_gss_init(void)
+struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
 {
     void *gsslib;
+    struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
 
-    if (initialised) return;
-    initialised = TRUE;
+    list->libraries = snewn(4, struct ssh_gss_library);
+    list->nlibraries = 0;
 
     /* Heimdal's GSSAPI Library */
     if ((gsslib = dlopen("libgssapi.so.2", RTLD_LAZY)) != NULL)
-	gss_init(&ssh_gss_libraries[n_ssh_gss_libraries++], gsslib,
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
 		 0, "Using GSSAPI from libgssapi.so.2");
 
     /* MIT Kerberos's GSSAPI Library */
     if ((gsslib = dlopen("libgssapi_krb5.so.2", RTLD_LAZY)) != NULL)
-	gss_init(&ssh_gss_libraries[n_ssh_gss_libraries++], gsslib,
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
 		 1, "Using GSSAPI from libgssapi_krb5.so.2");
 
     /* Sun's GSSAPI Library */
     if ((gsslib = dlopen("libgss.so.1", RTLD_LAZY)) != NULL)
-	gss_init(&ssh_gss_libraries[n_ssh_gss_libraries++], gsslib,
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
 		 2, "Using GSSAPI from libgss.so.1");
+
+    /* User-specified GSSAPI library */
+    if (cfg->ssh_gss_custom.path[0] &&
+	(gsslib = dlopen(cfg->ssh_gss_custom.path, RTLD_LAZY)) != NULL)
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
+		 3, dupprintf("Using GSSAPI from user-specified"
+			      " library '%s'", cfg->ssh_gss_custom.path));
+
+    return list;
 }
 
-#else /* NO_LIBDL */
+void ssh_gss_cleanup(struct ssh_gss_liblist *list)
+{
+    int i;
+
+    /*
+     * dlopen and dlclose are defined to employ reference counting
+     * in the case where the same library is repeatedly dlopened, so
+     * even in a multiple-sessions-per-process context it's safe to
+     * naively dlclose everything here without worrying about
+     * destroying it under the feet of another SSH instance still
+     * using it.
+     */
+    for (i = 0; i < list->nlibraries; i++) {
+	dlclose(list->libraries[i].handle);
+	if (list->libraries[i].id == 3) {
+	    /* The 'custom' id involves a dynamically allocated message.
+	     * Note that we must cast away the 'const' to free it. */
+	    sfree((char *)list->libraries[i].gsslogmsg);
+	}
+    }
+    sfree(list->libraries);
+    sfree(list);
+}
+
+#elif !defined NO_GSSAPI
+
+const int ngsslibs = 1;
+const char *const gsslibnames[1] = {
+    "static",
+};
+const struct keyval gsslibkeywords[] = {
+    { "static", 0 },
+};
 
 /*
  * Link-time binding against GSSAPI. Here we just construct a single
@@ -88,16 +129,17 @@ void ssh_gss_init(void)
 #include <gssapi/gssapi.h>
 
 /* Dynamically load gssapi libs. */
-void ssh_gss_init(void)
+struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
 {
-    if (initialised) return;
-    initialised = TRUE;
+    struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
 
-    n_ssh_gss_libraries = 1;
-    ssh_gss_libraries[0].gsslogmsg = "Using statically linked GSSAPI";
+    list->libraries = snew(struct ssh_gss_library);
+    list->nlibraries = 1;
+
+    list->libraries[0].gsslogmsg = "Using statically linked GSSAPI";
 
 #define BIND_GSS_FN(name) \
-    ssh_gss_libraries[0].u.gssapi.name = (t_gss_##name) gss_##name
+    list->libraries[0].u.gssapi.name = (t_gss_##name) gss_##name
 
     BIND_GSS_FN(delete_sec_context);
     BIND_GSS_FN(display_status);
@@ -110,7 +152,15 @@ void ssh_gss_init(void)
 
 #undef BIND_GSS_FN
 
-    ssh_gssapi_bind_fns(&ssh_gss_libraries[0]);
+    ssh_gssapi_bind_fns(&list->libraries[0]);
+
+    return list;
+}
+
+void ssh_gss_cleanup(struct ssh_gss_liblist *list)
+{
+    sfree(list->libraries);
+    sfree(list);
 }
 
 #endif /* NO_LIBDL */

@@ -2104,13 +2104,6 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,try_ki_auth)));
 
-#ifndef NO_GSSAPI
-	    ctrl_checkbox(s, "Attempt GSSAPI auth (SSH-2)",
-			  NO_SHORTCUT, HELPCTX(no_help),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,try_gssapi_auth)));
-#endif
-
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "params",
 			    "Authentication parameters");
 	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
@@ -2120,12 +2113,6 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(ssh_auth_changeuser),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,change_username)));
-#ifndef NO_GSSAPI
-	    ctrl_checkbox(s, "Allow GSSAPI credential delegation in SSH-2", NO_SHORTCUT,
-			  HELPCTX(no_help),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,gssapifwd)));
-#endif
 	    ctrl_filesel(s, "Private key file for authentication:", 'k',
 			 FILTER_KEY_FILES, FALSE, "Select private key file",
 			 HELPCTX(ssh_auth_privkey),
@@ -2133,13 +2120,56 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 #ifndef NO_GSSAPI
 	    /*
+	     * Connection/SSH/Auth/GSSAPI, which sadly won't fit on
+	     * the main Auth panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Auth/GSSAPI",
+			  "Options controlling GSSAPI authentication");
+	    s = ctrl_getset(b, "Connection/SSH/Auth/GSSAPI", "gssapi", NULL);
+
+	    ctrl_checkbox(s, "Attempt GSSAPI authentication (SSH-2 only)",
+			  NO_SHORTCUT, HELPCTX(ssh_gssapi),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_gssapi_auth)));
+
+	    ctrl_checkbox(s, "Allow GSSAPI credential delegation", NO_SHORTCUT,
+			  HELPCTX(ssh_gssapi_delegation),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,gssapifwd)));
+
+	    /*
 	     * GSSAPI library selection.
 	     */
 	    if (ngsslibs > 1) {
 		c = ctrl_draglist(s, "Preference order for GSSAPI libraries:", NO_SHORTCUT,
-				  HELPCTX(no_help),
+				  HELPCTX(ssh_gssapi_libraries),
 				  gsslist_handler, P(NULL));
 		c->listbox.height = ngsslibs;
+
+		/*
+		 * I currently assume that if more than one GSS
+		 * library option is available, then one of them is
+		 * 'user-supplied' and so we should present the
+		 * following file selector. This is at least half-
+		 * reasonable, because if we're using statically
+		 * linked GSSAPI then there will only be one option
+		 * and no way to load from a user-supplied library,
+		 * whereas if we're using dynamic libraries then
+		 * there will almost certainly be some default
+		 * option in addition to a user-supplied path. If
+		 * anyone ever ports PuTTY to a system on which
+		 * dynamic-library GSSAPI is available but there is
+		 * absolutely no consensus on where to keep the
+		 * libraries, there'll need to be a flag alongside
+		 * ngsslibs to control whether the file selector is
+		 * displayed. 
+		 */
+
+		ctrl_filesel(s, "User-supplied GSSAPI library path:", 'l',
+			     FILTER_DYNLIB_FILES, FALSE, "Select library file",
+			     HELPCTX(ssh_gssapi_libraries),
+			     dlg_stdfilesel_handler,
+			     I(offsetof(Config, ssh_gss_custom)));
 	    }
 #endif
 	}

@@ -42,6 +42,7 @@ typedef uint32_t uint32; /* C99: uint32_t defined in stdint.h */
  */
 #define HELPCTX(x) P(NULL)
 #define FILTER_KEY_FILES NULL          /* FIXME */
+#define FILTER_DYNLIB_FILES NULL       /* FIXME */
 
 /*
  * Under X, selection data must not be NUL-terminated.

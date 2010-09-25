@@ -351,8 +351,11 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "AuthTIS", cfg->try_tis_auth);
     write_setting_i(sesskey, "AuthKI", cfg->try_ki_auth);
     write_setting_i(sesskey, "AuthGSSAPI", cfg->try_gssapi_auth);
+#ifndef NO_GSSAPI
     wprefs(sesskey, "GSSLibs", gsslibkeywords, ngsslibs,
 	   cfg->ssh_gsslist);
+    write_setting_filename(sesskey, "GSSCustom", cfg->ssh_gss_custom);
+#endif
     write_setting_i(sesskey, "SshNoShell", cfg->ssh_no_shell);
     write_setting_i(sesskey, "SshProt", cfg->sshprot);
     write_setting_s(sesskey, "LogHost", cfg->loghost);
@@ -642,8 +645,11 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "AuthTIS", 0, &cfg->try_tis_auth);
     gppi(sesskey, "AuthKI", 1, &cfg->try_ki_auth);
     gppi(sesskey, "AuthGSSAPI", 1, &cfg->try_gssapi_auth);
+#ifndef NO_GSSAPI
     gprefs(sesskey, "GSSLibs", "\0",
 	   gsslibkeywords, ngsslibs, cfg->ssh_gsslist);
+    gppfile(sesskey, "GSSCustom", &cfg->ssh_gss_custom);
+#endif
     gppi(sesskey, "SshNoShell", 0, &cfg->ssh_no_shell);
     gppfile(sesskey, "PublicKeyFile", &cfg->keyfile);
     gpps(sesskey, "RemoteCommand", "", cfg->remote_cmd,

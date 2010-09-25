@@ -2571,6 +2571,76 @@ If a key file is specified here, and \i{Pageant} is running (see
 that key, and ignore any other keys Pageant may have. If that fails,
 PuTTY will ask for a passphrase as normal.
 
+\H{config-ssh-auth-gssapi} The GSSAPI panel
+
+\cfg{winhelp-topic}{ssh.auth.gssapi}
+
+The \q{GSSAPI} subpanel of the \q{Auth} panel controls the use of
+GSSAPI authentication. This is a mechanism which delegates the
+authentication exchange to a library elsewhere on the client
+machine, which in principle can authenticate in many different ways
+but in practice is usually used with the Kerberos single-sign-on
+protocol.
+
+GSSAPI is only available in the SSH-2 protocol.
+
+The topmost control on the GSSAPI subpanel is the checkbox labelled
+\q{Attempt GSSAPI authentication}. If this is disabled, GSSAPI will
+not be attempted at all and the rest of this panel is unused. If it
+is enabled, GSSAPI authentication will be attempted, and (typically)
+if your client machine has valid Kerberos credentials loaded, then
+PuTTY should be able to authenticate automatically to servers that
+support Kerberos logins.
+
+\S{config-ssh-auth-gssapi-delegation} \q{Allow GSSAPI credential
+delegation}
+
+\cfg{winhelp-topic}{ssh.auth.gssapi.delegation}
+
+GSSAPI credential delegation is a mechanism for passing on your
+Kerberos (or other) identity to the session on the SSH server. If
+you enable this option, then not only will PuTTY be able to log in
+automatically to a server that accepts your Kerberos credentials,
+but also you will be able to connect out from that server to other
+Kerberos-supporting services and use the same credentials just as
+automatically.
+
+(This option is the Kerberos analogue of SSH agent forwarding; see
+\k{pageant-forward} for some information on that.)
+
+Note that, like SSH agent forwarding, there is a security
+implication in the use of this option: the administrator of the
+server you connect to, or anyone else who has cracked the
+administrator account on that server, could fake your identity when
+connecting to further Kerberos-supporting services. However,
+Kerberos sites are typically run by a central authority, so the
+administrator of one server is likely to already have access to the
+other services too; so this would typically be less of a risk than
+SSH agent forwarding.
+
+\S{config-ssh-auth-gssapi-libraries} Preference order for GSSAPI
+libraries
+
+\cfg{winhelp-topic}{ssh.auth.gssapi.libraries}
+
+GSSAPI is a mechanism which allows more than one authentication
+method to be accessed through the same interface. Therefore, more
+than one authentication library may exist on your system which can
+be accessed using GSSAPI.
+
+PuTTY contains native support for a few well-known such libraries,
+and will look for all of them on your system and use whichever it
+finds. If more than one exists on your system and you need to use a
+specific one, you can adjust the order in which it will search using
+this preference list control.
+
+One of the options in the preference list is to use a user-specified
+GSSAPI library. If the library you want to use is not mentioned by
+name in PuTTY's list of options, you can enter its full pathname in
+the \q{User-supplied GSSAPI library path} field, and move the
+\q{User-supplied GSSAPI library} option in the preference list to
+make sure it is selected before anything else.
+
 \H{config-ssh-tty} The TTY panel
 
 The TTY panel lets you configure the remote pseudo-terminal.
