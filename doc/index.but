@@ -845,3 +845,7 @@ saved sessions from
 \IM{logical host name} host key, caching policy
 
 \IM{web browsers} web browser
+
+\IM{GSSAPI credential delegation} GSSAPI credential delegation
+\IM{GSSAPI credential delegation} credential delegation, GSSAPI
+\IM{GSSAPI credential delegation} delegation, of GSSAPI credentials

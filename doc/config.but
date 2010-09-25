@@ -1788,17 +1788,19 @@ it explicitly every time. (Some Telnet servers don't support this.)
 
 In this box you can type that user name.
 
-\S{config-username-from-env} \q{Use of system username}
+\S{config-username-from-env} Use of system username
 
 \cfg{winhelp-topic}{connection.usernamefromenv}
 
 When the previous box (\k{config-username}) is left blank, by default,
 PuTTY will prompt for a username at the time you make a connection.
 
-In some environments, such as large corporate networks with \i{single
-sign-on}, a more sensible default may be to use the name of the user
-logged in to the local operating system (if any). This control allows
-you to change the default behaviour.
+In some environments, such as the networks of large organisations
+implementing \i{single sign-on}, a more sensible default may be to use
+the name of the user logged in to the local operating system (if any);
+this is particularly likely to be useful with \i{GSSAPI} authentication
+(see \k{config-ssh-auth-gssapi}). This control allows you to change
+the default behaviour.
 
 The current system username is displayed in the dialog as a
 convenience. It is not saved in the configuration; if a saved session
@@ -2571,7 +2573,7 @@ If a key file is specified here, and \i{Pageant} is running (see
 that key, and ignore any other keys Pageant may have. If that fails,
 PuTTY will ask for a passphrase as normal.
 
-\H{config-ssh-auth-gssapi} The GSSAPI panel
+\H{config-ssh-auth-gssapi} The \i{GSSAPI} panel
 
 \cfg{winhelp-topic}{ssh.auth.gssapi}
 
@@ -2579,7 +2581,7 @@ The \q{GSSAPI} subpanel of the \q{Auth} panel controls the use of
 GSSAPI authentication. This is a mechanism which delegates the
 authentication exchange to a library elsewhere on the client
 machine, which in principle can authenticate in many different ways
-but in practice is usually used with the Kerberos single-sign-on
+but in practice is usually used with the \i{Kerberos} \i{single sign-on}
 protocol.
 
 GSSAPI is only available in the SSH-2 protocol.
@@ -2597,7 +2599,7 @@ delegation}
 
 \cfg{winhelp-topic}{ssh.auth.gssapi.delegation}
 
-GSSAPI credential delegation is a mechanism for passing on your
+\i{GSSAPI credential delegation} is a mechanism for passing on your
 Kerberos (or other) identity to the session on the SSH server. If
 you enable this option, then not only will PuTTY be able to log in
 automatically to a server that accepts your Kerberos credentials,
