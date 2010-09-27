@@ -2132,7 +2132,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,try_gssapi_auth)));
 
-	    ctrl_checkbox(s, "Allow GSSAPI credential delegation", 'd',
+	    ctrl_checkbox(s, "Allow GSSAPI credential delegation", 'l',
 			  HELPCTX(ssh_gssapi_delegation),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,gssapifwd)));
@@ -2142,7 +2142,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	     */
 	    if (ngsslibs > 1) {
 		c = ctrl_draglist(s, "Preference order for GSSAPI libraries:",
-				  'l', HELPCTX(ssh_gssapi_libraries),
+				  'p', HELPCTX(ssh_gssapi_libraries),
 				  gsslist_handler, P(NULL));
 		c->listbox.height = ngsslibs;
 
@@ -2165,7 +2165,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 * displayed. 
 		 */
 
-		ctrl_filesel(s, "User-supplied GSSAPI library path:", 'p',
+		ctrl_filesel(s, "User-supplied GSSAPI library path:", 's',
 			     FILTER_DYNLIB_FILES, FALSE, "Select library file",
 			     HELPCTX(ssh_gssapi_libraries),
 			     dlg_stdfilesel_handler,
