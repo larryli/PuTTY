@@ -342,6 +342,14 @@ static int serial_select_result(int fd, int event)
 	     */
 	    finished = TRUE;
 	} else if (ret < 0) {
+#ifdef EAGAIN
+	    if (errno == EAGAIN)
+		return 1;	       /* spurious */
+#endif
+#ifdef EWOULDBLOCK
+	    if (errno == EWOULDBLOCK)
+		return 1;	       /* spurious */
+#endif
 	    perror("read serial port");
 	    exit(1);
 	} else if (ret > 0) {
