@@ -3290,8 +3290,8 @@ static void term_out(Terminal *term)
 		    }
 		    term->termstate = SEEN_CSI;
 		} else if (c == ';') {
-		    if (++term->esc_nargs <= ARGS_MAX)
-			term->esc_args[term->esc_nargs - 1] = ARG_DEFAULT;
+		    if (term->esc_nargs < ARGS_MAX)
+			term->esc_args[term->esc_nargs++] = ARG_DEFAULT;
 		    term->termstate = SEEN_CSI;
 		} else if (c < '@') {
 		    if (term->esc_query)
