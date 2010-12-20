@@ -612,7 +612,7 @@ if (defined $makefiles{'vc'}) {
 	($prog, $type) = split ",", $p;
 	$objstr = &objects($p, "X.obj", "X.res", undef);
 	print &splitline("$prog.exe: " . $objstr . " $prog.rsp"), "\n";
-	print "\tlink \$(LFLAGS) -out:$prog.exe -map:$prog.map \@$prog.rsp\n\n";
+	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:$prog.exe -map:$prog.map \@$prog.rsp\n\n";
     }
     foreach $p (&prognames("G:C")) {
 	($prog, $type) = split ",", $p;
