@@ -2003,7 +2003,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     {
         char b[2048], *p, *q, *r;
         FILE *fp;
-        GetModuleFileName(NULL, b, sizeof(b) - 1);
+        GetModuleFileName(NULL, b, sizeof(b) - 16);
         r = b;
         p = strrchr(b, '\\');
         if (p && p >= r) r = p+1;
