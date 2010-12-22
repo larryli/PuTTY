@@ -2765,9 +2765,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 reset_window(0);
             } else if (wParam == SIZE_RESTORED && was_zoomed) {
                 was_zoomed = 0;
-                if (cfg.resize_action == RESIZE_TERM)
-                    term_size(term, prev_rows, prev_cols, cfg.savelines);
-                if (cfg.resize_action != RESIZE_FONT)
+                if (cfg.resize_action == RESIZE_TERM) {
+                    w = (width-cfg.window_border*2) / font_width;
+                    if (w < 1) w = 1;
+                    h = (height-cfg.window_border*2) / font_height;
+                    if (h < 1) h = 1;
+                    term_size(term, h, w, cfg.savelines);
+                } else if (cfg.resize_action != RESIZE_FONT)
                     reset_window(2);
                 else
                     reset_window(0);
