@@ -2750,55 +2750,50 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    width = LOWORD(lParam);
 	    height = HIWORD(lParam);
 
-	    if (!resizing) {
-		if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
-		    was_zoomed = 1;
-		    prev_rows = term->rows;
-		    prev_cols = term->cols;
-		    if (cfg.resize_action == RESIZE_TERM) {
-			w = width / font_width;
-			if (w < 1) w = 1;
-			h = height / font_height;
-			if (h < 1) h = 1;
+            if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
+                was_zoomed = 1;
+                prev_rows = term->rows;
+                prev_cols = term->cols;
+                if (cfg.resize_action == RESIZE_TERM) {
+                    w = width / font_width;
+                    if (w < 1) w = 1;
+                    h = height / font_height;
+                    if (h < 1) h = 1;
 
-			term_size(term, h, w, cfg.savelines);
-		    }
-		    reset_window(0);
-		} else if (wParam == SIZE_RESTORED && was_zoomed) {
-		    was_zoomed = 0;
-		    if (cfg.resize_action == RESIZE_TERM)
-			term_size(term, prev_rows, prev_cols, cfg.savelines);
-		    if (cfg.resize_action != RESIZE_FONT)
-			reset_window(2);
-		    else
-			reset_window(0);
-		}
-		/* This is an unexpected resize, these will normally happen
-		 * if the window is too large. Probably either the user
-		 * selected a huge font or the screen size has changed.
-		 *
-		 * This is also called with minimize.
-		 */
-		else reset_window(-1);
-	    }
+                    term_size(term, h, w, cfg.savelines);
+                }
+                reset_window(0);
+            } else if (wParam == SIZE_RESTORED && was_zoomed) {
+                was_zoomed = 0;
+                if (cfg.resize_action == RESIZE_TERM)
+                    term_size(term, prev_rows, prev_cols, cfg.savelines);
+                if (cfg.resize_action != RESIZE_FONT)
+                    reset_window(2);
+                else
+                    reset_window(0);
+            } else if (wParam == SIZE_MINIMIZED) {
+                /* do nothing */
+	    } else if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
+                w = (width-cfg.window_border*2) / font_width;
+                if (w < 1) w = 1;
+                h = (height-cfg.window_border*2) / font_height;
+                if (h < 1) h = 1;
 
-	    /*
-	     * Don't call back->size in mid-resize. (To prevent
-	     * massive numbers of resize events getting sent
-	     * down the connection during an NT opaque drag.)
-	     */
-	    if (resizing) {
-		if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
+                if (resizing) {
+                    /*
+                     * Don't call back->size in mid-resize. (To
+                     * prevent massive numbers of resize events
+                     * getting sent down the connection during an NT
+                     * opaque drag.)
+                     */
 		    need_backend_resize = TRUE;
-		    w = (width-cfg.window_border*2) / font_width;
-		    if (w < 1) w = 1;
-		    h = (height-cfg.window_border*2) / font_height;
-		    if (h < 1) h = 1;
-
 		    cfg.height = h;
 		    cfg.width = w;
-	        } else 
-		    reset_window(0);
+                } else {
+                    term_size(term, h, w, cfg.savelines);
+                }
+            } else {
+                reset_window(0);
 	    }
 	}
 	sys_cursor_update();
