@@ -317,6 +317,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     WNDCLASS wndclass;
     MSG msg;
+    HRESULT hr;
     int guess_width, guess_height;
 
     hinst = inst;
@@ -355,6 +356,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     init_flashwindow();
 
     /*
+     * Initialize COM.
+     */
+    hr = CoInitialize(NULL);
+    if (hr != S_OK && hr != S_FALSE) {
+        char *str = dupprintf("%s Fatal Error", appname);
+	MessageBox(NULL, "Failed to initialize COM subsystem",
+		   str, MB_OK | MB_ICONEXCLAMATION);
+	sfree(str);
+	return 1;
+    }
+
+    /*
      * Process the command line.
      */
     {
@@ -381,14 +394,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	/*
 	 * Process a couple of command-line options which are more
-	 * easily dealt with before the line is broken up into
-	 * words. These are the soon-to-be-defunct @sessionname and
-	 * the internal-use-only &sharedmemoryhandle, neither of
-	 * which are combined with anything else.
+	 * easily dealt with before the line is broken up into words.
+	 * These are the old-fashioned but convenient @sessionname and
+	 * the internal-use-only &sharedmemoryhandle, neither of which
+	 * are combined with anything else.
 	 */
 	while (*p && isspace(*p))
 	    p++;
 	if (*p == '@') {
+            /*
+             * An initial @ means that the whole of the rest of the
+             * command line should be treated as the name of a saved
+             * session, with _no quoting or escaping_. This makes it a
+             * very convenient means of automated saved-session
+             * launching, via IDM_SAVEDSESS or Windows 7 jump lists.
+             */
 	    int i = strlen(p);
 	    while (i > 1 && isspace(p[i - 1]))
 		i--;
@@ -866,6 +886,9 @@ void cleanup_exit(int code)
 #endif
     }
     shutdown_help();
+
+    /* Clean up COM. */
+    CoUninitialize();
 
     exit(code);
 }
@@ -2044,7 +2067,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 					   / MENU_SAVED_STEP) + 1;
 		    if (sessno < (unsigned)sesslist.nsessions) {
 			char *session = sesslist.sessions[sessno];
-			/* XXX spaces? quotes? "-load"? */
 			cl = dupprintf("putty @%s", session);
 			inherit_handles = FALSE;
 			freecl = TRUE;

@@ -507,6 +507,9 @@ void load_settings(char *section, Config * cfg)
     sesskey = open_settings_r(section);
     load_open_settings(sesskey, cfg);
     close_settings_r(sesskey);
+
+    if (cfg_launchable(cfg))
+        add_session_to_jumplist(section);
 }
 
 void load_open_settings(void *sesskey, Config *cfg)

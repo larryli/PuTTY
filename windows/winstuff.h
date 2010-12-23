@@ -126,6 +126,14 @@ typedef struct terminal_tag Terminal;
 #define PUTTY_REG_GPARENT "Software"
 #define PUTTY_REG_GPARENT_CHILD "SimonTatham"
 
+/* Result values for the jumplist registry functions. */
+#define JUMPLISTREG_OK 0
+#define JUMPLISTREG_ERROR_INVALID_PARAMETER 1
+#define JUMPLISTREG_ERROR_KEYOPENCREATE_FAILURE 2
+#define JUMPLISTREG_ERROR_VALUEREAD_FAILURE 3
+#define JUMPLISTREG_ERROR_VALUEWRITE_FAILURE 4
+#define JUMPLISTREG_ERROR_INVALID_VALUE 5
+
 #define PUTTY_HELP_FILE "putty.hlp"
 #define PUTTY_CHM_FILE "putty.chm"
 #define PUTTY_HELP_CONTENTS "putty.cnt"
@@ -499,5 +507,35 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  * Exports from winser.c.
  */
 extern Backend serial_backend;
+
+/*
+ * Exports from winjump.c.
+ */
+#define JUMPLIST_SUPPORTED             /* suppress #defines in putty.h */
+void add_session_to_jumplist(const char * const sessionname);
+void remove_session_from_jumplist(const char * const sessionname);
+
+/*
+ * Extra functions in winstore.c over and above the interface in
+ * storage.h.
+ *
+ * These functions manipulate the Registry section which mirrors the
+ * current Windows 7 jump list. (Because the real jump list storage is
+ * write-only, we need to keep another copy of whatever we put in it,
+ * so that we can put in a slightly modified version the next time.)
+ */
+
+/* Adds a saved session to the registry jump list mirror. 'item' is a
+ * string naming a saved session. */
+int add_to_jumplist_registry(const char *item);
+
+/* Removes an item from the registry jump list mirror. */
+int remove_from_jumplist_registry(const char *item);
+
+/* Returns the current jump list entries from the registry. Caller
+ * must free the returned pointer, which points to a contiguous
+ * sequence of NUL-terminated strings in memory, terminated with an
+ * empty one. */
+char *get_jumplist_registry_entries(void);
 
 #endif

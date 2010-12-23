@@ -666,6 +666,10 @@ GLOBAL int default_port;
  * This is set TRUE by cmdline.c iff a session is loaded with "-load".
  */
 GLOBAL int loaded_session;
+/*
+ * This is set to the name of the loaded session.
+ */
+GLOBAL char *cmdline_session_name;
 
 struct RSAKey;			       /* be a little careful of scope */
 
@@ -1245,5 +1249,16 @@ long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
 void expire_timer_context(void *ctx);
 int run_timers(long now, long *next);
 void timer_change_notify(long next);
+
+/*
+ * Define no-op macros for the jump list functions, on platforms that
+ * don't support them. (This is a bit of a hack, and it'd be nicer to
+ * localise even the calls to those functions into the Windows front
+ * end, but it'll do for the moment.)
+ */
+#ifndef JUMPLIST_SUPPORTED
+#define add_session_to_jumplist(x) ((void)0)
+#define remove_session_from_jumplist(x) ((void)0)
+#endif
 
 #endif
