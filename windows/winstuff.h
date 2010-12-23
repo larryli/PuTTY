@@ -96,9 +96,9 @@ struct FontSpec {
 #define STR1(x) #x
 #define STR(x) STR1(x)
 #define GET_WINDOWS_FUNCTION_PP(module, name) \
-    p_##name = module ? (t_##name) GetProcAddress(module, STR(name)) : NULL
+    (p_##name = module ? (t_##name) GetProcAddress(module, STR(name)) : NULL)
 #define GET_WINDOWS_FUNCTION(module, name) \
-    p_##name = module ? (t_##name) GetProcAddress(module, #name) : NULL
+    (p_##name = module ? (t_##name) GetProcAddress(module, #name) : NULL)
 
 /*
  * Global variables. Most modules declare these `extern', but
