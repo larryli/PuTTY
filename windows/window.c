@@ -2771,6 +2771,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     h = (height-cfg.window_border*2) / font_height;
                     if (h < 1) h = 1;
                     term_size(term, h, w, cfg.savelines);
+                    reset_window(2);
                 } else if (cfg.resize_action != RESIZE_FONT)
                     reset_window(2);
                 else
