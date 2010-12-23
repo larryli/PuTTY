@@ -1030,7 +1030,9 @@ the terminal will stay the same, and the \i{font size} will change.
 
 \b \q{Change font size when maximised}: when the window is resized,
 the number of rows and columns will change, \e{except} when the window
-is \i{maximise}d (or restored), when the font size will change.
+is \i{maximise}d (or restored), when the font size will change. (In
+this mode, holding down the Alt key while resizing will also cause the
+font size to change.)
 
 \b \q{Forbid resizing completely}: the terminal will refuse to be
 resized at all.
