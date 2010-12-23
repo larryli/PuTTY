@@ -2627,7 +2627,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * 1) Keep the sizetip uptodate
 	 * 2) Make sure the window size is _stepped_ in units of the font size.
 	 */
-	if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
+        if (cfg.resize_action == RESIZE_TERM ||
+            (cfg.resize_action == RESIZE_EITHER && !is_alt_pressed())) {
 	    int width, height, w, h, ew, eh;
 	    LPRECT r = (LPRECT) lParam;
 
@@ -2778,7 +2779,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     reset_window(0);
             } else if (wParam == SIZE_MINIMIZED) {
                 /* do nothing */
-	    } else if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
+	    } else if (cfg.resize_action == RESIZE_TERM ||
+                       (cfg.resize_action == RESIZE_EITHER &&
+                        !is_alt_pressed())) {
                 w = (width-cfg.window_border*2) / font_width;
                 if (w < 1) w = 1;
                 h = (height-cfg.window_border*2) / font_height;
