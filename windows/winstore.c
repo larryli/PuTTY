@@ -780,6 +780,12 @@ void cleanup_all(void)
     access_random_seed(DEL);
 
     /* ------------------------------------------------------------
+     * Ask Windows to delete any jump list information associated
+     * with this installation of PuTTY.
+     */
+    clear_jumplist();
+
+    /* ------------------------------------------------------------
      * Destroy all registry information associated with PuTTY.
      */
 

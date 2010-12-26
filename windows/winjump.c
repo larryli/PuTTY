@@ -663,7 +663,7 @@ static void update_jumplist_from_registry(void)
 }
 
 /* Clears the entire jumplist. */
-static void clear_jumplist(void)
+void clear_jumplist(void)
 {
     ICustomDestinationList *pCDL;
     UINT num_items;

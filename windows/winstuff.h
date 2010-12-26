@@ -514,6 +514,7 @@ extern Backend serial_backend;
 #define JUMPLIST_SUPPORTED             /* suppress #defines in putty.h */
 void add_session_to_jumplist(const char * const sessionname);
 void remove_session_from_jumplist(const char * const sessionname);
+void clear_jumplist(void);
 
 /*
  * Extra functions in winstore.c over and above the interface in
