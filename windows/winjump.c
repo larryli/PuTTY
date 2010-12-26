@@ -40,6 +40,11 @@ typedef struct _tagpropertykey {
 #define _REFPROPVARIANT_DEFINED
 typedef PROPVARIANT *REFPROPVARIANT;
 #endif
+/* MinGW doesn't define this yet: */
+#ifndef _PROPVARIANTINIT_DEFINED_
+#define _PROPVARIANTINIT_DEFINED_
+#define PropVariantInit(pvar) memset((pvar),0,sizeof(PROPVARIANT))
+#endif
 
 #define IID_IShellLink IID_IShellLinkA
 
@@ -348,7 +353,12 @@ static const PROPERTYKEY PKEY_Title = {
     0x00000002
 };
 
-#define COMPTR(type, obj) &IID_##type, ((sizeof((obj)-(type **)(obj))), (obj))
+/* Type-checking macro to provide arguments for CoCreateInstance() etc.
+ * The pointer arithmetic is a compile-time pointer type check that 'obj'
+ * really is a 'type **', but is intended to have no effect at runtime. */
+#define COMPTR(type, obj) &IID_##type, \
+    (void **)(void *)((obj) + (sizeof((obj)-(type **)(obj))) \
+		            - (sizeof((obj)-(type **)(obj))))
 
 static char putty_path[2048];
 
