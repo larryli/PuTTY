@@ -666,8 +666,6 @@ static void update_jumplist_from_registry(void)
 void clear_jumplist(void)
 {
     ICustomDestinationList *pCDL;
-    UINT num_items;
-    IObjectArray *pRemoved;
 
     if (CoCreateInstance(&CLSID_DestinationList, NULL, CLSCTX_INPROC_SERVER,
                          COMPTR(ICustomDestinationList, &pCDL)) == S_OK) {
