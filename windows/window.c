@@ -1973,6 +1973,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     static int ignore_clip = FALSE;
     static int need_backend_resize = FALSE;
     static int fullscr_on_max = FALSE;
+    static int processed_resize = FALSE;
     static UINT last_mousemove = 0;
 
     switch (message) {
@@ -2756,12 +2757,35 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			  cfg.win_name_always ? window_name : icon_name);
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
-        if (wParam == SIZE_RESTORED)
+        if (wParam == SIZE_RESTORED) {
+            processed_resize = FALSE;
             clear_full_screen();
+            if (processed_resize) {
+                /*
+                 * Inhibit normal processing of this WM_SIZE; a
+                 * secondary one was triggered just now by
+                 * clear_full_screen which contained the correct
+                 * client area size.
+                 */
+                return 0;
+            }
+        }
         if (wParam == SIZE_MAXIMIZED && fullscr_on_max) {
             fullscr_on_max = FALSE;
+            processed_resize = FALSE;
             make_full_screen();
+            if (processed_resize) {
+                /*
+                 * Inhibit normal processing of this WM_SIZE; a
+                 * secondary one was triggered just now by
+                 * make_full_screen which contained the correct client
+                 * area size.
+                 */
+                return 0;
+            }
         }
+
+        processed_resize = TRUE;
 
 	if (cfg.resize_action == RESIZE_DISABLED) {
 	    /* A resize, well it better be a minimize. */
