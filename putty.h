@@ -470,6 +470,7 @@ struct config_tag {
     int sshprot;		       /* use v1 or v2 when both available */
     int ssh2_des_cbc;		       /* "des-cbc" unrecommended SSH-2 cipher */
     int ssh_no_userauth;	       /* bypass "ssh-userauth" (SSH-2 only) */
+    int ssh_show_banner;	       /* show USERAUTH_BANNERs (SSH-2 only) */
     int try_tis_auth;
     int try_ki_auth;
     int try_gssapi_auth;               /* attempt gssapi auth */

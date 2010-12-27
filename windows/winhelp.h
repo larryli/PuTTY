@@ -102,6 +102,7 @@
 #define WINHELP_CTX_ssh_kexlist "ssh.kex.order:config-ssh-kex-order"
 #define WINHELP_CTX_ssh_kex_repeat "ssh.kex.repeat:config-ssh-kex-rekey"
 #define WINHELP_CTX_ssh_auth_bypass "ssh.auth.bypass:config-ssh-noauth"
+#define WINHELP_CTX_ssh_auth_banner "ssh.auth.banner:config-ssh-banner"
 #define WINHELP_CTX_ssh_auth_privkey "ssh.auth.privkey:config-ssh-privkey"
 #define WINHELP_CTX_ssh_auth_agentfwd "ssh.auth.agentfwd:config-ssh-agentfwd"
 #define WINHELP_CTX_ssh_auth_changeuser "ssh.auth.changeuser:config-ssh-changeuser"

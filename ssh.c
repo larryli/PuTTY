@@ -7194,12 +7194,14 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 }
 
 /*
- * Buffer banner messages for later display at some convenient point.
+ * Buffer banner messages for later display at some convenient point,
+ * if we're going to display them.
  */
 static void ssh2_msg_userauth_banner(Ssh ssh, struct Packet *pktin)
 {
     /* Arbitrary limit to prevent unbounded inflation of buffer */
-    if (bufchain_size(&ssh->banner) <= 131072) {
+    if (ssh->cfg.ssh_show_banner &&
+	bufchain_size(&ssh->banner) <= 131072) {
 	char *banner = NULL;
 	int size = 0;
 	ssh_pkt_getstring(pktin, &banner, &size);

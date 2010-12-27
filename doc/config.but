@@ -2469,6 +2469,21 @@ unwanted username prompts, you could try checking this option.
 This option only affects SSH-2 connections. SSH-1 connections always
 require an authentication step.
 
+\S{config-ssh-banner} \q{Display pre-authentication banner}
+
+\cfg{winhelp-topic}{ssh.auth.banner}
+
+SSH-2 servers can provide a message for clients to display to the
+prospective user before the user logs in; this is sometimes known as a
+pre-authentication \q{\i{banner}}. Typically this is used to provide
+information about the server and legal notices.
+
+By default, PuTTY displays this message before prompting for a
+password or similar credentials (although, unfortunately, not before
+prompting for a login name, due to the nature of the protocol design).
+By unchecking this option, display of the banner can be suppressed
+entirely.
+
 \S{config-ssh-tryagent} \q{Attempt authentication using Pageant}
 
 \cfg{winhelp-topic}{ssh.auth.pageant}

@@ -2088,6 +2088,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(ssh_auth_bypass),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,ssh_no_userauth)));
+	    ctrl_checkbox(s, "Display pre-authentication banner (SSH-2 only)",
+			  'd', HELPCTX(ssh_auth_banner),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh_show_banner)));
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
 			    "Authentication methods");
