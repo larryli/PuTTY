@@ -1323,7 +1323,8 @@ for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
 debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
 }
 #endif
-	    exact_textout(hdc, xp, y, &newrc, lpString+i, j-i, lpDx+i, opaque);
+	    exact_textout(hdc, xp, y, &newrc, lpString+i, j-i,
+                          font_varpitch ? NULL : lpDx+i, opaque);
 	} else {
 #ifdef FIXME_REMOVE_BEFORE_CHECKIN
 {
@@ -1338,7 +1339,8 @@ debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right,
 	    newrc.top = lprc->top;
 	    newrc.bottom = lprc->bottom;
 	    ExtTextOutW(hdc, xp, y, ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
-			&newrc, lpString+i, j-i, lpDx+i);
+			&newrc, lpString+i, j-i,
+                        font_varpitch ? NULL : lpDx+i);
 	}
 
 	i = j;
@@ -3508,7 +3510,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
             /* print Glyphs as they are, without Windows' Shaping*/
             general_textout(hdc, x + xoffset,
                             y - font_height * (lattr==LATTR_BOT) + text_adjust,
-                            &line_box, wbuf, len, IpDxReal,
+                            &line_box, wbuf, len, IpDx,
                             opaque && !(attr & TATTR_COMBINING));
 
             /* And the shadow bold hack. */
