@@ -1326,6 +1326,10 @@ debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right,
 	    exact_textout(hdc, xp, y, &newrc, lpString+i, j-i,
                           font_varpitch ? NULL : lpDx+i, opaque);
 	} else {
+	    newrc.left = lprc->left + xp - x;
+	    newrc.right = lprc->left + xn - x;
+	    newrc.top = lprc->top;
+	    newrc.bottom = lprc->bottom;
 #ifdef FIXME_REMOVE_BEFORE_CHECKIN
 {
 int k;
@@ -1334,10 +1338,6 @@ for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
 debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
 }
 #endif
-	    newrc.left = lprc->left + xp - x;
-	    newrc.right = lprc->left + xn - x;
-	    newrc.top = lprc->top;
-	    newrc.bottom = lprc->bottom;
 	    ExtTextOutW(hdc, xp, y, ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
 			&newrc, lpString+i, j-i,
                         font_varpitch ? NULL : lpDx+i);
