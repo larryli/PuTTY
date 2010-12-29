@@ -316,6 +316,7 @@ struct dlgparam {
     struct { unsigned char r, g, b, ok; } coloursel_result;   /* 0-255 */
     tree234 *privdata;		       /* stores per-control private data */
     int ended, endresult;	       /* has the dialog been ended? */
+    int fixed_pitch_fonts;             /* are we constrained to fixed fonts? */
 };
 
 /*
@@ -373,6 +374,10 @@ void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *e2stext, int e2sid, int e2id,
 	       char *btext, int bid,
 	       char *r1text, int r1id, char *r2text, int r2id);
+
+void dlg_auto_set_fixed_pitch_flag(void *dlg);
+int dlg_get_fixed_pitch_flag(void *dlg);
+void dlg_set_fixed_pitch_flag(void *dlg, int flag);
 
 #define MAX_SHORTCUTS_PER_CTRL 16
 

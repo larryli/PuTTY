@@ -30,6 +30,16 @@ static void help_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void variable_pitch_handler(union control *ctrl, void *dlg,
+                                   void *data, int event)
+{
+    if (event == EVENT_REFRESH) {
+	dlg_checkbox_set(ctrl, dlg, !dlg_get_fixed_pitch_flag(dlg));
+    } else if (event == EVENT_VALCHANGE) {
+	dlg_set_fixed_pitch_flag(dlg, !dlg_checkbox_get(ctrl, dlg));
+    }
+}
+
 void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 			  int midsession, int protocol)
 {
@@ -177,6 +187,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      */
     s = ctrl_getset(b, "Window/Appearance", "font",
 		    "Font settings");
+    ctrl_checkbox(s, "Allow selection of variable-pitch fonts", NO_SHORTCUT,
+                  HELPCTX(appearance_font), variable_pitch_handler, I(0));
     ctrl_radiobuttons(s, "Font quality:", 'q', 2,
 		      HELPCTX(appearance_font),
 		      dlg_stdradiobutton_handler,

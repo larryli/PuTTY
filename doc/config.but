@@ -1096,10 +1096,15 @@ works in any of the cursor modes.
 \cfg{winhelp-topic}{appearance.font}
 
 This option allows you to choose what font, in what \I{font size}size,
-the PuTTY terminal window uses to display the text in the session. You
-will be offered a choice from all the fixed-width fonts installed on the
-system. (VT100-style terminal handling can only deal with fixed-width
-fonts.)
+the PuTTY terminal window uses to display the text in the session.
+
+By default, you will be offered a choice from all the fixed-width
+fonts installed on the system, since VT100-style terminal handling
+expects a fixed-width font. If you tick the box marked \q{Allow
+selection of variable-pitch fonts}, however, PuTTY will offer
+variable-width fonts as well: if you select one of these, the font
+will be coerced into fixed-size character cells, which will probably
+not look very good (but can work OK with some fonts).
 
 \S{config-mouseptr} \q{Hide \i{mouse pointer} when typing in window}
 

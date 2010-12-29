@@ -99,7 +99,7 @@ static int process_clipdata(HGLOBAL clipdata, int unicode);
 /* Window layout information */
 static void reset_window(int);
 static int extra_width, extra_height;
-static int font_width, font_height, font_dualwidth;
+static int font_width, font_height, font_dualwidth, font_varpitch;
 static int offset_width, offset_height;
 static int was_zoomed = 0;
 static int prev_rows, prev_cols;
@@ -1260,7 +1260,6 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
     gcpr.lpGlyphs = (void *)buffer;
     gcpr.lpClass = (void *)classbuffer;
     gcpr.nGlyphs = cbCount;
-
     GetCharacterPlacementW(hdc, lpString, cbCount, 0, &gcpr,
 			   FLI_MASK | GCP_CLASSIN | GCP_DIACRITIC);
 
@@ -1352,6 +1351,37 @@ debug(("general_textout: done, xn=%d\n", xn));
     assert(xn - x >= lprc->right - lprc->left);
 }
 
+static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
+{
+    int ret;
+    /* Note that the TMPF_FIXED_PITCH bit is defined upside down :-( */
+    if (!(tm->tmPitchAndFamily & TMPF_FIXED_PITCH)) {
+        ret = tm->tmAveCharWidth;
+    } else {
+#define FIRST '0'
+#define LAST '9'
+        ABCFLOAT widths[LAST-FIRST + 1];
+        int j;
+
+        font_varpitch = TRUE;
+        font_dualwidth = TRUE;
+        if (GetCharABCWidthsFloat(hdc, FIRST, LAST, widths)) {
+            ret = 0;
+            for (j = 0; j < lenof(widths); j++) {
+                int width = (int)(0.5 + widths[j].abcfA +
+                                  widths[j].abcfB + widths[j].abcfC);
+                if (ret < width)
+                    ret = width;
+            }
+        } else {
+            ret = tm->tmMaxCharWidth;
+        }
+#undef FIRST
+#undef LAST
+    }
+    return ret;
+}
+
 /*
  * Initialise all the fonts we will need initially. There may be as many as
  * three or as few as one.  The other (potentially) twenty-one fonts are done
@@ -1418,11 +1448,18 @@ static void init_fonts(int pick_width, int pick_height)
 
     GetObject(fonts[FONT_NORMAL], sizeof(LOGFONT), &lfont);
 
+    /* Note that the TMPF_FIXED_PITCH bit is defined upside down :-( */
+    if (!(tm.tmPitchAndFamily & TMPF_FIXED_PITCH)) {
+        font_varpitch = FALSE;
+        font_dualwidth = (tm.tmAveCharWidth != tm.tmMaxCharWidth);
+    } else {
+        font_varpitch = TRUE;
+        font_dualwidth = TRUE;
+    }
     if (pick_width == 0 || pick_height == 0) {
 	font_height = tm.tmHeight;
-	font_width = tm.tmAveCharWidth;
+        font_width = get_font_width(hdc, &tm);
     }
-    font_dualwidth = (tm.tmAveCharWidth != tm.tmMaxCharWidth);
 
 #ifdef RDB_DEBUG_PATCH
     debug(23, "Primary font H=%d, AW=%d, MW=%d",
@@ -1509,7 +1546,7 @@ static void init_fonts(int pick_width, int pick_height)
     for (i = 0; i < 3; i++) {
 	if (fonts[i]) {
 	    if (SelectObject(hdc, fonts[i]) && GetTextMetrics(hdc, &tm))
-		fontsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
+		fontsize[i] = get_font_width(hdc, &tm) + 256 * tm.tmHeight;
 	    else
 		fontsize[i] = -i;
 	} else
@@ -1578,7 +1615,7 @@ static void another_font(int fontno)
 	CreateFont(font_height * (1 + !!(fontno & FONT_HIGH)), x, 0, 0, w,
 		   FALSE, u, FALSE, c, OUT_DEFAULT_PRECIS,
 		   CLIP_DEFAULT_PRECIS, FONT_QUALITY(cfg.font_quality),
-		   FIXED_PITCH | FF_DONTCARE, s);
+		   DEFAULT_PITCH | FF_DONTCARE, s);
 
     fontflag[fontno] = 1;
 }
@@ -3198,7 +3235,10 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     int force_manual_underline = 0;
     int fnt_width, char_width;
     int text_adjust = 0;
+    int xoffset = 0;
+    int maxlen, remaining, opaque;
     static int *IpDx = 0, IpDxLEN = 0;
+    int *IpDxReal;
 
     lattr &= LATTR_MODE;
 
@@ -3338,111 +3378,155 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     if (line_box.right > font_width*term->cols+offset_width)
 	line_box.right = font_width*term->cols+offset_width;
 
-    /* We're using a private area for direct to font. (512 chars.) */
-    if (ucsdata.dbcs_screenfont && (text[0] & CSET_MASK) == CSET_ACP) {
-	/* Ho Hum, dbcs fonts are a PITA! */
-	/* To display on W9x I have to convert to UCS */
-	static wchar_t *uni_buf = 0;
-	static int uni_len = 0;
-	int nlen, mptr;
-	if (len > uni_len) {
-	    sfree(uni_buf);
-	    uni_len = len;
-	    uni_buf = snewn(uni_len, wchar_t);
-	}
-
-	for(nlen = mptr = 0; mptr<len; mptr++) {
-	    uni_buf[nlen] = 0xFFFD;
-	    if (IsDBCSLeadByteEx(ucsdata.font_codepage, (BYTE) text[mptr])) {
-		char dbcstext[2];
-		dbcstext[0] = text[mptr] & 0xFF;
-		dbcstext[1] = text[mptr+1] & 0xFF;
-		IpDx[nlen] += char_width;
-	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
-				    dbcstext, 2, uni_buf+nlen, 1);
-		mptr++;
-	    }
-	    else
-	    {
-		char dbcstext[1];
-		dbcstext[0] = text[mptr] & 0xFF;
-	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
-				    dbcstext, 1, uni_buf+nlen, 1);
-	    }
-	    nlen++;
-	}
-	if (nlen <= 0)
-	    return;		       /* Eeek! */
-
-	ExtTextOutW(hdc, x,
-		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		    ETO_CLIPPED | ETO_OPAQUE, &line_box, uni_buf, nlen, IpDx);
-	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	    SetBkMode(hdc, TRANSPARENT);
-	    ExtTextOutW(hdc, x - 1,
-			y - font_height * (lattr ==
-					   LATTR_BOT) + text_adjust,
-			ETO_CLIPPED, &line_box, uni_buf, nlen, IpDx);
-	}
-
-	IpDx[0] = -1;
-    } else if (DIRECT_FONT(text[0])) {
-	static char *directbuf = NULL;
-	static int directlen = 0;
-	int i;
-	if (len > directlen) {
-	    directlen = len;
-	    directbuf = sresize(directbuf, directlen, char);
-	}
-
-	for (i = 0; i < len; i++)
-	    directbuf[i] = text[i] & 0xFF;
-
-	ExtTextOut(hdc, x,
-		   y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		   ETO_CLIPPED | ETO_OPAQUE, &line_box, directbuf, len, IpDx);
-	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	    SetBkMode(hdc, TRANSPARENT);
-
-	    /* GRR: This draws the character outside its box and can leave
-	     * 'droppings' even with the clip box! I suppose I could loop it
-	     * one character at a time ... yuk. 
-	     * 
-	     * Or ... I could do a test print with "W", and use +1 or -1 for this
-	     * shift depending on if the leftmost column is blank...
-	     */
-	    ExtTextOut(hdc, x - 1,
-		       y - font_height * (lattr ==
-					  LATTR_BOT) + text_adjust,
-		       ETO_CLIPPED, &line_box, directbuf, len, IpDx);
-	}
+    if (font_varpitch) {
+        /*
+         * If we're using a variable-pitch font, we unconditionally
+         * draw the glyphs one at a time and centre them in their
+         * character cells (which means in particular that we must
+         * disable the IpDx mechanism). This gives slightly odd but
+         * generally reasonable results.
+         */
+        xoffset = char_width / 2;
+        SetTextAlign(hdc, TA_TOP | TA_CENTER | TA_NOUPDATECP);
+        IpDxReal = NULL;
+        maxlen = 1;
     } else {
-	/* And 'normal' unicode characters */
-	static WCHAR *wbuf = NULL;
-	static int wlen = 0;
-	int i;
+        /*
+         * In a fixed-pitch font, we draw the whole string in one go
+         * in the normal way.
+         */
+        xoffset = 0;
+        SetTextAlign(hdc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
+        IpDxReal = IpDx;
+        maxlen = len;
+    }
 
-	if (wlen < len) {
-	    sfree(wbuf);
-	    wlen = len;
-	    wbuf = snewn(wlen, WCHAR);
-	}
+    opaque = TRUE;                     /* start by erasing the rectangle */
+    for (remaining = len; remaining > 0;
+         text += len, remaining -= len, x += char_width * len) {
+        len = (maxlen < remaining ? maxlen : remaining);
 
-	for (i = 0; i < len; i++)
-	    wbuf[i] = text[i];
+        /* We're using a private area for direct to font. (512 chars.) */
+        if (ucsdata.dbcs_screenfont && (text[0] & CSET_MASK) == CSET_ACP) {
+            /* Ho Hum, dbcs fonts are a PITA! */
+            /* To display on W9x I have to convert to UCS */
+            static wchar_t *uni_buf = 0;
+            static int uni_len = 0;
+            int nlen, mptr;
+            if (len > uni_len) {
+                sfree(uni_buf);
+                uni_len = len;
+                uni_buf = snewn(uni_len, wchar_t);
+            }
 
-	/* print Glyphs as they are, without Windows' Shaping*/
-	general_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
-			&line_box, wbuf, len, IpDx, !(attr & TATTR_COMBINING));
+            for(nlen = mptr = 0; mptr<len; mptr++) {
+                uni_buf[nlen] = 0xFFFD;
+                if (IsDBCSLeadByteEx(ucsdata.font_codepage,
+                                     (BYTE) text[mptr])) {
+                    char dbcstext[2];
+                    dbcstext[0] = text[mptr] & 0xFF;
+                    dbcstext[1] = text[mptr+1] & 0xFF;
+                    IpDx[nlen] += char_width;
+                    MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
+                                        dbcstext, 2, uni_buf+nlen, 1);
+                    mptr++;
+                }
+                else
+                {
+                    char dbcstext[1];
+                    dbcstext[0] = text[mptr] & 0xFF;
+                    MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
+                                        dbcstext, 1, uni_buf+nlen, 1);
+                }
+                nlen++;
+            }
+            if (nlen <= 0)
+                return;		       /* Eeek! */
 
-	/* And the shadow bold hack. */
-	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	    SetBkMode(hdc, TRANSPARENT);
-	    ExtTextOutW(hdc, x - 1,
-			y - font_height * (lattr ==
-					   LATTR_BOT) + text_adjust,
-			ETO_CLIPPED, &line_box, wbuf, len, IpDx);
-	}
+            ExtTextOutW(hdc, x + xoffset,
+                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
+                        ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
+                        &line_box, uni_buf, nlen,
+                        IpDxReal);
+            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+                SetBkMode(hdc, TRANSPARENT);
+                ExtTextOutW(hdc, x + xoffset - 1,
+                            y - font_height * (lattr ==
+                                               LATTR_BOT) + text_adjust,
+                            ETO_CLIPPED, &line_box, uni_buf, nlen, IpDxReal);
+            }
+
+            IpDx[0] = -1;
+        } else if (DIRECT_FONT(text[0])) {
+            static char *directbuf = NULL;
+            static int directlen = 0;
+            int i;
+            if (len > directlen) {
+                directlen = len;
+                directbuf = sresize(directbuf, directlen, char);
+            }
+
+            for (i = 0; i < len; i++)
+                directbuf[i] = text[i] & 0xFF;
+
+            ExtTextOut(hdc, x + xoffset,
+                       y - font_height * (lattr == LATTR_BOT) + text_adjust,
+                       ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
+                       &line_box, directbuf, len, IpDxReal);
+            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+                SetBkMode(hdc, TRANSPARENT);
+
+                /* GRR: This draws the character outside its box and
+                 * can leave 'droppings' even with the clip box! I
+                 * suppose I could loop it one character at a time ...
+                 * yuk.
+                 * 
+                 * Or ... I could do a test print with "W", and use +1
+                 * or -1 for this shift depending on if the leftmost
+                 * column is blank...
+                 */
+                ExtTextOut(hdc, x + xoffset - 1,
+                           y - font_height * (lattr ==
+                                              LATTR_BOT) + text_adjust,
+                           ETO_CLIPPED, &line_box, directbuf, len, IpDxReal);
+            }
+        } else {
+            /* And 'normal' unicode characters */
+            static WCHAR *wbuf = NULL;
+            static int wlen = 0;
+            int i;
+
+            if (wlen < len) {
+                sfree(wbuf);
+                wlen = len;
+                wbuf = snewn(wlen, WCHAR);
+            }
+
+            for (i = 0; i < len; i++)
+                wbuf[i] = text[i];
+
+            /* print Glyphs as they are, without Windows' Shaping*/
+            general_textout(hdc, x + xoffset,
+                            y - font_height * (lattr==LATTR_BOT) + text_adjust,
+                            &line_box, wbuf, len, IpDxReal,
+                            opaque && !(attr & TATTR_COMBINING));
+
+            /* And the shadow bold hack. */
+            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+                SetBkMode(hdc, TRANSPARENT);
+                ExtTextOutW(hdc, x + xoffset - 1,
+                            y - font_height * (lattr ==
+                                               LATTR_BOT) + text_adjust,
+                            ETO_CLIPPED, &line_box, wbuf, len, IpDxReal);
+            }
+        }
+
+        /*
+         * If we're looping round again, stop erasing the background
+         * rectangle.
+         */
+        SetBkMode(hdc, TRANSPARENT);
+        opaque = FALSE;
     }
     if (lattr != LATTR_TOP && (force_manual_underline ||
 			       (und_mode == UND_LINE
