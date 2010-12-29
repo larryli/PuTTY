@@ -3239,8 +3239,9 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     int text_adjust = 0;
     int xoffset = 0;
     int maxlen, remaining, opaque;
-    static int *IpDx = 0, IpDxLEN = 0;
-    int *IpDxReal;
+    static int *lpDx = NULL;
+    static int lpDx_len = 0;
+    int *lpDx_maybe;
 
     lattr &= LATTR_MODE;
 
@@ -3248,17 +3249,6 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     if (attr & ATTR_WIDE)
 	char_width *= 2;
-
-    if (len > IpDxLEN || IpDx[0] != char_width) {
-	int i;
-	if (len > IpDxLEN) {
-	    sfree(IpDx);
-	    IpDx = snewn(len + 16, int);
-	    IpDxLEN = (len + 16);
-	}
-	for (i = 0; i < IpDxLEN; i++)
-	    IpDx[i] = char_width;
-    }
 
     /* Only want the left half of double width lines */
     if (lattr != LATTR_NORM && x*2 >= term->cols)
@@ -3385,12 +3375,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
          * If we're using a variable-pitch font, we unconditionally
          * draw the glyphs one at a time and centre them in their
          * character cells (which means in particular that we must
-         * disable the IpDx mechanism). This gives slightly odd but
+         * disable the lpDx mechanism). This gives slightly odd but
          * generally reasonable results.
          */
         xoffset = char_width / 2;
         SetTextAlign(hdc, TA_TOP | TA_CENTER | TA_NOUPDATECP);
-        IpDxReal = NULL;
+        lpDx_maybe = NULL;
         maxlen = 1;
     } else {
         /*
@@ -3399,7 +3389,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
          */
         xoffset = 0;
         SetTextAlign(hdc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
-        IpDxReal = IpDx;
+        lpDx_maybe = lpDx;
         maxlen = len;
     }
 
@@ -3407,6 +3397,18 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     for (remaining = len; remaining > 0;
          text += len, remaining -= len, x += char_width * len) {
         len = (maxlen < remaining ? maxlen : remaining);
+
+        if (len > lpDx_len) {
+            if (len > lpDx_len) {
+                lpDx_len = len * 9 / 8 + 16;
+                lpDx = sresize(lpDx, lpDx_len, int);
+            }
+        }
+        {
+            int i;
+            for (i = 0; i < len; i++)
+                lpDx[i] = char_width;
+        }
 
         /* We're using a private area for direct to font. (512 chars.) */
         if (ucsdata.dbcs_screenfont && (text[0] & CSET_MASK) == CSET_ACP) {
@@ -3428,7 +3430,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                     char dbcstext[2];
                     dbcstext[0] = text[mptr] & 0xFF;
                     dbcstext[1] = text[mptr+1] & 0xFF;
-                    IpDx[nlen] += char_width;
+                    lpDx[nlen] += char_width;
                     MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
                                         dbcstext, 2, uni_buf+nlen, 1);
                     mptr++;
@@ -3449,16 +3451,16 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                         y - font_height * (lattr == LATTR_BOT) + text_adjust,
                         ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
                         &line_box, uni_buf, nlen,
-                        IpDxReal);
+                        lpDx_maybe);
             if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(hdc, TRANSPARENT);
                 ExtTextOutW(hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
                                                LATTR_BOT) + text_adjust,
-                            ETO_CLIPPED, &line_box, uni_buf, nlen, IpDxReal);
+                            ETO_CLIPPED, &line_box, uni_buf, nlen, lpDx_maybe);
             }
 
-            IpDx[0] = -1;
+            lpDx[0] = -1;
         } else if (DIRECT_FONT(text[0])) {
             static char *directbuf = NULL;
             static int directlen = 0;
@@ -3474,7 +3476,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
             ExtTextOut(hdc, x + xoffset,
                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
                        ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
-                       &line_box, directbuf, len, IpDxReal);
+                       &line_box, directbuf, len, lpDx_maybe);
             if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(hdc, TRANSPARENT);
 
@@ -3490,7 +3492,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                 ExtTextOut(hdc, x + xoffset - 1,
                            y - font_height * (lattr ==
                                               LATTR_BOT) + text_adjust,
-                           ETO_CLIPPED, &line_box, directbuf, len, IpDxReal);
+                           ETO_CLIPPED, &line_box, directbuf, len, lpDx_maybe);
             }
         } else {
             /* And 'normal' unicode characters */
@@ -3510,7 +3512,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
             /* print Glyphs as they are, without Windows' Shaping*/
             general_textout(hdc, x + xoffset,
                             y - font_height * (lattr==LATTR_BOT) + text_adjust,
-                            &line_box, wbuf, len, IpDx,
+                            &line_box, wbuf, len, lpDx,
                             opaque && !(attr & TATTR_COMBINING));
 
             /* And the shadow bold hack. */
@@ -3519,7 +3521,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                 ExtTextOutW(hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
                                                LATTR_BOT) + text_adjust,
-                            ETO_CLIPPED, &line_box, wbuf, len, IpDxReal);
+                            ETO_CLIPPED, &line_box, wbuf, len, lpDx_maybe);
             }
         }
 
