@@ -3404,7 +3404,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
 	    SetBkMode(hdc, TRANSPARENT);
 
-	    /* GRR: This draws the character outside it's box and can leave
+	    /* GRR: This draws the character outside its box and can leave
 	     * 'droppings' even with the clip box! I suppose I could loop it
 	     * one character at a time ... yuk. 
 	     * 
