@@ -699,8 +699,8 @@ static int transform_jumplist_registry
         ret = RegSetValueEx(pjumplist_key, reg_jumplist_value, 0, REG_MULTI_SZ,
                             new_value, piterator_new - new_value);
 
+        sfree(old_value);
         old_value = new_value;
-        sfree(new_value);
     } else
         ret = ERROR_SUCCESS;
 
