@@ -1282,15 +1282,7 @@ static void general_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 			    CONST INT *lpDx, int opaque)
 {
     int i, j, xp, xn;
-    RECT newrc;
-
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-int k;
-debug(("general_textout: %d,%d", x, y));
-for(k=0;k<cbCount;k++)debug((" U+%04X", lpString[k]));
-debug(("\n           rect: [%d,%d %d,%d]", lprc->left, lprc->top, lprc->right, lprc->bottom));
-debug(("\n"));
-#endif
+    int bkmode = 0, got_bkmode = FALSE;
 
     xp = xn = x;
 
@@ -1311,46 +1303,25 @@ debug(("\n"));
 	 * function.
 	 */
 	if (rtl) {
-	    newrc.left = lprc->left + xp - x;
-	    newrc.right = lprc->left + xn - x;
-	    newrc.top = lprc->top;
-	    newrc.bottom = lprc->bottom;
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-{
-int k;
-debug(("  exact_textout: %d,%d", xp, y));
-for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
-debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
-}
-#endif
-	    exact_textout(hdc, xp, y, &newrc, lpString+i, j-i,
+	    exact_textout(hdc, xp, y, lprc, lpString+i, j-i,
                           font_varpitch ? NULL : lpDx+i, opaque);
 	} else {
-	    newrc.left = lprc->left + xp - x;
-	    newrc.right = lprc->left + xn - x;
-	    newrc.top = lprc->top;
-	    newrc.bottom = lprc->bottom;
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-{
-int k;
-debug(("  ExtTextOut   : %d,%d", xp, y));
-for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
-debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
-}
-#endif
 	    ExtTextOutW(hdc, xp, y, ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
-			&newrc, lpString+i, j-i,
+			lprc, lpString+i, j-i,
                         font_varpitch ? NULL : lpDx+i);
 	}
 
 	i = j;
 	xp = xn;
+
+        bkmode = GetBkMode(hdc);
+        got_bkmode = TRUE;
+        SetBkMode(hdc, TRANSPARENT);
+        opaque = FALSE;
     }
 
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-debug(("general_textout: done, xn=%d\n", xn));
-#endif
-    assert(xn - x >= lprc->right - lprc->left);
+    if (got_bkmode)
+        SetBkMode(hdc, bkmode);
 }
 
 static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
