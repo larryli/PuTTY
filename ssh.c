@@ -2862,6 +2862,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 		x11_close(c->u.x11.s);
 		break;
 	      case CHAN_SOCKDATA:
+	      case CHAN_SOCKDATA_DORMANT:
 		pfd_close(c->u.pfd.s);
 		break;
 	    }
@@ -9357,6 +9358,7 @@ static void ssh_free(void *handle)
 		    x11_close(c->u.x11.s);
 		break;
 	      case CHAN_SOCKDATA:
+	      case CHAN_SOCKDATA_DORMANT:
 		if (c->u.pfd.s != NULL)
 		    pfd_close(c->u.pfd.s);
 		break;
