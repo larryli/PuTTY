@@ -26,12 +26,6 @@ The resource files:
       once in the Licence box. Don't forget to change both!
  - putty/windows/version.rc2
     + the copyright date appears once only.
- - putty/mac/mac_res.r
-    + the copyright date appears twice, once in the About box and
-      once in the Licence box. Don't forget to change both!
- - putty/mac/macpgen.r
-    + the copyright date appears twice, once in the About box and
-      once in the Licence box. Don't forget to change both!
  - putty/unix/gtkdlg.c
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
@@ -81,11 +75,6 @@ The Windows resource file (used to generate the binary bit of the
 VERSIONINFO resources -- the strings are supplied by the usual means):
 
  - putty/windows/version.rc2 (BASE_VERSION; NB, _comma_-separated)
-
-The Mac resource file (used to generate the binary bit of the 'vers'
-resources):
-
- - putty/mac/version.r
 
 It might also be worth going through the documentation looking for
 version numbers - we have a couple of transcripts showing the help
