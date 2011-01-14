@@ -52,7 +52,7 @@ static void config_port_handler(union control *ctrl, void *dlg,
     char buf[80];
 
     /*
-     * This function works just like the standard edit box handler,
+     * This function works similarly to the standard edit box handler,
      * only it has to choose the control's label and text from two
      * different places depending on the protocol.
      */
@@ -66,7 +66,11 @@ static void config_port_handler(union control *ctrl, void *dlg,
 	    sprintf(buf, "%d", cfg->serspeed);
 	} else {
 	    dlg_label_change(ctrl, dlg, PORT_BOX_TITLE);
-	    sprintf(buf, "%d", cfg->port);
+	    if (cfg->port != 0)
+		sprintf(buf, "%d", cfg->port);
+	    else
+		/* Display an (invalid) port of 0 as blank */
+		buf[0] = '\0';
 	}
 	dlg_editbox_set(ctrl, dlg, buf);
     } else if (event == EVENT_VALCHANGE) {
@@ -118,15 +122,16 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	    Backend *nb = backend_from_proto(cfg->protocol);
 	    assert(ob);
 	    assert(nb);
-	    /* Iff the user hasn't changed the port from the protocol
-	     * default (if any), update it with the new protocol's
-	     * default.
-	     * (XXX: this isn't perfect; a default can become permanent
-	     * by going via the serial backend. However, it helps with
-	     * the common case of tabbing through the controls in order
-	     * and setting a non-default port.) */
-	    if (cfg->port == ob->default_port &&
-		cfg->port > 0 && nb->default_port > 0)
+	    /* Iff the user hasn't changed the port from the old protocol's
+	     * default, update it with the new protocol's default.
+	     * (This includes a "default" of 0, implying that there is no
+	     * sensible default for that protocol; in this case it's
+	     * displayed as a blank.)
+	     * This helps with the common case of tabbing through the
+	     * controls in order and setting a non-default port before
+	     * getting to the protocol; we want that non-default port
+	     * to be preserved. */
+	    if (cfg->port == ob->default_port)
 		cfg->port = nb->default_port;
 	}
 	dlg_refresh(hp->host, dlg);
