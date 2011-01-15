@@ -626,6 +626,7 @@ struct config_tag {
     FontSpec wideboldfont;
     int shadowboldoffset;
     int crhaslf;
+    char winclass[256];
 };
 
 /*

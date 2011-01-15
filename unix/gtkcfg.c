@@ -127,4 +127,18 @@ void gtk_setup_config_box(struct controlbox *b, int midsession, void *win)
 		  HELPCTX(translation_utf8_override),
 		  dlg_stdcheckbox_handler,
 		  I(offsetof(Config,utf8_override)));
+
+    if (!midsession) {
+        /*
+         * Allow the user to specify the window class as part of the saved
+         * configuration, so that they can have their window manager treat
+         * different kinds of PuTTY and pterm differently if they want to.
+         */
+        s = ctrl_getset(b, "Window/Behaviour", "x11",
+                        "X Window System settings");
+        ctrl_editbox(s, "Window class name:", 'z', 50,
+                     HELPCTX(no_help), dlg_stdeditbox_handler,
+                     I(offsetof(Config,winclass)),
+                     I(sizeof(((Config *)0)->winclass)));
+    }
 }

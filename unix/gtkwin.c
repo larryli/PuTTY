@@ -3430,6 +3430,9 @@ int pt_main(int argc, char **argv)
     init_cutbuffers();
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    if (inst->cfg.winclass[0])
+        gtk_window_set_wmclass(GTK_WINDOW(inst->window),
+                               inst->cfg.winclass, inst->cfg.winclass);
 
     /*
      * Set up the colour map.
