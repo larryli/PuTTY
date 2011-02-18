@@ -160,28 +160,191 @@ Bignum bn_power_2(int n)
 }
 
 /*
+ * Internal addition. Sets c = a - b, where 'a', 'b' and 'c' are all
+ * big-endian arrays of 'len' BignumInts. Returns a BignumInt carried
+ * off the top.
+ */
+static BignumInt internal_add(const BignumInt *a, const BignumInt *b,
+                              BignumInt *c, int len)
+{
+    int i;
+    BignumDblInt carry = 0;
+
+    for (i = len-1; i >= 0; i--) {
+        carry += (BignumDblInt)a[i] + b[i];
+        c[i] = (BignumInt)carry;
+        carry >>= BIGNUM_INT_BITS;
+    }
+
+    return (BignumInt)carry;
+}
+
+/*
+ * Internal subtraction. Sets c = a - b, where 'a', 'b' and 'c' are
+ * all big-endian arrays of 'len' BignumInts. Any borrow from the top
+ * is ignored.
+ */
+static void internal_sub(const BignumInt *a, const BignumInt *b,
+                         BignumInt *c, int len)
+{
+    int i;
+    BignumDblInt carry = 1;
+
+    for (i = len-1; i >= 0; i--) {
+        carry += (BignumDblInt)a[i] + (b[i] ^ BIGNUM_INT_MASK);
+        c[i] = (BignumInt)carry;
+        carry >>= BIGNUM_INT_BITS;
+    }
+}
+
+/*
  * Compute c = a * b.
  * Input is in the first len words of a and b.
  * Result is returned in the first 2*len words of c.
  */
+#define KARATSUBA_THRESHOLD 50
 static void internal_mul(BignumInt *a, BignumInt *b,
 			 BignumInt *c, int len)
 {
     int i, j;
     BignumDblInt t;
 
-    for (j = 0; j < 2 * len; j++)
-	c[j] = 0;
+    if (len > KARATSUBA_THRESHOLD) {
 
-    for (i = len - 1; i >= 0; i--) {
-	t = 0;
-	for (j = len - 1; j >= 0; j--) {
-	    t += MUL_WORD(a[i], (BignumDblInt) b[j]);
-	    t += (BignumDblInt) c[i + j + 1];
-	    c[i + j + 1] = (BignumInt) t;
-	    t = t >> BIGNUM_INT_BITS;
-	}
-	c[i] = (BignumInt) t;
+        /*
+         * Karatsuba divide-and-conquer algorithm. Cut each input in
+         * half, so that it's expressed as two big 'digits' in a giant
+         * base D:
+         *
+         *   a = a_1 D + a_0
+         *   b = b_1 D + b_0
+         *
+         * Then the product is of course
+         *
+         *  ab = a_1 b_1 D^2 + (a_1 b_0 + a_0 b_1) D + a_0 b_0
+         *
+         * and we compute the three coefficients by recursively
+         * calling ourself to do half-length multiplications.
+         *
+         * The clever bit that makes this worth doing is that we only
+         * need _one_ half-length multiplication for the central
+         * coefficient rather than the two that it obviouly looks
+         * like, because we can use a single multiplication to compute
+         *
+         *   (a_1 + a_0) (b_1 + b_0) = a_1 b_1 + a_1 b_0 + a_0 b_1 + a_0 b_0
+         *
+         * and then we subtract the other two coefficients (a_1 b_1
+         * and a_0 b_0) which we were computing anyway.
+         *
+         * Hence we get to multiply two numbers of length N in about
+         * three times as much work as it takes to multiply numbers of
+         * length N/2, which is obviously better than the four times
+         * as much work it would take if we just did a long
+         * conventional multiply.
+         */
+
+        int toplen = len/2, botlen = len - toplen; /* botlen is the bigger */
+        int midlen = botlen + 1;
+        BignumInt *scratch;
+        BignumDblInt carry;
+
+        /*
+         * The coefficients a_1 b_1 and a_0 b_0 just avoid overlapping
+         * in the output array, so we can compute them immediately in
+         * place.
+         */
+
+        /* a_1 b_1 */
+        internal_mul(a, b, c, toplen);
+
+        /* a_0 b_0 */
+        internal_mul(a + toplen, b + toplen, c + 2*toplen, botlen);
+
+        /*
+         * We must allocate scratch space for the central coefficient,
+         * and also for the two input values that we multiply when
+         * computing it. Since either or both may carry into the
+         * (botlen+1)th word, we must use a slightly longer length
+         * 'midlen'.
+         */
+        scratch = snewn(4 * midlen, BignumInt);
+
+        /* Zero padding. midlen exceeds toplen by at most 2, so just
+         * zero the first two words of each input and the rest will be
+         * copied over. */
+        scratch[0] = scratch[1] = scratch[midlen] = scratch[midlen+1] = 0;
+
+        for (j = 0; j < toplen; j++) {
+            scratch[midlen - toplen + j] = a[j]; /* a_1 */
+            scratch[2*midlen - toplen + j] = b[j]; /* b_1 */
+        }
+
+        /* compute a_1 + a_0 */
+        scratch[0] = internal_add(scratch+1, a+toplen, scratch+1, botlen);
+        /* compute b_1 + b_0 */
+        scratch[midlen] = internal_add(scratch+midlen+1, b+toplen,
+                                       scratch+midlen+1, botlen);
+
+        /*
+         * Now we can do the third multiplication.
+         */
+        internal_mul(scratch, scratch + midlen, scratch + 2*midlen, midlen);
+
+        /*
+         * Now we can reuse the first half of 'scratch' to compute the
+         * sum of the outer two coefficients, to subtract from that
+         * product to obtain the middle one.
+         */
+        scratch[0] = scratch[1] = scratch[2] = scratch[3] = 0;
+        for (j = 0; j < 2*toplen; j++)
+            scratch[2*midlen - 2*toplen + j] = c[j];
+        scratch[1] = internal_add(scratch+2, c + 2*toplen,
+                                  scratch+2, 2*botlen);
+
+        internal_sub(scratch + 2*midlen, scratch,
+                     scratch + 2*midlen, 2*midlen);
+
+        /*
+         * And now all we need to do is to add that middle coefficient
+         * back into the output. We may have to propagate a carry
+         * further up the output, but we can be sure it won't
+         * propagate right the way off the top.
+         */
+        carry = internal_add(c + 2*len - botlen - 2*midlen,
+                             scratch + 2*midlen,
+                             c + 2*len - botlen - 2*midlen, 2*midlen);
+        j = 2*len - botlen - 2*midlen - 1;
+        while (carry) {
+            assert(j >= 0);
+            carry += c[j];
+            c[j] = (BignumInt)carry;
+            carry >>= BIGNUM_INT_BITS;
+        }
+
+        /* Free scratch. */
+        for (j = 0; j < 4 * midlen; j++)
+            scratch[j] = 0;
+        sfree(scratch);
+
+    } else {
+
+        /*
+         * Multiply in the ordinary O(N^2) way.
+         */
+
+        for (j = 0; j < 2 * len; j++)
+            c[j] = 0;
+
+        for (i = len - 1; i >= 0; i--) {
+            t = 0;
+            for (j = len - 1; j >= 0; j--) {
+                t += MUL_WORD(a[i], (BignumDblInt) b[j]);
+                t += (BignumDblInt) c[i + j + 1];
+                c[i + j + 1] = (BignumInt) t;
+                t = t >> BIGNUM_INT_BITS;
+            }
+            c[i] = (BignumInt) t;
+        }
     }
 }
 
