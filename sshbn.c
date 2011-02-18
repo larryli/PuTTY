@@ -51,7 +51,34 @@ typedef unsigned __int64 BignumDblInt;
     __asm mov r, edx \
     __asm mov q, eax \
 } while(0)
+#elif defined _LP64
+/* 64-bit architectures can do 32x32->64 chunks at a time */
+typedef unsigned int BignumInt;
+typedef unsigned long BignumDblInt;
+#define BIGNUM_INT_MASK  0xFFFFFFFFU
+#define BIGNUM_TOP_BIT   0x80000000U
+#define BIGNUM_INT_BITS  32
+#define MUL_WORD(w1, w2) ((BignumDblInt)w1 * w2)
+#define DIVMOD_WORD(q, r, hi, lo, w) do { \
+    BignumDblInt n = (((BignumDblInt)hi) << BIGNUM_INT_BITS) | lo; \
+    q = n / w; \
+    r = n % w; \
+} while (0)
+#elif defined _LLP64
+/* 64-bit architectures in which unsigned long is 32 bits, not 64 */
+typedef unsigned long BignumInt;
+typedef unsigned long long BignumDblInt;
+#define BIGNUM_INT_MASK  0xFFFFFFFFUL
+#define BIGNUM_TOP_BIT   0x80000000UL
+#define BIGNUM_INT_BITS  32
+#define MUL_WORD(w1, w2) ((BignumDblInt)w1 * w2)
+#define DIVMOD_WORD(q, r, hi, lo, w) do { \
+    BignumDblInt n = (((BignumDblInt)hi) << BIGNUM_INT_BITS) | lo; \
+    q = n / w; \
+    r = n % w; \
+} while (0)
 #else
+/* Fallback for all other cases */
 typedef unsigned short BignumInt;
 typedef unsigned long BignumDblInt;
 #define BIGNUM_INT_MASK  0xFFFFU
