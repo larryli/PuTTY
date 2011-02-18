@@ -1191,6 +1191,69 @@ Bignum bigmul(Bignum a, Bignum b)
 }
 
 /*
+ * Simple addition.
+ */
+Bignum bigadd(Bignum a, Bignum b)
+{
+    int alen = a[0], blen = b[0];
+    int rlen = (alen > blen ? alen : blen) + 1;
+    int i, maxspot;
+    Bignum ret;
+    BignumDblInt carry;
+
+    ret = newbn(rlen);
+
+    carry = 0;
+    maxspot = 0;
+    for (i = 1; i <= rlen; i++) {
+        carry += (i <= (int)a[0] ? a[i] : 0);
+        carry += (i <= (int)b[0] ? b[i] : 0);
+        ret[i] = (BignumInt) carry & BIGNUM_INT_MASK;
+        carry >>= BIGNUM_INT_BITS;
+        if (ret[i] != 0 && i > maxspot)
+            maxspot = i;
+    }
+    ret[0] = maxspot;
+
+    return ret;
+}
+
+/*
+ * Subtraction. Returns a-b, or NULL if the result would come out
+ * negative (recall that this entire bignum module only handles
+ * positive numbers).
+ */
+Bignum bigsub(Bignum a, Bignum b)
+{
+    int alen = a[0], blen = b[0];
+    int rlen = (alen > blen ? alen : blen);
+    int i, maxspot;
+    Bignum ret;
+    BignumDblInt carry;
+
+    ret = newbn(rlen);
+
+    carry = 1;
+    maxspot = 0;
+    for (i = 1; i <= rlen; i++) {
+        carry += (i <= (int)a[0] ? a[i] : 0);
+        carry += (i <= (int)b[0] ? b[i] ^ BIGNUM_INT_MASK : BIGNUM_INT_MASK);
+        ret[i] = (BignumInt) carry & BIGNUM_INT_MASK;
+        carry >>= BIGNUM_INT_BITS;
+        if (ret[i] != 0 && i > maxspot)
+            maxspot = i;
+    }
+    ret[0] = maxspot;
+
+    if (!carry) {
+        freebn(ret);
+        return NULL;
+    }
+
+    return ret;
+}
+
+/*
  * Create a bignum which is the bitmask covering another one. That
  * is, the smallest integer which is >= N and is also one less than
  * a power of two.
