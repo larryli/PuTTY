@@ -87,3 +87,7 @@ for i in range(64, 4097, 63):
     base = mathlib.sqrt(3*modulus*modulus) % modulus
     expt = mathlib.sqrt(modulus*modulus*2/5)
     print "pow", hexstr(base), hexstr(expt), hexstr(modulus), hexstr(pow(base, expt, modulus))
+    if i <= 1024:
+        # Test even moduli, which can't be done by Montgomery.
+        modulus = modulus - 1
+        print "pow", hexstr(base), hexstr(expt), hexstr(modulus), hexstr(pow(base, expt, modulus))
