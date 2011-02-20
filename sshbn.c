@@ -705,8 +705,129 @@ static void internal_mod(BignumInt *a, int alen,
 }
 
 /*
+ * Compute (base ^ exp) % mod, the pedestrian way.
+ */
+Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
+{
+    BignumInt *a, *b, *n, *m;
+    int mshift;
+    int mlen, i, j;
+    Bignum base, result;
+
+    /*
+     * The most significant word of mod needs to be non-zero. It
+     * should already be, but let's make sure.
+     */
+    assert(mod[mod[0]] != 0);
+
+    /*
+     * Make sure the base is smaller than the modulus, by reducing
+     * it modulo the modulus if not.
+     */
+    base = bigmod(base_in, mod);
+
+    /* Allocate m of size mlen, copy mod to m */
+    /* We use big endian internally */
+    mlen = mod[0];
+    m = snewn(mlen, BignumInt);
+    for (j = 0; j < mlen; j++)
+	m[j] = mod[mod[0] - j];
+
+    /* Shift m left to make msb bit set */
+    for (mshift = 0; mshift < BIGNUM_INT_BITS-1; mshift++)
+	if ((m[0] << mshift) & BIGNUM_TOP_BIT)
+	    break;
+    if (mshift) {
+	for (i = 0; i < mlen - 1; i++)
+	    m[i] = (m[i] << mshift) | (m[i + 1] >> (BIGNUM_INT_BITS - mshift));
+	m[mlen - 1] = m[mlen - 1] << mshift;
+    }
+
+    /* Allocate n of size mlen, copy base to n */
+    n = snewn(mlen, BignumInt);
+    i = mlen - base[0];
+    for (j = 0; j < i; j++)
+	n[j] = 0;
+    for (j = 0; j < (int)base[0]; j++)
+	n[i + j] = base[base[0] - j];
+
+    /* Allocate a and b of size 2*mlen. Set a = 1 */
+    a = snewn(2 * mlen, BignumInt);
+    b = snewn(2 * mlen, BignumInt);
+    for (i = 0; i < 2 * mlen; i++)
+	a[i] = 0;
+    a[2 * mlen - 1] = 1;
+
+    /* Skip leading zero bits of exp. */
+    i = 0;
+    j = BIGNUM_INT_BITS-1;
+    while (i < (int)exp[0] && (exp[exp[0] - i] & (1 << j)) == 0) {
+	j--;
+	if (j < 0) {
+	    i++;
+	    j = BIGNUM_INT_BITS-1;
+	}
+    }
+
+    /* Main computation */
+    while (i < (int)exp[0]) {
+	while (j >= 0) {
+	    internal_mul(a + mlen, a + mlen, b, mlen);
+	    internal_mod(b, mlen * 2, m, mlen, NULL, 0);
+	    if ((exp[exp[0] - i] & (1 << j)) != 0) {
+		internal_mul(b + mlen, n, a, mlen);
+		internal_mod(a, mlen * 2, m, mlen, NULL, 0);
+	    } else {
+		BignumInt *t;
+		t = a;
+		a = b;
+		b = t;
+	    }
+	    j--;
+	}
+	i++;
+	j = BIGNUM_INT_BITS-1;
+    }
+
+    /* Fixup result in case the modulus was shifted */
+    if (mshift) {
+	for (i = mlen - 1; i < 2 * mlen - 1; i++)
+	    a[i] = (a[i] << mshift) | (a[i + 1] >> (BIGNUM_INT_BITS - mshift));
+	a[2 * mlen - 1] = a[2 * mlen - 1] << mshift;
+	internal_mod(a, mlen * 2, m, mlen, NULL, 0);
+	for (i = 2 * mlen - 1; i >= mlen; i--)
+	    a[i] = (a[i] >> mshift) | (a[i - 1] << (BIGNUM_INT_BITS - mshift));
+    }
+
+    /* Copy result to buffer */
+    result = newbn(mod[0]);
+    for (i = 0; i < mlen; i++)
+	result[result[0] - i] = a[i + mlen];
+    while (result[0] > 1 && result[result[0]] == 0)
+	result[0]--;
+
+    /* Free temporary arrays */
+    for (i = 0; i < 2 * mlen; i++)
+	a[i] = 0;
+    sfree(a);
+    for (i = 0; i < 2 * mlen; i++)
+	b[i] = 0;
+    sfree(b);
+    for (i = 0; i < mlen; i++)
+	m[i] = 0;
+    sfree(m);
+    for (i = 0; i < mlen; i++)
+	n[i] = 0;
+    sfree(n);
+
+    freebn(base);
+
+    return result;
+}
+
+/*
  * Compute (base ^ exp) % mod. Uses the Montgomery multiplication
- * technique.
+ * technique where possible, falling back to modpow_simple otherwise.
  */
 Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
 {
@@ -721,16 +842,17 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
     assert(mod[mod[0]] != 0);
 
     /*
+     * mod had better be odd, or we can't do Montgomery multiplication
+     * using a power of two at all.
+     */
+    if (!(mod[1] & 1))
+        return modpow_simple(base_in, exp, mod);
+
+    /*
      * Make sure the base is smaller than the modulus, by reducing
      * it modulo the modulus if not.
      */
     base = bigmod(base_in, mod);
-
-    /*
-     * mod had better be odd, or we can't do Montgomery multiplication
-     * using a power of two at all.
-     */
-    assert(mod[1] & 1);
 
     /*
      * Compute the inverse of n mod r, for monty_reduce. (In fact we
