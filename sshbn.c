@@ -386,6 +386,7 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
             carry += c[j];
             c[j] = (BignumInt)carry;
             carry >>= BIGNUM_INT_BITS;
+            j--;
         }
 #ifdef KARA_DEBUG
         printf("ab = 0x");
