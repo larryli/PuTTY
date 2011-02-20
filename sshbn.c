@@ -1737,6 +1737,9 @@ char *bignum_decimal(Bignum x)
 
 /*
  * gcc -g -O0 -DTESTBN -o testbn sshbn.c misc.c -I unix -I charset
+ *
+ * Then feed to this program's standard input the output of
+ * testdata/bignum.py .
  */
 
 void modalfatalbox(char *p, ...)
@@ -1761,7 +1764,7 @@ int main(int argc, char **argv)
     while ((buf = fgetline(stdin)) != NULL) {
         int maxlen = strlen(buf);
         unsigned char *data = snewn(maxlen, unsigned char);
-        unsigned char *ptrs[4], *q;
+        unsigned char *ptrs[5], *q;
         int ptrnum;
         char *bufp = buf;
 
@@ -1769,6 +1772,11 @@ int main(int argc, char **argv)
 
         q = data;
         ptrnum = 0;
+
+        while (*bufp && !isspace((unsigned char)*bufp))
+            bufp++;
+        if (bufp)
+            *bufp++ = '\0';
 
         while (*bufp) {
             char *start, *end;
@@ -1798,11 +1806,17 @@ int main(int argc, char **argv)
             ptrs[ptrnum] = q;
         }
 
-        if (ptrnum == 3) {
-            Bignum a = bignum_from_bytes(ptrs[0], ptrs[1]-ptrs[0]);
-            Bignum b = bignum_from_bytes(ptrs[1], ptrs[2]-ptrs[1]);
-            Bignum c = bignum_from_bytes(ptrs[2], ptrs[3]-ptrs[2]);
-            Bignum p = bigmul(a, b);
+        if (!strcmp(buf, "mul")) {
+            Bignum a, b, c, p;
+
+            if (ptrnum != 3) {
+                printf("%d: mul with %d parameters, expected 3\n", line);
+                exit(1);
+            }
+            a = bignum_from_bytes(ptrs[0], ptrs[1]-ptrs[0]);
+            b = bignum_from_bytes(ptrs[1], ptrs[2]-ptrs[1]);
+            c = bignum_from_bytes(ptrs[2], ptrs[3]-ptrs[2]);
+            p = bigmul(a, b);
 
             if (bignum_cmp(c, p) == 0) {
                 passes++;
@@ -1825,7 +1839,49 @@ int main(int argc, char **argv)
             freebn(b);
             freebn(c);
             freebn(p);
+        } else if (!strcmp(buf, "pow")) {
+            Bignum base, expt, modulus, expected, answer;
+
+            if (ptrnum != 4) {
+                printf("%d: mul with %d parameters, expected 3\n", line);
+                exit(1);
+            }
+
+            base = bignum_from_bytes(ptrs[0], ptrs[1]-ptrs[0]);
+            expt = bignum_from_bytes(ptrs[1], ptrs[2]-ptrs[1]);
+            modulus = bignum_from_bytes(ptrs[2], ptrs[3]-ptrs[2]);
+            expected = bignum_from_bytes(ptrs[3], ptrs[4]-ptrs[3]);
+            answer = modpow(base, expt, modulus);
+
+            if (bignum_cmp(expected, answer) == 0) {
+                passes++;
+            } else {
+                char *as = bignum_decimal(base);
+                char *bs = bignum_decimal(expt);
+                char *cs = bignum_decimal(modulus);
+                char *ds = bignum_decimal(answer);
+                char *ps = bignum_decimal(expected);
+                
+                printf("%d: fail: %s ^ %s mod %s gave %s expected %s\n",
+                       line, as, bs, cs, ds, ps);
+                fails++;
+
+                sfree(as);
+                sfree(bs);
+                sfree(cs);
+                sfree(ds);
+                sfree(ps);
+            }
+            freebn(base);
+            freebn(expt);
+            freebn(modulus);
+            freebn(expected);
+            freebn(answer);
+        } else {
+            printf("%d: unrecognised test keyword: '%s'\n", line, buf);
+            exit(1);
         }
+
         sfree(buf);
         sfree(data);
     }

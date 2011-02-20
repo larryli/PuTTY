@@ -77,6 +77,13 @@ def hexstr(n):
 # carry to the very top of the number.
 for i in range(1,4200):
     a, b, p = findprod((1<<i)+1, +1, (i, i*i+1))
-    print hexstr(a), hexstr(b), hexstr(p)
+    print "mul", hexstr(a), hexstr(b), hexstr(p)
     a, b, p = findprod((1<<i)+1, +1, (i, i+1))
-    print hexstr(a), hexstr(b), hexstr(p)
+    print "mul", hexstr(a), hexstr(b), hexstr(p)
+
+# Simple tests of modpow.
+for i in range(64, 4097, 63):
+    modulus = mathlib.sqrt(1<<(2*i-1)) | 1
+    base = mathlib.sqrt(3*modulus*modulus) % modulus
+    expt = mathlib.sqrt(modulus*modulus*2/5)
+    print "pow", hexstr(base), hexstr(expt), hexstr(modulus), hexstr(pow(base, expt, modulus))
