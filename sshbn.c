@@ -201,10 +201,25 @@ static void internal_sub(const BignumInt *a, const BignumInt *b,
  * Compute c = a * b.
  * Input is in the first len words of a and b.
  * Result is returned in the first 2*len words of c.
+ *
+ * 'scratch' must point to an array of BignumInt of size at least
+ * mul_compute_scratch(len). (This covers the needs of internal_mul
+ * and all its recursive calls to itself.)
  */
 #define KARATSUBA_THRESHOLD 50
+static int mul_compute_scratch(int len)
+{
+    int ret = 0;
+    while (len > KARATSUBA_THRESHOLD) {
+        int toplen = len/2, botlen = len - toplen; /* botlen is the bigger */
+        int midlen = botlen + 1;
+        ret += 4*midlen;
+        len = midlen;
+    }
+    return ret;
+}
 static void internal_mul(const BignumInt *a, const BignumInt *b,
-			 BignumInt *c, int len)
+			 BignumInt *c, int len, BignumInt *scratch)
 {
     int i, j;
     BignumDblInt t;
@@ -245,7 +260,6 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 
         int toplen = len/2, botlen = len - toplen; /* botlen is the bigger */
         int midlen = botlen + 1;
-        BignumInt *scratch;
         BignumDblInt carry;
 #ifdef KARA_DEBUG
         int i;
@@ -273,7 +287,7 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 #endif
 
         /* a_1 b_1 */
-        internal_mul(a, b, c, toplen);
+        internal_mul(a, b, c, toplen, scratch);
 #ifdef KARA_DEBUG
         printf("a1b1 = 0x");
         for (i = 0; i < 2*toplen; i++) {
@@ -283,7 +297,7 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 #endif
 
         /* a_0 b_0 */
-        internal_mul(a + toplen, b + toplen, c + 2*toplen, botlen);
+        internal_mul(a + toplen, b + toplen, c + 2*toplen, botlen, scratch);
 #ifdef KARA_DEBUG
         printf("a0b0 = 0x");
         for (i = 0; i < 2*botlen; i++) {
@@ -291,15 +305,6 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
         }
         printf("\n");
 #endif
-
-        /*
-         * We must allocate scratch space for the central coefficient,
-         * and also for the two input values that we multiply when
-         * computing it. Since either or both may carry into the
-         * (botlen+1)th word, we must use a slightly longer length
-         * 'midlen'.
-         */
-        scratch = snewn(4 * midlen, BignumInt);
 
         /* Zero padding. midlen exceeds toplen by at most 2, so just
          * zero the first two words of each input and the rest will be
@@ -334,7 +339,8 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
         /*
          * Now we can do the third multiplication.
          */
-        internal_mul(scratch, scratch + midlen, scratch + 2*midlen, midlen);
+        internal_mul(scratch, scratch + midlen, scratch + 2*midlen, midlen,
+                     scratch + 4*midlen);
 #ifdef KARA_DEBUG
         printf("a1plusa0timesb1plusb0 = 0x");
         for (i = 0; i < 2*midlen; i++) {
@@ -396,11 +402,6 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
         printf("\n");
 #endif
 
-        /* Free scratch. */
-        for (j = 0; j < 4 * midlen; j++)
-            scratch[j] = 0;
-        sfree(scratch);
-
     } else {
 
         /*
@@ -429,7 +430,7 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
  * (everything above that is thrown away).
  */
 static void internal_mul_low(const BignumInt *a, const BignumInt *b,
-                             BignumInt *c, int len)
+                             BignumInt *c, int len, BignumInt *scratch)
 {
     int i, j;
     BignumDblInt t;
@@ -469,25 +470,26 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
          */
 
         int toplen = len/2, botlen = len - toplen; /* botlen is the bigger */
-        BignumInt *scratch;
 
         /*
-         * Allocate scratch space for the various bits and pieces
-         * we're going to be adding together. We need botlen*2 words
-         * for a_0 b_0 (though we may end up throwing away its topmost
-         * word), and toplen words for each of a_1 b_0 and a_0 b_1.
-         * That adds up to exactly 2*len.
+         * Scratch space for the various bits and pieces we're going
+         * to be adding together: we need botlen*2 words for a_0 b_0
+         * (though we may end up throwing away its topmost word), and
+         * toplen words for each of a_1 b_0 and a_0 b_1. That adds up
+         * to exactly 2*len.
          */
-        scratch = snewn(len*2, BignumInt);
 
         /* a_0 b_0 */
-        internal_mul(a + toplen, b + toplen, scratch + 2*toplen, botlen);
+        internal_mul(a + toplen, b + toplen, scratch + 2*toplen, botlen,
+                     scratch + 2*len);
 
         /* a_1 b_0 */
-        internal_mul_low(a, b + len - toplen, scratch + toplen, toplen);
+        internal_mul_low(a, b + len - toplen, scratch + toplen, toplen,
+                         scratch + 2*len);
 
         /* a_0 b_1 */
-        internal_mul_low(a + len - toplen, b, scratch, toplen);
+        internal_mul_low(a + len - toplen, b, scratch, toplen,
+                         scratch + 2*len);
 
         /* Copy the bottom half of the big coefficient into place */
         for (j = 0; j < botlen; j++)
@@ -499,11 +501,6 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
         /* And add that to the large coefficient, leaving the result in c. */
         internal_add(scratch, scratch + 2*toplen + botlen - toplen,
                      c, toplen);
-
-        /* Free scratch. */
-        for (j = 0; j < len*2; j++)
-            scratch[j] = 0;
-        sfree(scratch);
 
     } else {
 
@@ -534,8 +531,8 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
  * each, containing respectively n and the multiplicative inverse of
  * -n mod r.
  *
- * 'tmp' is an array of at least '3*len' BignumInts used as scratch
- * space.
+ * 'tmp' is an array of BignumInt used as scratch space, of length at
+ * least 3*len + mul_compute_scratch(len).
  */
 static void monty_reduce(BignumInt *x, const BignumInt *n,
                          const BignumInt *mninv, BignumInt *tmp, int len)
@@ -548,7 +545,7 @@ static void monty_reduce(BignumInt *x, const BignumInt *n,
      * that mn is congruent to -x mod r. Hence, mn+x is an exact
      * multiple of r, and is also (obviously) congruent to x mod n.
      */
-    internal_mul_low(x + len, mninv, tmp, len);
+    internal_mul_low(x + len, mninv, tmp, len, tmp + 3*len);
 
     /*
      * Compute t = (mn+x)/r in ordinary, non-modular, integer
@@ -559,7 +556,7 @@ static void monty_reduce(BignumInt *x, const BignumInt *n,
      * significant half of the 'x' array, so then we must shift it
      * down.
      */
-    internal_mul(tmp, n, tmp+len, len);
+    internal_mul(tmp, n, tmp+len, len, tmp + 3*len);
     carry = internal_add(x, tmp+len, x, 2*len);
     for (i = 0; i < len; i++)
         x[len + i] = x[i], x[i] = 0;
@@ -709,9 +706,9 @@ static void internal_mod(BignumInt *a, int alen,
  */
 Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
 {
-    BignumInt *a, *b, *n, *m;
+    BignumInt *a, *b, *n, *m, *scratch;
     int mshift;
-    int mlen, i, j;
+    int mlen, scratchlen, i, j;
     Bignum base, result;
 
     /*
@@ -758,6 +755,10 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
 	a[i] = 0;
     a[2 * mlen - 1] = 1;
 
+    /* Scratch space for multiplies */
+    scratchlen = mul_compute_scratch(mlen);
+    scratch = snewn(scratchlen, BignumInt);
+
     /* Skip leading zero bits of exp. */
     i = 0;
     j = BIGNUM_INT_BITS-1;
@@ -772,10 +773,10 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
     /* Main computation */
     while (i < (int)exp[0]) {
 	while (j >= 0) {
-	    internal_mul(a + mlen, a + mlen, b, mlen);
+	    internal_mul(a + mlen, a + mlen, b, mlen, scratch);
 	    internal_mod(b, mlen * 2, m, mlen, NULL, 0);
 	    if ((exp[exp[0] - i] & (1 << j)) != 0) {
-		internal_mul(b + mlen, n, a, mlen);
+		internal_mul(b + mlen, n, a, mlen, scratch);
 		internal_mod(a, mlen * 2, m, mlen, NULL, 0);
 	    } else {
 		BignumInt *t;
@@ -810,6 +811,9 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
     for (i = 0; i < 2 * mlen; i++)
 	a[i] = 0;
     sfree(a);
+    for (i = 0; i < scratchlen; i++)
+	scratch[i] = 0;
+    sfree(scratch);
     for (i = 0; i < 2 * mlen; i++)
 	b[i] = 0;
     sfree(b);
@@ -831,8 +835,8 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
  */
 Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
 {
-    BignumInt *a, *b, *x, *n, *mninv, *tmp;
-    int len, i, j;
+    BignumInt *a, *b, *x, *n, *mninv, *scratch;
+    int len, scratchlen, i, j;
     Bignum base, base2, r, rn, inv, result;
 
     /*
@@ -905,7 +909,9 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
 	a[2*len - 1 - j] = (j < rn[0] ? rn[j + 1] : 0);
     freebn(rn);
 
-    tmp = snewn(3*len, BignumInt);
+    /* Scratch space for multiplies */
+    scratchlen = 3*len + mul_compute_scratch(len);
+    scratch = snewn(scratchlen, BignumInt);
 
     /* Skip leading zero bits of exp. */
     i = 0;
@@ -921,11 +927,11 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
     /* Main computation */
     while (i < (int)exp[0]) {
 	while (j >= 0) {
-	    internal_mul(a + len, a + len, b, len);
-            monty_reduce(b, n, mninv, tmp, len);
+	    internal_mul(a + len, a + len, b, len, scratch);
+            monty_reduce(b, n, mninv, scratch, len);
 	    if ((exp[exp[0] - i] & (1 << j)) != 0) {
-                internal_mul(b + len, x, a, len);
-                monty_reduce(a, n, mninv, tmp, len);
+                internal_mul(b + len, x, a, len,  scratch);
+                monty_reduce(a, n, mninv, scratch, len);
 	    } else {
 		BignumInt *t;
 		t = a;
@@ -942,7 +948,7 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
      * Final monty_reduce to get back from the adjusted Montgomery
      * representation.
      */
-    monty_reduce(a, n, mninv, tmp, len);
+    monty_reduce(a, n, mninv, scratch, len);
 
     /* Copy result to buffer */
     result = newbn(mod[0]);
@@ -952,9 +958,9 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
 	result[0]--;
 
     /* Free temporary arrays */
-    for (i = 0; i < 3 * len; i++)
-	tmp[i] = 0;
-    sfree(tmp);
+    for (i = 0; i < scratchlen; i++)
+	scratch[i] = 0;
+    sfree(scratch);
     for (i = 0; i < 2 * len; i++)
 	a[i] = 0;
     sfree(a);
@@ -981,8 +987,8 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
  */
 Bignum modmul(Bignum p, Bignum q, Bignum mod)
 {
-    BignumInt *a, *n, *m, *o;
-    int mshift;
+    BignumInt *a, *n, *m, *o, *scratch;
+    int mshift, scratchlen;
     int pqlen, mlen, rlen, i, j;
     Bignum result;
 
@@ -1024,8 +1030,12 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     /* Allocate a of size 2*pqlen for result */
     a = snewn(2 * pqlen, BignumInt);
 
+    /* Scratch space for multiplies */
+    scratchlen = mul_compute_scratch(pqlen);
+    scratch = snewn(scratchlen, BignumInt);
+
     /* Main computation */
-    internal_mul(n, o, a, pqlen);
+    internal_mul(n, o, a, pqlen, scratch);
     internal_mod(a, pqlen * 2, m, mlen, NULL, 0);
 
     /* Fixup result in case the modulus was shifted */
@@ -1047,6 +1057,9 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
 	result[0]--;
 
     /* Free temporary arrays */
+    for (i = 0; i < scratchlen; i++)
+	scratch[i] = 0;
+    sfree(scratch);
     for (i = 0; i < 2 * pqlen; i++)
 	a[i] = 0;
     sfree(a);
@@ -1335,18 +1348,21 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend)
     int alen = a[0], blen = b[0];
     int mlen = (alen > blen ? alen : blen);
     int rlen, i, maxspot;
+    int wslen;
     BignumInt *workspace;
     Bignum ret;
 
-    /* mlen space for a, mlen space for b, 2*mlen for result */
-    workspace = snewn(mlen * 4, BignumInt);
+    /* mlen space for a, mlen space for b, 2*mlen for result,
+     * plus scratch space for multiplication */
+    wslen = mlen * 4 + mul_compute_scratch(mlen);
+    workspace = snewn(wslen, BignumInt);
     for (i = 0; i < mlen; i++) {
 	workspace[0 * mlen + i] = (mlen - i <= (int)a[0] ? a[mlen - i] : 0);
 	workspace[1 * mlen + i] = (mlen - i <= (int)b[0] ? b[mlen - i] : 0);
     }
 
     internal_mul(workspace + 0 * mlen, workspace + 1 * mlen,
-		 workspace + 2 * mlen, mlen);
+		 workspace + 2 * mlen, mlen, workspace + 4 * mlen);
 
     /* now just copy the result back */
     rlen = alen + blen + 1;
@@ -1375,6 +1391,8 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend)
     }
     ret[0] = maxspot;
 
+    for (i = 0; i < wslen; i++)
+        workspace[i] = 0;
     sfree(workspace);
     return ret;
 }
