@@ -1,14 +1,40 @@
 # Generate test cases for a bignum implementation.
 
 import sys
-import mathlib
+
+# integer square roots
+def sqrt(n):
+    d = long(n)
+    a = 0L
+    # b must start off as a power of 4 at least as large as n
+    ndigits = len(hex(long(n)))
+    b = 1L << (ndigits*4)
+    while 1:
+        a = a >> 1
+        di = 2*a + b
+        if di <= d:
+            d = d - di
+            a = a + b
+        b = b >> 2
+        if b == 0: break
+    return a
+
+# continued fraction convergents of a rational
+def confrac(n, d):
+    coeffs = [(1,0),(0,1)]
+    while d != 0:
+        i = n / d
+        n, d = d, n % d
+        coeffs.append((coeffs[-2][0]-i*coeffs[-1][0],
+                       coeffs[-2][1]-i*coeffs[-1][1]))
+    return coeffs
 
 def findprod(target, dir = +1, ratio=(1,1)):
     # Return two numbers whose product is as close as we can get to
     # 'target', with any deviation having the sign of 'dir', and in
     # the same approximate ratio as 'ratio'.
 
-    r = mathlib.sqrt(target * ratio[0] * ratio[1])
+    r = sqrt(target * ratio[0] * ratio[1])
     a = r / ratio[1]
     b = r / ratio[0]
     if a*b * dir < target * dir:
@@ -22,11 +48,7 @@ def findprod(target, dir = +1, ratio=(1,1)):
         improved = 0
         a, b = best[:2]
 
-        terms = mathlib.confracr(a, b, output=None)
-        coeffs = [(1,0),(0,1)]
-        for t in terms:
-            coeffs.append((coeffs[-2][0]-t*coeffs[-1][0],
-                           coeffs[-2][1]-t*coeffs[-1][1]))
+        coeffs = confrac(a, b)
         for c in coeffs:
             # a*c[0]+b*c[1] is as close as we can get it to zero. So
             # if we replace a and b with a+c[1] and b+c[0], then that
@@ -45,7 +67,7 @@ def findprod(target, dir = +1, ratio=(1,1)):
             A,B,C = da*db, b*da+a*db, a*b-target
             discrim = B^2-4*A*C
             if discrim > 0 and A != 0:
-                root = mathlib.sqrt(discrim)
+                root = sqrt(discrim)
                 vals = []
                 vals.append((-B + root) / (2*A))
                 vals.append((-B - root) / (2*A))
@@ -83,9 +105,9 @@ for i in range(1,4200):
 
 # Simple tests of modpow.
 for i in range(64, 4097, 63):
-    modulus = mathlib.sqrt(1<<(2*i-1)) | 1
-    base = mathlib.sqrt(3*modulus*modulus) % modulus
-    expt = mathlib.sqrt(modulus*modulus*2/5)
+    modulus = sqrt(1<<(2*i-1)) | 1
+    base = sqrt(3*modulus*modulus) % modulus
+    expt = sqrt(modulus*modulus*2/5)
     print "pow", hexstr(base), hexstr(expt), hexstr(modulus), hexstr(pow(base, expt, modulus))
     if i <= 1024:
         # Test even moduli, which can't be done by Montgomery.
